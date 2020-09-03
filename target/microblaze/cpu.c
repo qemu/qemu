@@ -26,7 +26,6 @@
 #include "cpu.h"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
-#include "migration/vmstate.h"
 #include "exec/exec-all.h"
 #include "fpu/softfloat-helpers.h"
 
@@ -251,11 +250,6 @@ static void mb_cpu_initfn(Object *obj)
 #endif
 }
 
-static const VMStateDescription vmstate_mb_cpu = {
-    .name = "cpu",
-    .unmigratable = 1,
-};
-
 static Property mb_properties[] = {
     DEFINE_PROP_UINT32("base-vectors", MicroBlazeCPU, cfg.base_vectors, 0),
     DEFINE_PROP_BOOL("use-stack-protection", MicroBlazeCPU, cfg.stackprot,
@@ -335,8 +329,8 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
 #ifndef CONFIG_USER_ONLY
     cc->do_transaction_failed = mb_cpu_transaction_failed;
     cc->get_phys_page_debug = mb_cpu_get_phys_page_debug;
-#endif
     dc->vmsd = &vmstate_mb_cpu;
+#endif
     device_class_set_props(dc, mb_properties);
     cc->gdb_num_core_regs = 32 + 27;
 
