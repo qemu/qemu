@@ -1374,6 +1374,18 @@ static void artist_realizefn(DeviceState *dev, Error **errp)
     struct vram_buffer *buf;
     hwaddr offset = 0;
 
+    if (s->width > 2048 || s->height > 2048) {
+        error_report("artist: screen size can not exceed 2048 x 2048 pixel.");
+        s->width = MIN(s->width, 2048);
+        s->height = MIN(s->height, 2048);
+    }
+
+    if (s->width < 640 || s->height < 480) {
+        error_report("artist: minimum screen size is 640 x 480 pixel.");
+        s->width = MAX(s->width, 640);
+        s->height = MAX(s->height, 480);
+    }
+
     memory_region_init(&s->mem_as_root, OBJECT(dev), "artist", ~0ull);
     address_space_init(&s->as, &s->mem_as_root, "artist");
 
