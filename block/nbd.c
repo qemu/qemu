@@ -661,6 +661,9 @@ static coroutine_fn void nbd_co_reconnect_loop(BDRVNBDState *s)
         } else {
             qemu_co_sleep_ns_wakeable(QEMU_CLOCK_REALTIME, timeout,
                                       &s->connection_co_sleep_ns_state);
+            if (s->drained) {
+                continue;
+            }
             if (timeout < max_timeout) {
                 timeout *= 2;
             }
