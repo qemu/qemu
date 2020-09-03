@@ -168,7 +168,7 @@ static bool trans_VCMLA(DisasContext *s, arg_VCMLA *a)
     gen_helper_gvec_3_ptr *fn_gvec_ptr;
 
     if (!dc_isar_feature(aa32_vcma, s)
-        || (!a->size && !dc_isar_feature(aa32_fp16_arith, s))) {
+        || (a->size == MO_16 && !dc_isar_feature(aa32_fp16_arith, s))) {
         return false;
     }
 
@@ -187,8 +187,9 @@ static bool trans_VCMLA(DisasContext *s, arg_VCMLA *a)
     }
 
     opr_sz = (1 + a->q) * 8;
-    fpst = fpstatus_ptr(a->size == 0 ? FPST_STD_F16 : FPST_STD);
-    fn_gvec_ptr = a->size ? gen_helper_gvec_fcmlas : gen_helper_gvec_fcmlah;
+    fpst = fpstatus_ptr(a->size == MO_16 ? FPST_STD_F16 : FPST_STD);
+    fn_gvec_ptr = (a->size == MO_16) ?
+        gen_helper_gvec_fcmlah : gen_helper_gvec_fcmlas;
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
                        vfp_reg_offset(1, a->vm),
@@ -205,7 +206,7 @@ static bool trans_VCADD(DisasContext *s, arg_VCADD *a)
     gen_helper_gvec_3_ptr *fn_gvec_ptr;
 
     if (!dc_isar_feature(aa32_vcma, s)
-        || (!a->size && !dc_isar_feature(aa32_fp16_arith, s))) {
+        || (a->size == MO_16 && !dc_isar_feature(aa32_fp16_arith, s))) {
         return false;
     }
 
@@ -224,8 +225,9 @@ static bool trans_VCADD(DisasContext *s, arg_VCADD *a)
     }
 
     opr_sz = (1 + a->q) * 8;
-    fpst = fpstatus_ptr(a->size == 0 ? FPST_STD_F16 : FPST_STD);
-    fn_gvec_ptr = a->size ? gen_helper_gvec_fcadds : gen_helper_gvec_fcaddh;
+    fpst = fpstatus_ptr(a->size == MO_16 ? FPST_STD_F16 : FPST_STD);
+    fn_gvec_ptr = (a->size == MO_16) ?
+        gen_helper_gvec_fcaddh : gen_helper_gvec_fcadds;
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
                        vfp_reg_offset(1, a->vm),
@@ -307,7 +309,7 @@ static bool trans_VCMLA_scalar(DisasContext *s, arg_VCMLA_scalar *a)
     if (!dc_isar_feature(aa32_vcma, s)) {
         return false;
     }
-    if (a->size == 0 && !dc_isar_feature(aa32_fp16_arith, s)) {
+    if (a->size == MO_16 && !dc_isar_feature(aa32_fp16_arith, s)) {
         return false;
     }
 
@@ -325,10 +327,10 @@ static bool trans_VCMLA_scalar(DisasContext *s, arg_VCMLA_scalar *a)
         return true;
     }
 
-    fn_gvec_ptr = (a->size ? gen_helper_gvec_fcmlas_idx
-                   : gen_helper_gvec_fcmlah_idx);
+    fn_gvec_ptr = (a->size == MO_16) ?
+        gen_helper_gvec_fcmlah_idx : gen_helper_gvec_fcmlas_idx;
     opr_sz = (1 + a->q) * 8;
-    fpst = fpstatus_ptr(a->size == 0 ? FPST_STD_F16 : FPST_STD);
+    fpst = fpstatus_ptr(a->size == MO_16 ? FPST_STD_F16 : FPST_STD);
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
                        vfp_reg_offset(1, a->vm),
