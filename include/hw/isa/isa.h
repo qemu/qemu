@@ -6,10 +6,12 @@
 #include "exec/memory.h"
 #include "exec/ioport.h"
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 #define ISA_NUM_IRQS 16
 
 #define TYPE_ISA_DEVICE "isa-device"
+typedef struct ISADeviceClass ISADeviceClass;
 #define ISA_DEVICE(obj) \
      OBJECT_CHECK(ISADevice, (obj), TYPE_ISA_DEVICE)
 #define ISA_DEVICE_CLASS(klass) \
@@ -36,6 +38,7 @@ static inline uint16_t applesmc_port(void)
 
 #define TYPE_ISADMA "isa-dma"
 
+typedef struct IsaDmaClass IsaDmaClass;
 #define ISADMA_CLASS(klass) \
     OBJECT_CLASS_CHECK(IsaDmaClass, (klass), TYPE_ISADMA)
 #define ISADMA_GET_CLASS(obj) \
@@ -53,7 +56,7 @@ typedef enum {
 typedef int (*IsaDmaTransferHandler)(void *opaque, int nchan, int pos,
                                      int size);
 
-typedef struct IsaDmaClass {
+struct IsaDmaClass {
     InterfaceClass parent;
 
     bool (*has_autoinitialization)(IsaDma *obj, int nchan);
@@ -65,12 +68,12 @@ typedef struct IsaDmaClass {
     void (*register_channel)(IsaDma *obj, int nchan,
                              IsaDmaTransferHandler transfer_handler,
                              void *opaque);
-} IsaDmaClass;
+};
 
-typedef struct ISADeviceClass {
+struct ISADeviceClass {
     DeviceClass parent_class;
     void (*build_aml)(ISADevice *dev, Aml *scope);
-} ISADeviceClass;
+};
 
 struct ISABus {
     /*< private >*/

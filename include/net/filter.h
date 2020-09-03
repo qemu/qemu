@@ -15,6 +15,7 @@
 #include "net/queue.h"
 
 #define TYPE_NETFILTER "netfilter"
+typedef struct NetFilterClass NetFilterClass;
 #define NETFILTER(obj) \
     OBJECT_CHECK(NetFilterState, (obj), TYPE_NETFILTER)
 #define NETFILTER_GET_CLASS(obj) \
@@ -40,7 +41,7 @@ typedef void (FilterStatusChanged) (NetFilterState *nf, Error **errp);
 
 typedef void (FilterHandleEvent) (NetFilterState *nf, int event, Error **errp);
 
-typedef struct NetFilterClass {
+struct NetFilterClass {
     ObjectClass parent_class;
 
     /* optional */
@@ -50,7 +51,7 @@ typedef struct NetFilterClass {
     FilterHandleEvent *handle_event;
     /* mandatory */
     FilterReceiveIOV *receive_iov;
-} NetFilterClass;
+};
 
 
 struct NetFilterState {

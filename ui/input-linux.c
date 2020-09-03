@@ -17,6 +17,7 @@
 
 #include <sys/ioctl.h>
 #include "standard-headers/linux/input.h"
+#include "qom/object.h"
 
 static bool linux_is_button(unsigned int lnx)
 {
@@ -30,6 +31,8 @@ static bool linux_is_button(unsigned int lnx)
 }
 
 #define TYPE_INPUT_LINUX "input-linux"
+typedef struct InputLinux InputLinux;
+typedef struct InputLinuxClass InputLinuxClass;
 #define INPUT_LINUX(obj) \
     OBJECT_CHECK(InputLinux, (obj), TYPE_INPUT_LINUX)
 #define INPUT_LINUX_GET_CLASS(obj) \
@@ -37,8 +40,6 @@ static bool linux_is_button(unsigned int lnx)
 #define INPUT_LINUX_CLASS(klass) \
     OBJECT_CLASS_CHECK(InputLinuxClass, (klass), TYPE_INPUT_LINUX)
 
-typedef struct InputLinux InputLinux;
-typedef struct InputLinuxClass InputLinuxClass;
 
 struct InputLinux {
     Object parent;

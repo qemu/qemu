@@ -11,6 +11,7 @@
 #define HW_SPAPR_IRQ_H
 
 #include "target/ppc/cpu-qom.h"
+#include "qom/object.h"
 
 /*
  * IRQ range offsets per device type
@@ -35,12 +36,13 @@ typedef struct SpaprInterruptController SpaprInterruptController;
 #define TYPE_SPAPR_INTC "spapr-interrupt-controller"
 #define SPAPR_INTC(obj)                                     \
     INTERFACE_CHECK(SpaprInterruptController, (obj), TYPE_SPAPR_INTC)
+typedef struct SpaprInterruptControllerClass SpaprInterruptControllerClass;
 #define SPAPR_INTC_CLASS(klass)                                     \
     OBJECT_CLASS_CHECK(SpaprInterruptControllerClass, (klass), TYPE_SPAPR_INTC)
 #define SPAPR_INTC_GET_CLASS(obj)                                   \
     OBJECT_GET_CLASS(SpaprInterruptControllerClass, (obj), TYPE_SPAPR_INTC)
 
-typedef struct SpaprInterruptControllerClass {
+struct SpaprInterruptControllerClass {
     InterfaceClass parent;
 
     int (*activate)(SpaprInterruptController *intc, uint32_t nr_servers,
@@ -65,7 +67,7 @@ typedef struct SpaprInterruptControllerClass {
     void (*dt)(SpaprInterruptController *intc, uint32_t nr_servers,
                void *fdt, uint32_t phandle);
     int (*post_load)(SpaprInterruptController *intc, int version_id);
-} SpaprInterruptControllerClass;
+};
 
 void spapr_irq_update_active_intc(struct SpaprMachineState *spapr);
 

@@ -35,6 +35,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/stream.h"
+#include "qom/object.h"
 
 #define DPHY(x)
 
@@ -42,9 +43,11 @@
 #define TYPE_XILINX_AXI_ENET_DATA_STREAM "xilinx-axienet-data-stream"
 #define TYPE_XILINX_AXI_ENET_CONTROL_STREAM "xilinx-axienet-control-stream"
 
+typedef struct XilinxAXIEnet XilinxAXIEnet;
 #define XILINX_AXI_ENET(obj) \
      OBJECT_CHECK(XilinxAXIEnet, (obj), TYPE_XILINX_AXI_ENET)
 
+typedef struct XilinxAXIEnetStreamSlave XilinxAXIEnetStreamSlave;
 #define XILINX_AXI_ENET_DATA_STREAM(obj) \
      OBJECT_CHECK(XilinxAXIEnetStreamSlave, (obj),\
      TYPE_XILINX_AXI_ENET_DATA_STREAM)
@@ -310,8 +313,6 @@ struct TEMAC  {
     void *parent;
 };
 
-typedef struct XilinxAXIEnetStreamSlave XilinxAXIEnetStreamSlave;
-typedef struct XilinxAXIEnet XilinxAXIEnet;
 
 struct XilinxAXIEnetStreamSlave {
     Object parent;

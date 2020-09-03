@@ -15,8 +15,10 @@
 #include "hw/virtio/virtio.h"
 #include "sysemu/rng.h"
 #include "standard-headers/linux/virtio_rng.h"
+#include "qom/object.h"
 
 #define TYPE_VIRTIO_RNG "virtio-rng-device"
+typedef struct VirtIORNG VirtIORNG;
 #define VIRTIO_RNG(obj) \
         OBJECT_CHECK(VirtIORNG, (obj), TYPE_VIRTIO_RNG)
 #define VIRTIO_RNG_GET_PARENT_CLASS(obj) \
@@ -28,7 +30,7 @@ struct VirtIORNGConf {
     uint32_t period_ms;
 };
 
-typedef struct VirtIORNG {
+struct VirtIORNG {
     VirtIODevice parent_obj;
 
     /* Only one vq - guest puts buffer(s) on it when it needs entropy */
@@ -46,6 +48,6 @@ typedef struct VirtIORNG {
     bool activate_timer;
 
     VMChangeStateEntry *vmstate;
-} VirtIORNG;
+};
 
 #endif

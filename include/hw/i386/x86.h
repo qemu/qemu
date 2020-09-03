@@ -26,8 +26,9 @@
 #include "hw/nmi.h"
 #include "hw/isa/isa.h"
 #include "hw/i386/ioapic.h"
+#include "qom/object.h"
 
-typedef struct {
+struct X86MachineClass {
     /*< private >*/
     MachineClass parent;
 
@@ -37,9 +38,10 @@ typedef struct {
     bool save_tsc_khz;
     /* Enables contiguous-apic-ID mode */
     bool compat_apic_id_mode;
-} X86MachineClass;
+};
+typedef struct X86MachineClass X86MachineClass;
 
-typedef struct {
+struct X86MachineState {
     /*< private >*/
     MachineState parent;
 
@@ -68,7 +70,8 @@ typedef struct {
      * will be translated to MSI messages in the address space.
      */
     AddressSpace *ioapic_as;
-} X86MachineState;
+};
+typedef struct X86MachineState X86MachineState;
 
 #define X86_MACHINE_SMM              "smm"
 #define X86_MACHINE_ACPI             "acpi"

@@ -8,6 +8,7 @@
 #include "hw/isa/isa.h"
 
 #include "hw/pci/pcie.h"
+#include "qom/object.h"
 
 extern bool pci_available;
 
@@ -195,6 +196,7 @@ enum {
 };
 
 #define TYPE_PCI_DEVICE "pci-device"
+typedef struct PCIDeviceClass PCIDeviceClass;
 #define PCI_DEVICE(obj) \
      OBJECT_CHECK(PCIDevice, (obj), TYPE_PCI_DEVICE)
 #define PCI_DEVICE_CLASS(klass) \
@@ -217,7 +219,7 @@ typedef struct PCIINTxRoute {
     int irq;
 } PCIINTxRoute;
 
-typedef struct PCIDeviceClass {
+struct PCIDeviceClass {
     DeviceClass parent_class;
 
     void (*realize)(PCIDevice *dev, Error **errp);
@@ -241,7 +243,7 @@ typedef struct PCIDeviceClass {
 
     /* rom bar */
     const char *romfile;
-} PCIDeviceClass;
+};
 
 typedef void (*PCIINTxRoutingNotifier)(PCIDevice *dev);
 typedef int (*MSIVectorUseNotifier)(PCIDevice *dev, unsigned int vector,

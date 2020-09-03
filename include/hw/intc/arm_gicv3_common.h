@@ -26,6 +26,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/intc/arm_gic_common.h"
+#include "qom/object.h"
 
 /*
  * Maximum number of possible interrupts, determined by the GIC architecture.
@@ -279,6 +280,7 @@ GICV3_BITMAP_ACCESSORS(level)
 GICV3_BITMAP_ACCESSORS(edge_trigger)
 
 #define TYPE_ARM_GICV3_COMMON "arm-gicv3-common"
+typedef struct ARMGICv3CommonClass ARMGICv3CommonClass;
 #define ARM_GICV3_COMMON(obj) \
      OBJECT_CHECK(GICv3State, (obj), TYPE_ARM_GICV3_COMMON)
 #define ARM_GICV3_COMMON_CLASS(klass) \
@@ -286,14 +288,14 @@ GICV3_BITMAP_ACCESSORS(edge_trigger)
 #define ARM_GICV3_COMMON_GET_CLASS(obj) \
      OBJECT_GET_CLASS(ARMGICv3CommonClass, (obj), TYPE_ARM_GICV3_COMMON)
 
-typedef struct ARMGICv3CommonClass {
+struct ARMGICv3CommonClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
     /*< public >*/
 
     void (*pre_save)(GICv3State *s);
     void (*post_load)(GICv3State *s);
-} ARMGICv3CommonClass;
+};
 
 void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
                               const MemoryRegionOps *ops, Error **errp);

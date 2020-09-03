@@ -15,8 +15,10 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "exec/memory.h"
+#include "qom/object.h"
 
 #define TYPE_OR1K_OMPIC "or1k-ompic"
+typedef struct OR1KOMPICState OR1KOMPICState;
 #define OR1K_OMPIC(obj) OBJECT_CHECK(OR1KOMPICState, (obj), TYPE_OR1K_OMPIC)
 
 #define OMPIC_CTRL_IRQ_ACK  (1 << 31)
@@ -37,7 +39,6 @@
 #define OMPIC_MAX_CPUS 4 /* Real max is much higher, but dont waste memory */
 #define OMPIC_ADDRSPACE_SZ (OMPIC_MAX_CPUS * 2 * 4) /* 2 32-bit regs per cpu */
 
-typedef struct OR1KOMPICState OR1KOMPICState;
 typedef struct OR1KOMPICCPUState OR1KOMPICCPUState;
 
 struct OR1KOMPICCPUState {

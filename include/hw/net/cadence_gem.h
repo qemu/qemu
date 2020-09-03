@@ -24,8 +24,10 @@
 
 #ifndef CADENCE_GEM_H
 #define CADENCE_GEM_H
+#include "qom/object.h"
 
 #define TYPE_CADENCE_GEM "cadence_gem"
+typedef struct CadenceGEMState CadenceGEMState;
 #define CADENCE_GEM(obj) OBJECT_CHECK(CadenceGEMState, (obj), TYPE_CADENCE_GEM)
 
 #include "net/net.h"
@@ -43,7 +45,7 @@
 #define MAX_JUMBO_FRAME_SIZE_MASK 0x3FFF
 #define MAX_FRAME_SIZE MAX_JUMBO_FRAME_SIZE_MASK
 
-typedef struct CadenceGEMState {
+struct CadenceGEMState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -89,6 +91,6 @@ typedef struct CadenceGEMState {
     uint32_t rx_desc[MAX_PRIORITY_QUEUES][DESC_MAX_NUM_WORDS];
 
     bool sar_active[4];
-} CadenceGEMState;
+};
 
 #endif

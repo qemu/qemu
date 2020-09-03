@@ -38,6 +38,7 @@
 #include "qemu/log.h"
 #include "cpu.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define VMPORT_MAGIC   0x564D5868
 
@@ -62,9 +63,10 @@
 #define VCPU_INFO_LEGACY_X2APIC_BIT     3
 #define VCPU_INFO_RESERVED_BIT          31
 
+typedef struct VMPortState VMPortState;
 #define VMPORT(obj) OBJECT_CHECK(VMPortState, (obj), TYPE_VMPORT)
 
-typedef struct VMPortState {
+struct VMPortState {
     ISADevice parent_obj;
 
     MemoryRegion io;
@@ -75,7 +77,7 @@ typedef struct VMPortState {
     uint8_t vmware_vmx_type;
 
     uint32_t compat_flags;
-} VMPortState;
+};
 
 static VMPortState *port_state;
 

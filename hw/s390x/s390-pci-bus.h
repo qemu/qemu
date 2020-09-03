@@ -19,6 +19,7 @@
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/css.h"
+#include "qom/object.h"
 
 #define TYPE_S390_PCI_HOST_BRIDGE "s390-pcihost"
 #define TYPE_S390_PCI_BUS "s390-pcibus"
@@ -36,12 +37,16 @@
 #define UID_UNDEFINED 0
 #define UID_CHECKING_ENABLED 0x01
 
+typedef struct S390pciState S390pciState;
 #define S390_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(S390pciState, (obj), TYPE_S390_PCI_HOST_BRIDGE)
+typedef struct S390PCIBus S390PCIBus;
 #define S390_PCI_BUS(obj) \
     OBJECT_CHECK(S390PCIBus, (obj), TYPE_S390_PCI_BUS)
+typedef struct S390PCIBusDevice S390PCIBusDevice;
 #define S390_PCI_DEVICE(obj) \
     OBJECT_CHECK(S390PCIBusDevice, (obj), TYPE_S390_PCI_DEVICE)
+typedef struct S390PCIIOMMU S390PCIIOMMU;
 #define S390_PCI_IOMMU(obj) \
     OBJECT_CHECK(S390PCIIOMMU, (obj), TYPE_S390_PCI_IOMMU)
 
@@ -265,8 +270,7 @@ typedef struct S390IOTLBEntry {
     uint64_t perm;
 } S390IOTLBEntry;
 
-typedef struct S390PCIBusDevice S390PCIBusDevice;
-typedef struct S390PCIIOMMU {
+struct S390PCIIOMMU {
     Object parent_obj;
     S390PCIBusDevice *pbdev;
     AddressSpace as;
@@ -277,7 +281,7 @@ typedef struct S390PCIIOMMU {
     uint64_t pba;
     uint64_t pal;
     GHashTable *iotlb;
-} S390PCIIOMMU;
+};
 
 typedef struct S390PCIIOMMUTable {
     uint64_t key;
@@ -339,11 +343,11 @@ struct S390PCIBusDevice {
     QTAILQ_ENTRY(S390PCIBusDevice) link;
 };
 
-typedef struct S390PCIBus {
+struct S390PCIBus {
     BusState qbus;
-} S390PCIBus;
+};
 
-typedef struct S390pciState {
+struct S390pciState {
     PCIHostState parent_obj;
     uint32_t next_idx;
     int bus_no;
@@ -352,7 +356,7 @@ typedef struct S390pciState {
     GHashTable *zpci_table;
     QTAILQ_HEAD(, SeiContainer) pending_sei;
     QTAILQ_HEAD(, S390PCIBusDevice) zpci_devs;
-} S390pciState;
+};
 
 S390pciState *s390_get_phb(void);
 int pci_chsc_sei_nt2_get_event(void *res);

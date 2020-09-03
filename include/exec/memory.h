@@ -38,6 +38,7 @@
         OBJECT_CHECK(MemoryRegion, (obj), TYPE_MEMORY_REGION)
 
 #define TYPE_IOMMU_MEMORY_REGION "qemu:iommu-memory-region"
+typedef struct IOMMUMemoryRegionClass IOMMUMemoryRegionClass;
 #define IOMMU_MEMORY_REGION(obj) \
         OBJECT_CHECK(IOMMUMemoryRegion, (obj), TYPE_IOMMU_MEMORY_REGION)
 #define IOMMU_MEMORY_REGION_CLASS(klass) \
@@ -242,7 +243,7 @@ enum IOMMUMemoryRegionAttr {
  * only a single IOMMU index. A more complex IOMMU might have one index
  * for secure transactions and one for non-secure transactions.
  */
-typedef struct IOMMUMemoryRegionClass {
+struct IOMMUMemoryRegionClass {
     /* private */
     MemoryRegionClass parent_class;
 
@@ -355,7 +356,7 @@ typedef struct IOMMUMemoryRegionClass {
      * @iommu: the IOMMUMemoryRegion
      */
     int (*num_indexes)(IOMMUMemoryRegion *iommu);
-} IOMMUMemoryRegionClass;
+};
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
 typedef struct MemoryRegionIoeventfd MemoryRegionIoeventfd;

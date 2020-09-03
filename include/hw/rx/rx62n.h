@@ -30,8 +30,10 @@
 #include "hw/timer/renesas_cmt.h"
 #include "hw/char/renesas_sci.h"
 #include "qemu/units.h"
+#include "qom/object.h"
 
 #define TYPE_RX62N_MCU "rx62n-mcu"
+typedef struct RX62NState RX62NState;
 #define RX62N_MCU(obj) OBJECT_CHECK(RX62NState, (obj), TYPE_RX62N_MCU)
 
 #define TYPE_R5F562N7_MCU "r5f562n7-mcu"
@@ -45,7 +47,7 @@
 #define RX62N_NR_CMT    2
 #define RX62N_NR_SCI    6
 
-typedef struct RX62NState {
+struct RX62NState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
@@ -71,6 +73,6 @@ typedef struct RX62NState {
     uint32_t xtal_freq_hz;
     /* Peripheral Module Clock frequency */
     uint32_t pclk_freq_hz;
-} RX62NState;
+};
 
 #endif

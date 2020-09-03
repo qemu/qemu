@@ -24,8 +24,9 @@
 #include "qemu/log.h"
 #include "sysemu/qtest.h"
 #include "sysemu/device_tree.h"
+#include "qom/object.h"
 
-typedef struct XlnxZCU102 {
+struct XlnxZCU102 {
     MachineState parent_obj;
 
     XlnxZynqMPState soc;
@@ -34,7 +35,8 @@ typedef struct XlnxZCU102 {
     bool virt;
 
     struct arm_boot_info binfo;
-} XlnxZCU102;
+};
+typedef struct XlnxZCU102 XlnxZCU102;
 
 #define TYPE_ZCU102_MACHINE   MACHINE_TYPE_NAME("xlnx-zcu102")
 #define ZCU102_MACHINE(obj) \

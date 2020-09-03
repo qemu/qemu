@@ -23,14 +23,17 @@
 #include "hw/sysbus.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xive.h"
+#include "qom/object.h"
 
 #define TYPE_PNV_PSI "pnv-psi"
+typedef struct PnvPsi PnvPsi;
+typedef struct PnvPsiClass PnvPsiClass;
 #define PNV_PSI(obj) \
      OBJECT_CHECK(PnvPsi, (obj), TYPE_PNV_PSI)
 
 #define PSIHB_XSCOM_MAX         0x20
 
-typedef struct PnvPsi {
+struct PnvPsi {
     DeviceState parent;
 
     MemoryRegion regs_mr;
@@ -47,27 +50,29 @@ typedef struct PnvPsi {
     uint64_t regs[PSIHB_XSCOM_MAX];
 
     MemoryRegion xscom_regs;
-} PnvPsi;
+};
 
 #define TYPE_PNV8_PSI TYPE_PNV_PSI "-POWER8"
+typedef struct Pnv8Psi Pnv8Psi;
 #define PNV8_PSI(obj) \
     OBJECT_CHECK(Pnv8Psi, (obj), TYPE_PNV8_PSI)
 
-typedef struct Pnv8Psi {
+struct Pnv8Psi {
     PnvPsi   parent;
 
     ICSState ics;
-} Pnv8Psi;
+};
 
 #define TYPE_PNV9_PSI TYPE_PNV_PSI "-POWER9"
+typedef struct Pnv9Psi Pnv9Psi;
 #define PNV9_PSI(obj) \
     OBJECT_CHECK(Pnv9Psi, (obj), TYPE_PNV9_PSI)
 
-typedef struct Pnv9Psi {
+struct Pnv9Psi {
     PnvPsi   parent;
 
     XiveSource source;
-} Pnv9Psi;
+};
 
 #define TYPE_PNV10_PSI TYPE_PNV_PSI "-POWER10"
 
@@ -76,7 +81,7 @@ typedef struct Pnv9Psi {
 #define PNV_PSI_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PnvPsiClass, (obj), TYPE_PNV_PSI)
 
-typedef struct PnvPsiClass {
+struct PnvPsiClass {
     SysBusDeviceClass parent_class;
 
     uint32_t xscom_pcba;
@@ -86,7 +91,7 @@ typedef struct PnvPsiClass {
     int compat_size;
 
     void (*irq_set)(PnvPsi *psi, int, bool state);
-} PnvPsiClass;
+};
 
 /* The PSI and FSP interrupts are muxed on the same IRQ number */
 typedef enum PnvPsiIrq {

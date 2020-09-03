@@ -21,9 +21,12 @@
 #define QEMU_CRIS_CPU_QOM_H
 
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 #define TYPE_CRIS_CPU "cris-cpu"
 
+typedef struct CRISCPU CRISCPU;
+typedef struct CRISCPUClass CRISCPUClass;
 #define CRIS_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(CRISCPUClass, (klass), TYPE_CRIS_CPU)
 #define CRIS_CPU(obj) \
@@ -39,7 +42,7 @@
  *
  * A CRIS CPU model.
  */
-typedef struct CRISCPUClass {
+struct CRISCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
@@ -48,8 +51,7 @@ typedef struct CRISCPUClass {
     DeviceReset parent_reset;
 
     uint32_t vr;
-} CRISCPUClass;
+};
 
-typedef struct CRISCPU CRISCPU;
 
 #endif

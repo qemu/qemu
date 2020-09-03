@@ -32,15 +32,18 @@
 #include "hw/ppc/pnv_core.h"
 #include "hw/pci-host/pnv_phb3.h"
 #include "hw/pci-host/pnv_phb4.h"
+#include "qom/object.h"
 
 #define TYPE_PNV_CHIP "pnv-chip"
+typedef struct PnvChip PnvChip;
+typedef struct PnvChipClass PnvChipClass;
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
 #define PNV_CHIP_CLASS(klass) \
      OBJECT_CLASS_CHECK(PnvChipClass, (klass), TYPE_PNV_CHIP)
 #define PNV_CHIP_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PnvChipClass, (obj), TYPE_PNV_CHIP)
 
-typedef struct PnvChip {
+struct PnvChip {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -61,12 +64,13 @@ typedef struct PnvChip {
     AddressSpace xscom_as;
 
     gchar        *dt_isa_nodename;
-} PnvChip;
+};
 
 #define TYPE_PNV8_CHIP "pnv8-chip"
+typedef struct Pnv8Chip Pnv8Chip;
 #define PNV8_CHIP(obj) OBJECT_CHECK(Pnv8Chip, (obj), TYPE_PNV8_CHIP)
 
-typedef struct Pnv8Chip {
+struct Pnv8Chip {
     /*< private >*/
     PnvChip      parent_obj;
 
@@ -82,12 +86,13 @@ typedef struct Pnv8Chip {
     PnvPHB3      phbs[PNV8_CHIP_PHB3_MAX];
 
     XICSFabric    *xics;
-} Pnv8Chip;
+};
 
 #define TYPE_PNV9_CHIP "pnv9-chip"
+typedef struct Pnv9Chip Pnv9Chip;
 #define PNV9_CHIP(obj) OBJECT_CHECK(Pnv9Chip, (obj), TYPE_PNV9_CHIP)
 
-typedef struct Pnv9Chip {
+struct Pnv9Chip {
     /*< private >*/
     PnvChip      parent_obj;
 
@@ -103,7 +108,7 @@ typedef struct Pnv9Chip {
 
 #define PNV9_CHIP_MAX_PEC 3
     PnvPhb4PecState pecs[PNV9_CHIP_MAX_PEC];
-} Pnv9Chip;
+};
 
 /*
  * A SMT8 fused core is a pair of SMT4 cores.
@@ -112,18 +117,19 @@ typedef struct Pnv9Chip {
 #define PNV9_PIR2CHIP(pir)      (((pir) >> 8) & 0x7f)
 
 #define TYPE_PNV10_CHIP "pnv10-chip"
+typedef struct Pnv10Chip Pnv10Chip;
 #define PNV10_CHIP(obj) OBJECT_CHECK(Pnv10Chip, (obj), TYPE_PNV10_CHIP)
 
-typedef struct Pnv10Chip {
+struct Pnv10Chip {
     /*< private >*/
     PnvChip      parent_obj;
 
     /*< public >*/
     Pnv9Psi      psi;
     PnvLpcController lpc;
-} Pnv10Chip;
+};
 
-typedef struct PnvChipClass {
+struct PnvChipClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
 
@@ -144,7 +150,7 @@ typedef struct PnvChipClass {
     void (*pic_print_info)(PnvChip *chip, Monitor *mon);
     uint64_t (*xscom_core_base)(PnvChip *chip, uint32_t core_id);
     uint32_t (*xscom_pcba)(PnvChip *chip, uint64_t addr);
-} PnvChipClass;
+};
 
 #define PNV_CHIP_TYPE_SUFFIX "-" TYPE_PNV_CHIP
 #define PNV_CHIP_TYPE_NAME(cpu_model) cpu_model PNV_CHIP_TYPE_SUFFIX
@@ -191,6 +197,8 @@ typedef struct PnvChipClass {
 PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir);
 
 #define TYPE_PNV_MACHINE       MACHINE_TYPE_NAME("powernv")
+typedef struct PnvMachineClass PnvMachineClass;
+typedef struct PnvMachineState PnvMachineState;
 #define PNV_MACHINE(obj) \
     OBJECT_CHECK(PnvMachineState, (obj), TYPE_PNV_MACHINE)
 #define PNV_MACHINE_GET_CLASS(obj) \
@@ -198,9 +206,8 @@ PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir);
 #define PNV_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(PnvMachineClass, klass, TYPE_PNV_MACHINE)
 
-typedef struct PnvMachineState PnvMachineState;
 
-typedef struct PnvMachineClass {
+struct PnvMachineClass {
     /*< private >*/
     MachineClass parent_class;
 
@@ -209,7 +216,7 @@ typedef struct PnvMachineClass {
     int compat_size;
 
     void (*dt_power_mgt)(PnvMachineState *pnv, void *fdt);
-} PnvMachineClass;
+};
 
 struct PnvMachineState {
     /*< private >*/

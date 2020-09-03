@@ -29,6 +29,7 @@
 #include "chardev/char-fe.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define D(x)
 
@@ -49,10 +50,11 @@
 #define STAT_TR_RDY  24
 
 #define TYPE_ETRAX_FS_SERIAL "etraxfs,serial"
+typedef struct ETRAXSerial ETRAXSerial;
 #define ETRAX_SERIAL(obj) \
     OBJECT_CHECK(ETRAXSerial, (obj), TYPE_ETRAX_FS_SERIAL)
 
-typedef struct ETRAXSerial {
+struct ETRAXSerial {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
@@ -67,7 +69,7 @@ typedef struct ETRAXSerial {
 
     /* Control registers.  */
     uint32_t regs[R_MAX];
-} ETRAXSerial;
+};
 
 static void ser_update_irq(ETRAXSerial *s)
 {

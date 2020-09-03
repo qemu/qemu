@@ -9,6 +9,8 @@
 
 #define TYPE_PR_MANAGER "pr-manager"
 
+typedef struct PRManager PRManager;
+typedef struct PRManagerClass PRManagerClass;
 #define PR_MANAGER_CLASS(klass) \
      OBJECT_CLASS_CHECK(PRManagerClass, (klass), TYPE_PR_MANAGER)
 #define PR_MANAGER_GET_CLASS(obj) \
@@ -18,24 +20,24 @@
 
 struct sg_io_hdr;
 
-typedef struct PRManager {
+struct PRManager {
     /* <private> */
     Object parent;
-} PRManager;
+};
 
 /**
  * PRManagerClass:
  * @parent_class: the base class
  * @run: callback invoked in thread pool context
  */
-typedef struct PRManagerClass {
+struct PRManagerClass {
     /* <private> */
     ObjectClass parent_class;
 
     /* <public> */
     int (*run)(PRManager *pr_mgr, int fd, struct sg_io_hdr *hdr);
     bool (*is_connected)(PRManager *pr_mgr);
-} PRManagerClass;
+};
 
 bool pr_manager_is_connected(PRManager *pr_mgr);
 int coroutine_fn pr_manager_execute(PRManager *pr_mgr, AioContext *ctx, int fd,

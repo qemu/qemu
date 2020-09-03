@@ -13,9 +13,11 @@
 #include "target/arm/cpu.h"
 #include "hw/sysbus.h"
 #include "hw/timer/armv7m_systick.h"
+#include "qom/object.h"
 
 #define TYPE_NVIC "armv7m_nvic"
 
+typedef struct NVICState NVICState;
 #define NVIC(obj) \
     OBJECT_CHECK(NVICState, (obj), TYPE_NVIC)
 
@@ -35,7 +37,7 @@ typedef struct VecInfo {
     uint8_t level; /* exceptions <=15 never set level */
 } VecInfo;
 
-typedef struct NVICState {
+struct NVICState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -88,6 +90,6 @@ typedef struct NVICState {
     qemu_irq sysresetreq;
 
     SysTickState systick[M_REG_NUM_BANKS];
-} NVICState;
+};
 
 #endif

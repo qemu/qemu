@@ -6,6 +6,7 @@
 #include "trace.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 /* MIPSnet register offsets */
 
@@ -24,9 +25,10 @@
 #define MAX_ETH_FRAME_SIZE      1514
 
 #define TYPE_MIPS_NET "mipsnet"
+typedef struct MIPSnetState MIPSnetState;
 #define MIPS_NET(obj) OBJECT_CHECK(MIPSnetState, (obj), TYPE_MIPS_NET)
 
-typedef struct MIPSnetState {
+struct MIPSnetState {
     SysBusDevice parent_obj;
 
     uint32_t busy;
@@ -41,7 +43,7 @@ typedef struct MIPSnetState {
     qemu_irq irq;
     NICState *nic;
     NICConf conf;
-} MIPSnetState;
+};
 
 static void mipsnet_reset(MIPSnetState *s)
 {

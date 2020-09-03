@@ -28,11 +28,13 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_TUSB6010 "tusb6010"
+typedef struct TUSBState TUSBState;
 #define TUSB(obj) OBJECT_CHECK(TUSBState, (obj), TYPE_TUSB6010)
 
-typedef struct TUSBState {
+struct TUSBState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem[2];
@@ -68,7 +70,7 @@ typedef struct TUSBState {
     uint32_t pullup[2];
     uint32_t control_config;
     uint32_t otg_timer_val;
-} TUSBState;
+};
 
 #define TUSB_DEVCLOCK			60000000	/* 60 MHz */
 

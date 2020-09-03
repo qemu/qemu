@@ -105,8 +105,11 @@
 #include "hw/or-irq.h"
 #include "hw/core/split-irq.h"
 #include "hw/cpu/cluster.h"
+#include "qom/object.h"
 
 #define TYPE_ARM_SSE "arm-sse"
+typedef struct ARMSSE ARMSSE;
+typedef struct ARMSSEClass ARMSSEClass;
 #define ARM_SSE(obj) OBJECT_CHECK(ARMSSE, (obj), TYPE_ARM_SSE)
 
 /*
@@ -140,7 +143,7 @@
 #define RAM3_PPU 6
 #define NUM_PPUS 7
 
-typedef struct ARMSSE {
+struct ARMSSE {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -215,14 +218,14 @@ typedef struct ARMSSE {
     uint32_t init_svtor;
     bool cpu_fpu[SSE_MAX_CPUS];
     bool cpu_dsp[SSE_MAX_CPUS];
-} ARMSSE;
+};
 
 typedef struct ARMSSEInfo ARMSSEInfo;
 
-typedef struct ARMSSEClass {
+struct ARMSSEClass {
     SysBusDeviceClass parent_class;
     const ARMSSEInfo *info;
-} ARMSSEClass;
+};
 
 #define ARM_SSE_CLASS(klass) \
     OBJECT_CLASS_CHECK(ARMSSEClass, (klass), TYPE_ARM_SSE)

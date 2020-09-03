@@ -19,6 +19,7 @@
 
 #define INTERFACE_RDMA_PROVIDER "rdma"
 
+typedef struct RdmaProviderClass RdmaProviderClass;
 #define RDMA_PROVIDER_CLASS(klass) \
     OBJECT_CLASS_CHECK(RdmaProviderClass, (klass), \
                        INTERFACE_RDMA_PROVIDER)
@@ -31,10 +32,10 @@
 
 typedef struct RdmaProvider RdmaProvider;
 
-typedef struct RdmaProviderClass {
+struct RdmaProviderClass {
     InterfaceClass parent;
 
     void (*print_statistics)(Monitor *mon, RdmaProvider *obj);
-} RdmaProviderClass;
+};
 
 #endif

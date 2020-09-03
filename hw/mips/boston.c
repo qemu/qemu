@@ -41,11 +41,13 @@
 #include "sysemu/runstate.h"
 
 #include <libfdt.h>
+#include "qom/object.h"
 
 #define TYPE_MIPS_BOSTON "mips-boston"
+typedef struct BostonState BostonState;
 #define BOSTON(obj) OBJECT_CHECK(BostonState, (obj), TYPE_MIPS_BOSTON)
 
-typedef struct {
+struct BostonState {
     SysBusDevice parent_obj;
 
     MachineState *mach;
@@ -58,7 +60,7 @@ typedef struct {
 
     hwaddr kernel_entry;
     hwaddr fdt_base;
-} BostonState;
+};
 
 enum boston_plat_reg {
     PLAT_FPGA_BUILD     = 0x00,

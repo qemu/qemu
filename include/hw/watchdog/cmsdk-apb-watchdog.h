@@ -33,8 +33,10 @@
 
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
+#include "qom/object.h"
 
 #define TYPE_CMSDK_APB_WATCHDOG "cmsdk-apb-watchdog"
+typedef struct CMSDKAPBWatchdog CMSDKAPBWatchdog;
 #define CMSDK_APB_WATCHDOG(obj) OBJECT_CHECK(CMSDKAPBWatchdog, (obj), \
                                               TYPE_CMSDK_APB_WATCHDOG)
 
@@ -44,7 +46,7 @@
  */
 #define TYPE_LUMINARY_WATCHDOG "luminary-watchdog"
 
-typedef struct CMSDKAPBWatchdog {
+struct CMSDKAPBWatchdog {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -62,6 +64,6 @@ typedef struct CMSDKAPBWatchdog {
     uint32_t itop;
     uint32_t resetstatus;
     const uint32_t *id;
-} CMSDKAPBWatchdog;
+};
 
 #endif

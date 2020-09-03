@@ -15,6 +15,7 @@
 #define HW_VFIO_VFIO_AMD_XGBE_H
 
 #include "hw/vfio/vfio-platform.h"
+#include "qom/object.h"
 
 #define TYPE_VFIO_AMD_XGBE "vfio-amd-xgbe"
 

@@ -28,10 +28,12 @@
 #include "hw/isa/isa.h"
 #include "hw/intc/intc.h"
 #include "hw/intc/i8259.h"
+#include "qom/object.h"
 
 typedef struct PICCommonState PICCommonState;
 
 #define TYPE_PIC_COMMON "pic-common"
+typedef struct PICCommonClass PICCommonClass;
 #define PIC_COMMON(obj) \
      OBJECT_CHECK(PICCommonState, (obj), TYPE_PIC_COMMON)
 #define PIC_COMMON_CLASS(klass) \
@@ -39,13 +41,12 @@ typedef struct PICCommonState PICCommonState;
 #define PIC_COMMON_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PICCommonClass, (obj), TYPE_PIC_COMMON)
 
-typedef struct PICCommonClass
-{
+struct PICCommonClass {
     ISADeviceClass parent_class;
 
     void (*pre_save)(PICCommonState *s);
     void (*post_load)(PICCommonState *s);
-} PICCommonClass;
+};
 
 struct PICCommonState {
     ISADevice parent_obj;

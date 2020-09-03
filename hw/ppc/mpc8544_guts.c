@@ -22,6 +22,7 @@
 #include "sysemu/runstate.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define MPC8544_GUTS_MMIO_SIZE        0x1000
 #define MPC8544_GUTS_RSTCR_RESET      0x02
@@ -54,6 +55,7 @@
 #define MPC8544_GUTS_ADDR_SRDS2CR3    0xF18
 
 #define TYPE_MPC8544_GUTS "mpc8544-guts"
+typedef struct GutsState GutsState;
 #define MPC8544_GUTS(obj) OBJECT_CHECK(GutsState, (obj), TYPE_MPC8544_GUTS)
 
 struct GutsState {
@@ -64,7 +66,6 @@ struct GutsState {
     MemoryRegion iomem;
 };
 
-typedef struct GutsState GutsState;
 
 static uint64_t mpc8544_guts_read(void *opaque, hwaddr addr,
                                   unsigned size)

@@ -36,6 +36,7 @@
 #include "qapi/qapi-visit-sockets.h"
 
 #include "chardev/char-io.h"
+#include "qom/object.h"
 
 /***********************************************************/
 /* TCP Net console */
@@ -53,7 +54,7 @@ typedef enum {
     TCP_CHARDEV_STATE_CONNECTED,
 } TCPChardevState;
 
-typedef struct {
+struct SocketChardev {
     Chardev parent;
     QIOChannel *ioc; /* Client I/O channel */
     QIOChannelSocket *sioc; /* Client master channel */
@@ -84,7 +85,8 @@ typedef struct {
     bool connect_err_reported;
 
     QIOTask *connect_task;
-} SocketChardev;
+};
+typedef struct SocketChardev SocketChardev;
 
 #define SOCKET_CHARDEV(obj)                                     \
     OBJECT_CHECK(SocketChardev, (obj), TYPE_CHARDEV_SOCKET)

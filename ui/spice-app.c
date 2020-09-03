@@ -35,14 +35,16 @@
 #include "io/channel-command.h"
 #include "chardev/spice.h"
 #include "sysemu/sysemu.h"
+#include "qom/object.h"
 
 static const char *tmp_dir;
 static char *app_dir;
 static char *sock_path;
 
-typedef struct VCChardev {
+struct VCChardev {
     SpiceChardev parent;
-} VCChardev;
+};
+typedef struct VCChardev VCChardev;
 
 #define TYPE_CHARDEV_VC "chardev-vc"
 #define VC_CHARDEV(obj) OBJECT_CHECK(VCChardev, (obj), TYPE_CHARDEV_VC)

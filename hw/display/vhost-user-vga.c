@@ -11,17 +11,19 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "virtio-vga.h"
+#include "qom/object.h"
 
 #define TYPE_VHOST_USER_VGA "vhost-user-vga"
 
+typedef struct VhostUserVGA VhostUserVGA;
 #define VHOST_USER_VGA(obj)                                \
     OBJECT_CHECK(VhostUserVGA, (obj), TYPE_VHOST_USER_VGA)
 
-typedef struct VhostUserVGA {
+struct VhostUserVGA {
     VirtIOVGABase parent_obj;
 
     VhostUserGPU vdev;
-} VhostUserVGA;
+};
 
 static void vhost_user_vga_inst_initfn(Object *obj)
 {

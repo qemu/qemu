@@ -23,11 +23,14 @@
 
 #include "hw/i2c/i2c.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_ASPEED_I2C "aspeed.i2c"
 #define TYPE_ASPEED_2400_I2C TYPE_ASPEED_I2C "-ast2400"
 #define TYPE_ASPEED_2500_I2C TYPE_ASPEED_I2C "-ast2500"
 #define TYPE_ASPEED_2600_I2C TYPE_ASPEED_I2C "-ast2600"
+typedef struct AspeedI2CClass AspeedI2CClass;
+typedef struct AspeedI2CState AspeedI2CState;
 #define ASPEED_I2C(obj) \
     OBJECT_CHECK(AspeedI2CState, (obj), TYPE_ASPEED_I2C)
 
@@ -56,7 +59,7 @@ typedef struct AspeedI2CBus {
     uint32_t dma_len;
 } AspeedI2CBus;
 
-typedef struct AspeedI2CState {
+struct AspeedI2CState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -70,14 +73,14 @@ typedef struct AspeedI2CState {
     AspeedI2CBus busses[ASPEED_I2C_NR_BUSSES];
     MemoryRegion *dram_mr;
     AddressSpace dram_as;
-} AspeedI2CState;
+};
 
 #define ASPEED_I2C_CLASS(klass) \
      OBJECT_CLASS_CHECK(AspeedI2CClass, (klass), TYPE_ASPEED_I2C)
 #define ASPEED_I2C_GET_CLASS(obj) \
      OBJECT_GET_CLASS(AspeedI2CClass, (obj), TYPE_ASPEED_I2C)
 
-typedef struct AspeedI2CClass {
+struct AspeedI2CClass {
     SysBusDeviceClass parent_class;
 
     uint8_t num_busses;
@@ -91,7 +94,7 @@ typedef struct AspeedI2CClass {
     bool check_sram;
     bool has_dma;
 
-} AspeedI2CClass;
+};
 
 I2CBus *aspeed_i2c_get_bus(AspeedI2CState *s, int busnr);
 

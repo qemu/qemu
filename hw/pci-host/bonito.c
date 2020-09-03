@@ -52,6 +52,7 @@
 #include "exec/address-spaces.h"
 #include "hw/misc/unimp.h"
 #include "hw/registerfields.h"
+#include "qom/object.h"
 
 /* #define DEBUG_BONITO */
 
@@ -200,7 +201,7 @@ FIELD(BONGENCFG, PCIQUEUE,      12, 1)
 
 typedef struct BonitoState BonitoState;
 
-typedef struct PCIBonitoState {
+struct PCIBonitoState {
     PCIDevice dev;
 
     BonitoState *pcihost;
@@ -228,7 +229,8 @@ typedef struct PCIBonitoState {
     MemoryRegion bonito_pciio;
     MemoryRegion bonito_localio;
 
-} PCIBonitoState;
+};
+typedef struct PCIBonitoState PCIBonitoState;
 
 struct BonitoState {
     PCIHostState parent_obj;

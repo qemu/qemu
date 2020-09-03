@@ -22,12 +22,13 @@
 #define QIO_CHANNEL_FILE_H
 
 #include "io/channel.h"
+#include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL_FILE "qio-channel-file"
+typedef struct QIOChannelFile QIOChannelFile;
 #define QIO_CHANNEL_FILE(obj)                                     \
     OBJECT_CHECK(QIOChannelFile, (obj), TYPE_QIO_CHANNEL_FILE)
 
-typedef struct QIOChannelFile QIOChannelFile;
 
 /**
  * QIOChannelFile:

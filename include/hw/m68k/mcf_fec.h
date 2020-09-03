@@ -9,6 +9,7 @@
 
 #ifndef HW_M68K_MCF_FEC_H
 #define HW_M68K_MCF_FEC_H
+#include "qom/object.h"
 
 #define TYPE_MCF_FEC_NET "mcf-fec"
 typedef struct mcf_fec_state mcf_fec_state;

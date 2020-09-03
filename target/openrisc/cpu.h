@@ -22,12 +22,15 @@
 
 #include "exec/cpu-defs.h"
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 /* cpu_openrisc_map_address_* in CPUOpenRISCTLBContext need this decl.  */
 struct OpenRISCCPU;
 
 #define TYPE_OPENRISC_CPU "or1k-cpu"
 
+typedef struct OpenRISCCPU OpenRISCCPU;
+typedef struct OpenRISCCPUClass OpenRISCCPUClass;
 #define OPENRISC_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(OpenRISCCPUClass, (klass), TYPE_OPENRISC_CPU)
 #define OPENRISC_CPU(obj) \
@@ -42,14 +45,14 @@ struct OpenRISCCPU;
  *
  * A OpenRISC CPU model.
  */
-typedef struct OpenRISCCPUClass {
+struct OpenRISCCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
 
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
-} OpenRISCCPUClass;
+};
 
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
@@ -305,14 +308,14 @@ typedef struct CPUOpenRISCState {
  *
  * A OpenRISC CPU.
  */
-typedef struct OpenRISCCPU {
+struct OpenRISCCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
 
     CPUNegativeOffsetState neg;
     CPUOpenRISCState env;
-} OpenRISCCPU;
+};
 
 
 void cpu_openrisc_list(void);

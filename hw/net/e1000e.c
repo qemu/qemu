@@ -53,11 +53,13 @@
 
 #include "trace.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #define TYPE_E1000E "e1000e"
+typedef struct E1000EState E1000EState;
 #define E1000E(obj) OBJECT_CHECK(E1000EState, (obj), TYPE_E1000E)
 
-typedef struct E1000EState {
+struct E1000EState {
     PCIDevice parent_obj;
     NICState *nic;
     NICConf conf;
@@ -79,7 +81,7 @@ typedef struct E1000EState {
 
     E1000ECore core;
 
-} E1000EState;
+};
 
 #define E1000E_MMIO_IDX     0
 #define E1000E_FLASH_IDX    1

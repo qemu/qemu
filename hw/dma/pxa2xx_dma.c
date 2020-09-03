@@ -18,6 +18,7 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define PXA255_DMA_NUM_CHANNELS 16
 #define PXA27X_DMA_NUM_CHANNELS 32
@@ -34,9 +35,10 @@ typedef struct {
 } PXA2xxDMAChannel;
 
 #define TYPE_PXA2XX_DMA "pxa2xx-dma"
+typedef struct PXA2xxDMAState PXA2xxDMAState;
 #define PXA2XX_DMA(obj) OBJECT_CHECK(PXA2xxDMAState, (obj), TYPE_PXA2XX_DMA)
 
-typedef struct PXA2xxDMAState {
+struct PXA2xxDMAState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -58,7 +60,7 @@ typedef struct PXA2xxDMAState {
 
     /* Flag to avoid recursive DMA invocations.  */
     int running;
-} PXA2xxDMAState;
+};
 
 #define DCSR0	0x0000	/* DMA Control / Status register for Channel 0 */
 #define DCSR31	0x007c	/* DMA Control / Status register for Channel 31 */

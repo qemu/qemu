@@ -15,8 +15,10 @@
 #define QEMU_VHOST_VSOCK_H
 
 #include "hw/virtio/vhost-vsock-common.h"
+#include "qom/object.h"
 
 #define TYPE_VHOST_VSOCK "vhost-vsock-device"
+typedef struct VHostVSock VHostVSock;
 #define VHOST_VSOCK(obj) \
         OBJECT_CHECK(VHostVSock, (obj), TYPE_VHOST_VSOCK)
 
@@ -25,12 +27,12 @@ typedef struct {
     char *vhostfd;
 } VHostVSockConf;
 
-typedef struct {
+struct VHostVSock {
     /*< private >*/
     VHostVSockCommon parent;
     VHostVSockConf conf;
 
     /*< public >*/
-} VHostVSock;
+};
 
 #endif /* QEMU_VHOST_VSOCK_H */

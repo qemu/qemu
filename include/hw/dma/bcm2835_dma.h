@@ -9,6 +9,7 @@
 #define BCM2835_DMA_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 typedef struct {
     uint32_t cs;
@@ -25,12 +26,13 @@ typedef struct {
 } BCM2835DMAChan;
 
 #define TYPE_BCM2835_DMA "bcm2835-dma"
+typedef struct BCM2835DMAState BCM2835DMAState;
 #define BCM2835_DMA(obj) \
         OBJECT_CHECK(BCM2835DMAState, (obj), TYPE_BCM2835_DMA)
 
 #define BCM2835_DMA_NCHANS 16
 
-typedef struct {
+struct BCM2835DMAState {
     /*< private >*/
     SysBusDevice busdev;
     /*< public >*/
@@ -42,6 +44,6 @@ typedef struct {
     BCM2835DMAChan chan[BCM2835_DMA_NCHANS];
     uint32_t int_status;
     uint32_t enable;
-} BCM2835DMAState;
+};
 
 #endif

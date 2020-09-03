@@ -28,6 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #define PIT_FREQ 1193182
 

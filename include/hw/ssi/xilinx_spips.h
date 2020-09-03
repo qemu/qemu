@@ -29,6 +29,7 @@
 #include "qemu/fifo32.h"
 #include "hw/stream.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 typedef struct XilinxSPIPS XilinxSPIPS;
 
@@ -85,16 +86,17 @@ struct XilinxSPIPS {
     bool man_start_com;
 };
 
-typedef struct {
+struct XilinxQSPIPS {
     XilinxSPIPS parent_obj;
 
     uint8_t lqspi_buf[LQSPI_CACHE_SIZE];
     hwaddr lqspi_cached_addr;
     Error *migration_blocker;
     bool mmio_execution_enabled;
-} XilinxQSPIPS;
+};
+typedef struct XilinxQSPIPS XilinxQSPIPS;
 
-typedef struct {
+struct XlnxZynqMPQSPIPS {
     XilinxQSPIPS parent_obj;
 
     StreamSlave *dma;
@@ -117,16 +119,18 @@ typedef struct {
     bool man_start_com_g;
     uint32_t dma_burst_size;
     uint8_t dma_buf[QSPI_DMA_MAX_BURST_SIZE];
-} XlnxZynqMPQSPIPS;
+};
+typedef struct XlnxZynqMPQSPIPS XlnxZynqMPQSPIPS;
 
-typedef struct XilinxSPIPSClass {
+struct XilinxSPIPSClass {
     SysBusDeviceClass parent_class;
 
     const MemoryRegionOps *reg_ops;
 
     uint32_t rx_fifo_size;
     uint32_t tx_fifo_size;
-} XilinxSPIPSClass;
+};
+typedef struct XilinxSPIPSClass XilinxSPIPSClass;
 
 #define TYPE_XILINX_SPIPS "xlnx.ps7-spi"
 #define TYPE_XILINX_QSPIPS "xlnx.ps7-qspi"

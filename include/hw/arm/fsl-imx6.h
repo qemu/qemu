@@ -34,8 +34,10 @@
 #include "hw/usb/imx-usb-phy.h"
 #include "exec/memory.h"
 #include "cpu.h"
+#include "qom/object.h"
 
 #define TYPE_FSL_IMX6 "fsl,imx6"
+typedef struct FslIMX6State FslIMX6State;
 #define FSL_IMX6(obj) OBJECT_CHECK(FslIMX6State, (obj), TYPE_FSL_IMX6)
 
 #define FSL_IMX6_NUM_CPUS 4
@@ -49,7 +51,7 @@
 #define FSL_IMX6_NUM_USB_PHYS 2
 #define FSL_IMX6_NUM_USBS 4
 
-typedef struct FslIMX6State {
+struct FslIMX6State {
     /*< private >*/
     DeviceState parent_obj;
 
@@ -74,7 +76,7 @@ typedef struct FslIMX6State {
     MemoryRegion   ocram;
     MemoryRegion   ocram_alias;
     uint32_t       phy_num;
-} FslIMX6State;
+};
 
 
 #define FSL_IMX6_MMDC_ADDR 0x10000000

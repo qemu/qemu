@@ -45,6 +45,8 @@
  * @{
  */
 
+typedef struct AwSdHostClass AwSdHostClass;
+typedef struct AwSdHostState AwSdHostState;
 #define AW_SDHOST(obj) \
     OBJECT_CHECK(AwSdHostState, (obj), TYPE_AW_SDHOST)
 #define AW_SDHOST_CLASS(klass) \
@@ -57,7 +59,7 @@
 /**
  * Allwinner SD Host Controller object instance state.
  */
-typedef struct AwSdHostState {
+struct AwSdHostState {
     /*< private >*/
     SysBusDevice busdev;
     /*< public >*/
@@ -119,7 +121,7 @@ typedef struct AwSdHostState {
 
     /** @} */
 
-} AwSdHostState;
+};
 
 /**
  * Allwinner SD Host Controller class-level struct.
@@ -128,7 +130,7 @@ typedef struct AwSdHostState {
  * such that the generic code can use this struct to support
  * all devices.
  */
-typedef struct AwSdHostClass {
+struct AwSdHostClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
     /*< public >*/
@@ -136,6 +138,6 @@ typedef struct AwSdHostClass {
     /** Maximum buffer size in bytes per DMA descriptor */
     size_t max_desc_size;
 
-} AwSdHostClass;
+};
 
 #endif /* HW_SD_ALLWINNER_SDHOST_H */

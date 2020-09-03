@@ -13,6 +13,7 @@
 #define HW_SOUTHBRIDGE_PIIX_H
 
 #include "hw/pci/pci.h"
+#include "qom/object.h"
 
 #define TYPE_PIIX4_PM "PIIX4_PM"
 
@@ -35,7 +36,7 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 #define PIIX_NUM_PIC_IRQS       16      /* i8259 * 2 */
 #define PIIX_NUM_PIRQS          4ULL    /* PIRQ[A-D] */
 
-typedef struct PIIXState {
+struct PIIXState {
     PCIDevice dev;
 
     /*
@@ -62,7 +63,8 @@ typedef struct PIIXState {
 
     /* IO memory region for Reset Control Register (PIIX_RCR_IOPORT) */
     MemoryRegion rcr_mem;
-} PIIX3State;
+};
+typedef struct PIIXState PIIX3State;
 
 #define TYPE_PIIX3_PCI_DEVICE "pci-piix3"
 #define PIIX3_PCI_DEVICE(obj) \

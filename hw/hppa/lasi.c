@@ -26,6 +26,7 @@
 #include "hw/input/lasips2.h"
 #include "exec/address-spaces.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 #define TYPE_LASI_CHIP "lasi-chip"
 
@@ -52,10 +53,11 @@
 #define ICR_BUS_ERROR_BIT  LASI_BIT(8)  /* bit 8 in ICR */
 #define ICR_TOC_BIT        LASI_BIT(1)  /* bit 1 in ICR */
 
+typedef struct LasiState LasiState;
 #define LASI_CHIP(obj) \
     OBJECT_CHECK(LasiState, (obj), TYPE_LASI_CHIP)
 
-typedef struct LasiState {
+struct LasiState {
     PCIHostState parent_obj;
 
     uint32_t irr;
@@ -70,7 +72,7 @@ typedef struct LasiState {
     time_t rtc_ref;
 
     MemoryRegion this_mem;
-} LasiState;
+};
 
 static bool lasi_chip_mem_valid(void *opaque, hwaddr addr,
                                 unsigned size, bool is_write,

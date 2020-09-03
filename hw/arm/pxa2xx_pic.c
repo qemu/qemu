@@ -16,6 +16,7 @@
 #include "hw/arm/pxa.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 #define ICIP	0x00	/* Interrupt Controller IRQ Pending register */
 #define ICMR	0x04	/* Interrupt Controller Mask register */
@@ -37,10 +38,11 @@
 #define PXA2XX_PIC_SRCS	40
 
 #define TYPE_PXA2XX_PIC "pxa2xx_pic"
+typedef struct PXA2xxPICState PXA2xxPICState;
 #define PXA2XX_PIC(obj) \
     OBJECT_CHECK(PXA2xxPICState, (obj), TYPE_PXA2XX_PIC)
 
-typedef struct {
+struct PXA2xxPICState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -52,7 +54,7 @@ typedef struct {
     uint32_t is_fiq[2];
     uint32_t int_idle;
     uint32_t priority[PXA2XX_PIC_SRCS];
-} PXA2xxPICState;
+};
 
 static void pxa2xx_pic_update(void *opaque)
 {

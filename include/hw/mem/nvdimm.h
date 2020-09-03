@@ -27,6 +27,7 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "qemu/uuid.h"
 #include "hw/acpi/aml-build.h"
+#include "qom/object.h"
 
 #define NVDIMM_DEBUG 0
 #define nvdimm_debug(fmt, ...)                                \
@@ -45,6 +46,8 @@
 #define MIN_NAMESPACE_LABEL_SIZE      (128UL << 10)
 
 #define TYPE_NVDIMM      "nvdimm"
+typedef struct NVDIMMClass NVDIMMClass;
+typedef struct NVDIMMDevice NVDIMMDevice;
 #define NVDIMM(obj)      OBJECT_CHECK(NVDIMMDevice, (obj), TYPE_NVDIMM)
 #define NVDIMM_CLASS(oc) OBJECT_CLASS_CHECK(NVDIMMClass, (oc), TYPE_NVDIMM)
 #define NVDIMM_GET_CLASS(obj) OBJECT_GET_CLASS(NVDIMMClass, (obj), \
@@ -92,7 +95,6 @@ struct NVDIMMDevice {
      */
     QemuUUID uuid;
 };
-typedef struct NVDIMMDevice NVDIMMDevice;
 
 struct NVDIMMClass {
     /* private */
@@ -107,7 +109,6 @@ struct NVDIMMClass {
     void (*write_label_data)(NVDIMMDevice *nvdimm, const void *buf,
                              uint64_t size, uint64_t offset);
 };
-typedef struct NVDIMMClass NVDIMMClass;
 
 #define NVDIMM_DSM_MEM_FILE     "etc/acpi/nvdimm-mem"
 

@@ -19,6 +19,7 @@
 #include "audio/audio.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define MP_AUDIO_SIZE           0x00001000
 
@@ -42,10 +43,11 @@
 #define MP_AUDIO_CLOCK_24MHZ    (1 << 9)
 #define MP_AUDIO_MONO           (1 << 14)
 
+typedef struct mv88w8618_audio_state mv88w8618_audio_state;
 #define MV88W8618_AUDIO(obj) \
     OBJECT_CHECK(mv88w8618_audio_state, (obj), TYPE_MV88W8618_AUDIO)
 
-typedef struct mv88w8618_audio_state {
+struct mv88w8618_audio_state {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -60,7 +62,7 @@ typedef struct mv88w8618_audio_state {
     uint32_t last_free;
     uint32_t clock_div;
     void *wm;
-} mv88w8618_audio_state;
+};
 
 static void mv88w8618_audio_callback(void *opaque, int free_out, int free_in)
 {

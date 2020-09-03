@@ -16,8 +16,10 @@
 
 #include "hw/i2c/i2c.h"
 #include "hw/misc/tmp105_regs.h"
+#include "qom/object.h"
 
 #define TYPE_TMP105 "tmp105"
+typedef struct TMP105State TMP105State;
 #define TMP105(obj) OBJECT_CHECK(TMP105State, (obj), TYPE_TMP105)
 
 /**
@@ -27,7 +29,7 @@
  *
  * @see_also: http://www.ti.com/lit/gpn/tmp105
  */
-typedef struct TMP105State {
+struct TMP105State {
     /*< private >*/
     I2CSlave i2c;
     /*< public >*/
@@ -42,6 +44,6 @@ typedef struct TMP105State {
     int16_t limit[2];
     int faults;
     uint8_t alarm;
-} TMP105State;
+};
 
 #endif

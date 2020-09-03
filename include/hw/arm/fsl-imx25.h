@@ -32,8 +32,10 @@
 #include "hw/watchdog/wdt_imx2.h"
 #include "exec/memory.h"
 #include "target/arm/cpu.h"
+#include "qom/object.h"
 
 #define TYPE_FSL_IMX25 "fsl,imx25"
+typedef struct FslIMX25State FslIMX25State;
 #define FSL_IMX25(obj) OBJECT_CHECK(FslIMX25State, (obj), TYPE_FSL_IMX25)
 
 #define FSL_IMX25_NUM_UARTS 5
@@ -44,7 +46,7 @@
 #define FSL_IMX25_NUM_ESDHCS 2
 #define FSL_IMX25_NUM_USBS 2
 
-typedef struct FslIMX25State {
+struct FslIMX25State {
     /*< private >*/
     DeviceState parent_obj;
 
@@ -66,7 +68,7 @@ typedef struct FslIMX25State {
     MemoryRegion   iram;
     MemoryRegion   iram_alias;
     uint32_t       phy_num;
-} FslIMX25State;
+};
 
 /**
  * i.MX25 memory map

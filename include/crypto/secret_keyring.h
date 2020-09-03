@@ -26,6 +26,8 @@
 #include "crypto/secret_common.h"
 
 #define TYPE_QCRYPTO_SECRET_KEYRING "secret_keyring"
+typedef struct QCryptoSecretKeyring QCryptoSecretKeyring;
+typedef struct QCryptoSecretKeyringClass QCryptoSecretKeyringClass;
 #define QCRYPTO_SECRET_KEYRING(obj) \
     OBJECT_CHECK(QCryptoSecretKeyring, (obj), \
                  TYPE_QCRYPTO_SECRET_KEYRING)
@@ -36,8 +38,6 @@
     OBJECT_GET_CLASS(QCryptoSecretKeyringClass, \
                      (class), TYPE_QCRYPTO_SECRET_KEYRING)
 
-typedef struct QCryptoSecretKeyring QCryptoSecretKeyring;
-typedef struct QCryptoSecretKeyringClass QCryptoSecretKeyringClass;
 
 struct QCryptoSecretKeyring {
     QCryptoSecretCommon parent;

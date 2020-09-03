@@ -32,12 +32,14 @@
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
+#include "qom/object.h"
 
+typedef struct DECState DECState;
 #define DEC_21154(obj) OBJECT_CHECK(DECState, (obj), TYPE_DEC_21154)
 
-typedef struct DECState {
+struct DECState {
     PCIHostState parent_obj;
-} DECState;
+};
 
 static int dec_map_irq(PCIDevice *pci_dev, int irq_num)
 {

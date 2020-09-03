@@ -27,11 +27,12 @@
 #include "chardev/char.h"
 #include "ui/console.h"
 #include "ui/input.h"
+#include "qom/object.h"
 
 #define MSMOUSE_LO6(n) ((n) & 0x3f)
 #define MSMOUSE_HI2(n) (((n) & 0xc0) >> 6)
 
-typedef struct {
+struct MouseChardev {
     Chardev parent;
 
     QemuInputHandlerState *hs;
@@ -40,7 +41,8 @@ typedef struct {
     bool btnc[INPUT_BUTTON__MAX];
     uint8_t outbuf[32];
     int outlen;
-} MouseChardev;
+};
+typedef struct MouseChardev MouseChardev;
 
 #define TYPE_CHARDEV_MSMOUSE "chardev-msmouse"
 #define MOUSE_CHARDEV(obj)                                      \

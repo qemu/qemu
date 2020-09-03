@@ -18,12 +18,14 @@
 #include "hw/block/flash.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
+#include "qom/object.h"
 
-typedef struct {
+struct CollieMachineState {
     MachineState parent;
 
     StrongARMState *sa1110;
-} CollieMachineState;
+};
+typedef struct CollieMachineState CollieMachineState;
 
 #define TYPE_COLLIE_MACHINE MACHINE_TYPE_NAME("collie")
 #define COLLIE_MACHINE(obj) \

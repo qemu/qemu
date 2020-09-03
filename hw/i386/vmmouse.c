@@ -30,6 +30,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "cpu.h"
+#include "qom/object.h"
 
 /* debug only vmmouse */
 //#define DEBUG_VMMOUSE
@@ -50,10 +51,10 @@
 #endif
 
 #define TYPE_VMMOUSE "vmmouse"
+typedef struct VMMouseState VMMouseState;
 #define VMMOUSE(obj) OBJECT_CHECK(VMMouseState, (obj), TYPE_VMMOUSE)
 
-typedef struct VMMouseState
-{
+struct VMMouseState {
     ISADevice parent_obj;
 
     uint32_t queue[VMMOUSE_QUEUE_SIZE];
@@ -63,7 +64,7 @@ typedef struct VMMouseState
     uint8_t absolute;
     QEMUPutMouseEntry *entry;
     ISAKBDState *i8042;
-} VMMouseState;
+};
 
 static void vmmouse_get_data(uint32_t *data)
 {

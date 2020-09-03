@@ -36,7 +36,9 @@
 #include "ui/console.h"
 #include "sysemu/sysemu.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
+typedef struct NextKBDState NextKBDState;
 #define NEXTKBD(obj) OBJECT_CHECK(NextKBDState, (obj), TYPE_NEXTKBD)
 
 /* following defintions from next68k netbsd */
@@ -63,12 +65,12 @@ typedef struct {
 } KBDQueue;
 
 
-typedef struct NextKBDState {
+struct NextKBDState {
     SysBusDevice sbd;
     MemoryRegion mr;
     KBDQueue queue;
     uint16_t shift;
-} NextKBDState;
+};
 
 static void queue_code(void *opaque, int code);
 

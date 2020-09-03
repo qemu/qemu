@@ -38,6 +38,7 @@
 #include "hw/irq.h"
 
 #include "hw/arm/exynos4210.h"
+#include "qom/object.h"
 
 #define DEBUG_RTC 0
 
@@ -84,10 +85,11 @@
 #define     RTC_BASE_FREQ       32768
 
 #define TYPE_EXYNOS4210_RTC "exynos4210.rtc"
+typedef struct Exynos4210RTCState Exynos4210RTCState;
 #define EXYNOS4210_RTC(obj) \
     OBJECT_CHECK(Exynos4210RTCState, (obj), TYPE_EXYNOS4210_RTC)
 
-typedef struct Exynos4210RTCState {
+struct Exynos4210RTCState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -113,7 +115,7 @@ typedef struct Exynos4210RTCState {
     qemu_irq        alm_irq;    /* alarm irq */
 
     struct tm   current_tm;     /* current time */
-} Exynos4210RTCState;
+};
 
 #define TICCKSEL(value) ((value & (0x0F << 4)) >> 4)
 

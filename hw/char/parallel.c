@@ -37,6 +37,7 @@
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
+#include "qom/object.h"
 
 //#define DEBUG_PARALLEL
 
@@ -92,17 +93,18 @@ typedef struct ParallelState {
 } ParallelState;
 
 #define TYPE_ISA_PARALLEL "isa-parallel"
+typedef struct ISAParallelState ISAParallelState;
 #define ISA_PARALLEL(obj) \
     OBJECT_CHECK(ISAParallelState, (obj), TYPE_ISA_PARALLEL)
 
-typedef struct ISAParallelState {
+struct ISAParallelState {
     ISADevice parent_obj;
 
     uint32_t index;
     uint32_t iobase;
     uint32_t isairq;
     ParallelState state;
-} ISAParallelState;
+};
 
 static void parallel_update_irq(ParallelState *s)
 {

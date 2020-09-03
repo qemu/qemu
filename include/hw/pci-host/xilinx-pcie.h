@@ -24,25 +24,28 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pcie_host.h"
+#include "qom/object.h"
 
 #define TYPE_XILINX_PCIE_HOST "xilinx-pcie-host"
+typedef struct XilinxPCIEHost XilinxPCIEHost;
 #define XILINX_PCIE_HOST(obj) \
      OBJECT_CHECK(XilinxPCIEHost, (obj), TYPE_XILINX_PCIE_HOST)
 
 #define TYPE_XILINX_PCIE_ROOT "xilinx-pcie-root"
+typedef struct XilinxPCIERoot XilinxPCIERoot;
 #define XILINX_PCIE_ROOT(obj) \
      OBJECT_CHECK(XilinxPCIERoot, (obj), TYPE_XILINX_PCIE_ROOT)
 
-typedef struct XilinxPCIERoot {
+struct XilinxPCIERoot {
     PCIBridge parent_obj;
-} XilinxPCIERoot;
+};
 
 typedef struct XilinxPCIEInt {
     uint32_t fifo_reg1;
     uint32_t fifo_reg2;
 } XilinxPCIEInt;
 
-typedef struct XilinxPCIEHost {
+struct XilinxPCIEHost {
     PCIExpressHost parent_obj;
 
     char name[16];
@@ -62,6 +65,6 @@ typedef struct XilinxPCIEHost {
     XilinxPCIEInt intr_fifo[16];
     unsigned int intr_fifo_r, intr_fifo_w;
     uint32_t rpscr;
-} XilinxPCIEHost;
+};
 
 #endif /* HW_XILINX_PCIE_H */

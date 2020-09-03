@@ -27,6 +27,8 @@
 
 #define TYPE_QAUTHZ "authz"
 
+typedef struct QAuthZ QAuthZ;
+typedef struct QAuthZClass QAuthZClass;
 #define QAUTHZ_CLASS(klass) \
      OBJECT_CLASS_CHECK(QAuthZClass, (klass), \
                         TYPE_QAUTHZ)
@@ -37,8 +39,6 @@
      OBJECT_CHECK(QAuthZ, (obj), \
                   TYPE_QAUTHZ)
 
-typedef struct QAuthZ QAuthZ;
-typedef struct QAuthZClass QAuthZClass;
 
 /**
  * QAuthZ:

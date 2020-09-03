@@ -22,15 +22,17 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "trace.h"
+#include "qom/object.h"
 
-typedef struct PCA955xClass {
+struct PCA955xClass {
     /*< private >*/
     I2CSlaveClass parent_class;
     /*< public >*/
 
     uint8_t pin_count;
     uint8_t max_reg;
-} PCA955xClass;
+};
+typedef struct PCA955xClass PCA955xClass;
 
 #define PCA955X_CLASS(klass) \
     OBJECT_CLASS_CHECK(PCA955xClass, (klass), TYPE_PCA955X)

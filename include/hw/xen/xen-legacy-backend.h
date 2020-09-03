@@ -4,6 +4,7 @@
 #include "hw/xen/xen_common.h"
 #include "hw/xen/xen_pvdev.h"
 #include "net/net.h"
+#include "qom/object.h"
 
 #define TYPE_XENSYSDEV "xen-sysdev"
 #define TYPE_XENSYSBUS "xen-sysbus"

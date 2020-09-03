@@ -28,11 +28,13 @@
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "qemu/timer.h"
+#include "qom/object.h"
 #include "qemu/main-loop.h" /* iothread mutex */
 #include "qemu/module.h"
 #include "qapi/visitor.h"
 
 #define TYPE_PCI_EDU_DEVICE "edu"
+typedef struct EduState EduState;
 #define EDU(obj)        OBJECT_CHECK(EduState, obj, TYPE_PCI_EDU_DEVICE)
 
 #define FACT_IRQ        0x00000001
@@ -41,7 +43,7 @@
 #define DMA_START       0x40000
 #define DMA_SIZE        4096
 
-typedef struct {
+struct EduState {
     PCIDevice pdev;
     MemoryRegion mmio;
 
@@ -72,7 +74,7 @@ typedef struct {
     QEMUTimer dma_timer;
     char dma_buf[DMA_SIZE];
     uint64_t dma_mask;
-} EduState;
+};
 
 static bool edu_msi_enabled(EduState *edu)
 {

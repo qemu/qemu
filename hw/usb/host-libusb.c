@@ -34,6 +34,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/object.h"
 #ifndef CONFIG_WIN32
 #include <poll.h>
 #endif
@@ -60,10 +61,10 @@
 /* ------------------------------------------------------------------------ */
 
 #define TYPE_USB_HOST_DEVICE "usb-host"
+typedef struct USBHostDevice USBHostDevice;
 #define USB_HOST_DEVICE(obj) \
      OBJECT_CHECK(USBHostDevice, (obj), TYPE_USB_HOST_DEVICE)
 
-typedef struct USBHostDevice USBHostDevice;
 typedef struct USBHostRequest USBHostRequest;
 typedef struct USBHostIsoXfer USBHostIsoXfer;
 typedef struct USBHostIsoRing USBHostIsoRing;

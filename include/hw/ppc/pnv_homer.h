@@ -21,28 +21,31 @@
 #define PPC_PNV_HOMER_H
 
 #include "hw/ppc/pnv.h"
+#include "qom/object.h"
 
 #define TYPE_PNV_HOMER "pnv-homer"
+typedef struct PnvHomer PnvHomer;
+typedef struct PnvHomerClass PnvHomerClass;
 #define PNV_HOMER(obj) OBJECT_CHECK(PnvHomer, (obj), TYPE_PNV_HOMER)
 #define TYPE_PNV8_HOMER TYPE_PNV_HOMER "-POWER8"
 #define PNV8_HOMER(obj) OBJECT_CHECK(PnvHomer, (obj), TYPE_PNV8_HOMER)
 #define TYPE_PNV9_HOMER TYPE_PNV_HOMER "-POWER9"
 #define PNV9_HOMER(obj) OBJECT_CHECK(PnvHomer, (obj), TYPE_PNV9_HOMER)
 
-typedef struct PnvHomer {
+struct PnvHomer {
     DeviceState parent;
 
     struct PnvChip *chip;
     MemoryRegion pba_regs;
     MemoryRegion regs;
-} PnvHomer;
+};
 
 #define PNV_HOMER_CLASS(klass)   \
      OBJECT_CLASS_CHECK(PnvHomerClass, (klass), TYPE_PNV_HOMER)
 #define PNV_HOMER_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PnvHomerClass, (obj), TYPE_PNV_HOMER)
 
-typedef struct PnvHomerClass {
+struct PnvHomerClass {
     DeviceClass parent_class;
 
     int pba_size;
@@ -51,6 +54,6 @@ typedef struct PnvHomerClass {
     const MemoryRegionOps *homer_ops;
 
     hwaddr core_max_base;
-} PnvHomerClass;
+};
 
 #endif /* PPC_PNV_HOMER_H */

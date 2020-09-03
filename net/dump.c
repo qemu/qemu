@@ -33,6 +33,7 @@
 #include "qemu/timer.h"
 #include "qapi/visitor.h"
 #include "net/filter.h"
+#include "qom/object.h"
 
 typedef struct DumpState {
     int64_t start_ts;
@@ -139,6 +140,7 @@ static int net_dump_state_init(DumpState *s, const char *filename,
 
 #define TYPE_FILTER_DUMP "filter-dump"
 
+typedef struct NetFilterDumpState NetFilterDumpState;
 #define FILTER_DUMP(obj) \
     OBJECT_CHECK(NetFilterDumpState, (obj), TYPE_FILTER_DUMP)
 
@@ -148,7 +150,6 @@ struct NetFilterDumpState {
     char *filename;
     uint32_t maxlen;
 };
-typedef struct NetFilterDumpState NetFilterDumpState;
 
 static ssize_t filter_dump_receive_iov(NetFilterState *nf, NetClientState *sndr,
                                        unsigned flags, const struct iovec *iov,

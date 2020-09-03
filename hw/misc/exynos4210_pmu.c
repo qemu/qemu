@@ -29,6 +29,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "sysemu/runstate.h"
+#include "qom/object.h"
 
 #ifndef DEBUG_PMU
 #define DEBUG_PMU           0
@@ -394,15 +395,16 @@ static const Exynos4210PmuReg exynos4210_pmu_regs[] = {
 #define PMU_NUM_OF_REGISTERS ARRAY_SIZE(exynos4210_pmu_regs)
 
 #define TYPE_EXYNOS4210_PMU "exynos4210.pmu"
+typedef struct Exynos4210PmuState Exynos4210PmuState;
 #define EXYNOS4210_PMU(obj) \
     OBJECT_CHECK(Exynos4210PmuState, (obj), TYPE_EXYNOS4210_PMU)
 
-typedef struct Exynos4210PmuState {
+struct Exynos4210PmuState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
     uint32_t reg[PMU_NUM_OF_REGISTERS];
-} Exynos4210PmuState;
+};
 
 static void exynos4210_pmu_poweroff(void)
 {

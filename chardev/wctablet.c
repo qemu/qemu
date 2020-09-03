@@ -32,6 +32,7 @@
 #include "ui/console.h"
 #include "ui/input.h"
 #include "trace.h"
+#include "qom/object.h"
 
 
 #define WC_OUTPUT_BUF_MAX_LEN 512
@@ -64,7 +65,7 @@ uint8_t WC_FULL_CONFIG_STRING[WC_FULL_CONFIG_STRING_LENGTH + 1] = {
 };
 
 /* This structure is used to save private info for Wacom Tablet. */
-typedef struct {
+struct TabletChardev {
     Chardev parent;
     QemuInputHandlerState *hs;
 
@@ -81,7 +82,8 @@ typedef struct {
     int axis[INPUT_AXIS__MAX];
     bool btns[INPUT_BUTTON__MAX];
 
-} TabletChardev;
+};
+typedef struct TabletChardev TabletChardev;
 
 #define TYPE_CHARDEV_WCTABLET "chardev-wctablet"
 #define WCTABLET_CHARDEV(obj)                                      \

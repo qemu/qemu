@@ -26,10 +26,10 @@
 #include "crypto/secret_common.h"
 
 #define TYPE_QCRYPTO_SECRET "secret"
+typedef struct QCryptoSecret QCryptoSecret;
 #define QCRYPTO_SECRET(obj)                  \
     OBJECT_CHECK(QCryptoSecret, (obj), TYPE_QCRYPTO_SECRET)
 
-typedef struct QCryptoSecret QCryptoSecret;
 typedef struct QCryptoSecretClass QCryptoSecretClass;
 
 /**

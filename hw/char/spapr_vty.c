@@ -8,15 +8,17 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/qdev-properties.h"
+#include "qom/object.h"
 
 #define VTERM_BUFSIZE   16
 
-typedef struct SpaprVioVty {
+struct SpaprVioVty {
     SpaprVioDevice sdev;
     CharBackend chardev;
     uint32_t in, out;
     uint8_t buf[VTERM_BUFSIZE];
-} SpaprVioVty;
+};
+typedef struct SpaprVioVty SpaprVioVty;
 
 #define TYPE_VIO_SPAPR_VTY_DEVICE "spapr-vty"
 #define VIO_SPAPR_VTY_DEVICE(obj) \

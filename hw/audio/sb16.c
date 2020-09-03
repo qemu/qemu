@@ -34,6 +34,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #define dolog(...) AUD_log ("sb16", __VA_ARGS__)
 
@@ -49,9 +50,10 @@
 static const char e3[] = "COPYRIGHT (C) CREATIVE TECHNOLOGY LTD, 1992.";
 
 #define TYPE_SB16 "sb16"
+typedef struct SB16State SB16State;
 #define SB16(obj) OBJECT_CHECK (SB16State, (obj), TYPE_SB16)
 
-typedef struct SB16State {
+struct SB16State {
     ISADevice parent_obj;
 
     QEMUSoundCard card;
@@ -112,7 +114,7 @@ typedef struct SB16State {
     int mixer_nreg;
     uint8_t mixer_regs[256];
     PortioList portio_list;
-} SB16State;
+};
 
 static void SB_audio_callback (void *opaque, int free);
 

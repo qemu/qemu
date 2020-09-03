@@ -17,6 +17,7 @@
 
 /* debug IDE devices */
 #define USE_DMA_CDROM
+#include "qom/object.h"
 
 typedef struct IDEBus IDEBus;
 typedef struct IDEDevice IDEDevice;
@@ -486,6 +487,7 @@ struct IDEBus {
 };
 
 #define TYPE_IDE_DEVICE "ide-device"
+typedef struct IDEDeviceClass IDEDeviceClass;
 #define IDE_DEVICE(obj) \
      OBJECT_CHECK(IDEDevice, (obj), TYPE_IDE_DEVICE)
 #define IDE_DEVICE_CLASS(klass) \
@@ -493,10 +495,10 @@ struct IDEBus {
 #define IDE_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(IDEDeviceClass, (obj), TYPE_IDE_DEVICE)
 
-typedef struct IDEDeviceClass {
+struct IDEDeviceClass {
     DeviceClass parent_class;
     void (*realize)(IDEDevice *dev, Error **errp);
-} IDEDeviceClass;
+};
 
 struct IDEDevice {
     DeviceState qdev;

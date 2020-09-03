@@ -27,9 +27,11 @@
 
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "qom/object.h"
 
 #define TYPE_XLNX_ZYNQMP_IPI "xlnx.zynqmp_ipi"
 
+typedef struct XlnxZynqMPIPI XlnxZynqMPIPI;
 #define XLNX_ZYNQMP_IPI(obj) \
      OBJECT_CHECK(XlnxZynqMPIPI, (obj), TYPE_XLNX_ZYNQMP_IPI)
 
@@ -38,7 +40,7 @@
 
 #define NUM_IPIS 11
 
-typedef struct XlnxZynqMPIPI {
+struct XlnxZynqMPIPI {
     /* Private */
     SysBusDevice parent_obj;
 
@@ -51,6 +53,6 @@ typedef struct XlnxZynqMPIPI {
 
     uint32_t regs[R_XLNX_ZYNQMP_IPI_MAX];
     RegisterInfo regs_info[R_XLNX_ZYNQMP_IPI_MAX];
-} XlnxZynqMPIPI;
+};
 
 #endif /* XLNX_ZYNQMP_IPI_H */

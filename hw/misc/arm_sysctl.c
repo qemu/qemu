@@ -18,14 +18,16 @@
 #include "hw/arm/primecell.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define LOCK_VALUE 0xa05f
 
 #define TYPE_ARM_SYSCTL "realview_sysctl"
+typedef struct arm_sysctl_state arm_sysctl_state;
 #define ARM_SYSCTL(obj) \
     OBJECT_CHECK(arm_sysctl_state, (obj), TYPE_ARM_SYSCTL)
 
-typedef struct {
+struct arm_sysctl_state {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -51,7 +53,7 @@ typedef struct {
     uint32_t *db_voltage;
     uint32_t db_num_clocks;
     uint32_t *db_clock_reset;
-} arm_sysctl_state;
+};
 
 static const VMStateDescription vmstate_arm_sysctl = {
     .name = "realview_sysctl",

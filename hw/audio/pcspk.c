@@ -33,15 +33,17 @@
 #include "migration/vmstate.h"
 #include "hw/audio/pcspk.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #define PCSPK_BUF_LEN 1792
 #define PCSPK_SAMPLE_RATE 32000
 #define PCSPK_MAX_FREQ (PCSPK_SAMPLE_RATE >> 1)
 #define PCSPK_MIN_COUNT DIV_ROUND_UP(PIT_FREQ, PCSPK_MAX_FREQ)
 
+typedef struct PCSpkState PCSpkState;
 #define PC_SPEAKER(obj) OBJECT_CHECK(PCSpkState, (obj), TYPE_PC_SPEAKER)
 
-typedef struct {
+struct PCSpkState {
     ISADevice parent_obj;
 
     MemoryRegion ioport;
@@ -56,7 +58,7 @@ typedef struct {
     uint8_t data_on;
     uint8_t dummy_refresh_clock;
     bool migrate;
-} PCSpkState;
+};
 
 static const char *s_spk = "pcspk";
 static PCSpkState *pcspk_state;

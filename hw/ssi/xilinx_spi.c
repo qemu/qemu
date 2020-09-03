@@ -34,6 +34,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/ssi/ssi.h"
+#include "qom/object.h"
 
 #ifdef XILINX_SPI_ERR_DEBUG
 #define DB_PRINT(...) do { \
@@ -78,9 +79,10 @@
 #define FIFO_CAPACITY 256
 
 #define TYPE_XILINX_SPI "xlnx.xps-spi"
+typedef struct XilinxSPI XilinxSPI;
 #define XILINX_SPI(obj) OBJECT_CHECK(XilinxSPI, (obj), TYPE_XILINX_SPI)
 
-typedef struct XilinxSPI {
+struct XilinxSPI {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
@@ -97,7 +99,7 @@ typedef struct XilinxSPI {
     Fifo8 tx_fifo;
 
     uint32_t regs[R_MAX];
-} XilinxSPI;
+};
 
 static void txfifo_reset(XilinxSPI *s)
 {

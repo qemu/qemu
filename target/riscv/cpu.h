@@ -24,6 +24,7 @@
 #include "hw/registerfields.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat-types.h"
+#include "qom/object.h"
 
 #define TCG_GUEST_DEFAULT_MO 0
 
@@ -231,6 +232,8 @@ struct CPURISCVState {
     QEMUTimer *timer; /* Internal timer */
 };
 
+typedef struct RISCVCPU RISCVCPU;
+typedef struct RISCVCPUClass RISCVCPUClass;
 #define RISCV_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(RISCVCPUClass, (klass), TYPE_RISCV_CPU)
 #define RISCV_CPU(obj) \
@@ -245,13 +248,13 @@ struct CPURISCVState {
  *
  * A RISCV CPU model.
  */
-typedef struct RISCVCPUClass {
+struct RISCVCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
-} RISCVCPUClass;
+};
 
 /**
  * RISCVCPU:
@@ -259,7 +262,7 @@ typedef struct RISCVCPUClass {
  *
  * A RISCV CPU.
  */
-typedef struct RISCVCPU {
+struct RISCVCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
@@ -292,7 +295,7 @@ typedef struct RISCVCPU {
         bool mmu;
         bool pmp;
     } cfg;
-} RISCVCPU;
+};
 
 static inline int riscv_has_ext(CPURISCVState *env, target_ulong ext)
 {

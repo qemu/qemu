@@ -13,11 +13,13 @@
 #include "hw/sysbus.h"
 #include "hw/intc/armv7m_nvic.h"
 #include "target/arm/idau.h"
+#include "qom/object.h"
 
 #define TYPE_BITBAND "ARM,bitband-memory"
+typedef struct BitBandState BitBandState;
 #define BITBAND(obj) OBJECT_CHECK(BitBandState, (obj), TYPE_BITBAND)
 
-typedef struct {
+struct BitBandState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -26,9 +28,10 @@ typedef struct {
     MemoryRegion iomem;
     uint32_t base;
     MemoryRegion *source_memory;
-} BitBandState;
+};
 
 #define TYPE_ARMV7M "armv7m"
+typedef struct ARMv7MState ARMv7MState;
 #define ARMV7M(obj) OBJECT_CHECK(ARMv7MState, (obj), TYPE_ARMV7M)
 
 #define ARMV7M_NUM_BITBANDS 2
@@ -49,7 +52,7 @@ typedef struct {
  * + Property "dsp": enable DSP (forwarded to CPU object)
  * + Property "enable-bitband": expose bitbanded IO
  */
-typedef struct ARMv7MState {
+struct ARMv7MState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -72,6 +75,6 @@ typedef struct ARMv7MState {
     bool start_powered_off;
     bool vfp;
     bool dsp;
-} ARMv7MState;
+};
 
 #endif

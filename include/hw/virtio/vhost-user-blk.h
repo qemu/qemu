@@ -20,14 +20,16 @@
 #include "chardev/char-fe.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user.h"
+#include "qom/object.h"
 
 #define TYPE_VHOST_USER_BLK "vhost-user-blk"
+typedef struct VHostUserBlk VHostUserBlk;
 #define VHOST_USER_BLK(obj) \
         OBJECT_CHECK(VHostUserBlk, (obj), TYPE_VHOST_USER_BLK)
 
 #define VHOST_USER_BLK_AUTO_NUM_QUEUES UINT16_MAX
 
-typedef struct VHostUserBlk {
+struct VHostUserBlk {
     VirtIODevice parent_obj;
     CharBackend chardev;
     int32_t bootindex;
@@ -41,6 +43,6 @@ typedef struct VHostUserBlk {
     struct vhost_virtqueue *vhost_vqs;
     VirtQueue **virtqs;
     bool connected;
-} VHostUserBlk;
+};
 
 #endif

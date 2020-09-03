@@ -34,8 +34,10 @@
 #include "sysemu/kvm.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define TYPE_ARM_GICV2M "arm-gicv2m"
+typedef struct ARMGICv2mState ARMGICv2mState;
 #define ARM_GICV2M(obj) OBJECT_CHECK(ARMGICv2mState, (obj), TYPE_ARM_GICV2M)
 
 #define GICV2M_NUM_SPI_MAX 128
@@ -48,7 +50,7 @@
 
 #define PRODUCT_ID_QEMU         0x51 /* ASCII code Q */
 
-typedef struct ARMGICv2mState {
+struct ARMGICv2mState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -56,7 +58,7 @@ typedef struct ARMGICv2mState {
 
     uint32_t base_spi;
     uint32_t num_spi;
-} ARMGICv2mState;
+};
 
 static void gicv2m_set_irq(void *opaque, int irq)
 {

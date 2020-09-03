@@ -27,6 +27,7 @@
 
 #include "qemu/throttle.h"
 #include "block/block_int.h"
+#include "qom/object.h"
 
 /* The ThrottleGroupMember structure indicates membership in a ThrottleGroup
  * and holds related data.

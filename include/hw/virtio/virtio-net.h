@@ -19,8 +19,10 @@
 #include "hw/virtio/virtio.h"
 #include "net/announce.h"
 #include "qemu/option_int.h"
+#include "qom/object.h"
 
 #define TYPE_VIRTIO_NET "virtio-net-device"
+typedef struct VirtIONet VirtIONet;
 #define VIRTIO_NET(obj) \
         OBJECT_CHECK(VirtIONet, (obj), TYPE_VIRTIO_NET)
 
@@ -109,7 +111,6 @@ typedef struct VirtioNetRscSeg {
     NetClientState *nc;
 } VirtioNetRscSeg;
 
-typedef struct VirtIONet VirtIONet;
 
 /* Chain is divided by protocol(ipv4/v6) and NetClientInfo */
 typedef struct VirtioNetRscChain {

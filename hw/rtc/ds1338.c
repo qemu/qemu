@@ -16,6 +16,7 @@
 #include "migration/vmstate.h"
 #include "qemu/bcd.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 /* Size of NVRAM including both the user-accessible area and the
  * secondary register area.
@@ -29,9 +30,10 @@
 #define CTRL_OSF   0x20
 
 #define TYPE_DS1338 "ds1338"
+typedef struct DS1338State DS1338State;
 #define DS1338(obj) OBJECT_CHECK(DS1338State, (obj), TYPE_DS1338)
 
-typedef struct DS1338State {
+struct DS1338State {
     I2CSlave parent_obj;
 
     int64_t offset;
@@ -39,7 +41,7 @@ typedef struct DS1338State {
     uint8_t nvram[NVRAM_SIZE];
     int32_t ptr;
     bool addr_byte;
-} DS1338State;
+};
 
 static const VMStateDescription vmstate_ds1338 = {
     .name = "ds1338",

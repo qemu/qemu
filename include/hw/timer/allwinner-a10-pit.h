@@ -3,8 +3,10 @@
 
 #include "hw/ptimer.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_AW_A10_PIT "allwinner-A10-timer"
+typedef struct AwA10PITState AwA10PITState;
 #define AW_A10_PIT(obj) OBJECT_CHECK(AwA10PITState, (obj), TYPE_AW_A10_PIT)
 
 #define AW_A10_PIT_TIMER_NR    6
@@ -36,7 +38,6 @@
 
 #define AW_A10_PIT_DEFAULT_CLOCK   0x4
 
-typedef struct AwA10PITState AwA10PITState;
 
 typedef struct AwA10TimerContext {
     AwA10PITState *container;

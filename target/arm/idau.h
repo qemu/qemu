@@ -33,6 +33,7 @@
 #define TYPE_IDAU_INTERFACE "idau-interface"
 #define IDAU_INTERFACE(obj) \
     INTERFACE_CHECK(IDAUInterface, (obj), TYPE_IDAU_INTERFACE)
+typedef struct IDAUInterfaceClass IDAUInterfaceClass;
 #define IDAU_INTERFACE_CLASS(class) \
     OBJECT_CLASS_CHECK(IDAUInterfaceClass, (class), TYPE_IDAU_INTERFACE)
 #define IDAU_INTERFACE_GET_CLASS(obj) \
@@ -42,7 +43,7 @@ typedef struct IDAUInterface IDAUInterface;
 
 #define IREGION_NOTVALID -1
 
-typedef struct IDAUInterfaceClass {
+struct IDAUInterfaceClass {
     InterfaceClass parent;
 
     /* Check the specified address and return the IDAU security information
@@ -54,6 +55,6 @@ typedef struct IDAUInterfaceClass {
      */
     void (*check)(IDAUInterface *ii, uint32_t address, int *iregion,
                   bool *exempt, bool *ns, bool *nsc);
-} IDAUInterfaceClass;
+};
 
 #endif

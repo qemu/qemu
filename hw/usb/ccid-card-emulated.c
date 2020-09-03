@@ -35,6 +35,7 @@
 #include "ccid.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #define DPRINTF(card, lvl, fmt, ...) \
 do {\
@@ -45,6 +46,7 @@ do {\
 
 
 #define TYPE_EMULATED_CCID "ccid-card-emulated"
+typedef struct EmulatedState EmulatedState;
 #define EMULATED_CCID_CARD(obj) \
     OBJECT_CHECK(EmulatedState, (obj), TYPE_EMULATED_CCID)
 
@@ -58,7 +60,6 @@ enum {
 
 #define DEFAULT_BACKEND BACKEND_NSS_EMULATED
 
-typedef struct EmulatedState EmulatedState;
 
 enum {
     EMUL_READER_INSERT = 0,

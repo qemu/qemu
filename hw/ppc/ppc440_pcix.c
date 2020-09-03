@@ -30,6 +30,7 @@
 #include "hw/pci/pci_host.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
+#include "qom/object.h"
 
 struct PLBOutMap {
     uint64_t la;
@@ -45,13 +46,14 @@ struct PLBInMap {
 };
 
 #define TYPE_PPC440_PCIX_HOST_BRIDGE "ppc440-pcix-host"
+typedef struct PPC440PCIXState PPC440PCIXState;
 #define PPC440_PCIX_HOST_BRIDGE(obj) \
     OBJECT_CHECK(PPC440PCIXState, (obj), TYPE_PPC440_PCIX_HOST_BRIDGE)
 
 #define PPC440_PCIX_NR_POMS 3
 #define PPC440_PCIX_NR_PIMS 3
 
-typedef struct PPC440PCIXState {
+struct PPC440PCIXState {
     PCIHostState parent_obj;
 
     PCIDevice *dev;
@@ -65,7 +67,7 @@ typedef struct PPC440PCIXState {
     MemoryRegion container;
     MemoryRegion iomem;
     MemoryRegion busmem;
-} PPC440PCIXState;
+};
 
 #define PPC440_REG_BASE     0x80000
 #define PPC440_REG_SIZE     0xff

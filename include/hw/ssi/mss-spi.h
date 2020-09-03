@@ -28,13 +28,15 @@
 #include "hw/sysbus.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/fifo32.h"
+#include "qom/object.h"
 
 #define TYPE_MSS_SPI   "mss-spi"
+typedef struct MSSSpiState MSSSpiState;
 #define MSS_SPI(obj)   OBJECT_CHECK(MSSSpiState, (obj), TYPE_MSS_SPI)
 
 #define R_SPI_MAX             16
 
-typedef struct MSSSpiState {
+struct MSSSpiState {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
@@ -53,6 +55,6 @@ typedef struct MSSSpiState {
     bool enabled;
 
     uint32_t regs[R_SPI_MAX];
-} MSSSpiState;
+};
 
 #endif /* HW_MSS_SPI_H */

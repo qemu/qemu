@@ -26,17 +26,19 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci_bridge.h"
+#include "qom/object.h"
 
 #define TYPE_DESIGNWARE_PCIE_HOST "designware-pcie-host"
+typedef struct DesignwarePCIEHost DesignwarePCIEHost;
 #define DESIGNWARE_PCIE_HOST(obj) \
      OBJECT_CHECK(DesignwarePCIEHost, (obj), TYPE_DESIGNWARE_PCIE_HOST)
 
 #define TYPE_DESIGNWARE_PCIE_ROOT "designware-pcie-root"
+typedef struct DesignwarePCIERoot DesignwarePCIERoot;
 #define DESIGNWARE_PCIE_ROOT(obj) \
      OBJECT_CHECK(DesignwarePCIERoot, (obj), TYPE_DESIGNWARE_PCIE_ROOT)
 
 struct DesignwarePCIERoot;
-typedef struct DesignwarePCIERoot DesignwarePCIERoot;
 
 typedef struct DesignwarePCIEViewport {
     DesignwarePCIERoot *root;
@@ -80,7 +82,7 @@ struct DesignwarePCIERoot {
     DesignwarePCIEMSI msi;
 };
 
-typedef struct DesignwarePCIEHost {
+struct DesignwarePCIEHost {
     PCIHostState parent_obj;
 
     DesignwarePCIERoot root;
@@ -96,6 +98,6 @@ typedef struct DesignwarePCIEHost {
     } pci;
 
     MemoryRegion mmio;
-} DesignwarePCIEHost;
+};
 
 #endif /* DESIGNWARE_H */

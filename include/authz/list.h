@@ -23,9 +23,12 @@
 
 #include "authz/base.h"
 #include "qapi/qapi-types-authz.h"
+#include "qom/object.h"
 
 #define TYPE_QAUTHZ_LIST "authz-list"
 
+typedef struct QAuthZList QAuthZList;
+typedef struct QAuthZListClass QAuthZListClass;
 #define QAUTHZ_LIST_CLASS(klass)                        \
     OBJECT_CLASS_CHECK(QAuthZListClass, (klass),        \
                        TYPE_QAUTHZ_LIST)
@@ -36,8 +39,6 @@
     OBJECT_CHECK(QAuthZList, (obj), \
                  TYPE_QAUTHZ_LIST)
 
-typedef struct QAuthZList QAuthZList;
-typedef struct QAuthZListClass QAuthZListClass;
 
 
 /**

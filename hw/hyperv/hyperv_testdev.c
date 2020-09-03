@@ -17,6 +17,7 @@
 #include "qemu/queue.h"
 #include "hw/isa/isa.h"
 #include "hw/hyperv/hyperv.h"
+#include "qom/object.h"
 
 typedef struct TestSintRoute {
     QLIST_ENTRY(TestSintRoute) le;

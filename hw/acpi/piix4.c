@@ -45,6 +45,7 @@
 #include "migration/vmstate.h"
 #include "hw/core/cpu.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define GPE_BASE 0xafe0
 #define GPE_LEN 4
@@ -54,7 +55,7 @@ struct pci_status {
     uint32_t down;
 };
 
-typedef struct PIIX4PMState {
+struct PIIX4PMState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -89,7 +90,8 @@ typedef struct PIIX4PMState {
     CPUHotplugState cpuhp_state;
 
     MemHotplugState acpi_memory_hotplug;
-} PIIX4PMState;
+};
+typedef struct PIIX4PMState PIIX4PMState;
 
 #define PIIX4_PM(obj) \
     OBJECT_CHECK(PIIX4PMState, (obj), TYPE_PIIX4_PM)

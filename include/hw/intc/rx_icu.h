@@ -22,6 +22,7 @@
 #define HW_INTC_RX_ICU_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 enum TRG_MODE {
     TRG_LEVEL = 0,

@@ -19,6 +19,8 @@
 #include "qapi/error.h"
 
 #define TYPE_TPM_BACKEND "tpm-backend"
+typedef struct TPMBackend TPMBackend;
+typedef struct TPMBackendClass TPMBackendClass;
 #define TPM_BACKEND(obj) \
     OBJECT_CHECK(TPMBackend, (obj), TYPE_TPM_BACKEND)
 #define TPM_BACKEND_GET_CLASS(obj) \
@@ -26,8 +28,6 @@
 #define TPM_BACKEND_CLASS(klass) \
     OBJECT_CLASS_CHECK(TPMBackendClass, (klass), TYPE_TPM_BACKEND)
 
-typedef struct TPMBackendClass TPMBackendClass;
-typedef struct TPMBackend TPMBackend;
 
 typedef struct TPMBackendCmd {
     uint8_t locty;

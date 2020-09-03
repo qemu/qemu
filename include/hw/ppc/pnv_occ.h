@@ -21,8 +21,11 @@
 #define PPC_PNV_OCC_H
 
 #include "hw/ppc/pnv_psi.h"
+#include "qom/object.h"
 
 #define TYPE_PNV_OCC "pnv-occ"
+typedef struct PnvOCC PnvOCC;
+typedef struct PnvOCCClass PnvOCCClass;
 #define PNV_OCC(obj) OBJECT_CHECK(PnvOCC, (obj), TYPE_PNV_OCC)
 #define TYPE_PNV8_OCC TYPE_PNV_OCC "-POWER8"
 #define PNV8_OCC(obj) OBJECT_CHECK(PnvOCC, (obj), TYPE_PNV8_OCC)
@@ -32,7 +35,7 @@
 #define PNV_OCC_SENSOR_DATA_BLOCK_OFFSET 0x00580000
 #define PNV_OCC_SENSOR_DATA_BLOCK_SIZE   0x00025800
 
-typedef struct PnvOCC {
+struct PnvOCC {
     DeviceState xd;
 
     /* OCC Misc interrupt */
@@ -42,20 +45,20 @@ typedef struct PnvOCC {
 
     MemoryRegion xscom_regs;
     MemoryRegion sram_regs;
-} PnvOCC;
+};
 
 #define PNV_OCC_CLASS(klass) \
      OBJECT_CLASS_CHECK(PnvOCCClass, (klass), TYPE_PNV_OCC)
 #define PNV_OCC_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PnvOCCClass, (obj), TYPE_PNV_OCC)
 
-typedef struct PnvOCCClass {
+struct PnvOCCClass {
     DeviceClass parent_class;
 
     int xscom_size;
     const MemoryRegionOps *xscom_ops;
     int psi_irq;
-} PnvOCCClass;
+};
 
 #define PNV_OCC_SENSOR_DATA_BLOCK_BASE(i)                               \
     (PNV_OCC_SENSOR_DATA_BLOCK_OFFSET + (i) * PNV_OCC_SENSOR_DATA_BLOCK_SIZE)

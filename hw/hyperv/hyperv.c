@@ -20,8 +20,9 @@
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
 #include "hw/hyperv/hyperv.h"
+#include "qom/object.h"
 
-typedef struct SynICState {
+struct SynICState {
     DeviceState parent_obj;
 
     CPUState *cs;
@@ -33,7 +34,8 @@ typedef struct SynICState {
     MemoryRegion event_page_mr;
     struct hyperv_message_page *msg_page;
     struct hyperv_event_flags_page *event_page;
-} SynICState;
+};
+typedef struct SynICState SynICState;
 
 #define TYPE_SYNIC "hyperv-synic"
 #define SYNIC(obj) OBJECT_CHECK(SynICState, (obj), TYPE_SYNIC)

@@ -14,6 +14,7 @@
 #define HVF_H
 
 #include "sysemu/accel.h"
+#include "qom/object.h"
 
 #ifdef CONFIG_HVF
 uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,

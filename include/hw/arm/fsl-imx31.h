@@ -28,8 +28,10 @@
 #include "hw/watchdog/wdt_imx2.h"
 #include "exec/memory.h"
 #include "target/arm/cpu.h"
+#include "qom/object.h"
 
 #define TYPE_FSL_IMX31 "fsl,imx31"
+typedef struct FslIMX31State FslIMX31State;
 #define FSL_IMX31(obj) OBJECT_CHECK(FslIMX31State, (obj), TYPE_FSL_IMX31)
 
 #define FSL_IMX31_NUM_UARTS 2
@@ -37,7 +39,7 @@
 #define FSL_IMX31_NUM_I2CS 3
 #define FSL_IMX31_NUM_GPIOS 3
 
-typedef struct FslIMX31State {
+struct FslIMX31State {
     /*< private >*/
     DeviceState parent_obj;
 
@@ -55,7 +57,7 @@ typedef struct FslIMX31State {
     MemoryRegion   rom;
     MemoryRegion   iram;
     MemoryRegion   iram_alias;
-} FslIMX31State;
+};
 
 #define FSL_IMX31_SECURE_ROM_ADDR       0x00000000
 #define FSL_IMX31_SECURE_ROM_SIZE       0x4000

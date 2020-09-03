@@ -24,10 +24,12 @@
 
 #include "hw/intc/xlnx-zynqmp-ipi.h"
 #include "hw/intc/xlnx-pmu-iomod-intc.h"
+#include "qom/object.h"
 
 /* Define the PMU device */
 
 #define TYPE_XLNX_ZYNQMP_PMU_SOC "xlnx,zynqmp-pmu-soc"
+typedef struct XlnxZynqMPPMUSoCState XlnxZynqMPPMUSoCState;
 #define XLNX_ZYNQMP_PMU_SOC(obj) OBJECT_CHECK(XlnxZynqMPPMUSoCState, (obj), \
                                               TYPE_XLNX_ZYNQMP_PMU_SOC)
 
@@ -46,7 +48,7 @@ static const uint64_t ipi_irq[XLNX_ZYNQMP_PMU_NUM_IPIS] = {
     19, 20, 21, 22,
 };
 
-typedef struct XlnxZynqMPPMUSoCState {
+struct XlnxZynqMPPMUSoCState {
     /*< private >*/
     DeviceState parent_obj;
 
@@ -54,7 +56,7 @@ typedef struct XlnxZynqMPPMUSoCState {
     MicroBlazeCPU cpu;
     XlnxPMUIOIntc intc;
     XlnxZynqMPIPI ipi[XLNX_ZYNQMP_PMU_NUM_IPIS];
-}  XlnxZynqMPPMUSoCState;
+};
 
 
 static void xlnx_zynqmp_pmu_soc_init(Object *obj)

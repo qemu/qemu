@@ -38,6 +38,7 @@
 #include "trace.h"
 
 #include <libfdt.h>
+#include "qom/object.h"
 
 #define ETH_ALEN        6
 #define MAX_PACKET_SIZE 65536
@@ -84,6 +85,7 @@ typedef uint64_t vlan_bd_t;
 #define VLAN_MAX_BUFS        (VLAN_RX_BDS_LEN / 8)
 
 #define TYPE_VIO_SPAPR_VLAN_DEVICE "spapr-vlan"
+typedef struct SpaprVioVlan SpaprVioVlan;
 #define VIO_SPAPR_VLAN_DEVICE(obj) \
      OBJECT_CHECK(SpaprVioVlan, (obj), TYPE_VIO_SPAPR_VLAN_DEVICE)
 
@@ -96,7 +98,7 @@ typedef struct {
     vlan_bd_t bds[RX_POOL_MAX_BDS];
 } RxBufPool;
 
-typedef struct SpaprVioVlan {
+struct SpaprVioVlan {
     SpaprVioDevice sdev;
     NICConf nicconf;
     NICState *nic;
@@ -108,7 +110,7 @@ typedef struct SpaprVioVlan {
     QEMUTimer *rxp_timer;
     uint32_t compat_flags;             /* Compatibility flags for migration */
     RxBufPool *rx_pool[RX_MAX_POOLS];  /* Receive buffer descriptor pools */
-} SpaprVioVlan;
+};
 
 static bool spapr_vlan_can_receive(NetClientState *nc)
 {

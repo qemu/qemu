@@ -34,6 +34,7 @@
 #include "qapi/error.h"
 #include "mfi.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 #define MEGASAS_VERSION_GEN1 "1.70"
 #define MEGASAS_VERSION_GEN2 "1.80"
@@ -72,7 +73,7 @@ typedef struct MegasasCmd {
     struct MegasasState *state;
 } MegasasCmd;
 
-typedef struct MegasasState {
+struct MegasasState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -116,16 +117,18 @@ typedef struct MegasasState {
     MegasasCmd frames[MEGASAS_MAX_FRAMES];
     DECLARE_BITMAP(frame_map, MEGASAS_MAX_FRAMES);
     SCSIBus bus;
-} MegasasState;
+};
+typedef struct MegasasState MegasasState;
 
-typedef struct MegasasBaseClass {
+struct MegasasBaseClass {
     PCIDeviceClass parent_class;
     const char *product_name;
     const char *product_version;
     int mmio_bar;
     int ioport_bar;
     int osts;
-} MegasasBaseClass;
+};
+typedef struct MegasasBaseClass MegasasBaseClass;
 
 #define TYPE_MEGASAS_BASE "megasas-base"
 #define TYPE_MEGASAS_GEN1 "megasas"

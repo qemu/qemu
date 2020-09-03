@@ -25,6 +25,7 @@
 #include "hw/ssi/ssi.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
+#include "qom/object.h"
 
 #define TOSA_RAM 0x04000000
 #define TOSA_ROM 0x00800000
@@ -74,12 +75,13 @@ static void tosa_microdrive_attach(PXA2xxState *cpu)
  */
 
 #define TYPE_TOSA_MISC_GPIO "tosa-misc-gpio"
+typedef struct TosaMiscGPIOState TosaMiscGPIOState;
 #define TOSA_MISC_GPIO(obj) \
     OBJECT_CHECK(TosaMiscGPIOState, (obj), TYPE_TOSA_MISC_GPIO)
 
-typedef struct TosaMiscGPIOState {
+struct TosaMiscGPIOState {
     SysBusDevice parent_obj;
-} TosaMiscGPIOState;
+};
 
 static void tosa_gpio_leds(void *opaque, int line, int level)
 {
@@ -170,14 +172,15 @@ static void tosa_ssp_realize(SSISlave *dev, Error **errp)
 }
 
 #define TYPE_TOSA_DAC "tosa_dac"
+typedef struct TosaDACState TosaDACState;
 #define TOSA_DAC(obj) OBJECT_CHECK(TosaDACState, (obj), TYPE_TOSA_DAC)
 
-typedef struct {
+struct TosaDACState {
     I2CSlave parent_obj;
 
     int len;
     char buf[3];
-} TosaDACState;
+};
 
 static int tosa_dac_send(I2CSlave *i2c, uint8_t data)
 {

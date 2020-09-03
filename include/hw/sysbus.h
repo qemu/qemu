@@ -5,6 +5,7 @@
 
 #include "hw/qdev-core.h"
 #include "exec/memory.h"
+#include "qom/object.h"
 
 #define QDEV_MAX_MMIO 32
 #define QDEV_MAX_PIO 32
@@ -15,6 +16,7 @@
 typedef struct SysBusDevice SysBusDevice;
 
 #define TYPE_SYS_BUS_DEVICE "sys-bus-device"
+typedef struct SysBusDeviceClass SysBusDeviceClass;
 #define SYS_BUS_DEVICE(obj) \
      OBJECT_CHECK(SysBusDevice, (obj), TYPE_SYS_BUS_DEVICE)
 #define SYS_BUS_DEVICE_CLASS(klass) \
@@ -31,7 +33,7 @@ typedef struct SysBusDevice SysBusDevice;
 
 #define SYSBUS_DEVICE_GPIO_IRQ "sysbus-irq"
 
-typedef struct SysBusDeviceClass {
+struct SysBusDeviceClass {
     /*< private >*/
     DeviceClass parent_class;
 
@@ -52,7 +54,7 @@ typedef struct SysBusDeviceClass {
      */
     char *(*explicit_ofw_unit_address)(const SysBusDevice *dev);
     void (*connect_irq_notifier)(SysBusDevice *dev, qemu_irq irq);
-} SysBusDeviceClass;
+};
 
 struct SysBusDevice {
     /*< private >*/

@@ -29,10 +29,10 @@
 #endif
 
 #define TYPE_QCRYPTO_TLS_CREDS "tls-creds"
+typedef struct QCryptoTLSCreds QCryptoTLSCreds;
 #define QCRYPTO_TLS_CREDS(obj)                  \
     OBJECT_CHECK(QCryptoTLSCreds, (obj), TYPE_QCRYPTO_TLS_CREDS)
 
-typedef struct QCryptoTLSCreds QCryptoTLSCreds;
 typedef struct QCryptoTLSCredsClass QCryptoTLSCredsClass;
 
 #define QCRYPTO_TLS_CREDS_DH_PARAMS "dh-params.pem"

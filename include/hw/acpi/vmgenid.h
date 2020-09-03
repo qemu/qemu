@@ -4,6 +4,7 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/qdev-core.h"
 #include "qemu/uuid.h"
+#include "qom/object.h"
 
 #define VMGENID_DEVICE           "vmgenid"
 #define VMGENID_GUID             "guid"
@@ -15,13 +16,14 @@
                                        * OVMF SDT Header Probe Supressor
                                        */
 
+typedef struct VmGenIdState VmGenIdState;
 #define VMGENID(obj) OBJECT_CHECK(VmGenIdState, (obj), VMGENID_DEVICE)
 
-typedef struct VmGenIdState {
+struct VmGenIdState {
     DeviceClass parent_obj;
     QemuUUID guid;                /* The 128-bit GUID seen by the guest */
     uint8_t vmgenid_addr_le[8];   /* Address of the GUID (little-endian) */
-} VmGenIdState;
+};
 
 /* returns NULL unless there is exactly one device */
 static inline Object *find_vmgenid_dev(void)

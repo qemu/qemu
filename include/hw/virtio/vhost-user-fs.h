@@ -18,8 +18,10 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user.h"
 #include "chardev/char-fe.h"
+#include "qom/object.h"
 
 #define TYPE_VHOST_USER_FS "vhost-user-fs-device"
+typedef struct VHostUserFS VHostUserFS;
 #define VHOST_USER_FS(obj) \
         OBJECT_CHECK(VHostUserFS, (obj), TYPE_VHOST_USER_FS)
 
@@ -30,7 +32,7 @@ typedef struct {
     uint16_t queue_size;
 } VHostUserFSConf;
 
-typedef struct {
+struct VHostUserFS {
     /*< private >*/
     VirtIODevice parent;
     VHostUserFSConf conf;
@@ -41,6 +43,6 @@ typedef struct {
     VirtQueue *hiprio_vq;
 
     /*< public >*/
-} VHostUserFS;
+};
 
 #endif /* _QEMU_VHOST_USER_FS_H */

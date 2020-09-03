@@ -28,13 +28,15 @@
 #include "hw/qdev-properties.h"
 #include "hw/s390x/ap-bridge.h"
 #include "exec/address-spaces.h"
+#include "qom/object.h"
 
 #define VFIO_AP_DEVICE_TYPE      "vfio-ap"
 
-typedef struct VFIOAPDevice {
+struct VFIOAPDevice {
     APDevice apdev;
     VFIODevice vdev;
-} VFIOAPDevice;
+};
+typedef struct VFIOAPDevice VFIOAPDevice;
 
 #define VFIO_AP_DEVICE(obj) \
         OBJECT_CHECK(VFIOAPDevice, (obj), VFIO_AP_DEVICE_TYPE)

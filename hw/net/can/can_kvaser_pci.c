@@ -43,9 +43,11 @@
 #include "net/can_emu.h"
 
 #include "can_sja1000.h"
+#include "qom/object.h"
 
 #define TYPE_CAN_PCI_DEV "kvaser_pci"
 
+typedef struct KvaserPCIState KvaserPCIState;
 #define KVASER_PCI_DEV(obj) \
     OBJECT_CHECK(KvaserPCIState, (obj), TYPE_CAN_PCI_DEV)
 
@@ -78,7 +80,7 @@
 
 #define KVASER_PCI_XILINX_VERSION_NUMBER 13
 
-typedef struct KvaserPCIState {
+struct KvaserPCIState {
     /*< private >*/
     PCIDevice       dev;
     /*< public >*/
@@ -93,7 +95,7 @@ typedef struct KvaserPCIState {
     uint32_t        s5920_irqstate;
 
     CanBusState     *canbus;
-} KvaserPCIState;
+};
 
 static void kvaser_pci_irq_handler(void *opaque, int irq_num, int level)
 {

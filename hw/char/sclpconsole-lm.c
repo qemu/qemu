@@ -24,6 +24,7 @@
 #include "hw/s390x/event-facility.h"
 #include "hw/qdev-properties.h"
 #include "hw/s390x/ebcdic.h"
+#include "qom/object.h"
 
 #define SIZE_BUFFER 4096
 #define NEWLINE     "\n"
@@ -37,14 +38,15 @@ typedef struct OprtnsCommand {
 /* max size for line-mode data in 4K SCCB page */
 #define SIZE_CONSOLE_BUFFER (SCCB_DATA_LEN - sizeof(OprtnsCommand))
 
-typedef struct SCLPConsoleLM {
+struct SCLPConsoleLM {
     SCLPEvent event;
     CharBackend chr;
     bool echo;                  /* immediate echo of input if true        */
     uint32_t write_errors;      /* errors writing to char layer           */
     uint32_t length;            /* length of byte stream in buffer        */
     uint8_t buf[SIZE_CONSOLE_BUFFER];
-} SCLPConsoleLM;
+};
+typedef struct SCLPConsoleLM SCLPConsoleLM;
 
 #define TYPE_SCLPLM_CONSOLE "sclplmconsole"
 #define SCLPLM_CONSOLE(obj) \

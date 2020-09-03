@@ -17,11 +17,12 @@
 #include "sysemu/hostmem.h"
 #include "sysemu/sysemu.h"
 #include "qom/object_interfaces.h"
+#include "qom/object.h"
 
+typedef struct HostMemoryBackendFile HostMemoryBackendFile;
 #define MEMORY_BACKEND_FILE(obj) \
     OBJECT_CHECK(HostMemoryBackendFile, (obj), TYPE_MEMORY_BACKEND_FILE)
 
-typedef struct HostMemoryBackendFile HostMemoryBackendFile;
 
 struct HostMemoryBackendFile {
     HostMemoryBackend parent_obj;

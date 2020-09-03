@@ -27,17 +27,19 @@
 
 #include "hw/qdev-core.h"
 #include "hw/virtio/virtio.h"
+#include "qom/object.h"
 
 #define TYPE_VIRTIO_BUS "virtio-bus"
+typedef struct VirtioBusClass VirtioBusClass;
+typedef struct VirtioBusState VirtioBusState;
 #define VIRTIO_BUS_GET_CLASS(obj) \
         OBJECT_GET_CLASS(VirtioBusClass, obj, TYPE_VIRTIO_BUS)
 #define VIRTIO_BUS_CLASS(klass) \
         OBJECT_CLASS_CHECK(VirtioBusClass, klass, TYPE_VIRTIO_BUS)
 #define VIRTIO_BUS(obj) OBJECT_CHECK(VirtioBusState, (obj), TYPE_VIRTIO_BUS)
 
-typedef struct VirtioBusState VirtioBusState;
 
-typedef struct VirtioBusClass {
+struct VirtioBusClass {
     /* This is what a VirtioBus must implement */
     BusClass parent;
     void (*notify)(DeviceState *d, uint16_t vector);
@@ -94,7 +96,7 @@ typedef struct VirtioBusClass {
      */
     bool has_variable_vring_alignment;
     AddressSpace *(*get_dma_as)(DeviceState *d);
-} VirtioBusClass;
+};
 
 struct VirtioBusState {
     BusState parent_obj;

@@ -23,21 +23,22 @@
 #include "migration/colo.h"
 #include "util.h"
 
+#define TYPE_FILTER_REWRITER "filter-rewriter"
+typedef struct RewriterState RewriterState;
 #define FILTER_COLO_REWRITER(obj) \
     OBJECT_CHECK(RewriterState, (obj), TYPE_FILTER_REWRITER)
 
-#define TYPE_FILTER_REWRITER "filter-rewriter"
 #define FAILOVER_MODE_ON  true
 #define FAILOVER_MODE_OFF false
 
-typedef struct RewriterState {
+struct RewriterState {
     NetFilterState parent_obj;
     NetQueue *incoming_queue;
     /* hashtable to save connection */
     GHashTable *connection_track_table;
     bool vnet_hdr;
     bool failover_mode;
-} RewriterState;
+};
 
 static void filter_rewriter_failover_mode(RewriterState *s)
 {

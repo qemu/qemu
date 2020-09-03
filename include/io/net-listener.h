@@ -22,8 +22,11 @@
 #define QIO_NET_LISTENER_H
 
 #include "io/channel-socket.h"
+#include "qom/object.h"
 
 #define TYPE_QIO_NET_LISTENER "qio-net-listener"
+typedef struct QIONetListener QIONetListener;
+typedef struct QIONetListenerClass QIONetListenerClass;
 #define QIO_NET_LISTENER(obj)                                    \
     OBJECT_CHECK(QIONetListener, (obj), TYPE_QIO_NET_LISTENER)
 #define QIO_NET_LISTENER_CLASS(klass)                                    \
@@ -31,8 +34,6 @@
 #define QIO_NET_LISTENER_GET_CLASS(obj)                                  \
     OBJECT_GET_CLASS(QIONetListenerClass, obj, TYPE_QIO_NET_LISTENER)
 
-typedef struct QIONetListener QIONetListener;
-typedef struct QIONetListenerClass QIONetListenerClass;
 
 typedef void (*QIONetListenerClientFunc)(QIONetListener *listener,
                                          QIOChannelSocket *sioc,

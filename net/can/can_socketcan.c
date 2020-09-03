@@ -40,17 +40,19 @@
 #include <net/if.h>
 #include <linux/can.h>
 #include <linux/can/raw.h>
+#include "qom/object.h"
 
 #ifndef DEBUG_CAN
 #define DEBUG_CAN 0
 #endif /*DEBUG_CAN*/
 
 #define TYPE_CAN_HOST_SOCKETCAN "can-host-socketcan"
+typedef struct CanHostSocketCAN CanHostSocketCAN;
 #define CAN_HOST_SOCKETCAN(obj) \
      OBJECT_CHECK(CanHostSocketCAN, (obj), TYPE_CAN_HOST_SOCKETCAN)
 
 #define CAN_READ_BUF_LEN  5
-typedef struct CanHostSocketCAN {
+struct CanHostSocketCAN {
     CanHostState       parent;
     char               *ifname;
 
@@ -63,7 +65,7 @@ typedef struct CanHostSocketCAN {
     int                bufptr;
 
     int                fd;
-} CanHostSocketCAN;
+};
 
 /* Check that QEMU and Linux kernel flags encoding and structure matches */
 QEMU_BUILD_BUG_ON(QEMU_CAN_EFF_FLAG != CAN_EFF_FLAG);

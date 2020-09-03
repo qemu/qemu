@@ -45,6 +45,7 @@
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
+#include "qom/object.h"
 
 //#define DEBUG
 
@@ -84,10 +85,11 @@ static struct {
 /* Interrupt Controller */
 
 #define TYPE_STRONGARM_PIC "strongarm_pic"
+typedef struct StrongARMPICState StrongARMPICState;
 #define STRONGARM_PIC(obj) \
     OBJECT_CHECK(StrongARMPICState, (obj), TYPE_STRONGARM_PIC)
 
-typedef struct StrongARMPICState {
+struct StrongARMPICState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -98,7 +100,7 @@ typedef struct StrongARMPICState {
     uint32_t enabled;
     uint32_t is_fiq;
     uint32_t int_idle;
-} StrongARMPICState;
+};
 
 #define ICIP    0x00
 #define ICMR    0x04
@@ -252,10 +254,11 @@ static const TypeInfo strongarm_pic_info = {
  * f = 32 768 / (RTTR_trim + 1) */
 
 #define TYPE_STRONGARM_RTC "strongarm-rtc"
+typedef struct StrongARMRTCState StrongARMRTCState;
 #define STRONGARM_RTC(obj) \
     OBJECT_CHECK(StrongARMRTCState, (obj), TYPE_STRONGARM_RTC)
 
-typedef struct StrongARMRTCState {
+struct StrongARMRTCState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -268,7 +271,7 @@ typedef struct StrongARMRTCState {
     QEMUTimer *rtc_hz;
     qemu_irq rtc_irq;
     qemu_irq rtc_hz_irq;
-} StrongARMRTCState;
+};
 
 static inline void strongarm_rtc_int_update(StrongARMRTCState *s)
 {
@@ -478,10 +481,10 @@ static const TypeInfo strongarm_rtc_sysbus_info = {
 #define GAFR 0x1c
 
 #define TYPE_STRONGARM_GPIO "strongarm-gpio"
+typedef struct StrongARMGPIOInfo StrongARMGPIOInfo;
 #define STRONGARM_GPIO(obj) \
     OBJECT_CHECK(StrongARMGPIOInfo, (obj), TYPE_STRONGARM_GPIO)
 
-typedef struct StrongARMGPIOInfo StrongARMGPIOInfo;
 struct StrongARMGPIOInfo {
     SysBusDevice busdev;
     MemoryRegion iomem;
@@ -717,10 +720,10 @@ static const TypeInfo strongarm_gpio_info = {
 #define PPFR 0x10
 
 #define TYPE_STRONGARM_PPC "strongarm-ppc"
+typedef struct StrongARMPPCInfo StrongARMPPCInfo;
 #define STRONGARM_PPC(obj) \
     OBJECT_CHECK(StrongARMPPCInfo, (obj), TYPE_STRONGARM_PPC)
 
-typedef struct StrongARMPPCInfo StrongARMPPCInfo;
 struct StrongARMPPCInfo {
     SysBusDevice parent_obj;
 
@@ -918,10 +921,11 @@ static const TypeInfo strongarm_ppc_info = {
 #define RX_FIFO_ROR (1 << 10)
 
 #define TYPE_STRONGARM_UART "strongarm-uart"
+typedef struct StrongARMUARTState StrongARMUARTState;
 #define STRONGARM_UART(obj) \
     OBJECT_CHECK(StrongARMUARTState, (obj), TYPE_STRONGARM_UART)
 
-typedef struct StrongARMUARTState {
+struct StrongARMUARTState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -945,7 +949,7 @@ typedef struct StrongARMUARTState {
     bool wait_break_end;
     QEMUTimer *rx_timeout_timer;
     QEMUTimer *tx_timer;
-} StrongARMUARTState;
+};
 
 static void strongarm_uart_update_status(StrongARMUARTState *s)
 {
@@ -1349,10 +1353,11 @@ static const TypeInfo strongarm_uart_info = {
 /* Synchronous Serial Ports */
 
 #define TYPE_STRONGARM_SSP "strongarm-ssp"
+typedef struct StrongARMSSPState StrongARMSSPState;
 #define STRONGARM_SSP(obj) \
     OBJECT_CHECK(StrongARMSSPState, (obj), TYPE_STRONGARM_SSP)
 
-typedef struct StrongARMSSPState {
+struct StrongARMSSPState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -1365,7 +1370,7 @@ typedef struct StrongARMSSPState {
     uint16_t rx_fifo[8];
     uint8_t rx_level;
     uint8_t rx_start;
-} StrongARMSSPState;
+};
 
 #define SSCR0 0x60 /* SSP Control register 0 */
 #define SSCR1 0x64 /* SSP Control register 1 */

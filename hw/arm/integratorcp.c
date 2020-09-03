@@ -26,12 +26,14 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/sd/sd.h"
+#include "qom/object.h"
 
 #define TYPE_INTEGRATOR_CM "integrator_core"
+typedef struct IntegratorCMState IntegratorCMState;
 #define INTEGRATOR_CM(obj) \
     OBJECT_CHECK(IntegratorCMState, (obj), TYPE_INTEGRATOR_CM)
 
-typedef struct IntegratorCMState {
+struct IntegratorCMState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -51,7 +53,7 @@ typedef struct IntegratorCMState {
     uint32_t int_level;
     uint32_t irq_enabled;
     uint32_t fiq_enabled;
-} IntegratorCMState;
+};
 
 static uint8_t integrator_spd[128] = {
    128, 8, 4, 11, 9, 1, 64, 0,  2, 0xa0, 0xa0, 0, 0, 8, 0, 1,
@@ -326,10 +328,11 @@ static void integratorcm_realize(DeviceState *d, Error **errp)
 /* Primary interrupt controller.  */
 
 #define TYPE_INTEGRATOR_PIC "integrator_pic"
+typedef struct icp_pic_state icp_pic_state;
 #define INTEGRATOR_PIC(obj) \
    OBJECT_CHECK(icp_pic_state, (obj), TYPE_INTEGRATOR_PIC)
 
-typedef struct icp_pic_state {
+struct icp_pic_state {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -340,7 +343,7 @@ typedef struct icp_pic_state {
     uint32_t fiq_enabled;
     qemu_irq parent_irq;
     qemu_irq parent_fiq;
-} icp_pic_state;
+};
 
 static const VMStateDescription vmstate_icp_pic = {
     .name = "icp_pic",
@@ -465,10 +468,11 @@ static void icp_pic_init(Object *obj)
 /* CP control registers.  */
 
 #define TYPE_ICP_CONTROL_REGS "icp-ctrl-regs"
+typedef struct ICPCtrlRegsState ICPCtrlRegsState;
 #define ICP_CONTROL_REGS(obj) \
     OBJECT_CHECK(ICPCtrlRegsState, (obj), TYPE_ICP_CONTROL_REGS)
 
-typedef struct ICPCtrlRegsState {
+struct ICPCtrlRegsState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -477,7 +481,7 @@ typedef struct ICPCtrlRegsState {
 
     qemu_irq mmc_irq;
     uint32_t intreg_state;
-} ICPCtrlRegsState;
+};
 
 #define ICP_GPIO_MMC_WPROT      "mmc-wprot"
 #define ICP_GPIO_MMC_CARDIN     "mmc-cardin"

@@ -44,19 +44,21 @@
 #include "hw/net/lan9118.h"
 #include "net/net.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
+#include "qom/object.h"
 
 typedef enum MPS2FPGAType {
     FPGA_AN385,
     FPGA_AN511,
 } MPS2FPGAType;
 
-typedef struct {
+struct MPS2MachineClass {
     MachineClass parent;
     MPS2FPGAType fpga_type;
     uint32_t scc_id;
-} MPS2MachineClass;
+};
+typedef struct MPS2MachineClass MPS2MachineClass;
 
-typedef struct {
+struct MPS2MachineState {
     MachineState parent;
 
     ARMv7MState armv7m;
@@ -75,7 +77,8 @@ typedef struct {
     /* CMSDK APB subsystem */
     CMSDKAPBDualTimer dualtimer;
     CMSDKAPBWatchdog watchdog;
-} MPS2MachineState;
+};
+typedef struct MPS2MachineState MPS2MachineState;
 
 #define TYPE_MPS2_MACHINE "mps2"
 #define TYPE_MPS2_AN385_MACHINE MACHINE_TYPE_NAME("mps2-an385")

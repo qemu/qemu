@@ -28,7 +28,9 @@
 #include "hw/ppc/spapr.h"
 #include "hw/qdev-properties.h"
 #include "kvm_ppc.h"
+#include "qom/object.h"
 
+typedef struct SpaprRngState SpaprRngState;
 #define SPAPR_RNG(obj) \
     OBJECT_CHECK(SpaprRngState, (obj), TYPE_SPAPR_RNG)
 
@@ -38,7 +40,6 @@ struct SpaprRngState {
     RngBackend *backend;
     bool use_kvm;
 };
-typedef struct SpaprRngState SpaprRngState;
 
 struct HRandomData {
     QemuSemaphore sem;

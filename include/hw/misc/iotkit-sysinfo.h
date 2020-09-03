@@ -23,12 +23,14 @@
 #define HW_MISC_IOTKIT_SYSINFO_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_IOTKIT_SYSINFO "iotkit-sysinfo"
+typedef struct IoTKitSysInfo IoTKitSysInfo;
 #define IOTKIT_SYSINFO(obj) OBJECT_CHECK(IoTKitSysInfo, (obj), \
                                         TYPE_IOTKIT_SYSINFO)
 
-typedef struct IoTKitSysInfo {
+struct IoTKitSysInfo {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -38,6 +40,6 @@ typedef struct IoTKitSysInfo {
     /* Properties */
     uint32_t sys_version;
     uint32_t sys_config;
-} IoTKitSysInfo;
+};
 
 #endif

@@ -16,6 +16,7 @@
 #include "qemu/bitops.h"
 #include "qemu/module.h"
 #include "chardev/char-fe.h"
+#include "qom/object.h"
 
 /* #define DEBUG_IPOCTAL */
 

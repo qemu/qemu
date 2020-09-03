@@ -16,6 +16,7 @@
 
 #include "hw/sysbus.h"
 #include "target/s390x/cpu-qom.h"
+#include "qom/object.h"
 
 #define SCLP_CMD_CODE_MASK                      0xffff00ff
 
@@ -181,22 +182,24 @@ typedef struct SCCB {
  } QEMU_PACKED SCCB;
 
 #define TYPE_SCLP "sclp"
+typedef struct SCLPDevice SCLPDevice;
+typedef struct SCLPDeviceClass SCLPDeviceClass;
 #define SCLP(obj) OBJECT_CHECK(SCLPDevice, (obj), TYPE_SCLP)
 #define SCLP_CLASS(oc) OBJECT_CLASS_CHECK(SCLPDeviceClass, (oc), TYPE_SCLP)
 #define SCLP_GET_CLASS(obj) OBJECT_GET_CLASS(SCLPDeviceClass, (obj), TYPE_SCLP)
 
 struct SCLPEventFacility;
 
-typedef struct SCLPDevice {
+struct SCLPDevice {
     /* private */
     DeviceState parent_obj;
     struct SCLPEventFacility *event_facility;
     int increment_size;
 
     /* public */
-} SCLPDevice;
+};
 
-typedef struct SCLPDeviceClass {
+struct SCLPDeviceClass {
     /* private */
     DeviceClass parent_class;
     void (*read_SCP_info)(SCLPDevice *sclp, SCCB *sccb);
@@ -205,7 +208,7 @@ typedef struct SCLPDeviceClass {
     /* public */
     void (*execute)(SCLPDevice *sclp, SCCB *sccb, uint32_t code);
     void (*service_interrupt)(SCLPDevice *sclp, uint32_t sccb);
-} SCLPDeviceClass;
+};
 
 static inline int sccb_data_len(SCCB *sccb)
 {

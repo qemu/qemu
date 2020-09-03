@@ -24,6 +24,7 @@
 #include "hw/input/tsc2xxx.h"
 #include "target/arm/cpu-qom.h"
 #include "qemu/log.h"
+#include "qom/object.h"
 
 # define OMAP_EMIFS_BASE	0x00000000
 # define OMAP2_Q0_BASE		0x00000000
@@ -69,10 +70,10 @@ void omap_clk_reparent(omap_clk clk, omap_clk parent);
 
 /* omap_intc.c */
 #define TYPE_OMAP_INTC "common-omap-intc"
+typedef struct omap_intr_handler_s omap_intr_handler;
 #define OMAP_INTC(obj)                                              \
     OBJECT_CHECK(omap_intr_handler, (obj), TYPE_OMAP_INTC)
 
-typedef struct omap_intr_handler_s omap_intr_handler;
 
 /*
  * TODO: Ideally we should have a clock framework that
@@ -93,9 +94,9 @@ void omap_intc_set_fclk(omap_intr_handler *intc, omap_clk clk);
 
 /* omap_i2c.c */
 #define TYPE_OMAP_I2C "omap_i2c"
+typedef struct OMAPI2CState OMAPI2CState;
 #define OMAP_I2C(obj) OBJECT_CHECK(OMAPI2CState, (obj), TYPE_OMAP_I2C)
 
-typedef struct OMAPI2CState OMAPI2CState;
 
 /* TODO: clock framework (see above) */
 void omap_i2c_set_iclk(OMAPI2CState *i2c, omap_clk clk);

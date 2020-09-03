@@ -24,18 +24,20 @@
 #include "hw/timer/i8254.h"
 #include "migration/vmstate.h"
 #include "hw/audio/pcspk.h"
+#include "qom/object.h"
 
 #define TYPE_I82378 "i82378"
+typedef struct I82378State I82378State;
 #define I82378(obj) \
     OBJECT_CHECK(I82378State, (obj), TYPE_I82378)
 
-typedef struct I82378State {
+struct I82378State {
     PCIDevice parent_obj;
 
     qemu_irq out[2];
     qemu_irq *i8259;
     MemoryRegion io;
-} I82378State;
+};
 
 static const VMStateDescription vmstate_i82378 = {
     .name = "pci-i82378",

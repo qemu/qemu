@@ -23,24 +23,27 @@
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pcie_host.h"
+#include "qom/object.h"
 
 #define TYPE_GPEX_HOST "gpex-pcihost"
+typedef struct GPEXHost GPEXHost;
 #define GPEX_HOST(obj) \
      OBJECT_CHECK(GPEXHost, (obj), TYPE_GPEX_HOST)
 
 #define TYPE_GPEX_ROOT_DEVICE "gpex-root"
+typedef struct GPEXRootState GPEXRootState;
 #define MCH_PCI_DEVICE(obj) \
      OBJECT_CHECK(GPEXRootState, (obj), TYPE_GPEX_ROOT_DEVICE)
 
 #define GPEX_NUM_IRQS 4
 
-typedef struct GPEXRootState {
+struct GPEXRootState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
-} GPEXRootState;
+};
 
-typedef struct GPEXHost {
+struct GPEXHost {
     /*< private >*/
     PCIExpressHost parent_obj;
     /*< public >*/
@@ -51,7 +54,7 @@ typedef struct GPEXHost {
     MemoryRegion io_mmio;
     qemu_irq irq[GPEX_NUM_IRQS];
     int irq_num[GPEX_NUM_IRQS];
-} GPEXHost;
+};
 
 int gpex_set_irq_num(GPEXHost *s, int index, int gsi);
 

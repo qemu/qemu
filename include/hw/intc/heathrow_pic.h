@@ -27,8 +27,10 @@
 #define HW_INTC_HEATHROW_PIC_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_HEATHROW "heathrow"
+typedef struct HeathrowState HeathrowState;
 #define HEATHROW(obj) OBJECT_CHECK(HeathrowState, (obj), TYPE_HEATHROW)
 
 typedef struct HeathrowPICState {
@@ -38,13 +40,13 @@ typedef struct HeathrowPICState {
     uint32_t level_triggered;
 } HeathrowPICState;
 
-typedef struct HeathrowState {
+struct HeathrowState {
     SysBusDevice parent_obj;
 
     MemoryRegion mem;
     HeathrowPICState pics[2];
     qemu_irq irqs[1];
-} HeathrowState;
+};
 
 #define HEATHROW_NUM_IRQS 64
 

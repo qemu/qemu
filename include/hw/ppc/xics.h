@@ -30,6 +30,7 @@
 
 #include "exec/memory.h"
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 #define XICS_IPI        0x2
 #define XICS_BUID       0x1
@@ -145,17 +146,18 @@ struct ICSIRQState {
 #define TYPE_XICS_FABRIC "xics-fabric"
 #define XICS_FABRIC(obj)                                     \
     INTERFACE_CHECK(XICSFabric, (obj), TYPE_XICS_FABRIC)
+typedef struct XICSFabricClass XICSFabricClass;
 #define XICS_FABRIC_CLASS(klass)                                     \
     OBJECT_CLASS_CHECK(XICSFabricClass, (klass), TYPE_XICS_FABRIC)
 #define XICS_FABRIC_GET_CLASS(obj)                                   \
     OBJECT_GET_CLASS(XICSFabricClass, (obj), TYPE_XICS_FABRIC)
 
-typedef struct XICSFabricClass {
+struct XICSFabricClass {
     InterfaceClass parent;
     ICSState *(*ics_get)(XICSFabric *xi, int irq);
     void (*ics_resend)(XICSFabric *xi);
     ICPState *(*icp_get)(XICSFabric *xi, int server);
-} XICSFabricClass;
+};
 
 ICPState *xics_icp_get(XICSFabric *xi, int server);
 

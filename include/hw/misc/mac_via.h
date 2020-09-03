@@ -12,6 +12,7 @@
 #include "exec/memory.h"
 #include "hw/sysbus.h"
 #include "hw/misc/mos6522.h"
+#include "qom/object.h"
 
 
 /* VIA 1 */
@@ -31,10 +32,11 @@
 
 
 #define TYPE_MOS6522_Q800_VIA1 "mos6522-q800-via1"
+typedef struct MOS6522Q800VIA1State MOS6522Q800VIA1State;
 #define MOS6522_Q800_VIA1(obj)  OBJECT_CHECK(MOS6522Q800VIA1State, (obj), \
                                     TYPE_MOS6522_Q800_VIA1)
 
-typedef struct MOS6522Q800VIA1State {
+struct MOS6522Q800VIA1State {
     /*< private >*/
     MOS6522State parent_obj;
 
@@ -47,7 +49,7 @@ typedef struct MOS6522Q800VIA1State {
     int64_t next_second;
     QEMUTimer *VBL_timer;
     int64_t next_VBL;
-} MOS6522Q800VIA1State;
+};
 
 
 /* VIA 2 */
@@ -66,19 +68,21 @@ typedef struct MOS6522Q800VIA1State {
 #define VIA2_IRQ_ASC        (1 << VIA2_IRQ_ASC_BIT)
 
 #define TYPE_MOS6522_Q800_VIA2 "mos6522-q800-via2"
+typedef struct MOS6522Q800VIA2State MOS6522Q800VIA2State;
 #define MOS6522_Q800_VIA2(obj)  OBJECT_CHECK(MOS6522Q800VIA2State, (obj), \
                                     TYPE_MOS6522_Q800_VIA2)
 
-typedef struct MOS6522Q800VIA2State {
+struct MOS6522Q800VIA2State {
     /*< private >*/
     MOS6522State parent_obj;
-} MOS6522Q800VIA2State;
+};
 
 
 #define TYPE_MAC_VIA "mac_via"
+typedef struct MacVIAState MacVIAState;
 #define MAC_VIA(obj)   OBJECT_CHECK(MacVIAState, (obj), TYPE_MAC_VIA)
 
-typedef struct MacVIAState {
+struct MacVIAState {
     SysBusDevice busdev;
 
     VMChangeStateEntry *vmstate;
@@ -113,6 +117,6 @@ typedef struct MacVIAState {
     uint8_t adb_data_in[128];
     uint8_t adb_data_out[16];
     uint8_t adb_autopoll_cmd;
-} MacVIAState;
+};
 
 #endif

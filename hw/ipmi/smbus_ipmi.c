@@ -27,8 +27,10 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/ipmi/ipmi.h"
+#include "qom/object.h"
 
 #define TYPE_SMBUS_IPMI "smbus-ipmi"
+typedef struct SMBusIPMIDevice SMBusIPMIDevice;
 #define SMBUS_IPMI(obj) OBJECT_CHECK(SMBusIPMIDevice, (obj), TYPE_SMBUS_IPMI)
 
 #define SSIF_IPMI_REQUEST                       2
@@ -44,7 +46,7 @@
 
 #define IPMI_GET_SYS_INTF_CAP_CMD 0x57
 
-typedef struct SMBusIPMIDevice {
+struct SMBusIPMIDevice {
     SMBusDevice parent;
 
     IPMIBmc *bmc;
@@ -67,7 +69,7 @@ typedef struct SMBusIPMIDevice {
     uint8_t waiting_rsp;
 
     uint32_t uuid;
-} SMBusIPMIDevice;
+};
 
 static void smbus_ipmi_handle_event(IPMIInterface *ii)
 {

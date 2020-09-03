@@ -32,6 +32,7 @@
 #include "desc.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define MAX_PORTS 8
 
@@ -41,14 +42,15 @@ typedef struct USBHubPort {
     uint16_t wPortChange;
 } USBHubPort;
 
-typedef struct USBHubState {
+struct USBHubState {
     USBDevice dev;
     USBEndpoint *intr;
     uint32_t num_ports;
     bool port_power;
     QEMUTimer *port_timer;
     USBHubPort ports[MAX_PORTS];
-} USBHubState;
+};
+typedef struct USBHubState USBHubState;
 
 #define TYPE_USB_HUB "usb-hub"
 #define USB_HUB(obj) OBJECT_CHECK(USBHubState, (obj), TYPE_USB_HUB)

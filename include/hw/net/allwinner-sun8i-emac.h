@@ -30,6 +30,7 @@
  */
 
 #define TYPE_AW_SUN8I_EMAC "allwinner-sun8i-emac"
+typedef struct AwSun8iEmacState AwSun8iEmacState;
 #define AW_SUN8I_EMAC(obj) \
     OBJECT_CHECK(AwSun8iEmacState, (obj), TYPE_AW_SUN8I_EMAC)
 
@@ -38,7 +39,7 @@
 /**
  * Allwinner Sun8i EMAC object instance state
  */
-typedef struct AwSun8iEmacState {
+struct AwSun8iEmacState {
     /*< private >*/
     SysBusDevice  parent_obj;
     /*< public >*/
@@ -100,6 +101,6 @@ typedef struct AwSun8iEmacState {
 
     /** @} */
 
-} AwSun8iEmacState;
+};
 
 #endif /* HW_NET_ALLWINNER_SUN8I_H */

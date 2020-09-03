@@ -30,6 +30,7 @@
 #include "sysemu/cryptodev-vhost.h"
 #include "chardev/char-fe.h"
 #include "sysemu/cryptodev-vhost-user.h"
+#include "qom/object.h"
 
 
 /**
@@ -38,12 +39,13 @@
  */
 #define TYPE_CRYPTODEV_BACKEND_VHOST_USER "cryptodev-vhost-user"
 
+typedef struct CryptoDevBackendVhostUser CryptoDevBackendVhostUser;
 #define CRYPTODEV_BACKEND_VHOST_USER(obj) \
     OBJECT_CHECK(CryptoDevBackendVhostUser, \
                  (obj), TYPE_CRYPTODEV_BACKEND_VHOST_USER)
 
 
-typedef struct CryptoDevBackendVhostUser {
+struct CryptoDevBackendVhostUser {
     CryptoDevBackend parent_obj;
 
     VhostUserState vhost_user;
@@ -51,7 +53,7 @@ typedef struct CryptoDevBackendVhostUser {
     char *chr_name;
     bool opened;
     CryptoDevBackendVhost *vhost_crypto[MAX_CRYPTO_QUEUE_NUM];
-} CryptoDevBackendVhostUser;
+};
 
 static int
 cryptodev_vhost_user_running(

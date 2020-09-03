@@ -15,6 +15,7 @@
 #include "hw/virtio/virtio-rng.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 typedef struct VirtIORngPCI VirtIORngPCI;
 

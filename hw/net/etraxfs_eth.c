@@ -30,6 +30,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define D(x)
 
@@ -323,11 +324,11 @@ static void mdio_cycle(struct qemu_mdio *bus)
 #define FS_ETH_MAX_REGS      0x17
 
 #define TYPE_ETRAX_FS_ETH "etraxfs-eth"
+typedef struct ETRAXFSEthState ETRAXFSEthState;
 #define ETRAX_FS_ETH(obj) \
     OBJECT_CHECK(ETRAXFSEthState, (obj), TYPE_ETRAX_FS_ETH)
 
-typedef struct ETRAXFSEthState
-{
+struct ETRAXFSEthState {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
@@ -348,7 +349,7 @@ typedef struct ETRAXFSEthState
 
     /* PHY.     */
     struct qemu_phy phy;
-} ETRAXFSEthState;
+};
 
 static void eth_validate_duplex(ETRAXFSEthState *eth)
 {

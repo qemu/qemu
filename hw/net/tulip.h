@@ -3,6 +3,7 @@
 
 #include "qemu/units.h"
 #include "net/net.h"
+#include "qom/object.h"
 
 #define TYPE_TULIP "tulip"
 typedef struct TULIPState TULIPState;

@@ -106,6 +106,7 @@ void kbd_put_keysym(int keysym);
 /* consoles */
 
 #define TYPE_QEMU_CONSOLE "qemu-console"
+typedef struct QemuConsoleClass QemuConsoleClass;
 #define QEMU_CONSOLE(obj) \
     OBJECT_CHECK(QemuConsole, (obj), TYPE_QEMU_CONSOLE)
 #define QEMU_CONSOLE_GET_CLASS(obj) \
@@ -113,7 +114,6 @@ void kbd_put_keysym(int keysym);
 #define QEMU_CONSOLE_CLASS(klass) \
     OBJECT_CLASS_CHECK(QemuConsoleClass, (klass), TYPE_QEMU_CONSOLE)
 
-typedef struct QemuConsoleClass QemuConsoleClass;
 
 struct QemuConsoleClass {
     ObjectClass parent_class;

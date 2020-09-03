@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
@@ -22,14 +23,15 @@
 #define PUV3_DMA_CH(offset)     ((offset) >> 8)
 
 #define TYPE_PUV3_DMA "puv3_dma"
+typedef struct PUV3DMAState PUV3DMAState;
 #define PUV3_DMA(obj) OBJECT_CHECK(PUV3DMAState, (obj), TYPE_PUV3_DMA)
 
-typedef struct PUV3DMAState {
+struct PUV3DMAState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
     uint32_t reg_CFG[PUV3_DMA_CH_NR];
-} PUV3DMAState;
+};
 
 static uint64_t puv3_dma_read(void *opaque, hwaddr offset,
         unsigned size)

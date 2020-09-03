@@ -32,6 +32,7 @@
 #include "qemu/bswap.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "qom/object.h"
 
 /* Debug messages configuration */
 #define EXYNOS4210_FIMD_DEBUG              0
@@ -293,10 +294,11 @@ struct Exynos4210fimdWindow {
 };
 
 #define TYPE_EXYNOS4210_FIMD "exynos4210.fimd"
+typedef struct Exynos4210fimdState Exynos4210fimdState;
 #define EXYNOS4210_FIMD(obj) \
     OBJECT_CHECK(Exynos4210fimdState, (obj), TYPE_EXYNOS4210_FIMD)
 
-typedef struct {
+struct Exynos4210fimdState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -325,7 +327,7 @@ typedef struct {
     uint8_t *ifb;           /* Internal frame buffer */
     bool invalidate;        /* Image needs to be redrawn */
     bool enabled;           /* Display controller is enabled */
-} Exynos4210fimdState;
+};
 
 /* Perform byte/halfword/word swap of data according to WINCON */
 static inline void fimd_swap_data(unsigned int swap_ctl, uint64_t *data)

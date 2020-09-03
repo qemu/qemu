@@ -30,6 +30,7 @@
 #include "exec/memory.h"
 #include "hw/sysbus.h"
 #include "hw/input/adb.h"
+#include "qom/object.h"
 
 /* Bits in ACR */
 #define SR_CTRL            0x1c    /* Shift register control bits */
@@ -99,7 +100,7 @@ typedef struct MOS6522Timer {
  * @last_b: last value of B register
  * @last_acr: last value of ACR register
  */
-typedef struct MOS6522State {
+struct MOS6522State {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -120,12 +121,14 @@ typedef struct MOS6522State {
     uint64_t frequency;
 
     qemu_irq irq;
-} MOS6522State;
+};
+typedef struct MOS6522State MOS6522State;
 
 #define TYPE_MOS6522 "mos6522"
+typedef struct MOS6522DeviceClass MOS6522DeviceClass;
 #define MOS6522(obj) OBJECT_CHECK(MOS6522State, (obj), TYPE_MOS6522)
 
-typedef struct MOS6522DeviceClass {
+struct MOS6522DeviceClass {
     DeviceClass parent_class;
 
     DeviceReset parent_reset;
@@ -138,7 +141,7 @@ typedef struct MOS6522DeviceClass {
     uint64_t (*get_timer2_counter_value)(MOS6522State *dev, MOS6522Timer *ti);
     uint64_t (*get_timer1_load_time)(MOS6522State *dev, MOS6522Timer *ti);
     uint64_t (*get_timer2_load_time)(MOS6522State *dev, MOS6522Timer *ti);
-} MOS6522DeviceClass;
+};
 
 #define MOS6522_CLASS(cls) \
     OBJECT_CLASS_CHECK(MOS6522DeviceClass, (cls), TYPE_MOS6522)

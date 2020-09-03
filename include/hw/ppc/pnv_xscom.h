@@ -27,16 +27,17 @@ typedef struct PnvXScomInterface PnvXScomInterface;
 #define TYPE_PNV_XSCOM_INTERFACE "pnv-xscom-interface"
 #define PNV_XSCOM_INTERFACE(obj) \
     INTERFACE_CHECK(PnvXScomInterface, (obj), TYPE_PNV_XSCOM_INTERFACE)
+typedef struct PnvXScomInterfaceClass PnvXScomInterfaceClass;
 #define PNV_XSCOM_INTERFACE_CLASS(klass)                \
     OBJECT_CLASS_CHECK(PnvXScomInterfaceClass, (klass), \
                        TYPE_PNV_XSCOM_INTERFACE)
 #define PNV_XSCOM_INTERFACE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PnvXScomInterfaceClass, (obj), TYPE_PNV_XSCOM_INTERFACE)
 
-typedef struct PnvXScomInterfaceClass {
+struct PnvXScomInterfaceClass {
     InterfaceClass parent;
     int (*dt_xscom)(PnvXScomInterface *dev, void *fdt, int offset);
-} PnvXScomInterfaceClass;
+};
 
 /*
  * Layout of the XSCOM PCB addresses of EX core 1 (POWER 8)

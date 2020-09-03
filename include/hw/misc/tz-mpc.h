@@ -32,15 +32,16 @@
 #define TZ_MPC_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_TZ_MPC "tz-mpc"
+typedef struct TZMPC TZMPC;
 #define TZ_MPC(obj) OBJECT_CHECK(TZMPC, (obj), TYPE_TZ_MPC)
 
 #define TZ_NUM_PORTS 16
 
 #define TYPE_TZ_MPC_IOMMU_MEMORY_REGION "tz-mpc-iommu-memory-region"
 
-typedef struct TZMPC TZMPC;
 
 struct TZMPC {
     /*< private >*/

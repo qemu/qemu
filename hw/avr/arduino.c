@@ -15,21 +15,24 @@
 #include "hw/boards.h"
 #include "atmega.h"
 #include "boot.h"
+#include "qom/object.h"
 
-typedef struct ArduinoMachineState {
+struct ArduinoMachineState {
     /*< private >*/
     MachineState parent_obj;
     /*< public >*/
     AtmegaMcuState mcu;
-} ArduinoMachineState;
+};
+typedef struct ArduinoMachineState ArduinoMachineState;
 
-typedef struct ArduinoMachineClass {
+struct ArduinoMachineClass {
     /*< private >*/
     MachineClass parent_class;
     /*< public >*/
     const char *mcu_type;
     uint64_t xtal_hz;
-} ArduinoMachineClass;
+};
+typedef struct ArduinoMachineClass ArduinoMachineClass;
 
 #define TYPE_ARDUINO_MACHINE \
         MACHINE_TYPE_NAME("arduino")

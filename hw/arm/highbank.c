@@ -36,6 +36,7 @@
 #include "hw/cpu/a9mpcore.h"
 #include "hw/cpu/a15mpcore.h"
 #include "qemu/log.h"
+#include "qom/object.h"
 
 #define SMP_BOOT_ADDR           0x100
 #define SMP_BOOT_REG            0x40
@@ -155,17 +156,18 @@ static const MemoryRegionOps hb_mem_ops = {
 };
 
 #define TYPE_HIGHBANK_REGISTERS "highbank-regs"
+typedef struct HighbankRegsState HighbankRegsState;
 #define HIGHBANK_REGISTERS(obj) \
     OBJECT_CHECK(HighbankRegsState, (obj), TYPE_HIGHBANK_REGISTERS)
 
-typedef struct {
+struct HighbankRegsState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
 
     MemoryRegion iomem;
     uint32_t regs[NUM_REGS];
-} HighbankRegsState;
+};
 
 static VMStateDescription vmstate_highbank_regs = {
     .name = "highbank-regs",

@@ -31,8 +31,10 @@
 #include "sysemu/dma.h"
 
 #include "hw/ide/internal.h"
+#include "qom/object.h"
 
 #define TYPE_MICRODRIVE "microdrive"
+typedef struct MicroDriveState MicroDriveState;
 #define MICRODRIVE(obj) OBJECT_CHECK(MicroDriveState, (obj), TYPE_MICRODRIVE)
 
 /***********************************************************/
@@ -42,7 +44,7 @@
 
 /* DSCM-1XXXX Microdrive hard disk with CF+ II / PCMCIA interface.  */
 
-typedef struct MicroDriveState {
+struct MicroDriveState {
     /*< private >*/
     PCMCIACardState parent_obj;
     /*< public >*/
@@ -59,7 +61,7 @@ typedef struct MicroDriveState {
     uint8_t ctrl;
     uint16_t io;
     uint8_t cycle;
-} MicroDriveState;
+};
 
 /* Register bitfields */
 enum md_opt {

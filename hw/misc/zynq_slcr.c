@@ -23,6 +23,7 @@
 #include "qemu/module.h"
 #include "hw/registerfields.h"
 #include "hw/qdev-clock.h"
+#include "qom/object.h"
 
 #ifndef ZYNQ_SLCR_ERR_DEBUG
 #define ZYNQ_SLCR_ERR_DEBUG 0
@@ -182,9 +183,10 @@ REG32(DDRIOB, 0xb40)
 #define ZYNQ_SLCR_NUM_REGS      (ZYNQ_SLCR_MMIO_SIZE / 4)
 
 #define TYPE_ZYNQ_SLCR "xilinx,zynq_slcr"
+typedef struct ZynqSLCRState ZynqSLCRState;
 #define ZYNQ_SLCR(obj) OBJECT_CHECK(ZynqSLCRState, (obj), TYPE_ZYNQ_SLCR)
 
-typedef struct ZynqSLCRState {
+struct ZynqSLCRState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -194,7 +196,7 @@ typedef struct ZynqSLCRState {
     Clock *ps_clk;
     Clock *uart0_ref_clk;
     Clock *uart1_ref_clk;
-} ZynqSLCRState;
+};
 
 /*
  * return the output frequency of ARM/DDR/IO pll

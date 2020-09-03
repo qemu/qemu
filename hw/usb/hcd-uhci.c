@@ -39,6 +39,7 @@
 #include "trace.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define FRAME_TIMER_FREQ 1000
 

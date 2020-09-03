@@ -17,6 +17,8 @@
 #include "qom/object.h"
 
 #define TYPE_RNG_BACKEND "rng-backend"
+typedef struct RngBackend RngBackend;
+typedef struct RngBackendClass RngBackendClass;
 #define RNG_BACKEND(obj) \
     OBJECT_CHECK(RngBackend, (obj), TYPE_RNG_BACKEND)
 #define RNG_BACKEND_GET_CLASS(obj) \
@@ -27,8 +29,6 @@
 #define TYPE_RNG_BUILTIN "rng-builtin"
 
 typedef struct RngRequest RngRequest;
-typedef struct RngBackendClass RngBackendClass;
-typedef struct RngBackend RngBackend;
 
 typedef void (EntropyReceiveFunc)(void *opaque,
                                   const void *data,

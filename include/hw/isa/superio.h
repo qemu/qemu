@@ -12,8 +12,11 @@
 
 #include "sysemu/sysemu.h"
 #include "hw/isa/isa.h"
+#include "qom/object.h"
 
 #define TYPE_ISA_SUPERIO "isa-superio"
+typedef struct ISASuperIOClass ISASuperIOClass;
+typedef struct ISASuperIODevice ISASuperIODevice;
 #define ISA_SUPERIO(obj) \
     OBJECT_CHECK(ISASuperIODevice, (obj), TYPE_ISA_SUPERIO)
 #define ISA_SUPERIO_GET_CLASS(obj) \
@@ -23,7 +26,7 @@
 
 #define SUPERIO_MAX_SERIAL_PORTS 4
 
-typedef struct ISASuperIODevice {
+struct ISASuperIODevice {
     /*< private >*/
     ISADevice parent_obj;
     /*< public >*/
@@ -33,7 +36,7 @@ typedef struct ISASuperIODevice {
     ISADevice *floppy;
     ISADevice *kbc;
     ISADevice *ide;
-} ISASuperIODevice;
+};
 
 typedef struct ISASuperIOFuncs {
     size_t count;
@@ -43,7 +46,7 @@ typedef struct ISASuperIOFuncs {
     unsigned int (*get_dma)(ISASuperIODevice *sio, uint8_t index);
 } ISASuperIOFuncs;
 
-typedef struct ISASuperIOClass {
+struct ISASuperIOClass {
     /*< private >*/
     ISADeviceClass parent_class;
     /*< public >*/
@@ -53,7 +56,7 @@ typedef struct ISASuperIOClass {
     ISASuperIOFuncs serial;
     ISASuperIOFuncs floppy;
     ISASuperIOFuncs ide;
-} ISASuperIOClass;
+};
 
 #define TYPE_FDC37M81X_SUPERIO  "fdc37m81x-superio"
 #define TYPE_SMC37C669_SUPERIO  "smc37c669-superio"

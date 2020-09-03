@@ -17,12 +17,13 @@
 #include "hw/vfio/vfio-common.h"
 #include "hw/s390x/s390-ccw.h"
 #include "hw/s390x/ccw-device.h"
+#include "qom/object.h"
 
 #define TYPE_VFIO_CCW "vfio-ccw"
+typedef struct VFIOCCWDevice VFIOCCWDevice;
 #define VFIO_CCW(obj) \
         OBJECT_CHECK(VFIOCCWDevice, (obj), TYPE_VFIO_CCW)
 
 #define TYPE_VFIO_CCW "vfio-ccw"
-typedef struct VFIOCCWDevice VFIOCCWDevice;
 
 #endif

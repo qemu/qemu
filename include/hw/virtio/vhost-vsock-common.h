@@ -13,8 +13,10 @@
 
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/vhost.h"
+#include "qom/object.h"
 
 #define TYPE_VHOST_VSOCK_COMMON "vhost-vsock-common"
+typedef struct VHostVSockCommon VHostVSockCommon;
 #define VHOST_VSOCK_COMMON(obj) \
         OBJECT_CHECK(VHostVSockCommon, (obj), TYPE_VHOST_VSOCK_COMMON)
 
@@ -24,7 +26,7 @@ enum {
     VHOST_VSOCK_QUEUE_SIZE = 128,
 };
 
-typedef struct {
+struct VHostVSockCommon {
     VirtIODevice parent;
 
     struct vhost_virtqueue vhost_vqs[2];
@@ -35,7 +37,7 @@ typedef struct {
     VirtQueue *trans_vq;
 
     QEMUTimer *post_load_timer;
-} VHostVSockCommon;
+};
 
 int vhost_vsock_common_start(VirtIODevice *vdev);
 void vhost_vsock_common_stop(VirtIODevice *vdev);

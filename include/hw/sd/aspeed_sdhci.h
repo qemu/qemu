@@ -10,8 +10,10 @@
 #define ASPEED_SDHCI_H
 
 #include "hw/sd/sdhci.h"
+#include "qom/object.h"
 
 #define TYPE_ASPEED_SDHCI "aspeed.sdhci"
+typedef struct AspeedSDHCIState AspeedSDHCIState;
 #define ASPEED_SDHCI(obj) OBJECT_CHECK(AspeedSDHCIState, (obj), \
                                        TYPE_ASPEED_SDHCI)
 
@@ -20,7 +22,7 @@
 #define ASPEED_SDHCI_NUM_REGS     (ASPEED_SDHCI_REG_SIZE / sizeof(uint32_t))
 #define ASPEED_SDHCI_REG_SIZE     0x100
 
-typedef struct AspeedSDHCIState {
+struct AspeedSDHCIState {
     SysBusDevice parent;
 
     SDHCIState slots[ASPEED_SDHCI_NUM_SLOTS];
@@ -30,6 +32,6 @@ typedef struct AspeedSDHCIState {
     qemu_irq irq;
 
     uint32_t regs[ASPEED_SDHCI_NUM_REGS];
-} AspeedSDHCIState;
+};
 
 #endif /* ASPEED_SDHCI_H */

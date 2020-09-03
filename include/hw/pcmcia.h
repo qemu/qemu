@@ -4,6 +4,7 @@
 /* PCMCIA/Cardbus */
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 typedef struct PCMCIASocket {
     qemu_irq irq;
@@ -11,6 +12,8 @@ typedef struct PCMCIASocket {
 } PCMCIASocket;
 
 #define TYPE_PCMCIA_CARD "pcmcia-card"
+typedef struct PCMCIACardClass PCMCIACardClass;
+typedef struct PCMCIACardState PCMCIACardState;
 #define PCMCIA_CARD(obj) \
     OBJECT_CHECK(PCMCIACardState, (obj), TYPE_PCMCIA_CARD)
 #define PCMCIA_CARD_GET_CLASS(obj) \
@@ -18,15 +21,15 @@ typedef struct PCMCIASocket {
 #define PCMCIA_CARD_CLASS(cls) \
     OBJECT_CLASS_CHECK(PCMCIACardClass, cls, TYPE_PCMCIA_CARD)
 
-typedef struct PCMCIACardState {
+struct PCMCIACardState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
 
     PCMCIASocket *slot;
-} PCMCIACardState;
+};
 
-typedef struct PCMCIACardClass {
+struct PCMCIACardClass {
     /*< private >*/
     DeviceClass parent_class;
     /*< public >*/
@@ -45,7 +48,7 @@ typedef struct PCMCIACardClass {
                          uint32_t address, uint16_t value);
     uint16_t (*io_read)(PCMCIACardState *card, uint32_t address);
     void (*io_write)(PCMCIACardState *card, uint32_t address, uint16_t value);
-} PCMCIACardClass;
+};
 
 #define CISTPL_DEVICE		0x01	/* 5V Device Information Tuple */
 #define CISTPL_NO_LINK		0x14	/* No Link Tuple */

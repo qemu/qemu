@@ -23,16 +23,17 @@
 
 #ifndef GRLIB_AHB_APB_PNP_H
 #define GRLIB_AHB_APB_PNP_H
+#include "qom/object.h"
 
 #define TYPE_GRLIB_AHB_PNP "grlib,ahbpnp"
+typedef struct AHBPnp AHBPnp;
 #define GRLIB_AHB_PNP(obj) \
     OBJECT_CHECK(AHBPnp, (obj), TYPE_GRLIB_AHB_PNP)
-typedef struct AHBPnp AHBPnp;
 
 #define TYPE_GRLIB_APB_PNP "grlib,apbpnp"
+typedef struct APBPnp APBPnp;
 #define GRLIB_APB_PNP(obj) \
     OBJECT_CHECK(APBPnp, (obj), TYPE_GRLIB_APB_PNP)
-typedef struct APBPnp APBPnp;
 
 void grlib_ahb_pnp_add_entry(AHBPnp *dev, uint32_t address, uint32_t mask,
                              uint8_t vendor, uint16_t device, int slave,

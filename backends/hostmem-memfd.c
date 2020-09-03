@@ -17,13 +17,14 @@
 #include "qemu/memfd.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #define TYPE_MEMORY_BACKEND_MEMFD "memory-backend-memfd"
 
+typedef struct HostMemoryBackendMemfd HostMemoryBackendMemfd;
 #define MEMORY_BACKEND_MEMFD(obj)                                        \
     OBJECT_CHECK(HostMemoryBackendMemfd, (obj), TYPE_MEMORY_BACKEND_MEMFD)
 
-typedef struct HostMemoryBackendMemfd HostMemoryBackendMemfd;
 
 struct HostMemoryBackendMemfd {
     HostMemoryBackend parent_obj;

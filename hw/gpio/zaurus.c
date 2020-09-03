@@ -23,13 +23,14 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "qom/object.h"
 
 /* SCOOP devices */
 
 #define TYPE_SCOOP "scoop"
+typedef struct ScoopInfo ScoopInfo;
 #define SCOOP(obj) OBJECT_CHECK(ScoopInfo, (obj), TYPE_SCOOP)
 
-typedef struct ScoopInfo ScoopInfo;
 struct ScoopInfo {
     SysBusDevice parent_obj;
 

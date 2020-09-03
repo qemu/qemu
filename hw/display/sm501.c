@@ -40,6 +40,7 @@
 #include "ui/pixel_ops.h"
 #include "qemu/bswap.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define MMIO_BASE_OFFSET 0x3e00000
 #define MMIO_SIZE 0x200000
@@ -1931,10 +1932,11 @@ static const VMStateDescription vmstate_sm501_state = {
 };
 
 #define TYPE_SYSBUS_SM501 "sysbus-sm501"
+typedef struct SM501SysBusState SM501SysBusState;
 #define SYSBUS_SM501(obj) \
     OBJECT_CHECK(SM501SysBusState, (obj), TYPE_SYSBUS_SM501)
 
-typedef struct {
+struct SM501SysBusState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -1942,7 +1944,7 @@ typedef struct {
     uint32_t vram_size;
     uint32_t base;
     SerialMM serial;
-} SM501SysBusState;
+};
 
 static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
 {
@@ -2034,15 +2036,16 @@ static const TypeInfo sm501_sysbus_info = {
 };
 
 #define TYPE_PCI_SM501 "sm501"
+typedef struct SM501PCIState SM501PCIState;
 #define PCI_SM501(obj) OBJECT_CHECK(SM501PCIState, (obj), TYPE_PCI_SM501)
 
-typedef struct {
+struct SM501PCIState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
     SM501State state;
     uint32_t vram_size;
-} SM501PCIState;
+};
 
 static void sm501_realize_pci(PCIDevice *dev, Error **errp)
 {

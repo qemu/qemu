@@ -12,6 +12,7 @@
 #define IMX_CCM_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define CKIL_FREQ 32768 /* nominal 32khz clock */
 
@@ -27,6 +28,8 @@
 #define PLL_MFN(x)              (((x) & 0x3ff) << 0)
 
 #define TYPE_IMX_CCM "imx.ccm"
+typedef struct IMXCCMClass IMXCCMClass;
+typedef struct IMXCCMState IMXCCMState;
 #define IMX_CCM(obj) \
      OBJECT_CHECK(IMXCCMState, (obj), TYPE_IMX_CCM)
 #define IMX_CCM_CLASS(klass) \
@@ -34,13 +37,13 @@
 #define IMX_CCM_GET_CLASS(obj) \
      OBJECT_GET_CLASS(IMXCCMClass, (obj), TYPE_IMX_CCM)
 
-typedef struct IMXCCMState {
+struct IMXCCMState {
     /* <private> */
     SysBusDevice parent_obj;
 
     /* <public> */
 
-} IMXCCMState;
+};
 
 typedef enum  {
     CLK_NONE,
@@ -52,13 +55,13 @@ typedef enum  {
     CLK_HIGH,
 } IMXClk;
 
-typedef struct IMXCCMClass {
+struct IMXCCMClass {
     /* <private> */
     SysBusDeviceClass parent_class;
 
     /* <public> */
     uint32_t (*get_clock_frequency)(IMXCCMState *s, IMXClk clk);
-} IMXCCMClass;
+};
 
 uint32_t imx_ccm_calc_pll(uint32_t pllreg, uint32_t base_freq);
 

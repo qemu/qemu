@@ -19,6 +19,7 @@
 
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define MPHI_MMIO_SIZE      0x1000
 

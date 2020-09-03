@@ -27,6 +27,7 @@
 
 #include "exec/memory.h"
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 #define MAX_IPMI_MSG_SIZE 300
 
@@ -110,6 +111,7 @@ uint32_t ipmi_next_uuid(void);
 #define TYPE_IPMI_INTERFACE "ipmi-interface"
 #define IPMI_INTERFACE(obj) \
      INTERFACE_CHECK(IPMIInterface, (obj), TYPE_IPMI_INTERFACE)
+typedef struct IPMIInterfaceClass IPMIInterfaceClass;
 #define IPMI_INTERFACE_CLASS(class) \
      OBJECT_CLASS_CHECK(IPMIInterfaceClass, (class), TYPE_IPMI_INTERFACE)
 #define IPMI_INTERFACE_GET_CLASS(class) \
@@ -117,7 +119,7 @@ uint32_t ipmi_next_uuid(void);
 
 typedef struct IPMIInterface IPMIInterface;
 
-typedef struct IPMIInterfaceClass {
+struct IPMIInterfaceClass {
     InterfaceClass parent;
 
     /*
@@ -170,12 +172,14 @@ typedef struct IPMIInterfaceClass {
      * Return the firmware info for a device.
      */
     void (*get_fwinfo)(struct IPMIInterface *s, IPMIFwInfo *info);
-} IPMIInterfaceClass;
+};
 
 /*
  * Define a BMC simulator (or perhaps a connection to a real BMC)
  */
 #define TYPE_IPMI_BMC "ipmi-bmc"
+typedef struct IPMIBmc IPMIBmc;
+typedef struct IPMIBmcClass IPMIBmcClass;
 #define IPMI_BMC(obj) \
      OBJECT_CHECK(IPMIBmc, (obj), TYPE_IPMI_BMC)
 #define IPMI_BMC_CLASS(obj_class) \
@@ -183,15 +187,15 @@ typedef struct IPMIInterfaceClass {
 #define IPMI_BMC_GET_CLASS(obj) \
      OBJECT_GET_CLASS(IPMIBmcClass, (obj), TYPE_IPMI_BMC)
 
-typedef struct IPMIBmc {
+struct IPMIBmc {
     DeviceState parent;
 
     uint8_t slave_addr;
 
     IPMIInterface *intf;
-} IPMIBmc;
+};
 
-typedef struct IPMIBmcClass {
+struct IPMIBmcClass {
     DeviceClass parent;
 
     /* Called when the system resets to report to the bmc. */
@@ -204,7 +208,7 @@ typedef struct IPMIBmcClass {
                            uint8_t *cmd, unsigned int cmd_len,
                            unsigned int max_cmd_len,
                            uint8_t msg_id);
-} IPMIBmcClass;
+};
 
 /*
  * Add a link property to obj that points to a BMC.
@@ -268,10 +272,10 @@ int ipmi_bmc_sdr_find(IPMIBmc *b, uint16_t recid,
 void ipmi_bmc_gen_event(IPMIBmc *b, uint8_t *evt, bool log);
 
 #define TYPE_IPMI_BMC_SIMULATOR "ipmi-bmc-sim"
+typedef struct IPMIBmcSim IPMIBmcSim;
 #define IPMI_BMC_SIMULATOR(obj) OBJECT_CHECK(IPMIBmcSim, (obj), \
                                         TYPE_IPMI_BMC_SIMULATOR)
 
-typedef struct IPMIBmcSim IPMIBmcSim;
 
 typedef struct RspBuffer {
     uint8_t buffer[MAX_IPMI_MSG_SIZE];

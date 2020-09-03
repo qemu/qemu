@@ -13,11 +13,13 @@
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 #include "hw/isa/isa.h"
+#include "qom/object.h"
 
 #define TYPE_MC146818_RTC "mc146818rtc"
+typedef struct RTCState RTCState;
 #define MC146818_RTC(obj) OBJECT_CHECK(RTCState, (obj), TYPE_MC146818_RTC)
 
-typedef struct RTCState {
+struct RTCState {
     ISADevice parent_obj;
 
     MemoryRegion io;
@@ -44,7 +46,7 @@ typedef struct RTCState {
     LostTickPolicy lost_tick_policy;
     Notifier suspend_notifier;
     QLIST_ENTRY(RTCState) link;
-} RTCState;
+};
 
 #define RTC_ISA_IRQ 8
 #define RTC_ISA_BASE 0x70

@@ -18,6 +18,7 @@
 #include "hw/sd/sd.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 //#define DEBUG_SSI_SD 1
 
@@ -40,7 +41,7 @@ typedef enum {
     SSI_SD_DATA_READ,
 } ssi_sd_mode;
 
-typedef struct {
+struct ssi_sd_state {
     SSISlave ssidev;
     uint32_t mode;
     int cmd;
@@ -50,7 +51,8 @@ typedef struct {
     int32_t response_pos;
     int32_t stopping;
     SDBus sdbus;
-} ssi_sd_state;
+};
+typedef struct ssi_sd_state ssi_sd_state;
 
 #define TYPE_SSI_SD "ssi-sd"
 #define SSI_SD(obj) OBJECT_CHECK(ssi_sd_state, (obj), TYPE_SSI_SD)

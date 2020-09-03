@@ -62,6 +62,7 @@
 
 #include "hw/arm/exynos4210.h"
 #include "hw/irq.h"
+#include "qom/object.h"
 
 //#define DEBUG_MCT
 
@@ -242,10 +243,11 @@ typedef struct {
 } Exynos4210MCTLT;
 
 #define TYPE_EXYNOS4210_MCT "exynos4210.mct"
+typedef struct Exynos4210MCTState Exynos4210MCTState;
 #define EXYNOS4210_MCT(obj) \
     OBJECT_CHECK(Exynos4210MCTState, (obj), TYPE_EXYNOS4210_MCT)
 
-typedef struct Exynos4210MCTState {
+struct Exynos4210MCTState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -257,7 +259,7 @@ typedef struct Exynos4210MCTState {
     Exynos4210MCTGT g_timer;
 
     uint32_t    freq;                   /* all timers tick frequency, TCLK */
-} Exynos4210MCTState;
+};
 
 /*** VMState ***/
 static const VMStateDescription vmstate_tick_timer = {

@@ -24,6 +24,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/reset.h"
 #include "ppc440.h"
+#include "qom/object.h"
 
 /*****************************************************************************/
 /* L2 Cache as SRAM */
@@ -1032,10 +1033,11 @@ void ppc4xx_dma_init(CPUPPCState *env, int dcr_base)
 #include "hw/pci/pcie_host.h"
 
 #define TYPE_PPC460EX_PCIE_HOST "ppc460ex-pcie-host"
+typedef struct PPC460EXPCIEState PPC460EXPCIEState;
 #define PPC460EX_PCIE_HOST(obj) \
     OBJECT_CHECK(PPC460EXPCIEState, (obj), TYPE_PPC460EX_PCIE_HOST)
 
-typedef struct PPC460EXPCIEState {
+struct PPC460EXPCIEState {
     PCIExpressHost host;
 
     MemoryRegion iomem;
@@ -1056,7 +1058,7 @@ typedef struct PPC460EXPCIEState {
     uint32_t reg_mask;
     uint32_t special;
     uint32_t cfg;
-} PPC460EXPCIEState;
+};
 
 #define DCRN_PCIE0_BASE 0x100
 #define DCRN_PCIE1_BASE 0x120

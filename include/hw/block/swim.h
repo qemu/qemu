@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define SWIM_MAX_FD            2
 
@@ -67,10 +68,11 @@ struct SWIMCtrl {
 };
 
 #define TYPE_SWIM "swim"
+typedef struct Swim Swim;
 #define SWIM(obj) OBJECT_CHECK(Swim, (obj), TYPE_SWIM)
 
-typedef struct Swim {
+struct Swim {
     SysBusDevice parent_obj;
     SWIMCtrl     ctrl;
-} Swim;
+};
 #endif

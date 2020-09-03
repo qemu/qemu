@@ -35,6 +35,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define IRQMP_MAX_CPU 16
 #define IRQMP_REG_SIZE 256      /* Size of memory mapped registers */
@@ -50,18 +51,19 @@
 #define FORCE_OFFSET     0x80
 #define EXTENDED_OFFSET  0xC0
 
+typedef struct IRQMP IRQMP;
 #define GRLIB_IRQMP(obj) OBJECT_CHECK(IRQMP, (obj), TYPE_GRLIB_IRQMP)
 
 typedef struct IRQMPState IRQMPState;
 
-typedef struct IRQMP {
+struct IRQMP {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
 
     IRQMPState *state;
     qemu_irq irq;
-} IRQMP;
+};
 
 struct IRQMPState {
     uint32_t level;

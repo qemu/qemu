@@ -19,6 +19,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-gpu-pci.h"
+#include "qom/object.h"
 
 static Property virtio_gpu_pci_base_properties[] = {
     DEFINE_VIRTIO_GPU_PCI_PROPERTIES(VirtIOPCIProxy),
@@ -65,13 +66,14 @@ static const TypeInfo virtio_gpu_pci_base_info = {
 };
 
 #define TYPE_VIRTIO_GPU_PCI "virtio-gpu-pci"
+typedef struct VirtIOGPUPCI VirtIOGPUPCI;
 #define VIRTIO_GPU_PCI(obj)                                 \
     OBJECT_CHECK(VirtIOGPUPCI, (obj), TYPE_VIRTIO_GPU_PCI)
 
-typedef struct VirtIOGPUPCI {
+struct VirtIOGPUPCI {
     VirtIOGPUPCIBase parent_obj;
     VirtIOGPU vdev;
-} VirtIOGPUPCI;
+};
 
 static void virtio_gpu_initfn(Object *obj)
 {

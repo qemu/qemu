@@ -8,6 +8,7 @@
 
 #include "ui/qemu-spice.h"
 #include "ui/spice-display.h"
+#include "qom/object.h"
 
 enum qxl_mode {
     QXL_MODE_UNDEFINED,
@@ -27,7 +28,7 @@ enum qxl_mode {
 #define QXL_PAGE_BITS 12
 #define QXL_PAGE_SIZE (1 << QXL_PAGE_BITS);
 
-typedef struct PCIQXLDevice {
+struct PCIQXLDevice {
     PCIDevice          pci;
     PortioList         vga_port_list;
     SimpleSpiceDisplay ssd;
@@ -126,7 +127,8 @@ typedef struct PCIQXLDevice {
     int                num_dirty_rects;
     QXLRect            dirty[QXL_NUM_DIRTY_RECTS];
     QEMUBH            *update_area_bh;
-} PCIQXLDevice;
+};
+typedef struct PCIQXLDevice PCIQXLDevice;
 
 #define TYPE_PCI_QXL "pci-qxl"
 #define PCI_QXL(obj) OBJECT_CHECK(PCIQXLDevice, (obj), TYPE_PCI_QXL)

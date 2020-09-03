@@ -45,6 +45,7 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "exec/address-spaces.h"
+#include "qom/object.h"
 #include "hw/sysbus.h"             /* SysBusDevice */
 #include "qemu/host-utils.h"
 #include "sysemu/qtest.h"
@@ -88,14 +89,15 @@ typedef struct {
 } MaltaFPGAState;
 
 #define TYPE_MIPS_MALTA "mips-malta"
+typedef struct MaltaState MaltaState;
 #define MIPS_MALTA(obj) OBJECT_CHECK(MaltaState, (obj), TYPE_MIPS_MALTA)
 
-typedef struct {
+struct MaltaState {
     SysBusDevice parent_obj;
 
     MIPSCPSState cps;
     qemu_irq i8259[ISA_NUM_IRQS];
-} MaltaState;
+};
 
 static struct _loaderparams {
     int ram_size, ram_low_size;

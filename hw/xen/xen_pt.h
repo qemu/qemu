@@ -4,6 +4,7 @@
 #include "hw/xen/xen_common.h"
 #include "hw/pci/pci.h"
 #include "xen-host-pci-device.h"
+#include "qom/object.h"
 
 bool xen_igd_gfx_pt_enabled(void);
 void xen_igd_gfx_pt_set(bool value, Error **errp);

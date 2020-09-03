@@ -21,9 +21,12 @@
 #define QEMU_ALPHA_CPU_QOM_H
 
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 #define TYPE_ALPHA_CPU "alpha-cpu"
 
+typedef struct AlphaCPU AlphaCPU;
+typedef struct AlphaCPUClass AlphaCPUClass;
 #define ALPHA_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(AlphaCPUClass, (klass), TYPE_ALPHA_CPU)
 #define ALPHA_CPU(obj) \
@@ -38,15 +41,14 @@
  *
  * An Alpha CPU model.
  */
-typedef struct AlphaCPUClass {
+struct AlphaCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
 
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
-} AlphaCPUClass;
+};
 
-typedef struct AlphaCPU AlphaCPU;
 
 #endif

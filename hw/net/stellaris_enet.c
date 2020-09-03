@@ -16,6 +16,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include <zlib.h>
+#include "qom/object.h"
 
 //#define DEBUG_STELLARIS_ENET 1
 
@@ -50,6 +51,7 @@ do { fprintf(stderr, "stellaris_enet: error: " fmt , ## __VA_ARGS__);} while (0)
 #define SE_TCTL_DUPLEX  0x08
 
 #define TYPE_STELLARIS_ENET "stellaris_enet"
+typedef struct stellaris_enet_state stellaris_enet_state;
 #define STELLARIS_ENET(obj) \
     OBJECT_CHECK(stellaris_enet_state, (obj), TYPE_STELLARIS_ENET)
 
@@ -58,7 +60,7 @@ typedef struct {
     uint32_t len;
 } StellarisEnetRxFrame;
 
-typedef struct {
+struct stellaris_enet_state {
     SysBusDevice parent_obj;
 
     uint32_t ris;
@@ -82,7 +84,7 @@ typedef struct {
     NICConf conf;
     qemu_irq irq;
     MemoryRegion mmio;
-} stellaris_enet_state;
+};
 
 static const VMStateDescription vmstate_rx_frame = {
     .name = "stellaris_enet/rx_frame",

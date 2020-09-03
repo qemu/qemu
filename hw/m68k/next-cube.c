@@ -21,6 +21,7 @@
 #include "hw/loader.h"
 #include "hw/scsi/esp.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 #include "hw/char/escc.h" /* ZILOG 8530 Serial Emulation */
 #include "hw/block/fdc.h"
 #include "hw/qdev-properties.h"
@@ -37,6 +38,7 @@
 #endif
 
 #define TYPE_NEXT_MACHINE MACHINE_TYPE_NAME("next-cube")
+typedef struct NeXTState NeXTState;
 #define NEXT_MACHINE(obj) OBJECT_CHECK(NeXTState, (obj), TYPE_NEXT_MACHINE)
 
 #define ENTRY       0x0100001e
@@ -69,7 +71,7 @@ typedef struct NextRtc {
     uint8_t retval;
 } NextRtc;
 
-typedef struct {
+struct NeXTState {
     MachineState parent;
 
     uint32_t int_mask;
@@ -87,7 +89,7 @@ typedef struct {
     uint32_t scr2;
 
     NextRtc rtc;
-} NeXTState;
+};
 
 /* Thanks to NeXT forums for this */
 /*

@@ -20,6 +20,8 @@
 #include "qemu/bitmap.h"
 
 #define TYPE_MEMORY_BACKEND "memory-backend"
+typedef struct HostMemoryBackend HostMemoryBackend;
+typedef struct HostMemoryBackendClass HostMemoryBackendClass;
 #define MEMORY_BACKEND(obj) \
     OBJECT_CHECK(HostMemoryBackend, (obj), TYPE_MEMORY_BACKEND)
 #define MEMORY_BACKEND_GET_CLASS(obj) \
@@ -42,8 +44,6 @@
  */
 #define TYPE_MEMORY_BACKEND_FILE "memory-backend-file"
 
-typedef struct HostMemoryBackend HostMemoryBackend;
-typedef struct HostMemoryBackendClass HostMemoryBackendClass;
 
 /**
  * HostMemoryBackendClass:

@@ -12,6 +12,7 @@ enum {
 };
 
 #define TYPE_DEVICE "device"
+typedef struct DeviceClass DeviceClass;
 #define DEVICE(obj) OBJECT_CHECK(DeviceState, (obj), TYPE_DEVICE)
 #define DEVICE_CLASS(klass) OBJECT_CLASS_CHECK(DeviceClass, (klass), TYPE_DEVICE)
 #define DEVICE_GET_CLASS(obj) OBJECT_GET_CLASS(DeviceClass, (obj), TYPE_DEVICE)
@@ -93,7 +94,7 @@ typedef void (*BusUnrealize)(BusState *bus);
  * until it was marked don't hide and qdev_device_add called again.
  *
  */
-typedef struct DeviceClass {
+struct DeviceClass {
     /*< private >*/
     ObjectClass parent_class;
     /*< public >*/
@@ -137,7 +138,7 @@ typedef struct DeviceClass {
 
     /* Private to qdev / bus.  */
     const char *bus_type;
-} DeviceClass;
+};
 
 typedef struct NamedGPIOList NamedGPIOList;
 

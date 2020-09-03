@@ -15,12 +15,14 @@
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
+#include "qom/object.h"
 
 #define TYPE_CMSDK_APB_UART "cmsdk-apb-uart"
+typedef struct CMSDKAPBUART CMSDKAPBUART;
 #define CMSDK_APB_UART(obj) OBJECT_CHECK(CMSDKAPBUART, (obj), \
                                          TYPE_CMSDK_APB_UART)
 
-typedef struct {
+struct CMSDKAPBUART {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -42,7 +44,7 @@ typedef struct {
     /* This UART has no FIFO, only a 1-character buffer for each of Tx and Rx */
     uint8_t txbuf;
     uint8_t rxbuf;
-} CMSDKAPBUART;
+};
 
 /**
  * cmsdk_apb_uart_create - convenience function to create TYPE_CMSDK_APB_UART

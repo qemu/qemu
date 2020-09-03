@@ -15,6 +15,7 @@
 #include "hw/irq.h"
 #include "alpha_sys.h"
 #include "exec/address-spaces.h"
+#include "qom/object.h"
 
 
 #define TYPE_TYPHOON_PCI_HOST_BRIDGE "typhoon-pcihost"
@@ -49,16 +50,17 @@ typedef struct TyphoonPchip {
     TyphoonWindow win[4];
 } TyphoonPchip;
 
+typedef struct TyphoonState TyphoonState;
 #define TYPHOON_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(TyphoonState, (obj), TYPE_TYPHOON_PCI_HOST_BRIDGE)
 
-typedef struct TyphoonState {
+struct TyphoonState {
     PCIHostState parent_obj;
 
     TyphoonCchip cchip;
     TyphoonPchip pchip;
     MemoryRegion dchip_region;
-} TyphoonState;
+};
 
 /* Called when one of DRIR or DIM changes.  */
 static void cpu_irq_change(AlphaCPU *cpu, uint64_t req)

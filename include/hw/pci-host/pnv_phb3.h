@@ -13,6 +13,7 @@
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/ppc/xics.h"
+#include "qom/object.h"
 
 typedef struct PnvPHB3 PnvPHB3;
 
@@ -20,18 +21,19 @@ typedef struct PnvPHB3 PnvPHB3;
  * PHB3 XICS Source for MSIs
  */
 #define TYPE_PHB3_MSI "phb3-msi"
+typedef struct Phb3MsiState Phb3MsiState;
 #define PHB3_MSI(obj) OBJECT_CHECK(Phb3MsiState, (obj), TYPE_PHB3_MSI)
 
 #define PHB3_MAX_MSI     2048
 
-typedef struct Phb3MsiState {
+struct Phb3MsiState {
     ICSState ics;
     qemu_irq *qirqs;
 
     PnvPHB3 *phb;
     uint64_t rba[PHB3_MAX_MSI / 64];
     uint32_t rba_sum;
-} Phb3MsiState;
+};
 
 void pnv_phb3_msi_update_config(Phb3MsiState *msis, uint32_t base,
                                 uint32_t count);
@@ -69,9 +71,10 @@ typedef struct PnvPhb3DMASpace {
  * PHB3 Power Bus Common Queue
  */
 #define TYPE_PNV_PBCQ "pnv-pbcq"
+typedef struct PnvPBCQState PnvPBCQState;
 #define PNV_PBCQ(obj) OBJECT_CHECK(PnvPBCQState, (obj), TYPE_PNV_PBCQ)
 
-typedef struct PnvPBCQState {
+struct PnvPBCQState {
     DeviceState parent;
 
     uint32_t nest_xbase;
@@ -96,7 +99,7 @@ typedef struct PnvPBCQState {
     MemoryRegion xscom_nest_regs;
     MemoryRegion xscom_pci_regs;
     MemoryRegion xscom_spci_regs;
-} PnvPBCQState;
+};
 
 /*
  * PHB3 PCIe Root port

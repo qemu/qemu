@@ -19,10 +19,13 @@
 #define QEMU_TRICORE_CPU_QOM_H
 
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 
 #define TYPE_TRICORE_CPU "tricore-cpu"
 
+typedef struct TriCoreCPU TriCoreCPU;
+typedef struct TriCoreCPUClass TriCoreCPUClass;
 #define TRICORE_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(TriCoreCPUClass, (klass), TYPE_TRICORE_CPU)
 #define TRICORE_CPU(obj) \
@@ -30,15 +33,14 @@
 #define TRICORE_CPU_GET_CLASS(obj) \
     OBJECT_GET_CLASS(TriCoreCPUClass, (obj), TYPE_TRICORE_CPU)
 
-typedef struct TriCoreCPUClass {
+struct TriCoreCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
 
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
-} TriCoreCPUClass;
+};
 
-typedef struct TriCoreCPU TriCoreCPU;
 
 #endif /* QEMU_TRICORE_CPU_QOM_H */

@@ -22,6 +22,8 @@
 #include "io/channel.h"
 
 #define TYPE_VHOST_USER_BACKEND "vhost-user-backend"
+typedef struct VhostUserBackend VhostUserBackend;
+typedef struct VhostUserBackendClass VhostUserBackendClass;
 #define VHOST_USER_BACKEND(obj) \
     OBJECT_CHECK(VhostUserBackend, (obj), TYPE_VHOST_USER_BACKEND)
 #define VHOST_USER_BACKEND_GET_CLASS(obj) \
@@ -29,8 +31,6 @@
 #define VHOST_USER_BACKEND_CLASS(klass) \
     OBJECT_CLASS_CHECK(VhostUserBackendClass, (klass), TYPE_VHOST_USER_BACKEND)
 
-typedef struct VhostUserBackend VhostUserBackend;
-typedef struct VhostUserBackendClass VhostUserBackendClass;
 
 struct VhostUserBackendClass {
     ObjectClass parent_class;

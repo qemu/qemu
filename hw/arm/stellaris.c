@@ -27,6 +27,7 @@
 #include "migration/vmstate.h"
 #include "hw/misc/unimp.h"
 #include "cpu.h"
+#include "qom/object.h"
 
 #define GPIO_A 0
 #define GPIO_B 1
@@ -57,10 +58,11 @@ typedef const struct {
 /* General purpose timer module.  */
 
 #define TYPE_STELLARIS_GPTM "stellaris-gptm"
+typedef struct gptm_state gptm_state;
 #define STELLARIS_GPTM(obj) \
     OBJECT_CHECK(gptm_state, (obj), TYPE_STELLARIS_GPTM)
 
-typedef struct gptm_state {
+struct gptm_state {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -80,7 +82,7 @@ typedef struct gptm_state {
     /* The timers have an alternate output used to trigger the ADC.  */
     qemu_irq trigger;
     qemu_irq irq;
-} gptm_state;
+};
 
 static void gptm_update_irq(gptm_state *s)
 {
@@ -719,10 +721,11 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
 /* I2C controller.  */
 
 #define TYPE_STELLARIS_I2C "stellaris-i2c"
+typedef struct stellaris_i2c_state stellaris_i2c_state;
 #define STELLARIS_I2C(obj) \
     OBJECT_CHECK(stellaris_i2c_state, (obj), TYPE_STELLARIS_I2C)
 
-typedef struct {
+struct stellaris_i2c_state {
     SysBusDevice parent_obj;
 
     I2CBus *bus;
@@ -735,7 +738,7 @@ typedef struct {
     uint32_t mimr;
     uint32_t mris;
     uint32_t mcr;
-} stellaris_i2c_state;
+};
 
 #define STELLARIS_I2C_MCS_BUSY    0x01
 #define STELLARIS_I2C_MCS_ERROR   0x02
@@ -932,10 +935,11 @@ static void stellaris_i2c_init(Object *obj)
 #define STELLARIS_ADC_FIFO_FULL     0x1000
 
 #define TYPE_STELLARIS_ADC "stellaris-adc"
+typedef struct StellarisADCState stellaris_adc_state;
 #define STELLARIS_ADC(obj) \
     OBJECT_CHECK(stellaris_adc_state, (obj), TYPE_STELLARIS_ADC)
 
-typedef struct StellarisADCState {
+struct StellarisADCState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -955,7 +959,7 @@ typedef struct StellarisADCState {
     uint32_t ssctl[4];
     uint32_t noise;
     qemu_irq irq[4];
-} stellaris_adc_state;
+};
 
 static uint32_t stellaris_adc_fifo_read(stellaris_adc_state *s, int n)
 {

@@ -27,6 +27,7 @@
 #include "hw/gpio/aspeed_gpio.h"
 #include "hw/sd/aspeed_sdhci.h"
 #include "hw/usb/hcd-ehci.h"
+#include "qom/object.h"
 
 #define ASPEED_SPIS_NUM  2
 #define ASPEED_EHCIS_NUM 2
@@ -34,7 +35,7 @@
 #define ASPEED_CPUS_NUM  2
 #define ASPEED_MACS_NUM  4
 
-typedef struct AspeedSoCState {
+struct AspeedSoCState {
     /*< private >*/
     DeviceState parent;
 
@@ -60,12 +61,14 @@ typedef struct AspeedSoCState {
     AspeedGPIOState gpio_1_8v;
     AspeedSDHCIState sdhci;
     AspeedSDHCIState emmc;
-} AspeedSoCState;
+};
+typedef struct AspeedSoCState AspeedSoCState;
 
 #define TYPE_ASPEED_SOC "aspeed-soc"
+typedef struct AspeedSoCClass AspeedSoCClass;
 #define ASPEED_SOC(obj) OBJECT_CHECK(AspeedSoCState, (obj), TYPE_ASPEED_SOC)
 
-typedef struct AspeedSoCClass {
+struct AspeedSoCClass {
     DeviceClass parent_class;
 
     const char *name;
@@ -79,7 +82,7 @@ typedef struct AspeedSoCClass {
     const int *irqmap;
     const hwaddr *memmap;
     uint32_t num_cpus;
-} AspeedSoCClass;
+};
 
 #define ASPEED_SOC_CLASS(klass)                                         \
     OBJECT_CLASS_CHECK(AspeedSoCClass, (klass), TYPE_ASPEED_SOC)

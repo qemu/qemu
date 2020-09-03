@@ -24,6 +24,7 @@
 #include "hw/s390x/css.h"
 #include "migration/qemu-file-types.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define FLIC_SAVE_INITIAL_SIZE qemu_real_host_page_size
 #define FLIC_FAILED (-1UL)
@@ -569,10 +570,11 @@ static const VMStateDescription kvm_s390_flic_vmstate = {
     }
 };
 
-typedef struct KVMS390FLICStateClass {
+struct KVMS390FLICStateClass {
     S390FLICStateClass parent_class;
     DeviceRealize parent_realize;
-} KVMS390FLICStateClass;
+};
+typedef struct KVMS390FLICStateClass KVMS390FLICStateClass;
 
 #define KVM_S390_FLIC_GET_CLASS(obj) \
     OBJECT_GET_CLASS(KVMS390FLICStateClass, (obj), TYPE_KVM_S390_FLIC)

@@ -52,6 +52,7 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "trace.h"
+#include "qom/object.h"
 
 /*
  * Sun4m architecture was used in the following machines:
@@ -581,14 +582,15 @@ static void idreg_init(hwaddr addr)
                             idreg_data, sizeof(idreg_data));
 }
 
+typedef struct IDRegState IDRegState;
 #define MACIO_ID_REGISTER(obj) \
     OBJECT_CHECK(IDRegState, (obj), TYPE_MACIO_ID_REGISTER)
 
-typedef struct IDRegState {
+struct IDRegState {
     SysBusDevice parent_obj;
 
     MemoryRegion mem;
-} IDRegState;
+};
 
 static void idreg_realize(DeviceState *ds, Error **errp)
 {
@@ -623,13 +625,14 @@ static const TypeInfo idreg_info = {
 };
 
 #define TYPE_TCX_AFX "tcx_afx"
+typedef struct AFXState AFXState;
 #define TCX_AFX(obj) OBJECT_CHECK(AFXState, (obj), TYPE_TCX_AFX)
 
-typedef struct AFXState {
+struct AFXState {
     SysBusDevice parent_obj;
 
     MemoryRegion mem;
-} AFXState;
+};
 
 /* SS-5 TCX AFX register */
 static void afx_init(hwaddr addr)
@@ -676,13 +679,14 @@ static const TypeInfo afx_info = {
 };
 
 #define TYPE_OPENPROM "openprom"
+typedef struct PROMState PROMState;
 #define OPENPROM(obj) OBJECT_CHECK(PROMState, (obj), TYPE_OPENPROM)
 
-typedef struct PROMState {
+struct PROMState {
     SysBusDevice parent_obj;
 
     MemoryRegion prom;
-} PROMState;
+};
 
 /* Boot PROM (OpenBIOS) */
 static uint64_t translate_prom_address(void *opaque, uint64_t addr)
@@ -764,12 +768,13 @@ static const TypeInfo prom_info = {
 };
 
 #define TYPE_SUN4M_MEMORY "memory"
+typedef struct RamDevice RamDevice;
 #define SUN4M_RAM(obj) OBJECT_CHECK(RamDevice, (obj), TYPE_SUN4M_MEMORY)
 
-typedef struct RamDevice {
+struct RamDevice {
     SysBusDevice parent_obj;
     HostMemoryBackend *memdev;
-} RamDevice;
+};
 
 /* System RAM */
 static void ram_realize(DeviceState *dev, Error **errp)

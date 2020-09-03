@@ -14,8 +14,10 @@
 
 #include "hw/sysbus.h"
 #include "ui/console.h"
+#include "qom/object.h"
 
 #define TYPE_BCM2835_FB "bcm2835-fb"
+typedef struct BCM2835FBState BCM2835FBState;
 #define BCM2835_FB(obj) OBJECT_CHECK(BCM2835FBState, (obj), TYPE_BCM2835_FB)
 
 /*
@@ -32,7 +34,7 @@ typedef struct {
     uint32_t alpha;
 } BCM2835FBConfig;
 
-typedef struct {
+struct BCM2835FBState {
     /*< private >*/
     SysBusDevice busdev;
     /*< public >*/
@@ -49,7 +51,7 @@ typedef struct {
 
     BCM2835FBConfig config;
     BCM2835FBConfig initial_config;
-} BCM2835FBState;
+};
 
 void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig);
 

@@ -15,15 +15,17 @@
 #include "hw/intc/realview_gic.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "qom/object.h"
 
 #define TYPE_REALVIEW_MPCORE_RIRQ "realview_mpcore"
+typedef struct mpcore_rirq_state mpcore_rirq_state;
 #define REALVIEW_MPCORE_RIRQ(obj) \
     OBJECT_CHECK(mpcore_rirq_state, (obj), TYPE_REALVIEW_MPCORE_RIRQ)
 
 /* Dummy PIC to route IRQ lines.  The baseboard has 4 independent IRQ
    controllers.  The output of these, plus some of the raw input lines
    are fed into a single SMP-aware interrupt controller on the CPU.  */
-typedef struct {
+struct mpcore_rirq_state {
     SysBusDevice parent_obj;
 
     qemu_irq cpuic[32];
@@ -32,7 +34,7 @@ typedef struct {
 
     ARM11MPCorePriveState priv;
     RealViewGICState gic[4];
-} mpcore_rirq_state;
+};
 
 /* Map baseboard IRQs onto CPU IRQ lines.  */
 static const int mpcore_irq_map[32] = {

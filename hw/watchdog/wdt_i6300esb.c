@@ -26,6 +26,7 @@
 #include "sysemu/watchdog.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 /*#define I6300ESB_DEBUG 1*/
 

@@ -10,10 +10,12 @@
 #define ARM_ASPEED_H
 
 #include "hw/boards.h"
+#include "qom/object.h"
 
 typedef struct AspeedMachineState AspeedMachineState;
 
 #define TYPE_ASPEED_MACHINE       MACHINE_TYPE_NAME("aspeed")
+typedef struct AspeedMachineClass AspeedMachineClass;
 #define ASPEED_MACHINE(obj) \
     OBJECT_CHECK(AspeedMachineState, (obj), TYPE_ASPEED_MACHINE)
 
@@ -27,7 +29,7 @@ typedef struct AspeedMachineState AspeedMachineState;
 #define ASPEED_MACHINE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(AspeedMachineClass, (obj), TYPE_ASPEED_MACHINE)
 
-typedef struct AspeedMachineClass {
+struct AspeedMachineClass {
     MachineClass parent_obj;
 
     const char *name;
@@ -40,7 +42,7 @@ typedef struct AspeedMachineClass {
     uint32_t num_cs;
     uint32_t macs_mask;
     void (*i2c_init)(AspeedMachineState *bmc);
-} AspeedMachineClass;
+};
 
 
 #endif

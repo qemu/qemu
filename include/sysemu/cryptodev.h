@@ -37,6 +37,8 @@
 
 #define TYPE_CRYPTODEV_BACKEND "cryptodev-backend"
 
+typedef struct CryptoDevBackend CryptoDevBackend;
+typedef struct CryptoDevBackendClass CryptoDevBackendClass;
 #define CRYPTODEV_BACKEND(obj) \
     OBJECT_CHECK(CryptoDevBackend, \
                  (obj), TYPE_CRYPTODEV_BACKEND)
@@ -54,7 +56,6 @@ typedef struct CryptoDevBackendConf CryptoDevBackendConf;
 typedef struct CryptoDevBackendPeers CryptoDevBackendPeers;
 typedef struct CryptoDevBackendClient
                      CryptoDevBackendClient;
-typedef struct CryptoDevBackend CryptoDevBackend;
 
 enum CryptoDevBackendAlgType {
     CRYPTODEV_BACKEND_ALG_SYM,
@@ -146,7 +147,7 @@ typedef struct CryptoDevBackendSymOpInfo {
     uint8_t data[];
 } CryptoDevBackendSymOpInfo;
 
-typedef struct CryptoDevBackendClass {
+struct CryptoDevBackendClass {
     ObjectClass parent_class;
 
     void (*init)(CryptoDevBackend *backend, Error **errp);
@@ -161,7 +162,7 @@ typedef struct CryptoDevBackendClass {
     int (*do_sym_op)(CryptoDevBackend *backend,
                      CryptoDevBackendSymOpInfo *op_info,
                      uint32_t queue_index, Error **errp);
-} CryptoDevBackendClass;
+};
 
 typedef enum CryptoDevBackendOptionsType {
     CRYPTODEV_BACKEND_TYPE_NONE = 0,

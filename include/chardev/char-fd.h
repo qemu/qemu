@@ -26,13 +26,15 @@
 
 #include "io/channel.h"
 #include "chardev/char.h"
+#include "qom/object.h"
 
-typedef struct FDChardev {
+struct FDChardev {
     Chardev parent;
 
     QIOChannel *ioc_in, *ioc_out;
     int max_size;
-} FDChardev;
+};
+typedef struct FDChardev FDChardev;
 
 #define TYPE_CHARDEV_FD "chardev-fd"
 

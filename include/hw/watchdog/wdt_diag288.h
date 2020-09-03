@@ -2,8 +2,11 @@
 #define WDT_DIAG288_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 #define TYPE_WDT_DIAG288 "diag288"
+typedef struct DIAG288Class DIAG288Class;
+typedef struct DIAG288State DIAG288State;
 #define DIAG288(obj) \
     OBJECT_CHECK(DIAG288State, (obj), TYPE_WDT_DIAG288)
 #define DIAG288_CLASS(klass) \
@@ -15,22 +18,22 @@
 #define WDT_DIAG288_CHANGE    1
 #define WDT_DIAG288_CANCEL    2
 
-typedef struct DIAG288State {
+struct DIAG288State {
     /*< private >*/
     DeviceState parent_obj;
     QEMUTimer *timer;
     bool enabled;
 
     /*< public >*/
-} DIAG288State;
+};
 
-typedef struct DIAG288Class {
+struct DIAG288Class {
     /*< private >*/
     DeviceClass parent_class;
 
     /*< public >*/
     int (*handle_timer)(DIAG288State *dev,
                         uint64_t func, uint64_t timeout);
-} DIAG288Class;
+};
 
 #endif /* WDT_DIAG288_H */

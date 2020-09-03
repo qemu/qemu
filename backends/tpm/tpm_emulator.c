@@ -42,8 +42,10 @@
 #include "qapi/qapi-visit-tpm.h"
 #include "chardev/char-fe.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define TYPE_TPM_EMULATOR "tpm-emulator"
+typedef struct TPMEmulator TPMEmulator;
 #define TPM_EMULATOR(obj) \
     OBJECT_CHECK(TPMEmulator, (obj), TYPE_TPM_EMULATOR)
 
@@ -63,7 +65,7 @@ typedef struct TPMBlobBuffers {
     TPMSizedBuffer savestate;
 } TPMBlobBuffers;
 
-typedef struct TPMEmulator {
+struct TPMEmulator {
     TPMBackend parent;
 
     TPMEmulatorOptions *options;
@@ -80,7 +82,7 @@ typedef struct TPMEmulator {
     unsigned int established_flag_cached:1;
 
     TPMBlobBuffers state_blobs;
-} TPMEmulator;
+};
 
 struct tpm_error {
     uint32_t tpm_result;

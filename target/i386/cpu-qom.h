@@ -22,6 +22,7 @@
 
 #include "hw/core/cpu.h"
 #include "qemu/notify.h"
+#include "qom/object.h"
 
 #ifdef TARGET_X86_64
 #define TYPE_X86_CPU "x86_64-cpu"
@@ -29,6 +30,8 @@
 #define TYPE_X86_CPU "i386-cpu"
 #endif
 
+typedef struct X86CPU X86CPU;
+typedef struct X86CPUClass X86CPUClass;
 #define X86_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(X86CPUClass, (klass), TYPE_X86_CPU)
 #define X86_CPU(obj) \
@@ -50,7 +53,7 @@ typedef struct X86CPUModel X86CPUModel;
  *
  * An x86 CPU model or family.
  */
-typedef struct X86CPUClass {
+struct X86CPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
@@ -72,8 +75,7 @@ typedef struct X86CPUClass {
     DeviceRealize parent_realize;
     DeviceUnrealize parent_unrealize;
     DeviceReset parent_reset;
-} X86CPUClass;
+};
 
-typedef struct X86CPU X86CPU;
 
 #endif

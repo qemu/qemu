@@ -17,8 +17,10 @@
 #include "hw/pci/pcie_port.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 #define TYPE_GEN_PCIE_ROOT_PORT                "pcie-root-port"
+typedef struct GenPCIERootPort GenPCIERootPort;
 #define GEN_PCIE_ROOT_PORT(obj) \
         OBJECT_CHECK(GenPCIERootPort, (obj), TYPE_GEN_PCIE_ROOT_PORT)
 
@@ -28,7 +30,7 @@
 
 #define GEN_PCIE_ROOT_PORT_MSIX_NR_VECTOR       1
 
-typedef struct GenPCIERootPort {
+struct GenPCIERootPort {
     /*< private >*/
     PCIESlot parent_obj;
     /*< public >*/
@@ -37,7 +39,7 @@ typedef struct GenPCIERootPort {
 
     /* additional resources to reserve */
     PCIResReserve res_reserve;
-} GenPCIERootPort;
+};
 
 static uint8_t gen_rp_aer_vector(const PCIDevice *d)
 {

@@ -30,6 +30,7 @@
 #include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "qemu/plugin.h"
+#include "qom/object.h"
 
 typedef int (*WriteCoreDumpFunction)(const void *buf, size_t size,
                                      void *opaque);
@@ -61,6 +62,7 @@ typedef uint64_t vaddr;
  */
 #define CPU(obj) ((CPUState *)(obj))
 
+typedef struct CPUClass CPUClass;
 #define CPU_CLASS(class) OBJECT_CLASS_CHECK(CPUClass, (class), TYPE_CPU)
 #define CPU_GET_CLASS(obj) OBJECT_GET_CLASS(CPUClass, (obj), TYPE_CPU)
 
@@ -156,7 +158,7 @@ struct TranslationBlock;
  *
  * Represents a CPU family or model.
  */
-typedef struct CPUClass {
+struct CPUClass {
     /*< private >*/
     DeviceClass parent_class;
     /*< public >*/
@@ -222,7 +224,7 @@ typedef struct CPUClass {
     /* Keep non-pointer data at the end to minimize holes.  */
     int gdb_num_core_regs;
     bool gdb_stop_before_watchpoint;
-} CPUClass;
+};
 
 /*
  * Low 16 bits: number of cycles left, used only in icount mode.

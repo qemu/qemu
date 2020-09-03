@@ -39,6 +39,7 @@
 #include "qemu/module.h"
 
 #include <xenguest.h>
+#include "qom/object.h"
 
 //#define DEBUG_PLATFORM
 
@@ -52,7 +53,7 @@
 
 #define PFFLAG_ROM_LOCK 1 /* Sets whether ROM memory area is RW or RO */
 
-typedef struct PCIXenPlatformState {
+struct PCIXenPlatformState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -67,7 +68,8 @@ typedef struct PCIXenPlatformState {
     /* Log from guest drivers */
     char log_buffer[4096];
     int log_buffer_off;
-} PCIXenPlatformState;
+};
+typedef struct PCIXenPlatformState PCIXenPlatformState;
 
 #define TYPE_XEN_PLATFORM "xen-platform"
 #define XEN_PLATFORM(obj) \

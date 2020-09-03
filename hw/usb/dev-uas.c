@@ -23,6 +23,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"
+#include "qom/object.h"
 
 /* --------------------------------------------------------------------- */
 

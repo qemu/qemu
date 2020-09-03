@@ -11,6 +11,7 @@
 #include "hw/xen/xen_common.h"
 #include "hw/sysbus.h"
 #include "qemu/notify.h"
+#include "qom/object.h"
 
 typedef void (*XenWatchHandler)(void *opaque);
 
@@ -18,7 +19,7 @@ typedef struct XenWatchList XenWatchList;
 typedef struct XenWatch XenWatch;
 typedef struct XenEventChannel XenEventChannel;
 
-typedef struct XenDevice {
+struct XenDevice {
     DeviceState qdev;
     domid_t frontend_id;
     char *name;
@@ -35,7 +36,8 @@ typedef struct XenDevice {
     bool inactive;
     QLIST_HEAD(, XenEventChannel) event_channels;
     QLIST_ENTRY(XenDevice) list;
-} XenDevice;
+};
+typedef struct XenDevice XenDevice;
 
 typedef char *(*XenDeviceGetName)(XenDevice *xendev, Error **errp);
 typedef void (*XenDeviceRealize)(XenDevice *xendev, Error **errp);
@@ -44,7 +46,7 @@ typedef void (*XenDeviceFrontendChanged)(XenDevice *xendev,
                                          Error **errp);
 typedef void (*XenDeviceUnrealize)(XenDevice *xendev);
 
-typedef struct XenDeviceClass {
+struct XenDeviceClass {
     /*< private >*/
     DeviceClass parent_class;
     /*< public >*/
@@ -54,7 +56,8 @@ typedef struct XenDeviceClass {
     XenDeviceRealize realize;
     XenDeviceFrontendChanged frontend_changed;
     XenDeviceUnrealize unrealize;
-} XenDeviceClass;
+};
+typedef struct XenDeviceClass XenDeviceClass;
 
 #define TYPE_XEN_DEVICE "xen-device"
 #define XEN_DEVICE(obj) \
@@ -64,19 +67,21 @@ typedef struct XenDeviceClass {
 #define XEN_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(XenDeviceClass, (obj), TYPE_XEN_DEVICE)
 
-typedef struct XenBus {
+struct XenBus {
     BusState qbus;
     domid_t backend_id;
     struct xs_handle *xsh;
     XenWatchList *watch_list;
     XenWatch *backend_watch;
     QLIST_HEAD(, XenDevice) inactive_devices;
-} XenBus;
+};
+typedef struct XenBus XenBus;
 
-typedef struct XenBusClass {
+struct XenBusClass {
     /*< private >*/
     BusClass parent_class;
-} XenBusClass;
+};
+typedef struct XenBusClass XenBusClass;
 
 #define TYPE_XEN_BUS "xen-bus"
 #define XEN_BUS(obj) \

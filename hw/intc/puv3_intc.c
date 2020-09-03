@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
@@ -19,9 +20,10 @@
 #include "qemu/log.h"
 
 #define TYPE_PUV3_INTC "puv3_intc"
+typedef struct PUV3INTCState PUV3INTCState;
 #define PUV3_INTC(obj) OBJECT_CHECK(PUV3INTCState, (obj), TYPE_PUV3_INTC)
 
-typedef struct PUV3INTCState {
+struct PUV3INTCState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -29,7 +31,7 @@ typedef struct PUV3INTCState {
 
     uint32_t reg_ICMR;
     uint32_t reg_ICPR;
-} PUV3INTCState;
+};
 
 /* Update interrupt status after enabled or pending bits have been changed.  */
 static void puv3_intc_update(PUV3INTCState *s)

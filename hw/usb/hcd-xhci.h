@@ -21,11 +21,13 @@
 
 #ifndef HW_USB_HCD_XHCI_H
 #define HW_USB_HCD_XHCI_H
+#include "qom/object.h"
 
 #define TYPE_XHCI "base-xhci"
 #define TYPE_NEC_XHCI "nec-usb-xhci"
 #define TYPE_QEMU_XHCI "qemu-xhci"
 
+typedef struct XHCIState XHCIState;
 #define XHCI(obj) \
     OBJECT_CHECK(XHCIState, (obj), TYPE_XHCI)
 
@@ -39,7 +41,6 @@
 /* Very pessimistic, let's hope it's enough for all cases */
 #define EV_QUEUE (((3 * 24) + 16) * MAXSLOTS)
 
-typedef struct XHCIState XHCIState;
 typedef struct XHCIStreamContext XHCIStreamContext;
 typedef struct XHCIEPContext XHCIEPContext;
 

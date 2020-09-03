@@ -26,6 +26,7 @@
 
 #include "hw/char/lm32_juart.h"
 #include "hw/qdev-properties.h"
+#include "qom/object.h"
 
 enum {
     LM32_JUART_MIN_SAVE_VERSION = 0,
@@ -41,6 +42,7 @@ enum {
     JRX_FULL = (1<<8),
 };
 
+typedef struct LM32JuartState LM32JuartState;
 #define LM32_JUART(obj) OBJECT_CHECK(LM32JuartState, (obj), TYPE_LM32_JUART)
 
 struct LM32JuartState {
@@ -51,7 +53,6 @@ struct LM32JuartState {
     uint32_t jtx;
     uint32_t jrx;
 };
-typedef struct LM32JuartState LM32JuartState;
 
 uint32_t lm32_juart_get_jtx(DeviceState *d)
 {

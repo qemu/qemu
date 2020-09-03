@@ -28,6 +28,7 @@
 #include "qemu/timer.h"
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
+#include "qom/object.h"
 
 //#define DEBUG_PIT
 
@@ -36,14 +37,15 @@
 #define RW_STATE_WORD0 3
 #define RW_STATE_WORD1 4
 
+typedef struct PITClass PITClass;
 #define PIT_CLASS(class) OBJECT_CLASS_CHECK(PITClass, (class), TYPE_I8254)
 #define PIT_GET_CLASS(obj) OBJECT_GET_CLASS(PITClass, (obj), TYPE_I8254)
 
-typedef struct PITClass {
+struct PITClass {
     PITCommonClass parent_class;
 
     DeviceRealize parent_realize;
-} PITClass;
+};
 
 static void pit_irq_timer_update(PITChannelState *s, int64_t current_time);
 

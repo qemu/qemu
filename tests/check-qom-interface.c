@@ -16,6 +16,7 @@
 
 
 #define TYPE_TEST_IF "test-interface"
+typedef struct TestIfClass TestIfClass;
 #define TEST_IF_CLASS(klass) \
      OBJECT_CLASS_CHECK(TestIfClass, (klass), TYPE_TEST_IF)
 #define TEST_IF_GET_CLASS(obj) \
@@ -25,11 +26,11 @@
 
 typedef struct TestIf TestIf;
 
-typedef struct TestIfClass {
+struct TestIfClass {
     InterfaceClass parent_class;
 
     uint32_t test;
-} TestIfClass;
+};
 
 static const TypeInfo test_if_info = {
     .name          = TYPE_TEST_IF,

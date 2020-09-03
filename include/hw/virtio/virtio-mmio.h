@@ -23,6 +23,7 @@
 #define HW_VIRTIO_MMIO_H
 
 #include "hw/virtio/virtio-bus.h"
+#include "qom/object.h"
 
 /* QOM macros */
 /* virtio-mmio-bus */
@@ -36,6 +37,7 @@
 
 /* virtio-mmio */
 #define TYPE_VIRTIO_MMIO "virtio-mmio"
+typedef struct VirtIOMMIOProxy VirtIOMMIOProxy;
 #define VIRTIO_MMIO(obj) \
         OBJECT_CHECK(VirtIOMMIOProxy, (obj), TYPE_VIRTIO_MMIO)
 
@@ -52,7 +54,7 @@ typedef struct VirtIOMMIOQueue {
     uint32_t used[2];
 } VirtIOMMIOQueue;
 
-typedef struct {
+struct VirtIOMMIOProxy {
     /* Generic */
     SysBusDevice parent_obj;
     MemoryRegion iomem;
@@ -68,6 +70,6 @@ typedef struct {
     /* Fields only used for non-legacy (v2) devices */
     uint32_t guest_features[2];
     VirtIOMMIOQueue vqs[VIRTIO_QUEUE_MAX];
-} VirtIOMMIOProxy;
+};
 
 #endif

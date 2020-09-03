@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
@@ -18,9 +19,10 @@
 #include "qemu/log.h"
 
 #define TYPE_PUV3_PM "puv3_pm"
+typedef struct PUV3PMState PUV3PMState;
 #define PUV3_PM(obj) OBJECT_CHECK(PUV3PMState, (obj), TYPE_PUV3_PM)
 
-typedef struct PUV3PMState {
+struct PUV3PMState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -31,7 +33,7 @@ typedef struct PUV3PMState {
     uint32_t reg_PLL_DDR_CFG;
     uint32_t reg_PLL_VGA_CFG;
     uint32_t reg_DIVCFG;
-} PUV3PMState;
+};
 
 static uint64_t puv3_pm_read(void *opaque, hwaddr offset,
         unsigned size)

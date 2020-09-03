@@ -31,13 +31,15 @@
 #include "qemu/bswap.h"
 #include "qemu/module.h"
 #include "exec/address-spaces.h"
+#include "qom/object.h"
 
 #define TYPE_SH_PCI_HOST_BRIDGE "sh_pci"
 
+typedef struct SHPCIState SHPCIState;
 #define SH_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(SHPCIState, (obj), TYPE_SH_PCI_HOST_BRIDGE)
 
-typedef struct SHPCIState {
+struct SHPCIState {
     PCIHostState parent_obj;
 
     PCIDevice *dev;
@@ -48,7 +50,7 @@ typedef struct SHPCIState {
     uint32_t par;
     uint32_t mbr;
     uint32_t iobr;
-} SHPCIState;
+};
 
 static void sh_pci_reg_write (void *p, hwaddr addr, uint64_t val,
                               unsigned size)

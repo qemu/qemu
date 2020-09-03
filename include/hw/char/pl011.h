@@ -19,14 +19,16 @@
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #define TYPE_PL011 "pl011"
+typedef struct PL011State PL011State;
 #define PL011(obj) OBJECT_CHECK(PL011State, (obj), TYPE_PL011)
 
 /* This shares the same struct (and cast macro) as the base pl011 device */
 #define TYPE_PL011_LUMINARY "pl011_luminary"
 
-typedef struct PL011State {
+struct PL011State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -49,7 +51,7 @@ typedef struct PL011State {
     CharBackend chr;
     qemu_irq irq[6];
     const unsigned char *id;
-} PL011State;
+};
 
 static inline DeviceState *pl011_create(hwaddr addr,
                                         qemu_irq irq,

@@ -37,6 +37,7 @@
 #include "hw/block/flash.h"
 #include "sysemu/kvm.h"
 #include "hw/intc/arm_gicv3_common.h"
+#include "qom/object.h"
 
 #define NUM_GICV2M_SPIS       64
 #define NUM_VIRTIO_TRANSPORTS 32
@@ -115,7 +116,7 @@ typedef struct MemMapEntry {
     hwaddr size;
 } MemMapEntry;
 
-typedef struct {
+struct VirtMachineClass {
     MachineClass parent;
     bool disallow_affinity_adjustment;
     bool no_its;
@@ -126,9 +127,10 @@ typedef struct {
     bool no_ged;   /* Machines < 4.2 has no support for ACPI GED device */
     bool kvm_no_adjvtime;
     bool acpi_expose_flash;
-} VirtMachineClass;
+};
+typedef struct VirtMachineClass VirtMachineClass;
 
-typedef struct {
+struct VirtMachineState {
     MachineState parent;
     Notifier machine_done;
     DeviceState *platform_bus_dev;
@@ -162,7 +164,8 @@ typedef struct {
     DeviceState *gic;
     DeviceState *acpi_dev;
     Notifier powerdown_notifier;
-} VirtMachineState;
+};
+typedef struct VirtMachineState VirtMachineState;
 
 #define VIRT_ECAM_ID(high) (high ? VIRT_HIGH_PCIE_ECAM : VIRT_PCIE_ECAM)
 

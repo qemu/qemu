@@ -33,11 +33,13 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "trace.h"
+#include "qom/object.h"
 
+typedef struct GrackleState GrackleState;
 #define GRACKLE_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(GrackleState, (obj), TYPE_GRACKLE_PCI_HOST_BRIDGE)
 
-typedef struct GrackleState {
+struct GrackleState {
     PCIHostState parent_obj;
 
     uint32_t ofw_addr;
@@ -46,7 +48,7 @@ typedef struct GrackleState {
     MemoryRegion pci_mmio;
     MemoryRegion pci_hole;
     MemoryRegion pci_io;
-} GrackleState;
+};
 
 /* Don't know if this matches real hardware, but it agrees with OHW.  */
 static int pci_grackle_map_irq(PCIDevice *pci_dev, int irq_num)

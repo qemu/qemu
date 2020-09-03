@@ -9,6 +9,7 @@
 
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_input.h"
+#include "qom/object.h"
 
 typedef struct virtio_input_absinfo virtio_input_absinfo;
 typedef struct virtio_input_config virtio_input_config;
@@ -18,6 +19,8 @@ typedef struct virtio_input_event virtio_input_event;
 /* qemu internals                                                    */
 
 #define TYPE_VIRTIO_INPUT "virtio-input-device"
+typedef struct VirtIOInput VirtIOInput;
+typedef struct VirtIOInputClass VirtIOInputClass;
 #define VIRTIO_INPUT(obj) \
         OBJECT_CHECK(VirtIOInput, (obj), TYPE_VIRTIO_INPUT)
 #define VIRTIO_INPUT_GET_PARENT_CLASS(obj) \
@@ -32,29 +35,27 @@ typedef struct virtio_input_event virtio_input_event;
 #define TYPE_VIRTIO_MOUSE     "virtio-mouse-device"
 #define TYPE_VIRTIO_TABLET    "virtio-tablet-device"
 
+typedef struct VirtIOInputHID VirtIOInputHID;
 #define VIRTIO_INPUT_HID(obj) \
         OBJECT_CHECK(VirtIOInputHID, (obj), TYPE_VIRTIO_INPUT_HID)
 #define VIRTIO_INPUT_HID_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_INPUT_HID)
 
 #define TYPE_VIRTIO_INPUT_HOST   "virtio-input-host-device"
+typedef struct VirtIOInputHost VirtIOInputHost;
 #define VIRTIO_INPUT_HOST(obj) \
         OBJECT_CHECK(VirtIOInputHost, (obj), TYPE_VIRTIO_INPUT_HOST)
 #define VIRTIO_INPUT_HOST_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_INPUT_HOST)
 
 #define TYPE_VHOST_USER_INPUT   "vhost-user-input"
+typedef struct VHostUserInput VHostUserInput;
 #define VHOST_USER_INPUT(obj)                              \
     OBJECT_CHECK(VHostUserInput, (obj), TYPE_VHOST_USER_INPUT)
 #define VHOST_USER_INPUT_GET_PARENT_CLASS(obj)             \
     OBJECT_GET_PARENT_CLASS(obj, TYPE_VHOST_USER_INPUT)
 
-typedef struct VirtIOInput VirtIOInput;
-typedef struct VirtIOInputClass VirtIOInputClass;
 typedef struct VirtIOInputConfig VirtIOInputConfig;
-typedef struct VirtIOInputHID VirtIOInputHID;
-typedef struct VirtIOInputHost VirtIOInputHost;
-typedef struct VHostUserInput VHostUserInput;
 
 struct VirtIOInputConfig {
     virtio_input_config               config;

@@ -22,12 +22,14 @@
 #include "hw/riscv/riscv_hart.h"
 #include "hw/intc/ibex_plic.h"
 #include "hw/char/ibex_uart.h"
+#include "qom/object.h"
 
 #define TYPE_RISCV_IBEX_SOC "riscv.lowrisc.ibex.soc"
+typedef struct LowRISCIbexSoCState LowRISCIbexSoCState;
 #define RISCV_IBEX_SOC(obj) \
     OBJECT_CHECK(LowRISCIbexSoCState, (obj), TYPE_RISCV_IBEX_SOC)
 
-typedef struct LowRISCIbexSoCState {
+struct LowRISCIbexSoCState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -38,7 +40,7 @@ typedef struct LowRISCIbexSoCState {
 
     MemoryRegion flash_mem;
     MemoryRegion rom;
-} LowRISCIbexSoCState;
+};
 
 typedef struct OpenTitanState {
     /*< private >*/

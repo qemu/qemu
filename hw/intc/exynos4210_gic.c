@@ -28,6 +28,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/exynos4210.h"
+#include "qom/object.h"
 
 enum ExtGicId {
     EXT_GIC_ID_MDMA_LCD0 = 66,
@@ -264,10 +265,11 @@ uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit)
 /********* GIC part *********/
 
 #define TYPE_EXYNOS4210_GIC "exynos4210.gic"
+typedef struct Exynos4210GicState Exynos4210GicState;
 #define EXYNOS4210_GIC(obj) \
     OBJECT_CHECK(Exynos4210GicState, (obj), TYPE_EXYNOS4210_GIC)
 
-typedef struct {
+struct Exynos4210GicState {
     SysBusDevice parent_obj;
 
     MemoryRegion cpu_container;
@@ -276,7 +278,7 @@ typedef struct {
     MemoryRegion dist_alias[EXYNOS4210_NCPUS];
     uint32_t num_cpu;
     DeviceState *gic;
-} Exynos4210GicState;
+};
 
 static void exynos4210_gic_set_irq(void *opaque, int irq, int level)
 {
@@ -382,16 +384,17 @@ type_init(exynos4210_gic_register_types)
  */
 
 #define TYPE_EXYNOS4210_IRQ_GATE "exynos4210.irq_gate"
+typedef struct Exynos4210IRQGateState Exynos4210IRQGateState;
 #define EXYNOS4210_IRQ_GATE(obj) \
     OBJECT_CHECK(Exynos4210IRQGateState, (obj), TYPE_EXYNOS4210_IRQ_GATE)
 
-typedef struct Exynos4210IRQGateState {
+struct Exynos4210IRQGateState {
     SysBusDevice parent_obj;
 
     uint32_t n_in;      /* inputs amount */
     uint32_t *level;    /* input levels */
     qemu_irq out;       /* output IRQ */
-} Exynos4210IRQGateState;
+};
 
 static Property exynos4210_irq_gate_properties[] = {
     DEFINE_PROP_UINT32("n_in", Exynos4210IRQGateState, n_in, 1),

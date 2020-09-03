@@ -25,6 +25,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "sysemu/dma.h"
+#include "qom/object.h"
 
 enum {
     AC97_Reset                     = 0x00,
@@ -126,6 +127,7 @@ enum {
 #define MUTE_SHIFT 15
 
 #define TYPE_AC97 "AC97"
+typedef struct AC97LinkState AC97LinkState;
 #define AC97(obj) \
     OBJECT_CHECK(AC97LinkState, (obj), TYPE_AC97)
 
@@ -158,7 +160,7 @@ typedef struct AC97BusMasterRegs {
     BD bd;
 } AC97BusMasterRegs;
 
-typedef struct AC97LinkState {
+struct AC97LinkState {
     PCIDevice dev;
     QEMUSoundCard card;
     uint32_t glob_cnt;
@@ -175,7 +177,7 @@ typedef struct AC97LinkState {
     int bup_flag;
     MemoryRegion io_nam;
     MemoryRegion io_nabm;
-} AC97LinkState;
+};
 
 enum {
     BUP_SET = 1,

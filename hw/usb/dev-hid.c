@@ -34,15 +34,17 @@
 #include "hw/input/hid.h"
 #include "hw/usb/hid.h"
 #include "hw/qdev-properties.h"
+#include "qom/object.h"
 
-typedef struct USBHIDState {
+struct USBHIDState {
     USBDevice dev;
     USBEndpoint *intr;
     HIDState hid;
     uint32_t usb_version;
     char *display;
     uint32_t head;
-} USBHIDState;
+};
+typedef struct USBHIDState USBHIDState;
 
 #define TYPE_USB_HID "usb-hid"
 #define USB_HID(obj) OBJECT_CHECK(USBHIDState, (obj), TYPE_USB_HID)

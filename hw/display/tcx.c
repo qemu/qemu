@@ -33,6 +33,7 @@
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define TCX_ROM_FILE "QEMU,tcx.bin"
 #define FCODE_MAX_ROM_SIZE 0x10000
@@ -55,9 +56,10 @@
 #define TCX_THC_CURSBITS 0x980
 
 #define TYPE_TCX "SUNW,tcx"
+typedef struct TCXState TCXState;
 #define TCX(obj) OBJECT_CHECK(TCXState, (obj), TYPE_TCX)
 
-typedef struct TCXState {
+struct TCXState {
     SysBusDevice parent_obj;
 
     QemuConsole *con;
@@ -93,7 +95,7 @@ typedef struct TCXState {
     uint32_t cursbits[32];
     uint16_t cursx;
     uint16_t cursy;
-} TCXState;
+};
 
 static void tcx_set_dirty(TCXState *s, ram_addr_t addr, int len)
 {

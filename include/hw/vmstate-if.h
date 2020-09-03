@@ -13,6 +13,7 @@
 
 #define TYPE_VMSTATE_IF "vmstate-if"
 
+typedef struct VMStateIfClass VMStateIfClass;
 #define VMSTATE_IF_CLASS(klass)                                     \
     OBJECT_CLASS_CHECK(VMStateIfClass, (klass), TYPE_VMSTATE_IF)
 #define VMSTATE_IF_GET_CLASS(obj)                           \
@@ -22,11 +23,11 @@
 
 typedef struct VMStateIf VMStateIf;
 
-typedef struct VMStateIfClass {
+struct VMStateIfClass {
     InterfaceClass parent_class;
 
     char * (*get_id)(VMStateIf *obj);
-} VMStateIfClass;
+};
 
 static inline char *vmstate_if_get_id(VMStateIf *vmif)
 {

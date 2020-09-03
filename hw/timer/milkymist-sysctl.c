@@ -32,6 +32,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 enum {
     CTRL_ENABLE      = (1<<0),
@@ -62,6 +63,7 @@ enum {
 };
 
 #define TYPE_MILKYMIST_SYSCTL "milkymist-sysctl"
+typedef struct MilkymistSysctlState MilkymistSysctlState;
 #define MILKYMIST_SYSCTL(obj) \
     OBJECT_CHECK(MilkymistSysctlState, (obj), TYPE_MILKYMIST_SYSCTL)
 
@@ -84,7 +86,6 @@ struct MilkymistSysctlState {
     qemu_irq timer0_irq;
     qemu_irq timer1_irq;
 };
-typedef struct MilkymistSysctlState MilkymistSysctlState;
 
 static void sysctl_icap_write(MilkymistSysctlState *s, uint32_t value)
 {

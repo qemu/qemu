@@ -20,7 +20,7 @@
 
 #define TYPE_IOTHREAD "iothread"
 
-typedef struct {
+struct IOThread {
     Object parent_obj;
 
     QemuThread thread;
@@ -37,7 +37,8 @@ typedef struct {
     int64_t poll_max_ns;
     int64_t poll_grow;
     int64_t poll_shrink;
-} IOThread;
+};
+typedef struct IOThread IOThread;
 
 #define IOTHREAD(obj) \
    OBJECT_CHECK(IOThread, obj, TYPE_IOTHREAD)

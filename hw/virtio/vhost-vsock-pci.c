@@ -17,6 +17,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/virtio/vhost-vsock.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 typedef struct VHostVSockPCI VHostVSockPCI;
 

@@ -24,6 +24,7 @@
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
+#include "qom/object.h"
 
 #define CADENCE_UART_RX_FIFO_SIZE           16
 #define CADENCE_UART_TX_FIFO_SIZE           16
@@ -31,10 +32,11 @@
 #define CADENCE_UART_R_MAX (0x48/4)
 
 #define TYPE_CADENCE_UART "cadence_uart"
+typedef struct CadenceUARTState CadenceUARTState;
 #define CADENCE_UART(obj) OBJECT_CHECK(CadenceUARTState, (obj), \
                                        TYPE_CADENCE_UART)
 
-typedef struct {
+struct CadenceUARTState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -51,6 +53,6 @@ typedef struct {
     qemu_irq irq;
     QEMUTimer *fifo_trigger_handle;
     Clock *refclk;
-} CadenceUARTState;
+};
 
 #endif

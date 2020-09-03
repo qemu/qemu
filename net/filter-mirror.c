@@ -21,17 +21,18 @@
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 
+#define TYPE_FILTER_MIRROR "filter-mirror"
+typedef struct MirrorState MirrorState;
 #define FILTER_MIRROR(obj) \
     OBJECT_CHECK(MirrorState, (obj), TYPE_FILTER_MIRROR)
 
+#define TYPE_FILTER_REDIRECTOR "filter-redirector"
 #define FILTER_REDIRECTOR(obj) \
     OBJECT_CHECK(MirrorState, (obj), TYPE_FILTER_REDIRECTOR)
 
-#define TYPE_FILTER_MIRROR "filter-mirror"
-#define TYPE_FILTER_REDIRECTOR "filter-redirector"
 #define REDIRECTOR_MAX_LEN NET_BUFSIZE
 
-typedef struct MirrorState {
+struct MirrorState {
     NetFilterState parent_obj;
     char *indev;
     char *outdev;
@@ -39,7 +40,7 @@ typedef struct MirrorState {
     CharBackend chr_out;
     SocketReadState rs;
     bool vnet_hdr;
-} MirrorState;
+};
 
 static int filter_send(MirrorState *s,
                        const struct iovec *iov,

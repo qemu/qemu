@@ -26,6 +26,7 @@
 #define HW_STM32F2XX_SYSCFG_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define SYSCFG_MEMRMP  0x00
 #define SYSCFG_PMC     0x04
@@ -36,10 +37,11 @@
 #define SYSCFG_CMPCR   0x20
 
 #define TYPE_STM32F2XX_SYSCFG "stm32f2xx-syscfg"
+typedef struct STM32F2XXSyscfgState STM32F2XXSyscfgState;
 #define STM32F2XX_SYSCFG(obj) \
     OBJECT_CHECK(STM32F2XXSyscfgState, (obj), TYPE_STM32F2XX_SYSCFG)
 
-typedef struct {
+struct STM32F2XXSyscfgState {
     /* <private> */
     SysBusDevice parent_obj;
 
@@ -55,6 +57,6 @@ typedef struct {
     uint32_t syscfg_cmpcr;
 
     qemu_irq irq;
-} STM32F2XXSyscfgState;
+};
 
 #endif /* HW_STM32F2XX_SYSCFG_H */

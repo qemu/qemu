@@ -14,6 +14,7 @@
 #include "hw/qdev-core.h"
 #include "exec/memory.h"
 #include "hw/registerfields.h"
+#include "qom/object.h"
 
 typedef struct RegisterInfo RegisterInfo;
 typedef struct RegisterAccessInfo RegisterAccessInfo;

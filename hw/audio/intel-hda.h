@@ -2,11 +2,14 @@
 #define HW_INTEL_HDA_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 /* --------------------------------------------------------------------- */
 /* hda bus                                                               */
 
 #define TYPE_HDA_CODEC_DEVICE "hda-codec"
+typedef struct HDACodecDevice HDACodecDevice;
+typedef struct HDACodecDeviceClass HDACodecDeviceClass;
 #define HDA_CODEC_DEVICE(obj) \
      OBJECT_CHECK(HDACodecDevice, (obj), TYPE_HDA_CODEC_DEVICE)
 #define HDA_CODEC_DEVICE_CLASS(klass) \
@@ -15,10 +18,9 @@
      OBJECT_GET_CLASS(HDACodecDeviceClass, (obj), TYPE_HDA_CODEC_DEVICE)
 
 #define TYPE_HDA_BUS "HDA"
+typedef struct HDACodecBus HDACodecBus;
 #define HDA_BUS(obj) OBJECT_CHECK(HDACodecBus, (obj), TYPE_HDA_BUS)
 
-typedef struct HDACodecBus HDACodecBus;
-typedef struct HDACodecDevice HDACodecDevice;
 
 typedef void (*hda_codec_response_func)(HDACodecDevice *dev,
                                         bool solicited, uint32_t response);
@@ -33,15 +35,14 @@ struct HDACodecBus {
     hda_codec_xfer_func xfer;
 };
 
-typedef struct HDACodecDeviceClass
-{
+struct HDACodecDeviceClass {
     DeviceClass parent_class;
 
     int (*init)(HDACodecDevice *dev);
     void (*exit)(HDACodecDevice *dev);
     void (*command)(HDACodecDevice *dev, uint32_t nid, uint32_t data);
     void (*stream)(HDACodecDevice *dev, uint32_t stnr, bool running, bool output);
-} HDACodecDeviceClass;
+};
 
 struct HDACodecDevice {
     DeviceState         qdev;

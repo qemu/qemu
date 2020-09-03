@@ -33,6 +33,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "trace.h"
+#include "qom/object.h"
 
 /* Fields for FlashPartInfo->flags */
 
@@ -414,7 +415,7 @@ typedef enum {
 
 #define M25P80_INTERNAL_DATA_BUFFER_SZ 16
 
-typedef struct Flash {
+struct Flash {
     SSISlave parent_obj;
 
     BlockBackend *blk;
@@ -454,12 +455,14 @@ typedef struct Flash {
 
     const FlashPartInfo *pi;
 
-} Flash;
+};
+typedef struct Flash Flash;
 
-typedef struct M25P80Class {
+struct M25P80Class {
     SSISlaveClass parent_class;
     FlashPartInfo *pi;
-} M25P80Class;
+};
+typedef struct M25P80Class M25P80Class;
 
 #define TYPE_M25P80 "m25p80-generic"
 #define M25P80(obj) \

@@ -23,6 +23,7 @@
 #include "sysemu/dma.h"
 #include "hw/pci/pci.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #ifndef EHCI_DEBUG
 #define EHCI_DEBUG   0
@@ -328,15 +329,16 @@ void usb_ehci_unrealize(EHCIState *s, DeviceState *dev);
 void ehci_reset(void *opaque);
 
 #define TYPE_PCI_EHCI "pci-ehci-usb"
+typedef struct EHCIPCIState EHCIPCIState;
 #define PCI_EHCI(obj) OBJECT_CHECK(EHCIPCIState, (obj), TYPE_PCI_EHCI)
 
-typedef struct EHCIPCIState {
+struct EHCIPCIState {
     /*< private >*/
     PCIDevice pcidev;
     /*< public >*/
 
     EHCIState ehci;
-} EHCIPCIState;
+};
 
 
 #define TYPE_SYS_BUS_EHCI "sysbus-ehci-usb"
@@ -347,6 +349,8 @@ typedef struct EHCIPCIState {
 #define TYPE_PPC4xx_EHCI "ppc4xx-ehci-usb"
 #define TYPE_FUSBH200_EHCI "fusbh200-ehci-usb"
 
+typedef struct EHCISysBusState EHCISysBusState;
+typedef struct SysBusEHCIClass SysBusEHCIClass;
 #define SYS_BUS_EHCI(obj) \
     OBJECT_CHECK(EHCISysBusState, (obj), TYPE_SYS_BUS_EHCI)
 #define SYS_BUS_EHCI_CLASS(class) \
@@ -354,15 +358,15 @@ typedef struct EHCIPCIState {
 #define SYS_BUS_EHCI_GET_CLASS(obj) \
     OBJECT_GET_CLASS(SysBusEHCIClass, (obj), TYPE_SYS_BUS_EHCI)
 
-typedef struct EHCISysBusState {
+struct EHCISysBusState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
 
     EHCIState ehci;
-} EHCISysBusState;
+};
 
-typedef struct SysBusEHCIClass {
+struct SysBusEHCIClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
     /*< public >*/
@@ -371,17 +375,18 @@ typedef struct SysBusEHCIClass {
     uint16_t opregbase;
     uint16_t portscbase;
     uint16_t portnr;
-} SysBusEHCIClass;
+};
 
+typedef struct FUSBH200EHCIState FUSBH200EHCIState;
 #define FUSBH200_EHCI(obj) \
     OBJECT_CHECK(FUSBH200EHCIState, (obj), TYPE_FUSBH200_EHCI)
 
-typedef struct FUSBH200EHCIState {
+struct FUSBH200EHCIState {
     /*< private >*/
     EHCISysBusState parent_obj;
     /*< public >*/
 
     MemoryRegion mem_vendor;
-} FUSBH200EHCIState;
+};
 
 #endif

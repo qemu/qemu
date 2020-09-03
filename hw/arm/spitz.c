@@ -34,16 +34,18 @@
 #include "migration/vmstate.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
+#include "qom/object.h"
 
 enum spitz_model_e { spitz, akita, borzoi, terrier };
 
-typedef struct {
+struct SpitzMachineClass {
     MachineClass parent;
     enum spitz_model_e model;
     int arm_id;
-} SpitzMachineClass;
+};
+typedef struct SpitzMachineClass SpitzMachineClass;
 
-typedef struct {
+struct SpitzMachineState {
     MachineState parent;
     PXA2xxState *mpu;
     DeviceState *mux;
@@ -53,7 +55,8 @@ typedef struct {
     DeviceState *scp0;
     DeviceState *scp1;
     DeviceState *misc_gpio;
-} SpitzMachineState;
+};
+typedef struct SpitzMachineState SpitzMachineState;
 
 #define TYPE_SPITZ_MACHINE "spitz-common"
 #define SPITZ_MACHINE(obj) \
@@ -85,9 +88,10 @@ typedef struct {
 #define FLASHCTL_NCE            (FLASHCTL_CE0 | FLASHCTL_CE1)
 
 #define TYPE_SL_NAND "sl-nand"
+typedef struct SLNANDState SLNANDState;
 #define SL_NAND(obj) OBJECT_CHECK(SLNANDState, (obj), TYPE_SL_NAND)
 
-typedef struct {
+struct SLNANDState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -96,7 +100,7 @@ typedef struct {
     uint8_t manf_id;
     uint8_t chip_id;
     ECCState ecc;
-} SLNANDState;
+};
 
 static uint64_t sl_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -261,10 +265,11 @@ static const int spitz_gpiomap[5] = {
 };
 
 #define TYPE_SPITZ_KEYBOARD "spitz-keyboard"
+typedef struct SpitzKeyboardState SpitzKeyboardState;
 #define SPITZ_KEYBOARD(obj) \
     OBJECT_CHECK(SpitzKeyboardState, (obj), TYPE_SPITZ_KEYBOARD)
 
-typedef struct {
+struct SpitzKeyboardState {
     SysBusDevice parent_obj;
 
     qemu_irq sense[SPITZ_KEY_SENSE_NUM];
@@ -280,7 +285,7 @@ typedef struct {
     uint8_t fifo[16];
     int fifopos, fifolen;
     QEMUTimer *kbdtimer;
-} SpitzKeyboardState;
+};
 
 static void spitz_keyboard_sense_update(SpitzKeyboardState *s)
 {
@@ -580,13 +585,14 @@ static void spitz_keyboard_realize(DeviceState *dev, Error **errp)
 #define LCDTG_POLCTRL   0x07
 
 #define TYPE_SPITZ_LCDTG "spitz-lcdtg"
+typedef struct SpitzLCDTG SpitzLCDTG;
 #define SPITZ_LCDTG(obj) OBJECT_CHECK(SpitzLCDTG, (obj), TYPE_SPITZ_LCDTG)
 
-typedef struct {
+struct SpitzLCDTG {
     SSISlave ssidev;
     uint32_t bl_intensity;
     uint32_t bl_power;
-} SpitzLCDTG;
+};
 
 static void spitz_bl_update(SpitzLCDTG *s)
 {
@@ -668,14 +674,15 @@ static void spitz_lcdtg_realize(SSISlave *ssi, Error **errp)
 #define SPITZ_GPIO_TP_INT       11
 
 #define TYPE_CORGI_SSP "corgi-ssp"
+typedef struct CorgiSSPState CorgiSSPState;
 #define CORGI_SSP(obj) OBJECT_CHECK(CorgiSSPState, (obj), TYPE_CORGI_SSP)
 
 /* "Demux" the signal based on current chipselect */
-typedef struct {
+struct CorgiSSPState {
     SSISlave ssidev;
     SSIBus *bus[3];
     uint32_t enable[3];
-} CorgiSSPState;
+};
 
 static uint32_t corgi_ssp_transfer(SSISlave *dev, uint32_t value)
 {
@@ -819,14 +826,15 @@ static void spitz_akita_i2c_setup(PXA2xxState *cpu)
  *  + named GPIO output "adc-temp": the ADC value, to be wired up to the max111x
  */
 #define TYPE_SPITZ_MISC_GPIO "spitz-misc-gpio"
+typedef struct SpitzMiscGPIOState SpitzMiscGPIOState;
 #define SPITZ_MISC_GPIO(obj) \
     OBJECT_CHECK(SpitzMiscGPIOState, (obj), TYPE_SPITZ_MISC_GPIO)
 
-typedef struct SpitzMiscGPIOState {
+struct SpitzMiscGPIOState {
     SysBusDevice parent_obj;
 
     qemu_irq adc_value;
-} SpitzMiscGPIOState;
+};
 
 static void spitz_misc_charging(void *opaque, int n, int level)
 {

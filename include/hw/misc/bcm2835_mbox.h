@@ -10,8 +10,10 @@
 
 #include "bcm2835_mbox_defs.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_BCM2835_MBOX "bcm2835-mbox"
+typedef struct BCM2835MboxState BCM2835MboxState;
 #define BCM2835_MBOX(obj) \
         OBJECT_CHECK(BCM2835MboxState, (obj), TYPE_BCM2835_MBOX)
 
@@ -22,7 +24,7 @@ typedef struct {
     uint32_t config;
 } BCM2835Mbox;
 
-typedef struct {
+struct BCM2835MboxState {
     /*< private >*/
     SysBusDevice busdev;
     /*< public >*/
@@ -34,6 +36,6 @@ typedef struct {
     bool mbox_irq_disabled;
     bool available[MBOX_CHAN_COUNT];
     BCM2835Mbox mbox[2];
-} BCM2835MboxState;
+};
 
 #endif

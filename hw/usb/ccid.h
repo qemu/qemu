@@ -11,11 +11,13 @@
 #define CCID_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 typedef struct CCIDCardState CCIDCardState;
 typedef struct CCIDCardInfo CCIDCardInfo;
 
 #define TYPE_CCID_CARD "ccid-card"
+typedef struct CCIDCardClass CCIDCardClass;
 #define CCID_CARD(obj) \
      OBJECT_CHECK(CCIDCardState, (obj), TYPE_CCID_CARD)
 #define CCID_CARD_CLASS(klass) \
@@ -27,7 +29,7 @@ typedef struct CCIDCardInfo CCIDCardInfo;
  * callbacks to be used by the CCID device (hw/usb-ccid.c) to call
  * into the smartcard device (hw/ccid-card-*.c)
  */
-typedef struct CCIDCardClass {
+struct CCIDCardClass {
     /*< private >*/
     DeviceClass parent_class;
     /*< public >*/
@@ -37,7 +39,7 @@ typedef struct CCIDCardClass {
                             uint32_t len);
     void (*realize)(CCIDCardState *card, Error **errp);
     void (*unrealize)(CCIDCardState *card);
-} CCIDCardClass;
+};
 
 /*
  * state of the CCID Card device (i.e. hw/ccid-card-*.c)

@@ -21,6 +21,7 @@
 #include "hw/virtio/virtio-crypto.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 typedef struct VirtIOCryptoPCI VirtIOCryptoPCI;
 

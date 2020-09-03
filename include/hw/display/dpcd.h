@@ -24,6 +24,7 @@
 
 #ifndef DPCD_H
 #define DPCD_H
+#include "qom/object.h"
 
 typedef struct DPCDState DPCDState;
 

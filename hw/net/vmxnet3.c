@@ -35,6 +35,7 @@
 #include "vmware_utils.h"
 #include "net_tx_pkt.h"
 #include "net_rx_pkt.h"
+#include "qom/object.h"
 
 #define PCI_DEVICE_ID_VMWARE_VMXNET3_REVISION 0x1
 #define VMXNET3_MSIX_BAR_SIZE 0x2000
@@ -128,10 +129,11 @@
 
 #define VMXNET_FLAG_IS_SET(field, flag) (((field) & (flag)) == (flag))
 
-typedef struct VMXNET3Class {
+struct VMXNET3Class {
     PCIDeviceClass parent_class;
     DeviceRealize parent_dc_realize;
-} VMXNET3Class;
+};
+typedef struct VMXNET3Class VMXNET3Class;
 
 #define VMXNET3_DEVICE_CLASS(klass) \
     OBJECT_CLASS_CHECK(VMXNET3Class, (klass), TYPE_VMXNET3)

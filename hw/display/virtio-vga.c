@@ -5,6 +5,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "virtio-vga.h"
+#include "qom/object.h"
 
 static void virtio_vga_base_invalidate_display(void *opaque)
 {
@@ -202,14 +203,15 @@ static TypeInfo virtio_vga_base_info = {
 
 #define TYPE_VIRTIO_VGA "virtio-vga"
 
+typedef struct VirtIOVGA VirtIOVGA;
 #define VIRTIO_VGA(obj)                             \
     OBJECT_CHECK(VirtIOVGA, (obj), TYPE_VIRTIO_VGA)
 
-typedef struct VirtIOVGA {
+struct VirtIOVGA {
     VirtIOVGABase parent_obj;
 
     VirtIOGPU     vdev;
-} VirtIOVGA;
+};
 
 static void virtio_vga_inst_initfn(Object *obj)
 {

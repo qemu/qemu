@@ -28,6 +28,7 @@
 #define XICS_SPAPR_H
 
 #include "hw/ppc/spapr.h"
+#include "qom/object.h"
 
 #define TYPE_ICS_SPAPR "ics-spapr"
 #define ICS_SPAPR(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_SPAPR)

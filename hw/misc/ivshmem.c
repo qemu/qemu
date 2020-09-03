@@ -38,6 +38,7 @@
 #include "qapi/visitor.h"
 
 #include "hw/misc/ivshmem.h"
+#include "qom/object.h"
 
 #define PCI_VENDOR_ID_IVSHMEM   PCI_VENDOR_ID_REDHAT_QUMRANET
 #define PCI_DEVICE_ID_IVSHMEM   0x1110
@@ -57,6 +58,7 @@
     } while (0)
 
 #define TYPE_IVSHMEM_COMMON "ivshmem-common"
+typedef struct IVShmemState IVShmemState;
 #define IVSHMEM_COMMON(obj) \
     OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM_COMMON)
 
@@ -83,7 +85,7 @@ typedef struct MSIVector {
     bool unmasked;
 } MSIVector;
 
-typedef struct IVShmemState {
+struct IVShmemState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -115,7 +117,7 @@ typedef struct IVShmemState {
     /* migration stuff */
     OnOffAuto master;
     Error *migration_blocker;
-} IVShmemState;
+};
 
 /* registers for the Inter-VM shared memory device */
 enum ivshmem_registers {

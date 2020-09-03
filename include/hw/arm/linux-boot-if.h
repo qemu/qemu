@@ -9,6 +9,7 @@
 #include "qom/object.h"
 
 #define TYPE_ARM_LINUX_BOOT_IF "arm-linux-boot-if"
+typedef struct ARMLinuxBootIfClass ARMLinuxBootIfClass;
 #define ARM_LINUX_BOOT_IF_CLASS(klass) \
     OBJECT_CLASS_CHECK(ARMLinuxBootIfClass, (klass), TYPE_ARM_LINUX_BOOT_IF)
 #define ARM_LINUX_BOOT_IF_GET_CLASS(obj) \
@@ -18,7 +19,7 @@
 
 typedef struct ARMLinuxBootIf ARMLinuxBootIf;
 
-typedef struct ARMLinuxBootIfClass {
+struct ARMLinuxBootIfClass {
     /*< private >*/
     InterfaceClass parent_class;
 
@@ -35,6 +36,6 @@ typedef struct ARMLinuxBootIfClass {
      * (or for a CPU which doesn't support TrustZone)
      */
     void (*arm_linux_init)(ARMLinuxBootIf *obj, bool secure_boot);
-} ARMLinuxBootIfClass;
+};
 
 #endif

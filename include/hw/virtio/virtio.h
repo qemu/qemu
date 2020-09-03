@@ -21,6 +21,7 @@
 #include "qemu/event_notifier.h"
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"
+#include "qom/object.h"
 
 /* A guest should never accept this.  It implies negotiation is broken. */
 #define VIRTIO_F_BAD_FEATURE		30
@@ -67,6 +68,7 @@ typedef struct VirtQueueElement
 #define VIRTIO_NO_VECTOR 0xffff
 
 #define TYPE_VIRTIO_DEVICE "virtio-device"
+typedef struct VirtioDeviceClass VirtioDeviceClass;
 #define VIRTIO_DEVICE_GET_CLASS(obj) \
         OBJECT_GET_CLASS(VirtioDeviceClass, obj, TYPE_VIRTIO_DEVICE)
 #define VIRTIO_DEVICE_CLASS(klass) \
@@ -113,7 +115,7 @@ struct VirtIODevice
     QLIST_HEAD(, VirtQueue) *vector_queues;
 };
 
-typedef struct VirtioDeviceClass {
+struct VirtioDeviceClass {
     /*< private >*/
     DeviceClass parent;
     /*< public >*/
@@ -163,7 +165,7 @@ typedef struct VirtioDeviceClass {
     int (*post_load)(VirtIODevice *vdev);
     const VMStateDescription *vmsd;
     bool (*primary_unplug_pending)(void *opaque);
-} VirtioDeviceClass;
+};
 
 void virtio_instance_init_common(Object *proxy_obj, void *data,
                                  size_t vdev_size, const char *vdev_name);

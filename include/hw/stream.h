@@ -6,6 +6,7 @@
 /* stream slave. Used until qdev provides a generic way.  */
 #define TYPE_STREAM_SLAVE "stream-slave"
 
+typedef struct StreamSlaveClass StreamSlaveClass;
 #define STREAM_SLAVE_CLASS(klass) \
      OBJECT_CLASS_CHECK(StreamSlaveClass, (klass), TYPE_STREAM_SLAVE)
 #define STREAM_SLAVE_GET_CLASS(obj) \
@@ -17,7 +18,7 @@ typedef struct StreamSlave StreamSlave;
 
 typedef void (*StreamCanPushNotifyFn)(void *opaque);
 
-typedef struct StreamSlaveClass {
+struct StreamSlaveClass {
     InterfaceClass parent;
     /**
      * can push - determine if a stream slave is capable of accepting at least
@@ -42,7 +43,7 @@ typedef struct StreamSlaveClass {
      * @eop: End of packet flag
      */
     size_t (*push)(StreamSlave *obj, unsigned char *buf, size_t len, bool eop);
-} StreamSlaveClass;
+};
 
 size_t
 stream_push(StreamSlave *sink, uint8_t *buf, size_t len, bool eop);

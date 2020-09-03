@@ -27,18 +27,20 @@
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
 #include "migration/blocker.h"
+#include "qom/object.h"
 
 #define TYPE_KVM_ARM_ITS "arm-its-kvm"
+typedef struct KVMARMITSClass KVMARMITSClass;
 #define KVM_ARM_ITS(obj) OBJECT_CHECK(GICv3ITSState, (obj), TYPE_KVM_ARM_ITS)
 #define KVM_ARM_ITS_CLASS(klass) \
      OBJECT_CLASS_CHECK(KVMARMITSClass, (klass), TYPE_KVM_ARM_ITS)
 #define KVM_ARM_ITS_GET_CLASS(obj) \
      OBJECT_GET_CLASS(KVMARMITSClass, (obj), TYPE_KVM_ARM_ITS)
 
-typedef struct KVMARMITSClass {
+struct KVMARMITSClass {
     GICv3ITSCommonClass parent_class;
     void (*parent_reset)(DeviceState *dev);
-} KVMARMITSClass;
+};
 
 
 static int kvm_its_send_msi(GICv3ITSState *s, uint32_t value, uint16_t devid)

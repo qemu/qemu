@@ -21,14 +21,16 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/vhost-scsi-common.h"
+#include "qom/object.h"
 
 #define TYPE_VHOST_USER_SCSI "vhost-user-scsi"
+typedef struct VHostUserSCSI VHostUserSCSI;
 #define VHOST_USER_SCSI(obj) \
         OBJECT_CHECK(VHostUserSCSI, (obj), TYPE_VHOST_USER_SCSI)
 
-typedef struct VHostUserSCSI {
+struct VHostUserSCSI {
     VHostSCSICommon parent_obj;
     VhostUserState vhost_user;
-} VHostUserSCSI;
+};
 
 #endif /* VHOST_USER_SCSI_H */

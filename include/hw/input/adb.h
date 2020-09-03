@@ -27,6 +27,7 @@
 #define ADB_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 #define MAX_ADB_DEVICES 16
 
@@ -42,6 +43,7 @@ typedef int ADBDeviceRequest(ADBDevice *d, uint8_t *buf_out,
 typedef bool ADBDeviceHasData(ADBDevice *d);
 
 #define TYPE_ADB_DEVICE "adb-device"
+typedef struct ADBDeviceClass ADBDeviceClass;
 #define ADB_DEVICE(obj) OBJECT_CHECK(ADBDevice, (obj), TYPE_ADB_DEVICE)
 
 struct ADBDevice {
@@ -58,14 +60,14 @@ struct ADBDevice {
 #define ADB_DEVICE_GET_CLASS(obj) \
     OBJECT_GET_CLASS(ADBDeviceClass, (obj), TYPE_ADB_DEVICE)
 
-typedef struct ADBDeviceClass {
+struct ADBDeviceClass {
     /*< private >*/
     DeviceClass parent_class;
     /*< public >*/
 
     ADBDeviceRequest *devreq;
     ADBDeviceHasData *devhasdata;
-} ADBDeviceClass;
+};
 
 #define TYPE_ADB_BUS "apple-desktop-bus"
 #define ADB_BUS(obj) OBJECT_CHECK(ADBBusState, (obj), TYPE_ADB_BUS)

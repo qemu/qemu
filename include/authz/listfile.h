@@ -23,9 +23,12 @@
 
 #include "authz/list.h"
 #include "qemu/filemonitor.h"
+#include "qom/object.h"
 
 #define TYPE_QAUTHZ_LIST_FILE "authz-list-file"
 
+typedef struct QAuthZListFile QAuthZListFile;
+typedef struct QAuthZListFileClass QAuthZListFileClass;
 #define QAUTHZ_LIST_FILE_CLASS(klass)                        \
     OBJECT_CLASS_CHECK(QAuthZListFileClass, (klass),        \
                        TYPE_QAUTHZ_LIST_FILE)
@@ -36,8 +39,6 @@
     OBJECT_CHECK(QAuthZListFile, (obj), \
                  TYPE_QAUTHZ_LIST_FILE)
 
-typedef struct QAuthZListFile QAuthZListFile;
-typedef struct QAuthZListFileClass QAuthZListFileClass;
 
 
 /**

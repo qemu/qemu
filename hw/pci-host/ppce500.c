@@ -24,6 +24,7 @@
 #include "qemu/bswap.h"
 #include "qemu/module.h"
 #include "hw/pci-host/ppce500.h"
+#include "qom/object.h"
 
 #ifdef DEBUG_PCI
 #define pci_debug(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)
@@ -91,6 +92,7 @@ struct pci_inbound {
 
 #define TYPE_PPC_E500_PCI_HOST_BRIDGE "e500-pcihost"
 
+typedef struct PPCE500PCIState PPCE500PCIState;
 #define PPC_E500_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(PPCE500PCIState, (obj), TYPE_PPC_E500_PCI_HOST_BRIDGE)
 
@@ -114,6 +116,7 @@ struct PPCE500PCIState {
 };
 
 #define TYPE_PPC_E500_PCI_BRIDGE "e500-host-bridge"
+typedef struct PPCE500PCIBridgeState PPCE500PCIBridgeState;
 #define PPC_E500_PCI_BRIDGE(obj) \
     OBJECT_CHECK(PPCE500PCIBridgeState, (obj), TYPE_PPC_E500_PCI_BRIDGE)
 
@@ -125,8 +128,6 @@ struct PPCE500PCIBridgeState {
     MemoryRegion bar0;
 };
 
-typedef struct PPCE500PCIBridgeState PPCE500PCIBridgeState;
-typedef struct PPCE500PCIState PPCE500PCIState;
 
 static uint64_t pci_reg_read4(void *opaque, hwaddr addr,
                               unsigned size)

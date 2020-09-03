@@ -25,6 +25,7 @@
 #include "exec/memory.h"
 #include "hw/sysbus.h"
 #include "qemu/notify.h"
+#include "qom/object.h"
 
 #define MAX_IOAPICS                     1
 
@@ -84,6 +85,7 @@
 typedef struct IOAPICCommonState IOAPICCommonState;
 
 #define TYPE_IOAPIC_COMMON "ioapic-common"
+typedef struct IOAPICCommonClass IOAPICCommonClass;
 #define IOAPIC_COMMON(obj) \
      OBJECT_CHECK(IOAPICCommonState, (obj), TYPE_IOAPIC_COMMON)
 #define IOAPIC_COMMON_CLASS(klass) \
@@ -91,14 +93,14 @@ typedef struct IOAPICCommonState IOAPICCommonState;
 #define IOAPIC_COMMON_GET_CLASS(obj) \
      OBJECT_GET_CLASS(IOAPICCommonClass, (obj), TYPE_IOAPIC_COMMON)
 
-typedef struct IOAPICCommonClass {
+struct IOAPICCommonClass {
     SysBusDeviceClass parent_class;
 
     DeviceRealize realize;
     DeviceUnrealize unrealize;
     void (*pre_save)(IOAPICCommonState *s);
     void (*post_load)(IOAPICCommonState *s);
-} IOAPICCommonClass;
+};
 
 struct IOAPICCommonState {
     SysBusDevice busdev;

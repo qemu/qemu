@@ -44,6 +44,7 @@
 #include "hw/cpu/a15mpcore.h"
 #include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/sd/sd.h"
+#include "qom/object.h"
 
 #define VEXPRESS_BOARD_ID 0x8e0
 #define VEXPRESS_FLASH_SIZE (64 * 1024 * 1024)
@@ -166,16 +167,18 @@ static hwaddr motherboard_aseries_map[] = {
 
 typedef struct VEDBoardInfo VEDBoardInfo;
 
-typedef struct {
+struct VexpressMachineClass {
     MachineClass parent;
     VEDBoardInfo *daughterboard;
-} VexpressMachineClass;
+};
+typedef struct VexpressMachineClass VexpressMachineClass;
 
-typedef struct {
+struct VexpressMachineState {
     MachineState parent;
     bool secure;
     bool virt;
-} VexpressMachineState;
+};
+typedef struct VexpressMachineState VexpressMachineState;
 
 #define TYPE_VEXPRESS_MACHINE   "vexpress"
 #define TYPE_VEXPRESS_A9_MACHINE   MACHINE_TYPE_NAME("vexpress-a9")

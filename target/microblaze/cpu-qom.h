@@ -21,9 +21,12 @@
 #define QEMU_MICROBLAZE_CPU_QOM_H
 
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 #define TYPE_MICROBLAZE_CPU "microblaze-cpu"
 
+typedef struct MicroBlazeCPU MicroBlazeCPU;
+typedef struct MicroBlazeCPUClass MicroBlazeCPUClass;
 #define MICROBLAZE_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(MicroBlazeCPUClass, (klass), TYPE_MICROBLAZE_CPU)
 #define MICROBLAZE_CPU(obj) \
@@ -38,15 +41,14 @@
  *
  * A MicroBlaze CPU model.
  */
-typedef struct MicroBlazeCPUClass {
+struct MicroBlazeCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
 
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
-} MicroBlazeCPUClass;
+};
 
-typedef struct MicroBlazeCPU MicroBlazeCPU;
 
 #endif

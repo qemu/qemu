@@ -20,6 +20,7 @@
 #define ROCKER_H
 
 #include "qemu/sockets.h"
+#include "qom/object.h"
 
 #if defined(DEBUG_ROCKER)
 #  define DPRINTF(fmt, ...) \

@@ -31,10 +31,11 @@
 #include "qemu/fifo8.h"
 #include "chardev/char.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
 
-typedef struct SerialState {
+struct SerialState {
     DeviceState parent;
 
     uint16_t divider;
@@ -77,22 +78,25 @@ typedef struct SerialState {
 
     QEMUTimer *modem_status_poll;
     MemoryRegion io;
-} SerialState;
+};
+typedef struct SerialState SerialState;
 
-typedef struct SerialMM {
+struct SerialMM {
     SysBusDevice parent;
 
     SerialState serial;
 
     uint8_t regshift;
     uint8_t endianness;
-} SerialMM;
+};
+typedef struct SerialMM SerialMM;
 
-typedef struct SerialIO {
+struct SerialIO {
     SysBusDevice parent;
 
     SerialState serial;
-} SerialIO;
+};
+typedef struct SerialIO SerialIO;
 
 extern const VMStateDescription vmstate_serial;
 extern const MemoryRegionOps serial_io_ops;

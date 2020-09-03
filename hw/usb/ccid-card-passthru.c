@@ -20,6 +20,7 @@
 #include "qemu/sockets.h"
 #include "ccid.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #define DPRINTF(card, lvl, fmt, ...)                    \
 do {                                                    \

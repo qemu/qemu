@@ -14,15 +14,17 @@
 
 #include "qemu/bitops.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_IMX7_GPR "imx7.gpr"
+typedef struct IMX7GPRState IMX7GPRState;
 #define IMX7_GPR(obj) OBJECT_CHECK(IMX7GPRState, (obj), TYPE_IMX7_GPR)
 
-typedef struct IMX7GPRState {
+struct IMX7GPRState {
     /* <private> */
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
-} IMX7GPRState;
+};
 
 #endif /* IMX7_GPR_H */

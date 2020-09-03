@@ -27,6 +27,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "trace.h"
+#include "qom/object.h"
 
 /*
  * In addition to Crystal CS4231 there is a DMA controller on Sparc.
@@ -37,17 +38,18 @@
 #define CS_MAXDREG (CS_DREGS - 1)
 
 #define TYPE_CS4231 "SUNW,CS4231"
+typedef struct CSState CSState;
 #define CS4231(obj) \
     OBJECT_CHECK(CSState, (obj), TYPE_CS4231)
 
-typedef struct CSState {
+struct CSState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
     qemu_irq irq;
     uint32_t regs[CS_REGS];
     uint8_t dregs[CS_DREGS];
-} CSState;
+};
 
 #define CS_RAP(s) ((s)->regs[0] & CS_MAXDREG)
 #define CS_VER 0xa0

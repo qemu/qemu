@@ -11,8 +11,10 @@
 
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_RENESAS_CMT "renesas-cmt"
+typedef struct RCMTState RCMTState;
 #define RCMT(obj) OBJECT_CHECK(RCMTState, (obj), TYPE_RENESAS_CMT)
 
 enum {
@@ -20,7 +22,7 @@ enum {
     CMT_NR_IRQ = 1 * CMT_CH
 };
 
-typedef struct RCMTState {
+struct RCMTState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -35,6 +37,6 @@ typedef struct RCMTState {
     int64_t tick[CMT_CH];
     qemu_irq cmi[CMT_CH];
     QEMUTimer timer[CMT_CH];
-} RCMTState;
+};
 
 #endif

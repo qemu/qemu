@@ -26,6 +26,8 @@
 #include "io/task.h"
 
 #define TYPE_QIO_DNS_RESOLVER "qio-dns-resolver"
+typedef struct QIODNSResolver QIODNSResolver;
+typedef struct QIODNSResolverClass QIODNSResolverClass;
 #define QIO_DNS_RESOLVER(obj)                                    \
     OBJECT_CHECK(QIODNSResolver, (obj), TYPE_QIO_DNS_RESOLVER)
 #define QIO_DNS_RESOLVER_CLASS(klass)                                    \
@@ -33,8 +35,6 @@
 #define QIO_DNS_RESOLVER_GET_CLASS(obj)                                  \
     OBJECT_GET_CLASS(QIODNSResolverClass, obj, TYPE_QIO_DNS_RESOLVER)
 
-typedef struct QIODNSResolver QIODNSResolver;
-typedef struct QIODNSResolverClass QIODNSResolverClass;
 
 /**
  * QIODNSResolver:

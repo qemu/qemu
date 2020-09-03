@@ -26,6 +26,7 @@ typedef enum TPMVersion {
 } TPMVersion;
 
 #define TYPE_TPM_IF "tpm-if"
+typedef struct TPMIfClass TPMIfClass;
 #define TPM_IF_CLASS(klass)                                 \
     OBJECT_CLASS_CHECK(TPMIfClass, (klass), TYPE_TPM_IF)
 #define TPM_IF_GET_CLASS(obj)                           \
@@ -35,13 +36,13 @@ typedef enum TPMVersion {
 
 typedef struct TPMIf TPMIf;
 
-typedef struct TPMIfClass {
+struct TPMIfClass {
     InterfaceClass parent_class;
 
     enum TpmModel model;
     void (*request_completed)(TPMIf *obj, int ret);
     enum TPMVersion (*get_version)(TPMIf *obj);
-} TPMIfClass;
+};
 
 #define TYPE_TPM_TIS_ISA            "tpm-tis"
 #define TYPE_TPM_TIS_SYSBUS         "tpm-tis-device"

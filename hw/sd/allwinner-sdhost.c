@@ -29,6 +29,7 @@
 #include "hw/sd/allwinner-sdhost.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define TYPE_AW_SDHOST_BUS "allwinner-sdhost-bus"
 #define AW_SDHOST_BUS(obj) \

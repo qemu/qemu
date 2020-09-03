@@ -25,6 +25,7 @@
 #define HW_IDE_AHCI_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 typedef struct AHCIDevice AHCIDevice;
 
@@ -60,31 +61,33 @@ int32_t ahci_get_num_ports(PCIDevice *dev);
 void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd);
 
 #define TYPE_SYSBUS_AHCI "sysbus-ahci"
+typedef struct SysbusAHCIState SysbusAHCIState;
 #define SYSBUS_AHCI(obj) OBJECT_CHECK(SysbusAHCIState, (obj), TYPE_SYSBUS_AHCI)
 
-typedef struct SysbusAHCIState {
+struct SysbusAHCIState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
 
     AHCIState ahci;
     uint32_t num_ports;
-} SysbusAHCIState;
+};
 
 #define TYPE_ALLWINNER_AHCI "allwinner-ahci"
+typedef struct AllwinnerAHCIState AllwinnerAHCIState;
 #define ALLWINNER_AHCI(obj) \
         OBJECT_CHECK(AllwinnerAHCIState, (obj), TYPE_ALLWINNER_AHCI)
 
 #define ALLWINNER_AHCI_MMIO_OFF  0x80
 #define ALLWINNER_AHCI_MMIO_SIZE 0x80
 
-typedef struct AllwinnerAHCIState {
+struct AllwinnerAHCIState {
     /*< private >*/
     SysbusAHCIState parent_obj;
     /*< public >*/
 
     MemoryRegion mmio;
     uint32_t regs[ALLWINNER_AHCI_MMIO_SIZE/4];
-} AllwinnerAHCIState;
+};
 
 #endif /* HW_IDE_AHCI_H */

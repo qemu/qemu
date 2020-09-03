@@ -39,6 +39,7 @@
 
 #include "e1000x_common.h"
 #include "trace.h"
+#include "qom/object.h"
 
 static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -76,7 +77,7 @@ static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
  *  Others never tested
  */
 
-typedef struct E1000State_st {
+struct E1000State_st {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -137,14 +138,16 @@ typedef struct E1000State_st {
     bool received_tx_tso;
     bool use_tso_for_migration;
     e1000x_txd_props mig_props;
-} E1000State;
+};
+typedef struct E1000State_st E1000State;
 
 #define chkflag(x)     (s->compat_flags & E1000_FLAG_##x)
 
-typedef struct E1000BaseClass {
+struct E1000BaseClass {
     PCIDeviceClass parent_class;
     uint16_t phy_id2;
-} E1000BaseClass;
+};
+typedef struct E1000BaseClass E1000BaseClass;
 
 #define TYPE_E1000_BASE "e1000-base"
 

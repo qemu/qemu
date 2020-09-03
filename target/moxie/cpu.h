@@ -21,6 +21,7 @@
 #define MOXIE_CPU_H
 
 #include "exec/cpu-defs.h"
+#include "qom/object.h"
 
 #define MOXIE_EX_DIV0        0
 #define MOXIE_EX_BAD         1
@@ -50,6 +51,8 @@ typedef struct CPUMoxieState {
 
 #define TYPE_MOXIE_CPU "moxie-cpu"
 
+typedef struct MoxieCPU MoxieCPU;
+typedef struct MoxieCPUClass MoxieCPUClass;
 #define MOXIE_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(MoxieCPUClass, (klass), TYPE_MOXIE_CPU)
 #define MOXIE_CPU(obj) \
@@ -63,14 +66,14 @@ typedef struct CPUMoxieState {
  *
  * A Moxie CPU model.
  */
-typedef struct MoxieCPUClass {
+struct MoxieCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
 
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
-} MoxieCPUClass;
+};
 
 /**
  * MoxieCPU:
@@ -78,14 +81,14 @@ typedef struct MoxieCPUClass {
  *
  * A Moxie CPU.
  */
-typedef struct MoxieCPU {
+struct MoxieCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
 
     CPUNegativeOffsetState neg;
     CPUMoxieState env;
-} MoxieCPU;
+};
 
 
 void moxie_cpu_do_interrupt(CPUState *cs);

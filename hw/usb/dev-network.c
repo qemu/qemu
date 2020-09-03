@@ -37,6 +37,7 @@
 #include "qemu/iov.h"
 #include "qemu/module.h"
 #include "qemu/cutils.h"
+#include "qom/object.h"
 
 /*#define TRAFFIC_DEBUG*/
 /* Thanks to NetChip Technologies for donating this product ID.
@@ -629,7 +630,7 @@ struct rndis_response {
     uint8_t buf[];
 };
 
-typedef struct USBNetState {
+struct USBNetState {
     USBDevice dev;
 
     enum rndis_state rndis_state;
@@ -651,7 +652,8 @@ typedef struct USBNetState {
     NICState *nic;
     NICConf conf;
     QTAILQ_HEAD(, rndis_response) rndis_resp;
-} USBNetState;
+};
+typedef struct USBNetState USBNetState;
 
 #define TYPE_USB_NET "usb-net"
 #define USB_NET(obj) OBJECT_CHECK(USBNetState, (obj), TYPE_USB_NET)

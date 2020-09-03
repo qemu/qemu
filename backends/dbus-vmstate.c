@@ -19,6 +19,7 @@
 #include "qapi/qmp/qerror.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/object.h"
 
 typedef struct DBusVMState DBusVMState;
 typedef struct DBusVMStateClass DBusVMStateClass;

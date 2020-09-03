@@ -13,6 +13,7 @@
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/ppc/xive.h"
+#include "qom/object.h"
 
 typedef struct PnvPhb4PecState PnvPhb4PecState;
 typedef struct PnvPhb4PecStack PnvPhb4PecStack;
@@ -140,6 +141,7 @@ extern const MemoryRegionOps pnv_phb4_xscom_ops;
  * PHB4 PEC (PCI Express Controller)
  */
 #define TYPE_PNV_PHB4_PEC "pnv-phb4-pec"
+typedef struct PnvPhb4PecClass PnvPhb4PecClass;
 #define PNV_PHB4_PEC(obj) \
     OBJECT_CHECK(PnvPhb4PecState, (obj), TYPE_PNV_PHB4_PEC)
 
@@ -214,7 +216,7 @@ struct PnvPhb4PecState {
 #define PNV_PHB4_PEC_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PnvPhb4PecClass, (obj), TYPE_PNV_PHB4_PEC)
 
-typedef struct PnvPhb4PecClass {
+struct PnvPhb4PecClass {
     DeviceClass parent_class;
 
     uint32_t (*xscom_nest_base)(PnvPhb4PecState *pec);
@@ -225,6 +227,6 @@ typedef struct PnvPhb4PecClass {
     int compat_size;
     const char *stk_compat;
     int stk_compat_size;
-} PnvPhb4PecClass;
+};
 
 #endif /* PCI_HOST_PNV_PHB4_H */

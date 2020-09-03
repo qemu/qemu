@@ -20,12 +20,14 @@
 #define RX_CPU_QOM_H
 
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 #define TYPE_RX_CPU "rx-cpu"
 
 #define TYPE_RX62N_CPU RX_CPU_TYPE_NAME("rx62n")
 
 typedef struct RXCPU RXCPU;
+typedef struct RXCPUClass RXCPUClass;
 #define RX_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(RXCPUClass, (klass), TYPE_RX_CPU)
 #define RX_CPU(obj) \
@@ -40,14 +42,14 @@ typedef struct RXCPU RXCPU;
  *
  * A RX CPU model.
  */
-typedef struct RXCPUClass {
+struct RXCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
 
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
-} RXCPUClass;
+};
 
 #define CPUArchState struct CPURXState
 

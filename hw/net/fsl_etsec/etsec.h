@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/ptimer.h"
+#include "qom/object.h"
 
 /* Buffer Descriptors */
 
@@ -104,7 +105,7 @@ typedef struct eTSEC_Register {
     uint32_t    value;
 } eTSEC_Register;
 
-typedef struct eTSEC {
+struct eTSEC {
     SysBusDevice  busdev;
 
     MemoryRegion  io_area;
@@ -145,7 +146,8 @@ typedef struct eTSEC {
 
     /* Whether we should flush the rx queue when buffer becomes available. */
     bool need_flush;
-} eTSEC;
+};
+typedef struct eTSEC eTSEC;
 
 #define TYPE_ETSEC_COMMON "eTSEC"
 #define ETSEC_COMMON(obj) \

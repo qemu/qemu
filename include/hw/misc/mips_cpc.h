@@ -21,6 +21,7 @@
 #define MIPS_CPC_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define CPC_ADDRSPACE_SZ    0x6000
 
@@ -34,9 +35,10 @@
 #define CPC_VP_RUNNING_OFS  0x30
 
 #define TYPE_MIPS_CPC "mips-cpc"
+typedef struct MIPSCPCState MIPSCPCState;
 #define MIPS_CPC(obj) OBJECT_CHECK(MIPSCPCState, (obj), TYPE_MIPS_CPC)
 
-typedef struct MIPSCPCState {
+struct MIPSCPCState {
     SysBusDevice parent_obj;
 
     uint32_t num_vp;
@@ -44,6 +46,6 @@ typedef struct MIPSCPCState {
 
     MemoryRegion mr;
     uint64_t vp_running; /* Indicates which VPs are in the run state */
-} MIPSCPCState;
+};
 
 #endif /* MIPS_CPC_H */

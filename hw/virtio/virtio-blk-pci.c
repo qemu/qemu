@@ -22,6 +22,7 @@
 #include "virtio-pci.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 typedef struct VirtIOBlkPCI VirtIOBlkPCI;
 

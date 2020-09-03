@@ -19,6 +19,7 @@
 #include "hw/sd/bcm2835_sdhost.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define TYPE_BCM2835_SDHOST_BUS "bcm2835-sdhost-bus"
 #define BCM2835_SDHOST_BUS(obj) \

@@ -31,16 +31,18 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
+typedef struct ISANE2000State ISANE2000State;
 #define ISA_NE2000(obj) OBJECT_CHECK(ISANE2000State, (obj), TYPE_ISA_NE2000)
 
-typedef struct ISANE2000State {
+struct ISANE2000State {
     ISADevice parent_obj;
 
     uint32_t iobase;
     uint32_t isairq;
     NE2000State ne2000;
-} ISANE2000State;
+};
 
 static NetClientInfo net_ne2000_isa_info = {
     .type = NET_CLIENT_DRIVER_NIC,

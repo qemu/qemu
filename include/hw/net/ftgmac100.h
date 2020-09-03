@@ -9,8 +9,10 @@
 
 #ifndef FTGMAC100_H
 #define FTGMAC100_H
+#include "qom/object.h"
 
 #define TYPE_FTGMAC100 "ftgmac100"
+typedef struct FTGMAC100State FTGMAC100State;
 #define FTGMAC100(obj) OBJECT_CHECK(FTGMAC100State, (obj), TYPE_FTGMAC100)
 
 #include "hw/sysbus.h"
@@ -21,7 +23,7 @@
  */
 #define FTGMAC100_MAX_FRAME_SIZE    9220
 
-typedef struct FTGMAC100State {
+struct FTGMAC100State {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -64,15 +66,16 @@ typedef struct FTGMAC100State {
     bool aspeed;
     uint32_t txdes0_edotr;
     uint32_t rxdes0_edorr;
-} FTGMAC100State;
+};
 
 #define TYPE_ASPEED_MII "aspeed-mmi"
+typedef struct AspeedMiiState AspeedMiiState;
 #define ASPEED_MII(obj) OBJECT_CHECK(AspeedMiiState, (obj), TYPE_ASPEED_MII)
 
 /*
  * AST2600 MII controller
  */
-typedef struct AspeedMiiState {
+struct AspeedMiiState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -81,6 +84,6 @@ typedef struct AspeedMiiState {
     MemoryRegion iomem;
     uint32_t phycr;
     uint32_t phydata;
-} AspeedMiiState;
+};
 
 #endif

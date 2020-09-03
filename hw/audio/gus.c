@@ -33,6 +33,7 @@
 #include "migration/vmstate.h"
 #include "gusemu.h"
 #include "gustate.h"
+#include "qom/object.h"
 
 #define dolog(...) AUD_log ("audio", __VA_ARGS__)
 #ifdef DEBUG
@@ -42,9 +43,10 @@
 #endif
 
 #define TYPE_GUS "gus"
+typedef struct GUSState GUSState;
 #define GUS(obj) OBJECT_CHECK (GUSState, (obj), TYPE_GUS)
 
-typedef struct GUSState {
+struct GUSState {
     ISADevice dev;
     GUSEmuState emu;
     QEMUSoundCard card;
@@ -60,7 +62,7 @@ typedef struct GUSState {
     IsaDma *isa_dma;
     PortioList portio_list1;
     PortioList portio_list2;
-} GUSState;
+};
 
 static uint32_t gus_readb(void *opaque, uint32_t nport)
 {

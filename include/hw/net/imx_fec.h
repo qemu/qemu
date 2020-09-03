@@ -23,8 +23,10 @@
 
 #ifndef IMX_FEC_H
 #define IMX_FEC_H
+#include "qom/object.h"
 
 #define TYPE_IMX_FEC "imx.fec"
+typedef struct IMXFECState IMXFECState;
 #define IMX_FEC(obj) OBJECT_CHECK(IMXFECState, (obj), TYPE_IMX_FEC)
 
 #define TYPE_IMX_ENET "imx.enet"
@@ -247,7 +249,7 @@ typedef struct {
 
 #define FSL_IMX25_FEC_SIZE      0x4000
 
-typedef struct IMXFECState {
+struct IMXFECState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -274,6 +276,6 @@ typedef struct IMXFECState {
 
     /* Buffer used to assemble a Tx frame */
     uint8_t frame[ENET_MAX_FRAME_SIZE];
-} IMXFECState;
+};
 
 #endif

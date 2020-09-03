@@ -8,6 +8,7 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/ppc/spapr_ovec.h"
 #include "hw/ppc/spapr_irq.h"
+#include "qom/object.h"
 #include "hw/ppc/spapr_xive.h"  /* For SpaprXive */
 #include "hw/ppc/xics.h"        /* For ICSState */
 #include "hw/ppc/spapr_tpm_proxy.h"
@@ -27,10 +28,10 @@ typedef struct SpaprPendingHpt SpaprPendingHpt;
 
 #define TYPE_SPAPR_RTC "spapr-rtc"
 
+typedef struct SpaprRtcState SpaprRtcState;
 #define SPAPR_RTC(obj)                                  \
     OBJECT_CHECK(SpaprRtcState, (obj), TYPE_SPAPR_RTC)
 
-typedef struct SpaprRtcState SpaprRtcState;
 struct SpaprRtcState {
     /*< private >*/
     DeviceState parent_obj;

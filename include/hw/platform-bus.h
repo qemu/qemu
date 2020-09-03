@@ -23,6 +23,7 @@
  */
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 typedef struct PlatformBusDevice PlatformBusDevice;
 

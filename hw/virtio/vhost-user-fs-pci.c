@@ -15,6 +15,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/virtio/vhost-user-fs.h"
 #include "virtio-pci.h"
+#include "qom/object.h"
 
 struct VHostUserFSPCI {
     VirtIOPCIProxy parent_obj;

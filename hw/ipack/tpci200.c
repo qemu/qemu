@@ -16,6 +16,7 @@
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 /* #define DEBUG_TPCI */
 
@@ -54,7 +55,7 @@
 #define REG_STATUS    0x0C
 #define IP_N_FROM_REG(REG) ((REG) / 2 - 1)
 
-typedef struct {
+struct TPCI200State {
     PCIDevice dev;
     IPackBus bus;
     MemoryRegion mmio;
@@ -67,7 +68,8 @@ typedef struct {
     uint8_t ctrl[N_MODULES];
     uint16_t status;
     uint8_t int_set;
-} TPCI200State;
+};
+typedef struct TPCI200State TPCI200State;
 
 #define TYPE_TPCI200 "tpci200"
 

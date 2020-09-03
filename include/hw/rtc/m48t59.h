@@ -31,6 +31,7 @@
 
 #define TYPE_NVRAM "nvram"
 
+typedef struct NvramClass NvramClass;
 #define NVRAM_CLASS(klass) \
     OBJECT_CLASS_CHECK(NvramClass, (klass), TYPE_NVRAM)
 #define NVRAM_GET_CLASS(obj) \
@@ -40,13 +41,13 @@
 
 typedef struct Nvram Nvram;
 
-typedef struct NvramClass {
+struct NvramClass {
     InterfaceClass parent;
 
     uint32_t (*read)(Nvram *obj, uint32_t addr);
     void (*write)(Nvram *obj, uint32_t addr, uint32_t val);
     void (*toggle_lock)(Nvram *obj, int lock);
-} NvramClass;
+};
 
 Nvram *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
                        int base_year, int type);

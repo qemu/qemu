@@ -24,15 +24,16 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "hw/ppc/xics.h"
+#include "qom/object.h"
 
 #define TYPE_SPAPR_PCI_HOST_BRIDGE "spapr-pci-host-bridge"
 
+typedef struct SpaprPhbState SpaprPhbState;
 #define SPAPR_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(SpaprPhbState, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
 
 #define SPAPR_PCI_DMA_MAX_WINDOWS    2
 
-typedef struct SpaprPhbState SpaprPhbState;
 
 typedef struct SpaprPciMsi {
     uint32_t first_irq;

@@ -31,6 +31,7 @@
 #include "gicv3_internal.h"
 #include "vgic_common.h"
 #include "migration/blocker.h"
+#include "qom/object.h"
 
 #ifdef DEBUG_GICV3_KVM
 #define DPRINTF(fmt, ...) \
@@ -41,6 +42,7 @@
 #endif
 
 #define TYPE_KVM_ARM_GICV3 "kvm-arm-gicv3"
+typedef struct KVMARMGICv3Class KVMARMGICv3Class;
 #define KVM_ARM_GICV3(obj) \
      OBJECT_CHECK(GICv3State, (obj), TYPE_KVM_ARM_GICV3)
 #define KVM_ARM_GICV3_CLASS(klass) \
@@ -74,11 +76,11 @@
 #define ICC_IGRPEN1_EL1 \
     KVM_DEV_ARM_VGIC_SYSREG(3, 0, 12, 12, 7)
 
-typedef struct KVMARMGICv3Class {
+struct KVMARMGICv3Class {
     ARMGICv3CommonClass parent_class;
     DeviceRealize parent_realize;
     void (*parent_reset)(DeviceState *dev);
-} KVMARMGICv3Class;
+};
 
 static void kvm_arm_gicv3_set_irq(void *opaque, int irq, int level)
 {

@@ -22,6 +22,7 @@
 #define HW_ARM_GIC_COMMON_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 /* Maximum number of possible interrupts, determined by the GIC architecture */
 #define GIC_MAXIRQ 1020
@@ -61,7 +62,7 @@ typedef struct gic_irq_state {
     uint8_t group;
 } gic_irq_state;
 
-typedef struct GICState {
+struct GICState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -143,9 +144,11 @@ typedef struct GICState {
     bool irq_reset_nonsecure; /* configure IRQs as group 1 (NS) on reset? */
     int dev_fd; /* kvm device fd if backed by kvm vgic support */
     Error *migration_blocker;
-} GICState;
+};
+typedef struct GICState GICState;
 
 #define TYPE_ARM_GIC_COMMON "arm_gic_common"
+typedef struct ARMGICCommonClass ARMGICCommonClass;
 #define ARM_GIC_COMMON(obj) \
      OBJECT_CHECK(GICState, (obj), TYPE_ARM_GIC_COMMON)
 #define ARM_GIC_COMMON_CLASS(klass) \
@@ -153,14 +156,14 @@ typedef struct GICState {
 #define ARM_GIC_COMMON_GET_CLASS(obj) \
      OBJECT_GET_CLASS(ARMGICCommonClass, (obj), TYPE_ARM_GIC_COMMON)
 
-typedef struct ARMGICCommonClass {
+struct ARMGICCommonClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
     /*< public >*/
 
     void (*pre_save)(GICState *s);
     void (*post_load)(GICState *s);
-} ARMGICCommonClass;
+};
 
 void gic_init_irqs_and_mmio(GICState *s, qemu_irq_handler handler,
                             const MemoryRegionOps *ops,

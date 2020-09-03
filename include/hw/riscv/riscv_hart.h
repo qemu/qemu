@@ -23,13 +23,15 @@
 
 #include "hw/sysbus.h"
 #include "target/riscv/cpu.h"
+#include "qom/object.h"
 
 #define TYPE_RISCV_HART_ARRAY "riscv.hart_array"
 
+typedef struct RISCVHartArrayState RISCVHartArrayState;
 #define RISCV_HART_ARRAY(obj) \
     OBJECT_CHECK(RISCVHartArrayState, (obj), TYPE_RISCV_HART_ARRAY)
 
-typedef struct RISCVHartArrayState {
+struct RISCVHartArrayState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -38,6 +40,6 @@ typedef struct RISCVHartArrayState {
     uint32_t hartid_base;
     char *cpu_type;
     RISCVCPU *harts;
-} RISCVHartArrayState;
+};
 
 #endif

@@ -12,6 +12,7 @@
 
 #include "hw/misc/mos6522.h"
 #include "hw/misc/macio/gpio.h"
+#include "qom/object.h"
 
 /*
  * PMU commands
@@ -173,10 +174,11 @@ typedef enum {
 } PMUCmdState;
 
 /* MOS6522 PMU */
-typedef struct MOS6522PMUState {
+struct MOS6522PMUState {
     /*< private >*/
     MOS6522State parent_obj;
-} MOS6522PMUState;
+};
+typedef struct MOS6522PMUState MOS6522PMUState;
 
 #define TYPE_MOS6522_PMU "mos6522-pmu"
 #define MOS6522_PMU(obj) OBJECT_CHECK(MOS6522PMUState, (obj), \
@@ -186,7 +188,7 @@ typedef struct MOS6522PMUState {
  * @last_b: last value of B register
  */
 
-typedef struct PMUState {
+struct PMUState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -228,7 +230,8 @@ typedef struct PMUState {
 
     /* GPIO */
     MacIOGPIOState *gpio;
-} PMUState;
+};
+typedef struct PMUState PMUState;
 
 #define TYPE_VIA_PMU "via-pmu"
 #define VIA_PMU(obj) OBJECT_CHECK(PMUState, (obj), TYPE_VIA_PMU)

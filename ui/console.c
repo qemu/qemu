@@ -34,6 +34,7 @@
 #include "trace.h"
 #include "exec/memory.h"
 #include "io/channel-file.h"
+#include "qom/object.h"
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
@@ -1082,10 +1083,11 @@ void console_select(unsigned int index)
     }
 }
 
-typedef struct VCChardev {
+struct VCChardev {
     Chardev parent;
     QemuConsole *console;
-} VCChardev;
+};
+typedef struct VCChardev VCChardev;
 
 #define TYPE_CHARDEV_VC "chardev-vc"
 #define VC_CHARDEV(obj) OBJECT_CHECK(VCChardev, (obj), TYPE_CHARDEV_VC)

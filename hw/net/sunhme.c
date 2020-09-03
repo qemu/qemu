@@ -33,6 +33,7 @@
 #include "net/eth.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define HME_REG_SIZE                   0x8000
 
@@ -129,6 +130,7 @@
 #define MII_COMMAND_WRITE      0x1
 
 #define TYPE_SUNHME "sunhme"
+typedef struct SunHMEState SunHMEState;
 #define SUNHME(obj) OBJECT_CHECK(SunHMEState, (obj), TYPE_SUNHME)
 
 /* Maximum size of buffer */
@@ -153,7 +155,7 @@
 
 #define HME_MII_REGS_SIZE      0x20
 
-typedef struct SunHMEState {
+struct SunHMEState {
     /*< private >*/
     PCIDevice parent_obj;
 
@@ -174,7 +176,7 @@ typedef struct SunHMEState {
     uint32_t mifregs[HME_MIF_REG_SIZE >> 2];
 
     uint16_t miiregs[HME_MII_REGS_SIZE];
-} SunHMEState;
+};
 
 static Property sunhme_properties[] = {
     DEFINE_NIC_PROPERTIES(SunHMEState, conf),

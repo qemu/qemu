@@ -25,8 +25,11 @@
 #include "hw/ppc/spapr.h"
 #include "sysemu/dma.h"
 #include "hw/irq.h"
+#include "qom/object.h"
 
 #define TYPE_VIO_SPAPR_DEVICE "vio-spapr-device"
+typedef struct SpaprVioDevice SpaprVioDevice;
+typedef struct SpaprVioDeviceClass SpaprVioDeviceClass;
 #define VIO_SPAPR_DEVICE(obj) \
      OBJECT_CHECK(SpaprVioDevice, (obj), TYPE_VIO_SPAPR_DEVICE)
 #define VIO_SPAPR_DEVICE_CLASS(klass) \
@@ -35,6 +38,7 @@
      OBJECT_GET_CLASS(SpaprVioDeviceClass, (obj), TYPE_VIO_SPAPR_DEVICE)
 
 #define TYPE_SPAPR_VIO_BUS "spapr-vio-bus"
+typedef struct SpaprVioBus SpaprVioBus;
 #define SPAPR_VIO_BUS(obj) OBJECT_CHECK(SpaprVioBus, (obj), TYPE_SPAPR_VIO_BUS)
 
 #define TYPE_SPAPR_VIO_BRIDGE "spapr-vio-bridge"
@@ -46,10 +50,8 @@ typedef struct SpaprVioCrq {
     int(*SendFunc)(struct SpaprVioDevice *vdev, uint8_t *crq);
 } SpaprVioCrq;
 
-typedef struct SpaprVioDevice SpaprVioDevice;
-typedef struct SpaprVioBus SpaprVioBus;
 
-typedef struct SpaprVioDeviceClass {
+struct SpaprVioDeviceClass {
     DeviceClass parent_class;
 
     const char *dt_name, *dt_type, *dt_compatible;
@@ -59,7 +61,7 @@ typedef struct SpaprVioDeviceClass {
     void (*reset)(SpaprVioDevice *dev);
     int (*devnode)(SpaprVioDevice *dev, void *fdt, int node_off);
     const char *(*get_dt_compatible)(SpaprVioDevice *dev);
-} SpaprVioDeviceClass;
+};
 
 struct SpaprVioDevice {
     DeviceState qdev;

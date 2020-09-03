@@ -12,6 +12,7 @@
 #define QEMU_IPACK_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 typedef struct IPackBus IPackBus;
 

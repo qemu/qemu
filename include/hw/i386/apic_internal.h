@@ -25,6 +25,7 @@
 #include "exec/memory.h"
 #include "qemu/timer.h"
 #include "target/i386/cpu-qom.h"
+#include "qom/object.h"
 
 /* APIC Local Vector Table */
 #define APIC_LVT_TIMER                  0
@@ -125,6 +126,7 @@
 typedef struct APICCommonState APICCommonState;
 
 #define TYPE_APIC_COMMON "apic-common"
+typedef struct APICCommonClass APICCommonClass;
 #define APIC_COMMON(obj) \
      OBJECT_CHECK(APICCommonState, (obj), TYPE_APIC_COMMON)
 #define APIC_COMMON_CLASS(klass) \
@@ -132,8 +134,7 @@ typedef struct APICCommonState APICCommonState;
 #define APIC_COMMON_GET_CLASS(obj) \
      OBJECT_GET_CLASS(APICCommonClass, (obj), TYPE_APIC_COMMON)
 
-typedef struct APICCommonClass
-{
+struct APICCommonClass {
     DeviceClass parent_class;
 
     DeviceRealize realize;
@@ -151,7 +152,7 @@ typedef struct APICCommonClass
      * device, but it's convenient to have it here for now.
      */
     void (*send_msi)(MSIMessage *msi);
-} APICCommonClass;
+};
 
 struct APICCommonState {
     /*< private >*/

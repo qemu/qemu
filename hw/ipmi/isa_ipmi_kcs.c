@@ -31,18 +31,20 @@
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 #define TYPE_ISA_IPMI_KCS "isa-ipmi-kcs"
+typedef struct ISAIPMIKCSDevice ISAIPMIKCSDevice;
 #define ISA_IPMI_KCS(obj) OBJECT_CHECK(ISAIPMIKCSDevice, (obj), \
                                        TYPE_ISA_IPMI_KCS)
 
-typedef struct ISAIPMIKCSDevice {
+struct ISAIPMIKCSDevice {
     ISADevice dev;
     int32_t isairq;
     qemu_irq irq;
     IPMIKCS kcs;
     uint32_t uuid;
-} ISAIPMIKCSDevice;
+};
 
 static void isa_ipmi_kcs_get_fwinfo(IPMIInterface *ii, IPMIFwInfo *info)
 {

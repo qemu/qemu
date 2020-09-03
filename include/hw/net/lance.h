@@ -32,15 +32,17 @@
 #include "net/net.h"
 #include "hw/net/pcnet.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_LANCE "lance"
+typedef struct SysBusPCNetState SysBusPCNetState;
 #define SYSBUS_PCNET(obj) \
     OBJECT_CHECK(SysBusPCNetState, (obj), TYPE_LANCE)
 
-typedef struct {
+struct SysBusPCNetState {
     SysBusDevice parent_obj;
 
     PCNetState state;
-} SysBusPCNetState;
+};
 
 #endif

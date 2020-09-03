@@ -30,16 +30,18 @@
 #include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
 #include "cirrus_vga_internal.h"
+#include "qom/object.h"
 
 #define TYPE_ISA_CIRRUS_VGA "isa-cirrus-vga"
+typedef struct ISACirrusVGAState ISACirrusVGAState;
 #define ISA_CIRRUS_VGA(obj) \
     OBJECT_CHECK(ISACirrusVGAState, (obj), TYPE_ISA_CIRRUS_VGA)
 
-typedef struct ISACirrusVGAState {
+struct ISACirrusVGAState {
     ISADevice parent_obj;
 
     CirrusVGAState cirrus_vga;
-} ISACirrusVGAState;
+};
 
 static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
 {

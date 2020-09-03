@@ -18,6 +18,7 @@
 
 #include "standard-headers/linux/virtio_console.h"
 #include "hw/virtio/virtio.h"
+#include "qom/object.h"
 
 struct virtio_serial_conf {
     /* Max. number of ports we can have for a virtio-serial device */
@@ -25,6 +26,8 @@ struct virtio_serial_conf {
 };
 
 #define TYPE_VIRTIO_SERIAL_PORT "virtio-serial-port"
+typedef struct VirtIOSerialPort VirtIOSerialPort;
+typedef struct VirtIOSerialPortClass VirtIOSerialPortClass;
 #define VIRTIO_SERIAL_PORT(obj) \
      OBJECT_CHECK(VirtIOSerialPort, (obj), TYPE_VIRTIO_SERIAL_PORT)
 #define VIRTIO_SERIAL_PORT_CLASS(klass) \
@@ -39,9 +42,8 @@ typedef struct VirtIOSerialBus VirtIOSerialBus;
 #define VIRTIO_SERIAL_BUS(obj) \
       OBJECT_CHECK(VirtIOSerialBus, (obj), TYPE_VIRTIO_SERIAL_BUS)
 
-typedef struct VirtIOSerialPort VirtIOSerialPort;
 
-typedef struct VirtIOSerialPortClass {
+struct VirtIOSerialPortClass {
     DeviceClass parent_class;
 
     /* Is this a device that binds with hvc in the guest? */
@@ -86,7 +88,7 @@ typedef struct VirtIOSerialPortClass {
      */
     ssize_t (*have_data)(VirtIOSerialPort *port, const uint8_t *buf,
                          ssize_t len);
-} VirtIOSerialPortClass;
+};
 
 /*
  * This is the state that's shared between all the ports.  Some of the

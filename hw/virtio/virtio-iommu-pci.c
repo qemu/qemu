@@ -16,6 +16,7 @@
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
+#include "qom/object.h"
 
 typedef struct VirtIOIOMMUPCI VirtIOIOMMUPCI;
 

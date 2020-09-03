@@ -14,8 +14,11 @@
 #define HW_S390_CCW_H
 
 #include "hw/s390x/ccw-device.h"
+#include "qom/object.h"
 
 #define TYPE_S390_CCW "s390-ccw"
+typedef struct S390CCWDevice S390CCWDevice;
+typedef struct S390CCWDeviceClass S390CCWDeviceClass;
 #define S390_CCW_DEVICE(obj) \
     OBJECT_CHECK(S390CCWDevice, (obj), TYPE_S390_CCW)
 #define S390_CCW_DEVICE_CLASS(klass) \
@@ -23,14 +26,14 @@
 #define S390_CCW_DEVICE_GET_CLASS(obj) \
     OBJECT_GET_CLASS(S390CCWDeviceClass, (obj), TYPE_S390_CCW)
 
-typedef struct S390CCWDevice {
+struct S390CCWDevice {
     CcwDevice parent_obj;
     CssDevId hostid;
     char *mdevid;
     int32_t bootindex;
-} S390CCWDevice;
+};
 
-typedef struct S390CCWDeviceClass {
+struct S390CCWDeviceClass {
     CCWDeviceClass parent_class;
     void (*realize)(S390CCWDevice *dev, char *sysfsdev, Error **errp);
     void (*unrealize)(S390CCWDevice *dev);
@@ -38,6 +41,6 @@ typedef struct S390CCWDeviceClass {
     int (*handle_halt) (SubchDev *sch);
     int (*handle_clear) (SubchDev *sch);
     IOInstEnding (*handle_store) (SubchDev *sch);
-} S390CCWDeviceClass;
+};
 
 #endif

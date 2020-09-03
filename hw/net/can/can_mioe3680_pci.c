@@ -39,9 +39,11 @@
 #include "net/can_emu.h"
 
 #include "can_sja1000.h"
+#include "qom/object.h"
 
 #define TYPE_CAN_PCI_DEV "mioe3680_pci"
 
+typedef struct Mioe3680PCIState Mioe3680PCIState;
 #define MIOe3680_PCI_DEV(obj) \
     OBJECT_CHECK(Mioe3680PCIState, (obj), TYPE_CAN_PCI_DEV)
 
@@ -59,7 +61,7 @@
 
 #define MIOe3680_PCI_BYTES_PER_SJA 0x80
 
-typedef struct Mioe3680PCIState {
+struct Mioe3680PCIState {
     /*< private >*/
     PCIDevice       dev;
     /*< public >*/
@@ -70,7 +72,7 @@ typedef struct Mioe3680PCIState {
 
     char            *model; /* The model that support, only SJA1000 now. */
     CanBusState     *canbus[MIOe3680_PCI_SJA_COUNT];
-} Mioe3680PCIState;
+};
 
 static void mioe3680_pci_reset(DeviceState *dev)
 {

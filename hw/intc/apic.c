@@ -28,6 +28,7 @@
 #include "trace.h"
 #include "hw/i386/apic-msidef.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #define MAX_APICS 255
 #define MAX_APIC_WORDS 8

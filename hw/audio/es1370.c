@@ -33,6 +33,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "sysemu/dma.h"
+#include "qom/object.h"
 
 /* Missing stuff:
    SCTRL_P[12](END|ST)INC
@@ -263,7 +264,7 @@ struct chan {
     uint32_t frame_cnt;
 };
 
-typedef struct ES1370State {
+struct ES1370State {
     PCIDevice dev;
     QEMUSoundCard card;
     MemoryRegion io;
@@ -276,7 +277,8 @@ typedef struct ES1370State {
     uint32_t mempage;
     uint32_t codec;
     uint32_t sctl;
-} ES1370State;
+};
+typedef struct ES1370State ES1370State;
 
 struct chan_bits {
     uint32_t ctl_en;

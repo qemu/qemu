@@ -22,6 +22,7 @@
 #define HW_TIMER_ARM_MPTIMER_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define ARM_MPTIMER_MAX_CPUS 4
 
@@ -35,10 +36,11 @@ typedef struct {
 } TimerBlock;
 
 #define TYPE_ARM_MPTIMER "arm_mptimer"
+typedef struct ARMMPTimerState ARMMPTimerState;
 #define ARM_MPTIMER(obj) \
     OBJECT_CHECK(ARMMPTimerState, (obj), TYPE_ARM_MPTIMER)
 
-typedef struct {
+struct ARMMPTimerState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -46,6 +48,6 @@ typedef struct {
     uint32_t num_cpu;
     TimerBlock timerblock[ARM_MPTIMER_MAX_CPUS];
     MemoryRegion iomem;
-} ARMMPTimerState;
+};
 
 #endif

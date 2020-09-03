@@ -33,6 +33,7 @@
 #include "hw/misc/tz-ppc.h"
 #include "hw/misc/unimp.h"
 #include "hw/rtc/pl031.h"
+#include "qom/object.h"
 
 #define MUSCA_NUMIRQ_MAX 96
 #define MUSCA_PPC_MAX 3
@@ -45,7 +46,7 @@ typedef enum MuscaType {
     MUSCA_B1,
 } MuscaType;
 
-typedef struct {
+struct MuscaMachineClass {
     MachineClass parent;
     MuscaType type;
     uint32_t init_svtor;
@@ -53,9 +54,10 @@ typedef struct {
     int num_irqs;
     const MPCInfo *mpc_info;
     int num_mpcs;
-} MuscaMachineClass;
+};
+typedef struct MuscaMachineClass MuscaMachineClass;
 
-typedef struct {
+struct MuscaMachineState {
     MachineState parent;
 
     ARMSSE sse;
@@ -81,7 +83,8 @@ typedef struct {
     UnimplementedDeviceState sdio;
     UnimplementedDeviceState gpio;
     UnimplementedDeviceState cryptoisland;
-} MuscaMachineState;
+};
+typedef struct MuscaMachineState MuscaMachineState;
 
 #define TYPE_MUSCA_MACHINE "musca"
 #define TYPE_MUSCA_A_MACHINE MACHINE_TYPE_NAME("musca-a")

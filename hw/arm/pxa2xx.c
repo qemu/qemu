@@ -28,6 +28,7 @@
 #include "sysemu/qtest.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
+#include "qom/object.h"
 
 static struct {
     hwaddr io_base;
@@ -469,11 +470,12 @@ static const VMStateDescription vmstate_pxa2xx_mm = {
 };
 
 #define TYPE_PXA2XX_SSP "pxa2xx-ssp"
+typedef struct PXA2xxSSPState PXA2xxSSPState;
 #define PXA2XX_SSP(obj) \
     OBJECT_CHECK(PXA2xxSSPState, (obj), TYPE_PXA2XX_SSP)
 
 /* Synchronous Serial Ports */
-typedef struct {
+struct PXA2xxSSPState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -495,7 +497,7 @@ typedef struct {
     uint32_t rx_fifo[16];
     uint32_t rx_level;
     uint32_t rx_start;
-} PXA2xxSSPState;
+};
 
 static bool pxa2xx_ssp_vmstate_validate(void *opaque, int version_id)
 {
@@ -809,10 +811,11 @@ static void pxa2xx_ssp_init(Object *obj)
 #define PIAR		0x38	/* RTC Periodic Interrupt Alarm register */
 
 #define TYPE_PXA2XX_RTC "pxa2xx_rtc"
+typedef struct PXA2xxRTCState PXA2xxRTCState;
 #define PXA2XX_RTC(obj) \
     OBJECT_CHECK(PXA2xxRTCState, (obj), TYPE_PXA2XX_RTC)
 
-typedef struct {
+struct PXA2xxRTCState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -843,7 +846,7 @@ typedef struct {
     QEMUTimer *rtc_swal2;
     QEMUTimer *rtc_pi;
     qemu_irq rtc_irq;
-} PXA2xxRTCState;
+};
 
 static inline void pxa2xx_rtc_int_update(PXA2xxRTCState *s)
 {
@@ -1242,14 +1245,15 @@ static const TypeInfo pxa2xx_rtc_sysbus_info = {
 /* I2C Interface */
 
 #define TYPE_PXA2XX_I2C_SLAVE "pxa2xx-i2c-slave"
+typedef struct PXA2xxI2CSlaveState PXA2xxI2CSlaveState;
 #define PXA2XX_I2C_SLAVE(obj) \
     OBJECT_CHECK(PXA2xxI2CSlaveState, (obj), TYPE_PXA2XX_I2C_SLAVE)
 
-typedef struct PXA2xxI2CSlaveState {
+struct PXA2xxI2CSlaveState {
     I2CSlave parent_obj;
 
     PXA2xxI2CState *host;
-} PXA2xxI2CSlaveState;
+};
 
 struct PXA2xxI2CState {
     /*< private >*/

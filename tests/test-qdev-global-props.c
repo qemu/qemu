@@ -31,6 +31,7 @@
 
 
 #define TYPE_STATIC_PROPS "static_prop_type"
+typedef struct MyType MyType;
 #define STATIC_TYPE(obj) \
     OBJECT_CHECK(MyType, (obj), TYPE_STATIC_PROPS)
 
@@ -38,12 +39,12 @@
 
 #define PROP_DEFAULT 100
 
-typedef struct MyType {
+struct MyType {
     DeviceState parent_obj;
 
     uint32_t prop1;
     uint32_t prop2;
-} MyType;
+};
 
 static Property static_props[] = {
     DEFINE_PROP_UINT32("prop1", MyType, prop1, PROP_DEFAULT),

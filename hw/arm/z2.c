@@ -26,6 +26,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 #include "cpu.h"
+#include "qom/object.h"
 
 #ifdef DEBUG_Z2
 #define DPRINTF(fmt, ...) \
@@ -102,14 +103,15 @@ static struct arm_boot_info z2_binfo = {
 #define Z2_GPIO_KEY_ON      1
 #define Z2_GPIO_LCD_CS      88
 
-typedef struct {
+struct ZipitLCD {
     SSISlave ssidev;
     int32_t selected;
     int32_t enabled;
     uint8_t buf[3];
     uint32_t cur_reg;
     int pos;
-} ZipitLCD;
+};
+typedef struct ZipitLCD ZipitLCD;
 
 #define TYPE_ZIPIT_LCD "zipit-lcd"
 #define ZIPIT_LCD(obj) OBJECT_CHECK(ZipitLCD, (obj), TYPE_ZIPIT_LCD)
@@ -195,14 +197,15 @@ static const TypeInfo zipit_lcd_info = {
 };
 
 #define TYPE_AER915 "aer915"
+typedef struct AER915State AER915State;
 #define AER915(obj) OBJECT_CHECK(AER915State, (obj), TYPE_AER915)
 
-typedef struct AER915State {
+struct AER915State {
     I2CSlave parent_obj;
 
     int len;
     uint8_t buf[3];
-} AER915State;
+};
 
 static int aer915_send(I2CSlave *i2c, uint8_t data)
 {

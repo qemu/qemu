@@ -22,9 +22,12 @@
 #define QAUTHZ_SIMPLE_H
 
 #include "authz/base.h"
+#include "qom/object.h"
 
 #define TYPE_QAUTHZ_SIMPLE "authz-simple"
 
+typedef struct QAuthZSimple QAuthZSimple;
+typedef struct QAuthZSimpleClass QAuthZSimpleClass;
 #define QAUTHZ_SIMPLE_CLASS(klass)                        \
     OBJECT_CLASS_CHECK(QAuthZSimpleClass, (klass),        \
                        TYPE_QAUTHZ_SIMPLE)
@@ -35,8 +38,6 @@
     OBJECT_CHECK(QAuthZSimple, (obj), \
                  TYPE_QAUTHZ_SIMPLE)
 
-typedef struct QAuthZSimple QAuthZSimple;
-typedef struct QAuthZSimpleClass QAuthZSimpleClass;
 
 
 /**

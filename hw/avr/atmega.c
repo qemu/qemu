@@ -17,6 +17,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 #include "hw/boards.h" /* FIXME memory_region_allocate_system_memory for sram */
 #include "hw/misc/unimp.h"
 #include "atmega.h"
@@ -45,7 +46,7 @@ typedef struct {
     bool is_timer16;
 } peripheral_cfg;
 
-typedef struct AtmegaMcuClass {
+struct AtmegaMcuClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
     /*< public >*/
@@ -59,7 +60,8 @@ typedef struct AtmegaMcuClass {
     size_t adc_count;
     const uint8_t *irq;
     const peripheral_cfg *dev;
-} AtmegaMcuClass;
+};
+typedef struct AtmegaMcuClass AtmegaMcuClass;
 
 #define ATMEGA_MCU_CLASS(klass) \
     OBJECT_CLASS_CHECK(AtmegaMcuClass, (klass), TYPE_ATMEGA_MCU)

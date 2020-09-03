@@ -30,7 +30,9 @@
 #include "framebuffer.h"
 #include "ui/pixel_ops.h"
 #include "hw/m68k/next-cube.h"
+#include "qom/object.h"
 
+typedef struct NeXTFbState NeXTFbState;
 #define NEXTFB(obj) OBJECT_CHECK(NeXTFbState, (obj), TYPE_NEXTFB)
 
 struct NeXTFbState {
@@ -44,7 +46,6 @@ struct NeXTFbState {
     uint32_t rows;
     int invalidate;
 };
-typedef struct NeXTFbState NeXTFbState;
 
 static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
                              int width, int pitch)

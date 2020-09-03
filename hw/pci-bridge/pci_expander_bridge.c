@@ -22,35 +22,38 @@
 #include "qemu/module.h"
 #include "sysemu/numa.h"
 #include "hw/boards.h"
+#include "qom/object.h"
 
 #define TYPE_PXB_BUS "pxb-bus"
+typedef struct PXBBus PXBBus;
 #define PXB_BUS(obj) OBJECT_CHECK(PXBBus, (obj), TYPE_PXB_BUS)
 
 #define TYPE_PXB_PCIE_BUS "pxb-pcie-bus"
 #define PXB_PCIE_BUS(obj) OBJECT_CHECK(PXBBus, (obj), TYPE_PXB_PCIE_BUS)
 
-typedef struct PXBBus {
+struct PXBBus {
     /*< private >*/
     PCIBus parent_obj;
     /*< public >*/
 
     char bus_path[8];
-} PXBBus;
+};
 
 #define TYPE_PXB_DEVICE "pxb"
+typedef struct PXBDev PXBDev;
 #define PXB_DEV(obj) OBJECT_CHECK(PXBDev, (obj), TYPE_PXB_DEVICE)
 
 #define TYPE_PXB_PCIE_DEVICE "pxb-pcie"
 #define PXB_PCIE_DEV(obj) OBJECT_CHECK(PXBDev, (obj), TYPE_PXB_PCIE_DEVICE)
 
-typedef struct PXBDev {
+struct PXBDev {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
 
     uint8_t bus_nr;
     uint16_t numa_node;
-} PXBDev;
+};
 
 static PXBDev *convert_to_pxb(PCIDevice *dev)
 {

@@ -25,6 +25,7 @@
 #include "sysemu/watchdog.h"
 #include "hw/isa/isa.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 /*#define IB700_DEBUG 1*/
 
@@ -36,15 +37,16 @@
 #endif
 
 #define TYPE_IB700 "ib700"
+typedef struct IB700state IB700State;
 #define IB700(obj) OBJECT_CHECK(IB700State, (obj), TYPE_IB700)
 
-typedef struct IB700state {
+struct IB700state {
     ISADevice parent_obj;
 
     QEMUTimer *timer;
 
     PortioList port_list;
-} IB700State;
+};
 
 /* This is the timer.  We use a global here because the watchdog
  * code ensures there is only one watchdog (it is located at a fixed,

@@ -27,6 +27,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/hw.h"
+#include "qom/object.h"
 
 #define EXTI_IMR   0x00
 #define EXTI_EMR   0x04
@@ -36,13 +37,14 @@
 #define EXTI_PR    0x14
 
 #define TYPE_STM32F4XX_EXTI "stm32f4xx-exti"
+typedef struct STM32F4xxExtiState STM32F4xxExtiState;
 #define STM32F4XX_EXTI(obj) \
     OBJECT_CHECK(STM32F4xxExtiState, (obj), TYPE_STM32F4XX_EXTI)
 
 #define NUM_GPIO_EVENT_IN_LINES 16
 #define NUM_INTERRUPT_OUT_LINES 16
 
-typedef struct {
+struct STM32F4xxExtiState {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
@@ -55,6 +57,6 @@ typedef struct {
     uint32_t exti_pr;
 
     qemu_irq irq[NUM_INTERRUPT_OUT_LINES];
-} STM32F4xxExtiState;
+};
 
 #endif

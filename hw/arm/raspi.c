@@ -24,6 +24,7 @@
 #include "hw/loader.h"
 #include "hw/arm/boot.h"
 #include "sysemu/sysemu.h"
+#include "qom/object.h"
 
 #define SMPBOOT_ADDR    0x300 /* this should leave enough space for ATAGS */
 #define MVBAR_ADDR      0x400 /* secure vectors */
@@ -35,19 +36,21 @@
 /* Registered machine type (matches RPi Foundation bootloader and U-Boot) */
 #define MACH_TYPE_BCM2708   3138
 
-typedef struct RaspiMachineState {
+struct RaspiMachineState {
     /*< private >*/
     MachineState parent_obj;
     /*< public >*/
     BCM283XState soc;
-} RaspiMachineState;
+};
+typedef struct RaspiMachineState RaspiMachineState;
 
-typedef struct RaspiMachineClass {
+struct RaspiMachineClass {
     /*< private >*/
     MachineClass parent_obj;
     /*< public >*/
     uint32_t board_rev;
-} RaspiMachineClass;
+};
+typedef struct RaspiMachineClass RaspiMachineClass;
 
 #define TYPE_RASPI_MACHINE       MACHINE_TYPE_NAME("raspi-common")
 #define RASPI_MACHINE(obj) \

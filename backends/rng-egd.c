@@ -16,17 +16,18 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define TYPE_RNG_EGD "rng-egd"
+typedef struct RngEgd RngEgd;
 #define RNG_EGD(obj) OBJECT_CHECK(RngEgd, (obj), TYPE_RNG_EGD)
 
-typedef struct RngEgd
-{
+struct RngEgd {
     RngBackend parent;
 
     CharBackend chr;
     char *chr_name;
-} RngEgd;
+};
 
 static void rng_egd_request_entropy(RngBackend *b, RngRequest *req)
 {

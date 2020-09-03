@@ -29,6 +29,7 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 typedef struct {
     MemoryRegion iomem;
@@ -109,13 +110,14 @@ static const VMStateDescription vmstate_nvram = {
 };
 
 #define TYPE_DS1225Y "ds1225y"
+typedef struct SysBusNvRamState SysBusNvRamState;
 #define DS1225Y(obj) OBJECT_CHECK(SysBusNvRamState, (obj), TYPE_DS1225Y)
 
-typedef struct {
+struct SysBusNvRamState {
     SysBusDevice parent_obj;
 
     NvRamState nvram;
-} SysBusNvRamState;
+};
 
 static void nvram_sysbus_realize(DeviceState *dev, Error **errp)
 {

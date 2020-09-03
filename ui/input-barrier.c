@@ -13,12 +13,15 @@
 #include "qom/object_interfaces.h"
 #include "io/channel-socket.h"
 #include "ui/input.h"
+#include "qom/object.h"
 #include "ui/vnc_keysym.h" /* use name2keysym from VNC as we use X11 values */
 #include "qemu/cutils.h"
 #include "qapi/qmp/qerror.h"
 #include "input-barrier.h"
 
 #define TYPE_INPUT_BARRIER "input-barrier"
+typedef struct InputBarrier InputBarrier;
+typedef struct InputBarrierClass InputBarrierClass;
 #define INPUT_BARRIER(obj) \
     OBJECT_CHECK(InputBarrier, (obj), TYPE_INPUT_BARRIER)
 #define INPUT_BARRIER_GET_CLASS(obj) \
@@ -26,8 +29,6 @@
 #define INPUT_BARRIER_CLASS(klass) \
     OBJECT_CLASS_CHECK(InputBarrierClass, (klass), TYPE_INPUT_BARRIER)
 
-typedef struct InputBarrier InputBarrier;
-typedef struct InputBarrierClass InputBarrierClass;
 
 #define MAX_HELLO_LENGTH 1024
 

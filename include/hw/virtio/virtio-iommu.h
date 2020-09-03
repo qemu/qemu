@@ -23,9 +23,11 @@
 #include "standard-headers/linux/virtio_iommu.h"
 #include "hw/virtio/virtio.h"
 #include "hw/pci/pci.h"
+#include "qom/object.h"
 
 #define TYPE_VIRTIO_IOMMU "virtio-iommu-device"
 #define TYPE_VIRTIO_IOMMU_PCI "virtio-iommu-device-base"
+typedef struct VirtIOIOMMU VirtIOIOMMU;
 #define VIRTIO_IOMMU(obj) \
         OBJECT_CHECK(VirtIOIOMMU, (obj), TYPE_VIRTIO_IOMMU)
 
@@ -44,7 +46,7 @@ typedef struct IOMMUPciBus {
     IOMMUDevice  *pbdev[]; /* Parent array is sparse, so dynamically alloc */
 } IOMMUPciBus;
 
-typedef struct VirtIOIOMMU {
+struct VirtIOIOMMU {
     VirtIODevice parent_obj;
     VirtQueue *req_vq;
     VirtQueue *event_vq;
@@ -58,6 +60,6 @@ typedef struct VirtIOIOMMU {
     GTree *domains;
     QemuMutex mutex;
     GTree *endpoints;
-} VirtIOIOMMU;
+};
 
 #endif

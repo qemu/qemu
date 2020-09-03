@@ -35,22 +35,24 @@
 #include "migration/vmstate.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
+#include "qom/object.h"
 
 /*
  * I440FX chipset data sheet.
  * https://wiki.qemu.org/File:29054901.pdf
  */
 
+typedef struct I440FXState I440FXState;
 #define I440FX_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(I440FXState, (obj), TYPE_I440FX_PCI_HOST_BRIDGE)
 
-typedef struct I440FXState {
+struct I440FXState {
     PCIHostState parent_obj;
     Range pci_hole;
     uint64_t pci_hole64_size;
     bool pci_hole64_fix;
     uint32_t short_root_bus;
-} I440FXState;
+};
 
 #define I440FX_PAM      0x59
 #define I440FX_PAM_SIZE 7

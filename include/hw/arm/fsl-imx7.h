@@ -39,8 +39,10 @@
 #include "hw/pci-host/designware.h"
 #include "hw/usb/chipidea.h"
 #include "cpu.h"
+#include "qom/object.h"
 
 #define TYPE_FSL_IMX7 "fsl,imx7"
+typedef struct FslIMX7State FslIMX7State;
 #define FSL_IMX7(obj) OBJECT_CHECK(FslIMX7State, (obj), TYPE_FSL_IMX7)
 
 enum FslIMX7Configuration {
@@ -59,7 +61,7 @@ enum FslIMX7Configuration {
     FSL_IMX7_NUM_ADCS         = 2,
 };
 
-typedef struct FslIMX7State {
+struct FslIMX7State {
     /*< private >*/
     DeviceState    parent_obj;
 
@@ -82,7 +84,7 @@ typedef struct FslIMX7State {
     ChipideaState      usb[FSL_IMX7_NUM_USBS];
     DesignwarePCIEHost pcie;
     uint32_t           phy_num[FSL_IMX7_NUM_ETHS];
-} FslIMX7State;
+};
 
 enum FslIMX7MemoryMap {
     FSL_IMX7_MMDC_ADDR            = 0x80000000,

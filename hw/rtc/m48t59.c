@@ -40,8 +40,11 @@
 
 #include "m48t59-internal.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 #define TYPE_M48TXX_SYS_BUS "sysbus-m48txx"
+typedef struct M48txxSysBusDeviceClass M48txxSysBusDeviceClass;
+typedef struct M48txxSysBusState M48txxSysBusState;
 #define M48TXX_SYS_BUS_GET_CLASS(obj) \
     OBJECT_GET_CLASS(M48txxSysBusDeviceClass, (obj), TYPE_M48TXX_SYS_BUS)
 #define M48TXX_SYS_BUS_CLASS(klass) \
@@ -56,16 +59,16 @@
  * http://www.st.com/stonline/products/literature/od/7001/m48t59y.pdf
  */
 
-typedef struct M48txxSysBusState {
+struct M48txxSysBusState {
     SysBusDevice parent_obj;
     M48t59State state;
     MemoryRegion io;
-} M48txxSysBusState;
+};
 
-typedef struct M48txxSysBusDeviceClass {
+struct M48txxSysBusDeviceClass {
     SysBusDeviceClass parent_class;
     M48txxInfo info;
-} M48txxSysBusDeviceClass;
+};
 
 static M48txxInfo m48txx_sysbus_info[] = {
     {

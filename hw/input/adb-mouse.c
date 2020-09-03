@@ -29,30 +29,33 @@
 #include "qemu/module.h"
 #include "adb-internal.h"
 #include "trace.h"
+#include "qom/object.h"
 
+typedef struct ADBMouseClass ADBMouseClass;
+typedef struct MouseState MouseState;
 #define ADB_MOUSE(obj) OBJECT_CHECK(MouseState, (obj), TYPE_ADB_MOUSE)
 
-typedef struct MouseState {
+struct MouseState {
     /*< public >*/
     ADBDevice parent_obj;
     /*< private >*/
 
     int buttons_state, last_buttons_state;
     int dx, dy, dz;
-} MouseState;
+};
 
 #define ADB_MOUSE_CLASS(class) \
     OBJECT_CLASS_CHECK(ADBMouseClass, (class), TYPE_ADB_MOUSE)
 #define ADB_MOUSE_GET_CLASS(obj) \
     OBJECT_GET_CLASS(ADBMouseClass, (obj), TYPE_ADB_MOUSE)
 
-typedef struct ADBMouseClass {
+struct ADBMouseClass {
     /*< public >*/
     ADBDeviceClass parent_class;
     /*< private >*/
 
     DeviceRealize parent_realize;
-} ADBMouseClass;
+};
 
 static void adb_mouse_event(void *opaque,
                             int dx1, int dy1, int dz1, int buttons_state)

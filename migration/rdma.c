@@ -35,6 +35,7 @@
 #include <arpa/inet.h>
 #include <rdma/rdma_cma.h>
 #include "trace.h"
+#include "qom/object.h"
 
 /*
  * Print and error on both the Monitor and the Log file.
@@ -397,10 +398,10 @@ typedef struct RDMAContext {
 } RDMAContext;
 
 #define TYPE_QIO_CHANNEL_RDMA "qio-channel-rdma"
+typedef struct QIOChannelRDMA QIOChannelRDMA;
 #define QIO_CHANNEL_RDMA(obj)                                     \
     OBJECT_CHECK(QIOChannelRDMA, (obj), TYPE_QIO_CHANNEL_RDMA)
 
-typedef struct QIOChannelRDMA QIOChannelRDMA;
 
 
 struct QIOChannelRDMA {

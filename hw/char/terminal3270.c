@@ -17,6 +17,7 @@
 #include "chardev/char-fe.h"
 #include "hw/qdev-properties.h"
 #include "hw/s390x/3270-ccw.h"
+#include "qom/object.h"
 
 /* Enough spaces for different window sizes. */
 #define INPUT_BUFFER_SIZE  1000
@@ -26,7 +27,7 @@
  */
 #define OUTPUT_BUFFER_SIZE 2051
 
-typedef struct Terminal3270 {
+struct Terminal3270 {
     EmulatedCcw3270Device cdev;
     CharBackend chr;
     uint8_t inv[INPUT_BUFFER_SIZE];
@@ -34,7 +35,8 @@ typedef struct Terminal3270 {
     int in_len;
     bool handshake_done;
     guint timer_tag;
-} Terminal3270;
+};
+typedef struct Terminal3270 Terminal3270;
 
 #define TYPE_TERMINAL_3270 "x-terminal3270"
 #define TERMINAL_3270(obj) \

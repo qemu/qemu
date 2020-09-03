@@ -46,6 +46,7 @@
 #include "desc.h"
 
 #include "ccid.h"
+#include "qom/object.h"
 
 #define DPRINTF(s, lvl, fmt, ...) \
 do { \
@@ -60,6 +61,7 @@ do { \
 #define D_VERBOSE 4
 
 #define CCID_DEV_NAME "usb-ccid"
+typedef struct USBCCIDState USBCCIDState;
 #define USB_CCID_DEV(obj) OBJECT_CHECK(USBCCIDState, (obj), CCID_DEV_NAME)
 /*
  * The two options for variable sized buffers:
@@ -274,14 +276,15 @@ typedef struct BulkIn {
     uint32_t pos;
 } BulkIn;
 
-typedef struct CCIDBus {
+struct CCIDBus {
     BusState qbus;
-} CCIDBus;
+};
+typedef struct CCIDBus CCIDBus;
 
 /*
  * powered - defaults to true, changed by PowerOn/PowerOff messages
  */
-typedef struct USBCCIDState {
+struct USBCCIDState {
     USBDevice dev;
     USBEndpoint *intr;
     USBEndpoint *bulk;
@@ -309,7 +312,7 @@ typedef struct USBCCIDState {
     uint8_t  powered;
     uint8_t  notify_slot_change;
     uint8_t  debug;
-} USBCCIDState;
+};
 
 /*
  * CCID Spec chapter 4: CCID uses a standard device descriptor per Chapter 9,

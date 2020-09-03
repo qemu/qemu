@@ -21,6 +21,7 @@
 #define QEMU_MIPS_CPU_QOM_H
 
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 #ifdef TARGET_MIPS64
 #define TYPE_MIPS_CPU "mips64-cpu"
@@ -28,6 +29,8 @@
 #define TYPE_MIPS_CPU "mips-cpu"
 #endif
 
+typedef struct MIPSCPU MIPSCPU;
+typedef struct MIPSCPUClass MIPSCPUClass;
 #define MIPS_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(MIPSCPUClass, (klass), TYPE_MIPS_CPU)
 #define MIPS_CPU(obj) \
@@ -42,7 +45,7 @@
  *
  * A MIPS CPU model.
  */
-typedef struct MIPSCPUClass {
+struct MIPSCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
@@ -50,8 +53,7 @@ typedef struct MIPSCPUClass {
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
     const struct mips_def_t *cpu_def;
-} MIPSCPUClass;
+};
 
-typedef struct MIPSCPU MIPSCPU;
 
 #endif

@@ -30,6 +30,7 @@
 #include "hw/pci/pci_host.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
+#include "qom/object.h"
 
 struct PCIMasterMap {
     uint32_t la;
@@ -43,6 +44,7 @@ struct PCITargetMap {
     uint32_t la;
 };
 
+typedef struct PPC4xxPCIState PPC4xxPCIState;
 #define PPC4xx_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(PPC4xxPCIState, (obj), TYPE_PPC4xx_PCI_HOST_BRIDGE)
 
@@ -59,7 +61,6 @@ struct PPC4xxPCIState {
     MemoryRegion container;
     MemoryRegion iomem;
 };
-typedef struct PPC4xxPCIState PPC4xxPCIState;
 
 #define PCIC0_CFGADDR       0x0
 #define PCIC0_CFGDATA       0x4

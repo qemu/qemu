@@ -29,6 +29,7 @@
 #include "hw/registerfields.h"
 #include "chardev/char-fe.h"
 #include "qemu/timer.h"
+#include "qom/object.h"
 
 REG32(INTR_STATE, 0x00)
     FIELD(INTR_STATE, TX_WATERMARK, 0, 1)
@@ -69,10 +70,11 @@ REG32(TIMEOUT_CTRL, 0x2c)
 #define IBEX_UART_CLOCK 50000000 /* 50MHz clock */
 
 #define TYPE_IBEX_UART "ibex-uart"
+typedef struct IbexUartState IbexUartState;
 #define IBEX_UART(obj) \
     OBJECT_CHECK(IbexUartState, (obj), TYPE_IBEX_UART)
 
-typedef struct {
+struct IbexUartState {
     /* <private> */
     SysBusDevice parent_obj;
 
@@ -103,5 +105,5 @@ typedef struct {
     qemu_irq rx_watermark;
     qemu_irq tx_empty;
     qemu_irq rx_overflow;
-} IbexUartState;
+};
 #endif /* HW_IBEX_UART_H */

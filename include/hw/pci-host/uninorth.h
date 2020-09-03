@@ -27,6 +27,7 @@
 
 #include "hw/pci/pci_host.h"
 #include "hw/ppc/openpic.h"
+#include "qom/object.h"
 
 /* UniNorth version */
 #define UNINORTH_VERSION_10A    0x7
@@ -36,6 +37,7 @@
 #define TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE "uni-north-internal-pci-pcihost"
 #define TYPE_U3_AGP_HOST_BRIDGE "u3-agp-pcihost"
 
+typedef struct UNINHostState UNINHostState;
 #define UNI_NORTH_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(UNINHostState, (obj), TYPE_UNI_NORTH_PCI_HOST_BRIDGE)
 #define UNI_NORTH_AGP_HOST_BRIDGE(obj) \
@@ -45,7 +47,7 @@
 #define U3_AGP_HOST_BRIDGE(obj) \
     OBJECT_CHECK(UNINHostState, (obj), TYPE_U3_AGP_HOST_BRIDGE)
 
-typedef struct UNINHostState {
+struct UNINHostState {
     PCIHostState parent_obj;
 
     uint32_t ofw_addr;
@@ -54,13 +56,14 @@ typedef struct UNINHostState {
     MemoryRegion pci_mmio;
     MemoryRegion pci_hole;
     MemoryRegion pci_io;
-} UNINHostState;
+};
 
-typedef struct UNINState {
+struct UNINState {
     SysBusDevice parent_obj;
 
     MemoryRegion mem;
-} UNINState;
+};
+typedef struct UNINState UNINState;
 
 #define TYPE_UNI_NORTH "uni-north"
 #define UNI_NORTH(obj) \

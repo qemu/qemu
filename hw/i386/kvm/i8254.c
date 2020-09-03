@@ -33,30 +33,33 @@
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
 #include "sysemu/kvm.h"
+#include "qom/object.h"
 
 #define KVM_PIT_REINJECT_BIT 0
 
 #define CALIBRATION_ROUNDS   3
 
+typedef struct KVMPITClass KVMPITClass;
+typedef struct KVMPITState KVMPITState;
 #define KVM_PIT(obj) OBJECT_CHECK(KVMPITState, (obj), TYPE_KVM_I8254)
 #define KVM_PIT_CLASS(class) \
     OBJECT_CLASS_CHECK(KVMPITClass, (class), TYPE_KVM_I8254)
 #define KVM_PIT_GET_CLASS(obj) \
     OBJECT_GET_CLASS(KVMPITClass, (obj), TYPE_KVM_I8254)
 
-typedef struct KVMPITState {
+struct KVMPITState {
     PITCommonState parent_obj;
 
     LostTickPolicy lost_tick_policy;
     bool vm_stopped;
     int64_t kernel_clock_offset;
-} KVMPITState;
+};
 
-typedef struct KVMPITClass {
+struct KVMPITClass {
     PITCommonClass parent_class;
 
     DeviceRealize parent_realize;
-} KVMPITClass;
+};
 
 static int64_t abs64(int64_t v)
 {

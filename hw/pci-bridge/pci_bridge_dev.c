@@ -31,9 +31,11 @@
 #include "exec/memory.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/hotplug.h"
+#include "qom/object.h"
 
 #define TYPE_PCI_BRIDGE_DEV      "pci-bridge"
 #define TYPE_PCI_BRIDGE_SEAT_DEV "pci-bridge-seat"
+typedef struct PCIBridgeDev PCIBridgeDev;
 #define PCI_BRIDGE_DEV(obj) \
     OBJECT_CHECK(PCIBridgeDev, (obj), TYPE_PCI_BRIDGE_DEV)
 
@@ -52,7 +54,6 @@ struct PCIBridgeDev {
     /* additional resources to reserve */
     PCIResReserve res_reserve;
 };
-typedef struct PCIBridgeDev PCIBridgeDev;
 
 static void pci_bridge_dev_realize(PCIDevice *dev, Error **errp)
 {

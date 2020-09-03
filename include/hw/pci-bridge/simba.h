@@ -28,12 +28,14 @@
 #define HW_PCI_BRIDGE_SIMBA_H
 
 #include "hw/pci/pci_bridge.h"
+#include "qom/object.h"
 
 
-typedef struct SimbaPCIBridge {
+struct SimbaPCIBridge {
     /*< private >*/
     PCIBridge parent_obj;
-} SimbaPCIBridge;
+};
+typedef struct SimbaPCIBridge SimbaPCIBridge;
 
 #define TYPE_SIMBA_PCI_BRIDGE "pbm-bridge"
 #define SIMBA_PCI_BRIDGE(obj) \

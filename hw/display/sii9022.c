@@ -19,6 +19,7 @@
 #include "migration/vmstate.h"
 #include "hw/display/i2c-ddc.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define SII9022_SYS_CTRL_DATA 0x1a
 #define SII9022_SYS_CTRL_PWR_DWN 0x10
@@ -35,16 +36,17 @@
 #define SII9022_INT_STATUS_PLUGGED 0x04;
 
 #define TYPE_SII9022 "sii9022"
+typedef struct sii9022_state sii9022_state;
 #define SII9022(obj) OBJECT_CHECK(sii9022_state, (obj), TYPE_SII9022)
 
-typedef struct sii9022_state {
+struct sii9022_state {
     I2CSlave parent_obj;
     uint8_t ptr;
     bool addr_byte;
     bool ddc_req;
     bool ddc_skip_finish;
     bool ddc;
-} sii9022_state;
+};
 
 static const VMStateDescription vmstate_sii9022 = {
     .name = "sii9022",

@@ -36,6 +36,7 @@
 #include "hw/qdev-properties.h"
 #include "vmw_pvscsi.h"
 #include "trace.h"
+#include "qom/object.h"
 
 
 #define PVSCSI_USE_64BIT         (true)
@@ -56,12 +57,14 @@
     (stl_le_pci_dma(&container_of(m, PVSCSIState, rings)->parent_obj, \
                  (m)->rs_pa + offsetof(struct PVSCSIRingsState, field), val))
 
-typedef struct PVSCSIClass {
+struct PVSCSIClass {
     PCIDeviceClass parent_class;
     DeviceRealize parent_dc_realize;
-} PVSCSIClass;
+};
+typedef struct PVSCSIClass PVSCSIClass;
 
 #define TYPE_PVSCSI "pvscsi"
+typedef struct PVSCSIState PVSCSIState;
 #define PVSCSI(obj) OBJECT_CHECK(PVSCSIState, (obj), TYPE_PVSCSI)
 
 #define PVSCSI_CLASS(klass) \
@@ -104,7 +107,7 @@ typedef struct PVSCSISGState {
 
 typedef QTAILQ_HEAD(, PVSCSIRequest) PVSCSIRequestList;
 
-typedef struct {
+struct PVSCSIState {
     PCIDevice parent_obj;
     MemoryRegion io_space;
     SCSIBus bus;
@@ -132,7 +135,7 @@ typedef struct {
     uint32_t resetting;                  /* Reset in progress                */
 
     uint32_t compat_flags;
-} PVSCSIState;
+};
 
 typedef struct PVSCSIRequest {
     SCSIRequest *sreq;

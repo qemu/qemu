@@ -26,6 +26,8 @@
 #include "block/aio.h"
 
 #define TYPE_QIO_CHANNEL "qio-channel"
+typedef struct QIOChannel QIOChannel;
+typedef struct QIOChannelClass QIOChannelClass;
 #define QIO_CHANNEL(obj)                                    \
     OBJECT_CHECK(QIOChannel, (obj), TYPE_QIO_CHANNEL)
 #define QIO_CHANNEL_CLASS(klass)                                    \
@@ -33,8 +35,6 @@
 #define QIO_CHANNEL_GET_CLASS(obj)                                  \
     OBJECT_GET_CLASS(QIOChannelClass, obj, TYPE_QIO_CHANNEL)
 
-typedef struct QIOChannel QIOChannel;
-typedef struct QIOChannelClass QIOChannelClass;
 
 #define QIO_CHANNEL_ERR_BLOCK -2
 

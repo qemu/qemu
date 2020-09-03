@@ -18,6 +18,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 /* Old and buggy versions of QEMU used the wrong mapping from
  * PCI IRQs to system interrupt lines. Unfortunately the Linux
@@ -71,7 +72,7 @@ enum {
     PCI_VPB_IRQMAP_FORCE_OK,
 };
 
-typedef struct {
+struct PCIVPBState {
     PCIHostState parent_obj;
 
     qemu_irq irq[4];
@@ -100,7 +101,8 @@ typedef struct {
     uint32_t selfid;
     uint32_t flags;
     uint8_t irq_mapping;
-} PCIVPBState;
+};
+typedef struct PCIVPBState PCIVPBState;
 
 static void pci_vpb_update_window(PCIVPBState *s, int i)
 {

@@ -16,9 +16,12 @@
 #include "migration/vmstate.h"
 #include "hw/hyperv/vmbus-proto.h"
 #include "qemu/uuid.h"
+#include "qom/object.h"
 
 #define TYPE_VMBUS_DEVICE "vmbus-dev"
 
+typedef struct VMBusDevice VMBusDevice;
+typedef struct VMBusDeviceClass VMBusDeviceClass;
 #define VMBUS_DEVICE(obj) \
     OBJECT_CHECK(VMBusDevice, (obj), TYPE_VMBUS_DEVICE)
 #define VMBUS_DEVICE_CLASS(klass) \
@@ -44,11 +47,10 @@ typedef struct VMBusChannel VMBusChannel;
  * Base class for VMBus devices.  Includes one or more channels.  Identified by
  * class GUID and instance GUID.
  */
-typedef struct VMBusDevice VMBusDevice;
 
 typedef void(*VMBusChannelNotifyCb)(struct VMBusChannel *chan);
 
-typedef struct VMBusDeviceClass {
+struct VMBusDeviceClass {
     DeviceClass parent;
 
     QemuUUID classid;
@@ -80,7 +82,7 @@ typedef struct VMBusDeviceClass {
      * side, when there's work to do with the data in the channel ring buffers.
      */
     VMBusChannelNotifyCb chan_notify_cb;
-} VMBusDeviceClass;
+};
 
 struct VMBusDevice {
     DeviceState parent;

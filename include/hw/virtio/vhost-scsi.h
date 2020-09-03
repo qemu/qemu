@@ -17,6 +17,7 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-scsi-common.h"
+#include "qom/object.h"
 
 enum vhost_scsi_vq_list {
     VHOST_SCSI_VQ_CONTROL = 0,
@@ -25,11 +26,12 @@ enum vhost_scsi_vq_list {
 };
 
 #define TYPE_VHOST_SCSI "vhost-scsi"
+typedef struct VHostSCSI VHostSCSI;
 #define VHOST_SCSI(obj) \
         OBJECT_CHECK(VHostSCSI, (obj), TYPE_VHOST_SCSI)
 
-typedef struct VHostSCSI {
+struct VHostSCSI {
     VHostSCSICommon parent_obj;
-} VHostSCSI;
+};
 
 #endif

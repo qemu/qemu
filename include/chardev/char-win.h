@@ -25,8 +25,9 @@
 #define CHAR_WIN_H
 
 #include "chardev/char.h"
+#include "qom/object.h"
 
-typedef struct {
+struct WinChardev {
     Chardev parent;
 
     bool keep_open; /* console do not close file */
@@ -36,7 +37,8 @@ typedef struct {
 
     /* Protected by the Chardev chr_write_lock.  */
     OVERLAPPED osend;
-} WinChardev;
+};
+typedef struct WinChardev WinChardev;
 
 #define NSENDBUF 2048
 #define NRECVBUF 2048

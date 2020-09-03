@@ -26,6 +26,7 @@
 
 #define TYPE_NMI "nmi"
 
+typedef struct NMIClass NMIClass;
 #define NMI_CLASS(klass) \
      OBJECT_CLASS_CHECK(NMIClass, (klass), TYPE_NMI)
 #define NMI_GET_CLASS(obj) \
@@ -35,11 +36,11 @@
 
 typedef struct NMIState NMIState;
 
-typedef struct NMIClass {
+struct NMIClass {
     InterfaceClass parent_class;
 
     void (*nmi_monitor_handler)(NMIState *n, int cpu_index, Error **errp);
-} NMIClass;
+};
 
 void nmi_monitor_handle(int cpu_index, Error **errp);
 

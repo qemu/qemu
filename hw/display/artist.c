@@ -22,8 +22,10 @@
 #include "ui/console.h"
 #include "trace.h"
 #include "framebuffer.h"
+#include "qom/object.h"
 
 #define TYPE_ARTIST "artist"
+typedef struct ARTISTState ARTISTState;
 #define ARTIST(obj) OBJECT_CHECK(ARTISTState, (obj), TYPE_ARTIST)
 
 #ifdef HOST_WORDS_BIGENDIAN
@@ -40,7 +42,7 @@ struct vram_buffer {
     unsigned int height;
 };
 
-typedef struct ARTISTState {
+struct ARTISTState {
     SysBusDevice parent_obj;
 
     QemuConsole *con;
@@ -103,7 +105,7 @@ typedef struct ARTISTState {
     uint32_t font_write_pos_y;
 
     int draw_line_pattern;
-} ARTISTState;
+};
 
 typedef enum {
     ARTIST_BUFFER_AP = 1,

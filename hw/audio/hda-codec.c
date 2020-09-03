@@ -26,6 +26,7 @@
 #include "intel-hda-defs.h"
 #include "audio/audio.h"
 #include "trace.h"
+#include "qom/object.h"
 
 /* -------------------------------------------------------------------------- */
 

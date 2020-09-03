@@ -30,6 +30,7 @@
 #include "chardev/char-fe.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 enum {
     R_RXTX = 0,
@@ -57,6 +58,7 @@ enum {
 };
 
 #define TYPE_MILKYMIST_UART "milkymist-uart"
+typedef struct MilkymistUartState MilkymistUartState;
 #define MILKYMIST_UART(obj) \
     OBJECT_CHECK(MilkymistUartState, (obj), TYPE_MILKYMIST_UART)
 
@@ -69,7 +71,6 @@ struct MilkymistUartState {
 
     uint32_t regs[R_MAX];
 };
-typedef struct MilkymistUartState MilkymistUartState;
 
 static void uart_update_irq(MilkymistUartState *s)
 {

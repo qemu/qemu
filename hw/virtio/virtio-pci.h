@@ -17,6 +17,7 @@
 
 #include "hw/pci/msi.h"
 #include "hw/virtio/virtio-bus.h"
+#include "qom/object.h"
 
 typedef struct VirtIOPCIProxy VirtIOPCIProxy;
 
@@ -94,6 +95,7 @@ typedef struct {
  * virtio-pci: This is the PCIDevice which has a virtio-pci-bus.
  */
 #define TYPE_VIRTIO_PCI "virtio-pci"
+typedef struct VirtioPCIClass VirtioPCIClass;
 #define VIRTIO_PCI_GET_CLASS(obj) \
         OBJECT_GET_CLASS(VirtioPCIClass, obj, TYPE_VIRTIO_PCI)
 #define VIRTIO_PCI_CLASS(klass) \
@@ -101,11 +103,11 @@ typedef struct {
 #define VIRTIO_PCI(obj) \
         OBJECT_CHECK(VirtIOPCIProxy, (obj), TYPE_VIRTIO_PCI)
 
-typedef struct VirtioPCIClass {
+struct VirtioPCIClass {
     PCIDeviceClass parent_class;
     DeviceRealize parent_dc_realize;
     void (*realize)(VirtIOPCIProxy *vpci_dev, Error **errp);
-} VirtioPCIClass;
+};
 
 typedef struct VirtIOPCIRegion {
     MemoryRegion mr;

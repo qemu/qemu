@@ -2,6 +2,7 @@
 #define QEMU_I2C_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 /* The QEMU I2C implementation only supports simple transfers that complete
    immediately.  It does not support slave devices that need to be able to
@@ -18,6 +19,7 @@ enum i2c_event {
 typedef struct I2CSlave I2CSlave;
 
 #define TYPE_I2C_SLAVE "i2c-slave"
+typedef struct I2CSlaveClass I2CSlaveClass;
 #define I2C_SLAVE(obj) \
      OBJECT_CHECK(I2CSlave, (obj), TYPE_I2C_SLAVE)
 #define I2C_SLAVE_CLASS(klass) \
@@ -25,7 +27,7 @@ typedef struct I2CSlave I2CSlave;
 #define I2C_SLAVE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(I2CSlaveClass, (obj), TYPE_I2C_SLAVE)
 
-typedef struct I2CSlaveClass {
+struct I2CSlaveClass {
     DeviceClass parent_class;
 
     /* Master to slave. Returns non-zero for a NAK, 0 for success. */
@@ -43,7 +45,7 @@ typedef struct I2CSlaveClass {
      * return code is not used and should be zero.
      */
     int (*event)(I2CSlave *s, enum i2c_event event);
-} I2CSlaveClass;
+};
 
 struct I2CSlave {
     DeviceState qdev;

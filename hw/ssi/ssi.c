@@ -17,6 +17,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 struct SSIBus {
     BusState parent_obj;

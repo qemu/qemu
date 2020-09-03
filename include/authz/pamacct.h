@@ -22,10 +22,13 @@
 #define QAUTHZ_PAMACCT_H
 
 #include "authz/base.h"
+#include "qom/object.h"
 
 
 #define TYPE_QAUTHZ_PAM "authz-pam"
 
+typedef struct QAuthZPAM QAuthZPAM;
+typedef struct QAuthZPAMClass QAuthZPAMClass;
 #define QAUTHZ_PAM_CLASS(klass) \
      OBJECT_CLASS_CHECK(QAuthZPAMClass, (klass), \
                         TYPE_QAUTHZ_PAM)
@@ -36,8 +39,6 @@
      OBJECT_CHECK(QAuthZPAM, (obj), \
                   TYPE_QAUTHZ_PAM)
 
-typedef struct QAuthZPAM QAuthZPAM;
-typedef struct QAuthZPAMClass QAuthZPAMClass;
 
 
 /**

@@ -46,6 +46,7 @@
 #include "trace.h"
 
 #include <libfdt.h>
+#include "qom/object.h"
 
 /*
  * Virtual SCSI device
@@ -90,14 +91,15 @@ typedef struct vscsi_req {
 } vscsi_req;
 
 #define TYPE_VIO_SPAPR_VSCSI_DEVICE "spapr-vscsi"
+typedef struct VSCSIState VSCSIState;
 #define VIO_SPAPR_VSCSI_DEVICE(obj) \
      OBJECT_CHECK(VSCSIState, (obj), TYPE_VIO_SPAPR_VSCSI_DEVICE)
 
-typedef struct {
+struct VSCSIState {
     SpaprVioDevice vdev;
     SCSIBus bus;
     vscsi_req reqs[VSCSI_REQ_LIMIT];
-} VSCSIState;
+};
 
 static union viosrp_iu *req_iu(vscsi_req *req)
 {

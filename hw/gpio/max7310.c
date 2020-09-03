@@ -14,11 +14,13 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define TYPE_MAX7310 "max7310"
+typedef struct MAX7310State MAX7310State;
 #define MAX7310(obj) OBJECT_CHECK(MAX7310State, (obj), TYPE_MAX7310)
 
-typedef struct MAX7310State {
+struct MAX7310State {
     I2CSlave parent_obj;
 
     int i2c_command_byte;
@@ -31,7 +33,7 @@ typedef struct MAX7310State {
     uint8_t command;
     qemu_irq handler[8];
     qemu_irq *gpio_in;
-} MAX7310State;
+};
 
 static void max7310_reset(DeviceState *dev)
 {

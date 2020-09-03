@@ -24,11 +24,13 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define TYPE_MPC8XXX_GPIO "mpc8xxx_gpio"
+typedef struct MPC8XXXGPIOState MPC8XXXGPIOState;
 #define MPC8XXX_GPIO(obj) OBJECT_CHECK(MPC8XXXGPIOState, (obj), TYPE_MPC8XXX_GPIO)
 
-typedef struct MPC8XXXGPIOState {
+struct MPC8XXXGPIOState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -41,7 +43,7 @@ typedef struct MPC8XXXGPIOState {
     uint32_t ier;
     uint32_t imr;
     uint32_t icr;
-} MPC8XXXGPIOState;
+};
 
 static const VMStateDescription vmstate_mpc8xxx_gpio = {
     .name = "mpc8xxx_gpio",

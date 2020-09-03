@@ -27,6 +27,7 @@
 
 #include "exec/memory.h"
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 typedef struct AUXBus AUXBus;
 typedef struct AUXSlave AUXSlave;

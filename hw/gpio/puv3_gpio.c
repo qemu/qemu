@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
@@ -18,9 +19,10 @@
 #include "qemu/log.h"
 
 #define TYPE_PUV3_GPIO "puv3_gpio"
+typedef struct PUV3GPIOState PUV3GPIOState;
 #define PUV3_GPIO(obj) OBJECT_CHECK(PUV3GPIOState, (obj), TYPE_PUV3_GPIO)
 
-typedef struct PUV3GPIOState {
+struct PUV3GPIOState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -29,7 +31,7 @@ typedef struct PUV3GPIOState {
     uint32_t reg_GPLR;
     uint32_t reg_GPDR;
     uint32_t reg_GPIR;
-} PUV3GPIOState;
+};
 
 static uint64_t puv3_gpio_read(void *opaque, hwaddr offset,
         unsigned size)

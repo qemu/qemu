@@ -31,6 +31,7 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include <math.h>
+#include "qom/object.h"
 
 /* #define TRACE_EXEC */
 
@@ -120,6 +121,7 @@ static const char *opcode_to_str[] = {
 #endif
 
 #define TYPE_MILKYMIST_PFPU "milkymist-pfpu"
+typedef struct MilkymistPFPUState MilkymistPFPUState;
 #define MILKYMIST_PFPU(obj) \
     OBJECT_CHECK(MilkymistPFPUState, (obj), TYPE_MILKYMIST_PFPU)
 
@@ -137,7 +139,6 @@ struct MilkymistPFPUState {
     int output_queue_pos;
     uint32_t output_queue[MAX_LATENCY];
 };
-typedef struct MilkymistPFPUState MilkymistPFPUState;
 
 static inline uint32_t
 get_dma_address(uint32_t base, uint32_t x, uint32_t y)

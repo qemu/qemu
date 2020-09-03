@@ -23,6 +23,7 @@
 
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
+#include "qom/object.h"
 
 #define TYPE_PCIE_PORT "pcie-port"
 #define PCIE_PORT(obj) OBJECT_CHECK(PCIEPort, (obj), TYPE_PCIE_PORT)
@@ -67,12 +68,13 @@ int pcie_chassis_add_slot(struct PCIESlot *slot);
 void pcie_chassis_del_slot(PCIESlot *s);
 
 #define TYPE_PCIE_ROOT_PORT         "pcie-root-port-base"
+typedef struct PCIERootPortClass PCIERootPortClass;
 #define PCIE_ROOT_PORT_CLASS(klass) \
      OBJECT_CLASS_CHECK(PCIERootPortClass, (klass), TYPE_PCIE_ROOT_PORT)
 #define PCIE_ROOT_PORT_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PCIERootPortClass, (obj), TYPE_PCIE_ROOT_PORT)
 
-typedef struct PCIERootPortClass {
+struct PCIERootPortClass {
     PCIDeviceClass parent_class;
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
@@ -86,6 +88,6 @@ typedef struct PCIERootPortClass {
     int ssvid_offset;
     int acs_offset;    /* If nonzero, optional ACS capability offset */
     int ssid;
-} PCIERootPortClass;
+};
 
 #endif /* QEMU_PCIE_PORT_H */

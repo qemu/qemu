@@ -27,6 +27,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/ssi/ssi.h"
+#include "qom/object.h"
 
 #define STM_SPI_CR1     0x00
 #define STM_SPI_CR2     0x04
@@ -44,10 +45,11 @@
 #define STM_SPI_SR_RXNE   1
 
 #define TYPE_STM32F2XX_SPI "stm32f2xx-spi"
+typedef struct STM32F2XXSPIState STM32F2XXSPIState;
 #define STM32F2XX_SPI(obj) \
     OBJECT_CHECK(STM32F2XXSPIState, (obj), TYPE_STM32F2XX_SPI)
 
-typedef struct {
+struct STM32F2XXSPIState {
     /* <private> */
     SysBusDevice parent_obj;
 
@@ -66,6 +68,6 @@ typedef struct {
 
     qemu_irq irq;
     SSIBus *ssi;
-} STM32F2XXSPIState;
+};
 
 #endif /* HW_STM32F2XX_SPI_H */

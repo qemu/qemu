@@ -27,15 +27,17 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "chardev/char.h"
+#include "qom/object.h"
 
 #define BUF_SIZE 32
 
-typedef struct {
+struct TestdevChardev {
     Chardev parent;
 
     uint8_t in_buf[32];
     int in_buf_used;
-} TestdevChardev;
+};
+typedef struct TestdevChardev TestdevChardev;
 
 #define TYPE_CHARDEV_TESTDEV "chardev-testdev"
 #define TESTDEV_CHARDEV(obj)                                    \

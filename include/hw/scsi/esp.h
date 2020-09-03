@@ -3,6 +3,7 @@
 
 #include "hw/scsi/scsi.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 /* esp.c */
 #define ESP_MAX_DEVS 7
@@ -65,9 +66,10 @@ struct ESPState {
 };
 
 #define TYPE_ESP "esp"
+typedef struct SysBusESPState SysBusESPState;
 #define ESP_STATE(obj) OBJECT_CHECK(SysBusESPState, (obj), TYPE_ESP)
 
-typedef struct {
+struct SysBusESPState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -76,7 +78,7 @@ typedef struct {
     MemoryRegion pdma;
     uint32_t it_shift;
     ESPState esp;
-} SysBusESPState;
+};
 
 #define ESP_TCLO   0x0
 #define ESP_TCMID  0x1

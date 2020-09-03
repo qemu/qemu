@@ -13,20 +13,22 @@
 #define HW_ARM_GICV3_H
 
 #include "arm_gicv3_common.h"
+#include "qom/object.h"
 
 #define TYPE_ARM_GICV3 "arm-gicv3"
+typedef struct ARMGICv3Class ARMGICv3Class;
 #define ARM_GICV3(obj) OBJECT_CHECK(GICv3State, (obj), TYPE_ARM_GICV3)
 #define ARM_GICV3_CLASS(klass) \
      OBJECT_CLASS_CHECK(ARMGICv3Class, (klass), TYPE_ARM_GICV3)
 #define ARM_GICV3_GET_CLASS(obj) \
      OBJECT_GET_CLASS(ARMGICv3Class, (obj), TYPE_ARM_GICV3)
 
-typedef struct ARMGICv3Class {
+struct ARMGICv3Class {
     /*< private >*/
     ARMGICv3CommonClass parent_class;
     /*< public >*/
 
     DeviceRealize parent_realize;
-} ARMGICv3Class;
+};
 
 #endif

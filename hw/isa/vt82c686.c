@@ -27,6 +27,7 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
+#include "qom/object.h"
 
 /* #define DEBUG_VT82C686B */
 
@@ -42,11 +43,12 @@ typedef struct SuperIOConfig {
     uint8_t data;
 } SuperIOConfig;
 
-typedef struct VT82C686BState {
+struct VT82C686BState {
     PCIDevice dev;
     MemoryRegion superio;
     SuperIOConfig superio_conf;
-} VT82C686BState;
+};
+typedef struct VT82C686BState VT82C686BState;
 
 #define TYPE_VT82C686B_DEVICE "VT82C686B"
 #define VT82C686B_DEVICE(obj) \
@@ -159,22 +161,25 @@ static void vt82c686b_write_config(PCIDevice *d, uint32_t address,
 
 #define ACPI_DBG_IO_ADDR  0xb044
 
-typedef struct VT686PMState {
+struct VT686PMState {
     PCIDevice dev;
     MemoryRegion io;
     ACPIREGS ar;
     APMState apm;
     PMSMBus smb;
     uint32_t smb_io_base;
-} VT686PMState;
+};
+typedef struct VT686PMState VT686PMState;
 
-typedef struct VT686AC97State {
+struct VT686AC97State {
     PCIDevice dev;
-} VT686AC97State;
+};
+typedef struct VT686AC97State VT686AC97State;
 
-typedef struct VT686MC97State {
+struct VT686MC97State {
     PCIDevice dev;
-} VT686MC97State;
+};
+typedef struct VT686MC97State VT686MC97State;
 
 #define TYPE_VT82C686B_PM_DEVICE "VT82C686B_PM"
 #define VT82C686B_PM_DEVICE(obj) \

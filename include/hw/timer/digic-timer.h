@@ -20,8 +20,10 @@
 
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
+#include "qom/object.h"
 
 #define TYPE_DIGIC_TIMER "digic-timer"
+typedef struct DigicTimerState DigicTimerState;
 #define DIGIC_TIMER(obj) OBJECT_CHECK(DigicTimerState, (obj), TYPE_DIGIC_TIMER)
 
 #define DIGIC_TIMER_CONTROL 0x00
@@ -30,7 +32,7 @@
 #define DIGIC_TIMER_RELVALUE 0x08
 #define DIGIC_TIMER_VALUE 0x0c
 
-typedef struct DigicTimerState {
+struct DigicTimerState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -40,6 +42,6 @@ typedef struct DigicTimerState {
 
     uint32_t control;
     uint32_t relvalue;
-} DigicTimerState;
+};
 
 #endif /* HW_TIMER_DIGIC_TIMER_H */

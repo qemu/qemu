@@ -22,6 +22,7 @@
 #include "sysemu/block-backend.h"
 #include "qapi/visitor.h"
 #include "qemu/cutils.h"
+#include "qom/object.h"
 
 //#define DEBUG_MSD
 
@@ -50,7 +51,7 @@ struct usb_msd_csw {
     uint8_t status;
 };
 
-typedef struct {
+struct MSDState {
     USBDevice dev;
     enum USBMSDMode mode;
     uint32_t scsi_off;
@@ -65,7 +66,8 @@ typedef struct {
     BlockConf conf;
     uint32_t removable;
     SCSIDevice *scsi_dev;
-} MSDState;
+};
+typedef struct MSDState MSDState;
 
 #define TYPE_USB_STORAGE "usb-storage-dev"
 #define USB_STORAGE_DEV(obj) OBJECT_CHECK(MSDState, (obj), TYPE_USB_STORAGE)

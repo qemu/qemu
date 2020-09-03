@@ -24,12 +24,13 @@
 #include "io/channel.h"
 #include "io/task.h"
 #include "qemu/sockets.h"
+#include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL_SOCKET "qio-channel-socket"
+typedef struct QIOChannelSocket QIOChannelSocket;
 #define QIO_CHANNEL_SOCKET(obj)                                     \
     OBJECT_CHECK(QIOChannelSocket, (obj), TYPE_QIO_CHANNEL_SOCKET)
 
-typedef struct QIOChannelSocket QIOChannelSocket;
 
 /**
  * QIOChannelSocket:

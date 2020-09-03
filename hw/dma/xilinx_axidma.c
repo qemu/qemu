@@ -35,6 +35,7 @@
 
 #include "sysemu/dma.h"
 #include "hw/stream.h"
+#include "qom/object.h"
 
 #define D(x)
 
@@ -42,9 +43,11 @@
 #define TYPE_XILINX_AXI_DMA_DATA_STREAM "xilinx-axi-dma-data-stream"
 #define TYPE_XILINX_AXI_DMA_CONTROL_STREAM "xilinx-axi-dma-control-stream"
 
+typedef struct XilinxAXIDMA XilinxAXIDMA;
 #define XILINX_AXI_DMA(obj) \
      OBJECT_CHECK(XilinxAXIDMA, (obj), TYPE_XILINX_AXI_DMA)
 
+typedef struct XilinxAXIDMAStreamSlave XilinxAXIDMAStreamSlave;
 #define XILINX_AXI_DMA_DATA_STREAM(obj) \
      OBJECT_CHECK(XilinxAXIDMAStreamSlave, (obj),\
      TYPE_XILINX_AXI_DMA_DATA_STREAM)
@@ -62,8 +65,6 @@
 #define CONTROL_PAYLOAD_WORDS 5
 #define CONTROL_PAYLOAD_SIZE (CONTROL_PAYLOAD_WORDS * (sizeof(uint32_t)))
 
-typedef struct XilinxAXIDMA XilinxAXIDMA;
-typedef struct XilinxAXIDMAStreamSlave XilinxAXIDMAStreamSlave;
 
 enum {
     DMACR_RUNSTOP = 1,

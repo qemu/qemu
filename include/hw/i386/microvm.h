@@ -24,6 +24,7 @@
 
 #include "hw/boards.h"
 #include "hw/i386/x86.h"
+#include "qom/object.h"
 
 /* Platform virtio definitions */
 #define VIRTIO_MMIO_BASE      0xfeb00000
@@ -39,13 +40,14 @@
 #define MICROVM_MACHINE_OPTION_ROMS         "x-option-roms"
 #define MICROVM_MACHINE_AUTO_KERNEL_CMDLINE "auto-kernel-cmdline"
 
-typedef struct {
+struct MicrovmMachineClass {
     X86MachineClass parent;
     HotplugHandler *(*orig_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
-} MicrovmMachineClass;
+};
+typedef struct MicrovmMachineClass MicrovmMachineClass;
 
-typedef struct {
+struct MicrovmMachineState {
     X86MachineState parent;
 
     /* Machine type options */
@@ -58,7 +60,8 @@ typedef struct {
 
     /* Machine state */
     bool kernel_cmdline_fixed;
-} MicrovmMachineState;
+};
+typedef struct MicrovmMachineState MicrovmMachineState;
 
 #define TYPE_MICROVM_MACHINE   MACHINE_TYPE_NAME("microvm")
 #define MICROVM_MACHINE(obj) \

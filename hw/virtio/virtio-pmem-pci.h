@@ -16,6 +16,7 @@
 
 #include "hw/virtio/virtio-pci.h"
 #include "hw/virtio/virtio-pmem.h"
+#include "qom/object.h"
 
 typedef struct VirtIOPMEMPCI VirtIOPMEMPCI;
 

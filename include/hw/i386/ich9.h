@@ -11,6 +11,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9.h"
 #include "hw/pci/pci_bus.h"
+#include "qom/object.h"
 
 void ich9_lpc_set_irq(void *opaque, int irq_num, int level);
 int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx);
@@ -23,10 +24,11 @@ void ich9_generate_smi(void);
 #define ICH9_CC_SIZE (16 * 1024) /* 16KB. Chipset configuration registers */
 
 #define TYPE_ICH9_LPC_DEVICE "ICH9-LPC"
+typedef struct ICH9LPCState ICH9LPCState;
 #define ICH9_LPC_DEVICE(obj) \
      OBJECT_CHECK(ICH9LPCState, (obj), TYPE_ICH9_LPC_DEVICE)
 
-typedef struct ICH9LPCState {
+struct ICH9LPCState {
     /* ICH9 LPC PCI to ISA bridge */
     PCIDevice d;
 
@@ -77,7 +79,7 @@ typedef struct ICH9LPCState {
     Notifier machine_ready;
 
     qemu_irq gsi[GSI_NUM_PINS];
-} ICH9LPCState;
+};
 
 #define Q35_MASK(bit, ms_bit, ls_bit) \
 ((uint##bit##_t)(((1ULL << ((ms_bit) + 1)) - 1) & ~((1ULL << ls_bit) - 1)))

@@ -28,9 +28,10 @@
 #include "hw/pci/pci.h"
 #include "hw/sysbus.h"
 #include "hw/sd/sd.h"
+#include "qom/object.h"
 
 /* SD/MMC host controller state */
-typedef struct SDHCIState {
+struct SDHCIState {
     /*< private >*/
     union {
         PCIDevice pcidev;
@@ -98,7 +99,8 @@ typedef struct SDHCIState {
     uint8_t sd_spec_version;
     uint8_t uhs_mode;
     uint8_t vendor;        /* For vendor specific functionality */
-} SDHCIState;
+};
+typedef struct SDHCIState SDHCIState;
 
 #define SDHCI_VENDOR_NONE       0
 #define SDHCI_VENDOR_IMX        1

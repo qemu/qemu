@@ -12,6 +12,7 @@
 #include "hw/block/block.h"
 #include "hw/block/dataplane/xen-block.h"
 #include "sysemu/iothread.h"
+#include "qom/object.h"
 
 typedef enum XenBlockVdevType {
     XEN_BLOCK_VDEV_TYPE_INVALID,
@@ -46,7 +47,7 @@ typedef struct XenBlockIOThread {
     char *id;
 } XenBlockIOThread;
 
-typedef struct XenBlockDevice {
+struct XenBlockDevice {
     XenDevice xendev;
     XenBlockProperties props;
     const char *device_type;
@@ -54,18 +55,20 @@ typedef struct XenBlockDevice {
     XenBlockDataPlane *dataplane;
     XenBlockDrive *drive;
     XenBlockIOThread *iothread;
-} XenBlockDevice;
+};
+typedef struct XenBlockDevice XenBlockDevice;
 
 typedef void (*XenBlockDeviceRealize)(XenBlockDevice *blockdev, Error **errp);
 typedef void (*XenBlockDeviceUnrealize)(XenBlockDevice *blockdev);
 
-typedef struct XenBlockDeviceClass {
+struct XenBlockDeviceClass {
     /*< private >*/
     XenDeviceClass parent_class;
     /*< public >*/
     XenBlockDeviceRealize realize;
     XenBlockDeviceUnrealize unrealize;
-} XenBlockDeviceClass;
+};
+typedef struct XenBlockDeviceClass XenBlockDeviceClass;
 
 #define TYPE_XEN_BLOCK_DEVICE  "xen-block"
 #define XEN_BLOCK_DEVICE(obj) \
@@ -75,17 +78,19 @@ typedef struct XenBlockDeviceClass {
 #define XEN_BLOCK_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(XenBlockDeviceClass, (obj), TYPE_XEN_BLOCK_DEVICE)
 
-typedef struct XenDiskDevice {
+struct XenDiskDevice {
     XenBlockDevice blockdev;
-} XenDiskDevice;
+};
+typedef struct XenDiskDevice XenDiskDevice;
 
 #define TYPE_XEN_DISK_DEVICE  "xen-disk"
 #define XEN_DISK_DEVICE(obj) \
      OBJECT_CHECK(XenDiskDevice, (obj), TYPE_XEN_DISK_DEVICE)
 
-typedef struct XenCDRomDevice {
+struct XenCDRomDevice {
     XenBlockDevice blockdev;
-} XenCDRomDevice;
+};
+typedef struct XenCDRomDevice XenCDRomDevice;
 
 #define TYPE_XEN_CDROM_DEVICE  "xen-cdrom"
 #define XEN_CDROM_DEVICE(obj) \

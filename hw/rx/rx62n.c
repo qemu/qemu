@@ -31,6 +31,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
 #include "cpu.h"
+#include "qom/object.h"
 
 /*
  * RX62N Internal Memory
@@ -60,7 +61,7 @@
 #define RX62N_XTAL_MAX_HZ (14 * 1000 * 1000)
 #define RX62N_PCLK_MAX_HZ (50 * 1000 * 1000)
 
-typedef struct RX62NClass {
+struct RX62NClass {
     /*< private >*/
     DeviceClass parent_class;
     /*< public >*/
@@ -68,7 +69,8 @@ typedef struct RX62NClass {
     uint64_t ram_size;
     uint64_t rom_flash_size;
     uint64_t data_flash_size;
-} RX62NClass;
+};
+typedef struct RX62NClass RX62NClass;
 
 #define RX62N_MCU_CLASS(klass) \
     OBJECT_CLASS_CHECK(RX62NClass, (klass), TYPE_RX62N_MCU)

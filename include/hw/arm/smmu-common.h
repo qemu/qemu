@@ -21,6 +21,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
+#include "qom/object.h"
 
 #define SMMU_PCI_BUS_MAX      256
 #define SMMU_PCI_DEVFN_MAX    256
@@ -102,7 +103,7 @@ typedef struct SMMUIOTLBKey {
     uint8_t level;
 } SMMUIOTLBKey;
 
-typedef struct SMMUState {
+struct SMMUState {
     /* <private> */
     SysBusDevice  dev;
     const char *mrtypename;
@@ -116,9 +117,10 @@ typedef struct SMMUState {
     QLIST_HEAD(, SMMUDevice) devices_with_notifiers;
     uint8_t bus_num;
     PCIBus *primary_bus;
-} SMMUState;
+};
+typedef struct SMMUState SMMUState;
 
-typedef struct {
+struct SMMUBaseClass {
     /* <private> */
     SysBusDeviceClass parent_class;
 
@@ -126,7 +128,8 @@ typedef struct {
 
     DeviceRealize parent_realize;
 
-} SMMUBaseClass;
+};
+typedef struct SMMUBaseClass SMMUBaseClass;
 
 #define TYPE_ARM_SMMU "arm-smmu"
 #define ARM_SMMU(obj) OBJECT_CHECK(SMMUState, (obj), TYPE_ARM_SMMU)

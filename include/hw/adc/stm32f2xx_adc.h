@@ -26,6 +26,7 @@
 #define HW_STM32F2XX_ADC_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define ADC_SR    0x00
 #define ADC_CR1   0x04
@@ -58,10 +59,11 @@
 #define ADC_COMMON_ADDRESS 0x100
 
 #define TYPE_STM32F2XX_ADC "stm32f2xx-adc"
+typedef struct STM32F2XXADCState STM32F2XXADCState;
 #define STM32F2XX_ADC(obj) \
     OBJECT_CHECK(STM32F2XXADCState, (obj), TYPE_STM32F2XX_ADC)
 
-typedef struct {
+struct STM32F2XXADCState {
     /* <private> */
     SysBusDevice parent_obj;
 
@@ -84,6 +86,6 @@ typedef struct {
     uint32_t adc_dr;
 
     qemu_irq irq;
-} STM32F2XXADCState;
+};
 
 #endif /* HW_STM32F2XX_ADC_H */

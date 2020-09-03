@@ -15,14 +15,15 @@
 #include "crypto/tlscreds.h"
 
 #define TYPE_QCRYPTO_TLS_CIPHER_SUITES "tls-cipher-suites"
+typedef struct QCryptoTLSCipherSuites QCryptoTLSCipherSuites;
 #define QCRYPTO_TLS_CIPHER_SUITES(obj) \
     OBJECT_CHECK(QCryptoTLSCipherSuites, (obj), TYPE_QCRYPTO_TLS_CIPHER_SUITES)
 
-typedef struct QCryptoTLSCipherSuites {
+struct QCryptoTLSCipherSuites {
     /* <private> */
     QCryptoTLSCreds parent_obj;
     /* <public> */
-} QCryptoTLSCipherSuites;
+};
 
 /**
   * qcrypto_tls_cipher_suites_get_data:

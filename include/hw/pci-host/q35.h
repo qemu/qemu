@@ -27,16 +27,19 @@
 #include "hw/pci-host/pam.h"
 #include "qemu/units.h"
 #include "qemu/range.h"
+#include "qom/object.h"
 
 #define TYPE_Q35_HOST_DEVICE "q35-pcihost"
+typedef struct Q35PCIHost Q35PCIHost;
 #define Q35_HOST_DEVICE(obj) \
      OBJECT_CHECK(Q35PCIHost, (obj), TYPE_Q35_HOST_DEVICE)
 
 #define TYPE_MCH_PCI_DEVICE "mch"
+typedef struct MCHPCIState MCHPCIState;
 #define MCH_PCI_DEVICE(obj) \
      OBJECT_CHECK(MCHPCIState, (obj), TYPE_MCH_PCI_DEVICE)
 
-typedef struct MCHPCIState {
+struct MCHPCIState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -57,16 +60,16 @@ typedef struct MCHPCIState {
     uint64_t pci_hole64_size;
     uint32_t short_root_bus;
     uint16_t ext_tseg_mbytes;
-} MCHPCIState;
+};
 
-typedef struct Q35PCIHost {
+struct Q35PCIHost {
     /*< private >*/
     PCIExpressHost parent_obj;
     /*< public >*/
 
     bool pci_hole64_fix;
     MCHPCIState mch;
-} Q35PCIHost;
+};
 
 #define Q35_MASK(bit, ms_bit, ls_bit) \
 ((uint##bit##_t)(((1ULL << ((ms_bit) + 1)) - 1) & ~((1ULL << ls_bit) - 1)))

@@ -38,6 +38,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #ifdef __linux
 #include <scsi/sg.h>
@@ -54,6 +55,8 @@
 
 #define TYPE_SCSI_DISK_BASE         "scsi-disk-base"
 
+typedef struct SCSIDiskClass SCSIDiskClass;
+typedef struct SCSIDiskState SCSIDiskState;
 #define SCSI_DISK_BASE(obj) \
      OBJECT_CHECK(SCSIDiskState, (obj), TYPE_SCSI_DISK_BASE)
 #define SCSI_DISK_BASE_CLASS(klass) \
@@ -61,13 +64,13 @@
 #define SCSI_DISK_BASE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(SCSIDiskClass, (obj), TYPE_SCSI_DISK_BASE)
 
-typedef struct SCSIDiskClass {
+struct SCSIDiskClass {
     SCSIDeviceClass parent_class;
     DMAIOFunc       *dma_readv;
     DMAIOFunc       *dma_writev;
     bool            (*need_fua_emulation)(SCSICommand *cmd);
     void            (*update_sense)(SCSIRequest *r);
-} SCSIDiskClass;
+};
 
 typedef struct SCSIDiskReq {
     SCSIRequest req;
@@ -87,8 +90,7 @@ typedef struct SCSIDiskReq {
 #define SCSI_DISK_F_DPOFUA                1
 #define SCSI_DISK_F_NO_REMOVABLE_DEVOPS   2
 
-typedef struct SCSIDiskState
-{
+struct SCSIDiskState {
     SCSIDevice qdev;
     uint32_t features;
     bool media_changed;
@@ -113,7 +115,7 @@ typedef struct SCSIDiskState
      * 0xffff        - reserved
      */
     uint16_t rotation_rate;
-} SCSIDiskState;
+};
 
 static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed);
 

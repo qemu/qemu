@@ -18,6 +18,7 @@ typedef enum {
 
 #define TYPE_ACPI_DEVICE_IF "acpi-device-interface"
 
+typedef struct AcpiDeviceIfClass AcpiDeviceIfClass;
 #define ACPI_DEVICE_IF_CLASS(klass) \
      OBJECT_CLASS_CHECK(AcpiDeviceIfClass, (klass), \
                         TYPE_ACPI_DEVICE_IF)
@@ -48,7 +49,7 @@ void acpi_send_event(DeviceState *dev, AcpiEventStatusBits event);
  * knowledge about internals of actual device that implements
  * ACPI interface.
  */
-typedef struct AcpiDeviceIfClass {
+struct AcpiDeviceIfClass {
     /* <private> */
     InterfaceClass parent_class;
 
@@ -57,5 +58,5 @@ typedef struct AcpiDeviceIfClass {
     void (*send_event)(AcpiDeviceIf *adev, AcpiEventStatusBits ev);
     void (*madt_cpu)(AcpiDeviceIf *adev, int uid,
                      const CPUArchIdList *apic_ids, GArray *entry);
-} AcpiDeviceIfClass;
+};
 #endif

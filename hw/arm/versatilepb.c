@@ -26,6 +26,7 @@
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"
 #include "hw/sd/sd.h"
+#include "qom/object.h"
 
 #define VERSATILE_FLASH_ADDR 0x34000000
 #define VERSATILE_FLASH_SIZE (64 * 1024 * 1024)
@@ -34,10 +35,11 @@
 /* Primary interrupt controller.  */
 
 #define TYPE_VERSATILE_PB_SIC "versatilepb_sic"
+typedef struct vpb_sic_state vpb_sic_state;
 #define VERSATILE_PB_SIC(obj) \
     OBJECT_CHECK(vpb_sic_state, (obj), TYPE_VERSATILE_PB_SIC)
 
-typedef struct vpb_sic_state {
+struct vpb_sic_state {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -46,7 +48,7 @@ typedef struct vpb_sic_state {
     uint32_t pic_enable;
     qemu_irq parent[32];
     int irq;
-} vpb_sic_state;
+};
 
 static const VMStateDescription vmstate_vpb_sic = {
     .name = "versatilepb_sic",

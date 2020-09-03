@@ -22,13 +22,14 @@
 #define QCRYPTO_TLSCREDSANON_H
 
 #include "crypto/tlscreds.h"
+#include "qom/object.h"
 
 #define TYPE_QCRYPTO_TLS_CREDS_ANON "tls-creds-anon"
+typedef struct QCryptoTLSCredsAnon QCryptoTLSCredsAnon;
 #define QCRYPTO_TLS_CREDS_ANON(obj)                  \
     OBJECT_CHECK(QCryptoTLSCredsAnon, (obj), TYPE_QCRYPTO_TLS_CREDS_ANON)
 
 
-typedef struct QCryptoTLSCredsAnon QCryptoTLSCredsAnon;
 typedef struct QCryptoTLSCredsAnonClass QCryptoTLSCredsAnonClass;
 
 /**

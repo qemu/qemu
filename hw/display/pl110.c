@@ -17,6 +17,7 @@
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define PL110_CR_EN   0x001
 #define PL110_CR_BGR  0x100
@@ -48,9 +49,10 @@ enum pl110_version
 };
 
 #define TYPE_PL110 "pl110"
+typedef struct PL110State PL110State;
 #define PL110(obj) OBJECT_CHECK(PL110State, (obj), TYPE_PL110)
 
-typedef struct PL110State {
+struct PL110State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -73,7 +75,7 @@ typedef struct PL110State {
     uint32_t palette[256];
     uint32_t raw_palette[128];
     qemu_irq irq;
-} PL110State;
+};
 
 static int vmstate_pl110_post_load(void *opaque, int version_id);
 

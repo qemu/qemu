@@ -27,8 +27,10 @@
 
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
+#include "qom/object.h"
 
 #define TYPE_MSS_TIMER     "mss-timer"
+typedef struct MSSTimerState MSSTimerState;
 #define MSS_TIMER(obj)     OBJECT_CHECK(MSSTimerState, \
                               (obj), TYPE_MSS_TIMER)
 
@@ -52,12 +54,12 @@ struct Msf2Timer {
     qemu_irq irq;
 };
 
-typedef struct MSSTimerState {
+struct MSSTimerState {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
     uint32_t freq_hz;
     struct Msf2Timer timers[NUM_TIMERS];
-} MSSTimerState;
+};
 
 #endif /* HW_MSS_TIMER_H */

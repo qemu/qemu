@@ -19,9 +19,11 @@
 #include "qapi/visitor.h"
 #include "net/filter.h"
 #include "sysemu/replay.h"
+#include "qom/object.h"
 
 #define TYPE_FILTER_REPLAY "filter-replay"
 
+typedef struct NetFilterReplayState NetFilterReplayState;
 #define FILTER_REPLAY(obj) \
     OBJECT_CHECK(NetFilterReplayState, (obj), TYPE_FILTER_REPLAY)
 
@@ -29,7 +31,6 @@ struct NetFilterReplayState {
     NetFilterState nfs;
     ReplayNetState *rns;
 };
-typedef struct NetFilterReplayState NetFilterReplayState;
 
 static ssize_t filter_replay_receive_iov(NetFilterState *nf,
                                          NetClientState *sndr,

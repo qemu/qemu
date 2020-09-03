@@ -10,6 +10,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "virtio-pci.h"
+#include "qom/object.h"
 
 typedef struct VHostUserInputPCI VHostUserInputPCI;
 

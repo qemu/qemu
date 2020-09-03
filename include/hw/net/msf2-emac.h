@@ -26,15 +26,17 @@
 #include "exec/memory.h"
 #include "net/net.h"
 #include "net/eth.h"
+#include "qom/object.h"
 
 #define TYPE_MSS_EMAC "msf2-emac"
+typedef struct MSF2EmacState MSF2EmacState;
 #define MSS_EMAC(obj) \
     OBJECT_CHECK(MSF2EmacState, (obj), TYPE_MSS_EMAC)
 
 #define R_MAX         (0x1a0 / 4)
 #define PHY_MAX_REGS  32
 
-typedef struct MSF2EmacState {
+struct MSF2EmacState {
     SysBusDevice parent;
 
     MemoryRegion mmio;
@@ -50,4 +52,4 @@ typedef struct MSF2EmacState {
     uint16_t phy_regs[PHY_MAX_REGS];
 
     uint32_t regs[R_MAX];
-} MSF2EmacState;
+};
