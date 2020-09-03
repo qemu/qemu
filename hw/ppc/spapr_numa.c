@@ -72,6 +72,40 @@ int spapr_numa_fixup_cpu_dt(SpaprMachineState *spapr, void *fdt,
                        vcpu_assoc, sizeof(vcpu_assoc));
 }
 
+
+int spapr_numa_write_assoc_lookup_arrays(SpaprMachineState *spapr, void *fdt,
+                                         int offset)
+{
+    MachineState *machine = MACHINE(spapr);
+    int nb_numa_nodes = machine->numa_state->num_nodes;
+    int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
+    uint32_t *int_buf, *cur_index, buf_len;
+    int ret, i;
+
+    /* ibm,associativity-lookup-arrays */
+    buf_len = (nr_nodes * MAX_DISTANCE_REF_POINTS + 2) * sizeof(uint32_t);
+    cur_index = int_buf = g_malloc0(buf_len);
+    int_buf[0] = cpu_to_be32(nr_nodes);
+     /* Number of entries per associativity list */
+    int_buf[1] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
+    cur_index += 2;
+    for (i = 0; i < nr_nodes; i++) {
+        /*
+         * For the lookup-array we use the ibm,associativity array,
+         * from numa_assoc_array. without the first element (size).
+         */
+        uint32_t *associativity = spapr->numa_assoc_array[i];
+        memcpy(cur_index, ++associativity,
+               sizeof(uint32_t) * MAX_DISTANCE_REF_POINTS);
+        cur_index += MAX_DISTANCE_REF_POINTS;
+    }
+    ret = fdt_setprop(fdt, offset, "ibm,associativity-lookup-arrays", int_buf,
+                      (cur_index - int_buf) * sizeof(uint32_t));
+    g_free(int_buf);
+
+    return ret;
+}
+
 /*
  * Helper that writes ibm,associativity-reference-points and
  * max-associativity-domains in the RTAS pointed by @rtas
