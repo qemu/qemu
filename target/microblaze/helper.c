@@ -52,7 +52,7 @@ bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
-    struct microblaze_mmu_lookup lu;
+    MicroBlazeMMULookup lu;
     unsigned int hit;
     int prot;
 
@@ -235,7 +235,7 @@ hwaddr mb_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
     target_ulong vaddr, paddr = 0;
-    struct microblaze_mmu_lookup lu;
+    MicroBlazeMMULookup lu;
     int mmu_idx = cpu_mmu_index(env, false);
     unsigned int hit;
 

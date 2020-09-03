@@ -35,7 +35,7 @@ static unsigned int tlb_decode_size(unsigned int f)
 static void mmu_flush_idx(CPUMBState *env, unsigned int idx)
 {
     CPUState *cs = env_cpu(env);
-    struct microblaze_mmu *mmu = &env->mmu;
+    MicroBlazeMMU *mmu = &env->mmu;
     unsigned int tlb_size;
     uint32_t tlb_tag, end, t;
 
@@ -55,7 +55,7 @@ static void mmu_flush_idx(CPUMBState *env, unsigned int idx)
 
 static void mmu_change_pid(CPUMBState *env, unsigned int newpid) 
 {
-    struct microblaze_mmu *mmu = &env->mmu;
+    MicroBlazeMMU *mmu = &env->mmu;
     unsigned int i;
     uint32_t t;
 
@@ -73,8 +73,7 @@ static void mmu_change_pid(CPUMBState *env, unsigned int newpid)
 }
 
 /* rw - 0 = read, 1 = write, 2 = fetch.  */
-unsigned int mmu_translate(struct microblaze_mmu *mmu,
-                           struct microblaze_mmu_lookup *lu,
+unsigned int mmu_translate(MicroBlazeMMU *mmu, MicroBlazeMMULookup *lu,
                            target_ulong vaddr, int rw, int mmu_idx)
 {
     unsigned int i, hit = 0;
@@ -290,7 +289,7 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
             break;
         case MMU_R_TLBSX:
         {
-            struct microblaze_mmu_lookup lu;
+            MicroBlazeMMULookup lu;
             int hit;
 
             if (env->mmu.c_mmu_tlb_access <= 1) {
@@ -314,7 +313,7 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
    }
 }
 
-void mmu_init(struct microblaze_mmu *mmu)
+void mmu_init(MicroBlazeMMU *mmu)
 {
     int i;
     for (i = 0; i < ARRAY_SIZE(mmu->regs); i++) {

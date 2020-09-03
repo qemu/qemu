@@ -63,8 +63,7 @@
 
 #define TLB_ENTRIES    64
 
-struct microblaze_mmu
-{
+typedef struct {
     /* Data and tag brams.  */
     uint64_t rams[2][TLB_ENTRIES];
     /* We keep a separate ram for the tids to avoid the 48 bit tag width.  */
@@ -76,10 +75,9 @@ struct microblaze_mmu
     int c_mmu_tlb_access;
     int c_mmu_zones;
     uint64_t c_addr_mask; /* Mask to apply to physical addresses.  */
-};
+} MicroBlazeMMU;
 
-struct microblaze_mmu_lookup
-{
+typedef struct {
     uint32_t paddr;
     uint32_t vaddr;
     unsigned int size;
@@ -88,13 +86,12 @@ struct microblaze_mmu_lookup
     enum {
         ERR_PROT, ERR_MISS, ERR_HIT
     } err;
-};
+} MicroBlazeMMULookup;
 
-unsigned int mmu_translate(struct microblaze_mmu *mmu,
-                           struct microblaze_mmu_lookup *lu,
+unsigned int mmu_translate(MicroBlazeMMU *mmu, MicroBlazeMMULookup *lu,
                            target_ulong vaddr, int rw, int mmu_idx);
 uint32_t mmu_read(CPUMBState *env, bool ea, uint32_t rn);
 void mmu_write(CPUMBState *env, bool ea, uint32_t rn, uint32_t v);
-void mmu_init(struct microblaze_mmu *mmu);
+void mmu_init(MicroBlazeMMU *mmu);
 
 #endif
