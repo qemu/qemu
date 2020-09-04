@@ -293,13 +293,22 @@ struct CPUMBState {
 
 /*
  * Microblaze Configuration Settings
+ *
+ * Note that the structure is sorted by type and size to minimize holes.
  */
 typedef struct {
-    bool stackprot;
+    char *version;
+
     uint32_t base_vectors;
+    uint32_t pvr_user2;
+
     uint8_t addr_size;
     uint8_t use_fpu;
     uint8_t use_hw_mul;
+    uint8_t pvr_user1;
+    uint8_t pvr;
+
+    bool stackprot;
     bool use_barrel;
     bool use_div;
     bool use_msr_instr;
@@ -313,10 +322,6 @@ typedef struct {
     bool opcode_0_illegal;
     bool div_zero_exception;
     bool unaligned_exceptions;
-    uint8_t pvr_user1;
-    uint32_t pvr_user2;
-    char *version;
-    uint8_t pvr;
 } MicroBlazeCPUConfig;
 
 /**
