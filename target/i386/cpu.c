@@ -4180,9 +4180,6 @@ void x86_cpu_change_kvm_default(const char *prop, const char *value)
     assert(pv->prop);
 }
 
-static uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
-                                                   bool migratable_only);
-
 static bool lmce_supported(void)
 {
     uint64_t mce_cap = 0;
