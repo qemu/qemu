@@ -2015,7 +2015,7 @@ case "$meson" in
         fi
         meson="$python ${source_path}/meson/meson.py"
         ;;
-    *) meson=$(command -v meson) ;;
+    *) meson=$(command -v "$meson") ;;
 esac
 
 # Probe for ninja (used for compdb)
