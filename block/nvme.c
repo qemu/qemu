@@ -83,21 +83,23 @@ typedef struct {
 
 /* Memory mapped registers */
 typedef volatile struct {
-    uint64_t cap;
-    uint32_t vs;
-    uint32_t intms;
-    uint32_t intmc;
-    uint32_t cc;
-    uint32_t reserved0;
-    uint32_t csts;
-    uint32_t nssr;
-    uint32_t aqa;
-    uint64_t asq;
-    uint64_t acq;
-    uint32_t cmbloc;
-    uint32_t cmbsz;
-    uint8_t  reserved1[0xec0];
-    uint8_t  cmd_set_specfic[0x100];
+    struct {
+        uint64_t cap;
+        uint32_t vs;
+        uint32_t intms;
+        uint32_t intmc;
+        uint32_t cc;
+        uint32_t reserved0;
+        uint32_t csts;
+        uint32_t nssr;
+        uint32_t aqa;
+        uint64_t asq;
+        uint64_t acq;
+        uint32_t cmbloc;
+        uint32_t cmbsz;
+        uint8_t  reserved1[0xec0];
+        uint8_t  cmd_set_specfic[0x100];
+    } ctrl;
     uint32_t doorbells[];
 } NVMeRegs;
 
@@ -734,7 +736,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     /* Perform initialize sequence as described in NVMe spec "7.6.1
      * Initialization". */
 
-    cap = le64_to_cpu(s->regs->cap);
+    cap = le64_to_cpu(s->regs->ctrl.cap);
     if (!(cap & (1ULL << 37))) {
         error_setg(errp, "Device doesn't support NVMe command set");
         ret = -EINVAL;
@@ -747,10 +749,10 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     timeout_ms = MIN(500 * ((cap >> 24) & 0xFF), 30000);
 
     /* Reset device to get a clean state. */
-    s->regs->cc = cpu_to_le32(le32_to_cpu(s->regs->cc) & 0xFE);
+    s->regs->ctrl.cc = cpu_to_le32(le32_to_cpu(s->regs->ctrl.cc) & 0xFE);
     /* Wait for CSTS.RDY = 0. */
     deadline = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + timeout_ms * SCALE_MS;
-    while (le32_to_cpu(s->regs->csts) & 0x1) {
+    while (le32_to_cpu(s->regs->ctrl.csts) & 0x1) {
         if (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) > deadline) {
             error_setg(errp, "Timeout while waiting for device to reset (%"
                              PRId64 " ms)",
@@ -771,18 +773,18 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     }
     s->nr_queues = 1;
     QEMU_BUILD_BUG_ON(NVME_QUEUE_SIZE & 0xF000);
-    s->regs->aqa = cpu_to_le32((NVME_QUEUE_SIZE << 16) | NVME_QUEUE_SIZE);
-    s->regs->asq = cpu_to_le64(s->queues[INDEX_ADMIN]->sq.iova);
-    s->regs->acq = cpu_to_le64(s->queues[INDEX_ADMIN]->cq.iova);
+    s->regs->ctrl.aqa = cpu_to_le32((NVME_QUEUE_SIZE << 16) | NVME_QUEUE_SIZE);
+    s->regs->ctrl.asq = cpu_to_le64(s->queues[INDEX_ADMIN]->sq.iova);
+    s->regs->ctrl.acq = cpu_to_le64(s->queues[INDEX_ADMIN]->cq.iova);
 
     /* After setting up all control registers we can enable device now. */
-    s->regs->cc = cpu_to_le32((ctz32(NVME_CQ_ENTRY_BYTES) << 20) |
+    s->regs->ctrl.cc = cpu_to_le32((ctz32(NVME_CQ_ENTRY_BYTES) << 20) |
                               (ctz32(NVME_SQ_ENTRY_BYTES) << 16) |
                               0x1);
     /* Wait for CSTS.RDY = 1. */
     now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     deadline = now + timeout_ms * 1000000;
-    while (!(le32_to_cpu(s->regs->csts) & 0x1)) {
+    while (!(le32_to_cpu(s->regs->ctrl.csts) & 0x1)) {
         if (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) > deadline) {
             error_setg(errp, "Timeout while waiting for device to start (%"
                              PRId64 " ms)",
