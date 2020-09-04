@@ -1539,7 +1539,8 @@ static bool trans_mfs(DisasContext *dc, arg_mfs *arg)
 
     case 0x2000 ... 0x200c:
         tcg_gen_ld_i32(dest, cpu_env,
-                       offsetof(CPUMBState, pvr.regs[arg->rs - 0x2000]));
+                       offsetof(MicroBlazeCPU, cfg.pvr_regs[arg->rs - 0x2000])
+                       - offsetof(MicroBlazeCPU, env));
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid mfs reg 0x%x\n", arg->rs);

@@ -122,7 +122,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
 
     switch (cs->exception_index) {
     case EXCP_HW_EXCP:
-        if (!(env->pvr.regs[0] & PVR0_USE_EXC_MASK)) {
+        if (!(cpu->cfg.pvr_regs[0] & PVR0_USE_EXC_MASK)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "Exception raised on system without exceptions!\n");
             return;

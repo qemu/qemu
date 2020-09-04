@@ -285,10 +285,6 @@ struct CPUMBState {
     struct {} end_reset_fields;
 
     /* These fields are preserved on reset.  */
-
-    struct {
-        uint32_t regs[13];
-    } pvr;
 };
 
 /*
@@ -301,6 +297,7 @@ typedef struct {
 
     uint32_t base_vectors;
     uint32_t pvr_user2;
+    uint32_t pvr_regs[13];
 
     uint8_t addr_size;
     uint8_t use_fpu;

@@ -153,7 +153,6 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     CPUState *cs = CPU(dev);
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
-    CPUMBState *env = &cpu->env;
     uint8_t version_code = 0;
     const char *version;
     int i = 0;
@@ -173,16 +172,6 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 
     qemu_init_vcpu(cs);
 
-    env->pvr.regs[0] = PVR0_USE_EXC_MASK
-                       | PVR0_USE_ICACHE_MASK
-                       | PVR0_USE_DCACHE_MASK;
-    env->pvr.regs[2] = PVR2_D_OPB_MASK
-                        | PVR2_D_LMB_MASK
-                        | PVR2_I_OPB_MASK
-                        | PVR2_I_LMB_MASK
-                        | PVR2_FPU_EXC_MASK
-                        | 0;
-
     version = cpu->cfg.version ? cpu->cfg.version : DEFAULT_CPU_VERSION;
     for (i = 0; mb_cpu_lookup[i].name && version; i++) {
         if (strcmp(mb_cpu_lookup[i].name, version) == 0) {
@@ -195,46 +184,53 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
         qemu_log("Invalid MicroBlaze version number: %s\n", cpu->cfg.version);
     }
 
-    env->pvr.regs[0] |= (cpu->cfg.stackprot ? PVR0_SPROT_MASK : 0) |
-                        (cpu->cfg.use_fpu ? PVR0_USE_FPU_MASK : 0) |
-                        (cpu->cfg.use_hw_mul ? PVR0_USE_HW_MUL_MASK : 0) |
-                        (cpu->cfg.use_barrel ? PVR0_USE_BARREL_MASK : 0) |
-                        (cpu->cfg.use_div ? PVR0_USE_DIV_MASK : 0) |
-                        (cpu->cfg.use_mmu ? PVR0_USE_MMU_MASK : 0) |
-                        (cpu->cfg.endi ? PVR0_ENDI_MASK : 0) |
-                        (version_code << PVR0_VERSION_SHIFT) |
-                        (cpu->cfg.pvr == C_PVR_FULL ? PVR0_PVR_FULL_MASK : 0) |
-                        cpu->cfg.pvr_user1;
+    cpu->cfg.pvr_regs[0] =
+        (PVR0_USE_EXC_MASK |
+         PVR0_USE_ICACHE_MASK |
+         PVR0_USE_DCACHE_MASK |
+         (cpu->cfg.stackprot ? PVR0_SPROT_MASK : 0) |
+         (cpu->cfg.use_fpu ? PVR0_USE_FPU_MASK : 0) |
+         (cpu->cfg.use_hw_mul ? PVR0_USE_HW_MUL_MASK : 0) |
+         (cpu->cfg.use_barrel ? PVR0_USE_BARREL_MASK : 0) |
+         (cpu->cfg.use_div ? PVR0_USE_DIV_MASK : 0) |
+         (cpu->cfg.use_mmu ? PVR0_USE_MMU_MASK : 0) |
+         (cpu->cfg.endi ? PVR0_ENDI_MASK : 0) |
+         (version_code << PVR0_VERSION_SHIFT) |
+         (cpu->cfg.pvr == C_PVR_FULL ? PVR0_PVR_FULL_MASK : 0) |
+         cpu->cfg.pvr_user1);
 
-    env->pvr.regs[1] = cpu->cfg.pvr_user2;
-    env->pvr.regs[2] |= (cpu->cfg.use_fpu ? PVR2_USE_FPU_MASK : 0) |
-                        (cpu->cfg.use_fpu > 1 ? PVR2_USE_FPU2_MASK : 0) |
-                        (cpu->cfg.use_hw_mul ? PVR2_USE_HW_MUL_MASK : 0) |
-                        (cpu->cfg.use_hw_mul > 1 ? PVR2_USE_MUL64_MASK : 0) |
-                        (cpu->cfg.use_barrel ? PVR2_USE_BARREL_MASK : 0) |
-                        (cpu->cfg.use_div ? PVR2_USE_DIV_MASK : 0) |
-                        (cpu->cfg.use_msr_instr ? PVR2_USE_MSR_INSTR : 0) |
-                        (cpu->cfg.use_pcmp_instr ? PVR2_USE_PCMP_INSTR : 0) |
-                        (cpu->cfg.dopb_bus_exception ?
-                                                 PVR2_DOPB_BUS_EXC_MASK : 0) |
-                        (cpu->cfg.iopb_bus_exception ?
-                                                 PVR2_IOPB_BUS_EXC_MASK : 0) |
-                        (cpu->cfg.div_zero_exception ?
-                                                 PVR2_DIV_ZERO_EXC_MASK : 0) |
-                        (cpu->cfg.illegal_opcode_exception ?
-                                                PVR2_ILL_OPCODE_EXC_MASK : 0) |
-                        (cpu->cfg.unaligned_exceptions ?
-                                                PVR2_UNALIGNED_EXC_MASK : 0) |
-                        (cpu->cfg.opcode_0_illegal ?
-                                                 PVR2_OPCODE_0x0_ILL_MASK : 0);
+    cpu->cfg.pvr_regs[1] = cpu->cfg.pvr_user2;
 
-    env->pvr.regs[5] |= cpu->cfg.dcache_writeback ?
-                                        PVR5_DCACHE_WRITEBACK_MASK : 0;
+    cpu->cfg.pvr_regs[2] =
+        (PVR2_D_OPB_MASK |
+         PVR2_D_LMB_MASK |
+         PVR2_I_OPB_MASK |
+         PVR2_I_LMB_MASK |
+         PVR2_FPU_EXC_MASK |
+         (cpu->cfg.use_fpu ? PVR2_USE_FPU_MASK : 0) |
+         (cpu->cfg.use_fpu > 1 ? PVR2_USE_FPU2_MASK : 0) |
+         (cpu->cfg.use_hw_mul ? PVR2_USE_HW_MUL_MASK : 0) |
+         (cpu->cfg.use_hw_mul > 1 ? PVR2_USE_MUL64_MASK : 0) |
+         (cpu->cfg.use_barrel ? PVR2_USE_BARREL_MASK : 0) |
+         (cpu->cfg.use_div ? PVR2_USE_DIV_MASK : 0) |
+         (cpu->cfg.use_msr_instr ? PVR2_USE_MSR_INSTR : 0) |
+         (cpu->cfg.use_pcmp_instr ? PVR2_USE_PCMP_INSTR : 0) |
+         (cpu->cfg.dopb_bus_exception ? PVR2_DOPB_BUS_EXC_MASK : 0) |
+         (cpu->cfg.iopb_bus_exception ? PVR2_IOPB_BUS_EXC_MASK : 0) |
+         (cpu->cfg.div_zero_exception ? PVR2_DIV_ZERO_EXC_MASK : 0) |
+         (cpu->cfg.illegal_opcode_exception ? PVR2_ILL_OPCODE_EXC_MASK : 0) |
+         (cpu->cfg.unaligned_exceptions ? PVR2_UNALIGNED_EXC_MASK : 0) |
+         (cpu->cfg.opcode_0_illegal ? PVR2_OPCODE_0x0_ILL_MASK : 0));
 
-    env->pvr.regs[10] = 0x0c000000 | /* Default to spartan 3a dsp family.  */
-                        (cpu->cfg.addr_size - 32) << PVR10_ASIZE_SHIFT;
-    env->pvr.regs[11] = (cpu->cfg.use_mmu ? PVR11_USE_MMU : 0) |
-                        16 << 17;
+    cpu->cfg.pvr_regs[5] |=
+        cpu->cfg.dcache_writeback ? PVR5_DCACHE_WRITEBACK_MASK : 0;
+
+    cpu->cfg.pvr_regs[10] =
+        (0x0c000000 | /* Default to spartan 3a dsp family.  */
+         (cpu->cfg.addr_size - 32) << PVR10_ASIZE_SHIFT);
+
+    cpu->cfg.pvr_regs[11] = ((cpu->cfg.use_mmu ? PVR11_USE_MMU : 0) |
+                             16 << 17);
 
     mcc->parent_realize(dev, errp);
 }
