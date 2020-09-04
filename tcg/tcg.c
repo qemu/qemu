@@ -1474,6 +1474,14 @@ TCGv_vec tcg_constant_vec(TCGType type, unsigned vece, int64_t val)
     return temp_tcgv_vec(tcg_constant_internal(type, val));
 }
 
+TCGv_vec tcg_constant_vec_matching(TCGv_vec match, unsigned vece, int64_t val)
+{
+    TCGTemp *t = tcgv_vec_temp(match);
+
+    tcg_debug_assert(t->temp_allocated != 0);
+    return tcg_constant_vec(t->base_type, vece, val);
+}
+
 TCGv_i32 tcg_const_i32(int32_t val)
 {
     TCGv_i32 t0;
