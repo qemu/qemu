@@ -23,6 +23,14 @@ import time
 import sys
 
 
+class CommunicationFailure(Exception):
+    """Failed to communicate to gitlab.com APIs."""
+
+
+class NoPipelineFound(Exception):
+    """Communication is successfull but pipeline is not found."""
+
+
 def get_local_branch_commit(branch='staging'):
     """
     Returns the commit sha1 for the *local* branch named "staging"
@@ -50,14 +58,14 @@ def get_pipeline_status(project_id, commit_sha1):
     connection.request('GET', url=url)
     response = connection.getresponse()
     if response.code != http.HTTPStatus.OK:
-        raise ValueError("Failed to receive a successful response")
+        raise CommunicationFailure("Failed to receive a successful response")
     json_response = json.loads(response.read())
 
     # As far as I can tell, there should be only one pipeline for the same
     # project + commit. If this assumption is false, we can add further
     # filters to the url, such as username, and order_by.
     if not json_response:
-        raise ValueError("No pipeline found")
+        raise NoPipelineFound("No pipeline found")
     return json_response[0]
 
 
