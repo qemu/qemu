@@ -132,7 +132,7 @@ def main():
     """
     parser = create_parser()
     args = parser.parse_args()
-
+    success = False
     try:
         if args.wait:
             success = wait_on_pipeline_success(
@@ -145,9 +145,11 @@ def main():
                                          args.commit)
             success = status['status'] == 'success'
     except Exception as error:      # pylint: disable=W0703
-        success = False
         if args.verbose:
             print("ERROR: %s" % error.args[0])
+    except KeyboardInterrupt:
+        if args.verbose:
+            print("Exiting on user's request")
 
     if success:
         if args.verbose:
