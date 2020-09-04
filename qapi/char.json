@@ -562,6 +562,8 @@
 #
 # @open: true if the guest has opened the virtio-serial port
 #
+# Note: This event is rate-limited.
+#
 # Since: 2.1
 #
 # Example:

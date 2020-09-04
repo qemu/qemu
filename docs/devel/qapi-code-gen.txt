@@ -1321,6 +1321,7 @@ Example:
     };
 
     void qapi_free_UserDefOne(UserDefOne *obj);
+    G_DEFINE_AUTOPTR_CLEANUP_FUNC(UserDefOne, qapi_free_UserDefOne)
 
     struct UserDefOneList {
         UserDefOneList *next;
@@ -1328,6 +1329,7 @@ Example:
     };
 
     void qapi_free_UserDefOneList(UserDefOneList *obj);
+    G_DEFINE_AUTOPTR_CLEANUP_FUNC(UserDefOneList, qapi_free_UserDefOneList)
 
     struct q_obj_my_command_arg {
         UserDefOneList *arg1;

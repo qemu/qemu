@@ -213,6 +213,7 @@ def gen_type_cleanup_decl(name):
     ret = mcgen('''
 
 void qapi_free_%(c_name)s(%(c_name)s *obj);
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(%(c_name)s, qapi_free_%(c_name)s)
 ''',
                 c_name=c_name(name))
     return ret
