@@ -234,7 +234,7 @@ supported_kvm_target() {
     test "$kvm" = "yes" || return 1
     glob "$1" "*-softmmu" || return 1
     case "${1%-softmmu}:$cpu" in
-        arm:arm | aarch64:aarch64 | \
+        aarch64:aarch64 | \
         i386:i386 | i386:x86_64 | i386:x32 | \
         x86_64:i386 | x86_64:x86_64 | x86_64:x32 | \
         mips:mips | mipsel:mips | mips64:mips | mips64el:mips | \
