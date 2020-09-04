@@ -89,10 +89,7 @@ def wait_on_pipeline_success(timeout, interval,
         return False
 
 
-def main():
-    """
-    Script entry point
-    """
+def create_parser():
     parser = argparse.ArgumentParser(
         prog='pipeline-status',
         description='check or wait on a pipeline status')
@@ -127,7 +124,13 @@ def main():
     parser.add_argument('--verbose', action='store_true', default=False,
                         help=('A minimal verbosity level that prints the '
                               'overall result of the check/wait'))
+    return parser
 
+def main():
+    """
+    Script entry point
+    """
+    parser = create_parser()
     args = parser.parse_args()
 
     try:
