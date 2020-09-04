@@ -60,7 +60,7 @@ static TCGv_i32 cpu_res_val;
 /* This is the state at translation time.  */
 typedef struct DisasContext {
     DisasContextBase base;
-    MicroBlazeCPU *cpu;
+    const MicroBlazeCPUConfig *cfg;
 
     /* TCG op of the current insn_start.  */
     TCGOp *insn_start;
@@ -159,7 +159,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 static bool trap_illegal(DisasContext *dc, bool cond)
 {
     if (cond && (dc->tb_flags & MSR_EE)
-        && dc->cpu->cfg.illegal_opcode_exception) {
+        && dc->cfg->illegal_opcode_exception) {
         gen_raise_hw_excp(dc, ESR_EC_ILLEGAL_OP);
     }
     return cond;
@@ -291,7 +291,7 @@ static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
 
 #define DO_TYPEA_CFG(NAME, CFG, SE, FN) \
     static bool trans_##NAME(DisasContext *dc, arg_typea *a) \
-    { return dc->cpu->cfg.CFG && do_typea(dc, a, SE, FN); }
+    { return dc->cfg->CFG && do_typea(dc, a, SE, FN); }
 
 #define DO_TYPEA0(NAME, SE, FN) \
     static bool trans_##NAME(DisasContext *dc, arg_typea0 *a) \
@@ -299,7 +299,7 @@ static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
 
 #define DO_TYPEA0_CFG(NAME, CFG, SE, FN) \
     static bool trans_##NAME(DisasContext *dc, arg_typea0 *a) \
-    { return dc->cpu->cfg.CFG && do_typea0(dc, a, SE, FN); }
+    { return dc->cfg->CFG && do_typea0(dc, a, SE, FN); }
 
 #define DO_TYPEBI(NAME, SE, FNI) \
     static bool trans_##NAME(DisasContext *dc, arg_typeb *a) \
@@ -307,7 +307,7 @@ static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
 
 #define DO_TYPEBI_CFG(NAME, CFG, SE, FNI) \
     static bool trans_##NAME(DisasContext *dc, arg_typeb *a) \
-    { return dc->cpu->cfg.CFG && do_typeb_imm(dc, a, SE, FNI); }
+    { return dc->cfg->CFG && do_typeb_imm(dc, a, SE, FNI); }
 
 #define DO_TYPEBV(NAME, SE, FN) \
     static bool trans_##NAME(DisasContext *dc, arg_typeb *a) \
@@ -683,7 +683,7 @@ static TCGv compute_ldst_addr_typea(DisasContext *dc, int ra, int rb)
         tcg_gen_movi_tl(ret, 0);
     }
 
-    if ((ra == 1 || rb == 1) && dc->cpu->cfg.stackprot) {
+    if ((ra == 1 || rb == 1) && dc->cfg->stackprot) {
         gen_helper_stackprot(cpu_env, ret);
     }
     return ret;
@@ -703,7 +703,7 @@ static TCGv compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
         tcg_gen_movi_tl(ret, (uint32_t)imm);
     }
 
-    if (ra == 1 && dc->cpu->cfg.stackprot) {
+    if (ra == 1 && dc->cfg->stackprot) {
         gen_helper_stackprot(cpu_env, ret);
     }
     return ret;
@@ -712,7 +712,7 @@ static TCGv compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
 #ifndef CONFIG_USER_ONLY
 static TCGv compute_ldst_addr_ea(DisasContext *dc, int ra, int rb)
 {
-    int addr_size = dc->cpu->cfg.addr_size;
+    int addr_size = dc->cfg->addr_size;
     TCGv ret = tcg_temp_new();
 
     if (addr_size == 32 || ra == 0) {
@@ -772,7 +772,7 @@ static bool do_load(DisasContext *dc, int rd, TCGv addr, MemOp mop,
 
     if (size > MO_8 &&
         (dc->tb_flags & MSR_EE) &&
-        dc->cpu->cfg.unaligned_exceptions) {
+        dc->cfg->unaligned_exceptions) {
         record_unaligned_ess(dc, rd, size, false);
         mop |= MO_ALIGN;
     }
@@ -918,7 +918,7 @@ static bool do_store(DisasContext *dc, int rd, TCGv addr, MemOp mop,
 
     if (size > MO_8 &&
         (dc->tb_flags & MSR_EE) &&
-        dc->cpu->cfg.unaligned_exceptions) {
+        dc->cfg->unaligned_exceptions) {
         record_unaligned_ess(dc, rd, size, true);
         mop |= MO_ALIGN;
     }
@@ -1325,7 +1325,7 @@ DO_RTS(rtsd, 0)
 static bool trans_zero(DisasContext *dc, arg_zero *arg)
 {
     /* If opcode_0_illegal, trap.  */
-    if (dc->cpu->cfg.opcode_0_illegal) {
+    if (dc->cfg->opcode_0_illegal) {
         trap_illegal(dc, true);
         return true;
     }
@@ -1658,7 +1658,7 @@ static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     int bound;
 
-    dc->cpu = cpu;
+    dc->cfg = &cpu->cfg;
     dc->tb_flags = dc->base.tb->flags;
     dc->ext_imm = dc->base.tb->cs_base;
     dc->r0 = NULL;
