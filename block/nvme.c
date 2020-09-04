@@ -83,27 +83,9 @@ typedef struct {
 
 /* Memory mapped registers */
 typedef volatile struct {
-    struct {
-        uint64_t cap;
-        uint32_t vs;
-        uint32_t intms;
-        uint32_t intmc;
-        uint32_t cc;
-        uint32_t reserved0;
-        uint32_t csts;
-        uint32_t nssr;
-        uint32_t aqa;
-        uint64_t asq;
-        uint64_t acq;
-        uint32_t cmbloc;
-        uint32_t cmbsz;
-        uint8_t  reserved1[0xec0];
-        uint8_t  cmd_set_specfic[0x100];
-    } ctrl;
+    NvmeBar ctrl;
     uint32_t doorbells[];
 } NVMeRegs;
-
-QEMU_BUILD_BUG_ON(offsetof(NVMeRegs, doorbells) != 0x1000);
 
 #define INDEX_ADMIN     0
 #define INDEX_IO(n)     (1 + n)
