@@ -77,8 +77,8 @@ def wait_on_pipeline_success(timeout, interval,
 
         status = get_pipeline_status(project_id, commit_sha)
         if status['status'] == 'running':
-            time.sleep(interval)
             print('running...')
+            time.sleep(interval)
             continue
 
         if status['status'] == 'success':
