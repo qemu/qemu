@@ -69,7 +69,10 @@ def wait_on_pipeline_success(timeout, interval,
     start = time.time()
     while True:
         if time.time() >= (start + timeout):
-            print("Waiting on the pipeline timed out")
+            msg = ("Timeout (-t/--timeout) of %i seconds reached, "
+                   "won't wait any longer for the pipeline to complete")
+            msg %= timeout
+            print(msg)
             return False
 
         status = get_pipeline_status(project_id, commit_sha)
