@@ -64,7 +64,7 @@ bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         return true;
     }
 
-    hit = mmu_translate(&env->mmu, &lu, address, access_type, mmu_idx);
+    hit = mmu_translate(cpu, &lu, address, access_type, mmu_idx);
     if (likely(hit)) {
         uint32_t vaddr = address & TARGET_PAGE_MASK;
         uint32_t paddr = lu.paddr + vaddr - lu.vaddr;
@@ -240,7 +240,7 @@ hwaddr mb_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     unsigned int hit;
 
     if (mmu_idx != MMU_NOMMU_IDX) {
-        hit = mmu_translate(&env->mmu, &lu, addr, 0, 0);
+        hit = mmu_translate(cpu, &lu, addr, 0, 0);
         if (hit) {
             vaddr = addr & TARGET_PAGE_MASK;
             paddr = lu.paddr + vaddr - lu.vaddr;

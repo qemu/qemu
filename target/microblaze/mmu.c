@@ -73,9 +73,10 @@ static void mmu_change_pid(CPUMBState *env, unsigned int newpid)
 }
 
 /* rw - 0 = read, 1 = write, 2 = fetch.  */
-unsigned int mmu_translate(MicroBlazeMMU *mmu, MicroBlazeMMULookup *lu,
+unsigned int mmu_translate(MicroBlazeCPU *cpu, MicroBlazeMMULookup *lu,
                            target_ulong vaddr, int rw, int mmu_idx)
 {
+    MicroBlazeMMU *mmu = &cpu->env.mmu;
     unsigned int i, hit = 0;
     unsigned int tlb_ex = 0, tlb_wr = 0, tlb_zsel;
     uint64_t tlb_tag, tlb_rpn, mask;
@@ -114,13 +115,13 @@ unsigned int mmu_translate(MicroBlazeMMU *mmu, MicroBlazeMMULookup *lu,
             t0 = mmu->regs[MMU_R_ZPR] >> (30 - (tlb_zsel * 2));
             t0 &= 0x3;
 
-            if (tlb_zsel > mmu->c_mmu_zones) {
+            if (tlb_zsel > cpu->cfg.mmu_zones) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "tlb zone select out of range! %d\n", tlb_zsel);
                 t0 = 1; /* Ignore.  */
             }
 
-            if (mmu->c_mmu == 1) {
+            if (cpu->cfg.mmu == 1) {
                 t0 = 1; /* Zones are disabled.  */
             }
 
@@ -157,7 +158,7 @@ unsigned int mmu_translate(MicroBlazeMMU *mmu, MicroBlazeMMULookup *lu,
             tlb_rpn = d & TLB_RPN_MASK;
 
             lu->vaddr = tlb_tag;
-            lu->paddr = tlb_rpn & mmu->c_addr_mask;
+            lu->paddr = tlb_rpn & cpu->cfg.addr_mask;
             lu->size = tlb_size;
             lu->err = ERR_HIT;
             lu->idx = i;
@@ -175,10 +176,11 @@ done:
 /* Writes/reads to the MMU's special regs end up here.  */
 uint32_t mmu_read(CPUMBState *env, bool ext, uint32_t rn)
 {
+    MicroBlazeCPU *cpu = env_archcpu(env);
     unsigned int i;
     uint32_t r = 0;
 
-    if (env->mmu.c_mmu < 2 || !env->mmu.c_mmu_tlb_access) {
+    if (cpu->cfg.mmu < 2 || !cpu->cfg.mmu_tlb_access) {
         qemu_log_mask(LOG_GUEST_ERROR, "MMU access on MMU-less system\n");
         return 0;
     }
@@ -191,7 +193,7 @@ uint32_t mmu_read(CPUMBState *env, bool ext, uint32_t rn)
         /* Reads to HI/LO trig reads from the mmu rams.  */
         case MMU_R_TLBLO:
         case MMU_R_TLBHI:
-            if (!(env->mmu.c_mmu_tlb_access & 1)) {
+            if (!(cpu->cfg.mmu_tlb_access & 1)) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "Invalid access to MMU reg %d\n", rn);
                 return 0;
@@ -204,7 +206,7 @@ uint32_t mmu_read(CPUMBState *env, bool ext, uint32_t rn)
             break;
         case MMU_R_PID:
         case MMU_R_ZPR:
-            if (!(env->mmu.c_mmu_tlb_access & 1)) {
+            if (!(cpu->cfg.mmu_tlb_access & 1)) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "Invalid access to MMU reg %d\n", rn);
                 return 0;
@@ -227,12 +229,14 @@ uint32_t mmu_read(CPUMBState *env, bool ext, uint32_t rn)
 
 void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
 {
+    MicroBlazeCPU *cpu = env_archcpu(env);
     uint64_t tmp64;
     unsigned int i;
+
     qemu_log_mask(CPU_LOG_MMU,
                   "%s rn=%d=%x old=%x\n", __func__, rn, v, env->mmu.regs[rn]);
 
-    if (env->mmu.c_mmu < 2 || !env->mmu.c_mmu_tlb_access) {
+    if (cpu->cfg.mmu < 2 || !cpu->cfg.mmu_tlb_access) {
         qemu_log_mask(LOG_GUEST_ERROR, "MMU access on MMU-less system\n");
         return;
     }
@@ -258,7 +262,7 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
             env->mmu.rams[rn & 1][i] = deposit64(tmp64, ext * 32, 32, v);
             break;
         case MMU_R_ZPR:
-            if (env->mmu.c_mmu_tlb_access <= 1) {
+            if (cpu->cfg.mmu_tlb_access <= 1) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "Invalid access to MMU reg %d\n", rn);
                 return;
@@ -272,7 +276,7 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
             env->mmu.regs[rn] = v;
             break;
         case MMU_R_PID:
-            if (env->mmu.c_mmu_tlb_access <= 1) {
+            if (cpu->cfg.mmu_tlb_access <= 1) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "Invalid access to MMU reg %d\n", rn);
                 return;
@@ -292,14 +296,14 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
             MicroBlazeMMULookup lu;
             int hit;
 
-            if (env->mmu.c_mmu_tlb_access <= 1) {
+            if (cpu->cfg.mmu_tlb_access <= 1) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "Invalid access to MMU reg %d\n", rn);
                 return;
             }
 
-            hit = mmu_translate(&env->mmu, &lu,
-                                v & TLB_EPN_MASK, 0, cpu_mmu_index(env, false));
+            hit = mmu_translate(cpu, &lu, v & TLB_EPN_MASK,
+                                0, cpu_mmu_index(env, false));
             if (hit) {
                 env->mmu.regs[MMU_R_TLBX] = lu.idx;
             } else {
