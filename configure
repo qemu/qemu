@@ -7752,7 +7752,6 @@ case "$target_name" in
     TARGET_SYSTBL_ABI=common
     mttcg="yes"
     bflt="yes"
-    echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
   mips|mipsel)
     mttcg="yes"
