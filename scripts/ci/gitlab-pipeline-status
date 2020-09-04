@@ -23,20 +23,20 @@ import time
 import sys
 
 
-def get_local_staging_branch_commit():
+def get_local_branch_commit(branch='staging'):
     """
     Returns the commit sha1 for the *local* branch named "staging"
     """
-    result = subprocess.run(['git', 'rev-parse', 'staging'],
+    result = subprocess.run(['git', 'rev-parse', branch],
                             stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL,
                             cwd=os.path.dirname(__file__),
                             universal_newlines=True).stdout.strip()
-    if result == 'staging':
-        raise ValueError("There's no local branch named 'staging'")
+    if result == branch:
+        raise ValueError("There's no local branch named '%s'" % branch)
     if len(result) != 40:
-        raise ValueError("Branch staging HEAD doesn't look like a sha1")
+        raise ValueError("Branch '%s' HEAD doesn't look like a sha1" % branch)
     return result
 
 
@@ -110,7 +110,7 @@ def main():
                               'for https://gitlab.com/qemu-project/qemu, that '
                               'is, "%(default)s"'))
     try:
-        default_commit = get_local_staging_branch_commit()
+        default_commit = get_local_branch_commit()
         commit_required = False
     except ValueError:
         default_commit = ''
