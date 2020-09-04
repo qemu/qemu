@@ -83,13 +83,22 @@ def wait_on_pipeline_success(timeout, interval,
             print(msg)
             return False
 
-        status = get_pipeline_status(project_id, commit_sha)
-        if status['status'] == 'running':
-            print('running...')
+        try:
+            status = get_pipeline_status(project_id, commit_sha)
+        except NoPipelineFound:
+            print('Pipeline has not been found, it may not have been created yet.')
+            time.sleep(1)
+            continue
+
+        pipeline_status = status['status']
+        status_to_wait = ('created', 'waiting_for_resource', 'preparing',
+                          'pending', 'running')
+        if pipeline_status in status_to_wait:
+            print('%s...' % pipeline_status)
             time.sleep(interval)
             continue
 
-        if status['status'] == 'success':
+        if pipeline_status == 'success':
             return True
 
         msg = "Pipeline failed, check: %s" % status['web_url']
