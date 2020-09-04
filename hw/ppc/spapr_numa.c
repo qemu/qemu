@@ -176,10 +176,11 @@ static target_ulong h_home_node_associativity(PowerPCCPU *cpu,
                                               target_ulong opcode,
                                               target_ulong *args)
 {
+    g_autofree uint32_t *vcpu_assoc = NULL;
     target_ulong flags = args[0];
     target_ulong procno = args[1];
     PowerPCCPU *tcpu;
-    int idx;
+    int idx, assoc_idx;
 
     /* only support procno from H_REGISTER_VPA */
     if (flags != 0x1) {
@@ -191,16 +192,40 @@ static target_ulong h_home_node_associativity(PowerPCCPU *cpu,
         return H_P2;
     }
 
-    /* sequence is the same as in the "ibm,associativity" property */
+    /*
+     * Given that we want to be flexible with the sizes and indexes,
+     * we must consider that there is a hard limit of how many
+     * associativities domain we can fit in R4 up to R9, which would be
+     * 12 associativity domains for vcpus. Assert and bail if that's
+     * not the case.
+     */
+    G_STATIC_ASSERT((VCPU_ASSOC_SIZE - 1) <= 12);
 
-    idx = 0;
+    vcpu_assoc = spapr_numa_get_vcpu_assoc(spapr, tcpu);
+    /* assoc_idx starts at 1 to skip associativity size */
+    assoc_idx = 1;
+
 #define ASSOCIATIVITY(a, b) (((uint64_t)(a) << 32) | \
                              ((uint64_t)(b) & 0xffffffff))
-    args[idx++] = ASSOCIATIVITY(0, 0);
-    args[idx++] = ASSOCIATIVITY(0, tcpu->node_id);
-    args[idx++] = ASSOCIATIVITY(procno, -1);
-    for ( ; idx < 6; idx++) {
-        args[idx] = -1;
+
+    for (idx = 0; idx < 6; idx++) {
+        int32_t a, b;
+
+        /*
+         * vcpu_assoc[] will contain the associativity domains for tcpu,
+         * including tcpu->node_id and procno, meaning that we don't
+         * need to use these variables here.
+         *
+         * We'll read 2 values at a time to fill up the ASSOCIATIVITY()
+         * macro. The ternary will fill the remaining registers with -1
+         * after we went through vcpu_assoc[].
+         */
+        a = assoc_idx < VCPU_ASSOC_SIZE ?
+            be32_to_cpu(vcpu_assoc[assoc_idx++]) : -1;
+        b = assoc_idx < VCPU_ASSOC_SIZE ?
+            be32_to_cpu(vcpu_assoc[assoc_idx++]) : -1;
+
+        args[idx] = ASSOCIATIVITY(a, b);
     }
 #undef ASSOCIATIVITY
 
