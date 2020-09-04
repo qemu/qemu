@@ -84,7 +84,10 @@ typedef struct {
 /* Memory mapped registers */
 typedef volatile struct {
     NvmeBar ctrl;
-    uint32_t doorbells[];
+    struct {
+        uint32_t sq_tail;
+        uint32_t cq_head;
+    } doorbells[];
 } NVMeRegs;
 
 #define INDEX_ADMIN     0
@@ -244,14 +247,14 @@ static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
         error_propagate(errp, local_err);
         goto fail;
     }
-    q->sq.doorbell = &s->regs->doorbells[idx * 2 * s->doorbell_scale];
+    q->sq.doorbell = &s->regs->doorbells[idx * s->doorbell_scale].sq_tail;
 
     nvme_init_queue(s, &q->cq, size, NVME_CQ_ENTRY_BYTES, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto fail;
     }
-    q->cq.doorbell = &s->regs->doorbells[(idx * 2 + 1) * s->doorbell_scale];
+    q->cq.doorbell = &s->regs->doorbells[idx * s->doorbell_scale].cq_head;
 
     return q;
 fail:
