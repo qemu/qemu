@@ -1919,11 +1919,6 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                  env->esr, env->fsr, env->btr, env->edr,
                  env->ear, env->slr, env->shr);
 
-    for (i = 0; i < 12; i++) {
-        qemu_fprintf(f, "rpvr%-2d=%08x%c",
-                     i, env->pvr.regs[i], i % 4 == 3 ? '\n' : ' ');
-    }
-
     for (i = 0; i < 32; i++) {
         qemu_fprintf(f, "r%2.2d=%08x%c",
                      i, env->regs[i], i % 4 == 3 ? '\n' : ' ');

@@ -132,10 +132,6 @@ int mb_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     case GDB_BTR:
         env->btr = tmp;
         break;
-    case GDB_PVR0 ... GDB_PVR11:
-        /* PVR12 is intentionally skipped */
-        cpu->cfg.pvr_regs[n - GDB_PVR0] = tmp;
-        break;
     case GDB_EDR:
         env->edr = tmp;
         break;
