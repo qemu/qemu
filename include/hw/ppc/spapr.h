@@ -107,13 +107,18 @@ typedef enum {
 
 /*
  * NUMA related macros. MAX_DISTANCE_REF_POINTS was taken
- * from Taken from Linux kernel arch/powerpc/mm/numa.h.
+ * from Linux kernel arch/powerpc/mm/numa.h. It represents the
+ * amount of associativity domains for non-CPU resources.
  *
  * NUMA_ASSOC_SIZE is the base array size of an ibm,associativity
  * array for any non-CPU resource.
+ *
+ * VCPU_ASSOC_SIZE represents the size of ibm,associativity array
+ * for CPUs, which has an extra element (vcpu_id) in the end.
  */
 #define MAX_DISTANCE_REF_POINTS    4
 #define NUMA_ASSOC_SIZE            (MAX_DISTANCE_REF_POINTS + 1)
+#define VCPU_ASSOC_SIZE            (NUMA_ASSOC_SIZE + 1)
 
 typedef struct SpaprCapabilities SpaprCapabilities;
 struct SpaprCapabilities {
