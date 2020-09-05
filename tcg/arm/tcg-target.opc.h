@@ -11,5 +11,6 @@
  * consider these to be UNSPEC with names.
  */
 
+DEF(arm_sli_vec, 1, 2, 1, IMPLVEC)
 DEF(arm_sshl_vec, 1, 2, 0, IMPLVEC)
 DEF(arm_ushl_vec, 1, 2, 0, IMPLVEC)
