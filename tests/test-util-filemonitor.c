@@ -23,6 +23,8 @@
 #include "qapi/error.h"
 #include "qemu/filemonitor.h"
 
+#include <glib/gstdio.h>
+
 #include <utime.h>
 
 enum {
@@ -617,7 +619,7 @@ test_file_monitor_events(void)
             if (debug) {
                 g_printerr("Mkdir %s\n", pathsrc);
             }
-            if (mkdir(pathsrc, 0700) < 0) {
+            if (g_mkdir_with_parents(pathsrc, 0700) < 0) {
                 g_printerr("Unable to mkdir %s: %s",
                            pathsrc, strerror(errno));
                 goto cleanup;
