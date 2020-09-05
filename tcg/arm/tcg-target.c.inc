@@ -200,6 +200,10 @@ typedef enum {
     INSN_VCGE_U    = 0xf3000310,
     INSN_VCGT_U    = 0xf3000300,
 
+    INSN_VSHLI     = 0xf2800510,  /* VSHL (immediate) */
+    INSN_VSARI     = 0xf2800010,  /* VSHR.S */
+    INSN_VSHRI     = 0xf3800010,  /* VSHR.U */
+
     INSN_VTST      = 0xf2000810,
 
     INSN_VDUP_G    = 0xee800b10,  /* VDUP (ARM core register) */
@@ -1321,6 +1325,14 @@ static void tcg_out_vmovi(TCGContext *s, TCGReg rd,
               | (extract32(imm8, 7, 1) << 24));
 }
 
+static void tcg_out_vshifti(TCGContext *s, ARMInsn insn, int q,
+                            TCGReg rd, TCGReg rm, int l_imm6)
+{
+    tcg_out32(s, insn | (q << 6) | encode_vd(rd) | encode_vm(rm) |
+              (extract32(l_imm6, 6, 1) << 7) |
+              (extract32(l_imm6, 0, 6) << 16));
+}
+
 static void tcg_out_vldst(TCGContext *s, ARMInsn insn,
                           TCGReg rd, TCGReg rn, int offset)
 {
@@ -2376,6 +2388,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_abs_vec:
     case INDEX_op_neg_vec:
     case INDEX_op_not_vec:
+    case INDEX_op_shli_vec:
+    case INDEX_op_shri_vec:
+    case INDEX_op_sari_vec:
         return C_O1_I1(w, w);
     case INDEX_op_dup2_vec:
     case INDEX_op_add_vec:
@@ -2746,6 +2761,15 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_xor_vec:
         tcg_out_vreg3(s, INSN_VEOR, q, 0, a0, a1, a2);
         return;
+    case INDEX_op_shli_vec:
+        tcg_out_vshifti(s, INSN_VSHLI, q, a0, a1, a2 + (8 << vece));
+        return;
+    case INDEX_op_shri_vec:
+        tcg_out_vshifti(s, INSN_VSHRI, q, a0, a1, (16 << vece) - a2);
+        return;
+    case INDEX_op_sari_vec:
+        tcg_out_vshifti(s, INSN_VSARI, q, a0, a1, (16 << vece) - a2);
+        return;
 
     case INDEX_op_andc_vec:
         if (!const_args[2]) {
@@ -2841,6 +2865,9 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_orc_vec:
     case INDEX_op_xor_vec:
     case INDEX_op_not_vec:
+    case INDEX_op_shli_vec:
+    case INDEX_op_shri_vec:
+    case INDEX_op_sari_vec:
         return 1;
     case INDEX_op_abs_vec:
     case INDEX_op_cmp_vec:
