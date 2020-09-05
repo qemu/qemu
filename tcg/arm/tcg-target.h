@@ -107,7 +107,11 @@ typedef enum {
 #else
 extern bool use_idiv_instructions;
 #endif
-#define use_neon_instructions  0
+#ifdef __ARM_NEON__
+#define use_neon_instructions  1
+#else
+extern bool use_neon_instructions;
+#endif
 
 /* used for function call generation */
 #define TCG_TARGET_STACK_ALIGN		8
