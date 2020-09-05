@@ -188,6 +188,10 @@ typedef enum {
     INSN_VQADD_U   = 0xf3000010,
     INSN_VQSUB     = 0xf2000210,
     INSN_VQSUB_U   = 0xf3000210,
+    INSN_VMAX      = 0xf2000600,
+    INSN_VMAX_U    = 0xf3000600,
+    INSN_VMIN      = 0xf2000610,
+    INSN_VMIN_U    = 0xf3000610,
 
     INSN_VABS      = 0xf3b10300,
     INSN_VMVN      = 0xf3b00580,
@@ -2400,9 +2404,13 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_dup2_vec:
     case INDEX_op_add_vec:
     case INDEX_op_mul_vec:
+    case INDEX_op_smax_vec:
+    case INDEX_op_smin_vec:
     case INDEX_op_ssadd_vec:
     case INDEX_op_sssub_vec:
     case INDEX_op_sub_vec:
+    case INDEX_op_umax_vec:
+    case INDEX_op_umin_vec:
     case INDEX_op_usadd_vec:
     case INDEX_op_ussub_vec:
     case INDEX_op_xor_vec:
@@ -2768,6 +2776,12 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mul_vec:
         tcg_out_vreg3(s, INSN_VMUL, q, vece, a0, a1, a2);
         return;
+    case INDEX_op_smax_vec:
+        tcg_out_vreg3(s, INSN_VMAX, q, vece, a0, a1, a2);
+        return;
+    case INDEX_op_smin_vec:
+        tcg_out_vreg3(s, INSN_VMIN, q, vece, a0, a1, a2);
+        return;
     case INDEX_op_sub_vec:
         tcg_out_vreg3(s, INSN_VSUB, q, vece, a0, a1, a2);
         return;
@@ -2776,6 +2790,12 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         return;
     case INDEX_op_sssub_vec:
         tcg_out_vreg3(s, INSN_VQSUB, q, vece, a0, a1, a2);
+        return;
+    case INDEX_op_umax_vec:
+        tcg_out_vreg3(s, INSN_VMAX_U, q, vece, a0, a1, a2);
+        return;
+    case INDEX_op_umin_vec:
+        tcg_out_vreg3(s, INSN_VMIN_U, q, vece, a0, a1, a2);
         return;
     case INDEX_op_usadd_vec:
         tcg_out_vreg3(s, INSN_VQADD_U, q, vece, a0, a1, a2);
@@ -2902,6 +2922,10 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_cmp_vec:
     case INDEX_op_mul_vec:
     case INDEX_op_neg_vec:
+    case INDEX_op_smax_vec:
+    case INDEX_op_smin_vec:
+    case INDEX_op_umax_vec:
+    case INDEX_op_umin_vec:
         return vece < MO_64;
     default:
         return 0;
