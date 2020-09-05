@@ -212,6 +212,8 @@ typedef enum {
     INSN_VSHLI     = 0xf2800510,  /* VSHL (immediate) */
     INSN_VSARI     = 0xf2800010,  /* VSHR.S */
     INSN_VSHRI     = 0xf3800010,  /* VSHR.U */
+    INSN_VSHL_S    = 0xf2000400,  /* VSHL.S (register) */
+    INSN_VSHL_U    = 0xf3000400,  /* VSHL.U (register) */
 
     INSN_VBSL      = 0xf3100110,
     INSN_VBIT      = 0xf3200110,
@@ -2418,6 +2420,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_usadd_vec:
     case INDEX_op_ussub_vec:
     case INDEX_op_xor_vec:
+    case INDEX_op_arm_sshl_vec:
+    case INDEX_op_arm_ushl_vec:
         return C_O1_I2(w, w, w);
     case INDEX_op_or_vec:
     case INDEX_op_andc_vec:
@@ -2811,6 +2815,17 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_xor_vec:
         tcg_out_vreg3(s, INSN_VEOR, q, 0, a0, a1, a2);
         return;
+    case INDEX_op_arm_sshl_vec:
+        /*
+         * Note that Vm is the data and Vn is the shift count,
+         * therefore the arguments appear reversed.
+         */
+        tcg_out_vreg3(s, INSN_VSHL_S, q, vece, a0, a2, a1);
+        return;
+    case INDEX_op_arm_ushl_vec:
+        /* See above. */
+        tcg_out_vreg3(s, INSN_VSHL_U, q, vece, a0, a2, a1);
+        return;
     case INDEX_op_shli_vec:
         tcg_out_vshifti(s, INSN_VSHLI, q, a0, a1, a2 + (8 << vece));
         return;
@@ -2945,6 +2960,10 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_umax_vec:
     case INDEX_op_umin_vec:
         return vece < MO_64;
+    case INDEX_op_shlv_vec:
+    case INDEX_op_shrv_vec:
+    case INDEX_op_sarv_vec:
+        return -1;
     default:
         return 0;
     }
@@ -2953,7 +2972,47 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
 void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
                        TCGArg a0, ...)
 {
-    g_assert_not_reached();
+    va_list va;
+    TCGv_vec v0, v1, v2, t1;
+    TCGArg a2;
+
+    va_start(va, a0);
+    v0 = temp_tcgv_vec(arg_temp(a0));
+    v1 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
+    a2 = va_arg(va, TCGArg);
+    va_end(va);
+
+    switch (opc) {
+    case INDEX_op_shlv_vec:
+        /*
+         * Merely propagate shlv_vec to arm_ushl_vec.
+         * In this way we don't set TCG_TARGET_HAS_shv_vec
+         * because everything is done via expansion.
+         */
+        v2 = temp_tcgv_vec(arg_temp(a2));
+        vec_gen_3(INDEX_op_arm_ushl_vec, type, vece, tcgv_vec_arg(v0),
+                  tcgv_vec_arg(v1), tcgv_vec_arg(v2));
+        break;
+
+    case INDEX_op_shrv_vec:
+    case INDEX_op_sarv_vec:
+        /* Right shifts are negative left shifts for NEON.  */
+        v2 = temp_tcgv_vec(arg_temp(a2));
+        t1 = tcg_temp_new_vec(type);
+        tcg_gen_neg_vec(vece, t1, v2);
+        if (opc == INDEX_op_shrv_vec) {
+            opc = INDEX_op_arm_ushl_vec;
+        } else {
+            opc = INDEX_op_arm_sshl_vec;
+        }
+        vec_gen_3(opc, type, vece, tcgv_vec_arg(v0),
+                  tcgv_vec_arg(v1), tcgv_vec_arg(t1));
+        tcg_temp_free_vec(t1);
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
 }
 
 static void tcg_out_nop_fill(tcg_insn_unit *p, int count)

@@ -10,3 +10,6 @@
  * emitted by tcg_expand_vec_op.  For those familiar with GCC internals,
  * consider these to be UNSPEC with names.
  */
+
+DEF(arm_sshl_vec, 1, 2, 0, IMPLVEC)
+DEF(arm_ushl_vec, 1, 2, 0, IMPLVEC)
