@@ -175,8 +175,13 @@ typedef enum {
 
     INSN_VORR      = 0xf2200110,
 
+    INSN_VDUP_G    = 0xee800b10,  /* VDUP (ARM core register) */
+    INSN_VDUP_S    = 0xf3b00c00,  /* VDUP (scalar) */
+    INSN_VLDR_D    = 0xed100b00,  /* VLDR.64 */
     INSN_VLD1      = 0xf4200000,  /* VLD1 (multiple single elements) */
+    INSN_VLD1R     = 0xf4a00c00,  /* VLD1 (single element to all lanes) */
     INSN_VST1      = 0xf4000000,  /* VST1 (multiple single elements) */
+    INSN_VMOVI     = 0xf2800010,  /* VMOV (immediate) */
 } ARMInsn;
 
 #define INSN_NOP   (use_armv7_instructions ? INSN_NOP_v6k : INSN_NOP_v4)
@@ -194,6 +199,14 @@ static const uint8_t tcg_cond_to_arm_cond[] = {
     [TCG_COND_LEU] = COND_LS,
     [TCG_COND_GTU] = COND_HI,
 };
+
+static int encode_imm(uint32_t imm);
+
+/* TCG private relocation type: add with pc+imm8 */
+#define R_ARM_PC8  11
+
+/* TCG private relocation type: vldr with imm8 << 2 */
+#define R_ARM_PC11 12
 
 static bool reloc_pc24(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
 {
@@ -226,16 +239,52 @@ static bool reloc_pc13(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
     return false;
 }
 
+static bool reloc_pc11(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
+{
+    const tcg_insn_unit *src_rx = tcg_splitwx_to_rx(src_rw);
+    ptrdiff_t offset = (tcg_ptr_byte_diff(target, src_rx) - 8) / 4;
+
+    if (offset >= -0xff && offset <= 0xff) {
+        tcg_insn_unit insn = *src_rw;
+        bool u = (offset >= 0);
+        if (!u) {
+            offset = -offset;
+        }
+        insn = deposit32(insn, 23, 1, u);
+        insn = deposit32(insn, 0, 8, offset);
+        *src_rw = insn;
+        return true;
+    }
+    return false;
+}
+
+static bool reloc_pc8(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
+{
+    const tcg_insn_unit *src_rx = tcg_splitwx_to_rx(src_rw);
+    ptrdiff_t offset = tcg_ptr_byte_diff(target, src_rx) - 8;
+    int rot = encode_imm(offset);
+
+    if (rot >= 0) {
+        *src_rw = deposit32(*src_rw, 0, 12, rol32(offset, rot) | (rot << 7));
+        return true;
+    }
+    return false;
+}
+
 static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     tcg_debug_assert(addend == 0);
-
-    if (type == R_ARM_PC24) {
+    switch (type) {
+    case R_ARM_PC24:
         return reloc_pc24(code_ptr, (const tcg_insn_unit *)value);
-    } else if (type == R_ARM_PC13) {
+    case R_ARM_PC13:
         return reloc_pc13(code_ptr, (const tcg_insn_unit *)value);
-    } else {
+    case R_ARM_PC11:
+        return reloc_pc11(code_ptr, (const tcg_insn_unit *)value);
+    case R_ARM_PC8:
+        return reloc_pc8(code_ptr, (const tcg_insn_unit *)value);
+    default:
         g_assert_not_reached();
     }
 }
@@ -275,7 +324,7 @@ static inline uint32_t rotl(uint32_t val, int n)
 
 /* ARM immediates for ALU instructions are made of an unsigned 8-bit
    right-rotated by an even amount between 0 and 30. */
-static inline int encode_imm(uint32_t imm)
+static int encode_imm(uint32_t imm)
 {
     int shift;
 
@@ -300,6 +349,79 @@ static inline int encode_imm(uint32_t imm)
 static inline int check_fit_imm(uint32_t imm)
 {
     return encode_imm(imm) >= 0;
+}
+
+/* Return true if v16 is a valid 16-bit shifted immediate.  */
+static bool is_shimm16(uint16_t v16, int *cmode, int *imm8)
+{
+    if (v16 == (v16 & 0xff)) {
+        *cmode = 0x8;
+        *imm8 = v16 & 0xff;
+        return true;
+    } else if (v16 == (v16 & 0xff00)) {
+        *cmode = 0xa;
+        *imm8 = v16 >> 8;
+        return true;
+    }
+    return false;
+}
+
+/* Return true if v32 is a valid 32-bit shifted immediate.  */
+static bool is_shimm32(uint32_t v32, int *cmode, int *imm8)
+{
+    if (v32 == (v32 & 0xff)) {
+        *cmode = 0x0;
+        *imm8 = v32 & 0xff;
+        return true;
+    } else if (v32 == (v32 & 0xff00)) {
+        *cmode = 0x2;
+        *imm8 = (v32 >> 8) & 0xff;
+        return true;
+    } else if (v32 == (v32 & 0xff0000)) {
+        *cmode = 0x4;
+        *imm8 = (v32 >> 16) & 0xff;
+        return true;
+    } else if (v32 == (v32 & 0xff000000)) {
+        *cmode = 0x6;
+        *imm8 = v32 >> 24;
+        return true;
+    }
+    return false;
+}
+
+/* Return true if v32 is a valid 32-bit shifting ones immediate.  */
+static bool is_soimm32(uint32_t v32, int *cmode, int *imm8)
+{
+    if ((v32 & 0xffff00ff) == 0xff) {
+        *cmode = 0xc;
+        *imm8 = (v32 >> 8) & 0xff;
+        return true;
+    } else if ((v32 & 0xff00ffff) == 0xffff) {
+        *cmode = 0xd;
+        *imm8 = (v32 >> 16) & 0xff;
+        return true;
+    }
+    return false;
+}
+
+/*
+ * Return non-zero if v32 can be formed by MOVI+ORR.
+ * Place the parameters for MOVI in (cmode, imm8).
+ * Return the cmode for ORR; the imm8 can be had via extraction from v32.
+ */
+static int is_shimm32_pair(uint32_t v32, int *cmode, int *imm8)
+{
+    int i;
+
+    for (i = 6; i > 0; i -= 2) {
+        /* Mask out one byte we can add with ORR.  */
+        uint32_t tmp = v32 & ~(0xffu << (i * 4));
+        if (is_shimm32(tmp, cmode, imm8) ||
+            is_soimm32(tmp, cmode, imm8)) {
+            break;
+        }
+    }
+    return i;
 }
 
 /* Test if a constant matches the constraint.
@@ -1125,6 +1247,15 @@ static void tcg_out_vreg3(TCGContext *s, ARMInsn insn, int q, int vece,
 {
     tcg_out32(s, insn | (vece << 20) | (q << 6) |
               encode_vd(d) | encode_vn(n) | encode_vm(m));
+}
+
+static void tcg_out_vmovi(TCGContext *s, TCGReg rd,
+                          int q, int op, int cmode, uint8_t imm8)
+{
+    tcg_out32(s, INSN_VMOVI | encode_vd(rd) | (q << 6) | (op << 5)
+              | (cmode << 8) | extract32(imm8, 0, 4)
+              | (extract32(imm8, 4, 3) << 16)
+              | (extract32(imm8, 7, 1) << 24));
 }
 
 static void tcg_out_vldst(TCGContext *s, ARMInsn insn,
@@ -2329,22 +2460,158 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     tcg_out_movi32(s, COND_AL, ret, arg);
 }
 
+/* Type is always V128, with I64 elements.  */
+static void tcg_out_dup2_vec(TCGContext *s, TCGReg rd, TCGReg rl, TCGReg rh)
+{
+    /* Move high element into place first. */
+    /* VMOV Dd+1, Ds */
+    tcg_out_vreg3(s, INSN_VORR | (1 << 12), 0, 0, rd, rh, rh);
+    /* Move low element into place; tcg_out_mov will check for nop. */
+    tcg_out_mov(s, TCG_TYPE_V64, rd, rl);
+}
+
 static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
                             TCGReg rd, TCGReg rs)
 {
-    g_assert_not_reached();
+    int q = type - TCG_TYPE_V64;
+
+    if (vece == MO_64) {
+        if (type == TCG_TYPE_V128) {
+            tcg_out_dup2_vec(s, rd, rs, rs);
+        } else {
+            tcg_out_mov(s, TCG_TYPE_V64, rd, rs);
+        }
+    } else if (rs < TCG_REG_Q0) {
+        int b = (vece == MO_8);
+        int e = (vece == MO_16);
+        tcg_out32(s, INSN_VDUP_G | (b << 22) | (q << 21) | (e << 5) |
+                  encode_vn(rd) | (rs << 12));
+    } else {
+        int imm4 = 1 << vece;
+        tcg_out32(s, INSN_VDUP_S | (imm4 << 16) | (q << 6) |
+                  encode_vd(rd) | encode_vm(rs));
+    }
+    return true;
 }
 
 static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
                              TCGReg rd, TCGReg base, intptr_t offset)
 {
-    g_assert_not_reached();
+    if (vece == MO_64) {
+        tcg_out_ld(s, TCG_TYPE_V64, rd, base, offset);
+        if (type == TCG_TYPE_V128) {
+            tcg_out_dup2_vec(s, rd, rd, rd);
+        }
+    } else {
+        int q = type - TCG_TYPE_V64;
+        tcg_out_vldst(s, INSN_VLD1R | (vece << 6) | (q << 5),
+                      rd, base, offset);
+    }
+    return true;
 }
 
 static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
                              TCGReg rd, int64_t v64)
 {
-    g_assert_not_reached();
+    int q = type - TCG_TYPE_V64;
+    int cmode, imm8, i;
+
+    /* Test all bytes equal first.  */
+    if (vece == MO_8) {
+        tcg_out_vmovi(s, rd, q, 0, 0xe, v64);
+        return;
+    }
+
+    /*
+     * Test all bytes 0x00 or 0xff second.  This can match cases that
+     * might otherwise take 2 or 3 insns for MO_16 or MO_32 below.
+     */
+    for (i = imm8 = 0; i < 8; i++) {
+        uint8_t byte = v64 >> (i * 8);
+        if (byte == 0xff) {
+            imm8 |= 1 << i;
+        } else if (byte != 0) {
+            goto fail_bytes;
+        }
+    }
+    tcg_out_vmovi(s, rd, q, 1, 0xe, imm8);
+    return;
+ fail_bytes:
+
+    /*
+     * Tests for various replications.  For each element width, if we
+     * cannot find an expansion there's no point checking a larger
+     * width because we already know by replication it cannot match.
+     */
+    if (vece == MO_16) {
+        uint16_t v16 = v64;
+
+        if (is_shimm16(v16, &cmode, &imm8)) {
+            tcg_out_vmovi(s, rd, q, 0, cmode, imm8);
+            return;
+        }
+        if (is_shimm16(~v16, &cmode, &imm8)) {
+            tcg_out_vmovi(s, rd, q, 1, cmode, imm8);
+            return;
+        }
+
+        /*
+         * Otherwise, all remaining constants can be loaded in two insns:
+         * rd = v16 & 0xff, rd |= v16 & 0xff00.
+         */
+        tcg_out_vmovi(s, rd, q, 0, 0x8, v16 & 0xff);
+        tcg_out_vmovi(s, rd, q, 0, 0xb, v16 >> 8);   /* VORRI */
+        return;
+    }
+
+    if (vece == MO_32) {
+        uint32_t v32 = v64;
+
+        if (is_shimm32(v32, &cmode, &imm8) ||
+            is_soimm32(v32, &cmode, &imm8)) {
+            tcg_out_vmovi(s, rd, q, 0, cmode, imm8);
+            return;
+        }
+        if (is_shimm32(~v32, &cmode, &imm8) ||
+            is_soimm32(~v32, &cmode, &imm8)) {
+            tcg_out_vmovi(s, rd, q, 1, cmode, imm8);
+            return;
+        }
+
+        /*
+         * Restrict the set of constants to those we can load with
+         * two instructions.  Others we load from the pool.
+         */
+        i = is_shimm32_pair(v32, &cmode, &imm8);
+        if (i) {
+            tcg_out_vmovi(s, rd, q, 0, cmode, imm8);
+            tcg_out_vmovi(s, rd, q, 0, i | 1, extract32(v32, i * 4, 8));
+            return;
+        }
+        i = is_shimm32_pair(~v32, &cmode, &imm8);
+        if (i) {
+            tcg_out_vmovi(s, rd, q, 1, cmode, imm8);
+            tcg_out_vmovi(s, rd, q, 1, i | 1, extract32(~v32, i * 4, 8));
+            return;
+        }
+    }
+
+    /*
+     * As a last resort, load from the constant pool.
+     */
+    if (!q || vece == MO_64) {
+        new_pool_l2(s, R_ARM_PC11, s->code_ptr, 0, v64, v64 >> 32);
+        /* VLDR Dd, [pc + offset] */
+        tcg_out32(s, INSN_VLDR_D | encode_vd(rd) | (0xf << 16));
+        if (q) {
+            tcg_out_dup2_vec(s, rd, rd, rd);
+        }
+    } else {
+        new_pool_label(s, (uint32_t)v64, R_ARM_PC8, s->code_ptr, 0);
+        /* add tmp, pc, offset */
+        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_TMP, TCG_REG_PC, 0);
+        tcg_out_dupm_vec(s, type, MO_32, rd, TCG_REG_TMP, 0);
+    }
 }
 
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
