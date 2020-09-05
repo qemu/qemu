@@ -178,11 +178,15 @@ typedef enum {
 
     INSN_VADD      = 0xf2000800,
     INSN_VAND      = 0xf2000110,
+    INSN_VBIC      = 0xf2100110,
     INSN_VEOR      = 0xf3000110,
+    INSN_VORN      = 0xf2300110,
     INSN_VORR      = 0xf2200110,
     INSN_VSUB      = 0xf3000800,
 
+    INSN_VABS      = 0xf3b10300,
     INSN_VMVN      = 0xf3b00580,
+    INSN_VNEG      = 0xf3b10380,
 
     INSN_VCEQ0     = 0xf3b10100,
     INSN_VCGT0     = 0xf3b10000,
@@ -2369,14 +2373,20 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I1(w, r);
     case INDEX_op_dup_vec:
         return C_O1_I1(w, wr);
+    case INDEX_op_abs_vec:
+    case INDEX_op_neg_vec:
+    case INDEX_op_not_vec:
+        return C_O1_I1(w, w);
     case INDEX_op_dup2_vec:
     case INDEX_op_add_vec:
     case INDEX_op_sub_vec:
     case INDEX_op_xor_vec:
         return C_O1_I2(w, w, w);
     case INDEX_op_or_vec:
+    case INDEX_op_andc_vec:
         return C_O1_I2(w, w, wO);
     case INDEX_op_and_vec:
+    case INDEX_op_orc_vec:
         return C_O1_I2(w, w, wV);
     case INDEX_op_cmp_vec:
         return C_O1_I2(w, w, wZ);
@@ -2718,6 +2728,15 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_dup2_vec:
         tcg_out_dup2_vec(s, a0, a1, a2);
         return;
+    case INDEX_op_abs_vec:
+        tcg_out_vreg2(s, INSN_VABS, q, vece, a0, a1);
+        return;
+    case INDEX_op_neg_vec:
+        tcg_out_vreg2(s, INSN_VNEG, q, vece, a0, a1);
+        return;
+    case INDEX_op_not_vec:
+        tcg_out_vreg2(s, INSN_VMVN, q, 0, a0, a1);
+        return;
     case INDEX_op_add_vec:
         tcg_out_vreg3(s, INSN_VADD, q, vece, a0, a1, a2);
         return;
@@ -2728,6 +2747,13 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         tcg_out_vreg3(s, INSN_VEOR, q, 0, a0, a1, a2);
         return;
 
+    case INDEX_op_andc_vec:
+        if (!const_args[2]) {
+            tcg_out_vreg3(s, INSN_VBIC, q, 0, a0, a1, a2);
+            return;
+        }
+        a2 = ~a2;
+        /* fall through */
     case INDEX_op_and_vec:
         if (const_args[2]) {
             is_shimm1632(~a2, &cmode, &imm8);
@@ -2741,6 +2767,13 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         tcg_out_vreg3(s, INSN_VAND, q, 0, a0, a1, a2);
         return;
 
+    case INDEX_op_orc_vec:
+        if (!const_args[2]) {
+            tcg_out_vreg3(s, INSN_VORN, q, 0, a0, a1, a2);
+            return;
+        }
+        a2 = ~a2;
+        /* fall through */
     case INDEX_op_or_vec:
         if (const_args[2]) {
             is_shimm1632(a2, &cmode, &imm8);
@@ -2803,10 +2836,15 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_add_vec:
     case INDEX_op_sub_vec:
     case INDEX_op_and_vec:
+    case INDEX_op_andc_vec:
     case INDEX_op_or_vec:
+    case INDEX_op_orc_vec:
     case INDEX_op_xor_vec:
+    case INDEX_op_not_vec:
         return 1;
+    case INDEX_op_abs_vec:
     case INDEX_op_cmp_vec:
+    case INDEX_op_neg_vec:
         return vece < MO_64;
     default:
         return 0;
