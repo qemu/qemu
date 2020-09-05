@@ -213,6 +213,10 @@ typedef enum {
     INSN_VSARI     = 0xf2800010,  /* VSHR.S */
     INSN_VSHRI     = 0xf3800010,  /* VSHR.U */
 
+    INSN_VBSL      = 0xf3100110,
+    INSN_VBIT      = 0xf3200110,
+    INSN_VBIF      = 0xf3300110,
+
     INSN_VTST      = 0xf2000810,
 
     INSN_VDUP_G    = 0xee800b10,  /* VDUP (ARM core register) */
@@ -2423,7 +2427,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(w, w, wV);
     case INDEX_op_cmp_vec:
         return C_O1_I2(w, w, wZ);
-
+    case INDEX_op_bitsel_vec:
+        return C_O1_I3(w, w, w, w);
     default:
         g_assert_not_reached();
     }
@@ -2741,7 +2746,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
 {
     TCGType type = vecl + TCG_TYPE_V64;
     unsigned q = vecl;
-    TCGArg a0, a1, a2;
+    TCGArg a0, a1, a2, a3;
     int cmode, imm8;
 
     a0 = args[0];
@@ -2892,6 +2897,18 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         }
         return;
 
+    case INDEX_op_bitsel_vec:
+        a3 = args[3];
+        if (a0 == a3) {
+            tcg_out_vreg3(s, INSN_VBIT, q, 0, a0, a2, a1);
+        } else if (a0 == a2) {
+            tcg_out_vreg3(s, INSN_VBIF, q, 0, a0, a3, a1);
+        } else {
+            tcg_out_mov(s, type, a0, a1);
+            tcg_out_vreg3(s, INSN_VBSL, q, 0, a0, a2, a3);
+        }
+        return;
+
     case INDEX_op_mov_vec:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_dup_vec:  /* Always emitted via tcg_out_dup_vec.  */
     default:
@@ -2917,6 +2934,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_sssub_vec:
     case INDEX_op_usadd_vec:
     case INDEX_op_ussub_vec:
+    case INDEX_op_bitsel_vec:
         return 1;
     case INDEX_op_abs_vec:
     case INDEX_op_cmp_vec:
