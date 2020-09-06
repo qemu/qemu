@@ -1109,6 +1109,21 @@ void tcg_optimize(TCGContext *s)
             }
             goto do_default;
 
+        case INDEX_op_dup2_vec:
+            assert(TCG_TARGET_REG_BITS == 32);
+            if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
+                tmp = arg_info(op->args[1])->val;
+                if (tmp == arg_info(op->args[2])->val) {
+                    tcg_opt_gen_movi(s, op, op->args[0], tmp);
+                    break;
+                }
+            } else if (args_are_copies(op->args[1], op->args[2])) {
+                op->opc = INDEX_op_dup_vec;
+                TCGOP_VECE(op) = MO_32;
+                nb_iargs = 1;
+            }
+            goto do_default;
+
         CASE_OP_32_64(not):
         CASE_OP_32_64(neg):
         CASE_OP_32_64(ext8s):
