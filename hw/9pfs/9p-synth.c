@@ -541,6 +541,8 @@ static int synth_init(FsContext *ctx, Error **errp)
     QLIST_INIT(&synth_root.child);
     qemu_mutex_init(&synth_mutex);
 
+    ctx->export_flags |= V9FS_NO_PERF_WARN;
+
     /* Add "." and ".." entries for root */
     v9fs_add_dir_node(&synth_root, synth_root.attr->mode,
                       "..", synth_root.attr, synth_root.attr->inode);

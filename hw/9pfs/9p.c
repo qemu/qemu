@@ -1354,7 +1354,7 @@ static void coroutine_fn v9fs_version(void *opaque)
     }
 
     /* 8192 is the default msize of Linux clients */
-    if (s->msize <= 8192) {
+    if (s->msize <= 8192 && !(s->ctx.export_flags & V9FS_NO_PERF_WARN)) {
         warn_report_once(
             "9p: degraded performance: a reasonable high msize should be "
             "chosen on client/guest side (chosen msize is <= 8192). See "
