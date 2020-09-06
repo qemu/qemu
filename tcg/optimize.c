@@ -39,8 +39,8 @@ typedef struct TempOptInfo {
     bool is_const;
     TCGTemp *prev_copy;
     TCGTemp *next_copy;
-    tcg_target_ulong val;
-    tcg_target_ulong mask;
+    uint64_t val;
+    uint64_t mask;
 } TempOptInfo;
 
 static inline TempOptInfo *ts_info(TCGTemp *ts)
@@ -166,11 +166,11 @@ static bool args_are_copies(TCGArg arg1, TCGArg arg2)
     return ts_are_copies(arg_temp(arg1), arg_temp(arg2));
 }
 
-static void tcg_opt_gen_movi(TCGContext *s, TCGOp *op, TCGArg dst, TCGArg val)
+static void tcg_opt_gen_movi(TCGContext *s, TCGOp *op, TCGArg dst, uint64_t val)
 {
     const TCGOpDef *def;
     TCGOpcode new_op;
-    tcg_target_ulong mask;
+    uint64_t mask;
     TempOptInfo *di = arg_info(dst);
 
     def = &tcg_op_defs[op->opc];
@@ -204,7 +204,7 @@ static void tcg_opt_gen_mov(TCGContext *s, TCGOp *op, TCGArg dst, TCGArg src)
     const TCGOpDef *def;
     TempOptInfo *di;
     TempOptInfo *si;
-    tcg_target_ulong mask;
+    uint64_t mask;
     TCGOpcode new_op;
 
     if (ts_are_copies(dst_ts, src_ts)) {
@@ -247,7 +247,7 @@ static void tcg_opt_gen_mov(TCGContext *s, TCGOp *op, TCGArg dst, TCGArg src)
     }
 }
 
-static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
+static uint64_t do_constant_folding_2(TCGOpcode op, uint64_t x, uint64_t y)
 {
     uint64_t l64, h64;
 
@@ -410,10 +410,10 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
     }
 }
 
-static TCGArg do_constant_folding(TCGOpcode op, TCGArg x, TCGArg y)
+static uint64_t do_constant_folding(TCGOpcode op, uint64_t x, uint64_t y)
 {
     const TCGOpDef *def = &tcg_op_defs[op];
-    TCGArg res = do_constant_folding_2(op, x, y);
+    uint64_t res = do_constant_folding_2(op, x, y);
     if (!(def->flags & TCG_OPF_64BIT)) {
         res = (int32_t)res;
     }
@@ -501,8 +501,9 @@ static bool do_constant_folding_cond_eq(TCGCond c)
 static TCGArg do_constant_folding_cond(TCGOpcode op, TCGArg x,
                                        TCGArg y, TCGCond c)
 {
-    tcg_target_ulong xv = arg_info(x)->val;
-    tcg_target_ulong yv = arg_info(y)->val;
+    uint64_t xv = arg_info(x)->val;
+    uint64_t yv = arg_info(y)->val;
+
     if (arg_is_const(x) && arg_is_const(y)) {
         const TCGOpDef *def = &tcg_op_defs[op];
         tcg_debug_assert(!(def->flags & TCG_OPF_VECTOR));
@@ -613,9 +614,8 @@ void tcg_optimize(TCGContext *s)
     infos = tcg_malloc(sizeof(TempOptInfo) * nb_temps);
 
     QTAILQ_FOREACH_SAFE(op, &s->ops, link, op_next) {
-        tcg_target_ulong mask, partmask, affected;
+        uint64_t mask, partmask, affected, tmp;
         int nb_oargs, nb_iargs, i;
-        TCGArg tmp;
         TCGOpcode opc = op->opc;
         const TCGOpDef *def = &tcg_op_defs[opc];
 
@@ -1225,14 +1225,15 @@ void tcg_optimize(TCGContext *s)
 
         CASE_OP_32_64(extract2):
             if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
-                TCGArg v1 = arg_info(op->args[1])->val;
-                TCGArg v2 = arg_info(op->args[2])->val;
+                uint64_t v1 = arg_info(op->args[1])->val;
+                uint64_t v2 = arg_info(op->args[2])->val;
+                int shr = op->args[3];
 
                 if (opc == INDEX_op_extract2_i64) {
-                    tmp = (v1 >> op->args[3]) | (v2 << (64 - op->args[3]));
+                    tmp = (v1 >> shr) | (v2 << (64 - shr));
                 } else {
-                    tmp = (int32_t)(((uint32_t)v1 >> op->args[3]) |
-                                    ((uint32_t)v2 << (32 - op->args[3])));
+                    tmp = (int32_t)(((uint32_t)v1 >> shr) |
+                                    ((uint32_t)v2 << (32 - shr)));
                 }
                 tcg_opt_gen_movi(s, op, op->args[0], tmp);
                 break;
@@ -1271,9 +1272,10 @@ void tcg_optimize(TCGContext *s)
                 break;
             }
             if (arg_is_const(op->args[3]) && arg_is_const(op->args[4])) {
-                tcg_target_ulong tv = arg_info(op->args[3])->val;
-                tcg_target_ulong fv = arg_info(op->args[4])->val;
+                uint64_t tv = arg_info(op->args[3])->val;
+                uint64_t fv = arg_info(op->args[4])->val;
                 TCGCond cond = op->args[5];
+
                 if (fv == 1 && tv == 0) {
                     cond = tcg_invert_cond(cond);
                 } else if (!(tv == 1 && fv == 0)) {
