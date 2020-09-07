@@ -3336,13 +3336,22 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
 static void expand_vec_shi(TCGType type, unsigned vece, TCGv_vec v0,
                            TCGv_vec v1, TCGArg imm, TCGOpcode opci)
 {
-    TCGv_vec t1 = tcg_temp_new_vec(type);
+    TCGv_vec t1;
 
-    /* Splat w/bytes for xxspltib.  */
-    tcg_gen_dupi_vec(MO_8, t1, imm & ((8 << vece) - 1));
+    if (vece == MO_32) {
+        /*
+         * Only 5 bits are significant, and VSPLTISB can represent -16..15.
+         * So using negative numbers gets us the 4th bit easily.
+         */
+        imm = sextract32(imm, 0, 5);
+    } else {
+        imm &= (8 << vece) - 1;
+    }
+
+    /* Splat w/bytes for xxspltib when 2.07 allows MO_64. */
+    t1 = tcg_constant_vec(type, MO_8, imm);
     vec_gen_3(opci, type, vece, tcgv_vec_arg(v0),
               tcgv_vec_arg(v1), tcgv_vec_arg(t1));
-    tcg_temp_free_vec(t1);
 }
 
 static void expand_vec_cmp(TCGType type, unsigned vece, TCGv_vec v0,
@@ -3400,7 +3409,7 @@ static void expand_vec_mul(TCGType type, unsigned vece, TCGv_vec v0,
 {
     TCGv_vec t1 = tcg_temp_new_vec(type);
     TCGv_vec t2 = tcg_temp_new_vec(type);
-    TCGv_vec t3, t4;
+    TCGv_vec c0, c16;
 
     switch (vece) {
     case MO_8:
@@ -3419,21 +3428,22 @@ static void expand_vec_mul(TCGType type, unsigned vece, TCGv_vec v0,
 
     case MO_32:
         tcg_debug_assert(!have_isa_2_07);
-        t3 = tcg_temp_new_vec(type);
-        t4 = tcg_temp_new_vec(type);
-        tcg_gen_dupi_vec(MO_8, t4, -16);
+        /*
+         * Only 5 bits are significant, and VSPLTISB can represent -16..15.
+         * So using -16 is a quick way to represent 16.
+         */
+        c16 = tcg_constant_vec(type, MO_8, -16);
+        c0 = tcg_constant_vec(type, MO_8, 0);
+
         vec_gen_3(INDEX_op_rotlv_vec, type, MO_32, tcgv_vec_arg(t1),
-                  tcgv_vec_arg(v2), tcgv_vec_arg(t4));
+                  tcgv_vec_arg(v2), tcgv_vec_arg(c16));
         vec_gen_3(INDEX_op_ppc_mulou_vec, type, MO_16, tcgv_vec_arg(t2),
                   tcgv_vec_arg(v1), tcgv_vec_arg(v2));
-        tcg_gen_dupi_vec(MO_8, t3, 0);
-        vec_gen_4(INDEX_op_ppc_msum_vec, type, MO_16, tcgv_vec_arg(t3),
-                  tcgv_vec_arg(v1), tcgv_vec_arg(t1), tcgv_vec_arg(t3));
-        vec_gen_3(INDEX_op_shlv_vec, type, MO_32, tcgv_vec_arg(t3),
-                  tcgv_vec_arg(t3), tcgv_vec_arg(t4));
-        tcg_gen_add_vec(MO_32, v0, t2, t3);
-        tcg_temp_free_vec(t3);
-        tcg_temp_free_vec(t4);
+        vec_gen_4(INDEX_op_ppc_msum_vec, type, MO_16, tcgv_vec_arg(t1),
+                  tcgv_vec_arg(v1), tcgv_vec_arg(t1), tcgv_vec_arg(c0));
+        vec_gen_3(INDEX_op_shlv_vec, type, MO_32, tcgv_vec_arg(t1),
+                  tcgv_vec_arg(t1), tcgv_vec_arg(c16));
+        tcg_gen_add_vec(MO_32, v0, t1, t2);
         break;
 
     default:
