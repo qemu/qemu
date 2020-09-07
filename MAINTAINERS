@@ -2920,10 +2920,12 @@ S: Supported
 F: block/null.c
 
 NVMe Block Driver
-M: Fam Zheng <fam@euphon.net>
+M: Stefan Hajnoczi <stefanha@redhat.com>
+R: Fam Zheng <fam@euphon.net>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/nvme*
+T: git https://github.com/stefanha/qemu.git block
 
 Bootdevice
 M: Gonglei <arei.gonglei@huawei.com>
