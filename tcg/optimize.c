@@ -1120,11 +1120,10 @@ void tcg_optimize(TCGContext *s)
         case INDEX_op_dup2_vec:
             assert(TCG_TARGET_REG_BITS == 32);
             if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
-                tmp = arg_info(op->args[1])->val;
-                if (tmp == arg_info(op->args[2])->val) {
-                    tcg_opt_gen_movi(s, &temps_used, op, op->args[0], tmp);
-                    break;
-                }
+                tcg_opt_gen_movi(s, &temps_used, op, op->args[0],
+                                 deposit64(arg_info(op->args[1])->val, 32, 32,
+                                           arg_info(op->args[2])->val));
+                break;
             } else if (args_are_copies(op->args[1], op->args[2])) {
                 op->opc = INDEX_op_dup_vec;
                 TCGOP_VECE(op) = MO_32;

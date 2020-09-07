@@ -3539,16 +3539,11 @@ static void temp_load(TCGContext *s, TCGTemp *ts, TCGRegSet desired_regs,
              * The targets will, in general, have to do this search anyway,
              * do this generically.
              */
-            if (TCG_TARGET_REG_BITS == 32) {
-                val = dup_const(MO_32, val);
-                vece = MO_32;
-            }
             if (val == dup_const(MO_8, val)) {
                 vece = MO_8;
             } else if (val == dup_const(MO_16, val)) {
                 vece = MO_16;
-            } else if (TCG_TARGET_REG_BITS == 64 &&
-                       val == dup_const(MO_32, val)) {
+            } else if (val == dup_const(MO_32, val)) {
                 vece = MO_32;
             }
 
