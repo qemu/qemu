@@ -13,6 +13,7 @@ ENV PACKAGES \
     glib2-devel \
     libaio-devel \
     libepoxy-devel \
+    libgcrypt-devel \
     lzo-devel \
     make \
     mesa-libEGL-devel \

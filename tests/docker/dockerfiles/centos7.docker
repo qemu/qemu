@@ -15,9 +15,11 @@ ENV PACKAGES \
     gettext \
     git \
     glib2-devel \
+    gnutls-devel \
     libaio-devel \
     libepoxy-devel \
     libfdt-devel \
+    libgcrypt-devel \
     librdmacm-devel \
     libzstd-devel \
     lzo-devel \

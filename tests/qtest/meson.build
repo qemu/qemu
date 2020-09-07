@@ -49,7 +49,6 @@ qtests_i386 = \
   qtests_pci +                                                                              \
   ['fdc-test',
    'ide-test',
-   'ahci-test',
    'hd-geo-test',
    'boot-order-test',
    'bios-tables-test',

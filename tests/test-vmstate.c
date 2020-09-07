@@ -881,8 +881,8 @@ static gint interval_cmp(gconstpointer a, gconstpointer b, gpointer user_data)
 /* ID comparison function */
 static gint int_cmp(gconstpointer a, gconstpointer b, gpointer user_data)
 {
-    uint ua = GPOINTER_TO_UINT(a);
-    uint ub = GPOINTER_TO_UINT(b);
+    guint ua = GPOINTER_TO_UINT(a);
+    guint ub = GPOINTER_TO_UINT(b);
     return (ua > ub) - (ua < ub);
 }
 

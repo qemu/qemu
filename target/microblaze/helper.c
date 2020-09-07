@@ -113,7 +113,10 @@ void mb_cpu_do_interrupt(CPUState *cs)
     uint32_t t, msr = mb_cpu_read_msr(env);
 
     /* IMM flag cannot propagate across a branch and into the dslot.  */
-    assert(!((env->iflags & D_FLAG) && (env->iflags & IMM_FLAG)));
+    assert((env->iflags & (D_FLAG | IMM_FLAG)) != (D_FLAG | IMM_FLAG));
+    /* BIMM flag cannot be set without D_FLAG. */
+    assert((env->iflags & (D_FLAG | BIMM_FLAG)) != BIMM_FLAG);
+    /* RTI flags are private to translate. */
     assert(!(env->iflags & (DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)));
     env->res_addr = RES_ADDR_NONE;
     switch (cs->exception_index) {
@@ -146,7 +149,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
                           env->pc, env->ear,
                           env->esr, env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
-            env->iflags &= ~(IMM_FLAG | D_FLAG);
+            env->iflags = 0;
             env->pc = cpu->cfg.base_vectors + 0x20;
             break;
 
@@ -186,14 +189,14 @@ void mb_cpu_do_interrupt(CPUState *cs)
                           "exception at pc=%x ear=%" PRIx64 " iflags=%x\n",
                           env->pc, env->ear, env->iflags);
             log_cpu_state_mask(CPU_LOG_INT, cs, 0);
-            env->iflags &= ~(IMM_FLAG | D_FLAG);
+            env->iflags = 0;
             env->pc = cpu->cfg.base_vectors + 0x20;
             break;
 
         case EXCP_IRQ:
             assert(!(msr & (MSR_EIP | MSR_BIP)));
             assert(msr & MSR_IE);
-            assert(!(env->iflags & D_FLAG));
+            assert(!(env->iflags & (D_FLAG | IMM_FLAG)));
 
             t = (msr & (MSR_VM | MSR_UM)) << 1;
 
@@ -226,13 +229,14 @@ void mb_cpu_do_interrupt(CPUState *cs)
             mb_cpu_write_msr(env, msr);
 
             env->regs[14] = env->pc;
+            env->iflags = 0;
             env->pc = cpu->cfg.base_vectors + 0x10;
             //log_cpu_state_mask(CPU_LOG_INT, cs, 0);
             break;
 
         case EXCP_HW_BREAK:
-            assert(!(env->iflags & IMM_FLAG));
-            assert(!(env->iflags & D_FLAG));
+            assert(!(env->iflags & (D_FLAG | IMM_FLAG)));
+
             t = (msr & (MSR_VM | MSR_UM)) << 1;
             qemu_log_mask(CPU_LOG_INT,
                           "break at pc=%x msr=%x %x iflags=%x\n",
@@ -242,6 +246,7 @@ void mb_cpu_do_interrupt(CPUState *cs)
             msr |= t;
             msr |= MSR_BIP;
             env->regs[16] = env->pc;
+            env->iflags = 0;
             env->pc = cpu->cfg.base_vectors + 0x18;
             mb_cpu_write_msr(env, msr);
             break;

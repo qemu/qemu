@@ -1,0 +1,113 @@
+
+.cross_system_build_job_template: &cross_system_build_job_definition
+  stage: build
+  image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  script:
+    - mkdir build
+    - cd build
+    - PKG_CONFIG_PATH=$PKG_CONFIG_PATH
+      ../configure --enable-werror $QEMU_CONFIGURE_OPTS --disable-user
+        --target-list-exclude="aarch64-softmmu i386-softmmu microblaze-softmmu
+          mips-softmmu mipsel-softmmu mips64-softmmu ppc64-softmmu sh4-softmmu
+          xtensa-softmmu"
+    - make -j$(expr $(nproc) + 1) all check-build
+
+.cross_user_build_job_template: &cross_user_build_job_definition
+  stage: build
+  image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  script:
+    - mkdir build
+    - cd build
+    - PKG_CONFIG_PATH=$PKG_CONFIG_PATH
+      ../configure --enable-werror $QEMU_CONFIGURE_OPTS --disable-system
+    - make -j$(expr $(nproc) + 1) all check-build
+
+cross-armel-system:
+  <<: *cross_system_build_job_definition
+  variables:
+    IMAGE: debian-armel-cross
+
+cross-armel-user:
+  <<: *cross_user_build_job_definition
+  variables:
+    IMAGE: debian-armel-cross
+
+cross-armhf-system:
+  <<: *cross_system_build_job_definition
+  variables:
+    IMAGE: debian-armhf-cross
+
+cross-armhf-user:
+  <<: *cross_user_build_job_definition
+  variables:
+    IMAGE: debian-armhf-cross
+
+cross-arm64-system:
+  <<: *cross_system_build_job_definition
+  variables:
+    IMAGE: debian-arm64-cross
+
+cross-arm64-user:
+  <<: *cross_user_build_job_definition
+  variables:
+    IMAGE: debian-arm64-cross
+
+cross-mips-system:
+  <<: *cross_system_build_job_definition
+  variables:
+    IMAGE: debian-mips-cross
+
+cross-mips-user:
+  <<: *cross_user_build_job_definition
+  variables:
+    IMAGE: debian-mips-cross
+
+cross-mipsel-system:
+  <<: *cross_system_build_job_definition
+  variables:
+    IMAGE: debian-mipsel-cross
+
+cross-mipsel-user:
+  <<: *cross_user_build_job_definition
+  variables:
+    IMAGE: debian-mipsel-cross
+
+cross-mips64el-system:
+  <<: *cross_system_build_job_definition
+  variables:
+    IMAGE: debian-mips64el-cross
+
+cross-mips64el-user:
+  <<: *cross_user_build_job_definition
+  variables:
+    IMAGE: debian-mips64el-cross
+
+cross-ppc64el-system:
+  <<: *cross_system_build_job_definition
+  variables:
+    IMAGE: debian-ppc64el-cross
+
+cross-ppc64el-user:
+  <<: *cross_user_build_job_definition
+  variables:
+    IMAGE: debian-ppc64el-cross
+
+cross-s390x-system:
+  <<: *cross_system_build_job_definition
+  variables:
+    IMAGE: debian-s390x-cross
+
+cross-s390x-user:
+  <<: *cross_user_build_job_definition
+  variables:
+    IMAGE: debian-s390x-cross
+
+cross-win32-system:
+  <<: *cross_system_build_job_definition
+  variables:
+    IMAGE: debian-win32-cross
+
+cross-win64-system:
+  <<: *cross_system_build_job_definition
+  variables:
+    IMAGE: debian-win64-cross
