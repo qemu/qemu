@@ -89,9 +89,7 @@ submodules:
 		-D NETWORK_HTTP_BOOT_ENABLE \
 		-D NETWORK_TLS_ENABLE \
 		-D TPM_ENABLE \
-		-D TPM_CONFIG_ENABLE \
-		-D TPM2_ENABLE \
-		-D TPM2_CONFIG_ENABLE
+		-D TPM_CONFIG_ENABLE
 	cp edk2/Build/OvmfIa32/DEBUG_$(call toolchain,i386)/FV/OVMF_CODE.fd $@
 
 ../pc-bios/edk2-i386-secure-code.fd: submodules
@@ -104,8 +102,6 @@ submodules:
 		-D NETWORK_TLS_ENABLE \
 		-D TPM_ENABLE \
 		-D TPM_CONFIG_ENABLE \
-		-D TPM2_ENABLE \
-		-D TPM2_CONFIG_ENABLE \
 		-D SECURE_BOOT_ENABLE \
 		-D SMM_REQUIRE
 	cp edk2/Build/OvmfIa32/DEBUG_$(call toolchain,i386)/FV/OVMF_CODE.fd $@
@@ -119,9 +115,7 @@ submodules:
 		-D NETWORK_HTTP_BOOT_ENABLE \
 		-D NETWORK_TLS_ENABLE \
 		-D TPM_ENABLE \
-		-D TPM_CONFIG_ENABLE \
-		-D TPM2_ENABLE \
-		-D TPM2_CONFIG_ENABLE
+		-D TPM_CONFIG_ENABLE
 	cp edk2/Build/OvmfX64/DEBUG_$(call toolchain,x86_64)/FV/OVMF_CODE.fd $@
 
 ../pc-bios/edk2-x86_64-secure-code.fd: submodules
@@ -135,8 +129,6 @@ submodules:
 		-D NETWORK_TLS_ENABLE \
 		-D TPM_ENABLE \
 		-D TPM_CONFIG_ENABLE \
-		-D TPM2_ENABLE \
-		-D TPM2_CONFIG_ENABLE \
 		-D SECURE_BOOT_ENABLE \
 		-D SMM_REQUIRE
 	cp edk2/Build/Ovmf3264/DEBUG_$(call toolchain,x86_64)/FV/OVMF_CODE.fd $@
