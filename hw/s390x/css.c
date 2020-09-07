@@ -353,7 +353,6 @@ static ChannelSubSys channel_subsys = {
     .pending_crws = QTAILQ_HEAD_INITIALIZER(channel_subsys.pending_crws),
     .do_crw_mchk = true,
     .sei_pending = false,
-    .do_crw_mchk = true,
     .crws_lost = false,
     .chnmon_active = false,
     .indicator_addresses =
