@@ -90,12 +90,6 @@ struct SerialMM {
     uint8_t endianness;
 };
 
-struct SerialIO {
-    SysBusDevice parent;
-
-    SerialState serial;
-};
-
 extern const VMStateDescription vmstate_serial;
 extern const MemoryRegionOps serial_io_ops;
 
@@ -106,9 +100,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(SerialState, SERIAL)
 
 #define TYPE_SERIAL_MM "serial-mm"
 OBJECT_DECLARE_SIMPLE_TYPE(SerialMM, SERIAL_MM)
-
-#define TYPE_SERIAL_IO "serial-io"
-OBJECT_DECLARE_SIMPLE_TYPE(SerialIO, SERIAL_IO)
 
 SerialMM *serial_mm_init(MemoryRegion *address_space,
                          hwaddr base, int regshift,
