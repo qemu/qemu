@@ -179,7 +179,7 @@ process for:
 
    - Userspace emulators - qemu-$ARCH
 
-   - Some (but not all) unit tests
+   - Unit tests
 
 2) documentation
 
@@ -204,8 +204,9 @@ are then turned into static libraries as follows::
 
     chardev = declare_dependency(link_whole: libchardev)
 
-The special `.fa` suffix is needed as long as unit tests are built with
-the older Makefile infrastructure, and will go away later.
+As of Meson 0.55.1, the special `.fa` suffix should be used for everything
+that is used with `link_whole`, to ensure that the link flags are placed
+correctly in the command line.
 
 Files linked into emulator targets there can be split into two distinct groups
 of files, those which are independent of the QEMU emulation target and
@@ -221,7 +222,8 @@ only in system emulators, `user_ss` only in user-mode emulators.
 
 In the target-dependent set lives CPU emulation, device emulation and
 much glue code. This sometimes also has to be compiled multiple times,
-once for each target being built.
+once for each target being built.  Target-dependent files are included
+in the `specific_ss` sourceset.
 
 All binaries link with a static library `libqemuutil.a`, which is then
 linked to all the binaries.  `libqemuutil.a` is built from several
@@ -300,84 +302,9 @@ The resulting build system is largely non-recursive in nature, in
 contrast to common practices seen with automake.
 
 Tests are also ran by the Makefile with the traditional `make check`
-phony target.  Meson test suites such as `unit` can be ran with `make
-check-unit` too.  It is also possible to run tests defined in meson.build
-with `meson test`.
-
-The following text is only relevant for unit tests which still have to
-be converted to Meson.
-
-All binaries should link to `libqemuutil.a`, e.g.:
-
-   qemu-img$(EXESUF): qemu-img.o ..snip.. libqemuutil.a
-
-On Windows, all binaries have the suffix `.exe`, so all Makefile rules
-which create binaries must include the $(EXESUF) variable on the binary
-name. e.g.
-
-   qemu-img$(EXESUF): qemu-img.o ..snip..
-
-This expands to `.exe` on Windows, or an empty string on other platforms.
-
-Variable naming
----------------
-
-The QEMU convention is to define variables to list different groups of
-object files. These are named with the convention $PREFIX-obj-y.  The
-Meson `chardev` variable in the previous example corresponds to a
-variable 'chardev-obj-y'.
-
-Likewise, tests that are executed by `make check-unit` are grouped into
-a variable check-unit-y, like this:
-
-  check-unit-y += tests/test-visitor-serialization$(EXESUF)
-  check-unit-y += tests/test-iov$(EXESUF)
-  check-unit-y += tests/test-bitmap$(EXESUF)
-
-When a test or object file which needs to be conditionally built based
-on some characteristic of the host system, the configure script will
-define a variable for the conditional. For example, on Windows it will
-define $(CONFIG_POSIX) with a value of 'n' and $(CONFIG_WIN32) with a
-value of 'y'. It is now possible to use the config variables when
-listing object files. For example,
-
-  check-unit-$(CONFIG_POSIX) += tests/test-vmstate$(EXESUF)
-
-On Windows this expands to
-
-  check-unit-n += tests/vmstate.exe
-
-Since the `check-unit` target only runs tests included in `$(check-unit-y)`,
-POSIX specific tests listed in `$(util-obj-n)` are ignored on the Windows
-platform builds.
-
-
-CFLAGS / LDFLAGS / LIBS handling
---------------------------------
-
-There are many different binaries being built with differing purposes,
-and some of them might even be 3rd party libraries pulled in via git
-submodules. As such the use of the global CFLAGS variable is generally
-avoided in QEMU, since it would apply to too many build targets.
-
-Flags that are needed by any QEMU code (i.e. everything *except* GIT
-submodule projects) are put in $(QEMU_CFLAGS) variable. For linker
-flags the $(LIBS) variable is sometimes used, but a couple of more
-targeted variables are preferred.
-
-In addition to these variables, it is possible to provide cflags and
-libs against individual source code files, by defining variables of the
-form $FILENAME-cflags and $FILENAME-libs. For example, the test
-test-crypto-tlscredsx509 needs to link to the libtasn1 library,
-so tests/Makefile.include defines some variables:
-
-  tests/crypto-tls-x509-helpers.o-cflags := $(TASN1_CFLAGS)
-  tests/crypto-tls-x509-helpers.o-libs := $(TASN1_LIBS)
-
-The scope is a little different between the two variables. The libs get
-used when linking any target binary that includes the curl.o object
-file, while the cflags get used when compiling the curl.c file only.
-
+phony target, while benchmarks are run with `make bench`.  Meson test
+suites such as `unit` can be ran with `make check-unit` too.  It is also
+possible to run tests defined in meson.build with `meson test`.
 
 Important files for the build system
 ====================================
@@ -402,10 +329,8 @@ number of dynamically created files listed later.
   other meson.build files spread throughout the QEMU source tree.
 
 `tests/Makefile.include`
-  Rules for building the unit tests. This file is included directly by the
-  top level Makefile, so anything defined in this file will influence the
-  entire build system. Care needs to be taken when writing rules for tests
-  to ensure they only apply to the unit test execution / build.
+  Rules for external test harnesses. These include the TCG tests,
+  `qemu-iotests` and the Avocado-based acceptance tests.
 
 `tests/docker/Makefile.include`
   Rules for Docker tests. Like tests/Makefile, this file is included
