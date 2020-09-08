@@ -25,8 +25,8 @@ These are specified using a special URL syntax.
 
    .. parsed-literal::
 
-      |qemu_system| -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \
-                       -cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \
+      |qemu_system| -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \\
+                       -cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \\
                        -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 
    Example (CHAP username/password via URL):
@@ -39,8 +39,8 @@ These are specified using a special URL syntax.
 
    .. parsed-literal::
 
-      LIBISCSI_CHAP_USERNAME="user" \
-      LIBISCSI_CHAP_PASSWORD="password" \
+      LIBISCSI_CHAP_USERNAME="user" \\
+      LIBISCSI_CHAP_PASSWORD="password" \\
       |qemu_system| -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 
 ``NBD``
