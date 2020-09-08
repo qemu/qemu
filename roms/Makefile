@@ -113,7 +113,6 @@ efirom: $(patsubst %,efi-rom-%,$(pxerom_variants))
 efi-rom-%: build-pxe-roms build-efi-roms edk2-basetools
 	$(EDK2_EFIROM) -f "0x$(VID)" -i "0x$(DID)" -l 0x02 \
 		-b ipxe/src/bin/$(VID)$(DID).rom \
-		-ec ipxe/src/bin-i386-efi/$(VID)$(DID).efidrv \
 		-ec ipxe/src/bin-x86_64-efi/$(VID)$(DID).efidrv \
 		-o ../pc-bios/efi-$*.rom
 
@@ -125,7 +124,6 @@ build-pxe-roms:
 build-efi-roms: build-pxe-roms
 	$(MAKE) -C ipxe/src CONFIG=qemu \
 		CROSS_COMPILE=$(x86_64_cross_prefix) \
-		$(patsubst %,bin-i386-efi/%.efidrv,$(pxerom_targets)) \
 		$(patsubst %,bin-x86_64-efi/%.efidrv,$(pxerom_targets))
 
 # Build scripts can pass compiler/linker flags to the EDK2
