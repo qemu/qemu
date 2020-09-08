@@ -1320,6 +1320,7 @@ static bool cluster_needs_new_alloc(BlockDriverState *bs, uint64_t l2_entry)
         if (l2_entry & QCOW_OFLAG_COPIED) {
             return false;
         }
+        /* fallthrough */
     case QCOW2_CLUSTER_UNALLOCATED:
     case QCOW2_CLUSTER_COMPRESSED:
     case QCOW2_CLUSTER_ZERO_PLAIN:
