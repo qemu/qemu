@@ -314,25 +314,35 @@ error:
     return ret;
 }
 
-/* Request a range of pages from the source VM at the given
- * start address.
- *   rbname: Name of the RAMBlock to request the page in, if NULL it's the same
- *           as the last request (a name must have been given previously)
+/* Request one page from the source VM at the given start address.
+ *   rb: the RAMBlock to request the page in
  *   Start: Address offset within the RB
  *   Len: Length in bytes required - must be a multiple of pagesize
  */
-int migrate_send_rp_req_pages(MigrationIncomingState *mis, const char *rbname,
-                              ram_addr_t start, size_t len)
+int migrate_send_rp_req_pages(MigrationIncomingState *mis, RAMBlock *rb,
+                              ram_addr_t start)
 {
     uint8_t bufc[12 + 1 + 255]; /* start (8), len (4), rbname up to 256 */
     size_t msglen = 12; /* start + len */
+    size_t len = qemu_ram_pagesize(rb);
     enum mig_rp_message_type msg_type;
+    const char *rbname;
+    int rbname_len;
 
     *(uint64_t *)bufc = cpu_to_be64((uint64_t)start);
     *(uint32_t *)(bufc + 8) = cpu_to_be32((uint32_t)len);
 
-    if (rbname) {
-        int rbname_len = strlen(rbname);
+    /*
+     * We maintain the last ramblock that we requested for page.  Note that we
+     * don't need locking because this function will only be called within the
+     * postcopy ram fault thread.
+     */
+    if (rb != mis->last_rb) {
+        mis->last_rb = rb;
+
+        rbname = qemu_ram_get_idstr(rb);
+        rbname_len = strlen(rbname);
+
         assert(rbname_len < 256);
 
         bufc[msglen++] = rbname_len;
