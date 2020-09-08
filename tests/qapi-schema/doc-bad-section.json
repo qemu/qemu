@@ -1,9 +1,8 @@
 # = section within an expression comment
-# BUG: not rejected
 
 ##
 # @Enum:
-# == Produces *invalid* texinfo
+# == No good here
 # @one: The _one_ {and only}
 #
 # @two is undocumented

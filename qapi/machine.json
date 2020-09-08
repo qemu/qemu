@@ -191,8 +191,8 @@
 #
 # Features:
 # @deprecated: This command is deprecated, because it interferes with
-#     the guest.  Use 'query-cpus-fast' instead to avoid the vCPU
-#     interruption.
+#              the guest.  Use 'query-cpus-fast' instead to avoid the vCPU
+#              interruption.
 #
 # Returns: a list of @CpuInfo for each virtual CPU
 #
@@ -316,7 +316,7 @@
 #
 # Features:
 # @deprecated: This command is deprecated.  Use `device_add` instead.
-#     See the `query-hotpluggable-cpus` command for details.
+#              See the `query-hotpluggable-cpus` command for details.
 #
 # Returns: Nothing on success
 #

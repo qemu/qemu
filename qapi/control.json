@@ -177,8 +177,8 @@
 #
 # Features:
 # @deprecated: This command is deprecated, because its output doesn't
-#     reflect compile-time configuration.  Use 'query-qmp-schema'
-#     instead.
+#              reflect compile-time configuration.  Use 'query-qmp-schema'
+#              instead.
 #
 # Returns: A list of @EventInfo.
 #
