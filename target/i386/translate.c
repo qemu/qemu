@@ -86,7 +86,7 @@ void afl_save_regs(struct api_regs* r, CPUArchState* env) {
   int i;
   for (i = 0; i < CPU_NB_REGS; ++i)
     memcpy(r->zmm_regs[i], &env->xmm_regs[i], sizeof(r->zmm_regs[i]));
-#elif
+#else
   r->eip = env->eip;
   r->eax = env->regs[R_EAX];
   r->ebx = env->regs[R_EBX];
@@ -128,8 +128,8 @@ void afl_restore_regs(struct api_regs* r, CPUArchState* env) {
   int i;
   for (i = 0; i < CPU_NB_REGS; ++i)
     memcpy(&env->xmm_regs[i], r->zmm_regs[i], sizeof(r->zmm_regs[i]));
-#elif
-  nv->eip = r->eip;
+#else
+  env->eip = r->eip;
   env->regs[R_EAX] = r->eax;
   env->regs[R_EBX] = r->ebx;
   env->regs[R_ECX] = r->ecx;

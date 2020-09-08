@@ -46,9 +46,7 @@
 #define AFL_QEMU_TARGET_ARM64_SNIPPET                                         \
   if (is_persistent) {                                                        \
                                                                               \
-    if (s->pc == afl_persistent_addr) {                                       \
-                                                                              \
-      if (persistent_save_gpr) gpr_saving(cpu_X, AFL_REGS_NUM);               \
+    if (s->pc_curr == afl_persistent_addr) {                                  \
                                                                               \
       if (afl_persistent_ret_addr == 0 && !persistent_exits) {                \
                                                                               \
@@ -58,7 +56,8 @@
                                                                               \
       if (!persistent_save_gpr) afl_gen_tcg_plain_call(&afl_persistent_loop); \
                                                                               \
-    } else if (afl_persistent_ret_addr && s->pc == afl_persistent_ret_addr) { \
+    } else if (afl_persistent_ret_addr &&                                     \
+               s->pc_curr == afl_persistent_ret_addr) {                       \
                                                                               \
       gen_goto_tb(s, 0, afl_persistent_addr);                                 \
                                                                               \
@@ -4202,7 +4201,7 @@ static void disas_add_sub_imm(DisasContext *s, uint32_t insn)
     
     if (rd == 31 && sub_op) { // cmp xX, imm
       TCGv_i64 tcg_imm = tcg_const_i64(imm);
-      afl_gen_compcov(s->pc, tcg_rn, tcg_imm, is_64bit ? MO_64 : MO_32, 1);
+      afl_gen_compcov(s->pc_curr, tcg_rn, tcg_imm, is_64bit ? MO_64 : MO_32, 1);
       tcg_temp_free_i64(tcg_imm);
     }
 
@@ -4869,7 +4868,7 @@ static void disas_add_sub_ext_reg(DisasContext *s, uint32_t insn)
     ext_and_shift_reg(tcg_rm, tcg_rm, option, imm3);
     
     if (rd == 31 && sub_op) // cmp xX, xY
-      afl_gen_compcov(s->pc, tcg_rn, tcg_rm, sf ? MO_64 : MO_32, 0);
+      afl_gen_compcov(s->pc_curr, tcg_rn, tcg_rm, sf ? MO_64 : MO_32, 0);
 
     tcg_result = tcg_temp_new_i64();
 
@@ -4936,7 +4935,7 @@ static void disas_add_sub_reg(DisasContext *s, uint32_t insn)
     shift_reg_imm(tcg_rm, tcg_rm, sf, shift_type, imm6);
     
     if (rd == 31 && sub_op) // cmp xX, xY
-      afl_gen_compcov(s->pc, tcg_rn, tcg_rm, sf ? MO_64 : MO_32, 0);
+      afl_gen_compcov(s->pc_curr, tcg_rn, tcg_rm, sf ? MO_64 : MO_32, 0);
 
     tcg_result = tcg_temp_new_i64();
 
@@ -5220,7 +5219,7 @@ static void disas_cc(DisasContext *s, uint32_t insn)
     }
     tcg_rn = cpu_reg(s, rn);
 
-    afl_gen_compcov(s->pc, tcg_rn, tcg_y, sf ? MO_64 : MO_32, is_imm);
+    afl_gen_compcov(s->pc_curr, tcg_rn, tcg_y, sf ? MO_64 : MO_32, is_imm);
 
     /* Set the flags for the new comparison.  */
     tcg_tmp = tcg_temp_new_i64();

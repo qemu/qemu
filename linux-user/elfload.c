@@ -2538,7 +2538,8 @@ static void load_elf_image(const char *image_name, int image_fd,
 #endif
     }
     if (getenv("AFL_DEBUG") != NULL)
-      fprintf(stderr, "AFL forkserver entrypoint: %p\n", (void*)afl_entry_point);
+      fprintf(stderr, "AFL forkserver entrypoint: 0x%lx\n",
+              (unsigned long)afl_entry_point);
 
     for (i = 0; i < ehdr->e_phnum; i++) {
         struct elf_phdr *eppnt = phdr + i;

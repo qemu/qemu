@@ -48,7 +48,7 @@ struct x86_64_regs {
 
 struct arm_regs {
 
-  uint32_t r1, r2, r3, r4, r5, r6, r7, r8, r9, r10;
+  uint32_t r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10;
   
   union {
     uint32_t r11;
@@ -71,7 +71,7 @@ struct arm_regs {
     uint32_t pc;
   };
   
-  uint32_t cspr;
+  uint32_t cpsr;
 
   uint8_t vfp_zregs[16][32];
   uint32_t vfp_xregs[16];
@@ -80,7 +80,7 @@ struct arm_regs {
 
 struct arm64_regs {
 
-  uint64_t x1, x2, x3, x4, x5, x6, x7, x8, x9, x10;
+  uint64_t x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10;
   
   union {
     uint64_t x11;
@@ -127,10 +127,12 @@ struct arm64_regs {
   };
   // the zero register is not saved here ofc
   
-  uint32_t cspr;
+  uint64_t pc;
+  
+  uint32_t cpsr;
 
   uint8_t vfp_zregs[16 * 16][32];
-  uint8_t vfp_pregs[32][32];
+  uint8_t vfp_pregs[32][17];
   uint32_t vfp_xregs[16];
 
 };

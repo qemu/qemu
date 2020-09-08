@@ -64,6 +64,137 @@
                                                                                \
   }
 
+void afl_save_regs(struct api_regs* r, CPUArchState* env) {
+
+  int i;
+#ifdef TARGET_AARCH64
+  r->x0 = env->xregs[0];
+  r->x1 = env->xregs[1];
+  r->x2 = env->xregs[2];
+  r->x3 = env->xregs[3];
+  r->x4 = env->xregs[4];
+  r->x5 = env->xregs[5];
+  r->x6 = env->xregs[6];
+  r->x7 = env->xregs[7];
+  r->x8 = env->xregs[8];
+  r->x9 = env->xregs[9];
+  r->x10 = env->xregs[10];
+  r->x11 = env->xregs[11];
+  r->x12 = env->xregs[12];
+  r->x13 = env->xregs[13];
+  r->x14 = env->xregs[14];
+  r->x15 = env->xregs[15];
+  r->x16 = env->xregs[16];
+  r->x17 = env->xregs[17];
+  r->x18 = env->xregs[18];
+  r->x19 = env->xregs[19];
+  r->x20 = env->xregs[20];
+  r->x21 = env->xregs[21];
+  r->x22 = env->xregs[22];
+  r->x23 = env->xregs[23];
+  r->x24 = env->xregs[24];
+  r->x25 = env->xregs[25];
+  r->x26 = env->xregs[26];
+  r->x27 = env->xregs[27];
+  r->x28 = env->xregs[28];
+  r->x29 = env->xregs[29];
+  r->x30 = env->xregs[30];
+  r->x31 = env->xregs[31];
+  for (i = 0; i < 17; ++i)
+    memcpy(r->vfp_pregs[i], &env->vfp.pregs[i], sizeof(r->vfp_pregs[i]));
+#else
+  r->r0 = env->regs[0];
+  r->r1 = env->regs[1];
+  r->r2 = env->regs[2];
+  r->r3 = env->regs[3];
+  r->r4 = env->regs[4];
+  r->r5 = env->regs[5];
+  r->r6 = env->regs[6];
+  r->r7 = env->regs[7];
+  r->r8 = env->regs[8];
+  r->r9 = env->regs[9];
+  r->r10 = env->regs[10];
+  r->r11 = env->regs[11];
+  r->r12 = env->regs[12];
+  r->r13 = env->regs[13];
+  r->r14 = env->regs[14];
+  r->r15 = env->regs[15];
+  // r->r15 = env->pc;
+#endif
+  r->cpsr = cpsr_read(env);
+  for (i = 0; i < 32; ++i)
+    memcpy(r->vfp_zregs[i], &env->vfp.zregs[i], sizeof(r->vfp_zregs[i]));
+  for (i = 0; i < 16; ++i)
+    r->vfp_xregs[i] = env->vfp.xregs[i];
+
+}
+
+void afl_restore_regs(struct api_regs* r, CPUArchState* env) {
+
+  int i;
+#ifdef TARGET_AARCH64
+  env->xregs[0] = r->x0;
+  env->xregs[1] = r->x1;
+  env->xregs[2] = r->x2;
+  env->xregs[3] = r->x3;
+  env->xregs[4] = r->x4;
+  env->xregs[5] = r->x5;
+  env->xregs[6] = r->x6;
+  env->xregs[7] = r->x7;
+  env->xregs[8] = r->x8;
+  env->xregs[9] = r->x9;
+  env->xregs[10] = r->x10;
+  env->xregs[11] = r->x11;
+  env->xregs[12] = r->x12;
+  env->xregs[13] = r->x13;
+  env->xregs[14] = r->x14;
+  env->xregs[15] = r->x15;
+  env->xregs[16] = r->x16;
+  env->xregs[17] = r->x17;
+  env->xregs[18] = r->x18;
+  env->xregs[19] = r->x19;
+  env->xregs[20] = r->x20;
+  env->xregs[21] = r->x21;
+  env->xregs[22] = r->x22;
+  env->xregs[23] = r->x23;
+  env->xregs[24] = r->x24;
+  env->xregs[25] = r->x25;
+  env->xregs[26] = r->x26;
+  env->xregs[27] = r->x27;
+  env->xregs[28] = r->x28;
+  env->xregs[29] = r->x29;
+  env->xregs[30] = r->x30;
+  env->xregs[31] = r->x31;
+  for (i = 0; i < 17; ++i)
+    memcpy(&env->vfp.pregs[i], r->vfp_pregs[i], sizeof(r->vfp_pregs[i]));
+#else
+  env->regs[0] = r->r0;
+  env->regs[1] = r->r1;
+  env->regs[2] = r->r2;
+  env->regs[3] = r->r3;
+  env->regs[4] = r->r4;
+  env->regs[5] = r->r5;
+  env->regs[6] = r->r6;
+  env->regs[7] = r->r7;
+  env->regs[8] = r->r8;
+  env->regs[9] = r->r9;
+  env->regs[10] = r->r10;
+  env->regs[11] = r->r11;
+  env->regs[12] = r->r12;
+  env->regs[13] = r->r13;
+  env->regs[14] = r->r14;
+  env->regs[15] = r->r15;
+#endif
+  env->pc = r->pc;
+  cpsr_write(env, r->cpsr, 0xffffffff, CPSRWriteRaw);
+  for (i = 0; i < 32; ++i)
+    memcpy(&env->vfp.zregs[i], r->vfp_zregs[i], sizeof(r->vfp_zregs[i]));
+  for (i = 0; i < 16; ++i)
+    env->vfp.xregs[i] = r->vfp_xregs[i];
+
+}
+
+
 #define ENABLE_ARCH_4T    arm_dc_feature(s, ARM_FEATURE_V4T)
 #define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
 /* currently all emulated v5 cores are also v5TE, so don't bother */
@@ -5345,6 +5476,20 @@ static bool op_s_rrr_shi(DisasContext *s, arg_s_rrr_shi *a,
     gen_arm_shift_im(tmp2, a->shty, a->shim, logic_cc);
     tmp1 = load_reg(s, a->rn);
 
+    if (gen == gen_sub_CC || /*gen == gen_add_CC ||*/ gen == gen_rsb_CC) {
+#ifdef TARGET_AARCH64
+      TCGv tmp1_64 = tcg_temp_new();
+      TCGv tmp2_64 = tcg_temp_new();
+      tcg_gen_extu_i32_i64(tmp1_64, tmp1);
+      tcg_gen_extu_i32_i64(tmp2_64, tmp2);
+      afl_gen_compcov(s->pc_curr, tmp1_64, tmp2_64, MO_32, 0);
+      tcg_temp_free(tmp1_64);
+      tcg_temp_free(tmp2_64);
+#else
+      afl_gen_compcov(s->pc_curr, tmp1, tmp2, MO_32, 0);
+#endif
+    }
+
     gen(tmp1, tmp1, tmp2);
     tcg_temp_free_i32(tmp2);
 
@@ -5386,6 +5531,20 @@ static bool op_s_rrr_shr(DisasContext *s, arg_s_rrr_shr *a,
     tmp2 = load_reg(s, a->rm);
     gen_arm_shift_reg(tmp2, a->shty, tmp1, logic_cc);
     tmp1 = load_reg(s, a->rn);
+
+    if (gen == gen_sub_CC || /*gen == gen_add_CC ||*/ gen == gen_rsb_CC) {
+#ifdef TARGET_AARCH64
+      TCGv tmp1_64 = tcg_temp_new();
+      TCGv tmp2_64 = tcg_temp_new();
+      tcg_gen_extu_i32_i64(tmp1_64, tmp1);
+      tcg_gen_extu_i32_i64(tmp2_64, tmp2);
+      afl_gen_compcov(s->pc_curr, tmp1_64, tmp2_64, MO_32, 0);
+      tcg_temp_free(tmp1_64);
+      tcg_temp_free(tmp2_64);
+#else
+      afl_gen_compcov(s->pc_curr, tmp1, tmp2, MO_32, 0);
+#endif
+    }
 
     gen(tmp1, tmp1, tmp2);
     tcg_temp_free_i32(tmp2);
@@ -5436,6 +5595,20 @@ static bool op_s_rri_rot(DisasContext *s, arg_s_rri_rot *a,
     }
     tmp2 = tcg_const_i32(imm);
     tmp1 = load_reg(s, a->rn);
+
+    if (gen == gen_sub_CC || /*gen == gen_add_CC ||*/ gen == gen_rsb_CC) {
+#ifdef TARGET_AARCH64
+      TCGv tmp1_64 = tcg_temp_new();
+      TCGv tmp2_64 = tcg_temp_new();
+      tcg_gen_extu_i32_i64(tmp1_64, tmp1);
+      tcg_gen_extu_i32_i64(tmp2_64, tmp2);
+      afl_gen_compcov(s->pc_curr, tmp1_64, tmp2_64, MO_32, 0);
+      tcg_temp_free(tmp1_64);
+      tcg_temp_free(tmp2_64);
+#else
+      afl_gen_compcov(s->pc_curr, tmp1, tmp2, MO_32, 0);
+#endif
+    }
 
     gen(tmp1, tmp1, tmp2);
     tcg_temp_free_i32(tmp2);

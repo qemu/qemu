@@ -454,8 +454,9 @@ void afl_setup(void) {
     if (getenv("AFL_DEBUG") && afl_instr_code) {
       struct vmrange* n = afl_instr_code;
       while (n) {
-        fprintf(stderr, "Instrument range: 0x%lx-0x%lx (%s)\n", n->start,
-                n->end, n->name ? n->name : "<noname>");
+        fprintf(stderr, "Instrument range: 0x%lx-0x%lx (%s)\n",
+                (unsigned long)n->start, (unsigned long)n->end,
+                n->name ? n->name : "<noname>");
         n = n->next;
       }
     }
@@ -568,7 +569,8 @@ void afl_setup(void) {
   
   if (getenv("AFL_DEBUG")) {
     if (is_persistent)
-      fprintf(stderr, "Persistent: %p %s%s%s\n", (void*)afl_persistent_addr,
+      fprintf(stderr, "Persistent: 0x%lx %s%s%s\n",
+              (unsigned long)afl_persistent_addr,
               (persistent_save_gpr ? "gpr ": ""),
               (persistent_memory ? "mem ": ""),
               (persistent_exits ? "exits ": ""));
@@ -946,10 +948,9 @@ static void afl_wait_tsl(CPUState *cpu, int fd) {
                                  t.chain.last_tb.cs_base,
                                  t.chain.last_tb.flags,
                                  t.chain.cf_mask);
-// #define TB_JMP_RESET_OFFSET_INVALID 0xffff
-//        if (last_tb && (last_tb->jmp_reset_offset[t.chain.tb_exit] !=
-//                        TB_JMP_RESET_OFFSET_INVALID)) {
-        if (last_tb) {
+#define TB_JMP_RESET_OFFSET_INVALID 0xffff
+        if (last_tb && (last_tb->jmp_reset_offset[t.chain.tb_exit] !=
+                        TB_JMP_RESET_OFFSET_INVALID)) {
 
           tb_add_jump(last_tb, t.chain.tb_exit, tb);
 
