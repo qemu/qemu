@@ -479,16 +479,7 @@ static void tcg_start_vcpu_thread(CPUState *cpu)
     if (!tcg_region_inited) {
         tcg_region_inited = 1;
         tcg_region_init();
-        /*
-         * If MTTCG, and we will create multiple cpus,
-         * then we will have cpus running in parallel.
-         */
-        if (qemu_tcg_mttcg_enabled()) {
-            MachineState *ms = MACHINE(qdev_get_machine());
-            if (ms->smp.max_cpus > 1) {
-                parallel_cpus = true;
-            }
-        }
+        parallel_cpus = qemu_tcg_mttcg_enabled() && current_machine->smp.max_cpus > 1;
     }
 
     if (qemu_tcg_mttcg_enabled() || !single_tcg_cpu_thread) {
