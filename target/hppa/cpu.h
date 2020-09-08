@@ -196,9 +196,12 @@ struct CPUHPPAState {
     target_ureg shadow[7];   /* shadow registers */
 
     /* ??? The number of entries isn't specified by the architecture.  */
+#define HPPA_TLB_ENTRIES        256
+#define HPPA_BTLB_ENTRIES       0
+
     /* ??? Implement a unified itlb/dtlb for the moment.  */
     /* ??? We should use a more intelligent data structure.  */
-    hppa_tlb_entry tlb[256];
+    hppa_tlb_entry tlb[HPPA_TLB_ENTRIES];
     uint32_t tlb_last;
 };
 

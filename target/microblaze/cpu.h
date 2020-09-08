@@ -31,7 +31,7 @@ typedef struct CPUMBState CPUMBState;
 
 #define EXCP_MMU        1
 #define EXCP_IRQ        2
-#define EXCP_BREAK      3
+#define EXCP_SYSCALL    3  /* user-only */
 #define EXCP_HW_BREAK   4
 #define EXCP_HW_EXCP    5
 
@@ -79,9 +79,12 @@ typedef struct CPUMBState CPUMBState;
 
 /* Exception State Register (ESR) Fields */
 #define          ESR_DIZ       (1<<11) /* Zone Protection */
+#define          ESR_W         (1<<11) /* Unaligned word access */
 #define          ESR_S         (1<<10) /* Store instruction */
 
 #define          ESR_ESS_FSL_OFFSET     5
+
+#define          ESR_ESS_MASK  (0x7f << 5)
 
 #define          ESR_EC_FSL             0
 #define          ESR_EC_UNALIGNED_DATA  1
@@ -228,15 +231,22 @@ typedef struct CPUMBState CPUMBState;
 #define STREAM_CONTROL   (1 << 3)
 #define STREAM_NONBLOCK  (1 << 4)
 
+#define TARGET_INSN_START_EXTRA_WORDS 1
+
 struct CPUMBState {
-    uint32_t debug;
-    uint32_t btaken;
-    uint64_t btarget;
-    uint32_t bimm;
+    uint32_t bvalue;   /* TCG temporary, only valid during a TB */
+    uint32_t btarget;  /* Full resolved branch destination */
 
     uint32_t imm;
     uint32_t regs[32];
-    uint64_t sregs[14];
+    uint32_t pc;
+    uint32_t msr;    /* All bits of MSR except MSR[C] and MSR[CC] */
+    uint32_t msr_c;  /* MSR[C], in low bit; other bits must be 0 */
+    target_ulong ear;
+    uint32_t esr;
+    uint32_t fsr;
+    uint32_t btr;
+    uint32_t edr;
     float_status fp_status;
     /* Stack protectors. Yes, it's a hw feature.  */
     uint32_t slr, shr;
@@ -247,30 +257,74 @@ struct CPUMBState {
     uint32_t res_val;
 
     /* Internal flags.  */
-#define IMM_FLAG	4
-#define MSR_EE_FLAG     (1 << 8)
+#define IMM_FLAG        (1 << 0)
+#define BIMM_FLAG       (1 << 1)
+#define ESR_ESS_FLAG    (1 << 2)  /* indicates ESR_ESS_MASK is present */
+/* MSR_EE               (1 << 8)  -- these 3 are not in iflags but tb_flags */
+/* MSR_UM               (1 << 11) */
+/* MSR_VM               (1 << 13) */
+/* ESR_ESS_MASK         [11:5]    -- unwind into iflags for unaligned excp */
+#define D_FLAG		(1 << 12)  /* Bit in ESR.  */
 #define DRTI_FLAG	(1 << 16)
 #define DRTE_FLAG	(1 << 17)
 #define DRTB_FLAG	(1 << 18)
-#define D_FLAG		(1 << 19)  /* Bit in ESR.  */
+
 /* TB dependent CPUMBState.  */
-#define IFLAGS_TB_MASK  (D_FLAG | IMM_FLAG | DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)
+#define IFLAGS_TB_MASK  (D_FLAG | BIMM_FLAG | IMM_FLAG | \
+                         DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)
+#define MSR_TB_MASK     (MSR_UM | MSR_VM | MSR_EE)
+
     uint32_t iflags;
 
 #if !defined(CONFIG_USER_ONLY)
     /* Unified MMU.  */
-    struct microblaze_mmu mmu;
+    MicroBlazeMMU mmu;
 #endif
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
     /* These fields are preserved on reset.  */
-
-    struct {
-        uint32_t regs[13];
-    } pvr;
 };
+
+/*
+ * Microblaze Configuration Settings
+ *
+ * Note that the structure is sorted by type and size to minimize holes.
+ */
+typedef struct {
+    char *version;
+
+    uint64_t addr_mask;
+
+    uint32_t base_vectors;
+    uint32_t pvr_user2;
+    uint32_t pvr_regs[13];
+
+    uint8_t addr_size;
+    uint8_t use_fpu;
+    uint8_t use_hw_mul;
+    uint8_t pvr_user1;
+    uint8_t pvr;
+    uint8_t mmu;
+    uint8_t mmu_tlb_access;
+    uint8_t mmu_zones;
+
+    bool stackprot;
+    bool use_barrel;
+    bool use_div;
+    bool use_msr_instr;
+    bool use_pcmp_instr;
+    bool use_mmu;
+    bool dcache_writeback;
+    bool endi;
+    bool dopb_bus_exception;
+    bool iopb_bus_exception;
+    bool illegal_opcode_exception;
+    bool opcode_0_illegal;
+    bool div_zero_exception;
+    bool unaligned_exceptions;
+} MicroBlazeCPUConfig;
 
 /**
  * MicroBlazeCPU:
@@ -286,41 +340,35 @@ struct MicroBlazeCPU {
 
     CPUNegativeOffsetState neg;
     CPUMBState env;
-
-    /* Microblaze Configuration Settings */
-    struct {
-        bool stackprot;
-        uint32_t base_vectors;
-        uint8_t addr_size;
-        uint8_t use_fpu;
-        uint8_t use_hw_mul;
-        bool use_barrel;
-        bool use_div;
-        bool use_msr_instr;
-        bool use_pcmp_instr;
-        bool use_mmu;
-        bool dcache_writeback;
-        bool endi;
-        bool dopb_bus_exception;
-        bool iopb_bus_exception;
-        bool illegal_opcode_exception;
-        bool opcode_0_illegal;
-        bool div_zero_exception;
-        bool unaligned_exceptions;
-        uint8_t pvr_user1;
-        uint32_t pvr_user2;
-        char *version;
-        uint8_t pvr;
-    } cfg;
+    MicroBlazeCPUConfig cfg;
 };
 
 
 void mb_cpu_do_interrupt(CPUState *cs);
 bool mb_cpu_exec_interrupt(CPUState *cs, int int_req);
+void mb_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
+                                MMUAccessType access_type,
+                                int mmu_idx, uintptr_t retaddr);
 void mb_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 hwaddr mb_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int mb_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mb_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+
+static inline uint32_t mb_cpu_read_msr(const CPUMBState *env)
+{
+    /* Replicate MSR[C] to MSR[CC]. */
+    return env->msr | (env->msr_c * (MSR_C | MSR_CC));
+}
+
+static inline void mb_cpu_write_msr(CPUMBState *env, uint32_t val)
+{
+    env->msr_c = (val >> 2) & 1;
+    /*
+     * Clear both MSR[C] and MSR[CC] from the saved copy.
+     * MSR_PVR is not writable and is always clear.
+     */
+    env->msr = val & ~(MSR_C | MSR_CC | MSR_PVR);
+}
 
 void mb_tcg_init(void);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
@@ -348,13 +396,15 @@ typedef MicroBlazeCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 
+/* Ensure there is no overlap between the two masks. */
+QEMU_BUILD_BUG_ON(MSR_TB_MASK & IFLAGS_TB_MASK);
+
 static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
-    *pc = env->sregs[SR_PC];
-    *cs_base = 0;
-    *flags = (env->iflags & IFLAGS_TB_MASK) |
-                 (env->sregs[SR_MSR] & (MSR_UM | MSR_VM | MSR_EE));
+    *pc = env->pc;
+    *flags = (env->iflags & IFLAGS_TB_MASK) | (env->msr & MSR_TB_MASK);
+    *cs_base = (*flags & IMM_FLAG ? env->imm : 0);
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -369,14 +419,18 @@ static inline int cpu_mmu_index(CPUMBState *env, bool ifetch)
     MicroBlazeCPU *cpu = env_archcpu(env);
 
     /* Are we in nommu mode?.  */
-    if (!(env->sregs[SR_MSR] & MSR_VM) || !cpu->cfg.use_mmu) {
+    if (!(env->msr & MSR_VM) || !cpu->cfg.use_mmu) {
         return MMU_NOMMU_IDX;
     }
 
-    if (env->sregs[SR_MSR] & MSR_UM) {
+    if (env->msr & MSR_UM) {
         return MMU_USER_IDX;
     }
     return MMU_KERNEL_IDX;
 }
+
+#ifndef CONFIG_USER_ONLY
+extern const VMStateDescription vmstate_mb_cpu;
+#endif
 
 #endif

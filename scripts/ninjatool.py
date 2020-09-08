@@ -34,6 +34,7 @@ import os
 import re
 import json
 import argparse
+import hashlib
 import shutil
 
 
@@ -50,6 +51,9 @@ if os.path.sep == '/':
 else:
     normpath = os.path.normpath
 
+
+def sha1_text(text):
+    return hashlib.sha1(text.encode()).hexdigest()
 
 # ---- lexer and parser ----
 
@@ -767,7 +771,6 @@ class Ninja2Make(NinjaParserEventsWithVars):
         self.build_vars = defaultdict(lambda: dict())
         self.rule_targets = defaultdict(lambda: list())
         self.stamp_targets = defaultdict(lambda: list())
-        self.num_stamp = defaultdict(lambda: 0)
         self.all_outs = set()
         self.all_ins = set()
         self.all_phony = set()
@@ -903,8 +906,7 @@ class Ninja2Make(NinjaParserEventsWithVars):
             if len(out) == 1:
                 stamp = out[0] + '.stamp'
             else:
-                stamp = '%s%d.stamp' %(rule, self.num_stamp[rule])
-                self.num_stamp[rule] += 1
+                stamp = '%s@%s.stamp' % (rule, sha1_text(targets)[0:11])
             self.print('%s: %s; @:' % (targets, stamp))
             self.print('%s: %s | %s; ${ninja-command-restat}' % (stamp, inputs, orderonly))
             self.rule_targets[rule].append(stamp)

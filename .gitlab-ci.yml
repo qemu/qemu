@@ -18,6 +18,7 @@ include:
   - local: '/.gitlab-ci.d/edk2.yml'
   - local: '/.gitlab-ci.d/opensbi.yml'
   - local: '/.gitlab-ci.d/containers.yml'
+  - local: '/.gitlab-ci.d/crossbuilds.yml'
 
 .native_build_job_template: &native_build_job_definition
   stage: build
@@ -74,6 +75,7 @@ build-system-ubuntu:
       moxie-softmmu microblazeel-softmmu mips64el-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
@@ -104,6 +106,7 @@ build-system-debian:
       riscv64-softmmu sh4eb-softmmu sparc-softmmu xtensaeb-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
@@ -130,10 +133,12 @@ build-system-fedora:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
+    CONFIGURE_ARGS: --disable-gcrypt --enable-nettle
     TARGETS: tricore-softmmu unicore32-softmmu microblaze-softmmu mips-softmmu
       xtensa-softmmu m68k-softmmu riscv32-softmmu ppc-softmmu sparc64-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
@@ -160,10 +165,12 @@ build-system-centos:
   <<: *native_build_job_definition
   variables:
     IMAGE: centos8
+    CONFIGURE_ARGS: --disable-nettle --enable-gcrypt
     TARGETS: ppc64-softmmu lm32-softmmu or1k-softmmu s390x-softmmu
       x86_64-softmmu rx-softmmu sh4-softmmu nios2-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
+    expire_in: 2 days
     paths:
       - build
 
@@ -190,13 +197,25 @@ build-disabled:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
-    CONFIGURE_ARGS: --disable-rdma --disable-slirp --disable-curl
-      --disable-capstone --disable-live-block-migration --disable-glusterfs
-      --disable-replication --disable-coroutine-pool --disable-smartcard
-      --disable-guest-agent --disable-curses --disable-libxml2 --disable-tpm
-      --disable-qom-cast-debug --disable-spice --disable-vhost-vsock
-      --disable-vhost-net --disable-vhost-crypto --disable-vhost-user
-    TARGETS: i386-softmmu ppc64-softmmu mips64-softmmu i386-linux-user
+    CONFIGURE_ARGS: --disable-attr --disable-avx2 --disable-bochs
+      --disable-brlapi --disable-bzip2 --disable-cap-ng --disable-capstone
+      --disable-cloop --disable-coroutine-pool --disable-curl --disable-curses
+      --disable-dmg --disable-docs --disable-glusterfs --disable-gnutls
+      --disable-gtk --disable-guest-agent --disable-iconv --disable-kvm
+      --disable-libiscsi --disable-libpmem --disable-libssh --disable-libusb
+      --disable-libxml2 --disable-linux-aio --disable-live-block-migration
+      --disable-lzo --disable-malloc-trim --disable-mpath --disable-nettle
+      --disable-numa --disable-parallels --disable-pie --disable-qcow1
+      --disable-qed --disable-qom-cast-debug --disable-rbd --disable-rdma
+      --disable-replication --disable-sdl --disable-seccomp --disable-sheepdog
+      --disable-slirp --disable-smartcard --disable-snappy --disable-spice
+      --disable-strip --disable-tpm --disable-usb-redir --disable-vdi
+      --disable-vhost-crypto --disable-vhost-net --disable-vhost-scsi
+      --disable-vhost-user --disable-vhost-vdpa --disable-vhost-vsock
+      --disable-virglrenderer --disable-vnc --disable-vte --disable-vvfat
+      --disable-xen --disable-zstd
+    TARGETS: arm-softmmu i386-softmmu ppc64-softmmu mips64-softmmu
+      s390x-softmmu i386-linux-user
     MAKE_CHECK_ARGS: check-qtest SPEED=slow
 
 build-tcg-disabled:
@@ -243,13 +262,15 @@ build-oss-fuzz:
     - mkdir build-oss-fuzz
     - CC="clang" CXX="clang++" CFLAGS="-fsanitize=address"
       ./scripts/oss-fuzz/build.sh
+    - export ASAN_OPTIONS="fast_unwind_on_malloc=0"
     - for fuzzer in $(find ./build-oss-fuzz/DEST_DIR/ -executable -type f
                       | grep -v slirp); do
         grep "LLVMFuzzerTestOneInput" ${fuzzer} > /dev/null 2>&1 || continue ;
         echo Testing ${fuzzer} ... ;
-        ASAN_OPTIONS="fast_unwind_on_malloc=0"
-         "${fuzzer}" -runs=1000 -seed=1 || exit 1 ;
+        "${fuzzer}" -runs=1000 -seed=1 || exit 1 ;
       done
+    # Unrelated to fuzzer: run some tests with -fsanitize=address
+    - cd build-oss-fuzz && make check-qtest-i386 check-unit
 
 build-tci:
   <<: *native_build_job_definition
@@ -271,3 +292,69 @@ build-tci:
       done
     - QTEST_QEMU_BINARY="./qemu-system-x86_64" ./tests/qtest/pxe-test
     - QTEST_QEMU_BINARY="./qemu-system-s390x" ./tests/qtest/pxe-test -m slow
+
+# Most jobs test latest gcrypt or nettle builds
+#
+# These jobs test old gcrypt and nettle from RHEL7
+# which had some API differences.
+build-crypto-old-nettle:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: centos7
+    TARGETS: x86_64-softmmu x86_64-linux-user
+    CONFIGURE_ARGS: --disable-gcrypt --enable-nettle
+    MAKE_CHECK_ARGS: check-build
+  artifacts:
+    paths:
+      - build
+
+check-crypto-old-nettle:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-crypto-old-nettle
+      artifacts: true
+  variables:
+    IMAGE: centos7
+    MAKE_CHECK_ARGS: check
+
+
+build-crypto-old-gcrypt:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: centos7
+    TARGETS: x86_64-softmmu x86_64-linux-user
+    CONFIGURE_ARGS: --disable-nettle --enable-gcrypt
+    MAKE_CHECK_ARGS: check-build
+  artifacts:
+    paths:
+      - build
+
+check-crypto-old-gcrypt:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-crypto-old-gcrypt
+      artifacts: true
+  variables:
+    IMAGE: centos7
+    MAKE_CHECK_ARGS: check
+
+
+build-crypto-only-gnutls:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: centos7
+    TARGETS: x86_64-softmmu x86_64-linux-user
+    CONFIGURE_ARGS: --disable-nettle --disable-gcrypt --enable-gnutls
+    MAKE_CHECK_ARGS: check-build
+  artifacts:
+    paths:
+      - build
+
+check-crypto-only-gnutls:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-crypto-only-gnutls
+      artifacts: true
+  variables:
+    IMAGE: centos7
+    MAKE_CHECK_ARGS: check

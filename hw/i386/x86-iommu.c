@@ -107,7 +107,7 @@ IommuType x86_iommu_get_type(void)
 static void x86_iommu_realize(DeviceState *dev, Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
-    X86IOMMUClass *x86_class = X86_IOMMU_GET_CLASS(dev);
+    X86IOMMUClass *x86_class = X86_IOMMU_DEVICE_GET_CLASS(dev);
     MachineState *ms = MACHINE(qdev_get_machine());
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     PCMachineState *pcms =

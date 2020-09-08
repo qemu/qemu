@@ -8,6 +8,23 @@
 
 #include <inttypes.h>
 
+/* Some hosts do not have support for all of these; not required by ISO C. */
+#ifndef FE_OVERFLOW
+#define FE_OVERFLOW 0
+#endif
+#ifndef FE_UNDERFLOW
+#define FE_UNDERFLOW 0
+#endif
+#ifndef FE_DIVBYZERO
+#define FE_DIVBYZERO 0
+#endif
+#ifndef FE_INEXACT
+#define FE_INEXACT 0
+#endif
+#ifndef FE_INVALID
+#define FE_INVALID 0
+#endif
+
 /* Number of constants in each table */
 int get_num_f16(void);
 int get_num_f32(void);

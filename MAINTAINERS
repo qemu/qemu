@@ -1856,10 +1856,12 @@ F: include/hw/virtio/virtio-mem.h
 
 nvme
 M: Keith Busch <kbusch@kernel.org>
+M: Klaus Jensen <its@irrelevant.dk>
 L: qemu-block@nongnu.org
 S: Supported
 F: hw/block/nvme*
 F: tests/qtest/nvme-test.c
+T: git git://git.infradead.org/qemu-nvme.git nvme-next
 
 megasas
 M: Hannes Reinecke <hare@suse.com>
@@ -3069,6 +3071,7 @@ M: Alex Bennée <alex.bennee@linaro.org>
 R: Wainer dos Santos Moschetta <wainersm@redhat.com>
 S: Maintained
 F: .gitlab-ci.yml
+F: .gitlab-ci.d/crossbuilds.yml
 
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>

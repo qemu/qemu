@@ -640,10 +640,16 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
     }
 
     for (y = 0; y < lines; y++) {
-        off_cur = off_begin;
+        off_cur = off_begin & s->cirrus_addr_mask;
         off_cur_end = ((off_cur + bytesperline - 1) & s->cirrus_addr_mask) + 1;
-        assert(off_cur_end >= off_cur);
-        memory_region_set_dirty(&s->vga.vram, off_cur, off_cur_end - off_cur);
+        if (off_cur_end >= off_cur) {
+            memory_region_set_dirty(&s->vga.vram, off_cur, off_cur_end - off_cur);
+        } else {
+            /* wraparound */
+            memory_region_set_dirty(&s->vga.vram, off_cur,
+                                    s->cirrus_addr_mask + 1 - off_cur);
+            memory_region_set_dirty(&s->vga.vram, 0, off_cur_end);
+        }
         off_begin += off_pitch;
     }
 }

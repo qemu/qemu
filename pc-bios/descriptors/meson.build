@@ -10,5 +10,5 @@ foreach f: [
                  output: f,
                  configuration: {'DATADIR': config_host['qemu_datadir']},
                  install: install_blobs,
-                 install_dir: config_host['qemu_datadir'] / 'firmware')
+                 install_dir: qemu_datadir / 'firmware')
 endforeach

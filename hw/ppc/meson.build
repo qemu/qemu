@@ -25,7 +25,8 @@ ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
   'spapr_irq.c',
   'spapr_tpm_proxy.c',
   'spapr_nvdimm.c',
-  'spapr_rtas_ddw.c'
+  'spapr_rtas_ddw.c',
+  'spapr_numa.c',
 ))
 ppc_ss.add(when: 'CONFIG_SPAPR_RNG', if_true: files('spapr_rng.c'))
 ppc_ss.add(when: ['CONFIG_PSERIES', 'CONFIG_LINUX'], if_true: files(

@@ -667,18 +667,18 @@
 #                       Defaults to none. (Since 5.0)
 #
 # @multifd-zlib-level: Set the compression level to be used in live
-#          migration, the compression level is an integer between 0
-#          and 9, where 0 means no compression, 1 means the best
-#          compression speed, and 9 means best compression ratio which
-#          will consume more CPU.
-#          Defaults to 1. (Since 5.0)
+#                      migration, the compression level is an integer between 0
+#                      and 9, where 0 means no compression, 1 means the best
+#                      compression speed, and 9 means best compression ratio which
+#                      will consume more CPU.
+#                      Defaults to 1. (Since 5.0)
 #
 # @multifd-zstd-level: Set the compression level to be used in live
-#          migration, the compression level is an integer between 0
-#          and 20, where 0 means no compression, 1 means the best
-#          compression speed, and 20 means best compression ratio which
-#          will consume more CPU.
-#          Defaults to 1. (Since 5.0)
+#                      migration, the compression level is an integer between 0
+#                      and 20, where 0 means no compression, 1 means the best
+#                      compression speed, and 20 means best compression ratio which
+#                      will consume more CPU.
+#                      Defaults to 1. (Since 5.0)
 #
 # @block-bitmap-mapping: Maps block nodes and bitmaps on them to
 #          aliases for the purpose of dirty bitmap migration.  Such
@@ -827,18 +827,18 @@
 #                       Defaults to none. (Since 5.0)
 #
 # @multifd-zlib-level: Set the compression level to be used in live
-#          migration, the compression level is an integer between 0
-#          and 9, where 0 means no compression, 1 means the best
-#          compression speed, and 9 means best compression ratio which
-#          will consume more CPU.
-#          Defaults to 1. (Since 5.0)
+#                      migration, the compression level is an integer between 0
+#                      and 9, where 0 means no compression, 1 means the best
+#                      compression speed, and 9 means best compression ratio which
+#                      will consume more CPU.
+#                      Defaults to 1. (Since 5.0)
 #
 # @multifd-zstd-level: Set the compression level to be used in live
-#          migration, the compression level is an integer between 0
-#          and 20, where 0 means no compression, 1 means the best
-#          compression speed, and 20 means best compression ratio which
-#          will consume more CPU.
-#          Defaults to 1. (Since 5.0)
+#                      migration, the compression level is an integer between 0
+#                      and 20, where 0 means no compression, 1 means the best
+#                      compression speed, and 20 means best compression ratio which
+#                      will consume more CPU.
+#                      Defaults to 1. (Since 5.0)
 #
 # @block-bitmap-mapping: Maps block nodes and bitmaps on them to
 #          aliases for the purpose of dirty bitmap migration.  Such
@@ -1023,18 +1023,18 @@
 #                       Defaults to none. (Since 5.0)
 #
 # @multifd-zlib-level: Set the compression level to be used in live
-#          migration, the compression level is an integer between 0
-#          and 9, where 0 means no compression, 1 means the best
-#          compression speed, and 9 means best compression ratio which
-#          will consume more CPU.
-#          Defaults to 1. (Since 5.0)
+#                      migration, the compression level is an integer between 0
+#                      and 9, where 0 means no compression, 1 means the best
+#                      compression speed, and 9 means best compression ratio which
+#                      will consume more CPU.
+#                      Defaults to 1. (Since 5.0)
 #
 # @multifd-zstd-level: Set the compression level to be used in live
-#          migration, the compression level is an integer between 0
-#          and 20, where 0 means no compression, 1 means the best
-#          compression speed, and 20 means best compression ratio which
-#          will consume more CPU.
-#          Defaults to 1. (Since 5.0)
+#                      migration, the compression level is an integer between 0
+#                      and 20, where 0 means no compression, 1 means the best
+#                      compression speed, and 20 means best compression ratio which
+#                      will consume more CPU.
+#                      Defaults to 1. (Since 5.0)
 #
 # @block-bitmap-mapping: Maps block nodes and bitmaps on them to
 #          aliases for the purpose of dirty bitmap migration.  Such
@@ -1362,7 +1362,7 @@
 #
 # Features:
 # @deprecated: This command is deprecated.  Use
-#     'migrate-set-parameters' instead.
+#              'migrate-set-parameters' instead.
 #
 # Returns: nothing on success
 #
@@ -1386,7 +1386,7 @@
 #
 # Features:
 # @deprecated: This command is deprecated.  Use
-#     'migrate-set-parameters' instead.
+#              'migrate-set-parameters' instead.
 #
 # Returns: nothing on success
 #
@@ -1410,7 +1410,7 @@
 #
 # Features:
 # @deprecated: This command is deprecated.  Use
-#     'migrate-set-parameters' instead.
+#              'migrate-set-parameters' instead.
 #
 # The size will be rounded down to the nearest power of 2.
 # The cache size can be modified before and during ongoing migration
@@ -1436,7 +1436,7 @@
 #
 # Features:
 # @deprecated: This command is deprecated.  Use
-#     'query-migrate-parameters' instead.
+#              'query-migrate-parameters' instead.
 #
 # Returns: XBZRLE cache size in bytes
 #

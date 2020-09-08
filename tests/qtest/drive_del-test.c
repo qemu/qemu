@@ -103,7 +103,7 @@ static void test_after_failed_device_add(void)
                               "   'drive': 'drive0'"
                               "}}", driver);
     g_assert(response);
-    qmp_assert_error_class(response, "GenericError");
+    qmp_expect_error_and_unref(response, "GenericError");
 
     /* Delete the drive */
     drive_del(qts);

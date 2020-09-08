@@ -877,8 +877,8 @@
 #
 # Features:
 # @deprecated: This command is deprecated.  For changing block
-#     devices, use 'blockdev-change-medium' instead; for changing VNC
-#     parameters, use 'change-vnc-password' instead.
+#              devices, use 'blockdev-change-medium' instead; for changing VNC
+#              parameters, use 'change-vnc-password' instead.
 #
 # Returns: - Nothing on success.
 #          - If @device is not a valid block device, DeviceNotFound

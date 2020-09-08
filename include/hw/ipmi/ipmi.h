@@ -53,6 +53,7 @@ enum ipmi_op {
 #define IPMI_CC_INVALID_DATA_FIELD                       0xcc
 #define IPMI_CC_BMC_INIT_IN_PROGRESS                     0xd2
 #define IPMI_CC_COMMAND_NOT_SUPPORTED                    0xd5
+#define IPMI_CC_UNSPECIFIED                              0xff
 
 #define IPMI_NETFN_APP                0x06
 #define IPMI_NETFN_OEM                0x3a

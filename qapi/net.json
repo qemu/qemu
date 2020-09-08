@@ -457,7 +457,7 @@
 #
 # Since: 2.7
 #
-# @vhost-vdpa since 5.1
+#        @vhost-vdpa since 5.1
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',

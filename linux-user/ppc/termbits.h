@@ -14,8 +14,8 @@ struct target_termios {
     target_tcflag_t c_oflag;               /* output mode flags */
     target_tcflag_t c_cflag;               /* control mode flags */
     target_tcflag_t c_lflag;               /* local mode flags */
-    target_cc_t c_line;                    /* line discipline */
     target_cc_t c_cc[TARGET_NCCS];         /* control characters */
+    target_cc_t c_line;                    /* line discipline */
     target_speed_t c_ispeed;               /* input speed */
     target_speed_t c_ospeed;               /* output speed */
 };

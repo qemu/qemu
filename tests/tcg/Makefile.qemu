@@ -8,8 +8,6 @@
 # to do it for us.
 #
 
-include $(SRC_PATH)/rules.mak
-
 # The configure script fills in extra information about
 # useful docker images or alternative compiler flags.
 

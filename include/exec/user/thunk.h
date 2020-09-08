@@ -42,7 +42,7 @@ typedef enum argtype {
 } argtype;
 
 #define MK_PTR(type) TYPE_PTR, type
-#define MK_ARRAY(type, size) TYPE_ARRAY, size, type
+#define MK_ARRAY(type, size) TYPE_ARRAY, (int)(size), type
 #define MK_STRUCT(id) TYPE_STRUCT, id
 
 #define THUNK_TARGET 0

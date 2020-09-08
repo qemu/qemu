@@ -118,7 +118,7 @@ static void rx_gdbsim_init(MachineState *machine)
          * the latter half of the SDRAM space.
          */
         kernel_offset = machine->ram_size / 2;
-        rx_load_image(RXCPU(first_cpu), kernel_filename,
+        rx_load_image(RX_CPU(first_cpu), kernel_filename,
                       SDRAM_BASE + kernel_offset, kernel_offset);
         if (dtb_filename) {
             ram_addr_t dtb_offset;
@@ -141,7 +141,7 @@ static void rx_gdbsim_init(MachineState *machine)
             rom_add_blob_fixed("dtb", dtb, dtb_size,
                                SDRAM_BASE + dtb_offset);
             /* Set dtb address to R1 */
-            RXCPU(first_cpu)->env.regs[1] = SDRAM_BASE + dtb_offset;
+            RX_CPU(first_cpu)->env.regs[1] = SDRAM_BASE + dtb_offset;
         }
     }
 }

@@ -1,6 +1,6 @@
 project('qemu', ['c'], meson_version: '>=0.55.0',
         default_options: ['warning_level=1', 'c_std=gnu99', 'cpp_std=gnu++11',
-                          'b_lundef=false','b_colorout=auto'],
+                          'b_colorout=auto'],
         version: run_command('head', meson.source_root() / 'VERSION').stdout().strip())
 
 not_found = dependency('', required: false)
@@ -14,10 +14,11 @@ ss = import('sourceset')
 sh = find_program('sh')
 cc = meson.get_compiler('c')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
-config_all_disas = keyval.load(meson.current_build_dir() / 'config-all-disas.mak')
 enable_modules = 'CONFIG_MODULES' in config_host
 enable_static = 'CONFIG_STATIC' in config_host
 build_docs = 'BUILD_DOCS' in config_host
+qemu_datadir = get_option('datadir') / get_option('qemu_suffix')
+qemu_docdir = get_option('docdir') / get_option('qemu_suffix')
 config_host_data = configuration_data()
 genh = []
 
@@ -31,6 +32,23 @@ endforeach
 have_tools = 'CONFIG_TOOLS' in config_host
 have_block = have_system or have_tools
 
+python = import('python').find_installation()
+
+supported_oses = ['windows', 'freebsd', 'netbsd', 'openbsd', 'darwin', 'sunos', 'linux']
+supported_cpus = ['ppc', 'ppc64', 's390x', 'sparc64', 'riscv32', 'riscv64', 'x86', 'x86_64',
+  'arm', 'aarch64', 'mips', 'mips64', 'sparc', 'sparc64']
+
+cpu = host_machine.cpu_family()
+targetos = host_machine.system()
+
+configure_file(input: files('scripts/ninjatool.py'),
+               output: 'ninjatool',
+               configuration: config_host)
+
+##################
+# Compiler flags #
+##################
+
 add_project_arguments(config_host['QEMU_CFLAGS'].split(),
                       native: false, language: ['c', 'objc'])
 add_project_arguments(config_host['QEMU_CXXFLAGS'].split(),
@@ -40,7 +58,13 @@ add_project_link_arguments(config_host['QEMU_LDFLAGS'].split(),
 add_project_arguments(config_host['QEMU_INCLUDES'].split(),
                       language: ['c', 'cpp', 'objc'])
 
-python = import('python').find_installation()
+# Specify linker-script with add_project_link_arguments so that it is not placed
+# within a linker --start-group/--end-group pair
+if 'CONFIG_FUZZ' in config_host
+   add_project_link_arguments(['-Wl,-T,',
+                               (meson.current_source_dir() / 'tests/qtest/fuzz/fork_fuzz.ld')],
+                              native: false, language: ['c', 'cpp', 'objc'])
+endif
 
 link_language = meson.get_external_property('link_language', 'cpp')
 if link_language == 'cpp'
@@ -56,17 +80,6 @@ if 'SPARSE_CFLAGS' in config_host
                        config_host['SPARSE_CFLAGS'].split(),
                        'compile_commands.json'])
 endif
-
-configure_file(input: files('scripts/ninjatool.py'),
-               output: 'ninjatool',
-               configuration: config_host)
-
-supported_oses = ['windows', 'freebsd', 'netbsd', 'openbsd', 'darwin', 'sunos', 'linux']
-supported_cpus = ['ppc', 'ppc64', 's390x', 'sparc64', 'riscv32', 'riscv64', 'x86', 'x86_64',
-  'arm', 'aarch64', 'mips', 'mips64', 'sparc', 'sparc64']
-
-cpu = host_machine.cpu_family()
-targetos = host_machine.system()
 
 m = cc.find_library('m', required: false)
 util = cc.find_library('util', required: false)
@@ -99,8 +112,11 @@ elif targetos == 'haiku'
             cc.find_library('network'),
             cc.find_library('bsd')]
 endif
-glib = declare_dependency(compile_args: config_host['GLIB_CFLAGS'].split(),
-                          link_args: config_host['GLIB_LIBS'].split())
+# The path to glib.h is added to all compilation commands.  This was
+# grandfathered in from the QEMU Makefiles.
+add_project_arguments(config_host['GLIB_CFLAGS'].split(),
+                      native: false, language: ['c', 'cpp', 'objc'])
+glib = declare_dependency(link_args: config_host['GLIB_LIBS'].split())
 gio = not_found
 if 'CONFIG_GIO' in config_host
   gio = declare_dependency(compile_args: config_host['GIO_CFLAGS'].split(),
@@ -113,6 +129,11 @@ endif
 urcubp = not_found
 if 'CONFIG_TRACE_UST' in config_host
   urcubp = declare_dependency(link_args: config_host['URCU_BP_LIBS'].split())
+endif
+gcrypt = not_found
+if 'CONFIG_GCRYPT' in config_host
+  gcrypt = declare_dependency(compile_args: config_host['GCRYPT_CFLAGS'].split(),
+                              link_args: config_host['GCRYPT_LIBS'].split())
 endif
 nettle = not_found
 if 'CONFIG_NETTLE' in config_host
@@ -127,18 +148,14 @@ endif
 pixman = not_found
 if have_system or have_tools
   pixman = dependency('pixman-1', required: have_system, version:'>=0.21.8',
-                      static: enable_static)
+                      method: 'pkg-config', static: enable_static)
 endif
 pam = not_found
 if 'CONFIG_AUTH_PAM' in config_host
   pam = cc.find_library('pam')
 endif
 libaio = cc.find_library('aio', required: false)
-zlib = not_found
-if 'CONFIG_ZLIB' in config_host
-  zlib = declare_dependency(compile_args: config_host['ZLIB_CFLAGS'].split(),
-                            link_args: config_host['ZLIB_LIBS'].split())
-endif
+zlib = dependency('zlib', required: true, static: enable_static)
 linux_io_uring = not_found
 if 'CONFIG_LINUX_IO_URING' in config_host
   linux_io_uring = declare_dependency(compile_args: config_host['LINUX_IO_URING_CFLAGS'].split(),
@@ -170,7 +187,7 @@ if get_option('xkbcommon').auto() and not have_system and not have_tools
   xkbcommon = not_found
 else
   xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'),
-                         static: enable_static)
+                         method: 'pkg-config', static: enable_static)
 endif
 slirp = not_found
 if config_host.has_key('CONFIG_SLIRP')
@@ -204,6 +221,10 @@ rt = cc.find_library('rt', required: false)
 libmpathpersist = not_found
 if config_host.has_key('CONFIG_MPATH')
   libmpathpersist = cc.find_library('mpathpersist')
+endif
+libdl = not_found
+if 'CONFIG_PLUGIN' in config_host
+  libdl = cc.find_library('dl', required: true)
 endif
 libiscsi = not_found
 if 'CONFIG_LIBISCSI' in config_host
@@ -248,8 +269,8 @@ if sdl.found()
   # work around 2.0.8 bug
   sdl = declare_dependency(compile_args: '-Wno-undef',
                            dependencies: sdl)
-  sdl_image = dependency('sdl-image', required: get_option('sdl_image'),
-                         static: enable_static)
+  sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
+                         method: 'pkg-config', static: enable_static)
 else
   if get_option('sdl_image').enabled()
     error('sdl-image required, but SDL was @0@',
@@ -294,7 +315,8 @@ if 'CONFIG_AUDIO_COREAUDIO' in config_host
 endif
 opengl = not_found
 if 'CONFIG_OPENGL' in config_host
-  opengl = declare_dependency(link_args: config_host['OPENGL_LIBS'].split())
+  opengl = declare_dependency(compile_args: config_host['OPENGL_CFLAGS'].split(),
+                              link_args: config_host['OPENGL_LIBS'].split())
 else
 endif
 gtk = not_found
@@ -334,7 +356,7 @@ sasl = not_found
 if get_option('vnc').enabled()
   vnc = declare_dependency() # dummy dependency
   png = dependency('libpng', required: get_option('vnc_png'),
-                   static: enable_static)
+                   method: 'pkg-config', static: enable_static)
   jpeg = cc.find_library('jpeg', has_headers: ['jpeglib.h'],
                          required: get_option('vnc_jpeg'),
                          static: enable_static)
@@ -407,6 +429,15 @@ libdaxctl = not_found
 if 'CONFIG_LIBDAXCTL' in config_host
   libdaxctl = declare_dependency(link_args: config_host['LIBDAXCTL_LIBS'].split())
 endif
+tasn1 = not_found
+if 'CONFIG_TASN1' in config_host
+  tasn1 = declare_dependency(compile_args: config_host['TASN1_CFLAGS'].split(),
+                             link_args: config_host['TASN1_LIBS'].split())
+endif
+keyutils = dependency('libkeyutils', required: false,
+                      method: 'pkg-config', static: enable_static)
+
+has_gettid = cc.has_function('gettid')
 
 # Create config-host.h
 
@@ -417,6 +448,8 @@ config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
 config_host_data.set('CONFIG_VNC_PNG', png.found())
 config_host_data.set('CONFIG_VNC_SASL', sasl.found())
 config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
+config_host_data.set('CONFIG_KEYUTILS', keyutils.found())
+config_host_data.set('CONFIG_GETTID', has_gettid)
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
 config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0])
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
@@ -446,10 +479,45 @@ endforeach
 genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
 minikconf = find_program('scripts/minikconf.py')
+config_all_devices = {}
+config_all_disas = {}
 config_devices_mak_list = []
 config_devices_h = {}
 config_target_h = {}
 config_target_mak = {}
+
+disassemblers = {
+  'alpha' : ['CONFIG_ALPHA_DIS'],
+  'arm' : ['CONFIG_ARM_DIS'],
+  'avr' : ['CONFIG_AVR_DIS'],
+  'cris' : ['CONFIG_CRIS_DIS'],
+  'hppa' : ['CONFIG_HPPA_DIS'],
+  'i386' : ['CONFIG_I386_DIS'],
+  'x86_64' : ['CONFIG_I386_DIS'],
+  'x32' : ['CONFIG_I386_DIS'],
+  'lm32' : ['CONFIG_LM32_DIS'],
+  'm68k' : ['CONFIG_M68K_DIS'],
+  'microblaze' : ['CONFIG_MICROBLAZE_DIS'],
+  'mips' : ['CONFIG_MIPS_DIS'],
+  'moxie' : ['CONFIG_MOXIE_DIS'],
+  'nios2' : ['CONFIG_NIOS2_DIS'],
+  'or1k' : ['CONFIG_OPENRISC_DIS'],
+  'ppc' : ['CONFIG_PPC_DIS'],
+  'riscv' : ['CONFIG_RISCV_DIS'],
+  'rx' : ['CONFIG_RX_DIS'],
+  's390' : ['CONFIG_S390_DIS'],
+  'sh4' : ['CONFIG_SH4_DIS'],
+  'sparc' : ['CONFIG_SPARC_DIS'],
+  'xtensa' : ['CONFIG_XTENSA_DIS'],
+}
+if link_language == 'cpp'
+  disassemblers += {
+    'aarch64' : [ 'CONFIG_ARM_A64_DIS'],
+    'arm' : [ 'CONFIG_ARM_DIS', 'CONFIG_ARM_A64_DIS'],
+    'mips' : [ 'CONFIG_MIPS_DIS', 'CONFIG_NANOMIPS_DIS'],
+  }
+endif
+
 kconfig_external_symbols = [
   'CONFIG_KVM',
   'CONFIG_XEN',
@@ -465,8 +533,18 @@ kconfig_external_symbols = [
   'CONFIG_PVRDMA',
 ]
 ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
+
 foreach target : target_dirs
   config_target = keyval.load(meson.current_build_dir() / target / 'config-target.mak')
+
+  foreach k, v: disassemblers
+    if config_host['ARCH'].startswith(k) or config_target['TARGET_BASE_ARCH'].startswith(k)
+      foreach sym: v
+        config_target += { sym: 'y' }
+        config_all_disas += { sym: 'y' }
+      endforeach
+    endif
+  endforeach
 
   config_target_data = configuration_data()
   foreach k, v: config_target
@@ -514,11 +592,11 @@ foreach target : target_dirs
     config_devices_h += {target: configure_file(output: target + '-config-devices.h',
                                                 configuration: config_devices_data)}
     config_target += config_devices
+    config_all_devices += config_devices
   endif
   config_target_mak += {target: config_target}
 endforeach
 
-grepy = find_program('scripts/grepy.sh')
 # This configuration is used to build files that are shared by
 # multiple binaries, and then extracted out of the "common"
 # static_library target.
@@ -528,17 +606,6 @@ grepy = find_program('scripts/grepy.sh')
 # targets that are not built for this compilation.  The CONFIG_ALL
 # pseudo symbol replaces it.
 
-if have_system
-  config_all_devices_mak = configure_file(
-    output: 'config-all-devices.mak',
-    input: config_devices_mak_list,
-    capture: true,
-    command: [grepy, '@INPUT@'],
-  )
-  config_all_devices = keyval.load(config_all_devices_mak)
-else
-  config_all_devices = {}
-endif
 config_all = config_all_devices
 config_all += config_host
 config_all += config_all_disas
@@ -865,7 +932,7 @@ foreach d, list : modules
 endforeach
 
 nm = find_program('nm')
-undefsym = find_program('scripts/undefsym.sh')
+undefsym = find_program('scripts/undefsym.py')
 block_syms = custom_target('block.syms', output: 'block.syms',
                              input: [libqemuutil, block_mods],
                              capture: true,
@@ -1025,7 +1092,6 @@ foreach target : target_dirs
         'gui': false,
         'sources': specific_fuzz.sources(),
         'dependencies': specific_fuzz.dependencies(),
-        'link_depends': [files('tests/qtest/fuzz/fork_fuzz.ld')],
       }]
     endif
   else
@@ -1059,7 +1125,7 @@ foreach target : target_dirs
                       output: exe['name'] + stp['ext'],
                       capture: true,
                       install: stp['install'],
-                      install_dir: config_host['qemu_datadir'] / '../systemtap/tapset',
+                      install_dir: qemu_datadir / '../systemtap/tapset',
                       command: [
                         tracetool, '--group=all', '--format=' + stp['fmt'],
                         '--binary=' + stp['bin'],
@@ -1097,12 +1163,8 @@ if have_tools
              dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
   qemu_io = executable('qemu-io', files('qemu-io.c'),
              dependencies: [block, qemuutil], install: true)
-  qemu_block_tools += [qemu_img, qemu_io]
-  if targetos != 'windows'
-    qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
+  qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
                dependencies: [block, qemuutil], install: true)
-    qemu_block_tools += [qemu_nbd]
-  endif
 
   subdir('storage-daemon')
   subdir('contrib/rdmacm-mux')
@@ -1138,6 +1200,7 @@ if have_tools
   endif
 endif
 
+subdir('scripts')
 subdir('tools')
 subdir('pc-bios')
 subdir('tests')
@@ -1184,7 +1247,7 @@ if build_docs
                       input: input,
                       output: output,
                       install: true,
-                      install_dir: config_host['qemu_docdir'] / 'interop',
+                      install_dir: qemu_docdir / 'interop',
                       command: cmd + args)
       endforeach
       alias_target(ext, t)
@@ -1224,11 +1287,36 @@ if build_docs
                           output: man,
                           capture: true,
                           install: true,
-                          install_dir: config_host['mandir'] / 'man7',
+                          install_dir: get_option('mandir') / 'man7',
                           command: [pod2man, '--utf8', '--section=7', '--center=" "',
                                     '--release=" "', '@INPUT@'])
     endforeach
   endif
+endif
+
+if host_machine.system() == 'windows'
+  nsis_cmd = [
+    find_program('scripts/nsis.py'),
+    '@OUTPUT@',
+    get_option('prefix'),
+    meson.current_source_dir(),
+    host_machine.cpu_family(),
+    '--',
+    '-DDISPLAYVERSION=' + meson.project_version(),
+  ]
+  if build_docs
+    nsis_cmd += '-DCONFIG_DOCUMENTATION=y'
+  endif
+  if 'CONFIG_GTK' in config_host
+    nsis_cmd += '-DCONFIG_GTK=y'
+  endif
+
+  nsis = custom_target('nsis',
+                       output: 'qemu-setup-' + meson.project_version() + '.exe',
+                       input: files('qemu.nsi'),
+                       build_always_stale: true,
+                       command: nsis_cmd + ['@INPUT@'])
+  alias_target('installer', nsis)
 endif
 
 summary_info = {}
@@ -1243,10 +1331,11 @@ summary_info += {'include directory': config_host['includedir']}
 summary_info += {'config directory':  config_host['sysconfdir']}
 if targetos != 'windows'
   summary_info += {'local state directory': config_host['qemu_localstatedir']}
-  summary_info += {'Manual directory':      config_host['mandir']}
+  summary_info += {'Manual directory':      get_option('mandir')}
 else
   summary_info += {'local state directory': 'queried at runtime'}
 endif
+summary_info += {'Doc directory':     get_option('docdir')}
 summary_info += {'Build directory':   meson.current_build_dir()}
 summary_info += {'Source path':       meson.current_source_dir()}
 summary_info += {'GIT binary':        config_host['GIT']}
@@ -1266,7 +1355,6 @@ summary_info += {'CFLAGS':            config_host['CFLAGS']}
 summary_info += {'QEMU_CFLAGS':       config_host['QEMU_CFLAGS']}
 summary_info += {'QEMU_LDFLAGS':      config_host['QEMU_LDFLAGS']}
 summary_info += {'make':              config_host['MAKE']}
-summary_info += {'install':           config_host['INSTALL']}
 summary_info += {'python':            '@0@ (version: @1@)'.format(python.full_path(), python.language_version())}
 summary_info += {'sphinx-build':      config_host['SPHINX_BUILD']}
 summary_info += {'genisoimage':       config_host['GENISOIMAGE']}

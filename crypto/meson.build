@@ -23,23 +23,34 @@ crypto_ss.add(files(
   'tlssession.c',
 ))
 
-if 'CONFIG_GCRYPT' in config_host
-  wo_nettle = files('hash-gcrypt.c', 'pbkdf-gcrypt.c')
+if 'CONFIG_NETTLE' in config_host
+  crypto_ss.add(files('hash-nettle.c', 'hmac-nettle.c', 'pbkdf-nettle.c'))
+elif 'CONFIG_GCRYPT' in config_host
+  crypto_ss.add(files('hash-gcrypt.c', 'pbkdf-gcrypt.c'))
+  if 'CONFIG_GCRYPT_HMAC' in config_host
+    crypto_ss.add(files('hmac-gcrypt.c'))
+  else
+    crypto_ss.add(files('hmac-glib.c'))
+  endif
 else
-  wo_nettle = files('hash-glib.c', 'pbkdf-stub.c')
+  crypto_ss.add(files('hash-glib.c', 'hmac-glib.c', 'pbkdf-stub.c'))
 endif
-if 'CONFIG_GCRYPT_HMAC' not in config_host
-  wo_nettle += files('hmac-glib.c')
-endif
-crypto_ss.add(when: [nettle, 'CONFIG_NETTLE'],
-             if_true: files('hash-nettle.c', 'hmac-nettle.c', 'pbkdf-nettle.c'),
-             if_false: wo_nettle)
 
 crypto_ss.add(when: 'CONFIG_SECRET_KEYRING', if_true: files('secret_keyring.c'))
 crypto_ss.add(when: 'CONFIG_QEMU_PRIVATE_XTS', if_true: files('xts.c'))
-crypto_ss.add(when: 'CONFIG_GCRYPT_HMAC', if_true: files('hmac-gcrypt.c'))
 crypto_ss.add(when: 'CONFIG_AF_ALG', if_true: files('afalg.c', 'cipher-afalg.c', 'hash-afalg.c'))
 crypto_ss.add(when: 'CONFIG_GNUTLS', if_true: files('tls-cipher-suites.c'))
+
+if 'CONFIG_NETTLE' in config_host
+  crypto_ss.add(nettle)
+elif 'CONFIG_GCRYPT' in config_host
+  crypto_ss.add(gcrypt)
+endif
+
+if 'CONFIG_GNUTLS' in config_host
+  crypto_ss.add(gnutls)
+endif
+
 
 crypto_ss = crypto_ss.apply(config_host, strict: false)
 libcrypto = static_library('crypto', crypto_ss.sources() + genh,
@@ -52,12 +63,21 @@ crypto = declare_dependency(link_whole: libcrypto,
 
 util_ss.add(files('aes.c'))
 util_ss.add(files('init.c'))
+
 if 'CONFIG_GCRYPT' in config_host
   util_ss.add(files('random-gcrypt.c'))
 elif 'CONFIG_GNUTLS' in config_host
-  util_ss.add(files('random-gnutls.c'), gnutls)
+  util_ss.add(files('random-gnutls.c'))
 elif 'CONFIG_RNG_NONE' in config_host
   util_ss.add(files('random-none.c'))
 else
   util_ss.add(files('random-platform.c'))
+endif
+
+if 'CONFIG_GCRYPT' in config_host
+  util_ss.add(gcrypt)
+endif
+
+if 'CONFIG_GNUTLS' in config_host
+  util_ss.add(gnutls)
 endif

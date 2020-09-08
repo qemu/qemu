@@ -44,7 +44,7 @@ void rx_cpu_unpack_psw(CPURXState *env, uint32_t psw, int rte)
 #define INT_FLAGS (CPU_INTERRUPT_HARD | CPU_INTERRUPT_FIR)
 void rx_cpu_do_interrupt(CPUState *cs)
 {
-    RXCPU *cpu = RXCPU(cs);
+    RXCPU *cpu = RX_CPU(cs);
     CPURXState *env = &cpu->env;
     int do_irq = cs->interrupt_request & INT_FLAGS;
     uint32_t save_psw;
@@ -121,7 +121,7 @@ void rx_cpu_do_interrupt(CPUState *cs)
 
 bool rx_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
-    RXCPU *cpu = RXCPU(cs);
+    RXCPU *cpu = RX_CPU(cs);
     CPURXState *env = &cpu->env;
     int accept = 0;
     /* hardware interrupt (Normal) */

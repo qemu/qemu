@@ -87,7 +87,7 @@ static void setup_sigcontext(struct target_sigcontext *sc, CPUMBState *env)
     __put_user(env->regs[29], &sc->regs.r29);
     __put_user(env->regs[30], &sc->regs.r30);
     __put_user(env->regs[31], &sc->regs.r31);
-    __put_user(env->sregs[SR_PC], &sc->regs.pc);
+    __put_user(env->pc, &sc->regs.pc);
 }
 
 static void restore_sigcontext(struct target_sigcontext *sc, CPUMBState *env)
@@ -124,7 +124,7 @@ static void restore_sigcontext(struct target_sigcontext *sc, CPUMBState *env)
     __get_user(env->regs[29], &sc->regs.r29);
     __get_user(env->regs[30], &sc->regs.r30);
     __get_user(env->regs[31], &sc->regs.r31);
-    __get_user(env->sregs[SR_PC], &sc->regs.pc);
+    __get_user(env->pc, &sc->regs.pc);
 }
 
 static abi_ulong get_sigframe(struct target_sigaction *ka,
@@ -188,7 +188,7 @@ void setup_frame(int sig, struct target_sigaction *ka,
     env->regs[7] = frame_addr += offsetof(typeof(*frame), uc);
 
     /* Offset of 4 to handle microblaze rtid r14, 0 */
-    env->sregs[SR_PC] = (unsigned long)ka->_sa_handler;
+    env->pc = (unsigned long)ka->_sa_handler;
 
     unlock_user_struct(frame, frame_addr, 1);
     return;
@@ -228,7 +228,7 @@ long do_sigreturn(CPUMBState *env)
     restore_sigcontext(&frame->uc.tuc_mcontext, env);
     /* We got here through a sigreturn syscall, our path back is via an
        rtb insn so setup r14 for that.  */
-    env->regs[14] = env->sregs[SR_PC];
+    env->regs[14] = env->pc;
 
     unlock_user_struct(frame, frame_addr, 0);
     return -TARGET_QEMU_ESIGRETURN;

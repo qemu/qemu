@@ -19,8 +19,8 @@ file format: IMGFMT
 virtual size: 2 GiB (2147483648 bytes)
 
 === Testing monolithicFlat with zeroed_grain ===
-qemu-img: TEST_DIR/t.IMGFMT: Flat image can't enable zeroed grain
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648
+qemu-img: TEST_DIR/t.IMGFMT: Flat image can't enable zeroed grain
 
 === Testing big twoGbMaxExtentFlat ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824000

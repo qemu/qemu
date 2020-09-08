@@ -115,7 +115,6 @@ struct RXCPU {
     CPURXState env;
 };
 
-typedef struct RXCPU RXCPU;
 typedef RXCPU ArchCPU;
 
 #define ENV_OFFSET offsetof(RXCPU, env)
