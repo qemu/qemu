@@ -228,8 +228,11 @@ enum IOMMUMemoryRegionAttr {
  * attributes and the output TLB entry depends on the transaction
  * attributes, we represent this using IOMMU indexes. Each index
  * selects a particular translation table that the IOMMU has:
+ *
  *   @attrs_to_index returns the IOMMU index for a set of transaction attributes
+ *
  *   @translate takes an input address and an IOMMU index
+ *
  * and the mapping returned can only depend on the input address and the
  * IOMMU index.
  *
@@ -238,10 +241,13 @@ enum IOMMUMemoryRegionAttr {
  * for secure transactions and one for non-secure transactions.
  */
 struct IOMMUMemoryRegionClass {
-    /* private */
+    /* private: */
     MemoryRegionClass parent_class;
 
-    /*
+    /* public: */
+    /**
+     * @translate:
+     *
      * Return a TLB entry that contains a given address.
      *
      * The IOMMUAccessFlags indicated via @flag are optional and may
@@ -262,26 +268,38 @@ struct IOMMUMemoryRegionClass {
      * information when the IOMMU mapping changes.
      *
      * @iommu: the IOMMUMemoryRegion
+     *
      * @hwaddr: address to be translated within the memory region
-     * @flag: requested access permissions
+     *
+     * @flag: requested access permission
+     *
      * @iommu_idx: IOMMU index for the translation
      */
     IOMMUTLBEntry (*translate)(IOMMUMemoryRegion *iommu, hwaddr addr,
                                IOMMUAccessFlags flag, int iommu_idx);
-    /* Returns minimum supported page size in bytes.
+    /**
+     * @get_min_page_size:
+     *
+     * Returns minimum supported page size in bytes.
+     *
      * If this method is not provided then the minimum is assumed to
      * be TARGET_PAGE_SIZE.
      *
      * @iommu: the IOMMUMemoryRegion
      */
     uint64_t (*get_min_page_size)(IOMMUMemoryRegion *iommu);
-    /* Called when IOMMU Notifier flag changes (ie when the set of
+    /**
+     * @notify_flag_changed:
+     *
+     * Called when IOMMU Notifier flag changes (ie when the set of
      * events which IOMMU users are requesting notification for changes).
      * Optional method -- need not be provided if the IOMMU does not
      * need to know exactly which events must be notified.
      *
      * @iommu: the IOMMUMemoryRegion
+     *
      * @old_flags: events which previously needed to be notified
+     *
      * @new_flags: events which now need to be notified
      *
      * Returns 0 on success, or a negative errno; in particular
@@ -293,7 +311,10 @@ struct IOMMUMemoryRegionClass {
                                IOMMUNotifierFlag old_flags,
                                IOMMUNotifierFlag new_flags,
                                Error **errp);
-    /* Called to handle memory_region_iommu_replay().
+    /**
+     * @replay:
+     *
+     * Called to handle memory_region_iommu_replay().
      *
      * The default implementation of memory_region_iommu_replay() is to
      * call the IOMMU translate method for every page in the address space
@@ -310,7 +331,10 @@ struct IOMMUMemoryRegionClass {
      */
     void (*replay)(IOMMUMemoryRegion *iommu, IOMMUNotifier *notifier);
 
-    /* Get IOMMU misc attributes. This is an optional method that
+    /**
+     * @get_attr:
+     *
+     * Get IOMMU misc attributes. This is an optional method that
      * can be used to allow users of the IOMMU to get implementation-specific
      * information. The IOMMU implements this method to handle calls
      * by IOMMU users to memory_region_iommu_get_attr() by filling in
@@ -319,7 +343,9 @@ struct IOMMUMemoryRegionClass {
      * memory_region_iommu_get_attr() will always return -EINVAL.
      *
      * @iommu: the IOMMUMemoryRegion
+     *
      * @attr: attribute being queried
+     *
      * @data: memory to fill in with the attribute data
      *
      * Returns 0 on success, or a negative errno; in particular
@@ -328,7 +354,10 @@ struct IOMMUMemoryRegionClass {
     int (*get_attr)(IOMMUMemoryRegion *iommu, enum IOMMUMemoryRegionAttr attr,
                     void *data);
 
-    /* Return the IOMMU index to use for a given set of transaction attributes.
+    /**
+     * @attrs_to_index:
+     *
+     * Return the IOMMU index to use for a given set of transaction attributes.
      *
      * Optional method: if an IOMMU only supports a single IOMMU index then
      * the default implementation of memory_region_iommu_attrs_to_index()
@@ -341,7 +370,10 @@ struct IOMMUMemoryRegionClass {
      */
     int (*attrs_to_index)(IOMMUMemoryRegion *iommu, MemTxAttrs attrs);
 
-    /* Return the number of IOMMU indexes this IOMMU supports.
+    /**
+     * @num_indexes:
+     *
+     * Return the number of IOMMU indexes this IOMMU supports.
      *
      * Optional method: if this method is not provided, then
      * memory_region_iommu_num_indexes() will return 1, indicating that
