@@ -264,10 +264,10 @@ struct CPUMBState {
 /* MSR_UM               (1 << 11) */
 /* MSR_VM               (1 << 13) */
 /* ESR_ESS_MASK         [11:5]    -- unwind into iflags for unaligned excp */
+#define D_FLAG		(1 << 12)  /* Bit in ESR.  */
 #define DRTI_FLAG	(1 << 16)
 #define DRTE_FLAG	(1 << 17)
 #define DRTB_FLAG	(1 << 18)
-#define D_FLAG		(1 << 19)  /* Bit in ESR.  */
 
 /* TB dependent CPUMBState.  */
 #define IFLAGS_TB_MASK  (D_FLAG | BIMM_FLAG | IMM_FLAG | \
@@ -278,18 +278,53 @@ struct CPUMBState {
 
 #if !defined(CONFIG_USER_ONLY)
     /* Unified MMU.  */
-    struct microblaze_mmu mmu;
+    MicroBlazeMMU mmu;
 #endif
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
     /* These fields are preserved on reset.  */
-
-    struct {
-        uint32_t regs[13];
-    } pvr;
 };
+
+/*
+ * Microblaze Configuration Settings
+ *
+ * Note that the structure is sorted by type and size to minimize holes.
+ */
+typedef struct {
+    char *version;
+
+    uint64_t addr_mask;
+
+    uint32_t base_vectors;
+    uint32_t pvr_user2;
+    uint32_t pvr_regs[13];
+
+    uint8_t addr_size;
+    uint8_t use_fpu;
+    uint8_t use_hw_mul;
+    uint8_t pvr_user1;
+    uint8_t pvr;
+    uint8_t mmu;
+    uint8_t mmu_tlb_access;
+    uint8_t mmu_zones;
+
+    bool stackprot;
+    bool use_barrel;
+    bool use_div;
+    bool use_msr_instr;
+    bool use_pcmp_instr;
+    bool use_mmu;
+    bool dcache_writeback;
+    bool endi;
+    bool dopb_bus_exception;
+    bool iopb_bus_exception;
+    bool illegal_opcode_exception;
+    bool opcode_0_illegal;
+    bool div_zero_exception;
+    bool unaligned_exceptions;
+} MicroBlazeCPUConfig;
 
 /**
  * MicroBlazeCPU:
@@ -305,32 +340,7 @@ struct MicroBlazeCPU {
 
     CPUNegativeOffsetState neg;
     CPUMBState env;
-
-    /* Microblaze Configuration Settings */
-    struct {
-        bool stackprot;
-        uint32_t base_vectors;
-        uint8_t addr_size;
-        uint8_t use_fpu;
-        uint8_t use_hw_mul;
-        bool use_barrel;
-        bool use_div;
-        bool use_msr_instr;
-        bool use_pcmp_instr;
-        bool use_mmu;
-        bool dcache_writeback;
-        bool endi;
-        bool dopb_bus_exception;
-        bool iopb_bus_exception;
-        bool illegal_opcode_exception;
-        bool opcode_0_illegal;
-        bool div_zero_exception;
-        bool unaligned_exceptions;
-        uint8_t pvr_user1;
-        uint32_t pvr_user2;
-        char *version;
-        uint8_t pvr;
-    } cfg;
+    MicroBlazeCPUConfig cfg;
 };
 
 
@@ -418,5 +428,9 @@ static inline int cpu_mmu_index(CPUMBState *env, bool ifetch)
     }
     return MMU_KERNEL_IDX;
 }
+
+#ifndef CONFIG_USER_ONLY
+extern const VMStateDescription vmstate_mb_cpu;
+#endif
 
 #endif

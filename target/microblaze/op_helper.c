@@ -134,7 +134,7 @@ static void update_fpu_flags(CPUMBState *env, int flags, uintptr_t ra)
         raise = 1;
     }
     if (raise
-        && (env->pvr.regs[2] & PVR2_FPU_EXC_MASK)
+        && (env_archcpu(env)->cfg.pvr_regs[2] & PVR2_FPU_EXC_MASK)
         && (env->msr & MSR_EE)) {
         raise_fpu_exception(env, ra);
     }
