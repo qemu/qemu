@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/xen/xen.h"
+#include "hw/xen/xen-x86.h"
 
 void xenstore_store_pv_console_info(int i, Chardev *chr)
 {
