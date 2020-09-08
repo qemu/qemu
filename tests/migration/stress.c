@@ -29,10 +29,12 @@ const char *argv0;
 
 #define PAGE_SIZE 4096
 
+#ifndef CONFIG_GETTID
 static int gettid(void)
 {
     return syscall(SYS_gettid);
 }
+#endif
 
 static __attribute__((noreturn)) void exit_failure(void)
 {
@@ -44,19 +46,6 @@ static __attribute__((noreturn)) void exit_failure(void)
         abort();
     } else {
         exit(1);
-    }
-}
-
-static __attribute__((noreturn)) void exit_success(void)
-{
-    if (getpid() == 1) {
-        sync();
-        reboot(RB_POWER_OFF);
-        fprintf(stderr, "%s (%05d): ERROR: cannot reboot: %s\n",
-                argv0, gettid(), strerror(errno));
-        abort();
-    } else {
-        exit(0);
     }
 }
 

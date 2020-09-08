@@ -36,9 +36,9 @@ softmmu_ss.add(when: ['CONFIG_SPICE', spice], if_true: files('spice.c'))
 
 chardev_modules = {}
 
-if config_host.has_key('CONFIG_BRLAPI') and sdl.found()
+if config_host.has_key('CONFIG_BRLAPI')
   module_ss = ss.source_set()
-  module_ss.add(when: [sdl, brlapi], if_true: [files('baum.c'), pixman])
+  module_ss.add(when: [brlapi], if_true: [files('baum.c'), pixman])
   chardev_modules += { 'baum': module_ss }
 endif
 

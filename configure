@@ -192,36 +192,6 @@ has() {
     type "$1" >/dev/null 2>&1
 }
 
-# search for an executable in PATH
-path_of() {
-    local_command="$1"
-    local_ifs="$IFS"
-    local_dir=""
-
-    # pathname has a dir component?
-    if [ "${local_command#*/}" != "$local_command" ]; then
-        if [ -x "$local_command" ] && [ ! -d "$local_command" ]; then
-            echo "$local_command"
-            return 0
-        fi
-    fi
-    if [ -z "$local_command" ]; then
-        return 1
-    fi
-
-    IFS=:
-    for local_dir in $PATH; do
-        if [ -x "$local_dir/$local_command" ] && [ ! -d "$local_dir/$local_command" ]; then
-            echo "$local_dir/$local_command"
-            IFS="${local_ifs:-$(printf ' \t\n')}"
-            return 0
-        fi
-    done
-    # not found
-    IFS="${local_ifs:-$(printf ' \t\n')}"
-    return 1
-}
-
 version_ge () {
     local_ver1=`echo $1 | tr . ' '`
     local_ver2=`echo $2 | tr . ' '`
@@ -361,7 +331,6 @@ audio_drv_list=""
 block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
 host_cc="cc"
-libs_tools=""
 audio_win_int=""
 libs_qga=""
 debug_info="yes"
@@ -469,7 +438,6 @@ mingw32="no"
 gcov="no"
 EXESUF=""
 HOST_DSOSUF=".so"
-LDFLAGS_SHARED="-shared"
 modules="no"
 module_upgrades="no"
 prefix="/usr/local"
@@ -664,14 +632,6 @@ QEMU_INCLUDES="-iquote . -iquote ${source_path} -iquote ${source_path}/accel/tcg
 QEMU_INCLUDES="$QEMU_INCLUDES -iquote ${source_path}/disas/libvixl"
 CFLAGS="-std=gnu99 -Wall"
 
-
-# running configure in the source tree?
-# we know that's the case if configure is there.
-if test -f "./configure"; then
-    pwd_is_source_path="y"
-else
-    pwd_is_source_path="n"
-fi
 
 check_define() {
 cat > $TMPC <<EOF
@@ -871,7 +831,6 @@ FreeBSD)
   audio_drv_list="oss try-sdl"
   audio_possible_drivers="oss sdl pa"
   # needed for kinfo_getvmmap(3) in libutil.h
-  LIBS="-lutil $LIBS"
   netmap=""  # enable netmap autodetect
   HOST_VARIANT_DIR="freebsd"
 ;;
@@ -903,7 +862,6 @@ Darwin)
   darwin="yes"
   hax="yes"
   hvf="yes"
-  LDFLAGS_SHARED="-bundle -undefined dynamic_lookup"
   if [ "$cpu" = "x86_64" ] ; then
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
     QEMU_LDFLAGS="-arch x86_64 $QEMU_LDFLAGS"
@@ -920,7 +878,6 @@ Darwin)
 SunOS)
   solaris="yes"
   make="${MAKE-gmake}"
-  install="${INSTALL-ginstall}"
   smbd="${SMBD-/usr/sfw/sbin/smbd}"
   if test -f /usr/include/sys/soundcard.h ; then
     audio_drv_list="oss try-sdl"
@@ -930,13 +887,10 @@ SunOS)
   QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
 # needed for TIOCWIN* defines in termios.h
   QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
-  solarisnetlibs="-lsocket -lnsl -lresolv"
-  LIBS="$solarisnetlibs $LIBS"
 ;;
 Haiku)
   haiku="yes"
   QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS -DBSD_SOURCE $QEMU_CFLAGS"
-  LIBS="-lposix_error_mapper -lnetwork -lbsd $LIBS"
 ;;
 Linux)
   audio_drv_list="try-pa oss"
@@ -944,7 +898,7 @@ Linux)
   linux="yes"
   linux_user="yes"
   kvm="yes"
-  QEMU_INCLUDES="-isystem ${source_path}/linux-headers -I$PWD/linux-headers $QEMU_INCLUDES"
+  QEMU_INCLUDES="-isystem ${source_path}/linux-headers -Ilinux-headers $QEMU_INCLUDES"
   libudev="yes"
 ;;
 esac
@@ -956,7 +910,7 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 : ${make=${MAKE-make}}
-: ${install=${INSTALL-install}}
+
 # We prefer python 3.x. A bare 'python' is traditionally
 # python 2.x, but some distros have it as python 3.x, so
 # we check that too
@@ -1006,11 +960,7 @@ if test "$mingw32" = "yes" ; then
   HOST_DSOSUF=".dll"
   # MinGW needs -mthreads for TLS and macro _MT.
   CFLAGS="-mthreads $CFLAGS"
-  LIBS="-lwinmm -lws2_32 $LIBS"
   write_c_skeleton;
-  if compile_prog "" "-liberty" ; then
-    LIBS="-liberty $LIBS"
-  fi
   prefix="c:/Program Files/QEMU"
   qemu_suffix=""
   libs_qga="-lws2_32 -lwinmm -lpowrprof -lwtsapi32 -lwininet -liphlpapi -lnetapi32 $libs_qga"
@@ -1043,7 +993,7 @@ for opt do
   ;;
   --make=*) make="$optarg"
   ;;
-  --install=*) install="$optarg"
+  --install=*)
   ;;
   --python=*) python="$optarg" ; explicit_python=yes
   ;;
@@ -1824,7 +1774,6 @@ Advanced options (experts only):
   --cross-cc-ARCH=CC       use compiler when building ARCH guest test cases
   --cross-cc-flags-ARCH=   use compiler flags when building ARCH guest tests
   --make=MAKE              use specified make [$make]
-  --install=INSTALL        use specified install [$install]
   --python=PYTHON          use specified python [$python]
   --sphinx-build=SPHINX    use specified sphinx-build [$sphinx_build]
   --meson=MESON            use specified meson [$meson]
@@ -2053,9 +2002,6 @@ fi
 
 if test "$meson" = git; then
     git_submodules="${git_submodules} meson"
-fi
-if test "$git_update" = yes; then
-    (cd "${source_path}" && GIT="$git" "./scripts/git-submodule.sh" update "$git_submodules")
 fi
 
 case "$meson" in
@@ -2342,18 +2288,6 @@ fi
 # Solaris specific configure tool chain decisions
 
 if test "$solaris" = "yes" ; then
-  if has $install; then
-    :
-  else
-    error_exit "Solaris install program not found. Use --install=/usr/ucb/install or" \
-        "install fileutils from www.blastwave.org using pkg-get -i fileutils" \
-        "to get ginstall which is used by default (which lives in /opt/csw/bin)"
-  fi
-  if test "$(path_of $install)" = "/usr/sbin/install" ; then
-    error_exit "Solaris /usr/sbin/install is not an appropriate install program." \
-        "try ginstall from the GNU fileutils available from www.blastwave.org" \
-        "using pkg-get -i fileutils, or use --install=/usr/ucb/install"
-  fi
   if has ar; then
     :
   else
@@ -2744,7 +2678,6 @@ if test "$xen" != "no" ; then
     if $pkg_config --exists xentoolcore; then
       xen_pc="$xen_pc xentoolcore"
     fi
-    QEMU_CFLAGS="$QEMU_CFLAGS $($pkg_config --cflags $xen_pc)"
     xen_cflags="$($pkg_config --cflags $xen_pc)"
     xen_libs="$($pkg_config --libs $xen_pc)"
   else
@@ -3129,8 +3062,6 @@ if test "$gnutls" != "no"; then
         # At least ubuntu 18.04 ships only shared libraries.
         write_c_skeleton
         if compile_prog "" "$gnutls_libs" ; then
-            LIBS="$gnutls_libs $LIBS"
-            QEMU_CFLAGS="$QEMU_CFLAGS $gnutls_cflags"
             pass="yes"
         fi
     fi
@@ -3200,8 +3131,6 @@ if test "$nettle" != "no"; then
         # Link test to make sure the given libraries work (e.g for static).
         write_c_skeleton
         if compile_prog "" "$nettle_libs" ; then
-            LIBS="$nettle_libs $LIBS"
-            QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
             if test -z "$gcrypt"; then
                gcrypt="no"
             fi
@@ -3244,8 +3173,6 @@ if test "$gcrypt" != "no"; then
         # Link test to make sure the given libraries work (e.g for static).
         write_c_skeleton
         if compile_prog "" "$gcrypt_libs" ; then
-            LIBS="$gcrypt_libs $LIBS"
-            QEMU_CFLAGS="$QEMU_CFLAGS $gcrypt_cflags"
             pass="yes"
         fi
     fi
@@ -3813,23 +3740,21 @@ if test "$plugins" = yes; then
     glib_modules="$glib_modules gmodule-2.0"
 fi
 
-# This workaround is required due to a bug in pkg-config file for glib as it
-# doesn't define GLIB_STATIC_COMPILATION for pkg-config --static
-
-if test "$static" = yes && test "$mingw32" = yes; then
-    QEMU_CFLAGS="-DGLIB_STATIC_COMPILATION $QEMU_CFLAGS"
-fi
-
 for i in $glib_modules; do
     if $pkg_config --atleast-version=$glib_req_ver $i; then
         glib_cflags=$($pkg_config --cflags $i)
         glib_libs=$($pkg_config --libs $i)
-        QEMU_CFLAGS="$glib_cflags $QEMU_CFLAGS"
-        LIBS="$glib_libs $LIBS"
     else
         error_exit "glib-$glib_req_ver $i is required to compile QEMU"
     fi
 done
+
+# This workaround is required due to a bug in pkg-config file for glib as it
+# doesn't define GLIB_STATIC_COMPILATION for pkg-config --static
+
+if test "$static" = yes && test "$mingw32" = yes; then
+    glib_cflags="-DGLIB_STATIC_COMPILATION $glib_cflags"
+fi
 
 if $pkg_config --atleast-version=$glib_req_ver gio-2.0; then
     gio=yes
@@ -3865,7 +3790,7 @@ int main(void) {
 }
 EOF
 
-if ! compile_prog "$CFLAGS" "$LIBS" ; then
+if ! compile_prog "$glib_cflags" "$glib_libs" ; then
     error_exit "sizeof(size_t) doesn't match GLIB_SIZEOF_SIZE_T."\
                "You probably need to set PKG_CONFIG_LIBDIR"\
 	       "to point to the right pkg-config files for your"\
@@ -3880,7 +3805,7 @@ EOF
 if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
     if cc_has_warning_flag "-Wno-unknown-attributes"; then
         glib_cflags="-Wno-unknown-attributes $glib_cflags"
-        QEMU_CFLAGS="-Wno-unknown-attributes $CFLAGS"
+        CFLAGS="-Wno-unknown-attributes $CFLAGS"
     fi
 fi
 
@@ -4128,11 +4053,6 @@ if test "$linux_io_uring" != "no" ; then
     linux_io_uring_cflags=$($pkg_config --cflags liburing)
     linux_io_uring_libs=$($pkg_config --libs liburing)
     linux_io_uring=yes
-
-    # io_uring is used in libqemuutil.a where per-file -libs variables are not
-    # seen by programs linking the archive.  It's not ideal, but just add the
-    # library dependency globally.
-    LIBS="$linux_io_uring_libs $LIBS"
   else
     if test "$linux_io_uring" = "yes" ; then
       feature_not_found "linux io_uring" "Install liburing devel"
@@ -4177,7 +4097,6 @@ EOF
   elif compile_prog "-DCONFIG_LIBATTR" "-lattr" ; then
     attr=yes
     libattr_libs="-lattr"
-    LIBS="$libattr_libs $LIBS"
     libattr=yes
   else
     if test "$attr" = "yes" ; then
@@ -4262,11 +4181,8 @@ EOF
       if test -d "${source_path}/dtc/libfdt" || test -e "${source_path}/.git" ; then
           fdt=git
           mkdir -p dtc
-          if [ "$pwd_is_source_path" != "y" ] ; then
-              symlink "$source_path/dtc/Makefile" "dtc/Makefile"
-          fi
           fdt_cflags="-I${source_path}/dtc/libfdt"
-          fdt_ldflags="-L$PWD/dtc/libfdt"
+          fdt_ldflags="-Ldtc/libfdt"
           fdt_libs="$fdt_libs"
       elif test "$fdt" = "yes" ; then
           # Not a git build & no libfdt found, prompt for system install
@@ -4299,7 +4215,6 @@ if test "$opengl" != "no" ; then
     if test "$gtk" = "yes" && $pkg_config --exists "$gtkpackage >= 3.16"; then
         gtk_gl="yes"
     fi
-    QEMU_CFLAGS="$QEMU_CFLAGS $opengl_cflags"
   else
     if test "$opengl" = "yes" ; then
       feature_not_found "opengl" "Please install opengl (mesa) devel pkgs: $opengl_pkgs"
@@ -5004,20 +4919,6 @@ if test "$libiscsi" != "no" ; then
 fi
 
 ##########################################
-# Do we need libm
-cat > $TMPC << EOF
-#include <math.h>
-int main(int argc, char **argv) { return isnan(sin((double)argc)); }
-EOF
-if compile_prog "" "" ; then
-  :
-elif compile_prog "" "-lm" ; then
-  LIBS="-lm $LIBS"
-else
-  error_exit "libm check failed"
-fi
-
-##########################################
 # Do we need librt
 # uClibc provides 2 versions of clock_gettime(), one with realtime
 # support and one without. This means that the clock_gettime() don't
@@ -5039,7 +4940,7 @@ elif compile_prog "" "$pthread_lib -lrt" ; then
   LIBS="$LIBS -lrt"
 fi
 
-# Check whether we need to link libutil for openpty()
+# Check whether we have openpty() in either libc or libutil
 cat > $TMPC << EOF
 extern int openpty(int *am, int *as, char *name, void *termp, void *winp);
 int main(void) { return openpty(0, 0, 0, 0, 0); }
@@ -5050,7 +4951,6 @@ if compile_prog "" "" ; then
   have_openpty="yes"
 else
   if compile_prog "" "-lutil" ; then
-    libs_tools="-lutil $libs_tools"
     have_openpty="yes"
   fi
 fi
@@ -5068,7 +4968,6 @@ EOF
      $pkg_config --atleast-version=0.12.3 spice-protocol && \
      compile_prog "$spice_cflags" "$spice_libs" ; then
     spice="yes"
-    QEMU_CFLAGS="$QEMU_CFLAGS $spice_cflags"
   else
     if test "$spice" = "yes" ; then
       feature_not_found "spice" \
@@ -5251,20 +5150,18 @@ case "$capstone" in
       git_submodules="${git_submodules} capstone"
     fi
     mkdir -p capstone
-    QEMU_CFLAGS="$QEMU_CFLAGS -I${source_path}/capstone/include"
     if test "$mingw32" = "yes"; then
       LIBCAPSTONE=capstone.lib
     else
       LIBCAPSTONE=libcapstone.a
     fi
-    capstone_libs="-L$PWD/capstone -lcapstone"
+    capstone_libs="-Lcapstone -lcapstone"
     capstone_cflags="-I${source_path}/capstone/include"
     ;;
 
   system)
     capstone_libs="$($pkg_config --libs capstone)"
     capstone_cflags="$($pkg_config --cflags capstone)"
-    QEMU_CFLAGS="$QEMU_CFLAGS $($pkg_config --cflags capstone)"
     ;;
 
   no)
@@ -5413,8 +5310,6 @@ EOF
     else
       urcu_bp_libs="-lurcu-bp"
     fi
-
-    LIBS="$lttng_ust_libs $urcu_bp_libs $LIBS"
   else
     error_exit "Trace backend 'ust' missing lttng-ust header files"
   fi
@@ -6153,7 +6048,7 @@ fi
 
 ##########################################
 # checks for fuzzer
-if test "$fuzzing" = "yes" ; then
+if test "$fuzzing" = "yes" && test -z "${LIB_FUZZING_ENGINE+xxx}"; then
   write_c_fuzzer_skeleton
   if compile_prog "$CPU_CFLAGS -Werror -fsanitize=fuzzer" ""; then
     have_fuzzer=yes
@@ -6195,7 +6090,6 @@ if test "$libpmem" != "no"; then
 		libpmem="yes"
 		libpmem_libs=$($pkg_config --libs libpmem)
 		libpmem_cflags=$($pkg_config --cflags libpmem)
-		QEMU_CFLAGS="$QEMU_CFLAGS $libpmem_cflags"
 	else
 		if test "$libpmem" = "yes" ; then
 			feature_not_found "libpmem" "Install nvml or pmdk"
@@ -6212,7 +6106,6 @@ if test "$libdaxctl" != "no"; then
 		libdaxctl="yes"
 		libdaxctl_libs=$($pkg_config --libs libdaxctl)
 		libdaxctl_cflags=$($pkg_config --cflags libdaxctl)
-		QEMU_CFLAGS="$QEMU_CFLAGS $libdaxctl_cflags"
 	else
 		if test "$libdaxctl" = "yes" ; then
 			feature_not_found "libdaxctl" "Install libdaxctl"
@@ -6257,8 +6150,8 @@ case "$slirp" in
       git_submodules="${git_submodules} slirp"
     fi
     mkdir -p slirp
-    slirp_cflags="-I${source_path}/slirp/src -I$PWD/slirp/src"
-    slirp_libs="-L$PWD/slirp -lslirp"
+    slirp_cflags="-I${source_path}/slirp/src -Islirp/src"
+    slirp_libs="-Lslirp -lslirp"
     if test "$mingw32" = "yes" ; then
       slirp_libs="$slirp_libs -lws2_32 -liphlpapi"
     fi
@@ -6311,28 +6204,6 @@ but not implemented on your system"
 	fi
     fi
 fi
-
-##########################################
-# check for usable keyutils.h
-
-if test "$linux" = "yes" ; then
-
-    have_keyutils=no
-    cat > $TMPC << EOF
-#include <errno.h>
-#include <asm/unistd.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <keyutils.h>
-int main(void) {
-    return request_key("user", NULL, NULL, 0);
-}
-EOF
-    if compile_prog "" "-lkeyutils"; then
-        have_keyutils=yes
-    fi
-fi
-
 
 ##########################################
 # End of CC checks
@@ -6415,11 +6286,6 @@ if test "$libudev" != "no" ; then
   else
     libudev="no"
   fi
-fi
-
-# Now we've finished running tests it's OK to add -Werror to the compiler flags
-if test "$werror" = "yes"; then
-    QEMU_CFLAGS="-Werror $QEMU_CFLAGS"
 fi
 
 # Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
@@ -6632,19 +6498,14 @@ else
     cxx=
 fi
 
-echo_version() {
-    if test "$1" = "yes" ; then
-        echo "($2)"
-    fi
-}
-
-# prepend ftd flags after all config tests are done
-QEMU_CFLAGS="$fdt_cflags $QEMU_CFLAGS"
-QEMU_LDFLAGS="$fdt_ldflags $QEMU_LDFLAGS"
+if test $git_update = 'yes' ; then
+    (cd "${source_path}" && GIT="$git" "./scripts/git-submodule.sh" update "$git_submodules")
+fi
+if test "$fdt" = "git" ; then
+    symlink "$source_path/dtc/Makefile" "dtc/Makefile"
+fi
 
 config_host_mak="config-host.mak"
-
-echo "# Automatically generated by configure - do not modify" >config-all-disas.mak
 
 echo "# Automatically generated by configure - do not modify" > $config_host_mak
 echo >> $config_host_mak
@@ -7147,6 +7008,7 @@ fi
 
 if test "$opengl" = "yes" ; then
   echo "CONFIG_OPENGL=y" >> $config_host_mak
+  echo "OPENGL_CFLAGS=$opengl_cflags" >> $config_host_mak
   echo "OPENGL_LIBS=$opengl_libs" >> $config_host_mak
   if test "$opengl_dmabuf" = "yes" ; then
     echo "CONFIG_OPENGL_DMABUF=y" >> $config_host_mak
@@ -7492,12 +7354,18 @@ if test "$have_mlockall" = "yes" ; then
   echo "HAVE_MLOCKALL=y" >> $config_host_mak
 fi
 if test "$fuzzing" = "yes" ; then
-  QEMU_CFLAGS="$QEMU_CFLAGS -fsanitize=fuzzer-no-link"
+  # If LIB_FUZZING_ENGINE is set, assume we are running on OSS-Fuzz, and the
+  # needed CFLAGS have already been provided
+  if test -z "${LIB_FUZZING_ENGINE+xxx}" ; then
+    QEMU_CFLAGS="$QEMU_CFLAGS -fsanitize=fuzzer-no-link"
+    FUZZ_EXE_LDFLAGS="-fsanitize=fuzzer"
+  else
+    FUZZ_EXE_LDFLAGS="$LIB_FUZZING_ENGINE"
+  fi
 fi
 
 if test "$plugins" = "yes" ; then
     echo "CONFIG_PLUGIN=y" >> $config_host_mak
-    LIBS="-ldl $LIBS"
     # Copy the export object list to the build dir
     if test "$ld_dynamic_list" = "yes" ; then
 	echo "CONFIG_HAS_LD_DYNAMIC_LIST=yes" >> $config_host_mak
@@ -7522,9 +7390,6 @@ fi
 
 if test "$secret_keyring" = "yes" ; then
   echo "CONFIG_SECRET_KEYRING=y" >> $config_host_mak
-  if test "$have_keyutils" = "yes" ; then
-    echo "CONFIG_TEST_SECRET_KEYRING=y" >> $config_host_mak
-  fi
 fi
 
 if test "$tcg_interpreter" = "yes"; then
@@ -7545,11 +7410,6 @@ fi
 
 echo "ROMS=$roms" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
-echo "INSTALL=$install" >> $config_host_mak
-echo "INSTALL_DIR=$install -d -m 0755" >> $config_host_mak
-echo "INSTALL_DATA=$install -c -m 0644" >> $config_host_mak
-echo "INSTALL_PROG=$install -c -m 0755" >> $config_host_mak
-echo "INSTALL_LIB=$install -c -m 0644" >> $config_host_mak
 echo "PYTHON=$python" >> $config_host_mak
 echo "SPHINX_BUILD=$sphinx_build" >> $config_host_mak
 echo "GENISOIMAGE=$genisoimage" >> $config_host_mak
@@ -7572,7 +7432,6 @@ echo "NM=$nm" >> $config_host_mak
 echo "PKG_CONFIG=$pkg_config_exe" >> $config_host_mak
 echo "WINDRES=$windres" >> $config_host_mak
 echo "CFLAGS=$CFLAGS" >> $config_host_mak
-echo "CXXFLAGS=$CXXFLAGS" >> $config_host_mak
 echo "CFLAGS_NOPIE=$CFLAGS_NOPIE" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "QEMU_CXXFLAGS=$QEMU_CXXFLAGS" >> $config_host_mak
@@ -7584,14 +7443,10 @@ if test "$sparse" = "yes" ; then
 fi
 echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "LDFLAGS_NOPIE=$LDFLAGS_NOPIE" >> $config_host_mak
-echo "LD_REL_FLAGS=$LD_REL_FLAGS" >> $config_host_mak
 echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
-echo "LIBS+=$LIBS" >> $config_host_mak
-echo "LIBS_TOOLS+=$libs_tools" >> $config_host_mak
 echo "PTHREAD_LIB=$PTHREAD_LIB" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 echo "HOST_DSOSUF=$HOST_DSOSUF" >> $config_host_mak
-echo "LDFLAGS_SHARED=$LDFLAGS_SHARED" >> $config_host_mak
 echo "LIBS_QGA=$libs_qga" >> $config_host_mak
 echo "TASN1_LIBS=$tasn1_libs" >> $config_host_mak
 echo "TASN1_CFLAGS=$tasn1_cflags" >> $config_host_mak
@@ -7607,6 +7462,7 @@ fi
 if test "$fuzzing" != "no"; then
     echo "CONFIG_FUZZ=y" >> $config_host_mak
 fi
+echo "FUZZ_EXE_LDFLAGS=$FUZZ_EXE_LDFLAGS" >> $config_host_mak
 
 if test "$edk2_blobs" = "yes" ; then
   echo "DECOMPRESS_EDK2_BLOBS=y" >> $config_host_mak
@@ -7954,93 +7810,6 @@ if test "$target_bsd_user" = "yes" ; then
   echo "CONFIG_BSD_USER=y" >> $config_target_mak
 fi
 
-
-# generate QEMU_CFLAGS/QEMU_LDFLAGS for targets
-
-disas_config() {
-  echo "CONFIG_${1}_DIS=y" >> $config_target_mak
-  echo "CONFIG_${1}_DIS=y" >> config-all-disas.mak
-}
-
-for i in $ARCH $TARGET_BASE_ARCH ; do
-  case "$i" in
-  alpha)
-    disas_config "ALPHA"
-  ;;
-  aarch64)
-    if test -n "${cxx}"; then
-      disas_config "ARM_A64"
-    fi
-  ;;
-  arm)
-    disas_config "ARM"
-    if test -n "${cxx}"; then
-      disas_config "ARM_A64"
-    fi
-  ;;
-  avr)
-    disas_config "AVR"
-  ;;
-  cris)
-    disas_config "CRIS"
-  ;;
-  hppa)
-    disas_config "HPPA"
-  ;;
-  i386|x86_64|x32)
-    disas_config "I386"
-  ;;
-  lm32)
-    disas_config "LM32"
-  ;;
-  m68k)
-    disas_config "M68K"
-  ;;
-  microblaze*)
-    disas_config "MICROBLAZE"
-  ;;
-  mips*)
-    disas_config "MIPS"
-    if test -n "${cxx}"; then
-      disas_config "NANOMIPS"
-    fi
-  ;;
-  moxie*)
-    disas_config "MOXIE"
-  ;;
-  nios2)
-    disas_config "NIOS2"
-  ;;
-  or1k)
-    disas_config "OPENRISC"
-  ;;
-  ppc*)
-    disas_config "PPC"
-  ;;
-  riscv*)
-    disas_config "RISCV"
-  ;;
-  rx)
-    disas_config "RX"
-  ;;
-  s390*)
-    disas_config "S390"
-  ;;
-  sh4)
-    disas_config "SH4"
-  ;;
-  sparc*)
-    disas_config "SPARC"
-  ;;
-  xtensa*)
-    disas_config "XTENSA"
-  ;;
-  esac
-done
-if test "$tcg_interpreter" = "yes" ; then
-  disas_config "TCI"
-fi
-
 done # for target in $targets
 
 if [ "$fdt" = "git" ]; then
@@ -8113,7 +7882,7 @@ do
 done
 mkdir -p $DIRS
 for f in $LINKS ; do
-    if [ -e "$source_path/$f" ] && [ "$pwd_is_source_path" != "y" ]; then
+    if [ -e "$source_path/$f" ]; then
         symlink "$source_path/$f" "$f"
     fi
 done
@@ -8168,6 +7937,9 @@ echo "ar = $(meson_quote $ar)" >> $cross
 echo "nm = $(meson_quote $nm)" >> $cross
 echo "pkgconfig = $(meson_quote $pkg_config_exe)" >> $cross
 echo "ranlib = $(meson_quote $ranlib)" >> $cross
+if has $sdl2_config; then
+  echo "sdl2-config = $(meson_quote $sdl2_config)" >> $cross
+fi
 echo "strip = $(meson_quote $strip)" >> $cross
 echo "windres = $(meson_quote $windres)" >> $cross
 if test -n "$cross_prefix"; then

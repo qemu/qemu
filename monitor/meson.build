@@ -6,4 +6,4 @@ softmmu_ss.add(files(
   'qmp-cmds.c',
 ))
 
-specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: files('misc.c'))
+specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files('misc.c'), spice])

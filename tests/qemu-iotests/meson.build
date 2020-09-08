@@ -4,7 +4,3 @@ if 'CONFIG_LINUX' in config_host
 else
     socket_scm_helper = []
 endif
-test('qemu-iotests', sh, args: [files('../check-block.sh')],
-     depends: [qemu_block_tools, emulators, socket_scm_helper],
-     suite: 'block', timeout: 10000)
-

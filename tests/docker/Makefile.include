@@ -2,6 +2,10 @@
 
 .PHONY: docker docker-test docker-clean docker-image docker-qemu-src
 
+NULL :=
+SPACE := $(NULL) #
+COMMA := ,
+
 HOST_ARCH = $(if $(ARCH),$(ARCH),$(shell uname -m))
 
 DOCKER_SUFFIX := .docker
