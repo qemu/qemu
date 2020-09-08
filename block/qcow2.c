@@ -2101,7 +2101,6 @@ static coroutine_fn int qcow2_handle_l2meta(BlockDriverState *bs,
         QCowL2Meta *next;
 
         if (link_l2) {
-            assert(!l2meta->prealloc);
             ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
             if (ret) {
                 goto out;
@@ -3123,7 +3122,7 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
     int64_t file_length;
     unsigned int cur_bytes;
     int ret;
-    QCowL2Meta *meta;
+    QCowL2Meta *meta = NULL, *m;
 
     assert(offset <= new_length);
     bytes = new_length - offset;
@@ -3134,27 +3133,17 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
                                          &host_offset, &meta);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Allocating clusters failed");
-            return ret;
+            goto out;
         }
 
-        while (meta) {
-            QCowL2Meta *next = meta->next;
-            meta->prealloc = true;
+        for (m = meta; m != NULL; m = m->next) {
+            m->prealloc = true;
+        }
 
-            ret = qcow2_alloc_cluster_link_l2(bs, meta);
-            if (ret < 0) {
-                error_setg_errno(errp, -ret, "Mapping clusters failed");
-                qcow2_free_any_clusters(bs, meta->alloc_offset,
-                                        meta->nb_clusters, QCOW2_DISCARD_NEVER);
-                return ret;
-            }
-
-            /* There are no dependent requests, but we need to remove our
-             * request from the list of in-flight requests */
-            QLIST_REMOVE(meta, next_in_flight);
-
-            g_free(meta);
-            meta = next;
+        ret = qcow2_handle_l2meta(bs, &meta, true);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Mapping clusters failed");
+            goto out;
         }
 
         /* TODO Preallocate data if requested */
@@ -3171,7 +3160,8 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
     file_length = bdrv_getlength(s->data_file->bs);
     if (file_length < 0) {
         error_setg_errno(errp, -file_length, "Could not get file size");
-        return file_length;
+        ret = file_length;
+        goto out;
     }
 
     if (host_offset + cur_bytes > file_length) {
@@ -3181,11 +3171,15 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
         ret = bdrv_co_truncate(s->data_file, host_offset + cur_bytes, false,
                                mode, 0, errp);
         if (ret < 0) {
-            return ret;
+            goto out;
         }
     }
 
-    return 0;
+    ret = 0;
+
+out:
+    qcow2_handle_l2meta(bs, &meta, false);
+    return ret;
 }
 
 /* qcow2_refcount_metadata_size:
