@@ -44,21 +44,24 @@
 #define AFL_QEMU_TARGET_ARM_SNIPPET                                            \
   if (is_persistent) {                                                         \
                                                                                \
-    if (dc->pc == afl_persistent_addr) {                                       \
+    if (dc->pc_curr == afl_persistent_addr) {                                  \
                                                                                \
-      if (persistent_save_gpr) gpr_saving(cpu_R, AFL_REGS_NUM);                \
+      gen_helper_afl_persistent_routine(cpu_env);                              \
                                                                                \
       if (afl_persistent_ret_addr == 0 && !persistent_exits) {                 \
                                                                                \
-        tcg_gen_movi_tl(cpu_R[14], afl_persistent_addr);                       \
+        tcg_gen_movi_i32(cpu_R[14], afl_persistent_addr);                      \
                                                                                \
       }                                                                        \
                                                                                \
       if (!persistent_save_gpr) afl_gen_tcg_plain_call(&afl_persistent_loop);  \
                                                                                \
-    } else if (afl_persistent_ret_addr && dc->pc == afl_persistent_ret_addr) { \
+    } else if (afl_persistent_ret_addr &&                                      \
+               dc->pc_curr == afl_persistent_ret_addr) {                       \
                                                                                \
-      gen_bx_im(dc, afl_persistent_addr);                                      \
+      TCGv_i32 tmp = tcg_const_i32(afl_persistent_addr);                       \
+      gen_bx(dc, tmp);                                                          \
+      tcg_temp_free_i32(tmp);                                                  \
                                                                                \
     }                                                                          \
                                                                                \
@@ -8439,7 +8442,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                            default_exception_el(s));
         return;
     }
-
+    
     if (cond == 0xf) {
         /* In ARMv3 and v4 the NV condition is UNPREDICTABLE; we
          * choose to UNDEF. In ARMv5 and above the space is used
@@ -8889,6 +8892,9 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     dc->pc_curr = dc->base.pc_next;
+
+    AFL_QEMU_TARGET_ARM_SNIPPET
+    
     insn = arm_ldl_code(env, dc->base.pc_next, dc->sctlr_b);
     dc->insn = insn;
     dc->base.pc_next += 4;
@@ -8958,6 +8964,9 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     dc->pc_curr = dc->base.pc_next;
+    
+    AFL_QEMU_TARGET_ARM_SNIPPET
+    
     insn = arm_lduw_code(env, dc->base.pc_next, dc->sctlr_b);
     is_16bit = thumb_insn_is_16bit(dc, dc->base.pc_next, insn);
     dc->base.pc_next += 2;

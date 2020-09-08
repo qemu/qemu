@@ -48,6 +48,8 @@
                                                                               \
     if (s->pc_curr == afl_persistent_addr) {                                  \
                                                                               \
+      gen_helper_afl_persistent_routine(cpu_env);                             \
+                                                                              \
       if (afl_persistent_ret_addr == 0 && !persistent_exits) {                \
                                                                               \
         tcg_gen_movi_tl(cpu_X[30], afl_persistent_addr);                      \

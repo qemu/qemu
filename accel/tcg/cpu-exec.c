@@ -525,15 +525,13 @@ void afl_setup(void) {
   
   is_persistent = getenv("AFL_QEMU_PERSISTENT_ADDR") != NULL;
 
-  if (is_persistent) {
-
+  if (is_persistent)
     afl_persistent_addr = strtoll(getenv("AFL_QEMU_PERSISTENT_ADDR"), NULL, 0);
-    if (getenv("AFL_QEMU_PERSISTENT_RET"))
-      afl_persistent_ret_addr =
-          strtoll(getenv("AFL_QEMU_PERSISTENT_RET"), NULL, 0);
-    /* If AFL_QEMU_PERSISTENT_RET is not specified patch the return addr */
 
-  }
+  if (getenv("AFL_QEMU_PERSISTENT_RET"))
+    afl_persistent_ret_addr =
+        strtoll(getenv("AFL_QEMU_PERSISTENT_RET"), NULL, 0);
+  /* If AFL_QEMU_PERSISTENT_RET is not specified patch the return addr */
 
   if (getenv("AFL_QEMU_PERSISTENT_GPR")) persistent_save_gpr = 1;
   if (getenv("AFL_QEMU_PERSISTENT_MEM"))
@@ -571,8 +569,9 @@ void afl_setup(void) {
   
   if (getenv("AFL_DEBUG")) {
     if (is_persistent)
-      fprintf(stderr, "Persistent: 0x%lx %s%s%s\n",
+      fprintf(stderr, "Persistent: 0x%lx [0x%lx] %s%s%s\n",
               (unsigned long)afl_persistent_addr,
+              (unsigned long)afl_persistent_ret_addr,
               (persistent_save_gpr ? "gpr ": ""),
               (persistent_memory ? "mem ": ""),
               (persistent_exits ? "exits ": ""));
@@ -748,7 +747,7 @@ void afl_persistent_iter(CPUArchState *env) {
 
       } else
         afl_restore_regs(&saved_regs, env);
-    
+      
     }
 
     if (!disable_caching) {
@@ -804,7 +803,7 @@ void afl_persistent_loop(CPUArchState *env) {
     if (persistent_memory) collect_memory_snapshot();
     
     if (persistent_save_gpr) {
-      
+    
       afl_save_regs(&saved_regs, env);
       
       if (afl_persistent_hook_ptr) {
