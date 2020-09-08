@@ -132,6 +132,8 @@ void afl_target_unmap_trackeds(void);
 
 int open_self_maps(void *cpu_env, int fd);
 
+TranslationBlock *afl_gen_edge(CPUState *cpu, unsigned long afl_id);
+
 /* Check if an address is valid in the current mapping */
 
 static inline int is_valid_addr(target_ulong addr) {
