@@ -91,6 +91,7 @@ extern target_long     persistent_stack_offset;
 extern unsigned char   persistent_first_pass;
 extern unsigned char   persistent_exits;
 extern unsigned char   persistent_save_gpr;
+extern unsigned char   persistent_memory;
 extern int             persisent_retaddr_offset;
 extern struct api_regs saved_regs;
 
@@ -126,6 +127,8 @@ abi_ulong afl_set_brk(abi_ulong new_brk);
 
 void afl_save_regs(struct api_regs* regs, CPUArchState* env);
 void afl_restore_regs(struct api_regs* regs, CPUArchState* env);
+
+void afl_target_unmap_trackeds(void);
 
 int open_self_maps(void *cpu_env, int fd);
 

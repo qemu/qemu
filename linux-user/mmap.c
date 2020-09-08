@@ -21,6 +21,25 @@
 #include "exec/log.h"
 #include "qemu.h"
 
+#include "qemuafl/common.h"
+#include "qemuafl/interval-tree/interval-tree.inl"
+
+struct mmap_tree_node {
+
+  struct rb_node rb;
+  abi_long start, end;
+  abi_long __subtree_last;
+
+};
+
+#define MMAP_TREE_START(node) ((node)->start)
+#define MMAP_TREE_LAST(node) ((node)->end)
+
+INTERVAL_TREE_DEFINE(struct mmap_tree_node, rb, abi_long, __subtree_last,
+                     MMAP_TREE_START, MMAP_TREE_LAST, static, mmap_tree)
+
+static struct rb_root mmap_tree_root = RB_ROOT;
+
 static pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
 static __thread int mmap_lock_count;
 
@@ -590,6 +609,14 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         log_page_dump(__func__);
     }
     tb_invalidate_phys_range(start, start + len);
+
+    if (afl_fork_child && persistent_memory) {
+      struct mmap_tree_node* node = calloc(sizeof(struct mmap_tree_node), 1);
+      node->start = start;
+      node->end = start + len;
+      mmap_tree_insert(node, &mmap_tree_root);
+    }
+
     mmap_unlock();
     return start;
 fail:
@@ -694,6 +721,17 @@ int target_munmap(abi_ulong start, abi_ulong len)
     if (ret == 0) {
         page_set_flags(start, start + len, 0);
         tb_invalidate_phys_range(start, start + len);
+        
+        if (afl_fork_child && persistent_memory) {
+          struct mmap_tree_node* node = mmap_tree_iter_first(&mmap_tree_root,
+                                          start, start + len);
+          while (node) {
+            struct mmap_tree_node* next = mmap_tree_iter_next(node, start,
+                                            start + len);
+            mmap_tree_remove(node, &mmap_tree_root);
+            node = next;
+          }
+        }
     }
     mmap_unlock();
     return ret;
@@ -774,8 +812,36 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
         prot = page_get_flags(old_addr);
         page_set_flags(old_addr, old_addr + old_size, 0);
         page_set_flags(new_addr, new_addr + new_size, prot | PAGE_VALID);
+        
+        if (afl_fork_child && persistent_memory) {
+          struct mmap_tree_node* node = mmap_tree_iter_first(&mmap_tree_root,
+                                          old_addr, old_addr + old_size);
+          while (node) {
+            struct mmap_tree_node* next = mmap_tree_iter_next(node, old_addr,
+                                            old_addr + old_size);
+            mmap_tree_remove(node, &mmap_tree_root);
+            node = next;
+          }
+          
+          node = calloc(sizeof(struct mmap_tree_node), 1);
+          node->start = new_addr;
+          node->end = new_addr + new_size;
+          mmap_tree_insert(node, &mmap_tree_root);
+        }
     }
     tb_invalidate_phys_range(new_addr, new_addr + new_size);
     mmap_unlock();
     return new_addr;
+}
+
+void afl_target_unmap_trackeds(void) {
+
+  struct mmap_tree_node* node = mmap_tree_iter_first(&mmap_tree_root, 0,
+                                                     (abi_ulong)-1);
+  while (node) {
+    struct mmap_tree_node* next = mmap_tree_iter_next(node, 0, (abi_ulong)-1);
+    target_munmap(node->start, node->end - node->start);
+    node = next;
+  }
+
 }

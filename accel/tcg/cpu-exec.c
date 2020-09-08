@@ -92,8 +92,8 @@ target_long   persistent_stack_offset;
 unsigned char persistent_first_pass = 1;
 unsigned char persistent_exits;
 unsigned char persistent_save_gpr;
+unsigned char persistent_memory;
 int           persisent_retaddr_offset;
-int           persistent_memory;
 
 struct api_regs saved_regs;
 
@@ -261,6 +261,8 @@ static void restore_memory_snapshot(void) {
     }
   
   }
+  
+  afl_target_unmap_trackeds();
 
 }
 
