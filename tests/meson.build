@@ -259,8 +259,9 @@ test('decodetree', sh,
      workdir: meson.current_source_dir() / 'decode',
      suite: 'decodetree')
 
+subdir('fp')
+
 if 'CONFIG_TCG' in config_host
-  subdir('fp')
   if 'CONFIG_PLUGIN' in config_host
     subdir('plugin')
   endif
