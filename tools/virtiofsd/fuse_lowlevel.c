@@ -426,8 +426,8 @@ int fuse_reply_create(fuse_req_t req, const struct fuse_entry_param *e,
     return send_reply_ok(req, buf, entrysize + sizeof(struct fuse_open_out));
 }
 
-int fuse_reply_attr(fuse_req_t req, const struct stat *attr,
-                    double attr_timeout)
+int fuse_reply_attr_with_flags(fuse_req_t req, const struct stat *attr,
+                               double attr_timeout, uint32_t attr_flags)
 {
     struct fuse_attr_out arg;
     size_t size = sizeof(arg);
@@ -437,7 +437,17 @@ int fuse_reply_attr(fuse_req_t req, const struct stat *attr,
     arg.attr_valid_nsec = calc_timeout_nsec(attr_timeout);
     convert_stat(attr, &arg.attr);
 
+    if (req->se->conn.capable & FUSE_CAP_ATTR_FLAGS) {
+        arg.attr.flags = attr_flags;
+    }
+
     return send_reply_ok(req, &arg, size);
+}
+
+int fuse_reply_attr(fuse_req_t req, const struct stat *attr,
+                    double attr_timeout)
+{
+    return fuse_reply_attr_with_flags(req, attr, attr_timeout, 0);
 }
 
 int fuse_reply_readlink(fuse_req_t req, const char *linkname)

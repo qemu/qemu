@@ -1314,6 +1314,21 @@ int fuse_reply_attr(fuse_req_t req, const struct stat *attr,
                     double attr_timeout);
 
 /**
+ * Reply with attributes and set fuse_attr.flags
+ *
+ * Possible requests:
+ *   getattr, setattr
+ *
+ * @param req request handle
+ * @param attr the attributes
+ * @param attr_timeout validity timeout (in seconds) for the attributes
+ * @param attr_flags flags to put into fuse_attr.flags
+ * @return zero for success, -errno for failure to send reply
+ */
+int fuse_reply_attr_with_flags(fuse_req_t req, const struct stat *attr,
+                               double attr_timeout, uint32_t attr_flags);
+
+/**
  * Reply with the contents of a symbolic link
  *
  * Possible requests:
