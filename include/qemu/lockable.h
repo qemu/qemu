@@ -25,17 +25,12 @@ struct QemuLockable {
 };
 
 /* This function gives an error if an invalid, non-NULL pointer type is passed
- * to QEMU_MAKE_LOCKABLE.  For optimized builds, we can rely on dead-code elimination
- * from the compiler, and give the errors already at link time.
+ * to QEMU_MAKE_LOCKABLE.
  */
-#if defined(__OPTIMIZE__) && !defined(__SANITIZE_ADDRESS__)
-void unknown_lock_type(void *);
-#else
 static inline void unknown_lock_type(void *unused)
 {
     abort();
 }
-#endif
 
 static inline __attribute__((__always_inline__)) QemuLockable *
 qemu_make_lockable(void *x, QemuLockable *lockable)
