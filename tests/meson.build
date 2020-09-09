@@ -56,7 +56,7 @@ test_qapi_files = custom_target('Test QAPI files',
 # perhaps change qapi_gen to replace / with _, like Meson itself does?
 subdir('include')
 
-libtestqapi = static_library('testqapi', sources: [test_qapi_files, test_qapi_outputs_extra])
+libtestqapi = static_library('testqapi', sources: [test_qapi_files, genh, test_qapi_outputs_extra])
 testqapi = declare_dependency(link_with: libtestqapi)
 
 testblock = declare_dependency(dependencies: [block], sources: 'iothread.c')
@@ -232,7 +232,7 @@ foreach test_name, extra: tests
     src += test_ss.all_sources()
     deps += test_ss.all_dependencies()
   endif
-  exe = executable(test_name, src, dependencies: deps)
+  exe = executable(test_name, src, genh, dependencies: deps)
 
   test(test_name, exe,
        depends: test_deps.get(test_name, []),
