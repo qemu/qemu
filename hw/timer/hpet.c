@@ -498,7 +498,8 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
     HPETState *s = opaque;
     uint64_t old_val, new_val, val, index;
 
-    DPRINTF("qemu: Enter hpet_ram_writel at %" PRIx64 " = %#x\n", addr, value);
+    DPRINTF("qemu: Enter hpet_ram_writel at %" PRIx64 " = 0x%" PRIx64 "\n",
+            addr, value);
     index = addr;
     old_val = hpet_ram_read(opaque, addr, 4);
     new_val = value;
@@ -508,7 +509,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
         uint8_t timer_id = (addr - 0x100) / 0x20;
         HPETTimer *timer = &s->timer[timer_id];
 
-        DPRINTF("qemu: hpet_ram_writel timer_id = %#x\n", timer_id);
+        DPRINTF("qemu: hpet_ram_writel timer_id = 0x%x\n", timer_id);
         if (timer_id > s->num_timers) {
             DPRINTF("qemu: timer id out of range\n");
             return;
@@ -640,8 +641,8 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             }
             s->hpet_counter =
                 (s->hpet_counter & 0xffffffff00000000ULL) | value;
-            DPRINTF("qemu: HPET counter written. ctr = %#x -> %" PRIx64 "\n",
-                    value, s->hpet_counter);
+            DPRINTF("qemu: HPET counter written. ctr = 0x%" PRIx64 " -> "
+                    "%" PRIx64 "\n", value, s->hpet_counter);
             break;
         case HPET_COUNTER + 4:
             if (hpet_enabled(s)) {
@@ -649,8 +650,8 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             }
             s->hpet_counter =
                 (s->hpet_counter & 0xffffffffULL) | (((uint64_t)value) << 32);
-            DPRINTF("qemu: HPET counter + 4 written. ctr = %#x -> %" PRIx64 "\n",
-                    value, s->hpet_counter);
+            DPRINTF("qemu: HPET counter + 4 written. ctr = 0x%" PRIx64 " -> "
+                    "%" PRIx64 "\n", value, s->hpet_counter);
             break;
         default:
             DPRINTF("qemu: invalid hpet_ram_writel\n");
