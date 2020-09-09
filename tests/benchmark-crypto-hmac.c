@@ -55,10 +55,9 @@ static void test_hmac_speed(const void *opaque)
     } while (g_test_timer_elapsed() < 5.0);
 
     total /= MiB;
-    g_test_message("hmac(sha256): ");
-    g_test_message("Testing chunk_size %zu bytes ", chunk_size);
-    g_test_message("done: %.2f MB in %.2f secs: ", total, g_test_timer_last());
-    g_test_message("%.2f MB/sec\n", total / g_test_timer_last());
+    g_test_message("hmac(%s): chunk %zu bytes %.2f MB/sec",
+                   QCryptoHashAlgorithm_str(QCRYPTO_HASH_ALG_SHA256),
+                   chunk_size, total / g_test_timer_last());
 
     g_free(out);
     g_free(in);
