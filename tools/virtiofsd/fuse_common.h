@@ -353,6 +353,14 @@ struct fuse_file_info {
 #define FUSE_CAP_NO_OPENDIR_SUPPORT (1 << 24)
 
 /**
+ * Indicates that the client will provide fuse_attr.flags, and the kernel will
+ * interpret it.
+ *
+ * This feature is enabled by default when supported by the kernel.
+ */
+#define FUSE_CAP_ATTR_FLAGS (1 << 27)
+
+/**
  * Ioctl flags
  *
  * FUSE_IOCTL_COMPAT: 32bit compat ioctl on 64bit machine
