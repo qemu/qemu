@@ -2313,6 +2313,14 @@ F: softmmu/cpus.c
 F: softmmu/cpu-throttle.c
 F: qapi/run-state.json
 
+Read, Copy, Update (RCU)
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Maintained
+F: include/qemu/rcu*.h
+F: tests/rcutorture.c
+F: tests/test-rcu-*.c
+F: util/rcu.c
+
 Human Monitor (HMP)
 M: Dr. David Alan Gilbert <dgilbert@redhat.com>
 S: Maintained
