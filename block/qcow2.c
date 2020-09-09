@@ -3907,7 +3907,7 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
              type != QCOW2_SUBCLUSTER_ZERO_PLAIN &&
              type != QCOW2_SUBCLUSTER_ZERO_ALLOC)) {
             qemu_co_mutex_unlock(&s->lock);
-            return -ENOTSUP;
+            return ret < 0 ? ret : -ENOTSUP;
         }
     } else {
         qemu_co_mutex_lock(&s->lock);
