@@ -125,6 +125,14 @@ struct lo_inode {
     GHashTable *posix_locks; /* protected by lo_inode->plock_mutex */
 
     mode_t filetype;
+
+    /*
+     * So we can detect crossmount roots
+     * (As such, this only needs to be valid for directories.  Note
+     * that files can have multiple parents due to hard links, and so
+     * their parent_dev may fluctuate.)
+     */
+    dev_t parent_dev;
 };
 
 struct lo_cred {
@@ -847,6 +855,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         g_hash_table_insert(lo->inodes, &inode->key, inode);
         pthread_mutex_unlock(&lo->mutex);
     }
+    inode->parent_dev = dir->key.dev;
     e->ino = inode->fuse_ino;
     lo_inode_put(lo, &inode);
     lo_inode_put(lo, &dir);
@@ -1072,6 +1081,14 @@ static void lo_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
 
     fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli\n", (unsigned long long)parent,
              name, (unsigned long long)e.ino);
+
+    /*
+     * No need to update inode->parent_dev, because
+     * (1) We cannot, the inode now has more than one parent,
+     * (2) Directories cannot have more than one parent, so link()
+     *     does not work for them; but parent_dev only needs to be
+     *     valid for directories.
+     */
 
     fuse_reply_entry(req, &e);
     lo_inode_put(lo, &parent_inode);
