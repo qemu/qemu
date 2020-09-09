@@ -424,6 +424,13 @@ linux-user mode) is deprecated and will be removed in a future version
 of QEMU. Support for this CPU was removed from the upstream Linux
 kernel in 2018, and has also been dropped from glibc.
 
+``ppc64abi32`` CPUs (since 5.2.0)
+'''''''''''''''''''''''''''''''''
+
+The ``ppc64abi32`` architecture has a number of issues which regularly
+trip up our CI testing and is suspected to be quite broken. For that
+reason the maintainers strongly suspect no one actually uses it.
+
 Related binaries
 ----------------
 
