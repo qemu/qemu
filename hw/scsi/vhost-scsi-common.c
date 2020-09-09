@@ -32,6 +32,8 @@ int vhost_scsi_common_start(VHostSCSICommon *vsc)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
+    VirtIOSCSICommon *vs = (VirtIOSCSICommon *)vsc;
+
     if (!k->set_guest_notifiers) {
         error_report("binding does not support guest notifiers");
         return -ENOSYS;
@@ -49,6 +51,23 @@ int vhost_scsi_common_start(VHostSCSICommon *vsc)
     }
 
     vsc->dev.acked_features = vdev->guest_features;
+
+    assert(vsc->inflight == NULL);
+    vsc->inflight = g_new0(struct vhost_inflight, 1);
+    ret = vhost_dev_get_inflight(&vsc->dev,
+                                 vs->conf.virtqueue_size,
+                                 vsc->inflight);
+    if (ret < 0) {
+        error_report("Error get inflight: %d", -ret);
+        goto err_guest_notifiers;
+    }
+
+    ret = vhost_dev_set_inflight(&vsc->dev, vsc->inflight);
+    if (ret < 0) {
+        error_report("Error set inflight: %d", -ret);
+        goto err_guest_notifiers;
+    }
+
     ret = vhost_dev_start(&vsc->dev, vdev);
     if (ret < 0) {
         error_report("Error start vhost dev");
@@ -66,6 +85,9 @@ int vhost_scsi_common_start(VHostSCSICommon *vsc)
     return ret;
 
 err_guest_notifiers:
+    g_free(vsc->inflight);
+    vsc->inflight = NULL;
+
     k->set_guest_notifiers(qbus->parent, vsc->dev.nvqs, false);
 err_host_notifiers:
     vhost_dev_disable_notifiers(&vsc->dev, vdev);
@@ -88,6 +110,11 @@ void vhost_scsi_common_stop(VHostSCSICommon *vsc)
         }
     }
     assert(ret >= 0);
+
+    if (vsc->inflight) {
+        vhost_dev_free_inflight(vsc->inflight);
+        vsc->inflight = NULL;
+    }
 
     vhost_dev_disable_notifiers(&vsc->dev, vdev);
 }
