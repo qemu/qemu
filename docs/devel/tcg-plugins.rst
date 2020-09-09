@@ -134,3 +134,149 @@ longer want to instrument the code. This operation is asynchronous
 which means callbacks may still occur after the uninstall operation is
 requested. The plugin isn't completely uninstalled until the safe work
 has executed while all vCPUs are quiescent.
+
+Example Plugins
+===============
+
+There are a number of plugins included with QEMU and you are
+encouraged to contribute your own plugins plugins upstream. There is a
+`contrib/plugins` directory where they can go.
+
+- tests/plugins
+
+These are some basic plugins that are used to test and exercise the
+API during the `make check-tcg` target.
+
+- contrib/plugins/hotblocks.c
+
+The hotblocks plugin allows you to examine the where hot paths of
+execution are in your program. Once the program has finished you will
+get a sorted list of blocks reporting the starting PC, translation
+count, number of instructions and execution count. This will work best
+with linux-user execution as system emulation tends to generate
+re-translations as blocks from different programs get swapped in and
+out of system memory.
+
+If your program is single-threaded you can use the `inline` option for
+slightly faster (but not thread safe) counters.
+
+Example::
+
+  ./aarch64-linux-user/qemu-aarch64 \
+    -plugin contrib/plugins/libhotblocks.so -d plugin \
+    ./tests/tcg/aarch64-linux-user/sha1
+  SHA1=15dd99a1991e0b3826fede3deffc1feba42278e6
+  collected 903 entries in the hash table
+  pc, tcount, icount, ecount
+  0x0000000041ed10, 1, 5, 66087
+  0x000000004002b0, 1, 4, 66087
+  ...
+
+- contrib/plugins/hotpages.c
+
+Similar to hotblocks but this time tracks memory accesses::
+
+  ./aarch64-linux-user/qemu-aarch64 \
+    -plugin contrib/plugins/libhotpages.so -d plugin \
+    ./tests/tcg/aarch64-linux-user/sha1
+  SHA1=15dd99a1991e0b3826fede3deffc1feba42278e6
+  Addr, RCPUs, Reads, WCPUs, Writes
+  0x000055007fe000, 0x0001, 31747952, 0x0001, 8835161
+  0x000055007ff000, 0x0001, 29001054, 0x0001, 8780625
+  0x00005500800000, 0x0001, 687465, 0x0001, 335857
+  0x0000000048b000, 0x0001, 130594, 0x0001, 355
+  0x0000000048a000, 0x0001, 1826, 0x0001, 11
+
+- contrib/plugins/howvec.c
+
+This is an instruction classifier so can be used to count different
+types of instructions. It has a number of options to refine which get
+counted. You can give an argument for a class of instructions to break
+it down fully, so for example to see all the system registers
+accesses::
+
+  ./aarch64-softmmu/qemu-system-aarch64 $(QEMU_ARGS) \
+    -append "root=/dev/sda2 systemd.unit=benchmark.service" \
+    -smp 4 -plugin ./contrib/plugins/libhowvec.so,arg=sreg -d plugin
+
+which will lead to a sorted list after the class breakdown::
+
+  Instruction Classes:
+  Class:   UDEF                   not counted
+  Class:   SVE                    (68 hits)
+  Class:   PCrel addr             (47789483 hits)
+  Class:   Add/Sub (imm)          (192817388 hits)
+  Class:   Logical (imm)          (93852565 hits)
+  Class:   Move Wide (imm)        (76398116 hits)
+  Class:   Bitfield               (44706084 hits)
+  Class:   Extract                (5499257 hits)
+  Class:   Cond Branch (imm)      (147202932 hits)
+  Class:   Exception Gen          (193581 hits)
+  Class:     NOP                  not counted
+  Class:   Hints                  (6652291 hits)
+  Class:   Barriers               (8001661 hits)
+  Class:   PSTATE                 (1801695 hits)
+  Class:   System Insn            (6385349 hits)
+  Class:   System Reg             counted individually
+  Class:   Branch (reg)           (69497127 hits)
+  Class:   Branch (imm)           (84393665 hits)
+  Class:   Cmp & Branch           (110929659 hits)
+  Class:   Tst & Branch           (44681442 hits)
+  Class:   AdvSimd ldstmult       (736 hits)
+  Class:   ldst excl              (9098783 hits)
+  Class:   Load Reg (lit)         (87189424 hits)
+  Class:   ldst noalloc pair      (3264433 hits)
+  Class:   ldst pair              (412526434 hits)
+  Class:   ldst reg (imm)         (314734576 hits)
+  Class: Loads & Stores           (2117774 hits)
+  Class: Data Proc Reg            (223519077 hits)
+  Class: Scalar FP                (31657954 hits)
+  Individual Instructions:
+  Instr: mrs x0, sp_el0           (2682661 hits)  (op=0xd5384100/  System Reg)
+  Instr: mrs x1, tpidr_el2        (1789339 hits)  (op=0xd53cd041/  System Reg)
+  Instr: mrs x2, tpidr_el2        (1513494 hits)  (op=0xd53cd042/  System Reg)
+  Instr: mrs x0, tpidr_el2        (1490823 hits)  (op=0xd53cd040/  System Reg)
+  Instr: mrs x1, sp_el0           (933793 hits)   (op=0xd5384101/  System Reg)
+  Instr: mrs x2, sp_el0           (699516 hits)   (op=0xd5384102/  System Reg)
+  Instr: mrs x4, tpidr_el2        (528437 hits)   (op=0xd53cd044/  System Reg)
+  Instr: mrs x30, ttbr1_el1       (480776 hits)   (op=0xd538203e/  System Reg)
+  Instr: msr ttbr1_el1, x30       (480713 hits)   (op=0xd518203e/  System Reg)
+  Instr: msr vbar_el1, x30        (480671 hits)   (op=0xd518c01e/  System Reg)
+  ...
+
+To find the argument shorthand for the class you need to examine the
+source code of the plugin at the moment, specifically the `*opt`
+argument in the InsnClassExecCount tables.
+
+- contrib/plugins/lockstep.c
+
+This is a debugging tool for developers who want to find out when and
+where execution diverges after a subtle change to TCG code generation.
+It is not an exact science and results are likely to be mixed once
+asynchronous events are introduced. While the use of -icount can
+introduce determinism to the execution flow it doesn't always follow
+the translation sequence will be exactly the same. Typically this is
+caused by a timer firing to service the GUI causing a block to end
+early. However in some cases it has proved to be useful in pointing
+people at roughly where execution diverges. The only argument you need
+for the plugin is a path for the socket the two instances will
+communicate over::
+
+
+  ./sparc-softmmu/qemu-system-sparc -monitor none -parallel none \
+    -net none -M SS-20 -m 256 -kernel day11/zImage.elf \
+    -plugin ./contrib/plugins/liblockstep.so,arg=lockstep-sparc.sock \
+  -d plugin,nochain
+
+which will eventually report::
+
+  qemu-system-sparc: warning: nic lance.0 has no peer
+  @ 0x000000ffd06678 vs 0x000000ffd001e0 (2/1 since last)
+  @ 0x000000ffd07d9c vs 0x000000ffd06678 (3/1 since last)
+  Δ insn_count @ 0x000000ffd07d9c (809900609) vs 0x000000ffd06678 (809900612)
+    previously @ 0x000000ffd06678/10 (809900609 insns)
+    previously @ 0x000000ffd001e0/4 (809900599 insns)
+    previously @ 0x000000ffd080ac/2 (809900595 insns)
+    previously @ 0x000000ffd08098/5 (809900593 insns)
+    previously @ 0x000000ffd080c0/1 (809900588 insns)
+
