@@ -178,6 +178,7 @@ void fuse_cmdline_help(void)
            "                               default: depends on cache= option.\n"
            "    -o writeback|no_writeback  enable/disable writeback cache\n"
            "                               default: no_writeback\n"
+           "    -o announce_submounts      Announce sub-mount points to the guest\n"
            "    -o xattr|no_xattr          enable/disable xattr\n"
            "                               default: no_xattr\n"
            "    -o modcaps=CAPLIST         Modify the list of capabilities\n"
