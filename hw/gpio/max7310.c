@@ -8,9 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/i2c/i2c.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
@@ -175,8 +173,7 @@ static const VMStateDescription vmstate_max7310 = {
 static void max7310_gpio_set(void *opaque, int line, int level)
 {
     MAX7310State *s = (MAX7310State *) opaque;
-    if (line >= ARRAY_SIZE(s->handler) || line  < 0)
-        hw_error("bad GPIO line");
+    assert(line >= 0 && line < ARRAY_SIZE(s->handler));
 
     if (level)
         s->level |= s->direction & (1 << line);
