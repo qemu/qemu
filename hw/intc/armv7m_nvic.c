@@ -1238,9 +1238,9 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
                       "Aux Fault status registers unimplemented\n");
         return 0;
     case 0xd40: /* PFR0.  */
-        return cpu->id_pfr0;
+        return cpu->isar.id_pfr0;
     case 0xd44: /* PFR1.  */
-        return cpu->id_pfr1;
+        return cpu->isar.id_pfr1;
     case 0xd48: /* DFR0.  */
         return cpu->isar.id_dfr0;
     case 0xd4c: /* AFR0.  */

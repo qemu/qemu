@@ -1659,7 +1659,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         /* Disable the security extension feature bits in the processor feature
          * registers as well. These are id_pfr1[7:4] and id_aa64pfr0[15:12].
          */
-        cpu->id_pfr1 &= ~0xf0;
+        cpu->isar.id_pfr1 &= ~0xf0;
         cpu->isar.id_aa64pfr0 &= ~0xf000;
     }
 
@@ -1696,7 +1696,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          * id_aa64pfr0_el1[11:8].
          */
         cpu->isar.id_aa64pfr0 &= ~0xf00;
-        cpu->id_pfr1 &= ~0xf000;
+        cpu->isar.id_pfr1 &= ~0xf000;
     }
 
 #ifndef CONFIG_USER_ONLY
@@ -1894,8 +1894,8 @@ static void cortex_a8_initfn(Object *obj)
     cpu->isar.mvfr1 = 0x00011111;
     cpu->ctr = 0x82048004;
     cpu->reset_sctlr = 0x00c50078;
-    cpu->id_pfr0 = 0x1031;
-    cpu->id_pfr1 = 0x11;
+    cpu->isar.id_pfr0 = 0x1031;
+    cpu->isar.id_pfr1 = 0x11;
     cpu->isar.id_dfr0 = 0x400;
     cpu->id_afr0 = 0;
     cpu->isar.id_mmfr0 = 0x31100003;
@@ -1966,8 +1966,8 @@ static void cortex_a9_initfn(Object *obj)
     cpu->isar.mvfr1 = 0x01111111;
     cpu->ctr = 0x80038003;
     cpu->reset_sctlr = 0x00c50078;
-    cpu->id_pfr0 = 0x1031;
-    cpu->id_pfr1 = 0x11;
+    cpu->isar.id_pfr0 = 0x1031;
+    cpu->isar.id_pfr1 = 0x11;
     cpu->isar.id_dfr0 = 0x000;
     cpu->id_afr0 = 0;
     cpu->isar.id_mmfr0 = 0x00100103;
@@ -2030,8 +2030,8 @@ static void cortex_a7_initfn(Object *obj)
     cpu->isar.mvfr1 = 0x11111111;
     cpu->ctr = 0x84448003;
     cpu->reset_sctlr = 0x00c50078;
-    cpu->id_pfr0 = 0x00001131;
-    cpu->id_pfr1 = 0x00011011;
+    cpu->isar.id_pfr0 = 0x00001131;
+    cpu->isar.id_pfr1 = 0x00011011;
     cpu->isar.id_dfr0 = 0x02010555;
     cpu->id_afr0 = 0x00000000;
     cpu->isar.id_mmfr0 = 0x10101105;
@@ -2075,8 +2075,8 @@ static void cortex_a15_initfn(Object *obj)
     cpu->isar.mvfr1 = 0x11111111;
     cpu->ctr = 0x8444c004;
     cpu->reset_sctlr = 0x00c50078;
-    cpu->id_pfr0 = 0x00001131;
-    cpu->id_pfr1 = 0x00011011;
+    cpu->isar.id_pfr0 = 0x00001131;
+    cpu->isar.id_pfr1 = 0x00011011;
     cpu->isar.id_dfr0 = 0x02010555;
     cpu->id_afr0 = 0x00000000;
     cpu->isar.id_mmfr0 = 0x10201105;
