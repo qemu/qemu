@@ -1101,7 +1101,7 @@ void tcg_prologue_init(TCGContext *s)
             size_t data_size = prologue_size - code_size;
             size_t i;
 
-            log_disas(buf0, code_size, NULL);
+            log_disas(buf0, code_size);
 
             for (i = 0; i < data_size; i += sizeof(tcg_target_ulong)) {
                 if (sizeof(tcg_target_ulong) == 8) {
@@ -1115,7 +1115,7 @@ void tcg_prologue_init(TCGContext *s)
                 }
             }
         } else {
-            log_disas(buf0, prologue_size, NULL);
+            log_disas(buf0, prologue_size);
         }
         qemu_log("\n");
         qemu_log_flush();
