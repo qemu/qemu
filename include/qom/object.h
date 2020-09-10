@@ -41,34 +41,34 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * <example>
  *   <title>Creating a minimal type</title>
- *   <programlisting>
- * #include "qdev.h"
+ *      <programlisting>
+ *    #include "qdev.h"
  *
- * #define TYPE_MY_DEVICE "my-device"
+ *    #define TYPE_MY_DEVICE "my-device"
  *
- * // No new virtual functions: we can reuse the typedef for the
- * // superclass.
- * typedef DeviceClass MyDeviceClass;
- * typedef struct MyDevice
- * {
- *     DeviceState parent;
+ *    // No new virtual functions: we can reuse the typedef for the
+ *    // superclass.
+ *    typedef DeviceClass MyDeviceClass;
+ *    typedef struct MyDevice
+ *    {
+ *        DeviceState parent;
  *
- *     int reg0, reg1, reg2;
- * } MyDevice;
+ *        int reg0, reg1, reg2;
+ *    } MyDevice;
  *
- * static const TypeInfo my_device_info = {
- *     .name = TYPE_MY_DEVICE,
- *     .parent = TYPE_DEVICE,
- *     .instance_size = sizeof(MyDevice),
- * };
+ *    static const TypeInfo my_device_info = {
+ *        .name = TYPE_MY_DEVICE,
+ *        .parent = TYPE_DEVICE,
+ *        .instance_size = sizeof(MyDevice),
+ *    };
  *
- * static void my_device_register_types(void)
- * {
- *     type_register_static(&my_device_info);
- * }
+ *    static void my_device_register_types(void)
+ *    {
+ *        type_register_static(&my_device_info);
+ *    }
  *
- * type_init(my_device_register_types)
- *   </programlisting>
+ *    type_init(my_device_register_types)
+ *      </programlisting>
  * </example>
  *
  * In the above example, we create a simple type that is described by #TypeInfo.
@@ -79,22 +79,22 @@ typedef struct InterfaceInfo InterfaceInfo;
  * DEFINE_TYPES()
  *
  * <example>
- *   <programlisting>
- * static const TypeInfo device_types_info[] = {
- *     {
- *         .name = TYPE_MY_DEVICE_A,
- *         .parent = TYPE_DEVICE,
- *         .instance_size = sizeof(MyDeviceA),
- *     },
- *     {
- *         .name = TYPE_MY_DEVICE_B,
- *         .parent = TYPE_DEVICE,
- *         .instance_size = sizeof(MyDeviceB),
- *     },
- * };
+ *      <programlisting>
+ *    static const TypeInfo device_types_info[] = {
+ *        {
+ *            .name = TYPE_MY_DEVICE_A,
+ *            .parent = TYPE_DEVICE,
+ *            .instance_size = sizeof(MyDeviceA),
+ *        },
+ *        {
+ *            .name = TYPE_MY_DEVICE_B,
+ *            .parent = TYPE_DEVICE,
+ *            .instance_size = sizeof(MyDeviceB),
+ *        },
+ *    };
  *
- * DEFINE_TYPES(device_types_info)
- *   </programlisting>
+ *    DEFINE_TYPES(device_types_info)
+ *      </programlisting>
  * </example>
  *
  * Every type has an #ObjectClass associated with it.  #ObjectClass derivatives
@@ -143,22 +143,22 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * <example>
  *   <title>Overriding a virtual function</title>
- *   <programlisting>
- * #include "qdev.h"
+ *      <programlisting>
+ *    #include "qdev.h"
  *
- * void my_device_class_init(ObjectClass *klass, void *class_data)
- * {
- *     DeviceClass *dc = DEVICE_CLASS(klass);
- *     dc->reset = my_device_reset;
- * }
+ *    void my_device_class_init(ObjectClass *klass, void *class_data)
+ *    {
+ *        DeviceClass *dc = DEVICE_CLASS(klass);
+ *        dc->reset = my_device_reset;
+ *    }
  *
- * static const TypeInfo my_device_info = {
- *     .name = TYPE_MY_DEVICE,
- *     .parent = TYPE_DEVICE,
- *     .instance_size = sizeof(MyDevice),
- *     .class_init = my_device_class_init,
- * };
- *   </programlisting>
+ *    static const TypeInfo my_device_info = {
+ *        .name = TYPE_MY_DEVICE,
+ *        .parent = TYPE_DEVICE,
+ *        .instance_size = sizeof(MyDevice),
+ *        .class_init = my_device_class_init,
+ *    };
+ *      </programlisting>
  * </example>
  *
  * Introducing new virtual methods requires a class to define its own
@@ -167,31 +167,31 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * <example>
  *   <title>Defining an abstract class</title>
- *   <programlisting>
- * #include "qdev.h"
+ *      <programlisting>
+ *    #include "qdev.h"
  *
- * typedef struct MyDeviceClass
- * {
- *     DeviceClass parent;
+ *    typedef struct MyDeviceClass
+ *    {
+ *        DeviceClass parent;
  *
- *     void (*frobnicate) (MyDevice *obj);
- * } MyDeviceClass;
+ *        void (*frobnicate) (MyDevice *obj);
+ *    } MyDeviceClass;
  *
- * static const TypeInfo my_device_info = {
- *     .name = TYPE_MY_DEVICE,
- *     .parent = TYPE_DEVICE,
- *     .instance_size = sizeof(MyDevice),
- *     .abstract = true, // or set a default in my_device_class_init
- *     .class_size = sizeof(MyDeviceClass),
- * };
+ *    static const TypeInfo my_device_info = {
+ *        .name = TYPE_MY_DEVICE,
+ *        .parent = TYPE_DEVICE,
+ *        .instance_size = sizeof(MyDevice),
+ *        .abstract = true, // or set a default in my_device_class_init
+ *        .class_size = sizeof(MyDeviceClass),
+ *    };
  *
- * void my_device_frobnicate(MyDevice *obj)
- * {
- *     MyDeviceClass *klass = MY_DEVICE_GET_CLASS(obj);
+ *    void my_device_frobnicate(MyDevice *obj)
+ *    {
+ *        MyDeviceClass *klass = MY_DEVICE_GET_CLASS(obj);
  *
- *     klass->frobnicate(obj);
- * }
- *   </programlisting>
+ *        klass->frobnicate(obj);
+ *    }
+ *      </programlisting>
  * </example>
  *
  * Interfaces
@@ -236,68 +236,68 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * <example>
  *   <title>Overriding a virtual method</title>
- *   <programlisting>
- * typedef struct MyState MyState;
+ *      <programlisting>
+ *    typedef struct MyState MyState;
  *
- * typedef void (*MyDoSomething)(MyState *obj);
+ *    typedef void (*MyDoSomething)(MyState *obj);
  *
- * typedef struct MyClass {
- *     ObjectClass parent_class;
+ *    typedef struct MyClass {
+ *        ObjectClass parent_class;
  *
- *     MyDoSomething do_something;
- * } MyClass;
+ *        MyDoSomething do_something;
+ *    } MyClass;
  *
- * static void my_do_something(MyState *obj)
- * {
- *     // do something
- * }
+ *    static void my_do_something(MyState *obj)
+ *    {
+ *        // do something
+ *    }
  *
- * static void my_class_init(ObjectClass *oc, void *data)
- * {
- *     MyClass *mc = MY_CLASS(oc);
+ *    static void my_class_init(ObjectClass *oc, void *data)
+ *    {
+ *        MyClass *mc = MY_CLASS(oc);
  *
- *     mc->do_something = my_do_something;
- * }
+ *        mc->do_something = my_do_something;
+ *    }
  *
- * static const TypeInfo my_type_info = {
- *     .name = TYPE_MY,
- *     .parent = TYPE_OBJECT,
- *     .instance_size = sizeof(MyState),
- *     .class_size = sizeof(MyClass),
- *     .class_init = my_class_init,
- * };
+ *    static const TypeInfo my_type_info = {
+ *        .name = TYPE_MY,
+ *        .parent = TYPE_OBJECT,
+ *        .instance_size = sizeof(MyState),
+ *        .class_size = sizeof(MyClass),
+ *        .class_init = my_class_init,
+ *    };
  *
- * typedef struct DerivedClass {
- *     MyClass parent_class;
+ *    typedef struct DerivedClass {
+ *        MyClass parent_class;
  *
- *     MyDoSomething parent_do_something;
- * } DerivedClass;
+ *        MyDoSomething parent_do_something;
+ *    } DerivedClass;
  *
- * static void derived_do_something(MyState *obj)
- * {
- *     DerivedClass *dc = DERIVED_GET_CLASS(obj);
+ *    static void derived_do_something(MyState *obj)
+ *    {
+ *        DerivedClass *dc = DERIVED_GET_CLASS(obj);
  *
- *     // do something here
- *     dc->parent_do_something(obj);
- *     // do something else here
- * }
+ *        // do something here
+ *        dc->parent_do_something(obj);
+ *        // do something else here
+ *    }
  *
- * static void derived_class_init(ObjectClass *oc, void *data)
- * {
- *     MyClass *mc = MY_CLASS(oc);
- *     DerivedClass *dc = DERIVED_CLASS(oc);
+ *    static void derived_class_init(ObjectClass *oc, void *data)
+ *    {
+ *        MyClass *mc = MY_CLASS(oc);
+ *        DerivedClass *dc = DERIVED_CLASS(oc);
  *
- *     dc->parent_do_something = mc->do_something;
- *     mc->do_something = derived_do_something;
- * }
+ *        dc->parent_do_something = mc->do_something;
+ *        mc->do_something = derived_do_something;
+ *    }
  *
- * static const TypeInfo derived_type_info = {
- *     .name = TYPE_DERIVED,
- *     .parent = TYPE_MY,
- *     .class_size = sizeof(DerivedClass),
- *     .class_init = derived_class_init,
- * };
- *   </programlisting>
+ *    static const TypeInfo derived_type_info = {
+ *        .name = TYPE_DERIVED,
+ *        .parent = TYPE_MY,
+ *        .class_size = sizeof(DerivedClass),
+ *        .class_init = derived_class_init,
+ *    };
+ *      </programlisting>
  * </example>
  *
  * Alternatively, object_class_by_name() can be used to obtain the class and
@@ -984,24 +984,24 @@ Object *object_new(const char *typename);
  *
  * <example>
  *   <title>Creating an object with properties</title>
- *   <programlisting>
- *   Error *err = NULL;
- *   Object *obj;
+ *      <programlisting>
+ *      Error *err = NULL;
+ *      Object *obj;
  *
- *   obj = object_new_with_props(TYPE_MEMORY_BACKEND_FILE,
- *                               object_get_objects_root(),
- *                               "hostmem0",
- *                               &err,
- *                               "share", "yes",
- *                               "mem-path", "/dev/shm/somefile",
- *                               "prealloc", "yes",
- *                               "size", "1048576",
- *                               NULL);
+ *      obj = object_new_with_props(TYPE_MEMORY_BACKEND_FILE,
+ *                                  object_get_objects_root(),
+ *                                  "hostmem0",
+ *                                  &err,
+ *                                  "share", "yes",
+ *                                  "mem-path", "/dev/shm/somefile",
+ *                                  "prealloc", "yes",
+ *                                  "size", "1048576",
+ *                                  NULL);
  *
- *   if (!obj) {
- *     error_reportf_err(err, "Cannot create memory backend: ");
- *   }
- *   </programlisting>
+ *      if (!obj) {
+ *        error_reportf_err(err, "Cannot create memory backend: ");
+ *      }
+ *      </programlisting>
  * </example>
  *
  * The returned object will have one stable reference maintained
@@ -1053,20 +1053,20 @@ void object_apply_compat_props(Object *obj);
  *
  * <example>
  *   <title>Update an object's properties</title>
- *   <programlisting>
- *   Error *err = NULL;
- *   Object *obj = ...get / create object...;
+ *      <programlisting>
+ *      Error *err = NULL;
+ *      Object *obj = ...get / create object...;
  *
- *   if (!object_set_props(obj,
- *                         &err,
- *                         "share", "yes",
- *                         "mem-path", "/dev/shm/somefile",
- *                         "prealloc", "yes",
- *                         "size", "1048576",
- *                         NULL)) {
- *     error_reportf_err(err, "Cannot set properties: ");
- *   }
- *   </programlisting>
+ *      if (!object_set_props(obj,
+ *                            &err,
+ *                            "share", "yes",
+ *                            "mem-path", "/dev/shm/somefile",
+ *                            "prealloc", "yes",
+ *                            "size", "1048576",
+ *                            NULL)) {
+ *        error_reportf_err(err, "Cannot set properties: ");
+ *      }
+ *      </programlisting>
  * </example>
  *
  * The returned object will have one stable reference maintained
@@ -1557,15 +1557,15 @@ typedef struct ObjectPropertyIterator {
  *
  * <example>
  *   <title>Using object property iterators</title>
- *   <programlisting>
- *   ObjectProperty *prop;
- *   ObjectPropertyIterator iter;
+ *      <programlisting>
+ *      ObjectProperty *prop;
+ *      ObjectPropertyIterator iter;
  *
- *   object_property_iter_init(&iter, obj);
- *   while ((prop = object_property_iter_next(&iter))) {
- *     ... do something with prop ...
- *   }
- *   </programlisting>
+ *      object_property_iter_init(&iter, obj);
+ *      while ((prop = object_property_iter_next(&iter))) {
+ *        ... do something with prop ...
+ *      }
+ *      </programlisting>
  * </example>
  */
 void object_property_iter_init(ObjectPropertyIterator *iter,
