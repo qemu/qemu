@@ -29,9 +29,7 @@ typedef struct InterfaceInfo InterfaceInfo;
 #define TYPE_OBJECT "object"
 
 /**
- * SECTION:object.h
- * @title:Base Object Type System
- * @short_description: interfaces for creating new types and objects
+ * DOC:
  *
  * The QEMU Object Model provides a framework for registering user creatable
  * types and instantiating objects from those types.  QOM provides the following
