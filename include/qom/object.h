@@ -120,7 +120,8 @@ typedef struct InterfaceInfo InterfaceInfo;
  *   </programlisting>
  * </example>
  *
- * # Class Initialization #
+ * Class Initialization
+ * ====================
  *
  * Before an object is initialized, the class for the object must be
  * initialized.  There is only one class object for all instance objects
@@ -193,7 +194,8 @@ typedef struct InterfaceInfo InterfaceInfo;
  *   </programlisting>
  * </example>
  *
- * # Interfaces #
+ * Interfaces
+ * ==========
  *
  * Interfaces allow a limited form of multiple inheritance.  Instances are
  * similar to normal types except for the fact that are only defined by
@@ -206,7 +208,8 @@ typedef struct InterfaceInfo InterfaceInfo;
  * an argument to a method on its corresponding SomethingIfClass, or to
  * dynamically cast it to an object that implements the interface.
  *
- * # Methods #
+ * Methods
+ * =======
  *
  * A <emphasis>method</emphasis> is a function within the namespace scope of
  * a class. It usually operates on the object instance by passing it as a
@@ -304,7 +307,8 @@ typedef struct InterfaceInfo InterfaceInfo;
  * The first example of such a QOM method was #CPUClass.reset,
  * another example is #DeviceClass.realize.
  *
- * # Standard type declaration and definition macros #
+ * Standard type declaration and definition macros
+ * ===============================================
  *
  * A lot of the code outlined above follows a standard pattern and naming
  * convention. To reduce the amount of boilerplate code that needs to be
