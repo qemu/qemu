@@ -1238,32 +1238,74 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
                       "Aux Fault status registers unimplemented\n");
         return 0;
     case 0xd40: /* PFR0.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_pfr0;
     case 0xd44: /* PFR1.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_pfr1;
     case 0xd48: /* DFR0.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_dfr0;
     case 0xd4c: /* AFR0.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->id_afr0;
     case 0xd50: /* MMFR0.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_mmfr0;
     case 0xd54: /* MMFR1.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_mmfr1;
     case 0xd58: /* MMFR2.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_mmfr2;
     case 0xd5c: /* MMFR3.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_mmfr3;
     case 0xd60: /* ISAR0.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_isar0;
     case 0xd64: /* ISAR1.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_isar1;
     case 0xd68: /* ISAR2.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_isar2;
     case 0xd6c: /* ISAR3.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_isar3;
     case 0xd70: /* ISAR4.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_isar4;
     case 0xd74: /* ISAR5.  */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
+            goto bad_offset;
+        }
         return cpu->isar.id_isar5;
     case 0xd78: /* CLIDR */
         return cpu->clidr;
