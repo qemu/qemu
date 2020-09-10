@@ -56,7 +56,7 @@ struct PPC4xxPCIState {
 
     struct PCIMasterMap pmm[PPC4xx_PCI_NR_PMMS];
     struct PCITargetMap ptm[PPC4xx_PCI_NR_PTMS];
-    qemu_irq irq[4];
+    qemu_irq irq[PCI_NUM_PINS];
 
     MemoryRegion container;
     MemoryRegion iomem;
