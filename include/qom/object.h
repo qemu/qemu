@@ -203,8 +203,8 @@ typedef struct InterfaceInfo InterfaceInfo;
  * an interface instance should always be of incomplete type in order to be
  * sure it cannot be dereferenced.  That is, you should define the
  * 'typedef struct SomethingIf SomethingIf' so that you can pass around
- * 'SomethingIf *si' arguments, but not define a 'struct SomethingIf { ... }'.
- * The only things you can validly do with a 'SomethingIf *' are to pass it as
+ * ``SomethingIf *si`` arguments, but not define a ``struct SomethingIf { ... }``.
+ * The only things you can validly do with a ``SomethingIf *`` are to pass it as
  * an argument to a method on its corresponding SomethingIfClass, or to
  * dynamically cast it to an object that implements the interface.
  *
@@ -301,7 +301,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * Alternatively, object_class_by_name() can be used to obtain the class and
  * its non-overridden methods for a specific type. This would correspond to
- * |[ MyClass::method(...) ]| in C++.
+ * ``MyClass::method(...)`` in C++.
  *
  * The first example of such a QOM method was #CPUClass.reset,
  * another example is #DeviceClass.realize.
