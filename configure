@@ -2986,7 +2986,10 @@ fi
 
 ##########################################
 # Windows Hypervisor Platform accelerator (WHPX) check
-if test "$whpx" != "no" ; then
+if test "$whpx" = "yes" && test "$ARCH" != "x86_64"; then
+  error_exit "WHPX requires 64-bit host"
+fi
+if test "$whpx" != "no" && test "$ARCH" = "x86_64"; then
     if check_include "WinHvPlatform.h" && check_include "WinHvEmulation.h"; then
         whpx="yes"
     else
