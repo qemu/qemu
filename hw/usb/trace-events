@@ -10,6 +10,9 @@ usb_port_attach(int bus, const char *port, const char *devspeed, const char *por
 usb_port_detach(int bus, const char *port) "bus %d, port %s"
 usb_port_release(int bus, const char *port) "bus %d, port %s"
 
+# hcd-ohci-pci.c
+usb_ohci_exit(const char *s) "%s"
+
 # hcd-ohci.c
 usb_ohci_iso_td_read_failed(uint32_t addr) "ISO_TD read error at 0x%x"
 usb_ohci_iso_td_head(uint32_t head, uint32_t tail, uint32_t flags, uint32_t bp, uint32_t next, uint32_t be, uint32_t framenum, uint32_t startframe, uint32_t framecount, int rel_frame_num) "ISO_TD ED head 0x%.8x tailp 0x%.8x\n0x%.8x 0x%.8x 0x%.8x 0x%.8x\nframe_number 0x%.8x starting_frame 0x%.8x\nframe_count  0x%.8x relative %d"
@@ -35,7 +38,6 @@ usb_ohci_reset(const char *s) "%s"
 usb_ohci_start(const char *s) "%s: USB Operational"
 usb_ohci_resume(const char *s) "%s: USB Resume"
 usb_ohci_stop(const char *s) "%s: USB Suspended"
-usb_ohci_exit(const char *s) "%s"
 usb_ohci_set_ctl(const char *s, uint32_t new_state) "%s: new state 0x%x"
 usb_ohci_td_underrun(void) ""
 usb_ohci_td_dev_error(void) ""

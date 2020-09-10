@@ -776,6 +776,7 @@ if have_system
     'hw/riscv',
     'migration',
     'net',
+    'softmmu',
     'ui',
   ]
 endif
