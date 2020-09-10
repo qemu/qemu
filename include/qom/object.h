@@ -31,6 +31,8 @@ typedef struct InterfaceInfo InterfaceInfo;
 /**
  * DOC:
  *
+ * .. highlight:: c
+ *
  * The QEMU Object Model provides a framework for registering user creatable
  * types and instantiating objects from those types.  QOM provides the following
  * features:
@@ -39,9 +41,9 @@ typedef struct InterfaceInfo InterfaceInfo;
  *  - Support for single-inheritance of types
  *  - Multiple inheritance of stateless interfaces
  *
- * <example>
- *   <title>Creating a minimal type</title>
- *      <programlisting>
+ * .. code-block:: c
+ *    :caption: Creating a minimal type
+ *
  *    #include "qdev.h"
  *
  *    #define TYPE_MY_DEVICE "my-device"
@@ -68,8 +70,6 @@ typedef struct InterfaceInfo InterfaceInfo;
  *    }
  *
  *    type_init(my_device_register_types)
- *      </programlisting>
- * </example>
  *
  * In the above example, we create a simple type that is described by #TypeInfo.
  * #TypeInfo describes information about the type including what it inherits
@@ -78,8 +78,8 @@ typedef struct InterfaceInfo InterfaceInfo;
  * Alternatively several static types could be registered using helper macro
  * DEFINE_TYPES()
  *
- * <example>
- *      <programlisting>
+ * .. code-block:: c
+ *
  *    static const TypeInfo device_types_info[] = {
  *        {
  *            .name = TYPE_MY_DEVICE_A,
@@ -94,8 +94,6 @@ typedef struct InterfaceInfo InterfaceInfo;
  *    };
  *
  *    DEFINE_TYPES(device_types_info)
- *      </programlisting>
- * </example>
  *
  * Every type has an #ObjectClass associated with it.  #ObjectClass derivatives
  * are instantiated dynamically but there is only ever one instance for any
@@ -108,17 +106,19 @@ typedef struct InterfaceInfo InterfaceInfo;
  * OBJECT_CHECK() and OBJECT_CLASS_CHECK() to make it easier to convert to a
  * specific type:
  *
- * <example>
- *   <title>Typecasting macros</title>
- *   <programlisting>
+ * .. kernel-doc messes up with the code block below because of the
+ *    backslash at the end of lines.  This will be fixes if we move this
+ *    content to qom.rst.
+ *
+ * .. code-block:: c
+ *    :caption: Typecasting macros
+ *
  *    #define MY_DEVICE_GET_CLASS(obj) \
  *       OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
  *    #define MY_DEVICE_CLASS(klass) \
  *       OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
  *    #define MY_DEVICE(obj) \
  *       OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
- *   </programlisting>
- * </example>
  *
  * Class Initialization
  * ====================
@@ -141,9 +141,9 @@ typedef struct InterfaceInfo InterfaceInfo;
  * its virtual functions.  Here is how the above example might be modified
  * to introduce an overridden virtual function:
  *
- * <example>
- *   <title>Overriding a virtual function</title>
- *      <programlisting>
+ * .. code-block:: c
+ *    :caption: Overriding a virtual function
+ *
  *    #include "qdev.h"
  *
  *    void my_device_class_init(ObjectClass *klass, void *class_data)
@@ -158,16 +158,14 @@ typedef struct InterfaceInfo InterfaceInfo;
  *        .instance_size = sizeof(MyDevice),
  *        .class_init = my_device_class_init,
  *    };
- *      </programlisting>
- * </example>
  *
  * Introducing new virtual methods requires a class to define its own
  * struct and to add a .class_size member to the #TypeInfo.  Each method
  * will also have a wrapper function to call it easily:
  *
- * <example>
- *   <title>Defining an abstract class</title>
- *      <programlisting>
+ * .. code-block:: c
+ *    :caption: Defining an abstract class
+ *
  *    #include "qdev.h"
  *
  *    typedef struct MyDeviceClass
@@ -191,8 +189,6 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  *        klass->frobnicate(obj);
  *    }
- *      </programlisting>
- * </example>
  *
  * Interfaces
  * ==========
@@ -230,13 +226,13 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * To invoke the method being overridden, the preferred solution is to store
  * the original value in the overriding class before overriding the method.
- * This corresponds to |[ {super,base}.method(...) ]| in Java and C#
+ * This corresponds to ``{super,base}.method(...)`` in Java and C#
  * respectively; this frees the overriding class from hardcoding its parent
  * class, which someone might choose to change at some point.
  *
- * <example>
- *   <title>Overriding a virtual method</title>
- *      <programlisting>
+ * .. code-block:: c
+ *    :caption: Overriding a virtual method
+ *
  *    typedef struct MyState MyState;
  *
  *    typedef void (*MyDoSomething)(MyState *obj);
@@ -297,8 +293,6 @@ typedef struct InterfaceInfo InterfaceInfo;
  *        .class_size = sizeof(DerivedClass),
  *        .class_init = derived_class_init,
  *    };
- *      </programlisting>
- * </example>
  *
  * Alternatively, object_class_by_name() can be used to obtain the class and
  * its non-overridden methods for a specific type. This would correspond to
@@ -320,18 +314,16 @@ typedef struct InterfaceInfo InterfaceInfo;
  * OBJECT_DECLARE_SIMPLE_TYPE macro is suitable, and is commonly placed
  * in the header file:
  *
- * <example>
- *   <title>Declaring a simple type</title>
- *   <programlisting>
+ * .. code-block:: c
+ *    :caption: Declaring a simple type
+ *
  *     OBJECT_DECLARE_SIMPLE_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
- *   </programlisting>
- * </example>
  *
  * This is equivalent to the following:
  *
- * <example>
- *   <title>Expansion from declaring a simple type</title>
- *   <programlisting>
+ * .. code-block:: c
+ *    :caption: Expansion from declaring a simple type
+ *
  *     typedef struct MyDevice MyDevice;
  *     typedef struct MyDeviceClass MyDeviceClass;
  *
@@ -347,8 +339,6 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     struct MyDeviceClass {
  *         DeviceClass parent_class;
  *     };
- *   </programlisting>
- * </example>
  *
  * The 'struct MyDevice' needs to be declared separately.
  * If the type requires virtual functions to be declared in the class
@@ -359,18 +349,16 @@ typedef struct InterfaceInfo InterfaceInfo;
  * To implement the type, the OBJECT_DEFINE macro family is available.
  * In the simple case the OBJECT_DEFINE_TYPE macro is suitable:
  *
- * <example>
- *   <title>Defining a simple type</title>
- *   <programlisting>
+ * .. code-block:: c
+ *    :caption: Defining a simple type
+ *
  *     OBJECT_DEFINE_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
- *   </programlisting>
- * </example>
  *
  * This is equivalent to the following:
  *
- * <example>
- *   <title>Expansion from defining a simple type</title>
- *   <programlisting>
+ * .. code-block:: c
+ *    :caption: Expansion from defining a simple type
+ *
  *     static void my_device_finalize(Object *obj);
  *     static void my_device_class_init(ObjectClass *oc, void *data);
  *     static void my_device_init(Object *obj);
@@ -391,8 +379,6 @@ typedef struct InterfaceInfo InterfaceInfo;
  *         type_register_static(&my_device_info);
  *     }
  *     type_init(my_device_register_types);
- *   </programlisting>
- * </example>
  *
  * This is sufficient to get the type registered with the type
  * system, and the three standard methods now need to be implemented
@@ -402,24 +388,20 @@ typedef struct InterfaceInfo InterfaceInfo;
  * OBJECT_DEFINE_TYPE_WITH_INTERFACES() macro can be used instead.
  * This accepts an array of interface type names.
  *
- * <example>
- *   <title>Defining a simple type implementing interfaces</title>
- *   <programlisting>
+ * .. code-block:: c
+ *    :caption: Defining a simple type implementing interfaces
+ *
  *     OBJECT_DEFINE_TYPE_WITH_INTERFACES(MyDevice, my_device,
  *                                        MY_DEVICE, DEVICE,
  *                                        { TYPE_USER_CREATABLE }, { NULL })
- *   </programlisting>
- * </example>
  *
  * If the type is not intended to be instantiated, then then
  * the OBJECT_DEFINE_ABSTRACT_TYPE() macro can be used instead:
  *
- * <example>
- *   <title>Defining a simple type</title>
- *   <programlisting>
+ * .. code-block:: c
+ *    :caption: Defining a simple abstract type
+ *
  *     OBJECT_DEFINE_ABSTRACT_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
- *   </programlisting>
- * </example>
  */
 
 
@@ -982,9 +964,9 @@ Object *object_new(const char *typename);
  * object will be marked complete once all the properties have been
  * processed.
  *
- * <example>
- *   <title>Creating an object with properties</title>
- *      <programlisting>
+ * .. code-block:: c
+ *    :caption: Creating an object with properties
+ *
  *      Error *err = NULL;
  *      Object *obj;
  *
@@ -1001,8 +983,6 @@ Object *object_new(const char *typename);
  *      if (!obj) {
  *        error_reportf_err(err, "Cannot create memory backend: ");
  *      }
- *      </programlisting>
- * </example>
  *
  * The returned object will have one stable reference maintained
  * for as long as it is present in the object hierarchy.
@@ -1051,9 +1031,9 @@ void object_apply_compat_props(Object *obj);
  * strings. The propname of %NULL indicates the end of the property
  * list.
  *
- * <example>
- *   <title>Update an object's properties</title>
- *      <programlisting>
+ * .. code-block:: c
+ *    :caption: Update an object's properties
+ *
  *      Error *err = NULL;
  *      Object *obj = ...get / create object...;
  *
@@ -1066,8 +1046,6 @@ void object_apply_compat_props(Object *obj);
  *                            NULL)) {
  *        error_reportf_err(err, "Cannot set properties: ");
  *      }
- *      </programlisting>
- * </example>
  *
  * The returned object will have one stable reference maintained
  * for as long as it is present in the object hierarchy.
@@ -1155,10 +1133,11 @@ bool object_initialize_child_with_propsv(Object *parentobj,
  * object.
  * @type: The name of the type of the object to instantiate.
  *
- * This is like
- * object_initialize_child_with_props(parent, propname,
- *                                    child, sizeof(*child), type,
- *                                    &error_abort, NULL)
+ * This is like::
+ *
+ *   object_initialize_child_with_props(parent, propname,
+ *                                      child, sizeof(*child), type,
+ *                                      &error_abort, NULL)
  */
 #define object_initialize_child(parent, propname, child, type)          \
     object_initialize_child_internal((parent), (propname),              \
@@ -1555,9 +1534,9 @@ typedef struct ObjectPropertyIterator {
  *
  * Typical usage pattern would be
  *
- * <example>
- *   <title>Using object property iterators</title>
- *      <programlisting>
+ * .. code-block:: c
+ *    :caption: Using object property iterators
+ *
  *      ObjectProperty *prop;
  *      ObjectPropertyIterator iter;
  *
@@ -1565,8 +1544,6 @@ typedef struct ObjectPropertyIterator {
  *      while ((prop = object_property_iter_next(&iter))) {
  *        ... do something with prop ...
  *      }
- *      </programlisting>
- * </example>
  */
 void object_property_iter_init(ObjectPropertyIterator *iter,
                                Object *obj);
