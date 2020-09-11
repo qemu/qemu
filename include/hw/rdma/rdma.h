@@ -19,22 +19,19 @@
 
 #define INTERFACE_RDMA_PROVIDER "rdma"
 
-#define RDMA_PROVIDER_CLASS(klass) \
-    OBJECT_CLASS_CHECK(RdmaProviderClass, (klass), \
+typedef struct RdmaProviderClass RdmaProviderClass;
+DECLARE_CLASS_CHECKERS(RdmaProviderClass, RDMA_PROVIDER,
                        INTERFACE_RDMA_PROVIDER)
-#define RDMA_PROVIDER_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(RdmaProviderClass, (obj), \
-                     INTERFACE_RDMA_PROVIDER)
 #define RDMA_PROVIDER(obj) \
     INTERFACE_CHECK(RdmaProvider, (obj), \
                     INTERFACE_RDMA_PROVIDER)
 
 typedef struct RdmaProvider RdmaProvider;
 
-typedef struct RdmaProviderClass {
+struct RdmaProviderClass {
     InterfaceClass parent;
 
     void (*print_statistics)(Monitor *mon, RdmaProvider *obj);
-} RdmaProviderClass;
+};
 
 #endif

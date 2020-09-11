@@ -24,12 +24,13 @@
 #include "io/channel.h"
 #include "io/task.h"
 #include "crypto/tlssession.h"
+#include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL_TLS "qio-channel-tls"
-#define QIO_CHANNEL_TLS(obj)                                     \
-    OBJECT_CHECK(QIOChannelTLS, (obj), TYPE_QIO_CHANNEL_TLS)
-
 typedef struct QIOChannelTLS QIOChannelTLS;
+DECLARE_INSTANCE_CHECKER(QIOChannelTLS, QIO_CHANNEL_TLS,
+                         TYPE_QIO_CHANNEL_TLS)
+
 
 /**
  * QIOChannelTLS

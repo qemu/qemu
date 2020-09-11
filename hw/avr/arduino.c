@@ -15,30 +15,29 @@
 #include "hw/boards.h"
 #include "atmega.h"
 #include "boot.h"
+#include "qom/object.h"
 
-typedef struct ArduinoMachineState {
+struct ArduinoMachineState {
     /*< private >*/
     MachineState parent_obj;
     /*< public >*/
     AtmegaMcuState mcu;
-} ArduinoMachineState;
+};
+typedef struct ArduinoMachineState ArduinoMachineState;
 
-typedef struct ArduinoMachineClass {
+struct ArduinoMachineClass {
     /*< private >*/
     MachineClass parent_class;
     /*< public >*/
     const char *mcu_type;
     uint64_t xtal_hz;
-} ArduinoMachineClass;
+};
+typedef struct ArduinoMachineClass ArduinoMachineClass;
 
 #define TYPE_ARDUINO_MACHINE \
         MACHINE_TYPE_NAME("arduino")
-#define ARDUINO_MACHINE(obj) \
-        OBJECT_CHECK(ArduinoMachineState, (obj), TYPE_ARDUINO_MACHINE)
-#define ARDUINO_MACHINE_CLASS(klass) \
-        OBJECT_CLASS_CHECK(ArduinoMachineClass, (klass), TYPE_ARDUINO_MACHINE)
-#define ARDUINO_MACHINE_GET_CLASS(obj) \
-        OBJECT_GET_CLASS(ArduinoMachineClass, (obj), TYPE_ARDUINO_MACHINE)
+DECLARE_OBJ_CHECKERS(ArduinoMachineState, ArduinoMachineClass,
+                     ARDUINO_MACHINE, TYPE_ARDUINO_MACHINE)
 
 static void arduino_machine_init(MachineState *machine)
 {

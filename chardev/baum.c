@@ -33,6 +33,7 @@
 #include <brlapi.h>
 #include <brlapi_constants.h>
 #include <brlapi_keycodes.h>
+#include "qom/object.h"
 
 #if 0
 #define DPRINTF(fmt, ...) \
@@ -86,7 +87,7 @@
 
 #define BUF_SIZE 256
 
-typedef struct {
+struct BaumChardev {
     Chardev parent;
 
     brlapi_handle_t *brlapi;
@@ -100,10 +101,12 @@ typedef struct {
     uint8_t out_buf_used, out_buf_ptr;
 
     QEMUTimer *cellCount_timer;
-} BaumChardev;
+};
+typedef struct BaumChardev BaumChardev;
 
 #define TYPE_CHARDEV_BRAILLE "chardev-braille"
-#define BAUM_CHARDEV(obj) OBJECT_CHECK(BaumChardev, (obj), TYPE_CHARDEV_BRAILLE)
+DECLARE_INSTANCE_CHECKER(BaumChardev, BAUM_CHARDEV,
+                         TYPE_CHARDEV_BRAILLE)
 
 /* Let's assume NABCC by default */
 enum way {

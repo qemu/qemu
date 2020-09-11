@@ -28,12 +28,13 @@
 #include "sysemu/runstate.h"
 #include "trace.h"
 #include "migration/blocker.h"
+#include "qom/object.h"
 
 #define TYPE_SEV_GUEST "sev-guest"
-#define SEV_GUEST(obj)                                          \
-    OBJECT_CHECK(SevGuestState, (obj), TYPE_SEV_GUEST)
-
 typedef struct SevGuestState SevGuestState;
+DECLARE_INSTANCE_CHECKER(SevGuestState, SEV_GUEST,
+                         TYPE_SEV_GUEST)
+
 
 /**
  * SevGuestState:

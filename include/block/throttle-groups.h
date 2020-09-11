@@ -27,6 +27,7 @@
 
 #include "qemu/throttle.h"
 #include "block/block_int.h"
+#include "qom/object.h"
 
 /* The ThrottleGroupMember structure indicates membership in a ThrottleGroup
  * and holds related data.
@@ -60,7 +61,8 @@ typedef struct ThrottleGroupMember {
 
 #define TYPE_THROTTLE_GROUP "throttle-group"
 typedef struct ThrottleGroup ThrottleGroup;
-#define THROTTLE_GROUP(obj) OBJECT_CHECK(ThrottleGroup, (obj), TYPE_THROTTLE_GROUP)
+DECLARE_INSTANCE_CHECKER(ThrottleGroup, THROTTLE_GROUP,
+                         TYPE_THROTTLE_GROUP)
 
 const char *throttle_group_get_name(ThrottleGroupMember *tgm);
 

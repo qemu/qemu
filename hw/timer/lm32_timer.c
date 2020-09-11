@@ -31,6 +31,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define DEFAULT_FREQUENCY (50*1000000)
 
@@ -55,7 +56,9 @@ enum {
 };
 
 #define TYPE_LM32_TIMER "lm32-timer"
-#define LM32_TIMER(obj) OBJECT_CHECK(LM32TimerState, (obj), TYPE_LM32_TIMER)
+typedef struct LM32TimerState LM32TimerState;
+DECLARE_INSTANCE_CHECKER(LM32TimerState, LM32_TIMER,
+                         TYPE_LM32_TIMER)
 
 struct LM32TimerState {
     SysBusDevice parent_obj;
@@ -69,7 +72,6 @@ struct LM32TimerState {
 
     uint32_t regs[R_MAX];
 };
-typedef struct LM32TimerState LM32TimerState;
 
 static void timer_update_irq(LM32TimerState *s)
 {

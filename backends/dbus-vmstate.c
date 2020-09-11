@@ -19,21 +19,13 @@
 #include "qapi/qmp/qerror.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/object.h"
 
-typedef struct DBusVMState DBusVMState;
-typedef struct DBusVMStateClass DBusVMStateClass;
 
 #define TYPE_DBUS_VMSTATE "dbus-vmstate"
-#define DBUS_VMSTATE(obj)                                \
-    OBJECT_CHECK(DBusVMState, (obj), TYPE_DBUS_VMSTATE)
-#define DBUS_VMSTATE_GET_CLASS(obj)                              \
-    OBJECT_GET_CLASS(DBusVMStateClass, (obj), TYPE_DBUS_VMSTATE)
-#define DBUS_VMSTATE_CLASS(klass)                                    \
-    OBJECT_CLASS_CHECK(DBusVMStateClass, (klass), TYPE_DBUS_VMSTATE)
+OBJECT_DECLARE_SIMPLE_TYPE(DBusVMState, dbus_vmstate,
+                           DBUS_VMSTATE, ObjectClass)
 
-struct DBusVMStateClass {
-    ObjectClass parent_class;
-};
 
 struct DBusVMState {
     Object parent;

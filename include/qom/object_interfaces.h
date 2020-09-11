@@ -6,12 +6,9 @@
 
 #define TYPE_USER_CREATABLE "user-creatable"
 
-#define USER_CREATABLE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(UserCreatableClass, (klass), \
-                        TYPE_USER_CREATABLE)
-#define USER_CREATABLE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(UserCreatableClass, (obj), \
-                      TYPE_USER_CREATABLE)
+typedef struct UserCreatableClass UserCreatableClass;
+DECLARE_CLASS_CHECKERS(UserCreatableClass, USER_CREATABLE,
+                       TYPE_USER_CREATABLE)
 #define USER_CREATABLE(obj) \
      INTERFACE_CHECK(UserCreatable, (obj), \
                      TYPE_USER_CREATABLE)
@@ -40,14 +37,14 @@ typedef struct UserCreatable UserCreatable;
  * object's type implements USER_CREATABLE interface and needs
  * complete() callback to be called.
  */
-typedef struct UserCreatableClass {
+struct UserCreatableClass {
     /* <private> */
     InterfaceClass parent_class;
 
     /* <public> */
     void (*complete)(UserCreatable *uc, Error **errp);
     bool (*can_be_deleted)(UserCreatable *uc);
-} UserCreatableClass;
+};
 
 /**
  * user_creatable_complete:

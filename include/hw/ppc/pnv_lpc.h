@@ -21,20 +21,26 @@
 #define PPC_PNV_LPC_H
 
 #include "hw/ppc/pnv_psi.h"
+#include "qom/object.h"
 
 #define TYPE_PNV_LPC "pnv-lpc"
-#define PNV_LPC(obj) \
-     OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV_LPC)
+typedef struct PnvLpcClass PnvLpcClass;
+typedef struct PnvLpcController PnvLpcController;
+DECLARE_OBJ_CHECKERS(PnvLpcController, PnvLpcClass,
+                     PNV_LPC, TYPE_PNV_LPC)
 #define TYPE_PNV8_LPC TYPE_PNV_LPC "-POWER8"
-#define PNV8_LPC(obj) OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV8_LPC)
+DECLARE_INSTANCE_CHECKER(PnvLpcController, PNV8_LPC,
+                         TYPE_PNV8_LPC)
 
 #define TYPE_PNV9_LPC TYPE_PNV_LPC "-POWER9"
-#define PNV9_LPC(obj) OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV9_LPC)
+DECLARE_INSTANCE_CHECKER(PnvLpcController, PNV9_LPC,
+                         TYPE_PNV9_LPC)
 
 #define TYPE_PNV10_LPC TYPE_PNV_LPC "-POWER10"
-#define PNV10_LPC(obj) OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV10_LPC)
+DECLARE_INSTANCE_CHECKER(PnvLpcController, PNV10_LPC,
+                         TYPE_PNV10_LPC)
 
-typedef struct PnvLpcController {
+struct PnvLpcController {
     DeviceState parent;
 
     uint64_t eccb_stat_reg;
@@ -79,20 +85,16 @@ typedef struct PnvLpcController {
 
     /* PSI to generate interrupts */
     PnvPsi *psi;
-} PnvLpcController;
+};
 
-#define PNV_LPC_CLASS(klass) \
-     OBJECT_CLASS_CHECK(PnvLpcClass, (klass), TYPE_PNV_LPC)
-#define PNV_LPC_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PnvLpcClass, (obj), TYPE_PNV_LPC)
 
-typedef struct PnvLpcClass {
+struct PnvLpcClass {
     DeviceClass parent_class;
 
     int psi_irq;
 
     DeviceRealize parent_realize;
-} PnvLpcClass;
+};
 
 /*
  * Old compilers error on typdef forward declarations. Keep them happy.

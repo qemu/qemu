@@ -36,17 +36,18 @@
 #include "hw/boards.h"
 #include "qapi/qapi-builtin-visit.h"
 
-typedef struct TCGState {
+struct TCGState {
     AccelState parent_obj;
 
     bool mttcg_enabled;
     unsigned long tb_size;
-} TCGState;
+};
+typedef struct TCGState TCGState;
 
 #define TYPE_TCG_ACCEL ACCEL_CLASS_NAME("tcg")
 
-#define TCG_STATE(obj) \
-        OBJECT_CHECK(TCGState, (obj), TYPE_TCG_ACCEL)
+DECLARE_INSTANCE_CHECKER(TCGState, TCG_STATE,
+                         TYPE_TCG_ACCEL)
 
 /* mask must never be zero, except for A20 change call */
 static void tcg_handle_interrupt(CPUState *cpu, int mask)

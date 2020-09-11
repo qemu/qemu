@@ -21,9 +21,12 @@
 #define MIPS_ITU_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_MIPS_ITU "mips-itu"
-#define MIPS_ITU(obj) OBJECT_CHECK(MIPSITUState, (obj), TYPE_MIPS_ITU)
+typedef struct MIPSITUState MIPSITUState;
+DECLARE_INSTANCE_CHECKER(MIPSITUState, MIPS_ITU,
+                         TYPE_MIPS_ITU)
 
 #define ITC_CELL_DEPTH_SHIFT 2
 #define ITC_CELL_DEPTH (1u << ITC_CELL_DEPTH_SHIFT)
@@ -51,7 +54,7 @@ typedef struct ITCStorageCell {
 
 #define ITC_ADDRESSMAP_NUM 2
 
-typedef struct MIPSITUState {
+struct MIPSITUState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -74,7 +77,7 @@ typedef struct MIPSITUState {
     bool saar_present;
     void *saar;
 
-} MIPSITUState;
+};
 
 /* Get ITC Configuration Tag memory region. */
 MemoryRegion *mips_itu_get_tag_region(MIPSITUState *itu);

@@ -26,7 +26,8 @@
 #include "hw/irq.h"
 #include "qom/object.h"
 
-#define IRQ(obj) OBJECT_CHECK(struct IRQState, (obj), TYPE_IRQ)
+DECLARE_INSTANCE_CHECKER(struct IRQState, IRQ,
+                         TYPE_IRQ)
 
 struct IRQState {
     Object parent_obj;

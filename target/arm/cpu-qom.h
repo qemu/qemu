@@ -21,17 +21,14 @@
 #define QEMU_ARM_CPU_QOM_H
 
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 struct arm_boot_info;
 
 #define TYPE_ARM_CPU "arm-cpu"
 
-#define ARM_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(ARMCPUClass, (klass), TYPE_ARM_CPU)
-#define ARM_CPU(obj) \
-    OBJECT_CHECK(ARMCPU, (obj), TYPE_ARM_CPU)
-#define ARM_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(ARMCPUClass, (obj), TYPE_ARM_CPU)
+OBJECT_DECLARE_TYPE(ARMCPU, ARMCPUClass,
+                    arm_cpu, ARM_CPU)
 
 #define TYPE_ARM_MAX_CPU "max-" TYPE_ARM_CPU
 
@@ -51,7 +48,7 @@ void aarch64_cpu_register(const ARMCPUInfo *info);
  *
  * An ARM CPU model.
  */
-typedef struct ARMCPUClass {
+struct ARMCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
@@ -59,21 +56,19 @@ typedef struct ARMCPUClass {
     const ARMCPUInfo *info;
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
-} ARMCPUClass;
+};
 
-typedef struct ARMCPU ARMCPU;
 
 #define TYPE_AARCH64_CPU "aarch64-cpu"
-#define AARCH64_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(AArch64CPUClass, (klass), TYPE_AARCH64_CPU)
-#define AARCH64_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(AArch64CPUClass, (obj), TYPE_AARCH64_CPU)
+typedef struct AArch64CPUClass AArch64CPUClass;
+DECLARE_CLASS_CHECKERS(AArch64CPUClass, AARCH64_CPU,
+                       TYPE_AARCH64_CPU)
 
-typedef struct AArch64CPUClass {
+struct AArch64CPUClass {
     /*< private >*/
     ARMCPUClass parent_class;
     /*< public >*/
-} AArch64CPUClass;
+};
 
 void register_cp_regs_for_features(ARMCPU *cpu);
 void init_cpreg_list(ARMCPU *cpu);

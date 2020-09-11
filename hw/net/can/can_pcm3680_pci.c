@@ -39,11 +39,13 @@
 #include "net/can_emu.h"
 
 #include "can_sja1000.h"
+#include "qom/object.h"
 
 #define TYPE_CAN_PCI_DEV "pcm3680_pci"
 
-#define PCM3680i_PCI_DEV(obj) \
-    OBJECT_CHECK(Pcm3680iPCIState, (obj), TYPE_CAN_PCI_DEV)
+typedef struct Pcm3680iPCIState Pcm3680iPCIState;
+DECLARE_INSTANCE_CHECKER(Pcm3680iPCIState, PCM3680i_PCI_DEV,
+                         TYPE_CAN_PCI_DEV)
 
 /* the PCI device and vendor IDs */
 #ifndef PCM3680i_PCI_VENDOR_ID1
@@ -59,7 +61,7 @@
 
 #define PCM3680i_PCI_BYTES_PER_SJA 0x20
 
-typedef struct Pcm3680iPCIState {
+struct Pcm3680iPCIState {
     /*< private >*/
     PCIDevice       dev;
     /*< public >*/
@@ -70,7 +72,7 @@ typedef struct Pcm3680iPCIState {
 
     char            *model; /* The model that support, only SJA1000 now. */
     CanBusState     *canbus[PCM3680i_PCI_SJA_COUNT];
-} Pcm3680iPCIState;
+};
 
 static void pcm3680i_pci_reset(DeviceState *dev)
 {

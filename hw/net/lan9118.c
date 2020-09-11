@@ -25,6 +25,7 @@
 #include "qemu/module.h"
 /* For crc32 */
 #include <zlib.h>
+#include "qom/object.h"
 
 //#define DEBUG_LAN9118
 
@@ -180,9 +181,11 @@ static const VMStateDescription vmstate_lan9118_packet = {
     }
 };
 
-#define LAN9118(obj) OBJECT_CHECK(lan9118_state, (obj), TYPE_LAN9118)
+typedef struct lan9118_state lan9118_state;
+DECLARE_INSTANCE_CHECKER(lan9118_state, LAN9118,
+                         TYPE_LAN9118)
 
-typedef struct {
+struct lan9118_state {
     SysBusDevice parent_obj;
 
     NICState *nic;
@@ -258,7 +261,7 @@ typedef struct {
     uint32_t read_long;
 
     uint32_t mode_16bit;
-} lan9118_state;
+};
 
 static const VMStateDescription vmstate_lan9118 = {
     .name = "lan9118",

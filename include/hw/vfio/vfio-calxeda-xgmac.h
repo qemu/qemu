@@ -15,6 +15,7 @@
 #define HW_VFIO_VFIO_CALXEDA_XGMAC_H
 
 #include "hw/vfio/vfio-platform.h"
+#include "qom/object.h"
 
 #define TYPE_VFIO_CALXEDA_XGMAC "vfio-calxeda-xgmac"
 
@@ -23,24 +24,20 @@
  * - a single MMIO region corresponding to its register space
  * - 3 IRQS (main and 2 power related IRQs)
  */
-typedef struct VFIOCalxedaXgmacDevice {
+struct VFIOCalxedaXgmacDevice {
     VFIOPlatformDevice vdev;
-} VFIOCalxedaXgmacDevice;
+};
+typedef struct VFIOCalxedaXgmacDevice VFIOCalxedaXgmacDevice;
 
-typedef struct VFIOCalxedaXgmacDeviceClass {
+struct VFIOCalxedaXgmacDeviceClass {
     /*< private >*/
     VFIOPlatformDeviceClass parent_class;
     /*< public >*/
     DeviceRealize parent_realize;
-} VFIOCalxedaXgmacDeviceClass;
+};
+typedef struct VFIOCalxedaXgmacDeviceClass VFIOCalxedaXgmacDeviceClass;
 
-#define VFIO_CALXEDA_XGMAC_DEVICE(obj) \
-     OBJECT_CHECK(VFIOCalxedaXgmacDevice, (obj), TYPE_VFIO_CALXEDA_XGMAC)
-#define VFIO_CALXEDA_XGMAC_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(VFIOCalxedaXgmacDeviceClass, (klass), \
-                        TYPE_VFIO_CALXEDA_XGMAC)
-#define VFIO_CALXEDA_XGMAC_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(VFIOCalxedaXgmacDeviceClass, (obj), \
-                      TYPE_VFIO_CALXEDA_XGMAC)
+DECLARE_OBJ_CHECKERS(VFIOCalxedaXgmacDevice, VFIOCalxedaXgmacDeviceClass,
+                     VFIO_CALXEDA_XGMAC_DEVICE, TYPE_VFIO_CALXEDA_XGMAC)
 
 #endif

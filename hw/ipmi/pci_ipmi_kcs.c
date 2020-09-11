@@ -26,17 +26,19 @@
 #include "qapi/error.h"
 #include "hw/ipmi/ipmi_kcs.h"
 #include "hw/pci/pci.h"
+#include "qom/object.h"
 
 #define TYPE_PCI_IPMI_KCS "pci-ipmi-kcs"
-#define PCI_IPMI_KCS(obj) OBJECT_CHECK(PCIIPMIKCSDevice, (obj), \
-                                       TYPE_PCI_IPMI_KCS)
+typedef struct PCIIPMIKCSDevice PCIIPMIKCSDevice;
+DECLARE_INSTANCE_CHECKER(PCIIPMIKCSDevice, PCI_IPMI_KCS,
+                         TYPE_PCI_IPMI_KCS)
 
-typedef struct PCIIPMIKCSDevice {
+struct PCIIPMIKCSDevice {
     PCIDevice dev;
     IPMIKCS kcs;
     bool irq_enabled;
     uint32_t uuid;
-} PCIIPMIKCSDevice;
+};
 
 static void pci_ipmi_raise_irq(IPMIKCS *ik)
 {

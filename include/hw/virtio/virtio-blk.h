@@ -19,10 +19,12 @@
 #include "hw/block/block.h"
 #include "sysemu/iothread.h"
 #include "sysemu/block-backend.h"
+#include "qom/object.h"
 
 #define TYPE_VIRTIO_BLK "virtio-blk-device"
-#define VIRTIO_BLK(obj) \
-        OBJECT_CHECK(VirtIOBlock, (obj), TYPE_VIRTIO_BLK)
+typedef struct VirtIOBlock VirtIOBlock;
+DECLARE_INSTANCE_CHECKER(VirtIOBlock, VIRTIO_BLK,
+                         TYPE_VIRTIO_BLK)
 
 /* This is the last element of the write scatter-gather list */
 struct virtio_blk_inhdr
@@ -49,7 +51,7 @@ struct VirtIOBlkConf
 struct VirtIOBlockDataPlane;
 
 struct VirtIOBlockReq;
-typedef struct VirtIOBlock {
+struct VirtIOBlock {
     VirtIODevice parent_obj;
     BlockBackend *blk;
     void *rq;
@@ -63,7 +65,7 @@ typedef struct VirtIOBlock {
     struct VirtIOBlockDataPlane *dataplane;
     uint64_t host_features;
     size_t config_size;
-} VirtIOBlock;
+};
 
 typedef struct VirtIOBlockReq {
     VirtQueueElement elem;

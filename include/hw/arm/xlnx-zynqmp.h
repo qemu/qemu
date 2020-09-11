@@ -32,10 +32,12 @@
 #include "hw/rtc/xlnx-zynqmp-rtc.h"
 #include "hw/cpu/cluster.h"
 #include "target/arm/cpu.h"
+#include "qom/object.h"
 
 #define TYPE_XLNX_ZYNQMP "xlnx,zynqmp"
-#define XLNX_ZYNQMP(obj) OBJECT_CHECK(XlnxZynqMPState, (obj), \
-                                       TYPE_XLNX_ZYNQMP)
+typedef struct XlnxZynqMPState XlnxZynqMPState;
+DECLARE_INSTANCE_CHECKER(XlnxZynqMPState, XLNX_ZYNQMP,
+                         TYPE_XLNX_ZYNQMP)
 
 #define XLNX_ZYNQMP_NUM_APU_CPUS 4
 #define XLNX_ZYNQMP_NUM_RPU_CPUS 2
@@ -73,7 +75,7 @@
 #define XLNX_ZYNQMP_MAX_RAM_SIZE (XLNX_ZYNQMP_MAX_LOW_RAM_SIZE + \
                                   XLNX_ZYNQMP_MAX_HIGH_RAM_SIZE)
 
-typedef struct XlnxZynqMPState {
+struct XlnxZynqMPState {
     /*< private >*/
     DeviceState parent_obj;
 
@@ -112,6 +114,6 @@ typedef struct XlnxZynqMPState {
     bool virt;
     /* Has the RPU subsystem?  */
     bool has_rpu;
-}  XlnxZynqMPState;
+};
 
 #endif

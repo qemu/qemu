@@ -17,23 +17,25 @@
 #include "hw/sysbus.h"
 
 /* virtual css bridge */
-typedef struct VirtualCssBridge {
+struct VirtualCssBridge {
     SysBusDevice sysbus_dev;
     bool css_dev_path;
-} VirtualCssBridge;
+};
+typedef struct VirtualCssBridge VirtualCssBridge;
 
 #define TYPE_VIRTUAL_CSS_BRIDGE "virtual-css-bridge"
-#define VIRTUAL_CSS_BRIDGE(obj) \
-    OBJECT_CHECK(VirtualCssBridge, (obj), TYPE_VIRTUAL_CSS_BRIDGE)
+DECLARE_INSTANCE_CHECKER(VirtualCssBridge, VIRTUAL_CSS_BRIDGE,
+                         TYPE_VIRTUAL_CSS_BRIDGE)
 
 /* virtual css bus type */
-typedef struct VirtualCssBus {
+struct VirtualCssBus {
     BusState parent_obj;
-} VirtualCssBus;
+};
+typedef struct VirtualCssBus VirtualCssBus;
 
 #define TYPE_VIRTUAL_CSS_BUS "virtual-css-bus"
-#define VIRTUAL_CSS_BUS(obj) \
-     OBJECT_CHECK(VirtualCssBus, (obj), TYPE_VIRTUAL_CSS_BUS)
+DECLARE_INSTANCE_CHECKER(VirtualCssBus, VIRTUAL_CSS_BUS,
+                         TYPE_VIRTUAL_CSS_BUS)
 VirtualCssBus *virtual_css_bus_init(void);
 
 #endif

@@ -15,6 +15,7 @@
 #define HW_VFIO_VFIO_AMD_XGBE_H
 
 #include "hw/vfio/vfio-platform.h"
+#include "qom/object.h"
 
 #define TYPE_VFIO_AMD_XGBE "vfio-amd-xgbe"
 
@@ -39,13 +40,7 @@ struct VFIOAmdXgbeDeviceClass {
 
 typedef struct VFIOAmdXgbeDeviceClass VFIOAmdXgbeDeviceClass;
 
-#define VFIO_AMD_XGBE_DEVICE(obj) \
-     OBJECT_CHECK(VFIOAmdXgbeDevice, (obj), TYPE_VFIO_AMD_XGBE)
-#define VFIO_AMD_XGBE_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(VFIOAmdXgbeDeviceClass, (klass), \
-                        TYPE_VFIO_AMD_XGBE)
-#define VFIO_AMD_XGBE_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(VFIOAmdXgbeDeviceClass, (obj), \
-                      TYPE_VFIO_AMD_XGBE)
+DECLARE_OBJ_CHECKERS(VFIOAmdXgbeDevice, VFIOAmdXgbeDeviceClass,
+                     VFIO_AMD_XGBE_DEVICE, TYPE_VFIO_AMD_XGBE)
 
 #endif

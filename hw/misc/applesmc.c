@@ -36,6 +36,7 @@
 #include "ui/console.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
+#include "qom/object.h"
 
 /* #define DEBUG_SMC */
 
@@ -89,9 +90,10 @@ struct AppleSMCData {
     QLIST_ENTRY(AppleSMCData) node;
 };
 
-#define APPLE_SMC(obj) OBJECT_CHECK(AppleSMCState, (obj), TYPE_APPLE_SMC)
-
 typedef struct AppleSMCState AppleSMCState;
+DECLARE_INSTANCE_CHECKER(AppleSMCState, APPLE_SMC,
+                         TYPE_APPLE_SMC)
+
 struct AppleSMCState {
     ISADevice parent_obj;
 

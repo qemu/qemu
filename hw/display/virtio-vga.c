@@ -5,6 +5,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "virtio-vga.h"
+#include "qom/object.h"
 
 static void virtio_vga_base_invalidate_display(void *opaque)
 {
@@ -194,22 +195,23 @@ static void virtio_vga_base_class_init(ObjectClass *klass, void *data)
 static TypeInfo virtio_vga_base_info = {
     .name          = TYPE_VIRTIO_VGA_BASE,
     .parent        = TYPE_VIRTIO_PCI,
-    .instance_size = sizeof(struct VirtIOVGABase),
-    .class_size    = sizeof(struct VirtIOVGABaseClass),
+    .instance_size = sizeof(VirtIOVGABase),
+    .class_size    = sizeof(VirtIOVGABaseClass),
     .class_init    = virtio_vga_base_class_init,
     .abstract      = true,
 };
 
 #define TYPE_VIRTIO_VGA "virtio-vga"
 
-#define VIRTIO_VGA(obj)                             \
-    OBJECT_CHECK(VirtIOVGA, (obj), TYPE_VIRTIO_VGA)
+typedef struct VirtIOVGA VirtIOVGA;
+DECLARE_INSTANCE_CHECKER(VirtIOVGA, VIRTIO_VGA,
+                         TYPE_VIRTIO_VGA)
 
-typedef struct VirtIOVGA {
+struct VirtIOVGA {
     VirtIOVGABase parent_obj;
 
     VirtIOGPU     vdev;
-} VirtIOVGA;
+};
 
 static void virtio_vga_inst_initfn(Object *obj)
 {
@@ -224,7 +226,7 @@ static void virtio_vga_inst_initfn(Object *obj)
 static VirtioPCIDeviceTypeInfo virtio_vga_info = {
     .generic_name  = TYPE_VIRTIO_VGA,
     .parent        = TYPE_VIRTIO_VGA_BASE,
-    .instance_size = sizeof(struct VirtIOVGA),
+    .instance_size = sizeof(VirtIOVGA),
     .instance_init = virtio_vga_inst_initfn,
 };
 

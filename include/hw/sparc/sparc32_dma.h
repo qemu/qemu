@@ -4,14 +4,15 @@
 #include "hw/sysbus.h"
 #include "hw/scsi/esp.h"
 #include "hw/net/lance.h"
+#include "qom/object.h"
 
 #define DMA_REGS 4
 
 #define TYPE_SPARC32_DMA_DEVICE "sparc32-dma-device"
-#define SPARC32_DMA_DEVICE(obj) OBJECT_CHECK(DMADeviceState, (obj), \
-                                             TYPE_SPARC32_DMA_DEVICE)
-
 typedef struct DMADeviceState DMADeviceState;
+DECLARE_INSTANCE_CHECKER(DMADeviceState, SPARC32_DMA_DEVICE,
+                         TYPE_SPARC32_DMA_DEVICE)
+
 
 struct DMADeviceState {
     SysBusDevice parent_obj;
@@ -24,37 +25,40 @@ struct DMADeviceState {
 };
 
 #define TYPE_SPARC32_ESPDMA_DEVICE "sparc32-espdma"
-#define SPARC32_ESPDMA_DEVICE(obj) OBJECT_CHECK(ESPDMADeviceState, (obj), \
-                                                TYPE_SPARC32_ESPDMA_DEVICE)
+typedef struct ESPDMADeviceState ESPDMADeviceState;
+DECLARE_INSTANCE_CHECKER(ESPDMADeviceState, SPARC32_ESPDMA_DEVICE,
+                         TYPE_SPARC32_ESPDMA_DEVICE)
 
-typedef struct ESPDMADeviceState {
+struct ESPDMADeviceState {
     DMADeviceState parent_obj;
 
     SysBusESPState *esp;
-} ESPDMADeviceState;
+};
 
 #define TYPE_SPARC32_LEDMA_DEVICE "sparc32-ledma"
-#define SPARC32_LEDMA_DEVICE(obj) OBJECT_CHECK(LEDMADeviceState, (obj), \
-                                               TYPE_SPARC32_LEDMA_DEVICE)
+typedef struct LEDMADeviceState LEDMADeviceState;
+DECLARE_INSTANCE_CHECKER(LEDMADeviceState, SPARC32_LEDMA_DEVICE,
+                         TYPE_SPARC32_LEDMA_DEVICE)
 
-typedef struct LEDMADeviceState {
+struct LEDMADeviceState {
     DMADeviceState parent_obj;
 
     SysBusPCNetState *lance;
-} LEDMADeviceState;
+};
 
 #define TYPE_SPARC32_DMA "sparc32-dma"
-#define SPARC32_DMA(obj) OBJECT_CHECK(SPARC32DMAState, (obj), \
-                                      TYPE_SPARC32_DMA)
+typedef struct SPARC32DMAState SPARC32DMAState;
+DECLARE_INSTANCE_CHECKER(SPARC32DMAState, SPARC32_DMA,
+                         TYPE_SPARC32_DMA)
 
-typedef struct SPARC32DMAState {
+struct SPARC32DMAState {
     SysBusDevice parent_obj;
 
     MemoryRegion dmamem;
     MemoryRegion ledma_alias;
     ESPDMADeviceState *espdma;
     LEDMADeviceState *ledma;
-} SPARC32DMAState;
+};
 
 /* sparc32_dma.c */
 void ledma_memory_read(void *opaque, hwaddr addr,

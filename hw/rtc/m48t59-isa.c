@@ -30,26 +30,25 @@
 #include "m48t59-internal.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define TYPE_M48TXX_ISA "isa-m48txx"
-#define M48TXX_ISA_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(M48txxISADeviceClass, (obj), TYPE_M48TXX_ISA)
-#define M48TXX_ISA_CLASS(klass) \
-    OBJECT_CLASS_CHECK(M48txxISADeviceClass, (klass), TYPE_M48TXX_ISA)
-#define M48TXX_ISA(obj) \
-    OBJECT_CHECK(M48txxISAState, (obj), TYPE_M48TXX_ISA)
+typedef struct M48txxISADeviceClass M48txxISADeviceClass;
+typedef struct M48txxISAState M48txxISAState;
+DECLARE_OBJ_CHECKERS(M48txxISAState, M48txxISADeviceClass,
+                     M48TXX_ISA, TYPE_M48TXX_ISA)
 
-typedef struct M48txxISAState {
+struct M48txxISAState {
     ISADevice parent_obj;
     M48t59State state;
     uint32_t io_base;
     MemoryRegion io;
-} M48txxISAState;
+};
 
-typedef struct M48txxISADeviceClass {
+struct M48txxISADeviceClass {
     ISADeviceClass parent_class;
     M48txxInfo info;
-} M48txxISADeviceClass;
+};
 
 static M48txxInfo m48txx_isa_info[] = {
     {

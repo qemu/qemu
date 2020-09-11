@@ -18,18 +18,20 @@
 #include "hw/arm/nrf51_soc.h"
 #include "hw/i2c/microbit_i2c.h"
 #include "hw/qdev-properties.h"
+#include "qom/object.h"
 
-typedef struct {
+struct MicrobitMachineState {
     MachineState parent;
 
     NRF51State nrf51;
     MicrobitI2CState i2c;
-} MicrobitMachineState;
+};
+typedef struct MicrobitMachineState MicrobitMachineState;
 
 #define TYPE_MICROBIT_MACHINE MACHINE_TYPE_NAME("microbit")
 
-#define MICROBIT_MACHINE(obj) \
-    OBJECT_CHECK(MicrobitMachineState, obj, TYPE_MICROBIT_MACHINE)
+DECLARE_INSTANCE_CHECKER(MicrobitMachineState, MICROBIT_MACHINE,
+                         TYPE_MICROBIT_MACHINE)
 
 static void microbit_init(MachineState *machine)
 {

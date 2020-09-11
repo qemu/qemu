@@ -12,11 +12,14 @@
 #define HW_MISC_ARM11SCU_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_ARM11_SCU "arm11-scu"
-#define ARM11_SCU(obj) OBJECT_CHECK(ARM11SCUState, (obj), TYPE_ARM11_SCU)
+typedef struct ARM11SCUState ARM11SCUState;
+DECLARE_INSTANCE_CHECKER(ARM11SCUState, ARM11_SCU,
+                         TYPE_ARM11_SCU)
 
-typedef struct ARM11SCUState {
+struct ARM11SCUState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -24,6 +27,6 @@ typedef struct ARM11SCUState {
     uint32_t control;
     uint32_t num_cpu;
     MemoryRegion iomem;
-} ARM11SCUState;
+};
 
 #endif

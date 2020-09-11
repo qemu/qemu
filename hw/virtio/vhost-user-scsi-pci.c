@@ -31,12 +31,13 @@
 #include "hw/loader.h"
 #include "sysemu/kvm.h"
 #include "virtio-pci.h"
+#include "qom/object.h"
 
 typedef struct VHostUserSCSIPCI VHostUserSCSIPCI;
 
 #define TYPE_VHOST_USER_SCSI_PCI "vhost-user-scsi-pci-base"
-#define VHOST_USER_SCSI_PCI(obj) \
-        OBJECT_CHECK(VHostUserSCSIPCI, (obj), TYPE_VHOST_USER_SCSI_PCI)
+DECLARE_INSTANCE_CHECKER(VHostUserSCSIPCI, VHOST_USER_SCSI_PCI,
+                         TYPE_VHOST_USER_SCSI_PCI)
 
 struct VHostUserSCSIPCI {
     VirtIOPCIProxy parent_obj;

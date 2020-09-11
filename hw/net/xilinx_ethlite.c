@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 #include "cpu.h" /* FIXME should not use tswap* */
 #include "hw/sysbus.h"
 #include "hw/irq.h"
@@ -52,8 +53,8 @@
 #define CTRL_S     0x1
 
 #define TYPE_XILINX_ETHLITE "xlnx.xps-ethernetlite"
-#define XILINX_ETHLITE(obj) \
-    OBJECT_CHECK(struct xlx_ethlite, (obj), TYPE_XILINX_ETHLITE)
+DECLARE_INSTANCE_CHECKER(struct xlx_ethlite, XILINX_ETHLITE,
+                         TYPE_XILINX_ETHLITE)
 
 struct xlx_ethlite
 {

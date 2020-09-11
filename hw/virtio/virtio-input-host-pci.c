@@ -11,12 +11,13 @@
 #include "virtio-pci.h"
 #include "hw/virtio/virtio-input.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 typedef struct VirtIOInputHostPCI VirtIOInputHostPCI;
 
 #define TYPE_VIRTIO_INPUT_HOST_PCI "virtio-input-host-pci"
-#define VIRTIO_INPUT_HOST_PCI(obj) \
-        OBJECT_CHECK(VirtIOInputHostPCI, (obj), TYPE_VIRTIO_INPUT_HOST_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIOInputHostPCI, VIRTIO_INPUT_HOST_PCI,
+                         TYPE_VIRTIO_INPUT_HOST_PCI)
 
 struct VirtIOInputHostPCI {
     VirtIOPCIProxy parent_obj;

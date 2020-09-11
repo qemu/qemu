@@ -19,10 +19,9 @@
 
 #define TYPE_MEMORY_DEVICE "memory-device"
 
-#define MEMORY_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(MemoryDeviceClass, (klass), TYPE_MEMORY_DEVICE)
-#define MEMORY_DEVICE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MemoryDeviceClass, (obj), TYPE_MEMORY_DEVICE)
+typedef struct MemoryDeviceClass MemoryDeviceClass;
+DECLARE_CLASS_CHECKERS(MemoryDeviceClass, MEMORY_DEVICE,
+                       TYPE_MEMORY_DEVICE)
 #define MEMORY_DEVICE(obj) \
      INTERFACE_CHECK(MemoryDeviceState, (obj), TYPE_MEMORY_DEVICE)
 
@@ -43,7 +42,7 @@ typedef struct MemoryDeviceState MemoryDeviceState;
  * be provided. Scattered memory regions are not supported for single
  * devices.
  */
-typedef struct MemoryDeviceClass {
+struct MemoryDeviceClass {
     /* private */
     InterfaceClass parent_class;
 
@@ -94,7 +93,7 @@ typedef struct MemoryDeviceClass {
      */
     void (*fill_device_info)(const MemoryDeviceState *md,
                              MemoryDeviceInfo *info);
-} MemoryDeviceClass;
+};
 
 MemoryDeviceInfoList *qmp_memory_device_list(void);
 uint64_t get_plugged_memory_size(void);

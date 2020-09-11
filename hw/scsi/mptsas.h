@@ -2,6 +2,7 @@
 #define MPTSAS_H
 
 #include "mpi.h"
+#include "qom/object.h"
 
 #define MPTSAS_NUM_PORTS 8
 #define MPTSAS_MAX_FRAMES 2048     /* Firmware limit at 65535 */
@@ -15,8 +16,8 @@ typedef struct MPTSASRequest MPTSASRequest;
 
 #define TYPE_MPTSAS1068 "mptsas1068"
 typedef struct MPTSASState MPTSASState;
-#define MPT_SAS(obj) \
-    OBJECT_CHECK(MPTSASState, (obj), TYPE_MPTSAS1068)
+DECLARE_INSTANCE_CHECKER(MPTSASState, MPT_SAS,
+                         TYPE_MPTSAS1068)
 
 enum {
     DOORBELL_NONE,

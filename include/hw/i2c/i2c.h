@@ -2,6 +2,7 @@
 #define QEMU_I2C_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 /* The QEMU I2C implementation only supports simple transfers that complete
    immediately.  It does not support slave devices that need to be able to
@@ -15,17 +16,12 @@ enum i2c_event {
     I2C_NACK /* Masker NACKed a receive byte.  */
 };
 
-typedef struct I2CSlave I2CSlave;
 
 #define TYPE_I2C_SLAVE "i2c-slave"
-#define I2C_SLAVE(obj) \
-     OBJECT_CHECK(I2CSlave, (obj), TYPE_I2C_SLAVE)
-#define I2C_SLAVE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(I2CSlaveClass, (klass), TYPE_I2C_SLAVE)
-#define I2C_SLAVE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(I2CSlaveClass, (obj), TYPE_I2C_SLAVE)
+OBJECT_DECLARE_TYPE(I2CSlave, I2CSlaveClass,
+                    i2c_slave, I2C_SLAVE)
 
-typedef struct I2CSlaveClass {
+struct I2CSlaveClass {
     DeviceClass parent_class;
 
     /* Master to slave. Returns non-zero for a NAK, 0 for success. */
@@ -43,7 +39,7 @@ typedef struct I2CSlaveClass {
      * return code is not used and should be zero.
      */
     int (*event)(I2CSlave *s, enum i2c_event event);
-} I2CSlaveClass;
+};
 
 struct I2CSlave {
     DeviceState qdev;
@@ -53,7 +49,8 @@ struct I2CSlave {
 };
 
 #define TYPE_I2C_BUS "i2c-bus"
-#define I2C_BUS(obj) OBJECT_CHECK(I2CBus, (obj), TYPE_I2C_BUS)
+DECLARE_INSTANCE_CHECKER(I2CBus, I2C_BUS,
+                         TYPE_I2C_BUS)
 
 typedef struct I2CNode I2CNode;
 

@@ -10,6 +10,7 @@
 
 #include "hw/acpi/acpi_dev_interface.h"
 #include "hw/hotplug.h"
+#include "qom/object.h"
 
 #define HPET_INTCAP "hpet-intcap"
 
@@ -76,7 +77,7 @@ struct PCMachineState {
  *                  way we can use 1GByte pages in the host.
  *
  */
-typedef struct PCMachineClass {
+struct PCMachineClass {
     /*< private >*/
     X86MachineClass parent_class;
 
@@ -118,15 +119,12 @@ typedef struct PCMachineClass {
 
     /* use PVH to load kernels that support this feature */
     bool pvh_enabled;
-} PCMachineClass;
+};
+typedef struct PCMachineClass PCMachineClass;
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
-#define PC_MACHINE(obj) \
-    OBJECT_CHECK(PCMachineState, (obj), TYPE_PC_MACHINE)
-#define PC_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(PCMachineClass, (obj), TYPE_PC_MACHINE)
-#define PC_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(PCMachineClass, (klass), TYPE_PC_MACHINE)
+DECLARE_OBJ_CHECKERS(PCMachineState, PCMachineClass,
+                     PC_MACHINE, TYPE_PC_MACHINE)
 
 /* ioapic.c */
 

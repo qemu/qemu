@@ -29,11 +29,14 @@
 
 #include "hw/sysbus.h"
 #include "hw/i2c/bitbang_i2c.h"
+#include "qom/object.h"
 
 #define TYPE_PPC4xx_I2C "ppc4xx-i2c"
-#define PPC4xx_I2C(obj) OBJECT_CHECK(PPC4xxI2CState, (obj), TYPE_PPC4xx_I2C)
+typedef struct PPC4xxI2CState PPC4xxI2CState;
+DECLARE_INSTANCE_CHECKER(PPC4xxI2CState, PPC4xx_I2C,
+                         TYPE_PPC4xx_I2C)
 
-typedef struct PPC4xxI2CState {
+struct PPC4xxI2CState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -57,6 +60,6 @@ typedef struct PPC4xxI2CState {
     uint8_t xfrcnt;
     uint8_t xtcntlss;
     uint8_t directcntl;
-} PPC4xxI2CState;
+};
 
 #endif /* PPC4XX_I2C_H */

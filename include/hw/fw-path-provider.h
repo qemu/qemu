@@ -22,20 +22,19 @@
 
 #define TYPE_FW_PATH_PROVIDER "fw-path-provider"
 
-#define FW_PATH_PROVIDER_CLASS(klass) \
-     OBJECT_CLASS_CHECK(FWPathProviderClass, (klass), TYPE_FW_PATH_PROVIDER)
-#define FW_PATH_PROVIDER_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(FWPathProviderClass, (obj), TYPE_FW_PATH_PROVIDER)
+typedef struct FWPathProviderClass FWPathProviderClass;
+DECLARE_CLASS_CHECKERS(FWPathProviderClass, FW_PATH_PROVIDER,
+                       TYPE_FW_PATH_PROVIDER)
 #define FW_PATH_PROVIDER(obj) \
      INTERFACE_CHECK(FWPathProvider, (obj), TYPE_FW_PATH_PROVIDER)
 
 typedef struct FWPathProvider FWPathProvider;
 
-typedef struct FWPathProviderClass {
+struct FWPathProviderClass {
     InterfaceClass parent_class;
 
     char *(*get_dev_path)(FWPathProvider *p, BusState *bus, DeviceState *dev);
-} FWPathProviderClass;
+};
 
 char *fw_path_provider_get_dev_path(FWPathProvider *p, BusState *bus,
                                     DeviceState *dev);

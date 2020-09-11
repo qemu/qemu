@@ -33,11 +33,13 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define TYPE_AM53C974_DEVICE "am53c974"
 
-#define PCI_ESP(obj) \
-    OBJECT_CHECK(PCIESPState, (obj), TYPE_AM53C974_DEVICE)
+typedef struct PCIESPState PCIESPState;
+DECLARE_INSTANCE_CHECKER(PCIESPState, PCI_ESP,
+                         TYPE_AM53C974_DEVICE)
 
 #define DMA_CMD   0x0
 #define DMA_STC   0x1
@@ -64,7 +66,7 @@
 
 #define SBAC_STATUS (1 << 24)
 
-typedef struct PCIESPState {
+struct PCIESPState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -73,7 +75,7 @@ typedef struct PCIESPState {
     uint32_t dma_regs[8];
     uint32_t sbac;
     ESPState esp;
-} PCIESPState;
+};
 
 static void esp_pci_handle_idle(PCIESPState *pci, uint32_t val)
 {
@@ -408,14 +410,15 @@ static const TypeInfo esp_pci_info = {
     },
 };
 
-typedef struct {
+struct DC390State {
     PCIESPState pci;
     eeprom_t *eeprom;
-} DC390State;
+};
+typedef struct DC390State DC390State;
 
 #define TYPE_DC390_DEVICE "dc390"
-#define DC390(obj) \
-    OBJECT_CHECK(DC390State, obj, TYPE_DC390_DEVICE)
+DECLARE_INSTANCE_CHECKER(DC390State, DC390,
+                         TYPE_DC390_DEVICE)
 
 #define EE_ADAPT_SCSI_ID 64
 #define EE_MODE2         65

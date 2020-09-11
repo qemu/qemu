@@ -27,6 +27,7 @@
 #define ADB_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 #define MAX_ADB_DEVICES 16
 
@@ -42,7 +43,9 @@ typedef int ADBDeviceRequest(ADBDevice *d, uint8_t *buf_out,
 typedef bool ADBDeviceHasData(ADBDevice *d);
 
 #define TYPE_ADB_DEVICE "adb-device"
-#define ADB_DEVICE(obj) OBJECT_CHECK(ADBDevice, (obj), TYPE_ADB_DEVICE)
+typedef struct ADBDeviceClass ADBDeviceClass;
+DECLARE_OBJ_CHECKERS(ADBDevice, ADBDeviceClass,
+                     ADB_DEVICE, TYPE_ADB_DEVICE)
 
 struct ADBDevice {
     /*< private >*/
@@ -53,22 +56,19 @@ struct ADBDevice {
     int handler;
 };
 
-#define ADB_DEVICE_CLASS(cls) \
-    OBJECT_CLASS_CHECK(ADBDeviceClass, (cls), TYPE_ADB_DEVICE)
-#define ADB_DEVICE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(ADBDeviceClass, (obj), TYPE_ADB_DEVICE)
 
-typedef struct ADBDeviceClass {
+struct ADBDeviceClass {
     /*< private >*/
     DeviceClass parent_class;
     /*< public >*/
 
     ADBDeviceRequest *devreq;
     ADBDeviceHasData *devhasdata;
-} ADBDeviceClass;
+};
 
 #define TYPE_ADB_BUS "apple-desktop-bus"
-#define ADB_BUS(obj) OBJECT_CHECK(ADBBusState, (obj), TYPE_ADB_BUS)
+DECLARE_INSTANCE_CHECKER(ADBBusState, ADB_BUS,
+                         TYPE_ADB_BUS)
 
 #define ADB_STATUS_BUSTIMEOUT  0x1
 #define ADB_STATUS_POLLREPLY   0x2

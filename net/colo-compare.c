@@ -36,8 +36,9 @@
 #include "qemu/coroutine.h"
 
 #define TYPE_COLO_COMPARE "colo-compare"
-#define COLO_COMPARE(obj) \
-    OBJECT_CHECK(CompareState, (obj), TYPE_COLO_COMPARE)
+typedef struct CompareState CompareState;
+DECLARE_INSTANCE_CHECKER(CompareState, COLO_COMPARE,
+                         TYPE_COLO_COMPARE)
 
 static QTAILQ_HEAD(, CompareState) net_compares =
        QTAILQ_HEAD_INITIALIZER(net_compares);
@@ -102,7 +103,7 @@ typedef struct SendEntry {
     uint8_t *buf;
 } SendEntry;
 
-typedef struct CompareState {
+struct CompareState {
     Object parent;
 
     char *pri_indev;
@@ -138,7 +139,7 @@ typedef struct CompareState {
     enum colo_event event;
 
     QTAILQ_ENTRY(CompareState) next;
-} CompareState;
+};
 
 typedef struct CompareClass {
     ObjectClass parent_class;

@@ -13,6 +13,7 @@
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/ppc/xive.h"
+#include "qom/object.h"
 
 typedef struct PnvPhb4PecState PnvPhb4PecState;
 typedef struct PnvPhb4PecStack PnvPhb4PecStack;
@@ -57,7 +58,8 @@ typedef struct PnvPHB4RootPort {
  * PHB4 PCIe Host Bridge for PowerNV machines (POWER9)
  */
 #define TYPE_PNV_PHB4 "pnv-phb4"
-#define PNV_PHB4(obj) OBJECT_CHECK(PnvPHB4, (obj), TYPE_PNV_PHB4)
+DECLARE_INSTANCE_CHECKER(PnvPHB4, PNV_PHB4,
+                         TYPE_PNV_PHB4)
 
 #define PNV_PHB4_MAX_LSIs          8
 #define PNV_PHB4_MAX_INTs          4096
@@ -140,12 +142,13 @@ extern const MemoryRegionOps pnv_phb4_xscom_ops;
  * PHB4 PEC (PCI Express Controller)
  */
 #define TYPE_PNV_PHB4_PEC "pnv-phb4-pec"
-#define PNV_PHB4_PEC(obj) \
-    OBJECT_CHECK(PnvPhb4PecState, (obj), TYPE_PNV_PHB4_PEC)
+typedef struct PnvPhb4PecClass PnvPhb4PecClass;
+DECLARE_OBJ_CHECKERS(PnvPhb4PecState, PnvPhb4PecClass,
+                     PNV_PHB4_PEC, TYPE_PNV_PHB4_PEC)
 
 #define TYPE_PNV_PHB4_PEC_STACK "pnv-phb4-pec-stack"
-#define PNV_PHB4_PEC_STACK(obj) \
-    OBJECT_CHECK(PnvPhb4PecStack, (obj), TYPE_PNV_PHB4_PEC_STACK)
+DECLARE_INSTANCE_CHECKER(PnvPhb4PecStack, PNV_PHB4_PEC_STACK,
+                         TYPE_PNV_PHB4_PEC_STACK)
 
 /* Per-stack data */
 struct PnvPhb4PecStack {
@@ -209,12 +212,8 @@ struct PnvPhb4PecState {
     PnvPhb4PecStack stacks[PHB4_PEC_MAX_STACKS];
 };
 
-#define PNV_PHB4_PEC_CLASS(klass) \
-     OBJECT_CLASS_CHECK(PnvPhb4PecClass, (klass), TYPE_PNV_PHB4_PEC)
-#define PNV_PHB4_PEC_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PnvPhb4PecClass, (obj), TYPE_PNV_PHB4_PEC)
 
-typedef struct PnvPhb4PecClass {
+struct PnvPhb4PecClass {
     DeviceClass parent_class;
 
     uint32_t (*xscom_nest_base)(PnvPhb4PecState *pec);
@@ -225,6 +224,6 @@ typedef struct PnvPhb4PecClass {
     int compat_size;
     const char *stk_compat;
     int stk_compat_size;
-} PnvPhb4PecClass;
+};
 
 #endif /* PCI_HOST_PNV_PHB4_H */

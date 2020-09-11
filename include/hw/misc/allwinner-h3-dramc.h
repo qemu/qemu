@@ -58,15 +58,16 @@
  */
 
 #define TYPE_AW_H3_DRAMC "allwinner-h3-dramc"
-#define AW_H3_DRAMC(obj) \
-    OBJECT_CHECK(AwH3DramCtlState, (obj), TYPE_AW_H3_DRAMC)
+typedef struct AwH3DramCtlState AwH3DramCtlState;
+DECLARE_INSTANCE_CHECKER(AwH3DramCtlState, AW_H3_DRAMC,
+                         TYPE_AW_H3_DRAMC)
 
 /** @} */
 
 /**
  * Allwinner H3 SDRAM Controller object instance state.
  */
-typedef struct AwH3DramCtlState {
+struct AwH3DramCtlState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -101,6 +102,6 @@ typedef struct AwH3DramCtlState {
 
     /** @} */
 
-} AwH3DramCtlState;
+};
 
 #endif /* HW_MISC_ALLWINNER_H3_DRAMC_H */

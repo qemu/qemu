@@ -26,10 +26,8 @@
 
 typedef ObjectClass IOThreadClass;
 
-#define IOTHREAD_GET_CLASS(obj) \
-   OBJECT_GET_CLASS(IOThreadClass, obj, TYPE_IOTHREAD)
-#define IOTHREAD_CLASS(klass) \
-   OBJECT_CLASS_CHECK(IOThreadClass, klass, TYPE_IOTHREAD)
+DECLARE_CLASS_CHECKERS(IOThreadClass, IOTHREAD,
+                       TYPE_IOTHREAD)
 
 #ifdef CONFIG_POSIX
 /* Benchmark results from 2016 on NVMe SSD drives show max polling times around

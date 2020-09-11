@@ -15,11 +15,14 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/m68k/mcf.h"
+#include "qom/object.h"
 
 #define TYPE_MCF_INTC "mcf-intc"
-#define MCF_INTC(obj) OBJECT_CHECK(mcf_intc_state, (obj), TYPE_MCF_INTC)
+typedef struct mcf_intc_state mcf_intc_state;
+DECLARE_INSTANCE_CHECKER(mcf_intc_state, MCF_INTC,
+                         TYPE_MCF_INTC)
 
-typedef struct {
+struct mcf_intc_state {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -30,7 +33,7 @@ typedef struct {
     uint8_t icr[64];
     M68kCPU *cpu;
     int active_vector;
-} mcf_intc_state;
+};
 
 static void mcf_intc_update(mcf_intc_state *s)
 {

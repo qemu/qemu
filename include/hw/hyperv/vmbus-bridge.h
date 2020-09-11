@@ -12,18 +12,21 @@
 
 #include "hw/sysbus.h"
 #include "hw/hyperv/vmbus.h"
+#include "qom/object.h"
 
 #define TYPE_VMBUS_BRIDGE "vmbus-bridge"
 
-typedef struct VMBusBridge {
+struct VMBusBridge {
     SysBusDevice parent_obj;
 
     uint8_t irq;
 
     VMBus *bus;
-} VMBusBridge;
+};
+typedef struct VMBusBridge VMBusBridge;
 
-#define VMBUS_BRIDGE(obj) OBJECT_CHECK(VMBusBridge, (obj), TYPE_VMBUS_BRIDGE)
+DECLARE_INSTANCE_CHECKER(VMBusBridge, VMBUS_BRIDGE,
+                         TYPE_VMBUS_BRIDGE)
 
 static inline VMBusBridge *vmbus_bridge_find(void)
 {

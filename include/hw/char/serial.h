@@ -31,10 +31,11 @@
 #include "qemu/fifo8.h"
 #include "chardev/char.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
 
-typedef struct SerialState {
+struct SerialState {
     DeviceState parent;
 
     uint16_t divider;
@@ -77,22 +78,25 @@ typedef struct SerialState {
 
     QEMUTimer *modem_status_poll;
     MemoryRegion io;
-} SerialState;
+};
+typedef struct SerialState SerialState;
 
-typedef struct SerialMM {
+struct SerialMM {
     SysBusDevice parent;
 
     SerialState serial;
 
     uint8_t regshift;
     uint8_t endianness;
-} SerialMM;
+};
+typedef struct SerialMM SerialMM;
 
-typedef struct SerialIO {
+struct SerialIO {
     SysBusDevice parent;
 
     SerialState serial;
-} SerialIO;
+};
+typedef struct SerialIO SerialIO;
 
 extern const VMStateDescription vmstate_serial;
 extern const MemoryRegionOps serial_io_ops;
@@ -100,13 +104,16 @@ extern const MemoryRegionOps serial_io_ops;
 void serial_set_frequency(SerialState *s, uint32_t frequency);
 
 #define TYPE_SERIAL "serial"
-#define SERIAL(s) OBJECT_CHECK(SerialState, (s), TYPE_SERIAL)
+DECLARE_INSTANCE_CHECKER(SerialState, SERIAL,
+                         TYPE_SERIAL)
 
 #define TYPE_SERIAL_MM "serial-mm"
-#define SERIAL_MM(s) OBJECT_CHECK(SerialMM, (s), TYPE_SERIAL_MM)
+DECLARE_INSTANCE_CHECKER(SerialMM, SERIAL_MM,
+                         TYPE_SERIAL_MM)
 
 #define TYPE_SERIAL_IO "serial-io"
-#define SERIAL_IO(s) OBJECT_CHECK(SerialIO, (s), TYPE_SERIAL_IO)
+DECLARE_INSTANCE_CHECKER(SerialIO, SERIAL_IO,
+                         TYPE_SERIAL_IO)
 
 SerialMM *serial_mm_init(MemoryRegion *address_space,
                          hwaddr base, int regshift,

@@ -19,6 +19,7 @@
 #include "hw/virtio/virtio-balloon.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 typedef struct VirtIOBalloonPCI VirtIOBalloonPCI;
 
@@ -26,8 +27,8 @@ typedef struct VirtIOBalloonPCI VirtIOBalloonPCI;
  * virtio-balloon-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VIRTIO_BALLOON_PCI "virtio-balloon-pci-base"
-#define VIRTIO_BALLOON_PCI(obj) \
-        OBJECT_CHECK(VirtIOBalloonPCI, (obj), TYPE_VIRTIO_BALLOON_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIOBalloonPCI, VIRTIO_BALLOON_PCI,
+                         TYPE_VIRTIO_BALLOON_PCI)
 
 struct VirtIOBalloonPCI {
     VirtIOPCIProxy parent_obj;

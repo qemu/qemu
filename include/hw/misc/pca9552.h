@@ -10,15 +10,18 @@
 #define PCA9552_H
 
 #include "hw/i2c/i2c.h"
+#include "qom/object.h"
 
 #define TYPE_PCA9552 "pca9552"
 #define TYPE_PCA955X "pca955x"
-#define PCA955X(obj) OBJECT_CHECK(PCA955xState, (obj), TYPE_PCA955X)
+typedef struct PCA955xState PCA955xState;
+DECLARE_INSTANCE_CHECKER(PCA955xState, PCA955X,
+                         TYPE_PCA955X)
 
 #define PCA955X_NR_REGS 10
 #define PCA955X_PIN_COUNT_MAX 16
 
-typedef struct PCA955xState {
+struct PCA955xState {
     /*< private >*/
     I2CSlave i2c;
     /*< public >*/
@@ -29,6 +32,6 @@ typedef struct PCA955xState {
     uint8_t regs[PCA955X_NR_REGS];
     qemu_irq gpio[PCA955X_PIN_COUNT_MAX];
     char *description; /* For debugging purpose only */
-} PCA955xState;
+};
 
 #endif

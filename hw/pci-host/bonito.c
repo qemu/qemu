@@ -52,6 +52,7 @@
 #include "exec/address-spaces.h"
 #include "hw/misc/unimp.h"
 #include "hw/registerfields.h"
+#include "qom/object.h"
 
 /* #define DEBUG_BONITO */
 
@@ -200,7 +201,7 @@ FIELD(BONGENCFG, PCIQUEUE,      12, 1)
 
 typedef struct BonitoState BonitoState;
 
-typedef struct PCIBonitoState {
+struct PCIBonitoState {
     PCIDevice dev;
 
     BonitoState *pcihost;
@@ -228,7 +229,8 @@ typedef struct PCIBonitoState {
     MemoryRegion bonito_pciio;
     MemoryRegion bonito_localio;
 
-} PCIBonitoState;
+};
+typedef struct PCIBonitoState PCIBonitoState;
 
 struct BonitoState {
     PCIHostState parent_obj;
@@ -238,12 +240,12 @@ struct BonitoState {
 };
 
 #define TYPE_BONITO_PCI_HOST_BRIDGE "Bonito-pcihost"
-#define BONITO_PCI_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(BonitoState, (obj), TYPE_BONITO_PCI_HOST_BRIDGE)
+DECLARE_INSTANCE_CHECKER(BonitoState, BONITO_PCI_HOST_BRIDGE,
+                         TYPE_BONITO_PCI_HOST_BRIDGE)
 
 #define TYPE_PCI_BONITO "Bonito"
-#define PCI_BONITO(obj) \
-    OBJECT_CHECK(PCIBonitoState, (obj), TYPE_PCI_BONITO)
+DECLARE_INSTANCE_CHECKER(PCIBonitoState, PCI_BONITO,
+                         TYPE_PCI_BONITO)
 
 static void bonito_writel(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)

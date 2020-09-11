@@ -37,6 +37,7 @@
 #include "migration/vmstate.h"
 #include "hw/timer/i8254.h"
 #include "exec/address-spaces.h"
+#include "qom/object.h"
 
 //#define HPET_DEBUG
 #ifdef HPET_DEBUG
@@ -47,7 +48,9 @@
 
 #define HPET_MSI_SUPPORT        0
 
-#define HPET(obj) OBJECT_CHECK(HPETState, (obj), TYPE_HPET)
+typedef struct HPETState HPETState;
+DECLARE_INSTANCE_CHECKER(HPETState, HPET,
+                         TYPE_HPET)
 
 struct HPETState;
 typedef struct HPETTimer {  /* timers */
@@ -65,7 +68,7 @@ typedef struct HPETTimer {  /* timers */
                              */
 } HPETTimer;
 
-typedef struct HPETState {
+struct HPETState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -87,7 +90,7 @@ typedef struct HPETState {
     uint64_t isr;               /* interrupt status reg */
     uint64_t hpet_counter;      /* main counter */
     uint8_t  hpet_id;           /* instance id */
-} HPETState;
+};
 
 static uint32_t hpet_in_legacy_mode(HPETState *s)
 {

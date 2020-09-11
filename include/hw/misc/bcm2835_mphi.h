@@ -19,6 +19,7 @@
 
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define MPHI_MMIO_SIZE      0x1000
 
@@ -38,7 +39,7 @@ struct BCM2835MphiState {
 
 #define TYPE_BCM2835_MPHI   "bcm2835-mphi"
 
-#define BCM2835_MPHI(obj) \
-    OBJECT_CHECK(BCM2835MphiState, (obj), TYPE_BCM2835_MPHI)
+DECLARE_INSTANCE_CHECKER(BCM2835MphiState, BCM2835_MPHI,
+                         TYPE_BCM2835_MPHI)
 
 #endif

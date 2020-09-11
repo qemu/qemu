@@ -16,6 +16,7 @@
 
 #include "qapi/qapi-builtin-types.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 struct TypeImpl;
 typedef struct TypeImpl *Type;
@@ -304,6 +305,119 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * The first example of such a QOM method was #CPUClass.reset,
  * another example is #DeviceClass.realize.
+ *
+ * # Standard type declaration and definition macros #
+ *
+ * A lot of the code outlined above follows a standard pattern and naming
+ * convention. To reduce the amount of boilerplate code that needs to be
+ * written for a new type there are two sets of macros to generate the
+ * common parts in a standard format.
+ *
+ * A type is declared using the OBJECT_DECLARE macro family. In types
+ * which do not require any virtual functions in the class, the
+ * OBJECT_DECLARE_SIMPLE_TYPE macro is suitable, and is commonly placed
+ * in the header file:
+ *
+ * <example>
+ *   <title>Declaring a simple type</title>
+ *   <programlisting>
+ *     OBJECT_DECLARE_SIMPLE_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
+ *   </programlisting>
+ * </example>
+ *
+ * This is equivalent to the following:
+ *
+ * <example>
+ *   <title>Expansion from declaring a simple type</title>
+ *   <programlisting>
+ *     typedef struct MyDevice MyDevice;
+ *     typedef struct MyDeviceClass MyDeviceClass;
+ *
+ *     G_DEFINE_AUTOPTR_CLEANUP_FUNC(MyDeviceClass, object_unref)
+ *
+ *     #define MY_DEVICE_GET_CLASS(void *obj) \
+ *             OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
+ *     #define MY_DEVICE_CLASS(void *klass) \
+ *             OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
+ *     #define MY_DEVICE(void *obj)
+ *             OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
+ *
+ *     struct MyDeviceClass {
+ *         DeviceClass parent_class;
+ *     };
+ *   </programlisting>
+ * </example>
+ *
+ * The 'struct MyDevice' needs to be declared separately.
+ * If the type requires virtual functions to be declared in the class
+ * struct, then the alternative OBJECT_DECLARE_TYPE() macro can be
+ * used. This does the same as OBJECT_DECLARE_SIMPLE_TYPE(), but without
+ * the 'struct MyDeviceClass' definition.
+ *
+ * To implement the type, the OBJECT_DEFINE macro family is available.
+ * In the simple case the OBJECT_DEFINE_TYPE macro is suitable:
+ *
+ * <example>
+ *   <title>Defining a simple type</title>
+ *   <programlisting>
+ *     OBJECT_DEFINE_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
+ *   </programlisting>
+ * </example>
+ *
+ * This is equivalent to the following:
+ *
+ * <example>
+ *   <title>Expansion from defining a simple type</title>
+ *   <programlisting>
+ *     static void my_device_finalize(Object *obj);
+ *     static void my_device_class_init(ObjectClass *oc, void *data);
+ *     static void my_device_init(Object *obj);
+ *
+ *     static const TypeInfo my_device_info = {
+ *         .parent = TYPE_DEVICE,
+ *         .name = TYPE_MY_DEVICE,
+ *         .instance_size = sizeof(MyDevice),
+ *         .instance_init = my_device_init,
+ *         .instance_finalize = my_device_finalize,
+ *         .class_size = sizeof(MyDeviceClass),
+ *         .class_init = my_device_class_init,
+ *     };
+ *
+ *     static void
+ *     my_device_register_types(void)
+ *     {
+ *         type_register_static(&my_device_info);
+ *     }
+ *     type_init(my_device_register_types);
+ *   </programlisting>
+ * </example>
+ *
+ * This is sufficient to get the type registered with the type
+ * system, and the three standard methods now need to be implemented
+ * along with any other logic required for the type.
+ *
+ * If the type needs to implement one or more interfaces, then the
+ * OBJECT_DEFINE_TYPE_WITH_INTERFACES() macro can be used instead.
+ * This accepts an array of interface type names.
+ *
+ * <example>
+ *   <title>Defining a simple type implementing interfaces</title>
+ *   <programlisting>
+ *     OBJECT_DEFINE_TYPE_WITH_INTERFACES(MyDevice, my_device,
+ *                                        MY_DEVICE, DEVICE,
+ *                                        { TYPE_USER_CREATABLE }, { NULL })
+ *   </programlisting>
+ * </example>
+ *
+ * If the type is not intended to be instantiated, then then
+ * the OBJECT_DEFINE_ABSTRACT_TYPE() macro can be used instead:
+ *
+ * <example>
+ *   <title>Defining a simple type</title>
+ *   <programlisting>
+ *     OBJECT_DEFINE_ABSTRACT_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
+ *   </programlisting>
+ * </example>
  */
 
 
@@ -439,6 +553,215 @@ struct Object
     uint32_t ref;
     Object *parent;
 };
+
+/**
+ * DECLARE_INSTANCE_CHECKER:
+ * @InstanceType: instance struct name
+ * @OBJ_NAME: the object name in uppercase with underscore separators
+ * @TYPENAME: type name
+ *
+ * Direct usage of this macro should be avoided, and the complete
+ * OBJECT_DECLARE_TYPE macro is recommended instead.
+ *
+ * This macro will provide the three standard type cast functions for a
+ * QOM type.
+ */
+#define DECLARE_INSTANCE_CHECKER(InstanceType, OBJ_NAME, TYPENAME) \
+    static inline G_GNUC_UNUSED InstanceType * \
+    OBJ_NAME(const void *obj) \
+    { return OBJECT_CHECK(InstanceType, obj, TYPENAME); }
+
+/**
+ * DECLARE_CLASS_CHECKERS:
+ * @ClassType: class struct name
+ * @OBJ_NAME: the object name in uppercase with underscore separators
+ * @TYPENAME: type name
+ *
+ * Direct usage of this macro should be avoided, and the complete
+ * OBJECT_DECLARE_TYPE macro is recommended instead.
+ *
+ * This macro will provide the three standard type cast functions for a
+ * QOM type.
+ */
+#define DECLARE_CLASS_CHECKERS(ClassType, OBJ_NAME, TYPENAME) \
+    static inline G_GNUC_UNUSED ClassType * \
+    OBJ_NAME##_GET_CLASS(const void *obj) \
+    { return OBJECT_GET_CLASS(ClassType, obj, TYPENAME); } \
+    \
+    static inline G_GNUC_UNUSED ClassType * \
+    OBJ_NAME##_CLASS(const void *klass) \
+    { return OBJECT_CLASS_CHECK(ClassType, klass, TYPENAME); }
+
+/**
+ * DECLARE_OBJ_CHECKERS:
+ * @InstanceType: instance struct name
+ * @ClassType: class struct name
+ * @OBJ_NAME: the object name in uppercase with underscore separators
+ * @TYPENAME: type name
+ *
+ * Direct usage of this macro should be avoided, and the complete
+ * OBJECT_DECLARE_TYPE macro is recommended instead.
+ *
+ * This macro will provide the three standard type cast functions for a
+ * QOM type.
+ */
+#define DECLARE_OBJ_CHECKERS(InstanceType, ClassType, OBJ_NAME, TYPENAME) \
+    DECLARE_INSTANCE_CHECKER(InstanceType, OBJ_NAME, TYPENAME) \
+    \
+    DECLARE_CLASS_CHECKERS(ClassType, OBJ_NAME, TYPENAME)
+
+/**
+ * OBJECT_DECLARE_TYPE:
+ * @InstanceType: instance struct name
+ * @ClassType: class struct name
+ * @module_obj_name: the object name in lowercase with underscore separators
+ * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
+ *
+ * This macro is typically used in a header file, and will:
+ *
+ *   - create the typedefs for the object and class structs
+ *   - register the type for use with g_autoptr
+ *   - provide three standard type cast functions
+ *
+ * The object struct and class struct need to be declared manually.
+ */
+#define OBJECT_DECLARE_TYPE(InstanceType, ClassType, module_obj_name, MODULE_OBJ_NAME) \
+    typedef struct InstanceType InstanceType; \
+    typedef struct ClassType ClassType; \
+    \
+    G_DEFINE_AUTOPTR_CLEANUP_FUNC(InstanceType, object_unref) \
+    \
+    DECLARE_OBJ_CHECKERS(InstanceType, ClassType, \
+                         MODULE_OBJ_NAME, TYPE_##MODULE_OBJ_NAME)
+
+/**
+ * OBJECT_DECLARE_SIMPLE_TYPE:
+ * @InstanceType: instance struct name
+ * @module_obj_name: the object name in lowercase with underscore separators
+ * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
+ * @ParentClassType: class struct name of parent type
+ *
+ * This does the same as OBJECT_DECLARE_TYPE(), but also declares
+ * the class struct, thus only the object struct needs to be declare
+ * manually.
+ *
+ * This macro should be used unless the class struct needs to have
+ * virtual methods declared.
+ */
+#define OBJECT_DECLARE_SIMPLE_TYPE(InstanceType, module_obj_name, \
+                                   MODULE_OBJ_NAME, ParentClassType) \
+    OBJECT_DECLARE_TYPE(InstanceType, InstanceType##Class, module_obj_name, MODULE_OBJ_NAME) \
+    struct InstanceType##Class { ParentClassType parent_class; };
+
+
+/**
+ * OBJECT_DEFINE_TYPE_EXTENDED:
+ * @ModuleObjName: the object name with initial caps
+ * @module_obj_name: the object name in lowercase with underscore separators
+ * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
+ * @PARENT_MODULE_OBJ_NAME: the parent object name in uppercase with underscore
+ *                          separators
+ * @ABSTRACT: boolean flag to indicate whether the object can be instantiated
+ * @...: list of initializers for "InterfaceInfo" to declare implemented interfaces
+ *
+ * This macro is typically used in a source file, and will:
+ *
+ *   - declare prototypes for _finalize, _class_init and _init methods
+ *   - declare the TypeInfo struct instance
+ *   - provide the constructor to register the type
+ *
+ * After using this macro, implementations of the _finalize, _class_init,
+ * and _init methods need to be written. Any of these can be zero-line
+ * no-op impls if no special logic is required for a given type.
+ *
+ * This macro should rarely be used, instead one of the more specialized
+ * macros is usually a better choice.
+ */
+#define OBJECT_DEFINE_TYPE_EXTENDED(ModuleObjName, module_obj_name, \
+                                    MODULE_OBJ_NAME, PARENT_MODULE_OBJ_NAME, \
+                                    ABSTRACT, ...) \
+    static void \
+    module_obj_name##_finalize(Object *obj); \
+    static void \
+    module_obj_name##_class_init(ObjectClass *oc, void *data); \
+    static void \
+    module_obj_name##_init(Object *obj); \
+    \
+    static const TypeInfo module_obj_name##_info = { \
+        .parent = TYPE_##PARENT_MODULE_OBJ_NAME, \
+        .name = TYPE_##MODULE_OBJ_NAME, \
+        .instance_size = sizeof(ModuleObjName), \
+        .instance_init = module_obj_name##_init, \
+        .instance_finalize = module_obj_name##_finalize, \
+        .class_size = sizeof(ModuleObjName##Class), \
+        .class_init = module_obj_name##_class_init, \
+        .abstract = ABSTRACT, \
+        .interfaces = (InterfaceInfo[]) { __VA_ARGS__ } , \
+    }; \
+    \
+    static void \
+    module_obj_name##_register_types(void) \
+    { \
+        type_register_static(&module_obj_name##_info); \
+    } \
+    type_init(module_obj_name##_register_types);
+
+/**
+ * OBJECT_DEFINE_TYPE:
+ * @ModuleObjName: the object name with initial caps
+ * @module_obj_name: the object name in lowercase with underscore separators
+ * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
+ * @PARENT_MODULE_OBJ_NAME: the parent object name in uppercase with underscore
+ *                          separators
+ *
+ * This is a specialization of OBJECT_DEFINE_TYPE_EXTENDED, which is suitable
+ * for the common case of a non-abstract type, without any interfaces.
+ */
+#define OBJECT_DEFINE_TYPE(ModuleObjName, module_obj_name, MODULE_OBJ_NAME, \
+                           PARENT_MODULE_OBJ_NAME) \
+    OBJECT_DEFINE_TYPE_EXTENDED(ModuleObjName, module_obj_name, \
+                                MODULE_OBJ_NAME, PARENT_MODULE_OBJ_NAME, \
+                                false, { NULL })
+
+/**
+ * OBJECT_DEFINE_TYPE_WITH_INTERFACES:
+ * @ModuleObjName: the object name with initial caps
+ * @module_obj_name: the object name in lowercase with underscore separators
+ * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
+ * @PARENT_MODULE_OBJ_NAME: the parent object name in uppercase with underscore
+ *                          separators
+ * @...: list of initializers for "InterfaceInfo" to declare implemented interfaces
+ *
+ * This is a specialization of OBJECT_DEFINE_TYPE_EXTENDED, which is suitable
+ * for the common case of a non-abstract type, with one or more implemented
+ * interfaces.
+ *
+ * Note when passing the list of interfaces, be sure to include the final
+ * NULL entry, e.g.  { TYPE_USER_CREATABLE }, { NULL }
+ */
+#define OBJECT_DEFINE_TYPE_WITH_INTERFACES(ModuleObjName, module_obj_name, \
+                                           MODULE_OBJ_NAME, \
+                                           PARENT_MODULE_OBJ_NAME, ...) \
+    OBJECT_DEFINE_TYPE_EXTENDED(ModuleObjName, module_obj_name, \
+                                MODULE_OBJ_NAME, PARENT_MODULE_OBJ_NAME, \
+                                false, __VA_ARGS__)
+
+/**
+ * OBJECT_DEFINE_ABSTRACT_TYPE:
+ * @ModuleObjName: the object name with initial caps
+ * @module_obj_name: the object name in lowercase with underscore separators
+ * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
+ * @PARENT_MODULE_OBJ_NAME: the parent object name in uppercase with underscore
+ *                          separators
+ *
+ * This is a specialization of OBJECT_DEFINE_TYPE_EXTENDED, which is suitable
+ * for defining an abstract type, without any interfaces.
+ */
+#define OBJECT_DEFINE_ABSTRACT_TYPE(ModuleObjName, module_obj_name, \
+                                    MODULE_OBJ_NAME, PARENT_MODULE_OBJ_NAME) \
+    OBJECT_DEFINE_TYPE_EXTENDED(ModuleObjName, module_obj_name, \
+                                MODULE_OBJ_NAME, PARENT_MODULE_OBJ_NAME, \
+                                true, { NULL })
 
 /**
  * TypeInfo:
@@ -1035,7 +1358,7 @@ GSList *object_class_get_list_sorted(const char *implements_type,
  * as its reference count is greater than zero.
  * Returns: @obj
  */
-Object *object_ref(Object *obj);
+Object *object_ref(void *obj);
 
 /**
  * object_unref:
@@ -1044,7 +1367,7 @@ Object *object_ref(Object *obj);
  * Decrease the reference count of a object.  A object cannot be freed as long
  * as its reference count is greater than zero.
  */
-void object_unref(Object *obj);
+void object_unref(void *obj);
 
 /**
  * object_property_try_add:

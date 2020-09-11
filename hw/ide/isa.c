@@ -32,14 +32,17 @@
 #include "sysemu/dma.h"
 
 #include "hw/ide/internal.h"
+#include "qom/object.h"
 
 /***********************************************************/
 /* ISA IDE definitions */
 
 #define TYPE_ISA_IDE "isa-ide"
-#define ISA_IDE(obj) OBJECT_CHECK(ISAIDEState, (obj), TYPE_ISA_IDE)
+typedef struct ISAIDEState ISAIDEState;
+DECLARE_INSTANCE_CHECKER(ISAIDEState, ISA_IDE,
+                         TYPE_ISA_IDE)
 
-typedef struct ISAIDEState {
+struct ISAIDEState {
     ISADevice parent_obj;
 
     IDEBus    bus;
@@ -47,7 +50,7 @@ typedef struct ISAIDEState {
     uint32_t  iobase2;
     uint32_t  isairq;
     qemu_irq  irq;
-} ISAIDEState;
+};
 
 static void isa_ide_reset(DeviceState *d)
 {

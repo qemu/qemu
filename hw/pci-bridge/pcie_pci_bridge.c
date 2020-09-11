@@ -17,19 +17,21 @@
 #include "hw/pci/shpc.h"
 #include "hw/pci/slotid_cap.h"
 #include "hw/qdev-properties.h"
+#include "qom/object.h"
 
-typedef struct PCIEPCIBridge {
+struct PCIEPCIBridge {
     /*< private >*/
     PCIBridge parent_obj;
 
     OnOffAuto msi;
     MemoryRegion shpc_bar;
     /*< public >*/
-} PCIEPCIBridge;
+};
+typedef struct PCIEPCIBridge PCIEPCIBridge;
 
 #define TYPE_PCIE_PCI_BRIDGE_DEV "pcie-pci-bridge"
-#define PCIE_PCI_BRIDGE_DEV(obj) \
-        OBJECT_CHECK(PCIEPCIBridge, (obj), TYPE_PCIE_PCI_BRIDGE_DEV)
+DECLARE_INSTANCE_CHECKER(PCIEPCIBridge, PCIE_PCI_BRIDGE_DEV,
+                         TYPE_PCIE_PCI_BRIDGE_DEV)
 
 static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
 {

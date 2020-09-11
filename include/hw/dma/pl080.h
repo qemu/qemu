@@ -29,6 +29,7 @@
 #define HW_DMA_PL080_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define PL080_MAX_CHANNELS 8
 
@@ -42,9 +43,11 @@ typedef struct {
 
 #define TYPE_PL080 "pl080"
 #define TYPE_PL081 "pl081"
-#define PL080(obj) OBJECT_CHECK(PL080State, (obj), TYPE_PL080)
+typedef struct PL080State PL080State;
+DECLARE_INSTANCE_CHECKER(PL080State, PL080,
+                         TYPE_PL080)
 
-typedef struct PL080State {
+struct PL080State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -66,6 +69,6 @@ typedef struct PL080State {
 
     MemoryRegion *downstream;
     AddressSpace downstream_as;
-} PL080State;
+};
 
 #endif

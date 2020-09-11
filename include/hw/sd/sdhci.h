@@ -28,9 +28,10 @@
 #include "hw/pci/pci.h"
 #include "hw/sysbus.h"
 #include "hw/sd/sd.h"
+#include "qom/object.h"
 
 /* SD/MMC host controller state */
-typedef struct SDHCIState {
+struct SDHCIState {
     /*< private >*/
     union {
         PCIDevice pcidev;
@@ -98,7 +99,8 @@ typedef struct SDHCIState {
     uint8_t sd_spec_version;
     uint8_t uhs_mode;
     uint8_t vendor;        /* For vendor specific functionality */
-} SDHCIState;
+};
+typedef struct SDHCIState SDHCIState;
 
 #define SDHCI_VENDOR_NONE       0
 #define SDHCI_VENDOR_IMX        1
@@ -113,11 +115,12 @@ typedef struct SDHCIState {
 #define SDHCI_QUIRK_NO_BUSY_IRQ    BIT(14)
 
 #define TYPE_PCI_SDHCI "sdhci-pci"
-#define PCI_SDHCI(obj) OBJECT_CHECK(SDHCIState, (obj), TYPE_PCI_SDHCI)
+DECLARE_INSTANCE_CHECKER(SDHCIState, PCI_SDHCI,
+                         TYPE_PCI_SDHCI)
 
 #define TYPE_SYSBUS_SDHCI "generic-sdhci"
-#define SYSBUS_SDHCI(obj)                               \
-     OBJECT_CHECK(SDHCIState, (obj), TYPE_SYSBUS_SDHCI)
+DECLARE_INSTANCE_CHECKER(SDHCIState, SYSBUS_SDHCI,
+                         TYPE_SYSBUS_SDHCI)
 
 #define TYPE_IMX_USDHC "imx-usdhc"
 

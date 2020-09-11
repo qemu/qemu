@@ -33,10 +33,12 @@
 #include "hw/or-irq.h"
 #include "hw/ssi/stm32f2xx_spi.h"
 #include "hw/arm/armv7m.h"
+#include "qom/object.h"
 
 #define TYPE_STM32F405_SOC "stm32f405-soc"
-#define STM32F405_SOC(obj) \
-    OBJECT_CHECK(STM32F405State, (obj), TYPE_STM32F405_SOC)
+typedef struct STM32F405State STM32F405State;
+DECLARE_INSTANCE_CHECKER(STM32F405State, STM32F405_SOC,
+                         TYPE_STM32F405_SOC)
 
 #define STM_NUM_USARTS 7
 #define STM_NUM_TIMERS 4
@@ -48,7 +50,7 @@
 #define SRAM_BASE_ADDRESS 0x20000000
 #define SRAM_SIZE (192 * 1024)
 
-typedef struct STM32F405State {
+struct STM32F405State {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -68,6 +70,6 @@ typedef struct STM32F405State {
     MemoryRegion sram;
     MemoryRegion flash;
     MemoryRegion flash_alias;
-} STM32F405State;
+};
 
 #endif

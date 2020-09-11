@@ -15,8 +15,9 @@
 #include "qom/object.h"
 
 #define TYPE_RNG_RANDOM "rng-random"
-#define RNG_RANDOM(obj) OBJECT_CHECK(RngRandom, (obj), TYPE_RNG_RANDOM)
-
 typedef struct RngRandom RngRandom;
+DECLARE_INSTANCE_CHECKER(RngRandom, RNG_RANDOM,
+                         TYPE_RNG_RANDOM)
+
 
 #endif

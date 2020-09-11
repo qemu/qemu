@@ -19,9 +19,12 @@
 
 #include "net/net.h"
 #include "hw/net/vmxnet3.h"
+#include "qom/object.h"
 
 #define TYPE_VMXNET3 "vmxnet3"
-#define VMXNET3(obj) OBJECT_CHECK(VMXNET3State, (obj), TYPE_VMXNET3)
+typedef struct VMXNET3State VMXNET3State;
+DECLARE_INSTANCE_CHECKER(VMXNET3State, VMXNET3,
+                         TYPE_VMXNET3)
 
 /* Device state and helper functions */
 #define VMXNET3_RX_RINGS_PER_QUEUE (2)
@@ -58,7 +61,7 @@ typedef struct {
     bool is_asserted;
 } Vmxnet3IntState;
 
-typedef struct {
+struct VMXNET3State {
         PCIDevice parent_obj;
         NICState *nic;
         NICConf conf;
@@ -132,6 +135,6 @@ typedef struct {
 
         /* Compatibility flags for migration */
         uint32_t compat_flags;
-} VMXNET3State;
+};
 
 #endif

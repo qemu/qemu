@@ -24,12 +24,13 @@
 #include "io/channel.h"
 #include "qemu/buffer.h"
 #include "io/task.h"
+#include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL_WEBSOCK "qio-channel-websock"
-#define QIO_CHANNEL_WEBSOCK(obj)                                     \
-    OBJECT_CHECK(QIOChannelWebsock, (obj), TYPE_QIO_CHANNEL_WEBSOCK)
-
 typedef struct QIOChannelWebsock QIOChannelWebsock;
+DECLARE_INSTANCE_CHECKER(QIOChannelWebsock, QIO_CHANNEL_WEBSOCK,
+                         TYPE_QIO_CHANNEL_WEBSOCK)
+
 typedef union QIOChannelWebsockMask QIOChannelWebsockMask;
 
 union QIOChannelWebsockMask {

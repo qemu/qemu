@@ -15,17 +15,20 @@
 #include "hw/misc/empty_slot.h"
 #include "qapi/error.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define TYPE_EMPTY_SLOT "empty_slot"
-#define EMPTY_SLOT(obj) OBJECT_CHECK(EmptySlot, (obj), TYPE_EMPTY_SLOT)
+typedef struct EmptySlot EmptySlot;
+DECLARE_INSTANCE_CHECKER(EmptySlot, EMPTY_SLOT,
+                         TYPE_EMPTY_SLOT)
 
-typedef struct EmptySlot {
+struct EmptySlot {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
     char *name;
     uint64_t size;
-} EmptySlot;
+};
 
 static uint64_t empty_slot_read(void *opaque, hwaddr addr,
                                 unsigned size)

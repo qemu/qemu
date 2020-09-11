@@ -5,14 +5,17 @@
 #include "hw/qdev-properties.h"
 #include "hw/display/ramfb.h"
 #include "ui/console.h"
+#include "qom/object.h"
 
-#define RAMFB(obj) OBJECT_CHECK(RAMFBStandaloneState, (obj), TYPE_RAMFB_DEVICE)
+typedef struct RAMFBStandaloneState RAMFBStandaloneState;
+DECLARE_INSTANCE_CHECKER(RAMFBStandaloneState, RAMFB,
+                         TYPE_RAMFB_DEVICE)
 
-typedef struct RAMFBStandaloneState {
+struct RAMFBStandaloneState {
     SysBusDevice parent_obj;
     QemuConsole *con;
     RAMFBState *state;
-} RAMFBStandaloneState;
+};
 
 static void display_update_wrapper(void *dev)
 {

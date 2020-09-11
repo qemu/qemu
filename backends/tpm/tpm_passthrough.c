@@ -33,10 +33,12 @@
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-tpm.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define TYPE_TPM_PASSTHROUGH "tpm-passthrough"
-#define TPM_PASSTHROUGH(obj) \
-    OBJECT_CHECK(TPMPassthruState, (obj), TYPE_TPM_PASSTHROUGH)
+typedef struct TPMPassthruState TPMPassthruState;
+DECLARE_INSTANCE_CHECKER(TPMPassthruState, TPM_PASSTHROUGH,
+                         TYPE_TPM_PASSTHROUGH)
 
 /* data structures */
 struct TPMPassthruState {
@@ -53,7 +55,6 @@ struct TPMPassthruState {
     size_t tpm_buffersize;
 };
 
-typedef struct TPMPassthruState TPMPassthruState;
 
 #define TPM_PASSTHROUGH_DEFAULT_DEVICE "/dev/tpm0"
 

@@ -33,12 +33,13 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "desc.h"
+#include "qom/object.h"
 
 /* Interface requests */
 #define WACOM_GET_REPORT	0x2101
 #define WACOM_SET_REPORT	0x2109
 
-typedef struct USBWacomState {
+struct USBWacomState {
     USBDevice dev;
     USBEndpoint *intr;
     QEMUPutMouseEntry *eh_entry;
@@ -51,10 +52,12 @@ typedef struct USBWacomState {
     } mode;
     uint8_t idle;
     int changed;
-} USBWacomState;
+};
+typedef struct USBWacomState USBWacomState;
 
 #define TYPE_USB_WACOM "usb-wacom-tablet"
-#define USB_WACOM(obj) OBJECT_CHECK(USBWacomState, (obj), TYPE_USB_WACOM)
+DECLARE_INSTANCE_CHECKER(USBWacomState, USB_WACOM,
+                         TYPE_USB_WACOM)
 
 enum {
     STR_MANUFACTURER = 1,

@@ -33,15 +33,18 @@
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
-typedef struct PCISerialState {
+struct PCISerialState {
     PCIDevice dev;
     SerialState state;
     uint8_t prog_if;
-} PCISerialState;
+};
+typedef struct PCISerialState PCISerialState;
 
 #define TYPE_PCI_SERIAL "pci-serial"
-#define PCI_SERIAL(s) OBJECT_CHECK(PCISerialState, (s), TYPE_PCI_SERIAL)
+DECLARE_INSTANCE_CHECKER(PCISerialState, PCI_SERIAL,
+                         TYPE_PCI_SERIAL)
 
 static void serial_pci_realize(PCIDevice *dev, Error **errp)
 {

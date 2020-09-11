@@ -44,19 +44,21 @@
 #include "hw/net/lan9118.h"
 #include "net/net.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
+#include "qom/object.h"
 
 typedef enum MPS2FPGAType {
     FPGA_AN385,
     FPGA_AN511,
 } MPS2FPGAType;
 
-typedef struct {
+struct MPS2MachineClass {
     MachineClass parent;
     MPS2FPGAType fpga_type;
     uint32_t scc_id;
-} MPS2MachineClass;
+};
+typedef struct MPS2MachineClass MPS2MachineClass;
 
-typedef struct {
+struct MPS2MachineState {
     MachineState parent;
 
     ARMv7MState armv7m;
@@ -75,18 +77,15 @@ typedef struct {
     /* CMSDK APB subsystem */
     CMSDKAPBDualTimer dualtimer;
     CMSDKAPBWatchdog watchdog;
-} MPS2MachineState;
+};
+typedef struct MPS2MachineState MPS2MachineState;
 
 #define TYPE_MPS2_MACHINE "mps2"
 #define TYPE_MPS2_AN385_MACHINE MACHINE_TYPE_NAME("mps2-an385")
 #define TYPE_MPS2_AN511_MACHINE MACHINE_TYPE_NAME("mps2-an511")
 
-#define MPS2_MACHINE(obj)                                       \
-    OBJECT_CHECK(MPS2MachineState, obj, TYPE_MPS2_MACHINE)
-#define MPS2_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MPS2MachineClass, obj, TYPE_MPS2_MACHINE)
-#define MPS2_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(MPS2MachineClass, klass, TYPE_MPS2_MACHINE)
+DECLARE_OBJ_CHECKERS(MPS2MachineState, MPS2MachineClass,
+                     MPS2_MACHINE, TYPE_MPS2_MACHINE)
 
 /* Main SYSCLK frequency in Hz */
 #define SYSCLK_FRQ 25000000

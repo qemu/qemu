@@ -10,18 +10,20 @@
 #define HW_MISC_BCM2835_THERMAL_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_BCM2835_THERMAL "bcm2835-thermal"
 
-#define BCM2835_THERMAL(obj) \
-    OBJECT_CHECK(Bcm2835ThermalState, (obj), TYPE_BCM2835_THERMAL)
+typedef struct Bcm2835ThermalState Bcm2835ThermalState;
+DECLARE_INSTANCE_CHECKER(Bcm2835ThermalState, BCM2835_THERMAL,
+                         TYPE_BCM2835_THERMAL)
 
-typedef struct {
+struct Bcm2835ThermalState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
     MemoryRegion iomem;
     uint32_t ctl;
-} Bcm2835ThermalState;
+};
 
 #endif

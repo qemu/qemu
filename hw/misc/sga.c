@@ -29,15 +29,18 @@
 #include "hw/isa/isa.h"
 #include "hw/loader.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define SGABIOS_FILENAME "sgabios.bin"
 
 #define TYPE_SGA "sga"
-#define SGA(obj) OBJECT_CHECK(ISASGAState, (obj), TYPE_SGA)
+typedef struct ISASGAState ISASGAState;
+DECLARE_INSTANCE_CHECKER(ISASGAState, SGA,
+                         TYPE_SGA)
 
-typedef struct ISASGAState {
+struct ISASGAState {
     ISADevice parent_obj;
-} ISASGAState;
+};
 
 static void sga_realizefn(DeviceState *dev, Error **errp)
 {

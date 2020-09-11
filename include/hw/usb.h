@@ -29,6 +29,7 @@
 #include "hw/qdev-core.h"
 #include "qemu/iov.h"
 #include "qemu/queue.h"
+#include "qom/object.h"
 
 /* Constants related to the USB / PCI interaction */
 #define USB_SBRN    0x60 /* Serial Bus Release Number Register */
@@ -264,17 +265,14 @@ struct USBDevice {
 };
 
 #define TYPE_USB_DEVICE "usb-device"
-#define USB_DEVICE(obj) \
-     OBJECT_CHECK(USBDevice, (obj), TYPE_USB_DEVICE)
-#define USB_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(USBDeviceClass, (klass), TYPE_USB_DEVICE)
-#define USB_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(USBDeviceClass, (obj), TYPE_USB_DEVICE)
+typedef struct USBDeviceClass USBDeviceClass;
+DECLARE_OBJ_CHECKERS(USBDevice, USBDeviceClass,
+                     USB_DEVICE, TYPE_USB_DEVICE)
 
 typedef void (*USBDeviceRealize)(USBDevice *dev, Error **errp);
 typedef void (*USBDeviceUnrealize)(USBDevice *dev);
 
-typedef struct USBDeviceClass {
+struct USBDeviceClass {
     DeviceClass parent_class;
 
     USBDeviceRealize realize;
@@ -346,7 +344,7 @@ typedef struct USBDeviceClass {
     const char *product_desc;
     const USBDesc *usb_desc;
     bool attached_settable;
-} USBDeviceClass;
+};
 
 typedef struct USBPortOps {
     void (*attach)(USBPort *port);
@@ -477,7 +475,8 @@ bool usb_host_dev_is_scsi_storage(USBDevice *usbdev);
 /* usb-bus.c */
 
 #define TYPE_USB_BUS "usb-bus"
-#define USB_BUS(obj) OBJECT_CHECK(USBBus, (obj), TYPE_USB_BUS)
+DECLARE_INSTANCE_CHECKER(USBBus, USB_BUS,
+                         TYPE_USB_BUS)
 
 struct USBBus {
     BusState qbus;

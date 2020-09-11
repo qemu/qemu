@@ -21,6 +21,7 @@
 #include "qemu/coroutine_int.h"
 #include "io/channel.h"
 #include "net/announce.h"
+#include "qom/object.h"
 
 struct PostcopyBlocktimeContext;
 
@@ -114,17 +115,14 @@ void fill_destination_postcopy_migration_info(MigrationInfo *info);
 
 #define TYPE_MIGRATION "migration"
 
-#define MIGRATION_OBJ_CLASS(klass) \
-    OBJECT_CLASS_CHECK(MigrationClass, (klass), TYPE_MIGRATION)
-#define MIGRATION_OBJ(obj) \
-    OBJECT_CHECK(MigrationState, (obj), TYPE_MIGRATION)
-#define MIGRATION_OBJ_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MigrationClass, (obj), TYPE_MIGRATION)
+typedef struct MigrationClass MigrationClass;
+DECLARE_OBJ_CHECKERS(MigrationState, MigrationClass,
+                     MIGRATION_OBJ, TYPE_MIGRATION)
 
-typedef struct MigrationClass {
+struct MigrationClass {
     /*< private >*/
     DeviceClass parent_class;
-} MigrationClass;
+};
 
 struct MigrationState
 {

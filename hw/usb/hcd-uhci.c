@@ -39,6 +39,7 @@
 #include "trace.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define FRAME_TIMER_FREQ 1000
 
@@ -160,7 +161,8 @@ static void uhci_queue_fill(UHCIQueue *q, UHCI_TD *td);
 static void uhci_resume(void *opaque);
 
 #define TYPE_UHCI "pci-uhci-usb"
-#define UHCI(obj) OBJECT_CHECK(UHCIState, (obj), TYPE_UHCI)
+DECLARE_INSTANCE_CHECKER(UHCIState, UHCI,
+                         TYPE_UHCI)
 
 static inline int32_t uhci_queue_token(UHCI_TD *td)
 {

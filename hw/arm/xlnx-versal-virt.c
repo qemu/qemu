@@ -22,12 +22,14 @@
 #include "cpu.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/xlnx-versal.h"
+#include "qom/object.h"
 
 #define TYPE_XLNX_VERSAL_VIRT_MACHINE MACHINE_TYPE_NAME("xlnx-versal-virt")
-#define XLNX_VERSAL_VIRT_MACHINE(obj) \
-    OBJECT_CHECK(VersalVirt, (obj), TYPE_XLNX_VERSAL_VIRT_MACHINE)
+typedef struct VersalVirt VersalVirt;
+DECLARE_INSTANCE_CHECKER(VersalVirt, XLNX_VERSAL_VIRT_MACHINE,
+                         TYPE_XLNX_VERSAL_VIRT_MACHINE)
 
-typedef struct VersalVirt {
+struct VersalVirt {
     MachineState parent_obj;
 
     Versal soc;
@@ -45,7 +47,7 @@ typedef struct VersalVirt {
     struct {
         bool secure;
     } cfg;
-} VersalVirt;
+};
 
 static void fdt_create(VersalVirt *s)
 {

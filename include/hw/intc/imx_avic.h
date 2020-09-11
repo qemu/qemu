@@ -18,9 +18,12 @@
 #define IMX_AVIC_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_IMX_AVIC "imx.avic"
-#define IMX_AVIC(obj) OBJECT_CHECK(IMXAVICState, (obj), TYPE_IMX_AVIC)
+typedef struct IMXAVICState IMXAVICState;
+DECLARE_INSTANCE_CHECKER(IMXAVICState, IMX_AVIC,
+                         TYPE_IMX_AVIC)
 
 #define IMX_AVIC_NUM_IRQS 64
 
@@ -36,7 +39,7 @@
 #define PRIO_PER_WORD (sizeof(uint32_t) * 8 / 4)
 #define PRIO_WORDS (IMX_AVIC_NUM_IRQS/PRIO_PER_WORD)
 
-typedef struct IMXAVICState{
+struct IMXAVICState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -50,6 +53,6 @@ typedef struct IMXAVICState{
     qemu_irq irq;
     qemu_irq fiq;
     uint32_t prio[PRIO_WORDS]; /* Priorities are 4-bits each */
-} IMXAVICState;
+};
 
 #endif /* IMX_AVIC_H */

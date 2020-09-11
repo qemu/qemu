@@ -26,11 +26,13 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define DEBUG_SPAPR 0
 
-#define VIO_SPAPR_VTPM(obj) \
-     OBJECT_CHECK(SpaprTpmState, (obj), TYPE_TPM_SPAPR)
+typedef struct SpaprTpmState SpaprTpmState;
+DECLARE_INSTANCE_CHECKER(SpaprTpmState, VIO_SPAPR_VTPM,
+                         TYPE_TPM_SPAPR)
 
 typedef struct TpmCrq {
     uint8_t valid;  /* 0x80: cmd; 0xc0: init crq */
@@ -64,7 +66,7 @@ typedef struct TpmCrq {
 
 #define TPM_SPAPR_BUFFER_MAX                 4096
 
-typedef struct {
+struct SpaprTpmState {
     SpaprVioDevice vdev;
 
     TpmCrq crq; /* track single TPM command */
@@ -84,7 +86,7 @@ typedef struct {
     TPMVersion be_tpm_version;
 
     size_t be_buffer_size;
-} SpaprTpmState;
+};
 
 /*
  * Send a request to the TPM.

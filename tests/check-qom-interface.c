@@ -16,20 +16,19 @@
 
 
 #define TYPE_TEST_IF "test-interface"
-#define TEST_IF_CLASS(klass) \
-     OBJECT_CLASS_CHECK(TestIfClass, (klass), TYPE_TEST_IF)
-#define TEST_IF_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(TestIfClass, (obj), TYPE_TEST_IF)
+typedef struct TestIfClass TestIfClass;
+DECLARE_CLASS_CHECKERS(TestIfClass, TEST_IF,
+                       TYPE_TEST_IF)
 #define TEST_IF(obj) \
      INTERFACE_CHECK(TestIf, (obj), TYPE_TEST_IF)
 
 typedef struct TestIf TestIf;
 
-typedef struct TestIfClass {
+struct TestIfClass {
     InterfaceClass parent_class;
 
     uint32_t test;
-} TestIfClass;
+};
 
 static const TypeInfo test_if_info = {
     .name          = TYPE_TEST_IF,

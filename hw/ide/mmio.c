@@ -31,6 +31,7 @@
 
 #include "hw/ide/internal.h"
 #include "hw/qdev-properties.h"
+#include "qom/object.h"
 
 /***********************************************************/
 /* MMIO based ide port
@@ -39,9 +40,11 @@
  */
 
 #define TYPE_MMIO_IDE "mmio-ide"
-#define MMIO_IDE(obj) OBJECT_CHECK(MMIOState, (obj), TYPE_MMIO_IDE)
+typedef struct MMIOIDEState MMIOState;
+DECLARE_INSTANCE_CHECKER(MMIOState, MMIO_IDE,
+                         TYPE_MMIO_IDE)
 
-typedef struct MMIOIDEState {
+struct MMIOIDEState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -51,7 +54,7 @@ typedef struct MMIOIDEState {
     uint32_t shift;
     qemu_irq irq;
     MemoryRegion iomem1, iomem2;
-} MMIOState;
+};
 
 static void mmio_ide_reset(DeviceState *dev)
 {

@@ -18,6 +18,7 @@
 
 #include "ui/console.h"
 #include "ui/qemu-pixman.h"
+#include "qom/object.h"
 
 typedef struct BochsDisplayMode {
     pixman_format_code_t format;
@@ -29,7 +30,7 @@ typedef struct BochsDisplayMode {
     uint64_t             size;
 } BochsDisplayMode;
 
-typedef struct BochsDisplayState {
+struct BochsDisplayState {
     /* parent */
     PCIDevice        pci;
 
@@ -53,11 +54,12 @@ typedef struct BochsDisplayState {
 
     /* device state */
     BochsDisplayMode mode;
-} BochsDisplayState;
+};
+typedef struct BochsDisplayState BochsDisplayState;
 
 #define TYPE_BOCHS_DISPLAY "bochs-display"
-#define BOCHS_DISPLAY(obj) OBJECT_CHECK(BochsDisplayState, (obj), \
-                                        TYPE_BOCHS_DISPLAY)
+DECLARE_INSTANCE_CHECKER(BochsDisplayState, BOCHS_DISPLAY,
+                         TYPE_BOCHS_DISPLAY)
 
 static const VMStateDescription vmstate_bochs_display = {
     .name = "bochs-display",

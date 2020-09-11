@@ -24,11 +24,13 @@
 
 #ifndef DPCD_H
 #define DPCD_H
+#include "qom/object.h"
 
 typedef struct DPCDState DPCDState;
 
 #define TYPE_DPCD "dpcd"
-#define DPCD(obj) OBJECT_CHECK(DPCDState, (obj), TYPE_DPCD)
+DECLARE_INSTANCE_CHECKER(DPCDState, DPCD,
+                         TYPE_DPCD)
 
 /* DCPD Revision. */
 #define DPCD_REVISION                           0x00

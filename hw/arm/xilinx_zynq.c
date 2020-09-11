@@ -37,10 +37,12 @@
 #include "hw/cpu/a9mpcore.h"
 #include "hw/qdev-clock.h"
 #include "sysemu/reset.h"
+#include "qom/object.h"
 
 #define TYPE_ZYNQ_MACHINE MACHINE_TYPE_NAME("xilinx-zynq-a9")
-#define ZYNQ_MACHINE(obj) \
-    OBJECT_CHECK(ZynqMachineState, (obj), TYPE_ZYNQ_MACHINE)
+typedef struct ZynqMachineState ZynqMachineState;
+DECLARE_INSTANCE_CHECKER(ZynqMachineState, ZYNQ_MACHINE,
+                         TYPE_ZYNQ_MACHINE)
 
 /* board base frequency: 33.333333 MHz */
 #define PS_CLK_FREQUENCY (100 * 1000 * 1000 / 3)
@@ -84,10 +86,10 @@ static const int dma_irqs[8] = {
     0xe3401000 + ARMV7_IMM16(extract32((val), 16, 16)), /* movt r1 ... */ \
     0xe5801000 + (addr)
 
-typedef struct ZynqMachineState {
+struct ZynqMachineState {
     MachineState parent;
     Clock *ps_clk;
-} ZynqMachineState;
+};
 
 static void zynq_write_board_setup(ARMCPU *cpu,
                                    const struct arm_boot_info *info)

@@ -20,9 +20,12 @@
 #include "hw/dma/xlnx-zdma.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/rtc/xlnx-zynqmp-rtc.h"
+#include "qom/object.h"
 
 #define TYPE_XLNX_VERSAL "xlnx-versal"
-#define XLNX_VERSAL(obj) OBJECT_CHECK(Versal, (obj), TYPE_XLNX_VERSAL)
+typedef struct Versal Versal;
+DECLARE_INSTANCE_CHECKER(Versal, XLNX_VERSAL,
+                         TYPE_XLNX_VERSAL)
 
 #define XLNX_VERSAL_NR_ACPUS   2
 #define XLNX_VERSAL_NR_UARTS   2
@@ -31,7 +34,7 @@
 #define XLNX_VERSAL_NR_SDS     2
 #define XLNX_VERSAL_NR_IRQS    192
 
-typedef struct Versal {
+struct Versal {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -74,7 +77,7 @@ typedef struct Versal {
         MemoryRegion *mr_ddr;
         uint32_t psci_conduit;
     } cfg;
-} Versal;
+};
 
 /* Memory-map and IRQ definitions. Copied a subset from
  * auto-generated files.  */

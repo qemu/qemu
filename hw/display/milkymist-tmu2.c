@@ -38,6 +38,7 @@
 #include <X11/Xlib.h>
 #include <epoxy/gl.h>
 #include <epoxy/glx.h>
+#include "qom/object.h"
 
 enum {
     R_CTL = 0,
@@ -82,8 +83,9 @@ struct vertex {
 } QEMU_PACKED;
 
 #define TYPE_MILKYMIST_TMU2 "milkymist-tmu2"
-#define MILKYMIST_TMU2(obj) \
-    OBJECT_CHECK(MilkymistTMU2State, (obj), TYPE_MILKYMIST_TMU2)
+typedef struct MilkymistTMU2State MilkymistTMU2State;
+DECLARE_INSTANCE_CHECKER(MilkymistTMU2State, MILKYMIST_TMU2,
+                         TYPE_MILKYMIST_TMU2)
 
 struct MilkymistTMU2State {
     SysBusDevice parent_obj;
@@ -98,7 +100,6 @@ struct MilkymistTMU2State {
     GLXFBConfig glx_fb_config;
     GLXContext glx_context;
 };
-typedef struct MilkymistTMU2State MilkymistTMU2State;
 
 static const int glx_fbconfig_attr[] = {
     GLX_GREEN_SIZE, 5,

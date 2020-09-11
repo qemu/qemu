@@ -29,6 +29,7 @@
 #include "standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_ring.h"
 #include "standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h"
 #include "pvrdma_dev_ring.h"
+#include "qom/object.h"
 
 /* BARs */
 #define RDMA_MSIX_BAR_IDX    0
@@ -78,7 +79,7 @@ typedef struct PVRDMADevStats {
     uint64_t interrupts;
 } PVRDMADevStats;
 
-typedef struct PVRDMADev {
+struct PVRDMADev {
     PCIDevice parent_obj;
     MemoryRegion msix;
     MemoryRegion regs;
@@ -98,8 +99,10 @@ typedef struct PVRDMADev {
     VMXNET3State *func0;
     Notifier shutdown_notifier;
     PVRDMADevStats stats;
-} PVRDMADev;
-#define PVRDMA_DEV(dev) OBJECT_CHECK(PVRDMADev, (dev), PVRDMA_HW_NAME)
+};
+typedef struct PVRDMADev PVRDMADev;
+DECLARE_INSTANCE_CHECKER(PVRDMADev, PVRDMA_DEV,
+                         PVRDMA_HW_NAME)
 
 static inline int get_reg_val(PVRDMADev *dev, hwaddr addr, uint32_t *val)
 {

@@ -29,6 +29,7 @@
 #include "audio/audio.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 enum {
     R_AC97_CTRL = 0,
@@ -55,8 +56,9 @@ enum {
 };
 
 #define TYPE_MILKYMIST_AC97 "milkymist-ac97"
-#define MILKYMIST_AC97(obj) \
-    OBJECT_CHECK(MilkymistAC97State, (obj), TYPE_MILKYMIST_AC97)
+typedef struct MilkymistAC97State MilkymistAC97State;
+DECLARE_INSTANCE_CHECKER(MilkymistAC97State, MILKYMIST_AC97,
+                         TYPE_MILKYMIST_AC97)
 
 struct MilkymistAC97State {
     SysBusDevice parent_obj;
@@ -74,7 +76,6 @@ struct MilkymistAC97State {
     qemu_irq dmar_irq;
     qemu_irq dmaw_irq;
 };
-typedef struct MilkymistAC97State MilkymistAC97State;
 
 static void update_voices(MilkymistAC97State *s)
 {

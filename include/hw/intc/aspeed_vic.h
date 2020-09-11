@@ -14,13 +14,16 @@
 #define ASPEED_VIC_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_ASPEED_VIC "aspeed.vic"
-#define ASPEED_VIC(obj) OBJECT_CHECK(AspeedVICState, (obj), TYPE_ASPEED_VIC)
+typedef struct AspeedVICState AspeedVICState;
+DECLARE_INSTANCE_CHECKER(AspeedVICState, ASPEED_VIC,
+                         TYPE_ASPEED_VIC)
 
 #define ASPEED_VIC_NR_IRQS 51
 
-typedef struct AspeedVICState {
+struct AspeedVICState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -43,6 +46,6 @@ typedef struct AspeedVICState {
 
     /* 0=low-sensitive/falling-edge, 1=high-sensitive/rising-edge */
     uint64_t event;
-} AspeedVICState;
+};
 
 #endif /* ASPEED_VIC_H */

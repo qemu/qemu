@@ -23,11 +23,14 @@
 #define HW_MISC_ARMSSE_CPUID_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_ARMSSE_CPUID "armsse-cpuid"
-#define ARMSSE_CPUID(obj) OBJECT_CHECK(ARMSSECPUID, (obj), TYPE_ARMSSE_CPUID)
+typedef struct ARMSSECPUID ARMSSECPUID;
+DECLARE_INSTANCE_CHECKER(ARMSSECPUID, ARMSSE_CPUID,
+                         TYPE_ARMSSE_CPUID)
 
-typedef struct ARMSSECPUID {
+struct ARMSSECPUID {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -36,6 +39,6 @@ typedef struct ARMSSECPUID {
 
     /* Properties */
     uint32_t cpuid;
-} ARMSSECPUID;
+};
 
 #endif

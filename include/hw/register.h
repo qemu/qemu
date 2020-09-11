@@ -14,6 +14,7 @@
 #include "hw/qdev-core.h"
 #include "exec/memory.h"
 #include "hw/registerfields.h"
+#include "qom/object.h"
 
 typedef struct RegisterInfo RegisterInfo;
 typedef struct RegisterAccessInfo RegisterAccessInfo;
@@ -87,7 +88,8 @@ struct RegisterInfo {
 };
 
 #define TYPE_REGISTER "qemu,register"
-#define REGISTER(obj) OBJECT_CHECK(RegisterInfo, (obj), TYPE_REGISTER)
+DECLARE_INSTANCE_CHECKER(RegisterInfo, REGISTER,
+                         TYPE_REGISTER)
 
 /**
  * This structure is used to group all of the individual registers which are
