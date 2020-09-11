@@ -541,7 +541,6 @@ fpcflags += [
 fptest = executable(
   'fp-test',
   ['fp-test.c', tfdir / 'slowfloat.c', '../../fpu/softfloat.c'],
-  build_by_default: false,
   link_with: [libtestfloat, libsoftfloat],
   dependencies: [qemuutil],
   include_directories: [sfinc, include_directories(tfdir)],
@@ -628,7 +627,6 @@ test('fp-test:mulAdd', fptest,
 fpbench = executable(
   'fp-bench',
   ['fp-bench.c', '../../fpu/softfloat.c'],
-  build_by_default: false,
   link_with: [libtestfloat, libsoftfloat],
   dependencies: [qemuutil],
   include_directories: [sfinc, include_directories(tfdir)],

@@ -193,6 +193,11 @@ compilation as possible. The Meson "sourceset" functionality is used
 to list the files and their dependency on various configuration  
 symbols.
 
+All executables are built by default, except for some `contrib/`
+binaries that are known to fail to build on some platforms (for example
+32-bit or big-endian platforms).  Tests are also built by default,
+though that might change in the future.
+
 Various subsystems that are common to both tools and emulators have
 their own sourceset, for example `block_ss` for the block device subsystem,
 `chardev_ss` for the character device subsystem, etc.  These sourcesets
