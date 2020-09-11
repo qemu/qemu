@@ -1483,6 +1483,12 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
     spapr_free_hpt(spapr);
 
     rc = kvmppc_reset_htab(shift);
+
+    if (rc == -EOPNOTSUPP) {
+        error_setg(errp, "HPT not supported in nested guests");
+        return;
+    }
+
     if (rc < 0) {
         /* kernel-side HPT needed, but couldn't allocate one */
         error_setg_errno(errp, errno,
