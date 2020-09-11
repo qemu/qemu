@@ -1719,6 +1719,10 @@ out:
  * clusters (or subclusters) if necessary. The result can span a
  * combination of allocated and previously unallocated clusters.
  *
+ * Note that offset may not be cluster aligned. In this case, the returned
+ * *host_offset points to exact byte referenced by offset and therefore
+ * isn't cluster aligned as well.
+ *
  * On return, @host_offset is set to the beginning of the requested
  * area. This area is guaranteed to be contiguous on the qcow2 file
  * but it can be smaller than initially requested. In this case @bytes
@@ -1736,9 +1740,9 @@ out:
  *
  * Return 0 on success and -errno in error cases
  */
-int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
-                               unsigned int *bytes, uint64_t *host_offset,
-                               QCowL2Meta **m)
+int qcow2_alloc_host_offset(BlockDriverState *bs, uint64_t offset,
+                            unsigned int *bytes, uint64_t *host_offset,
+                            QCowL2Meta **m)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t start, remaining;
@@ -1759,7 +1763,7 @@ again:
     while (true) {
 
         if (*host_offset == INV_OFFSET && cluster_offset != INV_OFFSET) {
-            *host_offset = start_of_cluster(s, cluster_offset);
+            *host_offset = cluster_offset;
         }
 
         assert(remaining >= cur_bytes);
@@ -1842,6 +1846,8 @@ again:
     *bytes -= remaining;
     assert(*bytes > 0);
     assert(*host_offset != INV_OFFSET);
+    assert(offset_into_cluster(s, *host_offset) ==
+           offset_into_cluster(s, offset));
 
     return 0;
 }

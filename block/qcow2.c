@@ -2559,7 +2559,7 @@ static coroutine_fn int qcow2_co_pwritev_part(
     int offset_in_cluster;
     int ret;
     unsigned int cur_bytes; /* number of sectors in current iteration */
-    uint64_t cluster_offset;
+    uint64_t host_offset;
     QCowL2Meta *l2meta = NULL;
     AioTaskPool *aio = NULL;
 
@@ -2580,16 +2580,13 @@ static coroutine_fn int qcow2_co_pwritev_part(
 
         qemu_co_mutex_lock(&s->lock);
 
-        ret = qcow2_alloc_cluster_offset(bs, offset, &cur_bytes,
-                                         &cluster_offset, &l2meta);
+        ret = qcow2_alloc_host_offset(bs, offset, &cur_bytes,
+                                      &host_offset, &l2meta);
         if (ret < 0) {
             goto out_locked;
         }
 
-        assert(offset_into_cluster(s, cluster_offset) == 0);
-
-        ret = qcow2_pre_write_overlap_check(bs, 0,
-                                            cluster_offset + offset_in_cluster,
+        ret = qcow2_pre_write_overlap_check(bs, 0, host_offset,
                                             cur_bytes, true);
         if (ret < 0) {
             goto out_locked;
@@ -2601,7 +2598,7 @@ static coroutine_fn int qcow2_co_pwritev_part(
             aio = aio_task_pool_new(QCOW2_MAX_WORKERS);
         }
         ret = qcow2_add_task(bs, aio, qcow2_co_pwritev_task_entry, 0,
-                             cluster_offset + offset_in_cluster, offset,
+                             host_offset, offset,
                              cur_bytes, qiov, qiov_offset, l2meta);
         l2meta = NULL; /* l2meta is consumed by qcow2_co_pwritev_task() */
         if (ret < 0) {
@@ -3129,13 +3126,12 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
 
     while (bytes) {
         cur_bytes = MIN(bytes, QEMU_ALIGN_DOWN(INT_MAX, s->cluster_size));
-        ret = qcow2_alloc_cluster_offset(bs, offset, &cur_bytes,
-                                         &host_offset, &meta);
+        ret = qcow2_alloc_host_offset(bs, offset, &cur_bytes,
+                                      &host_offset, &meta);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Allocating clusters failed");
             goto out;
         }
-        host_offset += offset_into_cluster(s, offset);
 
         for (m = meta; m != NULL; m = m->next) {
             m->prealloc = true;
@@ -4043,10 +4039,9 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
                        BdrvRequestFlags write_flags)
 {
     BDRVQcow2State *s = bs->opaque;
-    int offset_in_cluster;
     int ret;
     unsigned int cur_bytes; /* number of sectors in current iteration */
-    uint64_t cluster_offset;
+    uint64_t host_offset;
     QCowL2Meta *l2meta = NULL;
 
     assert(!bs->encrypted);
@@ -4057,31 +4052,26 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
 
         l2meta = NULL;
 
-        offset_in_cluster = offset_into_cluster(s, dst_offset);
         cur_bytes = MIN(bytes, INT_MAX);
 
         /* TODO:
          * If src->bs == dst->bs, we could simply copy by incrementing
          * the refcnt, without copying user data.
          * Or if src->bs == dst->bs->backing->bs, we could copy by discarding. */
-        ret = qcow2_alloc_cluster_offset(bs, dst_offset, &cur_bytes,
-                                         &cluster_offset, &l2meta);
+        ret = qcow2_alloc_host_offset(bs, dst_offset, &cur_bytes,
+                                      &host_offset, &l2meta);
         if (ret < 0) {
             goto fail;
         }
 
-        assert(offset_into_cluster(s, cluster_offset) == 0);
-
-        ret = qcow2_pre_write_overlap_check(bs, 0,
-                cluster_offset + offset_in_cluster, cur_bytes, true);
+        ret = qcow2_pre_write_overlap_check(bs, 0, host_offset, cur_bytes,
+                                            true);
         if (ret < 0) {
             goto fail;
         }
 
         qemu_co_mutex_unlock(&s->lock);
-        ret = bdrv_co_copy_range_to(src, src_offset,
-                                    s->data_file,
-                                    cluster_offset + offset_in_cluster,
+        ret = bdrv_co_copy_range_to(src, src_offset, s->data_file, host_offset,
                                     cur_bytes, read_flags, write_flags);
         qemu_co_mutex_lock(&s->lock);
         if (ret < 0) {
