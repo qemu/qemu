@@ -1568,6 +1568,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             if (env->nr_dies < 2) {
                 break;
             }
+            /* fallthrough */
         case 4:
         case 0xb:
         case 0xd:
