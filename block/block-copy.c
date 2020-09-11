@@ -440,8 +440,8 @@ static int block_copy_block_status(BlockCopyState *s, int64_t offset,
     BlockDriverState *base;
     int ret;
 
-    if (s->skip_unallocated && s->source->bs->backing) {
-        base = s->source->bs->backing->bs;
+    if (s->skip_unallocated) {
+        base = bdrv_backing_chain_next(s->source->bs);
     } else {
         base = NULL;
     }

@@ -1562,7 +1562,12 @@ static void external_snapshot_prepare(BlkActionState *common,
         goto out;
     }
 
-    if (state->new_bs->backing != NULL) {
+    if (state->new_bs->drv->is_filter) {
+        error_setg(errp, "Filters cannot be used as overlays");
+        goto out;
+    }
+
+    if (bdrv_cow_child(state->new_bs)) {
         error_setg(errp, "The overlay already has a backing image");
         goto out;
     }
@@ -1736,7 +1741,13 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
      * on top of.
      */
     if (backup->sync == MIRROR_SYNC_MODE_TOP) {
-        source = backing_bs(bs);
+        /*
+         * Backup will not replace the source by the target, so none
+         * of the filters skipped here will be removed (in contrast to
+         * mirror).  Therefore, we can skip all of them when looking
+         * for the first COW relationship.
+         */
+        source = bdrv_cow_bs(bdrv_skip_filters(bs));
         if (!source) {
             backup->sync = MIRROR_SYNC_MODE_FULL;
         }
@@ -1756,9 +1767,14 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     if (backup->mode != NEW_IMAGE_MODE_EXISTING) {
         assert(backup->format);
         if (source) {
-            bdrv_refresh_filename(source);
-            bdrv_img_create(backup->target, backup->format, source->filename,
-                            source->drv->format_name, NULL,
+            /* Implicit filters should not appear in the filename */
+            BlockDriverState *explicit_backing =
+                bdrv_skip_implicit_filters(source);
+
+            bdrv_refresh_filename(explicit_backing);
+            bdrv_img_create(backup->target, backup->format,
+                            explicit_backing->filename,
+                            explicit_backing->drv->format_name, NULL,
                             size, flags, false, &local_err);
         } else {
             bdrv_img_create(backup->target, backup->format, NULL, NULL, NULL,
@@ -2528,7 +2544,9 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     }
 
     /* Check for op blockers in the whole chain between bs and base */
-    for (iter = bs; iter && iter != base_bs; iter = backing_bs(iter)) {
+    for (iter = bs; iter && iter != base_bs;
+         iter = bdrv_filter_or_cow_bs(iter))
+    {
         if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_STREAM, errp)) {
             goto out;
         }
@@ -2584,6 +2602,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     AioContext *aio_context;
     Error *local_err = NULL;
     int job_flags = JOB_DEFAULT;
+    uint64_t top_perm, top_shared;
 
     if (!has_speed) {
         speed = 0;
@@ -2685,7 +2704,9 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
 
     assert(bdrv_get_aio_context(base_bs) == aio_context);
 
-    for (iter = top_bs; iter != backing_bs(base_bs); iter = backing_bs(iter)) {
+    for (iter = top_bs; iter != bdrv_filter_or_cow_bs(base_bs);
+         iter = bdrv_filter_or_cow_bs(iter))
+    {
         if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
             goto out;
         }
@@ -2697,14 +2718,38 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
         goto out;
     }
 
-    if (top_bs == bs) {
+    /*
+     * Active commit is required if and only if someone has taken a
+     * WRITE permission on the top node.  Historically, we have always
+     * used active commit for top nodes, so continue that practice
+     * lest we possibly break clients that rely on this behavior, e.g.
+     * to later attach this node to a writing parent.
+     * (Active commit is never really wrong.)
+     */
+    bdrv_get_cumulative_perm(top_bs, &top_perm, &top_shared);
+    if (top_perm & BLK_PERM_WRITE ||
+        bdrv_skip_filters(top_bs) == bdrv_skip_filters(bs))
+    {
         if (has_backing_file) {
-            error_setg(errp, "'backing-file' specified,"
-                             " but 'top' is the active layer");
+            if (bdrv_skip_filters(top_bs) == bdrv_skip_filters(bs)) {
+                error_setg(errp, "'backing-file' specified,"
+                                 " but 'top' is the active layer");
+            } else {
+                error_setg(errp, "'backing-file' specified, but 'top' has a "
+                                 "writer on it");
+            }
             goto out;
         }
-        commit_active_start(has_job_id ? job_id : NULL, bs, base_bs,
-                            job_flags, speed, on_error,
+        if (!has_job_id) {
+            /*
+             * Emulate here what block_job_create() does, because it
+             * is possible that @bs != @top_bs (the block job should
+             * be named after @bs, even if @top_bs is the actual
+             * source)
+             */
+            job_id = bdrv_get_device_name(bs);
+        }
+        commit_active_start(job_id, top_bs, base_bs, job_flags, speed, on_error,
                             filter_node_name, NULL, NULL, false, &local_err);
     } else {
         BlockDriverState *overlay_bs = bdrv_find_overlay(bs, top_bs);
@@ -2892,6 +2937,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    bool has_auto_dismiss, bool auto_dismiss,
                                    Error **errp)
 {
+    BlockDriverState *unfiltered_bs;
     int job_flags = JOB_DEFAULT;
 
     if (!has_speed) {
@@ -2943,8 +2989,17 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         return;
     }
 
-    if (!bs->backing && sync == MIRROR_SYNC_MODE_TOP) {
+    if (!bdrv_backing_chain_next(bs) && sync == MIRROR_SYNC_MODE_TOP) {
         sync = MIRROR_SYNC_MODE_FULL;
+    }
+
+    if (!has_replaces) {
+        /* We want to mirror from @bs, but keep implicit filters on top */
+        unfiltered_bs = bdrv_skip_implicit_filters(bs);
+        if (unfiltered_bs != bs) {
+            replaces = unfiltered_bs->node_name;
+            has_replaces = true;
+        }
     }
 
     if (has_replaces) {
@@ -2993,7 +3048,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
 void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 {
     BlockDriverState *bs;
-    BlockDriverState *source, *target_bs;
+    BlockDriverState *target_backing_bs, *target_bs;
     AioContext *aio_context;
     AioContext *old_context;
     BlockMirrorBackingMode backing_mode;
@@ -3028,12 +3083,12 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     }
 
     flags = bs->open_flags | BDRV_O_RDWR;
-    source = backing_bs(bs);
-    if (!source && arg->sync == MIRROR_SYNC_MODE_TOP) {
+    target_backing_bs = bdrv_cow_bs(bdrv_skip_filters(bs));
+    if (!target_backing_bs && arg->sync == MIRROR_SYNC_MODE_TOP) {
         arg->sync = MIRROR_SYNC_MODE_FULL;
     }
     if (arg->sync == MIRROR_SYNC_MODE_NONE) {
-        source = bs;
+        target_backing_bs = bs;
     }
 
     size = bdrv_getlength(bs);
@@ -3059,7 +3114,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     /* Don't open backing image in create() */
     flags |= BDRV_O_NO_BACKING;
 
-    if ((arg->sync == MIRROR_SYNC_MODE_FULL || !source)
+    if ((arg->sync == MIRROR_SYNC_MODE_FULL || !target_backing_bs)
         && arg->mode != NEW_IMAGE_MODE_EXISTING)
     {
         /* create new image w/o backing file */
@@ -3067,15 +3122,19 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         bdrv_img_create(arg->target, format,
                         NULL, NULL, NULL, size, flags, false, &local_err);
     } else {
+        /* Implicit filters should not appear in the filename */
+        BlockDriverState *explicit_backing =
+            bdrv_skip_implicit_filters(target_backing_bs);
+
         switch (arg->mode) {
         case NEW_IMAGE_MODE_EXISTING:
             break;
         case NEW_IMAGE_MODE_ABSOLUTE_PATHS:
             /* create new image with backing file */
-            bdrv_refresh_filename(source);
+            bdrv_refresh_filename(explicit_backing);
             bdrv_img_create(arg->target, format,
-                            source->filename,
-                            source->drv->format_name,
+                            explicit_backing->filename,
+                            explicit_backing->drv->format_name,
                             NULL, size, flags, false, &local_err);
             break;
         default:

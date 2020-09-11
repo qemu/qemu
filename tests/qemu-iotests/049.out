@@ -209,4 +209,9 @@ qemu-img create -f qcow2 -o compat=0.10,lazy_refcounts=on TEST_DIR/t.qcow2 64M
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=67108864 compat=0.10 lazy_refcounts=on refcount_bits=16
 qemu-img: TEST_DIR/t.qcow2: Lazy refcounts only supported with compatibility level 1.1 and above (use version=v3 or greater)
 
+== Expect error when backing file name is empty string ==
+
+qemu-img create -f qcow2 -b  TEST_DIR/t.qcow2 1M
+qemu-img: TEST_DIR/t.qcow2: Expected backing file name, got empty string
+
 *** done

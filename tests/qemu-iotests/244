@@ -217,6 +217,55 @@ $QEMU_IMG amend -f $IMGFMT -o "data_file=blkdebug::$TEST_IMG.data" "$TEST_IMG"
 $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n -C "$TEST_IMG.src" "$TEST_IMG"
 $QEMU_IMG compare -f $IMGFMT -F $IMGFMT "$TEST_IMG.src" "$TEST_IMG"
 
+echo
+echo "=== Flushing should flush the data file ==="
+echo
+
+# We are going to flush a qcow2 file with a blkdebug node inserted
+# between the qcow2 node and its data file node.  The blkdebug node
+# will return an error for all flushes and so we if the data file is
+# flushed, we will see qemu-io return an error.
+
+# We need to write something or the flush will not do anything; we
+# also need -t writeback so the write is not done as a FUA write
+# (which would then fail thanks to the implicit flush)
+$QEMU_IO -c 'write 0 512' -c flush \
+    -t writeback \
+    "json:{
+         'driver': 'qcow2',
+         'file': {
+             'driver': 'file',
+             'filename': '$TEST_IMG'
+         },
+         'data-file': {
+             'driver': 'blkdebug',
+             'inject-error': [{
+                 'event': 'none',
+                 'iotype': 'flush'
+             }],
+             'image': {
+                 'driver': 'file',
+                 'filename': '$TEST_IMG.data'
+             }
+         }
+     }" \
+    | _filter_qemu_io
+
+result=${PIPESTATUS[0]}
+echo
+
+case $result in
+    0)
+        echo "ERROR: qemu-io succeeded, so the data file was not flushed"
+        ;;
+    1)
+        echo "Success: qemu-io failed, so the data file was flushed"
+        ;;
+    *)
+        echo "ERROR: qemu-io returned unknown exit code $result"
+        ;;
+esac
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

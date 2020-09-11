@@ -1567,13 +1567,13 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
     if (bitmap) {
         BdrvDirtyBitmap *bm = NULL;
 
-        while (true) {
+        while (bs) {
             bm = bdrv_find_dirty_bitmap(bs, bitmap);
-            if (bm != NULL || bs->backing == NULL) {
+            if (bm != NULL) {
                 break;
             }
 
-            bs = bs->backing->bs;
+            bs = bdrv_filter_or_cow_bs(bs);
         }
 
         if (bm == NULL) {

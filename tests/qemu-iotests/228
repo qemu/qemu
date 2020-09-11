@@ -36,7 +36,7 @@ def log_node_info(node):
 
     log('bs->filename: ' + node['image']['filename'],
         filters=[filter_testfiles, filter_imgfmt])
-    log('bs->backing_file: ' + node['backing_file'],
+    log('bs->backing_file: ' + node['image']['full-backing-filename'],
         filters=[filter_testfiles, filter_imgfmt])
 
     if 'backing-image' in node['image']:
@@ -73,8 +73,8 @@ with iotests.FilePath('base.img') as base_img_path, \
                 },
                 filters=[filter_qmp_testfiles, filter_qmp_imgfmt])
 
-    # Filename should be plain, and the backing filename should not
-    # contain the "file:" prefix
+    # Filename should be plain, and the backing node filename should
+    # not contain the "file:" prefix
     log_node_info(vm.node_info('node0'))
 
     vm.qmp_log('blockdev-del', node_name='node0')
