@@ -611,42 +611,6 @@ static void complete_init_numa_distance(MachineState *ms)
     }
 }
 
-void numa_legacy_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
-                                 int nb_nodes, ram_addr_t size)
-{
-    int i;
-    uint64_t usedmem = 0;
-
-    /* Align each node according to the alignment
-     * requirements of the machine class
-     */
-
-    for (i = 0; i < nb_nodes - 1; i++) {
-        nodes[i].node_mem = (size / nb_nodes) &
-                            ~((1 << mc->numa_mem_align_shift) - 1);
-        usedmem += nodes[i].node_mem;
-    }
-    nodes[i].node_mem = size - usedmem;
-}
-
-void numa_default_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
-                                  int nb_nodes, ram_addr_t size)
-{
-    int i;
-    uint64_t usedmem = 0, node_mem;
-    uint64_t granularity = size / nb_nodes;
-    uint64_t propagate = 0;
-
-    for (i = 0; i < nb_nodes - 1; i++) {
-        node_mem = (granularity + propagate) &
-                   ~((1 << mc->numa_mem_align_shift) - 1);
-        propagate = granularity + propagate - node_mem;
-        nodes[i].node_mem = node_mem;
-        usedmem += node_mem;
-    }
-    nodes[i].node_mem = size - usedmem;
-}
-
 static void numa_init_memdev_container(MachineState *ms, MemoryRegion *ram)
 {
     int i;
@@ -715,25 +679,6 @@ void numa_complete_configuration(MachineState *ms)
 
         if (ms->numa_state->num_nodes > MAX_NODES) {
             ms->numa_state->num_nodes = MAX_NODES;
-        }
-
-        /* If no memory size is given for any node, assume the default case
-         * and distribute the available memory equally across all nodes
-         */
-        for (i = 0; i < ms->numa_state->num_nodes; i++) {
-            if (numa_info[i].node_mem != 0) {
-                break;
-            }
-        }
-        if (i == ms->numa_state->num_nodes) {
-            assert(mc->numa_auto_assign_ram);
-            mc->numa_auto_assign_ram(mc, numa_info,
-                                     ms->numa_state->num_nodes, ram_size);
-            if (!qtest_enabled()) {
-                warn_report("Default splitting of RAM between nodes is deprecated,"
-                            " Use '-numa node,memdev' to explictly define RAM"
-                            " allocation per node");
-            }
         }
 
         numa_total = 0;
