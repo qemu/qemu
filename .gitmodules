@@ -61,3 +61,6 @@
 [submodule "meson"]
 	path = meson
 	url = https://github.com/mesonbuild/meson/
+[submodule "roms/vbootrom"]
+	path = roms/vbootrom
+	url = https://github.com/google/vbootrom.git

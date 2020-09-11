@@ -81,6 +81,7 @@ blobs = files(
   'opensbi-riscv64-generic-fw_dynamic.bin',
   'opensbi-riscv32-generic-fw_dynamic.elf',
   'opensbi-riscv64-generic-fw_dynamic.elf',
+  'npcm7xx_bootrom.bin',
 )
 
 if install_blobs

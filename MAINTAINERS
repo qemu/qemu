@@ -757,6 +757,8 @@ L: qemu-arm@nongnu.org
 S: Supported
 F: hw/*/npcm7xx*
 F: include/hw/*/npcm7xx*
+F: pc-bios/npcm7xx_bootrom.bin
+F: roms/vbootrom
 
 nSeries
 M: Andrzej Zaborowski <balrogg@gmail.com>
