@@ -19,11 +19,41 @@
 #include "exec/address-spaces.h"
 #include "hw/arm/npcm7xx.h"
 #include "hw/core/cpu.h"
+#include "hw/loader.h"
 #include "qapi/error.h"
+#include "qemu-common.h"
 #include "qemu/units.h"
+#include "sysemu/sysemu.h"
 
 #define NPCM750_EVB_POWER_ON_STRAPS 0x00001ff7
 #define QUANTA_GSJ_POWER_ON_STRAPS 0x00001fff
+
+static const char npcm7xx_default_bootrom[] = "npcm7xx_bootrom.bin";
+
+static void npcm7xx_load_bootrom(MachineState *machine, NPCM7xxState *soc)
+{
+    g_autofree char *filename = NULL;
+    int ret;
+
+    if (!bios_name) {
+        bios_name = npcm7xx_default_bootrom;
+    }
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (!filename) {
+        error_report("Could not find ROM image '%s'", bios_name);
+        if (!machine->kernel_filename) {
+            /* We can't boot without a bootrom or a kernel image. */
+            exit(1);
+        }
+        return;
+    }
+    ret = load_image_mr(filename, &soc->irom);
+    if (ret < 0) {
+        error_report("Failed to load ROM image '%s'", filename);
+        exit(1);
+    }
+}
 
 static void npcm7xx_connect_dram(NPCM7xxState *soc, MemoryRegion *dram)
 {
@@ -61,6 +91,7 @@ static void npcm750_evb_init(MachineState *machine)
     npcm7xx_connect_dram(soc, machine->ram);
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
+    npcm7xx_load_bootrom(machine, soc);
     npcm7xx_load_kernel(machine, soc);
 }
 
@@ -72,6 +103,7 @@ static void quanta_gsj_init(MachineState *machine)
     npcm7xx_connect_dram(soc, machine->ram);
     qdev_realize(DEVICE(soc), NULL, &error_fatal);
 
+    npcm7xx_load_bootrom(machine, soc);
     npcm7xx_load_kernel(machine, soc);
 }
 
