@@ -357,6 +357,11 @@ config XLNX_VERSAL
 
 config NPCM7XX
     bool
+    select A9MPCORE
+    select ARM_GIC
+    select PL310  # cache controller
+    select SERIAL
+    select UNIMP
 
 config FSL_IMX25
     bool
