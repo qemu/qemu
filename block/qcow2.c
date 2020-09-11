@@ -3135,6 +3135,7 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
             error_setg_errno(errp, -ret, "Allocating clusters failed");
             goto out;
         }
+        host_offset += offset_into_cluster(s, offset);
 
         for (m = meta; m != NULL; m = m->next) {
             m->prealloc = true;
