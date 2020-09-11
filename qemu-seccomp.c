@@ -136,8 +136,9 @@ static uint32_t qemu_seccomp_get_action(int set)
 
             if (qemu_seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &action) == 0) {
                 kill_process = 1;
+            } else {
+                kill_process = 0;
             }
-            kill_process = 0;
         }
         if (kill_process == 1) {
             return SCMP_ACT_KILL_PROCESS;
