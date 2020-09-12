@@ -497,10 +497,8 @@ sec:
         g_queue_push_head(&conn->secondary_list, spkt);
 
 #ifdef DEBUG_COLO_PACKETS
-        qemu_hexdump((char *)ppkt->data, stderr,
-                     "colo-compare ppkt", ppkt->size);
-        qemu_hexdump((char *)spkt->data, stderr,
-                     "colo-compare spkt", spkt->size);
+        qemu_hexdump(stderr, "colo-compare ppkt", ppkt->data, ppkt->size);
+        qemu_hexdump(stderr, "colo-compare spkt", spkt->data, spkt->size);
 #endif
 
         colo_compare_inconsistency_notify(s);
@@ -538,10 +536,8 @@ static int colo_packet_compare_udp(Packet *spkt, Packet *ppkt)
         trace_colo_compare_udp_miscompare("primary pkt size", ppkt->size);
         trace_colo_compare_udp_miscompare("Secondary pkt size", spkt->size);
 #ifdef DEBUG_COLO_PACKETS
-        qemu_hexdump((char *)ppkt->data, stderr, "colo-compare pri pkt",
-                     ppkt->size);
-        qemu_hexdump((char *)spkt->data, stderr, "colo-compare sec pkt",
-                     spkt->size);
+        qemu_hexdump(stderr, "colo-compare pri pkt", ppkt->data, ppkt->size);
+        qemu_hexdump(stderr, "colo-compare sec pkt", spkt->data, spkt->size);
 #endif
         return -1;
     } else {
@@ -581,10 +577,8 @@ static int colo_packet_compare_icmp(Packet *spkt, Packet *ppkt)
         trace_colo_compare_icmp_miscompare("Secondary pkt size",
                                            spkt->size);
 #ifdef DEBUG_COLO_PACKETS
-        qemu_hexdump((char *)ppkt->data, stderr, "colo-compare pri pkt",
-                     ppkt->size);
-        qemu_hexdump((char *)spkt->data, stderr, "colo-compare sec pkt",
-                     spkt->size);
+        qemu_hexdump(stderr, "colo-compare pri pkt", ppkt->data, ppkt->size);
+        qemu_hexdump(stderr, "colo-compare sec pkt", spkt->data, spkt->size);
 #endif
         return -1;
     } else {

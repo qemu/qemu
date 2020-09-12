@@ -13,6 +13,7 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
 
@@ -71,9 +72,8 @@ static uint8_t max7310_rx(I2CSlave *i2c)
         return 0xff;
 
     default:
-#ifdef VERBOSE
-        printf("%s: unknown register %02x\n", __func__, s->command);
-#endif
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported register 0x02%" PRIx8 "\n",
+                      __func__, s->command);
         break;
     }
     return 0xff;
@@ -125,9 +125,8 @@ static int max7310_tx(I2CSlave *i2c, uint8_t data)
     case 0x00:	/* Input port - ignore writes */
         break;
     default:
-#ifdef VERBOSE
-        printf("%s: unknown register %02x\n", __func__, s->command);
-#endif
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported register 0x02%" PRIx8 "\n",
+                      __func__, s->command);
         return 1;
     }
 
