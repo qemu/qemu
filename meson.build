@@ -1104,6 +1104,7 @@ common_ss.add(files('cpus-common.c'))
 
 subdir('softmmu')
 
+common_ss.add(capstone)
 specific_ss.add(files('disas.c', 'exec.c', 'gdbstub.c'), capstone, libpmem, libdaxctl)
 specific_ss.add(files('exec-vary.c'))
 specific_ss.add(when: 'CONFIG_TCG', if_true: files(
