@@ -17,8 +17,6 @@
 
 #include "qapi/qapi-types-crypto.h"
 
-typedef struct QCryptoCipherDriver QCryptoCipherDriver;
-
 struct QCryptoCipherDriver {
     int (*cipher_encrypt)(QCryptoCipher *cipher,
                           const void *in,
@@ -43,13 +41,11 @@ struct QCryptoCipherDriver {
 
 #include "afalgpriv.h"
 
-extern QCryptoAFAlg *
+extern QCryptoCipher *
 qcrypto_afalg_cipher_ctx_new(QCryptoCipherAlgorithm alg,
                              QCryptoCipherMode mode,
                              const uint8_t *key,
                              size_t nkey, Error **errp);
-
-extern struct QCryptoCipherDriver qcrypto_cipher_afalg_driver;
 
 #endif
 

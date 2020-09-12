@@ -48,7 +48,9 @@ static void test_hash_speed(const void *opaque)
     }
     g_test_timer_elapsed();
 
-    g_test_message("%.2f MB/sec ", (double)total / MiB / g_test_timer_last());
+    g_test_message("hash(%s): chunk %zu bytes %.2f MB/sec",
+                   QCryptoHashAlgorithm_str(opts->alg),
+                   opts->chunk_size, total / g_test_timer_last());
 
     g_free(out);
     g_free(in);
