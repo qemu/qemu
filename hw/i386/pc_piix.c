@@ -930,7 +930,7 @@ void igd_passthrough_isa_bridge_create(PCIBus *bus, uint16_t gpu_dev_id)
     struct PCIDevice *bridge_dev;
     int i, num;
     uint16_t pch_dev_id = 0xffff;
-    uint8_t pch_rev_id;
+    uint8_t pch_rev_id = 0;
 
     num = ARRAY_SIZE(igd_combo_id_infos);
     for (i = 0; i < num; i++) {
