@@ -403,6 +403,26 @@
 { 'command': 'query-target', 'returns': 'TargetInfo' }
 
 ##
+# @GuidInfo:
+#
+# GUID information.
+#
+# @guid: the globally unique identifier
+#
+# Since: 2.9
+##
+{ 'struct': 'GuidInfo', 'data': {'guid': 'str'} }
+
+##
+# @query-vm-generation-id:
+#
+# Show Virtual Machine Generation ID
+#
+# Since: 2.9
+##
+{ 'command': 'query-vm-generation-id', 'returns': 'GuidInfo' }
+
+##
 # @LostTickPolicy:
 #
 # Policy for handling lost ticks in timer devices.  Ticks end up getting
