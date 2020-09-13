@@ -67,3 +67,9 @@ config RX_ICU
 
 config LOONGSON_LIOINTC
     bool
+
+config SIFIVE_CLINT
+    bool
+
+config SIFIVE_PLIC
+    bool

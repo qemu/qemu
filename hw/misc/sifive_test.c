@@ -25,7 +25,7 @@
 #include "qemu/module.h"
 #include "sysemu/runstate.h"
 #include "hw/hw.h"
-#include "hw/riscv/sifive_test.h"
+#include "hw/misc/sifive_test.h"
 
 static uint64_t sifive_test_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -59,7 +59,7 @@ static const MemoryRegionOps sifive_test_ops = {
     .write = sifive_test_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
-        .min_access_size = 4,
+        .min_access_size = 2,
         .max_access_size = 4
     }
 };

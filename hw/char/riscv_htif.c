@@ -24,10 +24,10 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "hw/sysbus.h"
+#include "hw/char/riscv_htif.h"
 #include "hw/char/serial.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
-#include "hw/riscv/riscv_htif.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 

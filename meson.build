@@ -773,7 +773,6 @@ if have_system
     'hw/watchdog',
     'hw/xen',
     'hw/gpio',
-    'hw/riscv',
     'migration',
     'net',
     'softmmu',

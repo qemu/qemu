@@ -21,7 +21,7 @@
 
 #include "hw/riscv/riscv_hart.h"
 #include "hw/riscv/sifive_cpu.h"
-#include "hw/riscv/sifive_gpio.h"
+#include "hw/gpio/sifive_gpio.h"
 
 #define TYPE_RISCV_E_SOC "riscv.sifive.e.soc"
 #define RISCV_E_SOC(obj) \

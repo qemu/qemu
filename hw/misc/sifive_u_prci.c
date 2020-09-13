@@ -22,7 +22,7 @@
 #include "hw/sysbus.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "hw/riscv/sifive_u_prci.h"
+#include "hw/misc/sifive_u_prci.h"
 
 static uint64_t sifive_u_prci_read(void *opaque, hwaddr addr, unsigned int size)
 {

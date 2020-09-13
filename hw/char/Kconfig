@@ -1,6 +1,9 @@
 config ESCC
     bool
 
+config HTIF
+    bool
+
 config PARALLEL
     bool
     default y
@@ -51,4 +54,10 @@ config RENESAS_SCI
     bool
 
 config AVR_USART
+    bool
+
+config MCHP_PFSOC_MMUART
+    bool
+
+config SIFIVE_UART
     bool
