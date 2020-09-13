@@ -192,7 +192,8 @@
 #
 # Information about the guest balloon device.
 #
-# @actual: the number of bytes the balloon currently contains
+# @actual: the logical size of the VM in bytes
+#          Formula used: logical_vm_size = vm_ram_size - balloon_size
 #
 # Since: 0.14.0
 #
@@ -228,7 +229,8 @@
 # Emitted when the guest changes the actual BALLOON level. This value is
 # equivalent to the @actual field return by the 'query-balloon' command
 #
-# @actual: actual level of the guest memory balloon in bytes
+# @actual: the logical size of the VM in bytes
+#          Formula used: logical_vm_size = vm_ram_size - balloon_size
 #
 # Note: this event is rate-limited.
 #
@@ -759,7 +761,10 @@
 #
 # Request the balloon driver to change its balloon size.
 #
-# @value: the target size of the balloon in bytes
+# @value: the target logical size of the VM in bytes
+#         We can deduce the size of the balloon using this formula:
+#            logical_vm_size = vm_ram_size - balloon_size
+#         From it we have: balloon_size = vm_ram_size - @value
 #
 # Returns: - Nothing on success
 #          - If the balloon driver is enabled but not functional because the KVM
@@ -776,6 +781,8 @@
 #
 # -> { "execute": "balloon", "arguments": { "value": 536870912 } }
 # <- { "return": {} }
+#
+# With a 2.5GiB guest this command inflated the balloon to 3GiB.
 #
 ##
 { 'command': 'balloon', 'data': {'value': 'int'} }
