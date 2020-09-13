@@ -1617,6 +1617,7 @@ F: include/hw/pci/*
 F: hw/misc/pci-testdev.c
 F: hw/pci/*
 F: hw/pci-bridge/*
+F: qapi/pci.json
 F: docs/pci*
 F: docs/specs/*pci*
 F: default-configs/pci.mak

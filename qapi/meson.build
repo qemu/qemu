@@ -35,6 +35,7 @@ qapi_all_modules = [
   'net',
   'pragma',
   'qdev',
+  'pci',
   'qom',
   'rdma',
   'rocker',
