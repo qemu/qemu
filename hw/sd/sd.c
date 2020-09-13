@@ -749,7 +749,7 @@ static void sd_erase(SDState *sd)
     uint64_t erase_start = sd->erase_start;
     uint64_t erase_end = sd->erase_end;
 
-    trace_sdcard_erase();
+    trace_sdcard_erase(sd->erase_start, sd->erase_end);
     if (!sd->erase_start || !sd->erase_end) {
         sd->card_status |= ERASE_SEQ_ERROR;
         return;
