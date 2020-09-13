@@ -14,6 +14,7 @@ util_ss.add(files(
 ))
 
 qapi_all_modules = [
+  'acpi',
   'audio',
   'authz',
   'block-core',
