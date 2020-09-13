@@ -755,6 +755,8 @@ static void sd_erase(SDState *sd)
     if (sd->erase_start == INVALID_ADDRESS
             || sd->erase_end == INVALID_ADDRESS) {
         sd->card_status |= ERASE_SEQ_ERROR;
+        sd->erase_start = INVALID_ADDRESS;
+        sd->erase_end = INVALID_ADDRESS;
         return;
     }
 
