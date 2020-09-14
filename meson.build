@@ -913,7 +913,7 @@ softmmu_mods = []
 foreach d, list : modules
   foreach m, module_ss : list
     if enable_modules and targetos != 'windows'
-      module_ss = module_ss.apply(config_host, strict: false)
+      module_ss = module_ss.apply(config_all, strict: false)
       sl = static_library(d + '-' + m, [genh, module_ss.sources()],
                           dependencies: [modulecommon, module_ss.dependencies()], pic: true)
       if d == 'block'
