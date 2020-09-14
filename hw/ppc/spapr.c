@@ -3817,10 +3817,9 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
      */
     if (hotplugged) {
         for (i = 0; i < cc->nr_threads; i++) {
-            ppc_set_compat(core->threads[i], POWERPC_CPU(first_cpu)->compat_pvr,
-                           &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
+            if (ppc_set_compat(core->threads[i],
+                               POWERPC_CPU(first_cpu)->compat_pvr,
+                               errp) < 0) {
                 return;
             }
         }
