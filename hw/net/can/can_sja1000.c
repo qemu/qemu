@@ -323,8 +323,13 @@ static void buff2frame_bas(const uint8_t *buff, qemu_can_frame *frame)
 static int frame2buff_pel(const qemu_can_frame *frame, uint8_t *buff)
 {
     int i;
+    int dlen = frame->can_dlc;
 
     if (frame->can_id & QEMU_CAN_ERR_FLAG) { /* error frame, NOT support now. */
+        return -1;
+    }
+
+    if (dlen > 8) {
         return -1;
     }
 
@@ -338,18 +343,18 @@ static int frame2buff_pel(const qemu_can_frame *frame, uint8_t *buff)
         buff[2] = extract32(frame->can_id, 13, 8); /* ID.20~ID.13 */
         buff[3] = extract32(frame->can_id, 5, 8);  /* ID.12~ID.05 */
         buff[4] = extract32(frame->can_id, 0, 5) << 3; /* ID.04~ID.00,xxx */
-        for (i = 0; i < frame->can_dlc; i++) {
+        for (i = 0; i < dlen; i++) {
             buff[5 + i] = frame->data[i];
         }
-        return frame->can_dlc + 5;
+        return dlen + 5;
     } else { /* SFF */
         buff[1] = extract32(frame->can_id, 3, 8); /* ID.10~ID.03 */
         buff[2] = extract32(frame->can_id, 0, 3) << 5; /* ID.02~ID.00,xxxxx */
-        for (i = 0; i < frame->can_dlc; i++) {
+        for (i = 0; i < dlen; i++) {
             buff[3 + i] = frame->data[i];
         }
 
-        return frame->can_dlc + 3;
+        return dlen + 3;
     }
 
     return -1;
@@ -358,6 +363,7 @@ static int frame2buff_pel(const qemu_can_frame *frame, uint8_t *buff)
 static int frame2buff_bas(const qemu_can_frame *frame, uint8_t *buff)
 {
     int i;
+    int dlen = frame->can_dlc;
 
      /*
       * EFF, no support for BasicMode
@@ -369,17 +375,21 @@ static int frame2buff_bas(const qemu_can_frame *frame, uint8_t *buff)
         return -1;
     }
 
+    if (dlen > 8) {
+        return -1;
+    }
+
     buff[0] = extract32(frame->can_id, 3, 8); /* ID.10~ID.03 */
     buff[1] = extract32(frame->can_id, 0, 3) << 5; /* ID.02~ID.00,xxxxx */
     if (frame->can_id & QEMU_CAN_RTR_FLAG) { /* RTR */
         buff[1] |= (1 << 4);
     }
     buff[1] |= frame->can_dlc & 0x0f;
-    for (i = 0; i < frame->can_dlc; i++) {
+    for (i = 0; i < dlen; i++) {
         buff[2 + i] = frame->data[i];
     }
 
-    return frame->can_dlc + 2;
+    return dlen + 2;
 }
 
 static void can_sja_update_pel_irq(CanSJA1000State *s)
@@ -766,6 +776,13 @@ ssize_t can_sja_receive(CanBusClientState *client, const qemu_can_frame *frames,
     if (frames_cnt <= 0) {
         return 0;
     }
+    if (frame->flags & QEMU_CAN_FRMF_TYPE_FD) {
+        if (DEBUG_FILTER) {
+            can_display_msg("[cansja]: ignor fd frame ", frame);
+        }
+        return 1;
+    }
+
     if (DEBUG_FILTER) {
         can_display_msg("[cansja]: receive ", frame);
     }
