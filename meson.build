@@ -1412,7 +1412,7 @@ if targetos == 'windows'
   endif
   summary_info += {'QGA VSS support':   config_host.has_key('CONFIG_QGA_VSS')}
   summary_info += {'QGA w32 disk info': config_host.has_key('CONFIG_QGA_NTDDSCSI')}
-  summary_info += {'QGA MSI support':   config_host.has_key('CONFIG_QGA_MSI_ENABLED')}
+  summary_info += {'QGA MSI support':   config_host.has_key('CONFIG_QGA_MSI')}
 endif
 summary_info += {'seccomp support':   config_host.has_key('CONFIG_SECCOMP')}
 summary_info += {'coroutine backend': config_host['CONFIG_COROUTINE_BACKEND']}
