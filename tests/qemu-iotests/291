@@ -92,6 +92,15 @@ $QEMU_IMG bitmap --remove --image-opts \
 _img_info --format-specific
 
 echo
+echo "=== Merge from top layer into backing image ==="
+echo
+
+$QEMU_IMG rebase -u -F qcow2 -b "$TEST_IMG.base" "$TEST_IMG"
+$QEMU_IMG bitmap --add --merge b2 -b "$TEST_IMG" -F $IMGFMT \
+     -f $IMGFMT "$TEST_IMG.base" b3
+_img_info --format-specific --backing-chain
+
+echo
 echo "=== Check bitmap contents ==="
 echo
 
@@ -107,6 +116,9 @@ $QEMU_IMG map --output=json --image-opts \
 nbd_server_start_unix_socket -r -f qcow2 -B b2 "$TEST_IMG"
 $QEMU_IMG map --output=json --image-opts \
     "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b2" | _filter_qemu_img_map
+nbd_server_start_unix_socket -r -f qcow2 -B b3 "$TEST_IMG"
+$QEMU_IMG map --output=json --image-opts \
+    "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b3" | _filter_qemu_img_map
 
 # success, all done
 echo '*** done'
