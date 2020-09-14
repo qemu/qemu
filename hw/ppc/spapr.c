@@ -3478,9 +3478,7 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 
     if (is_nvdimm) {
-        spapr_nvdimm_validate(hotplug_dev, NVDIMM(dev), size, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (!spapr_nvdimm_validate(hotplug_dev, NVDIMM(dev), size, errp)) {
             return;
         }
     } else if (size % SPAPR_MEMORY_BLOCK_SIZE) {
