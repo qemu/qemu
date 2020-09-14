@@ -2880,14 +2880,20 @@ sub process {
 				$herecurr);
 		}
 
-# check for %L{u,d,i} in strings
+# format strings checks
 		my $string;
 		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {
 			$string = substr($rawline, $-[1], $+[1] - $-[1]);
 			$string =~ s/%%/__/g;
+			# check for %L{u,d,i} in strings
 			if ($string =~ /(?<!%)%L[udi]/) {
 				ERROR("\%Ld/%Lu are not-standard C, use %lld/%llu\n" . $herecurr);
-				last;
+			}
+			# check for %# or %0# in printf-style format strings
+			if ($string =~ /(?<!%)%0?#/) {
+				ERROR("Don't use '#' flag of printf format " .
+				      "('%#') in format strings, use '0x' " .
+				      "prefix instead\n" . $herecurr);
 			}
 		}
 
