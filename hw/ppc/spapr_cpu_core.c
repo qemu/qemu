@@ -232,7 +232,6 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
 {
     CPUPPCState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
-    Error *local_err = NULL;
 
     if (!qdev_realize(DEVICE(cpu), NULL, errp)) {
         return;
@@ -244,7 +243,7 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
     cpu_ppc_set_vhyp(cpu, PPC_VIRTUAL_HYPERVISOR(spapr));
     kvmppc_set_papr(cpu);
 
-    if (spapr_irq_cpu_intc_create(spapr, cpu, &local_err) < 0) {
+    if (spapr_irq_cpu_intc_create(spapr, cpu, errp) < 0) {
         cpu_remove_sync(CPU(cpu));
         return;
     }
