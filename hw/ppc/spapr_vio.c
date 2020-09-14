@@ -474,7 +474,6 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
     SpaprVioDevice *dev = (SpaprVioDevice *)qdev;
     SpaprVioDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
     char *id;
-    Error *local_err = NULL;
 
     if (dev->reg != -1) {
         /*
@@ -510,16 +509,15 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
     dev->irq = spapr_vio_reg_to_irq(dev->reg);
 
     if (SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
-        dev->irq = spapr_irq_findone(spapr, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        int irq = spapr_irq_findone(spapr, errp);
+
+        if (irq < 0) {
             return;
         }
+        dev->irq = irq;
     }
 
-    spapr_irq_claim(spapr, dev->irq, false, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (spapr_irq_claim(spapr, dev->irq, false, errp) < 0) {
         return;
     }
 
