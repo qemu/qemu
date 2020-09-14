@@ -371,13 +371,13 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
     } while (fdt_depth != 0);
 }
 
-void spapr_drc_attach(SpaprDrc *drc, DeviceState *d, Error **errp)
+bool spapr_drc_attach(SpaprDrc *drc, DeviceState *d, Error **errp)
 {
     trace_spapr_drc_attach(spapr_drc_index(drc));
 
     if (drc->dev) {
         error_setg(errp, "an attached device is still awaiting release");
-        return;
+        return false;
     }
     g_assert((drc->state == SPAPR_DRC_STATE_LOGICAL_UNUSABLE)
              || (drc->state == SPAPR_DRC_STATE_PHYSICAL_POWERON));
@@ -388,6 +388,7 @@ void spapr_drc_attach(SpaprDrc *drc, DeviceState *d, Error **errp)
                              object_get_typename(OBJECT(drc->dev)),
                              (Object **)(&drc->dev),
                              NULL, 0);
+    return true;
 }
 
 static void spapr_drc_release(SpaprDrc *drc)
