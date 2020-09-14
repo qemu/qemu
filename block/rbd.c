@@ -1247,6 +1247,7 @@ static QemuOptsList qemu_rbd_create_opts = {
 
 static const char *const qemu_rbd_strong_runtime_opts[] = {
     "pool",
+    "namespace",
     "image",
     "conf",
     "snapshot",
