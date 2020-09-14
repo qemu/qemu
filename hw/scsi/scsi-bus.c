@@ -270,10 +270,10 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
         object_property_set_int(OBJECT(dev), "bootindex", bootindex,
                                 &error_abort);
     }
-    if (object_property_find(OBJECT(dev), "removable", NULL)) {
+    if (object_property_find(OBJECT(dev), "removable")) {
         qdev_prop_set_bit(dev, "removable", removable);
     }
-    if (serial && object_property_find(OBJECT(dev), "serial", NULL)) {
+    if (serial && object_property_find(OBJECT(dev), "serial")) {
         qdev_prop_set_string(dev, "serial", serial);
     }
     if (!qdev_prop_set_drive_err(dev, "drive", blk, errp)) {

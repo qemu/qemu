@@ -218,12 +218,12 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
             object_property_set_bool(cpuobj, "has_el3", false, NULL);
         }
         if (!virt) {
-            if (object_property_find(cpuobj, "has_el2", NULL)) {
+            if (object_property_find(cpuobj, "has_el2")) {
                 object_property_set_bool(cpuobj, "has_el2", false, NULL);
             }
         }
 
-        if (object_property_find(cpuobj, "reset-cbar", NULL)) {
+        if (object_property_find(cpuobj, "reset-cbar")) {
             object_property_set_int(cpuobj, "reset-cbar", periphbase,
                                     &error_abort);
         }

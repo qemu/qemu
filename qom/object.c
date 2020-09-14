@@ -403,7 +403,7 @@ bool object_apply_global_props(Object *obj, const GPtrArray *props,
         if (object_dynamic_cast(obj, p->driver) == NULL) {
             continue;
         }
-        if (p->optional && !object_property_find(obj, p->property, NULL)) {
+        if (p->optional && !object_property_find(obj, p->property)) {
             continue;
         }
         p->used = true;
@@ -1214,7 +1214,7 @@ object_property_try_add(Object *obj, const char *name, const char *type,
         return ret;
     }
 
-    if (object_property_find(obj, name, NULL) != NULL) {
+    if (object_property_find(obj, name) != NULL) {
         error_setg(errp, "attempt to add duplicate property '%s' to object (type '%s')",
                    name, object_get_typename(obj));
         return NULL;
@@ -1256,7 +1256,7 @@ object_class_property_add(ObjectClass *klass,
 {
     ObjectProperty *prop;
 
-    assert(!object_class_property_find(klass, name, NULL));
+    assert(!object_class_property_find(klass, name));
 
     prop = g_malloc0(sizeof(*prop));
 
@@ -1273,24 +1273,27 @@ object_class_property_add(ObjectClass *klass,
     return prop;
 }
 
-ObjectProperty *object_property_find(Object *obj, const char *name,
-                                     Error **errp)
+ObjectProperty *object_property_find(Object *obj, const char *name)
 {
     ObjectProperty *prop;
     ObjectClass *klass = object_get_class(obj);
 
-    prop = object_class_property_find(klass, name, NULL);
+    prop = object_class_property_find(klass, name);
     if (prop) {
         return prop;
     }
 
-    prop = g_hash_table_lookup(obj->properties, name);
-    if (prop) {
-        return prop;
-    }
+    return g_hash_table_lookup(obj->properties, name);
+}
 
-    error_setg(errp, "Property '.%s' not found", name);
-    return NULL;
+ObjectProperty *object_property_find_err(Object *obj, const char *name,
+                                         Error **errp)
+{
+    ObjectProperty *prop = object_property_find(obj, name);
+    if (!prop) {
+        error_setg(errp, "Property '.%s' not found", name);
+    }
+    return prop;
 }
 
 void object_property_iter_init(ObjectPropertyIterator *iter,
@@ -1320,26 +1323,33 @@ void object_class_property_iter_init(ObjectPropertyIterator *iter,
     iter->nextclass = object_class_get_parent(klass);
 }
 
-ObjectProperty *object_class_property_find(ObjectClass *klass, const char *name,
-                                           Error **errp)
+ObjectProperty *object_class_property_find(ObjectClass *klass, const char *name)
 {
-    ObjectProperty *prop;
     ObjectClass *parent_klass;
 
     parent_klass = object_class_get_parent(klass);
     if (parent_klass) {
-        prop = object_class_property_find(parent_klass, name, NULL);
+        ObjectProperty *prop =
+            object_class_property_find(parent_klass, name);
         if (prop) {
             return prop;
         }
     }
 
-    prop = g_hash_table_lookup(klass->properties, name);
+    return g_hash_table_lookup(klass->properties, name);
+}
+
+ObjectProperty *object_class_property_find_err(ObjectClass *klass,
+                                               const char *name,
+                                               Error **errp)
+{
+    ObjectProperty *prop = object_class_property_find(klass, name);
     if (!prop) {
         error_setg(errp, "Property '.%s' not found", name);
     }
     return prop;
 }
+
 
 void object_property_del(Object *obj, const char *name)
 {
@@ -1355,7 +1365,7 @@ bool object_property_get(Object *obj, const char *name, Visitor *v,
                          Error **errp)
 {
     Error *err = NULL;
-    ObjectProperty *prop = object_property_find(obj, name, errp);
+    ObjectProperty *prop = object_property_find_err(obj, name, errp);
 
     if (prop == NULL) {
         return false;
@@ -1374,7 +1384,7 @@ bool object_property_set(Object *obj, const char *name, Visitor *v,
                          Error **errp)
 {
     Error *err = NULL;
-    ObjectProperty *prop = object_property_find(obj, name, errp);
+    ObjectProperty *prop = object_property_find_err(obj, name, errp);
 
     if (prop == NULL) {
         return false;
@@ -1590,7 +1600,7 @@ int object_property_get_enum(Object *obj, const char *name,
 {
     char *str;
     int ret;
-    ObjectProperty *prop = object_property_find(obj, name, errp);
+    ObjectProperty *prop = object_property_find_err(obj, name, errp);
     EnumProperty *enumprop;
 
     if (prop == NULL) {
@@ -1647,7 +1657,7 @@ out:
 
 const char *object_property_get_type(Object *obj, const char *name, Error **errp)
 {
-    ObjectProperty *prop = object_property_find(obj, name, errp);
+    ObjectProperty *prop = object_property_find_err(obj, name, errp);
     if (prop == NULL) {
         return NULL;
     }
@@ -2025,7 +2035,7 @@ char *object_get_canonical_path(const Object *obj)
 
 Object *object_resolve_path_component(Object *parent, const char *part)
 {
-    ObjectProperty *prop = object_property_find(parent, part, NULL);
+    ObjectProperty *prop = object_property_find(parent, part);
     if (prop == NULL) {
         return NULL;
     }
@@ -2724,8 +2734,8 @@ object_property_add_alias(Object *obj, const char *name,
     ObjectProperty *target_prop;
     g_autofree char *prop_type = NULL;
 
-    target_prop = object_property_find(target_obj, target_name,
-                                       &error_abort);
+    target_prop = object_property_find_err(target_obj, target_name,
+                                           &error_abort);
 
     if (object_property_is_child(target_prop)) {
         prop_type = g_strdup_printf("link%s",
@@ -2758,7 +2768,7 @@ void object_property_set_description(Object *obj, const char *name,
 {
     ObjectProperty *op;
 
-    op = object_property_find(obj, name, &error_abort);
+    op = object_property_find_err(obj, name, &error_abort);
     g_free(op->description);
     op->description = g_strdup(description);
 }

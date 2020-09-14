@@ -10478,7 +10478,7 @@ static void ppc_cpu_parse_featurestr(const char *type, char *features,
         return;
     }
 
-    if (object_property_find(machine, "max-cpu-compat", NULL)) {
+    if (object_property_find(machine, "max-cpu-compat")) {
         int i;
         char **inpieces;
         char *s = features;

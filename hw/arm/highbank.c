@@ -276,7 +276,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
                                      &error_abort);
         }
 
-        if (object_property_find(cpuobj, "reset-cbar", NULL)) {
+        if (object_property_find(cpuobj, "reset-cbar")) {
             object_property_set_int(cpuobj, "reset-cbar", MPCORE_PERIPHBASE,
                                     &error_abort);
         }

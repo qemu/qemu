@@ -214,7 +214,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
         /* By default A9 CPUs have EL3 enabled.  This board does not currently
          * support EL3 so the CPU EL3 property is disabled before realization.
          */
-        if (object_property_find(cpuobj, "has_el3", NULL)) {
+        if (object_property_find(cpuobj, "has_el3")) {
             object_property_set_bool(cpuobj, "has_el3", false, &error_fatal);
         }
 
