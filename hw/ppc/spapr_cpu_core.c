@@ -262,7 +262,6 @@ static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
     char *id;
     CPUState *cs;
     PowerPCCPU *cpu;
-    Error *local_err = NULL;
 
     obj = object_new(scc->cpu_type);
 
@@ -274,8 +273,7 @@ static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
      */
     cs->start_powered_off = true;
     cs->cpu_index = cc->core_id + i;
-    spapr_set_vcpu_id(cpu, cs->cpu_index, &local_err);
-    if (local_err) {
+    if (!spapr_set_vcpu_id(cpu, cs->cpu_index, errp)) {
         goto err;
     }
 
@@ -292,7 +290,6 @@ static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
 
 err:
     object_unref(obj);
-    error_propagate(errp, local_err);
     return NULL;
 }
 
