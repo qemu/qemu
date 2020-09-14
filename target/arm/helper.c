@@ -1452,7 +1452,7 @@ static bool pmu_counter_enabled(CPUARMState *env, uint8_t counter)
         }
     } else {
         prohibited = arm_feature(env, ARM_FEATURE_EL3) &&
-           (env->cp15.mdcr_el3 & MDCR_SPME);
+           !(env->cp15.mdcr_el3 & MDCR_SPME);
     }
 
     if (prohibited && counter == 31) {

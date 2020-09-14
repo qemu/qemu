@@ -71,3 +71,9 @@
   ("Simplified BSD License" or "FreeBSD License", SPDX: BSD-2-Clause). OpenSBI
   source code also contains code reused from other projects desribed here:
   https://github.com/riscv/opensbi/blob/master/ThirdPartyNotices.md.
+
+- npcm7xx_bootrom.bin is a simplified, free (Apache 2.0) boot ROM for Nuvoton
+  NPCM7xx BMC devices. It currently implements the bare minimum to load, parse,
+  initialize and run boot images stored in SPI flash, but may grow more
+  features over time as needed. The source code is available at:
+  https://github.com/google/vbootrom

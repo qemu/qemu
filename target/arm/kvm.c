@@ -918,22 +918,15 @@ int kvm_arch_process_async_events(CPUState *cs)
     return 0;
 }
 
-/* The #ifdef protections are until 32bit headers are imported and can
- * be removed once both 32 and 64 bit reach feature parity.
- */
 void kvm_arch_update_guest_debug(CPUState *cs, struct kvm_guest_debug *dbg)
 {
-#ifdef KVM_GUESTDBG_USE_SW_BP
     if (kvm_sw_breakpoints_active(cs)) {
         dbg->control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP;
     }
-#endif
-#ifdef KVM_GUESTDBG_USE_HW
     if (kvm_arm_hw_debug_active(cs)) {
         dbg->control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_HW;
         kvm_arm_copy_hw_debug_data(&dbg->arch);
     }
-#endif
 }
 
 void kvm_arch_init_irq_routing(KVMState *s)

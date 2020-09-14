@@ -42,8 +42,14 @@ output_fd = None
 insntype = 'uint32_t'
 decode_function = 'decode'
 
-re_ident = '[a-zA-Z][a-zA-Z0-9_]*'
+# An identifier for C.
+re_C_ident = '[a-zA-Z][a-zA-Z0-9_]*'
 
+# Identifiers for Arguments, Fields, Formats and Patterns.
+re_arg_ident = '&[a-zA-Z0-9_]*'
+re_fld_ident = '%[a-zA-Z0-9_]*'
+re_fmt_ident = '@[a-zA-Z0-9_]*'
+re_pat_ident = '[a-zA-Z0-9_]*'
 
 def error_with_file(file, lineno, *args):
     """Print an error message from file:line and args and exit."""
@@ -632,7 +638,6 @@ class ExcMultiPattern(MultiPattern):
 def parse_field(lineno, name, toks):
     """Parse one instruction field from TOKS at LINENO"""
     global fields
-    global re_ident
     global insnwidth
 
     # A "simple" field will have only one entry;
@@ -641,7 +646,7 @@ def parse_field(lineno, name, toks):
     width = 0
     func = None
     for t in toks:
-        if re.fullmatch('!function=' + re_ident, t):
+        if re.match('^!function=', t):
             if func:
                 error(lineno, 'duplicate function')
             func = t.split('=')
@@ -695,7 +700,7 @@ def parse_field(lineno, name, toks):
 def parse_arguments(lineno, name, toks):
     """Parse one argument set from TOKS at LINENO"""
     global arguments
-    global re_ident
+    global re_C_ident
     global anyextern
 
     flds = []
@@ -705,7 +710,7 @@ def parse_arguments(lineno, name, toks):
             extern = True
             anyextern = True
             continue
-        if not re.fullmatch(re_ident, t):
+        if not re.fullmatch(re_C_ident, t):
             error(lineno, 'invalid argument set token "{0}"'.format(t))
         if t in flds:
             error(lineno, 'duplicate argument "{0}"'.format(t))
@@ -791,7 +796,10 @@ def parse_generic(lineno, parent_pat, name, toks):
     global arguments
     global formats
     global allpatterns
-    global re_ident
+    global re_arg_ident
+    global re_fld_ident
+    global re_fmt_ident
+    global re_C_ident
     global insnwidth
     global insnmask
     global variablewidth
@@ -807,7 +815,7 @@ def parse_generic(lineno, parent_pat, name, toks):
     fmt = None
     for t in toks:
         # '&Foo' gives a format an explcit argument set.
-        if t[0] == '&':
+        if re.fullmatch(re_arg_ident, t):
             tt = t[1:]
             if arg:
                 error(lineno, 'multiple argument sets')
@@ -818,7 +826,7 @@ def parse_generic(lineno, parent_pat, name, toks):
             continue
 
         # '@Foo' gives a pattern an explicit format.
-        if t[0] == '@':
+        if re.fullmatch(re_fmt_ident, t):
             tt = t[1:]
             if fmt:
                 error(lineno, 'multiple formats')
@@ -829,19 +837,19 @@ def parse_generic(lineno, parent_pat, name, toks):
             continue
 
         # '%Foo' imports a field.
-        if t[0] == '%':
+        if re.fullmatch(re_fld_ident, t):
             tt = t[1:]
             flds = add_field_byname(lineno, flds, tt, tt)
             continue
 
         # 'Foo=%Bar' imports a field with a different name.
-        if re.fullmatch(re_ident + '=%' + re_ident, t):
+        if re.fullmatch(re_C_ident + '=' + re_fld_ident, t):
             (fname, iname) = t.split('=%')
             flds = add_field_byname(lineno, flds, fname, iname)
             continue
 
         # 'Foo=number' sets an argument field to a constant value
-        if re.fullmatch(re_ident + '=[+-]?[0-9]+', t):
+        if re.fullmatch(re_C_ident + '=[+-]?[0-9]+', t):
             (fname, value) = t.split('=')
             value = int(value)
             flds = add_field(lineno, flds, fname, ConstField(value))
@@ -866,7 +874,7 @@ def parse_generic(lineno, parent_pat, name, toks):
             fixedmask = (fixedmask << shift) | fms
             undefmask = (undefmask << shift) | ubm
         # Otherwise, fieldname:fieldwidth
-        elif re.fullmatch(re_ident + ':s?[0-9]+', t):
+        elif re.fullmatch(re_C_ident + ':s?[0-9]+', t):
             (fname, flen) = t.split(':')
             sign = False
             if flen[0] == 's':
@@ -971,6 +979,10 @@ def parse_generic(lineno, parent_pat, name, toks):
 
 def parse_file(f, parent_pat):
     """Parse all of the patterns within a file"""
+    global re_arg_ident
+    global re_fld_ident
+    global re_fmt_ident
+    global re_pat_ident
 
     # Read all of the lines of the file.  Concatenate lines
     # ending in backslash; discard empty lines and comments.
@@ -1063,14 +1075,16 @@ def parse_file(f, parent_pat):
             continue
 
         # Determine the type of object needing to be parsed.
-        if name[0] == '%':
+        if re.fullmatch(re_fld_ident, name):
             parse_field(start_lineno, name[1:], toks)
-        elif name[0] == '&':
+        elif re.fullmatch(re_arg_ident, name):
             parse_arguments(start_lineno, name[1:], toks)
-        elif name[0] == '@':
+        elif re.fullmatch(re_fmt_ident, name):
             parse_generic(start_lineno, None, name[1:], toks)
-        else:
+        elif re.fullmatch(re_pat_ident, name):
             parse_generic(start_lineno, parent_pat, name, toks)
+        else:
+            error(lineno, 'invalid token "{0}"'.format(name))
         toks = []
 
     if nesting != 0:

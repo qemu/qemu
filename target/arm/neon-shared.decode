@@ -34,11 +34,17 @@
 %vd_dp  22:1 12:4
 %vd_sp  12:4 22:1
 
-VCMLA          1111 110 rot:2 . 1 size:1 .... .... 1000 . q:1 . 0 .... \
-               vm=%vm_dp vn=%vn_dp vd=%vd_dp
+# For VCMLA/VCADD insns, convert the single-bit size field
+# which is 0 for fp16 and 1 for fp32 into a MO_* constant.
+# (Note that this is the reverse of the sense of the 1-bit size
+# field in the 3same_fp Neon insns.)
+%vcadd_size    20:1 !function=plus1
 
-VCADD          1111 110 rot:1 1 . 0 size:1 .... .... 1000 . q:1 . 0 .... \
-               vm=%vm_dp vn=%vn_dp vd=%vd_dp
+VCMLA          1111 110 rot:2 . 1 . .... .... 1000 . q:1 . 0 .... \
+               vm=%vm_dp vn=%vn_dp vd=%vd_dp size=%vcadd_size
+
+VCADD          1111 110 rot:1 1 . 0 . .... .... 1000 . q:1 . 0 .... \
+               vm=%vm_dp vn=%vn_dp vd=%vd_dp size=%vcadd_size
 
 # VUDOT and VSDOT
 VDOT           1111 110 00 . 10 .... .... 1101 . q:1 . u:1 .... \
@@ -51,9 +57,9 @@ VFML           1111 110 0 s:1 . 10 .... .... 1000 . 1 . 1 .... \
                vm=%vm_dp vn=%vn_dp vd=%vd_dp q=1
 
 VCMLA_scalar   1111 1110 0 . rot:2 .... .... 1000 . q:1 index:1 0 vm:4 \
-               vn=%vn_dp vd=%vd_dp size=0
+               vn=%vn_dp vd=%vd_dp size=1
 VCMLA_scalar   1111 1110 1 . rot:2 .... .... 1000 . q:1 . 0 .... \
-               vm=%vm_dp vn=%vn_dp vd=%vd_dp size=1 index=0
+               vm=%vm_dp vn=%vn_dp vd=%vd_dp size=2 index=0
 
 VDOT_scalar    1111 1110 0 . 10 .... .... 1101 . q:1 index:1 u:1 rm:4 \
                vm=%vm_dp vn=%vn_dp vd=%vd_dp

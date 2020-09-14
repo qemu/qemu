@@ -406,13 +406,7 @@ static inline const char *gic_class_name(void)
 static inline const char *gicv3_class_name(void)
 {
     if (kvm_irqchip_in_kernel()) {
-#ifdef TARGET_AARCH64
         return "kvm-arm-gicv3";
-#else
-        error_report("KVM GICv3 acceleration is not supported on this "
-                     "platform");
-        exit(1);
-#endif
     } else {
         if (kvm_enabled()) {
             error_report("Userspace GICv3 is not supported with KVM");

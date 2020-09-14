@@ -49,6 +49,12 @@ static inline int rsub_8(DisasContext *s, int x)
     return 8 - x;
 }
 
+static inline int neon_3same_fp_size(DisasContext *s, int x)
+{
+    /* Convert 0==fp32, 1==fp16 into a MO_* value */
+    return MO_32 - x;
+}
+
 /* Include the generated Neon decoder */
 #include "decode-neon-dp.c.inc"
 #include "decode-neon-ls.c.inc"
@@ -162,7 +168,7 @@ static bool trans_VCMLA(DisasContext *s, arg_VCMLA *a)
     gen_helper_gvec_3_ptr *fn_gvec_ptr;
 
     if (!dc_isar_feature(aa32_vcma, s)
-        || (!a->size && !dc_isar_feature(aa32_fp16_arith, s))) {
+        || (a->size == MO_16 && !dc_isar_feature(aa32_fp16_arith, s))) {
         return false;
     }
 
@@ -181,8 +187,9 @@ static bool trans_VCMLA(DisasContext *s, arg_VCMLA *a)
     }
 
     opr_sz = (1 + a->q) * 8;
-    fpst = fpstatus_ptr(a->size == 0 ? FPST_STD_F16 : FPST_STD);
-    fn_gvec_ptr = a->size ? gen_helper_gvec_fcmlas : gen_helper_gvec_fcmlah;
+    fpst = fpstatus_ptr(a->size == MO_16 ? FPST_STD_F16 : FPST_STD);
+    fn_gvec_ptr = (a->size == MO_16) ?
+        gen_helper_gvec_fcmlah : gen_helper_gvec_fcmlas;
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
                        vfp_reg_offset(1, a->vm),
@@ -199,7 +206,7 @@ static bool trans_VCADD(DisasContext *s, arg_VCADD *a)
     gen_helper_gvec_3_ptr *fn_gvec_ptr;
 
     if (!dc_isar_feature(aa32_vcma, s)
-        || (!a->size && !dc_isar_feature(aa32_fp16_arith, s))) {
+        || (a->size == MO_16 && !dc_isar_feature(aa32_fp16_arith, s))) {
         return false;
     }
 
@@ -218,8 +225,9 @@ static bool trans_VCADD(DisasContext *s, arg_VCADD *a)
     }
 
     opr_sz = (1 + a->q) * 8;
-    fpst = fpstatus_ptr(a->size == 0 ? FPST_STD_F16 : FPST_STD);
-    fn_gvec_ptr = a->size ? gen_helper_gvec_fcadds : gen_helper_gvec_fcaddh;
+    fpst = fpstatus_ptr(a->size == MO_16 ? FPST_STD_F16 : FPST_STD);
+    fn_gvec_ptr = (a->size == MO_16) ?
+        gen_helper_gvec_fcaddh : gen_helper_gvec_fcadds;
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
                        vfp_reg_offset(1, a->vm),
@@ -301,7 +309,7 @@ static bool trans_VCMLA_scalar(DisasContext *s, arg_VCMLA_scalar *a)
     if (!dc_isar_feature(aa32_vcma, s)) {
         return false;
     }
-    if (a->size == 0 && !dc_isar_feature(aa32_fp16_arith, s)) {
+    if (a->size == MO_16 && !dc_isar_feature(aa32_fp16_arith, s)) {
         return false;
     }
 
@@ -319,10 +327,10 @@ static bool trans_VCMLA_scalar(DisasContext *s, arg_VCMLA_scalar *a)
         return true;
     }
 
-    fn_gvec_ptr = (a->size ? gen_helper_gvec_fcmlas_idx
-                   : gen_helper_gvec_fcmlah_idx);
+    fn_gvec_ptr = (a->size == MO_16) ?
+        gen_helper_gvec_fcmlah_idx : gen_helper_gvec_fcmlas_idx;
     opr_sz = (1 + a->q) * 8;
-    fpst = fpstatus_ptr(a->size == 0 ? FPST_STD_F16 : FPST_STD);
+    fpst = fpstatus_ptr(a->size == MO_16 ? FPST_STD_F16 : FPST_STD);
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
                        vfp_reg_offset(1, a->vm),
@@ -1049,7 +1057,7 @@ DO_3SAME_VQDMULH(VQRDMULH, qrdmulh)
     WRAP_FP_GVEC(gen_##INSN##_fp16_3s, FPST_STD_F16, HFUNC)             \
     static bool trans_##INSN##_fp_3s(DisasContext *s, arg_3same *a)     \
     {                                                                   \
-        if (a->size != 0) {                                             \
+        if (a->size == MO_16) {                                         \
             if (!dc_isar_feature(aa32_fp16_arith, s)) {                 \
                 return false;                                           \
             }                                                           \
@@ -1088,7 +1096,7 @@ static bool trans_VMAXNM_fp_3s(DisasContext *s, arg_3same *a)
         return false;
     }
 
-    if (a->size != 0) {
+    if (a->size == MO_16) {
         if (!dc_isar_feature(aa32_fp16_arith, s)) {
             return false;
         }
@@ -1103,7 +1111,7 @@ static bool trans_VMINNM_fp_3s(DisasContext *s, arg_3same *a)
         return false;
     }
 
-    if (a->size != 0) {
+    if (a->size == MO_16) {
         if (!dc_isar_feature(aa32_fp16_arith, s)) {
             return false;
         }
@@ -1135,7 +1143,7 @@ static bool do_3same_fp_pair(DisasContext *s, arg_3same *a,
     assert(a->q == 0); /* enforced by decode patterns */
 
 
-    fpstatus = fpstatus_ptr(a->size != 0 ? FPST_STD_F16 : FPST_STD);
+    fpstatus = fpstatus_ptr(a->size == MO_16 ? FPST_STD_F16 : FPST_STD);
     tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
                        vfp_reg_offset(1, a->vm),
@@ -1152,7 +1160,7 @@ static bool do_3same_fp_pair(DisasContext *s, arg_3same *a,
 #define DO_3S_FP_PAIR(INSN,FUNC)                                    \
     static bool trans_##INSN##_fp_3s(DisasContext *s, arg_3same *a) \
     {                                                               \
-        if (a->size != 0) {                                         \
+        if (a->size == MO_16) {                                     \
             if (!dc_isar_feature(aa32_fp16_arith, s)) {             \
                 return false;                                       \
             }                                                       \
@@ -1620,7 +1628,7 @@ static bool do_fp_2sh(DisasContext *s, arg_2reg_shift *a,
         return false;
     }
 
-    if (a->size != 0) {
+    if (a->size == MO_16) {
         if (!dc_isar_feature(aa32_fp16_arith, s)) {
             return false;
         }
@@ -1640,7 +1648,7 @@ static bool do_fp_2sh(DisasContext *s, arg_2reg_shift *a,
         return true;
     }
 
-    fpst = fpstatus_ptr(a->size ? FPST_STD_F16 : FPST_STD);
+    fpst = fpstatus_ptr(a->size == MO_16 ? FPST_STD_F16 : FPST_STD);
     tcg_gen_gvec_2_ptr(rd_ofs, rm_ofs, fpst, vec_size, vec_size, a->shift, fn);
     tcg_temp_free_ptr(fpst);
     return true;

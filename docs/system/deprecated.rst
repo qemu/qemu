@@ -329,14 +329,6 @@ The ``compat`` property used to set backwards compatibility modes for
 the processor has been deprecated. The ``max-cpu-compat`` property of
 the ``pseries`` machine type should be used instead.
 
-KVM guest support on 32-bit Arm hosts (since 5.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''
-
-The Linux kernel has dropped support for allowing 32-bit Arm systems
-to host KVM guests as of the 5.7 kernel. Accordingly, QEMU is deprecating
-its support for this configuration and will remove it in a future version.
-Running 32-bit guests on a 64-bit Arm host remains supported.
-
 System emulator devices
 -----------------------
 
@@ -415,6 +407,22 @@ The above, converted to the current supported format::
 
 linux-user mode CPUs
 --------------------
+
+``lm32`` CPUs (since 5.2.0)
+'''''''''''''''''''''''''''
+
+The ``lm32`` guest CPU support is deprecated and will be removed in
+a future version of QEMU. The only public user of this architecture
+was the milkymist project, which has been dead for years; there was
+never an upstream Linux port.
+
+``unicore32`` CPUs (since 5.2.0)
+''''''''''''''''''''''''''''''''
+
+The ``unicore32`` guest CPU support is deprecated and will be removed in
+a future version of QEMU. Support for this CPU was removed from the
+upstream Linux kernel, and there is no available upstream toolchain
+to build binaries for it.
 
 ``tilegx`` CPUs (since 5.1.0)
 '''''''''''''''''''''''''''''
@@ -542,6 +550,14 @@ should be used instead of the 1.09.1 version.
 
 System emulator CPUS
 --------------------
+
+KVM guest support on 32-bit Arm hosts (removed in 5.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The Linux kernel has dropped support for allowing 32-bit Arm systems
+to host KVM guests as of the 5.7 kernel. Accordingly, QEMU is deprecating
+its support for this configuration and will remove it in a future version.
+Running 32-bit guests on a 64-bit Arm host remains supported.
 
 RISC-V ISA Specific CPUs (removed in 5.1)
 '''''''''''''''''''''''''''''''''''''''''
