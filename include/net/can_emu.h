@@ -46,7 +46,8 @@ typedef uint32_t qemu_canid_t;
 typedef struct qemu_can_frame {
     qemu_canid_t    can_id;  /* 32 bit CAN_ID + EFF/RTR/ERR flags */
     uint8_t         can_dlc; /* data length code: 0 .. 8 */
-    uint8_t         data[8] QEMU_ALIGNED(8);
+    uint8_t         flags;
+    uint8_t         data[64] QEMU_ALIGNED(8);
 } qemu_can_frame;
 
 /* Keep defines for QEMU separate from Linux ones for now */
@@ -57,6 +58,10 @@ typedef struct qemu_can_frame {
 
 #define QEMU_CAN_SFF_MASK 0x000007FFU /* standard frame format (SFF) */
 #define QEMU_CAN_EFF_MASK 0x1FFFFFFFU /* extended frame format (EFF) */
+
+#define QEMU_CAN_FRMF_BRS     0x01 /* bit rate switch (2nd bitrate for data) */
+#define QEMU_CAN_FRMF_ESI     0x02 /* error state ind. of transmitting node */
+#define QEMU_CAN_FRMF_TYPE_FD 0x10 /* internal bit ind. of CAN FD frame */
 
 /**
  * struct qemu_can_filter - CAN ID based filter in can_register().
@@ -97,6 +102,7 @@ struct CanBusClientState {
     char *model;
     char *name;
     void (*destructor)(CanBusClientState *);
+    bool fd_mode;
 };
 
 #define TYPE_CAN_BUS "can-bus"

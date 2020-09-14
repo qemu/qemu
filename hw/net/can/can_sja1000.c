@@ -268,6 +268,7 @@ static void buff2frame_pel(const uint8_t *buff, qemu_can_frame *frame)
 {
     uint8_t i;
 
+    frame->flags = 0;
     frame->can_id = 0;
     if (buff[0] & 0x40) { /* RTR */
         frame->can_id = QEMU_CAN_RTR_FLAG;
@@ -303,6 +304,7 @@ static void buff2frame_bas(const uint8_t *buff, qemu_can_frame *frame)
 {
     uint8_t i;
 
+    frame->flags = 0;
     frame->can_id = ((buff[0] << 3) & (0xff << 3)) + ((buff[1] >> 5) & 0x07);
     if (buff[1] & 0x10) { /* RTR */
         frame->can_id = QEMU_CAN_RTR_FLAG;
