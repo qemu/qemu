@@ -41,7 +41,8 @@ specific_ss.add(when: 'CONFIG_VGA', if_true: files('vga.c'))
 
 if config_all_devices.has_key('CONFIG_QXL')
   qxl_ss = ss.source_set()
-  qxl_ss.add(when: 'CONFIG_QXL', if_true: files('qxl.c', 'qxl-logger.c', 'qxl-render.c'))
+  qxl_ss.add(when: 'CONFIG_QXL', if_true: [files('qxl.c', 'qxl-logger.c', 'qxl-render.c'),
+                                           pixman, spice])
   hw_display_modules += {'qxl': qxl_ss}
 endif
 
