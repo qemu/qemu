@@ -1666,7 +1666,6 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
     uint32_t cas_pvr;
     SpaprOptionVector *ov1_guest, *ov5_guest;
     bool guest_radix;
-    Error *local_err = NULL;
     bool raw_mode_supported = false;
     bool guest_xive;
     CPUState *cs;
@@ -1697,8 +1696,9 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
 
     /* Update CPUs */
     if (cpu->compat_pvr != cas_pvr) {
-        ppc_set_compat_all(cas_pvr, &local_err);
-        if (local_err) {
+        Error *local_err = NULL;
+
+        if (ppc_set_compat_all(cas_pvr, &local_err) < 0) {
             /* We fail to set compat mode (likely because running with KVM PR),
              * but maybe we can fallback to raw mode if the guest supports it.
              */
@@ -1707,7 +1707,6 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
                 return H_HARDWARE;
             }
             error_free(local_err);
-            local_err = NULL;
         }
     }
 
