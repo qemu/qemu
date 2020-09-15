@@ -42,6 +42,9 @@
 #define BME_MIN_GRANULARITY_BITS 9
 #define BME_MAX_NAME_SIZE 1023
 
+/* Size of bitmap table entries */
+#define BME_TABLE_ENTRY_SIZE (sizeof(uint64_t))
+
 QEMU_BUILD_BUG_ON(BME_MAX_NAME_SIZE != BDRV_BITMAP_MAX_NAME_SIZE);
 
 #if BME_MAX_TABLE_SIZE * 8ULL > INT_MAX
@@ -232,7 +235,7 @@ static int bitmap_table_load(BlockDriverState *bs, Qcow2BitmapTable *tb,
 
     assert(tb->size <= BME_MAX_TABLE_SIZE);
     ret = bdrv_pread(bs->file, tb->offset,
-                     table, tb->size * sizeof(uint64_t));
+                     table, tb->size * BME_TABLE_ENTRY_SIZE);
     if (ret < 0) {
         goto fail;
     }
@@ -265,7 +268,7 @@ static int free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
     }
 
     clear_bitmap_table(bs, bitmap_table, tb->size);
-    qcow2_free_clusters(bs, tb->offset, tb->size * sizeof(uint64_t),
+    qcow2_free_clusters(bs, tb->offset, tb->size * BME_TABLE_ENTRY_SIZE,
                         QCOW2_DISCARD_OTHER);
     g_free(bitmap_table);
 
@@ -690,7 +693,7 @@ int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         ret = qcow2_inc_refcounts_imrt(bs, res,
                                        refcount_table, refcount_table_size,
                                        bm->table.offset,
-                                       bm->table.size * sizeof(uint64_t));
+                                       bm->table.size * BME_TABLE_ENTRY_SIZE);
         if (ret < 0) {
             goto out;
         }
@@ -1797,7 +1800,7 @@ uint64_t qcow2_get_persistent_dirty_bitmap_size(BlockDriverState *in_bs,
             /* Assume the entire bitmap is allocated */
             bitmaps_size += bmclusters * cluster_size;
             /* Also reserve space for the bitmap table entries */
-            bitmaps_size += ROUND_UP(bmclusters * sizeof(uint64_t),
+            bitmaps_size += ROUND_UP(bmclusters * BME_TABLE_ENTRY_SIZE,
                                      cluster_size);
             /* And space for contribution to bitmap directory size */
             bitmap_dir_size += calc_dir_entry_size(strlen(name), 0);

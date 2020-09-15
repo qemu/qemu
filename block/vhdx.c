@@ -816,9 +816,9 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
         goto exit;
     }
 
-    /* only 2 supported sector sizes */
-    if (s->logical_sector_size != 512 && s->logical_sector_size != 4096) {
-        ret = -EINVAL;
+    /* Currently we only support 512 */
+    if (s->logical_sector_size != 512) {
+        ret = -ENOTSUP;
         goto exit;
     }
 

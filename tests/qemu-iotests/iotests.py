@@ -448,42 +448,45 @@ class Timeout:
 def file_pattern(name):
     return "{0}-{1}".format(os.getpid(), name)
 
-class FilePaths:
+class FilePath:
     """
-    FilePaths is an auto-generated filename that cleans itself up.
+    Context manager generating multiple file names. The generated files are
+    removed when exiting the context.
 
-    Use this context manager to generate filenames and ensure that the file
-    gets deleted::
+    Example usage:
 
-        with FilePaths(['test.img']) as img_path:
-            qemu_img('create', img_path, '1G')
-        # migration_sock_path is automatically deleted
+        with FilePath('a.img', 'b.img') as (img_a, img_b):
+            # Use img_a and img_b here...
+
+        # a.img and b.img are automatically removed here.
+
+    By default images are created in iotests.test_dir. To create sockets use
+    iotests.sock_dir:
+
+       with FilePath('a.sock', base_dir=iotests.sock_dir) as sock:
+
+    For convenience, calling with one argument yields a single file instead of
+    a tuple with one item.
+
     """
-    def __init__(self, names, base_dir=test_dir):
-        self.paths = []
-        for name in names:
-            self.paths.append(os.path.join(base_dir, file_pattern(name)))
+    def __init__(self, *names, base_dir=test_dir):
+        self.paths = [os.path.join(base_dir, file_pattern(name))
+                      for name in names]
 
     def __enter__(self):
-        return self.paths
+        if len(self.paths) == 1:
+            return self.paths[0]
+        else:
+            return self.paths
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            for path in self.paths:
+        for path in self.paths:
+            try:
                 os.remove(path)
-        except OSError:
-            pass
+            except OSError:
+                pass
         return False
 
-class FilePath(FilePaths):
-    """
-    FilePath is a specialization of FilePaths that takes a single filename.
-    """
-    def __init__(self, name, base_dir=test_dir):
-        super(FilePath, self).__init__([name], base_dir)
-
-    def __enter__(self):
-        return self.paths[0]
 
 def file_path_remover():
     for path in reversed(file_path_remover.paths):

@@ -43,6 +43,10 @@ get_image_size_on_host()
 
 _supported_fmt qcow2
 _supported_proto file
+# Growing a file with a backing file (without preallocation=full or
+# =falloc) requires zeroing the newly added area, which is impossible
+# to do quickly for v2 images, and hence is unsupported.
+_unsupported_imgopts 'compat=0.10'
 
 if [ -z "$TEST_IMG_FILE" ]; then
     TEST_IMG_FILE=$TEST_IMG
@@ -168,24 +172,28 @@ done
 $QEMU_IMG create -f raw "$TEST_IMG.base" 128k | _filter_img_create
 $QEMU_IO -c 'write -q -P 1 0 128k' -f raw "$TEST_IMG.base"
 for orig_size in 31k 33k; do
-    echo "--- Resizing image from $orig_size to 96k ---"
-    _make_test_img -F raw -b "$TEST_IMG.base" -o cluster_size=64k "$orig_size"
-    $QEMU_IMG resize -f "$IMGFMT" --preallocation=full "$TEST_IMG" 96k
-    # The first part of the image should contain data from the backing file
-    $QEMU_IO -c "read -q -P 1 0 ${orig_size}" "$TEST_IMG"
-    # The resized part of the image should contain zeroes
-    $QEMU_IO -c "read -q -P 0 ${orig_size} 63k" "$TEST_IMG"
-    # If the image does not have an external data file we can also verify its
-    # actual size. The resized image should have 7 clusters:
-    # header, L1 table, L2 table, refcount table, refcount block, 2 data clusters
-    if ! _get_data_file "$TEST_IMG" > /dev/null; then
-        expected_file_length=$((65536 * 7))
-        file_length=$(stat -c '%s' "$TEST_IMG_FILE")
-        if [ "$file_length" != "$expected_file_length" ]; then
-            echo "ERROR: file length $file_length (expected $expected_file_length)"
-        fi
-    fi
-    echo
+    for dst_size in 96k 128k; do
+        for prealloc in metadata full; do
+            echo "--- Resizing image from $orig_size to $dst_size (preallocation=$prealloc) ---"
+            _make_test_img -F raw -b "$TEST_IMG.base" -o cluster_size=64k "$orig_size"
+            $QEMU_IMG resize -f "$IMGFMT" --preallocation="$prealloc" "$TEST_IMG" "$dst_size"
+            # The first part of the image should contain data from the backing file
+            $QEMU_IO -c "read -q -P 1 0 ${orig_size}" "$TEST_IMG"
+            # The resized part of the image should contain zeroes
+            $QEMU_IO -c "read -q -P 0 ${orig_size} 63k" "$TEST_IMG"
+            # If the image does not have an external data file we can also verify its
+            # actual size. The resized image should have 7 clusters:
+            # header, L1 table, L2 table, refcount table, refcount block, 2 data clusters
+            if ! _get_data_file "$TEST_IMG" > /dev/null; then
+                expected_file_length=$((65536 * 7))
+                file_length=$(stat -c '%s' "$TEST_IMG_FILE")
+                if [ "$file_length" != "$expected_file_length" ]; then
+                    echo "ERROR: file length $file_length (expected $expected_file_length)"
+                fi
+            fi
+            echo
+        done
+    done
 done
 
 # success, all done

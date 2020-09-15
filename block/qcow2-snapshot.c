@@ -659,7 +659,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     sn->extra_data_size = sizeof(QCowSnapshotExtraData);
 
     /* Allocate the L1 table of the snapshot and copy the current one there. */
-    l1_table_offset = qcow2_alloc_clusters(bs, s->l1_size * sizeof(uint64_t));
+    l1_table_offset = qcow2_alloc_clusters(bs, s->l1_size * L1E_SIZE);
     if (l1_table_offset < 0) {
         ret = l1_table_offset;
         goto fail;
@@ -679,13 +679,13 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0, sn->l1_table_offset,
-                                        s->l1_size * sizeof(uint64_t), false);
+                                        s->l1_size * L1E_SIZE, false);
     if (ret < 0) {
         goto fail;
     }
 
     ret = bdrv_pwrite(bs->file, sn->l1_table_offset, l1_table,
-                      s->l1_size * sizeof(uint64_t));
+                      s->l1_size * L1E_SIZE);
     if (ret < 0) {
         goto fail;
     }
@@ -768,7 +768,7 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     sn = &s->snapshots[snapshot_index];
 
     ret = qcow2_validate_table(bs, sn->l1_table_offset, sn->l1_size,
-                               sizeof(uint64_t), QCOW_MAX_L1_SIZE,
+                               L1E_SIZE, QCOW_MAX_L1_SIZE,
                                "Snapshot L1 table", &local_err);
     if (ret < 0) {
         error_report_err(local_err);
@@ -803,8 +803,8 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         goto fail;
     }
 
-    cur_l1_bytes = s->l1_size * sizeof(uint64_t);
-    sn_l1_bytes = sn->l1_size * sizeof(uint64_t);
+    cur_l1_bytes = s->l1_size * L1E_SIZE;
+    sn_l1_bytes = sn->l1_size * L1E_SIZE;
 
     /*
      * Copy the snapshot L1 table to the current L1 table.
@@ -917,7 +917,7 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
     sn = s->snapshots[snapshot_index];
 
     ret = qcow2_validate_table(bs, sn.l1_table_offset, sn.l1_size,
-                               sizeof(uint64_t), QCOW_MAX_L1_SIZE,
+                               L1E_SIZE, QCOW_MAX_L1_SIZE,
                                "Snapshot L1 table", errp);
     if (ret < 0) {
         return ret;
@@ -953,7 +953,7 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
         error_setg_errno(errp, -ret, "Failed to free the cluster and L1 table");
         return ret;
     }
-    qcow2_free_clusters(bs, sn.l1_table_offset, sn.l1_size * sizeof(uint64_t),
+    qcow2_free_clusters(bs, sn.l1_table_offset, sn.l1_size * L1E_SIZE,
                         QCOW2_DISCARD_SNAPSHOT);
 
     /* must update the copied flag on the current cluster offsets */
@@ -1030,12 +1030,12 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
 
     /* Allocate and read in the snapshot's L1 table */
     ret = qcow2_validate_table(bs, sn->l1_table_offset, sn->l1_size,
-                               sizeof(uint64_t), QCOW_MAX_L1_SIZE,
+                               L1E_SIZE, QCOW_MAX_L1_SIZE,
                                "Snapshot L1 table", errp);
     if (ret < 0) {
         return ret;
     }
-    new_l1_bytes = sn->l1_size * sizeof(uint64_t);
+    new_l1_bytes = sn->l1_size * L1E_SIZE;
     new_l1_table = qemu_try_blockalign(bs->file->bs, new_l1_bytes);
     if (new_l1_table == NULL) {
         return -ENOMEM;

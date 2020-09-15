@@ -105,15 +105,6 @@ static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
-static QemuOptsList qcow_runtime_opts = {
-    .name = "qcow",
-    .head = QTAILQ_HEAD_INITIALIZER(qcow_runtime_opts.head),
-    .desc = {
-        BLOCK_CRYPTO_OPT_DEF_QCOW_KEY_SECRET("encrypt."),
-        { /* end of list */ }
-    },
-};
-
 static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
