@@ -1739,17 +1739,9 @@ if test -z "$target_list"; then
     fi
 fi
 
-exclude_list=$(echo "$target_list_exclude" | sed -e 's/,/ /g')
 for config in $mak_wilds; do
     target="$(basename "$config" .mak)"
-    exclude="no"
-    for excl in $exclude_list; do
-        if test "$excl" = "$target"; then
-            exclude="yes"
-            break;
-        fi
-    done
-    if test "$exclude" = "no"; then
+    if echo "$target_list_exclude" | grep -vq "$target"; then
         default_target_list="${default_target_list} $target"
     fi
 done
