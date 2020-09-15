@@ -1181,6 +1181,57 @@ static void virtio_net_disable_rss(VirtIONet *n)
     n->rss_data.enabled = false;
 }
 
+static bool virtio_net_attach_steering_ebpf(NICState *nic, int prog_fd)
+{
+    NetClientState *nc = qemu_get_peer(qemu_get_queue(nic), 0);
+    if (nc == NULL || nc->info->set_steering_ebpf == NULL) {
+        return false;
+    }
+
+    return nc->info->set_steering_ebpf(nc, prog_fd);
+}
+
+static void rss_data_to_rss_config(struct VirtioNetRssData *data,
+                                   struct EBPFRSSConfig *config)
+{
+    config->redirect = data->redirect;
+    config->populate_hash = data->populate_hash;
+    config->hash_types = data->hash_types;
+    config->indirections_len = data->indirections_len;
+    config->default_queue = data->default_queue;
+}
+
+static bool virtio_net_configure_epbf_rss(VirtIONet *n)
+{
+    struct EBPFRSSConfig config = {};
+
+    if (!n->rss_data.enabled) {
+        if (ebpf_rss_is_loaded(&n->ebpf_rss)) {
+            ebpf_rss_unload(&n->ebpf_rss);
+        }
+        return true;
+    }
+
+    if (!ebpf_rss_is_loaded(&n->ebpf_rss) && !ebpf_rss_load(&n->ebpf_rss)) {
+        return false;
+    }
+
+    rss_data_to_rss_config(&n->rss_data, &config);
+
+    if (!ebpf_rss_set_all(&n->ebpf_rss, &config,
+                          n->rss_data.indirections_table, n->rss_data.key)) {
+        ebpf_rss_unload(&n->ebpf_rss);
+        return false;
+    }
+
+    if (!virtio_net_attach_steering_ebpf(n->nic, n->ebpf_rss.program_fd)) {
+        ebpf_rss_unload(&n->ebpf_rss);
+        return false;
+    }
+
+    return true;
+}
+
 static uint16_t virtio_net_handle_rss(VirtIONet *n,
                                       struct iovec *iov,
                                       unsigned int iov_cnt,
@@ -1296,6 +1347,9 @@ static uint16_t virtio_net_handle_rss(VirtIONet *n,
     trace_virtio_net_rss_enable(n->rss_data.hash_types,
                                 n->rss_data.indirections_len,
                                 temp.b);
+
+    virtio_net_configure_epbf_rss(n);
+
     return queues;
 error:
     trace_virtio_net_rss_error(err_msg, err_value);
@@ -3457,6 +3511,8 @@ static void virtio_net_instance_init(Object *obj)
     device_add_bootindex_property(obj, &n->nic_conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
                                   DEVICE(n));
+
+    n->ebpf_rss.program_fd = -1;
 }
 
 static int virtio_net_pre_save(void *opaque)
