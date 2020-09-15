@@ -280,6 +280,9 @@ supported_whpx_target() {
     return 1
 }
 
+deprecated_targets_list=ppc64abi32-linux-user
+deprecated_features=""
+
 supported_target() {
     case "$1" in
         *-softmmu)
@@ -301,6 +304,12 @@ supported_target() {
             return 1
             ;;
     esac
+
+    # if a deprecated target is enabled we note it here
+    if echo "$deprecated_targets_list" | grep -q "$1"; then
+        add_to deprecated_features $1
+    fi
+
     test "$tcg" = "yes" && return 0
     supported_kvm_target "$1" && return 0
     supported_xen_target "$1" && return 0
@@ -541,8 +550,6 @@ gettext=""
 
 bogus_os="no"
 malloc_trim=""
-
-deprecated_features=""
 
 # parse CC options first
 for opt do
@@ -1724,7 +1731,7 @@ fi
 
 if test -z "$target_list_exclude" -a -z "$target_list"; then
     # if the user doesn't specify anything lets skip deprecating stuff
-    target_list_exclude=ppc64abi32-linux-user
+    target_list_exclude=$deprecated_targets_list
 fi
 
 exclude_list=$(echo "$target_list_exclude" | sed -e 's/,/ /g')
@@ -7668,7 +7675,6 @@ case "$target_name" in
     TARGET_SYSTBL_ABI=common,nospu,32
     echo "TARGET_ABI32=y" >> $config_target_mak
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml power-vsx.xml"
-    deprecated_features="ppc64abi32 ${deprecated_features}"
   ;;
   riscv32)
     TARGET_BASE_ARCH=riscv
