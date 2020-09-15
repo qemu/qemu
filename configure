@@ -280,7 +280,7 @@ supported_whpx_target() {
     return 1
 }
 
-deprecated_targets_list=ppc64abi32-linux-user,tilegx-linux-user
+deprecated_targets_list=ppc64abi32-linux-user,tilegx-linux-user,lm32-softmmu,unicore32-softmmu
 deprecated_features=""
 
 supported_target() {

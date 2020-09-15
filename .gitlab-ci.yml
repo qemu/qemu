@@ -134,7 +134,7 @@ build-system-fedora:
   variables:
     IMAGE: fedora
     CONFIGURE_ARGS: --disable-gcrypt --enable-nettle
-    TARGETS: tricore-softmmu unicore32-softmmu microblaze-softmmu mips-softmmu
+    TARGETS: tricore-softmmu microblaze-softmmu mips-softmmu
       xtensa-softmmu m68k-softmmu riscv32-softmmu ppc-softmmu sparc64-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
@@ -166,7 +166,7 @@ build-system-centos:
   variables:
     IMAGE: centos8
     CONFIGURE_ARGS: --disable-nettle --enable-gcrypt
-    TARGETS: ppc64-softmmu lm32-softmmu or1k-softmmu s390x-softmmu
+    TARGETS: ppc64-softmmu or1k-softmmu s390x-softmmu
       x86_64-softmmu rx-softmmu sh4-softmmu nios2-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
@@ -259,9 +259,10 @@ build-deprecated:
   <<: *native_build_job_definition
   variables:
     IMAGE: debian-all-test-cross
-    CONFIGURE_ARGS: --disable-docs --disable-tools --disable-system
+    CONFIGURE_ARGS: --disable-docs --disable-tools
     MAKE_CHECK_ARGS: check-tcg
-    TARGETS: ppc64abi32-linux-user tilegx-linux-user
+    TARGETS: ppc64abi32-linux-user tilegx-linux-user lm32-softmmu
+      unicore32-softmmu
   allow_failure: true
 
 build-oss-fuzz:
