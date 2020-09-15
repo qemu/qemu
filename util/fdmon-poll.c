@@ -73,6 +73,7 @@ static int fdmon_poll_wait(AioContext *ctx, AioHandlerList *ready_list,
 
     /* epoll(7) is faster above a certain number of fds */
     if (fdmon_epoll_try_upgrade(ctx, npfd)) {
+        npfd = 0; /* we won't need pollfds[], reset npfd */
         return ctx->fdmon_ops->wait(ctx, ready_list, timeout);
     }
 
