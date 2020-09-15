@@ -27,7 +27,7 @@ endif
 blobs = files(
   'bios.bin',
   'bios-256k.bin',
-  'bios-microvm.bin',
+  'qboot.rom',
   'sgabios.bin',
   'vgabios.bin',
   'vgabios-cirrus.bin',
