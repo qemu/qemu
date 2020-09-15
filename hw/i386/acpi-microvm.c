@@ -1,0 +1,187 @@
+/* Support for generating ACPI tables and passing them to Guests
+ *
+ * Copyright (C) 2008-2010  Kevin O'Connor <kevin@koconnor.net>
+ * Copyright (C) 2006 Fabrice Bellard
+ * Copyright (C) 2013 Red Hat Inc
+ *
+ * Author: Michael S. Tsirkin <mst@redhat.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "qemu/osdep.h"
+#include "qapi/error.h"
+
+#include "exec/memory.h"
+#include "hw/acpi/acpi.h"
+#include "hw/acpi/aml-build.h"
+#include "hw/acpi/bios-linker-loader.h"
+#include "hw/acpi/generic_event_device.h"
+#include "hw/acpi/utils.h"
+#include "hw/boards.h"
+#include "hw/i386/fw_cfg.h"
+#include "hw/i386/microvm.h"
+
+#include "acpi-common.h"
+#include "acpi-microvm.h"
+
+static void
+build_dsdt_microvm(GArray *table_data, BIOSLinker *linker,
+                   MicrovmMachineState *mms)
+{
+    X86MachineState *x86ms = X86_MACHINE(mms);
+    Aml *dsdt, *sb_scope, *scope, *pkg;
+    bool ambiguous;
+    Object *isabus;
+
+    isabus = object_resolve_path_type("", TYPE_ISA_BUS, &ambiguous);
+    assert(isabus);
+    assert(!ambiguous);
+
+    dsdt = init_aml_allocator();
+
+    /* Reserve space for header */
+    acpi_data_push(dsdt->buf, sizeof(AcpiTableHeader));
+
+    sb_scope = aml_scope("_SB");
+    fw_cfg_add_acpi_dsdt(sb_scope, x86ms->fw_cfg);
+    isa_build_aml(ISA_BUS(isabus), sb_scope);
+    build_ged_aml(sb_scope, GED_DEVICE, HOTPLUG_HANDLER(mms->acpi_dev),
+                  GED_MMIO_IRQ, AML_SYSTEM_MEMORY, GED_MMIO_BASE);
+    acpi_dsdt_add_power_button(sb_scope);
+    aml_append(dsdt, sb_scope);
+
+    /* ACPI 5.0: Table 7-209 System State Package */
+    scope = aml_scope("\\");
+    pkg = aml_package(4);
+    aml_append(pkg, aml_int(ACPI_GED_SLP_TYP_S5));
+    aml_append(pkg, aml_int(0)); /* ignored */
+    aml_append(pkg, aml_int(0)); /* reserved */
+    aml_append(pkg, aml_int(0)); /* reserved */
+    aml_append(scope, aml_name_decl("_S5", pkg));
+    aml_append(dsdt, scope);
+
+    /* copy AML table into ACPI tables blob and patch header there */
+    g_array_append_vals(table_data, dsdt->buf->data, dsdt->buf->len);
+    build_header(linker, table_data,
+        (void *)(table_data->data + table_data->len - dsdt->buf->len),
+        "DSDT", dsdt->buf->len, 2, NULL, NULL);
+    free_aml_allocator();
+}
+
+static void acpi_build_microvm(AcpiBuildTables *tables,
+                               MicrovmMachineState *mms)
+{
+    MachineState *machine = MACHINE(mms);
+    GArray *table_offsets;
+    GArray *tables_blob = tables->table_data;
+    unsigned dsdt, xsdt;
+    AcpiFadtData pmfadt = {
+        /* ACPI 5.0: 4.1 Hardware-Reduced ACPI */
+        .rev = 5,
+        .flags = ((1 << ACPI_FADT_F_HW_REDUCED_ACPI) |
+                  (1 << ACPI_FADT_F_RESET_REG_SUP)),
+
+        /* ACPI 5.0: 4.8.3.7 Sleep Control and Status Registers */
+        .sleep_ctl = {
+            .space_id = AML_AS_SYSTEM_MEMORY,
+            .bit_width = 8,
+            .address = GED_MMIO_BASE_REGS + ACPI_GED_REG_SLEEP_CTL,
+        },
+        .sleep_sts = {
+            .space_id = AML_AS_SYSTEM_MEMORY,
+            .bit_width = 8,
+            .address = GED_MMIO_BASE_REGS + ACPI_GED_REG_SLEEP_STS,
+        },
+
+        /* ACPI 5.0: 4.8.3.6 Reset Register */
+        .reset_reg = {
+            .space_id = AML_AS_SYSTEM_MEMORY,
+            .bit_width = 8,
+            .address = GED_MMIO_BASE_REGS + ACPI_GED_REG_RESET,
+        },
+        .reset_val = ACPI_GED_RESET_VALUE,
+    };
+
+    table_offsets = g_array_new(false, true /* clear */,
+                                        sizeof(uint32_t));
+    bios_linker_loader_alloc(tables->linker,
+                             ACPI_BUILD_TABLE_FILE, tables_blob,
+                             64 /* Ensure FACS is aligned */,
+                             false /* high memory */);
+
+    dsdt = tables_blob->len;
+    build_dsdt_microvm(tables_blob, tables->linker, mms);
+
+    pmfadt.dsdt_tbl_offset = &dsdt;
+    pmfadt.xdsdt_tbl_offset = &dsdt;
+    acpi_add_table(table_offsets, tables_blob);
+    build_fadt(tables_blob, tables->linker, &pmfadt, NULL, NULL);
+
+    acpi_add_table(table_offsets, tables_blob);
+    acpi_build_madt(tables_blob, tables->linker, X86_MACHINE(machine),
+                    mms->acpi_dev, false);
+
+    xsdt = tables_blob->len;
+    build_xsdt(tables_blob, tables->linker, table_offsets, NULL, NULL);
+
+    /* RSDP is in FSEG memory, so allocate it separately */
+    {
+        AcpiRsdpData rsdp_data = {
+            /* ACPI 2.0: 5.2.4.3 RSDP Structure */
+            .revision = 2, /* xsdt needs v2 */
+            .oem_id = ACPI_BUILD_APPNAME6,
+            .xsdt_tbl_offset = &xsdt,
+            .rsdt_tbl_offset = NULL,
+        };
+        build_rsdp(tables->rsdp, tables->linker, &rsdp_data);
+    }
+
+    /* Cleanup memory that's no longer used. */
+    g_array_free(table_offsets, true);
+}
+
+static void acpi_build_no_update(void *build_opaque)
+{
+    /* nothing, microvm tables don't change at runtime */
+}
+
+void acpi_setup_microvm(MicrovmMachineState *mms)
+{
+    X86MachineState *x86ms = X86_MACHINE(mms);
+    AcpiBuildTables tables;
+
+    assert(x86ms->fw_cfg);
+
+    if (!x86_machine_is_acpi_enabled(x86ms)) {
+        return;
+    }
+
+    acpi_build_tables_init(&tables);
+    acpi_build_microvm(&tables, mms);
+
+    /* Now expose it all to Guest */
+    acpi_add_rom_blob(acpi_build_no_update, NULL,
+                      tables.table_data,
+                      ACPI_BUILD_TABLE_FILE,
+                      ACPI_BUILD_TABLE_MAX_SIZE);
+    acpi_add_rom_blob(acpi_build_no_update, NULL,
+                      tables.linker->cmd_blob,
+                      "etc/table-loader", 0);
+    acpi_add_rom_blob(acpi_build_no_update, NULL,
+                      tables.rsdp,
+                      ACPI_BUILD_RSDP_FILE, 0);
+
+    acpi_build_tables_cleanup(&tables, false);
+}

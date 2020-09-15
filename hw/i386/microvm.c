@@ -26,6 +26,8 @@
 #include "sysemu/cpus.h"
 #include "sysemu/numa.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
+#include "acpi-microvm.h"
 
 #include "hw/loader.h"
 #include "hw/irq.h"
@@ -41,6 +43,8 @@
 #include "hw/i386/e820_memory_layout.h"
 #include "hw/i386/fw_cfg.h"
 #include "hw/virtio/virtio-mmio.h"
+#include "hw/acpi/acpi.h"
+#include "hw/acpi/generic_event_device.h"
 
 #include "cpu.h"
 #include "elf.h"
@@ -129,6 +133,17 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     }
 
     /* Optional and legacy devices */
+    if (x86_machine_is_acpi_enabled(x86ms)) {
+        DeviceState *dev = qdev_new(TYPE_ACPI_GED_X86);
+        qdev_prop_set_uint32(dev, "ged-event", ACPI_GED_PWR_DOWN_EVT);
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, GED_MMIO_BASE);
+        /* sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, GED_MMIO_BASE_MEMHP); */
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, GED_MMIO_BASE_REGS);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                           x86ms->gsi[GED_MMIO_IRQ]);
+        sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
+        mms->acpi_dev = ACPI_DEVICE_IF(dev);
+    }
 
     if (mms->pic == ON_OFF_AUTO_ON || mms->pic == ON_OFF_AUTO_AUTO) {
         qemu_irq *i8259;
@@ -438,6 +453,26 @@ static void microvm_machine_set_auto_kernel_cmdline(Object *obj, bool value,
     mms->auto_kernel_cmdline = value;
 }
 
+static void microvm_machine_done(Notifier *notifier, void *data)
+{
+    MicrovmMachineState *mms = container_of(notifier, MicrovmMachineState,
+                                            machine_done);
+
+    acpi_setup_microvm(mms);
+}
+
+static void microvm_powerdown_req(Notifier *notifier, void *data)
+{
+    MicrovmMachineState *mms = container_of(notifier, MicrovmMachineState,
+                                            powerdown_req);
+
+    if (mms->acpi_dev) {
+        Object *obj = OBJECT(mms->acpi_dev);
+        AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
+        adevc->send_event(mms->acpi_dev, ACPI_POWER_DOWN_STATUS);
+    }
+}
+
 static void microvm_machine_initfn(Object *obj)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(obj);
@@ -452,6 +487,11 @@ static void microvm_machine_initfn(Object *obj)
 
     /* State */
     mms->kernel_cmdline_fixed = false;
+
+    mms->machine_done.notify = microvm_machine_done;
+    qemu_add_machine_init_done_notifier(&mms->machine_done);
+    mms->powerdown_req.notify = microvm_powerdown_req;
+    qemu_register_powerdown_notifier(&mms->powerdown_req);
 }
 
 static void microvm_class_init(ObjectClass *oc, void *data)
