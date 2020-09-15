@@ -106,6 +106,7 @@ struct VirtIOGPUBase {
 
     struct virtio_gpu_base_conf conf;
     struct virtio_gpu_config virtio_config;
+    const GraphicHwOps *hw_ops;
 
     bool use_virgl_renderer;
     int renderer_blocked;
@@ -170,8 +171,6 @@ struct VhostUserGPU {
     QemuDmaBuf dmabuf[VIRTIO_GPU_MAX_SCANOUTS];
     bool backend_blocked;
 };
-
-extern const GraphicHwOps virtio_gpu_ops;
 
 #define VIRTIO_GPU_FILL_CMD(out) do {                                   \
         size_t s;                                                       \
