@@ -30,7 +30,6 @@ struct PCMachineState {
     Notifier machine_done;
 
     /* Pointers to devices and objects: */
-    HotplugHandler *acpi_dev;
     PCIBus *bus;
     I2CBus *smbus;
     PFlashCFI01 *flash[2];

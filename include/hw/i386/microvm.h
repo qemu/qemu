@@ -68,7 +68,6 @@ struct MicrovmMachineState {
     bool kernel_cmdline_fixed;
     Notifier machine_done;
     Notifier powerdown_req;
-    AcpiDeviceIf *acpi_dev;
 };
 typedef struct MicrovmMachineState MicrovmMachineState;
 

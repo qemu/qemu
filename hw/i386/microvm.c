@@ -143,7 +143,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
                            x86ms->gsi[GED_MMIO_IRQ]);
         sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-        mms->acpi_dev = ACPI_DEVICE_IF(dev);
+        x86ms->acpi_dev = HOTPLUG_HANDLER(dev);
     }
 
     if (mms->pic == ON_OFF_AUTO_ON || mms->pic == ON_OFF_AUTO_AUTO) {
@@ -469,11 +469,13 @@ static void microvm_powerdown_req(Notifier *notifier, void *data)
 {
     MicrovmMachineState *mms = container_of(notifier, MicrovmMachineState,
                                             powerdown_req);
+    X86MachineState *x86ms = X86_MACHINE(mms);
 
-    if (mms->acpi_dev) {
-        Object *obj = OBJECT(mms->acpi_dev);
+    if (x86ms->acpi_dev) {
+        Object *obj = OBJECT(x86ms->acpi_dev);
         AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
-        adevc->send_event(mms->acpi_dev, ACPI_POWER_DOWN_STATUS);
+        adevc->send_event(ACPI_DEVICE_IF(x86ms->acpi_dev),
+                          ACPI_POWER_DOWN_STATUS);
     }
 }
 

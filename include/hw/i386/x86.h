@@ -52,6 +52,7 @@ struct X86MachineState {
     FWCfgState *fw_cfg;
     qemu_irq *gsi;
     GMappedFile *initrd_mapped_file;
+    HotplugHandler *acpi_dev;
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;

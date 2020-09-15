@@ -240,7 +240,7 @@ static void pc_q35_init(MachineState *machine)
 
     object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
                              TYPE_HOTPLUG_HANDLER,
-                             (Object **)&pcms->acpi_dev,
+                             (Object **)&x86ms->acpi_dev,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
     object_property_set_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
