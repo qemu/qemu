@@ -231,25 +231,29 @@ int sclp_service_call_protected(CPUS390XState *env, uint64_t sccb,
 {
     SCLPDevice *sclp = get_sclp_device();
     SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
-    SCCB work_sccb;
-    hwaddr sccb_len = sizeof(SCCB);
+    SCCBHeader header;
+    g_autofree SCCB *work_sccb = NULL;
 
-    s390_cpu_pv_mem_read(env_archcpu(env), 0, &work_sccb, sccb_len);
+    s390_cpu_pv_mem_read(env_archcpu(env), 0, &header, sizeof(SCCBHeader));
+
+    work_sccb = g_malloc0(be16_to_cpu(header.length));
+    s390_cpu_pv_mem_read(env_archcpu(env), 0, work_sccb,
+                         be16_to_cpu(header.length));
 
     if (!sclp_command_code_valid(code)) {
-        work_sccb.h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
+        work_sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
         goto out_write;
     }
 
-    if (!sccb_verify_boundary(sccb, be16_to_cpu(work_sccb.h.length))) {
-        work_sccb.h.response_code = cpu_to_be16(SCLP_RC_SCCB_BOUNDARY_VIOLATION);
+    if (!sccb_verify_boundary(sccb, be16_to_cpu(work_sccb->h.length))) {
+        work_sccb->h.response_code = cpu_to_be16(SCLP_RC_SCCB_BOUNDARY_VIOLATION);
         goto out_write;
     }
 
-    sclp_c->execute(sclp, &work_sccb, code);
+    sclp_c->execute(sclp, work_sccb, code);
 out_write:
-    s390_cpu_pv_mem_write(env_archcpu(env), 0, &work_sccb,
-                          be16_to_cpu(work_sccb.h.length));
+    s390_cpu_pv_mem_write(env_archcpu(env), 0, work_sccb,
+                          be16_to_cpu(work_sccb->h.length));
     sclp_c->service_interrupt(sclp, SCLP_PV_DUMMY_ADDR);
     return 0;
 }
@@ -258,9 +262,8 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
 {
     SCLPDevice *sclp = get_sclp_device();
     SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
-    SCCB work_sccb;
-
-    hwaddr sccb_len = sizeof(SCCB);
+    SCCBHeader header;
+    g_autofree SCCB *work_sccb = NULL;
 
     /* first some basic checks on program checks */
     if (env->psw.mask & PSW_MASK_PSTATE) {
@@ -274,32 +277,36 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
         return -PGM_SPECIFICATION;
     }
 
+    /* the header contains the actual length of the sccb */
+    cpu_physical_memory_read(sccb, &header, sizeof(SCCBHeader));
+
+    /* Valid sccb sizes */
+    if (be16_to_cpu(header.length) < sizeof(SCCBHeader)) {
+        return -PGM_SPECIFICATION;
+    }
+
     /*
      * we want to work on a private copy of the sccb, to prevent guests
      * from playing dirty tricks by modifying the memory content after
      * the host has checked the values
      */
-    cpu_physical_memory_read(sccb, &work_sccb, sccb_len);
-
-    /* Valid sccb sizes */
-    if (be16_to_cpu(work_sccb.h.length) < sizeof(SCCBHeader)) {
-        return -PGM_SPECIFICATION;
-    }
+    work_sccb = g_malloc0(be16_to_cpu(header.length));
+    cpu_physical_memory_read(sccb, work_sccb, be16_to_cpu(header.length));
 
     if (!sclp_command_code_valid(code)) {
-        work_sccb.h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
+        work_sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
         goto out_write;
     }
 
-    if (!sccb_verify_boundary(sccb, be16_to_cpu(work_sccb.h.length))) {
-        work_sccb.h.response_code = cpu_to_be16(SCLP_RC_SCCB_BOUNDARY_VIOLATION);
+    if (!sccb_verify_boundary(sccb, be16_to_cpu(work_sccb->h.length))) {
+        work_sccb->h.response_code = cpu_to_be16(SCLP_RC_SCCB_BOUNDARY_VIOLATION);
         goto out_write;
     }
 
-    sclp_c->execute(sclp, &work_sccb, code);
+    sclp_c->execute(sclp, work_sccb, code);
 out_write:
-    cpu_physical_memory_write(sccb, &work_sccb,
-                              be16_to_cpu(work_sccb.h.length));
+    cpu_physical_memory_write(sccb, work_sccb,
+                              be16_to_cpu(work_sccb->h.length));
 
     sclp_c->service_interrupt(sclp, sccb);
 

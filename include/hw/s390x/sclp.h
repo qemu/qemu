@@ -178,7 +178,7 @@ typedef struct IoaCfgSccb {
 
 typedef struct SCCB {
     SCCBHeader h;
-    char data[SCCB_DATA_LEN];
+    char data[];
  } QEMU_PACKED SCCB;
 
 #define TYPE_SCLP "sclp"
