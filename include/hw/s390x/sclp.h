@@ -134,7 +134,15 @@ typedef struct ReadInfo {
     uint16_t highest_cpu;
     uint8_t  _reserved5[124 - 122];     /* 122-123 */
     uint32_t hmfai;
+    uint8_t  _reserved7[134 - 128];     /* 128-133 */
+    uint8_t  fac134;
+    uint8_t  _reserved8[144 - 135];     /* 135-143 */
     struct CPUEntry entries[];
+    /*
+     * When the Extended-Length SCCB (ELS) feature is enabled the
+     * start of the entries field begins at an offset denoted by the
+     * offset_cpu field, otherwise it's at an offset of 128.
+     */
 } QEMU_PACKED ReadInfo;
 
 typedef struct ReadCpuInfo {
