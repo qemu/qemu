@@ -57,7 +57,7 @@
 	url = 	https://git.qemu.org/git/opensbi.git
 [submodule "roms/qboot"]
 	path = roms/qboot
-	url = https://github.com/bonzini/qboot
+	url = https://git.qemu.org/git/qboot.git
 [submodule "meson"]
 	path = meson
 	url = https://github.com/mesonbuild/meson/
