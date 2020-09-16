@@ -29,6 +29,12 @@
  */
 #define MIN_RAMBLOCK_SIZE                         128
 
+/*
+ * Take 1s as minimum time for calculation duration
+ */
+#define MIN_FETCH_DIRTYRATE_TIME_SEC              1
+#define MAX_FETCH_DIRTYRATE_TIME_SEC              60
+
 struct DirtyRateConfig {
     uint64_t sample_pages_per_gigabytes; /* sample pages per GB */
     int64_t sample_period_seconds; /* time duration between two sampling */
