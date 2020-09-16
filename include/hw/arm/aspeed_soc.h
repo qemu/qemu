@@ -62,12 +62,9 @@ struct AspeedSoCState {
     AspeedSDHCIState sdhci;
     AspeedSDHCIState emmc;
 };
-typedef struct AspeedSoCState AspeedSoCState;
 
 #define TYPE_ASPEED_SOC "aspeed-soc"
-typedef struct AspeedSoCClass AspeedSoCClass;
-DECLARE_OBJ_CHECKERS(AspeedSoCState, AspeedSoCClass,
-                     ASPEED_SOC, TYPE_ASPEED_SOC)
+OBJECT_DECLARE_TYPE(AspeedSoCState, AspeedSoCClass, ASPEED_SOC)
 
 struct AspeedSoCClass {
     DeviceClass parent_class;

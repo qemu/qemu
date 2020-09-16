@@ -17,10 +17,7 @@
 #include "qom/object.h"
 
 #define TYPE_S390_SKEYS "s390-skeys"
-typedef struct S390SKeysClass S390SKeysClass;
-typedef struct S390SKeysState S390SKeysState;
-DECLARE_OBJ_CHECKERS(S390SKeysState, S390SKeysClass,
-                     S390_SKEYS, TYPE_S390_SKEYS)
+OBJECT_DECLARE_TYPE(S390SKeysState, S390SKeysClass, S390_SKEYS)
 
 struct S390SKeysState {
     DeviceState parent_obj;

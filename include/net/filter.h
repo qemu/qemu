@@ -15,9 +15,7 @@
 #include "net/queue.h"
 
 #define TYPE_NETFILTER "netfilter"
-typedef struct NetFilterClass NetFilterClass;
-DECLARE_OBJ_CHECKERS(NetFilterState, NetFilterClass,
-                     NETFILTER, TYPE_NETFILTER)
+OBJECT_DECLARE_TYPE(NetFilterState, NetFilterClass, NETFILTER)
 
 typedef void (FilterSetup) (NetFilterState *nf, Error **errp);
 typedef void (FilterCleanup) (NetFilterState *nf);

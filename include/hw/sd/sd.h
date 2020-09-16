@@ -89,12 +89,9 @@ typedef struct {
     uint8_t crc;
 } SDRequest;
 
-typedef struct SDState SDState;
 
 #define TYPE_SD_CARD "sd-card"
-typedef struct SDCardClass SDCardClass;
-DECLARE_OBJ_CHECKERS(SDState, SDCardClass,
-                     SD_CARD, TYPE_SD_CARD)
+OBJECT_DECLARE_TYPE(SDState, SDCardClass, SD_CARD)
 
 struct SDCardClass {
     /*< private >*/

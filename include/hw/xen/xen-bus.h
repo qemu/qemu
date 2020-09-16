@@ -57,11 +57,9 @@ struct XenDeviceClass {
     XenDeviceFrontendChanged frontend_changed;
     XenDeviceUnrealize unrealize;
 };
-typedef struct XenDeviceClass XenDeviceClass;
 
 #define TYPE_XEN_DEVICE "xen-device"
-DECLARE_OBJ_CHECKERS(XenDevice, XenDeviceClass,
-                     XEN_DEVICE, TYPE_XEN_DEVICE)
+OBJECT_DECLARE_TYPE(XenDevice, XenDeviceClass, XEN_DEVICE)
 
 struct XenBus {
     BusState qbus;

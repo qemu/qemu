@@ -65,17 +65,14 @@ struct TMP421State {
     uint8_t pointer;
 
 };
-typedef struct TMP421State TMP421State;
 
 struct TMP421Class {
     I2CSlaveClass parent_class;
     DeviceInfo *dev;
 };
-typedef struct TMP421Class TMP421Class;
 
 #define TYPE_TMP421 "tmp421-generic"
-DECLARE_OBJ_CHECKERS(TMP421State, TMP421Class,
-                     TMP421, TYPE_TMP421)
+OBJECT_DECLARE_TYPE(TMP421State, TMP421Class, TMP421)
 
 
 /* the TMP421 registers */

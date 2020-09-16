@@ -13,13 +13,10 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
-typedef struct CCIDCardState CCIDCardState;
 typedef struct CCIDCardInfo CCIDCardInfo;
 
 #define TYPE_CCID_CARD "ccid-card"
-typedef struct CCIDCardClass CCIDCardClass;
-DECLARE_OBJ_CHECKERS(CCIDCardState, CCIDCardClass,
-                     CCID_CARD, TYPE_CCID_CARD)
+OBJECT_DECLARE_TYPE(CCIDCardState, CCIDCardClass, CCID_CARD)
 
 /*
  * callbacks to be used by the CCID device (hw/usb-ccid.c) to call

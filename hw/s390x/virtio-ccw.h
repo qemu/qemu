@@ -54,10 +54,7 @@
 #define CCW_CMD_SET_VIRTIO_REV 0x83
 
 #define TYPE_VIRTIO_CCW_DEVICE "virtio-ccw-device"
-typedef struct VirtIOCCWDeviceClass VirtIOCCWDeviceClass;
-typedef struct VirtioCcwDevice VirtioCcwDevice;
-DECLARE_OBJ_CHECKERS(VirtioCcwDevice, VirtIOCCWDeviceClass,
-                     VIRTIO_CCW_DEVICE, TYPE_VIRTIO_CCW_DEVICE)
+OBJECT_DECLARE_TYPE(VirtioCcwDevice, VirtIOCCWDeviceClass, VIRTIO_CCW_DEVICE)
 
 typedef struct VirtioBusState VirtioCcwBusState;
 typedef struct VirtioBusClass VirtioCcwBusClass;

@@ -350,10 +350,7 @@ struct EHCIPCIState {
 #define TYPE_PPC4xx_EHCI "ppc4xx-ehci-usb"
 #define TYPE_FUSBH200_EHCI "fusbh200-ehci-usb"
 
-typedef struct EHCISysBusState EHCISysBusState;
-typedef struct SysBusEHCIClass SysBusEHCIClass;
-DECLARE_OBJ_CHECKERS(EHCISysBusState, SysBusEHCIClass,
-                     SYS_BUS_EHCI, TYPE_SYS_BUS_EHCI)
+OBJECT_DECLARE_TYPE(EHCISysBusState, SysBusEHCIClass, SYS_BUS_EHCI)
 
 struct EHCISysBusState {
     /*< private >*/

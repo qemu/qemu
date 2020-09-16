@@ -16,10 +16,7 @@
 
 #define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
 
-typedef struct S390CcwMachineClass S390CcwMachineClass;
-typedef struct S390CcwMachineState S390CcwMachineState;
-DECLARE_OBJ_CHECKERS(S390CcwMachineState, S390CcwMachineClass,
-                     S390_CCW_MACHINE, TYPE_S390_CCW_MACHINE)
+OBJECT_DECLARE_TYPE(S390CcwMachineState, S390CcwMachineClass, S390_CCW_MACHINE)
 
 
 struct S390CcwMachineState {

@@ -171,20 +171,17 @@ struct VexpressMachineClass {
     MachineClass parent;
     VEDBoardInfo *daughterboard;
 };
-typedef struct VexpressMachineClass VexpressMachineClass;
 
 struct VexpressMachineState {
     MachineState parent;
     bool secure;
     bool virt;
 };
-typedef struct VexpressMachineState VexpressMachineState;
 
 #define TYPE_VEXPRESS_MACHINE   "vexpress"
 #define TYPE_VEXPRESS_A9_MACHINE   MACHINE_TYPE_NAME("vexpress-a9")
 #define TYPE_VEXPRESS_A15_MACHINE   MACHINE_TYPE_NAME("vexpress-a15")
-DECLARE_OBJ_CHECKERS(VexpressMachineState, VexpressMachineClass,
-                     VEXPRESS_MACHINE, TYPE_VEXPRESS_MACHINE)
+OBJECT_DECLARE_TYPE(VexpressMachineState, VexpressMachineClass, VEXPRESS_MACHINE)
 
 typedef void DBoardInitFn(const VexpressMachineState *machine,
                           ram_addr_t ram_size,

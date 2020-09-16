@@ -488,9 +488,7 @@ struct IDEBus {
 };
 
 #define TYPE_IDE_DEVICE "ide-device"
-typedef struct IDEDeviceClass IDEDeviceClass;
-DECLARE_OBJ_CHECKERS(IDEDevice, IDEDeviceClass,
-                     IDE_DEVICE, TYPE_IDE_DEVICE)
+OBJECT_DECLARE_TYPE(IDEDevice, IDEDeviceClass, IDE_DEVICE)
 
 struct IDEDeviceClass {
     DeviceClass parent_class;

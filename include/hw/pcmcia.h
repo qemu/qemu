@@ -12,10 +12,7 @@ typedef struct PCMCIASocket {
 } PCMCIASocket;
 
 #define TYPE_PCMCIA_CARD "pcmcia-card"
-typedef struct PCMCIACardClass PCMCIACardClass;
-typedef struct PCMCIACardState PCMCIACardState;
-DECLARE_OBJ_CHECKERS(PCMCIACardState, PCMCIACardClass,
-                     PCMCIA_CARD, TYPE_PCMCIA_CARD)
+OBJECT_DECLARE_TYPE(PCMCIACardState, PCMCIACardClass, PCMCIA_CARD)
 
 struct PCMCIACardState {
     /*< private >*/

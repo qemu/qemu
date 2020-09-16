@@ -55,7 +55,6 @@ struct MuscaMachineClass {
     const MPCInfo *mpc_info;
     int num_mpcs;
 };
-typedef struct MuscaMachineClass MuscaMachineClass;
 
 struct MuscaMachineState {
     MachineState parent;
@@ -84,14 +83,12 @@ struct MuscaMachineState {
     UnimplementedDeviceState gpio;
     UnimplementedDeviceState cryptoisland;
 };
-typedef struct MuscaMachineState MuscaMachineState;
 
 #define TYPE_MUSCA_MACHINE "musca"
 #define TYPE_MUSCA_A_MACHINE MACHINE_TYPE_NAME("musca-a")
 #define TYPE_MUSCA_B1_MACHINE MACHINE_TYPE_NAME("musca-b1")
 
-DECLARE_OBJ_CHECKERS(MuscaMachineState, MuscaMachineClass,
-                     MUSCA_MACHINE, TYPE_MUSCA_MACHINE)
+OBJECT_DECLARE_TYPE(MuscaMachineState, MuscaMachineClass, MUSCA_MACHINE)
 
 /*
  * Main SYSCLK frequency in Hz

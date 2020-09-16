@@ -39,12 +39,9 @@ struct SpaprRtcState {
 };
 
 typedef struct SpaprDimmState SpaprDimmState;
-typedef struct SpaprMachineClass SpaprMachineClass;
 
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
-typedef struct SpaprMachineState SpaprMachineState;
-DECLARE_OBJ_CHECKERS(SpaprMachineState, SpaprMachineClass,
-                     SPAPR_MACHINE, TYPE_SPAPR_MACHINE)
+OBJECT_DECLARE_TYPE(SpaprMachineState, SpaprMachineClass, SPAPR_MACHINE)
 
 typedef enum {
     SPAPR_RESIZE_HPT_DEFAULT = 0,

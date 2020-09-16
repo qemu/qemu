@@ -77,7 +77,6 @@ struct MPS2TZMachineClass {
     uint32_t scc_id;
     const char *armsse_type;
 };
-typedef struct MPS2TZMachineClass MPS2TZMachineClass;
 
 struct MPS2TZMachineState {
     MachineState parent;
@@ -102,14 +101,12 @@ struct MPS2TZMachineState {
     DeviceState *lan9118;
     SplitIRQ cpu_irq_splitter[MPS2TZ_NUMIRQ];
 };
-typedef struct MPS2TZMachineState MPS2TZMachineState;
 
 #define TYPE_MPS2TZ_MACHINE "mps2tz"
 #define TYPE_MPS2TZ_AN505_MACHINE MACHINE_TYPE_NAME("mps2-an505")
 #define TYPE_MPS2TZ_AN521_MACHINE MACHINE_TYPE_NAME("mps2-an521")
 
-DECLARE_OBJ_CHECKERS(MPS2TZMachineState, MPS2TZMachineClass,
-                     MPS2TZ_MACHINE, TYPE_MPS2TZ_MACHINE)
+OBJECT_DECLARE_TYPE(MPS2TZMachineState, MPS2TZMachineClass, MPS2TZ_MACHINE)
 
 /* Main SYSCLK frequency in Hz */
 #define SYSCLK_FRQ 20000000

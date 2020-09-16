@@ -265,9 +265,7 @@ struct USBDevice {
 };
 
 #define TYPE_USB_DEVICE "usb-device"
-typedef struct USBDeviceClass USBDeviceClass;
-DECLARE_OBJ_CHECKERS(USBDevice, USBDeviceClass,
-                     USB_DEVICE, TYPE_USB_DEVICE)
+OBJECT_DECLARE_TYPE(USBDevice, USBDeviceClass, USB_DEVICE)
 
 typedef void (*USBDeviceRealize)(USBDevice *dev, Error **errp);
 typedef void (*USBDeviceUnrealize)(USBDevice *dev);

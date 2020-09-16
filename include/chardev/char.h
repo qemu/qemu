@@ -226,9 +226,7 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all);
 int qemu_chr_wait_connected(Chardev *chr, Error **errp);
 
 #define TYPE_CHARDEV "chardev"
-typedef struct ChardevClass ChardevClass;
-DECLARE_OBJ_CHECKERS(Chardev, ChardevClass,
-                     CHARDEV, TYPE_CHARDEV)
+OBJECT_DECLARE_TYPE(Chardev, ChardevClass, CHARDEV)
 
 #define TYPE_CHARDEV_NULL "chardev-null"
 #define TYPE_CHARDEV_MUX "chardev-mux"

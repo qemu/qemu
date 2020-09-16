@@ -15,7 +15,6 @@
 #include "hw/ppc/xive.h"
 #include "qom/object.h"
 
-typedef struct PnvPhb4PecState PnvPhb4PecState;
 typedef struct PnvPhb4PecStack PnvPhb4PecStack;
 typedef struct PnvPHB4 PnvPHB4;
 typedef struct PnvChip PnvChip;
@@ -142,9 +141,7 @@ extern const MemoryRegionOps pnv_phb4_xscom_ops;
  * PHB4 PEC (PCI Express Controller)
  */
 #define TYPE_PNV_PHB4_PEC "pnv-phb4-pec"
-typedef struct PnvPhb4PecClass PnvPhb4PecClass;
-DECLARE_OBJ_CHECKERS(PnvPhb4PecState, PnvPhb4PecClass,
-                     PNV_PHB4_PEC, TYPE_PNV_PHB4_PEC)
+OBJECT_DECLARE_TYPE(PnvPhb4PecState, PnvPhb4PecClass, PNV_PHB4_PEC)
 
 #define TYPE_PNV_PHB4_PEC_STACK "pnv-phb4-pec-stack"
 DECLARE_INSTANCE_CHECKER(PnvPhb4PecStack, PNV_PHB4_PEC_STACK,

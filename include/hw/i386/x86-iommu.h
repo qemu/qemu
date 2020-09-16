@@ -26,10 +26,7 @@
 #include "qom/object.h"
 
 #define  TYPE_X86_IOMMU_DEVICE  ("x86-iommu")
-typedef struct X86IOMMUClass X86IOMMUClass;
-typedef struct X86IOMMUState X86IOMMUState;
-DECLARE_OBJ_CHECKERS(X86IOMMUState, X86IOMMUClass,
-                     X86_IOMMU_DEVICE, TYPE_X86_IOMMU_DEVICE)
+OBJECT_DECLARE_TYPE(X86IOMMUState, X86IOMMUClass, X86_IOMMU_DEVICE)
 
 #define X86_IOMMU_SID_INVALID             (0xffff)
 

@@ -39,7 +39,6 @@ struct X86MachineClass {
     /* Enables contiguous-apic-ID mode */
     bool compat_apic_id_mode;
 };
-typedef struct X86MachineClass X86MachineClass;
 
 struct X86MachineState {
     /*< private >*/
@@ -72,14 +71,12 @@ struct X86MachineState {
      */
     AddressSpace *ioapic_as;
 };
-typedef struct X86MachineState X86MachineState;
 
 #define X86_MACHINE_SMM              "smm"
 #define X86_MACHINE_ACPI             "acpi"
 
 #define TYPE_X86_MACHINE   MACHINE_TYPE_NAME("x86")
-DECLARE_OBJ_CHECKERS(X86MachineState, X86MachineClass,
-                     X86_MACHINE, TYPE_X86_MACHINE)
+OBJECT_DECLARE_TYPE(X86MachineState, X86MachineClass, X86_MACHINE)
 
 void init_topo_info(X86CPUTopoInfo *topo_info, const X86MachineState *x86ms);
 

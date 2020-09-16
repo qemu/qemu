@@ -30,12 +30,9 @@
 #include "hw/intc/i8259.h"
 #include "qom/object.h"
 
-typedef struct PICCommonState PICCommonState;
 
 #define TYPE_PIC_COMMON "pic-common"
-typedef struct PICCommonClass PICCommonClass;
-DECLARE_OBJ_CHECKERS(PICCommonState, PICCommonClass,
-                     PIC_COMMON, TYPE_PIC_COMMON)
+OBJECT_DECLARE_TYPE(PICCommonState, PICCommonClass, PIC_COMMON)
 
 struct PICCommonClass {
     ISADeviceClass parent_class;

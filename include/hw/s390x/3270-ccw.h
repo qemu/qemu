@@ -31,10 +31,7 @@
 #define TC_EWRITEA 0x0d         /* Erase write alternate */
 #define TC_WRITESF 0x11         /* Write structured field */
 
-typedef struct EmulatedCcw3270Class EmulatedCcw3270Class;
-typedef struct EmulatedCcw3270Device EmulatedCcw3270Device;
-DECLARE_OBJ_CHECKERS(EmulatedCcw3270Device, EmulatedCcw3270Class,
-                     EMULATED_CCW_3270, TYPE_EMULATED_CCW_3270)
+OBJECT_DECLARE_TYPE(EmulatedCcw3270Device, EmulatedCcw3270Class, EMULATED_CCW_3270)
 
 struct EmulatedCcw3270Device {
     CcwDevice parent_obj;

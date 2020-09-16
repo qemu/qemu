@@ -43,7 +43,6 @@ struct SpitzMachineClass {
     enum spitz_model_e model;
     int arm_id;
 };
-typedef struct SpitzMachineClass SpitzMachineClass;
 
 struct SpitzMachineState {
     MachineState parent;
@@ -56,11 +55,9 @@ struct SpitzMachineState {
     DeviceState *scp1;
     DeviceState *misc_gpio;
 };
-typedef struct SpitzMachineState SpitzMachineState;
 
 #define TYPE_SPITZ_MACHINE "spitz-common"
-DECLARE_OBJ_CHECKERS(SpitzMachineState, SpitzMachineClass,
-                     SPITZ_MACHINE, TYPE_SPITZ_MACHINE)
+OBJECT_DECLARE_TYPE(SpitzMachineState, SpitzMachineClass, SPITZ_MACHINE)
 
 #define zaurus_printf(format, ...)                              \
     fprintf(stderr, "%s: " format, __func__, ##__VA_ARGS__)

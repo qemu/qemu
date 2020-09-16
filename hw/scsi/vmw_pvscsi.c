@@ -61,12 +61,9 @@ struct PVSCSIClass {
     PCIDeviceClass parent_class;
     DeviceRealize parent_dc_realize;
 };
-typedef struct PVSCSIClass PVSCSIClass;
 
 #define TYPE_PVSCSI "pvscsi"
-typedef struct PVSCSIState PVSCSIState;
-DECLARE_OBJ_CHECKERS(PVSCSIState, PVSCSIClass,
-                     PVSCSI, TYPE_PVSCSI)
+OBJECT_DECLARE_TYPE(PVSCSIState, PVSCSIClass, PVSCSI)
 
 
 /* Compatibility flags for migration */

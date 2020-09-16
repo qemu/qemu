@@ -68,11 +68,9 @@ struct XenBlockDeviceClass {
     XenBlockDeviceRealize realize;
     XenBlockDeviceUnrealize unrealize;
 };
-typedef struct XenBlockDeviceClass XenBlockDeviceClass;
 
 #define TYPE_XEN_BLOCK_DEVICE  "xen-block"
-DECLARE_OBJ_CHECKERS(XenBlockDevice, XenBlockDeviceClass,
-                     XEN_BLOCK_DEVICE, TYPE_XEN_BLOCK_DEVICE)
+OBJECT_DECLARE_TYPE(XenBlockDevice, XenBlockDeviceClass, XEN_BLOCK_DEVICE)
 
 struct XenDiskDevice {
     XenBlockDevice blockdev;

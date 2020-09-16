@@ -128,7 +128,6 @@ struct VirtMachineClass {
     bool kvm_no_adjvtime;
     bool acpi_expose_flash;
 };
-typedef struct VirtMachineClass VirtMachineClass;
 
 struct VirtMachineState {
     MachineState parent;
@@ -165,13 +164,11 @@ struct VirtMachineState {
     DeviceState *acpi_dev;
     Notifier powerdown_notifier;
 };
-typedef struct VirtMachineState VirtMachineState;
 
 #define VIRT_ECAM_ID(high) (high ? VIRT_HIGH_PCIE_ECAM : VIRT_PCIE_ECAM)
 
 #define TYPE_VIRT_MACHINE   MACHINE_TYPE_NAME("virt")
-DECLARE_OBJ_CHECKERS(VirtMachineState, VirtMachineClass,
-                     VIRT_MACHINE, TYPE_VIRT_MACHINE)
+OBJECT_DECLARE_TYPE(VirtMachineState, VirtMachineClass, VIRT_MACHINE)
 
 void virt_acpi_setup(VirtMachineState *vms);
 bool virt_is_acpi_enabled(VirtMachineState *vms);

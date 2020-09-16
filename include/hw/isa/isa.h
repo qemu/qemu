@@ -11,9 +11,7 @@
 #define ISA_NUM_IRQS 16
 
 #define TYPE_ISA_DEVICE "isa-device"
-typedef struct ISADeviceClass ISADeviceClass;
-DECLARE_OBJ_CHECKERS(ISADevice, ISADeviceClass,
-                     ISA_DEVICE, TYPE_ISA_DEVICE)
+OBJECT_DECLARE_TYPE(ISADevice, ISADeviceClass, ISA_DEVICE)
 
 #define TYPE_ISA_BUS "ISA"
 DECLARE_INSTANCE_CHECKER(ISABus, ISA_BUS,
