@@ -311,11 +311,6 @@ static struct audio_driver spice_audio_driver = {
     .voice_size_in  = sizeof (SpiceVoiceIn),
 };
 
-void qemu_spice_audio_init (void)
-{
-    spice_audio_driver.can_be_default = 1;
-}
-
 static void register_audio_spice(void)
 {
     audio_driver_register(&spice_audio_driver);

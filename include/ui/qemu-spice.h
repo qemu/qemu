@@ -29,7 +29,6 @@ extern int using_spice;
 
 void qemu_spice_init(void);
 void qemu_spice_input_init(void);
-void qemu_spice_audio_init(void);
 void qemu_spice_display_init(void);
 int qemu_spice_display_add_client(int csock, int skipauth, int tls);
 int qemu_spice_add_interface(SpiceBaseInstance *sin);

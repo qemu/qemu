@@ -804,7 +804,6 @@ void qemu_spice_init(void)
     qemu_spice_add_interface(&spice_migrate.base);
 
     qemu_spice_input_init();
-    qemu_spice_audio_init();
 
     qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
     qemu_spice_display_stop();
