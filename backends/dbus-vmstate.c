@@ -23,7 +23,7 @@
 
 
 #define TYPE_DBUS_VMSTATE "dbus-vmstate"
-OBJECT_DECLARE_SIMPLE_TYPE(DBusVMState, dbus_vmstate,
+OBJECT_DECLARE_SIMPLE_TYPE(DBusVMState,
                            DBUS_VMSTATE)
 
 

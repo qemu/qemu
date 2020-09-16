@@ -22,7 +22,7 @@
 
 #define TYPE_PC_DIMM "pc-dimm"
 OBJECT_DECLARE_TYPE(PCDIMMDevice, PCDIMMDeviceClass,
-                    pc_dimm, PC_DIMM)
+                    PC_DIMM)
 
 #define PC_DIMM_ADDR_PROP "addr"
 #define PC_DIMM_SLOT_PROP "slot"

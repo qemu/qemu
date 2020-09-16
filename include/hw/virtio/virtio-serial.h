@@ -27,7 +27,7 @@ struct virtio_serial_conf {
 
 #define TYPE_VIRTIO_SERIAL_PORT "virtio-serial-port"
 OBJECT_DECLARE_TYPE(VirtIOSerialPort, VirtIOSerialPortClass,
-                    virtio_serial_port, VIRTIO_SERIAL_PORT)
+                    VIRTIO_SERIAL_PORT)
 
 typedef struct VirtIOSerial VirtIOSerial;
 

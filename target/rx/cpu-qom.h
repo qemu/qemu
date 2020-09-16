@@ -27,7 +27,7 @@
 #define TYPE_RX62N_CPU RX_CPU_TYPE_NAME("rx62n")
 
 OBJECT_DECLARE_TYPE(RXCPU, RXCPUClass,
-                    rx_cpu, RX_CPU)
+                    RX_CPU)
 
 /*
  * RXCPUClass:

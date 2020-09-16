@@ -614,7 +614,6 @@ struct Object
  * OBJECT_DECLARE_TYPE:
  * @InstanceType: instance struct name
  * @ClassType: class struct name
- * @module_obj_name: the object name in lowercase with underscore separators
  * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
  *
  * This macro is typically used in a header file, and will:
@@ -625,7 +624,7 @@ struct Object
  *
  * The object struct and class struct need to be declared manually.
  */
-#define OBJECT_DECLARE_TYPE(InstanceType, ClassType, module_obj_name, MODULE_OBJ_NAME) \
+#define OBJECT_DECLARE_TYPE(InstanceType, ClassType, MODULE_OBJ_NAME) \
     typedef struct InstanceType InstanceType; \
     typedef struct ClassType ClassType; \
     \
@@ -637,7 +636,6 @@ struct Object
 /**
  * OBJECT_DECLARE_SIMPLE_TYPE:
  * @InstanceType: instance struct name
- * @module_obj_name: the object name in lowercase with underscore separators
  * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
  *
  * This does the same as OBJECT_DECLARE_TYPE(), but with no class struct
@@ -646,7 +644,7 @@ struct Object
  * This macro should be used unless the class struct needs to have
  * virtual methods declared.
  */
-#define OBJECT_DECLARE_SIMPLE_TYPE(InstanceType, module_obj_name, MODULE_OBJ_NAME) \
+#define OBJECT_DECLARE_SIMPLE_TYPE(InstanceType, MODULE_OBJ_NAME) \
     typedef struct InstanceType InstanceType; \
     \
     G_DEFINE_AUTOPTR_CLEANUP_FUNC(InstanceType, object_unref) \

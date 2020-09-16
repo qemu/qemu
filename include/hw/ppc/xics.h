@@ -49,7 +49,7 @@ typedef struct XICSFabric XICSFabric;
 
 #define TYPE_ICP "icp"
 OBJECT_DECLARE_TYPE(ICPState, ICPStateClass,
-                    icp, ICP)
+                    ICP)
 
 #define TYPE_PNV_ICP "pnv-icp"
 DECLARE_INSTANCE_CHECKER(PnvICPState, PNV_ICP,

@@ -26,7 +26,7 @@
 
 #define TYPE_VIRTIO_GPU_BASE "virtio-gpu-base"
 OBJECT_DECLARE_TYPE(VirtIOGPUBase, VirtIOGPUBaseClass,
-                    virtio_gpu_base, VIRTIO_GPU_BASE)
+                    VIRTIO_GPU_BASE)
 
 #define TYPE_VIRTIO_GPU "virtio-gpu-device"
 typedef struct VirtIOGPU VirtIOGPU;

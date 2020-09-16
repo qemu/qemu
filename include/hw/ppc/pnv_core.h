@@ -26,7 +26,7 @@
 
 #define TYPE_PNV_CORE "powernv-cpu-core"
 OBJECT_DECLARE_TYPE(PnvCore, PnvCoreClass,
-                    pnv_core, PNV_CORE)
+                    PNV_CORE)
 
 typedef struct PnvChip PnvChip;
 

@@ -21,7 +21,7 @@
 #define TYPE_VMBUS_DEVICE "vmbus-dev"
 
 OBJECT_DECLARE_TYPE(VMBusDevice, VMBusDeviceClass,
-                    vmbus_device, VMBUS_DEVICE)
+                    VMBUS_DEVICE)
 
 #define TYPE_VMBUS "vmbus"
 typedef struct VMBus VMBus;

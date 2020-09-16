@@ -177,7 +177,7 @@ struct IPMIInterfaceClass {
  */
 #define TYPE_IPMI_BMC "ipmi-bmc"
 OBJECT_DECLARE_TYPE(IPMIBmc, IPMIBmcClass,
-                    ipmi_bmc, IPMI_BMC)
+                    IPMI_BMC)
 
 struct IPMIBmc {
     DeviceState parent;

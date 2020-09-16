@@ -26,7 +26,7 @@
 
 #define TYPE_QCRYPTO_SECRET_COMMON "secret_common"
 OBJECT_DECLARE_TYPE(QCryptoSecretCommon, QCryptoSecretCommonClass,
-                    qcrypto_secret_common, QCRYPTO_SECRET_COMMON)
+                    QCRYPTO_SECRET_COMMON)
 
 
 struct QCryptoSecretCommon {

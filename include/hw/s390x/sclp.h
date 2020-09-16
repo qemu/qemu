@@ -183,7 +183,7 @@ typedef struct SCCB {
 
 #define TYPE_SCLP "sclp"
 OBJECT_DECLARE_TYPE(SCLPDevice, SCLPDeviceClass,
-                    sclp, SCLP)
+                    SCLP)
 
 struct SCLPEventFacility;
 

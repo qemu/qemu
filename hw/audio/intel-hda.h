@@ -9,7 +9,7 @@
 
 #define TYPE_HDA_CODEC_DEVICE "hda-codec"
 OBJECT_DECLARE_TYPE(HDACodecDevice, HDACodecDeviceClass,
-                    hda_codec_device, HDA_CODEC_DEVICE)
+                    HDA_CODEC_DEVICE)
 
 #define TYPE_HDA_BUS "HDA"
 typedef struct HDACodecBus HDACodecBus;

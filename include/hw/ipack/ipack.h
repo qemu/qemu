@@ -33,7 +33,7 @@ struct IPackBus {
 
 #define TYPE_IPACK_DEVICE "ipack-device"
 OBJECT_DECLARE_TYPE(IPackDevice, IPackDeviceClass,
-                    ipack_device, IPACK_DEVICE)
+                    IPACK_DEVICE)
 
 struct IPackDeviceClass {
     /*< private >*/

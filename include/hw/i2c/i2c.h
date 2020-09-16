@@ -19,7 +19,7 @@ enum i2c_event {
 
 #define TYPE_I2C_SLAVE "i2c-slave"
 OBJECT_DECLARE_TYPE(I2CSlave, I2CSlaveClass,
-                    i2c_slave, I2C_SLAVE)
+                    I2C_SLAVE)
 
 struct I2CSlaveClass {
     DeviceClass parent_class;

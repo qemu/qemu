@@ -20,7 +20,7 @@
 #include "input-barrier.h"
 
 #define TYPE_INPUT_BARRIER "input-barrier"
-OBJECT_DECLARE_SIMPLE_TYPE(InputBarrier, input_barrier,
+OBJECT_DECLARE_SIMPLE_TYPE(InputBarrier,
                            INPUT_BARRIER)
 
 

@@ -30,7 +30,7 @@
 
 #define TYPE_SMBUS_DEVICE "smbus-device"
 OBJECT_DECLARE_TYPE(SMBusDevice, SMBusDeviceClass,
-                    smbus_device, SMBUS_DEVICE)
+                    SMBUS_DEVICE)
 
 
 struct SMBusDeviceClass {

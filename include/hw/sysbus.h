@@ -17,7 +17,7 @@ DECLARE_INSTANCE_CHECKER(BusState, SYSTEM_BUS,
 
 #define TYPE_SYS_BUS_DEVICE "sys-bus-device"
 OBJECT_DECLARE_TYPE(SysBusDevice, SysBusDeviceClass,
-                    sys_bus_device, SYS_BUS_DEVICE)
+                    SYS_BUS_DEVICE)
 
 /**
  * SysBusDeviceClass:

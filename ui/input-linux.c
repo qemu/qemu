@@ -31,7 +31,7 @@ static bool linux_is_button(unsigned int lnx)
 }
 
 #define TYPE_INPUT_LINUX "input-linux"
-OBJECT_DECLARE_SIMPLE_TYPE(InputLinux, input_linux,
+OBJECT_DECLARE_SIMPLE_TYPE(InputLinux,
                            INPUT_LINUX)
 
 

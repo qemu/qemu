@@ -79,7 +79,7 @@ struct XenBusClass {
 
 #define TYPE_XEN_BUS "xen-bus"
 OBJECT_DECLARE_TYPE(XenBus, XenBusClass,
-                    xen_bus, XEN_BUS)
+                    XEN_BUS)
 
 void xen_bus_init(void);
 

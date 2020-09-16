@@ -36,7 +36,7 @@
 
 #define TYPE_PNV_CHIP "pnv-chip"
 OBJECT_DECLARE_TYPE(PnvChip, PnvChipClass,
-                    pnv_chip, PNV_CHIP)
+                    PNV_CHIP)
 
 struct PnvChip {
     /*< private >*/

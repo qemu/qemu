@@ -17,7 +17,7 @@
 
 #define TYPE_SPAPR_CPU_CORE "spapr-cpu-core"
 OBJECT_DECLARE_TYPE(SpaprCpuCore, SpaprCpuCoreClass,
-                    spapr_cpu_core, SPAPR_CPU_CORE)
+                    SPAPR_CPU_CORE)
 
 #define SPAPR_CPU_CORE_TYPE_NAME(model) model "-" TYPE_SPAPR_CPU_CORE
 

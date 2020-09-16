@@ -28,7 +28,7 @@ struct arm_boot_info;
 #define TYPE_ARM_CPU "arm-cpu"
 
 OBJECT_DECLARE_TYPE(ARMCPU, ARMCPUClass,
-                    arm_cpu, ARM_CPU)
+                    ARM_CPU)
 
 #define TYPE_ARM_MAX_CPU "max-" TYPE_ARM_CPU
 

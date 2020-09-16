@@ -348,7 +348,7 @@ struct XiveRouter {
 
 #define TYPE_XIVE_ROUTER "xive-router"
 OBJECT_DECLARE_TYPE(XiveRouter, XiveRouterClass,
-                    xive_router, XIVE_ROUTER)
+                    XIVE_ROUTER)
 
 struct XiveRouterClass {
     SysBusDeviceClass parent;

@@ -27,7 +27,7 @@
 
 #define TYPE_PNV_PSI "pnv-psi"
 OBJECT_DECLARE_TYPE(PnvPsi, PnvPsiClass,
-                    pnv_psi, PNV_PSI)
+                    PNV_PSI)
 
 #define PSIHB_XSCOM_MAX         0x20
 

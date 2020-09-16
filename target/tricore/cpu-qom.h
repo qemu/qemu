@@ -25,7 +25,7 @@
 #define TYPE_TRICORE_CPU "tricore-cpu"
 
 OBJECT_DECLARE_TYPE(TriCoreCPU, TriCoreCPUClass,
-                    tricore_cpu, TRICORE_CPU)
+                    TRICORE_CPU)
 
 struct TriCoreCPUClass {
     /*< private >*/

@@ -26,7 +26,7 @@
 #define TYPE_CRIS_CPU "cris-cpu"
 
 OBJECT_DECLARE_TYPE(CRISCPU, CRISCPUClass,
-                    cris_cpu, CRIS_CPU)
+                    CRIS_CPU)
 
 /**
  * CRISCPUClass:

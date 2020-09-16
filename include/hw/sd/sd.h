@@ -130,7 +130,7 @@ struct SDCardClass {
 
 #define TYPE_SD_BUS "sd-bus"
 OBJECT_DECLARE_TYPE(SDBus, SDBusClass,
-                    sd_bus, SD_BUS)
+                    SD_BUS)
 
 struct SDBus {
     BusState qbus;

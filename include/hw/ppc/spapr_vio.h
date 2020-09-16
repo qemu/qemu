@@ -29,7 +29,7 @@
 
 #define TYPE_VIO_SPAPR_DEVICE "vio-spapr-device"
 OBJECT_DECLARE_TYPE(SpaprVioDevice, SpaprVioDeviceClass,
-                    vio_spapr_device, VIO_SPAPR_DEVICE)
+                    VIO_SPAPR_DEVICE)
 
 #define TYPE_SPAPR_VIO_BUS "spapr-vio-bus"
 typedef struct SpaprVioBus SpaprVioBus;

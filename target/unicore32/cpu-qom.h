@@ -17,7 +17,7 @@
 #define TYPE_UNICORE32_CPU "unicore32-cpu"
 
 OBJECT_DECLARE_TYPE(UniCore32CPU, UniCore32CPUClass,
-                    unicore32_cpu, UNICORE32_CPU)
+                    UNICORE32_CPU)
 
 /**
  * UniCore32CPUClass:

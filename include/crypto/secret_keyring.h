@@ -26,7 +26,7 @@
 #include "crypto/secret_common.h"
 
 #define TYPE_QCRYPTO_SECRET_KEYRING "secret_keyring"
-OBJECT_DECLARE_SIMPLE_TYPE(QCryptoSecretKeyring, qcrypto_secret_keyring,
+OBJECT_DECLARE_SIMPLE_TYPE(QCryptoSecretKeyring,
                            QCRYPTO_SECRET_KEYRING)
 
 

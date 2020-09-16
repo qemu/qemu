@@ -18,7 +18,7 @@ typedef enum SSICSMode SSICSMode;
 
 #define TYPE_SSI_SLAVE "ssi-slave"
 OBJECT_DECLARE_TYPE(SSISlave, SSISlaveClass,
-                    ssi_slave, SSI_SLAVE)
+                    SSI_SLAVE)
 
 #define SSI_GPIO_CS "ssi-gpio-cs"
 

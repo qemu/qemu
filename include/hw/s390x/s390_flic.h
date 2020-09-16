@@ -40,7 +40,7 @@ extern const VMStateDescription vmstate_adapter_routes;
 
 #define TYPE_S390_FLIC_COMMON "s390-flic"
 OBJECT_DECLARE_TYPE(S390FLICState, S390FLICStateClass,
-                    s390_flic_common, S390_FLIC_COMMON)
+                    S390_FLIC_COMMON)
 
 struct S390FLICState {
     SysBusDevice parent_obj;
