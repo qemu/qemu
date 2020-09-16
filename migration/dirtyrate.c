@@ -61,6 +61,24 @@ static int dirtyrate_set_state(int *state, int old_state, int new_state)
     }
 }
 
+static struct DirtyRateInfo *query_dirty_rate_info(void)
+{
+    int64_t dirty_rate = DirtyStat.dirty_rate;
+    struct DirtyRateInfo *info = g_malloc0(sizeof(DirtyRateInfo));
+
+    if (qatomic_read(&CalculatingState) == DIRTY_RATE_STATUS_MEASURED) {
+        info->dirty_rate = dirty_rate;
+    } else {
+        info->dirty_rate = -1;
+    }
+
+    info->status = CalculatingState;
+    info->start_time = DirtyStat.start_time;
+    info->calc_time = DirtyStat.calc_time;
+
+    return info;
+}
+
 static void reset_dirtyrate_stat(void)
 {
     DirtyStat.total_dirty_samples = 0;
@@ -318,6 +336,8 @@ static void calculate_dirtyrate(struct DirtyRateConfig config)
 
     msec = config.sample_period_seconds * 1000;
     msec = set_sample_page_period(msec, initial_time);
+    DirtyStat.start_time = initial_time / 1000;
+    DirtyStat.calc_time = msec / 1000;
 
     rcu_read_lock();
     if (!compare_page_hash_info(block_dinfo, block_count)) {
@@ -352,4 +372,46 @@ void *get_dirtyrate_thread(void *arg)
         error_report("change dirtyrate state failed.");
     }
     return NULL;
+}
+
+void qmp_calc_dirty_rate(int64_t calc_time, Error **errp)
+{
+    static struct DirtyRateConfig config;
+    QemuThread thread;
+    int ret;
+
+    /*
+     * If the dirty rate is already being measured, don't attempt to start.
+     */
+    if (qatomic_read(&CalculatingState) == DIRTY_RATE_STATUS_MEASURING) {
+        error_setg(errp, "the dirty rate is already being measured.");
+        return;
+    }
+
+    if (!is_sample_period_valid(calc_time)) {
+        error_setg(errp, "calc-time is out of range[%d, %d].",
+                         MIN_FETCH_DIRTYRATE_TIME_SEC,
+                         MAX_FETCH_DIRTYRATE_TIME_SEC);
+        return;
+    }
+
+    /*
+     * Init calculation state as unstarted.
+     */
+    ret = dirtyrate_set_state(&CalculatingState, CalculatingState,
+                              DIRTY_RATE_STATUS_UNSTARTED);
+    if (ret == -1) {
+        error_setg(errp, "init dirty rate calculation state failed.");
+        return;
+    }
+
+    config.sample_period_seconds = calc_time;
+    config.sample_pages_per_gigabytes = DIRTYRATE_DEFAULT_SAMPLE_PAGES;
+    qemu_thread_create(&thread, "get_dirtyrate", get_dirtyrate_thread,
+                       (void *)&config, QEMU_THREAD_DETACHED);
+}
+
+struct DirtyRateInfo *qmp_query_dirty_rate(Error **errp)
+{
+    return query_dirty_rate_info();
 }
