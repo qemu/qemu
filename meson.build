@@ -583,6 +583,7 @@ endforeach
 genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
 minikconf = find_program('scripts/minikconf.py')
+config_all = {}
 config_all_devices = {}
 config_all_disas = {}
 config_devices_mak_list = []
@@ -639,6 +640,14 @@ kconfig_external_symbols = [
 ]
 ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
 
+accel_symbols = [
+  'CONFIG_KVM',
+  'CONFIG_HAX',
+  'CONFIG_HVF',
+  'CONFIG_TCG',
+  'CONFIG_WHPX'
+]
+
 foreach target : target_dirs
   config_target = keyval.load(meson.current_build_dir() / target / 'config-target.mak')
 
@@ -665,6 +674,11 @@ foreach target : target_dirs
       config_target_data.set(k, 1)
     else
       config_target_data.set(k, v)
+    endif
+  endforeach
+  foreach sym: accel_symbols
+    if config_target.has_key(sym)
+      config_all += { sym: 'y' }
     endif
   endforeach
   config_target_h += {target: configure_file(output: target + '-config-target.h',
@@ -711,7 +725,7 @@ endforeach
 # targets that are not built for this compilation.  The CONFIG_ALL
 # pseudo symbol replaces it.
 
-config_all = config_all_devices
+config_all += config_all_devices
 config_all += config_host
 config_all += config_all_disas
 config_all += {
@@ -1467,16 +1481,15 @@ summary_info += {'Linux AIO support': config_host.has_key('CONFIG_LINUX_AIO')}
 summary_info += {'Linux io_uring support': config_host.has_key('CONFIG_LINUX_IO_URING')}
 summary_info += {'ATTR/XATTR support': config_host.has_key('CONFIG_ATTR')}
 summary_info += {'Install blobs':     config_host.has_key('INSTALL_BLOBS')}
-# TODO: add back KVM/HAX/HVF/WHPX/TCG
-#summary_info += {'KVM support':       have_kvm'}
-#summary_info += {'HAX support':       have_hax'}
-#summary_info += {'HVF support':       have_hvf'}
-#summary_info += {'WHPX support':      have_whpx'}
-#summary_info += {'TCG support':       have_tcg'}
-#if get_option('tcg')
-#  summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
-#  summary_info += {'TCG interpreter':   config_host.has_key('CONFIG_TCG_INTERPRETER')}
-#endif
+summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
+summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
+summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
+summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
+summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
+if config_all.has_key('CONFIG_TCG')
+  summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
+  summary_info += {'TCG interpreter':   config_host.has_key('CONFIG_TCG_INTERPRETER')}
+endif
 summary_info += {'malloc trim support': has_malloc_trim}
 summary_info += {'RDMA support':      config_host.has_key('CONFIG_RDMA')}
 summary_info += {'PVRDMA support':    config_host.has_key('CONFIG_PVRDMA')}
