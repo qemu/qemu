@@ -22,6 +22,7 @@
 #include "qapi/qapi-commands-migration.h"
 #include "migration.h"
 #include "ram.h"
+#include "trace.h"
 #include "dirtyrate.h"
 
 static int CalculatingState = DIRTY_RATE_STATUS_UNSTARTED;
@@ -54,6 +55,7 @@ static bool is_sample_period_valid(int64_t sec)
 static int dirtyrate_set_state(int *state, int old_state, int new_state)
 {
     assert(new_state < DIRTY_RATE_STATUS__MAX);
+    trace_dirtyrate_set_state(DirtyRateStatus_str(new_state));
     if (qatomic_cmpxchg(state, old_state, new_state) == old_state) {
         return 0;
     } else {
@@ -75,6 +77,8 @@ static struct DirtyRateInfo *query_dirty_rate_info(void)
     info->status = CalculatingState;
     info->start_time = DirtyStat.start_time;
     info->calc_time = DirtyStat.calc_time;
+
+    trace_query_dirty_rate_info(DirtyRateStatus_str(CalculatingState));
 
     return info;
 }
@@ -123,6 +127,7 @@ static uint32_t get_ramblock_vfn_hash(struct RamblockDirtyInfo *info,
     crc = crc32(0, (info->ramblock_addr +
                 vfn * TARGET_PAGE_SIZE), TARGET_PAGE_SIZE);
 
+    trace_get_ramblock_vfn_hash(info->idstr, vfn, crc);
     return crc;
 }
 
@@ -201,6 +206,8 @@ static bool skip_sample_ramblock(RAMBlock *block)
      * Sample only blocks larger than MIN_RAMBLOCK_SIZE.
      */
     if (qemu_ram_get_used_length(block) < (MIN_RAMBLOCK_SIZE << 10)) {
+        trace_skip_sample_ramblock(block->idstr,
+                                   qemu_ram_get_used_length(block));
         return true;
     }
 
@@ -260,6 +267,7 @@ static void calc_page_dirty_rate(struct RamblockDirtyInfo *info)
     for (i = 0; i < info->sample_pages_count; i++) {
         crc = get_ramblock_vfn_hash(info, info->sample_page_vfn[i]);
         if (crc != info->hash_result[i]) {
+            trace_calc_page_dirty_rate(info->idstr, crc, info->hash_result[i]);
             info->sample_dirty_count++;
         }
     }
@@ -285,6 +293,7 @@ find_block_matched(RAMBlock *block, int count,
     if (infos[i].ramblock_addr != qemu_ram_get_host_addr(block) ||
         infos[i].ramblock_pages !=
             (qemu_ram_get_used_length(block) >> TARGET_PAGE_BITS)) {
+        trace_find_page_matched(block->idstr);
         return NULL;
     }
 
