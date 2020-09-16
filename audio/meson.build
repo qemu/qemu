@@ -7,7 +7,6 @@ softmmu_ss.add(files(
   'wavcapture.c',
 ))
 
-softmmu_ss.add(when: [spice, 'CONFIG_SPICE'], if_true: files('spiceaudio.c'))
 softmmu_ss.add(when: [coreaudio, 'CONFIG_AUDIO_COREAUDIO'], if_true: files('coreaudio.c'))
 softmmu_ss.add(when: [dsound, 'CONFIG_AUDIO_DSOUND'], if_true: files('dsoundaudio.c'))
 softmmu_ss.add(when: ['CONFIG_AUDIO_WIN_INT'], if_true: files('audio_win_int.c'))
@@ -18,7 +17,8 @@ foreach m : [
   ['CONFIG_AUDIO_OSS', 'oss', oss, 'ossaudio.c'],
   ['CONFIG_AUDIO_PA', 'pa', pulse, 'paaudio.c'],
   ['CONFIG_AUDIO_SDL', 'sdl', sdl, 'sdlaudio.c'],
-  ['CONFIG_AUDIO_JACK', 'jack', jack, 'jackaudio.c']
+  ['CONFIG_AUDIO_JACK', 'jack', jack, 'jackaudio.c'],
+  ['CONFIG_SPICE', 'spice', spice, 'spiceaudio.c']
 ]
   if config_host.has_key(m[0])
     module_ss = ss.source_set()
