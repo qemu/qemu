@@ -469,6 +469,6 @@ const VhostOps vdpa_ops = {
         .vhost_send_device_iotlb_msg = NULL,
         .vhost_dev_start = vhost_vdpa_dev_start,
         .vhost_get_device_id = vhost_vdpa_get_device_id,
-         .vhost_vq_get_addr = vhost_vdpa_vq_get_addr,
-         .vhost_force_iommu = vhost_vdpa_force_iommu,
+        .vhost_vq_get_addr = vhost_vdpa_vq_get_addr,
+        .vhost_force_iommu = vhost_vdpa_force_iommu,
 };
