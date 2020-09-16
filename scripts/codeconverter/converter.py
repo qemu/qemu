@@ -42,7 +42,7 @@ def process_all_files(parser: argparse.ArgumentParser, args: argparse.Namespace)
             for t in f.matches_of_type(TypeInfoVar):
                 assert isinstance(t, TypeInfoVar)
                 values = [f.filename, t.name] + \
-                         [t.get_initializer_value(f).raw
+                         [t.get_raw_initializer_value(f)
                           for f in TI_FIELDS]
                 DBG('values: %r', values)
                 assert all('\t' not in v for v in values)
@@ -55,18 +55,18 @@ def process_all_files(parser: argparse.ArgumentParser, args: argparse.Namespace)
         parser.error("--pattern is required")
 
     classes = [p for arg in args.patterns
-                for p in re.split(r'[\s,]', arg)]
+               for p in re.split(r'[\s,]', arg)
+               if p.strip()]
     for c in classes:
-        if c not in match_classes:
+        if c not in match_classes \
+           or not match_classes[c].regexp:
             print("Invalid pattern name: %s" % (c), file=sys.stderr)
             print("Valid patterns:", file=sys.stderr)
             print(PATTERN_HELP, file=sys.stderr)
             sys.exit(1)
 
     DBG("classes: %r", classes)
-    for f in files:
-        DBG("patching contents of %s", f.filename)
-        f.patch_content(max_passes=args.passes, class_names=classes)
+    files.patch_content(max_passes=args.passes, class_names=classes)
 
     for f in files:
         #alltypes.extend(f.type_infos)

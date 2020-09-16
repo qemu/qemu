@@ -31,7 +31,6 @@ def test_pattern_patching():
     files = FileList()
     f = FileInfo(files, of.name)
     f.load()
-    f.scan_for_matches()
     matches = f.matches_of_type(BasicPattern)
     assert len(matches) == 2
     p2 = matches[1]
@@ -40,7 +39,7 @@ def test_pattern_patching():
     f.patches.append(p2.append('XXX'))
 
     # apply all patches:
-    f.gen_patches()
+    f.gen_patches(matches)
     patched = f.get_patched_content()
     assert patched == ('one line\n'+
                        'this pattern will be patched: defBBBBBhij\n'+

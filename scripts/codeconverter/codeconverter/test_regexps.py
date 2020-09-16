@@ -9,7 +9,7 @@ from .regexps import *
 from .qom_macros import *
 from .qom_type_info import *
 
-def test_res():
+def test_res() -> None:
     def fullmatch(regexp, s):
         return re.fullmatch(regexp, s, re.MULTILINE)
 
@@ -113,10 +113,10 @@ static const TypeInfo char_file_type_info = {
              * need to set up reset or vmstate, and has no realize method.
              */''')
 
-    print(RE_TYPEINFO_DEF)
+    print(TypeInfoVar.regexp)
     test_empty = 'static const TypeInfo x86_base_cpu_type_info = {\n'+\
                  '};\n';
-    assert fullmatch(RE_TYPEINFO_DEF, test_empty)
+    assert fullmatch(TypeInfoVar.regexp, test_empty)
 
     test_simple = r'''
     static const TypeInfo x86_base_cpu_type_info = {
@@ -125,7 +125,7 @@ static const TypeInfo char_file_type_info = {
         .class_init = x86_cpu_base_class_init,
     };
     '''
-    assert re.search(RE_TYPEINFO_DEF, test_simple, re.MULTILINE)
+    assert re.search(TypeInfoVar.regexp, test_simple, re.MULTILINE)
 
     test_interfaces = r'''
     static const TypeInfo acpi_ged_info = {
@@ -141,7 +141,7 @@ static const TypeInfo char_file_type_info = {
         }
     };
     '''
-    assert re.search(RE_TYPEINFO_DEF, test_interfaces, re.MULTILINE)
+    assert re.search(TypeInfoVar.regexp, test_interfaces, re.MULTILINE)
 
     test_comments = r'''
     static const TypeInfo palm_misc_gpio_info = {
@@ -155,7 +155,7 @@ static const TypeInfo char_file_type_info = {
          */
     };
     '''
-    assert re.search(RE_TYPEINFO_DEF, test_comments, re.MULTILINE)
+    assert re.search(TypeInfoVar.regexp, test_comments, re.MULTILINE)
 
     test_comments = r'''
     static const TypeInfo tpm_crb_info = {
@@ -170,7 +170,7 @@ static const TypeInfo char_file_type_info = {
         }
     };
     '''
-    assert re.search(RE_TYPEINFO_DEF, test_comments, re.MULTILINE)
+    assert re.search(TypeInfoVar.regexp, test_comments, re.MULTILINE)
 
 def test_struct_re():
     print('---')
@@ -232,8 +232,8 @@ def test_initial_includes():
 
 /* pflash_cfi01.c */
 '''
-    print(repr(list(m.groupdict() for m in re.finditer(InitialIncludes.regexp, c, re.MULTILINE))))
-    m = re.match(InitialIncludes.regexp, c, re.MULTILINE)
+    print(repr(list(m.groupdict() for m in InitialIncludes.finditer(c))))
+    m = InitialIncludes.domatch(c)
     assert m
     print(repr(m.group(0)))
     assert m.group(0).endswith('#include "exec/hwaddr.h"\n')
@@ -247,8 +247,8 @@ def test_initial_includes():
 
 
 '''
-    print(repr(list(m.groupdict() for m in re.finditer(InitialIncludes.regexp, c, re.MULTILINE))))
-    m = re.match(InitialIncludes.regexp, c, re.MULTILINE)
+    print(repr(list(m.groupdict() for m in InitialIncludes.finditer(c))))
+    m = InitialIncludes.domatch(c)
     assert m
     print(repr(m.group(0)))
     assert m.group(0).endswith('#include "9p.h"\n')
@@ -274,8 +274,8 @@ def test_initial_includes():
 /* Missing stuff:
    SCTRL_P[12](END|ST)INC
 '''
-    print(repr(list(m.groupdict() for m in re.finditer(InitialIncludes.regexp, c, re.MULTILINE))))
-    m = re.match(InitialIncludes.regexp, c, re.MULTILINE)
+    print(repr(list(m.groupdict() for m in InitialIncludes.finditer(c))))
+    m = InitialIncludes.domatch(c)
     assert m
     print(repr(m.group(0)))
     assert m.group(0).endswith('#include "sysemu/dma.h"\n')
