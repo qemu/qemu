@@ -125,7 +125,7 @@ void qmp_dump_skeys(const char *filename, Error **errp)
         return;
     }
 
-    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    fd = qemu_open_old(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd < 0) {
         error_setg_file_open(errp, errno, filename);
         return;

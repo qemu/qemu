@@ -1547,69 +1547,61 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
     return fdinfo;
 }
 
-int monitor_fdset_get_fd(int64_t fdset_id, int flags)
+int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
 {
 #ifdef _WIN32
     return -ENOENT;
 #else
     MonFdset *mon_fdset;
-    MonFdsetFd *mon_fdset_fd;
-    int mon_fd_flags;
-    int ret;
 
     qemu_mutex_lock(&mon_fdsets_lock);
     QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+        MonFdsetFd *mon_fdset_fd;
+        MonFdsetFd *mon_fdset_fd_dup;
+        int fd = -1;
+        int dup_fd;
+        int mon_fd_flags;
+
         if (mon_fdset->id != fdset_id) {
             continue;
         }
+
         QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
             mon_fd_flags = fcntl(mon_fdset_fd->fd, F_GETFL);
             if (mon_fd_flags == -1) {
-                ret = -errno;
-                goto out;
+                qemu_mutex_unlock(&mon_fdsets_lock);
+                return -1;
             }
 
             if ((flags & O_ACCMODE) == (mon_fd_flags & O_ACCMODE)) {
-                ret = mon_fdset_fd->fd;
-                goto out;
+                fd = mon_fdset_fd->fd;
+                break;
             }
         }
-        ret = -EACCES;
-        goto out;
-    }
-    ret = -ENOENT;
 
-out:
-    qemu_mutex_unlock(&mon_fdsets_lock);
-    return ret;
-#endif
-}
-
-int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd)
-{
-    MonFdset *mon_fdset;
-    MonFdsetFd *mon_fdset_fd_dup;
-
-    qemu_mutex_lock(&mon_fdsets_lock);
-    QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
-        if (mon_fdset->id != fdset_id) {
-            continue;
+        if (fd == -1) {
+            qemu_mutex_unlock(&mon_fdsets_lock);
+            errno = EACCES;
+            return -1;
         }
-        QLIST_FOREACH(mon_fdset_fd_dup, &mon_fdset->dup_fds, next) {
-            if (mon_fdset_fd_dup->fd == dup_fd) {
-                goto err;
-            }
+
+        dup_fd = qemu_dup_flags(fd, flags);
+        if (dup_fd == -1) {
+            qemu_mutex_unlock(&mon_fdsets_lock);
+            return -1;
         }
+
         mon_fdset_fd_dup = g_malloc0(sizeof(*mon_fdset_fd_dup));
         mon_fdset_fd_dup->fd = dup_fd;
         QLIST_INSERT_HEAD(&mon_fdset->dup_fds, mon_fdset_fd_dup, next);
         qemu_mutex_unlock(&mon_fdsets_lock);
-        return 0;
+        return dup_fd;
     }
 
-err:
     qemu_mutex_unlock(&mon_fdsets_lock);
+    errno = ENOENT;
     return -1;
+#endif
 }
 
 static int64_t monitor_fdset_dup_fd_find_remove(int dup_fd, bool remove)

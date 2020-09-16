@@ -1352,7 +1352,8 @@ static int open_file(BDRVVVFATState* s,mapping_t* mapping)
     if(!s->current_mapping ||
             strcmp(s->current_mapping->path,mapping->path)) {
         /* open file */
-        int fd = qemu_open(mapping->path, O_RDONLY | O_BINARY | O_LARGEFILE);
+        int fd = qemu_open_old(mapping->path,
+                               O_RDONLY | O_BINARY | O_LARGEFILE);
         if(fd<0)
             return -1;
         vvfat_close_current_file(s);
@@ -2513,7 +2514,7 @@ static int commit_one_file(BDRVVVFATState* s,
     for (i = s->cluster_size; i < offset; i += s->cluster_size)
         c = modified_fat_get(s, c);
 
-    fd = qemu_open(mapping->path, O_RDWR | O_CREAT | O_BINARY, 0666);
+    fd = qemu_open_old(mapping->path, O_RDWR | O_CREAT | O_BINARY, 0666);
     if (fd < 0) {
         fprintf(stderr, "Could not open %s... (%s, %d)\n", mapping->path,
                 strerror(errno), errno);

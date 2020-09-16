@@ -1994,7 +1994,7 @@ void qmp_dump_guest_memory(bool paging, const char *file,
 #endif
 
     if  (strstart(file, "file:", &p)) {
-        fd = qemu_open(p, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRUSR);
+        fd = qemu_open_old(p, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, S_IRUSR);
         if (fd < 0) {
             error_setg_file_open(errp, errno, p);
             return;

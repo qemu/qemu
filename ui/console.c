@@ -373,7 +373,7 @@ void qmp_screendump(const char *filename, bool has_device, const char *device,
         return;
     }
 
-    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
+    fd = qemu_open_old(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
     if (fd == -1) {
         error_setg(errp, "failed to open file '%s': %s", filename,
                    strerror(errno));

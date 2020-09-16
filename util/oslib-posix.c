@@ -125,7 +125,7 @@ bool qemu_write_pidfile(const char *path, Error **errp)
             .l_len = 0,
         };
 
-        fd = qemu_open(path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+        fd = qemu_open_old(path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
         if (fd == -1) {
             error_setg_errno(errp, errno, "Cannot open pid file");
             return false;
