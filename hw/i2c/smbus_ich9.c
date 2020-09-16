@@ -30,9 +30,7 @@
 #include "hw/i386/ich9.h"
 #include "qom/object.h"
 
-typedef struct ICH9SMBState ICH9SMBState;
-DECLARE_INSTANCE_CHECKER(ICH9SMBState, ICH9_SMB_DEVICE,
-                         TYPE_ICH9_SMB_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(ICH9SMBState, ICH9_SMB_DEVICE)
 
 struct ICH9SMBState {
     PCIDevice dev;

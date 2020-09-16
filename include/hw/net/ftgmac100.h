@@ -12,9 +12,7 @@
 #include "qom/object.h"
 
 #define TYPE_FTGMAC100 "ftgmac100"
-typedef struct FTGMAC100State FTGMAC100State;
-DECLARE_INSTANCE_CHECKER(FTGMAC100State, FTGMAC100,
-                         TYPE_FTGMAC100)
+OBJECT_DECLARE_SIMPLE_TYPE(FTGMAC100State, FTGMAC100)
 
 #include "hw/sysbus.h"
 #include "net/net.h"
@@ -70,9 +68,7 @@ struct FTGMAC100State {
 };
 
 #define TYPE_ASPEED_MII "aspeed-mmi"
-typedef struct AspeedMiiState AspeedMiiState;
-DECLARE_INSTANCE_CHECKER(AspeedMiiState, ASPEED_MII,
-                         TYPE_ASPEED_MII)
+OBJECT_DECLARE_SIMPLE_TYPE(AspeedMiiState, ASPEED_MII)
 
 /*
  * AST2600 MII controller

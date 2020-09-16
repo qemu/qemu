@@ -33,9 +33,7 @@
 #include "qemu/module.h"
 #include "qom/object.h"
 
-typedef struct ISANE2000State ISANE2000State;
-DECLARE_INSTANCE_CHECKER(ISANE2000State, ISA_NE2000,
-                         TYPE_ISA_NE2000)
+OBJECT_DECLARE_SIMPLE_TYPE(ISANE2000State, ISA_NE2000)
 
 struct ISANE2000State {
     ISADevice parent_obj;

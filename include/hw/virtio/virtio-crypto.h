@@ -32,9 +32,7 @@ do { \
 
 
 #define TYPE_VIRTIO_CRYPTO "virtio-crypto-device"
-typedef struct VirtIOCrypto VirtIOCrypto;
-DECLARE_INSTANCE_CHECKER(VirtIOCrypto, VIRTIO_CRYPTO,
-                         TYPE_VIRTIO_CRYPTO)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOCrypto, VIRTIO_CRYPTO)
 #define VIRTIO_CRYPTO_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_CRYPTO)
 

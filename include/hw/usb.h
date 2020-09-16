@@ -175,7 +175,6 @@
 
 #define USB_INTERFACE_INVALID         255
 
-typedef struct USBBus USBBus;
 typedef struct USBBusOps USBBusOps;
 typedef struct USBPort USBPort;
 typedef struct USBDevice USBDevice;
@@ -473,8 +472,7 @@ bool usb_host_dev_is_scsi_storage(USBDevice *usbdev);
 /* usb-bus.c */
 
 #define TYPE_USB_BUS "usb-bus"
-DECLARE_INSTANCE_CHECKER(USBBus, USB_BUS,
-                         TYPE_USB_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(USBBus, USB_BUS)
 
 struct USBBus {
     BusState qbus;

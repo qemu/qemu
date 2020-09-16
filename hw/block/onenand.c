@@ -40,9 +40,7 @@
 #define BLOCK_SHIFT	(PAGE_SHIFT + 6)
 
 #define TYPE_ONE_NAND "onenand"
-typedef struct OneNANDState OneNANDState;
-DECLARE_INSTANCE_CHECKER(OneNANDState, ONE_NAND,
-                         TYPE_ONE_NAND)
+OBJECT_DECLARE_SIMPLE_TYPE(OneNANDState, ONE_NAND)
 
 struct OneNANDState {
     SysBusDevice parent_obj;

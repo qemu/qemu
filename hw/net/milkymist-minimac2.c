@@ -99,9 +99,7 @@ struct MilkymistMinimac2MdioState {
 typedef struct MilkymistMinimac2MdioState MilkymistMinimac2MdioState;
 
 #define TYPE_MILKYMIST_MINIMAC2 "milkymist-minimac2"
-typedef struct MilkymistMinimac2State MilkymistMinimac2State;
-DECLARE_INSTANCE_CHECKER(MilkymistMinimac2State, MILKYMIST_MINIMAC2,
-                         TYPE_MILKYMIST_MINIMAC2)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistMinimac2State, MILKYMIST_MINIMAC2)
 
 struct MilkymistMinimac2State {
     SysBusDevice parent_obj;

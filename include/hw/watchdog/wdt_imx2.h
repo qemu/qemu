@@ -19,9 +19,7 @@
 #include "qom/object.h"
 
 #define TYPE_IMX2_WDT "imx2.wdt"
-typedef struct IMX2WdtState IMX2WdtState;
-DECLARE_INSTANCE_CHECKER(IMX2WdtState, IMX2_WDT,
-                         TYPE_IMX2_WDT)
+OBJECT_DECLARE_SIMPLE_TYPE(IMX2WdtState, IMX2_WDT)
 
 enum IMX2WdtRegisters {
     IMX2_WDT_WCR  = 0x0000, /* Control Register */

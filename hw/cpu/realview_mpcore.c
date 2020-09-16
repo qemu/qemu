@@ -18,9 +18,7 @@
 #include "qom/object.h"
 
 #define TYPE_REALVIEW_MPCORE_RIRQ "realview_mpcore"
-typedef struct mpcore_rirq_state mpcore_rirq_state;
-DECLARE_INSTANCE_CHECKER(mpcore_rirq_state, REALVIEW_MPCORE_RIRQ,
-                         TYPE_REALVIEW_MPCORE_RIRQ)
+OBJECT_DECLARE_SIMPLE_TYPE(mpcore_rirq_state, REALVIEW_MPCORE_RIRQ)
 
 /* Dummy PIC to route IRQ lines.  The baseboard has 4 independent IRQ
    controllers.  The output of these, plus some of the raw input lines

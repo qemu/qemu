@@ -33,9 +33,7 @@
 #include "qom/object.h"
 
 #define TYPE_ISA_CIRRUS_VGA "isa-cirrus-vga"
-typedef struct ISACirrusVGAState ISACirrusVGAState;
-DECLARE_INSTANCE_CHECKER(ISACirrusVGAState, ISA_CIRRUS_VGA,
-                         TYPE_ISA_CIRRUS_VGA)
+OBJECT_DECLARE_SIMPLE_TYPE(ISACirrusVGAState, ISA_CIRRUS_VGA)
 
 struct ISACirrusVGAState {
     ISADevice parent_obj;

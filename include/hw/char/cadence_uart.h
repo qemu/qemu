@@ -32,9 +32,7 @@
 #define CADENCE_UART_R_MAX (0x48/4)
 
 #define TYPE_CADENCE_UART "cadence_uart"
-typedef struct CadenceUARTState CadenceUARTState;
-DECLARE_INSTANCE_CHECKER(CadenceUARTState, CADENCE_UART,
-                         TYPE_CADENCE_UART)
+OBJECT_DECLARE_SIMPLE_TYPE(CadenceUARTState, CADENCE_UART)
 
 struct CadenceUARTState {
     /*< private >*/

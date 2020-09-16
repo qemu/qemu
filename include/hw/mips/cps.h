@@ -29,9 +29,7 @@
 #include "qom/object.h"
 
 #define TYPE_MIPS_CPS "mips-cps"
-typedef struct MIPSCPSState MIPSCPSState;
-DECLARE_INSTANCE_CHECKER(MIPSCPSState, MIPS_CPS,
-                         TYPE_MIPS_CPS)
+OBJECT_DECLARE_SIMPLE_TYPE(MIPSCPSState, MIPS_CPS)
 
 struct MIPSCPSState {
     SysBusDevice parent_obj;

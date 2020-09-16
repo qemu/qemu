@@ -14,9 +14,7 @@
 #include "qom/object.h"
 
 #define TYPE_BCM2835_RNG "bcm2835-rng"
-typedef struct BCM2835RngState BCM2835RngState;
-DECLARE_INSTANCE_CHECKER(BCM2835RngState, BCM2835_RNG,
-                         TYPE_BCM2835_RNG)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835RngState, BCM2835_RNG)
 
 struct BCM2835RngState {
     SysBusDevice busdev;

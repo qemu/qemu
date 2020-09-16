@@ -26,9 +26,7 @@
 #include "qom/object.h"
 
 #define TYPE_GOLDFISH_RTC "goldfish_rtc"
-typedef struct GoldfishRTCState GoldfishRTCState;
-DECLARE_INSTANCE_CHECKER(GoldfishRTCState, GOLDFISH_RTC,
-                         TYPE_GOLDFISH_RTC)
+OBJECT_DECLARE_SIMPLE_TYPE(GoldfishRTCState, GOLDFISH_RTC)
 
 struct GoldfishRTCState {
     SysBusDevice parent_obj;

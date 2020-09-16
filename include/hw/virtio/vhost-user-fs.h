@@ -21,9 +21,7 @@
 #include "qom/object.h"
 
 #define TYPE_VHOST_USER_FS "vhost-user-fs-device"
-typedef struct VHostUserFS VHostUserFS;
-DECLARE_INSTANCE_CHECKER(VHostUserFS, VHOST_USER_FS,
-                         TYPE_VHOST_USER_FS)
+OBJECT_DECLARE_SIMPLE_TYPE(VHostUserFS, VHOST_USER_FS)
 
 typedef struct {
     CharBackend chardev;

@@ -51,11 +51,9 @@ struct PCIVGAState {
     MemoryRegion mrs[4];
     uint8_t edid[256];
 };
-typedef struct PCIVGAState PCIVGAState;
 
 #define TYPE_PCI_VGA "pci-vga"
-DECLARE_INSTANCE_CHECKER(PCIVGAState, PCI_VGA,
-                         TYPE_PCI_VGA)
+OBJECT_DECLARE_SIMPLE_TYPE(PCIVGAState, PCI_VGA)
 
 static const VMStateDescription vmstate_vga_pci = {
     .name = "vga",

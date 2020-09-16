@@ -29,14 +29,10 @@ OBJECT_DECLARE_TYPE(VirtIOGPUBase, VirtIOGPUBaseClass,
                     VIRTIO_GPU_BASE)
 
 #define TYPE_VIRTIO_GPU "virtio-gpu-device"
-typedef struct VirtIOGPU VirtIOGPU;
-DECLARE_INSTANCE_CHECKER(VirtIOGPU, VIRTIO_GPU,
-                         TYPE_VIRTIO_GPU)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPU, VIRTIO_GPU)
 
 #define TYPE_VHOST_USER_GPU "vhost-user-gpu"
-typedef struct VhostUserGPU VhostUserGPU;
-DECLARE_INSTANCE_CHECKER(VhostUserGPU, VHOST_USER_GPU,
-                         TYPE_VHOST_USER_GPU)
+OBJECT_DECLARE_SIMPLE_TYPE(VhostUserGPU, VHOST_USER_GPU)
 
 #define VIRTIO_ID_GPU 16
 

@@ -36,9 +36,7 @@
 #include "trace.h"
 
 #define TYPE_PREP_SYSTEMIO "prep-systemio"
-typedef struct PrepSystemIoState PrepSystemIoState;
-DECLARE_INSTANCE_CHECKER(PrepSystemIoState, PREP_SYSTEMIO,
-                         TYPE_PREP_SYSTEMIO)
+OBJECT_DECLARE_SIMPLE_TYPE(PrepSystemIoState, PREP_SYSTEMIO)
 
 /* Bit as defined in PowerPC Reference Plaform v1.1, sect. 6.1.5, p. 132 */
 #define PREP_BIT(n) (1 << (7 - (n)))

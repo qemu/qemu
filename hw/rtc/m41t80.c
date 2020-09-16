@@ -17,9 +17,7 @@
 #include "qom/object.h"
 
 #define TYPE_M41T80 "m41t80"
-typedef struct M41t80State M41t80State;
-DECLARE_INSTANCE_CHECKER(M41t80State, M41T80,
-                         TYPE_M41T80)
+OBJECT_DECLARE_SIMPLE_TYPE(M41t80State, M41T80)
 
 struct M41t80State {
     I2CSlave parent_obj;

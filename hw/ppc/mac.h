@@ -92,9 +92,7 @@ struct Core99MachineState {
 
 /* Mac NVRAM */
 #define TYPE_MACIO_NVRAM "macio-nvram"
-typedef struct MacIONVRAMState MacIONVRAMState;
-DECLARE_INSTANCE_CHECKER(MacIONVRAMState, MACIO_NVRAM,
-                         TYPE_MACIO_NVRAM)
+OBJECT_DECLARE_SIMPLE_TYPE(MacIONVRAMState, MACIO_NVRAM)
 
 struct MacIONVRAMState {
     /*< private >*/

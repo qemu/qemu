@@ -25,9 +25,7 @@
 #include "qom/object.h"
 
 #define TYPE_MPS2_FPGAIO "mps2-fpgaio"
-typedef struct MPS2FPGAIO MPS2FPGAIO;
-DECLARE_INSTANCE_CHECKER(MPS2FPGAIO, MPS2_FPGAIO,
-                         TYPE_MPS2_FPGAIO)
+OBJECT_DECLARE_SIMPLE_TYPE(MPS2FPGAIO, MPS2_FPGAIO)
 
 struct MPS2FPGAIO {
     /*< private >*/

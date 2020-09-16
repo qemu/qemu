@@ -92,9 +92,7 @@ struct pci_inbound {
 
 #define TYPE_PPC_E500_PCI_HOST_BRIDGE "e500-pcihost"
 
-typedef struct PPCE500PCIState PPCE500PCIState;
-DECLARE_INSTANCE_CHECKER(PPCE500PCIState, PPC_E500_PCI_HOST_BRIDGE,
-                         TYPE_PPC_E500_PCI_HOST_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(PPCE500PCIState, PPC_E500_PCI_HOST_BRIDGE)
 
 struct PPCE500PCIState {
     PCIHostState parent_obj;
@@ -116,9 +114,7 @@ struct PPCE500PCIState {
 };
 
 #define TYPE_PPC_E500_PCI_BRIDGE "e500-host-bridge"
-typedef struct PPCE500PCIBridgeState PPCE500PCIBridgeState;
-DECLARE_INSTANCE_CHECKER(PPCE500PCIBridgeState, PPC_E500_PCI_BRIDGE,
-                         TYPE_PPC_E500_PCI_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(PPCE500PCIBridgeState, PPC_E500_PCI_BRIDGE)
 
 struct PPCE500PCIBridgeState {
     /*< private >*/

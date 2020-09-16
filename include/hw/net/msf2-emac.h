@@ -29,9 +29,7 @@
 #include "qom/object.h"
 
 #define TYPE_MSS_EMAC "msf2-emac"
-typedef struct MSF2EmacState MSF2EmacState;
-DECLARE_INSTANCE_CHECKER(MSF2EmacState, MSS_EMAC,
-                         TYPE_MSS_EMAC)
+OBJECT_DECLARE_SIMPLE_TYPE(MSF2EmacState, MSS_EMAC)
 
 #define R_MAX         (0x1a0 / 4)
 #define PHY_MAX_REGS  32

@@ -168,9 +168,7 @@ struct XiveNotifierClass {
  */
 
 #define TYPE_XIVE_SOURCE "xive-source"
-typedef struct XiveSource XiveSource;
-DECLARE_INSTANCE_CHECKER(XiveSource, XIVE_SOURCE,
-                         TYPE_XIVE_SOURCE)
+OBJECT_DECLARE_SIMPLE_TYPE(XiveSource, XIVE_SOURCE)
 
 /*
  * XIVE Interrupt Source characteristics, which define how the ESB are
@@ -306,9 +304,7 @@ void xive_source_set_irq(void *opaque, int srcno, int val);
  */
 
 #define TYPE_XIVE_TCTX "xive-tctx"
-typedef struct XiveTCTX XiveTCTX;
-DECLARE_INSTANCE_CHECKER(XiveTCTX, XIVE_TCTX,
-                         TYPE_XIVE_TCTX)
+OBJECT_DECLARE_SIMPLE_TYPE(XiveTCTX, XIVE_TCTX)
 
 /*
  * XIVE Thread interrupt Management register rings :
@@ -433,9 +429,7 @@ struct XiveFabricClass {
  */
 
 #define TYPE_XIVE_END_SOURCE "xive-end-source"
-typedef struct XiveENDSource XiveENDSource;
-DECLARE_INSTANCE_CHECKER(XiveENDSource, XIVE_END_SOURCE,
-                         TYPE_XIVE_END_SOURCE)
+OBJECT_DECLARE_SIMPLE_TYPE(XiveENDSource, XIVE_END_SOURCE)
 
 struct XiveENDSource {
     DeviceState parent;

@@ -17,9 +17,7 @@
 #include "qom/object.h"
 
 #define TYPE_VHOST_USER_VSOCK "vhost-user-vsock-device"
-typedef struct VHostUserVSock VHostUserVSock;
-DECLARE_INSTANCE_CHECKER(VHostUserVSock, VHOST_USER_VSOCK,
-                         TYPE_VHOST_USER_VSOCK)
+OBJECT_DECLARE_SIMPLE_TYPE(VHostUserVSock, VHOST_USER_VSOCK)
 
 typedef struct {
     CharBackend chardev;

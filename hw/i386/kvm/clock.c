@@ -32,9 +32,7 @@
 #include "qom/object.h"
 
 #define TYPE_KVM_CLOCK "kvmclock"
-typedef struct KVMClockState KVMClockState;
-DECLARE_INSTANCE_CHECKER(KVMClockState, KVM_CLOCK,
-                         TYPE_KVM_CLOCK)
+OBJECT_DECLARE_SIMPLE_TYPE(KVMClockState, KVM_CLOCK)
 
 struct KVMClockState {
     /*< private >*/

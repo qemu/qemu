@@ -18,9 +18,7 @@
 #include "qom/object.h"
 
 #define TYPE_EMPTY_SLOT "empty_slot"
-typedef struct EmptySlot EmptySlot;
-DECLARE_INSTANCE_CHECKER(EmptySlot, EMPTY_SLOT,
-                         TYPE_EMPTY_SLOT)
+OBJECT_DECLARE_SIMPLE_TYPE(EmptySlot, EMPTY_SLOT)
 
 struct EmptySlot {
     SysBusDevice parent_obj;

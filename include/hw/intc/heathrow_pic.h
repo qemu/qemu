@@ -30,9 +30,7 @@
 #include "qom/object.h"
 
 #define TYPE_HEATHROW "heathrow"
-typedef struct HeathrowState HeathrowState;
-DECLARE_INSTANCE_CHECKER(HeathrowState, HEATHROW,
-                         TYPE_HEATHROW)
+OBJECT_DECLARE_SIMPLE_TYPE(HeathrowState, HEATHROW)
 
 typedef struct HeathrowPICState {
     uint32_t events;

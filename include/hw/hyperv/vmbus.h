@@ -24,9 +24,7 @@ OBJECT_DECLARE_TYPE(VMBusDevice, VMBusDeviceClass,
                     VMBUS_DEVICE)
 
 #define TYPE_VMBUS "vmbus"
-typedef struct VMBus VMBus;
-DECLARE_INSTANCE_CHECKER(VMBus, VMBUS,
-                         TYPE_VMBUS)
+OBJECT_DECLARE_SIMPLE_TYPE(VMBus, VMBUS)
 
 /*
  * Object wrapping a GPADL -- GPA Descriptor List -- an array of guest physical

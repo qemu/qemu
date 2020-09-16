@@ -103,10 +103,8 @@ struct XlnxDPState {
     DPCDState *dpcd;
     I2CDDCState *edid;
 };
-typedef struct XlnxDPState XlnxDPState;
 
 #define TYPE_XLNX_DP "xlnx.v-dp"
-DECLARE_INSTANCE_CHECKER(XlnxDPState, XLNX_DP,
-                         TYPE_XLNX_DP)
+OBJECT_DECLARE_SIMPLE_TYPE(XlnxDPState, XLNX_DP)
 
 #endif

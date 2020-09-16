@@ -63,9 +63,7 @@
 #define VCPU_INFO_LEGACY_X2APIC_BIT     3
 #define VCPU_INFO_RESERVED_BIT          31
 
-typedef struct VMPortState VMPortState;
-DECLARE_INSTANCE_CHECKER(VMPortState, VMPORT,
-                         TYPE_VMPORT)
+OBJECT_DECLARE_SIMPLE_TYPE(VMPortState, VMPORT)
 
 struct VMPortState {
     ISADevice parent_obj;

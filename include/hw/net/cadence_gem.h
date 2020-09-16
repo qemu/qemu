@@ -27,9 +27,7 @@
 #include "qom/object.h"
 
 #define TYPE_CADENCE_GEM "cadence_gem"
-typedef struct CadenceGEMState CadenceGEMState;
-DECLARE_INSTANCE_CHECKER(CadenceGEMState, CADENCE_GEM,
-                         TYPE_CADENCE_GEM)
+OBJECT_DECLARE_SIMPLE_TYPE(CadenceGEMState, CADENCE_GEM)
 
 #include "net/net.h"
 #include "hw/sysbus.h"

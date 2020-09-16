@@ -16,9 +16,7 @@
                                        * OVMF SDT Header Probe Supressor
                                        */
 
-typedef struct VmGenIdState VmGenIdState;
-DECLARE_INSTANCE_CHECKER(VmGenIdState, VMGENID,
-                         TYPE_VMGENID)
+OBJECT_DECLARE_SIMPLE_TYPE(VmGenIdState, VMGENID)
 
 struct VmGenIdState {
     DeviceClass parent_obj;

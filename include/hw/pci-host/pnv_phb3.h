@@ -72,9 +72,7 @@ typedef struct PnvPhb3DMASpace {
  * PHB3 Power Bus Common Queue
  */
 #define TYPE_PNV_PBCQ "pnv-pbcq"
-typedef struct PnvPBCQState PnvPBCQState;
-DECLARE_INSTANCE_CHECKER(PnvPBCQState, PNV_PBCQ,
-                         TYPE_PNV_PBCQ)
+OBJECT_DECLARE_SIMPLE_TYPE(PnvPBCQState, PNV_PBCQ)
 
 struct PnvPBCQState {
     DeviceState parent;
@@ -118,8 +116,7 @@ typedef struct PnvPHB3RootPort {
  * PHB3 PCIe Host Bridge for PowerNV machines (POWER8)
  */
 #define TYPE_PNV_PHB3 "pnv-phb3"
-DECLARE_INSTANCE_CHECKER(PnvPHB3, PNV_PHB3,
-                         TYPE_PNV_PHB3)
+OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB3, PNV_PHB3)
 
 #define PNV_PHB3_NUM_M64      16
 #define PNV_PHB3_NUM_REGS     (0x1000 >> 3)

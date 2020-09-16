@@ -24,9 +24,7 @@
 #include "util.h"
 
 #define TYPE_FILTER_REWRITER "filter-rewriter"
-typedef struct RewriterState RewriterState;
-DECLARE_INSTANCE_CHECKER(RewriterState, FILTER_REWRITER,
-                         TYPE_FILTER_REWRITER)
+OBJECT_DECLARE_SIMPLE_TYPE(RewriterState, FILTER_REWRITER)
 
 #define FAILOVER_MODE_ON  true
 #define FAILOVER_MODE_OFF false

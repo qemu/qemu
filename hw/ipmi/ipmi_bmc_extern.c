@@ -62,9 +62,7 @@
 #define VM_CMD_GRACEFUL_SHUTDOWN   0x09
 
 #define TYPE_IPMI_BMC_EXTERN "ipmi-bmc-extern"
-typedef struct IPMIBmcExtern IPMIBmcExtern;
-DECLARE_INSTANCE_CHECKER(IPMIBmcExtern, IPMI_BMC_EXTERN,
-                         TYPE_IPMI_BMC_EXTERN)
+OBJECT_DECLARE_SIMPLE_TYPE(IPMIBmcExtern, IPMI_BMC_EXTERN)
 struct IPMIBmcExtern {
     IPMIBmc parent;
 

@@ -58,9 +58,7 @@ typedef const struct {
 /* General purpose timer module.  */
 
 #define TYPE_STELLARIS_GPTM "stellaris-gptm"
-typedef struct gptm_state gptm_state;
-DECLARE_INSTANCE_CHECKER(gptm_state, STELLARIS_GPTM,
-                         TYPE_STELLARIS_GPTM)
+OBJECT_DECLARE_SIMPLE_TYPE(gptm_state, STELLARIS_GPTM)
 
 struct gptm_state {
     SysBusDevice parent_obj;
@@ -721,9 +719,7 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
 /* I2C controller.  */
 
 #define TYPE_STELLARIS_I2C "stellaris-i2c"
-typedef struct stellaris_i2c_state stellaris_i2c_state;
-DECLARE_INSTANCE_CHECKER(stellaris_i2c_state, STELLARIS_I2C,
-                         TYPE_STELLARIS_I2C)
+OBJECT_DECLARE_SIMPLE_TYPE(stellaris_i2c_state, STELLARIS_I2C)
 
 struct stellaris_i2c_state {
     SysBusDevice parent_obj;

@@ -51,9 +51,7 @@ do { fprintf(stderr, "stellaris_enet: error: " fmt , ## __VA_ARGS__);} while (0)
 #define SE_TCTL_DUPLEX  0x08
 
 #define TYPE_STELLARIS_ENET "stellaris_enet"
-typedef struct stellaris_enet_state stellaris_enet_state;
-DECLARE_INSTANCE_CHECKER(stellaris_enet_state, STELLARIS_ENET,
-                         TYPE_STELLARIS_ENET)
+OBJECT_DECLARE_SIMPLE_TYPE(stellaris_enet_state, STELLARIS_ENET)
 
 typedef struct {
     uint8_t data[2048];

@@ -22,9 +22,7 @@
 #include "qom/object.h"
 
 #define TYPE_PL011 "pl011"
-typedef struct PL011State PL011State;
-DECLARE_INSTANCE_CHECKER(PL011State, PL011,
-                         TYPE_PL011)
+OBJECT_DECLARE_SIMPLE_TYPE(PL011State, PL011)
 
 /* This shares the same struct (and cast macro) as the base pl011 device */
 #define TYPE_PL011_LUMINARY "pl011_luminary"

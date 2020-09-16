@@ -32,9 +32,7 @@
 #include "qom/object.h"
 
 #define TYPE_I82374 "i82374"
-typedef struct I82374State I82374State;
-DECLARE_INSTANCE_CHECKER(I82374State, I82374,
-                         TYPE_I82374)
+OBJECT_DECLARE_SIMPLE_TYPE(I82374State, I82374)
 
 //#define DEBUG_I82374
 

@@ -12,12 +12,9 @@
 #define TYPE_FW_CFG_MEM "fw_cfg_mem"
 #define TYPE_FW_CFG_DATA_GENERATOR_INTERFACE "fw_cfg-data-generator"
 
-DECLARE_INSTANCE_CHECKER(FWCfgState, FW_CFG,
-                         TYPE_FW_CFG)
-DECLARE_INSTANCE_CHECKER(FWCfgIoState, FW_CFG_IO,
-                         TYPE_FW_CFG_IO)
-DECLARE_INSTANCE_CHECKER(FWCfgMemState, FW_CFG_MEM,
-                         TYPE_FW_CFG_MEM)
+OBJECT_DECLARE_SIMPLE_TYPE(FWCfgState, FW_CFG)
+OBJECT_DECLARE_SIMPLE_TYPE(FWCfgIoState, FW_CFG_IO)
+OBJECT_DECLARE_SIMPLE_TYPE(FWCfgMemState, FW_CFG_MEM)
 
 typedef struct FWCfgDataGeneratorClass FWCfgDataGeneratorClass;
 DECLARE_CLASS_CHECKERS(FWCfgDataGeneratorClass, FW_CFG_DATA_GENERATOR,

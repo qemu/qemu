@@ -70,9 +70,7 @@ REG32(TIMEOUT_CTRL, 0x2c)
 #define IBEX_UART_CLOCK 50000000 /* 50MHz clock */
 
 #define TYPE_IBEX_UART "ibex-uart"
-typedef struct IbexUartState IbexUartState;
-DECLARE_INSTANCE_CHECKER(IbexUartState, IBEX_UART,
-                         TYPE_IBEX_UART)
+OBJECT_DECLARE_SIMPLE_TYPE(IbexUartState, IBEX_UART)
 
 struct IbexUartState {
     /* <private> */

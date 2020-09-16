@@ -103,9 +103,7 @@ typedef struct {
 } Exynos4210PWM;
 
 #define TYPE_EXYNOS4210_PWM "exynos4210.pwm"
-typedef struct Exynos4210PWMState Exynos4210PWMState;
-DECLARE_INSTANCE_CHECKER(Exynos4210PWMState, EXYNOS4210_PWM,
-                         TYPE_EXYNOS4210_PWM)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210PWMState, EXYNOS4210_PWM)
 
 struct Exynos4210PWMState {
     SysBusDevice parent_obj;

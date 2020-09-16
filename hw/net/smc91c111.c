@@ -25,9 +25,7 @@
 #define NUM_PACKETS 4
 
 #define TYPE_SMC91C111 "smc91c111"
-typedef struct smc91c111_state smc91c111_state;
-DECLARE_INSTANCE_CHECKER(smc91c111_state, SMC91C111,
-                         TYPE_SMC91C111)
+OBJECT_DECLARE_SIMPLE_TYPE(smc91c111_state, SMC91C111)
 
 struct smc91c111_state {
     SysBusDevice parent_obj;

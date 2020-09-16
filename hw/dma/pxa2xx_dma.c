@@ -35,9 +35,7 @@ typedef struct {
 } PXA2xxDMAChannel;
 
 #define TYPE_PXA2XX_DMA "pxa2xx-dma"
-typedef struct PXA2xxDMAState PXA2xxDMAState;
-DECLARE_INSTANCE_CHECKER(PXA2xxDMAState, PXA2XX_DMA,
-                         TYPE_PXA2XX_DMA)
+OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxDMAState, PXA2XX_DMA)
 
 struct PXA2xxDMAState {
     SysBusDevice parent_obj;

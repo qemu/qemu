@@ -64,9 +64,7 @@ enum {
 };
 
 #define TYPE_MILKYMIST_MEMCARD "milkymist-memcard"
-typedef struct MilkymistMemcardState MilkymistMemcardState;
-DECLARE_INSTANCE_CHECKER(MilkymistMemcardState, MILKYMIST_MEMCARD,
-                         TYPE_MILKYMIST_MEMCARD)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistMemcardState, MILKYMIST_MEMCARD)
 
 #define TYPE_MILKYMIST_SDBUS "milkymist-sdbus"
 

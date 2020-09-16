@@ -139,9 +139,7 @@ typedef struct {
 } Exynos4210UartFIFO;
 
 #define TYPE_EXYNOS4210_UART "exynos4210.uart"
-typedef struct Exynos4210UartState Exynos4210UartState;
-DECLARE_INSTANCE_CHECKER(Exynos4210UartState, EXYNOS4210_UART,
-                         TYPE_EXYNOS4210_UART)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210UartState, EXYNOS4210_UART)
 
 struct Exynos4210UartState {
     SysBusDevice parent_obj;

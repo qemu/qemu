@@ -31,9 +31,7 @@
 #include "qom/object.h"
 
 #define TYPE_MACIO_GPIO "macio-gpio"
-typedef struct MacIOGPIOState MacIOGPIOState;
-DECLARE_INSTANCE_CHECKER(MacIOGPIOState, MACIO_GPIO,
-                         TYPE_MACIO_GPIO)
+OBJECT_DECLARE_SIMPLE_TYPE(MacIOGPIOState, MACIO_GPIO)
 
 struct MacIOGPIOState {
     /*< private >*/

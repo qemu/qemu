@@ -100,8 +100,7 @@ struct CanBusClientState {
 };
 
 #define TYPE_CAN_BUS "can-bus"
-DECLARE_INSTANCE_CHECKER(CanBusState, CAN_BUS,
-                         TYPE_CAN_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(CanBusState, CAN_BUS)
 
 int can_bus_filter_match(struct qemu_can_filter *filter, qemu_canid_t can_id);
 

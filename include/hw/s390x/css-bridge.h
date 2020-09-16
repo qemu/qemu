@@ -21,21 +21,17 @@ struct VirtualCssBridge {
     SysBusDevice sysbus_dev;
     bool css_dev_path;
 };
-typedef struct VirtualCssBridge VirtualCssBridge;
 
 #define TYPE_VIRTUAL_CSS_BRIDGE "virtual-css-bridge"
-DECLARE_INSTANCE_CHECKER(VirtualCssBridge, VIRTUAL_CSS_BRIDGE,
-                         TYPE_VIRTUAL_CSS_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtualCssBridge, VIRTUAL_CSS_BRIDGE)
 
 /* virtual css bus type */
 struct VirtualCssBus {
     BusState parent_obj;
 };
-typedef struct VirtualCssBus VirtualCssBus;
 
 #define TYPE_VIRTUAL_CSS_BUS "virtual-css-bus"
-DECLARE_INSTANCE_CHECKER(VirtualCssBus, VIRTUAL_CSS_BUS,
-                         TYPE_VIRTUAL_CSS_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtualCssBus, VIRTUAL_CSS_BUS)
 VirtualCssBus *virtual_css_bus_init(void);
 
 #endif

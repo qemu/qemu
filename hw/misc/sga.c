@@ -34,9 +34,7 @@
 #define SGABIOS_FILENAME "sgabios.bin"
 
 #define TYPE_SGA "sga"
-typedef struct ISASGAState ISASGAState;
-DECLARE_INSTANCE_CHECKER(ISASGAState, SGA,
-                         TYPE_SGA)
+OBJECT_DECLARE_SIMPLE_TYPE(ISASGAState, SGA)
 
 struct ISASGAState {
     ISADevice parent_obj;

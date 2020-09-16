@@ -14,9 +14,7 @@
 #include "trace.h"
 #include "qom/object.h"
 
-typedef struct Port92State Port92State;
-DECLARE_INSTANCE_CHECKER(Port92State, PORT92,
-                         TYPE_PORT92)
+OBJECT_DECLARE_SIMPLE_TYPE(Port92State, PORT92)
 
 struct Port92State {
     ISADevice parent_obj;

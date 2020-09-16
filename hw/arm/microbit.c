@@ -26,12 +26,10 @@ struct MicrobitMachineState {
     NRF51State nrf51;
     MicrobitI2CState i2c;
 };
-typedef struct MicrobitMachineState MicrobitMachineState;
 
 #define TYPE_MICROBIT_MACHINE MACHINE_TYPE_NAME("microbit")
 
-DECLARE_INSTANCE_CHECKER(MicrobitMachineState, MICROBIT_MACHINE,
-                         TYPE_MICROBIT_MACHINE)
+OBJECT_DECLARE_SIMPLE_TYPE(MicrobitMachineState, MICROBIT_MACHINE)
 
 static void microbit_init(MachineState *machine)
 {

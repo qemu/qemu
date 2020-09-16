@@ -23,9 +23,7 @@
 #include "qom/object.h"
 
 #define TYPE_IBEX_PLIC "ibex-plic"
-typedef struct IbexPlicState IbexPlicState;
-DECLARE_INSTANCE_CHECKER(IbexPlicState, IBEX_PLIC,
-                         TYPE_IBEX_PLIC)
+OBJECT_DECLARE_SIMPLE_TYPE(IbexPlicState, IBEX_PLIC)
 
 struct IbexPlicState {
     /*< private >*/

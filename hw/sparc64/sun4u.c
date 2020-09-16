@@ -90,11 +90,9 @@ struct EbusState {
     MemoryRegion bar0;
     MemoryRegion bar1;
 };
-typedef struct EbusState EbusState;
 
 #define TYPE_EBUS "ebus"
-DECLARE_INSTANCE_CHECKER(EbusState, EBUS,
-                         TYPE_EBUS)
+OBJECT_DECLARE_SIMPLE_TYPE(EbusState, EBUS)
 
 const char *fw_cfg_arch_key_name(uint16_t key)
 {
@@ -229,9 +227,7 @@ typedef struct ResetData {
 } ResetData;
 
 #define TYPE_SUN4U_POWER "power"
-typedef struct PowerDevice PowerDevice;
-DECLARE_INSTANCE_CHECKER(PowerDevice, SUN4U_POWER,
-                         TYPE_SUN4U_POWER)
+OBJECT_DECLARE_SIMPLE_TYPE(PowerDevice, SUN4U_POWER)
 
 struct PowerDevice {
     SysBusDevice parent_obj;

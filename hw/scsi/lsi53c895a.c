@@ -305,13 +305,11 @@ struct LSIState {
 
     uint8_t script_ram[2048 * sizeof(uint32_t)];
 };
-typedef struct LSIState LSIState;
 
 #define TYPE_LSI53C810  "lsi53c810"
 #define TYPE_LSI53C895A "lsi53c895a"
 
-DECLARE_INSTANCE_CHECKER(LSIState, LSI53C895A,
-                         TYPE_LSI53C895A)
+OBJECT_DECLARE_SIMPLE_TYPE(LSIState, LSI53C895A)
 
 static const char *scsi_phases[] = {
     "DOUT",

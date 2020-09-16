@@ -35,9 +35,7 @@
 #include "qom/object.h"
 
 #define TYPE_FSL_IMX25 "fsl,imx25"
-typedef struct FslIMX25State FslIMX25State;
-DECLARE_INSTANCE_CHECKER(FslIMX25State, FSL_IMX25,
-                         TYPE_FSL_IMX25)
+OBJECT_DECLARE_SIMPLE_TYPE(FslIMX25State, FSL_IMX25)
 
 #define FSL_IMX25_NUM_UARTS 5
 #define FSL_IMX25_NUM_GPTS 4

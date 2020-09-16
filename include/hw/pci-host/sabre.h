@@ -20,11 +20,9 @@
 struct SabrePCIState {
     PCIDevice parent_obj;
 };
-typedef struct SabrePCIState SabrePCIState;
 
 #define TYPE_SABRE_PCI_DEVICE "sabre-pci"
-DECLARE_INSTANCE_CHECKER(SabrePCIState, SABRE_PCI_DEVICE,
-                         TYPE_SABRE_PCI_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(SabrePCIState, SABRE_PCI_DEVICE)
 
 struct SabreState {
     PCIHostState parent_obj;
@@ -48,10 +46,8 @@ struct SabreState {
     uint32_t reset_control;
     unsigned int nr_resets;
 };
-typedef struct SabreState SabreState;
 
 #define TYPE_SABRE "sabre"
-DECLARE_INSTANCE_CHECKER(SabreState, SABRE,
-                         TYPE_SABRE)
+OBJECT_DECLARE_SIMPLE_TYPE(SabreState, SABRE)
 
 #endif

@@ -27,9 +27,7 @@ typedef struct {
     int dac_hz;
 } WMRate;
 
-typedef struct WM8750State WM8750State;
-DECLARE_INSTANCE_CHECKER(WM8750State, WM8750,
-                         TYPE_WM8750)
+OBJECT_DECLARE_SIMPLE_TYPE(WM8750State, WM8750)
 
 struct WM8750State {
     I2CSlave parent_obj;

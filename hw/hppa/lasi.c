@@ -53,9 +53,7 @@
 #define ICR_BUS_ERROR_BIT  LASI_BIT(8)  /* bit 8 in ICR */
 #define ICR_TOC_BIT        LASI_BIT(1)  /* bit 1 in ICR */
 
-typedef struct LasiState LasiState;
-DECLARE_INSTANCE_CHECKER(LasiState, LASI_CHIP,
-                         TYPE_LASI_CHIP)
+OBJECT_DECLARE_SIMPLE_TYPE(LasiState, LASI_CHIP)
 
 struct LasiState {
     PCIHostState parent_obj;

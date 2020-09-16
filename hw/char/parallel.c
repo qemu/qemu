@@ -93,9 +93,7 @@ typedef struct ParallelState {
 } ParallelState;
 
 #define TYPE_ISA_PARALLEL "isa-parallel"
-typedef struct ISAParallelState ISAParallelState;
-DECLARE_INSTANCE_CHECKER(ISAParallelState, ISA_PARALLEL,
-                         TYPE_ISA_PARALLEL)
+OBJECT_DECLARE_SIMPLE_TYPE(ISAParallelState, ISA_PARALLEL)
 
 struct ISAParallelState {
     ISADevice parent_obj;

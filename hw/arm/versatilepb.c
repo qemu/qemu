@@ -35,9 +35,7 @@
 /* Primary interrupt controller.  */
 
 #define TYPE_VERSATILE_PB_SIC "versatilepb_sic"
-typedef struct vpb_sic_state vpb_sic_state;
-DECLARE_INSTANCE_CHECKER(vpb_sic_state, VERSATILE_PB_SIC,
-                         TYPE_VERSATILE_PB_SIC)
+OBJECT_DECLARE_SIMPLE_TYPE(vpb_sic_state, VERSATILE_PB_SIC)
 
 struct vpb_sic_state {
     SysBusDevice parent_obj;

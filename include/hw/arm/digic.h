@@ -25,9 +25,7 @@
 
 #define TYPE_DIGIC "digic"
 
-typedef struct DigicState DigicState;
-DECLARE_INSTANCE_CHECKER(DigicState, DIGIC,
-                         TYPE_DIGIC)
+OBJECT_DECLARE_SIMPLE_TYPE(DigicState, DIGIC)
 
 #define DIGIC4_NB_TIMERS 3
 

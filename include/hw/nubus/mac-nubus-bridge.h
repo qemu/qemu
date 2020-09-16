@@ -13,9 +13,7 @@
 #include "qom/object.h"
 
 #define TYPE_MAC_NUBUS_BRIDGE "mac-nubus-bridge"
-typedef struct MacNubusState MacNubusState;
-DECLARE_INSTANCE_CHECKER(MacNubusState, MAC_NUBUS_BRIDGE,
-                         TYPE_MAC_NUBUS_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(MacNubusState, MAC_NUBUS_BRIDGE)
 
 struct MacNubusState {
     SysBusDevice sysbus_dev;

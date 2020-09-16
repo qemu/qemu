@@ -33,10 +33,8 @@ struct BCM2835GpioState {
     uint8_t sd_fsel;
     qemu_irq out[54];
 };
-typedef struct BCM2835GpioState BCM2835GpioState;
 
 #define TYPE_BCM2835_GPIO "bcm2835_gpio"
-DECLARE_INSTANCE_CHECKER(BCM2835GpioState, BCM2835_GPIO,
-                         TYPE_BCM2835_GPIO)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835GpioState, BCM2835_GPIO)
 
 #endif

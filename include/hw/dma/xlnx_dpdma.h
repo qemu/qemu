@@ -43,11 +43,9 @@ struct XlnxDPDMAState {
     qemu_irq irq;
 };
 
-typedef struct XlnxDPDMAState XlnxDPDMAState;
 
 #define TYPE_XLNX_DPDMA "xlnx.dpdma"
-DECLARE_INSTANCE_CHECKER(XlnxDPDMAState, XLNX_DPDMA,
-                         TYPE_XLNX_DPDMA)
+OBJECT_DECLARE_SIMPLE_TYPE(XlnxDPDMAState, XLNX_DPDMA)
 
 /*
  * xlnx_dpdma_start_operation: Start the operation on the specified channel. The

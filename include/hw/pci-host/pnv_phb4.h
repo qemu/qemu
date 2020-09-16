@@ -57,8 +57,7 @@ typedef struct PnvPHB4RootPort {
  * PHB4 PCIe Host Bridge for PowerNV machines (POWER9)
  */
 #define TYPE_PNV_PHB4 "pnv-phb4"
-DECLARE_INSTANCE_CHECKER(PnvPHB4, PNV_PHB4,
-                         TYPE_PNV_PHB4)
+OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB4, PNV_PHB4)
 
 #define PNV_PHB4_MAX_LSIs          8
 #define PNV_PHB4_MAX_INTs          4096
@@ -144,8 +143,7 @@ extern const MemoryRegionOps pnv_phb4_xscom_ops;
 OBJECT_DECLARE_TYPE(PnvPhb4PecState, PnvPhb4PecClass, PNV_PHB4_PEC)
 
 #define TYPE_PNV_PHB4_PEC_STACK "pnv-phb4-pec-stack"
-DECLARE_INSTANCE_CHECKER(PnvPhb4PecStack, PNV_PHB4_PEC_STACK,
-                         TYPE_PNV_PHB4_PEC_STACK)
+OBJECT_DECLARE_SIMPLE_TYPE(PnvPhb4PecStack, PNV_PHB4_PEC_STACK)
 
 /* Per-stack data */
 struct PnvPhb4PecStack {

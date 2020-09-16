@@ -51,9 +51,7 @@ enum {
 #define COMLOC_KEVT_BASE     0x1143
 
 #define TYPE_MILKYMIST_SOFTUSB "milkymist-softusb"
-typedef struct MilkymistSoftUsbState MilkymistSoftUsbState;
-DECLARE_INSTANCE_CHECKER(MilkymistSoftUsbState, MILKYMIST_SOFTUSB,
-                         TYPE_MILKYMIST_SOFTUSB)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistSoftUsbState, MILKYMIST_SOFTUSB)
 
 struct MilkymistSoftUsbState {
     SysBusDevice parent_obj;

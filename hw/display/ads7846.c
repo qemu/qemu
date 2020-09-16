@@ -29,11 +29,9 @@ struct ADS7846State {
     int cycle;
     int output;
 };
-typedef struct ADS7846State ADS7846State;
 
 #define TYPE_ADS7846 "ads7846"
-DECLARE_INSTANCE_CHECKER(ADS7846State, ADS7846,
-                         TYPE_ADS7846)
+OBJECT_DECLARE_SIMPLE_TYPE(ADS7846State, ADS7846)
 
 /* Control-byte bitfields */
 #define CB_PD0		(1 << 0)

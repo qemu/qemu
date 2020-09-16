@@ -35,11 +35,9 @@ struct SynICState {
     struct hyperv_message_page *msg_page;
     struct hyperv_event_flags_page *event_page;
 };
-typedef struct SynICState SynICState;
 
 #define TYPE_SYNIC "hyperv-synic"
-DECLARE_INSTANCE_CHECKER(SynICState, SYNIC,
-                         TYPE_SYNIC)
+OBJECT_DECLARE_SIMPLE_TYPE(SynICState, SYNIC)
 
 static bool synic_enabled;
 

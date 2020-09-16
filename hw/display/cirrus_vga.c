@@ -183,11 +183,9 @@ struct PCICirrusVGAState {
     PCIDevice dev;
     CirrusVGAState cirrus_vga;
 };
-typedef struct PCICirrusVGAState PCICirrusVGAState;
 
 #define TYPE_PCI_CIRRUS_VGA "cirrus-vga"
-DECLARE_INSTANCE_CHECKER(PCICirrusVGAState, PCI_CIRRUS_VGA,
-                         TYPE_PCI_CIRRUS_VGA)
+OBJECT_DECLARE_SIMPLE_TYPE(PCICirrusVGAState, PCI_CIRRUS_VGA)
 
 static uint8_t rop_to_index[256];
 

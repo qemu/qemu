@@ -23,9 +23,7 @@
 #include "qom/object.h"
 
 #define TYPE_DIGIC_UART "digic-uart"
-typedef struct DigicUartState DigicUartState;
-DECLARE_INSTANCE_CHECKER(DigicUartState, DIGIC_UART,
-                         TYPE_DIGIC_UART)
+OBJECT_DECLARE_SIMPLE_TYPE(DigicUartState, DIGIC_UART)
 
 enum {
     R_TX = 0x00,

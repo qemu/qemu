@@ -110,9 +110,7 @@ static const VMStateDescription vmstate_nvram = {
 };
 
 #define TYPE_DS1225Y "ds1225y"
-typedef struct SysBusNvRamState SysBusNvRamState;
-DECLARE_INSTANCE_CHECKER(SysBusNvRamState, DS1225Y,
-                         TYPE_DS1225Y)
+OBJECT_DECLARE_SIMPLE_TYPE(SysBusNvRamState, DS1225Y)
 
 struct SysBusNvRamState {
     SysBusDevice parent_obj;

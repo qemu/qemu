@@ -66,9 +66,7 @@
 #define CG3_VRAM_OFFSET 0x800000
 
 #define TYPE_CG3 "cgthree"
-typedef struct CG3State CG3State;
-DECLARE_INSTANCE_CHECKER(CG3State, CG3,
-                         TYPE_CG3)
+OBJECT_DECLARE_SIMPLE_TYPE(CG3State, CG3)
 
 struct CG3State {
     SysBusDevice parent_obj;

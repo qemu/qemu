@@ -30,9 +30,7 @@
 #include "qom/object.h"
 
 #define TYPE_SMBUS_IPMI "smbus-ipmi"
-typedef struct SMBusIPMIDevice SMBusIPMIDevice;
-DECLARE_INSTANCE_CHECKER(SMBusIPMIDevice, SMBUS_IPMI,
-                         TYPE_SMBUS_IPMI)
+OBJECT_DECLARE_SIMPLE_TYPE(SMBusIPMIDevice, SMBUS_IPMI)
 
 #define SSIF_IPMI_REQUEST                       2
 #define SSIF_IPMI_MULTI_PART_REQUEST_START      6

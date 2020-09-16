@@ -653,11 +653,9 @@ struct USBNetState {
     NICConf conf;
     QTAILQ_HEAD(, rndis_response) rndis_resp;
 };
-typedef struct USBNetState USBNetState;
 
 #define TYPE_USB_NET "usb-net"
-DECLARE_INSTANCE_CHECKER(USBNetState, USB_NET,
-                         TYPE_USB_NET)
+OBJECT_DECLARE_SIMPLE_TYPE(USBNetState, USB_NET)
 
 static int is_rndis(USBNetState *s)
 {

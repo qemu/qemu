@@ -6,9 +6,7 @@
 #include "qom/object.h"
 
 #define TYPE_AW_A10_PIT "allwinner-A10-timer"
-typedef struct AwA10PITState AwA10PITState;
-DECLARE_INSTANCE_CHECKER(AwA10PITState, AW_A10_PIT,
-                         TYPE_AW_A10_PIT)
+OBJECT_DECLARE_SIMPLE_TYPE(AwA10PITState, AW_A10_PIT)
 
 #define AW_A10_PIT_TIMER_NR    6
 #define AW_A10_PIT_TIMER_IRQ   0x1

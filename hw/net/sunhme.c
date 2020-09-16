@@ -130,9 +130,7 @@
 #define MII_COMMAND_WRITE      0x1
 
 #define TYPE_SUNHME "sunhme"
-typedef struct SunHMEState SunHMEState;
-DECLARE_INSTANCE_CHECKER(SunHMEState, SUNHME,
-                         TYPE_SUNHME)
+OBJECT_DECLARE_SIMPLE_TYPE(SunHMEState, SUNHME)
 
 /* Maximum size of buffer */
 #define HME_FIFO_SIZE          0x800

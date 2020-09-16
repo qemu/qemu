@@ -27,9 +27,7 @@
 #include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL_WEBSOCK "qio-channel-websock"
-typedef struct QIOChannelWebsock QIOChannelWebsock;
-DECLARE_INSTANCE_CHECKER(QIOChannelWebsock, QIO_CHANNEL_WEBSOCK,
-                         TYPE_QIO_CHANNEL_WEBSOCK)
+OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelWebsock, QIO_CHANNEL_WEBSOCK)
 
 typedef union QIOChannelWebsockMask QIOChannelWebsockMask;
 

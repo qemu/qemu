@@ -13,9 +13,7 @@
 #include "qom/object.h"
 
 #define TYPE_ASPEED_XDMA "aspeed.xdma"
-typedef struct AspeedXDMAState AspeedXDMAState;
-DECLARE_INSTANCE_CHECKER(AspeedXDMAState, ASPEED_XDMA,
-                         TYPE_ASPEED_XDMA)
+OBJECT_DECLARE_SIMPLE_TYPE(AspeedXDMAState, ASPEED_XDMA)
 
 #define ASPEED_XDMA_NUM_REGS (ASPEED_XDMA_REG_SIZE / sizeof(uint32_t))
 #define ASPEED_XDMA_REG_SIZE 0x7C

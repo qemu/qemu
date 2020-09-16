@@ -16,9 +16,7 @@
 #include "qom/object.h"
 
 #define TYPE_BITBAND "ARM,bitband-memory"
-typedef struct BitBandState BitBandState;
-DECLARE_INSTANCE_CHECKER(BitBandState, BITBAND,
-                         TYPE_BITBAND)
+OBJECT_DECLARE_SIMPLE_TYPE(BitBandState, BITBAND)
 
 struct BitBandState {
     /*< private >*/
@@ -32,9 +30,7 @@ struct BitBandState {
 };
 
 #define TYPE_ARMV7M "armv7m"
-typedef struct ARMv7MState ARMv7MState;
-DECLARE_INSTANCE_CHECKER(ARMv7MState, ARMV7M,
-                         TYPE_ARMV7M)
+OBJECT_DECLARE_SIMPLE_TYPE(ARMv7MState, ARMV7M)
 
 #define ARMV7M_NUM_BITBANDS 2
 

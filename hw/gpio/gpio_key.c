@@ -31,9 +31,7 @@
 #include "qom/object.h"
 
 #define TYPE_GPIOKEY "gpio-key"
-typedef struct GPIOKEYState GPIOKEYState;
-DECLARE_INSTANCE_CHECKER(GPIOKEYState, GPIOKEY,
-                         TYPE_GPIOKEY)
+OBJECT_DECLARE_SIMPLE_TYPE(GPIOKEYState, GPIOKEY)
 #define GPIO_KEY_LATENCY 100 /* 100ms */
 
 struct GPIOKEYState {

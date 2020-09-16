@@ -70,9 +70,7 @@ typedef struct {
 } CadenceTimerState;
 
 #define TYPE_CADENCE_TTC "cadence_ttc"
-typedef struct CadenceTTCState CadenceTTCState;
-DECLARE_INSTANCE_CHECKER(CadenceTTCState, CADENCE_TTC,
-                         TYPE_CADENCE_TTC)
+OBJECT_DECLARE_SIMPLE_TYPE(CadenceTTCState, CADENCE_TTC)
 
 struct CadenceTTCState {
     SysBusDevice parent_obj;

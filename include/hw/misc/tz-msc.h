@@ -55,9 +55,7 @@
 #include "qom/object.h"
 
 #define TYPE_TZ_MSC "tz-msc"
-typedef struct TZMSC TZMSC;
-DECLARE_INSTANCE_CHECKER(TZMSC, TZ_MSC,
-                         TYPE_TZ_MSC)
+OBJECT_DECLARE_SIMPLE_TYPE(TZMSC, TZ_MSC)
 
 struct TZMSC {
     /*< private >*/

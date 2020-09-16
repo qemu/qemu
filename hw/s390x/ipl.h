@@ -153,9 +153,7 @@ struct QemuIplParameters {
 typedef struct QemuIplParameters QemuIplParameters;
 
 #define TYPE_S390_IPL "s390-ipl"
-typedef struct S390IPLState S390IPLState;
-DECLARE_INSTANCE_CHECKER(S390IPLState, S390_IPL,
-                         TYPE_S390_IPL)
+OBJECT_DECLARE_SIMPLE_TYPE(S390IPLState, S390_IPL)
 
 struct S390IPLState {
     /*< private >*/

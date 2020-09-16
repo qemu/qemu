@@ -18,9 +18,7 @@
 #include "qom/object.h"
 
 #define TYPE_MAX7310 "max7310"
-typedef struct MAX7310State MAX7310State;
-DECLARE_INSTANCE_CHECKER(MAX7310State, MAX7310,
-                         TYPE_MAX7310)
+OBJECT_DECLARE_SIMPLE_TYPE(MAX7310State, MAX7310)
 
 struct MAX7310State {
     I2CSlave parent_obj;

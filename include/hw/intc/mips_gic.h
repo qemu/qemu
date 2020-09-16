@@ -171,9 +171,7 @@
 #define GIC_LOCAL_INT_WD        0 /* GIC watchdog */
 
 #define TYPE_MIPS_GIC "mips-gic"
-typedef struct MIPSGICState MIPSGICState;
-DECLARE_INSTANCE_CHECKER(MIPSGICState, MIPS_GIC,
-                         TYPE_MIPS_GIC)
+OBJECT_DECLARE_SIMPLE_TYPE(MIPSGICState, MIPS_GIC)
 
 /* Support up to 32 VPs and 256 IRQs */
 #define GIC_MAX_VPS             32

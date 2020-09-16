@@ -43,9 +43,7 @@
 #define TYPE_XILINX_AXI_DMA_DATA_STREAM "xilinx-axi-dma-data-stream"
 #define TYPE_XILINX_AXI_DMA_CONTROL_STREAM "xilinx-axi-dma-control-stream"
 
-typedef struct XilinxAXIDMA XilinxAXIDMA;
-DECLARE_INSTANCE_CHECKER(XilinxAXIDMA, XILINX_AXI_DMA,
-                         TYPE_XILINX_AXI_DMA)
+OBJECT_DECLARE_SIMPLE_TYPE(XilinxAXIDMA, XILINX_AXI_DMA)
 
 typedef struct XilinxAXIDMAStreamSlave XilinxAXIDMAStreamSlave;
 DECLARE_INSTANCE_CHECKER(XilinxAXIDMAStreamSlave, XILINX_AXI_DMA_DATA_STREAM,

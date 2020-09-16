@@ -26,9 +26,7 @@
 #include "qom/object.h"
 
 #define TYPE_IOTKIT_SYSINFO "iotkit-sysinfo"
-typedef struct IoTKitSysInfo IoTKitSysInfo;
-DECLARE_INSTANCE_CHECKER(IoTKitSysInfo, IOTKIT_SYSINFO,
-                         TYPE_IOTKIT_SYSINFO)
+OBJECT_DECLARE_SIMPLE_TYPE(IoTKitSysInfo, IOTKIT_SYSINFO)
 
 struct IoTKitSysInfo {
     /*< private >*/

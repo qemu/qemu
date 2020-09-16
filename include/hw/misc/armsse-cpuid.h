@@ -26,9 +26,7 @@
 #include "qom/object.h"
 
 #define TYPE_ARMSSE_CPUID "armsse-cpuid"
-typedef struct ARMSSECPUID ARMSSECPUID;
-DECLARE_INSTANCE_CHECKER(ARMSSECPUID, ARMSSE_CPUID,
-                         TYPE_ARMSSE_CPUID)
+OBJECT_DECLARE_SIMPLE_TYPE(ARMSSECPUID, ARMSSE_CPUID)
 
 struct ARMSSECPUID {
     /*< private >*/

@@ -14,11 +14,9 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
-typedef struct IPackBus IPackBus;
 
 #define TYPE_IPACK_BUS "IndustryPack"
-DECLARE_INSTANCE_CHECKER(IPackBus, IPACK_BUS,
-                         TYPE_IPACK_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(IPackBus, IPACK_BUS)
 
 struct IPackBus {
     /*< private >*/

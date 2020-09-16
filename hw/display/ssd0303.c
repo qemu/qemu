@@ -47,9 +47,7 @@ enum ssd0303_cmd {
 };
 
 #define TYPE_SSD0303 "ssd0303"
-typedef struct ssd0303_state ssd0303_state;
-DECLARE_INSTANCE_CHECKER(ssd0303_state, SSD0303,
-                         TYPE_SSD0303)
+OBJECT_DECLARE_SIMPLE_TYPE(ssd0303_state, SSD0303)
 
 struct ssd0303_state {
     I2CSlave parent_obj;

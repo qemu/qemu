@@ -27,9 +27,7 @@
 #include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL_TLS "qio-channel-tls"
-typedef struct QIOChannelTLS QIOChannelTLS;
-DECLARE_INSTANCE_CHECKER(QIOChannelTLS, QIO_CHANNEL_TLS,
-                         TYPE_QIO_CHANNEL_TLS)
+OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelTLS, QIO_CHANNEL_TLS)
 
 
 /**

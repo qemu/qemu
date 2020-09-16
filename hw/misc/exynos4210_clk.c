@@ -25,9 +25,7 @@
 #include "qom/object.h"
 
 #define TYPE_EXYNOS4210_CLK             "exynos4210.clk"
-typedef struct Exynos4210ClkState Exynos4210ClkState;
-DECLARE_INSTANCE_CHECKER(Exynos4210ClkState, EXYNOS4210_CLK,
-                         TYPE_EXYNOS4210_CLK)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210ClkState, EXYNOS4210_CLK)
 
 #define CLK_PLL_LOCKED                  BIT(29)
 

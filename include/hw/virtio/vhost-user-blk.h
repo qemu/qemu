@@ -23,9 +23,7 @@
 #include "qom/object.h"
 
 #define TYPE_VHOST_USER_BLK "vhost-user-blk"
-typedef struct VHostUserBlk VHostUserBlk;
-DECLARE_INSTANCE_CHECKER(VHostUserBlk, VHOST_USER_BLK,
-                         TYPE_VHOST_USER_BLK)
+OBJECT_DECLARE_SIMPLE_TYPE(VHostUserBlk, VHOST_USER_BLK)
 
 #define VHOST_USER_BLK_AUTO_NUM_QUEUES UINT16_MAX
 

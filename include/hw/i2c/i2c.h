@@ -49,8 +49,7 @@ struct I2CSlave {
 };
 
 #define TYPE_I2C_BUS "i2c-bus"
-DECLARE_INSTANCE_CHECKER(I2CBus, I2C_BUS,
-                         TYPE_I2C_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(I2CBus, I2C_BUS)
 
 typedef struct I2CNode I2CNode;
 

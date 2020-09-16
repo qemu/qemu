@@ -64,9 +64,7 @@ typedef struct CombinerGroupState {
 } CombinerGroupState;
 
 #define TYPE_EXYNOS4210_COMBINER "exynos4210.combiner"
-typedef struct Exynos4210CombinerState Exynos4210CombinerState;
-DECLARE_INSTANCE_CHECKER(Exynos4210CombinerState, EXYNOS4210_COMBINER,
-                         TYPE_EXYNOS4210_COMBINER)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210CombinerState, EXYNOS4210_COMBINER)
 
 struct Exynos4210CombinerState {
     SysBusDevice parent_obj;

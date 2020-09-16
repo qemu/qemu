@@ -23,9 +23,7 @@
 #define LOCK_VALUE 0xa05f
 
 #define TYPE_ARM_SYSCTL "realview_sysctl"
-typedef struct arm_sysctl_state arm_sysctl_state;
-DECLARE_INSTANCE_CHECKER(arm_sysctl_state, ARM_SYSCTL,
-                         TYPE_ARM_SYSCTL)
+OBJECT_DECLARE_SIMPLE_TYPE(arm_sysctl_state, ARM_SYSCTL)
 
 struct arm_sysctl_state {
     SysBusDevice parent_obj;

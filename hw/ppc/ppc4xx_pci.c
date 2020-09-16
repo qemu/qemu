@@ -44,9 +44,7 @@ struct PCITargetMap {
     uint32_t la;
 };
 
-typedef struct PPC4xxPCIState PPC4xxPCIState;
-DECLARE_INSTANCE_CHECKER(PPC4xxPCIState, PPC4xx_PCI_HOST_BRIDGE,
-                         TYPE_PPC4xx_PCI_HOST_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(PPC4xxPCIState, PPC4xx_PCI_HOST_BRIDGE)
 
 #define PPC4xx_PCI_NR_PMMS 3
 #define PPC4xx_PCI_NR_PTMS 2

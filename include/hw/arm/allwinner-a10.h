@@ -22,9 +22,7 @@
 #define AW_A10_NUM_USB          2
 
 #define TYPE_AW_A10 "allwinner-a10"
-typedef struct AwA10State AwA10State;
-DECLARE_INSTANCE_CHECKER(AwA10State, AW_A10,
-                         TYPE_AW_A10)
+OBJECT_DECLARE_SIMPLE_TYPE(AwA10State, AW_A10)
 
 struct AwA10State {
     /*< private >*/

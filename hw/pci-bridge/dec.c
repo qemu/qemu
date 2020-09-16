@@ -34,9 +34,7 @@
 #include "hw/pci/pci_bus.h"
 #include "qom/object.h"
 
-typedef struct DECState DECState;
-DECLARE_INSTANCE_CHECKER(DECState, DEC_21154,
-                         TYPE_DEC_21154)
+OBJECT_DECLARE_SIMPLE_TYPE(DECState, DEC_21154)
 
 struct DECState {
     PCIHostState parent_obj;

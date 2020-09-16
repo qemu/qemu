@@ -11,10 +11,8 @@ struct PPCE500CCSRState {
 
     MemoryRegion ccsr_space;
 };
-typedef struct PPCE500CCSRState PPCE500CCSRState;
 
 #define TYPE_CCSR "e500-ccsr"
-DECLARE_INSTANCE_CHECKER(PPCE500CCSRState, CCSR,
-                         TYPE_CCSR)
+OBJECT_DECLARE_SIMPLE_TYPE(PPCE500CCSRState, CCSR)
 
 #endif /* E500_CCSR_H */

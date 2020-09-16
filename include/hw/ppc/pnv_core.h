@@ -62,9 +62,7 @@ static inline PnvCPUState *pnv_cpu_state(PowerPCCPU *cpu)
 }
 
 #define TYPE_PNV_QUAD "powernv-cpu-quad"
-typedef struct PnvQuad PnvQuad;
-DECLARE_INSTANCE_CHECKER(PnvQuad, PNV_QUAD,
-                         TYPE_PNV_QUAD)
+OBJECT_DECLARE_SIMPLE_TYPE(PnvQuad, PNV_QUAD)
 
 struct PnvQuad {
     DeviceState parent_obj;

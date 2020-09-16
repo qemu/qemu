@@ -34,9 +34,7 @@
 #include "qom/object.h"
 
 #define TYPE_ISA_IPMI_KCS "isa-ipmi-kcs"
-typedef struct ISAIPMIKCSDevice ISAIPMIKCSDevice;
-DECLARE_INSTANCE_CHECKER(ISAIPMIKCSDevice, ISA_IPMI_KCS,
-                         TYPE_ISA_IPMI_KCS)
+OBJECT_DECLARE_SIMPLE_TYPE(ISAIPMIKCSDevice, ISA_IPMI_KCS)
 
 struct ISAIPMIKCSDevice {
     ISADevice dev;

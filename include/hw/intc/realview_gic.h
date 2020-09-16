@@ -15,9 +15,7 @@
 #include "qom/object.h"
 
 #define TYPE_REALVIEW_GIC "realview_gic"
-typedef struct RealViewGICState RealViewGICState;
-DECLARE_INSTANCE_CHECKER(RealViewGICState, REALVIEW_GIC,
-                         TYPE_REALVIEW_GIC)
+OBJECT_DECLARE_SIMPLE_TYPE(RealViewGICState, REALVIEW_GIC)
 
 struct RealViewGICState {
     SysBusDevice parent_obj;

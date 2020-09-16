@@ -56,9 +56,7 @@
 #define TCX_THC_CURSBITS 0x980
 
 #define TYPE_TCX "SUNW,tcx"
-typedef struct TCXState TCXState;
-DECLARE_INSTANCE_CHECKER(TCXState, TCX,
-                         TYPE_TCX)
+OBJECT_DECLARE_SIMPLE_TYPE(TCXState, TCX)
 
 struct TCXState {
     SysBusDevice parent_obj;

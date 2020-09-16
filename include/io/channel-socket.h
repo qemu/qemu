@@ -27,9 +27,7 @@
 #include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL_SOCKET "qio-channel-socket"
-typedef struct QIOChannelSocket QIOChannelSocket;
-DECLARE_INSTANCE_CHECKER(QIOChannelSocket, QIO_CHANNEL_SOCKET,
-                         TYPE_QIO_CHANNEL_SOCKET)
+OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelSocket, QIO_CHANNEL_SOCKET)
 
 
 /**

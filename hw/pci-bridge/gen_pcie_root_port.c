@@ -20,9 +20,7 @@
 #include "qom/object.h"
 
 #define TYPE_GEN_PCIE_ROOT_PORT                "pcie-root-port"
-typedef struct GenPCIERootPort GenPCIERootPort;
-DECLARE_INSTANCE_CHECKER(GenPCIERootPort, GEN_PCIE_ROOT_PORT,
-                         TYPE_GEN_PCIE_ROOT_PORT)
+OBJECT_DECLARE_SIMPLE_TYPE(GenPCIERootPort, GEN_PCIE_ROOT_PORT)
 
 #define GEN_PCIE_ROOT_PORT_AER_OFFSET           0x100
 #define GEN_PCIE_ROOT_PORT_ACS_OFFSET \

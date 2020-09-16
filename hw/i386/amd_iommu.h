@@ -297,9 +297,7 @@ struct irte_ga {
 };
 
 #define TYPE_AMD_IOMMU_DEVICE "amd-iommu"
-typedef struct AMDVIState AMDVIState;
-DECLARE_INSTANCE_CHECKER(AMDVIState, AMD_IOMMU_DEVICE,
-                         TYPE_AMD_IOMMU_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(AMDVIState, AMD_IOMMU_DEVICE)
 
 #define TYPE_AMD_IOMMU_PCI "AMDVI-PCI"
 

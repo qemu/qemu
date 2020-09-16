@@ -43,9 +43,7 @@
 #define TYPE_XILINX_AXI_ENET_DATA_STREAM "xilinx-axienet-data-stream"
 #define TYPE_XILINX_AXI_ENET_CONTROL_STREAM "xilinx-axienet-control-stream"
 
-typedef struct XilinxAXIEnet XilinxAXIEnet;
-DECLARE_INSTANCE_CHECKER(XilinxAXIEnet, XILINX_AXI_ENET,
-                         TYPE_XILINX_AXI_ENET)
+OBJECT_DECLARE_SIMPLE_TYPE(XilinxAXIEnet, XILINX_AXI_ENET)
 
 typedef struct XilinxAXIEnetStreamSlave XilinxAXIEnetStreamSlave;
 DECLARE_INSTANCE_CHECKER(XilinxAXIEnetStreamSlave, XILINX_AXI_ENET_DATA_STREAM,

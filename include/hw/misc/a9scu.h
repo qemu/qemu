@@ -25,10 +25,8 @@ struct A9SCUState {
     uint32_t status;
     uint32_t num_cpu;
 };
-typedef struct A9SCUState A9SCUState;
 
 #define TYPE_A9_SCU "a9-scu"
-DECLARE_INSTANCE_CHECKER(A9SCUState, A9_SCU,
-                         TYPE_A9_SCU)
+OBJECT_DECLARE_SIMPLE_TYPE(A9SCUState, A9_SCU)
 
 #endif

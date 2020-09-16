@@ -26,9 +26,7 @@
 #include "qom/object.h"
 
 #define TYPE_IMX_FEC "imx.fec"
-typedef struct IMXFECState IMXFECState;
-DECLARE_INSTANCE_CHECKER(IMXFECState, IMX_FEC,
-                         TYPE_IMX_FEC)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXFECState, IMX_FEC)
 
 #define TYPE_IMX_ENET "imx.enet"
 

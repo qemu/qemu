@@ -18,11 +18,9 @@ struct SpaprVioVty {
     uint32_t in, out;
     uint8_t buf[VTERM_BUFSIZE];
 };
-typedef struct SpaprVioVty SpaprVioVty;
 
 #define TYPE_VIO_SPAPR_VTY_DEVICE "spapr-vty"
-DECLARE_INSTANCE_CHECKER(SpaprVioVty, VIO_SPAPR_VTY_DEVICE,
-                         TYPE_VIO_SPAPR_VTY_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(SpaprVioVty, VIO_SPAPR_VTY_DEVICE)
 
 static int vty_can_receive(void *opaque)
 {

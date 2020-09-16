@@ -56,9 +56,7 @@
 #define COUNTER_RELOAD_OFFSET 0x04
 #define TIMER_BASE            0x10
 
-typedef struct GPTimerUnit GPTimerUnit;
-DECLARE_INSTANCE_CHECKER(GPTimerUnit, GRLIB_GPTIMER,
-                         TYPE_GRLIB_GPTIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(GPTimerUnit, GRLIB_GPTIMER)
 
 typedef struct GPTimer     GPTimer;
 

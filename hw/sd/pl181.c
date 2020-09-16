@@ -23,9 +23,7 @@
 #define PL181_FIFO_LEN 16
 
 #define TYPE_PL181 "pl181"
-typedef struct PL181State PL181State;
-DECLARE_INSTANCE_CHECKER(PL181State, PL181,
-                         TYPE_PL181)
+OBJECT_DECLARE_SIMPLE_TYPE(PL181State, PL181)
 
 #define TYPE_PL181_BUS "pl181-bus"
 

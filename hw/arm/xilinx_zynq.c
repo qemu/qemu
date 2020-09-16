@@ -40,9 +40,7 @@
 #include "qom/object.h"
 
 #define TYPE_ZYNQ_MACHINE MACHINE_TYPE_NAME("xilinx-zynq-a9")
-typedef struct ZynqMachineState ZynqMachineState;
-DECLARE_INSTANCE_CHECKER(ZynqMachineState, ZYNQ_MACHINE,
-                         TYPE_ZYNQ_MACHINE)
+OBJECT_DECLARE_SIMPLE_TYPE(ZynqMachineState, ZYNQ_MACHINE)
 
 /* board base frequency: 33.333333 MHz */
 #define PS_CLK_FREQUENCY (100 * 1000 * 1000 / 3)

@@ -31,9 +31,7 @@
 #include "qom/object.h"
 
 #define TYPE_FSL_IMX31 "fsl,imx31"
-typedef struct FslIMX31State FslIMX31State;
-DECLARE_INSTANCE_CHECKER(FslIMX31State, FSL_IMX31,
-                         TYPE_FSL_IMX31)
+OBJECT_DECLARE_SIMPLE_TYPE(FslIMX31State, FSL_IMX31)
 
 #define FSL_IMX31_NUM_UARTS 2
 #define FSL_IMX31_NUM_EPITS 2

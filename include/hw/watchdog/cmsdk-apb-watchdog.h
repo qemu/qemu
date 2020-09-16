@@ -36,9 +36,7 @@
 #include "qom/object.h"
 
 #define TYPE_CMSDK_APB_WATCHDOG "cmsdk-apb-watchdog"
-typedef struct CMSDKAPBWatchdog CMSDKAPBWatchdog;
-DECLARE_INSTANCE_CHECKER(CMSDKAPBWatchdog, CMSDK_APB_WATCHDOG,
-                         TYPE_CMSDK_APB_WATCHDOG)
+OBJECT_DECLARE_SIMPLE_TYPE(CMSDKAPBWatchdog, CMSDK_APB_WATCHDOG)
 
 /*
  * This shares the same struct (and cast macro) as the base

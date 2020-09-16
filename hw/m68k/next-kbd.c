@@ -38,9 +38,7 @@
 #include "migration/vmstate.h"
 #include "qom/object.h"
 
-typedef struct NextKBDState NextKBDState;
-DECLARE_INSTANCE_CHECKER(NextKBDState, NEXTKBD,
-                         TYPE_NEXTKBD)
+OBJECT_DECLARE_SIMPLE_TYPE(NextKBDState, NEXTKBD)
 
 /* following defintions from next68k netbsd */
 #define CSR_INT 0x00800000

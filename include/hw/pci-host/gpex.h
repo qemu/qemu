@@ -26,14 +26,10 @@
 #include "qom/object.h"
 
 #define TYPE_GPEX_HOST "gpex-pcihost"
-typedef struct GPEXHost GPEXHost;
-DECLARE_INSTANCE_CHECKER(GPEXHost, GPEX_HOST,
-                         TYPE_GPEX_HOST)
+OBJECT_DECLARE_SIMPLE_TYPE(GPEXHost, GPEX_HOST)
 
 #define TYPE_GPEX_ROOT_DEVICE "gpex-root"
-typedef struct GPEXRootState GPEXRootState;
-DECLARE_INSTANCE_CHECKER(GPEXRootState, GPEX_ROOT_DEVICE,
-                         TYPE_GPEX_ROOT_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(GPEXRootState, GPEX_ROOT_DEVICE)
 
 #define GPEX_NUM_IRQS 4
 

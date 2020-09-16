@@ -272,8 +272,7 @@ struct PL330State {
 };
 
 #define TYPE_PL330 "pl330"
-DECLARE_INSTANCE_CHECKER(PL330State, PL330,
-                         TYPE_PL330)
+OBJECT_DECLARE_SIMPLE_TYPE(PL330State, PL330)
 
 static const VMStateDescription vmstate_pl330 = {
     .name = "pl330",

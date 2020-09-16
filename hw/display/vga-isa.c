@@ -35,9 +35,7 @@
 #include "qom/object.h"
 
 #define TYPE_ISA_VGA "isa-vga"
-typedef struct ISAVGAState ISAVGAState;
-DECLARE_INSTANCE_CHECKER(ISAVGAState, ISA_VGA,
-                         TYPE_ISA_VGA)
+OBJECT_DECLARE_SIMPLE_TYPE(ISAVGAState, ISA_VGA)
 
 struct ISAVGAState {
     ISADevice parent_obj;

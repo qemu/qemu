@@ -21,9 +21,7 @@
 #include "hw/unicore32/puv3.h"
 
 #define TYPE_PUV3_OST "puv3_ost"
-typedef struct PUV3OSTState PUV3OSTState;
-DECLARE_INSTANCE_CHECKER(PUV3OSTState, PUV3_OST,
-                         TYPE_PUV3_OST)
+OBJECT_DECLARE_SIMPLE_TYPE(PUV3OSTState, PUV3_OST)
 
 /* puv3 ostimer implementation. */
 struct PUV3OSTState {

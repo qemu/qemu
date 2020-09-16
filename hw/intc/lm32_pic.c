@@ -30,9 +30,7 @@
 #include "qom/object.h"
 
 #define TYPE_LM32_PIC "lm32-pic"
-typedef struct LM32PicState LM32PicState;
-DECLARE_INSTANCE_CHECKER(LM32PicState, LM32_PIC,
-                         TYPE_LM32_PIC)
+OBJECT_DECLARE_SIMPLE_TYPE(LM32PicState, LM32_PIC)
 
 struct LM32PicState {
     SysBusDevice parent_obj;

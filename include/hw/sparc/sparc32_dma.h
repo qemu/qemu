@@ -9,9 +9,7 @@
 #define DMA_REGS 4
 
 #define TYPE_SPARC32_DMA_DEVICE "sparc32-dma-device"
-typedef struct DMADeviceState DMADeviceState;
-DECLARE_INSTANCE_CHECKER(DMADeviceState, SPARC32_DMA_DEVICE,
-                         TYPE_SPARC32_DMA_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(DMADeviceState, SPARC32_DMA_DEVICE)
 
 
 struct DMADeviceState {
@@ -25,9 +23,7 @@ struct DMADeviceState {
 };
 
 #define TYPE_SPARC32_ESPDMA_DEVICE "sparc32-espdma"
-typedef struct ESPDMADeviceState ESPDMADeviceState;
-DECLARE_INSTANCE_CHECKER(ESPDMADeviceState, SPARC32_ESPDMA_DEVICE,
-                         TYPE_SPARC32_ESPDMA_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(ESPDMADeviceState, SPARC32_ESPDMA_DEVICE)
 
 struct ESPDMADeviceState {
     DMADeviceState parent_obj;
@@ -36,9 +32,7 @@ struct ESPDMADeviceState {
 };
 
 #define TYPE_SPARC32_LEDMA_DEVICE "sparc32-ledma"
-typedef struct LEDMADeviceState LEDMADeviceState;
-DECLARE_INSTANCE_CHECKER(LEDMADeviceState, SPARC32_LEDMA_DEVICE,
-                         TYPE_SPARC32_LEDMA_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(LEDMADeviceState, SPARC32_LEDMA_DEVICE)
 
 struct LEDMADeviceState {
     DMADeviceState parent_obj;
@@ -47,9 +41,7 @@ struct LEDMADeviceState {
 };
 
 #define TYPE_SPARC32_DMA "sparc32-dma"
-typedef struct SPARC32DMAState SPARC32DMAState;
-DECLARE_INSTANCE_CHECKER(SPARC32DMAState, SPARC32_DMA,
-                         TYPE_SPARC32_DMA)
+OBJECT_DECLARE_SIMPLE_TYPE(SPARC32DMAState, SPARC32_DMA)
 
 struct SPARC32DMAState {
     SysBusDevice parent_obj;

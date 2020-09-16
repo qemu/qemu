@@ -36,9 +36,7 @@ typedef struct {
 } TimerBlock;
 
 #define TYPE_ARM_MPTIMER "arm_mptimer"
-typedef struct ARMMPTimerState ARMMPTimerState;
-DECLARE_INSTANCE_CHECKER(ARMMPTimerState, ARM_MPTIMER,
-                         TYPE_ARM_MPTIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(ARMMPTimerState, ARM_MPTIMER)
 
 struct ARMMPTimerState {
     /*< private >*/

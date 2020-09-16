@@ -92,12 +92,10 @@ struct PCITestDevState {
     uint64_t membar_size;
     MemoryRegion membar;
 };
-typedef struct PCITestDevState PCITestDevState;
 
 #define TYPE_PCI_TEST_DEV "pci-testdev"
 
-DECLARE_INSTANCE_CHECKER(PCITestDevState, PCI_TEST_DEV,
-                         TYPE_PCI_TEST_DEV)
+OBJECT_DECLARE_SIMPLE_TYPE(PCITestDevState, PCI_TEST_DEV)
 
 #define IOTEST_IS_MEM(i) (strcmp(IOTEST_TYPE(i), "portio"))
 #define IOTEST_REGION(d, i) (IOTEST_IS_MEM(i) ?  &(d)->mmio : &(d)->portio)

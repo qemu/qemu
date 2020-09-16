@@ -66,11 +66,9 @@ struct ssd0323_state {
     uint32_t mode;
     uint8_t framebuffer[128 * 80 / 2];
 };
-typedef struct ssd0323_state ssd0323_state;
 
 #define TYPE_SSD0323 "ssd0323"
-DECLARE_INSTANCE_CHECKER(ssd0323_state, SSD0323,
-                         TYPE_SSD0323)
+OBJECT_DECLARE_SIMPLE_TYPE(ssd0323_state, SSD0323)
 
 
 static uint32_t ssd0323_transfer(SSISlave *dev, uint32_t data)

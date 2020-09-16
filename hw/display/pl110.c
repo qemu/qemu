@@ -49,9 +49,7 @@ enum pl110_version
 };
 
 #define TYPE_PL110 "pl110"
-typedef struct PL110State PL110State;
-DECLARE_INSTANCE_CHECKER(PL110State, PL110,
-                         TYPE_PL110)
+OBJECT_DECLARE_SIMPLE_TYPE(PL110State, PL110)
 
 struct PL110State {
     SysBusDevice parent_obj;

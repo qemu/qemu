@@ -12,9 +12,7 @@ OBJECT_DECLARE_TYPE(HDACodecDevice, HDACodecDeviceClass,
                     HDA_CODEC_DEVICE)
 
 #define TYPE_HDA_BUS "HDA"
-typedef struct HDACodecBus HDACodecBus;
-DECLARE_INSTANCE_CHECKER(HDACodecBus, HDA_BUS,
-                         TYPE_HDA_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(HDACodecBus, HDA_BUS)
 
 
 typedef void (*hda_codec_response_func)(HDACodecDevice *dev,

@@ -21,9 +21,7 @@
 
 #define TYPE_MEMORY_BACKEND_MEMFD "memory-backend-memfd"
 
-typedef struct HostMemoryBackendMemfd HostMemoryBackendMemfd;
-DECLARE_INSTANCE_CHECKER(HostMemoryBackendMemfd, MEMORY_BACKEND_MEMFD,
-                         TYPE_MEMORY_BACKEND_MEMFD)
+OBJECT_DECLARE_SIMPLE_TYPE(HostMemoryBackendMemfd, MEMORY_BACKEND_MEMFD)
 
 
 struct HostMemoryBackendMemfd {

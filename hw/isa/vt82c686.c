@@ -48,11 +48,9 @@ struct VT82C686BState {
     MemoryRegion superio;
     SuperIOConfig superio_conf;
 };
-typedef struct VT82C686BState VT82C686BState;
 
 #define TYPE_VT82C686B_DEVICE "VT82C686B"
-DECLARE_INSTANCE_CHECKER(VT82C686BState, VT82C686B_DEVICE,
-                         TYPE_VT82C686B_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(VT82C686BState, VT82C686B_DEVICE)
 
 static void superio_ioport_writeb(void *opaque, hwaddr addr, uint64_t data,
                                   unsigned size)
@@ -169,29 +167,23 @@ struct VT686PMState {
     PMSMBus smb;
     uint32_t smb_io_base;
 };
-typedef struct VT686PMState VT686PMState;
 
 struct VT686AC97State {
     PCIDevice dev;
 };
-typedef struct VT686AC97State VT686AC97State;
 
 struct VT686MC97State {
     PCIDevice dev;
 };
-typedef struct VT686MC97State VT686MC97State;
 
 #define TYPE_VT82C686B_PM_DEVICE "VT82C686B_PM"
-DECLARE_INSTANCE_CHECKER(VT686PMState, VT82C686B_PM_DEVICE,
-                         TYPE_VT82C686B_PM_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(VT686PMState, VT82C686B_PM_DEVICE)
 
 #define TYPE_VT82C686B_MC97_DEVICE "VT82C686B_MC97"
-DECLARE_INSTANCE_CHECKER(VT686MC97State, VT82C686B_MC97_DEVICE,
-                         TYPE_VT82C686B_MC97_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(VT686MC97State, VT82C686B_MC97_DEVICE)
 
 #define TYPE_VT82C686B_AC97_DEVICE "VT82C686B_AC97"
-DECLARE_INSTANCE_CHECKER(VT686AC97State, VT82C686B_AC97_DEVICE,
-                         TYPE_VT82C686B_AC97_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(VT686AC97State, VT82C686B_AC97_DEVICE)
 
 static void pm_update_sci(VT686PMState *s)
 {

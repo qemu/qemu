@@ -90,8 +90,7 @@ struct NANDFlashState {
 
 #define TYPE_NAND "nand"
 
-DECLARE_INSTANCE_CHECKER(NANDFlashState, NAND,
-                         TYPE_NAND)
+OBJECT_DECLARE_SIMPLE_TYPE(NANDFlashState, NAND)
 
 static void mem_and(uint8_t *dest, const uint8_t *src, size_t n)
 {

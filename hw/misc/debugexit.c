@@ -14,9 +14,7 @@
 #include "qom/object.h"
 
 #define TYPE_ISA_DEBUG_EXIT_DEVICE "isa-debug-exit"
-typedef struct ISADebugExitState ISADebugExitState;
-DECLARE_INSTANCE_CHECKER(ISADebugExitState, ISA_DEBUG_EXIT_DEVICE,
-                         TYPE_ISA_DEBUG_EXIT_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(ISADebugExitState, ISA_DEBUG_EXIT_DEVICE)
 
 struct ISADebugExitState {
     ISADevice parent_obj;

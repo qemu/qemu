@@ -25,9 +25,7 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #define TYPE_NRF51_NVM "nrf51_soc.nvm"
-typedef struct NRF51NVMState NRF51NVMState;
-DECLARE_INSTANCE_CHECKER(NRF51NVMState, NRF51_NVM,
-                         TYPE_NRF51_NVM)
+OBJECT_DECLARE_SIMPLE_TYPE(NRF51NVMState, NRF51_NVM)
 
 #define NRF51_UICR_FIXTURE_SIZE 64
 

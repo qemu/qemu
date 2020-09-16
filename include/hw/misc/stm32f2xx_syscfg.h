@@ -37,9 +37,7 @@
 #define SYSCFG_CMPCR   0x20
 
 #define TYPE_STM32F2XX_SYSCFG "stm32f2xx-syscfg"
-typedef struct STM32F2XXSyscfgState STM32F2XXSyscfgState;
-DECLARE_INSTANCE_CHECKER(STM32F2XXSyscfgState, STM32F2XX_SYSCFG,
-                         TYPE_STM32F2XX_SYSCFG)
+OBJECT_DECLARE_SIMPLE_TYPE(STM32F2XXSyscfgState, STM32F2XX_SYSCFG)
 
 struct STM32F2XXSyscfgState {
     /* <private> */

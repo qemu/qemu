@@ -35,10 +35,8 @@ struct SimbaPCIBridge {
     /*< private >*/
     PCIBridge parent_obj;
 };
-typedef struct SimbaPCIBridge SimbaPCIBridge;
 
 #define TYPE_SIMBA_PCI_BRIDGE "pbm-bridge"
-DECLARE_INSTANCE_CHECKER(SimbaPCIBridge, SIMBA_PCI_BRIDGE,
-                         TYPE_SIMBA_PCI_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(SimbaPCIBridge, SIMBA_PCI_BRIDGE)
 
 #endif

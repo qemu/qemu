@@ -19,9 +19,7 @@
 #include "qom/object_interfaces.h"
 #include "qom/object.h"
 
-typedef struct HostMemoryBackendFile HostMemoryBackendFile;
-DECLARE_INSTANCE_CHECKER(HostMemoryBackendFile, MEMORY_BACKEND_FILE,
-                         TYPE_MEMORY_BACKEND_FILE)
+OBJECT_DECLARE_SIMPLE_TYPE(HostMemoryBackendFile, MEMORY_BACKEND_FILE)
 
 
 struct HostMemoryBackendFile {

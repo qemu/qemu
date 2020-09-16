@@ -81,9 +81,7 @@ OBJECT_DECLARE_TYPE(SpitzMachineState, SpitzMachineClass, SPITZ_MACHINE)
 #define FLASHCTL_NCE            (FLASHCTL_CE0 | FLASHCTL_CE1)
 
 #define TYPE_SL_NAND "sl-nand"
-typedef struct SLNANDState SLNANDState;
-DECLARE_INSTANCE_CHECKER(SLNANDState, SL_NAND,
-                         TYPE_SL_NAND)
+OBJECT_DECLARE_SIMPLE_TYPE(SLNANDState, SL_NAND)
 
 struct SLNANDState {
     SysBusDevice parent_obj;
@@ -259,9 +257,7 @@ static const int spitz_gpiomap[5] = {
 };
 
 #define TYPE_SPITZ_KEYBOARD "spitz-keyboard"
-typedef struct SpitzKeyboardState SpitzKeyboardState;
-DECLARE_INSTANCE_CHECKER(SpitzKeyboardState, SPITZ_KEYBOARD,
-                         TYPE_SPITZ_KEYBOARD)
+OBJECT_DECLARE_SIMPLE_TYPE(SpitzKeyboardState, SPITZ_KEYBOARD)
 
 struct SpitzKeyboardState {
     SysBusDevice parent_obj;
@@ -579,9 +575,7 @@ static void spitz_keyboard_realize(DeviceState *dev, Error **errp)
 #define LCDTG_POLCTRL   0x07
 
 #define TYPE_SPITZ_LCDTG "spitz-lcdtg"
-typedef struct SpitzLCDTG SpitzLCDTG;
-DECLARE_INSTANCE_CHECKER(SpitzLCDTG, SPITZ_LCDTG,
-                         TYPE_SPITZ_LCDTG)
+OBJECT_DECLARE_SIMPLE_TYPE(SpitzLCDTG, SPITZ_LCDTG)
 
 struct SpitzLCDTG {
     SSISlave ssidev;
@@ -669,9 +663,7 @@ static void spitz_lcdtg_realize(SSISlave *ssi, Error **errp)
 #define SPITZ_GPIO_TP_INT       11
 
 #define TYPE_CORGI_SSP "corgi-ssp"
-typedef struct CorgiSSPState CorgiSSPState;
-DECLARE_INSTANCE_CHECKER(CorgiSSPState, CORGI_SSP,
-                         TYPE_CORGI_SSP)
+OBJECT_DECLARE_SIMPLE_TYPE(CorgiSSPState, CORGI_SSP)
 
 /* "Demux" the signal based on current chipselect */
 struct CorgiSSPState {
@@ -822,9 +814,7 @@ static void spitz_akita_i2c_setup(PXA2xxState *cpu)
  *  + named GPIO output "adc-temp": the ADC value, to be wired up to the max111x
  */
 #define TYPE_SPITZ_MISC_GPIO "spitz-misc-gpio"
-typedef struct SpitzMiscGPIOState SpitzMiscGPIOState;
-DECLARE_INSTANCE_CHECKER(SpitzMiscGPIOState, SPITZ_MISC_GPIO,
-                         TYPE_SPITZ_MISC_GPIO)
+OBJECT_DECLARE_SIMPLE_TYPE(SpitzMiscGPIOState, SPITZ_MISC_GPIO)
 
 struct SpitzMiscGPIOState {
     SysBusDevice parent_obj;

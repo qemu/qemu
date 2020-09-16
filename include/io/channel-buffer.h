@@ -25,9 +25,7 @@
 #include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL_BUFFER "qio-channel-buffer"
-typedef struct QIOChannelBuffer QIOChannelBuffer;
-DECLARE_INSTANCE_CHECKER(QIOChannelBuffer, QIO_CHANNEL_BUFFER,
-                         TYPE_QIO_CHANNEL_BUFFER)
+OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelBuffer, QIO_CHANNEL_BUFFER)
 
 
 /**

@@ -14,9 +14,7 @@
 
 #define TYPE_CPU_CORE "cpu-core"
 
-typedef struct CPUCore CPUCore;
-DECLARE_INSTANCE_CHECKER(CPUCore, CPU_CORE,
-                         TYPE_CPU_CORE)
+OBJECT_DECLARE_SIMPLE_TYPE(CPUCore, CPU_CORE)
 
 struct CPUCore {
     /*< private >*/

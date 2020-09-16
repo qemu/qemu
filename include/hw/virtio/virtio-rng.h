@@ -18,9 +18,7 @@
 #include "qom/object.h"
 
 #define TYPE_VIRTIO_RNG "virtio-rng-device"
-typedef struct VirtIORNG VirtIORNG;
-DECLARE_INSTANCE_CHECKER(VirtIORNG, VIRTIO_RNG,
-                         TYPE_VIRTIO_RNG)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIORNG, VIRTIO_RNG)
 #define VIRTIO_RNG_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_RNG)
 

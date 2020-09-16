@@ -95,9 +95,7 @@ enum {
 };
 
 #define TYPE_LM32_UART "lm32-uart"
-typedef struct LM32UartState LM32UartState;
-DECLARE_INSTANCE_CHECKER(LM32UartState, LM32_UART,
-                         TYPE_LM32_UART)
+OBJECT_DECLARE_SIMPLE_TYPE(LM32UartState, LM32_UART)
 
 struct LM32UartState {
     SysBusDevice parent_obj;

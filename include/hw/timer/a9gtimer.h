@@ -29,9 +29,7 @@
 #define A9_GTIMER_MAX_CPUS 4
 
 #define TYPE_A9_GTIMER "arm.cortex-a9-global-timer"
-typedef struct A9GTimerState A9GTimerState;
-DECLARE_INSTANCE_CHECKER(A9GTimerState, A9_GTIMER,
-                         TYPE_A9_GTIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(A9GTimerState, A9_GTIMER)
 
 #define R_COUNTER_LO                0x00
 #define R_COUNTER_HI                0x04

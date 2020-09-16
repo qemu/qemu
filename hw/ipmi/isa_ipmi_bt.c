@@ -34,9 +34,7 @@
 #include "qom/object.h"
 
 #define TYPE_ISA_IPMI_BT "isa-ipmi-bt"
-typedef struct ISAIPMIBTDevice ISAIPMIBTDevice;
-DECLARE_INSTANCE_CHECKER(ISAIPMIBTDevice, ISA_IPMI_BT,
-                         TYPE_ISA_IPMI_BT)
+OBJECT_DECLARE_SIMPLE_TYPE(ISAIPMIBTDevice, ISA_IPMI_BT)
 
 struct ISAIPMIBTDevice {
     ISADevice dev;

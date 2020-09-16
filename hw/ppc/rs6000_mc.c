@@ -29,9 +29,7 @@
 #include "qom/object.h"
 
 #define TYPE_RS6000MC "rs6000-mc"
-typedef struct RS6000MCState RS6000MCState;
-DECLARE_INSTANCE_CHECKER(RS6000MCState, RS6000MC,
-                         TYPE_RS6000MC)
+OBJECT_DECLARE_SIMPLE_TYPE(RS6000MCState, RS6000MC)
 
 struct RS6000MCState {
     ISADevice parent_obj;

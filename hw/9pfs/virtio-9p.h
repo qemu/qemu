@@ -13,10 +13,8 @@ struct V9fsVirtioState {
     VirtQueueElement *elems[MAX_REQ];
     V9fsState state;
 };
-typedef struct V9fsVirtioState V9fsVirtioState;
 
 #define TYPE_VIRTIO_9P "virtio-9p-device"
-DECLARE_INSTANCE_CHECKER(V9fsVirtioState, VIRTIO_9P,
-                         TYPE_VIRTIO_9P)
+OBJECT_DECLARE_SIMPLE_TYPE(V9fsVirtioState, VIRTIO_9P)
 
 #endif

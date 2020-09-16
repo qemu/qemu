@@ -110,11 +110,9 @@ struct USBSerialState {
     int latency;        /* ms */
     CharBackend cs;
 };
-typedef struct USBSerialState USBSerialState;
 
 #define TYPE_USB_SERIAL "usb-serial-dev"
-DECLARE_INSTANCE_CHECKER(USBSerialState, USB_SERIAL,
-                         TYPE_USB_SERIAL)
+OBJECT_DECLARE_SIMPLE_TYPE(USBSerialState, USB_SERIAL)
 
 enum {
     STR_MANUFACTURER = 1,

@@ -56,9 +56,7 @@ enum {
 };
 
 #define TYPE_MILKYMIST_AC97 "milkymist-ac97"
-typedef struct MilkymistAC97State MilkymistAC97State;
-DECLARE_INSTANCE_CHECKER(MilkymistAC97State, MILKYMIST_AC97,
-                         TYPE_MILKYMIST_AC97)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistAC97State, MILKYMIST_AC97)
 
 struct MilkymistAC97State {
     SysBusDevice parent_obj;

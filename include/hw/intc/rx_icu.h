@@ -69,10 +69,8 @@ struct RXICUState {
     qemu_irq _fir;
     qemu_irq _swi;
 };
-typedef struct RXICUState RXICUState;
 
 #define TYPE_RX_ICU "rx-icu"
-DECLARE_INSTANCE_CHECKER(RXICUState, RX_ICU,
-                         TYPE_RX_ICU)
+OBJECT_DECLARE_SIMPLE_TYPE(RXICUState, RX_ICU)
 
 #endif /* RX_ICU_H */

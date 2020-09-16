@@ -32,9 +32,7 @@ typedef struct MacfbState {
 } MacfbState;
 
 #define TYPE_MACFB "sysbus-macfb"
-typedef struct MacfbSysBusState MacfbSysBusState;
-DECLARE_INSTANCE_CHECKER(MacfbSysBusState, MACFB,
-                         TYPE_MACFB)
+OBJECT_DECLARE_SIMPLE_TYPE(MacfbSysBusState, MACFB)
 
 struct MacfbSysBusState {
     SysBusDevice busdev;

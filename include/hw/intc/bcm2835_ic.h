@@ -12,9 +12,7 @@
 #include "qom/object.h"
 
 #define TYPE_BCM2835_IC "bcm2835-ic"
-typedef struct BCM2835ICState BCM2835ICState;
-DECLARE_INSTANCE_CHECKER(BCM2835ICState, BCM2835_IC,
-                         TYPE_BCM2835_IC)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835ICState, BCM2835_IC)
 
 #define BCM2835_IC_GPU_IRQ "gpu-irq"
 #define BCM2835_IC_ARM_IRQ "arm-irq"

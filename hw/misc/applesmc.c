@@ -90,9 +90,7 @@ struct AppleSMCData {
     QLIST_ENTRY(AppleSMCData) node;
 };
 
-typedef struct AppleSMCState AppleSMCState;
-DECLARE_INSTANCE_CHECKER(AppleSMCState, APPLE_SMC,
-                         TYPE_APPLE_SMC)
+OBJECT_DECLARE_SIMPLE_TYPE(AppleSMCState, APPLE_SMC)
 
 struct AppleSMCState {
     ISADevice parent_obj;

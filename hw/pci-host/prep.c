@@ -43,9 +43,7 @@
 #define TYPE_RAVEN_PCI_DEVICE "raven"
 #define TYPE_RAVEN_PCI_HOST_BRIDGE "raven-pcihost"
 
-typedef struct RavenPCIState RavenPCIState;
-DECLARE_INSTANCE_CHECKER(RavenPCIState, RAVEN_PCI_DEVICE,
-                         TYPE_RAVEN_PCI_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(RavenPCIState, RAVEN_PCI_DEVICE)
 
 struct RavenPCIState {
     PCIDevice dev;

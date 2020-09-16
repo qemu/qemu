@@ -34,9 +34,7 @@ DECLARE_OBJ_CHECKERS(VirtioBusState, VirtioBusClass,
 
 /* virtio-mmio */
 #define TYPE_VIRTIO_MMIO "virtio-mmio"
-typedef struct VirtIOMMIOProxy VirtIOMMIOProxy;
-DECLARE_INSTANCE_CHECKER(VirtIOMMIOProxy, VIRTIO_MMIO,
-                         TYPE_VIRTIO_MMIO)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOMMIOProxy, VIRTIO_MMIO)
 
 #define VIRT_MAGIC 0x74726976 /* 'virt' */
 #define VIRT_VERSION 2

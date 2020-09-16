@@ -10,10 +10,8 @@ struct ChipideaState {
 
     MemoryRegion iomem[3];
 };
-typedef struct ChipideaState ChipideaState;
 
 #define TYPE_CHIPIDEA "usb-chipidea"
-DECLARE_INSTANCE_CHECKER(ChipideaState, CHIPIDEA,
-                         TYPE_CHIPIDEA)
+OBJECT_DECLARE_SIMPLE_TYPE(ChipideaState, CHIPIDEA)
 
 #endif /* CHIPIDEA_H */

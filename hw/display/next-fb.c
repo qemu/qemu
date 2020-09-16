@@ -32,9 +32,7 @@
 #include "hw/m68k/next-cube.h"
 #include "qom/object.h"
 
-typedef struct NeXTFbState NeXTFbState;
-DECLARE_INSTANCE_CHECKER(NeXTFbState, NEXTFB,
-                         TYPE_NEXTFB)
+OBJECT_DECLARE_SIMPLE_TYPE(NeXTFbState, NEXTFB)
 
 struct NeXTFbState {
     SysBusDevice parent_obj;

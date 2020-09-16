@@ -33,7 +33,6 @@
 
 #define ADB_MAX_OUT_LEN 16
 
-typedef struct ADBBusState ADBBusState;
 typedef struct ADBDevice ADBDevice;
 
 /* buf = NULL means polling */
@@ -65,8 +64,7 @@ struct ADBDeviceClass {
 };
 
 #define TYPE_ADB_BUS "apple-desktop-bus"
-DECLARE_INSTANCE_CHECKER(ADBBusState, ADB_BUS,
-                         TYPE_ADB_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(ADBBusState, ADB_BUS)
 
 #define ADB_STATUS_BUSTIMEOUT  0x1
 #define ADB_STATUS_POLLREPLY   0x2

@@ -13,9 +13,7 @@
 #include "qom/object.h"
 
 #define TYPE_BCM2835_MBOX "bcm2835-mbox"
-typedef struct BCM2835MboxState BCM2835MboxState;
-DECLARE_INSTANCE_CHECKER(BCM2835MboxState, BCM2835_MBOX,
-                         TYPE_BCM2835_MBOX)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835MboxState, BCM2835_MBOX)
 
 typedef struct {
     uint32_t reg[MBOX_SIZE];

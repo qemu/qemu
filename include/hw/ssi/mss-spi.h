@@ -31,9 +31,7 @@
 #include "qom/object.h"
 
 #define TYPE_MSS_SPI   "mss-spi"
-typedef struct MSSSpiState MSSSpiState;
-DECLARE_INSTANCE_CHECKER(MSSSpiState, MSS_SPI,
-                         TYPE_MSS_SPI)
+OBJECT_DECLARE_SIMPLE_TYPE(MSSSpiState, MSS_SPI)
 
 #define R_SPI_MAX             16
 

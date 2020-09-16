@@ -38,9 +38,7 @@
 #define PXA2XX_PIC_SRCS	40
 
 #define TYPE_PXA2XX_PIC "pxa2xx_pic"
-typedef struct PXA2xxPICState PXA2xxPICState;
-DECLARE_INSTANCE_CHECKER(PXA2xxPICState, PXA2XX_PIC,
-                         TYPE_PXA2XX_PIC)
+OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxPICState, PXA2XX_PIC)
 
 struct PXA2xxPICState {
     /*< private >*/

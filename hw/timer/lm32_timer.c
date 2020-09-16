@@ -56,9 +56,7 @@ enum {
 };
 
 #define TYPE_LM32_TIMER "lm32-timer"
-typedef struct LM32TimerState LM32TimerState;
-DECLARE_INSTANCE_CHECKER(LM32TimerState, LM32_TIMER,
-                         TYPE_LM32_TIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(LM32TimerState, LM32_TIMER)
 
 struct LM32TimerState {
     SysBusDevice parent_obj;

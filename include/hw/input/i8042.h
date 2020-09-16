@@ -12,9 +12,7 @@
 #include "qom/object.h"
 
 #define TYPE_I8042 "i8042"
-typedef struct ISAKBDState ISAKBDState;
-DECLARE_INSTANCE_CHECKER(ISAKBDState, I8042,
-                         TYPE_I8042)
+OBJECT_DECLARE_SIMPLE_TYPE(ISAKBDState, I8042)
 
 #define I8042_A20_LINE "a20"
 

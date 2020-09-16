@@ -61,9 +61,7 @@
 /* ------------------------------------------------------------------------ */
 
 #define TYPE_USB_HOST_DEVICE "usb-host"
-typedef struct USBHostDevice USBHostDevice;
-DECLARE_INSTANCE_CHECKER(USBHostDevice, USB_HOST_DEVICE,
-                         TYPE_USB_HOST_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(USBHostDevice, USB_HOST_DEVICE)
 
 typedef struct USBHostRequest USBHostRequest;
 typedef struct USBHostIsoXfer USBHostIsoXfer;

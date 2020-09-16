@@ -56,9 +56,7 @@ typedef struct dma_pagetable_entry {
 #define DMA_FLAG_ADDR_INTR  0x0400
 
 #define TYPE_RC4030 "rc4030"
-typedef struct rc4030State rc4030State;
-DECLARE_INSTANCE_CHECKER(rc4030State, RC4030,
-                         TYPE_RC4030)
+OBJECT_DECLARE_SIMPLE_TYPE(rc4030State, RC4030)
 
 #define TYPE_RC4030_IOMMU_MEMORY_REGION "rc4030-iommu-memory-region"
 

@@ -30,9 +30,7 @@
 #define CACHE_ID 0x410000c8
 
 #define TYPE_ARM_L2X0 "l2x0"
-typedef struct L2x0State L2x0State;
-DECLARE_INSTANCE_CHECKER(L2x0State, ARM_L2X0,
-                         TYPE_ARM_L2X0)
+OBJECT_DECLARE_SIMPLE_TYPE(L2x0State, ARM_L2X0)
 
 struct L2x0State {
     SysBusDevice parent_obj;

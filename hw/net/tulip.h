@@ -6,9 +6,7 @@
 #include "qom/object.h"
 
 #define TYPE_TULIP "tulip"
-typedef struct TULIPState TULIPState;
-DECLARE_INSTANCE_CHECKER(TULIPState, TULIP,
-                         TYPE_TULIP)
+OBJECT_DECLARE_SIMPLE_TYPE(TULIPState, TULIP)
 
 #define CSR(_x) ((_x) << 3)
 

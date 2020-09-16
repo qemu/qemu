@@ -24,9 +24,7 @@ void ich9_generate_smi(void);
 #define ICH9_CC_SIZE (16 * 1024) /* 16KB. Chipset configuration registers */
 
 #define TYPE_ICH9_LPC_DEVICE "ICH9-LPC"
-typedef struct ICH9LPCState ICH9LPCState;
-DECLARE_INSTANCE_CHECKER(ICH9LPCState, ICH9_LPC_DEVICE,
-                         TYPE_ICH9_LPC_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(ICH9LPCState, ICH9_LPC_DEVICE)
 
 struct ICH9LPCState {
     /* ICH9 LPC PCI to ISA bridge */

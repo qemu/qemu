@@ -19,9 +19,7 @@
 #include "qom/object.h"
 
 #define TYPE_TMP105 "tmp105"
-typedef struct TMP105State TMP105State;
-DECLARE_INSTANCE_CHECKER(TMP105State, TMP105,
-                         TYPE_TMP105)
+OBJECT_DECLARE_SIMPLE_TYPE(TMP105State, TMP105)
 
 /**
  * TMP105State:

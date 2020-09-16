@@ -56,9 +56,7 @@
 #define EPIT_TIMER_MAX  0XFFFFFFFFUL
 
 #define TYPE_IMX_EPIT "imx.epit"
-typedef struct IMXEPITState IMXEPITState;
-DECLARE_INSTANCE_CHECKER(IMXEPITState, IMX_EPIT,
-                         TYPE_IMX_EPIT)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXEPITState, IMX_EPIT)
 
 struct IMXEPITState {
     /*< private >*/

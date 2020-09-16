@@ -29,14 +29,10 @@
 #include "qom/object.h"
 
 #define TYPE_DESIGNWARE_PCIE_HOST "designware-pcie-host"
-typedef struct DesignwarePCIEHost DesignwarePCIEHost;
-DECLARE_INSTANCE_CHECKER(DesignwarePCIEHost, DESIGNWARE_PCIE_HOST,
-                         TYPE_DESIGNWARE_PCIE_HOST)
+OBJECT_DECLARE_SIMPLE_TYPE(DesignwarePCIEHost, DESIGNWARE_PCIE_HOST)
 
 #define TYPE_DESIGNWARE_PCIE_ROOT "designware-pcie-root"
-typedef struct DesignwarePCIERoot DesignwarePCIERoot;
-DECLARE_INSTANCE_CHECKER(DesignwarePCIERoot, DESIGNWARE_PCIE_ROOT,
-                         TYPE_DESIGNWARE_PCIE_ROOT)
+OBJECT_DECLARE_SIMPLE_TYPE(DesignwarePCIERoot, DESIGNWARE_PCIE_ROOT)
 
 struct DesignwarePCIERoot;
 

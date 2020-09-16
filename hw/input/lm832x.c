@@ -28,9 +28,7 @@
 #include "qom/object.h"
 
 #define TYPE_LM8323 "lm8323"
-typedef struct LM823KbdState LM823KbdState;
-DECLARE_INSTANCE_CHECKER(LM823KbdState, LM8323,
-                         TYPE_LM8323)
+OBJECT_DECLARE_SIMPLE_TYPE(LM823KbdState, LM8323)
 
 struct LM823KbdState {
     I2CSlave parent_obj;

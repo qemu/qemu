@@ -18,9 +18,7 @@
 #include "qom/object.h"
 
 #define TYPE_MCF_INTC "mcf-intc"
-typedef struct mcf_intc_state mcf_intc_state;
-DECLARE_INSTANCE_CHECKER(mcf_intc_state, MCF_INTC,
-                         TYPE_MCF_INTC)
+OBJECT_DECLARE_SIMPLE_TYPE(mcf_intc_state, MCF_INTC)
 
 struct mcf_intc_state {
     SysBusDevice parent_obj;

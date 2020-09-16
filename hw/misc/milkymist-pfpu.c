@@ -121,9 +121,7 @@ static const char *opcode_to_str[] = {
 #endif
 
 #define TYPE_MILKYMIST_PFPU "milkymist-pfpu"
-typedef struct MilkymistPFPUState MilkymistPFPUState;
-DECLARE_INSTANCE_CHECKER(MilkymistPFPUState, MILKYMIST_PFPU,
-                         TYPE_MILKYMIST_PFPU)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistPFPUState, MILKYMIST_PFPU)
 
 struct MilkymistPFPUState {
     SysBusDevice parent_obj;

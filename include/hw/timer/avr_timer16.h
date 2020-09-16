@@ -42,9 +42,7 @@ enum NextInterrupt {
 };
 
 #define TYPE_AVR_TIMER16 "avr-timer16"
-typedef struct AVRTimer16State AVRTimer16State;
-DECLARE_INSTANCE_CHECKER(AVRTimer16State, AVR_TIMER16,
-                         TYPE_AVR_TIMER16)
+OBJECT_DECLARE_SIMPLE_TYPE(AVRTimer16State, AVR_TIMER16)
 
 struct AVRTimer16State {
     /* <private> */

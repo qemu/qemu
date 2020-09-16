@@ -42,9 +42,7 @@
  */
 
 #define TYPE_AW_H3_CCU    "allwinner-h3-ccu"
-typedef struct AwH3ClockCtlState AwH3ClockCtlState;
-DECLARE_INSTANCE_CHECKER(AwH3ClockCtlState, AW_H3_CCU,
-                         TYPE_AW_H3_CCU)
+OBJECT_DECLARE_SIMPLE_TYPE(AwH3ClockCtlState, AW_H3_CCU)
 
 /** @} */
 

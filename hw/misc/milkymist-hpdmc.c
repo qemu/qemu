@@ -44,9 +44,7 @@ enum {
 };
 
 #define TYPE_MILKYMIST_HPDMC "milkymist-hpdmc"
-typedef struct MilkymistHpdmcState MilkymistHpdmcState;
-DECLARE_INSTANCE_CHECKER(MilkymistHpdmcState, MILKYMIST_HPDMC,
-                         TYPE_MILKYMIST_HPDMC)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistHpdmcState, MILKYMIST_HPDMC)
 
 struct MilkymistHpdmcState {
     SysBusDevice parent_obj;

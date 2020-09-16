@@ -51,9 +51,7 @@ struct PnvPsi {
 };
 
 #define TYPE_PNV8_PSI TYPE_PNV_PSI "-POWER8"
-typedef struct Pnv8Psi Pnv8Psi;
-DECLARE_INSTANCE_CHECKER(Pnv8Psi, PNV8_PSI,
-                         TYPE_PNV8_PSI)
+OBJECT_DECLARE_SIMPLE_TYPE(Pnv8Psi, PNV8_PSI)
 
 struct Pnv8Psi {
     PnvPsi   parent;
@@ -62,9 +60,7 @@ struct Pnv8Psi {
 };
 
 #define TYPE_PNV9_PSI TYPE_PNV_PSI "-POWER9"
-typedef struct Pnv9Psi Pnv9Psi;
-DECLARE_INSTANCE_CHECKER(Pnv9Psi, PNV9_PSI,
-                         TYPE_PNV9_PSI)
+OBJECT_DECLARE_SIMPLE_TYPE(Pnv9Psi, PNV9_PSI)
 
 struct Pnv9Psi {
     PnvPsi   parent;

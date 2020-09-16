@@ -75,19 +75,15 @@ OBJECT_DECLARE_TYPE(XenBlockDevice, XenBlockDeviceClass, XEN_BLOCK_DEVICE)
 struct XenDiskDevice {
     XenBlockDevice blockdev;
 };
-typedef struct XenDiskDevice XenDiskDevice;
 
 #define TYPE_XEN_DISK_DEVICE  "xen-disk"
-DECLARE_INSTANCE_CHECKER(XenDiskDevice, XEN_DISK_DEVICE,
-                         TYPE_XEN_DISK_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(XenDiskDevice, XEN_DISK_DEVICE)
 
 struct XenCDRomDevice {
     XenBlockDevice blockdev;
 };
-typedef struct XenCDRomDevice XenCDRomDevice;
 
 #define TYPE_XEN_CDROM_DEVICE  "xen-cdrom"
-DECLARE_INSTANCE_CHECKER(XenCDRomDevice, XEN_CDROM_DEVICE,
-                         TYPE_XEN_CDROM_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(XenCDRomDevice, XEN_CDROM_DEVICE)
 
 #endif /* HW_XEN_BLOCK_H */

@@ -13,9 +13,7 @@
 #include "qom/object.h"
 
 #define TYPE_ASPEED_SDHCI "aspeed.sdhci"
-typedef struct AspeedSDHCIState AspeedSDHCIState;
-DECLARE_INSTANCE_CHECKER(AspeedSDHCIState, ASPEED_SDHCI,
-                         TYPE_ASPEED_SDHCI)
+OBJECT_DECLARE_SIMPLE_TYPE(AspeedSDHCIState, ASPEED_SDHCI)
 
 #define ASPEED_SDHCI_CAPABILITIES 0x01E80080
 #define ASPEED_SDHCI_NUM_SLOTS    2

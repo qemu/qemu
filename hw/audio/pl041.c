@@ -78,9 +78,7 @@ typedef struct {
 } pl041_channel;
 
 #define TYPE_PL041 "pl041"
-typedef struct PL041State PL041State;
-DECLARE_INSTANCE_CHECKER(PL041State, PL041,
-                         TYPE_PL041)
+OBJECT_DECLARE_SIMPLE_TYPE(PL041State, PL041)
 
 struct PL041State {
     SysBusDevice parent_obj;

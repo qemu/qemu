@@ -29,23 +29,17 @@ OBJECT_DECLARE_TYPE(VirtIOInput, VirtIOInputClass,
 #define TYPE_VIRTIO_MOUSE     "virtio-mouse-device"
 #define TYPE_VIRTIO_TABLET    "virtio-tablet-device"
 
-typedef struct VirtIOInputHID VirtIOInputHID;
-DECLARE_INSTANCE_CHECKER(VirtIOInputHID, VIRTIO_INPUT_HID,
-                         TYPE_VIRTIO_INPUT_HID)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOInputHID, VIRTIO_INPUT_HID)
 #define VIRTIO_INPUT_HID_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_INPUT_HID)
 
 #define TYPE_VIRTIO_INPUT_HOST   "virtio-input-host-device"
-typedef struct VirtIOInputHost VirtIOInputHost;
-DECLARE_INSTANCE_CHECKER(VirtIOInputHost, VIRTIO_INPUT_HOST,
-                         TYPE_VIRTIO_INPUT_HOST)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOInputHost, VIRTIO_INPUT_HOST)
 #define VIRTIO_INPUT_HOST_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_INPUT_HOST)
 
 #define TYPE_VHOST_USER_INPUT   "vhost-user-input"
-typedef struct VHostUserInput VHostUserInput;
-DECLARE_INSTANCE_CHECKER(VHostUserInput, VHOST_USER_INPUT,
-                         TYPE_VHOST_USER_INPUT)
+OBJECT_DECLARE_SIMPLE_TYPE(VHostUserInput, VHOST_USER_INPUT)
 #define VHOST_USER_INPUT_GET_PARENT_CLASS(obj)             \
     OBJECT_GET_PARENT_CLASS(obj, TYPE_VHOST_USER_INPUT)
 

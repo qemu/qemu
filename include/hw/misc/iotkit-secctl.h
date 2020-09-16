@@ -59,9 +59,7 @@
 #include "qom/object.h"
 
 #define TYPE_IOTKIT_SECCTL "iotkit-secctl"
-typedef struct IoTKitSecCtl IoTKitSecCtl;
-DECLARE_INSTANCE_CHECKER(IoTKitSecCtl, IOTKIT_SECCTL,
-                         TYPE_IOTKIT_SECCTL)
+OBJECT_DECLARE_SIMPLE_TYPE(IoTKitSecCtl, IOTKIT_SECCTL)
 
 #define IOTS_APB_PPC0_NUM_PORTS 3
 #define IOTS_APB_PPC1_NUM_PORTS 1

@@ -31,9 +31,7 @@
 #include "qom/object.h"
 
 #define TYPE_TUSB6010 "tusb6010"
-typedef struct TUSBState TUSBState;
-DECLARE_INSTANCE_CHECKER(TUSBState, TUSB6010,
-                         TYPE_TUSB6010)
+OBJECT_DECLARE_SIMPLE_TYPE(TUSBState, TUSB6010)
 
 struct TUSBState {
     SysBusDevice parent_obj;

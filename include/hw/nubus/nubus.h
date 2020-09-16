@@ -23,14 +23,10 @@
 #define NUBUS_LAST_SLOT       0xF
 
 #define TYPE_NUBUS_DEVICE "nubus-device"
-typedef struct NubusDevice NubusDevice;
-DECLARE_INSTANCE_CHECKER(NubusDevice, NUBUS_DEVICE,
-                         TYPE_NUBUS_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(NubusDevice, NUBUS_DEVICE)
 
 #define TYPE_NUBUS_BUS "nubus-bus"
-typedef struct NubusBus NubusBus;
-DECLARE_INSTANCE_CHECKER(NubusBus, NUBUS_BUS,
-                         TYPE_NUBUS_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(NubusBus, NUBUS_BUS)
 
 #define TYPE_NUBUS_BRIDGE "nubus-bridge"
 

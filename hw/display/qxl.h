@@ -128,11 +128,9 @@ struct PCIQXLDevice {
     QXLRect            dirty[QXL_NUM_DIRTY_RECTS];
     QEMUBH            *update_area_bh;
 };
-typedef struct PCIQXLDevice PCIQXLDevice;
 
 #define TYPE_PCI_QXL "pci-qxl"
-DECLARE_INSTANCE_CHECKER(PCIQXLDevice, PCI_QXL,
-                         TYPE_PCI_QXL)
+OBJECT_DECLARE_SIMPLE_TYPE(PCIQXLDevice, PCI_QXL)
 
 #define PANIC_ON(x) if ((x)) {                         \
     printf("%s: PANIC %s failed\n", __func__, #x); \
