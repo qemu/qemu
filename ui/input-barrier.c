@@ -21,7 +21,7 @@
 
 #define TYPE_INPUT_BARRIER "input-barrier"
 OBJECT_DECLARE_SIMPLE_TYPE(InputBarrier, input_barrier,
-                           INPUT_BARRIER, ObjectClass)
+                           INPUT_BARRIER)
 
 
 #define MAX_HELLO_LENGTH 1024
@@ -723,7 +723,6 @@ static void input_barrier_class_init(ObjectClass *oc, void *data)
 static const TypeInfo input_barrier_info = {
     .name = TYPE_INPUT_BARRIER,
     .parent = TYPE_OBJECT,
-    .class_size = sizeof(InputBarrierClass),
     .class_init = input_barrier_class_init,
     .instance_size = sizeof(InputBarrier),
     .instance_init = input_barrier_instance_init,

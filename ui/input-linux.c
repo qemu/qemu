@@ -32,7 +32,7 @@ static bool linux_is_button(unsigned int lnx)
 
 #define TYPE_INPUT_LINUX "input-linux"
 OBJECT_DECLARE_SIMPLE_TYPE(InputLinux, input_linux,
-                           INPUT_LINUX, ObjectClass)
+                           INPUT_LINUX)
 
 
 struct InputLinux {
@@ -514,7 +514,6 @@ static void input_linux_class_init(ObjectClass *oc, void *data)
 static const TypeInfo input_linux_info = {
     .name = TYPE_INPUT_LINUX,
     .parent = TYPE_OBJECT,
-    .class_size = sizeof(InputLinuxClass),
     .class_init = input_linux_class_init,
     .instance_size = sizeof(InputLinux),
     .instance_init = input_linux_instance_init,

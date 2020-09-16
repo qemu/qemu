@@ -27,7 +27,7 @@
 
 #define TYPE_QCRYPTO_SECRET_KEYRING "secret_keyring"
 OBJECT_DECLARE_SIMPLE_TYPE(QCryptoSecretKeyring, qcrypto_secret_keyring,
-                           QCRYPTO_SECRET_KEYRING, QCryptoSecretCommonClass)
+                           QCRYPTO_SECRET_KEYRING)
 
 
 struct QCryptoSecretKeyring {

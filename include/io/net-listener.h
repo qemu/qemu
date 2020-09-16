@@ -26,7 +26,7 @@
 
 #define TYPE_QIO_NET_LISTENER "qio-net-listener"
 OBJECT_DECLARE_SIMPLE_TYPE(QIONetListener, qio_net_listener,
-                           QIO_NET_LISTENER, ObjectClass)
+                           QIO_NET_LISTENER)
 
 
 typedef void (*QIONetListenerClientFunc)(QIONetListener *listener,

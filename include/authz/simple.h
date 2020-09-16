@@ -27,7 +27,7 @@
 #define TYPE_QAUTHZ_SIMPLE "authz-simple"
 
 OBJECT_DECLARE_SIMPLE_TYPE(QAuthZSimple, qauthz_simple,
-                           QAUTHZ_SIMPLE, QAuthZClass)
+                           QAUTHZ_SIMPLE)
 
 
 

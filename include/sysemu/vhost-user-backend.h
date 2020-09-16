@@ -23,7 +23,7 @@
 
 #define TYPE_VHOST_USER_BACKEND "vhost-user-backend"
 OBJECT_DECLARE_SIMPLE_TYPE(VhostUserBackend, vhost_user_backend,
-                           VHOST_USER_BACKEND, ObjectClass)
+                           VHOST_USER_BACKEND)
 
 
 

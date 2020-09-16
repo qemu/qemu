@@ -24,7 +24,7 @@
 
 #define TYPE_DBUS_VMSTATE "dbus-vmstate"
 OBJECT_DECLARE_SIMPLE_TYPE(DBusVMState, dbus_vmstate,
-                           DBUS_VMSTATE, ObjectClass)
+                           DBUS_VMSTATE)
 
 
 struct DBusVMState {
@@ -483,7 +483,6 @@ static const TypeInfo dbus_vmstate_info = {
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(DBusVMState),
     .instance_finalize = dbus_vmstate_finalize,
-    .class_size = sizeof(DBusVMStateClass),
     .class_init = dbus_vmstate_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },

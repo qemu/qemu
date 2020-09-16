@@ -639,19 +639,19 @@ struct Object
  * @InstanceType: instance struct name
  * @module_obj_name: the object name in lowercase with underscore separators
  * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
- * @ParentClassType: class struct name of parent type
  *
- * This does the same as OBJECT_DECLARE_TYPE(), but also declares
- * the class struct, thus only the object struct needs to be declare
- * manually.
+ * This does the same as OBJECT_DECLARE_TYPE(), but with no class struct
+ * declared.
  *
  * This macro should be used unless the class struct needs to have
  * virtual methods declared.
  */
-#define OBJECT_DECLARE_SIMPLE_TYPE(InstanceType, module_obj_name, \
-                                   MODULE_OBJ_NAME, ParentClassType) \
-    OBJECT_DECLARE_TYPE(InstanceType, InstanceType##Class, module_obj_name, MODULE_OBJ_NAME) \
-    struct InstanceType##Class { ParentClassType parent_class; };
+#define OBJECT_DECLARE_SIMPLE_TYPE(InstanceType, module_obj_name, MODULE_OBJ_NAME) \
+    typedef struct InstanceType InstanceType; \
+    \
+    G_DEFINE_AUTOPTR_CLEANUP_FUNC(InstanceType, object_unref) \
+    \
+    DECLARE_INSTANCE_CHECKER(InstanceType, MODULE_OBJ_NAME, TYPE_##MODULE_OBJ_NAME)
 
 
 /**

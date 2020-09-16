@@ -197,7 +197,6 @@ static const TypeInfo vhost_user_backend_info = {
     .instance_size = sizeof(VhostUserBackend),
     .instance_init = vhost_user_backend_init,
     .instance_finalize = vhost_user_backend_finalize,
-    .class_size = sizeof(VhostUserBackendClass),
 };
 
 static void register_types(void)
