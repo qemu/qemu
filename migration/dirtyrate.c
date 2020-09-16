@@ -162,6 +162,21 @@ static void get_ramblock_dirty_info(RAMBlock *block,
     strcpy(info->idstr, qemu_ram_get_idstr(block));
 }
 
+static void free_ramblock_dirty_info(struct RamblockDirtyInfo *infos, int count)
+{
+    int i;
+
+    if (!infos) {
+        return;
+    }
+
+    for (i = 0; i < count; i++) {
+        g_free(infos[i].sample_page_vfn);
+        g_free(infos[i].hash_result);
+    }
+    g_free(infos);
+}
+
 static bool skip_sample_ramblock(RAMBlock *block)
 {
     /*
@@ -287,8 +302,34 @@ static bool compare_page_hash_info(struct RamblockDirtyInfo *info,
 
 static void calculate_dirtyrate(struct DirtyRateConfig config)
 {
-    /* todo */
-    return;
+    struct RamblockDirtyInfo *block_dinfo = NULL;
+    int block_count = 0;
+    int64_t msec = 0;
+    int64_t initial_time;
+
+    rcu_register_thread();
+    reset_dirtyrate_stat();
+    rcu_read_lock();
+    initial_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    if (!record_ramblock_hash_info(&block_dinfo, config, &block_count)) {
+        goto out;
+    }
+    rcu_read_unlock();
+
+    msec = config.sample_period_seconds * 1000;
+    msec = set_sample_page_period(msec, initial_time);
+
+    rcu_read_lock();
+    if (!compare_page_hash_info(block_dinfo, block_count)) {
+        goto out;
+    }
+
+    update_dirtyrate(msec);
+
+out:
+    rcu_read_unlock();
+    free_ramblock_dirty_info(block_dinfo, block_count);
+    rcu_unregister_thread();
 }
 
 void *get_dirtyrate_thread(void *arg)
