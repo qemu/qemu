@@ -177,6 +177,69 @@ out:
     return ret;
 }
 
+static void calc_page_dirty_rate(struct RamblockDirtyInfo *info)
+{
+    uint32_t crc;
+    int i;
+
+    for (i = 0; i < info->sample_pages_count; i++) {
+        crc = get_ramblock_vfn_hash(info, info->sample_page_vfn[i]);
+        if (crc != info->hash_result[i]) {
+            info->sample_dirty_count++;
+        }
+    }
+}
+
+static struct RamblockDirtyInfo *
+find_block_matched(RAMBlock *block, int count,
+                  struct RamblockDirtyInfo *infos)
+{
+    int i;
+    struct RamblockDirtyInfo *matched;
+
+    for (i = 0; i < count; i++) {
+        if (!strcmp(infos[i].idstr, qemu_ram_get_idstr(block))) {
+            break;
+        }
+    }
+
+    if (i == count) {
+        return NULL;
+    }
+
+    if (infos[i].ramblock_addr != qemu_ram_get_host_addr(block) ||
+        infos[i].ramblock_pages !=
+            (qemu_ram_get_used_length(block) >> TARGET_PAGE_BITS)) {
+        return NULL;
+    }
+
+    matched = &infos[i];
+
+    return matched;
+}
+
+static bool compare_page_hash_info(struct RamblockDirtyInfo *info,
+                                  int block_count)
+{
+    struct RamblockDirtyInfo *block_dinfo = NULL;
+    RAMBlock *block = NULL;
+
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
+        block_dinfo = find_block_matched(block, block_count, info);
+        if (block_dinfo == NULL) {
+            continue;
+        }
+        calc_page_dirty_rate(block_dinfo);
+        update_dirtyrate_stat(block_dinfo);
+    }
+
+    if (DirtyStat.total_sample_count == 0) {
+        return false;
+    }
+
+    return true;
+}
+
 static void calculate_dirtyrate(struct DirtyRateConfig config)
 {
     /* todo */
