@@ -80,6 +80,8 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
     trace_virtio_blk_req_complete(vdev, req, status);
 
     stb_p(&req->in->status, status);
+    iov_discard_undo(&req->inhdr_undo);
+    iov_discard_undo(&req->outhdr_undo);
     virtqueue_push(req->vq, &req->elem, req->in_len);
     if (s->dataplane_started && !s->dataplane_disabled) {
         virtio_blk_data_plane_notify(s->dataplane, req->vq);
@@ -632,10 +634,12 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         return -1;
     }
 
-    iov_discard_front(&out_iov, &out_num, sizeof(req->out));
+    iov_discard_front_undoable(&out_iov, &out_num, sizeof(req->out),
+                               &req->outhdr_undo);
 
     if (in_iov[in_num - 1].iov_len < sizeof(struct virtio_blk_inhdr)) {
         virtio_error(vdev, "virtio-blk request inhdr too short");
+        iov_discard_undo(&req->outhdr_undo);
         return -1;
     }
 
@@ -644,7 +648,8 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     req->in = (void *)in_iov[in_num - 1].iov_base
               + in_iov[in_num - 1].iov_len
               - sizeof(struct virtio_blk_inhdr);
-    iov_discard_back(in_iov, &in_num, sizeof(struct virtio_blk_inhdr));
+    iov_discard_back_undoable(in_iov, &in_num, sizeof(struct virtio_blk_inhdr),
+                              &req->inhdr_undo);
 
     type = virtio_ldl_p(vdev, &req->out.type);
 
@@ -739,6 +744,8 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 
         if (unlikely(iov_to_buf(out_iov, out_num, 0, &dwz_hdr,
                                 sizeof(dwz_hdr)) != sizeof(dwz_hdr))) {
+            iov_discard_undo(&req->inhdr_undo);
+            iov_discard_undo(&req->outhdr_undo);
             virtio_error(vdev, "virtio-blk discard/write_zeroes header"
                          " too short");
             return -1;
