@@ -22,7 +22,7 @@
 # in the gitdm sample-config directory.
 #
 # This file contains associations parameters regarding filetypes
-# (documentation, develompent, multimedia, images...)
+# (documentation, development, multimedia, images...)
 #
 # format:
 # filetype <type> <regex> [<comment>]
@@ -59,8 +59,8 @@ filetype code \.s$	# Assembly
 filetype code \.S$	# Assembly
 filetype code \.asm$	# Assembly
 filetype code \.awk$	# awk
-filetype code ^common$  # script fragements
-filetype code ^common.*$  # script fragements
+filetype code ^common$  # script fragments
+filetype code ^common.*$  # script fragments
 filetype code (qom|qmp)-\w+$  # python script fragments
 
 #
