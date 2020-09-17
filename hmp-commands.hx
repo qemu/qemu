@@ -1267,7 +1267,7 @@ ERST
     },
 SRST
 ``drive_backup``
-  Start a point-in-time copy of a block device to a specificed target.
+  Start a point-in-time copy of a block device to a specified target.
 ERST
 
     {
