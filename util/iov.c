@@ -636,14 +636,33 @@ void qemu_iovec_clone(QEMUIOVector *dest, const QEMUIOVector *src, void *buf)
     }
 }
 
-size_t iov_discard_front(struct iovec **iov, unsigned int *iov_cnt,
-                         size_t bytes)
+void iov_discard_undo(IOVDiscardUndo *undo)
+{
+    /* Restore original iovec if it was modified */
+    if (undo->modified_iov) {
+        *undo->modified_iov = undo->orig;
+    }
+}
+
+size_t iov_discard_front_undoable(struct iovec **iov,
+                                  unsigned int *iov_cnt,
+                                  size_t bytes,
+                                  IOVDiscardUndo *undo)
 {
     size_t total = 0;
     struct iovec *cur;
 
+    if (undo) {
+        undo->modified_iov = NULL;
+    }
+
     for (cur = *iov; *iov_cnt > 0; cur++) {
         if (cur->iov_len > bytes) {
+            if (undo) {
+                undo->modified_iov = cur;
+                undo->orig = *cur;
+            }
+
             cur->iov_base += bytes;
             cur->iov_len -= bytes;
             total += bytes;
@@ -659,11 +678,23 @@ size_t iov_discard_front(struct iovec **iov, unsigned int *iov_cnt,
     return total;
 }
 
-size_t iov_discard_back(struct iovec *iov, unsigned int *iov_cnt,
-                        size_t bytes)
+size_t iov_discard_front(struct iovec **iov, unsigned int *iov_cnt,
+                         size_t bytes)
+{
+    return iov_discard_front_undoable(iov, iov_cnt, bytes, NULL);
+}
+
+size_t iov_discard_back_undoable(struct iovec *iov,
+                                 unsigned int *iov_cnt,
+                                 size_t bytes,
+                                 IOVDiscardUndo *undo)
 {
     size_t total = 0;
     struct iovec *cur;
+
+    if (undo) {
+        undo->modified_iov = NULL;
+    }
 
     if (*iov_cnt == 0) {
         return 0;
@@ -673,6 +704,11 @@ size_t iov_discard_back(struct iovec *iov, unsigned int *iov_cnt,
 
     while (*iov_cnt > 0) {
         if (cur->iov_len > bytes) {
+            if (undo) {
+                undo->modified_iov = cur;
+                undo->orig = *cur;
+            }
+
             cur->iov_len -= bytes;
             total += bytes;
             break;
@@ -685,6 +721,12 @@ size_t iov_discard_back(struct iovec *iov, unsigned int *iov_cnt,
     }
 
     return total;
+}
+
+size_t iov_discard_back(struct iovec *iov, unsigned int *iov_cnt,
+                        size_t bytes)
+{
+    return iov_discard_back_undoable(iov, iov_cnt, bytes, NULL);
 }
 
 void qemu_iovec_discard_back(QEMUIOVector *qiov, size_t bytes)
