@@ -237,7 +237,7 @@ release_ufd:
  * request_ufd_features: this function should be called only once on a newly
  * opened ufd, subsequent calls will lead to error.
  *
- * Returns: true on succes
+ * Returns: true on success
  *
  * @ufd: fd obtained from userfaultfd syscall
  * @features: bit mask see UFFD_API_FEATURES
@@ -807,7 +807,7 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
 
     low_time_offset = get_low_time_offset(dc);
     /* lookup cpu, to clear it,
-     * that algorithm looks straighforward, but it's not
+     * that algorithm looks straightforward, but it's not
      * optimal, more optimal algorithm is keeping tree or hash
      * where key is address value is a list of  */
     for (i = 0; i < smp_cpus; i++) {

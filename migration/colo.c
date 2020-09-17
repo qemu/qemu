@@ -632,7 +632,7 @@ out:
     /*
      * It is safe to unregister notifier after failover finished.
      * Besides, colo_delay_timer and colo_checkpoint_sem can't be
-     * released befor unregister notifier, or there will be use-after-free
+     * released before unregister notifier, or there will be use-after-free
      * error.
      */
     colo_compare_unregister_notifier(&packets_compare_notifier);

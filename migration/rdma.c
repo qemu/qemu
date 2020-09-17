@@ -1511,7 +1511,7 @@ static int qemu_rdma_wait_comp_channel(RDMAContext *rdma)
     } else {
         /* This is the source side, we're in a separate thread
          * or destination prior to migration_fd_process_incoming()
-         * after postcopy, the destination also in a seprate thread.
+         * after postcopy, the destination also in a separate thread.
          * we can't yield; so we have to poll the fd.
          * But we need to be able to handle 'cancel' or an error
          * without hanging forever.
@@ -2268,7 +2268,7 @@ static inline int qemu_rdma_buffer_mergable(RDMAContext *rdma,
  *    chunk, then start a new chunk and flush() the old chunk.
  * 3. To keep the hardware busy, we also group chunks into batches
  *    and only require that a batch gets acknowledged in the completion
- *    qeueue instead of each individual chunk.
+ *    queue instead of each individual chunk.
  */
 static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
                            uint64_t block_offset, uint64_t offset,
@@ -3150,7 +3150,7 @@ static size_t qemu_rdma_save_page(QEMUFile *f, void *opaque,
     if (size > 0) {
         /*
          * Add this page to the current 'chunk'. If the chunk
-         * is full, or the page doen't belong to the current chunk,
+         * is full, or the page doesn't belong to the current chunk,
          * an actual RDMA write will occur and a new chunk will be formed.
          */
         ret = qemu_rdma_write(f, rdma, block_offset, offset, size);
@@ -4103,7 +4103,7 @@ void rdma_start_outgoing_migration(void *opaque,
         goto err;
     }
 
-    /* RDMA postcopy need a seprate queue pair for return path */
+    /* RDMA postcopy need a separate queue pair for return path */
     if (migrate_postcopy()) {
         rdma_return_path = qemu_rdma_data_init(host_port, errp);
 

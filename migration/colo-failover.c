@@ -46,7 +46,7 @@ void failover_request_active(Error **errp)
 {
    if (failover_set_state(FAILOVER_STATUS_NONE,
         FAILOVER_STATUS_REQUIRE) != FAILOVER_STATUS_NONE) {
-        error_setg(errp, "COLO failover is already actived");
+        error_setg(errp, "COLO failover is already activated");
         return;
     }
     failover_bh = qemu_bh_new(colo_failover_bh, NULL);
