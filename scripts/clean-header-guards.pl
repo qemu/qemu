@@ -19,7 +19,7 @@
 # Does the following:
 # - Header files without a recognizable header guard are skipped.
 # - Clean up any untidy header guards in-place.  Warn if the cleanup
-#   renames guard symbols, and explain how to find occurences of these
+#   renames guard symbols, and explain how to find occurrences of these
 #   symbols that may have to be updated manually.
 # - Warn about duplicate header guard symbols.  To make full use of
 #   this warning, you should clean up *all* headers in one run.
