@@ -57,8 +57,10 @@ DEFINE_DEVPROPKEY(qga_DEVPKEY_Device_DriverDate, 0xa8b865dd, 0x2e3d,
 DEFINE_DEVPROPKEY(qga_DEVPKEY_Device_DriverVersion, 0xa8b865dd, 0x2e3d,
     0x4094, 0xad, 0x97, 0xe5, 0x93, 0xa7, 0xc, 0x75, 0xd6, 3);
     /* DEVPROP_TYPE_STRING */
-/* The following shoud be in cfgmgr32.h, but it isn't */
+/* The CM_Get_DevNode_PropertyW prototype is only sometimes in cfgmgr32.h */
 #ifndef CM_Get_DevNode_Property
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wredundant-decls"
 CMAPI CONFIGRET WINAPI CM_Get_DevNode_PropertyW(
     DEVINST          dnDevInst,
     CONST DEVPROPKEY * PropertyKey,
@@ -68,6 +70,7 @@ CMAPI CONFIGRET WINAPI CM_Get_DevNode_PropertyW(
     ULONG            ulFlags
 );
 #define CM_Get_DevNode_Property CM_Get_DevNode_PropertyW
+#pragma GCC diagnostic pop
 #endif
 
 #ifndef SHTDN_REASON_FLAG_PLANNED
