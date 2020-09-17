@@ -302,14 +302,25 @@ if targetos == 'linux' and have_tools and not get_option('mpath').disabled()
           mpath_lib_init(udev);
           return 0;
       }'''
-  libmultipath = cc.find_library('multipath',
-                                 required: get_option('mpath'),
-                                 static: enable_static)
-  libmpathpersist = cc.find_library('mpathpersist',
-                                    required: get_option('mpath'),
-                                    static: enable_static)
-  if libmultipath.found() and libmpathpersist.found() and libudev.found()
-    mpathlibs = [libmultipath, libmpathpersist, libudev]
+  mpathlibs = [libudev]
+  if enable_static
+    mpathlibs += cc.find_library('devmapper',
+                                   required: get_option('mpath'),
+                                   static: enable_static)
+  endif
+  mpathlibs += cc.find_library('multipath',
+                               required: get_option('mpath'),
+                               static: enable_static)
+  mpathlibs += cc.find_library('mpathpersist',
+                               required: get_option('mpath'),
+                               static: enable_static)
+  foreach lib: mpathlibs
+    if not lib.found()
+      mpathlibs = []
+      break
+    endif
+  endforeach
+  if mpathlibs.length() > 0
     if cc.links(mpath_test_source_new, dependencies: mpathlibs)
       mpathpersist = declare_dependency(dependencies: mpathlibs)
       mpathpersist_new_api = true
