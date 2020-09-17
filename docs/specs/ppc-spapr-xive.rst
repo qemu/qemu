@@ -46,7 +46,7 @@ default mode. ``dual`` means that both modes XICS **and** XIVE are
 supported and if the guest OS supports XIVE, this mode will be
 selected.
 
-The choosen interrupt mode is activated after a reconfiguration done
+The chosen interrupt mode is activated after a reconfiguration done
 in a machine reset.
 
 KVM negotiation
@@ -158,7 +158,7 @@ XIVE Device tree properties
 ---------------------------
 
 The properties for the PAPR interrupt controller node when the *XIVE
-native exploitation mode* is selected shoud contain:
+native exploitation mode* is selected should contain:
 
 - ``device_type``
 

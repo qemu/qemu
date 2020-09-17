@@ -62,7 +62,7 @@ Rules support the following attributes:
 
   errno - the numeric errno value to return when a request matches this rule.
           The errno values depend on the host since the numeric values are not
-          standarized in the POSIX specification.
+          standardized in the POSIX specification.
 
   sector - (optional) a sector number that the request must overlap in order to
            match this rule

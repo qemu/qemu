@@ -464,7 +464,7 @@ the ``VHOST_USER_SET_MEM_TABLE`` request. For invalidation events, the
 (3), the I/O virtual address and the size. On success, the slave is
 expected to reply with a zero payload, non-zero otherwise.
 
-The slave relies on the slave communcation channel (see :ref:`Slave
+The slave relies on the slave communication channel (see :ref:`Slave
 communication <slave_communication>` section below) to send IOTLB miss
 and access failure events, by sending ``VHOST_USER_SLAVE_IOTLB_MSG``
 requests to the master with a ``struct vhost_iotlb_msg`` as
@@ -1450,7 +1450,7 @@ vhost-user backends can provide various devices & services and may
 need to be configured manually depending on the use case. However, it
 is a good idea to follow the conventions listed here when
 possible. Users, QEMU or libvirt, can then rely on some common
-behaviour to avoid heterogenous configuration and management of the
+behaviour to avoid heterogeneous configuration and management of the
 backend programs and facilitate interoperability.
 
 Each backend installed on a host system should come with at least one

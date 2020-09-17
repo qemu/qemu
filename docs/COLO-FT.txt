@@ -91,7 +91,7 @@ the heartbeat stops responding, the secondary node will trigger a failover
 as soon as it determines the absence.
 
 COLO disk Manager:
-When primary VM writes data into image, the colo disk manger captures this data
+When primary VM writes data into image, the colo disk manager captures this data
 and sends it to secondary VM's which makes sure the context of secondary VM's
 image is consistent with the context of primary VM 's image.
 For more details, please refer to docs/block-replication.txt.
@@ -146,12 +146,12 @@ in test procedure.
 
 == Test procedure ==
 Note: Here we are running both instances on the same host for testing,
-change the IP Addresses if you want to run it on two hosts. Initally
+change the IP Addresses if you want to run it on two hosts. Initially
 127.0.0.1 is the Primary Host and 127.0.0.2 is the Secondary Host.
 
 == Startup qemu ==
 1. Primary:
-Note: Initally, $imagefolder/primary.qcow2 needs to be copied to all hosts.
+Note: Initially, $imagefolder/primary.qcow2 needs to be copied to all hosts.
 You don't need to change any IP's here, because 0.0.0.0 listens on any
 interface. The chardev's with 127.0.0.1 IP's loopback to the local qemu
 instance.
