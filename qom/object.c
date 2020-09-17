@@ -1564,21 +1564,21 @@ int object_property_get_enum(Object *obj, const char *name,
     EnumProperty *enumprop;
 
     if (prop == NULL) {
-        return 0;
+        return -1;
     }
 
     if (!g_str_equal(prop->type, typename)) {
         error_setg(errp, "Property %s on %s is not '%s' enum type",
                    name, object_class_get_name(
                        object_get_class(obj)), typename);
-        return 0;
+        return -1;
     }
 
     enumprop = prop->opaque;
 
     str = object_property_get_str(obj, name, errp);
     if (!str) {
-        return 0;
+        return -1;
     }
 
     ret = qapi_enum_parse(enumprop->lookup, str, -1, errp);

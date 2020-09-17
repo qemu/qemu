@@ -1687,9 +1687,9 @@ uint64_t object_property_get_uint(Object *obj, const char *name,
  * @typename: the name of the enum data type
  * @errp: returns an error if this function fails
  *
- * Returns: the value of the property, converted to an integer, or
- * undefined if an error occurs (including when the property value is not
- * an enum).
+ * Returns: the value of the property, converted to an integer (which
+ * can't be negative), or -1 on error (including when the property
+ * value is not an enum).
  */
 int object_property_get_enum(Object *obj, const char *name,
                              const char *typename, Error **errp);

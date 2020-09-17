@@ -491,6 +491,7 @@ static void test_dummy_getenum(void)
                                    "av",
                                    "BadAnimal",
                                    &err);
+    g_assert(val == -1);
     error_free_or_abort(&err);
 
     /* A non-enum property name */
@@ -498,6 +499,7 @@ static void test_dummy_getenum(void)
                                    "iv",
                                    "DummyAnimal",
                                    &err);
+    g_assert(val == -1);
     error_free_or_abort(&err);
 
     object_unparent(OBJECT(dobj));
