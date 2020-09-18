@@ -269,7 +269,7 @@ test('decodetree', sh,
 
 subdir('fp')
 
-if 'CONFIG_TCG' in config_host
+if not get_option('tcg').disabled()
   if 'CONFIG_PLUGIN' in config_host
     subdir('plugin')
   endif

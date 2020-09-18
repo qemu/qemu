@@ -11,6 +11,21 @@ option('malloc_trim', type : 'feature', value : 'auto',
 option('malloc', type : 'combo', choices : ['system', 'tcmalloc', 'jemalloc'],
        value: 'system', description: 'choose memory allocator to use')
 
+option('kvm', type: 'feature', value: 'auto',
+       description: 'KVM acceleration support')
+option('hax', type: 'feature', value: 'auto',
+       description: 'HAX acceleration support')
+option('whpx', type: 'feature', value: 'auto',
+       description: 'WHPX acceleration support')
+option('hvf', type: 'feature', value: 'auto',
+       description: 'HVF acceleration support')
+option('xen', type: 'feature', value: 'auto',
+       description: 'Xen backend support')
+option('xen_pci_passthrough', type: 'feature', value: 'auto',
+       description: 'Xen PCI passthrough support')
+option('tcg', type: 'feature', value: 'auto',
+       description: 'TCG support')
+
 option('cocoa', type : 'feature', value : 'auto',
        description: 'Cocoa user interface (macOS only)')
 option('mpath', type : 'feature', value : 'auto',

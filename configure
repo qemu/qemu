@@ -220,7 +220,7 @@ glob() {
 }
 
 supported_hax_target() {
-    test "$hax" = "yes" || return 1
+    test "$hax" = "enabled" || return 1
     glob "$1" "*-softmmu" || return 1
     case "${1%-softmmu}" in
         i386|x86_64)
@@ -231,7 +231,7 @@ supported_hax_target() {
 }
 
 supported_kvm_target() {
-    test "$kvm" = "yes" || return 1
+    test "$kvm" = "enabled" || return 1
     glob "$1" "*-softmmu" || return 1
     case "${1%-softmmu}:$cpu" in
         aarch64:aarch64 | \
@@ -247,7 +247,7 @@ supported_kvm_target() {
 }
 
 supported_xen_target() {
-    test "$xen" = "yes" || return 1
+    test "$xen" = "enabled" || return 1
     glob "$1" "*-softmmu" || return 1
     # Only i386 and x86_64 provide the xenpv machine.
     case "${1%-softmmu}" in
@@ -259,7 +259,7 @@ supported_xen_target() {
 }
 
 supported_hvf_target() {
-    test "$hvf" = "yes" || return 1
+    test "$hvf" = "enabled" || return 1
     glob "$1" "*-softmmu" || return 1
     case "${1%-softmmu}" in
         x86_64)
@@ -270,7 +270,7 @@ supported_hvf_target() {
 }
 
 supported_whpx_target() {
-    test "$whpx" = "yes" || return 1
+    test "$whpx" = "enabled" || return 1
     glob "$1" "*-softmmu" || return 1
     case "${1%-softmmu}" in
         i386|x86_64)
@@ -310,7 +310,7 @@ supported_target() {
         add_to deprecated_features $1
     fi
 
-    test "$tcg" = "yes" && return 0
+    test "$tcg" = "enabled" && return 0
     supported_kvm_target "$1" && return 0
     supported_xen_target "$1" && return 0
     supported_hax_target "$1" && return 0
@@ -413,14 +413,14 @@ vnc_png="auto"
 xkbcommon="auto"
 xen=""
 xen_ctrl_version=""
-xen_pci_passthrough=""
+xen_pci_passthrough="auto"
 linux_aio=""
 linux_io_uring=""
 cap_ng=""
 attr=""
 libattr=""
 xfs=""
-tcg="yes"
+tcg="enabled"
 membarrier=""
 vhost_net=""
 vhost_crypto=""
@@ -428,10 +428,10 @@ vhost_scsi=""
 vhost_vsock=""
 vhost_user=""
 vhost_user_fs=""
-kvm="no"
-hax="no"
-hvf="no"
-whpx="no"
+kvm="disabled"
+hax="disabled"
+hvf="disabled"
+whpx="disabled"
 rdma=""
 pvrdma=""
 gprof="no"
@@ -817,8 +817,8 @@ HOST_VARIANT_DIR=""
 case $targetos in
 MINGW32*)
   mingw32="yes"
-  hax="yes"
-  whpx=""
+  hax="enabled"
+  whpx="auto"
   vhost_user="no"
   audio_possible_drivers="dsound sdl"
   if check_include dsound.h; then
@@ -852,7 +852,7 @@ DragonFly)
 ;;
 NetBSD)
   bsd="yes"
-  hax="yes"
+  hax="enabled"
   make="${MAKE-gmake}"
   audio_drv_list="oss try-sdl"
   audio_possible_drivers="oss sdl"
@@ -869,8 +869,8 @@ OpenBSD)
 Darwin)
   bsd="yes"
   darwin="yes"
-  hax="yes"
-  hvf=""
+  hax="enabled"
+  hvf="auto"
   if [ "$cpu" = "x86_64" ] ; then
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
     QEMU_LDFLAGS="-arch x86_64 $QEMU_LDFLAGS"
@@ -906,7 +906,7 @@ Linux)
   audio_possible_drivers="oss alsa sdl pa"
   linux="yes"
   linux_user="yes"
-  kvm="yes"
+  kvm="enabled"
   QEMU_INCLUDES="-isystem ${source_path}/linux-headers -Ilinux-headers $QEMU_INCLUDES"
 ;;
 esac
@@ -1188,33 +1188,33 @@ for opt do
   ;;
   --enable-netmap) netmap="yes"
   ;;
-  --disable-xen) xen="no"
+  --disable-xen) xen="disabled"
   ;;
-  --enable-xen) xen="yes"
+  --enable-xen) xen="enabled"
   ;;
-  --disable-xen-pci-passthrough) xen_pci_passthrough="no"
+  --disable-xen-pci-passthrough) xen_pci_passthrough="disabled"
   ;;
-  --enable-xen-pci-passthrough) xen_pci_passthrough="yes"
+  --enable-xen-pci-passthrough) xen_pci_passthrough="enabled"
   ;;
   --disable-brlapi) brlapi="no"
   ;;
   --enable-brlapi) brlapi="yes"
   ;;
-  --disable-kvm) kvm="no"
+  --disable-kvm) kvm="disabled"
   ;;
-  --enable-kvm) kvm="yes"
+  --enable-kvm) kvm="enabled"
   ;;
-  --disable-hax) hax="no"
+  --disable-hax) hax="disabled"
   ;;
-  --enable-hax) hax="yes"
+  --enable-hax) hax="enabled"
   ;;
-  --disable-hvf) hvf="no"
+  --disable-hvf) hvf="disabled"
   ;;
-  --enable-hvf) hvf="yes"
+  --enable-hvf) hvf="enabled"
   ;;
-  --disable-whpx) whpx="no"
+  --disable-whpx) whpx="disabled"
   ;;
-  --enable-whpx) whpx="yes"
+  --enable-whpx) whpx="enabled"
   ;;
   --disable-tcg-interpreter) tcg_interpreter="no"
   ;;
@@ -1224,9 +1224,9 @@ for opt do
   ;;
   --enable-cap-ng) cap_ng="yes"
   ;;
-  --disable-tcg) tcg="no"
+  --disable-tcg) tcg="disabled"
   ;;
-  --enable-tcg) tcg="yes"
+  --enable-tcg) tcg="enabled"
   ;;
   --disable-malloc-trim) malloc_trim="disabled"
   ;;
@@ -1711,7 +1711,7 @@ if [ "$ARCH" = "unknown" ]; then
 fi
 
 if [ "$bsd_user" = "no" -a "$linux_user" = "no" -a "$softmmu" = "no" ] ; then
-  tcg="no"
+  tcg="disabled"
 fi
 
 default_target_list=""
@@ -2668,7 +2668,7 @@ fi
 ##########################################
 # xen probe
 
-if test "$xen" != "no" ; then
+if test "$xen" != "disabled" ; then
   # Check whether Xen library path is specified via --extra-ldflags to avoid
   # overriding this setting with pkg-config output. If not, try pkg-config
   # to obtain all needed flags.
@@ -2677,7 +2677,7 @@ if test "$xen" != "no" ; then
      $pkg_config --exists xencontrol ; then
     xen_ctrl_version="$(printf '%d%02d%02d' \
       $($pkg_config --modversion xencontrol | sed 's/\./ /g') )"
-    xen=yes
+    xen=enabled
     xen_pc="xencontrol xenstore xenguest xenforeignmemory xengnttab"
     xen_pc="$xen_pc xenevtchn xendevicemodel"
     if $pkg_config --exists xentoolcore; then
@@ -2703,10 +2703,10 @@ int main(void) {
 EOF
     if ! compile_prog "" "$xen_libs" ; then
       # Xen not found
-      if test "$xen" = "yes" ; then
+      if test "$xen" = "enabled" ; then
         feature_not_found "xen" "Install xen devel"
       fi
-      xen=no
+      xen=disabled
 
     # Xen unstable
     elif
@@ -2732,7 +2732,7 @@ EOF
       then
       xen_stable_libs="-lxendevicemodel $xen_stable_libs -lxentoolcore"
       xen_ctrl_version=41100
-      xen=yes
+      xen=enabled
     elif
         cat > $TMPC <<EOF &&
 #undef XC_WANT_COMPAT_MAP_FOREIGN_API
@@ -2752,7 +2752,7 @@ EOF
       then
       xen_stable_libs="-lxendevicemodel $xen_stable_libs -lxentoolcore"
       xen_ctrl_version=41000
-      xen=yes
+      xen=enabled
     elif
         cat > $TMPC <<EOF &&
 #undef XC_WANT_COMPAT_DEVICEMODEL_API
@@ -2771,7 +2771,7 @@ EOF
       then
       xen_stable_libs="-lxendevicemodel $xen_stable_libs"
       xen_ctrl_version=40900
-      xen=yes
+      xen=enabled
     elif
         cat > $TMPC <<EOF &&
 /*
@@ -2824,7 +2824,7 @@ EOF
         compile_prog "" "$xen_libs $xen_stable_libs"
       then
       xen_ctrl_version=40800
-      xen=yes
+      xen=enabled
     elif
         cat > $TMPC <<EOF &&
 /*
@@ -2873,7 +2873,7 @@ EOF
         compile_prog "" "$xen_libs $xen_stable_libs"
       then
       xen_ctrl_version=40701
-      xen=yes
+      xen=enabled
 
     # Xen 4.6
     elif
@@ -2901,7 +2901,7 @@ EOF
         compile_prog "" "$xen_libs"
       then
       xen_ctrl_version=40600
-      xen=yes
+      xen=enabled
 
     # Xen 4.5
     elif
@@ -2928,7 +2928,7 @@ EOF
         compile_prog "" "$xen_libs"
       then
       xen_ctrl_version=40500
-      xen=yes
+      xen=enabled
 
     elif
         cat > $TMPC <<EOF &&
@@ -2953,17 +2953,17 @@ EOF
         compile_prog "" "$xen_libs"
       then
       xen_ctrl_version=40200
-      xen=yes
+      xen=enabled
 
     else
-      if test "$xen" = "yes" ; then
+      if test "$xen" = "enabled" ; then
         feature_not_found "xen (unsupported version)" \
                           "Install a supported xen (xen 4.2 or newer)"
       fi
-      xen=no
+      xen=disabled
     fi
 
-    if test "$xen" = yes; then
+    if test "$xen" = enabled; then
       if test $xen_ctrl_version -ge 40701  ; then
         xen_libs="$xen_libs $xen_stable_libs "
       fi
@@ -2971,31 +2971,31 @@ EOF
   fi
 fi
 
-if test "$xen_pci_passthrough" != "no"; then
-  if test "$xen" = "yes" && test "$linux" = "yes"; then
-    xen_pci_passthrough=yes
+if test "$xen_pci_passthrough" != "disabled"; then
+  if test "$xen" = "enabled" && test "$linux" = "yes"; then
+    xen_pci_passthrough=enabled
   else
-    if test "$xen_pci_passthrough" = "yes"; then
+    if test "$xen_pci_passthrough" = "enabled"; then
       error_exit "User requested feature Xen PCI Passthrough" \
           " but this feature requires /sys from Linux"
     fi
-    xen_pci_passthrough=no
+    xen_pci_passthrough=disabled
   fi
 fi
 
 ##########################################
 # Windows Hypervisor Platform accelerator (WHPX) check
-if test "$whpx" = "yes" && test "$ARCH" != "x86_64"; then
+if test "$whpx" = "enabled" && test "$ARCH" != "x86_64"; then
   error_exit "WHPX requires 64-bit host"
 fi
-if test "$whpx" != "no" && test "$ARCH" = "x86_64"; then
+if test "$whpx" != "disabled" && test "$ARCH" = "x86_64"; then
     if check_include "WinHvPlatform.h" && check_include "WinHvEmulation.h"; then
         whpx="yes"
     else
-        if test "$whpx" = "yes"; then
+        if test "$whpx" = "auto"; then
             feature_not_found "WinHvPlatform" "WinHvEmulation is not installed"
         fi
-        whpx="no"
+        whpx="disabled"
     fi
 fi
 
@@ -5823,18 +5823,18 @@ fi
 
 #################################################
 # Check to see if we have the Hypervisor framework
-if [ "$hvf" != "no" ] ; then
+if [ "$hvf" != "disabled" ] ; then
   cat > $TMPC << EOF
 #include <Hypervisor/hv.h>
 int main() { return 0;}
 EOF
   if ! compile_object ""; then
-    if test "$hvf" = "yes"; then
+    if test "$hvf" = "enabled"; then
 	error_exit "Hypervisor.framework not available"
     fi
-    hvf='no'
+    hvf='disabled'
   else
-    hvf='yes'
+    hvf='enabled'
   fi
 fi
 
@@ -6192,7 +6192,7 @@ if test "$mingw32" = "yes" ; then
 fi
 
 # Disable OpenBSD W^X if available
-if test "$tcg" = "yes" && test "$targetos" = "OpenBSD"; then
+if test "$tcg" = "enabled" && test "$targetos" = "OpenBSD"; then
     cat > $TMPC <<EOF
     int main(void) { return 0; }
 EOF
@@ -6743,7 +6743,7 @@ if test "$virglrenderer" = "yes" ; then
   echo "VIRGL_CFLAGS=$virgl_cflags" >> $config_host_mak
   echo "VIRGL_LIBS=$virgl_libs" >> $config_host_mak
 fi
-if test "$xen" = "yes" ; then
+if test "$xen" = "enabled" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
   echo "XEN_CFLAGS=$xen_cflags" >> $config_host_mak
@@ -6823,7 +6823,7 @@ fi
 if test "$optreset" = "yes" ; then
   echo "HAVE_OPTRESET=y" >> $config_host_mak
 fi
-if test "$tcg" = "yes"; then
+if test "$tcg" = "enabled"; then
   echo "CONFIG_TCG=y" >> $config_host_mak
   if test "$tcg_interpreter" = "yes" ; then
     echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
@@ -7606,7 +7606,7 @@ fi
 
 if supported_xen_target $target; then
     echo "CONFIG_XEN=y" >> $config_target_mak
-    if test "$xen_pci_passthrough" = yes; then
+    if test "$xen_pci_passthrough" = enabled; then
         echo "CONFIG_XEN_PCI_PASSTHROUGH=y" >> "$config_target_mak"
     fi
 fi
@@ -7844,6 +7844,8 @@ NINJA=${ninja:-$PWD/ninjatool} $meson setup \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
 	-Dmalloc=$malloc -Dmalloc_trim=$malloc_trim \
+	-Dkvm=$kvm -Dhax=$hax -Dwhpx=$whpx -Dhvf=$hvf \
+	-Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \
 	-Dcocoa=$cocoa -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
 	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
 	-Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f\
