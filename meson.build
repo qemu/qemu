@@ -50,6 +50,28 @@ configure_file(input: files('scripts/ninjatool.py'),
                output: 'ninjatool',
                configuration: config_host)
 
+if cpu in ['x86', 'x86_64']
+  kvm_targets = ['i386-softmmu', 'x86_64-softmmu']
+elif cpu == 'aarch64'
+  kvm_targets = ['aarch64-softmmu']
+elif cpu == 's390x'
+  kvm_targets = ['s390x-softmmu']
+elif cpu in ['ppc', 'ppc64']
+  kvm_targets = ['ppc-softmmu', 'ppc64-softmmu']
+else
+  kvm_targets = []
+endif
+
+accelerator_targets = { 'CONFIG_KVM': kvm_targets }
+if cpu in ['x86', 'x86_64']
+  accelerator_targets += {
+    'CONFIG_HAX': ['i386-softmmu', 'x86_64-softmmu'],
+    'CONFIG_XEN': ['i386-softmmu', 'x86_64-softmmu'],
+    'CONFIG_HVF': ['x86_64-softmmu'],
+    'CONFIG_WHPX': ['i386-softmmu', 'x86_64-softmmu'],
+  }
+endif
+
 ##################
 # Compiler flags #
 ##################
@@ -103,7 +125,7 @@ version_res = []
 coref = []
 iokit = []
 cocoa = not_found
-hvf = []
+hvf = not_found
 if targetos == 'windows'
   socket = cc.find_library('ws2_32')
   winmm = cc.find_library('winmm')
@@ -116,7 +138,6 @@ elif targetos == 'darwin'
   coref = dependency('appleframeworks', modules: 'CoreFoundation')
   iokit = dependency('appleframeworks', modules: 'IOKit')
   cocoa = dependency('appleframeworks', modules: 'Cocoa', required: get_option('cocoa'))
-  hvf = dependency('appleframeworks', modules: 'Hypervisor')
 elif targetos == 'sunos'
   socket = [cc.find_library('socket'),
             cc.find_library('nsl'),
@@ -127,6 +148,64 @@ elif targetos == 'haiku'
             cc.find_library('bsd')]
 endif
 
+accelerators = []
+if not get_option('kvm').disabled() and targetos == 'linux'
+  accelerators += 'CONFIG_KVM'
+endif
+if not get_option('xen').disabled() and 'CONFIG_XEN_BACKEND' in config_host
+  accelerators += 'CONFIG_XEN'
+  have_xen_pci_passthrough = not get_option('xen_pci_passthrough').disabled() and targetos == 'linux'
+else
+  have_xen_pci_passthrough = false
+endif
+if not get_option('whpx').disabled() and targetos == 'windows'
+  if get_option('whpx').enabled() and cpu != 'x86_64'
+    error('WHPX requires 64-bit host')
+  elif cc.has_header('WinHvPlatform.h', required: get_option('whpx')) and \
+       cc.has_header('WinHvEmulation.h', required: get_option('whpx'))
+    accelerators += 'CONFIG_WHPX'
+  endif
+endif
+if not get_option('hvf').disabled()
+  hvf = dependency('appleframeworks', modules: 'Hypervisor',
+                   required: get_option('hvf'))
+  if hvf.found()
+    accelerators += 'CONFIG_HVF'
+  endif
+endif
+if not get_option('hax').disabled()
+  if get_option('hax').enabled() or targetos in ['windows', 'darwin', 'netbsd']
+    accelerators += 'CONFIG_HAX'
+  endif
+endif
+if not get_option('tcg').disabled()
+  if cpu not in supported_cpus
+    if 'CONFIG_TCG_INTERPRETER' in config_host
+      warning('Unsupported CPU @0@, will use TCG with TCI (experimental)'.format(cpu))
+    else
+      error('Unsupported CPU @0@, try --enable-tcg-interpreter'.format(cpu))
+    endif
+  endif
+  accelerators += 'CONFIG_TCG'
+  config_host += { 'CONFIG_TCG': 'y' }
+endif
+
+if 'CONFIG_KVM' not in accelerators and get_option('kvm').enabled()
+  error('KVM not available on this platform')
+endif
+if 'CONFIG_HVF' not in accelerators and get_option('hvf').enabled()
+  error('HVF not available on this platform')
+endif
+if 'CONFIG_WHPX' not in accelerators and get_option('whpx').enabled()
+  error('WHPX not available on this platform')
+endif
+if not have_xen_pci_passthrough and get_option('xen_pci_passthrough').enabled()
+  if 'CONFIG_XEN' in accelerators
+    error('Xen PCI passthrough not available on this platform')
+  else
+    error('Xen PCI passthrough requested but Xen not enabled')
+  endif
+endif
 if not cocoa.found() and get_option('cocoa').enabled()
   error('Cocoa not available on this platform')
 endif
@@ -641,16 +720,21 @@ kconfig_external_symbols = [
 ]
 ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
 
-accel_symbols = [
-  'CONFIG_KVM',
-  'CONFIG_HAX',
-  'CONFIG_HVF',
-  'CONFIG_TCG',
-  'CONFIG_WHPX'
-]
-
 foreach target : target_dirs
   config_target = keyval.load(meson.current_build_dir() / target / 'config-target.mak')
+
+  have_accel = false
+  foreach sym: accelerators
+    if sym == 'CONFIG_TCG' or target in accelerator_targets.get(sym, [])
+      config_target += { sym: 'y' }
+      config_all += { sym: 'y' }
+      if sym == 'CONFIG_XEN' and have_xen_pci_passthrough
+        config_target += { 'CONFIG_XEN_PCI_PASSTHROUGH': 'y' }
+      endif
+      have_accel = true
+    endif
+  endforeach
+  assert(have_accel)
 
   foreach k, v: disassemblers
     if config_host['ARCH'].startswith(k) or config_target['TARGET_BASE_ARCH'].startswith(k)
@@ -675,11 +759,6 @@ foreach target : target_dirs
       config_target_data.set(k, 1)
     else
       config_target_data.set(k, v)
-    endif
-  endforeach
-  foreach sym: accel_symbols
-    if config_target.has_key(sym)
-      config_all += { sym: 'y' }
     endif
   endforeach
   config_target_h += {target: configure_file(output: target + '-config-target.h',
