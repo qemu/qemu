@@ -83,3 +83,21 @@ The image should be attached as an MTD drive. Run :
 
   $ qemu-system-arm -M romulus-bmc -nic user \
 	-drive file=flash-romulus,format=raw,if=mtd -nographic
+
+Options specific to Aspeed machines are :
+
+ * ``execute-in-place`` which emulates the boot from the CE0 flash
+   device by using the FMC controller to load the instructions, and
+   not simply from RAM. This takes a little longer.
+
+ * ``fmc-model`` to change the FMC Flash model. FW needs support for
+   the chip model to boot.
+
+ * ``spi-model`` to change the SPI Flash model.
+
+For instance, to start the ``ast2500-evb`` machine with a different
+FMC chip and a bigger (64M) SPI chip, use :
+
+.. code-block:: bash
+
+  -M ast2500-evb,fmc-model=mx25l25635e,spi-model=mx66u51235f
