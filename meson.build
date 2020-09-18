@@ -639,12 +639,15 @@ config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0]
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
 config_host_data.set('QEMU_VERSION_MICRO', meson.project_version().split('.')[2])
 
+ignored = ['CONFIG_QEMU_INTERP_PREFIX'] # actually per-target
 arrays = ['CONFIG_AUDIO_DRIVERS', 'CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
 strings = ['HOST_DSOSUF', 'CONFIG_IASL', 'bindir', 'prefix', 'qemu_confdir', 'qemu_datadir',
            'qemu_moddir', 'qemu_localstatedir', 'qemu_helperdir', 'qemu_localedir',
            'qemu_icondir', 'qemu_desktopdir', 'qemu_firmwarepath', 'sysconfdir']
 foreach k, v: config_host
-  if arrays.contains(k)
+  if ignored.contains(k)
+    # do nothing
+  elif arrays.contains(k)
     if v != ''
       v = '"' + '", "'.join(v.split()) + '", '
     endif
@@ -721,7 +724,23 @@ kconfig_external_symbols = [
 ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
 
 foreach target : target_dirs
-  config_target = keyval.load(meson.current_build_dir() / target / 'config-target.mak')
+  config_target = { 'TARGET_NAME': target.split('-')[0] }
+  if target.endswith('linux-user')
+    assert(targetos == 'linux')
+    config_target += { 'CONFIG_LINUX_USER': 'y' }
+  elif target.endswith('bsd-user')
+    assert('CONFIG_BSD' in config_host)
+    config_target += { 'CONFIG_BSD_USER': 'y' }
+  elif target.endswith('softmmu')
+    config_target += { 'CONFIG_SOFTMMU': 'y' }
+  endif
+  if target.endswith('-user')
+    config_target += {
+      'CONFIG_USER_ONLY': 'y',
+      'CONFIG_QEMU_INTERP_PREFIX':
+        config_host['CONFIG_QEMU_INTERP_PREFIX'].format(config_target['TARGET_NAME'])
+    }
+  endif
 
   have_accel = false
   foreach sym: accelerators
@@ -735,6 +754,8 @@ foreach target : target_dirs
     endif
   endforeach
   assert(have_accel)
+
+  config_target += keyval.load('default-configs/targets' / target + '.mak')
 
   foreach k, v: disassemblers
     if config_host['ARCH'].startswith(k) or config_target['TARGET_BASE_ARCH'].startswith(k)
@@ -753,7 +774,7 @@ foreach target : target_dirs
       # do nothing
     elif k == 'TARGET_BASE_ARCH'
       config_target_data.set('TARGET_' + v.to_upper(), 1)
-    elif k == 'TARGET_NAME'
+    elif k == 'TARGET_NAME' or k == 'CONFIG_QEMU_INTERP_PREFIX'
       config_target_data.set_quoted(k, v)
     elif v == 'y'
       config_target_data.set(k, 1)
