@@ -428,10 +428,10 @@ vhost_scsi=""
 vhost_vsock=""
 vhost_user=""
 vhost_user_fs=""
-kvm="disabled"
-hax="disabled"
-hvf="disabled"
-whpx="disabled"
+kvm="auto"
+hax="auto"
+hvf="auto"
+whpx="auto"
 rdma=""
 pvrdma=""
 gprof="no"
@@ -817,8 +817,6 @@ HOST_VARIANT_DIR=""
 case $targetos in
 MINGW32*)
   mingw32="yes"
-  hax="enabled"
-  whpx="auto"
   vhost_user="no"
   audio_possible_drivers="dsound sdl"
   if check_include dsound.h; then
@@ -852,7 +850,6 @@ DragonFly)
 ;;
 NetBSD)
   bsd="yes"
-  hax="enabled"
   make="${MAKE-gmake}"
   audio_drv_list="oss try-sdl"
   audio_possible_drivers="oss sdl"
@@ -869,8 +866,6 @@ OpenBSD)
 Darwin)
   bsd="yes"
   darwin="yes"
-  hax="enabled"
-  hvf="auto"
   if [ "$cpu" = "x86_64" ] ; then
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
     QEMU_LDFLAGS="-arch x86_64 $QEMU_LDFLAGS"
@@ -906,7 +901,6 @@ Linux)
   audio_possible_drivers="oss alsa sdl pa"
   linux="yes"
   linux_user="yes"
-  kvm="enabled"
   QEMU_INCLUDES="-isystem ${source_path}/linux-headers -Ilinux-headers $QEMU_INCLUDES"
 ;;
 esac
@@ -2665,6 +2659,29 @@ if test "$seccomp" != "no" ; then
         seccomp="no"
     fi
 fi
+
+##########################################
+# simple accelerator probes
+
+if test "$kvm" != "disabled" ; then
+  if test "$linux" = yes ; then
+    kvm=enabled
+  else
+    if test "$kvm" = "enabled" ; then
+      feature_not_found "kvm" "KVM is only available on Linux"
+    fi
+    kvm=disabled
+  fi
+fi
+
+if test "$hax" = "auto" ; then
+  if test "$mingw" = yes || test "$darwin" = yes || test "$targetos" = NetBSD; then
+    hax=enabled
+  else
+    hax=disabled
+  fi
+fi
+
 ##########################################
 # xen probe
 
@@ -2985,14 +3002,15 @@ fi
 
 ##########################################
 # Windows Hypervisor Platform accelerator (WHPX) check
-if test "$whpx" = "enabled" && test "$ARCH" != "x86_64"; then
-  error_exit "WHPX requires 64-bit host"
-fi
-if test "$whpx" != "disabled" && test "$ARCH" = "x86_64"; then
-    if check_include "WinHvPlatform.h" && check_include "WinHvEmulation.h"; then
-        whpx="yes"
+if test "$whpx" != "disabled"; then
+    if test "$mingw32" = yes && test "$ARCH" = "x86_64" &&
+            check_include "WinHvPlatform.h" && check_include "WinHvEmulation.h"; then
+        whpx="enabled"
     else
-        if test "$whpx" = "auto"; then
+        if test "$whpx" = "enabled"; then
+            if test "$ARCH" != "x86_64"; then
+                error_exit "WHPX requires 64-bit host"
+            fi
             feature_not_found "WinHvPlatform" "WinHvEmulation is not installed"
         fi
         whpx="disabled"
@@ -5828,13 +5846,13 @@ if [ "$hvf" != "disabled" ] ; then
 #include <Hypervisor/hv.h>
 int main() { return 0;}
 EOF
-  if ! compile_object ""; then
+  if test "$darwin" = yes && compile_object ""; then
+    hvf='enabled'
+  else
     if test "$hvf" = "enabled"; then
 	error_exit "Hypervisor.framework not available"
     fi
     hvf='disabled'
-  else
-    hvf='enabled'
   fi
 fi
 
