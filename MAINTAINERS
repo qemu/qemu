@@ -3069,6 +3069,13 @@ L: qemu-block@nongnu.org
 S: Supported
 F: tests/image-fuzzer/
 
+Vhost-user block device backend server
+M: Coiby Xu <Coiby.Xu@gmail.com>
+S: Maintained
+F: block/export/vhost-user-blk-server.c
+F: util/vhost-user-server.c
+F: tests/qtest/libqos/vhost-user-blk.c
+
 Replication
 M: Wen Congyang <wencongyang2@huawei.com>
 M: Xie Changlong <xiechanglong.d@gmail.com>
