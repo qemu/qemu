@@ -3126,6 +3126,7 @@ R: Wainer dos Santos Moschetta <wainersm@redhat.com>
 S: Maintained
 F: .gitlab-ci.yml
 F: .gitlab-ci.d/crossbuilds.yml
+F: .gitlab-ci.d/*py
 
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>
