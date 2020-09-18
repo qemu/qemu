@@ -610,4 +610,27 @@ void s390x_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     tcg_s390_program_interrupt(env, PGM_SPECIFICATION, retaddr);
 }
 
+static void QEMU_NORETURN monitor_event(CPUS390XState *env,
+                                        uint64_t monitor_code,
+                                        uint8_t monitor_class, uintptr_t ra)
+{
+    /* Store the Monitor Code and the Monitor Class Number into the lowcore */
+    stq_phys(env_cpu(env)->as,
+             env->psa + offsetof(LowCore, monitor_code), monitor_code);
+    stw_phys(env_cpu(env)->as,
+             env->psa + offsetof(LowCore, mon_class_num), monitor_class);
+
+    tcg_s390_program_interrupt(env, PGM_MONITOR, ra);
+}
+
+void HELPER(monitor_call)(CPUS390XState *env, uint64_t monitor_code,
+                          uint32_t monitor_class)
+{
+    g_assert(monitor_class <= 0xff);
+
+    if (env->cregs[8] & (0x8000 >> monitor_class)) {
+        monitor_event(env, monitor_code, monitor_class, GETPC());
+    }
+}
+
 #endif /* CONFIG_USER_ONLY */
