@@ -53,6 +53,8 @@
 
 #define SDSC_MAX_CAPACITY   (2 * GiB)
 
+#define INVALID_ADDRESS     0
+
 typedef enum {
     sd_r0 = 0,    /* no response */
     sd_r1,        /* normal response command */
@@ -575,8 +577,8 @@ static void sd_reset(DeviceState *dev)
     sd->wpgrps_size = sect;
     sd->wp_groups = bitmap_new(sd->wpgrps_size);
     memset(sd->function_group, 0, sizeof(sd->function_group));
-    sd->erase_start = 0;
-    sd->erase_end = 0;
+    sd->erase_start = INVALID_ADDRESS;
+    sd->erase_end = INVALID_ADDRESS;
     sd->size = size;
     sd->blk_len = 0x200;
     sd->pwd_len = 0;
@@ -750,7 +752,8 @@ static void sd_erase(SDState *sd)
     uint64_t erase_end = sd->erase_end;
 
     trace_sdcard_erase(sd->erase_start, sd->erase_end);
-    if (!sd->erase_start || !sd->erase_end) {
+    if (sd->erase_start == INVALID_ADDRESS
+            || sd->erase_end == INVALID_ADDRESS) {
         sd->card_status |= ERASE_SEQ_ERROR;
         return;
     }
@@ -763,8 +766,8 @@ static void sd_erase(SDState *sd)
 
     erase_start = sd_addr_to_wpnum(erase_start);
     erase_end = sd_addr_to_wpnum(erase_end);
-    sd->erase_start = 0;
-    sd->erase_end = 0;
+    sd->erase_start = INVALID_ADDRESS;
+    sd->erase_end = INVALID_ADDRESS;
     sd->csd[14] |= 0x40;
 
     for (i = erase_start; i <= erase_end; i++) {
