@@ -595,7 +595,7 @@ void virtio_gpu_virgl_reset(VirtIOGPU *g)
 {
     int i;
 
-    /* virgl_renderer_reset() ??? */
+    virgl_renderer_reset();
     for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
         if (i != 0) {
             dpy_gfx_replace_surface(g->parent_obj.scanout[i].con, NULL);
