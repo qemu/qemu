@@ -354,15 +354,15 @@ listen_ok:
     ((rc) == -EINPROGRESS)
 #endif
 
-static int inet_connect_addr(struct addrinfo *addr, Error **errp);
-
-static int inet_connect_addr(struct addrinfo *addr, Error **errp)
+static int inet_connect_addr(const InetSocketAddress *saddr,
+                             struct addrinfo *addr, Error **errp)
 {
     int sock, rc;
 
     sock = qemu_socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     if (sock < 0) {
-        error_setg_errno(errp, errno, "Failed to create socket");
+        error_setg_errno(errp, errno, "Failed to create socket family %d",
+                         addr->ai_family);
         return -1;
     }
     socket_set_fast_reuse(sock);
@@ -376,7 +376,8 @@ static int inet_connect_addr(struct addrinfo *addr, Error **errp)
     } while (rc == -EINTR);
 
     if (rc < 0) {
-        error_setg_errno(errp, errno, "Failed to connect socket");
+        error_setg_errno(errp, errno, "Failed to connect to '%s:%s'",
+                         saddr->host, saddr->port);
         closesocket(sock);
         return -1;
     }
@@ -455,7 +456,7 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
     for (e = res; e != NULL; e = e->ai_next) {
         error_free(local_err);
         local_err = NULL;
-        sock = inet_connect_addr(e, &local_err);
+        sock = inet_connect_addr(saddr, e, &local_err);
         if (sock >= 0) {
             break;
         }
@@ -549,7 +550,8 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
     /* create socket */
     sock = qemu_socket(peer->ai_family, peer->ai_socktype, peer->ai_protocol);
     if (sock < 0) {
-        error_setg_errno(errp, errno, "Failed to create socket");
+        error_setg_errno(errp, errno, "Failed to create socket family %d",
+                         peer->ai_family);
         goto err;
     }
     socket_set_fast_reuse(sock);
@@ -562,7 +564,8 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
 
     /* connect to peer */
     if (connect(sock,peer->ai_addr,peer->ai_addrlen) < 0) {
-        error_setg_errno(errp, errno, "Failed to connect socket");
+        error_setg_errno(errp, errno, "Failed to connect to '%s:%s'",
+                         addr, port);
         goto err;
     }
 
@@ -735,13 +738,15 @@ static bool vsock_parse_vaddr_to_sockaddr(const VsockSocketAddress *vaddr,
     return true;
 }
 
-static int vsock_connect_addr(const struct sockaddr_vm *svm, Error **errp)
+static int vsock_connect_addr(const VsockSocketAddress *vaddr,
+                              const struct sockaddr_vm *svm, Error **errp)
 {
     int sock, rc;
 
     sock = qemu_socket(AF_VSOCK, SOCK_STREAM, 0);
     if (sock < 0) {
-        error_setg_errno(errp, errno, "Failed to create socket");
+        error_setg_errno(errp, errno, "Failed to create socket family %d",
+                         AF_VSOCK);
         return -1;
     }
 
@@ -754,7 +759,8 @@ static int vsock_connect_addr(const struct sockaddr_vm *svm, Error **errp)
     } while (rc == -EINTR);
 
     if (rc < 0) {
-        error_setg_errno(errp, errno, "Failed to connect socket");
+        error_setg_errno(errp, errno, "Failed to connect to '%s:%s'",
+                         vaddr->cid, vaddr->port);
         closesocket(sock);
         return -1;
     }
@@ -770,7 +776,7 @@ static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp)
         return -1;
     }
 
-    return vsock_connect_addr(&svm, errp);
+    return vsock_connect_addr(vaddr, &svm, errp);
 }
 
 static int vsock_listen_saddr(VsockSocketAddress *vaddr,
@@ -994,7 +1000,7 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
     } while (rc == -EINTR);
 
     if (rc < 0) {
-        error_setg_errno(errp, -rc, "Failed to connect socket %s",
+        error_setg_errno(errp, -rc, "Failed to connect to '%s'",
                          saddr->path);
         goto err;
     }
