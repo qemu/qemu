@@ -2689,7 +2689,7 @@ static bool trans_SPLICE(DisasContext *s, arg_rprr_esz *a)
 {
     if (sve_access_check(s)) {
         gen_gvec_ool_zzzp(s, gen_helper_sve_splice,
-                          a->rd, a->rn, a->rm, a->pg, 0);
+                          a->rd, a->rn, a->rm, a->pg, a->esz);
     }
     return true;
 }
