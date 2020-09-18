@@ -780,6 +780,7 @@ static void sd_erase(SDState *sd)
     sd->csd[14] |= 0x40;
 
     for (i = erase_start; i <= erase_end; i++) {
+        assert(i < sd->wpgrps_size);
         if (test_bit(i, sd->wp_groups)) {
             sd->card_status |= WP_ERASE_SKIP;
         }
@@ -794,6 +795,7 @@ static uint32_t sd_wpbits(SDState *sd, uint64_t addr)
     wpnum = sd_addr_to_wpnum(addr);
 
     for (i = 0; i < 32; i++, wpnum++, addr += WPGROUP_SIZE) {
+        assert(wpnum < sd->wpgrps_size);
         if (addr < sd->size && test_bit(wpnum, sd->wp_groups)) {
             ret |= (1 << i);
         }
