@@ -1,5 +1,6 @@
 /GNUmakefile
 /build/
+*.pyc
 .sdk
 .stgit-*
 .git-submodule-status
