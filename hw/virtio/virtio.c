@@ -2963,17 +2963,16 @@ int virtio_set_features(VirtIODevice *vdev, uint64_t val)
         return -EINVAL;
     }
     ret = virtio_set_features_nocheck(vdev, val);
-    if (!ret) {
-        if (virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
-            /* VIRTIO_RING_F_EVENT_IDX changes the size of the caches.  */
-            int i;
-            for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
-                if (vdev->vq[i].vring.num != 0) {
-                    virtio_init_region_cache(vdev, i);
-                }
+    if (virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
+        /* VIRTIO_RING_F_EVENT_IDX changes the size of the caches.  */
+        int i;
+        for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+            if (vdev->vq[i].vring.num != 0) {
+                virtio_init_region_cache(vdev, i);
             }
         }
-
+    }
+    if (!ret) {
         if (!virtio_device_started(vdev, vdev->status) &&
             !virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
             vdev->start_on_kick = true;
