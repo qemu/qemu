@@ -153,7 +153,6 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
     hwaddr iova;
     Int128 llend, llsize;
     int ret;
-    bool try_unmap = true;
 
     if (vhost_vdpa_listener_skipped_section(section)) {
         return;
@@ -176,11 +175,9 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
 
     llsize = int128_sub(llend, int128_make64(iova));
 
-    if (try_unmap) {
-        ret = vhost_vdpa_dma_unmap(v, iova, int128_get64(llsize));
-        if (ret) {
-            error_report("vhost_vdpa dma unmap error!");
-        }
+    ret = vhost_vdpa_dma_unmap(v, iova, int128_get64(llsize));
+    if (ret) {
+        error_report("vhost_vdpa dma unmap error!");
     }
 
     memory_region_unref(section->mr);
