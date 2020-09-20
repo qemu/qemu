@@ -1495,12 +1495,23 @@ size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
 
 size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
 {
-    void *src = hw->pcm_ops->get_buffer_in(hw, &size);
+    size_t total = 0;
 
-    memcpy(buf, src, size);
-    hw->pcm_ops->put_buffer_in(hw, src, size);
+    while (total < size) {
+        size_t src_size = size - total;
+        void *src = hw->pcm_ops->get_buffer_in(hw, &src_size);
 
-    return size;
+        if (src_size == 0) {
+            hw->pcm_ops->put_buffer_in(hw, src, src_size);
+            break;
+        }
+
+        memcpy((char *)buf + total, src, src_size);
+        hw->pcm_ops->put_buffer_in(hw, src, src_size);
+        total += src_size;
+    }
+
+    return total;
 }
 
 static int audio_driver_init(AudioState *s, struct audio_driver *drv,
