@@ -1484,12 +1484,34 @@ size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
 
 size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
 {
-    size_t dst_size, copy_size;
-    void *dst = hw->pcm_ops->get_buffer_out(hw, &dst_size);
-    copy_size = MIN(size, dst_size);
+    size_t total = 0;
 
-    memcpy(dst, buf, copy_size);
-    return hw->pcm_ops->put_buffer_out(hw, dst, copy_size);
+    while (total < size) {
+        size_t dst_size = size - total;
+        size_t copy_size, proc;
+        void *dst = hw->pcm_ops->get_buffer_out(hw, &dst_size);
+
+        if (dst_size == 0) {
+            break;
+        }
+
+        copy_size = MIN(size - total, dst_size);
+        if (dst) {
+            memcpy(dst, (char *)buf + total, copy_size);
+        }
+        proc = hw->pcm_ops->put_buffer_out(hw, dst, copy_size);
+        total += proc;
+
+        if (proc == 0 || proc < copy_size) {
+            break;
+        }
+    }
+
+    if (hw->pcm_ops->run_buffer_out) {
+        hw->pcm_ops->run_buffer_out(hw);
+    }
+
+    return total;
 }
 
 size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
