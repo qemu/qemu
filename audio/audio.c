@@ -1091,12 +1091,15 @@ static size_t audio_pcm_hw_run_out(HWVoiceOut *hw, size_t live)
     while (live) {
         size_t size, decr, proc;
         void *buf = hw->pcm_ops->get_buffer_out(hw, &size);
-        if (!buf || size == 0) {
+
+        if (size == 0) {
             break;
         }
 
         decr = MIN(size / hw->info.bytes_per_frame, live);
-        audio_pcm_hw_clip_out(hw, buf, decr);
+        if (buf) {
+            audio_pcm_hw_clip_out(hw, buf, decr);
+        }
         proc = hw->pcm_ops->put_buffer_out(hw, buf,
                                            decr * hw->info.bytes_per_frame) /
             hw->info.bytes_per_frame;
