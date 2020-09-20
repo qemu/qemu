@@ -1261,7 +1261,6 @@ static size_t audio_pcm_hw_run_in(HWVoiceIn *hw, size_t samples)
 
         assert(size % hw->info.bytes_per_frame == 0);
         if (size == 0) {
-            hw->pcm_ops->put_buffer_in(hw, buf, size);
             break;
         }
 
@@ -1502,7 +1501,6 @@ size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
         void *src = hw->pcm_ops->get_buffer_in(hw, &src_size);
 
         if (src_size == 0) {
-            hw->pcm_ops->put_buffer_in(hw, src, src_size);
             break;
         }
 
