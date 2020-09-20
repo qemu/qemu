@@ -135,6 +135,7 @@ static void *line_out_get_buffer(HWVoiceOut *hw, size_t *size)
             (out->fsize - out->fpos) * hw->info.bytes_per_frame);
     } else {
         audio_rate_start(&out->rate);
+        *size = LINE_OUT_SAMPLES << 2;
     }
     return out->frame + out->fpos;
 }
@@ -143,12 +144,14 @@ static size_t line_out_put_buffer(HWVoiceOut *hw, void *buf, size_t size)
 {
     SpiceVoiceOut *out = container_of(hw, SpiceVoiceOut, hw);
 
-    assert(buf == out->frame + out->fpos && out->fpos <= out->fsize);
-    out->fpos += size >> 2;
+    if (buf) {
+        assert(buf == out->frame + out->fpos && out->fpos <= out->fsize);
+        out->fpos += size >> 2;
 
-    if (out->fpos == out->fsize) { /* buffer full */
-        spice_server_playback_put_samples(&out->sin, out->frame);
-        out->frame = NULL;
+        if (out->fpos == out->fsize) { /* buffer full */
+            spice_server_playback_put_samples(&out->sin, out->frame);
+            out->frame = NULL;
+        }
     }
 
     return size;
