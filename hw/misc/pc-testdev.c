@@ -54,11 +54,9 @@ struct PCTestdev {
     uint32_t ioport_data;
     char iomem_buf[IOMEM_LEN];
 };
-typedef struct PCTestdev PCTestdev;
 
 #define TYPE_TESTDEV "pc-testdev"
-DECLARE_INSTANCE_CHECKER(PCTestdev, TESTDEV,
-                         TYPE_TESTDEV)
+OBJECT_DECLARE_SIMPLE_TYPE(PCTestdev, TESTDEV)
 
 static uint64_t test_irq_line_read(void *opaque, hwaddr addr, unsigned size)
 {

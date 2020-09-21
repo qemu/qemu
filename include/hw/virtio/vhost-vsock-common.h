@@ -16,9 +16,7 @@
 #include "qom/object.h"
 
 #define TYPE_VHOST_VSOCK_COMMON "vhost-vsock-common"
-typedef struct VHostVSockCommon VHostVSockCommon;
-DECLARE_INSTANCE_CHECKER(VHostVSockCommon, VHOST_VSOCK_COMMON,
-                         TYPE_VHOST_VSOCK_COMMON)
+OBJECT_DECLARE_SIMPLE_TYPE(VHostVSockCommon, VHOST_VSOCK_COMMON)
 
 enum {
     VHOST_VSOCK_SAVEVM_VERSION = 0,

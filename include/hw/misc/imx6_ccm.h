@@ -179,9 +179,7 @@
 #define EXTRACT(value, name) extract32(value, name##_SHIFT, name##_LENGTH)
 
 #define TYPE_IMX6_CCM "imx6.ccm"
-typedef struct IMX6CCMState IMX6CCMState;
-DECLARE_INSTANCE_CHECKER(IMX6CCMState, IMX6_CCM,
-                         TYPE_IMX6_CCM)
+OBJECT_DECLARE_SIMPLE_TYPE(IMX6CCMState, IMX6_CCM)
 
 struct IMX6CCMState {
     /* <private> */

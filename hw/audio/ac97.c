@@ -127,9 +127,7 @@ enum {
 #define MUTE_SHIFT 15
 
 #define TYPE_AC97 "AC97"
-typedef struct AC97LinkState AC97LinkState;
-DECLARE_INSTANCE_CHECKER(AC97LinkState, AC97,
-                         TYPE_AC97)
+OBJECT_DECLARE_SIMPLE_TYPE(AC97LinkState, AC97)
 
 #define REC_MASK 7
 enum {

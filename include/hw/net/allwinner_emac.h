@@ -31,9 +31,7 @@
 #include "qom/object.h"
 
 #define TYPE_AW_EMAC "allwinner-emac"
-typedef struct AwEmacState AwEmacState;
-DECLARE_INSTANCE_CHECKER(AwEmacState, AW_EMAC,
-                         TYPE_AW_EMAC)
+OBJECT_DECLARE_SIMPLE_TYPE(AwEmacState, AW_EMAC)
 
 /*
  * Allwinner EMAC register list

@@ -35,11 +35,9 @@ struct mcf_uart_state {
     qemu_irq irq;
     CharBackend chr;
 };
-typedef struct mcf_uart_state mcf_uart_state;
 
 #define TYPE_MCF_UART "mcf-uart"
-DECLARE_INSTANCE_CHECKER(mcf_uart_state, MCF_UART,
-                         TYPE_MCF_UART)
+OBJECT_DECLARE_SIMPLE_TYPE(mcf_uart_state, MCF_UART)
 
 /* UART Status Register bits.  */
 #define MCF_UART_RxRDY  0x01

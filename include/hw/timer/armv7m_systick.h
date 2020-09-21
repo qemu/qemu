@@ -17,9 +17,7 @@
 
 #define TYPE_SYSTICK "armv7m_systick"
 
-typedef struct SysTickState SysTickState;
-DECLARE_INSTANCE_CHECKER(SysTickState, SYSTICK,
-                         TYPE_SYSTICK)
+OBJECT_DECLARE_SIMPLE_TYPE(SysTickState, SYSTICK)
 
 struct SysTickState {
     /*< private >*/

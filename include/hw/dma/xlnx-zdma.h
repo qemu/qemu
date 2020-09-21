@@ -76,11 +76,9 @@ struct XlnxZDMA {
        to model write only mode.  */
     uint8_t buf[2048];
 };
-typedef struct XlnxZDMA XlnxZDMA;
 
 #define TYPE_XLNX_ZDMA "xlnx.zdma"
 
-DECLARE_INSTANCE_CHECKER(XlnxZDMA, XLNX_ZDMA,
-                         TYPE_XLNX_ZDMA)
+OBJECT_DECLARE_SIMPLE_TYPE(XlnxZDMA, XLNX_ZDMA)
 
 #endif /* XLNX_ZDMA_H */

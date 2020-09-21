@@ -38,10 +38,8 @@ struct TPMStateSysBus {
     /*< public >*/
     TPMState state; /* not a QOM object */
 };
-typedef struct TPMStateSysBus TPMStateSysBus;
 
-DECLARE_INSTANCE_CHECKER(TPMStateSysBus, TPM_TIS_SYSBUS,
-                         TYPE_TPM_TIS_SYSBUS)
+OBJECT_DECLARE_SIMPLE_TYPE(TPMStateSysBus, TPM_TIS_SYSBUS)
 
 static int tpm_tis_pre_save_sysbus(void *opaque)
 {

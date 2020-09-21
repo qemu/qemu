@@ -14,10 +14,7 @@
 #include "qom/object.h"
 
 #define TYPE_ASPEED_GPIO "aspeed.gpio"
-typedef struct AspeedGPIOClass AspeedGPIOClass;
-typedef struct AspeedGPIOState AspeedGPIOState;
-DECLARE_OBJ_CHECKERS(AspeedGPIOState, AspeedGPIOClass,
-                     ASPEED_GPIO, TYPE_ASPEED_GPIO)
+OBJECT_DECLARE_TYPE(AspeedGPIOState, AspeedGPIOClass, ASPEED_GPIO)
 
 #define ASPEED_GPIO_MAX_NR_SETS 8
 #define ASPEED_REGS_PER_BANK 14

@@ -15,10 +15,7 @@
 #include "qom/object.h"
 
 #define TYPE_ASPEED_SCU "aspeed.scu"
-typedef struct AspeedSCUClass AspeedSCUClass;
-typedef struct AspeedSCUState AspeedSCUState;
-DECLARE_OBJ_CHECKERS(AspeedSCUState, AspeedSCUClass,
-                     ASPEED_SCU, TYPE_ASPEED_SCU)
+OBJECT_DECLARE_TYPE(AspeedSCUState, AspeedSCUClass, ASPEED_SCU)
 #define TYPE_ASPEED_2400_SCU TYPE_ASPEED_SCU "-ast2400"
 #define TYPE_ASPEED_2500_SCU TYPE_ASPEED_SCU "-ast2500"
 #define TYPE_ASPEED_2600_SCU TYPE_ASPEED_SCU "-ast2600"

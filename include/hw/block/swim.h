@@ -17,13 +17,10 @@
 
 #define SWIM_MAX_FD            2
 
-typedef struct SWIMDrive SWIMDrive;
-typedef struct SWIMBus SWIMBus;
 typedef struct SWIMCtrl SWIMCtrl;
 
 #define TYPE_SWIM_DRIVE "swim-drive"
-DECLARE_INSTANCE_CHECKER(SWIMDrive, SWIM_DRIVE,
-                         TYPE_SWIM_DRIVE)
+OBJECT_DECLARE_SIMPLE_TYPE(SWIMDrive, SWIM_DRIVE)
 
 struct SWIMDrive {
     DeviceState qdev;
@@ -32,8 +29,7 @@ struct SWIMDrive {
 };
 
 #define TYPE_SWIM_BUS "swim-bus"
-DECLARE_INSTANCE_CHECKER(SWIMBus, SWIM_BUS,
-                         TYPE_SWIM_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(SWIMBus, SWIM_BUS)
 
 struct SWIMBus {
     BusState bus;
@@ -70,9 +66,7 @@ struct SWIMCtrl {
 };
 
 #define TYPE_SWIM "swim"
-typedef struct Swim Swim;
-DECLARE_INSTANCE_CHECKER(Swim, SWIM,
-                         TYPE_SWIM)
+OBJECT_DECLARE_SIMPLE_TYPE(Swim, SWIM)
 
 struct Swim {
     SysBusDevice parent_obj;

@@ -64,9 +64,7 @@
                              CCTL_##name##_SHIFT)
 
 #define TYPE_IMX25_CCM "imx25.ccm"
-typedef struct IMX25CCMState IMX25CCMState;
-DECLARE_INSTANCE_CHECKER(IMX25CCMState, IMX25_CCM,
-                         TYPE_IMX25_CCM)
+OBJECT_DECLARE_SIMPLE_TYPE(IMX25CCMState, IMX25_CCM)
 
 struct IMX25CCMState {
     /* <private> */

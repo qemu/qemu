@@ -78,9 +78,7 @@
 #define EXTRACT(value, name) extract32(value, name##_SHIFT, name##_LENGTH)
 
 #define TYPE_IMX_SPI "imx.spi"
-typedef struct IMXSPIState IMXSPIState;
-DECLARE_INSTANCE_CHECKER(IMXSPIState, IMX_SPI,
-                         TYPE_IMX_SPI)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXSPIState, IMX_SPI)
 
 struct IMXSPIState {
     /* <private> */

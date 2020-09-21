@@ -24,9 +24,7 @@
 #include "qom/object.h"
 
 #define TYPE_MIPS_ITU "mips-itu"
-typedef struct MIPSITUState MIPSITUState;
-DECLARE_INSTANCE_CHECKER(MIPSITUState, MIPS_ITU,
-                         TYPE_MIPS_ITU)
+OBJECT_DECLARE_SIMPLE_TYPE(MIPSITUState, MIPS_ITU)
 
 #define ITC_CELL_DEPTH_SHIFT 2
 #define ITC_CELL_DEPTH (1u << ITC_CELL_DEPTH_SHIFT)

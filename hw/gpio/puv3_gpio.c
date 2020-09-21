@@ -19,9 +19,7 @@
 #include "qemu/log.h"
 
 #define TYPE_PUV3_GPIO "puv3_gpio"
-typedef struct PUV3GPIOState PUV3GPIOState;
-DECLARE_INSTANCE_CHECKER(PUV3GPIOState, PUV3_GPIO,
-                         TYPE_PUV3_GPIO)
+OBJECT_DECLARE_SIMPLE_TYPE(PUV3GPIOState, PUV3_GPIO)
 
 struct PUV3GPIOState {
     SysBusDevice parent_obj;

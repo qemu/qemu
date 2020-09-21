@@ -50,9 +50,7 @@
 static const char e3[] = "COPYRIGHT (C) CREATIVE TECHNOLOGY LTD, 1992.";
 
 #define TYPE_SB16 "sb16"
-typedef struct SB16State SB16State;
-DECLARE_INSTANCE_CHECKER(SB16State, SB16,
-                         TYPE_SB16)
+OBJECT_DECLARE_SIMPLE_TYPE(SB16State, SB16)
 
 struct SB16State {
     ISADevice parent_obj;

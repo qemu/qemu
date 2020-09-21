@@ -95,11 +95,9 @@ struct SBSAMachineState {
     DeviceState *gic;
     PFlashCFI01 *flash[2];
 };
-typedef struct SBSAMachineState SBSAMachineState;
 
 #define TYPE_SBSA_MACHINE   MACHINE_TYPE_NAME("sbsa-ref")
-DECLARE_INSTANCE_CHECKER(SBSAMachineState, SBSA_MACHINE,
-                         TYPE_SBSA_MACHINE)
+OBJECT_DECLARE_SIMPLE_TYPE(SBSAMachineState, SBSA_MACHINE)
 
 static const MemMapEntry sbsa_ref_memmap[] = {
     /* 512M boot ROM */

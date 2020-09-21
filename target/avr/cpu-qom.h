@@ -27,7 +27,7 @@
 #define TYPE_AVR_CPU "avr-cpu"
 
 OBJECT_DECLARE_TYPE(AVRCPU, AVRCPUClass,
-                    avr_cpu, AVR_CPU)
+                    AVR_CPU)
 
 /**
  *  AVRCPUClass:

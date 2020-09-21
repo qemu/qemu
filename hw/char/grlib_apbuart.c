@@ -73,9 +73,7 @@
 
 #define FIFO_LENGTH 1024
 
-typedef struct UART UART;
-DECLARE_INSTANCE_CHECKER(UART, GRLIB_APB_UART,
-                         TYPE_GRLIB_APB_UART)
+OBJECT_DECLARE_SIMPLE_TYPE(UART, GRLIB_APB_UART)
 
 struct UART {
     SysBusDevice parent_obj;

@@ -81,9 +81,7 @@
 
 #define DINO_MEM_CHUNK_SIZE (8 * MiB)
 
-typedef struct DinoState DinoState;
-DECLARE_INSTANCE_CHECKER(DinoState, DINO_PCI_HOST_BRIDGE,
-                         TYPE_DINO_PCI_HOST_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(DinoState, DINO_PCI_HOST_BRIDGE)
 
 #define DINO800_REGS (1 + (DINO_TLTIM - DINO_GMASK) / 4)
 static const uint32_t reg800_keep_bits[DINO800_REGS] = {

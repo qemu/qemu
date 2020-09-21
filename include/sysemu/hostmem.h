@@ -21,7 +21,7 @@
 
 #define TYPE_MEMORY_BACKEND "memory-backend"
 OBJECT_DECLARE_TYPE(HostMemoryBackend, HostMemoryBackendClass,
-                    memory_backend, MEMORY_BACKEND)
+                    MEMORY_BACKEND)
 
 /* hostmem-ram.c */
 /**

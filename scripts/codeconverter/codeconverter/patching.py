@@ -5,7 +5,7 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
-from typing import IO, Match, NamedTuple, Optional, Literal, Iterable, Type, Dict, List, Any, TypeVar, NewType, Tuple
+from typing import IO, Match, NamedTuple, Optional, Literal, Iterable, Type, Dict, List, Any, TypeVar, NewType, Tuple, Union
 from pathlib import Path
 from itertools import chain
 from tempfile import NamedTemporaryFile
@@ -47,7 +47,7 @@ class FileMatch:
 
     def __init__(self, f: 'FileInfo', m: Match) -> None:
         self.file: 'FileInfo' = f
-        self.match: Match = m
+        self.match: Match[str] = m
 
     @property
     def name(self) -> str:
@@ -68,8 +68,13 @@ class FileMatch:
     def line_col(self) -> LineAndColumn:
         return self.file.line_col(self.start())
 
-    def group(self, *args):
-        return self.match.group(*args)
+    def group(self, group: Union[int, str]) -> str:
+        return self.match.group(group)
+
+    def getgroup(self, group: str) -> Optional[str]:
+        if group not in self.match.groupdict():
+            return None
+        return self.match.group(group)
 
     def log(self, level, fmt, *args) -> None:
         pos = self.line_col()
@@ -163,17 +168,50 @@ class FileMatch:
         raise NotImplementedError()
 
     @classmethod
-    def find_matches(klass, content: str) -> Iterable[Match]:
-        """Generate match objects for class
+    def finditer(klass, content: str, pos=0, endpos=-1) -> Iterable[Match]:
+        """Helper for re.finditer()"""
+        if endpos >= 0:
+            content = content[:endpos]
+        return klass.compiled_re().finditer(content, pos)
 
-        Might be reimplemented by subclasses if they
-        intend to look for matches using a different method.
-        """
-        return klass.compiled_re().finditer(content)
+    @classmethod
+    def domatch(klass, content: str, pos=0, endpos=-1) -> Optional[Match]:
+        """Helper for re.match()"""
+        if endpos >= 0:
+            content = content[:endpos]
+        return klass.compiled_re().match(content, pos)
+
+    def group_finditer(self, klass: Type['FileMatch'], group: Union[str, int]) -> Iterable['FileMatch']:
+        assert self.file.original_content
+        return (klass(self.file, m)
+                for m in klass.finditer(self.file.original_content,
+                                        self.match.start(group),
+                                        self.match.end(group)))
+
+    def try_group_match(self, klass: Type['FileMatch'], group: Union[str, int]) -> Optional['FileMatch']:
+        assert self.file.original_content
+        m = klass.domatch(self.file.original_content,
+                          self.match.start(group),
+                          self.match.end(group))
+        if not m:
+            return None
+        else:
+            return klass(self.file, m)
+
+    def group_match(self, group: Union[str, int]) -> 'FileMatch':
+        m = self.try_group_match(FullMatch, group)
+        assert m
+        return m
 
     @property
     def allfiles(self) -> 'FileList':
         return self.file.allfiles
+
+class FullMatch(FileMatch):
+    """Regexp that will match all contents of string
+    Useful when used with group_match()
+    """
+    regexp = r'(?s).*' # (?s) is re.DOTALL
 
 def all_subclasses(c: Type[FileMatch]) -> Iterable[Type[FileMatch]]:
     for sc in c.__subclasses__():
@@ -201,7 +239,15 @@ def apply_patches(s: str, patches: Iterable[Patch]) -> str:
     """
     r = StringIO()
     last = 0
-    for p in sorted(patches):
+    def patch_sort_key(item: Tuple[int, Patch]) -> Tuple[int, int, int]:
+        """Patches are sorted by byte position,
+        patches at the same byte position are applied in the order
+        they were generated.
+        """
+        i,p = item
+        return (p.start, p.end, i)
+
+    for i,p in sorted(enumerate(patches), key=patch_sort_key):
         DBG("Applying patch at position %d (%s) - %d (%s): %r",
             p.start, line_col(s, p.start),
             p.end, line_col(s, p.end),
@@ -220,25 +266,34 @@ class RegexpScanner:
         self.match_index: Dict[Type[Any], List[FileMatch]] = {}
         self.match_name_index: Dict[Tuple[Type[Any], str, str], Optional[FileMatch]] = {}
 
-    def _find_matches(self, klass: Type[Any]) -> Iterable[FileMatch]:
+    def _matches_of_type(self, klass: Type[Any]) -> Iterable[FileMatch]:
         raise NotImplementedError()
 
     def matches_of_type(self, t: Type[T]) -> List[T]:
         if t not in self.match_index:
-            self.match_index[t] = list(self._find_matches(t))
-        return  self.match_index[t] # type: ignore
+            self.match_index[t] = list(self._matches_of_type(t))
+        return self.match_index[t] # type: ignore
 
-    def find_match(self, t: Type[T], name: str, group: str='name') -> Optional[T]:
+    def find_matches(self, t: Type[T], name: str, group: str='name') -> List[T]:
         indexkey = (t, name, group)
         if indexkey in self.match_name_index:
             return self.match_name_index[indexkey] # type: ignore
-        r: Optional[T] = None
+        r: List[T] = []
         for m in self.matches_of_type(t):
             assert isinstance(m, FileMatch)
-            if m.group(group) == name:
-                r = m # type: ignore
+            if m.getgroup(group) == name:
+                r.append(m) # type: ignore
         self.match_name_index[indexkey] = r # type: ignore
         return r
+
+    def find_match(self, t: Type[T], name: str, group: str='name') -> Optional[T]:
+        l = self.find_matches(t, name, group)
+        if not l:
+            return None
+        if len(l) > 1:
+            logger.warn("multiple matches found for %r (%s=%r)", t, group, name)
+            return None
+        return l[0]
 
     def reset_index(self) -> None:
         self.match_index.clear()
@@ -258,18 +313,22 @@ class FileInfo(RegexpScanner):
     def __repr__(self) -> str:
         return f'<FileInfo {repr(self.filename)}>'
 
+    def filename_matches(self, name: str) -> bool:
+        nameparts = Path(name).parts
+        return self.filename.parts[-len(nameparts):] == nameparts
+
     def line_col(self, start: int) -> LineAndColumn:
         """Return line and column for a match object inside original_content"""
         return line_col(self.original_content, start)
 
-    def _find_matches(self, klass: Type[Any]) -> List[FileMatch]:
+    def _matches_of_type(self, klass: Type[Any]) -> List[FileMatch]:
         """Build FileMatch objects for each match of regexp"""
         if not hasattr(klass, 'regexp') or klass.regexp is None:
             return []
         assert hasattr(klass, 'regexp')
         DBG("%s: scanning for %s", self.filename, klass.__name__)
         DBG("regexp: %s", klass.regexp)
-        matches = [klass(self, m) for m in klass.find_matches(self.original_content)]
+        matches = [klass(self, m) for m in klass.finditer(self.original_content)]
         DBG('%s: %d matches found for %s: %s', self.filename, len(matches),
             klass.__name__,' '.join(names(matches)))
         return matches
@@ -277,7 +336,7 @@ class FileInfo(RegexpScanner):
     def find_match(self, t: Type[T], name: str, group: str='name') -> Optional[T]:
         for m in self.matches_of_type(t):
             assert isinstance(m, FileMatch)
-            if m.group(group) == name:
+            if m.getgroup(group) == name:
                 return m # type: ignore
         return None
 
@@ -299,7 +358,16 @@ class FileInfo(RegexpScanner):
         return (m for l in lists
                   for m in l)
 
-    def scan_for_matches(self, class_names: Optional[List[str]]=None) -> None:
+    def gen_patches(self, matches: List[FileMatch]) -> None:
+        for m in matches:
+            DBG("Generating patches for %r", m)
+            for i,p in enumerate(m.gen_patches()):
+                DBG("patch %d generated by %r:", i, m)
+                DBG("replace contents at %s-%s with %r",
+                    self.line_col(p.start), self.line_col(p.end), p.replacement)
+                self.patches.append(p)
+
+    def scan_for_matches(self, class_names: Optional[List[str]]=None) -> Iterable[FileMatch]:
         DBG("class names: %r", class_names)
         class_dict = match_class_dict()
         if class_names is None:
@@ -309,40 +377,9 @@ class FileInfo(RegexpScanner):
         DBG("class_names: %r", class_names)
         for cn in class_names:
             matches = self.matches_of_type(class_dict[cn])
-            if len(matches) > 0:
-                DBG('%s: %d matches found for %s: %s', self.filename,
-                     len(matches), cn, ' '.join(names(matches)))
-
-    def gen_patches(self) -> None:
-        for m in self.all_matches:
-            for i,p in enumerate(m.gen_patches()):
-                DBG("patch %d generated by %r:", i, m)
-                DBG("replace contents at %s-%s with %r",
-                    self.line_col(p.start), self.line_col(p.end), p.replacement)
-                self.patches.append(p)
-
-    def patch_content(self, max_passes=0, class_names: Optional[List[str]]=None) -> None:
-        """Multi-pass content patching loop
-
-        We run multiple passes because there are rules that will
-        delete init functions once they become empty.
-        """
-        passes = 0
-        total_patches  = 0
-        DBG("max_passes: %r", max_passes)
-        while not max_passes or max_passes <= 0 or passes < max_passes:
-            passes += 1
-            self.scan_for_matches(class_names)
-            self.gen_patches()
-            DBG("patch content: pass %d: %d patches generated", passes, len(self.patches))
-            total_patches += len(self.patches)
-            if not self.patches:
-                break
-            try:
-                self.apply_patches()
-            except PatchingError:
-                logger.exception("%s: failed to patch file", self.filename)
-        DBG("%s: %d patches applied total in %d passes", self.filename, total_patches, passes)
+            DBG('%d matches found for %s: %s',
+                    len(matches), cn, ' '.join(names(matches)))
+            yield from matches
 
     def apply_patches(self) -> None:
         """Replace self.original_content after applying patches from self.patches"""
@@ -384,14 +421,46 @@ class FileList(RegexpScanner):
     def __iter__(self):
         return iter(self.files)
 
-    def _find_matches(self, klass: Type[Any]) -> Iterable[FileMatch]:
-        return chain(*(f._find_matches(klass) for f in self.files))
+    def _matches_of_type(self, klass: Type[Any]) -> Iterable[FileMatch]:
+        return chain(*(f._matches_of_type(klass) for f in self.files))
 
-    def find_file(self, name) -> Optional[FileInfo]:
+    def find_file(self, name: str) -> Optional[FileInfo]:
         """Get file with path ending with @name"""
-        nameparts = Path(name).parts
         for f in self.files:
-            if f.filename.parts[:len(nameparts)] == nameparts:
+            if f.filename_matches(name):
                 return f
         else:
             return None
+
+    def one_pass(self, class_names: List[str]) -> int:
+        total_patches = 0
+        for f in self.files:
+            INFO("Scanning file %s", f.filename)
+            matches = list(f.scan_for_matches(class_names))
+            INFO("Generating patches for file %s", f.filename)
+            f.gen_patches(matches)
+            total_patches += len(f.patches)
+        if total_patches:
+            for f in self.files:
+                try:
+                    f.apply_patches()
+                except PatchingError:
+                    logger.exception("%s: failed to patch file", f.filename)
+        return total_patches
+
+    def patch_content(self, max_passes, class_names: List[str]) -> None:
+        """Multi-pass content patching loop
+
+        We run multiple passes because there are rules that will
+        delete init functions once they become empty.
+        """
+        passes = 0
+        total_patches  = 0
+        DBG("max_passes: %r", max_passes)
+        while not max_passes or max_passes <= 0 or passes < max_passes:
+            passes += 1
+            INFO("Running pass: %d", passes)
+            count = self.one_pass(class_names)
+            DBG("patch content: pass %d: %d patches generated", passes, count)
+            total_patches += count
+        DBG("%d patches applied total in %d passes", total_patches, passes)

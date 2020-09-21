@@ -177,7 +177,7 @@ struct IPMIInterfaceClass {
  */
 #define TYPE_IPMI_BMC "ipmi-bmc"
 OBJECT_DECLARE_TYPE(IPMIBmc, IPMIBmcClass,
-                    ipmi_bmc, IPMI_BMC)
+                    IPMI_BMC)
 
 struct IPMIBmc {
     DeviceState parent;
@@ -264,9 +264,7 @@ int ipmi_bmc_sdr_find(IPMIBmc *b, uint16_t recid,
 void ipmi_bmc_gen_event(IPMIBmc *b, uint8_t *evt, bool log);
 
 #define TYPE_IPMI_BMC_SIMULATOR "ipmi-bmc-sim"
-typedef struct IPMIBmcSim IPMIBmcSim;
-DECLARE_INSTANCE_CHECKER(IPMIBmcSim, IPMI_BMC_SIMULATOR,
-                         TYPE_IPMI_BMC_SIMULATOR)
+OBJECT_DECLARE_SIMPLE_TYPE(IPMIBmcSim, IPMI_BMC_SIMULATOR)
 
 
 typedef struct RspBuffer {

@@ -34,10 +34,8 @@ struct I2CDDCState {
     uint8_t edid_blob[128];
 };
 
-typedef struct I2CDDCState I2CDDCState;
 
 #define TYPE_I2CDDC "i2c-ddc"
-DECLARE_INSTANCE_CHECKER(I2CDDCState, I2CDDC,
-                         TYPE_I2CDDC)
+OBJECT_DECLARE_SIMPLE_TYPE(I2CDDCState, I2CDDC)
 
 #endif /* I2C_DDC_H */

@@ -60,10 +60,7 @@
  * @{
  */
 
-typedef struct AwRtcClass AwRtcClass;
-typedef struct AwRtcState AwRtcState;
-DECLARE_OBJ_CHECKERS(AwRtcState, AwRtcClass,
-                     AW_RTC, TYPE_AW_RTC)
+OBJECT_DECLARE_TYPE(AwRtcState, AwRtcClass, AW_RTC)
 
 /** @} */
 

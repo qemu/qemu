@@ -91,10 +91,8 @@ struct PIIX4PMState {
 
     MemHotplugState acpi_memory_hotplug;
 };
-typedef struct PIIX4PMState PIIX4PMState;
 
-DECLARE_INSTANCE_CHECKER(PIIX4PMState, PIIX4_PM,
-                         TYPE_PIIX4_PM)
+OBJECT_DECLARE_SIMPLE_TYPE(PIIX4PMState, PIIX4_PM)
 
 static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                                            PCIBus *bus, PIIX4PMState *s);

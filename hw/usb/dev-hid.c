@@ -44,11 +44,9 @@ struct USBHIDState {
     char *display;
     uint32_t head;
 };
-typedef struct USBHIDState USBHIDState;
 
 #define TYPE_USB_HID "usb-hid"
-DECLARE_INSTANCE_CHECKER(USBHIDState, USB_HID,
-                         TYPE_USB_HID)
+OBJECT_DECLARE_SIMPLE_TYPE(USBHIDState, USB_HID)
 
 enum {
     STR_MANUFACTURER = 1,

@@ -29,9 +29,7 @@
 #include "qom/object.h"
 
 #define TYPE_PCI_IPMI_BT "pci-ipmi-bt"
-typedef struct PCIIPMIBTDevice PCIIPMIBTDevice;
-DECLARE_INSTANCE_CHECKER(PCIIPMIBTDevice, PCI_IPMI_BT,
-                         TYPE_PCI_IPMI_BT)
+OBJECT_DECLARE_SIMPLE_TYPE(PCIIPMIBTDevice, PCI_IPMI_BT)
 
 struct PCIIPMIBTDevice {
     PCIDevice dev;

@@ -58,9 +58,7 @@ enum {
 };
 
 #define TYPE_MILKYMIST_UART "milkymist-uart"
-typedef struct MilkymistUartState MilkymistUartState;
-DECLARE_INSTANCE_CHECKER(MilkymistUartState, MILKYMIST_UART,
-                         TYPE_MILKYMIST_UART)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistUartState, MILKYMIST_UART)
 
 struct MilkymistUartState {
     SysBusDevice parent_obj;

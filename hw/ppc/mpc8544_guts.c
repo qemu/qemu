@@ -55,9 +55,7 @@
 #define MPC8544_GUTS_ADDR_SRDS2CR3    0xF18
 
 #define TYPE_MPC8544_GUTS "mpc8544-guts"
-typedef struct GutsState GutsState;
-DECLARE_INSTANCE_CHECKER(GutsState, MPC8544_GUTS,
-                         TYPE_MPC8544_GUTS)
+OBJECT_DECLARE_SIMPLE_TYPE(GutsState, MPC8544_GUTS)
 
 struct GutsState {
     /*< private >*/

@@ -52,10 +52,8 @@ struct PIIX4State {
     MemoryRegion rcr_mem;
     uint8_t rcr;
 };
-typedef struct PIIX4State PIIX4State;
 
-DECLARE_INSTANCE_CHECKER(PIIX4State, PIIX4_PCI_DEVICE,
-                         TYPE_PIIX4_PCI_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(PIIX4State, PIIX4_PCI_DEVICE)
 
 static void piix4_isa_reset(DeviceState *dev)
 {

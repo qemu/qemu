@@ -37,11 +37,9 @@ void xen_pt_log(const PCIDevice *d, const char *f, ...) GCC_FMT_ATTR(2, 3);
 typedef const struct XenPTRegInfo XenPTRegInfo;
 typedef struct XenPTReg XenPTReg;
 
-typedef struct XenPCIPassthroughState XenPCIPassthroughState;
 
 #define TYPE_XEN_PT_DEVICE "xen-pci-passthrough"
-DECLARE_INSTANCE_CHECKER(XenPCIPassthroughState, XEN_PT_DEVICE,
-                         TYPE_XEN_PT_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(XenPCIPassthroughState, XEN_PT_DEVICE)
 
 uint32_t igd_read_opregion(XenPCIPassthroughState *s);
 void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val);

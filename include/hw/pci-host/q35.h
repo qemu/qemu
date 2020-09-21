@@ -30,14 +30,10 @@
 #include "qom/object.h"
 
 #define TYPE_Q35_HOST_DEVICE "q35-pcihost"
-typedef struct Q35PCIHost Q35PCIHost;
-DECLARE_INSTANCE_CHECKER(Q35PCIHost, Q35_HOST_DEVICE,
-                         TYPE_Q35_HOST_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(Q35PCIHost, Q35_HOST_DEVICE)
 
 #define TYPE_MCH_PCI_DEVICE "mch"
-typedef struct MCHPCIState MCHPCIState;
-DECLARE_INSTANCE_CHECKER(MCHPCIState, MCH_PCI_DEVICE,
-                         TYPE_MCH_PCI_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(MCHPCIState, MCH_PCI_DEVICE)
 
 struct MCHPCIState {
     /*< private >*/

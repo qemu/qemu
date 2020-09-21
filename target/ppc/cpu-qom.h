@@ -30,7 +30,7 @@
 #endif
 
 OBJECT_DECLARE_TYPE(PowerPCCPU, PowerPCCPUClass,
-                    powerpc_cpu, POWERPC_CPU)
+                    POWERPC_CPU)
 
 typedef struct CPUPPCState CPUPPCState;
 typedef struct ppc_tb_t ppc_tb_t;

@@ -118,7 +118,6 @@ struct SMMUState {
     uint8_t bus_num;
     PCIBus *primary_bus;
 };
-typedef struct SMMUState SMMUState;
 
 struct SMMUBaseClass {
     /* <private> */
@@ -129,11 +128,9 @@ struct SMMUBaseClass {
     DeviceRealize parent_realize;
 
 };
-typedef struct SMMUBaseClass SMMUBaseClass;
 
 #define TYPE_ARM_SMMU "arm-smmu"
-DECLARE_OBJ_CHECKERS(SMMUState, SMMUBaseClass,
-                     ARM_SMMU, TYPE_ARM_SMMU)
+OBJECT_DECLARE_TYPE(SMMUState, SMMUBaseClass, ARM_SMMU)
 
 /* Return the SMMUPciBus handle associated to a PCI bus number */
 SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num);

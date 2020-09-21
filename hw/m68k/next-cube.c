@@ -38,9 +38,7 @@
 #endif
 
 #define TYPE_NEXT_MACHINE MACHINE_TYPE_NAME("next-cube")
-typedef struct NeXTState NeXTState;
-DECLARE_INSTANCE_CHECKER(NeXTState, NEXT_MACHINE,
-                         TYPE_NEXT_MACHINE)
+OBJECT_DECLARE_SIMPLE_TYPE(NeXTState, NEXT_MACHINE)
 
 #define ENTRY       0x0100001e
 #define RAM_SIZE    0x4000000

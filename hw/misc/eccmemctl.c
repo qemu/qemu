@@ -127,9 +127,7 @@
 #define ECC_DIAG_MASK  (ECC_DIAG_SIZE - 1)
 
 #define TYPE_ECC_MEMCTL "eccmemctl"
-typedef struct ECCState ECCState;
-DECLARE_INSTANCE_CHECKER(ECCState, ECC_MEMCTL,
-                         TYPE_ECC_MEMCTL)
+OBJECT_DECLARE_SIMPLE_TYPE(ECCState, ECC_MEMCTL)
 
 struct ECCState {
     SysBusDevice parent_obj;

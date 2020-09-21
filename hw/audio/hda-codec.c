@@ -172,8 +172,7 @@ struct HDAAudioStream {
 };
 
 #define TYPE_HDA_AUDIO "hda-audio"
-DECLARE_INSTANCE_CHECKER(HDAAudioState, HDA_AUDIO,
-                         TYPE_HDA_AUDIO)
+OBJECT_DECLARE_SIMPLE_TYPE(HDAAudioState, HDA_AUDIO)
 
 struct HDAAudioState {
     HDACodecDevice hda;

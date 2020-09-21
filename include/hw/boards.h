@@ -21,8 +21,7 @@
 
 #define TYPE_MACHINE "machine"
 #undef MACHINE  /* BSD defines it and QEMU does not use it */
-DECLARE_OBJ_CHECKERS(MachineState, MachineClass,
-                     MACHINE, TYPE_MACHINE)
+OBJECT_DECLARE_TYPE(MachineState, MachineClass, MACHINE)
 
 extern MachineState *current_machine;
 

@@ -23,9 +23,7 @@
 
 #define TYPE_FILTER_REPLAY "filter-replay"
 
-typedef struct NetFilterReplayState NetFilterReplayState;
-DECLARE_INSTANCE_CHECKER(NetFilterReplayState, FILTER_REPLAY,
-                         TYPE_FILTER_REPLAY)
+OBJECT_DECLARE_SIMPLE_TYPE(NetFilterReplayState, FILTER_REPLAY)
 
 struct NetFilterReplayState {
     NetFilterState nfs;

@@ -29,10 +29,7 @@
 #define TYPE_ASPEED_2400_I2C TYPE_ASPEED_I2C "-ast2400"
 #define TYPE_ASPEED_2500_I2C TYPE_ASPEED_I2C "-ast2500"
 #define TYPE_ASPEED_2600_I2C TYPE_ASPEED_I2C "-ast2600"
-typedef struct AspeedI2CClass AspeedI2CClass;
-typedef struct AspeedI2CState AspeedI2CState;
-DECLARE_OBJ_CHECKERS(AspeedI2CState, AspeedI2CClass,
-                     ASPEED_I2C, TYPE_ASPEED_I2C)
+OBJECT_DECLARE_TYPE(AspeedI2CState, AspeedI2CClass, ASPEED_I2C)
 
 #define ASPEED_I2C_NR_BUSSES 16
 #define ASPEED_I2C_MAX_POOL_SIZE 0x800

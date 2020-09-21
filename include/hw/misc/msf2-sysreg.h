@@ -62,9 +62,7 @@ enum {
 #define MSF2_SYSREG_MMIO_SIZE     0x300
 
 #define TYPE_MSF2_SYSREG          "msf2-sysreg"
-typedef struct MSF2SysregState MSF2SysregState;
-DECLARE_INSTANCE_CHECKER(MSF2SysregState, MSF2_SYSREG,
-                         TYPE_MSF2_SYSREG)
+OBJECT_DECLARE_SIMPLE_TYPE(MSF2SysregState, MSF2_SYSREG)
 
 struct MSF2SysregState {
     SysBusDevice parent_obj;

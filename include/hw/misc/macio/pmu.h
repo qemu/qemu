@@ -178,11 +178,9 @@ struct MOS6522PMUState {
     /*< private >*/
     MOS6522State parent_obj;
 };
-typedef struct MOS6522PMUState MOS6522PMUState;
 
 #define TYPE_MOS6522_PMU "mos6522-pmu"
-DECLARE_INSTANCE_CHECKER(MOS6522PMUState, MOS6522_PMU,
-                         TYPE_MOS6522_PMU)
+OBJECT_DECLARE_SIMPLE_TYPE(MOS6522PMUState, MOS6522_PMU)
 /**
  * PMUState:
  * @last_b: last value of B register
@@ -231,10 +229,8 @@ struct PMUState {
     /* GPIO */
     MacIOGPIOState *gpio;
 };
-typedef struct PMUState PMUState;
 
 #define TYPE_VIA_PMU "via-pmu"
-DECLARE_INSTANCE_CHECKER(PMUState, VIA_PMU,
-                         TYPE_VIA_PMU)
+OBJECT_DECLARE_SIMPLE_TYPE(PMUState, VIA_PMU)
 
 #endif /* PMU_H */

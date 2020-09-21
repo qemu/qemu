@@ -54,25 +54,25 @@ static const struct MemmapEntry {
     hwaddr base;
     hwaddr size;
 } sifive_e_memmap[] = {
-    [SIFIVE_E_DEBUG] =    {        0x0,     0x1000 },
-    [SIFIVE_E_MROM] =     {     0x1000,     0x2000 },
-    [SIFIVE_E_OTP] =      {    0x20000,     0x2000 },
-    [SIFIVE_E_CLINT] =    {  0x2000000,    0x10000 },
-    [SIFIVE_E_PLIC] =     {  0xc000000,  0x4000000 },
-    [SIFIVE_E_AON] =      { 0x10000000,     0x8000 },
-    [SIFIVE_E_PRCI] =     { 0x10008000,     0x8000 },
-    [SIFIVE_E_OTP_CTRL] = { 0x10010000,     0x1000 },
-    [SIFIVE_E_GPIO0] =    { 0x10012000,     0x1000 },
-    [SIFIVE_E_UART0] =    { 0x10013000,     0x1000 },
-    [SIFIVE_E_QSPI0] =    { 0x10014000,     0x1000 },
-    [SIFIVE_E_PWM0] =     { 0x10015000,     0x1000 },
-    [SIFIVE_E_UART1] =    { 0x10023000,     0x1000 },
-    [SIFIVE_E_QSPI1] =    { 0x10024000,     0x1000 },
-    [SIFIVE_E_PWM1] =     { 0x10025000,     0x1000 },
-    [SIFIVE_E_QSPI2] =    { 0x10034000,     0x1000 },
-    [SIFIVE_E_PWM2] =     { 0x10035000,     0x1000 },
-    [SIFIVE_E_XIP] =      { 0x20000000, 0x20000000 },
-    [SIFIVE_E_DTIM] =     { 0x80000000,     0x4000 }
+    [SIFIVE_E_DEV_DEBUG] =    {        0x0,     0x1000 },
+    [SIFIVE_E_DEV_MROM] =     {     0x1000,     0x2000 },
+    [SIFIVE_E_DEV_OTP] =      {    0x20000,     0x2000 },
+    [SIFIVE_E_DEV_CLINT] =    {  0x2000000,    0x10000 },
+    [SIFIVE_E_DEV_PLIC] =     {  0xc000000,  0x4000000 },
+    [SIFIVE_E_DEV_AON] =      { 0x10000000,     0x8000 },
+    [SIFIVE_E_DEV_PRCI] =     { 0x10008000,     0x8000 },
+    [SIFIVE_E_DEV_OTP_CTRL] = { 0x10010000,     0x1000 },
+    [SIFIVE_E_DEV_GPIO0] =    { 0x10012000,     0x1000 },
+    [SIFIVE_E_DEV_UART0] =    { 0x10013000,     0x1000 },
+    [SIFIVE_E_DEV_QSPI0] =    { 0x10014000,     0x1000 },
+    [SIFIVE_E_DEV_PWM0] =     { 0x10015000,     0x1000 },
+    [SIFIVE_E_DEV_UART1] =    { 0x10023000,     0x1000 },
+    [SIFIVE_E_DEV_QSPI1] =    { 0x10024000,     0x1000 },
+    [SIFIVE_E_DEV_PWM1] =     { 0x10025000,     0x1000 },
+    [SIFIVE_E_DEV_QSPI2] =    { 0x10034000,     0x1000 },
+    [SIFIVE_E_DEV_PWM2] =     { 0x10035000,     0x1000 },
+    [SIFIVE_E_DEV_XIP] =      { 0x20000000, 0x20000000 },
+    [SIFIVE_E_DEV_DTIM] =     { 0x80000000,     0x4000 }
 };
 
 static void sifive_e_machine_init(MachineState *machine)
@@ -90,9 +90,9 @@ static void sifive_e_machine_init(MachineState *machine)
 
     /* Data Tightly Integrated Memory */
     memory_region_init_ram(main_mem, NULL, "riscv.sifive.e.ram",
-        memmap[SIFIVE_E_DTIM].size, &error_fatal);
+        memmap[SIFIVE_E_DEV_DTIM].size, &error_fatal);
     memory_region_add_subregion(sys_mem,
-        memmap[SIFIVE_E_DTIM].base, main_mem);
+        memmap[SIFIVE_E_DEV_DTIM].base, main_mem);
 
     /* Mask ROM reset vector */
     uint32_t reset_vec[4];
@@ -111,7 +111,7 @@ static void sifive_e_machine_init(MachineState *machine)
         reset_vec[i] = cpu_to_le32(reset_vec[i]);
     }
     rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
-                          memmap[SIFIVE_E_MROM].base, &address_space_memory);
+                          memmap[SIFIVE_E_DEV_MROM].base, &address_space_memory);
 
     if (machine->kernel_filename) {
         riscv_load_kernel(machine->kernel_filename, NULL);
@@ -195,12 +195,12 @@ static void sifive_e_soc_realize(DeviceState *dev, Error **errp)
 
     /* Mask ROM */
     memory_region_init_rom(&s->mask_rom, OBJECT(dev), "riscv.sifive.e.mrom",
-                           memmap[SIFIVE_E_MROM].size, &error_fatal);
+                           memmap[SIFIVE_E_DEV_MROM].size, &error_fatal);
     memory_region_add_subregion(sys_mem,
-        memmap[SIFIVE_E_MROM].base, &s->mask_rom);
+        memmap[SIFIVE_E_DEV_MROM].base, &s->mask_rom);
 
     /* MMIO */
-    s->plic = sifive_plic_create(memmap[SIFIVE_E_PLIC].base,
+    s->plic = sifive_plic_create(memmap[SIFIVE_E_DEV_PLIC].base,
         (char *)SIFIVE_E_PLIC_HART_CONFIG, 0,
         SIFIVE_E_PLIC_NUM_SOURCES,
         SIFIVE_E_PLIC_NUM_PRIORITIES,
@@ -210,14 +210,14 @@ static void sifive_e_soc_realize(DeviceState *dev, Error **errp)
         SIFIVE_E_PLIC_ENABLE_STRIDE,
         SIFIVE_E_PLIC_CONTEXT_BASE,
         SIFIVE_E_PLIC_CONTEXT_STRIDE,
-        memmap[SIFIVE_E_PLIC].size);
-    sifive_clint_create(memmap[SIFIVE_E_CLINT].base,
-        memmap[SIFIVE_E_CLINT].size, 0, ms->smp.cpus,
+        memmap[SIFIVE_E_DEV_PLIC].size);
+    sifive_clint_create(memmap[SIFIVE_E_DEV_CLINT].base,
+        memmap[SIFIVE_E_DEV_CLINT].size, 0, ms->smp.cpus,
         SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE,
         SIFIVE_CLINT_TIMEBASE_FREQ, false);
     create_unimplemented_device("riscv.sifive.e.aon",
-        memmap[SIFIVE_E_AON].base, memmap[SIFIVE_E_AON].size);
-    sifive_e_prci_create(memmap[SIFIVE_E_PRCI].base);
+        memmap[SIFIVE_E_DEV_AON].base, memmap[SIFIVE_E_DEV_AON].size);
+    sifive_e_prci_create(memmap[SIFIVE_E_DEV_PRCI].base);
 
     /* GPIO */
 
@@ -226,7 +226,7 @@ static void sifive_e_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* Map GPIO registers */
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, memmap[SIFIVE_E_GPIO0].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, memmap[SIFIVE_E_DEV_GPIO0].base);
 
     /* Pass all GPIOs to the SOC layer so they are available to the board */
     qdev_pass_gpios(DEVICE(&s->gpio), dev, NULL);
@@ -238,27 +238,27 @@ static void sifive_e_soc_realize(DeviceState *dev, Error **errp)
                                             SIFIVE_E_GPIO0_IRQ0 + i));
     }
 
-    sifive_uart_create(sys_mem, memmap[SIFIVE_E_UART0].base,
+    sifive_uart_create(sys_mem, memmap[SIFIVE_E_DEV_UART0].base,
         serial_hd(0), qdev_get_gpio_in(DEVICE(s->plic), SIFIVE_E_UART0_IRQ));
     create_unimplemented_device("riscv.sifive.e.qspi0",
-        memmap[SIFIVE_E_QSPI0].base, memmap[SIFIVE_E_QSPI0].size);
+        memmap[SIFIVE_E_DEV_QSPI0].base, memmap[SIFIVE_E_DEV_QSPI0].size);
     create_unimplemented_device("riscv.sifive.e.pwm0",
-        memmap[SIFIVE_E_PWM0].base, memmap[SIFIVE_E_PWM0].size);
-    sifive_uart_create(sys_mem, memmap[SIFIVE_E_UART1].base,
+        memmap[SIFIVE_E_DEV_PWM0].base, memmap[SIFIVE_E_DEV_PWM0].size);
+    sifive_uart_create(sys_mem, memmap[SIFIVE_E_DEV_UART1].base,
         serial_hd(1), qdev_get_gpio_in(DEVICE(s->plic), SIFIVE_E_UART1_IRQ));
     create_unimplemented_device("riscv.sifive.e.qspi1",
-        memmap[SIFIVE_E_QSPI1].base, memmap[SIFIVE_E_QSPI1].size);
+        memmap[SIFIVE_E_DEV_QSPI1].base, memmap[SIFIVE_E_DEV_QSPI1].size);
     create_unimplemented_device("riscv.sifive.e.pwm1",
-        memmap[SIFIVE_E_PWM1].base, memmap[SIFIVE_E_PWM1].size);
+        memmap[SIFIVE_E_DEV_PWM1].base, memmap[SIFIVE_E_DEV_PWM1].size);
     create_unimplemented_device("riscv.sifive.e.qspi2",
-        memmap[SIFIVE_E_QSPI2].base, memmap[SIFIVE_E_QSPI2].size);
+        memmap[SIFIVE_E_DEV_QSPI2].base, memmap[SIFIVE_E_DEV_QSPI2].size);
     create_unimplemented_device("riscv.sifive.e.pwm2",
-        memmap[SIFIVE_E_PWM2].base, memmap[SIFIVE_E_PWM2].size);
+        memmap[SIFIVE_E_DEV_PWM2].base, memmap[SIFIVE_E_DEV_PWM2].size);
 
     /* Flash memory */
     memory_region_init_rom(&s->xip_mem, OBJECT(dev), "riscv.sifive.e.xip",
-                           memmap[SIFIVE_E_XIP].size, &error_fatal);
-    memory_region_add_subregion(sys_mem, memmap[SIFIVE_E_XIP].base,
+                           memmap[SIFIVE_E_DEV_XIP].size, &error_fatal);
+    memory_region_add_subregion(sys_mem, memmap[SIFIVE_E_DEV_XIP].base,
         &s->xip_mem);
 }
 

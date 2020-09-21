@@ -30,9 +30,7 @@
 #define PCI_DEVICE_ID_ATI_RADEON_QY 0x5159
 
 #define TYPE_ATI_VGA "ati-vga"
-typedef struct ATIVGAState ATIVGAState;
-DECLARE_INSTANCE_CHECKER(ATIVGAState, ATI_VGA,
-                         TYPE_ATI_VGA)
+OBJECT_DECLARE_SIMPLE_TYPE(ATIVGAState, ATI_VGA)
 
 typedef struct ATIVGARegs {
     uint32_t mm_index;

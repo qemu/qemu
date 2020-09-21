@@ -17,9 +17,7 @@
 #include "qom/object.h"
 
 #define TYPE_ASPEED_VIC "aspeed.vic"
-typedef struct AspeedVICState AspeedVICState;
-DECLARE_INSTANCE_CHECKER(AspeedVICState, ASPEED_VIC,
-                         TYPE_ASPEED_VIC)
+OBJECT_DECLARE_SIMPLE_TYPE(AspeedVICState, ASPEED_VIC)
 
 #define ASPEED_VIC_NR_IRQS 51
 

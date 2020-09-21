@@ -27,8 +27,8 @@
 
 #define TYPE_QAUTHZ_LIST "authz-list"
 
-OBJECT_DECLARE_SIMPLE_TYPE(QAuthZList, qauthz_list,
-                           QAUTHZ_LIST, QAuthZClass)
+OBJECT_DECLARE_SIMPLE_TYPE(QAuthZList,
+                           QAUTHZ_LIST)
 
 
 

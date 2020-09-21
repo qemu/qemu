@@ -267,7 +267,6 @@ static const TypeInfo qio_dns_resolver_info = {
     .parent = TYPE_OBJECT,
     .name = TYPE_QIO_DNS_RESOLVER,
     .instance_size = sizeof(QIODNSResolver),
-    .class_size = sizeof(QIODNSResolverClass),
 };
 
 

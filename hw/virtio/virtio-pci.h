@@ -19,7 +19,6 @@
 #include "hw/virtio/virtio-bus.h"
 #include "qom/object.h"
 
-typedef struct VirtIOPCIProxy VirtIOPCIProxy;
 
 /* virtio-pci-bus */
 
@@ -91,9 +90,7 @@ typedef struct {
  * virtio-pci: This is the PCIDevice which has a virtio-pci-bus.
  */
 #define TYPE_VIRTIO_PCI "virtio-pci"
-typedef struct VirtioPCIClass VirtioPCIClass;
-DECLARE_OBJ_CHECKERS(VirtIOPCIProxy, VirtioPCIClass,
-                     VIRTIO_PCI, TYPE_VIRTIO_PCI)
+OBJECT_DECLARE_TYPE(VirtIOPCIProxy, VirtioPCIClass, VIRTIO_PCI)
 
 struct VirtioPCIClass {
     PCIDeviceClass parent_class;

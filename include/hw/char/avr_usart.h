@@ -58,9 +58,7 @@
 #define USART_CSRC_CSZ0   (1 << 1)
 
 #define TYPE_AVR_USART "avr-usart"
-typedef struct AVRUsartState AVRUsartState;
-DECLARE_INSTANCE_CHECKER(AVRUsartState, AVR_USART,
-                         TYPE_AVR_USART)
+OBJECT_DECLARE_SIMPLE_TYPE(AVRUsartState, AVR_USART)
 
 struct AVRUsartState {
     /* <private> */

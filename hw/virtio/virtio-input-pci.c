@@ -14,14 +14,11 @@
 #include "qemu/module.h"
 #include "qom/object.h"
 
-typedef struct VirtIOInputPCI VirtIOInputPCI;
-typedef struct VirtIOInputHIDPCI VirtIOInputHIDPCI;
 
 /*
  * virtio-input-pci: This extends VirtioPCIProxy.
  */
-DECLARE_INSTANCE_CHECKER(VirtIOInputPCI, VIRTIO_INPUT_PCI,
-                         TYPE_VIRTIO_INPUT_PCI)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOInputPCI, VIRTIO_INPUT_PCI)
 
 struct VirtIOInputPCI {
     VirtIOPCIProxy parent_obj;
@@ -32,8 +29,7 @@ struct VirtIOInputPCI {
 #define TYPE_VIRTIO_KEYBOARD_PCI  "virtio-keyboard-pci"
 #define TYPE_VIRTIO_MOUSE_PCI     "virtio-mouse-pci"
 #define TYPE_VIRTIO_TABLET_PCI    "virtio-tablet-pci"
-DECLARE_INSTANCE_CHECKER(VirtIOInputHIDPCI, VIRTIO_INPUT_HID_PCI,
-                         TYPE_VIRTIO_INPUT_HID_PCI)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOInputHIDPCI, VIRTIO_INPUT_HID_PCI)
 
 struct VirtIOInputHIDPCI {
     VirtIOPCIProxy parent_obj;

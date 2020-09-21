@@ -50,7 +50,6 @@ struct MicrovmMachineClass {
     HotplugHandler *(*orig_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
 };
-typedef struct MicrovmMachineClass MicrovmMachineClass;
 
 struct MicrovmMachineState {
     X86MachineState parent;
@@ -69,10 +68,8 @@ struct MicrovmMachineState {
     Notifier machine_done;
     Notifier powerdown_req;
 };
-typedef struct MicrovmMachineState MicrovmMachineState;
 
 #define TYPE_MICROVM_MACHINE   MACHINE_TYPE_NAME("microvm")
-DECLARE_OBJ_CHECKERS(MicrovmMachineState, MicrovmMachineClass,
-                     MICROVM_MACHINE, TYPE_MICROVM_MACHINE)
+OBJECT_DECLARE_TYPE(MicrovmMachineState, MicrovmMachineClass, MICROVM_MACHINE)
 
 #endif

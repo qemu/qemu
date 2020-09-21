@@ -20,9 +20,7 @@
 #include "qemu/log.h"
 
 #define TYPE_PUV3_INTC "puv3_intc"
-typedef struct PUV3INTCState PUV3INTCState;
-DECLARE_INSTANCE_CHECKER(PUV3INTCState, PUV3_INTC,
-                         TYPE_PUV3_INTC)
+OBJECT_DECLARE_SIMPLE_TYPE(PUV3INTCState, PUV3_INTC)
 
 struct PUV3INTCState {
     SysBusDevice parent_obj;

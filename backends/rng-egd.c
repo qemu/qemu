@@ -19,9 +19,7 @@
 #include "qom/object.h"
 
 #define TYPE_RNG_EGD "rng-egd"
-typedef struct RngEgd RngEgd;
-DECLARE_INSTANCE_CHECKER(RngEgd, RNG_EGD,
-                         TYPE_RNG_EGD)
+OBJECT_DECLARE_SIMPLE_TYPE(RngEgd, RNG_EGD)
 
 struct RngEgd {
     RngBackend parent;

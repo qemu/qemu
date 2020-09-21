@@ -16,10 +16,8 @@ struct IMXGPCv2State {
     MemoryRegion iomem;
     uint32_t     regs[GPC_NUM];
 };
-typedef struct IMXGPCv2State IMXGPCv2State;
 
 #define TYPE_IMX_GPCV2 "imx-gpcv2"
-DECLARE_INSTANCE_CHECKER(IMXGPCv2State, IMX_GPCV2,
-                         TYPE_IMX_GPCV2)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXGPCv2State, IMX_GPCV2)
 
 #endif /* IMX_GPCV2_H */

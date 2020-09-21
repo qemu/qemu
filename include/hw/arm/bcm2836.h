@@ -18,10 +18,7 @@
 #include "qom/object.h"
 
 #define TYPE_BCM283X "bcm283x"
-typedef struct BCM283XClass BCM283XClass;
-typedef struct BCM283XState BCM283XState;
-DECLARE_OBJ_CHECKERS(BCM283XState, BCM283XClass,
-                     BCM283X, TYPE_BCM283X)
+OBJECT_DECLARE_TYPE(BCM283XState, BCM283XClass, BCM283X)
 
 #define BCM283X_NCPUS 4
 

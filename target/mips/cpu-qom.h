@@ -30,7 +30,7 @@
 #endif
 
 OBJECT_DECLARE_TYPE(MIPSCPU, MIPSCPUClass,
-                    mips_cpu, MIPS_CPU)
+                    MIPS_CPU)
 
 /**
  * MIPSCPUClass:

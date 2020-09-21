@@ -82,12 +82,9 @@
 
 #define IOAPIC_VER_ENTRIES_SHIFT        16
 
-typedef struct IOAPICCommonState IOAPICCommonState;
 
 #define TYPE_IOAPIC_COMMON "ioapic-common"
-typedef struct IOAPICCommonClass IOAPICCommonClass;
-DECLARE_OBJ_CHECKERS(IOAPICCommonState, IOAPICCommonClass,
-                     IOAPIC_COMMON, TYPE_IOAPIC_COMMON)
+OBJECT_DECLARE_TYPE(IOAPICCommonState, IOAPICCommonClass, IOAPIC_COMMON)
 
 struct IOAPICCommonClass {
     SysBusDeviceClass parent_class;

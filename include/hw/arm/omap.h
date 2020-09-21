@@ -94,9 +94,7 @@ void omap_intc_set_fclk(omap_intr_handler *intc, omap_clk clk);
 
 /* omap_i2c.c */
 #define TYPE_OMAP_I2C "omap_i2c"
-typedef struct OMAPI2CState OMAPI2CState;
-DECLARE_INSTANCE_CHECKER(OMAPI2CState, OMAP_I2C,
-                         TYPE_OMAP_I2C)
+OBJECT_DECLARE_SIMPLE_TYPE(OMAPI2CState, OMAP_I2C)
 
 
 /* TODO: clock framework (see above) */

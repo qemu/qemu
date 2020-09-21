@@ -29,9 +29,7 @@
 /* Define the PMU device */
 
 #define TYPE_XLNX_ZYNQMP_PMU_SOC "xlnx,zynqmp-pmu-soc"
-typedef struct XlnxZynqMPPMUSoCState XlnxZynqMPPMUSoCState;
-DECLARE_INSTANCE_CHECKER(XlnxZynqMPPMUSoCState, XLNX_ZYNQMP_PMU_SOC,
-                         TYPE_XLNX_ZYNQMP_PMU_SOC)
+OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPPMUSoCState, XLNX_ZYNQMP_PMU_SOC)
 
 #define XLNX_ZYNQMP_PMU_ROM_SIZE    0x8000
 #define XLNX_ZYNQMP_PMU_ROM_ADDR    0xFFD00000

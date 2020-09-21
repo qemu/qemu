@@ -55,11 +55,9 @@ struct BochsDisplayState {
     /* device state */
     BochsDisplayMode mode;
 };
-typedef struct BochsDisplayState BochsDisplayState;
 
 #define TYPE_BOCHS_DISPLAY "bochs-display"
-DECLARE_INSTANCE_CHECKER(BochsDisplayState, BOCHS_DISPLAY,
-                         TYPE_BOCHS_DISPLAY)
+OBJECT_DECLARE_SIMPLE_TYPE(BochsDisplayState, BOCHS_DISPLAY)
 
 static const VMStateDescription vmstate_bochs_display = {
     .name = "bochs-display",

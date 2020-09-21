@@ -15,10 +15,7 @@
 #include "qom/object.h"
 
 #define TYPE_ASPEED_WDT "aspeed.wdt"
-typedef struct AspeedWDTClass AspeedWDTClass;
-typedef struct AspeedWDTState AspeedWDTState;
-DECLARE_OBJ_CHECKERS(AspeedWDTState, AspeedWDTClass,
-                     ASPEED_WDT, TYPE_ASPEED_WDT)
+OBJECT_DECLARE_TYPE(AspeedWDTState, AspeedWDTClass, ASPEED_WDT)
 #define TYPE_ASPEED_2400_WDT TYPE_ASPEED_WDT "-ast2400"
 #define TYPE_ASPEED_2500_WDT TYPE_ASPEED_WDT "-ast2500"
 #define TYPE_ASPEED_2600_WDT TYPE_ASPEED_WDT "-ast2600"

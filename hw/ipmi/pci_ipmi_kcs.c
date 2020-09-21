@@ -29,9 +29,7 @@
 #include "qom/object.h"
 
 #define TYPE_PCI_IPMI_KCS "pci-ipmi-kcs"
-typedef struct PCIIPMIKCSDevice PCIIPMIKCSDevice;
-DECLARE_INSTANCE_CHECKER(PCIIPMIKCSDevice, PCI_IPMI_KCS,
-                         TYPE_PCI_IPMI_KCS)
+OBJECT_DECLARE_SIMPLE_TYPE(PCIIPMIKCSDevice, PCI_IPMI_KCS)
 
 struct PCIIPMIKCSDevice {
     PCIDevice dev;

@@ -18,7 +18,7 @@
 
 #define TYPE_RNG_BACKEND "rng-backend"
 OBJECT_DECLARE_TYPE(RngBackend, RngBackendClass,
-                    rng_backend, RNG_BACKEND)
+                    RNG_BACKEND)
 
 #define TYPE_RNG_BUILTIN "rng-builtin"
 

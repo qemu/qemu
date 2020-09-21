@@ -18,9 +18,7 @@
 #include "qom/object.h"
 
 #define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
-typedef struct A9MPPrivState A9MPPrivState;
-DECLARE_INSTANCE_CHECKER(A9MPPrivState, A9MPCORE_PRIV,
-                         TYPE_A9MPCORE_PRIV)
+OBJECT_DECLARE_SIMPLE_TYPE(A9MPPrivState, A9MPCORE_PRIV)
 
 struct A9MPPrivState {
     /*< private >*/

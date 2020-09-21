@@ -38,7 +38,6 @@ struct CCWDeviceClass {
     void (*realize)(CcwDevice *, Error **);
     void (*refill_ids)(CcwDevice *);
 };
-typedef struct CCWDeviceClass CCWDeviceClass;
 
 static inline CcwDevice *to_ccw_dev_fast(DeviceState *d)
 {
@@ -47,7 +46,6 @@ static inline CcwDevice *to_ccw_dev_fast(DeviceState *d)
 
 #define TYPE_CCW_DEVICE "ccw-device"
 
-DECLARE_OBJ_CHECKERS(CcwDevice, CCWDeviceClass,
-                     CCW_DEVICE, TYPE_CCW_DEVICE)
+OBJECT_DECLARE_TYPE(CcwDevice, CCWDeviceClass, CCW_DEVICE)
 
 #endif

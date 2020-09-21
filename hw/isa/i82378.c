@@ -27,9 +27,7 @@
 #include "qom/object.h"
 
 #define TYPE_I82378 "i82378"
-typedef struct I82378State I82378State;
-DECLARE_INSTANCE_CHECKER(I82378State, I82378,
-                         TYPE_I82378)
+OBJECT_DECLARE_SIMPLE_TYPE(I82378State, I82378)
 
 struct I82378State {
     PCIDevice parent_obj;

@@ -27,7 +27,7 @@
 
 #define TYPE_QIO_CHANNEL "qio-channel"
 OBJECT_DECLARE_TYPE(QIOChannel, QIOChannelClass,
-                    qio_channel, QIO_CHANNEL)
+                    QIO_CHANNEL)
 
 
 #define QIO_CHANNEL_ERR_BLOCK -2

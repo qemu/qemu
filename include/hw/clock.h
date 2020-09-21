@@ -18,9 +18,7 @@
 #include "qemu/queue.h"
 
 #define TYPE_CLOCK "clock"
-typedef struct Clock Clock;
-DECLARE_INSTANCE_CHECKER(Clock, CLOCK,
-                         TYPE_CLOCK)
+OBJECT_DECLARE_SIMPLE_TYPE(Clock, CLOCK)
 
 typedef void ClockCallback(void *opaque);
 

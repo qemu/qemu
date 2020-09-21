@@ -85,9 +85,7 @@
 #define     RTC_BASE_FREQ       32768
 
 #define TYPE_EXYNOS4210_RTC "exynos4210.rtc"
-typedef struct Exynos4210RTCState Exynos4210RTCState;
-DECLARE_INSTANCE_CHECKER(Exynos4210RTCState, EXYNOS4210_RTC,
-                         TYPE_EXYNOS4210_RTC)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210RTCState, EXYNOS4210_RTC)
 
 struct Exynos4210RTCState {
     SysBusDevice parent_obj;

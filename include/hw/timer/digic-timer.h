@@ -23,9 +23,7 @@
 #include "qom/object.h"
 
 #define TYPE_DIGIC_TIMER "digic-timer"
-typedef struct DigicTimerState DigicTimerState;
-DECLARE_INSTANCE_CHECKER(DigicTimerState, DIGIC_TIMER,
-                         TYPE_DIGIC_TIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(DigicTimerState, DIGIC_TIMER)
 
 #define DIGIC_TIMER_CONTROL 0x00
 #define DIGIC_TIMER_CONTROL_RST 0x80000000

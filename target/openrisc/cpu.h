@@ -30,7 +30,7 @@ struct OpenRISCCPU;
 #define TYPE_OPENRISC_CPU "or1k-cpu"
 
 OBJECT_DECLARE_TYPE(OpenRISCCPU, OpenRISCCPUClass,
-                    openrisc_cpu, OPENRISC_CPU)
+                    OPENRISC_CPU)
 
 /**
  * OpenRISCCPUClass:

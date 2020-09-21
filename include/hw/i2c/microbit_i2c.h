@@ -27,9 +27,7 @@
 #define NRF51_TWI_REG_ADDRESS 0x588
 
 #define TYPE_MICROBIT_I2C "microbit.i2c"
-typedef struct MicrobitI2CState MicrobitI2CState;
-DECLARE_INSTANCE_CHECKER(MicrobitI2CState, MICROBIT_I2C,
-                         TYPE_MICROBIT_I2C)
+OBJECT_DECLARE_SIMPLE_TYPE(MicrobitI2CState, MICROBIT_I2C)
 
 #define MICROBIT_I2C_NREGS (NRF51_PERIPHERAL_SIZE / sizeof(uint32_t))
 

@@ -39,9 +39,7 @@
 
 #define GCR_RESET        0x80000000
 
-typedef struct KVMOpenPICState KVMOpenPICState;
-DECLARE_INSTANCE_CHECKER(KVMOpenPICState, KVM_OPENPIC,
-                         TYPE_KVM_OPENPIC)
+OBJECT_DECLARE_SIMPLE_TYPE(KVMOpenPICState, KVM_OPENPIC)
 
 struct KVMOpenPICState {
     /*< private >*/

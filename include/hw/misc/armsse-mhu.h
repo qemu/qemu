@@ -27,9 +27,7 @@
 #include "qom/object.h"
 
 #define TYPE_ARMSSE_MHU "armsse-mhu"
-typedef struct ARMSSEMHU ARMSSEMHU;
-DECLARE_INSTANCE_CHECKER(ARMSSEMHU, ARMSSE_MHU,
-                         TYPE_ARMSSE_MHU)
+OBJECT_DECLARE_SIMPLE_TYPE(ARMSSEMHU, ARMSSE_MHU)
 
 struct ARMSSEMHU {
     /*< private >*/

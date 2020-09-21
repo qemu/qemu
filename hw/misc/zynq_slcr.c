@@ -183,9 +183,7 @@ REG32(DDRIOB, 0xb40)
 #define ZYNQ_SLCR_NUM_REGS      (ZYNQ_SLCR_MMIO_SIZE / 4)
 
 #define TYPE_ZYNQ_SLCR "xilinx,zynq_slcr"
-typedef struct ZynqSLCRState ZynqSLCRState;
-DECLARE_INSTANCE_CHECKER(ZynqSLCRState, ZYNQ_SLCR,
-                         TYPE_ZYNQ_SLCR)
+OBJECT_DECLARE_SIMPLE_TYPE(ZynqSLCRState, ZYNQ_SLCR)
 
 struct ZynqSLCRState {
     SysBusDevice parent_obj;

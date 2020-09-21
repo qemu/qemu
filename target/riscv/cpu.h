@@ -234,7 +234,7 @@ struct CPURISCVState {
 };
 
 OBJECT_DECLARE_TYPE(RISCVCPU, RISCVCPUClass,
-                    riscv_cpu, RISCV_CPU)
+                    RISCV_CPU)
 
 /**
  * RISCVCPUClass:

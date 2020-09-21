@@ -60,9 +60,7 @@ typedef struct ThrottleGroupMember {
 } ThrottleGroupMember;
 
 #define TYPE_THROTTLE_GROUP "throttle-group"
-typedef struct ThrottleGroup ThrottleGroup;
-DECLARE_INSTANCE_CHECKER(ThrottleGroup, THROTTLE_GROUP,
-                         TYPE_THROTTLE_GROUP)
+OBJECT_DECLARE_SIMPLE_TYPE(ThrottleGroup, THROTTLE_GROUP)
 
 const char *throttle_group_get_name(ThrottleGroupMember *tgm);
 

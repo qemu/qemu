@@ -40,10 +40,8 @@ struct GenericLoaderState {
     bool data_be;
     bool set_pc;
 };
-typedef struct GenericLoaderState GenericLoaderState;
 
 #define TYPE_GENERIC_LOADER "loader"
-DECLARE_INSTANCE_CHECKER(GenericLoaderState, GENERIC_LOADER,
-                         TYPE_GENERIC_LOADER)
+OBJECT_DECLARE_SIMPLE_TYPE(GenericLoaderState, GENERIC_LOADER)
 
 #endif

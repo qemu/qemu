@@ -17,9 +17,7 @@
 #include "qom/object.h"
 
 #define TYPE_BCM2835_FB "bcm2835-fb"
-typedef struct BCM2835FBState BCM2835FBState;
-DECLARE_INSTANCE_CHECKER(BCM2835FBState, BCM2835_FB,
-                         TYPE_BCM2835_FB)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835FBState, BCM2835_FB)
 
 /*
  * Configuration information about the fb which the guest can program

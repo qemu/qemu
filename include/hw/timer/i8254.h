@@ -40,10 +40,7 @@ typedef struct PITChannelInfo {
 } PITChannelInfo;
 
 #define TYPE_PIT_COMMON "pit-common"
-typedef struct PITCommonState PITCommonState;
-typedef struct PITCommonClass PITCommonClass;
-DECLARE_OBJ_CHECKERS(PITCommonState, PITCommonClass,
-                     PIT_COMMON, TYPE_PIT_COMMON)
+OBJECT_DECLARE_TYPE(PITCommonState, PITCommonClass, PIT_COMMON)
 
 #define TYPE_I8254 "isa-pit"
 #define TYPE_KVM_I8254 "kvm-pit"

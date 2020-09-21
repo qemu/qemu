@@ -17,9 +17,7 @@
 #include "qom/object.h"
 
 #define TYPE_PL050 "pl050"
-typedef struct PL050State PL050State;
-DECLARE_INSTANCE_CHECKER(PL050State, PL050,
-                         TYPE_PL050)
+OBJECT_DECLARE_SIMPLE_TYPE(PL050State, PL050)
 
 struct PL050State {
     SysBusDevice parent_obj;

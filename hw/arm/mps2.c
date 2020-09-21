@@ -63,7 +63,6 @@ struct MPS2MachineClass {
     hwaddr ethernet_base;
     hwaddr psram_base;
 };
-typedef struct MPS2MachineClass MPS2MachineClass;
 
 struct MPS2MachineState {
     MachineState parent;
@@ -85,7 +84,6 @@ struct MPS2MachineState {
     CMSDKAPBDualTimer dualtimer;
     CMSDKAPBWatchdog watchdog;
 };
-typedef struct MPS2MachineState MPS2MachineState;
 
 #define TYPE_MPS2_MACHINE "mps2"
 #define TYPE_MPS2_AN385_MACHINE MACHINE_TYPE_NAME("mps2-an385")
@@ -93,8 +91,7 @@ typedef struct MPS2MachineState MPS2MachineState;
 #define TYPE_MPS2_AN500_MACHINE MACHINE_TYPE_NAME("mps2-an500")
 #define TYPE_MPS2_AN511_MACHINE MACHINE_TYPE_NAME("mps2-an511")
 
-DECLARE_OBJ_CHECKERS(MPS2MachineState, MPS2MachineClass,
-                     MPS2_MACHINE, TYPE_MPS2_MACHINE)
+OBJECT_DECLARE_TYPE(MPS2MachineState, MPS2MachineClass, MPS2_MACHINE)
 
 /* Main SYSCLK frequency in Hz */
 #define SYSCLK_FRQ 25000000

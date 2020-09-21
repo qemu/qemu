@@ -28,9 +28,7 @@
 #include "qom/object.h"
 
 #define TYPE_ALTERA_IIC "altera,iic"
-typedef struct AlteraIIC AlteraIIC;
-DECLARE_INSTANCE_CHECKER(AlteraIIC, ALTERA_IIC,
-                         TYPE_ALTERA_IIC)
+OBJECT_DECLARE_SIMPLE_TYPE(AlteraIIC, ALTERA_IIC)
 
 struct AlteraIIC {
     SysBusDevice  parent_obj;

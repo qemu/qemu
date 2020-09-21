@@ -324,9 +324,7 @@ static void mdio_cycle(struct qemu_mdio *bus)
 #define FS_ETH_MAX_REGS      0x17
 
 #define TYPE_ETRAX_FS_ETH "etraxfs-eth"
-typedef struct ETRAXFSEthState ETRAXFSEthState;
-DECLARE_INSTANCE_CHECKER(ETRAXFSEthState, ETRAX_FS_ETH,
-                         TYPE_ETRAX_FS_ETH)
+OBJECT_DECLARE_SIMPLE_TYPE(ETRAXFSEthState, ETRAX_FS_ETH)
 
 struct ETRAXFSEthState {
     SysBusDevice parent_obj;

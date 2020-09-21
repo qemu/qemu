@@ -487,9 +487,7 @@ static void g364fb_init(DeviceState *dev, G364State *s)
 }
 
 #define TYPE_G364 "sysbus-g364"
-typedef struct G364SysBusState G364SysBusState;
-DECLARE_INSTANCE_CHECKER(G364SysBusState, G364,
-                         TYPE_G364)
+OBJECT_DECLARE_SIMPLE_TYPE(G364SysBusState, G364)
 
 struct G364SysBusState {
     SysBusDevice parent_obj;

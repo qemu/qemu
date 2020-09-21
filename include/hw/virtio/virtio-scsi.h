@@ -26,14 +26,10 @@
 #include "sysemu/iothread.h"
 
 #define TYPE_VIRTIO_SCSI_COMMON "virtio-scsi-common"
-typedef struct VirtIOSCSICommon VirtIOSCSICommon;
-DECLARE_INSTANCE_CHECKER(VirtIOSCSICommon, VIRTIO_SCSI_COMMON,
-                         TYPE_VIRTIO_SCSI_COMMON)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOSCSICommon, VIRTIO_SCSI_COMMON)
 
 #define TYPE_VIRTIO_SCSI "virtio-scsi-device"
-typedef struct VirtIOSCSI VirtIOSCSI;
-DECLARE_INSTANCE_CHECKER(VirtIOSCSI, VIRTIO_SCSI,
-                         TYPE_VIRTIO_SCSI)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOSCSI, VIRTIO_SCSI)
 
 #define VIRTIO_SCSI_MAX_CHANNEL 0
 #define VIRTIO_SCSI_MAX_TARGET  255

@@ -28,9 +28,7 @@
 /* SCOOP devices */
 
 #define TYPE_SCOOP "scoop"
-typedef struct ScoopInfo ScoopInfo;
-DECLARE_INSTANCE_CHECKER(ScoopInfo, SCOOP,
-                         TYPE_SCOOP)
+OBJECT_DECLARE_SIMPLE_TYPE(ScoopInfo, SCOOP)
 
 struct ScoopInfo {
     SysBusDevice parent_obj;

@@ -120,7 +120,6 @@ struct XlnxZynqMPQSPIPS {
     uint32_t dma_burst_size;
     uint8_t dma_buf[QSPI_DMA_MAX_BURST_SIZE];
 };
-typedef struct XlnxZynqMPQSPIPS XlnxZynqMPQSPIPS;
 
 struct XilinxSPIPSClass {
     SysBusDeviceClass parent_class;
@@ -130,19 +129,15 @@ struct XilinxSPIPSClass {
     uint32_t rx_fifo_size;
     uint32_t tx_fifo_size;
 };
-typedef struct XilinxSPIPSClass XilinxSPIPSClass;
 
 #define TYPE_XILINX_SPIPS "xlnx.ps7-spi"
 #define TYPE_XILINX_QSPIPS "xlnx.ps7-qspi"
 #define TYPE_XLNX_ZYNQMP_QSPIPS "xlnx.usmp-gqspi"
 
-DECLARE_OBJ_CHECKERS(XilinxSPIPS, XilinxSPIPSClass,
-                     XILINX_SPIPS, TYPE_XILINX_SPIPS)
+OBJECT_DECLARE_TYPE(XilinxSPIPS, XilinxSPIPSClass, XILINX_SPIPS)
 
-DECLARE_INSTANCE_CHECKER(XilinxQSPIPS, XILINX_QSPIPS,
-                         TYPE_XILINX_QSPIPS)
+OBJECT_DECLARE_SIMPLE_TYPE(XilinxQSPIPS, XILINX_QSPIPS)
 
-DECLARE_INSTANCE_CHECKER(XlnxZynqMPQSPIPS, XLNX_ZYNQMP_QSPIPS,
-                         TYPE_XLNX_ZYNQMP_QSPIPS)
+OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPQSPIPS, XLNX_ZYNQMP_QSPIPS)
 
 #endif /* XILINX_SPIPS_H */

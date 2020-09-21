@@ -56,9 +56,7 @@
 #include "qom/object.h"
 
 #define TYPE_E1000E "e1000e"
-typedef struct E1000EState E1000EState;
-DECLARE_INSTANCE_CHECKER(E1000EState, E1000E,
-                         TYPE_E1000E)
+OBJECT_DECLARE_SIMPLE_TYPE(E1000EState, E1000E)
 
 struct E1000EState {
     PCIDevice parent_obj;

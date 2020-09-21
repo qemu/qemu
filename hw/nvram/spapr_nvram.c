@@ -48,11 +48,9 @@ struct SpaprNvram {
     BlockBackend *blk;
     VMChangeStateEntry *vmstate;
 };
-typedef struct SpaprNvram SpaprNvram;
 
 #define TYPE_VIO_SPAPR_NVRAM "spapr-nvram"
-DECLARE_INSTANCE_CHECKER(SpaprNvram, VIO_SPAPR_NVRAM,
-                         TYPE_VIO_SPAPR_NVRAM)
+OBJECT_DECLARE_SIMPLE_TYPE(SpaprNvram, VIO_SPAPR_NVRAM)
 
 #define MIN_NVRAM_SIZE      (8 * KiB)
 #define DEFAULT_NVRAM_SIZE  (64 * KiB)

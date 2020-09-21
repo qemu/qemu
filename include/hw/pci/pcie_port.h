@@ -26,8 +26,7 @@
 #include "qom/object.h"
 
 #define TYPE_PCIE_PORT "pcie-port"
-DECLARE_INSTANCE_CHECKER(PCIEPort, PCIE_PORT,
-                         TYPE_PCIE_PORT)
+OBJECT_DECLARE_SIMPLE_TYPE(PCIEPort, PCIE_PORT)
 
 struct PCIEPort {
     /*< private >*/
@@ -41,8 +40,7 @@ struct PCIEPort {
 void pcie_port_init_reg(PCIDevice *d);
 
 #define TYPE_PCIE_SLOT "pcie-slot"
-DECLARE_INSTANCE_CHECKER(PCIESlot, PCIE_SLOT,
-                         TYPE_PCIE_SLOT)
+OBJECT_DECLARE_SIMPLE_TYPE(PCIESlot, PCIE_SLOT)
 
 struct PCIESlot {
     /*< private >*/

@@ -394,9 +394,7 @@ typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
 typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 
 #define TYPE_PCI_BUS "PCI"
-typedef struct PCIBusClass PCIBusClass;
-DECLARE_OBJ_CHECKERS(PCIBus, PCIBusClass,
-                     PCI_BUS, TYPE_PCI_BUS)
+OBJECT_DECLARE_TYPE(PCIBus, PCIBusClass, PCI_BUS)
 #define TYPE_PCIE_BUS "PCIE"
 
 bool pci_bus_is_express(PCIBus *bus);

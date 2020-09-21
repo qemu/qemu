@@ -27,9 +27,7 @@
 
 #define TYPE_PR_MANAGER_HELPER "pr-manager-helper"
 
-typedef struct PRManagerHelper PRManagerHelper;
-DECLARE_INSTANCE_CHECKER(PRManagerHelper, PR_MANAGER_HELPER,
-                         TYPE_PR_MANAGER_HELPER)
+OBJECT_DECLARE_SIMPLE_TYPE(PRManagerHelper, PR_MANAGER_HELPER)
 
 struct PRManagerHelper {
     /* <private> */

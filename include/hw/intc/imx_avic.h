@@ -21,9 +21,7 @@
 #include "qom/object.h"
 
 #define TYPE_IMX_AVIC "imx.avic"
-typedef struct IMXAVICState IMXAVICState;
-DECLARE_INSTANCE_CHECKER(IMXAVICState, IMX_AVIC,
-                         TYPE_IMX_AVIC)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXAVICState, IMX_AVIC)
 
 #define IMX_AVIC_NUM_IRQS 64
 

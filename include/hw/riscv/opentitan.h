@@ -25,9 +25,7 @@
 #include "qom/object.h"
 
 #define TYPE_RISCV_IBEX_SOC "riscv.lowrisc.ibex.soc"
-typedef struct LowRISCIbexSoCState LowRISCIbexSoCState;
-DECLARE_INSTANCE_CHECKER(LowRISCIbexSoCState, RISCV_IBEX_SOC,
-                         TYPE_RISCV_IBEX_SOC)
+OBJECT_DECLARE_SIMPLE_TYPE(LowRISCIbexSoCState, RISCV_IBEX_SOC)
 
 struct LowRISCIbexSoCState {
     /*< private >*/

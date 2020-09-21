@@ -109,7 +109,7 @@
 
 #define TYPE_ARM_SSE "arm-sse"
 OBJECT_DECLARE_TYPE(ARMSSE, ARMSSEClass,
-                    arm_sse, ARM_SSE)
+                    ARM_SSE)
 
 /*
  * These type names are for specific IoTKit subsystems; other than

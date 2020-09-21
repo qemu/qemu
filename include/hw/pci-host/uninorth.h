@@ -63,10 +63,8 @@ struct UNINState {
 
     MemoryRegion mem;
 };
-typedef struct UNINState UNINState;
 
 #define TYPE_UNI_NORTH "uni-north"
-DECLARE_INSTANCE_CHECKER(UNINState, UNI_NORTH,
-                         TYPE_UNI_NORTH)
+OBJECT_DECLARE_SIMPLE_TYPE(UNINState, UNI_NORTH)
 
 #endif /* UNINORTH_H */

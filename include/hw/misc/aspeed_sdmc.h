@@ -13,10 +13,7 @@
 #include "qom/object.h"
 
 #define TYPE_ASPEED_SDMC "aspeed.sdmc"
-typedef struct AspeedSDMCClass AspeedSDMCClass;
-typedef struct AspeedSDMCState AspeedSDMCState;
-DECLARE_OBJ_CHECKERS(AspeedSDMCState, AspeedSDMCClass,
-                     ASPEED_SDMC, TYPE_ASPEED_SDMC)
+OBJECT_DECLARE_TYPE(AspeedSDMCState, AspeedSDMCClass, ASPEED_SDMC)
 #define TYPE_ASPEED_2400_SDMC TYPE_ASPEED_SDMC "-ast2400"
 #define TYPE_ASPEED_2500_SDMC TYPE_ASPEED_SDMC "-ast2500"
 #define TYPE_ASPEED_2600_SDMC TYPE_ASPEED_SDMC "-ast2600"

@@ -129,7 +129,6 @@ static const TypeInfo qauthz_pam_info = {
     .name = TYPE_QAUTHZ_PAM,
     .instance_size = sizeof(QAuthZPAM),
     .instance_finalize = qauthz_pam_finalize,
-    .class_size = sizeof(QAuthZPAMClass),
     .class_init = qauthz_pam_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },

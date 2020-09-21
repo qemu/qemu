@@ -40,9 +40,7 @@
 #define PCSPK_MAX_FREQ (PCSPK_SAMPLE_RATE >> 1)
 #define PCSPK_MIN_COUNT DIV_ROUND_UP(PIT_FREQ, PCSPK_MAX_FREQ)
 
-typedef struct PCSpkState PCSpkState;
-DECLARE_INSTANCE_CHECKER(PCSpkState, PC_SPEAKER,
-                         TYPE_PC_SPEAKER)
+OBJECT_DECLARE_SIMPLE_TYPE(PCSpkState, PC_SPEAKER)
 
 struct PCSpkState {
     ISADevice parent_obj;

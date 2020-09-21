@@ -31,7 +31,7 @@
 #endif
 
 OBJECT_DECLARE_TYPE(X86CPU, X86CPUClass,
-                    x86_cpu, X86_CPU)
+                    X86_CPU)
 
 typedef struct X86CPUModel X86CPUModel;
 

@@ -23,9 +23,7 @@
 
 #define TYPE_SUNGEM "sungem"
 
-typedef struct SunGEMState SunGEMState;
-DECLARE_INSTANCE_CHECKER(SunGEMState, SUNGEM,
-                         TYPE_SUNGEM)
+OBJECT_DECLARE_SIMPLE_TYPE(SunGEMState, SUNGEM)
 
 #define MAX_PACKET_SIZE 9016
 

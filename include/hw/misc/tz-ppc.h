@@ -69,9 +69,7 @@
 #include "qom/object.h"
 
 #define TYPE_TZ_PPC "tz-ppc"
-typedef struct TZPPC TZPPC;
-DECLARE_INSTANCE_CHECKER(TZPPC, TZ_PPC,
-                         TYPE_TZ_PPC)
+OBJECT_DECLARE_SIMPLE_TYPE(TZPPC, TZ_PPC)
 
 #define TZ_NUM_PORTS 16
 

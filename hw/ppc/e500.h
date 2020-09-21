@@ -14,7 +14,6 @@ struct PPCE500MachineState {
      */
     PlatformBusDevice *pbus_dev;
 };
-typedef struct PPCE500MachineState PPCE500MachineState;
 
 struct PPCE500MachineClass {
     /*< private >*/
@@ -39,14 +38,12 @@ struct PPCE500MachineClass {
     hwaddr pci_mmio_bus_base;
     hwaddr spin_base;
 };
-typedef struct PPCE500MachineClass PPCE500MachineClass;
 
 void ppce500_init(MachineState *machine);
 
 hwaddr booke206_page_size_to_tlb(uint64_t size);
 
 #define TYPE_PPCE500_MACHINE      "ppce500-base-machine"
-DECLARE_OBJ_CHECKERS(PPCE500MachineState, PPCE500MachineClass,
-                     PPCE500_MACHINE, TYPE_PPCE500_MACHINE)
+OBJECT_DECLARE_TYPE(PPCE500MachineState, PPCE500MachineClass, PPCE500_MACHINE)
 
 #endif

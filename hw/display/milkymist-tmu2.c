@@ -83,9 +83,7 @@ struct vertex {
 } QEMU_PACKED;
 
 #define TYPE_MILKYMIST_TMU2 "milkymist-tmu2"
-typedef struct MilkymistTMU2State MilkymistTMU2State;
-DECLARE_INSTANCE_CHECKER(MilkymistTMU2State, MILKYMIST_TMU2,
-                         TYPE_MILKYMIST_TMU2)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistTMU2State, MILKYMIST_TMU2)
 
 struct MilkymistTMU2State {
     SysBusDevice parent_obj;

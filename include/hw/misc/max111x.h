@@ -45,12 +45,10 @@ struct MAX111xState {
     uint8_t input[8];
     int inputs, com;
 };
-typedef struct MAX111xState MAX111xState;
 
 #define TYPE_MAX_111X "max111x"
 
-DECLARE_INSTANCE_CHECKER(MAX111xState, MAX_111X,
-                         TYPE_MAX_111X)
+OBJECT_DECLARE_SIMPLE_TYPE(MAX111xState, MAX_111X)
 
 #define TYPE_MAX_1110 "max1110"
 #define TYPE_MAX_1111 "max1111"

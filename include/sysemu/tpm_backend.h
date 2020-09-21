@@ -20,7 +20,7 @@
 
 #define TYPE_TPM_BACKEND "tpm-backend"
 OBJECT_DECLARE_TYPE(TPMBackend, TPMBackendClass,
-                    tpm_backend, TPM_BACKEND)
+                    TPM_BACKEND)
 
 
 typedef struct TPMBackendCmd {

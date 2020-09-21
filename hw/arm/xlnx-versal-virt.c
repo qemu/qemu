@@ -25,9 +25,7 @@
 #include "qom/object.h"
 
 #define TYPE_XLNX_VERSAL_VIRT_MACHINE MACHINE_TYPE_NAME("xlnx-versal-virt")
-typedef struct VersalVirt VersalVirt;
-DECLARE_INSTANCE_CHECKER(VersalVirt, XLNX_VERSAL_VIRT_MACHINE,
-                         TYPE_XLNX_VERSAL_VIRT_MACHINE)
+OBJECT_DECLARE_SIMPLE_TYPE(VersalVirt, XLNX_VERSAL_VIRT_MACHINE)
 
 struct VersalVirt {
     MachineState parent_obj;

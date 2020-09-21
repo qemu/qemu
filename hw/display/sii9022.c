@@ -36,9 +36,7 @@
 #define SII9022_INT_STATUS_PLUGGED 0x04;
 
 #define TYPE_SII9022 "sii9022"
-typedef struct sii9022_state sii9022_state;
-DECLARE_INSTANCE_CHECKER(sii9022_state, SII9022,
-                         TYPE_SII9022)
+OBJECT_DECLARE_SIMPLE_TYPE(sii9022_state, SII9022)
 
 struct sii9022_state {
     I2CSlave parent_obj;

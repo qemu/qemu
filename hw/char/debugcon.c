@@ -33,9 +33,7 @@
 #include "qom/object.h"
 
 #define TYPE_ISA_DEBUGCON_DEVICE "isa-debugcon"
-typedef struct ISADebugconState ISADebugconState;
-DECLARE_INSTANCE_CHECKER(ISADebugconState, ISA_DEBUGCON_DEVICE,
-                         TYPE_ISA_DEBUGCON_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(ISADebugconState, ISA_DEBUGCON_DEVICE)
 
 //#define DEBUG_DEBUGCON
 

@@ -52,11 +52,9 @@ struct ssi_sd_state {
     int32_t stopping;
     SDBus sdbus;
 };
-typedef struct ssi_sd_state ssi_sd_state;
 
 #define TYPE_SSI_SD "ssi-sd"
-DECLARE_INSTANCE_CHECKER(ssi_sd_state, SSI_SD,
-                         TYPE_SSI_SD)
+OBJECT_DECLARE_SIMPLE_TYPE(ssi_sd_state, SSI_SD)
 
 /* State word bits.  */
 #define SSI_SDR_LOCKED          0x0001

@@ -20,10 +20,7 @@
 #define TYPE_QEMU_S390_STATTRIB "s390-storage_attributes-qemu"
 #define TYPE_KVM_S390_STATTRIB "s390-storage_attributes-kvm"
 
-typedef struct S390StAttribClass S390StAttribClass;
-typedef struct S390StAttribState S390StAttribState;
-DECLARE_OBJ_CHECKERS(S390StAttribState, S390StAttribClass,
-                     S390_STATTRIB, TYPE_S390_STATTRIB)
+OBJECT_DECLARE_TYPE(S390StAttribState, S390StAttribClass, S390_STATTRIB)
 
 struct S390StAttribState {
     DeviceState parent_obj;

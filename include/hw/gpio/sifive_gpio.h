@@ -15,9 +15,12 @@
 #define SIFIVE_GPIO_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_SIFIVE_GPIO "sifive_soc.gpio"
-#define SIFIVE_GPIO(obj) OBJECT_CHECK(SIFIVEGPIOState, (obj), TYPE_SIFIVE_GPIO)
+typedef struct SIFIVEGPIOState SIFIVEGPIOState;
+DECLARE_INSTANCE_CHECKER(SIFIVEGPIOState, SIFIVE_GPIO,
+                         TYPE_SIFIVE_GPIO)
 
 #define SIFIVE_GPIO_PINS 32
 
@@ -41,7 +44,7 @@
 #define SIFIVE_GPIO_REG_IOF_SEL    0x03C
 #define SIFIVE_GPIO_REG_OUT_XOR    0x040
 
-typedef struct SIFIVEGPIOState {
+struct SIFIVEGPIOState {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
@@ -71,6 +74,6 @@ typedef struct SIFIVEGPIOState {
 
     /* config */
     uint32_t ngpio;
-} SIFIVEGPIOState;
+};
 
 #endif /* SIFIVE_GPIO_H */

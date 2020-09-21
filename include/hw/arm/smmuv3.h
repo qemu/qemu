@@ -63,7 +63,6 @@ struct SMMUv3State {
     qemu_irq     irq[4];
     QemuMutex mutex;
 };
-typedef struct SMMUv3State SMMUv3State;
 
 typedef enum {
     SMMU_IRQ_EVTQ,
@@ -80,10 +79,8 @@ struct SMMUv3Class {
     DeviceRealize parent_realize;
     DeviceReset   parent_reset;
 };
-typedef struct SMMUv3Class SMMUv3Class;
 
 #define TYPE_ARM_SMMUV3   "arm-smmuv3"
-DECLARE_OBJ_CHECKERS(SMMUv3State, SMMUv3Class,
-                     ARM_SMMUV3, TYPE_ARM_SMMUV3)
+OBJECT_DECLARE_TYPE(SMMUv3State, SMMUv3Class, ARM_SMMUV3)
 
 #endif

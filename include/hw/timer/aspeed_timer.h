@@ -27,10 +27,7 @@
 #include "qom/object.h"
 
 #define TYPE_ASPEED_TIMER "aspeed.timer"
-typedef struct AspeedTimerClass AspeedTimerClass;
-typedef struct AspeedTimerCtrlState AspeedTimerCtrlState;
-DECLARE_OBJ_CHECKERS(AspeedTimerCtrlState, AspeedTimerClass,
-                     ASPEED_TIMER, TYPE_ASPEED_TIMER)
+OBJECT_DECLARE_TYPE(AspeedTimerCtrlState, AspeedTimerClass, ASPEED_TIMER)
 #define TYPE_ASPEED_2400_TIMER TYPE_ASPEED_TIMER "-ast2400"
 #define TYPE_ASPEED_2500_TIMER TYPE_ASPEED_TIMER "-ast2500"
 #define TYPE_ASPEED_2600_TIMER TYPE_ASPEED_TIMER "-ast2600"

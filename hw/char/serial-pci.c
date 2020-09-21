@@ -40,11 +40,9 @@ struct PCISerialState {
     SerialState state;
     uint8_t prog_if;
 };
-typedef struct PCISerialState PCISerialState;
 
 #define TYPE_PCI_SERIAL "pci-serial"
-DECLARE_INSTANCE_CHECKER(PCISerialState, PCI_SERIAL,
-                         TYPE_PCI_SERIAL)
+OBJECT_DECLARE_SIMPLE_TYPE(PCISerialState, PCI_SERIAL)
 
 static void serial_pci_realize(PCIDevice *dev, Error **errp)
 {

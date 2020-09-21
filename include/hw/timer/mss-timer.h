@@ -30,9 +30,7 @@
 #include "qom/object.h"
 
 #define TYPE_MSS_TIMER     "mss-timer"
-typedef struct MSSTimerState MSSTimerState;
-DECLARE_INSTANCE_CHECKER(MSSTimerState, MSS_TIMER,
-                         TYPE_MSS_TIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(MSSTimerState, MSS_TIMER)
 
 /*
  * There are two 32-bit down counting timers.

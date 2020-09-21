@@ -31,9 +31,7 @@
 #include "qom/object.h"
 
 #define TYPE_CMSDK_APB_DUALTIMER "cmsdk-apb-dualtimer"
-typedef struct CMSDKAPBDualTimer CMSDKAPBDualTimer;
-DECLARE_INSTANCE_CHECKER(CMSDKAPBDualTimer, CMSDK_APB_DUALTIMER,
-                         TYPE_CMSDK_APB_DUALTIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(CMSDKAPBDualTimer, CMSDK_APB_DUALTIMER)
 
 
 /* One of the two identical timer modules in the dual-timer module */

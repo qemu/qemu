@@ -42,9 +42,7 @@ enum {
     JRX_FULL = (1<<8),
 };
 
-typedef struct LM32JuartState LM32JuartState;
-DECLARE_INSTANCE_CHECKER(LM32JuartState, LM32_JUART,
-                         TYPE_LM32_JUART)
+OBJECT_DECLARE_SIMPLE_TYPE(LM32JuartState, LM32_JUART)
 
 struct LM32JuartState {
     SysBusDevice parent_obj;

@@ -24,9 +24,7 @@
 #define BCM2836_MBPERCORE 4
 
 #define TYPE_BCM2836_CONTROL "bcm2836-control"
-typedef struct BCM2836ControlState BCM2836ControlState;
-DECLARE_INSTANCE_CHECKER(BCM2836ControlState, BCM2836_CONTROL,
-                         TYPE_BCM2836_CONTROL)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2836ControlState, BCM2836_CONTROL)
 
 struct BCM2836ControlState {
     /*< private >*/

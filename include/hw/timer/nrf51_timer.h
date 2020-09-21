@@ -17,9 +17,7 @@
 #include "qemu/timer.h"
 #include "qom/object.h"
 #define TYPE_NRF51_TIMER "nrf51_soc.timer"
-typedef struct NRF51TimerState NRF51TimerState;
-DECLARE_INSTANCE_CHECKER(NRF51TimerState, NRF51_TIMER,
-                         TYPE_NRF51_TIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(NRF51TimerState, NRF51_TIMER)
 
 #define NRF51_TIMER_REG_COUNT 4
 

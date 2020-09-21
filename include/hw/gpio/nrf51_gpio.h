@@ -29,9 +29,7 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #define TYPE_NRF51_GPIO "nrf51_soc.gpio"
-typedef struct NRF51GPIOState NRF51GPIOState;
-DECLARE_INSTANCE_CHECKER(NRF51GPIOState, NRF51_GPIO,
-                         TYPE_NRF51_GPIO)
+OBJECT_DECLARE_SIMPLE_TYPE(NRF51GPIOState, NRF51_GPIO)
 
 #define NRF51_GPIO_PINS 32
 

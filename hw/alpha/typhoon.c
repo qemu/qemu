@@ -50,9 +50,7 @@ typedef struct TyphoonPchip {
     TyphoonWindow win[4];
 } TyphoonPchip;
 
-typedef struct TyphoonState TyphoonState;
-DECLARE_INSTANCE_CHECKER(TyphoonState, TYPHOON_PCI_HOST_BRIDGE,
-                         TYPE_TYPHOON_PCI_HOST_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(TyphoonState, TYPHOON_PCI_HOST_BRIDGE)
 
 struct TyphoonState {
     PCIHostState parent_obj;

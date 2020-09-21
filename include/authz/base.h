@@ -28,7 +28,7 @@
 #define TYPE_QAUTHZ "authz"
 
 OBJECT_DECLARE_TYPE(QAuthZ, QAuthZClass,
-                    qauthz, QAUTHZ)
+                    QAUTHZ)
 
 
 /**

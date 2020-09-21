@@ -17,9 +17,7 @@
 #include "qom/object.h"
 
 #define TYPE_IMX7_GPR "imx7.gpr"
-typedef struct IMX7GPRState IMX7GPRState;
-DECLARE_INSTANCE_CHECKER(IMX7GPRState, IMX7_GPR,
-                         TYPE_IMX7_GPR)
+OBJECT_DECLARE_SIMPLE_TYPE(IMX7GPRState, IMX7_GPR)
 
 struct IMX7GPRState {
     /* <private> */

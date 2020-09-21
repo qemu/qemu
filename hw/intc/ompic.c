@@ -18,9 +18,7 @@
 #include "qom/object.h"
 
 #define TYPE_OR1K_OMPIC "or1k-ompic"
-typedef struct OR1KOMPICState OR1KOMPICState;
-DECLARE_INSTANCE_CHECKER(OR1KOMPICState, OR1K_OMPIC,
-                         TYPE_OR1K_OMPIC)
+OBJECT_DECLARE_SIMPLE_TYPE(OR1KOMPICState, OR1K_OMPIC)
 
 #define OMPIC_CTRL_IRQ_ACK  (1 << 31)
 #define OMPIC_CTRL_IRQ_GEN  (1 << 30)

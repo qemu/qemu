@@ -27,9 +27,7 @@
 /* A15MP private memory region.  */
 
 #define TYPE_A15MPCORE_PRIV "a15mpcore_priv"
-typedef struct A15MPPrivState A15MPPrivState;
-DECLARE_INSTANCE_CHECKER(A15MPPrivState, A15MPCORE_PRIV,
-                         TYPE_A15MPCORE_PRIV)
+OBJECT_DECLARE_SIMPLE_TYPE(A15MPPrivState, A15MPCORE_PRIV)
 
 struct A15MPPrivState {
     /*< private >*/

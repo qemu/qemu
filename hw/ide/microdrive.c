@@ -34,9 +34,7 @@
 #include "qom/object.h"
 
 #define TYPE_MICRODRIVE "microdrive"
-typedef struct MicroDriveState MicroDriveState;
-DECLARE_INSTANCE_CHECKER(MicroDriveState, MICRODRIVE,
-                         TYPE_MICRODRIVE)
+OBJECT_DECLARE_SIMPLE_TYPE(MicroDriveState, MICRODRIVE)
 
 /***********************************************************/
 /* CF-ATA Microdrive */

@@ -14,9 +14,7 @@
 #include "qom/object.h"
 
 #define TYPE_BCM2835_PROPERTY "bcm2835-property"
-typedef struct BCM2835PropertyState BCM2835PropertyState;
-DECLARE_INSTANCE_CHECKER(BCM2835PropertyState, BCM2835_PROPERTY,
-                         TYPE_BCM2835_PROPERTY)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835PropertyState, BCM2835_PROPERTY)
 
 struct BCM2835PropertyState {
     /*< private >*/

@@ -25,9 +25,7 @@
 #define MAX_ETH_FRAME_SIZE      1514
 
 #define TYPE_MIPS_NET "mipsnet"
-typedef struct MIPSnetState MIPSnetState;
-DECLARE_INSTANCE_CHECKER(MIPSnetState, MIPS_NET,
-                         TYPE_MIPS_NET)
+OBJECT_DECLARE_SIMPLE_TYPE(MIPSnetState, MIPS_NET)
 
 struct MIPSnetState {
     SysBusDevice parent_obj;

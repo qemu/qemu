@@ -29,12 +29,10 @@
 
 #define TYPE_VIO_SPAPR_DEVICE "vio-spapr-device"
 OBJECT_DECLARE_TYPE(SpaprVioDevice, SpaprVioDeviceClass,
-                    vio_spapr_device, VIO_SPAPR_DEVICE)
+                    VIO_SPAPR_DEVICE)
 
 #define TYPE_SPAPR_VIO_BUS "spapr-vio-bus"
-typedef struct SpaprVioBus SpaprVioBus;
-DECLARE_INSTANCE_CHECKER(SpaprVioBus, SPAPR_VIO_BUS,
-                         TYPE_SPAPR_VIO_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(SpaprVioBus, SPAPR_VIO_BUS)
 
 #define TYPE_SPAPR_VIO_BRIDGE "spapr-vio-bridge"
 

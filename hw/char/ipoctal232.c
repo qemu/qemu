@@ -123,8 +123,7 @@ struct IPOctalState {
 
 #define TYPE_IPOCTAL "ipoctal232"
 
-DECLARE_INSTANCE_CHECKER(IPOctalState, IPOCTAL,
-                         TYPE_IPOCTAL)
+OBJECT_DECLARE_SIMPLE_TYPE(IPOctalState, IPOCTAL)
 
 static const VMStateDescription vmstate_scc2698_channel = {
     .name = "scc2698_channel",

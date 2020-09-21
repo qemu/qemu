@@ -24,9 +24,7 @@
 #include "qom/object.h"
 
 #define TYPE_VHOST_USER_SCSI "vhost-user-scsi"
-typedef struct VHostUserSCSI VHostUserSCSI;
-DECLARE_INSTANCE_CHECKER(VHostUserSCSI, VHOST_USER_SCSI,
-                         TYPE_VHOST_USER_SCSI)
+OBJECT_DECLARE_SIMPLE_TYPE(VHostUserSCSI, VHOST_USER_SCSI)
 
 struct VHostUserSCSI {
     VHostSCSICommon parent_obj;

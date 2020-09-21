@@ -38,9 +38,7 @@
 /* ISA IDE definitions */
 
 #define TYPE_ISA_IDE "isa-ide"
-typedef struct ISAIDEState ISAIDEState;
-DECLARE_INSTANCE_CHECKER(ISAIDEState, ISA_IDE,
-                         TYPE_ISA_IDE)
+OBJECT_DECLARE_SIMPLE_TYPE(ISAIDEState, ISA_IDE)
 
 struct ISAIDEState {
     ISADevice parent_obj;

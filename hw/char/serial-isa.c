@@ -34,9 +34,7 @@
 #include "migration/vmstate.h"
 #include "qom/object.h"
 
-typedef struct ISASerialState ISASerialState;
-DECLARE_INSTANCE_CHECKER(ISASerialState, ISA_SERIAL,
-                         TYPE_ISA_SERIAL)
+OBJECT_DECLARE_SIMPLE_TYPE(ISASerialState, ISA_SERIAL)
 
 struct ISASerialState {
     ISADevice parent_obj;

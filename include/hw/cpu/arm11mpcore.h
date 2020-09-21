@@ -17,9 +17,7 @@
 #include "qom/object.h"
 
 #define TYPE_ARM11MPCORE_PRIV "arm11mpcore_priv"
-typedef struct ARM11MPCorePriveState ARM11MPCorePriveState;
-DECLARE_INSTANCE_CHECKER(ARM11MPCorePriveState, ARM11MPCORE_PRIV,
-                         TYPE_ARM11MPCORE_PRIV)
+OBJECT_DECLARE_SIMPLE_TYPE(ARM11MPCorePriveState, ARM11MPCORE_PRIV)
 
 struct ARM11MPCorePriveState {
     SysBusDevice parent_obj;

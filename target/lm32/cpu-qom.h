@@ -26,7 +26,7 @@
 #define TYPE_LM32_CPU "lm32-cpu"
 
 OBJECT_DECLARE_TYPE(LM32CPU, LM32CPUClass,
-                    lm32_cpu, LM32_CPU)
+                    LM32_CPU)
 
 /**
  * LM32CPUClass:

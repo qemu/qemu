@@ -32,9 +32,7 @@ typedef struct MacfbState {
 } MacfbState;
 
 #define TYPE_MACFB "sysbus-macfb"
-typedef struct MacfbSysBusState MacfbSysBusState;
-DECLARE_INSTANCE_CHECKER(MacfbSysBusState, MACFB,
-                         TYPE_MACFB)
+OBJECT_DECLARE_SIMPLE_TYPE(MacfbSysBusState, MACFB)
 
 struct MacfbSysBusState {
     SysBusDevice busdev;
@@ -43,10 +41,7 @@ struct MacfbSysBusState {
 };
 
 #define TYPE_NUBUS_MACFB "nubus-macfb"
-typedef struct MacfbNubusDeviceClass MacfbNubusDeviceClass;
-typedef struct MacfbNubusState MacfbNubusState;
-DECLARE_OBJ_CHECKERS(MacfbNubusState, MacfbNubusDeviceClass,
-                     NUBUS_MACFB, TYPE_NUBUS_MACFB)
+OBJECT_DECLARE_TYPE(MacfbNubusState, MacfbNubusDeviceClass, NUBUS_MACFB)
 
 struct MacfbNubusDeviceClass {
     DeviceClass parent_class;

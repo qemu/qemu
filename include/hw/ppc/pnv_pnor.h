@@ -16,9 +16,7 @@
 #define PNOR_SPI_OFFSET         0x0c000000UL
 
 #define TYPE_PNV_PNOR  "pnv-pnor"
-typedef struct PnvPnor PnvPnor;
-DECLARE_INSTANCE_CHECKER(PnvPnor, PNV_PNOR,
-                         TYPE_PNV_PNOR)
+OBJECT_DECLARE_SIMPLE_TYPE(PnvPnor, PNV_PNOR)
 
 struct PnvPnor {
     SysBusDevice   parent_obj;

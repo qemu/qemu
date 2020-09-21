@@ -6,9 +6,7 @@
 #include "qom/object.h"
 
 #define TYPE_I8257 "i8257"
-typedef struct I8257State I8257State;
-DECLARE_INSTANCE_CHECKER(I8257State, I8257,
-                         TYPE_I8257)
+OBJECT_DECLARE_SIMPLE_TYPE(I8257State, I8257)
 
 typedef struct I8257Regs {
     int now[2];

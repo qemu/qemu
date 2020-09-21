@@ -73,9 +73,7 @@
                              PDR0_##name##_PODF_SHIFT)
 
 #define TYPE_IMX31_CCM "imx31.ccm"
-typedef struct IMX31CCMState IMX31CCMState;
-DECLARE_INSTANCE_CHECKER(IMX31CCMState, IMX31_CCM,
-                         TYPE_IMX31_CCM)
+OBJECT_DECLARE_SIMPLE_TYPE(IMX31CCMState, IMX31_CCM)
 
 struct IMX31CCMState {
     /* <private> */

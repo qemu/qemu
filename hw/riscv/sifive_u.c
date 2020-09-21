@@ -70,23 +70,23 @@ static const struct MemmapEntry {
     hwaddr base;
     hwaddr size;
 } sifive_u_memmap[] = {
-    [SIFIVE_U_DEBUG] =    {        0x0,      0x100 },
-    [SIFIVE_U_MROM] =     {     0x1000,     0xf000 },
-    [SIFIVE_U_CLINT] =    {  0x2000000,    0x10000 },
-    [SIFIVE_U_L2CC] =     {  0x2010000,     0x1000 },
-    [SIFIVE_U_PDMA] =     {  0x3000000,   0x100000 },
-    [SIFIVE_U_L2LIM] =    {  0x8000000,  0x2000000 },
-    [SIFIVE_U_PLIC] =     {  0xc000000,  0x4000000 },
-    [SIFIVE_U_PRCI] =     { 0x10000000,     0x1000 },
-    [SIFIVE_U_UART0] =    { 0x10010000,     0x1000 },
-    [SIFIVE_U_UART1] =    { 0x10011000,     0x1000 },
-    [SIFIVE_U_GPIO] =     { 0x10060000,     0x1000 },
-    [SIFIVE_U_OTP] =      { 0x10070000,     0x1000 },
-    [SIFIVE_U_GEM] =      { 0x10090000,     0x2000 },
-    [SIFIVE_U_GEM_MGMT] = { 0x100a0000,     0x1000 },
-    [SIFIVE_U_DMC] =      { 0x100b0000,    0x10000 },
-    [SIFIVE_U_FLASH0] =   { 0x20000000, 0x10000000 },
-    [SIFIVE_U_DRAM] =     { 0x80000000,        0x0 },
+    [SIFIVE_U_DEV_DEBUG] =    {        0x0,      0x100 },
+    [SIFIVE_U_DEV_MROM] =     {     0x1000,     0xf000 },
+    [SIFIVE_U_DEV_CLINT] =    {  0x2000000,    0x10000 },
+    [SIFIVE_U_DEV_L2CC] =     {  0x2010000,     0x1000 },
+    [SIFIVE_U_DEV_PDMA] =     {  0x3000000,   0x100000 },
+    [SIFIVE_U_DEV_L2LIM] =    {  0x8000000,  0x2000000 },
+    [SIFIVE_U_DEV_PLIC] =     {  0xc000000,  0x4000000 },
+    [SIFIVE_U_DEV_PRCI] =     { 0x10000000,     0x1000 },
+    [SIFIVE_U_DEV_UART0] =    { 0x10010000,     0x1000 },
+    [SIFIVE_U_DEV_UART1] =    { 0x10011000,     0x1000 },
+    [SIFIVE_U_DEV_GPIO] =     { 0x10060000,     0x1000 },
+    [SIFIVE_U_DEV_OTP] =      { 0x10070000,     0x1000 },
+    [SIFIVE_U_DEV_GEM] =      { 0x10090000,     0x2000 },
+    [SIFIVE_U_DEV_GEM_MGMT] = { 0x100a0000,     0x1000 },
+    [SIFIVE_U_DEV_DMC] =      { 0x100b0000,    0x10000 },
+    [SIFIVE_U_DEV_FLASH0] =   { 0x20000000, 0x10000000 },
+    [SIFIVE_U_DEV_DRAM] =     { 0x80000000,        0x0 },
 };
 
 #define OTP_SERIAL          1
@@ -145,10 +145,10 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
     g_free(nodename);
 
     nodename = g_strdup_printf("/memory@%lx",
-        (long)memmap[SIFIVE_U_DRAM].base);
+        (long)memmap[SIFIVE_U_DEV_DRAM].base);
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        memmap[SIFIVE_U_DRAM].base >> 32, memmap[SIFIVE_U_DRAM].base,
+        memmap[SIFIVE_U_DEV_DRAM].base >> 32, memmap[SIFIVE_U_DEV_DRAM].base,
         mem_size >> 32, mem_size);
     qemu_fdt_setprop_string(fdt, nodename, "device_type", "memory");
     g_free(nodename);
@@ -203,39 +203,39 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
         g_free(nodename);
     }
     nodename = g_strdup_printf("/soc/clint@%lx",
-        (long)memmap[SIFIVE_U_CLINT].base);
+        (long)memmap[SIFIVE_U_DEV_CLINT].base);
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_string(fdt, nodename, "compatible", "riscv,clint0");
     qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        0x0, memmap[SIFIVE_U_CLINT].base,
-        0x0, memmap[SIFIVE_U_CLINT].size);
+        0x0, memmap[SIFIVE_U_DEV_CLINT].base,
+        0x0, memmap[SIFIVE_U_DEV_CLINT].size);
     qemu_fdt_setprop(fdt, nodename, "interrupts-extended",
         cells, ms->smp.cpus * sizeof(uint32_t) * 4);
     g_free(cells);
     g_free(nodename);
 
     nodename = g_strdup_printf("/soc/otp@%lx",
-        (long)memmap[SIFIVE_U_OTP].base);
+        (long)memmap[SIFIVE_U_DEV_OTP].base);
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_cell(fdt, nodename, "fuse-count", SIFIVE_U_OTP_REG_SIZE);
     qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        0x0, memmap[SIFIVE_U_OTP].base,
-        0x0, memmap[SIFIVE_U_OTP].size);
+        0x0, memmap[SIFIVE_U_DEV_OTP].base,
+        0x0, memmap[SIFIVE_U_DEV_OTP].size);
     qemu_fdt_setprop_string(fdt, nodename, "compatible",
         "sifive,fu540-c000-otp");
     g_free(nodename);
 
     prci_phandle = phandle++;
     nodename = g_strdup_printf("/soc/clock-controller@%lx",
-        (long)memmap[SIFIVE_U_PRCI].base);
+        (long)memmap[SIFIVE_U_DEV_PRCI].base);
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_cell(fdt, nodename, "phandle", prci_phandle);
     qemu_fdt_setprop_cell(fdt, nodename, "#clock-cells", 0x1);
     qemu_fdt_setprop_cells(fdt, nodename, "clocks",
         hfclk_phandle, rtcclk_phandle);
     qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        0x0, memmap[SIFIVE_U_PRCI].base,
-        0x0, memmap[SIFIVE_U_PRCI].size);
+        0x0, memmap[SIFIVE_U_DEV_PRCI].base,
+        0x0, memmap[SIFIVE_U_DEV_PRCI].size);
     qemu_fdt_setprop_string(fdt, nodename, "compatible",
         "sifive,fu540-c000-prci");
     g_free(nodename);
@@ -259,7 +259,7 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
         g_free(nodename);
     }
     nodename = g_strdup_printf("/soc/interrupt-controller@%lx",
-        (long)memmap[SIFIVE_U_PLIC].base);
+        (long)memmap[SIFIVE_U_DEV_PLIC].base);
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_cell(fdt, nodename, "#interrupt-cells", 1);
     qemu_fdt_setprop_string(fdt, nodename, "compatible", "riscv,plic0");
@@ -267,8 +267,8 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
     qemu_fdt_setprop(fdt, nodename, "interrupts-extended",
         cells, (ms->smp.cpus * 4 - 2) * sizeof(uint32_t));
     qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        0x0, memmap[SIFIVE_U_PLIC].base,
-        0x0, memmap[SIFIVE_U_PLIC].size);
+        0x0, memmap[SIFIVE_U_DEV_PLIC].base,
+        0x0, memmap[SIFIVE_U_DEV_PLIC].size);
     qemu_fdt_setprop_cell(fdt, nodename, "riscv,ndev", 0x35);
     qemu_fdt_setprop_cell(fdt, nodename, "phandle", plic_phandle);
     plic_phandle = qemu_fdt_get_phandle(fdt, nodename);
@@ -277,7 +277,7 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
 
     gpio_phandle = phandle++;
     nodename = g_strdup_printf("/soc/gpio@%lx",
-        (long)memmap[SIFIVE_U_GPIO].base);
+        (long)memmap[SIFIVE_U_DEV_GPIO].base);
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_cell(fdt, nodename, "phandle", gpio_phandle);
     qemu_fdt_setprop_cells(fdt, nodename, "clocks",
@@ -287,8 +287,8 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
     qemu_fdt_setprop_cell(fdt, nodename, "#gpio-cells", 2);
     qemu_fdt_setprop(fdt, nodename, "gpio-controller", NULL, 0);
     qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        0x0, memmap[SIFIVE_U_GPIO].base,
-        0x0, memmap[SIFIVE_U_GPIO].size);
+        0x0, memmap[SIFIVE_U_DEV_GPIO].base,
+        0x0, memmap[SIFIVE_U_DEV_GPIO].size);
     qemu_fdt_setprop_cells(fdt, nodename, "interrupts", SIFIVE_U_GPIO_IRQ0,
         SIFIVE_U_GPIO_IRQ1, SIFIVE_U_GPIO_IRQ2, SIFIVE_U_GPIO_IRQ3,
         SIFIVE_U_GPIO_IRQ4, SIFIVE_U_GPIO_IRQ5, SIFIVE_U_GPIO_IRQ6,
@@ -306,7 +306,7 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
     g_free(nodename);
 
     nodename = g_strdup_printf("/soc/dma@%lx",
-        (long)memmap[SIFIVE_U_PDMA].base);
+        (long)memmap[SIFIVE_U_DEV_PDMA].base);
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_cell(fdt, nodename, "#dma-cells", 1);
     qemu_fdt_setprop_cells(fdt, nodename, "interrupts",
@@ -315,18 +315,18 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
         SIFIVE_U_PDMA_IRQ6, SIFIVE_U_PDMA_IRQ7);
     qemu_fdt_setprop_cell(fdt, nodename, "interrupt-parent", plic_phandle);
     qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        0x0, memmap[SIFIVE_U_PDMA].base,
-        0x0, memmap[SIFIVE_U_PDMA].size);
+        0x0, memmap[SIFIVE_U_DEV_PDMA].base,
+        0x0, memmap[SIFIVE_U_DEV_PDMA].size);
     qemu_fdt_setprop_string(fdt, nodename, "compatible",
                             "sifive,fu540-c000-pdma");
     g_free(nodename);
 
     nodename = g_strdup_printf("/soc/cache-controller@%lx",
-        (long)memmap[SIFIVE_U_L2CC].base);
+        (long)memmap[SIFIVE_U_DEV_L2CC].base);
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        0x0, memmap[SIFIVE_U_L2CC].base,
-        0x0, memmap[SIFIVE_U_L2CC].size);
+        0x0, memmap[SIFIVE_U_DEV_L2CC].base,
+        0x0, memmap[SIFIVE_U_DEV_L2CC].size);
     qemu_fdt_setprop_cells(fdt, nodename, "interrupts",
         SIFIVE_U_L2CC_IRQ0, SIFIVE_U_L2CC_IRQ1, SIFIVE_U_L2CC_IRQ2);
     qemu_fdt_setprop_cell(fdt, nodename, "interrupt-parent", plic_phandle);
@@ -341,15 +341,15 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
 
     phy_phandle = phandle++;
     nodename = g_strdup_printf("/soc/ethernet@%lx",
-        (long)memmap[SIFIVE_U_GEM].base);
+        (long)memmap[SIFIVE_U_DEV_GEM].base);
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_string(fdt, nodename, "compatible",
         "sifive,fu540-c000-gem");
     qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        0x0, memmap[SIFIVE_U_GEM].base,
-        0x0, memmap[SIFIVE_U_GEM].size,
-        0x0, memmap[SIFIVE_U_GEM_MGMT].base,
-        0x0, memmap[SIFIVE_U_GEM_MGMT].size);
+        0x0, memmap[SIFIVE_U_DEV_GEM].base,
+        0x0, memmap[SIFIVE_U_DEV_GEM].size,
+        0x0, memmap[SIFIVE_U_DEV_GEM_MGMT].base,
+        0x0, memmap[SIFIVE_U_DEV_GEM_MGMT].size);
     qemu_fdt_setprop_string(fdt, nodename, "reg-names", "control");
     qemu_fdt_setprop_string(fdt, nodename, "phy-mode", "gmii");
     qemu_fdt_setprop_cell(fdt, nodename, "phy-handle", phy_phandle);
@@ -370,19 +370,19 @@ static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
     g_free(nodename);
 
     nodename = g_strdup_printf("/soc/ethernet@%lx/ethernet-phy@0",
-        (long)memmap[SIFIVE_U_GEM].base);
+        (long)memmap[SIFIVE_U_DEV_GEM].base);
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_cell(fdt, nodename, "phandle", phy_phandle);
     qemu_fdt_setprop_cell(fdt, nodename, "reg", 0x0);
     g_free(nodename);
 
     nodename = g_strdup_printf("/soc/serial@%lx",
-        (long)memmap[SIFIVE_U_UART0].base);
+        (long)memmap[SIFIVE_U_DEV_UART0].base);
     qemu_fdt_add_subnode(fdt, nodename);
     qemu_fdt_setprop_string(fdt, nodename, "compatible", "sifive,uart0");
     qemu_fdt_setprop_cells(fdt, nodename, "reg",
-        0x0, memmap[SIFIVE_U_UART0].base,
-        0x0, memmap[SIFIVE_U_UART0].size);
+        0x0, memmap[SIFIVE_U_DEV_UART0].base,
+        0x0, memmap[SIFIVE_U_DEV_UART0].size);
     qemu_fdt_setprop_cells(fdt, nodename, "clocks",
         prci_phandle, PRCI_CLK_TLCLK);
     qemu_fdt_setprop_cell(fdt, nodename, "interrupt-parent", plic_phandle);
@@ -414,7 +414,7 @@ static void sifive_u_machine_init(MachineState *machine)
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *main_mem = g_new(MemoryRegion, 1);
     MemoryRegion *flash0 = g_new(MemoryRegion, 1);
-    target_ulong start_addr = memmap[SIFIVE_U_DRAM].base;
+    target_ulong start_addr = memmap[SIFIVE_U_DEV_DRAM].base;
     uint32_t start_addr_hi32 = 0x00000000;
     int i;
     uint32_t fdt_load_addr;
@@ -429,13 +429,13 @@ static void sifive_u_machine_init(MachineState *machine)
     /* register RAM */
     memory_region_init_ram(main_mem, NULL, "riscv.sifive.u.ram",
                            machine->ram_size, &error_fatal);
-    memory_region_add_subregion(system_memory, memmap[SIFIVE_U_DRAM].base,
+    memory_region_add_subregion(system_memory, memmap[SIFIVE_U_DEV_DRAM].base,
                                 main_mem);
 
     /* register QSPI0 Flash */
     memory_region_init_ram(flash0, NULL, "riscv.sifive.u.flash0",
-                           memmap[SIFIVE_U_FLASH0].size, &error_fatal);
-    memory_region_add_subregion(system_memory, memmap[SIFIVE_U_FLASH0].base,
+                           memmap[SIFIVE_U_DEV_FLASH0].size, &error_fatal);
+    memory_region_add_subregion(system_memory, memmap[SIFIVE_U_DEV_FLASH0].base,
                                 flash0);
 
     /* register gpio-restart */
@@ -461,14 +461,14 @@ static void sifive_u_machine_init(MachineState *machine)
 
     switch (s->msel) {
     case MSEL_MEMMAP_QSPI0_FLASH:
-        start_addr = memmap[SIFIVE_U_FLASH0].base;
+        start_addr = memmap[SIFIVE_U_DEV_FLASH0].base;
         break;
     case MSEL_L2LIM_QSPI0_FLASH:
     case MSEL_L2LIM_QSPI2_SD:
-        start_addr = memmap[SIFIVE_U_L2LIM].base;
+        start_addr = memmap[SIFIVE_U_DEV_L2LIM].base;
         break;
     default:
-        start_addr = memmap[SIFIVE_U_DRAM].base;
+        start_addr = memmap[SIFIVE_U_DEV_DRAM].base;
         break;
     }
 
@@ -496,7 +496,7 @@ static void sifive_u_machine_init(MachineState *machine)
     }
 
     /* Compute the fdt load address in dram */
-    fdt_load_addr = riscv_load_fdt(memmap[SIFIVE_U_DRAM].base,
+    fdt_load_addr = riscv_load_fdt(memmap[SIFIVE_U_DEV_DRAM].base,
                                    machine->ram_size, s->fdt);
     #if defined(TARGET_RISCV64)
     start_addr_hi32 = start_addr >> 32;
@@ -528,10 +528,10 @@ static void sifive_u_machine_init(MachineState *machine)
         reset_vec[i] = cpu_to_le32(reset_vec[i]);
     }
     rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
-                          memmap[SIFIVE_U_MROM].base, &address_space_memory);
+                          memmap[SIFIVE_U_DEV_MROM].base, &address_space_memory);
 
-    riscv_rom_copy_firmware_info(memmap[SIFIVE_U_MROM].base,
-                                 memmap[SIFIVE_U_MROM].size,
+    riscv_rom_copy_firmware_info(memmap[SIFIVE_U_DEV_MROM].base,
+                                 memmap[SIFIVE_U_DEV_MROM].size,
                                  sizeof(reset_vec), kernel_entry);
 }
 
@@ -674,8 +674,8 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
 
     /* boot rom */
     memory_region_init_rom(mask_rom, OBJECT(dev), "riscv.sifive.u.mrom",
-                           memmap[SIFIVE_U_MROM].size, &error_fatal);
-    memory_region_add_subregion(system_memory, memmap[SIFIVE_U_MROM].base,
+                           memmap[SIFIVE_U_DEV_MROM].size, &error_fatal);
+    memory_region_add_subregion(system_memory, memmap[SIFIVE_U_DEV_MROM].base,
                                 mask_rom);
 
     /*
@@ -688,8 +688,8 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
      * too generous to misbehaving guests.
      */
     memory_region_init_ram(l2lim_mem, NULL, "riscv.sifive.u.l2lim",
-                           memmap[SIFIVE_U_L2LIM].size, &error_fatal);
-    memory_region_add_subregion(system_memory, memmap[SIFIVE_U_L2LIM].base,
+                           memmap[SIFIVE_U_DEV_L2LIM].size, &error_fatal);
+    memory_region_add_subregion(system_memory, memmap[SIFIVE_U_DEV_L2LIM].base,
                                 l2lim_mem);
 
     /* create PLIC hart topology configuration string */
@@ -707,7 +707,7 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* MMIO */
-    s->plic = sifive_plic_create(memmap[SIFIVE_U_PLIC].base,
+    s->plic = sifive_plic_create(memmap[SIFIVE_U_DEV_PLIC].base,
         plic_hart_config, 0,
         SIFIVE_U_PLIC_NUM_SOURCES,
         SIFIVE_U_PLIC_NUM_PRIORITIES,
@@ -717,27 +717,27 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
         SIFIVE_U_PLIC_ENABLE_STRIDE,
         SIFIVE_U_PLIC_CONTEXT_BASE,
         SIFIVE_U_PLIC_CONTEXT_STRIDE,
-        memmap[SIFIVE_U_PLIC].size);
+        memmap[SIFIVE_U_DEV_PLIC].size);
     g_free(plic_hart_config);
-    sifive_uart_create(system_memory, memmap[SIFIVE_U_UART0].base,
+    sifive_uart_create(system_memory, memmap[SIFIVE_U_DEV_UART0].base,
         serial_hd(0), qdev_get_gpio_in(DEVICE(s->plic), SIFIVE_U_UART0_IRQ));
-    sifive_uart_create(system_memory, memmap[SIFIVE_U_UART1].base,
+    sifive_uart_create(system_memory, memmap[SIFIVE_U_DEV_UART1].base,
         serial_hd(1), qdev_get_gpio_in(DEVICE(s->plic), SIFIVE_U_UART1_IRQ));
-    sifive_clint_create(memmap[SIFIVE_U_CLINT].base,
-        memmap[SIFIVE_U_CLINT].size, 0, ms->smp.cpus,
+    sifive_clint_create(memmap[SIFIVE_U_DEV_CLINT].base,
+        memmap[SIFIVE_U_DEV_CLINT].size, 0, ms->smp.cpus,
         SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE,
         SIFIVE_CLINT_TIMEBASE_FREQ, false);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->prci), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->prci), 0, memmap[SIFIVE_U_PRCI].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->prci), 0, memmap[SIFIVE_U_DEV_PRCI].base);
 
     qdev_prop_set_uint32(DEVICE(&s->gpio), "ngpio", 16);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, memmap[SIFIVE_U_GPIO].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, memmap[SIFIVE_U_DEV_GPIO].base);
 
     /* Pass all GPIOs to the SOC layer so they are available to the board */
     qdev_pass_gpios(DEVICE(&s->gpio), dev, NULL);
@@ -751,7 +751,7 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
 
     /* PDMA */
     sysbus_realize(SYS_BUS_DEVICE(&s->dma), errp);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dma), 0, memmap[SIFIVE_U_PDMA].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dma), 0, memmap[SIFIVE_U_DEV_PDMA].base);
 
     /* Connect PDMA interrupts to the PLIC */
     for (i = 0; i < SIFIVE_PDMA_IRQS; i++) {
@@ -764,7 +764,7 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->otp), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->otp), 0, memmap[SIFIVE_U_OTP].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->otp), 0, memmap[SIFIVE_U_DEV_OTP].base);
 
     /* FIXME use qdev NIC properties instead of nd_table[] */
     if (nd->used) {
@@ -776,18 +776,18 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gem), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gem), 0, memmap[SIFIVE_U_GEM].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gem), 0, memmap[SIFIVE_U_DEV_GEM].base);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->gem), 0,
                        qdev_get_gpio_in(DEVICE(s->plic), SIFIVE_U_GEM_IRQ));
 
     create_unimplemented_device("riscv.sifive.u.gem-mgmt",
-        memmap[SIFIVE_U_GEM_MGMT].base, memmap[SIFIVE_U_GEM_MGMT].size);
+        memmap[SIFIVE_U_DEV_GEM_MGMT].base, memmap[SIFIVE_U_DEV_GEM_MGMT].size);
 
     create_unimplemented_device("riscv.sifive.u.dmc",
-        memmap[SIFIVE_U_DMC].base, memmap[SIFIVE_U_DMC].size);
+        memmap[SIFIVE_U_DEV_DMC].base, memmap[SIFIVE_U_DEV_DMC].size);
 
     create_unimplemented_device("riscv.sifive.u.l2cc",
-        memmap[SIFIVE_U_L2CC].base, memmap[SIFIVE_U_L2CC].size);
+        memmap[SIFIVE_U_DEV_L2CC].base, memmap[SIFIVE_U_DEV_L2CC].size);
 }
 
 static Property sifive_u_soc_props[] = {

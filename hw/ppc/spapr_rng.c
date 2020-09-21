@@ -30,9 +30,7 @@
 #include "kvm_ppc.h"
 #include "qom/object.h"
 
-typedef struct SpaprRngState SpaprRngState;
-DECLARE_INSTANCE_CHECKER(SpaprRngState, SPAPR_RNG,
-                         TYPE_SPAPR_RNG)
+OBJECT_DECLARE_SIMPLE_TYPE(SpaprRngState, SPAPR_RNG)
 
 struct SpaprRngState {
     /*< private >*/

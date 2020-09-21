@@ -30,9 +30,7 @@
 #define CTRL_OSF   0x20
 
 #define TYPE_DS1338 "ds1338"
-typedef struct DS1338State DS1338State;
-DECLARE_INSTANCE_CHECKER(DS1338State, DS1338,
-                         TYPE_DS1338)
+OBJECT_DECLARE_SIMPLE_TYPE(DS1338State, DS1338)
 
 struct DS1338State {
     I2CSlave parent_obj;

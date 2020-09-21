@@ -26,7 +26,7 @@
 #define TYPE_S390_CPU "s390x-cpu"
 
 OBJECT_DECLARE_TYPE(S390CPU, S390CPUClass,
-                    s390_cpu, S390_CPU)
+                    S390_CPU)
 
 typedef struct S390CPUModel S390CPUModel;
 typedef struct S390CPUDef S390CPUDef;

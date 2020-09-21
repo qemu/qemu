@@ -32,9 +32,7 @@
 #include "qom/object.h"
 
 #define TYPE_BCM2835_PERIPHERALS "bcm2835-peripherals"
-typedef struct BCM2835PeripheralState BCM2835PeripheralState;
-DECLARE_INSTANCE_CHECKER(BCM2835PeripheralState, BCM2835_PERIPHERALS,
-                         TYPE_BCM2835_PERIPHERALS)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835PeripheralState, BCM2835_PERIPHERALS)
 
 struct BCM2835PeripheralState {
     /*< private >*/

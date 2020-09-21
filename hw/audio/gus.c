@@ -43,9 +43,7 @@
 #endif
 
 #define TYPE_GUS "gus"
-typedef struct GUSState GUSState;
-DECLARE_INSTANCE_CHECKER(GUSState, GUS,
-                         TYPE_GUS)
+OBJECT_DECLARE_SIMPLE_TYPE(GUSState, GUS)
 
 struct GUSState {
     ISADevice dev;

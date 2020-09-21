@@ -52,9 +52,7 @@
 #define SHIFT 1
 
 #define TYPE_ADLIB "adlib"
-typedef struct AdlibState AdlibState;
-DECLARE_INSTANCE_CHECKER(AdlibState, ADLIB,
-                         TYPE_ADLIB)
+OBJECT_DECLARE_SIMPLE_TYPE(AdlibState, ADLIB)
 
 struct AdlibState {
     ISADevice parent_obj;

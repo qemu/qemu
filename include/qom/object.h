@@ -614,7 +614,6 @@ struct Object
  * OBJECT_DECLARE_TYPE:
  * @InstanceType: instance struct name
  * @ClassType: class struct name
- * @module_obj_name: the object name in lowercase with underscore separators
  * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
  *
  * This macro is typically used in a header file, and will:
@@ -625,7 +624,7 @@ struct Object
  *
  * The object struct and class struct need to be declared manually.
  */
-#define OBJECT_DECLARE_TYPE(InstanceType, ClassType, module_obj_name, MODULE_OBJ_NAME) \
+#define OBJECT_DECLARE_TYPE(InstanceType, ClassType, MODULE_OBJ_NAME) \
     typedef struct InstanceType InstanceType; \
     typedef struct ClassType ClassType; \
     \
@@ -637,21 +636,20 @@ struct Object
 /**
  * OBJECT_DECLARE_SIMPLE_TYPE:
  * @InstanceType: instance struct name
- * @module_obj_name: the object name in lowercase with underscore separators
  * @MODULE_OBJ_NAME: the object name in uppercase with underscore separators
- * @ParentClassType: class struct name of parent type
  *
- * This does the same as OBJECT_DECLARE_TYPE(), but also declares
- * the class struct, thus only the object struct needs to be declare
- * manually.
+ * This does the same as OBJECT_DECLARE_TYPE(), but with no class struct
+ * declared.
  *
  * This macro should be used unless the class struct needs to have
  * virtual methods declared.
  */
-#define OBJECT_DECLARE_SIMPLE_TYPE(InstanceType, module_obj_name, \
-                                   MODULE_OBJ_NAME, ParentClassType) \
-    OBJECT_DECLARE_TYPE(InstanceType, InstanceType##Class, module_obj_name, MODULE_OBJ_NAME) \
-    struct InstanceType##Class { ParentClassType parent_class; };
+#define OBJECT_DECLARE_SIMPLE_TYPE(InstanceType, MODULE_OBJ_NAME) \
+    typedef struct InstanceType InstanceType; \
+    \
+    G_DEFINE_AUTOPTR_CLEANUP_FUNC(InstanceType, object_unref) \
+    \
+    DECLARE_INSTANCE_CHECKER(InstanceType, MODULE_OBJ_NAME, TYPE_##MODULE_OBJ_NAME)
 
 
 /**
@@ -691,6 +689,7 @@ struct Object
         .parent = TYPE_##PARENT_MODULE_OBJ_NAME, \
         .name = TYPE_##MODULE_OBJ_NAME, \
         .instance_size = sizeof(ModuleObjName), \
+        .instance_align = __alignof__(ModuleObjName), \
         .instance_init = module_obj_name##_init, \
         .instance_finalize = module_obj_name##_finalize, \
         .class_size = sizeof(ModuleObjName##Class), \
@@ -770,6 +769,9 @@ struct Object
  * @instance_size: The size of the object (derivative of #Object).  If
  *   @instance_size is 0, then the size of the object will be the size of the
  *   parent object.
+ * @instance_align: The required alignment of the object.  If @instance_align
+ *   is 0, then normal malloc alignment is sufficient; if non-zero, then we
+ *   must use qemu_memalign for allocation.
  * @instance_init: This function is called to initialize an object.  The parent
  *   class will have already been initialized so the type is only responsible
  *   for initializing its own members.
@@ -807,6 +809,7 @@ struct TypeInfo
     const char *parent;
 
     size_t instance_size;
+    size_t instance_align;
     void (*instance_init)(Object *obj);
     void (*instance_post_init)(Object *obj);
     void (*instance_finalize)(Object *obj);
@@ -1257,7 +1260,7 @@ type_init(do_qemu_init_ ## type_array)
  * of this function.  The only difference in behavior is that this function
  * asserts instead of returning #NULL on failure if QOM cast debugging is
  * enabled.  This function is not meant to be called directly, but only through
- * the wrapper macros OBJECT_CLASS_CHECK and INTERFACE_CHECK.
+ * the wrapper macro OBJECT_CLASS_CHECK.
  */
 ObjectClass *object_class_dynamic_cast_assert(ObjectClass *klass,
                                               const char *typename,
@@ -1624,7 +1627,7 @@ bool object_property_set_bool(Object *obj, const char *name,
  * @name: the name of the property
  * @errp: returns an error if this function fails
  *
- * Returns: the value of the property, converted to a boolean, or NULL if
+ * Returns: the value of the property, converted to a boolean, or false if
  * an error occurs (including when the property value is not a bool).
  */
 bool object_property_get_bool(Object *obj, const char *name,
@@ -1649,7 +1652,7 @@ bool object_property_set_int(Object *obj, const char *name,
  * @name: the name of the property
  * @errp: returns an error if this function fails
  *
- * Returns: the value of the property, converted to an integer, or negative if
+ * Returns: the value of the property, converted to an integer, or -1 if
  * an error occurs (including when the property value is not an integer).
  */
 int64_t object_property_get_int(Object *obj, const char *name,
@@ -1687,9 +1690,9 @@ uint64_t object_property_get_uint(Object *obj, const char *name,
  * @typename: the name of the enum data type
  * @errp: returns an error if this function fails
  *
- * Returns: the value of the property, converted to an integer, or
- * undefined if an error occurs (including when the property value is not
- * an enum).
+ * Returns: the value of the property, converted to an integer (which
+ * can't be negative), or -1 on error (including when the property
+ * value is not an enum).
  */
 int object_property_get_enum(Object *obj, const char *name,
                              const char *typename, Error **errp);

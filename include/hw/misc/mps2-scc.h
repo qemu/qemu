@@ -16,9 +16,7 @@
 #include "qom/object.h"
 
 #define TYPE_MPS2_SCC "mps2-scc"
-typedef struct MPS2SCC MPS2SCC;
-DECLARE_INSTANCE_CHECKER(MPS2SCC, MPS2_SCC,
-                         TYPE_MPS2_SCC)
+OBJECT_DECLARE_SIMPLE_TYPE(MPS2SCC, MPS2_SCC)
 
 #define NUM_OSCCLK 3
 

@@ -19,9 +19,7 @@
 #include "qom/object.h"
 
 #define TYPE_SII3112_PCI "sii3112"
-typedef struct SiI3112PCIState SiI3112PCIState;
-DECLARE_INSTANCE_CHECKER(SiI3112PCIState, SII3112_PCI,
-                         TYPE_SII3112_PCI)
+OBJECT_DECLARE_SIMPLE_TYPE(SiI3112PCIState, SII3112_PCI)
 
 typedef struct SiI3112Regs {
     uint32_t confstat;

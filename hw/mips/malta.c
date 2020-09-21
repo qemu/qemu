@@ -89,9 +89,7 @@ typedef struct {
 } MaltaFPGAState;
 
 #define TYPE_MIPS_MALTA "mips-malta"
-typedef struct MaltaState MaltaState;
-DECLARE_INSTANCE_CHECKER(MaltaState, MIPS_MALTA,
-                         TYPE_MIPS_MALTA)
+OBJECT_DECLARE_SIMPLE_TYPE(MaltaState, MIPS_MALTA)
 
 struct MaltaState {
     SysBusDevice parent_obj;

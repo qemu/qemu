@@ -47,9 +47,7 @@ typedef struct spin_info {
 } QEMU_PACKED SpinInfo;
 
 #define TYPE_E500_SPIN "e500-spin"
-typedef struct SpinState SpinState;
-DECLARE_INSTANCE_CHECKER(SpinState, E500_SPIN,
-                         TYPE_E500_SPIN)
+OBJECT_DECLARE_SIMPLE_TYPE(SpinState, E500_SPIN)
 
 struct SpinState {
     SysBusDevice parent_obj;

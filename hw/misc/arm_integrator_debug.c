@@ -21,9 +21,7 @@
 #include "qemu/module.h"
 #include "qom/object.h"
 
-typedef struct IntegratorDebugState IntegratorDebugState;
-DECLARE_INSTANCE_CHECKER(IntegratorDebugState, INTEGRATOR_DEBUG,
-                         TYPE_INTEGRATOR_DEBUG)
+OBJECT_DECLARE_SIMPLE_TYPE(IntegratorDebugState, INTEGRATOR_DEBUG)
 
 struct IntegratorDebugState {
     SysBusDevice parent_obj;

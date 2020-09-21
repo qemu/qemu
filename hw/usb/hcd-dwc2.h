@@ -181,7 +181,6 @@ struct DWC2Class {
 };
 
 #define TYPE_DWC2_USB   "dwc2-usb"
-DECLARE_OBJ_CHECKERS(DWC2State, DWC2Class,
-                     DWC2_USB, TYPE_DWC2_USB)
+OBJECT_DECLARE_TYPE(DWC2State, DWC2Class, DWC2_USB)
 
 #endif

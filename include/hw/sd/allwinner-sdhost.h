@@ -45,10 +45,7 @@
  * @{
  */
 
-typedef struct AwSdHostClass AwSdHostClass;
-typedef struct AwSdHostState AwSdHostState;
-DECLARE_OBJ_CHECKERS(AwSdHostState, AwSdHostClass,
-                     AW_SDHOST, TYPE_AW_SDHOST)
+OBJECT_DECLARE_TYPE(AwSdHostState, AwSdHostClass, AW_SDHOST)
 
 /** @} */
 

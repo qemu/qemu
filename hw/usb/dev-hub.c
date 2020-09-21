@@ -50,11 +50,9 @@ struct USBHubState {
     QEMUTimer *port_timer;
     USBHubPort ports[MAX_PORTS];
 };
-typedef struct USBHubState USBHubState;
 
 #define TYPE_USB_HUB "usb-hub"
-DECLARE_INSTANCE_CHECKER(USBHubState, USB_HUB,
-                         TYPE_USB_HUB)
+OBJECT_DECLARE_SIMPLE_TYPE(USBHubState, USB_HUB)
 
 #define ClearHubFeature		(0x2000 | USB_REQ_CLEAR_FEATURE)
 #define ClearPortFeature	(0x2300 | USB_REQ_CLEAR_FEATURE)

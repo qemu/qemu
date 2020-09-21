@@ -38,10 +38,8 @@ struct TPMStateISA {
     /*< public >*/
     TPMState state; /* not a QOM object */
 };
-typedef struct TPMStateISA TPMStateISA;
 
-DECLARE_INSTANCE_CHECKER(TPMStateISA, TPM_TIS_ISA,
-                         TYPE_TPM_TIS_ISA)
+OBJECT_DECLARE_SIMPLE_TYPE(TPMStateISA, TPM_TIS_ISA)
 
 static int tpm_tis_pre_save_isa(void *opaque)
 {

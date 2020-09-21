@@ -21,9 +21,7 @@
 #include "qom/object.h"
 
 #define TYPE_VIRTIO_BALLOON "virtio-balloon-device"
-typedef struct VirtIOBalloon VirtIOBalloon;
-DECLARE_INSTANCE_CHECKER(VirtIOBalloon, VIRTIO_BALLOON,
-                         TYPE_VIRTIO_BALLOON)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOBalloon, VIRTIO_BALLOON)
 
 #define VIRTIO_BALLOON_FREE_PAGE_HINT_CMD_ID_MIN 0x80000000
 

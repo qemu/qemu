@@ -31,9 +31,7 @@
 #include "qom/object.h"
 
 #define TYPE_IOTKIT_SYSCTL "iotkit-sysctl"
-typedef struct IoTKitSysCtl IoTKitSysCtl;
-DECLARE_INSTANCE_CHECKER(IoTKitSysCtl, IOTKIT_SYSCTL,
-                         TYPE_IOTKIT_SYSCTL)
+OBJECT_DECLARE_SIMPLE_TYPE(IoTKitSysCtl, IOTKIT_SYSCTL)
 
 struct IoTKitSysCtl {
     /*< private >*/

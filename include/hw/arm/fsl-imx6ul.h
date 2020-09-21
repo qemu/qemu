@@ -41,9 +41,7 @@
 #include "qom/object.h"
 
 #define TYPE_FSL_IMX6UL "fsl,imx6ul"
-typedef struct FslIMX6ULState FslIMX6ULState;
-DECLARE_INSTANCE_CHECKER(FslIMX6ULState, FSL_IMX6UL,
-                         TYPE_FSL_IMX6UL)
+OBJECT_DECLARE_SIMPLE_TYPE(FslIMX6ULState, FSL_IMX6UL)
 
 enum FslIMX6ULConfiguration {
     FSL_IMX6UL_NUM_CPUS         = 1,

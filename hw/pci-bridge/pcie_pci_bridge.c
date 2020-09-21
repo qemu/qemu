@@ -27,11 +27,9 @@ struct PCIEPCIBridge {
     MemoryRegion shpc_bar;
     /*< public >*/
 };
-typedef struct PCIEPCIBridge PCIEPCIBridge;
 
 #define TYPE_PCIE_PCI_BRIDGE_DEV "pcie-pci-bridge"
-DECLARE_INSTANCE_CHECKER(PCIEPCIBridge, PCIE_PCI_BRIDGE_DEV,
-                         TYPE_PCIE_PCI_BRIDGE_DEV)
+OBJECT_DECLARE_SIMPLE_TYPE(PCIEPCIBridge, PCIE_PCI_BRIDGE_DEV)
 
 static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
 {

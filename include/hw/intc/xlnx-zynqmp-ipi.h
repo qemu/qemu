@@ -31,9 +31,7 @@
 
 #define TYPE_XLNX_ZYNQMP_IPI "xlnx.zynqmp_ipi"
 
-typedef struct XlnxZynqMPIPI XlnxZynqMPIPI;
-DECLARE_INSTANCE_CHECKER(XlnxZynqMPIPI, XLNX_ZYNQMP_IPI,
-                         TYPE_XLNX_ZYNQMP_IPI)
+OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPIPI, XLNX_ZYNQMP_IPI)
 
 /* This is R_IPI_IDR + 1 */
 #define R_XLNX_ZYNQMP_IPI_MAX ((0x1c / 4) + 1)

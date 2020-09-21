@@ -23,9 +23,7 @@
 #include "qom/object.h"
 
 #define TYPE_XLNX_VERSAL "xlnx-versal"
-typedef struct Versal Versal;
-DECLARE_INSTANCE_CHECKER(Versal, XLNX_VERSAL,
-                         TYPE_XLNX_VERSAL)
+OBJECT_DECLARE_SIMPLE_TYPE(Versal, XLNX_VERSAL)
 
 #define XLNX_VERSAL_NR_ACPUS   2
 #define XLNX_VERSAL_NR_UARTS   2

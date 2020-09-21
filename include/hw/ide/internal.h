@@ -19,15 +19,13 @@
 #define USE_DMA_CDROM
 #include "qom/object.h"
 
-typedef struct IDEBus IDEBus;
 typedef struct IDEDevice IDEDevice;
 typedef struct IDEState IDEState;
 typedef struct IDEDMA IDEDMA;
 typedef struct IDEDMAOps IDEDMAOps;
 
 #define TYPE_IDE_BUS "IDE"
-DECLARE_INSTANCE_CHECKER(IDEBus, IDE_BUS,
-                         TYPE_IDE_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(IDEBus, IDE_BUS)
 
 #define MAX_IDE_DEVS 2
 
@@ -488,9 +486,7 @@ struct IDEBus {
 };
 
 #define TYPE_IDE_DEVICE "ide-device"
-typedef struct IDEDeviceClass IDEDeviceClass;
-DECLARE_OBJ_CHECKERS(IDEDevice, IDEDeviceClass,
-                     IDE_DEVICE, TYPE_IDE_DEVICE)
+OBJECT_DECLARE_TYPE(IDEDevice, IDEDeviceClass, IDE_DEVICE)
 
 struct IDEDeviceClass {
     DeviceClass parent_class;

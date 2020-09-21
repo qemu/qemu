@@ -24,9 +24,7 @@
 #include "qom/object.h"
 
 #define TYPE_IMX_GPIO "imx.gpio"
-typedef struct IMXGPIOState IMXGPIOState;
-DECLARE_INSTANCE_CHECKER(IMXGPIOState, IMX_GPIO,
-                         TYPE_IMX_GPIO)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXGPIOState, IMX_GPIO)
 
 #define IMX_GPIO_MEM_SIZE 0x20
 

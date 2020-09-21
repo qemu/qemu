@@ -14,9 +14,7 @@
 #include "qom/object.h"
 
 #define TYPE_BCM2835_SYSTIMER "bcm2835-sys-timer"
-typedef struct BCM2835SystemTimerState BCM2835SystemTimerState;
-DECLARE_INSTANCE_CHECKER(BCM2835SystemTimerState, BCM2835_SYSTIMER,
-                         TYPE_BCM2835_SYSTIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835SystemTimerState, BCM2835_SYSTIMER)
 
 struct BCM2835SystemTimerState {
     /*< private >*/

@@ -22,9 +22,7 @@
 #include "qom/object.h"
 
 #define TYPE_VIRTIO_NET "virtio-net-device"
-typedef struct VirtIONet VirtIONet;
-DECLARE_INSTANCE_CHECKER(VirtIONet, VIRTIO_NET,
-                         TYPE_VIRTIO_NET)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIONet, VIRTIO_NET)
 
 #define TX_TIMER_INTERVAL 150000 /* 150 us */
 

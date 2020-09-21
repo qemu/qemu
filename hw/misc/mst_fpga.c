@@ -41,9 +41,7 @@
 #define MST_PCMCIA_CD1_IRQ	13
 
 #define TYPE_MAINSTONE_FPGA "mainstone-fpga"
-typedef struct mst_irq_state mst_irq_state;
-DECLARE_INSTANCE_CHECKER(mst_irq_state, MAINSTONE_FPGA,
-                         TYPE_MAINSTONE_FPGA)
+OBJECT_DECLARE_SIMPLE_TYPE(mst_irq_state, MAINSTONE_FPGA)
 
 struct mst_irq_state {
     SysBusDevice parent_obj;

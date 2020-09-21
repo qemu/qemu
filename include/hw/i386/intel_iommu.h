@@ -27,9 +27,7 @@
 #include "qom/object.h"
 
 #define TYPE_INTEL_IOMMU_DEVICE "intel-iommu"
-typedef struct IntelIOMMUState IntelIOMMUState;
-DECLARE_INSTANCE_CHECKER(IntelIOMMUState, INTEL_IOMMU_DEVICE,
-                         TYPE_INTEL_IOMMU_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(IntelIOMMUState, INTEL_IOMMU_DEVICE)
 
 #define TYPE_INTEL_IOMMU_MEMORY_REGION "intel-iommu-iommu-memory-region"
 

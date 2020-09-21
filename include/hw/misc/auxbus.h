@@ -29,15 +29,12 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
-typedef struct AUXBus AUXBus;
 typedef struct AUXSlave AUXSlave;
 typedef enum AUXCommand AUXCommand;
 typedef enum AUXReply AUXReply;
 
 #define TYPE_AUXTOI2C "aux-to-i2c-bridge"
-typedef struct AUXTOI2CState AUXTOI2CState;
-DECLARE_INSTANCE_CHECKER(AUXTOI2CState, AUXTOI2C,
-                         TYPE_AUXTOI2C)
+OBJECT_DECLARE_SIMPLE_TYPE(AUXTOI2CState, AUXTOI2C)
 
 enum AUXCommand {
     WRITE_I2C = 0,
@@ -58,8 +55,7 @@ enum AUXReply {
 };
 
 #define TYPE_AUX_BUS "aux-bus"
-DECLARE_INSTANCE_CHECKER(AUXBus, AUX_BUS,
-                         TYPE_AUX_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(AUXBus, AUX_BUS)
 
 struct AUXBus {
     /* < private > */
@@ -78,8 +74,7 @@ struct AUXBus {
 };
 
 #define TYPE_AUX_SLAVE "aux-slave"
-DECLARE_INSTANCE_CHECKER(AUXSlave, AUX_SLAVE,
-                         TYPE_AUX_SLAVE)
+OBJECT_DECLARE_SIMPLE_TYPE(AUXSlave, AUX_SLAVE)
 
 struct AUXSlave {
     /* < private > */

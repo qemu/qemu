@@ -53,9 +53,7 @@
 #define CONTROL_IE        0x10
 
 #define TYPE_XILINX_UARTLITE "xlnx.xps-uartlite"
-typedef struct XilinxUARTLite XilinxUARTLite;
-DECLARE_INSTANCE_CHECKER(XilinxUARTLite, XILINX_UARTLITE,
-                         TYPE_XILINX_UARTLITE)
+OBJECT_DECLARE_SIMPLE_TYPE(XilinxUARTLite, XILINX_UARTLITE)
 
 struct XilinxUARTLite {
     SysBusDevice parent_obj;

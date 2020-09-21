@@ -40,9 +40,7 @@
 
 /* MacIO virtual bus */
 #define TYPE_MACIO_BUS "macio-bus"
-typedef struct MacIOBusState MacIOBusState;
-DECLARE_INSTANCE_CHECKER(MacIOBusState, MACIO_BUS,
-                         TYPE_MACIO_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(MacIOBusState, MACIO_BUS)
 
 struct MacIOBusState {
     /*< private >*/
@@ -51,9 +49,7 @@ struct MacIOBusState {
 
 /* MacIO IDE */
 #define TYPE_MACIO_IDE "macio-ide"
-typedef struct MACIOIDEState MACIOIDEState;
-DECLARE_INSTANCE_CHECKER(MACIOIDEState, MACIO_IDE,
-                         TYPE_MACIO_IDE)
+OBJECT_DECLARE_SIMPLE_TYPE(MACIOIDEState, MACIO_IDE)
 
 struct MACIOIDEState {
     /*< private >*/
@@ -79,9 +75,7 @@ void macio_ide_init_drives(MACIOIDEState *ide, DriveInfo **hd_table);
 void macio_ide_register_dma(MACIOIDEState *ide);
 
 #define TYPE_MACIO "macio"
-typedef struct MacIOState MacIOState;
-DECLARE_INSTANCE_CHECKER(MacIOState, MACIO,
-                         TYPE_MACIO)
+OBJECT_DECLARE_SIMPLE_TYPE(MacIOState, MACIO)
 
 struct MacIOState {
     /*< private >*/
@@ -98,9 +92,7 @@ struct MacIOState {
 };
 
 #define TYPE_OLDWORLD_MACIO "macio-oldworld"
-typedef struct OldWorldMacIOState OldWorldMacIOState;
-DECLARE_INSTANCE_CHECKER(OldWorldMacIOState, OLDWORLD_MACIO,
-                         TYPE_OLDWORLD_MACIO)
+OBJECT_DECLARE_SIMPLE_TYPE(OldWorldMacIOState, OLDWORLD_MACIO)
 
 struct OldWorldMacIOState {
     /*< private >*/
@@ -114,9 +106,7 @@ struct OldWorldMacIOState {
 };
 
 #define TYPE_NEWWORLD_MACIO "macio-newworld"
-typedef struct NewWorldMacIOState NewWorldMacIOState;
-DECLARE_INSTANCE_CHECKER(NewWorldMacIOState, NEWWORLD_MACIO,
-                         TYPE_NEWWORLD_MACIO)
+OBJECT_DECLARE_SIMPLE_TYPE(NewWorldMacIOState, NEWWORLD_MACIO)
 
 struct NewWorldMacIOState {
     /*< private >*/

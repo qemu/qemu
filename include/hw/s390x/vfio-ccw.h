@@ -20,9 +20,7 @@
 #include "qom/object.h"
 
 #define TYPE_VFIO_CCW "vfio-ccw"
-typedef struct VFIOCCWDevice VFIOCCWDevice;
-DECLARE_INSTANCE_CHECKER(VFIOCCWDevice, VFIO_CCW,
-                         TYPE_VFIO_CCW)
+OBJECT_DECLARE_SIMPLE_TYPE(VFIOCCWDevice, VFIO_CCW)
 
 #define TYPE_VFIO_CCW "vfio-ccw"
 

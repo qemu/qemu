@@ -27,14 +27,10 @@
 #include "qom/object.h"
 
 #define TYPE_XILINX_PCIE_HOST "xilinx-pcie-host"
-typedef struct XilinxPCIEHost XilinxPCIEHost;
-DECLARE_INSTANCE_CHECKER(XilinxPCIEHost, XILINX_PCIE_HOST,
-                         TYPE_XILINX_PCIE_HOST)
+OBJECT_DECLARE_SIMPLE_TYPE(XilinxPCIEHost, XILINX_PCIE_HOST)
 
 #define TYPE_XILINX_PCIE_ROOT "xilinx-pcie-root"
-typedef struct XilinxPCIERoot XilinxPCIERoot;
-DECLARE_INSTANCE_CHECKER(XilinxPCIERoot, XILINX_PCIE_ROOT,
-                         TYPE_XILINX_PCIE_ROOT)
+OBJECT_DECLARE_SIMPLE_TYPE(XilinxPCIERoot, XILINX_PCIE_ROOT)
 
 struct XilinxPCIERoot {
     PCIBridge parent_obj;

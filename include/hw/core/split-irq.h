@@ -42,10 +42,8 @@
 
 #define MAX_SPLIT_LINES 16
 
-typedef struct SplitIRQ SplitIRQ;
 
-DECLARE_INSTANCE_CHECKER(SplitIRQ, SPLIT_IRQ,
-                         TYPE_SPLIT_IRQ)
+OBJECT_DECLARE_SIMPLE_TYPE(SplitIRQ, SPLIT_IRQ)
 
 struct SplitIRQ {
     DeviceState parent_obj;

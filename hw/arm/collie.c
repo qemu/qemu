@@ -25,11 +25,9 @@ struct CollieMachineState {
 
     StrongARMState *sa1110;
 };
-typedef struct CollieMachineState CollieMachineState;
 
 #define TYPE_COLLIE_MACHINE MACHINE_TYPE_NAME("collie")
-DECLARE_INSTANCE_CHECKER(CollieMachineState, COLLIE_MACHINE,
-                         TYPE_COLLIE_MACHINE)
+OBJECT_DECLARE_SIMPLE_TYPE(CollieMachineState, COLLIE_MACHINE)
 
 static struct arm_boot_info collie_binfo = {
     .loader_start = SA_SDCS0,

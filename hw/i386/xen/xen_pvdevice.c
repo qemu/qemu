@@ -40,9 +40,7 @@
 
 #define TYPE_XEN_PV_DEVICE  "xen-pvdevice"
 
-typedef struct XenPVDevice XenPVDevice;
-DECLARE_INSTANCE_CHECKER(XenPVDevice, XEN_PV_DEVICE,
-                         TYPE_XEN_PV_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(XenPVDevice, XEN_PV_DEVICE)
 
 struct XenPVDevice {
     /*< private >*/

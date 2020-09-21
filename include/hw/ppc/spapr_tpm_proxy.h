@@ -17,9 +17,7 @@
 #include "hw/qdev-core.h"
 
 #define TYPE_SPAPR_TPM_PROXY "spapr-tpm-proxy"
-typedef struct SpaprTpmProxy SpaprTpmProxy;
-DECLARE_INSTANCE_CHECKER(SpaprTpmProxy, SPAPR_TPM_PROXY,
-                         TYPE_SPAPR_TPM_PROXY)
+OBJECT_DECLARE_SIMPLE_TYPE(SpaprTpmProxy, SPAPR_TPM_PROXY)
 
 struct SpaprTpmProxy {
     /*< private >*/

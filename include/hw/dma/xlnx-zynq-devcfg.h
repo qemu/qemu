@@ -33,9 +33,7 @@
 
 #define TYPE_XLNX_ZYNQ_DEVCFG "xlnx.ps7-dev-cfg"
 
-typedef struct XlnxZynqDevcfg XlnxZynqDevcfg;
-DECLARE_INSTANCE_CHECKER(XlnxZynqDevcfg, XLNX_ZYNQ_DEVCFG,
-                         TYPE_XLNX_ZYNQ_DEVCFG)
+OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqDevcfg, XLNX_ZYNQ_DEVCFG)
 
 #define XLNX_ZYNQ_DEVCFG_R_MAX (0x100 / 4)
 

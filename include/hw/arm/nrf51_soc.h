@@ -20,9 +20,7 @@
 #include "qom/object.h"
 
 #define TYPE_NRF51_SOC "nrf51-soc"
-typedef struct NRF51State NRF51State;
-DECLARE_INSTANCE_CHECKER(NRF51State, NRF51_SOC,
-                         TYPE_NRF51_SOC)
+OBJECT_DECLARE_SIMPLE_TYPE(NRF51State, NRF51_SOC)
 
 #define NRF51_NUM_TIMERS 3
 

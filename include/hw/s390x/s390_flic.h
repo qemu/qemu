@@ -40,7 +40,7 @@ extern const VMStateDescription vmstate_adapter_routes;
 
 #define TYPE_S390_FLIC_COMMON "s390-flic"
 OBJECT_DECLARE_TYPE(S390FLICState, S390FLICStateClass,
-                    s390_flic_common, S390_FLIC_COMMON)
+                    S390_FLIC_COMMON)
 
 struct S390FLICState {
     SysBusDevice parent_obj;
@@ -77,9 +77,7 @@ DECLARE_INSTANCE_CHECKER(KVMS390FLICState, KVM_S390_FLIC,
                          TYPE_KVM_S390_FLIC)
 
 #define TYPE_QEMU_S390_FLIC "s390-flic-qemu"
-typedef struct QEMUS390FLICState QEMUS390FLICState;
-DECLARE_INSTANCE_CHECKER(QEMUS390FLICState, QEMU_S390_FLIC,
-                         TYPE_QEMU_S390_FLIC)
+OBJECT_DECLARE_SIMPLE_TYPE(QEMUS390FLICState, QEMU_S390_FLIC)
 
 #define SIC_IRQ_MODE_ALL 0
 #define SIC_IRQ_MODE_SINGLE 1

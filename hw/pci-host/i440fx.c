@@ -42,9 +42,7 @@
  * https://wiki.qemu.org/File:29054901.pdf
  */
 
-typedef struct I440FXState I440FXState;
-DECLARE_INSTANCE_CHECKER(I440FXState, I440FX_PCI_HOST_BRIDGE,
-                         TYPE_I440FX_PCI_HOST_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(I440FXState, I440FX_PCI_HOST_BRIDGE)
 
 struct I440FXState {
     PCIHostState parent_obj;

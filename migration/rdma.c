@@ -398,9 +398,7 @@ typedef struct RDMAContext {
 } RDMAContext;
 
 #define TYPE_QIO_CHANNEL_RDMA "qio-channel-rdma"
-typedef struct QIOChannelRDMA QIOChannelRDMA;
-DECLARE_INSTANCE_CHECKER(QIOChannelRDMA, QIO_CHANNEL_RDMA,
-                         TYPE_QIO_CHANNEL_RDMA)
+OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelRDMA, QIO_CHANNEL_RDMA)
 
 
 

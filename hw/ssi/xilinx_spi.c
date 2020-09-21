@@ -79,9 +79,7 @@
 #define FIFO_CAPACITY 256
 
 #define TYPE_XILINX_SPI "xlnx.xps-spi"
-typedef struct XilinxSPI XilinxSPI;
-DECLARE_INSTANCE_CHECKER(XilinxSPI, XILINX_SPI,
-                         TYPE_XILINX_SPI)
+OBJECT_DECLARE_SIMPLE_TYPE(XilinxSPI, XILINX_SPI)
 
 struct XilinxSPI {
     SysBusDevice parent_obj;

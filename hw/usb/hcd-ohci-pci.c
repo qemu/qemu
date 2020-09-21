@@ -32,9 +32,7 @@
 #include "qom/object.h"
 
 #define TYPE_PCI_OHCI "pci-ohci"
-typedef struct OHCIPCIState OHCIPCIState;
-DECLARE_INSTANCE_CHECKER(OHCIPCIState, PCI_OHCI,
-                         TYPE_PCI_OHCI)
+OBJECT_DECLARE_SIMPLE_TYPE(OHCIPCIState, PCI_OHCI)
 
 struct OHCIPCIState {
     /*< private >*/

@@ -25,7 +25,7 @@
 
 #define TYPE_PNV_HOMER "pnv-homer"
 OBJECT_DECLARE_TYPE(PnvHomer, PnvHomerClass,
-                    pnv_homer, PNV_HOMER)
+                    PNV_HOMER)
 #define TYPE_PNV8_HOMER TYPE_PNV_HOMER "-POWER8"
 DECLARE_INSTANCE_CHECKER(PnvHomer, PNV8_HOMER,
                          TYPE_PNV8_HOMER)

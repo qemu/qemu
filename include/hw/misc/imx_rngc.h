@@ -14,9 +14,7 @@
 #include "qom/object.h"
 
 #define TYPE_IMX_RNGC "imx.rngc"
-typedef struct IMXRNGCState IMXRNGCState;
-DECLARE_INSTANCE_CHECKER(IMXRNGCState, IMX_RNGC,
-                         TYPE_IMX_RNGC)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXRNGCState, IMX_RNGC)
 
 struct IMXRNGCState {
     /*< private >*/

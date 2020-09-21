@@ -47,11 +47,9 @@ struct HypervTestDev {
     QLIST_HEAD(, TestMsgConn) msg_conns;
     QLIST_HEAD(, TestEvtConn) evt_conns;
 };
-typedef struct HypervTestDev HypervTestDev;
 
 #define TYPE_HYPERV_TEST_DEV "hyperv-testdev"
-DECLARE_INSTANCE_CHECKER(HypervTestDev, HYPERV_TEST_DEV,
-                         TYPE_HYPERV_TEST_DEV)
+OBJECT_DECLARE_SIMPLE_TYPE(HypervTestDev, HYPERV_TEST_DEV)
 
 enum {
     HV_TEST_DEV_SINT_ROUTE_CREATE = 1,

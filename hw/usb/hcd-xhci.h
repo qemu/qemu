@@ -27,9 +27,7 @@
 #define TYPE_NEC_XHCI "nec-usb-xhci"
 #define TYPE_QEMU_XHCI "qemu-xhci"
 
-typedef struct XHCIState XHCIState;
-DECLARE_INSTANCE_CHECKER(XHCIState, XHCI,
-                         TYPE_XHCI)
+OBJECT_DECLARE_SIMPLE_TYPE(XHCIState, XHCI)
 
 #define MAXPORTS_2 15
 #define MAXPORTS_3 15

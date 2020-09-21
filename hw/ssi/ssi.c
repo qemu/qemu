@@ -24,8 +24,7 @@ struct SSIBus {
 };
 
 #define TYPE_SSI_BUS "SSI"
-DECLARE_INSTANCE_CHECKER(SSIBus, SSI_BUS,
-                         TYPE_SSI_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(SSIBus, SSI_BUS)
 
 static const TypeInfo ssi_bus_info = {
     .name = TYPE_SSI_BUS,

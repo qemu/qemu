@@ -59,9 +59,7 @@ typedef struct SLAVIO_CPUINTCTLState {
 } SLAVIO_CPUINTCTLState;
 
 #define TYPE_SLAVIO_INTCTL "slavio_intctl"
-typedef struct SLAVIO_INTCTLState SLAVIO_INTCTLState;
-DECLARE_INSTANCE_CHECKER(SLAVIO_INTCTLState, SLAVIO_INTCTL,
-                         TYPE_SLAVIO_INTCTL)
+OBJECT_DECLARE_SIMPLE_TYPE(SLAVIO_INTCTLState, SLAVIO_INTCTL)
 
 struct SLAVIO_INTCTLState {
     SysBusDevice parent_obj;

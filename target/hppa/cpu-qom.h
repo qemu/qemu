@@ -26,7 +26,7 @@
 #define TYPE_HPPA_CPU "hppa-cpu"
 
 OBJECT_DECLARE_TYPE(HPPACPU, HPPACPUClass,
-                    hppa_cpu, HPPA_CPU)
+                    HPPA_CPU)
 
 /**
  * HPPACPUClass:

@@ -22,9 +22,7 @@
 #define PXA2XX_GPIO_BANKS	4
 
 #define TYPE_PXA2XX_GPIO "pxa2xx-gpio"
-typedef struct PXA2xxGPIOInfo PXA2xxGPIOInfo;
-DECLARE_INSTANCE_CHECKER(PXA2xxGPIOInfo, PXA2XX_GPIO,
-                         TYPE_PXA2XX_GPIO)
+OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxGPIOInfo, PXA2XX_GPIO)
 
 struct PXA2xxGPIOInfo {
     /*< private >*/

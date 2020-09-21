@@ -119,11 +119,9 @@ struct PCMachineClass {
     /* use PVH to load kernels that support this feature */
     bool pvh_enabled;
 };
-typedef struct PCMachineClass PCMachineClass;
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
-DECLARE_OBJ_CHECKERS(PCMachineState, PCMachineClass,
-                     PC_MACHINE, TYPE_PC_MACHINE)
+OBJECT_DECLARE_TYPE(PCMachineState, PCMachineClass, PC_MACHINE)
 
 /* ioapic.c */
 

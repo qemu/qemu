@@ -25,9 +25,7 @@
 #include "qom/object.h"
 
 #define TYPE_IMX_I2C "imx.i2c"
-typedef struct IMXI2CState IMXI2CState;
-DECLARE_INSTANCE_CHECKER(IMXI2CState, IMX_I2C,
-                         TYPE_IMX_I2C)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXI2CState, IMX_I2C)
 
 #define IMX_I2C_MEM_SIZE           0x14
 

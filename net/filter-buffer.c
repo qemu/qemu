@@ -18,9 +18,7 @@
 
 #define TYPE_FILTER_BUFFER "filter-buffer"
 
-typedef struct FilterBufferState FilterBufferState;
-DECLARE_INSTANCE_CHECKER(FilterBufferState, FILTER_BUFFER,
-                         TYPE_FILTER_BUFFER)
+OBJECT_DECLARE_SIMPLE_TYPE(FilterBufferState, FILTER_BUFFER)
 
 struct FilterBufferState {
     NetFilterState parent_obj;

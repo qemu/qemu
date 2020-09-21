@@ -21,10 +21,8 @@ struct AspeedRtcState {
     int offset;
 
 };
-typedef struct AspeedRtcState AspeedRtcState;
 
 #define TYPE_ASPEED_RTC "aspeed.rtc"
-DECLARE_INSTANCE_CHECKER(AspeedRtcState, ASPEED_RTC,
-                         TYPE_ASPEED_RTC)
+OBJECT_DECLARE_SIMPLE_TYPE(AspeedRtcState, ASPEED_RTC)
 
 #endif /* HW_RTC_ASPEED_RTC_H */

@@ -23,10 +23,8 @@ struct VMBusBridge {
 
     VMBus *bus;
 };
-typedef struct VMBusBridge VMBusBridge;
 
-DECLARE_INSTANCE_CHECKER(VMBusBridge, VMBUS_BRIDGE,
-                         TYPE_VMBUS_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(VMBusBridge, VMBUS_BRIDGE)
 
 static inline VMBusBridge *vmbus_bridge_find(void)
 {

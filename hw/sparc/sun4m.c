@@ -582,9 +582,7 @@ static void idreg_init(hwaddr addr)
                             idreg_data, sizeof(idreg_data));
 }
 
-typedef struct IDRegState IDRegState;
-DECLARE_INSTANCE_CHECKER(IDRegState, MACIO_ID_REGISTER,
-                         TYPE_MACIO_ID_REGISTER)
+OBJECT_DECLARE_SIMPLE_TYPE(IDRegState, MACIO_ID_REGISTER)
 
 struct IDRegState {
     SysBusDevice parent_obj;
@@ -625,9 +623,7 @@ static const TypeInfo idreg_info = {
 };
 
 #define TYPE_TCX_AFX "tcx_afx"
-typedef struct AFXState AFXState;
-DECLARE_INSTANCE_CHECKER(AFXState, TCX_AFX,
-                         TYPE_TCX_AFX)
+OBJECT_DECLARE_SIMPLE_TYPE(AFXState, TCX_AFX)
 
 struct AFXState {
     SysBusDevice parent_obj;

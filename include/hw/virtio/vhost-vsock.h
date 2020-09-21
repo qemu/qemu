@@ -18,9 +18,7 @@
 #include "qom/object.h"
 
 #define TYPE_VHOST_VSOCK "vhost-vsock-device"
-typedef struct VHostVSock VHostVSock;
-DECLARE_INSTANCE_CHECKER(VHostVSock, VHOST_VSOCK,
-                         TYPE_VHOST_VSOCK)
+OBJECT_DECLARE_SIMPLE_TYPE(VHostVSock, VHOST_VSOCK)
 
 typedef struct {
     uint64_t guest_cid;

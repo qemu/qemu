@@ -36,9 +36,7 @@ typedef enum {
 } screen_state_t;
 
 #define TYPE_JAZZ_LED "jazz-led"
-typedef struct LedState LedState;
-DECLARE_INSTANCE_CHECKER(LedState, JAZZ_LED,
-                         TYPE_JAZZ_LED)
+OBJECT_DECLARE_SIMPLE_TYPE(LedState, JAZZ_LED)
 
 struct LedState {
     SysBusDevice parent_obj;

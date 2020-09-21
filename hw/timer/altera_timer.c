@@ -45,9 +45,7 @@
 #define CONTROL_STOP  0x0008
 
 #define TYPE_ALTERA_TIMER "ALTR.timer"
-typedef struct AlteraTimer AlteraTimer;
-DECLARE_INSTANCE_CHECKER(AlteraTimer, ALTERA_TIMER,
-                         TYPE_ALTERA_TIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(AlteraTimer, ALTERA_TIMER)
 
 struct AlteraTimer {
     SysBusDevice  busdev;

@@ -1932,9 +1932,7 @@ static const VMStateDescription vmstate_sm501_state = {
 };
 
 #define TYPE_SYSBUS_SM501 "sysbus-sm501"
-typedef struct SM501SysBusState SM501SysBusState;
-DECLARE_INSTANCE_CHECKER(SM501SysBusState, SYSBUS_SM501,
-                         TYPE_SYSBUS_SM501)
+OBJECT_DECLARE_SIMPLE_TYPE(SM501SysBusState, SYSBUS_SM501)
 
 struct SM501SysBusState {
     /*< private >*/
@@ -2036,9 +2034,7 @@ static const TypeInfo sm501_sysbus_info = {
 };
 
 #define TYPE_PCI_SM501 "sm501"
-typedef struct SM501PCIState SM501PCIState;
-DECLARE_INSTANCE_CHECKER(SM501PCIState, PCI_SM501,
-                         TYPE_PCI_SM501)
+OBJECT_DECLARE_SIMPLE_TYPE(SM501PCIState, PCI_SM501)
 
 struct SM501PCIState {
     /*< private >*/

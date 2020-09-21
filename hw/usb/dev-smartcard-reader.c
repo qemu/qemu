@@ -61,9 +61,7 @@ do { \
 #define D_VERBOSE 4
 
 #define TYPE_USB_CCID_DEV "usb-ccid"
-typedef struct USBCCIDState USBCCIDState;
-DECLARE_INSTANCE_CHECKER(USBCCIDState, USB_CCID_DEV,
-                         TYPE_USB_CCID_DEV)
+OBJECT_DECLARE_SIMPLE_TYPE(USBCCIDState, USB_CCID_DEV)
 /*
  * The two options for variable sized buffers:
  * make them constant size, for large enough constant,
@@ -1177,8 +1175,7 @@ static Property ccid_props[] = {
 };
 
 #define TYPE_CCID_BUS "ccid-bus"
-DECLARE_INSTANCE_CHECKER(CCIDBus, CCID_BUS,
-                         TYPE_CCID_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(CCIDBus, CCID_BUS)
 
 static const TypeInfo ccid_bus_info = {
     .name = TYPE_CCID_BUS,

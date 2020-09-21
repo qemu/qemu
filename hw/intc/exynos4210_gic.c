@@ -265,9 +265,7 @@ uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit)
 /********* GIC part *********/
 
 #define TYPE_EXYNOS4210_GIC "exynos4210.gic"
-typedef struct Exynos4210GicState Exynos4210GicState;
-DECLARE_INSTANCE_CHECKER(Exynos4210GicState, EXYNOS4210_GIC,
-                         TYPE_EXYNOS4210_GIC)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210GicState, EXYNOS4210_GIC)
 
 struct Exynos4210GicState {
     SysBusDevice parent_obj;
@@ -384,9 +382,7 @@ type_init(exynos4210_gic_register_types)
  */
 
 #define TYPE_EXYNOS4210_IRQ_GATE "exynos4210.irq_gate"
-typedef struct Exynos4210IRQGateState Exynos4210IRQGateState;
-DECLARE_INSTANCE_CHECKER(Exynos4210IRQGateState, EXYNOS4210_IRQ_GATE,
-                         TYPE_EXYNOS4210_IRQ_GATE)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210IRQGateState, EXYNOS4210_IRQ_GATE)
 
 struct Exynos4210IRQGateState {
     SysBusDevice parent_obj;

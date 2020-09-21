@@ -11,9 +11,7 @@
 #include "qemu/guest-random.h"
 #include "qom/object.h"
 
-typedef struct RngBuiltin RngBuiltin;
-DECLARE_INSTANCE_CHECKER(RngBuiltin, RNG_BUILTIN,
-                         TYPE_RNG_BUILTIN)
+OBJECT_DECLARE_SIMPLE_TYPE(RngBuiltin, RNG_BUILTIN)
 
 struct RngBuiltin {
     RngBackend parent;

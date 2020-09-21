@@ -178,7 +178,6 @@ void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
 void DBDMA_kick(DBDMAState *dbdma);
 
 #define TYPE_MAC_DBDMA "mac-dbdma"
-DECLARE_INSTANCE_CHECKER(DBDMAState, MAC_DBDMA,
-                         TYPE_MAC_DBDMA)
+OBJECT_DECLARE_SIMPLE_TYPE(DBDMAState, MAC_DBDMA)
 
 #endif

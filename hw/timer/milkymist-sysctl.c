@@ -63,9 +63,7 @@ enum {
 };
 
 #define TYPE_MILKYMIST_SYSCTL "milkymist-sysctl"
-typedef struct MilkymistSysctlState MilkymistSysctlState;
-DECLARE_INSTANCE_CHECKER(MilkymistSysctlState, MILKYMIST_SYSCTL,
-                         TYPE_MILKYMIST_SYSCTL)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistSysctlState, MILKYMIST_SYSCTL)
 
 struct MilkymistSysctlState {
     SysBusDevice parent_obj;

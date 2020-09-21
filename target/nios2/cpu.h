@@ -33,7 +33,7 @@ typedef struct CPUNios2State CPUNios2State;
 #define TYPE_NIOS2_CPU "nios2-cpu"
 
 OBJECT_DECLARE_TYPE(Nios2CPU, Nios2CPUClass,
-                    nios2_cpu, NIOS2_CPU)
+                    NIOS2_CPU)
 
 /**
  * Nios2CPUClass:

@@ -100,7 +100,7 @@ typedef struct CPUTLGState {
 #define TYPE_TILEGX_CPU "tilegx-cpu"
 
 OBJECT_DECLARE_TYPE(TileGXCPU, TileGXCPUClass,
-                    tilegx_cpu, TILEGX_CPU)
+                    TILEGX_CPU)
 
 /**
  * TileGXCPUClass:

@@ -137,9 +137,7 @@ typedef struct IRQDest {
 } IRQDest;
 
 #define TYPE_OPENPIC "openpic"
-typedef struct OpenPICState OpenPICState;
-DECLARE_INSTANCE_CHECKER(OpenPICState, OPENPIC,
-                         TYPE_OPENPIC)
+OBJECT_DECLARE_SIMPLE_TYPE(OpenPICState, OPENPIC)
 
 struct OpenPICState {
     /*< private >*/

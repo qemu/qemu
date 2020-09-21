@@ -30,7 +30,7 @@
 #define TYPE_SH7785_CPU  SUPERH_CPU_TYPE_NAME("sh7785")
 
 OBJECT_DECLARE_TYPE(SuperHCPU, SuperHCPUClass,
-                    superh_cpu, SUPERH_CPU)
+                    SUPERH_CPU)
 
 /**
  * SuperHCPUClass:

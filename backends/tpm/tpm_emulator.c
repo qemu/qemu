@@ -45,9 +45,7 @@
 #include "qom/object.h"
 
 #define TYPE_TPM_EMULATOR "tpm-emulator"
-typedef struct TPMEmulator TPMEmulator;
-DECLARE_INSTANCE_CHECKER(TPMEmulator, TPM_EMULATOR,
-                         TYPE_TPM_EMULATOR)
+OBJECT_DECLARE_SIMPLE_TYPE(TPMEmulator, TPM_EMULATOR)
 
 #define TPM_EMULATOR_IMPLEMENTS_ALL_CAPS(S, cap) (((S)->caps & (cap)) == (cap))
 

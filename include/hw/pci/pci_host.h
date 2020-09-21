@@ -32,9 +32,7 @@
 #include "qom/object.h"
 
 #define TYPE_PCI_HOST_BRIDGE "pci-host-bridge"
-typedef struct PCIHostBridgeClass PCIHostBridgeClass;
-DECLARE_OBJ_CHECKERS(PCIHostState, PCIHostBridgeClass,
-                     PCI_HOST_BRIDGE, TYPE_PCI_HOST_BRIDGE)
+OBJECT_DECLARE_TYPE(PCIHostState, PCIHostBridgeClass, PCI_HOST_BRIDGE)
 
 struct PCIHostState {
     SysBusDevice busdev;

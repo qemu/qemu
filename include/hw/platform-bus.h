@@ -25,11 +25,9 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
-typedef struct PlatformBusDevice PlatformBusDevice;
 
 #define TYPE_PLATFORM_BUS_DEVICE "platform-bus-device"
-DECLARE_INSTANCE_CHECKER(PlatformBusDevice, PLATFORM_BUS_DEVICE,
-                         TYPE_PLATFORM_BUS_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(PlatformBusDevice, PLATFORM_BUS_DEVICE)
 
 struct PlatformBusDevice {
     /*< private >*/

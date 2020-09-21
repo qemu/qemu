@@ -12,9 +12,7 @@ enum {
 };
 
 #define TYPE_DEVICE "device"
-typedef struct DeviceClass DeviceClass;
-DECLARE_OBJ_CHECKERS(DeviceState, DeviceClass,
-                     DEVICE, TYPE_DEVICE)
+OBJECT_DECLARE_TYPE(DeviceState, DeviceClass, DEVICE)
 
 typedef enum DeviceCategory {
     DEVICE_CATEGORY_BRIDGE,

@@ -51,9 +51,7 @@
 #endif
 
 #define TYPE_VMMOUSE "vmmouse"
-typedef struct VMMouseState VMMouseState;
-DECLARE_INSTANCE_CHECKER(VMMouseState, VMMOUSE,
-                         TYPE_VMMOUSE)
+OBJECT_DECLARE_SIMPLE_TYPE(VMMouseState, VMMOUSE)
 
 struct VMMouseState {
     ISADevice parent_obj;

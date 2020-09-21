@@ -40,9 +40,7 @@
  */
 
 #define TYPE_SLAVIO_MISC "slavio_misc"
-typedef struct MiscState MiscState;
-DECLARE_INSTANCE_CHECKER(MiscState, SLAVIO_MISC,
-                         TYPE_SLAVIO_MISC)
+OBJECT_DECLARE_SIMPLE_TYPE(MiscState, SLAVIO_MISC)
 
 struct MiscState {
     SysBusDevice parent_obj;

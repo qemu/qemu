@@ -54,9 +54,7 @@
 #define USART_CR1_RE  (1 << 2)
 
 #define TYPE_STM32F2XX_USART "stm32f2xx-usart"
-typedef struct STM32F2XXUsartState STM32F2XXUsartState;
-DECLARE_INSTANCE_CHECKER(STM32F2XXUsartState, STM32F2XX_USART,
-                         TYPE_STM32F2XX_USART)
+OBJECT_DECLARE_SIMPLE_TYPE(STM32F2XXUsartState, STM32F2XX_USART)
 
 struct STM32F2XXUsartState {
     /* <private> */

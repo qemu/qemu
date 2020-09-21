@@ -30,7 +30,7 @@
 #endif
 
 OBJECT_DECLARE_TYPE(SPARCCPU, SPARCCPUClass,
-                    sparc_cpu, SPARC_CPU)
+                    SPARC_CPU)
 
 typedef struct sparc_def_t sparc_def_t;
 /**

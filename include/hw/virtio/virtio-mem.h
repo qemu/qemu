@@ -22,7 +22,7 @@
 #define TYPE_VIRTIO_MEM "virtio-mem"
 
 OBJECT_DECLARE_TYPE(VirtIOMEM, VirtIOMEMClass,
-                    virtio_mem, VIRTIO_MEM)
+                    VIRTIO_MEM)
 
 #define VIRTIO_MEM_MEMDEV_PROP "memdev"
 #define VIRTIO_MEM_NODE_PROP "node"

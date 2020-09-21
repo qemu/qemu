@@ -20,9 +20,7 @@
 
 
 #define TYPE_SUN4V_RTC "sun4v_rtc"
-typedef struct Sun4vRtc Sun4vRtc;
-DECLARE_INSTANCE_CHECKER(Sun4vRtc, SUN4V_RTC,
-                         TYPE_SUN4V_RTC)
+OBJECT_DECLARE_SIMPLE_TYPE(Sun4vRtc, SUN4V_RTC)
 
 struct Sun4vRtc {
     SysBusDevice parent_obj;

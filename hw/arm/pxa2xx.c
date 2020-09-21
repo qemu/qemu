@@ -470,9 +470,7 @@ static const VMStateDescription vmstate_pxa2xx_mm = {
 };
 
 #define TYPE_PXA2XX_SSP "pxa2xx-ssp"
-typedef struct PXA2xxSSPState PXA2xxSSPState;
-DECLARE_INSTANCE_CHECKER(PXA2xxSSPState, PXA2XX_SSP,
-                         TYPE_PXA2XX_SSP)
+OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxSSPState, PXA2XX_SSP)
 
 /* Synchronous Serial Ports */
 struct PXA2xxSSPState {
@@ -811,9 +809,7 @@ static void pxa2xx_ssp_init(Object *obj)
 #define PIAR		0x38	/* RTC Periodic Interrupt Alarm register */
 
 #define TYPE_PXA2XX_RTC "pxa2xx_rtc"
-typedef struct PXA2xxRTCState PXA2xxRTCState;
-DECLARE_INSTANCE_CHECKER(PXA2xxRTCState, PXA2XX_RTC,
-                         TYPE_PXA2XX_RTC)
+OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxRTCState, PXA2XX_RTC)
 
 struct PXA2xxRTCState {
     /*< private >*/
@@ -1245,9 +1241,7 @@ static const TypeInfo pxa2xx_rtc_sysbus_info = {
 /* I2C Interface */
 
 #define TYPE_PXA2XX_I2C_SLAVE "pxa2xx-i2c-slave"
-typedef struct PXA2xxI2CSlaveState PXA2xxI2CSlaveState;
-DECLARE_INSTANCE_CHECKER(PXA2xxI2CSlaveState, PXA2XX_I2C_SLAVE,
-                         TYPE_PXA2XX_I2C_SLAVE)
+OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxI2CSlaveState, PXA2XX_I2C_SLAVE)
 
 struct PXA2xxI2CSlaveState {
     I2CSlave parent_obj;

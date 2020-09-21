@@ -33,9 +33,7 @@
 #include "qom/object.h"
 
 #define TYPE_MSF2_SOC     "msf2-soc"
-typedef struct MSF2State MSF2State;
-DECLARE_INSTANCE_CHECKER(MSF2State, MSF2_SOC,
-                         TYPE_MSF2_SOC)
+OBJECT_DECLARE_SIMPLE_TYPE(MSF2State, MSF2_SOC)
 
 #define MSF2_NUM_SPIS         2
 #define MSF2_NUM_UARTS        2

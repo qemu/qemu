@@ -329,9 +329,7 @@ void usb_ehci_unrealize(EHCIState *s, DeviceState *dev);
 void ehci_reset(void *opaque);
 
 #define TYPE_PCI_EHCI "pci-ehci-usb"
-typedef struct EHCIPCIState EHCIPCIState;
-DECLARE_INSTANCE_CHECKER(EHCIPCIState, PCI_EHCI,
-                         TYPE_PCI_EHCI)
+OBJECT_DECLARE_SIMPLE_TYPE(EHCIPCIState, PCI_EHCI)
 
 struct EHCIPCIState {
     /*< private >*/
@@ -350,10 +348,7 @@ struct EHCIPCIState {
 #define TYPE_PPC4xx_EHCI "ppc4xx-ehci-usb"
 #define TYPE_FUSBH200_EHCI "fusbh200-ehci-usb"
 
-typedef struct EHCISysBusState EHCISysBusState;
-typedef struct SysBusEHCIClass SysBusEHCIClass;
-DECLARE_OBJ_CHECKERS(EHCISysBusState, SysBusEHCIClass,
-                     SYS_BUS_EHCI, TYPE_SYS_BUS_EHCI)
+OBJECT_DECLARE_TYPE(EHCISysBusState, SysBusEHCIClass, SYS_BUS_EHCI)
 
 struct EHCISysBusState {
     /*< private >*/
@@ -374,9 +369,7 @@ struct SysBusEHCIClass {
     uint16_t portnr;
 };
 
-typedef struct FUSBH200EHCIState FUSBH200EHCIState;
-DECLARE_INSTANCE_CHECKER(FUSBH200EHCIState, FUSBH200_EHCI,
-                         TYPE_FUSBH200_EHCI)
+OBJECT_DECLARE_SIMPLE_TYPE(FUSBH200EHCIState, FUSBH200_EHCI)
 
 struct FUSBH200EHCIState {
     /*< private >*/

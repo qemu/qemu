@@ -31,9 +31,7 @@
 
 
 #define TYPE_AVR_MASK "avr-power"
-typedef struct AVRMaskState AVRMaskState;
-DECLARE_INSTANCE_CHECKER(AVRMaskState, AVR_MASK,
-                         TYPE_AVR_MASK)
+OBJECT_DECLARE_SIMPLE_TYPE(AVRMaskState, AVR_MASK)
 
 struct AVRMaskState {
     /* <private> */

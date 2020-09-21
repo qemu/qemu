@@ -27,14 +27,12 @@ struct virtio_serial_conf {
 
 #define TYPE_VIRTIO_SERIAL_PORT "virtio-serial-port"
 OBJECT_DECLARE_TYPE(VirtIOSerialPort, VirtIOSerialPortClass,
-                    virtio_serial_port, VIRTIO_SERIAL_PORT)
+                    VIRTIO_SERIAL_PORT)
 
 typedef struct VirtIOSerial VirtIOSerial;
 
 #define TYPE_VIRTIO_SERIAL_BUS "virtio-serial-bus"
-typedef struct VirtIOSerialBus VirtIOSerialBus;
-DECLARE_INSTANCE_CHECKER(VirtIOSerialBus, VIRTIO_SERIAL_BUS,
-                         TYPE_VIRTIO_SERIAL_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOSerialBus, VIRTIO_SERIAL_BUS)
 
 
 struct VirtIOSerialPortClass {
@@ -224,7 +222,6 @@ size_t virtio_serial_guest_ready(VirtIOSerialPort *port);
 void virtio_serial_throttle_port(VirtIOSerialPort *port, bool throttle);
 
 #define TYPE_VIRTIO_SERIAL "virtio-serial-device"
-DECLARE_INSTANCE_CHECKER(VirtIOSerial, VIRTIO_SERIAL,
-                         TYPE_VIRTIO_SERIAL)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOSerial, VIRTIO_SERIAL)
 
 #endif

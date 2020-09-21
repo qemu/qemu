@@ -14,9 +14,7 @@
 #include "qom/object.h"
 
 #define TYPE_BCM2835_AUX "bcm2835-aux"
-typedef struct BCM2835AuxState BCM2835AuxState;
-DECLARE_INSTANCE_CHECKER(BCM2835AuxState, BCM2835_AUX,
-                         TYPE_BCM2835_AUX)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835AuxState, BCM2835_AUX)
 
 #define BCM2835_AUX_RX_FIFO_LEN 8
 

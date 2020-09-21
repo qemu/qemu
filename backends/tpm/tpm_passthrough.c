@@ -36,9 +36,7 @@
 #include "qom/object.h"
 
 #define TYPE_TPM_PASSTHROUGH "tpm-passthrough"
-typedef struct TPMPassthruState TPMPassthruState;
-DECLARE_INSTANCE_CHECKER(TPMPassthruState, TPM_PASSTHROUGH,
-                         TYPE_TPM_PASSTHROUGH)
+OBJECT_DECLARE_SIMPLE_TYPE(TPMPassthruState, TPM_PASSTHROUGH)
 
 /* data structures */
 struct TPMPassthruState {
