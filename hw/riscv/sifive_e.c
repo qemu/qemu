@@ -137,11 +137,6 @@ static void sifive_e_machine_instance_init(Object *obj)
     SiFiveEState *s = RISCV_E_MACHINE(obj);
 
     s->revb = false;
-    object_property_add_bool(obj, "revb", sifive_e_machine_get_revb,
-                             sifive_e_machine_set_revb);
-    object_property_set_description(obj, "revb",
-                                    "Set on to tell QEMU that it should model "
-                                    "the revB HiFive1 board");
 }
 
 static void sifive_e_machine_class_init(ObjectClass *oc, void *data)
@@ -152,6 +147,12 @@ static void sifive_e_machine_class_init(ObjectClass *oc, void *data)
     mc->init = sifive_e_machine_init;
     mc->max_cpus = 1;
     mc->default_cpu_type = SIFIVE_E_CPU;
+
+    object_class_property_add_bool(oc, "revb", sifive_e_machine_get_revb,
+                                   sifive_e_machine_set_revb);
+    object_class_property_set_description(oc, "revb",
+                                          "Set on to tell QEMU that it should model "
+                                          "the revB HiFive1 board");
 }
 
 static const TypeInfo sifive_e_machine_typeinfo = {
