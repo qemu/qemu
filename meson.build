@@ -737,8 +737,8 @@ capstone = not_found
 capstone_opt = get_option('capstone')
 if capstone_opt in ['enabled', 'auto', 'system']
   have_internal = fs.exists(meson.current_source_dir() / 'capstone/Makefile')
-  capstone = dependency('capstone', static: enable_static,
-                        method: 'pkg-config',
+  capstone = dependency('capstone', version: '>=4.0',
+                        static: enable_static, method: 'pkg-config',
                         required: capstone_opt == 'system' or
                                   capstone_opt == 'enabled' and not have_internal)
   if capstone.found()
