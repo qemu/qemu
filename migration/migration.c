@@ -57,7 +57,7 @@
 #include "qemu/queue.h"
 #include "multifd.h"
 
-#define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
+#define MAX_THROTTLE  (128 << 20)      /* Migration transfer speed throttling */
 
 /* Amount of time to allocate to each "chunk" of bandwidth-throttled
  * data. */
