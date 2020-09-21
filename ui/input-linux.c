@@ -489,19 +489,6 @@ static void input_linux_set_grab_toggle(Object *obj, int value,
 
 static void input_linux_instance_init(Object *obj)
 {
-    object_property_add_str(obj, "evdev",
-                            input_linux_get_evdev,
-                            input_linux_set_evdev);
-    object_property_add_bool(obj, "grab_all",
-                             input_linux_get_grab_all,
-                             input_linux_set_grab_all);
-    object_property_add_bool(obj, "repeat",
-                             input_linux_get_repeat,
-                             input_linux_set_repeat);
-    object_property_add_enum(obj, "grab-toggle", "GrabToggleKeys",
-                             &GrabToggleKeys_lookup,
-                             input_linux_get_grab_toggle,
-                             input_linux_set_grab_toggle);
 }
 
 static void input_linux_class_init(ObjectClass *oc, void *data)
@@ -509,6 +496,20 @@ static void input_linux_class_init(ObjectClass *oc, void *data)
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
     ucc->complete = input_linux_complete;
+
+    object_class_property_add_str(oc, "evdev",
+                                  input_linux_get_evdev,
+                                  input_linux_set_evdev);
+    object_class_property_add_bool(oc, "grab_all",
+                                   input_linux_get_grab_all,
+                                   input_linux_set_grab_all);
+    object_class_property_add_bool(oc, "repeat",
+                                   input_linux_get_repeat,
+                                   input_linux_set_repeat);
+    object_class_property_add_enum(oc, "grab-toggle", "GrabToggleKeys",
+                                   &GrabToggleKeys_lookup,
+                                   input_linux_get_grab_toggle,
+                                   input_linux_set_grab_toggle);
 }
 
 static const TypeInfo input_linux_info = {
