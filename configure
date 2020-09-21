@@ -7471,7 +7471,7 @@ case "$target_name" in
   mips|mipsel)
     mttcg="yes"
     TARGET_ARCH=mips
-    echo "TARGET_ABI_MIPSO32=y" >> $config_target_mak
+    test "$target_user_only" = yes && echo "TARGET_ABI_MIPSO32=y" >> $config_target_mak
     TARGET_SYSTBL_ABI=o32
     TARGET_SYSTBL=syscall_o32.tbl
   ;;
@@ -7479,8 +7479,8 @@ case "$target_name" in
     mttcg="yes"
     TARGET_ARCH=mips64
     TARGET_BASE_ARCH=mips
-    echo "TARGET_ABI_MIPSN32=y" >> $config_target_mak
-    echo "TARGET_ABI32=y" >> $config_target_mak
+    test "$target_user_only" = yes && echo "TARGET_ABI_MIPSN32=y" >> $config_target_mak
+    test "$target_user_only" = yes && echo "TARGET_ABI32=y" >> $config_target_mak
     TARGET_SYSTBL_ABI=n32
     TARGET_SYSTBL=syscall_n32.tbl
   ;;
@@ -7488,7 +7488,7 @@ case "$target_name" in
     mttcg="no"
     TARGET_ARCH=mips64
     TARGET_BASE_ARCH=mips
-    echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
+    test "$target_user_only" = yes && echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
     TARGET_SYSTBL_ABI=n64
     TARGET_SYSTBL=syscall_n64.tbl
   ;;
@@ -7524,7 +7524,7 @@ case "$target_name" in
     TARGET_BASE_ARCH=ppc
     TARGET_ABI_DIR=ppc
     TARGET_SYSTBL_ABI=common,nospu,32
-    echo "TARGET_ABI32=y" >> $config_target_mak
+    test "$target_user_only" = yes && echo "TARGET_ABI32=y" >> $config_target_mak
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml power-vsx.xml"
   ;;
   riscv32)
@@ -7562,7 +7562,7 @@ case "$target_name" in
     TARGET_BASE_ARCH=sparc
     TARGET_ABI_DIR=sparc
     TARGET_SYSTBL_ABI=common,32
-    echo "TARGET_ABI32=y" >> $config_target_mak
+    test "$target_user_only" = yes && echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
   s390x)
     TARGET_SYSTBL_ABI=common,64
@@ -7600,15 +7600,18 @@ upper() {
 target_arch_name="$(upper $TARGET_ARCH)"
 echo "TARGET_$target_arch_name=y" >> $config_target_mak
 echo "TARGET_BASE_ARCH=$TARGET_BASE_ARCH" >> $config_target_mak
-if [ "$TARGET_ABI_DIR" = "" ]; then
-  TARGET_ABI_DIR=$TARGET_ARCH
+if test "$target_user_only" = "yes" ; then
+  if [ "$TARGET_ABI_DIR" = "" ]; then
+    TARGET_ABI_DIR=$TARGET_ARCH
+  fi
+  echo "TARGET_ABI_DIR=$TARGET_ABI_DIR" >> $config_target_mak
 fi
-echo "TARGET_ABI_DIR=$TARGET_ABI_DIR" >> $config_target_mak
-if [ "$TARGET_SYSTBL_ABI" != "" ]; then
+if test "$target_linux_user" = "yes" ; then
+  if [ "$TARGET_SYSTBL_ABI" != "" ]; then
     echo "TARGET_SYSTBL_ABI=$TARGET_SYSTBL_ABI" >> $config_target_mak
     echo "TARGET_SYSTBL=$TARGET_SYSTBL" >> $config_target_mak
+  fi
 fi
-
 if test "$target_aligned_only" = "yes" ; then
   echo "TARGET_ALIGNED_ONLY=y" >> $config_target_mak
 fi
