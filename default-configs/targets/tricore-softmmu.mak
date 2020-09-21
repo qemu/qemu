@@ -1,2 +1,1 @@
 TARGET_ARCH=tricore
-TARGET_BASE_ARCH=tricore

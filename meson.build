@@ -782,6 +782,14 @@ foreach target : target_dirs
   config_target += keyval.load('default-configs/targets' / target + '.mak')
   config_target += { 'TARGET_' + config_target['TARGET_ARCH'].to_upper(): 'y' }
 
+  # Add default keys
+  if 'TARGET_BASE_ARCH' not in config_target
+    config_target += {'TARGET_BASE_ARCH': config_target['TARGET_ARCH']}
+  endif
+  if 'TARGET_ABI_DIR' not in config_target
+    config_target += {'TARGET_ABI_DIR': config_target['TARGET_ARCH']}
+  endif
+
   foreach k, v: disassemblers
     if config_host['ARCH'].startswith(k) or config_target['TARGET_BASE_ARCH'].startswith(k)
       foreach sym: v
