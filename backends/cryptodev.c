@@ -206,10 +206,6 @@ cryptodev_backend_can_be_deleted(UserCreatable *uc)
 
 static void cryptodev_backend_instance_init(Object *obj)
 {
-    object_property_add(obj, "queues", "uint32",
-                          cryptodev_backend_get_queues,
-                          cryptodev_backend_set_queues,
-                          NULL, NULL);
     /* Initialize devices' queues property to 1 */
     object_property_set_int(obj, "queues", 1, NULL);
 }
@@ -230,6 +226,10 @@ cryptodev_backend_class_init(ObjectClass *oc, void *data)
     ucc->can_be_deleted = cryptodev_backend_can_be_deleted;
 
     QTAILQ_INIT(&crypto_clients);
+    object_class_property_add(oc, "queues", "uint32",
+                              cryptodev_backend_get_queues,
+                              cryptodev_backend_set_queues,
+                              NULL, NULL);
 }
 
 static const TypeInfo cryptodev_backend_info = {
