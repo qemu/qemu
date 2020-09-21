@@ -124,6 +124,7 @@ socket = []
 version_res = []
 coref = []
 iokit = []
+emulator_link_args = []
 cocoa = not_found
 hvf = not_found
 if targetos == 'windows'
@@ -146,6 +147,11 @@ elif targetos == 'haiku'
   socket = [cc.find_library('posix_error_mapper'),
             cc.find_library('network'),
             cc.find_library('bsd')]
+elif targetos == 'openbsd'
+  if not get_option('tcg').disabled() and target_dirs.length() > 0
+    # Disable OpenBSD W^X if available
+    emulator_link_args = cc.get_supported_link_arguments('-Wl,-z,wxneeded')
+  endif
 endif
 
 accelerators = []
@@ -1247,7 +1253,7 @@ foreach target : target_dirs
   c_args = ['-DNEED_CPU_H',
             '-DCONFIG_TARGET="@0@-config-target.h"'.format(target),
             '-DCONFIG_DEVICES="@0@-config-devices.h"'.format(target)]
-  link_args = []
+  link_args = emulator_link_args
 
   config_target += config_host
   target_inc = [include_directories('target' / config_target['TARGET_BASE_ARCH'])]

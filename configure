@@ -1594,10 +1594,6 @@ if [ "$ARCH" = "unknown" ]; then
   linux_user="no"
 fi
 
-if [ "$bsd_user" = "no" -a "$linux_user" = "no" -a "$softmmu" = "no" ] ; then
-  tcg="disabled"
-fi
-
 default_target_list=""
 deprecated_targets_list=ppc64abi32-linux-user,tilegx-linux-user,lm32-softmmu,unicore32-softmmu
 deprecated_features=""
@@ -6039,17 +6035,6 @@ if test "$mingw32" = "yes" ; then
             QEMU_LDFLAGS="-Wl,$flag $QEMU_LDFLAGS"
         fi
     done
-fi
-
-# Disable OpenBSD W^X if available
-if test "$tcg" = "enabled" && test "$targetos" = "OpenBSD"; then
-    cat > $TMPC <<EOF
-    int main(void) { return 0; }
-EOF
-    wx_ldflags="-Wl,-z,wxneeded"
-    if compile_prog "" "$wx_ldflags"; then
-        QEMU_LDFLAGS="$QEMU_LDFLAGS $wx_ldflags"
-    fi
 fi
 
 qemu_confdir="$sysconfdir/$qemu_suffix"
