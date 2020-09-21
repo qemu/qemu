@@ -447,7 +447,7 @@ static int multifd_send_pages(QEMUFile *f)
                 + p->packet_len;
     qemu_file_update_transfer(f, transferred);
     ram_counters.multifd_bytes += transferred;
-    ram_counters.transferred += transferred;;
+    ram_counters.transferred += transferred;
     qemu_mutex_unlock(&p->mutex);
     qemu_sem_post(&p->sem);
 
