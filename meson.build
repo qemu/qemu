@@ -727,7 +727,7 @@ kconfig_external_symbols = [
   'CONFIG_LINUX',
   'CONFIG_PVRDMA',
 ]
-ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
+ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_ARCH' ]
 
 default_targets = 'CONFIG_DEFAULT_TARGETS' in config_host
 actual_target_dirs = []
@@ -780,6 +780,7 @@ foreach target : target_dirs
 
   actual_target_dirs += target
   config_target += keyval.load('default-configs/targets' / target + '.mak')
+  config_target += { 'TARGET_' + config_target['TARGET_ARCH'].to_upper(): 'y' }
 
   foreach k, v: disassemblers
     if config_host['ARCH'].startswith(k) or config_target['TARGET_BASE_ARCH'].startswith(k)
@@ -797,6 +798,8 @@ foreach target : target_dirs
     elif ignored.contains(k)
       # do nothing
     elif k == 'TARGET_BASE_ARCH'
+      # Note that TARGET_BASE_ARCH ends up in config-target.h but it is
+      # not used to select files from sourcesets.
       config_target_data.set('TARGET_' + v.to_upper(), 1)
     elif k == 'TARGET_NAME' or k == 'CONFIG_QEMU_INTERP_PREFIX'
       config_target_data.set_quoted(k, v)

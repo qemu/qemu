@@ -1,4 +1,4 @@
-TARGET_MICROBLAZE=y
+TARGET_ARCH=microblaze
 TARGET_BASE_ARCH=microblaze
 TARGET_ABI_DIR=microblaze
 TARGET_SYSTBL_ABI=common
