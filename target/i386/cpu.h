@@ -991,8 +991,8 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 #define HYPERV_FEAT_IPI                 13
 #define HYPERV_FEAT_STIMER_DIRECT       14
 
-#ifndef HYPERV_SPINLOCK_NEVER_RETRY
-#define HYPERV_SPINLOCK_NEVER_RETRY             0xFFFFFFFF
+#ifndef HYPERV_SPINLOCK_NEVER_NOTIFY
+#define HYPERV_SPINLOCK_NEVER_NOTIFY             0xFFFFFFFF
 #endif
 
 #define EXCP00_DIVZ	0
