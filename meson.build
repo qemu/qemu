@@ -723,13 +723,25 @@ kconfig_external_symbols = [
 ]
 ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
 
+default_targets = 'CONFIG_DEFAULT_TARGETS' in config_host
+actual_target_dirs = []
 foreach target : target_dirs
   config_target = { 'TARGET_NAME': target.split('-')[0] }
   if target.endswith('linux-user')
-    assert(targetos == 'linux')
+    if targetos != 'linux'
+      if default_targets
+        continue
+      endif
+      error('Target @0@ is only available on a Linux host'.format(target))
+    endif
     config_target += { 'CONFIG_LINUX_USER': 'y' }
   elif target.endswith('bsd-user')
-    assert('CONFIG_BSD' in config_host)
+    if 'CONFIG_BSD' not in config_host
+      if default_targets
+        continue
+      endif
+      error('Target @0@ is only available on a BSD host'.format(target))
+    endif
     config_target += { 'CONFIG_BSD_USER': 'y' }
   elif target.endswith('softmmu')
     config_target += { 'CONFIG_SOFTMMU': 'y' }
@@ -753,8 +765,14 @@ foreach target : target_dirs
       have_accel = true
     endif
   endforeach
-  assert(have_accel)
+  if not have_accel
+    if default_targets
+      continue
+    endif
+    error('No accelerator available for target @0@'.format(target))
+  endif
 
+  actual_target_dirs += target
   config_target += keyval.load('default-configs/targets' / target + '.mak')
 
   foreach k, v: disassemblers
@@ -816,6 +834,7 @@ foreach target : target_dirs
   endif
   config_target_mak += {target: config_target}
 endforeach
+target_dirs = actual_target_dirs
 
 # This configuration is used to build files that are shared by
 # multiple binaries, and then extracted out of the "common"
@@ -1519,7 +1538,7 @@ if config_host.has_key('CONFIG_MODULES')
 endif
 summary_info += {'host CPU':          cpu}
 summary_info += {'host endianness':   build_machine.endian()}
-summary_info += {'target list':       config_host['TARGET_DIRS']}
+summary_info += {'target list':       ' '.join(target_dirs)}
 summary_info += {'gprof enabled':     config_host.has_key('CONFIG_GPROF')}
 summary_info += {'sparse enabled':    meson.get_compiler('c').cmd_array().contains('cgcc')}
 summary_info += {'strip binaries':    get_option('strip')}
