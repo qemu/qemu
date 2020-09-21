@@ -54,6 +54,7 @@ qtests_i386 = \
    'bios-tables-test',
    'rtc-test',
    'i440fx-test',
+   'fuzz-test',
    'fw_cfg-test',
    'device-plug-test',
    'drive_del-test',
