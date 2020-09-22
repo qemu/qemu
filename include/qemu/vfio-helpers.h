@@ -22,7 +22,7 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
 int qemu_vfio_dma_reset_temporary(QEMUVFIOState *s);
 void qemu_vfio_dma_unmap(QEMUVFIOState *s, void *host);
 void *qemu_vfio_pci_map_bar(QEMUVFIOState *s, int index,
-                            uint64_t offset, uint64_t size,
+                            uint64_t offset, uint64_t size, int prot,
                             Error **errp);
 void qemu_vfio_pci_unmap_bar(QEMUVFIOState *s, int index, void *bar,
                              uint64_t offset, uint64_t size);
