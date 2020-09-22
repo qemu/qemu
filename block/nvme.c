@@ -31,7 +31,7 @@
 #define NVME_SQ_ENTRY_BYTES 64
 #define NVME_CQ_ENTRY_BYTES 16
 #define NVME_QUEUE_SIZE 128
-#define NVME_BAR_SIZE 8192
+#define NVME_DOORBELL_SIZE 4096
 
 /*
  * We have to leave one slot empty as that is the full queue case where
@@ -84,10 +84,6 @@ typedef struct {
 /* Memory mapped registers */
 typedef volatile struct {
     NvmeBar ctrl;
-    struct {
-        uint32_t sq_tail;
-        uint32_t cq_head;
-    } doorbells[];
 } NVMeRegs;
 
 #define INDEX_ADMIN     0
@@ -103,6 +99,11 @@ struct BDRVNVMeState {
     AioContext *aio_context;
     QEMUVFIOState *vfio;
     NVMeRegs *regs;
+    /* Memory mapped registers */
+    volatile struct {
+        uint32_t sq_tail;
+        uint32_t cq_head;
+    } *doorbells;
     /* The submission/completion queue pairs.
      * [0]: admin queue.
      * [1..]: io queues.
@@ -247,14 +248,14 @@ static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
         error_propagate(errp, local_err);
         goto fail;
     }
-    q->sq.doorbell = &s->regs->doorbells[idx * s->doorbell_scale].sq_tail;
+    q->sq.doorbell = &s->doorbells[idx * s->doorbell_scale].sq_tail;
 
     nvme_init_queue(s, &q->cq, size, NVME_CQ_ENTRY_BYTES, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto fail;
     }
-    q->cq.doorbell = &s->regs->doorbells[idx * s->doorbell_scale].cq_head;
+    q->cq.doorbell = &s->doorbells[idx * s->doorbell_scale].cq_head;
 
     return q;
 fail:
@@ -712,13 +713,12 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         goto out;
     }
 
-    s->regs = qemu_vfio_pci_map_bar(s->vfio, 0, 0, NVME_BAR_SIZE,
+    s->regs = qemu_vfio_pci_map_bar(s->vfio, 0, 0, sizeof(NvmeBar),
                                     PROT_READ | PROT_WRITE, errp);
     if (!s->regs) {
         ret = -EINVAL;
         goto out;
     }
-
     /* Perform initialize sequence as described in NVMe spec "7.6.1
      * Initialization". */
 
@@ -746,6 +746,13 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
             ret = -ETIMEDOUT;
             goto out;
         }
+    }
+
+    s->doorbells = qemu_vfio_pci_map_bar(s->vfio, 0, sizeof(NvmeBar),
+                                         NVME_DOORBELL_SIZE, PROT_WRITE, errp);
+    if (!s->doorbells) {
+        ret = -EINVAL;
+        goto out;
     }
 
     /* Set up admin queue. */
@@ -873,7 +880,9 @@ static void nvme_close(BlockDriverState *bs)
                            &s->irq_notifier[MSIX_SHARED_IRQ_IDX],
                            false, NULL, NULL);
     event_notifier_cleanup(&s->irq_notifier[MSIX_SHARED_IRQ_IDX]);
-    qemu_vfio_pci_unmap_bar(s->vfio, 0, (void *)s->regs, 0, NVME_BAR_SIZE);
+    qemu_vfio_pci_unmap_bar(s->vfio, 0, (void *)s->doorbells,
+                            sizeof(NvmeBar), NVME_DOORBELL_SIZE);
+    qemu_vfio_pci_unmap_bar(s->vfio, 0, (void *)s->regs, 0, sizeof(NvmeBar));
     qemu_vfio_close(s->vfio);
 
     g_free(s->device);
