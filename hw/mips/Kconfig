@@ -38,3 +38,6 @@ config MIPS_CPS
 
 config MIPS_BOSTON
     bool
+
+config FW_CFG_MIPS
+    bool
