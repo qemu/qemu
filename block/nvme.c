@@ -772,7 +772,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
                            CC_EN_MASK);
     /* Wait for CSTS.RDY = 1. */
     now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-    deadline = now + timeout_ms * 1000000;
+    deadline = now + timeout_ms * SCALE_MS;
     while (!NVME_CSTS_RDY(le32_to_cpu(regs->csts))) {
         if (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) > deadline) {
             error_setg(errp, "Timeout while waiting for device to start (%"
