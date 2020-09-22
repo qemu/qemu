@@ -3358,10 +3358,13 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .xlevel = 0x80000008,
         .model_id = "Intel Core Processor (Icelake)",
         .versions = (X86CPUVersionDefinition[]) {
-            { .version = 1 },
+            {
+                .version = 1,
+                .note = "deprecated"
+            },
             {
                 .version = 2,
-                .note = "no TSX",
+                .note = "no TSX, deprecated",
                 .alias = "Icelake-Client-noTSX",
                 .props = (PropValue[]) {
                     { "hle", "off" },
@@ -3370,7 +3373,8 @@ static X86CPUDefinition builtin_x86_defs[] = {
                 },
             },
             { /* end of list */ }
-        }
+        },
+        .deprecation_note = "use Icelake-Server instead"
     },
     {
         .name = "Icelake-Server",
