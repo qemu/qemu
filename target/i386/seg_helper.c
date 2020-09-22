@@ -975,6 +975,7 @@ void helper_syscall(CPUX86State *env, int next_eip_addend)
     CPUState *cs = env_cpu(env);
 
     cs->exception_index = EXCP_SYSCALL;
+    env->exception_is_int = 0;
     env->exception_next_eip = env->eip + next_eip_addend;
     cpu_loop_exit(cs);
 }
