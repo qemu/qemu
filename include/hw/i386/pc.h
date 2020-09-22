@@ -118,6 +118,9 @@ struct PCMachineClass {
 
     /* use PVH to load kernels that support this feature */
     bool pvh_enabled;
+
+    /* create kvmclock device even when KVM PV features are not exposed */
+    bool kvmclock_create_always;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"

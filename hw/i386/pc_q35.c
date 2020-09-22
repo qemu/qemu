@@ -179,7 +179,7 @@ static void pc_q35_init(MachineState *machine)
 
     x86_cpus_init(x86ms, pcmc->default_cpu_version);
 
-    kvmclock_create();
+    kvmclock_create(pcmc->kvmclock_create_always);
 
     /* pci enabled */
     if (pcmc->pci_enabled) {
@@ -357,10 +357,13 @@ DEFINE_Q35_MACHINE(v5_2, "pc-q35-5.2", NULL,
 
 static void pc_q35_5_1_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_q35_5_2_machine_options(m);
     m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_5_1, hw_compat_5_1_len);
     compat_props_add(m->compat_props, pc_compat_5_1, pc_compat_5_1_len);
+    pcmc->kvmclock_create_always = false;
 }
 
 DEFINE_Q35_MACHINE(v5_1, "pc-q35-5.1", NULL,

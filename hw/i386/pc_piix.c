@@ -158,8 +158,8 @@ static void pc_init1(MachineState *machine,
 
     x86_cpus_init(x86ms, pcmc->default_cpu_version);
 
-    if (kvm_enabled() && pcmc->kvmclock_enabled) {
-        kvmclock_create();
+    if (pcmc->kvmclock_enabled) {
+        kvmclock_create(pcmc->kvmclock_create_always);
     }
 
     if (pcmc->pci_enabled) {
@@ -440,11 +440,14 @@ DEFINE_I440FX_MACHINE(v5_2, "pc-i440fx-5.2", NULL,
 
 static void pc_i440fx_5_1_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_i440fx_5_2_machine_options(m);
     m->alias = NULL;
     m->is_default = false;
     compat_props_add(m->compat_props, hw_compat_5_1, hw_compat_5_1_len);
     compat_props_add(m->compat_props, pc_compat_5_1, pc_compat_5_1_len);
+    pcmc->kvmclock_create_always = false;
 }
 
 DEFINE_I440FX_MACHINE(v5_1, "pc-i440fx-5.1", NULL,
