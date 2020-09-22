@@ -371,7 +371,7 @@ ibm,dynamic-memory
 
 This property describes the dynamically reconfigurable memory. It is a
 property encoded array that has an integer N, the number of LMBs followed
-by N LMB list entires.
+by N LMB list entries.
 
 Each LMB list entry consists of the following elements:
 
@@ -390,7 +390,7 @@ Each LMB list entry consists of the following elements:
 ibm,dynamic-memory-v2
 
 This property describes the dynamically reconfigurable memory. This is
-an alternate and newer way to describe dyanamically reconfigurable memory.
+an alternate and newer way to describe dynamically reconfigurable memory.
 It is a property encoded array that has an integer N (the number of
 LMB set entries) followed by N LMB set entries. There is an LMB set entry
 for each sequential group of LMBs that share common attributes.

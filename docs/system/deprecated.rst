@@ -79,7 +79,7 @@ Creating sound card devices and vnc without ``audiodev=`` property (since 4.2)
 
 When not using the deprecated legacy audio config, each sound card
 should specify an ``audiodev=`` property.  Additionally, when using
-vnc, you should specify an ``audiodev=`` propery if you plan to
+vnc, you should specify an ``audiodev=`` property if you plan to
 transmit audio through the VNC protocol.
 
 Creating sound card devices using ``-soundhw`` (since 5.1)
@@ -111,7 +111,7 @@ Splitting RAM by default between NUMA nodes has the same issues as ``mem``
 parameter described above with the difference that the role of the user plays
 QEMU using implicit generic or board specific splitting rule.
 Use ``memdev`` with *memory-backend-ram* backend or ``mem`` (if
-it's supported by used machine type) to define mapping explictly instead.
+it's supported by used machine type) to define mapping explicitly instead.
 
 ``-mem-path`` fallback to RAM (since 4.1)
 '''''''''''''''''''''''''''''''''''''''''
@@ -541,10 +541,10 @@ The ``[hub_id name]`` parameter tuple of the 'hostfwd_add' and
 Guest Emulator ISAs
 -------------------
 
-RISC-V ISA privledge specification version 1.09.1 (removed in 5.1)
+RISC-V ISA privilege specification version 1.09.1 (removed in 5.1)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-The RISC-V ISA privledge specification version 1.09.1 has been removed.
+The RISC-V ISA privilege specification version 1.09.1 has been removed.
 QEMU supports both the newer version 1.10.0 and the ratified version 1.11.0, these
 should be used instead of the 1.09.1 version.
 

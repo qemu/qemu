@@ -84,7 +84,7 @@ safe_syscall_end:
 
 	/* code path when we didn't execute the syscall */
 0:	addi	3, 0, -TARGET_ERESTARTSYS
-	ld 14, 16(1) /* restore r14 to its orginal value */
+	ld 14, 16(1) /* restore r14 to its original value */
 	blr
 	.cfi_endproc
 

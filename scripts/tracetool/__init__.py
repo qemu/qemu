@@ -34,7 +34,7 @@ def error(*lines):
 def out(*lines, **kwargs):
     """Write a set of output lines.
 
-    You can use kwargs as a shorthand for mapping variables when formating all
+    You can use kwargs as a shorthand for mapping variables when formatting all
     the strings in lines.
     """
     lines = [ l % kwargs for l in lines ]

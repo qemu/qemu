@@ -72,7 +72,7 @@ Boot options
 ------------
 
 The Aspeed machines can be started using the -kernel option to load a
-Linux kernel or from a firmare image which can be downloaded from the
+Linux kernel or from a firmware image which can be downloaded from the
 OpenPOWER jenkins :
 
    https://openpower.xyz/

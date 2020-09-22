@@ -76,7 +76,7 @@ Options
     I/O timeout in seconds.  The default depends on cache= option.
 
   * writeback|no_writeback -
-    Enable/disable writeback cache. The cache alows the FUSE client to buffer
+    Enable/disable writeback cache. The cache allows the FUSE client to buffer
     and merge write requests.  The default is ``no_writeback``.
 
   * xattr|no_xattr -

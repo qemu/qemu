@@ -261,7 +261,7 @@ qemu_rdma_exchange_send(header, data, optional response header & data):
    of the connection (described below).
 
 All of the remaining command types (not including 'ready')
-described above all use the aformentioned two functions to do the hard work:
+described above all use the aforementioned two functions to do the hard work:
 
 1. After connection setup, RAMBlock information is exchanged using
    this protocol before the actual migration begins. This information includes

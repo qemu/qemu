@@ -484,7 +484,7 @@ Bitmaps can generally be modified at any time, but certain operations often
 only make sense when paired directly with other commands. When a VM is paused,
 it's easy to ensure that no guest writes occur between individual QMP
 commands. When a VM is running, this is difficult to accomplish with
-individual QMP commands that may allow guest writes to occur inbetween each
+individual QMP commands that may allow guest writes to occur between each
 command.
 
 For example, using only individual QMP commands, we could:

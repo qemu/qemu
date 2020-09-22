@@ -36,7 +36,6 @@ typedef struct QemuSpiceKbd {
 
 static void kbd_push_key(SpiceKbdInstance *sin, uint8_t frag);
 static uint8_t kbd_get_leds(SpiceKbdInstance *sin);
-static void kbd_leds(void *opaque, int l);
 
 static const SpiceKbdInterface kbd_interface = {
     .base.type          = SPICE_INTERFACE_KEYBOARD,

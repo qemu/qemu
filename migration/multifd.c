@@ -731,7 +731,7 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
         qemu_sem_post(&p->sem_sync);
         /*
          * Although multifd_send_thread is not created, but main migration
-         * thread neet to judge whether it is running, so we need to mark
+         * thread needs to judge whether it is running, so we need to mark
          * its status.
          */
         p->quit = true;
@@ -1042,7 +1042,7 @@ bool multifd_recv_all_channels_created(void)
 
 /*
  * Try to receive all multifd channels to get ready for the migration.
- * - Return true and do not set @errp when correctly receving all channels;
+ * - Return true and do not set @errp when correctly receiving all channels;
  * - Return false and do not set @errp when correctly receiving the current one;
  * - Return false and set @errp when failing to receive the current channel.
  */

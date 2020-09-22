@@ -66,7 +66,7 @@ VhostUserGpuCursorPos
 
 :scanout-id: ``u32``, the scanout where the cursor is located
 
-:x/y: ``u32``, the cursor postion
+:x/y: ``u32``, the cursor position
 
 VhostUserGpuCursorUpdate
 ^^^^^^^^^^^^^^^^^^^^^^^^

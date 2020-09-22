@@ -57,7 +57,7 @@ Depending on the use case, you may choose different scenarios:
  - Everything the same UID
 
    - Convenient for developers
-   - Improved reliability - crash of one part doens't take
+   - Improved reliability - crash of one part doesn't take
      out entire VM
    - No security benefit over traditional QEMU, unless additional
      unless additional controls such as SELinux or AppArmor are
@@ -87,7 +87,7 @@ For example, to allow only ``qemu`` user to talk to ``qemu-helper``
   </policy>
 
 
-dbus-daemon can also perfom SELinux checks based on the security
+dbus-daemon can also perform SELinux checks based on the security
 context of the source and the target. For example, ``virtiofs_t``
 could be allowed to send a message to ``svirt_t``, but ``virtiofs_t``
 wouldn't be allowed to send a message to ``virtiofs_t``.

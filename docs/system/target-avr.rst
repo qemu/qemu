@@ -10,7 +10,7 @@ xmega6 and xmega7.
 
 As for now it supports few Arduino boards for educational and testing purposes.
 These boards use a ATmega controller, which model is limited to USART & 16-bit
-timer devices, enought to run FreeRTOS based applications (like
+timer devices, enough to run FreeRTOS based applications (like
 https://github.com/seharris/qemu-avr-tests/blob/master/free-rtos/Demo/AVR_ATMega2560_GCC/demo.elf
 ).
 
@@ -30,7 +30,7 @@ AVR cpu
 
    telnet localhost 5678
 
-- Debugging wit GDB debugger::
+- Debugging with GDB debugger::
 
    qemu-system-avr -machine mega2560 -bios demo.elf -s -S
 

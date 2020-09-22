@@ -4,7 +4,7 @@
 #define UNAME_MACHINE "cris"
 #define UNAME_MINIMUM_RELEASE "2.6.32"
 
-/* pt_regs not only specifices the format in the user-struct during
+/* pt_regs not only specifies the format in the user-struct during
  * ptrace but is also the frame format used in the kernel prologue/epilogues
  * themselves
  */
@@ -32,7 +32,7 @@ struct target_pt_regs {
         unsigned long spc;
         unsigned long ccs;
         unsigned long srp;
-        unsigned long erp; /* This is actually the debugged process' PC */
+        unsigned long erp; /* This is actually the debugged process's PC */
         /* For debugging purposes; saved only when needed. */
         unsigned long exs;
         unsigned long eda;
