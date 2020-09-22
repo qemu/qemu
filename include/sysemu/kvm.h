@@ -51,23 +51,22 @@ extern bool kvm_msi_use_devid;
 /**
  * kvm_irqchip_in_kernel:
  *
- * Returns: true if the user asked us to create an in-kernel
- * irqchip via the "kernel_irqchip=on" machine option.
+ * Returns: true if an in-kernel irqchip was created.
  * What this actually means is architecture and machine model
- * specific: on PC, for instance, it means that the LAPIC,
- * IOAPIC and PIT are all in kernel. This function should never
- * be used from generic target-independent code: use one of the
- * following functions or some other specific check instead.
+ * specific: on PC, for instance, it means that the LAPIC
+ * is in kernel.  This function should never be used from generic
+ * target-independent code: use one of the following functions or
+ * some other specific check instead.
  */
 #define kvm_irqchip_in_kernel() (kvm_kernel_irqchip)
 
 /**
  * kvm_irqchip_is_split:
  *
- * Returns: true if the user asked us to split the irqchip
- * implementation between user and kernel space. The details are
- * architecture and machine specific. On PC, it means that the PIC,
- * IOAPIC, and PIT are in user space while the LAPIC is in the kernel.
+ * Returns: true if the irqchip implementation is split between
+ * user and kernel space.  The details are architecture and
+ * machine specific.  On PC, it means that the PIC, IOAPIC, and
+ * PIT are in user space while the LAPIC is in the kernel.
  */
 #define kvm_irqchip_is_split() (kvm_split_irqchip)
 
