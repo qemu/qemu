@@ -1633,6 +1633,7 @@ typedef struct X86CPUDefinition {
      * If NULL, version 1 will be registered automatically.
      */
     const X86CPUVersionDefinition *versions;
+    const char *deprecation_note;
 } X86CPUDefinition;
 
 /* Reference to a specific CPU model version */
@@ -4990,6 +4991,11 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     info->migration_safe = cc->migration_safe;
     info->has_migration_safe = true;
     info->q_static = cc->static_model;
+    if (cc->model && cc->model->cpudef->deprecation_note) {
+        info->deprecated = true;
+    } else {
+        info->deprecated = false;
+    }
     /*
      * Old machine types won't report aliases, so that alias translation
      * doesn't break compatibility with previous QEMU versions.
@@ -5380,9 +5386,11 @@ static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
 {
     X86CPUModel *model = data;
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
 
     xcc->model = model;
     xcc->migration_safe = true;
+    cc->deprecation_note = model->cpudef->deprecation_note;
 }
 
 static void x86_register_cpu_model_type(const char *name, X86CPUModel *model)
