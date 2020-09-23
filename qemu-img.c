@@ -4779,14 +4779,19 @@ static int img_bitmap(int argc, char **argv)
     filename = argv[optind];
     bitmap = argv[optind + 1];
 
-    blk = img_open(image_opts, filename, fmt, BDRV_O_RDWR, false, false,
-                   false);
+    /*
+     * No need to open backing chains; we will be manipulating bitmaps
+     * directly in this image without reference to image contents.
+     */
+    blk = img_open(image_opts, filename, fmt, BDRV_O_RDWR | BDRV_O_NO_BACKING,
+                   false, false, false);
     if (!blk) {
         goto out;
     }
     bs = blk_bs(blk);
     if (src_filename) {
-        src = img_open(false, src_filename, src_fmt, 0, false, false, false);
+        src = img_open(false, src_filename, src_fmt, BDRV_O_NO_BACKING,
+                       false, false, false);
         if (!src) {
             goto out;
         }
