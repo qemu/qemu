@@ -1384,9 +1384,8 @@ static FloatParts muladd_floats(FloatParts a, FloatParts b, FloatParts c,
             float_raise(float_flag_invalid, s);
             return parts_default_nan(s);
         } else {
-            a.cls = float_class_inf;
-            a.sign = c.sign ^ sign_flip;
-            return a;
+            c.sign ^= sign_flip;
+            return c;
         }
     }
 
