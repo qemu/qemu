@@ -69,7 +69,7 @@ void bdrv_parent_drained_end_single(BdrvChild *c)
 {
     int drained_end_counter = 0;
     bdrv_parent_drained_end_single_no_poll(c, &drained_end_counter);
-    BDRV_POLL_WHILE(c->bs, atomic_read(&drained_end_counter) > 0);
+    BDRV_POLL_WHILE(c->bs, qatomic_read(&drained_end_counter) > 0);
 }
 
 static void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
@@ -186,12 +186,12 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
  */
 void bdrv_enable_copy_on_read(BlockDriverState *bs)
 {
-    atomic_inc(&bs->copy_on_read);
+    qatomic_inc(&bs->copy_on_read);
 }
 
 void bdrv_disable_copy_on_read(BlockDriverState *bs)
 {
-    int old = atomic_fetch_dec(&bs->copy_on_read);
+    int old = qatomic_fetch_dec(&bs->copy_on_read);
     assert(old >= 1);
 }
 
@@ -219,9 +219,9 @@ static void coroutine_fn bdrv_drain_invoke_entry(void *opaque)
     }
 
     /* Set data->done and decrement drained_end_counter before bdrv_wakeup() */
-    atomic_mb_set(&data->done, true);
+    qatomic_mb_set(&data->done, true);
     if (!data->begin) {
-        atomic_dec(data->drained_end_counter);
+        qatomic_dec(data->drained_end_counter);
     }
     bdrv_dec_in_flight(bs);
 
@@ -248,7 +248,7 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin,
     };
 
     if (!begin) {
-        atomic_inc(drained_end_counter);
+        qatomic_inc(drained_end_counter);
     }
 
     /* Make sure the driver callback completes during the polling phase for
@@ -268,7 +268,7 @@ bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
         return true;
     }
 
-    if (atomic_read(&bs->in_flight)) {
+    if (qatomic_read(&bs->in_flight)) {
         return true;
     }
 
@@ -382,7 +382,7 @@ void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
     assert(!qemu_in_coroutine());
 
     /* Stop things in parent-to-child order */
-    if (atomic_fetch_inc(&bs->quiesce_counter) == 0) {
+    if (qatomic_fetch_inc(&bs->quiesce_counter) == 0) {
         aio_disable_external(bdrv_get_aio_context(bs));
     }
 
@@ -473,7 +473,7 @@ static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
     bdrv_parent_drained_end(bs, parent, ignore_bds_parents,
                             drained_end_counter);
 
-    old_quiesce_counter = atomic_fetch_dec(&bs->quiesce_counter);
+    old_quiesce_counter = qatomic_fetch_dec(&bs->quiesce_counter);
     if (old_quiesce_counter == 1) {
         aio_enable_external(bdrv_get_aio_context(bs));
     }
@@ -492,7 +492,7 @@ void bdrv_drained_end(BlockDriverState *bs)
 {
     int drained_end_counter = 0;
     bdrv_do_drained_end(bs, false, NULL, false, &drained_end_counter);
-    BDRV_POLL_WHILE(bs, atomic_read(&drained_end_counter) > 0);
+    BDRV_POLL_WHILE(bs, qatomic_read(&drained_end_counter) > 0);
 }
 
 void bdrv_drained_end_no_poll(BlockDriverState *bs, int *drained_end_counter)
@@ -504,7 +504,7 @@ void bdrv_subtree_drained_end(BlockDriverState *bs)
 {
     int drained_end_counter = 0;
     bdrv_do_drained_end(bs, true, NULL, false, &drained_end_counter);
-    BDRV_POLL_WHILE(bs, atomic_read(&drained_end_counter) > 0);
+    BDRV_POLL_WHILE(bs, qatomic_read(&drained_end_counter) > 0);
 }
 
 void bdrv_apply_subtree_drain(BdrvChild *child, BlockDriverState *new_parent)
@@ -526,7 +526,7 @@ void bdrv_unapply_subtree_drain(BdrvChild *child, BlockDriverState *old_parent)
                             &drained_end_counter);
     }
 
-    BDRV_POLL_WHILE(child->bs, atomic_read(&drained_end_counter) > 0);
+    BDRV_POLL_WHILE(child->bs, qatomic_read(&drained_end_counter) > 0);
 }
 
 /*
@@ -553,7 +553,7 @@ static void bdrv_drain_assert_idle(BlockDriverState *bs)
 {
     BdrvChild *child, *next;
 
-    assert(atomic_read(&bs->in_flight) == 0);
+    assert(qatomic_read(&bs->in_flight) == 0);
     QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
         bdrv_drain_assert_idle(child->bs);
     }
@@ -655,7 +655,7 @@ void bdrv_drain_all_end(void)
     }
 
     assert(qemu_get_current_aio_context() == qemu_get_aio_context());
-    AIO_WAIT_WHILE(NULL, atomic_read(&drained_end_counter) > 0);
+    AIO_WAIT_WHILE(NULL, qatomic_read(&drained_end_counter) > 0);
 
     assert(bdrv_drain_all_count > 0);
     bdrv_drain_all_count--;
@@ -675,7 +675,7 @@ void bdrv_drain_all(void)
 static void tracked_request_end(BdrvTrackedRequest *req)
 {
     if (req->serialising) {
-        atomic_dec(&req->bs->serialising_in_flight);
+        qatomic_dec(&req->bs->serialising_in_flight);
     }
 
     qemu_co_mutex_lock(&req->bs->reqs_lock);
@@ -777,7 +777,7 @@ bool bdrv_mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
 
     qemu_co_mutex_lock(&bs->reqs_lock);
     if (!req->serialising) {
-        atomic_inc(&req->bs->serialising_in_flight);
+        qatomic_inc(&req->bs->serialising_in_flight);
         req->serialising = true;
     }
 
@@ -841,7 +841,7 @@ static int bdrv_get_cluster_size(BlockDriverState *bs)
 
 void bdrv_inc_in_flight(BlockDriverState *bs)
 {
-    atomic_inc(&bs->in_flight);
+    qatomic_inc(&bs->in_flight);
 }
 
 void bdrv_wakeup(BlockDriverState *bs)
@@ -851,7 +851,7 @@ void bdrv_wakeup(BlockDriverState *bs)
 
 void bdrv_dec_in_flight(BlockDriverState *bs)
 {
-    atomic_dec(&bs->in_flight);
+    qatomic_dec(&bs->in_flight);
     bdrv_wakeup(bs);
 }
 
@@ -860,7 +860,7 @@ static bool coroutine_fn bdrv_wait_serialising_requests(BdrvTrackedRequest *self
     BlockDriverState *bs = self->bs;
     bool waited = false;
 
-    if (!atomic_read(&bs->serialising_in_flight)) {
+    if (!qatomic_read(&bs->serialising_in_flight)) {
         return false;
     }
 
@@ -1747,7 +1747,7 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
     bdrv_inc_in_flight(bs);
 
     /* Don't do copy-on-read if we read data before write operation */
-    if (atomic_read(&bs->copy_on_read)) {
+    if (qatomic_read(&bs->copy_on_read)) {
         flags |= BDRV_REQ_COPY_ON_READ;
     }
 
@@ -1935,7 +1935,7 @@ bdrv_co_write_req_finish(BdrvChild *child, int64_t offset, uint64_t bytes,
     int64_t end_sector = DIV_ROUND_UP(offset + bytes, BDRV_SECTOR_SIZE);
     BlockDriverState *bs = child->bs;
 
-    atomic_inc(&bs->write_gen);
+    qatomic_inc(&bs->write_gen);
 
     /*
      * Discard cannot extend the image, but in error handling cases, such as
@@ -2768,7 +2768,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     }
 
     qemu_co_mutex_lock(&bs->reqs_lock);
-    current_gen = atomic_read(&bs->write_gen);
+    current_gen = qatomic_read(&bs->write_gen);
 
     /* Wait until any previous flushes are completed */
     while (bs->active_flush_req) {
@@ -3116,7 +3116,7 @@ void bdrv_io_plug(BlockDriverState *bs)
         bdrv_io_plug(child->bs);
     }
 
-    if (atomic_fetch_inc(&bs->io_plugged) == 0) {
+    if (qatomic_fetch_inc(&bs->io_plugged) == 0) {
         BlockDriver *drv = bs->drv;
         if (drv && drv->bdrv_io_plug) {
             drv->bdrv_io_plug(bs);
@@ -3129,7 +3129,7 @@ void bdrv_io_unplug(BlockDriverState *bs)
     BdrvChild *child;
 
     assert(bs->io_plugged);
-    if (atomic_fetch_dec(&bs->io_plugged) == 1) {
+    if (qatomic_fetch_dec(&bs->io_plugged) == 1) {
         BlockDriver *drv = bs->drv;
         if (drv && drv->bdrv_io_unplug) {
             drv->bdrv_io_unplug(bs);

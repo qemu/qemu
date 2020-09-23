@@ -530,7 +530,7 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
         Error *local_err = NULL;
 
         /* Let the fault thread quit */
-        atomic_set(&mis->fault_thread_quit, 1);
+        qatomic_set(&mis->fault_thread_quit, 1);
         postcopy_fault_thread_notify(mis);
         trace_postcopy_ram_incoming_cleanup_join();
         qemu_thread_join(&mis->fault_thread);
@@ -742,12 +742,12 @@ static void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
 
     low_time_offset = get_low_time_offset(dc);
     if (dc->vcpu_addr[cpu] == 0) {
-        atomic_inc(&dc->smp_cpus_down);
+        qatomic_inc(&dc->smp_cpus_down);
     }
 
-    atomic_xchg(&dc->last_begin, low_time_offset);
-    atomic_xchg(&dc->page_fault_vcpu_time[cpu], low_time_offset);
-    atomic_xchg(&dc->vcpu_addr[cpu], addr);
+    qatomic_xchg(&dc->last_begin, low_time_offset);
+    qatomic_xchg(&dc->page_fault_vcpu_time[cpu], low_time_offset);
+    qatomic_xchg(&dc->vcpu_addr[cpu], addr);
 
     /*
      * check it here, not at the beginning of the function,
@@ -756,9 +756,9 @@ static void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
      */
     already_received = ramblock_recv_bitmap_test(rb, (void *)addr);
     if (already_received) {
-        atomic_xchg(&dc->vcpu_addr[cpu], 0);
-        atomic_xchg(&dc->page_fault_vcpu_time[cpu], 0);
-        atomic_dec(&dc->smp_cpus_down);
+        qatomic_xchg(&dc->vcpu_addr[cpu], 0);
+        qatomic_xchg(&dc->page_fault_vcpu_time[cpu], 0);
+        qatomic_dec(&dc->smp_cpus_down);
     }
     trace_mark_postcopy_blocktime_begin(addr, dc, dc->page_fault_vcpu_time[cpu],
                                         cpu, already_received);
@@ -813,28 +813,28 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
     for (i = 0; i < smp_cpus; i++) {
         uint32_t vcpu_blocktime = 0;
 
-        read_vcpu_time = atomic_fetch_add(&dc->page_fault_vcpu_time[i], 0);
-        if (atomic_fetch_add(&dc->vcpu_addr[i], 0) != addr ||
+        read_vcpu_time = qatomic_fetch_add(&dc->page_fault_vcpu_time[i], 0);
+        if (qatomic_fetch_add(&dc->vcpu_addr[i], 0) != addr ||
             read_vcpu_time == 0) {
             continue;
         }
-        atomic_xchg(&dc->vcpu_addr[i], 0);
+        qatomic_xchg(&dc->vcpu_addr[i], 0);
         vcpu_blocktime = low_time_offset - read_vcpu_time;
         affected_cpu += 1;
         /* we need to know is that mark_postcopy_end was due to
          * faulted page, another possible case it's prefetched
          * page and in that case we shouldn't be here */
         if (!vcpu_total_blocktime &&
-            atomic_fetch_add(&dc->smp_cpus_down, 0) == smp_cpus) {
+            qatomic_fetch_add(&dc->smp_cpus_down, 0) == smp_cpus) {
             vcpu_total_blocktime = true;
         }
         /* continue cycle, due to one page could affect several vCPUs */
         dc->vcpu_blocktime[i] += vcpu_blocktime;
     }
 
-    atomic_sub(&dc->smp_cpus_down, affected_cpu);
+    qatomic_sub(&dc->smp_cpus_down, affected_cpu);
     if (vcpu_total_blocktime) {
-        dc->total_blocktime += low_time_offset - atomic_fetch_add(
+        dc->total_blocktime += low_time_offset - qatomic_fetch_add(
                 &dc->last_begin, 0);
     }
     trace_mark_postcopy_blocktime_end(addr, dc, dc->total_blocktime,
@@ -928,7 +928,7 @@ static void *postcopy_ram_fault_thread(void *opaque)
                 error_report("%s: read() failed", __func__);
             }
 
-            if (atomic_read(&mis->fault_thread_quit)) {
+            if (qatomic_read(&mis->fault_thread_quit)) {
                 trace_postcopy_ram_fault_thread_quit();
                 break;
             }
@@ -1410,13 +1410,13 @@ static PostcopyState incoming_postcopy_state;
 
 PostcopyState  postcopy_state_get(void)
 {
-    return atomic_mb_read(&incoming_postcopy_state);
+    return qatomic_mb_read(&incoming_postcopy_state);
 }
 
 /* Set the state and return the old state */
 PostcopyState postcopy_state_set(PostcopyState new_state)
 {
-    return atomic_xchg(&incoming_postcopy_state, new_state);
+    return qatomic_xchg(&incoming_postcopy_state, new_state);
 }
 
 /* Register a handler for external shared memory postcopy

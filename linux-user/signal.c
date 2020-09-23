@@ -195,7 +195,7 @@ int block_signals(void)
     sigfillset(&set);
     sigprocmask(SIG_SETMASK, &set, 0);
 
-    return atomic_xchg(&ts->signal_pending, 1);
+    return qatomic_xchg(&ts->signal_pending, 1);
 }
 
 /* Wrapper for sigprocmask function
@@ -688,7 +688,7 @@ int queue_signal(CPUArchState *env, int sig, int si_type,
     ts->sync_signal.info = *info;
     ts->sync_signal.pending = sig;
     /* signal that a new signal is pending */
-    atomic_set(&ts->signal_pending, 1);
+    qatomic_set(&ts->signal_pending, 1);
     return 1; /* indicates that the signal was queued */
 }
 
@@ -1005,7 +1005,7 @@ void process_pending_signals(CPUArchState *cpu_env)
     sigset_t set;
     sigset_t *blocked_set;
 
-    while (atomic_read(&ts->signal_pending)) {
+    while (qatomic_read(&ts->signal_pending)) {
         /* FIXME: This is not threadsafe.  */
         sigfillset(&set);
         sigprocmask(SIG_SETMASK, &set, 0);
@@ -1049,7 +1049,7 @@ void process_pending_signals(CPUArchState *cpu_env)
          * of unblocking might cause us to take another host signal which
          * will set signal_pending again).
          */
-        atomic_set(&ts->signal_pending, 0);
+        qatomic_set(&ts->signal_pending, 0);
         ts->in_sigsuspend = 0;
         set = ts->signal_mask;
         sigdelset(&set, SIGSEGV);

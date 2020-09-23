@@ -217,7 +217,7 @@ static void throttle_reopen_abort(BDRVReopenState *reopen_state)
 static void coroutine_fn throttle_co_drain_begin(BlockDriverState *bs)
 {
     ThrottleGroupMember *tgm = bs->opaque;
-    if (atomic_fetch_inc(&tgm->io_limits_disabled) == 0) {
+    if (qatomic_fetch_inc(&tgm->io_limits_disabled) == 0) {
         throttle_group_restart_tgm(tgm);
     }
 }
@@ -226,7 +226,7 @@ static void coroutine_fn throttle_co_drain_end(BlockDriverState *bs)
 {
     ThrottleGroupMember *tgm = bs->opaque;
     assert(tgm->io_limits_disabled);
-    atomic_dec(&tgm->io_limits_disabled);
+    qatomic_dec(&tgm->io_limits_disabled);
 }
 
 static const char *const throttle_strong_runtime_opts[] = {

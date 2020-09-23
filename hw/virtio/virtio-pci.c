@@ -72,7 +72,7 @@ static void virtio_pci_notify(DeviceState *d, uint16_t vector)
         msix_notify(&proxy->pci_dev, vector);
     else {
         VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-        pci_set_irq(&proxy->pci_dev, atomic_read(&vdev->isr) & 1);
+        pci_set_irq(&proxy->pci_dev, qatomic_read(&vdev->isr) & 1);
     }
 }
 
@@ -398,7 +398,7 @@ static uint32_t virtio_ioport_read(VirtIOPCIProxy *proxy, uint32_t addr)
         break;
     case VIRTIO_PCI_ISR:
         /* reading from the ISR also clears it. */
-        ret = atomic_xchg(&vdev->isr, 0);
+        ret = qatomic_xchg(&vdev->isr, 0);
         pci_irq_deassert(&proxy->pci_dev);
         break;
     case VIRTIO_MSI_CONFIG_VECTOR:
@@ -1362,7 +1362,7 @@ static uint64_t virtio_pci_isr_read(void *opaque, hwaddr addr,
 {
     VirtIOPCIProxy *proxy = opaque;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    uint64_t val = atomic_xchg(&vdev->isr, 0);
+    uint64_t val = qatomic_xchg(&vdev->isr, 0);
     pci_irq_deassert(&proxy->pci_dev);
 
     return val;

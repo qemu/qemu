@@ -106,7 +106,7 @@ static void reclaim_list_el(struct rcu_head *prcu)
     struct list_element *el = container_of(prcu, struct list_element, rcu);
     g_free(el);
     /* Accessed only from call_rcu thread.  */
-    atomic_set_i64(&n_reclaims, n_reclaims + 1);
+    qatomic_set_i64(&n_reclaims, n_reclaims + 1);
 }
 
 #if TEST_LIST_TYPE == 1
@@ -172,16 +172,16 @@ static void *rcu_q_reader(void *arg)
     rcu_register_thread();
 
     *(struct rcu_reader_data **)arg = &rcu_reader;
-    atomic_inc(&nthreadsrunning);
-    while (atomic_read(&goflag) == GOFLAG_INIT) {
+    qatomic_inc(&nthreadsrunning);
+    while (qatomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
     }
 
-    while (atomic_read(&goflag) == GOFLAG_RUN) {
+    while (qatomic_read(&goflag) == GOFLAG_RUN) {
         rcu_read_lock();
         TEST_LIST_FOREACH_RCU(el, &Q_list_head, entry) {
             n_reads_local++;
-            if (atomic_read(&goflag) == GOFLAG_STOP) {
+            if (qatomic_read(&goflag) == GOFLAG_STOP) {
                 break;
             }
         }
@@ -207,12 +207,12 @@ static void *rcu_q_updater(void *arg)
     struct list_element *el, *prev_el;
 
     *(struct rcu_reader_data **)arg = &rcu_reader;
-    atomic_inc(&nthreadsrunning);
-    while (atomic_read(&goflag) == GOFLAG_INIT) {
+    qatomic_inc(&nthreadsrunning);
+    while (qatomic_read(&goflag) == GOFLAG_INIT) {
         g_usleep(1000);
     }
 
-    while (atomic_read(&goflag) == GOFLAG_RUN) {
+    while (qatomic_read(&goflag) == GOFLAG_RUN) {
         target_el = select_random_el(RCU_Q_LEN);
         j = 0;
         /* FOREACH_RCU could work here but let's use both macros */
@@ -226,7 +226,7 @@ static void *rcu_q_updater(void *arg)
                 break;
             }
         }
-        if (atomic_read(&goflag) == GOFLAG_STOP) {
+        if (qatomic_read(&goflag) == GOFLAG_STOP) {
             break;
         }
         target_el = select_random_el(RCU_Q_LEN);
@@ -248,7 +248,7 @@ static void *rcu_q_updater(void *arg)
     qemu_mutex_lock(&counts_mutex);
     n_nodes += n_nodes_local;
     n_updates += n_updates_local;
-    atomic_set_i64(&n_nodes_removed, n_nodes_removed + n_removed_local);
+    qatomic_set_i64(&n_nodes_removed, n_nodes_removed + n_removed_local);
     qemu_mutex_unlock(&counts_mutex);
     return NULL;
 }
@@ -271,13 +271,13 @@ static void rcu_qtest_init(void)
 static void rcu_qtest_run(int duration, int nreaders)
 {
     int nthreads = nreaders + 1;
-    while (atomic_read(&nthreadsrunning) < nthreads) {
+    while (qatomic_read(&nthreadsrunning) < nthreads) {
         g_usleep(1000);
     }
 
-    atomic_set(&goflag, GOFLAG_RUN);
+    qatomic_set(&goflag, GOFLAG_RUN);
     sleep(duration);
-    atomic_set(&goflag, GOFLAG_STOP);
+    qatomic_set(&goflag, GOFLAG_STOP);
     wait_all_threads();
 }
 
@@ -302,21 +302,23 @@ static void rcu_qtest(const char *test, int duration, int nreaders)
         n_removed_local++;
     }
     qemu_mutex_lock(&counts_mutex);
-    atomic_set_i64(&n_nodes_removed, n_nodes_removed + n_removed_local);
+    qatomic_set_i64(&n_nodes_removed, n_nodes_removed + n_removed_local);
     qemu_mutex_unlock(&counts_mutex);
     synchronize_rcu();
-    while (atomic_read_i64(&n_nodes_removed) > atomic_read_i64(&n_reclaims)) {
+    while (qatomic_read_i64(&n_nodes_removed) >
+           qatomic_read_i64(&n_reclaims)) {
         g_usleep(100);
         synchronize_rcu();
     }
     if (g_test_in_charge) {
-        g_assert_cmpint(atomic_read_i64(&n_nodes_removed), ==,
-                        atomic_read_i64(&n_reclaims));
+        g_assert_cmpint(qatomic_read_i64(&n_nodes_removed), ==,
+                        qatomic_read_i64(&n_reclaims));
     } else {
         printf("%s: %d readers; 1 updater; nodes read: "  \
                "%lld, nodes removed: %"PRIi64"; nodes reclaimed: %"PRIi64"\n",
                test, nthreadsrunning - 1, n_reads,
-               atomic_read_i64(&n_nodes_removed), atomic_read_i64(&n_reclaims));
+               qatomic_read_i64(&n_nodes_removed),
+               qatomic_read_i64(&n_reclaims));
         exit(0);
     }
 }

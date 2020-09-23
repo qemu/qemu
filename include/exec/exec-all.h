@@ -89,7 +89,7 @@ void QEMU_NORETURN cpu_loop_exit_atomic(CPUState *cpu, uintptr_t pc);
  */
 static inline bool cpu_loop_exit_requested(CPUState *cpu)
 {
-    return (int32_t)atomic_read(&cpu_neg(cpu)->icount_decr.u32) < 0;
+    return (int32_t)qatomic_read(&cpu_neg(cpu)->icount_decr.u32) < 0;
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -487,10 +487,10 @@ struct TranslationBlock {
 
 extern bool parallel_cpus;
 
-/* Hide the atomic_read to make code a little easier on the eyes */
+/* Hide the qatomic_read to make code a little easier on the eyes */
 static inline uint32_t tb_cflags(const TranslationBlock *tb)
 {
-    return atomic_read(&tb->cflags);
+    return qatomic_read(&tb->cflags);
 }
 
 /* current cflags for hashing/comparison */

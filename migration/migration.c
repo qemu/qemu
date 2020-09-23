@@ -1595,7 +1595,7 @@ void qmp_migrate_start_postcopy(Error **errp)
      * we don't error if migration has finished since that would be racy
      * with issuing this command.
      */
-    atomic_set(&s->start_postcopy, true);
+    qatomic_set(&s->start_postcopy, true);
 }
 
 /* shared migration helpers */
@@ -1603,7 +1603,7 @@ void qmp_migrate_start_postcopy(Error **errp)
 void migrate_set_state(int *state, int old_state, int new_state)
 {
     assert(new_state < MIGRATION_STATUS__MAX);
-    if (atomic_cmpxchg(state, old_state, new_state) == old_state) {
+    if (qatomic_cmpxchg(state, old_state, new_state) == old_state) {
         trace_migrate_set_state(MigrationStatus_str(new_state));
         migrate_generate_event(new_state);
     }
@@ -1954,7 +1954,7 @@ void qmp_migrate_recover(const char *uri, Error **errp)
         return;
     }
 
-    if (atomic_cmpxchg(&mis->postcopy_recover_triggered,
+    if (qatomic_cmpxchg(&mis->postcopy_recover_triggered,
                        false, true) == true) {
         error_setg(errp, "Migrate recovery is triggered already");
         return;
@@ -3329,7 +3329,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     if (pending_size && pending_size >= s->threshold_size) {
         /* Still a significant amount to transfer */
         if (!in_postcopy && pend_pre <= s->threshold_size &&
-            atomic_read(&s->start_postcopy)) {
+            qatomic_read(&s->start_postcopy)) {
             if (postcopy_start(s)) {
                 error_report("%s: postcopy failed to start", __func__);
             }

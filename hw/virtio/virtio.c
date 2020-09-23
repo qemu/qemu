@@ -149,8 +149,8 @@ static void virtio_virtqueue_reset_region_cache(struct VirtQueue *vq)
 {
     VRingMemoryRegionCaches *caches;
 
-    caches = atomic_read(&vq->vring.caches);
-    atomic_rcu_set(&vq->vring.caches, NULL);
+    caches = qatomic_read(&vq->vring.caches);
+    qatomic_rcu_set(&vq->vring.caches, NULL);
     if (caches) {
         call_rcu(caches, virtio_free_region_cache, rcu);
     }
@@ -197,7 +197,7 @@ static void virtio_init_region_cache(VirtIODevice *vdev, int n)
         goto err_avail;
     }
 
-    atomic_rcu_set(&vq->vring.caches, new);
+    qatomic_rcu_set(&vq->vring.caches, new);
     if (old) {
         call_rcu(old, virtio_free_region_cache, rcu);
     }
@@ -283,7 +283,7 @@ static void vring_packed_flags_write(VirtIODevice *vdev,
 /* Called within rcu_read_lock().  */
 static VRingMemoryRegionCaches *vring_get_region_caches(struct VirtQueue *vq)
 {
-    return atomic_rcu_read(&vq->vring.caches);
+    return qatomic_rcu_read(&vq->vring.caches);
 }
 
 /* Called within rcu_read_lock().  */
@@ -2007,7 +2007,7 @@ void virtio_reset(void *opaque)
     vdev->queue_sel = 0;
     vdev->status = 0;
     vdev->disabled = false;
-    atomic_set(&vdev->isr, 0);
+    qatomic_set(&vdev->isr, 0);
     vdev->config_vector = VIRTIO_NO_VECTOR;
     virtio_notify_vector(vdev, vdev->config_vector);
 
@@ -2439,13 +2439,13 @@ void virtio_del_queue(VirtIODevice *vdev, int n)
 
 static void virtio_set_isr(VirtIODevice *vdev, int value)
 {
-    uint8_t old = atomic_read(&vdev->isr);
+    uint8_t old = qatomic_read(&vdev->isr);
 
     /* Do not write ISR if it does not change, so that its cacheline remains
      * shared in the common case where the guest does not read it.
      */
     if ((old & value) != value) {
-        atomic_or(&vdev->isr, value);
+        qatomic_or(&vdev->isr, value);
     }
 }
 
@@ -3254,7 +3254,7 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     vdev->started = false;
     vdev->device_id = device_id;
     vdev->status = 0;
-    atomic_set(&vdev->isr, 0);
+    qatomic_set(&vdev->isr, 0);
     vdev->queue_sel = 0;
     vdev->config_vector = VIRTIO_NO_VECTOR;
     vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_QUEUE_MAX);

@@ -685,7 +685,7 @@ struct FlatView {
 
 static inline FlatView *address_space_to_flatview(AddressSpace *as)
 {
-    return atomic_rcu_read(&as->current_map);
+    return qatomic_rcu_read(&as->current_map);
 }
 
 

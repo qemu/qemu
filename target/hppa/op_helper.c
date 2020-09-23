@@ -67,7 +67,7 @@ static void atomic_store_3(CPUHPPAState *env, target_ulong addr, uint32_t val,
     old = *haddr;
     while (1) {
         new = (old & ~mask) | (val & mask);
-        cmp = atomic_cmpxchg(haddr, old, new);
+        cmp = qatomic_cmpxchg(haddr, old, new);
         if (cmp == old) {
             return;
         }

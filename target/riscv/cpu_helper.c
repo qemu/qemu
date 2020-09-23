@@ -537,7 +537,7 @@ restart:
                     *pte_pa = pte = updated_pte;
 #else
                     target_ulong old_pte =
-                        atomic_cmpxchg(pte_pa, pte, updated_pte);
+                        qatomic_cmpxchg(pte_pa, pte, updated_pte);
                     if (old_pte != pte) {
                         goto restart;
                     } else {

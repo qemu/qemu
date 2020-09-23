@@ -449,7 +449,7 @@ static void
 vu_log_page(uint8_t *log_table, uint64_t page)
 {
     DPRINT("Logged dirty guest page: %"PRId64"\n", page);
-    atomic_or(&log_table[page / 8], 1 << (page % 8));
+    qatomic_or(&log_table[page / 8], 1 << (page % 8));
 }
 
 static void

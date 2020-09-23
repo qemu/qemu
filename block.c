@@ -1694,7 +1694,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     }
 
     /* bdrv_new() and bdrv_close() make it so */
-    assert(atomic_read(&bs->copy_on_read) == 0);
+    assert(qatomic_read(&bs->copy_on_read) == 0);
 
     if (bs->open_flags & BDRV_O_COPY_ON_READ) {
         if (!bs->read_only) {
@@ -4436,7 +4436,7 @@ static void bdrv_close(BlockDriverState *bs)
     bs->file = NULL;
     g_free(bs->opaque);
     bs->opaque = NULL;
-    atomic_set(&bs->copy_on_read, 0);
+    qatomic_set(&bs->copy_on_read, 0);
     bs->backing_file[0] = '\0';
     bs->backing_format[0] = '\0';
     bs->total_sectors = 0;

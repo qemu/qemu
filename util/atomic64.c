@@ -51,8 +51,8 @@ static QemuSpin *addr_to_lock(const void *addr)
         return ret;                             \
     }
 
-GEN_READ(atomic_read_i64, int64_t)
-GEN_READ(atomic_read_u64, uint64_t)
+GEN_READ(qatomic_read_i64, int64_t)
+GEN_READ(qatomic_read_u64, uint64_t)
 #undef GEN_READ
 
 #define GEN_SET(name, type)                     \
@@ -65,11 +65,11 @@ GEN_READ(atomic_read_u64, uint64_t)
         qemu_spin_unlock(lock);                 \
     }
 
-GEN_SET(atomic_set_i64, int64_t)
-GEN_SET(atomic_set_u64, uint64_t)
+GEN_SET(qatomic_set_i64, int64_t)
+GEN_SET(qatomic_set_u64, uint64_t)
 #undef GEN_SET
 
-void atomic64_init(void)
+void qatomic64_init(void)
 {
     int i;
 

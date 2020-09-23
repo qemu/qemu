@@ -410,7 +410,7 @@ static int multifd_send_pages(QEMUFile *f)
     MultiFDPages_t *pages = multifd_send_state->pages;
     uint64_t transferred;
 
-    if (atomic_read(&multifd_send_state->exiting)) {
+    if (qatomic_read(&multifd_send_state->exiting)) {
         return -1;
     }
 
@@ -508,7 +508,7 @@ static void multifd_send_terminate_threads(Error *err)
      * threads at the same time, we can end calling this function
      * twice.
      */
-    if (atomic_xchg(&multifd_send_state->exiting, 1)) {
+    if (qatomic_xchg(&multifd_send_state->exiting, 1)) {
         return;
     }
 
@@ -632,7 +632,7 @@ static void *multifd_send_thread(void *opaque)
     while (true) {
         qemu_sem_wait(&p->sem);
 
-        if (atomic_read(&multifd_send_state->exiting)) {
+        if (qatomic_read(&multifd_send_state->exiting)) {
             break;
         }
         qemu_mutex_lock(&p->mutex);
@@ -760,7 +760,7 @@ int multifd_save_setup(Error **errp)
     multifd_send_state->params = g_new0(MultiFDSendParams, thread_count);
     multifd_send_state->pages = multifd_pages_init(page_count);
     qemu_sem_init(&multifd_send_state->channels_ready, 0);
-    atomic_set(&multifd_send_state->exiting, 0);
+    qatomic_set(&multifd_send_state->exiting, 0);
     multifd_send_state->ops = multifd_ops[migrate_multifd_compression()];
 
     for (i = 0; i < thread_count; i++) {
@@ -997,7 +997,7 @@ int multifd_load_setup(Error **errp)
     thread_count = migrate_multifd_channels();
     multifd_recv_state = g_malloc0(sizeof(*multifd_recv_state));
     multifd_recv_state->params = g_new0(MultiFDRecvParams, thread_count);
-    atomic_set(&multifd_recv_state->count, 0);
+    qatomic_set(&multifd_recv_state->count, 0);
     qemu_sem_init(&multifd_recv_state->sem_sync, 0);
     multifd_recv_state->ops = multifd_ops[migrate_multifd_compression()];
 
@@ -1037,7 +1037,7 @@ bool multifd_recv_all_channels_created(void)
         return true;
     }
 
-    return thread_count == atomic_read(&multifd_recv_state->count);
+    return thread_count == qatomic_read(&multifd_recv_state->count);
 }
 
 /*
@@ -1058,7 +1058,7 @@ bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
         error_propagate_prepend(errp, local_err,
                                 "failed to receive packet"
                                 " via multifd channel %d: ",
-                                atomic_read(&multifd_recv_state->count));
+                                qatomic_read(&multifd_recv_state->count));
         return false;
     }
     trace_multifd_recv_new_channel(id);
@@ -1079,7 +1079,7 @@ bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
     p->running = true;
     qemu_thread_create(&p->thread, p->name, multifd_recv_thread, p,
                        QEMU_THREAD_JOINABLE);
-    atomic_inc(&multifd_recv_state->count);
-    return atomic_read(&multifd_recv_state->count) ==
+    qatomic_inc(&multifd_recv_state->count);
+    return qatomic_read(&multifd_recv_state->count) ==
            migrate_multifd_channels();
 }

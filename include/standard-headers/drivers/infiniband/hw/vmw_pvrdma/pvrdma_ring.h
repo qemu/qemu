@@ -68,7 +68,7 @@ static inline int pvrdma_idx_valid(uint32_t idx, uint32_t max_elems)
 
 static inline int32_t pvrdma_idx(int *var, uint32_t max_elems)
 {
-	const unsigned int idx = atomic_read(var);
+	const unsigned int idx = qatomic_read(var);
 
 	if (pvrdma_idx_valid(idx, max_elems))
 		return idx & (max_elems - 1);
@@ -77,17 +77,17 @@ static inline int32_t pvrdma_idx(int *var, uint32_t max_elems)
 
 static inline void pvrdma_idx_ring_inc(int *var, uint32_t max_elems)
 {
-	uint32_t idx = atomic_read(var) + 1;	/* Increment. */
+	uint32_t idx = qatomic_read(var) + 1;	/* Increment. */
 
 	idx &= (max_elems << 1) - 1;		/* Modulo size, flip gen. */
-	atomic_set(var, idx);
+	qatomic_set(var, idx);
 }
 
 static inline int32_t pvrdma_idx_ring_has_space(const struct pvrdma_ring *r,
 					      uint32_t max_elems, uint32_t *out_tail)
 {
-	const uint32_t tail = atomic_read(&r->prod_tail);
-	const uint32_t head = atomic_read(&r->cons_head);
+	const uint32_t tail = qatomic_read(&r->prod_tail);
+	const uint32_t head = qatomic_read(&r->cons_head);
 
 	if (pvrdma_idx_valid(tail, max_elems) &&
 	    pvrdma_idx_valid(head, max_elems)) {
@@ -100,8 +100,8 @@ static inline int32_t pvrdma_idx_ring_has_space(const struct pvrdma_ring *r,
 static inline int32_t pvrdma_idx_ring_has_data(const struct pvrdma_ring *r,
 					     uint32_t max_elems, uint32_t *out_head)
 {
-	const uint32_t tail = atomic_read(&r->prod_tail);
-	const uint32_t head = atomic_read(&r->cons_head);
+	const uint32_t tail = qatomic_read(&r->prod_tail);
+	const uint32_t head = qatomic_read(&r->cons_head);
 
 	if (pvrdma_idx_valid(tail, max_elems) &&
 	    pvrdma_idx_valid(head, max_elems)) {

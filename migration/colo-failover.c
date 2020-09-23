@@ -63,7 +63,7 @@ FailoverStatus failover_set_state(FailoverStatus old_state,
 {
     FailoverStatus old;
 
-    old = atomic_cmpxchg(&failover_state, old_state, new_state);
+    old = qatomic_cmpxchg(&failover_state, old_state, new_state);
     if (old == old_state) {
         trace_colo_failover_set_state(FailoverStatus_str(new_state));
     }
@@ -72,7 +72,7 @@ FailoverStatus failover_set_state(FailoverStatus old_state,
 
 FailoverStatus failover_get_state(void)
 {
-    return atomic_read(&failover_state);
+    return qatomic_read(&failover_state);
 }
 
 void qmp_x_colo_lost_heartbeat(Error **errp)

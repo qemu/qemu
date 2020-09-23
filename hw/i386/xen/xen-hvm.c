@@ -1140,7 +1140,7 @@ static int handle_buffered_iopage(XenIOState *state)
         assert(req.dir == IOREQ_WRITE);
         assert(!req.data_is_ptr);
 
-        atomic_add(&buf_page->read_pointer, qw + 1);
+        qatomic_add(&buf_page->read_pointer, qw + 1);
     }
 
     return req.count;

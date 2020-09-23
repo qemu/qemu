@@ -1337,19 +1337,19 @@ static void monitor_event(void *opaque, QEMUChrEvent event)
             monitor_resume(mon);
             monitor_flush(mon);
         } else {
-            atomic_mb_set(&mon->suspend_cnt, 0);
+            qatomic_mb_set(&mon->suspend_cnt, 0);
         }
         break;
 
     case CHR_EVENT_MUX_OUT:
         if (mon->reset_seen) {
-            if (atomic_mb_read(&mon->suspend_cnt) == 0) {
+            if (qatomic_mb_read(&mon->suspend_cnt) == 0) {
                 monitor_printf(mon, "\n");
             }
             monitor_flush(mon);
             monitor_suspend(mon);
         } else {
-            atomic_inc(&mon->suspend_cnt);
+            qatomic_inc(&mon->suspend_cnt);
         }
         qemu_mutex_lock(&mon->mon_lock);
         mon->mux_out = 1;

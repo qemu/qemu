@@ -158,7 +158,7 @@ QEMU_COPYRIGHT "\n"
 #if HAVE_NBD_DEVICE
 static void termsig_handler(int signum)
 {
-    atomic_cmpxchg(&state, RUNNING, TERMINATE);
+    qatomic_cmpxchg(&state, RUNNING, TERMINATE);
     qemu_notify_event();
 }
 #endif /* HAVE_NBD_DEVICE */

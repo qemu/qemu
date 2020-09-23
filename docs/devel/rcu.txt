@@ -130,13 +130,13 @@ The core RCU API is small:
 
             g_free_rcu(&foo, rcu);
 
-     typeof(*p) atomic_rcu_read(p);
+     typeof(*p) qatomic_rcu_read(p);
 
-        atomic_rcu_read() is similar to atomic_load_acquire(), but it makes
+        qatomic_rcu_read() is similar to qatomic_load_acquire(), but it makes
         some assumptions on the code that calls it.  This allows a more
         optimized implementation.
 
-        atomic_rcu_read assumes that whenever a single RCU critical
+        qatomic_rcu_read assumes that whenever a single RCU critical
         section reads multiple shared data, these reads are either
         data-dependent or need no ordering.  This is almost always the
         case when using RCU, because read-side critical sections typically
@@ -144,7 +144,7 @@ The core RCU API is small:
         every update) until reaching a data structure of interest,
         and then read from there.
 
-        RCU read-side critical sections must use atomic_rcu_read() to
+        RCU read-side critical sections must use qatomic_rcu_read() to
         read data, unless concurrent writes are prevented by another
         synchronization mechanism.
 
@@ -152,18 +152,18 @@ The core RCU API is small:
         data structure in a single direction, opposite to the direction
         in which the updater initializes it.
 
-     void atomic_rcu_set(p, typeof(*p) v);
+     void qatomic_rcu_set(p, typeof(*p) v);
 
-        atomic_rcu_set() is similar to atomic_store_release(), though it also
+        qatomic_rcu_set() is similar to qatomic_store_release(), though it also
         makes assumptions on the code that calls it in order to allow a more
         optimized implementation.
 
-        In particular, atomic_rcu_set() suffices for synchronization
+        In particular, qatomic_rcu_set() suffices for synchronization
         with readers, if the updater never mutates a field within a
         data item that is already accessible to readers.  This is the
         case when initializing a new copy of the RCU-protected data
         structure; just ensure that initialization of *p is carried out
-        before atomic_rcu_set() makes the data item visible to readers.
+        before qatomic_rcu_set() makes the data item visible to readers.
         If this rule is observed, writes will happen in the opposite
         order as reads in the RCU read-side critical sections (or if
         there is just one update), and there will be no need for other
@@ -212,7 +212,7 @@ DIFFERENCES WITH LINUX
   programming; not allowing this would prevent upgrading an RCU read-side
   critical section to become an updater.
 
-- atomic_rcu_read and atomic_rcu_set replace rcu_dereference and
+- qatomic_rcu_read and qatomic_rcu_set replace rcu_dereference and
   rcu_assign_pointer.  They take a _pointer_ to the variable being accessed.
 
 - call_rcu is a macro that has an extra argument (the name of the first
@@ -257,7 +257,7 @@ may be used as a restricted reference-counting mechanism.  For example,
 consider the following code fragment:
 
     rcu_read_lock();
-    p = atomic_rcu_read(&foo);
+    p = qatomic_rcu_read(&foo);
     /* do something with p. */
     rcu_read_unlock();
 
@@ -268,7 +268,7 @@ The write side looks simply like this (with appropriate locking):
 
     qemu_mutex_lock(&foo_mutex);
     old = foo;
-    atomic_rcu_set(&foo, new);
+    qatomic_rcu_set(&foo, new);
     qemu_mutex_unlock(&foo_mutex);
     synchronize_rcu();
     free(old);
@@ -277,7 +277,7 @@ If the processing cannot be done purely within the critical section, it
 is possible to combine this idiom with a "real" reference count:
 
     rcu_read_lock();
-    p = atomic_rcu_read(&foo);
+    p = qatomic_rcu_read(&foo);
     foo_ref(p);
     rcu_read_unlock();
     /* do something with p. */
@@ -287,7 +287,7 @@ The write side can be like this:
 
     qemu_mutex_lock(&foo_mutex);
     old = foo;
-    atomic_rcu_set(&foo, new);
+    qatomic_rcu_set(&foo, new);
     qemu_mutex_unlock(&foo_mutex);
     synchronize_rcu();
     foo_unref(old);
@@ -296,7 +296,7 @@ or with call_rcu:
 
     qemu_mutex_lock(&foo_mutex);
     old = foo;
-    atomic_rcu_set(&foo, new);
+    qatomic_rcu_set(&foo, new);
     qemu_mutex_unlock(&foo_mutex);
     call_rcu(foo_unref, old, rcu);
 
@@ -307,7 +307,7 @@ last reference may be dropped on the read side.  Hence you can
 use call_rcu() instead:
 
      foo_unref(struct foo *p) {
-        if (atomic_fetch_dec(&p->refcount) == 1) {
+        if (qatomic_fetch_dec(&p->refcount) == 1) {
             call_rcu(foo_destroy, p, rcu);
         }
     }
@@ -375,7 +375,7 @@ Instead, we store the size of the array with the array itself:
 
     read side:
         rcu_read_lock();
-        struct arr *array = atomic_rcu_read(&global_array);
+        struct arr *array = qatomic_rcu_read(&global_array);
         x = i < array->size ? array->data[i] : -1;
         rcu_read_unlock();
         return x;
@@ -392,7 +392,7 @@ Instead, we store the size of the array with the array itself:
 
             /* Removal phase.  */
             old_array = global_array;
-            atomic_rcu_set(&new_array->data, new_array);
+            qatomic_rcu_set(&new_array->data, new_array);
             synchronize_rcu();
 
             /* Reclamation phase.  */

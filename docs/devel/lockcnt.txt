@@ -95,7 +95,7 @@ not just frees, though there could be cases where this is not necessary.
 
 Reads, instead, can be done without taking the mutex, as long as the
 readers and writers use the same macros that are used for RCU, for
-example atomic_rcu_read, atomic_rcu_set, QLIST_FOREACH_RCU, etc.  This is
+example qatomic_rcu_read, qatomic_rcu_set, QLIST_FOREACH_RCU, etc.  This is
 because the reads are done outside a lock and a set or QLIST_INSERT_HEAD
 can happen concurrently with the read.  The RCU API ensures that the
 processor and the compiler see all required memory barriers.
@@ -189,7 +189,7 @@ qemu_lockcnt_lock and qemu_lockcnt_unlock:
     if (!xyz) {
         new_xyz = g_new(XYZ, 1);
         ...
-        atomic_rcu_set(&xyz, new_xyz);
+        qatomic_rcu_set(&xyz, new_xyz);
     }
     qemu_lockcnt_unlock(&xyz_lockcnt);
 
@@ -198,7 +198,7 @@ qemu_lockcnt_dec:
 
     qemu_lockcnt_inc(&xyz_lockcnt);
     if (xyz) {
-        XYZ *p = atomic_rcu_read(&xyz);
+        XYZ *p = qatomic_rcu_read(&xyz);
         ...
         /* Accesses can now be done through "p".  */
     }
@@ -222,7 +222,7 @@ the decrement, the locking and the check on count as follows:
 
     qemu_lockcnt_inc(&xyz_lockcnt);
     if (xyz) {
-        XYZ *p = atomic_rcu_read(&xyz);
+        XYZ *p = qatomic_rcu_read(&xyz);
         ...
         /* Accesses can now be done through "p".  */
     }

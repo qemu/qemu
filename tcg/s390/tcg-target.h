@@ -154,7 +154,7 @@ static inline void tb_target_set_jmp_target(uintptr_t tc_ptr,
 {
     /* patch the branch destination */
     intptr_t disp = addr - (jmp_addr - 2);
-    atomic_set((int32_t *)jmp_addr, disp / 2);
+    qatomic_set((int32_t *)jmp_addr, disp / 2);
     /* no need to flush icache explicitly */
 }
 

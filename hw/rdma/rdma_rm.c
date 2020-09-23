@@ -790,7 +790,7 @@ int rdma_rm_init(RdmaDeviceResources *dev_res, struct ibv_device_attr *dev_attr)
     qemu_mutex_init(&dev_res->lock);
 
     memset(&dev_res->stats, 0, sizeof(dev_res->stats));
-    atomic_set(&dev_res->stats.missing_cqe, 0);
+    qatomic_set(&dev_res->stats.missing_cqe, 0);
 
     return 0;
 }

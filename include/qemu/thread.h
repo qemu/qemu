@@ -70,33 +70,33 @@ extern QemuCondTimedWaitFunc qemu_cond_timedwait_func;
             qemu_cond_timedwait_impl(c, m, ms, __FILE__, __LINE__)
 #else
 #define qemu_mutex_lock(m) ({                                           \
-            QemuMutexLockFunc _f = atomic_read(&qemu_mutex_lock_func);  \
+            QemuMutexLockFunc _f = qatomic_read(&qemu_mutex_lock_func); \
             _f(m, __FILE__, __LINE__);                                  \
         })
 
-#define qemu_mutex_trylock(m) ({                                        \
-            QemuMutexTrylockFunc _f = atomic_read(&qemu_mutex_trylock_func); \
-            _f(m, __FILE__, __LINE__);                                  \
+#define qemu_mutex_trylock(m) ({                                              \
+            QemuMutexTrylockFunc _f = qatomic_read(&qemu_mutex_trylock_func); \
+            _f(m, __FILE__, __LINE__);                                        \
         })
 
-#define qemu_rec_mutex_lock(m) ({                                       \
-            QemuRecMutexLockFunc _f = atomic_read(&qemu_rec_mutex_lock_func); \
-            _f(m, __FILE__, __LINE__);                                  \
+#define qemu_rec_mutex_lock(m) ({                                             \
+            QemuRecMutexLockFunc _f = qatomic_read(&qemu_rec_mutex_lock_func);\
+            _f(m, __FILE__, __LINE__);                                        \
         })
 
 #define qemu_rec_mutex_trylock(m) ({                            \
             QemuRecMutexTrylockFunc _f;                         \
-            _f = atomic_read(&qemu_rec_mutex_trylock_func);     \
+            _f = qatomic_read(&qemu_rec_mutex_trylock_func);    \
             _f(m, __FILE__, __LINE__);                          \
         })
 
 #define qemu_cond_wait(c, m) ({                                         \
-            QemuCondWaitFunc _f = atomic_read(&qemu_cond_wait_func);    \
+            QemuCondWaitFunc _f = qatomic_read(&qemu_cond_wait_func);   \
             _f(c, m, __FILE__, __LINE__);                               \
         })
 
 #define qemu_cond_timedwait(c, m, ms) ({                                       \
-            QemuCondTimedWaitFunc _f = atomic_read(&qemu_cond_timedwait_func); \
+            QemuCondTimedWaitFunc _f = qatomic_read(&qemu_cond_timedwait_func);\
             _f(c, m, ms, __FILE__, __LINE__);                                  \
         })
 #endif
@@ -236,7 +236,7 @@ static inline void qemu_spin_lock(QemuSpin *spin)
     __tsan_mutex_pre_lock(spin, 0);
 #endif
     while (unlikely(__sync_lock_test_and_set(&spin->value, true))) {
-        while (atomic_read(&spin->value)) {
+        while (qatomic_read(&spin->value)) {
             cpu_relax();
         }
     }
@@ -261,7 +261,7 @@ static inline bool qemu_spin_trylock(QemuSpin *spin)
 
 static inline bool qemu_spin_locked(QemuSpin *spin)
 {
-    return atomic_read(&spin->value);
+    return qatomic_read(&spin->value);
 }
 
 static inline void qemu_spin_unlock(QemuSpin *spin)

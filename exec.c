@@ -353,13 +353,13 @@ static MemoryRegionSection *address_space_lookup_region(AddressSpaceDispatch *d,
                                                         hwaddr addr,
                                                         bool resolve_subpage)
 {
-    MemoryRegionSection *section = atomic_read(&d->mru_section);
+    MemoryRegionSection *section = qatomic_read(&d->mru_section);
     subpage_t *subpage;
 
     if (!section || section == &d->map.sections[PHYS_SECTION_UNASSIGNED] ||
         !section_covers_addr(section, addr)) {
         section = phys_page_find(d, addr);
-        atomic_set(&d->mru_section, section);
+        qatomic_set(&d->mru_section, section);
     }
     if (resolve_subpage && section->mr->subpage) {
         subpage = container_of(section->mr, subpage_t, iomem);
@@ -695,7 +695,8 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
     IOMMUMemoryRegionClass *imrc;
     IOMMUTLBEntry iotlb;
     int iommu_idx;
-    AddressSpaceDispatch *d = atomic_rcu_read(&cpu->cpu_ases[asidx].memory_dispatch);
+    AddressSpaceDispatch *d =
+        qatomic_rcu_read(&cpu->cpu_ases[asidx].memory_dispatch);
 
     for (;;) {
         section = address_space_translate_internal(d, addr, &addr, plen, false);
@@ -1247,7 +1248,7 @@ static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
 {
     RAMBlock *block;
 
-    block = atomic_rcu_read(&ram_list.mru_block);
+    block = qatomic_rcu_read(&ram_list.mru_block);
     if (block && addr - block->offset < block->max_length) {
         return block;
     }
@@ -1273,7 +1274,7 @@ found:
      *                                        call_rcu(reclaim_ramblock, xxx);
      *                  rcu_read_unlock()
      *
-     * atomic_rcu_set is not needed here.  The block was already published
+     * qatomic_rcu_set is not needed here.  The block was already published
      * when it was placed into the list.  Here we're just making an extra
      * copy of the pointer.
      */
@@ -1321,7 +1322,7 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
     page = start_page;
 
     WITH_RCU_READ_LOCK_GUARD() {
-        blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
+        blocks = qatomic_rcu_read(&ram_list.dirty_memory[client]);
         ramblock = qemu_get_ram_block(start);
         /* Range sanity check on the ramblock */
         assert(start >= ramblock->offset &&
@@ -1371,7 +1372,7 @@ DirtyBitmapSnapshot *cpu_physical_memory_snapshot_and_clear_dirty
     dest = 0;
 
     WITH_RCU_READ_LOCK_GUARD() {
-        blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
+        blocks = qatomic_rcu_read(&ram_list.dirty_memory[client]);
 
         while (page < end) {
             unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
@@ -2207,7 +2208,7 @@ static void dirty_memory_extend(ram_addr_t old_ram_size,
         DirtyMemoryBlocks *new_blocks;
         int j;
 
-        old_blocks = atomic_rcu_read(&ram_list.dirty_memory[i]);
+        old_blocks = qatomic_rcu_read(&ram_list.dirty_memory[i]);
         new_blocks = g_malloc(sizeof(*new_blocks) +
                               sizeof(new_blocks->blocks[0]) * new_num_blocks);
 
@@ -2220,7 +2221,7 @@ static void dirty_memory_extend(ram_addr_t old_ram_size,
             new_blocks->blocks[j] = bitmap_new(DIRTY_MEMORY_BLOCK_SIZE);
         }
 
-        atomic_rcu_set(&ram_list.dirty_memory[i], new_blocks);
+        qatomic_rcu_set(&ram_list.dirty_memory[i], new_blocks);
 
         if (old_blocks) {
             g_free_rcu(old_blocks, rcu);
@@ -2667,7 +2668,7 @@ RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
     }
 
     RCU_READ_LOCK_GUARD();
-    block = atomic_rcu_read(&ram_list.mru_block);
+    block = qatomic_rcu_read(&ram_list.mru_block);
     if (block && block->host && host - block->host < block->max_length) {
         goto found;
     }
@@ -2912,7 +2913,7 @@ MemoryRegionSection *iotlb_to_section(CPUState *cpu,
 {
     int asidx = cpu_asidx_from_attrs(cpu, attrs);
     CPUAddressSpace *cpuas = &cpu->cpu_ases[asidx];
-    AddressSpaceDispatch *d = atomic_rcu_read(&cpuas->memory_dispatch);
+    AddressSpaceDispatch *d = qatomic_rcu_read(&cpuas->memory_dispatch);
     MemoryRegionSection *sections = d->map.sections;
 
     return &sections[index & ~TARGET_PAGE_MASK];
@@ -2996,7 +2997,7 @@ static void tcg_commit(MemoryListener *listener)
      * may have split the RCU critical section.
      */
     d = address_space_to_dispatch(cpuas->as);
-    atomic_rcu_set(&cpuas->memory_dispatch, d);
+    qatomic_rcu_set(&cpuas->memory_dispatch, d);
     tlb_flush(cpuas->cpu);
 }
 
@@ -3443,7 +3444,7 @@ void cpu_register_map_client(QEMUBH *bh)
     qemu_mutex_lock(&map_client_list_lock);
     client->bh = bh;
     QLIST_INSERT_HEAD(&map_client_list, client, link);
-    if (!atomic_read(&bounce.in_use)) {
+    if (!qatomic_read(&bounce.in_use)) {
         cpu_notify_map_clients_locked();
     }
     qemu_mutex_unlock(&map_client_list_lock);
@@ -3577,7 +3578,7 @@ void *address_space_map(AddressSpace *as,
     mr = flatview_translate(fv, addr, &xlat, &l, is_write, attrs);
 
     if (!memory_access_is_direct(mr, is_write)) {
-        if (atomic_xchg(&bounce.in_use, true)) {
+        if (qatomic_xchg(&bounce.in_use, true)) {
             *plen = 0;
             return NULL;
         }
@@ -3636,7 +3637,7 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
     qemu_vfree(bounce.buffer);
     bounce.buffer = NULL;
     memory_region_unref(bounce.mr);
-    atomic_mb_set(&bounce.in_use, false);
+    qatomic_mb_set(&bounce.in_use, false);
     cpu_notify_map_clients();
 }
 
@@ -4105,16 +4106,17 @@ int ram_block_discard_disable(bool state)
     int old;
 
     if (!state) {
-        atomic_dec(&ram_block_discard_disabled);
+        qatomic_dec(&ram_block_discard_disabled);
         return 0;
     }
 
     do {
-        old = atomic_read(&ram_block_discard_disabled);
+        old = qatomic_read(&ram_block_discard_disabled);
         if (old < 0) {
             return -EBUSY;
         }
-    } while (atomic_cmpxchg(&ram_block_discard_disabled, old, old + 1) != old);
+    } while (qatomic_cmpxchg(&ram_block_discard_disabled,
+                             old, old + 1) != old);
     return 0;
 }
 
@@ -4123,27 +4125,28 @@ int ram_block_discard_require(bool state)
     int old;
 
     if (!state) {
-        atomic_inc(&ram_block_discard_disabled);
+        qatomic_inc(&ram_block_discard_disabled);
         return 0;
     }
 
     do {
-        old = atomic_read(&ram_block_discard_disabled);
+        old = qatomic_read(&ram_block_discard_disabled);
         if (old > 0) {
             return -EBUSY;
         }
-    } while (atomic_cmpxchg(&ram_block_discard_disabled, old, old - 1) != old);
+    } while (qatomic_cmpxchg(&ram_block_discard_disabled,
+                             old, old - 1) != old);
     return 0;
 }
 
 bool ram_block_discard_is_disabled(void)
 {
-    return atomic_read(&ram_block_discard_disabled) > 0;
+    return qatomic_read(&ram_block_discard_disabled) > 0;
 }
 
 bool ram_block_discard_is_required(void)
 {
-    return atomic_read(&ram_block_discard_disabled) < 0;
+    return qatomic_read(&ram_block_discard_disabled) < 0;
 }
 
 #endif
