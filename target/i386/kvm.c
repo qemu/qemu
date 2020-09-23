@@ -284,30 +284,6 @@ static struct kvm_cpuid2 *get_supported_cpuid(KVMState *s)
     return cpuid;
 }
 
-static const struct kvm_para_features {
-    int cap;
-    int feature;
-} para_features[] = {
-    { KVM_CAP_CLOCKSOURCE, KVM_FEATURE_CLOCKSOURCE },
-    { KVM_CAP_NOP_IO_DELAY, KVM_FEATURE_NOP_IO_DELAY },
-    { KVM_CAP_PV_MMU, KVM_FEATURE_MMU_OP },
-    { KVM_CAP_ASYNC_PF, KVM_FEATURE_ASYNC_PF },
-    { KVM_CAP_ASYNC_PF_INT, KVM_FEATURE_ASYNC_PF_INT },
-};
-
-static int get_para_features(KVMState *s)
-{
-    int i, features = 0;
-
-    for (i = 0; i < ARRAY_SIZE(para_features); i++) {
-        if (kvm_check_extension(s, para_features[i].cap)) {
-            features |= (1 << para_features[i].feature);
-        }
-    }
-
-    return features;
-}
-
 static bool host_tsx_broken(void)
 {
     int family, model, stepping;\
@@ -367,13 +343,11 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
     struct kvm_cpuid2 *cpuid;
     uint32_t ret = 0;
     uint32_t cpuid_1_edx;
-    bool found = false;
 
     cpuid = get_supported_cpuid(s);
 
     struct kvm_cpuid_entry2 *entry = cpuid_find_entry(cpuid, function, index);
     if (entry) {
-        found = true;
         ret = cpuid_entry_get_reg(entry, reg);
     }
 
@@ -448,12 +422,6 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         }
     } else if (function == KVM_CPUID_FEATURES && reg == R_EDX) {
         ret |= 1U << KVM_HINTS_REALTIME;
-        found = 1;
-    }
-
-    /* fallback for older kernels */
-    if ((function == KVM_CPUID_FEATURES) && !found) {
-        ret = get_para_features(s);
     }
 
     return ret;
