@@ -283,6 +283,14 @@ for VNC should be performed using the pluggable QAuthZ objects.
 System emulator CPUS
 --------------------
 
+``moxie`` CPU (since 5.2.0)
+'''''''''''''''''''''''''''
+
+The ``moxie`` guest CPU support is deprecated and will be removed in
+a future version of QEMU. It's unclear whether anybody is still using
+CPU emulation in QEMU, and there are no test images available to make
+sure that the code is still working.
+
 ``compat`` property of server class POWER CPUs (since 5.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
