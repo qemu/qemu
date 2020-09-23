@@ -26,6 +26,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #ifndef PL330_ERR_DEBUG
 #define PL330_ERR_DEBUG 0
@@ -271,7 +272,7 @@ struct PL330State {
 };
 
 #define TYPE_PL330 "pl330"
-#define PL330(obj) OBJECT_CHECK(PL330State, (obj), TYPE_PL330)
+OBJECT_DECLARE_SIMPLE_TYPE(PL330State, PL330)
 
 static const VMStateDescription vmstate_pl330 = {
     .name = "pl330",

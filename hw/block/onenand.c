@@ -31,6 +31,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 /* 11 for 2kB-page OneNAND ("2nd generation") and 10 for 1kB-page chips */
 #define PAGE_SHIFT	11
@@ -39,9 +40,9 @@
 #define BLOCK_SHIFT	(PAGE_SHIFT + 6)
 
 #define TYPE_ONE_NAND "onenand"
-#define ONE_NAND(obj) OBJECT_CHECK(OneNANDState, (obj), TYPE_ONE_NAND)
+OBJECT_DECLARE_SIMPLE_TYPE(OneNANDState, ONE_NAND)
 
-typedef struct OneNANDState {
+struct OneNANDState {
     SysBusDevice parent_obj;
 
     struct {
@@ -85,7 +86,7 @@ typedef struct OneNANDState {
     int secs_cur;
     int blocks;
     uint8_t *blockwp;
-} OneNANDState;
+};
 
 enum {
     ONEN_BUF_BLOCK = 0,

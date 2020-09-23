@@ -34,6 +34,7 @@
 #include "exec/address-spaces.h"
 #include "ui/pixel_ops.h"
 #include "qemu/cutils.h"
+#include "qom/object.h"
 
 #define MP_MISC_BASE            0x80002000
 #define MP_MISC_SIZE            0x00001000
@@ -154,10 +155,9 @@ typedef struct mv88w8618_rx_desc {
 } mv88w8618_rx_desc;
 
 #define TYPE_MV88W8618_ETH "mv88w8618_eth"
-#define MV88W8618_ETH(obj) \
-    OBJECT_CHECK(mv88w8618_eth_state, (obj), TYPE_MV88W8618_ETH)
+OBJECT_DECLARE_SIMPLE_TYPE(mv88w8618_eth_state, MV88W8618_ETH)
 
-typedef struct mv88w8618_eth_state {
+struct mv88w8618_eth_state {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -177,7 +177,7 @@ typedef struct mv88w8618_eth_state {
     uint32_t cur_rx[4];
     NICState *nic;
     NICConf conf;
-} mv88w8618_eth_state;
+};
 
 static void eth_rx_desc_put(AddressSpace *dma_as, uint32_t addr,
                             mv88w8618_rx_desc *desc)
@@ -483,10 +483,9 @@ static const TypeInfo mv88w8618_eth_info = {
 #define MP_LCD_TEXTCOLOR        0xe0e0ff /* RRGGBB */
 
 #define TYPE_MUSICPAL_LCD "musicpal_lcd"
-#define MUSICPAL_LCD(obj) \
-    OBJECT_CHECK(musicpal_lcd_state, (obj), TYPE_MUSICPAL_LCD)
+OBJECT_DECLARE_SIMPLE_TYPE(musicpal_lcd_state, MUSICPAL_LCD)
 
-typedef struct musicpal_lcd_state {
+struct musicpal_lcd_state {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -499,7 +498,7 @@ typedef struct musicpal_lcd_state {
     uint32_t page_off;
     QemuConsole *con;
     uint8_t video_ram[128*64/8];
-} musicpal_lcd_state;
+};
 
 static uint8_t scale_lcd_color(musicpal_lcd_state *s, uint8_t col)
 {
@@ -700,10 +699,9 @@ static const TypeInfo musicpal_lcd_info = {
 #define MP_PIC_ENABLE_CLR       0x0C
 
 #define TYPE_MV88W8618_PIC "mv88w8618_pic"
-#define MV88W8618_PIC(obj) \
-    OBJECT_CHECK(mv88w8618_pic_state, (obj), TYPE_MV88W8618_PIC)
+OBJECT_DECLARE_SIMPLE_TYPE(mv88w8618_pic_state, MV88W8618_PIC)
 
-typedef struct mv88w8618_pic_state {
+struct mv88w8618_pic_state {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -712,7 +710,7 @@ typedef struct mv88w8618_pic_state {
     uint32_t level;
     uint32_t enabled;
     qemu_irq parent_irq;
-} mv88w8618_pic_state;
+};
 
 static void mv88w8618_pic_update(mv88w8618_pic_state *s)
 {
@@ -837,17 +835,16 @@ typedef struct mv88w8618_timer_state {
 } mv88w8618_timer_state;
 
 #define TYPE_MV88W8618_PIT "mv88w8618_pit"
-#define MV88W8618_PIT(obj) \
-    OBJECT_CHECK(mv88w8618_pit_state, (obj), TYPE_MV88W8618_PIT)
+OBJECT_DECLARE_SIMPLE_TYPE(mv88w8618_pit_state, MV88W8618_PIT)
 
-typedef struct mv88w8618_pit_state {
+struct mv88w8618_pit_state {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
 
     MemoryRegion iomem;
     mv88w8618_timer_state timer[4];
-} mv88w8618_pit_state;
+};
 
 static void mv88w8618_timer_tick(void *opaque)
 {
@@ -1004,17 +1001,16 @@ static const TypeInfo mv88w8618_pit_info = {
 #define MP_FLASHCFG_CFGR0    0x04
 
 #define TYPE_MV88W8618_FLASHCFG "mv88w8618_flashcfg"
-#define MV88W8618_FLASHCFG(obj) \
-    OBJECT_CHECK(mv88w8618_flashcfg_state, (obj), TYPE_MV88W8618_FLASHCFG)
+OBJECT_DECLARE_SIMPLE_TYPE(mv88w8618_flashcfg_state, MV88W8618_FLASHCFG)
 
-typedef struct mv88w8618_flashcfg_state {
+struct mv88w8618_flashcfg_state {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
 
     MemoryRegion iomem;
     uint32_t cfgr0;
-} mv88w8618_flashcfg_state;
+};
 
 static uint64_t mv88w8618_flashcfg_read(void *opaque,
                                         hwaddr offset,
@@ -1090,14 +1086,13 @@ static const TypeInfo mv88w8618_flashcfg_info = {
 
 #define MP_BOARD_REVISION       0x31
 
-typedef struct {
+struct MusicPalMiscState {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
-} MusicPalMiscState;
+};
 
 #define TYPE_MUSICPAL_MISC "musicpal-misc"
-#define MUSICPAL_MISC(obj) \
-     OBJECT_CHECK(MusicPalMiscState, (obj), TYPE_MUSICPAL_MISC)
+OBJECT_DECLARE_SIMPLE_TYPE(MusicPalMiscState, MUSICPAL_MISC)
 
 static uint64_t musicpal_misc_read(void *opaque, hwaddr offset,
                                    unsigned size)
@@ -1202,10 +1197,9 @@ static void mv88w8618_wlan_realize(DeviceState *dev, Error **errp)
 #define MP_OE_LCD_BRIGHTNESS    0x0007
 
 #define TYPE_MUSICPAL_GPIO "musicpal_gpio"
-#define MUSICPAL_GPIO(obj) \
-    OBJECT_CHECK(musicpal_gpio_state, (obj), TYPE_MUSICPAL_GPIO)
+OBJECT_DECLARE_SIMPLE_TYPE(musicpal_gpio_state, MUSICPAL_GPIO)
 
-typedef struct musicpal_gpio_state {
+struct musicpal_gpio_state {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -1219,7 +1213,7 @@ typedef struct musicpal_gpio_state {
     uint32_t isr;
     qemu_irq irq;
     qemu_irq out[5]; /* 3 brightness out + 2 lcd (data and clock ) */
-} musicpal_gpio_state;
+};
 
 static void musicpal_gpio_brightness_update(musicpal_gpio_state *s) {
     int i;
@@ -1452,10 +1446,9 @@ static const TypeInfo musicpal_gpio_info = {
 #define MP_KEY_BTN_NAVIGATION  (1 << 7)
 
 #define TYPE_MUSICPAL_KEY "musicpal_key"
-#define MUSICPAL_KEY(obj) \
-    OBJECT_CHECK(musicpal_key_state, (obj), TYPE_MUSICPAL_KEY)
+OBJECT_DECLARE_SIMPLE_TYPE(musicpal_key_state, MUSICPAL_KEY)
 
-typedef struct musicpal_key_state {
+struct musicpal_key_state {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -1464,7 +1457,7 @@ typedef struct musicpal_key_state {
     uint32_t kbd_extended;
     uint32_t pressed_keys;
     qemu_irq out[8];
-} musicpal_key_state;
+};
 
 static void musicpal_key_event(void *opaque, int keycode)
 {

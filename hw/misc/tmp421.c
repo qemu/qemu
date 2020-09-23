@@ -30,6 +30,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 /* Manufacturer / Device ID's */
 #define TMP421_MANUFACTURER_ID          0x55
@@ -48,7 +49,7 @@ static const DeviceInfo devices[] = {
     { TMP423_DEVICE_ID, "tmp423" },
 };
 
-typedef struct TMP421State {
+struct TMP421State {
     /*< private >*/
     I2CSlave i2c;
     /*< public >*/
@@ -63,20 +64,16 @@ typedef struct TMP421State {
     uint8_t buf[2];
     uint8_t pointer;
 
-} TMP421State;
+};
 
-typedef struct TMP421Class {
+struct TMP421Class {
     I2CSlaveClass parent_class;
     DeviceInfo *dev;
-} TMP421Class;
+};
 
 #define TYPE_TMP421 "tmp421-generic"
-#define TMP421(obj) OBJECT_CHECK(TMP421State, (obj), TYPE_TMP421)
+OBJECT_DECLARE_TYPE(TMP421State, TMP421Class, TMP421)
 
-#define TMP421_CLASS(klass) \
-     OBJECT_CLASS_CHECK(TMP421Class, (klass), TYPE_TMP421)
-#define TMP421_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(TMP421Class, (obj), TYPE_TMP421)
 
 /* the TMP421 registers */
 #define TMP421_STATUS_REG               0x08

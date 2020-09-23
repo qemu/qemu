@@ -21,6 +21,7 @@
 #define HW_CPU_CLUSTER_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 /*
  * CPU Cluster type
@@ -54,8 +55,7 @@
  */
 
 #define TYPE_CPU_CLUSTER "cpu-cluster"
-#define CPU_CLUSTER(obj) \
-    OBJECT_CHECK(CPUClusterState, (obj), TYPE_CPU_CLUSTER)
+OBJECT_DECLARE_SIMPLE_TYPE(CPUClusterState, CPU_CLUSTER)
 
 /*
  * This limit is imposed by TCG, which puts the cluster ID into an
@@ -70,12 +70,12 @@
  *
  * State of a CPU cluster.
  */
-typedef struct CPUClusterState {
+struct CPUClusterState {
     /*< private >*/
     DeviceState parent_obj;
 
     /*< public >*/
     uint32_t cluster_id;
-} CPUClusterState;
+};
 
 #endif

@@ -16,15 +16,14 @@
 
 #include "hw/virtio/virtio-pci.h"
 #include "hw/virtio/virtio-gpu.h"
+#include "qom/object.h"
 
-typedef struct VirtIOGPUPCIBase VirtIOGPUPCIBase;
 
 /*
  * virtio-gpu-pci-base: This extends VirtioPCIProxy.
  */
 #define TYPE_VIRTIO_GPU_PCI_BASE "virtio-gpu-pci-base"
-#define VIRTIO_GPU_PCI_BASE(obj)                                    \
-    OBJECT_CHECK(VirtIOGPUPCIBase, (obj), TYPE_VIRTIO_GPU_PCI_BASE)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPUPCIBase, VIRTIO_GPU_PCI_BASE)
 
 struct VirtIOGPUPCIBase {
     VirtIOPCIProxy parent_obj;

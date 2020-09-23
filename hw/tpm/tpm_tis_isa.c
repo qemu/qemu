@@ -29,16 +29,17 @@
 #include "hw/acpi/tpm.h"
 #include "tpm_prop.h"
 #include "tpm_tis.h"
+#include "qom/object.h"
 
-typedef struct TPMStateISA {
+struct TPMStateISA {
     /*< private >*/
     ISADevice parent_obj;
 
     /*< public >*/
     TPMState state; /* not a QOM object */
-} TPMStateISA;
+};
 
-#define TPM_TIS_ISA(obj) OBJECT_CHECK(TPMStateISA, (obj), TYPE_TPM_TIS_ISA)
+OBJECT_DECLARE_SIMPLE_TYPE(TPMStateISA, TPM_TIS_ISA)
 
 static int tpm_tis_pre_save_isa(void *opaque)
 {

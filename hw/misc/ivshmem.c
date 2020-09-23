@@ -38,6 +38,7 @@
 #include "qapi/visitor.h"
 
 #include "hw/misc/ivshmem.h"
+#include "qom/object.h"
 
 #define PCI_VENDOR_ID_IVSHMEM   PCI_VENDOR_ID_REDHAT_QUMRANET
 #define PCI_DEVICE_ID_IVSHMEM   0x1110
@@ -57,20 +58,21 @@
     } while (0)
 
 #define TYPE_IVSHMEM_COMMON "ivshmem-common"
-#define IVSHMEM_COMMON(obj) \
-    OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM_COMMON)
+typedef struct IVShmemState IVShmemState;
+DECLARE_INSTANCE_CHECKER(IVShmemState, IVSHMEM_COMMON,
+                         TYPE_IVSHMEM_COMMON)
 
 #define TYPE_IVSHMEM_PLAIN "ivshmem-plain"
-#define IVSHMEM_PLAIN(obj) \
-    OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM_PLAIN)
+DECLARE_INSTANCE_CHECKER(IVShmemState, IVSHMEM_PLAIN,
+                         TYPE_IVSHMEM_PLAIN)
 
 #define TYPE_IVSHMEM_DOORBELL "ivshmem-doorbell"
-#define IVSHMEM_DOORBELL(obj) \
-    OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM_DOORBELL)
+DECLARE_INSTANCE_CHECKER(IVShmemState, IVSHMEM_DOORBELL,
+                         TYPE_IVSHMEM_DOORBELL)
 
 #define TYPE_IVSHMEM "ivshmem"
-#define IVSHMEM(obj) \
-    OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM)
+DECLARE_INSTANCE_CHECKER(IVShmemState, IVSHMEM,
+                         TYPE_IVSHMEM)
 
 typedef struct Peer {
     int nb_eventfds;
@@ -83,7 +85,7 @@ typedef struct MSIVector {
     bool unmasked;
 } MSIVector;
 
-typedef struct IVShmemState {
+struct IVShmemState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -115,7 +117,7 @@ typedef struct IVShmemState {
     /* migration stuff */
     OnOffAuto master;
     Error *migration_blocker;
-} IVShmemState;
+};
 
 /* registers for the Inter-VM shared memory device */
 enum ivshmem_registers {

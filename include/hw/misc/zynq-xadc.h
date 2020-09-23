@@ -16,6 +16,7 @@
 #define ZYNQ_XADC_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define ZYNQ_XADC_MMIO_SIZE     0x0020
 #define ZYNQ_XADC_NUM_IO_REGS   (ZYNQ_XADC_MMIO_SIZE / 4)
@@ -23,10 +24,9 @@
 #define ZYNQ_XADC_FIFO_DEPTH    15
 
 #define TYPE_ZYNQ_XADC          "xlnx,zynq-xadc"
-#define ZYNQ_XADC(obj) \
-    OBJECT_CHECK(ZynqXADCState, (obj), TYPE_ZYNQ_XADC)
+OBJECT_DECLARE_SIMPLE_TYPE(ZynqXADCState, ZYNQ_XADC)
 
-typedef struct ZynqXADCState {
+struct ZynqXADCState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -41,6 +41,6 @@ typedef struct ZynqXADCState {
 
     struct IRQState *qemu_irq;
 
-} ZynqXADCState;
+};
 
 #endif /* ZYNQ_XADC_H */

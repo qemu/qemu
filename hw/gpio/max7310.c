@@ -8,17 +8,17 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/i2c/i2c.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define TYPE_MAX7310 "max7310"
-#define MAX7310(obj) OBJECT_CHECK(MAX7310State, (obj), TYPE_MAX7310)
+OBJECT_DECLARE_SIMPLE_TYPE(MAX7310State, MAX7310)
 
-typedef struct MAX7310State {
+struct MAX7310State {
     I2CSlave parent_obj;
 
     int i2c_command_byte;
@@ -31,7 +31,7 @@ typedef struct MAX7310State {
     uint8_t command;
     qemu_irq handler[8];
     qemu_irq *gpio_in;
-} MAX7310State;
+};
 
 static void max7310_reset(DeviceState *dev)
 {
@@ -68,9 +68,8 @@ static uint8_t max7310_rx(I2CSlave *i2c)
         return 0xff;
 
     default:
-#ifdef VERBOSE
-        printf("%s: unknown register %02x\n", __func__, s->command);
-#endif
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported register 0x02%" PRIx8 "\n",
+                      __func__, s->command);
         break;
     }
     return 0xff;
@@ -122,9 +121,8 @@ static int max7310_tx(I2CSlave *i2c, uint8_t data)
     case 0x00:	/* Input port - ignore writes */
         break;
     default:
-#ifdef VERBOSE
-        printf("%s: unknown register %02x\n", __func__, s->command);
-#endif
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported register 0x02%" PRIx8 "\n",
+                      __func__, s->command);
         return 1;
     }
 
@@ -173,8 +171,7 @@ static const VMStateDescription vmstate_max7310 = {
 static void max7310_gpio_set(void *opaque, int line, int level)
 {
     MAX7310State *s = (MAX7310State *) opaque;
-    if (line >= ARRAY_SIZE(s->handler) || line  < 0)
-        hw_error("bad GPIO line");
+    assert(line >= 0 && line < ARRAY_SIZE(s->handler));
 
     if (level)
         s->level |= s->direction & (1 << line);

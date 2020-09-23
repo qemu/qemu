@@ -17,14 +17,13 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define PXA2XX_GPIO_BANKS	4
 
 #define TYPE_PXA2XX_GPIO "pxa2xx-gpio"
-#define PXA2XX_GPIO(obj) \
-    OBJECT_CHECK(PXA2xxGPIOInfo, (obj), TYPE_PXA2XX_GPIO)
+OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxGPIOInfo, PXA2XX_GPIO)
 
-typedef struct PXA2xxGPIOInfo PXA2xxGPIOInfo;
 struct PXA2xxGPIOInfo {
     /*< private >*/
     SysBusDevice parent_obj;

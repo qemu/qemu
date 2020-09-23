@@ -34,6 +34,7 @@
 #include "qemu/units.h"
 #include "hw/dma/xlnx_dpdma.h"
 #include "audio/audio.h"
+#include "qom/object.h"
 
 #define AUD_CHBUF_MAX_DEPTH                 (32 * KiB)
 #define MAX_QEMU_BUFFER_SIZE                (4 * KiB)
@@ -48,7 +49,7 @@ struct PixmanPlane {
     DisplaySurface *surface;
 };
 
-typedef struct XlnxDPState {
+struct XlnxDPState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -101,9 +102,9 @@ typedef struct XlnxDPState {
      */
     DPCDState *dpcd;
     I2CDDCState *edid;
-} XlnxDPState;
+};
 
 #define TYPE_XLNX_DP "xlnx.v-dp"
-#define XLNX_DP(obj) OBJECT_CHECK(XlnxDPState, (obj), TYPE_XLNX_DP)
+OBJECT_DECLARE_SIMPLE_TYPE(XlnxDPState, XLNX_DP)
 
 #endif

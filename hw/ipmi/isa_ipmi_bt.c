@@ -31,18 +31,18 @@
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 #define TYPE_ISA_IPMI_BT "isa-ipmi-bt"
-#define ISA_IPMI_BT(obj) OBJECT_CHECK(ISAIPMIBTDevice, (obj), \
-                                      TYPE_ISA_IPMI_BT)
+OBJECT_DECLARE_SIMPLE_TYPE(ISAIPMIBTDevice, ISA_IPMI_BT)
 
-typedef struct ISAIPMIBTDevice {
+struct ISAIPMIBTDevice {
     ISADevice dev;
     int32_t isairq;
     qemu_irq irq;
     IPMIBT bt;
     uint32_t uuid;
-} ISAIPMIBTDevice;
+};
 
 static void isa_ipmi_bt_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
 {

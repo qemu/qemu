@@ -14,6 +14,7 @@
 #define HW_MISC_MAX111X_H
 
 #include "hw/ssi/ssi.h"
+#include "qom/object.h"
 
 /*
  * This is a model of the Maxim MAX1110/1111 ADC chip, which for QEMU
@@ -31,7 +32,7 @@
  *  + the interrupt line is not correctly implemented, and will never
  *    be lowered once it has been asserted.
  */
-typedef struct {
+struct MAX111xState {
     SSISlave parent_obj;
 
     qemu_irq interrupt;
@@ -43,12 +44,11 @@ typedef struct {
 
     uint8_t input[8];
     int inputs, com;
-} MAX111xState;
+};
 
 #define TYPE_MAX_111X "max111x"
 
-#define MAX_111X(obj) \
-    OBJECT_CHECK(MAX111xState, (obj), TYPE_MAX_111X)
+OBJECT_DECLARE_SIMPLE_TYPE(MAX111xState, MAX_111X)
 
 #define TYPE_MAX_1110 "max1110"
 #define TYPE_MAX_1111 "max1111"

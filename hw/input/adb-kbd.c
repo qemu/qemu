@@ -30,30 +30,27 @@
 #include "hw/input/adb-keys.h"
 #include "adb-internal.h"
 #include "trace.h"
+#include "qom/object.h"
 
-#define ADB_KEYBOARD(obj) OBJECT_CHECK(KBDState, (obj), TYPE_ADB_KEYBOARD)
+OBJECT_DECLARE_TYPE(KBDState, ADBKeyboardClass, ADB_KEYBOARD)
 
-typedef struct KBDState {
+struct KBDState {
     /*< private >*/
     ADBDevice parent_obj;
     /*< public >*/
 
     uint8_t data[128];
     int rptr, wptr, count;
-} KBDState;
+};
 
-#define ADB_KEYBOARD_CLASS(class) \
-    OBJECT_CLASS_CHECK(ADBKeyboardClass, (class), TYPE_ADB_KEYBOARD)
-#define ADB_KEYBOARD_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(ADBKeyboardClass, (obj), TYPE_ADB_KEYBOARD)
 
-typedef struct ADBKeyboardClass {
+struct ADBKeyboardClass {
     /*< private >*/
     ADBDeviceClass parent_class;
     /*< public >*/
 
     DeviceRealize parent_realize;
-} ADBKeyboardClass;
+};
 
 /* The adb keyboard doesn't have every key imaginable */
 #define NO_KEY 0xff

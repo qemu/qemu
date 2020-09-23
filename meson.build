@@ -273,8 +273,8 @@ if sdl.found()
                          method: 'pkg-config', static: enable_static)
 else
   if get_option('sdl_image').enabled()
-    error('sdl-image required, but SDL was @0@',
-          get_option('sdl').disabled() ? 'disabled' : 'not found')
+    error('sdl-image required, but SDL was @0@'.format(
+          get_option('sdl').disabled() ? 'disabled' : 'not found'))
   endif
   sdl_image = not_found
 endif
@@ -317,7 +317,6 @@ opengl = not_found
 if 'CONFIG_OPENGL' in config_host
   opengl = declare_dependency(compile_args: config_host['OPENGL_CFLAGS'].split(),
                               link_args: config_host['OPENGL_LIBS'].split())
-else
 endif
 gtk = not_found
 if 'CONFIG_GTK' in config_host
@@ -343,11 +342,6 @@ iconv = not_found
 if 'CONFIG_ICONV' in config_host
   iconv = declare_dependency(compile_args: config_host['ICONV_CFLAGS'].split(),
                              link_args: config_host['ICONV_LIBS'].split())
-endif
-gio = not_found
-if 'CONFIG_GIO' in config_host
-  gio = declare_dependency(compile_args: config_host['GIO_CFLAGS'].split(),
-                           link_args: config_host['GIO_LIBS'].split())
 endif
 vnc = not_found
 png = not_found
@@ -773,9 +767,9 @@ if have_system
     'hw/watchdog',
     'hw/xen',
     'hw/gpio',
-    'hw/riscv',
     'migration',
     'net',
+    'softmmu',
     'ui',
   ]
 endif
@@ -913,7 +907,7 @@ softmmu_mods = []
 foreach d, list : modules
   foreach m, module_ss : list
     if enable_modules and targetos != 'windows'
-      module_ss = module_ss.apply(config_host, strict: false)
+      module_ss = module_ss.apply(config_all, strict: false)
       sl = static_library(d + '-' + m, [genh, module_ss.sources()],
                           dependencies: [modulecommon, module_ss.dependencies()], pic: true)
       if d == 'block'

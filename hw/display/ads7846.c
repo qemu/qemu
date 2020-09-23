@@ -16,8 +16,9 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "ui/console.h"
+#include "qom/object.h"
 
-typedef struct {
+struct ADS7846State {
     SSISlave ssidev;
     qemu_irq interrupt;
 
@@ -27,10 +28,10 @@ typedef struct {
 
     int cycle;
     int output;
-} ADS7846State;
+};
 
 #define TYPE_ADS7846 "ads7846"
-#define ADS7846(obj) OBJECT_CHECK(ADS7846State, (obj), TYPE_ADS7846)
+OBJECT_DECLARE_SIMPLE_TYPE(ADS7846State, ADS7846)
 
 /* Control-byte bitfields */
 #define CB_PD0		(1 << 0)

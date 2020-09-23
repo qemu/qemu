@@ -15,12 +15,12 @@
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
+#include "qom/object.h"
 
 #define TYPE_CMSDK_APB_TIMER "cmsdk-apb-timer"
-#define CMSDK_APB_TIMER(obj) OBJECT_CHECK(CMSDKAPBTIMER, (obj), \
-                                         TYPE_CMSDK_APB_TIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(CMSDKAPBTIMER, CMSDK_APB_TIMER)
 
-typedef struct {
+struct CMSDKAPBTIMER {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -34,7 +34,7 @@ typedef struct {
     uint32_t value;
     uint32_t reload;
     uint32_t intstatus;
-} CMSDKAPBTIMER;
+};
 
 /**
  * cmsdk_apb_timer_create - convenience function to create TYPE_CMSDK_APB_TIMER

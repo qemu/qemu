@@ -27,6 +27,7 @@
 #include "hw/or-irq.h"
 #include "hw/sysbus.h"
 #include "target/arm/cpu-qom.h"
+#include "qom/object.h"
 
 #define EXYNOS4210_NCPUS                    2
 
@@ -85,7 +86,7 @@ typedef struct Exynos4210Irq {
     qemu_irq board_irqs[EXYNOS4210_MAX_INT_COMBINER_IN_IRQ];
 } Exynos4210Irq;
 
-typedef struct Exynos4210State {
+struct Exynos4210State {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -101,11 +102,10 @@ typedef struct Exynos4210State {
     MemoryRegion bootreg_mem;
     I2CBus *i2c_if[EXYNOS4210_I2C_NUMBER];
     qemu_or_irq pl330_irq_orgate[EXYNOS4210_NUM_DMA];
-} Exynos4210State;
+};
 
 #define TYPE_EXYNOS4210_SOC "exynos4210"
-#define EXYNOS4210_SOC(obj) \
-    OBJECT_CHECK(Exynos4210State, obj, TYPE_EXYNOS4210_SOC)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210State, EXYNOS4210_SOC)
 
 void exynos4210_write_secondary(ARMCPU *cpu,
         const struct arm_boot_info *info);

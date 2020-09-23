@@ -29,13 +29,14 @@
 #include "sysemu/sysemu.h"
 #include "qemu/bcd.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define VERBOSE 1
 
 #define TYPE_TWL92230 "twl92230"
-#define TWL92230(obj) OBJECT_CHECK(MenelausState, (obj), TYPE_TWL92230)
+OBJECT_DECLARE_SIMPLE_TYPE(MenelausState, TWL92230)
 
-typedef struct MenelausState {
+struct MenelausState {
     I2CSlave parent_obj;
 
     int firstbyte;
@@ -71,7 +72,7 @@ typedef struct MenelausState {
     uint16_t rtc_next_vmstate;
     qemu_irq out[4];
     uint8_t pwrbtn_state;
-} MenelausState;
+};
 
 static inline void menelaus_update(MenelausState *s)
 {

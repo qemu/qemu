@@ -11,9 +11,12 @@
 
 #include "chardev/char-fe.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_RENESAS_SCI "renesas-sci"
-#define RSCI(obj) OBJECT_CHECK(RSCIState, (obj), TYPE_RENESAS_SCI)
+typedef struct RSCIState RSCIState;
+DECLARE_INSTANCE_CHECKER(RSCIState, RSCI,
+                         TYPE_RENESAS_SCI)
 
 enum {
     ERI = 0,
@@ -23,7 +26,7 @@ enum {
     SCI_NR_IRQ = 4
 };
 
-typedef struct {
+struct RSCIState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -46,6 +49,6 @@ typedef struct {
     int64_t trtime;
     int64_t rx_next;
     uint64_t input_freq;
-} RSCIState;
+};
 
 #endif

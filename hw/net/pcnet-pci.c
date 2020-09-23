@@ -40,6 +40,7 @@
 #include "trace.h"
 
 #include "pcnet.h"
+#include "qom/object.h"
 
 //#define PCNET_DEBUG
 //#define PCNET_DEBUG_IO
@@ -51,17 +52,16 @@
 
 #define TYPE_PCI_PCNET "pcnet"
 
-#define PCI_PCNET(obj) \
-     OBJECT_CHECK(PCIPCNetState, (obj), TYPE_PCI_PCNET)
+OBJECT_DECLARE_SIMPLE_TYPE(PCIPCNetState, PCI_PCNET)
 
-typedef struct {
+struct PCIPCNetState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
 
     PCNetState state;
     MemoryRegion io_bar;
-} PCIPCNetState;
+};
 
 static void pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val)
 {

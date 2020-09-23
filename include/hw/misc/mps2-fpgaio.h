@@ -22,11 +22,12 @@
 #define MPS2_FPGAIO_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_MPS2_FPGAIO "mps2-fpgaio"
-#define MPS2_FPGAIO(obj) OBJECT_CHECK(MPS2FPGAIO, (obj), TYPE_MPS2_FPGAIO)
+OBJECT_DECLARE_SIMPLE_TYPE(MPS2FPGAIO, MPS2_FPGAIO)
 
-typedef struct {
+struct MPS2FPGAIO {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -48,6 +49,6 @@ typedef struct {
     /* These hold the CLOCK_VIRTUAL ns tick when the CLK1HZ/CLK100HZ was zero */
     int64_t clk1hz_tick_offset;
     int64_t clk100hz_tick_offset;
-} MPS2FPGAIO;
+};
 
 #endif

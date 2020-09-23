@@ -30,6 +30,7 @@
 
 #include "hw/arm/exynos4210.h"
 #include "hw/irq.h"
+#include "qom/object.h"
 
 //#define DEBUG_PWM
 
@@ -102,10 +103,9 @@ typedef struct {
 } Exynos4210PWM;
 
 #define TYPE_EXYNOS4210_PWM "exynos4210.pwm"
-#define EXYNOS4210_PWM(obj) \
-    OBJECT_CHECK(Exynos4210PWMState, (obj), TYPE_EXYNOS4210_PWM)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210PWMState, EXYNOS4210_PWM)
 
-typedef struct Exynos4210PWMState {
+struct Exynos4210PWMState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -116,7 +116,7 @@ typedef struct Exynos4210PWMState {
 
     Exynos4210PWM timer[EXYNOS4210_PWM_TIMERS_NUM];
 
-} Exynos4210PWMState;
+};
 
 /*** VMState ***/
 static const VMStateDescription vmstate_exynos4210_pwm = {

@@ -36,6 +36,7 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "qom/object.h"
 
 //#define DEBUG_COMBINER
 
@@ -63,10 +64,9 @@ typedef struct CombinerGroupState {
 } CombinerGroupState;
 
 #define TYPE_EXYNOS4210_COMBINER "exynos4210.combiner"
-#define EXYNOS4210_COMBINER(obj) \
-    OBJECT_CHECK(Exynos4210CombinerState, (obj), TYPE_EXYNOS4210_COMBINER)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210CombinerState, EXYNOS4210_COMBINER)
 
-typedef struct Exynos4210CombinerState {
+struct Exynos4210CombinerState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -77,7 +77,7 @@ typedef struct Exynos4210CombinerState {
     uint32_t external;          /* 1 means that this combiner is external */
 
     qemu_irq output_irq[IIC_NGRP];
-} Exynos4210CombinerState;
+};
 
 static const VMStateDescription vmstate_exynos4210_combiner_group_state = {
     .name = "exynos4210.combiner.groupstate",

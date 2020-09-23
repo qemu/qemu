@@ -1543,7 +1543,7 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
 
     /* read the level 1 table */
     ret = qcow2_validate_table(bs, header.l1_table_offset,
-                               header.l1_size, sizeof(uint64_t),
+                               header.l1_size, L1E_SIZE,
                                QCOW_MAX_L1_SIZE, "Active L1 table", errp);
     if (ret < 0) {
         goto fail;
@@ -1568,15 +1568,14 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     }
 
     if (s->l1_size > 0) {
-        s->l1_table = qemu_try_blockalign(bs->file->bs,
-                                          s->l1_size * sizeof(uint64_t));
+        s->l1_table = qemu_try_blockalign(bs->file->bs, s->l1_size * L1E_SIZE);
         if (s->l1_table == NULL) {
             error_setg(errp, "Could not allocate L1 table");
             ret = -ENOMEM;
             goto fail;
         }
         ret = bdrv_pread(bs->file, s->l1_table_offset, s->l1_table,
-                         s->l1_size * sizeof(uint64_t));
+                         s->l1_size * L1E_SIZE);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not read L1 table");
             goto fail;
@@ -2102,7 +2101,6 @@ static coroutine_fn int qcow2_handle_l2meta(BlockDriverState *bs,
         QCowL2Meta *next;
 
         if (link_l2) {
-            assert(!l2meta->prealloc);
             ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
             if (ret) {
                 goto out;
@@ -2112,9 +2110,7 @@ static coroutine_fn int qcow2_handle_l2meta(BlockDriverState *bs,
         }
 
         /* Take the request off the list of running requests */
-        if (l2meta->nb_clusters != 0) {
-            QLIST_REMOVE(l2meta, next_in_flight);
-        }
+        QLIST_REMOVE(l2meta, next_in_flight);
 
         qemu_co_queue_restart_all(&l2meta->dependent_requests);
 
@@ -2563,7 +2559,7 @@ static coroutine_fn int qcow2_co_pwritev_part(
     int offset_in_cluster;
     int ret;
     unsigned int cur_bytes; /* number of sectors in current iteration */
-    uint64_t cluster_offset;
+    uint64_t host_offset;
     QCowL2Meta *l2meta = NULL;
     AioTaskPool *aio = NULL;
 
@@ -2584,16 +2580,13 @@ static coroutine_fn int qcow2_co_pwritev_part(
 
         qemu_co_mutex_lock(&s->lock);
 
-        ret = qcow2_alloc_cluster_offset(bs, offset, &cur_bytes,
-                                         &cluster_offset, &l2meta);
+        ret = qcow2_alloc_host_offset(bs, offset, &cur_bytes,
+                                      &host_offset, &l2meta);
         if (ret < 0) {
             goto out_locked;
         }
 
-        assert(offset_into_cluster(s, cluster_offset) == 0);
-
-        ret = qcow2_pre_write_overlap_check(bs, 0,
-                                            cluster_offset + offset_in_cluster,
+        ret = qcow2_pre_write_overlap_check(bs, 0, host_offset,
                                             cur_bytes, true);
         if (ret < 0) {
             goto out_locked;
@@ -2605,7 +2598,7 @@ static coroutine_fn int qcow2_co_pwritev_part(
             aio = aio_task_pool_new(QCOW2_MAX_WORKERS);
         }
         ret = qcow2_add_task(bs, aio, qcow2_co_pwritev_task_entry, 0,
-                             cluster_offset + offset_in_cluster, offset,
+                             host_offset, offset,
                              cur_bytes, qiov, qiov_offset, l2meta);
         l2meta = NULL; /* l2meta is consumed by qcow2_co_pwritev_task() */
         if (ret < 0) {
@@ -3126,38 +3119,28 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
     int64_t file_length;
     unsigned int cur_bytes;
     int ret;
-    QCowL2Meta *meta;
+    QCowL2Meta *meta = NULL, *m;
 
     assert(offset <= new_length);
     bytes = new_length - offset;
 
     while (bytes) {
         cur_bytes = MIN(bytes, QEMU_ALIGN_DOWN(INT_MAX, s->cluster_size));
-        ret = qcow2_alloc_cluster_offset(bs, offset, &cur_bytes,
-                                         &host_offset, &meta);
+        ret = qcow2_alloc_host_offset(bs, offset, &cur_bytes,
+                                      &host_offset, &meta);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Allocating clusters failed");
-            return ret;
+            goto out;
         }
 
-        while (meta) {
-            QCowL2Meta *next = meta->next;
-            meta->prealloc = true;
+        for (m = meta; m != NULL; m = m->next) {
+            m->prealloc = true;
+        }
 
-            ret = qcow2_alloc_cluster_link_l2(bs, meta);
-            if (ret < 0) {
-                error_setg_errno(errp, -ret, "Mapping clusters failed");
-                qcow2_free_any_clusters(bs, meta->alloc_offset,
-                                        meta->nb_clusters, QCOW2_DISCARD_NEVER);
-                return ret;
-            }
-
-            /* There are no dependent requests, but we need to remove our
-             * request from the list of in-flight requests */
-            QLIST_REMOVE(meta, next_in_flight);
-
-            g_free(meta);
-            meta = next;
+        ret = qcow2_handle_l2meta(bs, &meta, true);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Mapping clusters failed");
+            goto out;
         }
 
         /* TODO Preallocate data if requested */
@@ -3174,7 +3157,8 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
     file_length = bdrv_getlength(s->data_file->bs);
     if (file_length < 0) {
         error_setg_errno(errp, -file_length, "Could not get file size");
-        return file_length;
+        ret = file_length;
+        goto out;
     }
 
     if (host_offset + cur_bytes > file_length) {
@@ -3184,11 +3168,15 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
         ret = bdrv_co_truncate(s->data_file, host_offset + cur_bytes, false,
                                mode, 0, errp);
         if (ret < 0) {
-            return ret;
+            goto out;
         }
     }
 
-    return 0;
+    ret = 0;
+
+out:
+    qcow2_handle_l2meta(bs, &meta, false);
+    return ret;
 }
 
 /* qcow2_refcount_metadata_size:
@@ -3213,7 +3201,7 @@ int64_t qcow2_refcount_metadata_size(int64_t clusters, size_t cluster_size,
      * where no further refcount blocks or table clusters are required to
      * reference count every cluster.
      */
-    int64_t blocks_per_table_cluster = cluster_size / sizeof(uint64_t);
+    int64_t blocks_per_table_cluster = cluster_size / REFTABLE_ENTRY_SIZE;
     int64_t refcounts_per_block = cluster_size * 8 / (1 << refcount_order);
     int64_t table = 0;  /* number of refcount table clusters */
     int64_t blocks = 0; /* number of refcount block clusters */
@@ -3270,8 +3258,8 @@ static int64_t qcow2_calc_prealloc_size(int64_t total_size,
 
     /* total size of L1 tables */
     nl1e = nl2e * l2e_size / cluster_size;
-    nl1e = ROUND_UP(nl1e, cluster_size / sizeof(uint64_t));
-    meta_size += nl1e * sizeof(uint64_t);
+    nl1e = ROUND_UP(nl1e, cluster_size / L1E_SIZE);
+    meta_size += nl1e * L1E_SIZE;
 
     /* total size of refcount table and blocks */
     meta_size += qcow2_refcount_metadata_size(
@@ -3916,7 +3904,7 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
              type != QCOW2_SUBCLUSTER_ZERO_PLAIN &&
              type != QCOW2_SUBCLUSTER_ZERO_ALLOC)) {
             qemu_co_mutex_unlock(&s->lock);
-            return -ENOTSUP;
+            return ret < 0 ? ret : -ENOTSUP;
         }
     } else {
         qemu_co_mutex_lock(&s->lock);
@@ -4051,10 +4039,9 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
                        BdrvRequestFlags write_flags)
 {
     BDRVQcow2State *s = bs->opaque;
-    int offset_in_cluster;
     int ret;
     unsigned int cur_bytes; /* number of sectors in current iteration */
-    uint64_t cluster_offset;
+    uint64_t host_offset;
     QCowL2Meta *l2meta = NULL;
 
     assert(!bs->encrypted);
@@ -4065,31 +4052,26 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
 
         l2meta = NULL;
 
-        offset_in_cluster = offset_into_cluster(s, dst_offset);
         cur_bytes = MIN(bytes, INT_MAX);
 
         /* TODO:
          * If src->bs == dst->bs, we could simply copy by incrementing
          * the refcnt, without copying user data.
          * Or if src->bs == dst->bs->backing->bs, we could copy by discarding. */
-        ret = qcow2_alloc_cluster_offset(bs, dst_offset, &cur_bytes,
-                                         &cluster_offset, &l2meta);
+        ret = qcow2_alloc_host_offset(bs, dst_offset, &cur_bytes,
+                                      &host_offset, &l2meta);
         if (ret < 0) {
             goto fail;
         }
 
-        assert(offset_into_cluster(s, cluster_offset) == 0);
-
-        ret = qcow2_pre_write_overlap_check(bs, 0,
-                cluster_offset + offset_in_cluster, cur_bytes, true);
+        ret = qcow2_pre_write_overlap_check(bs, 0, host_offset, cur_bytes,
+                                            true);
         if (ret < 0) {
             goto fail;
         }
 
         qemu_co_mutex_unlock(&s->lock);
-        ret = bdrv_co_copy_range_to(src, src_offset,
-                                    s->data_file,
-                                    cluster_offset + offset_in_cluster,
+        ret = bdrv_co_copy_range_to(src, src_offset, s->data_file, host_offset,
                                     cur_bytes, read_flags, write_flags);
         qemu_co_mutex_lock(&s->lock);
         if (ret < 0) {
@@ -4460,7 +4442,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     /* write updated header.size */
     offset = cpu_to_be64(offset);
     ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, size),
-                           &offset, sizeof(uint64_t));
+                           &offset, sizeof(offset));
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to update the image size");
         goto fail;
@@ -4700,8 +4682,8 @@ static int make_completely_empty(BlockDriverState *bs)
 
     BLKDBG_EVENT(bs->file, BLKDBG_L1_UPDATE);
 
-    l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / sizeof(uint64_t));
-    l1_size2 = (uint64_t)s->l1_size * sizeof(uint64_t);
+    l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / L1E_SIZE);
+    l1_size2 = (uint64_t)s->l1_size * L1E_SIZE;
 
     /* After this call, neither the in-memory nor the on-disk refcount
      * information accurately describe the actual references */
@@ -4747,14 +4729,14 @@ static int make_completely_empty(BlockDriverState *bs)
 
     s->l1_table_offset = 3 * s->cluster_size;
 
-    new_reftable = g_try_new0(uint64_t, s->cluster_size / sizeof(uint64_t));
+    new_reftable = g_try_new0(uint64_t, s->cluster_size / REFTABLE_ENTRY_SIZE);
     if (!new_reftable) {
         ret = -ENOMEM;
         goto fail_broken_refcounts;
     }
 
     s->refcount_table_offset = s->cluster_size;
-    s->refcount_table_size   = s->cluster_size / sizeof(uint64_t);
+    s->refcount_table_size   = s->cluster_size / REFTABLE_ENTRY_SIZE;
     s->max_refcount_table_index = 0;
 
     g_free(s->refcount_table);
@@ -4826,7 +4808,7 @@ static int qcow2_make_empty(BlockDriverState *bs)
     int step = QEMU_ALIGN_DOWN(INT_MAX, s->cluster_size);
     int l1_clusters, ret = 0;
 
-    l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / sizeof(uint64_t));
+    l1_clusters = DIV_ROUND_UP(s->l1_size, s->cluster_size / L1E_SIZE);
 
     if (s->qcow_version >= 3 && !s->snapshots && !s->nb_bitmaps &&
         3 + l1_clusters <= s->refcount_block_size &&
@@ -4957,7 +4939,7 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
     l2e_size = extended_l2 ? L2E_SIZE_EXTENDED : L2E_SIZE_NORMAL;
     l2_tables = DIV_ROUND_UP(virtual_size / cluster_size,
                              cluster_size / l2e_size);
-    if (l2_tables * sizeof(uint64_t) > QCOW_MAX_L1_SIZE) {
+    if (l2_tables * L1E_SIZE > QCOW_MAX_L1_SIZE) {
         error_setg(&local_err, "The image size is too large "
                                "(try using a larger cluster size)");
         goto err;

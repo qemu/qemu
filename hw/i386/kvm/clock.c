@@ -29,11 +29,12 @@
 
 #include <linux/kvm.h>
 #include "standard-headers/asm-x86/kvm_para.h"
+#include "qom/object.h"
 
 #define TYPE_KVM_CLOCK "kvmclock"
-#define KVM_CLOCK(obj) OBJECT_CHECK(KVMClockState, (obj), TYPE_KVM_CLOCK)
+OBJECT_DECLARE_SIMPLE_TYPE(KVMClockState, KVM_CLOCK)
 
-typedef struct KVMClockState {
+struct KVMClockState {
     /*< private >*/
     SysBusDevice busdev;
     /*< public >*/
@@ -50,7 +51,7 @@ typedef struct KVMClockState {
     /* whether the 'clock' value was obtained in a host with
      * reliable KVM_GET_CLOCK */
     bool clock_is_reliable;
-} KVMClockState;
+};
 
 struct pvclock_vcpu_time_info {
     uint32_t   version;

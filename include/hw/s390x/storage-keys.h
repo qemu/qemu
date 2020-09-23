@@ -14,41 +14,38 @@
 
 #include "hw/qdev-core.h"
 #include "monitor/monitor.h"
+#include "qom/object.h"
 
 #define TYPE_S390_SKEYS "s390-skeys"
-#define S390_SKEYS(obj) \
-    OBJECT_CHECK(S390SKeysState, (obj), TYPE_S390_SKEYS)
+OBJECT_DECLARE_TYPE(S390SKeysState, S390SKeysClass, S390_SKEYS)
 
-typedef struct S390SKeysState {
+struct S390SKeysState {
     DeviceState parent_obj;
     bool migration_enabled;
 
-} S390SKeysState;
+};
 
-#define S390_SKEYS_CLASS(klass) \
-    OBJECT_CLASS_CHECK(S390SKeysClass, (klass), TYPE_S390_SKEYS)
-#define S390_SKEYS_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(S390SKeysClass, (obj), TYPE_S390_SKEYS)
 
-typedef struct S390SKeysClass {
+struct S390SKeysClass {
     DeviceClass parent_class;
     int (*skeys_enabled)(S390SKeysState *ks);
     int (*get_skeys)(S390SKeysState *ks, uint64_t start_gfn, uint64_t count,
                      uint8_t *keys);
     int (*set_skeys)(S390SKeysState *ks, uint64_t start_gfn, uint64_t count,
                      uint8_t *keys);
-} S390SKeysClass;
+};
 
 #define TYPE_KVM_S390_SKEYS "s390-skeys-kvm"
 #define TYPE_QEMU_S390_SKEYS "s390-skeys-qemu"
-#define QEMU_S390_SKEYS(obj) \
-    OBJECT_CHECK(QEMUS390SKeysState, (obj), TYPE_QEMU_S390_SKEYS)
+typedef struct QEMUS390SKeysState QEMUS390SKeysState;
+DECLARE_INSTANCE_CHECKER(QEMUS390SKeysState, QEMU_S390_SKEYS,
+                         TYPE_QEMU_S390_SKEYS)
 
-typedef struct QEMUS390SKeysState {
+struct QEMUS390SKeysState {
     S390SKeysState parent_obj;
     uint8_t *keydata;
     uint32_t key_count;
-} QEMUS390SKeysState;
+};
 
 void s390_skeys_init(void);
 

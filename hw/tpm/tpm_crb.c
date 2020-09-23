@@ -29,8 +29,9 @@
 #include "tpm_prop.h"
 #include "tpm_ppi.h"
 #include "trace.h"
+#include "qom/object.h"
 
-typedef struct CRBState {
+struct CRBState {
     DeviceState parent_obj;
 
     TPMBackend *tpmbe;
@@ -43,9 +44,11 @@ typedef struct CRBState {
 
     bool ppi_enabled;
     TPMPPI ppi;
-} CRBState;
+};
+typedef struct CRBState CRBState;
 
-#define CRB(obj) OBJECT_CHECK(CRBState, (obj), TYPE_TPM_CRB)
+DECLARE_INSTANCE_CHECKER(CRBState, CRB,
+                         TYPE_TPM_CRB)
 
 #define CRB_INTF_TYPE_CRB_ACTIVE 0b1
 #define CRB_INTF_VERSION_CRB 0b1

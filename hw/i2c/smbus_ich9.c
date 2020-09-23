@@ -28,17 +28,17 @@
 #include "qemu/module.h"
 
 #include "hw/i386/ich9.h"
+#include "qom/object.h"
 
-#define ICH9_SMB_DEVICE(obj) \
-     OBJECT_CHECK(ICH9SMBState, (obj), TYPE_ICH9_SMB_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(ICH9SMBState, ICH9_SMB_DEVICE)
 
-typedef struct ICH9SMBState {
+struct ICH9SMBState {
     PCIDevice dev;
 
     bool irq_enabled;
 
     PMSMBus smb;
-} ICH9SMBState;
+};
 
 static bool ich9_vmstate_need_smbus(void *opaque, int version_id)
 {

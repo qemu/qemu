@@ -79,7 +79,7 @@ Creating sound card devices and vnc without ``audiodev=`` property (since 4.2)
 
 When not using the deprecated legacy audio config, each sound card
 should specify an ``audiodev=`` property.  Additionally, when using
-vnc, you should specify an ``audiodev=`` propery if you plan to
+vnc, you should specify an ``audiodev=`` property if you plan to
 transmit audio through the VNC protocol.
 
 Creating sound card devices using ``-soundhw`` (since 5.1)
@@ -111,7 +111,7 @@ Splitting RAM by default between NUMA nodes has the same issues as ``mem``
 parameter described above with the difference that the role of the user plays
 QEMU using implicit generic or board specific splitting rule.
 Use ``memdev`` with *memory-backend-ram* backend or ``mem`` (if
-it's supported by used machine type) to define mapping explictly instead.
+it's supported by used machine type) to define mapping explicitly instead.
 
 ``-mem-path`` fallback to RAM (since 4.1)
 '''''''''''''''''''''''''''''''''''''''''
@@ -329,14 +329,6 @@ The ``compat`` property used to set backwards compatibility modes for
 the processor has been deprecated. The ``max-cpu-compat`` property of
 the ``pseries`` machine type should be used instead.
 
-KVM guest support on 32-bit Arm hosts (since 5.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''
-
-The Linux kernel has dropped support for allowing 32-bit Arm systems
-to host KVM guests as of the 5.7 kernel. Accordingly, QEMU is deprecating
-its support for this configuration and will remove it in a future version.
-Running 32-bit guests on a 64-bit Arm host remains supported.
-
 System emulator devices
 -----------------------
 
@@ -416,6 +408,22 @@ The above, converted to the current supported format::
 linux-user mode CPUs
 --------------------
 
+``lm32`` CPUs (since 5.2.0)
+'''''''''''''''''''''''''''
+
+The ``lm32`` guest CPU support is deprecated and will be removed in
+a future version of QEMU. The only public user of this architecture
+was the milkymist project, which has been dead for years; there was
+never an upstream Linux port.
+
+``unicore32`` CPUs (since 5.2.0)
+''''''''''''''''''''''''''''''''
+
+The ``unicore32`` guest CPU support is deprecated and will be removed in
+a future version of QEMU. Support for this CPU was removed from the
+upstream Linux kernel, and there is no available upstream toolchain
+to build binaries for it.
+
 ``tilegx`` CPUs (since 5.1.0)
 '''''''''''''''''''''''''''''
 
@@ -423,6 +431,13 @@ The ``tilegx`` guest CPU support (which was only implemented in
 linux-user mode) is deprecated and will be removed in a future version
 of QEMU. Support for this CPU was removed from the upstream Linux
 kernel in 2018, and has also been dropped from glibc.
+
+``ppc64abi32`` CPUs (since 5.2.0)
+'''''''''''''''''''''''''''''''''
+
+The ``ppc64abi32`` architecture has a number of issues which regularly
+trip up our CI testing and is suspected to be quite broken. For that
+reason the maintainers strongly suspect no one actually uses it.
 
 Related binaries
 ----------------
@@ -526,15 +541,23 @@ The ``[hub_id name]`` parameter tuple of the 'hostfwd_add' and
 Guest Emulator ISAs
 -------------------
 
-RISC-V ISA privledge specification version 1.09.1 (removed in 5.1)
+RISC-V ISA privilege specification version 1.09.1 (removed in 5.1)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-The RISC-V ISA privledge specification version 1.09.1 has been removed.
+The RISC-V ISA privilege specification version 1.09.1 has been removed.
 QEMU supports both the newer version 1.10.0 and the ratified version 1.11.0, these
 should be used instead of the 1.09.1 version.
 
 System emulator CPUS
 --------------------
+
+KVM guest support on 32-bit Arm hosts (removed in 5.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The Linux kernel has dropped support for allowing 32-bit Arm systems
+to host KVM guests as of the 5.7 kernel. Accordingly, QEMU is deprecating
+its support for this configuration and will remove it in a future version.
+Running 32-bit guests on a 64-bit Arm host remains supported.
 
 RISC-V ISA Specific CPUs (removed in 5.1)
 '''''''''''''''''''''''''''''''''''''''''

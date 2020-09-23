@@ -30,6 +30,7 @@
 #include "qemu/log.h"
 #include "hw/isa/i8259_internal.h"
 #include "trace.h"
+#include "qom/object.h"
 
 /* debug PIC */
 //#define DEBUG_PIC
@@ -37,18 +38,19 @@
 //#define DEBUG_IRQ_LATENCY
 
 #define TYPE_I8259 "isa-i8259"
-#define PIC_CLASS(class) OBJECT_CLASS_CHECK(PICClass, (class), TYPE_I8259)
-#define PIC_GET_CLASS(obj) OBJECT_GET_CLASS(PICClass, (obj), TYPE_I8259)
+typedef struct PICClass PICClass;
+DECLARE_CLASS_CHECKERS(PICClass, PIC,
+                       TYPE_I8259)
 
 /**
  * PICClass:
  * @parent_realize: The parent's realizefn.
  */
-typedef struct PICClass {
+struct PICClass {
     PICCommonClass parent_class;
 
     DeviceRealize parent_realize;
-} PICClass;
+};
 
 #ifdef DEBUG_IRQ_LATENCY
 static int64_t irq_time[16];

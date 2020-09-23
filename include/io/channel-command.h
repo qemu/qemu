@@ -22,12 +22,11 @@
 #define QIO_CHANNEL_COMMAND_H
 
 #include "io/channel.h"
+#include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL_COMMAND "qio-channel-command"
-#define QIO_CHANNEL_COMMAND(obj)                                     \
-    OBJECT_CHECK(QIOChannelCommand, (obj), TYPE_QIO_CHANNEL_COMMAND)
+OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelCommand, QIO_CHANNEL_COMMAND)
 
-typedef struct QIOChannelCommand QIOChannelCommand;
 
 
 /**

@@ -30,8 +30,9 @@
 #include "framebuffer.h"
 #include "ui/pixel_ops.h"
 #include "hw/m68k/next-cube.h"
+#include "qom/object.h"
 
-#define NEXTFB(obj) OBJECT_CHECK(NeXTFbState, (obj), TYPE_NEXTFB)
+OBJECT_DECLARE_SIMPLE_TYPE(NeXTFbState, NEXTFB)
 
 struct NeXTFbState {
     SysBusDevice parent_obj;
@@ -44,7 +45,6 @@ struct NeXTFbState {
     uint32_t rows;
     int invalidate;
 };
-typedef struct NeXTFbState NeXTFbState;
 
 static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
                              int width, int pitch)

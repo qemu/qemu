@@ -22,12 +22,11 @@
 #define QIO_CHANNEL_BUFFER_H
 
 #include "io/channel.h"
+#include "qom/object.h"
 
 #define TYPE_QIO_CHANNEL_BUFFER "qio-channel-buffer"
-#define QIO_CHANNEL_BUFFER(obj)                                     \
-    OBJECT_CHECK(QIOChannelBuffer, (obj), TYPE_QIO_CHANNEL_BUFFER)
+OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelBuffer, QIO_CHANNEL_BUFFER)
 
-typedef struct QIOChannelBuffer QIOChannelBuffer;
 
 /**
  * QIOChannelBuffer:

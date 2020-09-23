@@ -13,21 +13,16 @@
 #include "qom/object_interfaces.h"
 #include "io/channel-socket.h"
 #include "ui/input.h"
+#include "qom/object.h"
 #include "ui/vnc_keysym.h" /* use name2keysym from VNC as we use X11 values */
 #include "qemu/cutils.h"
 #include "qapi/qmp/qerror.h"
 #include "input-barrier.h"
 
 #define TYPE_INPUT_BARRIER "input-barrier"
-#define INPUT_BARRIER(obj) \
-    OBJECT_CHECK(InputBarrier, (obj), TYPE_INPUT_BARRIER)
-#define INPUT_BARRIER_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(InputBarrierClass, (obj), TYPE_INPUT_BARRIER)
-#define INPUT_BARRIER_CLASS(klass) \
-    OBJECT_CLASS_CHECK(InputBarrierClass, (klass), TYPE_INPUT_BARRIER)
+OBJECT_DECLARE_SIMPLE_TYPE(InputBarrier,
+                           INPUT_BARRIER)
 
-typedef struct InputBarrier InputBarrier;
-typedef struct InputBarrierClass InputBarrierClass;
 
 #define MAX_HELLO_LENGTH 1024
 
@@ -49,9 +44,6 @@ struct InputBarrier {
     char buffer[MAX_HELLO_LENGTH];
 };
 
-struct InputBarrierClass {
-    ObjectClass parent_class;
-};
 
 static const char *cmd_names[] = {
     [barrierCmdCNoop]          = "CNOP",
@@ -731,7 +723,6 @@ static void input_barrier_class_init(ObjectClass *oc, void *data)
 static const TypeInfo input_barrier_info = {
     .name = TYPE_INPUT_BARRIER,
     .parent = TYPE_OBJECT,
-    .class_size = sizeof(InputBarrierClass),
     .class_init = input_barrier_class_init,
     .instance_size = sizeof(InputBarrier),
     .instance_init = input_barrier_instance_init,

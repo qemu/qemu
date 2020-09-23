@@ -13,6 +13,7 @@
 
 #ifndef QEMU_VIRTIO_SCSI_H
 #define QEMU_VIRTIO_SCSI_H
+#include "qom/object.h"
 
 /* Override CDB/sense data size: they are dynamic (guest controlled) in QEMU */
 #define VIRTIO_SCSI_CDB_SIZE 0
@@ -25,12 +26,10 @@
 #include "sysemu/iothread.h"
 
 #define TYPE_VIRTIO_SCSI_COMMON "virtio-scsi-common"
-#define VIRTIO_SCSI_COMMON(obj) \
-        OBJECT_CHECK(VirtIOSCSICommon, (obj), TYPE_VIRTIO_SCSI_COMMON)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOSCSICommon, VIRTIO_SCSI_COMMON)
 
 #define TYPE_VIRTIO_SCSI "virtio-scsi-device"
-#define VIRTIO_SCSI(obj) \
-        OBJECT_CHECK(VirtIOSCSI, (obj), TYPE_VIRTIO_SCSI)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOSCSI, VIRTIO_SCSI)
 
 #define VIRTIO_SCSI_MAX_CHANNEL 0
 #define VIRTIO_SCSI_MAX_TARGET  255
@@ -67,7 +66,7 @@ struct VirtIOSCSIConf {
 
 struct VirtIOSCSI;
 
-typedef struct VirtIOSCSICommon {
+struct VirtIOSCSICommon {
     VirtIODevice parent_obj;
     VirtIOSCSIConf conf;
 
@@ -76,9 +75,9 @@ typedef struct VirtIOSCSICommon {
     VirtQueue *ctrl_vq;
     VirtQueue *event_vq;
     VirtQueue **cmd_vqs;
-} VirtIOSCSICommon;
+};
 
-typedef struct VirtIOSCSI {
+struct VirtIOSCSI {
     VirtIOSCSICommon parent_obj;
 
     SCSIBus bus;
@@ -93,7 +92,7 @@ typedef struct VirtIOSCSI {
     bool dataplane_stopping;
     bool dataplane_fenced;
     uint32_t host_features;
-} VirtIOSCSI;
+};
 
 typedef struct VirtIOSCSIReq {
     /* Note:

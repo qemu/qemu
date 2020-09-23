@@ -55,6 +55,9 @@ fi
 
 cd tests/qemu-iotests
 
+# QEMU_CHECK_BLOCK_AUTO is used to disable some unstable sub-tests
+export QEMU_CHECK_BLOCK_AUTO=1
+
 ret=0
 for fmt in $format_list ; do
     ./check -makecheck -$fmt $group || ret=1

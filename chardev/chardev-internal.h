@@ -32,7 +32,7 @@
 #define MUX_BUFFER_SIZE 32 /* Must be a power of 2.  */
 #define MUX_BUFFER_MASK (MUX_BUFFER_SIZE - 1)
 
-typedef struct MuxChardev {
+struct MuxChardev {
     Chardev parent;
     CharBackend *backends[MAX_MUX];
     CharBackend chr;
@@ -51,9 +51,11 @@ typedef struct MuxChardev {
     /* Protected by the Chardev chr_write_lock.  */
     int linestart;
     int64_t timestamps_start;
-} MuxChardev;
+};
+typedef struct MuxChardev MuxChardev;
 
-#define MUX_CHARDEV(obj) OBJECT_CHECK(MuxChardev, (obj), TYPE_CHARDEV_MUX)
+DECLARE_INSTANCE_CHECKER(MuxChardev, MUX_CHARDEV,
+                         TYPE_CHARDEV_MUX)
 #define CHARDEV_IS_MUX(chr)                             \
     object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_MUX)
 

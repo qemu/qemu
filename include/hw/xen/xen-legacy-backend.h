@@ -4,14 +4,15 @@
 #include "hw/xen/xen_common.h"
 #include "hw/xen/xen_pvdev.h"
 #include "net/net.h"
+#include "qom/object.h"
 
 #define TYPE_XENSYSDEV "xen-sysdev"
 #define TYPE_XENSYSBUS "xen-sysbus"
 #define TYPE_XENBACKEND "xen-backend"
 
 typedef struct XenLegacyDevice XenLegacyDevice;
-#define XENBACKEND_DEVICE(obj) \
-    OBJECT_CHECK(XenLegacyDevice, (obj), TYPE_XENBACKEND)
+DECLARE_INSTANCE_CHECKER(XenLegacyDevice, XENBACKEND_DEVICE,
+                         TYPE_XENBACKEND)
 
 /* variables */
 extern struct xs_handle *xenstore;

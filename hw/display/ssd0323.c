@@ -16,6 +16,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "ui/console.h"
+#include "qom/object.h"
 
 //#define DEBUG_SSD0323 1
 
@@ -47,7 +48,7 @@ enum ssd0323_mode
     SSD0323_DATA
 };
 
-typedef struct {
+struct ssd0323_state {
     SSISlave ssidev;
     QemuConsole *con;
 
@@ -64,10 +65,10 @@ typedef struct {
     int32_t remap;
     uint32_t mode;
     uint8_t framebuffer[128 * 80 / 2];
-} ssd0323_state;
+};
 
 #define TYPE_SSD0323 "ssd0323"
-#define SSD0323(obj) OBJECT_CHECK(ssd0323_state, (obj), TYPE_SSD0323)
+OBJECT_DECLARE_SIMPLE_TYPE(ssd0323_state, SSD0323)
 
 
 static uint32_t ssd0323_transfer(SSISlave *dev, uint32_t data)

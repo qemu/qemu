@@ -1,4 +1,4 @@
-# vmbus
+# vmbus.c
 vmbus_recv_message(uint32_t type, uint32_t size) "type %d size %d"
 vmbus_signal_event(void) ""
 vmbus_channel_notify_guest(uint32_t chan_id) "channel #%d"

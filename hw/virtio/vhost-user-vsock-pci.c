@@ -13,6 +13,7 @@
 #include "virtio-pci.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/vhost-user-vsock.h"
+#include "qom/object.h"
 
 typedef struct VHostUserVSockPCI VHostUserVSockPCI;
 
@@ -20,8 +21,8 @@ typedef struct VHostUserVSockPCI VHostUserVSockPCI;
  * vhost-user-vsock-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VHOST_USER_VSOCK_PCI "vhost-user-vsock-pci-base"
-#define VHOST_USER_VSOCK_PCI(obj) \
-        OBJECT_CHECK(VHostUserVSockPCI, (obj), TYPE_VHOST_USER_VSOCK_PCI)
+DECLARE_INSTANCE_CHECKER(VHostUserVSockPCI, VHOST_USER_VSOCK_PCI,
+                         TYPE_VHOST_USER_VSOCK_PCI)
 
 struct VHostUserVSockPCI {
     VirtIOPCIProxy parent_obj;

@@ -4,6 +4,7 @@
 #include "hw/xen/xen_common.h"
 #include "hw/pci/pci.h"
 #include "xen-host-pci-device.h"
+#include "qom/object.h"
 
 bool xen_igd_gfx_pt_enabled(void);
 void xen_igd_gfx_pt_set(bool value, Error **errp);
@@ -36,11 +37,9 @@ void xen_pt_log(const PCIDevice *d, const char *f, ...) GCC_FMT_ATTR(2, 3);
 typedef const struct XenPTRegInfo XenPTRegInfo;
 typedef struct XenPTReg XenPTReg;
 
-typedef struct XenPCIPassthroughState XenPCIPassthroughState;
 
 #define TYPE_XEN_PT_DEVICE "xen-pci-passthrough"
-#define XEN_PT_DEVICE(obj) \
-    OBJECT_CHECK(XenPCIPassthroughState, (obj), TYPE_XEN_PT_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(XenPCIPassthroughState, XEN_PT_DEVICE)
 
 uint32_t igd_read_opregion(XenPCIPassthroughState *s);
 void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val);

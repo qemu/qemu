@@ -29,15 +29,14 @@
  */
 
 #define TYPE_AW_CPUCFG   "allwinner-cpucfg"
-#define AW_CPUCFG(obj) \
-    OBJECT_CHECK(AwCpuCfgState, (obj), TYPE_AW_CPUCFG)
+OBJECT_DECLARE_SIMPLE_TYPE(AwCpuCfgState, AW_CPUCFG)
 
 /** @} */
 
 /**
  * Allwinner CPU Configuration Module instance state
  */
-typedef struct AwCpuCfgState {
+struct AwCpuCfgState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -47,6 +46,6 @@ typedef struct AwCpuCfgState {
     uint32_t super_standby;
     uint32_t entry_addr;
 
-} AwCpuCfgState;
+};
 
 #endif /* HW_MISC_ALLWINNER_CPUCFG_H */

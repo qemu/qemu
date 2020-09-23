@@ -20,9 +20,10 @@
 
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
+#include "qom/object.h"
 
 #define TYPE_IMX_SERIAL "imx.serial"
-#define IMX_SERIAL(obj) OBJECT_CHECK(IMXSerialState, (obj), TYPE_IMX_SERIAL)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXSerialState, IMX_SERIAL)
 
 #define URXD_CHARRDY    (1<<15)   /* character read is valid */
 #define URXD_ERR        (1<<14)   /* Character has error */
@@ -76,7 +77,7 @@
 #define UTS1_TXFULL     (1<<4)
 #define UTS1_RXFULL     (1<<3)
 
-typedef struct IMXSerialState {
+struct IMXSerialState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -103,6 +104,6 @@ typedef struct IMXSerialState {
 
     qemu_irq irq;
     CharBackend chr;
-} IMXSerialState;
+};
 
 #endif

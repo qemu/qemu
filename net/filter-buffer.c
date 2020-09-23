@@ -18,16 +18,15 @@
 
 #define TYPE_FILTER_BUFFER "filter-buffer"
 
-#define FILTER_BUFFER(obj) \
-    OBJECT_CHECK(FilterBufferState, (obj), TYPE_FILTER_BUFFER)
+OBJECT_DECLARE_SIMPLE_TYPE(FilterBufferState, FILTER_BUFFER)
 
-typedef struct FilterBufferState {
+struct FilterBufferState {
     NetFilterState parent_obj;
 
     NetQueue *incoming_queue;
     uint32_t interval;
     QEMUTimer release_timer;
-} FilterBufferState;
+};
 
 static void filter_buffer_flush(NetFilterState *nf)
 {

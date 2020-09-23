@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
+#include "qom/object.h"
 
 static const char *names[] = {
     "SCNTL0", "SCNTL1", "SCNTL2", "SCNTL3", "SCID", "SXFER", "SDID", "GPREG",
@@ -213,7 +214,7 @@ enum {
     LSI_MSG_ACTION_DIN = 3,
 };
 
-typedef struct {
+struct LSIState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -303,13 +304,12 @@ typedef struct {
     uint32_t adder;
 
     uint8_t script_ram[2048 * sizeof(uint32_t)];
-} LSIState;
+};
 
 #define TYPE_LSI53C810  "lsi53c810"
 #define TYPE_LSI53C895A "lsi53c895a"
 
-#define LSI53C895A(obj) \
-    OBJECT_CHECK(LSIState, (obj), TYPE_LSI53C895A)
+OBJECT_DECLARE_SIMPLE_TYPE(LSIState, LSI53C895A)
 
 static const char *scsi_phases[] = {
     "DOUT",

@@ -60,19 +60,14 @@
  * @{
  */
 
-#define AW_RTC(obj) \
-    OBJECT_CHECK(AwRtcState, (obj), TYPE_AW_RTC)
-#define AW_RTC_CLASS(klass) \
-     OBJECT_CLASS_CHECK(AwRtcClass, (klass), TYPE_AW_RTC)
-#define AW_RTC_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(AwRtcClass, (obj), TYPE_AW_RTC)
+OBJECT_DECLARE_TYPE(AwRtcState, AwRtcClass, AW_RTC)
 
 /** @} */
 
 /**
  * Allwinner RTC per-object instance state.
  */
-typedef struct AwRtcState {
+struct AwRtcState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -92,7 +87,7 @@ typedef struct AwRtcState {
     /** Array of hardware registers */
     uint32_t regs[AW_RTC_REGS_NUM];
 
-} AwRtcState;
+};
 
 /**
  * Allwinner RTC class-level struct.
@@ -101,7 +96,7 @@ typedef struct AwRtcState {
  * such that the generic code can use this struct to support
  * all devices.
  */
-typedef struct AwRtcClass {
+struct AwRtcClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
     /*< public >*/
@@ -129,6 +124,6 @@ typedef struct AwRtcClass {
      */
     bool (*write)(AwRtcState *s, uint32_t offset, uint32_t data);
 
-} AwRtcClass;
+};
 
 #endif /* HW_MISC_ALLWINNER_RTC_H */

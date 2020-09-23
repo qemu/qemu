@@ -12,15 +12,12 @@
 #define QEMU_UC32_CPU_QOM_H
 
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 #define TYPE_UNICORE32_CPU "unicore32-cpu"
 
-#define UNICORE32_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(UniCore32CPUClass, (klass), TYPE_UNICORE32_CPU)
-#define UNICORE32_CPU(obj) \
-    OBJECT_CHECK(UniCore32CPU, (obj), TYPE_UNICORE32_CPU)
-#define UNICORE32_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(UniCore32CPUClass, (obj), TYPE_UNICORE32_CPU)
+OBJECT_DECLARE_TYPE(UniCore32CPU, UniCore32CPUClass,
+                    UNICORE32_CPU)
 
 /**
  * UniCore32CPUClass:
@@ -28,14 +25,13 @@
  *
  * A UniCore32 CPU model.
  */
-typedef struct UniCore32CPUClass {
+struct UniCore32CPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
 
     DeviceRealize parent_realize;
-} UniCore32CPUClass;
+};
 
-typedef struct UniCore32CPU UniCore32CPU;
 
 #endif

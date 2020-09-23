@@ -62,6 +62,7 @@
 #include "net/net.h"
 #include "net/eth.h"
 #include "sysemu/sysemu.h"
+#include "qom/object.h"
 
 /* debug RTL8139 card */
 //#define DEBUG_RTL8139 1
@@ -93,8 +94,7 @@ static inline GCC_FMT_ATTR(1, 2) int DPRINTF(const char *fmt, ...)
 
 #define TYPE_RTL8139 "rtl8139"
 
-#define RTL8139(obj) \
-     OBJECT_CHECK(RTL8139State, (obj), TYPE_RTL8139)
+OBJECT_DECLARE_SIMPLE_TYPE(RTL8139State, RTL8139)
 
 /* Symbolic offsets to registers. */
 enum RTL8139_registers {
@@ -431,7 +431,7 @@ typedef struct RTL8139TallyCounters
 /* Clears all tally counters */
 static void RTL8139TallyCounters_clear(RTL8139TallyCounters* counters);
 
-typedef struct RTL8139State {
+struct RTL8139State {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -513,7 +513,7 @@ typedef struct RTL8139State {
 
     /* Support migration to/from old versions */
     int rtl8139_mmio_io_addr_dummy;
-} RTL8139State;
+};
 
 /* Writes tally counters to memory via DMA */
 static void RTL8139TallyCounters_dma_write(RTL8139State *s, dma_addr_t tc_addr);

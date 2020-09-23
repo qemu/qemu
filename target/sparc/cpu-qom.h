@@ -21,6 +21,7 @@
 #define QEMU_SPARC_CPU_QOM_H
 
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 #ifdef TARGET_SPARC64
 #define TYPE_SPARC_CPU "sparc64-cpu"
@@ -28,12 +29,8 @@
 #define TYPE_SPARC_CPU "sparc-cpu"
 #endif
 
-#define SPARC_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(SPARCCPUClass, (klass), TYPE_SPARC_CPU)
-#define SPARC_CPU(obj) \
-    OBJECT_CHECK(SPARCCPU, (obj), TYPE_SPARC_CPU)
-#define SPARC_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(SPARCCPUClass, (obj), TYPE_SPARC_CPU)
+OBJECT_DECLARE_TYPE(SPARCCPU, SPARCCPUClass,
+                    SPARC_CPU)
 
 typedef struct sparc_def_t sparc_def_t;
 /**
@@ -43,7 +40,7 @@ typedef struct sparc_def_t sparc_def_t;
  *
  * A SPARC CPU model.
  */
-typedef struct SPARCCPUClass {
+struct SPARCCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
@@ -51,8 +48,7 @@ typedef struct SPARCCPUClass {
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
     sparc_def_t *cpu_def;
-} SPARCCPUClass;
+};
 
-typedef struct SPARCCPU SPARCCPU;
 
 #endif

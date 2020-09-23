@@ -17,6 +17,7 @@
 #include "qemu/queue.h"
 #include "hw/isa/isa.h"
 #include "hw/hyperv/hyperv.h"
+#include "qom/object.h"
 
 typedef struct TestSintRoute {
     QLIST_ENTRY(TestSintRoute) le;
@@ -46,11 +47,9 @@ struct HypervTestDev {
     QLIST_HEAD(, TestMsgConn) msg_conns;
     QLIST_HEAD(, TestEvtConn) evt_conns;
 };
-typedef struct HypervTestDev HypervTestDev;
 
 #define TYPE_HYPERV_TEST_DEV "hyperv-testdev"
-#define HYPERV_TEST_DEV(obj) \
-        OBJECT_CHECK(HypervTestDev, (obj), TYPE_HYPERV_TEST_DEV)
+OBJECT_DECLARE_SIMPLE_TYPE(HypervTestDev, HYPERV_TEST_DEV)
 
 enum {
     HV_TEST_DEV_SINT_ROUTE_CREATE = 1,

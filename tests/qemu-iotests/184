@@ -45,8 +45,7 @@ do_run_qemu()
 run_qemu()
 {
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_qmp\
-                          | _filter_qemu_io | _filter_generated_node_ids \
-                          | _filter_actual_image_size
+                          | _filter_qemu_io | _filter_generated_node_ids
 }
 
 test_throttle=$($QEMU_IMG --help|grep throttle)

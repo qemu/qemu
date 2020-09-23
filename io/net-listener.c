@@ -307,7 +307,6 @@ static const TypeInfo qio_net_listener_info = {
     .name = TYPE_QIO_NET_LISTENER,
     .instance_size = sizeof(QIONetListener),
     .instance_finalize = qio_net_listener_finalize,
-    .class_size = sizeof(QIONetListenerClass),
 };
 
 

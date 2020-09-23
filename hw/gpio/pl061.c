@@ -14,6 +14,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 //#define DEBUG_PL061 1
 
@@ -34,11 +35,11 @@ static const uint8_t pl061_id_luminary[12] =
   { 0x00, 0x00, 0x00, 0x00, 0x61, 0x00, 0x18, 0x01, 0x0d, 0xf0, 0x05, 0xb1 };
 
 #define TYPE_PL061 "pl061"
-#define PL061(obj) OBJECT_CHECK(PL061State, (obj), TYPE_PL061)
+OBJECT_DECLARE_SIMPLE_TYPE(PL061State, PL061)
 
 #define N_GPIOS 8
 
-typedef struct PL061State {
+struct PL061State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -67,7 +68,7 @@ typedef struct PL061State {
     qemu_irq out[N_GPIOS];
     const unsigned char *id;
     uint32_t rsvd_start; /* reserved area: [rsvd_start, 0xfcc] */
-} PL061State;
+};
 
 static const VMStateDescription vmstate_pl061 = {
     .name = "pl061",

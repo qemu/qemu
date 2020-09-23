@@ -25,16 +25,16 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "cpu.h"
+#include "qom/object.h"
 
 #define TYPE_ALTERA_IIC "altera,iic"
-#define ALTERA_IIC(obj) \
-    OBJECT_CHECK(AlteraIIC, (obj), TYPE_ALTERA_IIC)
+OBJECT_DECLARE_SIMPLE_TYPE(AlteraIIC, ALTERA_IIC)
 
-typedef struct AlteraIIC {
+struct AlteraIIC {
     SysBusDevice  parent_obj;
     void         *cpu;
     qemu_irq      parent_irq;
-} AlteraIIC;
+};
 
 static void update_irq(AlteraIIC *pv)
 {

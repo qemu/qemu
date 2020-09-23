@@ -34,6 +34,7 @@
 #include "hw/misc/mos6522.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci-host/uninorth.h"
+#include "qom/object.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -71,29 +72,29 @@
 
 /* Core99 machine */
 #define TYPE_CORE99_MACHINE MACHINE_TYPE_NAME("mac99")
-#define CORE99_MACHINE(obj) OBJECT_CHECK(Core99MachineState, (obj), \
-                                         TYPE_CORE99_MACHINE)
+typedef struct Core99MachineState Core99MachineState;
+DECLARE_INSTANCE_CHECKER(Core99MachineState, CORE99_MACHINE,
+                         TYPE_CORE99_MACHINE)
 
 #define CORE99_VIA_CONFIG_CUDA     0x0
 #define CORE99_VIA_CONFIG_PMU      0x1
 #define CORE99_VIA_CONFIG_PMU_ADB  0x2
 
-typedef struct Core99MachineState {
+struct Core99MachineState {
     /*< private >*/
     MachineState parent;
 
     uint8_t via_config;
-} Core99MachineState;
+};
 
 /* Grackle PCI */
 #define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
 
 /* Mac NVRAM */
 #define TYPE_MACIO_NVRAM "macio-nvram"
-#define MACIO_NVRAM(obj) \
-    OBJECT_CHECK(MacIONVRAMState, (obj), TYPE_MACIO_NVRAM)
+OBJECT_DECLARE_SIMPLE_TYPE(MacIONVRAMState, MACIO_NVRAM)
 
-typedef struct MacIONVRAMState {
+struct MacIONVRAMState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -103,7 +104,7 @@ typedef struct MacIONVRAMState {
 
     MemoryRegion mem;
     uint8_t *data;
-} MacIONVRAMState;
+};
 
 void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
 #endif /* PPC_MAC_H */

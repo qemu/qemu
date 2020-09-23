@@ -11,11 +11,12 @@
 #define IMX_RNGC_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_IMX_RNGC "imx.rngc"
-#define IMX_RNGC(obj) OBJECT_CHECK(IMXRNGCState, (obj), TYPE_IMX_RNGC)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXRNGCState, IMX_RNGC)
 
-typedef struct IMXRNGCState {
+struct IMXRNGCState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -30,6 +31,6 @@ typedef struct IMXRNGCState {
     QEMUBH *self_test_bh;
     QEMUBH *seed_bh;
     qemu_irq irq;
-} IMXRNGCState;
+};
 
 #endif /* IMX_RNGC_H */

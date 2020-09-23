@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "standard-headers/linux/virtio_crypto.h"
 #include "crypto/cipher.h"
+#include "qom/object.h"
 
 
 /**
@@ -34,12 +35,8 @@
  */
 #define TYPE_CRYPTODEV_BACKEND_BUILTIN "cryptodev-backend-builtin"
 
-#define CRYPTODEV_BACKEND_BUILTIN(obj) \
-    OBJECT_CHECK(CryptoDevBackendBuiltin, \
-                 (obj), TYPE_CRYPTODEV_BACKEND_BUILTIN)
+OBJECT_DECLARE_SIMPLE_TYPE(CryptoDevBackendBuiltin, CRYPTODEV_BACKEND_BUILTIN)
 
-typedef struct CryptoDevBackendBuiltin
-                         CryptoDevBackendBuiltin;
 
 typedef struct CryptoDevBackendBuiltinSession {
     QCryptoCipher *cipher;

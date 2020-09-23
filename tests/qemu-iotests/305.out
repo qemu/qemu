@@ -1,0 +1,16 @@
+QA output created by 305
+### Create the image
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+### Fill the first refcount block and one data cluster from the second
+wrote 126976/126976 bytes at offset 0
+124 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+### Discard two of the last data clusters, leave one in the middle
+discard 1024/1024 bytes at offset 123904
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+discard 1024/1024 bytes at offset 125952
+1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+### Corrupt the offset of the second refcount block
+### Try to allocate the discarded clusters again
+qcow2: Marking image as corrupt: Refblock offset 0x20600 unaligned (reftable index: 0x1); further corruption events will be suppressed
+write failed: Input/output error
+*** done

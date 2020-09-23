@@ -24,14 +24,15 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 /* L2C-310 r3p2 */
 #define CACHE_ID 0x410000c8
 
 #define TYPE_ARM_L2X0 "l2x0"
-#define ARM_L2X0(obj) OBJECT_CHECK(L2x0State, (obj), TYPE_ARM_L2X0)
+OBJECT_DECLARE_SIMPLE_TYPE(L2x0State, ARM_L2X0)
 
-typedef struct L2x0State {
+struct L2x0State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -42,7 +43,7 @@ typedef struct L2x0State {
     uint32_t tag_ctrl;
     uint32_t filter_start;
     uint32_t filter_end;
-} L2x0State;
+};
 
 static const VMStateDescription vmstate_l2x0 = {
     .name = "l2x0",

@@ -20,12 +20,12 @@
 #define HW_IBEX_PLIC_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_IBEX_PLIC "ibex-plic"
-#define IBEX_PLIC(obj) \
-    OBJECT_CHECK(IbexPlicState, (obj), TYPE_IBEX_PLIC)
+OBJECT_DECLARE_SIMPLE_TYPE(IbexPlicState, IBEX_PLIC)
 
-typedef struct IbexPlicState {
+struct IbexPlicState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -59,6 +59,6 @@ typedef struct IbexPlicState {
     uint32_t threshold_base;
 
     uint32_t claim_base;
-} IbexPlicState;
+};
 
 #endif /* HW_IBEX_PLIC_H */

@@ -16,6 +16,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "qom/object.h"
 
 /* Common timer implementation.  */
 
@@ -190,9 +191,9 @@ static arm_timer_state *arm_timer_init(uint32_t freq)
 */
 
 #define TYPE_SP804 "sp804"
-#define SP804(obj) OBJECT_CHECK(SP804State, (obj), TYPE_SP804)
+OBJECT_DECLARE_SIMPLE_TYPE(SP804State, SP804)
 
-typedef struct SP804State {
+struct SP804State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -200,7 +201,7 @@ typedef struct SP804State {
     uint32_t freq0, freq1;
     int level[2];
     qemu_irq irq;
-} SP804State;
+};
 
 static const uint8_t sp804_ids[] = {
     /* Timer ID */
@@ -310,15 +311,14 @@ static void sp804_realize(DeviceState *dev, Error **errp)
 /* Integrator/CP timer module.  */
 
 #define TYPE_INTEGRATOR_PIT "integrator_pit"
-#define INTEGRATOR_PIT(obj) \
-    OBJECT_CHECK(icp_pit_state, (obj), TYPE_INTEGRATOR_PIT)
+OBJECT_DECLARE_SIMPLE_TYPE(icp_pit_state, INTEGRATOR_PIT)
 
-typedef struct {
+struct icp_pit_state {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
     arm_timer_state *timer[3];
-} icp_pit_state;
+};
 
 static uint64_t icp_pit_read(void *opaque, hwaddr offset,
                              unsigned size)

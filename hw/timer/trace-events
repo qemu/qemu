@@ -66,6 +66,11 @@ cmsdk_apb_dualtimer_read(uint64_t offset, uint64_t data, unsigned size) "CMSDK A
 cmsdk_apb_dualtimer_write(uint64_t offset, uint64_t data, unsigned size) "CMSDK APB dualtimer write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 cmsdk_apb_dualtimer_reset(void) "CMSDK APB dualtimer: reset"
 
+# npcm7xx_timer.c
+npcm7xx_timer_read(const char *id, uint64_t offset, uint64_t value) " %s offset: 0x%04" PRIx64 " value 0x%08" PRIx64
+npcm7xx_timer_write(const char *id, uint64_t offset, uint64_t value) "%s offset: 0x%04" PRIx64 " value 0x%08" PRIx64
+npcm7xx_timer_irq(const char *id, int timer, int state) "%s timer %d state %d"
+
 # nrf51_timer.c
 nrf51_timer_read(uint8_t timer_id, uint64_t addr, uint32_t value, unsigned size) "timer %u read addr 0x%" PRIx64 " data 0x%" PRIx32 " size %u"
 nrf51_timer_write(uint8_t timer_id, uint64_t addr, uint32_t value, unsigned size) "timer %u write addr 0x%" PRIx64 " data 0x%" PRIx32 " size %u"
@@ -81,7 +86,6 @@ avr_timer16_read(uint8_t addr, uint8_t value) "timer16 read addr:%u value:%u"
 avr_timer16_read_ifr(uint8_t value) "timer16 read addr:ifr value:%u"
 avr_timer16_read_imsk(uint8_t value) "timer16 read addr:imsk value:%u"
 avr_timer16_write(uint8_t addr, uint8_t value) "timer16 write addr:%u value:%u"
-avr_timer16_write_ifr(uint8_t value) "timer16 write addr:ifr value:%u"
 avr_timer16_write_imsk(uint8_t value) "timer16 write addr:imsk value:%u"
 avr_timer16_interrupt_count(uint8_t cnt) "count: %u"
 avr_timer16_interrupt_overflow(const char *reason) "overflow: %s"

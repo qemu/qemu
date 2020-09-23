@@ -23,6 +23,7 @@
 
 #include "exec/cpu-defs.h"
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 typedef struct CPUNios2State CPUNios2State;
 #if !defined(CONFIG_USER_ONLY)
@@ -31,12 +32,8 @@ typedef struct CPUNios2State CPUNios2State;
 
 #define TYPE_NIOS2_CPU "nios2-cpu"
 
-#define NIOS2_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(Nios2CPUClass, (klass), TYPE_NIOS2_CPU)
-#define NIOS2_CPU(obj) \
-    OBJECT_CHECK(Nios2CPU, (obj), TYPE_NIOS2_CPU)
-#define NIOS2_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(Nios2CPUClass, (obj), TYPE_NIOS2_CPU)
+OBJECT_DECLARE_TYPE(Nios2CPU, Nios2CPUClass,
+                    NIOS2_CPU)
 
 /**
  * Nios2CPUClass:
@@ -44,14 +41,14 @@ typedef struct CPUNios2State CPUNios2State;
  *
  * A Nios2 CPU model.
  */
-typedef struct Nios2CPUClass {
+struct Nios2CPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
 
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
-} Nios2CPUClass;
+};
 
 #define TARGET_HAS_ICE 1
 
@@ -174,7 +171,7 @@ struct CPUNios2State {
  *
  * A Nios2 CPU.
  */
-typedef struct Nios2CPU {
+struct Nios2CPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
@@ -191,7 +188,7 @@ typedef struct Nios2CPU {
     uint32_t reset_addr;
     uint32_t exception_addr;
     uint32_t fast_tlb_miss_addr;
-} Nios2CPU;
+};
 
 
 void nios2_tcg_init(void);

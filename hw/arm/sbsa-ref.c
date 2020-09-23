@@ -41,6 +41,7 @@
 #include "hw/usb.h"
 #include "hw/char/pl011.h"
 #include "net/net.h"
+#include "qom/object.h"
 
 #define RAMLIMIT_GB 8192
 #define RAMLIMIT_BYTES (RAMLIMIT_GB * GiB)
@@ -84,7 +85,7 @@ typedef struct MemMapEntry {
     hwaddr size;
 } MemMapEntry;
 
-typedef struct {
+struct SBSAMachineState {
     MachineState parent;
     struct arm_boot_info bootinfo;
     int smp_cpus;
@@ -93,11 +94,10 @@ typedef struct {
     int psci_conduit;
     DeviceState *gic;
     PFlashCFI01 *flash[2];
-} SBSAMachineState;
+};
 
 #define TYPE_SBSA_MACHINE   MACHINE_TYPE_NAME("sbsa-ref")
-#define SBSA_MACHINE(obj) \
-    OBJECT_CHECK(SBSAMachineState, (obj), TYPE_SBSA_MACHINE)
+OBJECT_DECLARE_SIMPLE_TYPE(SBSAMachineState, SBSA_MACHINE)
 
 static const MemMapEntry sbsa_ref_memmap[] = {
     /* 512M boot ROM */

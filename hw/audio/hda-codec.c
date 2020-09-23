@@ -26,6 +26,7 @@
 #include "intel-hda-defs.h"
 #include "audio/audio.h"
 #include "trace.h"
+#include "qom/object.h"
 
 /* -------------------------------------------------------------------------- */
 
@@ -171,7 +172,7 @@ struct HDAAudioStream {
 };
 
 #define TYPE_HDA_AUDIO "hda-audio"
-#define HDA_AUDIO(obj) OBJECT_CHECK(HDAAudioState, (obj), TYPE_HDA_AUDIO)
+OBJECT_DECLARE_SIMPLE_TYPE(HDAAudioState, HDA_AUDIO)
 
 struct HDAAudioState {
     HDACodecDevice hda;

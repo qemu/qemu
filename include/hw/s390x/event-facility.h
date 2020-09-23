@@ -18,6 +18,7 @@
 #include "qemu/thread.h"
 #include "hw/qdev-core.h"
 #include "hw/s390x/sclp.h"
+#include "qom/object.h"
 
 /* SCLP event types */
 #define SCLP_EVENT_OPRTNS_COMMAND               0x01
@@ -41,12 +42,8 @@
 #define SCLP_SELECTIVE_READ                     0x01
 
 #define TYPE_SCLP_EVENT "s390-sclp-event-type"
-#define SCLP_EVENT(obj) \
-     OBJECT_CHECK(SCLPEvent, (obj), TYPE_SCLP_EVENT)
-#define SCLP_EVENT_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SCLPEventClass, (klass), TYPE_SCLP_EVENT)
-#define SCLP_EVENT_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SCLPEventClass, (obj), TYPE_SCLP_EVENT)
+OBJECT_DECLARE_TYPE(SCLPEvent, SCLPEventClass,
+                    SCLP_EVENT)
 
 #define TYPE_SCLP_CPU_HOTPLUG "sclp-cpu-hotplug"
 #define TYPE_SCLP_QUIESCE "sclpquiesce"
@@ -169,13 +166,13 @@ typedef struct ReadEventData {
     };
 } QEMU_PACKED ReadEventData;
 
-typedef struct SCLPEvent {
+struct SCLPEvent {
     DeviceState qdev;
     bool event_pending;
     char *name;
-} SCLPEvent;
+};
 
-typedef struct SCLPEventClass {
+struct SCLPEventClass {
     DeviceClass parent_class;
     int (*init)(SCLPEvent *event);
 
@@ -192,24 +189,19 @@ typedef struct SCLPEventClass {
 
     /* can we handle this event type? */
     bool (*can_handle_event)(uint8_t type);
-} SCLPEventClass;
+};
 
 #define TYPE_SCLP_EVENT_FACILITY "s390-sclp-event-facility"
 typedef struct SCLPEventFacility SCLPEventFacility;
-#define EVENT_FACILITY(obj) \
-     OBJECT_CHECK(SCLPEventFacility, (obj), TYPE_SCLP_EVENT_FACILITY)
-#define EVENT_FACILITY_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SCLPEventFacilityClass, (klass), \
-                        TYPE_SCLP_EVENT_FACILITY)
-#define EVENT_FACILITY_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SCLPEventFacilityClass, (obj), \
-                      TYPE_SCLP_EVENT_FACILITY)
+typedef struct SCLPEventFacilityClass SCLPEventFacilityClass;
+DECLARE_OBJ_CHECKERS(SCLPEventFacility, SCLPEventFacilityClass,
+                     EVENT_FACILITY, TYPE_SCLP_EVENT_FACILITY)
 
-typedef struct SCLPEventFacilityClass {
+struct SCLPEventFacilityClass {
     SysBusDeviceClass parent_class;
     void (*command_handler)(SCLPEventFacility *ef, SCCB *sccb, uint64_t code);
     bool (*event_pending)(SCLPEventFacility *ef);
-} SCLPEventFacilityClass;
+};
 
 BusState *sclp_get_event_facility_bus(void);
 

@@ -27,6 +27,7 @@
 
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
+#include "qom/object.h"
 
 #define TIM_CR1      0x00
 #define TIM_CR2      0x04
@@ -61,10 +62,11 @@
 #define TIM_DIER_UIE  1
 
 #define TYPE_STM32F2XX_TIMER "stm32f2xx-timer"
-#define STM32F2XXTIMER(obj) OBJECT_CHECK(STM32F2XXTimerState, \
-                            (obj), TYPE_STM32F2XX_TIMER)
+typedef struct STM32F2XXTimerState STM32F2XXTimerState;
+DECLARE_INSTANCE_CHECKER(STM32F2XXTimerState, STM32F2XXTIMER,
+                         TYPE_STM32F2XX_TIMER)
 
-typedef struct STM32F2XXTimerState {
+struct STM32F2XXTimerState {
     /* <private> */
     SysBusDevice parent_obj;
 
@@ -95,6 +97,6 @@ typedef struct STM32F2XXTimerState {
     uint32_t tim_dcr;
     uint32_t tim_dmar;
     uint32_t tim_or;
-} STM32F2XXTimerState;
+};
 
 #endif /* HW_STM32F2XX_TIMER_H */

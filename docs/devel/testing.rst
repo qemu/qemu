@@ -471,7 +471,7 @@ the warning.
 A few important files for suppressing warnings are:
 
 tests/tsan/suppressions.tsan - Has TSan warnings we wish to suppress at runtime.
-The comment on each supression will typically indicate why we are
+The comment on each suppression will typically indicate why we are
 suppressing it.  More information on the file format can be found here:
 
 https://github.com/google/sanitizers/wiki/ThreadSanitizerSuppressions

@@ -38,9 +38,10 @@
 #include "hw/usb/imx-usb-phy.h"
 #include "exec/memory.h"
 #include "cpu.h"
+#include "qom/object.h"
 
 #define TYPE_FSL_IMX6UL "fsl,imx6ul"
-#define FSL_IMX6UL(obj) OBJECT_CHECK(FslIMX6ULState, (obj), TYPE_FSL_IMX6UL)
+OBJECT_DECLARE_SIMPLE_TYPE(FslIMX6ULState, FSL_IMX6UL)
 
 enum FslIMX6ULConfiguration {
     FSL_IMX6UL_NUM_CPUS         = 1,
@@ -60,7 +61,7 @@ enum FslIMX6ULConfiguration {
     FSL_IMX6UL_NUM_USBS         = 2,
 };
 
-typedef struct FslIMX6ULState {
+struct FslIMX6ULState {
     /*< private >*/
     DeviceState    parent_obj;
 
@@ -89,7 +90,7 @@ typedef struct FslIMX6ULState {
     MemoryRegion       ocram_alias;
 
     uint32_t           phy_num[FSL_IMX6UL_NUM_ETHS];
-} FslIMX6ULState;
+};
 
 enum FslIMX6ULMemoryMap {
     FSL_IMX6UL_MMDC_ADDR            = 0x80000000,

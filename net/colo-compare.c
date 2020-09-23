@@ -36,8 +36,9 @@
 #include "qemu/coroutine.h"
 
 #define TYPE_COLO_COMPARE "colo-compare"
-#define COLO_COMPARE(obj) \
-    OBJECT_CHECK(CompareState, (obj), TYPE_COLO_COMPARE)
+typedef struct CompareState CompareState;
+DECLARE_INSTANCE_CHECKER(CompareState, COLO_COMPARE,
+                         TYPE_COLO_COMPARE)
 
 static QTAILQ_HEAD(, CompareState) net_compares =
        QTAILQ_HEAD_INITIALIZER(net_compares);
@@ -53,6 +54,8 @@ static NotifierList colo_compare_notifiers =
 
 #define REGULAR_PACKET_CHECK_MS 3000
 #define DEFAULT_TIME_OUT_MS 3000
+
+/* #define DEBUG_COLO_PACKETS */
 
 static QemuMutex colo_compare_mutex;
 static bool colo_compare_active;
@@ -100,7 +103,7 @@ typedef struct SendEntry {
     uint8_t *buf;
 } SendEntry;
 
-typedef struct CompareState {
+struct CompareState {
     Object parent;
 
     char *pri_indev;
@@ -136,7 +139,7 @@ typedef struct CompareState {
     enum colo_event event;
 
     QTAILQ_ENTRY(CompareState) next;
-} CompareState;
+};
 
 typedef struct CompareClass {
     ObjectClass parent_class;
@@ -328,7 +331,7 @@ static int colo_compare_packet_payload(Packet *ppkt,
                                        uint16_t len)
 
 {
-    if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
+    if (trace_event_get_state_backends(TRACE_COLO_COMPARE_IP_INFO)) {
         char pri_ip_src[20], pri_ip_dst[20], sec_ip_src[20], sec_ip_dst[20];
 
         strcpy(pri_ip_src, inet_ntoa(ppkt->ip->ip_src));
@@ -493,12 +496,10 @@ sec:
         g_queue_push_head(&conn->primary_list, ppkt);
         g_queue_push_head(&conn->secondary_list, spkt);
 
-        if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
-            qemu_hexdump((char *)ppkt->data, stderr,
-                        "colo-compare ppkt", ppkt->size);
-            qemu_hexdump((char *)spkt->data, stderr,
-                        "colo-compare spkt", spkt->size);
-        }
+#ifdef DEBUG_COLO_PACKETS
+        qemu_hexdump(stderr, "colo-compare ppkt", ppkt->data, ppkt->size);
+        qemu_hexdump(stderr, "colo-compare spkt", spkt->data, spkt->size);
+#endif
 
         colo_compare_inconsistency_notify(s);
     }
@@ -534,12 +535,10 @@ static int colo_packet_compare_udp(Packet *spkt, Packet *ppkt)
                                     ppkt->size - offset)) {
         trace_colo_compare_udp_miscompare("primary pkt size", ppkt->size);
         trace_colo_compare_udp_miscompare("Secondary pkt size", spkt->size);
-        if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
-            qemu_hexdump((char *)ppkt->data, stderr, "colo-compare pri pkt",
-                         ppkt->size);
-            qemu_hexdump((char *)spkt->data, stderr, "colo-compare sec pkt",
-                         spkt->size);
-        }
+#ifdef DEBUG_COLO_PACKETS
+        qemu_hexdump(stderr, "colo-compare pri pkt", ppkt->data, ppkt->size);
+        qemu_hexdump(stderr, "colo-compare sec pkt", spkt->data, spkt->size);
+#endif
         return -1;
     } else {
         return 0;
@@ -577,12 +576,10 @@ static int colo_packet_compare_icmp(Packet *spkt, Packet *ppkt)
                                            ppkt->size);
         trace_colo_compare_icmp_miscompare("Secondary pkt size",
                                            spkt->size);
-        if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
-            qemu_hexdump((char *)ppkt->data, stderr, "colo-compare pri pkt",
-                         ppkt->size);
-            qemu_hexdump((char *)spkt->data, stderr, "colo-compare sec pkt",
-                         spkt->size);
-        }
+#ifdef DEBUG_COLO_PACKETS
+        qemu_hexdump(stderr, "colo-compare pri pkt", ppkt->data, ppkt->size);
+        qemu_hexdump(stderr, "colo-compare sec pkt", spkt->data, spkt->size);
+#endif
         return -1;
     } else {
         return 0;
@@ -598,7 +595,7 @@ static int colo_packet_compare_other(Packet *spkt, Packet *ppkt)
     uint16_t offset = ppkt->vnet_hdr_len;
 
     trace_colo_compare_main("compare other");
-    if (trace_event_get_state_backends(TRACE_COLO_COMPARE_MISCOMPARE)) {
+    if (trace_event_get_state_backends(TRACE_COLO_COMPARE_IP_INFO)) {
         char pri_ip_src[20], pri_ip_dst[20], sec_ip_src[20], sec_ip_dst[20];
 
         strcpy(pri_ip_src, inet_ntoa(ppkt->ip->ip_src));

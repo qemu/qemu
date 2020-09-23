@@ -14,11 +14,12 @@
 #include "hw/irq.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define TYPE_PL050 "pl050"
-#define PL050(obj) OBJECT_CHECK(PL050State, (obj), TYPE_PL050)
+OBJECT_DECLARE_SIMPLE_TYPE(PL050State, PL050)
 
-typedef struct PL050State {
+struct PL050State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -29,7 +30,7 @@ typedef struct PL050State {
     int pending;
     qemu_irq irq;
     bool is_mouse;
-} PL050State;
+};
 
 static const VMStateDescription vmstate_pl050 = {
     .name = "pl050",

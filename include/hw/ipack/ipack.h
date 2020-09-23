@@ -12,11 +12,11 @@
 #define QEMU_IPACK_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
-typedef struct IPackBus IPackBus;
 
 #define TYPE_IPACK_BUS "IndustryPack"
-#define IPACK_BUS(obj) OBJECT_CHECK(IPackBus, (obj), TYPE_IPACK_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(IPackBus, IPACK_BUS)
 
 struct IPackBus {
     /*< private >*/
@@ -28,16 +28,10 @@ struct IPackBus {
     qemu_irq_handler set_irq;
 };
 
-typedef struct IPackDevice IPackDevice;
-typedef struct IPackDeviceClass IPackDeviceClass;
 
 #define TYPE_IPACK_DEVICE "ipack-device"
-#define IPACK_DEVICE(obj) \
-     OBJECT_CHECK(IPackDevice, (obj), TYPE_IPACK_DEVICE)
-#define IPACK_DEVICE_CLASS(klass)                                        \
-     OBJECT_CLASS_CHECK(IPackDeviceClass, (klass), TYPE_IPACK_DEVICE)
-#define IPACK_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(IPackDeviceClass, (obj), TYPE_IPACK_DEVICE)
+OBJECT_DECLARE_TYPE(IPackDevice, IPackDeviceClass,
+                    IPACK_DEVICE)
 
 struct IPackDeviceClass {
     /*< private >*/

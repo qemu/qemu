@@ -17,15 +17,12 @@
 #include "hw/virtio/virtio.h"
 #include "qapi/qapi-types-misc.h"
 #include "sysemu/hostmem.h"
+#include "qom/object.h"
 
 #define TYPE_VIRTIO_MEM "virtio-mem"
 
-#define VIRTIO_MEM(obj) \
-        OBJECT_CHECK(VirtIOMEM, (obj), TYPE_VIRTIO_MEM)
-#define VIRTIO_MEM_CLASS(oc) \
-        OBJECT_CLASS_CHECK(VirtIOMEMClass, (oc), TYPE_VIRTIO_MEM)
-#define VIRTIO_MEM_GET_CLASS(obj) \
-        OBJECT_GET_CLASS(VirtIOMEMClass, (obj), TYPE_VIRTIO_MEM)
+OBJECT_DECLARE_TYPE(VirtIOMEM, VirtIOMEMClass,
+                    VIRTIO_MEM)
 
 #define VIRTIO_MEM_MEMDEV_PROP "memdev"
 #define VIRTIO_MEM_NODE_PROP "node"
@@ -34,7 +31,7 @@
 #define VIRTIO_MEM_BLOCK_SIZE_PROP "block-size"
 #define VIRTIO_MEM_ADDR_PROP "memaddr"
 
-typedef struct VirtIOMEM {
+struct VirtIOMEM {
     VirtIODevice parent_obj;
 
     /* guest -> host request queue */
@@ -70,9 +67,9 @@ typedef struct VirtIOMEM {
 
     /* don't migrate unplugged memory */
     NotifierWithReturn precopy_notifier;
-} VirtIOMEM;
+};
 
-typedef struct VirtIOMEMClass {
+struct VirtIOMEMClass {
     /* private */
     VirtIODevice parent;
 
@@ -81,6 +78,6 @@ typedef struct VirtIOMEMClass {
     MemoryRegion *(*get_memory_region)(VirtIOMEM *vmem, Error **errp);
     void (*add_size_change_notifier)(VirtIOMEM *vmem, Notifier *notifier);
     void (*remove_size_change_notifier)(VirtIOMEM *vmem, Notifier *notifier);
-} VirtIOMEMClass;
+};
 
 #endif

@@ -12,7 +12,11 @@
 #include "hw/misc/a9scu.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qapi/error.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
+
+#define A9_SCU_CPU_MAX  4
 
 static uint64_t a9_scu_read(void *opaque, hwaddr offset,
                             unsigned size)
@@ -25,12 +29,6 @@ static uint64_t a9_scu_read(void *opaque, hwaddr offset,
         return (((1 << s->num_cpu) - 1) << 4) | (s->num_cpu - 1);
     case 0x08: /* CPU Power Status */
         return s->status;
-    case 0x09: /* CPU status.  */
-        return s->status >> 8;
-    case 0x0a: /* CPU status.  */
-        return s->status >> 16;
-    case 0x0b: /* CPU status.  */
-        return s->status >> 24;
     case 0x0c: /* Invalidate All Registers In Secure State */
         return 0;
     case 0x40: /* Filtering Start Address Register */
@@ -41,6 +39,8 @@ static uint64_t a9_scu_read(void *opaque, hwaddr offset,
     case 0x54: /* SCU Non-secure Access Control Register */
         /* unimplemented, fall through */
     default:
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%"HWADDR_PRIx"\n",
+                      __func__, offset);
         return 0;
     }
 }
@@ -49,23 +49,6 @@ static void a9_scu_write(void *opaque, hwaddr offset,
                          uint64_t value, unsigned size)
 {
     A9SCUState *s = (A9SCUState *)opaque;
-    uint32_t mask;
-    uint32_t shift;
-    switch (size) {
-    case 1:
-        mask = 0xff;
-        break;
-    case 2:
-        mask = 0xffff;
-        break;
-    case 4:
-        mask = 0xffffffff;
-        break;
-    default:
-        fprintf(stderr, "Invalid size %u in write to a9 scu register %x\n",
-                size, (unsigned)offset);
-        return;
-    }
 
     switch (offset) {
     case 0x00: /* Control */
@@ -74,9 +57,7 @@ static void a9_scu_write(void *opaque, hwaddr offset,
     case 0x4: /* Configuration: RO */
         break;
     case 0x08: case 0x09: case 0x0A: case 0x0B: /* Power Control */
-        shift = (offset - 0x8) * 8;
-        s->status &= ~(mask << shift);
-        s->status |= ((value & mask) << shift);
+        s->status = value;
         break;
     case 0x0c: /* Invalidate All Registers In Secure State */
         /* no-op as we do not implement caches */
@@ -89,6 +70,9 @@ static void a9_scu_write(void *opaque, hwaddr offset,
     case 0x54: /* SCU Non-secure Access Control Register */
         /* unimplemented, fall through */
     default:
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%"HWADDR_PRIx
+                                 " value 0x%"PRIx64"\n",
+                      __func__, offset, value);
         break;
     }
 }
@@ -96,6 +80,14 @@ static void a9_scu_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps a9_scu_ops = {
     .read = a9_scu_read,
     .write = a9_scu_write,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -105,12 +97,17 @@ static void a9_scu_reset(DeviceState *dev)
     s->control = 0;
 }
 
-static void a9_scu_init(Object *obj)
+static void a9_scu_realize(DeviceState *dev, Error **errp)
 {
-    A9SCUState *s = A9_SCU(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    A9SCUState *s = A9_SCU(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    memory_region_init_io(&s->iomem, obj, &a9_scu_ops, s,
+    if (!s->num_cpu || s->num_cpu > A9_SCU_CPU_MAX) {
+        error_setg(errp, "Illegal CPU count: %u", s->num_cpu);
+        return;
+    }
+
+    memory_region_init_io(&s->iomem, OBJECT(s), &a9_scu_ops, s,
                           "a9-scu", 0x100);
     sysbus_init_mmio(sbd, &s->iomem);
 }
@@ -138,13 +135,13 @@ static void a9_scu_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, a9_scu_properties);
     dc->vmsd = &vmstate_a9_scu;
     dc->reset = a9_scu_reset;
+    dc->realize = a9_scu_realize;
 }
 
 static const TypeInfo a9_scu_info = {
     .name          = TYPE_A9_SCU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(A9SCUState),
-    .instance_init = a9_scu_init,
     .class_init    = a9_scu_class_init,
 };
 

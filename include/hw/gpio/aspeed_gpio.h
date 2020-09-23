@@ -11,13 +11,10 @@
 #define ASPEED_GPIO_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_ASPEED_GPIO "aspeed.gpio"
-#define ASPEED_GPIO(obj) OBJECT_CHECK(AspeedGPIOState, (obj), TYPE_ASPEED_GPIO)
-#define ASPEED_GPIO_CLASS(klass) \
-     OBJECT_CLASS_CHECK(AspeedGPIOClass, (klass), TYPE_ASPEED_GPIO)
-#define ASPEED_GPIO_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(AspeedGPIOClass, (obj), TYPE_ASPEED_GPIO)
+OBJECT_DECLARE_TYPE(AspeedGPIOState, AspeedGPIOClass, ASPEED_GPIO)
 
 #define ASPEED_GPIO_MAX_NR_SETS 8
 #define ASPEED_REGS_PER_BANK 14
@@ -58,16 +55,16 @@ typedef struct AspeedGPIOReg {
     enum GPIORegType type;
  } AspeedGPIOReg;
 
-typedef struct  AspeedGPIOClass {
+struct AspeedGPIOClass {
     SysBusDevice parent_obj;
     const GPIOSetProperties *props;
     uint32_t nr_gpio_pins;
     uint32_t nr_gpio_sets;
     uint32_t gap;
     const AspeedGPIOReg *reg_table;
-}  AspeedGPIOClass;
+};
 
-typedef struct AspeedGPIOState {
+struct AspeedGPIOState {
     /* <private> */
     SysBusDevice parent;
 
@@ -95,6 +92,6 @@ typedef struct AspeedGPIOState {
         uint32_t debounce_2;
         uint32_t input_mask;
     } sets[ASPEED_GPIO_MAX_NR_SETS];
-} AspeedGPIOState;
+};
 
 #endif /* _ASPEED_GPIO_H_ */

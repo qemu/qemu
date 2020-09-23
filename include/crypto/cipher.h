@@ -24,6 +24,7 @@
 #include "qapi/qapi-types-crypto.h"
 
 typedef struct QCryptoCipher QCryptoCipher;
+typedef struct QCryptoCipherDriver QCryptoCipherDriver;
 
 /* See also "QCryptoCipherAlgorithm" and "QCryptoCipherMode"
  * enums defined in qapi/crypto.json */
@@ -79,8 +80,7 @@ typedef struct QCryptoCipher QCryptoCipher;
 struct QCryptoCipher {
     QCryptoCipherAlgorithm alg;
     QCryptoCipherMode mode;
-    void *opaque;
-    void *driver;
+    const QCryptoCipherDriver *driver;
 };
 
 /**

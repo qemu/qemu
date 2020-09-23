@@ -17,15 +17,14 @@
 #include "hw/qdev-core.h"
 
 #define TYPE_SPAPR_TPM_PROXY "spapr-tpm-proxy"
-#define SPAPR_TPM_PROXY(obj) OBJECT_CHECK(SpaprTpmProxy, (obj), \
-                                          TYPE_SPAPR_TPM_PROXY)
+OBJECT_DECLARE_SIMPLE_TYPE(SpaprTpmProxy, SPAPR_TPM_PROXY)
 
-typedef struct SpaprTpmProxy {
+struct SpaprTpmProxy {
     /*< private >*/
     DeviceState parent;
 
     char *host_path;
     int host_fd;
-} SpaprTpmProxy;
+};
 
 #endif /* HW_SPAPR_TPM_PROXY_H */

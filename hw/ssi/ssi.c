@@ -17,13 +17,14 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 struct SSIBus {
     BusState parent_obj;
 };
 
 #define TYPE_SSI_BUS "SSI"
-#define SSI_BUS(obj) OBJECT_CHECK(SSIBus, (obj), TYPE_SSI_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(SSIBus, SSI_BUS)
 
 static const TypeInfo ssi_bus_info = {
     .name = TYPE_SSI_BUS,

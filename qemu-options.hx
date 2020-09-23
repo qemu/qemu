@@ -373,9 +373,9 @@ SRST
 
     .. parsed-literal::
 
-        |qemu_system| \
-         -add-fd fd=3,set=2,opaque="rdwr:/path/to/file" \
-         -add-fd fd=4,set=2,opaque="rdonly:/path/to/file" \
+        |qemu_system| \\
+         -add-fd fd=3,set=2,opaque="rdwr:/path/to/file" \\
+         -add-fd fd=4,set=2,opaque="rdonly:/path/to/file" \\
          -drive file=/dev/fdset/2,index=0,media=disk
 ERST
 
@@ -1338,9 +1338,9 @@ SRST
 
     .. parsed-literal::
 
-        |qemu_system| \
-         -add-fd fd=3,set=2,opaque="rdwr:/path/to/file" \
-         -add-fd fd=4,set=2,opaque="rdonly:/path/to/file" \
+        |qemu_system| \\
+         -add-fd fd=3,set=2,opaque="rdwr:/path/to/file" \\
+         -add-fd fd=4,set=2,opaque="rdonly:/path/to/file" \\
          -drive file=/dev/fdset/2,index=0,media=disk
 
     You can connect a CDROM to the slave of ide0:
@@ -2593,7 +2593,7 @@ SRST
 
         .. parsed-literal::
 
-            |qemu_system| -hda linux.img -boot n -device e1000,netdev=n1 \
+            |qemu_system| -hda linux.img -boot n -device e1000,netdev=n1 \\
                 -netdev user,id=n1,tftp=/path/to/tftp/files,bootfile=/pxelinux.0
 
     ``smb=dir[,smbserver=addr]``
@@ -2703,15 +2703,15 @@ SRST
 
         #launch a QEMU instance with two NICs, each one connected
         #to a TAP device
-        |qemu_system| linux.img \
-                -netdev tap,id=nd0,ifname=tap0 -device e1000,netdev=nd0 \
+        |qemu_system| linux.img \\
+                -netdev tap,id=nd0,ifname=tap0 -device e1000,netdev=nd0 \\
                 -netdev tap,id=nd1,ifname=tap1 -device rtl8139,netdev=nd1
 
     .. parsed-literal::
 
         #launch a QEMU instance with the default network helper to
         #connect a TAP device to bridge br0
-        |qemu_system| linux.img -device virtio-net-pci,netdev=n1 \
+        |qemu_system| linux.img -device virtio-net-pci,netdev=n1 \\
                 -netdev tap,id=n1,"helper=/path/to/qemu-bridge-helper"
 
 ``-netdev bridge,id=id[,br=bridge][,helper=helper]``
@@ -2749,12 +2749,12 @@ SRST
     .. parsed-literal::
 
         # launch a first QEMU instance
-        |qemu_system| linux.img \
-                         -device e1000,netdev=n1,mac=52:54:00:12:34:56 \
+        |qemu_system| linux.img \\
+                         -device e1000,netdev=n1,mac=52:54:00:12:34:56 \\
                          -netdev socket,id=n1,listen=:1234
         # connect the network of this instance to the network of the first instance
-        |qemu_system| linux.img \
-                         -device e1000,netdev=n2,mac=52:54:00:12:34:57 \
+        |qemu_system| linux.img \\
+                         -device e1000,netdev=n2,mac=52:54:00:12:34:57 \\
                          -netdev socket,id=n2,connect=127.0.0.1:1234
 
 ``-netdev socket,id=id[,fd=h][,mcast=maddr:port[,localaddr=addr]]``
@@ -2776,16 +2776,16 @@ SRST
     .. parsed-literal::
 
         # launch one QEMU instance
-        |qemu_system| linux.img \
-                         -device e1000,netdev=n1,mac=52:54:00:12:34:56 \
+        |qemu_system| linux.img \\
+                         -device e1000,netdev=n1,mac=52:54:00:12:34:56 \\
                          -netdev socket,id=n1,mcast=230.0.0.1:1234
         # launch another QEMU instance on same "bus"
-        |qemu_system| linux.img \
-                         -device e1000,netdev=n2,mac=52:54:00:12:34:57 \
+        |qemu_system| linux.img \\
+                         -device e1000,netdev=n2,mac=52:54:00:12:34:57 \\
                          -netdev socket,id=n2,mcast=230.0.0.1:1234
         # launch yet another QEMU instance on same "bus"
-        |qemu_system| linux.img \
-                         -device e1000,netdev=n3,mac=52:54:00:12:34:58 \
+        |qemu_system| linux.img \\
+                         -device e1000,netdev=n3,mac=52:54:00:12:34:58 \\
                          -netdev socket,id=n3,mcast=230.0.0.1:1234
 
     Example (User Mode Linux compat.):
@@ -2793,8 +2793,8 @@ SRST
     .. parsed-literal::
 
         # launch QEMU instance (note mcast address selected is UML's default)
-        |qemu_system| linux.img \
-                         -device e1000,netdev=n1,mac=52:54:00:12:34:56 \
+        |qemu_system| linux.img \\
+                         -device e1000,netdev=n1,mac=52:54:00:12:34:56 \\
                          -netdev socket,id=n1,mcast=239.192.168.1:1102
         # launch UML
         /path/to/linux ubd0=/path/to/root_fs eth0=mcast
@@ -2803,8 +2803,8 @@ SRST
 
     .. parsed-literal::
 
-        |qemu_system| linux.img \
-                         -device e1000,netdev=n1,mac=52:54:00:12:34:56 \
+        |qemu_system| linux.img \\
+                         -device e1000,netdev=n1,mac=52:54:00:12:34:56 \\
                          -netdev socket,id=n1,mcast=239.192.168.1:1102,localaddr=1.2.3.4
 
 ``-netdev l2tpv3,id=id,src=srcaddr,dst=dstaddr[,srcport=srcport][,dstport=dstport],txsession=txsession[,rxsession=rxsession][,ipv6][,udp][,cookie64][,counter][,pincounter][,txcookie=txcookie][,rxcookie=rxcookie][,offset=offset]``
@@ -2860,9 +2860,9 @@ SRST
 
         # Setup tunnel on linux host using raw ip as encapsulation
         # on 1.2.3.4
-        ip l2tp add tunnel remote 4.3.2.1 local 1.2.3.4 tunnel_id 1 peer_tunnel_id 1 \
+        ip l2tp add tunnel remote 4.3.2.1 local 1.2.3.4 tunnel_id 1 peer_tunnel_id 1 \\
             encap udp udp_sport 16384 udp_dport 16384
-        ip l2tp add session tunnel_id 1 name vmtunnel0 session_id \
+        ip l2tp add session tunnel_id 1 name vmtunnel0 session_id \\
             0xFFFFFFFF peer_session_id 0xFFFFFFFF
         ifconfig vmtunnel0 mtu 1500
         ifconfig vmtunnel0 up
@@ -2872,7 +2872,7 @@ SRST
         # on 4.3.2.1
         # launch QEMU instance - if your network has reorder or is very lossy add ,pincounter
 
-        |qemu_system| linux.img -device e1000,netdev=n1 \
+        |qemu_system| linux.img -device e1000,netdev=n1 \\
             -netdev l2tpv3,id=n1,src=4.2.3.1,dst=1.2.3.4,udp,srcport=16384,dstport=16384,rxsession=0xffffffff,txsession=0xffffffff,counter
 
 ``-netdev vde,id=id[,sock=socketpath][,port=n][,group=groupname][,mode=octalmode]``
@@ -4627,8 +4627,8 @@ SRST
 
         .. parsed-literal::
 
-             # |qemu_system| \
-                 -object tls-cipher-suites,id=mysuite0,priority=@SYSTEM \
+             # |qemu_system| \\
+                 -object tls-cipher-suites,id=mysuite0,priority=@SYSTEM \\
                  -fw_cfg name=etc/edk2/https/ciphers,gen_id=mysuite0
 
     ``-object filter-buffer,id=id,netdev=netdevid,interval=t[,queue=all|rx|tx][,status=on|off][,position=head|tail|id=<id>][,insert=behind|before]``
@@ -4791,10 +4791,10 @@ SRST
 
         .. parsed-literal::
 
-             # |qemu_system| \
-               [...] \
-                   -object cryptodev-backend-builtin,id=cryptodev0 \
-                   -device virtio-crypto-pci,id=crypto0,cryptodev=cryptodev0 \
+             # |qemu_system| \\
+               [...] \\
+                   -object cryptodev-backend-builtin,id=cryptodev0 \\
+                   -device virtio-crypto-pci,id=crypto0,cryptodev=cryptodev0 \\
                [...]
 
     ``-object cryptodev-vhost-user,id=id,chardev=chardevid[,queues=queues]``
@@ -4810,11 +4810,11 @@ SRST
 
         .. parsed-literal::
 
-             # |qemu_system| \
-               [...] \
-                   -chardev socket,id=chardev0,path=/path/to/socket \
-                   -object cryptodev-vhost-user,id=cryptodev0,chardev=chardev0 \
-                   -device virtio-crypto-pci,id=crypto0,cryptodev=cryptodev0 \
+             # |qemu_system| \\
+               [...] \\
+                   -chardev socket,id=chardev0,path=/path/to/socket \\
+                   -object cryptodev-vhost-user,id=cryptodev0,chardev=chardev0 \\
+                   -device virtio-crypto-pci,id=crypto0,cryptodev=cryptodev0 \\
                [...]
 
     ``-object secret,id=id,data=string,format=raw|base64[,keyid=secretid,iv=string]``
@@ -4892,9 +4892,9 @@ SRST
 
         .. parsed-literal::
 
-             # |qemu_system| \
-                 -object secret,id=secmaster0,format=base64,file=key.b64 \
-                 -object secret,id=sec0,keyid=secmaster0,format=base64,\
+             # |qemu_system| \\
+                 -object secret,id=secmaster0,format=base64,file=key.b64 \\
+                 -object secret,id=sec0,keyid=secmaster0,format=base64,\\
                      data=$SECRET,iv=$(<iv.b64)
 
     ``-object sev-guest,id=id,cbitpos=cbitpos,reduced-phys-bits=val,[sev-device=string,policy=policy,handle=handle,dh-cert-file=file,session-file=file]``
@@ -4941,10 +4941,10 @@ SRST
 
         .. parsed-literal::
 
-             # |qemu_system_x86| \
-                 ......
-                 -object sev-guest,id=sev0,cbitpos=47,reduced-phys-bits=5 \
-                 -machine ...,memory-encryption=sev0
+             # |qemu_system_x86| \\
+                 ...... \\
+                 -object sev-guest,id=sev0,cbitpos=47,reduced-phys-bits=5 \\
+                 -machine ...,memory-encryption=sev0 \\
                  .....
 
     ``-object authz-simple,id=id,identity=string``
@@ -4962,9 +4962,9 @@ SRST
 
         .. parsed-literal::
 
-             # |qemu_system| \
-                 ...
-                 -object 'authz-simple,id=auth0,identity=CN=laptop.example.com,,O=Example Org,,L=London,,ST=London,,C=GB' \
+             # |qemu_system| \\
+                 ... \\
+                 -object 'authz-simple,id=auth0,identity=CN=laptop.example.com,,O=Example Org,,L=London,,ST=London,,C=GB' \\
                  ...
 
         Note the use of quotes due to the x509 distinguished name
@@ -5013,9 +5013,9 @@ SRST
 
         .. parsed-literal::
 
-             # |qemu_system| \
-                 ...
-                 -object authz-simple,id=auth0,filename=/etc/qemu/vnc-sasl.acl,refresh=yes
+             # |qemu_system| \\
+                 ... \\
+                 -object authz-simple,id=auth0,filename=/etc/qemu/vnc-sasl.acl,refresh=yes \\
                  ...
 
     ``-object authz-pam,id=id,service=string``
@@ -5032,9 +5032,9 @@ SRST
 
         .. parsed-literal::
 
-             # |qemu_system| \
-                 ...
-                 -object authz-pam,id=auth0,service=qemu-vnc
+             # |qemu_system| \\
+                 ... \\
+                 -object authz-pam,id=auth0,service=qemu-vnc \\
                  ...
 
         There would then be a corresponding config file for PAM at

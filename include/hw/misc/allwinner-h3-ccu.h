@@ -42,15 +42,14 @@
  */
 
 #define TYPE_AW_H3_CCU    "allwinner-h3-ccu"
-#define AW_H3_CCU(obj) \
-    OBJECT_CHECK(AwH3ClockCtlState, (obj), TYPE_AW_H3_CCU)
+OBJECT_DECLARE_SIMPLE_TYPE(AwH3ClockCtlState, AW_H3_CCU)
 
 /** @} */
 
 /**
  * Allwinner H3 CCU object instance state.
  */
-typedef struct AwH3ClockCtlState {
+struct AwH3ClockCtlState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -61,6 +60,6 @@ typedef struct AwH3ClockCtlState {
     /** Array of hardware registers */
     uint32_t regs[AW_H3_CCU_REGS_NUM];
 
-} AwH3ClockCtlState;
+};
 
 #endif /* HW_MISC_ALLWINNER_H3_CCU_H */

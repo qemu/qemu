@@ -20,6 +20,7 @@
 #define ROCKER_H
 
 #include "qemu/sockets.h"
+#include "qom/object.h"
 
 #if defined(DEBUG_ROCKER)
 #  define DPRINTF(fmt, ...) \
@@ -72,8 +73,8 @@ typedef struct desc_ring DescRing;
 
 #define TYPE_ROCKER "rocker"
 typedef struct rocker Rocker;
-#define ROCKER(obj) \
-    OBJECT_CHECK(Rocker, (obj), TYPE_ROCKER)
+DECLARE_INSTANCE_CHECKER(Rocker, ROCKER,
+                         TYPE_ROCKER)
 
 Rocker *rocker_find(const char *name);
 uint32_t rocker_fp_ports(Rocker *r);

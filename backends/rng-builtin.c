@@ -9,13 +9,14 @@
 #include "sysemu/rng.h"
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
+#include "qom/object.h"
 
-#define RNG_BUILTIN(obj) OBJECT_CHECK(RngBuiltin, (obj), TYPE_RNG_BUILTIN)
+OBJECT_DECLARE_SIMPLE_TYPE(RngBuiltin, RNG_BUILTIN)
 
-typedef struct RngBuiltin {
+struct RngBuiltin {
     RngBackend parent;
     QEMUBH *bh;
-} RngBuiltin;
+};
 
 static void rng_builtin_receive_entropy_bh(void *opaque)
 {

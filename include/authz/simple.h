@@ -22,21 +22,13 @@
 #define QAUTHZ_SIMPLE_H
 
 #include "authz/base.h"
+#include "qom/object.h"
 
 #define TYPE_QAUTHZ_SIMPLE "authz-simple"
 
-#define QAUTHZ_SIMPLE_CLASS(klass)                        \
-    OBJECT_CLASS_CHECK(QAuthZSimpleClass, (klass),        \
-                       TYPE_QAUTHZ_SIMPLE)
-#define QAUTHZ_SIMPLE_GET_CLASS(obj)              \
-    OBJECT_GET_CLASS(QAuthZSimpleClass, (obj),    \
-                      TYPE_QAUTHZ_SIMPLE)
-#define QAUTHZ_SIMPLE(obj) \
-    OBJECT_CHECK(QAuthZSimple, (obj), \
-                 TYPE_QAUTHZ_SIMPLE)
+OBJECT_DECLARE_SIMPLE_TYPE(QAuthZSimple,
+                           QAUTHZ_SIMPLE)
 
-typedef struct QAuthZSimple QAuthZSimple;
-typedef struct QAuthZSimpleClass QAuthZSimpleClass;
 
 
 /**
@@ -70,9 +62,6 @@ struct QAuthZSimple {
 };
 
 
-struct QAuthZSimpleClass {
-    QAuthZClass parent_class;
-};
 
 
 QAuthZSimple *qauthz_simple_new(const char *id,

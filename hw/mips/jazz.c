@@ -309,7 +309,7 @@ static void mips_jazz_init(MachineState *machine,
 
     /* SCSI adapter */
     dev = qdev_new(TYPE_ESP);
-    sysbus_esp = ESP_STATE(dev);
+    sysbus_esp = ESP(dev);
     esp = &sysbus_esp->esp;
     esp->dma_memory_read = rc4030_dma_read;
     esp->dma_memory_write = rc4030_dma_write;

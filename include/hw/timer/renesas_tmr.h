@@ -11,9 +11,12 @@
 
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_RENESAS_TMR "renesas-tmr"
-#define RTMR(obj) OBJECT_CHECK(RTMRState, (obj), TYPE_RENESAS_TMR)
+typedef struct RTMRState RTMRState;
+DECLARE_INSTANCE_CHECKER(RTMRState, RTMR,
+                         TYPE_RENESAS_TMR)
 
 enum timer_event {
     cmia = 0,
@@ -28,7 +31,7 @@ enum {
     TMR_NR_IRQ = 3 * TMR_CH
 };
 
-typedef struct RTMRState {
+struct RTMRState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -50,6 +53,6 @@ typedef struct RTMRState {
     qemu_irq cmib[TMR_CH];
     qemu_irq ovi[TMR_CH];
     QEMUTimer timer[TMR_CH];
-} RTMRState;
+};
 
 #endif

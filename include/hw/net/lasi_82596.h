@@ -10,18 +10,20 @@
 
 #include "net/net.h"
 #include "hw/net/i82596.h"
+#include "qom/object.h"
 
 #define TYPE_LASI_82596 "lasi_82596"
-#define SYSBUS_I82596(obj) \
-    OBJECT_CHECK(SysBusI82596State, (obj), TYPE_LASI_82596)
+typedef struct SysBusI82596State SysBusI82596State;
+DECLARE_INSTANCE_CHECKER(SysBusI82596State, SYSBUS_I82596,
+                         TYPE_LASI_82596)
 
-typedef struct {
+struct SysBusI82596State {
     SysBusDevice parent_obj;
 
     I82596State state;
     uint16_t last_val;
     int val_index:1;
-} SysBusI82596State;
+};
 
 SysBusI82596State *lasi_82596_init(MemoryRegion *addr_space,
                                     hwaddr hpa, qemu_irq irq);

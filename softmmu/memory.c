@@ -24,7 +24,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/qemu-print.h"
 #include "qom/object.h"
-#include "trace/trace-root.h"
+#include "trace.h"
 
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"

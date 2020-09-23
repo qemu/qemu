@@ -27,6 +27,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "virtio-pci.h"
+#include "qom/object.h"
 
 typedef struct VHostUserBlkPCI VHostUserBlkPCI;
 
@@ -34,8 +35,8 @@ typedef struct VHostUserBlkPCI VHostUserBlkPCI;
  * vhost-user-blk-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VHOST_USER_BLK_PCI "vhost-user-blk-pci-base"
-#define VHOST_USER_BLK_PCI(obj) \
-        OBJECT_CHECK(VHostUserBlkPCI, (obj), TYPE_VHOST_USER_BLK_PCI)
+DECLARE_INSTANCE_CHECKER(VHostUserBlkPCI, VHOST_USER_BLK_PCI,
+                         TYPE_VHOST_USER_BLK_PCI)
 
 struct VHostUserBlkPCI {
     VirtIOPCIProxy parent_obj;

@@ -29,20 +29,19 @@
 #include "kvm_arm.h"
 #include "gic_internal.h"
 #include "vgic_common.h"
+#include "qom/object.h"
 
 #define TYPE_KVM_ARM_GIC "kvm-arm-gic"
-#define KVM_ARM_GIC(obj) \
-     OBJECT_CHECK(GICState, (obj), TYPE_KVM_ARM_GIC)
-#define KVM_ARM_GIC_CLASS(klass) \
-     OBJECT_CLASS_CHECK(KVMARMGICClass, (klass), TYPE_KVM_ARM_GIC)
-#define KVM_ARM_GIC_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(KVMARMGICClass, (obj), TYPE_KVM_ARM_GIC)
+typedef struct KVMARMGICClass KVMARMGICClass;
+/* This is reusing the GICState typedef from ARM_GIC_COMMON */
+DECLARE_OBJ_CHECKERS(GICState, KVMARMGICClass,
+                     KVM_ARM_GIC, TYPE_KVM_ARM_GIC)
 
-typedef struct KVMARMGICClass {
+struct KVMARMGICClass {
     ARMGICCommonClass parent_class;
     DeviceRealize parent_realize;
     void (*parent_reset)(DeviceState *dev);
-} KVMARMGICClass;
+};
 
 void kvm_arm_gic_set_irq(uint32_t num_irq, int irq, int level)
 {

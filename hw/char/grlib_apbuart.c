@@ -31,6 +31,7 @@
 #include "chardev/char-fe.h"
 
 #include "trace.h"
+#include "qom/object.h"
 
 #define UART_REG_SIZE 20     /* Size of memory mapped registers */
 
@@ -72,10 +73,9 @@
 
 #define FIFO_LENGTH 1024
 
-#define GRLIB_APB_UART(obj) \
-    OBJECT_CHECK(UART, (obj), TYPE_GRLIB_APB_UART)
+OBJECT_DECLARE_SIMPLE_TYPE(UART, GRLIB_APB_UART)
 
-typedef struct UART {
+struct UART {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -91,7 +91,7 @@ typedef struct UART {
     char buffer[FIFO_LENGTH];
     int  len;
     int  current;
-} UART;
+};
 
 static int uart_data_to_read(UART *uart)
 {

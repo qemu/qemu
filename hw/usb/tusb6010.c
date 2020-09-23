@@ -28,11 +28,12 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_TUSB6010 "tusb6010"
-#define TUSB(obj) OBJECT_CHECK(TUSBState, (obj), TYPE_TUSB6010)
+OBJECT_DECLARE_SIMPLE_TYPE(TUSBState, TUSB6010)
 
-typedef struct TUSBState {
+struct TUSBState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem[2];
@@ -68,7 +69,7 @@ typedef struct TUSBState {
     uint32_t pullup[2];
     uint32_t control_config;
     uint32_t otg_timer_val;
-} TUSBState;
+};
 
 #define TUSB_DEVCLOCK			60000000	/* 60 MHz */
 
@@ -776,7 +777,7 @@ static void tusb6010_irq(void *opaque, int source, int level)
 
 static void tusb6010_reset(DeviceState *dev)
 {
-    TUSBState *s = TUSB(dev);
+    TUSBState *s = TUSB6010(dev);
     int i;
 
     s->test_reset = TUSB_PROD_TEST_RESET_VAL;
@@ -812,7 +813,7 @@ static void tusb6010_reset(DeviceState *dev)
 
 static void tusb6010_realize(DeviceState *dev, Error **errp)
 {
-    TUSBState *s = TUSB(dev);
+    TUSBState *s = TUSB6010(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     s->otg_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, tusb_otg_tick, s);

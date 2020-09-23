@@ -24,11 +24,12 @@
 #define HW_MISC_ARMSSE_MHU_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_ARMSSE_MHU "armsse-mhu"
-#define ARMSSE_MHU(obj) OBJECT_CHECK(ARMSSEMHU, (obj), TYPE_ARMSSE_MHU)
+OBJECT_DECLARE_SIMPLE_TYPE(ARMSSEMHU, ARMSSE_MHU)
 
-typedef struct ARMSSEMHU {
+struct ARMSSEMHU {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -39,6 +40,6 @@ typedef struct ARMSSEMHU {
 
     uint32_t cpu0intr;
     uint32_t cpu1intr;
-} ARMSSEMHU;
+};
 
 #endif

@@ -19,6 +19,7 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "qemu/module.h"
 #include "virtio-pci.h"
+#include "qom/object.h"
 
 typedef struct VirtIOSCSIPCI VirtIOSCSIPCI;
 
@@ -26,8 +27,8 @@ typedef struct VirtIOSCSIPCI VirtIOSCSIPCI;
  * virtio-scsi-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VIRTIO_SCSI_PCI "virtio-scsi-pci-base"
-#define VIRTIO_SCSI_PCI(obj) \
-        OBJECT_CHECK(VirtIOSCSIPCI, (obj), TYPE_VIRTIO_SCSI_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIOSCSIPCI, VIRTIO_SCSI_PCI,
+                         TYPE_VIRTIO_SCSI_PCI)
 
 struct VirtIOSCSIPCI {
     VirtIOPCIProxy parent_obj;

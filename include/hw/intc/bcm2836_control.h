@@ -17,16 +17,16 @@
 
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
+#include "qom/object.h"
 
 /* 4 mailboxes per core, for 16 total */
 #define BCM2836_NCORES 4
 #define BCM2836_MBPERCORE 4
 
 #define TYPE_BCM2836_CONTROL "bcm2836-control"
-#define BCM2836_CONTROL(obj) \
-    OBJECT_CHECK(BCM2836ControlState, (obj), TYPE_BCM2836_CONTROL)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2836ControlState, BCM2836_CONTROL)
 
-typedef struct BCM2836ControlState {
+struct BCM2836ControlState {
     /*< private >*/
     SysBusDevice busdev;
     /*< public >*/
@@ -56,6 +56,6 @@ typedef struct BCM2836ControlState {
     /* outputs to CPU cores */
     qemu_irq irq[BCM2836_NCORES];
     qemu_irq fiq[BCM2836_NCORES];
-} BCM2836ControlState;
+};
 
 #endif

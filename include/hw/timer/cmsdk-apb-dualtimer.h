@@ -28,12 +28,11 @@
 
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
+#include "qom/object.h"
 
 #define TYPE_CMSDK_APB_DUALTIMER "cmsdk-apb-dualtimer"
-#define CMSDK_APB_DUALTIMER(obj) OBJECT_CHECK(CMSDKAPBDualTimer, (obj), \
-                                              TYPE_CMSDK_APB_DUALTIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(CMSDKAPBDualTimer, CMSDK_APB_DUALTIMER)
 
-typedef struct CMSDKAPBDualTimer CMSDKAPBDualTimer;
 
 /* One of the two identical timer modules in the dual-timer module */
 typedef struct CMSDKAPBDualTimerModule {

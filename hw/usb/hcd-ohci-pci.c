@@ -29,11 +29,12 @@
 #include "hw/qdev-properties.h"
 #include "trace.h"
 #include "hcd-ohci.h"
+#include "qom/object.h"
 
 #define TYPE_PCI_OHCI "pci-ohci"
-#define PCI_OHCI(obj) OBJECT_CHECK(OHCIPCIState, (obj), TYPE_PCI_OHCI)
+OBJECT_DECLARE_SIMPLE_TYPE(OHCIPCIState, PCI_OHCI)
 
-typedef struct {
+struct OHCIPCIState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -42,7 +43,7 @@ typedef struct {
     char *masterbus;
     uint32_t num_ports;
     uint32_t firstport;
-} OHCIPCIState;
+};
 
 /**
  * A typical PCI OHCI will additionally set PERR in its configspace to

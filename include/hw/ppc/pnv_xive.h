@@ -11,15 +11,13 @@
 #define PPC_PNV_XIVE_H
 
 #include "hw/ppc/xive.h"
+#include "qom/object.h"
 
 struct PnvChip;
 
 #define TYPE_PNV_XIVE "pnv-xive"
-#define PNV_XIVE(obj) OBJECT_CHECK(PnvXive, (obj), TYPE_PNV_XIVE)
-#define PNV_XIVE_CLASS(klass)                                   \
-    OBJECT_CLASS_CHECK(PnvXiveClass, (klass), TYPE_PNV_XIVE)
-#define PNV_XIVE_GET_CLASS(obj)                                 \
-    OBJECT_GET_CLASS(PnvXiveClass, (obj), TYPE_PNV_XIVE)
+OBJECT_DECLARE_TYPE(PnvXive, PnvXiveClass,
+                    PNV_XIVE)
 
 #define XIVE_BLOCK_MAX      16
 
@@ -28,7 +26,7 @@ struct PnvChip;
 #define XIVE_TABLE_VDT_MAX  16  /* VDT Domain Table (0-15) */
 #define XIVE_TABLE_EDT_MAX  64  /* EDT Domain Table (0-63) */
 
-typedef struct PnvXive {
+struct PnvXive {
     XiveRouter    parent_obj;
 
     /* Owning chip */
@@ -87,13 +85,13 @@ typedef struct PnvXive {
     uint64_t      mig[XIVE_TABLE_MIG_MAX];
     uint64_t      vdt[XIVE_TABLE_VDT_MAX];
     uint64_t      edt[XIVE_TABLE_EDT_MAX];
-} PnvXive;
+};
 
-typedef struct PnvXiveClass {
+struct PnvXiveClass {
     XiveRouterClass parent_class;
 
     DeviceRealize parent_realize;
-} PnvXiveClass;
+};
 
 void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon);
 

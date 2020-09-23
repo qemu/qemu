@@ -3,6 +3,7 @@
 
 #include "hw/sysbus.h"
 #include "qemu/bitops.h"
+#include "qom/object.h"
 
 enum IMXUsbPhyRegisters {
     USBPHY_PWD,
@@ -38,9 +39,9 @@ enum IMXUsbPhyRegisters {
 #define USBPHY_CTRL_SFTRST BIT(31)
 
 #define TYPE_IMX_USBPHY "imx.usbphy"
-#define IMX_USBPHY(obj) OBJECT_CHECK(IMXUSBPHYState, (obj), TYPE_IMX_USBPHY)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXUSBPHYState, IMX_USBPHY)
 
-typedef struct IMXUSBPHYState {
+struct IMXUSBPHYState {
     /* <private> */
     SysBusDevice parent_obj;
 
@@ -48,6 +49,6 @@ typedef struct IMXUSBPHYState {
     MemoryRegion iomem;
 
     uint32_t usbphy[USBPHY_MAX];
-} IMXUSBPHYState;
+};
 
 #endif /* IMX_USB_PHY_H */

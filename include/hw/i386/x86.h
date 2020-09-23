@@ -26,8 +26,9 @@
 #include "hw/nmi.h"
 #include "hw/isa/isa.h"
 #include "hw/i386/ioapic.h"
+#include "qom/object.h"
 
-typedef struct {
+struct X86MachineClass {
     /*< private >*/
     MachineClass parent;
 
@@ -37,9 +38,9 @@ typedef struct {
     bool save_tsc_khz;
     /* Enables contiguous-apic-ID mode */
     bool compat_apic_id_mode;
-} X86MachineClass;
+};
 
-typedef struct {
+struct X86MachineState {
     /*< private >*/
     MachineState parent;
 
@@ -50,6 +51,7 @@ typedef struct {
     FWCfgState *fw_cfg;
     qemu_irq *gsi;
     GMappedFile *initrd_mapped_file;
+    HotplugHandler *acpi_dev;
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
@@ -68,18 +70,13 @@ typedef struct {
      * will be translated to MSI messages in the address space.
      */
     AddressSpace *ioapic_as;
-} X86MachineState;
+};
 
 #define X86_MACHINE_SMM              "smm"
 #define X86_MACHINE_ACPI             "acpi"
 
 #define TYPE_X86_MACHINE   MACHINE_TYPE_NAME("x86")
-#define X86_MACHINE(obj) \
-    OBJECT_CHECK(X86MachineState, (obj), TYPE_X86_MACHINE)
-#define X86_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(X86MachineClass, obj, TYPE_X86_MACHINE)
-#define X86_MACHINE_CLASS(class) \
-    OBJECT_CLASS_CHECK(X86MachineClass, class, TYPE_X86_MACHINE)
+OBJECT_DECLARE_TYPE(X86MachineState, X86MachineClass, X86_MACHINE)
 
 void init_topo_info(X86CPUTopoInfo *topo_info, const X86MachineState *x86ms);
 
@@ -92,6 +89,16 @@ CpuInstanceProperties x86_cpu_index_to_props(MachineState *ms,
                                              unsigned cpu_index);
 int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx);
 const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms);
+CPUArchId *x86_find_cpu_slot(MachineState *ms, uint32_t id, int *idx);
+void x86_rtc_set_cpus_count(ISADevice *rtc, uint16_t cpus_count);
+void x86_cpu_pre_plug(HotplugHandler *hotplug_dev,
+                      DeviceState *dev, Error **errp);
+void x86_cpu_plug(HotplugHandler *hotplug_dev,
+                  DeviceState *dev, Error **errp);
+void x86_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
+                               DeviceState *dev, Error **errp);
+void x86_cpu_unplug_cb(HotplugHandler *hotplug_dev,
+                       DeviceState *dev, Error **errp);
 
 void x86_bios_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw);
 
@@ -101,8 +108,8 @@ void x86_load_linux(X86MachineState *x86ms,
                     bool pvh_enabled,
                     bool linuxboot_dma_enabled);
 
-bool x86_machine_is_smm_enabled(X86MachineState *x86ms);
-bool x86_machine_is_acpi_enabled(X86MachineState *x86ms);
+bool x86_machine_is_smm_enabled(const X86MachineState *x86ms);
+bool x86_machine_is_acpi_enabled(const X86MachineState *x86ms);
 
 /* Global System Interrupts */
 

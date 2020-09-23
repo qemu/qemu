@@ -32,17 +32,18 @@
 #include "qemu/timer.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
+#include "qom/object.h"
 
 #define TYPE_ISA_VGA "isa-vga"
-#define ISA_VGA(obj) OBJECT_CHECK(ISAVGAState, (obj), TYPE_ISA_VGA)
+OBJECT_DECLARE_SIMPLE_TYPE(ISAVGAState, ISA_VGA)
 
-typedef struct ISAVGAState {
+struct ISAVGAState {
     ISADevice parent_obj;
 
     struct VGACommonState state;
     PortioList portio_vga;
     PortioList portio_vbe;
-} ISAVGAState;
+};
 
 static void vga_isa_reset(DeviceState *dev)
 {

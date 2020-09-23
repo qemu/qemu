@@ -14,18 +14,21 @@
 
 #include "hw/qdev-core.h"
 #include "standard-headers/linux/qemu_fw_cfg.h"
+#include "qom/object.h"
 
 #define VMCOREINFO_DEVICE "vmcoreinfo"
-#define VMCOREINFO(obj) OBJECT_CHECK(VMCoreInfoState, (obj), VMCOREINFO_DEVICE)
+typedef struct VMCoreInfoState VMCoreInfoState;
+DECLARE_INSTANCE_CHECKER(VMCoreInfoState, VMCOREINFO,
+                         VMCOREINFO_DEVICE)
 
 typedef struct fw_cfg_vmcoreinfo FWCfgVMCoreInfo;
 
-typedef struct VMCoreInfoState {
+struct VMCoreInfoState {
     DeviceClass parent_obj;
 
     bool has_vmcoreinfo;
     FWCfgVMCoreInfo vmcoreinfo;
-} VMCoreInfoState;
+};
 
 /* returns NULL unless there is exactly one device */
 static inline VMCoreInfoState *vmcoreinfo_find(void)

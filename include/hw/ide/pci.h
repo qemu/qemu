@@ -3,6 +3,7 @@
 
 #include "hw/ide/internal.h"
 #include "hw/pci/pci.h"
+#include "qom/object.h"
 
 #define BM_STATUS_DMAING 0x01
 #define BM_STATUS_ERROR  0x02
@@ -39,9 +40,9 @@ typedef struct BMDMAState {
 } BMDMAState;
 
 #define TYPE_PCI_IDE "pci-ide"
-#define PCI_IDE(obj) OBJECT_CHECK(PCIIDEState, (obj), TYPE_PCI_IDE)
+OBJECT_DECLARE_SIMPLE_TYPE(PCIIDEState, PCI_IDE)
 
-typedef struct PCIIDEState {
+struct PCIIDEState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -52,7 +53,7 @@ typedef struct PCIIDEState {
     MemoryRegion bmdma_bar;
     MemoryRegion cmd_bar[2];
     MemoryRegion data_bar[2];
-} PCIIDEState;
+};
 
 static inline IDEState *bmdma_active_if(BMDMAState *bmdma)
 {

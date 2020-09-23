@@ -26,19 +26,14 @@
 #define HW_SMBUS_SLAVE_H
 
 #include "hw/i2c/i2c.h"
+#include "qom/object.h"
 
 #define TYPE_SMBUS_DEVICE "smbus-device"
-#define SMBUS_DEVICE(obj) \
-     OBJECT_CHECK(SMBusDevice, (obj), TYPE_SMBUS_DEVICE)
-#define SMBUS_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SMBusDeviceClass, (klass), TYPE_SMBUS_DEVICE)
-#define SMBUS_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SMBusDeviceClass, (obj), TYPE_SMBUS_DEVICE)
+OBJECT_DECLARE_TYPE(SMBusDevice, SMBusDeviceClass,
+                    SMBUS_DEVICE)
 
-typedef struct SMBusDevice SMBusDevice;
 
-typedef struct SMBusDeviceClass
-{
+struct SMBusDeviceClass {
     I2CSlaveClass parent_class;
 
     /*
@@ -67,7 +62,7 @@ typedef struct SMBusDeviceClass
      * return 0xff in that case.
      */
     uint8_t (*receive_byte)(SMBusDevice *dev);
-} SMBusDeviceClass;
+};
 
 #define SMBUS_DATA_MAX_LEN 34  /* command + len + 32 bytes of data.  */
 

@@ -20,10 +20,10 @@
 
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
+#include "qom/object.h"
 
 #define TYPE_DIGIC_UART "digic-uart"
-#define DIGIC_UART(obj) \
-    OBJECT_CHECK(DigicUartState, (obj), TYPE_DIGIC_UART)
+OBJECT_DECLARE_SIMPLE_TYPE(DigicUartState, DIGIC_UART)
 
 enum {
     R_TX = 0x00,
@@ -32,7 +32,7 @@ enum {
     R_MAX
 };
 
-typedef struct DigicUartState {
+struct DigicUartState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -42,6 +42,6 @@ typedef struct DigicUartState {
 
     uint32_t reg_rx;
     uint32_t reg_st;
-} DigicUartState;
+};
 
 #endif /* HW_CHAR_DIGIC_UART_H */

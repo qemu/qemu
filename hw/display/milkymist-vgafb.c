@@ -32,6 +32,7 @@
 #include "ui/pixel_ops.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define BITS 8
 #include "migration/vmstate.h"
@@ -68,8 +69,7 @@ enum {
 };
 
 #define TYPE_MILKYMIST_VGAFB "milkymist-vgafb"
-#define MILKYMIST_VGAFB(obj) \
-    OBJECT_CHECK(MilkymistVgafbState, (obj), TYPE_MILKYMIST_VGAFB)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistVgafbState, MILKYMIST_VGAFB)
 
 struct MilkymistVgafbState {
     SysBusDevice parent_obj;
@@ -84,7 +84,6 @@ struct MilkymistVgafbState {
 
     uint32_t regs[R_MAX];
 };
-typedef struct MilkymistVgafbState MilkymistVgafbState;
 
 static int vgafb_enabled(MilkymistVgafbState *s)
 {

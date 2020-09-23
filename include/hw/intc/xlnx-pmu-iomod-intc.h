@@ -27,16 +27,16 @@
 
 #include "hw/sysbus.h"
 #include "hw/register.h"
+#include "qom/object.h"
 
 #define TYPE_XLNX_PMU_IO_INTC "xlnx.pmu_io_intc"
 
-#define XLNX_PMU_IO_INTC(obj) \
-     OBJECT_CHECK(XlnxPMUIOIntc, (obj), TYPE_XLNX_PMU_IO_INTC)
+OBJECT_DECLARE_SIMPLE_TYPE(XlnxPMUIOIntc, XLNX_PMU_IO_INTC)
 
 /* This is R_PIT3_CONTROL + 1 */
 #define XLNXPMUIOINTC_R_MAX (0x78 + 1)
 
-typedef struct XlnxPMUIOIntc {
+struct XlnxPMUIOIntc {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
 
@@ -52,6 +52,6 @@ typedef struct XlnxPMUIOIntc {
 
     uint32_t regs[XLNXPMUIOINTC_R_MAX];
     RegisterInfo regs_info[XLNXPMUIOINTC_R_MAX];
-} XlnxPMUIOIntc;
+};
 
 #endif /* HW_INTC_XLNX_PMU_IOMOD_INTC_H */

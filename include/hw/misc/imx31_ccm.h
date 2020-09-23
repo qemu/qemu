@@ -12,6 +12,7 @@
 #define IMX31_CCM_H
 
 #include "hw/misc/imx_ccm.h"
+#include "qom/object.h"
 
 #define IMX31_CCM_CCMR_REG  0
 #define IMX31_CCM_PDR0_REG  1
@@ -72,9 +73,9 @@
                              PDR0_##name##_PODF_SHIFT)
 
 #define TYPE_IMX31_CCM "imx31.ccm"
-#define IMX31_CCM(obj) OBJECT_CHECK(IMX31CCMState, (obj), TYPE_IMX31_CCM)
+OBJECT_DECLARE_SIMPLE_TYPE(IMX31CCMState, IMX31_CCM)
 
-typedef struct IMX31CCMState {
+struct IMX31CCMState {
     /* <private> */
     IMXCCMState parent_obj;
 
@@ -83,6 +84,6 @@ typedef struct IMX31CCMState {
 
     uint32_t reg[IMX31_CCM_MAX_REG];
 
-} IMX31CCMState;
+};
 
 #endif /* IMX31_CCM_H */

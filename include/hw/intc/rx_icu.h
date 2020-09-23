@@ -22,6 +22,7 @@
 #define HW_INTC_RX_ICU_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 enum TRG_MODE {
     TRG_LEVEL = 0,
@@ -68,9 +69,8 @@ struct RXICUState {
     qemu_irq _fir;
     qemu_irq _swi;
 };
-typedef struct RXICUState RXICUState;
 
 #define TYPE_RX_ICU "rx-icu"
-#define RX_ICU(obj) OBJECT_CHECK(RXICUState, (obj), TYPE_RX_ICU)
+OBJECT_DECLARE_SIMPLE_TYPE(RXICUState, RX_ICU)
 
 #endif /* RX_ICU_H */

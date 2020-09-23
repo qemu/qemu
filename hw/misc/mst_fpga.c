@@ -16,6 +16,7 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 /* Mainstone FPGA for extern irqs */
 #define FPGA_GPIO_PIN	0
@@ -40,10 +41,9 @@
 #define MST_PCMCIA_CD1_IRQ	13
 
 #define TYPE_MAINSTONE_FPGA "mainstone-fpga"
-#define MAINSTONE_FPGA(obj) \
-    OBJECT_CHECK(mst_irq_state, (obj), TYPE_MAINSTONE_FPGA)
+OBJECT_DECLARE_SIMPLE_TYPE(mst_irq_state, MAINSTONE_FPGA)
 
-typedef struct mst_irq_state{
+struct mst_irq_state {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -63,7 +63,7 @@ typedef struct mst_irq_state{
     uint32_t intsetclr;
     uint32_t pcmcia0;
     uint32_t pcmcia1;
-}mst_irq_state;
+};
 
 static void
 mst_fpga_set_irq(void *opaque, int irq, int level)

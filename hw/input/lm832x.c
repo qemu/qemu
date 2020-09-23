@@ -25,11 +25,12 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "ui/console.h"
+#include "qom/object.h"
 
 #define TYPE_LM8323 "lm8323"
-#define LM8323(obj) OBJECT_CHECK(LM823KbdState, (obj), TYPE_LM8323)
+OBJECT_DECLARE_SIMPLE_TYPE(LM823KbdState, LM8323)
 
-typedef struct {
+struct LM823KbdState {
     I2CSlave parent_obj;
 
     uint8_t i2c_dir;
@@ -72,7 +73,7 @@ typedef struct {
         uint8_t addr[3];
         QEMUTimer *tm[3];
     } pwm;
-} LM823KbdState;
+};
 
 #define INT_KEYPAD		(1 << 0)
 #define INT_ERROR		(1 << 3)

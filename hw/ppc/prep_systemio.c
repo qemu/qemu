@@ -28,6 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "exec/address-spaces.h"
+#include "qom/object.h"
 #include "qemu/error-report.h" /* for error_report() */
 #include "qemu/module.h"
 #include "sysemu/runstate.h"
@@ -35,13 +36,12 @@
 #include "trace.h"
 
 #define TYPE_PREP_SYSTEMIO "prep-systemio"
-#define PREP_SYSTEMIO(obj) \
-    OBJECT_CHECK(PrepSystemIoState, (obj), TYPE_PREP_SYSTEMIO)
+OBJECT_DECLARE_SIMPLE_TYPE(PrepSystemIoState, PREP_SYSTEMIO)
 
 /* Bit as defined in PowerPC Reference Plaform v1.1, sect. 6.1.5, p. 132 */
 #define PREP_BIT(n) (1 << (7 - (n)))
 
-typedef struct PrepSystemIoState {
+struct PrepSystemIoState {
     ISADevice parent_obj;
     MemoryRegion ppc_parity_mem;
 
@@ -53,7 +53,7 @@ typedef struct PrepSystemIoState {
     uint8_t ibm_planar_id; /* 0x0852 */
     qemu_irq softreset_irq;
     PortioList portio;
-} PrepSystemIoState;
+};
 
 /* PORT 0092 -- Special Port 92 (Read/Write) */
 

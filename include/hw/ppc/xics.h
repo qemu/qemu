@@ -30,6 +30,7 @@
 
 #include "exec/memory.h"
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 #define XICS_IPI        0x2
 #define XICS_BUID       0x1
@@ -40,8 +41,6 @@
  * (the kernel implementation supports more but we don't exploit
  *  that yet)
  */
-typedef struct ICPStateClass ICPStateClass;
-typedef struct ICPState ICPState;
 typedef struct PnvICPState PnvICPState;
 typedef struct ICSStateClass ICSStateClass;
 typedef struct ICSState ICSState;
@@ -49,15 +48,13 @@ typedef struct ICSIRQState ICSIRQState;
 typedef struct XICSFabric XICSFabric;
 
 #define TYPE_ICP "icp"
-#define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)
+OBJECT_DECLARE_TYPE(ICPState, ICPStateClass,
+                    ICP)
 
 #define TYPE_PNV_ICP "pnv-icp"
-#define PNV_ICP(obj) OBJECT_CHECK(PnvICPState, (obj), TYPE_PNV_ICP)
+DECLARE_INSTANCE_CHECKER(PnvICPState, PNV_ICP,
+                         TYPE_PNV_ICP)
 
-#define ICP_CLASS(klass) \
-     OBJECT_CLASS_CHECK(ICPStateClass, (klass), TYPE_ICP)
-#define ICP_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(ICPStateClass, (obj), TYPE_ICP)
 
 struct ICPStateClass {
     DeviceClass parent_class;
@@ -90,12 +87,9 @@ struct PnvICPState {
 };
 
 #define TYPE_ICS "ics"
-#define ICS(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS)
+DECLARE_OBJ_CHECKERS(ICSState, ICSStateClass,
+                     ICS, TYPE_ICS)
 
-#define ICS_CLASS(klass) \
-     OBJECT_CLASS_CHECK(ICSStateClass, (klass), TYPE_ICS)
-#define ICS_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(ICSStateClass, (obj), TYPE_ICS)
 
 struct ICSStateClass {
     DeviceClass parent_class;
@@ -145,17 +139,16 @@ struct ICSIRQState {
 #define TYPE_XICS_FABRIC "xics-fabric"
 #define XICS_FABRIC(obj)                                     \
     INTERFACE_CHECK(XICSFabric, (obj), TYPE_XICS_FABRIC)
-#define XICS_FABRIC_CLASS(klass)                                     \
-    OBJECT_CLASS_CHECK(XICSFabricClass, (klass), TYPE_XICS_FABRIC)
-#define XICS_FABRIC_GET_CLASS(obj)                                   \
-    OBJECT_GET_CLASS(XICSFabricClass, (obj), TYPE_XICS_FABRIC)
+typedef struct XICSFabricClass XICSFabricClass;
+DECLARE_CLASS_CHECKERS(XICSFabricClass, XICS_FABRIC,
+                       TYPE_XICS_FABRIC)
 
-typedef struct XICSFabricClass {
+struct XICSFabricClass {
     InterfaceClass parent;
     ICSState *(*ics_get)(XICSFabric *xi, int irq);
     void (*ics_resend)(XICSFabric *xi);
     ICPState *(*icp_get)(XICSFabric *xi, int server);
-} XICSFabricClass;
+};
 
 ICPState *xics_icp_get(XICSFabric *xi, int server);
 

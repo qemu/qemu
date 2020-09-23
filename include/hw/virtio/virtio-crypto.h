@@ -18,6 +18,7 @@
 #include "hw/virtio/virtio.h"
 #include "sysemu/iothread.h"
 #include "sysemu/cryptodev.h"
+#include "qom/object.h"
 
 
 #define DEBUG_VIRTIO_CRYPTO 0
@@ -31,8 +32,7 @@ do { \
 
 
 #define TYPE_VIRTIO_CRYPTO "virtio-crypto-device"
-#define VIRTIO_CRYPTO(obj) \
-        OBJECT_CHECK(VirtIOCrypto, (obj), TYPE_VIRTIO_CRYPTO)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOCrypto, VIRTIO_CRYPTO)
 #define VIRTIO_CRYPTO_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_CRYPTO)
 
@@ -82,7 +82,7 @@ typedef struct VirtIOCryptoQueue {
     struct VirtIOCrypto *vcrypto;
 } VirtIOCryptoQueue;
 
-typedef struct VirtIOCrypto {
+struct VirtIOCrypto {
     VirtIODevice parent_obj;
 
     VirtQueue *ctrl_vq;
@@ -97,6 +97,6 @@ typedef struct VirtIOCrypto {
     uint32_t curr_queues;
     size_t config_size;
     uint8_t vhost_started;
-} VirtIOCrypto;
+};
 
 #endif /* QEMU_VIRTIO_CRYPTO_H */

@@ -20,6 +20,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/qdev-properties.h"
 #include "hw/misc/pvpanic.h"
+#include "qom/object.h"
 
 /* The bit of supported pv event, TODO: include uapi header and remove this */
 #define PVPANIC_F_PANICKED      0
@@ -29,8 +30,9 @@
 #define PVPANIC_PANICKED        (1 << PVPANIC_F_PANICKED)
 #define PVPANIC_CRASHLOADED     (1 << PVPANIC_F_CRASHLOADED)
 
-#define ISA_PVPANIC_DEVICE(obj)    \
-    OBJECT_CHECK(PVPanicState, (obj), TYPE_PVPANIC)
+typedef struct PVPanicState PVPanicState;
+DECLARE_INSTANCE_CHECKER(PVPanicState, ISA_PVPANIC_DEVICE,
+                         TYPE_PVPANIC)
 
 static void handle_event(int event)
 {
@@ -54,12 +56,12 @@ static void handle_event(int event)
 
 #include "hw/isa/isa.h"
 
-typedef struct PVPanicState {
+struct PVPanicState {
     ISADevice parent_obj;
 
     MemoryRegion io;
     uint16_t ioport;
-} PVPanicState;
+};
 
 /* return supported events on read */
 static uint64_t pvpanic_ioport_read(void *opaque, hwaddr addr, unsigned size)

@@ -15,6 +15,7 @@
 #include "hw/virtio/virtio-rng.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 typedef struct VirtIORngPCI VirtIORngPCI;
 
@@ -22,8 +23,8 @@ typedef struct VirtIORngPCI VirtIORngPCI;
  * virtio-rng-pci: This extends VirtioPCIProxy.
  */
 #define TYPE_VIRTIO_RNG_PCI "virtio-rng-pci-base"
-#define VIRTIO_RNG_PCI(obj) \
-        OBJECT_CHECK(VirtIORngPCI, (obj), TYPE_VIRTIO_RNG_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIORngPCI, VIRTIO_RNG_PCI,
+                         TYPE_VIRTIO_RNG_PCI)
 
 struct VirtIORngPCI {
     VirtIOPCIProxy parent_obj;

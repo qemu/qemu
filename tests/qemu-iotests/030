@@ -21,6 +21,7 @@
 import time
 import os
 import iotests
+import unittest
 from iotests import qemu_img, qemu_io
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
@@ -228,6 +229,7 @@ class TestParallelOps(iotests.QMPTestCase):
 
     # Test that it's possible to run several block-stream operations
     # in parallel in the same snapshot chain
+    @unittest.skipIf(os.environ.get('QEMU_CHECK_BLOCK_AUTO'), 'disabled in CI')
     def test_stream_parallel(self):
         self.assert_no_active_block_jobs()
 

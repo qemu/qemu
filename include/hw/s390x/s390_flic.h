@@ -17,6 +17,7 @@
 #include "hw/s390x/adapter.h"
 #include "hw/virtio/virtio.h"
 #include "qemu/queue.h"
+#include "qom/object.h"
 
 /*
  * Reserve enough gsis to accommodate all virtio devices.
@@ -38,22 +39,18 @@ extern const VMStateDescription vmstate_adapter_routes;
     VMSTATE_STRUCT(_f, _s, 1, vmstate_adapter_routes, AdapterRoutes)
 
 #define TYPE_S390_FLIC_COMMON "s390-flic"
-#define S390_FLIC_COMMON(obj) \
-    OBJECT_CHECK(S390FLICState, (obj), TYPE_S390_FLIC_COMMON)
+OBJECT_DECLARE_TYPE(S390FLICState, S390FLICStateClass,
+                    S390_FLIC_COMMON)
 
-typedef struct S390FLICState {
+struct S390FLICState {
     SysBusDevice parent_obj;
     /* to limit AdapterRoutes.num_routes for compat */
     uint32_t adapter_routes_max_batch;
     bool ais_supported;
-} S390FLICState;
+};
 
-#define S390_FLIC_COMMON_CLASS(klass) \
-    OBJECT_CLASS_CHECK(S390FLICStateClass, (klass), TYPE_S390_FLIC_COMMON)
-#define S390_FLIC_COMMON_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(S390FLICStateClass, (obj), TYPE_S390_FLIC_COMMON)
 
-typedef struct S390FLICStateClass {
+struct S390FLICStateClass {
     DeviceClass parent_class;
 
     int (*register_io_adapter)(S390FLICState *fs, uint32_t id, uint8_t isc,
@@ -72,16 +69,15 @@ typedef struct S390FLICStateClass {
                       uint16_t subchannel_nr, uint32_t io_int_parm,
                       uint32_t io_int_word);
     void (*inject_crw_mchk)(S390FLICState *fs);
-} S390FLICStateClass;
+};
 
 #define TYPE_KVM_S390_FLIC "s390-flic-kvm"
 typedef struct KVMS390FLICState KVMS390FLICState;
-#define KVM_S390_FLIC(obj) \
-    OBJECT_CHECK(KVMS390FLICState, (obj), TYPE_KVM_S390_FLIC)
+DECLARE_INSTANCE_CHECKER(KVMS390FLICState, KVM_S390_FLIC,
+                         TYPE_KVM_S390_FLIC)
 
 #define TYPE_QEMU_S390_FLIC "s390-flic-qemu"
-#define QEMU_S390_FLIC(obj) \
-    OBJECT_CHECK(QEMUS390FLICState, (obj), TYPE_QEMU_S390_FLIC)
+OBJECT_DECLARE_SIMPLE_TYPE(QEMUS390FLICState, QEMU_S390_FLIC)
 
 #define SIC_IRQ_MODE_ALL 0
 #define SIC_IRQ_MODE_SINGLE 1
@@ -115,14 +111,14 @@ typedef struct QEMUS390FlicIO {
     QLIST_ENTRY(QEMUS390FlicIO) next;
 } QEMUS390FlicIO;
 
-typedef struct QEMUS390FLICState {
+struct QEMUS390FLICState {
     S390FLICState parent_obj;
     uint32_t pending;
     uint32_t service_param;
     uint8_t simm;
     uint8_t nimm;
     QLIST_HEAD(, QEMUS390FlicIO) io[8];
-} QEMUS390FLICState;
+};
 
 uint32_t qemu_s390_flic_dequeue_service(QEMUS390FLICState *flic);
 QEMUS390FlicIO *qemu_s390_flic_dequeue_io(QEMUS390FLICState *flic,

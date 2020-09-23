@@ -30,10 +30,10 @@
 #include "chardev/char-fe.h"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
+#include "qom/object.h"
 
 #define TYPE_ISA_DEBUGCON_DEVICE "isa-debugcon"
-#define ISA_DEBUGCON_DEVICE(obj) \
-     OBJECT_CHECK(ISADebugconState, (obj), TYPE_ISA_DEBUGCON_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(ISADebugconState, ISA_DEBUGCON_DEVICE)
 
 //#define DEBUG_DEBUGCON
 
@@ -43,12 +43,12 @@ typedef struct DebugconState {
     uint32_t readback;
 } DebugconState;
 
-typedef struct ISADebugconState {
+struct ISADebugconState {
     ISADevice parent_obj;
 
     uint32_t iobase;
     DebugconState state;
-} ISADebugconState;
+};
 
 static void debugcon_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                                   unsigned width)

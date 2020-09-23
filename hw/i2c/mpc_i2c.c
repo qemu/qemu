@@ -24,6 +24,7 @@
 #include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 /* #define DEBUG_I2C */
 
@@ -36,8 +37,7 @@
 #endif
 
 #define TYPE_MPC_I2C "mpc-i2c"
-#define MPC_I2C(obj) \
-    OBJECT_CHECK(MPCI2CState, (obj), TYPE_MPC_I2C)
+OBJECT_DECLARE_SIMPLE_TYPE(MPCI2CState, MPC_I2C)
 
 #define MPC_I2C_ADR   0x00
 #define MPC_I2C_FDR   0x04
@@ -70,7 +70,7 @@
 
 #define CYCLE_RESET 0xFF
 
-typedef struct MPCI2CState {
+struct MPCI2CState {
     SysBusDevice parent_obj;
 
     I2CBus *bus;
@@ -84,7 +84,7 @@ typedef struct MPCI2CState {
     uint8_t sr;
     uint8_t dr;
     uint8_t dfssr;
-} MPCI2CState;
+};
 
 static bool mpc_i2c_is_enabled(MPCI2CState *s)
 {

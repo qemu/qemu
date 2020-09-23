@@ -22,6 +22,7 @@
 #include "hppa_sys.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
+#include "qom/object.h"
 
 
 #define TYPE_DINO_PCI_HOST_BRIDGE "dino-pcihost"
@@ -80,8 +81,7 @@
 
 #define DINO_MEM_CHUNK_SIZE (8 * MiB)
 
-#define DINO_PCI_HOST_BRIDGE(obj) \
-    OBJECT_CHECK(DinoState, (obj), TYPE_DINO_PCI_HOST_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(DinoState, DINO_PCI_HOST_BRIDGE)
 
 #define DINO800_REGS (1 + (DINO_TLTIM - DINO_GMASK) / 4)
 static const uint32_t reg800_keep_bits[DINO800_REGS] = {
@@ -100,7 +100,7 @@ static const uint32_t reg800_keep_bits[DINO800_REGS] = {
     MAKE_64BIT_MASK(0, 9),  /* TLTIM */
 };
 
-typedef struct DinoState {
+struct DinoState {
     PCIHostState parent_obj;
 
     /* PCI_CONFIG_ADDR is parent_obj.config_reg, via pci_host_conf_be_ops,
@@ -129,7 +129,7 @@ typedef struct DinoState {
     MemoryRegion bm_ram_alias;
     MemoryRegion bm_pci_alias;
     MemoryRegion bm_cpu_alias;
-} DinoState;
+};
 
 /*
  * Dino can forward memory accesses from the CPU in the range between

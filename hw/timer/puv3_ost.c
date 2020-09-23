@@ -15,15 +15,16 @@
 #include "hw/ptimer.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "qom/object.h"
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
 
 #define TYPE_PUV3_OST "puv3_ost"
-#define PUV3_OST(obj) OBJECT_CHECK(PUV3OSTState, (obj), TYPE_PUV3_OST)
+OBJECT_DECLARE_SIMPLE_TYPE(PUV3OSTState, PUV3_OST)
 
 /* puv3 ostimer implementation. */
-typedef struct PUV3OSTState {
+struct PUV3OSTState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -34,7 +35,7 @@ typedef struct PUV3OSTState {
     uint32_t reg_OSCR;
     uint32_t reg_OSSR;
     uint32_t reg_OIER;
-} PUV3OSTState;
+};
 
 static uint64_t puv3_ost_read(void *opaque, hwaddr offset,
         unsigned size)

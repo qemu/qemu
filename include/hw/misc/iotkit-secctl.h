@@ -56,9 +56,10 @@
 #define IOTKIT_SECCTL_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_IOTKIT_SECCTL "iotkit-secctl"
-#define IOTKIT_SECCTL(obj) OBJECT_CHECK(IoTKitSecCtl, (obj), TYPE_IOTKIT_SECCTL)
+OBJECT_DECLARE_SIMPLE_TYPE(IoTKitSecCtl, IOTKIT_SECCTL)
 
 #define IOTS_APB_PPC0_NUM_PORTS 3
 #define IOTS_APB_PPC1_NUM_PORTS 1
@@ -70,7 +71,6 @@
 #define IOTS_NUM_MPC 4
 #define IOTS_NUM_EXP_MSC 16
 
-typedef struct IoTKitSecCtl IoTKitSecCtl;
 
 /* State and IRQ lines relating to a PPC. For the
  * PPCs in the IoTKit not all the IRQ lines are used.

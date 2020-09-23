@@ -17,8 +17,8 @@
 
 #include "hw/pci/msi.h"
 #include "hw/virtio/virtio-bus.h"
+#include "qom/object.h"
 
-typedef struct VirtIOPCIProxy VirtIOPCIProxy;
 
 /* virtio-pci-bus */
 
@@ -26,12 +26,8 @@ typedef struct VirtioBusState VirtioPCIBusState;
 typedef struct VirtioBusClass VirtioPCIBusClass;
 
 #define TYPE_VIRTIO_PCI_BUS "virtio-pci-bus"
-#define VIRTIO_PCI_BUS(obj) \
-        OBJECT_CHECK(VirtioPCIBusState, (obj), TYPE_VIRTIO_PCI_BUS)
-#define VIRTIO_PCI_BUS_GET_CLASS(obj) \
-        OBJECT_GET_CLASS(VirtioPCIBusClass, obj, TYPE_VIRTIO_PCI_BUS)
-#define VIRTIO_PCI_BUS_CLASS(klass) \
-        OBJECT_CLASS_CHECK(VirtioPCIBusClass, klass, TYPE_VIRTIO_PCI_BUS)
+DECLARE_OBJ_CHECKERS(VirtioPCIBusState, VirtioPCIBusClass,
+                     VIRTIO_PCI_BUS, TYPE_VIRTIO_PCI_BUS)
 
 enum {
     VIRTIO_PCI_FLAG_BUS_MASTER_BUG_MIGRATION_BIT,
@@ -94,18 +90,13 @@ typedef struct {
  * virtio-pci: This is the PCIDevice which has a virtio-pci-bus.
  */
 #define TYPE_VIRTIO_PCI "virtio-pci"
-#define VIRTIO_PCI_GET_CLASS(obj) \
-        OBJECT_GET_CLASS(VirtioPCIClass, obj, TYPE_VIRTIO_PCI)
-#define VIRTIO_PCI_CLASS(klass) \
-        OBJECT_CLASS_CHECK(VirtioPCIClass, klass, TYPE_VIRTIO_PCI)
-#define VIRTIO_PCI(obj) \
-        OBJECT_CHECK(VirtIOPCIProxy, (obj), TYPE_VIRTIO_PCI)
+OBJECT_DECLARE_TYPE(VirtIOPCIProxy, VirtioPCIClass, VIRTIO_PCI)
 
-typedef struct VirtioPCIClass {
+struct VirtioPCIClass {
     PCIDeviceClass parent_class;
     DeviceRealize parent_dc_realize;
     void (*realize)(VirtIOPCIProxy *vpci_dev, Error **errp);
-} VirtioPCIClass;
+};
 
 typedef struct VirtIOPCIRegion {
     MemoryRegion mr;

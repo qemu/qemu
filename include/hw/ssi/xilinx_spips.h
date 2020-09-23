@@ -29,6 +29,7 @@
 #include "qemu/fifo32.h"
 #include "hw/stream.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 typedef struct XilinxSPIPS XilinxSPIPS;
 
@@ -85,16 +86,17 @@ struct XilinxSPIPS {
     bool man_start_com;
 };
 
-typedef struct {
+struct XilinxQSPIPS {
     XilinxSPIPS parent_obj;
 
     uint8_t lqspi_buf[LQSPI_CACHE_SIZE];
     hwaddr lqspi_cached_addr;
     Error *migration_blocker;
     bool mmio_execution_enabled;
-} XilinxQSPIPS;
+};
+typedef struct XilinxQSPIPS XilinxQSPIPS;
 
-typedef struct {
+struct XlnxZynqMPQSPIPS {
     XilinxQSPIPS parent_obj;
 
     StreamSlave *dma;
@@ -117,32 +119,25 @@ typedef struct {
     bool man_start_com_g;
     uint32_t dma_burst_size;
     uint8_t dma_buf[QSPI_DMA_MAX_BURST_SIZE];
-} XlnxZynqMPQSPIPS;
+};
 
-typedef struct XilinxSPIPSClass {
+struct XilinxSPIPSClass {
     SysBusDeviceClass parent_class;
 
     const MemoryRegionOps *reg_ops;
 
     uint32_t rx_fifo_size;
     uint32_t tx_fifo_size;
-} XilinxSPIPSClass;
+};
 
 #define TYPE_XILINX_SPIPS "xlnx.ps7-spi"
 #define TYPE_XILINX_QSPIPS "xlnx.ps7-qspi"
 #define TYPE_XLNX_ZYNQMP_QSPIPS "xlnx.usmp-gqspi"
 
-#define XILINX_SPIPS(obj) \
-     OBJECT_CHECK(XilinxSPIPS, (obj), TYPE_XILINX_SPIPS)
-#define XILINX_SPIPS_CLASS(klass) \
-     OBJECT_CLASS_CHECK(XilinxSPIPSClass, (klass), TYPE_XILINX_SPIPS)
-#define XILINX_SPIPS_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(XilinxSPIPSClass, (obj), TYPE_XILINX_SPIPS)
+OBJECT_DECLARE_TYPE(XilinxSPIPS, XilinxSPIPSClass, XILINX_SPIPS)
 
-#define XILINX_QSPIPS(obj) \
-     OBJECT_CHECK(XilinxQSPIPS, (obj), TYPE_XILINX_QSPIPS)
+OBJECT_DECLARE_SIMPLE_TYPE(XilinxQSPIPS, XILINX_QSPIPS)
 
-#define XLNX_ZYNQMP_QSPIPS(obj) \
-     OBJECT_CHECK(XlnxZynqMPQSPIPS, (obj), TYPE_XLNX_ZYNQMP_QSPIPS)
+OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPQSPIPS, XLNX_ZYNQMP_QSPIPS)
 
 #endif /* XILINX_SPIPS_H */

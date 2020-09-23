@@ -18,10 +18,10 @@
 #include "standard-headers/linux/virtio_balloon.h"
 #include "hw/virtio/virtio.h"
 #include "sysemu/iothread.h"
+#include "qom/object.h"
 
 #define TYPE_VIRTIO_BALLOON "virtio-balloon-device"
-#define VIRTIO_BALLOON(obj) \
-        OBJECT_CHECK(VirtIOBalloon, (obj), TYPE_VIRTIO_BALLOON)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOBalloon, VIRTIO_BALLOON)
 
 #define VIRTIO_BALLOON_FREE_PAGE_HINT_CMD_ID_MIN 0x80000000
 
@@ -40,7 +40,7 @@ enum virtio_balloon_free_page_hint_status {
     FREE_PAGE_HINT_S_DONE = 3,
 };
 
-typedef struct VirtIOBalloon {
+struct VirtIOBalloon {
     VirtIODevice parent_obj;
     VirtQueue *ivq, *dvq, *svq, *free_page_vq, *reporting_vq;
     uint32_t free_page_hint_status;
@@ -71,6 +71,6 @@ typedef struct VirtIOBalloon {
 
     bool qemu_4_0_config_size;
     uint32_t poison_val;
-} VirtIOBalloon;
+};
 
 #endif

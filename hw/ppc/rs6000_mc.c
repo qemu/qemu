@@ -26,12 +26,12 @@
 #include "hw/boards.h"
 #include "qapi/error.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define TYPE_RS6000MC "rs6000-mc"
-#define RS6000MC_DEVICE(obj) \
-    OBJECT_CHECK(RS6000MCState, (obj), TYPE_RS6000MC)
+OBJECT_DECLARE_SIMPLE_TYPE(RS6000MCState, RS6000MC)
 
-typedef struct RS6000MCState {
+struct RS6000MCState {
     ISADevice parent_obj;
     /* see US patent 5,684,979 for details (expired 2001-11-04) */
     uint32_t ram_size;
@@ -41,7 +41,7 @@ typedef struct RS6000MCState {
     uint32_t end_address[8];
     uint8_t port0820_index;
     PortioList portio;
-} RS6000MCState;
+};
 
 /* P0RT 0803 -- SIMM ID Register (32/8 MB) (Read Only) */
 
@@ -141,7 +141,7 @@ static const MemoryRegionPortio rs6000mc_port_list[] = {
 
 static void rs6000mc_realize(DeviceState *dev, Error **errp)
 {
-    RS6000MCState *s = RS6000MC_DEVICE(dev);
+    RS6000MCState *s = RS6000MC(dev);
     int socket = 0;
     unsigned int ram_size = s->ram_size / MiB;
     Error *local_err = NULL;

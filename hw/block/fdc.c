@@ -46,6 +46,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "trace.h"
+#include "qom/object.h"
 
 /********************************************************/
 /* debug Floppy devices */
@@ -64,16 +65,16 @@
 /* qdev floppy bus                                      */
 
 #define TYPE_FLOPPY_BUS "floppy-bus"
-#define FLOPPY_BUS(obj) OBJECT_CHECK(FloppyBus, (obj), TYPE_FLOPPY_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(FloppyBus, FLOPPY_BUS)
 
 typedef struct FDCtrl FDCtrl;
 typedef struct FDrive FDrive;
 static FDrive *get_drv(FDCtrl *fdctrl, int unit);
 
-typedef struct FloppyBus {
+struct FloppyBus {
     BusState bus;
     FDCtrl *fdc;
-} FloppyBus;
+};
 
 static const TypeInfo floppy_bus_info = {
     .name = TYPE_FLOPPY_BUS,
@@ -494,15 +495,14 @@ static const BlockDevOps fd_block_ops = {
 
 
 #define TYPE_FLOPPY_DRIVE "floppy"
-#define FLOPPY_DRIVE(obj) \
-     OBJECT_CHECK(FloppyDrive, (obj), TYPE_FLOPPY_DRIVE)
+OBJECT_DECLARE_SIMPLE_TYPE(FloppyDrive, FLOPPY_DRIVE)
 
-typedef struct FloppyDrive {
+struct FloppyDrive {
     DeviceState     qdev;
     uint32_t        unit;
     BlockConf       conf;
     FloppyDriveType type;
-} FloppyDrive;
+};
 
 static Property floppy_drive_properties[] = {
     DEFINE_PROP_UINT32("unit", FloppyDrive, unit, -1),
@@ -886,19 +886,19 @@ static FloppyDriveType get_fallback_drive_type(FDrive *drv)
 }
 
 #define TYPE_SYSBUS_FDC "base-sysbus-fdc"
-#define SYSBUS_FDC(obj) OBJECT_CHECK(FDCtrlSysBus, (obj), TYPE_SYSBUS_FDC)
+OBJECT_DECLARE_SIMPLE_TYPE(FDCtrlSysBus, SYSBUS_FDC)
 
-typedef struct FDCtrlSysBus {
+struct FDCtrlSysBus {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
 
     struct FDCtrl state;
-} FDCtrlSysBus;
+};
 
-#define ISA_FDC(obj) OBJECT_CHECK(FDCtrlISABus, (obj), TYPE_ISA_FDC)
+OBJECT_DECLARE_SIMPLE_TYPE(FDCtrlISABus, ISA_FDC)
 
-typedef struct FDCtrlISABus {
+struct FDCtrlISABus {
     ISADevice parent_obj;
 
     uint32_t iobase;
@@ -907,7 +907,7 @@ typedef struct FDCtrlISABus {
     struct FDCtrl state;
     int32_t bootindexA;
     int32_t bootindexB;
-} FDCtrlISABus;
+};
 
 static uint32_t fdctrl_read (void *opaque, uint32_t reg)
 {

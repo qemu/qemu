@@ -19,10 +19,11 @@
 #include "hw/net/mii.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define TYPE_SUNGEM "sungem"
 
-#define SUNGEM(obj) OBJECT_CHECK(SunGEMState, (obj), TYPE_SUNGEM)
+OBJECT_DECLARE_SIMPLE_TYPE(SunGEMState, SUNGEM)
 
 #define MAX_PACKET_SIZE 9016
 
@@ -192,7 +193,7 @@ struct gem_rxd {
 #define RXDCTRL_ALTMAC    0x2000000000000000ULL  /* Matched ALT MAC */
 
 
-typedef struct {
+struct SunGEMState {
     PCIDevice pdev;
 
     MemoryRegion sungem;
@@ -221,7 +222,7 @@ typedef struct {
     uint8_t tx_data[MAX_PACKET_SIZE];
     uint32_t tx_size;
     uint64_t tx_first_ctl;
-} SunGEMState;
+};
 
 
 static void sungem_eval_irq(SunGEMState *s)

@@ -12,16 +12,17 @@
 #include "hw/irq.h"
 #include "hw/i386/pc.h"
 #include "trace.h"
+#include "qom/object.h"
 
-#define PORT92(obj) OBJECT_CHECK(Port92State, (obj), TYPE_PORT92)
+OBJECT_DECLARE_SIMPLE_TYPE(Port92State, PORT92)
 
-typedef struct Port92State {
+struct Port92State {
     ISADevice parent_obj;
 
     MemoryRegion io;
     uint8_t outport;
     qemu_irq a20_out;
-} Port92State;
+};
 
 static void port92_write(void *opaque, hwaddr addr, uint64_t val,
                          unsigned size)

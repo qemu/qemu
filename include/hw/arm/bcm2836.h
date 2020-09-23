@@ -15,9 +15,10 @@
 #include "hw/arm/bcm2835_peripherals.h"
 #include "hw/intc/bcm2836_control.h"
 #include "target/arm/cpu.h"
+#include "qom/object.h"
 
 #define TYPE_BCM283X "bcm283x"
-#define BCM283X(obj) OBJECT_CHECK(BCM283XState, (obj), TYPE_BCM283X)
+OBJECT_DECLARE_TYPE(BCM283XState, BCM283XClass, BCM283X)
 
 #define BCM283X_NCPUS 4
 
@@ -28,7 +29,7 @@
 #define TYPE_BCM2836 "bcm2836"
 #define TYPE_BCM2837 "bcm2837"
 
-typedef struct BCM283XState {
+struct BCM283XState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
@@ -40,18 +41,14 @@ typedef struct BCM283XState {
     } cpu[BCM283X_NCPUS];
     BCM2836ControlState control;
     BCM2835PeripheralState peripherals;
-} BCM283XState;
+};
 
 typedef struct BCM283XInfo BCM283XInfo;
 
-typedef struct BCM283XClass {
+struct BCM283XClass {
     DeviceClass parent_class;
     const BCM283XInfo *info;
-} BCM283XClass;
+};
 
-#define BCM283X_CLASS(klass) \
-    OBJECT_CLASS_CHECK(BCM283XClass, (klass), TYPE_BCM283X)
-#define BCM283X_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(BCM283XClass, (obj), TYPE_BCM283X)
 
 #endif /* BCM2836_H */

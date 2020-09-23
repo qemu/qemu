@@ -9,6 +9,7 @@
 
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_input.h"
+#include "qom/object.h"
 
 typedef struct virtio_input_absinfo virtio_input_absinfo;
 typedef struct virtio_input_config virtio_input_config;
@@ -18,43 +19,31 @@ typedef struct virtio_input_event virtio_input_event;
 /* qemu internals                                                    */
 
 #define TYPE_VIRTIO_INPUT "virtio-input-device"
-#define VIRTIO_INPUT(obj) \
-        OBJECT_CHECK(VirtIOInput, (obj), TYPE_VIRTIO_INPUT)
+OBJECT_DECLARE_TYPE(VirtIOInput, VirtIOInputClass,
+                    VIRTIO_INPUT)
 #define VIRTIO_INPUT_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_INPUT)
-#define VIRTIO_INPUT_GET_CLASS(obj) \
-        OBJECT_GET_CLASS(VirtIOInputClass, obj, TYPE_VIRTIO_INPUT)
-#define VIRTIO_INPUT_CLASS(klass) \
-        OBJECT_CLASS_CHECK(VirtIOInputClass, klass, TYPE_VIRTIO_INPUT)
 
 #define TYPE_VIRTIO_INPUT_HID "virtio-input-hid-device"
 #define TYPE_VIRTIO_KEYBOARD  "virtio-keyboard-device"
 #define TYPE_VIRTIO_MOUSE     "virtio-mouse-device"
 #define TYPE_VIRTIO_TABLET    "virtio-tablet-device"
 
-#define VIRTIO_INPUT_HID(obj) \
-        OBJECT_CHECK(VirtIOInputHID, (obj), TYPE_VIRTIO_INPUT_HID)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOInputHID, VIRTIO_INPUT_HID)
 #define VIRTIO_INPUT_HID_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_INPUT_HID)
 
 #define TYPE_VIRTIO_INPUT_HOST   "virtio-input-host-device"
-#define VIRTIO_INPUT_HOST(obj) \
-        OBJECT_CHECK(VirtIOInputHost, (obj), TYPE_VIRTIO_INPUT_HOST)
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOInputHost, VIRTIO_INPUT_HOST)
 #define VIRTIO_INPUT_HOST_GET_PARENT_CLASS(obj) \
         OBJECT_GET_PARENT_CLASS(obj, TYPE_VIRTIO_INPUT_HOST)
 
 #define TYPE_VHOST_USER_INPUT   "vhost-user-input"
-#define VHOST_USER_INPUT(obj)                              \
-    OBJECT_CHECK(VHostUserInput, (obj), TYPE_VHOST_USER_INPUT)
+OBJECT_DECLARE_SIMPLE_TYPE(VHostUserInput, VHOST_USER_INPUT)
 #define VHOST_USER_INPUT_GET_PARENT_CLASS(obj)             \
     OBJECT_GET_PARENT_CLASS(obj, TYPE_VHOST_USER_INPUT)
 
-typedef struct VirtIOInput VirtIOInput;
-typedef struct VirtIOInputClass VirtIOInputClass;
 typedef struct VirtIOInputConfig VirtIOInputConfig;
-typedef struct VirtIOInputHID VirtIOInputHID;
-typedef struct VirtIOInputHost VirtIOInputHost;
-typedef struct VHostUserInput VHostUserInput;
 
 struct VirtIOInputConfig {
     virtio_input_config               config;

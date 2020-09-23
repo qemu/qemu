@@ -32,6 +32,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/qdev-properties.h"
 #include "hw/sd/sd.h"
+#include "qom/object.h"
 
 enum {
     ENABLE_CMD_TX   = (1<<0),
@@ -63,8 +64,7 @@ enum {
 };
 
 #define TYPE_MILKYMIST_MEMCARD "milkymist-memcard"
-#define MILKYMIST_MEMCARD(obj) \
-    OBJECT_CHECK(MilkymistMemcardState, (obj), TYPE_MILKYMIST_MEMCARD)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistMemcardState, MILKYMIST_MEMCARD)
 
 #define TYPE_MILKYMIST_SDBUS "milkymist-sdbus"
 
@@ -83,7 +83,6 @@ struct MilkymistMemcardState {
     uint8_t response[17];
     uint32_t regs[R_MAX];
 };
-typedef struct MilkymistMemcardState MilkymistMemcardState;
 
 static void update_pending_bits(MilkymistMemcardState *s)
 {

@@ -24,11 +24,12 @@
 #define A9GTIMER_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define A9_GTIMER_MAX_CPUS 4
 
 #define TYPE_A9_GTIMER "arm.cortex-a9-global-timer"
-#define A9_GTIMER(obj) OBJECT_CHECK(A9GTimerState, (obj), TYPE_A9_GTIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(A9GTimerState, A9_GTIMER)
 
 #define R_COUNTER_LO                0x00
 #define R_COUNTER_HI                0x04
@@ -55,7 +56,6 @@
 #define R_AUTO_INCREMENT            0x18
 
 typedef struct A9GTimerPerCPU A9GTimerPerCPU;
-typedef struct A9GTimerState A9GTimerState;
 
 struct A9GTimerPerCPU {
     A9GTimerState *parent;

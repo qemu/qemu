@@ -22,10 +22,10 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define TYPE_EXYNOS4210_CLK             "exynos4210.clk"
-#define EXYNOS4210_CLK(obj) \
-    OBJECT_CHECK(Exynos4210ClkState, (obj), TYPE_EXYNOS4210_CLK)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210ClkState, EXYNOS4210_CLK)
 
 #define CLK_PLL_LOCKED                  BIT(29)
 
@@ -55,12 +55,12 @@ static const Exynos4210Reg exynos4210_clk_regs[] = {
 
 #define EXYNOS4210_REGS_NUM       ARRAY_SIZE(exynos4210_clk_regs)
 
-typedef struct Exynos4210ClkState {
+struct Exynos4210ClkState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
     uint32_t reg[EXYNOS4210_REGS_NUM];
-} Exynos4210ClkState;
+};
 
 static uint64_t exynos4210_clk_read(void *opaque, hwaddr offset,
                                     unsigned size)

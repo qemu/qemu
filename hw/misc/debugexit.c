@@ -11,18 +11,18 @@
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define TYPE_ISA_DEBUG_EXIT_DEVICE "isa-debug-exit"
-#define ISA_DEBUG_EXIT_DEVICE(obj) \
-     OBJECT_CHECK(ISADebugExitState, (obj), TYPE_ISA_DEBUG_EXIT_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(ISADebugExitState, ISA_DEBUG_EXIT_DEVICE)
 
-typedef struct ISADebugExitState {
+struct ISADebugExitState {
     ISADevice parent_obj;
 
     uint32_t iobase;
     uint32_t iosize;
     MemoryRegion io;
-} ISADebugExitState;
+};
 
 static uint64_t debug_exit_read(void *opaque, hwaddr addr, unsigned size)
 {

@@ -25,17 +25,9 @@
 #include "qom/object.h"
 
 #define TYPE_QCRYPTO_SECRET_COMMON "secret_common"
-#define QCRYPTO_SECRET_COMMON(obj) \
-    OBJECT_CHECK(QCryptoSecretCommon, (obj), TYPE_QCRYPTO_SECRET_COMMON)
-#define QCRYPTO_SECRET_COMMON_CLASS(class) \
-    OBJECT_CLASS_CHECK(QCryptoSecretCommonClass, \
-                       (class), TYPE_QCRYPTO_SECRET_COMMON)
-#define QCRYPTO_SECRET_COMMON_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(QCryptoSecretCommonClass, \
-                     (obj), TYPE_QCRYPTO_SECRET_COMMON)
+OBJECT_DECLARE_TYPE(QCryptoSecretCommon, QCryptoSecretCommonClass,
+                    QCRYPTO_SECRET_COMMON)
 
-typedef struct QCryptoSecretCommon QCryptoSecretCommon;
-typedef struct QCryptoSecretCommonClass QCryptoSecretCommonClass;
 
 struct QCryptoSecretCommon {
     Object parent_obj;

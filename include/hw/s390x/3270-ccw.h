@@ -16,6 +16,7 @@
 #include "hw/sysbus.h"
 #include "hw/s390x/css.h"
 #include "hw/s390x/ccw-device.h"
+#include "qom/object.h"
 
 #define EMULATED_CCW_3270_CU_TYPE 0x3270
 #define EMULATED_CCW_3270_CHPID_TYPE 0x1a
@@ -30,23 +31,18 @@
 #define TC_EWRITEA 0x0d         /* Erase write alternate */
 #define TC_WRITESF 0x11         /* Write structured field */
 
-#define EMULATED_CCW_3270(obj) \
-     OBJECT_CHECK(EmulatedCcw3270Device, (obj), TYPE_EMULATED_CCW_3270)
-#define EMULATED_CCW_3270_CLASS(klass) \
-     OBJECT_CLASS_CHECK(EmulatedCcw3270Class, (klass), TYPE_EMULATED_CCW_3270)
-#define EMULATED_CCW_3270_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(EmulatedCcw3270Class, (obj), TYPE_EMULATED_CCW_3270)
+OBJECT_DECLARE_TYPE(EmulatedCcw3270Device, EmulatedCcw3270Class, EMULATED_CCW_3270)
 
-typedef struct EmulatedCcw3270Device {
+struct EmulatedCcw3270Device {
     CcwDevice parent_obj;
-} EmulatedCcw3270Device;
+};
 
-typedef struct EmulatedCcw3270Class {
+struct EmulatedCcw3270Class {
     CCWDeviceClass parent_class;
 
     void (*init)(EmulatedCcw3270Device *, Error **);
     int (*read_payload_3270)(EmulatedCcw3270Device *);
     int (*write_payload_3270)(EmulatedCcw3270Device *, uint8_t);
-} EmulatedCcw3270Class;
+};
 
 #endif

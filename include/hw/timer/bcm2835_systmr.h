@@ -11,12 +11,12 @@
 
 #include "hw/sysbus.h"
 #include "hw/irq.h"
+#include "qom/object.h"
 
 #define TYPE_BCM2835_SYSTIMER "bcm2835-sys-timer"
-#define BCM2835_SYSTIMER(obj) \
-    OBJECT_CHECK(BCM2835SystemTimerState, (obj), TYPE_BCM2835_SYSTIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835SystemTimerState, BCM2835_SYSTIMER)
 
-typedef struct {
+struct BCM2835SystemTimerState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -28,6 +28,6 @@ typedef struct {
         uint32_t status;
         uint32_t compare[4];
     } reg;
-} BCM2835SystemTimerState;
+};
 
 #endif

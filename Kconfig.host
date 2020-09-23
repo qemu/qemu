@@ -1,6 +1,6 @@
 # These are "proxy" symbols used to pass config-host.mak values
-# down to Kconfig.  See also MINIKCONF_ARGS in the Makefile:
-# these two need to be kept in sync.
+# down to Kconfig.  See also kconfig_external_symbols in
+# meson.build: these two need to be kept in sync.
 
 config LINUX
     bool

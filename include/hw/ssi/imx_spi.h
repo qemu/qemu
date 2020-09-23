@@ -14,6 +14,7 @@
 #include "hw/ssi/ssi.h"
 #include "qemu/bitops.h"
 #include "qemu/fifo32.h"
+#include "qom/object.h"
 
 #define ECSPI_FIFO_SIZE 64
 
@@ -77,9 +78,9 @@
 #define EXTRACT(value, name) extract32(value, name##_SHIFT, name##_LENGTH)
 
 #define TYPE_IMX_SPI "imx.spi"
-#define IMX_SPI(obj) OBJECT_CHECK(IMXSPIState, (obj), TYPE_IMX_SPI)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXSPIState, IMX_SPI)
 
-typedef struct IMXSPIState {
+struct IMXSPIState {
     /* <private> */
     SysBusDevice parent_obj;
 
@@ -98,6 +99,6 @@ typedef struct IMXSPIState {
     Fifo32 tx_fifo;
 
     int16_t burst_length;
-} IMXSPIState;
+};
 
 #endif /* IMX_SPI_H */

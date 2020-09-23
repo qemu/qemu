@@ -27,14 +27,14 @@
 #include "migration/vmstate.h"
 #include "hw/i2c/i2c.h"
 #include "hw/irq.h"
+#include "qom/object.h"
 
 #ifndef EXYNOS4_I2C_DEBUG
 #define EXYNOS4_I2C_DEBUG                 0
 #endif
 
 #define TYPE_EXYNOS4_I2C                  "exynos4210.i2c"
-#define EXYNOS4_I2C(obj)                  \
-    OBJECT_CHECK(Exynos4210I2CState, (obj), TYPE_EXYNOS4_I2C)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210I2CState, EXYNOS4_I2C)
 
 /* Exynos4210 I2C memory map */
 #define EXYNOS4_I2C_MEM_SIZE              0x14
@@ -83,7 +83,7 @@ static const char *exynos4_i2c_get_regname(unsigned offset)
 #define DPRINT(fmt, args...)              do { } while (0)
 #endif
 
-typedef struct Exynos4210I2CState {
+struct Exynos4210I2CState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -96,7 +96,7 @@ typedef struct Exynos4210I2CState {
     uint8_t i2cds;
     uint8_t i2clc;
     bool scl_free;
-} Exynos4210I2CState;
+};
 
 static inline void exynos4210_i2c_raise_interrupt(Exynos4210I2CState *s)
 {

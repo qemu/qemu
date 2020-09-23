@@ -26,20 +26,19 @@
 
 #define TYPE_NMI "nmi"
 
-#define NMI_CLASS(klass) \
-     OBJECT_CLASS_CHECK(NMIClass, (klass), TYPE_NMI)
-#define NMI_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(NMIClass, (obj), TYPE_NMI)
+typedef struct NMIClass NMIClass;
+DECLARE_CLASS_CHECKERS(NMIClass, NMI,
+                       TYPE_NMI)
 #define NMI(obj) \
      INTERFACE_CHECK(NMIState, (obj), TYPE_NMI)
 
 typedef struct NMIState NMIState;
 
-typedef struct NMIClass {
+struct NMIClass {
     InterfaceClass parent_class;
 
     void (*nmi_monitor_handler)(NMIState *n, int cpu_index, Error **errp);
-} NMIClass;
+};
 
 void nmi_monitor_handle(int cpu_index, Error **errp);
 

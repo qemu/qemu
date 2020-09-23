@@ -35,13 +35,13 @@
 #include "sysemu/kvm.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define GCR_RESET        0x80000000
 
-#define KVM_OPENPIC(obj) \
-    OBJECT_CHECK(KVMOpenPICState, (obj), TYPE_KVM_OPENPIC)
+OBJECT_DECLARE_SIMPLE_TYPE(KVMOpenPICState, KVM_OPENPIC)
 
-typedef struct KVMOpenPICState {
+struct KVMOpenPICState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -51,7 +51,7 @@ typedef struct KVMOpenPICState {
     uint32_t fd;
     uint32_t model;
     hwaddr mapped;
-} KVMOpenPICState;
+};
 
 static void kvm_openpic_set_irq(void *opaque, int n_IRQ, int level)
 {

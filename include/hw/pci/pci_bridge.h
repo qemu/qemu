@@ -28,6 +28,7 @@
 
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
+#include "qom/object.h"
 
 typedef struct PCIBridgeWindows PCIBridgeWindows;
 
@@ -50,7 +51,7 @@ struct PCIBridgeWindows {
 };
 
 #define TYPE_PCI_BRIDGE "base-pci-bridge"
-#define PCI_BRIDGE(obj) OBJECT_CHECK(PCIBridge, (obj), TYPE_PCI_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(PCIBridge, PCI_BRIDGE)
 
 struct PCIBridge {
     /*< private >*/

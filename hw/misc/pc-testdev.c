@@ -39,10 +39,11 @@
 #include "qemu/module.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
+#include "qom/object.h"
 
 #define IOMEM_LEN    0x10000
 
-typedef struct PCTestdev {
+struct PCTestdev {
     ISADevice parent_obj;
 
     MemoryRegion ioport;
@@ -52,11 +53,10 @@ typedef struct PCTestdev {
     MemoryRegion iomem;
     uint32_t ioport_data;
     char iomem_buf[IOMEM_LEN];
-} PCTestdev;
+};
 
 #define TYPE_TESTDEV "pc-testdev"
-#define TESTDEV(obj) \
-     OBJECT_CHECK(PCTestdev, (obj), TYPE_TESTDEV)
+OBJECT_DECLARE_SIMPLE_TYPE(PCTestdev, TESTDEV)
 
 static uint64_t test_irq_line_read(void *opaque, hwaddr addr, unsigned size)
 {

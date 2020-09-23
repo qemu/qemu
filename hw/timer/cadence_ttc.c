@@ -22,6 +22,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
+#include "qom/object.h"
 
 #ifdef CADENCE_TTC_ERR_DEBUG
 #define DB_PRINT(...) do { \
@@ -69,15 +70,14 @@ typedef struct {
 } CadenceTimerState;
 
 #define TYPE_CADENCE_TTC "cadence_ttc"
-#define CADENCE_TTC(obj) \
-    OBJECT_CHECK(CadenceTTCState, (obj), TYPE_CADENCE_TTC)
+OBJECT_DECLARE_SIMPLE_TYPE(CadenceTTCState, CADENCE_TTC)
 
-typedef struct CadenceTTCState {
+struct CadenceTTCState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
     CadenceTimerState timer[3];
-} CadenceTTCState;
+};
 
 static void cadence_timer_update(CadenceTimerState *s)
 {

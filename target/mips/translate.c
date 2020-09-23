@@ -20028,8 +20028,7 @@ static void gen_pool32axf_nanomips_insn(CPUMIPSState *env, DisasContext *ctx)
 static void gen_compute_imm_branch(DisasContext *ctx, uint32_t opc,
                                    int rt, int32_t imm, int32_t offset)
 {
-    TCGCond cond;
-    int bcond_compute = 0;
+    TCGCond cond = TCG_COND_ALWAYS;
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
@@ -20046,7 +20045,6 @@ static void gen_compute_imm_branch(DisasContext *ctx, uint32_t opc,
             /* Treat as NOP */
             goto out;
         } else {
-            bcond_compute = 1;
             cond = TCG_COND_EQ;
         }
         break;
@@ -20065,7 +20063,6 @@ static void gen_compute_imm_branch(DisasContext *ctx, uint32_t opc,
             tcg_gen_shri_tl(t0, t0, imm);
             tcg_gen_andi_tl(t0, t0, 1);
             tcg_gen_movi_tl(t1, 0);
-            bcond_compute = 1;
             if (opc == NM_BBEQZC) {
                 cond = TCG_COND_EQ;
             } else {
@@ -20080,7 +20077,6 @@ static void gen_compute_imm_branch(DisasContext *ctx, uint32_t opc,
         } else if (rt == 0 && imm != 0) {
             /* Unconditional branch */
         } else {
-            bcond_compute = 1;
             cond = TCG_COND_NE;
         }
         break;
@@ -20088,24 +20084,20 @@ static void gen_compute_imm_branch(DisasContext *ctx, uint32_t opc,
         if (rt == 0 && imm == 0) {
             /* Unconditional branch */
         } else  {
-            bcond_compute = 1;
             cond = TCG_COND_GE;
         }
         break;
     case NM_BLTIC:
-        bcond_compute = 1;
         cond = TCG_COND_LT;
         break;
     case NM_BGEIUC:
         if (rt == 0 && imm == 0) {
             /* Unconditional branch */
         } else  {
-            bcond_compute = 1;
             cond = TCG_COND_GEU;
         }
         break;
     case NM_BLTIUC:
-        bcond_compute = 1;
         cond = TCG_COND_LTU;
         break;
     default:
@@ -20118,7 +20110,7 @@ static void gen_compute_imm_branch(DisasContext *ctx, uint32_t opc,
     clear_branch_hflags(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
 
-    if (bcond_compute == 0) {
+    if (cond == TCG_COND_ALWAYS) {
         /* Uncoditional compact branch */
         gen_goto_tb(ctx, 0, ctx->btarget);
     } else {

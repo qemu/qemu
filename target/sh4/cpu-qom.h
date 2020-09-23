@@ -21,6 +21,7 @@
 #define QEMU_SUPERH_CPU_QOM_H
 
 #include "hw/core/cpu.h"
+#include "qom/object.h"
 
 #define TYPE_SUPERH_CPU "superh-cpu"
 
@@ -28,12 +29,8 @@
 #define TYPE_SH7751R_CPU SUPERH_CPU_TYPE_NAME("sh7751r")
 #define TYPE_SH7785_CPU  SUPERH_CPU_TYPE_NAME("sh7785")
 
-#define SUPERH_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(SuperHCPUClass, (klass), TYPE_SUPERH_CPU)
-#define SUPERH_CPU(obj) \
-    OBJECT_CHECK(SuperHCPU, (obj), TYPE_SUPERH_CPU)
-#define SUPERH_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(SuperHCPUClass, (obj), TYPE_SUPERH_CPU)
+OBJECT_DECLARE_TYPE(SuperHCPU, SuperHCPUClass,
+                    SUPERH_CPU)
 
 /**
  * SuperHCPUClass:
@@ -45,7 +42,7 @@
  *
  * A SuperH CPU model.
  */
-typedef struct SuperHCPUClass {
+struct SuperHCPUClass {
     /*< private >*/
     CPUClass parent_class;
     /*< public >*/
@@ -56,8 +53,7 @@ typedef struct SuperHCPUClass {
     uint32_t pvr;
     uint32_t prr;
     uint32_t cvr;
-} SuperHCPUClass;
+};
 
-typedef struct SuperHCPU SuperHCPU;
 
 #endif

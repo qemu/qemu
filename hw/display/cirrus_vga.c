@@ -44,6 +44,7 @@
 #include "migration/vmstate.h"
 #include "ui/pixel_ops.h"
 #include "cirrus_vga_internal.h"
+#include "qom/object.h"
 
 /*
  * TODO:
@@ -178,14 +179,13 @@ typedef void (*cirrus_fill_t)(struct CirrusVGAState *s,
                               uint32_t dstaddr, int dst_pitch,
                               int width, int height);
 
-typedef struct PCICirrusVGAState {
+struct PCICirrusVGAState {
     PCIDevice dev;
     CirrusVGAState cirrus_vga;
-} PCICirrusVGAState;
+};
 
 #define TYPE_PCI_CIRRUS_VGA "cirrus-vga"
-#define PCI_CIRRUS_VGA(obj) \
-    OBJECT_CHECK(PCICirrusVGAState, (obj), TYPE_PCI_CIRRUS_VGA)
+OBJECT_DECLARE_SIMPLE_TYPE(PCICirrusVGAState, PCI_CIRRUS_VGA)
 
 static uint8_t rop_to_index[256];
 

@@ -1056,7 +1056,7 @@ bool fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
         return false;
     }
     size = array->len;
-    fw_cfg_add_file(s, filename, g_byte_array_free(array, TRUE), size);
+    fw_cfg_add_file(s, filename, g_byte_array_free(array, FALSE), size);
 
     return true;
 }

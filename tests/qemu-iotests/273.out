@@ -32,7 +32,7 @@ Testing: -blockdev file,node-name=base,filename=TEST_DIR/t.IMGFMT.base -blockdev
                         "actual-size": SIZE,
                         "dirty-flag": false
                     },
-                    "backing-filename-format": "file",
+                    "backing-filename-format": "IMGFMT",
                     "virtual-size": 67108864,
                     "filename": "TEST_DIR/t.IMGFMT.mid",
                     "cluster-size": 65536,
@@ -112,7 +112,7 @@ Testing: -blockdev file,node-name=base,filename=TEST_DIR/t.IMGFMT.base -blockdev
                     "actual-size": SIZE,
                     "dirty-flag": false
                 },
-                "backing-filename-format": "file",
+                "backing-filename-format": "IMGFMT",
                 "virtual-size": 67108864,
                 "filename": "TEST_DIR/t.IMGFMT.mid",
                 "cluster-size": 65536,

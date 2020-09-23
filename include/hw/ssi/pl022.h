@@ -22,11 +22,12 @@
 #define HW_SSI_PL022_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_PL022 "pl022"
-#define PL022(obj) OBJECT_CHECK(PL022State, (obj), TYPE_PL022)
+OBJECT_DECLARE_SIMPLE_TYPE(PL022State, PL022)
 
-typedef struct PL022State {
+struct PL022State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -46,6 +47,6 @@ typedef struct PL022State {
     uint16_t rx_fifo[8];
     qemu_irq irq;
     SSIBus *ssi;
-} PL022State;
+};
 
 #endif

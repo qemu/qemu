@@ -27,6 +27,7 @@
 #define CUDA_H
 
 #include "hw/misc/mos6522.h"
+#include "qom/object.h"
 
 /* CUDA commands (2nd byte) */
 #define CUDA_WARM_START                0x0
@@ -58,20 +59,19 @@
 
 
 /* MOS6522 CUDA */
-typedef struct MOS6522CUDAState {
+struct MOS6522CUDAState {
     /*< private >*/
     MOS6522State parent_obj;
-} MOS6522CUDAState;
+};
 
 #define TYPE_MOS6522_CUDA "mos6522-cuda"
-#define MOS6522_CUDA(obj) OBJECT_CHECK(MOS6522CUDAState, (obj), \
-                                       TYPE_MOS6522_CUDA)
+OBJECT_DECLARE_SIMPLE_TYPE(MOS6522CUDAState, MOS6522_CUDA)
 
 /* Cuda */
 #define TYPE_CUDA "cuda"
-#define CUDA(obj) OBJECT_CHECK(CUDAState, (obj), TYPE_CUDA)
+OBJECT_DECLARE_SIMPLE_TYPE(CUDAState, CUDA)
 
-typedef struct CUDAState {
+struct CUDAState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -97,6 +97,6 @@ typedef struct CUDAState {
     qemu_irq irq;
     uint8_t data_in[128];
     uint8_t data_out[16];
-} CUDAState;
+};
 
 #endif /* CUDA_H */

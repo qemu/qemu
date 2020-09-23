@@ -64,6 +64,10 @@ typedef struct ExtendedOps {
  */
 #define V9FS_REMAP_INODES           0x00000200
 #define V9FS_FORBID_MULTIDEVS       0x00000400
+/*
+ * Disables certain performance warnings from being logged on host side.
+ */
+#define V9FS_NO_PERF_WARN           0x00000800
 
 #define V9FS_SEC_MASK               0x0000003C
 

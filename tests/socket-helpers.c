@@ -59,8 +59,7 @@ static int socket_can_bind_connect(const char *hostname, int family)
     /* lookup */
     rc = getaddrinfo(hostname, NULL, &ai, &res);
     if (rc != 0) {
-        if (rc == EAI_ADDRFAMILY ||
-            rc == EAI_FAMILY) {
+        if (rc == EAI_ADDRFAMILY || rc == EAI_FAMILY || rc == EAI_NONAME) {
             errno = EADDRNOTAVAIL;
         } else {
             errno = EINVAL;

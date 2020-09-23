@@ -7,3 +7,6 @@ config PL061
 
 config GPIO_KEY
     bool
+
+config SIFIVE_GPIO
+    bool

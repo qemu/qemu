@@ -20,6 +20,7 @@
 #include "hw/vfio/vfio-common.h"
 #include "qemu/event_notifier.h"
 #include "qemu/queue.h"
+#include "qom/object.h"
 
 #define TYPE_VFIO_PLATFORM "vfio-platform"
 
@@ -46,7 +47,7 @@ typedef struct VFIOINTp {
 /* function type for user side eventfd handler */
 typedef void (*eventfd_user_side_handler_t)(VFIOINTp *intp);
 
-typedef struct VFIOPlatformDevice {
+struct VFIOPlatformDevice {
     SysBusDevice sbdev;
     VFIODevice vbasedev; /* not a QOM object */
     VFIORegion **regions;
@@ -59,19 +60,17 @@ typedef struct VFIOPlatformDevice {
     QEMUTimer *mmap_timer; /* allows fast-path resume after IRQ hit */
     QemuMutex intp_mutex; /* protect the intp_list IRQ state */
     bool irqfd_allowed; /* debug option to force irqfd on/off */
-} VFIOPlatformDevice;
+};
+typedef struct VFIOPlatformDevice VFIOPlatformDevice;
 
-typedef struct VFIOPlatformDeviceClass {
+struct VFIOPlatformDeviceClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
     /*< public >*/
-} VFIOPlatformDeviceClass;
+};
+typedef struct VFIOPlatformDeviceClass VFIOPlatformDeviceClass;
 
-#define VFIO_PLATFORM_DEVICE(obj) \
-     OBJECT_CHECK(VFIOPlatformDevice, (obj), TYPE_VFIO_PLATFORM)
-#define VFIO_PLATFORM_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(VFIOPlatformDeviceClass, (klass), TYPE_VFIO_PLATFORM)
-#define VFIO_PLATFORM_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(VFIOPlatformDeviceClass, (obj), TYPE_VFIO_PLATFORM)
+DECLARE_OBJ_CHECKERS(VFIOPlatformDevice, VFIOPlatformDeviceClass,
+                     VFIO_PLATFORM_DEVICE, TYPE_VFIO_PLATFORM)
 
 #endif /* HW_VFIO_VFIO_PLATFORM_H */

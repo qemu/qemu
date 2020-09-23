@@ -55,6 +55,7 @@
 #include "hw/fw-path-provider.h"
 #include "elf.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define KERNEL_LOAD_ADDR     0x00404000
 #define CMDLINE_ADDR         0x003ff000
@@ -79,7 +80,7 @@ struct hwdef {
     uint64_t console_serial_base;
 };
 
-typedef struct EbusState {
+struct EbusState {
     /*< private >*/
     PCIDevice parent_obj;
 
@@ -88,10 +89,10 @@ typedef struct EbusState {
     uint64_t console_serial_base;
     MemoryRegion bar0;
     MemoryRegion bar1;
-} EbusState;
+};
 
 #define TYPE_EBUS "ebus"
-#define EBUS(obj) OBJECT_CHECK(EbusState, (obj), TYPE_EBUS)
+OBJECT_DECLARE_SIMPLE_TYPE(EbusState, EBUS)
 
 const char *fw_cfg_arch_key_name(uint16_t key)
 {
@@ -226,13 +227,13 @@ typedef struct ResetData {
 } ResetData;
 
 #define TYPE_SUN4U_POWER "power"
-#define SUN4U_POWER(obj) OBJECT_CHECK(PowerDevice, (obj), TYPE_SUN4U_POWER)
+OBJECT_DECLARE_SIMPLE_TYPE(PowerDevice, SUN4U_POWER)
 
-typedef struct PowerDevice {
+struct PowerDevice {
     SysBusDevice parent_obj;
 
     MemoryRegion power_mmio;
-} PowerDevice;
+};
 
 /* Power */
 static uint64_t power_mem_read(void *opaque, hwaddr addr, unsigned size)
@@ -399,13 +400,15 @@ static const TypeInfo ebus_info = {
 };
 
 #define TYPE_OPENPROM "openprom"
-#define OPENPROM(obj) OBJECT_CHECK(PROMState, (obj), TYPE_OPENPROM)
+typedef struct PROMState PROMState;
+DECLARE_INSTANCE_CHECKER(PROMState, OPENPROM,
+                         TYPE_OPENPROM)
 
-typedef struct PROMState {
+struct PROMState {
     SysBusDevice parent_obj;
 
     MemoryRegion prom;
-} PROMState;
+};
 
 static uint64_t translate_prom_address(void *opaque, uint64_t addr)
 {
@@ -487,14 +490,16 @@ static const TypeInfo prom_info = {
 
 
 #define TYPE_SUN4U_MEMORY "memory"
-#define SUN4U_RAM(obj) OBJECT_CHECK(RamDevice, (obj), TYPE_SUN4U_MEMORY)
+typedef struct RamDevice RamDevice;
+DECLARE_INSTANCE_CHECKER(RamDevice, SUN4U_RAM,
+                         TYPE_SUN4U_MEMORY)
 
-typedef struct RamDevice {
+struct RamDevice {
     SysBusDevice parent_obj;
 
     MemoryRegion ram;
     uint64_t size;
-} RamDevice;
+};
 
 /* System RAM */
 static void ram_realize(DeviceState *dev, Error **errp)
@@ -576,7 +581,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     prom_init(hwdef->prom_addr, bios_name);
 
     /* Init sabre (PCI host bridge) */
-    sabre = SABRE_DEVICE(qdev_new(TYPE_SABRE));
+    sabre = SABRE(qdev_new(TYPE_SABRE));
     qdev_prop_set_uint64(DEVICE(sabre), "special-base", PBM_SPECIAL_BASE);
     qdev_prop_set_uint64(DEVICE(sabre), "mem-base", PBM_MEM_BASE);
     object_property_set_link(OBJECT(sabre), "iommu", OBJECT(iommu),

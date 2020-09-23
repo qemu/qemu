@@ -11,13 +11,14 @@
 
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
+#include "qom/object.h"
 
 #define TYPE_BCM2835_AUX "bcm2835-aux"
-#define BCM2835_AUX(obj) OBJECT_CHECK(BCM2835AuxState, (obj), TYPE_BCM2835_AUX)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835AuxState, BCM2835_AUX)
 
 #define BCM2835_AUX_RX_FIFO_LEN 8
 
-typedef struct {
+struct BCM2835AuxState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -29,6 +30,6 @@ typedef struct {
     uint8_t read_fifo[BCM2835_AUX_RX_FIFO_LEN];
     uint8_t read_pos, read_count;
     uint8_t ier, iir;
-} BCM2835AuxState;
+};
 
 #endif

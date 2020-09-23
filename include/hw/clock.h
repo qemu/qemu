@@ -18,7 +18,7 @@
 #include "qemu/queue.h"
 
 #define TYPE_CLOCK "clock"
-#define CLOCK(obj) OBJECT_CHECK(Clock, (obj), TYPE_CLOCK)
+OBJECT_DECLARE_SIMPLE_TYPE(Clock, CLOCK)
 
 typedef void ClockCallback(void *opaque);
 
@@ -54,7 +54,6 @@ typedef void ClockCallback(void *opaque);
  * @sibling: structure used to form a clock list
  */
 
-typedef struct Clock Clock;
 
 struct Clock {
     /*< private >*/

@@ -19,6 +19,7 @@
 #include "desc.h"
 #include "chardev/char-serial.h"
 #include "chardev/char-fe.h"
+#include "qom/object.h"
 
 //#define DEBUG_Serial
 
@@ -96,7 +97,7 @@ do { printf("usb-serial: " fmt , ## __VA_ARGS__); } while (0)
 #define FTDI_TEMT (1<<6)        // Transmitter Empty
 #define FTDI_FIFO (1<<7)        // Error in FIFO
 
-typedef struct {
+struct USBSerialState {
     USBDevice dev;
     USBEndpoint *intr;
     uint8_t recv_buf[RECV_BUF];
@@ -108,10 +109,10 @@ typedef struct {
     QEMUSerialSetParams params;
     int latency;        /* ms */
     CharBackend cs;
-} USBSerialState;
+};
 
 #define TYPE_USB_SERIAL "usb-serial-dev"
-#define USB_SERIAL_DEV(obj) OBJECT_CHECK(USBSerialState, (obj), TYPE_USB_SERIAL)
+OBJECT_DECLARE_SIMPLE_TYPE(USBSerialState, USB_SERIAL)
 
 enum {
     STR_MANUFACTURER = 1,
@@ -514,7 +515,7 @@ static void usb_serial_event(void *opaque, QEMUChrEvent event)
 
 static void usb_serial_realize(USBDevice *dev, Error **errp)
 {
-    USBSerialState *s = USB_SERIAL_DEV(dev);
+    USBSerialState *s = USB_SERIAL(dev);
     Error *local_err = NULL;
 
     usb_desc_create_serial(dev);

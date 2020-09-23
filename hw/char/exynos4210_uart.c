@@ -34,6 +34,7 @@
 #include "hw/qdev-properties.h"
 
 #include "trace.h"
+#include "qom/object.h"
 
 /*
  *  Offsets for UART registers relative to SFR base address
@@ -138,10 +139,9 @@ typedef struct {
 } Exynos4210UartFIFO;
 
 #define TYPE_EXYNOS4210_UART "exynos4210.uart"
-#define EXYNOS4210_UART(obj) \
-    OBJECT_CHECK(Exynos4210UartState, (obj), TYPE_EXYNOS4210_UART)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210UartState, EXYNOS4210_UART)
 
-typedef struct Exynos4210UartState {
+struct Exynos4210UartState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -159,7 +159,7 @@ typedef struct Exynos4210UartState {
 
     uint32_t channel;
 
-} Exynos4210UartState;
+};
 
 
 /* Used only for tracing */

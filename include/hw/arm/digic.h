@@ -21,14 +21,15 @@
 #include "cpu.h"
 #include "hw/timer/digic-timer.h"
 #include "hw/char/digic-uart.h"
+#include "qom/object.h"
 
 #define TYPE_DIGIC "digic"
 
-#define DIGIC(obj) OBJECT_CHECK(DigicState, (obj), TYPE_DIGIC)
+OBJECT_DECLARE_SIMPLE_TYPE(DigicState, DIGIC)
 
 #define DIGIC4_NB_TIMERS 3
 
-typedef struct DigicState {
+struct DigicState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
@@ -37,6 +38,6 @@ typedef struct DigicState {
 
     DigicTimerState timer[DIGIC4_NB_TIMERS];
     DigicUartState uart;
-} DigicState;
+};
 
 #endif /* HW_ARM_DIGIC_H */

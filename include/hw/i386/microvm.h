@@ -24,12 +24,18 @@
 
 #include "hw/boards.h"
 #include "hw/i386/x86.h"
+#include "hw/acpi/acpi_dev_interface.h"
+#include "qom/object.h"
 
 /* Platform virtio definitions */
 #define VIRTIO_MMIO_BASE      0xfeb00000
-#define VIRTIO_IRQ_BASE       5
 #define VIRTIO_NUM_TRANSPORTS 8
 #define VIRTIO_CMDLINE_MAXLEN 64
+
+#define GED_MMIO_BASE         0xfea00000
+#define GED_MMIO_BASE_MEMHP   (GED_MMIO_BASE + 0x100)
+#define GED_MMIO_BASE_REGS    (GED_MMIO_BASE + 0x200)
+#define GED_MMIO_IRQ          9
 
 /* Machine type options */
 #define MICROVM_MACHINE_PIT                 "pit"
@@ -39,13 +45,13 @@
 #define MICROVM_MACHINE_OPTION_ROMS         "x-option-roms"
 #define MICROVM_MACHINE_AUTO_KERNEL_CMDLINE "auto-kernel-cmdline"
 
-typedef struct {
+struct MicrovmMachineClass {
     X86MachineClass parent;
     HotplugHandler *(*orig_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
-} MicrovmMachineClass;
+};
 
-typedef struct {
+struct MicrovmMachineState {
     X86MachineState parent;
 
     /* Machine type options */
@@ -57,15 +63,13 @@ typedef struct {
     bool auto_kernel_cmdline;
 
     /* Machine state */
+    uint32_t virtio_irq_base;
     bool kernel_cmdline_fixed;
-} MicrovmMachineState;
+    Notifier machine_done;
+    Notifier powerdown_req;
+};
 
 #define TYPE_MICROVM_MACHINE   MACHINE_TYPE_NAME("microvm")
-#define MICROVM_MACHINE(obj) \
-    OBJECT_CHECK(MicrovmMachineState, (obj), TYPE_MICROVM_MACHINE)
-#define MICROVM_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MicrovmMachineClass, obj, TYPE_MICROVM_MACHINE)
-#define MICROVM_MACHINE_CLASS(class) \
-    OBJECT_CLASS_CHECK(MicrovmMachineClass, class, TYPE_MICROVM_MACHINE)
+OBJECT_DECLARE_TYPE(MicrovmMachineState, MicrovmMachineClass, MICROVM_MACHINE)
 
 #endif

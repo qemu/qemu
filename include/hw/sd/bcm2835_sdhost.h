@@ -16,14 +16,14 @@
 
 #include "hw/sysbus.h"
 #include "hw/sd/sd.h"
+#include "qom/object.h"
 
 #define TYPE_BCM2835_SDHOST "bcm2835-sdhost"
-#define BCM2835_SDHOST(obj) \
-        OBJECT_CHECK(BCM2835SDHostState, (obj), TYPE_BCM2835_SDHOST)
+OBJECT_DECLARE_SIMPLE_TYPE(BCM2835SDHostState, BCM2835_SDHOST)
 
 #define BCM2835_SDHOST_FIFO_LEN 16
 
-typedef struct {
+struct BCM2835SDHostState {
     SysBusDevice busdev;
     SDBus sdbus;
     MemoryRegion iomem;
@@ -43,6 +43,6 @@ typedef struct {
     uint32_t datacnt;
 
     qemu_irq irq;
-} BCM2835SDHostState;
+};
 
 #endif

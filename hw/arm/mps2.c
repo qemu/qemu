@@ -15,6 +15,8 @@
  * as seen by the guest depend significantly on the FPGA image.
  * We model the following FPGA images:
  *  "mps2-an385" -- Cortex-M3 as documented in ARM Application Note AN385
+ *  "mps2-an386" -- Cortex-M4 as documented in ARM Application Note AN386
+ *  "mps2-an500" -- Cortex-M7 as documented in ARM Application Note AN500
  *  "mps2-an511" -- Cortex-M3 'DesignStart' as documented in AN511
  *
  * Links to the TRM for the board itself and to the various Application
@@ -44,19 +46,25 @@
 #include "hw/net/lan9118.h"
 #include "net/net.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
+#include "qom/object.h"
 
 typedef enum MPS2FPGAType {
     FPGA_AN385,
+    FPGA_AN386,
+    FPGA_AN500,
     FPGA_AN511,
 } MPS2FPGAType;
 
-typedef struct {
+struct MPS2MachineClass {
     MachineClass parent;
     MPS2FPGAType fpga_type;
     uint32_t scc_id;
-} MPS2MachineClass;
+    bool has_block_ram;
+    hwaddr ethernet_base;
+    hwaddr psram_base;
+};
 
-typedef struct {
+struct MPS2MachineState {
     MachineState parent;
 
     ARMv7MState armv7m;
@@ -75,18 +83,15 @@ typedef struct {
     /* CMSDK APB subsystem */
     CMSDKAPBDualTimer dualtimer;
     CMSDKAPBWatchdog watchdog;
-} MPS2MachineState;
+};
 
 #define TYPE_MPS2_MACHINE "mps2"
 #define TYPE_MPS2_AN385_MACHINE MACHINE_TYPE_NAME("mps2-an385")
+#define TYPE_MPS2_AN386_MACHINE MACHINE_TYPE_NAME("mps2-an386")
+#define TYPE_MPS2_AN500_MACHINE MACHINE_TYPE_NAME("mps2-an500")
 #define TYPE_MPS2_AN511_MACHINE MACHINE_TYPE_NAME("mps2-an511")
 
-#define MPS2_MACHINE(obj)                                       \
-    OBJECT_CHECK(MPS2MachineState, obj, TYPE_MPS2_MACHINE)
-#define MPS2_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MPS2MachineClass, obj, TYPE_MPS2_MACHINE)
-#define MPS2_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(MPS2MachineClass, klass, TYPE_MPS2_MACHINE)
+OBJECT_DECLARE_TYPE(MPS2MachineState, MPS2MachineClass, MPS2_MACHINE)
 
 /* Main SYSCLK frequency in Hz */
 #define SYSCLK_FRQ 25000000
@@ -140,13 +145,14 @@ static void mps2_common_init(MachineState *machine)
      * tradeoffs. For QEMU they're all just RAM, though. We arbitrarily
      * call the 16MB our "system memory", as it's the largest lump.
      *
-     * Common to both boards:
-     *  0x21000000..0x21ffffff : PSRAM (16MB)
-     * AN385 only:
+     * AN385/AN386/AN511:
+     *  0x21000000 .. 0x21ffffff : PSRAM (16MB)
+     * AN385/AN386/AN500:
      *  0x00000000 .. 0x003fffff : ZBT SSRAM1
      *  0x00400000 .. 0x007fffff : mirror of ZBT SSRAM1
      *  0x20000000 .. 0x203fffff : ZBT SSRAM 2&3
      *  0x20400000 .. 0x207fffff : mirror of ZBT SSRAM 2&3
+     * AN385/AN386 only:
      *  0x01000000 .. 0x01003fff : block RAM (16K)
      *  0x01004000 .. 0x01007fff : mirror of above
      *  0x01008000 .. 0x0100bfff : mirror of above
@@ -156,21 +162,17 @@ static void mps2_common_init(MachineState *machine)
      *  0x00400000 .. 0x007fffff : ZBT SSRAM1
      *  0x20000000 .. 0x2001ffff : SRAM
      *  0x20400000 .. 0x207fffff : ZBT SSRAM 2&3
+     * AN500 only:
+     *  0x60000000 .. 0x60ffffff : PSRAM (16MB)
      *
-     * The AN385 has a feature where the lowest 16K can be mapped
+     * The AN385/AN386 has a feature where the lowest 16K can be mapped
      * either to the bottom of the ZBT SSRAM1 or to the block RAM.
      * This is of no use for QEMU so we don't implement it (as if
      * zbt_boot_ctrl is always zero).
      */
-    memory_region_add_subregion(system_memory, 0x21000000, machine->ram);
+    memory_region_add_subregion(system_memory, mmc->psram_base, machine->ram);
 
-    switch (mmc->fpga_type) {
-    case FPGA_AN385:
-        make_ram(&mms->ssram1, "mps.ssram1", 0x0, 0x400000);
-        make_ram_alias(&mms->ssram1_m, "mps.ssram1_m", &mms->ssram1, 0x400000);
-        make_ram(&mms->ssram23, "mps.ssram23", 0x20000000, 0x400000);
-        make_ram_alias(&mms->ssram23_m, "mps.ssram23_m",
-                       &mms->ssram23, 0x20400000);
+    if (mmc->has_block_ram) {
         make_ram(&mms->blockram, "mps.blockram", 0x01000000, 0x4000);
         make_ram_alias(&mms->blockram_m1, "mps.blockram_m1",
                        &mms->blockram, 0x01004000);
@@ -178,6 +180,17 @@ static void mps2_common_init(MachineState *machine)
                        &mms->blockram, 0x01008000);
         make_ram_alias(&mms->blockram_m3, "mps.blockram_m3",
                        &mms->blockram, 0x0100c000);
+    }
+
+    switch (mmc->fpga_type) {
+    case FPGA_AN385:
+    case FPGA_AN386:
+    case FPGA_AN500:
+        make_ram(&mms->ssram1, "mps.ssram1", 0x0, 0x400000);
+        make_ram_alias(&mms->ssram1_m, "mps.ssram1_m", &mms->ssram1, 0x400000);
+        make_ram(&mms->ssram23, "mps.ssram23", 0x20000000, 0x400000);
+        make_ram_alias(&mms->ssram23_m, "mps.ssram23_m",
+                       &mms->ssram23, 0x20400000);
         break;
     case FPGA_AN511:
         make_ram(&mms->blockram, "mps.blockram", 0x0, 0x40000);
@@ -193,6 +206,8 @@ static void mps2_common_init(MachineState *machine)
     armv7m = DEVICE(&mms->armv7m);
     switch (mmc->fpga_type) {
     case FPGA_AN385:
+    case FPGA_AN386:
+    case FPGA_AN500:
         qdev_prop_set_uint32(armv7m, "num-irq", 32);
         break;
     case FPGA_AN511:
@@ -229,6 +244,8 @@ static void mps2_common_init(MachineState *machine)
 
     switch (mmc->fpga_type) {
     case FPGA_AN385:
+    case FPGA_AN386:
+    case FPGA_AN500:
     {
         /* The overflow IRQs for UARTs 0, 1 and 2 are ORed together.
          * Overflow for UARTs 4 and 5 doesn't trigger any interrupt.
@@ -378,9 +395,9 @@ static void mps2_common_init(MachineState *machine)
     /* In hardware this is a LAN9220; the LAN9118 is software compatible
      * except that it doesn't support the checksum-offload feature.
      */
-    lan9118_init(&nd_table[0], 0x40200000,
+    lan9118_init(&nd_table[0], mmc->ethernet_base,
                  qdev_get_gpio_in(armv7m,
-                                  mmc->fpga_type == FPGA_AN385 ? 13 : 47));
+                                  mmc->fpga_type == FPGA_AN511 ? 47 : 13));
 
     system_clock_scale = NANOSECONDS_PER_SECOND / SYSCLK_FRQ;
 
@@ -407,6 +424,37 @@ static void mps2_an385_class_init(ObjectClass *oc, void *data)
     mmc->fpga_type = FPGA_AN385;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m3");
     mmc->scc_id = 0x41043850;
+    mmc->psram_base = 0x21000000;
+    mmc->ethernet_base = 0x40200000;
+    mmc->has_block_ram = true;
+}
+
+static void mps2_an386_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    MPS2MachineClass *mmc = MPS2_MACHINE_CLASS(oc);
+
+    mc->desc = "ARM MPS2 with AN386 FPGA image for Cortex-M4";
+    mmc->fpga_type = FPGA_AN386;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m4");
+    mmc->scc_id = 0x41043860;
+    mmc->psram_base = 0x21000000;
+    mmc->ethernet_base = 0x40200000;
+    mmc->has_block_ram = true;
+}
+
+static void mps2_an500_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    MPS2MachineClass *mmc = MPS2_MACHINE_CLASS(oc);
+
+    mc->desc = "ARM MPS2 with AN500 FPGA image for Cortex-M7";
+    mmc->fpga_type = FPGA_AN500;
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m7");
+    mmc->scc_id = 0x41045000;
+    mmc->psram_base = 0x60000000;
+    mmc->ethernet_base = 0xa0000000;
+    mmc->has_block_ram = false;
 }
 
 static void mps2_an511_class_init(ObjectClass *oc, void *data)
@@ -418,6 +466,9 @@ static void mps2_an511_class_init(ObjectClass *oc, void *data)
     mmc->fpga_type = FPGA_AN511;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-m3");
     mmc->scc_id = 0x41045110;
+    mmc->psram_base = 0x21000000;
+    mmc->ethernet_base = 0x40200000;
+    mmc->has_block_ram = false;
 }
 
 static const TypeInfo mps2_info = {
@@ -435,6 +486,18 @@ static const TypeInfo mps2_an385_info = {
     .class_init = mps2_an385_class_init,
 };
 
+static const TypeInfo mps2_an386_info = {
+    .name = TYPE_MPS2_AN386_MACHINE,
+    .parent = TYPE_MPS2_MACHINE,
+    .class_init = mps2_an386_class_init,
+};
+
+static const TypeInfo mps2_an500_info = {
+    .name = TYPE_MPS2_AN500_MACHINE,
+    .parent = TYPE_MPS2_MACHINE,
+    .class_init = mps2_an500_class_init,
+};
+
 static const TypeInfo mps2_an511_info = {
     .name = TYPE_MPS2_AN511_MACHINE,
     .parent = TYPE_MPS2_MACHINE,
@@ -445,6 +508,8 @@ static void mps2_machine_init(void)
 {
     type_register_static(&mps2_info);
     type_register_static(&mps2_an385_info);
+    type_register_static(&mps2_an386_info);
+    type_register_static(&mps2_an500_info);
     type_register_static(&mps2_an511_info);
 }
 

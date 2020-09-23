@@ -66,13 +66,13 @@
 #define TZ_PPC_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_TZ_PPC "tz-ppc"
-#define TZ_PPC(obj) OBJECT_CHECK(TZPPC, (obj), TYPE_TZ_PPC)
+OBJECT_DECLARE_SIMPLE_TYPE(TZPPC, TZ_PPC)
 
 #define TZ_NUM_PORTS 16
 
-typedef struct TZPPC TZPPC;
 
 typedef struct TZPPCPort {
     TZPPC *ppc;

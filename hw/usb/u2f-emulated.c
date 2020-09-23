@@ -200,7 +200,7 @@ static ssize_t u2f_emulated_read(const char *path, char *buffer,
     int fd;
     ssize_t ret;
 
-    fd = qemu_open(path, O_RDONLY);
+    fd = qemu_open_old(path, O_RDONLY);
     if (fd < 0) {
         return -1;
     }
@@ -217,7 +217,7 @@ static bool u2f_emulated_setup_counter(const char *path,
     int fd, ret;
     FILE *fp;
 
-    fd = qemu_open(path, O_RDWR);
+    fd = qemu_open_old(path, O_RDWR);
     if (fd < 0) {
         return false;
     }

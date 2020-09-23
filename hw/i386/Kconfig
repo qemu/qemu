@@ -103,6 +103,7 @@ config MICROVM
     select I8259
     select MC146818RTC
     select VIRTIO_MMIO
+    select ACPI_HW_REDUCED
 
 config X86_IOMMU
     bool

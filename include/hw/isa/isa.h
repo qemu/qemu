@@ -6,19 +6,15 @@
 #include "exec/memory.h"
 #include "exec/ioport.h"
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 #define ISA_NUM_IRQS 16
 
 #define TYPE_ISA_DEVICE "isa-device"
-#define ISA_DEVICE(obj) \
-     OBJECT_CHECK(ISADevice, (obj), TYPE_ISA_DEVICE)
-#define ISA_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(ISADeviceClass, (klass), TYPE_ISA_DEVICE)
-#define ISA_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(ISADeviceClass, (obj), TYPE_ISA_DEVICE)
+OBJECT_DECLARE_TYPE(ISADevice, ISADeviceClass, ISA_DEVICE)
 
 #define TYPE_ISA_BUS "ISA"
-#define ISA_BUS(obj) OBJECT_CHECK(ISABus, (obj), TYPE_ISA_BUS)
+OBJECT_DECLARE_SIMPLE_TYPE(ISABus, ISA_BUS)
 
 #define TYPE_APPLE_SMC "isa-applesmc"
 #define APPLESMC_MAX_DATA_LENGTH       32
@@ -36,10 +32,9 @@ static inline uint16_t applesmc_port(void)
 
 #define TYPE_ISADMA "isa-dma"
 
-#define ISADMA_CLASS(klass) \
-    OBJECT_CLASS_CHECK(IsaDmaClass, (klass), TYPE_ISADMA)
-#define ISADMA_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(IsaDmaClass, (obj), TYPE_ISADMA)
+typedef struct IsaDmaClass IsaDmaClass;
+DECLARE_CLASS_CHECKERS(IsaDmaClass, ISADMA,
+                       TYPE_ISADMA)
 #define ISADMA(obj) \
     INTERFACE_CHECK(IsaDma, (obj), TYPE_ISADMA)
 
@@ -53,7 +48,7 @@ typedef enum {
 typedef int (*IsaDmaTransferHandler)(void *opaque, int nchan, int pos,
                                      int size);
 
-typedef struct IsaDmaClass {
+struct IsaDmaClass {
     InterfaceClass parent;
 
     bool (*has_autoinitialization)(IsaDma *obj, int nchan);
@@ -65,12 +60,12 @@ typedef struct IsaDmaClass {
     void (*register_channel)(IsaDma *obj, int nchan,
                              IsaDmaTransferHandler transfer_handler,
                              void *opaque);
-} IsaDmaClass;
+};
 
-typedef struct ISADeviceClass {
+struct ISADeviceClass {
     DeviceClass parent_class;
     void (*build_aml)(ISADevice *dev, Aml *scope);
-} ISADeviceClass;
+};
 
 struct ISABus {
     /*< private >*/

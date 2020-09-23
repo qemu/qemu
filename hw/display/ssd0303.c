@@ -16,6 +16,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "ui/console.h"
+#include "qom/object.h"
 
 //#define DEBUG_SSD0303 1
 
@@ -46,9 +47,9 @@ enum ssd0303_cmd {
 };
 
 #define TYPE_SSD0303 "ssd0303"
-#define SSD0303(obj) OBJECT_CHECK(ssd0303_state, (obj), TYPE_SSD0303)
+OBJECT_DECLARE_SIMPLE_TYPE(ssd0303_state, SSD0303)
 
-typedef struct {
+struct ssd0303_state {
     I2CSlave parent_obj;
 
     QemuConsole *con;
@@ -63,7 +64,7 @@ typedef struct {
     enum ssd0303_mode mode;
     enum ssd0303_cmd cmd_state;
     uint8_t framebuffer[132*8];
-} ssd0303_state;
+};
 
 static uint8_t ssd0303_recv(I2CSlave *i2c)
 {

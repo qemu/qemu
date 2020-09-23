@@ -36,13 +36,13 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define TYPE_XEN_PV_DEVICE  "xen-pvdevice"
 
-#define XEN_PV_DEVICE(obj) \
-     OBJECT_CHECK(XenPVDevice, (obj), TYPE_XEN_PV_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(XenPVDevice, XEN_PV_DEVICE)
 
-typedef struct XenPVDevice {
+struct XenPVDevice {
     /*< private >*/
     PCIDevice       parent_obj;
     /*< public >*/
@@ -51,7 +51,7 @@ typedef struct XenPVDevice {
     uint8_t         revision;
     uint32_t        size;
     MemoryRegion    mmio;
-} XenPVDevice;
+};
 
 static uint64_t xen_pv_mmio_read(void *opaque, hwaddr addr,
                                  unsigned size)

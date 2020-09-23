@@ -14,6 +14,7 @@
 #include "hw/rtc/allwinner-rtc.h"
 
 #include "target/arm/cpu.h"
+#include "qom/object.h"
 
 
 #define AW_A10_SDRAM_BASE       0x40000000
@@ -21,9 +22,9 @@
 #define AW_A10_NUM_USB          2
 
 #define TYPE_AW_A10 "allwinner-a10"
-#define AW_A10(obj) OBJECT_CHECK(AwA10State, (obj), TYPE_AW_A10)
+OBJECT_DECLARE_SIMPLE_TYPE(AwA10State, AW_A10)
 
-typedef struct AwA10State {
+struct AwA10State {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
@@ -38,6 +39,6 @@ typedef struct AwA10State {
     MemoryRegion sram_a;
     EHCISysBusState ehci[AW_A10_NUM_USB];
     OHCISysBusState ohci[AW_A10_NUM_USB];
-} AwA10State;
+};
 
 #endif

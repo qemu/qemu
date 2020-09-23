@@ -12,18 +12,13 @@
 #define QEMU_SSI_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
-typedef struct SSISlave SSISlave;
-typedef struct SSISlaveClass SSISlaveClass;
 typedef enum SSICSMode SSICSMode;
 
 #define TYPE_SSI_SLAVE "ssi-slave"
-#define SSI_SLAVE(obj) \
-     OBJECT_CHECK(SSISlave, (obj), TYPE_SSI_SLAVE)
-#define SSI_SLAVE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SSISlaveClass, (klass), TYPE_SSI_SLAVE)
-#define SSI_SLAVE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SSISlaveClass, (obj), TYPE_SSI_SLAVE)
+OBJECT_DECLARE_TYPE(SSISlave, SSISlaveClass,
+                    SSI_SLAVE)
 
 #define SSI_GPIO_CS "ssi-gpio-cs"
 

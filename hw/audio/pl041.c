@@ -30,6 +30,7 @@
 #include "pl041.h"
 #include "lm4549.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 #if 0
 #define PL041_DEBUG_LEVEL 1
@@ -77,9 +78,9 @@ typedef struct {
 } pl041_channel;
 
 #define TYPE_PL041 "pl041"
-#define PL041(obj) OBJECT_CHECK(PL041State, (obj), TYPE_PL041)
+OBJECT_DECLARE_SIMPLE_TYPE(PL041State, PL041)
 
-typedef struct PL041State {
+struct PL041State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -90,7 +91,7 @@ typedef struct PL041State {
     pl041_regfile regs;
     pl041_channel fifo1;
     lm4549_state codec;
-} PL041State;
+};
 
 
 static const unsigned char pl041_default_id[8] = {

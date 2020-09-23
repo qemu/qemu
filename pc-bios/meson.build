@@ -28,6 +28,7 @@ blobs = files(
   'bios.bin',
   'bios-256k.bin',
   'bios-microvm.bin',
+  'qboot.rom',
   'sgabios.bin',
   'vgabios.bin',
   'vgabios-cirrus.bin',
@@ -81,6 +82,7 @@ blobs = files(
   'opensbi-riscv64-generic-fw_dynamic.bin',
   'opensbi-riscv32-generic-fw_dynamic.elf',
   'opensbi-riscv64-generic-fw_dynamic.elf',
+  'npcm7xx_bootrom.bin',
 )
 
 if install_blobs

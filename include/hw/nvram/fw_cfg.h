@@ -5,24 +5,22 @@
 #include "standard-headers/linux/qemu_fw_cfg.h"
 #include "hw/sysbus.h"
 #include "sysemu/dma.h"
+#include "qom/object.h"
 
 #define TYPE_FW_CFG     "fw_cfg"
 #define TYPE_FW_CFG_IO  "fw_cfg_io"
 #define TYPE_FW_CFG_MEM "fw_cfg_mem"
 #define TYPE_FW_CFG_DATA_GENERATOR_INTERFACE "fw_cfg-data-generator"
 
-#define FW_CFG(obj)     OBJECT_CHECK(FWCfgState,    (obj), TYPE_FW_CFG)
-#define FW_CFG_IO(obj)  OBJECT_CHECK(FWCfgIoState,  (obj), TYPE_FW_CFG_IO)
-#define FW_CFG_MEM(obj) OBJECT_CHECK(FWCfgMemState, (obj), TYPE_FW_CFG_MEM)
+OBJECT_DECLARE_SIMPLE_TYPE(FWCfgState, FW_CFG)
+OBJECT_DECLARE_SIMPLE_TYPE(FWCfgIoState, FW_CFG_IO)
+OBJECT_DECLARE_SIMPLE_TYPE(FWCfgMemState, FW_CFG_MEM)
 
-#define FW_CFG_DATA_GENERATOR_CLASS(class) \
-    OBJECT_CLASS_CHECK(FWCfgDataGeneratorClass, (class), \
+typedef struct FWCfgDataGeneratorClass FWCfgDataGeneratorClass;
+DECLARE_CLASS_CHECKERS(FWCfgDataGeneratorClass, FW_CFG_DATA_GENERATOR,
                        TYPE_FW_CFG_DATA_GENERATOR_INTERFACE)
-#define FW_CFG_DATA_GENERATOR_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(FWCfgDataGeneratorClass, (obj), \
-                     TYPE_FW_CFG_DATA_GENERATOR_INTERFACE)
 
-typedef struct FWCfgDataGeneratorClass {
+struct FWCfgDataGeneratorClass {
     /*< private >*/
     InterfaceClass parent_class;
     /*< public >*/
@@ -39,7 +37,7 @@ typedef struct FWCfgDataGeneratorClass {
      * required.
      */
     GByteArray *(*get_data)(Object *obj, Error **errp);
-} FWCfgDataGeneratorClass;
+};
 
 typedef struct fw_cfg_file FWCfgFile;
 

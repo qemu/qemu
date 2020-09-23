@@ -29,22 +29,23 @@
 #include "trace.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 typedef enum {
     REDRAW_NONE = 0, REDRAW_SEGMENTS = 1, REDRAW_BACKGROUND = 2,
 } screen_state_t;
 
 #define TYPE_JAZZ_LED "jazz-led"
-#define JAZZ_LED(obj) OBJECT_CHECK(LedState, (obj), TYPE_JAZZ_LED)
+OBJECT_DECLARE_SIMPLE_TYPE(LedState, JAZZ_LED)
 
-typedef struct LedState {
+struct LedState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
     uint8_t segments;
     QemuConsole *con;
     screen_state_t state;
-} LedState;
+};
 
 static uint64_t jazz_led_read(void *opaque, hwaddr addr,
                               unsigned int size)

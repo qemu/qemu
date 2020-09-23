@@ -12,6 +12,7 @@
 #define IMX25_CCM_H
 
 #include "hw/misc/imx_ccm.h"
+#include "qom/object.h"
 
 #define IMX25_CCM_MPCTL_REG  0
 #define IMX25_CCM_UPCTL_REG  1
@@ -63,9 +64,9 @@
                              CCTL_##name##_SHIFT)
 
 #define TYPE_IMX25_CCM "imx25.ccm"
-#define IMX25_CCM(obj) OBJECT_CHECK(IMX25CCMState, (obj), TYPE_IMX25_CCM)
+OBJECT_DECLARE_SIMPLE_TYPE(IMX25CCMState, IMX25_CCM)
 
-typedef struct IMX25CCMState {
+struct IMX25CCMState {
     /* <private> */
     IMXCCMState parent_obj;
 
@@ -74,6 +75,6 @@ typedef struct IMX25CCMState {
 
     uint32_t reg[IMX25_CCM_MAX_REG];
 
-} IMX25CCMState;
+};
 
 #endif /* IMX25_CCM_H */

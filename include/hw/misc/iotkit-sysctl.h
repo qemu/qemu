@@ -28,12 +28,12 @@
 #define HW_MISC_IOTKIT_SYSCTL_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_IOTKIT_SYSCTL "iotkit-sysctl"
-#define IOTKIT_SYSCTL(obj) OBJECT_CHECK(IoTKitSysCtl, (obj), \
-                                        TYPE_IOTKIT_SYSCTL)
+OBJECT_DECLARE_SIMPLE_TYPE(IoTKitSysCtl, IOTKIT_SYSCTL)
 
-typedef struct IoTKitSysCtl {
+struct IoTKitSysCtl {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -67,6 +67,6 @@ typedef struct IoTKitSysCtl {
     uint32_t initsvtor1_rst;
 
     bool is_sse200;
-} IoTKitSysCtl;
+};
 
 #endif

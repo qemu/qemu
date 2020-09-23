@@ -24,6 +24,7 @@
 #include "qemu/log.h"
 #include "qemu/guest-random.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 #define DEBUG_EXYNOS_RNG 0
 
@@ -35,8 +36,7 @@
     } while (0)
 
 #define TYPE_EXYNOS4210_RNG             "exynos4210.rng"
-#define EXYNOS4210_RNG(obj) \
-    OBJECT_CHECK(Exynos4210RngState, (obj), TYPE_EXYNOS4210_RNG)
+OBJECT_DECLARE_SIMPLE_TYPE(Exynos4210RngState, EXYNOS4210_RNG)
 
 /*
  * Exynos4220, PRNG, only polling mode is supported.
@@ -68,7 +68,7 @@
 
 #define EXYNOS4210_RNG_REGS_MEM_SIZE            0x200
 
-typedef struct Exynos4210RngState {
+struct Exynos4210RngState {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
 
@@ -79,7 +79,7 @@ typedef struct Exynos4210RngState {
     /* Register values */
     uint32_t reg_control;
     uint32_t reg_status;
-} Exynos4210RngState;
+};
 
 static bool exynos4210_rng_seed_ready(const Exynos4210RngState *s)
 {

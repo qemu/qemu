@@ -43,15 +43,14 @@
  */
 
 #define TYPE_AW_H3_SYSCTRL    "allwinner-h3-sysctrl"
-#define AW_H3_SYSCTRL(obj) \
-    OBJECT_CHECK(AwH3SysCtrlState, (obj), TYPE_AW_H3_SYSCTRL)
+OBJECT_DECLARE_SIMPLE_TYPE(AwH3SysCtrlState, AW_H3_SYSCTRL)
 
 /** @} */
 
 /**
  * Allwinner H3 System Control object instance state
  */
-typedef struct AwH3SysCtrlState {
+struct AwH3SysCtrlState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -62,6 +61,6 @@ typedef struct AwH3SysCtrlState {
     /** Array of hardware registers */
     uint32_t regs[AW_H3_SYSCTRL_REGS_NUM];
 
-} AwH3SysCtrlState;
+};
 
 #endif /* HW_MISC_ALLWINNER_H3_SYSCTRL_H */

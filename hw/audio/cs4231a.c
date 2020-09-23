@@ -32,6 +32,7 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 /*
   Missing features:
@@ -62,9 +63,11 @@ static struct {
 #define CS_DREGS 32
 
 #define TYPE_CS4231A "cs4231a"
-#define CS4231A(obj) OBJECT_CHECK (CSState, (obj), TYPE_CS4231A)
+typedef struct CSState CSState;
+DECLARE_INSTANCE_CHECKER(CSState, CS4231A,
+                         TYPE_CS4231A)
 
-typedef struct CSState {
+struct CSState {
     ISADevice dev;
     QEMUSoundCard card;
     MemoryRegion ioports;
@@ -82,7 +85,7 @@ typedef struct CSState {
     int aci_counter;
     SWVoiceOut *voice;
     int16_t *tab;
-} CSState;
+};
 
 #define MODE2 (1 << 6)
 #define MCE (1 << 6)

@@ -27,9 +27,10 @@
 #include "hw/lm32/lm32_pic.h"
 #include "hw/intc/intc.h"
 #include "hw/irq.h"
+#include "qom/object.h"
 
 #define TYPE_LM32_PIC "lm32-pic"
-#define LM32_PIC(obj) OBJECT_CHECK(LM32PicState, (obj), TYPE_LM32_PIC)
+OBJECT_DECLARE_SIMPLE_TYPE(LM32PicState, LM32_PIC)
 
 struct LM32PicState {
     SysBusDevice parent_obj;
@@ -42,7 +43,6 @@ struct LM32PicState {
     /* statistics */
     uint64_t stats_irq_count[32];
 };
-typedef struct LM32PicState LM32PicState;
 
 static void update_irq(LM32PicState *s)
 {

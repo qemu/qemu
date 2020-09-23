@@ -106,7 +106,7 @@ enum {
 #define TYPE_AW_H3 "allwinner-h3"
 
 /** Convert input object to Allwinner H3 state object */
-#define AW_H3(obj) OBJECT_CHECK(AwH3State, (obj), TYPE_AW_H3)
+OBJECT_DECLARE_SIMPLE_TYPE(AwH3State, AW_H3)
 
 /** @} */
 
@@ -116,7 +116,7 @@ enum {
  * This struct contains the state of all the devices
  * which are currently emulated by the H3 SoC code.
  */
-typedef struct AwH3State {
+struct AwH3State {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
@@ -136,7 +136,7 @@ typedef struct AwH3State {
     MemoryRegion sram_a1;
     MemoryRegion sram_a2;
     MemoryRegion sram_c;
-} AwH3State;
+};
 
 /**
  * Emulate Boot ROM firmware setup functionality.

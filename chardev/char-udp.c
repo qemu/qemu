@@ -30,20 +30,23 @@
 #include "qemu/option.h"
 
 #include "chardev/char-io.h"
+#include "qom/object.h"
 
 /***********************************************************/
 /* UDP Net console */
 
-typedef struct {
+struct UdpChardev {
     Chardev parent;
     QIOChannel *ioc;
     uint8_t buf[CHR_READ_BUF_LEN];
     int bufcnt;
     int bufptr;
     int max_size;
-} UdpChardev;
+};
+typedef struct UdpChardev UdpChardev;
 
-#define UDP_CHARDEV(obj) OBJECT_CHECK(UdpChardev, (obj), TYPE_CHARDEV_UDP)
+DECLARE_INSTANCE_CHECKER(UdpChardev, UDP_CHARDEV,
+                         TYPE_CHARDEV_UDP)
 
 /* Called with chr_write_lock held.  */
 static int udp_chr_write(Chardev *chr, const uint8_t *buf, int len)

@@ -32,6 +32,7 @@
 #include "intel-hda-defs.h"
 #include "sysemu/dma.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 /* --------------------------------------------------------------------- */
 /* hda bus                                                               */
@@ -203,8 +204,8 @@ struct IntelHDAState {
 
 #define TYPE_INTEL_HDA_GENERIC "intel-hda-generic"
 
-#define INTEL_HDA(obj) \
-    OBJECT_CHECK(IntelHDAState, (obj), TYPE_INTEL_HDA_GENERIC)
+DECLARE_INSTANCE_CHECKER(IntelHDAState, INTEL_HDA,
+                         TYPE_INTEL_HDA_GENERIC)
 
 struct IntelHDAReg {
     const char *name;      /* register name */

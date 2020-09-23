@@ -22,6 +22,7 @@
 #include "hw/boards.h"
 #include "migration/vmstate.h"
 #include "tcg/tcg.h"
+#include "qom/object.h"
 
 #define VAPIC_IO_PORT           0x7e
 
@@ -56,7 +57,7 @@ typedef struct GuestROMState {
     VAPICHandlers mp;
 } QEMU_PACKED GuestROMState;
 
-typedef struct VAPICROMState {
+struct VAPICROMState {
     SysBusDevice busdev;
     MemoryRegion io;
     MemoryRegion rom;
@@ -69,10 +70,10 @@ typedef struct VAPICROMState {
     size_t rom_size;
     bool rom_mapped_writable;
     VMChangeStateEntry *vmsentry;
-} VAPICROMState;
+};
 
 #define TYPE_VAPIC "kvmvapic"
-#define VAPIC(obj) OBJECT_CHECK(VAPICROMState, (obj), TYPE_VAPIC)
+OBJECT_DECLARE_SIMPLE_TYPE(VAPICROMState, VAPIC)
 
 #define TPR_INSTR_ABS_MODRM             0x1
 #define TPR_INSTR_MATCH_MODRM_REG       0x2

@@ -32,6 +32,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 enum {
     R_CTRL = 0,
@@ -50,8 +51,7 @@ enum {
 #define COMLOC_KEVT_BASE     0x1143
 
 #define TYPE_MILKYMIST_SOFTUSB "milkymist-softusb"
-#define MILKYMIST_SOFTUSB(obj) \
-    OBJECT_CHECK(MilkymistSoftUsbState, (obj), TYPE_MILKYMIST_SOFTUSB)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistSoftUsbState, MILKYMIST_SOFTUSB)
 
 struct MilkymistSoftUsbState {
     SysBusDevice parent_obj;
@@ -80,7 +80,6 @@ struct MilkymistSoftUsbState {
     /* keyboard state */
     uint8_t kbd_hid_buffer[8];
 };
-typedef struct MilkymistSoftUsbState MilkymistSoftUsbState;
 
 static uint64_t softusb_read(void *opaque, hwaddr addr,
                              unsigned size)

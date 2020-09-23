@@ -33,17 +33,20 @@
 #include "qemu/qemu-print.h"
 
 #include "chardev/char-io.h"
+#include "qom/object.h"
 
-typedef struct {
+struct PtyChardev {
     Chardev parent;
     QIOChannel *ioc;
     int read_bytes;
 
     int connected;
     GSource *timer_src;
-} PtyChardev;
+};
+typedef struct PtyChardev PtyChardev;
 
-#define PTY_CHARDEV(obj) OBJECT_CHECK(PtyChardev, (obj), TYPE_CHARDEV_PTY)
+DECLARE_INSTANCE_CHECKER(PtyChardev, PTY_CHARDEV,
+                         TYPE_CHARDEV_PTY)
 
 static void pty_chr_state(Chardev *chr, int connected);
 

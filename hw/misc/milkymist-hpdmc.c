@@ -27,6 +27,7 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qom/object.h"
 
 enum {
     R_SYSTEM = 0,
@@ -43,8 +44,7 @@ enum {
 };
 
 #define TYPE_MILKYMIST_HPDMC "milkymist-hpdmc"
-#define MILKYMIST_HPDMC(obj) \
-    OBJECT_CHECK(MilkymistHpdmcState, (obj), TYPE_MILKYMIST_HPDMC)
+OBJECT_DECLARE_SIMPLE_TYPE(MilkymistHpdmcState, MILKYMIST_HPDMC)
 
 struct MilkymistHpdmcState {
     SysBusDevice parent_obj;
@@ -53,7 +53,6 @@ struct MilkymistHpdmcState {
 
     uint32_t regs[R_MAX];
 };
-typedef struct MilkymistHpdmcState MilkymistHpdmcState;
 
 static uint64_t hpdmc_read(void *opaque, hwaddr addr,
                            unsigned size)

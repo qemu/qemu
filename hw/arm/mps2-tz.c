@@ -62,6 +62,7 @@
 #include "hw/net/lan9118.h"
 #include "net/net.h"
 #include "hw/core/split-irq.h"
+#include "qom/object.h"
 
 #define MPS2TZ_NUMIRQ 92
 
@@ -70,14 +71,14 @@ typedef enum MPS2TZFPGAType {
     FPGA_AN521,
 } MPS2TZFPGAType;
 
-typedef struct {
+struct MPS2TZMachineClass {
     MachineClass parent;
     MPS2TZFPGAType fpga_type;
     uint32_t scc_id;
     const char *armsse_type;
-} MPS2TZMachineClass;
+};
 
-typedef struct {
+struct MPS2TZMachineState {
     MachineState parent;
 
     ARMSSE iotkit;
@@ -99,18 +100,13 @@ typedef struct {
     qemu_or_irq uart_irq_orgate;
     DeviceState *lan9118;
     SplitIRQ cpu_irq_splitter[MPS2TZ_NUMIRQ];
-} MPS2TZMachineState;
+};
 
 #define TYPE_MPS2TZ_MACHINE "mps2tz"
 #define TYPE_MPS2TZ_AN505_MACHINE MACHINE_TYPE_NAME("mps2-an505")
 #define TYPE_MPS2TZ_AN521_MACHINE MACHINE_TYPE_NAME("mps2-an521")
 
-#define MPS2TZ_MACHINE(obj) \
-    OBJECT_CHECK(MPS2TZMachineState, obj, TYPE_MPS2TZ_MACHINE)
-#define MPS2TZ_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MPS2TZMachineClass, obj, TYPE_MPS2TZ_MACHINE)
-#define MPS2TZ_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(MPS2TZMachineClass, klass, TYPE_MPS2TZ_MACHINE)
+OBJECT_DECLARE_TYPE(MPS2TZMachineState, MPS2TZMachineClass, MPS2TZ_MACHINE)
 
 /* Main SYSCLK frequency in Hz */
 #define SYSCLK_FRQ 20000000

@@ -29,6 +29,7 @@
 #include "trace.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 typedef struct G364State {
     /* hardware */
@@ -486,13 +487,13 @@ static void g364fb_init(DeviceState *dev, G364State *s)
 }
 
 #define TYPE_G364 "sysbus-g364"
-#define G364(obj) OBJECT_CHECK(G364SysBusState, (obj), TYPE_G364)
+OBJECT_DECLARE_SIMPLE_TYPE(G364SysBusState, G364)
 
-typedef struct {
+struct G364SysBusState {
     SysBusDevice parent_obj;
 
     G364State g364;
-} G364SysBusState;
+};
 
 static void g364fb_sysbus_realize(DeviceState *dev, Error **errp)
 {

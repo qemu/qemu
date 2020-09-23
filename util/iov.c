@@ -237,7 +237,7 @@ void iov_hexdump(const struct iovec *iov, const unsigned int iov_cnt,
     size = size > limit ? limit : size;
     buf = g_malloc(size);
     iov_to_buf(iov, iov_cnt, 0, buf, size);
-    qemu_hexdump(buf, fp, prefix, size);
+    qemu_hexdump(fp, prefix, buf, size);
     g_free(buf);
 }
 

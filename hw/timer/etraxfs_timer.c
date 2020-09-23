@@ -30,6 +30,7 @@
 #include "qemu/timer.h"
 #include "hw/irq.h"
 #include "hw/ptimer.h"
+#include "qom/object.h"
 
 #define D(x)
 
@@ -48,10 +49,11 @@
 #define R_MASKED_INTR 0x54
 
 #define TYPE_ETRAX_FS_TIMER "etraxfs,timer"
-#define ETRAX_TIMER(obj) \
-    OBJECT_CHECK(ETRAXTimerState, (obj), TYPE_ETRAX_FS_TIMER)
+typedef struct ETRAXTimerState ETRAXTimerState;
+DECLARE_INSTANCE_CHECKER(ETRAXTimerState, ETRAX_TIMER,
+                         TYPE_ETRAX_FS_TIMER)
 
-typedef struct ETRAXTimerState {
+struct ETRAXTimerState {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
@@ -79,7 +81,7 @@ typedef struct ETRAXTimerState {
     uint32_t rw_ack_intr;
     uint32_t r_intr;
     uint32_t r_masked_intr;
-} ETRAXTimerState;
+};
 
 static uint64_t
 timer_read(void *opaque, hwaddr addr, unsigned int size)

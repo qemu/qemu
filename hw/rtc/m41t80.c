@@ -14,14 +14,15 @@
 #include "qemu/timer.h"
 #include "qemu/bcd.h"
 #include "hw/i2c/i2c.h"
+#include "qom/object.h"
 
 #define TYPE_M41T80 "m41t80"
-#define M41T80(obj) OBJECT_CHECK(M41t80State, (obj), TYPE_M41T80)
+OBJECT_DECLARE_SIMPLE_TYPE(M41t80State, M41T80)
 
-typedef struct M41t80State {
+struct M41t80State {
     I2CSlave parent_obj;
     int8_t addr;
-} M41t80State;
+};
 
 static void m41t80_realize(DeviceState *dev, Error **errp)
 {

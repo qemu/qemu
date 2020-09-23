@@ -175,8 +175,6 @@ BlockDriver bdrv_backup_top_filter = {
     .bdrv_co_pdiscard           = backup_top_co_pdiscard,
     .bdrv_co_flush              = backup_top_co_flush,
 
-    .bdrv_co_block_status       = bdrv_co_block_status_from_backing,
-
     .bdrv_refresh_filename      = backup_top_refresh_filename,
 
     .bdrv_child_perm            = backup_top_child_perm,
@@ -281,7 +279,7 @@ void bdrv_backup_top_drop(BlockDriverState *bs)
 
     s->active = false;
     bdrv_child_refresh_perms(bs, bs->backing, &error_abort);
-    bdrv_replace_node(bs, backing_bs(bs), &error_abort);
+    bdrv_replace_node(bs, bs->backing->bs, &error_abort);
     bdrv_set_backing_hd(bs, NULL, &error_abort);
 
     bdrv_drained_end(bs);

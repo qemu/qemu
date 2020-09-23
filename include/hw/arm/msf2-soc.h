@@ -30,9 +30,10 @@
 #include "hw/misc/msf2-sysreg.h"
 #include "hw/ssi/mss-spi.h"
 #include "hw/net/msf2-emac.h"
+#include "qom/object.h"
 
 #define TYPE_MSF2_SOC     "msf2-soc"
-#define MSF2_SOC(obj)     OBJECT_CHECK(MSF2State, (obj), TYPE_MSF2_SOC)
+OBJECT_DECLARE_SIMPLE_TYPE(MSF2State, MSF2_SOC)
 
 #define MSF2_NUM_SPIS         2
 #define MSF2_NUM_UARTS        2
@@ -44,7 +45,7 @@
  */
 #define MSF2_NUM_TIMERS       2
 
-typedef struct MSF2State {
+struct MSF2State {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
@@ -64,6 +65,6 @@ typedef struct MSF2State {
     MSSTimerState timer;
     MSSSpiState spi[MSF2_NUM_SPIS];
     MSF2EmacState emac;
-} MSF2State;
+};
 
 #endif

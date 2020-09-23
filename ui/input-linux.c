@@ -17,6 +17,7 @@
 
 #include <sys/ioctl.h>
 #include "standard-headers/linux/input.h"
+#include "qom/object.h"
 
 static bool linux_is_button(unsigned int lnx)
 {
@@ -30,15 +31,9 @@ static bool linux_is_button(unsigned int lnx)
 }
 
 #define TYPE_INPUT_LINUX "input-linux"
-#define INPUT_LINUX(obj) \
-    OBJECT_CHECK(InputLinux, (obj), TYPE_INPUT_LINUX)
-#define INPUT_LINUX_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(InputLinuxClass, (obj), TYPE_INPUT_LINUX)
-#define INPUT_LINUX_CLASS(klass) \
-    OBJECT_CLASS_CHECK(InputLinuxClass, (klass), TYPE_INPUT_LINUX)
+OBJECT_DECLARE_SIMPLE_TYPE(InputLinux,
+                           INPUT_LINUX)
 
-typedef struct InputLinux InputLinux;
-typedef struct InputLinuxClass InputLinuxClass;
 
 struct InputLinux {
     Object parent;
@@ -70,9 +65,6 @@ struct InputLinux {
     QTAILQ_ENTRY(InputLinux) next;
 };
 
-struct InputLinuxClass {
-    ObjectClass parent_class;
-};
 
 static QTAILQ_HEAD(, InputLinux) inputs = QTAILQ_HEAD_INITIALIZER(inputs);
 
@@ -522,7 +514,6 @@ static void input_linux_class_init(ObjectClass *oc, void *data)
 static const TypeInfo input_linux_info = {
     .name = TYPE_INPUT_LINUX,
     .parent = TYPE_OBJECT,
-    .class_size = sizeof(InputLinuxClass),
     .class_init = input_linux_class_init,
     .instance_size = sizeof(InputLinux),
     .instance_init = input_linux_instance_init,

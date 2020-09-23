@@ -16,9 +16,10 @@
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "hw/ptimer.h"
+#include "qom/object.h"
 
 #define TYPE_IMX2_WDT "imx2.wdt"
-#define IMX2_WDT(obj) OBJECT_CHECK(IMX2WdtState, (obj), TYPE_IMX2_WDT)
+OBJECT_DECLARE_SIMPLE_TYPE(IMX2WdtState, IMX2_WDT)
 
 enum IMX2WdtRegisters {
     IMX2_WDT_WCR  = 0x0000, /* Control Register */
@@ -62,7 +63,7 @@ enum IMX2WdtRegisters {
 /* Misc Control Register definitions */
 #define IMX2_WDT_WMCR_PDE       BIT(0)      /* Power-Down Enable */
 
-typedef struct IMX2WdtState {
+struct IMX2WdtState {
     /* <private> */
     SysBusDevice parent_obj;
 
@@ -85,6 +86,6 @@ typedef struct IMX2WdtState {
     bool wcr_locked;            /* affects WDZST, WDBG, and WDW */
     bool wcr_wde_locked;        /* affects WDE */
     bool wcr_wdt_locked;        /* affects WDT (never cleared) */
-} IMX2WdtState;
+};
 
 #endif /* IMX2_WDT_H */

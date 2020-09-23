@@ -4,14 +4,13 @@
 /* NOR flash devices */
 
 #include "exec/hwaddr.h"
+#include "qom/object.h"
 
 /* pflash_cfi01.c */
 
 #define TYPE_PFLASH_CFI01 "cfi.pflash01"
-#define PFLASH_CFI01(obj) \
-    OBJECT_CHECK(PFlashCFI01, (obj), TYPE_PFLASH_CFI01)
+OBJECT_DECLARE_SIMPLE_TYPE(PFlashCFI01, PFLASH_CFI01)
 
-typedef struct PFlashCFI01 PFlashCFI01;
 
 PFlashCFI01 *pflash_cfi01_register(hwaddr base,
                                    const char *name,
@@ -29,10 +28,8 @@ void pflash_cfi01_legacy_drive(PFlashCFI01 *dev, DriveInfo *dinfo);
 /* pflash_cfi02.c */
 
 #define TYPE_PFLASH_CFI02 "cfi.pflash02"
-#define PFLASH_CFI02(obj) \
-    OBJECT_CHECK(PFlashCFI02, (obj), TYPE_PFLASH_CFI02)
+OBJECT_DECLARE_SIMPLE_TYPE(PFlashCFI02, PFLASH_CFI02)
 
-typedef struct PFlashCFI02 PFlashCFI02;
 
 PFlashCFI02 *pflash_cfi02_register(hwaddr base,
                                    const char *name,

@@ -22,12 +22,13 @@
 #define QCRYPTO_TLSCREDSX509_H
 
 #include "crypto/tlscreds.h"
+#include "qom/object.h"
 
 #define TYPE_QCRYPTO_TLS_CREDS_X509 "tls-creds-x509"
-#define QCRYPTO_TLS_CREDS_X509(obj)                  \
-    OBJECT_CHECK(QCryptoTLSCredsX509, (obj), TYPE_QCRYPTO_TLS_CREDS_X509)
-
 typedef struct QCryptoTLSCredsX509 QCryptoTLSCredsX509;
+DECLARE_INSTANCE_CHECKER(QCryptoTLSCredsX509, QCRYPTO_TLS_CREDS_X509,
+                         TYPE_QCRYPTO_TLS_CREDS_X509)
+
 typedef struct QCryptoTLSCredsX509Class QCryptoTLSCredsX509Class;
 
 #define QCRYPTO_TLS_CREDS_X509_CA_CERT "ca-cert.pem"

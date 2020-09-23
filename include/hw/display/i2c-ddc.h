@@ -21,6 +21,7 @@
 
 #include "hw/display/edid.h"
 #include "hw/i2c/i2c.h"
+#include "qom/object.h"
 
 /* A simple I2C slave which just returns the contents of its EDID blob. */
 struct I2CDDCState {
@@ -33,9 +34,8 @@ struct I2CDDCState {
     uint8_t edid_blob[128];
 };
 
-typedef struct I2CDDCState I2CDDCState;
 
 #define TYPE_I2CDDC "i2c-ddc"
-#define I2CDDC(obj) OBJECT_CHECK(I2CDDCState, (obj), TYPE_I2CDDC)
+OBJECT_DECLARE_SIMPLE_TYPE(I2CDDCState, I2CDDC)
 
 #endif /* I2C_DDC_H */

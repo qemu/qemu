@@ -21,7 +21,7 @@
 
 #include "hw/riscv/riscv_hart.h"
 #include "hw/riscv/sifive_cpu.h"
-#include "hw/riscv/sifive_gpio.h"
+#include "hw/gpio/sifive_gpio.h"
 
 #define TYPE_RISCV_E_SOC "riscv.sifive.e.soc"
 #define RISCV_E_SOC(obj) \
@@ -53,25 +53,25 @@ typedef struct SiFiveEState {
     OBJECT_CHECK(SiFiveEState, (obj), TYPE_RISCV_E_MACHINE)
 
 enum {
-    SIFIVE_E_DEBUG,
-    SIFIVE_E_MROM,
-    SIFIVE_E_OTP,
-    SIFIVE_E_CLINT,
-    SIFIVE_E_PLIC,
-    SIFIVE_E_AON,
-    SIFIVE_E_PRCI,
-    SIFIVE_E_OTP_CTRL,
-    SIFIVE_E_GPIO0,
-    SIFIVE_E_UART0,
-    SIFIVE_E_QSPI0,
-    SIFIVE_E_PWM0,
-    SIFIVE_E_UART1,
-    SIFIVE_E_QSPI1,
-    SIFIVE_E_PWM1,
-    SIFIVE_E_QSPI2,
-    SIFIVE_E_PWM2,
-    SIFIVE_E_XIP,
-    SIFIVE_E_DTIM
+    SIFIVE_E_DEV_DEBUG,
+    SIFIVE_E_DEV_MROM,
+    SIFIVE_E_DEV_OTP,
+    SIFIVE_E_DEV_CLINT,
+    SIFIVE_E_DEV_PLIC,
+    SIFIVE_E_DEV_AON,
+    SIFIVE_E_DEV_PRCI,
+    SIFIVE_E_DEV_OTP_CTRL,
+    SIFIVE_E_DEV_GPIO0,
+    SIFIVE_E_DEV_UART0,
+    SIFIVE_E_DEV_QSPI0,
+    SIFIVE_E_DEV_PWM0,
+    SIFIVE_E_DEV_UART1,
+    SIFIVE_E_DEV_QSPI1,
+    SIFIVE_E_DEV_PWM1,
+    SIFIVE_E_DEV_QSPI2,
+    SIFIVE_E_DEV_PWM2,
+    SIFIVE_E_DEV_XIP,
+    SIFIVE_E_DEV_DTIM
 };
 
 enum {

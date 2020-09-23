@@ -28,9 +28,10 @@
 #include "qemu/fifo8.h"
 #include "hw/net/mii.h"
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_AW_EMAC "allwinner-emac"
-#define AW_EMAC(obj) OBJECT_CHECK(AwEmacState, (obj), TYPE_AW_EMAC)
+OBJECT_DECLARE_SIMPLE_TYPE(AwEmacState, AW_EMAC)
 
 /*
  * Allwinner EMAC register list
@@ -144,7 +145,7 @@ typedef struct RTL8201CPState {
     uint16_t anlpar;
 } RTL8201CPState;
 
-typedef struct AwEmacState {
+struct AwEmacState {
     /*< private >*/
     SysBusDevice  parent_obj;
     /*< public >*/
@@ -171,6 +172,6 @@ typedef struct AwEmacState {
     Fifo8          tx_fifo[NUM_TX_FIFOS];
     uint32_t       tx_length[NUM_TX_FIFOS];
     uint32_t       tx_channel;
-} AwEmacState;
+};
 
 #endif

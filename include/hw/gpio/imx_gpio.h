@@ -21,9 +21,10 @@
 #define IMX_GPIO_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_IMX_GPIO "imx.gpio"
-#define IMX_GPIO(obj) OBJECT_CHECK(IMXGPIOState, (obj), TYPE_IMX_GPIO)
+OBJECT_DECLARE_SIMPLE_TYPE(IMXGPIOState, IMX_GPIO)
 
 #define IMX_GPIO_MEM_SIZE 0x20
 
@@ -39,7 +40,7 @@
 
 #define IMX_GPIO_PIN_COUNT 32
 
-typedef struct IMXGPIOState {
+struct IMXGPIOState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -58,6 +59,6 @@ typedef struct IMXGPIOState {
 
     qemu_irq irq[2];
     qemu_irq output[IMX_GPIO_PIN_COUNT];
-} IMXGPIOState;
+};
 
 #endif /* IMX_GPIO_H */

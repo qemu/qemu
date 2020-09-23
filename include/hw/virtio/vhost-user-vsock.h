@@ -14,16 +14,16 @@
 #include "hw/virtio/vhost-vsock-common.h"
 #include "hw/virtio/vhost-user.h"
 #include "standard-headers/linux/virtio_vsock.h"
+#include "qom/object.h"
 
 #define TYPE_VHOST_USER_VSOCK "vhost-user-vsock-device"
-#define VHOST_USER_VSOCK(obj) \
-        OBJECT_CHECK(VHostUserVSock, (obj), TYPE_VHOST_USER_VSOCK)
+OBJECT_DECLARE_SIMPLE_TYPE(VHostUserVSock, VHOST_USER_VSOCK)
 
 typedef struct {
     CharBackend chardev;
 } VHostUserVSockConf;
 
-typedef struct {
+struct VHostUserVSock {
     /*< private >*/
     VHostVSockCommon parent;
     VhostUserState vhost_user;
@@ -31,6 +31,6 @@ typedef struct {
     struct virtio_vsock_config vsockcfg;
 
     /*< public >*/
-} VHostUserVSock;
+};
 
 #endif /* _QEMU_VHOST_USER_VSOCK_H */

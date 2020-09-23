@@ -38,10 +38,11 @@
 #include "migration/vmstate.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
+#include "qom/object.h"
 
 PCIDevice *piix4_dev;
 
-typedef struct PIIX4State {
+struct PIIX4State {
     PCIDevice dev;
     qemu_irq cpu_intr;
     qemu_irq *isa;
@@ -50,10 +51,9 @@ typedef struct PIIX4State {
     /* Reset Control Register */
     MemoryRegion rcr_mem;
     uint8_t rcr;
-} PIIX4State;
+};
 
-#define PIIX4_PCI_DEVICE(obj) \
-    OBJECT_CHECK(PIIX4State, (obj), TYPE_PIIX4_PCI_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(PIIX4State, PIIX4_PCI_DEVICE)
 
 static void piix4_isa_reset(DeviceState *dev)
 {

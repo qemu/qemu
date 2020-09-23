@@ -14,12 +14,12 @@
 #include "hw/misc/arm11scu.h"
 #include "hw/intc/arm_gic.h"
 #include "hw/timer/arm_mptimer.h"
+#include "qom/object.h"
 
 #define TYPE_ARM11MPCORE_PRIV "arm11mpcore_priv"
-#define ARM11MPCORE_PRIV(obj) \
-    OBJECT_CHECK(ARM11MPCorePriveState, (obj), TYPE_ARM11MPCORE_PRIV)
+OBJECT_DECLARE_SIMPLE_TYPE(ARM11MPCorePriveState, ARM11MPCORE_PRIV)
 
-typedef struct ARM11MPCorePriveState {
+struct ARM11MPCorePriveState {
     SysBusDevice parent_obj;
 
     uint32_t num_cpu;
@@ -30,6 +30,6 @@ typedef struct ARM11MPCorePriveState {
     GICState gic;
     ARMMPTimerState mptimer;
     ARMMPTimerState wdtimer;
-} ARM11MPCorePriveState;
+};
 
 #endif

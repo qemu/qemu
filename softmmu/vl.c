@@ -90,7 +90,7 @@
 
 #include "disas/disas.h"
 
-#include "trace/trace-root.h"
+#include "trace.h"
 #include "trace/control.h"
 #include "qemu/plugin.h"
 #include "qemu/queue.h"

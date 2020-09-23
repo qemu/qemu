@@ -9,13 +9,13 @@
 #define HW_INPUT_I8042_H
 
 #include "hw/isa/isa.h"
+#include "qom/object.h"
 
 #define TYPE_I8042 "i8042"
-#define I8042(obj) OBJECT_CHECK(ISAKBDState, (obj), TYPE_I8042)
+OBJECT_DECLARE_SIMPLE_TYPE(ISAKBDState, I8042)
 
 #define I8042_A20_LINE "a20"
 
-typedef struct ISAKBDState ISAKBDState;
 
 void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
                    MemoryRegion *region, ram_addr_t size,

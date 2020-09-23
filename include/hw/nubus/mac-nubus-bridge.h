@@ -10,15 +10,15 @@
 #define HW_NUBUS_MAC_H
 
 #include "hw/nubus/nubus.h"
+#include "qom/object.h"
 
 #define TYPE_MAC_NUBUS_BRIDGE "mac-nubus-bridge"
-#define MAC_NUBUS_BRIDGE(obj) OBJECT_CHECK(MacNubusState, (obj), \
-                                           TYPE_MAC_NUBUS_BRIDGE)
+OBJECT_DECLARE_SIMPLE_TYPE(MacNubusState, MAC_NUBUS_BRIDGE)
 
-typedef struct MacNubusState {
+struct MacNubusState {
     SysBusDevice sysbus_dev;
 
     NubusBus *bus;
-} MacNubusState;
+};
 
 #endif

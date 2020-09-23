@@ -34,6 +34,7 @@
 #include "qemu/timer.h"
 #include "hw/loader.h"
 #include "hw/display/edid.h"
+#include "qom/object.h"
 
 enum vga_pci_flags {
     PCI_VGA_FLAG_ENABLE_MMIO = 1,
@@ -41,7 +42,7 @@ enum vga_pci_flags {
     PCI_VGA_FLAG_ENABLE_EDID = 3,
 };
 
-typedef struct PCIVGAState {
+struct PCIVGAState {
     PCIDevice dev;
     VGACommonState vga;
     uint32_t flags;
@@ -49,10 +50,10 @@ typedef struct PCIVGAState {
     MemoryRegion mmio;
     MemoryRegion mrs[4];
     uint8_t edid[256];
-} PCIVGAState;
+};
 
 #define TYPE_PCI_VGA "pci-vga"
-#define PCI_VGA(obj) OBJECT_CHECK(PCIVGAState, (obj), TYPE_PCI_VGA)
+OBJECT_DECLARE_SIMPLE_TYPE(PCIVGAState, PCI_VGA)
 
 static const VMStateDescription vmstate_vga_pci = {
     .name = "vga",
