@@ -250,8 +250,10 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
  * only a very few devices & objects.
  *
  * So with the expectation that this will be rather the exception than
- * to rule and the list will not gain that many entries go with a
+ * the rule and the list will not gain that many entries, go with a
  * simple manually maintained list for now.
+ *
+ * The list must be sorted by module (module_load_qom_all() needs this).
  */
 static struct {
     const char *type;
