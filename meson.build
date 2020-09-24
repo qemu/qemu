@@ -521,6 +521,7 @@ kconfig_external_symbols = [
   'CONFIG_OPENGL',
   'CONFIG_X11',
   'CONFIG_VHOST_USER',
+  'CONFIG_VHOST_VDPA',
   'CONFIG_VHOST_KERNEL',
   'CONFIG_VIRTFS',
   'CONFIG_LINUX',

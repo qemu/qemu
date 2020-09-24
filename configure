@@ -2494,9 +2494,10 @@ if test "$vhost_net_vdpa" = "yes" && test "$vhost_vdpa" = "no"; then
   error_exit "--enable-vhost-net-vdpa requires --enable-vhost-vdpa"
 fi
 
-# OR the vhost-kernel and vhost-user values for simplicity
+# OR the vhost-kernel, vhost-vdpa and vhost-user values for simplicity
 if test "$vhost_net" = ""; then
   test "$vhost_net_user" = "yes" && vhost_net=yes
+  test "$vhost_net_vdpa" = "yes" && vhost_net=yes
   test "$vhost_kernel" = "yes" && vhost_net=yes
 fi
 
