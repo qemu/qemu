@@ -173,18 +173,19 @@ void qmp_nbd_server_start(SocketAddressLegacy *addr,
     qapi_free_SocketAddress(addr_flat);
 }
 
-BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
+int nbd_export_create(BlockExport *exp, BlockExportOptions *exp_args,
+                      Error **errp)
 {
     BlockExportOptionsNbd *arg = &exp_args->u.nbd;
     BlockDriverState *bs = NULL;
-    NBDExport *exp = NULL;
     AioContext *aio_context;
+    int ret;
 
     assert(exp_args->type == BLOCK_EXPORT_TYPE_NBD);
 
     if (!nbd_server && !is_qemu_nbd) {
         error_setg(errp, "NBD server not running");
-        return NULL;
+        return -EINVAL;
     }
 
     if (!arg->has_name) {
@@ -193,22 +194,22 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
 
     if (strlen(arg->name) > NBD_MAX_STRING_SIZE) {
         error_setg(errp, "export name '%s' too long", arg->name);
-        return NULL;
+        return -EINVAL;
     }
 
     if (arg->description && strlen(arg->description) > NBD_MAX_STRING_SIZE) {
         error_setg(errp, "description '%s' too long", arg->description);
-        return NULL;
+        return -EINVAL;
     }
 
     if (nbd_export_find(arg->name)) {
         error_setg(errp, "NBD server already has export named '%s'", arg->name);
-        return NULL;
+        return -EEXIST;
     }
 
     bs = bdrv_lookup_bs(NULL, exp_args->node_name, errp);
     if (!bs) {
-        return NULL;
+        return -ENOENT;
     }
 
     aio_context = bdrv_get_aio_context(bs);
@@ -218,6 +219,7 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
         arg->writable = false;
     }
     if (bdrv_is_read_only(bs) && arg->writable) {
+        ret = -EINVAL;
         error_setg(errp, "Cannot export read-only node as writable");
         goto out;
     }
@@ -226,22 +228,22 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
         exp_args->writethrough = false;
     }
 
-    exp = nbd_export_new(bs, arg->name, arg->description, arg->bitmap,
+    ret = nbd_export_new(exp, bs, arg->name, arg->description, arg->bitmap,
                          !arg->writable, !arg->writable,
                          exp_args->writethrough, errp);
-    if (!exp) {
+    if (ret < 0) {
         goto out;
     }
 
     /* The list of named exports has a strong reference to this export now and
      * our only way of accessing it is through nbd_export_find(), so we can drop
      * the strong reference that is @exp. */
-    blk_exp_unref((BlockExport*) exp);
+    blk_exp_unref(exp);
 
+    ret = 0;
  out:
     aio_context_release(aio_context);
-    /* TODO Remove the cast: nbd_export_new() will return a BlockExport. */
-    return (BlockExport*) exp;
+    return ret;
 }
 
 void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)

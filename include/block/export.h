@@ -22,8 +22,14 @@ typedef struct BlockExportDriver {
     /* The export type that this driver services */
     BlockExportType type;
 
+    /*
+     * The size of the driver-specific state that contains BlockExport as its
+     * first field.
+     */
+    size_t instance_size;
+
     /* Creates and starts a new block export */
-    BlockExport *(*create)(BlockExportOptions *, Error **);
+    int (*create)(BlockExport *, BlockExportOptions *, Error **);
 
     /*
      * Frees a removed block export. This function is only called after all

@@ -39,6 +39,8 @@ static const BlockExportDriver *blk_exp_find_driver(BlockExportType type)
 BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
 {
     const BlockExportDriver *drv;
+    BlockExport *exp;
+    int ret;
 
     drv = blk_exp_find_driver(export->type);
     if (!drv) {
@@ -46,7 +48,20 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
         return NULL;
     }
 
-    return drv->create(export, errp);
+    assert(drv->instance_size >= sizeof(BlockExport));
+    exp = g_malloc0(drv->instance_size);
+    *exp = (BlockExport) {
+        .drv        = drv,
+        .refcount   = 1,
+    };
+
+    ret = drv->create(exp, export, errp);
+    if (ret < 0) {
+        g_free(exp);
+        return NULL;
+    }
+
+    return exp;
 }
 
 /* Callers must hold exp->ctx lock */
@@ -62,6 +77,7 @@ void blk_exp_unref(BlockExport *exp)
     assert(exp->refcount > 0);
     if (--exp->refcount == 0) {
         exp->drv->delete(exp);
+        g_free(exp);
     }
 }
 

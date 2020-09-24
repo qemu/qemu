@@ -1514,14 +1514,14 @@ void nbd_export_set_on_eject_blk(BlockExport *exp, BlockBackend *blk)
     blk_add_remove_bs_notifier(blk, &nbd_exp->eject_notifier);
 }
 
-NBDExport *nbd_export_new(BlockDriverState *bs,
-                          const char *name, const char *desc,
-                          const char *bitmap, bool readonly, bool shared,
-                          bool writethrough, Error **errp)
+int nbd_export_new(BlockExport *blk_exp, BlockDriverState *bs,
+                   const char *name, const char *desc,
+                   const char *bitmap, bool readonly, bool shared,
+                   bool writethrough, Error **errp)
 {
+    NBDExport *exp = container_of(blk_exp, NBDExport, common);
     AioContext *ctx;
     BlockBackend *blk;
-    NBDExport *exp;
     int64_t size;
     uint64_t perm;
     int ret;
@@ -1530,17 +1530,11 @@ NBDExport *nbd_export_new(BlockDriverState *bs,
     if (size < 0) {
         error_setg_errno(errp, -size,
                          "Failed to determine the NBD export's length");
-        return NULL;
+        return size;
     }
 
     ctx = bdrv_get_aio_context(bs);
-
-    exp = g_new0(NBDExport, 1);
-    exp->common = (BlockExport) {
-        .drv        = &blk_exp_nbd,
-        .refcount   = 1,
-        .ctx        = ctx,
-    };
+    blk_exp->ctx = ctx;
 
     /*
      * NBD exports are used for non-shared storage migration.  Make sure
@@ -1599,16 +1593,19 @@ NBDExport *nbd_export_new(BlockDriverState *bs,
         }
 
         if (bm == NULL) {
+            ret = -ENOENT;
             error_setg(errp, "Bitmap '%s' is not found", bitmap);
             goto fail;
         }
 
         if (bdrv_dirty_bitmap_check(bm, BDRV_BITMAP_ALLOW_RO, errp)) {
+            ret = -EINVAL;
             goto fail;
         }
 
         if (readonly && bdrv_is_writable(bs) &&
             bdrv_dirty_bitmap_enabled(bm)) {
+            ret = -EINVAL;
             error_setg(errp,
                        "Enabled bitmap '%s' incompatible with readonly export",
                        bitmap);
@@ -1628,14 +1625,13 @@ NBDExport *nbd_export_new(BlockDriverState *bs,
     blk_exp_ref(&exp->common);
     QTAILQ_INSERT_TAIL(&exports, exp, next);
 
-    return exp;
+    return 0;
 
 fail:
     blk_unref(blk);
     g_free(exp->name);
     g_free(exp->description);
-    g_free(exp);
-    return NULL;
+    return ret;
 }
 
 NBDExport *nbd_export_find(const char *name)
@@ -1722,12 +1718,12 @@ static void nbd_export_delete(BlockExport *blk_exp)
     }
 
     QTAILQ_REMOVE(&closed_exports, exp, next);
-    g_free(exp);
     aio_wait_kick();
 }
 
 const BlockExportDriver blk_exp_nbd = {
     .type               = BLOCK_EXPORT_TYPE_NBD,
+    .instance_size      = sizeof(NBDExport),
     .create             = nbd_export_create,
     .delete             = nbd_export_delete,
 };
