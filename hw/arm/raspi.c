@@ -205,6 +205,7 @@ static void reset_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
 
 static void setup_boot(MachineState *machine, int version, size_t ram_size)
 {
+    RaspiMachineState *s = RASPI_MACHINE(machine);
     static struct arm_boot_info binfo;
     int r;
 
@@ -253,7 +254,7 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
         binfo.firmware_loaded = true;
     }
 
-    arm_load_kernel(ARM_CPU(first_cpu), machine, &binfo);
+    arm_load_kernel(&s->soc.cpu[0].core, machine, &binfo);
 }
 
 static void raspi_machine_init(MachineState *machine)
