@@ -30,4 +30,6 @@ struct BlockExport {
     const BlockExportDriver *drv;
 };
 
+BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp);
+
 #endif

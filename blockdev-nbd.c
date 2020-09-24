@@ -152,7 +152,6 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
 {
     BlockExportOptionsNbd *arg = &exp_args->u.nbd;
     BlockDriverState *bs = NULL;
-    BlockBackend *on_eject_blk;
     NBDExport *exp = NULL;
     AioContext *aio_context;
 
@@ -182,8 +181,6 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
         return NULL;
     }
 
-    on_eject_blk = blk_by_name(arg->device);
-
     bs = bdrv_lookup_bs(arg->device, arg->device, errp);
     if (!bs) {
         return NULL;
@@ -195,13 +192,14 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
     if (!arg->has_writable) {
         arg->writable = false;
     }
-    if (bdrv_is_read_only(bs)) {
-        arg->writable = false;
+    if (bdrv_is_read_only(bs) && arg->writable) {
+        error_setg(errp, "Cannot export read-only node as writable");
+        goto out;
     }
 
     exp = nbd_export_new(bs, arg->name, arg->description, arg->bitmap,
                          !arg->writable, !arg->writable,
-                         NULL, false, on_eject_blk, errp);
+                         NULL, false, errp);
     if (!exp) {
         goto out;
     }
@@ -219,11 +217,44 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
 
 void qmp_nbd_server_add(BlockExportOptionsNbd *arg, Error **errp)
 {
-    BlockExportOptions export = {
+    BlockExport *export;
+    BlockDriverState *bs;
+    BlockBackend *on_eject_blk;
+    BlockExportOptions export_opts;
+
+    bs = bdrv_lookup_bs(arg->device, arg->device, errp);
+    if (!bs) {
+        return;
+    }
+
+    export_opts = (BlockExportOptions) {
         .type = BLOCK_EXPORT_TYPE_NBD,
         .u.nbd = *arg,
     };
-    qmp_block_export_add(&export, errp);
+
+    /*
+     * nbd-server-add doesn't complain when a read-only device should be
+     * exported as writable, but simply downgrades it. This is an error with
+     * block-export-add.
+     */
+    if (bdrv_is_read_only(bs)) {
+        export_opts.u.nbd.has_writable = true;
+        export_opts.u.nbd.writable = false;
+    }
+
+    export = blk_exp_add(&export_opts, errp);
+    if (!export) {
+        return;
+    }
+
+    /*
+     * nbd-server-add removes the export when the named BlockBackend used for
+     * @device goes away.
+     */
+    on_eject_blk = blk_by_name(arg->device);
+    if (on_eject_blk) {
+        nbd_export_set_on_eject_blk(export, on_eject_blk);
+    }
 }
 
 void qmp_nbd_server_remove(const char *name,

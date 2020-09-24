@@ -1067,8 +1067,7 @@ int main(int argc, char **argv)
 
     export = nbd_export_new(bs, export_name,
                             export_description, bitmap, readonly, shared > 1,
-                            nbd_export_closed, writethrough, NULL,
-                            &error_fatal);
+                            nbd_export_closed, writethrough, &error_fatal);
 
     if (device) {
 #if HAVE_NBD_DEVICE

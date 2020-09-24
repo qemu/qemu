@@ -13,6 +13,8 @@
 
 #include "qemu/osdep.h"
 
+#include "block/block.h"
+#include "sysemu/block-backend.h"
 #include "block/export.h"
 #include "block/nbd.h"
 #include "qapi/error.h"
@@ -34,15 +36,20 @@ static const BlockExportDriver *blk_exp_find_driver(BlockExportType type)
     return NULL;
 }
 
-void qmp_block_export_add(BlockExportOptions *export, Error **errp)
+BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
 {
     const BlockExportDriver *drv;
 
     drv = blk_exp_find_driver(export->type);
     if (!drv) {
         error_setg(errp, "No driver found for the requested export type");
-        return;
+        return NULL;
     }
 
-    drv->create(export, errp);
+    return drv->create(export, errp);
+}
+
+void qmp_block_export_add(BlockExportOptions *export, Error **errp)
+{
+    blk_exp_add(export, errp);
 }
