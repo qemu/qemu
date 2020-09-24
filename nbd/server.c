@@ -1731,11 +1731,6 @@ void nbd_export_put(NBDExport *exp)
     }
 }
 
-BlockBackend *nbd_export_get_blockdev(NBDExport *exp)
-{
-    return exp->blk;
-}
-
 void nbd_export_close_all(void)
 {
     NBDExport *exp, *next;
