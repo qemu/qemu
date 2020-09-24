@@ -334,13 +334,6 @@ cryptodev_vhost_user_get_chardev(Object *obj, Error **errp)
     return NULL;
 }
 
-static void cryptodev_vhost_user_instance_int(Object *obj)
-{
-    object_property_add_str(obj, "chardev",
-                            cryptodev_vhost_user_get_chardev,
-                            cryptodev_vhost_user_set_chardev);
-}
-
 static void cryptodev_vhost_user_finalize(Object *obj)
 {
     CryptoDevBackendVhostUser *s =
@@ -361,13 +354,17 @@ cryptodev_vhost_user_class_init(ObjectClass *oc, void *data)
     bc->create_session = cryptodev_vhost_user_sym_create_session;
     bc->close_session = cryptodev_vhost_user_sym_close_session;
     bc->do_sym_op = NULL;
+
+    object_class_property_add_str(oc, "chardev",
+                                  cryptodev_vhost_user_get_chardev,
+                                  cryptodev_vhost_user_set_chardev);
+
 }
 
 static const TypeInfo cryptodev_vhost_user_info = {
     .name = TYPE_CRYPTODEV_BACKEND_VHOST_USER,
     .parent = TYPE_CRYPTODEV_BACKEND,
     .class_init = cryptodev_vhost_user_class_init,
-    .instance_init = cryptodev_vhost_user_instance_int,
     .instance_finalize = cryptodev_vhost_user_finalize,
     .instance_size = sizeof(CryptoDevBackendVhostUser),
 };

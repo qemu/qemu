@@ -1089,25 +1089,6 @@ static void set_feature_group(Object *obj, Visitor *v, const char *name,
     }
 }
 
-void s390_cpu_model_register_props(Object *obj)
-{
-    S390FeatGroup group;
-    S390Feat feat;
-
-    for (feat = 0; feat < S390_FEAT_MAX; feat++) {
-        const S390FeatDef *def = s390_feat_def(feat);
-        object_property_add(obj, def->name, "bool", get_feature,
-                            set_feature, NULL, (void *) feat);
-        object_property_set_description(obj, def->name, def->desc);
-    }
-    for (group = 0; group < S390_FEAT_GROUP_MAX; group++) {
-        const S390FeatGroupDef *def = s390_feat_group_def(group);
-        object_property_add(obj, def->name, "bool", get_feature_group,
-                            set_feature_group, NULL, (void *) group);
-        object_property_set_description(obj, def->name, def->desc);
-    }
-}
-
 static void s390_cpu_model_initfn(Object *obj)
 {
     S390CPU *cpu = S390_CPU(obj);
@@ -1215,11 +1196,27 @@ static char *get_description(Object *obj, Error **errp)
 
 void s390_cpu_model_class_register_props(ObjectClass *oc)
 {
+    S390FeatGroup group;
+    S390Feat feat;
+
     object_class_property_add_bool(oc, "migration-safe", get_is_migration_safe,
                                    NULL);
     object_class_property_add_bool(oc, "static", get_is_static,
                                    NULL);
     object_class_property_add_str(oc, "description", get_description, NULL);
+
+    for (feat = 0; feat < S390_FEAT_MAX; feat++) {
+        const S390FeatDef *def = s390_feat_def(feat);
+        object_class_property_add(oc, def->name, "bool", get_feature,
+                                  set_feature, NULL, (void *) feat);
+        object_class_property_set_description(oc, def->name, def->desc);
+    }
+    for (group = 0; group < S390_FEAT_GROUP_MAX; group++) {
+        const S390FeatGroupDef *def = s390_feat_group_def(group);
+        object_class_property_add(oc, def->name, "bool", get_feature_group,
+                                  set_feature_group, NULL, (void *) group);
+        object_class_property_set_description(oc, def->name, def->desc);
+    }
 }
 
 #ifdef CONFIG_KVM

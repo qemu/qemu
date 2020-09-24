@@ -214,7 +214,7 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
 
     i = 0;
     while ((name = cpu_model_advertised_features[i++]) != NULL) {
-        ObjectProperty *prop = object_property_find(obj, name, NULL);
+        ObjectProperty *prop = object_property_find(obj, name);
         if (prop) {
             QObject *value;
 

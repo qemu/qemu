@@ -6828,7 +6828,7 @@ static void x86_cpu_register_bit_prop(X86CPU *cpu,
     ObjectProperty *op;
     uint64_t mask = (1ULL << bitnr);
 
-    op = object_property_find(OBJECT(cpu), prop_name, NULL);
+    op = object_property_find(OBJECT(cpu), prop_name);
     if (op) {
         fp = op->opaque;
         assert(fp->w == w);

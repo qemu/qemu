@@ -1463,14 +1463,52 @@ void object_property_set_default_uint(ObjectProperty *prop, uint64_t value);
  * object_property_find:
  * @obj: the object
  * @name: the name of the property
+ *
+ * Look up a property for an object.
+ *
+ * Return its #ObjectProperty if found, or NULL.
+ */
+ObjectProperty *object_property_find(Object *obj, const char *name);
+
+/**
+ * object_property_find_err:
+ * @obj: the object
+ * @name: the name of the property
  * @errp: returns an error if this function fails
  *
- * Look up a property for an object and return its #ObjectProperty if found.
+ * Look up a property for an object.
+ *
+ * Return its #ObjectProperty if found, or NULL.
  */
-ObjectProperty *object_property_find(Object *obj, const char *name,
-                                     Error **errp);
-ObjectProperty *object_class_property_find(ObjectClass *klass, const char *name,
-                                           Error **errp);
+ObjectProperty *object_property_find_err(Object *obj,
+                                         const char *name,
+                                         Error **errp);
+
+/**
+ * object_class_property_find:
+ * @klass: the object class
+ * @name: the name of the property
+ *
+ * Look up a property for an object class.
+ *
+ * Return its #ObjectProperty if found, or NULL.
+ */
+ObjectProperty *object_class_property_find(ObjectClass *klass,
+                                           const char *name);
+
+/**
+ * object_class_property_find_err:
+ * @klass: the object class
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Look up a property for an object class.
+ *
+ * Return its #ObjectProperty if found, or NULL.
+ */
+ObjectProperty *object_class_property_find_err(ObjectClass *klass,
+                                               const char *name,
+                                               Error **errp);
 
 typedef struct ObjectPropertyIterator {
     ObjectClass *nextclass;
