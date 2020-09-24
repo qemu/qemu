@@ -130,12 +130,11 @@ static void *line_out_get_buffer(HWVoiceOut *hw, size_t *size)
     }
 
     if (out->frame) {
-        *size = audio_rate_get_bytes(
-            &hw->info, &out->rate,
-            (out->fsize - out->fpos) * hw->info.bytes_per_frame);
-    } else {
-        audio_rate_start(&out->rate);
+        *size = MIN((out->fsize - out->fpos) << 2, *size);
     }
+
+    *size = audio_rate_get_bytes(&hw->info, &out->rate, *size);
+
     return out->frame + out->fpos;
 }
 
@@ -143,12 +142,14 @@ static size_t line_out_put_buffer(HWVoiceOut *hw, void *buf, size_t size)
 {
     SpiceVoiceOut *out = container_of(hw, SpiceVoiceOut, hw);
 
-    assert(buf == out->frame + out->fpos && out->fpos <= out->fsize);
-    out->fpos += size >> 2;
+    if (buf) {
+        assert(buf == out->frame + out->fpos && out->fpos <= out->fsize);
+        out->fpos += size >> 2;
 
-    if (out->fpos == out->fsize) { /* buffer full */
-        spice_server_playback_put_samples(&out->sin, out->frame);
-        out->frame = NULL;
+        if (out->fpos == out->fsize) { /* buffer full */
+            spice_server_playback_put_samples(&out->sin, out->frame);
+            out->frame = NULL;
+        }
     }
 
     return size;
@@ -309,11 +310,6 @@ static struct audio_driver spice_audio_driver = {
     .voice_size_out = sizeof (SpiceVoiceOut),
     .voice_size_in  = sizeof (SpiceVoiceIn),
 };
-
-void qemu_spice_audio_init (void)
-{
-    spice_audio_driver.can_be_default = 1;
-}
 
 static void register_audio_spice(void)
 {
