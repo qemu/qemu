@@ -25,7 +25,7 @@ struct virtio_blk_inhdr {
 };
 
 typedef struct VuBlockReq {
-    VuVirtqElement *elem;
+    VuVirtqElement elem;
     int64_t sector_num;
     size_t size;
     struct virtio_blk_inhdr *in;
@@ -39,14 +39,10 @@ static void vu_block_req_complete(VuBlockReq *req)
     VuDev *vu_dev = &req->server->vu_dev;
 
     /* IO size with 1 extra status byte */
-    vu_queue_push(vu_dev, req->vq, req->elem, req->size + 1);
+    vu_queue_push(vu_dev, req->vq, &req->elem, req->size + 1);
     vu_queue_notify(vu_dev, req->vq);
 
-    if (req->elem) {
-        free(req->elem);
-    }
-
-    g_free(req);
+    free(req);
 }
 
 static VuBlockDev *get_vu_block_device_by_server(VuServer *server)
@@ -89,20 +85,12 @@ static void coroutine_fn vu_block_flush(VuBlockReq *req)
     blk_co_flush(backend);
 }
 
-struct req_data {
-    VuServer *server;
-    VuVirtq *vq;
-    VuVirtqElement *elem;
-};
-
 static void coroutine_fn vu_block_virtio_process_req(void *opaque)
 {
-    struct req_data *data = opaque;
-    VuServer *server = data->server;
-    VuVirtq *vq = data->vq;
-    VuVirtqElement *elem = data->elem;
+    VuBlockReq *req = opaque;
+    VuServer *server = req->server;
+    VuVirtqElement *elem = &req->elem;
     uint32_t type;
-    VuBlockReq *req;
 
     VuBlockDev *vdev_blk = get_vu_block_device_by_server(server);
     BlockBackend *backend = vdev_blk->backend;
@@ -111,17 +99,12 @@ static void coroutine_fn vu_block_virtio_process_req(void *opaque)
     struct iovec *out_iov = elem->out_sg;
     unsigned in_num = elem->in_num;
     unsigned out_num = elem->out_num;
+
     /* refer to hw/block/virtio_blk.c */
     if (elem->out_num < 1 || elem->in_num < 1) {
         error_report("virtio-blk request missing headers");
-        free(elem);
-        return;
+        goto err;
     }
-
-    req = g_new0(VuBlockReq, 1);
-    req->server = server;
-    req->vq = vq;
-    req->elem = elem;
 
     if (unlikely(iov_to_buf(out_iov, out_num, 0, &req->out,
                             sizeof(req->out)) != sizeof(req->out))) {
@@ -202,36 +185,27 @@ static void coroutine_fn vu_block_virtio_process_req(void *opaque)
 
 err:
     free(elem);
-    g_free(req);
-    return;
 }
 
 static void vu_block_process_vq(VuDev *vu_dev, int idx)
 {
-    VuServer *server;
-    VuVirtq *vq;
-    struct req_data *req_data;
+    VuServer *server = container_of(vu_dev, VuServer, vu_dev);
+    VuVirtq *vq = vu_get_queue(vu_dev, idx);
 
-    server = container_of(vu_dev, VuServer, vu_dev);
-    assert(server);
-
-    vq = vu_get_queue(vu_dev, idx);
-    assert(vq);
-    VuVirtqElement *elem;
     while (1) {
-        elem = vu_queue_pop(vu_dev, vq, sizeof(VuVirtqElement) +
-                                    sizeof(VuBlockReq));
-        if (elem) {
-            req_data = g_new0(struct req_data, 1);
-            req_data->server = server;
-            req_data->vq = vq;
-            req_data->elem = elem;
-            Coroutine *co = qemu_coroutine_create(vu_block_virtio_process_req,
-                                                  req_data);
-            aio_co_enter(server->ioc->ctx, co);
-        } else {
+        VuBlockReq *req;
+
+        req = vu_queue_pop(vu_dev, vq, sizeof(VuBlockReq));
+        if (!req) {
             break;
         }
+
+        req->server = server;
+        req->vq = vq;
+
+        Coroutine *co =
+            qemu_coroutine_create(vu_block_virtio_process_req, req);
+        qemu_coroutine_enter(co);
     }
 }
 
