@@ -80,6 +80,7 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
     *exp = (BlockExport) {
         .drv        = drv,
         .refcount   = 1,
+        .user_owned = true,
         .id         = g_strdup(export->id),
     };
 
@@ -143,6 +144,11 @@ void blk_exp_request_shutdown(BlockExport *exp)
 
     aio_context_acquire(aio_context);
     exp->drv->request_shutdown(exp);
+
+    assert(exp->user_owned);
+    exp->user_owned = false;
+    blk_exp_unref(exp);
+
     aio_context_release(aio_context);
 }
 

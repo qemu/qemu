@@ -60,6 +60,14 @@ struct BlockExport {
      */
     int refcount;
 
+    /*
+     * True if one of the references in refcount belongs to the user. After the
+     * user has dropped their reference, they may not e.g. remove the same
+     * export a second time (which would decrease the refcount without having
+     * it incremented first).
+     */
+    bool user_owned;
+
     /* The AioContext whose lock protects this BlockExport object. */
     AioContext *ctx;
 
