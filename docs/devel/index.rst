@@ -32,3 +32,4 @@ Contents:
    s390-dasd-ipl
    clocks
    qom
+   block-coroutine-wrapper
