@@ -62,6 +62,7 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
     BlockDriverState *bs;
     BlockBackend *blk;
     AioContext *ctx;
+    uint64_t perm;
     int ret;
 
     if (!id_wellformed(export->id)) {
@@ -84,6 +85,14 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
         return NULL;
     }
 
+    if (!export->has_writable) {
+        export->writable = false;
+    }
+    if (bdrv_is_read_only(bs) && export->writable) {
+        error_setg(errp, "Cannot export read-only node as writable");
+        return NULL;
+    }
+
     ctx = bdrv_get_aio_context(bs);
     aio_context_acquire(ctx);
 
@@ -95,7 +104,12 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
      */
     bdrv_invalidate_cache(bs, NULL);
 
-    blk = blk_new(ctx, BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
+    perm = BLK_PERM_CONSISTENT_READ;
+    if (export->writable) {
+        perm |= BLK_PERM_WRITE;
+    }
+
+    blk = blk_new(ctx, perm, BLK_PERM_ALL);
     ret = blk_insert_bs(blk, bs, errp);
     if (ret < 0) {
         goto fail;

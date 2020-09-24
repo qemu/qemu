@@ -74,9 +74,6 @@
 # @description: Free-form description of the export, up to 4096 bytes.
 #               (Since 5.0)
 #
-# @writable: Whether clients should be able to write to the device via the
-#            NBD connection (default false).
-#
 # @bitmap: Also export the dirty bitmap reachable from @device, so the
 #          NBD client can use NBD_OPT_SET_META_CONTEXT with
 #          "qemu:dirty-bitmap:NAME" to inspect the bitmap. (since 4.0)
@@ -85,7 +82,7 @@
 ##
 { 'struct': 'BlockExportOptionsNbd',
   'data': { '*name': 'str', '*description': 'str',
-            '*writable': 'bool', '*bitmap': 'str' } }
+            '*bitmap': 'str' } }
 
 ##
 # @NbdServerAddOptions:
@@ -94,11 +91,15 @@
 #
 # @device: The device name or node name of the node to be exported
 #
+# @writable: Whether clients should be able to write to the device via the
+#            NBD connection (default false).
+#
 # Since: 5.0
 ##
 { 'struct': 'NbdServerAddOptions',
   'base': 'BlockExportOptionsNbd',
-  'data': { 'device': 'str' } }
+  'data': { 'device': 'str',
+            '*writable': 'bool' } }
 
 ##
 # @nbd-server-add:
@@ -188,6 +189,9 @@
 #
 # @node-name: The node name of the block node to be exported (since: 5.2)
 #
+# @writable: True if clients should be able to write to the export
+#            (default false)
+#
 # @writethrough: If true, caches are flushed after every write request to the
 #                export before completion is signalled. (since: 5.2;
 #                default: false)
@@ -198,6 +202,7 @@
   'base': { 'type': 'BlockExportType',
             'id': 'str',
             'node-name': 'str',
+            '*writable': 'bool',
             '*writethrough': 'bool' },
   'discriminator': 'type',
   'data': {

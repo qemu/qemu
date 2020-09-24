@@ -1530,11 +1530,6 @@ int nbd_export_new(BlockExport *blk_exp,
     /* Don't allow resize while the NBD server is running, otherwise we don't
      * care what happens with the node. */
     blk_get_perm(blk, &perm, &shared_perm);
-
-    if (!readonly) {
-        perm |= BLK_PERM_WRITE;
-    }
-
     ret = blk_set_perm(blk, perm, shared_perm & ~BLK_PERM_RESIZE, errp);
     if (ret < 0) {
         return ret;

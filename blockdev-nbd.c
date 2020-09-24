@@ -204,16 +204,8 @@ int nbd_export_create(BlockExport *exp, BlockExportOptions *exp_args,
         return -EEXIST;
     }
 
-    if (!arg->has_writable) {
-        arg->writable = false;
-    }
-    if (blk_is_read_only(exp->blk) && arg->writable) {
-        error_setg(errp, "Cannot export read-only node as writable");
-        return -EINVAL;
-    }
-
     return nbd_export_new(exp, arg->name, arg->description, arg->bitmap,
-                          !arg->writable, !arg->writable, errp);
+                          !exp_args->writable, !exp_args->writable, errp);
 }
 
 void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
@@ -241,13 +233,13 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
         .type                   = BLOCK_EXPORT_TYPE_NBD,
         .id                     = g_strdup(arg->name),
         .node_name              = g_strdup(bdrv_get_node_name(bs)),
+        .has_writable           = arg->has_writable,
+        .writable               = arg->writable,
         .u.nbd = {
             .has_name           = true,
             .name               = g_strdup(arg->name),
             .has_description    = arg->has_description,
             .description        = g_strdup(arg->description),
-            .has_writable       = arg->has_writable,
-            .writable           = arg->writable,
             .has_bitmap         = arg->has_bitmap,
             .bitmap             = g_strdup(arg->bitmap),
         },
@@ -259,8 +251,8 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
      * block-export-add.
      */
     if (bdrv_is_read_only(bs)) {
-        export_opts->u.nbd.has_writable = true;
-        export_opts->u.nbd.writable = false;
+        export_opts->has_writable = true;
+        export_opts->writable = false;
     }
 
     export = blk_exp_add(export_opts, errp);
