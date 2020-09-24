@@ -236,7 +236,7 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
     /* The list of named exports has a strong reference to this export now and
      * our only way of accessing it is through nbd_export_find(), so we can drop
      * the strong reference that is @exp. */
-    nbd_export_put(exp);
+    blk_exp_unref((BlockExport*) exp);
 
  out:
     aio_context_release(aio_context);

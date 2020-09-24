@@ -83,7 +83,6 @@ struct NBDRequestData {
 
 struct NBDExport {
     BlockExport common;
-    int refcount;
 
     BlockBackend *blk;
     char *name;
@@ -499,7 +498,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
     }
 
     QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
-    nbd_export_get(client->exp);
+    blk_exp_ref(&client->exp->common);
     nbd_check_meta_export(client);
 
     return 0;
@@ -707,7 +706,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
         client->exp = exp;
         client->check_align = check_align;
         QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
-        nbd_export_get(client->exp);
+        blk_exp_ref(&client->exp->common);
         nbd_check_meta_export(client);
         rc = 1;
     }
@@ -1406,7 +1405,7 @@ void nbd_client_put(NBDClient *client)
         g_free(client->tlsauthz);
         if (client->exp) {
             QTAILQ_REMOVE(&client->exp->clients, client, next);
-            nbd_export_put(client->exp);
+            blk_exp_unref(&client->exp->common);
         }
         g_free(client);
     }
@@ -1538,7 +1537,8 @@ NBDExport *nbd_export_new(BlockDriverState *bs,
 
     exp = g_new0(NBDExport, 1);
     exp->common = (BlockExport) {
-        .drv = &blk_exp_nbd,
+        .drv        = &blk_exp_nbd,
+        .refcount   = 1,
     };
 
     /*
@@ -1567,7 +1567,6 @@ NBDExport *nbd_export_new(BlockDriverState *bs,
     blk_set_enable_write_cache(blk, !writethrough);
     blk_set_allow_aio_context_change(blk, true);
 
-    exp->refcount = 1;
     QTAILQ_INIT(&exp->clients);
     exp->blk = blk;
     exp->name = g_strdup(name);
@@ -1626,8 +1625,9 @@ NBDExport *nbd_export_new(BlockDriverState *bs,
     exp->ctx = ctx;
     blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
 
+    blk_exp_ref(&exp->common);
     QTAILQ_INSERT_TAIL(&exports, exp, next);
-    nbd_export_get(exp);
+
     return exp;
 
 fail:
@@ -1660,7 +1660,7 @@ void nbd_export_close(NBDExport *exp)
 {
     NBDClient *client, *next;
 
-    nbd_export_get(exp);
+    blk_exp_ref(&exp->common);
     /*
      * TODO: Should we expand QMP NbdServerRemoveNode enum to allow a
      * close mode that stops advertising the export to new clients but
@@ -1672,13 +1672,13 @@ void nbd_export_close(NBDExport *exp)
         client_close(client, true);
     }
     if (exp->name) {
-        nbd_export_put(exp);
+        blk_exp_unref(&exp->common);
         g_free(exp->name);
         exp->name = NULL;
         QTAILQ_REMOVE(&exports, exp, next);
         QTAILQ_INSERT_TAIL(&closed_exports, exp, next);
     }
-    nbd_export_put(exp);
+    blk_exp_unref(&exp->common);
 }
 
 void nbd_export_remove(NBDExport *exp, NbdServerRemoveMode mode, Error **errp)
@@ -1695,47 +1695,41 @@ void nbd_export_remove(NBDExport *exp, NbdServerRemoveMode mode, Error **errp)
     error_append_hint(errp, "Use mode='hard' to force client disconnect\n");
 }
 
-void nbd_export_get(NBDExport *exp)
+static void nbd_export_delete(BlockExport *blk_exp)
 {
-    assert(exp->refcount > 0);
-    exp->refcount++;
-}
+    NBDExport *exp = container_of(blk_exp, NBDExport, common);
 
-void nbd_export_put(NBDExport *exp)
-{
-    assert(exp->refcount > 0);
-    if (--exp->refcount == 0) {
-        assert(exp->name == NULL);
-        assert(QTAILQ_EMPTY(&exp->clients));
+    assert(exp->name == NULL);
+    assert(QTAILQ_EMPTY(&exp->clients));
 
-        g_free(exp->description);
-        exp->description = NULL;
+    g_free(exp->description);
+    exp->description = NULL;
 
-        if (exp->blk) {
-            if (exp->eject_notifier_blk) {
-                notifier_remove(&exp->eject_notifier);
-                blk_unref(exp->eject_notifier_blk);
-            }
-            blk_remove_aio_context_notifier(exp->blk, blk_aio_attached,
-                                            blk_aio_detach, exp);
-            blk_unref(exp->blk);
-            exp->blk = NULL;
+    if (exp->blk) {
+        if (exp->eject_notifier_blk) {
+            notifier_remove(&exp->eject_notifier);
+            blk_unref(exp->eject_notifier_blk);
         }
-
-        if (exp->export_bitmap) {
-            bdrv_dirty_bitmap_set_busy(exp->export_bitmap, false);
-            g_free(exp->export_bitmap_context);
-        }
-
-        QTAILQ_REMOVE(&closed_exports, exp, next);
-        g_free(exp);
-        aio_wait_kick();
+        blk_remove_aio_context_notifier(exp->blk, blk_aio_attached,
+                                        blk_aio_detach, exp);
+        blk_unref(exp->blk);
+        exp->blk = NULL;
     }
+
+    if (exp->export_bitmap) {
+        bdrv_dirty_bitmap_set_busy(exp->export_bitmap, false);
+        g_free(exp->export_bitmap_context);
+    }
+
+    QTAILQ_REMOVE(&closed_exports, exp, next);
+    g_free(exp);
+    aio_wait_kick();
 }
 
 const BlockExportDriver blk_exp_nbd = {
     .type               = BLOCK_EXPORT_TYPE_NBD,
     .create             = nbd_export_create,
+    .delete             = nbd_export_delete,
 };
 
 void nbd_export_close_all(void)

@@ -49,6 +49,20 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
     return drv->create(export, errp);
 }
 
+void blk_exp_ref(BlockExport *exp)
+{
+    assert(exp->refcount > 0);
+    exp->refcount++;
+}
+
+void blk_exp_unref(BlockExport *exp)
+{
+    assert(exp->refcount > 0);
+    if (--exp->refcount == 0) {
+        exp->drv->delete(exp);
+    }
+}
+
 void qmp_block_export_add(BlockExportOptions *export, Error **errp)
 {
     blk_exp_add(export, errp);
