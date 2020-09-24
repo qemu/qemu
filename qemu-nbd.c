@@ -65,7 +65,6 @@
 
 #define MBR_SIZE 512
 
-static NBDExport *export;
 static int verbose;
 static char *srcpath;
 static SocketAddress *saddr;
@@ -580,6 +579,7 @@ int main(int argc, char **argv)
     int old_stderr = -1;
     unsigned socket_activation;
     const char *pid_file_name = NULL;
+    BlockExportOptions *export_opts;
 
 #if HAVE_NBD_DEVICE
     /* The client thread uses SIGTERM to interrupt the server.  A signal
@@ -1059,9 +1059,27 @@ int main(int argc, char **argv)
 
     bs->detect_zeroes = detect_zeroes;
 
-    export = nbd_export_new(bs, export_name,
-                            export_description, bitmap, readonly, shared > 1,
-                            writethrough, &error_fatal);
+    nbd_server_is_qemu_nbd(true);
+
+    export_opts = g_new(BlockExportOptions, 1);
+    *export_opts = (BlockExportOptions) {
+        .type               = BLOCK_EXPORT_TYPE_NBD,
+        .has_writethrough   = true,
+        .writethrough       = writethrough,
+        .u.nbd = {
+            .device             = g_strdup(bdrv_get_node_name(bs)),
+            .has_name           = true,
+            .name               = g_strdup(export_name),
+            .has_description    = !!export_description,
+            .description        = g_strdup(export_description),
+            .has_writable       = true,
+            .writable           = !readonly,
+            .has_bitmap         = !!bitmap,
+            .bitmap             = g_strdup(bitmap),
+        },
+    };
+    blk_exp_add(export_opts, &error_fatal);
+    qapi_free_BlockExportOptions(export_opts);
 
     if (device) {
 #if HAVE_NBD_DEVICE
@@ -1101,9 +1119,7 @@ int main(int argc, char **argv)
     do {
         main_loop_wait(false);
         if (state == TERMINATE) {
-            nbd_export_put(export);
             nbd_export_close_all();
-            export = NULL;
             state = TERMINATED;
         }
     } while (state != TERMINATED);

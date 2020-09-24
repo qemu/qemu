@@ -28,8 +28,14 @@ typedef struct NBDServerData {
 } NBDServerData;
 
 static NBDServerData *nbd_server;
+static bool is_qemu_nbd;
 
 static void nbd_update_server_watch(NBDServerData *s);
+
+void nbd_server_is_qemu_nbd(bool value)
+{
+    is_qemu_nbd = value;
+}
 
 static void nbd_blockdev_client_closed(NBDClient *client, bool ignored)
 {
@@ -176,7 +182,7 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
 
     assert(exp_args->type == BLOCK_EXPORT_TYPE_NBD);
 
-    if (!nbd_server) {
+    if (!nbd_server && !is_qemu_nbd) {
         error_setg(errp, "NBD server not running");
         return NULL;
     }
