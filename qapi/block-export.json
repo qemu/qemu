@@ -116,9 +116,9 @@
   'data': 'NbdServerAddOptions', 'boxed': true }
 
 ##
-# @NbdServerRemoveMode:
+# @BlockExportRemoveMode:
 #
-# Mode for removing an NBD export.
+# Mode for removing a block export.
 #
 # @safe: Remove export if there are no existing connections, fail otherwise.
 #
@@ -134,16 +134,16 @@
 #
 # Since: 2.12
 ##
-{'enum': 'NbdServerRemoveMode', 'data': ['safe', 'hard']}
+{'enum': 'BlockExportRemoveMode', 'data': ['safe', 'hard']}
 
 ##
 # @nbd-server-remove:
 #
 # Remove NBD export by name.
 #
-# @name: Export name.
+# @name: Block export id.
 #
-# @mode: Mode of command operation. See @NbdServerRemoveMode description.
+# @mode: Mode of command operation. See @BlockExportRemoveMode description.
 #        Default is 'safe'.
 #
 # Returns: error if
@@ -154,7 +154,7 @@
 # Since: 2.12
 ##
 { 'command': 'nbd-server-remove',
-  'data': {'name': 'str', '*mode': 'NbdServerRemoveMode'} }
+  'data': {'name': 'str', '*mode': 'BlockExportRemoveMode'} }
 
 ##
 # @nbd-server-stop:
@@ -213,3 +213,23 @@
 ##
 { 'command': 'block-export-add',
   'data': 'BlockExportOptions', 'boxed': true }
+
+##
+# @block-export-del:
+#
+# Request to remove a block export. This drops the user's reference to the
+# export, but the export may still stay around after this command returns until
+# the shutdown of the export has completed.
+#
+# @id: Block export id.
+#
+# @mode: Mode of command operation. See @BlockExportRemoveMode description.
+#        Default is 'safe'.
+#
+# Returns: Error if the export is not found or @mode is 'safe' and the export
+#          is still in use (e.g. by existing client connections)
+#
+# Since: 5.2
+##
+{ 'command': 'block-export-del',
+  'data': { 'id': 'str', '*mode': 'BlockExportRemoveMode' } }

@@ -307,31 +307,18 @@ fail:
 }
 
 void qmp_nbd_server_remove(const char *name,
-                           bool has_mode, NbdServerRemoveMode mode,
+                           bool has_mode, BlockExportRemoveMode mode,
                            Error **errp)
 {
-    NBDExport *exp;
-    AioContext *aio_context;
+    BlockExport *exp;
 
-    if (!nbd_server) {
-        error_setg(errp, "NBD server not running");
+    exp = blk_exp_find(name);
+    if (exp && exp->drv->type != BLOCK_EXPORT_TYPE_NBD) {
+        error_setg(errp, "Block export '%s' is not an NBD export", name);
         return;
     }
 
-    exp = nbd_export_find(name);
-    if (exp == NULL) {
-        error_setg(errp, "Export '%s' is not found", name);
-        return;
-    }
-
-    if (!has_mode) {
-        mode = NBD_SERVER_REMOVE_MODE_SAFE;
-    }
-
-    aio_context = nbd_export_aio_context(exp);
-    aio_context_acquire(aio_context);
-    nbd_export_remove(exp, mode, errp);
-    aio_context_release(aio_context);
+    qmp_block_export_del(name, has_mode, mode, errp);
 }
 
 void qmp_nbd_server_stop(Error **errp)

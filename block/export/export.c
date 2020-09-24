@@ -29,7 +29,7 @@ static const BlockExportDriver *blk_exp_drivers[] = {
 static QLIST_HEAD(, BlockExport) block_exports =
     QLIST_HEAD_INITIALIZER(block_exports);
 
-static BlockExport *blk_exp_find(const char *id)
+BlockExport *blk_exp_find(const char *id)
 {
     BlockExport *exp;
 
@@ -143,12 +143,23 @@ void blk_exp_request_shutdown(BlockExport *exp)
     AioContext *aio_context = exp->ctx;
 
     aio_context_acquire(aio_context);
+
+    /*
+     * If the user doesn't own the export any more, it is already shutting
+     * down. We must not call .request_shutdown and decrease the refcount a
+     * second time.
+     */
+    if (!exp->user_owned) {
+        goto out;
+    }
+
     exp->drv->request_shutdown(exp);
 
     assert(exp->user_owned);
     exp->user_owned = false;
     blk_exp_unref(exp);
 
+out:
     aio_context_release(aio_context);
 }
 
@@ -198,4 +209,34 @@ void blk_exp_close_all(void)
 void qmp_block_export_add(BlockExportOptions *export, Error **errp)
 {
     blk_exp_add(export, errp);
+}
+
+void qmp_block_export_del(const char *id,
+                          bool has_mode, BlockExportRemoveMode mode,
+                          Error **errp)
+{
+    ERRP_GUARD();
+    BlockExport *exp;
+
+    exp = blk_exp_find(id);
+    if (exp == NULL) {
+        error_setg(errp, "Export '%s' is not found", id);
+        return;
+    }
+    if (!exp->user_owned) {
+        error_setg(errp, "Export '%s' is already shutting down", id);
+        return;
+    }
+
+    if (!has_mode) {
+        mode = BLOCK_EXPORT_REMOVE_MODE_SAFE;
+    }
+    if (mode == BLOCK_EXPORT_REMOVE_MODE_SAFE && exp->refcount > 1) {
+        error_setg(errp, "export '%s' still in use", exp->id);
+        error_append_hint(errp, "Use mode='hard' to force client "
+                          "disconnect\n");
+        return;
+    }
+
+    blk_exp_request_shutdown(exp);
 }

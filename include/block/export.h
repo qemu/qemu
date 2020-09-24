@@ -76,6 +76,7 @@ struct BlockExport {
 };
 
 BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp);
+BlockExport *blk_exp_find(const char *id);
 void blk_exp_ref(BlockExport *exp);
 void blk_exp_unref(BlockExport *exp);
 void blk_exp_request_shutdown(BlockExport *exp);

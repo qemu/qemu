@@ -476,8 +476,8 @@ void hmp_nbd_server_remove(Monitor *mon, const QDict *qdict)
     bool force = qdict_get_try_bool(qdict, "force", false);
     Error *err = NULL;
 
-    /* Rely on NBD_SERVER_REMOVE_MODE_SAFE being the default */
-    qmp_nbd_server_remove(name, force, NBD_SERVER_REMOVE_MODE_HARD, &err);
+    /* Rely on BLOCK_EXPORT_REMOVE_MODE_SAFE being the default */
+    qmp_nbd_server_remove(name, force, BLOCK_EXPORT_REMOVE_MODE_HARD, &err);
     hmp_handle_error(mon, err);
 }
 
