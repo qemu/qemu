@@ -150,7 +150,7 @@ static void init_qmp_commands(void)
                          qmp_marshal_qmp_capabilities, QCO_ALLOW_PRECONFIG);
 }
 
-static void init_export(BlockExport *export, Error **errp)
+static void init_export(BlockExportOptions *export, Error **errp)
 {
     switch (export->type) {
     case BLOCK_EXPORT_TYPE_NBD:
@@ -235,14 +235,14 @@ static void process_options(int argc, char *argv[])
         case OPTION_EXPORT:
             {
                 Visitor *v;
-                BlockExport *export;
+                BlockExportOptions *export;
 
                 v = qobject_input_visitor_new_str(optarg, "type", &error_fatal);
-                visit_type_BlockExport(v, NULL, &export, &error_fatal);
+                visit_type_BlockExportOptions(v, NULL, &export, &error_fatal);
                 visit_free(v);
 
                 init_export(export, &error_fatal);
-                qapi_free_BlockExport(export);
+                qapi_free_BlockExportOptions(export);
                 break;
             }
         case OPTION_MONITOR:

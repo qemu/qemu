@@ -57,7 +57,7 @@
             '*tls-authz': 'str'} }
 
 ##
-# @BlockExportNbd:
+# @BlockExportOptionsNbd:
 #
 # An NBD block export.
 #
@@ -78,7 +78,7 @@
 #
 # Since: 5.0
 ##
-{ 'struct': 'BlockExportNbd',
+{ 'struct': 'BlockExportOptionsNbd',
   'data': {'device': 'str', '*name': 'str', '*description': 'str',
            '*writable': 'bool', '*bitmap': 'str' } }
 
@@ -93,7 +93,7 @@
 # Since: 1.3.0
 ##
 { 'command': 'nbd-server-add',
-  'data': 'BlockExportNbd', 'boxed': true }
+  'data': 'BlockExportOptionsNbd', 'boxed': true }
 
 ##
 # @NbdServerRemoveMode:
@@ -159,16 +159,16 @@
   'data': [ 'nbd' ] }
 
 ##
-# @BlockExport:
+# @BlockExportOptions:
 #
 # Describes a block export, i.e. how single node should be exported on an
 # external interface.
 #
 # Since: 4.2
 ##
-{ 'union': 'BlockExport',
+{ 'union': 'BlockExportOptions',
   'base': { 'type': 'BlockExportType' },
   'discriminator': 'type',
   'data': {
-      'nbd': 'BlockExportNbd'
+      'nbd': 'BlockExportOptionsNbd'
    } }
