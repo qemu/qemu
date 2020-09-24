@@ -407,7 +407,7 @@ bool vhost_user_server_start(VuServer *server,
         return false;
     }
 
-    /* zero out unspecified fileds */
+    /* zero out unspecified fields */
     *server = (VuServer) {
         .listener              = listener,
         .vu_iface              = vu_iface,
