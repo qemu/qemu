@@ -84,7 +84,6 @@ struct NBDRequestData {
 struct NBDExport {
     BlockExport common;
 
-    BlockBackend *blk;
     char *name;
     char *description;
     uint64_t size;
@@ -643,7 +642,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
      * whether this is OPT_INFO or OPT_GO. */
     /* minimum - 1 for back-compat, or actual if client will obey it. */
     if (client->opt == NBD_OPT_INFO || blocksize) {
-        check_align = sizes[0] = blk_get_request_alignment(exp->blk);
+        check_align = sizes[0] = blk_get_request_alignment(exp->common.blk);
     } else {
         sizes[0] = 1;
     }
@@ -652,7 +651,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
      * TODO: is blk_bs(blk)->bl.opt_transfer appropriate? */
     sizes[1] = MAX(4096, sizes[0]);
     /* maximum - At most 32M, but smaller as appropriate. */
-    sizes[2] = MIN(blk_get_max_transfer(exp->blk), NBD_MAX_BUFFER_SIZE);
+    sizes[2] = MIN(blk_get_max_transfer(exp->common.blk), NBD_MAX_BUFFER_SIZE);
     trace_nbd_negotiate_handle_info_block_size(sizes[0], sizes[1], sizes[2]);
     sizes[0] = cpu_to_be32(sizes[0]);
     sizes[1] = cpu_to_be32(sizes[1]);
@@ -684,7 +683,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
      * tolerate all clients, regardless of alignments.
      */
     if (client->opt == NBD_OPT_INFO && !blocksize &&
-        blk_get_request_alignment(exp->blk) > 1) {
+        blk_get_request_alignment(exp->common.blk) > 1) {
         return nbd_negotiate_send_rep_err(client,
                                           NBD_REP_ERR_BLOCK_SIZE_REQD,
                                           errp,
@@ -1557,7 +1556,7 @@ int nbd_export_new(BlockExport *blk_exp, BlockDriverState *bs,
     blk_set_allow_aio_context_change(blk, true);
 
     QTAILQ_INIT(&exp->clients);
-    exp->blk = blk;
+    exp->common.blk = blk;
     exp->name = g_strdup(name);
     assert(!desc || strlen(desc) <= NBD_MAX_STRING_SIZE);
     exp->description = g_strdup(desc);
@@ -1679,15 +1678,13 @@ static void nbd_export_delete(BlockExport *blk_exp)
     g_free(exp->description);
     exp->description = NULL;
 
-    if (exp->blk) {
+    if (exp->common.blk) {
         if (exp->eject_notifier_blk) {
             notifier_remove(&exp->eject_notifier);
             blk_unref(exp->eject_notifier_blk);
         }
-        blk_remove_aio_context_notifier(exp->blk, blk_aio_attached,
+        blk_remove_aio_context_notifier(exp->common.blk, blk_aio_attached,
                                         blk_aio_detach, exp);
-        blk_unref(exp->blk);
-        exp->blk = NULL;
     }
 
     if (exp->export_bitmap) {
@@ -1840,7 +1837,7 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
 
     while (progress < size) {
         int64_t pnum;
-        int status = bdrv_block_status_above(blk_bs(exp->blk), NULL,
+        int status = bdrv_block_status_above(blk_bs(exp->common.blk), NULL,
                                              offset + progress,
                                              size - progress, &pnum, NULL,
                                              NULL);
@@ -1872,7 +1869,8 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
             stl_be_p(&chunk.length, pnum);
             ret = nbd_co_send_iov(client, iov, 1, errp);
         } else {
-            ret = blk_pread(exp->blk, offset + progress, data + progress, pnum);
+            ret = blk_pread(exp->common.blk, offset + progress,
+                            data + progress, pnum);
             if (ret < 0) {
                 error_setg_errno(errp, -ret, "reading from file failed");
                 break;
@@ -2136,7 +2134,8 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         }
 
         if (request->type != NBD_CMD_CACHE) {
-            req->data = blk_try_blockalign(client->exp->blk, request->len);
+            req->data = blk_try_blockalign(client->exp->common.blk,
+                                           request->len);
             if (req->data == NULL) {
                 error_setg(errp, "No memory");
                 return -ENOMEM;
@@ -2232,7 +2231,7 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
 
     /* XXX: NBD Protocol only documents use of FUA with WRITE */
     if (request->flags & NBD_CMD_FLAG_FUA) {
-        ret = blk_co_flush(exp->blk);
+        ret = blk_co_flush(exp->common.blk);
         if (ret < 0) {
             return nbd_send_generic_reply(client, request->handle, ret,
                                           "flush failed", errp);
@@ -2246,7 +2245,7 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
                                        data, request->len, errp);
     }
 
-    ret = blk_pread(exp->blk, request->from, data, request->len);
+    ret = blk_pread(exp->common.blk, request->from, data, request->len);
     if (ret < 0) {
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "reading from file failed", errp);
@@ -2281,7 +2280,7 @@ static coroutine_fn int nbd_do_cmd_cache(NBDClient *client, NBDRequest *request,
 
     assert(request->type == NBD_CMD_CACHE);
 
-    ret = blk_co_preadv(exp->blk, request->from, request->len,
+    ret = blk_co_preadv(exp->common.blk, request->from, request->len,
                         NULL, BDRV_REQ_COPY_ON_READ | BDRV_REQ_PREFETCH);
 
     return nbd_send_generic_reply(client, request->handle, ret,
@@ -2312,7 +2311,8 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         if (request->flags & NBD_CMD_FLAG_FUA) {
             flags |= BDRV_REQ_FUA;
         }
-        ret = blk_pwrite(exp->blk, request->from, data, request->len, flags);
+        ret = blk_pwrite(exp->common.blk, request->from, data, request->len,
+                         flags);
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "writing to file failed", errp);
 
@@ -2333,7 +2333,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
             int align = client->check_align ?: 1;
             int len = MIN(request->len, QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
                                                         align));
-            ret = blk_pwrite_zeroes(exp->blk, request->from, len, flags);
+            ret = blk_pwrite_zeroes(exp->common.blk, request->from, len, flags);
             request->len -= len;
             request->from += len;
         }
@@ -2345,7 +2345,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         abort();
 
     case NBD_CMD_FLUSH:
-        ret = blk_co_flush(exp->blk);
+        ret = blk_co_flush(exp->common.blk);
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "flush failed", errp);
 
@@ -2356,12 +2356,12 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
             int align = client->check_align ?: 1;
             int len = MIN(request->len, QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
                                                         align));
-            ret = blk_co_pdiscard(exp->blk, request->from, len);
+            ret = blk_co_pdiscard(exp->common.blk, request->from, len);
             request->len -= len;
             request->from += len;
         }
         if (ret >= 0 && request->flags & NBD_CMD_FLAG_FUA) {
-            ret = blk_co_flush(exp->blk);
+            ret = blk_co_flush(exp->common.blk);
         }
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "discard failed", errp);
@@ -2379,7 +2379,8 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
 
             if (client->export_meta.base_allocation) {
                 ret = nbd_co_send_block_status(client, request->handle,
-                                               blk_bs(exp->blk), request->from,
+                                               blk_bs(exp->common.blk),
+                                               request->from,
                                                request->len, dont_fragment,
                                                !client->export_meta.bitmap,
                                                NBD_META_ID_BASE_ALLOCATION,

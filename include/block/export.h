@@ -71,6 +71,9 @@ struct BlockExport {
     /* The AioContext whose lock protects this BlockExport object. */
     AioContext *ctx;
 
+    /* The block device to export */
+    BlockBackend *blk;
+
     /* List entry for block_exports */
     QLIST_ENTRY(BlockExport) next;
 };
