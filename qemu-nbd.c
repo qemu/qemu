@@ -524,7 +524,6 @@ int main(int argc, char **argv)
     const char *port = NULL;
     char *sockpath = NULL;
     char *device = NULL;
-    int64_t fd_size;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
     const char *sopt = "hVb:o:p:rsnc:dvk:e:f:tl:x:T:D:B:L";
@@ -1037,6 +1036,17 @@ int main(int argc, char **argv)
     }
     bs = blk_bs(blk);
 
+    if (dev_offset) {
+        QDict *raw_opts = qdict_new();
+        qdict_put_str(raw_opts, "driver", "raw");
+        qdict_put_str(raw_opts, "file", bs->node_name);
+        qdict_put_int(raw_opts, "offset", dev_offset);
+        bs = bdrv_open(NULL, NULL, raw_opts, flags, &error_fatal);
+        blk_remove_bs(blk);
+        blk_insert_bs(blk, bs, &error_fatal);
+        bdrv_unref(bs);
+    }
+
     blk_set_enable_write_cache(blk, !writethrough);
 
     if (sn_opts) {
@@ -1054,21 +1064,8 @@ int main(int argc, char **argv)
     }
 
     bs->detect_zeroes = detect_zeroes;
-    fd_size = blk_getlength(blk);
-    if (fd_size < 0) {
-        error_report("Failed to determine the image length: %s",
-                     strerror(-fd_size));
-        exit(EXIT_FAILURE);
-    }
 
-    if (dev_offset >= fd_size) {
-        error_report("Offset (%" PRIu64 ") has to be smaller than the image "
-                     "size (%" PRId64 ")", dev_offset, fd_size);
-        exit(EXIT_FAILURE);
-    }
-    fd_size -= dev_offset;
-
-    export = nbd_export_new(bs, dev_offset, fd_size, export_name,
+    export = nbd_export_new(bs, export_name,
                             export_description, bitmap, readonly, shared > 1,
                             nbd_export_closed, writethrough, NULL,
                             &error_fatal);

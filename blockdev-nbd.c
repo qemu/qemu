@@ -154,7 +154,6 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
     BlockDriverState *bs = NULL;
     BlockBackend *on_eject_blk;
     NBDExport *exp = NULL;
-    int64_t len;
     AioContext *aio_context;
 
     assert(exp_args->type == BLOCK_EXPORT_TYPE_NBD);
@@ -192,12 +191,6 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-    len = bdrv_getlength(bs);
-    if (len < 0) {
-        error_setg_errno(errp, -len,
-                         "Failed to determine the NBD export's length");
-        goto out;
-    }
 
     if (!arg->has_writable) {
         arg->writable = false;
@@ -206,7 +199,7 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
         arg->writable = false;
     }
 
-    exp = nbd_export_new(bs, 0, len, arg->name, arg->description, arg->bitmap,
+    exp = nbd_export_new(bs, arg->name, arg->description, arg->bitmap,
                          !arg->writable, !arg->writable,
                          NULL, false, on_eject_blk, errp);
     if (!exp) {

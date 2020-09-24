@@ -331,8 +331,8 @@ typedef struct NBDExport NBDExport;
 typedef struct NBDClient NBDClient;
 
 BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp);
-NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
-                          uint64_t size, const char *name, const char *desc,
+NBDExport *nbd_export_new(BlockDriverState *bs,
+                          const char *name, const char *desc,
                           const char *bitmap, bool readonly, bool shared,
                           void (*close)(NBDExport *), bool writethrough,
                           BlockBackend *on_eject_blk, Error **errp);
