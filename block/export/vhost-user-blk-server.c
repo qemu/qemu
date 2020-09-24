@@ -78,11 +78,11 @@ vu_block_discard_write_zeroes(VuBlockReq *req, struct iovec *iov,
     return -EINVAL;
 }
 
-static void coroutine_fn vu_block_flush(VuBlockReq *req)
+static int coroutine_fn vu_block_flush(VuBlockReq *req)
 {
     VuBlockDev *vdev_blk = get_vu_block_device_by_server(req->server);
     BlockBackend *backend = vdev_blk->backend;
-    blk_co_flush(backend);
+    return blk_co_flush(backend);
 }
 
 static void coroutine_fn vu_block_virtio_process_req(void *opaque)
@@ -152,8 +152,11 @@ static void coroutine_fn vu_block_virtio_process_req(void *opaque)
         break;
     }
     case VIRTIO_BLK_T_FLUSH:
-        vu_block_flush(req);
-        req->in->status = VIRTIO_BLK_S_OK;
+        if (vu_block_flush(req) == 0) {
+            req->in->status = VIRTIO_BLK_S_OK;
+        } else {
+            req->in->status = VIRTIO_BLK_S_IOERR;
+        }
         break;
     case VIRTIO_BLK_T_GET_ID: {
         size_t size = MIN(iov_size(&elem->in_sg[0], in_num),
