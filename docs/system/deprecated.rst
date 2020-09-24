@@ -264,6 +264,12 @@ chardev client socket with ``wait`` option (since 4.0)
 Character devices creating sockets in client mode should not specify
 the 'wait' field, which is only applicable to sockets in server mode
 
+``nbd-server-add`` and ``nbd-server-remove`` (since 5.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use the more generic commands ``block-export-add`` and ``block-export-del``
+instead.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 

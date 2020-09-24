@@ -108,13 +108,16 @@
 #
 # The export name will be used as the id for the resulting block export.
 #
+# Features:
+# @deprecated: This command is deprecated. Use @block-export-add instead.
+#
 # Returns: error if the server is not running, or export with the same name
 #          already exists.
 #
 # Since: 1.3.0
 ##
 { 'command': 'nbd-server-add',
-  'data': 'NbdServerAddOptions', 'boxed': true }
+  'data': 'NbdServerAddOptions', 'boxed': true, 'features': ['deprecated'] }
 
 ##
 # @BlockExportRemoveMode:
@@ -147,6 +150,9 @@
 # @mode: Mode of command operation. See @BlockExportRemoveMode description.
 #        Default is 'safe'.
 #
+# Features:
+# @deprecated: This command is deprecated. Use @block-export-del instead.
+#
 # Returns: error if
 #            - the server is not running
 #            - export is not found
@@ -155,7 +161,8 @@
 # Since: 2.12
 ##
 { 'command': 'nbd-server-remove',
-  'data': {'name': 'str', '*mode': 'BlockExportRemoveMode'} }
+  'data': {'name': 'str', '*mode': 'BlockExportRemoveMode'},
+  'features': ['deprecated'] }
 
 ##
 # @nbd-server-stop:
