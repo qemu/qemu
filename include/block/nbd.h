@@ -332,10 +332,10 @@ typedef struct NBDClient NBDClient;
 
 int nbd_export_create(BlockExport *exp, BlockExportOptions *exp_args,
                       Error **errp);
-int nbd_export_new(BlockExport *blk_exp, BlockDriverState *bs,
+int nbd_export_new(BlockExport *blk_exp,
                    const char *name, const char *desc,
                    const char *bitmap, bool readonly, bool shared,
-                   bool writethrough, Error **errp);
+                   Error **errp);
 void nbd_export_set_on_eject_blk(BlockExport *exp, BlockBackend *blk);
 
 AioContext *nbd_export_aio_context(NBDExport *exp);

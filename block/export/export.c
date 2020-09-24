@@ -58,7 +58,10 @@ static const BlockExportDriver *blk_exp_find_driver(BlockExportType type)
 BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
 {
     const BlockExportDriver *drv;
-    BlockExport *exp;
+    BlockExport *exp = NULL;
+    BlockDriverState *bs;
+    BlockBackend *blk;
+    AioContext *ctx;
     int ret;
 
     if (!id_wellformed(export->id)) {
@@ -76,6 +79,33 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
         return NULL;
     }
 
+    bs = bdrv_lookup_bs(NULL, export->node_name, errp);
+    if (!bs) {
+        return NULL;
+    }
+
+    ctx = bdrv_get_aio_context(bs);
+    aio_context_acquire(ctx);
+
+    /*
+     * Block exports are used for non-shared storage migration. Make sure
+     * that BDRV_O_INACTIVE is cleared and the image is ready for write
+     * access since the export could be available before migration handover.
+     * ctx was acquired in the caller.
+     */
+    bdrv_invalidate_cache(bs, NULL);
+
+    blk = blk_new(ctx, BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
+    ret = blk_insert_bs(blk, bs, errp);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    if (!export->has_writethrough) {
+        export->writethrough = false;
+    }
+    blk_set_enable_write_cache(blk, !export->writethrough);
+
     assert(drv->instance_size >= sizeof(BlockExport));
     exp = g_malloc0(drv->instance_size);
     *exp = (BlockExport) {
@@ -83,19 +113,30 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
         .refcount   = 1,
         .user_owned = true,
         .id         = g_strdup(export->id),
+        .ctx        = ctx,
+        .blk        = blk,
     };
 
     ret = drv->create(exp, export, errp);
     if (ret < 0) {
-        g_free(exp->id);
-        g_free(exp);
-        return NULL;
+        goto fail;
     }
 
     assert(exp->blk != NULL);
 
     QLIST_INSERT_HEAD(&block_exports, exp, next);
+
+    aio_context_release(ctx);
     return exp;
+
+fail:
+    blk_unref(blk);
+    aio_context_release(ctx);
+    if (exp) {
+        g_free(exp->id);
+        g_free(exp);
+    }
+    return NULL;
 }
 
 /* Callers must hold exp->ctx lock */

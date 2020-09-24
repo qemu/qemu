@@ -1507,56 +1507,42 @@ void nbd_export_set_on_eject_blk(BlockExport *exp, BlockBackend *blk)
     blk_add_remove_bs_notifier(blk, &nbd_exp->eject_notifier);
 }
 
-int nbd_export_new(BlockExport *blk_exp, BlockDriverState *bs,
+int nbd_export_new(BlockExport *blk_exp,
                    const char *name, const char *desc,
                    const char *bitmap, bool readonly, bool shared,
-                   bool writethrough, Error **errp)
+                   Error **errp)
 {
     NBDExport *exp = container_of(blk_exp, NBDExport, common);
-    AioContext *ctx;
-    BlockBackend *blk;
+    BlockBackend *blk = blk_exp->blk;
     int64_t size;
-    uint64_t perm;
+    uint64_t perm, shared_perm;
     int ret;
 
-    size = bdrv_getlength(bs);
+    size = blk_getlength(blk);
     if (size < 0) {
         error_setg_errno(errp, -size,
                          "Failed to determine the NBD export's length");
         return size;
     }
 
-    ctx = bdrv_get_aio_context(bs);
-    blk_exp->ctx = ctx;
-
-    /*
-     * NBD exports are used for non-shared storage migration.  Make sure
-     * that BDRV_O_INACTIVE is cleared and the image is ready for write
-     * access since the export could be available before migration handover.
-     * ctx was acquired in the caller.
-     */
     assert(name && strlen(name) <= NBD_MAX_STRING_SIZE);
-
-    bdrv_invalidate_cache(bs, NULL);
 
     /* Don't allow resize while the NBD server is running, otherwise we don't
      * care what happens with the node. */
-    perm = BLK_PERM_CONSISTENT_READ;
+    blk_get_perm(blk, &perm, &shared_perm);
+
     if (!readonly) {
         perm |= BLK_PERM_WRITE;
     }
-    blk = blk_new(ctx, perm,
-                  BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
-                  BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD);
-    ret = blk_insert_bs(blk, bs, errp);
+
+    ret = blk_set_perm(blk, perm, shared_perm & ~BLK_PERM_RESIZE, errp);
     if (ret < 0) {
-        goto fail;
+        return ret;
     }
-    blk_set_enable_write_cache(blk, !writethrough);
+
     blk_set_allow_aio_context_change(blk, true);
 
     QTAILQ_INIT(&exp->clients);
-    exp->common.blk = blk;
     exp->name = g_strdup(name);
     assert(!desc || strlen(desc) <= NBD_MAX_STRING_SIZE);
     exp->description = g_strdup(desc);
@@ -1574,6 +1560,7 @@ int nbd_export_new(BlockExport *blk_exp, BlockDriverState *bs,
     exp->size = QEMU_ALIGN_DOWN(size, BDRV_SECTOR_SIZE);
 
     if (bitmap) {
+        BlockDriverState *bs = blk_bs(blk);
         BdrvDirtyBitmap *bm = NULL;
 
         while (bs) {
@@ -1620,7 +1607,6 @@ int nbd_export_new(BlockExport *blk_exp, BlockDriverState *bs,
     return 0;
 
 fail:
-    blk_unref(blk);
     g_free(exp->name);
     g_free(exp->description);
     return ret;

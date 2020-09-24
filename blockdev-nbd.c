@@ -177,9 +177,6 @@ int nbd_export_create(BlockExport *exp, BlockExportOptions *exp_args,
                       Error **errp)
 {
     BlockExportOptionsNbd *arg = &exp_args->u.nbd;
-    BlockDriverState *bs = NULL;
-    AioContext *aio_context;
-    int ret;
 
     assert(exp_args->type == BLOCK_EXPORT_TYPE_NBD);
 
@@ -207,38 +204,16 @@ int nbd_export_create(BlockExport *exp, BlockExportOptions *exp_args,
         return -EEXIST;
     }
 
-    bs = bdrv_lookup_bs(NULL, exp_args->node_name, errp);
-    if (!bs) {
-        return -ENOENT;
-    }
-
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
     if (!arg->has_writable) {
         arg->writable = false;
     }
-    if (bdrv_is_read_only(bs) && arg->writable) {
-        ret = -EINVAL;
+    if (blk_is_read_only(exp->blk) && arg->writable) {
         error_setg(errp, "Cannot export read-only node as writable");
-        goto out;
+        return -EINVAL;
     }
 
-    if (!exp_args->has_writethrough) {
-        exp_args->writethrough = false;
-    }
-
-    ret = nbd_export_new(exp, bs, arg->name, arg->description, arg->bitmap,
-                         !arg->writable, !arg->writable,
-                         exp_args->writethrough, errp);
-    if (ret < 0) {
-        goto out;
-    }
-
-    ret = 0;
- out:
-    aio_context_release(aio_context);
-    return ret;
+    return nbd_export_new(exp, arg->name, arg->description, arg->bitmap,
+                          !arg->writable, !arg->writable, errp);
 }
 
 void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
