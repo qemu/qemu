@@ -192,7 +192,7 @@ static int eckd_get_boot_menu_index(block_number_t s1b_block_nr)
     for (i = 0; i < STAGE2_BLK_CNT_MAX; i++) {
         cur_block_nr = eckd_block_num(&s1b->seek[i].chs);
 
-        if (!cur_block_nr) {
+        if (!cur_block_nr || is_null_block_number(cur_block_nr)) {
             break;
         }
 
