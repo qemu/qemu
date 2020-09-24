@@ -23,23 +23,41 @@ typedef struct NBDServerData {
     QIONetListener *listener;
     QCryptoTLSCreds *tlscreds;
     char *tlsauthz;
+    uint32_t max_connections;
+    uint32_t connections;
 } NBDServerData;
 
 static NBDServerData *nbd_server;
 
+static void nbd_update_server_watch(NBDServerData *s);
+
 static void nbd_blockdev_client_closed(NBDClient *client, bool ignored)
 {
     nbd_client_put(client);
+    assert(nbd_server->connections > 0);
+    nbd_server->connections--;
+    nbd_update_server_watch(nbd_server);
 }
 
 static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
                        gpointer opaque)
 {
+    nbd_server->connections++;
+    nbd_update_server_watch(nbd_server);
+
     qio_channel_set_name(QIO_CHANNEL(cioc), "nbd-server");
     nbd_client_new(cioc, nbd_server->tlscreds, nbd_server->tlsauthz,
                    nbd_blockdev_client_closed);
 }
 
+static void nbd_update_server_watch(NBDServerData *s)
+{
+    if (!s->max_connections || s->connections < s->max_connections) {
+        qio_net_listener_set_client_func(s->listener, nbd_accept, NULL, NULL);
+    } else {
+        qio_net_listener_set_client_func(s->listener, NULL, NULL, NULL);
+    }
+}
 
 static void nbd_server_free(NBDServerData *server)
 {
@@ -88,7 +106,8 @@ static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, Error **errp)
 
 
 void nbd_server_start(SocketAddress *addr, const char *tls_creds,
-                      const char *tls_authz, Error **errp)
+                      const char *tls_authz, uint32_t max_connections,
+                      Error **errp)
 {
     if (nbd_server) {
         error_setg(errp, "NBD server already running");
@@ -96,6 +115,7 @@ void nbd_server_start(SocketAddress *addr, const char *tls_creds,
     }
 
     nbd_server = g_new0(NBDServerData, 1);
+    nbd_server->max_connections = max_connections;
     nbd_server->listener = qio_net_listener_new();
 
     qio_net_listener_set_name(nbd_server->listener,
@@ -120,10 +140,7 @@ void nbd_server_start(SocketAddress *addr, const char *tls_creds,
 
     nbd_server->tlsauthz = g_strdup(tls_authz);
 
-    qio_net_listener_set_client_func(nbd_server->listener,
-                                     nbd_accept,
-                                     NULL,
-                                     NULL);
+    nbd_update_server_watch(nbd_server);
 
     return;
 
@@ -134,17 +151,19 @@ void nbd_server_start(SocketAddress *addr, const char *tls_creds,
 
 void nbd_server_start_options(NbdServerOptions *arg, Error **errp)
 {
-    nbd_server_start(arg->addr, arg->tls_creds, arg->tls_authz, errp);
+    nbd_server_start(arg->addr, arg->tls_creds, arg->tls_authz,
+                     arg->max_connections, errp);
 }
 
 void qmp_nbd_server_start(SocketAddressLegacy *addr,
                           bool has_tls_creds, const char *tls_creds,
                           bool has_tls_authz, const char *tls_authz,
+                          bool has_max_connections, uint32_t max_connections,
                           Error **errp)
 {
     SocketAddress *addr_flat = socket_address_flatten(addr);
 
-    nbd_server_start(addr_flat, tls_creds, tls_authz, errp);
+    nbd_server_start(addr_flat, tls_creds, tls_authz, max_connections, errp);
     qapi_free_SocketAddress(addr_flat);
 }
 

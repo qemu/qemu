@@ -20,13 +20,16 @@
 #             is only resolved at time of use, so can be deleted and
 #             recreated on the fly while the NBD server is active.
 #             If missing, it will default to denying access (since 4.0).
+# @max-connections: The maximum number of connections to allow at the same
+#                   time, 0 for unlimited. (since 5.2; default: 0)
 #
 # Since: 4.2
 ##
 { 'struct': 'NbdServerOptions',
   'data': { 'addr': 'SocketAddress',
             '*tls-creds': 'str',
-            '*tls-authz': 'str'} }
+            '*tls-authz': 'str',
+            '*max-connections': 'uint32' } }
 
 ##
 # @nbd-server-start:
@@ -46,6 +49,8 @@
 #             is only resolved at time of use, so can be deleted and
 #             recreated on the fly while the NBD server is active.
 #             If missing, it will default to denying access (since 4.0).
+# @max-connections: The maximum number of connections to allow at the same
+#                   time, 0 for unlimited. (since 5.2; default: 0)
 #
 # Returns: error if the server is already running.
 #
@@ -54,7 +59,8 @@
 { 'command': 'nbd-server-start',
   'data': { 'addr': 'SocketAddressLegacy',
             '*tls-creds': 'str',
-            '*tls-authz': 'str'} }
+            '*tls-authz': 'str',
+            '*max-connections': 'uint32' } }
 
 ##
 # @BlockExportOptionsNbd:
