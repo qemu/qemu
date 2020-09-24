@@ -148,17 +148,20 @@ void qmp_nbd_server_start(SocketAddressLegacy *addr,
     qapi_free_SocketAddress(addr_flat);
 }
 
-void qmp_nbd_server_add(BlockExportOptionsNbd *arg, Error **errp)
+BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
 {
+    BlockExportOptionsNbd *arg = &exp_args->u.nbd;
     BlockDriverState *bs = NULL;
     BlockBackend *on_eject_blk;
-    NBDExport *exp;
+    NBDExport *exp = NULL;
     int64_t len;
     AioContext *aio_context;
 
+    assert(exp_args->type == BLOCK_EXPORT_TYPE_NBD);
+
     if (!nbd_server) {
         error_setg(errp, "NBD server not running");
-        return;
+        return NULL;
     }
 
     if (!arg->has_name) {
@@ -167,24 +170,24 @@ void qmp_nbd_server_add(BlockExportOptionsNbd *arg, Error **errp)
 
     if (strlen(arg->name) > NBD_MAX_STRING_SIZE) {
         error_setg(errp, "export name '%s' too long", arg->name);
-        return;
+        return NULL;
     }
 
     if (arg->description && strlen(arg->description) > NBD_MAX_STRING_SIZE) {
         error_setg(errp, "description '%s' too long", arg->description);
-        return;
+        return NULL;
     }
 
     if (nbd_export_find(arg->name)) {
         error_setg(errp, "NBD server already has export named '%s'", arg->name);
-        return;
+        return NULL;
     }
 
     on_eject_blk = blk_by_name(arg->device);
 
     bs = bdrv_lookup_bs(arg->device, arg->device, errp);
     if (!bs) {
-        return;
+        return NULL;
     }
 
     aio_context = bdrv_get_aio_context(bs);
@@ -217,6 +220,17 @@ void qmp_nbd_server_add(BlockExportOptionsNbd *arg, Error **errp)
 
  out:
     aio_context_release(aio_context);
+    /* TODO Remove the cast: nbd_export_new() will return a BlockExport. */
+    return (BlockExport*) exp;
+}
+
+void qmp_nbd_server_add(BlockExportOptionsNbd *arg, Error **errp)
+{
+    BlockExportOptions export = {
+        .type = BLOCK_EXPORT_TYPE_NBD,
+        .u.nbd = *arg,
+    };
+    qmp_block_export_add(&export, errp);
 }
 
 void qmp_nbd_server_remove(const char *name,

@@ -172,3 +172,13 @@
   'data': {
       'nbd': 'BlockExportOptionsNbd'
    } }
+
+##
+# @block-export-add:
+#
+# Creates a new block export.
+#
+# Since: 5.2
+##
+{ 'command': 'block-export-add',
+  'data': 'BlockExportOptions', 'boxed': true }

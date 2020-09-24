@@ -18,6 +18,8 @@
  */
 
 #include "qemu/osdep.h"
+
+#include "block/export.h"
 #include "qapi/error.h"
 #include "qemu/queue.h"
 #include "trace.h"
@@ -80,6 +82,7 @@ struct NBDRequestData {
 };
 
 struct NBDExport {
+    BlockExport common;
     int refcount;
     void (*close)(NBDExport *exp);
 
@@ -1512,9 +1515,14 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
 {
     AioContext *ctx;
     BlockBackend *blk;
-    NBDExport *exp = g_new0(NBDExport, 1);
+    NBDExport *exp;
     uint64_t perm;
     int ret;
+
+    exp = g_new0(NBDExport, 1);
+    exp->common = (BlockExport) {
+        .drv = &blk_exp_nbd,
+    };
 
     /*
      * NBD exports are used for non-shared storage migration.  Make sure
@@ -1730,6 +1738,11 @@ void nbd_export_put(NBDExport *exp)
         aio_wait_kick();
     }
 }
+
+const BlockExportDriver blk_exp_nbd = {
+    .type               = BLOCK_EXPORT_TYPE_NBD,
+    .create             = nbd_export_create,
+};
 
 void nbd_export_close_all(void)
 {
