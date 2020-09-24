@@ -245,3 +245,35 @@
 ##
 { 'event': 'BLOCK_EXPORT_DELETED',
   'data': { 'id': 'str' } }
+
+##
+# @BlockExportInfo:
+#
+# Information about a single block export.
+#
+# @id: The unique identifier for the block export
+#
+# @type: The block export type
+#
+# @node-name: The node name of the block node that is exported
+#
+# @shutting-down: True if the export is shutting down (e.g. after a
+#                 block-export-del command, but before the shutdown has
+#                 completed)
+#
+# Since:  5.2
+##
+{ 'struct': 'BlockExportInfo',
+  'data': { 'id': 'str',
+            'type': 'BlockExportType',
+            'node-name': 'str',
+            'shutting-down': 'bool' } }
+
+##
+# @query-block-exports:
+#
+# Returns: A list of BlockExportInfo describing all block exports
+#
+# Since: 5.2
+##
+{ 'command': 'query-block-exports', 'returns': ['BlockExportInfo'] }
