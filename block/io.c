@@ -2343,6 +2343,7 @@ early_out:
 int coroutine_fn
 bdrv_co_common_block_status_above(BlockDriverState *bs,
                                   BlockDriverState *base,
+                                  bool include_base,
                                   bool want_zero,
                                   int64_t offset,
                                   int64_t bytes,
@@ -2354,10 +2355,11 @@ bdrv_co_common_block_status_above(BlockDriverState *bs,
     BlockDriverState *p;
     int64_t eof = 0;
 
-    assert(bs != base);
+    assert(include_base || bs != base);
+    assert(!include_base || base); /* Can't include NULL base */
 
     ret = bdrv_co_block_status(bs, want_zero, offset, bytes, pnum, map, file);
-    if (ret < 0 || *pnum == 0 || ret & BDRV_BLOCK_ALLOCATED) {
+    if (ret < 0 || *pnum == 0 || ret & BDRV_BLOCK_ALLOCATED || bs == base) {
         return ret;
     }
 
@@ -2368,7 +2370,7 @@ bdrv_co_common_block_status_above(BlockDriverState *bs,
     assert(*pnum <= bytes);
     bytes = *pnum;
 
-    for (p = bdrv_filter_or_cow_bs(bs); p != base;
+    for (p = bdrv_filter_or_cow_bs(bs); include_base || p != base;
          p = bdrv_filter_or_cow_bs(p))
     {
         ret = bdrv_co_block_status(p, want_zero, offset, bytes, pnum, map,
@@ -2406,6 +2408,11 @@ bdrv_co_common_block_status_above(BlockDriverState *bs,
             break;
         }
 
+        if (p == base) {
+            assert(include_base);
+            break;
+        }
+
         /*
          * OK, [offset, offset + *pnum) region is unallocated on this layer,
          * let's continue the diving.
@@ -2425,7 +2432,7 @@ int bdrv_block_status_above(BlockDriverState *bs, BlockDriverState *base,
                             int64_t offset, int64_t bytes, int64_t *pnum,
                             int64_t *map, BlockDriverState **file)
 {
-    return bdrv_common_block_status_above(bs, base, true, offset, bytes,
+    return bdrv_common_block_status_above(bs, base, false, true, offset, bytes,
                                           pnum, map, file);
 }
 
@@ -2442,9 +2449,9 @@ int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
     int ret;
     int64_t dummy;
 
-    ret = bdrv_common_block_status_above(bs, bdrv_filter_or_cow_bs(bs), false,
-                                         offset, bytes, pnum ? pnum : &dummy,
-                                         NULL, NULL);
+    ret = bdrv_common_block_status_above(bs, bs, true, false, offset,
+                                         bytes, pnum ? pnum : &dummy, NULL,
+                                         NULL);
     if (ret < 0) {
         return ret;
     }
