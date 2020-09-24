@@ -41,6 +41,7 @@ struct RaspiMachineState {
     MachineState parent_obj;
     /*< public >*/
     BCM283XState soc;
+    struct arm_boot_info binfo;
 };
 typedef struct RaspiMachineState RaspiMachineState;
 
@@ -206,12 +207,11 @@ static void reset_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
 static void setup_boot(MachineState *machine, int version, size_t ram_size)
 {
     RaspiMachineState *s = RASPI_MACHINE(machine);
-    static struct arm_boot_info binfo;
     int r;
 
-    binfo.board_id = MACH_TYPE_BCM2708;
-    binfo.ram_size = ram_size;
-    binfo.nb_cpus = machine->smp.cpus;
+    s->binfo.board_id = MACH_TYPE_BCM2708;
+    s->binfo.ram_size = ram_size;
+    s->binfo.nb_cpus = machine->smp.cpus;
 
     if (version <= 2) {
         /* The rpi1 and 2 require some custom setup code to run in Secure
@@ -220,21 +220,21 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
          * firmware for some cache maintenance operations.
          * The rpi3 doesn't need this.
          */
-        binfo.board_setup_addr = BOARDSETUP_ADDR;
-        binfo.write_board_setup = write_board_setup;
-        binfo.secure_board_setup = true;
-        binfo.secure_boot = true;
+        s->binfo.board_setup_addr = BOARDSETUP_ADDR;
+        s->binfo.write_board_setup = write_board_setup;
+        s->binfo.secure_board_setup = true;
+        s->binfo.secure_boot = true;
     }
 
     /* Pi2 and Pi3 requires SMP setup */
     if (version >= 2) {
-        binfo.smp_loader_start = SMPBOOT_ADDR;
+        s->binfo.smp_loader_start = SMPBOOT_ADDR;
         if (version == 2) {
-            binfo.write_secondary_boot = write_smpboot;
+            s->binfo.write_secondary_boot = write_smpboot;
         } else {
-            binfo.write_secondary_boot = write_smpboot64;
+            s->binfo.write_secondary_boot = write_smpboot64;
         }
-        binfo.secondary_cpu_reset_hook = reset_secondary;
+        s->binfo.secondary_cpu_reset_hook = reset_secondary;
     }
 
     /* If the user specified a "firmware" image (e.g. UEFI), we bypass
@@ -250,11 +250,11 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
             exit(1);
         }
 
-        binfo.entry = firmware_addr;
-        binfo.firmware_loaded = true;
+        s->binfo.entry = firmware_addr;
+        s->binfo.firmware_loaded = true;
     }
 
-    arm_load_kernel(&s->soc.cpu[0].core, machine, &binfo);
+    arm_load_kernel(&s->soc.cpu[0].core, machine, &s->binfo);
 }
 
 static void raspi_machine_init(MachineState *machine)
