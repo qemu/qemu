@@ -37,6 +37,11 @@ void nbd_server_is_qemu_nbd(bool value)
     is_qemu_nbd = value;
 }
 
+bool nbd_server_is_running(void)
+{
+    return nbd_server || is_qemu_nbd;
+}
+
 static void nbd_blockdev_client_closed(NBDClient *client, bool ignored)
 {
     nbd_client_put(client);
@@ -171,41 +176,6 @@ void qmp_nbd_server_start(SocketAddressLegacy *addr,
 
     nbd_server_start(addr_flat, tls_creds, tls_authz, max_connections, errp);
     qapi_free_SocketAddress(addr_flat);
-}
-
-int nbd_export_create(BlockExport *exp, BlockExportOptions *exp_args,
-                      Error **errp)
-{
-    BlockExportOptionsNbd *arg = &exp_args->u.nbd;
-
-    assert(exp_args->type == BLOCK_EXPORT_TYPE_NBD);
-
-    if (!nbd_server && !is_qemu_nbd) {
-        error_setg(errp, "NBD server not running");
-        return -EINVAL;
-    }
-
-    if (!arg->has_name) {
-        arg->name = exp_args->node_name;
-    }
-
-    if (strlen(arg->name) > NBD_MAX_STRING_SIZE) {
-        error_setg(errp, "export name '%s' too long", arg->name);
-        return -EINVAL;
-    }
-
-    if (arg->description && strlen(arg->description) > NBD_MAX_STRING_SIZE) {
-        error_setg(errp, "description '%s' too long", arg->description);
-        return -EINVAL;
-    }
-
-    if (nbd_export_find(arg->name)) {
-        error_setg(errp, "NBD server already has export named '%s'", arg->name);
-        return -EEXIST;
-    }
-
-    return nbd_export_new(exp, arg->name, arg->description, arg->bitmap,
-                          !exp_args->writable, !exp_args->writable, errp);
 }
 
 void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)

@@ -1507,16 +1507,43 @@ void nbd_export_set_on_eject_blk(BlockExport *exp, BlockBackend *blk)
     blk_add_remove_bs_notifier(blk, &nbd_exp->eject_notifier);
 }
 
-int nbd_export_new(BlockExport *blk_exp,
-                   const char *name, const char *desc,
-                   const char *bitmap, bool readonly, bool shared,
-                   Error **errp)
+static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
+                             Error **errp)
 {
     NBDExport *exp = container_of(blk_exp, NBDExport, common);
+    BlockExportOptionsNbd *arg = &exp_args->u.nbd;
     BlockBackend *blk = blk_exp->blk;
     int64_t size;
     uint64_t perm, shared_perm;
+    bool readonly = !exp_args->writable;
+    bool shared = !exp_args->writable;
     int ret;
+
+    assert(exp_args->type == BLOCK_EXPORT_TYPE_NBD);
+
+    if (!nbd_server_is_running()) {
+        error_setg(errp, "NBD server not running");
+        return -EINVAL;
+    }
+
+    if (!arg->has_name) {
+        arg->name = exp_args->node_name;
+    }
+
+    if (strlen(arg->name) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "export name '%s' too long", arg->name);
+        return -EINVAL;
+    }
+
+    if (arg->description && strlen(arg->description) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "description '%s' too long", arg->description);
+        return -EINVAL;
+    }
+
+    if (nbd_export_find(arg->name)) {
+        error_setg(errp, "NBD server already has export named '%s'", arg->name);
+        return -EEXIST;
+    }
 
     size = blk_getlength(blk);
     if (size < 0) {
@@ -1524,8 +1551,6 @@ int nbd_export_new(BlockExport *blk_exp,
                          "Failed to determine the NBD export's length");
         return size;
     }
-
-    assert(name && strlen(name) <= NBD_MAX_STRING_SIZE);
 
     /* Don't allow resize while the NBD server is running, otherwise we don't
      * care what happens with the node. */
@@ -1538,9 +1563,8 @@ int nbd_export_new(BlockExport *blk_exp,
     blk_set_allow_aio_context_change(blk, true);
 
     QTAILQ_INIT(&exp->clients);
-    exp->name = g_strdup(name);
-    assert(!desc || strlen(desc) <= NBD_MAX_STRING_SIZE);
-    exp->description = g_strdup(desc);
+    exp->name = g_strdup(arg->name);
+    exp->description = g_strdup(arg->description);
     exp->nbdflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_FLUSH |
                      NBD_FLAG_SEND_FUA | NBD_FLAG_SEND_CACHE);
     if (readonly) {
@@ -1554,12 +1578,12 @@ int nbd_export_new(BlockExport *blk_exp,
     }
     exp->size = QEMU_ALIGN_DOWN(size, BDRV_SECTOR_SIZE);
 
-    if (bitmap) {
+    if (arg->bitmap) {
         BlockDriverState *bs = blk_bs(blk);
         BdrvDirtyBitmap *bm = NULL;
 
         while (bs) {
-            bm = bdrv_find_dirty_bitmap(bs, bitmap);
+            bm = bdrv_find_dirty_bitmap(bs, arg->bitmap);
             if (bm != NULL) {
                 break;
             }
@@ -1569,7 +1593,7 @@ int nbd_export_new(BlockExport *blk_exp,
 
         if (bm == NULL) {
             ret = -ENOENT;
-            error_setg(errp, "Bitmap '%s' is not found", bitmap);
+            error_setg(errp, "Bitmap '%s' is not found", arg->bitmap);
             goto fail;
         }
 
@@ -1583,15 +1607,15 @@ int nbd_export_new(BlockExport *blk_exp,
             ret = -EINVAL;
             error_setg(errp,
                        "Enabled bitmap '%s' incompatible with readonly export",
-                       bitmap);
+                       arg->bitmap);
             goto fail;
         }
 
         bdrv_dirty_bitmap_set_busy(bm, true);
         exp->export_bitmap = bm;
-        assert(strlen(bitmap) <= BDRV_BITMAP_MAX_NAME_SIZE);
+        assert(strlen(arg->bitmap) <= BDRV_BITMAP_MAX_NAME_SIZE);
         exp->export_bitmap_context = g_strdup_printf("qemu:dirty-bitmap:%s",
-                                                     bitmap);
+                                                     arg->bitmap);
         assert(strlen(exp->export_bitmap_context) < NBD_MAX_STRING_SIZE);
     }
 

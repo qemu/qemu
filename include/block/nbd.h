@@ -330,12 +330,6 @@ int nbd_errno_to_system_errno(int err);
 typedef struct NBDExport NBDExport;
 typedef struct NBDClient NBDClient;
 
-int nbd_export_create(BlockExport *exp, BlockExportOptions *exp_args,
-                      Error **errp);
-int nbd_export_new(BlockExport *blk_exp,
-                   const char *name, const char *desc,
-                   const char *bitmap, bool readonly, bool shared,
-                   Error **errp);
 void nbd_export_set_on_eject_blk(BlockExport *exp, BlockBackend *blk);
 
 AioContext *nbd_export_aio_context(NBDExport *exp);
@@ -349,6 +343,7 @@ void nbd_client_get(NBDClient *client);
 void nbd_client_put(NBDClient *client);
 
 void nbd_server_is_qemu_nbd(bool value);
+bool nbd_server_is_running(void);
 void nbd_server_start(SocketAddress *addr, const char *tls_creds,
                       const char *tls_authz, uint32_t max_connections,
                       Error **errp);
