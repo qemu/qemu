@@ -2350,34 +2350,74 @@ bdrv_co_common_block_status_above(BlockDriverState *bs,
                                   int64_t *map,
                                   BlockDriverState **file)
 {
+    int ret;
     BlockDriverState *p;
-    int ret = 0;
-    bool first = true;
+    int64_t eof = 0;
 
     assert(bs != base);
-    for (p = bs; p != base; p = bdrv_filter_or_cow_bs(p)) {
+
+    ret = bdrv_co_block_status(bs, want_zero, offset, bytes, pnum, map, file);
+    if (ret < 0 || *pnum == 0 || ret & BDRV_BLOCK_ALLOCATED) {
+        return ret;
+    }
+
+    if (ret & BDRV_BLOCK_EOF) {
+        eof = offset + *pnum;
+    }
+
+    assert(*pnum <= bytes);
+    bytes = *pnum;
+
+    for (p = bdrv_filter_or_cow_bs(bs); p != base;
+         p = bdrv_filter_or_cow_bs(p))
+    {
         ret = bdrv_co_block_status(p, want_zero, offset, bytes, pnum, map,
                                    file);
         if (ret < 0) {
-            break;
+            return ret;
         }
-        if (ret & BDRV_BLOCK_ZERO && ret & BDRV_BLOCK_EOF && !first) {
+        if (*pnum == 0) {
             /*
-             * Reading beyond the end of the file continues to read
-             * zeroes, but we can only widen the result to the
-             * unallocated length we learned from an earlier
-             * iteration.
+             * The top layer deferred to this layer, and because this layer is
+             * short, any zeroes that we synthesize beyond EOF behave as if they
+             * were allocated at this layer.
+             *
+             * We don't include BDRV_BLOCK_EOF into ret, as upper layer may be
+             * larger. We'll add BDRV_BLOCK_EOF if needed at function end, see
+             * below.
              */
+            assert(ret & BDRV_BLOCK_EOF);
             *pnum = bytes;
-        }
-        if (ret & (BDRV_BLOCK_ZERO | BDRV_BLOCK_DATA)) {
+            if (file) {
+                *file = p;
+            }
+            ret = BDRV_BLOCK_ZERO | BDRV_BLOCK_ALLOCATED;
             break;
         }
-        /* [offset, pnum] unallocated on this layer, which could be only
-         * the first part of [offset, bytes].  */
-        bytes = MIN(bytes, *pnum);
-        first = false;
+        if (ret & BDRV_BLOCK_ALLOCATED) {
+            /*
+             * We've found the node and the status, we must break.
+             *
+             * Drop BDRV_BLOCK_EOF, as it's not for upper layer, which may be
+             * larger. We'll add BDRV_BLOCK_EOF if needed at function end, see
+             * below.
+             */
+            ret &= ~BDRV_BLOCK_EOF;
+            break;
+        }
+
+        /*
+         * OK, [offset, offset + *pnum) region is unallocated on this layer,
+         * let's continue the diving.
+         */
+        assert(*pnum <= bytes);
+        bytes = *pnum;
     }
+
+    if (offset + *pnum == eof) {
+        ret |= BDRV_BLOCK_EOF;
+    }
+
     return ret;
 }
 
