@@ -1625,7 +1625,7 @@ sub dump_function($$) {
     # If you mess with these regexps, it's a good idea to check that
     # the following functions' documentation still comes out right:
     # - parport_register_device (function pointer parameters)
-    # - atomic_set (macro)
+    # - qatomic_set (macro)
     # - pci_match_device, __copy_to_user (long return type)
 
     if ($define && $prototype =~ m/^()([a-zA-Z0-9_~:]+)\s+/) {

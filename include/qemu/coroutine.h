@@ -179,7 +179,7 @@ static inline coroutine_fn void qemu_co_mutex_assert_locked(CoMutex *mutex)
      * because the condition will be false no matter whether we read NULL or
      * the pointer for any other coroutine.
      */
-    assert(atomic_read(&mutex->locked) &&
+    assert(qatomic_read(&mutex->locked) &&
            mutex->holder == qemu_coroutine_self());
 }
 

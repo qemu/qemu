@@ -39,7 +39,7 @@ static abi_ulong hppa_lws(CPUHPPAState *env)
         }
         old = tswap32(old);
         new = tswap32(new);
-        ret = atomic_cmpxchg((uint32_t *)g2h(addr), old, new);
+        ret = qatomic_cmpxchg((uint32_t *)g2h(addr), old, new);
         ret = tswap32(ret);
         break;
 
@@ -60,19 +60,19 @@ static abi_ulong hppa_lws(CPUHPPAState *env)
         case 0:
             old = *(uint8_t *)g2h(old);
             new = *(uint8_t *)g2h(new);
-            ret = atomic_cmpxchg((uint8_t *)g2h(addr), old, new);
+            ret = qatomic_cmpxchg((uint8_t *)g2h(addr), old, new);
             ret = ret != old;
             break;
         case 1:
             old = *(uint16_t *)g2h(old);
             new = *(uint16_t *)g2h(new);
-            ret = atomic_cmpxchg((uint16_t *)g2h(addr), old, new);
+            ret = qatomic_cmpxchg((uint16_t *)g2h(addr), old, new);
             ret = ret != old;
             break;
         case 2:
             old = *(uint32_t *)g2h(old);
             new = *(uint32_t *)g2h(new);
-            ret = atomic_cmpxchg((uint32_t *)g2h(addr), old, new);
+            ret = qatomic_cmpxchg((uint32_t *)g2h(addr), old, new);
             ret = ret != old;
             break;
         case 3:
@@ -81,7 +81,8 @@ static abi_ulong hppa_lws(CPUHPPAState *env)
                 o64 = *(uint64_t *)g2h(old);
                 n64 = *(uint64_t *)g2h(new);
 #ifdef CONFIG_ATOMIC64
-                r64 = atomic_cmpxchg__nocheck((uint64_t *)g2h(addr), o64, n64);
+                r64 = qatomic_cmpxchg__nocheck((uint64_t *)g2h(addr),
+                                               o64, n64);
                 ret = r64 != o64;
 #else
                 start_exclusive();

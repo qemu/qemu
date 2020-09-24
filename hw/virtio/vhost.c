@@ -90,7 +90,7 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
         }
         /* Data must be read atomically. We don't really need barrier semantics
          * but it's easier to use atomic_* than roll our own. */
-        log = atomic_xchg(from, 0);
+        log = qatomic_xchg(from, 0);
         while (log) {
             int bit = ctzl(log);
             hwaddr page_addr;

@@ -57,7 +57,7 @@ static inline int rcu_gp_ongoing(unsigned long *ctr)
 {
     unsigned long v;
 
-    v = atomic_read(ctr);
+    v = qatomic_read(ctr);
     return v && (v != rcu_gp_ctr);
 }
 
@@ -82,14 +82,14 @@ static void wait_for_readers(void)
          */
         qemu_event_reset(&rcu_gp_event);
 
-        /* Instead of using atomic_mb_set for index->waiting, and
-         * atomic_mb_read for index->ctr, memory barriers are placed
+        /* Instead of using qatomic_mb_set for index->waiting, and
+         * qatomic_mb_read for index->ctr, memory barriers are placed
          * manually since writes to different threads are independent.
          * qemu_event_reset has acquire semantics, so no memory barrier
          * is needed here.
          */
         QLIST_FOREACH(index, &registry, node) {
-            atomic_set(&index->waiting, true);
+            qatomic_set(&index->waiting, true);
         }
 
         /* Here, order the stores to index->waiting before the loads of
@@ -106,7 +106,7 @@ static void wait_for_readers(void)
                 /* No need for mb_set here, worst of all we
                  * get some extra futex wakeups.
                  */
-                atomic_set(&index->waiting, false);
+                qatomic_set(&index->waiting, false);
             }
         }
 
@@ -151,7 +151,7 @@ void synchronize_rcu(void)
 
     QEMU_LOCK_GUARD(&rcu_registry_lock);
     if (!QLIST_EMPTY(&registry)) {
-        /* In either case, the atomic_mb_set below blocks stores that free
+        /* In either case, the qatomic_mb_set below blocks stores that free
          * old RCU-protected pointers.
          */
         if (sizeof(rcu_gp_ctr) < 8) {
@@ -160,12 +160,12 @@ void synchronize_rcu(void)
              *
              * Switch parity: 0 -> 1, 1 -> 0.
              */
-            atomic_mb_set(&rcu_gp_ctr, rcu_gp_ctr ^ RCU_GP_CTR);
+            qatomic_mb_set(&rcu_gp_ctr, rcu_gp_ctr ^ RCU_GP_CTR);
             wait_for_readers();
-            atomic_mb_set(&rcu_gp_ctr, rcu_gp_ctr ^ RCU_GP_CTR);
+            qatomic_mb_set(&rcu_gp_ctr, rcu_gp_ctr ^ RCU_GP_CTR);
         } else {
             /* Increment current grace period.  */
-            atomic_mb_set(&rcu_gp_ctr, rcu_gp_ctr + RCU_GP_CTR);
+            qatomic_mb_set(&rcu_gp_ctr, rcu_gp_ctr + RCU_GP_CTR);
         }
 
         wait_for_readers();
@@ -188,8 +188,8 @@ static void enqueue(struct rcu_head *node)
     struct rcu_head **old_tail;
 
     node->next = NULL;
-    old_tail = atomic_xchg(&tail, &node->next);
-    atomic_mb_set(old_tail, node);
+    old_tail = qatomic_xchg(&tail, &node->next);
+    qatomic_mb_set(old_tail, node);
 }
 
 static struct rcu_head *try_dequeue(void)
@@ -203,7 +203,7 @@ retry:
      * The tail, because it is the first step in the enqueuing.
      * It is only the next pointers that might be inconsistent.
      */
-    if (head == &dummy && atomic_mb_read(&tail) == &dummy.next) {
+    if (head == &dummy && qatomic_mb_read(&tail) == &dummy.next) {
         abort();
     }
 
@@ -211,7 +211,7 @@ retry:
      * wrong and we need to wait until its enqueuer finishes the update.
      */
     node = head;
-    next = atomic_mb_read(&head->next);
+    next = qatomic_mb_read(&head->next);
     if (!next) {
         return NULL;
     }
@@ -240,7 +240,7 @@ static void *call_rcu_thread(void *opaque)
 
     for (;;) {
         int tries = 0;
-        int n = atomic_read(&rcu_call_count);
+        int n = qatomic_read(&rcu_call_count);
 
         /* Heuristically wait for a decent number of callbacks to pile up.
          * Fetch rcu_call_count now, we only must process elements that were
@@ -250,7 +250,7 @@ static void *call_rcu_thread(void *opaque)
             g_usleep(10000);
             if (n == 0) {
                 qemu_event_reset(&rcu_call_ready_event);
-                n = atomic_read(&rcu_call_count);
+                n = qatomic_read(&rcu_call_count);
                 if (n == 0) {
 #if defined(CONFIG_MALLOC_TRIM)
                     malloc_trim(4 * 1024 * 1024);
@@ -258,10 +258,10 @@ static void *call_rcu_thread(void *opaque)
                     qemu_event_wait(&rcu_call_ready_event);
                 }
             }
-            n = atomic_read(&rcu_call_count);
+            n = qatomic_read(&rcu_call_count);
         }
 
-        atomic_sub(&rcu_call_count, n);
+        qatomic_sub(&rcu_call_count, n);
         synchronize_rcu();
         qemu_mutex_lock_iothread();
         while (n > 0) {
@@ -289,7 +289,7 @@ void call_rcu1(struct rcu_head *node, void (*func)(struct rcu_head *node))
 {
     node->func = func;
     enqueue(node);
-    atomic_inc(&rcu_call_count);
+    qatomic_inc(&rcu_call_count);
     qemu_event_set(&rcu_call_ready_event);
 }
 

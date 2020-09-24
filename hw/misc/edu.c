@@ -212,7 +212,7 @@ static uint64_t edu_mmio_read(void *opaque, hwaddr addr, unsigned size)
         qemu_mutex_unlock(&edu->thr_mutex);
         break;
     case 0x20:
-        val = atomic_read(&edu->status);
+        val = qatomic_read(&edu->status);
         break;
     case 0x24:
         val = edu->irq_status;
@@ -252,7 +252,7 @@ static void edu_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         edu->addr4 = ~val;
         break;
     case 0x08:
-        if (atomic_read(&edu->status) & EDU_STATUS_COMPUTING) {
+        if (qatomic_read(&edu->status) & EDU_STATUS_COMPUTING) {
             break;
         }
         /* EDU_STATUS_COMPUTING cannot go 0->1 concurrently, because it is only
@@ -260,15 +260,15 @@ static void edu_mmio_write(void *opaque, hwaddr addr, uint64_t val,
          */
         qemu_mutex_lock(&edu->thr_mutex);
         edu->fact = val;
-        atomic_or(&edu->status, EDU_STATUS_COMPUTING);
+        qatomic_or(&edu->status, EDU_STATUS_COMPUTING);
         qemu_cond_signal(&edu->thr_cond);
         qemu_mutex_unlock(&edu->thr_mutex);
         break;
     case 0x20:
         if (val & EDU_STATUS_IRQFACT) {
-            atomic_or(&edu->status, EDU_STATUS_IRQFACT);
+            qatomic_or(&edu->status, EDU_STATUS_IRQFACT);
         } else {
-            atomic_and(&edu->status, ~EDU_STATUS_IRQFACT);
+            qatomic_and(&edu->status, ~EDU_STATUS_IRQFACT);
         }
         break;
     case 0x60:
@@ -322,7 +322,7 @@ static void *edu_fact_thread(void *opaque)
         uint32_t val, ret = 1;
 
         qemu_mutex_lock(&edu->thr_mutex);
-        while ((atomic_read(&edu->status) & EDU_STATUS_COMPUTING) == 0 &&
+        while ((qatomic_read(&edu->status) & EDU_STATUS_COMPUTING) == 0 &&
                         !edu->stopping) {
             qemu_cond_wait(&edu->thr_cond, &edu->thr_mutex);
         }
@@ -347,9 +347,9 @@ static void *edu_fact_thread(void *opaque)
         qemu_mutex_lock(&edu->thr_mutex);
         edu->fact = ret;
         qemu_mutex_unlock(&edu->thr_mutex);
-        atomic_and(&edu->status, ~EDU_STATUS_COMPUTING);
+        qatomic_and(&edu->status, ~EDU_STATUS_COMPUTING);
 
-        if (atomic_read(&edu->status) & EDU_STATUS_IRQFACT) {
+        if (qatomic_read(&edu->status) & EDU_STATUS_IRQFACT) {
             qemu_mutex_lock_iothread();
             edu_raise_irq(edu, FACT_IRQ);
             qemu_mutex_unlock_iothread();

@@ -79,8 +79,8 @@ static inline void rcu_read_lock(void)
         return;
     }
 
-    ctr = atomic_read(&rcu_gp_ctr);
-    atomic_set(&p_rcu_reader->ctr, ctr);
+    ctr = qatomic_read(&rcu_gp_ctr);
+    qatomic_set(&p_rcu_reader->ctr, ctr);
 
     /* Write p_rcu_reader->ctr before reading RCU-protected pointers.  */
     smp_mb_placeholder();
@@ -100,12 +100,12 @@ static inline void rcu_read_unlock(void)
      * smp_mb_placeholder(), this ensures writes to p_rcu_reader->ctr
      * are sequentially consistent.
      */
-    atomic_store_release(&p_rcu_reader->ctr, 0);
+    qatomic_store_release(&p_rcu_reader->ctr, 0);
 
     /* Write p_rcu_reader->ctr before reading p_rcu_reader->waiting.  */
     smp_mb_placeholder();
-    if (unlikely(atomic_read(&p_rcu_reader->waiting))) {
-        atomic_set(&p_rcu_reader->waiting, false);
+    if (unlikely(qatomic_read(&p_rcu_reader->waiting))) {
+        qatomic_set(&p_rcu_reader->waiting, false);
         qemu_event_set(&rcu_gp_event);
     }
 }

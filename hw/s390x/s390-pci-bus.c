@@ -650,7 +650,7 @@ static uint8_t set_ind_atomic(uint64_t ind_loc, uint8_t to_be_set)
     actual = *ind_addr;
     do {
         expected = actual;
-        actual = atomic_cmpxchg(ind_addr, expected, expected | to_be_set);
+        actual = qatomic_cmpxchg(ind_addr, expected, expected | to_be_set);
     } while (actual != expected);
     cpu_physical_memory_unmap((void *)ind_addr, len, 1, len);
 

@@ -170,6 +170,9 @@ if have_block
   if 'CONFIG_NETTLE' in config_host or 'CONFIG_GCRYPT' in config_host
     tests += {'test-crypto-pbkdf': [io]}
   endif
+  if 'CONFIG_EPOLL_CREATE1' in config_host
+    tests += {'test-fdmon-epoll': [testblock]}
+  endif
   benchs += {
      'benchmark-crypto-hash': [crypto],
      'benchmark-crypto-hmac': [crypto],

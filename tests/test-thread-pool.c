@@ -21,15 +21,15 @@ typedef struct {
 static int worker_cb(void *opaque)
 {
     WorkerTestData *data = opaque;
-    return atomic_fetch_inc(&data->n);
+    return qatomic_fetch_inc(&data->n);
 }
 
 static int long_cb(void *opaque)
 {
     WorkerTestData *data = opaque;
-    if (atomic_cmpxchg(&data->n, 0, 1) == 0) {
+    if (qatomic_cmpxchg(&data->n, 0, 1) == 0) {
         g_usleep(2000000);
-        atomic_or(&data->n, 2);
+        qatomic_or(&data->n, 2);
     }
     return 0;
 }
@@ -172,7 +172,7 @@ static void do_test_cancel(bool sync)
     /* Cancel the jobs that haven't been started yet.  */
     num_canceled = 0;
     for (i = 0; i < 100; i++) {
-        if (atomic_cmpxchg(&data[i].n, 0, 4) == 0) {
+        if (qatomic_cmpxchg(&data[i].n, 0, 4) == 0) {
             data[i].ret = -ECANCELED;
             if (sync) {
                 bdrv_aio_cancel(data[i].aiocb);
@@ -186,7 +186,7 @@ static void do_test_cancel(bool sync)
     g_assert_cmpint(num_canceled, <, 100);
 
     for (i = 0; i < 100; i++) {
-        if (data[i].aiocb && atomic_read(&data[i].n) < 4) {
+        if (data[i].aiocb && qatomic_read(&data[i].n) < 4) {
             if (sync) {
                 /* Canceling the others will be a blocking operation.  */
                 bdrv_aio_cancel(data[i].aiocb);

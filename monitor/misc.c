@@ -751,7 +751,7 @@ static uint64_t vtop(void *ptr, Error **errp)
     }
 
     /* Force copy-on-write if necessary.  */
-    atomic_add((uint8_t *)ptr, 0);
+    qatomic_add((uint8_t *)ptr, 0);
 
     if (pread(fd, &pinfo, sizeof(pinfo), offset) != sizeof(pinfo)) {
         error_setg_errno(errp, errno, "Cannot read pagemap");

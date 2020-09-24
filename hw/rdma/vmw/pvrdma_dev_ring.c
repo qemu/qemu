@@ -38,8 +38,8 @@ int pvrdma_ring_init(PvrdmaRing *ring, const char *name, PCIDevice *dev,
     ring->max_elems = max_elems;
     ring->elem_sz = elem_sz;
     /* TODO: Give a moment to think if we want to redo driver settings
-    atomic_set(&ring->ring_state->prod_tail, 0);
-    atomic_set(&ring->ring_state->cons_head, 0);
+    qatomic_set(&ring->ring_state->prod_tail, 0);
+    qatomic_set(&ring->ring_state->cons_head, 0);
     */
     ring->npages = npages;
     ring->pages = g_malloc(npages * sizeof(void *));

@@ -19,7 +19,7 @@ typedef struct RAMBlockNotifier RAMBlockNotifier;
  *   rcu_read_lock();
  *
  *   DirtyMemoryBlocks *blocks =
- *       atomic_rcu_read(&ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION]);
+ *       qatomic_rcu_read(&ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION]);
  *
  *   ram_addr_t idx = (addr >> TARGET_PAGE_BITS) / DIRTY_MEMORY_BLOCK_SIZE;
  *   unsigned long *block = blocks.blocks[idx];

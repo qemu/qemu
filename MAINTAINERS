@@ -2132,6 +2132,7 @@ F: migration/block*
 F: include/block/aio.h
 F: include/block/aio-wait.h
 F: scripts/qemugdb/aio.py
+F: tests/test-fdmon-epoll.c
 T: git https://github.com/stefanha/qemu.git block
 
 Block SCSI subsystem
@@ -2920,10 +2921,12 @@ S: Supported
 F: block/null.c
 
 NVMe Block Driver
-M: Fam Zheng <fam@euphon.net>
+M: Stefan Hajnoczi <stefanha@redhat.com>
+R: Fam Zheng <fam@euphon.net>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/nvme*
+T: git https://github.com/stefanha/qemu.git block
 
 Bootdevice
 M: Gonglei <arei.gonglei@huawei.com>

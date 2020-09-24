@@ -800,7 +800,7 @@ static uint8_t virtio_set_ind_atomic(SubchDev *sch, uint64_t ind_loc,
     actual = *ind_addr;
     do {
         expected = actual;
-        actual = atomic_cmpxchg(ind_addr, expected, expected | to_be_set);
+        actual = qatomic_cmpxchg(ind_addr, expected, expected | to_be_set);
     } while (actual != expected);
     trace_virtio_ccw_set_ind(ind_loc, actual, actual | to_be_set);
     cpu_physical_memory_unmap((void *)ind_addr, len, 1, len);

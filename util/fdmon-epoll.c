@@ -65,7 +65,7 @@ static int fdmon_epoll_wait(AioContext *ctx, AioHandlerList *ready_list,
     struct epoll_event events[128];
 
     /* Fall back while external clients are disabled */
-    if (atomic_read(&ctx->external_disable_cnt)) {
+    if (qatomic_read(&ctx->external_disable_cnt)) {
         return fdmon_poll_ops.wait(ctx, ready_list, timeout);
     }
 
@@ -132,7 +132,7 @@ bool fdmon_epoll_try_upgrade(AioContext *ctx, unsigned npfd)
     }
 
     /* Do not upgrade while external clients are disabled */
-    if (atomic_read(&ctx->external_disable_cnt)) {
+    if (qatomic_read(&ctx->external_disable_cnt)) {
         return false;
     }
 

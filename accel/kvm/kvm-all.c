@@ -2379,7 +2379,7 @@ static __thread bool have_sigbus_pending;
 
 static void kvm_cpu_kick(CPUState *cpu)
 {
-    atomic_set(&cpu->kvm_run->immediate_exit, 1);
+    qatomic_set(&cpu->kvm_run->immediate_exit, 1);
 }
 
 static void kvm_cpu_kick_self(void)
@@ -2400,7 +2400,7 @@ static void kvm_eat_signals(CPUState *cpu)
     int r;
 
     if (kvm_immediate_exit) {
-        atomic_set(&cpu->kvm_run->immediate_exit, 0);
+        qatomic_set(&cpu->kvm_run->immediate_exit, 0);
         /* Write kvm_run->immediate_exit before the cpu->exit_request
          * write in kvm_cpu_exec.
          */
@@ -2434,7 +2434,7 @@ int kvm_cpu_exec(CPUState *cpu)
     DPRINTF("kvm_cpu_exec()\n");
 
     if (kvm_arch_process_async_events(cpu)) {
-        atomic_set(&cpu->exit_request, 0);
+        qatomic_set(&cpu->exit_request, 0);
         return EXCP_HLT;
     }
 
@@ -2450,7 +2450,7 @@ int kvm_cpu_exec(CPUState *cpu)
         }
 
         kvm_arch_pre_run(cpu, run);
-        if (atomic_read(&cpu->exit_request)) {
+        if (qatomic_read(&cpu->exit_request)) {
             DPRINTF("interrupt exit requested\n");
             /*
              * KVM requires us to reenter the kernel after IO exits to complete
@@ -2577,7 +2577,7 @@ int kvm_cpu_exec(CPUState *cpu)
         vm_stop(RUN_STATE_INTERNAL_ERROR);
     }
 
-    atomic_set(&cpu->exit_request, 0);
+    qatomic_set(&cpu->exit_request, 0);
     return ret;
 }
 
@@ -2994,7 +2994,7 @@ int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
     have_sigbus_pending = true;
     pending_sigbus_addr = addr;
     pending_sigbus_code = code;
-    atomic_set(&cpu->exit_request, 1);
+    qatomic_set(&cpu->exit_request, 1);
     return 0;
 #else
     return 1;

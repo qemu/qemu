@@ -131,11 +131,11 @@ static inline void qht_unlock(struct qht *ht)
 
 /*
  * Note: reading partially-updated pointers in @pointers could lead to
- * segfaults. We thus access them with atomic_read/set; this guarantees
+ * segfaults. We thus access them with qatomic_read/set; this guarantees
  * that the compiler makes all those accesses atomic. We also need the
- * volatile-like behavior in atomic_read, since otherwise the compiler
+ * volatile-like behavior in qatomic_read, since otherwise the compiler
  * might refetch the pointer.
- * atomic_read's are of course not necessary when the bucket lock is held.
+ * qatomic_read's are of course not necessary when the bucket lock is held.
  *
  * If both ht->lock and b->lock are grabbed, ht->lock should always
  * be grabbed first.
@@ -286,7 +286,7 @@ void qht_map_lock_buckets__no_stale(struct qht *ht, struct qht_map **pmap)
 {
     struct qht_map *map;
 
-    map = atomic_rcu_read(&ht->map);
+    map = qatomic_rcu_read(&ht->map);
     qht_map_lock_buckets(map);
     if (likely(!qht_map_is_stale__locked(ht, map))) {
         *pmap = map;
@@ -318,7 +318,7 @@ struct qht_bucket *qht_bucket_lock__no_stale(struct qht *ht, uint32_t hash,
     struct qht_bucket *b;
     struct qht_map *map;
 
-    map = atomic_rcu_read(&ht->map);
+    map = qatomic_rcu_read(&ht->map);
     b = qht_map_to_bucket(map, hash);
 
     qemu_spin_lock(&b->lock);
@@ -340,7 +340,8 @@ struct qht_bucket *qht_bucket_lock__no_stale(struct qht *ht, uint32_t hash,
 
 static inline bool qht_map_needs_resize(const struct qht_map *map)
 {
-    return atomic_read(&map->n_added_buckets) > map->n_added_buckets_threshold;
+    return qatomic_read(&map->n_added_buckets) >
+           map->n_added_buckets_threshold;
 }
 
 static inline void qht_chain_destroy(const struct qht_bucket *head)
@@ -404,7 +405,7 @@ void qht_init(struct qht *ht, qht_cmp_func_t cmp, size_t n_elems,
     ht->mode = mode;
     qemu_mutex_init(&ht->lock);
     map = qht_map_create(n_buckets);
-    atomic_rcu_set(&ht->map, map);
+    qatomic_rcu_set(&ht->map, map);
 }
 
 /* call only when there are no readers/writers left */
@@ -425,8 +426,8 @@ static void qht_bucket_reset__locked(struct qht_bucket *head)
             if (b->pointers[i] == NULL) {
                 goto done;
             }
-            atomic_set(&b->hashes[i], 0);
-            atomic_set(&b->pointers[i], NULL);
+            qatomic_set(&b->hashes[i], 0);
+            qatomic_set(&b->pointers[i], NULL);
         }
         b = b->next;
     } while (b);
@@ -492,19 +493,19 @@ void *qht_do_lookup(const struct qht_bucket *head, qht_lookup_func_t func,
 
     do {
         for (i = 0; i < QHT_BUCKET_ENTRIES; i++) {
-            if (atomic_read(&b->hashes[i]) == hash) {
+            if (qatomic_read(&b->hashes[i]) == hash) {
                 /* The pointer is dereferenced before seqlock_read_retry,
                  * so (unlike qht_insert__locked) we need to use
-                 * atomic_rcu_read here.
+                 * qatomic_rcu_read here.
                  */
-                void *p = atomic_rcu_read(&b->pointers[i]);
+                void *p = qatomic_rcu_read(&b->pointers[i]);
 
                 if (likely(p) && likely(func(p, userp))) {
                     return p;
                 }
             }
         }
-        b = atomic_rcu_read(&b->next);
+        b = qatomic_rcu_read(&b->next);
     } while (b);
 
     return NULL;
@@ -532,7 +533,7 @@ void *qht_lookup_custom(const struct qht *ht, const void *userp, uint32_t hash,
     unsigned int version;
     void *ret;
 
-    map = atomic_rcu_read(&ht->map);
+    map = qatomic_rcu_read(&ht->map);
     b = qht_map_to_bucket(map, hash);
 
     version = seqlock_read_begin(&b->sequence);
@@ -584,7 +585,7 @@ static void *qht_insert__locked(const struct qht *ht, struct qht_map *map,
     memset(b, 0, sizeof(*b));
     new = b;
     i = 0;
-    atomic_inc(&map->n_added_buckets);
+    qatomic_inc(&map->n_added_buckets);
     if (unlikely(qht_map_needs_resize(map)) && needs_resize) {
         *needs_resize = true;
     }
@@ -593,11 +594,11 @@ static void *qht_insert__locked(const struct qht *ht, struct qht_map *map,
     /* found an empty key: acquire the seqlock and write */
     seqlock_write_begin(&head->sequence);
     if (new) {
-        atomic_rcu_set(&prev->next, b);
+        qatomic_rcu_set(&prev->next, b);
     }
     /* smp_wmb() implicit in seqlock_write_begin.  */
-    atomic_set(&b->hashes[i], hash);
-    atomic_set(&b->pointers[i], p);
+    qatomic_set(&b->hashes[i], hash);
+    qatomic_set(&b->pointers[i], p);
     seqlock_write_end(&head->sequence);
     return NULL;
 }
@@ -668,11 +669,11 @@ qht_entry_move(struct qht_bucket *to, int i, struct qht_bucket *from, int j)
     qht_debug_assert(to->pointers[i]);
     qht_debug_assert(from->pointers[j]);
 
-    atomic_set(&to->hashes[i], from->hashes[j]);
-    atomic_set(&to->pointers[i], from->pointers[j]);
+    qatomic_set(&to->hashes[i], from->hashes[j]);
+    qatomic_set(&to->pointers[i], from->pointers[j]);
 
-    atomic_set(&from->hashes[j], 0);
-    atomic_set(&from->pointers[j], NULL);
+    qatomic_set(&from->hashes[j], 0);
+    qatomic_set(&from->pointers[j], NULL);
 }
 
 /*
@@ -687,7 +688,7 @@ static inline void qht_bucket_remove_entry(struct qht_bucket *orig, int pos)
 
     if (qht_entry_is_last(orig, pos)) {
         orig->hashes[pos] = 0;
-        atomic_set(&orig->pointers[pos], NULL);
+        qatomic_set(&orig->pointers[pos], NULL);
         return;
     }
     do {
@@ -803,7 +804,7 @@ do_qht_iter(struct qht *ht, const struct qht_iter *iter, void *userp)
 {
     struct qht_map *map;
 
-    map = atomic_rcu_read(&ht->map);
+    map = qatomic_rcu_read(&ht->map);
     qht_map_lock_buckets(map);
     qht_map_iter__all_locked(map, iter, userp);
     qht_map_unlock_buckets(map);
@@ -876,7 +877,7 @@ static void qht_do_resize_reset(struct qht *ht, struct qht_map *new, bool reset)
     qht_map_iter__all_locked(old, &iter, &data);
     qht_map_debug__all_locked(new);
 
-    atomic_rcu_set(&ht->map, new);
+    qatomic_rcu_set(&ht->map, new);
     qht_map_unlock_buckets(old);
     call_rcu(old, qht_map_destroy, rcu);
 }
@@ -905,7 +906,7 @@ void qht_statistics_init(const struct qht *ht, struct qht_stats *stats)
     const struct qht_map *map;
     int i;
 
-    map = atomic_rcu_read(&ht->map);
+    map = qatomic_rcu_read(&ht->map);
 
     stats->used_head_buckets = 0;
     stats->entries = 0;
@@ -933,13 +934,13 @@ void qht_statistics_init(const struct qht *ht, struct qht_stats *stats)
             b = head;
             do {
                 for (j = 0; j < QHT_BUCKET_ENTRIES; j++) {
-                    if (atomic_read(&b->pointers[j]) == NULL) {
+                    if (qatomic_read(&b->pointers[j]) == NULL) {
                         break;
                     }
                     entries++;
                 }
                 buckets++;
-                b = atomic_rcu_read(&b->next);
+                b = qatomic_rcu_read(&b->next);
             } while (b);
         } while (seqlock_read_retry(&head->sequence, version));
 

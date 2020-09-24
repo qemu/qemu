@@ -130,6 +130,29 @@ size_t iov_discard_front(struct iovec **iov, unsigned int *iov_cnt,
 size_t iov_discard_back(struct iovec *iov, unsigned int *iov_cnt,
                         size_t bytes);
 
+/* Information needed to undo an iov_discard_*() operation */
+typedef struct {
+    struct iovec *modified_iov;
+    struct iovec orig;
+} IOVDiscardUndo;
+
+/*
+ * Undo an iov_discard_front_undoable() or iov_discard_back_undoable()
+ * operation. If multiple operations are made then each one needs a separate
+ * IOVDiscardUndo and iov_discard_undo() must be called in the reverse order
+ * that the operations were made.
+ */
+void iov_discard_undo(IOVDiscardUndo *undo);
+
+/*
+ * Undoable versions of iov_discard_front() and iov_discard_back(). Use
+ * iov_discard_undo() to reset to the state before the discard operations.
+ */
+size_t iov_discard_front_undoable(struct iovec **iov, unsigned int *iov_cnt,
+                                  size_t bytes, IOVDiscardUndo *undo);
+size_t iov_discard_back_undoable(struct iovec *iov, unsigned int *iov_cnt,
+                                 size_t bytes, IOVDiscardUndo *undo);
+
 typedef struct QEMUIOVector {
     struct iovec *iov;
     int niov;

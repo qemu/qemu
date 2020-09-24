@@ -60,7 +60,7 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque)
                  * release_pool_size and the actual size of release_pool.  But
                  * it is just a heuristic, it does not need to be perfect.
                  */
-                alloc_pool_size = atomic_xchg(&release_pool_size, 0);
+                alloc_pool_size = qatomic_xchg(&release_pool_size, 0);
                 QSLIST_MOVE_ATOMIC(&alloc_pool, &release_pool);
                 co = QSLIST_FIRST(&alloc_pool);
             }
@@ -88,7 +88,7 @@ static void coroutine_delete(Coroutine *co)
     if (CONFIG_COROUTINE_POOL) {
         if (release_pool_size < POOL_BATCH_SIZE * 2) {
             QSLIST_INSERT_HEAD_ATOMIC(&release_pool, co, pool_next);
-            atomic_inc(&release_pool_size);
+            qatomic_inc(&release_pool_size);
             return;
         }
         if (alloc_pool_size < POOL_BATCH_SIZE) {
@@ -115,7 +115,7 @@ void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co)
 
         /* Cannot rely on the read barrier for to in aio_co_wake(), as there are
          * callers outside of aio_co_wake() */
-        const char *scheduled = atomic_mb_read(&to->scheduled);
+        const char *scheduled = qatomic_mb_read(&to->scheduled);
 
         QSIMPLEQ_REMOVE_HEAD(&pending, co_queue_next);
 

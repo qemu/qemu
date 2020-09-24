@@ -294,12 +294,12 @@ static void flatview_destroy(FlatView *view)
 
 static bool flatview_ref(FlatView *view)
 {
-    return atomic_fetch_inc_nonzero(&view->ref) > 0;
+    return qatomic_fetch_inc_nonzero(&view->ref) > 0;
 }
 
 void flatview_unref(FlatView *view)
 {
-    if (atomic_fetch_dec(&view->ref) == 1) {
+    if (qatomic_fetch_dec(&view->ref) == 1) {
         trace_flatview_destroy_rcu(view, view->root);
         assert(view->root);
         call_rcu(view, flatview_destroy, rcu);
@@ -1027,7 +1027,7 @@ static void address_space_set_flatview(AddressSpace *as)
     }
 
     /* Writes are protected by the BQL.  */
-    atomic_rcu_set(&as->current_map, new_view);
+    qatomic_rcu_set(&as->current_map, new_view);
     if (old_view) {
         flatview_unref(old_view);
     }

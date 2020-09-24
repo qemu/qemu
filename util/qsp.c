@@ -245,11 +245,11 @@ static void qsp_do_init(void)
 
 static __attribute__((noinline)) void qsp_init__slowpath(void)
 {
-    if (atomic_cmpxchg(&qsp_initializing, false, true) == false) {
+    if (qatomic_cmpxchg(&qsp_initializing, false, true) == false) {
         qsp_do_init();
-        atomic_set(&qsp_initialized, true);
+        qatomic_set(&qsp_initialized, true);
     } else {
-        while (!atomic_read(&qsp_initialized)) {
+        while (!qatomic_read(&qsp_initialized)) {
             cpu_relax();
         }
     }
@@ -258,7 +258,7 @@ static __attribute__((noinline)) void qsp_init__slowpath(void)
 /* qsp_init() must be called from _all_ exported functions */
 static inline void qsp_init(void)
 {
-    if (likely(atomic_read(&qsp_initialized))) {
+    if (likely(qatomic_read(&qsp_initialized))) {
         return;
     }
     qsp_init__slowpath();
@@ -346,9 +346,9 @@ static QSPEntry *qsp_entry_get(const void *obj, const char *file, int line,
  */
 static inline void do_qsp_entry_record(QSPEntry *e, int64_t delta, bool acq)
 {
-    atomic_set_u64(&e->ns, e->ns + delta);
+    qatomic_set_u64(&e->ns, e->ns + delta);
     if (acq) {
-        atomic_set_u64(&e->n_acqs, e->n_acqs + 1);
+        qatomic_set_u64(&e->n_acqs, e->n_acqs + 1);
     }
 }
 
@@ -432,29 +432,29 @@ qsp_cond_timedwait(QemuCond *cond, QemuMutex *mutex, int ms,
 
 bool qsp_is_enabled(void)
 {
-    return atomic_read(&qemu_mutex_lock_func) == qsp_mutex_lock;
+    return qatomic_read(&qemu_mutex_lock_func) == qsp_mutex_lock;
 }
 
 void qsp_enable(void)
 {
-    atomic_set(&qemu_mutex_lock_func, qsp_mutex_lock);
-    atomic_set(&qemu_mutex_trylock_func, qsp_mutex_trylock);
-    atomic_set(&qemu_bql_mutex_lock_func, qsp_bql_mutex_lock);
-    atomic_set(&qemu_rec_mutex_lock_func, qsp_rec_mutex_lock);
-    atomic_set(&qemu_rec_mutex_trylock_func, qsp_rec_mutex_trylock);
-    atomic_set(&qemu_cond_wait_func, qsp_cond_wait);
-    atomic_set(&qemu_cond_timedwait_func, qsp_cond_timedwait);
+    qatomic_set(&qemu_mutex_lock_func, qsp_mutex_lock);
+    qatomic_set(&qemu_mutex_trylock_func, qsp_mutex_trylock);
+    qatomic_set(&qemu_bql_mutex_lock_func, qsp_bql_mutex_lock);
+    qatomic_set(&qemu_rec_mutex_lock_func, qsp_rec_mutex_lock);
+    qatomic_set(&qemu_rec_mutex_trylock_func, qsp_rec_mutex_trylock);
+    qatomic_set(&qemu_cond_wait_func, qsp_cond_wait);
+    qatomic_set(&qemu_cond_timedwait_func, qsp_cond_timedwait);
 }
 
 void qsp_disable(void)
 {
-    atomic_set(&qemu_mutex_lock_func, qemu_mutex_lock_impl);
-    atomic_set(&qemu_mutex_trylock_func, qemu_mutex_trylock_impl);
-    atomic_set(&qemu_bql_mutex_lock_func, qemu_mutex_lock_impl);
-    atomic_set(&qemu_rec_mutex_lock_func, qemu_rec_mutex_lock_impl);
-    atomic_set(&qemu_rec_mutex_trylock_func, qemu_rec_mutex_trylock_impl);
-    atomic_set(&qemu_cond_wait_func, qemu_cond_wait_impl);
-    atomic_set(&qemu_cond_timedwait_func, qemu_cond_timedwait_impl);
+    qatomic_set(&qemu_mutex_lock_func, qemu_mutex_lock_impl);
+    qatomic_set(&qemu_mutex_trylock_func, qemu_mutex_trylock_impl);
+    qatomic_set(&qemu_bql_mutex_lock_func, qemu_mutex_lock_impl);
+    qatomic_set(&qemu_rec_mutex_lock_func, qemu_rec_mutex_lock_impl);
+    qatomic_set(&qemu_rec_mutex_trylock_func, qemu_rec_mutex_trylock_impl);
+    qatomic_set(&qemu_cond_wait_func, qemu_cond_wait_impl);
+    qatomic_set(&qemu_cond_timedwait_func, qemu_cond_timedwait_impl);
 }
 
 static gint qsp_tree_cmp(gconstpointer ap, gconstpointer bp, gpointer up)
@@ -538,8 +538,8 @@ static void qsp_aggregate(void *p, uint32_t h, void *up)
      * The entry is in the global hash table; read from it atomically (as in
      * "read once").
      */
-    agg->ns += atomic_read_u64(&e->ns);
-    agg->n_acqs += atomic_read_u64(&e->n_acqs);
+    agg->ns += qatomic_read_u64(&e->ns);
+    agg->n_acqs += qatomic_read_u64(&e->n_acqs);
 }
 
 static void qsp_iter_diff(void *p, uint32_t hash, void *htp)
@@ -610,7 +610,7 @@ static void qsp_mktree(GTree *tree, bool callsite_coalesce)
      * with the snapshot.
      */
     WITH_RCU_READ_LOCK_GUARD() {
-        QSPSnapshot *snap = atomic_rcu_read(&qsp_snapshot);
+        QSPSnapshot *snap = qatomic_rcu_read(&qsp_snapshot);
 
         /* Aggregate all results from the global hash table into a local one */
         qht_init(&ht, qsp_entry_no_thread_cmp, QSP_INITIAL_SIZE,
@@ -806,7 +806,7 @@ void qsp_reset(void)
     qht_iter(&qsp_ht, qsp_aggregate, &new->ht);
 
     /* replace the previous snapshot, if any */
-    old = atomic_xchg(&qsp_snapshot, new);
+    old = qatomic_xchg(&qsp_snapshot, new);
     if (old) {
         call_rcu(old, qsp_snapshot_destroy, rcu);
     }

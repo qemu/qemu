@@ -946,7 +946,7 @@ static int whpx_vcpu_run(CPUState *cpu)
     whpx_vcpu_process_async_events(cpu);
     if (cpu->halted) {
         cpu->exception_index = EXCP_HLT;
-        atomic_set(&cpu->exit_request, false);
+        qatomic_set(&cpu->exit_request, false);
         return 0;
     }
 
@@ -961,7 +961,7 @@ static int whpx_vcpu_run(CPUState *cpu)
 
         whpx_vcpu_pre_run(cpu);
 
-        if (atomic_read(&cpu->exit_request)) {
+        if (qatomic_read(&cpu->exit_request)) {
             whpx_vcpu_kick(cpu);
         }
 
@@ -1113,7 +1113,7 @@ static int whpx_vcpu_run(CPUState *cpu)
     qemu_mutex_lock_iothread();
     current_cpu = cpu;
 
-    atomic_set(&cpu->exit_request, false);
+    qatomic_set(&cpu->exit_request, false);
 
     return ret < 0;
 }

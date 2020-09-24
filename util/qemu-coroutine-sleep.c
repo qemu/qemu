@@ -28,7 +28,7 @@ struct QemuCoSleepState {
 void qemu_co_sleep_wake(QemuCoSleepState *sleep_state)
 {
     /* Write of schedule protected by barrier write in aio_co_schedule */
-    const char *scheduled = atomic_cmpxchg(&sleep_state->co->scheduled,
+    const char *scheduled = qatomic_cmpxchg(&sleep_state->co->scheduled,
                                            qemu_co_sleep_ns__scheduled, NULL);
 
     assert(scheduled == qemu_co_sleep_ns__scheduled);
@@ -54,7 +54,7 @@ void coroutine_fn qemu_co_sleep_ns_wakeable(QEMUClockType type, int64_t ns,
         .user_state_pointer = sleep_state,
     };
 
-    const char *scheduled = atomic_cmpxchg(&state.co->scheduled, NULL,
+    const char *scheduled = qatomic_cmpxchg(&state.co->scheduled, NULL,
                                            qemu_co_sleep_ns__scheduled);
     if (scheduled) {
         fprintf(stderr,

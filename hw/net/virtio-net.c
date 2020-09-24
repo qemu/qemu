@@ -933,7 +933,7 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
 
     if (virtio_has_feature(features, VIRTIO_NET_F_STANDBY)) {
         qapi_event_send_failover_negotiated(n->netclient_name);
-        atomic_set(&n->primary_should_be_hidden, false);
+        qatomic_set(&n->primary_should_be_hidden, false);
         failover_add_primary(n, &err);
         if (err) {
             n->primary_dev = virtio_connect_failover_devices(n, n->qdev, &err);
@@ -3168,7 +3168,7 @@ static void virtio_net_handle_migration_primary(VirtIONet *n,
     bool should_be_hidden;
     Error *err = NULL;
 
-    should_be_hidden = atomic_read(&n->primary_should_be_hidden);
+    should_be_hidden = qatomic_read(&n->primary_should_be_hidden);
 
     if (!n->primary_dev) {
         n->primary_dev = virtio_connect_failover_devices(n, n->qdev, &err);
@@ -3183,7 +3183,7 @@ static void virtio_net_handle_migration_primary(VirtIONet *n,
                     qdev_get_vmsd(n->primary_dev),
                     n->primary_dev);
             qapi_event_send_unplug_primary(n->primary_device_id);
-            atomic_set(&n->primary_should_be_hidden, true);
+            qatomic_set(&n->primary_should_be_hidden, true);
         } else {
             warn_report("couldn't unplug primary device");
         }
@@ -3234,7 +3234,7 @@ static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
     n->primary_device_opts = device_opts;
 
     /* primary_should_be_hidden is set during feature negotiation */
-    hide = atomic_read(&n->primary_should_be_hidden);
+    hide = qatomic_read(&n->primary_should_be_hidden);
 
     if (n->primary_device_dict) {
         g_free(n->primary_device_id);
@@ -3291,7 +3291,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     if (n->failover) {
         n->primary_listener.should_be_hidden =
             virtio_net_primary_should_be_hidden;
-        atomic_set(&n->primary_should_be_hidden, true);
+        qatomic_set(&n->primary_should_be_hidden, true);
         device_listener_register(&n->primary_listener);
         n->migration_state.notify = virtio_net_migration_state_notifier;
         add_migration_state_change_notifier(&n->migration_state);

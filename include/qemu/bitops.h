@@ -51,7 +51,7 @@ static inline void set_bit_atomic(long nr, unsigned long *addr)
     unsigned long mask = BIT_MASK(nr);
     unsigned long *p = addr + BIT_WORD(nr);
 
-    atomic_or(p, mask);
+    qatomic_or(p, mask);
 }
 
 /**

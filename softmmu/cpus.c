@@ -192,7 +192,7 @@ static void cpu_update_icount_locked(CPUState *cpu)
     int64_t executed = cpu_get_icount_executed(cpu);
     cpu->icount_budget -= executed;
 
-    atomic_set_i64(&timers_state.qemu_icount,
+    qatomic_set_i64(&timers_state.qemu_icount,
                    timers_state.qemu_icount + executed);
 }
 
@@ -223,13 +223,13 @@ static int64_t cpu_get_icount_raw_locked(void)
         cpu_update_icount_locked(cpu);
     }
     /* The read is protected by the seqlock, but needs atomic64 to avoid UB */
-    return atomic_read_i64(&timers_state.qemu_icount);
+    return qatomic_read_i64(&timers_state.qemu_icount);
 }
 
 static int64_t cpu_get_icount_locked(void)
 {
     int64_t icount = cpu_get_icount_raw_locked();
-    return atomic_read_i64(&timers_state.qemu_icount_bias) +
+    return qatomic_read_i64(&timers_state.qemu_icount_bias) +
         cpu_icount_to_ns(icount);
 }
 
@@ -262,7 +262,7 @@ int64_t cpu_get_icount(void)
 
 int64_t cpu_icount_to_ns(int64_t icount)
 {
-    return icount << atomic_read(&timers_state.icount_time_shift);
+    return icount << qatomic_read(&timers_state.icount_time_shift);
 }
 
 static int64_t cpu_get_ticks_locked(void)
@@ -393,18 +393,18 @@ static void icount_adjust(void)
         && last_delta + ICOUNT_WOBBLE < delta * 2
         && timers_state.icount_time_shift > 0) {
         /* The guest is getting too far ahead.  Slow time down.  */
-        atomic_set(&timers_state.icount_time_shift,
+        qatomic_set(&timers_state.icount_time_shift,
                    timers_state.icount_time_shift - 1);
     }
     if (delta < 0
         && last_delta - ICOUNT_WOBBLE > delta * 2
         && timers_state.icount_time_shift < MAX_ICOUNT_SHIFT) {
         /* The guest is getting too far behind.  Speed time up.  */
-        atomic_set(&timers_state.icount_time_shift,
+        qatomic_set(&timers_state.icount_time_shift,
                    timers_state.icount_time_shift + 1);
     }
     last_delta = delta;
-    atomic_set_i64(&timers_state.qemu_icount_bias,
+    qatomic_set_i64(&timers_state.qemu_icount_bias,
                    cur_icount - (timers_state.qemu_icount
                                  << timers_state.icount_time_shift));
     seqlock_write_unlock(&timers_state.vm_clock_seqlock,
@@ -428,7 +428,7 @@ static void icount_adjust_vm(void *opaque)
 
 static int64_t qemu_icount_round(int64_t count)
 {
-    int shift = atomic_read(&timers_state.icount_time_shift);
+    int shift = qatomic_read(&timers_state.icount_time_shift);
     return (count + (1 << shift) - 1) >> shift;
 }
 
@@ -466,7 +466,7 @@ static void icount_warp_rt(void)
             int64_t delta = clock - cur_icount;
             warp_delta = MIN(warp_delta, delta);
         }
-        atomic_set_i64(&timers_state.qemu_icount_bias,
+        qatomic_set_i64(&timers_state.qemu_icount_bias,
                        timers_state.qemu_icount_bias + warp_delta);
     }
     timers_state.vm_clock_warp_start = -1;
@@ -499,7 +499,7 @@ void qtest_clock_warp(int64_t dest)
 
         seqlock_write_lock(&timers_state.vm_clock_seqlock,
                            &timers_state.vm_clock_lock);
-        atomic_set_i64(&timers_state.qemu_icount_bias,
+        qatomic_set_i64(&timers_state.qemu_icount_bias,
                        timers_state.qemu_icount_bias + warp);
         seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                              &timers_state.vm_clock_lock);
@@ -583,7 +583,7 @@ void qemu_start_warp_timer(void)
              */
             seqlock_write_lock(&timers_state.vm_clock_seqlock,
                                &timers_state.vm_clock_lock);
-            atomic_set_i64(&timers_state.qemu_icount_bias,
+            qatomic_set_i64(&timers_state.qemu_icount_bias,
                            timers_state.qemu_icount_bias + deadline);
             seqlock_write_unlock(&timers_state.vm_clock_seqlock,
                                  &timers_state.vm_clock_lock);
@@ -837,11 +837,11 @@ static void qemu_cpu_kick_rr_next_cpu(void)
 {
     CPUState *cpu;
     do {
-        cpu = atomic_mb_read(&tcg_current_rr_cpu);
+        cpu = qatomic_mb_read(&tcg_current_rr_cpu);
         if (cpu) {
             cpu_exit(cpu);
         }
-    } while (cpu != atomic_mb_read(&tcg_current_rr_cpu));
+    } while (cpu != qatomic_mb_read(&tcg_current_rr_cpu));
 }
 
 /* Kick all RR vCPUs */
@@ -1110,7 +1110,7 @@ static void qemu_cpu_stop(CPUState *cpu, bool exit)
 
 static void qemu_wait_io_event_common(CPUState *cpu)
 {
-    atomic_mb_set(&cpu->thread_kicked, false);
+    qatomic_mb_set(&cpu->thread_kicked, false);
     if (cpu->stop) {
         qemu_cpu_stop(cpu, false);
     }
@@ -1356,7 +1356,7 @@ static int tcg_cpu_exec(CPUState *cpu)
     ret = cpu_exec(cpu);
     cpu_exec_end(cpu);
 #ifdef CONFIG_PROFILER
-    atomic_set(&tcg_ctx->prof.cpu_exec_time,
+    qatomic_set(&tcg_ctx->prof.cpu_exec_time,
                tcg_ctx->prof.cpu_exec_time + profile_getclock() - ti);
 #endif
     return ret;
@@ -1443,7 +1443,7 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
 
         while (cpu && cpu_work_list_empty(cpu) && !cpu->exit_request) {
 
-            atomic_mb_set(&tcg_current_rr_cpu, cpu);
+            qatomic_mb_set(&tcg_current_rr_cpu, cpu);
             current_cpu = cpu;
 
             qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
@@ -1479,11 +1479,11 @@ static void *qemu_tcg_rr_cpu_thread_fn(void *arg)
             cpu = CPU_NEXT(cpu);
         } /* while (cpu && !cpu->exit_request).. */
 
-        /* Does not need atomic_mb_set because a spurious wakeup is okay.  */
-        atomic_set(&tcg_current_rr_cpu, NULL);
+        /* Does not need qatomic_mb_set because a spurious wakeup is okay.  */
+        qatomic_set(&tcg_current_rr_cpu, NULL);
 
         if (cpu && cpu->exit_request) {
-            atomic_mb_set(&cpu->exit_request, 0);
+            qatomic_mb_set(&cpu->exit_request, 0);
         }
 
         if (use_icount && all_cpu_threads_idle()) {
@@ -1687,7 +1687,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
             }
         }
 
-        atomic_mb_set(&cpu->exit_request, 0);
+        qatomic_mb_set(&cpu->exit_request, 0);
         qemu_wait_io_event(cpu);
     } while (!cpu->unplug || cpu_can_run(cpu));
 
@@ -1776,7 +1776,7 @@ bool qemu_mutex_iothread_locked(void)
  */
 void qemu_mutex_lock_iothread_impl(const char *file, int line)
 {
-    QemuMutexLockFunc bql_lock = atomic_read(&qemu_bql_mutex_lock_func);
+    QemuMutexLockFunc bql_lock = qatomic_read(&qemu_bql_mutex_lock_func);
 
     g_assert(!qemu_mutex_iothread_locked());
     bql_lock(&qemu_global_mutex, file, line);

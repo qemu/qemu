@@ -231,7 +231,7 @@ static void sint_msg_bh(void *opaque)
     HvSintRoute *sint_route = opaque;
     HvSintStagedMessage *staged_msg = sint_route->staged_msg;
 
-    if (atomic_read(&staged_msg->state) != HV_STAGED_MSG_POSTED) {
+    if (qatomic_read(&staged_msg->state) != HV_STAGED_MSG_POSTED) {
         /* status nor ready yet (spurious ack from guest?), ignore */
         return;
     }
@@ -240,7 +240,7 @@ static void sint_msg_bh(void *opaque)
     staged_msg->status = 0;
 
     /* staged message processing finished, ready to start over */
-    atomic_set(&staged_msg->state, HV_STAGED_MSG_FREE);
+    qatomic_set(&staged_msg->state, HV_STAGED_MSG_FREE);
     /* drop the reference taken in hyperv_post_msg */
     hyperv_sint_route_unref(sint_route);
 }
@@ -278,7 +278,7 @@ static void cpu_post_msg(CPUState *cs, run_on_cpu_data data)
     memory_region_set_dirty(&synic->msg_page_mr, 0, sizeof(*synic->msg_page));
 
 posted:
-    atomic_set(&staged_msg->state, HV_STAGED_MSG_POSTED);
+    qatomic_set(&staged_msg->state, HV_STAGED_MSG_POSTED);
     /*
      * Notify the msg originator of the progress made; if the slot was busy we
      * set msg_pending flag in it so it will be the guest who will do EOM and
@@ -301,7 +301,7 @@ int hyperv_post_msg(HvSintRoute *sint_route, struct hyperv_message *src_msg)
     assert(staged_msg);
 
     /* grab the staging area */
-    if (atomic_cmpxchg(&staged_msg->state, HV_STAGED_MSG_FREE,
+    if (qatomic_cmpxchg(&staged_msg->state, HV_STAGED_MSG_FREE,
                        HV_STAGED_MSG_BUSY) != HV_STAGED_MSG_FREE) {
         return -EAGAIN;
     }
@@ -351,7 +351,7 @@ int hyperv_set_event_flag(HvSintRoute *sint_route, unsigned eventno)
     set_mask = BIT_MASK(eventno);
     flags = synic->event_page->slot[sint_route->sint].flags;
 
-    if ((atomic_fetch_or(&flags[set_idx], set_mask) & set_mask) != set_mask) {
+    if ((qatomic_fetch_or(&flags[set_idx], set_mask) & set_mask) != set_mask) {
         memory_region_set_dirty(&synic->event_page_mr, 0,
                                 sizeof(*synic->event_page));
         ret = hyperv_sint_route_set_sint(sint_route);

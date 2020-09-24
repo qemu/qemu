@@ -597,7 +597,7 @@ static inline bool tcg_region_initial_alloc__locked(TCGContext *s)
 /* Call from a safe-work context */
 void tcg_region_reset_all(void)
 {
-    unsigned int n_ctxs = atomic_read(&n_tcg_ctxs);
+    unsigned int n_ctxs = qatomic_read(&n_tcg_ctxs);
     unsigned int i;
 
     qemu_mutex_lock(&region.lock);
@@ -605,7 +605,7 @@ void tcg_region_reset_all(void)
     region.agg_size_full = 0;
 
     for (i = 0; i < n_ctxs; i++) {
-        TCGContext *s = atomic_read(&tcg_ctxs[i]);
+        TCGContext *s = qatomic_read(&tcg_ctxs[i]);
         bool err = tcg_region_initial_alloc__locked(s);
 
         g_assert(!err);
@@ -794,9 +794,9 @@ void tcg_register_thread(void)
     }
 
     /* Claim an entry in tcg_ctxs */
-    n = atomic_fetch_inc(&n_tcg_ctxs);
+    n = qatomic_fetch_inc(&n_tcg_ctxs);
     g_assert(n < ms->smp.max_cpus);
-    atomic_set(&tcg_ctxs[n], s);
+    qatomic_set(&tcg_ctxs[n], s);
 
     if (n > 0) {
         alloc_tcg_plugin_context(s);
@@ -819,17 +819,17 @@ void tcg_register_thread(void)
  */
 size_t tcg_code_size(void)
 {
-    unsigned int n_ctxs = atomic_read(&n_tcg_ctxs);
+    unsigned int n_ctxs = qatomic_read(&n_tcg_ctxs);
     unsigned int i;
     size_t total;
 
     qemu_mutex_lock(&region.lock);
     total = region.agg_size_full;
     for (i = 0; i < n_ctxs; i++) {
-        const TCGContext *s = atomic_read(&tcg_ctxs[i]);
+        const TCGContext *s = qatomic_read(&tcg_ctxs[i]);
         size_t size;
 
-        size = atomic_read(&s->code_gen_ptr) - s->code_gen_buffer;
+        size = qatomic_read(&s->code_gen_ptr) - s->code_gen_buffer;
         g_assert(size <= s->code_gen_buffer_size);
         total += size;
     }
@@ -855,14 +855,14 @@ size_t tcg_code_capacity(void)
 
 size_t tcg_tb_phys_invalidate_count(void)
 {
-    unsigned int n_ctxs = atomic_read(&n_tcg_ctxs);
+    unsigned int n_ctxs = qatomic_read(&n_tcg_ctxs);
     unsigned int i;
     size_t total = 0;
 
     for (i = 0; i < n_ctxs; i++) {
-        const TCGContext *s = atomic_read(&tcg_ctxs[i]);
+        const TCGContext *s = qatomic_read(&tcg_ctxs[i]);
 
-        total += atomic_read(&s->tb_phys_invalidate_count);
+        total += qatomic_read(&s->tb_phys_invalidate_count);
     }
     return total;
 }
@@ -1041,7 +1041,7 @@ TranslationBlock *tcg_tb_alloc(TCGContext *s)
         }
         goto retry;
     }
-    atomic_set(&s->code_gen_ptr, next);
+    qatomic_set(&s->code_gen_ptr, next);
     s->data_gen_ptr = NULL;
     return tb;
 }
@@ -2134,7 +2134,7 @@ static void tcg_dump_ops(TCGContext *s, bool have_prefs)
             QemuLogFile *logfile;
 
             rcu_read_lock();
-            logfile = atomic_rcu_read(&qemu_logfile);
+            logfile = qatomic_rcu_read(&qemu_logfile);
             if (logfile) {
                 for (; col < 40; ++col) {
                     putc(' ', logfile->fd);
@@ -2341,7 +2341,7 @@ void tcg_op_remove(TCGContext *s, TCGOp *op)
     s->nb_ops--;
 
 #ifdef CONFIG_PROFILER
-    atomic_set(&s->prof.del_op_count, s->prof.del_op_count + 1);
+    qatomic_set(&s->prof.del_op_count, s->prof.del_op_count + 1);
 #endif
 }
 
@@ -3964,12 +3964,12 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
 /* avoid copy/paste errors */
 #define PROF_ADD(to, from, field)                       \
     do {                                                \
-        (to)->field += atomic_read(&((from)->field));   \
+        (to)->field += qatomic_read(&((from)->field));  \
     } while (0)
 
 #define PROF_MAX(to, from, field)                                       \
     do {                                                                \
-        typeof((from)->field) val__ = atomic_read(&((from)->field));    \
+        typeof((from)->field) val__ = qatomic_read(&((from)->field));   \
         if (val__ > (to)->field) {                                      \
             (to)->field = val__;                                        \
         }                                                               \
@@ -3979,11 +3979,11 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
 static inline
 void tcg_profile_snapshot(TCGProfile *prof, bool counters, bool table)
 {
-    unsigned int n_ctxs = atomic_read(&n_tcg_ctxs);
+    unsigned int n_ctxs = qatomic_read(&n_tcg_ctxs);
     unsigned int i;
 
     for (i = 0; i < n_ctxs; i++) {
-        TCGContext *s = atomic_read(&tcg_ctxs[i]);
+        TCGContext *s = qatomic_read(&tcg_ctxs[i]);
         const TCGProfile *orig = &s->prof;
 
         if (counters) {
@@ -4042,15 +4042,15 @@ void tcg_dump_op_count(void)
 
 int64_t tcg_cpu_exec_time(void)
 {
-    unsigned int n_ctxs = atomic_read(&n_tcg_ctxs);
+    unsigned int n_ctxs = qatomic_read(&n_tcg_ctxs);
     unsigned int i;
     int64_t ret = 0;
 
     for (i = 0; i < n_ctxs; i++) {
-        const TCGContext *s = atomic_read(&tcg_ctxs[i]);
+        const TCGContext *s = qatomic_read(&tcg_ctxs[i]);
         const TCGProfile *prof = &s->prof;
 
-        ret += atomic_read(&prof->cpu_exec_time);
+        ret += qatomic_read(&prof->cpu_exec_time);
     }
     return ret;
 }
@@ -4083,15 +4083,15 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
         QTAILQ_FOREACH(op, &s->ops, link) {
             n++;
         }
-        atomic_set(&prof->op_count, prof->op_count + n);
+        qatomic_set(&prof->op_count, prof->op_count + n);
         if (n > prof->op_count_max) {
-            atomic_set(&prof->op_count_max, n);
+            qatomic_set(&prof->op_count_max, n);
         }
 
         n = s->nb_temps;
-        atomic_set(&prof->temp_count, prof->temp_count + n);
+        qatomic_set(&prof->temp_count, prof->temp_count + n);
         if (n > prof->temp_count_max) {
-            atomic_set(&prof->temp_count_max, n);
+            qatomic_set(&prof->temp_count_max, n);
         }
     }
 #endif
@@ -4125,7 +4125,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #endif
 
 #ifdef CONFIG_PROFILER
-    atomic_set(&prof->opt_time, prof->opt_time - profile_getclock());
+    qatomic_set(&prof->opt_time, prof->opt_time - profile_getclock());
 #endif
 
 #ifdef USE_TCG_OPTIMIZATIONS
@@ -4133,8 +4133,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #endif
 
 #ifdef CONFIG_PROFILER
-    atomic_set(&prof->opt_time, prof->opt_time + profile_getclock());
-    atomic_set(&prof->la_time, prof->la_time - profile_getclock());
+    qatomic_set(&prof->opt_time, prof->opt_time + profile_getclock());
+    qatomic_set(&prof->la_time, prof->la_time - profile_getclock());
 #endif
 
     reachable_code_pass(s);
@@ -4159,7 +4159,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     }
 
 #ifdef CONFIG_PROFILER
-    atomic_set(&prof->la_time, prof->la_time + profile_getclock());
+    qatomic_set(&prof->la_time, prof->la_time + profile_getclock());
 #endif
 
 #ifdef DEBUG_DISAS
@@ -4190,7 +4190,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
         TCGOpcode opc = op->opc;
 
 #ifdef CONFIG_PROFILER
-        atomic_set(&prof->table_op_count[opc], prof->table_op_count[opc] + 1);
+        qatomic_set(&prof->table_op_count[opc], prof->table_op_count[opc] + 1);
 #endif
 
         switch (opc) {

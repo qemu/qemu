@@ -56,17 +56,17 @@ static void *thread_func(void *arg)
 {
     struct thread_info *info = arg;
 
-    atomic_inc(&n_ready_threads);
-    while (!atomic_read(&test_start)) {
+    qatomic_inc(&n_ready_threads);
+    while (!qatomic_read(&test_start)) {
         cpu_relax();
     }
 
-    while (!atomic_read(&test_stop)) {
+    while (!qatomic_read(&test_stop)) {
         unsigned int index;
 
         info->r = xorshift64star(info->r);
         index = info->r & (range - 1);
-        atomic_read_i64(&counts[index].i64);
+        qatomic_read_i64(&counts[index].i64);
         info->accesses++;
     }
     return NULL;
@@ -76,13 +76,13 @@ static void run_test(void)
 {
     unsigned int i;
 
-    while (atomic_read(&n_ready_threads) != n_threads) {
+    while (qatomic_read(&n_ready_threads) != n_threads) {
         cpu_relax();
     }
 
-    atomic_set(&test_start, true);
+    qatomic_set(&test_start, true);
     g_usleep(duration * G_USEC_PER_SEC);
-    atomic_set(&test_stop, true);
+    qatomic_set(&test_stop, true);
 
     for (i = 0; i < n_threads; i++) {
         qemu_thread_join(&threads[i]);

@@ -164,7 +164,7 @@ static inline bool cpu_physical_memory_get_dirty(ram_addr_t start,
     page = start >> TARGET_PAGE_BITS;
 
     WITH_RCU_READ_LOCK_GUARD() {
-        blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
+        blocks = qatomic_rcu_read(&ram_list.dirty_memory[client]);
 
         idx = page / DIRTY_MEMORY_BLOCK_SIZE;
         offset = page % DIRTY_MEMORY_BLOCK_SIZE;
@@ -205,7 +205,7 @@ static inline bool cpu_physical_memory_all_dirty(ram_addr_t start,
 
     RCU_READ_LOCK_GUARD();
 
-    blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
+    blocks = qatomic_rcu_read(&ram_list.dirty_memory[client]);
 
     idx = page / DIRTY_MEMORY_BLOCK_SIZE;
     offset = page % DIRTY_MEMORY_BLOCK_SIZE;
@@ -278,7 +278,7 @@ static inline void cpu_physical_memory_set_dirty_flag(ram_addr_t addr,
 
     RCU_READ_LOCK_GUARD();
 
-    blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
+    blocks = qatomic_rcu_read(&ram_list.dirty_memory[client]);
 
     set_bit_atomic(offset, blocks->blocks[idx]);
 }
@@ -301,7 +301,7 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
 
     WITH_RCU_READ_LOCK_GUARD() {
         for (i = 0; i < DIRTY_MEMORY_NUM; i++) {
-            blocks[i] = atomic_rcu_read(&ram_list.dirty_memory[i]);
+            blocks[i] = qatomic_rcu_read(&ram_list.dirty_memory[i]);
         }
 
         idx = page / DIRTY_MEMORY_BLOCK_SIZE;
@@ -361,23 +361,25 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
 
         WITH_RCU_READ_LOCK_GUARD() {
             for (i = 0; i < DIRTY_MEMORY_NUM; i++) {
-                blocks[i] = atomic_rcu_read(&ram_list.dirty_memory[i])->blocks;
+                blocks[i] =
+                    qatomic_rcu_read(&ram_list.dirty_memory[i])->blocks;
             }
 
             for (k = 0; k < nr; k++) {
                 if (bitmap[k]) {
                     unsigned long temp = leul_to_cpu(bitmap[k]);
 
-                    atomic_or(&blocks[DIRTY_MEMORY_VGA][idx][offset], temp);
+                    qatomic_or(&blocks[DIRTY_MEMORY_VGA][idx][offset], temp);
 
                     if (global_dirty_log) {
-                        atomic_or(&blocks[DIRTY_MEMORY_MIGRATION][idx][offset],
-                                  temp);
+                        qatomic_or(
+                                &blocks[DIRTY_MEMORY_MIGRATION][idx][offset],
+                                temp);
                     }
 
                     if (tcg_enabled()) {
-                        atomic_or(&blocks[DIRTY_MEMORY_CODE][idx][offset],
-                                  temp);
+                        qatomic_or(&blocks[DIRTY_MEMORY_CODE][idx][offset],
+                                   temp);
                     }
                 }
 
@@ -461,12 +463,12 @@ uint64_t cpu_physical_memory_sync_dirty_bitmap(RAMBlock *rb,
                                         DIRTY_MEMORY_BLOCK_SIZE);
         unsigned long page = BIT_WORD(start >> TARGET_PAGE_BITS);
 
-        src = atomic_rcu_read(
+        src = qatomic_rcu_read(
                 &ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION])->blocks;
 
         for (k = page; k < page + nr; k++) {
             if (src[idx][offset]) {
-                unsigned long bits = atomic_xchg(&src[idx][offset], 0);
+                unsigned long bits = qatomic_xchg(&src[idx][offset], 0);
                 unsigned long new_dirty;
                 new_dirty = ~dest[k];
                 dest[k] |= bits;

@@ -193,5 +193,5 @@ static void __attribute__((constructor)) init_cache_info(void)
     qemu_dcache_linesize = dsize;
     qemu_dcache_linesize_log = ctz32(dsize);
 
-    atomic64_init();
+    qatomic64_init();
 }
