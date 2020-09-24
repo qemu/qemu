@@ -45,7 +45,7 @@ exports available: 0
 {"execute":"nbd-server-add", "arguments":{"device":"nosuch"}}
 {"error": {"class": "GenericError", "desc": "Cannot find device=nosuch nor node_name=nosuch"}}
 {"execute":"nbd-server-add", "arguments":{"device":"n"}}
-{"error": {"class": "GenericError", "desc": "NBD server already has export named 'n'"}}
+{"error": {"class": "GenericError", "desc": "Block export id 'n' is already in use"}}
 {"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b2"}}
 {"error": {"class": "GenericError", "desc": "Enabled bitmap 'b2' incompatible with readonly export"}}
 {"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b3"}}
@@ -126,7 +126,7 @@ exports available: 0
 {"execute":"nbd-server-add", "arguments":{"device":"nosuch"}}
 {"error": {"class": "GenericError", "desc": "Cannot find device=nosuch nor node_name=nosuch"}}
 {"execute":"nbd-server-add", "arguments":{"device":"n"}}
-{"error": {"class": "GenericError", "desc": "NBD server already has export named 'n'"}}
+{"error": {"class": "GenericError", "desc": "Block export id 'n' is already in use"}}
 {"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b2"}}
 {"error": {"class": "GenericError", "desc": "Enabled bitmap 'b2' incompatible with readonly export"}}
 {"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b3"}}

@@ -269,6 +269,7 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
     export_opts = g_new(BlockExportOptions, 1);
     *export_opts = (BlockExportOptions) {
         .type                   = BLOCK_EXPORT_TYPE_NBD,
+        .id                     = g_strdup(arg->name),
         .node_name              = g_strdup(bdrv_get_node_name(bs)),
         .u.nbd = {
             .has_name           = true,

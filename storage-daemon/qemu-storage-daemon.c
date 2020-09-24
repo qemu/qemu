@@ -92,7 +92,7 @@ static void help(void)
 "  --chardev <options>    configure a character device backend\n"
 "                         (see the qemu(1) man page for possible options)\n"
 "\n"
-"  --export [type=]nbd,device=<node-name>[,name=<export-name>]\n"
+"  --export [type=]nbd,device=<node-name>,id=<id>,[,name=<export-name>]\n"
 "           [,writable=on|off][,bitmap=<name>]\n"
 "                         export the specified block node over NBD\n"
 "                         (requires --nbd-server)\n"

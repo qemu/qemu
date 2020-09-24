@@ -19,6 +19,7 @@
 #include "block/nbd.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-block-export.h"
+#include "qemu/id.h"
 
 static const BlockExportDriver *blk_exp_drivers[] = {
     &blk_exp_nbd,
@@ -27,6 +28,19 @@ static const BlockExportDriver *blk_exp_drivers[] = {
 /* Only accessed from the main thread */
 static QLIST_HEAD(, BlockExport) block_exports =
     QLIST_HEAD_INITIALIZER(block_exports);
+
+static BlockExport *blk_exp_find(const char *id)
+{
+    BlockExport *exp;
+
+    QLIST_FOREACH(exp, &block_exports, next) {
+        if (strcmp(id, exp->id) == 0) {
+            return exp;
+        }
+    }
+
+    return NULL;
+}
 
 static const BlockExportDriver *blk_exp_find_driver(BlockExportType type)
 {
@@ -46,6 +60,15 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
     BlockExport *exp;
     int ret;
 
+    if (!id_wellformed(export->id)) {
+        error_setg(errp, "Invalid block export id");
+        return NULL;
+    }
+    if (blk_exp_find(export->id)) {
+        error_setg(errp, "Block export id '%s' is already in use", export->id);
+        return NULL;
+    }
+
     drv = blk_exp_find_driver(export->type);
     if (!drv) {
         error_setg(errp, "No driver found for the requested export type");
@@ -57,10 +80,12 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
     *exp = (BlockExport) {
         .drv        = drv,
         .refcount   = 1,
+        .id         = g_strdup(export->id),
     };
 
     ret = drv->create(exp, export, errp);
     if (ret < 0) {
+        g_free(exp->id);
         g_free(exp);
         return NULL;
     }
@@ -87,6 +112,7 @@ static void blk_exp_delete_bh(void *opaque)
     assert(exp->refcount == 0);
     QLIST_REMOVE(exp, next);
     exp->drv->delete(exp);
+    g_free(exp->id);
     g_free(exp);
 
     aio_context_release(aio_context);

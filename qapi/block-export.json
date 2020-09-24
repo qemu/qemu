@@ -105,6 +105,8 @@
 #
 # Export a block node to QEMU's embedded NBD server.
 #
+# The export name will be used as the id for the resulting block export.
+#
 # Returns: error if the server is not running, or export with the same name
 #          already exists.
 #
@@ -182,6 +184,8 @@
 # Describes a block export, i.e. how single node should be exported on an
 # external interface.
 #
+# @id: A unique identifier for the block export (across all export types)
+#
 # @node-name: The node name of the block node to be exported (since: 5.2)
 #
 # @writethrough: If true, caches are flushed after every write request to the
@@ -192,6 +196,7 @@
 ##
 { 'union': 'BlockExportOptions',
   'base': { 'type': 'BlockExportType',
+            'id': 'str',
             'node-name': 'str',
             '*writethrough': 'bool' },
   'discriminator': 'type',

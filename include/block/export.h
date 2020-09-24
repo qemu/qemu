@@ -50,6 +50,9 @@ typedef struct BlockExportDriver {
 struct BlockExport {
     const BlockExportDriver *drv;
 
+    /* Unique identifier for the export */
+    char *id;
+
     /*
      * Reference count for this block export. This includes strong references
      * both from the owner (qemu-nbd or the monitor) and clients connected to
