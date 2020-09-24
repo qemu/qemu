@@ -41,6 +41,9 @@ struct BlockExport {
      * the export.
      */
     int refcount;
+
+    /* The AioContext whose lock protects this BlockExport object. */
+    AioContext *ctx;
 };
 
 BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp);

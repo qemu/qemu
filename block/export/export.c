@@ -49,12 +49,14 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
     return drv->create(export, errp);
 }
 
+/* Callers must hold exp->ctx lock */
 void blk_exp_ref(BlockExport *exp)
 {
     assert(exp->refcount > 0);
     exp->refcount++;
 }
 
+/* Callers must hold exp->ctx lock */
 void blk_exp_unref(BlockExport *exp)
 {
     assert(exp->refcount > 0);

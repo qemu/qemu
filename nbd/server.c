@@ -92,8 +92,6 @@ struct NBDExport {
     QTAILQ_HEAD(, NBDClient) clients;
     QTAILQ_ENTRY(NBDExport) next;
 
-    AioContext *ctx;
-
     BlockBackend *eject_notifier_blk;
     Notifier eject_notifier;
 
@@ -1333,8 +1331,8 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
     }
 
     /* Attach the channel to the same AioContext as the export */
-    if (client->exp && client->exp->ctx) {
-        qio_channel_attach_aio_context(client->ioc, client->exp->ctx);
+    if (client->exp && client->exp->common.ctx) {
+        qio_channel_attach_aio_context(client->ioc, client->exp->common.ctx);
     }
 
     assert(!client->optlen);
@@ -1466,7 +1464,7 @@ static void blk_aio_attached(AioContext *ctx, void *opaque)
 
     trace_nbd_blk_aio_attached(exp->name, ctx);
 
-    exp->ctx = ctx;
+    exp->common.ctx = ctx;
 
     QTAILQ_FOREACH(client, &exp->clients, next) {
         qio_channel_attach_aio_context(client->ioc, ctx);
@@ -1484,13 +1482,13 @@ static void blk_aio_detach(void *opaque)
     NBDExport *exp = opaque;
     NBDClient *client;
 
-    trace_nbd_blk_aio_detach(exp->name, exp->ctx);
+    trace_nbd_blk_aio_detach(exp->name, exp->common.ctx);
 
     QTAILQ_FOREACH(client, &exp->clients, next) {
         qio_channel_detach_aio_context(client->ioc);
     }
 
-    exp->ctx = NULL;
+    exp->common.ctx = NULL;
 }
 
 static void nbd_eject_notifier(Notifier *n, void *data)
@@ -1498,7 +1496,7 @@ static void nbd_eject_notifier(Notifier *n, void *data)
     NBDExport *exp = container_of(n, NBDExport, eject_notifier);
     AioContext *aio_context;
 
-    aio_context = exp->ctx;
+    aio_context = exp->common.ctx;
     aio_context_acquire(aio_context);
     nbd_export_close(exp);
     aio_context_release(aio_context);
@@ -1535,10 +1533,13 @@ NBDExport *nbd_export_new(BlockDriverState *bs,
         return NULL;
     }
 
+    ctx = bdrv_get_aio_context(bs);
+
     exp = g_new0(NBDExport, 1);
     exp->common = (BlockExport) {
         .drv        = &blk_exp_nbd,
         .refcount   = 1,
+        .ctx        = ctx,
     };
 
     /*
@@ -1548,7 +1549,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs,
      * ctx was acquired in the caller.
      */
     assert(name && strlen(name) <= NBD_MAX_STRING_SIZE);
-    ctx = bdrv_get_aio_context(bs);
+
     bdrv_invalidate_cache(bs, NULL);
 
     /* Don't allow resize while the NBD server is running, otherwise we don't
@@ -1622,7 +1623,6 @@ NBDExport *nbd_export_new(BlockDriverState *bs,
         assert(strlen(exp->export_bitmap_context) < NBD_MAX_STRING_SIZE);
     }
 
-    exp->ctx = ctx;
     blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
 
     blk_exp_ref(&exp->common);
@@ -1653,7 +1653,7 @@ NBDExport *nbd_export_find(const char *name)
 AioContext *
 nbd_export_aio_context(NBDExport *exp)
 {
-    return exp->ctx;
+    return exp->common.ctx;
 }
 
 void nbd_export_close(NBDExport *exp)
@@ -1738,7 +1738,7 @@ void nbd_export_close_all(void)
     AioContext *aio_context;
 
     QTAILQ_FOREACH_SAFE(exp, &exports, next, next) {
-        aio_context = exp->ctx;
+        aio_context = exp->common.ctx;
         aio_context_acquire(aio_context);
         nbd_export_close(exp);
         aio_context_release(aio_context);
@@ -2537,7 +2537,7 @@ static void nbd_client_receive_next_request(NBDClient *client)
     if (!client->recv_coroutine && client->nb_requests < MAX_NBD_REQUESTS) {
         nbd_client_get(client);
         client->recv_coroutine = qemu_coroutine_create(nbd_trip, client);
-        aio_co_schedule(client->exp->ctx, client->recv_coroutine);
+        aio_co_schedule(client->exp->common.ctx, client->recv_coroutine);
     }
 }
 
