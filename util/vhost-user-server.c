@@ -100,21 +100,11 @@ vu_message_read(VuDev *vu_dev, int conn_fd, VhostUserMsg *vmsg)
     };
     int rc, read_bytes = 0;
     Error *local_err = NULL;
-    /*
-     * Store fds/nfds returned from qio_channel_readv_full into
-     * temporary variables.
-     *
-     * VhostUserMsg is a packed structure, gcc will complain about passing
-     * pointer to a packed structure member if we pass &VhostUserMsg.fd_num
-     * and &VhostUserMsg.fds directly when calling qio_channel_readv_full,
-     * thus two temporary variables nfds and fds are used here.
-     */
-    size_t nfds = 0, nfds_t = 0;
     const size_t max_fds = G_N_ELEMENTS(vmsg->fds);
-    int *fds_t = NULL;
     VuServer *server = container_of(vu_dev, VuServer, vu_dev);
     QIOChannel *ioc = server->ioc;
 
+    vmsg->fd_num = 0;
     if (!ioc) {
         error_report_err(local_err);
         goto fail;
@@ -122,41 +112,47 @@ vu_message_read(VuDev *vu_dev, int conn_fd, VhostUserMsg *vmsg)
 
     assert(qemu_in_coroutine());
     do {
+        size_t nfds = 0;
+        int *fds = NULL;
+
         /*
          * qio_channel_readv_full may have short reads, keeping calling it
          * until getting VHOST_USER_HDR_SIZE or 0 bytes in total
          */
-        rc = qio_channel_readv_full(ioc, &iov, 1, &fds_t, &nfds_t, &local_err);
+        rc = qio_channel_readv_full(ioc, &iov, 1, &fds, &nfds, &local_err);
         if (rc < 0) {
             if (rc == QIO_CHANNEL_ERR_BLOCK) {
+                assert(local_err == NULL);
                 qio_channel_yield(ioc, G_IO_IN);
                 continue;
             } else {
                 error_report_err(local_err);
-                return false;
-            }
-        }
-        read_bytes += rc;
-        if (nfds_t > 0) {
-            if (nfds + nfds_t > max_fds) {
-                error_report("A maximum of %zu fds are allowed, "
-                             "however got %zu fds now",
-                             max_fds, nfds + nfds_t);
                 goto fail;
             }
-            memcpy(vmsg->fds + nfds, fds_t,
-                   nfds_t *sizeof(vmsg->fds[0]));
-            nfds += nfds_t;
-            g_free(fds_t);
         }
-        if (read_bytes == VHOST_USER_HDR_SIZE || rc == 0) {
-            break;
-        }
-        iov.iov_base = (char *)vmsg + read_bytes;
-        iov.iov_len = VHOST_USER_HDR_SIZE - read_bytes;
-    } while (true);
 
-    vmsg->fd_num = nfds;
+        if (nfds > 0) {
+            if (vmsg->fd_num + nfds > max_fds) {
+                error_report("A maximum of %zu fds are allowed, "
+                             "however got %zu fds now",
+                             max_fds, vmsg->fd_num + nfds);
+                g_free(fds);
+                goto fail;
+            }
+            memcpy(vmsg->fds + vmsg->fd_num, fds, nfds * sizeof(vmsg->fds[0]));
+            vmsg->fd_num += nfds;
+            g_free(fds);
+        }
+
+        if (rc == 0) { /* socket closed */
+            goto fail;
+        }
+
+        iov.iov_base += rc;
+        iov.iov_len -= rc;
+        read_bytes += rc;
+    } while (read_bytes != VHOST_USER_HDR_SIZE);
+
     /* qio_channel_readv_full will make socket fds blocking, unblock them */
     vmsg_unblock_fds(vmsg);
     if (vmsg->size > sizeof(vmsg->payload)) {
