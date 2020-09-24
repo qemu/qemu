@@ -1678,8 +1678,6 @@ void nbd_export_close(NBDExport *exp)
         QTAILQ_REMOVE(&exports, exp, next);
         QTAILQ_INSERT_TAIL(&closed_exports, exp, next);
     }
-    g_free(exp->description);
-    exp->description = NULL;
     nbd_export_put(exp);
 }
 
@@ -1706,19 +1704,12 @@ void nbd_export_get(NBDExport *exp)
 void nbd_export_put(NBDExport *exp)
 {
     assert(exp->refcount > 0);
-    if (exp->refcount == 1) {
-        nbd_export_close(exp);
-    }
-
-    /* nbd_export_close() may theoretically reduce refcount to 0. It may happen
-     * if someone calls nbd_export_put() on named export not through
-     * nbd_export_set_name() when refcount is 1. So, let's assert that
-     * it is > 0.
-     */
-    assert(exp->refcount > 0);
     if (--exp->refcount == 0) {
         assert(exp->name == NULL);
-        assert(exp->description == NULL);
+        assert(QTAILQ_EMPTY(&exp->clients));
+
+        g_free(exp->description);
+        exp->description = NULL;
 
         if (exp->blk) {
             if (exp->eject_notifier_blk) {
