@@ -84,7 +84,6 @@ struct NBDRequestData {
 struct NBDExport {
     BlockExport common;
     int refcount;
-    void (*close)(NBDExport *exp);
 
     BlockBackend *blk;
     char *name;
@@ -1521,8 +1520,7 @@ void nbd_export_set_on_eject_blk(BlockExport *exp, BlockBackend *blk)
 NBDExport *nbd_export_new(BlockDriverState *bs,
                           const char *name, const char *desc,
                           const char *bitmap, bool readonly, bool shared,
-                          void (*close)(NBDExport *), bool writethrough,
-                          Error **errp)
+                          bool writethrough, Error **errp)
 {
     AioContext *ctx;
     BlockBackend *blk;
@@ -1625,7 +1623,6 @@ NBDExport *nbd_export_new(BlockDriverState *bs,
         assert(strlen(exp->export_bitmap_context) < NBD_MAX_STRING_SIZE);
     }
 
-    exp->close = close;
     exp->ctx = ctx;
     blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
 
@@ -1722,10 +1719,6 @@ void nbd_export_put(NBDExport *exp)
     if (--exp->refcount == 0) {
         assert(exp->name == NULL);
         assert(exp->description == NULL);
-
-        if (exp->close) {
-            exp->close(exp);
-        }
 
         if (exp->blk) {
             if (exp->eject_notifier_blk) {

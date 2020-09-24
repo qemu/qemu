@@ -70,7 +70,7 @@ static int verbose;
 static char *srcpath;
 static SocketAddress *saddr;
 static int persistent = 0;
-static enum { RUNNING, TERMINATE, TERMINATING, TERMINATED } state;
+static enum { RUNNING, TERMINATE, TERMINATED } state;
 static int shared = 1;
 static int nb_fds;
 static QIONetListener *server;
@@ -330,12 +330,6 @@ out:
 static int nbd_can_accept(void)
 {
     return state == RUNNING && nb_fds < shared;
-}
-
-static void nbd_export_closed(NBDExport *export)
-{
-    assert(state == TERMINATING);
-    state = TERMINATED;
 }
 
 static void nbd_update_server_watch(void);
@@ -1067,7 +1061,7 @@ int main(int argc, char **argv)
 
     export = nbd_export_new(bs, export_name,
                             export_description, bitmap, readonly, shared > 1,
-                            nbd_export_closed, writethrough, &error_fatal);
+                            writethrough, &error_fatal);
 
     if (device) {
 #if HAVE_NBD_DEVICE
@@ -1107,10 +1101,10 @@ int main(int argc, char **argv)
     do {
         main_loop_wait(false);
         if (state == TERMINATE) {
-            state = TERMINATING;
-            nbd_export_close(export);
             nbd_export_put(export);
+            nbd_export_close_all();
             export = NULL;
+            state = TERMINATED;
         }
     } while (state != TERMINATED);
 

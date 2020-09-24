@@ -222,7 +222,7 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
 
     exp = nbd_export_new(bs, arg->name, arg->description, arg->bitmap,
                          !arg->writable, !arg->writable,
-                         NULL, exp_args->writethrough, errp);
+                         exp_args->writethrough, errp);
     if (!exp) {
         goto out;
     }
