@@ -15,6 +15,7 @@
 #define BLOCK_EXPORT_H
 
 #include "qapi/qapi-types-block-export.h"
+#include "qemu/queue.h"
 
 typedef struct BlockExport BlockExport;
 
@@ -36,6 +37,14 @@ typedef struct BlockExportDriver {
      * references have been dropped.
      */
     void (*delete)(BlockExport *);
+
+    /*
+     * Start to disconnect all clients and drop other references held
+     * internally by the export driver. When the function returns, there may
+     * still be active references while the export is in the process of
+     * shutting down.
+     */
+    void (*request_shutdown)(BlockExport *);
 } BlockExportDriver;
 
 struct BlockExport {
@@ -50,10 +59,16 @@ struct BlockExport {
 
     /* The AioContext whose lock protects this BlockExport object. */
     AioContext *ctx;
+
+    /* List entry for block_exports */
+    QLIST_ENTRY(BlockExport) next;
 };
 
 BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp);
 void blk_exp_ref(BlockExport *exp);
 void blk_exp_unref(BlockExport *exp);
+void blk_exp_request_shutdown(BlockExport *exp);
+void blk_exp_close_all(void);
+void blk_exp_close_all_type(BlockExportType type);
 
 #endif

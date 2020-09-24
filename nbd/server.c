@@ -100,8 +100,6 @@ struct NBDExport {
 };
 
 static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
-static QTAILQ_HEAD(, NBDExport) closed_exports =
-        QTAILQ_HEAD_INITIALIZER(closed_exports);
 
 /* NBDExportMetaContexts represents a list of contexts to be exported,
  * as selected by NBD_OPT_SET_META_CONTEXT. Also used for
@@ -1494,12 +1492,8 @@ static void blk_aio_detach(void *opaque)
 static void nbd_eject_notifier(Notifier *n, void *data)
 {
     NBDExport *exp = container_of(n, NBDExport, eject_notifier);
-    AioContext *aio_context;
 
-    aio_context = exp->common.ctx;
-    aio_context_acquire(aio_context);
-    nbd_export_close(exp);
-    aio_context_release(aio_context);
+    blk_exp_request_shutdown(&exp->common);
 }
 
 void nbd_export_set_on_eject_blk(BlockExport *exp, BlockBackend *blk)
@@ -1652,8 +1646,9 @@ nbd_export_aio_context(NBDExport *exp)
     return exp->common.ctx;
 }
 
-void nbd_export_close(NBDExport *exp)
+static void nbd_export_request_shutdown(BlockExport *blk_exp)
 {
+    NBDExport *exp = container_of(blk_exp, NBDExport, common);
     NBDClient *client, *next;
 
     blk_exp_ref(&exp->common);
@@ -1672,7 +1667,6 @@ void nbd_export_close(NBDExport *exp)
         g_free(exp->name);
         exp->name = NULL;
         QTAILQ_REMOVE(&exports, exp, next);
-        QTAILQ_INSERT_TAIL(&closed_exports, exp, next);
     }
     blk_exp_unref(&exp->common);
 }
@@ -1681,7 +1675,7 @@ void nbd_export_remove(NBDExport *exp, NbdServerRemoveMode mode, Error **errp)
 {
     ERRP_GUARD();
     if (mode == NBD_SERVER_REMOVE_MODE_HARD || QTAILQ_EMPTY(&exp->clients)) {
-        nbd_export_close(exp);
+        nbd_export_request_shutdown(&exp->common);
         return;
     }
 
@@ -1716,9 +1710,6 @@ static void nbd_export_delete(BlockExport *blk_exp)
         bdrv_dirty_bitmap_set_busy(exp->export_bitmap, false);
         g_free(exp->export_bitmap_context);
     }
-
-    QTAILQ_REMOVE(&closed_exports, exp, next);
-    aio_wait_kick();
 }
 
 const BlockExportDriver blk_exp_nbd = {
@@ -1726,23 +1717,8 @@ const BlockExportDriver blk_exp_nbd = {
     .instance_size      = sizeof(NBDExport),
     .create             = nbd_export_create,
     .delete             = nbd_export_delete,
+    .request_shutdown   = nbd_export_request_shutdown,
 };
-
-void nbd_export_close_all(void)
-{
-    NBDExport *exp, *next;
-    AioContext *aio_context;
-
-    QTAILQ_FOREACH_SAFE(exp, &exports, next, next) {
-        aio_context = exp->common.ctx;
-        aio_context_acquire(aio_context);
-        nbd_export_close(exp);
-        aio_context_release(aio_context);
-    }
-
-    AIO_WAIT_WHILE(NULL, !(QTAILQ_EMPTY(&exports) &&
-                           QTAILQ_EMPTY(&closed_exports)));
-}
 
 static int coroutine_fn nbd_co_send_iov(NBDClient *client, struct iovec *iov,
                                         unsigned niov, Error **errp)
