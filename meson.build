@@ -1398,6 +1398,11 @@ trace_events_subdirs += [
   'util',
 ]
 
+vhost_user = not_found
+if 'CONFIG_VHOST_USER' in config_host
+  subdir('contrib/libvhost-user')
+endif
+
 subdir('qapi')
 subdir('qobject')
 subdir('stubs')
@@ -1830,7 +1835,6 @@ if have_tools
              install: true)
 
   if 'CONFIG_VHOST_USER' in config_host
-    subdir('contrib/libvhost-user')
     subdir('contrib/vhost-user-blk')
     subdir('contrib/vhost-user-gpu')
     subdir('contrib/vhost-user-input')
