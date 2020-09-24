@@ -48,21 +48,6 @@ static void close_client(VuServer *server)
     /* When this is set vu_client_trip will stop new processing vhost-user message */
     server->sioc = NULL;
 
-    VuFdWatch *vu_fd_watch, *next;
-    QTAILQ_FOREACH_SAFE(vu_fd_watch, &server->vu_fd_watches, next, next) {
-        aio_set_fd_handler(server->ioc->ctx, vu_fd_watch->fd, true, NULL,
-                           NULL, NULL, NULL);
-    }
-
-    while (!QTAILQ_EMPTY(&server->vu_fd_watches)) {
-        QTAILQ_FOREACH_SAFE(vu_fd_watch, &server->vu_fd_watches, next, next) {
-            if (!vu_fd_watch->processing) {
-                QTAILQ_REMOVE(&server->vu_fd_watches, vu_fd_watch, next);
-                g_free(vu_fd_watch);
-            }
-        }
-    }
-
     while (server->processing_msg) {
         if (server->ioc->read_coroutine) {
             server->ioc->read_coroutine = NULL;
@@ -73,6 +58,10 @@ static void close_client(VuServer *server)
     }
 
     vu_deinit(&server->vu_dev);
+
+    /* vu_deinit() should have called remove_watch() */
+    assert(QTAILQ_EMPTY(&server->vu_fd_watches));
+
     object_unref(OBJECT(sioc));
     object_unref(OBJECT(server->ioc));
 }
