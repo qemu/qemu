@@ -1064,10 +1064,10 @@ int main(int argc, char **argv)
     export_opts = g_new(BlockExportOptions, 1);
     *export_opts = (BlockExportOptions) {
         .type               = BLOCK_EXPORT_TYPE_NBD,
+        .node_name          = g_strdup(bdrv_get_node_name(bs)),
         .has_writethrough   = true,
         .writethrough       = writethrough,
         .u.nbd = {
-            .device             = g_strdup(bdrv_get_node_name(bs)),
             .has_name           = true,
             .name               = g_strdup(export_name),
             .has_description    = !!export_description,

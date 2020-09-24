@@ -188,7 +188,7 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
     }
 
     if (!arg->has_name) {
-        arg->name = arg->device;
+        arg->name = exp_args->node_name;
     }
 
     if (strlen(arg->name) > NBD_MAX_STRING_SIZE) {
@@ -206,7 +206,7 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
         return NULL;
     }
 
-    bs = bdrv_lookup_bs(arg->device, arg->device, errp);
+    bs = bdrv_lookup_bs(NULL, exp_args->node_name, errp);
     if (!bs) {
         return NULL;
     }
@@ -244,21 +244,40 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
     return (BlockExport*) exp;
 }
 
-void qmp_nbd_server_add(BlockExportOptionsNbd *arg, Error **errp)
+void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
 {
     BlockExport *export;
     BlockDriverState *bs;
     BlockBackend *on_eject_blk;
-    BlockExportOptions export_opts;
+    BlockExportOptions *export_opts;
 
     bs = bdrv_lookup_bs(arg->device, arg->device, errp);
     if (!bs) {
         return;
     }
 
-    export_opts = (BlockExportOptions) {
-        .type = BLOCK_EXPORT_TYPE_NBD,
-        .u.nbd = *arg,
+    /*
+     * block-export-add would default to the node-name, but we may have to use
+     * the device name as a default here for compatibility.
+     */
+    if (!arg->has_name) {
+        arg->name = arg->device;
+    }
+
+    export_opts = g_new(BlockExportOptions, 1);
+    *export_opts = (BlockExportOptions) {
+        .type                   = BLOCK_EXPORT_TYPE_NBD,
+        .node_name              = g_strdup(bdrv_get_node_name(bs)),
+        .u.nbd = {
+            .has_name           = true,
+            .name               = g_strdup(arg->name),
+            .has_description    = arg->has_description,
+            .description        = g_strdup(arg->description),
+            .has_writable       = arg->has_writable,
+            .writable           = arg->writable,
+            .has_bitmap         = arg->has_bitmap,
+            .bitmap             = g_strdup(arg->bitmap),
+        },
     };
 
     /*
@@ -267,13 +286,13 @@ void qmp_nbd_server_add(BlockExportOptionsNbd *arg, Error **errp)
      * block-export-add.
      */
     if (bdrv_is_read_only(bs)) {
-        export_opts.u.nbd.has_writable = true;
-        export_opts.u.nbd.writable = false;
+        export_opts->u.nbd.has_writable = true;
+        export_opts->u.nbd.writable = false;
     }
 
-    export = blk_exp_add(&export_opts, errp);
+    export = blk_exp_add(export_opts, errp);
     if (!export) {
-        return;
+        goto fail;
     }
 
     /*
@@ -284,6 +303,9 @@ void qmp_nbd_server_add(BlockExportOptionsNbd *arg, Error **errp)
     if (on_eject_blk) {
         nbd_export_set_on_eject_blk(export, on_eject_blk);
     }
+
+fail:
+    qapi_free_BlockExportOptions(export_opts);
 }
 
 void qmp_nbd_server_remove(const char *name,
