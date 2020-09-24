@@ -163,7 +163,7 @@ static bool find_zipl_boot_menu_banner(int *offset)
     int i;
 
     /* Menu banner starts with "zIPL" */
-    for (i = 0; i < virtio_get_block_size() - 4; i++) {
+    for (i = 0; i <= virtio_get_block_size() - 4; i++) {
         if (magic_match(s2_cur_blk + i, ZIPL_MAGIC_EBCDIC)) {
             *offset = i;
             return true;
