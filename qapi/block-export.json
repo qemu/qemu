@@ -170,10 +170,15 @@
 # Describes a block export, i.e. how single node should be exported on an
 # external interface.
 #
+# @writethrough: If true, caches are flushed after every write request to the
+#                export before completion is signalled. (since: 5.2;
+#                default: false)
+#
 # Since: 4.2
 ##
 { 'union': 'BlockExportOptions',
-  'base': { 'type': 'BlockExportType' },
+  'base': { 'type': 'BlockExportType',
+            '*writethrough': 'bool' },
   'discriminator': 'type',
   'data': {
       'nbd': 'BlockExportOptionsNbd'

@@ -216,9 +216,13 @@ BlockExport *nbd_export_create(BlockExportOptions *exp_args, Error **errp)
         goto out;
     }
 
+    if (!exp_args->has_writethrough) {
+        exp_args->writethrough = false;
+    }
+
     exp = nbd_export_new(bs, arg->name, arg->description, arg->bitmap,
                          !arg->writable, !arg->writable,
-                         NULL, false, errp);
+                         NULL, exp_args->writethrough, errp);
     if (!exp) {
         goto out;
     }
