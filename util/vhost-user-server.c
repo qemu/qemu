@@ -337,7 +337,7 @@ static void vu_accept(QIONetListener *listener, QIOChannelSocket *sioc,
     server->ioc = QIO_CHANNEL(sioc);
     object_ref(OBJECT(server->ioc));
     qio_channel_attach_aio_context(server->ioc, server->ctx);
-    qio_channel_set_blocking(QIO_CHANNEL(server->sioc), false, NULL);
+    qio_channel_set_blocking(server->ioc, false, NULL);
     vu_client_start(server);
 }
 
