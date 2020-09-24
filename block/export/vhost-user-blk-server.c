@@ -439,8 +439,7 @@ static void vhost_user_blk_server_start(VuBlockDev *vu_block_device,
     ctx = bdrv_get_aio_context(blk_bs(vu_block_device->backend));
 
     if (!vhost_user_server_start(&vu_block_device->vu_server, addr, ctx,
-                                 VHOST_USER_BLK_MAX_QUEUES,
-                                 NULL, &vu_block_iface,
+                                 VHOST_USER_BLK_MAX_QUEUES, &vu_block_iface,
                                  errp)) {
         goto error;
     }

@@ -29,12 +29,10 @@ typedef struct VuFdWatch {
 } VuFdWatch;
 
 typedef struct VuServer VuServer;
-typedef void DevicePanicNotifierFn(VuServer *server);
 
 struct VuServer {
     QIONetListener *listener;
     AioContext *ctx;
-    DevicePanicNotifierFn *device_panic_notifier;
     int max_queues;
     const VuDevIface *vu_iface;
     VuDev vu_dev;
@@ -54,7 +52,6 @@ bool vhost_user_server_start(VuServer *server,
                              SocketAddress *unix_socket,
                              AioContext *ctx,
                              uint16_t max_queues,
-                             DevicePanicNotifierFn *device_panic_notifier,
                              const VuDevIface *vu_iface,
                              Error **errp);
 

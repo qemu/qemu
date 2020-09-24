@@ -81,10 +81,6 @@ static void panic_cb(VuDev *vu_dev, const char *buf)
         close_client(server);
     }
 
-    if (server->device_panic_notifier) {
-        server->device_panic_notifier(server);
-    }
-
     /*
      * Set the callback function for network listener so another
      * vhost-user client can connect to this server
@@ -385,7 +381,6 @@ bool vhost_user_server_start(VuServer *server,
                              SocketAddress *socket_addr,
                              AioContext *ctx,
                              uint16_t max_queues,
-                             DevicePanicNotifierFn *device_panic_notifier,
                              const VuDevIface *vu_iface,
                              Error **errp)
 {
@@ -402,7 +397,6 @@ bool vhost_user_server_start(VuServer *server,
         .vu_iface              = vu_iface,
         .max_queues            = max_queues,
         .ctx                   = ctx,
-        .device_panic_notifier = device_panic_notifier,
     };
 
     qio_net_listener_set_name(server->listener, "vhost-user-backend-listener");
