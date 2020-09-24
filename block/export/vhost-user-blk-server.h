@@ -10,27 +10,10 @@
 
 #ifndef VHOST_USER_BLK_SERVER_H
 #define VHOST_USER_BLK_SERVER_H
-#include "util/vhost-user-server.h"
 
-typedef struct VuBlockDev VuBlockDev;
-#define TYPE_VHOST_USER_BLK_SERVER "vhost-user-blk-server"
-#define VHOST_USER_BLK_SERVER(obj) \
-   OBJECT_CHECK(VuBlockDev, obj, TYPE_VHOST_USER_BLK_SERVER)
+#include "block/export.h"
 
-/* vhost user block device */
-struct VuBlockDev {
-    Object parent_obj;
-    char *node_name;
-    SocketAddress *addr;
-    AioContext *ctx;
-    VuServer vu_server;
-    bool running;
-    uint32_t blk_size;
-    BlockBackend *backend;
-    QIOChannelSocket *sioc;
-    QTAILQ_ENTRY(VuBlockDev) next;
-    struct virtio_blk_config blkcfg;
-    bool writable;
-};
+/* For block/export/export.c */
+extern const BlockExportDriver blk_exp_vhost_user_blk;
 
 #endif /* VHOST_USER_BLK_SERVER_H */

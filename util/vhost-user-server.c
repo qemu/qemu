@@ -408,7 +408,15 @@ bool vhost_user_server_start(VuServer *server,
                              Error **errp)
 {
     QEMUBH *bh;
-    QIONetListener *listener = qio_net_listener_new();
+    QIONetListener *listener;
+
+    if (socket_addr->type != SOCKET_ADDRESS_TYPE_UNIX &&
+        socket_addr->type != SOCKET_ADDRESS_TYPE_FD) {
+        error_setg(errp, "Only socket address types 'unix' and 'fd' are supported");
+        return false;
+    }
+
+    listener = qio_net_listener_new();
     if (qio_net_listener_open_sync(listener, socket_addr, 1,
                                    errp) < 0) {
         object_unref(OBJECT(listener));

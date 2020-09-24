@@ -11,6 +11,9 @@
  */
 #include "qemu/osdep.h"
 #include "block/block.h"
+#include "contrib/libvhost-user/libvhost-user.h"
+#include "standard-headers/linux/virtio_blk.h"
+#include "util/vhost-user-server.h"
 #include "vhost-user-blk-server.h"
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
@@ -24,7 +27,7 @@ struct virtio_blk_inhdr {
     unsigned char status;
 };
 
-typedef struct VuBlockReq {
+typedef struct VuBlkReq {
     VuVirtqElement elem;
     int64_t sector_num;
     size_t size;
@@ -32,9 +35,19 @@ typedef struct VuBlockReq {
     struct virtio_blk_outhdr out;
     VuServer *server;
     struct VuVirtq *vq;
-} VuBlockReq;
+} VuBlkReq;
 
-static void vu_block_req_complete(VuBlockReq *req)
+/* vhost user block device */
+typedef struct {
+    BlockExport export;
+    VuServer vu_server;
+    uint32_t blk_size;
+    QIOChannelSocket *sioc;
+    struct virtio_blk_config blkcfg;
+    bool writable;
+} VuBlkExport;
+
+static void vu_blk_req_complete(VuBlkReq *req)
 {
     VuDev *vu_dev = &req->server->vu_dev;
 
@@ -45,14 +58,9 @@ static void vu_block_req_complete(VuBlockReq *req)
     free(req);
 }
 
-static VuBlockDev *get_vu_block_device_by_server(VuServer *server)
-{
-    return container_of(server, VuBlockDev, vu_server);
-}
-
 static int coroutine_fn
-vu_block_discard_write_zeroes(VuBlockReq *req, struct iovec *iov,
-                              uint32_t iovcnt, uint32_t type)
+vu_blk_discard_write_zeroes(BlockBackend *blk, struct iovec *iov,
+                            uint32_t iovcnt, uint32_t type)
 {
     struct virtio_blk_discard_write_zeroes desc;
     ssize_t size = iov_to_buf(iov, iovcnt, 0, &desc, sizeof(desc));
@@ -61,16 +69,14 @@ vu_block_discard_write_zeroes(VuBlockReq *req, struct iovec *iov,
         return -EINVAL;
     }
 
-    VuBlockDev *vdev_blk = get_vu_block_device_by_server(req->server);
     uint64_t range[2] = { le64_to_cpu(desc.sector) << 9,
                           le32_to_cpu(desc.num_sectors) << 9 };
     if (type == VIRTIO_BLK_T_DISCARD) {
-        if (blk_co_pdiscard(vdev_blk->backend, range[0], range[1]) == 0) {
+        if (blk_co_pdiscard(blk, range[0], range[1]) == 0) {
             return 0;
         }
     } else if (type == VIRTIO_BLK_T_WRITE_ZEROES) {
-        if (blk_co_pwrite_zeroes(vdev_blk->backend,
-                                 range[0], range[1], 0) == 0) {
+        if (blk_co_pwrite_zeroes(blk, range[0], range[1], 0) == 0) {
             return 0;
         }
     }
@@ -78,22 +84,15 @@ vu_block_discard_write_zeroes(VuBlockReq *req, struct iovec *iov,
     return -EINVAL;
 }
 
-static int coroutine_fn vu_block_flush(VuBlockReq *req)
+static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
 {
-    VuBlockDev *vdev_blk = get_vu_block_device_by_server(req->server);
-    BlockBackend *backend = vdev_blk->backend;
-    return blk_co_flush(backend);
-}
-
-static void coroutine_fn vu_block_virtio_process_req(void *opaque)
-{
-    VuBlockReq *req = opaque;
+    VuBlkReq *req = opaque;
     VuServer *server = req->server;
     VuVirtqElement *elem = &req->elem;
     uint32_t type;
 
-    VuBlockDev *vdev_blk = get_vu_block_device_by_server(server);
-    BlockBackend *backend = vdev_blk->backend;
+    VuBlkExport *vexp = container_of(server, VuBlkExport, vu_server);
+    BlockBackend *blk = vexp->export.blk;
 
     struct iovec *in_iov = elem->in_sg;
     struct iovec *out_iov = elem->out_sg;
@@ -133,16 +132,19 @@ static void coroutine_fn vu_block_virtio_process_req(void *opaque)
         bool is_write = type & VIRTIO_BLK_T_OUT;
         req->sector_num = le64_to_cpu(req->out.sector);
 
-        int64_t offset = req->sector_num * vdev_blk->blk_size;
+        if (is_write && !vexp->writable) {
+            req->in->status = VIRTIO_BLK_S_IOERR;
+            break;
+        }
+
+        int64_t offset = req->sector_num * vexp->blk_size;
         QEMUIOVector qiov;
         if (is_write) {
             qemu_iovec_init_external(&qiov, out_iov, out_num);
-            ret = blk_co_pwritev(backend, offset, qiov.size,
-                                 &qiov, 0);
+            ret = blk_co_pwritev(blk, offset, qiov.size, &qiov, 0);
         } else {
             qemu_iovec_init_external(&qiov, in_iov, in_num);
-            ret = blk_co_preadv(backend, offset, qiov.size,
-                                &qiov, 0);
+            ret = blk_co_preadv(blk, offset, qiov.size, &qiov, 0);
         }
         if (ret >= 0) {
             req->in->status = VIRTIO_BLK_S_OK;
@@ -152,7 +154,7 @@ static void coroutine_fn vu_block_virtio_process_req(void *opaque)
         break;
     }
     case VIRTIO_BLK_T_FLUSH:
-        if (vu_block_flush(req) == 0) {
+        if (blk_co_flush(blk) == 0) {
             req->in->status = VIRTIO_BLK_S_OK;
         } else {
             req->in->status = VIRTIO_BLK_S_IOERR;
@@ -169,8 +171,13 @@ static void coroutine_fn vu_block_virtio_process_req(void *opaque)
     case VIRTIO_BLK_T_DISCARD:
     case VIRTIO_BLK_T_WRITE_ZEROES: {
         int rc;
-        rc = vu_block_discard_write_zeroes(req, &elem->out_sg[1],
-                                           out_num, type);
+
+        if (!vexp->writable) {
+            req->in->status = VIRTIO_BLK_S_IOERR;
+            break;
+        }
+
+        rc = vu_blk_discard_write_zeroes(blk, &elem->out_sg[1], out_num, type);
         if (rc == 0) {
             req->in->status = VIRTIO_BLK_S_OK;
         } else {
@@ -183,22 +190,22 @@ static void coroutine_fn vu_block_virtio_process_req(void *opaque)
         break;
     }
 
-    vu_block_req_complete(req);
+    vu_blk_req_complete(req);
     return;
 
 err:
-    free(elem);
+    free(req);
 }
 
-static void vu_block_process_vq(VuDev *vu_dev, int idx)
+static void vu_blk_process_vq(VuDev *vu_dev, int idx)
 {
     VuServer *server = container_of(vu_dev, VuServer, vu_dev);
     VuVirtq *vq = vu_get_queue(vu_dev, idx);
 
     while (1) {
-        VuBlockReq *req;
+        VuBlkReq *req;
 
-        req = vu_queue_pop(vu_dev, vq, sizeof(VuBlockReq));
+        req = vu_queue_pop(vu_dev, vq, sizeof(VuBlkReq));
         if (!req) {
             break;
         }
@@ -207,26 +214,26 @@ static void vu_block_process_vq(VuDev *vu_dev, int idx)
         req->vq = vq;
 
         Coroutine *co =
-            qemu_coroutine_create(vu_block_virtio_process_req, req);
+            qemu_coroutine_create(vu_blk_virtio_process_req, req);
         qemu_coroutine_enter(co);
     }
 }
 
-static void vu_block_queue_set_started(VuDev *vu_dev, int idx, bool started)
+static void vu_blk_queue_set_started(VuDev *vu_dev, int idx, bool started)
 {
     VuVirtq *vq;
 
     assert(vu_dev);
 
     vq = vu_get_queue(vu_dev, idx);
-    vu_set_queue_handler(vu_dev, vq, started ? vu_block_process_vq : NULL);
+    vu_set_queue_handler(vu_dev, vq, started ? vu_blk_process_vq : NULL);
 }
 
-static uint64_t vu_block_get_features(VuDev *dev)
+static uint64_t vu_blk_get_features(VuDev *dev)
 {
     uint64_t features;
     VuServer *server = container_of(dev, VuServer, vu_dev);
-    VuBlockDev *vdev_blk = get_vu_block_device_by_server(server);
+    VuBlkExport *vexp = container_of(server, VuBlkExport, vu_server);
     features = 1ull << VIRTIO_BLK_F_SIZE_MAX |
                1ull << VIRTIO_BLK_F_SEG_MAX |
                1ull << VIRTIO_BLK_F_TOPOLOGY |
@@ -240,35 +247,35 @@ static uint64_t vu_block_get_features(VuDev *dev)
                1ull << VIRTIO_RING_F_EVENT_IDX |
                1ull << VHOST_USER_F_PROTOCOL_FEATURES;
 
-    if (!vdev_blk->writable) {
+    if (!vexp->writable) {
         features |= 1ull << VIRTIO_BLK_F_RO;
     }
 
     return features;
 }
 
-static uint64_t vu_block_get_protocol_features(VuDev *dev)
+static uint64_t vu_blk_get_protocol_features(VuDev *dev)
 {
     return 1ull << VHOST_USER_PROTOCOL_F_CONFIG |
            1ull << VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD;
 }
 
 static int
-vu_block_get_config(VuDev *vu_dev, uint8_t *config, uint32_t len)
+vu_blk_get_config(VuDev *vu_dev, uint8_t *config, uint32_t len)
 {
+    /* TODO blkcfg must be little-endian for VIRTIO 1.0 */
     VuServer *server = container_of(vu_dev, VuServer, vu_dev);
-    VuBlockDev *vdev_blk = get_vu_block_device_by_server(server);
-    memcpy(config, &vdev_blk->blkcfg, len);
-
+    VuBlkExport *vexp = container_of(server, VuBlkExport, vu_server);
+    memcpy(config, &vexp->blkcfg, len);
     return 0;
 }
 
 static int
-vu_block_set_config(VuDev *vu_dev, const uint8_t *data,
+vu_blk_set_config(VuDev *vu_dev, const uint8_t *data,
                     uint32_t offset, uint32_t size, uint32_t flags)
 {
     VuServer *server = container_of(vu_dev, VuServer, vu_dev);
-    VuBlockDev *vdev_blk = get_vu_block_device_by_server(server);
+    VuBlkExport *vexp = container_of(server, VuBlkExport, vu_server);
     uint8_t wce;
 
     /* don't support live migration */
@@ -282,8 +289,8 @@ vu_block_set_config(VuDev *vu_dev, const uint8_t *data,
     }
 
     wce = *data;
-    vdev_blk->blkcfg.wce = wce;
-    blk_set_enable_write_cache(vdev_blk->backend, wce);
+    vexp->blkcfg.wce = wce;
+    blk_set_enable_write_cache(vexp->export.blk, wce);
     return 0;
 }
 
@@ -295,7 +302,7 @@ vu_block_set_config(VuDev *vu_dev, const uint8_t *data,
  * of vu_process_message.
  *
  */
-static int vu_block_process_msg(VuDev *dev, VhostUserMsg *vmsg, int *do_reply)
+static int vu_blk_process_msg(VuDev *dev, VhostUserMsg *vmsg, int *do_reply)
 {
     if (vmsg->request == VHOST_USER_NONE) {
         dev->panic(dev, "disconnect");
@@ -304,29 +311,29 @@ static int vu_block_process_msg(VuDev *dev, VhostUserMsg *vmsg, int *do_reply)
     return false;
 }
 
-static const VuDevIface vu_block_iface = {
-    .get_features          = vu_block_get_features,
-    .queue_set_started     = vu_block_queue_set_started,
-    .get_protocol_features = vu_block_get_protocol_features,
-    .get_config            = vu_block_get_config,
-    .set_config            = vu_block_set_config,
-    .process_msg           = vu_block_process_msg,
+static const VuDevIface vu_blk_iface = {
+    .get_features          = vu_blk_get_features,
+    .queue_set_started     = vu_blk_queue_set_started,
+    .get_protocol_features = vu_blk_get_protocol_features,
+    .get_config            = vu_blk_get_config,
+    .set_config            = vu_blk_set_config,
+    .process_msg           = vu_blk_process_msg,
 };
 
 static void blk_aio_attached(AioContext *ctx, void *opaque)
 {
-    VuBlockDev *vub_dev = opaque;
-    vhost_user_server_attach_aio_context(&vub_dev->vu_server, ctx);
+    VuBlkExport *vexp = opaque;
+    vhost_user_server_attach_aio_context(&vexp->vu_server, ctx);
 }
 
 static void blk_aio_detach(void *opaque)
 {
-    VuBlockDev *vub_dev = opaque;
-    vhost_user_server_detach_aio_context(&vub_dev->vu_server);
+    VuBlkExport *vexp = opaque;
+    vhost_user_server_detach_aio_context(&vexp->vu_server);
 }
 
 static void
-vu_block_initialize_config(BlockDriverState *bs,
+vu_blk_initialize_config(BlockDriverState *bs,
                            struct virtio_blk_config *config, uint32_t blk_size)
 {
     config->capacity = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
@@ -343,290 +350,67 @@ vu_block_initialize_config(BlockDriverState *bs,
     config->max_write_zeroes_seg = 1;
 }
 
-static VuBlockDev *vu_block_init(VuBlockDev *vu_block_device, Error **errp)
+static void vu_blk_exp_request_shutdown(BlockExport *exp)
 {
+    VuBlkExport *vexp = container_of(exp, VuBlkExport, export);
 
-    BlockBackend *blk;
-    Error *local_error = NULL;
-    const char *node_name = vu_block_device->node_name;
-    bool writable = vu_block_device->writable;
-    uint64_t perm = BLK_PERM_CONSISTENT_READ;
-    int ret;
-
-    AioContext *ctx;
-
-    BlockDriverState *bs = bdrv_lookup_bs(node_name, node_name, &local_error);
-
-    if (!bs) {
-        error_propagate(errp, local_error);
-        return NULL;
-    }
-
-    if (bdrv_is_read_only(bs)) {
-        writable = false;
-    }
-
-    if (writable) {
-        perm |= BLK_PERM_WRITE;
-    }
-
-    ctx = bdrv_get_aio_context(bs);
-    aio_context_acquire(ctx);
-    bdrv_invalidate_cache(bs, NULL);
-    aio_context_release(ctx);
-
-    /*
-     * Don't allow resize while the vhost user server is running,
-     * otherwise we don't care what happens with the node.
-     */
-    blk = blk_new(bdrv_get_aio_context(bs), perm,
-                  BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
-                  BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD);
-    ret = blk_insert_bs(blk, bs, errp);
-
-    if (ret < 0) {
-        goto fail;
-    }
-
-    blk_set_enable_write_cache(blk, false);
-
-    blk_set_allow_aio_context_change(blk, true);
-
-    vu_block_device->blkcfg.wce = 0;
-    vu_block_device->backend = blk;
-    if (!vu_block_device->blk_size) {
-        vu_block_device->blk_size = BDRV_SECTOR_SIZE;
-    }
-    vu_block_device->blkcfg.blk_size = vu_block_device->blk_size;
-    blk_set_guest_block_size(blk, vu_block_device->blk_size);
-    vu_block_initialize_config(bs, &vu_block_device->blkcfg,
-                                   vu_block_device->blk_size);
-    return vu_block_device;
-
-fail:
-    blk_unref(blk);
-    return NULL;
+    vhost_user_server_stop(&vexp->vu_server);
 }
 
-static void vu_block_deinit(VuBlockDev *vu_block_device)
+static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
+                             Error **errp)
 {
-    if (vu_block_device->backend) {
-        blk_remove_aio_context_notifier(vu_block_device->backend, blk_aio_attached,
-                                        blk_aio_detach, vu_block_device);
-    }
-
-    blk_unref(vu_block_device->backend);
-}
-
-static void vhost_user_blk_server_stop(VuBlockDev *vu_block_device)
-{
-    vhost_user_server_stop(&vu_block_device->vu_server);
-    vu_block_deinit(vu_block_device);
-}
-
-static void vhost_user_blk_server_start(VuBlockDev *vu_block_device,
-                                        Error **errp)
-{
-    AioContext *ctx;
-    SocketAddress *addr = vu_block_device->addr;
-
-    if (!vu_block_init(vu_block_device, errp)) {
-        return;
-    }
-
-    ctx = bdrv_get_aio_context(blk_bs(vu_block_device->backend));
-
-    if (!vhost_user_server_start(&vu_block_device->vu_server, addr, ctx,
-                                 VHOST_USER_BLK_MAX_QUEUES, &vu_block_iface,
-                                 errp)) {
-        goto error;
-    }
-
-    blk_add_aio_context_notifier(vu_block_device->backend, blk_aio_attached,
-                                 blk_aio_detach, vu_block_device);
-    vu_block_device->running = true;
-    return;
-
- error:
-    vu_block_deinit(vu_block_device);
-}
-
-static bool vu_prop_modifiable(VuBlockDev *vus, Error **errp)
-{
-    if (vus->running) {
-            error_setg(errp, "The property can't be modified "
-                       "while the server is running");
-            return false;
-    }
-    return true;
-}
-
-static void vu_set_node_name(Object *obj, const char *value, Error **errp)
-{
-    VuBlockDev *vus = VHOST_USER_BLK_SERVER(obj);
-
-    if (!vu_prop_modifiable(vus, errp)) {
-        return;
-    }
-
-    if (vus->node_name) {
-        g_free(vus->node_name);
-    }
-
-    vus->node_name = g_strdup(value);
-}
-
-static char *vu_get_node_name(Object *obj, Error **errp)
-{
-    VuBlockDev *vus = VHOST_USER_BLK_SERVER(obj);
-    return g_strdup(vus->node_name);
-}
-
-static void free_socket_addr(SocketAddress *addr)
-{
-        g_free(addr->u.q_unix.path);
-        g_free(addr);
-}
-
-static void vu_set_unix_socket(Object *obj, const char *value,
-                               Error **errp)
-{
-    VuBlockDev *vus = VHOST_USER_BLK_SERVER(obj);
-
-    if (!vu_prop_modifiable(vus, errp)) {
-        return;
-    }
-
-    if (vus->addr) {
-        free_socket_addr(vus->addr);
-    }
-
-    SocketAddress *addr = g_new0(SocketAddress, 1);
-    addr->type = SOCKET_ADDRESS_TYPE_UNIX;
-    addr->u.q_unix.path = g_strdup(value);
-    vus->addr = addr;
-}
-
-static char *vu_get_unix_socket(Object *obj, Error **errp)
-{
-    VuBlockDev *vus = VHOST_USER_BLK_SERVER(obj);
-    return g_strdup(vus->addr->u.q_unix.path);
-}
-
-static bool vu_get_block_writable(Object *obj, Error **errp)
-{
-    VuBlockDev *vus = VHOST_USER_BLK_SERVER(obj);
-    return vus->writable;
-}
-
-static void vu_set_block_writable(Object *obj, bool value, Error **errp)
-{
-    VuBlockDev *vus = VHOST_USER_BLK_SERVER(obj);
-
-    if (!vu_prop_modifiable(vus, errp)) {
-            return;
-    }
-
-    vus->writable = value;
-}
-
-static void vu_get_blk_size(Object *obj, Visitor *v, const char *name,
-                            void *opaque, Error **errp)
-{
-    VuBlockDev *vus = VHOST_USER_BLK_SERVER(obj);
-    uint32_t value = vus->blk_size;
-
-    visit_type_uint32(v, name, &value, errp);
-}
-
-static void vu_set_blk_size(Object *obj, Visitor *v, const char *name,
-                            void *opaque, Error **errp)
-{
-    VuBlockDev *vus = VHOST_USER_BLK_SERVER(obj);
-
+    VuBlkExport *vexp = container_of(exp, VuBlkExport, export);
+    BlockExportOptionsVhostUserBlk *vu_opts = &opts->u.vhost_user_blk;
     Error *local_err = NULL;
-    uint32_t value;
+    uint64_t logical_block_size;
 
-    if (!vu_prop_modifiable(vus, errp)) {
-            return;
+    vexp->writable = opts->writable;
+    vexp->blkcfg.wce = 0;
+
+    if (vu_opts->has_logical_block_size) {
+        logical_block_size = vu_opts->logical_block_size;
+    } else {
+        logical_block_size = BDRV_SECTOR_SIZE;
     }
-
-    visit_type_uint32(v, name, &value, &local_err);
+    check_block_size(exp->id, "logical-block-size", logical_block_size,
+                     &local_err);
     if (local_err) {
-        goto out;
+        error_propagate(errp, local_err);
+        return -EINVAL;
+    }
+    vexp->blk_size = logical_block_size;
+    blk_set_guest_block_size(exp->blk, logical_block_size);
+    vu_blk_initialize_config(blk_bs(exp->blk), &vexp->blkcfg,
+                               logical_block_size);
+
+    blk_set_allow_aio_context_change(exp->blk, true);
+    blk_add_aio_context_notifier(exp->blk, blk_aio_attached, blk_aio_detach,
+                                 vexp);
+
+    if (!vhost_user_server_start(&vexp->vu_server, vu_opts->addr, exp->ctx,
+                                 VHOST_USER_BLK_MAX_QUEUES, &vu_blk_iface,
+                                 errp)) {
+        blk_remove_aio_context_notifier(exp->blk, blk_aio_attached,
+                                        blk_aio_detach, vexp);
+        return -EADDRNOTAVAIL;
     }
 
-    check_block_size(object_get_typename(obj), name, value, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    vus->blk_size = value;
-
-out:
-    error_propagate(errp, local_err);
+    return 0;
 }
 
-static void vhost_user_blk_server_instance_finalize(Object *obj)
+static void vu_blk_exp_delete(BlockExport *exp)
 {
-    VuBlockDev *vub = VHOST_USER_BLK_SERVER(obj);
+    VuBlkExport *vexp = container_of(exp, VuBlkExport, export);
 
-    vhost_user_blk_server_stop(vub);
-
-    /*
-     * Unlike object_property_add_str, object_class_property_add_str
-     * doesn't have a release method. Thus manual memory freeing is
-     * needed.
-     */
-    free_socket_addr(vub->addr);
-    g_free(vub->node_name);
+    blk_remove_aio_context_notifier(exp->blk, blk_aio_attached, blk_aio_detach,
+                                    vexp);
 }
 
-static void vhost_user_blk_server_complete(UserCreatable *obj, Error **errp)
-{
-    VuBlockDev *vub = VHOST_USER_BLK_SERVER(obj);
-
-    vhost_user_blk_server_start(vub, errp);
-}
-
-static void vhost_user_blk_server_class_init(ObjectClass *klass,
-                                             void *class_data)
-{
-    UserCreatableClass *ucc = USER_CREATABLE_CLASS(klass);
-    ucc->complete = vhost_user_blk_server_complete;
-
-    object_class_property_add_bool(klass, "writable",
-                                   vu_get_block_writable,
-                                   vu_set_block_writable);
-
-    object_class_property_add_str(klass, "node-name",
-                                  vu_get_node_name,
-                                  vu_set_node_name);
-
-    object_class_property_add_str(klass, "unix-socket",
-                                  vu_get_unix_socket,
-                                  vu_set_unix_socket);
-
-    object_class_property_add(klass, "logical-block-size", "uint32",
-                              vu_get_blk_size, vu_set_blk_size,
-                              NULL, NULL);
-}
-
-static const TypeInfo vhost_user_blk_server_info = {
-    .name = TYPE_VHOST_USER_BLK_SERVER,
-    .parent = TYPE_OBJECT,
-    .instance_size = sizeof(VuBlockDev),
-    .instance_finalize = vhost_user_blk_server_instance_finalize,
-    .class_init = vhost_user_blk_server_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        {TYPE_USER_CREATABLE},
-        {}
-    },
+const BlockExportDriver blk_exp_vhost_user_blk = {
+    .type               = BLOCK_EXPORT_TYPE_VHOST_USER_BLK,
+    .instance_size      = sizeof(VuBlkExport),
+    .create             = vu_blk_exp_create,
+    .delete             = vu_blk_exp_delete,
+    .request_shutdown   = vu_blk_exp_request_shutdown,
 };
-
-static void vhost_user_blk_server_register_types(void)
-{
-    type_register_static(&vhost_user_blk_server_info);
-}
-
-type_init(vhost_user_blk_server_register_types)

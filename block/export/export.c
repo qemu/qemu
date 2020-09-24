@@ -17,6 +17,9 @@
 #include "sysemu/block-backend.h"
 #include "block/export.h"
 #include "block/nbd.h"
+#if CONFIG_LINUX
+#include "block/export/vhost-user-blk-server.h"
+#endif
 #include "qapi/error.h"
 #include "qapi/qapi-commands-block-export.h"
 #include "qapi/qapi-events-block-export.h"
@@ -24,6 +27,9 @@
 
 static const BlockExportDriver *blk_exp_drivers[] = {
     &blk_exp_nbd,
+#if CONFIG_LINUX
+    &blk_exp_vhost_user_blk,
+#endif
 };
 
 /* Only accessed from the main thread */

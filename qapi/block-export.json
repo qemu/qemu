@@ -85,6 +85,21 @@
             '*bitmap': 'str' } }
 
 ##
+# @BlockExportOptionsVhostUserBlk:
+#
+# A vhost-user-blk block export.
+#
+# @addr: The vhost-user socket on which to listen. Both 'unix' and 'fd'
+#        SocketAddress types are supported. Passed fds must be UNIX domain
+#        sockets.
+# @logical-block-size: Logical block size in bytes. Defaults to 512 bytes.
+#
+# Since: 5.2
+##
+{ 'struct': 'BlockExportOptionsVhostUserBlk',
+  'data': { 'addr': 'SocketAddress', '*logical-block-size': 'size' } }
+
+##
 # @NbdServerAddOptions:
 #
 # An NBD block export.
@@ -180,11 +195,12 @@
 # An enumeration of block export types
 #
 # @nbd: NBD export
+# @vhost-user-blk: vhost-user-blk export (since 5.2)
 #
 # Since: 4.2
 ##
 { 'enum': 'BlockExportType',
-  'data': [ 'nbd' ] }
+  'data': [ 'nbd', 'vhost-user-blk' ] }
 
 ##
 # @BlockExportOptions:
@@ -213,7 +229,8 @@
             '*writethrough': 'bool' },
   'discriminator': 'type',
   'data': {
-      'nbd': 'BlockExportOptionsNbd'
+      'nbd': 'BlockExportOptionsNbd',
+      'vhost-user-blk': 'BlockExportOptionsVhostUserBlk'
    } }
 
 ##
