@@ -2355,8 +2355,12 @@ bdrv_co_common_block_status_above(BlockDriverState *bs,
     BlockDriverState *p;
     int64_t eof = 0;
 
-    assert(include_base || bs != base);
     assert(!include_base || base); /* Can't include NULL base */
+
+    if (!include_base && bs == base) {
+        *pnum = bytes;
+        return 0;
+    }
 
     ret = bdrv_co_block_status(bs, want_zero, offset, bytes, pnum, map, file);
     if (ret < 0 || *pnum == 0 || ret & BDRV_BLOCK_ALLOCATED || bs == base) {
