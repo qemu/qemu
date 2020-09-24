@@ -13,7 +13,7 @@
 #include "block/block.h"
 #include "contrib/libvhost-user/libvhost-user.h"
 #include "standard-headers/linux/virtio_blk.h"
-#include "util/vhost-user-server.h"
+#include "qemu/vhost-user-server.h"
 #include "vhost-user-blk-server.h"
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"

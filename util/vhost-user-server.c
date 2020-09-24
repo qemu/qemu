@@ -9,8 +9,8 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
+#include "qemu/vhost-user-server.h"
 #include "block/aio-wait.h"
-#include "vhost-user-server.h"
 
 /*
  * Theory of operation:
