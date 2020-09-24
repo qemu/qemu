@@ -1062,16 +1062,12 @@ def case_notrun(reason):
 
 def _verify_image_format(supported_fmts: Sequence[str] = (),
                          unsupported_fmts: Sequence[str] = ()) -> None:
-    assert not (supported_fmts and unsupported_fmts)
-
     if 'generic' in supported_fmts and \
             os.environ.get('IMGFMT_GENERIC', 'true') == 'true':
         # similar to
         #   _supported_fmt generic
         # for bash tests
-        if imgfmt == 'luks':
-            verify_working_luks()
-        return
+        supported_fmts = ()
 
     not_sup = supported_fmts and (imgfmt not in supported_fmts)
     if not_sup or (imgfmt in unsupported_fmts):
