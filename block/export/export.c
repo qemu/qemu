@@ -19,6 +19,7 @@
 #include "block/nbd.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-block-export.h"
+#include "qapi/qapi-events-block-export.h"
 #include "qemu/id.h"
 
 static const BlockExportDriver *blk_exp_drivers[] = {
@@ -113,6 +114,7 @@ static void blk_exp_delete_bh(void *opaque)
     assert(exp->refcount == 0);
     QLIST_REMOVE(exp, next);
     exp->drv->delete(exp);
+    qapi_event_send_block_export_deleted(exp->id);
     g_free(exp->id);
     g_free(exp);
 

@@ -102,8 +102,10 @@ read 2097152/2097152 bytes at offset 2097152
 {"execute":"nbd-server-remove", "arguments":{"name":"n"}}
 {"return": {}}
 {"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n"}}
 {"return": {}}
 {"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n2"}}
 {"error": {"class": "GenericError", "desc": "Export 'n2' is not found"}}
 {"execute":"nbd-server-stop"}
 {"return": {}}
@@ -183,8 +185,10 @@ read 2097152/2097152 bytes at offset 2097152
 {"execute":"nbd-server-remove", "arguments":{"name":"n"}}
 {"return": {}}
 {"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n"}}
 {"return": {}}
 {"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n2"}}
 {"error": {"class": "GenericError", "desc": "Export 'n2' is not found"}}
 {"execute":"nbd-server-stop"}
 {"return": {}}

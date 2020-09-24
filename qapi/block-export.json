@@ -233,3 +233,15 @@
 ##
 { 'command': 'block-export-del',
   'data': { 'id': 'str', '*mode': 'BlockExportRemoveMode' } }
+
+##
+# @BLOCK_EXPORT_DELETED:
+#
+# Emitted when a block export is removed and its id can be reused.
+#
+# @id: Block export id.
+#
+# Since: 5.2
+##
+{ 'event': 'BLOCK_EXPORT_DELETED',
+  'data': { 'id': 'str' } }
