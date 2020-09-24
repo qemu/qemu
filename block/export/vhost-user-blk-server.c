@@ -313,18 +313,13 @@ static const VuDevIface vu_block_iface = {
 static void blk_aio_attached(AioContext *ctx, void *opaque)
 {
     VuBlockDev *vub_dev = opaque;
-    aio_context_acquire(ctx);
-    vhost_user_server_set_aio_context(&vub_dev->vu_server, ctx);
-    aio_context_release(ctx);
+    vhost_user_server_attach_aio_context(&vub_dev->vu_server, ctx);
 }
 
 static void blk_aio_detach(void *opaque)
 {
     VuBlockDev *vub_dev = opaque;
-    AioContext *ctx = vub_dev->vu_server.ctx;
-    aio_context_acquire(ctx);
-    vhost_user_server_set_aio_context(&vub_dev->vu_server, NULL);
-    aio_context_release(ctx);
+    vhost_user_server_detach_aio_context(&vub_dev->vu_server);
 }
 
 static void
