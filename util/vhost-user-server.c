@@ -169,8 +169,10 @@ vu_message_read(VuDev *vu_dev, int conn_fd, VhostUserMsg *vmsg)
     };
     if (vmsg->size) {
         rc = qio_channel_readv_all_eof(ioc, &iov_payload, 1, &local_err);
-        if (rc == -1) {
-            error_report_err(local_err);
+        if (rc != 1) {
+            if (local_err) {
+                error_report_err(local_err);
+            }
             goto fail;
         }
     }
