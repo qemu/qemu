@@ -48,18 +48,6 @@ amd64-debian11-container:
   variables:
     NAME: debian11
 
-amd64-debian9-container:
-  <<: *container_job_definition
-  variables:
-    NAME: debian9
-
-amd64-debian9-mxe-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian9-container']
-  variables:
-    NAME: debian9-mxe
-
 alpha-debian-cross-container:
   <<: *container_job_definition
   stage: containers-layer2
