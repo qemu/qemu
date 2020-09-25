@@ -96,7 +96,6 @@ ENV PACKAGES \
     tar \
     tesseract \
     tesseract-langpack-eng \
-    texinfo \
     usbredir-devel \
     virglrenderer-devel \
     vte291-devel \

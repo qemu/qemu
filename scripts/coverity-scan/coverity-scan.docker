@@ -110,7 +110,6 @@ ENV PACKAGES \
     systemd-devel \
     systemtap-sdt-devel \
     tar \
-    texinfo \
     usbredir-devel \
     virglrenderer-devel \
     vte291-devel \
