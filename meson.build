@@ -1221,9 +1221,6 @@ if build_docs
   texi = {
     'qemu-qmp-ref': ['docs/interop/qemu-qmp-ref.texi', qapi_doc_texi, version_texi],
   }
-  if 'CONFIG_GUEST_AGENT' in config_host
-    texi += {'qemu-ga-ref': ['docs/interop/qemu-ga-ref.texi', qga_qapi_doc_texi, version_texi]}
-  endif
 
   if makeinfo.found()
     cmd = [

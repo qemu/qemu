@@ -15,6 +15,7 @@ if build_docs
   man_pages = {
     'interop' : {
         'qemu-ga.8': (have_tools ? 'man8' : ''),
+        'qemu-ga-ref.7': 'man7',
     },
     'tools': {
         'qemu-img.1': (have_tools ? 'man1' : ''),
