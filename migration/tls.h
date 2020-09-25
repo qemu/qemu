@@ -22,10 +22,16 @@
 #define QEMU_MIGRATION_TLS_H
 
 #include "io/channel.h"
+#include "io/channel-tls.h"
 
 void migration_tls_channel_process_incoming(MigrationState *s,
                                             QIOChannel *ioc,
                                             Error **errp);
+
+QIOChannelTLS *migration_tls_client_create(MigrationState *s,
+                                           QIOChannel *ioc,
+                                           const char *hostname,
+                                           Error **errp);
 
 void migration_tls_channel_connect(MigrationState *s,
                                    QIOChannel *ioc,

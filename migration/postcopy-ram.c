@@ -684,14 +684,7 @@ int postcopy_request_shared_page(struct PostCopyFD *pcfd, RAMBlock *rb,
                                         qemu_ram_get_idstr(rb), rb_offset);
         return postcopy_wake_shared(pcfd, client_addr, rb);
     }
-    if (rb != mis->last_rb) {
-        mis->last_rb = rb;
-        migrate_send_rp_req_pages(mis, qemu_ram_get_idstr(rb),
-                                  aligned_rbo, pagesize);
-    } else {
-        /* Save some space */
-        migrate_send_rp_req_pages(mis, NULL, aligned_rbo, pagesize);
-    }
+    migrate_send_rp_req_pages(mis, rb, aligned_rbo);
     return 0;
 }
 
@@ -986,20 +979,7 @@ retry:
              * Send the request to the source - we want to request one
              * of our host page sizes (which is >= TPS)
              */
-            if (rb != mis->last_rb) {
-                mis->last_rb = rb;
-                ret = migrate_send_rp_req_pages(mis,
-                                                qemu_ram_get_idstr(rb),
-                                                rb_offset,
-                                                qemu_ram_pagesize(rb));
-            } else {
-                /* Save some space */
-                ret = migrate_send_rp_req_pages(mis,
-                                                NULL,
-                                                rb_offset,
-                                                qemu_ram_pagesize(rb));
-            }
-
+            ret = migrate_send_rp_req_pages(mis, rb, rb_offset);
             if (ret) {
                 /* May be network failure, try to wait for recovery */
                 if (ret == -EIO && postcopy_pause_fault_thread(mis)) {
