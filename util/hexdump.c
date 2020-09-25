@@ -16,36 +16,50 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 
-void qemu_hexdump(FILE *fp, const char *prefix,
-                  const void *bufptr, size_t size)
+void qemu_hexdump_line(char *line, unsigned int b, const void *bufptr,
+                       unsigned int len, bool ascii)
 {
     const char *buf = bufptr;
-    unsigned int b, len, i, c;
+    int i, c;
 
-    for (b = 0; b < size; b += 16) {
-        len = size - b;
-        if (len > 16) {
-            len = 16;
+    if (len > QEMU_HEXDUMP_LINE_BYTES) {
+        len = QEMU_HEXDUMP_LINE_BYTES;
+    }
+
+    line += snprintf(line, 6, "%04x:", b);
+    for (i = 0; i < QEMU_HEXDUMP_LINE_BYTES; i++) {
+        if ((i % 4) == 0) {
+            *line++ = ' ';
         }
-        fprintf(fp, "%s: %04x:", prefix, b);
-        for (i = 0; i < 16; i++) {
-            if ((i % 4) == 0) {
-                fprintf(fp, " ");
-            }
-            if (i < len) {
-                fprintf(fp, " %02x", (unsigned char)buf[b + i]);
-            } else {
-                fprintf(fp, "   ");
-            }
+        if (i < len) {
+            line += sprintf(line, " %02x", (unsigned char)buf[b + i]);
+        } else {
+            line += sprintf(line, "   ");
         }
-        fprintf(fp, " ");
+    }
+    if (ascii) {
+        *line++ = ' ';
         for (i = 0; i < len; i++) {
             c = buf[b + i];
             if (c < ' ' || c > '~') {
                 c = '.';
             }
-            fprintf(fp, "%c", c);
+            *line++ = c;
         }
-        fprintf(fp, "\n");
     }
+    *line = '\0';
+}
+
+void qemu_hexdump(FILE *fp, const char *prefix,
+                  const void *bufptr, size_t size)
+{
+    unsigned int b, len;
+    char line[QEMU_HEXDUMP_LINE_LEN];
+
+    for (b = 0; b < size; b += QEMU_HEXDUMP_LINE_BYTES) {
+        len = size - b;
+        qemu_hexdump_line(line, b, bufptr, len, true);
+        fprintf(fp, "%s: %s\n", prefix, line);
+    }
+
 }

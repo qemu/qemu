@@ -135,6 +135,14 @@ char *os_find_datadir(void);
 int os_parse_cmd_args(int index, const char *optarg);
 
 /*
+ * Hexdump a line of a byte buffer into a hexadecimal/ASCII buffer
+ */
+#define QEMU_HEXDUMP_LINE_BYTES 16 /* Number of bytes to dump */
+#define QEMU_HEXDUMP_LINE_LEN 75   /* Number of characters in line */
+void qemu_hexdump_line(char *line, unsigned int b, const void *bufptr,
+                       unsigned int len, bool ascii);
+
+/*
  * Hexdump a buffer to a file. An optional string prefix is added to every line
  */
 
