@@ -248,6 +248,16 @@ i386-fedora-cross-container:
   variables:
     NAME: fedora-i386-cross
 
+win32-fedora-cross-container:
+  <<: *container_job_definition
+  variables:
+    NAME: fedora-win32-cross
+
+win64-fedora-cross-container:
+  <<: *container_job_definition
+  variables:
+    NAME: fedora-win64-cross
+
 amd64-ubuntu1804-container:
   <<: *container_job_definition
   variables:
