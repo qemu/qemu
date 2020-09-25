@@ -2,6 +2,7 @@
 .cross_system_build_job_template: &cross_system_build_job_definition
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  timeout: 80m
   script:
     - mkdir build
     - cd build
