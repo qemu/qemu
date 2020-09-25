@@ -206,8 +206,7 @@ test('QAPI schema regression tests', python, args: files('test-qapi.py', schemas
 diff = find_program('diff')
 
 qapi_doc = custom_target('QAPI doc',
-                         output: ['doc-good-qapi-doc.texi',
-                                  'doc-good-qapi-commands.c', 'doc-good-qapi-commands.h',
+                         output: ['doc-good-qapi-commands.c', 'doc-good-qapi-commands.h',
                                   'doc-good-qapi-emit-events.c', 'doc-good-qapi-emit-events.h',
                                   'doc-good-qapi-events.c', 'doc-good-qapi-events.h',
                                   'doc-good-qapi-init-commands.c', 'doc-good-qapi-init-commands.h',
@@ -218,12 +217,6 @@ qapi_doc = custom_target('QAPI doc',
                          command: [ qapi_gen, '-o', meson.current_build_dir(),
                                     '-p', 'doc-good-', '@INPUT0@' ],
                          depend_files: qapi_gen_depends)
-
-# "full_path()" needed here to work around
-# https://github.com/mesonbuild/meson/issues/7585
-test('QAPI doc', diff, args: ['-b', '-u', files('doc-good.texi'), qapi_doc[0].full_path()],
-     depends: qapi_doc,
-     suite: ['qapi-schema', 'qapi-doc'])
 
 # Test the document-comment document generation code by running a test schema
 # file through Sphinx's plain-text builder and comparing the result against
