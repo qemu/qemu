@@ -672,6 +672,14 @@ foreach d : hx_headers
 endforeach
 genh += hxdep
 
+SPHINX_ARGS = [config_host['SPHINX_BUILD'],
+               '-Dversion=' + meson.project_version(),
+               '-Drelease=' + config_host['PKGVERSION']]
+
+if get_option('werror')
+  SPHINX_ARGS += [ '-W' ]
+endif
+
 # Collect sourcesets.
 
 util_ss = ss.source_set()

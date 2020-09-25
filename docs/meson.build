@@ -1,11 +1,3 @@
-SPHINX_ARGS = [config_host['SPHINX_BUILD'],
-               '-Dversion=' + meson.project_version(),
-               '-Drelease=' + config_host['PKGVERSION']]
-
-if get_option('werror')
-  SPHINX_ARGS += [ '-W' ]
-endif
-
 if build_docs
   configure_file(output: 'index.html',
                  input: files('index.html.in'),
