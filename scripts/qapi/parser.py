@@ -319,17 +319,32 @@ class QAPIDoc:
     """
 
     class Section:
-        def __init__(self, name=None):
+        def __init__(self, parser, name=None, indent=0):
+            # parser, for error messages about indentation
+            self._parser = parser
             # optional section name (argument/member or section name)
             self.name = name
             self.text = ''
+            # the expected indent level of the text of this section
+            self._indent = indent
 
         def append(self, line):
+            # Strip leading spaces corresponding to the expected indent level
+            # Blank lines are always OK.
+            if line:
+                indent = re.match(r'\s*', line).end()
+                if indent < self._indent:
+                    raise QAPIParseError(
+                        self._parser,
+                        "unexpected de-indent (expected at least %d spaces)" %
+                        self._indent)
+                line = line[self._indent:]
+
             self.text += line.rstrip() + '\n'
 
     class ArgSection(Section):
-        def __init__(self, name):
-            super().__init__(name)
+        def __init__(self, parser, name, indent=0):
+            super().__init__(parser, name, indent)
             self.member = None
 
         def connect(self, member):
@@ -343,7 +358,7 @@ class QAPIDoc:
         self._parser = parser
         self.info = info
         self.symbol = None
-        self.body = QAPIDoc.Section()
+        self.body = QAPIDoc.Section(parser)
         # dict mapping parameter name to ArgSection
         self.args = OrderedDict()
         self.features = OrderedDict()
@@ -447,8 +462,21 @@ class QAPIDoc:
         name = line.split(' ', 1)[0]
 
         if name.startswith('@') and name.endswith(':'):
-            line = line[len(name)+1:]
-            self._start_args_section(name[1:-1])
+            # If line is "@arg:   first line of description", find
+            # the index of 'f', which is the indent we expect for any
+            # following lines.  We then remove the leading "@arg:"
+            # from line and replace it with spaces so that 'f' has the
+            # same index as it did in the original line and can be
+            # handled the same way we will handle following lines.
+            indent = re.match(r'@\S*:\s*', line).end()
+            line = line[indent:]
+            if not line:
+                # Line was just the "@arg:" header; following lines
+                # are not indented
+                indent = 0
+            else:
+                line = ' ' * indent + line
+            self._start_args_section(name[1:-1], indent)
         elif self._is_section_tag(name):
             self._append_line = self._append_various_line
             self._append_various_line(line)
@@ -469,8 +497,21 @@ class QAPIDoc:
         name = line.split(' ', 1)[0]
 
         if name.startswith('@') and name.endswith(':'):
-            line = line[len(name)+1:]
-            self._start_features_section(name[1:-1])
+            # If line is "@arg:   first line of description", find
+            # the index of 'f', which is the indent we expect for any
+            # following lines.  We then remove the leading "@arg:"
+            # from line and replace it with spaces so that 'f' has the
+            # same index as it did in the original line and can be
+            # handled the same way we will handle following lines.
+            indent = re.match(r'@\S*:\s*', line).end()
+            line = line[indent:]
+            if not line:
+                # Line was just the "@arg:" header; following lines
+                # are not indented
+                indent = 0
+            else:
+                line = ' ' * indent + line
+            self._start_features_section(name[1:-1], indent)
         elif self._is_section_tag(name):
             self._append_line = self._append_various_line
             self._append_various_line(line)
@@ -502,12 +543,25 @@ class QAPIDoc:
                                  "'%s' can't follow '%s' section"
                                  % (name, self.sections[0].name))
         if self._is_section_tag(name):
-            line = line[len(name)+1:]
-            self._start_section(name[:-1])
+            # If line is "Section:   first line of description", find
+            # the index of 'f', which is the indent we expect for any
+            # following lines.  We then remove the leading "Section:"
+            # from line and replace it with spaces so that 'f' has the
+            # same index as it did in the original line and can be
+            # handled the same way we will handle following lines.
+            indent = re.match(r'\S*:\s*', line).end()
+            line = line[indent:]
+            if not line:
+                # Line was just the "Section:" header; following lines
+                # are not indented
+                indent = 0
+            else:
+                line = ' ' * indent + line
+            self._start_section(name[:-1], indent)
 
         self._append_freeform(line)
 
-    def _start_symbol_section(self, symbols_dict, name):
+    def _start_symbol_section(self, symbols_dict, name, indent):
         # FIXME invalid names other than the empty string aren't flagged
         if not name:
             raise QAPIParseError(self._parser, "invalid parameter name")
@@ -516,21 +570,21 @@ class QAPIDoc:
                                  "'%s' parameter name duplicated" % name)
         assert not self.sections
         self._end_section()
-        self._section = QAPIDoc.ArgSection(name)
+        self._section = QAPIDoc.ArgSection(self._parser, name, indent)
         symbols_dict[name] = self._section
 
-    def _start_args_section(self, name):
-        self._start_symbol_section(self.args, name)
+    def _start_args_section(self, name, indent):
+        self._start_symbol_section(self.args, name, indent)
 
-    def _start_features_section(self, name):
-        self._start_symbol_section(self.features, name)
+    def _start_features_section(self, name, indent):
+        self._start_symbol_section(self.features, name, indent)
 
-    def _start_section(self, name=None):
+    def _start_section(self, name=None, indent=0):
         if name in ('Returns', 'Since') and self.has_section(name):
             raise QAPIParseError(self._parser,
                                  "duplicated '%s' section" % name)
         self._end_section()
-        self._section = QAPIDoc.Section(name)
+        self._section = QAPIDoc.Section(self._parser, name, indent)
         self.sections.append(self._section)
 
     def _end_section(self):
@@ -553,7 +607,8 @@ class QAPIDoc:
     def connect_member(self, member):
         if member.name not in self.args:
             # Undocumented TODO outlaw
-            self.args[member.name] = QAPIDoc.ArgSection(member.name)
+            self.args[member.name] = QAPIDoc.ArgSection(self._parser,
+                                                        member.name)
         self.args[member.name].connect(member)
 
     def connect_feature(self, feature):

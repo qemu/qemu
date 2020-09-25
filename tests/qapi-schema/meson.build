@@ -53,6 +53,7 @@ schemas = [
   'doc-bad-enum-member.json',
   'doc-bad-event-arg.json',
   'doc-bad-feature.json',
+  'doc-bad-indent.json',
   'doc-bad-section.json',
   'doc-bad-symbol.json',
   'doc-bad-union-member.json',
