@@ -418,6 +418,7 @@ static void input_linux_instance_finalize(Object *obj)
 
     if (il->initialized) {
         QTAILQ_REMOVE(&inputs, il, next);
+        qemu_set_fd_handler(il->fd, NULL, NULL, NULL);
         close(il->fd);
     }
     g_free(il->evdev);
