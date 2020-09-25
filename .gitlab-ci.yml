@@ -4,7 +4,6 @@
 stages:
   - containers
   - containers-layer2
-  - containers-layer3
   - build
   - test
 

@@ -214,20 +214,6 @@ tricore-debian-cross-container:
   variables:
     NAME: debian-tricore-cross
 
-win32-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer3
-  needs: ['amd64-debian9-mxe-container']
-  variables:
-    NAME: debian-win32-cross
-
-win64-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer3
-  needs: ['amd64-debian9-mxe-container']
-  variables:
-    NAME: debian-win64-cross
-
 xtensa-debian-cross-container:
   <<: *container_job_definition
   variables:
