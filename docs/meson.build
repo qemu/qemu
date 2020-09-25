@@ -36,6 +36,7 @@ if build_docs
                 output: [manual + '.stamp'],
                 input: [files('conf.py'), files(manual / 'conf.py')],
                 depfile: manual + '.d',
+                depend_files: sphinx_extn_depends,
                 command: [SPHINX_ARGS, '-Ddepfile=@DEPFILE@',
                           '-Ddepfile_stamp=@OUTPUT0@',
                           '-b', 'html', '-d', private_dir,

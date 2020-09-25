@@ -680,6 +680,14 @@ if get_option('werror')
   SPHINX_ARGS += [ '-W' ]
 endif
 
+sphinx_extn_depends = [ meson.source_root() / 'docs/sphinx/depfile.py',
+                        meson.source_root() / 'docs/sphinx/hxtool.py',
+                        meson.source_root() / 'docs/sphinx/kerneldoc.py',
+                        meson.source_root() / 'docs/sphinx/kernellog.py',
+                        meson.source_root() / 'docs/sphinx/qapidoc.py',
+                        meson.source_root() / 'docs/sphinx/qmp_lexer.py',
+                        qapi_gen_depends ]
+
 # Collect sourcesets.
 
 util_ss = ss.source_set()
