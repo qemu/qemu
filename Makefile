@@ -280,7 +280,7 @@ endif
 	$(call print-help,vm-help,Help about targets running tests inside VM)
 	@echo  ''
 	@echo  'Documentation targets:'
-	$(call print-help,html info pdf txt man,Build documentation in specified format)
+	$(call print-help,html man,Build documentation in specified format)
 	@echo  ''
 ifdef CONFIG_WIN32
 	@echo  'Windows targets:'

@@ -16,6 +16,7 @@ if build_docs
     'interop' : {
         'qemu-ga.8': (have_tools ? 'man8' : ''),
         'qemu-ga-ref.7': 'man7',
+        'qemu-qmp-ref.7': 'man7',
     },
     'tools': {
         'qemu-img.1': (have_tools ? 'man1' : ''),
@@ -70,5 +71,6 @@ if build_docs
     endif
   endforeach
   alias_target('sphinxdocs', sphinxdocs)
+  alias_target('html', sphinxdocs)
   alias_target('man', sphinxmans)
 endif

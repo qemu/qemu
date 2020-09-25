@@ -12,7 +12,6 @@
             <li><a href="tools/index.html">Tools Guide</a></li>
             <li><a href="interop/index.html">System Emulation Management and Interoperability Guide</a></li>
             <li><a href="specs/index.html">System Emulation Guest Hardware Specifications</a></li>
-            <li><a href="interop/qemu-qmp-ref.html">QMP Reference Manual</a></li>
         </ul>
     </body>
 </html>
