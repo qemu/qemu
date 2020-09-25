@@ -427,10 +427,10 @@ class QAPIDoc:
                 self._append_line = self._append_various_line
                 self._append_various_line(line)
             else:
-                self._append_freeform(line.strip())
+                self._append_freeform(line)
         else:
             # This is a free-form documentation block
-            self._append_freeform(line.strip())
+            self._append_freeform(line)
 
     def _append_args_line(self, line):
         """
@@ -463,7 +463,7 @@ class QAPIDoc:
                 self._append_various_line(line)
             return
 
-        self._append_freeform(line.strip())
+        self._append_freeform(line)
 
     def _append_features_line(self, line):
         name = line.split(' ', 1)[0]
@@ -482,7 +482,7 @@ class QAPIDoc:
             self._append_various_line(line)
             return
 
-        self._append_freeform(line.strip())
+        self._append_freeform(line)
 
     def _append_various_line(self, line):
         """
@@ -504,10 +504,6 @@ class QAPIDoc:
         if self._is_section_tag(name):
             line = line[len(name)+1:]
             self._start_section(name[:-1])
-
-        if (not self._section.name or
-                not self._section.name.startswith('Example')):
-            line = line.strip()
 
         self._append_freeform(line)
 
