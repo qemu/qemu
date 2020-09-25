@@ -304,7 +304,7 @@ enum BdrvChildRoleBits {
     BDRV_CHILD_FILTERED     = (1 << 2),
 
     /*
-     * Child from which to read all data that isn’t allocated in the
+     * Child from which to read all data that isn't allocated in the
      * parent (i.e., the backing child); such data is copied to the
      * parent through COW (and optionally COR).
      * This field is mutually exclusive with DATA, METADATA, and
