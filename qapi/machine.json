@@ -1001,9 +1001,11 @@
 #
 # Request the balloon driver to change its balloon size.
 #
-# @value: the target logical size of the VM in bytes
+# @value: the target logical size of the VM in bytes.
 #         We can deduce the size of the balloon using this formula:
+#
 #            logical_vm_size = vm_ram_size - balloon_size
+#
 #         From it we have: balloon_size = vm_ram_size - @value
 #
 # Returns: - Nothing on success

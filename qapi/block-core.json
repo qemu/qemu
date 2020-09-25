@@ -4316,8 +4316,8 @@
 # @data-file-raw: True if the external data file must stay valid as a
 #                 standalone (read-only) raw image without looking at qcow2
 #                 metadata (default: false; since: 4.0)
-# @extended-l2      True to make the image have extended L2 entries
-#                   (default: false; since 5.2)
+# @extended-l2: True to make the image have extended L2 entries
+#               (default: false; since 5.2)
 # @size: Size of the virtual disk in bytes
 # @version: Compatibility level (default: v3)
 # @backing-file: File name of the backing file if a backing file
