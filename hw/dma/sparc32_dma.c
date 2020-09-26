@@ -342,12 +342,7 @@ static void sparc32_ledma_device_realize(DeviceState *dev, Error **errp)
 {
     LEDMADeviceState *s = SPARC32_LEDMA_DEVICE(dev);
     SysBusPCNetState *lance = SYSBUS_PCNET(&s->lance);
-    NICInfo *nd = &nd_table[0];
 
-    /* FIXME use qdev NIC properties instead of nd_table[] */
-    qemu_check_nic_model(nd, TYPE_LANCE);
-
-    qdev_set_nic_properties(DEVICE(lance), nd);
     object_property_set_link(OBJECT(lance), "dma", OBJECT(dev), &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(lance), &error_fatal);
 }

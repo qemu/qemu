@@ -319,7 +319,7 @@ static void *iommu_init(hwaddr addr, uint32_t version, qemu_irq irq)
 
 static void *sparc32_dma_init(hwaddr dma_base,
                               hwaddr esp_base, qemu_irq espdma_irq,
-                              hwaddr le_base, qemu_irq ledma_irq)
+                              hwaddr le_base, qemu_irq ledma_irq, NICInfo *nd)
 {
     DeviceState *dma;
     ESPDMADeviceState *espdma;
@@ -328,16 +328,11 @@ static void *sparc32_dma_init(hwaddr dma_base,
     SysBusPCNetState *lance;
 
     dma = qdev_new(TYPE_SPARC32_DMA);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dma), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dma), 0, dma_base);
-
     espdma = SPARC32_ESPDMA_DEVICE(object_resolve_path_component(
                                    OBJECT(dma), "espdma"));
     sysbus_connect_irq(SYS_BUS_DEVICE(espdma), 0, espdma_irq);
 
     esp = ESP(object_resolve_path_component(OBJECT(espdma), "esp"));
-    sysbus_mmio_map(SYS_BUS_DEVICE(esp), 0, esp_base);
-    scsi_bus_legacy_handle_cmdline(&esp->esp.bus);
 
     ledma = SPARC32_LEDMA_DEVICE(object_resolve_path_component(
                                  OBJECT(dma), "ledma"));
@@ -345,6 +340,14 @@ static void *sparc32_dma_init(hwaddr dma_base,
 
     lance = SYSBUS_PCNET(object_resolve_path_component(
                          OBJECT(ledma), "lance"));
+    qdev_set_nic_properties(DEVICE(lance), nd);
+
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dma), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dma), 0, dma_base);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(esp), 0, esp_base);
+    scsi_bus_legacy_handle_cmdline(&esp->esp.bus);
+
     sysbus_mmio_map(SYS_BUS_DEVICE(lance), 0, le_base);
 
     return dma;
@@ -850,6 +853,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     unsigned int max_cpus = machine->smp.max_cpus;
     Object *ram_memdev = object_resolve_path_type(machine->ram_memdev_id,
                                                   TYPE_MEMORY_BACKEND, NULL);
+    NICInfo *nd = &nd_table[0];
 
     if (machine->ram_size > hwdef->max_mem) {
         error_report("Too much memory for this machine: %" PRId64 ","
@@ -910,9 +914,10 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
                         hwdef->iommu_pad_base, hwdef->iommu_pad_len);
     }
 
+    qemu_check_nic_model(nd, TYPE_LANCE);
     sparc32_dma_init(hwdef->dma_base,
                      hwdef->esp_base, slavio_irq[18],
-                     hwdef->le_base, slavio_irq[16]);
+                     hwdef->le_base, slavio_irq[16], nd);
 
     if (graphic_depth != 8 && graphic_depth != 24) {
         error_report("Unsupported depth: %d", graphic_depth);
@@ -1049,7 +1054,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
                                     machine->initrd_filename,
                                     machine->ram_size, &initrd_size);
 
-    nvram_init(nvram, (uint8_t *)&nd_table[0].macaddr, machine->kernel_cmdline,
+    nvram_init(nvram, (uint8_t *)&nd->macaddr, machine->kernel_cmdline,
                machine->boot_order, machine->ram_size, kernel_size,
                graphic_width, graphic_height, graphic_depth,
                hwdef->nvram_machine_id, "Sun4m");
