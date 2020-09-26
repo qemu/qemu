@@ -379,10 +379,9 @@ static void sparc32_dma_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    espdma = qdev_new(TYPE_SPARC32_ESPDMA_DEVICE);
+    espdma = DEVICE(&s->espdma);
     object_property_set_link(OBJECT(espdma), "iommu", iommu, &error_abort);
-    object_property_add_child(OBJECT(s), "espdma", OBJECT(espdma));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(espdma), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(espdma), &error_fatal);
 
     esp = DEVICE(object_resolve_path_component(OBJECT(espdma), "esp"));
     sbd = SYS_BUS_DEVICE(esp);
@@ -394,10 +393,9 @@ static void sparc32_dma_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->dmamem, 0x0,
                                 sysbus_mmio_get_region(sbd, 0));
 
-    ledma = qdev_new(TYPE_SPARC32_LEDMA_DEVICE);
+    ledma = DEVICE(&s->ledma);
     object_property_set_link(OBJECT(ledma), "iommu", iommu, &error_abort);
-    object_property_add_child(OBJECT(s), "ledma", OBJECT(ledma));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(ledma), &error_fatal);
+    sysbus_realize(SYS_BUS_DEVICE(ledma), &error_fatal);
 
     lance = DEVICE(object_resolve_path_component(OBJECT(ledma), "lance"));
     sbd = SYS_BUS_DEVICE(lance);
@@ -421,6 +419,11 @@ static void sparc32_dma_init(Object *obj)
 
     memory_region_init(&s->dmamem, OBJECT(s), "dma", DMA_SIZE + DMA_ETH_SIZE);
     sysbus_init_mmio(sbd, &s->dmamem);
+
+    object_initialize_child(obj, "espdma", &s->espdma,
+                            TYPE_SPARC32_ESPDMA_DEVICE);
+    object_initialize_child(obj, "ledma", &s->ledma,
+                            TYPE_SPARC32_LEDMA_DEVICE);
 }
 
 static void sparc32_dma_class_init(ObjectClass *klass, void *data)

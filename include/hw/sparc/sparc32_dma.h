@@ -48,8 +48,8 @@ struct SPARC32DMAState {
 
     MemoryRegion dmamem;
     MemoryRegion ledma_alias;
-    ESPDMADeviceState *espdma;
-    LEDMADeviceState *ledma;
+    ESPDMADeviceState espdma;
+    LEDMADeviceState ledma;
 };
 
 /* sparc32_dma.c */
