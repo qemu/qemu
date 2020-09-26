@@ -331,24 +331,26 @@ static const TypeInfo sparc32_espdma_device_info = {
 static void sparc32_ledma_device_init(Object *obj)
 {
     DMADeviceState *s = SPARC32_DMA_DEVICE(obj);
+    LEDMADeviceState *ls = SPARC32_LEDMA_DEVICE(obj);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &dma_mem_ops, s,
                           "ledma-mmio", DMA_SIZE);
+
+    object_initialize_child(obj, "lance", &ls->lance, TYPE_LANCE);
 }
 
 static void sparc32_ledma_device_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *d;
+    LEDMADeviceState *s = SPARC32_LEDMA_DEVICE(dev);
+    SysBusPCNetState *lance = SYSBUS_PCNET(&s->lance);
     NICInfo *nd = &nd_table[0];
 
     /* FIXME use qdev NIC properties instead of nd_table[] */
     qemu_check_nic_model(nd, TYPE_LANCE);
 
-    d = qdev_new(TYPE_LANCE);
-    object_property_add_child(OBJECT(dev), "lance", OBJECT(d));
-    qdev_set_nic_properties(d, nd);
-    object_property_set_link(OBJECT(d), "dma", OBJECT(dev), &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(d), &error_fatal);
+    qdev_set_nic_properties(DEVICE(lance), nd);
+    object_property_set_link(OBJECT(lance), "dma", OBJECT(dev), &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(lance), &error_fatal);
 }
 
 static void sparc32_ledma_device_class_init(ObjectClass *klass, void *data)
