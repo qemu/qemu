@@ -378,15 +378,7 @@ static void sabre_realize(DeviceState *dev, Error **errp)
 {
     SabreState *s = SABRE(dev);
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     PCIDevice *pci_dev;
-
-    /* sabre_config */
-    sysbus_mmio_map(sbd, 0, s->special_base);
-    /* PCI configuration space */
-    sysbus_mmio_map(sbd, 1, s->special_base + 0x1000000ULL);
-    /* pci_ioport */
-    sysbus_mmio_map(sbd, 2, s->special_base + 0x2000000ULL);
 
     memory_region_init(&s->pci_mmio, OBJECT(s), "pci-mmio", 0x100000000ULL);
     memory_region_add_subregion(get_system_memory(), s->mem_base,
