@@ -208,8 +208,8 @@ static void edid_desc_timing(uint8_t *desc,
                              uint32_t dpi)
 {
     /* physical display size */
-    uint32_t xmm = xres * dpi / 254;
-    uint32_t ymm = yres * dpi / 254;
+    uint32_t xmm = xres * 254 / 10 / dpi;
+    uint32_t ymm = yres * 254 / 10 / dpi;
 
     /* pull some realistic looking timings out of thin air */
     uint32_t xfront = xres * 25 / 100;
