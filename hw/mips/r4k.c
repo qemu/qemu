@@ -102,11 +102,7 @@ static int64_t load_kernel(void)
                            (uint64_t *)&entry, NULL,
                            (uint64_t *)&kernel_high, NULL, big_endian,
                            EM_MIPS, 1, 0);
-    if (kernel_size >= 0) {
-        if ((entry & ~0x7fffffffULL) == 0x80000000) {
-            entry = (int32_t)entry;
-        }
-    } else {
+    if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
                      loaderparams.kernel_filename,
                      load_elf_strerror(kernel_size));
