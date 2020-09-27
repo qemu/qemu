@@ -1077,9 +1077,9 @@ static int64_t load_kernel(void)
              * the initrd.  It takes at most 128kiB for 2GB RAM and 4kiB
              * pages.
              */
-            initrd_offset = (loaderparams.ram_low_size - initrd_size
-                             - (128 * KiB)
-                             - ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
+            initrd_offset = ROUND_UP(loaderparams.ram_low_size
+                                     - (initrd_size + 128 * KiB),
+                                     INITRD_PAGE_SIZE);
             if (kernel_high >= initrd_offset) {
                 error_report("memory too small for initial ram disk '%s'",
                              loaderparams.initrd_filename);
