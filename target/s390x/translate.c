@@ -646,6 +646,7 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_NZ_F64:
     case CC_OP_FLOGR:
     case CC_OP_LCBB:
+    case CC_OP_MULS_32:
         /* 1 argument */
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, dummy, cc_dst, dummy);
         break;
@@ -660,6 +661,7 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_SLA_64:
     case CC_OP_NZ_F128:
     case CC_OP_VC:
+    case CC_OP_MULS_64:
         /* 2 arguments */
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, cc_src, cc_dst, dummy);
         break;
@@ -5310,6 +5312,17 @@ static void cout_tm64(DisasContext *s, DisasOps *o)
     gen_op_update2_cc_i64(s, CC_OP_TM_64, o->in1, o->in2);
 }
 
+static void cout_muls32(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_MULS_32, o->out);
+}
+
+static void cout_muls64(DisasContext *s, DisasOps *o)
+{
+    /* out contains "high" part, out2 contains "low" part of 128 bit result */
+    gen_op_update2_cc_i64(s, CC_OP_MULS_64, o->out, o->out2);
+}
+
 /* ====================================================================== */
 /* The "PREParation" generators.  These initialize the DisasOps.OUT fields
    with the TCG register to which we will write.  Used in combination with
@@ -5364,6 +5377,12 @@ static void wout_r1(DisasContext *s, DisasOps *o)
     store_reg(get_field(s, r1), o->out);
 }
 #define SPEC_wout_r1 0
+
+static void wout_out2_r1(DisasContext *s, DisasOps *o)
+{
+    store_reg(get_field(s, r1), o->out2);
+}
+#define SPEC_wout_out2_r1 0
 
 static void wout_r1_8(DisasContext *s, DisasOps *o)
 {
