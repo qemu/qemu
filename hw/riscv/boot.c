@@ -91,10 +91,10 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
                                  hwaddr firmware_load_addr,
                                  symbol_fn_t sym_cb)
 {
-    uint64_t firmware_entry, firmware_start, firmware_end;
+    uint64_t firmware_entry;
 
     if (load_elf_ram_sym(firmware_filename, NULL, NULL, NULL,
-                         &firmware_entry, &firmware_start, &firmware_end, NULL,
+                         &firmware_entry, NULL, NULL, NULL,
                          0, EM_RISCV, 1, 0, NULL, true, sym_cb) > 0) {
         return firmware_entry;
     }
@@ -110,10 +110,10 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
 
 target_ulong riscv_load_kernel(const char *kernel_filename, symbol_fn_t sym_cb)
 {
-    uint64_t kernel_entry, kernel_high;
+    uint64_t kernel_entry;
 
     if (load_elf_ram_sym(kernel_filename, NULL, NULL, NULL,
-                         &kernel_entry, NULL, &kernel_high, NULL, 0,
+                         &kernel_entry, NULL, NULL, NULL, 0,
                          EM_RISCV, 1, 0, NULL, true, sym_cb) > 0) {
         return kernel_entry;
     }

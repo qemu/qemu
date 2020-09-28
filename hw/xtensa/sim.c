@@ -106,9 +106,8 @@ void xtensa_sim_load_kernel(XtensaCPU *cpu, MachineState *machine)
 
     if (kernel_filename) {
         uint64_t elf_entry;
-        uint64_t elf_lowaddr;
         int success = load_elf(kernel_filename, NULL, translate_phys_addr, cpu,
-                               &elf_entry, &elf_lowaddr, NULL, NULL, big_endian,
+                               &elf_entry, NULL, NULL, NULL, big_endian,
                                EM_XTENSA, 0, 0);
 
         if (success > 0) {
