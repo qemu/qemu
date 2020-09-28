@@ -5956,6 +5956,14 @@ static void in2_m2_64(DisasContext *s, DisasOps *o)
 }
 #define SPEC_in2_m2_64 0
 
+static void in2_m2_64w(DisasContext *s, DisasOps *o)
+{
+    in2_a2(s, o);
+    tcg_gen_qemu_ld64(o->in2, o->in2, get_mem_index(s));
+    gen_addi_and_wrap_i64(s, o->in2, o->in2, 0);
+}
+#define SPEC_in2_m2_64w 0
+
 #ifndef CONFIG_USER_ONLY
 static void in2_m2_64a(DisasContext *s, DisasOps *o)
 {
