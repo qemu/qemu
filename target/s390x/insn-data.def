@@ -669,6 +669,7 @@
 /* MULTIPLY HALFWORD */
     C(0x4c00, MH,      RX_a,  Z,   r1_o, m2_16s, new, r1_32, mul, 0)
     C(0xe37c, MHY,     RXY_a, GIE, r1_o, m2_16s, new, r1_32, mul, 0)
+    C(0xe33c, MGH,     RXY_a, MIE2,r1_o, m2_16s, r1, 0, mul, 0)
 /* MULTIPLY HALFWORD IMMEDIATE */
     C(0xa70c, MHI,     RI_a,  Z,   r1_o, i2, new, r1_32, mul, 0)
     C(0xa70d, MGHI,    RI_a,  Z,   r1_o, i2, r1, 0, mul, 0)
