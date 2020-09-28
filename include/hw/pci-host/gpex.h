@@ -20,6 +20,7 @@
 #ifndef HW_GPEX_H
 #define HW_GPEX_H
 
+#include "exec/hwaddr.h"
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pcie_host.h"
@@ -52,6 +53,16 @@ struct GPEXHost {
     int irq_num[GPEX_NUM_IRQS];
 };
 
+struct GPEXConfig {
+    MemMapEntry ecam;
+    MemMapEntry mmio32;
+    MemMapEntry mmio64;
+    MemMapEntry pio;
+    int         irq;
+};
+
 int gpex_set_irq_num(GPEXHost *s, int index, int gsi);
+
+void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg);
 
 #endif /* HW_GPEX_H */
