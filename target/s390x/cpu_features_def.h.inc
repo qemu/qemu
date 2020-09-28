@@ -72,7 +72,7 @@ DEF_FEAT(INTERLOCKED_ACCESS_2, "iacc2", STFL, 52, "Interlocked-access facility 2
 DEF_FEAT(STFLE_53, "stfle53", STFL, 53, "Various facilities introduced with z13")
 DEF_FEAT(ENTROPY_ENC_COMP, "eec", STFL, 54, "Entropy encoding compression facility")
 DEF_FEAT(MSA_EXT_5, "msa5-base", STFL, 57, "Message-security-assist-extension-5 facility (excluding subfunctions)")
-DEF_FEAT(MISC_INSTRUCTION_EXT, "minste2", STFL, 58, "Miscellaneous-instruction-extensions facility 2")
+DEF_FEAT(MISC_INSTRUCTION_EXT2, "minste2", STFL, 58, "Miscellaneous-instruction-extensions facility 2")
 DEF_FEAT(SEMAPHORE_ASSIST, "sema", STFL, 59, "Semaphore-assist facility")
 DEF_FEAT(TIME_SLICE_INSTRUMENTATION, "tsi", STFL, 60, "Time-slice Instrumentation facility")
 DEF_FEAT(MISC_INSTRUCTION_EXT3, "minste3", STFL, 61, "Miscellaneous-Instruction-Extensions Facility 3")
