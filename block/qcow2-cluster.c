@@ -240,14 +240,14 @@ int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
     }
 
     ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_ACTIVE_L1,
-            s->l1_table_offset + 8 * l1_start_index, bufsize, false);
+            s->l1_table_offset + L1E_SIZE * l1_start_index, bufsize, false);
     if (ret < 0) {
         return ret;
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_L1_UPDATE);
     ret = bdrv_pwrite_sync(bs->file,
-                           s->l1_table_offset + 8 * l1_start_index,
+                           s->l1_table_offset + L1E_SIZE * l1_start_index,
                            buf, bufsize);
     if (ret < 0) {
         return ret;
