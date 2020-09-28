@@ -679,7 +679,7 @@ void timer_mod(QEMUTimer *ts, int64_t expire_timer);
 /**
  * timer_mod_anticipate:
  * @ts: the timer
- * @expire_time: the expiry time in nanoseconds
+ * @expire_time: the expire time in the units associated with the timer
  *
  * Modify a timer to expire at @expire_time or the current time, whichever
  * comes earlier, taking into account the scale associated with the timer.
