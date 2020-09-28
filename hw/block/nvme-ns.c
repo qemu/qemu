@@ -31,12 +31,13 @@
 static void nvme_ns_init(NvmeNamespace *ns)
 {
     NvmeIdNs *id_ns = &ns->id_ns;
+    int lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
 
     if (blk_get_flags(ns->blkconf.blk) & BDRV_O_UNMAP) {
         ns->id_ns.dlfeat = 0x9;
     }
 
-    id_ns->lbaf[0].ds = BDRV_SECTOR_BITS;
+    id_ns->lbaf[lba_index].ds = 31 - clz32(ns->blkconf.logical_block_size);
 
     id_ns->nsze = cpu_to_le64(nvme_ns_nlbas(ns));
 
