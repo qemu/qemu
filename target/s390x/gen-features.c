@@ -719,6 +719,7 @@ static uint16_t qemu_MAX[] = {
     /* features introduced after the z13 */
     S390_FEAT_INSTRUCTION_EXEC_PROT,
     S390_FEAT_MISC_INSTRUCTION_EXT2,
+    S390_FEAT_MSA_EXT_8,
 };
 
 /****** END FEATURE DEFS ******/
