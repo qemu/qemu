@@ -3539,6 +3539,12 @@ static DisasJumpType op_mul128(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static DisasJumpType op_muls128(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_muls2_i64(o->out2, o->out, o->in1, o->in2);
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_meeb(DisasContext *s, DisasOps *o)
 {
     gen_helper_meeb(o->out, cpu_env, o->in1, o->in2);
@@ -5562,6 +5568,13 @@ static void in1_r1p1(DisasContext *s, DisasOps *o)
     o->in1 = load_reg(get_field(s, r1) + 1);
 }
 #define SPEC_in1_r1p1 SPEC_r1_even
+
+static void in1_r1p1_o(DisasContext *s, DisasOps *o)
+{
+    o->in1 = regs[get_field(s, r1) + 1];
+    o->g_in1 = true;
+}
+#define SPEC_in1_r1p1_o SPEC_r1_even
 
 static void in1_r1p1_32s(DisasContext *s, DisasOps *o)
 {
