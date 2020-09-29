@@ -168,6 +168,20 @@ static void virtio_vga_base_reset(DeviceState *dev)
     vga_dirty_log_start(&vvga->vga);
 }
 
+static bool virtio_vga_get_big_endian_fb(Object *obj, Error **errp)
+{
+    VirtIOVGABase *d = VIRTIO_VGA_BASE(obj);
+
+    return d->vga.big_endian_fb;
+}
+
+static void virtio_vga_set_big_endian_fb(Object *obj, bool value, Error **errp)
+{
+    VirtIOVGABase *d = VIRTIO_VGA_BASE(obj);
+
+    d->vga.big_endian_fb = value;
+}
+
 static Property virtio_vga_base_properties[] = {
     DEFINE_VIRTIO_GPU_PCI_PROPERTIES(VirtIOPCIProxy),
     DEFINE_PROP_END_OF_LIST(),
@@ -190,6 +204,11 @@ static void virtio_vga_base_class_init(ObjectClass *klass, void *data)
     k->realize = virtio_vga_base_realize;
     pcidev_k->romfile = "vgabios-virtio.bin";
     pcidev_k->class_id = PCI_CLASS_DISPLAY_VGA;
+
+    /* Expose framebuffer byteorder via QOM */
+    object_class_property_add_bool(klass, "big-endian-framebuffer",
+                                   virtio_vga_get_big_endian_fb,
+                                   virtio_vga_set_big_endian_fb);
 }
 
 static TypeInfo virtio_vga_base_info = {
