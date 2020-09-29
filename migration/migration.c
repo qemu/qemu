@@ -238,15 +238,12 @@ void migration_incoming_state_destroy(void)
         mis->postcopy_remote_fds = NULL;
     }
 
+    qemu_event_reset(&mis->main_thread_load_event);
+
     if (mis->socket_address_list) {
         qapi_free_SocketAddressList(mis->socket_address_list);
         mis->socket_address_list = NULL;
     }
-
-    qemu_event_destroy(&mis->main_thread_load_event);
-    qemu_sem_destroy(&mis->postcopy_pause_sem_dst);
-    qemu_sem_destroy(&mis->postcopy_pause_sem_fault);
-    qemu_mutex_destroy(&mis->rp_mutex);
 }
 
 static void migrate_generate_event(int new_state)
