@@ -182,16 +182,31 @@ class BootLinuxAarch64(BootLinux):
         self.add_common_args()
         self.launch_and_wait()
 
-    def test_virt_kvm(self):
+    def test_virt_kvm_gicv2(self):
         """
         :avocado: tags=accel:kvm
         :avocado: tags=cpu:host
+        :avocado: tags=device:gicv2
         """
         if not kvm_available(self.arch, self.qemu_bin):
             self.cancel(KVM_NOT_AVAILABLE)
         self.vm.add_args("-accel", "kvm")
         self.vm.add_args("-cpu", "host")
         self.vm.add_args("-machine", "virt,gic-version=2")
+        self.add_common_args()
+        self.launch_and_wait()
+
+    def test_virt_kvm_gicv3(self):
+        """
+        :avocado: tags=accel:kvm
+        :avocado: tags=cpu:host
+        :avocado: tags=device:gicv3
+        """
+        if not kvm_available(self.arch, self.qemu_bin):
+            self.cancel(KVM_NOT_AVAILABLE)
+        self.vm.add_args("-accel", "kvm")
+        self.vm.add_args("-cpu", "host")
+        self.vm.add_args("-machine", "virt,gic-version=3")
         self.add_common_args()
         self.launch_and_wait()
 
