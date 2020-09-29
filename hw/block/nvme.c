@@ -1639,7 +1639,7 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
         [NVME_ARBITRATION] = NVME_ARB_AB_NOLIMIT,
     };
 
-    trace_pci_nvme_getfeat(nvme_cid(req), fid, sel, dw11);
+    trace_pci_nvme_getfeat(nvme_cid(req), nsid, fid, sel, dw11);
 
     if (!nvme_feature_support[fid]) {
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -1777,7 +1777,7 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
     uint8_t fid = NVME_GETSETFEAT_FID(dw10);
     uint8_t save = NVME_SETFEAT_SAVE(dw10);
 
-    trace_pci_nvme_setfeat(nvme_cid(req), fid, save, dw11);
+    trace_pci_nvme_setfeat(nvme_cid(req), nsid, fid, save, dw11);
 
     if (save) {
         return NVME_FID_NOT_SAVEABLE | NVME_DNR;
