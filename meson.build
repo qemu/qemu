@@ -1464,7 +1464,6 @@ blockdev_ss.add(files(
 # os-win32.c does not
 blockdev_ss.add(when: 'CONFIG_POSIX', if_true: files('os-posix.c'))
 softmmu_ss.add(when: 'CONFIG_WIN32', if_true: [files('os-win32.c')])
-softmmu_ss.add_all(blockdev_ss)
 
 common_ss.add(files('cpus-common.c'))
 
@@ -1596,6 +1595,15 @@ block = declare_dependency(link_whole: [libblock],
                            link_args: '@block.syms',
                            dependencies: [crypto, io])
 
+blockdev_ss = blockdev_ss.apply(config_host, strict: false)
+libblockdev = static_library('blockdev', blockdev_ss.sources() + genh,
+                             dependencies: blockdev_ss.dependencies(),
+                             name_suffix: 'fa',
+                             build_by_default: false)
+
+blockdev = declare_dependency(link_whole: [libblockdev],
+                              dependencies: [block])
+
 qmp_ss = qmp_ss.apply(config_host, strict: false)
 libqmp = static_library('qmp', qmp_ss.sources() + genh,
                         dependencies: qmp_ss.dependencies(),
@@ -1628,7 +1636,7 @@ foreach m : block_mods + softmmu_mods
                 install_dir: config_host['qemu_moddir'])
 endforeach
 
-softmmu_ss.add(authz, block, chardev, crypto, io, qmp)
+softmmu_ss.add(authz, blockdev, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
 
 common_ss.add_all(when: 'CONFIG_SOFTMMU', if_true: [softmmu_ss])
