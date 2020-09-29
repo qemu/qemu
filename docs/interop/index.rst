@@ -18,6 +18,8 @@ Contents:
    live-block-operations
    pr-helper
    qemu-ga
+   qemu-ga-ref
+   qemu-qmp-ref
    vhost-user
    vhost-user-gpu
    vhost-vdpa

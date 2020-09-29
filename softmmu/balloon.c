@@ -29,7 +29,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/balloon.h"
 #include "qapi/error.h"
-#include "qapi/qapi-commands-misc.h"
+#include "qapi/qapi-commands-machine.h"
 #include "qapi/qmp/qerror.h"
 #include "trace.h"
 

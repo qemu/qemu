@@ -1,11 +1,3 @@
-SPHINX_ARGS = [config_host['SPHINX_BUILD'],
-               '-Dversion=' + meson.project_version(),
-               '-Drelease=' + config_host['PKGVERSION']]
-
-if get_option('werror')
-  SPHINX_ARGS += [ '-W' ]
-endif
-
 if build_docs
   configure_file(output: 'index.html',
                  input: files('index.html.in'),
@@ -15,6 +7,8 @@ if build_docs
   man_pages = {
     'interop' : {
         'qemu-ga.8': (have_tools ? 'man8' : ''),
+        'qemu-ga-ref.7': 'man7',
+        'qemu-qmp-ref.7': 'man7',
     },
     'tools': {
         'qemu-img.1': (have_tools ? 'man1' : ''),
@@ -42,6 +36,7 @@ if build_docs
                 output: [manual + '.stamp'],
                 input: [files('conf.py'), files(manual / 'conf.py')],
                 depfile: manual + '.d',
+                depend_files: sphinx_extn_depends,
                 command: [SPHINX_ARGS, '-Ddepfile=@DEPFILE@',
                           '-Ddepfile_stamp=@OUTPUT0@',
                           '-b', 'html', '-d', private_dir,
@@ -69,5 +64,6 @@ if build_docs
     endif
   endforeach
   alias_target('sphinxdocs', sphinxdocs)
+  alias_target('html', sphinxdocs)
   alias_target('man', sphinxmans)
 endif

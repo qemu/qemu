@@ -12,7 +12,6 @@
 # Documentation
 docs/*
 *.rst
-*.texi
 
 # build system
 configure

@@ -619,7 +619,6 @@ qapi_gen = find_program('scripts/qapi-gen.py')
 qapi_gen_depends = [ meson.source_root() / 'scripts/qapi/__init__.py',
                      meson.source_root() / 'scripts/qapi/commands.py',
                      meson.source_root() / 'scripts/qapi/common.py',
-                     meson.source_root() / 'scripts/qapi/doc.py',
                      meson.source_root() / 'scripts/qapi/error.py',
                      meson.source_root() / 'scripts/qapi/events.py',
                      meson.source_root() / 'scripts/qapi/expr.py',
@@ -631,7 +630,6 @@ qapi_gen_depends = [ meson.source_root() / 'scripts/qapi/__init__.py',
                      meson.source_root() / 'scripts/qapi/types.py',
                      meson.source_root() / 'scripts/qapi/visit.py',
                      meson.source_root() / 'scripts/qapi/common.py',
-                     meson.source_root() / 'scripts/qapi/doc.py',
                      meson.source_root() / 'scripts/qapi-gen.py'
 ]
 
@@ -671,6 +669,22 @@ foreach d : hx_headers
                 command: [hxtool, '-h', '@INPUT0@'])
 endforeach
 genh += hxdep
+
+SPHINX_ARGS = [config_host['SPHINX_BUILD'],
+               '-Dversion=' + meson.project_version(),
+               '-Drelease=' + config_host['PKGVERSION']]
+
+if get_option('werror')
+  SPHINX_ARGS += [ '-W' ]
+endif
+
+sphinx_extn_depends = [ meson.source_root() / 'docs/sphinx/depfile.py',
+                        meson.source_root() / 'docs/sphinx/hxtool.py',
+                        meson.source_root() / 'docs/sphinx/kerneldoc.py',
+                        meson.source_root() / 'docs/sphinx/kernellog.py',
+                        meson.source_root() / 'docs/sphinx/qapidoc.py',
+                        meson.source_root() / 'docs/sphinx/qmp_lexer.py',
+                        qapi_gen_depends ]
 
 # Collect sourcesets.
 
@@ -1202,91 +1216,6 @@ subdir('tests')
 subdir('docs')
 if 'CONFIG_GTK' in config_host
   subdir('po')
-endif
-
-if build_docs
-  makeinfo = find_program('makeinfo', required: build_docs)
-
-  docs_inc = [
-    '-I', meson.current_source_dir(),
-    '-I', meson.current_build_dir() / 'docs',
-    '-I', '@OUTDIR@',
-  ]
-
-  version_texi = configure_file(output: 'version.texi',
-                              input: 'version.texi.in',
-                              configuration: {'VERSION': meson.project_version(),
-                                              'qemu_confdir': config_host['qemu_confdir']})
-
-  texi = {
-    'qemu-qmp-ref': ['docs/interop/qemu-qmp-ref.texi', qapi_doc_texi, version_texi],
-  }
-  if 'CONFIG_GUEST_AGENT' in config_host
-    texi += {'qemu-ga-ref': ['docs/interop/qemu-ga-ref.texi', qga_qapi_doc_texi, version_texi]}
-  endif
-
-  if makeinfo.found()
-    cmd = [
-      'env', 'LC_ALL=C', makeinfo, '--no-split', '--number-sections', docs_inc,
-      '@INPUT0@', '-o', '@OUTPUT@',
-    ]
-    foreach ext, args: {
-        'info': [],
-        'html': ['--no-headers', '--html'],
-        'txt': ['--no-headers', '--plaintext'],
-    }
-      t = []
-      foreach doc, input: texi
-        output = doc + '.' + ext
-        t += custom_target(output,
-                      input: input,
-                      output: output,
-                      install: true,
-                      install_dir: qemu_docdir / 'interop',
-                      command: cmd + args)
-      endforeach
-      alias_target(ext, t)
-    endforeach
-  endif
-
-  texi2pdf = find_program('texi2pdf', required: false)
-
-  if texi2pdf.found()
-    pdfs = []
-    foreach doc, input: texi
-      output = doc + '.pdf'
-      pdfs += custom_target(output,
-                    input: input,
-                    output: output,
-                    command: [texi2pdf, '-q', docs_inc, '@INPUT0@', '-o', '@OUTPUT@'],
-                    build_by_default: false)
-    endforeach
-    alias_target('pdf', pdfs)
-  endif
-
-  texi2pod = find_program('scripts/texi2pod.pl')
-  pod2man = find_program('pod2man', required: build_docs)
-
-  if pod2man.found()
-    foreach doc, input: texi
-      man = doc + '.7'
-      pod = custom_target(man + '.pod',
-                          input: input,
-                          output: man + '.pod',
-                          command: [texi2pod,
-                                    '-DVERSION="' + meson.project_version() + '"',
-                                    '-DCONFDIR="' + config_host['qemu_confdir'] + '"',
-                                    '@INPUT0@', '@OUTPUT@'])
-      man = custom_target(man,
-                          input: pod,
-                          output: man,
-                          capture: true,
-                          install: true,
-                          install_dir: get_option('mandir') / 'man7',
-                          command: [pod2man, '--utf8', '--section=7', '--center=" "',
-                                    '--release=" "', '@INPUT@'])
-    endforeach
-  endif
 endif
 
 if host_machine.system() == 'windows'

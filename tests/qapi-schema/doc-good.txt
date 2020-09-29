@@ -1,0 +1,288 @@
+Section
+*******
+
+
+Subsection
+==========
+
+*with emphasis* "var" {in braces}
+
+* List item one
+
+* Two, multiple lines
+
+* Three Still in list
+
+Not in list
+
+* Second list Note: still in list
+
+Note: not in list
+
+1. Third list is numbered
+
+2. another item
+
+Returns: the King Since: the first age Notes:
+
+1. Lorem ipsum dolor sit amet
+
+2. Ut enim ad minim veniam
+
+Duis aute irure dolor
+
+Example:
+
+-> in <- out Examples: - *verbatim* - {braces}
+
+
+"Enum" (Enum)
+-------------
+
+
+Values
+~~~~~~
+
+"one" (**If: **"defined(IFONE)")
+   The _one_ {and only}
+
+"two"
+   Not documented
+
+
+Features
+~~~~~~~~
+
+"enum-feat"
+   Also _one_ {and only}
+
+"two" is undocumented
+
+
+If
+~~
+
+"defined(IFCOND)"
+
+
+"Base" (Object)
+---------------
+
+
+Members
+~~~~~~~
+
+"base1": "Enum"
+   the first member
+
+
+"Variant1" (Object)
+-------------------
+
+A paragraph
+
+Another paragraph (but no "var": line)
+
+
+Members
+~~~~~~~
+
+"var1": "string" (**If: **"defined(IFSTR)")
+   Not documented
+
+
+Features
+~~~~~~~~
+
+"variant1-feat"
+   a feature
+
+"member-feat"
+   a member feature
+
+
+"Variant2" (Object)
+-------------------
+
+
+"Object" (Object)
+-----------------
+
+
+Members
+~~~~~~~
+
+The members of "Base"
+The members of "Variant1" when "base1" is ""one""
+The members of "Variant2" when "base1" is ""two"" (**If: **"IFTWO")
+
+Features
+~~~~~~~~
+
+"union-feat1"
+   a feature
+
+
+"SugaredUnion" (Object)
+-----------------------
+
+
+Members
+~~~~~~~
+
+"type"
+   One of "one", "two"
+
+"data": "Variant1" when "type" is ""one""
+"data": "Variant2" when "type" is ""two"" (**If: **"IFTWO")
+
+Features
+~~~~~~~~
+
+"union-feat2"
+   a feature
+
+
+"Alternate" (Alternate)
+-----------------------
+
+
+Members
+~~~~~~~
+
+"i": "int"
+   an integer "b" is undocumented
+
+"b": "boolean"
+   Not documented
+
+
+Features
+~~~~~~~~
+
+"alt-feat"
+   a feature
+
+
+Another subsection
+==================
+
+
+"cmd" (Command)
+---------------
+
+
+Arguments
+~~~~~~~~~
+
+"arg1": "int"
+   the first argument
+
+"arg2": "string" (optional)
+   the second argument
+
+"arg3": "boolean"
+   Not documented
+
+
+Features
+~~~~~~~~
+
+"cmd-feat1"
+   a feature
+
+"cmd-feat2"
+   another feature
+
+
+Note
+~~~~
+
+"arg3" is undocumented
+
+
+Returns
+~~~~~~~
+
+"Object"
+
+
+TODO
+~~~~
+
+frobnicate
+
+
+Notes
+~~~~~
+
+* Lorem ipsum dolor sit amet
+
+* Ut enim ad minim veniam
+
+Duis aute irure dolor
+
+
+Example
+~~~~~~~
+
+   -> in
+   <- out
+
+
+Examples
+~~~~~~~~
+
+   - *verbatim*
+   - {braces}
+
+
+Since
+~~~~~
+
+2.10
+
+
+"cmd-boxed" (Command)
+---------------------
+
+If you're bored enough to read this, go see a video of boxed cats
+
+
+Arguments
+~~~~~~~~~
+
+The members of "Object"
+
+Features
+~~~~~~~~
+
+"cmd-feat1"
+   a feature
+
+"cmd-feat2"
+   another feature
+
+
+Example
+~~~~~~~
+
+   -> in
+
+   <- out
+
+
+"EVT-BOXED" (Event)
+-------------------
+
+
+Arguments
+~~~~~~~~~
+
+The members of "Object"
+
+Features
+~~~~~~~~
+
+"feat3"
+   a feature
