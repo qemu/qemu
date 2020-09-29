@@ -365,6 +365,7 @@
 #define __NR_fspick	(__NR_Linux + 433)
 #define __NR_pidfd_open	(__NR_Linux + 434)
 #define __NR_clone3	(__NR_Linux + 435)
+#define __NR_close_range	(__NR_Linux + 436)
 #define __NR_openat2	(__NR_Linux + 437)
 #define __NR_pidfd_getfd	(__NR_Linux + 438)
 #define __NR_faccessat2	(__NR_Linux + 439)

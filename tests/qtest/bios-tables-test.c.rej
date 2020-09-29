@@ -1,0 +1,22 @@
+--- tests/qtest/bios-tables-test.c
++++ tests/qtest/bios-tables-test.c
+@@ -927,12 +927,17 @@ static void test_acpi_virt_tcg_memhp(void)
+     };
+ 20
+     data.variant =3D ".memhp";
+-    test_acpi_one(" -cpu cortex-a57"
++    test_acpi_one(" -machine nvdimm=3Don"
++                  " -cpu cortex-a57"
+                   " -m 256M,slots=3D3,maxmem=3D1G"
+                   " -object memory-backend-ram,id=3Dram0,size=3D128M"
+                   " -object memory-backend-ram,id=3Dram1,size=3D128M"
+                   " -numa node,memdev=3Dram0 -numa node,memdev=3Dram1"
+-                  " -numa dist,src=3D0,dst=3D1,val=3D21",
++                  " -numa dist,src=3D0,dst=3D1,val=3D21"
++                  " -object memory-backend-ram,id=3Dram2,size=3D128M"
++                  " -object memory-backend-ram,id=3Dnvm0,size=3D128M"
++                  " -device pc-dimm,id=3Ddimm0,memdev=3Dram2,node=3D0"
++                  " -device nvdimm,id=3Ddimm1,memdev=3Dnvm0,node=3D1",
+                   &data);
+ 20
+     free_test_data(&data);
