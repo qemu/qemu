@@ -1517,8 +1517,6 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
         return ret;
     }
 
-    blk_set_allow_aio_context_change(blk, true);
-
     QTAILQ_INIT(&exp->clients);
     exp->name = g_strdup(arg->name);
     exp->description = g_strdup(arg->description);

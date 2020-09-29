@@ -323,13 +323,17 @@ static const VuDevIface vu_blk_iface = {
 static void blk_aio_attached(AioContext *ctx, void *opaque)
 {
     VuBlkExport *vexp = opaque;
+
+    vexp->export.ctx = ctx;
     vhost_user_server_attach_aio_context(&vexp->vu_server, ctx);
 }
 
 static void blk_aio_detach(void *opaque)
 {
     VuBlkExport *vexp = opaque;
+
     vhost_user_server_detach_aio_context(&vexp->vu_server);
+    vexp->export.ctx = NULL;
 }
 
 static void
@@ -384,7 +388,6 @@ static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
     vu_blk_initialize_config(blk_bs(exp->blk), &vexp->blkcfg,
                                logical_block_size);
 
-    blk_set_allow_aio_context_change(exp->blk, true);
     blk_add_aio_context_notifier(exp->blk, blk_aio_attached, blk_aio_detach,
                                  vexp);
 

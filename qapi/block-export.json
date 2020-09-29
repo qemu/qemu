@@ -219,11 +219,22 @@
 #                export before completion is signalled. (since: 5.2;
 #                default: false)
 #
+# @iothread: The name of the iothread object where the export will run. The
+#            default is to use the thread currently associated with the
+#            block node. (since: 5.2)
+#
+# @fixed-iothread: True prevents the block node from being moved to another
+#                  thread while the export is active. If true and @iothread is
+#                  given, export creation fails if the block node cannot be
+#                  moved to the iothread. The default is false. (since: 5.2)
+#
 # Since: 4.2
 ##
 { 'union': 'BlockExportOptions',
   'base': { 'type': 'BlockExportType',
             'id': 'str',
+	    '*fixed-iothread': 'bool',
+	    '*iothread': 'str',
             'node-name': 'str',
             '*writable': 'bool',
             '*writethrough': 'bool' },
