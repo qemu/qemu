@@ -83,7 +83,8 @@ enum NvmeCapMask {
                                                             << CAP_PMR_SHIFT)
 
 enum NvmeCapCss {
-    NVME_CAP_CSS_NVM = 1 << 0,
+    NVME_CAP_CSS_NVM        = 1 << 0,
+    NVME_CAP_CSS_ADMIN_ONLY = 1 << 7,
 };
 
 enum NvmeCcShift {
