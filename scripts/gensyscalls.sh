@@ -86,8 +86,7 @@ generate_syscall_nr()
     read_includes $arch $bits | filter_defines | rename_defines | \
                                 evaluate_values | sort -n -k 3
     echo
-    echo "#endif /* ${guard} */"
-    echo) > "$file"
+    echo "#endif /* ${guard} */") > "$file"
 }
 
 mkdir "$TMP/asm"

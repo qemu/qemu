@@ -318,7 +318,10 @@
 #define TARGET_NR_fsmount 432
 #define TARGET_NR_fspick 433
 #define TARGET_NR_pidfd_open 434
-#define TARGET_NR_syscalls 436
+#define TARGET_NR_close_range 436
+#define TARGET_NR_openat2 437
+#define TARGET_NR_pidfd_getfd 438
+#define TARGET_NR_faccessat2 439
+#define TARGET_NR_syscalls 440
 
 #endif /* LINUX_USER_NIOS2_SYSCALL_NR_H */
-
