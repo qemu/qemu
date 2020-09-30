@@ -82,6 +82,10 @@ enum NvmeCapMask {
 #define NVME_CAP_SET_PMRS(cap, val) (cap |= (uint64_t)(val & CAP_PMR_MASK)\
                                                             << CAP_PMR_SHIFT)
 
+enum NvmeCapCss {
+    NVME_CAP_CSS_NVM = 1 << 0,
+};
+
 enum NvmeCcShift {
     CC_EN_SHIFT     = 0,
     CC_CSS_SHIFT    = 4,

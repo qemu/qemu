@@ -2045,6 +2045,10 @@ static int nvme_start_ctrl(NvmeCtrl *n)
         trace_pci_nvme_err_startfail_acq_misaligned(n->bar.acq);
         return -1;
     }
+    if (unlikely(!(NVME_CAP_CSS(n->bar.cap) & (1 << NVME_CC_CSS(n->bar.cc))))) {
+        trace_pci_nvme_err_startfail_css(NVME_CC_CSS(n->bar.cc));
+        return -1;
+    }
     if (unlikely(NVME_CC_MPS(n->bar.cc) <
                  NVME_CAP_MPSMIN(n->bar.cap))) {
         trace_pci_nvme_err_startfail_page_too_small(
@@ -2746,7 +2750,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     NVME_CAP_SET_MQES(n->bar.cap, 0x7ff);
     NVME_CAP_SET_CQR(n->bar.cap, 1);
     NVME_CAP_SET_TO(n->bar.cap, 0xf);
-    NVME_CAP_SET_CSS(n->bar.cap, 1);
+    NVME_CAP_SET_CSS(n->bar.cap, NVME_CAP_CSS_NVM);
     NVME_CAP_SET_MPSMAX(n->bar.cap, 4);
 
     n->bar.vs = NVME_SPEC_VER;
