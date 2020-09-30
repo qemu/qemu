@@ -556,7 +556,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
     NBDExport *exp;
     uint16_t requests;
     uint16_t request;
-    uint32_t namelen;
+    uint32_t namelen = 0;
     bool sendname = false;
     bool blocksize = false;
     uint32_t sizes[3];
