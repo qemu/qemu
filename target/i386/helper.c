@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/qapi-events-run-state.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "qemu/qemu-print.h"
@@ -851,6 +852,15 @@ typedef struct MCEInjectionParams {
     int flags;
 } MCEInjectionParams;
 
+static void emit_guest_memory_failure(MemoryFailureAction action, bool ar,
+                                      bool recursive)
+{
+    MemoryFailureFlags mff = {.action_required = ar, .recursive = recursive};
+
+    qapi_event_send_memory_failure(MEMORY_FAILURE_RECIPIENT_GUEST, action,
+                                   &mff);
+}
+
 static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
 {
     MCEInjectionParams *params = data.host_ptr;
@@ -859,16 +869,18 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
     uint64_t *banks = cenv->mce_banks + 4 * params->bank;
     g_autofree char *msg = NULL;
     bool need_reset = false;
+    bool recursive;
+    bool ar = !!(params->status & MCI_STATUS_AR);
 
     cpu_synchronize_state(cs);
+    recursive = !!(cenv->mcg_status & MCG_STATUS_MCIP);
 
     /*
      * If there is an MCE exception being processed, ignore this SRAO MCE
      * unless unconditional injection was requested.
      */
-    if (!(params->flags & MCE_INJECT_UNCOND_AO)
-        && !(params->status & MCI_STATUS_AR)
-        && (cenv->mcg_status & MCG_STATUS_MCIP)) {
+    if (!(params->flags & MCE_INJECT_UNCOND_AO) && !ar && recursive) {
+        emit_guest_memory_failure(MEMORY_FAILURE_ACTION_IGNORE, ar, recursive);
         return;
     }
 
@@ -896,7 +908,7 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
             return;
         }
 
-        if (cenv->mcg_status & MCG_STATUS_MCIP) {
+        if (recursive) {
             need_reset = true;
             msg = g_strdup_printf("CPU %d: Previous MCE still in progress, "
                                   "raising triple fault", cs->cpu_index);
@@ -909,6 +921,8 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
         }
 
         if (need_reset) {
+            emit_guest_memory_failure(MEMORY_FAILURE_ACTION_RESET, ar,
+                                      recursive);
             monitor_printf(params->mon, "%s", msg);
             qemu_log_mask(CPU_LOG_RESET, "%s\n", msg);
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
@@ -934,6 +948,8 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
     } else {
         banks[1] |= MCI_STATUS_OVER;
     }
+
+    emit_guest_memory_failure(MEMORY_FAILURE_ACTION_INJECT, ar, recursive);
 }
 
 void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
