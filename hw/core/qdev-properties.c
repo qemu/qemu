@@ -18,6 +18,7 @@
 #include "qemu/uuid.h"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
+#include "qdev-prop-internal.h"
 
 void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
                                   Error **errp)
@@ -53,8 +54,8 @@ void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
     return ptr;
 }
 
-static void get_enum(Object *obj, Visitor *v, const char *name, void *opaque,
-                     Error **errp)
+void qdev_propinfo_get_enum(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
@@ -63,8 +64,8 @@ static void get_enum(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_enum(v, prop->name, ptr, prop->info->enum_table, errp);
 }
 
-static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
-                     Error **errp)
+void qdev_propinfo_set_enum(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
@@ -78,7 +79,8 @@ static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_enum(v, prop->name, ptr, prop->info->enum_table, errp);
 }
 
-static void set_default_value_enum(ObjectProperty *op, const Property *prop)
+void qdev_propinfo_set_default_value_enum(ObjectProperty *op,
+                                          const Property *prop)
 {
     object_property_set_default_str(op,
         qapi_enum_lookup(prop->info->enum_table, prop->defval.i));
@@ -669,9 +671,9 @@ const PropertyInfo qdev_prop_on_off_auto = {
     .name = "OnOffAuto",
     .description = "on/off/auto",
     .enum_table = &OnOffAuto_lookup,
-    .get = get_enum,
-    .set = set_enum,
-    .set_default_value = set_default_value_enum,
+    .get = qdev_propinfo_get_enum,
+    .set = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
 };
 
 /* --- lost tick policy --- */
@@ -681,9 +683,9 @@ QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
 const PropertyInfo qdev_prop_losttickpolicy = {
     .name  = "LostTickPolicy",
     .enum_table  = &LostTickPolicy_lookup,
-    .get   = get_enum,
-    .set   = set_enum,
-    .set_default_value = set_default_value_enum,
+    .get   = qdev_propinfo_get_enum,
+    .set   = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
 };
 
 /* --- Block device error handling policy --- */
@@ -695,9 +697,9 @@ const PropertyInfo qdev_prop_blockdev_on_error = {
     .description = "Error handling policy, "
                    "report/ignore/enospc/stop/auto",
     .enum_table = &BlockdevOnError_lookup,
-    .get = get_enum,
-    .set = set_enum,
-    .set_default_value = set_default_value_enum,
+    .get = qdev_propinfo_get_enum,
+    .set = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
 };
 
 /* --- BIOS CHS translation */
@@ -709,9 +711,9 @@ const PropertyInfo qdev_prop_bios_chs_trans = {
     .description = "Logical CHS translation algorithm, "
                    "auto/none/lba/large/rechs",
     .enum_table = &BiosAtaTranslation_lookup,
-    .get = get_enum,
-    .set = set_enum,
-    .set_default_value = set_default_value_enum,
+    .get = qdev_propinfo_get_enum,
+    .set = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
 };
 
 /* --- FDC default drive types */
@@ -721,9 +723,9 @@ const PropertyInfo qdev_prop_fdc_drive_type = {
     .description = "FDC drive type, "
                    "144/288/120/none/auto",
     .enum_table = &FloppyDriveType_lookup,
-    .get = get_enum,
-    .set = set_enum,
-    .set_default_value = set_default_value_enum,
+    .get = qdev_propinfo_get_enum,
+    .set = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
 };
 
 /* --- MultiFDCompression --- */
@@ -733,9 +735,9 @@ const PropertyInfo qdev_prop_multifd_compression = {
     .description = "multifd_compression values, "
                    "none/zlib/zstd",
     .enum_table = &MultiFDCompression_lookup,
-    .get = get_enum,
-    .set = set_enum,
-    .set_default_value = set_default_value_enum,
+    .get = qdev_propinfo_get_enum,
+    .set = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
 };
 
 /* --- pci address --- */
@@ -1416,9 +1418,9 @@ const PropertyInfo qdev_prop_off_auto_pcibar = {
     .name = "OffAutoPCIBAR",
     .description = "off/auto/bar0/bar1/bar2/bar3/bar4/bar5",
     .enum_table = &OffAutoPCIBAR_lookup,
-    .get = get_enum,
-    .set = set_enum,
-    .set_default_value = set_default_value_enum,
+    .get = qdev_propinfo_get_enum,
+    .set = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
 };
 
 /* --- PCIELinkSpeed 2_5/5/8/16 -- */
@@ -1495,7 +1497,7 @@ const PropertyInfo qdev_prop_pcie_link_speed = {
     .enum_table = &PCIELinkSpeed_lookup,
     .get = get_prop_pcielinkspeed,
     .set = set_prop_pcielinkspeed,
-    .set_default_value = set_default_value_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
 };
 
 /* --- PCIELinkWidth 1/2/4/8/12/16/32 -- */
@@ -1590,5 +1592,5 @@ const PropertyInfo qdev_prop_pcie_link_width = {
     .enum_table = &PCIELinkWidth_lookup,
     .get = get_prop_pcielinkwidth,
     .set = set_prop_pcielinkwidth,
-    .set_default_value = set_default_value_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
 };
