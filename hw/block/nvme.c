@@ -927,68 +927,12 @@ static void nvme_rw_cb(void *opaque, int ret)
     nvme_enqueue_req_completion(nvme_cq(req), req);
 }
 
-static uint16_t nvme_do_aio(BlockBackend *blk, int64_t offset, size_t len,
-                            NvmeRequest *req)
-{
-    BlockAcctCookie *acct = &req->acct;
-    BlockAcctStats *stats = blk_get_stats(blk);
-
-    bool is_write = false;
-
-    trace_pci_nvme_do_aio(nvme_cid(req), req->cmd.opcode,
-                          nvme_io_opc_str(req->cmd.opcode), blk_name(blk),
-                          offset, len);
-
-    switch (req->cmd.opcode) {
-    case NVME_CMD_FLUSH:
-        block_acct_start(stats, acct, 0, BLOCK_ACCT_FLUSH);
-        req->aiocb = blk_aio_flush(blk, nvme_rw_cb, req);
-        break;
-
-    case NVME_CMD_WRITE_ZEROES:
-        block_acct_start(stats, acct, len, BLOCK_ACCT_WRITE);
-        req->aiocb = blk_aio_pwrite_zeroes(blk, offset, len,
-                                           BDRV_REQ_MAY_UNMAP, nvme_rw_cb,
-                                           req);
-        break;
-
-    case NVME_CMD_WRITE:
-        is_write = true;
-
-        /* fallthrough */
-
-    case NVME_CMD_READ:
-        block_acct_start(stats, acct, len,
-                         is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
-
-        if (req->qsg.sg) {
-            if (is_write) {
-                req->aiocb = dma_blk_write(blk, &req->qsg, offset,
-                                           BDRV_SECTOR_SIZE, nvme_rw_cb, req);
-            } else {
-                req->aiocb = dma_blk_read(blk, &req->qsg, offset,
-                                          BDRV_SECTOR_SIZE, nvme_rw_cb, req);
-            }
-        } else {
-            if (is_write) {
-                req->aiocb = blk_aio_pwritev(blk, offset, &req->iov, 0,
-                                             nvme_rw_cb, req);
-            } else {
-                req->aiocb = blk_aio_preadv(blk, offset, &req->iov, 0,
-                                            nvme_rw_cb, req);
-            }
-        }
-
-        break;
-    }
-
-    return NVME_NO_COMPLETE;
-}
-
 static uint16_t nvme_flush(NvmeCtrl *n, NvmeRequest *req)
 {
-    NvmeNamespace *ns = req->ns;
-    return nvme_do_aio(ns->blkconf.blk, 0, 0, req);
+    block_acct_start(blk_get_stats(req->ns->blkconf.blk), &req->acct, 0,
+                     BLOCK_ACCT_FLUSH);
+    req->aiocb = blk_aio_flush(req->ns->blkconf.blk, nvme_rw_cb, req);
+    return NVME_NO_COMPLETE;
 }
 
 static uint16_t nvme_write_zeroes(NvmeCtrl *n, NvmeRequest *req)
@@ -1009,7 +953,11 @@ static uint16_t nvme_write_zeroes(NvmeCtrl *n, NvmeRequest *req)
         return status;
     }
 
-    return nvme_do_aio(ns->blkconf.blk, offset, count, req);
+    block_acct_start(blk_get_stats(req->ns->blkconf.blk), &req->acct, 0,
+                     BLOCK_ACCT_WRITE);
+    req->aiocb = blk_aio_pwrite_zeroes(req->ns->blkconf.blk, offset, count,
+                                       BDRV_REQ_MAY_UNMAP, nvme_rw_cb, req);
+    return NVME_NO_COMPLETE;
 }
 
 static uint16_t nvme_rw(NvmeCtrl *n, NvmeRequest *req)
@@ -1023,6 +971,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeRequest *req)
     uint64_t data_offset = nvme_l2b(ns, slba);
     enum BlockAcctType acct = req->cmd.opcode == NVME_CMD_WRITE ?
         BLOCK_ACCT_WRITE : BLOCK_ACCT_READ;
+    BlockBackend *blk = ns->blkconf.blk;
     uint16_t status;
 
     trace_pci_nvme_rw(nvme_cid(req), nvme_io_opc_str(rw->opcode),
@@ -1045,7 +994,25 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeRequest *req)
         goto invalid;
     }
 
-    return nvme_do_aio(ns->blkconf.blk, data_offset, data_size, req);
+    block_acct_start(blk_get_stats(blk), &req->acct, data_size, acct);
+    if (req->qsg.sg) {
+        if (acct == BLOCK_ACCT_WRITE) {
+            req->aiocb = dma_blk_write(blk, &req->qsg, data_offset,
+                                       BDRV_SECTOR_SIZE, nvme_rw_cb, req);
+        } else {
+            req->aiocb = dma_blk_read(blk, &req->qsg, data_offset,
+                                      BDRV_SECTOR_SIZE, nvme_rw_cb, req);
+        }
+    } else {
+        if (acct == BLOCK_ACCT_WRITE) {
+            req->aiocb = blk_aio_pwritev(blk, data_offset, &req->iov, 0,
+                                         nvme_rw_cb, req);
+        } else {
+            req->aiocb = blk_aio_preadv(blk, data_offset, &req->iov, 0,
+                                        nvme_rw_cb, req);
+        }
+    }
+    return NVME_NO_COMPLETE;
 
 invalid:
     block_acct_invalid(blk_get_stats(ns->blkconf.blk), acct);
