@@ -434,3 +434,7 @@
     [ 433] = 3, /* fspick */
     [ 434] = 2, /* pidfd_open */
     [ 435] = 2, /* clone3 */
+    [ 436] = 3, /* close_range */
+    [ 437] = 4, /* openat2 */
+    [ 438] = 3, /* pidfd_getfd */
+    [ 439] = 4, /* faccessat2 */
