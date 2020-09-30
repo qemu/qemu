@@ -86,6 +86,13 @@ void qdev_propinfo_set_default_value_enum(ObjectProperty *op,
         qapi_enum_lookup(prop->info->enum_table, prop->defval.i));
 }
 
+const PropertyInfo qdev_prop_enum = {
+    .name  = "enum",
+    .get   = qdev_propinfo_get_enum,
+    .set   = qdev_propinfo_set_enum,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
+};
+
 /* Bit */
 
 static uint32_t qdev_get_prop_mask(Property *prop)
