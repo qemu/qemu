@@ -849,6 +849,7 @@ enum NvmeIdCtrlFrmw {
 };
 
 enum NvmeIdCtrlLpa {
+    NVME_LPA_NS_SMART = 1 << 0,
     NVME_LPA_EXTENDED = 1 << 2,
 };
 

@@ -1164,48 +1164,63 @@ static uint16_t nvme_create_sq(NvmeCtrl *n, NvmeRequest *req)
     return NVME_SUCCESS;
 }
 
+struct nvme_stats {
+    uint64_t units_read;
+    uint64_t units_written;
+    uint64_t read_commands;
+    uint64_t write_commands;
+};
+
+static void nvme_set_blk_stats(NvmeNamespace *ns, struct nvme_stats *stats)
+{
+    BlockAcctStats *s = blk_get_stats(ns->blkconf.blk);
+
+    stats->units_read += s->nr_bytes[BLOCK_ACCT_READ] >> BDRV_SECTOR_BITS;
+    stats->units_written += s->nr_bytes[BLOCK_ACCT_WRITE] >> BDRV_SECTOR_BITS;
+    stats->read_commands += s->nr_ops[BLOCK_ACCT_READ];
+    stats->write_commands += s->nr_ops[BLOCK_ACCT_WRITE];
+}
+
 static uint16_t nvme_smart_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
                                 uint64_t off, NvmeRequest *req)
 {
     uint32_t nsid = le32_to_cpu(req->cmd.nsid);
-
+    struct nvme_stats stats = { 0 };
+    NvmeSmartLog smart = { 0 };
     uint32_t trans_len;
+    NvmeNamespace *ns;
     time_t current_ms;
-    uint64_t units_read = 0, units_written = 0;
-    uint64_t read_commands = 0, write_commands = 0;
-    NvmeSmartLog smart;
-
-    if (nsid && nsid != 0xffffffff) {
-        return NVME_INVALID_FIELD | NVME_DNR;
-    }
 
     if (off >= sizeof(smart)) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    for (int i = 1; i <= n->num_namespaces; i++) {
-        NvmeNamespace *ns = nvme_ns(n, i);
+    if (nsid != 0xffffffff) {
+        ns = nvme_ns(n, nsid);
         if (!ns) {
-            continue;
+            return NVME_INVALID_NSID | NVME_DNR;
         }
+        nvme_set_blk_stats(ns, &stats);
+    } else {
+        int i;
 
-        BlockAcctStats *s = blk_get_stats(ns->blkconf.blk);
-
-        units_read += s->nr_bytes[BLOCK_ACCT_READ] >> BDRV_SECTOR_BITS;
-        units_written += s->nr_bytes[BLOCK_ACCT_WRITE] >> BDRV_SECTOR_BITS;
-        read_commands += s->nr_ops[BLOCK_ACCT_READ];
-        write_commands += s->nr_ops[BLOCK_ACCT_WRITE];
+        for (i = 1; i <= n->num_namespaces; i++) {
+            ns = nvme_ns(n, i);
+            if (!ns) {
+                continue;
+            }
+            nvme_set_blk_stats(ns, &stats);
+        }
     }
 
     trans_len = MIN(sizeof(smart) - off, buf_len);
 
-    memset(&smart, 0x0, sizeof(smart));
-
-    smart.data_units_read[0] = cpu_to_le64(DIV_ROUND_UP(units_read, 1000));
-    smart.data_units_written[0] = cpu_to_le64(DIV_ROUND_UP(units_written,
+    smart.data_units_read[0] = cpu_to_le64(DIV_ROUND_UP(stats.units_read,
+                                                        1000));
+    smart.data_units_written[0] = cpu_to_le64(DIV_ROUND_UP(stats.units_written,
                                                            1000));
-    smart.host_read_commands[0] = cpu_to_le64(read_commands);
-    smart.host_write_commands[0] = cpu_to_le64(write_commands);
+    smart.host_read_commands[0] = cpu_to_le64(stats.read_commands);
+    smart.host_write_commands[0] = cpu_to_le64(stats.write_commands);
 
     smart.temperature = cpu_to_le16(n->temperature);
 
@@ -2703,7 +2718,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->acl = 3;
     id->aerl = n->params.aerl;
     id->frmw = (NVME_NUM_FW_SLOTS << 1) | NVME_FRMW_SLOT1_RO;
-    id->lpa = NVME_LPA_EXTENDED;
+    id->lpa = NVME_LPA_NS_SMART | NVME_LPA_EXTENDED;
 
     /* recommended default value (~70 C) */
     id->wctemp = cpu_to_le16(NVME_TEMPERATURE_WARNING);
