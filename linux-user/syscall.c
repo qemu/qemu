@@ -10530,12 +10530,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_fdatasync:
         return get_errno(fdatasync(arg1));
 #endif
-#ifdef TARGET_NR__sysctl
-    case TARGET_NR__sysctl:
-        /* We don't implement this, but ENOTDIR is always a safe
-           return value. */
-        return -TARGET_ENOTDIR;
-#endif
     case TARGET_NR_sched_getaffinity:
         {
             unsigned int mask_size;
