@@ -543,15 +543,15 @@ static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
         if (!qemu_isxdigit(str[pos])) {
             goto inval;
         }
-        if (!qemu_isxdigit(str[pos+1])) {
+        if (!qemu_isxdigit(str[pos + 1])) {
             goto inval;
         }
         if (i == 5) {
-            if (str[pos+2] != '\0') {
+            if (str[pos + 2] != '\0') {
                 goto inval;
             }
         } else {
-            if (str[pos+2] != ':' && str[pos+2] != '-') {
+            if (str[pos + 2] != ':' && str[pos + 2] != '-') {
                 goto inval;
             }
         }
@@ -898,8 +898,8 @@ static void set_blocksize(Object *obj, Visitor *v, const char *name,
     /* We rely on power-of-2 blocksizes for bitmasks */
     if ((value & (value - 1)) != 0) {
         error_setg(errp,
-                  "Property %s.%s doesn't take value '%" PRId64 "', it's not a power of 2",
-                  dev->id ?: "", name, (int64_t)value);
+                  "Property %s.%s doesn't take value '%" PRId64 "', "
+                  "it's not a power of 2", dev->id ?: "", name, (int64_t)value);
         return;
     }
 
