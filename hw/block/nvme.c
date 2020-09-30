@@ -1179,6 +1179,10 @@ static uint16_t nvme_smart_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
+    if (off >= sizeof(smart)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
     for (int i = 1; i <= n->num_namespaces; i++) {
         NvmeNamespace *ns = nvme_ns(n, i);
         if (!ns) {
@@ -1191,10 +1195,6 @@ static uint16_t nvme_smart_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
         units_written += s->nr_bytes[BLOCK_ACCT_WRITE] >> BDRV_SECTOR_BITS;
         read_commands += s->nr_ops[BLOCK_ACCT_READ];
         write_commands += s->nr_ops[BLOCK_ACCT_WRITE];
-    }
-
-    if (off > sizeof(smart)) {
-        return NVME_INVALID_FIELD | NVME_DNR;
     }
 
     trans_len = MIN(sizeof(smart) - off, buf_len);
@@ -1234,12 +1234,11 @@ static uint16_t nvme_fw_log_info(NvmeCtrl *n, uint32_t buf_len, uint64_t off,
         .afi = 0x1,
     };
 
-    strpadcpy((char *)&fw_log.frs1, sizeof(fw_log.frs1), "1.0", ' ');
-
-    if (off > sizeof(fw_log)) {
+    if (off >= sizeof(fw_log)) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
+    strpadcpy((char *)&fw_log.frs1, sizeof(fw_log.frs1), "1.0", ' ');
     trans_len = MIN(sizeof(fw_log) - off, buf_len);
 
     return nvme_dma(n, (uint8_t *) &fw_log + off, trans_len,
@@ -1252,16 +1251,15 @@ static uint16_t nvme_error_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
     uint32_t trans_len;
     NvmeErrorLog errlog;
 
+    if (off >= sizeof(errlog)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
     if (!rae) {
         nvme_clear_events(n, NVME_AER_TYPE_ERROR);
     }
 
-    if (off > sizeof(errlog)) {
-        return NVME_INVALID_FIELD | NVME_DNR;
-    }
-
     memset(&errlog, 0x0, sizeof(errlog));
-
     trans_len = MIN(sizeof(errlog) - off, buf_len);
 
     return nvme_dma(n, (uint8_t *)&errlog, trans_len,
