@@ -301,10 +301,11 @@ nbd_opt_invalid(NBDClient *client, Error **errp, const char *fmt, ...)
 }
 
 /* Read size bytes from the unparsed payload of the current option.
+ * If @check_nul, require that no NUL bytes appear in buffer.
  * Return -errno on I/O error, 0 if option was completely handled by
  * sending a reply about inconsistent lengths, or 1 on success. */
 static int nbd_opt_read(NBDClient *client, void *buffer, size_t size,
-                        Error **errp)
+                        bool check_nul, Error **errp)
 {
     if (size > client->optlen) {
         return nbd_opt_invalid(client, errp,
@@ -312,7 +313,16 @@ static int nbd_opt_read(NBDClient *client, void *buffer, size_t size,
                                nbd_opt_lookup(client->opt));
     }
     client->optlen -= size;
-    return qio_channel_read_all(client->ioc, buffer, size, errp) < 0 ? -EIO : 1;
+    if (qio_channel_read_all(client->ioc, buffer, size, errp) < 0) {
+        return -EIO;
+    }
+
+    if (check_nul && strnlen(buffer, size) != size) {
+        return nbd_opt_invalid(client, errp,
+                               "Unexpected embedded NUL in option %s",
+                               nbd_opt_lookup(client->opt));
+    }
+    return 1;
 }
 
 /* Drop size bytes from the unparsed payload of the current option.
@@ -349,7 +359,7 @@ static int nbd_opt_read_name(NBDClient *client, char **name, uint32_t *length,
     g_autofree char *local_name = NULL;
 
     *name = NULL;
-    ret = nbd_opt_read(client, &len, sizeof(len), errp);
+    ret = nbd_opt_read(client, &len, sizeof(len), false, errp);
     if (ret <= 0) {
         return ret;
     }
@@ -361,7 +371,7 @@ static int nbd_opt_read_name(NBDClient *client, char **name, uint32_t *length,
     }
 
     local_name = g_malloc(len + 1);
-    ret = nbd_opt_read(client, local_name, len, errp);
+    ret = nbd_opt_read(client, local_name, len, true, errp);
     if (ret <= 0) {
         return ret;
     }
@@ -576,14 +586,14 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
     }
     trace_nbd_negotiate_handle_export_name_request(name);
 
-    rc = nbd_opt_read(client, &requests, sizeof(requests), errp);
+    rc = nbd_opt_read(client, &requests, sizeof(requests), false, errp);
     if (rc <= 0) {
         return rc;
     }
     requests = be16_to_cpu(requests);
     trace_nbd_negotiate_handle_info_requests(requests);
     while (requests--) {
-        rc = nbd_opt_read(client, &request, sizeof(request), errp);
+        rc = nbd_opt_read(client, &request, sizeof(request), false, errp);
         if (rc <= 0) {
             return rc;
         }
@@ -806,7 +816,7 @@ static int nbd_meta_pattern(NBDClient *client, const char *pattern, bool *match,
     assert(len);
 
     query = g_malloc(len);
-    ret = nbd_opt_read(client, query, len, errp);
+    ret = nbd_opt_read(client, query, len, true, errp);
     if (ret <= 0) {
         g_free(query);
         return ret;
@@ -943,7 +953,7 @@ static int nbd_negotiate_meta_query(NBDClient *client,
     char ns[5];
     uint32_t len;
 
-    ret = nbd_opt_read(client, &len, sizeof(len), errp);
+    ret = nbd_opt_read(client, &len, sizeof(len), false, errp);
     if (ret <= 0) {
         return ret;
     }
@@ -959,7 +969,7 @@ static int nbd_negotiate_meta_query(NBDClient *client,
     }
 
     len -= ns_len;
-    ret = nbd_opt_read(client, ns, ns_len, errp);
+    ret = nbd_opt_read(client, ns, ns_len, true, errp);
     if (ret <= 0) {
         return ret;
     }
@@ -1016,7 +1026,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
                             "export '%s' not present", sane_name);
     }
 
-    ret = nbd_opt_read(client, &nb_queries, sizeof(nb_queries), errp);
+    ret = nbd_opt_read(client, &nb_queries, sizeof(nb_queries), false, errp);
     if (ret <= 0) {
         return ret;
     }
