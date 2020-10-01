@@ -54,6 +54,9 @@
 
 #define PPI(irq) ((irq) + 16)
 
+/* See Linux kernel arch/arm64/include/asm/pvclock-abi.h */
+#define PVTIME_SIZE_PER_CPU 64
+
 enum {
     VIRT_FLASH,
     VIRT_MEM,
@@ -81,6 +84,7 @@ enum {
     VIRT_PCDIMM_ACPI,
     VIRT_ACPI_GED,
     VIRT_NVDIMM_ACPI,
+    VIRT_PVTIME,
     VIRT_LOWMEMMAP_LAST,
 };
 
@@ -121,6 +125,7 @@ struct VirtMachineClass {
     bool no_highmem_ecam;
     bool no_ged;   /* Machines < 4.2 has no support for ACPI GED device */
     bool kvm_no_adjvtime;
+    bool no_kvm_steal_time;
     bool acpi_expose_flash;
 };
 

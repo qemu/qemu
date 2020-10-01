@@ -151,6 +151,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_PCDIMM_ACPI] =        { 0x09070000, MEMORY_HOTPLUG_IO_LEN },
     [VIRT_ACPI_GED] =           { 0x09080000, ACPI_GED_EVT_SEL_LEN },
     [VIRT_NVDIMM_ACPI] =        { 0x09090000, NVDIMM_ACPI_IO_LEN},
+    [VIRT_PVTIME] =             { 0x090a0000, 0x00010000 },
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
@@ -1666,15 +1667,40 @@ static void finalize_gic_version(VirtMachineState *vms)
  * virt_cpu_post_init() must be called after the CPUs have
  * been realized and the GIC has been created.
  */
-static void virt_cpu_post_init(VirtMachineState *vms)
+static void virt_cpu_post_init(VirtMachineState *vms, int max_cpus,
+                               MemoryRegion *sysmem)
 {
-    bool aarch64, pmu;
+    bool aarch64, pmu, steal_time;
     CPUState *cpu;
 
     aarch64 = object_property_get_bool(OBJECT(first_cpu), "aarch64", NULL);
     pmu = object_property_get_bool(OBJECT(first_cpu), "pmu", NULL);
+    steal_time = object_property_get_bool(OBJECT(first_cpu),
+                                          "kvm-steal-time", NULL);
 
     if (kvm_enabled()) {
+        hwaddr pvtime_reg_base = vms->memmap[VIRT_PVTIME].base;
+        hwaddr pvtime_reg_size = vms->memmap[VIRT_PVTIME].size;
+
+        if (steal_time) {
+            MemoryRegion *pvtime = g_new(MemoryRegion, 1);
+            hwaddr pvtime_size = max_cpus * PVTIME_SIZE_PER_CPU;
+
+            /* The memory region size must be a multiple of host page size. */
+            pvtime_size = REAL_HOST_PAGE_ALIGN(pvtime_size);
+
+            if (pvtime_size > pvtime_reg_size) {
+                error_report("pvtime requires a %" HWADDR_PRId
+                             " byte memory region for %d CPUs,"
+                             " but only %" HWADDR_PRId " has been reserved",
+                             pvtime_size, max_cpus, pvtime_reg_size);
+                exit(1);
+            }
+
+            memory_region_init_ram(pvtime, NULL, "pvtime", pvtime_size, NULL);
+            memory_region_add_subregion(sysmem, pvtime_reg_base, pvtime);
+        }
+
         CPU_FOREACH(cpu) {
             if (pmu) {
                 assert(arm_feature(&ARM_CPU(cpu)->env, ARM_FEATURE_PMU));
@@ -1682,6 +1708,10 @@ static void virt_cpu_post_init(VirtMachineState *vms)
                     kvm_arm_pmu_set_irq(cpu, PPI(VIRTUAL_PMU_IRQ));
                 }
                 kvm_arm_pmu_init(cpu);
+            }
+            if (steal_time) {
+                kvm_arm_pvtime_init(cpu, pvtime_reg_base +
+                                         cpu->cpu_index * PVTIME_SIZE_PER_CPU);
             }
         }
     } else {
@@ -1853,6 +1883,11 @@ static void machvirt_init(MachineState *machine)
             object_property_set_bool(cpuobj, "kvm-no-adjvtime", true, NULL);
         }
 
+        if (vmc->no_kvm_steal_time &&
+            object_property_find(cpuobj, "kvm-steal-time")) {
+            object_property_set_bool(cpuobj, "kvm-steal-time", false, NULL);
+        }
+
         if (vmc->no_pmu && object_property_find(cpuobj, "pmu")) {
             object_property_set_bool(cpuobj, "pmu", false, NULL);
         }
@@ -1924,7 +1959,7 @@ static void machvirt_init(MachineState *machine)
 
     create_gic(vms);
 
-    virt_cpu_post_init(vms);
+    virt_cpu_post_init(vms, possible_cpus->len, sysmem);
 
     fdt_add_pmu_nodes(vms);
 
@@ -2566,8 +2601,11 @@ DEFINE_VIRT_MACHINE_AS_LATEST(5, 2)
 
 static void virt_machine_5_1_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
     virt_machine_5_2_options(mc);
     compat_props_add(mc->compat_props, hw_compat_5_1, hw_compat_5_1_len);
+    vmc->no_kvm_steal_time = true;
 }
 DEFINE_VIRT_MACHINE(5, 1)
 

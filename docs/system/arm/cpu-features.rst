@@ -200,6 +200,17 @@ the list of KVM VCPU features and their descriptions.
                            adjustment, also restoring the legacy (pre-5.0)
                            behavior.
 
+  kvm-steal-time           Since v5.2, kvm-steal-time is enabled by
+                           default when KVM is enabled, the feature is
+                           supported, and the guest is 64-bit.
+
+                           When kvm-steal-time is enabled a 64-bit guest
+                           can account for time its CPUs were not running
+                           due to the host not scheduling the corresponding
+                           VCPU threads.  The accounting statistics may
+                           influence the guest scheduler behavior and/or be
+                           exposed to the guest userspace.
+
 SVE CPU Properties
 ==================
 

@@ -24,6 +24,7 @@
 #include "hw/registerfields.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
+#include "qapi/qapi-types-common.h"
 
 /* ARM processors have a weak memory model */
 #define TCG_GUEST_DEFAULT_MO      (0)
@@ -862,6 +863,9 @@ struct ARMCPU {
     bool kvm_adjvtime;
     bool kvm_vtime_dirty;
     uint64_t kvm_vtime;
+
+    /* KVM steal time */
+    OnOffAuto kvm_steal_time;
 
     /* Uniprocessor system with MP extensions */
     bool mp_is_up;
