@@ -29,6 +29,17 @@ OBJECT_DECLARE_SIMPLE_TYPE(IDEBus, IDE_BUS)
 
 #define MAX_IDE_DEVS 2
 
+/* Device/Head ("select") Register */
+#define ATA_DEV_SELECT          0x10
+/* ATA1,3: Defined as '1'.
+ * ATA2:   Reserved.
+ * ATA3-7: obsolete. */
+#define ATA_DEV_ALWAYS_ON       0xA0
+#define ATA_DEV_LBA             0x40
+#define ATA_DEV_LBA_MSB         0x0F  /* LBA 24:27 */
+#define ATA_DEV_HS              0x0F  /* HS 3:0 */
+
+
 /* Bits of HD_STATUS */
 #define ERR_STAT		0x01
 #define INDEX_STAT		0x02
@@ -57,8 +68,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(IDEBus, IDE_BUS)
 #define REL			0x04
 #define TAG_MASK		0xf8
 
-#define IDE_CMD_RESET           0x04
-#define IDE_CMD_DISABLE_IRQ     0x02
+/* Bits of Device Control register */
+#define IDE_CTRL_HOB            0x80
+#define IDE_CTRL_RESET          0x04
+#define IDE_CTRL_DISABLE_IRQ    0x02
 
 /* ACS-2 T13/2015-D Table B.2 Command codes */
 #define WIN_NOP				0x00
@@ -559,7 +572,7 @@ static inline IDEState *idebus_active_if(IDEBus *bus)
 
 static inline void ide_set_irq(IDEBus *bus)
 {
-    if (!(bus->cmd & IDE_CMD_DISABLE_IRQ)) {
+    if (!(bus->cmd & IDE_CTRL_DISABLE_IRQ)) {
         qemu_irq_raise(bus->irq);
     }
 }
@@ -598,7 +611,7 @@ void ide_atapi_io_error(IDEState *s, int ret);
 void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val);
 uint32_t ide_ioport_read(void *opaque, uint32_t addr1);
 uint32_t ide_status_read(void *opaque, uint32_t addr);
-void ide_cmd_write(void *opaque, uint32_t addr, uint32_t val);
+void ide_ctrl_write(void *opaque, uint32_t addr, uint32_t val);
 void ide_data_writew(void *opaque, uint32_t addr, uint32_t val);
 uint32_t ide_data_readw(void *opaque, uint32_t addr);
 void ide_data_writel(void *opaque, uint32_t addr, uint32_t val);

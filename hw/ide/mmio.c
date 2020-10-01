@@ -98,16 +98,16 @@ static uint64_t mmio_ide_status_read(void *opaque, hwaddr addr,
     return ide_status_read(&s->bus, 0);
 }
 
-static void mmio_ide_cmd_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned size)
+static void mmio_ide_ctrl_write(void *opaque, hwaddr addr,
+                                uint64_t val, unsigned size)
 {
     MMIOState *s = opaque;
-    ide_cmd_write(&s->bus, 0, val);
+    ide_ctrl_write(&s->bus, 0, val);
 }
 
 static const MemoryRegionOps mmio_ide_cs_ops = {
     .read = mmio_ide_status_read,
-    .write = mmio_ide_cmd_write,
+    .write = mmio_ide_ctrl_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
