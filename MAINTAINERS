@@ -1577,7 +1577,7 @@ F: tests/qtest/ide-test.c
 F: tests/qtest/ahci-test.c
 F: tests/qtest/cdrom-test.c
 F: tests/qtest/libqos/ahci*
-T: git https://github.com/jnsnow/qemu.git ide
+T: git https://gitlab.com/jsnow/qemu.git ide
 
 IPMI
 M: Corey Minyard <minyard@acm.org>
@@ -1595,7 +1595,7 @@ S: Supported
 F: hw/block/fdc.c
 F: include/hw/block/fdc.h
 F: tests/qtest/fdc-test.c
-T: git https://github.com/jnsnow/qemu.git ide
+T: git https://gitlab.com/jsnow/qemu.git ide
 
 OMAP
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -2169,7 +2169,7 @@ F: block/commit.c
 F: block/stream.c
 F: block/mirror.c
 F: qapi/job.json
-T: git https://github.com/jnsnow/qemu.git jobs
+T: git https://gitlab.com/jsnow/qemu.git jobs
 
 Block QAPI, monitor, command line
 M: Markus Armbruster <armbru@redhat.com>
