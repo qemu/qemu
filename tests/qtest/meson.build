@@ -228,10 +228,15 @@ foreach dir : target_dirs
   endif
 
   target_base = dir.split('-')[0]
+  qtest_emulator = emulators['qemu-system-' + target_base]
   qtests = get_variable('qtests_' + target_base, []) + qtests_generic
 
+  test_deps = []
   qtest_env = environment()
-  qtest_env.set('QTEST_QEMU_IMG', './qemu-img')
+  if have_tools
+    qtest_env.set('QTEST_QEMU_IMG', './qemu-img')
+    test_deps += [qemu_img]
+  endif
   qtest_env.set('G_TEST_DBUS_DAEMON', meson.source_root() / 'tests/dbus-vmstate-daemon.sh')
   qtest_env.set('QTEST_QEMU_BINARY', './qemu-system-' + target_base)
   
@@ -248,6 +253,7 @@ foreach dir : target_dirs
     # FIXME: missing dependency on the emulator binary and qemu-img
     test('qtest-@0@: @1@'.format(target_base, test),
          qtest_executables[test],
+         depends: [test_deps, qtest_emulator],
          env: qtest_env,
          args: ['--tap', '-k'],
          protocol: 'tap',

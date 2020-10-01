@@ -19,6 +19,7 @@
 #endif
 #include "qemu/queue.h"
 #include "qemu/module.h"
+#include "qemu/cutils.h"
 #ifdef CONFIG_MODULE_UPGRADES
 #include "qemu-version.h"
 #endif
@@ -172,7 +173,6 @@ bool module_load_one(const char *prefix, const char *lib_name)
 
 #ifdef CONFIG_MODULES
     char *fname = NULL;
-    char *exec_dir;
 #ifdef CONFIG_MODULE_UPGRADES
     char *version_dir;
 #endif
@@ -199,13 +199,12 @@ bool module_load_one(const char *prefix, const char *lib_name)
         return true;
     }
 
-    exec_dir = qemu_get_exec_dir();
     search_dir = getenv("QEMU_MODULE_DIR");
     if (search_dir != NULL) {
         dirs[n_dirs++] = g_strdup_printf("%s", search_dir);
     }
-    dirs[n_dirs++] = g_strdup_printf("%s", CONFIG_QEMU_MODDIR);
-    dirs[n_dirs++] = g_strdup_printf("%s", exec_dir ? : "");
+    dirs[n_dirs++] = get_relocated_path(CONFIG_QEMU_MODDIR);
+    dirs[n_dirs++] = g_strdup(qemu_get_exec_dir());
 
 #ifdef CONFIG_MODULE_UPGRADES
     version_dir = g_strcanon(g_strdup(QEMU_PKGVERSION),
@@ -215,9 +214,6 @@ bool module_load_one(const char *prefix, const char *lib_name)
 #endif
 
     assert(n_dirs <= ARRAY_SIZE(dirs));
-
-    g_free(exec_dir);
-    exec_dir = NULL;
 
     for (i = 0; i < n_dirs; i++) {
         fname = g_strdup_printf("%s/%s%s",

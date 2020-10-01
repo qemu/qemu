@@ -216,10 +216,11 @@ mips_mipssim_init(MachineState *machine)
      * MIPS CPU INT2, which is interrupt 4.
      */
     if (serial_hd(0)) {
-        DeviceState *dev = qdev_new(TYPE_SERIAL_IO);
+        DeviceState *dev = qdev_new(TYPE_SERIAL_MM);
 
         qdev_prop_set_chr(dev, "chardev", serial_hd(0));
-        qdev_set_legacy_instance_id(dev, 0x3f8, 2);
+        qdev_prop_set_uint8(dev, "regshift", 0);
+        qdev_prop_set_uint8(dev, "endianness", DEVICE_LITTLE_ENDIAN);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, env->irq[4]);
         sysbus_add_io(SYS_BUS_DEVICE(dev), 0x3f8,

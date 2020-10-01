@@ -3137,7 +3137,7 @@ static bool prepare_mmio_access(MemoryRegion *mr)
     bool unlocked = !qemu_mutex_iothread_locked();
     bool release_lock = false;
 
-    if (unlocked && mr->global_locking) {
+    if (unlocked) {
         qemu_mutex_lock_iothread();
         unlocked = false;
         release_lock = true;

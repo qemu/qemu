@@ -56,7 +56,7 @@ test_qapi_files = custom_target('Test QAPI files',
 # perhaps change qapi_gen to replace / with _, like Meson itself does?
 subdir('include')
 
-libtestqapi = static_library('testqapi', sources: [test_qapi_files, test_qapi_outputs_extra])
+libtestqapi = static_library('testqapi', sources: [test_qapi_files, genh, test_qapi_outputs_extra])
 testqapi = declare_dependency(link_with: libtestqapi)
 
 testblock = declare_dependency(dependencies: [block], sources: 'iothread.c')
@@ -232,7 +232,7 @@ foreach test_name, extra: tests
     src += test_ss.all_sources()
     deps += test_ss.all_dependencies()
   endif
-  exe = executable(test_name, src, dependencies: deps)
+  exe = executable(test_name, src, genh, dependencies: deps)
 
   test(test_name, exe,
        depends: test_deps.get(test_name, []),
@@ -251,12 +251,11 @@ foreach bench_name, deps: benchs
             suite: ['speed'])
 endforeach
 
-if have_tools and 'CONFIG_VHOST_USER' in config_host
+if have_tools and 'CONFIG_VHOST_USER' in config_host and 'CONFIG_LINUX' in config_host
   executable('vhost-user-bridge',
              sources: files('vhost-user-bridge.c'),
              link_with: [libvhost_user],
-             dependencies: [qemuutil],
-             build_by_default: false)
+             dependencies: [qemuutil])
 endif
 
 if have_system and 'CONFIG_POSIX' in config_host

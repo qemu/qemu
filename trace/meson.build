@@ -70,7 +70,6 @@ foreach d : [
                 output: d[0],
                 input: meson.source_root() / 'trace-events',
                 command: [ tracetool, '--group=root', '--format=@0@'.format(d[1]), '@INPUT@' ],
-                build_by_default: true, # to be removed when added to a target
                 capture: true)
   specific_ss.add(gen)
 endforeach

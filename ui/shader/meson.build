@@ -9,7 +9,6 @@ foreach e : shaders
   genh += custom_target(output,
                 output: output,
                 capture: true,
-                build_by_default: true, # to be removed when added to a target
                 input: files('@0@.@1@'.format(e[0], e[1])),
                 command: [shaderinclude, '@INPUT0@'])
 endforeach

@@ -184,4 +184,16 @@ int uleb128_decode_small(const uint8_t *in, uint32_t *n);
  */
 int qemu_pstrcmp0(const char **str1, const char **str2);
 
+
+/**
+ * get_relocated_path:
+ * @dir: the directory (typically a `CONFIG_*DIR` variable) to be relocated.
+ *
+ * Returns a path for @dir that uses the directory of the running executable
+ * as the prefix.  For example, if `bindir` is `/usr/bin` and @dir is
+ * `/usr/share/qemu`, the function will append `../share/qemu` to the
+ * directory that contains the running executable and return the result.
+ */
+char *get_relocated_path(const char *dir);
+
 #endif
