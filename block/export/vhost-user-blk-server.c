@@ -21,7 +21,7 @@
 #include "util/block-helpers.h"
 
 enum {
-    VHOST_USER_BLK_MAX_QUEUES = 1,
+    VHOST_USER_BLK_NUM_QUEUES_DEFAULT = 1,
 };
 struct virtio_blk_inhdr {
     unsigned char status;
@@ -242,6 +242,7 @@ static uint64_t vu_blk_get_features(VuDev *dev)
                1ull << VIRTIO_BLK_F_DISCARD |
                1ull << VIRTIO_BLK_F_WRITE_ZEROES |
                1ull << VIRTIO_BLK_F_CONFIG_WCE |
+               1ull << VIRTIO_BLK_F_MQ |
                1ull << VIRTIO_F_VERSION_1 |
                1ull << VIRTIO_RING_F_INDIRECT_DESC |
                1ull << VIRTIO_RING_F_EVENT_IDX |
@@ -338,7 +339,9 @@ static void blk_aio_detach(void *opaque)
 
 static void
 vu_blk_initialize_config(BlockDriverState *bs,
-                           struct virtio_blk_config *config, uint32_t blk_size)
+                         struct virtio_blk_config *config,
+                         uint32_t blk_size,
+                         uint16_t num_queues)
 {
     config->capacity = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
     config->blk_size = blk_size;
@@ -346,7 +349,7 @@ vu_blk_initialize_config(BlockDriverState *bs,
     config->seg_max = 128 - 2;
     config->min_io_size = 1;
     config->opt_io_size = 1;
-    config->num_queues = VHOST_USER_BLK_MAX_QUEUES;
+    config->num_queues = num_queues;
     config->max_discard_sectors = 32768;
     config->max_discard_seg = 1;
     config->discard_sector_alignment = config->blk_size >> 9;
@@ -368,6 +371,7 @@ static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
     BlockExportOptionsVhostUserBlk *vu_opts = &opts->u.vhost_user_blk;
     Error *local_err = NULL;
     uint64_t logical_block_size;
+    uint16_t num_queues = VHOST_USER_BLK_NUM_QUEUES_DEFAULT;
 
     vexp->writable = opts->writable;
     vexp->blkcfg.wce = 0;
@@ -385,15 +389,23 @@ static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
     }
     vexp->blk_size = logical_block_size;
     blk_set_guest_block_size(exp->blk, logical_block_size);
+
+    if (vu_opts->has_num_queues) {
+        num_queues = vu_opts->num_queues;
+    }
+    if (num_queues == 0) {
+        error_setg(errp, "num-queues must be greater than 0");
+        return -EINVAL;
+    }
+
     vu_blk_initialize_config(blk_bs(exp->blk), &vexp->blkcfg,
-                               logical_block_size);
+                             logical_block_size, num_queues);
 
     blk_add_aio_context_notifier(exp->blk, blk_aio_attached, blk_aio_detach,
                                  vexp);
 
     if (!vhost_user_server_start(&vexp->vu_server, vu_opts->addr, exp->ctx,
-                                 VHOST_USER_BLK_MAX_QUEUES, &vu_blk_iface,
-                                 errp)) {
+                                 num_queues, &vu_blk_iface, errp)) {
         blk_remove_aio_context_notifier(exp->blk, blk_aio_attached,
                                         blk_aio_detach, vexp);
         return -EADDRNOTAVAIL;

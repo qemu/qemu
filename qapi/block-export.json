@@ -93,11 +93,15 @@
 #        SocketAddress types are supported. Passed fds must be UNIX domain
 #        sockets.
 # @logical-block-size: Logical block size in bytes. Defaults to 512 bytes.
+# @num-queues: Number of request virtqueues. Must be greater than 0. Defaults
+#              to 1.
 #
 # Since: 5.2
 ##
 { 'struct': 'BlockExportOptionsVhostUserBlk',
-  'data': { 'addr': 'SocketAddress', '*logical-block-size': 'size' } }
+  'data': { 'addr': 'SocketAddress',
+	    '*logical-block-size': 'size',
+            '*num-queues': 'uint16'} }
 
 ##
 # @NbdServerAddOptions:
@@ -233,8 +237,8 @@
 { 'union': 'BlockExportOptions',
   'base': { 'type': 'BlockExportType',
             'id': 'str',
-	    '*fixed-iothread': 'bool',
-	    '*iothread': 'str',
+            '*fixed-iothread': 'bool',
+            '*iothread': 'str',
             'node-name': 'str',
             '*writable': 'bool',
             '*writethrough': 'bool' },
