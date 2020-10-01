@@ -2689,7 +2689,7 @@ static bool trans_SPLICE(DisasContext *s, arg_rprr_esz *a)
 {
     if (sve_access_check(s)) {
         gen_gvec_ool_zzzp(s, gen_helper_sve_splice,
-                          a->rd, a->rn, a->rm, a->pg, 0);
+                          a->rd, a->rn, a->rm, a->pg, a->esz);
     }
     return true;
 }
@@ -4290,7 +4290,7 @@ static void do_ldr(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
         for (i = 0; i < len_align; i += 8) {
             tcg_gen_qemu_ld_i64(t0, clean_addr, midx, MO_LEQ);
             tcg_gen_st_i64(t0, cpu_env, vofs + i);
-            tcg_gen_addi_i64(clean_addr, cpu_reg_sp(s, rn), 8);
+            tcg_gen_addi_i64(clean_addr, clean_addr, 8);
         }
         tcg_temp_free_i64(t0);
     } else {
@@ -4379,7 +4379,7 @@ static void do_str(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
         for (i = 0; i < len_align; i += 8) {
             tcg_gen_ld_i64(t0, cpu_env, vofs + i);
             tcg_gen_qemu_st_i64(t0, clean_addr, midx, MO_LEQ);
-            tcg_gen_addi_i64(clean_addr, cpu_reg_sp(s, rn), 8);
+            tcg_gen_addi_i64(clean_addr, clean_addr, 8);
         }
         tcg_temp_free_i64(t0);
     } else {
