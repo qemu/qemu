@@ -349,4 +349,5 @@ DEF_HELPER_3(sic, void, env, i64, i64)
 DEF_HELPER_3(rpcit, void, env, i32, i32)
 DEF_HELPER_5(pcistb, void, env, i32, i32, i64, i32)
 DEF_HELPER_4(mpcifc, void, env, i32, i64, i32)
+DEF_HELPER_3(monitor_call, void, env, i64, i32)
 #endif
