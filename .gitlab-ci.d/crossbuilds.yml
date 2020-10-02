@@ -2,6 +2,7 @@
 .cross_system_build_job_template: &cross_system_build_job_definition
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  timeout: 80m
   script:
     - mkdir build
     - cd build
@@ -105,9 +106,9 @@ cross-s390x-user:
 cross-win32-system:
   <<: *cross_system_build_job_definition
   variables:
-    IMAGE: debian-win32-cross
+    IMAGE: fedora-win32-cross
 
 cross-win64-system:
   <<: *cross_system_build_job_definition
   variables:
-    IMAGE: debian-win64-cross
+    IMAGE: fedora-win64-cross
