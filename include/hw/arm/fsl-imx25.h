@@ -179,7 +179,7 @@ struct FslIMX25State {
  * 0xBB00_0000 0xBB00_0FFF 4 Kbytes     NAND flash main area buffer
  * 0xBB00_1000 0xBB00_11FF 512 B        NAND flash spare area buffer
  * 0xBB00_1200 0xBB00_1DFF 3 Kbytes     Reserved
- * 0xBB00_1E00 0xBB00_1FFF 512 B        NAND flash control regisers
+ * 0xBB00_1E00 0xBB00_1FFF 512 B        NAND flash control registers
  * 0xBB01_2000 0xBFFF_FFFF 96 Mbytes (minus 8 Kbytes) Reserved
  * 0xC000_0000 0xFFFF_FFFF 1024 Mbytes  Reserved
  */
