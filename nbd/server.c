@@ -18,6 +18,8 @@
  */
 
 #include "qemu/osdep.h"
+
+#include "block/export.h"
 #include "qapi/error.h"
 #include "qemu/queue.h"
 #include "trace.h"
@@ -80,19 +82,14 @@ struct NBDRequestData {
 };
 
 struct NBDExport {
-    int refcount;
-    void (*close)(NBDExport *exp);
+    BlockExport common;
 
-    BlockBackend *blk;
     char *name;
     char *description;
-    uint64_t dev_offset;
     uint64_t size;
     uint16_t nbdflags;
     QTAILQ_HEAD(, NBDClient) clients;
     QTAILQ_ENTRY(NBDExport) next;
-
-    AioContext *ctx;
 
     BlockBackend *eject_notifier_blk;
     Notifier eject_notifier;
@@ -102,8 +99,6 @@ struct NBDExport {
 };
 
 static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
-static QTAILQ_HEAD(, NBDExport) closed_exports =
-        QTAILQ_HEAD_INITIALIZER(closed_exports);
 
 /* NBDExportMetaContexts represents a list of contexts to be exported,
  * as selected by NBD_OPT_SET_META_CONTEXT. Also used for
@@ -498,7 +493,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
     }
 
     QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
-    nbd_export_get(client->exp);
+    blk_exp_ref(&client->exp->common);
     nbd_check_meta_export(client);
 
     return 0;
@@ -647,7 +642,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
      * whether this is OPT_INFO or OPT_GO. */
     /* minimum - 1 for back-compat, or actual if client will obey it. */
     if (client->opt == NBD_OPT_INFO || blocksize) {
-        check_align = sizes[0] = blk_get_request_alignment(exp->blk);
+        check_align = sizes[0] = blk_get_request_alignment(exp->common.blk);
     } else {
         sizes[0] = 1;
     }
@@ -656,7 +651,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
      * TODO: is blk_bs(blk)->bl.opt_transfer appropriate? */
     sizes[1] = MAX(4096, sizes[0]);
     /* maximum - At most 32M, but smaller as appropriate. */
-    sizes[2] = MIN(blk_get_max_transfer(exp->blk), NBD_MAX_BUFFER_SIZE);
+    sizes[2] = MIN(blk_get_max_transfer(exp->common.blk), NBD_MAX_BUFFER_SIZE);
     trace_nbd_negotiate_handle_info_block_size(sizes[0], sizes[1], sizes[2]);
     sizes[0] = cpu_to_be32(sizes[0]);
     sizes[1] = cpu_to_be32(sizes[1]);
@@ -688,7 +683,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
      * tolerate all clients, regardless of alignments.
      */
     if (client->opt == NBD_OPT_INFO && !blocksize &&
-        blk_get_request_alignment(exp->blk) > 1) {
+        blk_get_request_alignment(exp->common.blk) > 1) {
         return nbd_negotiate_send_rep_err(client,
                                           NBD_REP_ERR_BLOCK_SIZE_REQD,
                                           errp,
@@ -706,7 +701,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
         client->exp = exp;
         client->check_align = check_align;
         QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
-        nbd_export_get(client->exp);
+        blk_exp_ref(&client->exp->common);
         nbd_check_meta_export(client);
         rc = 1;
     }
@@ -1333,8 +1328,8 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
     }
 
     /* Attach the channel to the same AioContext as the export */
-    if (client->exp && client->exp->ctx) {
-        qio_channel_attach_aio_context(client->ioc, client->exp->ctx);
+    if (client->exp && client->exp->common.ctx) {
+        qio_channel_attach_aio_context(client->ioc, client->exp->common.ctx);
     }
 
     assert(!client->optlen);
@@ -1405,7 +1400,7 @@ void nbd_client_put(NBDClient *client)
         g_free(client->tlsauthz);
         if (client->exp) {
             QTAILQ_REMOVE(&client->exp->clients, client, next);
-            nbd_export_put(client->exp);
+            blk_exp_unref(&client->exp->common);
         }
         g_free(client);
     }
@@ -1466,7 +1461,7 @@ static void blk_aio_attached(AioContext *ctx, void *opaque)
 
     trace_nbd_blk_aio_attached(exp->name, ctx);
 
-    exp->ctx = ctx;
+    exp->common.ctx = ctx;
 
     QTAILQ_FOREACH(client, &exp->clients, next) {
         qio_channel_attach_aio_context(client->ioc, ctx);
@@ -1484,72 +1479,92 @@ static void blk_aio_detach(void *opaque)
     NBDExport *exp = opaque;
     NBDClient *client;
 
-    trace_nbd_blk_aio_detach(exp->name, exp->ctx);
+    trace_nbd_blk_aio_detach(exp->name, exp->common.ctx);
 
     QTAILQ_FOREACH(client, &exp->clients, next) {
         qio_channel_detach_aio_context(client->ioc);
     }
 
-    exp->ctx = NULL;
+    exp->common.ctx = NULL;
 }
 
 static void nbd_eject_notifier(Notifier *n, void *data)
 {
     NBDExport *exp = container_of(n, NBDExport, eject_notifier);
-    AioContext *aio_context;
 
-    aio_context = exp->ctx;
-    aio_context_acquire(aio_context);
-    nbd_export_close(exp);
-    aio_context_release(aio_context);
+    blk_exp_request_shutdown(&exp->common);
 }
 
-NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
-                          uint64_t size, const char *name, const char *desc,
-                          const char *bitmap, bool readonly, bool shared,
-                          void (*close)(NBDExport *), bool writethrough,
-                          BlockBackend *on_eject_blk, Error **errp)
+void nbd_export_set_on_eject_blk(BlockExport *exp, BlockBackend *blk)
 {
-    AioContext *ctx;
-    BlockBackend *blk;
-    NBDExport *exp = g_new0(NBDExport, 1);
-    uint64_t perm;
+    NBDExport *nbd_exp = container_of(exp, NBDExport, common);
+    assert(exp->drv == &blk_exp_nbd);
+    assert(nbd_exp->eject_notifier_blk == NULL);
+
+    blk_ref(blk);
+    nbd_exp->eject_notifier_blk = blk;
+    nbd_exp->eject_notifier.notify = nbd_eject_notifier;
+    blk_add_remove_bs_notifier(blk, &nbd_exp->eject_notifier);
+}
+
+static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
+                             Error **errp)
+{
+    NBDExport *exp = container_of(blk_exp, NBDExport, common);
+    BlockExportOptionsNbd *arg = &exp_args->u.nbd;
+    BlockBackend *blk = blk_exp->blk;
+    int64_t size;
+    uint64_t perm, shared_perm;
+    bool readonly = !exp_args->writable;
+    bool shared = !exp_args->writable;
     int ret;
 
-    /*
-     * NBD exports are used for non-shared storage migration.  Make sure
-     * that BDRV_O_INACTIVE is cleared and the image is ready for write
-     * access since the export could be available before migration handover.
-     * ctx was acquired in the caller.
-     */
-    assert(name && strlen(name) <= NBD_MAX_STRING_SIZE);
-    ctx = bdrv_get_aio_context(bs);
-    bdrv_invalidate_cache(bs, NULL);
+    assert(exp_args->type == BLOCK_EXPORT_TYPE_NBD);
+
+    if (!nbd_server_is_running()) {
+        error_setg(errp, "NBD server not running");
+        return -EINVAL;
+    }
+
+    if (!arg->has_name) {
+        arg->name = exp_args->node_name;
+    }
+
+    if (strlen(arg->name) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "export name '%s' too long", arg->name);
+        return -EINVAL;
+    }
+
+    if (arg->description && strlen(arg->description) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "description '%s' too long", arg->description);
+        return -EINVAL;
+    }
+
+    if (nbd_export_find(arg->name)) {
+        error_setg(errp, "NBD server already has export named '%s'", arg->name);
+        return -EEXIST;
+    }
+
+    size = blk_getlength(blk);
+    if (size < 0) {
+        error_setg_errno(errp, -size,
+                         "Failed to determine the NBD export's length");
+        return size;
+    }
 
     /* Don't allow resize while the NBD server is running, otherwise we don't
      * care what happens with the node. */
-    perm = BLK_PERM_CONSISTENT_READ;
-    if (!readonly) {
-        perm |= BLK_PERM_WRITE;
-    }
-    blk = blk_new(ctx, perm,
-                  BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
-                  BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD);
-    ret = blk_insert_bs(blk, bs, errp);
+    blk_get_perm(blk, &perm, &shared_perm);
+    ret = blk_set_perm(blk, perm, shared_perm & ~BLK_PERM_RESIZE, errp);
     if (ret < 0) {
-        goto fail;
+        return ret;
     }
-    blk_set_enable_write_cache(blk, !writethrough);
+
     blk_set_allow_aio_context_change(blk, true);
 
-    exp->refcount = 1;
     QTAILQ_INIT(&exp->clients);
-    exp->blk = blk;
-    assert(dev_offset <= INT64_MAX);
-    exp->dev_offset = dev_offset;
-    exp->name = g_strdup(name);
-    assert(!desc || strlen(desc) <= NBD_MAX_STRING_SIZE);
-    exp->description = g_strdup(desc);
+    exp->name = g_strdup(arg->name);
+    exp->description = g_strdup(arg->description);
     exp->nbdflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_FLUSH |
                      NBD_FLAG_SEND_FUA | NBD_FLAG_SEND_CACHE);
     if (readonly) {
@@ -1561,14 +1576,14 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
         exp->nbdflags |= (NBD_FLAG_SEND_TRIM | NBD_FLAG_SEND_WRITE_ZEROES |
                           NBD_FLAG_SEND_FAST_ZERO);
     }
-    assert(size <= INT64_MAX - dev_offset);
     exp->size = QEMU_ALIGN_DOWN(size, BDRV_SECTOR_SIZE);
 
-    if (bitmap) {
+    if (arg->bitmap) {
+        BlockDriverState *bs = blk_bs(blk);
         BdrvDirtyBitmap *bm = NULL;
 
         while (bs) {
-            bm = bdrv_find_dirty_bitmap(bs, bitmap);
+            bm = bdrv_find_dirty_bitmap(bs, arg->bitmap);
             if (bm != NULL) {
                 break;
             }
@@ -1577,50 +1592,43 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
         }
 
         if (bm == NULL) {
-            error_setg(errp, "Bitmap '%s' is not found", bitmap);
+            ret = -ENOENT;
+            error_setg(errp, "Bitmap '%s' is not found", arg->bitmap);
             goto fail;
         }
 
         if (bdrv_dirty_bitmap_check(bm, BDRV_BITMAP_ALLOW_RO, errp)) {
+            ret = -EINVAL;
             goto fail;
         }
 
         if (readonly && bdrv_is_writable(bs) &&
             bdrv_dirty_bitmap_enabled(bm)) {
+            ret = -EINVAL;
             error_setg(errp,
                        "Enabled bitmap '%s' incompatible with readonly export",
-                       bitmap);
+                       arg->bitmap);
             goto fail;
         }
 
         bdrv_dirty_bitmap_set_busy(bm, true);
         exp->export_bitmap = bm;
-        assert(strlen(bitmap) <= BDRV_BITMAP_MAX_NAME_SIZE);
+        assert(strlen(arg->bitmap) <= BDRV_BITMAP_MAX_NAME_SIZE);
         exp->export_bitmap_context = g_strdup_printf("qemu:dirty-bitmap:%s",
-                                                     bitmap);
+                                                     arg->bitmap);
         assert(strlen(exp->export_bitmap_context) < NBD_MAX_STRING_SIZE);
     }
 
-    exp->close = close;
-    exp->ctx = ctx;
     blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
 
-    if (on_eject_blk) {
-        blk_ref(on_eject_blk);
-        exp->eject_notifier_blk = on_eject_blk;
-        exp->eject_notifier.notify = nbd_eject_notifier;
-        blk_add_remove_bs_notifier(on_eject_blk, &exp->eject_notifier);
-    }
     QTAILQ_INSERT_TAIL(&exports, exp, next);
-    nbd_export_get(exp);
-    return exp;
+
+    return 0;
 
 fail:
-    blk_unref(blk);
     g_free(exp->name);
     g_free(exp->description);
-    g_free(exp);
-    return NULL;
+    return ret;
 }
 
 NBDExport *nbd_export_find(const char *name)
@@ -1638,14 +1646,15 @@ NBDExport *nbd_export_find(const char *name)
 AioContext *
 nbd_export_aio_context(NBDExport *exp)
 {
-    return exp->ctx;
+    return exp->common.ctx;
 }
 
-void nbd_export_close(NBDExport *exp)
+static void nbd_export_request_shutdown(BlockExport *blk_exp)
 {
+    NBDExport *exp = container_of(blk_exp, NBDExport, common);
     NBDClient *client, *next;
 
-    nbd_export_get(exp);
+    blk_exp_ref(&exp->common);
     /*
      * TODO: Should we expand QMP NbdServerRemoveNode enum to allow a
      * close mode that stops advertising the export to new clients but
@@ -1657,100 +1666,45 @@ void nbd_export_close(NBDExport *exp)
         client_close(client, true);
     }
     if (exp->name) {
-        nbd_export_put(exp);
         g_free(exp->name);
         exp->name = NULL;
         QTAILQ_REMOVE(&exports, exp, next);
-        QTAILQ_INSERT_TAIL(&closed_exports, exp, next);
     }
+    blk_exp_unref(&exp->common);
+}
+
+static void nbd_export_delete(BlockExport *blk_exp)
+{
+    NBDExport *exp = container_of(blk_exp, NBDExport, common);
+
+    assert(exp->name == NULL);
+    assert(QTAILQ_EMPTY(&exp->clients));
+
     g_free(exp->description);
     exp->description = NULL;
-    nbd_export_put(exp);
-}
 
-void nbd_export_remove(NBDExport *exp, NbdServerRemoveMode mode, Error **errp)
-{
-    ERRP_GUARD();
-    if (mode == NBD_SERVER_REMOVE_MODE_HARD || QTAILQ_EMPTY(&exp->clients)) {
-        nbd_export_close(exp);
-        return;
-    }
-
-    assert(mode == NBD_SERVER_REMOVE_MODE_SAFE);
-
-    error_setg(errp, "export '%s' still in use", exp->name);
-    error_append_hint(errp, "Use mode='hard' to force client disconnect\n");
-}
-
-void nbd_export_get(NBDExport *exp)
-{
-    assert(exp->refcount > 0);
-    exp->refcount++;
-}
-
-void nbd_export_put(NBDExport *exp)
-{
-    assert(exp->refcount > 0);
-    if (exp->refcount == 1) {
-        nbd_export_close(exp);
-    }
-
-    /* nbd_export_close() may theoretically reduce refcount to 0. It may happen
-     * if someone calls nbd_export_put() on named export not through
-     * nbd_export_set_name() when refcount is 1. So, let's assert that
-     * it is > 0.
-     */
-    assert(exp->refcount > 0);
-    if (--exp->refcount == 0) {
-        assert(exp->name == NULL);
-        assert(exp->description == NULL);
-
-        if (exp->close) {
-            exp->close(exp);
+    if (exp->common.blk) {
+        if (exp->eject_notifier_blk) {
+            notifier_remove(&exp->eject_notifier);
+            blk_unref(exp->eject_notifier_blk);
         }
+        blk_remove_aio_context_notifier(exp->common.blk, blk_aio_attached,
+                                        blk_aio_detach, exp);
+    }
 
-        if (exp->blk) {
-            if (exp->eject_notifier_blk) {
-                notifier_remove(&exp->eject_notifier);
-                blk_unref(exp->eject_notifier_blk);
-            }
-            blk_remove_aio_context_notifier(exp->blk, blk_aio_attached,
-                                            blk_aio_detach, exp);
-            blk_unref(exp->blk);
-            exp->blk = NULL;
-        }
-
-        if (exp->export_bitmap) {
-            bdrv_dirty_bitmap_set_busy(exp->export_bitmap, false);
-            g_free(exp->export_bitmap_context);
-        }
-
-        QTAILQ_REMOVE(&closed_exports, exp, next);
-        g_free(exp);
-        aio_wait_kick();
+    if (exp->export_bitmap) {
+        bdrv_dirty_bitmap_set_busy(exp->export_bitmap, false);
+        g_free(exp->export_bitmap_context);
     }
 }
 
-BlockBackend *nbd_export_get_blockdev(NBDExport *exp)
-{
-    return exp->blk;
-}
-
-void nbd_export_close_all(void)
-{
-    NBDExport *exp, *next;
-    AioContext *aio_context;
-
-    QTAILQ_FOREACH_SAFE(exp, &exports, next, next) {
-        aio_context = exp->ctx;
-        aio_context_acquire(aio_context);
-        nbd_export_close(exp);
-        aio_context_release(aio_context);
-    }
-
-    AIO_WAIT_WHILE(NULL, !(QTAILQ_EMPTY(&exports) &&
-                           QTAILQ_EMPTY(&closed_exports)));
-}
+const BlockExportDriver blk_exp_nbd = {
+    .type               = BLOCK_EXPORT_TYPE_NBD,
+    .instance_size      = sizeof(NBDExport),
+    .create             = nbd_export_create,
+    .delete             = nbd_export_delete,
+    .request_shutdown   = nbd_export_request_shutdown,
+};
 
 static int coroutine_fn nbd_co_send_iov(NBDClient *client, struct iovec *iov,
                                         unsigned niov, Error **errp)
@@ -1888,7 +1842,7 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
 
     while (progress < size) {
         int64_t pnum;
-        int status = bdrv_block_status_above(blk_bs(exp->blk), NULL,
+        int status = bdrv_block_status_above(blk_bs(exp->common.blk), NULL,
                                              offset + progress,
                                              size - progress, &pnum, NULL,
                                              NULL);
@@ -1920,7 +1874,7 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
             stl_be_p(&chunk.length, pnum);
             ret = nbd_co_send_iov(client, iov, 1, errp);
         } else {
-            ret = blk_pread(exp->blk, offset + progress + exp->dev_offset,
+            ret = blk_pread(exp->common.blk, offset + progress,
                             data + progress, pnum);
             if (ret < 0) {
                 error_setg_errno(errp, -ret, "reading from file failed");
@@ -2185,7 +2139,8 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         }
 
         if (request->type != NBD_CMD_CACHE) {
-            req->data = blk_try_blockalign(client->exp->blk, request->len);
+            req->data = blk_try_blockalign(client->exp->common.blk,
+                                           request->len);
             if (req->data == NULL) {
                 error_setg(errp, "No memory");
                 return -ENOMEM;
@@ -2281,7 +2236,7 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
 
     /* XXX: NBD Protocol only documents use of FUA with WRITE */
     if (request->flags & NBD_CMD_FLAG_FUA) {
-        ret = blk_co_flush(exp->blk);
+        ret = blk_co_flush(exp->common.blk);
         if (ret < 0) {
             return nbd_send_generic_reply(client, request->handle, ret,
                                           "flush failed", errp);
@@ -2295,8 +2250,7 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
                                        data, request->len, errp);
     }
 
-    ret = blk_pread(exp->blk, request->from + exp->dev_offset, data,
-                    request->len);
+    ret = blk_pread(exp->common.blk, request->from, data, request->len);
     if (ret < 0) {
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "reading from file failed", errp);
@@ -2331,7 +2285,7 @@ static coroutine_fn int nbd_do_cmd_cache(NBDClient *client, NBDRequest *request,
 
     assert(request->type == NBD_CMD_CACHE);
 
-    ret = blk_co_preadv(exp->blk, request->from + exp->dev_offset, request->len,
+    ret = blk_co_preadv(exp->common.blk, request->from, request->len,
                         NULL, BDRV_REQ_COPY_ON_READ | BDRV_REQ_PREFETCH);
 
     return nbd_send_generic_reply(client, request->handle, ret,
@@ -2362,8 +2316,8 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         if (request->flags & NBD_CMD_FLAG_FUA) {
             flags |= BDRV_REQ_FUA;
         }
-        ret = blk_pwrite(exp->blk, request->from + exp->dev_offset,
-                         data, request->len, flags);
+        ret = blk_pwrite(exp->common.blk, request->from, data, request->len,
+                         flags);
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "writing to file failed", errp);
 
@@ -2384,8 +2338,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
             int align = client->check_align ?: 1;
             int len = MIN(request->len, QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
                                                         align));
-            ret = blk_pwrite_zeroes(exp->blk, request->from + exp->dev_offset,
-                                    len, flags);
+            ret = blk_pwrite_zeroes(exp->common.blk, request->from, len, flags);
             request->len -= len;
             request->from += len;
         }
@@ -2397,7 +2350,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         abort();
 
     case NBD_CMD_FLUSH:
-        ret = blk_co_flush(exp->blk);
+        ret = blk_co_flush(exp->common.blk);
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "flush failed", errp);
 
@@ -2408,13 +2361,12 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
             int align = client->check_align ?: 1;
             int len = MIN(request->len, QEMU_ALIGN_DOWN(BDRV_REQUEST_MAX_BYTES,
                                                         align));
-            ret = blk_co_pdiscard(exp->blk, request->from + exp->dev_offset,
-                                  len);
+            ret = blk_co_pdiscard(exp->common.blk, request->from, len);
             request->len -= len;
             request->from += len;
         }
         if (ret >= 0 && request->flags & NBD_CMD_FLAG_FUA) {
-            ret = blk_co_flush(exp->blk);
+            ret = blk_co_flush(exp->common.blk);
         }
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "discard failed", errp);
@@ -2432,7 +2384,8 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
 
             if (client->export_meta.base_allocation) {
                 ret = nbd_co_send_block_status(client, request->handle,
-                                               blk_bs(exp->blk), request->from,
+                                               blk_bs(exp->common.blk),
+                                               request->from,
                                                request->len, dont_fragment,
                                                !client->export_meta.bitmap,
                                                NBD_META_ID_BASE_ALLOCATION,
@@ -2546,7 +2499,7 @@ static void nbd_client_receive_next_request(NBDClient *client)
     if (!client->recv_coroutine && client->nb_requests < MAX_NBD_REQUESTS) {
         nbd_client_get(client);
         client->recv_coroutine = qemu_coroutine_create(nbd_trip, client);
-        aio_co_schedule(client->exp->ctx, client->recv_coroutine);
+        aio_co_schedule(client->exp->common.ctx, client->recv_coroutine);
     }
 }
 

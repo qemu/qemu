@@ -35,8 +35,8 @@
 #include "monitor/monitor-internal.h"
 
 #include "qapi/error.h"
-#include "qapi/qapi-visit-block.h"
 #include "qapi/qapi-visit-block-core.h"
+#include "qapi/qapi-visit-block-export.h"
 #include "qapi/qapi-visit-control.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
@@ -92,7 +92,7 @@ static void help(void)
 "  --chardev <options>    configure a character device backend\n"
 "                         (see the qemu(1) man page for possible options)\n"
 "\n"
-"  --export [type=]nbd,device=<node-name>[,name=<export-name>]\n"
+"  --export [type=]nbd,id=<id>,node-name=<node-name>[,name=<export-name>]\n"
 "           [,writable=on|off][,bitmap=<name>]\n"
 "                         export the specified block node over NBD\n"
 "                         (requires --nbd-server)\n"
@@ -101,9 +101,9 @@ static void help(void)
 "                         configure a QMP monitor\n"
 "\n"
 "  --nbd-server addr.type=inet,addr.host=<host>,addr.port=<port>\n"
-"               [,tls-creds=<id>][,tls-authz=<id>]\n"
+"               [,tls-creds=<id>][,tls-authz=<id>][,max-connections=<n>]\n"
 "  --nbd-server addr.type=unix,addr.path=<path>\n"
-"               [,tls-creds=<id>][,tls-authz=<id>]\n"
+"               [,tls-creds=<id>][,tls-authz=<id>][,max-connections=<n>]\n"
 "                         start an NBD server for exporting block nodes\n"
 "\n"
 "  --object help          list object types that can be added\n"
@@ -148,17 +148,6 @@ static void init_qmp_commands(void)
     QTAILQ_INIT(&qmp_cap_negotiation_commands);
     qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
                          qmp_marshal_qmp_capabilities, QCO_ALLOW_PRECONFIG);
-}
-
-static void init_export(BlockExport *export, Error **errp)
-{
-    switch (export->type) {
-    case BLOCK_EXPORT_TYPE_NBD:
-        qmp_nbd_server_add(&export->u.nbd, errp);
-        break;
-    default:
-        g_assert_not_reached();
-    }
 }
 
 static void process_options(int argc, char *argv[])
@@ -235,14 +224,14 @@ static void process_options(int argc, char *argv[])
         case OPTION_EXPORT:
             {
                 Visitor *v;
-                BlockExport *export;
+                BlockExportOptions *export;
 
                 v = qobject_input_visitor_new_str(optarg, "type", &error_fatal);
-                visit_type_BlockExport(v, NULL, &export, &error_fatal);
+                visit_type_BlockExportOptions(v, NULL, &export, &error_fatal);
                 visit_free(v);
 
-                init_export(export, &error_fatal);
-                qapi_free_BlockExport(export);
+                qmp_block_export_add(export, &error_fatal);
+                qapi_free_BlockExportOptions(export);
                 break;
             }
         case OPTION_MONITOR:

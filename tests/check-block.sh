@@ -46,6 +46,11 @@ if ! command -v bash >/dev/null 2>&1 ; then
     exit 0
 fi
 
+if LANG=C bash --version | grep -q 'GNU bash, version [123]' ; then
+    echo "bash version too old ==> Not running the qemu-iotests."
+    exit 0
+fi
+
 if ! (sed --version | grep 'GNU sed') > /dev/null 2>&1 ; then
     if ! command -v gsed >/dev/null 2>&1; then
         echo "GNU sed not available ==> Not running the qemu-iotests."

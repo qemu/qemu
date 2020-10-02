@@ -110,6 +110,8 @@ block_ss.add(module_block_h)
 block_ss.add(files('stream.c'))
 
 softmmu_ss.add(files('qapi-sysemu.c'))
+
+subdir('export')
 subdir('monitor')
 
 modules += {'block': block_modules}

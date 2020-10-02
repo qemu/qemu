@@ -1,0 +1,124 @@
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Launch VM ===
+{"execute": "nbd-server-start", "arguments": {"addr": {"data": {"path": "SOCK_DIR/PID-socket"}, "type": "unix"}}}
+{"return": {}}
+{"execute": "query-block-exports", "arguments": {}}
+{"return": []}
+
+=== Create a read-only NBD export ===
+{"execute": "block-export-add", "arguments": {"id": "export0", "node-name": "fmt", "type": "nbd"}}
+{"return": {}}
+{"execute": "query-block-exports", "arguments": {}}
+{"return": [{"id": "export0", "node-name": "fmt", "shutting-down": false, "type": "nbd"}]}
+exports available: 1
+ export: 'fmt'
+  size:  67108864
+  flags: 0x58f ( readonly flush fua df multi cache )
+  min block: XXX
+  opt block: XXX
+  max block: XXX
+  available meta contexts: 1
+   base:allocation
+
+
+=== Try a few invalid things ===
+{"execute": "block-export-add", "arguments": {"id": "#invalid", "node-name": "fmt", "type": "nbd"}}
+{"error": {"class": "GenericError", "desc": "Invalid block export id"}}
+{"execute": "block-export-add", "arguments": {"id": "export0", "node-name": "fmt", "type": "nbd"}}
+{"error": {"class": "GenericError", "desc": "Block export id 'export0' is already in use"}}
+{"execute": "block-export-add", "arguments": {"id": "export1", "node-name": "ro", "type": "nbd", "writable": true}}
+{"error": {"class": "GenericError", "desc": "Cannot export read-only node as writable"}}
+{"execute": "block-export-del", "arguments": {"id": "export1"}}
+{"error": {"class": "GenericError", "desc": "Export 'export1' is not found"}}
+{"execute": "query-block-exports", "arguments": {}}
+{"return": [{"id": "export0", "node-name": "fmt", "shutting-down": false, "type": "nbd"}]}
+
+=== Move export to an iothread ===
+{"execute": "device_add", "arguments": {"drive": "fmt", "driver": "scsi-hd", "id": "sda"}}
+{"return": {}}
+{"execute": "query-block-exports", "arguments": {}}
+{"return": [{"id": "export0", "node-name": "fmt", "shutting-down": false, "type": "nbd"}]}
+exports available: 1
+ export: 'fmt'
+  size:  67108864
+  flags: 0x58f ( readonly flush fua df multi cache )
+  min block: XXX
+  opt block: XXX
+  max block: XXX
+  available meta contexts: 1
+   base:allocation
+
+
+=== Add a writable export ===
+{"execute": "block-export-add", "arguments": {"description": "This is the writable second export", "id": "export1", "name": "export1", "node-name": "fmt", "type": "nbd", "writable": true, "writethrough": true}}
+{"error": {"class": "GenericError", "desc": "Conflicts with use by sda as 'root', which does not allow 'write' on fmt"}}
+{"execute": "device_del", "arguments": {"id": "sda"}}
+{"return": {}}
+{"data": {"device": "sda", "path": "/machine/peripheral/sda"}, "event": "DEVICE_DELETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "device_add", "arguments": {"drive": "fmt", "driver": "scsi-hd", "id": "sda", "share-rw": true}}
+{"return": {}}
+{"execute": "block-export-add", "arguments": {"description": "This is the writable second export", "id": "export1", "name": "export1", "node-name": "fmt", "type": "nbd", "writable": true, "writethrough": true}}
+{"return": {}}
+{"execute": "query-block-exports", "arguments": {}}
+{"return": [{"id": "export1", "node-name": "fmt", "shutting-down": false, "type": "nbd"}, {"id": "export0", "node-name": "fmt", "shutting-down": false, "type": "nbd"}]}
+exports available: 2
+ export: 'fmt'
+  size:  67108864
+  flags: 0x58f ( readonly flush fua df multi cache )
+  min block: XXX
+  opt block: XXX
+  max block: XXX
+  available meta contexts: 1
+   base:allocation
+ export: 'export1'
+  description: This is the writable second export
+  size:  67108864
+  flags: 0xced ( flush fua trim zeroes df cache fast-zero )
+  min block: XXX
+  opt block: XXX
+  max block: XXX
+  available meta contexts: 1
+   base:allocation
+
+
+=== Connect qemu-io to export1, try removing exports ===
+read 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+wrote 4096/4096 bytes at offset 4096
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+{"execute": "block-export-del", "arguments": {"id": "export1"}}
+{"error": {"class": "GenericError", "desc": "export 'export1' still in use"}}
+{"execute": "block-export-del", "arguments": {"id": "export0"}}
+{"return": {}}
+[{"data": {"id": "export0"}, "event": "BLOCK_EXPORT_DELETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}]
+{"execute": "query-block-exports", "arguments": {}}
+{"return": [{"id": "export1", "node-name": "fmt", "shutting-down": false, "type": "nbd"}]}
+exports available: 1
+ export: 'export1'
+  description: This is the writable second export
+  size:  67108864
+  flags: 0xced ( flush fua trim zeroes df cache fast-zero )
+  min block: XXX
+  opt block: XXX
+  max block: XXX
+  available meta contexts: 1
+   base:allocation
+
+
+=== Connect qemu-io again, try force removing ===
+{"execute": "block-export-del", "arguments": {"id": "export1"}}
+{"error": {"class": "GenericError", "desc": "export 'export1' still in use"}}
+{"execute": "block-export-del", "arguments": {"id": "export1", "mode": "hard"}}
+{"return": {}}
+read failed: Input/output error
+
+{"execute": "query-block-exports", "arguments": {}}
+{"return": []}
+exports available: 0
+
+
+=== Shut down QEMU ===

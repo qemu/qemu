@@ -81,10 +81,17 @@ $QEMU_IO_PROG -f raw -r -c 'read -P 42 0 64k' \
     "nbd+unix:///drv?socket=$SOCK_DIR/nbd" 2>&1 \
     | _filter_qemu_io | _filter_nbd
 
+# The order of 'return' and the BLOCK_EXPORT_DELETED event is undefined. Just
+# wait until we've twice seen one of them. Filter the 'return' line out so that
+# the output is defined.
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'eject',
        'arguments': { 'device': 'drv' }}" \
-    'return'
+    'return\|BLOCK_EXPORT_DELETED' |
+    grep -v 'return'
+
+_send_qemu_cmd $QEMU_HANDLE '' 'return\|BLOCK_EXPORT_DELETED' |
+    grep -v 'return'
 
 $QEMU_IO_PROG -f raw -r -c close \
     "nbd+unix:///drv?socket=$SOCK_DIR/nbd" 2>&1 \

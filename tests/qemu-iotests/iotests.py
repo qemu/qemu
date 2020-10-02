@@ -65,7 +65,8 @@ if os.environ.get('QEMU_IO_OPTIONS_NO_FMT'):
     qemu_io_args_no_fmt += \
         os.environ['QEMU_IO_OPTIONS_NO_FMT'].strip().split(' ')
 
-qemu_nbd_args = [os.environ.get('QEMU_NBD_PROG', 'qemu-nbd')]
+qemu_nbd_prog = os.environ.get('QEMU_NBD_PROG', 'qemu-nbd')
+qemu_nbd_args = [qemu_nbd_prog]
 if os.environ.get('QEMU_NBD_OPTIONS'):
     qemu_nbd_args += os.environ['QEMU_NBD_OPTIONS'].strip().split(' ')
 
@@ -88,20 +89,29 @@ luks_default_secret_object = 'secret,id=keysec0,data=' + \
 luks_default_key_secret_opt = 'key-secret=keysec0'
 
 
+def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
+                              connect_stderr: bool = True) -> Tuple[str, int]:
+    """
+    Run a tool and return both its output and its exit code
+    """
+    stderr = subprocess.STDOUT if connect_stderr else None
+    subp = subprocess.Popen(args,
+                            stdout=subprocess.PIPE,
+                            stderr=stderr,
+                            universal_newlines=True)
+    output = subp.communicate()[0]
+    if subp.returncode < 0:
+        sys.stderr.write('%s received signal %i: %s\n'
+                         % (tool, -subp.returncode,
+                            ' '.join(qemu_img_args + list(args))))
+    return (output, subp.returncode)
+
 def qemu_img_pipe_and_status(*args: str) -> Tuple[str, int]:
     """
     Run qemu-img and return both its output and its exit code
     """
-    subp = subprocess.Popen(qemu_img_args + list(args),
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT,
-                            universal_newlines=True)
-    output = subp.communicate()[0]
-    if subp.returncode < 0:
-        sys.stderr.write('qemu-img received signal %i: %s\n'
-                         % (-subp.returncode,
-                            ' '.join(qemu_img_args + list(args))))
-    return (output, subp.returncode)
+    full_args = qemu_img_args + list(args)
+    return qemu_tool_pipe_and_status('qemu-img', full_args)
 
 def qemu_img(*args: str) -> int:
     '''Run qemu-img and return the exit code'''
@@ -263,19 +273,20 @@ def qemu_nbd(*args):
     '''Run qemu-nbd in daemon mode and return the parent's exit code'''
     return subprocess.call(qemu_nbd_args + ['--fork'] + list(args))
 
-def qemu_nbd_early_pipe(*args):
+def qemu_nbd_early_pipe(*args: str) -> Tuple[int, str]:
     '''Run qemu-nbd in daemon mode and return both the parent's exit code
        and its output in case of an error'''
-    subp = subprocess.Popen(qemu_nbd_args + ['--fork'] + list(args),
-                            stdout=subprocess.PIPE,
-                            universal_newlines=True)
-    output = subp.communicate()[0]
-    if subp.returncode < 0:
-        sys.stderr.write('qemu-nbd received signal %i: %s\n' %
-                         (-subp.returncode,
-                          ' '.join(qemu_nbd_args + ['--fork'] + list(args))))
+    full_args = qemu_nbd_args + ['--fork'] + list(args)
+    output, returncode = qemu_tool_pipe_and_status('qemu-nbd', full_args,
+                                                   connect_stderr=False)
+    return returncode, output if returncode else ''
 
-    return subp.returncode, output if subp.returncode else ''
+def qemu_nbd_list_log(*args: str) -> str:
+    '''Run qemu-nbd to list remote exports'''
+    full_args = [qemu_nbd_prog, '-L'] + list(args)
+    output, _ = qemu_tool_pipe_and_status('qemu-nbd', full_args)
+    log(output, filters=[filter_testfiles, filter_nbd_exports])
+    return output
 
 @contextmanager
 def qemu_nbd_popen(*args):
@@ -409,6 +420,9 @@ def filter_qmp_imgfmt(qmsg):
             return filter_imgfmt(value)
         return value
     return filter_qmp(qmsg, _filter)
+
+def filter_nbd_exports(output: str) -> str:
+    return re.sub(r'((min|opt|max) block): [0-9]+', r'\1: XXX', output)
 
 
 Msg = TypeVar('Msg', Dict[str, Any], List[Any], str)
@@ -1048,16 +1062,12 @@ def case_notrun(reason):
 
 def _verify_image_format(supported_fmts: Sequence[str] = (),
                          unsupported_fmts: Sequence[str] = ()) -> None:
-    assert not (supported_fmts and unsupported_fmts)
-
     if 'generic' in supported_fmts and \
             os.environ.get('IMGFMT_GENERIC', 'true') == 'true':
         # similar to
         #   _supported_fmt generic
         # for bash tests
-        if imgfmt == 'luks':
-            verify_working_luks()
-        return
+        supported_fmts = ()
 
     not_sup = supported_fmts and (imgfmt not in supported_fmts)
     if not_sup or (imgfmt in unsupported_fmts):
@@ -1141,20 +1151,14 @@ def verify_working_luks():
     if not working:
         notrun(reason)
 
-def qemu_pipe(*args):
+def qemu_pipe(*args: str) -> str:
     """
     Run qemu with an option to print something and exit (e.g. a help option).
 
     :return: QEMU's stdout output.
     """
-    args = [qemu_prog] + qemu_opts + list(args)
-    subp = subprocess.Popen(args, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT,
-                            universal_newlines=True)
-    output = subp.communicate()[0]
-    if subp.returncode < 0:
-        sys.stderr.write('qemu received signal %i: %s\n' %
-                         (-subp.returncode, ' '.join(args)))
+    full_args = [qemu_prog] + qemu_opts + list(args)
+    output, _ = qemu_tool_pipe_and_status('qemu', full_args)
     return output
 
 def supported_formats(read_only=False):
