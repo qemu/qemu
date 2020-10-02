@@ -414,8 +414,8 @@ void qemu_event_set(QemuEvent *ev)
      */
     assert(ev->initialized);
     smp_mb();
-    if (atomic_read(&ev->value) != EV_SET) {
-        if (atomic_xchg(&ev->value, EV_SET) == EV_BUSY) {
+    if (qatomic_read(&ev->value) != EV_SET) {
+        if (qatomic_xchg(&ev->value, EV_SET) == EV_BUSY) {
             /* There were waiters, wake them up.  */
             qemu_futex_wake(ev, INT_MAX);
         }
@@ -427,14 +427,14 @@ void qemu_event_reset(QemuEvent *ev)
     unsigned value;
 
     assert(ev->initialized);
-    value = atomic_read(&ev->value);
+    value = qatomic_read(&ev->value);
     smp_mb_acquire();
     if (value == EV_SET) {
         /*
          * If there was a concurrent reset (or even reset+wait),
          * do nothing.  Otherwise change EV_SET->EV_FREE.
          */
-        atomic_or(&ev->value, EV_FREE);
+        qatomic_or(&ev->value, EV_FREE);
     }
 }
 
@@ -443,7 +443,7 @@ void qemu_event_wait(QemuEvent *ev)
     unsigned value;
 
     assert(ev->initialized);
-    value = atomic_read(&ev->value);
+    value = qatomic_read(&ev->value);
     smp_mb_acquire();
     if (value != EV_SET) {
         if (value == EV_FREE) {
@@ -453,7 +453,7 @@ void qemu_event_wait(QemuEvent *ev)
              * a concurrent busy->free transition.  After the CAS, the
              * event will be either set or busy.
              */
-            if (atomic_cmpxchg(&ev->value, EV_FREE, EV_BUSY) == EV_SET) {
+            if (qatomic_cmpxchg(&ev->value, EV_FREE, EV_BUSY) == EV_SET) {
                 return;
             }
         }

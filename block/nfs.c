@@ -721,7 +721,7 @@ nfs_get_allocated_file_size_cb(int ret, struct nfs_context *nfs, void *data,
     }
 
     /* Set task->complete before reading bs->wakeup.  */
-    atomic_mb_set(&task->complete, 1);
+    qatomic_mb_set(&task->complete, 1);
     bdrv_wakeup(task->bs);
 }
 

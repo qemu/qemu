@@ -82,7 +82,6 @@ static const VMStateDescription vmstate_pci_serial = {
 };
 
 static Property serial_pci_properties[] = {
-    DEFINE_PROP_CHR("chardev",  PCISerialState, state.chr),
     DEFINE_PROP_UINT8("prog_if",  PCISerialState, prog_if, 0x02),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -107,6 +106,8 @@ static void serial_pci_init(Object *o)
     PCISerialState *ps = PCI_SERIAL(o);
 
     object_initialize_child(o, "serial", &ps->state, TYPE_SERIAL);
+
+    qdev_alias_all_properties(DEVICE(&ps->state), o);
 }
 
 static const TypeInfo serial_pci_info = {

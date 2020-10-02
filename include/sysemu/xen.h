@@ -8,6 +8,8 @@
 #ifndef SYSEMU_XEN_H
 #define SYSEMU_XEN_H
 
+#include "exec/cpu-common.h"
+
 #ifdef NEED_CPU_H
 # ifdef CONFIG_XEN
 #  define CONFIG_XEN_IS_POSSIBLE

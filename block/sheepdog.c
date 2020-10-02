@@ -665,7 +665,7 @@ out:
     srco->co = NULL;
     srco->ret = ret;
     /* Set srco->finished before reading bs->wakeup.  */
-    atomic_mb_set(&srco->finished, true);
+    qatomic_mb_set(&srco->finished, true);
     if (srco->bs) {
         bdrv_wakeup(srco->bs);
     }

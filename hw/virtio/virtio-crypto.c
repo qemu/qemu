@@ -228,6 +228,8 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     size_t s;
 
     for (;;) {
+        g_autofree struct iovec *out_iov_copy = NULL;
+
         elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
         if (!elem) {
             break;
@@ -240,9 +242,12 @@ static void virtio_crypto_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         }
 
         out_num = elem->out_num;
-        out_iov = elem->out_sg;
+        out_iov_copy = g_memdup(elem->out_sg, sizeof(out_iov[0]) * out_num);
+        out_iov = out_iov_copy;
+
         in_num = elem->in_num;
         in_iov = elem->in_sg;
+
         if (unlikely(iov_to_buf(out_iov, out_num, 0, &ctrl, sizeof(ctrl))
                     != sizeof(ctrl))) {
             virtio_error(vdev, "virtio-crypto request ctrl_hdr too short");
@@ -582,6 +587,8 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     int queue_index = virtio_crypto_vq2q(virtio_get_queue_index(request->vq));
     struct virtio_crypto_op_data_req req;
     int ret;
+    g_autofree struct iovec *in_iov_copy = NULL;
+    g_autofree struct iovec *out_iov_copy = NULL;
     struct iovec *in_iov;
     struct iovec *out_iov;
     unsigned in_num;
@@ -598,9 +605,13 @@ virtio_crypto_handle_request(VirtIOCryptoReq *request)
     }
 
     out_num = elem->out_num;
-    out_iov = elem->out_sg;
+    out_iov_copy = g_memdup(elem->out_sg, sizeof(out_iov[0]) * out_num);
+    out_iov = out_iov_copy;
+
     in_num = elem->in_num;
-    in_iov = elem->in_sg;
+    in_iov_copy = g_memdup(elem->in_sg, sizeof(in_iov[0]) * in_num);
+    in_iov = in_iov_copy;
+
     if (unlikely(iov_to_buf(out_iov, out_num, 0, &req, sizeof(req))
                 != sizeof(req))) {
         virtio_error(vdev, "virtio-crypto request outhdr too short");

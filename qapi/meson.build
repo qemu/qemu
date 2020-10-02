@@ -14,6 +14,7 @@ util_ss.add(files(
 ))
 
 qapi_all_modules = [
+  'acpi',
   'audio',
   'authz',
   'block-core',
@@ -34,6 +35,7 @@ qapi_all_modules = [
   'net',
   'pragma',
   'qdev',
+  'pci',
   'qom',
   'rdma',
   'rocker',
@@ -97,7 +99,7 @@ foreach module : qapi_all_modules
 endforeach
 
 qapi_files = custom_target('shared QAPI source files',
-  output: qapi_util_outputs + qapi_specific_outputs + qapi_nonmodule_outputs + ['qapi-doc.texi'],
+  output: qapi_util_outputs + qapi_specific_outputs + qapi_nonmodule_outputs,
   input: [ files('qapi-schema.json') ],
   command: [ qapi_gen, '-o', 'qapi', '-b', '@INPUT0@' ],
   depend_files: [ qapi_inputs, qapi_gen_depends ])
@@ -121,5 +123,3 @@ foreach output : qapi_specific_outputs + qapi_nonmodule_outputs
   specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: qapi_files[i])
   i = i + 1
 endforeach
-
-qapi_doc_texi = qapi_files[i]

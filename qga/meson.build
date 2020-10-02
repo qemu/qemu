@@ -16,7 +16,7 @@ qga_qapi_outputs = [
 ]
 
 qga_qapi_files = custom_target('QGA QAPI files',
-                               output: qga_qapi_outputs + ['qga-qapi-doc.texi'],
+                               output: qga_qapi_outputs,
                                input: 'qapi-schema.json',
                                command: [ qapi_gen, '-o', 'qga', '-p', 'qga-', '@INPUT0@' ],
                                depend_files: qapi_gen_depends)
@@ -27,7 +27,6 @@ foreach output: qga_qapi_outputs
   qga_ss.add(qga_qapi_files[i])
   i = i + 1
 endforeach
-qga_qapi_doc_texi = qga_qapi_files[i]
 
 qga_ss.add(files(
   'commands.c',
@@ -70,6 +69,7 @@ if targetos == 'windows'
                             output: 'qemu-ga-@0@.msi'.format(config_host['ARCH']),
                             depends: deps,
                             command: [
+                              find_program('env'),
                               'QEMU_GA_VERSION=' + config_host['QEMU_GA_VERSION'],
                               'QEMU_GA_MANUFACTURER=' + config_host['QEMU_GA_MANUFACTURER'],
                               'QEMU_GA_DISTRO=' + config_host['QEMU_GA_DISTRO'],

@@ -228,7 +228,7 @@ static ThrottleGroupMember *next_throttle_token(ThrottleGroupMember *tgm,
      * immediately if it has pending requests. Otherwise we could be
      * forcing it to wait for other member's throttled requests. */
     if (tgm_has_pending_reqs(tgm, is_write) &&
-        atomic_read(&tgm->io_limits_disabled)) {
+        qatomic_read(&tgm->io_limits_disabled)) {
         return tgm;
     }
 
@@ -272,7 +272,7 @@ static bool throttle_group_schedule_timer(ThrottleGroupMember *tgm,
     ThrottleTimers *tt = &tgm->throttle_timers;
     bool must_wait;
 
-    if (atomic_read(&tgm->io_limits_disabled)) {
+    if (qatomic_read(&tgm->io_limits_disabled)) {
         return false;
     }
 
@@ -417,7 +417,7 @@ static void coroutine_fn throttle_group_restart_queue_entry(void *opaque)
 
     g_free(data);
 
-    atomic_dec(&tgm->restart_pending);
+    qatomic_dec(&tgm->restart_pending);
     aio_wait_kick();
 }
 
@@ -434,7 +434,7 @@ static void throttle_group_restart_queue(ThrottleGroupMember *tgm, bool is_write
      * be no timer pending on this tgm at this point */
     assert(!timer_pending(tgm->throttle_timers.timers[is_write]));
 
-    atomic_inc(&tgm->restart_pending);
+    qatomic_inc(&tgm->restart_pending);
 
     co = qemu_coroutine_create(throttle_group_restart_queue_entry, rd);
     aio_co_enter(tgm->aio_context, co);
@@ -544,7 +544,7 @@ void throttle_group_register_tgm(ThrottleGroupMember *tgm,
 
     tgm->throttle_state = ts;
     tgm->aio_context = ctx;
-    atomic_set(&tgm->restart_pending, 0);
+    qatomic_set(&tgm->restart_pending, 0);
 
     qemu_mutex_lock(&tg->lock);
     /* If the ThrottleGroup is new set this ThrottleGroupMember as the token */
@@ -592,7 +592,7 @@ void throttle_group_unregister_tgm(ThrottleGroupMember *tgm)
     }
 
     /* Wait for throttle_group_restart_queue_entry() coroutines to finish */
-    AIO_WAIT_WHILE(tgm->aio_context, atomic_read(&tgm->restart_pending) > 0);
+    AIO_WAIT_WHILE(tgm->aio_context, qatomic_read(&tgm->restart_pending) > 0);
 
     qemu_mutex_lock(&tg->lock);
     for (i = 0; i < 2; i++) {

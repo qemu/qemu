@@ -104,6 +104,7 @@ config MICROVM
     select MC146818RTC
     select VIRTIO_MMIO
     select ACPI_HW_REDUCED
+    select PCI_EXPRESS_GENERIC_BRIDGE
 
 config X86_IOMMU
     bool

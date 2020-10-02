@@ -3,7 +3,7 @@
 #include "migration/vmstate.h"
 #include "hw/acpi/cpu.h"
 #include "qapi/error.h"
-#include "qapi/qapi-events-misc.h"
+#include "qapi/qapi-events-acpi.h"
 #include "trace.h"
 #include "sysemu/numa.h"
 
@@ -13,6 +13,8 @@
 #define ACPI_CPU_CMD_OFFSET_WR 5
 #define ACPI_CPU_CMD_DATA_OFFSET_RW 8
 #define ACPI_CPU_CMD_DATA2_OFFSET_R 0
+
+#define OVMF_CPUHP_SMI_CMD 4
 
 enum {
     CPHP_GET_NEXT_CPU_WITH_EVENT_CMD = 0,
@@ -321,6 +323,7 @@ const VMStateDescription vmstate_cpu_hotplug = {
 #define CPU_NOTIFY_METHOD "CTFY"
 #define CPU_EJECT_METHOD  "CEJ0"
 #define CPU_OST_METHOD    "COST"
+#define CPU_ADDED_LIST    "CNEW"
 
 #define CPU_ENABLED       "CPEN"
 #define CPU_SELECTOR      "CSEL"
@@ -465,42 +468,150 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
 
         method = aml_method(CPU_SCAN_METHOD, 0, AML_SERIALIZED);
         {
+            const uint8_t max_cpus_per_pass = 255;
             Aml *else_ctx;
-            Aml *while_ctx;
+            Aml *while_ctx, *while_ctx2;
             Aml *has_event = aml_local(0);
             Aml *dev_chk = aml_int(1);
             Aml *eject_req = aml_int(3);
             Aml *next_cpu_cmd = aml_int(CPHP_GET_NEXT_CPU_WITH_EVENT_CMD);
+            Aml *num_added_cpus = aml_local(1);
+            Aml *cpu_idx = aml_local(2);
+            Aml *uid = aml_local(3);
+            Aml *has_job = aml_local(4);
+            Aml *new_cpus = aml_name(CPU_ADDED_LIST);
 
             aml_append(method, aml_acquire(ctrl_lock, 0xFFFF));
-            aml_append(method, aml_store(one, has_event));
-            while_ctx = aml_while(aml_equal(has_event, one));
+
+            /*
+             * Windows versions newer than XP (including Windows 10/Windows
+             * Server 2019), do support* VarPackageOp but, it is cripled to hold
+             * the same elements number as old PackageOp.
+             * For compatibility with Windows XP (so it won't crash) use ACPI1.0
+             * PackageOp which can hold max 255 elements.
+             *
+             * use named package as old Windows don't support it in local var
+             */
+            aml_append(method, aml_name_decl(CPU_ADDED_LIST,
+                                             aml_package(max_cpus_per_pass)));
+
+            aml_append(method, aml_store(zero, uid));
+            aml_append(method, aml_store(one, has_job));
+            /*
+             * CPU_ADDED_LIST can hold limited number of elements, outer loop
+             * allows to process CPUs in batches which let us to handle more
+             * CPUs than CPU_ADDED_LIST can hold.
+             */
+            while_ctx2 = aml_while(aml_equal(has_job, one));
             {
-                 /* clear loop exit condition, ins_evt/rm_evt checks
-                  * will set it to 1 while next_cpu_cmd returns a CPU
-                  * with events */
-                 aml_append(while_ctx, aml_store(zero, has_event));
-                 aml_append(while_ctx, aml_store(next_cpu_cmd, cpu_cmd));
-                 ifctx = aml_if(aml_equal(ins_evt, one));
-                 {
-                     aml_append(ifctx,
-                         aml_call2(CPU_NOTIFY_METHOD, cpu_data, dev_chk));
-                     aml_append(ifctx, aml_store(one, ins_evt));
-                     aml_append(ifctx, aml_store(one, has_event));
-                 }
-                 aml_append(while_ctx, ifctx);
-                 else_ctx = aml_else();
-                 ifctx = aml_if(aml_equal(rm_evt, one));
-                 {
-                     aml_append(ifctx,
-                         aml_call2(CPU_NOTIFY_METHOD, cpu_data, eject_req));
-                     aml_append(ifctx, aml_store(one, rm_evt));
-                     aml_append(ifctx, aml_store(one, has_event));
-                 }
-                 aml_append(else_ctx, ifctx);
-                 aml_append(while_ctx, else_ctx);
+                aml_append(while_ctx2, aml_store(zero, has_job));
+
+                aml_append(while_ctx2, aml_store(one, has_event));
+                aml_append(while_ctx2, aml_store(zero, num_added_cpus));
+
+                /*
+                 * Scan CPUs, till there are CPUs with events or
+                 * CPU_ADDED_LIST capacity is exhausted
+                 */
+                while_ctx = aml_while(aml_land(aml_equal(has_event, one),
+                                      aml_lless(uid, aml_int(arch_ids->len))));
+                {
+                     /*
+                      * clear loop exit condition, ins_evt/rm_evt checks will
+                      * set it to 1 while next_cpu_cmd returns a CPU with events
+                      */
+                     aml_append(while_ctx, aml_store(zero, has_event));
+
+                     aml_append(while_ctx, aml_store(uid, cpu_selector));
+                     aml_append(while_ctx, aml_store(next_cpu_cmd, cpu_cmd));
+
+                     /*
+                      * wrap around case, scan is complete, exit loop.
+                      * It happens since events are not cleared in scan loop,
+                      * so next_cpu_cmd continues to find already processed CPUs
+                      */
+                     ifctx = aml_if(aml_lless(cpu_data, uid));
+                     {
+                         aml_append(ifctx, aml_break());
+                     }
+                     aml_append(while_ctx, ifctx);
+
+                     /*
+                      * if CPU_ADDED_LIST is full, exit inner loop and process
+                      * collected CPUs
+                      */
+                     ifctx = aml_if(
+                         aml_equal(num_added_cpus, aml_int(max_cpus_per_pass)));
+                     {
+                         aml_append(ifctx, aml_store(one, has_job));
+                         aml_append(ifctx, aml_break());
+                     }
+                     aml_append(while_ctx, ifctx);
+
+                     aml_append(while_ctx, aml_store(cpu_data, uid));
+                     ifctx = aml_if(aml_equal(ins_evt, one));
+                     {
+                         /* cache added CPUs to Notify/Wakeup later */
+                         aml_append(ifctx, aml_store(uid,
+                             aml_index(new_cpus, num_added_cpus)));
+                         aml_append(ifctx, aml_increment(num_added_cpus));
+                         aml_append(ifctx, aml_store(one, has_event));
+                     }
+                     aml_append(while_ctx, ifctx);
+                     else_ctx = aml_else();
+                     ifctx = aml_if(aml_equal(rm_evt, one));
+                     {
+                         aml_append(ifctx,
+                             aml_call2(CPU_NOTIFY_METHOD, uid, eject_req));
+                         aml_append(ifctx, aml_store(one, rm_evt));
+                         aml_append(ifctx, aml_store(one, has_event));
+                     }
+                     aml_append(else_ctx, ifctx);
+                     aml_append(while_ctx, else_ctx);
+                     aml_append(while_ctx, aml_increment(uid));
+                }
+                aml_append(while_ctx2, while_ctx);
+
+                /*
+                 * in case FW negotiated ICH9_LPC_SMI_F_CPU_HOTPLUG_BIT,
+                 * make upcall to FW, so it can pull in new CPUs before
+                 * OS is notified and wakes them up
+                 */
+                if (opts.smi_path) {
+                    ifctx = aml_if(aml_lgreater(num_added_cpus, zero));
+                    {
+                        aml_append(ifctx, aml_store(aml_int(OVMF_CPUHP_SMI_CMD),
+                            aml_name("%s", opts.smi_path)));
+                    }
+                    aml_append(while_ctx2, ifctx);
+                }
+
+                /* Notify OSPM about new CPUs and clear insert events */
+                aml_append(while_ctx2, aml_store(zero, cpu_idx));
+                while_ctx = aml_while(aml_lless(cpu_idx, num_added_cpus));
+                {
+                    aml_append(while_ctx,
+                        aml_store(aml_derefof(aml_index(new_cpus, cpu_idx)),
+                                  uid));
+                    aml_append(while_ctx,
+                        aml_call2(CPU_NOTIFY_METHOD, uid, dev_chk));
+                    aml_append(while_ctx, aml_store(uid, aml_debug()));
+                    aml_append(while_ctx, aml_store(uid, cpu_selector));
+                    aml_append(while_ctx, aml_store(one, ins_evt));
+                    aml_append(while_ctx, aml_increment(cpu_idx));
+                }
+                aml_append(while_ctx2, while_ctx);
+                /*
+                 * If another batch is needed, then it will resume scanning
+                 * exactly at -- and not after -- the last CPU that's currently
+                 * in CPU_ADDED_LIST. In other words, the last CPU in
+                 * CPU_ADDED_LIST is going to be re-checked. That's OK: we've
+                 * just cleared the insert event for *all* CPUs in
+                 * CPU_ADDED_LIST, including the last one. So the scan will
+                 * simply seek past it.
+                 */
             }
-            aml_append(method, while_ctx);
+            aml_append(method, while_ctx2);
             aml_append(method, aml_release(ctrl_lock));
         }
         aml_append(cpus_dev, method);

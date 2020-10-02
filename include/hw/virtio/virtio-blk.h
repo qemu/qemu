@@ -70,6 +70,8 @@ typedef struct VirtIOBlockReq {
     int64_t sector_num;
     VirtIOBlock *dev;
     VirtQueue *vq;
+    IOVDiscardUndo inhdr_undo;
+    IOVDiscardUndo outhdr_undo;
     struct virtio_blk_inhdr *in;
     struct virtio_blk_outhdr out;
     QEMUIOVector qiov;

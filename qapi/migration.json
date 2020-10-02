@@ -681,23 +681,23 @@
 #                      Defaults to 1. (Since 5.0)
 #
 # @block-bitmap-mapping: Maps block nodes and bitmaps on them to
-#          aliases for the purpose of dirty bitmap migration.  Such
-#          aliases may for example be the corresponding names on the
-#          opposite site.
-#          The mapping must be one-to-one, but not necessarily
-#          complete: On the source, unmapped bitmaps and all bitmaps
-#          on unmapped nodes will be ignored.  On the destination,
-#          encountering an unmapped alias in the incoming migration
-#          stream will result in a report, and all further bitmap
-#          migration data will then be discarded.
-#          Note that the destination does not know about bitmaps it
-#          does not receive, so there is no limitation or requirement
-#          regarding the number of bitmaps received, or how they are
-#          named, or on which nodes they are placed.
-#          By default (when this parameter has never been set), bitmap
-#          names are mapped to themselves.  Nodes are mapped to their
-#          block device name if there is one, and to their node name
-#          otherwise. (Since 5.2)
+#                        aliases for the purpose of dirty bitmap migration.  Such
+#                        aliases may for example be the corresponding names on the
+#                        opposite site.
+#                        The mapping must be one-to-one, but not necessarily
+#                        complete: On the source, unmapped bitmaps and all bitmaps
+#                        on unmapped nodes will be ignored.  On the destination,
+#                        encountering an unmapped alias in the incoming migration
+#                        stream will result in a report, and all further bitmap
+#                        migration data will then be discarded.
+#                        Note that the destination does not know about bitmaps it
+#                        does not receive, so there is no limitation or requirement
+#                        regarding the number of bitmaps received, or how they are
+#                        named, or on which nodes they are placed.
+#                        By default (when this parameter has never been set), bitmap
+#                        names are mapped to themselves.  Nodes are mapped to their
+#                        block device name if there is one, and to their node name
+#                        otherwise. (Since 5.2)
 #
 # Since: 2.4
 ##
@@ -841,23 +841,23 @@
 #                      Defaults to 1. (Since 5.0)
 #
 # @block-bitmap-mapping: Maps block nodes and bitmaps on them to
-#          aliases for the purpose of dirty bitmap migration.  Such
-#          aliases may for example be the corresponding names on the
-#          opposite site.
-#          The mapping must be one-to-one, but not necessarily
-#          complete: On the source, unmapped bitmaps and all bitmaps
-#          on unmapped nodes will be ignored.  On the destination,
-#          encountering an unmapped alias in the incoming migration
-#          stream will result in a report, and all further bitmap
-#          migration data will then be discarded.
-#          Note that the destination does not know about bitmaps it
-#          does not receive, so there is no limitation or requirement
-#          regarding the number of bitmaps received, or how they are
-#          named, or on which nodes they are placed.
-#          By default (when this parameter has never been set), bitmap
-#          names are mapped to themselves.  Nodes are mapped to their
-#          block device name if there is one, and to their node name
-#          otherwise. (Since 5.2)
+#                        aliases for the purpose of dirty bitmap migration.  Such
+#                        aliases may for example be the corresponding names on the
+#                        opposite site.
+#                        The mapping must be one-to-one, but not necessarily
+#                        complete: On the source, unmapped bitmaps and all bitmaps
+#                        on unmapped nodes will be ignored.  On the destination,
+#                        encountering an unmapped alias in the incoming migration
+#                        stream will result in a report, and all further bitmap
+#                        migration data will then be discarded.
+#                        Note that the destination does not know about bitmaps it
+#                        does not receive, so there is no limitation or requirement
+#                        regarding the number of bitmaps received, or how they are
+#                        named, or on which nodes they are placed.
+#                        By default (when this parameter has never been set), bitmap
+#                        names are mapped to themselves.  Nodes are mapped to their
+#                        block device name if there is one, and to their node name
+#                        otherwise. (Since 5.2)
 #
 # Since: 2.4
 ##
@@ -1037,23 +1037,23 @@
 #                      Defaults to 1. (Since 5.0)
 #
 # @block-bitmap-mapping: Maps block nodes and bitmaps on them to
-#          aliases for the purpose of dirty bitmap migration.  Such
-#          aliases may for example be the corresponding names on the
-#          opposite site.
-#          The mapping must be one-to-one, but not necessarily
-#          complete: On the source, unmapped bitmaps and all bitmaps
-#          on unmapped nodes will be ignored.  On the destination,
-#          encountering an unmapped alias in the incoming migration
-#          stream will result in a report, and all further bitmap
-#          migration data will then be discarded.
-#          Note that the destination does not know about bitmaps it
-#          does not receive, so there is no limitation or requirement
-#          regarding the number of bitmaps received, or how they are
-#          named, or on which nodes they are placed.
-#          By default (when this parameter has never been set), bitmap
-#          names are mapped to themselves.  Nodes are mapped to their
-#          block device name if there is one, and to their node name
-#          otherwise. (Since 5.2)
+#                        aliases for the purpose of dirty bitmap migration.  Such
+#                        aliases may for example be the corresponding names on the
+#                        opposite site.
+#                        The mapping must be one-to-one, but not necessarily
+#                        complete: On the source, unmapped bitmaps and all bitmaps
+#                        on unmapped nodes will be ignored.  On the destination,
+#                        encountering an unmapped alias in the incoming migration
+#                        stream will result in a report, and all further bitmap
+#                        migration data will then be discarded.
+#                        Note that the destination does not know about bitmaps it
+#                        does not receive, so there is no limitation or requirement
+#                        regarding the number of bitmaps received, or how they are
+#                        named, or on which nodes they are placed.
+#                        By default (when this parameter has never been set), bitmap
+#                        names are mapped to themselves.  Nodes are mapped to their
+#                        block device name if there is one, and to their node name
+#                        otherwise. (Since 5.2)
 #
 # Since: 2.4
 ##
@@ -1720,3 +1720,70 @@
 ##
 { 'event': 'UNPLUG_PRIMARY',
   'data': { 'device-id': 'str' } }
+
+##
+# @DirtyRateStatus:
+#
+# An enumeration of dirtyrate status.
+#
+# @unstarted: the dirtyrate thread has not been started.
+#
+# @measuring: the dirtyrate thread is measuring.
+#
+# @measured: the dirtyrate thread has measured and results are available.
+#
+# Since: 5.2
+#
+##
+{ 'enum': 'DirtyRateStatus',
+  'data': [ 'unstarted', 'measuring', 'measured'] }
+
+##
+# @DirtyRateInfo:
+#
+# Information about current dirty page rate of vm.
+#
+# @dirty-rate: @dirtyrate describing the dirty page rate of vm
+#              in units of MB/s.
+#              If this field returns '-1', it means querying has not
+#              yet started or completed.
+#
+# @status: status containing dirtyrate query status includes
+#          'unstarted' or 'measuring' or 'measured'
+#
+# @start-time: start time in units of second for calculation
+#
+# @calc-time: time in units of second for sample dirty pages
+#
+# Since: 5.2
+#
+##
+{ 'struct': 'DirtyRateInfo',
+  'data': {'dirty-rate': 'int64',
+           'status': 'DirtyRateStatus',
+           'start-time': 'int64',
+           'calc-time': 'int64'} }
+
+##
+# @calc-dirty-rate:
+#
+# start calculating dirty page rate for vm
+#
+# @calc-time: time in units of second for sample dirty pages
+#
+# Since: 5.2
+#
+# Example:
+#   {"command": "calc-dirty-rate", "data": {"calc-time": 1} }
+#
+##
+{ 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64'} }
+
+##
+# @query-dirty-rate:
+#
+# query dirty page rate in units of MB/s for vm
+#
+# Since: 5.2
+##
+{ 'command': 'query-dirty-rate', 'returns': 'DirtyRateInfo' }

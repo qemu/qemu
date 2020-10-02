@@ -123,7 +123,7 @@ static void *rcu_read_perf_test(void *arg)
     rcu_register_thread();
 
     *(struct rcu_reader_data **)arg = &rcu_reader;
-    atomic_inc(&nthreadsrunning);
+    qatomic_inc(&nthreadsrunning);
     while (goflag == GOFLAG_INIT) {
         g_usleep(1000);
     }
@@ -149,7 +149,7 @@ static void *rcu_update_perf_test(void *arg)
     rcu_register_thread();
 
     *(struct rcu_reader_data **)arg = &rcu_reader;
-    atomic_inc(&nthreadsrunning);
+    qatomic_inc(&nthreadsrunning);
     while (goflag == GOFLAG_INIT) {
         g_usleep(1000);
     }
@@ -172,7 +172,7 @@ static void perftestinit(void)
 
 static void perftestrun(int nthreads, int duration, int nreaders, int nupdaters)
 {
-    while (atomic_read(&nthreadsrunning) < nthreads) {
+    while (qatomic_read(&nthreadsrunning) < nthreads) {
         g_usleep(1000);
     }
     goflag = GOFLAG_RUN;
@@ -259,8 +259,8 @@ static void *rcu_read_stress_test(void *arg)
     }
     while (goflag == GOFLAG_RUN) {
         rcu_read_lock();
-        p = atomic_rcu_read(&rcu_stress_current);
-        if (atomic_read(&p->mbtest) == 0) {
+        p = qatomic_rcu_read(&rcu_stress_current);
+        if (qatomic_read(&p->mbtest) == 0) {
             n_mberror++;
         }
         rcu_read_lock();
@@ -268,7 +268,7 @@ static void *rcu_read_stress_test(void *arg)
             garbage++;
         }
         rcu_read_unlock();
-        pc = atomic_read(&p->age);
+        pc = qatomic_read(&p->age);
         rcu_read_unlock();
         if ((pc > RCU_STRESS_PIPE_LEN) || (pc < 0)) {
             pc = RCU_STRESS_PIPE_LEN;
@@ -301,7 +301,7 @@ static void *rcu_read_stress_test(void *arg)
 static void *rcu_update_stress_test(void *arg)
 {
     int i, rcu_stress_idx = 0;
-    struct rcu_stress *cp = atomic_read(&rcu_stress_current);
+    struct rcu_stress *cp = qatomic_read(&rcu_stress_current);
 
     rcu_register_thread();
     *(struct rcu_reader_data **)arg = &rcu_reader;
@@ -319,11 +319,11 @@ static void *rcu_update_stress_test(void *arg)
         p = &rcu_stress_array[rcu_stress_idx];
         /* catching up with ourselves would be a bug */
         assert(p != cp);
-        atomic_set(&p->mbtest, 0);
+        qatomic_set(&p->mbtest, 0);
         smp_mb();
-        atomic_set(&p->age, 0);
-        atomic_set(&p->mbtest, 1);
-        atomic_rcu_set(&rcu_stress_current, p);
+        qatomic_set(&p->age, 0);
+        qatomic_set(&p->mbtest, 1);
+        qatomic_rcu_set(&rcu_stress_current, p);
         cp = p;
         /*
          * New RCU structure is now live, update pipe counts on old
@@ -331,7 +331,7 @@ static void *rcu_update_stress_test(void *arg)
          */
         for (i = 0; i < RCU_STRESS_PIPE_LEN; i++) {
             if (i != rcu_stress_idx) {
-                atomic_set(&rcu_stress_array[i].age,
+                qatomic_set(&rcu_stress_array[i].age,
                            rcu_stress_array[i].age + 1);
             }
         }

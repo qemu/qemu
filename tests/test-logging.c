@@ -133,7 +133,7 @@ static void test_logfile_write(gconstpointer data)
      */
     qemu_set_log_filename(file_path, &error_abort);
     rcu_read_lock();
-    logfile = atomic_rcu_read(&qemu_logfile);
+    logfile = qatomic_rcu_read(&qemu_logfile);
     orig_fd = logfile->fd;
     g_assert(logfile && logfile->fd);
     fprintf(logfile->fd, "%s 1st write to file\n", __func__);
@@ -141,7 +141,7 @@ static void test_logfile_write(gconstpointer data)
 
     /* Change the logfile and ensure that the handle is still valid. */
     qemu_set_log_filename(file_path1, &error_abort);
-    logfile2 = atomic_rcu_read(&qemu_logfile);
+    logfile2 = qatomic_rcu_read(&qemu_logfile);
     g_assert(logfile->fd == orig_fd);
     g_assert(logfile2->fd != logfile->fd);
     fprintf(logfile->fd, "%s 2nd write to file\n", __func__);

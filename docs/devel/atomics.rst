@@ -23,9 +23,9 @@ provides macros that fall in three camps:
 
 - compiler barriers: ``barrier()``;
 
-- weak atomic access and manual memory barriers: ``atomic_read()``,
-  ``atomic_set()``, ``smp_rmb()``, ``smp_wmb()``, ``smp_mb()``, ``smp_mb_acquire()``,
-  ``smp_mb_release()``, ``smp_read_barrier_depends()``;
+- weak atomic access and manual memory barriers: ``qatomic_read()``,
+  ``qatomic_set()``, ``smp_rmb()``, ``smp_wmb()``, ``smp_mb()``,
+  ``smp_mb_acquire()``, ``smp_mb_release()``, ``smp_read_barrier_depends()``;
 
 - sequentially consistent atomic access: everything else.
 
@@ -67,23 +67,23 @@ in the order specified by its program".
 ``qemu/atomic.h`` provides the following set of atomic read-modify-write
 operations::
 
-    void atomic_inc(ptr)
-    void atomic_dec(ptr)
-    void atomic_add(ptr, val)
-    void atomic_sub(ptr, val)
-    void atomic_and(ptr, val)
-    void atomic_or(ptr, val)
+    void qatomic_inc(ptr)
+    void qatomic_dec(ptr)
+    void qatomic_add(ptr, val)
+    void qatomic_sub(ptr, val)
+    void qatomic_and(ptr, val)
+    void qatomic_or(ptr, val)
 
-    typeof(*ptr) atomic_fetch_inc(ptr)
-    typeof(*ptr) atomic_fetch_dec(ptr)
-    typeof(*ptr) atomic_fetch_add(ptr, val)
-    typeof(*ptr) atomic_fetch_sub(ptr, val)
-    typeof(*ptr) atomic_fetch_and(ptr, val)
-    typeof(*ptr) atomic_fetch_or(ptr, val)
-    typeof(*ptr) atomic_fetch_xor(ptr, val)
-    typeof(*ptr) atomic_fetch_inc_nonzero(ptr)
-    typeof(*ptr) atomic_xchg(ptr, val)
-    typeof(*ptr) atomic_cmpxchg(ptr, old, new)
+    typeof(*ptr) qatomic_fetch_inc(ptr)
+    typeof(*ptr) qatomic_fetch_dec(ptr)
+    typeof(*ptr) qatomic_fetch_add(ptr, val)
+    typeof(*ptr) qatomic_fetch_sub(ptr, val)
+    typeof(*ptr) qatomic_fetch_and(ptr, val)
+    typeof(*ptr) qatomic_fetch_or(ptr, val)
+    typeof(*ptr) qatomic_fetch_xor(ptr, val)
+    typeof(*ptr) qatomic_fetch_inc_nonzero(ptr)
+    typeof(*ptr) qatomic_xchg(ptr, val)
+    typeof(*ptr) qatomic_cmpxchg(ptr, old, new)
 
 all of which return the old value of ``*ptr``.  These operations are
 polymorphic; they operate on any type that is as wide as a pointer or
@@ -91,19 +91,19 @@ smaller.
 
 Similar operations return the new value of ``*ptr``::
 
-    typeof(*ptr) atomic_inc_fetch(ptr)
-    typeof(*ptr) atomic_dec_fetch(ptr)
-    typeof(*ptr) atomic_add_fetch(ptr, val)
-    typeof(*ptr) atomic_sub_fetch(ptr, val)
-    typeof(*ptr) atomic_and_fetch(ptr, val)
-    typeof(*ptr) atomic_or_fetch(ptr, val)
-    typeof(*ptr) atomic_xor_fetch(ptr, val)
+    typeof(*ptr) qatomic_inc_fetch(ptr)
+    typeof(*ptr) qatomic_dec_fetch(ptr)
+    typeof(*ptr) qatomic_add_fetch(ptr, val)
+    typeof(*ptr) qatomic_sub_fetch(ptr, val)
+    typeof(*ptr) qatomic_and_fetch(ptr, val)
+    typeof(*ptr) qatomic_or_fetch(ptr, val)
+    typeof(*ptr) qatomic_xor_fetch(ptr, val)
 
 ``qemu/atomic.h`` also provides loads and stores that cannot be reordered
 with each other::
 
-    typeof(*ptr) atomic_mb_read(ptr)
-    void         atomic_mb_set(ptr, val)
+    typeof(*ptr) qatomic_mb_read(ptr)
+    void         qatomic_mb_set(ptr, val)
 
 However these do not provide sequential consistency and, in particular,
 they do not participate in the total ordering enforced by
@@ -115,11 +115,11 @@ easiest to hardest):
 
 - lightweight synchronization primitives such as ``QemuEvent``
 
-- RCU operations (``atomic_rcu_read``, ``atomic_rcu_set``) when publishing
+- RCU operations (``qatomic_rcu_read``, ``qatomic_rcu_set``) when publishing
   or accessing a new version of a data structure
 
-- other atomic accesses: ``atomic_read`` and ``atomic_load_acquire`` for
-  loads, ``atomic_set`` and ``atomic_store_release`` for stores, ``smp_mb``
+- other atomic accesses: ``qatomic_read`` and ``qatomic_load_acquire`` for
+  loads, ``qatomic_set`` and ``qatomic_store_release`` for stores, ``smp_mb``
   to forbid reordering subsequent loads before a store.
 
 
@@ -149,22 +149,22 @@ The only guarantees that you can rely upon in this case are:
 
 When using this model, variables are accessed with:
 
-- ``atomic_read()`` and ``atomic_set()``; these prevent the compiler from
+- ``qatomic_read()`` and ``qatomic_set()``; these prevent the compiler from
   optimizing accesses out of existence and creating unsolicited
   accesses, but do not otherwise impose any ordering on loads and
   stores: both the compiler and the processor are free to reorder
   them.
 
-- ``atomic_load_acquire()``, which guarantees the LOAD to appear to
+- ``qatomic_load_acquire()``, which guarantees the LOAD to appear to
   happen, with respect to the other components of the system,
   before all the LOAD or STORE operations specified afterwards.
-  Operations coming before ``atomic_load_acquire()`` can still be
+  Operations coming before ``qatomic_load_acquire()`` can still be
   reordered after it.
 
-- ``atomic_store_release()``, which guarantees the STORE to appear to
+- ``qatomic_store_release()``, which guarantees the STORE to appear to
   happen, with respect to the other components of the system,
   after all the LOAD or STORE operations specified before.
-  Operations coming after ``atomic_store_release()`` can still be
+  Operations coming after ``qatomic_store_release()`` can still be
   reordered before it.
 
 Restrictions to the ordering of accesses can also be specified
@@ -229,7 +229,7 @@ They come in six kinds:
   dependency and a full read barrier or better is required.
 
 
-Memory barriers and ``atomic_load_acquire``/``atomic_store_release`` are
+Memory barriers and ``qatomic_load_acquire``/``qatomic_store_release`` are
 mostly used when a data structure has one thread that is always a writer
 and one thread that is always a reader:
 
@@ -238,8 +238,8 @@ and one thread that is always a reader:
     +==================================+==================================+
     | ::                               | ::                               |
     |                                  |                                  |
-    |   atomic_store_release(&a, x);   |   y = atomic_load_acquire(&b);   |
-    |   atomic_store_release(&b, y);   |   x = atomic_load_acquire(&a);   |
+    |   qatomic_store_release(&a, x);  |   y = qatomic_load_acquire(&b);  |
+    |   qatomic_store_release(&b, y);  |   x = qatomic_load_acquire(&a);  |
     +----------------------------------+----------------------------------+
 
 In this case, correctness is easy to check for using the "pairing"
@@ -258,14 +258,14 @@ outside a loop.  For example:
     |                                          |                                  |
     |   n = 0;                                 |   n = 0;                         |
     |   for (i = 0; i < 10; i++)               |   for (i = 0; i < 10; i++)       |
-    |     n += atomic_load_acquire(&a[i]);     |     n += atomic_read(&a[i]);     |
+    |     n += qatomic_load_acquire(&a[i]);    |     n += qatomic_read(&a[i]);    |
     |                                          |   smp_mb_acquire();              |
     +------------------------------------------+----------------------------------+
     | ::                                       | ::                               |
     |                                          |                                  |
     |                                          |   smp_mb_release();              |
     |   for (i = 0; i < 10; i++)               |   for (i = 0; i < 10; i++)       |
-    |     atomic_store_release(&a[i], false);  |     atomic_set(&a[i], false);    |
+    |     qatomic_store_release(&a[i], false); |     qatomic_set(&a[i], false);   |
     +------------------------------------------+----------------------------------+
 
 Splitting a loop can also be useful to reduce the number of barriers:
@@ -277,11 +277,11 @@ Splitting a loop can also be useful to reduce the number of barriers:
     |                                          |                                  |
     |   n = 0;                                 |     smp_mb_release();            |
     |   for (i = 0; i < 10; i++) {             |     for (i = 0; i < 10; i++)     |
-    |     atomic_store_release(&a[i], false);  |       atomic_set(&a[i], false);  |
+    |     qatomic_store_release(&a[i], false); |       qatomic_set(&a[i], false); |
     |     smp_mb();                            |     smb_mb();                    |
-    |     n += atomic_read(&b[i]);             |     n = 0;                       |
+    |     n += qatomic_read(&b[i]);            |     n = 0;                       |
     |   }                                      |     for (i = 0; i < 10; i++)     |
-    |                                          |       n += atomic_read(&b[i]);   |
+    |                                          |       n += qatomic_read(&b[i]);  |
     +------------------------------------------+----------------------------------+
 
 In this case, a ``smp_mb_release()`` is also replaced with a (possibly cheaper, and clearer
@@ -294,10 +294,10 @@ as well) ``smp_wmb()``:
     |                                          |                                  |
     |                                          |     smp_mb_release();            |
     |   for (i = 0; i < 10; i++) {             |     for (i = 0; i < 10; i++)     |
-    |     atomic_store_release(&a[i], false);  |       atomic_set(&a[i], false);  |
-    |     atomic_store_release(&b[i], false);  |     smb_wmb();                   |
+    |     qatomic_store_release(&a[i], false); |       qatomic_set(&a[i], false); |
+    |     qatomic_store_release(&b[i], false); |     smb_wmb();                   |
     |   }                                      |     for (i = 0; i < 10; i++)     |
-    |                                          |       atomic_set(&b[i], false);  |
+    |                                          |       qatomic_set(&b[i], false); |
     +------------------------------------------+----------------------------------+
 
 
@@ -306,7 +306,7 @@ as well) ``smp_wmb()``:
 Acquire/release pairing and the *synchronizes-with* relation
 ------------------------------------------------------------
 
-Atomic operations other than ``atomic_set()`` and ``atomic_read()`` have
+Atomic operations other than ``qatomic_set()`` and ``qatomic_read()`` have
 either *acquire* or *release* semantics [#rmw]_.  This has two effects:
 
 .. [#rmw] Read-modify-write operations can have both---acquire applies to the
@@ -357,16 +357,16 @@ thread 2 is relying on the *synchronizes-with* relation between ``pthread_exit``
 
 Synchronization between threads basically descends from this pairing of
 a release operation and an acquire operation.  Therefore, atomic operations
-other than ``atomic_set()`` and ``atomic_read()`` will almost always be
+other than ``qatomic_set()`` and ``qatomic_read()`` will almost always be
 paired with another operation of the opposite kind: an acquire operation
 will pair with a release operation and vice versa.  This rule of thumb is
 extremely useful; in the case of QEMU, however, note that the other
 operation may actually be in a driver that runs in the guest!
 
 ``smp_read_barrier_depends()``, ``smp_rmb()``, ``smp_mb_acquire()``,
-``atomic_load_acquire()`` and ``atomic_rcu_read()`` all count
+``qatomic_load_acquire()`` and ``qatomic_rcu_read()`` all count
 as acquire operations.  ``smp_wmb()``, ``smp_mb_release()``,
-``atomic_store_release()`` and ``atomic_rcu_set()`` all count as release
+``qatomic_store_release()`` and ``qatomic_rcu_set()`` all count as release
 operations.  ``smp_mb()`` counts as both acquire and release, therefore
 it can pair with any other atomic operation.  Here is an example:
 
@@ -375,11 +375,11 @@ it can pair with any other atomic operation.  Here is an example:
       +======================+==============================+
       | ::                   | ::                           |
       |                      |                              |
-      |   atomic_set(&a, 1); |                              |
+      |   qatomic_set(&a, 1);|                              |
       |   smp_wmb();         |                              |
-      |   atomic_set(&b, 2); |   x = atomic_read(&b);       |
+      |   qatomic_set(&b, 2);|   x = qatomic_read(&b);      |
       |                      |   smp_rmb();                 |
-      |                      |   y = atomic_read(&a);       |
+      |                      |   y = qatomic_read(&a);      |
       +----------------------+------------------------------+
 
 Note that a load-store pair only counts if the two operations access the
@@ -393,9 +393,9 @@ correct synchronization:
       +================================+================================+
       | ::                             | ::                             |
       |                                |                                |
-      |   atomic_set(&a, 1);           |                                |
-      |   atomic_store_release(&b, 2); |   x = atomic_load_acquire(&b); |
-      |                                |   y = atomic_read(&a);         |
+      |   qatomic_set(&a, 1);          |                                |
+      |   qatomic_store_release(&b, 2);|   x = qatomic_load_acquire(&b);|
+      |                                |   y = qatomic_read(&a);        |
       +--------------------------------+--------------------------------+
 
 Acquire and release semantics of higher-level primitives can also be
@@ -421,7 +421,7 @@ cannot be a data race:
       |   smp_wmb();         |                              |
       |   x->i = 2;          |                              |
       |   smp_wmb();         |                              |
-      |   atomic_set(&a, x); |  x = atomic_read(&a);        |
+      |   qatomic_set(&a, x);|  x = qatomic_read(&a);       |
       |                      |  smp_read_barrier_depends(); |
       |                      |  y = x->i;                   |
       |                      |  smp_read_barrier_depends(); |
@@ -442,7 +442,7 @@ and memory barriers, and the equivalents in QEMU:
   at all. Linux 4.1 updated them to implement volatile
   semantics via ``ACCESS_ONCE`` (or the more recent ``READ``/``WRITE_ONCE``).
 
-  QEMU's ``atomic_read`` and ``atomic_set`` implement C11 atomic relaxed
+  QEMU's ``qatomic_read`` and ``qatomic_set`` implement C11 atomic relaxed
   semantics if the compiler supports it, and volatile semantics otherwise.
   Both semantics prevent the compiler from doing certain transformations;
   the difference is that atomic accesses are guaranteed to be atomic,
@@ -451,8 +451,8 @@ and memory barriers, and the equivalents in QEMU:
   since we assume the variables passed are machine-word sized and
   properly aligned.
 
-  No barriers are implied by ``atomic_read`` and ``atomic_set`` in either Linux
-  or QEMU.
+  No barriers are implied by ``qatomic_read`` and ``qatomic_set`` in either
+  Linux or QEMU.
 
 - atomic read-modify-write operations in Linux are of three kinds:
 
@@ -469,7 +469,7 @@ and memory barriers, and the equivalents in QEMU:
   a different set of memory barriers; in QEMU, all of them enforce
   sequential consistency.
 
-- in QEMU, ``atomic_read()`` and ``atomic_set()`` do not participate in
+- in QEMU, ``qatomic_read()`` and ``qatomic_set()`` do not participate in
   the total ordering enforced by sequentially-consistent operations.
   This is because QEMU uses the C11 memory model.  The following example
   is correct in Linux but not in QEMU:
@@ -479,8 +479,8 @@ and memory barriers, and the equivalents in QEMU:
       +==================================+================================+
       | ::                               | ::                             |
       |                                  |                                |
-      |   a = atomic_fetch_add(&x, 2);   |   a = atomic_fetch_add(&x, 2); |
-      |   b = READ_ONCE(&y);             |   b = atomic_read(&y);         |
+      |   a = atomic_fetch_add(&x, 2);   |   a = qatomic_fetch_add(&x, 2);|
+      |   b = READ_ONCE(&y);             |   b = qatomic_read(&y);        |
       +----------------------------------+--------------------------------+
 
   because the read of ``y`` can be moved (by either the processor or the
@@ -495,10 +495,10 @@ and memory barriers, and the equivalents in QEMU:
       +================================+
       | ::                             |
       |                                |
-      |   a = atomic_read(&x);         |
-      |   atomic_set(&x, a + 2);       |
+      |   a = qatomic_read(&x);        |
+      |   qatomic_set(&x, a + 2);      |
       |   smp_mb();                    |
-      |   b = atomic_read(&y);         |
+      |   b = qatomic_read(&y);        |
       +--------------------------------+
 
 Sources

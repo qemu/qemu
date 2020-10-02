@@ -93,6 +93,8 @@ static const int syscall_whitelist[] = {
     SCMP_SYS(rt_sigaction),
     SCMP_SYS(rt_sigprocmask),
     SCMP_SYS(rt_sigreturn),
+    SCMP_SYS(sched_getattr),
+    SCMP_SYS(sched_setattr),
     SCMP_SYS(sendmsg),
     SCMP_SYS(setresgid),
     SCMP_SYS(setresuid),

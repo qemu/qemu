@@ -34,6 +34,7 @@
 #include "qemu/module.h"
 #include "sysemu/replay.h"
 #include "sysemu/runstate.h"
+#include "ui/qemu-spice.h"
 #include "trace.h"
 
 #define AUDIO_CAP "audio"
@@ -1089,14 +1090,18 @@ static size_t audio_pcm_hw_run_out(HWVoiceOut *hw, size_t live)
     size_t clipped = 0;
 
     while (live) {
-        size_t size, decr, proc;
+        size_t size = live * hw->info.bytes_per_frame;
+        size_t decr, proc;
         void *buf = hw->pcm_ops->get_buffer_out(hw, &size);
-        if (!buf || size == 0) {
+
+        if (size == 0) {
             break;
         }
 
         decr = MIN(size / hw->info.bytes_per_frame, live);
-        audio_pcm_hw_clip_out(hw, buf, decr);
+        if (buf) {
+            audio_pcm_hw_clip_out(hw, buf, decr);
+        }
         proc = hw->pcm_ops->put_buffer_out(hw, buf,
                                            decr * hw->info.bytes_per_frame) /
             hw->info.bytes_per_frame;
@@ -1182,6 +1187,9 @@ static void audio_run_out (AudioState *s)
                     }
                 }
             }
+            if (hw->pcm_ops->run_buffer_out) {
+                hw->pcm_ops->run_buffer_out(hw);
+            }
             continue;
         }
 
@@ -1257,7 +1265,6 @@ static size_t audio_pcm_hw_run_in(HWVoiceIn *hw, size_t samples)
 
         assert(size % hw->info.bytes_per_frame == 0);
         if (size == 0) {
-            hw->pcm_ops->put_buffer_in(hw, buf, size);
             break;
         }
 
@@ -1481,22 +1488,54 @@ size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
 
 size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
 {
-    size_t dst_size, copy_size;
-    void *dst = hw->pcm_ops->get_buffer_out(hw, &dst_size);
-    copy_size = MIN(size, dst_size);
+    size_t total = 0;
 
-    memcpy(dst, buf, copy_size);
-    return hw->pcm_ops->put_buffer_out(hw, dst, copy_size);
+    while (total < size) {
+        size_t dst_size = size - total;
+        size_t copy_size, proc;
+        void *dst = hw->pcm_ops->get_buffer_out(hw, &dst_size);
+
+        if (dst_size == 0) {
+            break;
+        }
+
+        copy_size = MIN(size - total, dst_size);
+        if (dst) {
+            memcpy(dst, (char *)buf + total, copy_size);
+        }
+        proc = hw->pcm_ops->put_buffer_out(hw, dst, copy_size);
+        total += proc;
+
+        if (proc == 0 || proc < copy_size) {
+            break;
+        }
+    }
+
+    if (hw->pcm_ops->run_buffer_out) {
+        hw->pcm_ops->run_buffer_out(hw);
+    }
+
+    return total;
 }
 
 size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
 {
-    void *src = hw->pcm_ops->get_buffer_in(hw, &size);
+    size_t total = 0;
 
-    memcpy(buf, src, size);
-    hw->pcm_ops->put_buffer_in(hw, src, size);
+    while (total < size) {
+        size_t src_size = size - total;
+        void *src = hw->pcm_ops->get_buffer_in(hw, &src_size);
 
-    return size;
+        if (src_size == 0) {
+            break;
+        }
+
+        memcpy((char *)buf + total, src, src_size);
+        hw->pcm_ops->put_buffer_in(hw, src, src_size);
+        total += src_size;
+    }
+
+    return total;
 }
 
 static int audio_driver_init(AudioState *s, struct audio_driver *drv,
@@ -1657,6 +1696,21 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
     struct audio_driver *driver;
     /* silence gcc warning about uninitialized variable */
     AudiodevListHead head = QSIMPLEQ_HEAD_INITIALIZER(head);
+
+    if (using_spice) {
+        /*
+         * When using spice allow the spice audio driver being picked
+         * as default.
+         *
+         * Temporary hack.  Using audio devices without explicit
+         * audiodev= property is already deprecated.  Same goes for
+         * the -soundhw switch.  Once this support gets finally
+         * removed we can also drop the concept of a default audio
+         * backend and this can go away.
+         */
+        driver = audio_driver_lookup("spice");
+        driver->can_be_default = 1;
+    }
 
     if (dev) {
         /* -audiodev option */

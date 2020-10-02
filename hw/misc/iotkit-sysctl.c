@@ -83,7 +83,7 @@ static void set_init_vtor(uint64_t cpuid, uint32_t vtor)
     Object *cpuobj = OBJECT(arm_get_cpu_by_id(cpuid));
 
     if (cpuobj) {
-        if (object_property_find(cpuobj, "init-svtor", NULL)) {
+        if (object_property_find(cpuobj, "init-svtor")) {
             object_property_set_uint(cpuobj, "init-svtor", vtor, &error_abort);
         }
     }

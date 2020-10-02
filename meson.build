@@ -17,6 +17,11 @@ config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
 enable_modules = 'CONFIG_MODULES' in config_host
 enable_static = 'CONFIG_STATIC' in config_host
 build_docs = 'BUILD_DOCS' in config_host
+
+if get_option('qemu_suffix').startswith('/')
+  error('qemu_suffix cannot start with a /')
+endif
+
 qemu_datadir = get_option('datadir') / get_option('qemu_suffix')
 qemu_docdir = get_option('docdir') / get_option('qemu_suffix')
 config_host_data = configuration_data()
@@ -49,6 +54,14 @@ configure_file(input: files('scripts/ninjatool.py'),
 # Compiler flags #
 ##################
 
+# Specify linker-script with add_project_link_arguments so that it is not placed
+# within a linker --start-group/--end-group pair
+if 'CONFIG_FUZZ' in config_host
+   add_project_link_arguments(['-Wl,-T,',
+                               (meson.current_source_dir() / 'tests/qtest/fuzz/fork_fuzz.ld')],
+                              native: false, language: ['c', 'cpp', 'objc'])
+endif
+
 add_project_arguments(config_host['QEMU_CFLAGS'].split(),
                       native: false, language: ['c', 'objc'])
 add_project_arguments(config_host['QEMU_CXXFLAGS'].split(),
@@ -58,13 +71,6 @@ add_project_link_arguments(config_host['QEMU_LDFLAGS'].split(),
 add_project_arguments(config_host['QEMU_INCLUDES'].split(),
                       language: ['c', 'cpp', 'objc'])
 
-# Specify linker-script with add_project_link_arguments so that it is not placed
-# within a linker --start-group/--end-group pair
-if 'CONFIG_FUZZ' in config_host
-   add_project_link_arguments(['-Wl,-T,',
-                               (meson.current_source_dir() / 'tests/qtest/fuzz/fork_fuzz.ld')],
-                              native: false, language: ['c', 'cpp', 'objc'])
-endif
 
 link_language = meson.get_external_property('link_language', 'cpp')
 if link_language == 'cpp'
@@ -81,6 +87,14 @@ if 'SPARSE_CFLAGS' in config_host
                        'compile_commands.json'])
 endif
 
+###########################################
+# Target-specific checks and dependencies #
+###########################################
+
+if targetos != 'linux' and get_option('mpath').enabled()
+  error('Multipath is supported only on Linux')
+endif
+
 m = cc.find_library('m', required: false)
 util = cc.find_library('util', required: false)
 winmm = []
@@ -88,7 +102,7 @@ socket = []
 version_res = []
 coref = []
 iokit = []
-cocoa = []
+cocoa = not_found
 hvf = []
 if targetos == 'windows'
   socket = cc.find_library('ws2_32')
@@ -101,7 +115,7 @@ if targetos == 'windows'
 elif targetos == 'darwin'
   coref = dependency('appleframeworks', modules: 'CoreFoundation')
   iokit = dependency('appleframeworks', modules: 'IOKit')
-  cocoa = dependency('appleframeworks', modules: 'Cocoa')
+  cocoa = dependency('appleframeworks', modules: 'Cocoa', required: get_option('cocoa'))
   hvf = dependency('appleframeworks', modules: 'Hypervisor')
 elif targetos == 'sunos'
   socket = [cc.find_library('socket'),
@@ -112,6 +126,15 @@ elif targetos == 'haiku'
             cc.find_library('network'),
             cc.find_library('bsd')]
 endif
+
+if not cocoa.found() and get_option('cocoa').enabled()
+  error('Cocoa not available on this platform')
+endif
+
+################
+# Dependencies #
+################
+
 # The path to glib.h is added to all compilation commands.  This was
 # grandfathered in from the QEMU Makefiles.
 add_project_arguments(config_host['GLIB_CFLAGS'].split(),
@@ -218,10 +241,6 @@ if 'CONFIG_SPICE' in config_host
                              link_args: config_host['SPICE_LIBS'].split())
 endif
 rt = cc.find_library('rt', required: false)
-libmpathpersist = not_found
-if config_host.has_key('CONFIG_MPATH')
-  libmpathpersist = cc.find_library('mpathpersist')
-endif
 libdl = not_found
 if 'CONFIG_PLUGIN' in config_host
   libdl = cc.find_library('dl', required: true)
@@ -252,9 +271,76 @@ if 'CONFIG_CURL' in config_host
                             link_args: config_host['CURL_LIBS'].split())
 endif
 libudev = not_found
-if 'CONFIG_LIBUDEV' in config_host
-  libudev = declare_dependency(link_args: config_host['LIBUDEV_LIBS'].split())
+if targetos == 'linux' and (have_system or have_tools)
+  libudev = dependency('libudev',
+                       required: get_option('mpath').enabled(),
+                       static: enable_static)
 endif
+
+mpathpersist = not_found
+mpathpersist_new_api = false
+if targetos == 'linux' and have_tools and not get_option('mpath').disabled()
+  mpath_test_source_new = '''
+    #include <libudev.h>
+    #include <mpath_persist.h>
+    unsigned mpath_mx_alloc_len = 1024;
+    int logsink;
+    static struct config *multipath_conf;
+    extern struct udev *udev;
+    extern struct config *get_multipath_config(void);
+    extern void put_multipath_config(struct config *conf);
+    struct udev *udev;
+    struct config *get_multipath_config(void) { return multipath_conf; }
+    void put_multipath_config(struct config *conf) { }
+    int main(void) {
+        udev = udev_new();
+        multipath_conf = mpath_lib_init();
+        return 0;
+    }'''
+  mpath_test_source_old = '''
+      #include <libudev.h>
+      #include <mpath_persist.h>
+      unsigned mpath_mx_alloc_len = 1024;
+      int logsink;
+      int main(void) {
+          struct udev *udev = udev_new();
+          mpath_lib_init(udev);
+          return 0;
+      }'''
+  mpathlibs = [libudev]
+  if enable_static
+    mpathlibs += cc.find_library('devmapper',
+                                   required: get_option('mpath'),
+                                   static: enable_static)
+  endif
+  mpathlibs += cc.find_library('multipath',
+                               required: get_option('mpath'),
+                               static: enable_static)
+  mpathlibs += cc.find_library('mpathpersist',
+                               required: get_option('mpath'),
+                               static: enable_static)
+  foreach lib: mpathlibs
+    if not lib.found()
+      mpathlibs = []
+      break
+    endif
+  endforeach
+  if mpathlibs.length() > 0
+    if cc.links(mpath_test_source_new, dependencies: mpathlibs)
+      mpathpersist = declare_dependency(dependencies: mpathlibs)
+      mpathpersist_new_api = true
+    elif cc.links(mpath_test_source_old, dependencies: mpathlibs)
+      mpathpersist = declare_dependency(dependencies: mpathlibs)
+    else
+      if get_option('mpath').enabled()
+        error('Cannot detect libmpathpersist API')
+      else
+        warning('Cannot detect libmpathpersist API, disabling')
+      endif
+    endif
+  endif
+endif
+
 brlapi = not_found
 if 'CONFIG_BRLAPI' in config_host
   brlapi = declare_dependency(link_args: config_host['BRLAPI_LIBS'].split())
@@ -433,8 +519,32 @@ keyutils = dependency('libkeyutils', required: false,
 
 has_gettid = cc.has_function('gettid')
 
+# Malloc tests
+
+malloc = []
+if get_option('malloc') == 'system'
+  has_malloc_trim = \
+    not get_option('malloc_trim').disabled() and \
+    cc.links('''#include <malloc.h>
+                int main(void) { malloc_trim(0); return 0; }''')
+else
+  has_malloc_trim = false
+  malloc = cc.find_library(get_option('malloc'), required: true)
+endif
+if not has_malloc_trim and get_option('malloc_trim').enabled()
+  if get_option('malloc') == 'system'
+    error('malloc_trim not available on this platform.')
+  else
+    error('malloc_trim not available with non-libc memory allocator')
+  endif
+endif
+
 # Create config-host.h
 
+config_host_data.set('CONFIG_COCOA', cocoa.found())
+config_host_data.set('CONFIG_LIBUDEV', libudev.found())
+config_host_data.set('CONFIG_MPATH', mpathpersist.found())
+config_host_data.set('CONFIG_MPATH_NEW_API', mpathpersist_new_api)
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_VNC', vnc.found())
@@ -444,15 +554,16 @@ config_host_data.set('CONFIG_VNC_SASL', sasl.found())
 config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
 config_host_data.set('CONFIG_KEYUTILS', keyutils.found())
 config_host_data.set('CONFIG_GETTID', has_gettid)
+config_host_data.set('CONFIG_MALLOC_TRIM', has_malloc_trim)
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
 config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0])
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
 config_host_data.set('QEMU_VERSION_MICRO', meson.project_version().split('.')[2])
 
 arrays = ['CONFIG_AUDIO_DRIVERS', 'CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
-strings = ['HOST_DSOSUF', 'CONFIG_IASL', 'qemu_confdir', 'qemu_datadir',
+strings = ['HOST_DSOSUF', 'CONFIG_IASL', 'bindir', 'prefix', 'qemu_confdir', 'qemu_datadir',
            'qemu_moddir', 'qemu_localstatedir', 'qemu_helperdir', 'qemu_localedir',
-           'qemu_icondir', 'qemu_desktopdir', 'qemu_firmwarepath']
+           'qemu_icondir', 'qemu_desktopdir', 'qemu_firmwarepath', 'sysconfdir']
 foreach k, v: config_host
   if arrays.contains(k)
     if v != ''
@@ -473,6 +584,7 @@ endforeach
 genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
 minikconf = find_program('scripts/minikconf.py')
+config_all = {}
 config_all_devices = {}
 config_all_disas = {}
 config_devices_mak_list = []
@@ -521,12 +633,21 @@ kconfig_external_symbols = [
   'CONFIG_OPENGL',
   'CONFIG_X11',
   'CONFIG_VHOST_USER',
+  'CONFIG_VHOST_VDPA',
   'CONFIG_VHOST_KERNEL',
   'CONFIG_VIRTFS',
   'CONFIG_LINUX',
   'CONFIG_PVRDMA',
 ]
 ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
+
+accel_symbols = [
+  'CONFIG_KVM',
+  'CONFIG_HAX',
+  'CONFIG_HVF',
+  'CONFIG_TCG',
+  'CONFIG_WHPX'
+]
 
 foreach target : target_dirs
   config_target = keyval.load(meson.current_build_dir() / target / 'config-target.mak')
@@ -554,6 +675,11 @@ foreach target : target_dirs
       config_target_data.set(k, 1)
     else
       config_target_data.set(k, v)
+    endif
+  endforeach
+  foreach sym: accel_symbols
+    if config_target.has_key(sym)
+      config_all += { sym: 'y' }
     endif
   endforeach
   config_target_h += {target: configure_file(output: target + '-config-target.h',
@@ -600,7 +726,7 @@ endforeach
 # targets that are not built for this compilation.  The CONFIG_ALL
 # pseudo symbol replaces it.
 
-config_all = config_all_devices
+config_all += config_all_devices
 config_all += config_host
 config_all += config_all_disas
 config_all += {
@@ -618,7 +744,6 @@ qapi_gen = find_program('scripts/qapi-gen.py')
 qapi_gen_depends = [ meson.source_root() / 'scripts/qapi/__init__.py',
                      meson.source_root() / 'scripts/qapi/commands.py',
                      meson.source_root() / 'scripts/qapi/common.py',
-                     meson.source_root() / 'scripts/qapi/doc.py',
                      meson.source_root() / 'scripts/qapi/error.py',
                      meson.source_root() / 'scripts/qapi/events.py',
                      meson.source_root() / 'scripts/qapi/expr.py',
@@ -630,7 +755,6 @@ qapi_gen_depends = [ meson.source_root() / 'scripts/qapi/__init__.py',
                      meson.source_root() / 'scripts/qapi/types.py',
                      meson.source_root() / 'scripts/qapi/visit.py',
                      meson.source_root() / 'scripts/qapi/common.py',
-                     meson.source_root() / 'scripts/qapi/doc.py',
                      meson.source_root() / 'scripts/qapi-gen.py'
 ]
 
@@ -670,6 +794,22 @@ foreach d : hx_headers
                 command: [hxtool, '-h', '@INPUT0@'])
 endforeach
 genh += hxdep
+
+SPHINX_ARGS = [config_host['SPHINX_BUILD'],
+               '-Dversion=' + meson.project_version(),
+               '-Drelease=' + config_host['PKGVERSION']]
+
+if get_option('werror')
+  SPHINX_ARGS += [ '-W' ]
+endif
+
+sphinx_extn_depends = [ meson.source_root() / 'docs/sphinx/depfile.py',
+                        meson.source_root() / 'docs/sphinx/hxtool.py',
+                        meson.source_root() / 'docs/sphinx/kerneldoc.py',
+                        meson.source_root() / 'docs/sphinx/kernellog.py',
+                        meson.source_root() / 'docs/sphinx/qapidoc.py',
+                        meson.source_root() / 'docs/sphinx/qmp_lexer.py',
+                        qapi_gen_depends ]
 
 # Collect sourcesets.
 
@@ -812,7 +952,7 @@ util_ss.add_all(trace_ss)
 util_ss = util_ss.apply(config_all, strict: false)
 libqemuutil = static_library('qemuutil',
                              sources: util_ss.sources() + stub_ss.sources() + genh,
-                             dependencies: [util_ss.dependencies(), m, glib, socket])
+                             dependencies: [util_ss.dependencies(), m, glib, socket, malloc])
 qemuutil = declare_dependency(link_with: libqemuutil,
                               sources: genh + version_res)
 
@@ -978,7 +1118,7 @@ common_all = static_library('common',
 
 feature_to_c = find_program('scripts/feature_to_c.sh')
 
-emulators = []
+emulators = {}
 foreach target : target_dirs
   config_target = config_target_mak[target]
   target_name = config_target['TARGET_NAME']
@@ -1097,7 +1237,8 @@ foreach target : target_dirs
     }]
   endif
   foreach exe: execs
-    emulators += executable(exe['name'], exe['sources'],
+    emulators += {exe['name']:
+         executable(exe['name'], exe['sources'],
                install: true,
                c_args: c_args,
                dependencies: arch_deps + deps + exe['dependencies'],
@@ -1106,6 +1247,7 @@ foreach target : target_dirs
                link_depends: [block_syms, qemu_syms] + exe.get('link_depends', []),
                link_args: link_args,
                gui_app: exe['gui'])
+    }
 
     if 'CONFIG_TRACE_SYSTEMTAP' in config_host
       foreach stp: [
@@ -1151,7 +1293,6 @@ if xkbcommon.found()
                            dependencies: [qemuutil, xkbcommon], install: have_tools)
 endif
 
-qemu_block_tools = []
 if have_tools
   qemu_img = executable('qemu-img', [files('qemu-img.c'), hxdep],
              dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
@@ -1184,7 +1325,7 @@ if have_tools
 
     executable('qemu-pr-helper', files('scsi/qemu-pr-helper.c', 'scsi/utils.c'),
                dependencies: [authz, crypto, io, qom, qemuutil,
-                              libcap_ng, libudev, libmpathpersist],
+                              libcap_ng, mpathpersist],
                install: true)
   endif
 
@@ -1201,91 +1342,6 @@ subdir('tests')
 subdir('docs')
 if 'CONFIG_GTK' in config_host
   subdir('po')
-endif
-
-if build_docs
-  makeinfo = find_program('makeinfo', required: build_docs)
-
-  docs_inc = [
-    '-I', meson.current_source_dir(),
-    '-I', meson.current_build_dir() / 'docs',
-    '-I', '@OUTDIR@',
-  ]
-
-  version_texi = configure_file(output: 'version.texi',
-                              input: 'version.texi.in',
-                              configuration: {'VERSION': meson.project_version(),
-                                              'qemu_confdir': config_host['qemu_confdir']})
-
-  texi = {
-    'qemu-qmp-ref': ['docs/interop/qemu-qmp-ref.texi', qapi_doc_texi, version_texi],
-  }
-  if 'CONFIG_GUEST_AGENT' in config_host
-    texi += {'qemu-ga-ref': ['docs/interop/qemu-ga-ref.texi', qga_qapi_doc_texi, version_texi]}
-  endif
-
-  if makeinfo.found()
-    cmd = [
-      'env', 'LC_ALL=C', makeinfo, '--no-split', '--number-sections', docs_inc,
-      '@INPUT0@', '-o', '@OUTPUT@',
-    ]
-    foreach ext, args: {
-        'info': [],
-        'html': ['--no-headers', '--html'],
-        'txt': ['--no-headers', '--plaintext'],
-    }
-      t = []
-      foreach doc, input: texi
-        output = doc + '.' + ext
-        t += custom_target(output,
-                      input: input,
-                      output: output,
-                      install: true,
-                      install_dir: qemu_docdir / 'interop',
-                      command: cmd + args)
-      endforeach
-      alias_target(ext, t)
-    endforeach
-  endif
-
-  texi2pdf = find_program('texi2pdf', required: false)
-
-  if texi2pdf.found()
-    pdfs = []
-    foreach doc, input: texi
-      output = doc + '.pdf'
-      pdfs += custom_target(output,
-                    input: input,
-                    output: output,
-                    command: [texi2pdf, '-q', docs_inc, '@INPUT0@', '-o', '@OUTPUT@'],
-                    build_by_default: false)
-    endforeach
-    alias_target('pdf', pdfs)
-  endif
-
-  texi2pod = find_program('scripts/texi2pod.pl')
-  pod2man = find_program('pod2man', required: build_docs)
-
-  if pod2man.found()
-    foreach doc, input: texi
-      man = doc + '.7'
-      pod = custom_target(man + '.pod',
-                          input: input,
-                          output: man + '.pod',
-                          command: [texi2pod,
-                                    '-DVERSION="' + meson.project_version() + '"',
-                                    '-DCONFDIR="' + config_host['qemu_confdir'] + '"',
-                                    '@INPUT0@', '@OUTPUT@'])
-      man = custom_target(man,
-                          input: pod,
-                          output: man,
-                          capture: true,
-                          install: true,
-                          install_dir: get_option('mandir') / 'man7',
-                          command: [pod2man, '--utf8', '--section=7', '--center=" "',
-                                    '--release=" "', '@INPUT@'])
-    endforeach
-  endif
 endif
 
 if host_machine.system() == 'windows'
@@ -1368,7 +1424,7 @@ summary_info += {'gprof enabled':     config_host.has_key('CONFIG_GPROF')}
 summary_info += {'sparse enabled':    meson.get_compiler('c').cmd_array().contains('cgcc')}
 summary_info += {'strip binaries':    get_option('strip')}
 summary_info += {'profiler':          config_host.has_key('CONFIG_PROFILER')}
-summary_info += {'static build':      config_host.has_key('CONFIG_TOOLS')}
+summary_info += {'static build':      config_host.has_key('CONFIG_STATIC')}
 if targetos == 'darwin'
   summary_info += {'Cocoa support': config_host.has_key('CONFIG_COCOA')}
 endif
@@ -1406,7 +1462,7 @@ summary_info += {'Audio drivers':     config_host['CONFIG_AUDIO_DRIVERS']}
 summary_info += {'Block whitelist (rw)': config_host['CONFIG_BDRV_RW_WHITELIST']}
 summary_info += {'Block whitelist (ro)': config_host['CONFIG_BDRV_RO_WHITELIST']}
 summary_info += {'VirtFS support':    config_host.has_key('CONFIG_VIRTFS')}
-summary_info += {'Multipath support': config_host.has_key('CONFIG_MPATH')}
+summary_info += {'Multipath support': mpathpersist.found()}
 summary_info += {'VNC support':       vnc.found()}
 if vnc.found()
   summary_info += {'VNC SASL support':  sasl.found()}
@@ -1426,17 +1482,16 @@ summary_info += {'Linux AIO support': config_host.has_key('CONFIG_LINUX_AIO')}
 summary_info += {'Linux io_uring support': config_host.has_key('CONFIG_LINUX_IO_URING')}
 summary_info += {'ATTR/XATTR support': config_host.has_key('CONFIG_ATTR')}
 summary_info += {'Install blobs':     config_host.has_key('INSTALL_BLOBS')}
-# TODO: add back KVM/HAX/HVF/WHPX/TCG
-#summary_info += {'KVM support':       have_kvm'}
-#summary_info += {'HAX support':       have_hax'}
-#summary_info += {'HVF support':       have_hvf'}
-#summary_info += {'WHPX support':      have_whpx'}
-#summary_info += {'TCG support':       have_tcg'}
-#if get_option('tcg')
-#  summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
-#  summary_info += {'TCG interpreter':   config_host.has_key('CONFIG_TCG_INTERPRETER')}
-#endif
-summary_info += {'malloc trim support': config_host.has_key('CONFIG_MALLOC_TRIM')}
+summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
+summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
+summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
+summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
+summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
+if config_all.has_key('CONFIG_TCG')
+  summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
+  summary_info += {'TCG interpreter':   config_host.has_key('CONFIG_TCG_INTERPRETER')}
+endif
+summary_info += {'malloc trim support': has_malloc_trim}
 summary_info += {'RDMA support':      config_host.has_key('CONFIG_RDMA')}
 summary_info += {'PVRDMA support':    config_host.has_key('CONFIG_PVRDMA')}
 summary_info += {'fdt support':       config_host.has_key('CONFIG_FDT')}
@@ -1477,7 +1532,7 @@ if targetos == 'windows'
   endif
   summary_info += {'QGA VSS support':   config_host.has_key('CONFIG_QGA_VSS')}
   summary_info += {'QGA w32 disk info': config_host.has_key('CONFIG_QGA_NTDDSCSI')}
-  summary_info += {'QGA MSI support':   config_host.has_key('CONFIG_QGA_MSI_ENABLED')}
+  summary_info += {'QGA MSI support':   config_host.has_key('CONFIG_QGA_MSI')}
 endif
 summary_info += {'seccomp support':   config_host.has_key('CONFIG_SECCOMP')}
 summary_info += {'coroutine backend': config_host['CONFIG_COROUTINE_BACKEND']}
@@ -1498,8 +1553,7 @@ summary_info += {'lzfse support':     config_host.has_key('CONFIG_LZFSE')}
 summary_info += {'zstd support':      config_host.has_key('CONFIG_ZSTD')}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
 summary_info += {'libxml2':           config_host.has_key('CONFIG_LIBXML2')}
-summary_info += {'tcmalloc support':  config_host.has_key('CONFIG_TCMALLOC')}
-summary_info += {'jemalloc support':  config_host.has_key('CONFIG_JEMALLOC')}
+summary_info += {'memory allocator':  get_option('malloc')}
 summary_info += {'avx2 optimization': config_host.has_key('CONFIG_AVX2_OPT')}
 summary_info += {'avx512f optimization': config_host.has_key('CONFIG_AVX512F_OPT')}
 summary_info += {'replication support': config_host.has_key('CONFIG_REPLICATION')}
@@ -1515,7 +1569,7 @@ summary_info += {'sheepdog support':  config_host.has_key('CONFIG_SHEEPDOG')}
 summary_info += {'capstone':          config_host.has_key('CONFIG_CAPSTONE')}
 summary_info += {'libpmem support':   config_host.has_key('CONFIG_LIBPMEM')}
 summary_info += {'libdaxctl support': config_host.has_key('CONFIG_LIBDAXCTL')}
-summary_info += {'libudev':           config_host.has_key('CONFIG_LIBUDEV')}
+summary_info += {'libudev':           libudev.found()}
 summary_info += {'default devices':   config_host['CONFIG_MINIKCONF_MODE'] == '--defconfig'}
 summary_info += {'plugin support':    config_host.has_key('CONFIG_PLUGIN')}
 summary_info += {'fuzzing support':   config_host.has_key('CONFIG_FUZZ')}

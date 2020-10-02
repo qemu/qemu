@@ -104,7 +104,7 @@ static void qjack_buffer_create(QJackBuffer *buffer, int channels, int frames)
 static void qjack_buffer_clear(QJackBuffer *buffer)
 {
     assert(buffer->data);
-    atomic_store_release(&buffer->used, 0);
+    qatomic_store_release(&buffer->used, 0);
     buffer->rptr = 0;
     buffer->wptr = 0;
 }
@@ -129,7 +129,7 @@ static int qjack_buffer_write(QJackBuffer *buffer, float *data, int size)
     assert(buffer->data);
     const int samples = size / sizeof(float);
     int frames        = samples / buffer->channels;
-    const int avail   = buffer->frames - atomic_load_acquire(&buffer->used);
+    const int avail   = buffer->frames - qatomic_load_acquire(&buffer->used);
 
     if (frames > avail) {
         frames = avail;
@@ -153,7 +153,7 @@ static int qjack_buffer_write(QJackBuffer *buffer, float *data, int size)
 
     buffer->wptr = wptr;
 
-    atomic_add(&buffer->used, frames);
+    qatomic_add(&buffer->used, frames);
     return frames * buffer->channels * sizeof(float);
 };
 
@@ -161,7 +161,7 @@ static int qjack_buffer_write(QJackBuffer *buffer, float *data, int size)
 static int qjack_buffer_write_l(QJackBuffer *buffer, float **dest, int frames)
 {
     assert(buffer->data);
-    const int avail   = buffer->frames - atomic_load_acquire(&buffer->used);
+    const int avail   = buffer->frames - qatomic_load_acquire(&buffer->used);
     int wptr = buffer->wptr;
 
     if (frames > avail) {
@@ -185,7 +185,7 @@ static int qjack_buffer_write_l(QJackBuffer *buffer, float **dest, int frames)
     }
     buffer->wptr = wptr;
 
-    atomic_add(&buffer->used, frames);
+    qatomic_add(&buffer->used, frames);
     return frames;
 }
 
@@ -195,7 +195,7 @@ static int qjack_buffer_read(QJackBuffer *buffer, float *dest, int size)
     assert(buffer->data);
     const int samples = size / sizeof(float);
     int frames        = samples / buffer->channels;
-    const int avail   = atomic_load_acquire(&buffer->used);
+    const int avail   = qatomic_load_acquire(&buffer->used);
 
     if (frames > avail) {
         frames = avail;
@@ -219,7 +219,7 @@ static int qjack_buffer_read(QJackBuffer *buffer, float *dest, int size)
 
     buffer->rptr = rptr;
 
-    atomic_sub(&buffer->used, frames);
+    qatomic_sub(&buffer->used, frames);
     return frames * buffer->channels * sizeof(float);
 }
 
@@ -228,7 +228,7 @@ static int qjack_buffer_read_l(QJackBuffer *buffer, float **dest, int frames)
 {
     assert(buffer->data);
     int copy       = frames;
-    const int used = atomic_load_acquire(&buffer->used);
+    const int used = qatomic_load_acquire(&buffer->used);
     int rptr       = buffer->rptr;
 
     if (copy > used) {
@@ -252,7 +252,7 @@ static int qjack_buffer_read_l(QJackBuffer *buffer, float **dest, int frames)
     }
     buffer->rptr = rptr;
 
-    atomic_sub(&buffer->used, copy);
+    qatomic_sub(&buffer->used, copy);
     return copy;
 }
 

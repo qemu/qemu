@@ -80,7 +80,7 @@ extern AioWait global_aio_wait;
     AioWait *wait_ = &global_aio_wait;                             \
     AioContext *ctx_ = (ctx);                                      \
     /* Increment wait_->num_waiters before evaluating cond. */     \
-    atomic_inc(&wait_->num_waiters);                               \
+    qatomic_inc(&wait_->num_waiters);                              \
     if (ctx_ && in_aio_context_home_thread(ctx_)) {                \
         while ((cond)) {                                           \
             aio_poll(ctx_, true);                                  \
@@ -100,7 +100,7 @@ extern AioWait global_aio_wait;
             waited_ = true;                                        \
         }                                                          \
     }                                                              \
-    atomic_dec(&wait_->num_waiters);                               \
+    qatomic_dec(&wait_->num_waiters);                              \
     waited_; })
 
 /**

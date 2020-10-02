@@ -118,16 +118,16 @@ static bool schedule_next(int n)
 {
     Coroutine *co;
 
-    co = atomic_xchg(&to_schedule[n], NULL);
+    co = qatomic_xchg(&to_schedule[n], NULL);
     if (!co) {
-        atomic_inc(&count_retry);
+        qatomic_inc(&count_retry);
         return false;
     }
 
     if (n == id) {
-        atomic_inc(&count_here);
+        qatomic_inc(&count_here);
     } else {
-        atomic_inc(&count_other);
+        qatomic_inc(&count_other);
     }
 
     aio_co_schedule(ctx[n], co);
@@ -143,13 +143,13 @@ static coroutine_fn void test_multi_co_schedule_entry(void *opaque)
 {
     g_assert(to_schedule[id] == NULL);
 
-    while (!atomic_mb_read(&now_stopping)) {
+    while (!qatomic_mb_read(&now_stopping)) {
         int n;
 
         n = g_test_rand_int_range(0, NUM_CONTEXTS);
         schedule_next(n);
 
-        atomic_mb_set(&to_schedule[id], qemu_coroutine_self());
+        qatomic_mb_set(&to_schedule[id], qemu_coroutine_self());
         qemu_coroutine_yield();
         g_assert(to_schedule[id] == NULL);
     }
@@ -171,7 +171,7 @@ static void test_multi_co_schedule(int seconds)
 
     g_usleep(seconds * 1000000);
 
-    atomic_mb_set(&now_stopping, true);
+    qatomic_mb_set(&now_stopping, true);
     for (i = 0; i < NUM_CONTEXTS; i++) {
         ctx_run(i, finish_cb, NULL);
         to_schedule[i] = NULL;
@@ -202,7 +202,7 @@ static CoMutex comutex;
 
 static void coroutine_fn test_multi_co_mutex_entry(void *opaque)
 {
-    while (!atomic_mb_read(&now_stopping)) {
+    while (!qatomic_mb_read(&now_stopping)) {
         qemu_co_mutex_lock(&comutex);
         counter++;
         qemu_co_mutex_unlock(&comutex);
@@ -212,9 +212,9 @@ static void coroutine_fn test_multi_co_mutex_entry(void *opaque)
          * exits before the coroutine is woken up, causing a spurious
          * assertion failure.
          */
-        atomic_inc(&atomic_counter);
+        qatomic_inc(&atomic_counter);
     }
-    atomic_dec(&running);
+    qatomic_dec(&running);
 }
 
 static void test_multi_co_mutex(int threads, int seconds)
@@ -236,7 +236,7 @@ static void test_multi_co_mutex(int threads, int seconds)
 
     g_usleep(seconds * 1000000);
 
-    atomic_mb_set(&now_stopping, true);
+    qatomic_mb_set(&now_stopping, true);
     while (running > 0) {
         g_usleep(100000);
     }
@@ -296,9 +296,9 @@ static void mcs_mutex_lock(void)
 
     nodes[id].next = -1;
     nodes[id].locked = 1;
-    prev = atomic_xchg(&mutex_head, id);
+    prev = qatomic_xchg(&mutex_head, id);
     if (prev != -1) {
-        atomic_set(&nodes[prev].next, id);
+        qatomic_set(&nodes[prev].next, id);
         qemu_futex_wait(&nodes[id].locked, 1);
     }
 }
@@ -306,13 +306,13 @@ static void mcs_mutex_lock(void)
 static void mcs_mutex_unlock(void)
 {
     int next;
-    if (atomic_read(&nodes[id].next) == -1) {
-        if (atomic_read(&mutex_head) == id &&
-            atomic_cmpxchg(&mutex_head, id, -1) == id) {
+    if (qatomic_read(&nodes[id].next) == -1) {
+        if (qatomic_read(&mutex_head) == id &&
+            qatomic_cmpxchg(&mutex_head, id, -1) == id) {
             /* Last item in the list, exit.  */
             return;
         }
-        while (atomic_read(&nodes[id].next) == -1) {
+        while (qatomic_read(&nodes[id].next) == -1) {
             /* mcs_mutex_lock did the xchg, but has not updated
              * nodes[prev].next yet.
              */
@@ -320,20 +320,20 @@ static void mcs_mutex_unlock(void)
     }
 
     /* Wake up the next in line.  */
-    next = atomic_read(&nodes[id].next);
+    next = qatomic_read(&nodes[id].next);
     nodes[next].locked = 0;
     qemu_futex_wake(&nodes[next].locked, 1);
 }
 
 static void test_multi_fair_mutex_entry(void *opaque)
 {
-    while (!atomic_mb_read(&now_stopping)) {
+    while (!qatomic_mb_read(&now_stopping)) {
         mcs_mutex_lock();
         counter++;
         mcs_mutex_unlock();
-        atomic_inc(&atomic_counter);
+        qatomic_inc(&atomic_counter);
     }
-    atomic_dec(&running);
+    qatomic_dec(&running);
 }
 
 static void test_multi_fair_mutex(int threads, int seconds)
@@ -355,7 +355,7 @@ static void test_multi_fair_mutex(int threads, int seconds)
 
     g_usleep(seconds * 1000000);
 
-    atomic_mb_set(&now_stopping, true);
+    qatomic_mb_set(&now_stopping, true);
     while (running > 0) {
         g_usleep(100000);
     }
@@ -383,13 +383,13 @@ static QemuMutex mutex;
 
 static void test_multi_mutex_entry(void *opaque)
 {
-    while (!atomic_mb_read(&now_stopping)) {
+    while (!qatomic_mb_read(&now_stopping)) {
         qemu_mutex_lock(&mutex);
         counter++;
         qemu_mutex_unlock(&mutex);
-        atomic_inc(&atomic_counter);
+        qatomic_inc(&atomic_counter);
     }
-    atomic_dec(&running);
+    qatomic_dec(&running);
 }
 
 static void test_multi_mutex(int threads, int seconds)
@@ -411,7 +411,7 @@ static void test_multi_mutex(int threads, int seconds)
 
     g_usleep(seconds * 1000000);
 
-    atomic_mb_set(&now_stopping, true);
+    qatomic_mb_set(&now_stopping, true);
     while (running > 0) {
         g_usleep(100000);
     }

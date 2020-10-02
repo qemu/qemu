@@ -148,7 +148,7 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
     wi.exclusive = false;
 
     queue_work_on_cpu(cpu, &wi);
-    while (!atomic_mb_read(&wi.done)) {
+    while (!qatomic_mb_read(&wi.done)) {
         CPUState *self_cpu = current_cpu;
 
         qemu_cond_wait(&qemu_work_cond, mutex);
@@ -188,20 +188,20 @@ void start_exclusive(void)
     exclusive_idle();
 
     /* Make all other cpus stop executing.  */
-    atomic_set(&pending_cpus, 1);
+    qatomic_set(&pending_cpus, 1);
 
     /* Write pending_cpus before reading other_cpu->running.  */
     smp_mb();
     running_cpus = 0;
     CPU_FOREACH(other_cpu) {
-        if (atomic_read(&other_cpu->running)) {
+        if (qatomic_read(&other_cpu->running)) {
             other_cpu->has_waiter = true;
             running_cpus++;
             qemu_cpu_kick(other_cpu);
         }
     }
 
-    atomic_set(&pending_cpus, running_cpus + 1);
+    qatomic_set(&pending_cpus, running_cpus + 1);
     while (pending_cpus > 1) {
         qemu_cond_wait(&exclusive_cond, &qemu_cpu_list_lock);
     }
@@ -220,7 +220,7 @@ void end_exclusive(void)
     current_cpu->in_exclusive_context = false;
 
     qemu_mutex_lock(&qemu_cpu_list_lock);
-    atomic_set(&pending_cpus, 0);
+    qatomic_set(&pending_cpus, 0);
     qemu_cond_broadcast(&exclusive_resume);
     qemu_mutex_unlock(&qemu_cpu_list_lock);
 }
@@ -228,7 +228,7 @@ void end_exclusive(void)
 /* Wait for exclusive ops to finish, and begin cpu execution.  */
 void cpu_exec_start(CPUState *cpu)
 {
-    atomic_set(&cpu->running, true);
+    qatomic_set(&cpu->running, true);
 
     /* Write cpu->running before reading pending_cpus.  */
     smp_mb();
@@ -246,17 +246,17 @@ void cpu_exec_start(CPUState *cpu)
      * 3. pending_cpus == 0.  Then start_exclusive is definitely going to
      * see cpu->running == true, and it will kick the CPU.
      */
-    if (unlikely(atomic_read(&pending_cpus))) {
+    if (unlikely(qatomic_read(&pending_cpus))) {
         QEMU_LOCK_GUARD(&qemu_cpu_list_lock);
         if (!cpu->has_waiter) {
             /* Not counted in pending_cpus, let the exclusive item
              * run.  Since we have the lock, just set cpu->running to true
              * while holding it; no need to check pending_cpus again.
              */
-            atomic_set(&cpu->running, false);
+            qatomic_set(&cpu->running, false);
             exclusive_idle();
             /* Now pending_cpus is zero.  */
-            atomic_set(&cpu->running, true);
+            qatomic_set(&cpu->running, true);
         } else {
             /* Counted in pending_cpus, go ahead and release the
              * waiter at cpu_exec_end.
@@ -268,7 +268,7 @@ void cpu_exec_start(CPUState *cpu)
 /* Mark cpu as not executing, and release pending exclusive ops.  */
 void cpu_exec_end(CPUState *cpu)
 {
-    atomic_set(&cpu->running, false);
+    qatomic_set(&cpu->running, false);
 
     /* Write cpu->running before reading pending_cpus.  */
     smp_mb();
@@ -288,11 +288,11 @@ void cpu_exec_end(CPUState *cpu)
      * see cpu->running == false, and it can ignore this CPU until the
      * next cpu_exec_start.
      */
-    if (unlikely(atomic_read(&pending_cpus))) {
+    if (unlikely(qatomic_read(&pending_cpus))) {
         QEMU_LOCK_GUARD(&qemu_cpu_list_lock);
         if (cpu->has_waiter) {
             cpu->has_waiter = false;
-            atomic_set(&pending_cpus, pending_cpus - 1);
+            qatomic_set(&pending_cpus, pending_cpus - 1);
             if (pending_cpus == 1) {
                 qemu_cond_signal(&exclusive_cond);
             }
@@ -346,7 +346,7 @@ void process_queued_cpu_work(CPUState *cpu)
         if (wi->free) {
             g_free(wi);
         } else {
-            atomic_mb_set(&wi->done, true);
+            qatomic_mb_set(&wi->done, true);
         }
     }
     qemu_mutex_unlock(&cpu->work_mutex);

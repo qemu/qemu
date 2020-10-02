@@ -89,12 +89,12 @@ static void sifive_plic_print_state(SiFivePLICState *plic)
 
 static uint32_t atomic_set_masked(uint32_t *a, uint32_t mask, uint32_t value)
 {
-    uint32_t old, new, cmp = atomic_read(a);
+    uint32_t old, new, cmp = qatomic_read(a);
 
     do {
         old = cmp;
         new = (old & ~mask) | (value & mask);
-        cmp = atomic_cmpxchg(a, old, new);
+        cmp = qatomic_cmpxchg(a, old, new);
     } while (old != cmp);
 
     return old;

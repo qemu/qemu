@@ -747,7 +747,7 @@ static void coroutine_fn prh_co_entry(void *opaque)
         goto out;
     }
 
-    while (atomic_read(&state) == RUNNING) {
+    while (qatomic_read(&state) == RUNNING) {
         PRHelperRequest req;
         PRHelperResponse resp;
         int sz;
@@ -816,7 +816,7 @@ static gboolean accept_client(QIOChannel *ioc, GIOCondition cond, gpointer opaqu
 
 static void termsig_handler(int signum)
 {
-    atomic_cmpxchg(&state, RUNNING, TERMINATE);
+    qatomic_cmpxchg(&state, RUNNING, TERMINATE);
     qemu_notify_event();
 }
 

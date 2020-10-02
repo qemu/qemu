@@ -143,7 +143,8 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
 {
 
     char *target_name;
-    char *bindir, *datadir;
+    const char *bindir;
+    char *datadir;
     bool serialize = false;
 
     /* Initialize qgraph and modules */
@@ -152,6 +153,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_LIBQOS);
 
+    qemu_init_exec_dir(**argv);
     target_name = strstr(**argv, "-target-");
     if (target_name) {        /* The binary name specifies the target */
         target_name += strlen("-target-");
@@ -164,13 +166,13 @@ int LLVMFuzzerInitialize(int *argc, char ***argv, char ***envp)
          * location of the executable. Using this we add exec_dir/pc-bios to
          * the datadirs.
          */
-        bindir = g_path_get_dirname(**argv);
+        bindir = qemu_get_exec_dir();
         datadir = g_build_filename(bindir, "pc-bios", NULL);
-        g_free(bindir);
         if (g_file_test(datadir, G_FILE_TEST_IS_DIR)) {
             qemu_add_data_dir(datadir);
-        }
-        g_free(datadir);
+        } else {
+            g_free(datadir);
+	}
     } else if (*argc > 1) {  /* The target is specified as an argument */
         target_name = (*argv)[1];
         if (!strstr(target_name, "--fuzz-target=")) {

@@ -103,6 +103,7 @@ Options
   forbids the FUSE client from caching to achieve best coherency at the cost of
   performance.  ``auto`` acts similar to NFS with a 1 second metadata cache
   timeout.  ``always`` sets a long cache lifetime at the expense of coherency.
+  The default is ``auto``.
 
 Examples
 --------

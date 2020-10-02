@@ -36,7 +36,7 @@ static inline bool qemu_log_separate(void)
     bool res = false;
 
     rcu_read_lock();
-    logfile = atomic_rcu_read(&qemu_logfile);
+    logfile = qatomic_rcu_read(&qemu_logfile);
     if (logfile && logfile->fd != stderr) {
         res = true;
     }
@@ -75,7 +75,7 @@ static inline FILE *qemu_log_lock(void)
 {
     QemuLogFile *logfile;
     rcu_read_lock();
-    logfile = atomic_rcu_read(&qemu_logfile);
+    logfile = qatomic_rcu_read(&qemu_logfile);
     if (logfile) {
         qemu_flockfile(logfile->fd);
         return logfile->fd;
@@ -102,7 +102,7 @@ qemu_log_vprintf(const char *fmt, va_list va)
     QemuLogFile *logfile;
 
     rcu_read_lock();
-    logfile = atomic_rcu_read(&qemu_logfile);
+    logfile = qatomic_rcu_read(&qemu_logfile);
     if (logfile) {
         vfprintf(logfile->fd, fmt, va);
     }

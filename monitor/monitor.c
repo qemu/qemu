@@ -449,7 +449,7 @@ int monitor_suspend(Monitor *mon)
         return -ENOTTY;
     }
 
-    atomic_inc(&mon->suspend_cnt);
+    qatomic_inc(&mon->suspend_cnt);
 
     if (mon->use_io_thread) {
         /*
@@ -476,7 +476,7 @@ void monitor_resume(Monitor *mon)
         return;
     }
 
-    if (atomic_dec_fetch(&mon->suspend_cnt) == 0) {
+    if (qatomic_dec_fetch(&mon->suspend_cnt) == 0) {
         AioContext *ctx;
 
         if (mon->use_io_thread) {
@@ -501,7 +501,7 @@ int monitor_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 
-    return !atomic_mb_read(&mon->suspend_cnt);
+    return !qatomic_mb_read(&mon->suspend_cnt);
 }
 
 void monitor_list_append(Monitor *mon)

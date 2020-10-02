@@ -5,6 +5,7 @@
 # Author: Paolo Bonzini <pbonzini@redhat.com>
 
 from collections import defaultdict
+import itertools
 import json
 import os
 import shlex
@@ -36,7 +37,7 @@ SPEED = quick
 introspect = json.load(sys.stdin)
 i = 0
 
-def process_tests(test, suites):
+def process_tests(test, targets, suites):
     global i
     env = ' '.join(('%s=%s' % (shlex.quote(k), shlex.quote(v))
                     for k, v in test['env'].items()))
@@ -58,12 +59,19 @@ def process_tests(test, suites):
     i += 1
     if test['workdir'] is not None:
         print('.test.dir.%d := %s' % (i, shlex.quote(test['workdir'])))
+
+    if 'depends' in test:
+        deps = (targets.get(x, []) for x in test['depends'])
+        deps = itertools.chain.from_iterable(deps)
+    else:
+        deps = ['all']
+
     print('.test.name.%d := %s' % (i, test['name']))
     print('.test.driver.%d := %s' % (i, driver))
     print('.test.env.%d := $(.test.env) %s' % (i, env))
     print('.test.cmd.%d := %s' % (i, cmd))
     print('.PHONY: run-test-%d' % (i,))
-    print('run-test-%d: all' % (i,))
+    print('run-test-%d: %s' % (i, ' '.join(deps)))
     print('\t@$(call .test.run,%d,$(.test.output-format))' % (i,))
 
     test_suites = test['suite'] or ['default']
@@ -102,16 +110,19 @@ def emit_suite(name, suite, prefix):
     print('.tests += $(.test.$(SPEED).%s)' % (target, ))
     print('endif')
 
+targets = {t['id']: [os.path.relpath(f) for f in t['filename']]
+           for t in introspect['targets']}
+
 testsuites = defaultdict(Suite)
 for test in introspect['tests']:
-    process_tests(test, testsuites)
+    process_tests(test, targets, testsuites)
 emit_prolog(testsuites, 'check')
 for name, suite in testsuites.items():
     emit_suite(name, suite, 'check')
 
 benchsuites = defaultdict(Suite)
 for test in introspect['benchmarks']:
-    process_tests(test, benchsuites)
+    process_tests(test, targets, benchsuites)
 emit_prolog(benchsuites, 'bench')
 for name, suite in benchsuites.items():
     emit_suite(name, suite, 'bench')

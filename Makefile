@@ -78,7 +78,7 @@ ${ninja-targets-c_COMPILER} ${ninja-targets-cpp_COMPILER}: .var.command += -MP
 # reread (and MESON won't be empty anymore).
 ifneq ($(MESON),)
 Makefile.mtest: build.ninja scripts/mtest2make.py
-	$(MESON) introspect --tests --benchmarks | $(PYTHON) scripts/mtest2make.py > $@
+	$(MESON) introspect --targets --tests --benchmarks | $(PYTHON) scripts/mtest2make.py > $@
 -include Makefile.mtest
 endif
 
@@ -280,12 +280,12 @@ endif
 	$(call print-help,vm-help,Help about targets running tests inside VM)
 	@echo  ''
 	@echo  'Documentation targets:'
-	$(call print-help,html info pdf txt man,Build documentation in specified format)
+	$(call print-help,html man,Build documentation in specified format)
 	@echo  ''
 ifdef CONFIG_WIN32
 	@echo  'Windows targets:'
 	$(call print-help,installer,Build NSIS-based installer for QEMU)
-ifdef QEMU_GA_MSI_ENABLED
+ifdef CONFIG_QGA_MSI
 	$(call print-help,msi,Build MSI-based installer for qemu-ga)
 endif
 	@echo  ''

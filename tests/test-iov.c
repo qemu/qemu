@@ -26,6 +26,12 @@ static void iov_free(struct iovec *iov, unsigned niov)
     g_free(iov);
 }
 
+static bool iov_equals(const struct iovec *a, const struct iovec *b,
+                       unsigned niov)
+{
+    return memcmp(a, b, sizeof(a[0]) * niov) == 0;
+}
+
 static void test_iov_bytes(struct iovec *iov, unsigned niov,
                            size_t offset, size_t bytes)
 {
@@ -335,6 +341,87 @@ static void test_discard_front(void)
     iov_free(iov, iov_cnt);
 }
 
+static void test_discard_front_undo(void)
+{
+    IOVDiscardUndo undo;
+    struct iovec *iov;
+    struct iovec *iov_tmp;
+    struct iovec *iov_orig;
+    unsigned int iov_cnt;
+    unsigned int iov_cnt_tmp;
+    size_t size;
+
+    /* Discard zero bytes */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_tmp = iov;
+    iov_cnt_tmp = iov_cnt;
+    iov_discard_front_undoable(&iov_tmp, &iov_cnt_tmp, 0, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+
+    /* Discard more bytes than vector size */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_tmp = iov;
+    iov_cnt_tmp = iov_cnt;
+    size = iov_size(iov, iov_cnt);
+    iov_discard_front_undoable(&iov_tmp, &iov_cnt_tmp, size + 1, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+
+    /* Discard entire vector */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_tmp = iov;
+    iov_cnt_tmp = iov_cnt;
+    size = iov_size(iov, iov_cnt);
+    iov_discard_front_undoable(&iov_tmp, &iov_cnt_tmp, size, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+
+    /* Discard within first element */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_tmp = iov;
+    iov_cnt_tmp = iov_cnt;
+    size = g_test_rand_int_range(1, iov->iov_len);
+    iov_discard_front_undoable(&iov_tmp, &iov_cnt_tmp, size, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+
+    /* Discard entire first element */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_tmp = iov;
+    iov_cnt_tmp = iov_cnt;
+    iov_discard_front_undoable(&iov_tmp, &iov_cnt_tmp, iov->iov_len, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+
+    /* Discard within second element */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_tmp = iov;
+    iov_cnt_tmp = iov_cnt;
+    size = iov->iov_len + g_test_rand_int_range(1, iov[1].iov_len);
+    iov_discard_front_undoable(&iov_tmp, &iov_cnt_tmp, size, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+}
+
 static void test_discard_back(void)
 {
     struct iovec *iov;
@@ -404,6 +491,82 @@ static void test_discard_back(void)
     iov_free(iov, iov_cnt);
 }
 
+static void test_discard_back_undo(void)
+{
+    IOVDiscardUndo undo;
+    struct iovec *iov;
+    struct iovec *iov_orig;
+    unsigned int iov_cnt;
+    unsigned int iov_cnt_tmp;
+    size_t size;
+
+    /* Discard zero bytes */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_cnt_tmp = iov_cnt;
+    iov_discard_back_undoable(iov, &iov_cnt_tmp, 0, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+
+    /* Discard more bytes than vector size */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_cnt_tmp = iov_cnt;
+    size = iov_size(iov, iov_cnt);
+    iov_discard_back_undoable(iov, &iov_cnt_tmp, size + 1, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+
+    /* Discard entire vector */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_cnt_tmp = iov_cnt;
+    size = iov_size(iov, iov_cnt);
+    iov_discard_back_undoable(iov, &iov_cnt_tmp, size, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+
+    /* Discard within last element */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_cnt_tmp = iov_cnt;
+    size = g_test_rand_int_range(1, iov[iov_cnt - 1].iov_len);
+    iov_discard_back_undoable(iov, &iov_cnt_tmp, size, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+
+    /* Discard entire last element */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_cnt_tmp = iov_cnt;
+    size = iov[iov_cnt - 1].iov_len;
+    iov_discard_back_undoable(iov, &iov_cnt_tmp, size, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+
+    /* Discard within second-to-last element */
+    iov_random(&iov, &iov_cnt);
+    iov_orig = g_memdup(iov, sizeof(iov[0]) * iov_cnt);
+    iov_cnt_tmp = iov_cnt;
+    size = iov[iov_cnt - 1].iov_len +
+           g_test_rand_int_range(1, iov[iov_cnt - 2].iov_len);
+    iov_discard_back_undoable(iov, &iov_cnt_tmp, size, &undo);
+    iov_discard_undo(&undo);
+    assert(iov_equals(iov, iov_orig, iov_cnt));
+    g_free(iov_orig);
+    iov_free(iov, iov_cnt);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -412,5 +575,7 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/iov/io", test_io);
     g_test_add_func("/basic/iov/discard-front", test_discard_front);
     g_test_add_func("/basic/iov/discard-back", test_discard_back);
+    g_test_add_func("/basic/iov/discard-front-undo", test_discard_front_undo);
+    g_test_add_func("/basic/iov/discard-back-undo", test_discard_back_undo);
     return g_test_run();
 }

@@ -103,16 +103,16 @@ struct virtio_scsi_event {
 } QEMU_PACKED;
 
 struct virtio_scsi_config {
-	uint32_t num_queues;
-	uint32_t seg_max;
-	uint32_t max_sectors;
-	uint32_t cmd_per_lun;
-	uint32_t event_info_size;
-	uint32_t sense_size;
-	uint32_t cdb_size;
-	uint16_t max_channel;
-	uint16_t max_target;
-	uint32_t max_lun;
+	__virtio32 num_queues;
+	__virtio32 seg_max;
+	__virtio32 max_sectors;
+	__virtio32 cmd_per_lun;
+	__virtio32 event_info_size;
+	__virtio32 sense_size;
+	__virtio32 cdb_size;
+	__virtio16 max_channel;
+	__virtio16 max_target;
+	__virtio32 max_lun;
 } QEMU_PACKED;
 
 /* Feature Bits */

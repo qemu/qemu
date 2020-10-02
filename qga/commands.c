@@ -166,13 +166,13 @@ GuestExecStatus *qmp_guest_exec_status(int64_t pid, Error **errp)
 
     ges = g_new0(GuestExecStatus, 1);
 
-    bool finished = atomic_mb_read(&gei->finished);
+    bool finished = qatomic_mb_read(&gei->finished);
 
     /* need to wait till output channels are closed
      * to be sure we captured all output at this point */
     if (gei->has_output) {
-        finished = finished && atomic_mb_read(&gei->out.closed);
-        finished = finished && atomic_mb_read(&gei->err.closed);
+        finished = finished && qatomic_mb_read(&gei->out.closed);
+        finished = finished && qatomic_mb_read(&gei->err.closed);
     }
 
     ges->exited = finished;
@@ -274,7 +274,7 @@ static void guest_exec_child_watch(GPid pid, gint status, gpointer data)
             (int32_t)gpid_to_int64(pid), (uint32_t)status);
 
     gei->status = status;
-    atomic_mb_set(&gei->finished, true);
+    qatomic_mb_set(&gei->finished, true);
 
     g_spawn_close_pid(pid);
 }
@@ -330,7 +330,7 @@ static gboolean guest_exec_input_watch(GIOChannel *ch,
 done:
     g_io_channel_shutdown(ch, true, NULL);
     g_io_channel_unref(ch);
-    atomic_mb_set(&p->closed, true);
+    qatomic_mb_set(&p->closed, true);
     g_free(p->data);
 
     return false;
@@ -384,7 +384,7 @@ static gboolean guest_exec_output_watch(GIOChannel *ch,
 close:
     g_io_channel_shutdown(ch, true, NULL);
     g_io_channel_unref(ch);
-    atomic_mb_set(&p->closed, true);
+    qatomic_mb_set(&p->closed, true);
     return false;
 }
 

@@ -169,28 +169,28 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
 
     object_property_set_link(OBJECT(s->cpu), "memory", OBJECT(&s->container),
                              &error_abort);
-    if (object_property_find(OBJECT(s->cpu), "idau", NULL)) {
+    if (object_property_find(OBJECT(s->cpu), "idau")) {
         object_property_set_link(OBJECT(s->cpu), "idau", s->idau,
                                  &error_abort);
     }
-    if (object_property_find(OBJECT(s->cpu), "init-svtor", NULL)) {
+    if (object_property_find(OBJECT(s->cpu), "init-svtor")) {
         if (!object_property_set_uint(OBJECT(s->cpu), "init-svtor",
                                       s->init_svtor, errp)) {
             return;
         }
     }
-    if (object_property_find(OBJECT(s->cpu), "start-powered-off", NULL)) {
+    if (object_property_find(OBJECT(s->cpu), "start-powered-off")) {
         if (!object_property_set_bool(OBJECT(s->cpu), "start-powered-off",
                                       s->start_powered_off, errp)) {
             return;
         }
     }
-    if (object_property_find(OBJECT(s->cpu), "vfp", NULL)) {
+    if (object_property_find(OBJECT(s->cpu), "vfp")) {
         if (!object_property_set_bool(OBJECT(s->cpu), "vfp", s->vfp, errp)) {
             return;
         }
     }
-    if (object_property_find(OBJECT(s->cpu), "dsp", NULL)) {
+    if (object_property_find(OBJECT(s->cpu), "dsp")) {
         if (!object_property_set_bool(OBJECT(s->cpu), "dsp", s->dsp, errp)) {
             return;
         }
@@ -292,7 +292,6 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
 {
     int image_size;
     uint64_t entry;
-    uint64_t lowaddr;
     int big_endian;
     AddressSpace *as;
     int asidx;
@@ -313,12 +312,11 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
 
     if (kernel_filename) {
         image_size = load_elf_as(kernel_filename, NULL, NULL, NULL,
-                                 &entry, &lowaddr, NULL,
+                                 &entry, NULL, NULL,
                                  NULL, big_endian, EM_ARM, 1, 0, as);
         if (image_size < 0) {
             image_size = load_image_targphys_as(kernel_filename, 0,
                                                 mem_size, as);
-            lowaddr = 0;
         }
         if (image_size < 0) {
             error_report("Could not load kernel '%s'", kernel_filename);

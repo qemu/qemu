@@ -908,6 +908,9 @@ class Ninja2Make(NinjaParserEventsWithVars):
             else:
                 stamp = '%s@%s.stamp' % (rule, sha1_text(targets)[0:11])
             self.print('%s: %s; @:' % (targets, stamp))
+            self.print('ifneq (%s, $(wildcard %s))' % (targets, targets))
+            self.print('.PHONY: %s' % (stamp, ))
+            self.print('endif')
             self.print('%s: %s | %s; ${ninja-command-restat}' % (stamp, inputs, orderonly))
             self.rule_targets[rule].append(stamp)
             self.stamp_targets[rule].append(stamp)

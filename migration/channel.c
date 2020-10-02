@@ -90,5 +90,6 @@ void migration_channel_connect(MigrationState *s,
         }
     }
     migrate_fd_connect(s, error);
+    g_free(s->hostname);
     error_free(error);
 }

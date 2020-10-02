@@ -313,11 +313,11 @@ static void store_tag1(uint64_t ptr, uint8_t *mem, int tag)
 static void store_tag1_parallel(uint64_t ptr, uint8_t *mem, int tag)
 {
     int ofs = extract32(ptr, LOG2_TAG_GRANULE, 1) * 4;
-    uint8_t old = atomic_read(mem);
+    uint8_t old = qatomic_read(mem);
 
     while (1) {
         uint8_t new = deposit32(old, ofs, 4, tag);
-        uint8_t cmp = atomic_cmpxchg(mem, old, new);
+        uint8_t cmp = qatomic_cmpxchg(mem, old, new);
         if (likely(cmp == old)) {
             return;
         }
@@ -398,7 +398,7 @@ static inline void do_st2g(CPUARMState *env, uint64_t ptr, uint64_t xt,
                                   2 * TAG_GRANULE, MMU_DATA_STORE, 1, ra);
         if (mem1) {
             tag |= tag << 4;
-            atomic_set(mem1, tag);
+            qatomic_set(mem1, tag);
         }
     }
 }

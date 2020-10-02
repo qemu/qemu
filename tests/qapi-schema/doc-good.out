@@ -73,27 +73,27 @@ doc freeform
     body=
 == Subsection
 
-*strong* _with emphasis_
+*with emphasis*
 @var {in braces}
-* List item one
-- Two, multiple
-lines
 
-3. Three
-Still in list
+* List item one
+* Two, multiple
+  lines
+
+* Three
+  Still in list
 
 Not in list
+
 - Second list
-Note: still in list
+  Note: still in list
 
 Note: not in list
+
 1. Third list
-is numbered
+   is numbered
 
-- another item
-
-| example
-| multiple lines
+2. another item
 
 Returns: the King
 Since: the first age

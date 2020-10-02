@@ -588,7 +588,7 @@ static void *fv_queue_thread(void *opaque)
     struct fuse_session *se = qi->virtio_dev->se;
     GThreadPool *pool;
 
-    pool = g_thread_pool_new(fv_queue_worker, qi, se->thread_pool_size, TRUE,
+    pool = g_thread_pool_new(fv_queue_worker, qi, se->thread_pool_size, FALSE,
                              NULL);
     if (!pool) {
         fuse_log(FUSE_LOG_ERR, "%s: g_thread_pool_new failed\n", __func__);

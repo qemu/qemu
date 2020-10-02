@@ -568,14 +568,6 @@ static void sifive_u_machine_instance_init(Object *obj)
     SiFiveUState *s = RISCV_U_MACHINE(obj);
 
     s->start_in_flash = false;
-    object_property_add_bool(obj, "start-in-flash",
-                             sifive_u_machine_get_start_in_flash,
-                             sifive_u_machine_set_start_in_flash);
-    object_property_set_description(obj, "start-in-flash",
-                                    "Set on to tell QEMU's ROM to jump to "
-                                    "flash. Otherwise QEMU will jump to DRAM "
-                                    "or L2LIM depending on the msel value");
-
     s->msel = 0;
     object_property_add(obj, "msel", "uint32",
                         sifive_u_machine_get_uint32_prop,
@@ -599,6 +591,14 @@ static void sifive_u_machine_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = SIFIVE_U_MANAGEMENT_CPU_COUNT + SIFIVE_U_COMPUTE_CPU_COUNT;
     mc->min_cpus = SIFIVE_U_MANAGEMENT_CPU_COUNT + 1;
     mc->default_cpus = mc->min_cpus;
+
+    object_class_property_add_bool(oc, "start-in-flash",
+                                   sifive_u_machine_get_start_in_flash,
+                                   sifive_u_machine_set_start_in_flash);
+    object_class_property_set_description(oc, "start-in-flash",
+                                          "Set on to tell QEMU's ROM to jump to "
+                                          "flash. Otherwise QEMU will jump to DRAM "
+                                          "or L2LIM depending on the msel value");
 }
 
 static const TypeInfo sifive_u_machine_typeinfo = {

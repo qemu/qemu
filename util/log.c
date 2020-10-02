@@ -41,7 +41,7 @@ int qemu_log(const char *fmt, ...)
     QemuLogFile *logfile;
 
     rcu_read_lock();
-    logfile = atomic_rcu_read(&qemu_logfile);
+    logfile = qatomic_rcu_read(&qemu_logfile);
     if (logfile) {
         va_list ap;
         va_start(ap, fmt);
@@ -98,7 +98,7 @@ void qemu_set_log(int log_flags)
     QEMU_LOCK_GUARD(&qemu_logfile_mutex);
     if (qemu_logfile && !need_to_open_file) {
         logfile = qemu_logfile;
-        atomic_rcu_set(&qemu_logfile, NULL);
+        qatomic_rcu_set(&qemu_logfile, NULL);
         call_rcu(logfile, qemu_logfile_free, rcu);
     } else if (!qemu_logfile && need_to_open_file) {
         logfile = g_new0(QemuLogFile, 1);
@@ -135,7 +135,7 @@ void qemu_set_log(int log_flags)
 #endif
             log_append = 1;
         }
-        atomic_rcu_set(&qemu_logfile, logfile);
+        qatomic_rcu_set(&qemu_logfile, logfile);
     }
 }
 
@@ -272,7 +272,7 @@ void qemu_log_flush(void)
     QemuLogFile *logfile;
 
     rcu_read_lock();
-    logfile = atomic_rcu_read(&qemu_logfile);
+    logfile = qatomic_rcu_read(&qemu_logfile);
     if (logfile) {
         fflush(logfile->fd);
     }
@@ -288,7 +288,7 @@ void qemu_log_close(void)
     logfile = qemu_logfile;
 
     if (logfile) {
-        atomic_rcu_set(&qemu_logfile, NULL);
+        qatomic_rcu_set(&qemu_logfile, NULL);
         call_rcu(logfile, qemu_logfile_free, rcu);
     }
     qemu_mutex_unlock(&qemu_logfile_mutex);

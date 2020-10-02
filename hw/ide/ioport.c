@@ -46,7 +46,7 @@ static const MemoryRegionPortio ide_portio_list[] = {
 };
 
 static const MemoryRegionPortio ide_portio2_list[] = {
-    { 0, 1, 1, .read = ide_status_read, .write = ide_cmd_write },
+    { 0, 1, 1, .read = ide_status_read, .write = ide_ctrl_write },
     PORTIO_END_OF_LIST(),
 };
 

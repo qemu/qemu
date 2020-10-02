@@ -31,3 +31,4 @@ Contents:
    reset
    s390-dasd-ipl
    clocks
+   qom

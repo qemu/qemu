@@ -74,7 +74,7 @@ static void *iothread_run(void *opaque)
     qemu_cond_signal(&iothread->init_done_cond);
     qemu_mutex_unlock(&iothread->init_done_lock);
 
-    while (!atomic_read(&iothread->stopping)) {
+    while (!qatomic_read(&iothread->stopping)) {
         aio_poll(iothread->ctx, true);
     }
 

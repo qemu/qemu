@@ -57,7 +57,6 @@ ENV PACKAGES flex bison \
     sparse \
     tesseract-ocr \
     tesseract-ocr-eng \
-    texinfo \
     xfslibs-dev\
     vim
 RUN apt-get update && \

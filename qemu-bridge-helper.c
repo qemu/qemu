@@ -40,6 +40,7 @@
 #endif
 
 #include "qemu/queue.h"
+#include "qemu/cutils.h"
 
 #include "net/tap-linux.h"
 
@@ -245,6 +246,7 @@ int main(int argc, char **argv)
     ACLList acl_list;
     int access_allowed, access_denied;
     int ret = EXIT_SUCCESS;
+    g_autofree char *acl_file = NULL;
 
 #ifdef CONFIG_LIBCAP_NG
     /* if we're run from an suid binary, immediately drop privileges preserving
@@ -256,6 +258,8 @@ int main(int argc, char **argv)
         }
     }
 #endif
+
+    qemu_init_exec_dir(argv[0]);
 
     /* parse arguments */
     for (index = 1; index < argc; index++) {
@@ -282,9 +286,10 @@ int main(int argc, char **argv)
 
     /* parse default acl file */
     QSIMPLEQ_INIT(&acl_list);
-    if (parse_acl_file(DEFAULT_ACL_FILE, &acl_list) == -1) {
+    acl_file = get_relocated_path(DEFAULT_ACL_FILE);
+    if (parse_acl_file(acl_file, &acl_list) == -1) {
         fprintf(stderr, "failed to parse default acl file `%s'\n",
-                DEFAULT_ACL_FILE);
+                acl_file);
         ret = EXIT_FAILURE;
         goto cleanup;
     }

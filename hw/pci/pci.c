@@ -46,7 +46,7 @@
 #include "hw/hotplug.h"
 #include "hw/boards.h"
 #include "qapi/error.h"
-#include "qapi/qapi-commands-misc.h"
+#include "qapi/qapi-commands-pci.h"
 #include "qemu/cutils.h"
 
 //#define DEBUG_PCI
@@ -1900,7 +1900,7 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
              * a temporary instance here to be able to check it.
              */
             Object *obj = object_new_with_class(OBJECT_CLASS(dc));
-            if (object_property_find(obj, "netdev", NULL)) {
+            if (object_property_find(obj, "netdev")) {
                 g_ptr_array_add(pci_nic_models, (gpointer)name);
             }
             object_unref(obj);

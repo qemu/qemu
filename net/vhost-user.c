@@ -226,7 +226,7 @@ static void chr_closed_bh(void *opaque)
     NetClientState *ncs[MAX_QUEUE_NUM];
     NetVhostUserState *s;
     Error *err = NULL;
-    int queues;
+    int queues, i;
 
     queues = qemu_find_net_clients_except(name, ncs,
                                           NET_CLIENT_DRIVER_NIC,
@@ -235,8 +235,12 @@ static void chr_closed_bh(void *opaque)
 
     s = DO_UPCAST(NetVhostUserState, nc, ncs[0]);
 
-    if (s->vhost_net) {
-        s->acked_features = vhost_net_get_acked_features(s->vhost_net);
+    for (i = queues -1; i >= 0; i--) {
+        s = DO_UPCAST(NetVhostUserState, nc, ncs[i]);
+
+        if (s->vhost_net) {
+            s->acked_features = vhost_net_get_acked_features(s->vhost_net);
+        }
     }
 
     qmp_set_link(name, false, &err);

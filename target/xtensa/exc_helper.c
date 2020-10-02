@@ -128,13 +128,13 @@ void HELPER(check_interrupts)(CPUXtensaState *env)
 
 void HELPER(intset)(CPUXtensaState *env, uint32_t v)
 {
-    atomic_or(&env->sregs[INTSET],
+    qatomic_or(&env->sregs[INTSET],
               v & env->config->inttype_mask[INTTYPE_SOFTWARE]);
 }
 
 static void intclear(CPUXtensaState *env, uint32_t v)
 {
-    atomic_and(&env->sregs[INTSET], ~v);
+    qatomic_and(&env->sregs[INTSET], ~v);
 }
 
 void HELPER(intclear)(CPUXtensaState *env, uint32_t v)

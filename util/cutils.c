@@ -889,3 +889,64 @@ int qemu_pstrcmp0(const char **str1, const char **str2)
 {
     return g_strcmp0(*str1, *str2);
 }
+
+static inline bool starts_with_prefix(const char *dir)
+{
+    size_t prefix_len = strlen(CONFIG_PREFIX);
+    return !memcmp(dir, CONFIG_PREFIX, prefix_len) &&
+        (!dir[prefix_len] || G_IS_DIR_SEPARATOR(dir[prefix_len]));
+}
+
+/* Return the next path component in dir, and store its length in *p_len.  */
+static inline const char *next_component(const char *dir, int *p_len)
+{
+    int len;
+    while (*dir && G_IS_DIR_SEPARATOR(*dir)) {
+        dir++;
+    }
+    len = 0;
+    while (dir[len] && !G_IS_DIR_SEPARATOR(dir[len])) {
+        len++;
+    }
+    *p_len = len;
+    return dir;
+}
+
+char *get_relocated_path(const char *dir)
+{
+    size_t prefix_len = strlen(CONFIG_PREFIX);
+    const char *bindir = CONFIG_BINDIR;
+    const char *exec_dir = qemu_get_exec_dir();
+    GString *result;
+    int len_dir, len_bindir;
+
+    /* Fail if qemu_init_exec_dir was not called.  */
+    assert(exec_dir[0]);
+    if (!starts_with_prefix(dir) || !starts_with_prefix(bindir)) {
+        return strdup(dir);
+    }
+
+    result = g_string_new(exec_dir);
+
+    /* Advance over common components.  */
+    len_dir = len_bindir = prefix_len;
+    do {
+        dir += len_dir;
+        bindir += len_bindir;
+        dir = next_component(dir, &len_dir);
+        bindir = next_component(bindir, &len_bindir);
+    } while (len_dir == len_bindir && !memcmp(dir, bindir, len_dir));
+
+    /* Ascend from bindir to the common prefix with dir.  */
+    while (len_bindir) {
+        bindir += len_bindir;
+        g_string_append(result, "/..");
+        bindir = next_component(bindir, &len_bindir);
+    }
+
+    if (*dir) {
+        assert(G_IS_DIR_SEPARATOR(dir[-1]));
+        g_string_append(result, dir - 1);
+    }
+    return result->str;
+}
