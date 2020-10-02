@@ -895,7 +895,13 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     }
 
     trace_riscv_trap(env->mhartid, async, cause, env->pc, tval,
-        riscv_cpu_get_trap_name(cause, async));
+                     riscv_cpu_get_trap_name(cause, async));
+
+    qemu_log_mask(CPU_LOG_INT,
+                  "%s: hart:"TARGET_FMT_ld", async:%d, cause:"TARGET_FMT_lx", "
+                  "epc:0x"TARGET_FMT_lx", tval:0x"TARGET_FMT_lx", desc=%s\n",
+                  __func__, env->mhartid, async, cause, env->pc, tval,
+                  riscv_cpu_get_trap_name(cause, async));
 
     if (env->priv <= PRV_S &&
             cause < TARGET_LONG_BITS && ((deleg >> cause) & 1)) {
