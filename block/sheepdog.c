@@ -242,6 +242,16 @@ typedef struct SheepdogInode {
  */
 #define FNV1A_64_INIT ((uint64_t)0xcbf29ce484222325ULL)
 
+static void deprecation_warning(void)
+{
+    static bool warned;
+
+    if (!warned) {
+        warn_report("the sheepdog block driver is deprecated");
+        warned = true;
+    }
+}
+
 /*
  * 64 bit Fowler/Noll/Vo FNV-1a hash code
  */
@@ -1548,6 +1558,8 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     char *buf = NULL;
     QemuOpts *opts;
 
+    deprecation_warning();
+
     s->bs = bs;
     s->aio_context = bdrv_get_aio_context(bs);
 
@@ -2006,6 +2018,8 @@ static int sd_co_create(BlockdevCreateOptions *options, Error **errp)
     bool prealloc = false;
 
     assert(options->driver == BLOCKDEV_DRIVER_SHEEPDOG);
+
+    deprecation_warning();
 
     s = g_new0(BDRVSheepdogState, 1);
 
