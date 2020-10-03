@@ -91,7 +91,10 @@ print_snapshot_table()
         if [ $extra_len -ge 16 ]; then
             echo "    Disk size: $(peek_file_be "$1" $((extra_ofs + 8)) 8)"
         fi
-        if [ $extra_len -gt 16 ]; then
+        if [ $extra_len -ge 24 ]; then
+            echo "    Icount: $(peek_file_be "$1" $((extra_ofs + 16)) 8)"
+        fi
+        if [ $extra_len -gt 24 ]; then
             echo '    Unknown extra data:' \
                 "$(peek_file_raw "$1" $((extra_ofs + 16)) $((extra_len - 16)) \
                    | tr -d '\0')"
@@ -198,12 +201,12 @@ truncate -s 0 "$TEST_DIR/sn0-extra"
 truncate -s $(($(snapshot_table_entry_size "$TEST_DIR/sn0-pre") - 40)) \
     "$TEST_DIR/sn0-post"
 
-# Set sn1's extra data size to 42
-poke_file "$TEST_DIR/sn1-pre" 36 '\x00\x00\x00\x2a'
-truncate -s 42 "$TEST_DIR/sn1-extra"
-poke_file "$TEST_DIR/sn1-extra" 16 'very important data'
+# Set sn1's extra data size to 50
+poke_file "$TEST_DIR/sn1-pre" 36 '\x00\x00\x00\x32'
+truncate -s 50 "$TEST_DIR/sn1-extra"
+poke_file "$TEST_DIR/sn1-extra" 24 'very important data'
 # Grow sn1-post to pad
-truncate -s $(($(snapshot_table_entry_size "$TEST_DIR/sn1-pre") - 82)) \
+truncate -s $(($(snapshot_table_entry_size "$TEST_DIR/sn1-pre") - 90)) \
     "$TEST_DIR/sn1-post"
 
 # Set sn2's extra data size to 8
