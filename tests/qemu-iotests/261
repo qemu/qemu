@@ -392,7 +392,7 @@ _check_test_img -r all
 
 echo
 echo "$((sn_count - 1)) snapshots should remain:"
-echo "  qemu-img info reports $(_img_info | grep -c '^ \{34\}') snapshots"
+echo "  qemu-img info reports $(_img_info | grep -c '^ \{32\}') snapshots"
 echo "  Image header reports $(peek_file_be "$TEST_IMG" 60 4) snapshots"
 
 echo
@@ -519,7 +519,7 @@ _check_test_img -r all
 
 echo
 echo '65536 snapshots should remain:'
-echo "  qemu-img info reports $(_img_info | grep -c '^ \{34\}') snapshots"
+echo "  qemu-img info reports $(_img_info | grep -c '^ \{32\}') snapshots"
 echo "  Image header reports $(peek_file_be "$TEST_IMG" 60 4) snapshots"
 
 # success, all done
