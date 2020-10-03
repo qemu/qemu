@@ -8,9 +8,9 @@ The QEMU Object Model provides a framework for registering user creatable
 types and instantiating objects from those types.  QOM provides the following
 features:
 
- - System for dynamically registering types
- - Support for single-inheritance of types
- - Multiple inheritance of stateless interfaces
+- System for dynamically registering types
+- Support for single-inheritance of types
+- Multiple inheritance of stateless interfaces
 
 .. code-block:: c
    :caption: Creating a minimal type
