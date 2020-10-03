@@ -174,17 +174,17 @@ dynamically cast it to an object that implements the interface.
 Methods
 =======
 
-A <emphasis>method</emphasis> is a function within the namespace scope of
+A *method* is a function within the namespace scope of
 a class. It usually operates on the object instance by passing it as a
 strongly-typed first argument.
 If it does not operate on an object instance, it is dubbed
-<emphasis>class method</emphasis>.
+*class method*.
 
 Methods cannot be overloaded. That is, the #ObjectClass and method name
 uniquely identity the function to be called; the signature does not vary
 except for trailing varargs.
 
-Methods are always <emphasis>virtual</emphasis>. Overriding a method in
+Methods are always *virtual*. Overriding a method in
 #TypeInfo.class_init of a subclass leads to any user of the class obtained
 via OBJECT_GET_CLASS() accessing the overridden function.
 The original function is not automatically invoked. It is the responsibility
