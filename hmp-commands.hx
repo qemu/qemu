@@ -1805,6 +1805,38 @@ SRST
 ERST
 
     {
+        .name       = "replay_break",
+        .args_type  = "icount:i",
+        .params     = "icount",
+        .help       = "set breakpoint at the specified instruction count",
+        .cmd        = hmp_replay_break,
+    },
+
+SRST
+``replay_break`` *icount*
+  Set replay breakpoint at instruction count *icount*.
+  Execution stops when the specified instruction is reached.
+  There can be at most one breakpoint. When breakpoint is set, any prior
+  one is removed.  The breakpoint may be set only in replay mode and only
+  "in the future", i.e. at instruction counts greater than the current one.
+  The current instruction count can be observed with ``info replay``.
+ERST
+
+    {
+        .name       = "replay_delete_break",
+        .args_type  = "",
+        .params     = "",
+        .help       = "remove replay breakpoint",
+        .cmd        = hmp_replay_delete_break,
+    },
+
+SRST
+``replay_delete_break``
+  Remove replay breakpoint which was previously set with ``replay_break``.
+  The command is ignored when there are no replay breakpoints.
+ERST
+
+    {
         .name       = "info",
         .args_type  = "item:s?",
         .params     = "[subcommand]",
