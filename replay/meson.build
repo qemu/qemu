@@ -9,4 +9,5 @@ softmmu_ss.add(files(
   'replay-net.c',
   'replay-audio.c',
   'replay-random.c',
+  'replay-debugging.c',
 ))
