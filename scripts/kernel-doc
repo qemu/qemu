@@ -1064,14 +1064,6 @@ sub output_blockhead {
 sub dump_declaration($$) {
     no strict 'refs';
     my ($prototype, $file) = @_;
-    if ($decl_type eq 'type name') {
-       if ($prototype =~ /^(enum|struct|union)\s+/) {
-	   $decl_type = $1;
-	} else {
-	   return;
-       }
-    }
-
     my $func = "dump_" . $decl_type;
     &$func(@_);
 }
@@ -1928,9 +1920,7 @@ sub process_name($$) {
 	    ++$warnings;
 	}
 
-	if ($identifier =~ m/^[A-Z]/) {
-	    $decl_type = 'type name';
-	} elsif ($identifier =~ m/^struct\b/) {
+	if ($identifier =~ m/^struct\b/) {
 	    $decl_type = 'struct';
 	} elsif ($identifier =~ m/^union\b/) {
 	    $decl_type = 'union';
