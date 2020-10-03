@@ -170,7 +170,7 @@ struct Object
  * Direct usage of this macro should be avoided, and the complete
  * OBJECT_DECLARE_TYPE macro is recommended instead.
  *
- * This macro will provide the three standard type cast functions for a
+ * This macro will provide the instance type cast functions for a
  * QOM type.
  */
 #define DECLARE_INSTANCE_CHECKER(InstanceType, OBJ_NAME, TYPENAME) \
@@ -187,7 +187,7 @@ struct Object
  * Direct usage of this macro should be avoided, and the complete
  * OBJECT_DECLARE_TYPE macro is recommended instead.
  *
- * This macro will provide the three standard type cast functions for a
+ * This macro will provide the class type cast functions for a
  * QOM type.
  */
 #define DECLARE_CLASS_CHECKERS(ClassType, OBJ_NAME, TYPENAME) \
