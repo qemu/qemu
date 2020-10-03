@@ -11,6 +11,7 @@ ENV PACKAGES \
     cyrus-sasl-devel \
     dbus-daemon \
     device-mapper-multipath-devel \
+    diffutils \
     findutils \
     gcc \
     gcc-c++ \
