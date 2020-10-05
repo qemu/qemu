@@ -17,4 +17,4 @@ formats: all
 # we require for other Python in our codebase (our conf.py
 # enforces this, and some code needs it.)
 python:
-  version: 3.5
+  version: 3.6
