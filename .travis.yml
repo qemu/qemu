@@ -226,14 +226,6 @@ jobs:
         - TEST_CMD=""
 
 
-    # Check the TCG interpreter (TCI)
-    - name: "GCC TCI"
-      env:
-        - CONFIG="--enable-debug-tcg --enable-tcg-interpreter --disable-kvm --disable-containers
-            --target-list=alpha-softmmu,arm-softmmu,hppa-softmmu,m68k-softmmu,microblaze-softmmu,moxie-softmmu,ppc-softmmu,s390x-softmmu,x86_64-softmmu"
-        - TEST_CMD="make check-qtest check-tcg V=1"
-
-
     # We don't need to exercise every backend with every front-end
     - name: "GCC trace log,simple,syslog (user)"
       env:

@@ -475,3 +475,93 @@
            'psw-mask': 'uint64',
            'psw-addr': 'uint64',
            'reason': 'S390CrashReason' } }
+
+##
+# @MEMORY_FAILURE:
+#
+# Emitted when a memory failure occurs on host side.
+#
+# @recipient: recipient is defined as @MemoryFailureRecipient.
+#
+# @action: action that has been taken. action is defined as @MemoryFailureAction.
+#
+# @flags: flags for MemoryFailureAction. action is defined as @MemoryFailureFlags.
+#
+# Since: 5.2
+#
+# Example:
+#
+# <- { "event": "MEMORY_FAILURE",
+#      "data": { "recipient": "hypervisor",
+#                "action": "fatal",
+#                "flags": { 'action-required': false } }
+#
+##
+{ 'event': 'MEMORY_FAILURE',
+  'data': { 'recipient': 'MemoryFailureRecipient',
+            'action': 'MemoryFailureAction',
+            'flags': 'MemoryFailureFlags'} }
+
+##
+# @MemoryFailureRecipient:
+#
+# Hardware memory failure occurs, handled by recipient.
+#
+# @hypervisor: memory failure at QEMU process address space.
+#              (none guest memory, but used by QEMU itself).
+#
+# @guest: memory failure at guest memory,
+#
+# Since: 5.2
+#
+##
+{ 'enum': 'MemoryFailureRecipient',
+  'data': [ 'hypervisor',
+            'guest' ] }
+
+
+##
+# @MemoryFailureAction:
+#
+# Actions taken by QEMU in response to a hardware memory failure.
+#
+# @ignore: the memory failure could be ignored.  This will only be the case
+#          for action-optional failures.
+#
+# @inject: memory failure occurred in guest memory, the guest enabled MCE
+#          handling mechanism, and QEMU could inject the MCE into the guest
+#          successfully.
+#
+# @fatal: the failure is unrecoverable.  This occurs for action-required
+#         failures if the recipient is the hypervisor; QEMU will exit.
+#
+# @reset: the failure is unrecoverable but confined to the guest.  This
+#         occurs if the recipient is a guest guest which is not ready
+#         to handle memory failures.
+#
+# Since: 5.2
+#
+##
+{ 'enum': 'MemoryFailureAction',
+  'data': [ 'ignore',
+            'inject',
+            'fatal',
+            'reset' ] }
+
+##
+# @MemoryFailureFlags:
+#
+# Additional information on memory failures.
+#
+# @action-required: whether a memory failure event is action-required
+#                   or action-optional (e.g. a failure during memory scrub).
+#
+# @recursive: whether the failure occurred while the previous
+#             failure was still in progress.
+#
+# Since: 5.2
+#
+##
+{ 'struct': 'MemoryFailureFlags',
+  'data': { 'action-required': 'bool',
+            'recursive': 'bool'} }
