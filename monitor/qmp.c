@@ -140,8 +140,11 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
     QDict *error;
 
     old_mon = monitor_set_cur(&mon->common);
+    assert(old_mon == NULL);
+
     rsp = qmp_dispatch(mon->commands, req, qmp_oob_enabled(mon));
-    monitor_set_cur(old_mon);
+
+    monitor_set_cur(NULL);
 
     if (mon->commands == &qmp_cap_negotiation_commands) {
         error = qdict_get_qdict(rsp, "error");
