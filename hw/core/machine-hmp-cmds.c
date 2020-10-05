@@ -34,7 +34,7 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
     for (cpu = cpu_list; cpu; cpu = cpu->next) {
         int active = ' ';
 
-        if (cpu->value->cpu_index == monitor_get_cpu_index()) {
+        if (cpu->value->cpu_index == monitor_get_cpu_index(mon)) {
             active = '*';
         }
 
