@@ -349,7 +349,7 @@ modules="no"
 module_upgrades="no"
 prefix="/usr/local"
 qemu_suffix="qemu"
-slirp=""
+slirp="auto"
 oss_lib=""
 bsd="no"
 linux="no"
@@ -1058,9 +1058,9 @@ for opt do
   ;;
   --enable-vnc-png) vnc_png="enabled"
   ;;
-  --disable-slirp) slirp="no"
+  --disable-slirp) slirp="disabled"
   ;;
-  --enable-slirp=git) slirp="git"
+  --enable-slirp=git) slirp="internal"
   ;;
   --enable-slirp=system) slirp="system"
   ;;
@@ -5806,56 +5806,12 @@ fi
 ##########################################
 # check for slirp
 
-# slirp is only required when building softmmu targets
-if test -z "$slirp" -a "$softmmu" != "yes" ; then
-    slirp="no"
-fi
-
 case "$slirp" in
-  "" | yes)
-    if $pkg_config slirp; then
-      slirp=system
-    elif test -e "${source_path}/.git" && test $git_update = 'yes' ; then
-      slirp=git
-    elif test -e "${source_path}/slirp/Makefile" ; then
-      slirp=internal
-    elif test -z "$slirp" ; then
-      slirp=no
-    else
-      feature_not_found "slirp" "Install slirp devel or git submodule"
-    fi
-    ;;
-
-  system)
-    if ! $pkg_config slirp; then
-      feature_not_found "slirp" "Install slirp devel"
-    fi
-    ;;
-esac
-
-case "$slirp" in
-  git | internal)
-    if test "$slirp" = git; then
+  auto | enabled | internal)
+    # Simpler to always update submodule, even if not needed.
+    if test -e "${source_path}/.git" && test $git_update = 'yes' ; then
       git_submodules="${git_submodules} slirp"
     fi
-    mkdir -p slirp
-    slirp_cflags="-I${source_path}/slirp/src -Islirp/src"
-    slirp_libs="-Lslirp -lslirp"
-    if test "$mingw32" = "yes" ; then
-      slirp_libs="$slirp_libs -lws2_32 -liphlpapi"
-    fi
-    ;;
-
-  system)
-    slirp_version=$($pkg_config --modversion slirp 2>/dev/null)
-    slirp_cflags=$($pkg_config --cflags slirp 2>/dev/null)
-    slirp_libs=$($pkg_config --libs slirp 2>/dev/null)
-    ;;
-
-  no)
-    ;;
-  *)
-    error_exit "Unknown state for slirp: $slirp"
     ;;
 esac
 
@@ -6256,16 +6212,8 @@ fi
 if test "$guest_agent" = "yes" ; then
   echo "CONFIG_GUEST_AGENT=y" >> $config_host_mak
 fi
-if test "$slirp" != "no"; then
-  echo "CONFIG_SLIRP=y" >> $config_host_mak
-  echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
-  echo "SLIRP_CFLAGS=$slirp_cflags" >> $config_host_mak
-  echo "SLIRP_LIBS=$slirp_libs" >> $config_host_mak
-fi
+echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
 subdirs=
-if [ "$slirp" = "git" -o "$slirp" = "internal" ]; then
-  subdirs="$subdirs slirp"
-fi
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
   echo "VDE_LIBS=$vde_libs" >> $config_host_mak
@@ -7321,7 +7269,7 @@ NINJA=${ninja:-$PWD/ninjatool} $meson setup \
 	-Dcocoa=$cocoa -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
 	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
 	-Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f \
-	-Dcapstone=$capstone \
+	-Dcapstone=$capstone -Dslirp=$slirp \
         $cross_arg \
         "$PWD" "$source_path"
 
