@@ -641,6 +641,23 @@ bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag);
 AioContext *bdrv_get_aio_context(BlockDriverState *bs);
 
 /**
+ * Move the current coroutine to the AioContext of @bs and return the old
+ * AioContext of the coroutine. Increase bs->in_flight so that draining @bs
+ * will wait for the operation to proceed until the corresponding
+ * bdrv_co_leave().
+ *
+ * Consequently, you can't call drain inside a bdrv_co_enter/leave() section as
+ * this will deadlock.
+ */
+AioContext *coroutine_fn bdrv_co_enter(BlockDriverState *bs);
+
+/**
+ * Ends a section started by bdrv_co_enter(). Move the current coroutine back
+ * to old_ctx and decrease bs->in_flight again.
+ */
+void coroutine_fn bdrv_co_leave(BlockDriverState *bs, AioContext *old_ctx);
+
+/**
  * Transfer control to @co in the aio context of @bs
  */
 void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co);
