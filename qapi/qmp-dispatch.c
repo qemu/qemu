@@ -154,11 +154,11 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
     }
 
     assert(monitor_cur() == NULL);
-    monitor_set_cur(cur_mon);
+    monitor_set_cur(qemu_coroutine_self(), cur_mon);
 
     cmd->fn(args, &ret, &err);
 
-    monitor_set_cur(NULL);
+    monitor_set_cur(qemu_coroutine_self(), NULL);
     qobject_unref(args);
     if (err) {
         /* or assert(!ret) after reviewing all handlers: */

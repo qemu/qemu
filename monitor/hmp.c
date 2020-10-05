@@ -1081,9 +1081,9 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
     }
 
     /* old_mon is non-NULL when called from qmp_human_monitor_command() */
-    old_mon = monitor_set_cur(&mon->common);
+    old_mon = monitor_set_cur(qemu_coroutine_self(), &mon->common);
     cmd->cmd(&mon->common, qdict);
-    monitor_set_cur(old_mon);
+    monitor_set_cur(qemu_coroutine_self(), old_mon);
 
     qobject_unref(qdict);
 }
