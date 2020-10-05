@@ -617,8 +617,8 @@ pitfalls are:
 
 Since the command handler may assume coroutine context, any callers
 other than the QMP dispatcher must also call it in coroutine context.
-In particular, HMP commands calling such a QMP command handler must
-enter coroutine context before calling the handler.
+In particular, HMP commands calling such a QMP command handler must be
+marked .coroutine = true in hmp-commands.hx.
 
 It is an error to specify both 'coroutine': true and 'allow-oob': true
 for a command.  We don't currently have a use case for both together and
