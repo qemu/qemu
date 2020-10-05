@@ -4,8 +4,8 @@ QTest Device Emulation Testing Framework
 
 QTest is a device emulation testing framework.  It can be very useful to test
 device models; it could also control certain aspects of QEMU (such as virtual
-clock stepping), with a special purpose "qtest" protocol.  Refer to the
-documentation in ``qtest.c`` for more details of the protocol.
+clock stepping), with a special purpose "qtest" protocol.  Refer to
+:ref:`qtest-protocol` for more details of the protocol.
 
 QTest cases can be executed with
 
@@ -56,3 +56,11 @@ from the output of
 
 which you can run manually.
 
+
+.. _qtest-protocol:
+
+QTest Protocol
+--------------
+
+.. kernel-doc:: softmmu/qtest.c
+   :doc: QTest Protocol

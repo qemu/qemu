@@ -49,91 +49,138 @@ static void *qtest_server_send_opaque;
 #define FMT_timeval "%ld.%06ld"
 
 /**
- * QTest Protocol
+ * DOC: QTest Protocol
  *
  * Line based protocol, request/response based.  Server can send async messages
  * so clients should always handle many async messages before the response
  * comes in.
  *
  * Valid requests
+ * ^^^^^^^^^^^^^^
  *
  * Clock management:
+ * """""""""""""""""
  *
  * The qtest client is completely in charge of the QEMU_CLOCK_VIRTUAL.  qtest commands
  * let you adjust the value of the clock (monotonically).  All the commands
  * return the current value of the clock in nanoseconds.
  *
+ * .. code-block:: none
+ *
  *  > clock_step
  *  < OK VALUE
  *
- *     Advance the clock to the next deadline.  Useful when waiting for
- *     asynchronous events.
+ * Advance the clock to the next deadline.  Useful when waiting for
+ * asynchronous events.
+ *
+ * .. code-block:: none
  *
  *  > clock_step NS
  *  < OK VALUE
  *
- *     Advance the clock by NS nanoseconds.
+ * Advance the clock by NS nanoseconds.
+ *
+ * .. code-block:: none
  *
  *  > clock_set NS
  *  < OK VALUE
  *
- *     Advance the clock to NS nanoseconds (do nothing if it's already past).
+ * Advance the clock to NS nanoseconds (do nothing if it's already past).
  *
  * PIO and memory access:
+ * """"""""""""""""""""""
+ *
+ * .. code-block:: none
  *
  *  > outb ADDR VALUE
  *  < OK
  *
+ * .. code-block:: none
+ *
  *  > outw ADDR VALUE
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > outl ADDR VALUE
  *  < OK
  *
+ * .. code-block:: none
+ *
  *  > inb ADDR
  *  < OK VALUE
+ *
+ * .. code-block:: none
  *
  *  > inw ADDR
  *  < OK VALUE
  *
+ * .. code-block:: none
+ *
  *  > inl ADDR
  *  < OK VALUE
+ *
+ * .. code-block:: none
  *
  *  > writeb ADDR VALUE
  *  < OK
  *
+ * .. code-block:: none
+ *
  *  > writew ADDR VALUE
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > writel ADDR VALUE
  *  < OK
  *
+ * .. code-block:: none
+ *
  *  > writeq ADDR VALUE
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > readb ADDR
  *  < OK VALUE
  *
+ * .. code-block:: none
+ *
  *  > readw ADDR
  *  < OK VALUE
+ *
+ * .. code-block:: none
  *
  *  > readl ADDR
  *  < OK VALUE
  *
+ * .. code-block:: none
+ *
  *  > readq ADDR
  *  < OK VALUE
+ *
+ * .. code-block:: none
  *
  *  > read ADDR SIZE
  *  < OK DATA
  *
+ * .. code-block:: none
+ *
  *  > write ADDR SIZE DATA
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > b64read ADDR SIZE
  *  < OK B64_DATA
  *
+ * .. code-block:: none
+ *
  *  > b64write ADDR SIZE B64_DATA
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > memset ADDR SIZE VALUE
  *  < OK
@@ -149,16 +196,21 @@ static void *qtest_server_send_opaque;
  * If the sizes do not match, the data will be truncated.
  *
  * IRQ management:
+ * """""""""""""""
+ *
+ * .. code-block:: none
  *
  *  > irq_intercept_in QOM-PATH
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > irq_intercept_out QOM-PATH
  *  < OK
  *
  * Attach to the gpio-in (resp. gpio-out) pins exported by the device at
  * QOM-PATH.  When the pin is triggered, one of the following async messages
- * will be printed to the qtest stream:
+ * will be printed to the qtest stream::
  *
  *  IRQ raise NUM
  *  IRQ lower NUM
@@ -168,12 +220,15 @@ static void *qtest_server_send_opaque;
  * NUM=0 even though it is remapped to GSI 2).
  *
  * Setting interrupt level:
+ * """"""""""""""""""""""""
+ *
+ * .. code-block:: none
  *
  *  > set_irq_in QOM-PATH NAME NUM LEVEL
  *  < OK
  *
- *  where NAME is the name of the irq/gpio list, NUM is an IRQ number and
- *  LEVEL is an signed integer IRQ level.
+ * where NAME is the name of the irq/gpio list, NUM is an IRQ number and
+ * LEVEL is an signed integer IRQ level.
  *
  * Forcibly set the given interrupt pin to the given level.
  *
