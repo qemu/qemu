@@ -658,6 +658,20 @@ AioContext *coroutine_fn bdrv_co_enter(BlockDriverState *bs);
 void coroutine_fn bdrv_co_leave(BlockDriverState *bs, AioContext *old_ctx);
 
 /**
+ * Locks the AioContext of @bs if it's not the current AioContext. This avoids
+ * double locking which could lead to deadlocks: This is a coroutine_fn, so we
+ * know we already own the lock of the current AioContext.
+ *
+ * May only be called in the main thread.
+ */
+void coroutine_fn bdrv_co_lock(BlockDriverState *bs);
+
+/**
+ * Unlocks the AioContext of @bs if it's not the current AioContext.
+ */
+void coroutine_fn bdrv_co_unlock(BlockDriverState *bs);
+
+/**
  * Transfer control to @co in the aio context of @bs
  */
 void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co);
