@@ -64,3 +64,9 @@ QTest Protocol
 
 .. kernel-doc:: softmmu/qtest.c
    :doc: QTest Protocol
+
+
+libqtest API reference
+----------------------
+
+.. kernel-doc:: tests/qtest/libqos/libqtest.h

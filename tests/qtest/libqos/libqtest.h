@@ -24,7 +24,7 @@ typedef struct QTestState QTestState;
 
 /**
  * qtest_initf:
- * @fmt...: Format for creating other arguments to pass to QEMU, formatted
+ * @fmt: Format for creating other arguments to pass to QEMU, formatted
  * like sprintf().
  *
  * Convenience wrapper around qtest_init().
@@ -87,7 +87,7 @@ void qtest_quit(QTestState *s);
  * @s: #QTestState instance to operate on.
  * @fds: array of file descriptors
  * @fds_num: number of elements in @fds
- * @fmt...: QMP message to send to qemu, formatted like
+ * @fmt: QMP message to send to qemu, formatted like
  * qobject_from_jsonf_nofail().  See parse_escape() for what's
  * supported after '%'.
  *
@@ -100,7 +100,7 @@ QDict *qtest_qmp_fds(QTestState *s, int *fds, size_t fds_num,
 /**
  * qtest_qmp:
  * @s: #QTestState instance to operate on.
- * @fmt...: QMP message to send to qemu, formatted like
+ * @fmt: QMP message to send to qemu, formatted like
  * qobject_from_jsonf_nofail().  See parse_escape() for what's
  * supported after '%'.
  *
@@ -112,7 +112,7 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
 /**
  * qtest_qmp_send:
  * @s: #QTestState instance to operate on.
- * @fmt...: QMP message to send to qemu, formatted like
+ * @fmt: QMP message to send to qemu, formatted like
  * qobject_from_jsonf_nofail().  See parse_escape() for what's
  * supported after '%'.
  *
@@ -124,7 +124,7 @@ void qtest_qmp_send(QTestState *s, const char *fmt, ...)
 /**
  * qtest_qmp_send_raw:
  * @s: #QTestState instance to operate on.
- * @fmt...: text to send, formatted like sprintf()
+ * @fmt: text to send, formatted like sprintf()
  *
  * Sends text to the QMP monitor verbatim.  Need not be valid JSON;
  * this is useful for negative tests.
@@ -201,7 +201,7 @@ QDict *qtest_qmp_receive(QTestState *s);
 /**
  * qtest_qmp_eventwait:
  * @s: #QTestState instance to operate on.
- * @s: #event event to wait for.
+ * @event: event to wait for.
  *
  * Continuously polls for QMP responses until it receives the desired event.
  */
@@ -210,7 +210,7 @@ void qtest_qmp_eventwait(QTestState *s, const char *event);
 /**
  * qtest_qmp_eventwait_ref:
  * @s: #QTestState instance to operate on.
- * @s: #event event to wait for.
+ * @event: event to wait for.
  *
  * Continuously polls for QMP responses until it receives the desired event.
  * Returns a copy of the event for further investigation.
@@ -237,7 +237,7 @@ QDict *qtest_qmp_receive_success(QTestState *s,
 /**
  * qtest_hmp:
  * @s: #QTestState instance to operate on.
- * @fmt...: HMP command to send to QEMU, formats arguments like sprintf().
+ * @fmt: HMP command to send to QEMU, formats arguments like sprintf().
  *
  * Send HMP command to QEMU via QMP's human-monitor-command.
  * QMP events are discarded.
@@ -629,7 +629,7 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data);
 /**
  * qtest_qmp_assert_success:
  * @qts: QTestState instance to operate on
- * @fmt...: QMP message to send to qemu, formatted like
+ * @fmt: QMP message to send to qemu, formatted like
  * qobject_from_jsonf_nofail().  See parse_escape() for what's
  * supported after '%'.
  *
@@ -676,7 +676,7 @@ void qtest_qmp_device_add_qdict(QTestState *qts, const char *drv,
  * @qts: QTestState instance to operate on
  * @driver: Name of the device that should be added
  * @id: Identification string
- * @fmt...: QMP message to send to qemu, formatted like
+ * @fmt: QMP message to send to qemu, formatted like
  * qobject_from_jsonf_nofail().  See parse_escape() for what's
  * supported after '%'.
  *
