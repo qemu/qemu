@@ -472,6 +472,7 @@ Syntax:
                 '*gen': false,
                 '*allow-oob': true,
                 '*allow-preconfig': true,
+                '*coroutine': true,
                 '*if': COND,
                 '*features': FEATURES }
 
@@ -595,6 +596,34 @@ before the machine is built.  It defaults to false.  For example:
 
 QMP is available before the machine is built only when QEMU was
 started with --preconfig.
+
+Member 'coroutine' tells the QMP dispatcher whether the command handler
+is safe to be run in a coroutine.  It defaults to false.  If it is true,
+the command handler is called from coroutine context and may yield while
+waiting for an external event (such as I/O completion) in order to avoid
+blocking the guest and other background operations.
+
+Coroutine safety can be hard to prove, similar to thread safety.  Common
+pitfalls are:
+
+- The global mutex isn't held across qemu_coroutine_yield(), so
+  operations that used to assume that they execute atomically may have
+  to be more careful to protect against changes in the global state.
+
+- Nested event loops (AIO_WAIT_WHILE() etc.) are problematic in
+  coroutine context and can easily lead to deadlocks.  They should be
+  replaced by yielding and reentering the coroutine when the condition
+  becomes false.
+
+Since the command handler may assume coroutine context, any callers
+other than the QMP dispatcher must also call it in coroutine context.
+In particular, HMP commands calling such a QMP command handler must
+enter coroutine context before calling the handler.
+
+It is an error to specify both 'coroutine': true and 'allow-oob': true
+for a command.  We don't currently have a use case for both together and
+without a use case, it's not entirely clear what the semantics should
+be.
 
 The optional 'if' member specifies a conditional.  See "Configuring
 the schema" below for more on this.

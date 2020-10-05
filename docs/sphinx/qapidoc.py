@@ -330,7 +330,7 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
 
     def visit_command(self, name, info, ifcond, features, arg_type,
                       ret_type, gen, success_response, boxed, allow_oob,
-                      allow_preconfig):
+                      allow_preconfig, coroutine):
         doc = self._cur_doc
         self._add_doc('Command',
                       self._nodes_for_arguments(doc,
