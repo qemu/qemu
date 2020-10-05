@@ -296,7 +296,7 @@ static void test_socket(void)
     server_fd = server_socket();
     /* find out what port we got */
     socklen = sizeof(server_addr);
-    ret = getsockname(server_fd, &server_addr, &socklen);
+    ret = getsockname(server_fd, (struct sockaddr *)&server_addr, &socklen);
     chk_error(ret);
     server_port = ntohs(server_addr.sin_port);
 
