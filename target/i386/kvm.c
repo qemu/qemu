@@ -416,6 +416,9 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         if (!kvm_irqchip_in_kernel()) {
             ret &= ~(1U << KVM_FEATURE_PV_UNHALT);
         }
+        if (kvm_irqchip_is_split()) {
+            ret |= 1U << KVM_FEATURE_MSI_EXT_DEST_ID;
+        }
     } else if (function == KVM_CPUID_FEATURES && reg == R_EDX) {
         ret |= 1U << KVM_HINTS_REALTIME;
     }
@@ -4589,38 +4592,74 @@ int kvm_arch_irqchip_create(KVMState *s)
     }
 }
 
+uint64_t kvm_swizzle_msi_ext_dest_id(uint64_t address)
+{
+    CPUX86State *env;
+    uint64_t ext_id;
+
+    if (!first_cpu) {
+        return address;
+    }
+    env = &X86_CPU(first_cpu)->env;
+    if (!(env->features[FEAT_KVM] & (1 << KVM_FEATURE_MSI_EXT_DEST_ID))) {
+        return address;
+    }
+
+    /*
+     * If the remappable format bit is set, or the upper bits are
+     * already set in address_hi, or the low extended bits aren't
+     * there anyway, do nothing.
+     */
+    ext_id = address & (0xff << MSI_ADDR_DEST_IDX_SHIFT);
+    if (!ext_id || (ext_id & (1 << MSI_ADDR_DEST_IDX_SHIFT)) || (address >> 32)) {
+        return address;
+    }
+
+    address &= ~ext_id;
+    address |= ext_id << 35;
+    return address;
+}
+
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
                              uint64_t address, uint32_t data, PCIDevice *dev)
 {
     X86IOMMUState *iommu = x86_iommu_get_default();
 
     if (iommu) {
-        int ret;
-        MSIMessage src, dst;
         X86IOMMUClass *class = X86_IOMMU_DEVICE_GET_CLASS(iommu);
 
-        if (!class->int_remap) {
+        if (class->int_remap) {
+            int ret;
+            MSIMessage src, dst;
+
+            src.address = route->u.msi.address_hi;
+            src.address <<= VTD_MSI_ADDR_HI_SHIFT;
+            src.address |= route->u.msi.address_lo;
+            src.data = route->u.msi.data;
+
+            ret = class->int_remap(iommu, &src, &dst, dev ?     \
+                                   pci_requester_id(dev) :      \
+                                   X86_IOMMU_SID_INVALID);
+            if (ret) {
+                trace_kvm_x86_fixup_msi_error(route->gsi);
+                return 1;
+            }
+
+            /*
+             * Handled untranslated compatibilty format interrupt with
+             * extended destination ID in the low bits 11-5. */
+            dst.address = kvm_swizzle_msi_ext_dest_id(dst.address);
+
+            route->u.msi.address_hi = dst.address >> VTD_MSI_ADDR_HI_SHIFT;
+            route->u.msi.address_lo = dst.address & VTD_MSI_ADDR_LO_MASK;
+            route->u.msi.data = dst.data;
             return 0;
         }
-
-        src.address = route->u.msi.address_hi;
-        src.address <<= VTD_MSI_ADDR_HI_SHIFT;
-        src.address |= route->u.msi.address_lo;
-        src.data = route->u.msi.data;
-
-        ret = class->int_remap(iommu, &src, &dst, dev ? \
-                               pci_requester_id(dev) : \
-                               X86_IOMMU_SID_INVALID);
-        if (ret) {
-            trace_kvm_x86_fixup_msi_error(route->gsi);
-            return 1;
-        }
-
-        route->u.msi.address_hi = dst.address >> VTD_MSI_ADDR_HI_SHIFT;
-        route->u.msi.address_lo = dst.address & VTD_MSI_ADDR_LO_MASK;
-        route->u.msi.data = dst.data;
     }
 
+    address = kvm_swizzle_msi_ext_dest_id(address);
+    route->u.msi.address_hi = address >> VTD_MSI_ADDR_HI_SHIFT;
+    route->u.msi.address_lo = address & VTD_MSI_ADDR_LO_MASK;
     return 0;
 }
 

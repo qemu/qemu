@@ -104,6 +104,7 @@ const size_t pc_compat_5_2_len = G_N_ELEMENTS(pc_compat_5_2);
 
 GlobalProperty pc_compat_5_1[] = {
     { "ICH9-LPC", "x-smi-cpu-hotplug", "off" },
+    { TYPE_X86_CPU, "kvm-msi-ext-dest-id", "off" },
 };
 const size_t pc_compat_5_1_len = G_N_ELEMENTS(pc_compat_5_1);
 
@@ -796,17 +797,12 @@ void pc_machine_done(Notifier *notifier, void *data)
         fw_cfg_modify_i16(x86ms->fw_cfg, FW_CFG_NB_CPUS, x86ms->boot_cpus);
     }
 
-    if (x86ms->apic_id_limit > 255 && !xen_enabled()) {
-        IntelIOMMUState *iommu = INTEL_IOMMU_DEVICE(x86_iommu_get_default());
 
-        if (!iommu || !x86_iommu_ir_supported(X86_IOMMU_DEVICE(iommu)) ||
-            iommu->intr_eim != ON_OFF_AUTO_ON) {
-            error_report("current -smp configuration requires "
-                         "Extended Interrupt Mode enabled. "
-                         "You can add an IOMMU using: "
-                         "-device intel-iommu,intremap=on,eim=on");
-            exit(EXIT_FAILURE);
-        }
+    if (x86ms->apic_id_limit > 255 && !xen_enabled() &&
+        !kvm_irqchip_in_kernel()) {
+        error_report("current -smp configuration requires kernel "
+                     "irqchip support.");
+        exit(EXIT_FAILURE);
     }
 }
 
