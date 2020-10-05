@@ -142,28 +142,7 @@ SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet)
 include $(SRC_PATH)/tests/Makefile.include
 
 all: recurse-all
-Makefile: $(addsuffix /all, $(SUBDIRS))
-
-# LIBFDT_lib="": avoid breaking existing trees with objects requiring -fPIC
-DTC_MAKE_ARGS=-I$(SRC_PATH)/dtc VPATH=$(SRC_PATH)/dtc -C dtc V="$(V)" LIBFDT_lib=""
-DTC_CFLAGS=$(CFLAGS) $(QEMU_CFLAGS)
-DTC_CPPFLAGS=-I$(SRC_PATH)/dtc/libfdt
-
-.PHONY: dtc/all
-dtc/all: .git-submodule-status dtc/libfdt
-	$(call quiet-command,$(MAKE) $(DTC_MAKE_ARGS) CPPFLAGS="$(DTC_CPPFLAGS)" CFLAGS="$(DTC_CFLAGS)" LDFLAGS="$(QEMU_LDFLAGS)" ARFLAGS="$(ARFLAGS)" CC="$(CC)" AR="$(AR)" LD="$(LD)" $(SUBDIR_MAKEFLAGS) libfdt,)
-
-dtc/%: .git-submodule-status
-	@mkdir -p $@
-
-# Retain for a while so that incremental build across this patch
-# does not raise an error for missing target "capstone/all", which
-# comes from the saved SUBDIRS value.
-.PHONY: capstone/all
-capstone/all:
-
-.PHONY: slirp/all
-slirp/all:
+Makefile:
 
 ROM_DIRS = $(addprefix pc-bios/, $(ROMS))
 ROM_DIRS_RULES=$(foreach t, all clean, $(addsuffix /$(t), $(ROM_DIRS)))

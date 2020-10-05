@@ -531,11 +531,6 @@ if get_option('vnc').enabled()
                               compile_args: '-DSTRUCT_IOVEC_DEFINED')
   endif
 endif
-fdt = not_found
-if 'CONFIG_FDT' in config_host
-  fdt = declare_dependency(compile_args: config_host['FDT_CFLAGS'].split(),
-                           link_args: config_host['FDT_LIBS'].split())
-endif
 snappy = not_found
 if 'CONFIG_SNAPPY' in config_host
   snappy = declare_dependency(link_args: config_host['SNAPPY_LIBS'].split())
@@ -723,6 +718,7 @@ ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_ARCH' ]
 
 default_targets = 'CONFIG_DEFAULT_TARGETS' in config_host
 actual_target_dirs = []
+fdt_required = []
 foreach target : target_dirs
   config_target = { 'TARGET_NAME': target.split('-')[0] }
   if target.endswith('linux-user')
@@ -773,6 +769,10 @@ foreach target : target_dirs
   actual_target_dirs += target
   config_target += keyval.load('default-configs/targets' / target + '.mak')
   config_target += { 'TARGET_' + config_target['TARGET_ARCH'].to_upper(): 'y' }
+
+  if 'TARGET_NEED_FDT' in config_target
+    fdt_required += target
+  endif
 
   # Add default keys
   if 'TARGET_BASE_ARCH' not in config_target
@@ -1053,7 +1053,54 @@ if have_system
   endif
 endif
 
+fdt = not_found
+fdt_opt = get_option('fdt')
+if have_system
+  if fdt_opt in ['enabled', 'auto', 'system']
+    have_internal = fs.exists(meson.current_source_dir() / 'dtc/libfdt/Makefile.libfdt')
+    fdt = cc.find_library('fdt', static: enable_static,
+                          required: fdt_opt == 'system' or
+                                    fdt_opt == 'enabled' and not have_internal)
+    if fdt.found() and cc.links('''
+       #include <libfdt.h>
+       #include <libfdt_env.h>
+       int main(void) { fdt_check_full(NULL, 0); return 0; }''',
+         dependencies: fdt)
+      fdt_opt = 'system'
+    elif have_internal
+      fdt_opt = 'internal'
+    else
+      fdt_opt = 'disabled'
+    endif
+  endif
+  if fdt_opt == 'internal'
+    fdt_files = files(
+      'dtc/libfdt/fdt.c',
+      'dtc/libfdt/fdt_ro.c',
+      'dtc/libfdt/fdt_wip.c',
+      'dtc/libfdt/fdt_sw.c',
+      'dtc/libfdt/fdt_rw.c',
+      'dtc/libfdt/fdt_strerror.c',
+      'dtc/libfdt/fdt_empty_tree.c',
+      'dtc/libfdt/fdt_addresses.c',
+      'dtc/libfdt/fdt_overlay.c',
+      'dtc/libfdt/fdt_check.c',
+    )
+
+    fdt_inc = include_directories('dtc/libfdt')
+    libfdt = static_library('fdt',
+                            sources: fdt_files,
+                            include_directories: fdt_inc)
+    fdt = declare_dependency(link_with: libfdt,
+                             include_directories: fdt_inc)
+  endif
+endif
+if not fdt.found() and fdt_required.length() > 0
+  error('fdt not available but required by targets ' + ', '.join(fdt_required))
+endif
+
 config_host_data.set('CONFIG_CAPSTONE', capstone.found())
+config_host_data.set('CONFIG_FDT', fdt.found())
 config_host_data.set('CONFIG_SLIRP', slirp.found())
 
 genh += configure_file(output: 'config-host.h', configuration: config_host_data)
@@ -1323,7 +1370,7 @@ softmmu_ss.add(files(
 
 softmmu_ss.add(when: 'CONFIG_TPM', if_true: files('tpm.c'))
 softmmu_ss.add(when: 'CONFIG_SECCOMP', if_true: [files('qemu-seccomp.c'), seccomp])
-softmmu_ss.add(when: ['CONFIG_FDT', fdt],  if_true: [files('device_tree.c')])
+softmmu_ss.add(when: fdt, if_true: files('device_tree.c'))
 
 common_ss.add(files('cpus-common.c'))
 
@@ -1817,7 +1864,7 @@ endif
 summary_info += {'malloc trim support': has_malloc_trim}
 summary_info += {'RDMA support':      config_host.has_key('CONFIG_RDMA')}
 summary_info += {'PVRDMA support':    config_host.has_key('CONFIG_PVRDMA')}
-summary_info += {'fdt support':       config_host.has_key('CONFIG_FDT')}
+summary_info += {'fdt support':       fdt_opt == 'disabled' ? false : fdt_opt}
 summary_info += {'membarrier':        config_host.has_key('CONFIG_MEMBARRIER')}
 summary_info += {'preadv support':    config_host.has_key('CONFIG_PREADV')}
 summary_info += {'fdatasync':         config_host.has_key('CONFIG_FDATASYNC')}

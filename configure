@@ -296,7 +296,7 @@ brlapi=""
 curl=""
 curses=""
 docs=""
-fdt=""
+fdt="auto"
 netmap="no"
 sdl="auto"
 sdl_image="auto"
@@ -1181,9 +1181,13 @@ for opt do
   ;;
   --enable-curl) curl="yes"
   ;;
-  --disable-fdt) fdt="no"
+  --disable-fdt) fdt="disabled"
   ;;
-  --enable-fdt) fdt="yes"
+  --enable-fdt) fdt="enabled"
+  ;;
+  --enable-fdt=git) fdt="internal"
+  ;;
+  --enable-fdt=system) fdt="system"
   ;;
   --disable-linux-aio) linux_aio="no"
   ;;
@@ -3941,67 +3945,15 @@ fi
 
 ##########################################
 # fdt probe
-# fdt support is mandatory for at least some target architectures,
-# so insist on it if we're building those system emulators.
-fdt_required=no
-for target in $target_list; do
-  case $target in
-    aarch64*-softmmu|arm*-softmmu|ppc*-softmmu|microblaze*-softmmu|mips64el-softmmu|riscv*-softmmu|rx-softmmu)
-      fdt_required=yes
+
+case "$fdt" in
+  auto | enabled | internal)
+    # Simpler to always update submodule, even if not needed.
+    if test -e "${source_path}/.git" && test $git_update = 'yes' ; then
+      git_submodules="${git_submodules} dtc"
+    fi
     ;;
-  esac
-done
-
-if test "$fdt_required" = "yes"; then
-  if test "$fdt" = "no"; then
-    error_exit "fdt disabled but some requested targets require it." \
-      "You can turn off fdt only if you also disable all the system emulation" \
-      "targets which need it (by specifying a cut down --target-list)."
-  fi
-  fdt=yes
-elif test "$fdt" != "yes" ; then
-  fdt=no
-fi
-
-# fdt is only required when building softmmu targets
-if test -z "$fdt" -a "$softmmu" != "yes" ; then
-    fdt="no"
-fi
-
-if test "$fdt" != "no" ; then
-  fdt_libs="-lfdt"
-  # explicitly check for libfdt_env.h as it is missing in some stable installs
-  # and test for required functions to make sure we are on a version >= 1.4.2
-  cat > $TMPC << EOF
-#include <libfdt.h>
-#include <libfdt_env.h>
-int main(void) { fdt_check_full(NULL, 0); return 0; }
-EOF
-  if compile_prog "" "$fdt_libs" ; then
-    # system DTC is good - use it
-    fdt=system
-  else
-      # have GIT checkout, so activate dtc submodule
-      if test -e "${source_path}/.git" ; then
-          git_submodules="${git_submodules} dtc"
-      fi
-      if test -d "${source_path}/dtc/libfdt" || test -e "${source_path}/.git" ; then
-          fdt=git
-          mkdir -p dtc
-          fdt_cflags="-I${source_path}/dtc/libfdt"
-          fdt_ldflags="-Ldtc/libfdt"
-          fdt_libs="$fdt_libs"
-      elif test "$fdt" = "yes" ; then
-          # Not a git build & no libfdt found, prompt for system install
-          error_exit "DTC (libfdt) version >= 1.4.2 not present." \
-                     "Please install the DTC (libfdt) devel package"
-      else
-          # don't have and don't want
-          fdt_libs=
-          fdt=no
-      fi
-  fi
-fi
+esac
 
 ##########################################
 # opengl probe (for sdl2, gtk, milkymist-tmu2)
@@ -6107,9 +6059,6 @@ fi
 if test $git_update = 'yes' ; then
     (cd "${source_path}" && GIT="$git" "./scripts/git-submodule.sh" update "$git_submodules")
 fi
-if test "$fdt" = "git" ; then
-    symlink "$source_path/dtc/Makefile" "dtc/Makefile"
-fi
 
 config_host_mak="config-host.mak"
 
@@ -6213,7 +6162,6 @@ if test "$guest_agent" = "yes" ; then
   echo "CONFIG_GUEST_AGENT=y" >> $config_host_mak
 fi
 echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
-subdirs=
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
   echo "VDE_LIBS=$vde_libs" >> $config_host_mak
@@ -6538,11 +6486,6 @@ if test "$iovec" = "yes" ; then
 fi
 if test "$preadv" = "yes" ; then
   echo "CONFIG_PREADV=y" >> $config_host_mak
-fi
-if test "$fdt" != "no" ; then
-  echo "CONFIG_FDT=y" >> $config_host_mak
-  echo "FDT_CFLAGS=$fdt_cflags" >> $config_host_mak
-  echo "FDT_LIBS=$fdt_ldflags $fdt_libs" >> $config_host_mak
 fi
 if test "$membarrier" = "yes" ; then
   echo "CONFIG_MEMBARRIER=y" >> $config_host_mak
@@ -7083,14 +7026,10 @@ for target in $target_list; do
     esac
 done
 
-if [ "$fdt" = "git" ]; then
-  subdirs="$subdirs dtc"
-fi
 echo "CONFIG_QEMU_INTERP_PREFIX=$interp_prefix" | sed 's/%M/@0@/' >> $config_host_mak
 if test "$default_targets" = "yes"; then
   echo "CONFIG_DEFAULT_TARGETS=y" >> $config_host_mak
 fi
-echo "SUBDIRS=$subdirs" >> $config_host_mak
 
 if test "$numa" = "yes"; then
   echo "CONFIG_NUMA=y" >> $config_host_mak
@@ -7269,7 +7208,7 @@ NINJA=${ninja:-$PWD/ninjatool} $meson setup \
 	-Dcocoa=$cocoa -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
 	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
 	-Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f \
-	-Dcapstone=$capstone -Dslirp=$slirp \
+	-Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt \
         $cross_arg \
         "$PWD" "$source_path"
 
