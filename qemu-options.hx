@@ -1053,7 +1053,8 @@ SRST
             The path to the image file in the local filesystem
 
         ``aio``
-            Specifies the AIO backend (threads/native, default: threads)
+            Specifies the AIO backend (threads/native/io_uring,
+            default: threads)
 
         ``locking``
             Specifies whether the image file is protected with Linux OFD
@@ -1175,7 +1176,8 @@ DEF("drive", HAS_ARG, QEMU_OPTION_drive,
     "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
     "       [,cache=writethrough|writeback|none|directsync|unsafe][,format=f]\n"
     "       [,snapshot=on|off][,rerror=ignore|stop|report]\n"
-    "       [,werror=ignore|stop|report|enospc][,id=name][,aio=threads|native]\n"
+    "       [,werror=ignore|stop|report|enospc][,id=name]\n"
+    "       [,aio=threads|native|io_uring]\n"
     "       [,readonly=on|off][,copy-on-read=on|off]\n"
     "       [,discard=ignore|unmap][,detect-zeroes=on|off|unmap]\n"
     "       [[,bps=b]|[[,bps_rd=r][,bps_wr=w]]]\n"
@@ -1247,8 +1249,8 @@ SRST
         The default mode is ``cache=writeback``.
 
     ``aio=aio``
-        aio is "threads", or "native" and selects between pthread based
-        disk I/O and native Linux AIO.
+        aio is "threads", "native", or "io_uring" and selects between pthread
+        based disk I/O, native Linux AIO, or Linux io_uring API.
 
     ``format=format``
         Specify which disk format will be used rather than detecting the
