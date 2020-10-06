@@ -17,6 +17,7 @@ from collections import deque
 import socket
 import threading
 import time
+from typing import Optional
 
 
 class ConsoleSocket(socket.socket):
@@ -31,6 +32,7 @@ class ConsoleSocket(socket.socket):
     """
     def __init__(self, address, file=None, drain=False):
         self._recv_timeout_sec = 300
+        self._recv_timeout_sec = 300.0
         self._sleep_time = 0.5
         self._buffer = deque()
         socket.socket.__init__(self, socket.AF_UNIX, socket.SOCK_STREAM)
@@ -120,11 +122,11 @@ class ConsoleSocket(socket.socket):
         if self._drain_thread is None:
             socket.socket.setblocking(self, value)
 
-    def settimeout(self, seconds):
+    def settimeout(self, value: Optional[float]) -> None:
         """When not draining we pass thru to the socket,
            since when draining we control the timeout.
         """
-        if seconds is not None:
-            self._recv_timeout_sec = seconds
+        if value is not None:
+            self._recv_timeout_sec = value
         if self._drain_thread is None:
-            socket.socket.settimeout(self, seconds)
+            socket.socket.settimeout(self, value)
