@@ -22,33 +22,6 @@ static void scsi_req_dequeue(SCSIRequest *req);
 static uint8_t *scsi_target_alloc_buf(SCSIRequest *req, size_t len);
 static void scsi_target_free_buf(SCSIRequest *req);
 
-static Property scsi_props[] = {
-    DEFINE_PROP_UINT32("channel", SCSIDevice, channel, 0),
-    DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
-    DEFINE_PROP_UINT32("lun", SCSIDevice, lun, -1),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void scsi_bus_class_init(ObjectClass *klass, void *data)
-{
-    BusClass *k = BUS_CLASS(klass);
-    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
-
-    k->get_dev_path = scsibus_get_dev_path;
-    k->get_fw_dev_path = scsibus_get_fw_dev_path;
-    hc->unplug = qdev_simple_device_unplug_cb;
-}
-
-static const TypeInfo scsi_bus_info = {
-    .name = TYPE_SCSI_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(SCSIBus),
-    .class_init = scsi_bus_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
-};
 static int next_scsi_bus;
 
 static void scsi_device_realize(SCSIDevice *s, Error **errp)
@@ -160,25 +133,58 @@ static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
     }
 }
 
+static bool scsi_bus_is_address_free(SCSIBus *bus,
+				     int channel, int target, int lun,
+				     SCSIDevice **p_dev)
+{
+    SCSIDevice *d = scsi_device_find(bus, channel, target, lun);
+    if (d && d->lun == lun) {
+        if (p_dev) {
+            *p_dev = d;
+        }
+        return false;
+    }
+    if (p_dev) {
+        *p_dev = NULL;
+    }
+    return true;
+}
+
+static bool scsi_bus_check_address(BusState *qbus, DeviceState *qdev, Error **errp)
+{
+    SCSIDevice *dev = SCSI_DEVICE(qdev);
+    SCSIBus *bus = SCSI_BUS(qbus);
+
+    if (dev->channel > bus->info->max_channel) {
+        error_setg(errp, "bad scsi channel id: %d", dev->channel);
+        return false;
+    }
+    if (dev->id != -1 && dev->id > bus->info->max_target) {
+        error_setg(errp, "bad scsi device id: %d", dev->id);
+        return false;
+    }
+    if (dev->lun != -1 && dev->lun > bus->info->max_lun) {
+        error_setg(errp, "bad scsi device lun: %d", dev->lun);
+        return false;
+    }
+
+    if (dev->id != -1 && dev->lun != -1) {
+        SCSIDevice *d;
+        if (!scsi_bus_is_address_free(bus, dev->channel, dev->id, dev->lun, &d)) {
+            error_setg(errp, "lun already used by '%s'", d->qdev.id);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
 {
     SCSIDevice *dev = SCSI_DEVICE(qdev);
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
-    SCSIDevice *d;
+    bool is_free;
     Error *local_err = NULL;
-
-    if (dev->channel > bus->info->max_channel) {
-        error_setg(errp, "bad scsi channel id: %d", dev->channel);
-        return;
-    }
-    if (dev->id != -1 && dev->id > bus->info->max_target) {
-        error_setg(errp, "bad scsi device id: %d", dev->id);
-        return;
-    }
-    if (dev->lun != -1 && dev->lun > bus->info->max_lun) {
-        error_setg(errp, "bad scsi device lun: %d", dev->lun);
-        return;
-    }
 
     if (dev->id == -1) {
         int id = -1;
@@ -186,9 +192,9 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
             dev->lun = 0;
         }
         do {
-            d = scsi_device_find(bus, dev->channel, ++id, dev->lun);
-        } while (d && d->lun == dev->lun && id < bus->info->max_target);
-        if (d && d->lun == dev->lun) {
+            is_free = scsi_bus_is_address_free(bus, dev->channel, ++id, dev->lun, NULL);
+        } while (!is_free && id < bus->info->max_target);
+        if (!is_free) {
             error_setg(errp, "no free target");
             return;
         }
@@ -196,20 +202,13 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
     } else if (dev->lun == -1) {
         int lun = -1;
         do {
-            d = scsi_device_find(bus, dev->channel, dev->id, ++lun);
-        } while (d && d->lun == lun && lun < bus->info->max_lun);
-        if (d && d->lun == lun) {
+            is_free = scsi_bus_is_address_free(bus, dev->channel, dev->id, ++lun, NULL);
+        } while (!is_free && lun < bus->info->max_lun);
+        if (!is_free) {
             error_setg(errp, "no free lun");
             return;
         }
         dev->lun = lun;
-    } else {
-        d = scsi_device_find(bus, dev->channel, dev->id, dev->lun);
-        assert(d);
-        if (d->lun == dev->lun && dev != d) {
-            error_setg(errp, "lun already used by '%s'", d->qdev.id);
-            return;
-        }
     }
 
     QTAILQ_INIT(&dev->requests);
@@ -1723,6 +1722,13 @@ const VMStateDescription vmstate_scsi_device = {
     }
 };
 
+static Property scsi_props[] = {
+    DEFINE_PROP_UINT32("channel", SCSIDevice, channel, 0),
+    DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
+    DEFINE_PROP_UINT32("lun", SCSIDevice, lun, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void scsi_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
@@ -1751,6 +1757,28 @@ static const TypeInfo scsi_device_type_info = {
     .class_size = sizeof(SCSIDeviceClass),
     .class_init = scsi_device_class_init,
     .instance_init = scsi_dev_instance_init,
+};
+
+static void scsi_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+
+    k->get_dev_path = scsibus_get_dev_path;
+    k->get_fw_dev_path = scsibus_get_fw_dev_path;
+    k->check_address = scsi_bus_check_address;
+    hc->unplug = qdev_simple_device_unplug_cb;
+}
+
+static const TypeInfo scsi_bus_info = {
+    .name = TYPE_SCSI_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(SCSIBus),
+    .class_init = scsi_bus_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 
 static void scsi_register_types(void)
