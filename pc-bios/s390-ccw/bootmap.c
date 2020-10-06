@@ -273,7 +273,8 @@ static void run_eckd_boot_script(block_number_t bmt_block_nr,
 
     IPL_assert(bms->entry[i].type == BOOT_SCRIPT_EXEC,
                "Unknown script entry type");
-    jump_to_IPL_code(bms->entry[i].address.load_address); /* no return */
+    write_reset_psw(bms->entry[i].address.load_address); /* no return */
+    jump_to_IPL_code(0); /* no return */
 }
 
 static void ipl_eckd_cdl(void)
@@ -527,7 +528,8 @@ static void zipl_run(ScsiBlockPtr *pte)
     IPL_assert(entry->component_type == ZIPL_COMP_ENTRY_EXEC, "No EXEC entry");
 
     /* should not return */
-    jump_to_IPL_code(entry->compdat.load_psw & PSW_MASK_SHORT_ADDR);
+    write_reset_psw(entry->compdat.load_psw);
+    jump_to_IPL_code(0);
 }
 
 static void ipl_scsi(void)

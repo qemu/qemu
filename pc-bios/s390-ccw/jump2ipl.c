@@ -12,15 +12,21 @@
 
 #define KERN_IMAGE_START 0x010000UL
 #define RESET_PSW_MASK (PSW_MASK_SHORTPSW | PSW_MASK_64)
+#define RESET_PSW ((uint64_t)&jump_to_IPL_addr | RESET_PSW_MASK)
 
 static uint64_t *reset_psw = 0, save_psw, ipl_continue;
+
+void write_reset_psw(uint64_t psw)
+{
+    *reset_psw = psw;
+}
 
 static void jump_to_IPL_addr(void)
 {
     __attribute__((noreturn)) void (*ipl)(void) = (void *)ipl_continue;
 
     /* Restore reset PSW */
-    *reset_psw = save_psw;
+    write_reset_psw(save_psw);
 
     ipl();
     /* should not return */
@@ -43,11 +49,12 @@ void jump_to_IPL_code(uint64_t address)
      * content of non-BIOS memory after we loaded the guest, so we
      * save the original content and restore it in jump_to_IPL_2.
      */
-    save_psw = *reset_psw;
-    *reset_psw = (uint64_t) &jump_to_IPL_addr;
-    *reset_psw |= RESET_PSW_MASK;
-    ipl_continue = address;
-    debug_print_int("set IPL addr to", ipl_continue);
+    if (address) {
+        save_psw = *reset_psw;
+        write_reset_psw(RESET_PSW);
+        ipl_continue = address;
+    }
+    debug_print_int("set IPL addr to", address ?: *reset_psw & PSW_MASK_SHORT_ADDR);
 
     /* Ensure the guest output starts fresh */
     sclp_print("\n");
@@ -77,7 +84,12 @@ void jump_to_low_kernel(void)
 
     /* Trying to get PSW at zero address */
     if (*((uint64_t *)0) & RESET_PSW_MASK) {
-        jump_to_IPL_code((*((uint64_t *)0)) & PSW_MASK_SHORT_ADDR);
+        /*
+         * Surely nobody will try running directly from lowcore, so
+         * let's use 0 as an indication that we want to load the reset
+         * psw at 0x0 and not jump to the entry.
+         */
+        jump_to_IPL_code(0);
     }
 
     /* No other option left, so use the Linux kernel start address */
