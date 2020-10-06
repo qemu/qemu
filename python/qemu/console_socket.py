@@ -34,12 +34,12 @@ class ConsoleSocket(socket.socket):
                  drain: bool = False):
         self._recv_timeout_sec = 300.0
         self._sleep_time = 0.5
-        self._buffer: Deque[str] = deque()
+        self._buffer: Deque[int] = deque()
         socket.socket.__init__(self, socket.AF_UNIX, socket.SOCK_STREAM)
         self.connect(address)
         self._logfile = None
         if file:
-            self._logfile = open(file, "w")
+            self._logfile = open(file, "bw")
         self._open = True
         self._drain_thread = None
         if drain:
@@ -83,15 +83,10 @@ class ConsoleSocket(socket.socket):
     def _drain_socket(self) -> None:
         """process arriving characters into in memory _buffer"""
         data = socket.socket.recv(self, 1)
-        # latin1 is needed since there are some chars
-        # we are receiving that cannot be encoded to utf-8
-        # such as 0xe2, 0x80, 0xA6.
-        string = data.decode("latin1")
         if self._logfile:
-            self._logfile.write("{}".format(string))
+            self._logfile.write(data)
             self._logfile.flush()
-        for c in string:
-            self._buffer.extend(c)
+        self._buffer.extend(data)
 
     def recv(self, bufsize: int = 1, flags: int = 0) -> bytes:
         """Return chars from in memory buffer.
@@ -107,12 +102,7 @@ class ConsoleSocket(socket.socket):
             elapsed_sec = time.time() - start_time
             if elapsed_sec > self._recv_timeout_sec:
                 raise socket.timeout
-        chars = ''.join([self._buffer.popleft() for i in range(bufsize)])
-        # We choose to use latin1 to remain consistent with
-        # handle_read() and give back the same data as the user would
-        # receive if they were reading directly from the
-        # socket w/o our intervention.
-        return chars.encode("latin1")
+        return bytes((self._buffer.popleft() for i in range(bufsize)))
 
     def setblocking(self, value: bool) -> None:
         """When not draining we pass thru to the socket,
