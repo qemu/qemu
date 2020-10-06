@@ -20,15 +20,15 @@ which provides facilities for managing the lifetime of a QEMU VM.
 import errno
 import logging
 import os
-import subprocess
 import shutil
 import signal
+import subprocess
 import tempfile
-from typing import Optional, Type
 from types import TracebackType
-from . import console_socket
+from typing import Optional, Type
 
-from . import qmp
+from . import console_socket, qmp
+
 
 LOG = logging.getLogger(__name__)
 

@@ -18,6 +18,7 @@ import logging
 import os
 import subprocess
 
+
 LOG = logging.getLogger(__name__)
 
 # Mapping host architecture to any additional architectures it can

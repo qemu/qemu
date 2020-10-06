@@ -7,21 +7,21 @@
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
 
-import json
 import errno
-import socket
+import json
 import logging
+import socket
+from types import TracebackType
 from typing import (
     Any,
-    cast,
     Dict,
     Optional,
     TextIO,
-    Type,
     Tuple,
+    Type,
     Union,
+    cast,
 )
-from types import TracebackType
 
 
 # QMPMessage is a QMP Message of any kind.

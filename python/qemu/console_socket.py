@@ -13,9 +13,9 @@ which can drain a socket and optionally dump the bytes to file.
 # the COPYING file in the top-level directory.
 #
 
+from collections import deque
 import socket
 import threading
-from collections import deque
 import time
 
 
