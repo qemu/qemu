@@ -41,10 +41,9 @@ class ConsoleSocket(socket.socket):
         if file:
             self._logfile = open(file, "w")
         self._open = True
+        self._drain_thread = None
         if drain:
             self._drain_thread = self._thread_start()
-        else:
-            self._drain_thread = None
 
     def _drain_fn(self):
         """Drains the socket and runs while the socket is open."""
