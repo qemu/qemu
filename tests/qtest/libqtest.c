@@ -322,7 +322,7 @@ QTestState *qtest_init(const char *extra_args)
     QDict *greeting;
 
     /* Read the QMP greeting and then do the handshake */
-    greeting = qtest_qmp_receive(s);
+    greeting = qtest_qmp_receive_dict(s);
     qobject_unref(greeting);
     qobject_unref(qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }"));
 
@@ -603,7 +603,7 @@ QDict *qmp_fd_receive(int fd)
     return qmp.response;
 }
 
-QDict *qtest_qmp_receive(QTestState *s)
+QDict *qtest_qmp_receive_dict(QTestState *s)
 {
     return qmp_fd_receive(s->qmp_fd);
 }
@@ -678,7 +678,7 @@ QDict *qtest_vqmp_fds(QTestState *s, int *fds, size_t fds_num,
     qtest_qmp_vsend_fds(s, fds, fds_num, fmt, ap);
 
     /* Receive reply */
-    return qtest_qmp_receive(s);
+    return qtest_qmp_receive_dict(s);
 }
 
 QDict *qtest_vqmp(QTestState *s, const char *fmt, va_list ap)
@@ -686,7 +686,7 @@ QDict *qtest_vqmp(QTestState *s, const char *fmt, va_list ap)
     qtest_qmp_vsend(s, fmt, ap);
 
     /* Receive reply */
-    return qtest_qmp_receive(s);
+    return qtest_qmp_receive_dict(s);
 }
 
 QDict *qmp_fd(int fd, const char *fmt, ...)
@@ -776,7 +776,7 @@ QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
     QDict *response;
 
     for (;;) {
-        response = qtest_qmp_receive(s);
+        response = qtest_qmp_receive_dict(s);
         if ((qdict_haskey(response, "event")) &&
             (strcmp(qdict_get_str(response, "event"), event) == 0)) {
             return response;
@@ -807,7 +807,7 @@ char *qtest_vhmp(QTestState *s, const char *fmt, va_list ap)
     while (ret == NULL && qdict_get_try_str(resp, "event")) {
         /* Ignore asynchronous QMP events */
         qobject_unref(resp);
-        resp = qtest_qmp_receive(s);
+        resp = qtest_qmp_receive_dict(s);
         ret = g_strdup(qdict_get_try_str(resp, "return"));
     }
     g_assert(ret);
@@ -1255,7 +1255,7 @@ QDict *qtest_qmp_receive_success(QTestState *s,
     const char *event;
 
     for (;;) {
-        response = qtest_qmp_receive(s);
+        response = qtest_qmp_receive_dict(s);
         g_assert(!qdict_haskey(response, "error"));
         ret = qdict_get_qdict(response, "return");
         if (ret) {
@@ -1345,7 +1345,7 @@ void qtest_qmp_device_del(QTestState *qts, const char *id)
     rsp = qtest_qmp_receive_success(qts, device_deleted_cb, &got_event);
     qobject_unref(rsp);
     if (!got_event) {
-        rsp = qtest_qmp_receive(qts);
+        rsp = qtest_qmp_receive_dict(qts);
         g_assert_cmpstr(qdict_get_try_str(rsp, "event"),
                         ==, "DEVICE_DELETED");
         qobject_unref(rsp);

@@ -24,7 +24,7 @@ static void test_panic(void)
 
     qtest_outb(qts, 0x505, 0x1);
 
-    response = qtest_qmp_receive(qts);
+    response = qtest_qmp_receive_dict(qts);
     g_assert(qdict_haskey(response, "event"));
     g_assert_cmpstr(qdict_get_str(response, "event"), ==, "GUEST_PANICKED");
     g_assert(qdict_haskey(response, "data"));

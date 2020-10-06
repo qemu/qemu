@@ -23,7 +23,7 @@ static void device_del_start(QTestState *qtest, const char *id)
 
 static void device_del_finish(QTestState *qtest)
 {
-    QDict *resp = qtest_qmp_receive(qtest);
+    QDict *resp = qtest_qmp_receive_dict(qtest);
 
     g_assert(qdict_haskey(resp, "return"));
     qobject_unref(resp);

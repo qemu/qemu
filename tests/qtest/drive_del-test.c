@@ -41,7 +41,7 @@ static void device_del(QTestState *qts)
     /* Complication: ignore DEVICE_DELETED event */
     qmp_discard_response(qts, "{'execute': 'device_del',"
                          " 'arguments': { 'id': 'dev0' } }");
-    response = qtest_qmp_receive(qts);
+    response = qtest_qmp_receive_dict(qts);
     g_assert(response);
     g_assert(qdict_haskey(response, "return"));
     qobject_unref(response);

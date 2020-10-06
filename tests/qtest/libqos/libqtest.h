@@ -191,12 +191,12 @@ void qtest_qmp_vsend(QTestState *s, const char *fmt, va_list ap)
     GCC_FMT_ATTR(2, 0);
 
 /**
- * qtest_receive:
+ * qtest_qmp_receive_dict:
  * @s: #QTestState instance to operate on.
  *
  * Reads a QMP message from QEMU and returns the response.
  */
-QDict *qtest_qmp_receive(QTestState *s);
+QDict *qtest_qmp_receive_dict(QTestState *s);
 
 /**
  * qtest_qmp_eventwait:
