@@ -34,6 +34,7 @@
 #include "sysemu/numa.h"
 #include "sysemu/replay.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/cpu-timers.h"
 #include "trace.h"
 
 #include "hw/i386/x86.h"
@@ -521,7 +522,7 @@ static long get_file_size(FILE *f)
 /* TSC handling */
 uint64_t cpu_get_tsc(CPUX86State *env)
 {
-    return cpu_get_ticks();
+    return cpus_get_elapsed_ticks();
 }
 
 /* IRQ handling */

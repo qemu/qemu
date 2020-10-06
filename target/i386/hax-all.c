@@ -28,12 +28,12 @@
 #include "exec/address-spaces.h"
 
 #include "qemu-common.h"
-#include "hax-i386.h"
 #include "sysemu/accel.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
-#include "qemu/main-loop.h"
 #include "hw/boards.h"
+
+#include "hax-cpus.h"
 
 #define DEBUG_HAX 0
 
@@ -296,15 +296,6 @@ int hax_vm_destroy(struct hax_vm *vm)
     return 0;
 }
 
-static void hax_handle_interrupt(CPUState *cpu, int mask)
-{
-    cpu->interrupt_request |= mask;
-
-    if (!qemu_cpu_is_self(cpu)) {
-        qemu_cpu_kick(cpu);
-    }
-}
-
 static int hax_init(ram_addr_t ram_size, int max_cpus)
 {
     struct hax_state *hax = NULL;
@@ -349,7 +340,6 @@ static int hax_init(ram_addr_t ram_size, int max_cpus)
     qversion.cur_version = hax_cur_version;
     qversion.min_version = hax_min_version;
     hax_notify_qemu_version(hax->vm->fd, &qversion);
-    cpu_interrupt_handler = hax_handle_interrupt;
 
     return ret;
   error:
@@ -373,6 +363,9 @@ static int hax_accel_init(MachineState *ms)
         fprintf(stdout, "HAX is %s and emulator runs in %s mode.\n",
                 !ret ? "working" : "not working",
                 !ret ? "fast virt" : "emulation");
+    }
+    if (ret == 0) {
+        cpus_register_accel(&hax_cpus);
     }
     return ret;
 }

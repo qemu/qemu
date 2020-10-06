@@ -24,6 +24,7 @@
 #include "hw/irq.h"
 #include "hw/semihosting/semihost.h"
 #include "sysemu/cpus.h"
+#include "sysemu/cpu-timers.h"
 #include "sysemu/kvm.h"
 #include "sysemu/tcg.h"
 #include "qemu/range.h"
@@ -1206,17 +1207,17 @@ static int64_t cycles_ns_per(uint64_t cycles)
 
 static bool instructions_supported(CPUARMState *env)
 {
-    return use_icount == 1 /* Precise instruction counting */;
+    return icount_enabled() == 1; /* Precise instruction counting */
 }
 
 static uint64_t instructions_get_count(CPUARMState *env)
 {
-    return (uint64_t)cpu_get_icount_raw();
+    return (uint64_t)icount_get_raw();
 }
 
 static int64_t instructions_ns_per(uint64_t icount)
 {
-    return cpu_icount_to_ns((int64_t)icount);
+    return icount_to_ns((int64_t)icount);
 }
 #endif
 

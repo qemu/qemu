@@ -57,6 +57,7 @@
 #include "qemu/main-loop.h"
 #include "exec/log.h"
 #include "sysemu/cpus.h"
+#include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
 
 /* #define DEBUG_TB_INVALIDATE */
@@ -369,7 +370,7 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
 
  found:
     if (reset_icount && (tb_cflags(tb) & CF_USE_ICOUNT)) {
-        assert(use_icount);
+        assert(icount_enabled());
         /* Reset the cycle counter to the start of the block
            and shift if to the number of actually executed instructions */
         cpu_neg(cpu)->icount_decr.u16.low += num_insns - i;

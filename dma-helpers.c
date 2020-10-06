@@ -13,7 +13,7 @@
 #include "trace/trace-root.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
-#include "sysemu/cpus.h"
+#include "sysemu/cpu-timers.h"
 #include "qemu/range.h"
 
 /* #define DEBUG_IOMMU */
@@ -151,7 +151,7 @@ static void dma_blk_cb(void *opaque, int ret)
          * from several sectors. This code splits all SGs into several
          * groups. SGs in every group do not overlap.
          */
-        if (mem && use_icount && dbs->dir == DMA_DIRECTION_FROM_DEVICE) {
+        if (mem && icount_enabled() && dbs->dir == DMA_DIRECTION_FROM_DEVICE) {
             int i;
             for (i = 0 ; i < dbs->iov.niov ; ++i) {
                 if (ranges_overlap((intptr_t)dbs->iov.iov[i].iov_base,

@@ -12,9 +12,10 @@ Snapshots in TEST_DIR/t.IMGFMT.v2.orig:
   [1]
     ID: 2
     Name: sn1
-    Extra data size: 42
+    Extra data size: 50
     VM state size: 0
     Disk size: 67108864
+    Icount: 0
     Unknown extra data: very important data
   [2]
     ID: 3
@@ -29,22 +30,25 @@ Snapshots in TEST_DIR/t.IMGFMT.v3.orig:
   [0]
     ID: 1
     Name: sn0
-    Extra data size: 16
+    Extra data size: 24
     VM state size: 0
     Disk size: 67108864
+    Icount: 18446744073709551615
   [1]
     ID: 2
     Name: sn1
-    Extra data size: 42
+    Extra data size: 50
     VM state size: 0
     Disk size: 67108864
+    Icount: 0
     Unknown extra data: very important data
   [2]
     ID: 3
     Name: sn2
-    Extra data size: 16
+    Extra data size: 24
     VM state size: 0
     Disk size: 67108864
+    Icount: 18446744073709551615
 
 === Repair botched v3 ===
 
@@ -61,22 +65,25 @@ Snapshots in TEST_DIR/t.IMGFMT:
   [0]
     ID: 1
     Name: sn0
-    Extra data size: 16
+    Extra data size: 24
     VM state size: 0
     Disk size: 67108864
+    Icount: 18446744073709551615
   [1]
     ID: 2
     Name: sn1
-    Extra data size: 42
+    Extra data size: 50
     VM state size: 0
     Disk size: 67108864
+    Icount: 0
     Unknown extra data: very important data
   [2]
     ID: 3
     Name: sn2
-    Extra data size: 16
+    Extra data size: 24
     VM state size: 0
     Disk size: 67108864
+    Icount: 18446744073709551615
 
 === Add new snapshot ===
 
@@ -85,28 +92,32 @@ Snapshots in TEST_DIR/t.IMGFMT:
   [0]
     ID: 1
     Name: sn0
-    Extra data size: 16
+    Extra data size: 24
     VM state size: 0
     Disk size: 67108864
+    Icount: 18446744073709551615
   [1]
     ID: 2
     Name: sn1
-    Extra data size: 42
+    Extra data size: 50
     VM state size: 0
     Disk size: 67108864
+    Icount: 0
     Unknown extra data: very important data
   [2]
     ID: 3
     Name: sn2
-    Extra data size: 16
+    Extra data size: 24
     VM state size: 0
     Disk size: 67108864
+    Icount: 18446744073709551615
   [3]
     ID: 4
     Name: sn3
-    Extra data size: 16
+    Extra data size: 24
     VM state size: 0
     Disk size: 67108864
+    Icount: 0
 
 === Remove different snapshots ===
 
@@ -116,16 +127,18 @@ Snapshots in TEST_DIR/t.IMGFMT:
   [0]
     ID: 2
     Name: sn1
-    Extra data size: 42
+    Extra data size: 50
     VM state size: 0
     Disk size: 67108864
+    Icount: 0
     Unknown extra data: very important data
   [1]
     ID: 3
     Name: sn2
-    Extra data size: 16
+    Extra data size: 24
     VM state size: 0
     Disk size: 67108864
+    Icount: 18446744073709551615
 
 --- sn1 ---
 No errors were found on the image.
@@ -133,15 +146,17 @@ Snapshots in TEST_DIR/t.IMGFMT:
   [0]
     ID: 1
     Name: sn0
-    Extra data size: 16
+    Extra data size: 24
     VM state size: 0
     Disk size: 67108864
+    Icount: 18446744073709551615
   [1]
     ID: 3
     Name: sn2
-    Extra data size: 16
+    Extra data size: 24
     VM state size: 0
     Disk size: 67108864
+    Icount: 18446744073709551615
 
 --- sn2 ---
 No errors were found on the image.
@@ -149,15 +164,17 @@ Snapshots in TEST_DIR/t.IMGFMT:
   [0]
     ID: 1
     Name: sn0
-    Extra data size: 16
+    Extra data size: 24
     VM state size: 0
     Disk size: 67108864
+    Icount: 18446744073709551615
   [1]
     ID: 2
     Name: sn1
-    Extra data size: 42
+    Extra data size: 50
     VM state size: 0
     Disk size: 67108864
+    Icount: 0
     Unknown extra data: very important data
 
 === Reject too much unknown extra data ===

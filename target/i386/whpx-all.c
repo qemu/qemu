@@ -24,6 +24,8 @@
 #include "migration/blocker.h"
 #include "whp-dispatch.h"
 
+#include "whpx-cpus.h"
+
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
 
@@ -1486,15 +1488,6 @@ static void whpx_memory_init(void)
     memory_listener_register(&whpx_memory_listener, &address_space_memory);
 }
 
-static void whpx_handle_interrupt(CPUState *cpu, int mask)
-{
-    cpu->interrupt_request |= mask;
-
-    if (!qemu_cpu_is_self(cpu)) {
-        qemu_cpu_kick(cpu);
-    }
-}
-
 /*
  * Load the functions from the given library, using the given handle. If a
  * handle is provided, it is used, otherwise the library is opened. The
@@ -1649,7 +1642,7 @@ static int whpx_accel_init(MachineState *ms)
 
     whpx_memory_init();
 
-    cpu_interrupt_handler = whpx_handle_interrupt;
+    cpus_register_accel(&whpx_cpus);
 
     printf("Windows Hypervisor Platform accelerator is operational\n");
     return 0;

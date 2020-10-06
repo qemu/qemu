@@ -44,6 +44,9 @@
 #include "qapi/qapi-types-common.h"
 #include "qapi/qapi-visit-common.h"
 #include "sysemu/reset.h"
+#include "qemu/guest-random.h"
+#include "sysemu/hw_accel.h"
+#include "kvm-cpus.h"
 
 #include "hw/boards.h"
 
@@ -378,7 +381,7 @@ err:
     return ret;
 }
 
-int kvm_destroy_vcpu(CPUState *cpu)
+static int do_kvm_destroy_vcpu(CPUState *cpu)
 {
     KVMState *s = kvm_state;
     long mmap_size;
@@ -412,6 +415,14 @@ err:
     return ret;
 }
 
+void kvm_destroy_vcpu(CPUState *cpu)
+{
+    if (do_kvm_destroy_vcpu(cpu) < 0) {
+        error_report("kvm_destroy_vcpu failed");
+        exit(EXIT_FAILURE);
+    }
+}
+
 static int kvm_get_vcpu(KVMState *s, unsigned long vcpu_id)
 {
     struct KVMParkedVcpu *cpu;
@@ -430,17 +441,18 @@ static int kvm_get_vcpu(KVMState *s, unsigned long vcpu_id)
     return kvm_vm_ioctl(s, KVM_CREATE_VCPU, (void *)vcpu_id);
 }
 
-int kvm_init_vcpu(CPUState *cpu)
+int kvm_init_vcpu(CPUState *cpu, Error **errp)
 {
     KVMState *s = kvm_state;
     long mmap_size;
     int ret;
 
-    DPRINTF("kvm_init_vcpu\n");
+    trace_kvm_init_vcpu(cpu->cpu_index, kvm_arch_vcpu_id(cpu));
 
     ret = kvm_get_vcpu(s, kvm_arch_vcpu_id(cpu));
     if (ret < 0) {
-        DPRINTF("kvm_create_vcpu failed\n");
+        error_setg_errno(errp, -ret, "kvm_init_vcpu: kvm_get_vcpu failed (%lu)",
+                         kvm_arch_vcpu_id(cpu));
         goto err;
     }
 
@@ -451,7 +463,8 @@ int kvm_init_vcpu(CPUState *cpu)
     mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
     if (mmap_size < 0) {
         ret = mmap_size;
-        DPRINTF("KVM_GET_VCPU_MMAP_SIZE failed\n");
+        error_setg_errno(errp, -mmap_size,
+                         "kvm_init_vcpu: KVM_GET_VCPU_MMAP_SIZE failed");
         goto err;
     }
 
@@ -459,7 +472,9 @@ int kvm_init_vcpu(CPUState *cpu)
                         cpu->kvm_fd, 0);
     if (cpu->kvm_run == MAP_FAILED) {
         ret = -errno;
-        DPRINTF("mmap'ing vcpu state failed\n");
+        error_setg_errno(errp, ret,
+                         "kvm_init_vcpu: mmap'ing vcpu state failed (%lu)",
+                         kvm_arch_vcpu_id(cpu));
         goto err;
     }
 
@@ -469,6 +484,11 @@ int kvm_init_vcpu(CPUState *cpu)
     }
 
     ret = kvm_arch_init_vcpu(cpu);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret,
+                         "kvm_init_vcpu: kvm_arch_init_vcpu failed (%lu)",
+                         kvm_arch_vcpu_id(cpu));
+    }
 err:
     return ret;
 }
@@ -2232,6 +2252,7 @@ static int kvm_init(MachineState *ms)
         assert(!ret);
     }
 
+    cpus_register_accel(&kvm_cpus);
     return 0;
 
 err:

@@ -155,7 +155,7 @@ update_cxxflags() {
     # options which some versions of GCC's C++ compiler complain about
     # because they only make sense for C programs.
     QEMU_CXXFLAGS="$QEMU_CXXFLAGS -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS"
-    CXXFLAGS=$(echo "$CFLAGS" | sed s/-std=gnu99/-std=gnu++11/)
+    CONFIGURE_CXXFLAGS=$(echo "$CONFIGURE_CFLAGS" | sed s/-std=gnu99/-std=gnu++11/)
     for arg in $QEMU_CFLAGS; do
         case $arg in
             -Wstrict-prototypes|-Wmissing-prototypes|-Wnested-externs|\
@@ -170,13 +170,14 @@ update_cxxflags() {
 
 compile_object() {
   local_cflags="$1"
-  do_cc $CFLAGS $QEMU_CFLAGS $local_cflags -c -o $TMPO $TMPC
+  do_cc $CFLAGS $CONFIGURE_CFLAGS $QEMU_CFLAGS $local_cflags -c -o $TMPO $TMPC
 }
 
 compile_prog() {
   local_cflags="$1"
   local_ldflags="$2"
-  do_cc $CFLAGS $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $QEMU_LDFLAGS $local_ldflags
+  do_cc $CFLAGS $CONFIGURE_CFLAGS $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC \
+      $LDFLAGS $CONFIGURE_LDFLAGS $QEMU_LDFLAGS $local_ldflags
 }
 
 # symbolically link $1 to $2.  Portable version of "ln -sf".
@@ -296,7 +297,7 @@ brlapi=""
 curl=""
 curses=""
 docs=""
-fdt=""
+fdt="auto"
 netmap="no"
 sdl="auto"
 sdl_image="auto"
@@ -349,7 +350,7 @@ modules="no"
 module_upgrades="no"
 prefix="/usr/local"
 qemu_suffix="qemu"
-slirp=""
+slirp="auto"
 oss_lib=""
 bsd="no"
 linux="no"
@@ -537,7 +538,10 @@ QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 QEMU_INCLUDES="-iquote . -iquote ${source_path} -iquote ${source_path}/accel/tcg -iquote ${source_path}/include"
 QEMU_INCLUDES="$QEMU_INCLUDES -iquote ${source_path}/disas/libvixl"
-CFLAGS="-std=gnu99 -Wall"
+
+# Flags that are needed during configure but later taken care of by Meson
+CONFIGURE_CFLAGS="-std=gnu99 -Wall"
+CONFIGURE_LDFLAGS=
 
 
 check_define() {
@@ -851,7 +855,7 @@ if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
   HOST_DSOSUF=".dll"
   # MinGW needs -mthreads for TLS and macro _MT.
-  CFLAGS="-mthreads $CFLAGS"
+  CONFIGURE_CFLAGS="-mthreads $CONFIGURE_CFLAGS"
   write_c_skeleton;
   prefix="/qemu"
   qemu_suffix=""
@@ -1058,9 +1062,9 @@ for opt do
   ;;
   --enable-vnc-png) vnc_png="enabled"
   ;;
-  --disable-slirp) slirp="no"
+  --disable-slirp) slirp="disabled"
   ;;
-  --enable-slirp=git) slirp="git"
+  --enable-slirp=git) slirp="internal"
   ;;
   --enable-slirp=system) slirp="system"
   ;;
@@ -1181,9 +1185,13 @@ for opt do
   ;;
   --enable-curl) curl="yes"
   ;;
-  --disable-fdt) fdt="no"
+  --disable-fdt) fdt="disabled"
   ;;
-  --enable-fdt) fdt="yes"
+  --enable-fdt) fdt="enabled"
+  ;;
+  --enable-fdt=git) fdt="internal"
+  ;;
+  --enable-fdt=system) fdt="system"
   ;;
   --disable-linux-aio) linux_aio="no"
   ;;
@@ -2105,7 +2113,7 @@ fi
 
 if test "$static" = "yes"; then
   if test "$pie" != "no" && compile_prog "-Werror -fPIE -DPIE" "-static-pie"; then
-    CFLAGS="-fPIE -DPIE $CFLAGS"
+    CONFIGURE_CFLAGS="-fPIE -DPIE $CONFIGURE_CFLAGS"
     QEMU_LDFLAGS="-static-pie $QEMU_LDFLAGS"
     pie="yes"
   elif test "$pie" = "yes"; then
@@ -2115,11 +2123,11 @@ if test "$static" = "yes"; then
     pie="no"
   fi
 elif test "$pie" = "no"; then
-  CFLAGS="$CFLAGS_NOPIE $CFLAGS"
-  LDFLAGS="$LDFLAGS_NOPIE $LDFLAGS"
+  CONFIGURE_CFLAGS="$CFLAGS_NOPIE $CONFIGURE_CFLAGS"
+  CONFIGURE_LDFLAGS="$LDFLAGS_NOPIE $CONFIGURE_LDFLAGS"
 elif compile_prog "-Werror -fPIE -DPIE" "-pie"; then
-  CFLAGS="-fPIE -DPIE $CFLAGS"
-  LDFLAGS="-pie $LDFLAGS"
+  CONFIGURE_CFLAGS="-fPIE -DPIE $CONFIGURE_CFLAGS"
+  CONFIGURE_LDFLAGS="-pie $CONFIGURE_LDFLAGS"
   pie="yes"
 elif test "$pie" = "yes"; then
   error_exit "PIE not available due to missing toolchain support"
@@ -3663,7 +3671,7 @@ EOF
 if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
     if cc_has_warning_flag "-Wno-unknown-attributes"; then
         glib_cflags="-Wno-unknown-attributes $glib_cflags"
-        CFLAGS="-Wno-unknown-attributes $CFLAGS"
+        CONFIGURE_CFLAGS="-Wno-unknown-attributes $CONFIGURE_CFLAGS"
     fi
 fi
 
@@ -3683,7 +3691,7 @@ EOF
 if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
     if cc_has_warning_flag "-Wno-unused-function"; then
         glib_cflags="$glib_cflags -Wno-unused-function"
-        CFLAGS="$CFLAGS -Wno-unused-function"
+        CONFIGURE_CFLAGS="$CONFIGURE_CFLAGS -Wno-unused-function"
     fi
 fi
 
@@ -3941,67 +3949,15 @@ fi
 
 ##########################################
 # fdt probe
-# fdt support is mandatory for at least some target architectures,
-# so insist on it if we're building those system emulators.
-fdt_required=no
-for target in $target_list; do
-  case $target in
-    aarch64*-softmmu|arm*-softmmu|ppc*-softmmu|microblaze*-softmmu|mips64el-softmmu|riscv*-softmmu|rx-softmmu)
-      fdt_required=yes
+
+case "$fdt" in
+  auto | enabled | internal)
+    # Simpler to always update submodule, even if not needed.
+    if test -e "${source_path}/.git" && test $git_update = 'yes' ; then
+      git_submodules="${git_submodules} dtc"
+    fi
     ;;
-  esac
-done
-
-if test "$fdt_required" = "yes"; then
-  if test "$fdt" = "no"; then
-    error_exit "fdt disabled but some requested targets require it." \
-      "You can turn off fdt only if you also disable all the system emulation" \
-      "targets which need it (by specifying a cut down --target-list)."
-  fi
-  fdt=yes
-elif test "$fdt" != "yes" ; then
-  fdt=no
-fi
-
-# fdt is only required when building softmmu targets
-if test -z "$fdt" -a "$softmmu" != "yes" ; then
-    fdt="no"
-fi
-
-if test "$fdt" != "no" ; then
-  fdt_libs="-lfdt"
-  # explicitly check for libfdt_env.h as it is missing in some stable installs
-  # and test for required functions to make sure we are on a version >= 1.4.2
-  cat > $TMPC << EOF
-#include <libfdt.h>
-#include <libfdt_env.h>
-int main(void) { fdt_check_full(NULL, 0); return 0; }
-EOF
-  if compile_prog "" "$fdt_libs" ; then
-    # system DTC is good - use it
-    fdt=system
-  else
-      # have GIT checkout, so activate dtc submodule
-      if test -e "${source_path}/.git" ; then
-          git_submodules="${git_submodules} dtc"
-      fi
-      if test -d "${source_path}/dtc/libfdt" || test -e "${source_path}/.git" ; then
-          fdt=git
-          mkdir -p dtc
-          fdt_cflags="-I${source_path}/dtc/libfdt"
-          fdt_ldflags="-Ldtc/libfdt"
-          fdt_libs="$fdt_libs"
-      elif test "$fdt" = "yes" ; then
-          # Not a git build & no libfdt found, prompt for system install
-          error_exit "DTC (libfdt) version >= 1.4.2 not present." \
-                     "Please install the DTC (libfdt) devel package"
-      else
-          # don't have and don't want
-          fdt_libs=
-          fdt=no
-      fi
-  fi
-fi
+esac
 
 ##########################################
 # opengl probe (for sdl2, gtk, milkymist-tmu2)
@@ -5806,56 +5762,12 @@ fi
 ##########################################
 # check for slirp
 
-# slirp is only required when building softmmu targets
-if test -z "$slirp" -a "$softmmu" != "yes" ; then
-    slirp="no"
-fi
-
 case "$slirp" in
-  "" | yes)
-    if $pkg_config slirp; then
-      slirp=system
-    elif test -e "${source_path}/.git" && test $git_update = 'yes' ; then
-      slirp=git
-    elif test -e "${source_path}/slirp/Makefile" ; then
-      slirp=internal
-    elif test -z "$slirp" ; then
-      slirp=no
-    else
-      feature_not_found "slirp" "Install slirp devel or git submodule"
-    fi
-    ;;
-
-  system)
-    if ! $pkg_config slirp; then
-      feature_not_found "slirp" "Install slirp devel"
-    fi
-    ;;
-esac
-
-case "$slirp" in
-  git | internal)
-    if test "$slirp" = git; then
+  auto | enabled | internal)
+    # Simpler to always update submodule, even if not needed.
+    if test -e "${source_path}/.git" && test $git_update = 'yes' ; then
       git_submodules="${git_submodules} slirp"
     fi
-    mkdir -p slirp
-    slirp_cflags="-I${source_path}/slirp/src -Islirp/src"
-    slirp_libs="-Lslirp -lslirp"
-    if test "$mingw32" = "yes" ; then
-      slirp_libs="$slirp_libs -lws2_32 -liphlpapi"
-    fi
-    ;;
-
-  system)
-    slirp_version=$($pkg_config --modversion slirp 2>/dev/null)
-    slirp_cflags=$($pkg_config --cflags slirp 2>/dev/null)
-    slirp_libs=$($pkg_config --libs slirp 2>/dev/null)
-    ;;
-
-  no)
-    ;;
-  *)
-    error_exit "Unknown state for slirp: $slirp"
     ;;
 esac
 
@@ -5905,13 +5817,6 @@ if test "$gcov" = "yes" ; then
 elif test "$fortify_source" = "yes" ; then
   QEMU_CFLAGS="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
   debug=no
-fi
-if test "$debug_info" = "yes"; then
-  CFLAGS="-g $CFLAGS"
-  LDFLAGS="-g $LDFLAGS"
-fi
-if test "$debug" = "no"; then
-  CFLAGS="-O2 $CFLAGS"
 fi
 
 case "$ARCH" in
@@ -5977,7 +5882,14 @@ fi
 
 # Use ASLR, no-SEH and DEP if available
 if test "$mingw32" = "yes" ; then
-    for flag in --dynamicbase --no-seh --nxcompat; do
+    flags="--no-seh --nxcompat"
+
+    # Disable ASLR for debug builds to allow debugging with gdb
+    if test "$debug" = "no" ; then
+        flags="--dynamicbase $flags"
+    fi
+
+    for flag in $flags; do
         if ld_has $flag ; then
             QEMU_LDFLAGS="-Wl,$flag $QEMU_LDFLAGS"
         fi
@@ -6135,7 +6047,7 @@ EOF
 
     update_cxxflags
 
-    if do_cxx $CXXFLAGS $QEMU_CXXFLAGS -o $TMPE $TMPCXX $TMPO $QEMU_LDFLAGS; then
+    if do_cxx $CXXFLAGS $CONFIGURE_CXXFLAGS $QEMU_CXXFLAGS -o $TMPE $TMPCXX $TMPO $QEMU_LDFLAGS; then
         # C++ compiler $cxx works ok with C compiler $cc
         :
     else
@@ -6150,9 +6062,6 @@ fi
 
 if test $git_update = 'yes' ; then
     (cd "${source_path}" && GIT="$git" "./scripts/git-submodule.sh" update "$git_submodules")
-fi
-if test "$fdt" = "git" ; then
-    symlink "$source_path/dtc/Makefile" "dtc/Makefile"
 fi
 
 config_host_mak="config-host.mak"
@@ -6256,16 +6165,7 @@ fi
 if test "$guest_agent" = "yes" ; then
   echo "CONFIG_GUEST_AGENT=y" >> $config_host_mak
 fi
-if test "$slirp" != "no"; then
-  echo "CONFIG_SLIRP=y" >> $config_host_mak
-  echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
-  echo "SLIRP_CFLAGS=$slirp_cflags" >> $config_host_mak
-  echo "SLIRP_LIBS=$slirp_libs" >> $config_host_mak
-fi
-subdirs=
-if [ "$slirp" = "git" -o "$slirp" = "internal" ]; then
-  subdirs="$subdirs slirp"
-fi
+echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
   echo "VDE_LIBS=$vde_libs" >> $config_host_mak
@@ -6590,11 +6490,6 @@ if test "$iovec" = "yes" ; then
 fi
 if test "$preadv" = "yes" ; then
   echo "CONFIG_PREADV=y" >> $config_host_mak
-fi
-if test "$fdt" != "no" ; then
-  echo "CONFIG_FDT=y" >> $config_host_mak
-  echo "FDT_CFLAGS=$fdt_cflags" >> $config_host_mak
-  echo "FDT_LIBS=$fdt_ldflags $fdt_libs" >> $config_host_mak
 fi
 if test "$membarrier" = "yes" ; then
   echo "CONFIG_MEMBARRIER=y" >> $config_host_mak
@@ -7062,7 +6957,6 @@ echo "RANLIB=$ranlib" >> $config_host_mak
 echo "NM=$nm" >> $config_host_mak
 echo "PKG_CONFIG=$pkg_config_exe" >> $config_host_mak
 echo "WINDRES=$windres" >> $config_host_mak
-echo "CFLAGS=$CFLAGS" >> $config_host_mak
 echo "CFLAGS_NOPIE=$CFLAGS_NOPIE" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "QEMU_CXXFLAGS=$QEMU_CXXFLAGS" >> $config_host_mak
@@ -7135,14 +7029,10 @@ for target in $target_list; do
     esac
 done
 
-if [ "$fdt" = "git" ]; then
-  subdirs="$subdirs dtc"
-fi
 echo "CONFIG_QEMU_INTERP_PREFIX=$interp_prefix" | sed 's/%M/@0@/' >> $config_host_mak
 if test "$default_targets" = "yes"; then
   echo "CONFIG_DEFAULT_TARGETS=y" >> $config_host_mak
 fi
-echo "SUBDIRS=$subdirs" >> $config_host_mak
 
 if test "$numa" = "yes"; then
   echo "CONFIG_NUMA=y" >> $config_host_mak
@@ -7247,24 +7137,29 @@ echo "export PYTHON='$python'" >> "$iotests_common_env"
 if test "$skip_meson" = no; then
 cross="config-meson.cross.new"
 meson_quote() {
-    echo "['$(echo $* | sed "s/ /','/g")']"
+    echo "'$(echo $* | sed "s/ /','/g")'"
 }
 
 echo "# Automatically generated by configure - do not modify" > $cross
 echo "[properties]" >> $cross
 test -z "$cxx" && echo "link_language = 'c'" >> $cross
+echo "[built-in options]" >> $cross
+echo "c_args = [${CFLAGS:+$(meson_quote $CFLAGS)}]" >> $cross
+echo "cpp_args = [${CXXFLAGS:+$(meson_quote $CXXFLAGS)}]" >> $cross
+echo "c_link_args = [${LDFLAGS:+$(meson_quote $LDFLAGS)}]" >> $cross
+echo "cpp_link_args = [${LDFLAGS:+$(meson_quote $LDFLAGS)}]" >> $cross
 echo "[binaries]" >> $cross
-echo "c = $(meson_quote $cc)" >> $cross
-test -n "$cxx" && echo "cpp = $(meson_quote $cxx)" >> $cross
-echo "ar = $(meson_quote $ar)" >> $cross
-echo "nm = $(meson_quote $nm)" >> $cross
-echo "pkgconfig = $(meson_quote $pkg_config_exe)" >> $cross
-echo "ranlib = $(meson_quote $ranlib)" >> $cross
+echo "c = [$(meson_quote $cc)]" >> $cross
+test -n "$cxx" && echo "cpp = [$(meson_quote $cxx)]" >> $cross
+echo "ar = [$(meson_quote $ar)]" >> $cross
+echo "nm = [$(meson_quote $nm)]" >> $cross
+echo "pkgconfig = [$(meson_quote $pkg_config_exe)]" >> $cross
+echo "ranlib = [$(meson_quote $ranlib)]" >> $cross
 if has $sdl2_config; then
-  echo "sdl2-config = $(meson_quote $sdl2_config)" >> $cross
+  echo "sdl2-config = [$(meson_quote $sdl2_config)]" >> $cross
 fi
-echo "strip = $(meson_quote $strip)" >> $cross
-echo "windres = $(meson_quote $windres)" >> $cross
+echo "strip = [$(meson_quote $strip)]" >> $cross
+echo "windres = [$(meson_quote $windres)]" >> $cross
 if test -n "$cross_prefix"; then
     cross_arg="--cross-file config-meson.cross"
     echo "[host_machine]" >> $cross
@@ -7321,7 +7216,7 @@ NINJA=${ninja:-$PWD/ninjatool} $meson setup \
 	-Dcocoa=$cocoa -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
 	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
 	-Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f \
-	-Dcapstone=$capstone \
+	-Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt \
         $cross_arg \
         "$PWD" "$source_path"
 

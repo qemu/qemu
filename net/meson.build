@@ -18,7 +18,7 @@ softmmu_ss.add(files(
 ))
 
 softmmu_ss.add(when: 'CONFIG_L2TPV3', if_true: files('l2tpv3.c'))
-softmmu_ss.add(when: ['CONFIG_SLIRP', slirp], if_true: files('slirp.c'))
+softmmu_ss.add(when: slirp, if_true: files('slirp.c'))
 softmmu_ss.add(when: ['CONFIG_VDE', vde], if_true: files('vde.c'))
 softmmu_ss.add(when: 'CONFIG_NETMAP', if_true: files('netmap.c'))
 vhost_user_ss = ss.source_set()

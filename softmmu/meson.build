@@ -1,4 +1,4 @@
-specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: files(
+specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'arch_init.c',
   'balloon.c',
   'cpus.c',
@@ -7,4 +7,10 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: files(
   'memory.c',
   'memory_mapping.c',
   'qtest.c',
-  'vl.c'))
+  'vl.c',
+  'cpu-timers.c',
+)])
+
+specific_ss.add(when: ['CONFIG_SOFTMMU', 'CONFIG_TCG'], if_true: [files(
+  'icount.c'
+)])

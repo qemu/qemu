@@ -300,11 +300,6 @@ else
   xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'),
                          method: 'pkg-config', static: enable_static)
 endif
-slirp = not_found
-if config_host.has_key('CONFIG_SLIRP')
-  slirp = declare_dependency(compile_args: config_host['SLIRP_CFLAGS'].split(),
-                             link_args: config_host['SLIRP_LIBS'].split())
-endif
 vde = not_found
 if config_host.has_key('CONFIG_VDE')
   vde = declare_dependency(link_args: config_host['VDE_LIBS'].split())
@@ -536,11 +531,6 @@ if get_option('vnc').enabled()
                               compile_args: '-DSTRUCT_IOVEC_DEFINED')
   endif
 endif
-fdt = not_found
-if 'CONFIG_FDT' in config_host
-  fdt = declare_dependency(compile_args: config_host['FDT_CFLAGS'].split(),
-                           link_args: config_host['FDT_LIBS'].split())
-endif
 snappy = not_found
 if 'CONFIG_SNAPPY' in config_host
   snappy = declare_dependency(link_args: config_host['SNAPPY_LIBS'].split())
@@ -728,6 +718,7 @@ ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_ARCH' ]
 
 default_targets = 'CONFIG_DEFAULT_TARGETS' in config_host
 actual_target_dirs = []
+fdt_required = []
 foreach target : target_dirs
   config_target = { 'TARGET_NAME': target.split('-')[0] }
   if target.endswith('linux-user')
@@ -778,6 +769,10 @@ foreach target : target_dirs
   actual_target_dirs += target
   config_target += keyval.load('default-configs/targets' / target + '.mak')
   config_target += { 'TARGET_' + config_target['TARGET_ARCH'].to_upper(): 'y' }
+
+  if 'TARGET_NEED_FDT' in config_target
+    fdt_required += target
+  endif
 
   # Add default keys
   if 'TARGET_BASE_ARCH' not in config_target
@@ -978,7 +973,135 @@ if capstone_opt == 'internal'
   capstone = declare_dependency(link_with: libcapstone,
                                 include_directories: 'capstone/include/capstone')
 endif
+
+slirp = not_found
+slirp_opt = 'disabled'
+if have_system
+  slirp_opt = get_option('slirp')
+  if slirp_opt in ['enabled', 'auto', 'system']
+    have_internal = fs.exists(meson.current_source_dir() / 'slirp/meson.build')
+    slirp = dependency('slirp', static: enable_static,
+                       method: 'pkg-config',
+                       required: slirp_opt == 'system' or
+                                 slirp_opt == 'enabled' and not have_internal)
+    if slirp.found()
+      slirp_opt = 'system'
+    elif have_internal
+      slirp_opt = 'internal'
+    else
+      slirp_opt = 'disabled'
+    endif
+  endif
+  if slirp_opt == 'internal'
+    slirp_deps = []
+    if targetos == 'windows'
+      slirp_deps = cc.find_library('iphlpapi')
+    endif
+    slirp_conf = configuration_data()
+    slirp_conf.set('SLIRP_MAJOR_VERSION', meson.project_version().split('.')[0])
+    slirp_conf.set('SLIRP_MINOR_VERSION', meson.project_version().split('.')[1])
+    slirp_conf.set('SLIRP_MICRO_VERSION', meson.project_version().split('.')[2])
+    slirp_conf.set_quoted('SLIRP_VERSION_STRING', meson.project_version())
+    slirp_cargs = ['-DG_LOG_DOMAIN="Slirp"']
+    slirp_files = [
+      'slirp/src/arp_table.c',
+      'slirp/src/bootp.c',
+      'slirp/src/cksum.c',
+      'slirp/src/dhcpv6.c',
+      'slirp/src/dnssearch.c',
+      'slirp/src/if.c',
+      'slirp/src/ip6_icmp.c',
+      'slirp/src/ip6_input.c',
+      'slirp/src/ip6_output.c',
+      'slirp/src/ip_icmp.c',
+      'slirp/src/ip_input.c',
+      'slirp/src/ip_output.c',
+      'slirp/src/mbuf.c',
+      'slirp/src/misc.c',
+      'slirp/src/ncsi.c',
+      'slirp/src/ndp_table.c',
+      'slirp/src/sbuf.c',
+      'slirp/src/slirp.c',
+      'slirp/src/socket.c',
+      'slirp/src/state.c',
+      'slirp/src/stream.c',
+      'slirp/src/tcp_input.c',
+      'slirp/src/tcp_output.c',
+      'slirp/src/tcp_subr.c',
+      'slirp/src/tcp_timer.c',
+      'slirp/src/tftp.c',
+      'slirp/src/udp.c',
+      'slirp/src/udp6.c',
+      'slirp/src/util.c',
+      'slirp/src/version.c',
+      'slirp/src/vmstate.c',
+    ]
+
+    configure_file(
+      input : 'slirp/src/libslirp-version.h.in',
+      output : 'libslirp-version.h',
+      configuration: slirp_conf)
+
+    slirp_inc = include_directories('slirp', 'slirp/src')
+    libslirp = static_library('slirp',
+                              sources: slirp_files,
+                              c_args: slirp_cargs,
+                              include_directories: slirp_inc)
+    slirp = declare_dependency(link_with: libslirp,
+                               dependencies: slirp_deps,
+                               include_directories: slirp_inc)
+  endif
+endif
+
+fdt = not_found
+fdt_opt = get_option('fdt')
+if have_system
+  if fdt_opt in ['enabled', 'auto', 'system']
+    have_internal = fs.exists(meson.current_source_dir() / 'dtc/libfdt/Makefile.libfdt')
+    fdt = cc.find_library('fdt', static: enable_static,
+                          required: fdt_opt == 'system' or
+                                    fdt_opt == 'enabled' and not have_internal)
+    if fdt.found() and cc.links('''
+       #include <libfdt.h>
+       #include <libfdt_env.h>
+       int main(void) { fdt_check_full(NULL, 0); return 0; }''',
+         dependencies: fdt)
+      fdt_opt = 'system'
+    elif have_internal
+      fdt_opt = 'internal'
+    else
+      fdt_opt = 'disabled'
+    endif
+  endif
+  if fdt_opt == 'internal'
+    fdt_files = files(
+      'dtc/libfdt/fdt.c',
+      'dtc/libfdt/fdt_ro.c',
+      'dtc/libfdt/fdt_wip.c',
+      'dtc/libfdt/fdt_sw.c',
+      'dtc/libfdt/fdt_rw.c',
+      'dtc/libfdt/fdt_strerror.c',
+      'dtc/libfdt/fdt_empty_tree.c',
+      'dtc/libfdt/fdt_addresses.c',
+      'dtc/libfdt/fdt_overlay.c',
+      'dtc/libfdt/fdt_check.c',
+    )
+
+    fdt_inc = include_directories('dtc/libfdt')
+    libfdt = static_library('fdt',
+                            sources: fdt_files,
+                            include_directories: fdt_inc)
+    fdt = declare_dependency(link_with: libfdt,
+                             include_directories: fdt_inc)
+  endif
+endif
+if not fdt.found() and fdt_required.length() > 0
+  error('fdt not available but required by targets ' + ', '.join(fdt_required))
+endif
+
 config_host_data.set('CONFIG_CAPSTONE', capstone.found())
+config_host_data.set('CONFIG_FDT', fdt.found())
+config_host_data.set('CONFIG_SLIRP', slirp.found())
 
 genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
@@ -1247,7 +1370,7 @@ softmmu_ss.add(files(
 
 softmmu_ss.add(when: 'CONFIG_TPM', if_true: files('tpm.c'))
 softmmu_ss.add(when: 'CONFIG_SECCOMP', if_true: [files('qemu-seccomp.c'), seccomp])
-softmmu_ss.add(when: ['CONFIG_FDT', fdt],  if_true: [files('device_tree.c')])
+softmmu_ss.add(when: fdt, if_true: files('device_tree.c'))
 
 common_ss.add(files('cpus-common.c'))
 
@@ -1648,7 +1771,18 @@ if targetos == 'darwin'
   summary_info += {'Objective-C compiler': meson.get_compiler('objc').cmd_array()[0]}
 endif
 summary_info += {'ARFLAGS':           config_host['ARFLAGS']}
-summary_info += {'CFLAGS':            config_host['CFLAGS']}
+summary_info += {'CFLAGS':            ' '.join(get_option('c_args')
+                                               + ['-O' + get_option('optimization')]
+                                               + (get_option('debug') ? ['-g'] : []))}
+if link_language == 'cpp'
+  summary_info += {'CXXFLAGS':        ' '.join(get_option('cpp_args')
+                                               + ['-O' + get_option('optimization')]
+                                               + (get_option('debug') ? ['-g'] : []))}
+endif
+link_args = get_option(link_language + '_link_args')
+if link_args.length() > 0
+  summary_info += {'LDFLAGS':         ' '.join(link_args)}
+endif
 summary_info += {'QEMU_CFLAGS':       config_host['QEMU_CFLAGS']}
 summary_info += {'QEMU_LDFLAGS':      config_host['QEMU_LDFLAGS']}
 summary_info += {'make':              config_host['MAKE']}
@@ -1656,8 +1790,8 @@ summary_info += {'python':            '@0@ (version: @1@)'.format(python.full_pa
 summary_info += {'sphinx-build':      config_host['SPHINX_BUILD']}
 summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
 # TODO: add back version
-summary_info += {'slirp support':     config_host.has_key('CONFIG_SLIRP')}
-if config_host.has_key('CONFIG_SLIRP')
+summary_info += {'slirp support':     slirp_opt == 'disabled' ? false : slirp_opt}
+if slirp_opt != 'disabled'
   summary_info += {'smbd':            config_host['CONFIG_SMBD_COMMAND']}
 endif
 summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
@@ -1741,7 +1875,7 @@ endif
 summary_info += {'malloc trim support': has_malloc_trim}
 summary_info += {'RDMA support':      config_host.has_key('CONFIG_RDMA')}
 summary_info += {'PVRDMA support':    config_host.has_key('CONFIG_PVRDMA')}
-summary_info += {'fdt support':       config_host.has_key('CONFIG_FDT')}
+summary_info += {'fdt support':       fdt_opt == 'disabled' ? false : fdt_opt}
 summary_info += {'membarrier':        config_host.has_key('CONFIG_MEMBARRIER')}
 summary_info += {'preadv support':    config_host.has_key('CONFIG_PREADV')}
 summary_info += {'fdatasync':         config_host.has_key('CONFIG_FDATASYNC')}

@@ -88,3 +88,18 @@ int replay_read_random(void *buf, size_t len)
 {
     return 0;
 }
+
+uint64_t replay_get_current_icount(void)
+{
+    return 0;
+}
+
+bool replay_reverse_step(void)
+{
+    return false;
+}
+
+bool replay_reverse_continue(void)
+{
+    return false;
+}

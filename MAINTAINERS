@@ -451,6 +451,7 @@ WHPX CPUs
 M: Sunil Muthuswamy <sunilmut@microsoft.com>
 S: Supported
 F: target/i386/whpx-all.c
+F: target/i386/whpx-cpus.c
 F: target/i386/whp-dispatch.h
 F: accel/stubs/whpx-stub.c
 F: include/sysemu/whpx.h
@@ -2321,6 +2322,8 @@ F: softmmu/vl.c
 F: softmmu/main.c
 F: softmmu/cpus.c
 F: softmmu/cpu-throttle.c
+F: softmmu/cpu-timers.c
+F: softmmu/icount.c
 F: qapi/run-state.json
 
 Read, Copy, Update (RCU)
@@ -2490,7 +2493,7 @@ M: Laurent Vivier <lvivier@redhat.com>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: softmmu/qtest.c
-F: accel/qtest.c
+F: accel/qtest/
 F: tests/qtest/
 X: tests/qtest/bios-tables-test-allowed-diff.h
 
@@ -2693,6 +2696,8 @@ F: include/sysemu/replay.h
 F: docs/replay.txt
 F: stubs/replay.c
 F: tests/acceptance/replay_kernel.py
+F: tests/acceptance/reverse_debugging.py
+F: qapi/replay.json
 
 IOVA Tree
 M: Peter Xu <peterx@redhat.com>

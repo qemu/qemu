@@ -25,7 +25,7 @@
 #ifdef CONFIG_TCG
 #include "exec/cpu_ldst.h"
 #endif
-#include "sysemu/cpus.h"
+#include "sysemu/cpu-timers.h"
 
 /* allow to see translation results - the slowdown should be negligible, so we leave it */
 #define DEBUG_DISAS
@@ -497,7 +497,7 @@ static inline uint32_t tb_cflags(const TranslationBlock *tb)
 static inline uint32_t curr_cflags(void)
 {
     return (parallel_cpus ? CF_PARALLEL : 0)
-         | (use_icount ? CF_USE_ICOUNT : 0);
+         | (icount_enabled() ? CF_USE_ICOUNT : 0);
 }
 
 /* TranslationBlock invalidate API */

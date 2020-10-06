@@ -77,6 +77,10 @@ bool replay_has_events(void)
 
 void replay_flush_events(void)
 {
+    if (replay_mode == REPLAY_MODE_NONE) {
+        return;
+    }
+
     g_assert(replay_mutex_locked());
 
     while (!QTAILQ_EMPTY(&events_list)) {

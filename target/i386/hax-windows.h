@@ -23,6 +23,8 @@
 #include <winioctl.h>
 #include <windef.h>
 
+#include "hax-cpus.h"
+
 #define HAX_INVALID_FD INVALID_HANDLE_VALUE
 
 static inline void hax_mod_close(struct hax_state *hax)

@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "trace.h"
 #include "disas/disas.h"
@@ -36,6 +37,8 @@
 #include "hw/i386/apic.h"
 #endif
 #include "sysemu/cpus.h"
+#include "exec/cpu-all.h"
+#include "sysemu/cpu-timers.h"
 #include "sysemu/replay.h"
 
 /* -icount align implementation. */
@@ -56,6 +59,9 @@ typedef struct SyncClocks {
 #define MAX_DELAY_PRINT_RATE 2000000000LL
 #define MAX_NB_PRINTS 100
 
+static int64_t max_delay;
+static int64_t max_advance;
+
 static void align_clocks(SyncClocks *sc, CPUState *cpu)
 {
     int64_t cpu_icount;
@@ -65,7 +71,7 @@ static void align_clocks(SyncClocks *sc, CPUState *cpu)
     }
 
     cpu_icount = cpu->icount_extra + cpu_neg(cpu)->icount_decr.u16.low;
-    sc->diff_clk += cpu_icount_to_ns(sc->last_cpu_icount - cpu_icount);
+    sc->diff_clk += icount_to_ns(sc->last_cpu_icount - cpu_icount);
     sc->last_cpu_icount = cpu_icount;
 
     if (sc->diff_clk > VM_CLOCK_ADVANCE) {
@@ -98,9 +104,9 @@ static void print_delay(const SyncClocks *sc)
             (-sc->diff_clk / (float)1000000000LL <
              (threshold_delay - THRESHOLD_REDUCE))) {
             threshold_delay = (-sc->diff_clk / 1000000000LL) + 1;
-            printf("Warning: The guest is now late by %.1f to %.1f seconds\n",
-                   threshold_delay - 1,
-                   threshold_delay);
+            qemu_printf("Warning: The guest is now late by %.1f to %.1f seconds\n",
+                        threshold_delay - 1,
+                        threshold_delay);
             nb_prints++;
             last_realtime_clock = sc->realtime_clock;
         }
@@ -430,8 +436,7 @@ static inline bool cpu_handle_halt(CPUState *cpu)
 {
     if (cpu->halted) {
 #if defined(TARGET_I386) && !defined(CONFIG_USER_ONLY)
-        if ((cpu->interrupt_request & CPU_INTERRUPT_POLL)
-            && replay_interrupt()) {
+        if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
             X86CPU *x86_cpu = X86_CPU(cpu);
             qemu_mutex_lock_iothread();
             apic_poll_irq(x86_cpu->apic_state);
@@ -527,6 +532,20 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     return false;
 }
 
+/*
+ * CPU_INTERRUPT_POLL is a virtual event which gets converted into a
+ * "real" interrupt event later. It does not need to be recorded for
+ * replay purposes.
+ */
+static inline bool need_replay_interrupt(int interrupt_request)
+{
+#if defined(TARGET_I386)
+    return !(interrupt_request & CPU_INTERRUPT_POLL);
+#else
+    return true;
+#endif
+}
+
 static inline bool cpu_handle_interrupt(CPUState *cpu,
                                         TranslationBlock **last_tb)
 {
@@ -588,7 +607,9 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
            and via longjmp via cpu_loop_exit.  */
         else {
             if (cc->cpu_exec_interrupt(cpu, interrupt_request)) {
-                replay_interrupt();
+                if (need_replay_interrupt(interrupt_request)) {
+                    replay_interrupt();
+                }
                 /*
                  * After processing the interrupt, ensure an EXCP_DEBUG is
                  * raised when single-stepping so that GDB doesn't miss the
@@ -615,7 +636,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
 
     /* Finally, check if we need to exit to the main loop.  */
     if (unlikely(qatomic_read(&cpu->exit_request))
-        || (use_icount
+        || (icount_enabled()
             && cpu_neg(cpu)->icount_decr.u16.low + cpu->icount_extra == 0)) {
         qatomic_set(&cpu->exit_request, 0);
         if (cpu->exception_index == -1) {
@@ -656,10 +677,10 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
     }
 
     /* Instruction counter expired.  */
-    assert(use_icount);
+    assert(icount_enabled());
 #ifndef CONFIG_USER_ONLY
     /* Ensure global icount has gone forward */
-    cpu_update_icount(cpu);
+    icount_update(cpu);
     /* Refill decrementer and continue execution.  */
     insns_left = MIN(0xffff, cpu->icount_budget);
     cpu_neg(cpu)->icount_decr.u16.low = insns_left;
@@ -759,3 +780,26 @@ int cpu_exec(CPUState *cpu)
 
     return ret;
 }
+
+#ifndef CONFIG_USER_ONLY
+
+void dump_drift_info(void)
+{
+    if (!icount_enabled()) {
+        return;
+    }
+
+    qemu_printf("Host - Guest clock  %"PRIi64" ms\n",
+                (cpu_get_clock() - icount_get()) / SCALE_MS);
+    if (icount_align_option) {
+        qemu_printf("Max guest delay     %"PRIi64" ms\n",
+                    -max_delay / SCALE_MS);
+        qemu_printf("Max guest advance   %"PRIi64" ms\n",
+                    max_advance / SCALE_MS);
+    } else {
+        qemu_printf("Max guest delay     NA\n");
+        qemu_printf("Max guest advance   NA\n");
+    }
+}
+
+#endif /* !CONFIG_USER_ONLY */

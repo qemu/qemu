@@ -21,7 +21,7 @@
 #include "exec/memory.h"
 #include "hw/irq.h"
 #include "sysemu/accel.h"
-#include "sysemu/cpus.h"
+#include "sysemu/cpu-timers.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/error-report.h"
@@ -271,6 +271,38 @@ static void qtest_irq_handler(void *opaque, int n, int level)
         qtest_sendf(chr, "IRQ %s %d\n",
                     level ? "raise" : "lower", n);
     }
+}
+
+static int64_t qtest_clock_counter;
+
+int64_t qtest_get_virtual_clock(void)
+{
+    return qatomic_read_i64(&qtest_clock_counter);
+}
+
+static void qtest_set_virtual_clock(int64_t count)
+{
+    qatomic_set_i64(&qtest_clock_counter, count);
+}
+
+static void qtest_clock_warp(int64_t dest)
+{
+    int64_t clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    AioContext *aio_context;
+    assert(qtest_enabled());
+    aio_context = qemu_get_aio_context();
+    while (clock < dest) {
+        int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL,
+                                                      QEMU_TIMER_ATTR_ALL);
+        int64_t warp = qemu_soonest_timeout(dest - clock, deadline);
+
+        qtest_set_virtual_clock(qtest_get_virtual_clock() + warp);
+
+        qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
+        timerlist_run_timers(aio_context->tlg.tl[QEMU_CLOCK_VIRTUAL]);
+        clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    }
+    qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
 }
 
 static void qtest_process_command(CharBackend *chr, gchar **words)
