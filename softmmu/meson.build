@@ -3,6 +3,7 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'balloon.c',
   'cpus.c',
   'cpu-throttle.c',
+  'physmem.c',
   'ioport.c',
   'memory.c',
   'memory_mapping.c',
@@ -19,7 +20,7 @@ softmmu_ss.add(files(
   'bootdevice.c',
   'dma-helpers.c',
   'qdev-monitor.c',
-), sdl)
+), sdl, libpmem, libdaxctl)
 
 softmmu_ss.add(when: 'CONFIG_TPM', if_true: files('tpm.c'))
 softmmu_ss.add(when: 'CONFIG_SECCOMP', if_true: [files('qemu-seccomp.c'), seccomp])
