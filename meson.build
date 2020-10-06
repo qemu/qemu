@@ -1182,19 +1182,19 @@ sphinx_extn_depends = [ meson.source_root() / 'docs/sphinx/depfile.py',
 
 # Collect sourcesets.
 
-util_ss = ss.source_set()
+blockdev_ss = ss.source_set()
+block_ss = ss.source_set()
+bsd_user_ss = ss.source_set()
+common_ss = ss.source_set()
+linux_user_ss = ss.source_set()
+qmp_ss = ss.source_set()
+softmmu_ss = ss.source_set()
+specific_fuzz_ss = ss.source_set()
+specific_ss = ss.source_set()
 stub_ss = ss.source_set()
 trace_ss = ss.source_set()
-block_ss = ss.source_set()
-blockdev_ss = ss.source_set()
-qmp_ss = ss.source_set()
-common_ss = ss.source_set()
-softmmu_ss = ss.source_set()
 user_ss = ss.source_set()
-bsd_user_ss = ss.source_set()
-linux_user_ss = ss.source_set()
-specific_ss = ss.source_set()
-specific_fuzz_ss = ss.source_set()
+util_ss = ss.source_set()
 
 modules = {}
 hw_arch = {}
