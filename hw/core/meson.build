@@ -14,12 +14,6 @@ hwcore_files = files(
   'qdev-clock.c',
 )
 
-libhwcore = static_library('hwcore', sources: hwcore_files + genh,
-                           name_suffix: 'fa',
-                           build_by_default: false)
-hwcore = declare_dependency(link_whole: libhwcore)
-common_ss.add(hwcore)
-
 common_ss.add(files('cpu.c'))
 common_ss.add(when: 'CONFIG_FITLOADER', if_true: files('loader-fit.c'))
 common_ss.add(when: 'CONFIG_GENERIC_LOADER', if_true: files('generic-loader.c'))
