@@ -241,23 +241,6 @@ QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event);
 QDict *qtest_qmp_event_ref(QTestState *s, const char *event);
 
 /**
- * qtest_qmp_receive_success:
- * @s: #QTestState instance to operate on
- * @event_cb: Event callback
- * @opaque: Argument for @event_cb
- *
- * Poll QMP messages until a command success response is received.
- * If @event_cb, call it for each event received, passing @opaque,
- * the event's name and data.
- * Return the success response's "return" member.
- */
-QDict *qtest_qmp_receive_success(QTestState *s,
-                                 void (*event_cb)(void *opaque,
-                                                  const char *name,
-                                                  QDict *data),
-                                 void *opaque);
-
-/**
  * qtest_hmp:
  * @s: #QTestState instance to operate on.
  * @fmt: HMP command to send to QEMU, formats arguments like sprintf().

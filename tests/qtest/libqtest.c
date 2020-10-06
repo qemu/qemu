@@ -1291,35 +1291,6 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
     qobject_unref(response);
 }
 
-QDict *qtest_qmp_receive_success(QTestState *s,
-                                 void (*event_cb)(void *opaque,
-                                                  const char *event,
-                                                  QDict *data),
-                                 void *opaque)
-{
-    QDict *response, *ret, *data;
-    const char *event;
-
-    for (;;) {
-        response = qtest_qmp_receive_dict(s);
-        g_assert(!qdict_haskey(response, "error"));
-        ret = qdict_get_qdict(response, "return");
-        if (ret) {
-            break;
-        }
-        event = qdict_get_str(response, "event");
-        data = qdict_get_qdict(response, "data");
-        if (event_cb) {
-            event_cb(opaque, event, data);
-        }
-        qobject_unref(response);
-    }
-
-    qobject_ref(ret);
-    qobject_unref(response);
-    return ret;
-}
-
 /*
  * Generic hot-plugging test via the device_add QMP commands.
  */
@@ -1355,13 +1326,6 @@ void qtest_qmp_device_add(QTestState *qts, const char *driver, const char *id,
     qobject_unref(args);
 }
 
-static void device_deleted_cb(void *opaque, const char *name, QDict *data)
-{
-    bool *got_event = opaque;
-
-    g_assert_cmpstr(name, ==, "DEVICE_DELETED");
-    *got_event = true;
-}
 
 /*
  * Generic hot-unplugging test via the device_del QMP command.
@@ -1378,24 +1342,17 @@ static void device_deleted_cb(void *opaque, const char *name, QDict *data)
  * and this one:
  *
  * {"return": {}}
- *
- * But the order of arrival may vary - so we've got to detect both.
  */
 void qtest_qmp_device_del(QTestState *qts, const char *id)
 {
-    bool got_event = false;
     QDict *rsp;
 
-    qtest_qmp_send(qts, "{'execute': 'device_del', 'arguments': {'id': %s}}",
-                   id);
-    rsp = qtest_qmp_receive_success(qts, device_deleted_cb, &got_event);
+    rsp = qtest_qmp(qts, "{'execute': 'device_del', 'arguments': {'id': %s}}",
+                    id);
+
+    g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
-    if (!got_event) {
-        rsp = qtest_qmp_receive_dict(qts);
-        g_assert_cmpstr(qdict_get_try_str(rsp, "event"),
-                        ==, "DEVICE_DELETED");
-        qobject_unref(rsp);
-    }
+    qtest_qmp_eventwait(qts, "DEVICE_DELETED");
 }
 
 bool qmp_rsp_is_err(QDict *rsp)
