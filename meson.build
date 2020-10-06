@@ -1185,6 +1185,7 @@ sphinx_extn_depends = [ meson.source_root() / 'docs/sphinx/depfile.py',
 blockdev_ss = ss.source_set()
 block_ss = ss.source_set()
 bsd_user_ss = ss.source_set()
+chardev_ss = ss.source_set()
 common_ss = ss.source_set()
 linux_user_ss = ss.source_set()
 qmp_ss = ss.source_set()
@@ -1468,6 +1469,12 @@ libqmp = static_library('qmp', qmp_ss.sources() + genh,
                         build_by_default: false)
 
 qmp = declare_dependency(link_whole: [libqmp])
+
+libchardev = static_library('chardev', chardev_ss.sources() + genh,
+                            name_suffix: 'fa',
+                            build_by_default: false)
+
+chardev = declare_dependency(link_whole: libchardev)
 
 libhwcore = static_library('hwcore', sources: hwcore_files + genh,
                            name_suffix: 'fa',

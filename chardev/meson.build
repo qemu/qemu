@@ -1,4 +1,3 @@
-chardev_ss = ss.source_set()
 chardev_ss.add(files(
   'char-fe.c',
   'char-file.c',
@@ -25,11 +24,6 @@ chardev_ss.add(when: 'CONFIG_WIN32', if_true: files(
 ))
 
 chardev_ss = chardev_ss.apply(config_host, strict: false)
-libchardev = static_library('chardev', chardev_ss.sources() + genh,
-                            name_suffix: 'fa',
-                            build_by_default: false)
-
-chardev = declare_dependency(link_whole: libchardev)
 
 softmmu_ss.add(files('chardev-sysemu.c', 'msmouse.c', 'wctablet.c', 'testdev.c'))
 softmmu_ss.add(when: ['CONFIG_SPICE', spice], if_true: files('spice.c'))
