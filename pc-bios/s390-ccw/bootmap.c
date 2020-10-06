@@ -10,6 +10,7 @@
 
 #include "libc.h"
 #include "s390-ccw.h"
+#include "s390-arch.h"
 #include "bootmap.h"
 #include "virtio.h"
 #include "bswap.h"
@@ -163,7 +164,7 @@ static bool find_zipl_boot_menu_banner(int *offset)
     int i;
 
     /* Menu banner starts with "zIPL" */
-    for (i = 0; i < virtio_get_block_size() - 4; i++) {
+    for (i = 0; i <= virtio_get_block_size() - 4; i++) {
         if (magic_match(s2_cur_blk + i, ZIPL_MAGIC_EBCDIC)) {
             *offset = i;
             return true;
@@ -192,7 +193,7 @@ static int eckd_get_boot_menu_index(block_number_t s1b_block_nr)
     for (i = 0; i < STAGE2_BLK_CNT_MAX; i++) {
         cur_block_nr = eckd_block_num(&s1b->seek[i].chs);
 
-        if (!cur_block_nr) {
+        if (!cur_block_nr || is_null_block_number(cur_block_nr)) {
             break;
         }
 
@@ -272,7 +273,8 @@ static void run_eckd_boot_script(block_number_t bmt_block_nr,
 
     IPL_assert(bms->entry[i].type == BOOT_SCRIPT_EXEC,
                "Unknown script entry type");
-    jump_to_IPL_code(bms->entry[i].address.load_address); /* no return */
+    write_reset_psw(bms->entry[i].address.load_address); /* no return */
+    jump_to_IPL_code(0); /* no return */
 }
 
 static void ipl_eckd_cdl(void)
@@ -289,11 +291,18 @@ static void ipl_eckd_cdl(void)
     read_block(1, ipl2, "Cannot read IPL2 record at block 1");
 
     mbr = &ipl2->mbr;
-    IPL_assert(magic_match(mbr, ZIPL_MAGIC), "No zIPL section in IPL2 record.");
-    IPL_assert(block_size_ok(mbr->blockptr.xeckd.bptr.size),
-               "Bad block size in zIPL section of IPL2 record.");
-    IPL_assert(mbr->dev_type == DEV_TYPE_ECKD,
-               "Non-ECKD device type in zIPL section of IPL2 record.");
+    if (!magic_match(mbr, ZIPL_MAGIC)) {
+        sclp_print("No zIPL section in IPL2 record.\n");
+        return;
+    }
+    if (!block_size_ok(mbr->blockptr.xeckd.bptr.size)) {
+        sclp_print("Bad block size in zIPL section of IPL2 record.\n");
+        return;
+    }
+    if (!mbr->dev_type == DEV_TYPE_ECKD) {
+        sclp_print("Non-ECKD device type in zIPL section of IPL2 record.\n");
+        return;
+    }
 
     /* save pointer to Boot Map Table */
     bmt_block_nr = eckd_block_num(&mbr->blockptr.xeckd.bptr.chs);
@@ -303,10 +312,14 @@ static void ipl_eckd_cdl(void)
 
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(2, vlbl, "Cannot read Volume Label at block 2");
-    IPL_assert(magic_match(vlbl->key, VOL1_MAGIC),
-               "Invalid magic of volume label block");
-    IPL_assert(magic_match(vlbl->f.key, VOL1_MAGIC),
-               "Invalid magic of volser block");
+    if (!magic_match(vlbl->key, VOL1_MAGIC)) {
+        sclp_print("Invalid magic of volume label block.\n");
+        return;
+    }
+    if (!magic_match(vlbl->f.key, VOL1_MAGIC)) {
+        sclp_print("Invalid magic of volser block.\n");
+        return;
+    }
     print_volser(vlbl->f.volser);
 
     run_eckd_boot_script(bmt_block_nr, s1b_block_nr);
@@ -398,7 +411,8 @@ static void ipl_eckd(void)
     read_block(0, mbr, "Cannot read block 0 on DASD");
 
     if (magic_match(mbr->magic, IPL1_MAGIC)) {
-        ipl_eckd_cdl(); /* no return */
+        ipl_eckd_cdl();         /* only returns in case of error */
+        return;
     }
 
     /* LDL/CMS? */
@@ -436,7 +450,7 @@ static void zipl_load_segment(ComponentEntry *entry)
     char *blk_no = &err_msg[30]; /* where to print blockno in (those ZZs) */
 
     blockno = entry->data.blockno;
-    address = entry->load_address;
+    address = entry->compdat.load_addr;
 
     debug_print_int("loading segment at block", blockno);
     debug_print_int("addr", address);
@@ -514,7 +528,8 @@ static void zipl_run(ScsiBlockPtr *pte)
     IPL_assert(entry->component_type == ZIPL_COMP_ENTRY_EXEC, "No EXEC entry");
 
     /* should not return */
-    jump_to_IPL_code(entry->load_address);
+    write_reset_psw(entry->compdat.load_psw);
+    jump_to_IPL_code(0);
 }
 
 static void ipl_scsi(void)
@@ -825,5 +840,5 @@ void zipl_load(void)
         panic("\n! Unknown IPL device type !\n");
     }
 
-    panic("\n* this can never happen *\n");
+    sclp_print("zIPL load failed.\n");
 }
