@@ -1446,6 +1446,10 @@ qemu_syms = custom_target('qemu.syms', output: 'qemu.syms',
                              capture: true,
                              command: [undefsym, nm, '@INPUT@'])
 
+########################
+# Library dependencies #
+########################
+
 block_ss = block_ss.apply(config_host, strict: false)
 libblock = static_library('block', block_ss.sources() + genh,
                           dependencies: block_ss.dependencies(),
@@ -1464,6 +1468,10 @@ libqmp = static_library('qmp', qmp_ss.sources() + genh,
                         build_by_default: false)
 
 qmp = declare_dependency(link_whole: [libqmp])
+
+###########
+# Targets #
+###########
 
 foreach m : block_mods + softmmu_mods
   shared_module(m.name(),
