@@ -92,13 +92,14 @@ class ConsoleSocket(socket.socket):
         for c in string:
             self._buffer.extend(c)
 
-    def recv(self, bufsize=1):
+    def recv(self, bufsize: int = 1, flags: int = 0) -> bytes:
         """Return chars from in memory buffer.
            Maintains the same API as socket.socket.recv.
         """
         if self._drain_thread is None:
             # Not buffering the socket, pass thru to socket.
-            return socket.socket.recv(self, bufsize)
+            return socket.socket.recv(self, bufsize, flags)
+        assert not flags, "Cannot pass flags to recv() in drained mode"
         start_time = time.time()
         while len(self._buffer) < bufsize:
             time.sleep(self._sleep_time)
