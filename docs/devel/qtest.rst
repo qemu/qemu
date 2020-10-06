@@ -33,15 +33,27 @@ Steps to add a new QTest case are:
 2. Write the test code with the glib and libqtest/libqos API. See also existing
    tests and the library headers for reference.
 
-3. Register the new test in ``tests/qtest/Makefile.include``. Add the test
-   executable name to an appropriate ``check-qtest-*-y`` variable. For example:
+3. Register the new test in ``tests/qtest/meson.build``. Add the test
+   executable name to an appropriate ``qtests_*`` variable. There is
+   one variable per architecture, plus ``qtests_generic`` for tests
+   that can be run for all architectures.  For example::
 
-   ``check-qtest-generic-y = tests/qtest/foo-test$(EXESUF)``
+     qtests_generic = [
+       ...
+       'foo-test',
+       ...
+     ]
 
-4. Add object dependencies of the executable in the Makefile, including the
-   test source file(s) and other interesting objects. For example:
+4. If the test has more than one source file or needs to be linked with any
+   dependency other than ``qemuutil`` and ``qos``, list them in the ``qtests``
+   dictionary.  For example a test that needs to use the ``QIO`` library
+   will have an entry like::
 
-   ``tests/qtest/foo-test$(EXESUF): tests/qtest/foo-test.o $(libqos-obj-y)``
+     {
+       ...
+       'foo-test': [io],
+       ...
+     }
 
 Debugging a QTest failure is slightly harder than the unit test because the
 tests look up QEMU program names in the environment variables, such as
