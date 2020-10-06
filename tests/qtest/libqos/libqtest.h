@@ -199,6 +199,16 @@ void qtest_qmp_vsend(QTestState *s, const char *fmt, va_list ap)
 QDict *qtest_qmp_receive_dict(QTestState *s);
 
 /**
+ * qtest_qmp_receive:
+ * @s: #QTestState instance to operate on.
+ *
+ * Reads a QMP message from QEMU and returns the response.
+ * Buffers all the events received meanwhile, until a
+ * call to qtest_qmp_eventwait
+ */
+QDict *qtest_qmp_receive(QTestState *s);
+
+/**
  * qtest_qmp_eventwait:
  * @s: #QTestState instance to operate on.
  * @event: event to wait for.
@@ -216,6 +226,19 @@ void qtest_qmp_eventwait(QTestState *s, const char *event);
  * Returns a copy of the event for further investigation.
  */
 QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event);
+
+/**
+ * qtest_qmp_event_ref:
+ * @s: #QTestState instance to operate on.
+ * @event: event to return.
+ *
+ * Removes non-matching events from the buffer that was set by
+ * qtest_qmp_receive, until an event bearing the given name is found,
+ * and returns it.
+ * If no event matches, clears the buffer and returns NULL.
+ *
+ */
+QDict *qtest_qmp_event_ref(QTestState *s, const char *event);
 
 /**
  * qtest_qmp_receive_success:
