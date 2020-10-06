@@ -13,20 +13,17 @@
 #define KERN_IMAGE_START 0x010000UL
 #define RESET_PSW_MASK (PSW_MASK_SHORTPSW | PSW_MASK_64)
 
-typedef struct ResetInfo {
-    uint64_t ipl_psw;
-    uint32_t ipl_continue;
-} ResetInfo;
+static uint64_t *reset_psw = 0, save_psw, ipl_continue;
 
-static ResetInfo save;
-
-static void jump_to_IPL_2(void)
+static void jump_to_IPL_addr(void)
 {
-    ResetInfo *current = 0;
+    __attribute__((noreturn)) void (*ipl)(void) = (void *)ipl_continue;
 
-    void (*ipl)(void) = (void *) (uint64_t) current->ipl_continue;
-    *current = save;
-    ipl(); /* should not return */
+    /* Restore reset PSW */
+    *reset_psw = save_psw;
+
+    ipl();
+    /* should not return */
 }
 
 void jump_to_IPL_code(uint64_t address)
@@ -46,15 +43,11 @@ void jump_to_IPL_code(uint64_t address)
      * content of non-BIOS memory after we loaded the guest, so we
      * save the original content and restore it in jump_to_IPL_2.
      */
-    ResetInfo *current = 0;
-
-    save = *current;
-
-    current->ipl_psw = (uint64_t) &jump_to_IPL_2;
-    current->ipl_psw |= RESET_PSW_MASK;
-    current->ipl_continue = address & PSW_MASK_SHORT_ADDR;
-
-    debug_print_int("set IPL addr to", current->ipl_continue);
+    save_psw = *reset_psw;
+    *reset_psw = (uint64_t) &jump_to_IPL_addr;
+    *reset_psw |= RESET_PSW_MASK;
+    ipl_continue = address;
+    debug_print_int("set IPL addr to", ipl_continue);
 
     /* Ensure the guest output starts fresh */
     sclp_print("\n");
