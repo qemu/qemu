@@ -25,7 +25,7 @@ import signal
 import subprocess
 import tempfile
 from types import TracebackType
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 from . import console_socket, qmp
 from .qmp import SocketAddrT
@@ -137,7 +137,9 @@ class QEMUMachine:
         self._console_index = 0
         self._console_set = False
         self._console_device_type = None
-        self._console_address = None
+        self._console_address = os.path.join(
+            self._sock_dir, f"{self._name}-console.sock"
+        )
         self._console_socket = None
         self._remove_files = []
         self._user_killed = False
@@ -253,7 +255,8 @@ class QEMUMachine:
             with open(self._qemu_log_path, "r") as iolog:
                 self._iolog = iolog.read()
 
-    def _base_args(self):
+    @property
+    def _base_args(self) -> List[str]:
         args = ['-display', 'none', '-vga', 'none']
 
         if self._qmp_set:
@@ -271,9 +274,6 @@ class QEMUMachine:
         for _ in range(self._console_index):
             args.extend(['-serial', 'null'])
         if self._console_set:
-            self._console_address = os.path.join(self._sock_dir,
-                                                 self._name + "-console.sock")
-            self._remove_files.append(self._console_address)
             chardev = ('socket,id=console,path=%s,server,nowait' %
                        self._console_address)
             args.extend(['-chardev', chardev])
@@ -288,6 +288,9 @@ class QEMUMachine:
         self._temp_dir = tempfile.mkdtemp(dir=self._test_dir)
         self._qemu_log_path = os.path.join(self._temp_dir, self._name + ".log")
         self._qemu_log_file = open(self._qemu_log_path, 'wb')
+
+        if self._console_set:
+            self._remove_files.append(self._console_address)
 
         if self._qmp_set:
             if self._remove_monitor_sockfile:
@@ -374,7 +377,7 @@ class QEMUMachine:
         devnull = open(os.path.devnull, 'rb')
         self._pre_launch()
         self._qemu_full_args = (self._wrapper + [self._binary] +
-                                self._base_args() + self._args)
+                                self._base_args + self._args)
         LOG.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
         self._popen = subprocess.Popen(self._qemu_full_args,
                                        stdin=devnull,
