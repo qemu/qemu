@@ -28,7 +28,7 @@ from types import TracebackType
 from typing import List, Optional, Type
 
 from . import console_socket, qmp
-from .qmp import SocketAddrT
+from .qmp import QMPMessage, SocketAddrT
 
 
 LOG = logging.getLogger(__name__)
@@ -604,19 +604,28 @@ class QEMUMachine:
 
     def events_wait(self, events, timeout=60.0):
         """
-        events_wait waits for and returns a named event
-        from QMP with a timeout.
+        events_wait waits for and returns a single named event from QMP.
+        In the case of multiple qualifying events, this function returns the
+        first one.
 
-        events: a sequence of (name, match_criteria) tuples.
-                The match criteria are optional and may be None.
-                See event_match for details.
-        timeout: QEMUMonitorProtocol.pull_event timeout parameter.
+        :param events: A sequence of (name, match_criteria) tuples.
+                       The match criteria are optional and may be None.
+                       See event_match for details.
+        :param timeout: Optional timeout, in seconds.
+                        See QEMUMonitorProtocol.pull_event.
+
+        :raise QMPTimeoutError: If timeout was non-zero and no matching events
+                                were found.
+        :return: A QMP event matching the filter criteria.
+                 If timeout was 0 and no event matched, None.
         """
         def _match(event):
             for name, match in events:
                 if event['event'] == name and self.event_match(event, match):
                     return True
             return False
+
+        event: Optional[QMPMessage]
 
         # Search cached events
         for event in self._events:
@@ -627,6 +636,10 @@ class QEMUMachine:
         # Poll for new events
         while True:
             event = self._qmp.pull_event(wait=timeout)
+            if event is None:
+                # NB: None is only returned when timeout is false-ish.
+                # Timeouts raise QMPTimeoutError instead!
+                break
             if _match(event):
                 return event
             self._events.append(event)
