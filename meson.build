@@ -59,6 +59,8 @@ elif cpu == 's390x'
   kvm_targets = ['s390x-softmmu']
 elif cpu in ['ppc', 'ppc64']
   kvm_targets = ['ppc-softmmu', 'ppc64-softmmu']
+elif cpu in ['mips', 'mips64']
+  kvm_targets = ['mips-softmmu', 'mipsel-softmmu', 'mips64-softmmu', 'mips64el-softmmu']
 else
   kvm_targets = []
 endif
