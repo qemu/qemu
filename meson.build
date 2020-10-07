@@ -614,7 +614,9 @@ if not has_malloc_trim and get_option('malloc_trim').enabled()
   endif
 endif
 
-# Create config-host.h
+#################
+# config-host.h #
+#################
 
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
@@ -659,6 +661,10 @@ foreach k, v: config_host
     config_host_data.set(k, v == 'y' ? 1 : v)
   endif
 endforeach
+
+########################
+# Target configuration #
+########################
 
 minikconf = find_program('scripts/minikconf.py')
 config_all = {}
@@ -866,7 +872,9 @@ config_all += {
   'CONFIG_ALL': true,
 }
 
-# Submodules
+##############
+# Submodules #
+##############
 
 capstone = not_found
 capstone_opt = get_option('capstone')
@@ -1105,9 +1113,11 @@ config_host_data.set('CONFIG_CAPSTONE', capstone.found())
 config_host_data.set('CONFIG_FDT', fdt.found())
 config_host_data.set('CONFIG_SLIRP', slirp.found())
 
-genh += configure_file(output: 'config-host.h', configuration: config_host_data)
+#####################
+# Generated sources #
+#####################
 
-# Generators
+genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
 hxtool = find_program('scripts/hxtool')
 shaderinclude = find_program('scripts/shaderinclude.pl')
@@ -1182,7 +1192,9 @@ sphinx_extn_depends = [ meson.source_root() / 'docs/sphinx/depfile.py',
                         meson.source_root() / 'docs/sphinx/qmp_lexer.py',
                         qapi_gen_depends ]
 
-# Collect sourcesets.
+###################
+# Collect sources #
+###################
 
 authz_ss = ss.source_set()
 blockdev_ss = ss.source_set()
@@ -1320,8 +1332,6 @@ if enable_modules
   modulecommon = declare_dependency(link_whole: libmodulecommon, compile_args: '-DBUILD_DSO')
 endif
 
-# Build targets from sourcesets
-
 stub_ss = stub_ss.apply(config_all, strict: false)
 
 util_ss.add_all(trace_ss)
@@ -1409,6 +1419,10 @@ specific_ss.add_all(when: 'CONFIG_LINUX_USER', if_true: linux_user_ss)
 subdir('tests/qtest/libqos')
 subdir('tests/qtest/fuzz')
 
+########################
+# Library dependencies #
+########################
+
 block_mods = []
 softmmu_mods = []
 foreach d, list : modules
@@ -1442,10 +1456,6 @@ qemu_syms = custom_target('qemu.syms', output: 'qemu.syms',
                              input: [libqemuutil, softmmu_mods],
                              capture: true,
                              command: [undefsym, nm, '@INPUT@'])
-
-########################
-# Library dependencies #
-########################
 
 qom_ss = qom_ss.apply(config_host, strict: false)
 libqom = static_library('qom', qom_ss.sources() + genh,
@@ -1796,6 +1806,10 @@ if host_machine.system() == 'windows'
                        command: nsis_cmd + ['@INPUT@'])
   alias_target('installer', nsis)
 endif
+
+#########################
+# Configuration summary #
+#########################
 
 summary_info = {}
 summary_info += {'Install prefix':    config_host['prefix']}
