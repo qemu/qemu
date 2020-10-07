@@ -2462,6 +2462,7 @@ F: include/monitor/qdev.h
 F: include/qom/
 F: qapi/qom.json
 F: qapi/qdev.json
+F: scripts/coccinelle/qom-parent-type.cocci
 F: softmmu/qdev-monitor.c
 F: qom/
 F: tests/check-qom-interface.c
