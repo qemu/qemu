@@ -22,6 +22,7 @@ class RxGdbSimMachine(Test):
     timeout = 30
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
+    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_uboot(self):
         """
         U-Boot and checks that the console is operational.
