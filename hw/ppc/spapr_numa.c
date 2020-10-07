@@ -178,24 +178,51 @@ int spapr_numa_write_assoc_lookup_arrays(SpaprMachineState *spapr, void *fdt,
  */
 void spapr_numa_write_rtas_dt(SpaprMachineState *spapr, void *fdt, int rtas)
 {
+    MachineState *ms = MACHINE(spapr);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     uint32_t refpoints[] = {
         cpu_to_be32(0x4),
-        cpu_to_be32(0x4),
+        cpu_to_be32(0x3),
         cpu_to_be32(0x2),
+        cpu_to_be32(0x1),
     };
     uint32_t nr_refpoints = ARRAY_SIZE(refpoints);
-    uint32_t maxdomain = cpu_to_be32(spapr->gpu_numa_id > 1 ? 1 : 0);
+    uint32_t maxdomain = ms->numa_state->num_nodes + spapr->gpu_numa_id;
     uint32_t maxdomains[] = {
         cpu_to_be32(4),
-        maxdomain,
-        maxdomain,
-        maxdomain,
-        cpu_to_be32(spapr->gpu_numa_id),
+        cpu_to_be32(maxdomain),
+        cpu_to_be32(maxdomain),
+        cpu_to_be32(maxdomain),
+        cpu_to_be32(maxdomain)
     };
 
-    if (smc->pre_5_1_assoc_refpoints) {
-        nr_refpoints = 2;
+    if (spapr_machine_using_legacy_numa(spapr)) {
+        uint32_t legacy_refpoints[] = {
+            cpu_to_be32(0x4),
+            cpu_to_be32(0x4),
+            cpu_to_be32(0x2),
+        };
+        uint32_t legacy_maxdomain = spapr->gpu_numa_id > 1 ? 1 : 0;
+        uint32_t legacy_maxdomains[] = {
+            cpu_to_be32(4),
+            cpu_to_be32(legacy_maxdomain),
+            cpu_to_be32(legacy_maxdomain),
+            cpu_to_be32(legacy_maxdomain),
+            cpu_to_be32(spapr->gpu_numa_id),
+        };
+
+        G_STATIC_ASSERT(sizeof(legacy_refpoints) <= sizeof(refpoints));
+        G_STATIC_ASSERT(sizeof(legacy_maxdomains) <= sizeof(maxdomains));
+
+        nr_refpoints = 3;
+
+        memcpy(refpoints, legacy_refpoints, sizeof(legacy_refpoints));
+        memcpy(maxdomains, legacy_maxdomains, sizeof(legacy_maxdomains));
+
+        /* pseries-5.0 and older reference-points array is {0x4, 0x4} */
+        if (smc->pre_5_1_assoc_refpoints) {
+            nr_refpoints = 2;
+        }
     }
 
     _FDT(fdt_setprop(fdt, rtas, "ibm,associativity-reference-points",
