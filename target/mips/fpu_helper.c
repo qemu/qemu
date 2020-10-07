@@ -1475,29 +1475,87 @@ uint64_t helper_float_mulr_ps(CPUMIPSState *env, uint64_t fdt0, uint64_t fdt1)
     return ((uint64_t)fsth2 << 32) | fstl2;
 }
 
-#define FLOAT_MINMAX(name, bits, minmaxfunc)                            \
-uint ## bits ## _t helper_float_ ## name(CPUMIPSState *env,             \
-                                         uint ## bits ## _t fs,         \
-                                         uint ## bits ## _t ft)         \
-{                                                                       \
-    uint ## bits ## _t fdret;                                           \
-                                                                        \
-    fdret = float ## bits ## _ ## minmaxfunc(fs, ft,                    \
-                                           &env->active_fpu.fp_status); \
-    update_fcr31(env, GETPC());                                         \
-    return fdret;                                                       \
+
+uint32_t helper_float_max_s(CPUMIPSState *env, uint32_t fs, uint32_t ft)
+{
+    uint32_t fdret;
+
+    fdret = float32_maxnum(fs, ft, &env->active_fpu.fp_status);
+
+    update_fcr31(env, GETPC());
+    return fdret;
 }
 
-FLOAT_MINMAX(max_s, 32, maxnum)
-FLOAT_MINMAX(max_d, 64, maxnum)
-FLOAT_MINMAX(maxa_s, 32, maxnummag)
-FLOAT_MINMAX(maxa_d, 64, maxnummag)
+uint64_t helper_float_max_d(CPUMIPSState *env, uint64_t fs, uint64_t ft)
+{
+    uint64_t fdret;
 
-FLOAT_MINMAX(min_s, 32, minnum)
-FLOAT_MINMAX(min_d, 64, minnum)
-FLOAT_MINMAX(mina_s, 32, minnummag)
-FLOAT_MINMAX(mina_d, 64, minnummag)
-#undef FLOAT_MINMAX
+    fdret = float64_maxnum(fs, ft, &env->active_fpu.fp_status);
+
+    update_fcr31(env, GETPC());
+    return fdret;
+}
+
+uint32_t helper_float_maxa_s(CPUMIPSState *env, uint32_t fs, uint32_t ft)
+{
+    uint32_t fdret;
+
+    fdret = float32_maxnummag(fs, ft, &env->active_fpu.fp_status);
+
+    update_fcr31(env, GETPC());
+    return fdret;
+}
+
+uint64_t helper_float_maxa_d(CPUMIPSState *env, uint64_t fs, uint64_t ft)
+{
+    uint64_t fdret;
+
+    fdret = float64_maxnummag(fs, ft, &env->active_fpu.fp_status);
+
+    update_fcr31(env, GETPC());
+    return fdret;
+}
+
+uint32_t helper_float_min_s(CPUMIPSState *env, uint32_t fs, uint32_t ft)
+{
+    uint32_t fdret;
+
+    fdret = float32_minnum(fs, ft, &env->active_fpu.fp_status);
+
+    update_fcr31(env, GETPC());
+    return fdret;
+}
+
+uint64_t helper_float_min_d(CPUMIPSState *env, uint64_t fs, uint64_t ft)
+{
+    uint64_t fdret;
+
+    fdret = float64_minnum(fs, ft, &env->active_fpu.fp_status);
+
+    update_fcr31(env, GETPC());
+    return fdret;
+}
+
+uint32_t helper_float_mina_s(CPUMIPSState *env, uint32_t fs, uint32_t ft)
+{
+    uint32_t fdret;
+
+    fdret = float32_minnummag(fs, ft, &env->active_fpu.fp_status);
+
+    update_fcr31(env, GETPC());
+    return fdret;
+}
+
+uint64_t helper_float_mina_d(CPUMIPSState *env, uint64_t fs, uint64_t ft)
+{
+    uint64_t fdret;
+
+    fdret = float64_minnummag(fs, ft, &env->active_fpu.fp_status);
+
+    update_fcr31(env, GETPC());
+    return fdret;
+}
+
 
 /* ternary operations */
 
