@@ -15,24 +15,15 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 
-static void device_del_start(QTestState *qtest, const char *id)
+static void device_del(QTestState *qtest, const char *id)
 {
-    qtest_qmp_send(qtest,
-                   "{'execute': 'device_del', 'arguments': { 'id': %s } }", id);
-}
+    QDict *resp;
 
-static void device_del_finish(QTestState *qtest)
-{
-    QDict *resp = qtest_qmp_receive_dict(qtest);
+    resp = qtest_qmp(qtest,
+                     "{'execute': 'device_del', 'arguments': { 'id': %s } }", id);
 
     g_assert(qdict_haskey(resp, "return"));
     qobject_unref(resp);
-}
-
-static void device_del_request(QTestState *qtest, const char *id)
-{
-    device_del_start(qtest, id);
-    device_del_finish(qtest);
 }
 
 static void system_reset(QTestState *qtest)
@@ -79,7 +70,7 @@ static void test_pci_unplug_request(void)
      * be processed. However during system reset, the removal will be
      * handled, removing the device.
      */
-    device_del_request(qtest, "dev0");
+    device_del(qtest, "dev0");
     system_reset(qtest);
     wait_device_deleted_event(qtest, "dev0");
 
@@ -90,13 +81,8 @@ static void test_ccw_unplug(void)
 {
     QTestState *qtest = qtest_initf("-device virtio-balloon-ccw,id=dev0");
 
-    /*
-     * The DEVICE_DELETED events will be sent before the command
-     * completes.
-     */
-    device_del_start(qtest, "dev0");
+    device_del(qtest, "dev0");
     wait_device_deleted_event(qtest, "dev0");
-    device_del_finish(qtest);
 
     qtest_quit(qtest);
 }
@@ -109,7 +95,7 @@ static void test_spapr_cpu_unplug_request(void)
                         "-device power9_v2.0-spapr-cpu-core,core-id=1,id=dev0");
 
     /* similar to test_pci_unplug_request */
-    device_del_request(qtest, "dev0");
+    device_del(qtest, "dev0");
     system_reset(qtest);
     wait_device_deleted_event(qtest, "dev0");
 
@@ -125,7 +111,7 @@ static void test_spapr_memory_unplug_request(void)
                         "-device pc-dimm,id=dev0,memdev=mem0");
 
     /* similar to test_pci_unplug_request */
-    device_del_request(qtest, "dev0");
+    device_del(qtest, "dev0");
     system_reset(qtest);
     wait_device_deleted_event(qtest, "dev0");
 
@@ -139,7 +125,7 @@ static void test_spapr_phb_unplug_request(void)
     qtest = qtest_initf("-device spapr-pci-host-bridge,index=1,id=dev0");
 
     /* similar to test_pci_unplug_request */
-    device_del_request(qtest, "dev0");
+    device_del(qtest, "dev0");
     system_reset(qtest);
     wait_device_deleted_event(qtest, "dev0");
 
