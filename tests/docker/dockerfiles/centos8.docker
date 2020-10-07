@@ -8,6 +8,7 @@ ENV PACKAGES \
     dbus-daemon \
     gcc \
     gcc-c++ \
+    genisoimage \
     gettext \
     git \
     glib2-devel \

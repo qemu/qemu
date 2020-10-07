@@ -15,6 +15,7 @@ ENV PACKAGES \
     findutils \
     gcc \
     gcc-c++ \
+    genisoimage \
     gettext \
     git \
     glib2-devel \

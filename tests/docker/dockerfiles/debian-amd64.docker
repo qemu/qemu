@@ -14,6 +14,7 @@ RUN apt update && \
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
     apt install -y --no-install-recommends \
+        genisoimage \
         libbz2-dev \
         liblzo2-dev \
         libgcrypt20-dev \
