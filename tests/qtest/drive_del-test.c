@@ -16,21 +16,21 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
 
-static bool has_drive(QTestState *qts)
+static bool look_for_drive0(QTestState *qts, const char *command, const char *key)
 {
     QDict *response;
     QList *ret;
     QListEntry *entry;
     bool found;
 
-    response = qtest_qmp(qts, "{'execute': 'query-block'}");
+    response = qtest_qmp(qts, "{'execute': %s}", command);
     g_assert(response && qdict_haskey(response, "return"));
     ret = qdict_get_qlist(response, "return");
 
     found = false;
     QLIST_FOREACH_ENTRY(ret, entry) {
         QDict *entry_dict = qobject_to(QDict, entry->value);
-        if (!strcmp(qdict_get_str(entry_dict, "device"), "drive0")) {
+        if (!strcmp(qdict_get_str(entry_dict, key), "drive0")) {
             found = true;
             break;
         }
@@ -40,9 +40,52 @@ static bool has_drive(QTestState *qts)
     return found;
 }
 
+static bool has_drive(QTestState *qts)
+{
+    return look_for_drive0(qts, "query-block", "device");
+}
+
+static bool has_blockdev(QTestState *qts)
+{
+    return look_for_drive0(qts, "query-named-block-nodes", "node-name");
+}
+
+static void blockdev_add_with_media(QTestState *qts)
+{
+    QDict *response;
+
+    response = qtest_qmp(qts,
+                         "{ 'execute': 'blockdev-add',"
+                         "  'arguments': {"
+                         "      'driver': 'raw',"
+                         "      'node-name': 'drive0',"
+                         "      'file': {"
+                         "          'driver': 'null-co',"
+                         "          'read-zeroes': true"
+                         "      }"
+                         "  }"
+                         "}");
+
+    g_assert(response);
+    g_assert(qdict_haskey(response, "return"));
+    qobject_unref(response);
+    g_assert(has_blockdev(qts));
+}
+
 static void drive_add(QTestState *qts)
 {
     char *resp = qtest_hmp(qts, "drive_add 0 if=none,id=drive0");
+
+    g_assert_cmpstr(resp, ==, "OK\r\n");
+    g_assert(has_drive(qts));
+    g_free(resp);
+}
+
+static void drive_add_with_media(QTestState *qts)
+{
+    char *resp = qtest_hmp(qts,
+                           "drive_add 0 if=none,id=drive0,file=null-co://,"
+                           "file.read-zeroes=on,format=raw");
 
     g_assert_cmpstr(resp, ==, "OK\r\n");
     g_assert(has_drive(qts));
@@ -60,7 +103,43 @@ static void drive_del(QTestState *qts)
     g_free(resp);
 }
 
-static void device_del(QTestState *qts)
+/*
+ * qvirtio_get_dev_type:
+ * Returns: the preferred virtio bus/device type for the current architecture.
+ * TODO: delete this
+ */
+static const char *qvirtio_get_dev_type(void)
+{
+    const char *arch = qtest_get_arch();
+
+    if (g_str_equal(arch, "arm") || g_str_equal(arch, "aarch64")) {
+        return "device";  /* for virtio-mmio */
+    } else if (g_str_equal(arch, "s390x")) {
+        return "ccw";
+    } else {
+        return "pci";
+    }
+}
+
+static void device_add(QTestState *qts)
+{
+    QDict *response;
+    char driver[32];
+    snprintf(driver, sizeof(driver), "virtio-blk-%s",
+             qvirtio_get_dev_type());
+
+    response = qtest_qmp(qts, "{'execute': 'device_add',"
+                              " 'arguments': {"
+                              "   'driver': %s,"
+                              "   'drive': 'drive0',"
+                              "   'id': 'dev0'"
+                              "}}", driver);
+    g_assert(response);
+    g_assert(qdict_haskey(response, "return"));
+    qobject_unref(response);
+}
+
+static void device_del(QTestState *qts, bool and_reset)
 {
     QDict *response;
 
@@ -69,6 +148,13 @@ static void device_del(QTestState *qts)
     g_assert(response);
     g_assert(qdict_haskey(response, "return"));
     qobject_unref(response);
+
+    if (and_reset) {
+        response = qtest_qmp(qts, "{'execute': 'system_reset' }");
+        g_assert(response);
+        g_assert(qdict_haskey(response, "return"));
+        qobject_unref(response);
+    }
 
     qtest_qmp_eventwait(qts, "DEVICE_DELETED");
 }
@@ -89,24 +175,6 @@ static void test_drive_without_dev(void)
     drive_add(qts);
 
     qtest_quit(qts);
-}
-
-/*
- * qvirtio_get_dev_type:
- * Returns: the preferred virtio bus/device type for the current architecture.
- * TODO: delete this
- */
-static const char *qvirtio_get_dev_type(void)
-{
-    const char *arch = qtest_get_arch();
-
-    if (g_str_equal(arch, "arm") || g_str_equal(arch, "aarch64")) {
-        return "device";  /* for virtio-mmio */
-    } else if (g_str_equal(arch, "s390x")) {
-        return "ccw";
-    } else {
-        return "pci";
-    }
 }
 
 static void test_after_failed_device_add(void)
@@ -158,8 +226,93 @@ static void test_drive_del_device_del(void)
      * Doing it in this order takes notoriously tricky special paths
      */
     drive_del(qts);
-    device_del(qts);
+    device_del(qts, false);
     g_assert(!has_drive(qts));
+
+    qtest_quit(qts);
+}
+
+static void test_cli_device_del(void)
+{
+    QTestState *qts;
+
+    /*
+     * -drive/-device and device_del.  Start with a drive used by a
+     * device that unplugs after reset.
+     */
+    qts = qtest_initf("-drive if=none,id=drive0,file=null-co://,"
+                      "file.read-zeroes=on,format=raw"
+                      " -device virtio-blk-%s,drive=drive0,id=dev0",
+                      qvirtio_get_dev_type());
+
+    device_del(qts, true);
+    g_assert(!has_drive(qts));
+
+    qtest_quit(qts);
+}
+
+static void test_empty_device_del(void)
+{
+    QTestState *qts;
+
+    /* device_del with no drive plugged.  */
+    qts = qtest_initf("-device virtio-scsi-%s -device scsi-cd,id=dev0",
+                      qvirtio_get_dev_type());
+
+    device_del(qts, false);
+    qtest_quit(qts);
+}
+
+static void test_device_add_and_del(void)
+{
+    QTestState *qts;
+
+    /*
+     * -drive/device_add and device_del.  Start with a drive used by a
+     * device that unplugs after reset.
+     */
+    qts = qtest_init("-drive if=none,id=drive0,file=null-co://,"
+                     "file.read-zeroes=on,format=raw");
+
+    device_add(qts);
+    device_del(qts, true);
+    g_assert(!has_drive(qts));
+
+    qtest_quit(qts);
+}
+
+static void test_drive_add_device_add_and_del(void)
+{
+    QTestState *qts;
+
+    qts = qtest_init("");
+
+    /*
+     * drive_add/device_add and device_del.  The drive is used by a
+     * device that unplugs after reset.
+     */
+    drive_add_with_media(qts);
+    device_add(qts);
+    device_del(qts, true);
+    g_assert(!has_drive(qts));
+
+    qtest_quit(qts);
+}
+
+static void test_blockdev_add_device_add_and_del(void)
+{
+    QTestState *qts;
+
+    qts = qtest_init("");
+
+    /*
+     * blockdev_add/device_add and device_del.  The it drive is used by a
+     * device that unplugs after reset, but it doesn't go away.
+     */
+    blockdev_add_with_media(qts);
+    device_add(qts);
+    device_del(qts, true);
+    g_assert(has_blockdev(qts));
 
     qtest_quit(qts);
 }
@@ -173,8 +326,18 @@ int main(int argc, char **argv)
     if (qvirtio_get_dev_type() != NULL) {
         qtest_add_func("/drive_del/after_failed_device_add",
                        test_after_failed_device_add);
-        qtest_add_func("/blockdev/drive_del_device_del",
+        qtest_add_func("/drive_del/drive_del_device_del",
                        test_drive_del_device_del);
+        qtest_add_func("/device_del/drive/cli_device",
+                       test_cli_device_del);
+        qtest_add_func("/device_del/drive/device_add",
+                       test_device_add_and_del);
+        qtest_add_func("/device_del/drive/drive_add_device_add",
+                       test_drive_add_device_add_and_del);
+        qtest_add_func("/device_del/empty",
+                       test_empty_device_del);
+        qtest_add_func("/device_del/blockdev",
+                       test_blockdev_add_device_add_and_del);
     }
 
     return g_test_run();
