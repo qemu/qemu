@@ -14,20 +14,49 @@
 #include "libqos/libqtest.h"
 #include "libqos/virtio.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
+
+static bool has_drive(QTestState *qts)
+{
+    QDict *response;
+    QList *ret;
+    QListEntry *entry;
+    bool found;
+
+    response = qtest_qmp(qts, "{'execute': 'query-block'}");
+    g_assert(response && qdict_haskey(response, "return"));
+    ret = qdict_get_qlist(response, "return");
+
+    found = false;
+    QLIST_FOREACH_ENTRY(ret, entry) {
+        QDict *entry_dict = qobject_to(QDict, entry->value);
+        if (!strcmp(qdict_get_str(entry_dict, "device"), "drive0")) {
+            found = true;
+            break;
+        }
+    }
+
+    qobject_unref(response);
+    return found;
+}
 
 static void drive_add(QTestState *qts)
 {
     char *resp = qtest_hmp(qts, "drive_add 0 if=none,id=drive0");
 
     g_assert_cmpstr(resp, ==, "OK\r\n");
+    g_assert(has_drive(qts));
     g_free(resp);
 }
 
 static void drive_del(QTestState *qts)
 {
-    char *resp = qtest_hmp(qts, "drive_del drive0");
+    char *resp;
 
+    g_assert(has_drive(qts));
+    resp = qtest_hmp(qts, "drive_del drive0");
     g_assert_cmpstr(resp, ==, "");
+    g_assert(!has_drive(qts));
     g_free(resp);
 }
 
@@ -130,6 +159,7 @@ static void test_drive_del_device_del(void)
      */
     drive_del(qts);
     device_del(qts);
+    g_assert(!has_drive(qts));
 
     qtest_quit(qts);
 }
