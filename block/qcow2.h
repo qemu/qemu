@@ -435,17 +435,18 @@ typedef struct Qcow2COWRegion {
 
 /**
  * Describes an in-flight (part of a) write request that writes to clusters
- * that are not referenced in their L2 table yet.
+ * that need to have their L2 table entries updated (because they are
+ * newly allocated or need changes in their L2 bitmaps)
  */
 typedef struct QCowL2Meta
 {
-    /** Guest offset of the first newly allocated cluster */
+    /** Guest offset of the first updated cluster */
     uint64_t offset;
 
-    /** Host offset of the first newly allocated cluster */
+    /** Host offset of the first updated cluster */
     uint64_t alloc_offset;
 
-    /** Number of newly allocated clusters */
+    /** Number of updated clusters */
     int nb_clusters;
 
     /** Do not free the old clusters */
@@ -458,14 +459,16 @@ typedef struct QCowL2Meta
     CoQueue dependent_requests;
 
     /**
-     * The COW Region between the start of the first allocated cluster and the
-     * area the guest actually writes to.
+     * The COW Region immediately before the area the guest actually
+     * writes to. This (part of the) write request starts at
+     * cow_start.offset + cow_start.nb_bytes.
      */
     Qcow2COWRegion cow_start;
 
     /**
-     * The COW Region between the area the guest actually writes to and the
-     * end of the last allocated cluster.
+     * The COW Region immediately after the area the guest actually
+     * writes to. This (part of the) write request ends at cow_end.offset
+     * (which must always be set even when cow_end.nb_bytes is 0).
      */
     Qcow2COWRegion cow_end;
 
