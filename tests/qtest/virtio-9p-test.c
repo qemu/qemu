@@ -897,26 +897,26 @@ static void fs_readdir_split_512(void *obj, void *data,
 
 static void register_virtio_9p_test(void)
 {
-    qos_add_test("config", "virtio-9p", pci_config, NULL);
-    qos_add_test("fs/version/basic", "virtio-9p", fs_version, NULL);
-    qos_add_test("fs/attach/basic", "virtio-9p", fs_attach, NULL);
-    qos_add_test("fs/walk/basic", "virtio-9p", fs_walk, NULL);
-    qos_add_test("fs/walk/no_slash", "virtio-9p", fs_walk_no_slash,
+    qos_add_test("synth/config", "virtio-9p", pci_config, NULL);
+    qos_add_test("synth/version/basic", "virtio-9p", fs_version, NULL);
+    qos_add_test("synth/attach/basic", "virtio-9p", fs_attach, NULL);
+    qos_add_test("synth/walk/basic", "virtio-9p", fs_walk, NULL);
+    qos_add_test("synth/walk/no_slash", "virtio-9p", fs_walk_no_slash,
                  NULL);
-    qos_add_test("fs/walk/dotdot_from_root", "virtio-9p",
+    qos_add_test("synth/walk/dotdot_from_root", "virtio-9p",
                  fs_walk_dotdot, NULL);
-    qos_add_test("fs/lopen/basic", "virtio-9p", fs_lopen, NULL);
-    qos_add_test("fs/write/basic", "virtio-9p", fs_write, NULL);
-    qos_add_test("fs/flush/success", "virtio-9p", fs_flush_success,
+    qos_add_test("synth/lopen/basic", "virtio-9p", fs_lopen, NULL);
+    qos_add_test("synth/write/basic", "virtio-9p", fs_write, NULL);
+    qos_add_test("synth/flush/success", "virtio-9p", fs_flush_success,
                  NULL);
-    qos_add_test("fs/flush/ignored", "virtio-9p", fs_flush_ignored,
+    qos_add_test("synth/flush/ignored", "virtio-9p", fs_flush_ignored,
                  NULL);
-    qos_add_test("fs/readdir/basic", "virtio-9p", fs_readdir, NULL);
-    qos_add_test("fs/readdir/split_512", "virtio-9p",
+    qos_add_test("synth/readdir/basic", "virtio-9p", fs_readdir, NULL);
+    qos_add_test("synth/readdir/split_512", "virtio-9p",
                  fs_readdir_split_512, NULL);
-    qos_add_test("fs/readdir/split_256", "virtio-9p",
+    qos_add_test("synth/readdir/split_256", "virtio-9p",
                  fs_readdir_split_256, NULL);
-    qos_add_test("fs/readdir/split_128", "virtio-9p",
+    qos_add_test("synth/readdir/split_128", "virtio-9p",
                  fs_readdir_split_128, NULL);
 }
 
