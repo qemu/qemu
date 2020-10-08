@@ -525,14 +525,10 @@ static void mte_check_fail(CPUARMState *env, uint32_t desc,
     reg_el = regime_el(env, arm_mmu_idx);
     sctlr = env->cp15.sctlr_el[reg_el];
 
-    switch (arm_mmu_idx) {
-    case ARMMMUIdx_E10_0:
-    case ARMMMUIdx_E20_0:
-        el = 0;
+    el = arm_current_el(env);
+    if (el == 0) {
         tcf = extract64(sctlr, 38, 2);
-        break;
-    default:
-        el = reg_el;
+    } else {
         tcf = extract64(sctlr, 40, 2);
     }
 
