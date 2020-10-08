@@ -2519,6 +2519,28 @@ static void la_global_sync(TCGContext *s, int ng)
     }
 }
 
+/*
+ * liveness analysis: conditional branch: all temps are dead,
+ * globals and local temps should be synced.
+ */
+static void la_bb_sync(TCGContext *s, int ng, int nt)
+{
+    la_global_sync(s, ng);
+
+    for (int i = ng; i < nt; ++i) {
+        if (s->temps[i].temp_local) {
+            int state = s->temps[i].state;
+            s->temps[i].state = state | TS_MEM;
+            if (state != TS_DEAD) {
+                continue;
+            }
+        } else {
+            s->temps[i].state = TS_DEAD;
+        }
+        la_reset_pref(&s->temps[i]);
+    }
+}
+
 /* liveness analysis: sync globals back to memory and kill.  */
 static void la_global_kill(TCGContext *s, int ng)
 {
@@ -2795,6 +2817,8 @@ static void liveness_pass_1(TCGContext *s)
             /* If end of basic block, update.  */
             if (def->flags & TCG_OPF_BB_EXIT) {
                 la_func_end(s, nb_globals, nb_temps);
+            } else if (def->flags & TCG_OPF_COND_BRANCH) {
+                la_bb_sync(s, nb_globals, nb_temps);
             } else if (def->flags & TCG_OPF_BB_END) {
                 la_bb_end(s, nb_globals, nb_temps);
             } else if (def->flags & TCG_OPF_SIDE_EFFECTS) {
@@ -2907,7 +2931,10 @@ static bool liveness_pass_2(TCGContext *s)
             nb_oargs = def->nb_oargs;
 
             /* Set flags similar to how calls require.  */
-            if (def->flags & TCG_OPF_BB_END) {
+            if (def->flags & TCG_OPF_COND_BRANCH) {
+                /* Like reading globals: sync_globals */
+                call_flags = TCG_CALL_NO_WRITE_GLOBALS;
+            } else if (def->flags & TCG_OPF_BB_END) {
                 /* Like writing globals: save_globals */
                 call_flags = 0;
             } else if (def->flags & TCG_OPF_SIDE_EFFECTS) {
@@ -3380,6 +3407,28 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
 }
 
 /*
+ * At a conditional branch, we assume all temporaries are dead and
+ * all globals and local temps are synced to their location.
+ */
+static void tcg_reg_alloc_cbranch(TCGContext *s, TCGRegSet allocated_regs)
+{
+    sync_globals(s, allocated_regs);
+
+    for (int i = s->nb_globals; i < s->nb_temps; i++) {
+        TCGTemp *ts = &s->temps[i];
+        /*
+         * The liveness analysis already ensures that temps are dead.
+         * Keep tcg_debug_asserts for safety.
+         */
+        if (ts->temp_local) {
+            tcg_debug_assert(ts->val_type != TEMP_VAL_REG || ts->mem_coherent);
+        } else {
+            tcg_debug_assert(ts->val_type == TEMP_VAL_DEAD);
+        }
+    }
+}
+
+/*
  * Specialized code generation for INDEX_op_movi_*.
  */
 static void tcg_reg_alloc_do_movi(TCGContext *s, TCGTemp *ots,
@@ -3730,7 +3779,9 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         }
     }
 
-    if (def->flags & TCG_OPF_BB_END) {
+    if (def->flags & TCG_OPF_COND_BRANCH) {
+        tcg_reg_alloc_cbranch(s, i_allocated_regs);
+    } else if (def->flags & TCG_OPF_BB_END) {
         tcg_reg_alloc_bb_end(s, i_allocated_regs);
     } else {
         if (def->flags & TCG_OPF_CALL_CLOBBER) {

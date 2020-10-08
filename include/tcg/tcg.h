@@ -990,7 +990,7 @@ typedef struct TCGArgConstraint {
 
 #define TCG_MAX_OP_ARGS 16
 
-/* Bits for TCGOpDef->flags, 8 bits available.  */
+/* Bits for TCGOpDef->flags, 8 bits available, all used.  */
 enum {
     /* Instruction exits the translation block.  */
     TCG_OPF_BB_EXIT      = 0x01,
@@ -1008,6 +1008,8 @@ enum {
     TCG_OPF_NOT_PRESENT  = 0x20,
     /* Instruction operands are vectors.  */
     TCG_OPF_VECTOR       = 0x40,
+    /* Instruction is a conditional branch. */
+    TCG_OPF_COND_BRANCH  = 0x80
 };
 
 typedef struct TCGOpDef {
