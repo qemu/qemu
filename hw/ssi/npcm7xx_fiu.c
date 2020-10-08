@@ -103,7 +103,8 @@ enum NPCM7xxFIURegister {
  * Returns the index of flash in the fiu->flash array. This corresponds to the
  * chip select ID of the flash.
  */
-static int npcm7xx_fiu_cs_index(NPCM7xxFIUState *fiu, NPCM7xxFIUFlash *flash)
+static unsigned npcm7xx_fiu_cs_index(NPCM7xxFIUState *fiu,
+                                     NPCM7xxFIUFlash *flash)
 {
     int index = flash - fiu->flash;
 
@@ -113,20 +114,19 @@ static int npcm7xx_fiu_cs_index(NPCM7xxFIUState *fiu, NPCM7xxFIUFlash *flash)
 }
 
 /* Assert the chip select specified in the UMA Control/Status Register. */
-static void npcm7xx_fiu_select(NPCM7xxFIUState *s, int cs_id)
+static void npcm7xx_fiu_select(NPCM7xxFIUState *s, unsigned cs_id)
 {
     trace_npcm7xx_fiu_select(DEVICE(s)->canonical_path, cs_id);
 
     if (cs_id < s->cs_count) {
         qemu_irq_lower(s->cs_lines[cs_id]);
+        s->active_cs = cs_id;
     } else {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: UMA to CS%d; this module has only %d chip selects",
                       DEVICE(s)->canonical_path, cs_id, s->cs_count);
-        cs_id = -1;
+        s->active_cs = -1;
     }
-
-    s->active_cs = cs_id;
 }
 
 /* Deassert the currently active chip select. */
@@ -206,7 +206,7 @@ static void npcm7xx_fiu_flash_write(void *opaque, hwaddr addr, uint64_t v,
     NPCM7xxFIUFlash *f = opaque;
     NPCM7xxFIUState *fiu = f->fiu;
     uint32_t dwr_cfg;
-    int cs_id;
+    unsigned cs_id;
     int i;
 
     if (fiu->active_cs != -1) {
