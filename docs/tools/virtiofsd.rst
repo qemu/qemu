@@ -17,13 +17,24 @@ This program is designed to work with QEMU's ``--device vhost-user-fs-pci``
 but should work with any virtual machine monitor (VMM) that supports
 vhost-user.  See the Examples section below.
 
-This program must be run as the root user.  Upon startup the program will
-switch into a new file system namespace with the shared directory tree as its
-root.  This prevents "file system escapes" due to symlinks and other file
-system objects that might lead to files outside the shared directory.  The
-program also sandboxes itself using seccomp(2) to prevent ptrace(2) and other
-vectors that could allow an attacker to compromise the system after gaining
-control of the virtiofsd process.
+This program must be run as the root user.  The program drops privileges where
+possible during startup although it must be able to create and access files
+with any uid/gid:
+
+* The ability to invoke syscalls is limited using seccomp(2).
+* Linux capabilities(7) are dropped.
+
+In "namespace" sandbox mode the program switches into a new file system
+namespace and invokes pivot_root(2) to make the shared directory tree its root.
+A new pid and net namespace is also created to isolate the process.
+
+In "chroot" sandbox mode the program invokes chroot(2) to make the shared
+directory tree its root. This mode is intended for container environments where
+the container runtime has already set up the namespaces and the program does
+not have permission to create namespaces itself.
+
+Both sandbox modes prevent "file system escapes" due to symlinks and other file
+system objects that might lead to files outside the shared directory.
 
 Options
 -------
@@ -68,6 +79,13 @@ Options
 
   * readdirplus|no_readdirplus -
     Enable/disable readdirplus.  The default is ``readdirplus``.
+
+  * sandbox=namespace|chroot -
+    Sandbox mode:
+    - namespace: Create mount, pid, and net namespaces and pivot_root(2) into
+    the shared directory.
+    - chroot: chroot(2) into shared directory (use in containers).
+    The default is "namespace".
 
   * source=PATH -
     Share host directory tree located at PATH.  This option is required.
