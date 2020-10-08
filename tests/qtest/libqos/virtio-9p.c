@@ -24,6 +24,34 @@
 #include "qgraph.h"
 
 static QGuestAllocator *alloc;
+static char *local_test_path;
+
+/* Concatenates the passed 2 pathes. Returned result must be freed. */
+static char *concat_path(const char* a, const char* b)
+{
+    return g_build_filename(a, b, NULL);
+}
+
+static void init_local_test_path(void)
+{
+    char *pwd = g_get_current_dir();
+    local_test_path = concat_path(pwd, "qtest-9p-local");
+    g_free(pwd);
+}
+
+/* Creates the directory for the 9pfs 'local' filesystem driver to access. */
+static void create_local_test_dir(void)
+{
+    struct stat st;
+
+    g_assert(local_test_path != NULL);
+    mkdir(local_test_path, 0777);
+
+    /* ensure test directory exists now ... */
+    g_assert(stat(local_test_path, &st) == 0);
+    /* ... and is actually a directory */
+    g_assert((st.st_mode & S_IFMT) == S_IFDIR);
+}
 
 static void virtio_9p_cleanup(QVirtio9P *interface)
 {
@@ -146,10 +174,63 @@ static void *virtio_9p_pci_create(void *pci_bus, QGuestAllocator *t_alloc,
     return obj;
 }
 
+/**
+ * Performs regular expression based search and replace on @a haystack.
+ *
+ * @param haystack - input string to be parsed, result of replacement is
+ *                   stored back to @a haystack
+ * @param pattern - the regular expression pattern for scanning @a haystack
+ * @param replace_fmt - matches of supplied @a pattern are replaced by this,
+ *                      if necessary glib printf format can be used to add
+ *                      variable arguments of this function to this
+ *                      replacement string
+ */
+static void regex_replace(GString *haystack, const char *pattern,
+                          const char *replace_fmt, ...)
+{
+    GRegex *regex;
+    char *replace, *s;
+    va_list argp;
+
+    va_start(argp, replace_fmt);
+    replace = g_strdup_vprintf(replace_fmt, argp);
+    va_end(argp);
+
+    regex = g_regex_new(pattern, 0, 0, NULL);
+    s = g_regex_replace(regex, haystack->str, -1, 0, replace, 0, NULL);
+    g_string_assign(haystack, s);
+    g_free(s);
+    g_regex_unref(regex);
+    g_free(replace);
+}
+
+void virtio_9p_assign_local_driver(GString *cmd_line, const char *args)
+{
+    g_assert_nonnull(local_test_path);
+
+    /* replace 'synth' driver by 'local' driver */
+    regex_replace(cmd_line, "-fsdev synth,", "-fsdev local,");
+
+    /* append 'path=...' to '-fsdev ...' group */
+    regex_replace(cmd_line, "(-fsdev \\w[^ ]*)", "\\1,path='%s'",
+                  local_test_path);
+
+    if (!args) {
+        return;
+    }
+
+    /* append passed args to '-fsdev ...' group */
+    regex_replace(cmd_line, "(-fsdev \\w[^ ]*)", "\\1,%s", args);
+}
+
 static void virtio_9p_register_nodes(void)
 {
     const char *str_simple = "fsdev=fsdev0,mount_tag=" MOUNT_TAG;
     const char *str_addr = "fsdev=fsdev0,addr=04.0,mount_tag=" MOUNT_TAG;
+
+    /* make sure test dir for the 'local' tests exists and is clean */
+    init_local_test_path();
+    create_local_test_dir();
 
     QPCIAddress addr = {
         .devfn = QPCI_DEVFN(4, 0),
