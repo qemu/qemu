@@ -1291,7 +1291,8 @@ ObjectProperty *object_property_find_err(Object *obj, const char *name,
 {
     ObjectProperty *prop = object_property_find(obj, name);
     if (!prop) {
-        error_setg(errp, "Property '.%s' not found", name);
+        error_setg(errp, "Property '%s.%s' not found",
+                   object_get_typename(obj), name);
     }
     return prop;
 }

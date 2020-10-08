@@ -31,7 +31,7 @@ typedef struct InterfaceInfo InterfaceInfo;
 typedef struct ObjectProperty ObjectProperty;
 
 /**
- * ObjectPropertyAccessor:
+ * typedef ObjectPropertyAccessor:
  * @obj: the object that owns the property
  * @v: the visitor that contains the property data
  * @name: the name of the property
@@ -47,7 +47,7 @@ typedef void (ObjectPropertyAccessor)(Object *obj,
                                       Error **errp);
 
 /**
- * ObjectPropertyResolve:
+ * typedef ObjectPropertyResolve:
  * @obj: the object that owns the property
  * @opaque: the opaque registered with the property
  * @part: the name of the property
@@ -66,7 +66,7 @@ typedef Object *(ObjectPropertyResolve)(Object *obj,
                                         const char *part);
 
 /**
- * ObjectPropertyRelease:
+ * typedef ObjectPropertyRelease:
  * @obj: the object that owns the property
  * @name: the name of the property
  * @opaque: the opaque registered with the property
@@ -78,7 +78,7 @@ typedef void (ObjectPropertyRelease)(Object *obj,
                                      void *opaque);
 
 /**
- * ObjectPropertyInit:
+ * typedef ObjectPropertyInit:
  * @obj: the object that owns the property
  * @prop: the property to set
  *
@@ -101,7 +101,7 @@ struct ObjectProperty
 };
 
 /**
- * ObjectUnparent:
+ * typedef ObjectUnparent:
  * @obj: the object that is being removed from the composition tree
  *
  * Called when an object is being removed from the QOM composition tree.
@@ -110,7 +110,7 @@ struct ObjectProperty
 typedef void (ObjectUnparent)(Object *obj);
 
 /**
- * ObjectFree:
+ * typedef ObjectFree:
  * @obj: the object being freed
  *
  * Called when an object's last reference is removed.
@@ -120,7 +120,7 @@ typedef void (ObjectFree)(void *obj);
 #define OBJECT_CLASS_CAST_CACHE 4
 
 /**
- * ObjectClass:
+ * struct ObjectClass:
  *
  * The base for all classes.  The only thing that #ObjectClass contains is an
  * integer type handle.
@@ -140,7 +140,7 @@ struct ObjectClass
 };
 
 /**
- * Object:
+ * struct Object:
  *
  * The base for all objects.  The first member of this object is a pointer to
  * a #ObjectClass.  Since C guarantees that the first member of a structure
@@ -170,7 +170,7 @@ struct Object
  * Direct usage of this macro should be avoided, and the complete
  * OBJECT_DECLARE_TYPE macro is recommended instead.
  *
- * This macro will provide the three standard type cast functions for a
+ * This macro will provide the instance type cast functions for a
  * QOM type.
  */
 #define DECLARE_INSTANCE_CHECKER(InstanceType, OBJ_NAME, TYPENAME) \
@@ -187,7 +187,7 @@ struct Object
  * Direct usage of this macro should be avoided, and the complete
  * OBJECT_DECLARE_TYPE macro is recommended instead.
  *
- * This macro will provide the three standard type cast functions for a
+ * This macro will provide the class type cast functions for a
  * QOM type.
  */
 #define DECLARE_CLASS_CHECKERS(ClassType, OBJ_NAME, TYPENAME) \
@@ -370,7 +370,7 @@ struct Object
                                 true, { NULL })
 
 /**
- * TypeInfo:
+ * struct TypeInfo:
  * @name: The name of the type.
  * @parent: The name of the parent type.
  * @instance_size: The size of the object (derivative of #Object).  If
@@ -496,7 +496,7 @@ struct TypeInfo
     OBJECT_CLASS_CHECK(class, object_get_class(OBJECT(obj)), name)
 
 /**
- * InterfaceInfo:
+ * struct InterfaceInfo:
  * @type: The name of the interface.
  *
  * The information associated with an interface.
@@ -506,7 +506,7 @@ struct InterfaceInfo {
 };
 
 /**
- * InterfaceClass:
+ * struct InterfaceClass:
  * @parent_class: the base class
  *
  * The class for all interfaces.  Subclasses of this class should only add
@@ -1256,7 +1256,7 @@ char *object_property_get_str(Object *obj, const char *name,
  * Writes an object's canonical path to a property.
  *
  * If the link property was created with
- * <code>OBJ_PROP_LINK_STRONG</code> bit, the old target object is
+ * %OBJ_PROP_LINK_STRONG bit, the old target object is
  * unreferenced, and a reference is added to the new target object.
  *
  * Returns: %true on success, %false on failure.
@@ -1603,16 +1603,16 @@ void object_property_allow_set_link(const Object *obj, const char *name,
  *
  * Links form the graph in the object model.
  *
- * The <code>@check()</code> callback is invoked when
+ * The @check() callback is invoked when
  * object_property_set_link() is called and can raise an error to prevent the
- * link being set.  If <code>@check</code> is NULL, the property is read-only
+ * link being set.  If @check is NULL, the property is read-only
  * and cannot be set.
  *
  * Ownership of the pointer that @child points to is transferred to the
- * link property.  The reference count for <code>*@child</code> is
+ * link property.  The reference count for *@child is
  * managed by the property from after the function returns till the
  * property is deleted with object_property_del().  If the
- * <code>@flags</code> <code>OBJ_PROP_LINK_STRONG</code> bit is set,
+ * @flags %OBJ_PROP_LINK_STRONG bit is set,
  * the reference count is decremented when the property is deleted or
  * modified.
  *
@@ -1823,7 +1823,7 @@ ObjectProperty *object_class_property_add_uint64_ptr(ObjectClass *klass,
  * Add an alias for a property on an object.  This function will add a property
  * of the same type as the forwarded property.
  *
- * The caller must ensure that <code>@target_obj</code> stays alive as long as
+ * The caller must ensure that @target_obj stays alive as long as
  * this property exists.  In the case of a child object or an alias on the same
  * object this will be the case.  For aliases to other objects the caller is
  * responsible for taking a reference.

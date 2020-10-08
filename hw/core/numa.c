@@ -424,7 +424,13 @@ void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
     }
 
     if ((node->level > 1) &&
-        ms->numa_state->hmat_cache[node->node_id][node->level - 1] &&
+        ms->numa_state->hmat_cache[node->node_id][node->level - 1] == NULL) {
+        error_setg(errp, "Cache level=%u shall be defined first",
+                   node->level - 1);
+        return;
+    }
+
+    if ((node->level > 1) &&
         (node->size <=
             ms->numa_state->hmat_cache[node->node_id][node->level - 1]->size)) {
         error_setg(errp, "Invalid size=%" PRIu64 ", the size of level=%" PRIu8
