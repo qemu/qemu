@@ -252,10 +252,10 @@ TCGv_vec tcg_const_ones_vec_matching(TCGv_vec m)
 
 void tcg_gen_dup64i_vec(TCGv_vec r, uint64_t a)
 {
-    if (TCG_TARGET_REG_BITS == 32 && a == deposit64(a, 32, 32, a)) {
-        do_dupi_vec(r, MO_32, a);
-    } else if (TCG_TARGET_REG_BITS == 64 || a == (uint64_t)(int32_t)a) {
+    if (TCG_TARGET_REG_BITS == 64) {
         do_dupi_vec(r, MO_64, a);
+    } else if (a == dup_const(MO_32, a)) {
+        do_dupi_vec(r, MO_32, a);
     } else {
         TCGv_i64 c = tcg_const_i64(a);
         tcg_gen_dup_i64_vec(MO_64, r, c);
@@ -280,7 +280,11 @@ void tcg_gen_dup8i_vec(TCGv_vec r, uint32_t a)
 
 void tcg_gen_dupi_vec(unsigned vece, TCGv_vec r, uint64_t a)
 {
-    do_dupi_vec(r, MO_REG, dup_const(vece, a));
+    if (vece == MO_64) {
+        tcg_gen_dup64i_vec(r, a);
+    } else {
+        do_dupi_vec(r, MO_REG, dup_const(vece, a));
+    }
 }
 
 void tcg_gen_dup_i64_vec(unsigned vece, TCGv_vec r, TCGv_i64 a)
