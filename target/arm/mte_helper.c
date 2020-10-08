@@ -563,8 +563,7 @@ static void mte_check_fail(CPUARMState *env, uint32_t desc,
 
     case 2:
         /* Tag check fail causes asynchronous flag set.  */
-        mmu_idx = arm_mmu_idx_el(env, el);
-        if (regime_has_2_ranges(mmu_idx)) {
+        if (regime_has_2_ranges(arm_mmu_idx)) {
             select = extract64(dirty_ptr, 55, 1);
         } else {
             select = 0;
