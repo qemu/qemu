@@ -1252,10 +1252,11 @@ static inline bool allocation_tag_access_enabled(CPUARMState *env, int el,
         && !(env->cp15.scr_el3 & SCR_ATA)) {
         return false;
     }
-    if (el < 2
-        && arm_feature(env, ARM_FEATURE_EL2)
-        && !(arm_hcr_el2_eff(env) & HCR_ATA)) {
-        return false;
+    if (el < 2 && arm_feature(env, ARM_FEATURE_EL2)) {
+        uint64_t hcr = arm_hcr_el2_eff(env);
+        if (!(hcr & HCR_ATA) && (!(hcr & HCR_E2H) || !(hcr & HCR_TGE))) {
+            return false;
+        }
     }
     sctlr &= (el == 0 ? SCTLR_ATA0 : SCTLR_ATA);
     return sctlr != 0;
