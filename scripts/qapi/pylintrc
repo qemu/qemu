@@ -7,7 +7,6 @@ ignore-patterns=error.py,
                 gen.py,
                 parser.py,
                 schema.py,
-                source.py,
                 types.py,
                 visit.py,
 
