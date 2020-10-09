@@ -14,9 +14,9 @@
 
 # TODO catching name collisions in generated code would be nice
 
+from collections import OrderedDict
 import os
 import re
-from collections import OrderedDict
 
 from .common import c_name, pointer_suffix
 from .error import QAPIError, QAPISemError

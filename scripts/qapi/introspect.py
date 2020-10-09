@@ -17,8 +17,11 @@ from .common import (
     mcgen,
 )
 from .gen import QAPISchemaMonolithicCVisitor
-from .schema import (QAPISchemaArrayType, QAPISchemaBuiltinType,
-                     QAPISchemaType)
+from .schema import (
+    QAPISchemaArrayType,
+    QAPISchemaBuiltinType,
+    QAPISchemaType,
+)
 
 
 def _make_tree(obj, ifcond, features, extra=None):
