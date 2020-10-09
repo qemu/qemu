@@ -44,8 +44,12 @@ def gen_event_send_decl(name: str,
                  proto=build_event_send_proto(name, arg_type, boxed))
 
 
-# Declare and initialize an object 'qapi' using parameters from build_params()
 def gen_param_var(typ: QAPISchemaObjectType) -> str:
+    """
+    Generate a struct variable holding the event parameters.
+
+    Initialize it with the function arguments defined in `gen_event_send`.
+    """
     assert not typ.variants
     ret = mcgen('''
     %(c_name)s param = {
