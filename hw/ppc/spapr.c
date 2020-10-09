@@ -294,6 +294,15 @@ static hwaddr spapr_node0_size(MachineState *machine)
     return machine->ram_size;
 }
 
+bool spapr_machine_using_legacy_numa(SpaprMachineState *spapr)
+{
+    MachineState *machine = MACHINE(spapr);
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
+
+    return smc->pre_5_2_numa_associativity ||
+           machine->numa_state->num_nodes <= 1;
+}
+
 static void add_str(GString *s, const gchar *s1)
 {
     g_string_append_len(s, s1, strlen(s1) + 1);
@@ -1483,6 +1492,12 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
     spapr_free_hpt(spapr);
 
     rc = kvmppc_reset_htab(shift);
+
+    if (rc == -EOPNOTSUPP) {
+        error_setg(errp, "HPT not supported in nested guests");
+        return;
+    }
+
     if (rc < 0) {
         /* kernel-side HPT needed, but couldn't allocate one */
         error_setg_errno(errp, errno,
@@ -3365,22 +3380,19 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
     int i;
     uint64_t addr = addr_start;
     bool hotplugged = spapr_drc_hotplugged(dev);
-    Error *local_err = NULL;
 
     for (i = 0; i < nr_lmbs; i++) {
         drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB,
                               addr / SPAPR_MEMORY_BLOCK_SIZE);
         g_assert(drc);
 
-        spapr_drc_attach(drc, dev, &local_err);
-        if (local_err) {
+        if (!spapr_drc_attach(drc, dev, errp)) {
             while (addr > addr_start) {
                 addr -= SPAPR_MEMORY_BLOCK_SIZE;
                 drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB,
                                       addr / SPAPR_MEMORY_BLOCK_SIZE);
                 spapr_drc_detach(drc);
             }
-            error_propagate(errp, local_err);
             return;
         }
         if (!hotplugged) {
@@ -3475,9 +3487,7 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 
     if (is_nvdimm) {
-        spapr_nvdimm_validate(hotplug_dev, NVDIMM(dev), size, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (!spapr_nvdimm_validate(hotplug_dev, NVDIMM(dev), size, errp)) {
             return;
         }
     } else if (size % SPAPR_MEMORY_BLOCK_SIZE) {
@@ -3489,9 +3499,7 @@ static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     memdev = object_property_get_link(OBJECT(dimm), PC_DIMM_MEMDEV_PROP,
                                       &error_abort);
     pagesize = host_memory_backend_pagesize(MEMORY_BACKEND(memdev));
-    spapr_check_pagesize(spapr, pagesize, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!spapr_check_pagesize(spapr, pagesize, errp)) {
         return;
     }
 
@@ -3761,7 +3769,6 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     CPUCore *cc = CPU_CORE(dev);
     CPUState *cs;
     SpaprDrc *drc;
-    Error *local_err = NULL;
     CPUArchId *core_slot;
     int index;
     bool hotplugged = spapr_drc_hotplugged(dev);
@@ -3779,9 +3786,7 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     g_assert(drc || !mc->has_hotpluggable_cpus);
 
     if (drc) {
-        spapr_drc_attach(drc, dev, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (!spapr_drc_attach(drc, dev, errp)) {
             return;
         }
 
@@ -3811,10 +3816,9 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
      */
     if (hotplugged) {
         for (i = 0; i < cc->nr_threads; i++) {
-            ppc_set_compat(core->threads[i], POWERPC_CPU(first_cpu)->compat_pvr,
-                           &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
+            if (ppc_set_compat(core->threads[i],
+                               POWERPC_CPU(first_cpu)->compat_pvr,
+                               errp) < 0) {
                 return;
             }
         }
@@ -3934,7 +3938,6 @@ static void spapr_phb_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(dev);
     SpaprDrc *drc;
     bool hotplugged = spapr_drc_hotplugged(dev);
-    Error *local_err = NULL;
 
     if (!smc->dr_phb_enabled) {
         return;
@@ -3944,9 +3947,7 @@ static void spapr_phb_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     /* hotplug hooks should check it's enabled before getting this far */
     assert(drc);
 
-    spapr_drc_attach(drc, dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!spapr_drc_attach(drc, dev, errp)) {
         return;
     }
 
@@ -4290,7 +4291,7 @@ int spapr_get_vcpu_id(PowerPCCPU *cpu)
     return cpu->vcpu_id;
 }
 
-void spapr_set_vcpu_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
+bool spapr_set_vcpu_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     MachineState *ms = MACHINE(spapr);
@@ -4303,10 +4304,11 @@ void spapr_set_vcpu_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
         error_append_hint(errp, "Adjust the number of cpus to %d "
                           "or try to raise the number of threads per core\n",
                           vcpu_id * ms->smp.threads / spapr->vsmt);
-        return;
+        return false;
     }
 
     cpu->vcpu_id = vcpu_id;
+    return true;
 }
 
 PowerPCCPU *spapr_find_cpu(int vcpu_id)
@@ -4526,8 +4528,11 @@ DEFINE_SPAPR_MACHINE(5_2, "5.2", true);
  */
 static void spapr_machine_5_1_class_options(MachineClass *mc)
 {
+    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
     spapr_machine_5_2_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_5_1, hw_compat_5_1_len);
+    smc->pre_5_2_numa_associativity = true;
 }
 
 DEFINE_SPAPR_MACHINE(5_1, "5.1", false);

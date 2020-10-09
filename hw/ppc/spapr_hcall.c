@@ -1590,12 +1590,11 @@ static target_ulong h_signal_sys_reset(PowerPCCPU *cpu,
     }
 }
 
-static uint32_t cas_check_pvr(SpaprMachineState *spapr, PowerPCCPU *cpu,
-                              target_ulong *addr, bool *raw_mode_supported,
-                              Error **errp)
+/* Returns either a logical PVR or zero if none was found */
+static uint32_t cas_check_pvr(PowerPCCPU *cpu, uint32_t max_compat,
+                              target_ulong *addr, bool *raw_mode_supported)
 {
     bool explicit_match = false; /* Matched the CPU's real PVR */
-    uint32_t max_compat = spapr->max_compat_pvr;
     uint32_t best_compat = 0;
     int i;
 
@@ -1622,14 +1621,6 @@ static uint32_t cas_check_pvr(SpaprMachineState *spapr, PowerPCCPU *cpu,
                 best_compat = pvr;
             }
         }
-    }
-
-    if ((best_compat == 0) && (!explicit_match || max_compat)) {
-        /* We couldn't find a suitable compatibility mode, and either
-         * the guest doesn't support "raw" mode for this CPU, or raw
-         * mode is disabled because a maximum compat mode is set */
-        error_setg(errp, "Couldn't negotiate a suitable PVR during CAS");
-        return 0;
     }
 
     *raw_mode_supported = explicit_match;
@@ -1675,11 +1666,11 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
     uint32_t cas_pvr;
     SpaprOptionVector *ov1_guest, *ov5_guest;
     bool guest_radix;
-    Error *local_err = NULL;
     bool raw_mode_supported = false;
     bool guest_xive;
     CPUState *cs;
     void *fdt;
+    uint32_t max_compat = spapr->max_compat_pvr;
 
     /* CAS is supposed to be called early when only the boot vCPU is active. */
     CPU_FOREACH(cs) {
@@ -1692,16 +1683,22 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
         }
     }
 
-    cas_pvr = cas_check_pvr(spapr, cpu, &vec, &raw_mode_supported, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
+    cas_pvr = cas_check_pvr(cpu, max_compat, &vec, &raw_mode_supported);
+    if (!cas_pvr && (!raw_mode_supported || max_compat)) {
+        /*
+         * We couldn't find a suitable compatibility mode, and either
+         * the guest doesn't support "raw" mode for this CPU, or "raw"
+         * mode is disabled because a maximum compat mode is set.
+         */
+        error_report("Couldn't negotiate a suitable PVR during CAS");
         return H_HARDWARE;
     }
 
     /* Update CPUs */
     if (cpu->compat_pvr != cas_pvr) {
-        ppc_set_compat_all(cas_pvr, &local_err);
-        if (local_err) {
+        Error *local_err = NULL;
+
+        if (ppc_set_compat_all(cas_pvr, &local_err) < 0) {
             /* We fail to set compat mode (likely because running with KVM PR),
              * but maybe we can fallback to raw mode if the guest supports it.
              */
@@ -1710,7 +1707,6 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
                 return H_HARDWARE;
             }
             error_free(local_err);
-            local_err = NULL;
         }
     }
 

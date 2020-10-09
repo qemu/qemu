@@ -1539,7 +1539,6 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(plugged_dev);
     SpaprDrc *drc = drc_from_dev(phb, pdev);
-    Error *local_err = NULL;
     PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
     uint32_t slotnr = PCI_SLOT(pdev->devfn);
 
@@ -1578,9 +1577,7 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
         return;
     }
 
-    spapr_drc_attach(drc, DEVICE(pdev), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!spapr_drc_attach(drc, DEVICE(pdev), errp)) {
         return;
     }
 
