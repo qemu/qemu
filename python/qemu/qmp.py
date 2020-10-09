@@ -164,8 +164,11 @@ class QEMUMonitorProtocol:
                                 retrieved or if some other error occurred.
         """
 
+        # Current timeout and blocking status
+        current_timeout = self.__sock.gettimeout()
+
         # Check for new events regardless and pull them into the cache:
-        self.__sock.setblocking(False)
+        self.__sock.settimeout(0)  # i.e. setblocking(False)
         try:
             self.__json_read()
         except OSError as err:
@@ -173,7 +176,7 @@ class QEMUMonitorProtocol:
             if err.errno != errno.EAGAIN:
                 raise
         finally:
-            self.__sock.setblocking(True)
+            self.__sock.settimeout(current_timeout)
 
         # Wait for new events, if needed.
         # if wait is 0.0, this means "no wait" and is also implicitly false.
@@ -187,9 +190,11 @@ class QEMUMonitorProtocol:
             except Exception as err:
                 msg = "Error while reading from socket"
                 raise QMPConnectError(msg) from err
+            finally:
+                self.__sock.settimeout(current_timeout)
+
             if ret is None:
                 raise QMPConnectError("Error while reading from socket")
-            self.__sock.settimeout(None)
 
     def __enter__(self) -> 'QEMUMonitorProtocol':
         # Implement context manager enter function.
@@ -219,7 +224,7 @@ class QEMUMonitorProtocol:
             return self.__negotiate_capabilities()
         return None
 
-    def accept(self, timeout: float = 15.0) -> QMPMessage:
+    def accept(self, timeout: Optional[float] = 15.0) -> QMPMessage:
         """
         Await connection from QMP Monitor and perform capabilities negotiation.
 
@@ -338,13 +343,19 @@ class QEMUMonitorProtocol:
         if self.__sockfile:
             self.__sockfile.close()
 
-    def settimeout(self, timeout: float) -> None:
+    def settimeout(self, timeout: Optional[float]) -> None:
         """
         Set the socket timeout.
 
-        @param timeout (float): timeout in seconds, or None.
+        @param timeout (float): timeout in seconds (non-zero), or None.
         @note This is a wrap around socket.settimeout
+
+        @raise ValueError: if timeout was set to 0.
         """
+        if timeout == 0:
+            msg = "timeout cannot be 0; this engages non-blocking mode."
+            msg += " Use 'None' instead to disable timeouts."
+            raise ValueError(msg)
         self.__sock.settimeout(timeout)
 
     def get_sock_fd(self) -> int:
