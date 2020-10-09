@@ -623,9 +623,7 @@ void migration_fd_process_incoming(QEMUFile *f, Error **errp)
     }
 
     if (migration_incoming_setup(f, &local_err)) {
-        if (local_err) {
-            error_propagate(errp, local_err);
-        }
+        error_propagate(errp, local_err);
         return;
     }
     migration_incoming_process();
@@ -647,9 +645,7 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
         }
 
         if (migration_incoming_setup(f, &local_err)) {
-            if (local_err) {
-                error_propagate(errp, local_err);
-            }
+            error_propagate(errp, local_err);
             return;
         }
 
