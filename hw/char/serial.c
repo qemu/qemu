@@ -1120,7 +1120,6 @@ static const TypeInfo serial_mm_info = {
     .class_init = serial_mm_class_init,
     .instance_init = serial_mm_instance_init,
     .instance_size = sizeof(SerialMM),
-    .class_init = serial_mm_class_init,
 };
 
 static void serial_register_types(void)
