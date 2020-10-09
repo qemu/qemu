@@ -401,7 +401,7 @@ float32 helper_fsrra_FT(CPUSH4State *env, float32 t0)
     /*
      * Since this is supposed to be an approximation, an imprecision
      * exception is required.  One supposes this also follows the usual
-     * IEEE rule that other exceptions take precidence.
+     * IEEE rule that other exceptions take precedence.
      */
     if (get_float_exception_flags(&env->fp_status) == 0) {
         set_float_exception_flags(float_flag_inexact, &env->fp_status);

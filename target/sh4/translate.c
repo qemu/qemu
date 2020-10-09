@@ -1960,7 +1960,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
     switch (ctx->opcode & 0xf00f) {
     case 0x6003: /* mov Rm,Rn */
         /*
-         * Here we want to recognize ld_dst being saved for later consumtion,
+         * Here we want to recognize ld_dst being saved for later consumption,
          * or for another input register being copied so that ld_dst need not
          * be clobbered during the operation.
          */

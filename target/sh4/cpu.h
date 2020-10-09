@@ -160,7 +160,7 @@ typedef struct CPUSH4State {
     uint32_t pteh;		/* page table entry high register */
     uint32_t ptel;		/* page table entry low register */
     uint32_t ptea;		/* page table entry assistance register */
-    uint32_t ttb;		/* tranlation table base register */
+    uint32_t ttb;               /* translation table base register */
     uint32_t tea;		/* TLB exception address register */
     uint32_t tra;		/* TRAPA exception register */
     uint32_t expevt;		/* exception event register */
