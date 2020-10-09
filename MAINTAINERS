@@ -220,10 +220,11 @@ F: hw/microblaze/
 F: disas/microblaze.c
 
 MIPS TCG CPUs
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
-S: Orphaned
+S: Odd Fixes
 F: target/mips/
 F: default-configs/*mips*
 F: disas/*mips*
@@ -2817,11 +2818,12 @@ F: tcg/i386/
 F: disas/i386.c
 
 MIPS TCG target
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
 R: Huacai Chen <chenhc@lemote.com>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
-S: Orphaned
+S: Odd Fixes
 F: tcg/mips/
 
 PPC TCG target
