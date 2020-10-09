@@ -14,6 +14,11 @@
 import re
 
 
+EATSPACE = '\033EATSPACE.'
+POINTER_SUFFIX = ' *' + EATSPACE
+_C_NAME_TRANS = str.maketrans('.-', '__')
+
+
 # ENUMName -> ENUM_NAME, EnumName1 -> ENUM_NAME1
 # ENUM_NAME -> ENUM_NAME, ENUM_NAME1 -> ENUM_NAME1, ENUM_Name2 -> ENUM_NAME2
 # ENUM24_Name -> ENUM24_NAME
@@ -40,9 +45,6 @@ def c_enum_const(type_name, const_name, prefix=None):
     if prefix is not None:
         type_name = prefix
     return camel_to_upper(type_name) + '_' + c_name(const_name, False).upper()
-
-
-c_name_trans = str.maketrans('.-', '__')
 
 
 # Map @name to a valid C identifier.
@@ -82,15 +84,11 @@ def c_name(name, protect=True):
                      'not_eq', 'or', 'or_eq', 'xor', 'xor_eq'])
     # namespace pollution:
     polluted_words = set(['unix', 'errno', 'mips', 'sparc', 'i386'])
-    name = name.translate(c_name_trans)
+    name = name.translate(_C_NAME_TRANS)
     if protect and (name in c89_words | c99_words | c11_words | gcc_words
                     | cpp_words | polluted_words):
         return 'q_' + name
     return name
-
-
-eatspace = '\033EATSPACE.'
-pointer_suffix = ' *' + eatspace
 
 
 class Indentation:
@@ -132,12 +130,12 @@ indent = Indentation()
 
 
 # Generate @code with @kwds interpolated.
-# Obey indent, and strip eatspace.
+# Obey indent, and strip EATSPACE.
 def cgen(code, **kwds):
     raw = code % kwds
     if indent:
         raw = re.sub(r'^(?!(#|$))', str(indent), raw, flags=re.MULTILINE)
-    return re.sub(re.escape(eatspace) + r' *', '', raw)
+    return re.sub(re.escape(EATSPACE) + r' *', '', raw)
 
 
 def mcgen(code, **kwds):
