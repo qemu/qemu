@@ -6,7 +6,6 @@ ignore-patterns=error.py,
                 expr.py,
                 parser.py,
                 schema.py,
-                types.py,
                 visit.py,
 
 
