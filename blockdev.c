@@ -2449,14 +2449,14 @@ BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
     return ret;
 }
 
-void qmp_block_resize(bool has_device, const char *device,
-                      bool has_node_name, const char *node_name,
-                      int64_t size, Error **errp)
+void coroutine_fn qmp_block_resize(bool has_device, const char *device,
+                                   bool has_node_name, const char *node_name,
+                                   int64_t size, Error **errp)
 {
     Error *local_err = NULL;
     BlockBackend *blk = NULL;
     BlockDriverState *bs;
-    AioContext *aio_context;
+    AioContext *old_ctx;
 
     bs = bdrv_lookup_bs(has_device ? device : NULL,
                         has_node_name ? node_name : NULL,
@@ -2465,9 +2465,6 @@ void qmp_block_resize(bool has_device, const char *device,
         error_propagate(errp, local_err);
         return;
     }
-
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
 
     if (size < 0) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
@@ -2485,12 +2482,15 @@ void qmp_block_resize(bool has_device, const char *device,
     }
 
     bdrv_drained_begin(bs);
+    old_ctx = bdrv_co_enter(bs);
     blk_truncate(blk, size, false, PREALLOC_MODE_OFF, 0, errp);
+    bdrv_co_leave(bs, old_ctx);
     bdrv_drained_end(bs);
 
 out:
+    bdrv_co_lock(bs);
     blk_unref(blk);
-    aio_context_release(aio_context);
+    bdrv_co_unlock(bs);
 }
 
 void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,

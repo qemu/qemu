@@ -6303,6 +6303,56 @@ AioContext *bdrv_get_aio_context(BlockDriverState *bs)
     return bs ? bs->aio_context : qemu_get_aio_context();
 }
 
+AioContext *coroutine_fn bdrv_co_enter(BlockDriverState *bs)
+{
+    Coroutine *self = qemu_coroutine_self();
+    AioContext *old_ctx = qemu_coroutine_get_aio_context(self);
+    AioContext *new_ctx;
+
+    /*
+     * Increase bs->in_flight to ensure that this operation is completed before
+     * moving the node to a different AioContext. Read new_ctx only afterwards.
+     */
+    bdrv_inc_in_flight(bs);
+
+    new_ctx = bdrv_get_aio_context(bs);
+    aio_co_reschedule_self(new_ctx);
+    return old_ctx;
+}
+
+void coroutine_fn bdrv_co_leave(BlockDriverState *bs, AioContext *old_ctx)
+{
+    aio_co_reschedule_self(old_ctx);
+    bdrv_dec_in_flight(bs);
+}
+
+void coroutine_fn bdrv_co_lock(BlockDriverState *bs)
+{
+    AioContext *ctx = bdrv_get_aio_context(bs);
+
+    /* In the main thread, bs->aio_context won't change concurrently */
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+
+    /*
+     * We're in coroutine context, so we already hold the lock of the main
+     * loop AioContext. Don't lock it twice to avoid deadlocks.
+     */
+    assert(qemu_in_coroutine());
+    if (ctx != qemu_get_aio_context()) {
+        aio_context_acquire(ctx);
+    }
+}
+
+void coroutine_fn bdrv_co_unlock(BlockDriverState *bs)
+{
+    AioContext *ctx = bdrv_get_aio_context(bs);
+
+    assert(qemu_in_coroutine());
+    if (ctx != qemu_get_aio_context()) {
+        aio_context_release(ctx);
+    }
+}
+
 void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co)
 {
     aio_co_enter(bdrv_get_aio_context(bs), co);

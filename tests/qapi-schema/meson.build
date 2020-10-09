@@ -142,6 +142,7 @@ schemas = [
   'nested-struct-data.json',
   'nested-struct-data-invalid-dict.json',
   'non-objects.json',
+  'oob-coroutine.json',
   'oob-test.json',
   'allow-preconfig-test.json',
   'pragma-doc-required-crap.json',
