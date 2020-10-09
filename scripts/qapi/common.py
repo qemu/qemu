@@ -30,14 +30,14 @@ def camel_to_upper(value):
     new_name = ''
     length = len(c_fun_str)
     for i in range(length):
-        c = c_fun_str[i]
-        # When c is upper and no '_' appears before, do more checks
-        if c.isupper() and (i > 0) and c_fun_str[i - 1] != '_':
+        char = c_fun_str[i]
+        # When char is upper case and no '_' appears before, do more checks
+        if char.isupper() and (i > 0) and c_fun_str[i - 1] != '_':
             if i < length - 1 and c_fun_str[i + 1].islower():
                 new_name += '_'
             elif c_fun_str[i - 1].isdigit():
                 new_name += '_'
-        new_name += c
+        new_name += char
     return new_name.lstrip('_').upper()
 
 
