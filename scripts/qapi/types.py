@@ -13,6 +13,8 @@ This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 """
 
+from typing import List, Optional
+
 from .common import (
     c_enum_const,
     c_name,
@@ -21,7 +23,16 @@ from .common import (
     mcgen,
 )
 from .gen import QAPISchemaModularCVisitor, ifcontext
-from .schema import QAPISchemaEnumMember, QAPISchemaObjectType
+from .schema import (
+    QAPISchema,
+    QAPISchemaEnumMember,
+    QAPISchemaFeature,
+    QAPISchemaObjectType,
+    QAPISchemaObjectTypeMember,
+    QAPISchemaType,
+    QAPISchemaVariants,
+)
+from .source import QAPISourceInfo
 
 
 # variants must be emitted before their container; track what has already
@@ -29,7 +40,9 @@ from .schema import QAPISchemaEnumMember, QAPISchemaObjectType
 objects_seen = set()
 
 
-def gen_enum_lookup(name, members, prefix=None):
+def gen_enum_lookup(name: str,
+                    members: List[QAPISchemaEnumMember],
+                    prefix: Optional[str] = None) -> str:
     ret = mcgen('''
 
 const QEnumLookup %(c_name)s_lookup = {
@@ -54,7 +67,9 @@ const QEnumLookup %(c_name)s_lookup = {
     return ret
 
 
-def gen_enum(name, members, prefix=None):
+def gen_enum(name: str,
+             members: List[QAPISchemaEnumMember],
+             prefix: Optional[str] = None) -> str:
     # append automatically generated _MAX value
     enum_members = members + [QAPISchemaEnumMember('_MAX', None)]
 
@@ -88,7 +103,7 @@ extern const QEnumLookup %(c_name)s_lookup;
     return ret
 
 
-def gen_fwd_object_or_array(name):
+def gen_fwd_object_or_array(name: str) -> str:
     return mcgen('''
 
 typedef struct %(c_name)s %(c_name)s;
@@ -96,7 +111,7 @@ typedef struct %(c_name)s %(c_name)s;
                  c_name=c_name(name))
 
 
-def gen_array(name, element_type):
+def gen_array(name: str, element_type: QAPISchemaType) -> str:
     return mcgen('''
 
 struct %(c_name)s {
@@ -107,7 +122,7 @@ struct %(c_name)s {
                  c_name=c_name(name), c_type=element_type.c_type())
 
 
-def gen_struct_members(members):
+def gen_struct_members(members: List[QAPISchemaObjectTypeMember]) -> str:
     ret = ''
     for memb in members:
         ret += gen_if(memb.ifcond)
@@ -124,7 +139,10 @@ def gen_struct_members(members):
     return ret
 
 
-def gen_object(name, ifcond, base, members, variants):
+def gen_object(name: str, ifcond: List[str],
+               base: Optional[QAPISchemaObjectType],
+               members: List[QAPISchemaObjectTypeMember],
+               variants: Optional[QAPISchemaVariants]) -> str:
     if name in objects_seen:
         return ''
     objects_seen.add(name)
@@ -178,7 +196,7 @@ struct %(c_name)s {
     return ret
 
 
-def gen_upcast(name, base):
+def gen_upcast(name: str, base: QAPISchemaObjectType) -> str:
     # C makes const-correctness ugly.  We have to cast away const to let
     # this function work for both const and non-const obj.
     return mcgen('''
@@ -191,7 +209,7 @@ static inline %(base)s *qapi_%(c_name)s_base(const %(c_name)s *obj)
                  c_name=c_name(name), base=base.c_name())
 
 
-def gen_variants(variants):
+def gen_variants(variants: QAPISchemaVariants) -> str:
     ret = mcgen('''
     union { /* union tag is @%(c_name)s */
 ''',
@@ -215,7 +233,7 @@ def gen_variants(variants):
     return ret
 
 
-def gen_type_cleanup_decl(name):
+def gen_type_cleanup_decl(name: str) -> str:
     ret = mcgen('''
 
 void qapi_free_%(c_name)s(%(c_name)s *obj);
@@ -225,7 +243,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(%(c_name)s, qapi_free_%(c_name)s)
     return ret
 
 
-def gen_type_cleanup(name):
+def gen_type_cleanup(name: str) -> str:
     ret = mcgen('''
 
 void qapi_free_%(c_name)s(%(c_name)s *obj)
@@ -247,12 +265,12 @@ void qapi_free_%(c_name)s(%(c_name)s *obj)
 
 class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
 
-    def __init__(self, prefix):
+    def __init__(self, prefix: str):
         super().__init__(
             prefix, 'qapi-types', ' * Schema-defined QAPI types',
             ' * Built-in QAPI types', __doc__)
 
-    def _begin_system_module(self, name):
+    def _begin_system_module(self, name: None) -> None:
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
 #include "qapi/dealloc-visitor.h"
@@ -263,7 +281,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
 #include "qapi/util.h"
 '''))
 
-    def _begin_user_module(self, name):
+    def _begin_user_module(self, name: str) -> None:
         types = self._module_basename('qapi-types', name)
         visit = self._module_basename('qapi-visit', name)
         self._genc.preamble_add(mcgen('''
@@ -277,27 +295,43 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
 #include "qapi/qapi-builtin-types.h"
 '''))
 
-    def visit_begin(self, schema):
+    def visit_begin(self, schema: QAPISchema) -> None:
         # gen_object() is recursive, ensure it doesn't visit the empty type
         objects_seen.add(schema.the_empty_object_type.name)
 
-    def _gen_type_cleanup(self, name):
+    def _gen_type_cleanup(self, name: str) -> None:
         self._genh.add(gen_type_cleanup_decl(name))
         self._genc.add(gen_type_cleanup(name))
 
-    def visit_enum_type(self, name, info, ifcond, features, members, prefix):
+    def visit_enum_type(self,
+                        name: str,
+                        info: Optional[QAPISourceInfo],
+                        ifcond: List[str],
+                        features: List[QAPISchemaFeature],
+                        members: List[QAPISchemaEnumMember],
+                        prefix: Optional[str]) -> None:
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.preamble_add(gen_enum(name, members, prefix))
             self._genc.add(gen_enum_lookup(name, members, prefix))
 
-    def visit_array_type(self, name, info, ifcond, element_type):
+    def visit_array_type(self,
+                         name: str,
+                         info: Optional[QAPISourceInfo],
+                         ifcond: List[str],
+                         element_type: QAPISchemaType) -> None:
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.preamble_add(gen_fwd_object_or_array(name))
             self._genh.add(gen_array(name, element_type))
             self._gen_type_cleanup(name)
 
-    def visit_object_type(self, name, info, ifcond, features,
-                          base, members, variants):
+    def visit_object_type(self,
+                          name: str,
+                          info: Optional[QAPISourceInfo],
+                          ifcond: List[str],
+                          features: List[QAPISchemaFeature],
+                          base: Optional[QAPISchemaObjectType],
+                          members: List[QAPISchemaObjectTypeMember],
+                          variants: Optional[QAPISchemaVariants]) -> None:
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
@@ -313,7 +347,12 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
                 # implicit types won't be directly allocated/freed
                 self._gen_type_cleanup(name)
 
-    def visit_alternate_type(self, name, info, ifcond, features, variants):
+    def visit_alternate_type(self,
+                             name: str,
+                             info: QAPISourceInfo,
+                             ifcond: List[str],
+                             features: List[QAPISchemaFeature],
+                             variants: QAPISchemaVariants) -> None:
         with ifcontext(ifcond, self._genh):
             self._genh.preamble_add(gen_fwd_object_or_array(name))
         self._genh.add(gen_object(name, ifcond, None,
@@ -322,7 +361,10 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
             self._gen_type_cleanup(name)
 
 
-def gen_types(schema, output_dir, prefix, opt_builtins):
+def gen_types(schema: QAPISchema,
+              output_dir: str,
+              prefix: str,
+              opt_builtins: bool) -> None:
     vis = QAPISchemaGenTypeVisitor(prefix)
     schema.visit(vis)
     vis.write(output_dir, opt_builtins)
