@@ -198,14 +198,12 @@ def gen_register_command(name, success_response, allow_oob, allow_preconfig,
     if not options:
         options = ['QCO_NO_OPTIONS']
 
-    options = " | ".join(options)
-
     ret = mcgen('''
     qmp_register_command(cmds, "%(name)s",
                          qmp_marshal_%(c_name)s, %(opts)s);
 ''',
                 name=name, c_name=c_name(name),
-                opts=options)
+                opts=" | ".join(options))
     return ret
 
 
