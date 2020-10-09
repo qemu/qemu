@@ -188,7 +188,7 @@ static inline bool cpu_mips_hw_interrupts_pending(CPUMIPSState *env)
         /*
          * A MIPS configured with a vectorizing external interrupt controller
          * will feed a vector into the Cause pending lines. The core treats
-         * the status lines as a vector level, not as indiviual masks.
+         * the status lines as a vector level, not as individual masks.
          */
         r = pending > status;
     } else {
