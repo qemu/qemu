@@ -12,6 +12,9 @@ int vnc_display_pw_expire(const char *id, time_t expires)
 };
 QemuOpts *vnc_parse(const char *str, Error **errp)
 {
+    if (strcmp(str, "none") == 0) {
+        return NULL;
+    }
     error_setg(errp, "VNC support is disabled");
     return NULL;
 }
