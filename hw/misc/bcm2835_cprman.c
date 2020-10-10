@@ -48,6 +48,52 @@
 #include "hw/misc/bcm2835_cprman_internals.h"
 #include "trace.h"
 
+/* PLL */
+
+static void pll_update(CprmanPllState *pll)
+{
+    clock_update(pll->out, 0);
+}
+
+static void pll_xosc_update(void *opaque)
+{
+    pll_update(CPRMAN_PLL(opaque));
+}
+
+static void pll_init(Object *obj)
+{
+    CprmanPllState *s = CPRMAN_PLL(obj);
+
+    s->xosc_in = qdev_init_clock_in(DEVICE(s), "xosc-in", pll_xosc_update, s);
+    s->out = qdev_init_clock_out(DEVICE(s), "out");
+}
+
+static const VMStateDescription pll_vmstate = {
+    .name = TYPE_CPRMAN_PLL,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_CLOCK(xosc_in, CprmanPllState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void pll_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->vmsd = &pll_vmstate;
+}
+
+static const TypeInfo cprman_pll_info = {
+    .name = TYPE_CPRMAN_PLL,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(CprmanPllState),
+    .class_init = pll_class_init,
+    .instance_init = pll_init,
+};
+
+
 /* CPRMAN "top level" model */
 
 static uint64_t cprman_read(void *opaque, hwaddr offset,
@@ -66,6 +112,15 @@ static uint64_t cprman_read(void *opaque, hwaddr offset,
     return r;
 }
 
+#define CASE_PLL_REGS(pll_)       \
+    case R_CM_ ## pll_:           \
+    case R_A2W_ ## pll_ ## _CTRL: \
+    case R_A2W_ ## pll_ ## _ANA0: \
+    case R_A2W_ ## pll_ ## _ANA1: \
+    case R_A2W_ ## pll_ ## _ANA2: \
+    case R_A2W_ ## pll_ ## _ANA3: \
+    case R_A2W_ ## pll_ ## _FRAC
+
 static void cprman_write(void *opaque, hwaddr offset,
                          uint64_t value, unsigned size)
 {
@@ -82,7 +137,30 @@ static void cprman_write(void *opaque, hwaddr offset,
     trace_bcm2835_cprman_write(offset, value);
     s->regs[idx] = value;
 
+    switch (idx) {
+    CASE_PLL_REGS(PLLA) :
+        pll_update(&s->plls[CPRMAN_PLLA]);
+        break;
+
+    CASE_PLL_REGS(PLLC) :
+        pll_update(&s->plls[CPRMAN_PLLC]);
+        break;
+
+    CASE_PLL_REGS(PLLD) :
+        pll_update(&s->plls[CPRMAN_PLLD]);
+        break;
+
+    CASE_PLL_REGS(PLLH) :
+        pll_update(&s->plls[CPRMAN_PLLH]);
+        break;
+
+    CASE_PLL_REGS(PLLB) :
+        pll_update(&s->plls[CPRMAN_PLLB]);
+        break;
+    }
 }
+
+#undef CASE_PLL_REGS
 
 static const MemoryRegionOps cprman_ops = {
     .read = cprman_read,
@@ -106,8 +184,13 @@ static const MemoryRegionOps cprman_ops = {
 static void cprman_reset(DeviceState *dev)
 {
     BCM2835CprmanState *s = CPRMAN(dev);
+    size_t i;
 
     memset(s->regs, 0, sizeof(s->regs));
+
+    for (i = 0; i < CPRMAN_NUM_PLL; i++) {
+        device_cold_reset(DEVICE(&s->plls[i]));
+    }
 
     clock_update_hz(s->xosc, s->xosc_freq);
 }
@@ -115,12 +198,35 @@ static void cprman_reset(DeviceState *dev)
 static void cprman_init(Object *obj)
 {
     BCM2835CprmanState *s = CPRMAN(obj);
+    size_t i;
+
+    for (i = 0; i < CPRMAN_NUM_PLL; i++) {
+        object_initialize_child(obj, PLL_INIT_INFO[i].name,
+                                &s->plls[i], TYPE_CPRMAN_PLL);
+        set_pll_init_info(s, &s->plls[i], i);
+    }
 
     s->xosc = clock_new(obj, "xosc");
 
     memory_region_init_io(&s->iomem, obj, &cprman_ops,
                           s, "bcm2835-cprman", 0x2000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+}
+
+static void cprman_realize(DeviceState *dev, Error **errp)
+{
+    BCM2835CprmanState *s = CPRMAN(dev);
+    size_t i;
+
+    for (i = 0; i < CPRMAN_NUM_PLL; i++) {
+        CprmanPllState *pll = &s->plls[i];
+
+        clock_set_source(pll->xosc_in, s->xosc);
+
+        if (!qdev_realize(DEVICE(pll), NULL, errp)) {
+            return;
+        }
+    }
 }
 
 static const VMStateDescription cprman_vmstate = {
@@ -142,6 +248,7 @@ static void cprman_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->realize = cprman_realize;
     dc->reset = cprman_reset;
     dc->vmsd = &cprman_vmstate;
     device_class_set_props(dc, cprman_properties);
@@ -158,6 +265,7 @@ static const TypeInfo cprman_info = {
 static void cprman_register_types(void)
 {
     type_register_static(&cprman_info);
+    type_register_static(&cprman_pll_info);
 }
 
 type_init(cprman_register_types);
