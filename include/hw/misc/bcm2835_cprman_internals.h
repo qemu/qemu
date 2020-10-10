@@ -100,6 +100,14 @@ REG32(A2W_PLLD_FRAC, 0x1240)
 REG32(A2W_PLLH_FRAC, 0x1260)
 REG32(A2W_PLLB_FRAC, 0x12e0)
 
+/* misc registers */
+REG32(CM_LOCK, 0x114)
+    FIELD(CM_LOCK, FLOCKH, 12, 1)
+    FIELD(CM_LOCK, FLOCKD, 11, 1)
+    FIELD(CM_LOCK, FLOCKC, 10, 1)
+    FIELD(CM_LOCK, FLOCKB, 9, 1)
+    FIELD(CM_LOCK, FLOCKA, 8, 1)
+
 /*
  * This field is common to all registers. Each register write value must match
  * the CPRMAN_PASSWORD magic value in its 8 MSB.

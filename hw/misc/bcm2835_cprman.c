@@ -50,9 +50,47 @@
 
 /* PLL */
 
+static bool pll_is_locked(const CprmanPllState *pll)
+{
+    return !FIELD_EX32(*pll->reg_a2w_ctrl, A2W_PLLx_CTRL, PWRDN)
+        && !FIELD_EX32(*pll->reg_cm, CM_PLLx, ANARST);
+}
+
 static void pll_update(CprmanPllState *pll)
 {
-    clock_update(pll->out, 0);
+    uint64_t freq, ndiv, fdiv, pdiv;
+
+    if (!pll_is_locked(pll)) {
+        clock_update(pll->out, 0);
+        return;
+    }
+
+    pdiv = FIELD_EX32(*pll->reg_a2w_ctrl, A2W_PLLx_CTRL, PDIV);
+
+    if (!pdiv) {
+        clock_update(pll->out, 0);
+        return;
+    }
+
+    ndiv = FIELD_EX32(*pll->reg_a2w_ctrl, A2W_PLLx_CTRL, NDIV);
+    fdiv = FIELD_EX32(*pll->reg_a2w_frac, A2W_PLLx_FRAC, FRAC);
+
+    if (pll->reg_a2w_ana[1] & pll->prediv_mask) {
+        /* The prescaler doubles the parent frequency */
+        ndiv *= 2;
+        fdiv *= 2;
+    }
+
+    /*
+     * We have a multiplier with an integer part (ndiv) and a fractional part
+     * (fdiv), and a divider (pdiv).
+     */
+    freq = clock_get_hz(pll->xosc_in) *
+        ((ndiv << R_A2W_PLLx_FRAC_FRAC_LENGTH) + fdiv);
+    freq /= pdiv;
+    freq >>= R_A2W_PLLx_FRAC_FRAC_LENGTH;
+
+    clock_update_hz(pll->out, freq);
 }
 
 static void pll_xosc_update(void *opaque)
@@ -96,6 +134,26 @@ static const TypeInfo cprman_pll_info = {
 
 /* CPRMAN "top level" model */
 
+static uint32_t get_cm_lock(const BCM2835CprmanState *s)
+{
+    static const int CM_LOCK_MAPPING[CPRMAN_NUM_PLL] = {
+        [CPRMAN_PLLA] = R_CM_LOCK_FLOCKA_SHIFT,
+        [CPRMAN_PLLC] = R_CM_LOCK_FLOCKC_SHIFT,
+        [CPRMAN_PLLD] = R_CM_LOCK_FLOCKD_SHIFT,
+        [CPRMAN_PLLH] = R_CM_LOCK_FLOCKH_SHIFT,
+        [CPRMAN_PLLB] = R_CM_LOCK_FLOCKB_SHIFT,
+    };
+
+    uint32_t r = 0;
+    size_t i;
+
+    for (i = 0; i < CPRMAN_NUM_PLL; i++) {
+        r |= pll_is_locked(&s->plls[i]) << CM_LOCK_MAPPING[i];
+    }
+
+    return r;
+}
+
 static uint64_t cprman_read(void *opaque, hwaddr offset,
                             unsigned size)
 {
@@ -104,6 +162,10 @@ static uint64_t cprman_read(void *opaque, hwaddr offset,
     size_t idx = offset / sizeof(uint32_t);
 
     switch (idx) {
+    case R_CM_LOCK:
+        r = get_cm_lock(s);
+        break;
+
     default:
         r = s->regs[idx];
     }
