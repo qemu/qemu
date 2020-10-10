@@ -231,15 +231,66 @@ static const TypeInfo cprman_pll_channel_info = {
 
 /* clock mux */
 
+static bool clock_mux_is_enabled(CprmanClockMuxState *mux)
+{
+    return FIELD_EX32(*mux->reg_ctl, CM_CLOCKx_CTL, ENABLE);
+}
+
 static void clock_mux_update(CprmanClockMuxState *mux)
 {
-    clock_update(mux->out, 0);
+    uint64_t freq;
+    uint32_t div, src = FIELD_EX32(*mux->reg_ctl, CM_CLOCKx_CTL, SRC);
+    bool enabled = clock_mux_is_enabled(mux);
+
+    *mux->reg_ctl = FIELD_DP32(*mux->reg_ctl, CM_CLOCKx_CTL, BUSY, enabled);
+
+    if (!enabled) {
+        clock_update(mux->out, 0);
+        return;
+    }
+
+    freq = clock_get_hz(mux->srcs[src]);
+
+    if (mux->int_bits == 0 && mux->frac_bits == 0) {
+        clock_update_hz(mux->out, freq);
+        return;
+    }
+
+    /*
+     * The divider has an integer and a fractional part. The size of each part
+     * varies with the muxes (int_bits and frac_bits). Both parts are
+     * concatenated, with the integer part always starting at bit 12.
+     *
+     *         31          12 11          0
+     *        ------------------------------
+     * CM_DIV |      |  int  |  frac  |    |
+     *        ------------------------------
+     *                <-----> <------>
+     *                int_bits frac_bits
+     */
+    div = extract32(*mux->reg_div,
+                    R_CM_CLOCKx_DIV_FRAC_LENGTH - mux->frac_bits,
+                    mux->int_bits + mux->frac_bits);
+
+    if (!div) {
+        clock_update(mux->out, 0);
+        return;
+    }
+
+    freq = muldiv64(freq, 1 << mux->frac_bits, div);
+
+    clock_update_hz(mux->out, freq);
 }
 
 static void clock_mux_src_update(void *opaque)
 {
     CprmanClockMuxState **backref = opaque;
     CprmanClockMuxState *s = *backref;
+    CprmanClockMuxSource src = backref - s->backref;
+
+    if (FIELD_EX32(*s->reg_ctl, CM_CLOCKx_CTL, SRC) != src) {
+        return;
+    }
 
     clock_mux_update(s);
 }
