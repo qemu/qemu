@@ -45,9 +45,8 @@
 #define ARMCTRL_TIMER0_1_OFFSET (ARM_OFFSET + 0x400) /* Timer 0 and 1 (SP804) */
 #define ARMCTRL_0_SBM_OFFSET    (ARM_OFFSET + 0x800) /* User 0 (ARM) Semaphores
                                                       * Doorbells & Mailboxes */
-#define CPRMAN_OFFSET           0x100000 /* Power Management, Watchdog */
-#define CM_OFFSET               0x101000 /* Clock Management */
-#define A2W_OFFSET              0x102000 /* Reset controller */
+#define PM_OFFSET               0x100000 /* Power Management */
+#define CPRMAN_OFFSET           0x101000 /* Clock Management */
 #define AVS_OFFSET              0x103000 /* Audio Video Standard */
 #define RNG_OFFSET              0x104000
 #define GPIO_OFFSET             0x200000
