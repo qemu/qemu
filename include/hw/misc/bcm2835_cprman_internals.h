@@ -14,11 +14,14 @@
 
 #define TYPE_CPRMAN_PLL "bcm2835-cprman-pll"
 #define TYPE_CPRMAN_PLL_CHANNEL "bcm2835-cprman-pll-channel"
+#define TYPE_CPRMAN_CLOCK_MUX "bcm2835-cprman-clock-mux"
 
 DECLARE_INSTANCE_CHECKER(CprmanPllState, CPRMAN_PLL,
                          TYPE_CPRMAN_PLL)
 DECLARE_INSTANCE_CHECKER(CprmanPllChannelState, CPRMAN_PLL_CHANNEL,
                          TYPE_CPRMAN_PLL_CHANNEL)
+DECLARE_INSTANCE_CHECKER(CprmanClockMuxState, CPRMAN_CLOCK_MUX,
+                         TYPE_CPRMAN_CLOCK_MUX)
 
 /* Register map */
 
@@ -127,6 +130,90 @@ REG32(A2W_PLLH_PIX, 0x1560)
 REG32(A2W_PLLH_STS, 0x1660)
 
 REG32(A2W_PLLB_ARM, 0x13e0)
+
+/* Clock muxes */
+REG32(CM_GNRICCTL, 0x000)
+    FIELD(CM_CLOCKx_CTL, SRC, 0, 4)
+    FIELD(CM_CLOCKx_CTL, ENABLE, 4, 1)
+    FIELD(CM_CLOCKx_CTL, KILL, 5, 1)
+    FIELD(CM_CLOCKx_CTL, GATE, 6, 1)
+    FIELD(CM_CLOCKx_CTL, BUSY, 7, 1)
+    FIELD(CM_CLOCKx_CTL, BUSYD, 8, 1)
+    FIELD(CM_CLOCKx_CTL, MASH, 9, 2)
+    FIELD(CM_CLOCKx_CTL, FLIP, 11, 1)
+REG32(CM_GNRICDIV, 0x004)
+    FIELD(CM_CLOCKx_DIV, FRAC, 0, 12)
+REG32(CM_VPUCTL, 0x008)
+REG32(CM_VPUDIV, 0x00c)
+REG32(CM_SYSCTL, 0x010)
+REG32(CM_SYSDIV, 0x014)
+REG32(CM_PERIACTL, 0x018)
+REG32(CM_PERIADIV, 0x01c)
+REG32(CM_PERIICTL, 0x020)
+REG32(CM_PERIIDIV, 0x024)
+REG32(CM_H264CTL, 0x028)
+REG32(CM_H264DIV, 0x02c)
+REG32(CM_ISPCTL, 0x030)
+REG32(CM_ISPDIV, 0x034)
+REG32(CM_V3DCTL, 0x038)
+REG32(CM_V3DDIV, 0x03c)
+REG32(CM_CAM0CTL, 0x040)
+REG32(CM_CAM0DIV, 0x044)
+REG32(CM_CAM1CTL, 0x048)
+REG32(CM_CAM1DIV, 0x04c)
+REG32(CM_CCP2CTL, 0x050)
+REG32(CM_CCP2DIV, 0x054)
+REG32(CM_DSI0ECTL, 0x058)
+REG32(CM_DSI0EDIV, 0x05c)
+REG32(CM_DSI0PCTL, 0x060)
+REG32(CM_DSI0PDIV, 0x064)
+REG32(CM_DPICTL, 0x068)
+REG32(CM_DPIDIV, 0x06c)
+REG32(CM_GP0CTL, 0x070)
+REG32(CM_GP0DIV, 0x074)
+REG32(CM_GP1CTL, 0x078)
+REG32(CM_GP1DIV, 0x07c)
+REG32(CM_GP2CTL, 0x080)
+REG32(CM_GP2DIV, 0x084)
+REG32(CM_HSMCTL, 0x088)
+REG32(CM_HSMDIV, 0x08c)
+REG32(CM_OTPCTL, 0x090)
+REG32(CM_OTPDIV, 0x094)
+REG32(CM_PCMCTL, 0x098)
+REG32(CM_PCMDIV, 0x09c)
+REG32(CM_PWMCTL, 0x0a0)
+REG32(CM_PWMDIV, 0x0a4)
+REG32(CM_SLIMCTL, 0x0a8)
+REG32(CM_SLIMDIV, 0x0ac)
+REG32(CM_SMICTL, 0x0b0)
+REG32(CM_SMIDIV, 0x0b4)
+REG32(CM_TCNTCTL, 0x0c0)
+REG32(CM_TCNTCNT, 0x0c4)
+REG32(CM_TECCTL, 0x0c8)
+REG32(CM_TECDIV, 0x0cc)
+REG32(CM_TD0CTL, 0x0d0)
+REG32(CM_TD0DIV, 0x0d4)
+REG32(CM_TD1CTL, 0x0d8)
+REG32(CM_TD1DIV, 0x0dc)
+REG32(CM_TSENSCTL, 0x0e0)
+REG32(CM_TSENSDIV, 0x0e4)
+REG32(CM_TIMERCTL, 0x0e8)
+REG32(CM_TIMERDIV, 0x0ec)
+REG32(CM_UARTCTL, 0x0f0)
+REG32(CM_UARTDIV, 0x0f4)
+REG32(CM_VECCTL, 0x0f8)
+REG32(CM_VECDIV, 0x0fc)
+REG32(CM_PULSECTL, 0x190)
+REG32(CM_PULSEDIV, 0x194)
+REG32(CM_SDCCTL, 0x1a8)
+REG32(CM_SDCDIV, 0x1ac)
+REG32(CM_ARMCTL, 0x1b0)
+REG32(CM_AVEOCTL, 0x1b8)
+REG32(CM_AVEODIV, 0x1bc)
+REG32(CM_EMMCCTL, 0x1c0)
+REG32(CM_EMMCDIV, 0x1c4)
+REG32(CM_EMMC2CTL, 0x1d0)
+REG32(CM_EMMC2DIV, 0x1d4)
 
 /* misc registers */
 REG32(CM_LOCK, 0x114)
@@ -317,6 +404,341 @@ static inline void set_pll_channel_init_info(BCM2835CprmanState *s,
     channel->load_mask = PLL_CHANNEL_INIT_INFO[id].cm_load_mask;
     channel->reg_a2w_ctrl = &s->regs[PLL_CHANNEL_INIT_INFO[id].a2w_ctrl_offset];
     channel->fixed_divider = PLL_CHANNEL_INIT_INFO[id].fixed_divider;
+}
+
+/* Clock mux init info */
+typedef struct ClockMuxInitInfo {
+    const char *name;
+    size_t cm_offset; /* cm_offset[0]->CM_CTL, cm_offset[1]->CM_DIV */
+    int int_bits;
+    int frac_bits;
+
+    CprmanPllChannel src_mapping[CPRMAN_NUM_CLOCK_MUX_SRC];
+} ClockMuxInitInfo;
+
+/*
+ * Each clock mux can have up to 10 sources. Sources 0 to 3 are always the
+ * same (ground, xosc, td0, td1). Sources 4 to 9 are mux specific, and are not
+ * always populated. The following macros catch all those cases.
+ */
+
+/* Unknown mapping. Connect everything to ground */
+#define SRC_MAPPING_INFO_unknown                          \
+    .src_mapping = {                                      \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, /* gnd */          \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, /* xosc */         \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, /* test debug 0 */ \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, /* test debug 1 */ \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, /* pll a */        \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, /* pll c */        \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, /* pll d */        \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, /* pll h */        \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, /* pll c, core1 */ \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, /* pll c, core2 */ \
+    }
+
+/* Only the oscillator and the two test debug clocks */
+#define SRC_MAPPING_INFO_xosc          \
+    .src_mapping = {                   \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+    }
+
+/* All the PLL "core" channels */
+#define SRC_MAPPING_INFO_core      \
+    .src_mapping = {               \
+        CPRMAN_CLOCK_SRC_NORMAL,   \
+        CPRMAN_CLOCK_SRC_NORMAL,   \
+        CPRMAN_CLOCK_SRC_NORMAL,   \
+        CPRMAN_CLOCK_SRC_NORMAL,   \
+        CPRMAN_PLLA_CHANNEL_CORE,  \
+        CPRMAN_PLLC_CHANNEL_CORE0, \
+        CPRMAN_PLLD_CHANNEL_CORE,  \
+        CPRMAN_PLLH_CHANNEL_AUX,   \
+        CPRMAN_PLLC_CHANNEL_CORE1, \
+        CPRMAN_PLLC_CHANNEL_CORE2, \
+    }
+
+/* All the PLL "per" channels */
+#define SRC_MAPPING_INFO_periph        \
+    .src_mapping = {                   \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_PLLA_CHANNEL_PER,       \
+        CPRMAN_PLLC_CHANNEL_PER,       \
+        CPRMAN_PLLD_CHANNEL_PER,       \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+    }
+
+/*
+ * The DSI0 channels. This one got an intermediate mux between the PLL channels
+ * and the clock input.
+ */
+#define SRC_MAPPING_INFO_dsi0          \
+    .src_mapping = {                   \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_DSI0HSCK,     \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+    }
+
+/* The DSI1 channel */
+#define SRC_MAPPING_INFO_dsi1          \
+    .src_mapping = {                   \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_CLOCK_SRC_NORMAL,       \
+        CPRMAN_PLLD_CHANNEL_DSI1,      \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+        CPRMAN_CLOCK_SRC_FORCE_GROUND, \
+    }
+
+#define FILL_CLOCK_MUX_SRC_MAPPING_INIT_INFO(kind_) \
+    SRC_MAPPING_INFO_ ## kind_
+
+#define FILL_CLOCK_MUX_INIT_INFO(clock_, kind_) \
+    .cm_offset = R_CM_ ## clock_ ## CTL,        \
+    FILL_CLOCK_MUX_SRC_MAPPING_INIT_INFO(kind_)
+
+static ClockMuxInitInfo CLOCK_MUX_INIT_INFO[] = {
+    [CPRMAN_CLOCK_GNRIC] = {
+        .name = "gnric",
+        FILL_CLOCK_MUX_INIT_INFO(GNRIC, unknown),
+    },
+    [CPRMAN_CLOCK_VPU] = {
+        .name = "vpu",
+        .int_bits = 12,
+        .frac_bits = 8,
+        FILL_CLOCK_MUX_INIT_INFO(VPU, core),
+    },
+    [CPRMAN_CLOCK_SYS] = {
+        .name = "sys",
+        FILL_CLOCK_MUX_INIT_INFO(SYS, unknown),
+    },
+    [CPRMAN_CLOCK_PERIA] = {
+        .name = "peria",
+        FILL_CLOCK_MUX_INIT_INFO(PERIA, unknown),
+    },
+    [CPRMAN_CLOCK_PERII] = {
+        .name = "perii",
+        FILL_CLOCK_MUX_INIT_INFO(PERII, unknown),
+    },
+    [CPRMAN_CLOCK_H264] = {
+        .name = "h264",
+        .int_bits = 4,
+        .frac_bits = 8,
+        FILL_CLOCK_MUX_INIT_INFO(H264, core),
+    },
+    [CPRMAN_CLOCK_ISP] = {
+        .name = "isp",
+        .int_bits = 4,
+        .frac_bits = 8,
+        FILL_CLOCK_MUX_INIT_INFO(ISP, core),
+    },
+    [CPRMAN_CLOCK_V3D] = {
+        .name = "v3d",
+        FILL_CLOCK_MUX_INIT_INFO(V3D, core),
+    },
+    [CPRMAN_CLOCK_CAM0] = {
+        .name = "cam0",
+        .int_bits = 4,
+        .frac_bits = 8,
+        FILL_CLOCK_MUX_INIT_INFO(CAM0, periph),
+    },
+    [CPRMAN_CLOCK_CAM1] = {
+        .name = "cam1",
+        .int_bits = 4,
+        .frac_bits = 8,
+        FILL_CLOCK_MUX_INIT_INFO(CAM1, periph),
+    },
+    [CPRMAN_CLOCK_CCP2] = {
+        .name = "ccp2",
+        FILL_CLOCK_MUX_INIT_INFO(CCP2, unknown),
+    },
+    [CPRMAN_CLOCK_DSI0E] = {
+        .name = "dsi0e",
+        .int_bits = 4,
+        .frac_bits = 8,
+        FILL_CLOCK_MUX_INIT_INFO(DSI0E, dsi0),
+    },
+    [CPRMAN_CLOCK_DSI0P] = {
+        .name = "dsi0p",
+        .int_bits = 0,
+        .frac_bits = 0,
+        FILL_CLOCK_MUX_INIT_INFO(DSI0P, dsi0),
+    },
+    [CPRMAN_CLOCK_DPI] = {
+        .name = "dpi",
+        .int_bits = 4,
+        .frac_bits = 8,
+        FILL_CLOCK_MUX_INIT_INFO(DPI, periph),
+    },
+    [CPRMAN_CLOCK_GP0] = {
+        .name = "gp0",
+        .int_bits = 12,
+        .frac_bits = 12,
+        FILL_CLOCK_MUX_INIT_INFO(GP0, periph),
+    },
+    [CPRMAN_CLOCK_GP1] = {
+        .name = "gp1",
+        .int_bits = 12,
+        .frac_bits = 12,
+        FILL_CLOCK_MUX_INIT_INFO(GP1, periph),
+    },
+    [CPRMAN_CLOCK_GP2] = {
+        .name = "gp2",
+        .int_bits = 12,
+        .frac_bits = 12,
+        FILL_CLOCK_MUX_INIT_INFO(GP2, periph),
+    },
+    [CPRMAN_CLOCK_HSM] = {
+        .name = "hsm",
+        .int_bits = 4,
+        .frac_bits = 8,
+        FILL_CLOCK_MUX_INIT_INFO(HSM, periph),
+    },
+    [CPRMAN_CLOCK_OTP] = {
+        .name = "otp",
+        .int_bits = 4,
+        .frac_bits = 0,
+        FILL_CLOCK_MUX_INIT_INFO(OTP, xosc),
+    },
+    [CPRMAN_CLOCK_PCM] = {
+        .name = "pcm",
+        .int_bits = 12,
+        .frac_bits = 12,
+        FILL_CLOCK_MUX_INIT_INFO(PCM, periph),
+    },
+    [CPRMAN_CLOCK_PWM] = {
+        .name = "pwm",
+        .int_bits = 12,
+        .frac_bits = 12,
+        FILL_CLOCK_MUX_INIT_INFO(PWM, periph),
+    },
+    [CPRMAN_CLOCK_SLIM] = {
+        .name = "slim",
+        .int_bits = 12,
+        .frac_bits = 12,
+        FILL_CLOCK_MUX_INIT_INFO(SLIM, periph),
+    },
+    [CPRMAN_CLOCK_SMI] = {
+        .name = "smi",
+        .int_bits = 4,
+        .frac_bits = 8,
+        FILL_CLOCK_MUX_INIT_INFO(SMI, periph),
+    },
+    [CPRMAN_CLOCK_TEC] = {
+        .name = "tec",
+        .int_bits = 6,
+        .frac_bits = 0,
+        FILL_CLOCK_MUX_INIT_INFO(TEC, xosc),
+    },
+    [CPRMAN_CLOCK_TD0] = {
+        .name = "td0",
+        FILL_CLOCK_MUX_INIT_INFO(TD0, unknown),
+    },
+    [CPRMAN_CLOCK_TD1] = {
+        .name = "td1",
+        FILL_CLOCK_MUX_INIT_INFO(TD1, unknown),
+    },
+    [CPRMAN_CLOCK_TSENS] = {
+        .name = "tsens",
+        .int_bits = 5,
+        .frac_bits = 0,
+        FILL_CLOCK_MUX_INIT_INFO(TSENS, xosc),
+    },
+    [CPRMAN_CLOCK_TIMER] = {
+        .name = "timer",
+        .int_bits = 6,
+        .frac_bits = 12,
+        FILL_CLOCK_MUX_INIT_INFO(TIMER, xosc),
+    },
+    [CPRMAN_CLOCK_UART] = {
+        .name = "uart",
+        .int_bits = 10,
+        .frac_bits = 12,
+        FILL_CLOCK_MUX_INIT_INFO(UART, periph),
+    },
+    [CPRMAN_CLOCK_VEC] = {
+        .name = "vec",
+        .int_bits = 4,
+        .frac_bits = 0,
+        FILL_CLOCK_MUX_INIT_INFO(VEC, periph),
+    },
+    [CPRMAN_CLOCK_PULSE] = {
+        .name = "pulse",
+        FILL_CLOCK_MUX_INIT_INFO(PULSE, xosc),
+    },
+    [CPRMAN_CLOCK_SDC] = {
+        .name = "sdram",
+        .int_bits = 6,
+        .frac_bits = 0,
+        FILL_CLOCK_MUX_INIT_INFO(SDC, core),
+    },
+    [CPRMAN_CLOCK_ARM] = {
+        .name = "arm",
+        FILL_CLOCK_MUX_INIT_INFO(ARM, unknown),
+    },
+    [CPRMAN_CLOCK_AVEO] = {
+        .name = "aveo",
+        .int_bits = 4,
+        .frac_bits = 0,
+        FILL_CLOCK_MUX_INIT_INFO(AVEO, periph),
+    },
+    [CPRMAN_CLOCK_EMMC] = {
+        .name = "emmc",
+        .int_bits = 4,
+        .frac_bits = 8,
+        FILL_CLOCK_MUX_INIT_INFO(EMMC, periph),
+    },
+    [CPRMAN_CLOCK_EMMC2] = {
+        .name = "emmc2",
+        .int_bits = 4,
+        .frac_bits = 8,
+        FILL_CLOCK_MUX_INIT_INFO(EMMC2, unknown),
+    },
+};
+
+#undef FILL_CLOCK_MUX_INIT_INFO
+#undef FILL_CLOCK_MUX_SRC_MAPPING_INIT_INFO
+#undef SRC_MAPPING_INFO_dsi1
+#undef SRC_MAPPING_INFO_dsi0
+#undef SRC_MAPPING_INFO_periph
+#undef SRC_MAPPING_INFO_core
+#undef SRC_MAPPING_INFO_xosc
+#undef SRC_MAPPING_INFO_unknown
+
+static inline void set_clock_mux_init_info(BCM2835CprmanState *s,
+                                           CprmanClockMuxState *mux,
+                                           CprmanClockMux id)
+{
+    mux->id = id;
+    mux->reg_ctl = &s->regs[CLOCK_MUX_INIT_INFO[id].cm_offset];
+    mux->reg_div = &s->regs[CLOCK_MUX_INIT_INFO[id].cm_offset + 1];
+    mux->int_bits = CLOCK_MUX_INIT_INFO[id].int_bits;
+    mux->frac_bits = CLOCK_MUX_INIT_INFO[id].frac_bits;
 }
 
 #endif

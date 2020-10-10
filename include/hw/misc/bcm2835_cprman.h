@@ -54,7 +54,68 @@ typedef enum CprmanPllChannel {
     CPRMAN_PLLB_CHANNEL_ARM,
 
     CPRMAN_NUM_PLL_CHANNEL,
+
+    /* Special values used when connecting clock sources to clocks */
+    CPRMAN_CLOCK_SRC_NORMAL = -1,
+    CPRMAN_CLOCK_SRC_FORCE_GROUND = -2,
+    CPRMAN_CLOCK_SRC_DSI0HSCK = -3,
 } CprmanPllChannel;
+
+typedef enum CprmanClockMux {
+    CPRMAN_CLOCK_GNRIC,
+    CPRMAN_CLOCK_VPU,
+    CPRMAN_CLOCK_SYS,
+    CPRMAN_CLOCK_PERIA,
+    CPRMAN_CLOCK_PERII,
+    CPRMAN_CLOCK_H264,
+    CPRMAN_CLOCK_ISP,
+    CPRMAN_CLOCK_V3D,
+    CPRMAN_CLOCK_CAM0,
+    CPRMAN_CLOCK_CAM1,
+    CPRMAN_CLOCK_CCP2,
+    CPRMAN_CLOCK_DSI0E,
+    CPRMAN_CLOCK_DSI0P,
+    CPRMAN_CLOCK_DPI,
+    CPRMAN_CLOCK_GP0,
+    CPRMAN_CLOCK_GP1,
+    CPRMAN_CLOCK_GP2,
+    CPRMAN_CLOCK_HSM,
+    CPRMAN_CLOCK_OTP,
+    CPRMAN_CLOCK_PCM,
+    CPRMAN_CLOCK_PWM,
+    CPRMAN_CLOCK_SLIM,
+    CPRMAN_CLOCK_SMI,
+    CPRMAN_CLOCK_TEC,
+    CPRMAN_CLOCK_TD0,
+    CPRMAN_CLOCK_TD1,
+    CPRMAN_CLOCK_TSENS,
+    CPRMAN_CLOCK_TIMER,
+    CPRMAN_CLOCK_UART,
+    CPRMAN_CLOCK_VEC,
+    CPRMAN_CLOCK_PULSE,
+    CPRMAN_CLOCK_SDC,
+    CPRMAN_CLOCK_ARM,
+    CPRMAN_CLOCK_AVEO,
+    CPRMAN_CLOCK_EMMC,
+    CPRMAN_CLOCK_EMMC2,
+
+    CPRMAN_NUM_CLOCK_MUX
+} CprmanClockMux;
+
+typedef enum CprmanClockMuxSource {
+    CPRMAN_CLOCK_SRC_GND = 0,
+    CPRMAN_CLOCK_SRC_XOSC,
+    CPRMAN_CLOCK_SRC_TD0,
+    CPRMAN_CLOCK_SRC_TD1,
+    CPRMAN_CLOCK_SRC_PLLA,
+    CPRMAN_CLOCK_SRC_PLLC,
+    CPRMAN_CLOCK_SRC_PLLD,
+    CPRMAN_CLOCK_SRC_PLLH,
+    CPRMAN_CLOCK_SRC_PLLC_CORE1,
+    CPRMAN_CLOCK_SRC_PLLC_CORE2,
+
+    CPRMAN_NUM_CLOCK_MUX_SRC
+} CprmanClockMuxSource;
 
 typedef struct CprmanPllState {
     /*< private >*/
@@ -91,6 +152,28 @@ typedef struct CprmanPllChannelState {
     Clock *out;
 } CprmanPllChannelState;
 
+typedef struct CprmanClockMuxState {
+    /*< private >*/
+    DeviceState parent_obj;
+
+    /*< public >*/
+    CprmanClockMux id;
+
+    uint32_t *reg_ctl;
+    uint32_t *reg_div;
+    int int_bits;
+    int frac_bits;
+
+    Clock *srcs[CPRMAN_NUM_CLOCK_MUX_SRC];
+    Clock *out;
+
+    /*
+     * Used by clock srcs update callback to retrieve both the clock and the
+     * source number.
+     */
+    struct CprmanClockMuxState *backref[CPRMAN_NUM_CLOCK_MUX_SRC];
+} CprmanClockMuxState;
+
 struct BCM2835CprmanState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -100,11 +183,13 @@ struct BCM2835CprmanState {
 
     CprmanPllState plls[CPRMAN_NUM_PLL];
     CprmanPllChannelState channels[CPRMAN_NUM_PLL_CHANNEL];
+    CprmanClockMuxState clock_muxes[CPRMAN_NUM_CLOCK_MUX];
 
     uint32_t regs[CPRMAN_NUM_REGS];
     uint32_t xosc_freq;
 
     Clock *xosc;
+    Clock *gnd;
 };
 
 #endif

@@ -38,6 +38,9 @@
  *
  * The page at https://elinux.org/The_Undocumented_Pi gives the actual clock
  * tree configuration.
+ *
+ * The CPRMAN exposes clock outputs with the name of the clock mux suffixed
+ * with "-out" (e.g. "uart-out", "h264-out", ...).
  */
 
 #include "qemu/osdep.h"
@@ -226,6 +229,65 @@ static const TypeInfo cprman_pll_channel_info = {
 };
 
 
+/* clock mux */
+
+static void clock_mux_update(CprmanClockMuxState *mux)
+{
+    clock_update(mux->out, 0);
+}
+
+static void clock_mux_src_update(void *opaque)
+{
+    CprmanClockMuxState **backref = opaque;
+    CprmanClockMuxState *s = *backref;
+
+    clock_mux_update(s);
+}
+
+static void clock_mux_init(Object *obj)
+{
+    CprmanClockMuxState *s = CPRMAN_CLOCK_MUX(obj);
+    size_t i;
+
+    for (i = 0; i < CPRMAN_NUM_CLOCK_MUX_SRC; i++) {
+        char *name = g_strdup_printf("srcs[%zu]", i);
+        s->backref[i] = s;
+        s->srcs[i] = qdev_init_clock_in(DEVICE(s), name,
+                                        clock_mux_src_update,
+                                        &s->backref[i]);
+        g_free(name);
+    }
+
+    s->out = qdev_init_clock_out(DEVICE(s), "out");
+}
+
+static const VMStateDescription clock_mux_vmstate = {
+    .name = TYPE_CPRMAN_CLOCK_MUX,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_ARRAY_CLOCK(srcs, CprmanClockMuxState,
+                            CPRMAN_NUM_CLOCK_MUX_SRC),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void clock_mux_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->vmsd = &clock_mux_vmstate;
+}
+
+static const TypeInfo cprman_clock_mux_info = {
+    .name = TYPE_CPRMAN_CLOCK_MUX,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(CprmanClockMuxState),
+    .class_init = clock_mux_class_init,
+    .instance_init = clock_mux_init,
+};
+
+
 /* CPRMAN "top level" model */
 
 static uint32_t get_cm_lock(const BCM2835CprmanState *s)
@@ -288,6 +350,20 @@ static inline void update_channel_from_a2w(BCM2835CprmanState *s, size_t idx)
     for (i = 0; i < CPRMAN_NUM_PLL_CHANNEL; i++) {
         if (PLL_CHANNEL_INIT_INFO[i].a2w_ctrl_offset == idx) {
             pll_channel_update(&s->channels[i]);
+            return;
+        }
+    }
+}
+
+static inline void update_mux_from_cm(BCM2835CprmanState *s, size_t idx)
+{
+    size_t i;
+
+    for (i = 0; i < CPRMAN_NUM_CLOCK_MUX; i++) {
+        if ((CLOCK_MUX_INIT_INFO[i].cm_offset == idx) ||
+            (CLOCK_MUX_INIT_INFO[i].cm_offset + 4 == idx)) {
+            /* matches CM_CTL or CM_DIV mux register */
+            clock_mux_update(&s->clock_muxes[i]);
             return;
         }
     }
@@ -365,6 +441,15 @@ static void cprman_write(void *opaque, hwaddr offset,
     case R_A2W_PLLB_ARM:
         update_channel_from_a2w(s, idx);
         break;
+
+    case R_CM_GNRICCTL ... R_CM_SMIDIV:
+    case R_CM_TCNTCNT ... R_CM_VECDIV:
+    case R_CM_PULSECTL ... R_CM_PULSEDIV:
+    case R_CM_SDCCTL ... R_CM_ARMCTL:
+    case R_CM_AVEOCTL ... R_CM_EMMCDIV:
+    case R_CM_EMMC2CTL ... R_CM_EMMC2DIV:
+        update_mux_from_cm(s, idx);
+        break;
     }
 }
 
@@ -404,6 +489,10 @@ static void cprman_reset(DeviceState *dev)
         device_cold_reset(DEVICE(&s->channels[i]));
     }
 
+    for (i = 0; i < CPRMAN_NUM_CLOCK_MUX; i++) {
+        device_cold_reset(DEVICE(&s->clock_muxes[i]));
+    }
+
     clock_update_hz(s->xosc, s->xosc_freq);
 }
 
@@ -425,11 +514,62 @@ static void cprman_init(Object *obj)
         set_pll_channel_init_info(s, &s->channels[i], i);
     }
 
+    for (i = 0; i < CPRMAN_NUM_CLOCK_MUX; i++) {
+        char *alias;
+
+        object_initialize_child(obj, CLOCK_MUX_INIT_INFO[i].name,
+                                &s->clock_muxes[i],
+                                TYPE_CPRMAN_CLOCK_MUX);
+        set_clock_mux_init_info(s, &s->clock_muxes[i], i);
+
+        /* Expose muxes output as CPRMAN outputs */
+        alias = g_strdup_printf("%s-out", CLOCK_MUX_INIT_INFO[i].name);
+        qdev_alias_clock(DEVICE(&s->clock_muxes[i]), "out", DEVICE(obj), alias);
+        g_free(alias);
+    }
+
     s->xosc = clock_new(obj, "xosc");
+    s->gnd = clock_new(obj, "gnd");
+
+    clock_set(s->gnd, 0);
 
     memory_region_init_io(&s->iomem, obj, &cprman_ops,
                           s, "bcm2835-cprman", 0x2000);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+}
+
+static void connect_mux_sources(BCM2835CprmanState *s,
+                                CprmanClockMuxState *mux,
+                                const CprmanPllChannel *clk_mapping)
+{
+    size_t i;
+    Clock *td0 = s->clock_muxes[CPRMAN_CLOCK_TD0].out;
+    Clock *td1 = s->clock_muxes[CPRMAN_CLOCK_TD1].out;
+
+    /* For sources from 0 to 3. Source 4 to 9 are mux specific */
+    Clock * const CLK_SRC_MAPPING[] = {
+        [CPRMAN_CLOCK_SRC_GND] = s->gnd,
+        [CPRMAN_CLOCK_SRC_XOSC] = s->xosc,
+        [CPRMAN_CLOCK_SRC_TD0] = td0,
+        [CPRMAN_CLOCK_SRC_TD1] = td1,
+    };
+
+    for (i = 0; i < CPRMAN_NUM_CLOCK_MUX_SRC; i++) {
+        CprmanPllChannel mapping = clk_mapping[i];
+        Clock *src;
+
+        if (mapping == CPRMAN_CLOCK_SRC_FORCE_GROUND) {
+            src = s->gnd;
+        } else if (mapping == CPRMAN_CLOCK_SRC_DSI0HSCK) {
+            src = s->gnd; /* TODO */
+        } else if (i < CPRMAN_CLOCK_SRC_PLLA) {
+            src = CLK_SRC_MAPPING[i];
+        } else {
+            src = s->channels[mapping].out;
+        }
+
+        clock_set_source(mux->srcs[i], src);
+    }
 }
 
 static void cprman_realize(DeviceState *dev, Error **errp)
@@ -455,6 +595,16 @@ static void cprman_realize(DeviceState *dev, Error **errp)
         clock_set_source(channel->pll_in, parent_clk);
 
         if (!qdev_realize(DEVICE(channel), NULL, errp)) {
+            return;
+        }
+    }
+
+    for (i = 0; i < CPRMAN_NUM_CLOCK_MUX; i++) {
+        CprmanClockMuxState *clock_mux = &s->clock_muxes[i];
+
+        connect_mux_sources(s, clock_mux, CLOCK_MUX_INIT_INFO[i].src_mapping);
+
+        if (!qdev_realize(DEVICE(clock_mux), NULL, errp)) {
             return;
         }
     }
@@ -498,6 +648,7 @@ static void cprman_register_types(void)
     type_register_static(&cprman_info);
     type_register_static(&cprman_pll_info);
     type_register_static(&cprman_pll_channel_info);
+    type_register_static(&cprman_clock_mux_info);
 }
 
 type_init(cprman_register_types);
