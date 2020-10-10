@@ -174,6 +174,20 @@ typedef struct CprmanClockMuxState {
     struct CprmanClockMuxState *backref[CPRMAN_NUM_CLOCK_MUX_SRC];
 } CprmanClockMuxState;
 
+typedef struct CprmanDsi0HsckMuxState {
+    /*< private >*/
+    DeviceState parent_obj;
+
+    /*< public >*/
+    CprmanClockMux id;
+
+    uint32_t *reg_cm;
+
+    Clock *plla_in;
+    Clock *plld_in;
+    Clock *out;
+} CprmanDsi0HsckMuxState;
+
 struct BCM2835CprmanState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -184,6 +198,7 @@ struct BCM2835CprmanState {
     CprmanPllState plls[CPRMAN_NUM_PLL];
     CprmanPllChannelState channels[CPRMAN_NUM_PLL_CHANNEL];
     CprmanClockMuxState clock_muxes[CPRMAN_NUM_CLOCK_MUX];
+    CprmanDsi0HsckMuxState dsi0hsck_mux;
 
     uint32_t regs[CPRMAN_NUM_REGS];
     uint32_t xosc_freq;

@@ -339,6 +339,58 @@ static const TypeInfo cprman_clock_mux_info = {
 };
 
 
+/* DSI0HSCK mux */
+
+static void dsi0hsck_mux_update(CprmanDsi0HsckMuxState *s)
+{
+    bool src_is_plld = FIELD_EX32(*s->reg_cm, CM_DSI0HSCK, SELPLLD);
+    Clock *src = src_is_plld ? s->plld_in : s->plla_in;
+
+    clock_update(s->out, clock_get(src));
+}
+
+static void dsi0hsck_mux_in_update(void *opaque)
+{
+    dsi0hsck_mux_update(CPRMAN_DSI0HSCK_MUX(opaque));
+}
+
+static void dsi0hsck_mux_init(Object *obj)
+{
+    CprmanDsi0HsckMuxState *s = CPRMAN_DSI0HSCK_MUX(obj);
+    DeviceState *dev = DEVICE(obj);
+
+    s->plla_in = qdev_init_clock_in(dev, "plla-in", dsi0hsck_mux_in_update, s);
+    s->plld_in = qdev_init_clock_in(dev, "plld-in", dsi0hsck_mux_in_update, s);
+    s->out = qdev_init_clock_out(DEVICE(s), "out");
+}
+
+static const VMStateDescription dsi0hsck_mux_vmstate = {
+    .name = TYPE_CPRMAN_DSI0HSCK_MUX,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_CLOCK(plla_in, CprmanDsi0HsckMuxState),
+        VMSTATE_CLOCK(plld_in, CprmanDsi0HsckMuxState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void dsi0hsck_mux_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->vmsd = &dsi0hsck_mux_vmstate;
+}
+
+static const TypeInfo cprman_dsi0hsck_mux_info = {
+    .name = TYPE_CPRMAN_DSI0HSCK_MUX,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(CprmanDsi0HsckMuxState),
+    .class_init = dsi0hsck_mux_class_init,
+    .instance_init = dsi0hsck_mux_init,
+};
+
+
 /* CPRMAN "top level" model */
 
 static uint32_t get_cm_lock(const BCM2835CprmanState *s)
@@ -501,6 +553,10 @@ static void cprman_write(void *opaque, hwaddr offset,
     case R_CM_EMMC2CTL ... R_CM_EMMC2DIV:
         update_mux_from_cm(s, idx);
         break;
+
+    case R_CM_DSI0HSCK:
+        dsi0hsck_mux_update(&s->dsi0hsck_mux);
+        break;
     }
 }
 
@@ -540,6 +596,8 @@ static void cprman_reset(DeviceState *dev)
         device_cold_reset(DEVICE(&s->channels[i]));
     }
 
+    device_cold_reset(DEVICE(&s->dsi0hsck_mux));
+
     for (i = 0; i < CPRMAN_NUM_CLOCK_MUX; i++) {
         device_cold_reset(DEVICE(&s->clock_muxes[i]));
     }
@@ -564,6 +622,10 @@ static void cprman_init(Object *obj)
                                 TYPE_CPRMAN_PLL_CHANNEL);
         set_pll_channel_init_info(s, &s->channels[i], i);
     }
+
+    object_initialize_child(obj, "dsi0hsck-mux",
+                            &s->dsi0hsck_mux, TYPE_CPRMAN_DSI0HSCK_MUX);
+    s->dsi0hsck_mux.reg_cm = &s->regs[R_CM_DSI0HSCK];
 
     for (i = 0; i < CPRMAN_NUM_CLOCK_MUX; i++) {
         char *alias;
@@ -612,7 +674,7 @@ static void connect_mux_sources(BCM2835CprmanState *s,
         if (mapping == CPRMAN_CLOCK_SRC_FORCE_GROUND) {
             src = s->gnd;
         } else if (mapping == CPRMAN_CLOCK_SRC_DSI0HSCK) {
-            src = s->gnd; /* TODO */
+            src = s->dsi0hsck_mux.out;
         } else if (i < CPRMAN_CLOCK_SRC_PLLA) {
             src = CLK_SRC_MAPPING[i];
         } else {
@@ -648,6 +710,15 @@ static void cprman_realize(DeviceState *dev, Error **errp)
         if (!qdev_realize(DEVICE(channel), NULL, errp)) {
             return;
         }
+    }
+
+    clock_set_source(s->dsi0hsck_mux.plla_in,
+                     s->channels[CPRMAN_PLLA_CHANNEL_DSI0].out);
+    clock_set_source(s->dsi0hsck_mux.plld_in,
+                     s->channels[CPRMAN_PLLD_CHANNEL_DSI0].out);
+
+    if (!qdev_realize(DEVICE(&s->dsi0hsck_mux), NULL, errp)) {
+        return;
     }
 
     for (i = 0; i < CPRMAN_NUM_CLOCK_MUX; i++) {
@@ -700,6 +771,7 @@ static void cprman_register_types(void)
     type_register_static(&cprman_pll_info);
     type_register_static(&cprman_pll_channel_info);
     type_register_static(&cprman_clock_mux_info);
+    type_register_static(&cprman_dsi0hsck_mux_info);
 }
 
 type_init(cprman_register_types);

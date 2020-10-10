@@ -15,6 +15,7 @@
 #define TYPE_CPRMAN_PLL "bcm2835-cprman-pll"
 #define TYPE_CPRMAN_PLL_CHANNEL "bcm2835-cprman-pll-channel"
 #define TYPE_CPRMAN_CLOCK_MUX "bcm2835-cprman-clock-mux"
+#define TYPE_CPRMAN_DSI0HSCK_MUX "bcm2835-cprman-dsi0hsck-mux"
 
 DECLARE_INSTANCE_CHECKER(CprmanPllState, CPRMAN_PLL,
                          TYPE_CPRMAN_PLL)
@@ -22,6 +23,8 @@ DECLARE_INSTANCE_CHECKER(CprmanPllChannelState, CPRMAN_PLL_CHANNEL,
                          TYPE_CPRMAN_PLL_CHANNEL)
 DECLARE_INSTANCE_CHECKER(CprmanClockMuxState, CPRMAN_CLOCK_MUX,
                          TYPE_CPRMAN_CLOCK_MUX)
+DECLARE_INSTANCE_CHECKER(CprmanDsi0HsckMuxState, CPRMAN_DSI0HSCK_MUX,
+                         TYPE_CPRMAN_DSI0HSCK_MUX)
 
 /* Register map */
 
@@ -222,6 +225,9 @@ REG32(CM_LOCK, 0x114)
     FIELD(CM_LOCK, FLOCKC, 10, 1)
     FIELD(CM_LOCK, FLOCKB, 9, 1)
     FIELD(CM_LOCK, FLOCKA, 8, 1)
+
+REG32(CM_DSI0HSCK, 0x120)
+    FIELD(CM_DSI0HSCK, SELPLLD, 0, 1)
 
 /*
  * This field is common to all registers. Each register write value must match
