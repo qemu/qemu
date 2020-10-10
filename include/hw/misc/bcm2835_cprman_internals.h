@@ -13,9 +13,12 @@
 #include "hw/misc/bcm2835_cprman.h"
 
 #define TYPE_CPRMAN_PLL "bcm2835-cprman-pll"
+#define TYPE_CPRMAN_PLL_CHANNEL "bcm2835-cprman-pll-channel"
 
 DECLARE_INSTANCE_CHECKER(CprmanPllState, CPRMAN_PLL,
                          TYPE_CPRMAN_PLL)
+DECLARE_INSTANCE_CHECKER(CprmanPllChannelState, CPRMAN_PLL_CHANNEL,
+                         TYPE_CPRMAN_PLL_CHANNEL)
 
 /* Register map */
 
@@ -100,6 +103,31 @@ REG32(A2W_PLLD_FRAC, 0x1240)
 REG32(A2W_PLLH_FRAC, 0x1260)
 REG32(A2W_PLLB_FRAC, 0x12e0)
 
+/* PLL channels */
+REG32(A2W_PLLA_DSI0, 0x1300)
+    FIELD(A2W_PLLx_CHANNELy, DIV, 0, 8)
+    FIELD(A2W_PLLx_CHANNELy, DISABLE, 8, 1)
+REG32(A2W_PLLA_CORE, 0x1400)
+REG32(A2W_PLLA_PER, 0x1500)
+REG32(A2W_PLLA_CCP2, 0x1600)
+
+REG32(A2W_PLLC_CORE2, 0x1320)
+REG32(A2W_PLLC_CORE1, 0x1420)
+REG32(A2W_PLLC_PER, 0x1520)
+REG32(A2W_PLLC_CORE0, 0x1620)
+
+REG32(A2W_PLLD_DSI0, 0x1340)
+REG32(A2W_PLLD_CORE, 0x1440)
+REG32(A2W_PLLD_PER, 0x1540)
+REG32(A2W_PLLD_DSI1, 0x1640)
+
+REG32(A2W_PLLH_AUX, 0x1360)
+REG32(A2W_PLLH_RCAL, 0x1460)
+REG32(A2W_PLLH_PIX, 0x1560)
+REG32(A2W_PLLH_STS, 0x1660)
+
+REG32(A2W_PLLB_ARM, 0x13e0)
+
 /* misc registers */
 REG32(CM_LOCK, 0x114)
     FIELD(CM_LOCK, FLOCKH, 12, 1)
@@ -171,6 +199,124 @@ static inline void set_pll_init_info(BCM2835CprmanState *s,
     pll->reg_a2w_ana = &s->regs[PLL_INIT_INFO[id].a2w_ana_offset];
     pll->prediv_mask = PLL_INIT_INFO[id].prediv_mask;
     pll->reg_a2w_frac = &s->regs[PLL_INIT_INFO[id].a2w_frac_offset];
+}
+
+
+/* PLL channel init info */
+typedef struct PLLChannelInitInfo {
+    const char *name;
+    CprmanPll parent;
+    size_t cm_offset;
+    uint32_t cm_hold_mask;
+    uint32_t cm_load_mask;
+    size_t a2w_ctrl_offset;
+    unsigned int fixed_divider;
+} PLLChannelInitInfo;
+
+#define FILL_PLL_CHANNEL_INIT_INFO_common(pll_, channel_)            \
+    .parent = CPRMAN_ ## pll_,                                       \
+    .cm_offset = R_CM_ ## pll_,                                      \
+    .cm_load_mask = R_CM_ ## pll_ ## _ ## LOAD ## channel_ ## _MASK, \
+    .a2w_ctrl_offset = R_A2W_ ## pll_ ## _ ## channel_
+
+#define FILL_PLL_CHANNEL_INIT_INFO(pll_, channel_)                   \
+    FILL_PLL_CHANNEL_INIT_INFO_common(pll_, channel_),               \
+    .cm_hold_mask = R_CM_ ## pll_ ## _ ## HOLD ## channel_ ## _MASK, \
+    .fixed_divider = 1
+
+#define FILL_PLL_CHANNEL_INIT_INFO_nohold(pll_, channel_) \
+    FILL_PLL_CHANNEL_INIT_INFO_common(pll_, channel_),    \
+    .cm_hold_mask = 0
+
+static PLLChannelInitInfo PLL_CHANNEL_INIT_INFO[] = {
+    [CPRMAN_PLLA_CHANNEL_DSI0] = {
+        .name = "plla-dsi0",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLA, DSI0),
+    },
+    [CPRMAN_PLLA_CHANNEL_CORE] = {
+        .name = "plla-core",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLA, CORE),
+    },
+    [CPRMAN_PLLA_CHANNEL_PER] = {
+        .name = "plla-per",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLA, PER),
+    },
+    [CPRMAN_PLLA_CHANNEL_CCP2] = {
+        .name = "plla-ccp2",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLA, CCP2),
+    },
+
+    [CPRMAN_PLLC_CHANNEL_CORE2] = {
+        .name = "pllc-core2",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLC, CORE2),
+    },
+    [CPRMAN_PLLC_CHANNEL_CORE1] = {
+        .name = "pllc-core1",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLC, CORE1),
+    },
+    [CPRMAN_PLLC_CHANNEL_PER] = {
+        .name = "pllc-per",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLC, PER),
+    },
+    [CPRMAN_PLLC_CHANNEL_CORE0] = {
+        .name = "pllc-core0",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLC, CORE0),
+    },
+
+    [CPRMAN_PLLD_CHANNEL_DSI0] = {
+        .name = "plld-dsi0",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLD, DSI0),
+    },
+    [CPRMAN_PLLD_CHANNEL_CORE] = {
+        .name = "plld-core",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLD, CORE),
+    },
+    [CPRMAN_PLLD_CHANNEL_PER] = {
+        .name = "plld-per",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLD, PER),
+    },
+    [CPRMAN_PLLD_CHANNEL_DSI1] = {
+        .name = "plld-dsi1",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLD, DSI1),
+    },
+
+    [CPRMAN_PLLH_CHANNEL_AUX] = {
+        .name = "pllh-aux",
+        .fixed_divider = 1,
+        FILL_PLL_CHANNEL_INIT_INFO_nohold(PLLH, AUX),
+    },
+    [CPRMAN_PLLH_CHANNEL_RCAL] = {
+        .name = "pllh-rcal",
+        .fixed_divider = 10,
+        FILL_PLL_CHANNEL_INIT_INFO_nohold(PLLH, RCAL),
+    },
+    [CPRMAN_PLLH_CHANNEL_PIX] = {
+        .name = "pllh-pix",
+        .fixed_divider = 10,
+        FILL_PLL_CHANNEL_INIT_INFO_nohold(PLLH, PIX),
+    },
+
+    [CPRMAN_PLLB_CHANNEL_ARM] = {
+        .name = "pllb-arm",
+        FILL_PLL_CHANNEL_INIT_INFO(PLLB, ARM),
+    },
+};
+
+#undef FILL_PLL_CHANNEL_INIT_INFO_nohold
+#undef FILL_PLL_CHANNEL_INIT_INFO
+#undef FILL_PLL_CHANNEL_INIT_INFO_common
+
+static inline void set_pll_channel_init_info(BCM2835CprmanState *s,
+                                             CprmanPllChannelState *channel,
+                                             CprmanPllChannel id)
+{
+    channel->id = id;
+    channel->parent = PLL_CHANNEL_INIT_INFO[id].parent;
+    channel->reg_cm = &s->regs[PLL_CHANNEL_INIT_INFO[id].cm_offset];
+    channel->hold_mask = PLL_CHANNEL_INIT_INFO[id].cm_hold_mask;
+    channel->load_mask = PLL_CHANNEL_INIT_INFO[id].cm_load_mask;
+    channel->reg_a2w_ctrl = &s->regs[PLL_CHANNEL_INIT_INFO[id].a2w_ctrl_offset];
+    channel->fixed_divider = PLL_CHANNEL_INIT_INFO[id].fixed_divider;
 }
 
 #endif

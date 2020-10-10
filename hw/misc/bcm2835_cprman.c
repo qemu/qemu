@@ -132,6 +132,69 @@ static const TypeInfo cprman_pll_info = {
 };
 
 
+/* PLL channel */
+
+static void pll_channel_update(CprmanPllChannelState *channel)
+{
+    clock_update(channel->out, 0);
+}
+
+/* Update a PLL and all its channels */
+static void pll_update_all_channels(BCM2835CprmanState *s,
+                                    CprmanPllState *pll)
+{
+    size_t i;
+
+    pll_update(pll);
+
+    for (i = 0; i < CPRMAN_NUM_PLL_CHANNEL; i++) {
+        CprmanPllChannelState *channel = &s->channels[i];
+        if (channel->parent == pll->id) {
+            pll_channel_update(channel);
+        }
+    }
+}
+
+static void pll_channel_pll_in_update(void *opaque)
+{
+    pll_channel_update(CPRMAN_PLL_CHANNEL(opaque));
+}
+
+static void pll_channel_init(Object *obj)
+{
+    CprmanPllChannelState *s = CPRMAN_PLL_CHANNEL(obj);
+
+    s->pll_in = qdev_init_clock_in(DEVICE(s), "pll-in",
+                                   pll_channel_pll_in_update, s);
+    s->out = qdev_init_clock_out(DEVICE(s), "out");
+}
+
+static const VMStateDescription pll_channel_vmstate = {
+    .name = TYPE_CPRMAN_PLL_CHANNEL,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_CLOCK(pll_in, CprmanPllChannelState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void pll_channel_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->vmsd = &pll_channel_vmstate;
+}
+
+static const TypeInfo cprman_pll_channel_info = {
+    .name = TYPE_CPRMAN_PLL_CHANNEL,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(CprmanPllChannelState),
+    .class_init = pll_channel_class_init,
+    .instance_init = pll_channel_init,
+};
+
+
 /* CPRMAN "top level" model */
 
 static uint32_t get_cm_lock(const BCM2835CprmanState *s)
@@ -174,8 +237,32 @@ static uint64_t cprman_read(void *opaque, hwaddr offset,
     return r;
 }
 
-#define CASE_PLL_REGS(pll_)       \
-    case R_CM_ ## pll_:           \
+static inline void update_pll_and_channels_from_cm(BCM2835CprmanState *s,
+                                                   size_t idx)
+{
+    size_t i;
+
+    for (i = 0; i < CPRMAN_NUM_PLL; i++) {
+        if (PLL_INIT_INFO[i].cm_offset == idx) {
+            pll_update_all_channels(s, &s->plls[i]);
+            return;
+        }
+    }
+}
+
+static inline void update_channel_from_a2w(BCM2835CprmanState *s, size_t idx)
+{
+    size_t i;
+
+    for (i = 0; i < CPRMAN_NUM_PLL_CHANNEL; i++) {
+        if (PLL_CHANNEL_INIT_INFO[i].a2w_ctrl_offset == idx) {
+            pll_channel_update(&s->channels[i]);
+            return;
+        }
+    }
+}
+
+#define CASE_PLL_A2W_REGS(pll_) \
     case R_A2W_ ## pll_ ## _CTRL: \
     case R_A2W_ ## pll_ ## _ANA0: \
     case R_A2W_ ## pll_ ## _ANA1: \
@@ -200,29 +287,57 @@ static void cprman_write(void *opaque, hwaddr offset,
     s->regs[idx] = value;
 
     switch (idx) {
-    CASE_PLL_REGS(PLLA) :
+    case R_CM_PLLA ... R_CM_PLLH:
+    case R_CM_PLLB:
+        /*
+         * A given CM_PLLx register is shared by both the PLL and the channels
+         * of this PLL.
+         */
+        update_pll_and_channels_from_cm(s, idx);
+        break;
+
+    CASE_PLL_A2W_REGS(PLLA) :
         pll_update(&s->plls[CPRMAN_PLLA]);
         break;
 
-    CASE_PLL_REGS(PLLC) :
+    CASE_PLL_A2W_REGS(PLLC) :
         pll_update(&s->plls[CPRMAN_PLLC]);
         break;
 
-    CASE_PLL_REGS(PLLD) :
+    CASE_PLL_A2W_REGS(PLLD) :
         pll_update(&s->plls[CPRMAN_PLLD]);
         break;
 
-    CASE_PLL_REGS(PLLH) :
+    CASE_PLL_A2W_REGS(PLLH) :
         pll_update(&s->plls[CPRMAN_PLLH]);
         break;
 
-    CASE_PLL_REGS(PLLB) :
+    CASE_PLL_A2W_REGS(PLLB) :
         pll_update(&s->plls[CPRMAN_PLLB]);
+        break;
+
+    case R_A2W_PLLA_DSI0:
+    case R_A2W_PLLA_CORE:
+    case R_A2W_PLLA_PER:
+    case R_A2W_PLLA_CCP2:
+    case R_A2W_PLLC_CORE2:
+    case R_A2W_PLLC_CORE1:
+    case R_A2W_PLLC_PER:
+    case R_A2W_PLLC_CORE0:
+    case R_A2W_PLLD_DSI0:
+    case R_A2W_PLLD_CORE:
+    case R_A2W_PLLD_PER:
+    case R_A2W_PLLD_DSI1:
+    case R_A2W_PLLH_AUX:
+    case R_A2W_PLLH_RCAL:
+    case R_A2W_PLLH_PIX:
+    case R_A2W_PLLB_ARM:
+        update_channel_from_a2w(s, idx);
         break;
     }
 }
 
-#undef CASE_PLL_REGS
+#undef CASE_PLL_A2W_REGS
 
 static const MemoryRegionOps cprman_ops = {
     .read = cprman_read,
@@ -254,6 +369,10 @@ static void cprman_reset(DeviceState *dev)
         device_cold_reset(DEVICE(&s->plls[i]));
     }
 
+    for (i = 0; i < CPRMAN_NUM_PLL_CHANNEL; i++) {
+        device_cold_reset(DEVICE(&s->channels[i]));
+    }
+
     clock_update_hz(s->xosc, s->xosc_freq);
 }
 
@@ -266,6 +385,13 @@ static void cprman_init(Object *obj)
         object_initialize_child(obj, PLL_INIT_INFO[i].name,
                                 &s->plls[i], TYPE_CPRMAN_PLL);
         set_pll_init_info(s, &s->plls[i], i);
+    }
+
+    for (i = 0; i < CPRMAN_NUM_PLL_CHANNEL; i++) {
+        object_initialize_child(obj, PLL_CHANNEL_INIT_INFO[i].name,
+                                &s->channels[i],
+                                TYPE_CPRMAN_PLL_CHANNEL);
+        set_pll_channel_init_info(s, &s->channels[i], i);
     }
 
     s->xosc = clock_new(obj, "xosc");
@@ -286,6 +412,18 @@ static void cprman_realize(DeviceState *dev, Error **errp)
         clock_set_source(pll->xosc_in, s->xosc);
 
         if (!qdev_realize(DEVICE(pll), NULL, errp)) {
+            return;
+        }
+    }
+
+    for (i = 0; i < CPRMAN_NUM_PLL_CHANNEL; i++) {
+        CprmanPllChannelState *channel = &s->channels[i];
+        CprmanPll parent = PLL_CHANNEL_INIT_INFO[i].parent;
+        Clock *parent_clk = s->plls[parent].out;
+
+        clock_set_source(channel->pll_in, parent_clk);
+
+        if (!qdev_realize(DEVICE(channel), NULL, errp)) {
             return;
         }
     }
@@ -328,6 +466,7 @@ static void cprman_register_types(void)
 {
     type_register_static(&cprman_info);
     type_register_static(&cprman_pll_info);
+    type_register_static(&cprman_pll_channel_info);
 }
 
 type_init(cprman_register_types);
