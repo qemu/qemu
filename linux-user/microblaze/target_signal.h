@@ -21,5 +21,4 @@ typedef struct target_sigaltstack {
 
 #include "../generic/signal.h"
 
-#define TARGET_ARCH_HAS_SETUP_FRAME
 #endif /* MICROBLAZE_TARGET_SIGNAL_H */
