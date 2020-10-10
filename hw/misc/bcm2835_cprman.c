@@ -53,6 +53,17 @@
 
 /* PLL */
 
+static void pll_reset(DeviceState *dev)
+{
+    CprmanPllState *s = CPRMAN_PLL(dev);
+    const PLLResetInfo *info = &PLL_RESET_INFO[s->id];
+
+    *s->reg_cm = info->cm;
+    *s->reg_a2w_ctrl = info->a2w_ctrl;
+    memcpy(s->reg_a2w_ana, info->a2w_ana, sizeof(info->a2w_ana));
+    *s->reg_a2w_frac = info->a2w_frac;
+}
+
 static bool pll_is_locked(const CprmanPllState *pll)
 {
     return !FIELD_EX32(*pll->reg_a2w_ctrl, A2W_PLLx_CTRL, PWRDN)
@@ -123,6 +134,7 @@ static void pll_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->reset = pll_reset;
     dc->vmsd = &pll_vmstate;
 }
 
@@ -136,6 +148,14 @@ static const TypeInfo cprman_pll_info = {
 
 
 /* PLL channel */
+
+static void pll_channel_reset(DeviceState *dev)
+{
+    CprmanPllChannelState *s = CPRMAN_PLL_CHANNEL(dev);
+    const PLLChannelResetInfo *info = &PLL_CHANNEL_RESET_INFO[s->id];
+
+    *s->reg_a2w_ctrl = info->a2w_ctrl;
+}
 
 static bool pll_channel_is_enabled(CprmanPllChannelState *channel)
 {
@@ -217,6 +237,7 @@ static void pll_channel_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->reset = pll_channel_reset;
     dc->vmsd = &pll_channel_vmstate;
 }
 
@@ -295,6 +316,15 @@ static void clock_mux_src_update(void *opaque)
     clock_mux_update(s);
 }
 
+static void clock_mux_reset(DeviceState *dev)
+{
+    CprmanClockMuxState *clock = CPRMAN_CLOCK_MUX(dev);
+    const ClockMuxResetInfo *info = &CLOCK_MUX_RESET_INFO[clock->id];
+
+    *clock->reg_ctl = info->cm_ctl;
+    *clock->reg_div = info->cm_div;
+}
+
 static void clock_mux_init(Object *obj)
 {
     CprmanClockMuxState *s = CPRMAN_CLOCK_MUX(obj);
@@ -327,6 +357,7 @@ static void clock_mux_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->reset = clock_mux_reset;
     dc->vmsd = &clock_mux_vmstate;
 }
 

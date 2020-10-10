@@ -747,4 +747,273 @@ static inline void set_clock_mux_init_info(BCM2835CprmanState *s,
     mux->frac_bits = CLOCK_MUX_INIT_INFO[id].frac_bits;
 }
 
+
+/*
+ * Object reset info
+ * Those values have been dumped from a Raspberry Pi 3 Model B v1.2 using the
+ * clk debugfs interface in Linux.
+ */
+typedef struct PLLResetInfo {
+    uint32_t cm;
+    uint32_t a2w_ctrl;
+    uint32_t a2w_ana[4];
+    uint32_t a2w_frac;
+} PLLResetInfo;
+
+static const PLLResetInfo PLL_RESET_INFO[] = {
+    [CPRMAN_PLLA] = {
+        .cm = 0x0000008a,
+        .a2w_ctrl = 0x0002103a,
+        .a2w_frac = 0x00098000,
+        .a2w_ana = { 0x00000000, 0x00144000, 0x00000000, 0x00000100 }
+    },
+
+    [CPRMAN_PLLC] = {
+        .cm = 0x00000228,
+        .a2w_ctrl = 0x0002103e,
+        .a2w_frac = 0x00080000,
+        .a2w_ana = { 0x00000000, 0x00144000, 0x00000000, 0x00000100 }
+    },
+
+    [CPRMAN_PLLD] = {
+        .cm = 0x0000020a,
+        .a2w_ctrl = 0x00021034,
+        .a2w_frac = 0x00015556,
+        .a2w_ana = { 0x00000000, 0x00144000, 0x00000000, 0x00000100 }
+    },
+
+    [CPRMAN_PLLH] = {
+        .cm = 0x00000000,
+        .a2w_ctrl = 0x0002102d,
+        .a2w_frac = 0x00000000,
+        .a2w_ana = { 0x00900000, 0x0000000c, 0x00000000, 0x00000000 }
+    },
+
+    [CPRMAN_PLLB] = {
+        /* unknown */
+        .cm = 0x00000000,
+        .a2w_ctrl = 0x00000000,
+        .a2w_frac = 0x00000000,
+        .a2w_ana = { 0x00000000, 0x00000000, 0x00000000, 0x00000000 }
+    }
+};
+
+typedef struct PLLChannelResetInfo {
+    /*
+     * Even though a PLL channel has a CM register, it shares it with its
+     * parent PLL. The parent already takes care of the reset value.
+     */
+    uint32_t a2w_ctrl;
+} PLLChannelResetInfo;
+
+static const PLLChannelResetInfo PLL_CHANNEL_RESET_INFO[] = {
+    [CPRMAN_PLLA_CHANNEL_DSI0] = { .a2w_ctrl = 0x00000100 },
+    [CPRMAN_PLLA_CHANNEL_CORE] = { .a2w_ctrl = 0x00000003 },
+    [CPRMAN_PLLA_CHANNEL_PER] = { .a2w_ctrl = 0x00000000 }, /* unknown */
+    [CPRMAN_PLLA_CHANNEL_CCP2] = { .a2w_ctrl = 0x00000100 },
+
+    [CPRMAN_PLLC_CHANNEL_CORE2] = { .a2w_ctrl = 0x00000100 },
+    [CPRMAN_PLLC_CHANNEL_CORE1] = { .a2w_ctrl = 0x00000100 },
+    [CPRMAN_PLLC_CHANNEL_PER] = { .a2w_ctrl = 0x00000002 },
+    [CPRMAN_PLLC_CHANNEL_CORE0] = { .a2w_ctrl = 0x00000002 },
+
+    [CPRMAN_PLLD_CHANNEL_DSI0] = { .a2w_ctrl = 0x00000100 },
+    [CPRMAN_PLLD_CHANNEL_CORE] = { .a2w_ctrl = 0x00000004 },
+    [CPRMAN_PLLD_CHANNEL_PER] = { .a2w_ctrl = 0x00000004 },
+    [CPRMAN_PLLD_CHANNEL_DSI1] = { .a2w_ctrl = 0x00000100 },
+
+    [CPRMAN_PLLH_CHANNEL_AUX] = { .a2w_ctrl = 0x00000004 },
+    [CPRMAN_PLLH_CHANNEL_RCAL] = { .a2w_ctrl = 0x00000000 },
+    [CPRMAN_PLLH_CHANNEL_PIX] = { .a2w_ctrl = 0x00000000 },
+
+    [CPRMAN_PLLB_CHANNEL_ARM] = { .a2w_ctrl = 0x00000000 }, /* unknown */
+};
+
+typedef struct ClockMuxResetInfo {
+    uint32_t cm_ctl;
+    uint32_t cm_div;
+} ClockMuxResetInfo;
+
+static const ClockMuxResetInfo CLOCK_MUX_RESET_INFO[] = {
+    [CPRMAN_CLOCK_GNRIC] = {
+        .cm_ctl = 0, /* unknown */
+        .cm_div = 0
+    },
+
+    [CPRMAN_CLOCK_VPU] = {
+        .cm_ctl = 0x00000245,
+        .cm_div = 0x00003000,
+    },
+
+    [CPRMAN_CLOCK_SYS] = {
+        .cm_ctl = 0, /* unknown */
+        .cm_div = 0
+    },
+
+    [CPRMAN_CLOCK_PERIA] = {
+        .cm_ctl = 0, /* unknown */
+        .cm_div = 0
+    },
+
+    [CPRMAN_CLOCK_PERII] = {
+        .cm_ctl = 0, /* unknown */
+        .cm_div = 0
+    },
+
+    [CPRMAN_CLOCK_H264] = {
+        .cm_ctl = 0x00000244,
+        .cm_div = 0x00003000,
+    },
+
+    [CPRMAN_CLOCK_ISP] = {
+        .cm_ctl = 0x00000244,
+        .cm_div = 0x00003000,
+    },
+
+    [CPRMAN_CLOCK_V3D] = {
+        .cm_ctl = 0, /* unknown */
+        .cm_div = 0
+    },
+
+    [CPRMAN_CLOCK_CAM0] = {
+        .cm_ctl = 0x00000000,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_CAM1] = {
+        .cm_ctl = 0x00000000,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_CCP2] = {
+        .cm_ctl = 0, /* unknown */
+        .cm_div = 0
+    },
+
+    [CPRMAN_CLOCK_DSI0E] = {
+        .cm_ctl = 0x00000000,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_DSI0P] = {
+        .cm_ctl = 0x00000000,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_DPI] = {
+        .cm_ctl = 0x00000000,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_GP0] = {
+        .cm_ctl = 0x00000200,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_GP1] = {
+        .cm_ctl = 0x00000096,
+        .cm_div = 0x00014000,
+    },
+
+    [CPRMAN_CLOCK_GP2] = {
+        .cm_ctl = 0x00000291,
+        .cm_div = 0x00249f00,
+    },
+
+    [CPRMAN_CLOCK_HSM] = {
+        .cm_ctl = 0x00000000,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_OTP] = {
+        .cm_ctl = 0x00000091,
+        .cm_div = 0x00004000,
+    },
+
+    [CPRMAN_CLOCK_PCM] = {
+        .cm_ctl = 0x00000200,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_PWM] = {
+        .cm_ctl = 0x00000200,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_SLIM] = {
+        .cm_ctl = 0x00000200,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_SMI] = {
+        .cm_ctl = 0x00000000,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_TEC] = {
+        .cm_ctl = 0x00000000,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_TD0] = {
+        .cm_ctl = 0, /* unknown */
+        .cm_div = 0
+    },
+
+    [CPRMAN_CLOCK_TD1] = {
+        .cm_ctl = 0, /* unknown */
+        .cm_div = 0
+    },
+
+    [CPRMAN_CLOCK_TSENS] = {
+        .cm_ctl = 0x00000091,
+        .cm_div = 0x0000a000,
+    },
+
+    [CPRMAN_CLOCK_TIMER] = {
+        .cm_ctl = 0x00000291,
+        .cm_div = 0x00013333,
+    },
+
+    [CPRMAN_CLOCK_UART] = {
+        .cm_ctl = 0x00000296,
+        .cm_div = 0x0000a6ab,
+    },
+
+    [CPRMAN_CLOCK_VEC] = {
+        .cm_ctl = 0x00000097,
+        .cm_div = 0x00002000,
+    },
+
+    [CPRMAN_CLOCK_PULSE] = {
+        .cm_ctl = 0, /* unknown */
+        .cm_div = 0
+    },
+
+    [CPRMAN_CLOCK_SDC] = {
+        .cm_ctl = 0x00004006,
+        .cm_div = 0x00003000,
+    },
+
+    [CPRMAN_CLOCK_ARM] = {
+        .cm_ctl = 0, /* unknown */
+        .cm_div = 0
+    },
+
+    [CPRMAN_CLOCK_AVEO] = {
+        .cm_ctl = 0x00000000,
+        .cm_div = 0x00000000,
+    },
+
+    [CPRMAN_CLOCK_EMMC] = {
+        .cm_ctl = 0x00000295,
+        .cm_div = 0x00006000,
+    },
+
+    [CPRMAN_CLOCK_EMMC2] = {
+        .cm_ctl = 0, /* unknown */
+        .cm_div = 0
+    },
+};
+
 #endif
