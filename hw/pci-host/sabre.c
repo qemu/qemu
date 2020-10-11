@@ -388,7 +388,7 @@ static void sabre_realize(DeviceState *dev, Error **errp)
                                      pci_sabre_set_irq, pci_sabre_map_irq, s,
                                      &s->pci_mmio,
                                      &s->pci_ioport,
-                                     0, 32, TYPE_PCI_BUS);
+                                     0, 0x40, TYPE_PCI_BUS);
 
     pci_create_simple(phb->bus, 0, TYPE_SABRE_PCI_DEVICE);
 
