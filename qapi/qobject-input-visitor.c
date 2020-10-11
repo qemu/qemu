@@ -757,7 +757,7 @@ Visitor *qobject_input_visitor_new_str(const char *str,
         assert(args);
         v = qobject_input_visitor_new(QOBJECT(args));
     } else {
-        args = keyval_parse(str, implied_key, errp);
+        args = keyval_parse(str, implied_key, NULL, errp);
         if (!args) {
             return NULL;
         }

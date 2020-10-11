@@ -278,7 +278,7 @@ static void process_options(int argc, char *argv[])
                 }
                 qemu_opts_del(opts);
 
-                args = keyval_parse(optarg, "qom-type", &error_fatal);
+                args = keyval_parse(optarg, "qom-type", NULL, &error_fatal);
                 user_creatable_add_dict(args, true, &error_fatal);
                 qobject_unref(args);
                 break;
