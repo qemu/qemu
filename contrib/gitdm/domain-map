@@ -5,10 +5,13 @@
 #
 
 amd.com         AMD
+baidu.com       Baidu
+bytedance.com   ByteDance
 cmss.chinamobile.com China Mobile
 citrix.com      Citrix
-greensocs.com   GreenSocs
 fujitsu.com     Fujitsu
+google.com      Google
+greensocs.com   GreenSocs
 huawei.com      Huawei
 ibm.com         IBM
 igalia.com      Igalia
@@ -16,13 +19,18 @@ intel.com       Intel
 linaro.org      Linaro
 microsoft.com   Microsoft
 nokia.com       Nokia
+nuviainc.com    NUVIA
 oracle.com      Oracle
 proxmox.com     Proxmox
+quicinc.com     Qualcomm Innovation Center
 redhat.com      Red Hat
 rt-rk.com       RT-RK
 siemens.com     Siemens
 sifive.com      SiFive
+suse.com        SUSE
 suse.de         SUSE
 virtuozzo.com   Virtuozzo
 wdc.com         Western Digital
 xilinx.com      Xilinx
+yadro.com       YADRO
+yandex-team.ru  Yandex
