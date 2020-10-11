@@ -173,7 +173,7 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
                                     const char *implied_key,
                                     Error **errp)
 {
-    const char *key, *key_end, *s, *end;
+    const char *key, *key_end, *val_end, *s, *end;
     size_t len;
     char key_in_cur[128];
     QDict *cur;
@@ -182,10 +182,12 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
     QString *val;
 
     key = params;
+    val_end = NULL;
     len = strcspn(params, "=,");
     if (implied_key && len && key[len] != '=') {
         /* Desugar implied key */
         key = implied_key;
+        val_end = params + len;
         len = strlen(implied_key);
     }
     key_end = key + len;
@@ -241,7 +243,11 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
 
     if (key == implied_key) {
         assert(!*s);
-        s = params;
+        val = qstring_from_substr(params, 0, val_end - params);
+        s = val_end;
+        if (*s == ',') {
+            s++;
+        }
     } else {
         if (*s != '=') {
             error_setg(errp, "Expected '=' after parameter '%.*s'",
@@ -249,19 +255,19 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
             return NULL;
         }
         s++;
-    }
 
-    val = qstring_new();
-    for (;;) {
-        if (!*s) {
-            break;
-        } else if (*s == ',') {
-            s++;
-            if (*s != ',') {
+        val = qstring_new();
+        for (;;) {
+            if (!*s) {
                 break;
+            } else if (*s == ',') {
+                s++;
+                if (*s != ',') {
+                    break;
+                }
             }
+            qstring_append_chr(val, *s++);
         }
-        qstring_append_chr(val, *s++);
     }
 
     if (!keyval_parse_put(cur, key_in_cur, val, key, key_end, errp)) {

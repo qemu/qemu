@@ -183,11 +183,9 @@ static void test_keyval_parse(void)
     g_assert(!qdict);
 
     /* Implied key's value can't have comma (qemu_opts_parse(): it can) */
-    /* BUG: it can */
-    qdict = keyval_parse("val,,ue", "implied", &error_abort);
-    g_assert_cmpuint(qdict_size(qdict), ==, 1);
-    g_assert_cmpstr(qdict_get_try_str(qdict, "implied"), ==, "val,ue");
-    qobject_unref(qdict);
+    qdict = keyval_parse("val,,ue", "implied", &err);
+    error_free_or_abort(&err);
+    g_assert(!qdict);
 
     /* Empty key is not an implied key */
     qdict = keyval_parse("=val", "implied", &err);
