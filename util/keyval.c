@@ -16,8 +16,8 @@
  *   key-vals     = [ key-val { ',' key-val } [ ',' ] ]
  *   key-val      = key '=' val
  *   key          = key-fragment { '.' key-fragment }
- *   key-fragment = / [^=,.]* /
- *   val          = { / [^,]* / | ',,' }
+ *   key-fragment = / [^=,.]+ /
+ *   val          = { / [^,]+ / | ',,' }
  *
  * Semantics defined by reduction to JSON:
  *
@@ -71,12 +71,16 @@
  * Awkward.  Note that we carefully restrict alternate types to avoid
  * similar ambiguity.
  *
- * Additional syntax for use with an implied key:
+ * Alternative syntax for use with an implied key:
  *
- *   key-vals-ik  = val-no-key [ ',' key-vals ]
- *   val-no-key   = / [^=,]* /
+ *   key-vals     = [ key-val-1st { ',' key-val } [ ',' ] ]
+ *   key-val-1st  = val-no-key | key-val
+ *   val-no-key   = / [^=,]+ /
  *
- * where no-key is syntactic sugar for implied-key=val-no-key.
+ * where val-no-key is syntactic sugar for implied-key=val-no-key.
+ *
+ * Note that you can't use the sugared form when the value contains
+ * '=' or ','.
  */
 
 #include "qemu/osdep.h"
