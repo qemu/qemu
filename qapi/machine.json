@@ -562,6 +562,36 @@
 { 'command': 'inject-nmi' }
 
 ##
+# @KvmInfo:
+#
+# Information about support for KVM acceleration
+#
+# @enabled: true if KVM acceleration is active
+#
+# @present: true if KVM acceleration is built into this executable
+#
+# Since: 0.14.0
+##
+{ 'struct': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
+
+##
+# @query-kvm:
+#
+# Returns information about KVM acceleration
+#
+# Returns: @KvmInfo
+#
+# Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "query-kvm" }
+# <- { "return": { "enabled": true, "present": true } }
+#
+##
+{ 'command': 'query-kvm', 'returns': 'KvmInfo' }
+
+##
 # @NumaOptionsType:
 #
 # @node: NUMA nodes configuration
