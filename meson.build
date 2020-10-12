@@ -426,6 +426,74 @@ if targetos == 'linux' and have_tools and not get_option('mpath').disabled()
   endif
 endif
 
+iconv = not_found
+if not get_option('iconv').disabled()
+  libiconv = cc.find_library('iconv',
+                             required: false,
+                             static: enable_static)
+  if libiconv.found()
+    if cc.links('''
+      #include <iconv.h>
+      int main(void) {
+        iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
+        return conv != (iconv_t) -1;
+      }''', dependencies: [libiconv])
+      iconv = declare_dependency(dependencies: [libiconv])
+    endif
+  endif
+endif
+if get_option('iconv').enabled() and not iconv.found()
+  error('Cannot detect iconv API')
+endif
+
+curses = not_found
+if iconv.found() and not get_option('curses').disabled()
+  curses_libname_list = ['ncursesw', 'ncurses', 'cursesw', 'pdcurses']
+  curses_test = '''
+    #include <locale.h>
+    #include <curses.h>
+    #include <wchar.h>
+    int main(void) {
+      wchar_t wch = L'w';
+      setlocale(LC_ALL, "");
+      resize_term(0, 0);
+      addwstr(L"wide chars\n");
+      addnwstr(&wch, 1);
+      add_wch(WACS_DEGREE);
+      return 0;
+    }'''
+  foreach curses_libname : curses_libname_list
+      libcurses = dependency(curses_libname,
+                             required: false,
+                             method: 'pkg-config',
+                             static: enable_static)
+
+      if not libcurses.found()
+        dirs = ['/usr/include/ncursesw']
+        if targetos == 'windows'
+          dirs = []
+        endif
+        libcurses = cc.find_library(curses_libname,
+                                    required: false,
+                                    dirs: dirs,
+                                    static: enable_static)
+      endif
+      if libcurses.found()
+        if cc.links(curses_test, dependencies: [libcurses])
+          curses = declare_dependency(compile_args: '-DNCURSES_WIDECHAR', dependencies: [libcurses])
+          break
+        endif
+      endif
+  endforeach
+endif
+if get_option('curses').enabled() and not curses.found()
+  if not iconv.found()
+    error('Cannot detect iconv API')
+  else
+    error('Cannot detect curses API')
+  endif
+endif
+
 brlapi = not_found
 if 'CONFIG_BRLAPI' in config_host
   brlapi = declare_dependency(link_args: config_host['BRLAPI_LIBS'].split())
@@ -503,16 +571,6 @@ x11 = not_found
 if 'CONFIG_X11' in config_host
   x11 = declare_dependency(compile_args: config_host['X11_CFLAGS'].split(),
                            link_args: config_host['X11_LIBS'].split())
-endif
-curses = not_found
-if 'CONFIG_CURSES' in config_host
-  curses = declare_dependency(compile_args: config_host['CURSES_CFLAGS'].split(),
-                              link_args: config_host['CURSES_LIBS'].split())
-endif
-iconv = not_found
-if 'CONFIG_ICONV' in config_host
-  iconv = declare_dependency(compile_args: config_host['ICONV_CFLAGS'].split(),
-                             link_args: config_host['ICONV_LIBS'].split())
 endif
 vnc = not_found
 png = not_found
@@ -622,6 +680,7 @@ config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
 config_host_data.set('CONFIG_MPATH_NEW_API', mpathpersist_new_api)
+config_host_data.set('CONFIG_CURSES', curses.found())
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_VNC', vnc.found())
@@ -1905,8 +1964,8 @@ if config_host.has_key('CONFIG_NETTLE')
 endif
 summary_info += {'libtasn1':          config_host.has_key('CONFIG_TASN1')}
 summary_info += {'PAM':               config_host.has_key('CONFIG_AUTH_PAM')}
-summary_info += {'iconv support':     config_host.has_key('CONFIG_ICONV')}
-summary_info += {'curses support':    config_host.has_key('CONFIG_CURSES')}
+summary_info += {'iconv support':     iconv.found()}
+summary_info += {'curses support':    curses.found()}
 # TODO: add back version
 summary_info += {'virgl support':     config_host.has_key('CONFIG_VIRGL')}
 summary_info += {'curl support':      config_host.has_key('CONFIG_CURL')}
