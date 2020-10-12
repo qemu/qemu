@@ -120,7 +120,7 @@ static void sabre_config_write(void *opaque, hwaddr addr,
 
     trace_sabre_config_write(addr, val);
 
-    switch (addr & 0xffff) {
+    switch (addr) {
     case 0x30 ... 0x4f: /* DMA error registers */
         /* XXX: not implemented yet */
         break;
@@ -197,7 +197,7 @@ static uint64_t sabre_config_read(void *opaque,
     SabreState *s = opaque;
     uint32_t val;
 
-    switch (addr & 0xffff) {
+    switch (addr) {
     case 0x30 ... 0x4f: /* DMA error registers */
         val = 0;
         /* XXX: not implemented yet */
