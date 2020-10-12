@@ -195,32 +195,25 @@ static uint64_t sabre_config_read(void *opaque,
                                   hwaddr addr, unsigned size)
 {
     SabreState *s = opaque;
-    uint32_t val;
+    uint32_t val = 0;
 
     switch (addr) {
     case 0x30 ... 0x4f: /* DMA error registers */
-        val = 0;
         /* XXX: not implemented yet */
         break;
     case 0xc00 ... 0xc3f: /* PCI interrupt control */
         if (addr & 4) {
             val = s->pci_irq_map[(addr & 0x3f) >> 3];
-        } else {
-            val = 0;
         }
         break;
     case 0x1000 ... 0x107f: /* OBIO interrupt control */
         if (addr & 4) {
             val = s->obio_irq_map[(addr & 0xff) >> 3];
-        } else {
-            val = 0;
         }
         break;
     case 0x1080 ... 0x108f: /* PCI bus error */
         if (addr & 4) {
             val = s->pci_err_irq_map[(addr & 0xf) >> 3];
-        } else {
-            val = 0;
         }
         break;
     case 0x2000 ... 0x202f: /* PCI control */
@@ -229,8 +222,6 @@ static uint64_t sabre_config_read(void *opaque,
     case 0xf020 ... 0xf027: /* Reset control */
         if (addr & 4) {
             val = s->reset_control;
-        } else {
-            val = 0;
         }
         break;
     case 0x5000 ... 0x51cf: /* PIO/DMA diagnostics */
@@ -239,7 +230,6 @@ static uint64_t sabre_config_read(void *opaque,
     case 0xf000 ... 0xf01f: /* FFB config, memory control */
         /* we don't care */
     default:
-        val = 0;
         break;
     }
     trace_sabre_config_read(addr, val);
