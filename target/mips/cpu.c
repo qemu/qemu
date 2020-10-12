@@ -288,3 +288,15 @@ static void mips_cpu_register_types(void)
 }
 
 type_init(mips_cpu_register_types)
+
+/* Could be used by generic CPU object */
+MIPSCPU *mips_cpu_create_with_clock(const char *cpu_type, Clock *cpu_refclk)
+{
+    DeviceState *cpu;
+
+    cpu = DEVICE(object_new(cpu_type));
+    qdev_connect_clock_in(cpu, "clk-in", cpu_refclk);
+    qdev_realize(cpu, NULL, &error_abort);
+
+    return MIPS_CPU(cpu);
+}
