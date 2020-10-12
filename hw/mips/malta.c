@@ -1235,11 +1235,11 @@ void mips_malta_init(MachineState *machine)
     DriveInfo *dinfo;
     int fl_idx = 0;
     int be;
+    MaltaState *s;
+    DeviceState *dev;
 
-    DeviceState *dev = qdev_new(TYPE_MIPS_MALTA);
-    MaltaState *s = MIPS_MALTA(dev);
-
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    s = MIPS_MALTA(qdev_new(TYPE_MIPS_MALTA));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(s), &error_fatal);
 
     /* create CPU */
     mips_create_cpu(machine, s, &cbus_irq, &i8259_irq);
