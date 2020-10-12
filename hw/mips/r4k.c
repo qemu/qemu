@@ -13,6 +13,7 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
+#include "hw/clock.h"
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
 #include "hw/intc/i8259.h"
@@ -182,6 +183,7 @@ void mips_r4k_init(MachineState *machine)
     MemoryRegion *isa_io = g_new(MemoryRegion, 1);
     MemoryRegion *isa_mem = g_new(MemoryRegion, 1);
     int bios_size;
+    Clock *cpuclk;
     MIPSCPU *cpu;
     CPUMIPSState *env;
     ResetData *reset_info;
@@ -192,8 +194,11 @@ void mips_r4k_init(MachineState *machine)
     DriveInfo *dinfo;
     int be;
 
+    cpuclk = clock_new(OBJECT(machine), "cpu-refclk");
+    clock_set_hz(cpuclk, 200000000); /* 200 MHz */
+
     /* init CPUs */
-    cpu = MIPS_CPU(cpu_create(machine->cpu_type));
+    cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk);
     env = &cpu->env;
 
     reset_info = g_malloc0(sizeof(ResetData));
