@@ -106,17 +106,6 @@ void spapr_add_nvdimm(DeviceState *dev, uint64_t slot, Error **errp)
     }
 }
 
-void spapr_create_nvdimm_dr_connectors(SpaprMachineState *spapr)
-{
-    MachineState *machine = MACHINE(spapr);
-    int i;
-
-    for (i = 0; i < machine->ram_slots; i++) {
-        spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_PMEM, i);
-    }
-}
-
-
 static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
                            int parent_offset, NVDIMMDevice *nvdimm)
 {
