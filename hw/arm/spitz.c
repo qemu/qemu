@@ -578,7 +578,7 @@ static void spitz_keyboard_realize(DeviceState *dev, Error **errp)
 OBJECT_DECLARE_SIMPLE_TYPE(SpitzLCDTG, SPITZ_LCDTG)
 
 struct SpitzLCDTG {
-    SSISlave ssidev;
+    SSIPeripheral ssidev;
     uint32_t bl_intensity;
     uint32_t bl_power;
 };
@@ -612,7 +612,7 @@ static inline void spitz_bl_power(void *opaque, int line, int level)
     spitz_bl_update(s);
 }
 
-static uint32_t spitz_lcdtg_transfer(SSISlave *dev, uint32_t value)
+static uint32_t spitz_lcdtg_transfer(SSIPeripheral *dev, uint32_t value)
 {
     SpitzLCDTG *s = SPITZ_LCDTG(dev);
     int addr;
@@ -641,7 +641,7 @@ static uint32_t spitz_lcdtg_transfer(SSISlave *dev, uint32_t value)
     return 0;
 }
 
-static void spitz_lcdtg_realize(SSISlave *ssi, Error **errp)
+static void spitz_lcdtg_realize(SSIPeripheral *ssi, Error **errp)
 {
     SpitzLCDTG *s = SPITZ_LCDTG(ssi);
     DeviceState *dev = DEVICE(s);
@@ -667,12 +667,12 @@ OBJECT_DECLARE_SIMPLE_TYPE(CorgiSSPState, CORGI_SSP)
 
 /* "Demux" the signal based on current chipselect */
 struct CorgiSSPState {
-    SSISlave ssidev;
+    SSIPeripheral ssidev;
     SSIBus *bus[3];
     uint32_t enable[3];
 };
 
-static uint32_t corgi_ssp_transfer(SSISlave *dev, uint32_t value)
+static uint32_t corgi_ssp_transfer(SSIPeripheral *dev, uint32_t value)
 {
     CorgiSSPState *s = CORGI_SSP(dev);
     int i;
@@ -700,7 +700,7 @@ static void corgi_ssp_gpio_cs(void *opaque, int line, int level)
 #define SPITZ_BATTERY_VOLT      0xd0    /* About 4.0V */
 #define SPITZ_CHARGEON_ACIN     0x80    /* About 5.0V */
 
-static void corgi_ssp_realize(SSISlave *d, Error **errp)
+static void corgi_ssp_realize(SSIPeripheral *d, Error **errp)
 {
     DeviceState *dev = DEVICE(d);
     CorgiSSPState *s = CORGI_SSP(d);
@@ -715,14 +715,14 @@ static void spitz_ssp_attach(SpitzMachineState *sms)
 {
     void *bus;
 
-    sms->mux = ssi_create_slave(sms->mpu->ssp[CORGI_SSP_PORT - 1],
-                                TYPE_CORGI_SSP);
+    sms->mux = ssi_create_peripheral(sms->mpu->ssp[CORGI_SSP_PORT - 1],
+                                     TYPE_CORGI_SSP);
 
     bus = qdev_get_child_bus(sms->mux, "ssi0");
-    sms->lcdtg = ssi_create_slave(bus, TYPE_SPITZ_LCDTG);
+    sms->lcdtg = ssi_create_peripheral(bus, TYPE_SPITZ_LCDTG);
 
     bus = qdev_get_child_bus(sms->mux, "ssi1");
-    sms->ads7846 = ssi_create_slave(bus, "ads7846");
+    sms->ads7846 = ssi_create_peripheral(bus, "ads7846");
     qdev_connect_gpio_out(sms->ads7846, 0,
                           qdev_get_gpio_in(sms->mpu->gpio, SPITZ_GPIO_TP_INT));
 
@@ -1204,7 +1204,7 @@ static const VMStateDescription vmstate_corgi_ssp_regs = {
     .version_id = 2,
     .minimum_version_id = 2,
     .fields = (VMStateField[]) {
-        VMSTATE_SSI_SLAVE(ssidev, CorgiSSPState),
+        VMSTATE_SSI_PERIPHERAL(ssidev, CorgiSSPState),
         VMSTATE_UINT32_ARRAY(enable, CorgiSSPState, 3),
         VMSTATE_END_OF_LIST(),
     }
@@ -1213,7 +1213,7 @@ static const VMStateDescription vmstate_corgi_ssp_regs = {
 static void corgi_ssp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
 
     k->realize = corgi_ssp_realize;
     k->transfer = corgi_ssp_transfer;
@@ -1222,7 +1222,7 @@ static void corgi_ssp_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo corgi_ssp_info = {
     .name          = TYPE_CORGI_SSP,
-    .parent        = TYPE_SSI_SLAVE,
+    .parent        = TYPE_SSI_PERIPHERAL,
     .instance_size = sizeof(CorgiSSPState),
     .class_init    = corgi_ssp_class_init,
 };
@@ -1232,7 +1232,7 @@ static const VMStateDescription vmstate_spitz_lcdtg_regs = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_SSI_SLAVE(ssidev, SpitzLCDTG),
+        VMSTATE_SSI_PERIPHERAL(ssidev, SpitzLCDTG),
         VMSTATE_UINT32(bl_intensity, SpitzLCDTG),
         VMSTATE_UINT32(bl_power, SpitzLCDTG),
         VMSTATE_END_OF_LIST(),
@@ -1242,7 +1242,7 @@ static const VMStateDescription vmstate_spitz_lcdtg_regs = {
 static void spitz_lcdtg_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
 
     k->realize = spitz_lcdtg_realize;
     k->transfer = spitz_lcdtg_transfer;
@@ -1251,7 +1251,7 @@ static void spitz_lcdtg_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo spitz_lcdtg_info = {
     .name          = TYPE_SPITZ_LCDTG,
-    .parent        = TYPE_SSI_SLAVE,
+    .parent        = TYPE_SSI_PERIPHERAL,
     .instance_size = sizeof(SpitzLCDTG),
     .class_init    = spitz_lcdtg_class_init,
 };

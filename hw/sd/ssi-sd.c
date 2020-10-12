@@ -42,7 +42,7 @@ typedef enum {
 } ssi_sd_mode;
 
 struct ssi_sd_state {
-    SSISlave ssidev;
+    SSIPeripheral ssidev;
     uint32_t mode;
     int cmd;
     uint8_t cmdarg[4];
@@ -73,7 +73,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(ssi_sd_state, SSI_SD)
 #define SSI_SDR_ADDRESS_ERROR   0x2000
 #define SSI_SDR_PARAMETER_ERROR 0x4000
 
-static uint32_t ssi_sd_transfer(SSISlave *dev, uint32_t val)
+static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
 {
     ssi_sd_state *s = SSI_SD(dev);
 
@@ -235,12 +235,12 @@ static const VMStateDescription vmstate_ssi_sd = {
         VMSTATE_INT32(arglen, ssi_sd_state),
         VMSTATE_INT32(response_pos, ssi_sd_state),
         VMSTATE_INT32(stopping, ssi_sd_state),
-        VMSTATE_SSI_SLAVE(ssidev, ssi_sd_state),
+        VMSTATE_SSI_PERIPHERAL(ssidev, ssi_sd_state),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static void ssi_sd_realize(SSISlave *d, Error **errp)
+static void ssi_sd_realize(SSIPeripheral *d, Error **errp)
 {
     ERRP_GUARD();
     ssi_sd_state *s = SSI_SD(d);
@@ -291,7 +291,7 @@ static void ssi_sd_reset(DeviceState *dev)
 static void ssi_sd_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
 
     k->realize = ssi_sd_realize;
     k->transfer = ssi_sd_transfer;
@@ -304,7 +304,7 @@ static void ssi_sd_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo ssi_sd_info = {
     .name          = TYPE_SSI_SD,
-    .parent        = TYPE_SSI_SLAVE,
+    .parent        = TYPE_SSI_PERIPHERAL,
     .instance_size = sizeof(ssi_sd_state),
     .class_init    = ssi_sd_class_init,
 };

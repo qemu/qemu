@@ -148,13 +148,13 @@ static void tosa_gpio_setup(PXA2xxState *cpu,
     qemu_irq_raise(qdev_get_gpio_in(cpu->gpio, TOSA_GPIO_USB_IN));
 }
 
-static uint32_t tosa_ssp_tansfer(SSISlave *dev, uint32_t value)
+static uint32_t tosa_ssp_tansfer(SSIPeripheral *dev, uint32_t value)
 {
     fprintf(stderr, "TG: %u %02x\n", value >> 5, value & 0x1f);
     return 0;
 }
 
-static void tosa_ssp_realize(SSISlave *dev, Error **errp)
+static void tosa_ssp_realize(SSIPeripheral *dev, Error **errp)
 {
     /* Nothing to do.  */
 }
@@ -225,7 +225,7 @@ static void tosa_tg_init(PXA2xxState *cpu)
 {
     I2CBus *bus = pxa2xx_i2c_bus(cpu->i2c[0]);
     i2c_slave_create_simple(bus, TYPE_TOSA_DAC, DAC_BASE);
-    ssi_create_slave(cpu->ssp[1], "tosa-ssp");
+    ssi_create_peripheral(cpu->ssp[1], "tosa-ssp");
 }
 
 
@@ -292,7 +292,7 @@ static const TypeInfo tosa_dac_info = {
 
 static void tosa_ssp_class_init(ObjectClass *klass, void *data)
 {
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
 
     k->realize = tosa_ssp_realize;
     k->transfer = tosa_ssp_tansfer;
@@ -300,8 +300,8 @@ static void tosa_ssp_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo tosa_ssp_info = {
     .name          = "tosa-ssp",
-    .parent        = TYPE_SSI_SLAVE,
-    .instance_size = sizeof(SSISlave),
+    .parent        = TYPE_SSI_PERIPHERAL,
+    .instance_size = sizeof(SSIPeripheral),
     .class_init    = tosa_ssp_class_init,
 };
 

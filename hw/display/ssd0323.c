@@ -49,7 +49,7 @@ enum ssd0323_mode
 };
 
 struct ssd0323_state {
-    SSISlave ssidev;
+    SSIPeripheral ssidev;
     QemuConsole *con;
 
     uint32_t cmd_len;
@@ -71,7 +71,7 @@ struct ssd0323_state {
 OBJECT_DECLARE_SIMPLE_TYPE(ssd0323_state, SSD0323)
 
 
-static uint32_t ssd0323_transfer(SSISlave *dev, uint32_t data)
+static uint32_t ssd0323_transfer(SSIPeripheral *dev, uint32_t data)
 {
     ssd0323_state *s = SSD0323(dev);
 
@@ -338,7 +338,7 @@ static const VMStateDescription vmstate_ssd0323 = {
         VMSTATE_INT32(remap, ssd0323_state),
         VMSTATE_UINT32(mode, ssd0323_state),
         VMSTATE_BUFFER(framebuffer, ssd0323_state),
-        VMSTATE_SSI_SLAVE(ssidev, ssd0323_state),
+        VMSTATE_SSI_PERIPHERAL(ssidev, ssd0323_state),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -348,7 +348,7 @@ static const GraphicHwOps ssd0323_ops = {
     .gfx_update  = ssd0323_update_display,
 };
 
-static void ssd0323_realize(SSISlave *d, Error **errp)
+static void ssd0323_realize(SSIPeripheral *d, Error **errp)
 {
     DeviceState *dev = DEVICE(d);
     ssd0323_state *s = SSD0323(d);
@@ -364,7 +364,7 @@ static void ssd0323_realize(SSISlave *d, Error **errp)
 static void ssd0323_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
 
     k->realize = ssd0323_realize;
     k->transfer = ssd0323_transfer;
@@ -375,7 +375,7 @@ static void ssd0323_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo ssd0323_info = {
     .name          = TYPE_SSD0323,
-    .parent        = TYPE_SSI_SLAVE,
+    .parent        = TYPE_SSI_PERIPHERAL,
     .instance_size = sizeof(ssd0323_state),
     .class_init    = ssd0323_class_init,
 };

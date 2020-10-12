@@ -416,7 +416,7 @@ typedef enum {
 #define M25P80_INTERNAL_DATA_BUFFER_SZ 16
 
 struct Flash {
-    SSISlave parent_obj;
+    SSIPeripheral parent_obj;
 
     BlockBackend *blk;
 
@@ -458,7 +458,7 @@ struct Flash {
 };
 
 struct M25P80Class {
-    SSISlaveClass parent_class;
+    SSIPeripheralClass parent_class;
     FlashPartInfo *pi;
 };
 
@@ -1170,7 +1170,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     }
 }
 
-static int m25p80_cs(SSISlave *ss, bool select)
+static int m25p80_cs(SSIPeripheral *ss, bool select)
 {
     Flash *s = M25P80(ss);
 
@@ -1190,7 +1190,7 @@ static int m25p80_cs(SSISlave *ss, bool select)
     return 0;
 }
 
-static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
+static uint32_t m25p80_transfer8(SSIPeripheral *ss, uint32_t tx)
 {
     Flash *s = M25P80(ss);
     uint32_t r = 0;
@@ -1265,7 +1265,7 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
     return r;
 }
 
-static void m25p80_realize(SSISlave *ss, Error **errp)
+static void m25p80_realize(SSIPeripheral *ss, Error **errp)
 {
     Flash *s = M25P80(ss);
     M25P80Class *mc = M25P80_GET_CLASS(s);
@@ -1386,7 +1386,7 @@ static const VMStateDescription vmstate_m25p80 = {
 static void m25p80_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
     M25P80Class *mc = M25P80_CLASS(klass);
 
     k->realize = m25p80_realize;
@@ -1401,7 +1401,7 @@ static void m25p80_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo m25p80_info = {
     .name           = TYPE_M25P80,
-    .parent         = TYPE_SSI_SLAVE,
+    .parent         = TYPE_SSI_PERIPHERAL,
     .instance_size  = sizeof(Flash),
     .class_size     = sizeof(M25P80Class),
     .abstract       = true,

@@ -236,7 +236,8 @@ static void xilinx_spips_update_cs(XilinxSPIPS *s, int field)
         if (old_state != new_state) {
             s->cs_lines_state[i] = new_state;
             s->rx_discard = ARRAY_FIELD_EX32(s->regs, CMND, RX_DISCARD);
-            DB_PRINT_L(1, "%sselecting slave %d\n", new_state ? "" : "de", i);
+            DB_PRINT_L(1, "%sselecting peripheral %d\n",
+                       new_state ? "" : "de", i);
         }
         qemu_set_irq(s->cs_lines[i], !new_state);
     }
@@ -1154,7 +1155,7 @@ static void lqspi_load_cache(void *opaque, hwaddr addr)
     int i;
     int flash_addr = ((addr & ~(LQSPI_CACHE_SIZE - 1))
                    / num_effective_busses(s));
-    int slave = flash_addr >> LQSPI_ADDRESS_BITS;
+    int peripheral = flash_addr >> LQSPI_ADDRESS_BITS;
     int cache_entry = 0;
     uint32_t u_page_save = s->regs[R_LQSPI_STS] & ~LQSPI_CFG_U_PAGE;
 
@@ -1162,7 +1163,7 @@ static void lqspi_load_cache(void *opaque, hwaddr addr)
             addr > q->lqspi_cached_addr + LQSPI_CACHE_SIZE - 4) {
         xilinx_qspips_invalidate_mmio_ptr(q);
         s->regs[R_LQSPI_STS] &= ~LQSPI_CFG_U_PAGE;
-        s->regs[R_LQSPI_STS] |= slave ? LQSPI_CFG_U_PAGE : 0;
+        s->regs[R_LQSPI_STS] |= peripheral ? LQSPI_CFG_U_PAGE : 0;
 
         DB_PRINT_L(0, "config reg status: %08x\n", s->regs[R_LQSPI_CFG]);
 
