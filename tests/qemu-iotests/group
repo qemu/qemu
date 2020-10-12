@@ -88,7 +88,7 @@
 064 rw quick
 065 rw quick
 066 rw auto quick
-067 rw quick
+# 067 was removed, do not reuse
 068 rw quick
 069 rw auto quick
 070 rw quick

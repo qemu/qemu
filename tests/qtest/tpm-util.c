@@ -237,12 +237,16 @@ void tpm_util_migrate(QTestState *who, const char *uri)
 void tpm_util_wait_for_migration_complete(QTestState *who)
 {
     while (true) {
+        QDict *rsp;
         QDict *rsp_return;
         bool completed;
         const char *status;
 
-        qtest_qmp_send(who, "{ 'execute': 'query-migrate' }");
-        rsp_return = qtest_qmp_receive_success(who, NULL, NULL);
+        rsp = qtest_qmp(who, "{ 'execute': 'query-migrate' }");
+        g_assert(qdict_haskey(rsp, "return"));
+        rsp_return = qdict_get_qdict(rsp, "return");
+
+        g_assert(!qdict_haskey(rsp_return, "error"));
         status = qdict_get_str(rsp_return, "status");
         completed = strcmp(status, "completed") == 0;
         g_assert_cmpstr(status, !=,  "failed");

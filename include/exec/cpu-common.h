@@ -14,6 +14,9 @@ void cpu_list_unlock(void);
 
 void tcg_flush_softmmu_tlb(CPUState *cs);
 
+void tcg_iommu_init_notifier_list(CPUState *cpu);
+void tcg_iommu_free_notifier_list(CPUState *cpu);
+
 #if !defined(CONFIG_USER_ONLY)
 
 enum device_endian {

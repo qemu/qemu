@@ -59,6 +59,8 @@ elif cpu == 's390x'
   kvm_targets = ['s390x-softmmu']
 elif cpu in ['ppc', 'ppc64']
   kvm_targets = ['ppc-softmmu', 'ppc64-softmmu']
+elif cpu in ['mips', 'mips64']
+  kvm_targets = ['mips-softmmu', 'mipsel-softmmu', 'mips64-softmmu', 'mips64el-softmmu']
 else
   kvm_targets = []
 endif
@@ -612,7 +614,9 @@ if not has_malloc_trim and get_option('malloc_trim').enabled()
   endif
 endif
 
-# Create config-host.h
+#################
+# config-host.h #
+#################
 
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
@@ -657,6 +661,10 @@ foreach k, v: config_host
     config_host_data.set(k, v == 'y' ? 1 : v)
   endif
 endforeach
+
+########################
+# Target configuration #
+########################
 
 minikconf = find_program('scripts/minikconf.py')
 config_all = {}
@@ -864,7 +872,9 @@ config_all += {
   'CONFIG_ALL': true,
 }
 
-# Submodules
+##############
+# Submodules #
+##############
 
 capstone = not_found
 capstone_opt = get_option('capstone')
@@ -1103,9 +1113,11 @@ config_host_data.set('CONFIG_CAPSTONE', capstone.found())
 config_host_data.set('CONFIG_FDT', fdt.found())
 config_host_data.set('CONFIG_SLIRP', slirp.found())
 
-genh += configure_file(output: 'config-host.h', configuration: config_host_data)
+#####################
+# Generated sources #
+#####################
 
-# Generators
+genh += configure_file(output: 'config-host.h', configuration: config_host_data)
 
 hxtool = find_program('scripts/hxtool')
 shaderinclude = find_program('scripts/shaderinclude.pl')
@@ -1180,21 +1192,28 @@ sphinx_extn_depends = [ meson.source_root() / 'docs/sphinx/depfile.py',
                         meson.source_root() / 'docs/sphinx/qmp_lexer.py',
                         qapi_gen_depends ]
 
-# Collect sourcesets.
+###################
+# Collect sources #
+###################
 
-util_ss = ss.source_set()
+authz_ss = ss.source_set()
+blockdev_ss = ss.source_set()
+block_ss = ss.source_set()
+bsd_user_ss = ss.source_set()
+chardev_ss = ss.source_set()
+common_ss = ss.source_set()
+crypto_ss = ss.source_set()
+io_ss = ss.source_set()
+linux_user_ss = ss.source_set()
+qmp_ss = ss.source_set()
+qom_ss = ss.source_set()
+softmmu_ss = ss.source_set()
+specific_fuzz_ss = ss.source_set()
+specific_ss = ss.source_set()
 stub_ss = ss.source_set()
 trace_ss = ss.source_set()
-block_ss = ss.source_set()
-blockdev_ss = ss.source_set()
-qmp_ss = ss.source_set()
-common_ss = ss.source_set()
-softmmu_ss = ss.source_set()
 user_ss = ss.source_set()
-bsd_user_ss = ss.source_set()
-linux_user_ss = ss.source_set()
-specific_ss = ss.source_set()
-specific_fuzz_ss = ss.source_set()
+util_ss = ss.source_set()
 
 modules = {}
 hw_arch = {}
@@ -1313,8 +1332,6 @@ if enable_modules
   modulecommon = declare_dependency(link_whole: libmodulecommon, compile_args: '-DBUILD_DSO')
 endif
 
-# Build targets from sourcesets
-
 stub_ss = stub_ss.apply(config_all, strict: false)
 
 util_ss.add_all(trace_ss)
@@ -1360,24 +1377,14 @@ blockdev_ss.add(files(
 # os-win32.c does not
 blockdev_ss.add(when: 'CONFIG_POSIX', if_true: files('os-posix.c'))
 softmmu_ss.add(when: 'CONFIG_WIN32', if_true: [files('os-win32.c')])
-
 softmmu_ss.add_all(blockdev_ss)
-softmmu_ss.add(files(
-  'bootdevice.c',
-  'dma-helpers.c',
-  'qdev-monitor.c',
-), sdl)
-
-softmmu_ss.add(when: 'CONFIG_TPM', if_true: files('tpm.c'))
-softmmu_ss.add(when: 'CONFIG_SECCOMP', if_true: [files('qemu-seccomp.c'), seccomp])
-softmmu_ss.add(when: fdt, if_true: files('device_tree.c'))
 
 common_ss.add(files('cpus-common.c'))
 
 subdir('softmmu')
 
 common_ss.add(capstone)
-specific_ss.add(files('disas.c', 'exec.c', 'gdbstub.c'), capstone, libpmem, libdaxctl)
+specific_ss.add(files('cpu.c', 'disas.c', 'gdbstub.c'), capstone)
 specific_ss.add(files('exec-vary.c'))
 specific_ss.add(when: 'CONFIG_TCG', if_true: files(
   'fpu/softfloat.c',
@@ -1411,6 +1418,10 @@ specific_ss.add_all(when: 'CONFIG_LINUX_USER', if_true: linux_user_ss)
 # needed for fuzzing binaries
 subdir('tests/qtest/libqos')
 subdir('tests/qtest/fuzz')
+
+########################
+# Library dependencies #
+########################
 
 block_mods = []
 softmmu_mods = []
@@ -1446,6 +1457,47 @@ qemu_syms = custom_target('qemu.syms', output: 'qemu.syms',
                              capture: true,
                              command: [undefsym, nm, '@INPUT@'])
 
+qom_ss = qom_ss.apply(config_host, strict: false)
+libqom = static_library('qom', qom_ss.sources() + genh,
+                        dependencies: [qom_ss.dependencies()],
+                        name_suffix: 'fa')
+
+qom = declare_dependency(link_whole: libqom)
+
+authz_ss = authz_ss.apply(config_host, strict: false)
+libauthz = static_library('authz', authz_ss.sources() + genh,
+                          dependencies: [authz_ss.dependencies()],
+                          name_suffix: 'fa',
+                          build_by_default: false)
+
+authz = declare_dependency(link_whole: libauthz,
+                           dependencies: qom)
+
+crypto_ss = crypto_ss.apply(config_host, strict: false)
+libcrypto = static_library('crypto', crypto_ss.sources() + genh,
+                           dependencies: [crypto_ss.dependencies()],
+                           name_suffix: 'fa',
+                           build_by_default: false)
+
+crypto = declare_dependency(link_whole: libcrypto,
+                            dependencies: [authz, qom])
+
+io_ss = io_ss.apply(config_host, strict: false)
+libio = static_library('io', io_ss.sources() + genh,
+                       dependencies: [io_ss.dependencies()],
+                       link_with: libqemuutil,
+                       name_suffix: 'fa',
+                       build_by_default: false)
+
+io = declare_dependency(link_whole: libio, dependencies: [crypto, qom])
+
+libmigration = static_library('migration', sources: migration_files + genh,
+                              name_suffix: 'fa',
+                              build_by_default: false)
+migration = declare_dependency(link_with: libmigration,
+                               dependencies: [zlib, qom, io])
+softmmu_ss.add(migration)
+
 block_ss = block_ss.apply(config_host, strict: false)
 libblock = static_library('block', block_ss.sources() + genh,
                           dependencies: block_ss.dependencies(),
@@ -1464,6 +1516,22 @@ libqmp = static_library('qmp', qmp_ss.sources() + genh,
                         build_by_default: false)
 
 qmp = declare_dependency(link_whole: [libqmp])
+
+libchardev = static_library('chardev', chardev_ss.sources() + genh,
+                            name_suffix: 'fa',
+                            build_by_default: false)
+
+chardev = declare_dependency(link_whole: libchardev)
+
+libhwcore = static_library('hwcore', sources: hwcore_files + genh,
+                           name_suffix: 'fa',
+                           build_by_default: false)
+hwcore = declare_dependency(link_whole: libhwcore)
+common_ss.add(hwcore)
+
+###########
+# Targets #
+###########
 
 foreach m : block_mods + softmmu_mods
   shared_module(m.name(),
@@ -1738,6 +1806,10 @@ if host_machine.system() == 'windows'
                        command: nsis_cmd + ['@INPUT@'])
   alias_target('installer', nsis)
 endif
+
+#########################
+# Configuration summary #
+#########################
 
 summary_info = {}
 summary_info += {'Install prefix':    config_host['prefix']}

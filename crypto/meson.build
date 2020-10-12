@@ -1,4 +1,3 @@
-crypto_ss = ss.source_set()
 crypto_ss.add(genh)
 crypto_ss.add(files(
   'afsplit.c',
@@ -51,15 +50,6 @@ if 'CONFIG_GNUTLS' in config_host
   crypto_ss.add(gnutls)
 endif
 
-
-crypto_ss = crypto_ss.apply(config_host, strict: false)
-libcrypto = static_library('crypto', crypto_ss.sources() + genh,
-                           dependencies: [crypto_ss.dependencies()],
-                           name_suffix: 'fa',
-                           build_by_default: false)
-
-crypto = declare_dependency(link_whole: libcrypto,
-                            dependencies: [authz, qom])
 
 util_ss.add(files('aes.c'))
 util_ss.add(files('init.c'))

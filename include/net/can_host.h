@@ -35,7 +35,7 @@
 OBJECT_DECLARE_TYPE(CanHostState, CanHostClass, CAN_HOST)
 
 struct CanHostState {
-    ObjectClass oc;
+    Object oc;
 
     CanBusState *bus;
     CanBusClientState bus_client;

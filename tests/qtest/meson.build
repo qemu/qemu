@@ -111,7 +111,7 @@ qtests_moxie = [ 'boot-serial-test' ]
 qtests_ppc = \
   (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +            \
   (config_all_devices.has_key('CONFIG_M48T59') ? ['m48t59-test'] : []) +                     \
-  ['boot-order-test', 'prom-env-test', 'drive_del-test', 'boot-serial-test']                 \
+  ['boot-order-test', 'prom-env-test', 'boot-serial-test']                 \
 
 qtests_ppc64 = \
   (config_all_devices.has_key('CONFIG_PSERIES') ? ['device-plug-test'] : []) +               \
@@ -121,7 +121,7 @@ qtests_ppc64 = \
   (config_all_devices.has_key('CONFIG_USB_UHCI') ? ['usb-hcd-uhci-test'] : []) +             \
   (config_all_devices.has_key('CONFIG_USB_XHCI_NEC') ? ['usb-hcd-xhci-test'] : []) +         \
   (config_host.has_key('CONFIG_POSIX') ? ['test-filter-mirror'] : []) +                      \
-  qtests_pci + ['migration-test', 'numa-test', 'cpu-plug-test']
+  qtests_pci + ['migration-test', 'numa-test', 'cpu-plug-test', 'drive_del-test']
 
 qtests_sh4 = (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : [])
 qtests_sh4eb = (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : [])
@@ -193,34 +193,24 @@ qos_test_ss.add(
 qos_test_ss.add(when: 'CONFIG_VIRTFS', if_true: files('virtio-9p-test.c'))
 qos_test_ss.add(when: 'CONFIG_VHOST_USER', if_true: files('vhost-user-test.c'))
 
-extra_qtest_deps = {
-  'bios-tables-test': [io],
-  'ivshmem-test': [rt],
-  'qos-test': [chardev, io],
-  'tpm-crb-swtpm-test': [io],
-  'tpm-crb-test': [io],
-  'tpm-tis-swtpm-test': [io],
-  'tpm-tis-test': [io],
-  'tpm-tis-device-swtpm-test': [io],
-  'tpm-tis-device-test': [io],
-}
-extra_qtest_srcs = {
-  'bios-tables-test': files('boot-sector.c', 'acpi-utils.c', 'tpm-emu.c'),
-  'pxe-test': files('boot-sector.c'),
-  'cdrom-test': files('boot-sector.c'),
-  'migration-test': files('migration-helpers.c'),
-  'ivshmem-test': files('../../contrib/ivshmem-server/ivshmem-server.c'),
-  'dbus-vmstate-test': files('migration-helpers.c') + dbus_vmstate1,
-  'vmgenid-test': files('boot-sector.c', 'acpi-utils.c'),
-  'tpm-crb-swtpm-test': files('tpm-emu.c', 'tpm-util.c', 'tpm-tests.c'),
-  'tpm-crb-test': files('tpm-emu.c', 'tpm-util.c', 'tpm-tests.c'),
-  'tpm-tis-device-swtpm-test': files('tpm-emu.c', 'tpm-util.c', 'tpm-tis-util.c', 'tpm-tests.c'),
-  'tpm-tis-device-test': files('tpm-emu.c', 'tpm-util.c', 'tpm-tis-util.c', 'tpm-tests.c'),
-  'tpm-tis-swtpm-test': files('tpm-emu.c', 'tpm-util.c', 'tpm-tis-util.c', 'tpm-tests.c'),
-  'tpm-tis-test': files('tpm-emu.c', 'tpm-util.c', 'tpm-tis-util.c', 'tpm-tests.c'),
-  'qos-test': qos_test_ss.apply(config_host, strict: false).sources()
-}
+tpmemu_files = ['tpm-emu.c', 'tpm-util.c', 'tpm-tests.c']
 
+qtests = {
+  'bios-tables-test': [io, 'boot-sector.c', 'acpi-utils.c', 'tpm-emu.c'],
+  'cdrom-test': files('boot-sector.c'),
+  'dbus-vmstate-test': files('migration-helpers.c') + dbus_vmstate1,
+  'ivshmem-test': [rt, '../../contrib/ivshmem-server/ivshmem-server.c'],
+  'migration-test': files('migration-helpers.c'),
+  'pxe-test': files('boot-sector.c'),
+  'qos-test': [chardev, io, qos_test_ss.apply(config_host, strict: false).sources()],
+  'tpm-crb-swtpm-test': [io, tpmemu_files],
+  'tpm-crb-test': [io, tpmemu_files],
+  'tpm-tis-swtpm-test': [io, tpmemu_files, 'tpm-tis-util.c'],
+  'tpm-tis-test': [io, tpmemu_files, 'tpm-tis-util.c'],
+  'tpm-tis-device-swtpm-test': [io, tpmemu_files, 'tpm-tis-util.c'],
+  'tpm-tis-device-test': [io, tpmemu_files, 'tpm-tis-util.c'],
+  'vmgenid-test': files('boot-sector.c', 'acpi-utils.c'),
+}
 
 qtest_executables = {}
 foreach dir : target_dirs
@@ -230,7 +220,7 @@ foreach dir : target_dirs
 
   target_base = dir.split('-')[0]
   qtest_emulator = emulators['qemu-system-' + target_base]
-  qtests = get_variable('qtests_' + target_base, []) + qtests_generic
+  target_qtests = get_variable('qtests_' + target_base, []) + qtests_generic
 
   test_deps = []
   qtest_env = environment()
@@ -241,14 +231,21 @@ foreach dir : target_dirs
   qtest_env.set('G_TEST_DBUS_DAEMON', meson.source_root() / 'tests/dbus-vmstate-daemon.sh')
   qtest_env.set('QTEST_QEMU_BINARY', './qemu-system-' + target_base)
   
-  foreach test : qtests
+  foreach test : target_qtests
     # Executables are shared across targets, declare them only the first time we
     # encounter them
     if not qtest_executables.has_key(test)
+      src = [test + '.c']
+      deps = [qemuutil, qos]
+      if test in qtests
+        # use a sourceset to quickly separate sources and deps
+        test_ss = ss.source_set()
+        test_ss.add(qtests[test])
+        src += test_ss.all_sources()
+        deps += test_ss.all_dependencies()
+      endif
       qtest_executables += {
-        test: executable(test,
-                         files(test + '.c') + extra_qtest_srcs.get(test, []),
-                         dependencies: [qemuutil, qos] + extra_qtest_deps.get(test, []))
+        test: executable(test, src, dependencies: deps)
       }
     endif
     # FIXME: missing dependency on the emulator binary and qemu-img

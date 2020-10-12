@@ -47,37 +47,37 @@ static void test_malformed(QTestState *qts)
 
     /* syntax error */
     qtest_qmp_send_raw(qts, "{]\n");
-    resp = qtest_qmp_receive(qts);
+    resp = qtest_qmp_receive_dict(qts);
     qmp_expect_error_and_unref(resp, "GenericError");
     assert_recovered(qts);
 
     /* lexical error: impossible byte outside string */
     qtest_qmp_send_raw(qts, "{\xFF");
-    resp = qtest_qmp_receive(qts);
+    resp = qtest_qmp_receive_dict(qts);
     qmp_expect_error_and_unref(resp, "GenericError");
     assert_recovered(qts);
 
     /* lexical error: funny control character outside string */
     qtest_qmp_send_raw(qts, "{\x01");
-    resp = qtest_qmp_receive(qts);
+    resp = qtest_qmp_receive_dict(qts);
     qmp_expect_error_and_unref(resp, "GenericError");
     assert_recovered(qts);
 
     /* lexical error: impossible byte in string */
     qtest_qmp_send_raw(qts, "{'bad \xFF");
-    resp = qtest_qmp_receive(qts);
+    resp = qtest_qmp_receive_dict(qts);
     qmp_expect_error_and_unref(resp, "GenericError");
     assert_recovered(qts);
 
     /* lexical error: control character in string */
     qtest_qmp_send_raw(qts, "{'execute': 'nonexistent', 'id':'\n");
-    resp = qtest_qmp_receive(qts);
+    resp = qtest_qmp_receive_dict(qts);
     qmp_expect_error_and_unref(resp, "GenericError");
     assert_recovered(qts);
 
     /* lexical error: interpolation */
     qtest_qmp_send_raw(qts, "%%p");
-    resp = qtest_qmp_receive(qts);
+    resp = qtest_qmp_receive_dict(qts);
     qmp_expect_error_and_unref(resp, "GenericError");
     assert_recovered(qts);
 
@@ -111,7 +111,7 @@ static void test_qmp_protocol(void)
     qts = qtest_init_without_qmp_handshake(common_args);
 
     /* Test greeting */
-    resp = qtest_qmp_receive(qts);
+    resp = qtest_qmp_receive_dict(qts);
     q = qdict_get_qdict(resp, "QMP");
     g_assert(q);
     test_version(qdict_get(q, "version"));
@@ -205,7 +205,7 @@ static void send_oob_cmd_that_fails(QTestState *s, const char *id)
 
 static void recv_cmd_id(QTestState *s, const char *id)
 {
-    QDict *resp = qtest_qmp_receive(s);
+    QDict *resp = qtest_qmp_receive_dict(s);
 
     g_assert_cmpstr(qdict_get_try_str(resp, "id"), ==, id);
     qobject_unref(resp);
@@ -222,7 +222,7 @@ static void test_qmp_oob(void)
     qts = qtest_init_without_qmp_handshake(common_args);
 
     /* Check the greeting message. */
-    resp = qtest_qmp_receive(qts);
+    resp = qtest_qmp_receive_dict(qts);
     q = qdict_get_qdict(resp, "QMP");
     g_assert(q);
     capabilities = qdict_get_qlist(q, "capabilities");
