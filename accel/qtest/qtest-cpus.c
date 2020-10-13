@@ -29,10 +29,6 @@
 
 static void *qtest_cpu_thread_fn(void *arg)
 {
-#ifdef _WIN32
-    error_report("qtest is not supported under Windows");
-    exit(1);
-#else
     CPUState *cpu = arg;
     sigset_t waitset;
     int r;
@@ -69,7 +65,6 @@ static void *qtest_cpu_thread_fn(void *arg)
     qemu_mutex_unlock_iothread();
     rcu_unregister_thread();
     return NULL;
-#endif
 }
 
 static void qtest_start_vcpu_thread(CPUState *cpu)
