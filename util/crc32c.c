@@ -1,7 +1,7 @@
 /*
  *  Castagnoli CRC32C Checksum Algorithm
  *
- *  Polynomial: 0x11EDC6F41
+ *  Polynomial: 0x1EDC6F41
  *
  *  Castagnoli93: Guy Castagnoli and Stefan Braeuer and Martin Herrman
  *               "Optimization of Cyclic Redundancy-Check Codes with 24
