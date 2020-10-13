@@ -3141,16 +3141,16 @@ static bool trans_VCVT_fix_hp(DisasContext *s, arg_VCVT_fix_sp *a)
     /* Switch on op:U:sx bits */
     switch (a->opc) {
     case 0:
-        gen_helper_vfp_shtoh(vd, vd, shift, fpst);
+        gen_helper_vfp_shtoh_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 1:
-        gen_helper_vfp_sltoh(vd, vd, shift, fpst);
+        gen_helper_vfp_sltoh_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 2:
-        gen_helper_vfp_uhtoh(vd, vd, shift, fpst);
+        gen_helper_vfp_uhtoh_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 3:
-        gen_helper_vfp_ultoh(vd, vd, shift, fpst);
+        gen_helper_vfp_ultoh_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 4:
         gen_helper_vfp_toshh_round_to_zero(vd, vd, shift, fpst);
@@ -3200,16 +3200,16 @@ static bool trans_VCVT_fix_sp(DisasContext *s, arg_VCVT_fix_sp *a)
     /* Switch on op:U:sx bits */
     switch (a->opc) {
     case 0:
-        gen_helper_vfp_shtos(vd, vd, shift, fpst);
+        gen_helper_vfp_shtos_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 1:
-        gen_helper_vfp_sltos(vd, vd, shift, fpst);
+        gen_helper_vfp_sltos_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 2:
-        gen_helper_vfp_uhtos(vd, vd, shift, fpst);
+        gen_helper_vfp_uhtos_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 3:
-        gen_helper_vfp_ultos(vd, vd, shift, fpst);
+        gen_helper_vfp_ultos_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 4:
         gen_helper_vfp_toshs_round_to_zero(vd, vd, shift, fpst);
@@ -3265,16 +3265,16 @@ static bool trans_VCVT_fix_dp(DisasContext *s, arg_VCVT_fix_dp *a)
     /* Switch on op:U:sx bits */
     switch (a->opc) {
     case 0:
-        gen_helper_vfp_shtod(vd, vd, shift, fpst);
+        gen_helper_vfp_shtod_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 1:
-        gen_helper_vfp_sltod(vd, vd, shift, fpst);
+        gen_helper_vfp_sltod_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 2:
-        gen_helper_vfp_uhtod(vd, vd, shift, fpst);
+        gen_helper_vfp_uhtod_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 3:
-        gen_helper_vfp_ultod(vd, vd, shift, fpst);
+        gen_helper_vfp_ultod_round_to_nearest(vd, vd, shift, fpst);
         break;
     case 4:
         gen_helper_vfp_toshd_round_to_zero(vd, vd, shift, fpst);

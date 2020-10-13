@@ -393,11 +393,31 @@ float32 VFP_HELPER(fcvts, d)(float64 x, CPUARMState *env)
     return float64_to_float32(x, &env->vfp.fp_status);
 }
 
-/* VFP3 fixed point conversion.  */
+/*
+ * VFP3 fixed point conversion. The AArch32 versions of fix-to-float
+ * must always round-to-nearest; the AArch64 ones honour the FPSCR
+ * rounding mode. (For AArch32 Neon the standard-FPSCR is set to
+ * round-to-nearest so either helper will work.) AArch32 float-to-fix
+ * must round-to-zero.
+ */
 #define VFP_CONV_FIX_FLOAT(name, p, fsz, ftype, isz, itype)            \
 ftype HELPER(vfp_##name##to##p)(uint##isz##_t  x, uint32_t shift,      \
                                      void *fpstp) \
 { return itype##_to_##float##fsz##_scalbn(x, -shift, fpstp); }
+
+#define VFP_CONV_FIX_FLOAT_ROUND(name, p, fsz, ftype, isz, itype)      \
+    ftype HELPER(vfp_##name##to##p##_round_to_nearest)(uint##isz##_t  x, \
+                                                     uint32_t shift,   \
+                                                     void *fpstp)      \
+    {                                                                  \
+        ftype ret;                                                     \
+        float_status *fpst = fpstp;                                    \
+        FloatRoundMode oldmode = fpst->float_rounding_mode;            \
+        fpst->float_rounding_mode = float_round_nearest_even;          \
+        ret = itype##_to_##float##fsz##_scalbn(x, -shift, fpstp);      \
+        fpst->float_rounding_mode = oldmode;                           \
+        return ret;                                                    \
+    }
 
 #define VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, ftype, isz, itype, ROUND, suff) \
 uint##isz##_t HELPER(vfp_to##name##p##suff)(ftype x, uint32_t shift,      \
@@ -412,6 +432,7 @@ uint##isz##_t HELPER(vfp_to##name##p##suff)(ftype x, uint32_t shift,      \
 
 #define VFP_CONV_FIX(name, p, fsz, ftype, isz, itype)            \
 VFP_CONV_FIX_FLOAT(name, p, fsz, ftype, isz, itype)              \
+VFP_CONV_FIX_FLOAT_ROUND(name, p, fsz, ftype, isz, itype)        \
 VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, ftype, isz, itype,        \
                          float_round_to_zero, _round_to_zero)    \
 VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, ftype, isz, itype,        \
