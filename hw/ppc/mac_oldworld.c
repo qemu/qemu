@@ -253,10 +253,9 @@ static void ppc_heathrow_init(MachineState *machine)
     /* Grackle PCI host bridge */
     dev = qdev_new(TYPE_GRACKLE_PCI_HOST_BRIDGE);
     qdev_prop_set_uint32(dev, "ofw-addr", 0x80000000);
-    object_property_set_link(OBJECT(dev), "pic", OBJECT(pic_dev),
-                             &error_abort);
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
+
     sysbus_mmio_map(s, 0, GRACKLE_BASE);
     sysbus_mmio_map(s, 1, GRACKLE_BASE + 0x200000);
     /* PCI hole */
@@ -265,6 +264,10 @@ static void ppc_heathrow_init(MachineState *machine)
     /* Register 2 MB of ISA IO space */
     memory_region_add_subregion(get_system_memory(), 0xfe000000,
                                 sysbus_mmio_get_region(s, 3));
+
+    for (i = 0; i < 4; i++) {
+        qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(pic_dev, 0x15 + i));
+    }
 
     pci_bus = PCI_HOST_BRIDGE(dev)->bus;
 
