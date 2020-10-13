@@ -1,5 +1,5 @@
 /*
- * QTest accelerator code
+ * Dummy cpu thread code
  *
  * Copyright IBM, Corp. 2011
  *
@@ -13,21 +13,12 @@
 
 #include "qemu/osdep.h"
 #include "qemu/rcu.h"
-#include "qapi/error.h"
-#include "qemu/module.h"
-#include "qemu/option.h"
-#include "qemu/config-file.h"
-#include "sysemu/accel.h"
-#include "sysemu/qtest.h"
 #include "sysemu/cpus.h"
-#include "sysemu/cpu-timers.h"
 #include "qemu/guest-random.h"
 #include "qemu/main-loop.h"
 #include "hw/core/cpu.h"
 
-#include "qtest-cpus.h"
-
-static void *qtest_cpu_thread_fn(void *arg)
+static void *dummy_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
     sigset_t waitset;
@@ -67,7 +58,7 @@ static void *qtest_cpu_thread_fn(void *arg)
     return NULL;
 }
 
-static void qtest_start_vcpu_thread(CPUState *cpu)
+void dummy_start_vcpu_thread(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
 
@@ -76,11 +67,6 @@ static void qtest_start_vcpu_thread(CPUState *cpu)
     qemu_cond_init(cpu->halt_cond);
     snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/DUMMY",
              cpu->cpu_index);
-    qemu_thread_create(cpu->thread, thread_name, qtest_cpu_thread_fn, cpu,
+    qemu_thread_create(cpu->thread, thread_name, dummy_cpu_thread_fn, cpu,
                        QEMU_THREAD_JOINABLE);
 }
-
-const CpusAccel qtest_cpus = {
-    .create_vcpu_thread = qtest_start_vcpu_thread,
-    .get_virtual_clock = qtest_get_virtual_clock,
-};
