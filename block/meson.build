@@ -7,7 +7,6 @@ block_ss.add(files(
   'backup-top.c',
   'blkdebug.c',
   'blklogwrites.c',
-  'blkreplay.c',
   'blkverify.c',
   'block-backend.c',
   'block-copy.c',
@@ -41,6 +40,8 @@ block_ss.add(files(
   'vpc.c',
   'write-threshold.c',
 ), zstd, zlib)
+
+softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
 
 block_ss.add(when: 'CONFIG_QCOW1', if_true: files('qcow.c'))
 block_ss.add(when: 'CONFIG_VDI', if_true: files('vdi.c'))
