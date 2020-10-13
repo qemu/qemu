@@ -34,6 +34,9 @@ unsigned start_address;
 unsigned end_address;
 static bool uffd_feature_thread_id;
 
+/* A downtime where the test really should converge */
+#define CONVERGE_DOWNTIME 1000
+
 #if defined(__linux__)
 #include <sys/syscall.h>
 #include <sys/vfs.h>
@@ -864,8 +867,7 @@ static void test_precopy_unix(void)
 
     wait_for_migration_pass(from);
 
-    /* 300 ms should converge */
-    migrate_set_parameter_int(from, "downtime-limit", 300);
+    migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
 
     if (!got_stop) {
         qtest_qmp_eventwait(from, "STOP");
@@ -947,9 +949,11 @@ static void test_xbzrle(const char *uri)
     migrate_qmp(from, uri, "{}");
 
     wait_for_migration_pass(from);
+    /* Make sure we have 2 passes, so the xbzrle cache gets a workout */
+    wait_for_migration_pass(from);
 
-    /* 300ms should converge */
-    migrate_set_parameter_int(from, "downtime-limit", 300);
+    /* 1000ms should converge */
+    migrate_set_parameter_int(from, "downtime-limit", 1000);
 
     if (!got_stop) {
         qtest_qmp_eventwait(from, "STOP");
@@ -999,8 +1003,7 @@ static void test_precopy_tcp(void)
 
     wait_for_migration_pass(from);
 
-    /* 300ms should converge */
-    migrate_set_parameter_int(from, "downtime-limit", 300);
+    migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
 
     if (!got_stop) {
         qtest_qmp_eventwait(from, "STOP");
@@ -1068,8 +1071,7 @@ static void test_migrate_fd_proto(void)
 
     wait_for_migration_pass(from);
 
-    /* 300ms should converge */
-    migrate_set_parameter_int(from, "downtime-limit", 300);
+    migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
 
     if (!got_stop) {
         qtest_qmp_eventwait(from, "STOP");
@@ -1304,8 +1306,7 @@ static void test_multifd_tcp(const char *method)
 
     wait_for_migration_pass(from);
 
-    /* 300ms it should converge */
-    migrate_set_parameter_int(from, "downtime-limit", 300);
+    migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
 
     if (!got_stop) {
         qtest_qmp_eventwait(from, "STOP");

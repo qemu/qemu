@@ -2497,7 +2497,7 @@ S: Maintained
 F: softmmu/qtest.c
 F: accel/qtest/
 F: tests/qtest/
-X: tests/qtest/bios-tables-test-allowed-diff.h
+X: tests/qtest/bios-tables-test*
 
 Device Fuzzing
 M: Alexander Bulekov <alxndr@bu.edu>
@@ -3128,6 +3128,7 @@ R: Wainer dos Santos Moschetta <wainersm@redhat.com>
 S: Maintained
 F: .gitlab-ci.yml
 F: .gitlab-ci.d/crossbuilds.yml
+F: .gitlab-ci.d/*py
 
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>
