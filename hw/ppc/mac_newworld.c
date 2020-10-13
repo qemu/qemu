@@ -303,8 +303,6 @@ static void ppc_core99_init(MachineState *machine)
         /* 970 gets a U3 bus */
         /* Uninorth AGP bus */
         dev = qdev_new(TYPE_U3_AGP_HOST_BRIDGE);
-        object_property_set_link(OBJECT(dev), "pic", OBJECT(pic_dev),
-                                 &error_abort);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         uninorth_pci = U3_AGP_HOST_BRIDGE(dev);
         s = SYS_BUS_DEVICE(dev);
@@ -317,32 +315,38 @@ static void ppc_core99_init(MachineState *machine)
         sysbus_mmio_map(s, 0, 0xf0800000);
         sysbus_mmio_map(s, 1, 0xf0c00000);
 
+        for (i = 0; i < 4; i++) {
+            qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(pic_dev, 0x1b + i));
+        }
+
         machine_arch = ARCH_MAC99_U3;
     } else {
         /* Use values found on a real PowerMac */
         /* Uninorth AGP bus */
         dev = qdev_new(TYPE_UNI_NORTH_AGP_HOST_BRIDGE);
-        object_property_set_link(OBJECT(dev), "pic", OBJECT(pic_dev),
-                                 &error_abort);
         s = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf0800000);
         sysbus_mmio_map(s, 1, 0xf0c00000);
 
+        for (i = 0; i < 4; i++) {
+            qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(pic_dev, 0x1b + i));
+        }
+
         /* Uninorth internal bus */
         dev = qdev_new(TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE);
-        object_property_set_link(OBJECT(dev), "pic", OBJECT(pic_dev),
-                                 &error_abort);
         s = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf4800000);
         sysbus_mmio_map(s, 1, 0xf4c00000);
 
+        for (i = 0; i < 4; i++) {
+            qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(pic_dev, 0x1b + i));
+        }
+
         /* Uninorth main bus */
         dev = qdev_new(TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
         qdev_prop_set_uint32(dev, "ofw-addr", 0xf2000000);
-        object_property_set_link(OBJECT(dev), "pic", OBJECT(pic_dev),
-                                 &error_abort);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         uninorth_pci = UNI_NORTH_PCI_HOST_BRIDGE(dev);
         s = SYS_BUS_DEVICE(dev);
@@ -354,6 +358,10 @@ static void ppc_core99_init(MachineState *machine)
                                     sysbus_mmio_get_region(s, 3));
         sysbus_mmio_map(s, 0, 0xf2800000);
         sysbus_mmio_map(s, 1, 0xf2c00000);
+
+        for (i = 0; i < 4; i++) {
+            qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(pic_dev, 0x1b + i));
+        }
 
         machine_arch = ARCH_MAC99;
     }
