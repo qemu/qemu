@@ -33,10 +33,8 @@
 #include <libfdt.h>
 
 #if defined(TARGET_RISCV32)
-# define KERNEL_BOOT_ADDRESS 0x80400000
 #define fw_dynamic_info_data(__val)     cpu_to_le32(__val)
 #else
-# define KERNEL_BOOT_ADDRESS 0x80200000
 #define fw_dynamic_info_data(__val)     cpu_to_le64(__val)
 #endif
 
@@ -46,6 +44,15 @@ bool riscv_is_32_bit(MachineState *machine)
         return true;
     } else {
         return false;
+    }
+}
+
+target_ulong riscv_calc_kernel_start_addr(MachineState *machine,
+                                          target_ulong firmware_end_addr) {
+    if (riscv_is_32_bit(machine)) {
+        return QEMU_ALIGN_UP(firmware_end_addr, 4 * MiB);
+    } else {
+        return QEMU_ALIGN_UP(firmware_end_addr, 2 * MiB);
     }
 }
 
@@ -123,7 +130,9 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
     exit(1);
 }
 
-target_ulong riscv_load_kernel(const char *kernel_filename, symbol_fn_t sym_cb)
+target_ulong riscv_load_kernel(const char *kernel_filename,
+                               target_ulong kernel_start_addr,
+                               symbol_fn_t sym_cb)
 {
     uint64_t kernel_entry;
 
@@ -138,9 +147,9 @@ target_ulong riscv_load_kernel(const char *kernel_filename, symbol_fn_t sym_cb)
         return kernel_entry;
     }
 
-    if (load_image_targphys_as(kernel_filename, KERNEL_BOOT_ADDRESS,
+    if (load_image_targphys_as(kernel_filename, kernel_start_addr,
                                ram_size, NULL) > 0) {
-        return KERNEL_BOOT_ADDRESS;
+        return kernel_start_addr;
     }
 
     error_report("could not load kernel '%s'", kernel_filename);

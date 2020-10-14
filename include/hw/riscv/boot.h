@@ -25,6 +25,8 @@
 
 bool riscv_is_32_bit(MachineState *machine);
 
+target_ulong riscv_calc_kernel_start_addr(MachineState *machine,
+                                          target_ulong firmware_end_addr);
 target_ulong riscv_find_and_load_firmware(MachineState *machine,
                                           const char *default_machine_firmware,
                                           hwaddr firmware_load_addr,
@@ -34,6 +36,7 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
                                  hwaddr firmware_load_addr,
                                  symbol_fn_t sym_cb);
 target_ulong riscv_load_kernel(const char *kernel_filename,
+                               target_ulong firmware_end_addr,
                                symbol_fn_t sym_cb);
 hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
                          uint64_t kernel_entry, hwaddr *start);

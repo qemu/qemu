@@ -415,6 +415,7 @@ static void sifive_u_machine_init(MachineState *machine)
     MemoryRegion *main_mem = g_new(MemoryRegion, 1);
     MemoryRegion *flash0 = g_new(MemoryRegion, 1);
     target_ulong start_addr = memmap[SIFIVE_U_DEV_DRAM].base;
+    target_ulong firmware_end_addr, kernel_start_addr;
     uint32_t start_addr_hi32 = 0x00000000;
     int i;
     uint32_t fdt_load_addr;
@@ -474,10 +475,15 @@ static void sifive_u_machine_init(MachineState *machine)
         break;
     }
 
-    riscv_find_and_load_firmware(machine, BIOS_FILENAME, start_addr, NULL);
+    firmware_end_addr = riscv_find_and_load_firmware(machine, BIOS_FILENAME,
+                                                     start_addr, NULL);
 
     if (machine->kernel_filename) {
-        kernel_entry = riscv_load_kernel(machine->kernel_filename, NULL);
+        kernel_start_addr = riscv_calc_kernel_start_addr(machine,
+                                                         firmware_end_addr);
+
+        kernel_entry = riscv_load_kernel(machine->kernel_filename,
+                                         kernel_start_addr, NULL);
 
         if (machine->initrd_filename) {
             hwaddr start;

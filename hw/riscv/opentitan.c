@@ -75,7 +75,8 @@ static void opentitan_board_init(MachineState *machine)
     }
 
     if (machine->kernel_filename) {
-        riscv_load_kernel(machine->kernel_filename, NULL);
+        riscv_load_kernel(machine->kernel_filename,
+                          memmap[IBEX_DEV_RAM].base, NULL);
     }
 }
 
