@@ -321,9 +321,11 @@ if 'CONFIG_LIBJACK' in config_host
   jack = declare_dependency(link_args: config_host['JACK_LIBS'].split())
 endif
 spice = not_found
+spice_headers = not_found
 if 'CONFIG_SPICE' in config_host
   spice = declare_dependency(compile_args: config_host['SPICE_CFLAGS'].split(),
                              link_args: config_host['SPICE_LIBS'].split())
+  spice_headers = declare_dependency(compile_args: config_host['SPICE_CFLAGS'].split())
 endif
 rt = cc.find_library('rt', required: false)
 libdl = not_found
