@@ -24,7 +24,4 @@ typedef struct SpiceChardev SpiceChardev;
 DECLARE_INSTANCE_CHECKER(SpiceChardev, SPICE_CHARDEV,
                          TYPE_CHARDEV_SPICE)
 
-void qemu_chr_open_spice_port(Chardev *chr, ChardevBackend *backend,
-                              bool *be_opened, Error **errp);
-
 #endif
