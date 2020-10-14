@@ -93,9 +93,35 @@ add_project_arguments(config_host['QEMU_CXXFLAGS'].split(),
                       native: false, language: 'cpp')
 add_project_link_arguments(config_host['QEMU_LDFLAGS'].split(),
                            native: false, language: ['c', 'cpp', 'objc'])
-add_project_arguments(config_host['QEMU_INCLUDES'].split(),
-                      language: ['c', 'cpp', 'objc'])
 
+if targetos == 'linux'
+  add_project_arguments('-isystem', meson.current_source_dir() / 'linux-headers',
+                        '-isystem', 'linux-headers',
+                        language: ['c', 'cpp'])
+endif
+
+if 'CONFIG_TCG_INTERPRETER' in config_host
+  tcg_arch = 'tci'
+elif config_host['ARCH'] == 'sparc64'
+  tcg_arch = 'sparc'
+elif config_host['ARCH'] == 's390x'
+  tcg_arch = 's390'
+elif config_host['ARCH'] in ['x86_64', 'x32']
+  tcg_arch = 'i386'
+elif config_host['ARCH'] == 'ppc64'
+  tcg_arch = 'ppc'
+elif config_host['ARCH'] in ['riscv32', 'riscv64']
+  tcg_arch = 'riscv'
+else
+  tcg_arch = config_host['ARCH']
+endif
+add_project_arguments('-iquote', meson.current_source_dir() / 'tcg' / tcg_arch,
+                      '-iquote', '.',
+                      '-iquote', meson.current_source_dir(),
+                      '-iquote', meson.current_source_dir() / 'accel/tcg',
+                      '-iquote', meson.current_source_dir() / 'include',
+                      '-iquote', meson.current_source_dir() / 'disas/libvixl',
+                      language: ['c', 'cpp', 'objc'])
 
 link_language = meson.get_external_property('link_language', 'cpp')
 if link_language == 'cpp'
