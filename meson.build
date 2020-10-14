@@ -459,15 +459,13 @@ if not get_option('iconv').disabled()
   libiconv = cc.find_library('iconv',
                              required: false,
                              static: enable_static)
-  if libiconv.found()
-    if cc.links('''
-      #include <iconv.h>
-      int main(void) {
-        iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
-        return conv != (iconv_t) -1;
-      }''', dependencies: [libiconv])
-      iconv = declare_dependency(dependencies: [libiconv])
-    endif
+  if cc.links('''
+    #include <iconv.h>
+    int main(void) {
+      iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
+      return conv != (iconv_t) -1;
+    }''', dependencies: [libiconv])
+    iconv = declare_dependency(dependencies: [libiconv])
   endif
 endif
 if get_option('iconv').enabled() and not iconv.found()
