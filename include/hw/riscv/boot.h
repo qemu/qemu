@@ -23,6 +23,8 @@
 #include "exec/cpu-defs.h"
 #include "hw/loader.h"
 
+bool riscv_is_32_bit(MachineState *machine);
+
 target_ulong riscv_find_and_load_firmware(MachineState *machine,
                                           const char *default_machine_firmware,
                                           hwaddr firmware_load_addr,

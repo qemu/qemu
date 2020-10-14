@@ -40,6 +40,15 @@
 #define fw_dynamic_info_data(__val)     cpu_to_le64(__val)
 #endif
 
+bool riscv_is_32_bit(MachineState *machine)
+{
+    if (!strncmp(machine->cpu_type, "rv32", 4)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 target_ulong riscv_find_and_load_firmware(MachineState *machine,
                                           const char *default_machine_firmware,
                                           hwaddr firmware_load_addr,
