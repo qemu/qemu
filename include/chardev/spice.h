@@ -13,7 +13,6 @@ struct SpiceChardev {
     bool                  blocked;
     const uint8_t         *datapos;
     int                   datalen;
-    QLIST_ENTRY(SpiceChardev) next;
 };
 typedef struct SpiceChardev SpiceChardev;
 
