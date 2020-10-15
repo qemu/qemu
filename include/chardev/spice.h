@@ -13,7 +13,6 @@ struct SpiceChardev {
     bool                  blocked;
     const uint8_t         *datapos;
     int                   datalen;
-    QLIST_ENTRY(SpiceChardev) next;
 };
 typedef struct SpiceChardev SpiceChardev;
 
@@ -23,8 +22,5 @@ typedef struct SpiceChardev SpiceChardev;
 
 DECLARE_INSTANCE_CHECKER(SpiceChardev, SPICE_CHARDEV,
                          TYPE_CHARDEV_SPICE)
-
-void qemu_chr_open_spice_port(Chardev *chr, ChardevBackend *backend,
-                              bool *be_opened, Error **errp);
 
 #endif
