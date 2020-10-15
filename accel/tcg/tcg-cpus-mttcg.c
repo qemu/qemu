@@ -33,7 +33,6 @@
 #include "hw/boards.h"
 
 #include "tcg-cpus.h"
-#include "tcg-cpus-mttcg.h"
 
 /*
  * In the multi-threaded case each vCPU has its own thread. The TLS
@@ -41,7 +40,7 @@
  * current CPUState for a given thread.
  */
 
-void *tcg_cpu_thread_fn(void *arg)
+static void *tcg_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
 
@@ -109,8 +108,32 @@ static void mttcg_kick_vcpu_thread(CPUState *cpu)
     cpu_exit(cpu);
 }
 
+static void mttcg_start_vcpu_thread(CPUState *cpu)
+{
+    char thread_name[VCPU_THREAD_NAME_SIZE];
+
+    g_assert(tcg_enabled());
+
+    parallel_cpus = (current_machine->smp.max_cpus > 1);
+
+    cpu->thread = g_malloc0(sizeof(QemuThread));
+    cpu->halt_cond = g_malloc0(sizeof(QemuCond));
+    qemu_cond_init(cpu->halt_cond);
+
+    /* create a thread per vCPU with TCG (MTTCG) */
+    snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/TCG",
+             cpu->cpu_index);
+
+    qemu_thread_create(cpu->thread, thread_name, tcg_cpu_thread_fn,
+                       cpu, QEMU_THREAD_JOINABLE);
+
+#ifdef _WIN32
+    cpu->hThread = qemu_thread_get_handle(cpu->thread);
+#endif
+}
+
 const CpusAccel tcg_cpus_mttcg = {
-    .create_vcpu_thread = tcg_start_vcpu_thread,
+    .create_vcpu_thread = mttcg_start_vcpu_thread,
     .kick_vcpu_thread = mttcg_kick_vcpu_thread,
 
     .handle_interrupt = tcg_handle_interrupt,

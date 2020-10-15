@@ -138,7 +138,7 @@ static void icount_handle_interrupt(CPUState *cpu, int mask)
 }
 
 const CpusAccel tcg_cpus_icount = {
-    .create_vcpu_thread = tcg_start_vcpu_thread,
+    .create_vcpu_thread = rr_start_vcpu_thread,
     .kick_vcpu_thread = qemu_cpu_kick_rr_cpus,
 
     .handle_interrupt = icount_handle_interrupt,

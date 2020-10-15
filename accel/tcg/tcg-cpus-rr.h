@@ -15,6 +15,7 @@
 /* Kick all RR vCPUs. */
 void qemu_cpu_kick_rr_cpus(CPUState *unused);
 
-void *tcg_rr_cpu_thread_fn(void *arg);
+/* start the round robin vcpu thread */
+void rr_start_vcpu_thread(CPUState *cpu);
 
 #endif /* TCG_CPUS_RR_H */
