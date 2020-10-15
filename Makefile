@@ -194,19 +194,19 @@ find-src-path = find "$(SRC_PATH)/" -path "$(SRC_PATH)/meson" -prune -o -name "*
 
 .PHONY: ctags
 ctags:
-	rm -f tags
-	$(find-src-path) -exec ctags --append {} +
+	rm -f "$(SRC_PATH)/"tags
+	$(find-src-path) -exec ctags -f "$(SRC_PATH)/"tags --append {} +
 
 .PHONY: TAGS
 TAGS:
-	rm -f TAGS
-	$(find-src-path) -exec etags --append {} +
+	rm -f "$(SRC_PATH)/"TAGS
+	$(find-src-path) -exec etags -f "$(SRC_PATH)/"TAGS --append {} +
 
 .PHONY: cscope
 cscope:
 	rm -f "$(SRC_PATH)"/cscope.*
 	$(find-src-path) -print | sed -e 's,^\./,,' > "$(SRC_PATH)/cscope.files"
-	cscope -b -i"$(SRC_PATH)/cscope.files"
+	cscope -b -i"$(SRC_PATH)/cscope.files" -f"$(SRC_PATH)"/cscope.out
 
 # Needed by "meson install"
 export DESTDIR
