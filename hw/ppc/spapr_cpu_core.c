@@ -188,7 +188,6 @@ static void spapr_unrealize_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
     }
     spapr_irq_cpu_intc_destroy(SPAPR_MACHINE(qdev_get_machine()), cpu);
     cpu_remove_sync(CPU(cpu));
-    object_unparent(OBJECT(cpu));
 }
 
 /*
@@ -213,6 +212,15 @@ static void spapr_cpu_core_reset_handler(void *opaque)
     spapr_cpu_core_reset(opaque);
 }
 
+static void spapr_delete_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
+{
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    cpu->machine_data = NULL;
+    g_free(spapr_cpu);
+    object_unparent(OBJECT(cpu));
+}
+
 static void spapr_cpu_core_unrealize(DeviceState *dev)
 {
     SpaprCpuCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
@@ -223,6 +231,9 @@ static void spapr_cpu_core_unrealize(DeviceState *dev)
 
     for (i = 0; i < cc->nr_threads; i++) {
         spapr_unrealize_vcpu(sc->threads[i], sc);
+    }
+    for (i = 0; i < cc->nr_threads; i++) {
+        spapr_delete_vcpu(sc->threads[i], sc);
     }
     g_free(sc->threads);
 }
@@ -292,15 +303,6 @@ static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
 err:
     object_unref(obj);
     return NULL;
-}
-
-static void spapr_delete_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
-{
-    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
-
-    cpu->machine_data = NULL;
-    g_free(spapr_cpu);
-    object_unparent(OBJECT(cpu));
 }
 
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
