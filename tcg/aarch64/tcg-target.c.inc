@@ -126,51 +126,16 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
 #define TCG_CT_CONST_ORRI 0x1000
 #define TCG_CT_CONST_ANDI 0x2000
 
-/* parse target specific constraints */
-static const char *target_parse_constraint(TCGArgConstraint *ct,
-                                           const char *ct_str, TCGType type)
-{
-    switch (*ct_str++) {
-    case 'r': /* general registers */
-        ct->regs |= 0xffffffffu;
-        break;
-    case 'w': /* advsimd registers */
-        ct->regs |= 0xffffffff00000000ull;
-        break;
-    case 'l': /* qemu_ld / qemu_st address, data_reg */
-        ct->regs = 0xffffffffu;
+#define ALL_GENERAL_REGS  0xffffffffu
+#define ALL_VECTOR_REGS   0xffffffff00000000ull
+
 #ifdef CONFIG_SOFTMMU
-        /* x0 and x1 will be overwritten when reading the tlb entry,
-           and x2, and x3 for helper args, better to avoid using them. */
-        tcg_regset_reset_reg(ct->regs, TCG_REG_X0);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_X1);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_X2);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_X3);
+#define ALL_QLDST_REGS \
+    (ALL_GENERAL_REGS & ~((1 << TCG_REG_X0) | (1 << TCG_REG_X1) | \
+                          (1 << TCG_REG_X2) | (1 << TCG_REG_X3)))
+#else
+#define ALL_QLDST_REGS   ALL_GENERAL_REGS
 #endif
-        break;
-    case 'A': /* Valid for arithmetic immediate (positive or negative).  */
-        ct->ct |= TCG_CT_CONST_AIMM;
-        break;
-    case 'L': /* Valid for logical immediate.  */
-        ct->ct |= TCG_CT_CONST_LIMM;
-        break;
-    case 'M': /* minus one */
-        ct->ct |= TCG_CT_CONST_MONE;
-        break;
-    case 'O': /* vector orr/bic immediate */
-        ct->ct |= TCG_CT_CONST_ORRI;
-        break;
-    case 'N': /* vector orr/bic immediate, inverted */
-        ct->ct |= TCG_CT_CONST_ANDI;
-        break;
-    case 'Z': /* zero */
-        ct->ct |= TCG_CT_CONST_ZERO;
-        break;
-    default:
-        return NULL;
-    }
-    return ct_str;
-}
 
 /* Match a constant valid for addition (12-bit, optionally shifted).  */
 static inline bool is_aimm(uint64_t val)
