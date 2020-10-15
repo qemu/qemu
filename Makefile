@@ -30,13 +30,21 @@ UNCHECKED_GOALS := %clean TAGS cscope ctags dist \
     help check-help print-% \
     docker docker-% vm-help vm-test vm-build-%
 
+all:
+.PHONY: all clean distclean recurse-all dist msi FORCE
+
+# Don't try to regenerate Makefile or configure
+# We don't generate any of them
+Makefile: ;
+configure: ;
+
 # All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
-# Put the all: rule here so that config-host.mak can contain dependencies.
-all:
 include config-host.mak
 
 git-submodule-update:
+.git-submodule-status: git-submodule-update config-host.mak
+Makefile: .git-submodule-status
 
 .PHONY: git-submodule-update
 
@@ -84,9 +92,7 @@ Makefile.mtest: build.ninja scripts/mtest2make.py
 -include Makefile.mtest
 endif
 
-Makefile: .git-submodule-status
-.git-submodule-status: git-submodule-update config-host.mak
-
+# Ensure the build tree is okay.
 # Check that we're not trying to do an out-of-tree build from
 # a tree that's been used for an in-tree build.
 ifneq ($(realpath $(SRC_PATH)),$(realpath .))
@@ -95,6 +101,20 @@ $(error This is an out of tree build but your source tree ($(SRC_PATH)) \
 seems to have been used for an in-tree build. You can fix this by running \
 "$(MAKE) distclean && rm -rf *-linux-user *-softmmu" in your source tree)
 endif
+endif
+
+# force a rerun of configure if config-host.mak is too old or corrupted
+ifeq ($(MESON),)
+.PHONY: config-host.mak
+x := $(shell rm -rf meson-private meson-info meson-logs)
+endif
+ifeq ($(NINJA),)
+.PHONY: config-host.mak
+x := $(shell rm -rf meson-private meson-info meson-logs)
+endif
+ifeq ($(wildcard build.ninja),)
+.PHONY: config-host.mak
+x := $(shell rm -rf meson-private meson-info meson-logs)
 endif
 
 config-host.mak: $(SRC_PATH)/configure $(SRC_PATH)/pc-bios $(SRC_PATH)/VERSION
@@ -114,15 +134,15 @@ plugins:
 	$(call quiet-command,\
 		$(MAKE) $(SUBDIR_MAKEFLAGS) -C contrib/plugins V="$(V)", \
 		"BUILD", "example plugins")
-endif
+endif # $(CONFIG_PLUGIN)
 
-else
+else # config-host.mak does not exist
 config-host.mak:
 ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
 	@echo "Please call configure before running make!"
 	@exit 1
 endif
-endif
+endif # config-host.mak does not exist
 
 # Only needed in case Makefile.ninja does not exist.
 .PHONY: ninja-clean ninja-distclean clean-ctlist
@@ -131,20 +151,11 @@ ninja-clean::
 ninja-distclean::
 build.ninja: config-host.mak
 
-# Don't try to regenerate Makefile or configure
-# We don't generate any of them
-Makefile: ;
-configure: ;
-
-.PHONY: all clean distclean install \
-	recurse-all dist msi FORCE
-
 SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet)
 
 include $(SRC_PATH)/tests/Makefile.include
 
 all: recurse-all
-Makefile:
 
 ROM_DIRS = $(addprefix pc-bios/, $(ROMS))
 ROM_DIRS_RULES=$(foreach t, all clean, $(addsuffix /$(t), $(ROM_DIRS)))
