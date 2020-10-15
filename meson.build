@@ -455,40 +455,40 @@ if targetos == 'linux' and have_tools and not get_option('mpath').disabled()
 endif
 
 iconv = not_found
-if not get_option('iconv').disabled()
-  libiconv = cc.find_library('iconv',
-                             required: false,
-                             static: enable_static)
-  if cc.links('''
-    #include <iconv.h>
-    int main(void) {
-      iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
-      return conv != (iconv_t) -1;
-    }''', dependencies: [libiconv])
-    iconv = declare_dependency(dependencies: [libiconv])
-  endif
-endif
-if get_option('iconv').enabled() and not iconv.found()
-  error('Cannot detect iconv API')
-endif
-
 curses = not_found
-if iconv.found() and not get_option('curses').disabled()
-  curses_libname_list = ['ncursesw', 'ncurses', 'cursesw', 'pdcurses']
-  curses_test = '''
-    #include <locale.h>
-    #include <curses.h>
-    #include <wchar.h>
-    int main(void) {
-      wchar_t wch = L'w';
-      setlocale(LC_ALL, "");
-      resize_term(0, 0);
-      addwstr(L"wide chars\n");
-      addnwstr(&wch, 1);
-      add_wch(WACS_DEGREE);
-      return 0;
-    }'''
-  foreach curses_libname : curses_libname_list
+if have_system and not get_option('curses').disabled()
+  if not get_option('iconv').disabled()
+    libiconv = cc.find_library('iconv',
+                               required: false,
+                               static: enable_static)
+    if cc.links('''
+      #include <iconv.h>
+      int main(void) {
+        iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
+        return conv != (iconv_t) -1;
+      }''', dependencies: [libiconv])
+      iconv = declare_dependency(dependencies: [libiconv])
+    endif
+  endif
+  if get_option('iconv').enabled() and not iconv.found()
+    error('Cannot detect iconv API')
+  endif
+  if iconv.found()
+    curses_libname_list = ['ncursesw', 'ncurses', 'cursesw', 'pdcurses']
+    curses_test = '''
+      #include <locale.h>
+      #include <curses.h>
+      #include <wchar.h>
+      int main(void) {
+        wchar_t wch = L'w';
+        setlocale(LC_ALL, "");
+        resize_term(0, 0);
+        addwstr(L"wide chars\n");
+        addnwstr(&wch, 1);
+        add_wch(WACS_DEGREE);
+        return 0;
+      }'''
+    foreach curses_libname : curses_libname_list
       libcurses = dependency(curses_libname,
                              required: false,
                              method: 'pkg-config',
@@ -510,13 +510,18 @@ if iconv.found() and not get_option('curses').disabled()
           break
         endif
       endif
-  endforeach
-endif
-if get_option('curses').enabled() and not curses.found()
-  if not iconv.found()
-    error('Cannot detect iconv API')
-  else
-    error('Cannot detect curses API')
+    endforeach
+  endif
+  if not curses.found()
+    if iconv.found()
+      if get_option('curses').enabled()
+        error('Cannot find curses')
+      endif
+    elif get_option('curses').enabled()
+      error('iconv required for curses UI but not available')
+    else
+      warning('iconv required for curses UI but not available, disabling')
+    endif
   endif
 endif
 
