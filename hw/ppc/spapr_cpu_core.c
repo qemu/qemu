@@ -238,10 +238,6 @@ static void spapr_cpu_core_unrealize(DeviceState *dev)
                                          &error_abort)) {
                 spapr_unrealize_vcpu(sc->threads[i], sc);
             }
-        }
-    }
-    for (i = 0; i < cc->nr_threads; i++) {
-        if (sc->threads[i]) {
             spapr_delete_vcpu(sc->threads[i]);
         }
     }
@@ -326,7 +322,7 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
                                                   TYPE_SPAPR_MACHINE);
     SpaprCpuCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(OBJECT(dev));
-    int i, j;
+    int i;
 
     if (!spapr) {
         error_setg(errp, TYPE_SPAPR_CPU_CORE " needs a pseries machine");
@@ -337,14 +333,8 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
     sc->threads = g_new0(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
         sc->threads[i] = spapr_create_vcpu(sc, i, errp);
-        if (!sc->threads[i]) {
-            spapr_cpu_core_unrealize(dev);
-            return;
-        }
-    }
-
-    for (j = 0; j < cc->nr_threads; j++) {
-        if (!spapr_realize_vcpu(sc->threads[j], spapr, sc, errp)) {
+        if (!sc->threads[i] ||
+            !spapr_realize_vcpu(sc->threads[i], spapr, sc, errp)) {
             spapr_cpu_core_unrealize(dev);
             return;
         }
