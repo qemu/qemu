@@ -46,11 +46,11 @@
 # define R64    "r"
 #endif
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-# define L      "L", "L"
-# define S      "S", "S"
+# define L      "r", "r"
+# define S      "r", "r"
 #else
-# define L      "L"
-# define S      "S"
+# define L      "r"
+# define S      "r"
 #endif
 
 /* TODO: documentation. */
@@ -390,8 +390,6 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 {
     switch (*ct_str++) {
     case 'r':
-    case 'L':                   /* qemu_ld constraint */
-    case 'S':                   /* qemu_st constraint */
         ct->regs = BIT(TCG_TARGET_NB_REGS) - 1;
         break;
     default:
