@@ -380,10 +380,11 @@ endif
 libudev = not_found
 if targetos == 'linux' and (have_system or have_tools)
   libudev = dependency('libudev',
-                       required: get_option('mpath').enabled(),
+                       required: get_option('libudev'),
                        static: enable_static)
 endif
 
+mpathlibs = [libudev]
 mpathpersist = not_found
 mpathpersist_new_api = false
 if targetos == 'linux' and have_tools and not get_option('mpath').disabled()
@@ -414,35 +415,40 @@ if targetos == 'linux' and have_tools and not get_option('mpath').disabled()
           mpath_lib_init(udev);
           return 0;
       }'''
-  mpathlibs = [libudev]
-  if enable_static
-    mpathlibs += cc.find_library('devmapper',
-                                   required: get_option('mpath'),
-                                   static: enable_static)
-  endif
-  mpathlibs += cc.find_library('multipath',
-                               required: get_option('mpath'),
-                               static: enable_static)
-  mpathlibs += cc.find_library('mpathpersist',
-                               required: get_option('mpath'),
-                               static: enable_static)
-  foreach lib: mpathlibs
-    if not lib.found()
-      mpathlibs = []
-      break
+  libmpathpersist = cc.find_library('mpathpersist',
+                                    required: get_option('mpath'),
+                                    static: enable_static)
+  if libmpathpersist.found()
+    mpathlibs += libmpathpersist
+    if enable_static
+      mpathlibs += cc.find_library('devmapper',
+                                     required: get_option('mpath'),
+                                     static: enable_static)
     endif
-  endforeach
-  if mpathlibs.length() > 0
-    if cc.links(mpath_test_source_new, dependencies: mpathlibs)
+    mpathlibs += cc.find_library('multipath',
+                                 required: get_option('mpath'),
+                                 static: enable_static)
+    foreach lib: mpathlibs
+      if not lib.found()
+        mpathlibs = []
+        break
+      endif
+    endforeach
+    if mpathlibs.length() == 0
+      msg = 'Dependencies missing for libmpathpersist'
+    elif cc.links(mpath_test_source_new, dependencies: mpathlibs)
       mpathpersist = declare_dependency(dependencies: mpathlibs)
       mpathpersist_new_api = true
     elif cc.links(mpath_test_source_old, dependencies: mpathlibs)
       mpathpersist = declare_dependency(dependencies: mpathlibs)
     else
+      msg = 'Cannot detect libmpathpersist API'
+    endif
+    if not mpathpersist.found()
       if get_option('mpath').enabled()
-        error('Cannot detect libmpathpersist API')
+        error(msg)
       else
-        warning('Cannot detect libmpathpersist API, disabling')
+        warning(msg + ', disabling')
       endif
     endif
   endif
