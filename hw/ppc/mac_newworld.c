@@ -82,6 +82,8 @@
 
 #define NDRV_VGA_FILENAME "qemu_vga.ndrv"
 
+#define PROM_BASE 0xfff00000
+#define PROM_SIZE (1 * MiB)
 
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
@@ -100,7 +102,7 @@ static void ppc_core99_reset(void *opaque)
 
     cpu_reset(CPU(cpu));
     /* 970 CPUs want to get their initial IP as part of their boot protocol */
-    cpu->env.nip = PROM_ADDR + 0x100;
+    cpu->env.nip = PROM_BASE + 0x100;
 }
 
 /* PowerPC Mac99 hardware initialisation */
@@ -154,25 +156,29 @@ static void ppc_core99_init(MachineState *machine)
     /* allocate RAM */
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
 
-    /* allocate and load BIOS */
-    memory_region_init_rom(bios, NULL, "ppc_core99.bios", BIOS_SIZE,
+    /* allocate and load firmware ROM */
+    memory_region_init_rom(bios, NULL, "ppc_core99.bios", PROM_SIZE,
                            &error_fatal);
+    memory_region_add_subregion(get_system_memory(), PROM_BASE, bios);
 
-    if (bios_name == NULL)
+    if (!bios_name) {
         bios_name = PROM_FILENAME;
+    }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    memory_region_add_subregion(get_system_memory(), PROM_ADDR, bios);
-
-    /* Load OpenBIOS (ELF) */
     if (filename) {
+        /* Load OpenBIOS (ELF) */
         bios_size = load_elf(filename, NULL, NULL, NULL, NULL,
                              NULL, NULL, NULL, 1, PPC_ELF_MACHINE, 0, 0);
 
+        if (bios_size <= 0) {
+            /* or load binary ROM image */
+            bios_size = load_image_targphys(filename, PROM_BASE, PROM_SIZE);
+        }
         g_free(filename);
     } else {
         bios_size = -1;
     }
-    if (bios_size < 0 || bios_size > BIOS_SIZE) {
+    if (bios_size < 0 || bios_size > PROM_SIZE) {
         error_report("could not load PowerPC bios '%s'", bios_name);
         exit(1);
     }
