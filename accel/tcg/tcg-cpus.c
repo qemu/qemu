@@ -38,12 +38,12 @@
 
 /* common functionality among all TCG variants */
 
-void qemu_tcg_destroy_vcpu(CPUState *cpu)
+void tcg_cpus_destroy(CPUState *cpu)
 {
     cpu_thread_signal_destroyed(cpu);
 }
 
-int tcg_cpu_exec(CPUState *cpu)
+int tcg_cpus_exec(CPUState *cpu)
 {
     int ret;
 #ifdef CONFIG_PROFILER
@@ -64,7 +64,7 @@ int tcg_cpu_exec(CPUState *cpu)
 }
 
 /* mask must never be zero, except for A20 change call */
-void tcg_handle_interrupt(CPUState *cpu, int mask)
+void tcg_cpus_handle_interrupt(CPUState *cpu, int mask)
 {
     g_assert(qemu_mutex_iothread_locked());
 

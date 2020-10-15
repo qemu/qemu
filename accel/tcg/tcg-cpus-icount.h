@@ -10,8 +10,8 @@
 #ifndef TCG_CPUS_ICOUNT_H
 #define TCG_CPUS_ICOUNT_H
 
-void handle_icount_deadline(void);
-void prepare_icount_for_run(CPUState *cpu);
-void process_icount_data(CPUState *cpu);
+void icount_handle_deadline(void);
+void icount_prepare_for_run(CPUState *cpu);
+void icount_process_data(CPUState *cpu);
 
 #endif /* TCG_CPUS_ICOUNT_H */

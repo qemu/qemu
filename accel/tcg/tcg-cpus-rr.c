@@ -37,7 +37,7 @@
 #include "tcg-cpus-icount.h"
 
 /* Kick all RR vCPUs */
-void qemu_cpu_kick_rr_cpus(CPUState *unused)
+void rr_kick_vcpu_thread(CPUState *unused)
 {
     CPUState *cpu;
 
@@ -58,62 +58,62 @@ void qemu_cpu_kick_rr_cpus(CPUState *unused)
  * idleness is complete.
  */
 
-static QEMUTimer *tcg_kick_vcpu_timer;
-static CPUState *tcg_current_rr_cpu;
+static QEMUTimer *rr_kick_vcpu_timer;
+static CPUState *rr_current_cpu;
 
 #define TCG_KICK_PERIOD (NANOSECONDS_PER_SECOND / 10)
 
-static inline int64_t qemu_tcg_next_kick(void)
+static inline int64_t rr_next_kick_time(void)
 {
     return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + TCG_KICK_PERIOD;
 }
 
 /* Kick the currently round-robin scheduled vCPU to next */
-static void qemu_cpu_kick_rr_next_cpu(void)
+static void rr_kick_next_cpu(void)
 {
     CPUState *cpu;
     do {
-        cpu = qatomic_mb_read(&tcg_current_rr_cpu);
+        cpu = qatomic_mb_read(&rr_current_cpu);
         if (cpu) {
             cpu_exit(cpu);
         }
-    } while (cpu != qatomic_mb_read(&tcg_current_rr_cpu));
+    } while (cpu != qatomic_mb_read(&rr_current_cpu));
 }
 
-static void kick_tcg_thread(void *opaque)
+static void rr_kick_thread(void *opaque)
 {
-    timer_mod(tcg_kick_vcpu_timer, qemu_tcg_next_kick());
-    qemu_cpu_kick_rr_next_cpu();
+    timer_mod(rr_kick_vcpu_timer, rr_next_kick_time());
+    rr_kick_next_cpu();
 }
 
-static void start_tcg_kick_timer(void)
+static void rr_start_kick_timer(void)
 {
-    if (!tcg_kick_vcpu_timer && CPU_NEXT(first_cpu)) {
-        tcg_kick_vcpu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                           kick_tcg_thread, NULL);
+    if (!rr_kick_vcpu_timer && CPU_NEXT(first_cpu)) {
+        rr_kick_vcpu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                           rr_kick_thread, NULL);
     }
-    if (tcg_kick_vcpu_timer && !timer_pending(tcg_kick_vcpu_timer)) {
-        timer_mod(tcg_kick_vcpu_timer, qemu_tcg_next_kick());
-    }
-}
-
-static void stop_tcg_kick_timer(void)
-{
-    if (tcg_kick_vcpu_timer && timer_pending(tcg_kick_vcpu_timer)) {
-        timer_del(tcg_kick_vcpu_timer);
+    if (rr_kick_vcpu_timer && !timer_pending(rr_kick_vcpu_timer)) {
+        timer_mod(rr_kick_vcpu_timer, rr_next_kick_time());
     }
 }
 
-static void qemu_tcg_rr_wait_io_event(void)
+static void rr_stop_kick_timer(void)
+{
+    if (rr_kick_vcpu_timer && timer_pending(rr_kick_vcpu_timer)) {
+        timer_del(rr_kick_vcpu_timer);
+    }
+}
+
+static void rr_wait_io_event(void)
 {
     CPUState *cpu;
 
     while (all_cpu_threads_idle()) {
-        stop_tcg_kick_timer();
+        rr_stop_kick_timer();
         qemu_cond_wait_iothread(first_cpu->halt_cond);
     }
 
-    start_tcg_kick_timer();
+    rr_start_kick_timer();
 
     CPU_FOREACH(cpu) {
         qemu_wait_io_event_common(cpu);
@@ -124,13 +124,13 @@ static void qemu_tcg_rr_wait_io_event(void)
  * Destroy any remaining vCPUs which have been unplugged and have
  * finished running
  */
-static void deal_with_unplugged_cpus(void)
+static void rr_deal_with_unplugged_cpus(void)
 {
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
         if (cpu->unplug && !cpu_can_run(cpu)) {
-            qemu_tcg_destroy_vcpu(cpu);
+            tcg_cpus_destroy(cpu);
             break;
         }
     }
@@ -144,7 +144,7 @@ static void deal_with_unplugged_cpus(void)
  * elsewhere.
  */
 
-static void *tcg_rr_cpu_thread_fn(void *arg)
+static void *rr_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
 
@@ -171,7 +171,7 @@ static void *tcg_rr_cpu_thread_fn(void *arg)
         }
     }
 
-    start_tcg_kick_timer();
+    rr_start_kick_timer();
 
     cpu = first_cpu;
 
@@ -190,7 +190,7 @@ static void *tcg_rr_cpu_thread_fn(void *arg)
              * Run the timers here.  This is much more efficient than
              * waking up the I/O thread and waiting for completion.
              */
-            handle_icount_deadline();
+            icount_handle_deadline();
         }
 
         replay_mutex_unlock();
@@ -201,7 +201,7 @@ static void *tcg_rr_cpu_thread_fn(void *arg)
 
         while (cpu && cpu_work_list_empty(cpu) && !cpu->exit_request) {
 
-            qatomic_mb_set(&tcg_current_rr_cpu, cpu);
+            qatomic_mb_set(&rr_current_cpu, cpu);
             current_cpu = cpu;
 
             qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
@@ -212,11 +212,11 @@ static void *tcg_rr_cpu_thread_fn(void *arg)
 
                 qemu_mutex_unlock_iothread();
                 if (icount_enabled()) {
-                    prepare_icount_for_run(cpu);
+                    icount_prepare_for_run(cpu);
                 }
-                r = tcg_cpu_exec(cpu);
+                r = tcg_cpus_exec(cpu);
                 if (icount_enabled()) {
-                    process_icount_data(cpu);
+                    icount_process_data(cpu);
                 }
                 qemu_mutex_lock_iothread();
 
@@ -240,7 +240,7 @@ static void *tcg_rr_cpu_thread_fn(void *arg)
         } /* while (cpu && !cpu->exit_request).. */
 
         /* Does not need qatomic_mb_set because a spurious wakeup is okay.  */
-        qatomic_set(&tcg_current_rr_cpu, NULL);
+        qatomic_set(&rr_current_cpu, NULL);
 
         if (cpu && cpu->exit_request) {
             qatomic_mb_set(&cpu->exit_request, 0);
@@ -254,8 +254,8 @@ static void *tcg_rr_cpu_thread_fn(void *arg)
             qemu_notify_event();
         }
 
-        qemu_tcg_rr_wait_io_event();
-        deal_with_unplugged_cpus();
+        rr_wait_io_event();
+        rr_deal_with_unplugged_cpus();
     }
 
     rcu_unregister_thread();
@@ -279,7 +279,7 @@ void rr_start_vcpu_thread(CPUState *cpu)
         /* share a single thread for all cpus with TCG */
         snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "ALL CPUs/TCG");
         qemu_thread_create(cpu->thread, thread_name,
-                           tcg_rr_cpu_thread_fn,
+                           rr_cpu_thread_fn,
                            cpu, QEMU_THREAD_JOINABLE);
 
         single_tcg_halt_cond = cpu->halt_cond;
@@ -299,7 +299,7 @@ void rr_start_vcpu_thread(CPUState *cpu)
 
 const CpusAccel tcg_cpus_rr = {
     .create_vcpu_thread = rr_start_vcpu_thread,
-    .kick_vcpu_thread = qemu_cpu_kick_rr_cpus,
+    .kick_vcpu_thread = rr_kick_vcpu_thread,
 
-    .handle_interrupt = tcg_handle_interrupt,
+    .handle_interrupt = tcg_cpus_handle_interrupt,
 };

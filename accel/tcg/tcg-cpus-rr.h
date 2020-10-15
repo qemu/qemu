@@ -13,7 +13,7 @@
 #define TCG_KICK_PERIOD (NANOSECONDS_PER_SECOND / 10)
 
 /* Kick all RR vCPUs. */
-void qemu_cpu_kick_rr_cpus(CPUState *unused);
+void rr_kick_vcpu_thread(CPUState *unused);
 
 /* start the round robin vcpu thread */
 void rr_start_vcpu_thread(CPUState *cpu);
