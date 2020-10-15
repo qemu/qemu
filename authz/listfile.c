@@ -122,6 +122,11 @@ qauthz_list_file_complete(UserCreatable *uc, Error **errp)
     QAuthZListFile *fauthz = QAUTHZ_LIST_FILE(uc);
     gchar *dir = NULL, *file = NULL;
 
+    if (!fauthz->filename) {
+        error_setg(errp, "filename not provided");
+        return;
+    }
+
     fauthz->list = qauthz_list_file_load(fauthz, errp);
 
     if (!fauthz->refresh) {

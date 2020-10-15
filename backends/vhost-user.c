@@ -175,9 +175,9 @@ static char *get_chardev(Object *obj, Error **errp)
     return NULL;
 }
 
-static void vhost_user_backend_init(Object *obj)
+static void vhost_user_backend_class_init(ObjectClass *oc, void *data)
 {
-    object_property_add_str(obj, "chardev", get_chardev, set_chardev);
+    object_class_property_add_str(oc, "chardev", get_chardev, set_chardev);
 }
 
 static void vhost_user_backend_finalize(Object *obj)
@@ -195,7 +195,7 @@ static const TypeInfo vhost_user_backend_info = {
     .name = TYPE_VHOST_USER_BACKEND,
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(VhostUserBackend),
-    .instance_init = vhost_user_backend_init,
+    .class_init = vhost_user_backend_class_init,
     .instance_finalize = vhost_user_backend_finalize,
 };
 

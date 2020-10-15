@@ -135,12 +135,6 @@ static char *rng_egd_get_chardev(Object *obj, Error **errp)
     return NULL;
 }
 
-static void rng_egd_init(Object *obj)
-{
-    object_property_add_str(obj, "chardev",
-                            rng_egd_get_chardev, rng_egd_set_chardev);
-}
-
 static void rng_egd_finalize(Object *obj)
 {
     RngEgd *s = RNG_EGD(obj);
@@ -155,6 +149,8 @@ static void rng_egd_class_init(ObjectClass *klass, void *data)
 
     rbc->request_entropy = rng_egd_request_entropy;
     rbc->opened = rng_egd_opened;
+    object_class_property_add_str(klass, "chardev",
+                                  rng_egd_get_chardev, rng_egd_set_chardev);
 }
 
 static const TypeInfo rng_egd_info = {
@@ -162,7 +158,6 @@ static const TypeInfo rng_egd_info = {
     .parent = TYPE_RNG_BACKEND,
     .instance_size = sizeof(RngEgd),
     .class_init = rng_egd_class_init,
-    .instance_init = rng_egd_init,
     .instance_finalize = rng_egd_finalize,
 };
 

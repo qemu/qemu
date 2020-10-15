@@ -194,6 +194,11 @@ static void can_host_socketcan_connect(CanHostState *ch, Error **errp)
     struct sockaddr_can addr;
     struct ifreq ifr;
 
+    if (!c->ifname) {
+        error_setg(errp, "'if' property not set");
+        return;
+    }
+
     /* open socket */
     s = qemu_socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (s < 0) {
