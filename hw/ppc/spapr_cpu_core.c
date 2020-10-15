@@ -187,7 +187,7 @@ static void spapr_unrealize_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
         vmstate_unregister(NULL, &vmstate_spapr_cpu_state, cpu->machine_data);
     }
     spapr_irq_cpu_intc_destroy(SPAPR_MACHINE(qdev_get_machine()), cpu);
-    cpu_remove_sync(CPU(cpu));
+    qdev_unrealize(DEVICE(cpu));
 }
 
 /*
@@ -255,7 +255,7 @@ static bool spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
     kvmppc_set_papr(cpu);
 
     if (spapr_irq_cpu_intc_create(spapr, cpu, errp) < 0) {
-        cpu_remove_sync(CPU(cpu));
+        qdev_unrealize(DEVICE(cpu));
         return false;
     }
 
