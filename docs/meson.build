@@ -1,4 +1,50 @@
+if get_option('sphinx_build') == ''
+  sphinx_build = find_program(['sphinx-build-3', 'sphinx-build'],
+                              required: get_option('docs'))
+else
+  sphinx_build = find_program(get_option('sphinx_build'),
+                              required: get_option('docs'))
+endif
+
+# Check if tools are available to build documentation.
+build_docs = false
+if sphinx_build.found()
+  SPHINX_ARGS = [sphinx_build]
+  # If we're making warnings fatal, apply this to Sphinx runs as well
+  if get_option('werror')
+    SPHINX_ARGS += [ '-W' ]
+  endif
+
+  # This is a bit awkward but works: create a trivial document and
+  # try to run it with our configuration file (which enforces a
+  # version requirement). This will fail if sphinx-build is too old.
+  run_command('mkdir', ['-p', tmpdir / 'sphinx'])
+  run_command('touch', [tmpdir / 'sphinx/index.rst'])
+  sphinx_build_test_out = run_command(SPHINX_ARGS + [
+    '-c', meson.current_source_dir(),
+    '-b', 'html', tmpdir / 'sphinx',
+    tmpdir / 'sphinx/out'])
+  build_docs = (sphinx_build_test_out.returncode() == 0)
+
+  if not build_docs
+    warning('@0@ exists but it is either too old or uses too old a Python version'.format(get_option('sphinx_build')))
+    if get_option('docs').enabled()
+      error('Install a Python 3 version of python-sphinx')
+    endif
+  endif
+endif
+
 if build_docs
+  SPHINX_ARGS += ['-Dversion=' + meson.project_version(), '-Drelease=' + config_host['PKGVERSION']]
+
+  sphinx_extn_depends = [ meson.source_root() / 'docs/sphinx/depfile.py',
+                          meson.source_root() / 'docs/sphinx/hxtool.py',
+                          meson.source_root() / 'docs/sphinx/kerneldoc.py',
+                          meson.source_root() / 'docs/sphinx/kernellog.py',
+                          meson.source_root() / 'docs/sphinx/qapidoc.py',
+                          meson.source_root() / 'docs/sphinx/qmp_lexer.py',
+                          qapi_gen_depends ]
+
   configure_file(output: 'index.html',
                  input: files('index.html.in'),
                  configuration: {'VERSION': meson.project_version()},
