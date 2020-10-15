@@ -227,15 +227,26 @@ static void spapr_cpu_core_unrealize(DeviceState *dev)
     CPUCore *cc = CPU_CORE(dev);
     int i;
 
-    qemu_unregister_reset(spapr_cpu_core_reset_handler, sc);
-
     for (i = 0; i < cc->nr_threads; i++) {
-        spapr_unrealize_vcpu(sc->threads[i], sc);
+        if (sc->threads[i]) {
+            /*
+             * Since this we can get here from the error path of
+             * spapr_cpu_core_realize(), make sure we only unrealize
+             * vCPUs that have already been realized.
+             */
+            if (object_property_get_bool(OBJECT(sc->threads[i]), "realized",
+                                         &error_abort)) {
+                spapr_unrealize_vcpu(sc->threads[i], sc);
+            }
+        }
     }
     for (i = 0; i < cc->nr_threads; i++) {
-        spapr_delete_vcpu(sc->threads[i]);
+        if (sc->threads[i]) {
+            spapr_delete_vcpu(sc->threads[i]);
+        }
     }
     g_free(sc->threads);
+    qemu_unregister_reset(spapr_cpu_core_reset_handler, sc);
 }
 
 static bool spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
@@ -322,32 +333,22 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    sc->threads = g_new(PowerPCCPU *, cc->nr_threads);
+    qemu_register_reset(spapr_cpu_core_reset_handler, sc);
+    sc->threads = g_new0(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
         sc->threads[i] = spapr_create_vcpu(sc, i, errp);
         if (!sc->threads[i]) {
-            goto err;
+            spapr_cpu_core_unrealize(dev);
+            return;
         }
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
         if (!spapr_realize_vcpu(sc->threads[j], spapr, sc, errp)) {
-            goto err_unrealize;
+            spapr_cpu_core_unrealize(dev);
+            return;
         }
     }
-
-    qemu_register_reset(spapr_cpu_core_reset_handler, sc);
-    return;
-
-err_unrealize:
-    while (--j >= 0) {
-        spapr_unrealize_vcpu(sc->threads[j], sc);
-    }
-err:
-    while (--i >= 0) {
-        spapr_delete_vcpu(sc->threads[i]);
-    }
-    g_free(sc->threads);
 }
 
 static Property spapr_cpu_core_properties[] = {
