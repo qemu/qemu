@@ -1633,6 +1633,7 @@ typedef struct X86CPUDefinition {
      * If NULL, version 1 will be registered automatically.
      */
     const X86CPUVersionDefinition *versions;
+    const char *deprecation_note;
 } X86CPUDefinition;
 
 /* Reference to a specific CPU model version */
@@ -3357,10 +3358,13 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .xlevel = 0x80000008,
         .model_id = "Intel Core Processor (Icelake)",
         .versions = (X86CPUVersionDefinition[]) {
-            { .version = 1 },
+            {
+                .version = 1,
+                .note = "deprecated"
+            },
             {
                 .version = 2,
-                .note = "no TSX",
+                .note = "no TSX, deprecated",
                 .alias = "Icelake-Client-noTSX",
                 .props = (PropValue[]) {
                     { "hle", "off" },
@@ -3369,7 +3373,8 @@ static X86CPUDefinition builtin_x86_defs[] = {
                 },
             },
             { /* end of list */ }
-        }
+        },
+        .deprecation_note = "use Icelake-Server instead"
     },
     {
         .name = "Icelake-Server",
@@ -4179,9 +4184,6 @@ void x86_cpu_change_kvm_default(const char *prop, const char *value)
      */
     assert(pv->prop);
 }
-
-static uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
-                                                   bool migratable_only);
 
 static bool lmce_supported(void)
 {
@@ -4993,6 +4995,11 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     info->migration_safe = cc->migration_safe;
     info->has_migration_safe = true;
     info->q_static = cc->static_model;
+    if (cc->model && cc->model->cpudef->deprecation_note) {
+        info->deprecated = true;
+    } else {
+        info->deprecated = false;
+    }
     /*
      * Old machine types won't report aliases, so that alias translation
      * doesn't break compatibility with previous QEMU versions.
@@ -5383,9 +5390,11 @@ static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
 {
     X86CPUModel *model = data;
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
 
     xcc->model = model;
     xcc->migration_safe = true;
+    cc->deprecation_note = model->cpudef->deprecation_note;
 }
 
 static void x86_register_cpu_model_type(const char *name, X86CPUModel *model)
@@ -5913,9 +5922,14 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         break;
     case 0x8000001E:
-        assert(cpu->core_id <= 255);
-        encode_topo_cpuid8000001e(cpu, &topo_info,
-                                  eax, ebx, ecx, edx);
+        if (cpu->core_id <= 255) {
+            encode_topo_cpuid8000001e(cpu, &topo_info, eax, ebx, ecx, edx);
+        } else {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+        }
         break;
     case 0xC0000000:
         *eax = env->cpuid_xlevel2;
