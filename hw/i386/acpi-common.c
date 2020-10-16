@@ -115,8 +115,7 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
 
     if (has_pci) {
         for (i = 1; i < 16; i++) {
-#define ACPI_BUILD_PCI_IRQS ((1<<5) | (1<<9) | (1<<10) | (1<<11))
-            if (!(ACPI_BUILD_PCI_IRQS & (1 << i))) {
+            if (!(x86ms->pci_irq_mask & (1 << i))) {
                 /* No need for a INT source override structure. */
                 continue;
             }

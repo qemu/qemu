@@ -58,6 +58,7 @@ struct X86MachineState {
 
     /* CPU and apic information: */
     bool apic_xrupt_override;
+    unsigned pci_irq_mask;
     unsigned apic_id_limit;
     uint16_t boot_cpus;
     unsigned smp_dies;
@@ -114,6 +115,7 @@ bool x86_machine_is_acpi_enabled(const X86MachineState *x86ms);
 /* Global System Interrupts */
 
 #define GSI_NUM_PINS IOAPIC_NUM_PINS
+#define ACPI_BUILD_PCI_IRQS ((1<<5) | (1<<9) | (1<<10) | (1<<11))
 
 typedef struct GSIState {
     qemu_irq i8259_irq[ISA_NUM_IRQS];
