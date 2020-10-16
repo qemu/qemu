@@ -433,7 +433,7 @@ vdi="yes"
 vvfat="yes"
 qed="yes"
 parallels="yes"
-sheepdog="yes"
+sheepdog="no"
 libxml2=""
 debug_mutex="no"
 libpmem=""
@@ -1830,7 +1830,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   vvfat           vvfat image format support
   qed             qed image format support
   parallels       parallels image format support
-  sheepdog        sheepdog block driver support
+  sheepdog        sheepdog block driver support (deprecated)
   crypto-afalg    Linux AF_ALG crypto backend driver
   capstone        capstone disassembler support
   debug-mutex     mutex debugging support
@@ -6729,6 +6729,7 @@ if test "$parallels" = "yes" ; then
   echo "CONFIG_PARALLELS=y" >> $config_host_mak
 fi
 if test "$sheepdog" = "yes" ; then
+  add_to deprecated_features "sheepdog"
   echo "CONFIG_SHEEPDOG=y" >> $config_host_mak
 fi
 if test "$pty_h" = "yes" ; then
