@@ -263,13 +263,13 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         break;
 
     case 'e':
-        ct->ct |= (type == TCG_TYPE_I32 ? TCG_CT_CONST : TCG_CT_CONST_S32);
+        ct->ct |= TCG_CT_CONST_S32;
         break;
     case 'Z':
-        ct->ct |= (type == TCG_TYPE_I32 ? TCG_CT_CONST : TCG_CT_CONST_U32);
+        ct->ct |= TCG_CT_CONST_U32;
         break;
     case 'I':
-        ct->ct |= (type == TCG_TYPE_I32 ? TCG_CT_CONST : TCG_CT_CONST_I32);
+        ct->ct |= TCG_CT_CONST_I32;
         break;
 
     default:
@@ -286,14 +286,20 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
     if (ct & TCG_CT_CONST) {
         return 1;
     }
-    if ((ct & TCG_CT_CONST_S32) && val == (int32_t)val) {
-        return 1;
-    }
-    if ((ct & TCG_CT_CONST_U32) && val == (uint32_t)val) {
-        return 1;
-    }
-    if ((ct & TCG_CT_CONST_I32) && ~val == (int32_t)~val) {
-        return 1;
+    if (type == TCG_TYPE_I32) {
+        if (ct & (TCG_CT_CONST_S32 | TCG_CT_CONST_U32 | TCG_CT_CONST_I32)) {
+            return 1;
+        }
+    } else {
+        if ((ct & TCG_CT_CONST_S32) && val == (int32_t)val) {
+            return 1;
+        }
+        if ((ct & TCG_CT_CONST_U32) && val == (uint32_t)val) {
+            return 1;
+        }
+        if ((ct & TCG_CT_CONST_I32) && ~val == (int32_t)~val) {
+            return 1;
+        }
     }
     if ((ct & TCG_CT_CONST_WSZ) && val == (type == TCG_TYPE_I32 ? 32 : 64)) {
         return 1;
