@@ -210,6 +210,12 @@ static void microvm_devices_init(MicrovmMachineState *mms)
         mms->gpex.ecam.size   = PCIE_ECAM_SIZE;
         mms->gpex.irq         = PCIE_IRQ_BASE;
         create_gpex(mms);
+        x86ms->pci_irq_mask = ((1 << (PCIE_IRQ_BASE + 0)) |
+                               (1 << (PCIE_IRQ_BASE + 1)) |
+                               (1 << (PCIE_IRQ_BASE + 2)) |
+                               (1 << (PCIE_IRQ_BASE + 3)));
+    } else {
+        x86ms->pci_irq_mask = 0;
     }
 
     if (mms->pic == ON_OFF_AUTO_ON || mms->pic == ON_OFF_AUTO_AUTO) {
