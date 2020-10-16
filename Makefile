@@ -99,6 +99,10 @@ ifeq ($(wildcard build.ninja),)
 .PHONY: config-host.mak
 x := $(shell rm -rf meson-private meson-info meson-logs)
 endif
+ifeq ($(origin prefix),file)
+.PHONY: config-host.mak
+x := $(shell rm -rf meson-private meson-info meson-logs)
+endif
 
 # 1. ensure config-host.mak is up-to-date
 config-host.mak: $(SRC_PATH)/configure $(SRC_PATH)/pc-bios $(SRC_PATH)/VERSION

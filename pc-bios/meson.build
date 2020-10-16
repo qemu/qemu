@@ -86,7 +86,7 @@ blobs = files(
 )
 
 if install_blobs
-  install_data(blobs, install_dir: config_host['qemu_datadir'])
+  install_data(blobs, install_dir: qemu_datadir)
 endif
 
 subdir('descriptors')

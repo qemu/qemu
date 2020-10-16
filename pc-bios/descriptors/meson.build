@@ -8,7 +8,7 @@ foreach f: [
 ]
   configure_file(input: files(f),
                  output: f,
-                 configuration: {'DATADIR': config_host['qemu_datadir']},
+                 configuration: {'DATADIR': qemu_datadir},
                  install: install_blobs,
                  install_dir: qemu_datadir / 'firmware')
 endforeach

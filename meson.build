@@ -29,8 +29,14 @@ if get_option('qemu_suffix').startswith('/')
   error('qemu_suffix cannot start with a /')
 endif
 
+qemu_confdir = get_option('sysconfdir') / get_option('qemu_suffix')
 qemu_datadir = get_option('datadir') / get_option('qemu_suffix')
 qemu_docdir = get_option('docdir') / get_option('qemu_suffix')
+qemu_moddir = get_option('libdir') / get_option('qemu_suffix')
+
+qemu_desktopdir = get_option('datadir') / 'applications'
+qemu_icondir = get_option('datadir') / 'icons'
+
 config_host_data = configuration_data()
 genh = []
 
@@ -734,6 +740,19 @@ endif
 # config-host.h #
 #################
 
+config_host_data.set_quoted('CONFIG_BINDIR', get_option('prefix') / get_option('bindir'))
+config_host_data.set_quoted('CONFIG_PREFIX', get_option('prefix'))
+config_host_data.set_quoted('CONFIG_QEMU_CONFDIR', get_option('prefix') / qemu_confdir)
+config_host_data.set_quoted('CONFIG_QEMU_DATADIR', get_option('prefix') / qemu_datadir)
+config_host_data.set_quoted('CONFIG_QEMU_DESKTOPDIR', get_option('prefix') / qemu_desktopdir)
+config_host_data.set_quoted('CONFIG_QEMU_FIRMWAREPATH', get_option('qemu_firmwarepath'))
+config_host_data.set_quoted('CONFIG_QEMU_HELPERDIR', get_option('prefix') / get_option('libexecdir'))
+config_host_data.set_quoted('CONFIG_QEMU_ICONDIR', get_option('prefix') / qemu_icondir)
+config_host_data.set_quoted('CONFIG_QEMU_LOCALEDIR', get_option('prefix') / get_option('localedir'))
+config_host_data.set_quoted('CONFIG_QEMU_LOCALSTATEDIR', get_option('prefix') / get_option('localstatedir'))
+config_host_data.set_quoted('CONFIG_QEMU_MODDIR', get_option('prefix') / qemu_moddir)
+config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_option('sysconfdir'))
+
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
@@ -756,9 +775,7 @@ config_host_data.set('QEMU_VERSION_MICRO', meson.project_version().split('.')[2]
 
 ignored = ['CONFIG_QEMU_INTERP_PREFIX'] # actually per-target
 arrays = ['CONFIG_AUDIO_DRIVERS', 'CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
-strings = ['HOST_DSOSUF', 'CONFIG_IASL', 'bindir', 'prefix', 'qemu_confdir', 'qemu_datadir',
-           'qemu_moddir', 'qemu_localstatedir', 'qemu_helperdir', 'qemu_localedir',
-           'qemu_icondir', 'qemu_desktopdir', 'qemu_firmwarepath', 'sysconfdir']
+strings = ['HOST_DSOSUF', 'CONFIG_IASL']
 foreach k, v: config_host
   if ignored.contains(k)
     # do nothing
@@ -1639,7 +1656,7 @@ foreach m : block_mods + softmmu_mods
                 name_prefix: '',
                 link_whole: m,
                 install: true,
-                install_dir: config_host['qemu_moddir'])
+                install_dir: qemu_moddir)
 endforeach
 
 softmmu_ss.add(authz, block, chardev, crypto, io, qmp)
@@ -1800,7 +1817,7 @@ foreach target : target_dirs
                       output: exe['name'] + stp['ext'],
                       capture: true,
                       install: stp['install'],
-                      install_dir: qemu_datadir / '../systemtap/tapset',
+                      install_dir: get_option('datadir') / 'systemtap/tapset',
                       command: [
                         tracetool, '--group=all', '--format=' + stp['fmt'],
                         '--binary=' + stp['bin'],
@@ -1913,17 +1930,17 @@ endif
 #########################
 
 summary_info = {}
-summary_info += {'Install prefix':    config_host['prefix']}
-summary_info += {'BIOS directory':    config_host['qemu_datadir']}
-summary_info += {'firmware path':     config_host['qemu_firmwarepath']}
-summary_info += {'binary directory':  config_host['bindir']}
-summary_info += {'library directory': config_host['libdir']}
-summary_info += {'module directory':  config_host['qemu_moddir']}
-summary_info += {'libexec directory': config_host['libexecdir']}
-summary_info += {'include directory': config_host['includedir']}
-summary_info += {'config directory':  config_host['sysconfdir']}
+summary_info += {'Install prefix':    get_option('prefix')}
+summary_info += {'BIOS directory':    qemu_datadir}
+summary_info += {'firmware path':     get_option('qemu_firmwarepath')}
+summary_info += {'binary directory':  get_option('bindir')}
+summary_info += {'library directory': get_option('libdir')}
+summary_info += {'module directory':  qemu_moddir}
+summary_info += {'libexec directory': get_option('libexecdir')}
+summary_info += {'include directory': get_option('includedir')}
+summary_info += {'config directory':  get_option('sysconfdir')}
 if targetos != 'windows'
-  summary_info += {'local state directory': config_host['qemu_localstatedir']}
+  summary_info += {'local state directory': get_option('localstatedir')}
   summary_info += {'Manual directory':      get_option('mandir')}
 else
   summary_info += {'local state directory': 'queried at runtime'}
