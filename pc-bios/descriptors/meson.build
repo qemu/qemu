@@ -9,6 +9,6 @@ foreach f: [
   configure_file(input: files(f),
                  output: f,
                  configuration: {'DATADIR': qemu_datadir},
-                 install: install_blobs,
+                 install: get_option('install_blobs'),
                  install_dir: qemu_datadir / 'firmware')
 endforeach

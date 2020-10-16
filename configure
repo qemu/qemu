@@ -362,8 +362,7 @@ cocoa="auto"
 softmmu="yes"
 linux_user="no"
 bsd_user="no"
-blobs="yes"
-edk2_blobs="no"
+blobs="true"
 pkgversion=""
 pie=""
 qom_cast_debug="yes"
@@ -1205,7 +1204,7 @@ for opt do
   ;;
   --enable-membarrier) membarrier="yes"
   ;;
-  --disable-blobs) blobs="no"
+  --disable-blobs) blobs="false"
   ;;
   --with-pkgversion=*) pkgversion="$optarg"
   ;;
@@ -2220,18 +2219,6 @@ case " $target_list " in
   *) softmmu=no
   ;;
 esac
-
-for target in $target_list; do
-  case "$target" in
-    arm-softmmu | aarch64-softmmu | i386-softmmu | x86_64-softmmu)
-      edk2_blobs="yes"
-      ;;
-  esac
-done
-# The EDK2 binaries are compressed with bzip2
-if test "$edk2_blobs" = "yes" && ! has bzip2; then
-  error_exit "The bzip2 program is required for building QEMU"
-fi
 
 feature_not_found() {
   feature=$1
@@ -6276,9 +6263,6 @@ fi
 if test "$vhost_user_fs" = "yes" ; then
   echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak
 fi
-if test "$blobs" = "yes" ; then
-  echo "INSTALL_BLOBS=yes" >> $config_host_mak
-fi
 if test "$iovec" = "yes" ; then
   echo "CONFIG_IOVEC=y" >> $config_host_mak
 fi
@@ -6755,10 +6739,6 @@ if test "$fuzzing" != "no"; then
 fi
 echo "FUZZ_EXE_LDFLAGS=$FUZZ_EXE_LDFLAGS" >> $config_host_mak
 
-if test "$edk2_blobs" = "yes" ; then
-  echo "DECOMPRESS_EDK2_BLOBS=y" >> $config_host_mak
-fi
-
 if test "$rng_none" = "yes"; then
   echo "CONFIG_RNG_NONE=y" >> $config_host_mak
 fi
@@ -6995,7 +6975,7 @@ NINJA=$ninja $meson setup \
         -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt \
         -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
-        -Ddocs=$docs -Dsphinx_build=$sphinx_build \
+        -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         $cross_arg \
         "$PWD" "$source_path"
 
