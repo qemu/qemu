@@ -1050,6 +1050,9 @@ static void show_netdevs(void)
 #ifdef CONFIG_POSIX
         "vhost-user",
 #endif
+#ifdef CONFIG_VHOST_VDPA
+        "vhost-vdpa",
+#endif
     };
 
     printf("Available netdev backend types:\n");
