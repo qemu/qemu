@@ -32,7 +32,7 @@ include:
         ../configure --enable-werror $CONFIGURE_ARGS --target-list="$TARGETS" ;
       else
         ../configure --enable-werror $CONFIGURE_ARGS ;
-      fi
+      fi || { cat config.log meson-logs/meson-log.txt && exit 1; }
     - make -j"$JOBS"
     - if test -n "$MAKE_CHECK_ARGS";
       then
@@ -229,7 +229,7 @@ build-tcg-disabled:
   script:
     - mkdir build
     - cd build
-    - ../configure --disable-tcg --audio-drv-list=""
+    - ../configure --disable-tcg --audio-drv-list="" || { cat config.log meson-logs/meson-log.txt && exit 1; }
     - make -j"$JOBS"
     - make check-unit
     - make check-qapi-schema
@@ -322,7 +322,7 @@ build-tci:
     - mkdir build
     - cd build
     - ../configure --enable-tcg-interpreter
-        --target-list="$(for tg in $TARGETS; do echo -n ${tg}'-softmmu '; done)"
+        --target-list="$(for tg in $TARGETS; do echo -n ${tg}'-softmmu '; done)" || { cat config.log meson-logs/meson-log.txt && exit 1; }
     - make -j"$JOBS"
     - make run-tcg-tests-x86_64-softmmu
     - make tests/qtest/boot-serial-test tests/qtest/cdrom-test tests/qtest/pxe-test
