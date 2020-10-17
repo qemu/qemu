@@ -67,17 +67,37 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 # define SPARC64 0
 #endif
 
-/* Note that sparcv8plus can only hold 64 bit quantities in %g and %o
-   registers.  These are saved manually by the kernel in full 64-bit
-   slots.  The %i and %l registers are saved by the register window
-   mechanism, which only allocates space for 32 bits.  Given that this
-   window spill/fill can happen on any signal, we must consider the
-   high bits of the %i and %l registers garbage at all times.  */
-#if SPARC64
-# define ALL_64  0xffffffffu
+#define TCG_CT_CONST_S11  0x100
+#define TCG_CT_CONST_S13  0x200
+#define TCG_CT_CONST_ZERO 0x400
+
+/*
+ * For softmmu, we need to avoid conflicts with the first 3
+ * argument registers to perform the tlb lookup, and to call
+ * the helper function.
+ */
+#ifdef CONFIG_SOFTMMU
+#define SOFTMMU_RESERVE_REGS MAKE_64BIT_MASK(TCG_REG_O0, 3)
 #else
-# define ALL_64  0xffffu
+#define SOFTMMU_RESERVE_REGS 0
 #endif
+
+/*
+ * Note that sparcv8plus can only hold 64 bit quantities in %g and %o
+ * registers.  These are saved manually by the kernel in full 64-bit
+ * slots.  The %i and %l registers are saved by the register window
+ * mechanism, which only allocates space for 32 bits.  Given that this
+ * window spill/fill can happen on any signal, we must consider the
+ * high bits of the %i and %l registers garbage at all times.
+ */
+#define ALL_GENERAL_REGS     MAKE_64BIT_MASK(0, 32)
+#if SPARC64
+# define ALL_GENERAL_REGS64  ALL_GENERAL_REGS
+#else
+# define ALL_GENERAL_REGS64  MAKE_64BIT_MASK(0, 16)
+#endif
+#define ALL_QLDST_REGS       (ALL_GENERAL_REGS & ~SOFTMMU_RESERVE_REGS)
+#define ALL_QLDST_REGS64     (ALL_GENERAL_REGS64 & ~SOFTMMU_RESERVE_REGS)
 
 /* Define some temporary registers.  T2 is used for constant generation.  */
 #define TCG_REG_T1  TCG_REG_G1
@@ -318,45 +338,6 @@ static bool patch_reloc(tcg_insn_unit *src_rw, int type,
 
     *src_rw = insn;
     return true;
-}
-
-/* parse target specific constraints */
-static const char *target_parse_constraint(TCGArgConstraint *ct,
-                                           const char *ct_str, TCGType type)
-{
-    switch (*ct_str++) {
-    case 'r':
-        ct->regs = 0xffffffff;
-        break;
-    case 'R':
-        ct->regs = ALL_64;
-        break;
-    case 'A': /* qemu_ld/st address constraint */
-        ct->regs = TARGET_LONG_BITS == 64 ? ALL_64 : 0xffffffff;
-    reserve_helpers:
-        tcg_regset_reset_reg(ct->regs, TCG_REG_O0);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_O1);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_O2);
-        break;
-    case 's': /* qemu_st data 32-bit constraint */
-        ct->regs = 0xffffffff;
-        goto reserve_helpers;
-    case 'S': /* qemu_st data 64-bit constraint */
-        ct->regs = ALL_64;
-        goto reserve_helpers;
-    case 'I':
-        ct->ct |= TCG_CT_CONST_S11;
-        break;
-    case 'J':
-        ct->ct |= TCG_CT_CONST_S13;
-        break;
-    case 'Z':
-        ct->ct |= TCG_CT_CONST_ZERO;
-        break;
-    default:
-        return NULL;
-    }
-    return ct_str;
 }
 
 /* test if a constant matches the constraint */
@@ -1746,8 +1727,8 @@ static void tcg_target_init(TCGContext *s)
     }
 #endif
 
-    tcg_target_available_regs[TCG_TYPE_I32] = 0xffffffff;
-    tcg_target_available_regs[TCG_TYPE_I64] = ALL_64;
+    tcg_target_available_regs[TCG_TYPE_I32] = ALL_GENERAL_REGS;
+    tcg_target_available_regs[TCG_TYPE_I64] = ALL_GENERAL_REGS64;
 
     tcg_target_call_clobber_regs = 0;
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_G1);

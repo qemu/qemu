@@ -66,10 +66,6 @@ typedef enum {
     TCG_REG_I7,
 } TCGReg;
 
-#define TCG_CT_CONST_S11  0x100
-#define TCG_CT_CONST_S13  0x200
-#define TCG_CT_CONST_ZERO 0x400
-
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_O6
 
@@ -172,5 +168,6 @@ extern bool use_vis3_instructions;
 void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t, uintptr_t);
 
 #define TCG_TARGET_NEED_POOL_LABELS
+#define TCG_TARGET_CON_STR_H
 
 #endif
