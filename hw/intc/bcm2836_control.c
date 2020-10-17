@@ -157,22 +157,22 @@ static void bcm2836_control_set_local_irq(void *opaque, int core, int local_irq,
 
 static void bcm2836_control_set_local_irq0(void *opaque, int core, int level)
 {
-    bcm2836_control_set_local_irq(opaque, core, 0, level);
+    bcm2836_control_set_local_irq(opaque, core, IRQ_CNTPSIRQ, level);
 }
 
 static void bcm2836_control_set_local_irq1(void *opaque, int core, int level)
 {
-    bcm2836_control_set_local_irq(opaque, core, 1, level);
+    bcm2836_control_set_local_irq(opaque, core, IRQ_CNTPNSIRQ, level);
 }
 
 static void bcm2836_control_set_local_irq2(void *opaque, int core, int level)
 {
-    bcm2836_control_set_local_irq(opaque, core, 2, level);
+    bcm2836_control_set_local_irq(opaque, core, IRQ_CNTHPIRQ, level);
 }
 
 static void bcm2836_control_set_local_irq3(void *opaque, int core, int level)
 {
-    bcm2836_control_set_local_irq(opaque, core, 3, level);
+    bcm2836_control_set_local_irq(opaque, core, IRQ_CNTVIRQ, level);
 }
 
 static void bcm2836_control_set_gpu_irq(void *opaque, int irq, int level)
