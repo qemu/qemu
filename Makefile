@@ -14,6 +14,8 @@ SRC_PATH=.
 # we have explicit rules for everything
 MAKEFLAGS += -rR
 
+SHELL = /usr/bin/env bash -o pipefail
+
 # Usage: $(call quiet-command,command and args,"NAME","args to print")
 # This will run "command and args", and either:
 #  if V=1 just print the whole command and args
@@ -28,13 +30,21 @@ UNCHECKED_GOALS := %clean TAGS cscope ctags dist \
     help check-help print-% \
     docker docker-% vm-help vm-test vm-build-%
 
+all:
+.PHONY: all clean distclean recurse-all dist msi FORCE
+
+# Don't try to regenerate Makefile or configure
+# We don't generate any of them
+Makefile: ;
+configure: ;
+
 # All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
-# Put the all: rule here so that config-host.mak can contain dependencies.
-all:
 include config-host.mak
 
 git-submodule-update:
+.git-submodule-status: git-submodule-update config-host.mak
+Makefile: .git-submodule-status
 
 .PHONY: git-submodule-update
 
@@ -62,28 +72,7 @@ git-submodule-update:
 endif
 endif
 
-export NINJA=./ninjatool
-
-# Running meson regenerates both build.ninja and ninjatool, and that is
-# enough to prime the rest of the build.
-ninjatool: build.ninja
-
-Makefile.ninja: build.ninja ninjatool
-	./ninjatool -t ninja2make --omit clean dist uninstall cscope TAGS ctags < $< > $@
--include Makefile.ninja
-
-${ninja-targets-c_COMPILER} ${ninja-targets-cpp_COMPILER}: .var.command += -MP
-
-# If MESON is empty, the rule will be re-evaluated after Makefiles are
-# reread (and MESON won't be empty anymore).
-ifneq ($(MESON),)
-Makefile.mtest: build.ninja scripts/mtest2make.py
-	$(MESON) introspect --targets --tests --benchmarks | $(PYTHON) scripts/mtest2make.py > $@
--include Makefile.mtest
-endif
-
-Makefile: .git-submodule-status
-.git-submodule-status: git-submodule-update config-host.mak
+# 0. ensure the build tree is okay
 
 # Check that we're not trying to do an out-of-tree build from
 # a tree that's been used for an in-tree build.
@@ -95,6 +84,21 @@ seems to have been used for an in-tree build. You can fix this by running \
 endif
 endif
 
+# force a rerun of configure if config-host.mak is too old or corrupted
+ifeq ($(MESON),)
+.PHONY: config-host.mak
+x := $(shell rm -rf meson-private meson-info meson-logs)
+endif
+ifeq ($(NINJA),)
+.PHONY: config-host.mak
+x := $(shell rm -rf meson-private meson-info meson-logs)
+endif
+ifeq ($(wildcard build.ninja),)
+.PHONY: config-host.mak
+x := $(shell rm -rf meson-private meson-info meson-logs)
+endif
+
+# 1. ensure config-host.mak is up-to-date
 config-host.mak: $(SRC_PATH)/configure $(SRC_PATH)/pc-bios $(SRC_PATH)/VERSION
 	@echo $@ is out-of-date, running configure
 	@if test -f meson-private/coredata.dat; then \
@@ -102,6 +106,46 @@ config-host.mak: $(SRC_PATH)/configure $(SRC_PATH)/pc-bios $(SRC_PATH)/VERSION
 	else \
 	  ./config.status; \
 	fi
+
+# 2. ensure generated build files are up-to-date
+
+ifneq ($(NINJA),)
+# A separate rule is needed for Makefile dependencies to avoid -n
+export NINJA
+Makefile.ninja: build.ninja
+	$(quiet-@){ echo 'ninja-targets = \'; $(NINJA) -t targets all | sed 's/:.*//; $$!s/$$/ \\/'; } > $@
+-include Makefile.ninja
+endif
+
+ifneq ($(MESON),)
+# The dependency on config-host.mak ensures that meson has run
+Makefile.mtest: build.ninja scripts/mtest2make.py config-host.mak
+	$(MESON) introspect --targets --tests --benchmarks | $(PYTHON) scripts/mtest2make.py > $@
+-include Makefile.mtest
+endif
+
+# 3. Rules to bridge to other makefiles
+
+ifneq ($(NINJA),)
+NINJAFLAGS = $(if $V,-v,) \
+        $(filter-out -j, $(lastword -j1 $(filter -l% -j%, $(MAKEFLAGS)))) \
+        $(subst -k, -k0, $(filter -n -k,$(MAKEFLAGS)))
+
+ninja-cmd-goals = $(or $(MAKECMDGOALS), all)
+ninja-cmd-goals += $(foreach t, $(.tests), $(.test.deps.$t))
+
+makefile-targets := build.ninja ctags TAGS cscope dist clean uninstall
+ninja-targets := $(filter-out $(makefile-targets), $(ninja-targets))
+.PHONY: $(ninja-targets) run-ninja
+$(ninja-targets): run-ninja
+
+# Use "| cat" to give Ninja a more "make-y" output.  Use "+" to bypass the
+# --output-sync line.
+run-ninja: config-host.mak
+ifneq ($(filter $(ninja-targets), $(ninja-cmd-goals)),)
+	+@$(NINJA) $(NINJAFLAGS) $(sort $(filter $(ninja-targets), $(ninja-cmd-goals))) | cat
+endif
+endif
 
 # Force configure to re-run if the API symbols are updated
 ifeq ($(CONFIG_PLUGIN),y)
@@ -112,37 +156,21 @@ plugins:
 	$(call quiet-command,\
 		$(MAKE) $(SUBDIR_MAKEFLAGS) -C contrib/plugins V="$(V)", \
 		"BUILD", "example plugins")
-endif
+endif # $(CONFIG_PLUGIN)
 
-else
+else # config-host.mak does not exist
 config-host.mak:
 ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
 	@echo "Please call configure before running make!"
 	@exit 1
 endif
-endif
-
-# Only needed in case Makefile.ninja does not exist.
-.PHONY: ninja-clean ninja-distclean clean-ctlist
-clean-ctlist:
-ninja-clean::
-ninja-distclean::
-build.ninja: config-host.mak
-
-# Don't try to regenerate Makefile or configure
-# We don't generate any of them
-Makefile: ;
-configure: ;
-
-.PHONY: all clean distclean install \
-	recurse-all dist msi FORCE
+endif # config-host.mak does not exist
 
 SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet)
 
 include $(SRC_PATH)/tests/Makefile.include
 
 all: recurse-all
-Makefile:
 
 ROM_DIRS = $(addprefix pc-bios/, $(ROMS))
 ROM_DIRS_RULES=$(foreach t, all clean, $(addsuffix /$(t), $(ROM_DIRS)))
@@ -157,8 +185,9 @@ recurse-clean: $(addsuffix /clean, $(ROM_DIRS))
 
 ######################################################################
 
-clean: recurse-clean ninja-clean clean-ctlist
-	if test -f ninjatool; then ./ninjatool $(if $(V),-v,) -t clean; fi
+clean: recurse-clean
+	-@test -f build.ninja && $(quiet-@)$(NINJA) $(NINJAFLAGS) -t clean || :
+	-@test -f build.ninja && $(NINJA) $(NINJAFLAGS) clean-ctlist || :
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	find . \( -name '*.so' -o -name '*.dll' -o -name '*.[oda]' \) -type f \
@@ -175,8 +204,8 @@ dist: qemu-$(VERSION).tar.bz2
 qemu-%.tar.bz2:
 	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"
 
-distclean: clean ninja-distclean
-	-test -f ninjatool && ./ninjatool $(if $(V),-v,) -t clean -g
+distclean: clean
+	-@test -f build.ninja && $(quiet-@)$(NINJA) $(NINJAFLAGS) -t clean -g || :
 	rm -f config-host.mak config-host.h*
 	rm -f tests/tcg/config-*.mak
 	rm -f config-all-disas.mak config.status
@@ -185,7 +214,7 @@ distclean: clean ninja-distclean
 	rm -f qemu-plugins-ld.symbols qemu-plugins-ld64.symbols
 	rm -f *-config-target.h *-config-devices.mak *-config-devices.h
 	rm -rf meson-private meson-logs meson-info compile_commands.json
-	rm -f Makefile.ninja ninjatool ninjatool.stamp Makefile.mtest
+	rm -f Makefile.ninja Makefile.mtest
 	rm -f config.log
 	rm -f linux-headers/asm
 	rm -Rf .sdk
@@ -194,19 +223,19 @@ find-src-path = find "$(SRC_PATH)/" -path "$(SRC_PATH)/meson" -prune -o -name "*
 
 .PHONY: ctags
 ctags:
-	rm -f tags
-	$(find-src-path) -exec ctags --append {} +
+	rm -f "$(SRC_PATH)/"tags
+	$(find-src-path) -exec ctags -f "$(SRC_PATH)/"tags --append {} +
 
 .PHONY: TAGS
 TAGS:
-	rm -f TAGS
-	$(find-src-path) -exec etags --append {} +
+	rm -f "$(SRC_PATH)/"TAGS
+	$(find-src-path) -exec etags -f "$(SRC_PATH)/"TAGS --append {} +
 
 .PHONY: cscope
 cscope:
 	rm -f "$(SRC_PATH)"/cscope.*
 	$(find-src-path) -print | sed -e 's,^\./,,' > "$(SRC_PATH)/cscope.files"
-	cscope -b -i"$(SRC_PATH)/cscope.files"
+	cscope -b -i"$(SRC_PATH)/cscope.files" -f"$(SRC_PATH)"/cscope.out
 
 # Needed by "meson install"
 export DESTDIR

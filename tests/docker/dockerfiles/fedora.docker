@@ -75,6 +75,7 @@ ENV PACKAGES \
     mingw64-SDL2 \
     ncurses-devel \
     nettle-devel \
+    ninja-build \
     nss-devel \
     numactl-devel \
     perl \

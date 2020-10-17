@@ -17,7 +17,13 @@ cc = meson.get_compiler('c')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
 enable_modules = 'CONFIG_MODULES' in config_host
 enable_static = 'CONFIG_STATIC' in config_host
-build_docs = 'BUILD_DOCS' in config_host
+
+# Temporary directory used for files created while
+# configure runs. Since it is in the build directory
+# we can safely blow away any previous version of it
+# (and we need not jump through hoops to try to delete
+# it when configure exits.)
+tmpdir = meson.current_build_dir() / 'meson-private/temp'
 
 if get_option('qemu_suffix').startswith('/')
   error('qemu_suffix cannot start with a /')
@@ -46,10 +52,6 @@ supported_cpus = ['ppc', 'ppc64', 's390x', 'riscv32', 'riscv64', 'x86', 'x86_64'
 
 cpu = host_machine.cpu_family()
 targetos = host_machine.system()
-
-configure_file(input: files('scripts/ninjatool.py'),
-               output: 'ninjatool',
-               configuration: config_host)
 
 if cpu in ['x86', 'x86_64']
   kvm_targets = ['i386-softmmu', 'x86_64-softmmu']
@@ -93,9 +95,35 @@ add_project_arguments(config_host['QEMU_CXXFLAGS'].split(),
                       native: false, language: 'cpp')
 add_project_link_arguments(config_host['QEMU_LDFLAGS'].split(),
                            native: false, language: ['c', 'cpp', 'objc'])
-add_project_arguments(config_host['QEMU_INCLUDES'].split(),
-                      language: ['c', 'cpp', 'objc'])
 
+if targetos == 'linux'
+  add_project_arguments('-isystem', meson.current_source_dir() / 'linux-headers',
+                        '-isystem', 'linux-headers',
+                        language: ['c', 'cpp'])
+endif
+
+if 'CONFIG_TCG_INTERPRETER' in config_host
+  tcg_arch = 'tci'
+elif config_host['ARCH'] == 'sparc64'
+  tcg_arch = 'sparc'
+elif config_host['ARCH'] == 's390x'
+  tcg_arch = 's390'
+elif config_host['ARCH'] in ['x86_64', 'x32']
+  tcg_arch = 'i386'
+elif config_host['ARCH'] == 'ppc64'
+  tcg_arch = 'ppc'
+elif config_host['ARCH'] in ['riscv32', 'riscv64']
+  tcg_arch = 'riscv'
+else
+  tcg_arch = config_host['ARCH']
+endif
+add_project_arguments('-iquote', meson.current_source_dir() / 'tcg' / tcg_arch,
+                      '-iquote', '.',
+                      '-iquote', meson.current_source_dir(),
+                      '-iquote', meson.current_source_dir() / 'accel/tcg',
+                      '-iquote', meson.current_source_dir() / 'include',
+                      '-iquote', meson.current_source_dir() / 'disas/libvixl',
+                      language: ['c', 'cpp', 'objc'])
 
 link_language = meson.get_external_property('link_language', 'cpp')
 if link_language == 'cpp'
@@ -360,10 +388,11 @@ endif
 libudev = not_found
 if targetos == 'linux' and (have_system or have_tools)
   libudev = dependency('libudev',
-                       required: get_option('mpath').enabled(),
+                       required: get_option('libudev'),
                        static: enable_static)
 endif
 
+mpathlibs = [libudev]
 mpathpersist = not_found
 mpathpersist_new_api = false
 if targetos == 'linux' and have_tools and not get_option('mpath').disabled()
@@ -394,46 +423,52 @@ if targetos == 'linux' and have_tools and not get_option('mpath').disabled()
           mpath_lib_init(udev);
           return 0;
       }'''
-  mpathlibs = [libudev]
-  if enable_static
-    mpathlibs += cc.find_library('devmapper',
-                                   required: get_option('mpath'),
-                                   static: enable_static)
-  endif
-  mpathlibs += cc.find_library('multipath',
-                               required: get_option('mpath'),
-                               static: enable_static)
-  mpathlibs += cc.find_library('mpathpersist',
-                               required: get_option('mpath'),
-                               static: enable_static)
-  foreach lib: mpathlibs
-    if not lib.found()
-      mpathlibs = []
-      break
+  libmpathpersist = cc.find_library('mpathpersist',
+                                    required: get_option('mpath'),
+                                    static: enable_static)
+  if libmpathpersist.found()
+    mpathlibs += libmpathpersist
+    if enable_static
+      mpathlibs += cc.find_library('devmapper',
+                                     required: get_option('mpath'),
+                                     static: enable_static)
     endif
-  endforeach
-  if mpathlibs.length() > 0
-    if cc.links(mpath_test_source_new, dependencies: mpathlibs)
+    mpathlibs += cc.find_library('multipath',
+                                 required: get_option('mpath'),
+                                 static: enable_static)
+    foreach lib: mpathlibs
+      if not lib.found()
+        mpathlibs = []
+        break
+      endif
+    endforeach
+    if mpathlibs.length() == 0
+      msg = 'Dependencies missing for libmpathpersist'
+    elif cc.links(mpath_test_source_new, dependencies: mpathlibs)
       mpathpersist = declare_dependency(dependencies: mpathlibs)
       mpathpersist_new_api = true
     elif cc.links(mpath_test_source_old, dependencies: mpathlibs)
       mpathpersist = declare_dependency(dependencies: mpathlibs)
     else
+      msg = 'Cannot detect libmpathpersist API'
+    endif
+    if not mpathpersist.found()
       if get_option('mpath').enabled()
-        error('Cannot detect libmpathpersist API')
+        error(msg)
       else
-        warning('Cannot detect libmpathpersist API, disabling')
+        warning(msg + ', disabling')
       endif
     endif
   endif
 endif
 
 iconv = not_found
-if not get_option('iconv').disabled()
-  libiconv = cc.find_library('iconv',
-                             required: false,
-                             static: enable_static)
-  if libiconv.found()
+curses = not_found
+if have_system and not get_option('curses').disabled()
+  if not get_option('iconv').disabled()
+    libiconv = cc.find_library('iconv',
+                               required: false,
+                               static: enable_static)
     if cc.links('''
       #include <iconv.h>
       int main(void) {
@@ -443,28 +478,25 @@ if not get_option('iconv').disabled()
       iconv = declare_dependency(dependencies: [libiconv])
     endif
   endif
-endif
-if get_option('iconv').enabled() and not iconv.found()
-  error('Cannot detect iconv API')
-endif
-
-curses = not_found
-if iconv.found() and not get_option('curses').disabled()
-  curses_libname_list = ['ncursesw', 'ncurses', 'cursesw', 'pdcurses']
-  curses_test = '''
-    #include <locale.h>
-    #include <curses.h>
-    #include <wchar.h>
-    int main(void) {
-      wchar_t wch = L'w';
-      setlocale(LC_ALL, "");
-      resize_term(0, 0);
-      addwstr(L"wide chars\n");
-      addnwstr(&wch, 1);
-      add_wch(WACS_DEGREE);
-      return 0;
-    }'''
-  foreach curses_libname : curses_libname_list
+  if get_option('iconv').enabled() and not iconv.found()
+    error('Cannot detect iconv API')
+  endif
+  if iconv.found()
+    curses_libname_list = ['ncursesw', 'ncurses', 'cursesw', 'pdcurses']
+    curses_test = '''
+      #include <locale.h>
+      #include <curses.h>
+      #include <wchar.h>
+      int main(void) {
+        wchar_t wch = L'w';
+        setlocale(LC_ALL, "");
+        resize_term(0, 0);
+        addwstr(L"wide chars\n");
+        addnwstr(&wch, 1);
+        add_wch(WACS_DEGREE);
+        return 0;
+      }'''
+    foreach curses_libname : curses_libname_list
       libcurses = dependency(curses_libname,
                              required: false,
                              method: 'pkg-config',
@@ -486,13 +518,18 @@ if iconv.found() and not get_option('curses').disabled()
           break
         endif
       endif
-  endforeach
-endif
-if get_option('curses').enabled() and not curses.found()
-  if not iconv.found()
-    error('Cannot detect iconv API')
-  else
-    error('Cannot detect curses API')
+    endforeach
+  endif
+  if not curses.found()
+    if iconv.found()
+      if get_option('curses').enabled()
+        error('Cannot find curses')
+      endif
+    elif get_option('curses').enabled()
+      error('iconv required for curses UI but not available')
+    else
+      warning('iconv required for curses UI but not available, disabling')
+    endif
   endif
 endif
 
@@ -1237,22 +1274,6 @@ foreach d : hx_headers
 endforeach
 genh += hxdep
 
-SPHINX_ARGS = [config_host['SPHINX_BUILD'],
-               '-Dversion=' + meson.project_version(),
-               '-Drelease=' + config_host['PKGVERSION']]
-
-if get_option('werror')
-  SPHINX_ARGS += [ '-W' ]
-endif
-
-sphinx_extn_depends = [ meson.source_root() / 'docs/sphinx/depfile.py',
-                        meson.source_root() / 'docs/sphinx/hxtool.py',
-                        meson.source_root() / 'docs/sphinx/kerneldoc.py',
-                        meson.source_root() / 'docs/sphinx/kernellog.py',
-                        meson.source_root() / 'docs/sphinx/qapidoc.py',
-                        meson.source_root() / 'docs/sphinx/qmp_lexer.py',
-                        qapi_gen_depends ]
-
 ###################
 # Collect sources #
 ###################
@@ -1837,8 +1858,8 @@ endif
 subdir('scripts')
 subdir('tools')
 subdir('pc-bios')
-subdir('tests')
 subdir('docs')
+subdir('tests')
 if 'CONFIG_GTK' in config_host
   subdir('po')
 endif
@@ -1920,7 +1941,7 @@ summary_info += {'QEMU_CFLAGS':       config_host['QEMU_CFLAGS']}
 summary_info += {'QEMU_LDFLAGS':      config_host['QEMU_LDFLAGS']}
 summary_info += {'make':              config_host['MAKE']}
 summary_info += {'python':            '@0@ (version: @1@)'.format(python.full_path(), python.language_version())}
-summary_info += {'sphinx-build':      config_host['SPHINX_BUILD']}
+summary_info += {'sphinx-build':      sphinx_build.found()}
 summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
 # TODO: add back version
 summary_info += {'slirp support':     slirp_opt == 'disabled' ? false : slirp_opt}
@@ -1988,7 +2009,7 @@ if config_host.has_key('CONFIG_XEN_BACKEND')
   summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}
 endif
 summary_info += {'brlapi support':    config_host.has_key('CONFIG_BRLAPI')}
-summary_info += {'Documentation':     config_host.has_key('BUILD_DOCS')}
+summary_info += {'Documentation':     build_docs}
 summary_info += {'PIE':               get_option('b_pie')}
 summary_info += {'vde support':       config_host.has_key('CONFIG_VDE')}
 summary_info += {'netmap support':    config_host.has_key('CONFIG_NETMAP')}

@@ -48,6 +48,7 @@ ENV PACKAGES \
     make \
     python3-yaml \
     python3-sphinx \
+    ninja-build \
     sparse \
     xfslibs-dev
 RUN apt-get update && \

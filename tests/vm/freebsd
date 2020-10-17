@@ -34,6 +34,7 @@ class FreeBSDVM(basevm.BaseVM):
         "bzip2",
         "python37",
         "py37-setuptools",
+        "ninja",
 
         # gnu tools
         "bash",

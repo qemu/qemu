@@ -404,10 +404,8 @@ Built by Meson:
 Built by Makefile:
 
 `Makefile.ninja`
-  A Makefile conversion of the build rules in build.ninja.  The conversion
-  is straightforward and, were it necessary to debug the rules produced
-  by Meson, it should be enough to look at build.ninja.  The conversion
-  is performed by scripts/ninjatool.py.
+  A Makefile include that bridges to ninja for the actual build.  The
+  Makefile is mostly a list of targets that Meson included in build.ninja.
 
 `Makefile.mtest`
   The Makefile definitions that let "make check" run tests defined in
