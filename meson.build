@@ -465,70 +465,89 @@ endif
 iconv = not_found
 curses = not_found
 if have_system and not get_option('curses').disabled()
-  if not get_option('iconv').disabled()
-    libiconv = cc.find_library('iconv',
-                               required: false,
-                               static: enable_static)
-    if cc.links('''
-      #include <iconv.h>
-      int main(void) {
-        iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
-        return conv != (iconv_t) -1;
-      }''', dependencies: [libiconv])
-      iconv = declare_dependency(dependencies: [libiconv])
+  curses_test = '''
+    #include <locale.h>
+    #include <curses.h>
+    #include <wchar.h>
+    int main(void) {
+      wchar_t wch = L'w';
+      setlocale(LC_ALL, "");
+      resize_term(0, 0);
+      addwstr(L"wide chars\n");
+      addnwstr(&wch, 1);
+      add_wch(WACS_DEGREE);
+      return 0;
+    }'''
+
+  curses = dependency((targetos == 'windows' ? 'ncurses' : 'ncursesw'),
+                      required: false,
+                      method: 'pkg-config',
+                      static: enable_static)
+  msg = get_option('curses').enabled() ? 'curses library not found' : ''
+  if curses.found()
+    if cc.links(curses_test, dependencies: [curses])
+      curses = declare_dependency(compile_args: '-DNCURSES_WIDECHAR', dependencies: [curses])
+    else
+      msg = 'curses package not usable'
+      curses = not_found
     endif
   endif
-  if get_option('iconv').enabled() and not iconv.found()
-    error('Cannot detect iconv API')
-  endif
-  if iconv.found()
-    curses_libname_list = ['ncursesw', 'ncurses', 'cursesw', 'pdcurses']
-    curses_test = '''
-      #include <locale.h>
-      #include <curses.h>
-      #include <wchar.h>
-      int main(void) {
-        wchar_t wch = L'w';
-        setlocale(LC_ALL, "");
-        resize_term(0, 0);
-        addwstr(L"wide chars\n");
-        addnwstr(&wch, 1);
-        add_wch(WACS_DEGREE);
-        return 0;
-      }'''
-    foreach curses_libname : curses_libname_list
-      libcurses = dependency(curses_libname,
-                             required: false,
-                             method: 'pkg-config',
-                             static: enable_static)
-
-      if not libcurses.found()
-        dirs = ['/usr/include/ncursesw']
-        if targetos == 'windows'
-          dirs = []
-        endif
+  if not curses.found()
+    curses_compile_args = ['-DNCURSES_WIDECHAR']
+    has_curses_h = cc.has_header('curses.h', args: curses_compile_args)
+    if targetos != 'windows' and not has_curses_h
+      message('Trying with /usr/include/ncursesw')
+      curses_compile_args += ['-I/usr/include/ncursesw']
+      has_curses_h = cc.has_header('curses.h', args: curses_compile_args)
+    endif
+    if has_curses_h
+      curses_libname_list = (targetos == 'windows' ? ['pdcurses'] : ['ncursesw', 'cursesw'])
+      foreach curses_libname : curses_libname_list
         libcurses = cc.find_library(curses_libname,
                                     required: false,
-                                    dirs: dirs,
                                     static: enable_static)
-      endif
-      if libcurses.found()
-        if cc.links(curses_test, dependencies: [libcurses])
-          curses = declare_dependency(compile_args: '-DNCURSES_WIDECHAR', dependencies: [libcurses])
-          break
+        if libcurses.found()
+          if cc.links(curses_test, args: curses_compile_args, dependencies: libcurses)
+            curses = declare_dependency(compile_args: curses_compile_args,
+                                        dependencies: [libcurses])
+            break
+          else
+            msg = 'curses library not usable'
+          endif
         endif
+      endforeach
+    endif
+  endif
+  if not get_option('iconv').disabled()
+    foreach link_args : [ ['-liconv'], [] ]
+      # Programs will be linked with glib and this will bring in libiconv on FreeBSD.
+      # We need to use libiconv if available because mixing libiconv's headers with
+      # the system libc does not work.
+      # However, without adding glib to the dependencies -L/usr/local/lib will not be
+      # included in the command line and libiconv will not be found.
+      if cc.links('''
+        #include <iconv.h>
+        int main(void) {
+          iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
+          return conv != (iconv_t) -1;
+        }''', args: config_host['GLIB_CFLAGS'].split() + config_host['GLIB_LIBS'].split() + link_args)
+        iconv = declare_dependency(link_args: link_args, dependencies: glib)
+        break
       endif
     endforeach
   endif
-  if not curses.found()
-    if iconv.found()
-      if get_option('curses').enabled()
-        error('Cannot find curses')
-      endif
-    elif get_option('curses').enabled()
-      error('iconv required for curses UI but not available')
+  if curses.found() and not iconv.found()
+    if get_option('iconv').enabled()
+      error('iconv not available')
+    endif
+    msg = 'iconv required for curses UI but not available'
+    curses = not_found
+  endif
+  if not curses.found() and msg != ''
+    if get_option('curses').enabled()
+      error(msg)
     else
-      warning('iconv required for curses UI but not available, disabling')
+      warning(msg + ', disabling')
     endif
   endif
 endif
