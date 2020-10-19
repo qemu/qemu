@@ -83,6 +83,7 @@ static const VMStateDescription microbit_i2c_vmstate = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MicrobitI2CState, MICROBIT_I2C_NREGS),
         VMSTATE_UINT32(read_idx, MicrobitI2CState),
+        VMSTATE_END_OF_LIST()
     },
 };
 
