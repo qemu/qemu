@@ -603,7 +603,7 @@ fptest_rounding_args = ['-r', 'all']
 # FIXME: i32_to_extF80 (broken), i64_to_extF80 (broken)
 #        extF80_roundToInt (broken)
 foreach k, v : softfloat_conv_tests
-  test('fp-test:' + k, fptest,
+  test('fp-test-' + k, fptest,
        args: fptest_args + fptest_rounding_args + v.split(),
        suite: ['softfloat', 'softfloat-conv'])
 endforeach
@@ -612,13 +612,13 @@ endforeach
 #        extF80_{mulAdd} (missing)
 foreach k, v : softfloat_tests
   extF80_broken = ['lt_quiet', 'rem'].contains(k)
-  test('fp-test:' + k, fptest,
+  test('fp-test-' + k, fptest,
        args: fptest_args + fptest_rounding_args +
              ['f16_' + k, 'f32_' + k, 'f64_' + k, 'f128_' + k] +
              (extF80_broken ? [] : ['extF80_' + k]),
        suite: ['softfloat', 'softfloat-' + v])
 endforeach
-test('fp-test:mulAdd', fptest,
+test('fp-test-mulAdd', fptest,
      # no fptest_rounding_args
      args: fptest_args +
            ['f16_mulAdd', 'f32_mulAdd', 'f64_mulAdd', 'f128_mulAdd'],
