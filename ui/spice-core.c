@@ -993,8 +993,13 @@ int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd)
     return spice_display_is_running;
 }
 
+static struct QemuSpiceOps real_spice_ops = {
+    .migrate_info = qemu_spice_migrate_info,
+};
+
 static void spice_register_config(void)
 {
+    qemu_spice = real_spice_ops;
     qemu_add_opts(&qemu_spice_opts);
 }
 opts_init(spice_register_config);

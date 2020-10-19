@@ -21,3 +21,13 @@
 #include "ui/qemu-spice-module.h"
 
 int using_spice;
+
+static int qemu_spice_migrate_info_stub(const char *h, int p, int t,
+                                        const char *s)
+{
+    return -1;
+}
+
+struct QemuSpiceOps qemu_spice = {
+    .migrate_info = qemu_spice_migrate_info_stub,
+};

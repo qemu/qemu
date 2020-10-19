@@ -18,6 +18,11 @@
 #ifndef QEMU_SPICE_MODULE_H
 #define QEMU_SPICE_MODULE_H
 
+struct QemuSpiceOps {
+    int (*migrate_info)(const char *h, int p, int t, const char *s);
+};
+
 extern int using_spice;
+extern struct QemuSpiceOps qemu_spice;
 
 #endif

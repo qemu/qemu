@@ -60,11 +60,6 @@ static inline int qemu_spice_set_pw_expire(time_t expires)
 {
     return -1;
 }
-static inline int qemu_spice_migrate_info(const char *h, int p, int t,
-                                          const char *s)
-{
-    return -1;
-}
 
 static inline int qemu_spice_display_add_client(int csock, int skipauth,
                                                 int tls)
