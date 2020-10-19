@@ -296,8 +296,8 @@ CLZ              1111 1010 1011 ---- 1111 .... 1000 ....      @rdm
 {
   # Group insn[25:23] = 111, which is cond=111x for the branch below,
   # or unconditional, which would be illegal for the branch.
-  {
-    # Hints
+  [
+    # Hints, and CPS
     {
       YIELD      1111 0011 1010 1111 1000 0000 0000 0001
       WFE        1111 0011 1010 1111 1000 0000 0000 0010
@@ -310,20 +310,18 @@ CLZ              1111 1010 1011 ---- 1111 .... 1000 ....      @rdm
       # The canonical nop ends in 0000 0000, but the whole rest
       # of the space is "reserved hint, behaves as nop".
       NOP        1111 0011 1010 1111 1000 0000 ---- ----
+
+      # If imod == '00' && M == '0' then SEE "Hint instructions", above.
+      CPS        1111 0011 1010 1111 1000 0 imod:2 M:1 A:1 I:1 F:1 mode:5 \
+                 &cps
     }
 
-    # If imod == '00' && M == '0' then SEE "Hint instructions", above.
-    CPS          1111 0011 1010 1111 1000 0 imod:2 M:1 A:1 I:1 F:1 mode:5 \
-                 &cps
-
     # Miscellaneous control
-    [
-      CLREX      1111 0011 1011 1111 1000 1111 0010 1111
-      DSB        1111 0011 1011 1111 1000 1111 0100 ----
-      DMB        1111 0011 1011 1111 1000 1111 0101 ----
-      ISB        1111 0011 1011 1111 1000 1111 0110 ----
-      SB         1111 0011 1011 1111 1000 1111 0111 0000
-    ]
+    CLREX        1111 0011 1011 1111 1000 1111 0010 1111
+    DSB          1111 0011 1011 1111 1000 1111 0100 ----
+    DMB          1111 0011 1011 1111 1000 1111 0101 ----
+    ISB          1111 0011 1011 1111 1000 1111 0110 ----
+    SB           1111 0011 1011 1111 1000 1111 0111 0000
 
     # Note that the v7m insn overlaps both the normal and banked insn.
     {
@@ -351,7 +349,7 @@ CLZ              1111 1010 1011 ---- 1111 .... 1000 ....      @rdm
     HVC          1111 0111 1110 ....  1000 .... .... ....     \
                  &i imm=%imm16_16_0
     UDF          1111 0111 1111 ----  1010 ---- ---- ----
-  }
+  ]
   B_cond_thumb   1111 0. cond:4 ...... 10.0 ............      &ci imm=%imm21
 }
 
