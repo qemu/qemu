@@ -181,6 +181,13 @@ static const struct {
     { "hw-display-qxl", "ui-spice-core" },
     { "ui-spice-app",   "ui-spice-core" },
     { "ui-spice-app",   "chardev-spice" },
+
+#ifdef CONFIG_OPENGL
+    { "ui-egl-headless", "ui-opengl"    },
+    { "ui-gtk",          "ui-opengl"    },
+    { "ui-sdl",          "ui-opengl"    },
+    { "ui-spice-core",   "ui-opengl"    },
+#endif
 };
 #endif
 

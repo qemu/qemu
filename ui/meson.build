@@ -33,7 +33,6 @@ vnc_ss.add(zlib, png, jpeg)
 vnc_ss.add(when: sasl, if_true: files('vnc-auth-sasl.c'))
 softmmu_ss.add_all(when: vnc, if_true: vnc_ss)
 softmmu_ss.add(when: vnc, if_false: files('vnc-stubs.c'))
-softmmu_ss.add(when: [opengl, 'CONFIG_OPENGL'], if_true: files('shader.c', 'console-gl.c', 'egl-helpers.c', 'egl-context.c'))
 specific_ss.add(when: ['CONFIG_SOFTMMU'], if_true: opengl)
 
 ui_modules = {}
@@ -42,6 +41,13 @@ if curses.found()
   curses_ss = ss.source_set()
   curses_ss.add(when: [curses, iconv], if_true: [files('curses.c'), pixman])
   ui_modules += {'curses' : curses_ss}
+endif
+
+if config_host.has_key('CONFIG_OPENGL')
+  opengl_ss = ss.source_set()
+  opengl_ss.add(when: [opengl, pixman, 'CONFIG_OPENGL'],
+               if_true: files('shader.c', 'console-gl.c', 'egl-helpers.c', 'egl-context.c'))
+  ui_modules += {'opengl' : opengl_ss}
 endif
 
 if config_host.has_key('CONFIG_OPENGL_DMABUF')
