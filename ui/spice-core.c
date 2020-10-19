@@ -633,7 +633,7 @@ static void vm_change_state_handler(void *opaque, int running,
     }
 }
 
-void qemu_spice_init(void)
+static void qemu_spice_init(void)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
     const char *password, *str, *x509_dir, *addr,
@@ -994,6 +994,7 @@ int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd)
 }
 
 static struct QemuSpiceOps real_spice_ops = {
+    .init         = qemu_spice_init,
     .migrate_info = qemu_spice_migrate_info,
 };
 

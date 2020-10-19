@@ -19,6 +19,7 @@
 #define QEMU_SPICE_MODULE_H
 
 struct QemuSpiceOps {
+    void (*init)(void);
     int (*migrate_info)(const char *h, int p, int t, const char *s);
 };
 

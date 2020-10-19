@@ -22,6 +22,10 @@
 
 int using_spice;
 
+static void qemu_spice_init_stub(void)
+{
+}
+
 static int qemu_spice_migrate_info_stub(const char *h, int p, int t,
                                         const char *s)
 {
@@ -29,5 +33,6 @@ static int qemu_spice_migrate_info_stub(const char *h, int p, int t,
 }
 
 struct QemuSpiceOps qemu_spice = {
+    .init         = qemu_spice_init_stub,
     .migrate_info = qemu_spice_migrate_info_stub,
 };

@@ -26,7 +26,6 @@
 #include <spice.h>
 #include "qemu/config-file.h"
 
-void qemu_spice_init(void);
 void qemu_spice_input_init(void);
 void qemu_spice_display_init(void);
 int qemu_spice_display_add_client(int csock, int skipauth, int tls);
@@ -72,10 +71,6 @@ static inline void qemu_spice_display_init(void)
     /* This must never be called if CONFIG_SPICE is disabled */
     error_report("spice support is disabled");
     abort();
-}
-
-static inline void qemu_spice_init(void)
-{
 }
 
 #endif /* CONFIG_SPICE */

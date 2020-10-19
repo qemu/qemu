@@ -4151,7 +4151,7 @@ void qemu_init(int argc, char **argv, char **envp)
     /* spice needs the timers to be initialized by this point */
     /* spice must initialize before audio as it changes the default auiodev */
     /* spice must initialize before chardevs (for spicevmc and spiceport) */
-    qemu_spice_init();
+    qemu_spice.init();
 
     qemu_opts_foreach(qemu_find_opts("chardev"),
                       chardev_init_func, NULL, &error_fatal);
