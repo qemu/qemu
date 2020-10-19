@@ -621,7 +621,7 @@ QDict *qtest_qmp_receive(QTestState *s)
             return response;
         }
         /* Stash the event for a later consumption */
-        s->pending_events = g_list_prepend(s->pending_events, response);
+        s->pending_events = g_list_append(s->pending_events, response);
     }
 }
 
