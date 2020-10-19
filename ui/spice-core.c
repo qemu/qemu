@@ -727,7 +727,7 @@ static void qemu_spice_init(void)
                              tls_ciphers);
     }
     if (password) {
-        qemu_spice_set_passwd(password, false, false);
+        qemu_spice.set_passwd(password, false, false);
     }
     if (qemu_opt_get_bool(opts, "sasl", 0)) {
         if (spice_server_set_sasl(spice_server, 1) == -1) {
@@ -941,8 +941,8 @@ static int qemu_spice_set_ticket(bool fail_if_conn, bool disconnect_if_conn)
                                    fail_if_conn, disconnect_if_conn);
 }
 
-int qemu_spice_set_passwd(const char *passwd,
-                          bool fail_if_conn, bool disconnect_if_conn)
+static int qemu_spice_set_passwd(const char *passwd,
+                                 bool fail_if_conn, bool disconnect_if_conn)
 {
     if (strcmp(auth, "spice") != 0) {
         return -1;
@@ -953,7 +953,7 @@ int qemu_spice_set_passwd(const char *passwd,
     return qemu_spice_set_ticket(fail_if_conn, disconnect_if_conn);
 }
 
-int qemu_spice_set_pw_expire(time_t expires)
+static int qemu_spice_set_pw_expire(time_t expires)
 {
     auth_expires = expires;
     return qemu_spice_set_ticket(false, false);
@@ -997,6 +997,8 @@ static struct QemuSpiceOps real_spice_ops = {
     .init         = qemu_spice_init,
     .display_init = qemu_spice_display_init,
     .migrate_info = qemu_spice_migrate_info,
+    .set_passwd   = qemu_spice_set_passwd,
+    .set_pw_expire = qemu_spice_set_pw_expire,
     .add_interface = qemu_spice_add_interface,
 };
 

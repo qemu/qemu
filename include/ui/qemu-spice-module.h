@@ -26,6 +26,9 @@ struct QemuSpiceOps {
     void (*init)(void);
     void (*display_init)(void);
     int (*migrate_info)(const char *h, int p, int t, const char *s);
+    int (*set_passwd)(const char *passwd,
+                      bool fail_if_connected, bool disconnect_if_connected);
+    int (*set_pw_expire)(time_t expires);
 #ifdef CONFIG_SPICE
     int (*add_interface)(SpiceBaseInstance *sin);
 #endif

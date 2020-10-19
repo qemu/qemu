@@ -197,7 +197,7 @@ void qmp_set_password(const char *protocol, const char *password,
         if (!qemu_using_spice(errp)) {
             return;
         }
-        rc = qemu_spice_set_passwd(password, fail_if_connected,
+        rc = qemu_spice.set_passwd(password, fail_if_connected,
                                    disconnect_if_connected);
         if (rc != 0) {
             error_setg(errp, QERR_SET_PASSWD_FAILED);
@@ -243,7 +243,7 @@ void qmp_expire_password(const char *protocol, const char *whenstr,
         if (!qemu_using_spice(errp)) {
             return;
         }
-        rc = qemu_spice_set_pw_expire(when);
+        rc = qemu_spice.set_pw_expire(when);
         if (rc != 0) {
             error_setg(errp, QERR_SET_PASSWD_FAILED);
         }

@@ -40,8 +40,22 @@ static int qemu_spice_migrate_info_stub(const char *h, int p, int t,
     return -1;
 }
 
+static int qemu_spice_set_passwd_stub(const char *passwd,
+                                      bool fail_if_connected,
+                                      bool disconnect_if_connected)
+{
+    return -1;
+}
+
+static int qemu_spice_set_pw_expire_stub(time_t expires)
+{
+    return -1;
+}
+
 struct QemuSpiceOps qemu_spice = {
     .init         = qemu_spice_init_stub,
     .display_init = qemu_spice_display_init_stub,
     .migrate_info = qemu_spice_migrate_info_stub,
+    .set_passwd   = qemu_spice_set_passwd_stub,
+    .set_pw_expire = qemu_spice_set_pw_expire_stub,
 };

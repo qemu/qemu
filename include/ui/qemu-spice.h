@@ -31,9 +31,6 @@ void qemu_spice_display_init(void);
 int qemu_spice_display_add_client(int csock, int skipauth, int tls);
 bool qemu_spice_have_display_interface(QemuConsole *con);
 int qemu_spice_add_display_interface(QXLInstance *qxlin, QemuConsole *con);
-int qemu_spice_set_passwd(const char *passwd,
-                          bool fail_if_connected, bool disconnect_if_connected);
-int qemu_spice_set_pw_expire(time_t expires);
 int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
                             const char *subject);
 
@@ -48,17 +45,6 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
 #include "qemu/error-report.h"
 
 #define spice_displays 0
-static inline int qemu_spice_set_passwd(const char *passwd,
-                                        bool fail_if_connected,
-                                        bool disconnect_if_connected)
-{
-    return -1;
-}
-static inline int qemu_spice_set_pw_expire(time_t expires)
-{
-    return -1;
-}
-
 static inline int qemu_spice_display_add_client(int csock, int skipauth,
                                                 int tls)
 {
