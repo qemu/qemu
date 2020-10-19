@@ -19,13 +19,12 @@
 #define QEMU_SPICE_H
 
 #include "qapi/error.h"
+#include "ui/qemu-spice-module.h"
 
 #ifdef CONFIG_SPICE
 
 #include <spice.h>
 #include "qemu/config-file.h"
-
-extern int using_spice;
 
 void qemu_spice_init(void);
 void qemu_spice_input_init(void);
@@ -50,7 +49,6 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
 
 #include "qemu/error-report.h"
 
-#define using_spice 0
 #define spice_displays 0
 static inline int qemu_spice_set_passwd(const char *passwd,
                                         bool fail_if_connected,

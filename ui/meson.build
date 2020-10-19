@@ -12,6 +12,7 @@ softmmu_ss.add(files(
   'keymaps.c',
   'qemu-pixman.c',
 ))
+softmmu_ss.add([spice_headers, files('spice-module.c')])
 
 softmmu_ss.add(when: 'CONFIG_LINUX', if_true: files('input-linux.c'))
 softmmu_ss.add(when: [spice, 'CONFIG_SPICE'], if_true: files('spice-core.c', 'spice-input.c', 'spice-display.c'))
