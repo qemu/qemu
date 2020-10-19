@@ -28,7 +28,6 @@
 
 void qemu_spice_input_init(void);
 void qemu_spice_display_init(void);
-int qemu_spice_display_add_client(int csock, int skipauth, int tls);
 bool qemu_spice_have_display_interface(QemuConsole *con);
 int qemu_spice_add_display_interface(QXLInstance *qxlin, QemuConsole *con);
 int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
@@ -45,11 +44,6 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
 #include "qemu/error-report.h"
 
 #define spice_displays 0
-static inline int qemu_spice_display_add_client(int csock, int skipauth,
-                                                int tls)
-{
-    return -1;
-}
 
 #endif /* CONFIG_SPICE */
 

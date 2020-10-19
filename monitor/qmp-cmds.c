@@ -340,7 +340,7 @@ void qmp_add_client(const char *protocol, const char *fdname,
         }
         skipauth = has_skipauth ? skipauth : false;
         tls = has_tls ? tls : false;
-        if (qemu_spice_display_add_client(fd, skipauth, tls) < 0) {
+        if (qemu_spice.display_add_client(fd, skipauth, tls) < 0) {
             error_setg(errp, "spice failed to add client");
             close(fd);
         }

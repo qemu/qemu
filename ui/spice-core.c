@@ -959,7 +959,7 @@ static int qemu_spice_set_pw_expire(time_t expires)
     return qemu_spice_set_ticket(false, false);
 }
 
-int qemu_spice_display_add_client(int csock, int skipauth, int tls)
+static int qemu_spice_display_add_client(int csock, int skipauth, int tls)
 {
     if (tls) {
         return spice_server_add_ssl_client(spice_server, csock, skipauth);
@@ -999,6 +999,7 @@ static struct QemuSpiceOps real_spice_ops = {
     .migrate_info = qemu_spice_migrate_info,
     .set_passwd   = qemu_spice_set_passwd,
     .set_pw_expire = qemu_spice_set_pw_expire,
+    .display_add_client = qemu_spice_display_add_client,
     .add_interface = qemu_spice_add_interface,
 };
 

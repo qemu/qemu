@@ -29,6 +29,7 @@ struct QemuSpiceOps {
     int (*set_passwd)(const char *passwd,
                       bool fail_if_connected, bool disconnect_if_connected);
     int (*set_pw_expire)(time_t expires);
+    int (*display_add_client)(int csock, int skipauth, int tls);
 #ifdef CONFIG_SPICE
     int (*add_interface)(SpiceBaseInstance *sin);
 #endif
