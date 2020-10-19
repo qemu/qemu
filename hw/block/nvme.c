@@ -327,11 +327,6 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, uint64_t prp1, uint64_t prp2,
 
     trace_pci_nvme_map_prp(trans_len, len, prp1, prp2, num_prps);
 
-    if (unlikely(!prp1)) {
-        trace_pci_nvme_err_invalid_prp();
-        return NVME_INVALID_FIELD | NVME_DNR;
-    }
-
     if (nvme_addr_is_cmb(n, prp1)) {
         qemu_iovec_init(iov, num_prps);
     } else {
@@ -345,11 +340,6 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, uint64_t prp1, uint64_t prp2,
 
     len -= trans_len;
     if (len) {
-        if (unlikely(!prp2)) {
-            trace_pci_nvme_err_invalid_prp2_missing();
-            return NVME_INVALID_FIELD | NVME_DNR;
-        }
-
         if (len > n->page_size) {
             uint64_t prp_list[n->max_prp_ents];
             uint32_t nents, prp_trans;
@@ -370,9 +360,9 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, uint64_t prp1, uint64_t prp2,
                 uint64_t prp_ent = le64_to_cpu(prp_list[i]);
 
                 if (i == n->max_prp_ents - 1 && len > n->page_size) {
-                    if (unlikely(!prp_ent || prp_ent & (n->page_size - 1))) {
+                    if (unlikely(prp_ent & (n->page_size - 1))) {
                         trace_pci_nvme_err_invalid_prplist_ent(prp_ent);
-                        return NVME_INVALID_FIELD | NVME_DNR;
+                        return NVME_INVALID_PRP_OFFSET | NVME_DNR;
                     }
 
                     if (prp_list_in_cmb != nvme_addr_is_cmb(n, prp_ent)) {
@@ -391,9 +381,9 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, uint64_t prp1, uint64_t prp2,
                     prp_ent = le64_to_cpu(prp_list[i]);
                 }
 
-                if (unlikely(!prp_ent || prp_ent & (n->page_size - 1))) {
+                if (unlikely(prp_ent & (n->page_size - 1))) {
                     trace_pci_nvme_err_invalid_prplist_ent(prp_ent);
-                    return NVME_INVALID_FIELD | NVME_DNR;
+                    return NVME_INVALID_PRP_OFFSET | NVME_DNR;
                 }
 
                 trans_len = MIN(len, n->page_size);
@@ -408,7 +398,7 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, uint64_t prp1, uint64_t prp2,
         } else {
             if (unlikely(prp2 & (n->page_size - 1))) {
                 trace_pci_nvme_err_invalid_prp2_align(prp2);
-                return NVME_INVALID_FIELD | NVME_DNR;
+                return NVME_INVALID_PRP_OFFSET | NVME_DNR;
             }
             status = nvme_map_addr(n, qsg, iov, prp2, len);
             if (status) {
