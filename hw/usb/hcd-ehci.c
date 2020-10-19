@@ -1447,24 +1447,25 @@ static int ehci_process_itd(EHCIState *ehci,
             dev = ehci_find_device(ehci, devaddr);
             if (dev == NULL) {
                 ehci_trace_guest_bug(ehci, "no device found");
-                qemu_sglist_destroy(&ehci->isgl);
-                return -1;
-            }
-            pid = dir ? USB_TOKEN_IN : USB_TOKEN_OUT;
-            ep = usb_ep_get(dev, pid, endp);
-            if (ep && ep->type == USB_ENDPOINT_XFER_ISOC) {
-                usb_packet_setup(&ehci->ipacket, pid, ep, 0, addr, false,
-                                 (itd->transact[i] & ITD_XACT_IOC) != 0);
-                if (usb_packet_map(&ehci->ipacket, &ehci->isgl)) {
-                    qemu_sglist_destroy(&ehci->isgl);
-                    return -1;
-                }
-                usb_handle_packet(dev, &ehci->ipacket);
-                usb_packet_unmap(&ehci->ipacket, &ehci->isgl);
-            } else {
-                DPRINTF("ISOCH: attempt to addess non-iso endpoint\n");
-                ehci->ipacket.status = USB_RET_NAK;
+                ehci->ipacket.status = USB_RET_NODEV;
                 ehci->ipacket.actual_length = 0;
+            } else {
+                pid = dir ? USB_TOKEN_IN : USB_TOKEN_OUT;
+                ep = usb_ep_get(dev, pid, endp);
+                if (ep && ep->type == USB_ENDPOINT_XFER_ISOC) {
+                    usb_packet_setup(&ehci->ipacket, pid, ep, 0, addr, false,
+                                     (itd->transact[i] & ITD_XACT_IOC) != 0);
+                    if (usb_packet_map(&ehci->ipacket, &ehci->isgl)) {
+                        qemu_sglist_destroy(&ehci->isgl);
+                        return -1;
+                    }
+                    usb_handle_packet(dev, &ehci->ipacket);
+                    usb_packet_unmap(&ehci->ipacket, &ehci->isgl);
+                } else {
+                    DPRINTF("ISOCH: attempt to addess non-iso endpoint\n");
+                    ehci->ipacket.status = USB_RET_NAK;
+                    ehci->ipacket.actual_length = 0;
+                }
             }
             qemu_sglist_destroy(&ehci->isgl);
 
