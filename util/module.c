@@ -176,6 +176,11 @@ static const struct {
     const char *name;
     const char *dep;
 } module_deps[] = {
+    { "audio-spice",    "ui-spice-core" },
+    { "chardev-spice",  "ui-spice-core" },
+    { "hw-display-qxl", "ui-spice-core" },
+    { "ui-spice-app",   "ui-spice-core" },
+    { "ui-spice-app",   "chardev-spice" },
 };
 #endif
 
