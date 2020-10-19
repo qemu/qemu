@@ -19,14 +19,17 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "internal.h"
 #include "kvm_mips.h"
 #include "qemu/module.h"
 #include "sysemu/kvm.h"
+#include "sysemu/qtest.h"
 #include "exec/exec-all.h"
-
+#include "hw/qdev-properties.h"
+#include "hw/qdev-clock.h"
 
 static void mips_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -134,12 +137,41 @@ static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     }
 }
 
+/*
+ * Since commit 6af0bf9c7c3 this model assumes a CPU clocked at 200MHz.
+ */
+#define CPU_FREQ_HZ_DEFAULT     200000000
+#define CP0_COUNT_RATE_DEFAULT  2
+
+static void mips_cp0_period_set(MIPSCPU *cpu)
+{
+    CPUMIPSState *env = &cpu->env;
+
+    env->cp0_count_ns = cpu->cp0_count_rate
+                        * clock_get_ns(MIPS_CPU(cpu)->clock);
+    assert(env->cp0_count_ns);
+}
+
 static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     MIPSCPU *cpu = MIPS_CPU(dev);
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
+
+    if (!clock_get(cpu->clock)) {
+#ifndef CONFIG_USER_ONLY
+        if (!qtest_enabled()) {
+            g_autofree char *cpu_freq_str = freq_to_str(CPU_FREQ_HZ_DEFAULT);
+
+            warn_report("CPU input clock is not connected to any output clock, "
+                        "using default frequency of %s.", cpu_freq_str);
+        }
+#endif
+        /* Initialize the frequency in case the clock remains unconnected. */
+        clock_set_hz(cpu->clock, CPU_FREQ_HZ_DEFAULT);
+    }
+    mips_cp0_period_set(cpu);
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
@@ -162,6 +194,7 @@ static void mips_cpu_initfn(Object *obj)
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(obj);
 
     cpu_set_cpustate_pointers(cpu);
+    cpu->clock = qdev_init_clock_in(DEVICE(obj), "clk-in", NULL, cpu);
     env->cpu_model = mcc->cpu_def;
 }
 
@@ -181,6 +214,13 @@ static ObjectClass *mips_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
+static Property mips_cpu_properties[] = {
+    /* CP0 timer running at half the clock of the CPU */
+    DEFINE_PROP_UINT32("cp0-count-rate", MIPSCPU, cp0_count_rate,
+                       CP0_COUNT_RATE_DEFAULT),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void mips_cpu_class_init(ObjectClass *c, void *data)
 {
     MIPSCPUClass *mcc = MIPS_CPU_CLASS(c);
@@ -190,6 +230,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     device_class_set_parent_realize(dc, mips_cpu_realizefn,
                                     &mcc->parent_realize);
     device_class_set_parent_reset(dc, mips_cpu_reset, &mcc->parent_reset);
+    device_class_set_props(dc, mips_cpu_properties);
 
     cc->class_by_name = mips_cpu_class_by_name;
     cc->has_work = mips_cpu_has_work;
@@ -257,3 +298,15 @@ static void mips_cpu_register_types(void)
 }
 
 type_init(mips_cpu_register_types)
+
+/* Could be used by generic CPU object */
+MIPSCPU *mips_cpu_create_with_clock(const char *cpu_type, Clock *cpu_refclk)
+{
+    DeviceState *cpu;
+
+    cpu = DEVICE(object_new(cpu_type));
+    qdev_connect_clock_in(cpu, "clk-in", cpu_refclk);
+    qdev_realize(cpu, NULL, &error_abort);
+
+    return MIPS_CPU(cpu);
+}

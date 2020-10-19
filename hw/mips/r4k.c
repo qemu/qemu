@@ -13,6 +13,7 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
+#include "hw/clock.h"
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
 #include "hw/intc/i8259.h"
@@ -101,11 +102,7 @@ static int64_t load_kernel(void)
                            (uint64_t *)&entry, NULL,
                            (uint64_t *)&kernel_high, NULL, big_endian,
                            EM_MIPS, 1, 0);
-    if (kernel_size >= 0) {
-        if ((entry & ~0x7fffffffULL) == 0x80000000) {
-            entry = (int32_t)entry;
-        }
-    } else {
+    if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
                      loaderparams.kernel_filename,
                      load_elf_strerror(kernel_size));
@@ -118,8 +115,7 @@ static int64_t load_kernel(void)
     if (loaderparams.initrd_filename) {
         initrd_size = get_image_size(loaderparams.initrd_filename);
         if (initrd_size > 0) {
-            initrd_offset = (kernel_high + ~INITRD_PAGE_MASK) &
-                             INITRD_PAGE_MASK;
+            initrd_offset = ROUND_UP(kernel_high, INITRD_PAGE_SIZE);
             if (initrd_offset + initrd_size > ram_size) {
                 error_report("memory too small for initial ram disk '%s'",
                              loaderparams.initrd_filename);
@@ -182,6 +178,7 @@ void mips_r4k_init(MachineState *machine)
     MemoryRegion *isa_io = g_new(MemoryRegion, 1);
     MemoryRegion *isa_mem = g_new(MemoryRegion, 1);
     int bios_size;
+    Clock *cpuclk;
     MIPSCPU *cpu;
     CPUMIPSState *env;
     ResetData *reset_info;
@@ -192,8 +189,11 @@ void mips_r4k_init(MachineState *machine)
     DriveInfo *dinfo;
     int be;
 
+    cpuclk = clock_new(OBJECT(machine), "cpu-refclk");
+    clock_set_hz(cpuclk, 200000000); /* 200 MHz */
+
     /* init CPUs */
-    cpu = MIPS_CPU(cpu_create(machine->cpu_type));
+    cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk);
     env = &cpu->env;
 
     reset_info = g_malloc0(sizeof(ResetData));

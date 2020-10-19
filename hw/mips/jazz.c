@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "hw/clock.h"
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
 #include "hw/intc/i8259.h"
@@ -142,6 +143,7 @@ static void mips_jazz_init(MachineState *machine,
     MemoryRegion *address_space = get_system_memory();
     char *filename;
     int bios_size, n;
+    Clock *cpuclk;
     MIPSCPU *cpu;
     CPUClass *cc;
     CPUMIPSState *env;
@@ -163,14 +165,25 @@ static void mips_jazz_init(MachineState *machine,
     MemoryRegion *bios2 = g_new(MemoryRegion, 1);
     SysBusESPState *sysbus_esp;
     ESPState *esp;
+    static const struct {
+        unsigned freq_hz;
+        unsigned pll_mult;
+    } ext_clk[] = {
+        [JAZZ_MAGNUM] = {50000000, 2},
+        [JAZZ_PICA61] = {33333333, 4},
+    };
 
     if (machine->ram_size > 256 * MiB) {
         error_report("RAM size more than 256Mb is not supported");
         exit(EXIT_FAILURE);
     }
 
+    cpuclk = clock_new(OBJECT(machine), "cpu-refclk");
+    clock_set_hz(cpuclk, ext_clk[jazz_model].freq_hz
+                         * ext_clk[jazz_model].pll_mult);
+
     /* init CPUs */
-    cpu = MIPS_CPU(cpu_create(machine->cpu_type));
+    cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk);
     env = &cpu->env;
     qemu_register_reset(main_cpu_reset, cpu);
 
@@ -205,10 +218,7 @@ static void mips_jazz_init(MachineState *machine,
     memory_region_add_subregion(address_space, 0xfff00000LL, bios2);
 
     /* load the BIOS image. */
-    if (bios_name == NULL) {
-        bios_name = BIOS_FILENAME;
-    }
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name ?: BIOS_FILENAME);
     if (filename) {
         bios_size = load_image_targphys(filename, 0xfff00000LL,
                                         MAGNUM_BIOS_SIZE);
@@ -216,7 +226,8 @@ static void mips_jazz_init(MachineState *machine,
     } else {
         bios_size = -1;
     }
-    if ((bios_size < 0 || bios_size > MAGNUM_BIOS_SIZE) && !qtest_enabled()) {
+    if ((bios_size < 0 || bios_size > MAGNUM_BIOS_SIZE)
+        && bios_name && !qtest_enabled()) {
         error_report("Could not load MIPS bios '%s'", bios_name);
         exit(1);
     }
