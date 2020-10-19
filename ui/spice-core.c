@@ -502,7 +502,7 @@ static QemuOptsList qemu_spice_opts = {
     },
 };
 
-SpiceInfo *qmp_query_spice(Error **errp)
+static SpiceInfo *qmp_query_spice_real(Error **errp)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
     int port, tls_port;
@@ -1001,6 +1001,7 @@ static struct QemuSpiceOps real_spice_ops = {
     .set_pw_expire = qemu_spice_set_pw_expire,
     .display_add_client = qemu_spice_display_add_client,
     .add_interface = qemu_spice_add_interface,
+    .qmp_query = qmp_query_spice_real,
 };
 
 static void spice_register_config(void)

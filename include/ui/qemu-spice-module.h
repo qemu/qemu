@@ -22,6 +22,8 @@
 #include <spice.h>
 #endif
 
+typedef struct SpiceInfo SpiceInfo;
+
 struct QemuSpiceOps {
     void (*init)(void);
     void (*display_init)(void);
@@ -32,6 +34,7 @@ struct QemuSpiceOps {
     int (*display_add_client)(int csock, int skipauth, int tls);
 #ifdef CONFIG_SPICE
     int (*add_interface)(SpiceBaseInstance *sin);
+    SpiceInfo* (*qmp_query)(Error **errp);
 #endif
 };
 
