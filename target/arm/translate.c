@@ -7918,6 +7918,14 @@ static bool trans_BLX_i(DisasContext *s, arg_BLX_i *a)
 {
     TCGv_i32 tmp;
 
+    /*
+     * BLX <imm> would be useless on M-profile; the encoding space
+     * is used for other insns from v8.1M onward, and UNDEFs before that.
+     */
+    if (arm_dc_feature(s, ARM_FEATURE_M)) {
+        return false;
+    }
+
     /* For A32, ARM_FEATURE_V5 is checked near the start of the uncond block. */
     if (s->thumb && (a->imm & 2)) {
         return false;
