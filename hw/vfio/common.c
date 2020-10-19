@@ -205,7 +205,7 @@ void vfio_region_write(void *opaque, hwaddr addr,
         buf.qword = cpu_to_le64(data);
         break;
     default:
-        hw_error("vfio: unsupported write size, %d bytes", size);
+        hw_error("vfio: unsupported write size, %u bytes", size);
         break;
     }
 
@@ -262,7 +262,7 @@ uint64_t vfio_region_read(void *opaque,
         data = le64_to_cpu(buf.qword);
         break;
     default:
-        hw_error("vfio: unsupported read size, %d bytes", size);
+        hw_error("vfio: unsupported read size, %u bytes", size);
         break;
     }
 
