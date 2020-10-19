@@ -28,6 +28,8 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/ppc/ppc.h"
+#include "hw/qdev-properties.h"
+#include "hw/sysbus.h"
 #include "ppc405.h"
 #include "hw/rtc/m48t59.h"
 #include "hw/block/flash.h"
@@ -145,6 +147,8 @@ static void ref405ep_init(MachineState *machine)
     char *filename;
     ppc4xx_bd_info_t bd;
     CPUPPCState *env;
+    DeviceState *dev;
+    SysBusDevice *s;
     qemu_irq *pic;
     MemoryRegion *bios;
     MemoryRegion *sram = g_new(MemoryRegion, 1);
@@ -227,7 +231,11 @@ static void ref405ep_init(MachineState *machine)
     /* Register FPGA */
     ref405ep_fpga_init(sysmem, 0xF0300000);
     /* Register NVRAM */
-    m48t59_init(NULL, 0xF0000000, 0, 8192, 1968, 8);
+    dev = qdev_new("sysbus-m48t08");
+    qdev_prop_set_int32(dev, "base-year", 1968);
+    s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_mmio_map(s, 0, 0xF0000000);
     /* Load kernel */
     linux_boot = (kernel_filename != NULL);
     if (linux_boot) {

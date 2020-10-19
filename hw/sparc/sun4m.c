@@ -837,7 +837,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
 {
     DeviceState *slavio_intctl;
     unsigned int i;
-    void *nvram;
+    Nvram *nvram;
     qemu_irq *cpu_irqs[MAX_CPUS], slavio_irq[32], slavio_cpu_irq[MAX_CPUS];
     qemu_irq fdc_tc;
     unsigned long kernel_size;
@@ -966,7 +966,13 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
         create_unimplemented_device("SUNW,sx", hwdef->sx_base, 0x2000);
     }
 
-    nvram = m48t59_init(slavio_irq[0], hwdef->nvram_base, 0, 0x2000, 1968, 8);
+    dev = qdev_new("sysbus-m48t08");
+    qdev_prop_set_int32(dev, "base-year", 1968);
+    s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_connect_irq(s, 0, slavio_irq[0]);
+    sysbus_mmio_map(s, 0, hwdef->nvram_base);
+    nvram = NVRAM(dev);
 
     slavio_timer_init_all(hwdef->counter_base, slavio_irq[19], slavio_cpu_irq, smp_cpus);
 
