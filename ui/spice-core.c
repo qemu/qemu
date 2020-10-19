@@ -800,7 +800,7 @@ static void qemu_spice_init(void)
     migration_state.notify = migration_state_notifier;
     add_migration_state_change_notifier(&migration_state);
     spice_migrate.base.sif = &migrate_interface.base;
-    qemu_spice_add_interface(&spice_migrate.base);
+    qemu_spice.add_interface(&spice_migrate.base);
 
     qemu_spice_input_init();
 
@@ -829,7 +829,7 @@ static void qemu_spice_init(void)
 #endif
 }
 
-int qemu_spice_add_interface(SpiceBaseInstance *sin)
+static int qemu_spice_add_interface(SpiceBaseInstance *sin)
 {
     if (!spice_server) {
         if (QTAILQ_FIRST(&qemu_spice_opts.head) != NULL) {
@@ -997,6 +997,7 @@ static struct QemuSpiceOps real_spice_ops = {
     .init         = qemu_spice_init,
     .display_init = qemu_spice_display_init,
     .migrate_info = qemu_spice_migrate_info,
+    .add_interface = qemu_spice_add_interface,
 };
 
 static void spice_register_config(void)

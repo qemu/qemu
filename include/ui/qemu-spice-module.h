@@ -18,10 +18,17 @@
 #ifndef QEMU_SPICE_MODULE_H
 #define QEMU_SPICE_MODULE_H
 
+#ifdef CONFIG_SPICE
+#include <spice.h>
+#endif
+
 struct QemuSpiceOps {
     void (*init)(void);
     void (*display_init)(void);
     int (*migrate_info)(const char *h, int p, int t, const char *s);
+#ifdef CONFIG_SPICE
+    int (*add_interface)(SpiceBaseInstance *sin);
+#endif
 };
 
 extern int using_spice;
