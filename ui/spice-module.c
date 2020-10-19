@@ -18,12 +18,20 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "ui/qemu-spice-module.h"
 
 int using_spice;
 
 static void qemu_spice_init_stub(void)
 {
+}
+
+static void qemu_spice_display_init_stub(void)
+{
+    /* This must never be called if CONFIG_SPICE is disabled */
+    error_report("spice support is disabled");
+    abort();
 }
 
 static int qemu_spice_migrate_info_stub(const char *h, int p, int t,
@@ -34,5 +42,6 @@ static int qemu_spice_migrate_info_stub(const char *h, int p, int t,
 
 struct QemuSpiceOps qemu_spice = {
     .init         = qemu_spice_init_stub,
+    .display_init = qemu_spice_display_init_stub,
     .migrate_info = qemu_spice_migrate_info_stub,
 };

@@ -66,13 +66,6 @@ static inline int qemu_spice_display_add_client(int csock, int skipauth,
     return -1;
 }
 
-static inline void qemu_spice_display_init(void)
-{
-    /* This must never be called if CONFIG_SPICE is disabled */
-    error_report("spice support is disabled");
-    abort();
-}
-
 #endif /* CONFIG_SPICE */
 
 static inline bool qemu_using_spice(Error **errp)

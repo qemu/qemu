@@ -995,6 +995,7 @@ int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd)
 
 static struct QemuSpiceOps real_spice_ops = {
     .init         = qemu_spice_init,
+    .display_init = qemu_spice_display_init,
     .migrate_info = qemu_spice_migrate_info,
 };
 

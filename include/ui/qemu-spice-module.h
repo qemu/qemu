@@ -20,6 +20,7 @@
 
 struct QemuSpiceOps {
     void (*init)(void);
+    void (*display_init)(void);
     int (*migrate_info)(const char *h, int p, int t, const char *s);
 };
 
