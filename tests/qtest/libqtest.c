@@ -795,15 +795,12 @@ void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
 
 QDict *qtest_qmp_event_ref(QTestState *s, const char *event)
 {
-    GList *next = NULL;
-    QDict *response;
+    while (s->pending_events) {
 
-    for (GList *it = s->pending_events; it != NULL; it = next) {
+        GList *first = s->pending_events;
+        QDict *response = (QDict *)first->data;
 
-        next = it->next;
-        response = (QDict *)it->data;
-
-        s->pending_events = g_list_remove_link(s->pending_events, it);
+        s->pending_events = g_list_delete_link(s->pending_events, first);
 
         if (!strcmp(qdict_get_str(response, "event"), event)) {
             return response;
