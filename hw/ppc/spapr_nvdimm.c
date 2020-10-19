@@ -89,7 +89,7 @@ bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
 }
 
 
-void spapr_add_nvdimm(DeviceState *dev, uint64_t slot, Error **errp)
+bool spapr_add_nvdimm(DeviceState *dev, uint64_t slot, Error **errp)
 {
     SpaprDrc *drc;
     bool hotplugged = spapr_drc_hotplugged(dev);
@@ -98,12 +98,13 @@ void spapr_add_nvdimm(DeviceState *dev, uint64_t slot, Error **errp)
     g_assert(drc);
 
     if (!spapr_drc_attach(drc, dev, errp)) {
-        return;
+        return false;
     }
 
     if (hotplugged) {
         spapr_hotplug_req_add_by_index(drc);
     }
+    return true;
 }
 
 static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
