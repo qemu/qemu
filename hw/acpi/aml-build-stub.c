@@ -57,6 +57,20 @@ Aml *aml_irq_no_flags(uint8_t irq)
     return NULL;
 }
 
+Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
+                   AmlLevelAndEdge level_and_edge,
+                   AmlActiveHighAndLow high_and_low, AmlShared shared,
+                   uint32_t *irq_list, uint8_t irq_count)
+{
+    return NULL;
+}
+
+Aml *aml_memory32_fixed(uint32_t addr, uint32_t size,
+                        AmlReadAndWrite read_and_write)
+{
+    return NULL;
+}
+
 Aml *aml_int(const uint64_t val)
 {
     return NULL;
