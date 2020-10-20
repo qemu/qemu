@@ -456,7 +456,11 @@
     'rng-random',
     'secret',
     'secret_keyring',
-    'throttle-group'
+    'throttle-group',
+    'tls-creds-anon',
+    'tls-creds-psk',
+    'tls-creds-x509',
+    'tls-cipher-suites'
   ] }
 
 ##
@@ -494,7 +498,11 @@
       'rng-random':                 'RngRandomProperties',
       'secret':                     'SecretProperties',
       'secret_keyring':             'SecretKeyringProperties',
-      'throttle-group':             'ThrottleGroupProperties'
+      'throttle-group':             'ThrottleGroupProperties',
+      'tls-creds-anon':             'TlsCredsAnonProperties',
+      'tls-creds-psk':              'TlsCredsPskProperties',
+      'tls-creds-x509':             'TlsCredsX509Properties',
+      'tls-cipher-suites':          'TlsCredsProperties'
   } }
 
 ##
