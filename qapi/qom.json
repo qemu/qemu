@@ -7,6 +7,7 @@
 { 'include': 'authz.json' }
 { 'include': 'block-core.json' }
 { 'include': 'common.json' }
+{ 'include': 'crypto.json' }
 
 ##
 # = QEMU Object Model (QOM)
@@ -453,6 +454,8 @@
     'rng-builtin',
     'rng-egd',
     'rng-random',
+    'secret',
+    'secret_keyring',
     'throttle-group'
   ] }
 
@@ -489,6 +492,8 @@
       'rng-builtin':                'RngProperties',
       'rng-egd':                    'RngEgdProperties',
       'rng-random':                 'RngRandomProperties',
+      'secret':                     'SecretProperties',
+      'secret_keyring':             'SecretKeyringProperties',
       'throttle-group':             'ThrottleGroupProperties'
   } }
 
