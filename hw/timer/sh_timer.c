@@ -125,7 +125,6 @@ static void sh_timer_write(void *opaque, hwaddr offset,
             /* fallthrough */
         default:
             hw_error("sh_timer_write: Reserved TPSC value\n");
-            break;
         }
         switch ((value & TIMER_TCR_CKEG) >> 3) {
         case 0:
@@ -139,7 +138,6 @@ static void sh_timer_write(void *opaque, hwaddr offset,
             /* fallthrough */
         default:
             hw_error("sh_timer_write: Reserved CKEG value\n");
-            break;
         }
         switch ((value & TIMER_TCR_ICPE) >> 6) {
         case 0:
@@ -152,7 +150,6 @@ static void sh_timer_write(void *opaque, hwaddr offset,
             /* fallthrough */
         default:
             hw_error("sh_timer_write: Reserved ICPE value\n");
-            break;
         }
         if ((value & TIMER_TCR_UNF) == 0) {
             s->int_level = 0;
