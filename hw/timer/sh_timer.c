@@ -122,6 +122,7 @@ static void sh_timer_write(void *opaque, hwaddr offset,
             if (s->feat & TIMER_FEAT_EXTCLK) {
                 break;
             }
+            /* fallthrough */
         default:
             hw_error("sh_timer_write: Reserved TPSC value\n");
             break;
@@ -135,6 +136,7 @@ static void sh_timer_write(void *opaque, hwaddr offset,
             if (s->feat & TIMER_FEAT_EXTCLK) {
                 break;
             }
+            /* fallthrough */
         default:
             hw_error("sh_timer_write: Reserved CKEG value\n");
             break;
@@ -147,6 +149,7 @@ static void sh_timer_write(void *opaque, hwaddr offset,
             if (s->feat & TIMER_FEAT_CAPT) {
                 break;
             }
+            /* fallthrough */
         default:
             hw_error("sh_timer_write: Reserved ICPE value\n");
             break;
@@ -180,6 +183,7 @@ static void sh_timer_write(void *opaque, hwaddr offset,
             s->tcpr = value;
             break;
         }
+        /* fallthrough */
     default:
         hw_error("sh_timer_write: Bad offset %x\n", (int)offset);
     }
