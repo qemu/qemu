@@ -2490,15 +2490,21 @@ static void gen_goto_tb(DisasContext *s, int n, target_ulong dest)
     s->base.is_jmp = DISAS_NORETURN;
 }
 
-static inline void gen_jmp (DisasContext *s, uint32_t dest)
+/* Jump, specifying which TB number to use if we gen_goto_tb() */
+static inline void gen_jmp_tb(DisasContext *s, uint32_t dest, int tbno)
 {
     if (unlikely(is_singlestepping(s))) {
         /* An indirect jump so that we still trigger the debug exception.  */
         gen_set_pc_im(s, dest);
         s->base.is_jmp = DISAS_JUMP;
     } else {
-        gen_goto_tb(s, 0, dest);
+        gen_goto_tb(s, tbno, dest);
     }
+}
+
+static inline void gen_jmp(DisasContext *s, uint32_t dest)
+{
+    gen_jmp_tb(s, dest, 0);
 }
 
 static inline void gen_mulxy(TCGv_i32 t0, TCGv_i32 t1, int x, int y)
@@ -7401,21 +7407,59 @@ static bool op_smlad(DisasContext *s, arg_rrrr *a, bool m_swap, bool sub)
     gen_smul_dual(t1, t2);
 
     if (sub) {
-        /* This subtraction cannot overflow. */
+        /*
+         * This subtraction cannot overflow, so we can do a simple
+         * 32-bit subtraction and then a possible 32-bit saturating
+         * addition of Ra.
+         */
         tcg_gen_sub_i32(t1, t1, t2);
+        tcg_temp_free_i32(t2);
+
+        if (a->ra != 15) {
+            t2 = load_reg(s, a->ra);
+            gen_helper_add_setq(t1, cpu_env, t1, t2);
+            tcg_temp_free_i32(t2);
+        }
+    } else if (a->ra == 15) {
+        /* Single saturation-checking addition */
+        gen_helper_add_setq(t1, cpu_env, t1, t2);
+        tcg_temp_free_i32(t2);
     } else {
         /*
-         * This addition cannot overflow 32 bits; however it may
-         * overflow considered as a signed operation, in which case
-         * we must set the Q flag.
+         * We need to add the products and Ra together and then
+         * determine whether the final result overflowed. Doing
+         * this as two separate add-and-check-overflow steps incorrectly
+         * sets Q for cases like (-32768 * -32768) + (-32768 * -32768) + -1.
+         * Do all the arithmetic at 64-bits and then check for overflow.
          */
-        gen_helper_add_setq(t1, cpu_env, t1, t2);
-    }
-    tcg_temp_free_i32(t2);
+        TCGv_i64 p64, q64;
+        TCGv_i32 t3, qf, one;
 
-    if (a->ra != 15) {
-        t2 = load_reg(s, a->ra);
-        gen_helper_add_setq(t1, cpu_env, t1, t2);
+        p64 = tcg_temp_new_i64();
+        q64 = tcg_temp_new_i64();
+        tcg_gen_ext_i32_i64(p64, t1);
+        tcg_gen_ext_i32_i64(q64, t2);
+        tcg_gen_add_i64(p64, p64, q64);
+        load_reg_var(s, t2, a->ra);
+        tcg_gen_ext_i32_i64(q64, t2);
+        tcg_gen_add_i64(p64, p64, q64);
+        tcg_temp_free_i64(q64);
+
+        tcg_gen_extr_i64_i32(t1, t2, p64);
+        tcg_temp_free_i64(p64);
+        /*
+         * t1 is the low half of the result which goes into Rd.
+         * We have overflow and must set Q if the high half (t2)
+         * is different from the sign-extension of t1.
+         */
+        t3 = tcg_temp_new_i32();
+        tcg_gen_sari_i32(t3, t1, 31);
+        qf = load_cpu_field(QF);
+        one = tcg_const_i32(1);
+        tcg_gen_movcond_i32(TCG_COND_NE, qf, t2, t3, one, qf);
+        store_cpu_field(qf, QF);
+        tcg_temp_free_i32(one);
+        tcg_temp_free_i32(t3);
         tcg_temp_free_i32(t2);
     }
     store_reg(s, a->rd, t1);
@@ -7880,6 +7924,14 @@ static bool trans_BLX_i(DisasContext *s, arg_BLX_i *a)
 {
     TCGv_i32 tmp;
 
+    /*
+     * BLX <imm> would be useless on M-profile; the encoding space
+     * is used for other insns from v8.1M onward, and UNDEFs before that.
+     */
+    if (arm_dc_feature(s, ARM_FEATURE_M)) {
+        return false;
+    }
+
     /* For A32, ARM_FEATURE_V5 is checked near the start of the uncond block. */
     if (s->thumb && (a->imm & 2)) {
         return false;
@@ -7922,6 +7974,109 @@ static bool trans_BLX_suffix(DisasContext *s, arg_BLX_suffix *a)
     tcg_gen_andi_i32(tmp, tmp, 0xfffffffc);
     tcg_gen_movi_i32(cpu_R[14], s->base.pc_next | 1);
     gen_bx(s, tmp);
+    return true;
+}
+
+static bool trans_BF(DisasContext *s, arg_BF *a)
+{
+    /*
+     * M-profile branch future insns. The architecture permits an
+     * implementation to implement these as NOPs (equivalent to
+     * discarding the LO_BRANCH_INFO cache immediately), and we
+     * take that IMPDEF option because for QEMU a "real" implementation
+     * would be complicated and wouldn't execute any faster.
+     */
+    if (!dc_isar_feature(aa32_lob, s)) {
+        return false;
+    }
+    if (a->boff == 0) {
+        /* SEE "Related encodings" (loop insns) */
+        return false;
+    }
+    /* Handle as NOP */
+    return true;
+}
+
+static bool trans_DLS(DisasContext *s, arg_DLS *a)
+{
+    /* M-profile low-overhead loop start */
+    TCGv_i32 tmp;
+
+    if (!dc_isar_feature(aa32_lob, s)) {
+        return false;
+    }
+    if (a->rn == 13 || a->rn == 15) {
+        /* CONSTRAINED UNPREDICTABLE: we choose to UNDEF */
+        return false;
+    }
+
+    /* Not a while loop, no tail predication: just set LR to the count */
+    tmp = load_reg(s, a->rn);
+    store_reg(s, 14, tmp);
+    return true;
+}
+
+static bool trans_WLS(DisasContext *s, arg_WLS *a)
+{
+    /* M-profile low-overhead while-loop start */
+    TCGv_i32 tmp;
+    TCGLabel *nextlabel;
+
+    if (!dc_isar_feature(aa32_lob, s)) {
+        return false;
+    }
+    if (a->rn == 13 || a->rn == 15) {
+        /* CONSTRAINED UNPREDICTABLE: we choose to UNDEF */
+        return false;
+    }
+    if (s->condexec_mask) {
+        /*
+         * WLS in an IT block is CONSTRAINED UNPREDICTABLE;
+         * we choose to UNDEF, because otherwise our use of
+         * gen_goto_tb(1) would clash with the use of TB exit 1
+         * in the dc->condjmp condition-failed codepath in
+         * arm_tr_tb_stop() and we'd get an assertion.
+         */
+        return false;
+    }
+    nextlabel = gen_new_label();
+    tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_R[a->rn], 0, nextlabel);
+    tmp = load_reg(s, a->rn);
+    store_reg(s, 14, tmp);
+    gen_jmp_tb(s, s->base.pc_next, 1);
+
+    gen_set_label(nextlabel);
+    gen_jmp(s, read_pc(s) + a->imm);
+    return true;
+}
+
+static bool trans_LE(DisasContext *s, arg_LE *a)
+{
+    /*
+     * M-profile low-overhead loop end. The architecture permits an
+     * implementation to discard the LO_BRANCH_INFO cache at any time,
+     * and we take the IMPDEF option to never set it in the first place
+     * (equivalent to always discarding it immediately), because for QEMU
+     * a "real" implementation would be complicated and wouldn't execute
+     * any faster.
+     */
+    TCGv_i32 tmp;
+
+    if (!dc_isar_feature(aa32_lob, s)) {
+        return false;
+    }
+
+    if (!a->f) {
+        /* Not loop-forever. If LR <= 1 this is the last loop: do nothing. */
+        arm_gen_condlabel(s);
+        tcg_gen_brcondi_i32(TCG_COND_LEU, cpu_R[14], 1, s->condlabel);
+        /* Decrement LR */
+        tmp = load_reg(s, 14);
+        tcg_gen_addi_i32(tmp, tmp, -1);
+        store_reg(s, 14, tmp);
+    }
+    /* Jump back to the loop start */
+    gen_jmp(s, read_pc(s) - a->imm);
     return true;
 }
 
@@ -8221,6 +8376,66 @@ static bool trans_IT(DisasContext *s, arg_IT *a)
      */
     s->condexec_cond = (cond_mask >> 4) & 0xe;
     s->condexec_mask = cond_mask & 0x1f;
+    return true;
+}
+
+/* v8.1M CSEL/CSINC/CSNEG/CSINV */
+static bool trans_CSEL(DisasContext *s, arg_CSEL *a)
+{
+    TCGv_i32 rn, rm, zero;
+    DisasCompare c;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
+        return false;
+    }
+
+    if (a->rm == 13) {
+        /* SEE "Related encodings" (MVE shifts) */
+        return false;
+    }
+
+    if (a->rd == 13 || a->rd == 15 || a->rn == 13 || a->fcond >= 14) {
+        /* CONSTRAINED UNPREDICTABLE: we choose to UNDEF */
+        return false;
+    }
+
+    /* In this insn input reg fields of 0b1111 mean "zero", not "PC" */
+    if (a->rn == 15) {
+        rn = tcg_const_i32(0);
+    } else {
+        rn = load_reg(s, a->rn);
+    }
+    if (a->rm == 15) {
+        rm = tcg_const_i32(0);
+    } else {
+        rm = load_reg(s, a->rm);
+    }
+
+    switch (a->op) {
+    case 0: /* CSEL */
+        break;
+    case 1: /* CSINC */
+        tcg_gen_addi_i32(rm, rm, 1);
+        break;
+    case 2: /* CSINV */
+        tcg_gen_not_i32(rm, rm);
+        break;
+    case 3: /* CSNEG */
+        tcg_gen_neg_i32(rm, rm);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    arm_test_cc(&c, a->fcond);
+    zero = tcg_const_i32(0);
+    tcg_gen_movcond_i32(c.cond, rn, c.value, zero, rn, rm);
+    arm_free_cc(&c);
+    tcg_temp_free_i32(zero);
+
+    store_reg(s, a->rd, rn);
+    tcg_temp_free_i32(rm);
+
     return true;
 }
 

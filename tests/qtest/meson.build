@@ -138,6 +138,7 @@ qtests_arm = \
   ['arm-cpu-features',
    'microbit-test',
    'm25p80-test',
+   'npcm7xx_timer-test',
    'test-arm-mptimer',
    'boot-serial-test',
    'hexloader-test']
