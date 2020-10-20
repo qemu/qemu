@@ -61,6 +61,14 @@ static NamedClockList *qdev_init_clocklist(DeviceState *dev, const char *name,
                                  object_get_typename(OBJECT(clk)),
                                  (Object **) &ncl->clock,
                                  NULL, OBJ_PROP_LINK_STRONG);
+        /*
+         * Since the link property has the OBJ_PROP_LINK_STRONG flag, the clk
+         * object reference count gets decremented on property deletion.
+         * However object_property_add_link does not increment it since it
+         * doesn't know the linked object. Increment it here to ensure the
+         * aliased clock stays alive during this device life-time.
+         */
+        object_ref(OBJECT(clk));
     }
 
     ncl->clock = clk;
