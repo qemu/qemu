@@ -95,8 +95,15 @@ test_env.set('G_TEST_BUILDDIR', meson.current_build_dir())
 # issue is identified/fix
 #if 'CONFIG_POSIX' in config_host
 if false
-  qga_ssh_test = executable('qga-ssh-test',
-                            files('commands-posix-ssh.c'),
+  srcs = [files('commands-posix-ssh.c')]
+  i = 0
+  foreach output: qga_qapi_outputs
+    if output.startswith('qga-qapi-types') or output.startswith('qga-qapi-visit')
+      srcs += qga_qapi_files[i]
+    endif
+    i = i + 1
+  endforeach
+  qga_ssh_test = executable('qga-ssh-test', srcs,
                             dependencies: [qemuutil],
                             c_args: ['-DQGA_BUILD_UNIT_TEST'])
 

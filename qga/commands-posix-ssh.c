@@ -268,6 +268,46 @@ qmp_guest_ssh_remove_authorized_keys(const char *username, strList *keys,
     write_authkeys(authkeys_path, new_keys, p, errp);
 }
 
+GuestAuthorizedKeys *
+qmp_guest_ssh_get_authorized_keys(const char *username, Error **errp)
+{
+    g_autofree struct passwd *p = NULL;
+    g_autofree char *authkeys_path = NULL;
+    g_auto(GStrv) authkeys = NULL;
+    g_autoptr(GuestAuthorizedKeys) ret = NULL;
+    int i;
+
+    ERRP_GUARD();
+
+    p = get_passwd_entry(username, errp);
+    if (p == NULL) {
+        return NULL;
+    }
+
+    authkeys_path = g_build_filename(p->pw_dir, ".ssh",
+                                     "authorized_keys", NULL);
+    authkeys = read_authkeys(authkeys_path, errp);
+    if (authkeys == NULL) {
+        return NULL;
+    }
+
+    ret = g_new0(GuestAuthorizedKeys, 1);
+    for (i = 0; authkeys[i] != NULL; i++) {
+        strList *new;
+
+        g_strstrip(authkeys[i]);
+        if (!authkeys[i][0] || authkeys[i][0] == '#') {
+            continue;
+        }
+
+        new = g_new0(strList, 1);
+        new->value = g_strdup(authkeys[i]);
+        new->next = ret->keys;
+        ret->keys = new;
+    }
+
+    return g_steal_pointer(&ret);
+}
 
 #ifdef QGA_BUILD_UNIT_TEST
 #if GLIB_CHECK_VERSION(2, 60, 0)
@@ -426,6 +466,31 @@ test_remove_keys(void)
                                "algo some-key another\n");
 }
 
+static void
+test_get_keys(void)
+{
+    Error *err = NULL;
+    static const char *authkeys =
+        "algo key1 comments\n"
+        "# a commented line\n"
+        "algo some-key another\n";
+    g_autoptr(GuestAuthorizedKeys) ret = NULL;
+    strList *k;
+    size_t len = 0;
+
+    test_authorized_keys_set(authkeys);
+
+    ret = qmp_guest_ssh_get_authorized_keys(g_get_user_name(), &err);
+    g_assert(err == NULL);
+
+    for (len = 0, k = ret->keys; k != NULL; k = k->next) {
+        g_assert(g_str_has_prefix(k->value, "algo "));
+        len++;
+    }
+
+    g_assert(len == 2);
+}
+
 int main(int argc, char *argv[])
 {
     setlocale(LC_ALL, "");
@@ -437,6 +502,7 @@ int main(int argc, char *argv[])
     g_test_add_func("/qga/ssh/add_keys", test_add_keys);
     g_test_add_func("/qga/ssh/add_reset_keys", test_add_reset_keys);
     g_test_add_func("/qga/ssh/remove_keys", test_remove_keys);
+    g_test_add_func("/qga/ssh/get_keys", test_get_keys);
 
     return g_test_run();
 }

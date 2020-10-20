@@ -1348,6 +1348,37 @@
   'returns': ['GuestDeviceInfo'] }
 
 ##
+# @GuestAuthorizedKeys:
+#
+# @keys: public keys (in OpenSSH/sshd(8) authorized_keys format)
+#
+# Since: 5.2
+##
+{ 'struct': 'GuestAuthorizedKeys',
+  'data': {
+      'keys': ['str']
+  },
+  'if': 'defined(CONFIG_POSIX)' }
+
+
+##
+# @guest-ssh-get-authorized-keys:
+#
+# @username: the user account to add the authorized keys
+#
+# Return the public keys from user .ssh/authorized_keys on Unix systems (not
+# implemented for other systems).
+#
+# Returns: @GuestAuthorizedKeys
+#
+# Since: 5.2
+##
+{ 'command': 'guest-ssh-get-authorized-keys',
+  'data': { 'username': 'str' },
+  'returns': 'GuestAuthorizedKeys',
+  'if': 'defined(CONFIG_POSIX)' }
+
+##
 # @guest-ssh-add-authorized-keys:
 #
 # @username: the user account to add the authorized keys
