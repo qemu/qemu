@@ -124,8 +124,7 @@ struct MigrationClass {
     DeviceClass parent_class;
 };
 
-struct MigrationState
-{
+struct MigrationState {
     /*< private >*/
     DeviceState parent_obj;
 
