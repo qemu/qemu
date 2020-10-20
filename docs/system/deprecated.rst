@@ -27,11 +27,6 @@ System emulator command line arguments
 The ``enforce-config-section`` parameter is replaced by the
 ``-global migration.send-configuration={on|off}`` option.
 
-``-no-kvm`` (since 1.3.0)
-'''''''''''''''''''''''''
-
-The ``-no-kvm`` argument is now a synonym for setting ``-accel tcg``.
-
 ``-usbdevice`` (since 2.10.0)
 '''''''''''''''''''''''''''''
 
@@ -503,6 +498,12 @@ System emulator command line arguments
 
 The ``name`` parameter of the ``-net`` option was a synonym
 for the ``id`` parameter, which should now be used instead.
+
+``-no-kvm`` (removed in 5.2)
+''''''''''''''''''''''''''''
+
+The ``-no-kvm`` argument was a synonym for setting ``-machine accel=tcg``.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
