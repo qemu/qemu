@@ -2254,10 +2254,8 @@ static void ide_perform_srst(IDEState *s)
     /* Cancel PIO callback, reset registers/signature, etc */
     ide_reset(s);
 
-    if (s->drive_kind == IDE_CD) {
-        /* ATAPI drives do not set READY or SEEK */
-        s->status = 0x00;
-    }
+    /* perform diagnostic */
+    cmd_exec_dev_diagnostic(s, WIN_DIAGNOSE);
 }
 
 static void ide_bus_perform_srst(void *opaque)
