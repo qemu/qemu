@@ -2268,6 +2268,8 @@ static void ide_bus_perform_srst(void *opaque)
         s = &bus->ifs[i];
         ide_perform_srst(s);
     }
+
+    bus->cmd &= ~IDE_CTRL_RESET;
 }
 
 void ide_ctrl_write(void *opaque, uint32_t addr, uint32_t val)
