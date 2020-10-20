@@ -223,6 +223,53 @@
             'canbus': 'str' } }
 
 ##
+# @ColoCompareProperties:
+#
+# Properties for colo-compare objects.
+#
+# @primary_in: name of the character device backend to use for the primary
+#              input (incoming packets are redirected to @outdev)
+#
+# @secondary_in: name of the character device backend to use for secondary
+#                input (incoming packets are only compared to the input on
+#                @primary_in and then dropped)
+#
+# @outdev: name of the character device backend to use for output
+#
+# @iothread: name of the iothread to run in
+#
+# @notify_dev: name of the character device backend to be used to communicate
+#              with the remote colo-frame (only for Xen COLO)
+#
+# @compare_timeout: the maximum time to hold a packet from @primary_in for
+#                   comparison with an incoming packet on @secondary_in in
+#                   milliseconds (default: 3000)
+#
+# @expired_scan_cycle: the interval at which colo-compare checks whether
+#                      packets from @primary have timed out, in milliseconds
+#                      (default: 3000)
+#
+# @max_queue_size: the maximum number of packets to keep in the queue for
+#                  comparing with incoming packets from @secondary_in.  If the
+#                  queue is full and addtional packets are received, the
+#                  addtional packets are dropped. (default: 1024)
+#
+# @vnet_hdr_support: if true, vnet header support is enabled (default: false)
+#
+# Since: 2.8
+##
+{ 'struct': 'ColoCompareProperties',
+  'data': { 'primary_in': 'str',
+            'secondary_in': 'str',
+            'outdev': 'str',
+            'iothread': 'str',
+            '*notify_dev': 'str',
+            '*compare_timeout': 'uint64',
+            '*expired_scan_cycle': 'uint32',
+            '*max_queue_size': 'uint32',
+            '*vnet_hdr_support': 'bool' } }
+
+##
 # @CryptodevBackendProperties:
 #
 # Properties for cryptodev-backend and cryptodev-backend-builtin objects.
@@ -458,6 +505,7 @@
     'authz-simple',
     'can-bus',
     'can-host-socketcan',
+    'colo-compare',
     'cryptodev-backend',
     'cryptodev-backend-builtin',
     { 'name': 'cryptodev-vhost-user',
@@ -501,6 +549,7 @@
       'authz-pam':                  'AuthZPAMProperties',
       'authz-simple':               'AuthZSimpleProperties',
       'can-host-socketcan':         'CanHostSocketcanProperties',
+      'colo-compare':               'ColoCompareProperties',
       'cryptodev-backend':          'CryptodevBackendProperties',
       'cryptodev-backend-builtin':  'CryptodevBackendProperties',
       'cryptodev-vhost-user':       { 'type': 'CryptodevVhostUserProperties',
