@@ -41,6 +41,12 @@ static void xen_backend_table_add(XenBackendImpl *impl)
     g_hash_table_insert(xen_backend_table_get(), (void *)impl->type, impl);
 }
 
+static const char **xen_backend_table_keys(unsigned int *count)
+{
+    return (const char **)g_hash_table_get_keys_as_array(
+        xen_backend_table_get(), count);
+}
+
 static const XenBackendImpl *xen_backend_table_lookup(const char *type)
 {
     return g_hash_table_lookup(xen_backend_table_get(), type);
@@ -68,6 +74,11 @@ void xen_backend_register(const XenBackendInfo *info)
     impl->destroy = info->destroy;
 
     xen_backend_table_add(impl);
+}
+
+const char **xen_backend_get_types(unsigned int *count)
+{
+    return xen_backend_table_keys(count);
 }
 
 static QLIST_HEAD(, XenBackendInstance) backend_list;
