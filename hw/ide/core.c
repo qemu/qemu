@@ -2280,9 +2280,7 @@ void ide_ctrl_write(void *opaque, uint32_t addr, uint32_t val)
 
     /* Device0 and Device1 each have their own control register,
      * but QEMU models it as just one register in the controller. */
-    if ((bus->cmd & IDE_CTRL_RESET) &&
-        !(val & IDE_CTRL_RESET)) {
-        /* SRST triggers on falling edge */
+    if (!(bus->cmd & IDE_CTRL_RESET) && (val & IDE_CTRL_RESET)) {
         for (i = 0; i < 2; i++) {
             s = &bus->ifs[i];
             s->status |= BUSY_STAT;
