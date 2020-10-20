@@ -5,6 +5,7 @@
 # See the COPYING file in the top-level directory.
 
 { 'include': 'authz.json' }
+{ 'include': 'common.json' }
 
 ##
 # = QEMU Object Model (QOM)
@@ -273,6 +274,115 @@
             '*poll-shrink': 'int' } }
 
 ##
+# @MemoryBackendProperties:
+#
+# Properties for objects of classes derived from memory-backend.
+#
+# @merge: if true, mark the memory as mergeable (default depends on the machine
+#         type)
+#
+# @dump: if true, include the memory in core dumps (default depends on the
+#        machine type)
+#
+# @host-nodes: the list of NUMA host nodes to bind the memory to
+#
+# @policy: the NUMA policy (default: 'default')
+#
+# @prealloc: if true, preallocate memory (default: false)
+#
+# @prealloc-threads: number of CPU threads to use for prealloc (default: 1)
+#
+# @share: if false, the memory is private to QEMU; if true, it is shared
+#         (default: false)
+#
+# @size: size of the memory region in bytes
+#
+# @x-use-canonical-path-for-ramblock-id: if true, the canoncial path is used
+#                                        for ramblock-id. Disable this for 4.0
+#                                        machine types or older to allow
+#                                        migration with newer QEMU versions.
+#                                        This option is considered stable
+#                                        despite the x- prefix. (default:
+#                                        false generally, but true for machine
+#                                        types <= 4.0)
+#
+# Since: 2.1
+##
+{ 'struct': 'MemoryBackendProperties',
+  'data': { '*dump': 'bool',
+            '*host-nodes': ['uint16'],
+            '*merge': 'bool',
+            '*policy': 'HostMemPolicy',
+            '*prealloc': 'bool',
+            '*prealloc-threads': 'uint32',
+            '*share': 'bool',
+            'size': 'size',
+            '*x-use-canonical-path-for-ramblock-id': 'bool' } }
+
+##
+# @MemoryBackendFileProperties:
+#
+# Properties for memory-backend-file objects.
+#
+# @align: the base address alignment when QEMU mmap(2)s @mem-path. Some
+#         backend stores specified by @mem-path require an alignment different
+#         than the default one used by QEMU, e.g. the device DAX /dev/dax0.0
+#         requires 2M alignment rather than 4K. In such cases, users can
+#         specify the required alignment via this option.
+#         0 selects a default alignment (currently the page size). (default: 0)
+#
+# @discard-data: if true, the file contents can be destroyed when QEMU exits,
+#                to avoid unnecessarily flushing data to the backing file. Note
+#                that ``discard-data`` is only an optimization, and QEMU might
+#                not discard file contents if it aborts unexpectedly or is
+#                terminated using SIGKILL. (default: false)
+#
+# @mem-path: the path to either a shared memory or huge page filesystem mount
+#
+# @pmem: specifies whether the backing file specified by @mem-path is in
+#        host persistent memory that can be accessed using the SNIA NVM
+#        programming model (e.g. Intel NVDIMM).
+#
+# @readonly: if true, the backing file is opened read-only; if false, it is
+#            opened read-write. (default: false)
+#
+# Since: 2.1
+##
+{ 'struct': 'MemoryBackendFileProperties',
+  'base': 'MemoryBackendProperties',
+  'data': { '*align': 'size',
+            '*discard-data': 'bool',
+            'mem-path': 'str',
+            '*pmem': { 'type': 'bool', 'if': 'defined(CONFIG_LIBPMEM)' },
+            '*readonly': 'bool' } }
+
+##
+# @MemoryBackendMemfdProperties:
+#
+# Properties for memory-backend-memfd objects.
+#
+# The @share boolean option is true by default with memfd.
+#
+# @hugetlb: if true, the file to be created resides in the hugetlbfs filesystem
+#           (default: false)
+#
+# @hugetlbsize: the hugetlb page size on systems that support multiple hugetlb
+#               page sizes (it must be a power of 2 value supported by the
+#               system). 0 selects a default page size. This option is ignored
+#               if @hugetlb is false. (default: 0)
+#
+# @seal: if true, create a sealed-file, which will block further resizing of
+#        the memory (default: true)
+#
+# Since: 2.12
+##
+{ 'struct': 'MemoryBackendMemfdProperties',
+  'base': 'MemoryBackendProperties',
+  'data': { '*hugetlb': 'bool',
+            '*hugetlbsize': 'size',
+            '*seal': 'bool' } }
+
+##
 # @ObjectType:
 #
 # Since: 6.0
@@ -288,7 +398,11 @@
     { 'name': 'cryptodev-vhost-user',
       'if': 'defined(CONFIG_VIRTIO_CRYPTO) && defined(CONFIG_VHOST_CRYPTO)' },
     'dbus-vmstate',
-    'iothread'
+    'iothread',
+    'memory-backend-file',
+    { 'name': 'memory-backend-memfd',
+      'if': 'defined(CONFIG_LINUX)' },
+    'memory-backend-ram'
   ] }
 
 ##
@@ -316,7 +430,11 @@
       'cryptodev-vhost-user':       { 'type': 'CryptodevVhostUserProperties',
                                       'if': 'defined(CONFIG_VIRTIO_CRYPTO) && defined(CONFIG_VHOST_CRYPTO)' },
       'dbus-vmstate':               'DBusVMStateProperties',
-      'iothread':                   'IothreadProperties'
+      'iothread':                   'IothreadProperties',
+      'memory-backend-file':        'MemoryBackendFileProperties',
+      'memory-backend-memfd':       { 'type': 'MemoryBackendMemfdProperties',
+                                      'if': 'defined(CONFIG_LINUX)' },
+      'memory-backend-ram':         'MemoryBackendProperties'
   } }
 
 ##
