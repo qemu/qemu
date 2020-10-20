@@ -16,4 +16,6 @@
 /* must be power of 2 */
 #define XHCI_LEN_REGS 0x4000
 
+void xhci_sysbus_build_aml(Aml *scope, uint32_t mmio, unsigned int irq);
+
 #endif

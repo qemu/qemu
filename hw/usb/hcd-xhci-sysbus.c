@@ -13,6 +13,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "hcd-xhci-sysbus.h"
+#include "hw/acpi/aml-build.h"
 #include "hw/irq.h"
 
 static void xhci_sysbus_intr_raise(XHCIState *xhci, int n, bool level)
@@ -66,6 +67,20 @@ static void xhci_sysbus_instance_init(Object *obj)
                              OBJ_PROP_LINK_STRONG);
     s->xhci.intr_update = NULL;
     s->xhci.intr_raise = xhci_sysbus_intr_raise;
+}
+
+void xhci_sysbus_build_aml(Aml *scope, uint32_t mmio, unsigned int irq)
+{
+    Aml *dev = aml_device("XHCI");
+    Aml *crs = aml_resource_template();
+
+    aml_append(crs, aml_memory32_fixed(mmio, XHCI_LEN_REGS, AML_READ_WRITE));
+    aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
+                                  AML_EXCLUSIVE, &irq, 1));
+
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0D10")));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+    aml_append(scope, dev);
 }
 
 static Property xhci_sysbus_props[] = {
