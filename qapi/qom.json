@@ -636,6 +636,38 @@
   'data': { '*filename': 'str' } }
 
 ##
+# @SevGuestProperties:
+#
+# Properties for sev-guest objects.
+#
+# @sev-device: SEV device to use (default: "/dev/sev")
+#
+# @dh-cert-file: guest owners DH certificate (encoded with base64)
+#
+# @session-file: guest owners session parameters (encoded with base64)
+#
+# @policy: SEV policy value (default: 0x1)
+#
+# @handle: SEV firmware handle (default: 0)
+#
+# @cbitpos: C-bit location in page table entry (default: 0)
+#
+# @reduced-phys-bits: number of bits in physical addresses that become
+#                     unavailable when SEV is enabled
+#
+# Since: 2.12
+##
+{ 'struct': 'SevGuestProperties',
+  'data': { '*sev-device': 'str',
+            '*dh-cert-file': 'str',
+            '*session-file': 'str',
+            '*policy': 'uint32',
+            '*handle': 'uint32',
+            '*cbitpos': 'uint32',
+            'reduced-phys-bits': 'uint32' },
+  'if': 'defined(CONFIG_SEV)' }
+
+##
 # @ObjectType:
 #
 # Since: 6.0
@@ -665,12 +697,15 @@
     { 'name': 'memory-backend-memfd',
       'if': 'defined(CONFIG_LINUX)' },
     'memory-backend-ram',
+    {'name': 'pef-guest', 'if': 'defined(CONFIG_PSERIES)' },
     'pr-manager-helper',
     'rng-builtin',
     'rng-egd',
     'rng-random',
     'secret',
     'secret_keyring',
+    {'name': 'sev-guest', 'if': 'defined(CONFIG_SEV)' },
+    's390-pv-guest',
     'throttle-group',
     'tls-creds-anon',
     'tls-creds-psk',
@@ -722,6 +757,8 @@
       'rng-random':                 'RngRandomProperties',
       'secret':                     'SecretProperties',
       'secret_keyring':             'SecretKeyringProperties',
+      'sev-guest':                  { 'type': 'SevGuestProperties',
+                                      'if': 'defined(CONFIG_SEV)' },
       'throttle-group':             'ThrottleGroupProperties',
       'tls-creds-anon':             'TlsCredsAnonProperties',
       'tls-creds-psk':              'TlsCredsPskProperties',
