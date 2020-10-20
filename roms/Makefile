@@ -102,7 +102,7 @@ build-seabios-config-%: config.%
 		OUT=$(CURDIR)/seabios/builds/$*/ all
 
 
-.PHONY: sgabios skiboot
+.PHONY: sgabios skiboot qboot
 sgabios:
 	$(MAKE) -C sgabios
 	cp sgabios/sgabios.bin ../pc-bios
