@@ -4,6 +4,8 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or later.
 # See the COPYING file in the top-level directory.
 
+{ 'include': 'authz.json' }
+
 ##
 # = QEMU Object Model (QOM)
 ##
@@ -233,6 +235,10 @@
 ##
 { 'enum': 'ObjectType',
   'data': [
+    'authz-list',
+    'authz-listfile',
+    'authz-pam',
+    'authz-simple',
     'iothread'
   ] }
 
@@ -252,6 +258,10 @@
             'id': 'str' },
   'discriminator': 'qom-type',
   'data': {
+      'authz-list':                 'AuthZListProperties',
+      'authz-listfile':             'AuthZListFileProperties',
+      'authz-pam':                  'AuthZPAMProperties',
+      'authz-simple':               'AuthZSimpleProperties',
       'iothread':                   'IothreadProperties'
   } }
 
