@@ -41,7 +41,7 @@
  *   7     |  parallel  |
  *   8     |  rtc       | rtc (rtc=on)
  *   9     |  acpi      | acpi (ged)
- *  10     |  pci lnk   |
+ *  10     |  pci lnk   | xhci (usb=on)
  *  11     |  pci lnk   |
  *  12     |  ps2       | pcie
  *  13     |  fpu       | pcie
@@ -59,6 +59,9 @@
 #define GED_MMIO_BASE_MEMHP   (GED_MMIO_BASE + 0x100)
 #define GED_MMIO_BASE_REGS    (GED_MMIO_BASE + 0x200)
 #define GED_MMIO_IRQ          9
+
+#define MICROVM_XHCI_BASE     0xfe900000
+#define MICROVM_XHCI_IRQ      10
 
 #define PCIE_MMIO_BASE        0xc0000000
 #define PCIE_MMIO_SIZE        0x20000000

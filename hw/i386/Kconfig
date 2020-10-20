@@ -105,6 +105,7 @@ config MICROVM
     select VIRTIO_MMIO
     select ACPI_HW_REDUCED
     select PCI_EXPRESS_GENERIC_BRIDGE
+    select USB_XHCI_SYSBUS
 
 config X86_IOMMU
     bool
