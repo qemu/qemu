@@ -205,6 +205,34 @@
   'allow-preconfig': true }
 
 ##
+# @CryptodevBackendProperties:
+#
+# Properties for cryptodev-backend and cryptodev-backend-builtin objects.
+#
+# @queues: the number of queues for the cryptodev backend. Ignored for
+#          cryptodev-backend and must be 1 for cryptodev-backend-builtin.
+#          (default: 1)
+#
+# Since: 2.8
+##
+{ 'struct': 'CryptodevBackendProperties',
+  'data': { '*queues': 'uint32' } }
+
+##
+# @CryptodevVhostUserProperties:
+#
+# Properties for cryptodev-vhost-user objects.
+#
+# @chardev: the name of a Unix domain socket character device that connects to
+#           the vhost-user server
+#
+# Since: 2.12
+##
+{ 'struct': 'CryptodevVhostUserProperties',
+  'base': 'CryptodevBackendProperties',
+  'data': { 'chardev': 'str' } }
+
+##
 # @IothreadProperties:
 #
 # Properties for iothread objects.
@@ -239,6 +267,10 @@
     'authz-listfile',
     'authz-pam',
     'authz-simple',
+    'cryptodev-backend',
+    'cryptodev-backend-builtin',
+    { 'name': 'cryptodev-vhost-user',
+      'if': 'defined(CONFIG_VIRTIO_CRYPTO) && defined(CONFIG_VHOST_CRYPTO)' },
     'iothread'
   ] }
 
@@ -262,6 +294,10 @@
       'authz-listfile':             'AuthZListFileProperties',
       'authz-pam':                  'AuthZPAMProperties',
       'authz-simple':               'AuthZSimpleProperties',
+      'cryptodev-backend':          'CryptodevBackendProperties',
+      'cryptodev-backend-builtin':  'CryptodevBackendProperties',
+      'cryptodev-vhost-user':       { 'type': 'CryptodevVhostUserProperties',
+                                      'if': 'defined(CONFIG_VIRTIO_CRYPTO) && defined(CONFIG_VHOST_CRYPTO)' },
       'iothread':                   'IothreadProperties'
   } }
 
