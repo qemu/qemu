@@ -445,6 +445,61 @@
   'data': { '*vnet_hdr_support': 'bool' } }
 
 ##
+# @InputBarrierProperties:
+#
+# Properties for input-barrier objects.
+#
+# @name: the screen name as declared in the screens section of barrier.conf
+#
+# @server: hostname of the Barrier server (default: "localhost")
+#
+# @port: TCP port of the Barrier server (default: "24800")
+#
+# @x-origin: x coordinate of the leftmost pixel on the guest screen
+#            (default: "0")
+#
+# @y-origin: y coordinate of the topmost pixel on the guest screen
+#            (default: "0")
+#
+# @width: the width of secondary screen in pixels (default: "1920")
+#
+# @height: the height of secondary screen in pixels (default: "1080")
+#
+# Since: 4.2
+##
+{ 'struct': 'InputBarrierProperties',
+  'data': { 'name': 'str',
+            '*server': 'str',
+            '*port': 'str',
+            '*x-origin': 'str',
+            '*y-origin': 'str',
+            '*width': 'str',
+            '*height': 'str' } }
+
+##
+# @InputLinuxProperties:
+#
+# Properties for input-linux objects.
+#
+# @evdev: the path of the host evdev device to use
+#
+# @grab_all: if true, grab is toggled for all devices (e.g. both keyboard and
+#            mouse) instead of just one device (default: false)
+#
+# @repeat: enables auto-repeat events (default: false)
+#
+# @grab-toggle: the key or key combination that toggles device grab
+#               (default: ctrl-ctrl)
+#
+# Since: 2.6
+##
+{ 'struct': 'InputLinuxProperties',
+  'data': { 'evdev': 'str',
+            '*grab_all': 'bool',
+            '*repeat': 'bool',
+            '*grab-toggle': 'GrabToggleKeys' } }
+
+##
 # @IothreadProperties:
 #
 # Properties for iothread objects.
@@ -692,6 +747,8 @@
     'filter-redirector',
     'filter-replay',
     'filter-rewriter',
+    'input-barrier',
+    'input-linux',
     'iothread',
     'memory-backend-file',
     { 'name': 'memory-backend-memfd',
@@ -746,6 +803,8 @@
       'filter-redirector':          'FilterRedirectorProperties',
       'filter-replay':              'NetfilterProperties',
       'filter-rewriter':            'FilterRewriterProperties',
+      'input-barrier':              'InputBarrierProperties',
+      'input-linux':                'InputLinuxProperties',
       'iothread':                   'IothreadProperties',
       'memory-backend-file':        'MemoryBackendFileProperties',
       'memory-backend-memfd':       { 'type': 'MemoryBackendMemfdProperties',
