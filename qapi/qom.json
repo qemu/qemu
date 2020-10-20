@@ -846,13 +846,6 @@
 #
 # Create a QOM object.
 #
-# @qom-type: the class name for the object to be created
-#
-# @id: the name of the new object
-#
-# Additional arguments depend on qom-type and are passed to the backend
-# unchanged.
-#
 # Returns: Nothing on success
 #          Error if @qom-type is not a valid class name
 #
@@ -866,9 +859,7 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'object-add',
-  'data': {'qom-type': 'str', 'id': 'str'},
-  'gen': false } # so we can get the additional arguments
+{ 'command': 'object-add', 'data': 'ObjectOptions', 'boxed': true }
 
 ##
 # @object-del:
