@@ -203,6 +203,59 @@
   'allow-preconfig': true }
 
 ##
+# @IothreadProperties:
+#
+# Properties for iothread objects.
+#
+# @poll-max-ns: the maximum number of nanoseconds to busy wait for events.
+#               0 means polling is disabled (default: 32768 on POSIX hosts,
+#               0 otherwise)
+#
+# @poll-grow: the multiplier used to increase the polling time when the
+#             algorithm detects it is missing events due to not polling long
+#             enough. 0 selects a default behaviour (default: 0)
+#
+# @poll-shrink: the divisor used to decrease the polling time when the
+#               algorithm detects it is spending too long polling without
+#               encountering events. 0 selects a default behaviour (default: 0)
+#
+# Since: 2.0
+##
+{ 'struct': 'IothreadProperties',
+  'data': { '*poll-max-ns': 'int',
+            '*poll-grow': 'int',
+            '*poll-shrink': 'int' } }
+
+##
+# @ObjectType:
+#
+# Since: 6.0
+##
+{ 'enum': 'ObjectType',
+  'data': [
+    'iothread'
+  ] }
+
+##
+# @ObjectOptions:
+#
+# Describes the options of a user creatable QOM object.
+#
+# @qom-type: the class name for the object to be created
+#
+# @id: the name of the new object
+#
+# Since: 6.0
+##
+{ 'union': 'ObjectOptions',
+  'base': { 'qom-type': 'ObjectType',
+            'id': 'str' },
+  'discriminator': 'qom-type',
+  'data': {
+      'iothread':                   'IothreadProperties'
+  } }
+
+##
 # @object-add:
 #
 # Create a QOM object.
