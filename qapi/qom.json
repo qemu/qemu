@@ -314,6 +314,137 @@
             '*id-list': 'str' } }
 
 ##
+# @NetfilterInsert:
+#
+# Indicates where to insert a netfilter relative to a given other filter.
+#
+# @before: insert before the specified filter
+#
+# @behind: insert behind the specified filter
+#
+# Since: 5.0
+##
+{ 'enum': 'NetfilterInsert',
+  'data': [ 'before', 'behind' ] }
+
+##
+# @NetfilterProperties:
+#
+# Properties for objects of classes derived from netfilter.
+#
+# @netdev: id of the network device backend to filter
+#
+# @queue: indicates which queue(s) to filter (default: all)
+#
+# @status: indicates whether the filter is enabled ("on") or disabled ("off")
+#          (default: "on")
+#
+# @position: specifies where the filter should be inserted in the filter list.
+#            "head" means the filter is inserted at the head of the filter list,
+#            before any existing filters.
+#            "tail" means the filter is inserted at the tail of the filter list,
+#            behind any existing filters (default).
+#            "id=<id>" means the filter is inserted before or behind the filter
+#            specified by <id>, depending on the @insert property.
+#            (default: "tail")
+#
+# @insert: where to insert the filter relative to the filter given in @position.
+#          Ignored if @position is "head" or "tail". (default: behind)
+#
+# Since: 2.5
+##
+{ 'struct': 'NetfilterProperties',
+  'data': { 'netdev': 'str',
+            '*queue': 'NetFilterDirection',
+            '*status': 'str',
+            '*position': 'str',
+            '*insert': 'NetfilterInsert' } }
+
+##
+# @FilterBufferProperties:
+#
+# Properties for filter-buffer objects.
+#
+# @interval: a non-zero interval in microseconds.  All packets arriving in the
+#            given interval are delayed until the end of the interval.
+#
+# Since: 2.5
+##
+{ 'struct': 'FilterBufferProperties',
+  'base': 'NetfilterProperties',
+  'data': { 'interval': 'uint32' } }
+
+##
+# @FilterDumpProperties:
+#
+# Properties for filter-dump objects.
+#
+# @file: the filename where the dumped packets should be stored
+#
+# @maxlen: maximum number of bytes in a packet that are stored (default: 65536)
+#
+# Since: 2.5
+##
+{ 'struct': 'FilterDumpProperties',
+  'base': 'NetfilterProperties',
+  'data': { 'file': 'str',
+            '*maxlen': 'uint32' } }
+
+##
+# @FilterMirrorProperties:
+#
+# Properties for filter-mirror objects.
+#
+# @outdev: the name of a character device backend to which all incoming packets
+#          are mirrored
+#
+# @vnet_hdr_support: if true, vnet header support is enabled (default: false)
+#
+# Since: 2.6
+##
+{ 'struct': 'FilterMirrorProperties',
+  'base': 'NetfilterProperties',
+  'data': { 'outdev': 'str',
+            '*vnet_hdr_support': 'bool' } }
+
+##
+# @FilterRedirectorProperties:
+#
+# Properties for filter-redirector objects.
+#
+# At least one of @indev or @outdev must be present.  If both are present, they
+# must not refer to the same character device backend.
+#
+# @indev: the name of a character device backend from which packets are
+#         received and redirected to the filtered network device
+#
+# @outdev: the name of a character device backend to which all incoming packets
+#          are redirected
+#
+# @vnet_hdr_support: if true, vnet header support is enabled (default: false)
+#
+# Since: 2.6
+##
+{ 'struct': 'FilterRedirectorProperties',
+  'base': 'NetfilterProperties',
+  'data': { '*indev': 'str',
+            '*outdev': 'str',
+            '*vnet_hdr_support': 'bool' } }
+
+##
+# @FilterRewriterProperties:
+#
+# Properties for filter-rewriter objects.
+#
+# @vnet_hdr_support: if true, vnet header support is enabled (default: false)
+#
+# Since: 2.8
+##
+{ 'struct': 'FilterRewriterProperties',
+  'base': 'NetfilterProperties',
+  'data': { '*vnet_hdr_support': 'bool' } }
+
+##
 # @IothreadProperties:
 #
 # Properties for iothread objects.
@@ -511,6 +642,12 @@
     { 'name': 'cryptodev-vhost-user',
       'if': 'defined(CONFIG_VIRTIO_CRYPTO) && defined(CONFIG_VHOST_CRYPTO)' },
     'dbus-vmstate',
+    'filter-buffer',
+    'filter-dump',
+    'filter-mirror',
+    'filter-redirector',
+    'filter-replay',
+    'filter-rewriter',
     'iothread',
     'memory-backend-file',
     { 'name': 'memory-backend-memfd',
@@ -555,6 +692,12 @@
       'cryptodev-vhost-user':       { 'type': 'CryptodevVhostUserProperties',
                                       'if': 'defined(CONFIG_VIRTIO_CRYPTO) && defined(CONFIG_VHOST_CRYPTO)' },
       'dbus-vmstate':               'DBusVMStateProperties',
+      'filter-buffer':              'FilterBufferProperties',
+      'filter-dump':                'FilterDumpProperties',
+      'filter-mirror':              'FilterMirrorProperties',
+      'filter-redirector':          'FilterRedirectorProperties',
+      'filter-replay':              'NetfilterProperties',
+      'filter-rewriter':            'FilterRewriterProperties',
       'iothread':                   'IothreadProperties',
       'memory-backend-file':        'MemoryBackendFileProperties',
       'memory-backend-memfd':       { 'type': 'MemoryBackendMemfdProperties',
