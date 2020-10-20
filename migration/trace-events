@@ -325,3 +325,16 @@ get_ramblock_vfn_hash(const char *idstr, uint64_t vfn, uint32_t crc) "ramblock n
 calc_page_dirty_rate(const char *idstr, uint32_t new_crc, uint32_t old_crc) "ramblock name: %s, new crc: %" PRIu32 ", old crc: %" PRIu32
 skip_sample_ramblock(const char *idstr, uint64_t ramblock_size) "ramblock name: %s, ramblock size: %" PRIu64
 find_page_matched(const char *idstr) "ramblock %s addr or size changed"
+
+# block.c
+migration_block_init_shared(const char *blk_device_name) "Start migration for %s with shared base image"
+migration_block_init_full(const char *blk_device_name) "Start full migration for %s"
+migration_block_save_device_dirty(int64_t sector) "Error reading sector %" PRId64
+migration_block_flush_blks(const char *action, int submitted, int read_done, int transferred) "%s submitted %d read_done %d transferred %d"
+migration_block_save(const char *mig_stage, int submitted, int transferred) "Enter save live %s submitted %d transferred %d"
+migration_block_save_complete(void) "Block migration completed"
+migration_block_save_pending(uint64_t pending) "Enter save live pending  %" PRIu64
+
+# page_cache.c
+migration_pagecache_init(int64_t max_num_items) "Setting cache buckets to %" PRId64
+migration_pagecache_insert(void) "Error allocating page"
