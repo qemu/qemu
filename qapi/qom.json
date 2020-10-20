@@ -233,6 +233,22 @@
   'data': { 'chardev': 'str' } }
 
 ##
+# @DBusVMStateProperties:
+#
+# Properties for dbus-vmstate objects.
+#
+# @addr: the name of the DBus bus to connect to
+#
+# @id-list: a comma separated list of DBus IDs of helpers whose data should be
+#           included in the VM state on migration
+#
+# Since: 5.0
+##
+{ 'struct': 'DBusVMStateProperties',
+  'data': { 'addr': 'str' ,
+            '*id-list': 'str' } }
+
+##
 # @IothreadProperties:
 #
 # Properties for iothread objects.
@@ -271,6 +287,7 @@
     'cryptodev-backend-builtin',
     { 'name': 'cryptodev-vhost-user',
       'if': 'defined(CONFIG_VIRTIO_CRYPTO) && defined(CONFIG_VHOST_CRYPTO)' },
+    'dbus-vmstate',
     'iothread'
   ] }
 
@@ -298,6 +315,7 @@
       'cryptodev-backend-builtin':  'CryptodevBackendProperties',
       'cryptodev-vhost-user':       { 'type': 'CryptodevVhostUserProperties',
                                       'if': 'defined(CONFIG_VIRTIO_CRYPTO) && defined(CONFIG_VHOST_CRYPTO)' },
+      'dbus-vmstate':               'DBusVMStateProperties',
       'iothread':                   'IothreadProperties'
   } }
 
