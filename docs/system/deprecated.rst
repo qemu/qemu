@@ -153,6 +153,15 @@ the process listing. This is replaced by the new ``password-secret``
 option which lets the password be securely provided on the command
 line using a ``secret`` object instance.
 
+``opened`` property of ``rng-*`` objects (since 6.0.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The only effect of specifying ``opened=on`` in the command line or QMP
+``object-add`` is that the device is opened immediately, possibly before all
+other options have been processed.  This will either have no effect (if
+``opened`` was the last option) or cause errors.  The property is therefore
+useless and should not be specified.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
