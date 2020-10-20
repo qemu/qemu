@@ -5,6 +5,7 @@
 # See the COPYING file in the top-level directory.
 
 { 'include': 'authz.json' }
+{ 'include': 'block-core.json' }
 { 'include': 'common.json' }
 
 ##
@@ -451,7 +452,8 @@
     'memory-backend-ram',
     'rng-builtin',
     'rng-egd',
-    'rng-random'
+    'rng-random',
+    'throttle-group'
   ] }
 
 ##
@@ -486,7 +488,8 @@
       'memory-backend-ram':         'MemoryBackendProperties',
       'rng-builtin':                'RngProperties',
       'rng-egd':                    'RngEgdProperties',
-      'rng-random':                 'RngRandomProperties'
+      'rng-random':                 'RngRandomProperties',
+      'throttle-group':             'ThrottleGroupProperties'
   } }
 
 ##
