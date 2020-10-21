@@ -4253,6 +4253,14 @@ void qemu_init(int argc, char **argv, char **envp)
             monitor_parse("vc:80Cx24C", "readline", false);
     }
 
+    if (default_net) {
+        QemuOptsList *net = qemu_find_opts("net");
+        qemu_opts_parse(net, "nic", true, &error_abort);
+#ifdef CONFIG_SLIRP
+        qemu_opts_parse(net, "user", true, &error_abort);
+#endif
+    }
+
 #if defined(CONFIG_VNC)
     if (!QTAILQ_EMPTY(&(qemu_find_opts("vnc")->head))) {
         display_remote++;
@@ -4386,14 +4394,6 @@ void qemu_init(int argc, char **argv, char **envp)
         const char *kernel_cmdline = qemu_opt_get(machine_opts, "append");
         /* fall back to the -kernel/-append */
         semihosting_arg_fallback(kernel_filename, kernel_cmdline);
-    }
-
-    if (default_net) {
-        QemuOptsList *net = qemu_find_opts("net");
-        qemu_opts_parse(net, "nic", true, &error_abort);
-#ifdef CONFIG_SLIRP
-        qemu_opts_parse(net, "user", true, &error_abort);
-#endif
     }
 
     if (net_init_clients(&err) < 0) {
