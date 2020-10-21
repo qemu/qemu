@@ -2028,8 +2028,11 @@ static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
     }
 
     if (drv->bdrv_check_perm) {
-        return drv->bdrv_check_perm(bs, cumulative_perms,
-                                    cumulative_shared_perms, errp);
+        ret = drv->bdrv_check_perm(bs, cumulative_perms,
+                                   cumulative_shared_perms, errp);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     /* Drivers that never have children can omit .bdrv_child_perm() */
