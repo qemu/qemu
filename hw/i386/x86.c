@@ -1178,6 +1178,7 @@ static void x86_machine_initfn(Object *obj)
     x86ms->smm = ON_OFF_AUTO_AUTO;
     x86ms->acpi = ON_OFF_AUTO_AUTO;
     x86ms->smp_dies = 1;
+    x86ms->pci_irq_mask = ACPI_BUILD_PCI_IRQS;
 }
 
 static void x86_machine_class_init(ObjectClass *oc, void *data)

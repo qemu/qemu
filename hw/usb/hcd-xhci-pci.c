@@ -240,8 +240,8 @@ static void qemu_xhci_instance_init(Object *obj)
 
     s->msi      = ON_OFF_AUTO_OFF;
     s->msix     = ON_OFF_AUTO_AUTO;
-    xhci->numintrs = MAXINTRS;
-    xhci->numslots = MAXSLOTS;
+    xhci->numintrs = XHCI_MAXINTRS;
+    xhci->numslots = XHCI_MAXSLOTS;
     xhci_set_flag(xhci, XHCI_FLAG_SS_FIRST);
 }
 

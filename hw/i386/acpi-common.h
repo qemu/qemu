@@ -9,7 +9,6 @@
 #define ACPI_BUILD_IOAPIC_ID 0x0
 
 void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
-                     X86MachineState *x86ms, AcpiDeviceIf *adev,
-                     bool has_pci);
+                     X86MachineState *x86ms, AcpiDeviceIf *adev);
 
 #endif
