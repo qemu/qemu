@@ -3970,11 +3970,6 @@ void qemu_init(int argc, char **argv, char **envp)
         exit(0);
     }
 
-    /* machine_class: default to UP */
-    machine_class->max_cpus = machine_class->max_cpus ?: 1;
-    machine_class->min_cpus = machine_class->min_cpus ?: 1;
-    machine_class->default_cpus = machine_class->default_cpus ?: 1;
-
     /* default to machine_class->default_cpus */
     current_machine->smp.cpus = machine_class->default_cpus;
     current_machine->smp.max_cpus = machine_class->default_cpus;
