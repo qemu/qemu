@@ -33,7 +33,15 @@ ancestor = subprocess.check_output(["git", "merge-base",
 
 ancestor = ancestor.strip()
 
+log = subprocess.check_output(["git", "log", "--format=%H %s",
+                               ancestor + "..."],
+                              universal_newlines=True)
+
 subprocess.check_call(["git", "remote", "rm", "check-patch"])
+
+if log == "":
+    print("\nNo commits since %s, skipping checks\n" % ancestor)
+    sys.exit(0)
 
 errors = False
 
