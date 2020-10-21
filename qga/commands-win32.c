@@ -2400,16 +2400,15 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
             }
             skip = false;
 
-            id = g_new0(GuestDeviceIdPCI, 1);
             vendor_id = g_match_info_fetch(match_info, 1);
             device_id = g_match_info_fetch(match_info, 2);
-            id->vendor_id = g_ascii_strtoull(vendor_id, NULL, 16);
-            id->device_id = g_ascii_strtoull(device_id, NULL, 16);
 
             device->id = g_new0(GuestDeviceId, 1);
             device->has_id = true;
-            device->id->type = GUEST_DEVICE_ID_KIND_PCI;
-            device->id->u.pci.data = id;
+            device->id->type = GUEST_DEVICE_TYPE_PCI;
+            id = &device->id->u.pci;
+            id->vendor_id = g_ascii_strtoull(vendor_id, NULL, 16);
+            id->device_id = g_ascii_strtoull(device_id, NULL, 16);
 
             g_match_info_free(match_info);
             break;

@@ -1257,6 +1257,12 @@
   'returns': 'GuestOSInfo' }
 
 ##
+# @GuestDeviceType:
+##
+{ 'enum': 'GuestDeviceType',
+  'data': [ 'pci' ] }
+
+##
 # @GuestDeviceIdPCI:
 #
 # @vendor-id: vendor ID
@@ -1276,6 +1282,8 @@
 # Since: 5.2
 ##
 { 'union': 'GuestDeviceId',
+  'base': { 'type': 'GuestDeviceType' },
+  'discriminator': 'type',
   'data': { 'pci': 'GuestDeviceIdPCI' } }
 
 ##
