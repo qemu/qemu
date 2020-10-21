@@ -17,6 +17,10 @@
 #
 
 import math
+import tabulate
+
+# We want leading whitespace for difference row cells (see below)
+tabulate.PRESERVE_WHITESPACE = True
 
 
 def format_value(x, stdev):
@@ -39,21 +43,70 @@ def result_to_text(result):
         return 'FAILED'
 
 
-def results_to_text(results):
-    """Return text representation of bench() returned dict."""
-    from tabulate import tabulate
-
+def results_dimension(results):
     dim = None
-    tab = [[""] + [c['id'] for c in results['envs']]]
     for case in results['cases']:
-        row = [case['id']]
         for env in results['envs']:
             res = results['tab'][case['id']][env['id']]
             if dim is None:
                 dim = res['dimension']
             else:
                 assert dim == res['dimension']
+
+    assert dim in ('iops', 'seconds')
+
+    return dim
+
+
+def results_to_text(results):
+    """Return text representation of bench() returned dict."""
+    n_columns = len(results['envs'])
+    named_columns = n_columns > 2
+    dim = results_dimension(results)
+    tab = []
+
+    if named_columns:
+        # Environment columns are named A, B, ...
+        tab.append([''] + [chr(ord('A') + i) for i in range(n_columns)])
+
+    tab.append([''] + [c['id'] for c in results['envs']])
+
+    for case in results['cases']:
+        row = [case['id']]
+        case_results = results['tab'][case['id']]
+        for env in results['envs']:
+            res = case_results[env['id']]
             row.append(result_to_text(res))
         tab.append(row)
 
-    return f'All results are in {dim}\n\n' + tabulate(tab)
+        # Add row of difference between columns. For each column starting from
+        # B we calculate difference with all previous columns.
+        row = ['', '']  # case name and first column
+        for i in range(1, n_columns):
+            cell = ''
+            env = results['envs'][i]
+            res = case_results[env['id']]
+
+            if 'average' not in res:
+                # Failed result
+                row.append(cell)
+                continue
+
+            for j in range(0, i):
+                env_j = results['envs'][j]
+                res_j = case_results[env_j['id']]
+                cell += ' '
+
+                if 'average' not in res_j:
+                    # Failed result
+                    cell += '--'
+                    continue
+
+                col_j = tab[0][j + 1] if named_columns else ''
+                diff_pr = round((res['average'] - res_j['average']) /
+                                res_j['average'] * 100)
+                cell += f' {col_j}{diff_pr:+}%'
+            row.append(cell)
+        tab.append(row)
+
+    return f'All results are in {dim}\n\n' + tabulate.tabulate(tab)
