@@ -124,6 +124,7 @@ static const char *mem_path;
 static const char *boot_order;
 static const char *boot_once;
 static const char *incoming;
+static const char *loadvm;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 int display_opengl;
 const char* keyboard_layout = NULL;
@@ -2894,6 +2895,11 @@ static void qemu_validate_options(void)
           }
     }
 
+    if (loadvm && !preconfig_exit_requested) {
+        error_report("'preconfig' and 'loadvm' options are "
+                     "mutually exclusive");
+        exit(EXIT_FAILURE);
+    }
     if (incoming && !preconfig_exit_requested) {
         error_report("'preconfig' and 'incoming' options are "
                      "mutually exclusive");
@@ -3176,7 +3182,6 @@ void qemu_init(int argc, char **argv, char **envp)
     QemuOptsList *olist;
     int optind;
     const char *optarg;
-    const char *loadvm = NULL;
     MachineClass *machine_class;
     const char *vga_model = NULL;
     bool userconfig = true;
