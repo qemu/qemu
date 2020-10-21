@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Simple benchmarking framework
 #
 # Copyright (c) 2019 Virtuozzo International GmbH.
@@ -110,3 +112,15 @@ def results_to_text(results):
         tab.append(row)
 
     return f'All results are in {dim}\n\n' + tabulate.tabulate(tab)
+
+
+if __name__ == '__main__':
+    import sys
+    import json
+
+    if len(sys.argv) < 2:
+        print(f'USAGE: {sys.argv[0]} results.json')
+        exit(1)
+
+    with open(sys.argv[1]) as f:
+        print(results_to_text(json.load(f)))
