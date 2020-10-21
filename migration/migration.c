@@ -145,7 +145,6 @@ static void migrate_fd_cancel(MigrationState *s);
 
 void migration_object_init(void)
 {
-    MachineState *ms = MACHINE(qdev_get_machine());
     Error *err = NULL;
 
     /* This can only be called once. */
@@ -169,15 +168,6 @@ void migration_object_init(void)
     if (!migration_object_check(current_migration, &err)) {
         error_report_err(err);
         exit(1);
-    }
-
-    /*
-     * We cannot really do this in migration_instance_init() since at
-     * that time global properties are not yet applied, then this
-     * value will be definitely replaced by something else.
-     */
-    if (ms->enforce_config_section) {
-        current_migration->send_configuration = true;
     }
 }
 

@@ -268,7 +268,6 @@ struct MachineState {
     char *firmware;
     bool iommu;
     bool suppress_vmdesc;
-    bool enforce_config_section;
     bool enable_graphics;
     char *memory_encryption;
     char *ram_memdev_id;
