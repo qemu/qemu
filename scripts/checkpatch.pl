@@ -392,7 +392,7 @@ if ($chk_branch) {
 
 	close $HASH;
 
-	die "$P: no revisions returned for revlist '$chk_branch'\n"
+	die "$P: no revisions returned for revlist '$ARGV[0]'\n"
 	    unless @patches;
 
 	my $i = 1;
