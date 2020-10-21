@@ -24,9 +24,12 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
 
     test_func   -- benchmarking function with prototype
                    test_func(env, case), which takes test_env and test_case
-                   arguments and returns {'seconds': int} (which is benchmark
-                   result) on success and {'error': str} on error. Returned
-                   dict may contain any other additional fields.
+                   arguments and on success returns dict with 'seconds' or
+                   'iops' (or both) fields, specifying the benchmark result.
+                   If both 'iops' and 'seconds' provided, the 'iops' is
+                   considered the main, and 'seconds' is just an additional
+                   info. On failure test_func should return {'error': str}.
+                   Returned dict may contain any other additional fields.
     test_env    -- test environment - opaque first argument for test_func
     test_case   -- test case - opaque second argument for test_func
     count       -- how many times to call test_func, to calculate average
@@ -34,8 +37,9 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
 
     Returns dict with the following fields:
         'runs':     list of test_func results
-        'average':  average seconds per run (exists only if at least one run
-                    succeeded)
+        'dimension': dimension of results, may be 'seconds' or 'iops'
+        'average':  average value (iops or seconds) per run (exists only if at
+                    least one run succeeded)
         'delta':    maximum delta between test_func result and the average
                     (exists only if at least one run succeeded)
         'n-failed': number of failed runs (exists only if at least one run
@@ -54,11 +58,19 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
 
     result = {'runs': runs}
 
-    succeeded = [r for r in runs if ('seconds' in r)]
+    succeeded = [r for r in runs if ('seconds' in r or 'iops' in r)]
     if succeeded:
-        avg = sum(r['seconds'] for r in succeeded) / len(succeeded)
+        if 'iops' in succeeded[0]:
+            assert all('iops' in r for r in succeeded)
+            dim = 'iops'
+        else:
+            assert all('seconds' in r for r in succeeded)
+            assert all('iops' not in r for r in succeeded)
+            dim = 'seconds'
+        avg = sum(r[dim] for r in succeeded) / len(succeeded)
+        result['dimension'] = dim
         result['average'] = avg
-        result['delta'] = max(abs(r['seconds'] - avg) for r in succeeded)
+        result['delta'] = max(abs(r[dim] - avg) for r in succeeded)
 
     if len(succeeded) < count:
         result['n-failed'] = count - len(succeeded)
@@ -118,11 +130,17 @@ def ascii(results):
     """Return ASCII representation of bench() returned dict."""
     from tabulate import tabulate
 
+    dim = None
     tab = [[""] + [c['id'] for c in results['envs']]]
     for case in results['cases']:
         row = [case['id']]
         for env in results['envs']:
-            row.append(ascii_one(results['tab'][case['id']][env['id']]))
+            res = results['tab'][case['id']][env['id']]
+            if dim is None:
+                dim = res['dimension']
+            else:
+                assert dim == res['dimension']
+            row.append(ascii_one(res))
         tab.append(row)
 
-    return tabulate(tab)
+    return f'All results are in {dim}\n\n' + tabulate(tab)
