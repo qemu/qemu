@@ -79,8 +79,8 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
     return result
 
 
-def ascii_one(result):
-    """Return ASCII representation of bench_one() returned dict."""
+def result_to_text(result):
+    """Return text representation of bench_one() returned dict."""
     if 'average' in result:
         s = '{:.2f} +- {:.2f}'.format(result['average'], result['stdev'])
         if 'n-failed' in result:
@@ -127,8 +127,8 @@ def bench(test_func, test_envs, test_cases, *args, **vargs):
     return results
 
 
-def ascii(results):
-    """Return ASCII representation of bench() returned dict."""
+def results_to_text(results):
+    """Return text representation of bench() returned dict."""
     from tabulate import tabulate
 
     dim = None
@@ -141,7 +141,7 @@ def ascii(results):
                 dim = res['dimension']
             else:
                 assert dim == res['dimension']
-            row.append(ascii_one(res))
+            row.append(result_to_text(res))
         tab.append(row)
 
     return f'All results are in {dim}\n\n' + tabulate(tab)

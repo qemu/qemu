@@ -167,4 +167,4 @@ if __name__ == '__main__':
 
     result = simplebench.bench(bench_func, test_envs, test_cases, count=3,
                                initial_run=False)
-    print(simplebench.ascii(result))
+    print(simplebench.results_to_text(result))
