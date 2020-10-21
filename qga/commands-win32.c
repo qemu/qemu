@@ -1641,6 +1641,12 @@ out:
     return head;
 }
 
+static int64_t filetime_to_ns(const FILETIME *tf)
+{
+    return ((((int64_t)tf->dwHighDateTime << 32) | tf->dwLowDateTime)
+            - W32_FT_OFFSET) * 100;
+}
+
 int64_t qmp_guest_get_time(Error **errp)
 {
     SYSTEMTIME ts = {0};
@@ -1657,8 +1663,7 @@ int64_t qmp_guest_get_time(Error **errp)
         return -1;
     }
 
-    return ((((int64_t)tf.dwHighDateTime << 32) | tf.dwLowDateTime)
-                - W32_FT_OFFSET) * 100;
+    return filetime_to_ns(&tf);
 }
 
 void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
@@ -2363,7 +2368,6 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
     slog("enumerating devices");
     for (i = 0; SetupDiEnumDeviceInfo(dev_info, i, &dev_info_data); i++) {
         bool skip = true;
-        SYSTEMTIME utc_date;
         g_autofree LPWSTR name = NULL;
         g_autofree LPFILETIME date = NULL;
         g_autofree LPWSTR version = NULL;
@@ -2434,13 +2438,12 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
             slog("failed to get driver date");
             continue;
         }
-        FileTimeToSystemTime(date, &utc_date);
-        device->driver_date = g_strdup_printf("%04d-%02d-%02d",
-            utc_date.wYear, utc_date.wMonth, utc_date.wDay);
+        device->driver_date = filetime_to_ns(date);
         device->has_driver_date = true;
 
-        slog("driver: %s\ndriver version: %s,%s\n", device->driver_name,
-            device->driver_date, device->driver_version);
+        slog("driver: %s\ndriver version: %" PRId64 ",%s\n",
+             device->driver_name, device->driver_date,
+             device->driver_version);
         item = g_new0(GuestDeviceInfoList, 1);
         item->value = g_steal_pointer(&device);
         if (!cur_item) {
