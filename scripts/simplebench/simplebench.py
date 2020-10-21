@@ -18,6 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import statistics
+
 
 def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
     """Benchmark one test-case
@@ -40,7 +42,7 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
         'dimension': dimension of results, may be 'seconds' or 'iops'
         'average':  average value (iops or seconds) per run (exists only if at
                     least one run succeeded)
-        'delta':    maximum delta between test_func result and the average
+        'stdev':    standard deviation of results
                     (exists only if at least one run succeeded)
         'n-failed': number of failed runs (exists only if at least one run
                     failed)
@@ -67,10 +69,9 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
             assert all('seconds' in r for r in succeeded)
             assert all('iops' not in r for r in succeeded)
             dim = 'seconds'
-        avg = sum(r[dim] for r in succeeded) / len(succeeded)
         result['dimension'] = dim
-        result['average'] = avg
-        result['delta'] = max(abs(r[dim] - avg) for r in succeeded)
+        result['average'] = statistics.mean(r[dim] for r in succeeded)
+        result['stdev'] = statistics.stdev(r[dim] for r in succeeded)
 
     if len(succeeded) < count:
         result['n-failed'] = count - len(succeeded)
@@ -81,7 +82,7 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
 def ascii_one(result):
     """Return ASCII representation of bench_one() returned dict."""
     if 'average' in result:
-        s = '{:.2f} +- {:.2f}'.format(result['average'], result['delta'])
+        s = '{:.2f} +- {:.2f}'.format(result['average'], result['stdev'])
         if 'n-failed' in result:
             s += '\n({} failed)'.format(result['n-failed'])
         return s
