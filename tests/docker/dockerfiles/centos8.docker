@@ -2,7 +2,7 @@ FROM centos:8.1.1911
 
 RUN dnf -y update
 ENV PACKAGES \
-    SDL-devel \
+    SDL2-devel \
     bzip2 \
     bzip2-devel \
     dbus-daemon \
