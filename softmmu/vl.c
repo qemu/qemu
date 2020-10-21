@@ -126,6 +126,7 @@ static const char *boot_once;
 static const char *incoming;
 static const char *loadvm;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
+static int mem_prealloc; /* force preallocation of physical target memory */
 int display_opengl;
 const char* keyboard_layout = NULL;
 static ram_addr_t ram_size;
@@ -158,7 +159,7 @@ int fd_bootchk = 1;
 static int no_reboot;
 int no_shutdown = 0;
 int graphic_rotate = 0;
-const char *watchdog;
+static const char *watchdog;
 QEMUOptionRom option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;
 int old_param = 0;
@@ -2914,6 +2915,25 @@ static void qemu_validate_options(void)
 #endif
 }
 
+static void qemu_process_sugar_options(void)
+{
+    if (mem_prealloc) {
+        char *val;
+
+        val = g_strdup_printf("%d",
+                 (uint32_t) qemu_opt_get_number(qemu_find_opts_singleton("smp-opts"), "cpus", 1));
+        object_register_sugar_prop("memory-backend", "prealloc-threads", val);
+        g_free(val);
+        object_register_sugar_prop("memory-backend", "prealloc", "on");
+    }
+
+    if (watchdog) {
+        int i = select_watchdog(watchdog);
+        if (i > 0)
+            exit (i == 1 ? 1 : 0);
+    }
+}
+
 static void qemu_process_early_options(void)
 {
     char **dirs;
@@ -3175,7 +3195,6 @@ static void qemu_machine_creation_done(void)
 
 void qemu_init(int argc, char **argv, char **envp)
 {
-    int i;
     int snapshot = 0;
     QemuOpts *opts, *machine_opts;
     QemuOpts *icount_opts = NULL, *accel_opts = NULL;
@@ -3194,7 +3213,6 @@ void qemu_init(int argc, char **argv, char **envp)
     bool have_custom_ram_size;
     BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
     QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
-    int mem_prealloc = 0; /* force preallocation of physical target memory */
 
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
@@ -4106,6 +4124,7 @@ void qemu_init(int argc, char **argv, char **envp)
     loc_set_none();
 
     qemu_validate_options();
+    qemu_process_sugar_options();
 
     /*
      * These options affect everything else and should be processed
@@ -4158,15 +4177,6 @@ void qemu_init(int argc, char **argv, char **envp)
 
     machine_smp_parse(current_machine,
         qemu_opts_find(qemu_find_opts("smp-opts"), NULL), &error_fatal);
-
-    if (mem_prealloc) {
-        char *val;
-
-        val = g_strdup_printf("%d", current_machine->smp.cpus);
-        object_register_sugar_prop("memory-backend", "prealloc-threads", val);
-        g_free(val);
-        object_register_sugar_prop("memory-backend", "prealloc", "on");
-    }
 
     /*
      * Get the default machine options from the machine if it is not already
@@ -4424,12 +4434,6 @@ void qemu_init(int argc, char **argv, char **envp)
     }
     if (vga_model) {
         select_vgahw(machine_class, vga_model);
-    }
-
-    if (watchdog) {
-        i = select_watchdog(watchdog);
-        if (i > 0)
-            exit (i == 1 ? 1 : 0);
     }
 
     /* This checkpoint is required by replay to separate prior clock
