@@ -2385,7 +2385,7 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
         device->driver_name = g_utf16_to_utf8(name, -1, NULL, NULL, NULL);
         if (device->driver_name == NULL) {
             error_setg(errp, "conversion to utf8 failed (driver name)");
-            continue;
+            return NULL;
         }
         slog("querying device: %s", device->driver_name);
         hw_ids = ga_get_hardware_ids(dev_info_data.DevInst);
@@ -2428,7 +2428,7 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
             NULL, NULL);
         if (device->driver_version == NULL) {
             error_setg(errp, "conversion to utf8 failed (driver version)");
-            continue;
+            return NULL;
         }
         device->has_driver_version = true;
 
@@ -2452,7 +2452,6 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
             cur_item->next = item;
             cur_item = item;
         }
-        continue;
     }
 
     if (dev_info != INVALID_HANDLE_VALUE) {
