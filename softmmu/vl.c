@@ -125,6 +125,7 @@ static const char *boot_order;
 static const char *boot_once;
 static const char *incoming;
 static const char *loadvm;
+static QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static int mem_prealloc; /* force preallocation of physical target memory */
 int display_opengl;
@@ -3078,6 +3079,11 @@ static void qemu_init_board(void)
         create_default_memdev(current_machine, mem_path);
     }
 
+    /* process plugin before CPUs are created, but once -smp has been parsed */
+    if (qemu_plugin_load_list(&plugin_list)) {
+        exit(1);
+    }
+
     machine_run_board_init(current_machine);
 
     /*
@@ -3212,7 +3218,6 @@ void qemu_init(int argc, char **argv, char **envp)
     Error *err = NULL;
     bool have_custom_ram_size;
     BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
-    QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
 
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
@@ -4180,11 +4185,6 @@ void qemu_init(int argc, char **argv, char **envp)
     if (machine_class->default_machine_opts) {
         qemu_opts_set_defaults(qemu_find_opts("machine"),
                                machine_class->default_machine_opts, 0);
-    }
-
-    /* process plugin before CPUs are created, but once -smp has been parsed */
-    if (qemu_plugin_load_list(&plugin_list)) {
-        exit(1);
     }
 
     qemu_opts_foreach(qemu_find_opts("device"),
