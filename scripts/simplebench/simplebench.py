@@ -54,14 +54,14 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
 
     result = {'runs': runs}
 
-    successed = [r for r in runs if ('seconds' in r)]
-    if successed:
-        avg = sum(r['seconds'] for r in successed) / len(successed)
+    succeeded = [r for r in runs if ('seconds' in r)]
+    if succeeded:
+        avg = sum(r['seconds'] for r in succeeded) / len(succeeded)
         result['average'] = avg
-        result['delta'] = max(abs(r['seconds'] - avg) for r in successed)
+        result['delta'] = max(abs(r['seconds'] - avg) for r in succeeded)
 
-    if len(successed) < count:
-        result['n-failed'] = count - len(successed)
+    if len(succeeded) < count:
+        result['n-failed'] = count - len(succeeded)
 
     return result
 
