@@ -2390,22 +2390,22 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
         }
         for (j = 0; hw_ids[j] != NULL; j++) {
             GMatchInfo *match_info;
-            GuestDeviceAddressPCI *address;
+            GuestDeviceIdPCI *id;
             if (!g_regex_match(device_pci_re, hw_ids[j], 0, &match_info)) {
                 continue;
             }
             skip = false;
 
-            address = g_new0(GuestDeviceAddressPCI, 1);
+            id = g_new0(GuestDeviceIdPCI, 1);
             vendor_id = g_match_info_fetch(match_info, 1);
             device_id = g_match_info_fetch(match_info, 2);
-            address->vendor_id = g_ascii_strtoull(vendor_id, NULL, 16);
-            address->device_id = g_ascii_strtoull(device_id, NULL, 16);
+            id->vendor_id = g_ascii_strtoull(vendor_id, NULL, 16);
+            id->device_id = g_ascii_strtoull(device_id, NULL, 16);
 
-            device->address = g_new0(GuestDeviceAddress, 1);
-            device->has_address = true;
-            device->address->type = GUEST_DEVICE_ADDRESS_KIND_PCI;
-            device->address->u.pci.data = address;
+            device->id = g_new0(GuestDeviceId, 1);
+            device->has_id = true;
+            device->id->type = GUEST_DEVICE_ID_KIND_PCI;
+            device->id->u.pci.data = id;
 
             g_match_info_free(match_info);
             break;
