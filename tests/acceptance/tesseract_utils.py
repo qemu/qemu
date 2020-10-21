@@ -6,7 +6,9 @@
 # later. See the COPYING file in the top-level directory.
 
 import re
+import logging
 
+from avocado.utils import process
 from avocado.utils.path import find_command, CmdNotFoundError
 
 def tesseract_available(expected_version):
@@ -26,3 +28,19 @@ def tesseract_available(expected_version):
         return False
     # now this is guaranteed to be a digit
     return int(match.groups()[0]) == expected_version
+
+
+def tesseract_ocr(image_path, tesseract_args='', tesseract_version=3):
+    console_logger = logging.getLogger('tesseract')
+    console_logger.debug(image_path)
+    if tesseract_version == 4:
+        tesseract_args += ' --oem 1'
+    proc = process.run("tesseract {} {} stdout".format(tesseract_args,
+                                                       image_path))
+    lines = []
+    for line in proc.stdout_text.split('\n'):
+        sline = line.strip()
+        if len(sline):
+            console_logger.debug(sline)
+            lines += [sline]
+    return lines

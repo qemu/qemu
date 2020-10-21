@@ -7,13 +7,11 @@
 
 import os
 import time
-import logging
 
 from avocado_qemu import Test
 from avocado import skipUnless
-from avocado.utils import process
 
-from tesseract_utils import tesseract_available
+from tesseract_utils import tesseract_available, tesseract_ocr
 
 PIL_AVAILABLE = True
 try:
@@ -61,12 +59,8 @@ class NextCubeMachine(Test):
     def test_bootrom_framebuffer_ocr_with_tesseract_v3(self):
         screenshot_path = os.path.join(self.workdir, "dump.ppm")
         self.check_bootrom_framebuffer(screenshot_path)
-
-        console_logger = logging.getLogger('console')
-        text = process.run("tesseract %s stdout" % screenshot_path).stdout_text
-        for line in text.split('\n'):
-            if len(line):
-                console_logger.debug(line)
+        lines = tesseract_ocr(screenshot_path, tesseract_version=3)
+        text = '\n'.join(lines)
         self.assertIn('Backplane', text)
         self.assertIn('Ethernet address', text)
 
@@ -77,13 +71,8 @@ class NextCubeMachine(Test):
     def test_bootrom_framebuffer_ocr_with_tesseract_v4(self):
         screenshot_path = os.path.join(self.workdir, "dump.ppm")
         self.check_bootrom_framebuffer(screenshot_path)
-
-        console_logger = logging.getLogger('console')
-        proc = process.run("tesseract --oem 1 %s stdout" % screenshot_path)
-        text = proc.stdout_text
-        for line in text.split('\n'):
-            if len(line):
-                console_logger.debug(line)
+        lines = tesseract_ocr(screenshot_path, tesseract_version=4)
+        text = '\n'.join(lines)
         self.assertIn('Testing the FPU, SCC', text)
         self.assertIn('System test failed. Error code', text)
         self.assertIn('Boot command', text)
