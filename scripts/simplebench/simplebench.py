@@ -79,17 +79,6 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
     return result
 
 
-def result_to_text(result):
-    """Return text representation of bench_one() returned dict."""
-    if 'average' in result:
-        s = '{:.2f} +- {:.2f}'.format(result['average'], result['stdev'])
-        if 'n-failed' in result:
-            s += '\n({} failed)'.format(result['n-failed'])
-        return s
-    else:
-        return 'FAILED'
-
-
 def bench(test_func, test_envs, test_cases, *args, **vargs):
     """Fill benchmark table
 
@@ -125,23 +114,3 @@ def bench(test_func, test_envs, test_cases, *args, **vargs):
 
     print('Done')
     return results
-
-
-def results_to_text(results):
-    """Return text representation of bench() returned dict."""
-    from tabulate import tabulate
-
-    dim = None
-    tab = [[""] + [c['id'] for c in results['envs']]]
-    for case in results['cases']:
-        row = [case['id']]
-        for env in results['envs']:
-            res = results['tab'][case['id']][env['id']]
-            if dim is None:
-                dim = res['dimension']
-            else:
-                assert dim == res['dimension']
-            row.append(result_to_text(res))
-        tab.append(row)
-
-    return f'All results are in {dim}\n\n' + tabulate(tab)
