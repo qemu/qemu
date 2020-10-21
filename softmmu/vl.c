@@ -3970,13 +3970,6 @@ void qemu_init(int argc, char **argv, char **envp)
         exit(0);
     }
 
-    /* default to machine_class->default_cpus */
-    current_machine->smp.cpus = machine_class->default_cpus;
-    current_machine->smp.max_cpus = machine_class->default_cpus;
-    current_machine->smp.cores = 1;
-    current_machine->smp.threads = 1;
-    current_machine->smp.sockets = 1;
-
     machine_class->smp_parse(current_machine,
         qemu_opts_find(qemu_find_opts("smp-opts"), NULL));
 

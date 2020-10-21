@@ -907,6 +907,13 @@ static void machine_initfn(Object *obj)
     /* Register notifier when init is done for sysbus sanity checks */
     ms->sysbus_notifier.notify = machine_init_notify;
     qemu_add_machine_init_done_notifier(&ms->sysbus_notifier);
+
+    /* default to mc->default_cpus */
+    ms->smp.cpus = mc->default_cpus;
+    ms->smp.max_cpus = mc->default_cpus;
+    ms->smp.cores = 1;
+    ms->smp.threads = 1;
+    ms->smp.sockets = 1;
 }
 
 static void machine_finalize(Object *obj)
