@@ -4280,10 +4280,6 @@ void qemu_init(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    blk_mig_init();
-    ram_mig_init();
-    dirty_bitmap_mig_init();
-
     qemu_opts_foreach(qemu_find_opts("mon"),
                       mon_init_func, NULL, &error_fatal);
 
@@ -4316,7 +4312,6 @@ void qemu_init(int argc, char **argv, char **envp)
        reading from the other reads, because timer polling functions query
        clock values from the log. */
     replay_checkpoint(CHECKPOINT_INIT);
-    qdev_machine_init();
 
     current_machine->boot_order = boot_order;
 
