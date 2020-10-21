@@ -16,11 +16,22 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import math
+
+
+def format_value(x, stdev):
+    stdev_pr = stdev / x * 100
+    if stdev_pr < 1.5:
+        # don't care too much
+        return f'{x:.2g}'
+    else:
+        return f'{x:.2g} ± {math.ceil(stdev_pr)}%'
+
 
 def result_to_text(result):
     """Return text representation of bench_one() returned dict."""
     if 'average' in result:
-        s = '{:.2f} +- {:.2f}'.format(result['average'], result['stdev'])
+        s = format_value(result['average'], result['stdev'])
         if 'n-failed' in result:
             s += '\n({} failed)'.format(result['n-failed'])
         return s
