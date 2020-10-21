@@ -260,6 +260,7 @@ static const char *rmessage_name(uint8_t id)
         id == P9_RMKDIR ? "RMKDIR" :
         id == P9_RLCREATE ? "RLCREATE" :
         id == P9_RSYMLINK ? "RSYMLINK" :
+        id == P9_RLINK ? "RLINK" :
         id == P9_RUNLINKAT ? "RUNLINKAT" :
         id == P9_RFLUSH ? "RFLUSH" :
         id == P9_RREADDIR ? "READDIR" :
@@ -767,6 +768,33 @@ static void v9fs_rsymlink(P9Req *req, v9fs_qid *qid)
     v9fs_req_free(req);
 }
 
+/* size[4] Tlink tag[2] dfid[4] fid[4] name[s] */
+static P9Req *v9fs_tlink(QVirtio9P *v9p, uint32_t dfid, uint32_t fid,
+                         const char *name, uint16_t tag)
+{
+    P9Req *req;
+
+    uint32_t body_size = 4 + 4;
+    uint16_t string_size = v9fs_string_size(name);
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
+    body_size += string_size;
+
+    req = v9fs_req_init(v9p, body_size, P9_TLINK, tag);
+    v9fs_uint32_write(req, dfid);
+    v9fs_uint32_write(req, fid);
+    v9fs_string_write(req, name);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rlink tag[2] */
+static void v9fs_rlink(P9Req *req)
+{
+    v9fs_req_recv(req, P9_RLINK);
+    v9fs_req_free(req);
+}
+
 /* size[4] Tunlinkat tag[2] dirfd[4] name[s] flags[4] */
 static P9Req *v9fs_tunlinkat(QVirtio9P *v9p, uint32_t dirfd, const char *name,
                              uint32_t flags, uint16_t tag)
@@ -1142,6 +1170,21 @@ static void do_symlink(QVirtio9P *v9p, const char *path, const char *clink,
     g_free(name);
 }
 
+/* create a hard link named @a clink in directory @a path pointing to @a to */
+static void do_hardlink(QVirtio9P *v9p, const char *path, const char *clink,
+                        const char *to)
+{
+    uint32_t dfid, fid;
+    P9Req *req;
+
+    dfid = do_walk(v9p, path);
+    fid = do_walk(v9p, to);
+
+    req = v9fs_tlink(v9p, dfid, fid, clink, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rlink(req);
+}
+
 static void do_unlinkat(QVirtio9P *v9p, const char *atpath, const char *rpath,
                         uint32_t flags)
 {
@@ -1321,6 +1364,33 @@ static void fs_unlinkat_symlink(void *obj, void *data,
     g_free(real_file);
 }
 
+static void fs_hardlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    alloc = t_alloc;
+    struct stat st_real, st_link;
+    char *real_file = virtio_9p_test_path("07/real_file");
+    char *hardlink_file = virtio_9p_test_path("07/hardlink_file");
+
+    do_attach(v9p);
+    do_mkdir(v9p, "/", "07");
+    do_lcreate(v9p, "07", "real_file");
+    g_assert(stat(real_file, &st_real) == 0);
+    g_assert((st_real.st_mode & S_IFMT) == S_IFREG);
+
+    do_hardlink(v9p, "07", "hardlink_file", "07/real_file");
+
+    /* check if link exists now ... */
+    g_assert(stat(hardlink_file, &st_link) == 0);
+    /* ... and it's a hard link, right? */
+    g_assert((st_link.st_mode & S_IFMT) == S_IFREG);
+    g_assert(st_link.st_dev == st_real.st_dev);
+    g_assert(st_link.st_ino == st_real.st_ino);
+
+    g_free(hardlink_file);
+    g_free(real_file);
+}
+
 static void *assign_9p_local_driver(GString *cmd_line, void *arg)
 {
     virtio_9p_assign_local_driver(cmd_line, "security_model=mapped-xattr");
@@ -1367,6 +1437,7 @@ static void register_virtio_9p_test(void)
     qos_add_test("local/symlink_file", "virtio-9p", fs_symlink_file, &opts);
     qos_add_test("local/unlinkat_symlink", "virtio-9p", fs_unlinkat_symlink,
                  &opts);
+    qos_add_test("local/hardlink_file", "virtio-9p", fs_hardlink_file, &opts);
 }
 
 libqos_init(register_virtio_9p_test);
