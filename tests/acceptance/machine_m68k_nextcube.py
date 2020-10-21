@@ -9,7 +9,6 @@ import os
 import re
 import time
 import logging
-import distutils.spawn
 
 from avocado_qemu import Test
 from avocado import skipUnless
