@@ -228,18 +228,6 @@ const floatx80 floatx80_infinity
     = make_floatx80_init(floatx80_infinity_high, floatx80_infinity_low);
 
 /*----------------------------------------------------------------------------
-| Raises the exceptions specified by `flags'.  Floating-point traps can be
-| defined here if desired.  It is currently not possible for such a trap
-| to substitute a result value.  If traps are not implemented, this routine
-| should be simply `float_exception_flags |= flags;'.
-*----------------------------------------------------------------------------*/
-
-void float_raise(uint8_t flags, float_status *status)
-{
-    status->float_exception_flags |= flags;
-}
-
-/*----------------------------------------------------------------------------
 | Internal canonical NaN format.
 *----------------------------------------------------------------------------*/
 typedef struct {
