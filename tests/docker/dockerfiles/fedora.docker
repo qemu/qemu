@@ -73,6 +73,7 @@ ENV PACKAGES \
     mingw64-pixman \
     mingw64-pkg-config \
     mingw64-SDL2 \
+    nmap-ncat \
     ncurses-devel \
     nettle-devel \
     ninja-build \
