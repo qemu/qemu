@@ -204,7 +204,7 @@ else
   have_xen_pci_passthrough = false
 endif
 if not get_option('whpx').disabled() and targetos == 'windows'
-  if get_option('whpx').enabled() and cpu != 'x86_64'
+  if get_option('whpx').enabled() and host_machine.cpu() != 'x86_64'
     error('WHPX requires 64-bit host')
   elif cc.has_header('WinHvPlatform.h', required: get_option('whpx')) and \
        cc.has_header('WinHvEmulation.h', required: get_option('whpx'))
