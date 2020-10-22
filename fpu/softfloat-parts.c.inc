@@ -281,3 +281,84 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
     p->exp = exp;
     float_raise(flags, s);
 }
+
+/*
+ * Returns the result of adding or subtracting the values of the
+ * floating-point values `a' and `b'. The operation is performed
+ * according to the IEC/IEEE Standard for Binary Floating-Point
+ * Arithmetic.
+ */
+static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
+                                   float_status *s, bool subtract)
+{
+    bool b_sign = b->sign ^ subtract;
+    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+
+    if (a->sign != b_sign) {
+        /* Subtraction */
+        if (likely(ab_mask == float_cmask_normal)) {
+            if (parts_sub_normal(a, b)) {
+                return a;
+            }
+            /* Subtract was exact, fall through to set sign. */
+            ab_mask = float_cmask_zero;
+        }
+
+        if (ab_mask == float_cmask_zero) {
+            a->sign = s->float_rounding_mode == float_round_down;
+            return a;
+        }
+
+        if (unlikely(ab_mask & float_cmask_anynan)) {
+            goto p_nan;
+        }
+
+        if (ab_mask & float_cmask_inf) {
+            if (a->cls != float_class_inf) {
+                /* N - Inf */
+                goto return_b;
+            }
+            if (b->cls != float_class_inf) {
+                /* Inf - N */
+                return a;
+            }
+            /* Inf - Inf */
+            float_raise(float_flag_invalid, s);
+            parts_default_nan(a, s);
+            return a;
+        }
+    } else {
+        /* Addition */
+        if (likely(ab_mask == float_cmask_normal)) {
+            parts_add_normal(a, b);
+            return a;
+        }
+
+        if (ab_mask == float_cmask_zero) {
+            return a;
+        }
+
+        if (unlikely(ab_mask & float_cmask_anynan)) {
+            goto p_nan;
+        }
+
+        if (ab_mask & float_cmask_inf) {
+            a->cls = float_class_inf;
+            return a;
+        }
+    }
+
+    if (b->cls == float_class_zero) {
+        g_assert(a->cls == float_class_normal);
+        return a;
+    }
+
+    g_assert(a->cls == float_class_zero);
+    g_assert(b->cls == float_class_normal);
+ return_b:
+    b->sign = b_sign;
+    return b;
+
+ p_nan:
+    return parts_pick_nan(a, b, s);
+}
