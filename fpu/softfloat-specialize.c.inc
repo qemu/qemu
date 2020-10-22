@@ -129,7 +129,7 @@ static bool parts_is_snan_frac(uint64_t frac, float_status *status)
 | The pattern for a default generated deconstructed floating-point NaN.
 *----------------------------------------------------------------------------*/
 
-static FloatParts parts_default_nan(float_status *status)
+static FloatParts64 parts_default_nan(float_status *status)
 {
     bool sign = 0;
     uint64_t frac;
@@ -163,7 +163,7 @@ static FloatParts parts_default_nan(float_status *status)
     }
 #endif
 
-    return (FloatParts) {
+    return (FloatParts64) {
         .cls = float_class_qnan,
         .sign = sign,
         .exp = INT_MAX,
@@ -176,7 +176,7 @@ static FloatParts parts_default_nan(float_status *status)
 | floating-point parts.
 *----------------------------------------------------------------------------*/
 
-static FloatParts parts_silence_nan(FloatParts a, float_status *status)
+static FloatParts64 parts_silence_nan(FloatParts64 a, float_status *status)
 {
     g_assert(!no_signaling_nans(status));
     g_assert(!status->default_nan_mode);
