@@ -1151,9 +1151,9 @@ static uint16_t nvme_create_sq(NvmeCtrl *n, NvmeRequest *req)
         trace_pci_nvme_err_invalid_create_sq_size(qsize);
         return NVME_MAX_QSIZE_EXCEEDED | NVME_DNR;
     }
-    if (unlikely(!prp1 || prp1 & (n->page_size - 1))) {
+    if (unlikely(prp1 & (n->page_size - 1))) {
         trace_pci_nvme_err_invalid_create_sq_addr(prp1);
-        return NVME_INVALID_FIELD | NVME_DNR;
+        return NVME_INVALID_PRP_OFFSET | NVME_DNR;
     }
     if (unlikely(!(NVME_SQ_FLAGS_PC(qflags)))) {
         trace_pci_nvme_err_invalid_create_sq_qflags(NVME_SQ_FLAGS_PC(qflags));
@@ -1400,15 +1400,15 @@ static uint16_t nvme_create_cq(NvmeCtrl *n, NvmeRequest *req)
 
     if (unlikely(!cqid || !nvme_check_cqid(n, cqid))) {
         trace_pci_nvme_err_invalid_create_cq_cqid(cqid);
-        return NVME_INVALID_CQID | NVME_DNR;
+        return NVME_INVALID_QID | NVME_DNR;
     }
     if (unlikely(!qsize || qsize > NVME_CAP_MQES(n->bar.cap))) {
         trace_pci_nvme_err_invalid_create_cq_size(qsize);
         return NVME_MAX_QSIZE_EXCEEDED | NVME_DNR;
     }
-    if (unlikely(!prp1)) {
+    if (unlikely(prp1 & (n->page_size - 1))) {
         trace_pci_nvme_err_invalid_create_cq_addr(prp1);
-        return NVME_INVALID_FIELD | NVME_DNR;
+        return NVME_INVALID_PRP_OFFSET | NVME_DNR;
     }
     if (unlikely(!msix_enabled(&n->parent_obj) && vector)) {
         trace_pci_nvme_err_invalid_create_cq_vector(vector);
