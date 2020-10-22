@@ -53,6 +53,8 @@
 
 #define SDSC_MAX_CAPACITY   (2 * GiB)
 
+#define INVALID_ADDRESS     UINT32_MAX
+
 typedef enum {
     sd_r0 = 0,    /* no response */
     sd_r1,        /* normal response command */
@@ -575,8 +577,8 @@ static void sd_reset(DeviceState *dev)
     sd->wpgrps_size = sect;
     sd->wp_groups = bitmap_new(sd->wpgrps_size);
     memset(sd->function_group, 0, sizeof(sd->function_group));
-    sd->erase_start = 0;
-    sd->erase_end = 0;
+    sd->erase_start = INVALID_ADDRESS;
+    sd->erase_end = INVALID_ADDRESS;
     sd->size = size;
     sd->blk_len = 0x200;
     sd->pwd_len = 0;
@@ -664,8 +666,8 @@ static int sd_vmstate_pre_load(void *opaque)
 
 static const VMStateDescription sd_vmstate = {
     .name = "sd-card",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .pre_load = sd_vmstate_pre_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(mode, SDState),
@@ -749,9 +751,12 @@ static void sd_erase(SDState *sd)
     uint64_t erase_start = sd->erase_start;
     uint64_t erase_end = sd->erase_end;
 
-    trace_sdcard_erase();
-    if (!sd->erase_start || !sd->erase_end) {
+    trace_sdcard_erase(sd->erase_start, sd->erase_end);
+    if (sd->erase_start == INVALID_ADDRESS
+            || sd->erase_end == INVALID_ADDRESS) {
         sd->card_status |= ERASE_SEQ_ERROR;
+        sd->erase_start = INVALID_ADDRESS;
+        sd->erase_end = INVALID_ADDRESS;
         return;
     }
 
@@ -761,13 +766,21 @@ static void sd_erase(SDState *sd)
         erase_end *= 512;
     }
 
+    if (sd->erase_start > sd->size || sd->erase_end > sd->size) {
+        sd->card_status |= OUT_OF_RANGE;
+        sd->erase_start = INVALID_ADDRESS;
+        sd->erase_end = INVALID_ADDRESS;
+        return;
+    }
+
     erase_start = sd_addr_to_wpnum(erase_start);
     erase_end = sd_addr_to_wpnum(erase_end);
-    sd->erase_start = 0;
-    sd->erase_end = 0;
+    sd->erase_start = INVALID_ADDRESS;
+    sd->erase_end = INVALID_ADDRESS;
     sd->csd[14] |= 0x40;
 
     for (i = erase_start; i <= erase_end; i++) {
+        assert(i < sd->wpgrps_size);
         if (test_bit(i, sd->wp_groups)) {
             sd->card_status |= WP_ERASE_SKIP;
         }
@@ -782,6 +795,7 @@ static uint32_t sd_wpbits(SDState *sd, uint64_t addr)
     wpnum = sd_addr_to_wpnum(addr);
 
     for (i = 0; i < 32; i++, wpnum++, addr += WPGROUP_SIZE) {
+        assert(wpnum < sd->wpgrps_size);
         if (addr < sd->size && test_bit(wpnum, sd->wp_groups)) {
             ret |= (1 << i);
         }
