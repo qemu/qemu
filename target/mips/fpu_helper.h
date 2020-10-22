@@ -27,8 +27,14 @@ static inline void restore_flush_mode(CPUMIPSState *env)
 
 static inline void restore_snan_bit_mode(CPUMIPSState *env)
 {
-    set_snan_bit_is_one((env->active_fpu.fcr31 & (1 << FCR31_NAN2008)) == 0,
-                        &env->active_fpu.fp_status);
+    bool nan2008 = env->active_fpu.fcr31 & (1 << FCR31_NAN2008);
+
+    /*
+     * With nan2008, SNaNs are silenced in the usual way.
+     * Before that, SNaNs are not silenced; default nans are produced.
+     */
+    set_snan_bit_is_one(!nan2008, &env->active_fpu.fp_status);
+    set_default_nan_mode(!nan2008, &env->active_fpu.fp_status);
 }
 
 static inline void restore_fp_status(CPUMIPSState *env)
