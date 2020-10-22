@@ -22,7 +22,6 @@ class IbmPrep40pMachine(Test):
     # All rights reserved.
     # U.S. Government Users Restricted Rights - Use, duplication or disclosure
     # restricted by GSA ADP Schedule Contract with IBM Corp.
-    @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     def test_factory_firmware_and_netbsd(self):
         """
@@ -61,7 +60,6 @@ class IbmPrep40pMachine(Test):
         wait_for_console_pattern(self, '>> Memory: 192M')
         wait_for_console_pattern(self, '>> CPU type PowerPC,604')
 
-    @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     def test_openbios_and_netbsd(self):
         """
         :avocado: tags=arch:ppc
