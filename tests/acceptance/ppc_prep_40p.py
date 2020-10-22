@@ -35,7 +35,7 @@ class IbmPrep40pMachine(Test):
                     '7020-40p/P12H0456.IMG')
         bios_hash = '1775face4e6dc27f3a6ed955ef6eb331bf817f03'
         bios_path = self.fetch_asset(bios_url, asset_hash=bios_hash)
-        drive_url = ('https://cdn.netbsd.org/pub/NetBSD/NetBSD-archive/'
+        drive_url = ('https://archive.netbsd.org/pub/NetBSD-archive/'
                      'NetBSD-4.0/prep/installation/floppy/generic_com0.fs')
         drive_hash = 'dbcfc09912e71bd5f0d82c7c1ee43082fb596ceb'
         drive_path = self.fetch_asset(drive_url, asset_hash=drive_hash)
