@@ -29,6 +29,7 @@
 #include "hw/pci/pci.h"
 #endif
 #include "qapi/qapi-commands-machine-target.h"
+#include "hw/s390x/pv.h"
 
 #define CPUDEF_INIT(_type, _gen, _ec_ga, _mha_pow, _hmfai, _name, _desc) \
     {                                                                    \
@@ -237,6 +238,9 @@ bool s390_has_feat(S390Feat feat)
             return true;
         }
         return 0;
+    }
+    if (feat == S390_FEAT_DIAG_318 && s390_is_pv()) {
+        return false;
     }
     return test_bit(feat, cpu->model->features);
 }

@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "cpu_features.h"
+#include "hw/s390x/pv.h"
 
 #define DEF_FEAT(_FEAT, _NAME, _TYPE, _BIT, _DESC) \
     [S390_FEAT_##_FEAT] = {                        \
@@ -104,6 +105,10 @@ void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
             set_be_bit(bit_nr, data);
         }
         feat = find_next_bit(features, S390_FEAT_MAX, feat + 1);
+    }
+
+    if (type == S390_FEAT_TYPE_SCLP_FAC134 && s390_is_pv()) {
+        clear_be_bit(s390_feat_def(S390_FEAT_DIAG_318)->bit, data);
     }
 }
 
