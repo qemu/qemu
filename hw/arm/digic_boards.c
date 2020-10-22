@@ -70,31 +70,26 @@ static void digic4_board_init(MachineState *machine, DigicBoard *board)
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
 
     if (board->add_rom0) {
-        board->add_rom0(s, DIGIC4_ROM0_BASE, board->rom0_def_filename);
+        board->add_rom0(s, DIGIC4_ROM0_BASE,
+                        machine->firmware ?: board->rom0_def_filename);
     }
 
     if (board->add_rom1) {
-        board->add_rom1(s, DIGIC4_ROM1_BASE, board->rom1_def_filename);
+        board->add_rom1(s, DIGIC4_ROM1_BASE,
+                        machine->firmware ?: board->rom1_def_filename);
     }
 }
 
 static void digic_load_rom(DigicState *s, hwaddr addr,
-                           hwaddr max_size, const char *def_filename)
+                           hwaddr max_size, const char *filename)
 {
     target_long rom_size;
-    const char *filename;
 
     if (qtest_enabled()) {
         /* qtest runs no code so don't attempt a ROM load which
          * could fail and result in a spurious test failure.
          */
         return;
-    }
-
-    if (bios_name) {
-        filename = bios_name;
-    } else {
-        filename = def_filename;
     }
 
     if (filename) {
@@ -119,7 +114,7 @@ static void digic_load_rom(DigicState *s, hwaddr addr,
  * 64M Bit (4Mx16) Page Mode / Multi-Bank NOR Flash Memory
  */
 static void digic4_add_k8p3215uqb_rom(DigicState *s, hwaddr addr,
-                                      const char *def_filename)
+                                      const char *filename)
 {
 #define FLASH_K8P3215UQB_SIZE (4 * 1024 * 1024)
 #define FLASH_K8P3215UQB_SECTOR_SIZE (64 * 1024)
@@ -131,7 +126,7 @@ static void digic4_add_k8p3215uqb_rom(DigicState *s, hwaddr addr,
                           0x00EC, 0x007E, 0x0003, 0x0001,
                           0x0555, 0x2aa, 0);
 
-    digic_load_rom(s, addr, FLASH_K8P3215UQB_SIZE, def_filename);
+    digic_load_rom(s, addr, FLASH_K8P3215UQB_SIZE, filename);
 }
 
 static DigicBoard digic4_board_canon_a1100 = {
