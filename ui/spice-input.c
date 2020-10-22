@@ -231,7 +231,7 @@ static void mouse_mode_notifier(Notifier *notifier, void *data)
     }
 
     if (is_absolute) {
-        qemu_spice_add_interface(&pointer->tablet.base);
+        qemu_spice.add_interface(&pointer->tablet.base);
     } else {
         spice_server_remove_interface(&pointer->tablet.base);
     }
@@ -245,13 +245,13 @@ void qemu_spice_input_init(void)
 
     kbd = g_malloc0(sizeof(*kbd));
     kbd->sin.base.sif = &kbd_interface.base;
-    qemu_spice_add_interface(&kbd->sin.base);
+    qemu_spice.add_interface(&kbd->sin.base);
     qemu_add_led_event_handler(kbd_leds, kbd);
 
     pointer = g_malloc0(sizeof(*pointer));
     pointer->mouse.base.sif  = &mouse_interface.base;
     pointer->tablet.base.sif = &tablet_interface.base;
-    qemu_spice_add_interface(&pointer->mouse.base);
+    qemu_spice.add_interface(&pointer->mouse.base);
 
     pointer->absolute = false;
     pointer->mouse_mode.notify = mouse_mode_notifier;
