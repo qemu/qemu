@@ -71,8 +71,14 @@ if config_all_devices.has_key('CONFIG_VIRTIO_PCI')
   hw_display_modules += {'virtio-gpu-pci': virtio_gpu_pci_ss}
 endif
 
-softmmu_ss.add(when: 'CONFIG_VIRTIO_VGA', if_true: files('virtio-vga.c'))
-softmmu_ss.add(when: 'CONFIG_VHOST_USER_VGA', if_true: files('vhost-user-vga.c'))
+if config_all_devices.has_key('CONFIG_VIRTIO_VGA')
+  virtio_vga_ss = ss.source_set()
+  virtio_vga_ss.add(when: 'CONFIG_VIRTIO_VGA',
+                    if_true: [files('virtio-vga.c'), pixman])
+  virtio_vga_ss.add(when: 'CONFIG_VHOST_USER_VGA',
+                    if_true: files('vhost-user-vga.c'))
+  hw_display_modules += {'virtio-vga': virtio_vga_ss}
+endif
 
 specific_ss.add(when: [x11, opengl, 'CONFIG_MILKYMIST_TMU2'], if_true: files('milkymist-tmu2.c'))
 specific_ss.add(when: 'CONFIG_OMAP', if_true: files('omap_lcdc.c'))
