@@ -614,31 +614,36 @@ static inline void float64_unpack_raw(FloatParts64 *p, float64 f)
 }
 
 /* Pack a float from parts, but do not canonicalize.  */
-static inline uint64_t pack_raw(FloatFmt fmt, FloatParts64 p)
+static uint64_t pack_raw64(const FloatParts64 *p, const FloatFmt *fmt)
 {
-    const int sign_pos = fmt.frac_size + fmt.exp_size;
-    uint64_t ret = deposit64(p.frac, fmt.frac_size, fmt.exp_size, p.exp);
-    return deposit64(ret, sign_pos, 1, p.sign);
+    const int f_size = fmt->frac_size;
+    const int e_size = fmt->exp_size;
+    uint64_t ret;
+
+    ret = (uint64_t)p->sign << (f_size + e_size);
+    ret = deposit64(ret, f_size, e_size, p->exp);
+    ret = deposit64(ret, 0, f_size, p->frac);
+    return ret;
 }
 
 static inline float16 float16_pack_raw(FloatParts64 p)
 {
-    return make_float16(pack_raw(float16_params, p));
+    return make_float16(pack_raw64(&p, &float16_params));
 }
 
 static inline bfloat16 bfloat16_pack_raw(FloatParts64 p)
 {
-    return pack_raw(bfloat16_params, p);
+    return pack_raw64(&p, &bfloat16_params);
 }
 
 static inline float32 float32_pack_raw(FloatParts64 p)
 {
-    return make_float32(pack_raw(float32_params, p));
+    return make_float32(pack_raw64(&p, &float32_params));
 }
 
 static inline float64 float64_pack_raw(FloatParts64 p)
 {
-    return make_float64(pack_raw(float64_params, p));
+    return make_float64(pack_raw64(&p, &float64_params));
 }
 
 /*----------------------------------------------------------------------------
