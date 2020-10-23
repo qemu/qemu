@@ -285,6 +285,7 @@ int pdb_init_from_file(const char *name, struct pdb_reader *reader)
     reader->gmf = g_mapped_file_new(name, TRUE, &gerr);
     if (gerr) {
         eprintf("Failed to map PDB file \'%s\'\n", name);
+        g_error_free(gerr);
         return 1;
     }
 
