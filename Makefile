@@ -92,6 +92,8 @@ endif
 ifeq ($(NINJA),)
 .PHONY: config-host.mak
 x := $(shell rm -rf meson-private meson-info meson-logs)
+else
+export NINJA
 endif
 ifeq ($(wildcard build.ninja),)
 .PHONY: config-host.mak
@@ -100,31 +102,44 @@ endif
 
 # 1. ensure config-host.mak is up-to-date
 config-host.mak: $(SRC_PATH)/configure $(SRC_PATH)/pc-bios $(SRC_PATH)/VERSION
-	@echo $@ is out-of-date, running configure
+	@echo config-host.mak is out-of-date, running configure
 	@if test -f meson-private/coredata.dat; then \
 	  ./config.status --skip-meson; \
 	else \
-	  ./config.status; \
+	  ./config.status && touch build.ninja.stamp; \
 	fi
 
-# 2. ensure generated build files are up-to-date
+# 2. meson.stamp exists if meson has run at least once (so ninja reconfigure
+# works), but otherwise never needs to be updated
+meson-private/coredata.dat: meson.stamp
+meson.stamp: config-host.mak
+	@touch meson.stamp
+
+# 3. ensure generated build files are up-to-date
 
 ifneq ($(NINJA),)
-# A separate rule is needed for Makefile dependencies to avoid -n
-export NINJA
 Makefile.ninja: build.ninja
-	$(quiet-@){ echo 'ninja-targets = \'; $(NINJA) -t targets all | sed 's/:.*//; $$!s/$$/ \\/'; } > $@
+	$(quiet-@){ \
+	  echo 'ninja-targets = \'; \
+	  $(NINJA) -t targets all | sed 's/:.*//; $$!s/$$/ \\/'; \
+	  echo 'build-files = \'; \
+	  $(NINJA) -t query build.ninja | sed -n '1,/^  input:/d; /^  outputs:/q; s/$$/ \\/p'; \
+	} > $@.tmp && mv $@.tmp $@
 -include Makefile.ninja
+
+# A separate rule is needed for Makefile dependencies to avoid -n
+build.ninja: build.ninja.stamp
+build.ninja.stamp: meson.stamp $(build-files)
+	$(NINJA) $(if $V,-v,) build.ninja && touch $@
 endif
 
 ifneq ($(MESON),)
-# The dependency on config-host.mak ensures that meson has run
-Makefile.mtest: build.ninja scripts/mtest2make.py config-host.mak
+Makefile.mtest: build.ninja scripts/mtest2make.py
 	$(MESON) introspect --targets --tests --benchmarks | $(PYTHON) scripts/mtest2make.py > $@
 -include Makefile.mtest
 endif
 
-# 3. Rules to bridge to other makefiles
+# 4. Rules to bridge to other makefiles
 
 ifneq ($(NINJA),)
 NINJAFLAGS = $(if $V,-v,) \
@@ -135,7 +150,10 @@ ninja-cmd-goals = $(or $(MAKECMDGOALS), all)
 ninja-cmd-goals += $(foreach t, $(.tests), $(.test.deps.$t))
 
 makefile-targets := build.ninja ctags TAGS cscope dist clean uninstall
-ninja-targets := $(filter-out $(makefile-targets), $(ninja-targets))
+# "ninja -t targets" also lists all prerequisites.  If build system
+# files are marked as PHONY, however, Make will always try to execute
+# "ninja build.ninja".
+ninja-targets := $(filter-out $(build-files) $(makefile-targets), $(ninja-targets))
 .PHONY: $(ninja-targets) run-ninja
 $(ninja-targets): run-ninja
 
@@ -214,7 +232,7 @@ distclean: clean
 	rm -f qemu-plugins-ld.symbols qemu-plugins-ld64.symbols
 	rm -f *-config-target.h *-config-devices.mak *-config-devices.h
 	rm -rf meson-private meson-logs meson-info compile_commands.json
-	rm -f Makefile.ninja Makefile.mtest
+	rm -f Makefile.ninja Makefile.mtest build.ninja.stamp meson.stamp
 	rm -f config.log
 	rm -f linux-headers/asm
 	rm -Rf .sdk
