@@ -127,6 +127,98 @@ Options
   timeout.  ``always`` sets a long cache lifetime at the expense of coherency.
   The default is ``auto``.
 
+xattr-mapping
+-------------
+
+By default the name of xattr's used by the client are passed through to the server
+file system.  This can be a problem where either those xattr names are used
+by something on the server (e.g. selinux client/server confusion) or if the
+virtiofsd is running in a container with restricted privileges where it cannot
+access some attributes.
+
+A mapping of xattr names can be made using -o xattrmap=mapping where the ``mapping``
+string consists of a series of rules.
+
+The first matching rule terminates the mapping.
+The set of rules must include a terminating rule to match any remaining attributes
+at the end.
+
+Each rule consists of a number of fields separated with a separator that is the
+first non-white space character in the rule.  This separator must then be used
+for the whole rule.
+White space may be added before and after each rule.
+Using ':' as the separator a rule is of the form:
+
+``:type:scope:key:prepend:``
+
+**scope** is:
+
+- 'client' - match 'key' against a xattr name from the client for
+             setxattr/getxattr/removexattr
+- 'server' - match 'prepend' against a xattr name from the server
+             for listxattr
+- 'all' - can be used to make a single rule where both the server
+          and client matches are triggered.
+
+**type** is one of:
+
+- 'prefix' - is designed to prepend and strip a prefix;  the modified
+  attributes then being passed on to the client/server.
+
+- 'ok' - Causes the rule set to be terminated when a match is found
+  while allowing matching xattr's through unchanged.
+  It is intended both as a way of explicitly terminating
+  the list of rules, and to allow some xattr's to skip following rules.
+
+- 'bad' - If a client tries to use a name matching 'key' it's
+  denied using EPERM; when the server passes an attribute
+  name matching 'prepend' it's hidden.  In many ways it's use is very like
+  'ok' as either an explict terminator or for special handling of certain
+  patterns.
+
+**key** is a string tested as a prefix on an attribute name originating
+on the client.  It maybe empty in which case a 'client' rule
+will always match on client names.
+
+**prepend** is a string tested as a prefix on an attribute name originating
+on the server, and used as a new prefix.  It may be empty
+in which case a 'server' rule will always match on all names from
+the server.
+
+e.g.:
+
+  ``:prefix:client:trusted.:user.virtiofs.:``
+
+  will match 'trusted.' attributes in client calls and prefix them before
+  passing them to the server.
+
+  ``:prefix:server::user.virtiofs.:``
+
+  will strip 'user.virtiofs.' from all server replies.
+
+  ``:prefix:all:trusted.:user.virtiofs.:``
+
+  combines the previous two cases into a single rule.
+
+  ``:ok:client:user.::``
+
+  will allow get/set xattr for 'user.' xattr's and ignore
+  following rules.
+
+  ``:ok:server::security.:``
+
+  will pass 'securty.' xattr's in listxattr from the server
+  and ignore following rules.
+
+  ``:ok:all:::``
+
+  will terminate the rule search passing any remaining attributes
+  in both directions.
+
+  ``:bad:server::security.:``
+
+  would hide 'security.' xattr's in listxattr from the server.
+
 Examples
 --------
 
