@@ -706,7 +706,7 @@ static float128 float128_pack_raw(const FloatParts128 *p)
 #define PARTS_GENERIC_64_128(NAME, P) \
     QEMU_GENERIC(P, (FloatParts128 *, parts128_##NAME), parts64_##NAME)
 
-#define parts_default_nan  parts64_default_nan
+#define parts_default_nan(P, S)    PARTS_GENERIC_64_128(default_nan, P)(P, S)
 #define parts_silence_nan(P, S)    PARTS_GENERIC_64_128(silence_nan, P)(P, S)
 
 
@@ -3837,20 +3837,11 @@ float64 float64_default_nan(float_status *status)
 
 float128 float128_default_nan(float_status *status)
 {
-    FloatParts64 p;
-    float128 r;
+    FloatParts128 p;
 
     parts_default_nan(&p, status);
-    /* Extrapolate from the choices made by parts_default_nan to fill
-     * in the quad-floating format.  If the low bit is set, assume we
-     * want to set all non-snan bits.
-     */
-    r.low = -(p.frac & 1);
-    r.high = p.frac >> (DECOMPOSED_BINARY_POINT - 48);
-    r.high |= UINT64_C(0x7FFF000000000000);
-    r.high |= (uint64_t)p.sign << 63;
-
-    return r;
+    frac_shr(&p, float128_params.frac_shift);
+    return float128_pack_raw(&p);
 }
 
 bfloat16 bfloat16_default_nan(float_status *status)
