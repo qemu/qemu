@@ -157,9 +157,6 @@ static void npcm7xx_timer_pause(NPCM7xxTimer *t)
     timer_del(&t->qtimer);
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     t->remaining_ns = t->expires_ns - now;
-    if (t->remaining_ns <= 0) {
-        npcm7xx_timer_reached_zero(t);
-    }
 }
 
 /*
@@ -239,6 +236,9 @@ static void npcm7xx_timer_write_tcsr(NPCM7xxTimer *t, uint32_t new_tcsr)
         } else {
             t->tcsr &= ~NPCM7XX_TCSR_CACT;
             npcm7xx_timer_pause(t);
+            if (t->remaining_ns <= 0) {
+                npcm7xx_timer_reached_zero(t);
+            }
         }
     }
 }
