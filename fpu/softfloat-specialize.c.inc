@@ -197,6 +197,12 @@ static void parts64_silence_nan(FloatParts64 *p, float_status *status)
     p->cls = float_class_qnan;
 }
 
+static void parts128_silence_nan(FloatParts128 *p, float_status *status)
+{
+    p->frac_hi = parts_silence_nan_frac(p->frac_hi, status);
+    p->cls = float_class_qnan;
+}
+
 /*----------------------------------------------------------------------------
 | The pattern for a default generated extended double-precision NaN.
 *----------------------------------------------------------------------------*/
@@ -1058,25 +1064,6 @@ bool float128_is_signaling_nan(float128 a, float_status *status)
         } else {
             return (((a.high >> 47) & 0xFFFF) == 0xFFFE)
                 && (a.low || (a.high & UINT64_C(0x00007FFFFFFFFFFF)));
-        }
-    }
-}
-
-/*----------------------------------------------------------------------------
-| Returns a quiet NaN from a signalling NaN for the quadruple-precision
-| floating point value `a'.
-*----------------------------------------------------------------------------*/
-
-float128 float128_silence_nan(float128 a, float_status *status)
-{
-    if (no_signaling_nans(status)) {
-        g_assert_not_reached();
-    } else {
-        if (snan_bit_is_one(status)) {
-            return float128_default_nan(status);
-        } else {
-            a.high |= UINT64_C(0x0000800000000000);
-            return a;
         }
     }
 }

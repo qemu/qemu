@@ -500,14 +500,12 @@ static inline __attribute__((unused)) bool is_qnan(FloatClass c)
 }
 
 /*
- * Structure holding all of the decomposed parts of a float. The
- * exponent is unbiased and the fraction is normalized. All
- * calculations are done with a 64 bit fraction and then rounded as
- * appropriate for the final format.
+ * Structure holding all of the decomposed parts of a float.
+ * The exponent is unbiased and the fraction is normalized.
  *
- * Thanks to the packed FloatClass a decent compiler should be able to
- * fit the whole structure into registers and avoid using the stack
- * for parameter passing.
+ * The fraction words are stored in big-endian word ordering,
+ * so that truncation from a larger format to a smaller format
+ * can be done simply by ignoring subsequent elements.
  */
 
 typedef struct {
@@ -527,6 +525,15 @@ typedef struct {
     };
 } FloatParts64;
 
+typedef struct {
+    FloatClass cls;
+    bool sign;
+    int32_t exp;
+    uint64_t frac_hi;
+    uint64_t frac_lo;
+} FloatParts128;
+
+/* These apply to the most significant word of each FloatPartsN. */
 #define DECOMPOSED_BINARY_POINT    63
 #define DECOMPOSED_IMPLICIT_BIT    (1ull << DECOMPOSED_BINARY_POINT)
 
@@ -562,11 +569,11 @@ typedef struct {
     .exp_bias       = ((1 << E) - 1) >> 1,                           \
     .exp_max        = (1 << E) - 1,                                  \
     .frac_size      = F,                                             \
-    .frac_shift     = DECOMPOSED_BINARY_POINT - F,                   \
-    .frac_lsb       = 1ull << (DECOMPOSED_BINARY_POINT - F),         \
-    .frac_lsbm1     = 1ull << ((DECOMPOSED_BINARY_POINT - F) - 1),   \
-    .round_mask     = (1ull << (DECOMPOSED_BINARY_POINT - F)) - 1,   \
-    .roundeven_mask = (2ull << (DECOMPOSED_BINARY_POINT - F)) - 1
+    .frac_shift     = (-F - 1) & 63,                                 \
+    .frac_lsb       = 1ull << ((-F - 1) & 63),                       \
+    .frac_lsbm1     = 1ull << ((-F - 2) & 63),                       \
+    .round_mask     = (1ull << ((-F - 1) & 63)) - 1,                 \
+    .roundeven_mask = (2ull << ((-F - 1) & 63)) - 1
 
 static const FloatFmt float16_params = {
     FLOAT_PARAMS(5, 10)
@@ -587,6 +594,10 @@ static const FloatFmt float32_params = {
 
 static const FloatFmt float64_params = {
     FLOAT_PARAMS(11, 52)
+};
+
+static const FloatFmt float128_params = {
+    FLOAT_PARAMS(15, 112)
 };
 
 /* Unpack a float to parts, but do not canonicalize.  */
@@ -623,6 +634,20 @@ static inline void float64_unpack_raw(FloatParts64 *p, float64 f)
     unpack_raw64(p, &float64_params, f);
 }
 
+static void float128_unpack_raw(FloatParts128 *p, float128 f)
+{
+    const int f_size = float128_params.frac_size - 64;
+    const int e_size = float128_params.exp_size;
+
+    *p = (FloatParts128) {
+        .cls = float_class_unclassified,
+        .sign = extract64(f.high, f_size + e_size, 1),
+        .exp = extract64(f.high, f_size, e_size),
+        .frac_hi = extract64(f.high, 0, f_size),
+        .frac_lo = f.low,
+    };
+}
+
 /* Pack a float from parts, but do not canonicalize.  */
 static uint64_t pack_raw64(const FloatParts64 *p, const FloatFmt *fmt)
 {
@@ -656,6 +681,18 @@ static inline float64 float64_pack_raw(const FloatParts64 *p)
     return make_float64(pack_raw64(p, &float64_params));
 }
 
+static float128 float128_pack_raw(const FloatParts128 *p)
+{
+    const int f_size = float128_params.frac_size - 64;
+    const int e_size = float128_params.exp_size;
+    uint64_t hi;
+
+    hi = (uint64_t)p->sign << (f_size + e_size);
+    hi = deposit64(hi, f_size, e_size, p->exp);
+    hi = deposit64(hi, 0, f_size, p->frac_hi);
+    return make_float128(hi, p->frac_lo);
+}
+
 /*----------------------------------------------------------------------------
 | Functions and definitions to determine:  (1) whether tininess for underflow
 | is detected before or after rounding by default, (2) what (if anything)
@@ -666,8 +703,30 @@ static inline float64 float64_pack_raw(const FloatParts64 *p)
 *----------------------------------------------------------------------------*/
 #include "softfloat-specialize.c.inc"
 
+#define PARTS_GENERIC_64_128(NAME, P) \
+    QEMU_GENERIC(P, (FloatParts128 *, parts128_##NAME), parts64_##NAME)
+
 #define parts_default_nan  parts64_default_nan
-#define parts_silence_nan  parts64_silence_nan
+#define parts_silence_nan(P, S)    PARTS_GENERIC_64_128(silence_nan, P)(P, S)
+
+
+/*
+ * Helper functions for softfloat-parts.c.inc, per-size operations.
+ */
+
+static void frac128_shl(FloatParts128 *a, int c)
+{
+    shift128Left(a->frac_hi, a->frac_lo, c, &a->frac_hi, &a->frac_lo);
+}
+
+#define frac_shl(A, C)             frac128_shl(A, C)
+
+static void frac128_shr(FloatParts128 *a, int c)
+{
+    shift128Right(a->frac_hi, a->frac_lo, c, &a->frac_hi, &a->frac_lo);
+}
+
+#define frac_shr(A, C)             frac128_shr(A, C)
 
 /* Canonicalize EXP and FRAC, setting CLS.  */
 static FloatParts64 sf_canonicalize(FloatParts64 part, const FloatFmt *parm,
@@ -3849,6 +3908,17 @@ bfloat16 bfloat16_silence_nan(bfloat16 a, float_status *status)
     parts_silence_nan(&p, status);
     p.frac >>= bfloat16_params.frac_shift;
     return bfloat16_pack_raw(&p);
+}
+
+float128 float128_silence_nan(float128 a, float_status *status)
+{
+    FloatParts128 p;
+
+    float128_unpack_raw(&p, a);
+    frac_shl(&p, float128_params.frac_shift);
+    parts_silence_nan(&p, status);
+    frac_shr(&p, float128_params.frac_shift);
+    return float128_pack_raw(&p);
 }
 
 /*----------------------------------------------------------------------------
