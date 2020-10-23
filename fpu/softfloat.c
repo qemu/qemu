@@ -580,36 +580,45 @@ static const FloatFmt float64_params = {
 };
 
 /* Unpack a float to parts, but do not canonicalize.  */
-static inline FloatParts64 unpack_raw(FloatFmt fmt, uint64_t raw)
+static void unpack_raw64(FloatParts64 *r, const FloatFmt *fmt, uint64_t raw)
 {
-    const int sign_pos = fmt.frac_size + fmt.exp_size;
+    const int f_size = fmt->frac_size;
+    const int e_size = fmt->exp_size;
 
-    return (FloatParts64) {
+    *r = (FloatParts64) {
         .cls = float_class_unclassified,
-        .sign = extract64(raw, sign_pos, 1),
-        .exp = extract64(raw, fmt.frac_size, fmt.exp_size),
-        .frac = extract64(raw, 0, fmt.frac_size),
+        .sign = extract64(raw, f_size + e_size, 1),
+        .exp = extract64(raw, f_size, e_size),
+        .frac = extract64(raw, 0, f_size)
     };
 }
 
 static inline FloatParts64 float16_unpack_raw(float16 f)
 {
-    return unpack_raw(float16_params, f);
+    FloatParts64 p;
+    unpack_raw64(&p, &float16_params, f);
+    return p;
 }
 
 static inline FloatParts64 bfloat16_unpack_raw(bfloat16 f)
 {
-    return unpack_raw(bfloat16_params, f);
+    FloatParts64 p;
+    unpack_raw64(&p, &bfloat16_params, f);
+    return p;
 }
 
 static inline FloatParts64 float32_unpack_raw(float32 f)
 {
-    return unpack_raw(float32_params, f);
+    FloatParts64 p;
+    unpack_raw64(&p, &float32_params, f);
+    return p;
 }
 
 static inline FloatParts64 float64_unpack_raw(float64 f)
 {
-    return unpack_raw(float64_params, f);
+    FloatParts64 p;
+    unpack_raw64(&p, &float64_params, f);
+    return p;
 }
 
 /* Pack a float from parts, but do not canonicalize.  */
