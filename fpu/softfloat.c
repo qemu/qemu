@@ -626,24 +626,24 @@ static uint64_t pack_raw64(const FloatParts64 *p, const FloatFmt *fmt)
     return ret;
 }
 
-static inline float16 float16_pack_raw(FloatParts64 p)
+static inline float16 float16_pack_raw(const FloatParts64 *p)
 {
-    return make_float16(pack_raw64(&p, &float16_params));
+    return make_float16(pack_raw64(p, &float16_params));
 }
 
-static inline bfloat16 bfloat16_pack_raw(FloatParts64 p)
+static inline bfloat16 bfloat16_pack_raw(const FloatParts64 *p)
 {
-    return pack_raw64(&p, &bfloat16_params);
+    return pack_raw64(p, &bfloat16_params);
 }
 
-static inline float32 float32_pack_raw(FloatParts64 p)
+static inline float32 float32_pack_raw(const FloatParts64 *p)
 {
-    return make_float32(pack_raw64(&p, &float32_params));
+    return make_float32(pack_raw64(p, &float32_params));
 }
 
-static inline float64 float64_pack_raw(FloatParts64 p)
+static inline float64 float64_pack_raw(const FloatParts64 *p)
 {
-    return make_float64(pack_raw64(&p, &float64_params));
+    return make_float64(pack_raw64(p, &float64_params));
 }
 
 /*----------------------------------------------------------------------------
@@ -950,7 +950,8 @@ static FloatParts64 bfloat16_unpack_canonical(bfloat16 f, float_status *s)
 static float16 float16a_round_pack_canonical(FloatParts64 p, float_status *s,
                                              const FloatFmt *params)
 {
-    return float16_pack_raw(round_canonical(p, s, params));
+    p = round_canonical(p, s, params);
+    return float16_pack_raw(&p);
 }
 
 static float16 float16_round_pack_canonical(FloatParts64 p, float_status *s)
@@ -960,7 +961,8 @@ static float16 float16_round_pack_canonical(FloatParts64 p, float_status *s)
 
 static bfloat16 bfloat16_round_pack_canonical(FloatParts64 p, float_status *s)
 {
-    return bfloat16_pack_raw(round_canonical(p, s, &bfloat16_params));
+    p = round_canonical(p, s, &bfloat16_params);
+    return bfloat16_pack_raw(&p);
 }
 
 static FloatParts64 float32_unpack_canonical(float32 f, float_status *s)
@@ -973,7 +975,8 @@ static FloatParts64 float32_unpack_canonical(float32 f, float_status *s)
 
 static float32 float32_round_pack_canonical(FloatParts64 p, float_status *s)
 {
-    return float32_pack_raw(round_canonical(p, s, &float32_params));
+    p = round_canonical(p, s, &float32_params);
+    return float32_pack_raw(&p);
 }
 
 static FloatParts64 float64_unpack_canonical(float64 f, float_status *s)
@@ -986,7 +989,8 @@ static FloatParts64 float64_unpack_canonical(float64 f, float_status *s)
 
 static float64 float64_round_pack_canonical(FloatParts64 p, float_status *s)
 {
-    return float64_pack_raw(round_canonical(p, s, &float64_params));
+    p = round_canonical(p, s, &float64_params);
+    return float64_pack_raw(&p);
 }
 
 /*
@@ -3603,7 +3607,7 @@ float16 float16_default_nan(float_status *status)
 
     parts_default_nan(&p, status);
     p.frac >>= float16_params.frac_shift;
-    return float16_pack_raw(p);
+    return float16_pack_raw(&p);
 }
 
 float32 float32_default_nan(float_status *status)
@@ -3612,7 +3616,7 @@ float32 float32_default_nan(float_status *status)
 
     parts_default_nan(&p, status);
     p.frac >>= float32_params.frac_shift;
-    return float32_pack_raw(p);
+    return float32_pack_raw(&p);
 }
 
 float64 float64_default_nan(float_status *status)
@@ -3621,7 +3625,7 @@ float64 float64_default_nan(float_status *status)
 
     parts_default_nan(&p, status);
     p.frac >>= float64_params.frac_shift;
-    return float64_pack_raw(p);
+    return float64_pack_raw(&p);
 }
 
 float128 float128_default_nan(float_status *status)
@@ -3648,7 +3652,7 @@ bfloat16 bfloat16_default_nan(float_status *status)
 
     parts_default_nan(&p, status);
     p.frac >>= bfloat16_params.frac_shift;
-    return bfloat16_pack_raw(p);
+    return bfloat16_pack_raw(&p);
 }
 
 /*----------------------------------------------------------------------------
@@ -3663,7 +3667,7 @@ float16 float16_silence_nan(float16 a, float_status *status)
     p.frac <<= float16_params.frac_shift;
     p = parts_silence_nan(p, status);
     p.frac >>= float16_params.frac_shift;
-    return float16_pack_raw(p);
+    return float16_pack_raw(&p);
 }
 
 float32 float32_silence_nan(float32 a, float_status *status)
@@ -3674,7 +3678,7 @@ float32 float32_silence_nan(float32 a, float_status *status)
     p.frac <<= float32_params.frac_shift;
     p = parts_silence_nan(p, status);
     p.frac >>= float32_params.frac_shift;
-    return float32_pack_raw(p);
+    return float32_pack_raw(&p);
 }
 
 float64 float64_silence_nan(float64 a, float_status *status)
@@ -3685,7 +3689,7 @@ float64 float64_silence_nan(float64 a, float_status *status)
     p.frac <<= float64_params.frac_shift;
     p = parts_silence_nan(p, status);
     p.frac >>= float64_params.frac_shift;
-    return float64_pack_raw(p);
+    return float64_pack_raw(&p);
 }
 
 bfloat16 bfloat16_silence_nan(bfloat16 a, float_status *status)
@@ -3696,7 +3700,7 @@ bfloat16 bfloat16_silence_nan(bfloat16 a, float_status *status)
     p.frac <<= bfloat16_params.frac_shift;
     p = parts_silence_nan(p, status);
     p.frac >>= bfloat16_params.frac_shift;
-    return bfloat16_pack_raw(p);
+    return bfloat16_pack_raw(&p);
 }
 
 /*----------------------------------------------------------------------------
