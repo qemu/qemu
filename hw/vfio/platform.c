@@ -166,7 +166,7 @@ static void vfio_intp_mmap_enable(void *opaque)
     VFIOINTp *tmp;
     VFIOPlatformDevice *vdev = (VFIOPlatformDevice *)opaque;
 
-    qemu_mutex_lock(&vdev->intp_mutex);
+    QEMU_LOCK_GUARD(&vdev->intp_mutex);
     QLIST_FOREACH(tmp, &vdev->intp_list, next) {
         if (tmp->state == VFIO_IRQ_ACTIVE) {
             trace_vfio_platform_intp_mmap_enable(tmp->pin);
@@ -174,12 +174,10 @@ static void vfio_intp_mmap_enable(void *opaque)
             timer_mod(vdev->mmap_timer,
                       qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
                           vdev->mmap_timeout);
-            qemu_mutex_unlock(&vdev->intp_mutex);
             return;
         }
     }
     vfio_mmap_set_enabled(vdev, true);
-    qemu_mutex_unlock(&vdev->intp_mutex);
 }
 
 /**
@@ -289,7 +287,7 @@ static void vfio_platform_eoi(VFIODevice *vbasedev)
     VFIOPlatformDevice *vdev =
         container_of(vbasedev, VFIOPlatformDevice, vbasedev);
 
-    qemu_mutex_lock(&vdev->intp_mutex);
+    QEMU_LOCK_GUARD(&vdev->intp_mutex);
     QLIST_FOREACH(intp, &vdev->intp_list, next) {
         if (intp->state == VFIO_IRQ_ACTIVE) {
             trace_vfio_platform_eoi(intp->pin,
@@ -314,7 +312,6 @@ static void vfio_platform_eoi(VFIODevice *vbasedev)
         vfio_intp_inject_pending_lockheld(intp);
         QSIMPLEQ_REMOVE_HEAD(&vdev->pending_intp_queue, pqnext);
     }
-    qemu_mutex_unlock(&vdev->intp_mutex);
 }
 
 /**
