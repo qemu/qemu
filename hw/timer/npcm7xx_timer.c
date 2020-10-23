@@ -17,6 +17,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/misc/npcm7xx_clk.h"
 #include "hw/timer/npcm7xx_timer.h"
 #include "migration/vmstate.h"
@@ -60,6 +61,50 @@ enum NPCM7xxTimerRegisters {
 #define NPCM7XX_TCSR_PRESCALE_START     0
 #define NPCM7XX_TCSR_PRESCALE_LEN       8
 
+#define NPCM7XX_WTCR_WTCLK(rv)          extract32(rv, 10, 2)
+#define NPCM7XX_WTCR_FREEZE_EN          BIT(9)
+#define NPCM7XX_WTCR_WTE                BIT(7)
+#define NPCM7XX_WTCR_WTIE               BIT(6)
+#define NPCM7XX_WTCR_WTIS(rv)           extract32(rv, 4, 2)
+#define NPCM7XX_WTCR_WTIF               BIT(3)
+#define NPCM7XX_WTCR_WTRF               BIT(2)
+#define NPCM7XX_WTCR_WTRE               BIT(1)
+#define NPCM7XX_WTCR_WTR                BIT(0)
+
+/*
+ * The number of clock cycles between interrupt and reset in watchdog, used
+ * by the software to handle the interrupt before system is reset.
+ */
+#define NPCM7XX_WATCHDOG_INTERRUPT_TO_RESET_CYCLES 1024
+
+/* Start or resume the timer. */
+static void npcm7xx_timer_start(NPCM7xxBaseTimer *t)
+{
+    int64_t now;
+
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    t->expires_ns = now + t->remaining_ns;
+    timer_mod(&t->qtimer, t->expires_ns);
+}
+
+/* Stop counting. Record the time remaining so we can continue later. */
+static void npcm7xx_timer_pause(NPCM7xxBaseTimer *t)
+{
+    int64_t now;
+
+    timer_del(&t->qtimer);
+    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    t->remaining_ns = t->expires_ns - now;
+}
+
+/* Delete the timer and reset it to default state. */
+static void npcm7xx_timer_clear(NPCM7xxBaseTimer *t)
+{
+    timer_del(&t->qtimer);
+    t->expires_ns = 0;
+    t->remaining_ns = 0;
+}
+
 /*
  * Returns the index of timer in the tc->timer array. This can be used to
  * locate the registers that belong to this timer.
@@ -102,6 +147,52 @@ static uint32_t npcm7xx_timer_ns_to_count(NPCM7xxTimer *t, int64_t ns)
     return count;
 }
 
+static uint32_t npcm7xx_watchdog_timer_prescaler(const NPCM7xxWatchdogTimer *t)
+{
+    switch (NPCM7XX_WTCR_WTCLK(t->wtcr)) {
+    case 0:
+        return 1;
+    case 1:
+        return 256;
+    case 2:
+        return 2048;
+    case 3:
+        return 65536;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void npcm7xx_watchdog_timer_reset_cycles(NPCM7xxWatchdogTimer *t,
+        int64_t cycles)
+{
+    uint32_t prescaler = npcm7xx_watchdog_timer_prescaler(t);
+    int64_t ns = (NANOSECONDS_PER_SECOND / NPCM7XX_TIMER_REF_HZ) * cycles;
+
+    /*
+     * The reset function always clears the current timer. The caller of the
+     * this needs to decide whether to start the watchdog timer based on
+     * specific flag in WTCR.
+     */
+    npcm7xx_timer_clear(&t->base_timer);
+
+    ns *= prescaler;
+    t->base_timer.remaining_ns = ns;
+}
+
+static void npcm7xx_watchdog_timer_reset(NPCM7xxWatchdogTimer *t)
+{
+    int64_t cycles = 1;
+    uint32_t s = NPCM7XX_WTCR_WTIS(t->wtcr);
+
+    g_assert(s <= 3);
+
+    cycles <<= NPCM7XX_WATCHDOG_BASETIME_SHIFT;
+    cycles <<= 2 * s;
+
+    npcm7xx_watchdog_timer_reset_cycles(t, cycles);
+}
+
 /*
  * Raise the interrupt line if there's a pending interrupt and interrupts are
  * enabled for this timer. If not, lower it.
@@ -116,16 +207,6 @@ static void npcm7xx_timer_check_interrupt(NPCM7xxTimer *t)
     trace_npcm7xx_timer_irq(DEVICE(tc)->canonical_path, index, pending);
 }
 
-/* Start or resume the timer. */
-static void npcm7xx_timer_start(NPCM7xxTimer *t)
-{
-    int64_t now;
-
-    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    t->expires_ns = now + t->remaining_ns;
-    timer_mod(&t->qtimer, t->expires_ns);
-}
-
 /*
  * Called when the counter reaches zero. Sets the interrupt flag, and either
  * restarts or disables the timer.
@@ -138,9 +219,9 @@ static void npcm7xx_timer_reached_zero(NPCM7xxTimer *t)
     tc->tisr |= BIT(index);
 
     if (t->tcsr & NPCM7XX_TCSR_PERIODIC) {
-        t->remaining_ns = npcm7xx_timer_count_to_ns(t, t->ticr);
+        t->base_timer.remaining_ns = npcm7xx_timer_count_to_ns(t, t->ticr);
         if (t->tcsr & NPCM7XX_TCSR_CEN) {
-            npcm7xx_timer_start(t);
+            npcm7xx_timer_start(&t->base_timer);
         }
     } else {
         t->tcsr &= ~(NPCM7XX_TCSR_CEN | NPCM7XX_TCSR_CACT);
@@ -149,15 +230,6 @@ static void npcm7xx_timer_reached_zero(NPCM7xxTimer *t)
     npcm7xx_timer_check_interrupt(t);
 }
 
-/* Stop counting. Record the time remaining so we can continue later. */
-static void npcm7xx_timer_pause(NPCM7xxTimer *t)
-{
-    int64_t now;
-
-    timer_del(&t->qtimer);
-    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    t->remaining_ns = t->expires_ns - now;
-}
 
 /*
  * Restart the timer from its initial value. If the timer was enabled and stays
@@ -167,10 +239,10 @@ static void npcm7xx_timer_pause(NPCM7xxTimer *t)
  */
 static void npcm7xx_timer_restart(NPCM7xxTimer *t, uint32_t old_tcsr)
 {
-    t->remaining_ns = npcm7xx_timer_count_to_ns(t, t->ticr);
+    t->base_timer.remaining_ns = npcm7xx_timer_count_to_ns(t, t->ticr);
 
     if (old_tcsr & t->tcsr & NPCM7XX_TCSR_CEN) {
-        npcm7xx_timer_start(t);
+        npcm7xx_timer_start(&t->base_timer);
     }
 }
 
@@ -181,10 +253,10 @@ static uint32_t npcm7xx_timer_read_tdr(NPCM7xxTimer *t)
     if (t->tcsr & NPCM7XX_TCSR_CEN) {
         int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-        return npcm7xx_timer_ns_to_count(t, t->expires_ns - now);
+        return npcm7xx_timer_ns_to_count(t, t->base_timer.expires_ns - now);
     }
 
-    return npcm7xx_timer_ns_to_count(t, t->remaining_ns);
+    return npcm7xx_timer_ns_to_count(t, t->base_timer.remaining_ns);
 }
 
 static void npcm7xx_timer_write_tcsr(NPCM7xxTimer *t, uint32_t new_tcsr)
@@ -216,9 +288,9 @@ static void npcm7xx_timer_write_tcsr(NPCM7xxTimer *t, uint32_t new_tcsr)
 
     if (npcm7xx_tcsr_prescaler(old_tcsr) != npcm7xx_tcsr_prescaler(new_tcsr)) {
         /* Recalculate time remaining based on the current TDR value. */
-        t->remaining_ns = npcm7xx_timer_count_to_ns(t, tdr);
+        t->base_timer.remaining_ns = npcm7xx_timer_count_to_ns(t, tdr);
         if (old_tcsr & t->tcsr & NPCM7XX_TCSR_CEN) {
-            npcm7xx_timer_start(t);
+            npcm7xx_timer_start(&t->base_timer);
         }
     }
 
@@ -232,11 +304,11 @@ static void npcm7xx_timer_write_tcsr(NPCM7xxTimer *t, uint32_t new_tcsr)
     if ((old_tcsr ^ new_tcsr) & NPCM7XX_TCSR_CEN) {
         if (new_tcsr & NPCM7XX_TCSR_CEN) {
             t->tcsr |= NPCM7XX_TCSR_CACT;
-            npcm7xx_timer_start(t);
+            npcm7xx_timer_start(&t->base_timer);
         } else {
             t->tcsr &= ~NPCM7XX_TCSR_CACT;
-            npcm7xx_timer_pause(t);
-            if (t->remaining_ns <= 0) {
+            npcm7xx_timer_pause(&t->base_timer);
+            if (t->base_timer.remaining_ns <= 0) {
                 npcm7xx_timer_reached_zero(t);
             }
         }
@@ -259,7 +331,45 @@ static void npcm7xx_timer_write_tisr(NPCM7xxTimerCtrlState *s, uint32_t value)
         if (value & (1U << i)) {
             npcm7xx_timer_check_interrupt(&s->timer[i]);
         }
+
     }
+}
+
+static void npcm7xx_timer_write_wtcr(NPCM7xxWatchdogTimer *t, uint32_t new_wtcr)
+{
+    uint32_t old_wtcr = t->wtcr;
+
+    /*
+     * WTIF and WTRF are cleared by writing 1. Writing 0 makes these bits
+     * unchanged.
+     */
+    if (new_wtcr & NPCM7XX_WTCR_WTIF) {
+        new_wtcr &= ~NPCM7XX_WTCR_WTIF;
+    } else if (old_wtcr & NPCM7XX_WTCR_WTIF) {
+        new_wtcr |= NPCM7XX_WTCR_WTIF;
+    }
+    if (new_wtcr & NPCM7XX_WTCR_WTRF) {
+        new_wtcr &= ~NPCM7XX_WTCR_WTRF;
+    } else if (old_wtcr & NPCM7XX_WTCR_WTRF) {
+        new_wtcr |= NPCM7XX_WTCR_WTRF;
+    }
+
+    t->wtcr = new_wtcr;
+
+    if (new_wtcr & NPCM7XX_WTCR_WTR) {
+        t->wtcr &= ~NPCM7XX_WTCR_WTR;
+        npcm7xx_watchdog_timer_reset(t);
+        if (new_wtcr & NPCM7XX_WTCR_WTE) {
+            npcm7xx_timer_start(&t->base_timer);
+        }
+    } else if ((old_wtcr ^ new_wtcr) & NPCM7XX_WTCR_WTE) {
+        if (new_wtcr & NPCM7XX_WTCR_WTE) {
+            npcm7xx_timer_start(&t->base_timer);
+        } else {
+            npcm7xx_timer_pause(&t->base_timer);
+        }
+    }
+
 }
 
 static hwaddr npcm7xx_tcsr_index(hwaddr reg)
@@ -353,7 +463,7 @@ static uint64_t npcm7xx_timer_read(void *opaque, hwaddr offset, unsigned size)
         break;
 
     case NPCM7XX_TIMER_WTCR:
-        value = s->wtcr;
+        value = s->watchdog_timer.wtcr;
         break;
 
     default:
@@ -409,8 +519,7 @@ static void npcm7xx_timer_write(void *opaque, hwaddr offset,
         return;
 
     case NPCM7XX_TIMER_WTCR:
-        qemu_log_mask(LOG_UNIMP, "%s: WTCR write not implemented: 0x%08x\n",
-                      __func__, value);
+        npcm7xx_timer_write_wtcr(&s->watchdog_timer, value);
         return;
     }
 
@@ -448,15 +557,42 @@ static void npcm7xx_timer_enter_reset(Object *obj, ResetType type)
     for (i = 0; i < NPCM7XX_TIMERS_PER_CTRL; i++) {
         NPCM7xxTimer *t = &s->timer[i];
 
-        timer_del(&t->qtimer);
-        t->expires_ns = 0;
-        t->remaining_ns = 0;
+        npcm7xx_timer_clear(&t->base_timer);
         t->tcsr = 0x00000005;
         t->ticr = 0x00000000;
     }
 
     s->tisr = 0x00000000;
-    s->wtcr = 0x00000400;
+    /*
+     * Set WTCLK to 1(default) and reset all flags except WTRF.
+     * WTRF is not reset during a core domain reset.
+     */
+    s->watchdog_timer.wtcr = 0x00000400 | (s->watchdog_timer.wtcr &
+            NPCM7XX_WTCR_WTRF);
+}
+
+static void npcm7xx_watchdog_timer_expired(void *opaque)
+{
+    NPCM7xxWatchdogTimer *t = opaque;
+
+    if (t->wtcr & NPCM7XX_WTCR_WTE) {
+        if (t->wtcr & NPCM7XX_WTCR_WTIF) {
+            if (t->wtcr & NPCM7XX_WTCR_WTRE) {
+                t->wtcr |= NPCM7XX_WTCR_WTRF;
+                /* send reset signal to CLK module*/
+                qemu_irq_raise(t->reset_signal);
+            }
+        } else {
+            t->wtcr |= NPCM7XX_WTCR_WTIF;
+            if (t->wtcr & NPCM7XX_WTCR_WTIE) {
+                /* send interrupt */
+                qemu_irq_raise(t->irq);
+            }
+            npcm7xx_watchdog_timer_reset_cycles(t,
+                    NPCM7XX_WATCHDOG_INTERRUPT_TO_RESET_CYCLES);
+            npcm7xx_timer_start(&t->base_timer);
+        }
+    }
 }
 
 static void npcm7xx_timer_hold_reset(Object *obj)
@@ -467,6 +603,7 @@ static void npcm7xx_timer_hold_reset(Object *obj)
     for (i = 0; i < NPCM7XX_TIMERS_PER_CTRL; i++) {
         qemu_irq_lower(s->timer[i].irq);
     }
+    qemu_irq_lower(s->watchdog_timer.irq);
 }
 
 static void npcm7xx_timer_realize(DeviceState *dev, Error **errp)
@@ -474,43 +611,80 @@ static void npcm7xx_timer_realize(DeviceState *dev, Error **errp)
     NPCM7xxTimerCtrlState *s = NPCM7XX_TIMER(dev);
     SysBusDevice *sbd = &s->parent;
     int i;
+    NPCM7xxWatchdogTimer *w;
 
     for (i = 0; i < NPCM7XX_TIMERS_PER_CTRL; i++) {
         NPCM7xxTimer *t = &s->timer[i];
         t->ctrl = s;
-        timer_init_ns(&t->qtimer, QEMU_CLOCK_VIRTUAL, npcm7xx_timer_expired, t);
+        timer_init_ns(&t->base_timer.qtimer, QEMU_CLOCK_VIRTUAL,
+                npcm7xx_timer_expired, t);
         sysbus_init_irq(sbd, &t->irq);
     }
+
+    w = &s->watchdog_timer;
+    w->ctrl = s;
+    timer_init_ns(&w->base_timer.qtimer, QEMU_CLOCK_VIRTUAL,
+            npcm7xx_watchdog_timer_expired, w);
+    sysbus_init_irq(sbd, &w->irq);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &npcm7xx_timer_ops, s,
                           TYPE_NPCM7XX_TIMER, 4 * KiB);
     sysbus_init_mmio(sbd, &s->iomem);
+    qdev_init_gpio_out_named(dev, &w->reset_signal,
+            NPCM7XX_WATCHDOG_RESET_GPIO_OUT, 1);
 }
 
-static const VMStateDescription vmstate_npcm7xx_timer = {
-    .name = "npcm7xx-timer",
+static const VMStateDescription vmstate_npcm7xx_base_timer = {
+    .name = "npcm7xx-base-timer",
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_TIMER(qtimer, NPCM7xxTimer),
-        VMSTATE_INT64(expires_ns, NPCM7xxTimer),
-        VMSTATE_INT64(remaining_ns, NPCM7xxTimer),
+        VMSTATE_TIMER(qtimer, NPCM7xxBaseTimer),
+        VMSTATE_INT64(expires_ns, NPCM7xxBaseTimer),
+        VMSTATE_INT64(remaining_ns, NPCM7xxBaseTimer),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
+static const VMStateDescription vmstate_npcm7xx_timer = {
+    .name = "npcm7xx-timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(base_timer, NPCM7xxTimer,
+                             0, vmstate_npcm7xx_base_timer,
+                             NPCM7xxBaseTimer),
         VMSTATE_UINT32(tcsr, NPCM7xxTimer),
         VMSTATE_UINT32(ticr, NPCM7xxTimer),
         VMSTATE_END_OF_LIST(),
     },
 };
 
-static const VMStateDescription vmstate_npcm7xx_timer_ctrl = {
-    .name = "npcm7xx-timer-ctrl",
+static const VMStateDescription vmstate_npcm7xx_watchdog_timer = {
+    .name = "npcm7xx-watchdog-timer",
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(base_timer, NPCM7xxWatchdogTimer,
+                             0, vmstate_npcm7xx_base_timer,
+                             NPCM7xxBaseTimer),
+        VMSTATE_UINT32(wtcr, NPCM7xxWatchdogTimer),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
+static const VMStateDescription vmstate_npcm7xx_timer_ctrl = {
+    .name = "npcm7xx-timer-ctrl",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
         VMSTATE_UINT32(tisr, NPCM7xxTimerCtrlState),
-        VMSTATE_UINT32(wtcr, NPCM7xxTimerCtrlState),
         VMSTATE_STRUCT_ARRAY(timer, NPCM7xxTimerCtrlState,
                              NPCM7XX_TIMERS_PER_CTRL, 0, vmstate_npcm7xx_timer,
                              NPCM7xxTimer),
+        VMSTATE_STRUCT(watchdog_timer, NPCM7xxTimerCtrlState,
+                             0, vmstate_npcm7xx_watchdog_timer,
+                             NPCM7xxWatchdogTimer),
         VMSTATE_END_OF_LIST(),
     },
 };

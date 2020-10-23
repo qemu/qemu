@@ -86,6 +86,9 @@ enum NPCM7xxInterrupt {
     NPCM7XX_TIMER12_IRQ,
     NPCM7XX_TIMER13_IRQ,
     NPCM7XX_TIMER14_IRQ,
+    NPCM7XX_WDG0_IRQ            = 47,   /* Timer Module 0 Watchdog */
+    NPCM7XX_WDG1_IRQ,                   /* Timer Module 1 Watchdog */
+    NPCM7XX_WDG2_IRQ,                   /* Timer Module 2 Watchdog */
 };
 
 /* Total number of GIC interrupts, including internal Cortex-A9 interrupts. */
@@ -353,6 +356,15 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
             qemu_irq irq = npcm7xx_irq(s, first_irq + j);
             sysbus_connect_irq(sbd, j, irq);
         }
+
+        /* IRQ for watchdogs */
+        sysbus_connect_irq(sbd, NPCM7XX_TIMERS_PER_CTRL,
+                npcm7xx_irq(s, NPCM7XX_WDG0_IRQ + i));
+        /* GPIO that connects clk module with watchdog */
+        qdev_connect_gpio_out_named(DEVICE(&s->tim[i]),
+                NPCM7XX_WATCHDOG_RESET_GPIO_OUT, 0,
+                qdev_get_gpio_in_named(DEVICE(&s->clk),
+                        NPCM7XX_WATCHDOG_RESET_GPIO_IN, i));
     }
 
     /* UART0..3 (16550 compatible) */

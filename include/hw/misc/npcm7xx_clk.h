@@ -31,6 +31,8 @@
  */
 #define NPCM7XX_CLK_NR_REGS             (0x70 / sizeof(uint32_t))
 
+#define NPCM7XX_WATCHDOG_RESET_GPIO_IN "npcm7xx-clk-watchdog-reset-gpio-in"
+
 typedef struct NPCM7xxCLKState {
     SysBusDevice parent;
 
