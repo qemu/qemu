@@ -100,6 +100,7 @@ typedef struct FuzzTarget {
                        uint8_t *out, size_t max_out_size,
                        unsigned int seed);
 
+    void *opaque;
 } FuzzTarget;
 
 void flush_events(QTestState *);
