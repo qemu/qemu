@@ -650,6 +650,8 @@ static inline float64 float64_pack_raw(FloatParts64 p)
 *----------------------------------------------------------------------------*/
 #include "softfloat-specialize.c.inc"
 
+#define parts_default_nan  parts64_default_nan
+
 /* Canonicalize EXP and FRAC, setting CLS.  */
 static FloatParts64 sf_canonicalize(FloatParts64 part, const FloatFmt *parm,
                                   float_status *status)
@@ -848,7 +850,8 @@ static FloatParts64 return_nan(FloatParts64 a, float_status *s)
     } else if (!s->default_nan_mode) {
         return a;
     }
-    return parts_default_nan(s);
+    parts_default_nan(&a, s);
+    return a;
 }
 
 static FloatParts64 pick_nan(FloatParts64 a, FloatParts64 b, float_status *s)
@@ -858,7 +861,7 @@ static FloatParts64 pick_nan(FloatParts64 a, FloatParts64 b, float_status *s)
     }
 
     if (s->default_nan_mode) {
-        return parts_default_nan(s);
+        parts_default_nan(&a, s);
     } else {
         if (pickNaN(a.cls, b.cls,
                     a.frac > b.frac ||
@@ -900,7 +903,8 @@ static FloatParts64 pick_nan_muladd(FloatParts64 a, FloatParts64 b, FloatParts64
         a = c;
         break;
     case 3:
-        return parts_default_nan(s);
+        parts_default_nan(&a, s);
+        break;
     default:
         g_assert_not_reached();
     }
@@ -1011,7 +1015,7 @@ static FloatParts64 addsub_floats(FloatParts64 a, FloatParts64 b, bool subtract,
         if (a.cls == float_class_inf) {
             if (b.cls == float_class_inf) {
                 float_raise(float_flag_invalid, s);
-                return parts_default_nan(s);
+                parts_default_nan(&a, s);
             }
             return a;
         }
@@ -1254,7 +1258,8 @@ static FloatParts64 mul_floats(FloatParts64 a, FloatParts64 b, float_status *s)
     if ((a.cls == float_class_inf && b.cls == float_class_zero) ||
         (a.cls == float_class_zero && b.cls == float_class_inf)) {
         float_raise(float_flag_invalid, s);
-        return parts_default_nan(s);
+        parts_default_nan(&a, s);
+        return a;
     }
     /* Multiply by 0 or Inf */
     if (a.cls == float_class_inf || a.cls == float_class_zero) {
@@ -1372,7 +1377,8 @@ static FloatParts64 muladd_floats(FloatParts64 a, FloatParts64 b, FloatParts64 c
 
     if (inf_zero) {
         float_raise(float_flag_invalid, s);
-        return parts_default_nan(s);
+        parts_default_nan(&a, s);
+        return a;
     }
 
     if (flags & float_muladd_negate_c) {
@@ -1396,11 +1402,11 @@ static FloatParts64 muladd_floats(FloatParts64 a, FloatParts64 b, FloatParts64 c
     if (c.cls == float_class_inf) {
         if (p_class == float_class_inf && p_sign != c.sign) {
             float_raise(float_flag_invalid, s);
-            return parts_default_nan(s);
+            parts_default_nan(&c, s);
         } else {
             c.sign ^= sign_flip;
-            return c;
         }
+        return c;
     }
 
     if (p_class == float_class_inf) {
@@ -1764,7 +1770,8 @@ static FloatParts64 div_floats(FloatParts64 a, FloatParts64 b, float_status *s)
         &&
         (a.cls == float_class_inf || a.cls == float_class_zero)) {
         float_raise(float_flag_invalid, s);
-        return parts_default_nan(s);
+        parts_default_nan(&a, s);
+        return a;
     }
     /* Inf / x or 0 / x */
     if (a.cls == float_class_inf || a.cls == float_class_zero) {
@@ -3438,7 +3445,8 @@ static FloatParts64 sqrt_float(FloatParts64 a, float_status *s, const FloatFmt *
     }
     if (a.sign) {
         float_raise(float_flag_invalid, s);
-        return parts_default_nan(s);
+        parts_default_nan(&a, s);
+        return a;
     }
     if (a.cls == float_class_inf) {
         return a;  /* sqrt(+inf) = +inf */
@@ -3573,30 +3581,37 @@ bfloat16 QEMU_FLATTEN bfloat16_sqrt(bfloat16 a, float_status *status)
 
 float16 float16_default_nan(float_status *status)
 {
-    FloatParts64 p = parts_default_nan(status);
+    FloatParts64 p;
+
+    parts_default_nan(&p, status);
     p.frac >>= float16_params.frac_shift;
     return float16_pack_raw(p);
 }
 
 float32 float32_default_nan(float_status *status)
 {
-    FloatParts64 p = parts_default_nan(status);
+    FloatParts64 p;
+
+    parts_default_nan(&p, status);
     p.frac >>= float32_params.frac_shift;
     return float32_pack_raw(p);
 }
 
 float64 float64_default_nan(float_status *status)
 {
-    FloatParts64 p = parts_default_nan(status);
+    FloatParts64 p;
+
+    parts_default_nan(&p, status);
     p.frac >>= float64_params.frac_shift;
     return float64_pack_raw(p);
 }
 
 float128 float128_default_nan(float_status *status)
 {
-    FloatParts64 p = parts_default_nan(status);
+    FloatParts64 p;
     float128 r;
 
+    parts_default_nan(&p, status);
     /* Extrapolate from the choices made by parts_default_nan to fill
      * in the quad-floating format.  If the low bit is set, assume we
      * want to set all non-snan bits.
@@ -3611,7 +3626,9 @@ float128 float128_default_nan(float_status *status)
 
 bfloat16 bfloat16_default_nan(float_status *status)
 {
-    FloatParts64 p = parts_default_nan(status);
+    FloatParts64 p;
+
+    parts_default_nan(&p, status);
     p.frac >>= bfloat16_params.frac_shift;
     return bfloat16_pack_raw(p);
 }
