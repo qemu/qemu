@@ -47,6 +47,14 @@ void fuzz_dma_read_cb(size_t addr,
                       size_t len,
                       MemoryRegion *mr,
                       bool is_write);
+#else
+static inline void fuzz_dma_read_cb(size_t addr,
+                                    size_t len,
+                                    MemoryRegion *mr,
+                                    bool is_write)
+{
+    /* Do Nothing */
+}
 #endif
 
 extern bool global_dirty_log;
