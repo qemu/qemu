@@ -99,8 +99,14 @@ cp "./qemu-fuzz-i386" "$DEST_DIR/bin/"
 # executable name)
 for target in $(./qemu-fuzz-i386 | awk '$1 ~ /\*/  {print $2}');
 do
-    ln  "$DEST_DIR/bin/qemu-fuzz-i386" \
-        "$DEST_DIR/qemu-fuzz-i386-target-$target"
+    # Ignore the generic-fuzz target, as it requires some environment variables
+    # to be configured. We have some generic-fuzz-{pc-q35, floppy, ...} targets
+    # that are thin wrappers around this target that set the required
+    # environment variables according to predefined configs.
+    if [ "$target" != "generic-fuzz" ]; then
+        ln  "$DEST_DIR/bin/qemu-fuzz-i386" \
+            "$DEST_DIR/qemu-fuzz-i386-target-$target"
+    fi
 done
 
 echo "Done. The fuzzers are located in $DEST_DIR"
