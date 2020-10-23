@@ -39,6 +39,7 @@ Supported devices
  * OTP controllers (no protection features)
  * Flash Interface Unit (FIU; no protection features)
  * Random Number Generator (RNG)
+ * USB host (USBH)
 
 Missing devices
 ---------------
@@ -54,7 +55,6 @@ Missing devices
    * eSPI slave interface
 
  * Ethernet controllers (GMAC and EMC)
- * USB host (USBH)
  * USB device (USBD)
  * SMBus controller (SMBF)
  * Peripheral SPI controller (PSPI)
