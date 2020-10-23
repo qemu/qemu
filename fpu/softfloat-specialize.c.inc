@@ -176,20 +176,25 @@ static void parts64_default_nan(FloatParts64 *p, float_status *status)
 | floating-point parts.
 *----------------------------------------------------------------------------*/
 
-static FloatParts64 parts_silence_nan(FloatParts64 a, float_status *status)
+static uint64_t parts_silence_nan_frac(uint64_t frac, float_status *status)
 {
     g_assert(!no_signaling_nans(status));
     g_assert(!status->default_nan_mode);
 
     /* The only snan_bit_is_one target without default_nan_mode is HPPA. */
     if (snan_bit_is_one(status)) {
-        a.frac &= ~(1ULL << (DECOMPOSED_BINARY_POINT - 1));
-        a.frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 2);
+        frac &= ~(1ULL << (DECOMPOSED_BINARY_POINT - 1));
+        frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 2);
     } else {
-        a.frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 1);
+        frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 1);
     }
-    a.cls = float_class_qnan;
-    return a;
+    return frac;
+}
+
+static void parts64_silence_nan(FloatParts64 *p, float_status *status)
+{
+    p->frac = parts_silence_nan_frac(p->frac, status);
+    p->cls = float_class_qnan;
 }
 
 /*----------------------------------------------------------------------------

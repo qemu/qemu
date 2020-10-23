@@ -657,6 +657,7 @@ static inline float64 float64_pack_raw(const FloatParts64 *p)
 #include "softfloat-specialize.c.inc"
 
 #define parts_default_nan  parts64_default_nan
+#define parts_silence_nan  parts64_silence_nan
 
 /* Canonicalize EXP and FRAC, setting CLS.  */
 static FloatParts64 sf_canonicalize(FloatParts64 part, const FloatFmt *parm,
@@ -851,7 +852,8 @@ static FloatParts64 return_nan(FloatParts64 a, float_status *s)
     if (is_snan(a.cls)) {
         float_raise(float_flag_invalid, s);
         if (!s->default_nan_mode) {
-            return parts_silence_nan(a, s);
+            parts_silence_nan(&a, s);
+            return a;
         }
     } else if (!s->default_nan_mode) {
         return a;
@@ -875,7 +877,7 @@ static FloatParts64 pick_nan(FloatParts64 a, FloatParts64 b, float_status *s)
             a = b;
         }
         if (is_snan(a.cls)) {
-            return parts_silence_nan(a, s);
+            parts_silence_nan(&a, s);
         }
     }
     return a;
@@ -916,7 +918,7 @@ static FloatParts64 pick_nan_muladd(FloatParts64 a, FloatParts64 b, FloatParts64
     }
 
     if (is_snan(a.cls)) {
-        return parts_silence_nan(a, s);
+        parts_silence_nan(&a, s);
     }
     return a;
 }
@@ -3801,7 +3803,7 @@ float16 float16_silence_nan(float16 a, float_status *status)
 
     float16_unpack_raw(&p, a);
     p.frac <<= float16_params.frac_shift;
-    p = parts_silence_nan(p, status);
+    parts_silence_nan(&p, status);
     p.frac >>= float16_params.frac_shift;
     return float16_pack_raw(&p);
 }
@@ -3812,7 +3814,7 @@ float32 float32_silence_nan(float32 a, float_status *status)
 
     float32_unpack_raw(&p, a);
     p.frac <<= float32_params.frac_shift;
-    p = parts_silence_nan(p, status);
+    parts_silence_nan(&p, status);
     p.frac >>= float32_params.frac_shift;
     return float32_pack_raw(&p);
 }
@@ -3823,7 +3825,7 @@ float64 float64_silence_nan(float64 a, float_status *status)
 
     float64_unpack_raw(&p, a);
     p.frac <<= float64_params.frac_shift;
-    p = parts_silence_nan(p, status);
+    parts_silence_nan(&p, status);
     p.frac >>= float64_params.frac_shift;
     return float64_pack_raw(&p);
 }
@@ -3834,7 +3836,7 @@ bfloat16 bfloat16_silence_nan(bfloat16 a, float_status *status)
 
     bfloat16_unpack_raw(&p, a);
     p.frac <<= bfloat16_params.frac_shift;
-    p = parts_silence_nan(p, status);
+    parts_silence_nan(&p, status);
     p.frac >>= bfloat16_params.frac_shift;
     return bfloat16_pack_raw(&p);
 }
