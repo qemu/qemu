@@ -709,6 +709,10 @@ static float128 float128_pack_raw(const FloatParts128 *p)
 #define parts_default_nan(P, S)    PARTS_GENERIC_64_128(default_nan, P)(P, S)
 #define parts_silence_nan(P, S)    PARTS_GENERIC_64_128(silence_nan, P)(P, S)
 
+static void parts64_return_nan(FloatParts64 *a, float_status *s);
+static void parts128_return_nan(FloatParts128 *a, float_status *s);
+
+#define parts_return_nan(P, S)     PARTS_GENERIC_64_128(return_nan, P)(P, S)
 
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
@@ -915,22 +919,6 @@ static FloatParts64 round_canonical(FloatParts64 p, float_status *s,
     return p;
 }
 
-static FloatParts64 return_nan(FloatParts64 a, float_status *s)
-{
-    g_assert(is_nan(a.cls));
-    if (is_snan(a.cls)) {
-        float_raise(float_flag_invalid, s);
-        if (!s->default_nan_mode) {
-            parts_silence_nan(&a, s);
-            return a;
-        }
-    } else if (!s->default_nan_mode) {
-        return a;
-    }
-    parts_default_nan(&a, s);
-    return a;
-}
-
 static FloatParts64 pick_nan(FloatParts64 a, FloatParts64 b, float_status *s)
 {
     if (is_snan(a.cls) || is_snan(b.cls)) {
@@ -991,6 +979,21 @@ static FloatParts64 pick_nan_muladd(FloatParts64 a, FloatParts64 b, FloatParts64
     }
     return a;
 }
+
+#define partsN(NAME)   parts64_##NAME
+#define FloatPartsN    FloatParts64
+
+#include "softfloat-parts.c.inc"
+
+#undef  partsN
+#undef  FloatPartsN
+#define partsN(NAME)   parts128_##NAME
+#define FloatPartsN    FloatParts128
+
+#include "softfloat-parts.c.inc"
+
+#undef  partsN
+#undef  FloatPartsN
 
 /*
  * Pack/unpack routines with a specific FloatFmt.
@@ -2066,7 +2069,7 @@ static FloatParts64 float_to_float(FloatParts64 a, const FloatFmt *dstf,
             break;
         }
     } else if (is_nan(a.cls)) {
-        return return_nan(a, s);
+        parts_return_nan(&a, s);
     }
     return a;
 }
@@ -2195,7 +2198,8 @@ static FloatParts64 round_to_int(FloatParts64 a, FloatRoundMode rmode,
     switch (a.cls) {
     case float_class_qnan:
     case float_class_snan:
-        return return_nan(a, s);
+        parts_return_nan(&a, s);
+        break;
 
     case float_class_zero:
     case float_class_inf:
@@ -3591,7 +3595,7 @@ FloatRelation bfloat16_compare_quiet(bfloat16 a, bfloat16 b, float_status *s)
 static FloatParts64 scalbn_decomposed(FloatParts64 a, int n, float_status *s)
 {
     if (unlikely(is_nan(a.cls))) {
-        return return_nan(a, s);
+        parts_return_nan(&a, s);
     }
     if (a.cls == float_class_normal) {
         /* The largest float type (even though not supported by FloatParts64)
@@ -3659,7 +3663,8 @@ static FloatParts64 sqrt_float(FloatParts64 a, float_status *s, const FloatFmt *
     int bit, last_bit;
 
     if (is_nan(a.cls)) {
-        return return_nan(a, s);
+        parts_return_nan(&a, s);
+        return a;
     }
     if (a.cls == float_class_zero) {
         return a;  /* sqrt(+-0) = +-0 */
