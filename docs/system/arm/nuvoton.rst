@@ -38,6 +38,7 @@ Supported devices
  * DDR4 memory controller (dummy interface indicating memory training is done)
  * OTP controllers (no protection features)
  * Flash Interface Unit (FIU; no protection features)
+ * Random Number Generator (RNG)
 
 Missing devices
 ---------------
@@ -59,7 +60,6 @@ Missing devices
  * Peripheral SPI controller (PSPI)
  * Analog to Digital Converter (ADC)
  * SD/MMC host
- * Random Number Generator (RNG)
  * PECI interface
  * Pulse Width Modulation (PWM)
  * Tachometer
