@@ -593,32 +593,24 @@ static void unpack_raw64(FloatParts64 *r, const FloatFmt *fmt, uint64_t raw)
     };
 }
 
-static inline FloatParts64 float16_unpack_raw(float16 f)
+static inline void float16_unpack_raw(FloatParts64 *p, float16 f)
 {
-    FloatParts64 p;
-    unpack_raw64(&p, &float16_params, f);
-    return p;
+    unpack_raw64(p, &float16_params, f);
 }
 
-static inline FloatParts64 bfloat16_unpack_raw(bfloat16 f)
+static inline void bfloat16_unpack_raw(FloatParts64 *p, bfloat16 f)
 {
-    FloatParts64 p;
-    unpack_raw64(&p, &bfloat16_params, f);
-    return p;
+    unpack_raw64(p, &bfloat16_params, f);
 }
 
-static inline FloatParts64 float32_unpack_raw(float32 f)
+static inline void float32_unpack_raw(FloatParts64 *p, float32 f)
 {
-    FloatParts64 p;
-    unpack_raw64(&p, &float32_params, f);
-    return p;
+    unpack_raw64(p, &float32_params, f);
 }
 
-static inline FloatParts64 float64_unpack_raw(float64 f)
+static inline void float64_unpack_raw(FloatParts64 *p, float64 f)
 {
-    FloatParts64 p;
-    unpack_raw64(&p, &float64_params, f);
-    return p;
+    unpack_raw64(p, &float64_params, f);
 }
 
 /* Pack a float from parts, but do not canonicalize.  */
@@ -931,7 +923,10 @@ static FloatParts64 pick_nan_muladd(FloatParts64 a, FloatParts64 b, FloatParts64
 static FloatParts64 float16a_unpack_canonical(float16 f, float_status *s,
                                             const FloatFmt *params)
 {
-    return sf_canonicalize(float16_unpack_raw(f), params, s);
+    FloatParts64 p;
+
+    float16_unpack_raw(&p, f);
+    return sf_canonicalize(p, params, s);
 }
 
 static FloatParts64 float16_unpack_canonical(float16 f, float_status *s)
@@ -941,7 +936,10 @@ static FloatParts64 float16_unpack_canonical(float16 f, float_status *s)
 
 static FloatParts64 bfloat16_unpack_canonical(bfloat16 f, float_status *s)
 {
-    return sf_canonicalize(bfloat16_unpack_raw(f), &bfloat16_params, s);
+    FloatParts64 p;
+
+    bfloat16_unpack_raw(&p, f);
+    return sf_canonicalize(p, &bfloat16_params, s);
 }
 
 static float16 float16a_round_pack_canonical(FloatParts64 p, float_status *s,
@@ -962,7 +960,10 @@ static bfloat16 bfloat16_round_pack_canonical(FloatParts64 p, float_status *s)
 
 static FloatParts64 float32_unpack_canonical(float32 f, float_status *s)
 {
-    return sf_canonicalize(float32_unpack_raw(f), &float32_params, s);
+    FloatParts64 p;
+
+    float32_unpack_raw(&p, f);
+    return sf_canonicalize(p, &float32_params, s);
 }
 
 static float32 float32_round_pack_canonical(FloatParts64 p, float_status *s)
@@ -972,7 +973,10 @@ static float32 float32_round_pack_canonical(FloatParts64 p, float_status *s)
 
 static FloatParts64 float64_unpack_canonical(float64 f, float_status *s)
 {
-    return sf_canonicalize(float64_unpack_raw(f), &float64_params, s);
+    FloatParts64 p;
+
+    float64_unpack_raw(&p, f);
+    return sf_canonicalize(p, &float64_params, s);
 }
 
 static float64 float64_round_pack_canonical(FloatParts64 p, float_status *s)
@@ -3648,7 +3652,9 @@ bfloat16 bfloat16_default_nan(float_status *status)
 
 float16 float16_silence_nan(float16 a, float_status *status)
 {
-    FloatParts64 p = float16_unpack_raw(a);
+    FloatParts64 p;
+
+    float16_unpack_raw(&p, a);
     p.frac <<= float16_params.frac_shift;
     p = parts_silence_nan(p, status);
     p.frac >>= float16_params.frac_shift;
@@ -3657,7 +3663,9 @@ float16 float16_silence_nan(float16 a, float_status *status)
 
 float32 float32_silence_nan(float32 a, float_status *status)
 {
-    FloatParts64 p = float32_unpack_raw(a);
+    FloatParts64 p;
+
+    float32_unpack_raw(&p, a);
     p.frac <<= float32_params.frac_shift;
     p = parts_silence_nan(p, status);
     p.frac >>= float32_params.frac_shift;
@@ -3666,7 +3674,9 @@ float32 float32_silence_nan(float32 a, float_status *status)
 
 float64 float64_silence_nan(float64 a, float_status *status)
 {
-    FloatParts64 p = float64_unpack_raw(a);
+    FloatParts64 p;
+
+    float64_unpack_raw(&p, a);
     p.frac <<= float64_params.frac_shift;
     p = parts_silence_nan(p, status);
     p.frac >>= float64_params.frac_shift;
@@ -3675,7 +3685,9 @@ float64 float64_silence_nan(float64 a, float_status *status)
 
 bfloat16 bfloat16_silence_nan(bfloat16 a, float_status *status)
 {
-    FloatParts64 p = bfloat16_unpack_raw(a);
+    FloatParts64 p;
+
+    bfloat16_unpack_raw(&p, a);
     p.frac <<= bfloat16_params.frac_shift;
     p = parts_silence_nan(p, status);
     p.frac >>= bfloat16_params.frac_shift;
@@ -3700,7 +3712,9 @@ static bool parts_squash_denormal(FloatParts64 p, float_status *status)
 float16 float16_squash_input_denormal(float16 a, float_status *status)
 {
     if (status->flush_inputs_to_zero) {
-        FloatParts64 p = float16_unpack_raw(a);
+        FloatParts64 p;
+
+        float16_unpack_raw(&p, a);
         if (parts_squash_denormal(p, status)) {
             return float16_set_sign(float16_zero, p.sign);
         }
@@ -3711,7 +3725,9 @@ float16 float16_squash_input_denormal(float16 a, float_status *status)
 float32 float32_squash_input_denormal(float32 a, float_status *status)
 {
     if (status->flush_inputs_to_zero) {
-        FloatParts64 p = float32_unpack_raw(a);
+        FloatParts64 p;
+
+        float32_unpack_raw(&p, a);
         if (parts_squash_denormal(p, status)) {
             return float32_set_sign(float32_zero, p.sign);
         }
@@ -3722,7 +3738,9 @@ float32 float32_squash_input_denormal(float32 a, float_status *status)
 float64 float64_squash_input_denormal(float64 a, float_status *status)
 {
     if (status->flush_inputs_to_zero) {
-        FloatParts64 p = float64_unpack_raw(a);
+        FloatParts64 p;
+
+        float64_unpack_raw(&p, a);
         if (parts_squash_denormal(p, status)) {
             return float64_set_sign(float64_zero, p.sign);
         }
@@ -3733,7 +3751,9 @@ float64 float64_squash_input_denormal(float64 a, float_status *status)
 bfloat16 bfloat16_squash_input_denormal(bfloat16 a, float_status *status)
 {
     if (status->flush_inputs_to_zero) {
-        FloatParts64 p = bfloat16_unpack_raw(a);
+        FloatParts64 p;
+
+        bfloat16_unpack_raw(&p, a);
         if (parts_squash_denormal(p, status)) {
             return bfloat16_set_sign(bfloat16_zero, p.sign);
         }
