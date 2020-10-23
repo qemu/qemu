@@ -96,6 +96,14 @@ enum NPCM7xxInterrupt {
     NPCM7XX_WDG2_IRQ,                   /* Timer Module 2 Watchdog */
     NPCM7XX_EHCI_IRQ            = 61,
     NPCM7XX_OHCI_IRQ            = 62,
+    NPCM7XX_GPIO0_IRQ           = 116,
+    NPCM7XX_GPIO1_IRQ,
+    NPCM7XX_GPIO2_IRQ,
+    NPCM7XX_GPIO3_IRQ,
+    NPCM7XX_GPIO4_IRQ,
+    NPCM7XX_GPIO5_IRQ,
+    NPCM7XX_GPIO6_IRQ,
+    NPCM7XX_GPIO7_IRQ,
 };
 
 /* Total number of GIC interrupts, including internal Cortex-A9 interrupts. */
@@ -128,6 +136,55 @@ static const hwaddr npcm7xx_fiu3_flash_addr[] = {
     0xa8000000, /* CS1 */
     0xb0000000, /* CS2 */
     0xb8000000, /* CS3 */
+};
+
+static const struct {
+    hwaddr regs_addr;
+    uint32_t unconnected_pins;
+    uint32_t reset_pu;
+    uint32_t reset_pd;
+    uint32_t reset_osrc;
+    uint32_t reset_odsc;
+} npcm7xx_gpio[] = {
+    {
+        .regs_addr = 0xf0010000,
+        .reset_pu = 0xff03ffff,
+        .reset_pd = 0x00fc0000,
+    }, {
+        .regs_addr = 0xf0011000,
+        .unconnected_pins = 0x0000001e,
+        .reset_pu = 0xfefffe07,
+        .reset_pd = 0x010001e0,
+    }, {
+        .regs_addr = 0xf0012000,
+        .reset_pu = 0x780fffff,
+        .reset_pd = 0x07f00000,
+        .reset_odsc = 0x00700000,
+    }, {
+        .regs_addr = 0xf0013000,
+        .reset_pu = 0x00fc0000,
+        .reset_pd = 0xff000000,
+    }, {
+        .regs_addr = 0xf0014000,
+        .reset_pu = 0xffffffff,
+    }, {
+        .regs_addr = 0xf0015000,
+        .reset_pu = 0xbf83f801,
+        .reset_pd = 0x007c0000,
+        .reset_osrc = 0x000000f1,
+        .reset_odsc = 0x3f9f80f1,
+    }, {
+        .regs_addr = 0xf0016000,
+        .reset_pu = 0xfc00f801,
+        .reset_pd = 0x000007fe,
+        .reset_odsc = 0x00000800,
+    }, {
+        .regs_addr = 0xf0017000,
+        .unconnected_pins = 0xffffff00,
+        .reset_pu = 0x0000007f,
+        .reset_osrc = 0x0000007f,
+        .reset_odsc = 0x0000007f,
+    },
 };
 
 static const struct {
@@ -269,6 +326,10 @@ static void npcm7xx_init(Object *obj)
         object_initialize_child(obj, "tim[*]", &s->tim[i], TYPE_NPCM7XX_TIMER);
     }
 
+    for (i = 0; i < ARRAY_SIZE(s->gpio); i++) {
+        object_initialize_child(obj, "gpio[*]", &s->gpio[i], TYPE_NPCM7XX_GPIO);
+    }
+
     object_initialize_child(obj, "ehci", &s->ehci, TYPE_NPCM7XX_EHCI);
     object_initialize_child(obj, "ohci", &s->ohci, TYPE_SYSBUS_OHCI);
 
@@ -388,6 +449,25 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     /* Random Number Generator. Cannot fail. */
     sysbus_realize(SYS_BUS_DEVICE(&s->rng), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->rng), 0, NPCM7XX_RNG_BA);
+
+    /* GPIO modules. Cannot fail. */
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_gpio) != ARRAY_SIZE(s->gpio));
+    for (i = 0; i < ARRAY_SIZE(s->gpio); i++) {
+        Object *obj = OBJECT(&s->gpio[i]);
+
+        object_property_set_uint(obj, "reset-pullup",
+                                 npcm7xx_gpio[i].reset_pu, &error_abort);
+        object_property_set_uint(obj, "reset-pulldown",
+                                 npcm7xx_gpio[i].reset_pd, &error_abort);
+        object_property_set_uint(obj, "reset-osrc",
+                                 npcm7xx_gpio[i].reset_osrc, &error_abort);
+        object_property_set_uint(obj, "reset-odsc",
+                                 npcm7xx_gpio[i].reset_odsc, &error_abort);
+        sysbus_realize(SYS_BUS_DEVICE(obj), &error_abort);
+        sysbus_mmio_map(SYS_BUS_DEVICE(obj), 0, npcm7xx_gpio[i].regs_addr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(obj), 0,
+                           npcm7xx_irq(s, NPCM7XX_GPIO0_IRQ + i));
+    }
 
     /* USB Host */
     object_property_set_bool(OBJECT(&s->ehci), "companion-enable", true,
