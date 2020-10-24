@@ -43,12 +43,4 @@ struct BCM283XState {
     BCM2835PeripheralState peripherals;
 };
 
-typedef struct BCM283XInfo BCM283XInfo;
-
-struct BCM283XClass {
-    DeviceClass parent_class;
-    const BCM283XInfo *info;
-};
-
-
 #endif /* BCM2836_H */
