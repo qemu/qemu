@@ -413,3 +413,129 @@ static FloatPartsN *partsN(mul)(FloatPartsN *a, FloatPartsN *b,
     a->sign = sign;
     return a;
 }
+
+/*
+ * Returns the result of multiplying the floating-point values `a' and
+ * `b' then adding 'c', with no intermediate rounding step after the
+ * multiplication. The operation is performed according to the
+ * IEC/IEEE Standard for Binary Floating-Point Arithmetic 754-2008.
+ * The flags argument allows the caller to select negation of the
+ * addend, the intermediate product, or the final result. (The
+ * difference between this and having the caller do a separate
+ * negation is that negating externally will flip the sign bit on NaNs.)
+ *
+ * Requires A and C extracted into a double-sized structure to provide the
+ * extra space for the widening multiply.
+ */
+static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
+                                   FloatPartsN *c, int flags, float_status *s)
+{
+    int ab_mask, abc_mask;
+    FloatPartsW p_widen, c_widen;
+
+    ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+    abc_mask = float_cmask(c->cls) | ab_mask;
+
+    /*
+     * It is implementation-defined whether the cases of (0,inf,qnan)
+     * and (inf,0,qnan) raise InvalidOperation or not (and what QNaN
+     * they return if they do), so we have to hand this information
+     * off to the target-specific pick-a-NaN routine.
+     */
+    if (unlikely(abc_mask & float_cmask_anynan)) {
+        return parts_pick_nan_muladd(a, b, c, s, ab_mask, abc_mask);
+    }
+
+    if (flags & float_muladd_negate_c) {
+        c->sign ^= 1;
+    }
+
+    /* Compute the sign of the product into A. */
+    a->sign ^= b->sign;
+    if (flags & float_muladd_negate_product) {
+        a->sign ^= 1;
+    }
+
+    if (unlikely(ab_mask != float_cmask_normal)) {
+        if (unlikely(ab_mask == float_cmask_infzero)) {
+            goto d_nan;
+        }
+
+        if (ab_mask & float_cmask_inf) {
+            if (c->cls == float_class_inf && a->sign != c->sign) {
+                goto d_nan;
+            }
+            goto return_inf;
+        }
+
+        g_assert(ab_mask & float_cmask_zero);
+        if (c->cls == float_class_normal) {
+            *a = *c;
+            goto return_normal;
+        }
+        if (c->cls == float_class_zero) {
+            if (a->sign != c->sign) {
+                goto return_sub_zero;
+            }
+            goto return_zero;
+        }
+        g_assert(c->cls == float_class_inf);
+    }
+
+    if (unlikely(c->cls == float_class_inf)) {
+        a->sign = c->sign;
+        goto return_inf;
+    }
+
+    /* Perform the multiplication step. */
+    p_widen.sign = a->sign;
+    p_widen.exp = a->exp + b->exp + 1;
+    frac_mulw(&p_widen, a, b);
+    if (!(p_widen.frac_hi & DECOMPOSED_IMPLICIT_BIT)) {
+        frac_add(&p_widen, &p_widen, &p_widen);
+        p_widen.exp -= 1;
+    }
+
+    /* Perform the addition step. */
+    if (c->cls != float_class_zero) {
+        /* Zero-extend C to less significant bits. */
+        frac_widen(&c_widen, c);
+        c_widen.exp = c->exp;
+
+        if (a->sign == c->sign) {
+            parts_add_normal(&p_widen, &c_widen);
+        } else if (!parts_sub_normal(&p_widen, &c_widen)) {
+            goto return_sub_zero;
+        }
+    }
+
+    /* Narrow with sticky bit, for proper rounding later. */
+    frac_truncjam(a, &p_widen);
+    a->sign = p_widen.sign;
+    a->exp = p_widen.exp;
+
+ return_normal:
+    if (flags & float_muladd_halve_result) {
+        a->exp -= 1;
+    }
+ finish_sign:
+    if (flags & float_muladd_negate_result) {
+        a->sign ^= 1;
+    }
+    return a;
+
+ return_sub_zero:
+    a->sign = s->float_rounding_mode == float_round_down;
+ return_zero:
+    a->cls = float_class_zero;
+    goto finish_sign;
+
+ return_inf:
+    a->cls = float_class_inf;
+    goto finish_sign;
+
+ d_nan:
+    float_raise(float_flag_invalid, s);
+    parts_default_nan(a, s);
+    return a;
+}

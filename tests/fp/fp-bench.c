@@ -386,7 +386,7 @@ static void bench(enum precision prec, enum op op, int n_ops, bool no_neg)
             for (i = 0; i < OPS_PER_ITER; i++) {
                 float128 a = ops[0].f128;
                 float128 b = ops[1].f128;
-                /* float128 c = ops[2].f128; */
+                float128 c = ops[2].f128;
 
                 switch (op) {
                 case OP_ADD:
@@ -401,9 +401,9 @@ static void bench(enum precision prec, enum op op, int n_ops, bool no_neg)
                 case OP_DIV:
                     res.f128 = float128_div(a, b, &soft_status);
                     break;
-                /* case OP_FMA: */
-                /*     res.f128 = float128_muladd(a, b, c, 0, &soft_status); */
-                /*     break; */
+                case OP_FMA:
+                    res.f128 = float128_muladd(a, b, c, 0, &soft_status);
+                    break;
                 case OP_SQRT:
                     res.f128 = float128_sqrt(a, &soft_status);
                     break;
