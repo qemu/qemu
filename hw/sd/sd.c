@@ -827,6 +827,7 @@ static void sd_function_switch(SDState *sd, uint32_t arg)
     sd->data[12] = 0x80;	/* Supported group 1 functions */
     sd->data[13] = 0x03;
 
+    memset(&sd->data[14], 0, 3);
     for (i = 0; i < 6; i ++) {
         new_func = (arg >> (i * 4)) & 0x0f;
         if (mode && new_func != 0x0f)
