@@ -60,3 +60,43 @@ static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
     }
     return a;
 }
+
+static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
+                                            FloatPartsN *c, float_status *s,
+                                            int ab_mask, int abc_mask)
+{
+    int which;
+
+    if (unlikely(abc_mask & float_cmask_snan)) {
+        float_raise(float_flag_invalid, s);
+    }
+
+    which = pickNaNMulAdd(a->cls, b->cls, c->cls,
+                          ab_mask == float_cmask_infzero, s);
+
+    if (s->default_nan_mode || which == 3) {
+        /*
+         * Note that this check is after pickNaNMulAdd so that function
+         * has an opportunity to set the Invalid flag for infzero.
+         */
+        parts_default_nan(a, s);
+        return a;
+    }
+
+    switch (which) {
+    case 0:
+        break;
+    case 1:
+        a = b;
+        break;
+    case 2:
+        a = c;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    if (is_snan(a->cls)) {
+        parts_silence_nan(a, s);
+    }
+    return a;
+}
