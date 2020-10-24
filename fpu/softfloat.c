@@ -741,12 +741,45 @@ static void parts128_canonicalize(FloatParts128 *p, float_status *status,
 #define parts_canonicalize(A, S, F) \
     PARTS_GENERIC_64_128(canonicalize, A)(A, S, F)
 
+static void parts64_uncanon(FloatParts64 *p, float_status *status,
+                            const FloatFmt *fmt);
+static void parts128_uncanon(FloatParts128 *p, float_status *status,
+                             const FloatFmt *fmt);
+
+#define parts_uncanon(A, S, F) \
+    PARTS_GENERIC_64_128(uncanon, A)(A, S, F)
+
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
 
 #define FRAC_GENERIC_64_128(NAME, P) \
     QEMU_GENERIC(P, (FloatParts128 *, frac128_##NAME), frac64_##NAME)
+
+static bool frac64_addi(FloatParts64 *r, FloatParts64 *a, uint64_t c)
+{
+    return uadd64_overflow(a->frac, c, &r->frac);
+}
+
+static bool frac128_addi(FloatParts128 *r, FloatParts128 *a, uint64_t c)
+{
+    c = uadd64_overflow(a->frac_lo, c, &r->frac_lo);
+    return uadd64_overflow(a->frac_hi, c, &r->frac_hi);
+}
+
+#define frac_addi(R, A, C)  FRAC_GENERIC_64_128(addi, R)(R, A, C)
+
+static void frac64_allones(FloatParts64 *a)
+{
+    a->frac = -1;
+}
+
+static void frac128_allones(FloatParts128 *a)
+{
+    a->frac_hi = a->frac_lo = -1;
+}
+
+#define frac_allones(A)  FRAC_GENERIC_64_128(allones, A)(A)
 
 static int frac64_cmp(FloatParts64 *a, FloatParts64 *b)
 {
@@ -846,161 +879,17 @@ static void frac128_shr(FloatParts128 *a, int c)
 
 #define frac_shr(A, C)  FRAC_GENERIC_64_128(shr, A)(A, C)
 
-
-/* Round and uncanonicalize a floating-point number by parts. There
- * are FRAC_SHIFT bits that may require rounding at the bottom of the
- * fraction; these bits will be removed. The exponent will be biased
- * by EXP_BIAS and must be bounded by [EXP_MAX-1, 0].
- */
-
-static FloatParts64 round_canonical(FloatParts64 p, float_status *s,
-                                  const FloatFmt *parm)
+static void frac64_shrjam(FloatParts64 *a, int c)
 {
-    const uint64_t frac_lsb = parm->frac_lsb;
-    const uint64_t frac_lsbm1 = parm->frac_lsbm1;
-    const uint64_t round_mask = parm->round_mask;
-    const uint64_t roundeven_mask = parm->roundeven_mask;
-    const int exp_max = parm->exp_max;
-    const int frac_shift = parm->frac_shift;
-    uint64_t frac, inc;
-    int exp, flags = 0;
-    bool overflow_norm;
-
-    frac = p.frac;
-    exp = p.exp;
-
-    switch (p.cls) {
-    case float_class_normal:
-        switch (s->float_rounding_mode) {
-        case float_round_nearest_even:
-            overflow_norm = false;
-            inc = ((frac & roundeven_mask) != frac_lsbm1 ? frac_lsbm1 : 0);
-            break;
-        case float_round_ties_away:
-            overflow_norm = false;
-            inc = frac_lsbm1;
-            break;
-        case float_round_to_zero:
-            overflow_norm = true;
-            inc = 0;
-            break;
-        case float_round_up:
-            inc = p.sign ? 0 : round_mask;
-            overflow_norm = p.sign;
-            break;
-        case float_round_down:
-            inc = p.sign ? round_mask : 0;
-            overflow_norm = !p.sign;
-            break;
-        case float_round_to_odd:
-            overflow_norm = true;
-            inc = frac & frac_lsb ? 0 : round_mask;
-            break;
-        default:
-            g_assert_not_reached();
-        }
-
-        exp += parm->exp_bias;
-        if (likely(exp > 0)) {
-            if (frac & round_mask) {
-                flags |= float_flag_inexact;
-                if (uadd64_overflow(frac, inc, &frac)) {
-                    frac = (frac >> 1) | DECOMPOSED_IMPLICIT_BIT;
-                    exp++;
-                }
-            }
-            frac >>= frac_shift;
-
-            if (parm->arm_althp) {
-                /* ARM Alt HP eschews Inf and NaN for a wider exponent.  */
-                if (unlikely(exp > exp_max)) {
-                    /* Overflow.  Return the maximum normal.  */
-                    flags = float_flag_invalid;
-                    exp = exp_max;
-                    frac = -1;
-                }
-            } else if (unlikely(exp >= exp_max)) {
-                flags |= float_flag_overflow | float_flag_inexact;
-                if (overflow_norm) {
-                    exp = exp_max - 1;
-                    frac = -1;
-                } else {
-                    p.cls = float_class_inf;
-                    goto do_inf;
-                }
-            }
-        } else if (s->flush_to_zero) {
-            flags |= float_flag_output_denormal;
-            p.cls = float_class_zero;
-            goto do_zero;
-        } else {
-            bool is_tiny = s->tininess_before_rounding || (exp < 0);
-
-            if (!is_tiny) {
-                uint64_t discard;
-                is_tiny = !uadd64_overflow(frac, inc, &discard);
-            }
-
-            shift64RightJamming(frac, 1 - exp, &frac);
-            if (frac & round_mask) {
-                /* Need to recompute round-to-even.  */
-                switch (s->float_rounding_mode) {
-                case float_round_nearest_even:
-                    inc = ((frac & roundeven_mask) != frac_lsbm1
-                           ? frac_lsbm1 : 0);
-                    break;
-                case float_round_to_odd:
-                    inc = frac & frac_lsb ? 0 : round_mask;
-                    break;
-                default:
-                    break;
-                }
-                flags |= float_flag_inexact;
-                frac += inc;
-            }
-
-            exp = (frac & DECOMPOSED_IMPLICIT_BIT ? 1 : 0);
-            frac >>= frac_shift;
-
-            if (is_tiny && (flags & float_flag_inexact)) {
-                flags |= float_flag_underflow;
-            }
-            if (exp == 0 && frac == 0) {
-                p.cls = float_class_zero;
-            }
-        }
-        break;
-
-    case float_class_zero:
-    do_zero:
-        exp = 0;
-        frac = 0;
-        break;
-
-    case float_class_inf:
-    do_inf:
-        assert(!parm->arm_althp);
-        exp = exp_max;
-        frac = 0;
-        break;
-
-    case float_class_qnan:
-    case float_class_snan:
-        assert(!parm->arm_althp);
-        exp = exp_max;
-        frac >>= parm->frac_shift;
-        break;
-
-    default:
-        g_assert_not_reached();
-    }
-
-    float_raise(flags, s);
-    p.exp = exp;
-    p.frac = frac;
-    return p;
+    shift64RightJamming(a->frac, c, &a->frac);
 }
 
+static void frac128_shrjam(FloatParts128 *a, int c)
+{
+    shift128RightJamming(a->frac_hi, a->frac_lo, c, &a->frac_hi, &a->frac_lo);
+}
+
+#define frac_shrjam(A, C)  FRAC_GENERIC_64_128(shrjam, A)(A, C)
 
 #define partsN(NAME)   parts64_##NAME
 #define FloatPartsN    FloatParts64
@@ -1045,7 +934,7 @@ static float16 float16a_round_pack_canonical(FloatParts64 *p,
                                              float_status *s,
                                              const FloatFmt *params)
 {
-    *p = round_canonical(*p, s, params);
+    parts_uncanon(p, s, params);
     return float16_pack_raw(p);
 }
 
@@ -1058,7 +947,7 @@ static float16 float16_round_pack_canonical(FloatParts64 *p,
 static bfloat16 bfloat16_round_pack_canonical(FloatParts64 *p,
                                               float_status *s)
 {
-    *p = round_canonical(*p, s, &bfloat16_params);
+    parts_uncanon(p, s, &bfloat16_params);
     return bfloat16_pack_raw(p);
 }
 
@@ -1072,7 +961,7 @@ static void float32_unpack_canonical(FloatParts64 *p, float32 f,
 static float32 float32_round_pack_canonical(FloatParts64 *p,
                                             float_status *s)
 {
-    *p = round_canonical(*p, s, &float32_params);
+    parts_uncanon(p, s, &float32_params);
     return float32_pack_raw(p);
 }
 
@@ -1086,7 +975,7 @@ static void float64_unpack_canonical(FloatParts64 *p, float64 f,
 static float64 float64_round_pack_canonical(FloatParts64 *p,
                                             float_status *s)
 {
-    *p = round_canonical(*p, s, &float64_params);
+    parts_uncanon(p, s, &float64_params);
     return float64_pack_raw(p);
 }
 
