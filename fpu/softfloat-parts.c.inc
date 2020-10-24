@@ -35,3 +35,28 @@ static void partsN(return_nan)(FloatPartsN *a, float_status *s)
         g_assert_not_reached();
     }
 }
+
+static FloatPartsN *partsN(pick_nan)(FloatPartsN *a, FloatPartsN *b,
+                                     float_status *s)
+{
+    if (is_snan(a->cls) || is_snan(b->cls)) {
+        float_raise(float_flag_invalid, s);
+    }
+
+    if (s->default_nan_mode) {
+        parts_default_nan(a, s);
+    } else {
+        int cmp = frac_cmp(a, b);
+        if (cmp == 0) {
+            cmp = a->sign < b->sign;
+        }
+
+        if (pickNaN(a->cls, b->cls, cmp > 0, s)) {
+            a = b;
+        }
+        if (is_snan(a->cls)) {
+            parts_silence_nan(a, s);
+        }
+    }
+    return a;
+}

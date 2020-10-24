@@ -714,9 +714,38 @@ static void parts128_return_nan(FloatParts128 *a, float_status *s);
 
 #define parts_return_nan(P, S)     PARTS_GENERIC_64_128(return_nan, P)(P, S)
 
+static FloatParts64 *parts64_pick_nan(FloatParts64 *a, FloatParts64 *b,
+                                      float_status *s);
+static FloatParts128 *parts128_pick_nan(FloatParts128 *a, FloatParts128 *b,
+                                        float_status *s);
+
+#define parts_pick_nan(A, B, S)    PARTS_GENERIC_64_128(pick_nan, A)(A, B, S)
+
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
+
+#define FRAC_GENERIC_64_128(NAME, P) \
+    QEMU_GENERIC(P, (FloatParts128 *, frac128_##NAME), frac64_##NAME)
+
+static int frac64_cmp(FloatParts64 *a, FloatParts64 *b)
+{
+    return a->frac == b->frac ? 0 : a->frac < b->frac ? -1 : 1;
+}
+
+static int frac128_cmp(FloatParts128 *a, FloatParts128 *b)
+{
+    uint64_t ta = a->frac_hi, tb = b->frac_hi;
+    if (ta == tb) {
+        ta = a->frac_lo, tb = b->frac_lo;
+        if (ta == tb) {
+            return 0;
+        }
+    }
+    return ta < tb ? -1 : 1;
+}
+
+#define frac_cmp(A, B)  FRAC_GENERIC_64_128(cmp, A)(A, B)
 
 static void frac128_shl(FloatParts128 *a, int c)
 {
@@ -919,27 +948,6 @@ static FloatParts64 round_canonical(FloatParts64 p, float_status *s,
     return p;
 }
 
-static FloatParts64 pick_nan(FloatParts64 a, FloatParts64 b, float_status *s)
-{
-    if (is_snan(a.cls) || is_snan(b.cls)) {
-        float_raise(float_flag_invalid, s);
-    }
-
-    if (s->default_nan_mode) {
-        parts_default_nan(&a, s);
-    } else {
-        if (pickNaN(a.cls, b.cls,
-                    a.frac > b.frac ||
-                    (a.frac == b.frac && a.sign < b.sign), s)) {
-            a = b;
-        }
-        if (is_snan(a.cls)) {
-            parts_silence_nan(&a, s);
-        }
-    }
-    return a;
-}
-
 static FloatParts64 pick_nan_muladd(FloatParts64 a, FloatParts64 b, FloatParts64 c,
                                   bool inf_zero, float_status *s)
 {
@@ -1107,7 +1115,7 @@ static FloatParts64 addsub_floats(FloatParts64 a, FloatParts64 b, bool subtract,
             return a;
         }
         if (is_nan(a.cls) || is_nan(b.cls)) {
-            return pick_nan(a, b, s);
+            return *parts_pick_nan(&a, &b, s);
         }
         if (a.cls == float_class_inf) {
             if (b.cls == float_class_inf) {
@@ -1145,7 +1153,7 @@ static FloatParts64 addsub_floats(FloatParts64 a, FloatParts64 b, bool subtract,
             return a;
         }
         if (is_nan(a.cls) || is_nan(b.cls)) {
-            return pick_nan(a, b, s);
+            return *parts_pick_nan(&a, &b, s);
         }
         if (a.cls == float_class_inf || b.cls == float_class_zero) {
             return a;
@@ -1361,7 +1369,7 @@ static FloatParts64 mul_floats(FloatParts64 a, FloatParts64 b, float_status *s)
     }
     /* handle all the NaN cases */
     if (is_nan(a.cls) || is_nan(b.cls)) {
-        return pick_nan(a, b, s);
+        return *parts_pick_nan(&a, &b, s);
     }
     /* Inf * Zero == NaN */
     if ((a.cls == float_class_inf && b.cls == float_class_zero) ||
@@ -1888,7 +1896,7 @@ static FloatParts64 div_floats(FloatParts64 a, FloatParts64 b, float_status *s)
     }
     /* handle all the NaN cases */
     if (is_nan(a.cls) || is_nan(b.cls)) {
-        return pick_nan(a, b, s);
+        return *parts_pick_nan(&a, &b, s);
     }
     /* 0/0 or Inf/Inf */
     if (a.cls == b.cls
@@ -3296,14 +3304,14 @@ static FloatParts64 minmax_floats(FloatParts64 a, FloatParts64 b, bool ismin,
              * the invalid exception is raised.
              */
             if (is_snan(a.cls) || is_snan(b.cls)) {
-                return pick_nan(a, b, s);
+                return *parts_pick_nan(&a, &b, s);
             } else if (is_nan(a.cls) && !is_nan(b.cls)) {
                 return b;
             } else if (is_nan(b.cls) && !is_nan(a.cls)) {
                 return a;
             }
         }
-        return pick_nan(a, b, s);
+        return *parts_pick_nan(&a, &b, s);
     } else {
         int a_exp, b_exp;
 
