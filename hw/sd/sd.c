@@ -596,7 +596,7 @@ static void sd_reset(DeviceState *dev)
     } else {
         sect = 0;
     }
-    size = sect << 9;
+    size = sect << HWBLOCK_SHIFT;
 
     sect = sd_addr_to_wpnum(size) + 1;
 
@@ -822,8 +822,8 @@ static void sd_erase(SDState *sd)
 
     if (FIELD_EX32(sd->ocr, OCR, CARD_CAPACITY)) {
         /* High capacity memory card: erase units are 512 byte blocks */
-        erase_start *= 512;
-        erase_end *= 512;
+        erase_start <<= HWBLOCK_SHIFT;
+        erase_end <<= HWBLOCK_SHIFT;
         sdsc = false;
     }
 
