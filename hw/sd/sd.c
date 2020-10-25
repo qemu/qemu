@@ -389,9 +389,16 @@ static const uint8_t sd_csd_rw_mask[16] = {
 
 static void sd_set_csd(SDState *sd, uint64_t size)
 {
-    uint32_t csize = (size >> (CMULT_SHIFT + HWBLOCK_SHIFT)) - 1;
+    int hwblock_shift = HWBLOCK_SHIFT;
+    uint32_t csize;
     uint32_t sectsize = (1 << (SECTOR_SHIFT + 1)) - 1;
     uint32_t wpsize = (1 << (WPGROUP_SHIFT + 1)) - 1;
+
+    /* To indicate 2 GiB card, BLOCK_LEN shall be 1024 bytes */
+    if (size == SDSC_MAX_CAPACITY) {
+        hwblock_shift += 1;
+    }
+    csize = (size >> (CMULT_SHIFT + hwblock_shift)) - 1;
 
     if (size <= SDSC_MAX_CAPACITY) { /* Standard Capacity SD */
         sd->csd[0] = 0x00;	/* CSD structure */
@@ -400,7 +407,7 @@ static void sd_set_csd(SDState *sd, uint64_t size)
         sd->csd[3] = 0x32;      /* Max. data transfer rate: 25 MHz */
         sd->csd[4] = 0x5f;	/* Card Command Classes */
         sd->csd[5] = 0x50 |	/* Max. read data block length */
-            HWBLOCK_SHIFT;
+            hwblock_shift;
         sd->csd[6] = 0xe0 |	/* Partial block for read allowed */
             ((csize >> 10) & 0x03);
         sd->csd[7] = 0x00 |	/* Device size */
@@ -414,9 +421,9 @@ static void sd_set_csd(SDState *sd, uint64_t size)
         sd->csd[11] = 0x00 |	/* Write protect group size */
             ((sectsize << 7) & 0x80) | wpsize;
         sd->csd[12] = 0x90 |	/* Write speed factor */
-            (HWBLOCK_SHIFT >> 2);
+            (hwblock_shift >> 2);
         sd->csd[13] = 0x20 |	/* Max. write data block length */
-            ((HWBLOCK_SHIFT << 6) & 0xc0);
+            ((hwblock_shift << 6) & 0xc0);
         sd->csd[14] = 0x00;	/* File format group */
     } else {			/* SDHC */
         size /= 512 * KiB;
