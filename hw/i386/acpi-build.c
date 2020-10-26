@@ -866,6 +866,8 @@ static Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
     crs_range_merge(temp_range_set.mem_ranges);
     for (i = 0; i < temp_range_set.mem_ranges->len; i++) {
         entry = g_ptr_array_index(temp_range_set.mem_ranges, i);
+        assert(entry->limit <= UINT32_MAX &&
+               (entry->limit - entry->base + 1) <= UINT32_MAX);
         aml_append(crs,
                    aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
                                     AML_MAX_FIXED, AML_NON_CACHEABLE,
