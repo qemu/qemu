@@ -511,34 +511,21 @@ static inline void
 | the locations pointed to by `z0Ptr', `z1Ptr', `z2Ptr', and `z3Ptr'.
 *----------------------------------------------------------------------------*/
 
-static inline void
- mul128To256(
-     uint64_t a0,
-     uint64_t a1,
-     uint64_t b0,
-     uint64_t b1,
-     uint64_t *z0Ptr,
-     uint64_t *z1Ptr,
-     uint64_t *z2Ptr,
-     uint64_t *z3Ptr
- )
+static inline void mul128To256(uint64_t a0, uint64_t a1,
+                               uint64_t b0, uint64_t b1,
+                               uint64_t *z0Ptr, uint64_t *z1Ptr,
+                               uint64_t *z2Ptr, uint64_t *z3Ptr)
 {
-    uint64_t z0, z1, z2, z3;
-    uint64_t more1, more2;
+    uint64_t z0, z1, z2;
+    uint64_t m0, m1, m2, n1, n2;
 
-    mul64To128( a1, b1, &z2, &z3 );
-    mul64To128( a1, b0, &z1, &more2 );
-    add128( z1, more2, 0, z2, &z1, &z2 );
-    mul64To128( a0, b0, &z0, &more1 );
-    add128( z0, more1, 0, z1, &z0, &z1 );
-    mul64To128( a0, b1, &more1, &more2 );
-    add128( more1, more2, 0, z2, &more1, &z2 );
-    add128( z0, z1, 0, more1, &z0, &z1 );
-    *z3Ptr = z3;
-    *z2Ptr = z2;
-    *z1Ptr = z1;
-    *z0Ptr = z0;
+    mul64To128(a1, b0, &m1, &m2);
+    mul64To128(a0, b1, &n1, &n2);
+    mul64To128(a1, b1, &z2, z3Ptr);
+    mul64To128(a0, b0, &z0, &z1);
 
+    add192( 0, m1, m2,  0, n1, n2, &m0, &m1, &m2);
+    add192(m0, m1, m2, z0, z1, z2, z0Ptr, z1Ptr, z2Ptr);
 }
 
 /*----------------------------------------------------------------------------
