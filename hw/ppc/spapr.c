@@ -2347,8 +2347,10 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
 
             assert(fd >= 0);
 
-            rc = kvmppc_load_htab_chunk(f, fd, index, n_valid, n_invalid);
+            rc = kvmppc_load_htab_chunk(f, fd, index, n_valid, n_invalid,
+                                        &local_err);
             if (rc < 0) {
+                error_report_err(local_err);
                 return rc;
             }
         }

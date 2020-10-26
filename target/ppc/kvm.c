@@ -2683,7 +2683,7 @@ int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
 }
 
 int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
-                           uint16_t n_valid, uint16_t n_invalid)
+                           uint16_t n_valid, uint16_t n_invalid, Error **errp)
 {
     struct kvm_get_htab_header *buf;
     size_t chunksize = sizeof(*buf) + n_valid * HASH_PTE_SIZE_64;
@@ -2698,14 +2698,13 @@ int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
 
     rc = write(fd, buf, chunksize);
     if (rc < 0) {
-        fprintf(stderr, "Error writing KVM hash table: %s\n",
-                strerror(errno));
-        return rc;
+        error_setg_errno(errp, errno, "Error writing the KVM hash table");
+        return -errno;
     }
     if (rc != chunksize) {
         /* We should never get a short write on a single chunk */
-        fprintf(stderr, "Short write, restoring KVM hash table\n");
-        return -1;
+        error_setg(errp, "Short write while restoring the KVM hash table");
+        return -ENOSPC;
     }
     return 0;
 }
