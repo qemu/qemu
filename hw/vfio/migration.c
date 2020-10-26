@@ -832,9 +832,14 @@ err:
 
 int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
 {
+    VFIOContainer *container = vbasedev->group->container;
     struct vfio_region_info *info = NULL;
     Error *local_err = NULL;
-    int ret;
+    int ret = -ENOTSUP;
+
+    if (!container->dirty_pages_supported) {
+        goto add_blocker;
+    }
 
     ret = vfio_get_dev_region_info(vbasedev, VFIO_REGION_TYPE_MIGRATION,
                                    VFIO_REGION_SUBTYPE_MIGRATION, &info);
