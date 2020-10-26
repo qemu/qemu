@@ -338,7 +338,7 @@ static void mips_fuloong2e_init(MachineState *machine)
         write_bootloader(env, memory_region_get_ram_ptr(bios), kernel_entry);
     } else {
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
-                                  bios_name ?: FULOONG_BIOSNAME);
+                                  machine->firmware ?: FULOONG_BIOSNAME);
         if (filename) {
             bios_size = load_image_targphys(filename, 0x1fc00000LL,
                                             BIOS_SIZE);
@@ -348,8 +348,8 @@ static void mips_fuloong2e_init(MachineState *machine)
         }
 
         if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
-            bios_name && !qtest_enabled()) {
-            error_report("Could not load MIPS bios '%s'", bios_name);
+            machine->firmware && !qtest_enabled()) {
+            error_report("Could not load MIPS bios '%s'", machine->firmware);
             exit(1);
         }
     }

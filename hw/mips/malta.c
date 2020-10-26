@@ -1333,7 +1333,7 @@ void mips_malta_init(MachineState *machine)
         if (!dinfo) {
             /* Load a BIOS image. */
             filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
-                                      bios_name ?: BIOS_FILENAME);
+                                      machine->firmware ?: BIOS_FILENAME);
             if (filename) {
                 bios_size = load_image_targphys(filename, FLASH_ADDRESS,
                                                 BIOS_SIZE);
@@ -1342,8 +1342,8 @@ void mips_malta_init(MachineState *machine)
                 bios_size = -1;
             }
             if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
-                bios_name && !qtest_enabled()) {
-                error_report("Could not load MIPS bios '%s'", bios_name);
+                machine->firmware && !qtest_enabled()) {
+                error_report("Could not load MIPS bios '%s'", machine->firmware);
                 exit(1);
             }
         }

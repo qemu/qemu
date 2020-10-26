@@ -218,7 +218,7 @@ static void mips_jazz_init(MachineState *machine,
     memory_region_add_subregion(address_space, 0xfff00000LL, bios2);
 
     /* load the BIOS image. */
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name ?: BIOS_FILENAME);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware ?: BIOS_FILENAME);
     if (filename) {
         bios_size = load_image_targphys(filename, 0xfff00000LL,
                                         MAGNUM_BIOS_SIZE);
@@ -227,8 +227,8 @@ static void mips_jazz_init(MachineState *machine,
         bios_size = -1;
     }
     if ((bios_size < 0 || bios_size > MAGNUM_BIOS_SIZE)
-        && bios_name && !qtest_enabled()) {
-        error_report("Could not load MIPS bios '%s'", bios_name);
+        && machine->firmware && !qtest_enabled()) {
+        error_report("Could not load MIPS bios '%s'", machine->firmware);
         exit(1);
     }
 
