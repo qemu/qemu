@@ -65,6 +65,7 @@ typedef struct VFIOMigration {
     uint32_t device_state;
     int vm_running;
     Notifier migration_state;
+    uint64_t pending_bytes;
 } VFIOMigration;
 
 typedef struct VFIOAddressSpace {
