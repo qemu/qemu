@@ -29,8 +29,14 @@ if get_option('qemu_suffix').startswith('/')
   error('qemu_suffix cannot start with a /')
 endif
 
+qemu_confdir = get_option('sysconfdir') / get_option('qemu_suffix')
 qemu_datadir = get_option('datadir') / get_option('qemu_suffix')
 qemu_docdir = get_option('docdir') / get_option('qemu_suffix')
+qemu_moddir = get_option('libdir') / get_option('qemu_suffix')
+
+qemu_desktopdir = get_option('datadir') / 'applications'
+qemu_icondir = get_option('datadir') / 'icons'
+
 config_host_data = configuration_data()
 genh = []
 
@@ -198,7 +204,7 @@ else
   have_xen_pci_passthrough = false
 endif
 if not get_option('whpx').disabled() and targetos == 'windows'
-  if get_option('whpx').enabled() and cpu != 'x86_64'
+  if get_option('whpx').enabled() and host_machine.cpu() != 'x86_64'
     error('WHPX requires 64-bit host')
   elif cc.has_header('WinHvPlatform.h', required: get_option('whpx')) and \
        cc.has_header('WinHvEmulation.h', required: get_option('whpx'))
@@ -465,70 +471,89 @@ endif
 iconv = not_found
 curses = not_found
 if have_system and not get_option('curses').disabled()
-  if not get_option('iconv').disabled()
-    libiconv = cc.find_library('iconv',
-                               required: false,
-                               static: enable_static)
-    if cc.links('''
-      #include <iconv.h>
-      int main(void) {
-        iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
-        return conv != (iconv_t) -1;
-      }''', dependencies: [libiconv])
-      iconv = declare_dependency(dependencies: [libiconv])
+  curses_test = '''
+    #include <locale.h>
+    #include <curses.h>
+    #include <wchar.h>
+    int main(void) {
+      wchar_t wch = L'w';
+      setlocale(LC_ALL, "");
+      resize_term(0, 0);
+      addwstr(L"wide chars\n");
+      addnwstr(&wch, 1);
+      add_wch(WACS_DEGREE);
+      return 0;
+    }'''
+
+  curses = dependency((targetos == 'windows' ? 'ncurses' : 'ncursesw'),
+                      required: false,
+                      method: 'pkg-config',
+                      static: enable_static)
+  msg = get_option('curses').enabled() ? 'curses library not found' : ''
+  if curses.found()
+    if cc.links(curses_test, dependencies: [curses])
+      curses = declare_dependency(compile_args: '-DNCURSES_WIDECHAR', dependencies: [curses])
+    else
+      msg = 'curses package not usable'
+      curses = not_found
     endif
   endif
-  if get_option('iconv').enabled() and not iconv.found()
-    error('Cannot detect iconv API')
-  endif
-  if iconv.found()
-    curses_libname_list = ['ncursesw', 'ncurses', 'cursesw', 'pdcurses']
-    curses_test = '''
-      #include <locale.h>
-      #include <curses.h>
-      #include <wchar.h>
-      int main(void) {
-        wchar_t wch = L'w';
-        setlocale(LC_ALL, "");
-        resize_term(0, 0);
-        addwstr(L"wide chars\n");
-        addnwstr(&wch, 1);
-        add_wch(WACS_DEGREE);
-        return 0;
-      }'''
-    foreach curses_libname : curses_libname_list
-      libcurses = dependency(curses_libname,
-                             required: false,
-                             method: 'pkg-config',
-                             static: enable_static)
-
-      if not libcurses.found()
-        dirs = ['/usr/include/ncursesw']
-        if targetos == 'windows'
-          dirs = []
-        endif
+  if not curses.found()
+    curses_compile_args = ['-DNCURSES_WIDECHAR']
+    has_curses_h = cc.has_header('curses.h', args: curses_compile_args)
+    if targetos != 'windows' and not has_curses_h
+      message('Trying with /usr/include/ncursesw')
+      curses_compile_args += ['-I/usr/include/ncursesw']
+      has_curses_h = cc.has_header('curses.h', args: curses_compile_args)
+    endif
+    if has_curses_h
+      curses_libname_list = (targetos == 'windows' ? ['pdcurses'] : ['ncursesw', 'cursesw'])
+      foreach curses_libname : curses_libname_list
         libcurses = cc.find_library(curses_libname,
                                     required: false,
-                                    dirs: dirs,
                                     static: enable_static)
-      endif
-      if libcurses.found()
-        if cc.links(curses_test, dependencies: [libcurses])
-          curses = declare_dependency(compile_args: '-DNCURSES_WIDECHAR', dependencies: [libcurses])
-          break
+        if libcurses.found()
+          if cc.links(curses_test, args: curses_compile_args, dependencies: libcurses)
+            curses = declare_dependency(compile_args: curses_compile_args,
+                                        dependencies: [libcurses])
+            break
+          else
+            msg = 'curses library not usable'
+          endif
         endif
+      endforeach
+    endif
+  endif
+  if not get_option('iconv').disabled()
+    foreach link_args : [ ['-liconv'], [] ]
+      # Programs will be linked with glib and this will bring in libiconv on FreeBSD.
+      # We need to use libiconv if available because mixing libiconv's headers with
+      # the system libc does not work.
+      # However, without adding glib to the dependencies -L/usr/local/lib will not be
+      # included in the command line and libiconv will not be found.
+      if cc.links('''
+        #include <iconv.h>
+        int main(void) {
+          iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
+          return conv != (iconv_t) -1;
+        }''', args: config_host['GLIB_CFLAGS'].split() + config_host['GLIB_LIBS'].split() + link_args)
+        iconv = declare_dependency(link_args: link_args, dependencies: glib)
+        break
       endif
     endforeach
   endif
-  if not curses.found()
-    if iconv.found()
-      if get_option('curses').enabled()
-        error('Cannot find curses')
-      endif
-    elif get_option('curses').enabled()
-      error('iconv required for curses UI but not available')
+  if curses.found() and not iconv.found()
+    if get_option('iconv').enabled()
+      error('iconv not available')
+    endif
+    msg = 'iconv required for curses UI but not available'
+    curses = not_found
+  endif
+  if not curses.found() and msg != ''
+    if get_option('curses').enabled()
+      error(msg)
     else
-      warning('iconv required for curses UI but not available, disabling')
+      warning(msg + ', disabling')
     endif
   endif
 endif
@@ -715,6 +740,19 @@ endif
 # config-host.h #
 #################
 
+config_host_data.set_quoted('CONFIG_BINDIR', get_option('prefix') / get_option('bindir'))
+config_host_data.set_quoted('CONFIG_PREFIX', get_option('prefix'))
+config_host_data.set_quoted('CONFIG_QEMU_CONFDIR', get_option('prefix') / qemu_confdir)
+config_host_data.set_quoted('CONFIG_QEMU_DATADIR', get_option('prefix') / qemu_datadir)
+config_host_data.set_quoted('CONFIG_QEMU_DESKTOPDIR', get_option('prefix') / qemu_desktopdir)
+config_host_data.set_quoted('CONFIG_QEMU_FIRMWAREPATH', get_option('qemu_firmwarepath'))
+config_host_data.set_quoted('CONFIG_QEMU_HELPERDIR', get_option('prefix') / get_option('libexecdir'))
+config_host_data.set_quoted('CONFIG_QEMU_ICONDIR', get_option('prefix') / qemu_icondir)
+config_host_data.set_quoted('CONFIG_QEMU_LOCALEDIR', get_option('prefix') / get_option('localedir'))
+config_host_data.set_quoted('CONFIG_QEMU_LOCALSTATEDIR', get_option('prefix') / get_option('localstatedir'))
+config_host_data.set_quoted('CONFIG_QEMU_MODDIR', get_option('prefix') / qemu_moddir)
+config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_option('sysconfdir'))
+
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
@@ -737,9 +775,7 @@ config_host_data.set('QEMU_VERSION_MICRO', meson.project_version().split('.')[2]
 
 ignored = ['CONFIG_QEMU_INTERP_PREFIX'] # actually per-target
 arrays = ['CONFIG_AUDIO_DRIVERS', 'CONFIG_BDRV_RW_WHITELIST', 'CONFIG_BDRV_RO_WHITELIST']
-strings = ['HOST_DSOSUF', 'CONFIG_IASL', 'bindir', 'prefix', 'qemu_confdir', 'qemu_datadir',
-           'qemu_moddir', 'qemu_localstatedir', 'qemu_helperdir', 'qemu_localedir',
-           'qemu_icondir', 'qemu_desktopdir', 'qemu_firmwarepath', 'sysconfdir']
+strings = ['HOST_DSOSUF', 'CONFIG_IASL']
 foreach k, v: config_host
   if ignored.contains(k)
     # do nothing
@@ -1633,7 +1669,7 @@ foreach m : block_mods + softmmu_mods
                 name_prefix: '',
                 link_whole: m,
                 install: true,
-                install_dir: config_host['qemu_moddir'])
+                install_dir: qemu_moddir)
 endforeach
 
 softmmu_ss.add(authz, blockdev, chardev, crypto, io, qmp)
@@ -1794,7 +1830,7 @@ foreach target : target_dirs
                       output: exe['name'] + stp['ext'],
                       capture: true,
                       install: stp['install'],
-                      install_dir: qemu_datadir / '../systemtap/tapset',
+                      install_dir: get_option('datadir') / 'systemtap/tapset',
                       command: [
                         tracetool, '--group=all', '--format=' + stp['fmt'],
                         '--binary=' + stp['bin'],
@@ -1906,17 +1942,17 @@ endif
 #########################
 
 summary_info = {}
-summary_info += {'Install prefix':    config_host['prefix']}
-summary_info += {'BIOS directory':    config_host['qemu_datadir']}
-summary_info += {'firmware path':     config_host['qemu_firmwarepath']}
-summary_info += {'binary directory':  config_host['bindir']}
-summary_info += {'library directory': config_host['libdir']}
-summary_info += {'module directory':  config_host['qemu_moddir']}
-summary_info += {'libexec directory': config_host['libexecdir']}
-summary_info += {'include directory': config_host['includedir']}
-summary_info += {'config directory':  config_host['sysconfdir']}
+summary_info += {'Install prefix':    get_option('prefix')}
+summary_info += {'BIOS directory':    qemu_datadir}
+summary_info += {'firmware path':     get_option('qemu_firmwarepath')}
+summary_info += {'binary directory':  get_option('bindir')}
+summary_info += {'library directory': get_option('libdir')}
+summary_info += {'module directory':  qemu_moddir}
+summary_info += {'libexec directory': get_option('libexecdir')}
+summary_info += {'include directory': get_option('includedir')}
+summary_info += {'config directory':  get_option('sysconfdir')}
 if targetos != 'windows'
-  summary_info += {'local state directory': config_host['qemu_localstatedir']}
+  summary_info += {'local state directory': get_option('localstatedir')}
   summary_info += {'Manual directory':      get_option('mandir')}
 else
   summary_info += {'local state directory': 'queried at runtime'}
@@ -2028,7 +2064,7 @@ summary_info += {'netmap support':    config_host.has_key('CONFIG_NETMAP')}
 summary_info += {'Linux AIO support': config_host.has_key('CONFIG_LINUX_AIO')}
 summary_info += {'Linux io_uring support': config_host.has_key('CONFIG_LINUX_IO_URING')}
 summary_info += {'ATTR/XATTR support': config_host.has_key('CONFIG_ATTR')}
-summary_info += {'Install blobs':     config_host.has_key('INSTALL_BLOBS')}
+summary_info += {'Install blobs':     get_option('install_blobs')}
 summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
 summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
 summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}

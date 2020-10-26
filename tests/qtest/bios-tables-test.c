@@ -127,6 +127,9 @@ static void free_test_data(test_data *data)
 {
     int i;
 
+    if (!data->tables) {
+        return;
+    }
     for (i = 0; i < data->tables->len; ++i) {
         cleanup_table_descriptor(&g_array_index(data->tables, AcpiSdtTable, i));
     }
@@ -655,6 +658,13 @@ static void test_acpi_one(const char *params, test_data *data)
 {
     char *args;
     bool use_uefi = data->uefi_fl1 && data->uefi_fl2;
+
+#ifndef CONFIG_TCG
+    if (data->tcg_only) {
+        g_test_skip("TCG disabled, skipping ACPI tcg_only test");
+        return;
+    }
+#endif /* CONFIG_TCG */
 
     if (use_uefi) {
         /*

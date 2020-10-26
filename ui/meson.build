@@ -139,7 +139,7 @@ subdir('shader')
 if have_system
   subdir('icons')
 
-  install_data('qemu.desktop', install_dir: config_host['qemu_desktopdir'])
+  install_data('qemu.desktop', install_dir: qemu_desktopdir)
 endif
 
 modules += {'ui': ui_modules}

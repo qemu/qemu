@@ -21,17 +21,6 @@ deprecated.
 System emulator command line arguments
 --------------------------------------
 
-``-machine enforce-config-section=on|off`` (since 3.1)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``enforce-config-section`` parameter is replaced by the
-``-global migration.send-configuration={on|off}`` option.
-
-``-no-kvm`` (since 1.3.0)
-'''''''''''''''''''''''''
-
-The ``-no-kvm`` argument is now a synonym for setting ``-accel tcg``.
-
 ``-usbdevice`` (since 2.10.0)
 '''''''''''''''''''''''''''''
 
@@ -504,6 +493,12 @@ System emulator command line arguments
 The ``name`` parameter of the ``-net`` option was a synonym
 for the ``id`` parameter, which should now be used instead.
 
+``-no-kvm`` (removed in 5.2)
+''''''''''''''''''''''''''''
+
+The ``-no-kvm`` argument was a synonym for setting ``-machine accel=tcg``.
+
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
@@ -687,6 +682,12 @@ which could lead to an incorrect topology enumeration by the guest.
 Support for invalid topologies is removed, the user must ensure
 topologies described with -smp include all possible cpus, i.e.
 *sockets* * *cores* * *threads* = *maxcpus*.
+
+``-machine enforce-config-section=on|off`` (removed 5.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``enforce-config-section`` property was replaced by the
+``-global migration.send-configuration={on|off}`` option.
 
 Block devices
 -------------

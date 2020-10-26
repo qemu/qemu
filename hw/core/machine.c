@@ -411,24 +411,6 @@ static bool machine_get_suppress_vmdesc(Object *obj, Error **errp)
     return ms->suppress_vmdesc;
 }
 
-static void machine_set_enforce_config_section(Object *obj, bool value,
-                                             Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    warn_report("enforce-config-section is deprecated, please use "
-                "-global migration.send-configuration=on|off instead");
-
-    ms->enforce_config_section = value;
-}
-
-static bool machine_get_enforce_config_section(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->enforce_config_section;
-}
-
 static char *machine_get_memory_encryption(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -857,11 +839,6 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "suppress-vmdesc",
         "Set on to disable self-describing migration");
 
-    object_class_property_add_bool(oc, "enforce-config-section",
-        machine_get_enforce_config_section, machine_set_enforce_config_section);
-    object_class_property_set_description(oc, "enforce-config-section",
-        "Set on to enforce configuration section migration");
-
     object_class_property_add_str(oc, "memory-encryption",
         machine_get_memory_encryption, machine_set_memory_encryption);
     object_class_property_set_description(oc, "memory-encryption",
@@ -876,8 +853,12 @@ static void machine_class_init(ObjectClass *oc, void *data)
 
 static void machine_class_base_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+    mc->max_cpus = mc->max_cpus ?: 1;
+    mc->min_cpus = mc->min_cpus ?: 1;
+    mc->default_cpus = mc->default_cpus ?: 1;
+
     if (!object_class_is_abstract(oc)) {
-        MachineClass *mc = MACHINE_CLASS(oc);
         const char *cname = object_class_get_name(oc);
         assert(g_str_has_suffix(cname, TYPE_MACHINE_SUFFIX));
         mc->name = g_strndup(cname,
@@ -926,6 +907,13 @@ static void machine_initfn(Object *obj)
     /* Register notifier when init is done for sysbus sanity checks */
     ms->sysbus_notifier.notify = machine_init_notify;
     qemu_add_machine_init_done_notifier(&ms->sysbus_notifier);
+
+    /* default to mc->default_cpus */
+    ms->smp.cpus = mc->default_cpus;
+    ms->smp.max_cpus = mc->default_cpus;
+    ms->smp.cores = 1;
+    ms->smp.threads = 1;
+    ms->smp.sockets = 1;
 }
 
 static void machine_finalize(Object *obj)

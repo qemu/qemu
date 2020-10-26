@@ -7,7 +7,6 @@ softmmu_ss.add(files(
   'eth.c',
   'filter-buffer.c',
   'filter-mirror.c',
-  'filter-replay.c',
   'filter-rewriter.c',
   'filter.c',
   'hub.c',
@@ -16,6 +15,8 @@ softmmu_ss.add(files(
   'socket.c',
   'util.c',
 ))
+
+softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('filter-replay.c'))
 
 softmmu_ss.add(when: 'CONFIG_L2TPV3', if_true: files('l2tpv3.c'))
 softmmu_ss.add(when: slirp, if_true: files('slirp.c'))

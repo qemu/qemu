@@ -949,7 +949,7 @@ char *get_relocated_path(const char *dir)
         bindir += len_bindir;
         dir = next_component(dir, &len_dir);
         bindir = next_component(bindir, &len_bindir);
-    } while (len_dir == len_bindir && !memcmp(dir, bindir, len_dir));
+    } while (len_dir && len_dir == len_bindir && !memcmp(dir, bindir, len_dir));
 
     /* Ascend from bindir to the common prefix with dir.  */
     while (len_bindir) {

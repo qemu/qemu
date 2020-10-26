@@ -3506,10 +3506,6 @@ void qemu_init(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
-             case QEMU_OPTION_no_kvm:
-                olist = qemu_find_opts("machine");
-                qemu_opts_parse_noisily(olist, "accel=tcg", false);
-                break;
             case QEMU_OPTION_accel:
                 accel_opts = qemu_opts_parse_noisily(qemu_find_opts("accel"),
                                                      optarg, true);
@@ -3977,18 +3973,6 @@ void qemu_init(int argc, char **argv, char **envp)
         }
         exit(0);
     }
-
-    /* machine_class: default to UP */
-    machine_class->max_cpus = machine_class->max_cpus ?: 1;
-    machine_class->min_cpus = machine_class->min_cpus ?: 1;
-    machine_class->default_cpus = machine_class->default_cpus ?: 1;
-
-    /* default to machine_class->default_cpus */
-    current_machine->smp.cpus = machine_class->default_cpus;
-    current_machine->smp.max_cpus = machine_class->default_cpus;
-    current_machine->smp.cores = 1;
-    current_machine->smp.threads = 1;
-    current_machine->smp.sockets = 1;
 
     machine_class->smp_parse(current_machine,
         qemu_opts_find(qemu_find_opts("smp-opts"), NULL));
