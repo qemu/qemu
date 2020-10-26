@@ -25,7 +25,10 @@
 #include "qemu/main-loop.h"
 #include "hw/core/cpu.h"
 
-#include "qtest-cpus.h"
+const CpusAccel qtest_cpus = {
+    .create_vcpu_thread = dummy_start_vcpu_thread,
+    .get_virtual_clock = qtest_get_virtual_clock,
+};
 
 static int qtest_init_accel(MachineState *ms)
 {

@@ -47,6 +47,7 @@ ENV PACKAGES flex bison \
     libxen-dev \
     libzstd-dev \
     make \
+    netcat-openbsd \
     ninja-build \
     python3-numpy \
     python3-opencv \

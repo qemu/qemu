@@ -18,6 +18,7 @@ ENV PACKAGES \
     lzo-devel \
     make \
     mesa-libEGL-devel \
+    nmap-ncat \
     nettle-devel \
     ninja-build \
     perl-Test-Harness \

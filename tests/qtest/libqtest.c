@@ -621,7 +621,7 @@ QDict *qtest_qmp_receive(QTestState *s)
             return response;
         }
         /* Stash the event for a later consumption */
-        s->pending_events = g_list_prepend(s->pending_events, response);
+        s->pending_events = g_list_append(s->pending_events, response);
     }
 }
 
@@ -795,15 +795,12 @@ void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
 
 QDict *qtest_qmp_event_ref(QTestState *s, const char *event)
 {
-    GList *next = NULL;
-    QDict *response;
+    while (s->pending_events) {
 
-    for (GList *it = s->pending_events; it != NULL; it = next) {
+        GList *first = s->pending_events;
+        QDict *response = (QDict *)first->data;
 
-        next = it->next;
-        response = (QDict *)it->data;
-
-        s->pending_events = g_list_remove_link(s->pending_events, it);
+        s->pending_events = g_list_delete_link(s->pending_events, first);
 
         if (!strcmp(qdict_get_str(response, "event"), event)) {
             return response;
@@ -870,9 +867,14 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...)
 const char *qtest_get_arch(void)
 {
     const char *qemu = qtest_qemu_binary();
-    const char *end = strrchr(qemu, '/');
+    const char *end = strrchr(qemu, '-');
 
-    return end + strlen("/qemu-system-");
+    if (!end) {
+        fprintf(stderr, "Can't determine architecture from binary name.\n");
+        abort();
+    }
+
+    return end + 1;
 }
 
 bool qtest_get_irq(QTestState *s, int num)

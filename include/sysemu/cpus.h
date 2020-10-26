@@ -25,6 +25,9 @@ typedef struct CpusAccel {
 /* register accel-specific cpus interface implementation */
 void cpus_register_accel(const CpusAccel *i);
 
+/* Create a dummy vcpu for CpusAccel->create_vcpu_thread */
+void dummy_start_vcpu_thread(CPUState *);
+
 /* interface available for cpus accelerator threads */
 
 /* For temporary buffers for forming a name */

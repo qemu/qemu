@@ -9,7 +9,6 @@ import os
 import re
 import time
 import logging
-import distutils.spawn
 
 from avocado_qemu import Test
 from avocado import skipUnless
@@ -70,7 +69,7 @@ class NextCubeMachine(Test):
 
     @skipUnless(PIL_AVAILABLE, 'Python PIL not installed')
     def test_bootrom_framebuffer_size(self):
-        screenshot_path = os.path.join(self.workdir, "dump.png")
+        screenshot_path = os.path.join(self.workdir, "dump.ppm")
         self.check_bootrom_framebuffer(screenshot_path)
 
         width, height = Image.open(screenshot_path).size
@@ -79,7 +78,7 @@ class NextCubeMachine(Test):
 
     @skipUnless(tesseract_available(3), 'tesseract v3 OCR tool not available')
     def test_bootrom_framebuffer_ocr_with_tesseract_v3(self):
-        screenshot_path = os.path.join(self.workdir, "dump.png")
+        screenshot_path = os.path.join(self.workdir, "dump.ppm")
         self.check_bootrom_framebuffer(screenshot_path)
 
         console_logger = logging.getLogger('console')
@@ -95,7 +94,7 @@ class NextCubeMachine(Test):
     # that it is still alpha-level software.
     @skipUnless(tesseract_available(4), 'tesseract v4 OCR tool not available')
     def test_bootrom_framebuffer_ocr_with_tesseract_v4(self):
-        screenshot_path = os.path.join(self.workdir, "dump.png")
+        screenshot_path = os.path.join(self.workdir, "dump.ppm")
         self.check_bootrom_framebuffer(screenshot_path)
 
         console_logger = logging.getLogger('console')

@@ -23,6 +23,9 @@ RUN apt update && \
         libsnappy-dev \
         libvte-dev \
         netcat-openbsd \
+        openssh-client \
+        python3-numpy \
+        python3-opencv \
         python3-venv
 
 # virgl
