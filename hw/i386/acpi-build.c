@@ -786,8 +786,14 @@ static Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
                 crs_range_insert(temp_range_set.io_ranges,
                                  range_base, range_limit);
             } else { /* "memory" */
-                crs_range_insert(temp_range_set.mem_ranges,
-                                 range_base, range_limit);
+                uint64_t length = range_limit - range_base + 1;
+                if (range_limit <= UINT32_MAX && length <= UINT32_MAX) {
+                    crs_range_insert(temp_range_set.mem_ranges, range_base,
+                                     range_limit);
+                } else {
+                    crs_range_insert(temp_range_set.mem_64bit_ranges,
+                                     range_base, range_limit);
+                }
             }
         }
 
