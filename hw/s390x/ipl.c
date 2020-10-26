@@ -128,11 +128,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
     if (!ipl->kernel || ipl->enforce_bios) {
         uint64_t fwbase = (MIN(ram_size, 0x80000000U) - 0x200000) & ~0xffffUL;
 
-        if (bios_name == NULL) {
-            bios_name = ipl->firmware;
-        }
-
-        bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, ipl->firmware);
         if (bios_filename == NULL) {
             error_setg(errp, "could not find stage1 bootloader");
             return;
@@ -154,7 +150,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
         g_free(bios_filename);
 
         if (bios_size == -1) {
-            error_setg(errp, "could not load bootloader '%s'", bios_name);
+            error_setg(errp, "could not load bootloader '%s'", ipl->firmware);
             return;
         }
 
