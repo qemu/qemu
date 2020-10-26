@@ -176,7 +176,7 @@ struct pvrdma_port_attr {
 	uint8_t			subnet_timeout;
 	uint8_t			init_type_reply;
 	uint8_t			active_width;
-	uint8_t			active_speed;
+	uint16_t			active_speed;
 	uint8_t			phys_state;
 	uint8_t			reserved[2];
 };

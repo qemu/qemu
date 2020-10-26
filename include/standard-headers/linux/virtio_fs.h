@@ -16,4 +16,7 @@ struct virtio_fs_config {
 	uint32_t num_request_queues;
 } QEMU_PACKED;
 
+/* For the id field in virtio_pci_shm_cap */
+#define VIRTIO_FS_SHMCAP_ID_CACHE 0
+
 #endif /* _LINUX_VIRTIO_FS_H */

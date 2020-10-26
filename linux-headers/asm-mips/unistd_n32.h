@@ -369,6 +369,7 @@
 #define __NR_openat2	(__NR_Linux + 437)
 #define __NR_pidfd_getfd	(__NR_Linux + 438)
 #define __NR_faccessat2	(__NR_Linux + 439)
+#define __NR_process_madvise	(__NR_Linux + 440)
 
 
 #endif /* _ASM_MIPS_UNISTD_N32_H */
