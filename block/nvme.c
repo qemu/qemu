@@ -128,6 +128,12 @@ struct BDRVNVMeState {
 
     /* PCI address (required for nvme_refresh_filename()) */
     char *device;
+
+    struct {
+        uint64_t completion_errors;
+        uint64_t aligned_accesses;
+        uint64_t unaligned_accesses;
+    } stats;
 };
 
 #define NVME_BLOCK_OPT_DEVICE "device"
@@ -384,6 +390,9 @@ static bool nvme_process_completion(NVMeQueuePair *q)
             break;
         }
         ret = nvme_translate_error(c);
+        if (ret) {
+            s->stats.completion_errors++;
+        }
         q->cq.head = (q->cq.head + 1) % NVME_QUEUE_SIZE;
         if (!q->cq.head) {
             q->cq_phase = !q->cq_phase;
@@ -1155,8 +1164,10 @@ static int nvme_co_prw(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     assert(QEMU_IS_ALIGNED(bytes, s->page_size));
     assert(bytes <= s->max_transfer);
     if (nvme_qiov_aligned(bs, qiov)) {
+        s->stats.aligned_accesses++;
         return nvme_co_prw_aligned(bs, offset, bytes, qiov, is_write, flags);
     }
+    s->stats.unaligned_accesses++;
     trace_nvme_prw_buffered(s, offset, bytes, qiov->niov, is_write);
     buf = qemu_try_memalign(s->page_size, bytes);
 
@@ -1452,6 +1463,21 @@ static void nvme_unregister_buf(BlockDriverState *bs, void *host)
     qemu_vfio_dma_unmap(s->vfio, host);
 }
 
+static BlockStatsSpecific *nvme_get_specific_stats(BlockDriverState *bs)
+{
+    BlockStatsSpecific *stats = g_new(BlockStatsSpecific, 1);
+    BDRVNVMeState *s = bs->opaque;
+
+    stats->driver = BLOCKDEV_DRIVER_NVME;
+    stats->u.nvme = (BlockStatsSpecificNvme) {
+        .completion_errors = s->stats.completion_errors,
+        .aligned_accesses = s->stats.aligned_accesses,
+        .unaligned_accesses = s->stats.unaligned_accesses,
+    };
+
+    return stats;
+}
+
 static const char *const nvme_strong_runtime_opts[] = {
     NVME_BLOCK_OPT_DEVICE,
     NVME_BLOCK_OPT_NAMESPACE,
@@ -1485,6 +1511,7 @@ static BlockDriver bdrv_nvme = {
     .bdrv_refresh_filename    = nvme_refresh_filename,
     .bdrv_refresh_limits      = nvme_refresh_limits,
     .strong_runtime_opts      = nvme_strong_runtime_opts,
+    .bdrv_get_specific_stats  = nvme_get_specific_stats,
 
     .bdrv_detach_aio_context  = nvme_detach_aio_context,
     .bdrv_attach_aio_context  = nvme_attach_aio_context,

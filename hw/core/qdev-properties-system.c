@@ -30,6 +30,7 @@
 #include "sysemu/blockdev.h"
 #include "net/net.h"
 #include "hw/pci/pci.h"
+#include "util/block-helpers.h"
 
 static bool check_prop_still_unset(DeviceState *dev, const char *name,
                                    const void *old_val, const char *new_val,
@@ -576,16 +577,6 @@ const PropertyInfo qdev_prop_losttickpolicy = {
 
 /* --- blocksize --- */
 
-/* lower limit is sector size */
-#define MIN_BLOCK_SIZE          512
-#define MIN_BLOCK_SIZE_STR      "512 B"
-/*
- * upper limit is arbitrary, 2 MiB looks sufficient for all sensible uses, and
- * matches qcow2 cluster size limit
- */
-#define MAX_BLOCK_SIZE          (2 * MiB)
-#define MAX_BLOCK_SIZE_STR      "2 MiB"
-
 static void set_blocksize(Object *obj, Visitor *v, const char *name,
                           void *opaque, Error **errp)
 {
@@ -593,6 +584,7 @@ static void set_blocksize(Object *obj, Visitor *v, const char *name,
     Property *prop = opaque;
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
     uint64_t value;
+    Error *local_err = NULL;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
@@ -602,24 +594,11 @@ static void set_blocksize(Object *obj, Visitor *v, const char *name,
     if (!visit_type_size(v, name, &value, errp)) {
         return;
     }
-    /* value of 0 means "unset" */
-    if (value && (value < MIN_BLOCK_SIZE || value > MAX_BLOCK_SIZE)) {
-        error_setg(errp,
-                   "Property %s.%s doesn't take value %" PRIu64
-                   " (minimum: " MIN_BLOCK_SIZE_STR
-                   ", maximum: " MAX_BLOCK_SIZE_STR ")",
-                   dev->id ? : "", name, value);
+    check_block_size(dev->id ? : "", name, value, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
-
-    /* We rely on power-of-2 blocksizes for bitmasks */
-    if ((value & (value - 1)) != 0) {
-        error_setg(errp,
-                  "Property %s.%s doesn't take value '%" PRId64 "', "
-                  "it's not a power of 2", dev->id ?: "", name, (int64_t)value);
-        return;
-    }
-
     *ptr = value;
 }
 

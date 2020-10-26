@@ -1398,6 +1398,11 @@ trace_events_subdirs += [
   'util',
 ]
 
+vhost_user = not_found
+if 'CONFIG_VHOST_USER' in config_host
+  subdir('contrib/libvhost-user')
+endif
+
 subdir('qapi')
 subdir('qobject')
 subdir('stubs')
@@ -1438,7 +1443,6 @@ subdir('dump')
 
 block_ss.add(files(
   'block.c',
-  'blockdev-nbd.c',
   'blockjob.c',
   'job.c',
   'qemu-io-cmds.c',
@@ -1451,6 +1455,7 @@ subdir('block')
 
 blockdev_ss.add(files(
   'blockdev.c',
+  'blockdev-nbd.c',
   'iothread.c',
   'job-qmp.c',
 ))
@@ -1459,7 +1464,6 @@ blockdev_ss.add(files(
 # os-win32.c does not
 blockdev_ss.add(when: 'CONFIG_POSIX', if_true: files('os-posix.c'))
 softmmu_ss.add(when: 'CONFIG_WIN32', if_true: [files('os-win32.c')])
-softmmu_ss.add_all(blockdev_ss)
 
 common_ss.add(files('cpus-common.c'))
 
@@ -1591,6 +1595,15 @@ block = declare_dependency(link_whole: [libblock],
                            link_args: '@block.syms',
                            dependencies: [crypto, io])
 
+blockdev_ss = blockdev_ss.apply(config_host, strict: false)
+libblockdev = static_library('blockdev', blockdev_ss.sources() + genh,
+                             dependencies: blockdev_ss.dependencies(),
+                             name_suffix: 'fa',
+                             build_by_default: false)
+
+blockdev = declare_dependency(link_whole: [libblockdev],
+                              dependencies: [block])
+
 qmp_ss = qmp_ss.apply(config_host, strict: false)
 libqmp = static_library('qmp', qmp_ss.sources() + genh,
                         dependencies: qmp_ss.dependencies(),
@@ -1623,7 +1636,7 @@ foreach m : block_mods + softmmu_mods
                 install_dir: config_host['qemu_moddir'])
 endforeach
 
-softmmu_ss.add(authz, block, chardev, crypto, io, qmp)
+softmmu_ss.add(authz, blockdev, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
 
 common_ss.add_all(when: 'CONFIG_SOFTMMU', if_true: [softmmu_ss])
@@ -1819,7 +1832,7 @@ if have_tools
   qemu_io = executable('qemu-io', files('qemu-io.c'),
              dependencies: [block, qemuutil], install: true)
   qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
-               dependencies: [block, qemuutil], install: true)
+               dependencies: [blockdev, qemuutil], install: true)
 
   subdir('storage-daemon')
   subdir('contrib/rdmacm-mux')
@@ -1830,7 +1843,6 @@ if have_tools
              install: true)
 
   if 'CONFIG_VHOST_USER' in config_host
-    subdir('contrib/libvhost-user')
     subdir('contrib/vhost-user-blk')
     subdir('contrib/vhost-user-gpu')
     subdir('contrib/vhost-user-input')

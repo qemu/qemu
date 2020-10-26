@@ -85,6 +85,25 @@
             '*bitmap': 'str' } }
 
 ##
+# @BlockExportOptionsVhostUserBlk:
+#
+# A vhost-user-blk block export.
+#
+# @addr: The vhost-user socket on which to listen. Both 'unix' and 'fd'
+#        SocketAddress types are supported. Passed fds must be UNIX domain
+#        sockets.
+# @logical-block-size: Logical block size in bytes. Defaults to 512 bytes.
+# @num-queues: Number of request virtqueues. Must be greater than 0. Defaults
+#              to 1.
+#
+# Since: 5.2
+##
+{ 'struct': 'BlockExportOptionsVhostUserBlk',
+  'data': { 'addr': 'SocketAddress',
+	    '*logical-block-size': 'size',
+            '*num-queues': 'uint16'} }
+
+##
 # @NbdServerAddOptions:
 #
 # An NBD block export.
@@ -180,11 +199,12 @@
 # An enumeration of block export types
 #
 # @nbd: NBD export
+# @vhost-user-blk: vhost-user-blk export (since 5.2)
 #
 # Since: 4.2
 ##
 { 'enum': 'BlockExportType',
-  'data': [ 'nbd' ] }
+  'data': [ 'nbd', 'vhost-user-blk' ] }
 
 ##
 # @BlockExportOptions:
@@ -203,17 +223,29 @@
 #                export before completion is signalled. (since: 5.2;
 #                default: false)
 #
+# @iothread: The name of the iothread object where the export will run. The
+#            default is to use the thread currently associated with the
+#            block node. (since: 5.2)
+#
+# @fixed-iothread: True prevents the block node from being moved to another
+#                  thread while the export is active. If true and @iothread is
+#                  given, export creation fails if the block node cannot be
+#                  moved to the iothread. The default is false. (since: 5.2)
+#
 # Since: 4.2
 ##
 { 'union': 'BlockExportOptions',
   'base': { 'type': 'BlockExportType',
             'id': 'str',
+            '*fixed-iothread': 'bool',
+            '*iothread': 'str',
             'node-name': 'str',
             '*writable': 'bool',
             '*writethrough': 'bool' },
   'discriminator': 'type',
   'data': {
-      'nbd': 'BlockExportOptionsNbd'
+      'nbd': 'BlockExportOptionsNbd',
+      'vhost-user-blk': 'BlockExportOptionsVhostUserBlk'
    } }
 
 ##
