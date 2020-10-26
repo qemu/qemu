@@ -713,6 +713,7 @@ static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
 
 static void pnv_init(MachineState *machine)
 {
+    const char *bios_name = machine->firmware ?: FW_FILE_NAME;
     PnvMachineState *pnv = PNV_MACHINE(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     char *fw_filename;
@@ -739,10 +740,6 @@ static void pnv_init(MachineState *machine)
     pnv->pnor = PNV_PNOR(dev);
 
     /* load skiboot firmware  */
-    if (bios_name == NULL) {
-        bios_name = FW_FILE_NAME;
-    }
-
     fw_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (!fw_filename) {
         error_report("Could not find OPAL firmware '%s'", bios_name);

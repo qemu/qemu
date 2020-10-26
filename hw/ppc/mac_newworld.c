@@ -109,6 +109,7 @@ static void ppc_core99_reset(void *opaque)
 static void ppc_core99_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
+    const char *bios_name = machine->firmware ?: PROM_FILENAME;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -161,9 +162,6 @@ static void ppc_core99_init(MachineState *machine)
                            &error_fatal);
     memory_region_add_subregion(get_system_memory(), PROM_BASE, bios);
 
-    if (!bios_name) {
-        bios_name = PROM_FILENAME;
-    }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (filename) {
         /* Load OpenBIOS (ELF) */
