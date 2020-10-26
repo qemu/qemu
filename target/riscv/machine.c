@@ -22,6 +22,52 @@
 #include "sysemu/kvm.h"
 #include "migration/cpu.h"
 
+static bool pmp_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
+
+    return riscv_feature(env, RISCV_FEATURE_PMP);
+}
+
+static int pmp_post_load(void *opaque, int version_id)
+{
+    RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
+    int i;
+
+    for (i = 0; i < MAX_RISCV_PMPS; i++) {
+        pmp_update_rule_addr(env, i);
+    }
+    pmp_update_rule_nums(env);
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_pmp_entry = {
+    .name = "cpu/pmp/entry",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINTTL(addr_reg, pmp_entry_t),
+        VMSTATE_UINT8(cfg_reg, pmp_entry_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_pmp = {
+    .name = "cpu/pmp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pmp_needed,
+    .post_load = pmp_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_ARRAY(env.pmp_state.pmp, RISCVCPU, MAX_RISCV_PMPS,
+                             0, vmstate_pmp_entry, pmp_entry_t),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_riscv_cpu = {
     .name = "cpu",
     .version_id = 1,
@@ -70,5 +116,9 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINT64(env.timecmp, RISCVCPU),
 
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_pmp,
+        NULL
     }
 };
