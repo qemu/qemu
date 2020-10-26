@@ -133,9 +133,9 @@ static void moxiesim_init(MachineState *machine)
         loader_params.initrd_filename = initrd_filename;
         load_kernel(cpu, &loader_params);
     }
-    if (bios_name) {
-        if (load_image_targphys(bios_name, FIRMWARE_BASE, FIRMWARE_SIZE) < 0) {
-            error_report("Failed to load firmware '%s'", bios_name);
+    if (machine->firmware) {
+        if (load_image_targphys(machine->firmware, FIRMWARE_BASE, FIRMWARE_SIZE) < 0) {
+            error_report("Failed to load firmware '%s'", machine->firmware);
         }
     }
 
