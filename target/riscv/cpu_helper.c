@@ -316,6 +316,9 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
  * @physical: This will be set to the calculated physical address
  * @prot: The returned protection attributes
  * @addr: The virtual address to be translated
+ * @fault_pte_addr: If not NULL, this will be set to fault pte address
+ *                  when a error occurs on pte address translation.
+ *                  This will already be shifted to match htval.
  * @access_type: The type of MMU access
  * @mmu_idx: Indicates current privilege level
  * @first_stage: Are we in first stage translation?
@@ -324,6 +327,7 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
  */
 static int get_physical_address(CPURISCVState *env, hwaddr *physical,
                                 int *prot, target_ulong addr,
+                                target_ulong *fault_pte_addr,
                                 int access_type, int mmu_idx,
                                 bool first_stage, bool two_stage)
 {
@@ -447,11 +451,14 @@ restart:
 
             /* Do the second stage translation on the base PTE address. */
             int vbase_ret = get_physical_address(env, &vbase, &vbase_prot,
-                                                 base, MMU_DATA_LOAD,
+                                                 base, NULL, MMU_DATA_LOAD,
                                                  mmu_idx, false, true);
 
             if (vbase_ret != TRANSLATE_SUCCESS) {
-                return vbase_ret;
+                if (fault_pte_addr) {
+                    *fault_pte_addr = (base + idx * ptesize) >> 2;
+                }
+                return TRANSLATE_G_STAGE_FAIL;
             }
 
             pte_addr = vbase + idx * ptesize;
@@ -632,13 +639,13 @@ hwaddr riscv_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     int prot;
     int mmu_idx = cpu_mmu_index(&cpu->env, false);
 
-    if (get_physical_address(env, &phys_addr, &prot, addr, 0, mmu_idx,
+    if (get_physical_address(env, &phys_addr, &prot, addr, NULL, 0, mmu_idx,
                              true, riscv_cpu_virt_enabled(env))) {
         return -1;
     }
 
     if (riscv_cpu_virt_enabled(env)) {
-        if (get_physical_address(env, &phys_addr, &prot, phys_addr,
+        if (get_physical_address(env, &phys_addr, &prot, phys_addr, NULL,
                                  0, mmu_idx, false, true)) {
             return -1;
         }
@@ -727,19 +734,30 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     if (riscv_cpu_virt_enabled(env) ||
         (riscv_cpu_two_stage_lookup(env) && access_type != MMU_INST_FETCH)) {
         /* Two stage lookup */
-        ret = get_physical_address(env, &pa, &prot, address, access_type,
+        ret = get_physical_address(env, &pa, &prot, address,
+                                   &env->guest_phys_fault_addr, access_type,
                                    mmu_idx, true, true);
+
+        /*
+         * A G-stage exception may be triggered during two state lookup.
+         * And the env->guest_phys_fault_addr has already been set in
+         * get_physical_address().
+         */
+        if (ret == TRANSLATE_G_STAGE_FAIL) {
+            first_stage_error = false;
+            access_type = MMU_DATA_LOAD;
+        }
 
         qemu_log_mask(CPU_LOG_MMU,
                       "%s 1st-stage address=%" VADDR_PRIx " ret %d physical "
                       TARGET_FMT_plx " prot %d\n",
                       __func__, address, ret, pa, prot);
 
-        if (ret != TRANSLATE_FAIL) {
+        if (ret == TRANSLATE_SUCCESS) {
             /* Second stage lookup */
             im_address = pa;
 
-            ret = get_physical_address(env, &pa, &prot2, im_address,
+            ret = get_physical_address(env, &pa, &prot2, im_address, NULL,
                                        access_type, mmu_idx, false, true);
 
             qemu_log_mask(CPU_LOG_MMU,
@@ -768,8 +786,8 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         }
     } else {
         /* Single stage lookup */
-        ret = get_physical_address(env, &pa, &prot, address, access_type,
-                                   mmu_idx, true, false);
+        ret = get_physical_address(env, &pa, &prot, address, NULL,
+                                   access_type, mmu_idx, true, false);
 
         qemu_log_mask(CPU_LOG_MMU,
                       "%s address=%" VADDR_PRIx " ret %d physical "
@@ -852,6 +870,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     bool async = !!(cs->exception_index & RISCV_EXCP_INT_FLAG);
     target_ulong cause = cs->exception_index & RISCV_EXCP_INT_MASK;
     target_ulong deleg = async ? env->mideleg : env->medeleg;
+    bool write_tval = false;
     target_ulong tval = 0;
     target_ulong htval = 0;
     target_ulong mtval2 = 0;
@@ -873,6 +892,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         case RISCV_EXCP_INST_PAGE_FAULT:
         case RISCV_EXCP_LOAD_PAGE_FAULT:
         case RISCV_EXCP_STORE_PAGE_FAULT:
+            write_tval  = true;
             tval = env->badaddr;
             break;
         default:
@@ -895,7 +915,13 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     }
 
     trace_riscv_trap(env->mhartid, async, cause, env->pc, tval,
-        riscv_cpu_get_trap_name(cause, async));
+                     riscv_cpu_get_trap_name(cause, async));
+
+    qemu_log_mask(CPU_LOG_INT,
+                  "%s: hart:"TARGET_FMT_ld", async:%d, cause:"TARGET_FMT_lx", "
+                  "epc:0x"TARGET_FMT_lx", tval:0x"TARGET_FMT_lx", desc=%s\n",
+                  __func__, env->mhartid, async, cause, env->pc, tval,
+                  riscv_cpu_get_trap_name(cause, async));
 
     if (env->priv <= PRV_S &&
             cause < TARGET_LONG_BITS && ((deleg >> cause) & 1)) {
@@ -904,7 +930,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             target_ulong hdeleg = async ? env->hideleg : env->hedeleg;
 
             if ((riscv_cpu_virt_enabled(env) ||
-                 riscv_cpu_two_stage_lookup(env)) && tval) {
+                 riscv_cpu_two_stage_lookup(env)) && write_tval) {
                 /*
                  * If we are writing a guest virtual address to stval, set
                  * this to 1. If we are trapping to VS we will set this to 0
@@ -932,7 +958,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 /* Trap into HS mode, from virt */
                 riscv_cpu_swap_hypervisor_regs(env);
                 env->hstatus = set_field(env->hstatus, HSTATUS_SPVP,
-                                         get_field(env->mstatus, SSTATUS_SPP));
+                                         env->priv);
                 env->hstatus = set_field(env->hstatus, HSTATUS_SPV,
                                          riscv_cpu_virt_enabled(env));
 

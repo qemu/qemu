@@ -33,19 +33,36 @@
 #include <libfdt.h>
 
 #if defined(TARGET_RISCV32)
-# define KERNEL_BOOT_ADDRESS 0x80400000
 #define fw_dynamic_info_data(__val)     cpu_to_le32(__val)
 #else
-# define KERNEL_BOOT_ADDRESS 0x80200000
 #define fw_dynamic_info_data(__val)     cpu_to_le64(__val)
 #endif
 
-void riscv_find_and_load_firmware(MachineState *machine,
-                                  const char *default_machine_firmware,
-                                  hwaddr firmware_load_addr,
-                                  symbol_fn_t sym_cb)
+bool riscv_is_32_bit(MachineState *machine)
+{
+    if (!strncmp(machine->cpu_type, "rv32", 4)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+target_ulong riscv_calc_kernel_start_addr(MachineState *machine,
+                                          target_ulong firmware_end_addr) {
+    if (riscv_is_32_bit(machine)) {
+        return QEMU_ALIGN_UP(firmware_end_addr, 4 * MiB);
+    } else {
+        return QEMU_ALIGN_UP(firmware_end_addr, 2 * MiB);
+    }
+}
+
+target_ulong riscv_find_and_load_firmware(MachineState *machine,
+                                          const char *default_machine_firmware,
+                                          hwaddr firmware_load_addr,
+                                          symbol_fn_t sym_cb)
 {
     char *firmware_filename = NULL;
+    target_ulong firmware_end_addr = firmware_load_addr;
 
     if ((!machine->firmware) || (!strcmp(machine->firmware, "default"))) {
         /*
@@ -60,9 +77,12 @@ void riscv_find_and_load_firmware(MachineState *machine,
 
     if (firmware_filename) {
         /* If not "none" load the firmware */
-        riscv_load_firmware(firmware_filename, firmware_load_addr, sym_cb);
+        firmware_end_addr = riscv_load_firmware(firmware_filename,
+                                                firmware_load_addr, sym_cb);
         g_free(firmware_filename);
     }
+
+    return firmware_end_addr;
 }
 
 char *riscv_find_firmware(const char *firmware_filename)
@@ -91,24 +111,28 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
                                  hwaddr firmware_load_addr,
                                  symbol_fn_t sym_cb)
 {
-    uint64_t firmware_entry;
+    uint64_t firmware_entry, firmware_size, firmware_end;
 
     if (load_elf_ram_sym(firmware_filename, NULL, NULL, NULL,
-                         &firmware_entry, NULL, NULL, NULL,
+                         &firmware_entry, NULL, &firmware_end, NULL,
                          0, EM_RISCV, 1, 0, NULL, true, sym_cb) > 0) {
-        return firmware_entry;
+        return firmware_end;
     }
 
-    if (load_image_targphys_as(firmware_filename, firmware_load_addr,
-                               ram_size, NULL) > 0) {
-        return firmware_load_addr;
+    firmware_size = load_image_targphys_as(firmware_filename,
+                                           firmware_load_addr, ram_size, NULL);
+
+    if (firmware_size > 0) {
+        return firmware_load_addr + firmware_size;
     }
 
     error_report("could not load firmware '%s'", firmware_filename);
     exit(1);
 }
 
-target_ulong riscv_load_kernel(const char *kernel_filename, symbol_fn_t sym_cb)
+target_ulong riscv_load_kernel(const char *kernel_filename,
+                               target_ulong kernel_start_addr,
+                               symbol_fn_t sym_cb)
 {
     uint64_t kernel_entry;
 
@@ -123,9 +147,9 @@ target_ulong riscv_load_kernel(const char *kernel_filename, symbol_fn_t sym_cb)
         return kernel_entry;
     }
 
-    if (load_image_targphys_as(kernel_filename, KERNEL_BOOT_ADDRESS,
+    if (load_image_targphys_as(kernel_filename, kernel_start_addr,
                                ram_size, NULL) > 0) {
-        return KERNEL_BOOT_ADDRESS;
+        return kernel_start_addr;
     }
 
     error_report("could not load kernel '%s'", kernel_filename);
