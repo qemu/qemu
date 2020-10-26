@@ -1483,8 +1483,7 @@ void spapr_free_hpt(SpaprMachineState *spapr)
     close_htab_fd(spapr);
 }
 
-void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
-                          Error **errp)
+int spapr_reallocate_hpt(SpaprMachineState *spapr, int shift, Error **errp)
 {
     ERRP_GUARD();
     long rc;
@@ -1496,7 +1495,7 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
 
     if (rc == -EOPNOTSUPP) {
         error_setg(errp, "HPT not supported in nested guests");
-        return;
+        return -EOPNOTSUPP;
     }
 
     if (rc < 0) {
@@ -1504,8 +1503,7 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
         error_setg_errno(errp, errno, "Failed to allocate KVM HPT of order %d",
                          shift);
         error_append_hint(errp, "Try smaller maxmem?\n");
-        /* This is almost certainly fatal, but if the caller really
-         * wants to carry on with shift == 0, it's welcome to try */
+        return -errno;
     } else if (rc > 0) {
         /* kernel-side HPT allocated */
         if (rc != shift) {
@@ -1513,6 +1511,7 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
                        "Requested order %d HPT, but kernel allocated order %ld",
                        shift, rc);
             error_append_hint(errp, "Try smaller maxmem?\n");
+            return -ENOSPC;
         }
 
         spapr->htab_shift = shift;
@@ -1526,7 +1525,7 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
         if (!spapr->htab) {
             error_setg_errno(errp, errno,
                              "Could not allocate HPT of order %d", shift);
-            return;
+            return -ENOMEM;
         }
 
         memset(spapr->htab, 0, size);
@@ -1539,6 +1538,7 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
     /* We're setting up a hash table, so that means we're not radix */
     spapr->patb_entry = 0;
     spapr_set_all_lpcrs(0, LPCR_HR | LPCR_UPRT);
+    return 0;
 }
 
 void spapr_setup_hpt(SpaprMachineState *spapr)
@@ -2292,11 +2292,13 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     }
 
     if (section_hdr) {
+        int ret;
+
         /* First section gives the htab size */
-        spapr_reallocate_hpt(spapr, section_hdr, &local_err);
-        if (local_err) {
+        ret = spapr_reallocate_hpt(spapr, section_hdr, &local_err);
+        if (ret < 0) {
             error_report_err(local_err);
-            return -EINVAL;
+            return ret;
         }
         return 0;
     }
