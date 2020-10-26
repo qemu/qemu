@@ -882,7 +882,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
                         hwdef->max_mem - machine->ram_size);
     }
 
-    prom_init(hwdef->slavio_base, bios_name);
+    prom_init(hwdef->slavio_base, machine->firmware);
 
     slavio_intctl = slavio_intctl_init(hwdef->intctl_base,
                                        hwdef->intctl_base + 0x10000ULL,

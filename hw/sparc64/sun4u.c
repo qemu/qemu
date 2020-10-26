@@ -578,7 +578,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     /* set up devices */
     ram_init(0, machine->ram_size);
 
-    prom_init(hwdef->prom_addr, bios_name);
+    prom_init(hwdef->prom_addr, machine->firmware);
 
     /* Init sabre (PCI host bridge) */
     sabre = SABRE(qdev_new(TYPE_SABRE));
