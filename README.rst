@@ -134,6 +134,14 @@ For additional information on bug reporting consult:
 * `<https://qemu.org/Contribute/ReportABug>`_
 
 
+ChangeLog
+=========
+
+For version history and release notes, please visit
+`<https://wiki.qemu.org/ChangeLog/>`_ or look at the git history for
+more detailed information.
+
+
 Contact
 =======
 
