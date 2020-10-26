@@ -301,17 +301,17 @@ static void mcf5208evb_init(MachineState *machine)
     /* 0xfc0a8000 SDRAM controller.  */
 
     /* Load firmware */
-    if (bios_name) {
+    if (machine->firmware) {
         char *fn;
         uint8_t *ptr;
 
-        fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
         if (!fn) {
-            error_report("Could not find ROM image '%s'", bios_name);
+            error_report("Could not find ROM image '%s'", machine->firmware);
             exit(1);
         }
         if (load_image_targphys(fn, 0x0, ROM_SIZE) < 8) {
-            error_report("Could not load ROM image '%s'", bios_name);
+            error_report("Could not load ROM image '%s'", machine->firmware);
             exit(1);
         }
         g_free(fn);
@@ -323,7 +323,7 @@ static void mcf5208evb_init(MachineState *machine)
 
     /* Load kernel.  */
     if (!kernel_filename) {
-        if (qtest_enabled() || bios_name) {
+        if (qtest_enabled() || machine->firmware) {
             return;
         }
         error_report("Kernel image must be specified");
