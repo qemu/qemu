@@ -292,9 +292,9 @@ static gboolean ga_channel_open(GAChannel *c, GAChannelMethod method,
         return false;
     }
 
-    if (method == GA_CHANNEL_ISA_SERIAL){
+    if (method == GA_CHANNEL_ISA_SERIAL) {
         snprintf(newpath, sizeof(newpath), "\\\\.\\%s", path);
-    }else {
+    } else {
         g_strlcpy(newpath, path, sizeof(newpath));
     }
 
@@ -307,7 +307,8 @@ static gboolean ga_channel_open(GAChannel *c, GAChannelMethod method,
         return false;
     }
 
-    if (method == GA_CHANNEL_ISA_SERIAL && !SetCommTimeouts(c->handle,&comTimeOut)) {
+    if (method == GA_CHANNEL_ISA_SERIAL
+            && !SetCommTimeouts(c->handle, &comTimeOut)) {
         g_autofree gchar *emsg = g_win32_error_message(GetLastError());
         g_critical("error setting timeout for com port: %s", emsg);
         CloseHandle(c->handle);

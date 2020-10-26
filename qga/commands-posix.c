@@ -110,7 +110,7 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
         reopen_fd_to_null(2);
 
         execle("/sbin/shutdown", "shutdown", "-h", shutdown_flag, "+0",
-               "hypervisor initiated shutdown", (char*)NULL, environ);
+               "hypervisor initiated shutdown", (char *)NULL, environ);
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
         error_setg_errno(errp, errno, "failed to create child process");
@@ -479,7 +479,7 @@ GuestFileRead *guest_file_read_unsafe(GuestFileHandle *gfh,
         gfh->state = RW_STATE_NEW;
     }
 
-    buf = g_malloc0(count+1);
+    buf = g_malloc0(count + 1);
     read_count = fread(buf, 1, count, fh);
     if (ferror(fh)) {
         error_setg_errno(errp, errno, "failed to read file");
