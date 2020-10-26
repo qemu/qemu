@@ -29,6 +29,7 @@
 #ifdef CONFIG_LINUX
 #include <linux/vfio.h>
 #endif
+#include "sysemu/sysemu.h"
 
 #define VFIO_MSG_PREFIX "vfio %s: "
 
@@ -58,7 +59,10 @@ typedef struct VFIORegion {
 } VFIORegion;
 
 typedef struct VFIOMigration {
+    VMChangeStateEntry *vm_state;
     VFIORegion region;
+    uint32_t device_state;
+    int vm_running;
 } VFIOMigration;
 
 typedef struct VFIOAddressSpace {
