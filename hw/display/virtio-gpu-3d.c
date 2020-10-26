@@ -17,8 +17,6 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
 
-#ifdef CONFIG_VIRGL
-
 #include <virglrenderer.h>
 
 static struct virgl_renderer_callbacks virtio_gpu_3d_cbs;
@@ -633,5 +631,3 @@ int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g)
 
     return capset2_max_ver ? 2 : 1;
 }
-
-#endif /* CONFIG_VIRGL */
