@@ -924,6 +924,18 @@ int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
     return 0;
 }
 
+static void vfio_subregion_unmap(VFIORegion *region, int index)
+{
+    trace_vfio_region_unmap(memory_region_name(&region->mmaps[index].mem),
+                            region->mmaps[index].offset,
+                            region->mmaps[index].offset +
+                            region->mmaps[index].size - 1);
+    memory_region_del_subregion(region->mem, &region->mmaps[index].mem);
+    munmap(region->mmaps[index].mmap, region->mmaps[index].size);
+    object_unparent(OBJECT(&region->mmaps[index].mem));
+    region->mmaps[index].mmap = NULL;
+}
+
 int vfio_region_mmap(VFIORegion *region)
 {
     int i, prot = 0;
@@ -954,10 +966,7 @@ int vfio_region_mmap(VFIORegion *region)
             region->mmaps[i].mmap = NULL;
 
             for (i--; i >= 0; i--) {
-                memory_region_del_subregion(region->mem, &region->mmaps[i].mem);
-                munmap(region->mmaps[i].mmap, region->mmaps[i].size);
-                object_unparent(OBJECT(&region->mmaps[i].mem));
-                region->mmaps[i].mmap = NULL;
+                vfio_subregion_unmap(region, i);
             }
 
             return ret;
@@ -980,6 +989,21 @@ int vfio_region_mmap(VFIORegion *region)
     }
 
     return 0;
+}
+
+void vfio_region_unmap(VFIORegion *region)
+{
+    int i;
+
+    if (!region->mem) {
+        return;
+    }
+
+    for (i = 0; i < region->nr_mmaps; i++) {
+        if (region->mmaps[i].mmap) {
+            vfio_subregion_unmap(region, i);
+        }
+    }
 }
 
 void vfio_region_exit(VFIORegion *region)
