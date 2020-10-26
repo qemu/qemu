@@ -1486,6 +1486,7 @@ void spapr_free_hpt(SpaprMachineState *spapr)
 void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
                           Error **errp)
 {
+    ERRP_GUARD();
     long rc;
 
     /* Clean up any HPT info from a previous boot */
@@ -1500,17 +1501,18 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
 
     if (rc < 0) {
         /* kernel-side HPT needed, but couldn't allocate one */
-        error_setg_errno(errp, errno,
-                         "Failed to allocate KVM HPT of order %d (try smaller maxmem?)",
+        error_setg_errno(errp, errno, "Failed to allocate KVM HPT of order %d",
                          shift);
+        error_append_hint(errp, "Try smaller maxmem?\n");
         /* This is almost certainly fatal, but if the caller really
          * wants to carry on with shift == 0, it's welcome to try */
     } else if (rc > 0) {
         /* kernel-side HPT allocated */
         if (rc != shift) {
             error_setg(errp,
-                       "Requested order %d HPT, but kernel allocated order %ld (try smaller maxmem?)",
+                       "Requested order %d HPT, but kernel allocated order %ld",
                        shift, rc);
+            error_append_hint(errp, "Try smaller maxmem?\n");
         }
 
         spapr->htab_shift = shift;
