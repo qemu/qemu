@@ -383,7 +383,9 @@ def binariesToTest(args, testcase):
     if args.qemu:
         r = args.qemu
     else:
-        r = glob.glob('./qemu-system-*')
+        r = [f.path for f in os.scandir('.')
+             if f.name.startswith('qemu-system-') and
+                f.is_file() and os.access(f, os.X_OK)]
     return r
 
 
