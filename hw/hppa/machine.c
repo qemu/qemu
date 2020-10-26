@@ -213,8 +213,7 @@ static void machine_hppa_init(MachineState *machine)
        but one explicitly written for the emulation, we might as
        well load it directly from an ELF image.  */
     firmware_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
-                                       bios_name ? bios_name :
-                                       "hppa-firmware.img");
+                                       machine->firmware ?: "hppa-firmware.img");
     if (firmware_filename == NULL) {
         error_report("no firmware provided");
         exit(1);
