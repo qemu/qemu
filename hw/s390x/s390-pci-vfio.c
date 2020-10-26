@@ -12,7 +12,9 @@
 #include <sys/ioctl.h>
 
 #include "qemu/osdep.h"
+#include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/s390-pci-vfio.h"
+#include "hw/vfio/pci.h"
 #include "hw/vfio/vfio-common.h"
 
 /*
@@ -52,3 +54,43 @@ retry:
     return vfio_get_info_dma_avail(info, avail);
 }
 
+S390PCIDMACount *s390_pci_start_dma_count(S390pciState *s,
+                                          S390PCIBusDevice *pbdev)
+{
+    S390PCIDMACount *cnt;
+    uint32_t avail;
+    VFIOPCIDevice *vpdev = container_of(pbdev->pdev, VFIOPCIDevice, pdev);
+    int id;
+
+    assert(vpdev);
+
+    id = vpdev->vbasedev.group->container->fd;
+
+    if (!s390_pci_update_dma_avail(id, &avail)) {
+        return NULL;
+    }
+
+    QTAILQ_FOREACH(cnt, &s->zpci_dma_limit, link) {
+        if (cnt->id  == id) {
+            cnt->users++;
+            return cnt;
+        }
+    }
+
+    cnt = g_new0(S390PCIDMACount, 1);
+    cnt->id = id;
+    cnt->users = 1;
+    cnt->avail = avail;
+    QTAILQ_INSERT_TAIL(&s->zpci_dma_limit, cnt, link);
+    return cnt;
+}
+
+void s390_pci_end_dma_count(S390pciState *s, S390PCIDMACount *cnt)
+{
+    assert(cnt);
+
+    cnt->users--;
+    if (cnt->users == 0) {
+        QTAILQ_REMOVE(&s->zpci_dma_limit, cnt, link);
+    }
+}
