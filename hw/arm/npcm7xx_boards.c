@@ -33,12 +33,9 @@ static const char npcm7xx_default_bootrom[] = "npcm7xx_bootrom.bin";
 
 static void npcm7xx_load_bootrom(MachineState *machine, NPCM7xxState *soc)
 {
+    const char *bios_name = machine->firmware ?: npcm7xx_default_bootrom;
     g_autofree char *filename = NULL;
     int ret;
-
-    if (!bios_name) {
-        bios_name = npcm7xx_default_bootrom;
-    }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (!filename) {
