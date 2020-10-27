@@ -195,7 +195,6 @@ static void dpy_refresh(DisplayState *s);
 static DisplayState *get_alloc_displaystate(void);
 static void text_console_update_cursor_timer(void);
 static void text_console_update_cursor(void *opaque);
-static bool ppm_save(int fd, DisplaySurface *ds, Error **errp);
 
 static void gui_update(void *opaque)
 {
@@ -311,16 +310,16 @@ void graphic_hw_invalidate(QemuConsole *con)
     }
 }
 
-static bool ppm_save(int fd, DisplaySurface *ds, Error **errp)
+static bool ppm_save(int fd, pixman_image_t *image, Error **errp)
 {
-    int width = pixman_image_get_width(ds->image);
-    int height = pixman_image_get_height(ds->image);
+    int width = pixman_image_get_width(image);
+    int height = pixman_image_get_height(image);
     g_autoptr(Object) ioc = OBJECT(qio_channel_file_new_fd(fd));
     g_autofree char *header = NULL;
     g_autoptr(pixman_image_t) linebuf = NULL;
     int y;
 
-    trace_ppm_save(fd, ds);
+    trace_ppm_save(fd, image);
 
     header = g_strdup_printf("P6\n%d %d\n%d\n", width, height, 255);
     if (qio_channel_write_all(QIO_CHANNEL(ioc),
@@ -330,7 +329,7 @@ static bool ppm_save(int fd, DisplaySurface *ds, Error **errp)
 
     linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, width);
     for (y = 0; y < height; y++) {
-        qemu_pixman_linebuf_fill(linebuf, ds->image, width, 0, y);
+        qemu_pixman_linebuf_fill(linebuf, image, width, 0, y);
         if (qio_channel_write_all(QIO_CHANNEL(ioc),
                                   (char *)pixman_image_get_data(linebuf),
                                   pixman_image_get_stride(linebuf), errp) < 0) {
@@ -344,6 +343,7 @@ static bool ppm_save(int fd, DisplaySurface *ds, Error **errp)
 void qmp_screendump(const char *filename, bool has_device, const char *device,
                     bool has_head, int64_t head, Error **errp)
 {
+    g_autoptr(pixman_image_t) image = NULL;
     QemuConsole *con;
     DisplaySurface *surface;
     int fd;
@@ -372,6 +372,7 @@ void qmp_screendump(const char *filename, bool has_device, const char *device,
         error_setg(errp, "no surface");
         return;
     }
+    image = pixman_image_ref(surface->image);
 
     fd = qemu_open_old(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
     if (fd == -1) {
@@ -380,7 +381,7 @@ void qmp_screendump(const char *filename, bool has_device, const char *device,
         return;
     }
 
-    if (!ppm_save(fd, surface, errp)) {
+    if (!ppm_save(fd, image, errp)) {
         qemu_unlink(filename);
     }
 }
