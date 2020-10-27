@@ -268,6 +268,7 @@ else
         TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
     fi
 fi
+ORIG_TEST_IMG_FILE=$TEST_IMG_FILE
 ORIG_TEST_IMG="$TEST_IMG"
 
 if [ -z "$TEST_DIR" ]; then
@@ -330,6 +331,30 @@ _get_data_file()
                     | sed -e "s#\\\$TEST_IMG#$1#"
 }
 
+# Translate a $TEST_IMG to its corresponding $TEST_IMG_FILE for
+# different protocols
+_test_img_to_test_img_file()
+{
+    case "$IMGPROTO" in
+        file)
+            echo "$1"
+            ;;
+
+        nfs)
+            echo "$1" | sed -e "s#nfs://127.0.0.1##"
+            ;;
+
+        ssh)
+            echo "$1" | \
+                sed -e "s#ssh://\\($USER@\\)\\?127.0.0.1\\(:[0-9]\\+\\)\\?##"
+            ;;
+
+        *)
+            return 1
+            ;;
+    esac
+}
+
 _make_test_img()
 {
     # extra qemu-img options can be added by tests
@@ -343,10 +368,19 @@ _make_test_img()
     local opts_param=false
     local misc_params=()
 
-    if [ -n "$TEST_IMG_FILE" ]; then
-        img_name=$TEST_IMG_FILE
-    else
+    if [ -z "$TEST_IMG_FILE" ]; then
         img_name=$TEST_IMG
+    elif [ "$IMGOPTSSYNTAX" != "true" -a \
+           "$TEST_IMG_FILE" = "$ORIG_TEST_IMG_FILE" ]; then
+        # Handle cases of tests only updating TEST_IMG, but not TEST_IMG_FILE
+        img_name=$(_test_img_to_test_img_file "$TEST_IMG")
+        if [ "$?" != 0 ]; then
+            img_name=$TEST_IMG_FILE
+        fi
+    else
+        # $TEST_IMG_FILE is not the default value, so it definitely has been
+        # modified by the test
+        img_name=$TEST_IMG_FILE
     fi
 
     if [ -n "$IMGOPTS" ]; then
