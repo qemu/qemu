@@ -51,8 +51,7 @@ _supported_os Linux
 _unsupported_imgopts data_file
 
 
-DEST_IMG="$TEST_DIR/d.$IMGFMT"
-TEST_IMG="$TEST_DIR/b.$IMGFMT"
+DEST_IMG="$TEST_IMG.dest"
 BLKDEBUG_CONF="$TEST_DIR/blkdebug.conf"
 
 _make_test_img 2M

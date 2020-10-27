@@ -44,8 +44,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2 qed
 _supported_proto file
 
-BACKING_IMG="${TEST_DIR}/backing.img"
-TEST_IMG="${TEST_DIR}/test.img"
+BACKING_IMG="$TEST_IMG.base"
 
 TEST_IMG="$BACKING_IMG" _make_test_img 512M
 _make_test_img -F $IMGFMT -b "$BACKING_IMG" 512M
