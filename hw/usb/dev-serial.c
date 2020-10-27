@@ -307,6 +307,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         }
 
         s->params.speed = (48000000 / 2) / (8 * divisor + subdivisor8);
+        trace_usb_serial_set_baud(bus->busnr, dev->addr, s->params.speed);
         qemu_chr_fe_ioctl(&s->cs, CHR_IOCTL_SERIAL_SET_PARAMS, &s->params);
         break;
     }
@@ -340,6 +341,8 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
             goto fail;
         }
 
+        trace_usb_serial_set_data(bus->busnr, dev->addr, s->params.parity,
+                                  s->params.data_bits, s->params.stop_bits);
         qemu_chr_fe_ioctl(&s->cs, CHR_IOCTL_SERIAL_SET_PARAMS, &s->params);
         /* TODO: TX ON/OFF */
         break;
