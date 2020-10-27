@@ -747,6 +747,10 @@ class VM(qtest.QEMUQtestMachine):
     def wait_migration(self, expect_runstate: Optional[str]) -> bool:
         while True:
             event = self.event_wait('MIGRATION')
+            # We use the default timeout, and with a timeout, event_wait()
+            # never returns None
+            assert event
+
             log(event, filters=[filter_qmp_event])
             if event['data']['status'] in ('completed', 'failed'):
                 break
