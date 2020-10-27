@@ -20,15 +20,8 @@
 #include "chardev/char-serial.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
+#include "trace.h"
 
-//#define DEBUG_Serial
-
-#ifdef DEBUG_Serial
-#define DPRINTF(fmt, ...) \
-do { printf("usb-serial: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while(0)
-#endif
 
 #define RECV_BUF (512 - (2 * 8))
 
@@ -205,8 +198,9 @@ static void usb_serial_reset(USBSerialState *s)
 static void usb_serial_handle_reset(USBDevice *dev)
 {
     USBSerialState *s = USB_SERIAL(dev);
+    USBBus *bus = usb_bus_from_device(dev);
 
-    DPRINTF("Reset\n");
+    trace_usb_serial_reset(bus->busnr, dev->addr);
 
     usb_serial_reset(s);
     /* TODO: Reset char device, send BREAK? */
@@ -244,9 +238,11 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
                                       int length, uint8_t *data)
 {
     USBSerialState *s = USB_SERIAL(dev);
+    USBBus *bus = usb_bus_from_device(dev);
     int ret;
 
-    DPRINTF("got control %x, value %x\n", request, value);
+    trace_usb_serial_handle_control(bus->busnr, dev->addr, request, value);
+
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
         return;
@@ -326,7 +322,8 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
             s->params.parity = 'E';
             break;
         default:
-            DPRINTF("unsupported parity %d\n", value & FTDI_PARITY);
+            trace_usb_serial_unsupported_parity(bus->busnr, dev->addr,
+                                                value & FTDI_PARITY);
             goto fail;
         }
 
@@ -338,7 +335,8 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
             s->params.stop_bits = 2;
             break;
         default:
-            DPRINTF("unsupported stop bits %d\n", value & FTDI_STOP);
+            trace_usb_serial_unsupported_stopbits(bus->busnr, dev->addr,
+                                                  value & FTDI_STOP);
             goto fail;
         }
 
@@ -367,7 +365,8 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         break;
     default:
     fail:
-        DPRINTF("got unsupported/bogus control %x, value %x\n", request, value);
+        trace_usb_serial_unsupported_control(bus->busnr, dev->addr, request,
+                                             value);
         p->status = USB_RET_STALL;
         break;
     }
@@ -431,6 +430,7 @@ static void usb_serial_token_in(USBSerialState *s, USBPacket *p)
 static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBSerialState *s = USB_SERIAL(dev);
+    USBBus *bus = usb_bus_from_device(dev);
     uint8_t devep = p->ep->nr;
     struct iovec *iov;
     int i;
@@ -459,7 +459,7 @@ static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
         break;
 
     default:
-        DPRINTF("Bad token\n");
+        trace_usb_serial_bad_token(bus->busnr, dev->addr);
     fail:
         p->status = USB_RET_STALL;
         break;
