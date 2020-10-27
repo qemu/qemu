@@ -257,6 +257,9 @@ if [ "$IMGOPTSSYNTAX" = "true" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         TEST_IMG="$DRIVER,file.driver=nbd,file.type=unix"
         TEST_IMG="$TEST_IMG,file.path=$SOCK_DIR/nbd"
+    elif [ "$IMGPROTO" = "fuse" ]; then
+        TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+        TEST_IMG="$DRIVER,file.filename=$SOCK_DIR/fuse-t.$IMGFMT"
     elif [ "$IMGPROTO" = "ssh" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         TEST_IMG="$DRIVER,file.driver=ssh,file.host=127.0.0.1,file.path=$TEST_IMG_FILE"
@@ -273,6 +276,9 @@ else
     elif [ "$IMGPROTO" = "nbd" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         TEST_IMG="nbd+unix:///?socket=$SOCK_DIR/nbd"
+    elif [ "$IMGPROTO" = "fuse" ]; then
+        TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+        TEST_IMG="$SOCK_DIR/fuse-t.$IMGFMT"
     elif [ "$IMGPROTO" = "ssh" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
         REMOTE_TEST_DIR="ssh://\\($USER@\\)\\?127.0.0.1\\(:[0-9]\\+\\)\\?$TEST_DIR"
@@ -287,6 +293,9 @@ else
 fi
 ORIG_TEST_IMG_FILE=$TEST_IMG_FILE
 ORIG_TEST_IMG="$TEST_IMG"
+
+FUSE_PIDS=()
+FUSE_EXPORTS=()
 
 if [ -z "$TEST_DIR" ]; then
         TEST_DIR=$PWD/scratch
@@ -357,6 +366,10 @@ _test_img_to_test_img_file()
             echo "$1"
             ;;
 
+        fuse)
+            echo "$1" | sed -e "s#$SOCK_DIR/fuse-#$TEST_DIR/#"
+            ;;
+
         nfs)
             echo "$1" | sed -e "s#nfs://127.0.0.1##"
             ;;
@@ -384,6 +397,11 @@ _make_test_img()
     local object_options=""
     local opts_param=false
     local misc_params=()
+
+    if [[ $IMGPROTO == fuse && $TEST_IMG == $SOCK_DIR/fuse-* ]]; then
+        # The caller may be trying to overwrite an existing image
+        _rm_test_img "$TEST_IMG"
+    fi
 
     if [ -z "$TEST_IMG_FILE" ]; then
         img_name=$TEST_IMG
@@ -469,11 +487,105 @@ _make_test_img()
         eval "$QEMU_NBD -v -t -k '$SOCK_DIR/nbd' -f $IMGFMT -e 42 -x '' $TEST_IMG_FILE >/dev/null &"
         sleep 1 # FIXME: qemu-nbd needs to be listening before we continue
     fi
+
+    if [ $IMGPROTO = "fuse" -a -f "$img_name" ]; then
+        local export_mp
+        local pid
+        local pidfile
+        local timeout
+
+        export_mp=$(echo "$img_name" | sed -e "s#$TEST_DIR/#$SOCK_DIR/fuse-#")
+        if ! echo "$export_mp" | grep -q "^$SOCK_DIR"; then
+            echo 'Cannot use FUSE exports with images outside of TEST_DIR' >&2
+            return 1
+        fi
+
+        touch "$export_mp"
+        rm -f "$SOCK_DIR/fuse-output"
+
+        # Usually, users would export formatted nodes.  But we present fuse as a
+        # protocol-level driver here, so we have to leave the format to the
+        # client.
+        QSD_NEED_PID=y $QSD \
+              --blockdev file,node-name=export-node,filename=$img_name,discard=unmap \
+              --export fuse,id=fuse-export,node-name=export-node,mountpoint="$export_mp",writable=on,growable=on \
+              &
+
+        pidfile="$QEMU_TEST_DIR/qemu-storage-daemon.pid"
+
+        # Wait for the PID file
+        while [ ! -f "$pidfile" ]; do
+            sleep 0.5
+        done
+
+        pid=$(cat "$pidfile")
+        rm -f "$pidfile"
+
+        FUSE_PIDS+=($pid)
+        FUSE_EXPORTS+=("$export_mp")
+    fi
 }
 
 _rm_test_img()
 {
     local img=$1
+
+    if [[ $IMGPROTO == fuse && $img == $SOCK_DIR/fuse-* ]]; then
+        # Drop a FUSE export
+        local df_output
+        local i
+        local image_file
+        local index=''
+        local timeout
+
+        for i in "${!FUSE_EXPORTS[@]}"; do
+            if [ "${FUSE_EXPORTS[i]}" = "$img" ]; then
+                index=$i
+                break
+            fi
+        done
+
+        if [ -z "$index" ]; then
+            # Probably gone already
+            return 0
+        fi
+
+        kill "${FUSE_PIDS[index]}"
+
+        # Wait until the mount is gone
+        timeout=10 # *0.5 s
+        while true; do
+            # Will show the mount point; if the mount is still there,
+            # it will be $img.
+            df_output=$(df "$img" 2>/dev/null)
+
+            # But df may also show an error ("Transpoint endpoint not
+            # connected"), so retry in such cases
+            if [ -n "$df_output" ]; then
+                if ! echo "$df_output" | grep -q "$img"; then
+                    break
+                fi
+            fi
+
+            sleep 0.5
+
+            timeout=$((timeout - 1))
+            if [ "$timeout" = 0 ]; then
+                echo 'Failed to take down FUSE export' >&2
+                return 1
+            fi
+        done
+
+        rm -f "$img"
+
+        unset "FUSE_PIDS[$index]"
+        unset "FUSE_EXPORTS[$index]"
+
+        image_file=$(echo "$img" | sed -e "s#$SOCK_DIR/fuse-#$TEST_DIR/#")
+        _rm_test_img "$image_file"
+        return
+    fi
+
     if [ "$IMGFMT" = "vmdk" ]; then
         # Remove all the extents for vmdk
         "$QEMU_IMG" info "$img" 2>/dev/null | grep 'filename:' | cut -f 2 -d: \
@@ -494,6 +606,17 @@ _cleanup_test_img()
         nbd)
             _stop_nbd_server
             rm -f "$TEST_IMG_FILE"
+            ;;
+
+        fuse)
+            local mp
+
+            for mp in "${FUSE_EXPORTS[@]}"; do
+                _rm_test_img "$mp"
+            done
+
+            FUSE_PIDS=()
+            FUSE_EXPORTS=()
             ;;
 
         file)
@@ -562,6 +685,7 @@ _img_info()
         sed -e "s#$REMOTE_TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
+            -e "s#$SOCK_DIR/fuse-#TEST_DIR/#g" \
             -e "s#$IMGFMT#IMGFMT#g" \
             -e "/^disk size:/ D" \
             -e "/actual-size/ D" | \

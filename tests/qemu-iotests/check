@@ -270,6 +270,7 @@ image protocol options
     -rbd                test rbd
     -sheepdog           test sheepdog
     -nbd                test nbd
+    -fuse               test fuse
     -ssh                test ssh
     -nfs                test nfs
 
@@ -379,6 +380,11 @@ testlist options
 
         -nbd)
             IMGPROTO=nbd
+            xpand=false
+            ;;
+
+        -fuse)
+            IMGPROTO=fuse
             xpand=false
             ;;
 
