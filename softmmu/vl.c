@@ -137,6 +137,7 @@ static ram_addr_t maxram_size;
 static uint64_t ram_slots;
 static int display_remote;
 static int snapshot;
+static bool preconfig_requested;
 static QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
 static BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
 static bool nographic = false;
@@ -3223,12 +3224,12 @@ static void qemu_validate_options(void)
           }
     }
 
-    if (loadvm && !preconfig_exit_requested) {
+    if (loadvm && preconfig_requested) {
         error_report("'preconfig' and 'loadvm' options are "
                      "mutually exclusive");
         exit(EXIT_FAILURE);
     }
-    if (incoming && !preconfig_exit_requested) {
+    if (incoming && preconfig_requested) {
         error_report("'preconfig' and 'incoming' options are "
                      "mutually exclusive");
         exit(EXIT_FAILURE);
@@ -3392,6 +3393,28 @@ static void qemu_init_subsystems(void)
     socket_init();
 }
 
+static void qemu_init_displays(void)
+{
+    DisplayState *ds;
+
+    /* init local displays */
+    ds = init_displaystate();
+    qemu_display_init(ds, &dpy);
+
+    /* must be after terminal init, SDL library changes signal handlers */
+    os_setup_signal_handling();
+
+    /* init remote displays */
+#ifdef CONFIG_VNC
+    qemu_opts_foreach(qemu_find_opts("vnc"),
+                      vnc_init_func, NULL, &error_fatal);
+#endif
+
+    if (using_spice) {
+        qemu_spice.display_init();
+    }
+}
+
 /*
  * Called after leaving preconfig state.  From here on runstate is
  * RUN_STATE_PRELAUNCH or RUN_STATE_INMIGRATE.
@@ -3450,8 +3473,6 @@ static void qemu_create_cli_devices(void)
 
 static void qemu_machine_creation_done(void)
 {
-    DisplayState *ds;
-
     cpu_synchronize_all_post_init();
 
     /* Did we create any drives that we failed to create a device for? */
@@ -3472,23 +3493,6 @@ static void qemu_machine_creation_done(void)
     if (boot_once) {
         qemu_boot_set(boot_once, &error_fatal);
         qemu_register_reset(restore_boot_order, g_strdup(boot_order));
-    }
-
-    /* init local displays */
-    ds = init_displaystate();
-    qemu_display_init(ds, &dpy);
-
-    /* must be after terminal init, SDL library changes signal handlers */
-    os_setup_signal_handling();
-
-    /* init remote displays */
-#ifdef CONFIG_VNC
-    qemu_opts_foreach(qemu_find_opts("vnc"),
-                      vnc_init_func, NULL, &error_fatal);
-#endif
-
-    if (using_spice) {
-        qemu_spice.display_init();
     }
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
@@ -4090,6 +4094,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_preconfig:
                 preconfig_exit_requested = false;
+                preconfig_requested = true;
                 break;
             case QEMU_OPTION_enable_kvm:
                 olist = qemu_find_opts("machine");
@@ -4513,11 +4518,21 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_resolve_machine_memdev();
     parse_numa_opts(current_machine);
 
+    if (preconfig_requested) {
+        qemu_init_displays();
+    }
+
     /* do monitor/qmp handling at preconfig state if requested */
     qemu_main_loop();
 
     qemu_init_board();
+
     qemu_create_cli_devices();
+
+    /* initialize displays after all errors have been reported */
+    if (!preconfig_requested) {
+        qemu_init_displays();
+    }
     qemu_machine_creation_done();
 
     if (loadvm) {
