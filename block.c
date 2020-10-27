@@ -5240,7 +5240,7 @@ BlockDeviceInfoList *bdrv_named_nodes_list(bool flat,
 }
 
 #define QAPI_LIST_ADD(list, element) do { \
-    typeof(list) _tmp = g_new(typeof(*(list)), 1); \
+    typeof(list) _tmp = g_malloc(sizeof(*(list))); \
     _tmp->value = (element); \
     _tmp->next = (list); \
     (list) = _tmp; \
