@@ -522,6 +522,89 @@ static void fuse_write(fuse_req_t req, fuse_ino_t inode, const char *buf,
 }
 
 /**
+ * Let clients perform various fallocate() operations.
+ */
+static void fuse_fallocate(fuse_req_t req, fuse_ino_t inode, int mode,
+                           off_t offset, off_t length,
+                           struct fuse_file_info *fi)
+{
+    FuseExport *exp = fuse_req_userdata(req);
+    int64_t blk_len;
+    int ret;
+
+    if (!exp->writable) {
+        fuse_reply_err(req, EACCES);
+        return;
+    }
+
+    blk_len = blk_getlength(exp->common.blk);
+    if (blk_len < 0) {
+        fuse_reply_err(req, -blk_len);
+        return;
+    }
+
+    if (mode & FALLOC_FL_KEEP_SIZE) {
+        length = MIN(length, blk_len - offset);
+    }
+
+    if (mode & FALLOC_FL_PUNCH_HOLE) {
+        if (!(mode & FALLOC_FL_KEEP_SIZE)) {
+            fuse_reply_err(req, EINVAL);
+            return;
+        }
+
+        do {
+            int size = MIN(length, BDRV_REQUEST_MAX_BYTES);
+
+            ret = blk_pdiscard(exp->common.blk, offset, size);
+            offset += size;
+            length -= size;
+        } while (ret == 0 && length > 0);
+    } else if (mode & FALLOC_FL_ZERO_RANGE) {
+        if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + length > blk_len) {
+            /* No need for zeroes, we are going to write them ourselves */
+            ret = fuse_do_truncate(exp, offset + length, false,
+                                   PREALLOC_MODE_OFF);
+            if (ret < 0) {
+                fuse_reply_err(req, -ret);
+                return;
+            }
+        }
+
+        do {
+            int size = MIN(length, BDRV_REQUEST_MAX_BYTES);
+
+            ret = blk_pwrite_zeroes(exp->common.blk,
+                                    offset, size, 0);
+            offset += size;
+            length -= size;
+        } while (ret == 0 && length > 0);
+    } else if (!mode) {
+        /* We can only fallocate at the EOF with a truncate */
+        if (offset < blk_len) {
+            fuse_reply_err(req, EOPNOTSUPP);
+            return;
+        }
+
+        if (offset > blk_len) {
+            /* No preallocation needed here */
+            ret = fuse_do_truncate(exp, offset, true, PREALLOC_MODE_OFF);
+            if (ret < 0) {
+                fuse_reply_err(req, -ret);
+                return;
+            }
+        }
+
+        ret = fuse_do_truncate(exp, offset + length, true,
+                               PREALLOC_MODE_FALLOC);
+    } else {
+        ret = -EOPNOTSUPP;
+    }
+
+    fuse_reply_err(req, ret < 0 ? -ret : 0);
+}
+
+/**
  * Let clients fsync the exported image.
  */
 static void fuse_fsync(fuse_req_t req, fuse_ino_t inode, int datasync,
@@ -552,6 +635,7 @@ static const struct fuse_lowlevel_ops fuse_ops = {
     .open       = fuse_open,
     .read       = fuse_read,
     .write      = fuse_write,
+    .fallocate  = fuse_fallocate,
     .flush      = fuse_flush,
     .fsync      = fuse_fsync,
 };
