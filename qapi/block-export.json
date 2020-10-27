@@ -63,10 +63,10 @@
             '*max-connections': 'uint32' } }
 
 ##
-# @BlockExportOptionsNbd:
+# @BlockExportOptionsNbdBase:
 #
-# An NBD block export (options shared between nbd-server-add and the NBD branch
-# of block-export-add).
+# An NBD block export (common options shared between nbd-server-add and
+# the NBD branch of block-export-add).
 #
 # @name: Export name. If unspecified, the @device parameter is used as the
 #        export name. (Since 2.12)
@@ -74,15 +74,27 @@
 # @description: Free-form description of the export, up to 4096 bytes.
 #               (Since 5.0)
 #
-# @bitmap: Also export the dirty bitmap reachable from @device, so the
-#          NBD client can use NBD_OPT_SET_META_CONTEXT with
-#          "qemu:dirty-bitmap:NAME" to inspect the bitmap. (since 4.0)
-#
 # Since: 5.0
 ##
+{ 'struct': 'BlockExportOptionsNbdBase',
+  'data': { '*name': 'str', '*description': 'str' } }
+
+##
+# @BlockExportOptionsNbd:
+#
+# An NBD block export (distinct options used in the NBD branch of
+# block-export-add).
+#
+# @bitmaps: Also export each of the named dirty bitmaps reachable from
+#           @device, so the NBD client can use NBD_OPT_SET_META_CONTEXT with
+#           the metadata context name "qemu:dirty-bitmap:BITMAP" to inspect
+#           each bitmap.
+#
+# Since: 5.2
+##
 { 'struct': 'BlockExportOptionsNbd',
-  'data': { '*name': 'str', '*description': 'str',
-            '*bitmap': 'str' } }
+  'base': 'BlockExportOptionsNbdBase',
+  'data': { '*bitmaps': ['str'] } }
 
 ##
 # @BlockExportOptionsVhostUserBlk:
@@ -106,19 +118,24 @@
 ##
 # @NbdServerAddOptions:
 #
-# An NBD block export.
+# An NBD block export, per legacy nbd-server-add command.
 #
 # @device: The device name or node name of the node to be exported
 #
 # @writable: Whether clients should be able to write to the device via the
 #            NBD connection (default false).
 #
+# @bitmap: Also export a single dirty bitmap reachable from @device, so the
+#          NBD client can use NBD_OPT_SET_META_CONTEXT with the metadata
+#          context name "qemu:dirty-bitmap:BITMAP" to inspect the bitmap
+#          (since 4.0).
+#
 # Since: 5.0
 ##
 { 'struct': 'NbdServerAddOptions',
-  'base': 'BlockExportOptionsNbd',
+  'base': 'BlockExportOptionsNbdBase',
   'data': { 'device': 'str',
-            '*writable': 'bool' } }
+            '*writable': 'bool', '*bitmap': 'str' } }
 
 ##
 # @nbd-server-add:

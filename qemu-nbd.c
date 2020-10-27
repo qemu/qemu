@@ -574,7 +574,7 @@ int main(int argc, char **argv)
     QDict *options = NULL;
     const char *export_name = NULL; /* defaults to "" later for server mode */
     const char *export_description = NULL;
-    const char *bitmap = NULL;
+    strList *bitmaps = NULL;
     const char *tlscredsid = NULL;
     bool imageOpts = false;
     bool writethrough = true;
@@ -690,7 +690,7 @@ int main(int argc, char **argv)
             flags &= ~BDRV_O_RDWR;
             break;
         case 'B':
-            bitmap = optarg;
+            QAPI_LIST_PREPEND(bitmaps, g_strdup(optarg));
             break;
         case 'k':
             sockpath = optarg;
@@ -786,7 +786,7 @@ int main(int argc, char **argv)
             exit(EXIT_FAILURE);
         }
         if (export_name || export_description || dev_offset ||
-            device || disconnect || fmt || sn_id_or_name || bitmap ||
+            device || disconnect || fmt || sn_id_or_name || bitmaps ||
             seen_aio || seen_discard || seen_cache) {
             error_report("List mode is incompatible with per-device settings");
             exit(EXIT_FAILURE);
@@ -1067,12 +1067,12 @@ int main(int argc, char **argv)
         .has_writable       = true,
         .writable           = !readonly,
         .u.nbd = {
-            .has_name           = true,
-            .name               = g_strdup(export_name),
-            .has_description    = !!export_description,
-            .description        = g_strdup(export_description),
-            .has_bitmap         = !!bitmap,
-            .bitmap             = g_strdup(bitmap),
+            .has_name             = true,
+            .name                 = g_strdup(export_name),
+            .has_description      = !!export_description,
+            .description          = g_strdup(export_description),
+            .has_bitmaps          = !!bitmaps,
+            .bitmaps              = bitmaps,
         },
     };
     blk_exp_add(export_opts, &error_fatal);

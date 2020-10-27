@@ -209,8 +209,12 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
         .has_writable           = arg->has_writable,
         .writable               = arg->writable,
     };
-    QAPI_CLONE_MEMBERS(BlockExportOptionsNbd, &export_opts->u.nbd,
+    QAPI_CLONE_MEMBERS(BlockExportOptionsNbdBase, &export_opts->u.nbd,
                        qapi_NbdServerAddOptions_base(arg));
+    if (arg->has_bitmap) {
+        export_opts->u.nbd.has_bitmaps = true;
+        QAPI_LIST_PREPEND(export_opts->u.nbd.bitmaps, g_strdup(arg->bitmap));
+    }
 
     /*
      * nbd-server-add doesn't complain when a read-only device should be
