@@ -23,7 +23,8 @@
 import iotests
 from iotests import imgfmt
 
-iotests.script_initialize(supported_fmts=['qcow2'])
+iotests.script_initialize(supported_fmts=['qcow2'],
+                          supported_protocols=['file'])
 iotests.verify_working_luks()
 
 with iotests.FilePath('t.qcow2') as disk_path, \
