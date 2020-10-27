@@ -167,7 +167,7 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
                 n = len - offset;
             }
 
-            copy = (ret == 1);
+            copy = (ret > 0);
         }
         trace_stream_one_iteration(s, offset, n, ret);
         if (copy) {
