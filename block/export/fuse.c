@@ -45,6 +45,7 @@ typedef struct FuseExport {
 
     char *mountpoint;
     bool writable;
+    bool growable;
 } FuseExport;
 
 static GHashTable *exports;
@@ -71,6 +72,19 @@ static int fuse_export_create(BlockExport *blk_exp,
     int ret;
 
     assert(blk_exp_args->type == BLOCK_EXPORT_TYPE_FUSE);
+
+    /* For growable exports, take the RESIZE permission */
+    if (args->growable) {
+        uint64_t blk_perm, blk_shared_perm;
+
+        blk_get_perm(exp->common.blk, &blk_perm, &blk_shared_perm);
+
+        ret = blk_set_perm(exp->common.blk, blk_perm | BLK_PERM_RESIZE,
+                           blk_shared_perm, errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
 
     init_exports_table();
 
@@ -102,6 +116,7 @@ static int fuse_export_create(BlockExport *blk_exp,
 
     exp->mountpoint = g_strdup(args->mountpoint);
     exp->writable = blk_exp_args->writable;
+    exp->growable = args->growable;
 
     ret = setup_fuse_export(exp, args->mountpoint, errp);
     if (ret < 0) {
@@ -349,19 +364,24 @@ static int fuse_do_truncate(const FuseExport *exp, int64_t size,
         truncate_flags |= BDRV_REQ_ZERO_WRITE;
     }
 
-    blk_get_perm(exp->common.blk, &blk_perm, &blk_shared_perm);
+    /* Growable exports have a permanent RESIZE permission */
+    if (!exp->growable) {
+        blk_get_perm(exp->common.blk, &blk_perm, &blk_shared_perm);
 
-    ret = blk_set_perm(exp->common.blk, blk_perm | BLK_PERM_RESIZE,
-                       blk_shared_perm, NULL);
-    if (ret < 0) {
-        return ret;
+        ret = blk_set_perm(exp->common.blk, blk_perm | BLK_PERM_RESIZE,
+                           blk_shared_perm, NULL);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     ret = blk_truncate(exp->common.blk, size, true, prealloc,
                        truncate_flags, NULL);
 
-    /* Must succeed, because we are only giving up the RESIZE permission */
-    blk_set_perm(exp->common.blk, blk_perm, blk_shared_perm, &error_abort);
+    if (!exp->growable) {
+        /* Must succeed, because we are only giving up the RESIZE permission */
+        blk_set_perm(exp->common.blk, blk_perm, blk_shared_perm, &error_abort);
+    }
 
     return ret;
 }
@@ -482,7 +502,15 @@ static void fuse_write(fuse_req_t req, fuse_ino_t inode, const char *buf,
     }
 
     if (offset + size > length) {
-        size = length - offset;
+        if (exp->growable) {
+            ret = fuse_do_truncate(exp, offset + size, true, PREALLOC_MODE_OFF);
+            if (ret < 0) {
+                fuse_reply_err(req, -ret);
+                return;
+            }
+        } else {
+            size = length - offset;
+        }
     }
 
     ret = blk_pwrite(exp->common.blk, offset, buf, size, 0);

@@ -129,10 +129,14 @@
 # @mountpoint: Path on which to export the block device via FUSE.
 #              This must point to an existing regular file.
 #
+# @growable: Whether writes beyond the EOF should grow the block node
+#            accordingly. (default: false)
+#
 # Since: 6.0
 ##
 { 'struct': 'BlockExportOptionsFuse',
-  'data': { 'mountpoint': 'str' },
+  'data': { 'mountpoint': 'str',
+            '*growable': 'bool' },
   'if': 'defined(CONFIG_FUSE)' }
 
 ##
