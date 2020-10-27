@@ -308,6 +308,23 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         break;
     }
     case VendorDeviceOutRequest | FTDI_SET_DATA:
+        switch (value & 0xff) {
+        case 7:
+            s->params.data_bits = 7;
+            break;
+        case 8:
+            s->params.data_bits = 8;
+            break;
+        default:
+            /*
+             * According to a comment in Linux's ftdi_sio.c original FTDI
+             * chips fall back to 8 data bits for unsupported data_bits
+             */
+            trace_usb_serial_unsupported_data_bits(bus->busnr, dev->addr,
+                                                   value & 0xff);
+            s->params.data_bits = 8;
+        }
+
         switch (value & FTDI_PARITY) {
         case 0:
             s->params.parity = 'N';
