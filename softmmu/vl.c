@@ -2759,11 +2759,41 @@ static void qemu_create_early_backends(void)
  * The remainder of object creation happens after the
  * creation of chardev, fsdev, net clients and device data types.
  */
-static bool object_create_delayed(const char *type, QemuOpts *opts)
+static bool object_create_late(const char *type, QemuOpts *opts)
 {
     return !object_create_early(type, opts);
 }
 
+static void qemu_create_late_backends(void)
+{
+    if (qtest_chrdev) {
+        qtest_server_init(qtest_chrdev, qtest_log, &error_fatal);
+    }
+
+    net_init_clients(&error_fatal);
+
+    qemu_opts_foreach(qemu_find_opts("object"),
+                      user_creatable_add_opts_foreach,
+                      object_create_late, &error_fatal);
+
+    if (tpm_init() < 0) {
+        exit(1);
+    }
+
+    qemu_opts_foreach(qemu_find_opts("mon"),
+                      mon_init_func, NULL, &error_fatal);
+
+    if (foreach_device_config(DEV_SERIAL, serial_parse) < 0)
+        exit(1);
+    if (foreach_device_config(DEV_PARALLEL, parallel_parse) < 0)
+        exit(1);
+    if (foreach_device_config(DEV_DEBUGCON, debugcon_parse) < 0)
+        exit(1);
+
+    /* now chardevs have been created we may have semihosting to connect */
+    qemu_semihosting_connect_chardevs();
+    qemu_semihosting_console_init();
+}
 
 static bool set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
                                MachineClass *mc)
@@ -3377,7 +3407,6 @@ void qemu_init(int argc, char **argv, char **envp)
     ram_addr_t maxram_size;
     uint64_t ram_slots = 0;
     FILE *vmstate_dump_file = NULL;
-    Error *err = NULL;
     bool have_custom_ram_size;
 
     qemu_add_opts(&qemu_drive_opts);
@@ -4392,10 +4421,6 @@ void qemu_init(int argc, char **argv, char **envp)
      */
     migration_object_init();
 
-    if (qtest_chrdev) {
-        qtest_server_init(qtest_chrdev, qtest_log, &error_fatal);
-    }
-
     opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
     if (opts) {
         boot_order = qemu_opt_get(opts, "order");
@@ -4423,32 +4448,7 @@ void qemu_init(int argc, char **argv, char **envp)
         semihosting_arg_fallback(kernel_filename, kernel_cmdline);
     }
 
-    if (net_init_clients(&err) < 0) {
-        error_report_err(err);
-        exit(1);
-    }
-
-    qemu_opts_foreach(qemu_find_opts("object"),
-                      user_creatable_add_opts_foreach,
-                      object_create_delayed, &error_fatal);
-
-    if (tpm_init() < 0) {
-        exit(1);
-    }
-
-    qemu_opts_foreach(qemu_find_opts("mon"),
-                      mon_init_func, NULL, &error_fatal);
-
-    if (foreach_device_config(DEV_SERIAL, serial_parse) < 0)
-        exit(1);
-    if (foreach_device_config(DEV_PARALLEL, parallel_parse) < 0)
-        exit(1);
-    if (foreach_device_config(DEV_DEBUGCON, debugcon_parse) < 0)
-        exit(1);
-
-    /* now chardevs have been created we may have semihosting to connect */
-    qemu_semihosting_connect_chardevs();
-    qemu_semihosting_console_init();
+    qemu_create_late_backends();
 
     current_machine->boot_order = boot_order;
 
