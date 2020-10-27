@@ -39,6 +39,7 @@ static TraceEventGroup *event_groups;
 static size_t nevent_groups;
 static uint32_t next_id;
 static uint32_t next_vcpu_id;
+static bool init_trace_on_startup;
 
 QemuOptsList qemu_trace_opts = {
     .name = "trace",
@@ -225,7 +226,9 @@ void trace_init_file(const char *file)
 {
 #ifdef CONFIG_TRACE_SIMPLE
     st_set_trace_file(file);
-    st_set_trace_file_enabled(true);
+    if (init_trace_on_startup) {
+        st_set_trace_file_enabled(true);
+    }
 #elif defined CONFIG_TRACE_LOG
     /*
      * If both the simple and the log backends are enabled, "--trace file"
@@ -299,6 +302,7 @@ char *trace_opt_parse(const char *optarg)
     }
     trace_init_events(qemu_opt_get(opts, "events"));
     trace_file = g_strdup(qemu_opt_get(opts, "file"));
+    init_trace_on_startup = true;
     qemu_opts_del(opts);
 
     return trace_file;
