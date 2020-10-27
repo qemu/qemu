@@ -93,9 +93,11 @@ config MIPS_ITU
 
 config MPS2_FPGAIO
     bool
+    select LED
 
 config MPS2_SCC
     bool
+    select LED
 
 config TZ_MPC
     bool
@@ -124,6 +126,9 @@ config AUX
     select I2C
 
 config UNIMP
+    bool
+
+config LED
     bool
 
 config MAC_VIA
