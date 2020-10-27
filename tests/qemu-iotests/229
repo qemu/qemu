@@ -44,7 +44,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # Needs backing file and backing format support
 _supported_fmt qcow2 qed
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 # blkdebug can only inject errors on bs->file, so external data files
 # do not work with this test

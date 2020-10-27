@@ -42,7 +42,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # zero cluster support
 _supported_fmt qcow2
 _unsupported_imgopts 'compat=0.10'
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 
 CLUSTER_SIZE=65536

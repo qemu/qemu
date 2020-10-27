@@ -71,7 +71,7 @@ EOF
 . ./common.filter
 
 _supported_fmt raw
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 
 _default_cache_mode none

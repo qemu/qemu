@@ -32,7 +32,7 @@ status=1	# failure is the default!
 
 # This tests qocw2-specific low-level functionality
 _supported_fmt qcow2
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 _unsupported_imgopts 'compat=0.10' data_file
 

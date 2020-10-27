@@ -35,7 +35,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # qcow2-specific test
 _supported_fmt qcow2
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 
 echo '--- Writing to the image ---'

@@ -39,7 +39,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.pattern
 
 _supported_fmt qcow2
-_supported_proto file
+_supported_proto file fuse
 # The code path we want to test here only works for compat=1.1 images;
 # blkdebug can only inject errors on bs->file, so external data files
 # do not work with this test
