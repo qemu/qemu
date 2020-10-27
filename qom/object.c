@@ -2174,11 +2174,10 @@ static void property_set_str(Object *obj, Visitor *v, const char *name,
     g_free(value);
 }
 
-static void property_release_str(Object *obj, const char *name,
-                                 void *opaque)
+static void property_release_data(Object *obj, const char *name,
+                                  void *opaque)
 {
-    StringProperty *prop = opaque;
-    g_free(prop);
+    g_free(opaque);
 }
 
 ObjectProperty *
@@ -2194,7 +2193,7 @@ object_property_add_str(Object *obj, const char *name,
     return object_property_add(obj, name, "string",
                                get ? property_get_str : NULL,
                                set ? property_set_str : NULL,
-                               property_release_str,
+                               property_release_data,
                                prop);
 }
 
@@ -2251,13 +2250,6 @@ static void property_set_bool(Object *obj, Visitor *v, const char *name,
     prop->set(obj, value, errp);
 }
 
-static void property_release_bool(Object *obj, const char *name,
-                                  void *opaque)
-{
-    BoolProperty *prop = opaque;
-    g_free(prop);
-}
-
 ObjectProperty *
 object_property_add_bool(Object *obj, const char *name,
                          bool (*get)(Object *, Error **),
@@ -2271,7 +2263,7 @@ object_property_add_bool(Object *obj, const char *name,
     return object_property_add(obj, name, "bool",
                                get ? property_get_bool : NULL,
                                set ? property_set_bool : NULL,
-                               property_release_bool,
+                               property_release_data,
                                prop);
 }
 
@@ -2320,13 +2312,6 @@ static void property_set_enum(Object *obj, Visitor *v, const char *name,
     prop->set(obj, value, errp);
 }
 
-static void property_release_enum(Object *obj, const char *name,
-                                  void *opaque)
-{
-    EnumProperty *prop = opaque;
-    g_free(prop);
-}
-
 ObjectProperty *
 object_property_add_enum(Object *obj, const char *name,
                          const char *typename,
@@ -2343,7 +2328,7 @@ object_property_add_enum(Object *obj, const char *name,
     return object_property_add(obj, name, typename,
                                get ? property_get_enum : NULL,
                                set ? property_set_enum : NULL,
-                               property_release_enum,
+                               property_release_data,
                                prop);
 }
 
@@ -2410,13 +2395,6 @@ out_end:
     visit_end_struct(v, NULL);
 }
 
-static void property_release_tm(Object *obj, const char *name,
-                                void *opaque)
-{
-    TMProperty *prop = opaque;
-    g_free(prop);
-}
-
 ObjectProperty *
 object_property_add_tm(Object *obj, const char *name,
                        void (*get)(Object *, struct tm *, Error **))
@@ -2427,7 +2405,7 @@ object_property_add_tm(Object *obj, const char *name,
 
     return object_property_add(obj, name, "struct tm",
                                get ? property_get_tm : NULL, NULL,
-                               property_release_tm,
+                               property_release_data,
                                prop);
 }
 
