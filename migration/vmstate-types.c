@@ -420,32 +420,6 @@ const VMStateInfo vmstate_info_uint16_equal = {
     .put  = put_uint16,
 };
 
-/* floating point */
-
-static int get_float64(QEMUFile *f, void *pv, size_t size,
-                       const VMStateField *field)
-{
-    float64 *v = pv;
-
-    *v = make_float64(qemu_get_be64(f));
-    return 0;
-}
-
-static int put_float64(QEMUFile *f, void *pv, size_t size,
-                       const VMStateField *field, QJSON *vmdesc)
-{
-    uint64_t *v = pv;
-
-    qemu_put_be64(f, float64_val(*v));
-    return 0;
-}
-
-const VMStateInfo vmstate_info_float64 = {
-    .name = "float64",
-    .get  = get_float64,
-    .put  = put_float64,
-};
-
 /* CPU_DoubleU type */
 
 static int get_cpudouble(QEMUFile *f, void *pv, size_t size,
