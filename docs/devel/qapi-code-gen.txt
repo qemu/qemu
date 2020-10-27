@@ -393,7 +393,7 @@ is identical on the wire to:
  { 'enum': 'Enum', 'data': ['one', 'two'] }
  { 'struct': 'Branch1', 'data': { 'data': 'str' } }
  { 'struct': 'Branch2', 'data': { 'data': 'int' } }
- { 'union': 'Flat': 'base': { 'type': 'Enum' }, 'discriminator': 'type',
+ { 'union': 'Flat', 'base': { 'type': 'Enum' }, 'discriminator': 'type',
    'data': { 'one': 'Branch1', 'two': 'Branch2' } }
 
 The optional 'if' member specifies a conditional.  See "Configuring
@@ -590,6 +590,8 @@ When in doubt, do not implement OOB execution support.
 Member 'allow-preconfig' declares whether the command is available
 before the machine is built.  It defaults to false.  For example:
 
+ { 'enum': 'QMPCapability',
+   'data': [ 'oob' ] }
  { 'command': 'qmp_capabilities',
    'data': { '*enable': [ 'QMPCapability' ] },
    'allow-preconfig': true }
@@ -824,7 +826,7 @@ Example: a struct with conditional feature 'allow-negative-numbers'
 { 'struct': 'TestType',
   'data': { 'number': 'int' },
   'features': [ { 'name': 'allow-negative-numbers',
-                  'if' 'defined(IFCOND)' } ] }
+                  'if': 'defined(IFCOND)' } ] }
 
 Please note that you are responsible to ensure that the C code will
 compile with an arbitrary combination of conditions, since the
