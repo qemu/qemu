@@ -97,6 +97,7 @@ struct USBSerialState {
     uint8_t event_chr;
     uint8_t error_chr;
     uint8_t event_trigger;
+    bool always_plugged;
     QEMUSerialSetParams params;
     int latency;        /* ms */
     CharBackend cs;
@@ -516,12 +517,12 @@ static void usb_serial_event(void *opaque, QEMUChrEvent event)
         s->event_trigger |= FTDI_BI;
         break;
     case CHR_EVENT_OPENED:
-        if (!s->dev.attached) {
+        if (!s->always_plugged && !s->dev.attached) {
             usb_device_attach(&s->dev, &error_abort);
         }
         break;
     case CHR_EVENT_CLOSED:
-        if (s->dev.attached) {
+        if (!s->always_plugged && s->dev.attached) {
             usb_device_detach(&s->dev);
         }
         break;
@@ -556,7 +557,8 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
                              usb_serial_event, NULL, s, NULL, true);
     usb_serial_handle_reset(dev);
 
-    if (qemu_chr_fe_backend_open(&s->cs) && !dev->attached) {
+    if ((s->always_plugged || qemu_chr_fe_backend_open(&s->cs)) &&
+        !dev->attached) {
         usb_device_attach(dev, &error_abort);
     }
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
@@ -584,6 +586,7 @@ static const VMStateDescription vmstate_usb_serial = {
 
 static Property serial_properties[] = {
     DEFINE_PROP_CHR("chardev", USBSerialState, cs),
+    DEFINE_PROP_BOOL("always-plugged", USBSerialState, always_plugged, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
