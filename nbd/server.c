@@ -27,6 +27,7 @@
 #include "qemu/units.h"
 
 #define NBD_META_ID_BASE_ALLOCATION 0
+/* Dirty bitmaps use 'NBD_META_ID_DIRTY_BITMAP + i', so keep this id last. */
 #define NBD_META_ID_DIRTY_BITMAP 1
 
 /*
@@ -94,7 +95,8 @@ struct NBDExport {
     BlockBackend *eject_notifier_blk;
     Notifier eject_notifier;
 
-    BdrvDirtyBitmap *export_bitmap;
+    BdrvDirtyBitmap **export_bitmaps;
+    size_t nr_export_bitmaps;
 };
 
 static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
@@ -106,7 +108,10 @@ typedef struct NBDExportMetaContexts {
     NBDExport *exp;
     size_t count; /* number of negotiated contexts */
     bool base_allocation; /* export base:allocation context (block status) */
-    bool bitmap; /* export qemu:dirty-bitmap:<export bitmap name> */
+    bool *bitmaps; /*
+                    * export qemu:dirty-bitmap:<export bitmap name>,
+                    * sized by exp->nr_export_bitmaps
+                    */
 } NBDExportMetaContexts;
 
 struct NBDClient {
@@ -857,6 +862,8 @@ static bool nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
 static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
                                 const char *query)
 {
+    size_t i;
+
     if (!nbd_strshift(&query, "qemu:")) {
         return false;
     }
@@ -864,24 +871,33 @@ static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
 
     if (!*query) {
         if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
-            meta->bitmap = !!meta->exp->export_bitmap;
+            memset(meta->bitmaps, 1, meta->exp->nr_export_bitmaps);
         }
         trace_nbd_negotiate_meta_query_parse("empty");
         return true;
     }
 
     if (nbd_strshift(&query, "dirty-bitmap:")) {
-        const char *bm_name;
-
         trace_nbd_negotiate_meta_query_parse("dirty-bitmap:");
-        if (!meta->exp->export_bitmap) {
-            trace_nbd_negotiate_meta_query_skip("no dirty-bitmap exported");
+        if (!*query) {
+            if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
+                memset(meta->bitmaps, 1, meta->exp->nr_export_bitmaps);
+            }
+            trace_nbd_negotiate_meta_query_parse("empty");
             return true;
         }
-        bm_name = bdrv_dirty_bitmap_name(meta->exp->export_bitmap);
-        if (nbd_meta_empty_or_pattern(client, bm_name, query)) {
-            meta->bitmap = true;
+
+        for (i = 0; i < meta->exp->nr_export_bitmaps; i++) {
+            const char *bm_name;
+
+            bm_name = bdrv_dirty_bitmap_name(meta->exp->export_bitmaps[i]);
+            if (strcmp(bm_name, query) == 0) {
+                meta->bitmaps[i] = true;
+                trace_nbd_negotiate_meta_query_parse(query);
+                return true;
+            }
         }
+        trace_nbd_negotiate_meta_query_skip("no dirty-bitmap match");
         return true;
     }
 
@@ -943,9 +959,10 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
 {
     int ret;
     g_autofree char *export_name = NULL;
-    NBDExportMetaContexts local_meta;
+    g_autofree bool *bitmaps = NULL;
+    NBDExportMetaContexts local_meta = {0};
     uint32_t nb_queries;
-    int i;
+    size_t i;
     size_t count = 0;
 
     if (!client->structured_reply) {
@@ -960,6 +977,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
         meta = &local_meta;
     }
 
+    g_free(meta->bitmaps);
     memset(meta, 0, sizeof(*meta));
 
     ret = nbd_opt_read_name(client, &export_name, NULL, errp);
@@ -974,6 +992,10 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
         return nbd_opt_drop(client, NBD_REP_ERR_UNKNOWN, errp,
                             "export '%s' not present", sane_name);
     }
+    meta->bitmaps = g_new0(bool, meta->exp->nr_export_bitmaps);
+    if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
+        bitmaps = meta->bitmaps;
+    }
 
     ret = nbd_opt_read(client, &nb_queries, sizeof(nb_queries), false, errp);
     if (ret <= 0) {
@@ -986,7 +1008,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     if (client->opt == NBD_OPT_LIST_META_CONTEXT && !nb_queries) {
         /* enable all known contexts */
         meta->base_allocation = true;
-        meta->bitmap = !!meta->exp->export_bitmap;
+        memset(meta->bitmaps, 1, meta->exp->nr_export_bitmaps);
     } else {
         for (i = 0; i < nb_queries; ++i) {
             ret = nbd_negotiate_meta_query(client, meta, errp);
@@ -1006,13 +1028,19 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
         count++;
     }
 
-    if (meta->bitmap) {
-        const char *bm_name = bdrv_dirty_bitmap_name(meta->exp->export_bitmap);
-        g_autofree char *context = g_strdup_printf("qemu:dirty-bitmap:%s",
-                                                   bm_name);
+    for (i = 0; i < meta->exp->nr_export_bitmaps; i++) {
+        const char *bm_name;
+        g_autofree char *context = NULL;
+
+        if (!meta->bitmaps[i]) {
+            continue;
+        }
+
+        bm_name = bdrv_dirty_bitmap_name(meta->exp->export_bitmaps[i]);
+        context = g_strdup_printf("qemu:dirty-bitmap:%s", bm_name);
 
         ret = nbd_negotiate_send_meta_context(client, context,
-                                              NBD_META_ID_DIRTY_BITMAP,
+                                              NBD_META_ID_DIRTY_BITMAP + i,
                                               errp);
         if (ret < 0) {
             return ret;
@@ -1366,6 +1394,7 @@ void nbd_client_put(NBDClient *client)
             QTAILQ_REMOVE(&client->exp->clients, client, next);
             blk_exp_unref(&client->exp->common);
         }
+        g_free(client->export_meta.bitmaps);
         g_free(client);
     }
 }
@@ -1482,6 +1511,7 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
     bool readonly = !exp_args->writable;
     bool shared = !exp_args->writable;
     strList *bitmaps;
+    size_t i;
     int ret;
 
     assert(exp_args->type == BLOCK_EXPORT_TYPE_NBD);
@@ -1541,12 +1571,12 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
     }
     exp->size = QEMU_ALIGN_DOWN(size, BDRV_SECTOR_SIZE);
 
-    /* XXX Allow more than one bitmap */
-    if (arg->bitmaps && arg->bitmaps->next) {
-        error_setg(errp, "multiple bitmaps per export not supported yet");
-        return -EOPNOTSUPP;
-    }
     for (bitmaps = arg->bitmaps; bitmaps; bitmaps = bitmaps->next) {
+        exp->nr_export_bitmaps++;
+    }
+    exp->export_bitmaps = g_new0(BdrvDirtyBitmap *, exp->nr_export_bitmaps);
+    for (i = 0, bitmaps = arg->bitmaps; bitmaps;
+         i++, bitmaps = bitmaps->next) {
         const char *bitmap = bitmaps->value;
         BlockDriverState *bs = blk_bs(blk);
         BdrvDirtyBitmap *bm = NULL;
@@ -1580,9 +1610,13 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
             goto fail;
         }
 
-        bdrv_dirty_bitmap_set_busy(bm, true);
-        exp->export_bitmap = bm;
+        exp->export_bitmaps[i] = bm;
         assert(strlen(bitmap) <= BDRV_BITMAP_MAX_NAME_SIZE);
+    }
+
+    /* Mark bitmaps busy in a separate loop, to simplify roll-back concerns. */
+    for (i = 0; i < exp->nr_export_bitmaps; i++) {
+        bdrv_dirty_bitmap_set_busy(exp->export_bitmaps[i], true);
     }
 
     blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
@@ -1592,6 +1626,7 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
     return 0;
 
 fail:
+    g_free(exp->export_bitmaps);
     g_free(exp->name);
     g_free(exp->description);
     return ret;
@@ -1641,6 +1676,7 @@ static void nbd_export_request_shutdown(BlockExport *blk_exp)
 
 static void nbd_export_delete(BlockExport *blk_exp)
 {
+    size_t i;
     NBDExport *exp = container_of(blk_exp, NBDExport, common);
 
     assert(exp->name == NULL);
@@ -1658,8 +1694,8 @@ static void nbd_export_delete(BlockExport *blk_exp)
                                         blk_aio_detach, exp);
     }
 
-    if (exp->export_bitmap) {
-        bdrv_dirty_bitmap_set_busy(exp->export_bitmap, false);
+    for (i = 0; i < exp->nr_export_bitmaps; i++) {
+        bdrv_dirty_bitmap_set_busy(exp->export_bitmaps[i], false);
     }
 }
 
@@ -2268,6 +2304,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
     int flags;
     NBDExport *exp = client->exp;
     char *msg;
+    size_t i;
 
     switch (request->type) {
     case NBD_CMD_CACHE:
@@ -2358,12 +2395,15 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                 }
             }
 
-            if (client->export_meta.bitmap) {
+            for (i = 0; i < client->exp->nr_export_bitmaps; i++) {
+                if (!client->export_meta.bitmaps[i]) {
+                    continue;
+                }
                 ret = nbd_co_send_bitmap(client, request->handle,
-                                         client->exp->export_bitmap,
+                                         client->exp->export_bitmaps[i],
                                          request->from, request->len,
                                          dont_fragment, !--contexts_remaining,
-                                         NBD_META_ID_DIRTY_BITMAP, errp);
+                                         NBD_META_ID_DIRTY_BITMAP + i, errp);
                 if (ret < 0) {
                     return ret;
                 }
