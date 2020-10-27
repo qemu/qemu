@@ -1151,7 +1151,6 @@ static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
-static bool preconfig_exit_requested = true;
 static WakeupReason wakeup_reason;
 static NotifierList powerdown_notifiers =
     NOTIFIER_LIST_INITIALIZER(powerdown_notifiers);
@@ -1236,11 +1235,6 @@ static int qemu_debug_requested(void)
     int r = debug_requested;
     debug_requested = 0;
     return r;
-}
-
-void qemu_exit_preconfig_request(void)
-{
-    preconfig_exit_requested = true;
 }
 
 /*
@@ -1464,10 +1458,6 @@ static bool main_loop_should_exit(void)
     RunState r;
     ShutdownCause request;
 
-    if (preconfig_exit_requested) {
-        preconfig_exit_requested = false;
-        return true;
-    }
     if (qemu_debug_requested()) {
         vm_stop(RUN_STATE_DEBUG);
     }
@@ -3283,6 +3273,43 @@ static void qemu_machine_creation_done(void)
     register_global_state();
 }
 
+void qmp_x_exit_preconfig(Error **errp)
+{
+    if (qdev_hotplug) {
+        error_setg(errp, "The command is permitted only before machine initialization");
+        return;
+    }
+
+    qemu_init_board();
+    qemu_create_cli_devices();
+    qemu_machine_creation_done();
+
+    if (loadvm) {
+        Error *local_err = NULL;
+        if (load_snapshot(loadvm, &local_err) < 0) {
+            error_report_err(local_err);
+            autostart = 0;
+            exit(1);
+        }
+    }
+    if (replay_mode != REPLAY_MODE_NONE) {
+        replay_vmstate_init();
+    }
+
+    if (incoming) {
+        Error *local_err = NULL;
+        if (strcmp(incoming, "defer") != 0) {
+            qmp_migrate_incoming(incoming, &local_err);
+            if (local_err) {
+                error_reportf_err(local_err, "-incoming %s: ", incoming);
+                exit(1);
+            }
+        }
+    } else if (autostart) {
+        qmp_cont(NULL);
+    }
+}
+
 void qemu_init(int argc, char **argv, char **envp)
 {
     QemuOpts *opts;
@@ -3847,7 +3874,6 @@ void qemu_init(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_preconfig:
-                preconfig_exit_requested = false;
                 preconfig_requested = true;
                 break;
             case QEMU_OPTION_enable_kvm:
@@ -4272,57 +4298,18 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_resolve_machine_memdev();
     parse_numa_opts(current_machine);
 
-    if (preconfig_requested) {
-        qemu_init_displays();
-    }
-
-    /* do monitor/qmp handling at preconfig state if requested */
-    qemu_main_loop();
-
-    qemu_init_board();
-
-    qemu_create_cli_devices();
-
-    /* initialize displays after all errors have been reported */
-    if (!preconfig_requested) {
-        qemu_init_displays();
-    }
-    qemu_machine_creation_done();
-
-    if (loadvm) {
-        Error *local_err = NULL;
-        if (load_snapshot(loadvm, &local_err) < 0) {
-            error_report_err(local_err);
-            autostart = 0;
-            exit(1);
-        }
-    }
-    if (replay_mode != REPLAY_MODE_NONE) {
-        replay_vmstate_init();
-    }
-
     if (vmstate_dump_file) {
         /* dump and exit */
         dump_vmstate_json_to_file(vmstate_dump_file);
         exit(0);
     }
-    if (incoming) {
-        Error *local_err = NULL;
-        if (strcmp(incoming, "defer") != 0) {
-            qmp_migrate_incoming(incoming, &local_err);
-            if (local_err) {
-                error_reportf_err(local_err, "-incoming %s: ", incoming);
-                exit(1);
-            }
-        }
-    } else if (autostart) {
-        qmp_cont(NULL);
-    }
 
+    qemu_init_displays();
+    if (!preconfig_requested) {
+        qmp_x_exit_preconfig(&error_fatal);
+    }
     accel_setup_post(current_machine);
     os_setup_post();
-
-    return;
 }
 
 void qemu_cleanup(void)
