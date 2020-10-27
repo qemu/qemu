@@ -104,9 +104,8 @@ void qmp_system_powerdown(Error **errp)
 
 void qmp_x_exit_preconfig(Error **errp)
 {
-    if (!runstate_check(RUN_STATE_PRECONFIG)) {
-        error_setg(errp, "The command is permitted only in '%s' state",
-                   RunState_str(RUN_STATE_PRECONFIG));
+    if (qdev_hotplug) {
+        error_setg(errp, "The command is permitted only before machine initialization");
         return;
     }
     qemu_exit_preconfig_request();
