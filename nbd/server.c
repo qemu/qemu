@@ -27,8 +27,9 @@
 #include "qemu/units.h"
 
 #define NBD_META_ID_BASE_ALLOCATION 0
+#define NBD_META_ID_ALLOCATION_DEPTH 1
 /* Dirty bitmaps use 'NBD_META_ID_DIRTY_BITMAP + i', so keep this id last. */
-#define NBD_META_ID_DIRTY_BITMAP 1
+#define NBD_META_ID_DIRTY_BITMAP 2
 
 /*
  * NBD_MAX_BLOCK_STATUS_EXTENTS: 1 MiB of extents data. An empirical
@@ -95,6 +96,7 @@ struct NBDExport {
     BlockBackend *eject_notifier_blk;
     Notifier eject_notifier;
 
+    bool allocation_depth;
     BdrvDirtyBitmap **export_bitmaps;
     size_t nr_export_bitmaps;
 };
@@ -108,6 +110,7 @@ typedef struct NBDExportMetaContexts {
     NBDExport *exp;
     size_t count; /* number of negotiated contexts */
     bool base_allocation; /* export base:allocation context (block status) */
+    bool allocation_depth; /* export qemu:allocation-depth */
     bool *bitmaps; /*
                     * export qemu:dirty-bitmap:<export bitmap name>,
                     * sized by exp->nr_export_bitmaps
@@ -857,7 +860,8 @@ static bool nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
 /* nbd_meta_qemu_query
  *
  * Handle queries to 'qemu' namespace. For now, only the qemu:dirty-bitmap:
- * context is available.  Return true if @query has been handled.
+ * and qemu:allocation-depth contexts are available.  Return true if @query
+ * has been handled.
  */
 static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
                                 const char *query)
@@ -871,9 +875,16 @@ static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
 
     if (!*query) {
         if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
+            meta->allocation_depth = meta->exp->allocation_depth;
             memset(meta->bitmaps, 1, meta->exp->nr_export_bitmaps);
         }
         trace_nbd_negotiate_meta_query_parse("empty");
+        return true;
+    }
+
+    if (strcmp(query, "allocation-depth") == 0) {
+        trace_nbd_negotiate_meta_query_parse("allocation-depth");
+        meta->allocation_depth = meta->exp->allocation_depth;
         return true;
     }
 
@@ -901,7 +912,7 @@ static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
         return true;
     }
 
-    trace_nbd_negotiate_meta_query_skip("not dirty-bitmap");
+    trace_nbd_negotiate_meta_query_skip("unknown qemu context");
     return true;
 }
 
@@ -1008,6 +1019,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     if (client->opt == NBD_OPT_LIST_META_CONTEXT && !nb_queries) {
         /* enable all known contexts */
         meta->base_allocation = true;
+        meta->allocation_depth = meta->exp->allocation_depth;
         memset(meta->bitmaps, 1, meta->exp->nr_export_bitmaps);
     } else {
         for (i = 0; i < nb_queries; ++i) {
@@ -1021,6 +1033,16 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     if (meta->base_allocation) {
         ret = nbd_negotiate_send_meta_context(client, "base:allocation",
                                               NBD_META_ID_BASE_ALLOCATION,
+                                              errp);
+        if (ret < 0) {
+            return ret;
+        }
+        count++;
+    }
+
+    if (meta->allocation_depth) {
+        ret = nbd_negotiate_send_meta_context(client, "qemu:allocation-depth",
+                                              NBD_META_ID_ALLOCATION_DEPTH,
                                               errp);
         if (ret < 0) {
             return ret;
@@ -2005,6 +2027,29 @@ static int blockstatus_to_extents(BlockDriverState *bs, uint64_t offset,
     return 0;
 }
 
+static int blockalloc_to_extents(BlockDriverState *bs, uint64_t offset,
+                                 uint64_t bytes, NBDExtentArray *ea)
+{
+    while (bytes) {
+        int64_t num;
+        int ret = bdrv_is_allocated_above(bs, NULL, false, offset, bytes,
+                                          &num);
+
+        if (ret < 0) {
+            return ret;
+        }
+
+        if (nbd_extent_array_add(ea, num, ret) < 0) {
+            return 0;
+        }
+
+        offset += num;
+        bytes -= num;
+    }
+
+    return 0;
+}
+
 /*
  * nbd_co_send_extents
  *
@@ -2044,7 +2089,11 @@ static int nbd_co_send_block_status(NBDClient *client, uint64_t handle,
     unsigned int nb_extents = dont_fragment ? 1 : NBD_MAX_BLOCK_STATUS_EXTENTS;
     g_autoptr(NBDExtentArray) ea = nbd_extent_array_new(nb_extents);
 
-    ret = blockstatus_to_extents(bs, offset, length, ea);
+    if (context_id == NBD_META_ID_BASE_ALLOCATION) {
+        ret = blockstatus_to_extents(bs, offset, length, ea);
+    } else {
+        ret = blockalloc_to_extents(bs, offset, length, ea);
+    }
     if (ret < 0) {
         return nbd_co_send_structured_error(
                 client, handle, -ret, "can't get block status", errp);
@@ -2389,6 +2438,19 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                                                request->len, dont_fragment,
                                                !--contexts_remaining,
                                                NBD_META_ID_BASE_ALLOCATION,
+                                               errp);
+                if (ret < 0) {
+                    return ret;
+                }
+            }
+
+            if (client->export_meta.allocation_depth) {
+                ret = nbd_co_send_block_status(client, request->handle,
+                                               blk_bs(exp->common.blk),
+                                               request->from, request->len,
+                                               dont_fragment,
+                                               !--contexts_remaining,
+                                               NBD_META_ID_ALLOCATION_DEPTH,
                                                errp);
                 if (ret < 0) {
                     return ret;
