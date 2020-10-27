@@ -40,6 +40,7 @@
 #include "fuse_virtio.h"
 #include "fuse_log.h"
 #include "fuse_lowlevel.h"
+#include "standard-headers/linux/fuse.h"
 #include <assert.h>
 #include <cap-ng.h>
 #include <dirent.h>
@@ -64,6 +65,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include "qemu/cutils.h"
 #include "passthrough_helpers.h"
 #include "passthrough_seccomp.h"
 
@@ -124,6 +126,14 @@ struct lo_inode {
     GHashTable *posix_locks; /* protected by lo_inode->plock_mutex */
 
     mode_t filetype;
+
+    /*
+     * So we can detect crossmount roots
+     * (As such, this only needs to be valid for directories.  Note
+     * that files can have multiple parents due to hard links, and so
+     * their parent_dev may fluctuate.)
+     */
+    dev_t parent_dev;
 };
 
 struct lo_cred {
@@ -137,13 +147,26 @@ enum {
     CACHE_ALWAYS,
 };
 
+enum {
+    SANDBOX_NAMESPACE,
+    SANDBOX_CHROOT,
+};
+
+typedef struct xattr_map_entry {
+    char *key;
+    char *prepend;
+    unsigned int flags;
+} XattrMapEntry;
+
 struct lo_data {
     pthread_mutex_t mutex;
+    int sandbox;
     int debug;
     int writeback;
     int flock;
     int posix_lock;
     int xattr;
+    char *xattrmap;
     char *source;
     char *modcaps;
     double timeout;
@@ -151,18 +174,27 @@ struct lo_data {
     int timeout_set;
     int readdirplus_set;
     int readdirplus_clear;
+    int announce_submounts;
     int allow_direct_io;
     struct lo_inode root;
     GHashTable *inodes; /* protected by lo->mutex */
     struct lo_map ino_map; /* protected by lo->mutex */
     struct lo_map dirp_map; /* protected by lo->mutex */
     struct lo_map fd_map; /* protected by lo->mutex */
+    XattrMapEntry *xattr_map_list;
+    size_t xattr_map_nentries;
 
     /* An O_PATH file descriptor to /proc/self/fd/ */
     int proc_self_fd;
 };
 
 static const struct fuse_opt lo_opts[] = {
+    { "sandbox=namespace",
+      offsetof(struct lo_data, sandbox),
+      SANDBOX_NAMESPACE },
+    { "sandbox=chroot",
+      offsetof(struct lo_data, sandbox),
+      SANDBOX_CHROOT },
     { "writeback", offsetof(struct lo_data, writeback), 1 },
     { "no_writeback", offsetof(struct lo_data, writeback), 0 },
     { "source=%s", offsetof(struct lo_data, source), 0 },
@@ -172,6 +204,7 @@ static const struct fuse_opt lo_opts[] = {
     { "no_posix_lock", offsetof(struct lo_data, posix_lock), 0 },
     { "xattr", offsetof(struct lo_data, xattr), 1 },
     { "no_xattr", offsetof(struct lo_data, xattr), 0 },
+    { "xattrmap=%s", offsetof(struct lo_data, xattrmap), 0 },
     { "modcaps=%s", offsetof(struct lo_data, modcaps), 0 },
     { "timeout=%lf", offsetof(struct lo_data, timeout), 0 },
     { "timeout=", offsetof(struct lo_data, timeout_set), 1 },
@@ -180,6 +213,7 @@ static const struct fuse_opt lo_opts[] = {
     { "cache=always", offsetof(struct lo_data, cache), CACHE_ALWAYS },
     { "readdirplus", offsetof(struct lo_data, readdirplus_set), 1 },
     { "no_readdirplus", offsetof(struct lo_data, readdirplus_clear), 1 },
+    { "announce_submounts", offsetof(struct lo_data, announce_submounts), 1 },
     { "allow_direct_io", offsetof(struct lo_data, allow_direct_io), 1 },
     { "no_allow_direct_io", offsetof(struct lo_data, allow_direct_io), 0 },
     FUSE_OPT_END
@@ -577,22 +611,52 @@ static void lo_init(void *userdata, struct fuse_conn_info *conn)
     }
 }
 
+/**
+ * Call fstatat() and set st_rdev whenever a directory's st_dev
+ * differs from the rparent's st_dev (@parent_dev).  This will
+ * announce submounts to the FUSE client (unless @announce_submounts
+ * is false).
+ */
+static int do_fstatat(int dirfd, const char *pathname, struct stat *statbuf,
+                      int flags, dev_t parent_dev, uint32_t *fuse_attr_flags)
+{
+    int res = fstatat(dirfd, pathname, statbuf, flags);
+    if (res == -1) {
+        return res;
+    }
+
+    if (statbuf->st_dev != parent_dev && S_ISDIR(statbuf->st_mode) &&
+        fuse_attr_flags)
+    {
+        *fuse_attr_flags |= FUSE_ATTR_SUBMOUNT;
+    }
+
+    return 0;
+}
+
 static void lo_getattr(fuse_req_t req, fuse_ino_t ino,
                        struct fuse_file_info *fi)
 {
     int res;
     struct stat buf;
     struct lo_data *lo = lo_data(req);
+    struct lo_inode *inode = lo_inode(req, ino);
+    uint32_t fuse_attr_flags = 0;
 
     (void)fi;
 
-    res =
-        fstatat(lo_fd(req, ino), "", &buf, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
+    res = do_fstatat(inode->fd, "", &buf, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW,
+                     inode->parent_dev, &fuse_attr_flags);
+    lo_inode_put(lo, &inode);
     if (res == -1) {
         return (void)fuse_reply_err(req, errno);
     }
 
-    fuse_reply_attr(req, &buf, lo->timeout);
+    if (!lo->announce_submounts) {
+        fuse_attr_flags &= ~FUSE_ATTR_SUBMOUNT;
+    }
+
+    fuse_reply_attr_with_flags(req, &buf, lo->timeout, fuse_attr_flags);
 }
 
 static int lo_fi_fd(fuse_req_t req, struct fuse_file_info *fi)
@@ -788,9 +852,14 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         goto out_err;
     }
 
-    res = fstatat(newfd, "", &e->attr, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
+    res = do_fstatat(newfd, "", &e->attr, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW,
+                     dir->key.dev, &e->attr_flags);
     if (res == -1) {
         goto out_err;
+    }
+
+    if (!lo->announce_submounts) {
+        e->attr_flags &= ~FUSE_ATTR_SUBMOUNT;
     }
 
     inode = lo_find(lo, &e->attr);
@@ -824,6 +893,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         g_hash_table_insert(lo->inodes, &inode->key, inode);
         pthread_mutex_unlock(&lo->mutex);
     }
+    inode->parent_dev = dir->key.dev;
     e->ino = inode->fuse_ino;
     lo_inode_put(lo, &inode);
     lo_inode_put(lo, &dir);
@@ -1037,9 +1107,15 @@ static void lo_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         goto out_err;
     }
 
-    res = fstatat(inode->fd, "", &e.attr, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
+    res = do_fstatat(inode->fd, "", &e.attr,
+                     AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW,
+                     parent_inode->key.dev, &e.attr_flags);
     if (res == -1) {
         goto out_err;
+    }
+
+    if (!lo->announce_submounts) {
+        e.attr_flags &= ~FUSE_ATTR_SUBMOUNT;
     }
 
     pthread_mutex_lock(&lo->mutex);
@@ -1049,6 +1125,14 @@ static void lo_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
 
     fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli\n", (unsigned long long)parent,
              name, (unsigned long long)e.ino);
+
+    /*
+     * No need to update inode->parent_dev, because
+     * (1) We cannot, the inode now has more than one parent,
+     * (2) Directories cannot have more than one parent, so link()
+     *     does not work for them; but parent_dev only needs to be
+     *     valid for directories.
+     */
 
     fuse_reply_entry(req, &e);
     lo_inode_put(lo, &parent_inode);
@@ -1068,14 +1152,21 @@ static struct lo_inode *lookup_name(fuse_req_t req, fuse_ino_t parent,
 {
     int res;
     struct stat attr;
+    struct lo_data *lo = lo_data(req);
+    struct lo_inode *dir = lo_inode(req, parent);
 
-    res = fstatat(lo_fd(req, parent), name, &attr,
-                  AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
+    if (!dir) {
+        return NULL;
+    }
+
+    res = do_fstatat(dir->fd, name, &attr,
+                     AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW, dir->key.dev, NULL);
+    lo_inode_put(lo, &dir);
     if (res == -1) {
         return NULL;
     }
 
-    return lo_find(lo_data(req), &attr);
+    return lo_find(lo, &attr);
 }
 
 static void lo_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
@@ -2010,20 +2101,383 @@ static void lo_flock(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
     fuse_reply_err(req, res == -1 ? errno : 0);
 }
 
-static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
+/* types */
+/*
+ * Exit; process attribute unmodified if matched.
+ * An empty key applies to all.
+ */
+#define XATTR_MAP_FLAG_OK      (1 <<  0)
+/*
+ * The attribute is unwanted;
+ * EPERM on write, hidden on read.
+ */
+#define XATTR_MAP_FLAG_BAD     (1 <<  1)
+/*
+ * For attr that start with 'key' prepend 'prepend'
+ * 'key' may be empty to prepend for all attrs
+ * key is defined from set/remove point of view.
+ * Automatically reversed on read
+ */
+#define XATTR_MAP_FLAG_PREFIX  (1 <<  2)
+
+/* scopes */
+/* Apply rule to get/set/remove */
+#define XATTR_MAP_FLAG_CLIENT  (1 << 16)
+/* Apply rule to list */
+#define XATTR_MAP_FLAG_SERVER  (1 << 17)
+/* Apply rule to all */
+#define XATTR_MAP_FLAG_ALL   (XATTR_MAP_FLAG_SERVER | XATTR_MAP_FLAG_CLIENT)
+
+static void add_xattrmap_entry(struct lo_data *lo,
+                               const XattrMapEntry *new_entry)
+{
+    XattrMapEntry *res = g_realloc_n(lo->xattr_map_list,
+                                     lo->xattr_map_nentries + 1,
+                                     sizeof(XattrMapEntry));
+    res[lo->xattr_map_nentries++] = *new_entry;
+
+    lo->xattr_map_list = res;
+}
+
+static void free_xattrmap(struct lo_data *lo)
+{
+    XattrMapEntry *map = lo->xattr_map_list;
+    size_t i;
+
+    if (!map) {
+        return;
+    }
+
+    for (i = 0; i < lo->xattr_map_nentries; i++) {
+        g_free(map[i].key);
+        g_free(map[i].prepend);
+    };
+
+    g_free(map);
+    lo->xattr_map_list = NULL;
+    lo->xattr_map_nentries = -1;
+}
+
+/*
+ * Handle the 'map' type, which is sugar for a set of commands
+ * for the common case of prefixing a subset or everything,
+ * and allowing anything not prefixed through.
+ * It must be the last entry in the stream, although there
+ * can be other entries before it.
+ * The form is:
+ *    :map:key:prefix:
+ *
+ * key maybe empty in which case all entries are prefixed.
+ */
+static void parse_xattrmap_map(struct lo_data *lo,
+                               const char *rule, char sep)
+{
+    const char *tmp;
+    char *key;
+    char *prefix;
+    XattrMapEntry tmp_entry;
+
+    if (*rule != sep) {
+        fuse_log(FUSE_LOG_ERR,
+                 "%s: Expecting '%c' after 'map' keyword, found '%c'\n",
+                 __func__, sep, *rule);
+        exit(1);
+    }
+
+    rule++;
+
+    /* At start of 'key' field */
+    tmp = strchr(rule, sep);
+    if (!tmp) {
+        fuse_log(FUSE_LOG_ERR,
+                 "%s: Missing '%c' at end of key field in map rule\n",
+                 __func__, sep);
+        exit(1);
+    }
+
+    key = g_strndup(rule, tmp - rule);
+    rule = tmp + 1;
+
+    /* At start of prefix field */
+    tmp = strchr(rule, sep);
+    if (!tmp) {
+        fuse_log(FUSE_LOG_ERR,
+                 "%s: Missing '%c' at end of prefix field in map rule\n",
+                 __func__, sep);
+        exit(1);
+    }
+
+    prefix = g_strndup(rule, tmp - rule);
+    rule = tmp + 1;
+
+    /*
+     * This should be the end of the string, we don't allow
+     * any more commands after 'map'.
+     */
+    if (*rule) {
+        fuse_log(FUSE_LOG_ERR,
+                 "%s: Expecting end of command after map, found '%c'\n",
+                 __func__, *rule);
+        exit(1);
+    }
+
+    /* 1st: Prefix matches/everything */
+    tmp_entry.flags = XATTR_MAP_FLAG_PREFIX | XATTR_MAP_FLAG_ALL;
+    tmp_entry.key = g_strdup(key);
+    tmp_entry.prepend = g_strdup(prefix);
+    add_xattrmap_entry(lo, &tmp_entry);
+
+    if (!*key) {
+        /* Prefix all case */
+
+        /* 2nd: Hide any non-prefixed entries on the host */
+        tmp_entry.flags = XATTR_MAP_FLAG_BAD | XATTR_MAP_FLAG_ALL;
+        tmp_entry.key = g_strdup("");
+        tmp_entry.prepend = g_strdup("");
+        add_xattrmap_entry(lo, &tmp_entry);
+    } else {
+        /* Prefix matching case */
+
+        /* 2nd: Hide non-prefixed but matching entries on the host */
+        tmp_entry.flags = XATTR_MAP_FLAG_BAD | XATTR_MAP_FLAG_SERVER;
+        tmp_entry.key = g_strdup(""); /* Not used */
+        tmp_entry.prepend = g_strdup(key);
+        add_xattrmap_entry(lo, &tmp_entry);
+
+        /* 3rd: Stop the client accessing prefixed attributes directly */
+        tmp_entry.flags = XATTR_MAP_FLAG_BAD | XATTR_MAP_FLAG_CLIENT;
+        tmp_entry.key = g_strdup(prefix);
+        tmp_entry.prepend = g_strdup(""); /* Not used */
+        add_xattrmap_entry(lo, &tmp_entry);
+
+        /* 4th: Everything else is OK */
+        tmp_entry.flags = XATTR_MAP_FLAG_OK | XATTR_MAP_FLAG_ALL;
+        tmp_entry.key = g_strdup("");
+        tmp_entry.prepend = g_strdup("");
+        add_xattrmap_entry(lo, &tmp_entry);
+    }
+
+    g_free(key);
+    g_free(prefix);
+}
+
+static void parse_xattrmap(struct lo_data *lo)
+{
+    const char *map = lo->xattrmap;
+    const char *tmp;
+
+    lo->xattr_map_nentries = 0;
+    while (*map) {
+        XattrMapEntry tmp_entry;
+        char sep;
+
+        if (isspace(*map)) {
+            map++;
+            continue;
+        }
+        /* The separator is the first non-space of the rule */
+        sep = *map++;
+        if (!sep) {
+            break;
+        }
+
+        tmp_entry.flags = 0;
+        /* Start of 'type' */
+        if (strstart(map, "prefix", &map)) {
+            tmp_entry.flags |= XATTR_MAP_FLAG_PREFIX;
+        } else if (strstart(map, "ok", &map)) {
+            tmp_entry.flags |= XATTR_MAP_FLAG_OK;
+        } else if (strstart(map, "bad", &map)) {
+            tmp_entry.flags |= XATTR_MAP_FLAG_BAD;
+        } else if (strstart(map, "map", &map)) {
+            /*
+             * map is sugar that adds a number of rules, and must be
+             * the last entry.
+             */
+            parse_xattrmap_map(lo, map, sep);
+            return;
+        } else {
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Unexpected type;"
+                     "Expecting 'prefix', 'ok', 'bad' or 'map' in rule %zu\n",
+                     __func__, lo->xattr_map_nentries);
+            exit(1);
+        }
+
+        if (*map++ != sep) {
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Missing '%c' at end of type field of rule %zu\n",
+                     __func__, sep, lo->xattr_map_nentries);
+            exit(1);
+        }
+
+        /* Start of 'scope' */
+        if (strstart(map, "client", &map)) {
+            tmp_entry.flags |= XATTR_MAP_FLAG_CLIENT;
+        } else if (strstart(map, "server", &map)) {
+            tmp_entry.flags |= XATTR_MAP_FLAG_SERVER;
+        } else if (strstart(map, "all", &map)) {
+            tmp_entry.flags |= XATTR_MAP_FLAG_ALL;
+        } else {
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Unexpected scope;"
+                     " Expecting 'client', 'server', or 'all', in rule %zu\n",
+                     __func__, lo->xattr_map_nentries);
+            exit(1);
+        }
+
+        if (*map++ != sep) {
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Expecting '%c' found '%c'"
+                     " after scope in rule %zu\n",
+                     __func__, sep, *map, lo->xattr_map_nentries);
+            exit(1);
+        }
+
+        /* At start of 'key' field */
+        tmp = strchr(map, sep);
+        if (!tmp) {
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Missing '%c' at end of key field of rule %zu",
+                     __func__, sep, lo->xattr_map_nentries);
+            exit(1);
+        }
+        tmp_entry.key = g_strndup(map, tmp - map);
+        map = tmp + 1;
+
+        /* At start of 'prepend' field */
+        tmp = strchr(map, sep);
+        if (!tmp) {
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Missing '%c' at end of prepend field of rule %zu",
+                     __func__, sep, lo->xattr_map_nentries);
+            exit(1);
+        }
+        tmp_entry.prepend = g_strndup(map, tmp - map);
+        map = tmp + 1;
+
+        add_xattrmap_entry(lo, &tmp_entry);
+        /* End of rule - go around again for another rule */
+    }
+
+    if (!lo->xattr_map_nentries) {
+        fuse_log(FUSE_LOG_ERR, "Empty xattr map\n");
+        exit(1);
+    }
+}
+
+/*
+ * For use with getxattr/setxattr/removexattr, where the client
+ * gives us a name and we may need to choose a different one.
+ * Allocates a buffer for the result placing it in *out_name.
+ *   If there's no change then *out_name is not set.
+ * Returns 0 on success
+ * Can return -EPERM to indicate we block a given attribute
+ *   (in which case out_name is not allocated)
+ * Can return -ENOMEM to indicate out_name couldn't be allocated.
+ */
+static int xattr_map_client(const struct lo_data *lo, const char *client_name,
+                            char **out_name)
+{
+    size_t i;
+    for (i = 0; i < lo->xattr_map_nentries; i++) {
+        const XattrMapEntry *cur_entry = lo->xattr_map_list + i;
+
+        if ((cur_entry->flags & XATTR_MAP_FLAG_CLIENT) &&
+            (strstart(client_name, cur_entry->key, NULL))) {
+            if (cur_entry->flags & XATTR_MAP_FLAG_BAD) {
+                return -EPERM;
+            }
+            if (cur_entry->flags & XATTR_MAP_FLAG_OK) {
+                /* Unmodified name */
+                return 0;
+            }
+            if (cur_entry->flags & XATTR_MAP_FLAG_PREFIX) {
+                *out_name = g_try_malloc(strlen(client_name) +
+                                         strlen(cur_entry->prepend) + 1);
+                if (!*out_name) {
+                    return -ENOMEM;
+                }
+                sprintf(*out_name, "%s%s", cur_entry->prepend, client_name);
+                return 0;
+            }
+        }
+    }
+
+    return -EPERM;
+}
+
+/*
+ * For use with listxattr where the server fs gives us a name and we may need
+ * to sanitize this for the client.
+ * Returns a pointer to the result in *out_name
+ *   This is always the original string or the current string with some prefix
+ *   removed; no reallocation is done.
+ * Returns 0 on success
+ * Can return -ENODATA to indicate the name should be dropped from the list.
+ */
+static int xattr_map_server(const struct lo_data *lo, const char *server_name,
+                            const char **out_name)
+{
+    size_t i;
+    const char *end;
+
+    for (i = 0; i < lo->xattr_map_nentries; i++) {
+        const XattrMapEntry *cur_entry = lo->xattr_map_list + i;
+
+        if ((cur_entry->flags & XATTR_MAP_FLAG_SERVER) &&
+            (strstart(server_name, cur_entry->prepend, &end))) {
+            if (cur_entry->flags & XATTR_MAP_FLAG_BAD) {
+                return -ENODATA;
+            }
+            if (cur_entry->flags & XATTR_MAP_FLAG_OK) {
+                *out_name = server_name;
+                return 0;
+            }
+            if (cur_entry->flags & XATTR_MAP_FLAG_PREFIX) {
+                /* Remove prefix */
+                *out_name = end;
+                return 0;
+            }
+        }
+    }
+
+    return -ENODATA;
+}
+
+static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
                         size_t size)
 {
     struct lo_data *lo = lo_data(req);
     char *value = NULL;
     char procname[64];
+    const char *name;
+    char *mapped_name;
     struct lo_inode *inode;
     ssize_t ret;
     int saverr;
     int fd = -1;
 
+    mapped_name = NULL;
+    name = in_name;
+    if (lo->xattrmap) {
+        ret = xattr_map_client(lo, in_name, &mapped_name);
+        if (ret < 0) {
+            if (ret == -EPERM) {
+                ret = -ENODATA;
+            }
+            fuse_reply_err(req, -ret);
+            return;
+        }
+        if (mapped_name) {
+            name = mapped_name;
+        }
+    }
+
     inode = lo_inode(req, ino);
     if (!inode) {
         fuse_reply_err(req, EBADF);
+        g_free(mapped_name);
         return;
     }
 
@@ -2088,6 +2542,7 @@ out_err:
     saverr = errno;
 out:
     fuse_reply_err(req, saverr);
+    g_free(mapped_name);
     goto out_free;
 }
 
@@ -2144,8 +2599,60 @@ static void lo_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
         if (ret == 0) {
             goto out;
         }
+
+        if (lo->xattr_map_list) {
+            /*
+             * Map the names back, some attributes might be dropped,
+             * some shortened, but not increased, so we shouldn't
+             * run out of room.
+             */
+            size_t out_index, in_index;
+            out_index = 0;
+            in_index = 0;
+            while (in_index < ret) {
+                const char *map_out;
+                char *in_ptr = value + in_index;
+                /* Length of current attribute name */
+                size_t in_len = strlen(value + in_index) + 1;
+
+                int mapret = xattr_map_server(lo, in_ptr, &map_out);
+                if (mapret != -ENODATA && mapret != 0) {
+                    /* Shouldn't happen */
+                    saverr = -mapret;
+                    goto out;
+                }
+                if (mapret == 0) {
+                    /* Either unchanged, or truncated */
+                    size_t out_len;
+                    if (map_out != in_ptr) {
+                        /* +1 copies the NIL */
+                        out_len = strlen(map_out) + 1;
+                    } else {
+                        /* No change */
+                        out_len = in_len;
+                    }
+                    /*
+                     * Move result along, may still be needed for an unchanged
+                     * entry if a previous entry was changed.
+                     */
+                    memmove(value + out_index, map_out, out_len);
+
+                    out_index += out_len;
+                }
+                in_index += in_len;
+            }
+            ret = out_index;
+            if (ret == 0) {
+                goto out;
+            }
+        }
         fuse_reply_buf(req, value, ret);
     } else {
+        /*
+         * xattrmap only ever shortens the result,
+         * so we don't need to do anything clever with the
+         * allocation length here.
+         */
         fuse_reply_xattr(req, ret);
     }
 out_free:
@@ -2165,19 +2672,35 @@ out:
     goto out_free;
 }
 
-static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
+static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
                         const char *value, size_t size, int flags)
 {
     char procname[64];
+    const char *name;
+    char *mapped_name;
     struct lo_data *lo = lo_data(req);
     struct lo_inode *inode;
     ssize_t ret;
     int saverr;
     int fd = -1;
 
+    mapped_name = NULL;
+    name = in_name;
+    if (lo->xattrmap) {
+        ret = xattr_map_client(lo, in_name, &mapped_name);
+        if (ret < 0) {
+            fuse_reply_err(req, -ret);
+            return;
+        }
+        if (mapped_name) {
+            name = mapped_name;
+        }
+    }
+
     inode = lo_inode(req, ino);
     if (!inode) {
         fuse_reply_err(req, EBADF);
+        g_free(mapped_name);
         return;
     }
 
@@ -2212,21 +2735,38 @@ out:
     }
 
     lo_inode_put(lo, &inode);
+    g_free(mapped_name);
     fuse_reply_err(req, saverr);
 }
 
-static void lo_removexattr(fuse_req_t req, fuse_ino_t ino, const char *name)
+static void lo_removexattr(fuse_req_t req, fuse_ino_t ino, const char *in_name)
 {
     char procname[64];
+    const char *name;
+    char *mapped_name;
     struct lo_data *lo = lo_data(req);
     struct lo_inode *inode;
     ssize_t ret;
     int saverr;
     int fd = -1;
 
+    mapped_name = NULL;
+    name = in_name;
+    if (lo->xattrmap) {
+        ret = xattr_map_client(lo, in_name, &mapped_name);
+        if (ret < 0) {
+            fuse_reply_err(req, -ret);
+            return;
+        }
+        if (mapped_name) {
+            name = mapped_name;
+        }
+    }
+
     inode = lo_inode(req, ino);
     if (!inode) {
         fuse_reply_err(req, EBADF);
+        g_free(mapped_name);
         return;
     }
 
@@ -2261,6 +2801,7 @@ out:
     }
 
     lo_inode_put(lo, &inode);
+    g_free(mapped_name);
     fuse_reply_err(req, saverr);
 }
 
@@ -2661,14 +3202,54 @@ static void setup_capabilities(char *modcaps_in)
 }
 
 /*
+ * Use chroot as a weaker sandbox for environments where the process is
+ * launched without CAP_SYS_ADMIN.
+ */
+static void setup_chroot(struct lo_data *lo)
+{
+    lo->proc_self_fd = open("/proc/self/fd", O_PATH);
+    if (lo->proc_self_fd == -1) {
+        fuse_log(FUSE_LOG_ERR, "open(\"/proc/self/fd\", O_PATH): %m\n");
+        exit(1);
+    }
+
+    /*
+     * Make the shared directory the file system root so that FUSE_OPEN
+     * (lo_open()) cannot escape the shared directory by opening a symlink.
+     *
+     * The chroot(2) syscall is later disabled by seccomp and the
+     * CAP_SYS_CHROOT capability is dropped so that tampering with the chroot
+     * is not possible.
+     *
+     * However, it's still possible to escape the chroot via lo->proc_self_fd
+     * but that requires first gaining control of the process.
+     */
+    if (chroot(lo->source) != 0) {
+        fuse_log(FUSE_LOG_ERR, "chroot(\"%s\"): %m\n", lo->source);
+        exit(1);
+    }
+
+    /* Move into the chroot */
+    if (chdir("/") != 0) {
+        fuse_log(FUSE_LOG_ERR, "chdir(\"/\"): %m\n");
+        exit(1);
+    }
+}
+
+/*
  * Lock down this process to prevent access to other processes or files outside
  * source directory.  This reduces the impact of arbitrary code execution bugs.
  */
 static void setup_sandbox(struct lo_data *lo, struct fuse_session *se,
                           bool enable_syslog)
 {
-    setup_namespaces(lo, se);
-    setup_mounts(lo->source);
+    if (lo->sandbox == SANDBOX_NAMESPACE) {
+        setup_namespaces(lo, se);
+        setup_mounts(lo->source);
+    } else {
+        setup_chroot(lo);
+    }
+
     setup_seccomp(enable_syslog);
     setup_capabilities(g_strdup(lo->modcaps));
 }
@@ -2806,6 +3387,8 @@ static void fuse_lo_data_cleanup(struct lo_data *lo)
         close(lo->root.fd);
     }
 
+    free(lo->xattrmap);
+    free_xattrmap(lo);
     free(lo->source);
 }
 
@@ -2815,6 +3398,7 @@ int main(int argc, char *argv[])
     struct fuse_session *se;
     struct fuse_cmdline_opts opts;
     struct lo_data lo = {
+        .sandbox = SANDBOX_NAMESPACE,
         .debug = 0,
         .writeback = 0,
         .posix_lock = 0,
@@ -2878,12 +3462,11 @@ int main(int argc, char *argv[])
         goto err_out1;
     }
 
-    /*
-     * log_level is 0 if not configured via cmd options (0 is LOG_EMERG,
-     * and we don't use this log level).
-     */
     if (opts.log_level != 0) {
         current_log_level = opts.log_level;
+    } else {
+        /* default log level is INFO */
+        current_log_level = FUSE_LOG_INFO;
     }
     lo.debug = opts.debug;
     if (lo.debug) {
@@ -2906,6 +3489,11 @@ int main(int argc, char *argv[])
     } else {
         lo.source = strdup("/");
     }
+
+    if (lo.xattrmap) {
+        parse_xattrmap(&lo);
+    }
+
     if (!lo.timeout_set) {
         switch (lo.cache) {
         case CACHE_NONE:
