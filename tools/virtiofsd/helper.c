@@ -161,7 +161,7 @@ void fuse_cmdline_help(void)
            "                               allowed (default: 10)\n"
            "    -o posix_lock|no_posix_lock\n"
            "                               enable/disable remote posix lock\n"
-           "                               default: posix_lock\n"
+           "                               default: no_posix_lock\n"
            "    -o readdirplus|no_readdirplus\n"
            "                               enable/disable readirplus\n"
            "                               default: readdirplus except with "
