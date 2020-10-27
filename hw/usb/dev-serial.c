@@ -37,11 +37,6 @@
 #define FTDI_SET_LATENCY       9
 #define FTDI_GET_LATENCY       10
 
-#define DeviceOutVendor \
-           ((USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE) << 8)
-#define DeviceInVendor \
-           ((USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE) << 8)
-
 /* RESET */
 
 #define FTDI_RESET_SIO 0
@@ -253,7 +248,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         break;
 
     /* Class specific requests.  */
-    case DeviceOutVendor | FTDI_RESET:
+    case VendorDeviceOutRequest | FTDI_RESET:
         switch (value) {
         case FTDI_RESET_SIO:
             usb_serial_reset(s);
@@ -268,7 +263,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
             break;
         }
         break;
-    case DeviceOutVendor | FTDI_SET_MDM_CTRL:
+    case VendorDeviceOutRequest | FTDI_SET_MDM_CTRL:
     {
         static int flags;
         qemu_chr_fe_ioctl(&s->cs, CHR_IOCTL_SERIAL_GET_TIOCM, &flags);
@@ -289,10 +284,10 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         qemu_chr_fe_ioctl(&s->cs, CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
         break;
     }
-    case DeviceOutVendor | FTDI_SET_FLOW_CTRL:
+    case VendorDeviceOutRequest | FTDI_SET_FLOW_CTRL:
         /* TODO: ioctl */
         break;
-    case DeviceOutVendor | FTDI_SET_BAUD: {
+    case VendorDeviceOutRequest | FTDI_SET_BAUD: {
         static const int subdivisors8[8] = { 0, 4, 2, 1, 3, 5, 6, 7 };
         int subdivisor8 = subdivisors8[((value & 0xc000) >> 14)
                                      | ((index & 1) << 2)];
@@ -311,7 +306,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         qemu_chr_fe_ioctl(&s->cs, CHR_IOCTL_SERIAL_SET_PARAMS, &s->params);
         break;
     }
-    case DeviceOutVendor | FTDI_SET_DATA:
+    case VendorDeviceOutRequest | FTDI_SET_DATA:
         switch (value & FTDI_PARITY) {
         case 0:
             s->params.parity = 'N';
@@ -346,23 +341,23 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         qemu_chr_fe_ioctl(&s->cs, CHR_IOCTL_SERIAL_SET_PARAMS, &s->params);
         /* TODO: TX ON/OFF */
         break;
-    case DeviceInVendor | FTDI_GET_MDM_ST:
+    case VendorDeviceRequest | FTDI_GET_MDM_ST:
         data[0] = usb_get_modem_lines(s) | 1;
         data[1] = FTDI_THRE | FTDI_TEMT;
         p->actual_length = 2;
         break;
-    case DeviceOutVendor | FTDI_SET_EVENT_CHR:
+    case VendorDeviceOutRequest | FTDI_SET_EVENT_CHR:
         /* TODO: handle it */
         s->event_chr = value;
         break;
-    case DeviceOutVendor | FTDI_SET_ERROR_CHR:
+    case VendorDeviceOutRequest | FTDI_SET_ERROR_CHR:
         /* TODO: handle it */
         s->error_chr = value;
         break;
-    case DeviceOutVendor | FTDI_SET_LATENCY:
+    case VendorDeviceOutRequest | FTDI_SET_LATENCY:
         s->latency = value;
         break;
-    case DeviceInVendor | FTDI_GET_LATENCY:
+    case VendorDeviceRequest | FTDI_GET_LATENCY:
         data[0] = s->latency;
         p->actual_length = 1;
         break;
