@@ -329,6 +329,7 @@ vhost_crypto=""
 vhost_scsi=""
 vhost_vsock=""
 vhost_user=""
+vhost_user_blk_server=""
 vhost_user_fs=""
 kvm="auto"
 hax="auto"
@@ -1246,6 +1247,10 @@ for opt do
   ;;
   --enable-vhost-vsock) vhost_vsock="yes"
   ;;
+  --disable-vhost-user-blk-server) vhost_user_blk_server="no"
+  ;;
+  --enable-vhost-user-blk-server) vhost_user_blk_server="yes"
+  ;;
   --disable-vhost-user-fs) vhost_user_fs="no"
   ;;
   --enable-vhost-user-fs) vhost_user_fs="yes"
@@ -1791,6 +1796,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   vhost-crypto    vhost-user-crypto backend support
   vhost-kernel    vhost kernel backend support
   vhost-user      vhost-user backend support
+  vhost-user-blk-server    vhost-user-blk server support
   vhost-vdpa      vhost-vdpa kernel backend support
   spice           spice
   rbd             rados block device (rbd)
@@ -2380,6 +2386,12 @@ if test "$vhost_net" = ""; then
   test "$vhost_net_user" = "yes" && vhost_net=yes
   test "$vhost_net_vdpa" = "yes" && vhost_net=yes
   test "$vhost_kernel" = "yes" && vhost_net=yes
+fi
+
+# libvhost-user is Linux-only
+test "$vhost_user_blk_server" = "" && vhost_user_blk_server=$linux
+if test "$vhost_user_blk_server" = "yes" && test "$linux" = "no"; then
+  error_exit "--enable-vhost-user-blk-server is only available on Linux"
 fi
 
 ##########################################
@@ -6274,6 +6286,9 @@ if test "$vhost_user" = "yes" ; then
 fi
 if test "$vhost_vdpa" = "yes" ; then
   echo "CONFIG_VHOST_VDPA=y" >> $config_host_mak
+fi
+if test "$vhost_user_blk_server" = "yes" ; then
+  echo "CONFIG_VHOST_USER_BLK_SERVER=y" >> $config_host_mak
 fi
 if test "$vhost_user_fs" = "yes" ; then
   echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak

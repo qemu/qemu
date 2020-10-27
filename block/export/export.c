@@ -22,13 +22,13 @@
 #include "qapi/qapi-commands-block-export.h"
 #include "qapi/qapi-events-block-export.h"
 #include "qemu/id.h"
-#if defined(CONFIG_LINUX) && defined(CONFIG_VHOST_USER)
+#ifdef CONFIG_VHOST_USER_BLK_SERVER
 #include "vhost-user-blk-server.h"
 #endif
 
 static const BlockExportDriver *blk_exp_drivers[] = {
     &blk_exp_nbd,
-#if defined(CONFIG_LINUX) && defined(CONFIG_VHOST_USER)
+#ifdef CONFIG_VHOST_USER_BLK_SERVER
     &blk_exp_vhost_user_blk,
 #endif
 };
