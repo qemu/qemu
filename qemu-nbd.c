@@ -100,6 +100,7 @@ static void usage(const char *name)
 "\n"
 "Exposing part of the image:\n"
 "  -o, --offset=OFFSET       offset into the image\n"
+"  -A, --allocation-depth    expose the allocation depth\n"
 "  -B, --bitmap=NAME         expose a persistent dirty bitmap\n"
 "\n"
 "General purpose options:\n"
@@ -524,7 +525,7 @@ int main(int argc, char **argv)
     char *device = NULL;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnc:dvk:e:f:tl:x:T:D:B:L";
+    const char *sopt = "hVb:o:p:rsnc:dvk:e:f:tl:x:T:D:AB:L";
     struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -533,6 +534,7 @@ int main(int argc, char **argv)
         { "socket", required_argument, NULL, 'k' },
         { "offset", required_argument, NULL, 'o' },
         { "read-only", no_argument, NULL, 'r' },
+        { "allocation-depth", no_argument, NULL, 'A' },
         { "bitmap", required_argument, NULL, 'B' },
         { "connect", required_argument, NULL, 'c' },
         { "disconnect", no_argument, NULL, 'd' },
@@ -575,6 +577,7 @@ int main(int argc, char **argv)
     const char *export_name = NULL; /* defaults to "" later for server mode */
     const char *export_description = NULL;
     strList *bitmaps = NULL;
+    bool alloc_depth = false;
     const char *tlscredsid = NULL;
     bool imageOpts = false;
     bool writethrough = true;
@@ -689,6 +692,9 @@ int main(int argc, char **argv)
             readonly = true;
             flags &= ~BDRV_O_RDWR;
             break;
+        case 'A':
+            alloc_depth = true;
+            break;
         case 'B':
             QAPI_LIST_PREPEND(bitmaps, g_strdup(optarg));
             break;
@@ -787,7 +793,7 @@ int main(int argc, char **argv)
         }
         if (export_name || export_description || dev_offset ||
             device || disconnect || fmt || sn_id_or_name || bitmaps ||
-            seen_aio || seen_discard || seen_cache) {
+            alloc_depth || seen_aio || seen_discard || seen_cache) {
             error_report("List mode is incompatible with per-device settings");
             exit(EXIT_FAILURE);
         }
@@ -1073,6 +1079,8 @@ int main(int argc, char **argv)
             .description          = g_strdup(export_description),
             .has_bitmaps          = !!bitmaps,
             .bitmaps              = bitmaps,
+            .has_allocation_depth = alloc_depth,
+            .allocation_depth     = alloc_depth,
         },
     };
     blk_exp_add(export_opts, &error_fatal);

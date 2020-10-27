@@ -90,11 +90,16 @@
 #           the metadata context name "qemu:dirty-bitmap:BITMAP" to inspect
 #           each bitmap.
 #
+# @allocation-depth: Also export the allocation depth map for @device, so
+#                    the NBD client can use NBD_OPT_SET_META_CONTEXT with
+#                    the metadata context name "qemu:allocation-depth" to
+#                    inspect allocation details. (since 5.2)
+#
 # Since: 5.2
 ##
 { 'struct': 'BlockExportOptionsNbd',
   'base': 'BlockExportOptionsNbdBase',
-  'data': { '*bitmaps': ['str'] } }
+  'data': { '*bitmaps': ['str'], '*allocation-depth': 'bool' } }
 
 ##
 # @BlockExportOptionsVhostUserBlk:

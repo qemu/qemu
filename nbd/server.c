@@ -1641,6 +1641,8 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
         bdrv_dirty_bitmap_set_busy(exp->export_bitmaps[i], true);
     }
 
+    exp->allocation_depth = arg->allocation_depth;
+
     blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
 
     QTAILQ_INSERT_TAIL(&exports, exp, next);

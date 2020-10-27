@@ -135,6 +135,7 @@ typedef struct BDRVNBDState {
     QCryptoTLSCreds *tlscreds;
     const char *hostname;
     char *x_dirty_bitmap;
+    bool alloc_depth;
 
     bool wait_connect;
     NBDConnectThread *connect_thread;
@@ -959,6 +960,16 @@ static int nbd_parse_blockstatus_payload(BDRVNBDState *s,
     if (extent->length > orig_length) {
         extent->length = orig_length;
         trace_nbd_parse_blockstatus_compliance("extent length too large");
+    }
+
+    /*
+     * HACK: if we are using x-dirty-bitmaps to access
+     * qemu:allocation-depth, treat all depths > 2 the same as 2,
+     * since nbd_client_co_block_status is only expecting the low two
+     * bits to be set.
+     */
+    if (s->alloc_depth && extent->flags > 2) {
+        extent->flags = 2;
     }
 
     return 0;
@@ -1795,11 +1806,16 @@ static int nbd_client_handshake(BlockDriverState *bs, QIOChannelSocket *sioc,
         s->sioc = NULL;
         return ret;
     }
-    if (s->x_dirty_bitmap && !s->info.base_allocation) {
-        error_setg(errp, "requested x-dirty-bitmap %s not found",
-                   s->x_dirty_bitmap);
-        ret = -EINVAL;
-        goto fail;
+    if (s->x_dirty_bitmap) {
+        if (!s->info.base_allocation) {
+            error_setg(errp, "requested x-dirty-bitmap %s not found",
+                       s->x_dirty_bitmap);
+            ret = -EINVAL;
+            goto fail;
+        }
+        if (strcmp(s->x_dirty_bitmap, "qemu:allocation-depth") == 0) {
+            s->alloc_depth = true;
+        }
     }
     if (s->info.flags & NBD_FLAG_READ_ONLY) {
         ret = bdrv_apply_auto_read_only(bs, "NBD export is read-only", errp);
