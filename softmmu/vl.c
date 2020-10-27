@@ -110,6 +110,7 @@
 #include "qapi/qapi-visit-ui.h"
 #include "qapi/qapi-commands-block-core.h"
 #include "qapi/qapi-commands-migration.h"
+#include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qapi/qmp/qerror.h"
@@ -4565,7 +4566,7 @@ void qemu_init(int argc, char **argv, char **envp)
             }
         }
     } else if (autostart) {
-        vm_start();
+        qmp_cont(NULL);
     }
 
     accel_setup_post(current_machine);
