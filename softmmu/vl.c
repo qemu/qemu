@@ -3490,6 +3490,8 @@ static void qemu_machine_creation_done(void)
         net_check_clients();
     }
 
+    qdev_prop_check_globals();
+
     if (boot_once) {
         qemu_boot_set(boot_once, &error_fatal);
         qemu_register_reset(restore_boot_order, g_strdup(boot_order));
@@ -4547,7 +4549,6 @@ void qemu_init(int argc, char **argv, char **envp)
         replay_vmstate_init();
     }
 
-    qdev_prop_check_globals();
     if (vmstate_dump_file) {
         /* dump and exit */
         dump_vmstate_json_to_file(vmstate_dump_file);
