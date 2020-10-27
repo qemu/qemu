@@ -627,6 +627,80 @@ static void fuse_flush(fuse_req_t req, fuse_ino_t inode,
     fuse_fsync(req, inode, 1, fi);
 }
 
+#ifdef CONFIG_FUSE_LSEEK
+/**
+ * Let clients inquire allocation status.
+ */
+static void fuse_lseek(fuse_req_t req, fuse_ino_t inode, off_t offset,
+                       int whence, struct fuse_file_info *fi)
+{
+    FuseExport *exp = fuse_req_userdata(req);
+
+    if (whence != SEEK_HOLE && whence != SEEK_DATA) {
+        fuse_reply_err(req, EINVAL);
+        return;
+    }
+
+    while (true) {
+        int64_t pnum;
+        int ret;
+
+        ret = bdrv_block_status_above(blk_bs(exp->common.blk), NULL,
+                                      offset, INT64_MAX, &pnum, NULL, NULL);
+        if (ret < 0) {
+            fuse_reply_err(req, -ret);
+            return;
+        }
+
+        if (!pnum && (ret & BDRV_BLOCK_EOF)) {
+            int64_t blk_len;
+
+            /*
+             * If blk_getlength() rounds (e.g. by sectors), then the
+             * export length will be rounded, too.  However,
+             * bdrv_block_status_above() may return EOF at unaligned
+             * offsets.  We must not let this become visible and thus
+             * always simulate a hole between @offset (the real EOF)
+             * and @blk_len (the client-visible EOF).
+             */
+
+            blk_len = blk_getlength(exp->common.blk);
+            if (blk_len < 0) {
+                fuse_reply_err(req, -blk_len);
+                return;
+            }
+
+            if (offset > blk_len || whence == SEEK_DATA) {
+                fuse_reply_err(req, ENXIO);
+            } else {
+                fuse_reply_lseek(req, offset);
+            }
+            return;
+        }
+
+        if (ret & BDRV_BLOCK_DATA) {
+            if (whence == SEEK_DATA) {
+                fuse_reply_lseek(req, offset);
+                return;
+            }
+        } else {
+            if (whence == SEEK_HOLE) {
+                fuse_reply_lseek(req, offset);
+                return;
+            }
+        }
+
+        /* Safety check against infinite loops */
+        if (!pnum) {
+            fuse_reply_err(req, ENXIO);
+            return;
+        }
+
+        offset += pnum;
+    }
+}
+#endif
+
 static const struct fuse_lowlevel_ops fuse_ops = {
     .init       = fuse_init,
     .lookup     = fuse_lookup,
@@ -638,6 +712,9 @@ static const struct fuse_lowlevel_ops fuse_ops = {
     .fallocate  = fuse_fallocate,
     .flush      = fuse_flush,
     .fsync      = fuse_fsync,
+#ifdef CONFIG_FUSE_LSEEK
+    .lseek      = fuse_lseek,
+#endif
 };
 
 const BlockExportDriver blk_exp_fuse = {

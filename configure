@@ -450,6 +450,7 @@ ninja=""
 skip_meson=no
 gettext=""
 fuse="auto"
+fuse_lseek="auto"
 
 bogus_os="no"
 malloc_trim="auto"
@@ -1530,6 +1531,10 @@ for opt do
   ;;
   --disable-fuse) fuse="disabled"
   ;;
+  --enable-fuse-lseek) fuse_lseek="enabled"
+  ;;
+  --disable-fuse-lseek) fuse_lseek="disabled"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1856,6 +1861,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   rng-none        dummy RNG, avoid using /dev/(u)random and getrandom()
   libdaxctl       libdaxctl support
   fuse            FUSE block device export
+  fuse-lseek      SEEK_HOLE/SEEK_DATA support for FUSE exports
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -7020,7 +7026,7 @@ NINJA=$ninja $meson setup \
         -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
-        -Dfuse=$fuse \
+        -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek \
         $cross_arg \
         "$PWD" "$source_path"
 
