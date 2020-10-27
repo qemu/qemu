@@ -52,6 +52,7 @@
 
 /* SET_FLOW_CTRL */
 
+#define FTDI_NO_HS         0
 #define FTDI_RTS_CTS_HS    1
 #define FTDI_DTR_DSR_HS    2
 #define FTDI_XON_XOFF_HS   4
@@ -98,6 +99,9 @@ struct USBSerialState {
     uint8_t error_chr;
     uint8_t event_trigger;
     bool always_plugged;
+    uint8_t flow_control;
+    uint8_t xon;
+    uint8_t xoff;
     QEMUSerialSetParams params;
     int latency;        /* ms */
     CharBackend cs;
@@ -181,14 +185,36 @@ static const USBDesc desc_braille = {
     .str  = desc_strings,
 };
 
+static void usb_serial_set_flow_control(USBSerialState *s,
+                                        uint8_t flow_control)
+{
+    USBDevice *dev = USB_DEVICE(s);
+    USBBus *bus = usb_bus_from_device(dev);
+
+    /* TODO: ioctl */
+    s->flow_control = flow_control;
+    trace_usb_serial_set_flow_control(bus->busnr, dev->addr, flow_control);
+}
+
+static void usb_serial_set_xonxoff(USBSerialState *s, int xonxoff)
+{
+    USBDevice *dev = USB_DEVICE(s);
+    USBBus *bus = usb_bus_from_device(dev);
+
+    s->xon = xonxoff & 0xff;
+    s->xoff = (xonxoff >> 8) & 0xff;
+
+    trace_usb_serial_set_xonxoff(bus->busnr, dev->addr, s->xon, s->xoff);
+}
+
 static void usb_serial_reset(USBSerialState *s)
 {
-    /* TODO: Set flow control to none */
     s->event_chr = 0x0d;
     s->event_trigger = 0;
     s->recv_ptr = 0;
     s->recv_used = 0;
     /* TODO: purge in char driver */
+    usb_serial_set_flow_control(s, FTDI_NO_HS);
 }
 
 static void usb_serial_handle_reset(USBDevice *dev)
@@ -285,9 +311,15 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         qemu_chr_fe_ioctl(&s->cs, CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
         break;
     }
-    case VendorDeviceOutRequest | FTDI_SET_FLOW_CTRL:
-        /* TODO: ioctl */
+    case VendorDeviceOutRequest | FTDI_SET_FLOW_CTRL: {
+        uint8_t flow_control = index >> 8;
+
+        usb_serial_set_flow_control(s, flow_control);
+        if (flow_control & FTDI_XON_XOFF_HS) {
+            usb_serial_set_xonxoff(s, value);
+        }
         break;
+    }
     case VendorDeviceOutRequest | FTDI_SET_BAUD: {
         static const int subdivisors8[8] = { 0, 4, 2, 1, 3, 5, 6, 7 };
         int subdivisor8 = subdivisors8[((value & 0xc000) >> 14)
