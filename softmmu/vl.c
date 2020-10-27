@@ -2986,9 +2986,8 @@ static void qemu_validate_options(void)
                      "mutually exclusive");
         exit(EXIT_FAILURE);
     }
-    if (incoming && preconfig_requested) {
-        error_report("'preconfig' and 'incoming' options are "
-                     "mutually exclusive");
+    if (incoming && preconfig_requested && strcmp(incoming, "defer") != 0) {
+        error_report("'preconfig' supports '-incoming defer' only");
         exit(EXIT_FAILURE);
     }
 
