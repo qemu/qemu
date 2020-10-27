@@ -266,6 +266,9 @@ vu_blk_get_config(VuDev *vu_dev, uint8_t *config, uint32_t len)
 {
     VuServer *server = container_of(vu_dev, VuServer, vu_dev);
     VuBlkExport *vexp = container_of(server, VuBlkExport, vu_server);
+
+    g_return_val_if_fail(len <= sizeof(struct virtio_blk_config), -1);
+
     memcpy(config, &vexp->blkcfg, len);
     return 0;
 }
