@@ -264,7 +264,6 @@ static uint64_t vu_blk_get_protocol_features(VuDev *dev)
 static int
 vu_blk_get_config(VuDev *vu_dev, uint8_t *config, uint32_t len)
 {
-    /* TODO blkcfg must be little-endian for VIRTIO 1.0 */
     VuServer *server = container_of(vu_dev, VuServer, vu_dev);
     VuBlkExport *vexp = container_of(server, VuBlkExport, vu_server);
     memcpy(config, &vexp->blkcfg, len);
@@ -343,18 +342,18 @@ vu_blk_initialize_config(BlockDriverState *bs,
                          uint32_t blk_size,
                          uint16_t num_queues)
 {
-    config->capacity = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
-    config->blk_size = blk_size;
-    config->size_max = 0;
-    config->seg_max = 128 - 2;
-    config->min_io_size = 1;
-    config->opt_io_size = 1;
-    config->num_queues = num_queues;
-    config->max_discard_sectors = 32768;
-    config->max_discard_seg = 1;
-    config->discard_sector_alignment = config->blk_size >> 9;
-    config->max_write_zeroes_sectors = 32768;
-    config->max_write_zeroes_seg = 1;
+    config->capacity = cpu_to_le64(bdrv_getlength(bs) >> BDRV_SECTOR_BITS);
+    config->blk_size = cpu_to_le32(blk_size);
+    config->size_max = cpu_to_le32(0);
+    config->seg_max = cpu_to_le32(128 - 2);
+    config->min_io_size = cpu_to_le16(1);
+    config->opt_io_size = cpu_to_le32(1);
+    config->num_queues = cpu_to_le16(num_queues);
+    config->max_discard_sectors = cpu_to_le32(32768);
+    config->max_discard_seg = cpu_to_le32(1);
+    config->discard_sector_alignment = cpu_to_le32(config->blk_size >> 9);
+    config->max_write_zeroes_sectors = cpu_to_le32(32768);
+    config->max_write_zeroes_seg = cpu_to_le32(1);
 }
 
 static void vu_blk_exp_request_shutdown(BlockExport *exp)
