@@ -26,6 +26,7 @@
 #include "qemu-common.h"
 #include "qemu/datadir.h"
 #include "qemu/units.h"
+#include "exec/cpu-common.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
@@ -67,6 +68,8 @@
 #include "qemu/log.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
+#include "hw/i386/x86.h"
+#include "hw/i386/pc.h"
 #include "migration/misc.h"
 #include "migration/snapshot.h"
 #include "migration/global_state.h"
@@ -139,17 +142,8 @@ static bool preconfig_requested;
 static QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
 static BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
 static bool nographic = false;
-enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 static int mem_prealloc; /* force preallocation of physical target memory */
-int display_opengl;
-const char* keyboard_layout = NULL;
 static ram_addr_t ram_size;
-bool enable_mlock = false;
-bool enable_cpu_pm = false;
-int nb_nics;
-NICInfo nd_table[MAX_NICS];
-int autostart = 1;
-int vga_interface_type = VGA_NONE;
 static const char *vga_model = NULL;
 static DisplayOptions dpy;
 static int num_serial_hds;
@@ -157,40 +151,9 @@ static Chardev **serial_hds;
 static const char *log_mask;
 static const char *log_file;
 static bool list_data_dirs;
-Chardev *parallel_hds[MAX_PARALLEL_PORTS];
-int win2k_install_hack = 0;
-int singlestep = 0;
-int fd_bootchk = 1;
-int no_reboot;
-int no_shutdown = 0;
-int graphic_rotate = 0;
 static const char *watchdog;
-QEMUOptionRom option_rom[MAX_OPTION_ROMS];
-int nb_option_roms;
-int old_param = 0;
-const char *qemu_name;
-int alt_grab = 0;
-int ctrl_grab = 0;
-unsigned int nb_prom_envs = 0;
-const char *prom_envs[MAX_PROM_ENVS];
-int boot_menu;
-bool boot_strict;
-uint8_t *boot_splash_filedata;
-int only_migratable; /* turn it off unless user states otherwise */
-bool wakeup_suspend_enabled;
-int icount_align_option;
 static const char *qtest_chrdev;
 static const char *qtest_log;
-
-/* The bytes in qemu_uuid are in the order specified by RFC4122, _not_ in the
- * little-endian "wire format" described in the SMBIOS 2.6 specification.
- */
-QemuUUID qemu_uuid;
-bool qemu_uuid_set;
-
-uint32_t xen_domid;
-enum xen_mode xen_mode = XEN_EMULATE;
-bool xen_domid_restrict;
 
 static int has_defaults = 1;
 static int default_serial = 1;
@@ -798,8 +761,6 @@ static int usb_parse(const char *cmdline)
 
 /***********************************************************/
 /* machine registration */
-
-MachineState *current_machine;
 
 static MachineClass *find_machine(const char *name, GSList *machines)
 {

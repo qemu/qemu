@@ -676,7 +676,4 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
                                        MemoryRegionSection *section);
 #endif
 
-/* vl.c */
-extern int singlestep;
-
 #endif

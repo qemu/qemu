@@ -4,6 +4,7 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'cpus.c',
   'cpu-throttle.c',
   'datadir.c',
+  'globals.c',
   'physmem.c',
   'ioport.c',
   'rtc.c',

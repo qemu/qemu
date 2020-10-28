@@ -105,4 +105,7 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length);
 
 #endif
 
+/* vl.c */
+extern int singlestep;
+
 #endif /* CPU_COMMON_H */
