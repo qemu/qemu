@@ -14,6 +14,7 @@ from avocado import skipIf
 from avocado_qemu import BUILD_DIR
 from avocado.utils import gdb
 from avocado.utils import process
+from avocado.utils.network.ports import find_free_port
 from avocado.utils.path import find_command
 from boot_linux_console import LinuxKernelTest
 
@@ -33,7 +34,7 @@ class ReverseDebugging(LinuxKernelTest):
     STEPS = 10
     endian_is_le = True
 
-    def run_vm(self, record, shift, args, replay_path, image_path):
+    def run_vm(self, record, shift, args, replay_path, image_path, port):
         logger = logging.getLogger('replay')
         vm = self.get_vm()
         vm.set_console()
@@ -43,7 +44,7 @@ class ReverseDebugging(LinuxKernelTest):
         else:
             logger.info('replaying the execution...')
             mode = 'replay'
-            vm.add_args('-s', '-S')
+            vm.add_args('-gdb', 'tcp::%d' % port, '-S')
         vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s,rrsnapshot=init' %
                     (shift, mode, replay_path),
                     '-net', 'none')
@@ -109,9 +110,10 @@ class ReverseDebugging(LinuxKernelTest):
         process.run(cmd)
 
         replay_path = os.path.join(self.workdir, 'replay.bin')
+        port = find_free_port()
 
         # record the log
-        vm = self.run_vm(True, shift, args, replay_path, image_path)
+        vm = self.run_vm(True, shift, args, replay_path, image_path, port)
         while self.vm_get_icount(vm) <= self.STEPS:
             pass
         last_icount = self.vm_get_icount(vm)
@@ -120,9 +122,9 @@ class ReverseDebugging(LinuxKernelTest):
         logger.info("recorded log with %s+ steps" % last_icount)
 
         # replay and run debug commands
-        vm = self.run_vm(False, shift, args, replay_path, image_path)
+        vm = self.run_vm(False, shift, args, replay_path, image_path, port)
         logger.info('connecting to gdbstub')
-        g = gdb.GDBRemote('127.0.0.1', 1234, False, False)
+        g = gdb.GDBRemote('127.0.0.1', port, False, False)
         g.connect()
         r = g.cmd(b'qSupported')
         if b'qXfer:features:read+' in r:
