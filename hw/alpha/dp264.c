@@ -21,6 +21,7 @@
 #include "hw/dma/i8257.h"
 #include "net/net.h"
 #include "qemu/cutils.h"
+#include "qemu/datadir.h"
 #include "net/net.h"
 
 #define MAX_IDE_BUS 2

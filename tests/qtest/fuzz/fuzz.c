@@ -15,6 +15,7 @@
 
 #include <wordexp.h>
 
+#include "qemu/datadir.h"
 #include "sysemu/qtest.h"
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"

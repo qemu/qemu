@@ -3,6 +3,7 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'balloon.c',
   'cpus.c',
   'cpu-throttle.c',
+  'datadir.c',
   'physmem.c',
   'ioport.c',
   'memory.c',
