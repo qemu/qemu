@@ -132,7 +132,7 @@ static int module_load_file(const char *fname, bool mayfail, bool export_symbols
 
     assert(QTAILQ_EMPTY(&dso_init_list));
 
-    flags = G_MODULE_BIND_LAZY;
+    flags = 0;
     if (!export_symbols) {
         flags |= G_MODULE_BIND_LOCAL;
     }
