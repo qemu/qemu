@@ -93,6 +93,7 @@ static void xtensa_cpu_reset(DeviceState *dev)
         !xtensa_abi_call0()) {
         env->sregs[PS] |= PS_WOE;
     }
+    env->sregs[CPENABLE] = 0xff;
 #endif
     env->sregs[VECBASE] = env->config->vecbase;
     env->sregs[IBREAKENABLE] = 0;
