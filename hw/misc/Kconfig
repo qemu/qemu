@@ -145,6 +145,9 @@ config MCHP_PFSOC_DMC
 config MCHP_PFSOC_IOSCB
     bool
 
+config MCHP_PFSOC_SYSREG
+    bool
+
 config SIFIVE_TEST
     bool
 
