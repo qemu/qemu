@@ -139,6 +139,9 @@ config MAC_VIA
 config AVR_POWER
     bool
 
+config MCHP_PFSOC_DMC
+    bool
+
 config SIFIVE_TEST
     bool
 
