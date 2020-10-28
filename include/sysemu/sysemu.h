@@ -22,6 +22,8 @@ void qemu_run_machine_init_done_notifiers(void);
 void qemu_add_machine_init_done_notifier(Notifier *notify);
 void qemu_remove_machine_init_done_notifier(Notifier *notify);
 
+void configure_rtc(QemuOpts *opts);
+
 extern int autostart;
 
 typedef enum {

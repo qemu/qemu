@@ -6,6 +6,7 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'datadir.c',
   'physmem.c',
   'ioport.c',
+  'rtc.c',
   'memory.c',
   'memory_mapping.c',
   'qtest.c',
