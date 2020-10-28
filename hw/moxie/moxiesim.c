@@ -82,7 +82,7 @@ static void load_kernel(MoxieCPU *cpu, LoaderParams *loader_params)
             }
             initrd_size = load_image_targphys(loader_params->initrd_filename,
                                               initrd_offset,
-                                              ram_size);
+                                              loader_params->ram_size);
         }
         if (initrd_size == (target_ulong)-1) {
             error_report("could not load initial ram disk '%s'",
