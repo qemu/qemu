@@ -30,6 +30,7 @@
 #include "sysemu/hvf.h"
 #include "sysemu/cpus.h"
 #include "sysemu/xen.h"
+#include "sysemu/whpx.h"
 #include "kvm_i386.h"
 #include "sev_i386.h"
 
@@ -6148,6 +6149,8 @@ APICCommonClass *apic_get_class(void)
         apic_type = "kvm-apic";
     } else if (xen_enabled()) {
         apic_type = "xen-apic";
+    } else if (whpx_apic_in_platform()) {
+        apic_type = "whpx-apic";
     }
 
     return APIC_COMMON_CLASS(object_class_by_name(apic_type));

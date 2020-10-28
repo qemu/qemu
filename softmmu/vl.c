@@ -2501,9 +2501,13 @@ static int machine_set_property(void *opaque,
         object_register_sugar_prop(ACCEL_CLASS_NAME("xen"), qom_name, value);
         return 0;
     }
-    if (g_str_equal(qom_name, "kvm-shadow-mem") ||
-        g_str_equal(qom_name, "kernel-irqchip")) {
+    if (g_str_equal(qom_name, "kvm-shadow-mem")) {
         object_register_sugar_prop(ACCEL_CLASS_NAME("kvm"), qom_name, value);
+        return 0;
+    }
+    if (g_str_equal(qom_name, "kernel-irqchip")) {
+        object_register_sugar_prop(ACCEL_CLASS_NAME("kvm"), qom_name, value);
+        object_register_sugar_prop(ACCEL_CLASS_NAME("whpx"), qom_name, value);
         return 0;
     }
 
