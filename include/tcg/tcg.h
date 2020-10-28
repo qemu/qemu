@@ -678,6 +678,7 @@ struct TCGContext {
 extern TCGContext tcg_init_ctx;
 extern __thread TCGContext *tcg_ctx;
 extern void *tcg_code_gen_epilogue;
+extern uintptr_t tcg_splitwx_diff;
 extern TCGv_env cpu_env;
 
 static inline bool in_code_gen_buffer(const void *p)
@@ -690,6 +691,21 @@ static inline bool in_code_gen_buffer(const void *p)
      */
     return (size_t)(p - s->code_gen_buffer) <= s->code_gen_buffer_size;
 }
+
+#ifdef CONFIG_DEBUG_TCG
+const void *tcg_splitwx_to_rx(void *rw);
+void *tcg_splitwx_to_rw(const void *rx);
+#else
+static inline const void *tcg_splitwx_to_rx(void *rw)
+{
+    return rw ? rw + tcg_splitwx_diff : NULL;
+}
+
+static inline void *tcg_splitwx_to_rw(const void *rx)
+{
+    return rx ? (void *)rx - tcg_splitwx_diff : NULL;
+}
+#endif
 
 static inline size_t temp_idx(TCGTemp *ts)
 {
@@ -1111,7 +1127,7 @@ static inline TCGLabel *arg_label(TCGArg i)
  * correct result.
  */
 
-static inline ptrdiff_t tcg_ptr_byte_diff(void *a, void *b)
+static inline ptrdiff_t tcg_ptr_byte_diff(const void *a, const void *b)
 {
     return a - b;
 }
@@ -1125,9 +1141,9 @@ static inline ptrdiff_t tcg_ptr_byte_diff(void *a, void *b)
  * to the destination address.
  */
 
-static inline ptrdiff_t tcg_pcrel_diff(TCGContext *s, void *target)
+static inline ptrdiff_t tcg_pcrel_diff(TCGContext *s, const void *target)
 {
-    return tcg_ptr_byte_diff(target, s->code_ptr);
+    return tcg_ptr_byte_diff(target, tcg_splitwx_to_rx(s->code_ptr));
 }
 
 /**
@@ -1233,9 +1249,9 @@ static inline unsigned get_mmuidx(TCGMemOpIdx oi)
 #define TB_EXIT_REQUESTED 3
 
 #ifdef CONFIG_TCG_INTERPRETER
-uintptr_t tcg_qemu_tb_exec(CPUArchState *env, void *tb_ptr);
+uintptr_t tcg_qemu_tb_exec(CPUArchState *env, const void *tb_ptr);
 #else
-typedef uintptr_t tcg_prologue_fn(CPUArchState *env, void *tb_ptr);
+typedef uintptr_t tcg_prologue_fn(CPUArchState *env, const void *tb_ptr);
 extern tcg_prologue_fn *tcg_qemu_tb_exec;
 #endif
 
