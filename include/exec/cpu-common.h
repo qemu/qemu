@@ -42,8 +42,6 @@ typedef uintptr_t ram_addr_t;
 #  define RAM_ADDR_FMT "%" PRIxPTR
 #endif
 
-extern ram_addr_t ram_size;
-
 /* memory API */
 
 void qemu_ram_remap(ram_addr_t addr, ram_addr_t length);

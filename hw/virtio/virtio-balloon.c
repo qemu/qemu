@@ -20,6 +20,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/qdev-properties.h"
+#include "hw/boards.h"
 #include "sysemu/balloon.h"
 #include "hw/virtio/virtio-balloon.h"
 #include "exec/address-spaces.h"
@@ -748,7 +749,7 @@ static int build_dimm_list(Object *obj, void *opaque)
 static ram_addr_t get_current_ram_size(void)
 {
     GSList *list = NULL, *item;
-    ram_addr_t size = ram_size;
+    ram_addr_t size = current_machine->ram_size;
 
     build_dimm_list(qdev_get_machine(), &list);
     for (item = list; item; item = g_slist_next(item)) {

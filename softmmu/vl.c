@@ -122,7 +122,7 @@ static int data_dir_idx;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 int display_opengl;
 const char* keyboard_layout = NULL;
-ram_addr_t ram_size;
+static ram_addr_t ram_size;
 bool enable_mlock = false;
 bool enable_cpu_pm = false;
 int nb_nics;

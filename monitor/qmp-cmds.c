@@ -392,8 +392,9 @@ ACPIOSTInfoList *qmp_query_acpi_ospm_status(Error **errp)
 MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 {
     MemoryInfo *mem_info = g_malloc0(sizeof(MemoryInfo));
+    MachineState *ms = MACHINE(qdev_get_machine());
 
-    mem_info->base_memory = ram_size;
+    mem_info->base_memory = ms->ram_size;
 
     mem_info->plugged_memory = get_plugged_memory_size();
     mem_info->has_plugged_memory =
