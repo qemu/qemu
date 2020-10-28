@@ -181,7 +181,7 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
         /* Not an ELF image nor an u-boot image, try a RAW image. */
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(kernel_filename, ddr_base,
-                                              ram_size);
+                                              ramsize);
             boot_info.bootstrap_pc = ddr_base;
             high = ddr_base + kernel_size;
         }
@@ -198,11 +198,11 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
 
             initrd_size = load_ramdisk(initrd_filename,
                                        boot_info.initrd_start,
-                                       ram_size - initrd_offset);
+                                       ramsize - initrd_offset);
             if (initrd_size < 0) {
                 initrd_size = load_image_targphys(initrd_filename,
                                                   boot_info.initrd_start,
-                                                  ram_size - initrd_offset);
+                                                  ramsize - initrd_offset);
             }
             if (initrd_size < 0) {
                 error_report("could not load initrd '%s'",
@@ -216,7 +216,7 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
 
         /* Device tree must be placed right after initrd (if available) */
         boot_info.fdt = high;
-        fdt_size = nios2_load_dtb(boot_info, ram_size, kernel_cmdline,
+        fdt_size = nios2_load_dtb(boot_info, ramsize, kernel_cmdline,
                                   /* Preference a -dtb argument */
                                   dtb_arg ? dtb_arg : filename);
         high += fdt_size;
