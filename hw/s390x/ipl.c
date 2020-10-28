@@ -112,6 +112,7 @@ static uint64_t bios_translate_addr(void *opaque, uint64_t srcaddr)
 
 static void s390_ipl_realize(DeviceState *dev, Error **errp)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     S390IPLState *ipl = S390_IPL(dev);
     uint32_t *ipl_psw;
     uint64_t pentry;
@@ -126,7 +127,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
      * even if an external kernel has been defined.
      */
     if (!ipl->kernel || ipl->enforce_bios) {
-        uint64_t fwbase = (MIN(ram_size, 0x80000000U) - 0x200000) & ~0xffffUL;
+        uint64_t fwbase = (MIN(ms->ram_size, 0x80000000U) - 0x200000) & ~0xffffUL;
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, ipl->firmware);
         if (bios_filename == NULL) {
@@ -163,7 +164,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
                                &pentry, NULL,
                                NULL, NULL, 1, EM_S390, 0, 0);
         if (kernel_size < 0) {
-            kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
+            kernel_size = load_image_targphys(ipl->kernel, 0, ms->ram_size);
             if (kernel_size < 0) {
                 error_setg(errp, "could not load kernel '%s'", ipl->kernel);
                 return;
@@ -210,7 +211,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
                 initrd_offset += 0x100000;
             }
             initrd_size = load_image_targphys(ipl->initrd, initrd_offset,
-                                              ram_size - initrd_offset);
+                                              ms->ram_size - initrd_offset);
             if (initrd_size == -1) {
                 error_setg(errp, "could not load initrd '%s'", ipl->initrd);
                 return;
@@ -448,6 +449,7 @@ int s390_ipl_set_loadparm(uint8_t *loadparm)
 
 static int load_netboot_image(Error **errp)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     S390IPLState *ipl = get_ipl_device();
     char *netboot_filename;
     MemoryRegion *sysmem =  get_system_memory();
@@ -480,7 +482,7 @@ static int load_netboot_image(Error **errp)
                             false);
 
     if (img_size < 0) {
-        img_size = load_image_size(netboot_filename, ram_ptr, ram_size);
+        img_size = load_image_size(netboot_filename, ram_ptr, ms->ram_size);
         ipl->start_addr = KERN_IMAGE_START;
     }
 

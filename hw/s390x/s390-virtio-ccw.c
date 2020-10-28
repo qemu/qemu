@@ -17,6 +17,7 @@
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "exec/ram_addr.h"
+#include "hw/boards.h"
 #include "hw/s390x/s390-virtio-hcall.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
@@ -142,8 +143,9 @@ static int virtio_ccw_hcall_notify(const uint64_t *args)
 static int virtio_ccw_hcall_early_printk(const uint64_t *args)
 {
     uint64_t mem = args[0];
+    MachineState *ms = MACHINE(qdev_get_machine());
 
-    if (mem < ram_size) {
+    if (mem < ms->ram_size) {
         /* Early printk */
         return 0;
     }

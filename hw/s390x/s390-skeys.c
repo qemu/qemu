@@ -109,7 +109,8 @@ void qmp_dump_skeys(const char *filename, Error **errp)
 {
     S390SKeysState *ss = s390_get_skeys_device();
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
-    const uint64_t total_count = ram_size / TARGET_PAGE_SIZE;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    const uint64_t total_count = ms->ram_size / TARGET_PAGE_SIZE;
     uint64_t handled_count = 0, cur_count;
     Error *lerr = NULL;
     vaddr cur_gfn = 0;
@@ -256,7 +257,8 @@ static void s390_storage_keys_save(QEMUFile *f, void *opaque)
 {
     S390SKeysState *ss = S390_SKEYS(opaque);
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
-    uint64_t pages_left = ram_size / TARGET_PAGE_SIZE;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    uint64_t pages_left = ms->ram_size / TARGET_PAGE_SIZE;
     uint64_t read_count, eos = S390_SKEYS_SAVE_FLAG_EOS;
     vaddr cur_gfn = 0;
     int error = 0;
