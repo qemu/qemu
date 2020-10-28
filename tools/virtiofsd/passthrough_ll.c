@@ -40,7 +40,6 @@
 #include "fuse_virtio.h"
 #include "fuse_log.h"
 #include "fuse_lowlevel.h"
-#include "standard-headers/linux/fuse.h"
 #include <assert.h>
 #include <cap-ng.h>
 #include <dirent.h>
@@ -126,14 +125,6 @@ struct lo_inode {
     GHashTable *posix_locks; /* protected by lo_inode->plock_mutex */
 
     mode_t filetype;
-
-    /*
-     * So we can detect crossmount roots
-     * (As such, this only needs to be valid for directories.  Note
-     * that files can have multiple parents due to hard links, and so
-     * their parent_dev may fluctuate.)
-     */
-    dev_t parent_dev;
 };
 
 struct lo_cred {
@@ -174,7 +165,6 @@ struct lo_data {
     int timeout_set;
     int readdirplus_set;
     int readdirplus_clear;
-    int announce_submounts;
     int allow_direct_io;
     struct lo_inode root;
     GHashTable *inodes; /* protected by lo->mutex */
@@ -213,7 +203,6 @@ static const struct fuse_opt lo_opts[] = {
     { "cache=always", offsetof(struct lo_data, cache), CACHE_ALWAYS },
     { "readdirplus", offsetof(struct lo_data, readdirplus_set), 1 },
     { "no_readdirplus", offsetof(struct lo_data, readdirplus_clear), 1 },
-    { "announce_submounts", offsetof(struct lo_data, announce_submounts), 1 },
     { "allow_direct_io", offsetof(struct lo_data, allow_direct_io), 1 },
     { "no_allow_direct_io", offsetof(struct lo_data, allow_direct_io), 0 },
     FUSE_OPT_END
@@ -611,52 +600,22 @@ static void lo_init(void *userdata, struct fuse_conn_info *conn)
     }
 }
 
-/**
- * Call fstatat() and set st_rdev whenever a directory's st_dev
- * differs from the rparent's st_dev (@parent_dev).  This will
- * announce submounts to the FUSE client (unless @announce_submounts
- * is false).
- */
-static int do_fstatat(int dirfd, const char *pathname, struct stat *statbuf,
-                      int flags, dev_t parent_dev, uint32_t *fuse_attr_flags)
-{
-    int res = fstatat(dirfd, pathname, statbuf, flags);
-    if (res == -1) {
-        return res;
-    }
-
-    if (statbuf->st_dev != parent_dev && S_ISDIR(statbuf->st_mode) &&
-        fuse_attr_flags)
-    {
-        *fuse_attr_flags |= FUSE_ATTR_SUBMOUNT;
-    }
-
-    return 0;
-}
-
 static void lo_getattr(fuse_req_t req, fuse_ino_t ino,
                        struct fuse_file_info *fi)
 {
     int res;
     struct stat buf;
     struct lo_data *lo = lo_data(req);
-    struct lo_inode *inode = lo_inode(req, ino);
-    uint32_t fuse_attr_flags = 0;
 
     (void)fi;
 
-    res = do_fstatat(inode->fd, "", &buf, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW,
-                     inode->parent_dev, &fuse_attr_flags);
-    lo_inode_put(lo, &inode);
+    res =
+        fstatat(lo_fd(req, ino), "", &buf, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
     if (res == -1) {
         return (void)fuse_reply_err(req, errno);
     }
 
-    if (!lo->announce_submounts) {
-        fuse_attr_flags &= ~FUSE_ATTR_SUBMOUNT;
-    }
-
-    fuse_reply_attr_with_flags(req, &buf, lo->timeout, fuse_attr_flags);
+    fuse_reply_attr(req, &buf, lo->timeout);
 }
 
 static int lo_fi_fd(fuse_req_t req, struct fuse_file_info *fi)
@@ -852,14 +811,9 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         goto out_err;
     }
 
-    res = do_fstatat(newfd, "", &e->attr, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW,
-                     dir->key.dev, &e->attr_flags);
+    res = fstatat(newfd, "", &e->attr, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
     if (res == -1) {
         goto out_err;
-    }
-
-    if (!lo->announce_submounts) {
-        e->attr_flags &= ~FUSE_ATTR_SUBMOUNT;
     }
 
     inode = lo_find(lo, &e->attr);
@@ -893,7 +847,6 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         g_hash_table_insert(lo->inodes, &inode->key, inode);
         pthread_mutex_unlock(&lo->mutex);
     }
-    inode->parent_dev = dir->key.dev;
     e->ino = inode->fuse_ino;
     lo_inode_put(lo, &inode);
     lo_inode_put(lo, &dir);
@@ -1107,15 +1060,9 @@ static void lo_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         goto out_err;
     }
 
-    res = do_fstatat(inode->fd, "", &e.attr,
-                     AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW,
-                     parent_inode->key.dev, &e.attr_flags);
+    res = fstatat(inode->fd, "", &e.attr, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
     if (res == -1) {
         goto out_err;
-    }
-
-    if (!lo->announce_submounts) {
-        e.attr_flags &= ~FUSE_ATTR_SUBMOUNT;
     }
 
     pthread_mutex_lock(&lo->mutex);
@@ -1125,14 +1072,6 @@ static void lo_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
 
     fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli\n", (unsigned long long)parent,
              name, (unsigned long long)e.ino);
-
-    /*
-     * No need to update inode->parent_dev, because
-     * (1) We cannot, the inode now has more than one parent,
-     * (2) Directories cannot have more than one parent, so link()
-     *     does not work for them; but parent_dev only needs to be
-     *     valid for directories.
-     */
 
     fuse_reply_entry(req, &e);
     lo_inode_put(lo, &parent_inode);
@@ -1152,21 +1091,14 @@ static struct lo_inode *lookup_name(fuse_req_t req, fuse_ino_t parent,
 {
     int res;
     struct stat attr;
-    struct lo_data *lo = lo_data(req);
-    struct lo_inode *dir = lo_inode(req, parent);
 
-    if (!dir) {
-        return NULL;
-    }
-
-    res = do_fstatat(dir->fd, name, &attr,
-                     AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW, dir->key.dev, NULL);
-    lo_inode_put(lo, &dir);
+    res = fstatat(lo_fd(req, parent), name, &attr,
+                  AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
     if (res == -1) {
         return NULL;
     }
 
-    return lo_find(lo, &attr);
+    return lo_find(lo_data(req), &attr);
 }
 
 static void lo_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)

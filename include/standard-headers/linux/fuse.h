@@ -227,7 +227,7 @@ struct fuse_attr {
 	uint32_t	gid;
 	uint32_t	rdev;
 	uint32_t	blksize;
-	uint32_t	flags;
+	uint32_t	padding;
 };
 
 struct fuse_kstatfs {
@@ -310,7 +310,6 @@ struct fuse_file_lock {
  * FUSE_NO_OPENDIR_SUPPORT: kernel supports zero-message opendir
  * FUSE_EXPLICIT_INVAL_DATA: only invalidate cached pages on explicit request
  * FUSE_MAP_ALIGNMENT: map_alignment field is valid
- * FUSE_ATTR_FLAGS: fuse_attr.flags is present and valid
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
@@ -339,7 +338,6 @@ struct fuse_file_lock {
 #define FUSE_NO_OPENDIR_SUPPORT (1 << 24)
 #define FUSE_EXPLICIT_INVAL_DATA (1 << 25)
 #define FUSE_MAP_ALIGNMENT	(1 << 26)
-#define FUSE_ATTR_FLAGS		(1 << 27)
 
 /**
  * CUSE INIT request/reply flags
@@ -414,13 +412,6 @@ struct fuse_file_lock {
  * FUSE_FSYNC_FDATASYNC: Sync data only, not metadata
  */
 #define FUSE_FSYNC_FDATASYNC	(1 << 0)
-
-/**
- * fuse_attr flags
- *
- * FUSE_ATTR_SUBMOUNT: File/directory is a submount point
- */
-#define FUSE_ATTR_SUBMOUNT      (1 << 0)
 
 enum fuse_opcode {
 	FUSE_LOOKUP		= 1,

@@ -329,8 +329,7 @@ static unsigned int calc_timeout_nsec(double t)
     }
 }
 
-static void fill_entry(struct fuse_session *se,
-                       struct fuse_entry_out *arg,
+static void fill_entry(struct fuse_entry_out *arg,
                        const struct fuse_entry_param *e)
 {
     *arg = (struct fuse_entry_out){
@@ -342,10 +341,6 @@ static void fill_entry(struct fuse_session *se,
         .attr_valid_nsec = calc_timeout_nsec(e->attr_timeout),
     };
     convert_stat(&e->attr, &arg->attr);
-
-    if (se->conn.capable & FUSE_CAP_ATTR_FLAGS) {
-        arg->attr.flags = e->attr_flags;
-    }
 }
 
 /*
@@ -370,7 +365,7 @@ size_t fuse_add_direntry_plus(fuse_req_t req, char *buf, size_t bufsize,
 
     struct fuse_direntplus *dp = (struct fuse_direntplus *)buf;
     memset(&dp->entry_out, 0, sizeof(dp->entry_out));
-    fill_entry(req->se, &dp->entry_out, e);
+    fill_entry(&dp->entry_out, e);
 
     struct fuse_dirent *dirent = &dp->dirent;
     *dirent = (struct fuse_dirent){
@@ -408,7 +403,7 @@ int fuse_reply_entry(fuse_req_t req, const struct fuse_entry_param *e)
     size_t size = sizeof(arg);
 
     memset(&arg, 0, sizeof(arg));
-    fill_entry(req->se, &arg, e);
+    fill_entry(&arg, e);
     return send_reply_ok(req, &arg, size);
 }
 
@@ -421,13 +416,13 @@ int fuse_reply_create(fuse_req_t req, const struct fuse_entry_param *e,
     struct fuse_open_out *oarg = (struct fuse_open_out *)(buf + entrysize);
 
     memset(buf, 0, sizeof(buf));
-    fill_entry(req->se, earg, e);
+    fill_entry(earg, e);
     fill_open(oarg, f);
     return send_reply_ok(req, buf, entrysize + sizeof(struct fuse_open_out));
 }
 
-int fuse_reply_attr_with_flags(fuse_req_t req, const struct stat *attr,
-                               double attr_timeout, uint32_t attr_flags)
+int fuse_reply_attr(fuse_req_t req, const struct stat *attr,
+                    double attr_timeout)
 {
     struct fuse_attr_out arg;
     size_t size = sizeof(arg);
@@ -437,17 +432,7 @@ int fuse_reply_attr_with_flags(fuse_req_t req, const struct stat *attr,
     arg.attr_valid_nsec = calc_timeout_nsec(attr_timeout);
     convert_stat(attr, &arg.attr);
 
-    if (req->se->conn.capable & FUSE_CAP_ATTR_FLAGS) {
-        arg.attr.flags = attr_flags;
-    }
-
     return send_reply_ok(req, &arg, size);
-}
-
-int fuse_reply_attr(fuse_req_t req, const struct stat *attr,
-                    double attr_timeout)
-{
-    return fuse_reply_attr_with_flags(req, attr, attr_timeout, 0);
 }
 
 int fuse_reply_readlink(fuse_req_t req, const char *linkname)
@@ -2003,9 +1988,6 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
             bufsize = max_bufsize;
         }
     }
-    if (arg->flags & FUSE_ATTR_FLAGS) {
-        se->conn.capable |= FUSE_CAP_ATTR_FLAGS;
-    }
 #ifdef HAVE_SPLICE
 #ifdef HAVE_VMSPLICE
     se->conn.capable |= FUSE_CAP_SPLICE_WRITE | FUSE_CAP_SPLICE_MOVE;
@@ -2032,7 +2014,6 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
     LL_SET_DEFAULT(1, FUSE_CAP_ASYNC_DIO);
     LL_SET_DEFAULT(1, FUSE_CAP_IOCTL_DIR);
     LL_SET_DEFAULT(1, FUSE_CAP_ATOMIC_O_TRUNC);
-    LL_SET_DEFAULT(1, FUSE_CAP_ATTR_FLAGS);
     LL_SET_DEFAULT(se->op.write_buf, FUSE_CAP_SPLICE_READ);
     LL_SET_DEFAULT(se->op.getlk && se->op.setlk, FUSE_CAP_POSIX_LOCKS);
     LL_SET_DEFAULT(se->op.flock, FUSE_CAP_FLOCK_LOCKS);
@@ -2121,9 +2102,6 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
     }
     if (se->conn.want & FUSE_CAP_POSIX_ACL) {
         outarg.flags |= FUSE_POSIX_ACL;
-    }
-    if (se->conn.want & FUSE_CAP_ATTR_FLAGS) {
-        outarg.flags |= FUSE_ATTR_FLAGS;
     }
     outarg.max_readahead = se->conn.max_readahead;
     outarg.max_write = se->conn.max_write;
