@@ -5,6 +5,7 @@ config MICROCHIP_PFSOC
     bool
     select CADENCE_SDHCI
     select MCHP_PFSOC_DMC
+    select MCHP_PFSOC_IOSCB
     select MCHP_PFSOC_MMUART
     select MSI_NONBROKEN
     select SIFIVE_CLINT
