@@ -1407,4 +1407,13 @@ static inline BlockDriverState *bdrv_primary_bs(BlockDriverState *bs)
     return child_bs(bdrv_primary_child(bs));
 }
 
+/**
+ * End all quiescent sections started by bdrv_drain_all_begin(). This is
+ * needed when deleting a BDS before bdrv_drain_all_end() is called.
+ *
+ * NOTE: this is an internal helper for bdrv_close() *only*. No one else
+ * should call it.
+ */
+void bdrv_drain_all_end_quiesce(BlockDriverState *bs);
+
 #endif /* BLOCK_INT_H */

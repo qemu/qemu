@@ -782,12 +782,6 @@ void bdrv_drained_end(BlockDriverState *bs);
 void bdrv_drained_end_no_poll(BlockDriverState *bs, int *drained_end_counter);
 
 /**
- * End all quiescent sections started by bdrv_drain_all_begin(). This is
- * only needed when deleting a BDS before bdrv_drain_all_end() is called.
- */
-void bdrv_drain_all_end_quiesce(BlockDriverState *bs);
-
-/**
  * End a quiescent section started by bdrv_subtree_drained_begin().
  */
 void bdrv_subtree_drained_end(BlockDriverState *bs);
