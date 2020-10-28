@@ -142,6 +142,9 @@ config AVR_POWER
 config MCHP_PFSOC_DMC
     bool
 
+config MCHP_PFSOC_IOSCB
+    bool
+
 config SIFIVE_TEST
     bool
 
