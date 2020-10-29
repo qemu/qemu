@@ -49,6 +49,7 @@ struct PL011State {
     int read_trigger;
     CharBackend chr;
     qemu_irq irq[6];
+    Clock *clk;
     const unsigned char *id;
 };
 

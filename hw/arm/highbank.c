@@ -92,10 +92,12 @@ static void hb_reset_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
         address_space_stl_notdirty(&address_space_memory,
                                    SMP_BOOT_REG + 0x30, 0,
                                    MEMTXATTRS_UNSPECIFIED, NULL);
+        /* fallthrough */
     case 3:
         address_space_stl_notdirty(&address_space_memory,
                                    SMP_BOOT_REG + 0x20, 0,
                                    MEMTXATTRS_UNSPECIFIED, NULL);
+        /* fallthrough */
     case 2:
         address_space_stl_notdirty(&address_space_memory,
                                    SMP_BOOT_REG + 0x10, 0,

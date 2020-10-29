@@ -17,6 +17,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/misc/npcm7xx_clk.h"
+#include "hw/timer/npcm7xx_timer.h"
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
@@ -24,6 +25,7 @@
 #include "qemu/timer.h"
 #include "qemu/units.h"
 #include "trace.h"
+#include "sysemu/watchdog.h"
 
 #define PLLCON_LOKI     BIT(31)
 #define PLLCON_LOKS     BIT(30)
@@ -86,6 +88,12 @@ static const uint32_t cold_reset_values[NPCM7XX_CLK_NR_REGS] = {
     [NPCM7XX_CLK_PLLCONG]       = 0x01228606 | PLLCON_LOKI,
     [NPCM7XX_CLK_AHBCKFI]       = 0x000000c8,
 };
+
+/* Register Field Definitions */
+#define NPCM7XX_CLK_WDRCR_CA9C  BIT(0) /* Cortex A9 Cores */
+
+/* The number of watchdogs that can trigger a reset. */
+#define NPCM7XX_NR_WATCHDOGS    (3)
 
 static uint64_t npcm7xx_clk_read(void *opaque, hwaddr offset, unsigned size)
 {
@@ -187,6 +195,24 @@ static void npcm7xx_clk_write(void *opaque, hwaddr offset,
     s->regs[reg] = value;
 }
 
+/* Perform reset action triggered by a watchdog */
+static void npcm7xx_clk_perform_watchdog_reset(void *opaque, int n,
+        int level)
+{
+    NPCM7xxCLKState *clk = NPCM7XX_CLK(opaque);
+    uint32_t rcr;
+
+    g_assert(n >= 0 && n <= NPCM7XX_NR_WATCHDOGS);
+    rcr = clk->regs[NPCM7XX_CLK_WD0RCR + n];
+    if (rcr & NPCM7XX_CLK_WDRCR_CA9C) {
+        watchdog_perform_action();
+    } else {
+        qemu_log_mask(LOG_UNIMP,
+                "%s: only CPU reset is implemented. (requested 0x%" PRIx32")\n",
+                __func__, rcr);
+    }
+}
+
 static const struct MemoryRegionOps npcm7xx_clk_ops = {
     .read       = npcm7xx_clk_read,
     .write      = npcm7xx_clk_write,
@@ -226,6 +252,8 @@ static void npcm7xx_clk_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &npcm7xx_clk_ops, s,
                           TYPE_NPCM7XX_CLK, 4 * KiB);
     sysbus_init_mmio(&s->parent, &s->iomem);
+    qdev_init_gpio_in_named(DEVICE(s), npcm7xx_clk_perform_watchdog_reset,
+            NPCM7XX_WATCHDOG_RESET_GPIO_IN, NPCM7XX_NR_WATCHDOGS);
 }
 
 static const VMStateDescription vmstate_npcm7xx_clk = {

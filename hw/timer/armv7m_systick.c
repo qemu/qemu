@@ -39,26 +39,6 @@ static inline int64_t systick_scale(SysTickState *s)
     }
 }
 
-static void systick_reload(SysTickState *s, int reset)
-{
-    /* The Cortex-M3 Devices Generic User Guide says that "When the
-     * ENABLE bit is set to 1, the counter loads the RELOAD value from the
-     * SYST RVR register and then counts down". So, we need to check the
-     * ENABLE bit before reloading the value.
-     */
-    trace_systick_reload();
-
-    if ((s->control & SYSTICK_ENABLE) == 0) {
-        return;
-    }
-
-    if (reset) {
-        s->tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    }
-    s->tick += (s->reload + 1) * systick_scale(s);
-    timer_mod(s->timer, s->tick);
-}
-
 static void systick_timer_tick(void *opaque)
 {
     SysTickState *s = (SysTickState *)opaque;
@@ -70,10 +50,12 @@ static void systick_timer_tick(void *opaque)
         /* Tell the NVIC to pend the SysTick exception */
         qemu_irq_pulse(s->irq);
     }
-    if (s->reload == 0) {
-        s->control &= ~SYSTICK_ENABLE;
-    } else {
-        systick_reload(s, 0);
+    if (ptimer_get_limit(s->ptimer) == 0) {
+        /*
+         * Timer expiry with SYST_RVR zero disables the timer
+         * (but doesn't clear SYST_CSR.ENABLE)
+         */
+        ptimer_stop(s->ptimer);
     }
 }
 
@@ -94,30 +76,11 @@ static MemTxResult systick_read(void *opaque, hwaddr addr, uint64_t *data,
         s->control &= ~SYSTICK_COUNTFLAG;
         break;
     case 0x4: /* SysTick Reload Value.  */
-        val = s->reload;
+        val = ptimer_get_limit(s->ptimer);
         break;
     case 0x8: /* SysTick Current Value.  */
-    {
-        int64_t t;
-
-        if ((s->control & SYSTICK_ENABLE) == 0) {
-            val = 0;
-            break;
-        }
-        t = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        if (t >= s->tick) {
-            val = 0;
-            break;
-        }
-        val = ((s->tick - (t + 1)) / systick_scale(s)) + 1;
-        /* The interrupt in triggered when the timer reaches zero.
-           However the counter is not reloaded until the next clock
-           tick.  This is a hack to return zero during the first tick.  */
-        if (val > s->reload) {
-            val = 0;
-        }
+        val = ptimer_get_count(s->ptimer);
         break;
-    }
     case 0xc: /* SysTick Calibration Value.  */
         val = 10000;
         break;
@@ -149,39 +112,50 @@ static MemTxResult systick_write(void *opaque, hwaddr addr,
     switch (addr) {
     case 0x0: /* SysTick Control and Status.  */
     {
-        uint32_t oldval = s->control;
+        uint32_t oldval;
 
+        ptimer_transaction_begin(s->ptimer);
+        oldval = s->control;
         s->control &= 0xfffffff8;
         s->control |= value & 7;
+
         if ((oldval ^ value) & SYSTICK_ENABLE) {
-            int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             if (value & SYSTICK_ENABLE) {
-                if (s->tick) {
-                    s->tick += now;
-                    timer_mod(s->timer, s->tick);
-                } else {
-                    systick_reload(s, 1);
-                }
+                /*
+                 * Always reload the period in case board code has
+                 * changed system_clock_scale. If we ever replace that
+                 * global with a more sensible API then we might be able
+                 * to set the period only when it actually changes.
+                 */
+                ptimer_set_period(s->ptimer, systick_scale(s));
+                ptimer_run(s->ptimer, 0);
             } else {
-                timer_del(s->timer);
-                s->tick -= now;
-                if (s->tick < 0) {
-                    s->tick = 0;
-                }
+                ptimer_stop(s->ptimer);
             }
         } else if ((oldval ^ value) & SYSTICK_CLKSOURCE) {
-            /* This is a hack. Force the timer to be reloaded
-               when the reference clock is changed.  */
-            systick_reload(s, 1);
+            ptimer_set_period(s->ptimer, systick_scale(s));
         }
+        ptimer_transaction_commit(s->ptimer);
         break;
     }
     case 0x4: /* SysTick Reload Value.  */
-        s->reload = value;
+        ptimer_transaction_begin(s->ptimer);
+        ptimer_set_limit(s->ptimer, value & 0xffffff, 0);
+        ptimer_transaction_commit(s->ptimer);
         break;
-    case 0x8: /* SysTick Current Value.  Writes reload the timer.  */
-        systick_reload(s, 1);
+    case 0x8: /* SysTick Current Value. */
+        /*
+         * Writing any value clears SYST_CVR to zero and clears
+         * SYST_CSR.COUNTFLAG. The counter will then reload from SYST_RVR
+         * on the next clock edge unless SYST_RVR is zero.
+         */
+        ptimer_transaction_begin(s->ptimer);
+        if (ptimer_get_limit(s->ptimer) == 0) {
+            ptimer_stop(s->ptimer);
+        }
+        ptimer_set_count(s->ptimer, 0);
         s->control &= ~SYSTICK_COUNTFLAG;
+        ptimer_transaction_commit(s->ptimer);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -210,10 +184,13 @@ static void systick_reset(DeviceState *dev)
      */
     assert(system_clock_scale != 0);
 
+    ptimer_transaction_begin(s->ptimer);
     s->control = 0;
-    s->reload = 0;
-    s->tick = 0;
-    timer_del(s->timer);
+    ptimer_stop(s->ptimer);
+    ptimer_set_count(s->ptimer, 0);
+    ptimer_set_limit(s->ptimer, 0, 0);
+    ptimer_set_period(s->ptimer, systick_scale(s));
+    ptimer_transaction_commit(s->ptimer);
 }
 
 static void systick_instance_init(Object *obj)
@@ -229,18 +206,21 @@ static void systick_instance_init(Object *obj)
 static void systick_realize(DeviceState *dev, Error **errp)
 {
     SysTickState *s = SYSTICK(dev);
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, systick_timer_tick, s);
+    s->ptimer = ptimer_init(systick_timer_tick, s,
+                            PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |
+                            PTIMER_POLICY_NO_COUNTER_ROUND_DOWN |
+                            PTIMER_POLICY_NO_IMMEDIATE_RELOAD |
+                            PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT);
 }
 
 static const VMStateDescription vmstate_systick = {
     .name = "armv7m_systick",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(control, SysTickState),
-        VMSTATE_UINT32(reload, SysTickState),
         VMSTATE_INT64(tick, SysTickState),
-        VMSTATE_TIMER_PTR(timer, SysTickState),
+        VMSTATE_PTIMER(ptimer, SysTickState),
         VMSTATE_END_OF_LIST()
     }
 };
