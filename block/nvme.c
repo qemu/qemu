@@ -167,9 +167,9 @@ static bool nvme_init_queue(BDRVNVMeState *s, NVMeQueue *q,
     size_t bytes;
     int r;
 
-    bytes = ROUND_UP(nentries * entry_bytes, s->page_size);
+    bytes = ROUND_UP(nentries * entry_bytes, qemu_real_host_page_size);
     q->head = q->tail = 0;
-    q->queue = qemu_try_memalign(s->page_size, bytes);
+    q->queue = qemu_try_memalign(qemu_real_host_page_size, bytes);
     if (!q->queue) {
         error_setg(errp, "Cannot allocate queue");
         return false;
