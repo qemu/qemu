@@ -700,6 +700,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
                      Error **errp)
 {
     BDRVNVMeState *s = bs->opaque;
+    NVMeQueuePair *q;
     AioContext *aio_context = bdrv_get_aio_context(bs);
     int ret;
     uint64_t cap;
@@ -781,19 +782,18 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
 
     /* Set up admin queue. */
     s->queues = g_new(NVMeQueuePair *, 1);
-    s->queues[INDEX_ADMIN] = nvme_create_queue_pair(s, aio_context, 0,
-                                                          NVME_QUEUE_SIZE,
-                                                          errp);
-    if (!s->queues[INDEX_ADMIN]) {
+    q = nvme_create_queue_pair(s, aio_context, 0, NVME_QUEUE_SIZE, errp);
+    if (!q) {
         ret = -EINVAL;
         goto out;
     }
+    s->queues[INDEX_ADMIN] = q;
     s->queue_count = 1;
     QEMU_BUILD_BUG_ON((NVME_QUEUE_SIZE - 1) & 0xF000);
     regs->aqa = cpu_to_le32(((NVME_QUEUE_SIZE - 1) << AQA_ACQS_SHIFT) |
                             ((NVME_QUEUE_SIZE - 1) << AQA_ASQS_SHIFT));
-    regs->asq = cpu_to_le64(s->queues[INDEX_ADMIN]->sq.iova);
-    regs->acq = cpu_to_le64(s->queues[INDEX_ADMIN]->cq.iova);
+    regs->asq = cpu_to_le64(q->sq.iova);
+    regs->acq = cpu_to_le64(q->cq.iova);
 
     /* After setting up all control registers we can enable device now. */
     regs->cc = cpu_to_le32((ctz32(NVME_CQ_ENTRY_BYTES) << CC_IOCQES_SHIFT) |
