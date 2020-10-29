@@ -292,7 +292,7 @@ static NVMeRequest *nvme_get_free_req(NVMeQueuePair *q)
 
     while (q->free_req_head == -1) {
         if (qemu_in_coroutine()) {
-            trace_nvme_free_req_queue_wait(q);
+            trace_nvme_free_req_queue_wait(q->s, q->index);
             qemu_co_queue_wait(&q->free_req_queue, &q->lock);
         } else {
             qemu_mutex_unlock(&q->lock);
