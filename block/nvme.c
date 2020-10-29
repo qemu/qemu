@@ -94,6 +94,7 @@ typedef struct {
 struct BDRVNVMeState {
     AioContext *aio_context;
     QEMUVFIOState *vfio;
+    void *bar0_wo_map;
     /* Memory mapped registers */
     volatile struct {
         uint32_t sq_tail;
@@ -777,8 +778,10 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         }
     }
 
-    s->doorbells = qemu_vfio_pci_map_bar(s->vfio, 0, sizeof(NvmeBar),
-                                         NVME_DOORBELL_SIZE, PROT_WRITE, errp);
+    s->bar0_wo_map = qemu_vfio_pci_map_bar(s->vfio, 0, 0,
+                                           sizeof(NvmeBar) + NVME_DOORBELL_SIZE,
+                                           PROT_WRITE, errp);
+    s->doorbells = (void *)((uintptr_t)s->bar0_wo_map + sizeof(NvmeBar));
     if (!s->doorbells) {
         ret = -EINVAL;
         goto out;
@@ -910,8 +913,8 @@ static void nvme_close(BlockDriverState *bs)
                            &s->irq_notifier[MSIX_SHARED_IRQ_IDX],
                            false, NULL, NULL);
     event_notifier_cleanup(&s->irq_notifier[MSIX_SHARED_IRQ_IDX]);
-    qemu_vfio_pci_unmap_bar(s->vfio, 0, (void *)s->doorbells,
-                            sizeof(NvmeBar), NVME_DOORBELL_SIZE);
+    qemu_vfio_pci_unmap_bar(s->vfio, 0, s->bar0_wo_map,
+                            0, sizeof(NvmeBar) + NVME_DOORBELL_SIZE);
     qemu_vfio_close(s->vfio);
 
     g_free(s->device);
