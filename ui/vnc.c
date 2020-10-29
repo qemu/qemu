@@ -1398,7 +1398,8 @@ static size_t vnc_client_write_plain(VncState *vs)
             g_source_remove(vs->ioc_tag);
         }
         vs->ioc_tag = qio_channel_add_watch(
-            vs->ioc, G_IO_IN, vnc_client_io, vs, NULL);
+            vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR,
+            vnc_client_io, vs, NULL);
     }
 
     return ret;
@@ -1435,7 +1436,8 @@ static void vnc_client_write(VncState *vs)
             g_source_remove(vs->ioc_tag);
         }
         vs->ioc_tag = qio_channel_add_watch(
-            vs->ioc, G_IO_IN, vnc_client_io, vs, NULL);
+            vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR,
+            vnc_client_io, vs, NULL);
     }
     vnc_unlock_output(vs);
 }
@@ -1551,6 +1553,12 @@ gboolean vnc_client_io(QIOChannel *ioc G_GNUC_UNUSED,
     VncState *vs = opaque;
 
     assert(vs->magic == VNC_MAGIC);
+
+    if (condition & (G_IO_HUP | G_IO_ERR)) {
+        vnc_disconnect_start(vs);
+        return TRUE;
+    }
+
     if (condition & G_IO_IN) {
         if (vnc_client_read(vs) < 0) {
             /* vs is free()ed here */
@@ -1612,7 +1620,8 @@ void vnc_write(VncState *vs, const void *data, size_t len)
             g_source_remove(vs->ioc_tag);
         }
         vs->ioc_tag = qio_channel_add_watch(
-            vs->ioc, G_IO_IN | G_IO_OUT, vnc_client_io, vs, NULL);
+            vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_OUT,
+            vnc_client_io, vs, NULL);
     }
 
     buffer_append(&vs->output, data, len);
@@ -3077,14 +3086,17 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
         vs->websocket = 1;
         if (vd->tlscreds) {
             vs->ioc_tag = qio_channel_add_watch(
-                vs->ioc, G_IO_IN, vncws_tls_handshake_io, vs, NULL);
+                vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR,
+                vncws_tls_handshake_io, vs, NULL);
         } else {
             vs->ioc_tag = qio_channel_add_watch(
-                vs->ioc, G_IO_IN, vncws_handshake_io, vs, NULL);
+                vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR,
+                vncws_handshake_io, vs, NULL);
         }
     } else {
         vs->ioc_tag = qio_channel_add_watch(
-            vs->ioc, G_IO_IN, vnc_client_io, vs, NULL);
+            vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR,
+            vnc_client_io, vs, NULL);
     }
 
     vnc_client_cache_addr(vs);
