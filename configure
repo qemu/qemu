@@ -1655,8 +1655,10 @@ Standard options:
   --prefix=PREFIX          install in PREFIX [$prefix]
   --interp-prefix=PREFIX   where to find shared libraries, etc.
                            use %M for cpu name [$interp_prefix]
-  --target-list=LIST       set target list (default: build everything)
+  --target-list=LIST       set target list (default: build all non-deprecated)
 $(echo Available targets: $default_target_list | \
+  fold -s -w 53 | sed -e 's/^/                           /')
+$(echo Deprecated targets: $deprecated_targets_list | \
   fold -s -w 53 | sed -e 's/^/                           /')
   --target-list-exclude=LIST exclude a set of targets from the default target-list
 
