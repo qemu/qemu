@@ -192,7 +192,7 @@ void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr, bool is_write)
      */
     if (dma_patterns->len == 0
         || len == 0
-        /* || mr != MACHINE(qdev_get_machine())->ram */
+        || mr != current_machine->ram
         || is_write
         || addr > current_machine->ram_size) {
         return;
