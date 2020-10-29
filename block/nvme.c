@@ -41,6 +41,16 @@
 
 typedef struct BDRVNVMeState BDRVNVMeState;
 
+/* Same index is used for queues and IRQs */
+#define INDEX_ADMIN     0
+#define INDEX_IO(n)     (1 + n)
+
+/* This driver shares a single MSIX IRQ for the admin and I/O queues */
+enum {
+    MSIX_SHARED_IRQ_IDX = 0,
+    MSIX_IRQ_COUNT = 1
+};
+
 typedef struct {
     int32_t  head, tail;
     uint8_t  *queue;
@@ -80,15 +90,6 @@ typedef struct {
     /* Thread-safe, no lock necessary */
     QEMUBH      *completion_bh;
 } NVMeQueuePair;
-
-#define INDEX_ADMIN     0
-#define INDEX_IO(n)     (1 + n)
-
-/* This driver shares a single MSIX IRQ for the admin and I/O queues */
-enum {
-    MSIX_SHARED_IRQ_IDX = 0,
-    MSIX_IRQ_COUNT = 1
-};
 
 struct BDRVNVMeState {
     AioContext *aio_context;
