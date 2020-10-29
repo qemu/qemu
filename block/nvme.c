@@ -469,7 +469,7 @@ static void nvme_submit_command(NVMeQueuePair *q, NVMeRequest *req,
     assert(!req->cb);
     req->cb = cb;
     req->opaque = opaque;
-    cmd->cid = cpu_to_le32(req->cid);
+    cmd->cid = cpu_to_le16(req->cid);
 
     trace_nvme_submit_command(q->s, q->index, req->cid);
     nvme_trace_command(cmd);
