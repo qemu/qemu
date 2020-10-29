@@ -652,6 +652,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     NvmeCmd cmd;
     unsigned queue_size = NVME_QUEUE_SIZE;
 
+    assert(n <= UINT16_MAX);
     q = nvme_create_queue_pair(s, bdrv_get_aio_context(bs),
                                n, queue_size, errp);
     if (!q) {
@@ -660,8 +661,8 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     cmd = (NvmeCmd) {
         .opcode = NVME_ADM_CMD_CREATE_CQ,
         .dptr.prp1 = cpu_to_le64(q->cq.iova),
-        .cdw10 = cpu_to_le32(((queue_size - 1) << 16) | (n & 0xFFFF)),
-        .cdw11 = cpu_to_le32(0x3),
+        .cdw10 = cpu_to_le32(((queue_size - 1) << 16) | n),
+        .cdw11 = cpu_to_le32(NVME_CQ_IEN | NVME_CQ_PC),
     };
     if (nvme_cmd_sync(bs, s->queues[INDEX_ADMIN], &cmd)) {
         error_setg(errp, "Failed to create CQ io queue [%u]", n);
@@ -670,8 +671,8 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     cmd = (NvmeCmd) {
         .opcode = NVME_ADM_CMD_CREATE_SQ,
         .dptr.prp1 = cpu_to_le64(q->sq.iova),
-        .cdw10 = cpu_to_le32(((queue_size - 1) << 16) | (n & 0xFFFF)),
-        .cdw11 = cpu_to_le32(0x1 | (n << 16)),
+        .cdw10 = cpu_to_le32(((queue_size - 1) << 16) | n),
+        .cdw11 = cpu_to_le32(NVME_SQ_PC | (n << 16)),
     };
     if (nvme_cmd_sync(bs, s->queues[INDEX_ADMIN], &cmd)) {
         error_setg(errp, "Failed to create SQ io queue [%u]", n);
