@@ -594,6 +594,7 @@ static bool nvme_poll_queue(NVMeQueuePair *q)
     const size_t cqe_offset = q->cq.head * NVME_CQ_ENTRY_BYTES;
     NvmeCqe *cqe = (NvmeCqe *)&q->cq.queue[cqe_offset];
 
+    trace_nvme_poll_queue(q->s, q->index);
     /*
      * Do an early check for completions. q->lock isn't needed because
      * nvme_process_completion() only runs in the event loop thread and
@@ -684,7 +685,6 @@ static bool nvme_poll_cb(void *opaque)
     BDRVNVMeState *s = container_of(e, BDRVNVMeState,
                                     irq_notifier[MSIX_SHARED_IRQ_IDX]);
 
-    trace_nvme_poll_cb(s);
     return nvme_poll_queues(s);
 }
 
