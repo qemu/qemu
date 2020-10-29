@@ -399,8 +399,8 @@ static bool nvme_process_completion(NVMeQueuePair *q)
         }
         cid = le16_to_cpu(c->cid);
         if (cid == 0 || cid > NVME_QUEUE_SIZE) {
-            fprintf(stderr, "Unexpected CID in completion queue: %" PRIu32 "\n",
-                    cid);
+            warn_report("NVMe: Unexpected CID in completion queue: %"PRIu32", "
+                        "queue size: %u", cid, NVME_QUEUE_SIZE);
             continue;
         }
         trace_nvme_complete_command(s, q->index, cid);
