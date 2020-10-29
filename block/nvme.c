@@ -506,9 +506,11 @@ static int nvme_cmd_sync(BlockDriverState *bs, NVMeQueuePair *q,
     return ret;
 }
 
-static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
+/* Returns true on success, false on failure. */
+static bool nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
 {
     BDRVNVMeState *s = bs->opaque;
+    bool ret = false;
     union {
         NvmeIdCtrl ctrl;
         NvmeIdNs ns;
@@ -585,10 +587,13 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
         goto out;
     }
 
+    ret = true;
     s->blkshift = lbaf->ds;
 out:
     qemu_vfio_dma_unmap(s->vfio, id);
     qemu_vfree(id);
+
+    return ret;
 }
 
 static bool nvme_poll_queue(NVMeQueuePair *q)
@@ -701,7 +706,6 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     uint64_t cap;
     uint64_t timeout_ms;
     uint64_t deadline, now;
-    Error *local_err = NULL;
     volatile NvmeBar *regs = NULL;
 
     qemu_co_mutex_init(&s->dma_map_lock);
@@ -818,9 +822,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
                            &s->irq_notifier[MSIX_SHARED_IRQ_IDX],
                            false, nvme_handle_event, nvme_poll_cb);
 
-    nvme_identify(bs, namespace, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!nvme_identify(bs, namespace, errp)) {
         ret = -EIO;
         goto out;
     }
