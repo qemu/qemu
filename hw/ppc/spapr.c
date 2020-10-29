@@ -1483,9 +1483,9 @@ void spapr_free_hpt(SpaprMachineState *spapr)
     close_htab_fd(spapr);
 }
 
-void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
-                          Error **errp)
+int spapr_reallocate_hpt(SpaprMachineState *spapr, int shift, Error **errp)
 {
+    ERRP_GUARD();
     long rc;
 
     /* Clean up any HPT info from a previous boot */
@@ -1495,22 +1495,23 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
 
     if (rc == -EOPNOTSUPP) {
         error_setg(errp, "HPT not supported in nested guests");
-        return;
+        return -EOPNOTSUPP;
     }
 
     if (rc < 0) {
         /* kernel-side HPT needed, but couldn't allocate one */
-        error_setg_errno(errp, errno,
-                         "Failed to allocate KVM HPT of order %d (try smaller maxmem?)",
+        error_setg_errno(errp, errno, "Failed to allocate KVM HPT of order %d",
                          shift);
-        /* This is almost certainly fatal, but if the caller really
-         * wants to carry on with shift == 0, it's welcome to try */
+        error_append_hint(errp, "Try smaller maxmem?\n");
+        return -errno;
     } else if (rc > 0) {
         /* kernel-side HPT allocated */
         if (rc != shift) {
             error_setg(errp,
-                       "Requested order %d HPT, but kernel allocated order %ld (try smaller maxmem?)",
+                       "Requested order %d HPT, but kernel allocated order %ld",
                        shift, rc);
+            error_append_hint(errp, "Try smaller maxmem?\n");
+            return -ENOSPC;
         }
 
         spapr->htab_shift = shift;
@@ -1524,7 +1525,7 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
         if (!spapr->htab) {
             error_setg_errno(errp, errno,
                              "Could not allocate HPT of order %d", shift);
-            return;
+            return -ENOMEM;
         }
 
         memset(spapr->htab, 0, size);
@@ -1537,6 +1538,7 @@ void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
     /* We're setting up a hash table, so that means we're not radix */
     spapr->patb_entry = 0;
     spapr_set_all_lpcrs(0, LPCR_HR | LPCR_UPRT);
+    return 0;
 }
 
 void spapr_setup_hpt(SpaprMachineState *spapr)
@@ -2290,11 +2292,13 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     }
 
     if (section_hdr) {
+        int ret;
+
         /* First section gives the htab size */
-        spapr_reallocate_hpt(spapr, section_hdr, &local_err);
-        if (local_err) {
+        ret = spapr_reallocate_hpt(spapr, section_hdr, &local_err);
+        if (ret < 0) {
             error_report_err(local_err);
-            return -EINVAL;
+            return ret;
         }
         return 0;
     }
@@ -2345,8 +2349,10 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
 
             assert(fd >= 0);
 
-            rc = kvmppc_load_htab_chunk(f, fd, index, n_valid, n_invalid);
+            rc = kvmppc_load_htab_chunk(f, fd, index, n_valid, n_invalid,
+                                        &local_err);
             if (rc < 0) {
+                error_report_err(local_err);
                 return rc;
             }
         }
@@ -2639,6 +2645,16 @@ static hwaddr spapr_rma_size(SpaprMachineState *spapr, Error **errp)
     }
 
     return rma_size;
+}
+
+static void spapr_create_nvdimm_dr_connectors(SpaprMachineState *spapr)
+{
+    MachineState *machine = MACHINE(spapr);
+    int i;
+
+    for (i = 0; i < machine->ram_slots; i++) {
+        spapr_dr_connector_new(OBJECT(spapr), TYPE_SPAPR_DRC_PMEM, i);
+    }
 }
 
 /* pSeries LPAR / sPAPR hardware init */
@@ -3372,7 +3388,7 @@ int spapr_lmb_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
     return 0;
 }
 
-static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
+static bool spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                            bool dedicated_hp_event_source, Error **errp)
 {
     SpaprDrc *drc;
@@ -3393,7 +3409,7 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                                       addr / SPAPR_MEMORY_BLOCK_SIZE);
                 spapr_drc_detach(drc);
             }
-            return;
+            return false;
         }
         if (!hotplugged) {
             spapr_drc_reset(drc);
@@ -3415,52 +3431,43 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                                            nr_lmbs);
         }
     }
+    return true;
 }
 
 static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                               Error **errp)
 {
-    Error *local_err = NULL;
     SpaprMachineState *ms = SPAPR_MACHINE(hotplug_dev);
     PCDIMMDevice *dimm = PC_DIMM(dev);
-    uint64_t size, addr, slot;
+    uint64_t size, addr;
+    int64_t slot;
     bool is_nvdimm = object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
 
     size = memory_device_get_region_size(MEMORY_DEVICE(dev), &error_abort);
 
-    pc_dimm_plug(dimm, MACHINE(ms), &local_err);
-    if (local_err) {
-        goto out;
-    }
+    pc_dimm_plug(dimm, MACHINE(ms));
 
     if (!is_nvdimm) {
         addr = object_property_get_uint(OBJECT(dimm),
-                                        PC_DIMM_ADDR_PROP, &local_err);
-        if (local_err) {
+                                        PC_DIMM_ADDR_PROP, &error_abort);
+        if (!spapr_add_lmbs(dev, addr, size,
+                            spapr_ovec_test(ms->ov5_cas, OV5_HP_EVT), errp)) {
             goto out_unplug;
         }
-        spapr_add_lmbs(dev, addr, size,
-                       spapr_ovec_test(ms->ov5_cas, OV5_HP_EVT),
-                       &local_err);
     } else {
-        slot = object_property_get_uint(OBJECT(dimm),
-                                        PC_DIMM_SLOT_PROP, &local_err);
-        if (local_err) {
+        slot = object_property_get_int(OBJECT(dimm),
+                                       PC_DIMM_SLOT_PROP, &error_abort);
+        /* We should have valid slot number at this point */
+        g_assert(slot >= 0);
+        if (!spapr_add_nvdimm(dev, slot, errp)) {
             goto out_unplug;
         }
-        spapr_add_nvdimm(dev, slot, &local_err);
-    }
-
-    if (local_err) {
-        goto out_unplug;
     }
 
     return;
 
 out_unplug:
     pc_dimm_unplug(dimm, MACHINE(ms));
-out:
-    error_propagate(errp, local_err);
 }
 
 static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
@@ -3565,8 +3572,8 @@ static SpaprDimmState *spapr_recover_pending_dimm_state(SpaprMachineState *ms,
     uint64_t addr_start, addr;
     int i;
 
-    addr_start = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP,
-                                         &error_abort);
+    addr_start = object_property_get_uint(OBJECT(dimm), PC_DIMM_ADDR_PROP,
+                                          &error_abort);
 
     addr = addr_start;
     for (i = 0; i < nr_lmbs; i++) {
@@ -3624,7 +3631,6 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(hotplug_dev);
-    Error *local_err = NULL;
     PCDIMMDevice *dimm = PC_DIMM(dev);
     uint32_t nr_lmbs;
     uint64_t size, addr_start, addr;
@@ -3640,11 +3646,7 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
     nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
 
     addr_start = object_property_get_uint(OBJECT(dimm), PC_DIMM_ADDR_PROP,
-                                         &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
+                                          &error_abort);
 
     /*
      * An existing pending dimm state for this DIMM means that there is an

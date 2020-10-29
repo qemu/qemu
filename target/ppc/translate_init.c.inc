@@ -792,7 +792,7 @@ static void gen_spr_generic(CPUPPCState *env)
                  &spr_read_xer, &spr_write_xer,
                  &spr_read_xer, &spr_write_xer,
                  0x00000000);
-    /* Branch contol */
+    /* Branch control */
     spr_register(env, SPR_LR, "LR",
                  &spr_read_lr, &spr_write_lr,
                  &spr_read_lr, &spr_write_lr,
@@ -10327,6 +10327,8 @@ static void ppc_cpu_unrealize(DeviceState *dev)
     int i, j, k;
 
     pcc->parent_unrealize(dev);
+
+    cpu_remove_sync(CPU(cpu));
 
     for (i = 0; i < PPC_CPU_OPCODES_LEN; i++) {
         if (cpu->opcodes[i] == &invalid_handler) {

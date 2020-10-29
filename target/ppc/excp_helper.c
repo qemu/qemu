@@ -231,7 +231,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     }
 
     /*
-     * Exception targetting modifiers
+     * Exception targeting modifiers
      *
      * LPES0 is supported on POWER7/8/9
      * LPES1 is not supported (old iSeries mode)
@@ -1015,7 +1015,7 @@ static void ppc_hw_interrupt(CPUPPCState *env)
          * This means we will incorrectly execute past the power management
          * instruction instead of triggering a reset.
          *
-         * It generally means a discrepancy between the wakup conditions in the
+         * It generally means a discrepancy between the wakeup conditions in the
          * processor has_work implementation and the logic in this function.
          */
         cpu_abort(env_cpu(env),
@@ -1191,7 +1191,7 @@ void helper_rfi(CPUPPCState *env)
 void helper_rfid(CPUPPCState *env)
 {
     /*
-     * The architeture defines a number of rules for which bits can
+     * The architecture defines a number of rules for which bits can
      * change but in practice, we handle this in hreg_store_msr()
      * which will be called by do_rfi(), so there is no need to filter
      * here

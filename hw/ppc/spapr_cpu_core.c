@@ -187,8 +187,7 @@ static void spapr_unrealize_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
         vmstate_unregister(NULL, &vmstate_spapr_cpu_state, cpu->machine_data);
     }
     spapr_irq_cpu_intc_destroy(SPAPR_MACHINE(qdev_get_machine()), cpu);
-    cpu_remove_sync(CPU(cpu));
-    object_unparent(OBJECT(cpu));
+    qdev_unrealize(DEVICE(cpu));
 }
 
 /*
@@ -213,18 +212,37 @@ static void spapr_cpu_core_reset_handler(void *opaque)
     spapr_cpu_core_reset(opaque);
 }
 
+static void spapr_delete_vcpu(PowerPCCPU *cpu)
+{
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    cpu->machine_data = NULL;
+    g_free(spapr_cpu);
+    object_unparent(OBJECT(cpu));
+}
+
 static void spapr_cpu_core_unrealize(DeviceState *dev)
 {
     SpaprCpuCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(dev);
     int i;
 
-    qemu_unregister_reset(spapr_cpu_core_reset_handler, sc);
-
     for (i = 0; i < cc->nr_threads; i++) {
-        spapr_unrealize_vcpu(sc->threads[i], sc);
+        if (sc->threads[i]) {
+            /*
+             * Since this we can get here from the error path of
+             * spapr_cpu_core_realize(), make sure we only unrealize
+             * vCPUs that have already been realized.
+             */
+            if (object_property_get_bool(OBJECT(sc->threads[i]), "realized",
+                                         &error_abort)) {
+                spapr_unrealize_vcpu(sc->threads[i], sc);
+            }
+            spapr_delete_vcpu(sc->threads[i]);
+        }
     }
     g_free(sc->threads);
+    qemu_unregister_reset(spapr_cpu_core_reset_handler, sc);
 }
 
 static bool spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
@@ -244,7 +262,7 @@ static bool spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
     kvmppc_set_papr(cpu);
 
     if (spapr_irq_cpu_intc_create(spapr, cpu, errp) < 0) {
-        cpu_remove_sync(CPU(cpu));
+        qdev_unrealize(DEVICE(cpu));
         return false;
     }
 
@@ -294,15 +312,6 @@ err:
     return NULL;
 }
 
-static void spapr_delete_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
-{
-    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
-
-    cpu->machine_data = NULL;
-    g_free(spapr_cpu);
-    object_unparent(OBJECT(cpu));
-}
-
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
 {
     /* We don't use SPAPR_MACHINE() in order to exit gracefully if the user
@@ -313,39 +322,23 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
                                                   TYPE_SPAPR_MACHINE);
     SpaprCpuCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(OBJECT(dev));
-    int i, j;
+    int i;
 
     if (!spapr) {
         error_setg(errp, TYPE_SPAPR_CPU_CORE " needs a pseries machine");
         return;
     }
 
-    sc->threads = g_new(PowerPCCPU *, cc->nr_threads);
+    qemu_register_reset(spapr_cpu_core_reset_handler, sc);
+    sc->threads = g_new0(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
         sc->threads[i] = spapr_create_vcpu(sc, i, errp);
-        if (!sc->threads[i]) {
-            goto err;
+        if (!sc->threads[i] ||
+            !spapr_realize_vcpu(sc->threads[i], spapr, sc, errp)) {
+            spapr_cpu_core_unrealize(dev);
+            return;
         }
     }
-
-    for (j = 0; j < cc->nr_threads; j++) {
-        if (!spapr_realize_vcpu(sc->threads[j], spapr, sc, errp)) {
-            goto err_unrealize;
-        }
-    }
-
-    qemu_register_reset(spapr_cpu_core_reset_handler, sc);
-    return;
-
-err_unrealize:
-    while (--j >= 0) {
-        spapr_unrealize_vcpu(sc->threads[j], sc);
-    }
-err:
-    while (--i >= 0) {
-        spapr_delete_vcpu(sc->threads[i], sc);
-    }
-    g_free(sc->threads);
 }
 
 static Property spapr_cpu_core_properties[] = {

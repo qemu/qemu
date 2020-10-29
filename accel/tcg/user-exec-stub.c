@@ -9,6 +9,10 @@ void cpu_resume(CPUState *cpu)
 {
 }
 
+void cpu_remove_sync(CPUState *cpu)
+{
+}
+
 void qemu_init_vcpu(CPUState *cpu)
 {
 }

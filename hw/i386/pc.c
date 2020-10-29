@@ -1265,24 +1265,18 @@ static void pc_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 static void pc_memory_plug(HotplugHandler *hotplug_dev,
                            DeviceState *dev, Error **errp)
 {
-    Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
     X86MachineState *x86ms = X86_MACHINE(hotplug_dev);
     MachineState *ms = MACHINE(hotplug_dev);
     bool is_nvdimm = object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
 
-    pc_dimm_plug(PC_DIMM(dev), MACHINE(pcms), &local_err);
-    if (local_err) {
-        goto out;
-    }
+    pc_dimm_plug(PC_DIMM(dev), MACHINE(pcms));
 
     if (is_nvdimm) {
         nvdimm_plug(ms->nvdimms_state);
     }
 
     hotplug_handler_plug(x86ms->acpi_dev, dev, &error_abort);
-out:
-    error_propagate(errp, local_err);
 }
 
 static void pc_memory_unplug_request(HotplugHandler *hotplug_dev,
