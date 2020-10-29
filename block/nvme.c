@@ -522,19 +522,20 @@ static bool nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
         .opcode = NVME_ADM_CMD_IDENTIFY,
         .cdw10 = cpu_to_le32(0x1),
     };
+    size_t id_size = QEMU_ALIGN_UP(sizeof(*id), qemu_real_host_page_size);
 
-    id = qemu_try_memalign(s->page_size, sizeof(*id));
+    id = qemu_try_memalign(qemu_real_host_page_size, id_size);
     if (!id) {
         error_setg(errp, "Cannot allocate buffer for identify response");
         goto out;
     }
-    r = qemu_vfio_dma_map(s->vfio, id, sizeof(*id), true, &iova);
+    r = qemu_vfio_dma_map(s->vfio, id, id_size, true, &iova);
     if (r) {
         error_setg(errp, "Cannot map buffer for DMA");
         goto out;
     }
 
-    memset(id, 0, sizeof(*id));
+    memset(id, 0, id_size);
     cmd.dptr.prp1 = cpu_to_le64(iova);
     if (nvme_admin_cmd_sync(bs, &cmd)) {
         error_setg(errp, "Failed to identify controller");
@@ -556,7 +557,7 @@ static bool nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
     s->supports_write_zeroes = !!(oncs & NVME_ONCS_WRITE_ZEROES);
     s->supports_discard = !!(oncs & NVME_ONCS_DSM);
 
-    memset(id, 0, sizeof(*id));
+    memset(id, 0, id_size);
     cmd.cdw10 = 0;
     cmd.nsid = cpu_to_le32(namespace);
     if (nvme_admin_cmd_sync(bs, &cmd)) {
