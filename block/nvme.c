@@ -789,9 +789,9 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         goto out;
     }
     s->queue_count = 1;
-    QEMU_BUILD_BUG_ON(NVME_QUEUE_SIZE & 0xF000);
-    regs->aqa = cpu_to_le32((NVME_QUEUE_SIZE << AQA_ACQS_SHIFT) |
-                            (NVME_QUEUE_SIZE << AQA_ASQS_SHIFT));
+    QEMU_BUILD_BUG_ON((NVME_QUEUE_SIZE - 1) & 0xF000);
+    regs->aqa = cpu_to_le32(((NVME_QUEUE_SIZE - 1) << AQA_ACQS_SHIFT) |
+                            ((NVME_QUEUE_SIZE - 1) << AQA_ASQS_SHIFT));
     regs->asq = cpu_to_le64(s->queues[INDEX_ADMIN]->sq.iova);
     regs->acq = cpu_to_le64(s->queues[INDEX_ADMIN]->cq.iova);
 
