@@ -160,7 +160,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static void nvme_init_queue(BDRVNVMeState *s, NVMeQueue *q,
+/* Returns true on success, false on failure. */
+static bool nvme_init_queue(BDRVNVMeState *s, NVMeQueue *q,
                             unsigned nentries, size_t entry_bytes, Error **errp)
 {
     size_t bytes;
@@ -171,13 +172,15 @@ static void nvme_init_queue(BDRVNVMeState *s, NVMeQueue *q,
     q->queue = qemu_try_memalign(s->page_size, bytes);
     if (!q->queue) {
         error_setg(errp, "Cannot allocate queue");
-        return;
+        return false;
     }
     memset(q->queue, 0, bytes);
     r = qemu_vfio_dma_map(s->vfio, q->queue, bytes, false, &q->iova);
     if (r) {
         error_setg(errp, "Cannot map queue");
+        return false;
     }
+    return true;
 }
 
 static void nvme_free_queue_pair(NVMeQueuePair *q)
@@ -210,7 +213,6 @@ static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
                                              Error **errp)
 {
     int i, r;
-    Error *local_err = NULL;
     NVMeQueuePair *q;
     uint64_t prp_list_iova;
 
@@ -247,16 +249,12 @@ static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
         req->prp_list_iova = prp_list_iova + i * s->page_size;
     }
 
-    nvme_init_queue(s, &q->sq, size, NVME_SQ_ENTRY_BYTES, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!nvme_init_queue(s, &q->sq, size, NVME_SQ_ENTRY_BYTES, errp)) {
         goto fail;
     }
     q->sq.doorbell = &s->doorbells[idx * s->doorbell_scale].sq_tail;
 
-    nvme_init_queue(s, &q->cq, size, NVME_CQ_ENTRY_BYTES, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!nvme_init_queue(s, &q->cq, size, NVME_CQ_ENTRY_BYTES, errp)) {
         goto fail;
     }
     q->cq.doorbell = &s->doorbells[idx * s->doorbell_scale].cq_head;
