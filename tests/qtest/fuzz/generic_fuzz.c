@@ -298,6 +298,11 @@ static bool get_io_address(address_range *result, AddressSpace *as,
     } while (cb_info.index != index && !cb_info.found);
 
     *result = cb_info.result;
+    if (result->size) {
+        offset = offset % result->size;
+        result->addr += offset;
+        result->size -= offset;
+    }
     return cb_info.found;
 }
 
