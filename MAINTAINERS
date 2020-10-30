@@ -1999,8 +1999,7 @@ F: include/hw/nvram/chrp_nvram.h
 F: tests/qtest/prom-env-test.c
 
 VM Generation ID
-M: Ben Warren <ben@skyportsystems.com>
-S: Maintained
+S: Orphan
 F: hw/acpi/vmgenid.c
 F: include/hw/acpi/vmgenid.h
 F: docs/specs/vmgenid.txt
