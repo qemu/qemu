@@ -988,16 +988,18 @@ static int save_opt_one(void *opaque,
             if (ret < 0) {
                 error_setg(errp, "Unable to read from %s: %s",
                            value, strerror(errno));
+                qemu_close(fd);
                 return -1;
             }
             if (memchr(buf, '\0', ret)) {
                 error_setg(errp, "NUL in OEM strings value in %s", value);
+                qemu_close(fd);
                 return -1;
             }
             g_byte_array_append(data, (guint8 *)buf, ret);
         }
 
-        close(fd);
+        qemu_close(fd);
 
         *opt->dest = g_renew(char *, *opt->dest, (*opt->ndest) + 1);
         (*opt->dest)[*opt->ndest] = (char *)g_byte_array_free(data,  FALSE);
