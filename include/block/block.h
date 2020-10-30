@@ -508,6 +508,8 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t offset, int64_t bytes,
 int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
                             bool include_base, int64_t offset, int64_t bytes,
                             int64_t *pnum);
+int coroutine_fn bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset,
+                                      int64_t bytes);
 
 bool bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
@@ -778,6 +780,12 @@ void bdrv_drained_end(BlockDriverState *bs);
  * should be accessed using atomic operations only.
  */
 void bdrv_drained_end_no_poll(BlockDriverState *bs, int *drained_end_counter);
+
+/**
+ * End all quiescent sections started by bdrv_drain_all_begin(). This is
+ * only needed when deleting a BDS before bdrv_drain_all_end() is called.
+ */
+void bdrv_drain_all_end_quiesce(BlockDriverState *bs);
 
 /**
  * End a quiescent section started by bdrv_subtree_drained_begin().
