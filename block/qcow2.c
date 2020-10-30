@@ -269,7 +269,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 
         case QCOW2_EXT_MAGIC_FEATURE_TABLE:
             if (p_feature_table != NULL) {
-                void* feature_table = g_malloc0(ext.len + 2 * sizeof(Qcow2Feature));
+                void *feature_table = g_malloc0(ext.len + 2 * sizeof(Qcow2Feature));
                 ret = bdrv_pread(bs->file, offset , feature_table, ext.len);
                 if (ret < 0) {
                     error_setg_errno(errp, -ret, "ERROR: ext_feature_table: "
@@ -3388,7 +3388,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     size_t cluster_size;
     int version;
     int refcount_order;
-    uint64_t* refcount_table;
+    uint64_t *refcount_table;
     int ret;
     uint8_t compression_type = QCOW2_COMPRESSION_TYPE_ZLIB;
 

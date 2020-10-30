@@ -559,7 +559,7 @@ static void dmg_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O */
 }
 
-static inline int is_sector_in_chunk(BDRVDMGState* s,
+static inline int is_sector_in_chunk(BDRVDMGState *s,
                 uint32_t chunk_num, uint64_t sector_num)
 {
     if (chunk_num >= s->n_chunks || s->sectors[chunk_num] > sector_num ||

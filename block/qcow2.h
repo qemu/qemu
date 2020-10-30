@@ -343,8 +343,8 @@ typedef struct BDRVQcow2State {
     uint64_t l1_table_offset;
     uint64_t *l1_table;
 
-    Qcow2Cache* l2_table_cache;
-    Qcow2Cache* refcount_block_cache;
+    Qcow2Cache *l2_table_cache;
+    Qcow2Cache *refcount_block_cache;
     QEMUTimer *cache_clean_timer;
     unsigned cache_clean_interval;
 
@@ -394,7 +394,7 @@ typedef struct BDRVQcow2State {
     uint64_t autoclear_features;
 
     size_t unknown_header_fields_size;
-    void* unknown_header_fields;
+    void *unknown_header_fields;
     QLIST_HEAD(, Qcow2UnknownHeaderExtension) unknown_header_ext;
     QTAILQ_HEAD (, Qcow2DiscardRegion) discards;
     bool cache_discards;
