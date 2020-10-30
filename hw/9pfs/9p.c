@@ -1091,7 +1091,7 @@ static mode_t v9mode_to_mode(uint32_t mode, V9fsString *extension)
         }
     }
 
-    if (!(ret&~0777)) {
+    if (!(ret & ~0777)) {
         ret |= S_IFREG;
     }
 
@@ -2776,7 +2776,7 @@ static void coroutine_fn v9fs_create(void *opaque)
         v9fs_path_unlock(s);
     } else {
         err = v9fs_co_open2(pdu, fidp, &name, -1,
-                            omode_to_uflags(mode)|O_CREAT, perm, &stbuf);
+                            omode_to_uflags(mode) | O_CREAT, perm, &stbuf);
         if (err < 0) {
             goto out;
         }
@@ -3428,7 +3428,7 @@ static int v9fs_fill_statfs(V9fsState *s, V9fsPDU *pdu, struct statfs *stbuf)
      * compute bsize factor based on host file system block size
      * and client msize
      */
-    bsize_factor = (s->msize - P9_IOHDRSZ)/stbuf->f_bsize;
+    bsize_factor = (s->msize - P9_IOHDRSZ) / stbuf->f_bsize;
     if (!bsize_factor) {
         bsize_factor = 1;
     }
@@ -3440,9 +3440,9 @@ static int v9fs_fill_statfs(V9fsState *s, V9fsPDU *pdu, struct statfs *stbuf)
      * adjust(divide) the number of blocks, free blocks and available
      * blocks by bsize factor
      */
-    f_blocks = stbuf->f_blocks/bsize_factor;
-    f_bfree  = stbuf->f_bfree/bsize_factor;
-    f_bavail = stbuf->f_bavail/bsize_factor;
+    f_blocks = stbuf->f_blocks / bsize_factor;
+    f_bfree  = stbuf->f_bfree / bsize_factor;
+    f_bavail = stbuf->f_bavail / bsize_factor;
     f_files  = stbuf->f_files;
     f_ffree  = stbuf->f_ffree;
     fsid_val = (unsigned int) stbuf->f_fsid.__val[0] |
@@ -4185,6 +4185,6 @@ static void __attribute__((__constructor__)) v9fs_set_fd_limit(void)
         error_report("Failed to get the resource limit");
         exit(1);
     }
-    open_fd_hw = rlim.rlim_cur - MIN(400, rlim.rlim_cur/3);
-    open_fd_rc = rlim.rlim_cur/2;
+    open_fd_hw = rlim.rlim_cur - MIN(400, rlim.rlim_cur / 3);
+    open_fd_rc = rlim.rlim_cur / 2;
 }
