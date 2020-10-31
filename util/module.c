@@ -132,7 +132,7 @@ static int module_load_file(const char *fname, bool mayfail, bool export_symbols
 
     assert(QTAILQ_EMPTY(&dso_init_list));
 
-    flags = G_MODULE_BIND_LAZY;
+    flags = 0;
     if (!export_symbols) {
         flags |= G_MODULE_BIND_LOCAL;
     }
@@ -301,6 +301,12 @@ static struct {
     { "qxl",                   "hw-", "display-qxl"           },
     { "virtio-gpu-device",     "hw-", "display-virtio-gpu"    },
     { "vhost-user-gpu",        "hw-", "display-virtio-gpu"    },
+    { "virtio-gpu-pci-base",   "hw-", "display-virtio-gpu-pci" },
+    { "virtio-gpu-pci",        "hw-", "display-virtio-gpu-pci" },
+    { "vhost-user-gpu-pci",    "hw-", "display-virtio-gpu-pci" },
+    { "virtio-vga-base",       "hw-", "display-virtio-vga"    },
+    { "virtio-vga",            "hw-", "display-virtio-vga"    },
+    { "vhost-user-vga",        "hw-", "display-virtio-vga"    },
     { "chardev-braille",       "chardev-", "baum"             },
     { "chardev-spicevmc",      "chardev-", "spice"            },
     { "chardev-spiceport",     "chardev-", "spice"            },
