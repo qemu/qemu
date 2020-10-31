@@ -299,10 +299,8 @@ char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size)
 }
 
 /* Disassemble this for me please... (debugging). */
-void disas(FILE *out, const void *ccode, unsigned long size)
+void disas(FILE *out, const void *code, unsigned long size)
 {
-    /* TODO: Push constness through the disas backends. */
-    void *code = (void *)ccode;
     uintptr_t pc;
     int count;
     CPUDebug s;
