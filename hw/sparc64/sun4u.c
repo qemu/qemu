@@ -588,6 +588,13 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                              &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(sabre), &error_fatal);
 
+    /* sabre_config */
+    sysbus_mmio_map(SYS_BUS_DEVICE(sabre), 0, PBM_SPECIAL_BASE);
+    /* PCI configuration space */
+    sysbus_mmio_map(SYS_BUS_DEVICE(sabre), 1, PBM_SPECIAL_BASE + 0x1000000ULL);
+    /* pci_ioport */
+    sysbus_mmio_map(SYS_BUS_DEVICE(sabre), 2, PBM_SPECIAL_BASE + 0x2000000ULL);
+
     /* Wire up PCI interrupts to CPU */
     for (i = 0; i < IVEC_MAX; i++) {
         qdev_connect_gpio_out_named(DEVICE(sabre), "ivec-irq", i,
