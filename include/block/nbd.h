@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2019 Red Hat, Inc.
+ *  Copyright (C) 2016-2020 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device
@@ -47,7 +47,7 @@ typedef struct NBDOptionReply NBDOptionReply;
 typedef struct NBDOptionReplyMetaContext {
     NBDOptionReply h; /* h.type = NBD_REP_META_CONTEXT, h.length > 4 */
     uint32_t context_id;
-    /* meta context name follows */
+    /* metadata context name follows */
 } QEMU_PACKED NBDOptionReplyMetaContext;
 
 /* Transmission phase structs
@@ -229,7 +229,7 @@ enum {
 #define NBD_MAX_BUFFER_SIZE (32 * 1024 * 1024)
 
 /*
- * Maximum size of a protocol string (export name, meta context name,
+ * Maximum size of a protocol string (export name, metadata context name,
  * etc.).  Use malloc rather than stack allocation for storage of a
  * string.
  */
@@ -258,6 +258,8 @@ enum {
 
 /* Extent flags for qemu:dirty-bitmap in NBD_REPLY_TYPE_BLOCK_STATUS */
 #define NBD_STATE_DIRTY (1 << 0)
+
+/* No flags needed for qemu:allocation-depth in NBD_REPLY_TYPE_BLOCK_STATUS */
 
 static inline bool nbd_reply_type_is_error(int type)
 {

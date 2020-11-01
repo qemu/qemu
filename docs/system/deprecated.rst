@@ -257,7 +257,8 @@ the 'wait' field, which is only applicable to sockets in server mode
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use the more generic commands ``block-export-add`` and ``block-export-del``
-instead.
+instead.  As part of this deprecation, where ``nbd-server-add`` used a
+single ``bitmap``, the new ``block-export-add`` uses a list of ``bitmaps``.
 
 Human Monitor Protocol (HMP) commands
 -------------------------------------

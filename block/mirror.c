@@ -846,7 +846,7 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
         }
 
         assert(count);
-        if (ret == 1) {
+        if (ret > 0) {
             bdrv_set_dirty_bitmap(s->dirty_bitmap, offset, count);
         }
         offset += count;

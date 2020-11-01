@@ -47,7 +47,8 @@ bdrv_co_common_block_status_above(BlockDriverState *bs,
                                   int64_t bytes,
                                   int64_t *pnum,
                                   int64_t *map,
-                                  BlockDriverState **file);
+                                  BlockDriverState **file,
+                                  int *depth);
 int generated_co_wrapper
 bdrv_common_block_status_above(BlockDriverState *bs,
                                BlockDriverState *base,
@@ -57,7 +58,8 @@ bdrv_common_block_status_above(BlockDriverState *bs,
                                int64_t bytes,
                                int64_t *pnum,
                                int64_t *map,
-                               BlockDriverState **file);
+                               BlockDriverState **file,
+                               int *depth);
 
 int coroutine_fn bdrv_co_readv_vmstate(BlockDriverState *bs,
                                        QEMUIOVector *qiov, int64_t pos);

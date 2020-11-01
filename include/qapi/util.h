@@ -22,4 +22,17 @@ int qapi_enum_parse(const QEnumLookup *lookup, const char *buf,
 
 int parse_qapi_name(const char *name, bool complete);
 
+/*
+ * For any GenericList @list, insert @element at the front.
+ *
+ * Note that this macro evaluates @element exactly once, so it is safe
+ * to have side-effects with that argument.
+ */
+#define QAPI_LIST_PREPEND(list, element) do { \
+    typeof(list) _tmp = g_malloc(sizeof(*(list))); \
+    _tmp->value = (element); \
+    _tmp->next = (list); \
+    (list) = _tmp; \
+} while (0)
+
 #endif
