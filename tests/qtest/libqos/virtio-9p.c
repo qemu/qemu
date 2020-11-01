@@ -39,8 +39,7 @@ static void init_local_test_path(void)
     g_free(pwd);
 }
 
-/* Creates the directory for the 9pfs 'local' filesystem driver to access. */
-static void create_local_test_dir(void)
+void virtio_9p_create_local_test_dir(void)
 {
     struct stat st;
 
@@ -53,8 +52,7 @@ static void create_local_test_dir(void)
     g_assert((st.st_mode & S_IFMT) == S_IFDIR);
 }
 
-/* Deletes directory previously created by create_local_test_dir(). */
-static void remove_local_test_dir(void)
+void virtio_9p_remove_local_test_dir(void)
 {
     g_assert(local_test_path != NULL);
     char *cmd = g_strdup_printf("rm -r '%s'\n", local_test_path);
@@ -248,8 +246,8 @@ static void virtio_9p_register_nodes(void)
 
     /* make sure test dir for the 'local' tests exists and is clean */
     init_local_test_path();
-    remove_local_test_dir();
-    create_local_test_dir();
+    virtio_9p_remove_local_test_dir();
+    virtio_9p_create_local_test_dir();
 
     QPCIAddress addr = {
         .devfn = QPCI_DEVFN(4, 0),
