@@ -91,7 +91,7 @@ make "-j$(nproc)" qemu-fuzz-i386 V=1
 # Copy over the datadir
 cp  -r ../pc-bios/ "$DEST_DIR/pc-bios"
 
-cp "./qemu-fuzz-i386" "$DEST_DIR/bin/"
+cp "./qemu-fuzz-i386" "$DEST_DIR/bin/qemu-fuzz-i386.base"
 
 # Run the fuzzer with no arguments, to print the help-string and get the list
 # of available fuzz-targets. Copy over the qemu-fuzz-i386, naming it according
@@ -104,7 +104,7 @@ do
     # that are thin wrappers around this target that set the required
     # environment variables according to predefined configs.
     if [ "$target" != "generic-fuzz" ]; then
-        ln  "$DEST_DIR/bin/qemu-fuzz-i386" \
+        ln  "$DEST_DIR/bin/qemu-fuzz-i386.base" \
             "$DEST_DIR/qemu-fuzz-i386-target-$target"
     fi
 done
