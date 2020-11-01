@@ -971,8 +971,9 @@ void pcie_ats_init(PCIDevice *dev, uint16_t offset)
 
     dev->exp.ats_cap = offset;
 
-    /* Invalidate Queue Depth 0, Page Aligned Request 0 */
-    pci_set_word(dev->config + offset + PCI_ATS_CAP, 0);
+    /* Invalidate Queue Depth 0, Page Aligned Request 1 */
+    pci_set_word(dev->config + offset + PCI_ATS_CAP,
+                 PCI_ATS_CAP_PAGE_ALIGNED);
     /* STU 0, Disabled by default */
     pci_set_word(dev->config + offset + PCI_ATS_CTRL, 0);
 

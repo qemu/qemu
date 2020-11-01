@@ -786,8 +786,14 @@ static Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
                 crs_range_insert(temp_range_set.io_ranges,
                                  range_base, range_limit);
             } else { /* "memory" */
-                crs_range_insert(temp_range_set.mem_ranges,
-                                 range_base, range_limit);
+                uint64_t length = range_limit - range_base + 1;
+                if (range_limit <= UINT32_MAX && length <= UINT32_MAX) {
+                    crs_range_insert(temp_range_set.mem_ranges, range_base,
+                                     range_limit);
+                } else {
+                    crs_range_insert(temp_range_set.mem_64bit_ranges,
+                                     range_base, range_limit);
+                }
             }
         }
 
@@ -866,6 +872,8 @@ static Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
     crs_range_merge(temp_range_set.mem_ranges);
     for (i = 0; i < temp_range_set.mem_ranges->len; i++) {
         entry = g_ptr_array_index(temp_range_set.mem_ranges, i);
+        assert(entry->limit <= UINT32_MAX &&
+               (entry->limit - entry->base + 1) <= UINT32_MAX);
         aml_append(crs,
                    aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
                                     AML_MAX_FIXED, AML_NON_CACHEABLE,

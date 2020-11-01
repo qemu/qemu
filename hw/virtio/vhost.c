@@ -172,16 +172,6 @@ static uint64_t vhost_get_log_size(struct vhost_dev *dev)
                                        reg->memory_size);
         log_size = MAX(log_size, last / VHOST_LOG_CHUNK + 1);
     }
-    for (i = 0; i < dev->nvqs; ++i) {
-        struct vhost_virtqueue *vq = dev->vqs + i;
-
-        if (!vq->used_phys && !vq->used_size) {
-            continue;
-        }
-
-        uint64_t last = vq->used_phys + vq->used_size - 1;
-        log_size = MAX(log_size, last / VHOST_LOG_CHUNK + 1);
-    }
     return log_size;
 }
 
@@ -1651,6 +1641,24 @@ int vhost_dev_load_inflight(struct vhost_inflight *inflight, QEMUFile *f)
     inflight->queue_size = qemu_get_be16(f);
 
     qemu_get_buffer(f, inflight->addr, size);
+
+    return 0;
+}
+
+int vhost_dev_prepare_inflight(struct vhost_dev *hdev)
+{
+    int r;
+ 
+    if (hdev->vhost_ops->vhost_get_inflight_fd == NULL ||
+        hdev->vhost_ops->vhost_set_inflight_fd == NULL) {
+        return 0;
+    }
+ 
+    r = vhost_dev_set_features(hdev, hdev->log_enabled);
+    if (r < 0) {
+        VHOST_OPS_DEBUG("vhost_dev_prepare_inflight failed");
+        return r;
+    }
 
     return 0;
 }
