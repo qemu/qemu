@@ -1076,3 +1076,15 @@ static void register_virtio_9p_test(void)
 }
 
 libqos_init(register_virtio_9p_test);
+
+static void __attribute__((constructor)) construct_9p_test(void)
+{
+    /* make sure test dir for the 'local' tests exists */
+    virtio_9p_create_local_test_dir();
+}
+
+static void __attribute__((destructor)) destruct_9p_test(void)
+{
+    /* remove previously created test dir when test suite completed */
+    virtio_9p_remove_local_test_dir();
+}
