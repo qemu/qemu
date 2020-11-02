@@ -1165,6 +1165,32 @@ static inline void neon_store_reg32(TCGv_i32 var, int reg)
     tcg_gen_st_i32(var, cpu_env, vfp_reg_offset(false, reg));
 }
 
+static void read_neon_element32(TCGv_i32 dest, int reg, int ele, MemOp size)
+{
+    long off = neon_element_offset(reg, ele, size);
+
+    switch (size) {
+    case MO_32:
+        tcg_gen_ld_i32(dest, cpu_env, off);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void write_neon_element32(TCGv_i32 src, int reg, int ele, MemOp size)
+{
+    long off = neon_element_offset(reg, ele, size);
+
+    switch (size) {
+    case MO_32:
+        tcg_gen_st_i32(src, cpu_env, off);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static TCGv_ptr vfp_reg_ptr(bool dp, int reg)
 {
     TCGv_ptr ret = tcg_temp_new_ptr();
