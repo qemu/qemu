@@ -2062,6 +2062,12 @@ static int loadvm_postcopy_handle_resume(MigrationIncomingState *mis)
     }
 
     /*
+     * Reset the last_rb before we resend any page req to source again, since
+     * the source should have it reset already.
+     */
+    mis->last_rb = NULL;
+
+    /*
      * This means source VM is ready to resume the postcopy migration.
      * It's time to switch state and release the fault thread to
      * continue service page faults.
