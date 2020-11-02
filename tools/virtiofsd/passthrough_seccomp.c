@@ -118,6 +118,7 @@ static const int syscall_whitelist[] = {
 
 /* Syscalls used when --syslog is enabled */
 static const int syscall_whitelist_syslog[] = {
+    SCMP_SYS(send),
     SCMP_SYS(sendto),
 };
 
