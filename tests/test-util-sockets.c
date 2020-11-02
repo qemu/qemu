@@ -294,13 +294,13 @@ static void test_socket_unix_abstract(void)
     abstract_socket_matrix_row matrix[ABSTRACT_SOCKET_VARIANTS] = {
         { &addr,
           { &addr_tight, &addr_padded, &addr },
-          { false /* BUG */, true /* BUG */, true } },
+          { true, false, true } },
         { &addr_tight,
           { &addr_padded, &addr, &addr_tight },
-          { false, false /* BUG */, true } },
+          { false, true, true } },
         { &addr_padded,
           { &addr, &addr_tight, &addr_padded },
-          { true /* BUG */, false, true } }
+          { false, false, true } }
     };
     int i;
 
