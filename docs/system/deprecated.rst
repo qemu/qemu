@@ -310,6 +310,13 @@ to build binaries for it.
 ``Icelake-Client`` CPU Models are deprecated. Use ``Icelake-Server`` CPU
 Models instead.
 
+MIPS ``I7200`` CPU Model (since 5.2)
+''''''''''''''''''''''''''''''''''''
+
+The ``I7200`` guest CPU relies on the nanoMIPS ISA, which is deprecated
+(the ISA has never been upstreamed to a compiler toolchain). Therefore
+this CPU is also deprecated.
+
 System emulator devices
 -----------------------
 
@@ -407,6 +414,13 @@ The ``ppc64abi32`` architecture has a number of issues which regularly
 trip up our CI testing and is suspected to be quite broken. For that
 reason the maintainers strongly suspect no one actually uses it.
 
+MIPS ``I7200`` CPU (since 5.2)
+''''''''''''''''''''''''''''''
+
+The ``I7200`` guest CPU relies on the nanoMIPS ISA, which is deprecated
+(the ISA has never been upstreamed to a compiler toolchain). Therefore
+this CPU is also deprecated.
+
 Related binaries
 ----------------
 
@@ -470,6 +484,15 @@ point to a version that doesn't break runnability guarantees
 versions, aliases will point to newer CPU model versions
 depending on the machine type, so management software must
 resolve CPU model aliases before starting a virtual machine.
+
+Guest Emulator ISAs
+-------------------
+
+nanoMIPS ISA
+''''''''''''
+
+The ``nanoMIPS`` ISA has never been upstreamed to any compiler toolchain.
+As it is hard to generate binaries for it, declare it deprecated.
 
 
 Recently removed features
