@@ -353,6 +353,13 @@ struct fuse_file_info {
 #define FUSE_CAP_NO_OPENDIR_SUPPORT (1 << 24)
 
 /**
+ * Indicates that the kernel supports the FUSE_ATTR_SUBMOUNT flag.
+ *
+ * Setting (or unsetting) this flag in the `want` field has *no effect*.
+ */
+#define FUSE_CAP_SUBMOUNTS (1 << 27)
+
+/**
  * Ioctl flags
  *
  * FUSE_IOCTL_COMPAT: 32bit compat ioctl on 64bit machine
