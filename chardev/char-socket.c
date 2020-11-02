@@ -443,10 +443,22 @@ static char *qemu_chr_socket_address(SocketChardev *s, const char *prefix)
                                s->is_listen ? ",server" : "");
         break;
     case SOCKET_ADDRESS_TYPE_UNIX:
-        return g_strdup_printf("%sunix:%s%s", prefix,
-                               s->addr->u.q_unix.path,
+    {
+        const char *tight = "", *abstract = "";
+        UnixSocketAddress *sa = &s->addr->u.q_unix;
+
+        if (sa->has_abstract && sa->abstract) {
+            abstract = ",abstract";
+            if (sa->has_tight && sa->tight) {
+                tight = ",tight";
+            }
+        }
+
+        return g_strdup_printf("%sunix:%s%s%s%s", prefix, sa->path,
+                               abstract, tight,
                                s->is_listen ? ",server" : "");
         break;
+    }
     case SOCKET_ADDRESS_TYPE_FD:
         return g_strdup_printf("%sfd:%s%s", prefix, s->addr->u.fd.str,
                                s->is_listen ? ",server" : "");
