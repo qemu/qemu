@@ -222,8 +222,10 @@ static void trace_init_events(const char *fname)
     loc_pop(&loc);
 }
 
-void trace_init_file(const char *file)
+void trace_init_file(void)
 {
+    QemuOpts *opts = qemu_find_opts_singleton("trace");
+    const char *file = qemu_opt_get(opts, "file");
 #ifdef CONFIG_TRACE_SIMPLE
     st_set_trace_file(file);
     if (init_trace_on_startup) {
@@ -289,9 +291,8 @@ bool trace_init_backends(void)
     return true;
 }
 
-char *trace_opt_parse(const char *optarg)
+void trace_opt_parse(const char *optarg)
 {
-    char *trace_file;
     QemuOpts *opts = qemu_opts_parse_noisily(qemu_find_opts("trace"),
                                              optarg, true);
     if (!opts) {
@@ -301,11 +302,8 @@ char *trace_opt_parse(const char *optarg)
         trace_enable_events(qemu_opt_get(opts, "enable"));
     }
     trace_init_events(qemu_opt_get(opts, "events"));
-    trace_file = g_strdup(qemu_opt_get(opts, "file"));
     init_trace_on_startup = true;
     qemu_opts_del(opts);
-
-    return trace_file;
 }
 
 uint32_t trace_get_vcpu_event_count(void)
