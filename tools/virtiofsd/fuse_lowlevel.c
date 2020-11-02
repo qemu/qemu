@@ -341,6 +341,8 @@ static void fill_entry(struct fuse_entry_out *arg,
         .attr_valid_nsec = calc_timeout_nsec(e->attr_timeout),
     };
     convert_stat(&e->attr, &arg->attr);
+
+    arg->attr.flags = e->attr_flags;
 }
 
 /*
