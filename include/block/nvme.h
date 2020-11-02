@@ -82,6 +82,11 @@ enum NvmeCapMask {
 #define NVME_CAP_SET_PMRS(cap, val) (cap |= (uint64_t)(val & CAP_PMR_MASK)\
                                                             << CAP_PMR_SHIFT)
 
+enum NvmeCapCss {
+    NVME_CAP_CSS_NVM        = 1 << 0,
+    NVME_CAP_CSS_ADMIN_ONLY = 1 << 7,
+};
+
 enum NvmeCcShift {
     CC_EN_SHIFT     = 0,
     CC_CSS_SHIFT    = 4,
@@ -109,6 +114,11 @@ enum NvmeCcMask {
 #define NVME_CC_SHN(cc)    ((cc >> CC_SHN_SHIFT)    & CC_SHN_MASK)
 #define NVME_CC_IOSQES(cc) ((cc >> CC_IOSQES_SHIFT) & CC_IOSQES_MASK)
 #define NVME_CC_IOCQES(cc) ((cc >> CC_IOCQES_SHIFT) & CC_IOCQES_MASK)
+
+enum NvmeCcCss {
+    NVME_CC_CSS_NVM        = 0x0,
+    NVME_CC_CSS_ADMIN_ONLY = 0x7,
+};
 
 enum NvmeCstsShift {
     CSTS_RDY_SHIFT      = 0,
@@ -412,9 +422,9 @@ typedef union NvmeCmdDptr {
 } NvmeCmdDptr;
 
 enum NvmePsdt {
-    PSDT_PRP                 = 0x0,
-    PSDT_SGL_MPTR_CONTIGUOUS = 0x1,
-    PSDT_SGL_MPTR_SGL        = 0x2,
+    NVME_PSDT_PRP                 = 0x0,
+    NVME_PSDT_SGL_MPTR_CONTIGUOUS = 0x1,
+    NVME_PSDT_SGL_MPTR_SGL        = 0x2,
 };
 
 typedef struct QEMU_PACKED NvmeCmd {
@@ -645,6 +655,7 @@ enum NvmeStatusCodes {
     NVME_MD_SGL_LEN_INVALID     = 0x0010,
     NVME_SGL_DESCR_TYPE_INVALID = 0x0011,
     NVME_INVALID_USE_OF_CMB     = 0x0012,
+    NVME_INVALID_PRP_OFFSET     = 0x0013,
     NVME_LBA_RANGE              = 0x0080,
     NVME_CAP_EXCEEDED           = 0x0081,
     NVME_NS_NOT_READY           = 0x0082,
@@ -849,6 +860,7 @@ enum NvmeIdCtrlFrmw {
 };
 
 enum NvmeIdCtrlLpa {
+    NVME_LPA_NS_SMART = 1 << 0,
     NVME_LPA_EXTENDED = 1 << 2,
 };
 
