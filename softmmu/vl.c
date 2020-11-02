@@ -2159,17 +2159,17 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
 
 static void configure_accelerators(const char *progname)
 {
-    const char *accel;
+    const char *accelerators;
     bool init_failed = false;
 
     qemu_opts_foreach(qemu_find_opts("icount"),
                       do_configure_icount, NULL, &error_fatal);
 
-    accel = qemu_opt_get(qemu_get_machine_opts(), "accel");
+    accelerators = qemu_opt_get(qemu_get_machine_opts(), "accel");
     if (QTAILQ_EMPTY(&qemu_accel_opts.head)) {
         char **accel_list, **tmp;
 
-        if (accel == NULL) {
+        if (accelerators == NULL) {
             /* Select the default accelerator */
             bool have_tcg = accel_find("tcg");
             bool have_kvm = accel_find("kvm");
@@ -2177,21 +2177,21 @@ static void configure_accelerators(const char *progname)
             if (have_tcg && have_kvm) {
                 if (g_str_has_suffix(progname, "kvm")) {
                     /* If the program name ends with "kvm", we prefer KVM */
-                    accel = "kvm:tcg";
+                    accelerators = "kvm:tcg";
                 } else {
-                    accel = "tcg:kvm";
+                    accelerators = "tcg:kvm";
                 }
             } else if (have_kvm) {
-                accel = "kvm";
+                accelerators = "kvm";
             } else if (have_tcg) {
-                accel = "tcg";
+                accelerators = "tcg";
             } else {
                 error_report("No accelerator selected and"
                              " no default accelerator available");
                 exit(1);
             }
         }
-        accel_list = g_strsplit(accel, ":", 0);
+        accel_list = g_strsplit(accelerators, ":", 0);
 
         for (tmp = accel_list; *tmp; tmp++) {
             /*
@@ -2207,7 +2207,7 @@ static void configure_accelerators(const char *progname)
         }
         g_strfreev(accel_list);
     } else {
-        if (accel != NULL) {
+        if (accelerators != NULL) {
             error_report("The -accel and \"-machine accel=\" options are incompatible");
             exit(1);
         }
