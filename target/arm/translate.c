@@ -1183,6 +1183,12 @@ static void read_neon_element64(TCGv_i64 dest, int reg, int ele, MemOp memop)
     long off = neon_element_offset(reg, ele, memop);
 
     switch (memop) {
+    case MO_SL:
+        tcg_gen_ld32s_i64(dest, cpu_env, off);
+        break;
+    case MO_UL:
+        tcg_gen_ld32u_i64(dest, cpu_env, off);
+        break;
     case MO_Q:
         tcg_gen_ld_i64(dest, cpu_env, off);
         break;
