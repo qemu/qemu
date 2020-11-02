@@ -252,6 +252,7 @@ static gpointer unix_server_thread_func(gpointer user_data)
 
     connfd = accept(fd, (struct sockaddr *)&un, &len);
     g_assert_cmpint(connfd, !=, -1);
+    close(connfd);
 
     close(fd);
 
