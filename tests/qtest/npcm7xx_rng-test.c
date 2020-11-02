@@ -265,10 +265,16 @@ int main(int argc, char **argv)
 
     qtest_add_func("npcm7xx_rng/enable_disable", test_enable_disable);
     qtest_add_func("npcm7xx_rng/rosel", test_rosel);
-    qtest_add_func("npcm7xx_rng/continuous/monobit", test_continuous_monobit);
-    qtest_add_func("npcm7xx_rng/continuous/runs", test_continuous_runs);
-    qtest_add_func("npcm7xx_rng/first_byte/monobit", test_first_byte_monobit);
-    qtest_add_func("npcm7xx_rng/first_byte/runs", test_first_byte_runs);
+    /*
+     * These tests fail intermittently; only run them on explicit
+     * request until we figure out why.
+     */
+    if (getenv("QEMU_TEST_FLAKY_RNG_TESTS")) {
+        qtest_add_func("npcm7xx_rng/continuous/monobit", test_continuous_monobit);
+        qtest_add_func("npcm7xx_rng/continuous/runs", test_continuous_runs);
+        qtest_add_func("npcm7xx_rng/first_byte/monobit", test_first_byte_monobit);
+        qtest_add_func("npcm7xx_rng/first_byte/runs", test_first_byte_runs);
+    }
 
     qtest_start("-machine npcm750-evb");
     ret = g_test_run();
