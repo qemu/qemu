@@ -1178,6 +1178,19 @@ static void read_neon_element32(TCGv_i32 dest, int reg, int ele, MemOp memop)
     }
 }
 
+static void read_neon_element64(TCGv_i64 dest, int reg, int ele, MemOp memop)
+{
+    long off = neon_element_offset(reg, ele, memop);
+
+    switch (memop) {
+    case MO_Q:
+        tcg_gen_ld_i64(dest, cpu_env, off);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void write_neon_element32(TCGv_i32 src, int reg, int ele, MemOp memop)
 {
     long off = neon_element_offset(reg, ele, memop);
@@ -1191,6 +1204,19 @@ static void write_neon_element32(TCGv_i32 src, int reg, int ele, MemOp memop)
         break;
     case MO_32:
         tcg_gen_st_i32(src, cpu_env, off);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void write_neon_element64(TCGv_i64 src, int reg, int ele, MemOp memop)
+{
+    long off = neon_element_offset(reg, ele, memop);
+
+    switch (memop) {
+    case MO_64:
+        tcg_gen_st_i64(src, cpu_env, off);
         break;
     default:
         g_assert_not_reached();
