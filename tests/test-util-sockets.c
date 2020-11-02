@@ -230,26 +230,6 @@ static void test_socket_fd_pass_num_nocli(void)
 #endif
 
 #ifdef __linux__
-static gpointer unix_server_thread_func(gpointer user_data)
-{
-    SocketAddress *addr = user_data;
-    int fd;
-    int connfd;
-    struct sockaddr_un un;
-    socklen_t len = sizeof(un);
-
-    fd = socket_listen(addr, 1, &error_abort);
-    g_assert_cmpint(fd, >=, 0);
-    g_assert(fd_is_socket(fd));
-
-    connfd = accept(fd, (struct sockaddr *)&un, &len);
-    g_assert_cmpint(connfd, !=, -1);
-    close(connfd);
-
-    close(fd);
-    return NULL;
-}
-
 static gpointer unix_client_thread_func(gpointer user_data)
 {
     SocketAddress *addr = user_data;
@@ -263,20 +243,26 @@ static gpointer unix_client_thread_func(gpointer user_data)
 
 static void test_socket_unix_abstract_one(SocketAddress *addr)
 {
-    GThread *serv, *cli;
+    int fd, connfd;
+    GThread *cli;
+    struct sockaddr_un un;
+    socklen_t len = sizeof(un);
 
-    serv = g_thread_new("abstract_unix_server",
-                        unix_server_thread_func,
-                        addr);
-
-    sleep(1);
+    fd = socket_listen(addr, 1, &error_abort);
+    g_assert_cmpint(fd, >=, 0);
+    g_assert(fd_is_socket(fd));
 
     cli = g_thread_new("abstract_unix_client",
                        unix_client_thread_func,
                        addr);
 
+    connfd = accept(fd, (struct sockaddr *)&un, &len);
+    g_assert_cmpint(connfd, !=, -1);
+    close(connfd);
+
+    close(fd);
+
     g_thread_join(cli);
-    g_thread_join(serv);
 }
 
 static void test_socket_unix_abstract_good(void)
