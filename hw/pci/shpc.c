@@ -300,7 +300,6 @@ static void shpc_slot_command(SHPCDevice *shpc, uint8_t target,
             shpc_set_status(shpc, slot, SHPC_SLOT_STATUS_PRSNT_EMPTY,
                             SHPC_SLOT_STATUS_PRSNT_MASK);
             shpc->config[SHPC_SLOT_EVENT_LATCH(slot)] |=
-                SHPC_SLOT_EVENT_BUTTON |
                 SHPC_SLOT_EVENT_MRL |
                 SHPC_SLOT_EVENT_PRESENCE;
         }
@@ -566,7 +565,6 @@ void shpc_device_unplug_request_cb(HotplugHandler *hotplug_dev,
         return;
     }
 
-    shpc->config[SHPC_SLOT_EVENT_LATCH(slot)] |= SHPC_SLOT_EVENT_BUTTON;
     state = shpc_get_status(shpc, slot, SHPC_SLOT_STATE_MASK);
     led = shpc_get_status(shpc, slot, SHPC_SLOT_PWR_LED_MASK);
     if (state == SHPC_STATE_DISABLED && led == SHPC_LED_OFF) {
@@ -577,6 +575,8 @@ void shpc_device_unplug_request_cb(HotplugHandler *hotplug_dev,
         shpc->config[SHPC_SLOT_EVENT_LATCH(slot)] |=
             SHPC_SLOT_EVENT_MRL |
             SHPC_SLOT_EVENT_PRESENCE;
+    } else {
+        shpc->config[SHPC_SLOT_EVENT_LATCH(slot)] |= SHPC_SLOT_EVENT_BUTTON;
     }
     shpc_set_status(shpc, slot, 0, SHPC_SLOT_STATUS_66);
     shpc_interrupt_update(pci_hotplug_dev);
