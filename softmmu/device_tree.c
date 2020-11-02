@@ -526,7 +526,7 @@ int qemu_fdt_add_subnode(void *fdt, const char *name)
 
 void qemu_fdt_dumpdtb(void *fdt, int size)
 {
-    const char *dumpdtb = qemu_opt_get(qemu_get_machine_opts(), "dumpdtb");
+    const char *dumpdtb = current_machine->dumpdtb;
 
     if (dumpdtb) {
         /* Dump the dtb to a file and quit */

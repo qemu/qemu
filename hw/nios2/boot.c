@@ -39,6 +39,7 @@
 #include "sysemu/device_tree.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
+#include "hw/boards.h"
 #include "hw/loader.h"
 #include "elf.h"
 
@@ -120,16 +121,14 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
                             const char *dtb_filename,
                             void (*machine_cpu_reset)(Nios2CPU *))
 {
-    QemuOpts *machine_opts;
     const char *kernel_filename;
     const char *kernel_cmdline;
     const char *dtb_arg;
     char *filename = NULL;
 
-    machine_opts = qemu_get_machine_opts();
-    kernel_filename = qemu_opt_get(machine_opts, "kernel");
-    kernel_cmdline = qemu_opt_get(machine_opts, "append");
-    dtb_arg = qemu_opt_get(machine_opts, "dtb");
+    kernel_filename = current_machine->kernel_filename;
+    kernel_cmdline = current_machine->kernel_cmdline;
+    dtb_arg = current_machine->dtb;
     /* default to pcbios dtb as passed by machine_init */
     if (!dtb_arg) {
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, dtb_filename);

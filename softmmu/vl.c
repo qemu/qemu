@@ -481,7 +481,7 @@ static QemuOptsList qemu_fw_cfg_opts = {
  *
  * Returns: machine options (never null).
  */
-QemuOpts *qemu_get_machine_opts(void)
+static QemuOpts *qemu_get_machine_opts(void)
 {
     return qemu_find_opts_singleton("machine");
 }

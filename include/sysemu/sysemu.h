@@ -104,8 +104,6 @@ typedef void QEMUBootSetHandler(void *opaque, const char *boot_order,
 void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque);
 void qemu_boot_set(const char *boot_order, Error **errp);
 
-QemuOpts *qemu_get_machine_opts(void);
-
 bool defaults_enabled(void);
 
 void qemu_init(int argc, char **argv, char **envp);
