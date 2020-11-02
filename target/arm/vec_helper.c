@@ -1858,10 +1858,10 @@ DO_ABA(gvec_uaba_d, uint64_t)
         r2 = float16_##OP(m[H2(0)], m[H2(1)], fpst);                    \
         r3 = float16_##OP(m[H2(2)], m[H2(3)], fpst);                    \
                                                                         \
-        d[H4(0)] = r0;                                                  \
-        d[H4(1)] = r1;                                                  \
-        d[H4(2)] = r2;                                                  \
-        d[H4(3)] = r3;                                                  \
+        d[H2(0)] = r0;                                                  \
+        d[H2(1)] = r1;                                                  \
+        d[H2(2)] = r2;                                                  \
+        d[H2(3)] = r3;                                                  \
     }
 
 DO_NEON_PAIRWISE(neon_padd, add)
