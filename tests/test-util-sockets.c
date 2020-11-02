@@ -261,6 +261,24 @@ static gpointer unix_client_thread_func(gpointer user_data)
     return NULL;
 }
 
+static void test_socket_unix_abstract_one(SocketAddress *addr)
+{
+    GThread *serv, *cli;
+
+    serv = g_thread_new("abstract_unix_server",
+                        unix_server_thread_func,
+                        addr);
+
+    sleep(1);
+
+    cli = g_thread_new("abstract_unix_client",
+                       unix_client_thread_func,
+                       addr);
+
+    g_thread_join(cli);
+    g_thread_join(serv);
+}
+
 static void test_socket_unix_abstract_good(void)
 {
     SocketAddress addr;
@@ -272,40 +290,14 @@ static void test_socket_unix_abstract_good(void)
     addr.u.q_unix.abstract = true;
 
     /* non tight socklen serv and cli */
-
     addr.u.q_unix.has_tight = false;
     addr.u.q_unix.tight = false;
-
-    GThread *serv = g_thread_new("abstract_unix_server",
-                                 unix_server_thread_func,
-                                 &addr);
-
-    sleep(1);
-
-    GThread *cli = g_thread_new("abstract_unix_client",
-                                unix_client_thread_func,
-                                &addr);
-
-    g_thread_join(cli);
-    g_thread_join(serv);
+    test_socket_unix_abstract_one(&addr);
 
     /* tight socklen serv and cli */
-
     addr.u.q_unix.has_tight = true;
     addr.u.q_unix.tight = true;
-
-    serv = g_thread_new("abstract_unix_server",
-                        unix_server_thread_func,
-                        &addr);
-
-    sleep(1);
-
-    cli = g_thread_new("abstract_unix_client",
-                       unix_client_thread_func,
-                       &addr);
-
-    g_thread_join(cli);
-    g_thread_join(serv);
+    test_socket_unix_abstract_one(&addr);
 
     g_free(addr.u.q_unix.path);
 }
