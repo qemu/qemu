@@ -341,6 +341,8 @@ static void fill_entry(struct fuse_entry_out *arg,
         .attr_valid_nsec = calc_timeout_nsec(e->attr_timeout),
     };
     convert_stat(&e->attr, &arg->attr);
+
+    arg->attr.flags = e->attr_flags;
 }
 
 /*
@@ -1987,6 +1989,9 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
         if (bufsize > max_bufsize) {
             bufsize = max_bufsize;
         }
+    }
+    if (arg->flags & FUSE_SUBMOUNTS) {
+        se->conn.capable |= FUSE_CAP_SUBMOUNTS;
     }
 #ifdef HAVE_SPLICE
 #ifdef HAVE_VMSPLICE
