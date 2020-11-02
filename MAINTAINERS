@@ -1138,12 +1138,6 @@ S: Orphaned
 F: hw/mips/mipssim.c
 F: hw/net/mipsnet.c
 
-R4000
-R: Aurelien Jarno <aurelien@aurel32.net>
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
-S: Obsolete
-F: hw/mips/r4k.c
-
 Fuloong 2E
 M: Huacai Chen <chenhc@lemote.com>
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>

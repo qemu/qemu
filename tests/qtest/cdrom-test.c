@@ -217,7 +217,7 @@ int main(int argc, char **argv)
         add_cdrom_param_tests(sparc64machines);
     } else if (!strncmp(arch, "mips64", 6)) {
         const char *mips64machines[] = {
-            "magnum", "malta", "mips", "pica61", NULL
+            "magnum", "malta", "pica61", NULL
         };
         add_cdrom_param_tests(mips64machines);
     } else if (g_str_equal(arch, "arm") || g_str_equal(arch, "aarch64")) {
