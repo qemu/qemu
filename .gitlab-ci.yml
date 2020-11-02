@@ -417,3 +417,17 @@ check-dco:
       - $CI_PROJECT_NAMESPACE == 'qemu-project' && $CI_COMMIT_BRANCH == 'master'
   variables:
     GIT_DEPTH: 1000
+
+pages:
+  image: $CI_REGISTRY_IMAGE/qemu/ubuntu2004:latest
+  stage: test
+  needs:
+    - job: build-system-ubuntu
+      artifacts: true
+  script:
+    - mkdir public
+    - mv build/docs/index.html public/
+    - for i in devel interop specs system tools user ; do mv build/docs/$i public/ ; done
+  artifacts:
+    paths:
+      - public
