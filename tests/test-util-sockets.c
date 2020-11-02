@@ -243,7 +243,9 @@ static gpointer unix_server_thread_func(gpointer user_data)
 
     addr.type = SOCKET_ADDRESS_TYPE_UNIX;
     addr.u.q_unix.path = abstract_sock_name;
+    addr.u.q_unix.has_tight = true;
     addr.u.q_unix.tight = user_data != NULL;
+    addr.u.q_unix.has_abstract = true;
     addr.u.q_unix.abstract = true;
 
     fd = socket_listen(&addr, 1, &err);
@@ -267,7 +269,9 @@ static gpointer unix_client_thread_func(gpointer user_data)
 
     addr.type = SOCKET_ADDRESS_TYPE_UNIX;
     addr.u.q_unix.path = abstract_sock_name;
+    addr.u.q_unix.has_tight = true;
     addr.u.q_unix.tight = user_data != NULL;
+    addr.u.q_unix.has_abstract = true;
     addr.u.q_unix.abstract = true;
 
     fd = socket_connect(&addr, &err);
