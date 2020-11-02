@@ -230,25 +230,15 @@ static void test_socket_fd_pass_num_nocli(void)
 #endif
 
 #ifdef __linux__
-static gchar *abstract_sock_name;
-
 static gpointer unix_server_thread_func(gpointer user_data)
 {
-    SocketAddress addr;
-    Error *err = NULL;
-    int fd = -1;
-    int connfd = -1;
+    SocketAddress *addr = user_data;
+    int fd;
+    int connfd;
     struct sockaddr_un un;
     socklen_t len = sizeof(un);
 
-    addr.type = SOCKET_ADDRESS_TYPE_UNIX;
-    addr.u.q_unix.path = abstract_sock_name;
-    addr.u.q_unix.has_tight = true;
-    addr.u.q_unix.tight = user_data != NULL;
-    addr.u.q_unix.has_abstract = true;
-    addr.u.q_unix.abstract = true;
-
-    fd = socket_listen(&addr, 1, &err);
+    fd = socket_listen(addr, 1, &error_abort);
     g_assert_cmpint(fd, >=, 0);
     g_assert(fd_is_socket(fd));
 
@@ -257,69 +247,67 @@ static gpointer unix_server_thread_func(gpointer user_data)
     close(connfd);
 
     close(fd);
-
     return NULL;
 }
 
 static gpointer unix_client_thread_func(gpointer user_data)
 {
-    SocketAddress addr;
-    Error *err = NULL;
-    int fd = -1;
+    SocketAddress *addr = user_data;
+    int fd;
 
-    addr.type = SOCKET_ADDRESS_TYPE_UNIX;
-    addr.u.q_unix.path = abstract_sock_name;
-    addr.u.q_unix.has_tight = true;
-    addr.u.q_unix.tight = user_data != NULL;
-    addr.u.q_unix.has_abstract = true;
-    addr.u.q_unix.abstract = true;
-
-    fd = socket_connect(&addr, &err);
-
+    fd = socket_connect(addr, &error_abort);
     g_assert_cmpint(fd, >=, 0);
-
     close(fd);
-
     return NULL;
 }
 
 static void test_socket_unix_abstract_good(void)
 {
-    GRand *r = g_rand_new();
+    SocketAddress addr;
 
-    abstract_sock_name = g_strdup_printf("unix-%d-%d", getpid(),
-                                         g_rand_int_range(r, 100, 1000));
+    addr.type = SOCKET_ADDRESS_TYPE_UNIX;
+    addr.u.q_unix.path = g_strdup_printf("unix-%d-%u",
+                                         getpid(), g_random_int());
+    addr.u.q_unix.has_abstract = true;
+    addr.u.q_unix.abstract = true;
 
     /* non tight socklen serv and cli */
+
+    addr.u.q_unix.has_tight = false;
+    addr.u.q_unix.tight = false;
+
     GThread *serv = g_thread_new("abstract_unix_server",
                                  unix_server_thread_func,
-                                 NULL);
+                                 &addr);
 
     sleep(1);
 
     GThread *cli = g_thread_new("abstract_unix_client",
                                 unix_client_thread_func,
-                                NULL);
+                                &addr);
 
     g_thread_join(cli);
     g_thread_join(serv);
 
     /* tight socklen serv and cli */
+
+    addr.u.q_unix.has_tight = true;
+    addr.u.q_unix.tight = true;
+
     serv = g_thread_new("abstract_unix_server",
                         unix_server_thread_func,
-                        (gpointer)1);
+                        &addr);
 
     sleep(1);
 
     cli = g_thread_new("abstract_unix_client",
                        unix_client_thread_func,
-                       (gpointer)1);
+                       &addr);
 
     g_thread_join(cli);
     g_thread_join(serv);
 
-    g_free(abstract_sock_name);
-    g_rand_free(r);
+    g_free(addr.u.q_unix.path);
 }
 #endif
 
