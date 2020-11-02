@@ -1137,26 +1137,16 @@ static inline long vfp_reg_offset(bool dp, unsigned reg)
     }
 }
 
-/* Return the offset of a 32-bit piece of a NEON register.
-   zero is the least significant end of the register.  */
-static inline long
-neon_reg_offset (int reg, int n)
-{
-    int sreg;
-    sreg = reg * 2 + n;
-    return vfp_reg_offset(0, sreg);
-}
-
 static TCGv_i32 neon_load_reg(int reg, int pass)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_ld_i32(tmp, cpu_env, neon_reg_offset(reg, pass));
+    tcg_gen_ld_i32(tmp, cpu_env, neon_element_offset(reg, pass, MO_32));
     return tmp;
 }
 
 static void neon_store_reg(int reg, int pass, TCGv_i32 var)
 {
-    tcg_gen_st_i32(var, cpu_env, neon_reg_offset(reg, pass));
+    tcg_gen_st_i32(var, cpu_env, neon_element_offset(reg, pass, MO_32));
     tcg_temp_free_i32(var);
 }
 
