@@ -511,11 +511,9 @@ static bool trans_VMOV_to_gp(DisasContext *s, arg_VMOV_to_gp *a)
 {
     /* VMOV scalar to general purpose register */
     TCGv_i32 tmp;
-    int pass;
-    uint32_t offset;
 
-    /* SIZE == 2 is a VFP instruction; otherwise NEON.  */
-    if (a->size == 2
+    /* SIZE == MO_32 is a VFP instruction; otherwise NEON.  */
+    if (a->size == MO_32
         ? !dc_isar_feature(aa32_fpsp_v2, s)
         : !arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -526,44 +524,12 @@ static bool trans_VMOV_to_gp(DisasContext *s, arg_VMOV_to_gp *a)
         return false;
     }
 
-    offset = a->index << a->size;
-    pass = extract32(offset, 2, 1);
-    offset = extract32(offset, 0, 2) * 8;
-
     if (!vfp_access_check(s)) {
         return true;
     }
 
-    tmp = neon_load_reg(a->vn, pass);
-    switch (a->size) {
-    case 0:
-        if (offset) {
-            tcg_gen_shri_i32(tmp, tmp, offset);
-        }
-        if (a->u) {
-            gen_uxtb(tmp);
-        } else {
-            gen_sxtb(tmp);
-        }
-        break;
-    case 1:
-        if (a->u) {
-            if (offset) {
-                tcg_gen_shri_i32(tmp, tmp, 16);
-            } else {
-                gen_uxth(tmp);
-            }
-        } else {
-            if (offset) {
-                tcg_gen_sari_i32(tmp, tmp, 16);
-            } else {
-                gen_sxth(tmp);
-            }
-        }
-        break;
-    case 2:
-        break;
-    }
+    tmp = tcg_temp_new_i32();
+    read_neon_element32(tmp, a->vn, a->index, a->size | (a->u ? 0 : MO_SIGN));
     store_reg(s, a->rt, tmp);
 
     return true;
@@ -572,12 +538,10 @@ static bool trans_VMOV_to_gp(DisasContext *s, arg_VMOV_to_gp *a)
 static bool trans_VMOV_from_gp(DisasContext *s, arg_VMOV_from_gp *a)
 {
     /* VMOV general purpose register to scalar */
-    TCGv_i32 tmp, tmp2;
-    int pass;
-    uint32_t offset;
+    TCGv_i32 tmp;
 
-    /* SIZE == 2 is a VFP instruction; otherwise NEON.  */
-    if (a->size == 2
+    /* SIZE == MO_32 is a VFP instruction; otherwise NEON.  */
+    if (a->size == MO_32
         ? !dc_isar_feature(aa32_fpsp_v2, s)
         : !arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -588,30 +552,13 @@ static bool trans_VMOV_from_gp(DisasContext *s, arg_VMOV_from_gp *a)
         return false;
     }
 
-    offset = a->index << a->size;
-    pass = extract32(offset, 2, 1);
-    offset = extract32(offset, 0, 2) * 8;
-
     if (!vfp_access_check(s)) {
         return true;
     }
 
     tmp = load_reg(s, a->rt);
-    switch (a->size) {
-    case 0:
-        tmp2 = neon_load_reg(a->vn, pass);
-        tcg_gen_deposit_i32(tmp, tmp2, tmp, offset, 8);
-        tcg_temp_free_i32(tmp2);
-        break;
-    case 1:
-        tmp2 = neon_load_reg(a->vn, pass);
-        tcg_gen_deposit_i32(tmp, tmp2, tmp, offset, 16);
-        tcg_temp_free_i32(tmp2);
-        break;
-    case 2:
-        break;
-    }
-    neon_store_reg(a->vn, pass, tmp);
+    write_neon_element32(tmp, a->vn, a->index, a->size);
+    tcg_temp_free_i32(tmp);
 
     return true;
 }
