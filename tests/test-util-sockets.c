@@ -229,7 +229,7 @@ static void test_socket_fd_pass_num_nocli(void)
 }
 #endif
 
-#ifdef __linux__
+#ifdef CONFIG_LINUX
 
 #define ABSTRACT_SOCKET_VARIANTS 3
 
@@ -326,7 +326,8 @@ static void test_socket_unix_abstract(void)
 
     g_free(addr.u.q_unix.path);
 }
-#endif
+
+#endif  /* CONFIG_LINUX */
 
 int main(int argc, char **argv)
 {
@@ -368,7 +369,7 @@ int main(int argc, char **argv)
 #endif
     }
 
-#ifdef __linux__
+#ifdef CONFIG_LINUX
     g_test_add_func("/util/socket/unix-abstract",
                     test_socket_unix_abstract);
 #endif

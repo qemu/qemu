@@ -447,12 +447,14 @@ static char *qemu_chr_socket_address(SocketChardev *s, const char *prefix)
         const char *tight = "", *abstract = "";
         UnixSocketAddress *sa = &s->addr->u.q_unix;
 
+#ifdef CONFIG_LINUX
         if (sa->has_abstract && sa->abstract) {
             abstract = ",abstract";
             if (sa->has_tight && sa->tight) {
                 tight = ",tight";
             }
         }
+#endif
 
         return g_strdup_printf("%sunix:%s%s%s%s", prefix, sa->path,
                                abstract, tight,
@@ -1398,8 +1400,10 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     const char *host = qemu_opt_get(opts, "host");
     const char *port = qemu_opt_get(opts, "port");
     const char *fd = qemu_opt_get(opts, "fd");
+#ifdef CONFIG_LINUX
     bool tight = qemu_opt_get_bool(opts, "tight", true);
     bool abstract = qemu_opt_get_bool(opts, "abstract", false);
+#endif
     SocketAddressLegacy *addr;
     ChardevSocket *sock;
 
@@ -1451,10 +1455,12 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
         addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
         q_unix = addr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
         q_unix->path = g_strdup(path);
+#ifdef CONFIG_LINUX
         q_unix->has_tight = true;
         q_unix->tight = tight;
         q_unix->has_abstract = true;
         q_unix->abstract = abstract;
+#endif
     } else if (host) {
         addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
         addr->u.inet.data = g_new(InetSocketAddress, 1);

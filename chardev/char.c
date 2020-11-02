@@ -928,6 +928,7 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "logappend",
             .type = QEMU_OPT_BOOL,
+#ifdef CONFIG_LINUX
         },{
             .name = "tight",
             .type = QEMU_OPT_BOOL,
@@ -935,6 +936,7 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "abstract",
             .type = QEMU_OPT_BOOL,
+#endif
         },
         { /* end of list */ }
     },
