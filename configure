@@ -3499,7 +3499,7 @@ if $pkg_config --atleast-version=$glib_req_ver gio-2.0; then
     # with pkg-config --static --libs data for gio-2.0 that is missing
     # -lblkid and will give a link error.
     write_c_skeleton
-    if compile_prog "" "gio_libs" ; then
+    if compile_prog "" "$gio_libs" ; then
         gio=yes
     else
         gio=no
