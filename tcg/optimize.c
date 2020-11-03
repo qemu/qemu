@@ -1484,29 +1484,28 @@ void tcg_optimize(TCGContext *s)
                     }
                 }
             }
-            /* fall through */
+            goto do_reset_output;
 
         default:
         do_default:
-            /*
-             * Default case: we know nothing about operation (or were unable
-             * to compute the operation result) so no propagation is done.
-             */
-            for (i = 0; i < nb_oargs; i++) {
-                reset_temp(op->args[i]);
-                /*
-                 * Save the corresponding known-zero bits mask for the
-                 * first output argument (only one supported so far).
-                 */
-                if (i == 0) {
-                    arg_info(op->args[i])->mask = mask;
+            /* Default case: we know nothing about operation (or were unable
+               to compute the operation result) so no propagation is done.
+               We trash everything if the operation is the end of a basic
+               block, otherwise we only trash the output args.  "mask" is
+               the non-zero bits mask for the first output arg.  */
+            if (def->flags & TCG_OPF_BB_END) {
+                bitmap_zero(temps_used.l, nb_temps);
+            } else {
+        do_reset_output:
+                for (i = 0; i < nb_oargs; i++) {
+                    reset_temp(op->args[i]);
+                    /* Save the corresponding known-zero bits mask for the
+                       first output argument (only one supported so far). */
+                    if (i == 0) {
+                        arg_info(op->args[i])->mask = mask;
+                    }
                 }
             }
-            break;
-
-        case INDEX_op_set_label:
-            /* Trash everything at the start of a new extended bb. */
-            bitmap_zero(temps_used.l, nb_temps);
             break;
         }
 
