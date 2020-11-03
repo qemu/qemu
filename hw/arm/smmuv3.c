@@ -17,6 +17,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -864,7 +865,7 @@ static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
         scale = CMD_SCALE(cmd);
         num = CMD_NUM(cmd);
         ttl = CMD_TTL(cmd);
-        num_pages = (num + 1) * (1 << (scale));
+        num_pages = (num + 1) * BIT_ULL(scale);
     }
 
     if (type == SMMU_CMD_TLBI_NH_VA) {

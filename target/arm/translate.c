@@ -1094,62 +1094,139 @@ static inline void gen_hlt(DisasContext *s, int imm)
     unallocated_encoding(s);
 }
 
-static inline long vfp_reg_offset(bool dp, unsigned reg)
+/*
+ * Return the offset of a "full" NEON Dreg.
+ */
+static long neon_full_reg_offset(unsigned reg)
+{
+    return offsetof(CPUARMState, vfp.zregs[reg >> 1].d[reg & 1]);
+}
+
+/*
+ * Return the offset of a 2**SIZE piece of a NEON register, at index ELE,
+ * where 0 is the least significant end of the register.
+ */
+static long neon_element_offset(int reg, int element, MemOp memop)
+{
+    int element_size = 1 << (memop & MO_SIZE);
+    int ofs = element * element_size;
+#ifdef HOST_WORDS_BIGENDIAN
+    /*
+     * Calculate the offset assuming fully little-endian,
+     * then XOR to account for the order of the 8-byte units.
+     */
+    if (element_size < 8) {
+        ofs ^= 8 - element_size;
+    }
+#endif
+    return neon_full_reg_offset(reg) + ofs;
+}
+
+/* Return the offset of a VFP Dreg (dp = true) or VFP Sreg (dp = false). */
+static long vfp_reg_offset(bool dp, unsigned reg)
 {
     if (dp) {
-        return offsetof(CPUARMState, vfp.zregs[reg >> 1].d[reg & 1]);
+        return neon_element_offset(reg, 0, MO_64);
     } else {
-        long ofs = offsetof(CPUARMState, vfp.zregs[reg >> 2].d[(reg >> 1) & 1]);
-        if (reg & 1) {
-            ofs += offsetof(CPU_DoubleU, l.upper);
-        } else {
-            ofs += offsetof(CPU_DoubleU, l.lower);
-        }
-        return ofs;
+        return neon_element_offset(reg >> 1, reg & 1, MO_32);
     }
 }
 
-/* Return the offset of a 32-bit piece of a NEON register.
-   zero is the least significant end of the register.  */
-static inline long
-neon_reg_offset (int reg, int n)
+static inline void vfp_load_reg64(TCGv_i64 var, int reg)
 {
-    int sreg;
-    sreg = reg * 2 + n;
-    return vfp_reg_offset(0, sreg);
+    tcg_gen_ld_i64(var, cpu_env, vfp_reg_offset(true, reg));
 }
 
-static TCGv_i32 neon_load_reg(int reg, int pass)
+static inline void vfp_store_reg64(TCGv_i64 var, int reg)
 {
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_ld_i32(tmp, cpu_env, neon_reg_offset(reg, pass));
-    return tmp;
+    tcg_gen_st_i64(var, cpu_env, vfp_reg_offset(true, reg));
 }
 
-static void neon_store_reg(int reg, int pass, TCGv_i32 var)
-{
-    tcg_gen_st_i32(var, cpu_env, neon_reg_offset(reg, pass));
-    tcg_temp_free_i32(var);
-}
-
-static inline void neon_load_reg64(TCGv_i64 var, int reg)
-{
-    tcg_gen_ld_i64(var, cpu_env, vfp_reg_offset(1, reg));
-}
-
-static inline void neon_store_reg64(TCGv_i64 var, int reg)
-{
-    tcg_gen_st_i64(var, cpu_env, vfp_reg_offset(1, reg));
-}
-
-static inline void neon_load_reg32(TCGv_i32 var, int reg)
+static inline void vfp_load_reg32(TCGv_i32 var, int reg)
 {
     tcg_gen_ld_i32(var, cpu_env, vfp_reg_offset(false, reg));
 }
 
-static inline void neon_store_reg32(TCGv_i32 var, int reg)
+static inline void vfp_store_reg32(TCGv_i32 var, int reg)
 {
     tcg_gen_st_i32(var, cpu_env, vfp_reg_offset(false, reg));
+}
+
+static void read_neon_element32(TCGv_i32 dest, int reg, int ele, MemOp memop)
+{
+    long off = neon_element_offset(reg, ele, memop);
+
+    switch (memop) {
+    case MO_SB:
+        tcg_gen_ld8s_i32(dest, cpu_env, off);
+        break;
+    case MO_UB:
+        tcg_gen_ld8u_i32(dest, cpu_env, off);
+        break;
+    case MO_SW:
+        tcg_gen_ld16s_i32(dest, cpu_env, off);
+        break;
+    case MO_UW:
+        tcg_gen_ld16u_i32(dest, cpu_env, off);
+        break;
+    case MO_UL:
+    case MO_SL:
+        tcg_gen_ld_i32(dest, cpu_env, off);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void read_neon_element64(TCGv_i64 dest, int reg, int ele, MemOp memop)
+{
+    long off = neon_element_offset(reg, ele, memop);
+
+    switch (memop) {
+    case MO_SL:
+        tcg_gen_ld32s_i64(dest, cpu_env, off);
+        break;
+    case MO_UL:
+        tcg_gen_ld32u_i64(dest, cpu_env, off);
+        break;
+    case MO_Q:
+        tcg_gen_ld_i64(dest, cpu_env, off);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void write_neon_element32(TCGv_i32 src, int reg, int ele, MemOp memop)
+{
+    long off = neon_element_offset(reg, ele, memop);
+
+    switch (memop) {
+    case MO_8:
+        tcg_gen_st8_i32(src, cpu_env, off);
+        break;
+    case MO_16:
+        tcg_gen_st16_i32(src, cpu_env, off);
+        break;
+    case MO_32:
+        tcg_gen_st_i32(src, cpu_env, off);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void write_neon_element64(TCGv_i64 src, int reg, int ele, MemOp memop)
+{
+    long off = neon_element_offset(reg, ele, memop);
+
+    switch (memop) {
+    case MO_64:
+        tcg_gen_st_i64(src, cpu_env, off);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 static TCGv_ptr vfp_reg_ptr(bool dp, int reg)
