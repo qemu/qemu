@@ -168,6 +168,7 @@ read_authkeys(const char *path, Error **errp)
 
 void
 qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
+                                  bool has_reset, bool reset,
                                   Error **errp)
 {
     g_autofree struct passwd *p = NULL;
@@ -178,6 +179,7 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
     size_t nkeys, nauthkeys;
 
     ERRP_GUARD();
+    reset = has_reset && reset;
 
     if (!check_openssh_pub_keys(keys, &nkeys, errp)) {
         return;
@@ -191,7 +193,9 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
     ssh_path = g_build_filename(p->pw_dir, ".ssh", NULL);
     authkeys_path = g_build_filename(ssh_path, "authorized_keys", NULL);
 
-    authkeys = read_authkeys(authkeys_path, NULL);
+    if (!reset) {
+        authkeys = read_authkeys(authkeys_path, NULL);
+    }
     if (authkeys == NULL) {
         if (!g_file_test(ssh_path, G_FILE_TEST_IS_DIR) &&
             !mkdir_for_user(ssh_path, p, 0700, errp)) {
@@ -318,7 +322,7 @@ test_invalid_user(void)
 {
     Error *err = NULL;
 
-    qmp_guest_ssh_add_authorized_keys("", NULL, &err);
+    qmp_guest_ssh_add_authorized_keys("", NULL, FALSE, FALSE, &err);
     error_free_or_abort(&err);
 
     qmp_guest_ssh_remove_authorized_keys("", NULL, &err);
@@ -333,7 +337,8 @@ test_invalid_key(void)
     };
     Error *err = NULL;
 
-    qmp_guest_ssh_add_authorized_keys(g_get_user_name(), &key, &err);
+    qmp_guest_ssh_add_authorized_keys(g_get_user_name(), &key,
+                                      FALSE, FALSE, &err);
     error_free_or_abort(&err);
 
     qmp_guest_ssh_remove_authorized_keys(g_get_user_name(), &key, &err);
@@ -346,18 +351,55 @@ test_add_keys(void)
     Error *err = NULL;
 
     qmp_guest_ssh_add_authorized_keys(g_get_user_name(),
-                                      (strList *)&test_key2, &err);
+                                      (strList *)&test_key2,
+                                      FALSE, FALSE,
+                                      &err);
     g_assert(err == NULL);
 
     test_authorized_keys_equal("algo key2 comments");
 
     qmp_guest_ssh_add_authorized_keys(g_get_user_name(),
-                                      (strList *)&test_key1_2, &err);
+                                      (strList *)&test_key1_2,
+                                      FALSE, FALSE,
+                                      &err);
     g_assert(err == NULL);
 
     /*  key2 came first, and should'nt be duplicated */
     test_authorized_keys_equal("algo key2 comments\n"
                                "algo key1 comments");
+}
+
+static void
+test_add_reset_keys(void)
+{
+    Error *err = NULL;
+
+    qmp_guest_ssh_add_authorized_keys(g_get_user_name(),
+                                      (strList *)&test_key1_2,
+                                      FALSE, FALSE,
+                                      &err);
+    g_assert(err == NULL);
+
+    /* reset with key2 only */
+    test_authorized_keys_equal("algo key1 comments\n"
+                               "algo key2 comments");
+
+    qmp_guest_ssh_add_authorized_keys(g_get_user_name(),
+                                      (strList *)&test_key2,
+                                      TRUE, TRUE,
+                                      &err);
+    g_assert(err == NULL);
+
+    test_authorized_keys_equal("algo key2 comments");
+
+    /* empty should clear file */
+    qmp_guest_ssh_add_authorized_keys(g_get_user_name(),
+                                      (strList *)NULL,
+                                      TRUE, TRUE,
+                                      &err);
+    g_assert(err == NULL);
+
+    test_authorized_keys_equal("");
 }
 
 static void
@@ -393,6 +435,7 @@ int main(int argc, char *argv[])
     g_test_add_func("/qga/ssh/invalid_user", test_invalid_user);
     g_test_add_func("/qga/ssh/invalid_key", test_invalid_key);
     g_test_add_func("/qga/ssh/add_keys", test_add_keys);
+    g_test_add_func("/qga/ssh/add_reset_keys", test_add_reset_keys);
     g_test_add_func("/qga/ssh/remove_keys", test_remove_keys);
 
     return g_test_run();

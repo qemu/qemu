@@ -1352,6 +1352,7 @@
 #
 # @username: the user account to add the authorized keys
 # @keys: the public keys to add (in OpenSSH/sshd(8) authorized_keys format)
+# @reset: ignore the existing content, set it with the given keys only
 #
 # Append public keys to user .ssh/authorized_keys on Unix systems (not
 # implemented for other systems).
@@ -1361,7 +1362,7 @@
 # Since: 5.2
 ##
 { 'command': 'guest-ssh-add-authorized-keys',
-  'data': { 'username': 'str', 'keys': ['str'] },
+  'data': { 'username': 'str', 'keys': ['str'], '*reset': 'bool' },
   'if': 'defined(CONFIG_POSIX)' }
 
 ##
