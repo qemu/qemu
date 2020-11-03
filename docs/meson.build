@@ -27,7 +27,8 @@ if sphinx_build.found()
   build_docs = (sphinx_build_test_out.returncode() == 0)
 
   if not build_docs
-    warning('@0@ exists but it is either too old or uses too old a Python version'.format(get_option('sphinx_build')))
+    warning('@0@ is either too old or uses too old a Python version'
+            .format(sphinx_build.full_path()))
     if get_option('docs').enabled()
       error('Install a Python 3 version of python-sphinx')
     endif
