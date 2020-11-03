@@ -673,7 +673,8 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
         return;
     }
 
-    if (blk_get_on_error(s->conf.blk, 0) != BLOCKDEV_ON_ERROR_ENOSPC) {
+    if (blk_get_on_error(s->conf.blk, 0) != BLOCKDEV_ON_ERROR_ENOSPC &&
+        blk_get_on_error(s->conf.blk, 0) != BLOCKDEV_ON_ERROR_REPORT) {
         error_setg(errp, "Device doesn't support drive option werror");
         return;
     }
