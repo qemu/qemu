@@ -166,6 +166,8 @@ void *qemu_vfio_pci_map_bar(QEMUVFIOState *s, int index,
     p = mmap(NULL, MIN(size, s->bar_region_info[index].size - offset),
              prot, MAP_SHARED,
              s->device, s->bar_region_info[index].offset + offset);
+    trace_qemu_vfio_pci_map_bar(index, s->bar_region_info[index].offset ,
+                                size, offset, p);
     if (p == MAP_FAILED) {
         error_setg_errno(errp, errno, "Failed to map BAR region");
         p = NULL;
