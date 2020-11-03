@@ -78,6 +78,7 @@ ERST
         .help       = "resize a block image",
         .cmd        = hmp_block_resize,
         .coroutine  = true,
+        .flags      = "p",
     },
 
 SRST
@@ -94,6 +95,7 @@ ERST
         .params     = "device [speed [base]]",
         .help       = "copy data from a backing file into a block device",
         .cmd        = hmp_block_stream,
+        .flags      = "p",
     },
 
 SRST
@@ -107,6 +109,7 @@ ERST
         .params     = "device speed",
         .help       = "set maximum speed for a background block operation",
         .cmd        = hmp_block_job_set_speed,
+        .flags      = "p",
     },
 
 SRST
@@ -122,6 +125,7 @@ ERST
                       "\n\t\t\t if you want to abort the operation immediately"
                       "\n\t\t\t instead of keep running until data is in sync)",
         .cmd        = hmp_block_job_cancel,
+        .flags      = "p",
     },
 
 SRST
@@ -135,6 +139,7 @@ ERST
         .params     = "device",
         .help       = "stop an active background block operation",
         .cmd        = hmp_block_job_complete,
+        .flags      = "p",
     },
 
 SRST
@@ -149,6 +154,7 @@ ERST
         .params     = "device",
         .help       = "pause an active background block operation",
         .cmd        = hmp_block_job_pause,
+        .flags      = "p",
     },
 
 SRST
@@ -162,6 +168,7 @@ ERST
         .params     = "device",
         .help       = "resume a paused background block operation",
         .cmd        = hmp_block_job_resume,
+        .flags      = "p",
     },
 
 SRST
@@ -1406,6 +1413,7 @@ ERST
         .params     = "nbd_server_start [-a] [-w] host:port",
         .help       = "serve block devices on the given host and port",
         .cmd        = hmp_nbd_server_start,
+        .flags      = "p",
     },
 SRST
 ``nbd_server_start`` *host*:*port*
@@ -1421,6 +1429,7 @@ ERST
         .params     = "nbd_server_add [-w] device [name]",
         .help       = "export a block device via NBD",
         .cmd        = hmp_nbd_server_add,
+        .flags      = "p",
     },
 SRST
 ``nbd_server_add`` *device* [ *name* ]
@@ -1436,6 +1445,7 @@ ERST
         .params     = "nbd_server_remove [-f] name",
         .help       = "remove an export previously exposed via NBD",
         .cmd        = hmp_nbd_server_remove,
+        .flags      = "p",
     },
 SRST
 ``nbd_server_remove [-f]`` *name*
@@ -1452,6 +1462,7 @@ ERST
         .params     = "nbd_server_stop",
         .help       = "stop serving block devices using the NBD protocol",
         .cmd        = hmp_nbd_server_stop,
+        .flags      = "p",
     },
 SRST
 ``nbd_server_stop``
@@ -1481,6 +1492,7 @@ ERST
         .params     = "getfd name",
         .help       = "receive a file descriptor via SCM rights and assign it a name",
         .cmd        = hmp_getfd,
+        .flags      = "p",
     },
 
 SRST
@@ -1496,6 +1508,7 @@ ERST
         .params     = "closefd name",
         .help       = "close a file descriptor previously passed via SCM rights",
         .cmd        = hmp_closefd,
+        .flags      = "p",
     },
 
 SRST
@@ -1511,6 +1524,7 @@ ERST
         .params     = "device bps bps_rd bps_wr iops iops_rd iops_wr",
         .help       = "change I/O throttle limits for a block drive",
         .cmd        = hmp_block_set_io_throttle,
+        .flags      = "p",
     },
 
 SRST

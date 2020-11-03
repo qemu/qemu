@@ -496,7 +496,8 @@
 # <- { "return": {} }
 ##
 { 'command': 'block_set_io_throttle', 'boxed': true,
-  'data': 'BlockIOThrottle' }
+  'data': 'BlockIOThrottle',
+  'allow-preconfig': true }
 
 ##
 # @block-latency-histogram-set:
@@ -572,4 +573,5 @@
            '*boundaries': ['uint64'],
            '*boundaries-read': ['uint64'],
            '*boundaries-write': ['uint64'],
-           '*boundaries-flush': ['uint64'] } }
+           '*boundaries-flush': ['uint64'] },
+  'allow-preconfig': true }
