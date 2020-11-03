@@ -229,94 +229,105 @@ static void test_socket_fd_pass_num_nocli(void)
 }
 #endif
 
-#ifdef __linux__
-static gchar *abstract_sock_name;
+#ifdef CONFIG_LINUX
 
-static gpointer unix_server_thread_func(gpointer user_data)
-{
-    SocketAddress addr;
-    Error *err = NULL;
-    int fd = -1;
-    int connfd = -1;
-    struct sockaddr_un un;
-    socklen_t len = sizeof(un);
+#define ABSTRACT_SOCKET_VARIANTS 3
 
-    addr.type = SOCKET_ADDRESS_TYPE_UNIX;
-    addr.u.q_unix.path = abstract_sock_name;
-    addr.u.q_unix.tight = user_data != NULL;
-    addr.u.q_unix.abstract = true;
-
-    fd = socket_listen(&addr, 1, &err);
-    g_assert_cmpint(fd, >=, 0);
-    g_assert(fd_is_socket(fd));
-
-    connfd = accept(fd, (struct sockaddr *)&un, &len);
-    g_assert_cmpint(connfd, !=, -1);
-
-    close(fd);
-
-    return NULL;
-}
+typedef struct {
+    SocketAddress *server, *client[ABSTRACT_SOCKET_VARIANTS];
+    bool expect_connect[ABSTRACT_SOCKET_VARIANTS];
+} abstract_socket_matrix_row;
 
 static gpointer unix_client_thread_func(gpointer user_data)
 {
-    SocketAddress addr;
+    abstract_socket_matrix_row *row = user_data;
     Error *err = NULL;
-    int fd = -1;
+    int i, fd;
 
-    addr.type = SOCKET_ADDRESS_TYPE_UNIX;
-    addr.u.q_unix.path = abstract_sock_name;
-    addr.u.q_unix.tight = user_data != NULL;
-    addr.u.q_unix.abstract = true;
-
-    fd = socket_connect(&addr, &err);
-
-    g_assert_cmpint(fd, >=, 0);
-
-    close(fd);
-
+    for (i = 0; i < ABSTRACT_SOCKET_VARIANTS; i++) {
+        if (row->expect_connect[i]) {
+            fd = socket_connect(row->client[i], &error_abort);
+            g_assert_cmpint(fd, >=, 0);
+        } else {
+            fd = socket_connect(row->client[i], &err);
+            g_assert_cmpint(fd, ==, -1);
+            error_free_or_abort(&err);
+        }
+        close(fd);
+    }
     return NULL;
 }
 
-static void test_socket_unix_abstract_good(void)
+static void test_socket_unix_abstract_row(abstract_socket_matrix_row *test)
 {
-    GRand *r = g_rand_new();
+    int fd, connfd, i;
+    GThread *cli;
+    struct sockaddr_un un;
+    socklen_t len = sizeof(un);
 
-    abstract_sock_name = g_strdup_printf("unix-%d-%d", getpid(),
-                                         g_rand_int_range(r, 100, 1000));
+    /* Last one must connect, or else accept() below hangs */
+    assert(test->expect_connect[ABSTRACT_SOCKET_VARIANTS - 1]);
 
-    /* non tight socklen serv and cli */
-    GThread *serv = g_thread_new("abstract_unix_server",
-                                 unix_server_thread_func,
-                                 NULL);
-
-    sleep(1);
-
-    GThread *cli = g_thread_new("abstract_unix_client",
-                                unix_client_thread_func,
-                                NULL);
-
-    g_thread_join(cli);
-    g_thread_join(serv);
-
-    /* tight socklen serv and cli */
-    serv = g_thread_new("abstract_unix_server",
-                        unix_server_thread_func,
-                        (gpointer)1);
-
-    sleep(1);
+    fd = socket_listen(test->server, 1, &error_abort);
+    g_assert_cmpint(fd, >=, 0);
+    g_assert(fd_is_socket(fd));
 
     cli = g_thread_new("abstract_unix_client",
                        unix_client_thread_func,
-                       (gpointer)1);
+                       test);
 
+    for (i = 0; i < ABSTRACT_SOCKET_VARIANTS; i++) {
+        if (test->expect_connect[i]) {
+            connfd = accept(fd, (struct sockaddr *)&un, &len);
+            g_assert_cmpint(connfd, !=, -1);
+            close(connfd);
+        }
+    }
+
+    close(fd);
     g_thread_join(cli);
-    g_thread_join(serv);
-
-    g_free(abstract_sock_name);
-    g_rand_free(r);
 }
-#endif
+
+static void test_socket_unix_abstract(void)
+{
+    SocketAddress addr, addr_tight, addr_padded;
+    abstract_socket_matrix_row matrix[ABSTRACT_SOCKET_VARIANTS] = {
+        { &addr,
+          { &addr_tight, &addr_padded, &addr },
+          { true, false, true } },
+        { &addr_tight,
+          { &addr_padded, &addr, &addr_tight },
+          { false, true, true } },
+        { &addr_padded,
+          { &addr, &addr_tight, &addr_padded },
+          { false, false, true } }
+    };
+    int i;
+
+    addr.type = SOCKET_ADDRESS_TYPE_UNIX;
+    addr.u.q_unix.path = g_strdup_printf("unix-%d-%u",
+                                         getpid(), g_random_int());
+    addr.u.q_unix.has_abstract = true;
+    addr.u.q_unix.abstract = true;
+    addr.u.q_unix.has_tight = false;
+    addr.u.q_unix.tight = false;
+
+    addr_tight = addr;
+    addr_tight.u.q_unix.has_tight = true;
+    addr_tight.u.q_unix.tight = true;
+
+    addr_padded = addr;
+    addr_padded.u.q_unix.has_tight = true;
+    addr_padded.u.q_unix.tight = false;
+
+    for (i = 0; i < ABSTRACT_SOCKET_VARIANTS; i++) {
+        test_socket_unix_abstract_row(&matrix[i]);
+    }
+
+    g_free(addr.u.q_unix.path);
+}
+
+#endif  /* CONFIG_LINUX */
 
 int main(int argc, char **argv)
 {
@@ -358,9 +369,9 @@ int main(int argc, char **argv)
 #endif
     }
 
-#ifdef __linux__
-    g_test_add_func("/util/socket/unix-abstract/good",
-                    test_socket_unix_abstract_good);
+#ifdef CONFIG_LINUX
+    g_test_add_func("/util/socket/unix-abstract",
+                    test_socket_unix_abstract);
 #endif
 
 end:

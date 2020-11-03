@@ -860,10 +860,29 @@ static int vsock_parse(VsockSocketAddress *addr, const char *str,
 
 #ifndef _WIN32
 
+static bool saddr_is_abstract(UnixSocketAddress *saddr)
+{
+#ifdef CONFIG_LINUX
+    return saddr->abstract;
+#else
+    return false;
+#endif
+}
+
+static bool saddr_is_tight(UnixSocketAddress *saddr)
+{
+#ifdef CONFIG_LINUX
+    return !saddr->has_tight || saddr->tight;
+#else
+    return false;
+#endif
+}
+
 static int unix_listen_saddr(UnixSocketAddress *saddr,
                              int num,
                              Error **errp)
 {
+    bool abstract = saddr_is_abstract(saddr);
     struct sockaddr_un un;
     int sock, fd;
     char *pathbuf = NULL;
@@ -877,7 +896,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
         return -1;
     }
 
-    if (saddr->path && saddr->path[0]) {
+    if (saddr->path[0] || abstract) {
         path = saddr->path;
     } else {
         const char *tmpdir = getenv("TMPDIR");
@@ -887,10 +906,10 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
 
     pathlen = strlen(path);
     if (pathlen > sizeof(un.sun_path) ||
-        (saddr->abstract && pathlen > (sizeof(un.sun_path) - 1))) {
+        (abstract && pathlen > (sizeof(un.sun_path) - 1))) {
         error_setg(errp, "UNIX socket path '%s' is too long", path);
         error_append_hint(errp, "Path must be less than %zu bytes\n",
-                          saddr->abstract ? sizeof(un.sun_path) - 1 :
+                          abstract ? sizeof(un.sun_path) - 1 :
                           sizeof(un.sun_path));
         goto err;
     }
@@ -912,7 +931,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
         close(fd);
     }
 
-    if (!saddr->abstract && unlink(path) < 0 && errno != ENOENT) {
+    if (!abstract && unlink(path) < 0 && errno != ENOENT) {
         error_setg_errno(errp, errno,
                          "Failed to unlink socket %s", path);
         goto err;
@@ -922,10 +941,10 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
     un.sun_family = AF_UNIX;
     addrlen = sizeof(un);
 
-    if (saddr->abstract) {
+    if (abstract) {
         un.sun_path[0] = '\0';
         memcpy(&un.sun_path[1], path, pathlen);
-        if (saddr->tight) {
+        if (saddr_is_tight(saddr)) {
             addrlen = offsetof(struct sockaddr_un, sun_path) + 1 + pathlen;
         }
     } else {
@@ -952,6 +971,7 @@ err:
 
 static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 {
+    bool abstract = saddr_is_abstract(saddr);
     struct sockaddr_un un;
     int sock, rc;
     size_t pathlen;
@@ -970,10 +990,10 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 
     pathlen = strlen(saddr->path);
     if (pathlen > sizeof(un.sun_path) ||
-        (saddr->abstract && pathlen > (sizeof(un.sun_path) - 1))) {
+        (abstract && pathlen > (sizeof(un.sun_path) - 1))) {
         error_setg(errp, "UNIX socket path '%s' is too long", saddr->path);
         error_append_hint(errp, "Path must be less than %zu bytes\n",
-                          saddr->abstract ? sizeof(un.sun_path) - 1 :
+                          abstract ? sizeof(un.sun_path) - 1 :
                           sizeof(un.sun_path));
         goto err;
     }
@@ -982,10 +1002,10 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
     un.sun_family = AF_UNIX;
     addrlen = sizeof(un);
 
-    if (saddr->abstract) {
+    if (abstract) {
         un.sun_path[0] = '\0';
         memcpy(&un.sun_path[1], saddr->path, pathlen);
-        if (saddr->tight) {
+        if (saddr_is_tight(saddr)) {
             addrlen = offsetof(struct sockaddr_un, sun_path) + 1 + pathlen;
         }
     } else {
@@ -1270,10 +1290,20 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
 
     addr = g_new0(SocketAddress, 1);
     addr->type = SOCKET_ADDRESS_TYPE_UNIX;
-    if (su->sun_path[0]) {
-        addr->u.q_unix.path = g_strndup(su->sun_path, sizeof(su->sun_path));
+#ifdef CONFIG_LINUX
+    if (!su->sun_path[0]) {
+        /* Linux abstract socket */
+        addr->u.q_unix.path = g_strndup(su->sun_path + 1,
+                                        sizeof(su->sun_path) - 1);
+        addr->u.q_unix.has_abstract = true;
+        addr->u.q_unix.abstract = true;
+        addr->u.q_unix.has_tight = true;
+        addr->u.q_unix.tight = salen < sizeof(*su);
+        return addr;
     }
+#endif
 
+    addr->u.q_unix.path = g_strndup(su->sun_path, sizeof(su->sun_path));
     return addr;
 }
 #endif /* WIN32 */
