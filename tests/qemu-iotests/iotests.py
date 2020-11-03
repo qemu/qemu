@@ -543,10 +543,10 @@ class VM(qtest.QEMUQtestMachine):
 
     def __init__(self, path_suffix=''):
         name = "qemu%s-%d" % (path_suffix, os.getpid())
-        super(VM, self).__init__(qemu_prog, qemu_opts, name=name,
-                                 test_dir=test_dir,
-                                 socket_scm_helper=socket_scm_helper,
-                                 sock_dir=sock_dir)
+        super().__init__(qemu_prog, qemu_opts, name=name,
+                         test_dir=test_dir,
+                         socket_scm_helper=socket_scm_helper,
+                         sock_dir=sock_dir)
         self._num_drives = 0
 
     def add_object(self, opts):
@@ -747,6 +747,10 @@ class VM(qtest.QEMUQtestMachine):
     def wait_migration(self, expect_runstate: Optional[str]) -> bool:
         while True:
             event = self.event_wait('MIGRATION')
+            # We use the default timeout, and with a timeout, event_wait()
+            # never returns None
+            assert event
+
             log(event, filters=[filter_qmp_event])
             if event['data']['status'] in ('completed', 'failed'):
                 break

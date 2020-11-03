@@ -17,6 +17,8 @@ disable=invalid-name,
         too-many-lines,
         too-many-locals,
         too-many-public-methods,
+        # pylint warns about Optional[] etc. as unsubscriptable in 3.9
+        unsubscriptable-object,
         # These are temporary, and should be removed:
         missing-docstring,
 
