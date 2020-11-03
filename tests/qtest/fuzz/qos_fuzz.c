@@ -70,7 +70,7 @@ static GString *qos_build_main_args(void)
 {
     char **path = fuzz_path_vec;
     QOSGraphNode *test_node;
-    GString *cmd_line = g_string_new(path[0]);
+    GString *cmd_line;
     void *test_arg;
 
     if (!path) {
@@ -79,6 +79,7 @@ static GString *qos_build_main_args(void)
     }
 
     /* Before test */
+    cmd_line = g_string_new(path[0]);
     current_path = path;
     test_node = qos_graph_get_node(path[(g_strv_length(path) - 1)]);
     test_arg = test_node->u.test.arg;
