@@ -130,7 +130,7 @@ liointc_read(void *opaque, hwaddr addr, unsigned int size)
 
     if (addr >= R_PERCORE_ISR(0) &&
         addr < R_PERCORE_ISR(NUM_CORES)) {
-        int core = (addr - R_PERCORE_ISR(0)) / 4;
+        int core = (addr - R_PERCORE_ISR(0)) / 8;
         r = p->per_core_isr[core];
         goto out;
     }
@@ -173,7 +173,7 @@ liointc_write(void *opaque, hwaddr addr,
 
     if (addr >= R_PERCORE_ISR(0) &&
         addr < R_PERCORE_ISR(NUM_CORES)) {
-        int core = (addr - R_PERCORE_ISR(0)) / 4;
+        int core = (addr - R_PERCORE_ISR(0)) / 8;
         p->per_core_isr[core] = value;
         goto out;
     }
