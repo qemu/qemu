@@ -2159,11 +2159,6 @@ Chardev *serial_hd(int i)
     return NULL;
 }
 
-int serial_max_hds(void)
-{
-    return num_serial_hds;
-}
-
 static int parallel_parse(const char *devname)
 {
     static int index = 0;
