@@ -15,5 +15,5 @@ executable('virtiofsd', files(
 
 configure_file(input: '50-qemu-virtiofsd.json.in',
                output: '50-qemu-virtiofsd.json',
-               configuration: { 'libexecdir' : get_option('libexecdir') },
+               configuration: { 'libexecdir' : get_option('prefix') / get_option('libexecdir') },
                install_dir: qemu_datadir / 'vhost-user')
