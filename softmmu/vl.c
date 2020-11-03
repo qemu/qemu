@@ -123,6 +123,7 @@ static int data_dir_idx;
 static const char *mem_path;
 static const char *boot_order;
 static const char *boot_once;
+static const char *incoming;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 int display_opengl;
 const char* keyboard_layout = NULL;
@@ -2874,6 +2875,39 @@ static char *find_datadir(void)
     return get_relocated_path(CONFIG_QEMU_DATADIR);
 }
 
+static void qemu_validate_options(void)
+{
+    QemuOpts *machine_opts = qemu_get_machine_opts();
+    const char *kernel_filename = qemu_opt_get(machine_opts, "kernel");
+    const char *initrd_filename = qemu_opt_get(machine_opts, "initrd");
+    const char *kernel_cmdline = qemu_opt_get(machine_opts, "append");
+
+    if (kernel_filename == NULL) {
+         if (kernel_cmdline != NULL) {
+              error_report("-append only allowed with -kernel option");
+              exit(1);
+          }
+
+          if (initrd_filename != NULL) {
+              error_report("-initrd only allowed with -kernel option");
+              exit(1);
+          }
+    }
+
+    if (incoming && !preconfig_exit_requested) {
+        error_report("'preconfig' and 'incoming' options are "
+                     "mutually exclusive");
+        exit(EXIT_FAILURE);
+    }
+
+#ifdef CONFIG_CURSES
+    if (is_daemonized() && dpy.type == DISPLAY_TYPE_CURSES) {
+        error_report("curses display cannot be used with -daemonize");
+        exit(1);
+    }
+#endif
+}
+
 static void qemu_process_early_options(void)
 {
     char **dirs;
@@ -3137,9 +3171,6 @@ void qemu_init(int argc, char **argv, char **envp)
 {
     int i;
     int snapshot = 0;
-    int linux_boot;
-    const char *initrd_filename;
-    const char *kernel_filename, *kernel_cmdline;
     QemuOpts *opts, *machine_opts;
     QemuOpts *icount_opts = NULL, *accel_opts = NULL;
     QemuOptsList *olist;
@@ -3148,7 +3179,6 @@ void qemu_init(int argc, char **argv, char **envp)
     const char *loadvm = NULL;
     MachineClass *machine_class;
     const char *vga_model = NULL;
-    const char *incoming = NULL;
     bool userconfig = true;
     bool nographic = false;
     int display_remote = 0;
@@ -4070,6 +4100,8 @@ void qemu_init(int argc, char **argv, char **envp)
      */
     loc_set_none();
 
+    qemu_validate_options();
+
     /*
      * These options affect everything else and should be processed
      * before daemonizing.
@@ -4084,12 +4116,6 @@ void qemu_init(int argc, char **argv, char **envp)
 
     user_register_global_props();
     replay_configure(icount_opts);
-
-    if (incoming && !preconfig_exit_requested) {
-        error_report("'preconfig' and 'incoming' options are "
-                     "mutually exclusive");
-        exit(EXIT_FAILURE);
-    }
 
     configure_rtc(qemu_find_opts_singleton("rtc"));
 
@@ -4195,12 +4221,6 @@ void qemu_init(int argc, char **argv, char **envp)
             error_report("-nographic cannot be used with -daemonize");
             exit(1);
         }
-#ifdef CONFIG_CURSES
-        if (dpy.type == DISPLAY_TYPE_CURSES) {
-            error_report("curses display cannot be used with -daemonize");
-            exit(1);
-        }
-#endif
     }
 
     if (nographic) {
@@ -4331,11 +4351,6 @@ void qemu_init(int argc, char **argv, char **envp)
         qtest_server_init(qtest_chrdev, qtest_log, &error_fatal);
     }
 
-    machine_opts = qemu_get_machine_opts();
-    kernel_filename = qemu_opt_get(machine_opts, "kernel");
-    initrd_filename = qemu_opt_get(machine_opts, "initrd");
-    kernel_cmdline = qemu_opt_get(machine_opts, "append");
-
     opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
     if (opts) {
         boot_order = qemu_opt_get(opts, "order");
@@ -4356,24 +4371,9 @@ void qemu_init(int argc, char **argv, char **envp)
         boot_order = machine_class->default_boot_order;
     }
 
-    if (!kernel_cmdline) {
-        kernel_cmdline = "";
-        current_machine->kernel_cmdline = (char *)kernel_cmdline;
-    }
-
-    linux_boot = (kernel_filename != NULL);
-
-    if (!linux_boot && *kernel_cmdline != '\0') {
-        error_report("-append only allowed with -kernel option");
-        exit(1);
-    }
-
-    if (!linux_boot && initrd_filename != NULL) {
-        error_report("-initrd only allowed with -kernel option");
-        exit(1);
-    }
-
-    if (semihosting_enabled() && !semihosting_get_argc() && kernel_filename) {
+    if (semihosting_enabled() && !semihosting_get_argc()) {
+        const char *kernel_filename = qemu_opt_get(machine_opts, "kernel");
+        const char *kernel_cmdline = qemu_opt_get(machine_opts, "append");
         /* fall back to the -kernel/-append */
         semihosting_arg_fallback(kernel_filename, kernel_cmdline);
     }

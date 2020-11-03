@@ -883,6 +883,7 @@ static void machine_initfn(Object *obj)
     ms->dump_guest_core = true;
     ms->mem_merge = true;
     ms->enable_graphics = true;
+    ms->kernel_cmdline = g_strdup("");
 
     if (mc->nvdimm_supported) {
         Object *obj = OBJECT(ms);
