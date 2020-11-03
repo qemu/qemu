@@ -93,7 +93,7 @@ void deskey(unsigned char *key, int edf)
                     }
                 for( j = 0; j < 24; j++ ) {
                         if( pcr[pc2[j]] ) kn[m] |= bigbyte[j];
-                        if( pcr[pc2[j+24]] ) kn[n] |= bigbyte[j];
+                        if( pcr[pc2[j + 24]] ) kn[n] |= bigbyte[j];
                         }
                 }
         cookey(kn);
