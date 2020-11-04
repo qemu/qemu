@@ -452,7 +452,7 @@ static uint16_t nvme_map_sgl_data(NvmeCtrl *n, QEMUSGList *qsg,
              * segments and/or descriptors. The controller might accept
              * ignoring the rest of the SGL.
              */
-            uint16_t sgls = le16_to_cpu(n->id_ctrl.sgls);
+            uint32_t sgls = le32_to_cpu(n->id_ctrl.sgls);
             if (sgls & NVME_CTRL_SGLS_EXCESS_LENGTH) {
                 break;
             }
