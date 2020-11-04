@@ -123,7 +123,7 @@ static int msi_msix_setup(XenPCIPassthroughState *s,
             *ppirq = XEN_PT_UNASSIGNED_PIRQ;
         } else {
             XEN_PT_LOG(&s->dev, "requested pirq %d for MSI%s"
-                       " (vec: %#x, entry: %#x)\n",
+                       " (vec: 0x%x, entry: 0x%x)\n",
                        *ppirq, is_msix ? "-X" : "", gvec, msix_entry);
         }
     }
@@ -142,7 +142,7 @@ static int msi_msix_setup(XenPCIPassthroughState *s,
                                      msix_entry, table_base);
         if (rc) {
             XEN_PT_ERR(&s->dev,
-                       "Mapping of MSI%s (err: %i, vec: %#x, entry %#x)\n",
+                       "Mapping of MSI%s (err: %i, vec: 0x%x, entry 0x%x)\n",
                        is_msix ? "-X" : "", errno, gvec, msix_entry);
             return rc;
         }
@@ -165,8 +165,8 @@ static int msi_msix_update(XenPCIPassthroughState *s,
     int rc = 0;
     uint64_t table_addr = 0;
 
-    XEN_PT_LOG(d, "Updating MSI%s with pirq %d gvec %#x gflags %#x"
-               " (entry: %#x)\n",
+    XEN_PT_LOG(d, "Updating MSI%s with pirq %d gvec 0x%x gflags 0x%x"
+               " (entry: 0x%x)\n",
                is_msix ? "-X" : "", pirq, gvec, gflags, msix_entry);
 
     if (is_msix) {
@@ -208,11 +208,11 @@ static int msi_msix_disable(XenPCIPassthroughState *s,
     }
 
     if (is_binded) {
-        XEN_PT_LOG(d, "Unbind MSI%s with pirq %d, gvec %#x\n",
+        XEN_PT_LOG(d, "Unbind MSI%s with pirq %d, gvec 0x%x\n",
                    is_msix ? "-X" : "", pirq, gvec);
         rc = xc_domain_unbind_msi_irq(xen_xc, xen_domid, gvec, pirq, gflags);
         if (rc) {
-            XEN_PT_ERR(d, "Unbinding of MSI%s failed. (err: %d, pirq: %d, gvec: %#x)\n",
+            XEN_PT_ERR(d, "Unbinding of MSI%s failed. (err: %d, pirq: %d, gvec: 0x%x)\n",
                        is_msix ? "-X" : "", errno, pirq, gvec);
             return rc;
         }
@@ -539,7 +539,7 @@ int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base)
     }
 
     if (id != PCI_CAP_ID_MSIX) {
-        XEN_PT_ERR(d, "Invalid id %#x base %#x\n", id, base);
+        XEN_PT_ERR(d, "Invalid id 0x%x base 0x%x\n", id, base);
         return -1;
     }
 
@@ -582,7 +582,7 @@ int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base)
         XEN_PT_ERR(d, "Can't open /dev/mem: %s\n", strerror(errno));
         goto error_out;
     }
-    XEN_PT_LOG(d, "table_off = %#x, total_entries = %d\n",
+    XEN_PT_LOG(d, "table_off = 0x%x, total_entries = %d\n",
                table_off, total_entries);
     msix->table_offset_adjust = table_off & 0x0fff;
     msix->phys_iomem_base =
