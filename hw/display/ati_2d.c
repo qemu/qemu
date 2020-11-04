@@ -75,8 +75,9 @@ void ati_2d_blt(ATIVGAState *s)
         dst_stride *= bpp;
     }
     uint8_t *end = s->vga.vram_ptr + s->vga.vram_size;
-    if (dst_bits >= end || dst_bits + dst_x + (dst_y + s->regs.dst_height) *
-        dst_stride >= end) {
+    if (dst_x > 0x3fff || dst_y > 0x3fff || dst_bits >= end
+        || dst_bits + dst_x
+         + (dst_y + s->regs.dst_height) * dst_stride >= end) {
         qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
         return;
     }
@@ -107,8 +108,9 @@ void ati_2d_blt(ATIVGAState *s)
             src_bits += s->regs.crtc_offset & 0x07ffffff;
             src_stride *= bpp;
         }
-        if (src_bits >= end || src_bits + src_x +
-            (src_y + s->regs.dst_height) * src_stride >= end) {
+        if (src_x > 0x3fff || src_y > 0x3fff || src_bits >= end
+            || src_bits + src_x
+             + (src_y + s->regs.dst_height) * src_stride >= end) {
             qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
             return;
         }
