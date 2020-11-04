@@ -328,12 +328,6 @@ The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
 System emulator machines
 ------------------------
 
-mips ``r4k`` platform (since 5.0)
-'''''''''''''''''''''''''''''''''
-
-This machine type is very old and unmaintained. Users should use the ``malta``
-machine type instead.
-
 mips ``fulong2e`` machine (since 5.1)
 '''''''''''''''''''''''''''''''''''''
 
@@ -575,6 +569,12 @@ System emulator machines
 The version specific Spike machines have been removed in favour of the
 generic ``spike`` machine. If you need to specify an older version of the RISC-V
 spec you can use the ``-cpu rv64gcsu,priv_spec=v1.10.0`` command line argument.
+
+mips ``r4k`` platform (removed in 5.2)
+''''''''''''''''''''''''''''''''''''''
+
+This machine type was very old and unmaintained. Users should use the ``malta``
+machine type instead.
 
 Related binaries
 ----------------

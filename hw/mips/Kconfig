@@ -1,16 +1,3 @@
-config R4K
-    bool
-    select ISA_BUS
-    select SERIAL_ISA
-    select I8259
-    select I8254
-    select MC146818RTC
-    imply VGA_ISA
-    imply NE2000_ISA
-    select IDE_ISA
-    select PCKBD
-    select PFLASH_CFI01
-
 config MALTA
     bool
     select ISA_SUPERIO
