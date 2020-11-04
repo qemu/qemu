@@ -31,6 +31,17 @@ QEMU as a whole is released under the GNU General Public License,
 version 2. For full licensing details, consult the LICENSE file.
 
 
+Documentation
+=============
+
+Documentation can be found hosted online at
+`<https://www.qemu.org/documentation/>`_. The documentation for the
+current development version that is available at
+`<https://www.qemu.org/docs/master/>`_ is generated from the ``docs/``
+folder in the source tree, and is built by `Sphinx
+<https://www.sphinx-doc.org/en/master/>_`.
+
+
 Building
 ========
 
