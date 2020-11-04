@@ -2799,7 +2799,6 @@ static void nvme_exit(PCIDevice *pci_dev)
     NvmeCtrl *n = NVME(pci_dev);
 
     nvme_clear_ctrl(n);
-    g_free(n->namespaces);
     g_free(n->cq);
     g_free(n->sq);
     g_free(n->aer_reqs);
