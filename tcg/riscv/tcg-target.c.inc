@@ -429,7 +429,8 @@ static bool reloc_sbimm12(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 {
     intptr_t offset = (intptr_t)target - (intptr_t)code_ptr;
 
-    if (offset == sextreg(offset, 1, 12) << 1) {
+    tcg_debug_assert((offset & 1) == 0);
+    if (offset == sextreg(offset, 0, 12)) {
         code_ptr[0] |= encode_sbimm12(offset);
         return true;
     }
@@ -441,7 +442,8 @@ static bool reloc_jimm20(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
 {
     intptr_t offset = (intptr_t)target - (intptr_t)code_ptr;
 
-    if (offset == sextreg(offset, 1, 20) << 1) {
+    tcg_debug_assert((offset & 1) == 0);
+    if (offset == sextreg(offset, 0, 20)) {
         code_ptr[0] |= encode_ujimm20(offset);
         return true;
     }
@@ -854,28 +856,21 @@ static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
     g_assert_not_reached();
 }
 
-static inline void tcg_out_goto(TCGContext *s, tcg_insn_unit *target)
-{
-    ptrdiff_t offset = tcg_pcrel_diff(s, target);
-    tcg_debug_assert(offset == sextreg(offset, 1, 20) << 1);
-    tcg_out_opc_jump(s, OPC_JAL, TCG_REG_ZERO, offset);
-}
-
 static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
 {
     TCGReg link = tail ? TCG_REG_ZERO : TCG_REG_RA;
     ptrdiff_t offset = tcg_pcrel_diff(s, arg);
     int ret;
 
-    if (offset == sextreg(offset, 1, 20) << 1) {
+    tcg_debug_assert((offset & 1) == 0);
+    if (offset == sextreg(offset, 0, 20)) {
         /* short jump: -2097150 to 2097152 */
         tcg_out_opc_jump(s, OPC_JAL, link, offset);
-    } else if (TCG_TARGET_REG_BITS == 32 ||
-        offset == sextreg(offset, 1, 31) << 1) {
+    } else if (TCG_TARGET_REG_BITS == 32 || offset == (int32_t)offset) {
         /* long jump: -2147483646 to 2147483648 */
         tcg_out_opc_upper(s, OPC_AUIPC, TCG_REG_TMP0, 0);
         tcg_out_opc_imm(s, OPC_JALR, link, TCG_REG_TMP0, 0);
-        ret = reloc_call(s->code_ptr - 2, arg);\
+        ret = reloc_call(s->code_ptr - 2, arg);
         tcg_debug_assert(ret == true);
     } else if (TCG_TARGET_REG_BITS == 64) {
         /* far jump: 64-bit */
@@ -961,6 +956,13 @@ QEMU_BUILD_BUG_ON(TCG_TARGET_REG_BITS < TARGET_LONG_BITS);
 /* We expect to use a 12-bit negative offset from ENV.  */
 QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) > 0);
 QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) < -(1 << 11));
+
+static void tcg_out_goto(TCGContext *s, tcg_insn_unit *target)
+{
+    tcg_out_opc_jump(s, OPC_JAL, TCG_REG_ZERO, 0);
+    bool ok = reloc_jimm20(s->code_ptr - 1, target);
+    tcg_debug_assert(ok);
+}
 
 static void tcg_out_tlb_load(TCGContext *s, TCGReg addrl,
                              TCGReg addrh, TCGMemOpIdx oi,
