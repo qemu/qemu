@@ -2562,8 +2562,7 @@ int nvme_register_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
 
     if (!nsid) {
         for (int i = 1; i <= n->num_namespaces; i++) {
-            NvmeNamespace *ns = nvme_ns(n, i);
-            if (!ns) {
+            if (!nvme_ns(n, i)) {
                 nsid = ns->params.nsid = i;
                 break;
             }
