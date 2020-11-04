@@ -139,17 +139,18 @@ static const TCGReg tcg_target_call_oarg_regs[2] = {
     TCG_REG_V1
 };
 
-static tcg_insn_unit *tb_ret_addr;
-static tcg_insn_unit *bswap32_addr;
-static tcg_insn_unit *bswap32u_addr;
-static tcg_insn_unit *bswap64_addr;
+static const tcg_insn_unit *tb_ret_addr;
+static const tcg_insn_unit *bswap32_addr;
+static const tcg_insn_unit *bswap32u_addr;
+static const tcg_insn_unit *bswap64_addr;
 
-static bool reloc_pc16(tcg_insn_unit *pc, const tcg_insn_unit *target)
+static bool reloc_pc16(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
 {
     /* Let the compiler perform the right-shift as part of the arithmetic.  */
-    ptrdiff_t disp = target - (pc + 1);
+    const tcg_insn_unit *src_rx = tcg_splitwx_to_rx(src_rw);
+    ptrdiff_t disp = target - (src_rx + 1);
     if (disp == (int16_t)disp) {
-        *pc = deposit32(*pc, 0, 16, disp);
+        *src_rw = deposit32(*src_rw, 0, 16, disp);
         return true;
     }
     return false;
@@ -505,7 +506,7 @@ static void tcg_out_opc_sa64(TCGContext *s, MIPSInsn opc1, MIPSInsn opc2,
 static bool tcg_out_opc_jmp(TCGContext *s, MIPSInsn opc, const void *target)
 {
     uintptr_t dest = (uintptr_t)target;
-    uintptr_t from = (uintptr_t)s->code_ptr + 4;
+    uintptr_t from = (uintptr_t)tcg_splitwx_to_rx(s->code_ptr) + 4;
     int32_t inst;
 
     /* The pc-region branch happens within the 256MB region of
@@ -617,7 +618,7 @@ static inline void tcg_out_bswap16s(TCGContext *s, TCGReg ret, TCGReg arg)
     }
 }
 
-static void tcg_out_bswap_subr(TCGContext *s, tcg_insn_unit *sub)
+static void tcg_out_bswap_subr(TCGContext *s, const tcg_insn_unit *sub)
 {
     bool ok = tcg_out_opc_jmp(s, OPC_JAL, sub);
     tcg_debug_assert(ok);
@@ -1282,7 +1283,8 @@ static void add_qemu_ldst_label(TCGContext *s, int is_ld, TCGMemOpIdx oi,
     label->datahi_reg = datahi;
     label->addrlo_reg = addrlo;
     label->addrhi_reg = addrhi;
-    label->raddr = raddr;
+    /* TODO: Cast goes away when all hosts converted */
+    label->raddr = (void *)tcg_splitwx_to_rx(raddr);
     label->label_ptr[0] = label_ptr[0];
     if (TCG_TARGET_REG_BITS < TARGET_LONG_BITS) {
         label->label_ptr[1] = label_ptr[1];
@@ -1291,15 +1293,16 @@ static void add_qemu_ldst_label(TCGContext *s, int is_ld, TCGMemOpIdx oi,
 
 static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
+    const tcg_insn_unit *tgt_rx = tcg_splitwx_to_rx(s->code_ptr);
     TCGMemOpIdx oi = l->oi;
     MemOp opc = get_memop(oi);
     TCGReg v0;
     int i;
 
     /* resolve label address */
-    if (!reloc_pc16(l->label_ptr[0], s->code_ptr)
+    if (!reloc_pc16(l->label_ptr[0], tgt_rx)
         || (TCG_TARGET_REG_BITS < TARGET_LONG_BITS
-            && !reloc_pc16(l->label_ptr[1], s->code_ptr))) {
+            && !reloc_pc16(l->label_ptr[1], tgt_rx))) {
         return false;
     }
 
@@ -1344,15 +1347,16 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 
 static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
+    const tcg_insn_unit *tgt_rx = tcg_splitwx_to_rx(s->code_ptr);
     TCGMemOpIdx oi = l->oi;
     MemOp opc = get_memop(oi);
     MemOp s_bits = opc & MO_SIZE;
     int i;
 
     /* resolve label address */
-    if (!reloc_pc16(l->label_ptr[0], s->code_ptr)
+    if (!reloc_pc16(l->label_ptr[0], tgt_rx)
         || (TCG_TARGET_REG_BITS < TARGET_LONG_BITS
-            && !reloc_pc16(l->label_ptr[1], s->code_ptr))) {
+            && !reloc_pc16(l->label_ptr[1], tgt_rx))) {
         return false;
     }
 
@@ -2469,11 +2473,12 @@ static void tcg_target_qemu_prologue(TCGContext *s)
      * Return path for goto_ptr. Set return value to 0, a-la exit_tb,
      * and fall through to the rest of the epilogue.
      */
-    tcg_code_gen_epilogue = s->code_ptr;
+    /* TODO: Cast goes away when all hosts converted */
+    tcg_code_gen_epilogue = (void *)tcg_splitwx_to_rx(s->code_ptr);
     tcg_out_mov(s, TCG_TYPE_REG, TCG_REG_V0, TCG_REG_ZERO);
 
     /* TB epilogue */
-    tb_ret_addr = s->code_ptr;
+    tb_ret_addr = tcg_splitwx_to_rx(s->code_ptr);
     for (i = 0; i < ARRAY_SIZE(tcg_target_callee_save_regs); i++) {
         tcg_out_ld(s, TCG_TYPE_REG, tcg_target_callee_save_regs[i],
                    TCG_REG_SP, SAVE_OFS + i * REG_SIZE);
@@ -2493,7 +2498,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /*
      * bswap32 -- 32-bit swap (signed result for mips64).  a0 = abcd.
      */
-    bswap32_addr = align_code_ptr(s);
+    bswap32_addr = tcg_splitwx_to_rx(align_code_ptr(s));
     /* t3 = (ssss)d000 */
     tcg_out_opc_sa(s, OPC_SLL, TCG_TMP3, TCG_TMP0, 24);
     /* t1 = 000a */
@@ -2521,7 +2526,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /*
      * bswap32u -- unsigned 32-bit swap.  a0 = ....abcd.
      */
-    bswap32u_addr = align_code_ptr(s);
+    bswap32u_addr = tcg_splitwx_to_rx(align_code_ptr(s));
     /* t1 = (0000)000d */
     tcg_out_opc_imm(s, OPC_ANDI, TCG_TMP1, TCG_TMP0, 0xff);
     /* t3 = 000a */
@@ -2547,7 +2552,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /*
      * bswap64 -- 64-bit swap.  a0 = abcdefgh
      */
-    bswap64_addr = align_code_ptr(s);
+    bswap64_addr = tcg_splitwx_to_rx(align_code_ptr(s));
     /* t3 = h0000000 */
     tcg_out_dsll(s, TCG_TMP3, TCG_TMP0, 56);
     /* t1 = 0000000a */
