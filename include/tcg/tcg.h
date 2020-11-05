@@ -1147,6 +1147,19 @@ static inline ptrdiff_t tcg_pcrel_diff(TCGContext *s, const void *target)
 }
 
 /**
+ * tcg_tbrel_diff
+ * @s: the tcg context
+ * @target: address of the target
+ *
+ * Produce a difference, from the beginning of the current TB code
+ * to the destination address.
+ */
+static inline ptrdiff_t tcg_tbrel_diff(TCGContext *s, const void *target)
+{
+    return tcg_ptr_byte_diff(target, tcg_splitwx_to_rx(s->code_buf));
+}
+
+/**
  * tcg_current_code_size
  * @s: the tcg context
  *
