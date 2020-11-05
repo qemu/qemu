@@ -403,7 +403,6 @@ void sparc64_set_context(CPUSPARCState *env)
     struct target_ucontext *ucp;
     target_mc_gregset_t *grp;
     abi_ulong pc, npc, tstate;
-    abi_ulong fp, i7, w_addr;
     unsigned int i;
 
     ucp_addr = env->regwptr[WREG_O0];
@@ -447,6 +446,15 @@ void sparc64_set_context(CPUSPARCState *env)
     __get_user(env->gregs[5], (&(*grp)[SPARC_MC_G5]));
     __get_user(env->gregs[6], (&(*grp)[SPARC_MC_G6]));
     __get_user(env->gregs[7], (&(*grp)[SPARC_MC_G7]));
+
+    /*
+     * Note that unlike the kernel, we didn't need to mess with the
+     * guest register window state to save it into a pt_regs to run
+     * the kernel. So for us the guest's O regs are still in WREG_O*
+     * (unlike the kernel which has put them in UREG_I* in a pt_regs)
+     * and the fp and i7 are still in WREG_I6 and WREG_I7 and don't
+     * need to be written back to userspace memory.
+     */
     __get_user(env->regwptr[WREG_O0], (&(*grp)[SPARC_MC_O0]));
     __get_user(env->regwptr[WREG_O1], (&(*grp)[SPARC_MC_O1]));
     __get_user(env->regwptr[WREG_O2], (&(*grp)[SPARC_MC_O2]));
@@ -456,18 +464,9 @@ void sparc64_set_context(CPUSPARCState *env)
     __get_user(env->regwptr[WREG_O6], (&(*grp)[SPARC_MC_O6]));
     __get_user(env->regwptr[WREG_O7], (&(*grp)[SPARC_MC_O7]));
 
-    __get_user(fp, &(ucp->tuc_mcontext.mc_fp));
-    __get_user(i7, &(ucp->tuc_mcontext.mc_i7));
+    __get_user(env->regwptr[WREG_FP], &(ucp->tuc_mcontext.mc_fp));
+    __get_user(env->regwptr[WREG_I7], &(ucp->tuc_mcontext.mc_i7));
 
-    w_addr = TARGET_STACK_BIAS + env->regwptr[WREG_O6];
-    if (put_user(fp, w_addr + offsetof(struct target_reg_window, ins[6]),
-                 abi_ulong) != 0) {
-        goto do_sigsegv;
-    }
-    if (put_user(i7, w_addr + offsetof(struct target_reg_window, ins[7]),
-                 abi_ulong) != 0) {
-        goto do_sigsegv;
-    }
     /* FIXME this does not match how the kernel handles the FPU in
      * its sparc64_set_context implementation. In particular the FPU
      * is only restored if fenab is non-zero in:
@@ -501,7 +500,6 @@ void sparc64_get_context(CPUSPARCState *env)
     struct target_ucontext *ucp;
     target_mc_gregset_t *grp;
     target_mcontext_t *mcp;
-    abi_ulong fp, i7, w_addr;
     int err;
     unsigned int i;
     target_sigset_t target_set;
@@ -553,6 +551,15 @@ void sparc64_get_context(CPUSPARCState *env)
     __put_user(env->gregs[5], &((*grp)[SPARC_MC_G5]));
     __put_user(env->gregs[6], &((*grp)[SPARC_MC_G6]));
     __put_user(env->gregs[7], &((*grp)[SPARC_MC_G7]));
+
+    /*
+     * Note that unlike the kernel, we didn't need to mess with the
+     * guest register window state to save it into a pt_regs to run
+     * the kernel. So for us the guest's O regs are still in WREG_O*
+     * (unlike the kernel which has put them in UREG_I* in a pt_regs)
+     * and the fp and i7 are still in WREG_I6 and WREG_I7 and don't
+     * need to be fished out of userspace memory.
+     */
     __put_user(env->regwptr[WREG_O0], &((*grp)[SPARC_MC_O0]));
     __put_user(env->regwptr[WREG_O1], &((*grp)[SPARC_MC_O1]));
     __put_user(env->regwptr[WREG_O2], &((*grp)[SPARC_MC_O2]));
@@ -562,18 +569,8 @@ void sparc64_get_context(CPUSPARCState *env)
     __put_user(env->regwptr[WREG_O6], &((*grp)[SPARC_MC_O6]));
     __put_user(env->regwptr[WREG_O7], &((*grp)[SPARC_MC_O7]));
 
-    w_addr = TARGET_STACK_BIAS + env->regwptr[WREG_O6];
-    fp = i7 = 0;
-    if (get_user(fp, w_addr + offsetof(struct target_reg_window, ins[6]),
-                 abi_ulong) != 0) {
-        goto do_sigsegv;
-    }
-    if (get_user(i7, w_addr + offsetof(struct target_reg_window, ins[7]),
-                 abi_ulong) != 0) {
-        goto do_sigsegv;
-    }
-    __put_user(fp, &(mcp->mc_fp));
-    __put_user(i7, &(mcp->mc_i7));
+    __put_user(env->regwptr[WREG_FP], &(mcp->mc_fp));
+    __put_user(env->regwptr[WREG_I7], &(mcp->mc_i7));
 
     {
         uint32_t *dst = ucp->tuc_mcontext.mc_fpregs.mcfpu_fregs.sregs;
