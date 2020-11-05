@@ -109,6 +109,7 @@ windows_msys2_task:
           mingw-w64-x86_64-cyrus-sasl \
           mingw-w64-x86_64-curl \
           mingw-w64-x86_64-gnutls \
+          mingw-w64-x86_64-libnfs \
           "
         bitsadmin /transfer msys_download /dynamic /download /priority FOREGROUND `
           https://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-python-sphinx-2.3.1-1-any.pkg.tar.xz `
