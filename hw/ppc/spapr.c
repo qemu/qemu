@@ -1522,12 +1522,6 @@ int spapr_reallocate_hpt(SpaprMachineState *spapr, int shift, Error **errp)
         int i;
 
         spapr->htab = qemu_memalign(size, size);
-        if (!spapr->htab) {
-            error_setg_errno(errp, errno,
-                             "Could not allocate HPT of order %d", shift);
-            return -ENOMEM;
-        }
-
         memset(spapr->htab, 0, size);
         spapr->htab_shift = shift;
 
