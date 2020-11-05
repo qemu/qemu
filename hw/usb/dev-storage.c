@@ -56,7 +56,7 @@ struct MSDState {
     USBPacket *packet;
     /* usb-storage only */
     BlockConf conf;
-    uint32_t removable;
+    bool removable;
     bool commandlog;
     SCSIDevice *scsi_dev;
 };
@@ -682,7 +682,7 @@ static const VMStateDescription vmstate_usb_msd = {
 static Property msd_properties[] = {
     DEFINE_BLOCK_PROPERTIES(MSDState, conf),
     DEFINE_BLOCK_ERROR_PROPERTIES(MSDState, conf),
-    DEFINE_PROP_BIT("removable", MSDState, removable, 0, false),
+    DEFINE_PROP_BOOL("removable", MSDState, removable, false),
     DEFINE_PROP_BOOL("commandlog", MSDState, commandlog, false),
     DEFINE_PROP_END_OF_LIST(),
 };
