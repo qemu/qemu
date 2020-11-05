@@ -25,8 +25,6 @@
 #include "qom/object.h"
 #include "trace.h"
 
-//#define DEBUG_MSD
-
 /* USB requests.  */
 #define MassStorageReset  0xff
 #define GetMaxLun         0xfe
@@ -59,6 +57,7 @@ struct MSDState {
     /* usb-storage only */
     BlockConf conf;
     uint32_t removable;
+    bool commandlog;
     SCSIDevice *scsi_dev;
 };
 typedef struct MSDState MSDState;
@@ -451,9 +450,9 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             assert(le32_to_cpu(s->csw.residue) == 0);
             s->scsi_len = 0;
             s->req = scsi_req_new(scsi_dev, tag, cbw.lun, cbw.cmd, NULL);
-#ifdef DEBUG_MSD
-            scsi_req_print(s->req);
-#endif
+            if (s->commandlog) {
+                scsi_req_print(s->req);
+            }
             len = scsi_req_enqueue(s->req);
             if (len) {
                 scsi_req_continue(s->req);
@@ -684,6 +683,7 @@ static Property msd_properties[] = {
     DEFINE_BLOCK_PROPERTIES(MSDState, conf),
     DEFINE_BLOCK_ERROR_PROPERTIES(MSDState, conf),
     DEFINE_PROP_BIT("removable", MSDState, removable, 0, false),
+    DEFINE_PROP_BOOL("commandlog", MSDState, commandlog, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
