@@ -327,6 +327,10 @@ static void usb_msd_request_cancelled(SCSIRequest *req)
     trace_usb_msd_cmd_cancel(req->tag);
 
     if (req == s->req) {
+        s->csw.sig = cpu_to_le32(0x53425355);
+        s->csw.tag = cpu_to_le32(req->tag);
+        s->csw.status = 1; /* error */
+
         scsi_req_unref(s->req);
         s->req = NULL;
         s->scsi_len = 0;
