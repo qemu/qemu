@@ -34,6 +34,19 @@ static void test_lp1878263_megasas_zero_iov_cnt(void)
     qtest_quit(s);
 }
 
+static void test_lp1878642_pci_bus_get_irq_level_assert(void)
+{
+    QTestState *s;
+
+    s = qtest_init("-M pc-q35-5.0 "
+                   "-nographic -monitor none -serial none "
+                   "-d guest_errors -trace pci*");
+
+    qtest_outl(s, 0xcf8, 0x8400f841);
+    qtest_outl(s, 0xcfc, 0xebed205d);
+    qtest_outl(s, 0x5d02, 0xebed205d);
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -43,6 +56,8 @@ int main(int argc, char **argv)
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         qtest_add_func("fuzz/test_lp1878263_megasas_zero_iov_cnt",
                        test_lp1878263_megasas_zero_iov_cnt);
+        qtest_add_func("fuzz/test_lp1878642_pci_bus_get_irq_level_assert",
+                       test_lp1878642_pci_bus_get_irq_level_assert);
     }
 
     return g_test_run();

@@ -937,7 +937,7 @@ char *get_relocated_path(const char *dir)
     /* Fail if qemu_init_exec_dir was not called.  */
     assert(exec_dir[0]);
     if (!starts_with_prefix(dir) || !starts_with_prefix(bindir)) {
-        return strdup(dir);
+        return g_strdup(dir);
     }
 
     result = g_string_new(exec_dir);

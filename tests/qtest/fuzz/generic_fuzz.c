@@ -192,7 +192,7 @@ void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr, bool is_write)
      */
     if (dma_patterns->len == 0
         || len == 0
-        /* || mr != MACHINE(qdev_get_machine())->ram */
+        || mr != current_machine->ram
         || is_write
         || addr > current_machine->ram_size) {
         return;
@@ -229,10 +229,10 @@ void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr, bool is_write)
     address_range ar = {addr, len};
     g_array_append_val(dma_regions, ar);
     pattern p = g_array_index(dma_patterns, pattern, dma_pattern_index);
-    void *buf = pattern_alloc(p, ar.size);
+    void *buf_base = pattern_alloc(p, ar.size);
+    void *buf = buf_base;
     hwaddr l, addr1;
     MemoryRegion *mr1;
-    uint8_t *ram_ptr;
     while (len > 0) {
         l = len;
         mr1 = address_space_translate(first_cpu->as,
@@ -244,30 +244,27 @@ void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr, bool is_write)
             l = memory_access_size(mr1, l, addr1);
         } else {
             /* ROM/RAM case */
-            ram_ptr = qemu_map_ram_ptr(mr1->ram_block, addr1);
-            memcpy(ram_ptr, buf, l);
-            break;
+            if (qtest_log_enabled) {
+                /*
+                * With QTEST_LOG, use a normal, slow QTest memwrite. Prefix the log
+                * that will be written by qtest.c with a DMA tag, so we can reorder
+                * the resulting QTest trace so the DMA fills precede the last PIO/MMIO
+                * command.
+                */
+                fprintf(stderr, "[DMA] ");
+                if (double_fetch) {
+                    fprintf(stderr, "[DOUBLE-FETCH] ");
+                }
+                fflush(stderr);
+            }
+            qtest_memwrite(qts_global, addr, buf, l);
         }
         len -= l;
         buf += l;
         addr += l;
 
     }
-    if (qtest_log_enabled) {
-        /*
-         * With QTEST_LOG, use a normal, slow QTest memwrite. Prefix the log
-         * that will be written by qtest.c with a DMA tag, so we can reorder
-         * the resulting QTest trace so the DMA fills precede the last PIO/MMIO
-         * command.
-         */
-        fprintf(stderr, "[DMA] ");
-        if (double_fetch) {
-            fprintf(stderr, "[DOUBLE-FETCH] ");
-        }
-        fflush(stderr);
-    }
-    qtest_memwrite(qts_global, ar.addr, buf, ar.size);
-    g_free(buf);
+    g_free(buf_base);
 
     /* Increment the index of the pattern for the next DMA access */
     dma_pattern_index = (dma_pattern_index + 1) % dma_patterns->len;
@@ -301,6 +298,11 @@ static bool get_io_address(address_range *result, AddressSpace *as,
     } while (cb_info.index != index && !cb_info.found);
 
     *result = cb_info.result;
+    if (result->size) {
+        offset = offset % result->size;
+        result->addr += offset;
+        result->size -= offset;
+    }
     return cb_info.found;
 }
 

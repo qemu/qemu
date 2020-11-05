@@ -187,21 +187,23 @@ process for:
 
 4) other data files, such as icons or desktop files
 
-The source code is highly modularized, split across many files to
-facilitate building of all of these components with as little duplicated
-compilation as possible. The Meson "sourceset" functionality is used
-to list the files and their dependency on various configuration  
-symbols.
-
 All executables are built by default, except for some `contrib/`
 binaries that are known to fail to build on some platforms (for example
 32-bit or big-endian platforms).  Tests are also built by default,
 though that might change in the future.
 
-Various subsystems that are common to both tools and emulators have
-their own sourceset, for example `block_ss` for the block device subsystem,
-`chardev_ss` for the character device subsystem, etc.  These sourcesets
-are then turned into static libraries as follows::
+The source code is highly modularized, split across many files to
+facilitate building of all of these components with as little duplicated
+compilation as possible. Using the Meson "sourceset" functionality,
+`meson.build` files group the source files in rules that are
+enabled according to the available system libraries and to various
+configuration symbols.  Sourcesets belong to one of four groups:
+
+Subsystem sourcesets:
+  Various subsystems that are common to both tools and emulators have
+  their own sourceset, for example `block_ss` for the block device subsystem,
+  `chardev_ss` for the character device subsystem, etc.  These sourcesets
+  are then turned into static libraries as follows::
 
     libchardev = static_library('chardev', chardev_ss.sources(),
                                 name_suffix: 'fa',
@@ -209,61 +211,111 @@ are then turned into static libraries as follows::
 
     chardev = declare_dependency(link_whole: libchardev)
 
-As of Meson 0.55.1, the special `.fa` suffix should be used for everything
-that is used with `link_whole`, to ensure that the link flags are placed
-correctly in the command line.
+  As of Meson 0.55.1, the special `.fa` suffix should be used for everything
+  that is used with `link_whole`, to ensure that the link flags are placed
+  correctly in the command line.
 
-Files linked into emulator targets there can be split into two distinct groups
-of files, those which are independent of the QEMU emulation target and
-those which are dependent on the QEMU emulation target.
+Target-independent emulator sourcesets:
+  Various general purpose helper code is compiled only once and
+  the .o files are linked into all output binaries that need it.
+  This includes error handling infrastructure, standard data structures,
+  platform portability wrapper functions, etc.
 
-In the target-independent set lives various general purpose helper code,
-such as error handling infrastructure, standard data structures,
-platform portability wrapper functions, etc. This code can be compiled
-once only and the .o files linked into all output binaries.
-Target-independent code lives in the `common_ss`, `softmmu_ss` and
-`user_ss` sourcesets.  `common_ss` is linked into all emulators, `softmmu_ss`
-only in system emulators, `user_ss` only in user-mode emulators.
+  Target-independent code lives in the `common_ss`, `softmmu_ss` and
+  `user_ss` sourcesets.  `common_ss` is linked into all emulators,
+  `softmmu_ss` only in system emulators, `user_ss` only in user-mode
+  emulators.
 
-In the target-dependent set lives CPU emulation, device emulation and
-much glue code. This sometimes also has to be compiled multiple times,
-once for each target being built.  Target-dependent files are included
-in the `specific_ss` sourceset.
+  Target-independent sourcesets must exercise particular care when using
+  `if_false` rules.  The `if_false` rule will be used correctly when linking
+  emulator binaries; however, when *compiling* target-independent files
+  into .o files, Meson may need to pick *both* the `if_true` and
+  `if_false` sides to cater for targets that want either side.  To
+  achieve that, you can add a special rule using the ``CONFIG_ALL``
+  symbol::
 
-All binaries link with a static library `libqemuutil.a`, which is then
-linked to all the binaries.  `libqemuutil.a` is built from several
-sourcesets; most of them however host generated code, and the only two
-of general interest are `util_ss` and `stub_ss`.
+    # Some targets have CONFIG_ACPI, some don't, so this is not enough
+    softmmu_ss.add(when: 'CONFIG_ACPI`, if_true: files('acpi.c'),
+                                        if_false: files('acpi-stub.c'))
 
-The separation between these two is purely for documentation purposes.
-`util_ss` contains generic utility files.  Even though this code is only
-linked in some binaries, sometimes it requires hooks only in some of
-these and depend on other functions that are not fully implemented by
-all QEMU binaries.  `stub_ss` links dummy stubs that will only be linked
-into the binary if the real implementation is not present.  In a way,
-the stubs can be thought of as a portable implementation of the weak
-symbols concept.
+    # This is required as well:
+    softmmu_ss.add(when: 'CONFIG_ALL`, if_true: files('acpi-stub.c'))
+
+Target-dependent emulator sourcesets:
+  In the target-dependent set lives CPU emulation, some device emulation and
+  much glue code. This sometimes also has to be compiled multiple times,
+  once for each target being built.  Target-dependent files are included
+  in the `specific_ss` sourceset.
+
+  Each emulator also includes sources for files in the `hw/` and `target/`
+  subdirectories.  The subdirectory used for each emulator comes
+  from the target's definition of ``TARGET_BASE_ARCH`` or (if missing)
+  ``TARGET_ARCH``, as found in `default-configs/targets/*.mak`.
+
+  Each subdirectory in `hw/` adds one sourceset to the `hw_arch` dictionary,
+  for example::
+
+    arm_ss = ss.source_set()
+    arm_ss.add(files('boot.c'), fdt)
+    ...
+    hw_arch += {'arm': arm_ss}
+
+  The sourceset is only used for system emulators.
+
+  Each subdirectory in `target/` instead should add one sourceset to each
+  of the `target_arch` and `target_softmmu_arch`, which are used respectively
+  for all emulators and for system emulators only.  For example::
+
+    arm_ss = ss.source_set()
+    arm_softmmu_ss = ss.source_set()
+    ...
+    target_arch += {'arm': arm_ss}
+    target_softmmu_arch += {'arm': arm_softmmu_ss}
+
+Utility sourcesets:
+  All binaries link with a static library `libqemuutil.a`.  This library
+  is built from several sourcesets; most of them however host generated
+  code, and the only two of general interest are `util_ss` and `stub_ss`.
+
+  The separation between these two is purely for documentation purposes.
+  `util_ss` contains generic utility files.  Even though this code is only
+  linked in some binaries, sometimes it requires hooks only in some of
+  these and depend on other functions that are not fully implemented by
+  all QEMU binaries.  `stub_ss` links dummy stubs that will only be linked
+  into the binary if the real implementation is not present.  In a way,
+  the stubs can be thought of as a portable implementation of the weak
+  symbols concept.
+
 
 The following files concur in the definition of which files are linked
 into each emulator:
 
-`default-configs/*.mak`
-  The files under default-configs/ control what emulated hardware is built
-  into each QEMU system and userspace emulator targets. They merely contain
-  a list of config variable definitions like the machines that should be
-  included. For example, default-configs/aarch64-softmmu.mak has::
+`default-configs/devices/*.mak`
+  The files under `default-configs/devices/` control the boards and devices
+  that are built into each QEMU system emulation targets. They merely contain
+  a list of config variable definitions such as::
 
     include arm-softmmu.mak
     CONFIG_XLNX_ZYNQMP_ARM=y
     CONFIG_XLNX_VERSAL=y
 
 `*/Kconfig`
-  These files are processed together with `default-configs/*.mak` and
+  These files are processed together with `default-configs/devices/*.mak` and
   describe the dependencies between various features, subsystems and
-  device models.  They are described in kconfig.rst.
+  device models.  They are described in :ref:`kconfig`
 
-These files rarely need changing unless new devices / hardware need to
-be enabled for a particular system/userspace emulation target
+`default-configs/targets/*.mak`
+  These files mostly define symbols that appear in the `*-config-target.h`
+  file for each emulator [#cfgtarget]_.  However, the ``TARGET_ARCH``
+  and ``TARGET_BASE_ARCH`` will also be used to select the `hw/` and
+  `target/` subdirectories that are compiled into each target.
+
+.. [#cfgtarget] This header is included by `qemu/osdep.h` when
+                compiling files from the target-specific sourcesets.
+
+These files rarely need changing unless you are adding a completely
+new target, or enabling new devices or hardware for a particular
+system/userspace emulation target
 
 
 Support scripts

@@ -205,6 +205,7 @@ int qemu_pstrcmp0(const char **str1, const char **str2);
  * as the prefix.  For example, if `bindir` is `/usr/bin` and @dir is
  * `/usr/share/qemu`, the function will append `../share/qemu` to the
  * directory that contains the running executable and return the result.
+ * The returned string should be freed by the caller.
  */
 char *get_relocated_path(const char *dir);
 
