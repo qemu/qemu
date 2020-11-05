@@ -1645,15 +1645,17 @@ int vhost_dev_load_inflight(struct vhost_inflight *inflight, QEMUFile *f)
     return 0;
 }
 
-int vhost_dev_prepare_inflight(struct vhost_dev *hdev)
+int vhost_dev_prepare_inflight(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     int r;
- 
+
     if (hdev->vhost_ops->vhost_get_inflight_fd == NULL ||
         hdev->vhost_ops->vhost_set_inflight_fd == NULL) {
         return 0;
     }
- 
+
+    hdev->vdev = vdev;
+
     r = vhost_dev_set_features(hdev, hdev->log_enabled);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_dev_prepare_inflight failed");

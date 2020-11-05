@@ -131,7 +131,7 @@ static int vhost_user_blk_start(VirtIODevice *vdev)
 
     s->dev.acked_features = vdev->guest_features;
 
-    ret = vhost_dev_prepare_inflight(&s->dev);
+    ret = vhost_dev_prepare_inflight(&s->dev, vdev);
     if (ret < 0) {
         error_report("Error set inflight format: %d", -ret);
         goto err_guest_notifiers;
