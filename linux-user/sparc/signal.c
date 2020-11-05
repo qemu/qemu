@@ -247,7 +247,7 @@ long do_sigreturn(CPUSPARCState *env)
 {
     abi_ulong sf_addr;
     struct target_signal_frame *sf;
-    uint32_t up_psr, pc, npc;
+    abi_ulong up_psr, pc, npc;
     target_sigset_t set;
     sigset_t host_set;
     int i;
