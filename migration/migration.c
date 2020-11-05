@@ -3061,6 +3061,8 @@ static void migration_completion(MigrationState *s)
 
         qemu_savevm_state_complete_postcopy(s->to_dst_file);
         trace_migration_completion_postcopy_end_after_complete();
+    } else if (s->state == MIGRATION_STATUS_CANCELLING) {
+        goto fail;
     }
 
     /*
