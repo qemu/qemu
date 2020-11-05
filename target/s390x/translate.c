@@ -1214,6 +1214,7 @@ typedef struct {
 #define IF_DFP      0x0010      /* decimal floating point instruction */
 #define IF_PRIV     0x0020      /* privileged instruction */
 #define IF_VEC      0x0040      /* vector instruction */
+#define IF_IO       0x0080      /* input/output instruction */
 
 struct DisasInsn {
     unsigned opc:16;
@@ -6369,6 +6370,7 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     const DisasInsn *insn;
     DisasJumpType ret = DISAS_NEXT;
     DisasOps o = {};
+    bool icount = false;
 
     /* Search for the insn in the table.  */
     insn = extract_insn(env, s);
@@ -6435,6 +6437,14 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
                 return DISAS_NORETURN;
             }
         }
+
+        /* input/output is the special case for icount mode */
+        if (unlikely(insn->flags & IF_IO)) {
+            icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+            if (icount) {
+                gen_io_start();
+            }
+        }
     }
 
     /* Check for insn specification exceptions.  */
@@ -6486,6 +6496,11 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     }
     if (o.addr1) {
         tcg_temp_free_i64(o.addr1);
+    }
+
+    /* io should be the last instruction in tb when icount is enabled */
+    if (unlikely(icount && ret == DISAS_NEXT)) {
+        ret = DISAS_PC_STALE;
     }
 
 #ifndef CONFIG_USER_ONLY
