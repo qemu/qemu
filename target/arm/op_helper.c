@@ -68,21 +68,24 @@ void raise_exception_ra(CPUARMState *env, uint32_t excp, uint32_t syndrome,
     cpu_loop_exit_restore(cs, ra);
 }
 
-uint32_t HELPER(neon_tbl)(uint32_t ireg, uint32_t def, void *vn,
-                          uint32_t maxindex)
+uint64_t HELPER(neon_tbl)(CPUARMState *env, uint32_t desc,
+                          uint64_t ireg, uint64_t def)
 {
-    uint32_t val, shift;
-    uint64_t *table = vn;
+    uint64_t tmp, val = 0;
+    uint32_t maxindex = ((desc & 3) + 1) * 8;
+    uint32_t base_reg = desc >> 2;
+    uint32_t shift, index, reg;
 
-    val = 0;
-    for (shift = 0; shift < 32; shift += 8) {
-        uint32_t index = (ireg >> shift) & 0xff;
+    for (shift = 0; shift < 64; shift += 8) {
+        index = (ireg >> shift) & 0xff;
         if (index < maxindex) {
-            uint32_t tmp = (table[index >> 3] >> ((index & 7) << 3)) & 0xff;
-            val |= tmp << shift;
+            reg = base_reg + (index >> 3);
+            tmp = *aa32_vfp_dreg(env, reg);
+            tmp = ((tmp >> ((index & 7) << 3)) & 0xff) << shift;
         } else {
-            val |= def & (0xff << shift);
+            tmp = def & (0xffull << shift);
         }
+        val |= tmp;
     }
     return val;
 }

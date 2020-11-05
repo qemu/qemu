@@ -2861,9 +2861,8 @@ static bool trans_VEXT(DisasContext *s, arg_VEXT *a)
 
 static bool trans_VTBL(DisasContext *s, arg_VTBL *a)
 {
-    int n;
-    TCGv_i32 tmp, tmp2, tmp3, tmp4;
-    TCGv_ptr ptr1;
+    TCGv_i64 val, def;
+    TCGv_i32 desc;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -2879,43 +2878,30 @@ static bool trans_VTBL(DisasContext *s, arg_VTBL *a)
         return true;
     }
 
-    n = a->len + 1;
-    if ((a->vn + n) > 32) {
+    if ((a->vn + a->len + 1) > 32) {
         /*
          * This is UNPREDICTABLE; we choose to UNDEF to avoid the
          * helper function running off the end of the register file.
          */
         return false;
     }
-    n <<= 3;
-    tmp = tcg_temp_new_i32();
-    if (a->op) {
-        read_neon_element32(tmp, a->vd, 0, MO_32);
-    } else {
-        tcg_gen_movi_i32(tmp, 0);
-    }
-    tmp2 = tcg_temp_new_i32();
-    read_neon_element32(tmp2, a->vm, 0, MO_32);
-    ptr1 = vfp_reg_ptr(true, a->vn);
-    tmp4 = tcg_const_i32(n);
-    gen_helper_neon_tbl(tmp2, tmp2, tmp, ptr1, tmp4);
 
+    desc = tcg_const_i32((a->vn << 2) | a->len);
+    def = tcg_temp_new_i64();
     if (a->op) {
-        read_neon_element32(tmp, a->vd, 1, MO_32);
+        read_neon_element64(def, a->vd, 0, MO_64);
     } else {
-        tcg_gen_movi_i32(tmp, 0);
+        tcg_gen_movi_i64(def, 0);
     }
-    tmp3 = tcg_temp_new_i32();
-    read_neon_element32(tmp3, a->vm, 1, MO_32);
-    gen_helper_neon_tbl(tmp3, tmp3, tmp, ptr1, tmp4);
-    tcg_temp_free_i32(tmp);
-    tcg_temp_free_i32(tmp4);
-    tcg_temp_free_ptr(ptr1);
+    val = tcg_temp_new_i64();
+    read_neon_element64(val, a->vm, 0, MO_64);
 
-    write_neon_element32(tmp2, a->vd, 0, MO_32);
-    write_neon_element32(tmp3, a->vd, 1, MO_32);
-    tcg_temp_free_i32(tmp2);
-    tcg_temp_free_i32(tmp3);
+    gen_helper_neon_tbl(val, cpu_env, desc, val, def);
+    write_neon_element64(val, a->vd, 0, MO_64);
+
+    tcg_temp_free_i64(def);
+    tcg_temp_free_i64(val);
+    tcg_temp_free_i32(desc);
     return true;
 }
 
