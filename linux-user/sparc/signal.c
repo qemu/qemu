@@ -349,10 +349,15 @@ typedef abi_ulong target_mc_greg_t;
 typedef target_mc_greg_t target_mc_gregset_t[SPARC_MC_NGREG];
 
 struct target_mc_fq {
-    abi_ulong *mcfq_addr;
+    abi_ulong mcfq_addr;
     uint32_t mcfq_insn;
 };
 
+/*
+ * Note the manual 16-alignment; the kernel gets this because it
+ * includes a "long double qregs[16]" in the mcpu_fregs union,
+ * which we can't do.
+ */
 struct target_mc_fpu {
     union {
         uint32_t sregs[32];
@@ -362,11 +367,11 @@ struct target_mc_fpu {
     abi_ulong mcfpu_fsr;
     abi_ulong mcfpu_fprs;
     abi_ulong mcfpu_gsr;
-    struct target_mc_fq *mcfpu_fq;
+    abi_ulong mcfpu_fq;
     unsigned char mcfpu_qcnt;
     unsigned char mcfpu_qentsz;
     unsigned char mcfpu_enab;
-};
+} __attribute__((aligned(16)));
 typedef struct target_mc_fpu target_mc_fpu_t;
 
 typedef struct {
@@ -377,7 +382,7 @@ typedef struct {
 } target_mcontext_t;
 
 struct target_ucontext {
-    struct target_ucontext *tuc_link;
+    abi_ulong tuc_link;
     abi_ulong tuc_flags;
     target_sigset_t tuc_sigmask;
     target_mcontext_t tuc_mcontext;
