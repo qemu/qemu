@@ -48,6 +48,7 @@
 #include "sysemu/qtest.h"
 #include "sysemu/runstate.h"
 #include "sysemu/reset.h"
+#include "migration/vmstate.h"
 
 #define MACROM_ADDR     0x40800000
 #define MACROM_SIZE     0x00100000
@@ -95,10 +96,14 @@
  * CPU.
  */
 
-typedef struct {
+#define TYPE_GLUE "q800-glue"
+OBJECT_DECLARE_SIMPLE_TYPE(GLUEState, GLUE)
+
+struct GLUEState {
+    SysBusDevice parent_obj;
     M68kCPU *cpu;
     uint8_t ipr;
-} GLUEState;
+};
 
 static void GLUE_set_irq(void *opaque, int irq, int level)
 {
@@ -119,6 +124,58 @@ static void GLUE_set_irq(void *opaque, int irq, int level)
     }
     m68k_set_irq_level(s->cpu, 0, 0);
 }
+
+static void glue_reset(DeviceState *dev)
+{
+    GLUEState *s = GLUE(dev);
+
+    s->ipr = 0;
+}
+
+static const VMStateDescription vmstate_glue = {
+    .name = "q800-glue",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(ipr, GLUEState),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
+/*
+ * If the m68k CPU implemented its inbound irq lines as GPIO lines
+ * rather than via the m68k_set_irq_level() function we would not need
+ * this cpu link property and could instead provide outbound IRQ lines
+ * that the board could wire up to the CPU.
+ */
+static Property glue_properties[] = {
+    DEFINE_PROP_LINK("cpu", GLUEState, cpu, TYPE_M68K_CPU, M68kCPU *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void glue_init(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    qdev_init_gpio_in(dev, GLUE_set_irq, 8);
+}
+
+static void glue_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->vmsd = &vmstate_glue;
+    dc->reset = glue_reset;
+    device_class_set_props(dc, glue_properties);
+}
+
+static const TypeInfo glue_info = {
+    .name = TYPE_GLUE,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(GLUEState),
+    .instance_init = glue_init,
+    .class_init = glue_class_init,
+};
 
 static void main_cpu_reset(void *opaque)
 {
@@ -180,8 +237,7 @@ static void q800_init(MachineState *machine)
     SysBusDevice *sysbus;
     BusState *adb_bus;
     NubusBus *nubus;
-    GLUEState *irq;
-    qemu_irq *pic;
+    DeviceState *glue;
     DriveInfo *dinfo;
 
     linux_boot = (kernel_filename != NULL);
@@ -215,10 +271,9 @@ static void q800_init(MachineState *machine)
     }
 
     /* IRQ Glue */
-
-    irq = g_new0(GLUEState, 1);
-    irq->cpu = cpu;
-    pic = qemu_allocate_irqs(GLUE_set_irq, irq, 8);
+    glue = qdev_new(TYPE_GLUE);
+    object_property_set_link(OBJECT(glue), "cpu", OBJECT(cpu), &error_abort);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(glue), &error_fatal);
 
     /* VIA */
 
@@ -230,8 +285,10 @@ static void q800_init(MachineState *machine)
     sysbus = SYS_BUS_DEVICE(via_dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, VIA_BASE);
-    qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 0, pic[0]);
-    qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 1, pic[1]);
+    qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 0,
+                                qdev_get_gpio_in(glue, 0));
+    qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 1,
+                                qdev_get_gpio_in(glue, 1));
 
 
     adb_bus = qdev_get_child_bus(via_dev, "adb.0");
@@ -272,7 +329,7 @@ static void q800_init(MachineState *machine)
     sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, SONIC_BASE);
     sysbus_mmio_map(sysbus, 1, SONIC_PROM_BASE);
-    sysbus_connect_irq(sysbus, 0, pic[2]);
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(glue, 2));
 
     /* SCC */
 
@@ -294,7 +351,7 @@ static void q800_init(MachineState *machine)
     qdev_realize_and_unref(escc_orgate, NULL, &error_fatal);
     sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(escc_orgate, 0));
     sysbus_connect_irq(sysbus, 1, qdev_get_gpio_in(escc_orgate, 1));
-    qdev_connect_gpio_out(DEVICE(escc_orgate), 0, pic[3]);
+    qdev_connect_gpio_out(DEVICE(escc_orgate), 0, qdev_get_gpio_in(glue, 3));
     sysbus_mmio_map(sysbus, 0, SCC_BASE);
 
     /* SCSI */
@@ -456,6 +513,7 @@ static const TypeInfo q800_machine_typeinfo = {
 static void q800_machine_register_types(void)
 {
     type_register_static(&q800_machine_typeinfo);
+    type_register_static(&glue_info);
 }
 
 type_init(q800_machine_register_types)
