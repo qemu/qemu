@@ -555,8 +555,6 @@ void sparc64_get_context(CPUSPARCState *env)
         for (i = 0; i < TARGET_NSIG_WORDS; i++, dst++, src++) {
             __put_user(*src, dst);
         }
-        if (err)
-            goto do_sigsegv;
     }
 
     /* XXX: tstate must be saved properly */
@@ -598,8 +596,6 @@ void sparc64_get_context(CPUSPARCState *env)
      * hidden behind an "if (fenab)" where fenab is always 0).
      */
 
-    if (err)
-        goto do_sigsegv;
     unlock_user_struct(ucp, ucp_addr, 1);
     return;
 do_sigsegv:
