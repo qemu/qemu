@@ -447,7 +447,7 @@ void sparc64_set_context(CPUSPARCState *env)
     __get_user(env->gregs[4], (&(*grp)[SPARC_MC_G4]));
     __get_user(env->gregs[5], (&(*grp)[SPARC_MC_G5]));
     __get_user(env->gregs[6], (&(*grp)[SPARC_MC_G6]));
-    __get_user(env->gregs[7], (&(*grp)[SPARC_MC_G7]));
+    /* Skip g7 as that's the thread register in userspace */
 
     /*
      * Note that unlike the kernel, we didn't need to mess with the
