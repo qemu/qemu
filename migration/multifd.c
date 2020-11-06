@@ -739,6 +739,19 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
     multifd_channel_connect(p, ioc, err);
 }
 
+static void *multifd_tls_handshake_thread(void *opaque)
+{
+    MultiFDSendParams *p = opaque;
+    QIOChannelTLS *tioc = QIO_CHANNEL_TLS(p->c);
+
+    qio_channel_tls_handshake(tioc,
+                              multifd_tls_outgoing_handshake,
+                              p,
+                              NULL,
+                              NULL);
+    return NULL;
+}
+
 static void multifd_tls_channel_connect(MultiFDSendParams *p,
                                         QIOChannel *ioc,
                                         Error **errp)
@@ -754,12 +767,10 @@ static void multifd_tls_channel_connect(MultiFDSendParams *p,
 
     trace_multifd_tls_outgoing_handshake_start(ioc, tioc, hostname);
     qio_channel_set_name(QIO_CHANNEL(tioc), "multifd-tls-outgoing");
-    qio_channel_tls_handshake(tioc,
-                              multifd_tls_outgoing_handshake,
-                              p,
-                              NULL,
-                              NULL);
-
+    p->c = QIO_CHANNEL(tioc);
+    qemu_thread_create(&p->thread, "multifd-tls-handshake-worker",
+                       multifd_tls_handshake_thread, p,
+                       QEMU_THREAD_JOINABLE);
 }
 
 static bool multifd_channel_connect(MultiFDSendParams *p,
