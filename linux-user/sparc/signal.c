@@ -438,9 +438,9 @@ void sparc64_set_context(CPUSPARCState *env)
     env->npc = npc;
     __get_user(env->y, &((*grp)[SPARC_MC_Y]));
     __get_user(tstate, &((*grp)[SPARC_MC_TSTATE]));
+    /* Honour TSTATE_ASI, TSTATE_ICC and TSTATE_XCC only */
     env->asi = (tstate >> 24) & 0xff;
-    cpu_put_ccr(env, tstate >> 32);
-    cpu_put_cwp64(env, tstate & 0x1f);
+    cpu_put_ccr(env, (tstate >> 32) & 0xff);
     __get_user(env->gregs[1], (&(*grp)[SPARC_MC_G1]));
     __get_user(env->gregs[2], (&(*grp)[SPARC_MC_G2]));
     __get_user(env->gregs[3], (&(*grp)[SPARC_MC_G3]));
@@ -557,8 +557,7 @@ void sparc64_get_context(CPUSPARCState *env)
         }
     }
 
-    /* XXX: tstate must be saved properly */
-    //    __put_user(env->tstate, &((*grp)[SPARC_MC_TSTATE]));
+    __put_user(sparc64_tstate(env), &((*grp)[SPARC_MC_TSTATE]));
     __put_user(env->pc, &((*grp)[SPARC_MC_PC]));
     __put_user(env->npc, &((*grp)[SPARC_MC_NPC]));
     __put_user(env->y, &((*grp)[SPARC_MC_Y]));
