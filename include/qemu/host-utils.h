@@ -272,6 +272,9 @@ static inline int ctpop64(uint64_t val)
  */
 static inline uint8_t revbit8(uint8_t x)
 {
+#if __has_builtin(__builtin_bitreverse8)
+    return __builtin_bitreverse8(x);
+#else
     /* Assign the correct nibble position.  */
     x = ((x & 0xf0) >> 4)
       | ((x & 0x0f) << 4);
@@ -281,6 +284,7 @@ static inline uint8_t revbit8(uint8_t x)
       | ((x & 0x22) << 1)
       | ((x & 0x11) << 3);
     return x;
+#endif
 }
 
 /**
@@ -289,6 +293,9 @@ static inline uint8_t revbit8(uint8_t x)
  */
 static inline uint16_t revbit16(uint16_t x)
 {
+#if __has_builtin(__builtin_bitreverse16)
+    return __builtin_bitreverse16(x);
+#else
     /* Assign the correct byte position.  */
     x = bswap16(x);
     /* Assign the correct nibble position.  */
@@ -300,6 +307,7 @@ static inline uint16_t revbit16(uint16_t x)
       | ((x & 0x2222) << 1)
       | ((x & 0x1111) << 3);
     return x;
+#endif
 }
 
 /**
@@ -308,6 +316,9 @@ static inline uint16_t revbit16(uint16_t x)
  */
 static inline uint32_t revbit32(uint32_t x)
 {
+#if __has_builtin(__builtin_bitreverse32)
+    return __builtin_bitreverse32(x);
+#else
     /* Assign the correct byte position.  */
     x = bswap32(x);
     /* Assign the correct nibble position.  */
@@ -319,6 +330,7 @@ static inline uint32_t revbit32(uint32_t x)
       | ((x & 0x22222222u) << 1)
       | ((x & 0x11111111u) << 3);
     return x;
+#endif
 }
 
 /**
@@ -327,6 +339,9 @@ static inline uint32_t revbit32(uint32_t x)
  */
 static inline uint64_t revbit64(uint64_t x)
 {
+#if __has_builtin(__builtin_bitreverse64)
+    return __builtin_bitreverse64(x);
+#else
     /* Assign the correct byte position.  */
     x = bswap64(x);
     /* Assign the correct nibble position.  */
@@ -338,6 +353,7 @@ static inline uint64_t revbit64(uint64_t x)
       | ((x & 0x2222222222222222ull) << 1)
       | ((x & 0x1111111111111111ull) << 3);
     return x;
+#endif
 }
 
 /* Host type specific sizes of these routines.  */
