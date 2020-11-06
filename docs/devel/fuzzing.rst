@@ -34,16 +34,16 @@ such as out-of-bounds accesses, use-after-frees, double-frees etc.::
 
 Fuzz targets are built similarly to system targets::
 
-    make i386-softmmu/fuzz
+    make qemu-fuzz-i386
 
-This builds ``./i386-softmmu/qemu-fuzz-i386``
+This builds ``./qemu-fuzz-i386``
 
 The first option to this command is: ``--fuzz-target=FUZZ_NAME``
 To list all of the available fuzzers run ``qemu-fuzz-i386`` with no arguments.
 
 For example::
 
-    ./i386-softmmu/qemu-fuzz-i386 --fuzz-target=virtio-scsi-fuzz
+    ./qemu-fuzz-i386 --fuzz-target=virtio-scsi-fuzz
 
 Internally, libfuzzer parses all arguments that do not begin with ``"--"``.
 Information about these is available by passing ``-help=1``
