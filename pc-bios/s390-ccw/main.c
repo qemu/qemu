@@ -43,7 +43,9 @@ void write_subsystem_identification(void)
 
 void write_iplb_location(void)
 {
-    lowcore->ptr_iplb = ptr2u32(&iplb);
+    if (cutype == CU_TYPE_VIRTIO && virtio_get_device_type() != VIRTIO_ID_NET) {
+        lowcore->ptr_iplb = ptr2u32(&iplb);
+    }
 }
 
 unsigned int get_loadparm_index(void)
