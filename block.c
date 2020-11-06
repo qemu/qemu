@@ -2112,15 +2112,17 @@ static void bdrv_abort_perm_update(BlockDriverState *bs)
     }
 }
 
-static void bdrv_set_perm(BlockDriverState *bs, uint64_t cumulative_perms,
-                          uint64_t cumulative_shared_perms)
+static void bdrv_set_perm(BlockDriverState *bs)
 {
+    uint64_t cumulative_perms, cumulative_shared_perms;
     BlockDriver *drv = bs->drv;
     BdrvChild *c;
 
     if (!drv) {
         return;
     }
+
+    bdrv_get_cumulative_perm(bs, &cumulative_perms, &cumulative_shared_perms);
 
     /* Update this node */
     if (drv->bdrv_set_perm) {
@@ -2304,16 +2306,12 @@ static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
 
 static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared)
 {
-    uint64_t cumulative_perms, cumulative_shared_perms;
-
     c->has_backup_perm = false;
 
     c->perm = perm;
     c->shared_perm = shared;
 
-    bdrv_get_cumulative_perm(c->bs, &cumulative_perms,
-                             &cumulative_shared_perms);
-    bdrv_set_perm(c->bs, cumulative_perms, cumulative_shared_perms);
+    bdrv_set_perm(c->bs);
 }
 
 static void bdrv_child_abort_perm_update(BdrvChild *c)
@@ -2340,7 +2338,7 @@ static int bdrv_refresh_perms(BlockDriverState *bs, bool *tighten_restrictions,
         bdrv_abort_perm_update(bs);
         return ret;
     }
-    bdrv_set_perm(bs, perm, shared_perm);
+    bdrv_set_perm(bs);
 
     return 0;
 }
@@ -2641,7 +2639,6 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
 static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
 {
     BlockDriverState *old_bs = child->bs;
-    uint64_t perm, shared_perm;
 
     /* Asserts that child->frozen == false */
     bdrv_replace_child_noperm(child, new_bs);
@@ -2655,8 +2652,7 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
      * restrictions.
      */
     if (new_bs) {
-        bdrv_get_cumulative_perm(new_bs, &perm, &shared_perm);
-        bdrv_set_perm(new_bs, perm, shared_perm);
+        bdrv_set_perm(new_bs);
     }
 
     if (old_bs) {
@@ -3874,7 +3870,13 @@ cleanup_perm:
         }
 
         if (ret == 0) {
-            bdrv_set_perm(state->bs, state->perm, state->shared_perm);
+            uint64_t perm, shared;
+
+            bdrv_get_cumulative_perm(state->bs, &perm, &shared);
+            assert(perm == state->perm);
+            assert(shared == state->shared_perm);
+
+            bdrv_set_perm(state->bs);
         } else {
             bdrv_abort_perm_update(state->bs);
             if (state->replace_backing_bs && state->new_backing_bs) {
@@ -4644,8 +4646,7 @@ static void bdrv_replace_node_common(BlockDriverState *from,
         bdrv_unref(from);
     }
 
-    bdrv_get_cumulative_perm(to, &perm, &shared);
-    bdrv_set_perm(to, perm, shared);
+    bdrv_set_perm(to);
 
 out:
     g_slist_free(list);
