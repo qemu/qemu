@@ -1903,7 +1903,7 @@ static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
                                  GSList *ignore_children,
                                  bool *tighten_restrictions, Error **errp);
 static void bdrv_child_abort_perm_update(BdrvChild *c);
-static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared);
+static void bdrv_child_set_perm(BdrvChild *c);
 
 typedef struct BlockReopenQueueEntry {
      bool prepared;
@@ -2137,11 +2137,7 @@ static void bdrv_set_perm(BlockDriverState *bs)
 
     /* Update all children */
     QLIST_FOREACH(c, &bs->children, next) {
-        uint64_t cur_perm, cur_shared;
-        bdrv_child_perm(bs, c->bs, c, c->role, NULL,
-                        cumulative_perms, cumulative_shared_perms,
-                        &cur_perm, &cur_shared);
-        bdrv_child_set_perm(c, cur_perm, cur_shared);
+        bdrv_child_set_perm(c);
     }
 }
 
@@ -2304,12 +2300,9 @@ static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
     return 0;
 }
 
-static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared)
+static void bdrv_child_set_perm(BdrvChild *c)
 {
     c->has_backup_perm = false;
-
-    c->perm = perm;
-    c->shared_perm = shared;
 
     bdrv_set_perm(c->bs);
 }
@@ -2369,7 +2362,7 @@ int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
         return ret;
     }
 
-    bdrv_child_set_perm(c, perm, shared);
+    bdrv_child_set_perm(c);
 
     return 0;
 }
