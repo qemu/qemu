@@ -29,6 +29,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/irq.h"
+#include "hw/or-irq.h"
 #include "elf.h"
 #include "hw/loader.h"
 #include "ui/console.h"
@@ -173,6 +174,7 @@ static void q800_init(MachineState *machine)
     CPUState *cs;
     DeviceState *dev;
     DeviceState *via_dev;
+    DeviceState *escc_orgate;
     SysBusESPState *sysbus_esp;
     ESPState *esp;
     SysBusDevice *sysbus;
@@ -285,8 +287,14 @@ static void q800_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "chnAtype", 0);
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
-    sysbus_connect_irq(sysbus, 0, pic[3]);
-    sysbus_connect_irq(sysbus, 1, pic[3]);
+
+    /* Logically OR both its IRQs together */
+    escc_orgate = DEVICE(object_new(TYPE_OR_IRQ));
+    object_property_set_int(OBJECT(escc_orgate), "num-lines", 2, &error_fatal);
+    qdev_realize_and_unref(escc_orgate, NULL, &error_fatal);
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in(escc_orgate, 0));
+    sysbus_connect_irq(sysbus, 1, qdev_get_gpio_in(escc_orgate, 1));
+    qdev_connect_gpio_out(DEVICE(escc_orgate), 0, pic[3]);
     sysbus_mmio_map(sysbus, 0, SCC_BASE);
 
     /* SCSI */
