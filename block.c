@@ -4563,8 +4563,16 @@ static bool should_update_child(BdrvChild *c, BlockDriverState *to)
     return ret;
 }
 
-void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
-                       Error **errp)
+/*
+ * With auto_skip=true bdrv_replace_node_common skips updating from parents
+ * if it creates a parent-child relation loop or if parent is block-job.
+ *
+ * With auto_skip=false the error is returned if from has a parent which should
+ * not be updated.
+ */
+static void bdrv_replace_node_common(BlockDriverState *from,
+                                     BlockDriverState *to,
+                                     bool auto_skip, Error **errp)
 {
     BdrvChild *c, *next;
     GSList *list = NULL, *p;
@@ -4583,7 +4591,12 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
         assert(c->bs == from);
         if (!should_update_child(c, to)) {
-            continue;
+            if (auto_skip) {
+                continue;
+            }
+            error_setg(errp, "Should not change '%s' link to '%s'",
+                       c->name, from->node_name);
+            goto out;
         }
         if (c->frozen) {
             error_setg(errp, "Cannot change '%s' link to '%s'",
@@ -4621,6 +4634,12 @@ out:
     g_slist_free(list);
     bdrv_drained_end(from);
     bdrv_unref(from);
+}
+
+void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
+                       Error **errp)
+{
+    return bdrv_replace_node_common(from, to, true, errp);
 }
 
 /*
