@@ -29,6 +29,10 @@ typedef struct NvmeNamespaceParams {
     uint32_t nsid;
     QemuUUID uuid;
 
+    uint16_t mssrl;
+    uint32_t mcl;
+    uint8_t  msrc;
+
     bool     zoned;
     bool     cross_zone_read;
     uint64_t zone_size_bs;
