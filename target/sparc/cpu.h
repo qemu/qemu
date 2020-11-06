@@ -156,7 +156,9 @@ enum {
 #define PS_IE    (1<<1)
 #define PS_AG    (1<<0) /* v9, zero on UA2007 */
 
-#define FPRS_FEF (1<<2)
+#define FPRS_DL (1 << 0)
+#define FPRS_DU (1 << 1)
+#define FPRS_FEF (1 << 2)
 
 #define HS_PRIV  (1<<2)
 #endif
