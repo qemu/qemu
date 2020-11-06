@@ -139,6 +139,9 @@ static uint64_t ibex_plic_read(void *opaque, hwaddr addr,
         /* Return the current claimed interrupt */
         ret = s->claim;
 
+        /* Clear the claimed interrupt */
+        s->claim = 0x00000000;
+
         /* Update the interrupt status after the claim */
         ibex_plic_update(s);
     }
