@@ -356,6 +356,231 @@ static inline uint64_t revbit64(uint64_t x)
 #endif
 }
 
+/**
+ * sadd32_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool sadd32_overflow(int32_t x, int32_t y, int32_t *ret)
+{
+#if __has_builtin(__builtin_add_overflow) || __GNUC__ >= 5
+    return __builtin_add_overflow(x, y, ret);
+#else
+    *ret = x + y;
+    return ((*ret ^ x) & ~(x ^ y)) < 0;
+#endif
+}
+
+/**
+ * sadd64_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool sadd64_overflow(int64_t x, int64_t y, int64_t *ret)
+{
+#if __has_builtin(__builtin_add_overflow) || __GNUC__ >= 5
+    return __builtin_add_overflow(x, y, ret);
+#else
+    *ret = x + y;
+    return ((*ret ^ x) & ~(x ^ y)) < 0;
+#endif
+}
+
+/**
+ * uadd32_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool uadd32_overflow(uint32_t x, uint32_t y, uint32_t *ret)
+{
+#if __has_builtin(__builtin_add_overflow) || __GNUC__ >= 5
+    return __builtin_add_overflow(x, y, ret);
+#else
+    *ret = x + y;
+    return *ret < x;
+#endif
+}
+
+/**
+ * uadd64_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool uadd64_overflow(uint64_t x, uint64_t y, uint64_t *ret)
+{
+#if __has_builtin(__builtin_add_overflow) || __GNUC__ >= 5
+    return __builtin_add_overflow(x, y, ret);
+#else
+    *ret = x + y;
+    return *ret < x;
+#endif
+}
+
+/**
+ * ssub32_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for difference
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool ssub32_overflow(int32_t x, int32_t y, int32_t *ret)
+{
+#if __has_builtin(__builtin_sub_overflow) || __GNUC__ >= 5
+    return __builtin_sub_overflow(x, y, ret);
+#else
+    *ret = x - y;
+    return ((*ret ^ x) & (x ^ y)) < 0;
+#endif
+}
+
+/**
+ * ssub64_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool ssub64_overflow(int64_t x, int64_t y, int64_t *ret)
+{
+#if __has_builtin(__builtin_sub_overflow) || __GNUC__ >= 5
+    return __builtin_sub_overflow(x, y, ret);
+#else
+    *ret = x - y;
+    return ((*ret ^ x) & (x ^ y)) < 0;
+#endif
+}
+
+/**
+ * usub32_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool usub32_overflow(uint32_t x, uint32_t y, uint32_t *ret)
+{
+#if __has_builtin(__builtin_sub_overflow) || __GNUC__ >= 5
+    return __builtin_sub_overflow(x, y, ret);
+#else
+    *ret = x - y;
+    return x < y;
+#endif
+}
+
+/**
+ * usub64_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool usub64_overflow(uint64_t x, uint64_t y, uint64_t *ret)
+{
+#if __has_builtin(__builtin_sub_overflow) || __GNUC__ >= 5
+    return __builtin_sub_overflow(x, y, ret);
+#else
+    *ret = x - y;
+    return x < y;
+#endif
+}
+
+/**
+ * smul32_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool smul32_overflow(int32_t x, int32_t y, int32_t *ret)
+{
+#if __has_builtin(__builtin_mul_overflow) || __GNUC__ >= 5
+    return __builtin_mul_overflow(x, y, ret);
+#else
+    int64_t z = (int64_t)x * y;
+    *ret = z;
+    return *ret != z;
+#endif
+}
+
+/**
+ * smul64_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool smul64_overflow(int64_t x, int64_t y, int64_t *ret)
+{
+#if __has_builtin(__builtin_mul_overflow) || __GNUC__ >= 5
+    return __builtin_mul_overflow(x, y, ret);
+#else
+    uint64_t hi, lo;
+    muls64(&lo, &hi, x, y);
+    *ret = lo;
+    return hi != ((int64_t)lo >> 63);
+#endif
+}
+
+/**
+ * umul32_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool umul32_overflow(uint32_t x, uint32_t y, uint32_t *ret)
+{
+#if __has_builtin(__builtin_mul_overflow) || __GNUC__ >= 5
+    return __builtin_mul_overflow(x, y, ret);
+#else
+    uint64_t z = (uint64_t)x * y;
+    *ret = z;
+    return z > UINT32_MAX;
+#endif
+}
+
+/**
+ * umul64_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool umul64_overflow(uint64_t x, uint64_t y, uint64_t *ret)
+{
+#if __has_builtin(__builtin_mul_overflow) || __GNUC__ >= 5
+    return __builtin_mul_overflow(x, y, ret);
+#else
+    uint64_t hi;
+    mulu64(ret, &hi, x, y);
+    return hi != 0;
+#endif
+}
+
 /* Host type specific sizes of these routines.  */
 
 #if ULONG_MAX == UINT32_MAX
