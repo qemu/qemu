@@ -100,3 +100,36 @@ static FloatPartsN *partsN(pick_nan_muladd)(FloatPartsN *a, FloatPartsN *b,
     }
     return a;
 }
+
+/*
+ * Canonicalize the FloatParts structure.  Determine the class,
+ * unbias the exponent, and normalize the fraction.
+ */
+static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
+                                 const FloatFmt *fmt)
+{
+    if (unlikely(p->exp == 0)) {
+        if (likely(frac_eqz(p))) {
+            p->cls = float_class_zero;
+        } else if (status->flush_inputs_to_zero) {
+            float_raise(float_flag_input_denormal, status);
+            p->cls = float_class_zero;
+            frac_clear(p);
+        } else {
+            int shift = frac_normalize(p);
+            p->cls = float_class_normal;
+            p->exp = fmt->frac_shift - fmt->exp_bias - shift + 1;
+        }
+    } else if (likely(p->exp < fmt->exp_max) || fmt->arm_althp) {
+        p->cls = float_class_normal;
+        p->exp -= fmt->exp_bias;
+        frac_shl(p, fmt->frac_shift);
+        p->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
+    } else if (likely(frac_eqz(p))) {
+        p->cls = float_class_inf;
+    } else {
+        frac_shl(p, fmt->frac_shift);
+        p->cls = (parts_is_snan_frac(p->frac_hi, status)
+                  ? float_class_snan : float_class_qnan);
+    }
+}
