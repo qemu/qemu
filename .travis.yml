@@ -119,11 +119,6 @@ after_script:
 
 jobs:
   include:
-    - name: "GCC static (user)"
-      env:
-        - CONFIG="--disable-system --static"
-        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
-
     # Just build tools and run minimal unit and softfloat checks
     - name: "GCC check-unit and check-softfloat"
       env:
