@@ -201,6 +201,7 @@ build-disabled:
     IMAGE: fedora
     CONFIGURE_ARGS:
       --disable-attr
+      --disable-auth-pam
       --disable-avx2
       --disable-bochs
       --disable-brlapi
@@ -213,15 +214,18 @@ build-disabled:
       --disable-curses
       --disable-dmg
       --disable-docs
+      --disable-gcrypt
       --disable-glusterfs
       --disable-gnutls
       --disable-gtk
       --disable-guest-agent
       --disable-iconv
+      --disable-keyring
       --disable-kvm
       --disable-libiscsi
       --disable-libpmem
       --disable-libssh
+      --disable-libudev
       --disable-libusb
       --disable-libxml2
       --disable-linux-aio
@@ -231,6 +235,7 @@ build-disabled:
       --disable-mpath
       --disable-nettle
       --disable-numa
+      --disable-opengl
       --disable-parallels
       --disable-pie
       --disable-qcow1
@@ -245,6 +250,7 @@ build-disabled:
       --disable-slirp
       --disable-smartcard
       --disable-snappy
+      --disable-sparse
       --disable-spice
       --disable-strip
       --disable-tpm
