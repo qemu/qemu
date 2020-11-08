@@ -148,20 +148,6 @@ jobs:
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
 
 
-    # Alternate coroutines implementations are only really of interest to KVM users
-    # However we can't test against KVM on Travis so we can only run unit tests
-    - name: "check-unit coroutine=ucontext"
-      env:
-        - CONFIG="--with-coroutine=ucontext --disable-tcg"
-        - TEST_CMD="make check-unit -j${JOBS} V=1"
-
-
-    - name: "check-unit coroutine=sigaltstack"
-      env:
-        - CONFIG="--with-coroutine=sigaltstack --disable-tcg"
-        - TEST_CMD="make check-unit -j${JOBS} V=1"
-
-
     # Check we can build docs and tools (out of tree)
     - name: "tools and docs (bionic)"
       dist: bionic

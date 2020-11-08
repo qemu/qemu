@@ -413,6 +413,22 @@ build-tci:
     - QTEST_QEMU_BINARY="./qemu-system-x86_64" ./tests/qtest/pxe-test
     - QTEST_QEMU_BINARY="./qemu-system-s390x" ./tests/qtest/pxe-test -m slow
 
+# Alternate coroutines implementations are only really of interest to KVM users
+# However we can't test against KVM on Gitlab-CI so we can only run unit tests
+build-coroutine-ucontext:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: ubuntu2004
+    CONFIGURE_ARGS: --with-coroutine=ucontext --disable-tcg
+    MAKE_CHECK_ARGS: check-unit
+
+build-coroutine-sigaltstack:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: ubuntu2004
+    CONFIGURE_ARGS: --with-coroutine=sigaltstack --disable-tcg
+    MAKE_CHECK_ARGS: check-unit
+
 # Most jobs test latest gcrypt or nettle builds
 #
 # These jobs test old gcrypt and nettle from RHEL7
