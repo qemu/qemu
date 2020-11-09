@@ -20,7 +20,7 @@ static void test_panic(void)
     qts = qtest_init("-device pvpanic");
 
     val = qtest_inb(qts, 0x505);
-    g_assert_cmpuint(val, ==, 1);
+    g_assert_cmpuint(val, ==, 3);
 
     qtest_outb(qts, 0x505, 0x1);
 
