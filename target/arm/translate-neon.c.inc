@@ -2874,16 +2874,16 @@ static bool trans_VTBL(DisasContext *s, arg_VTBL *a)
         return false;
     }
 
-    if (!vfp_access_check(s)) {
-        return true;
-    }
-
     if ((a->vn + a->len + 1) > 32) {
         /*
          * This is UNPREDICTABLE; we choose to UNDEF to avoid the
          * helper function running off the end of the register file.
          */
         return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
     }
 
     desc = tcg_const_i32((a->vn << 2) | a->len);
