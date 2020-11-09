@@ -1443,6 +1443,9 @@ GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
         get_disk_deps(disk_dir, disk);
         ret = get_disk_partitions(ret, de->d_name, disk_dir, dev_name);
     }
+
+    closedir(dp);
+
     return ret;
 }
 
