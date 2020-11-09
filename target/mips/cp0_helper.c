@@ -32,7 +32,6 @@
 #include "sysemu/kvm.h"
 
 
-#ifndef CONFIG_USER_ONLY
 /* SMP helpers.  */
 static bool mips_vpe_is_wfi(MIPSCPU *c)
 {
@@ -1667,10 +1666,8 @@ target_ulong helper_evpe(CPUMIPSState *env)
     }
     return prev;
 }
-#endif /* !CONFIG_USER_ONLY */
 
 /* R6 Multi-threading */
-#ifndef CONFIG_USER_ONLY
 target_ulong helper_dvp(CPUMIPSState *env)
 {
     CPUState *other_cs = first_cpu;
@@ -1709,4 +1706,3 @@ target_ulong helper_evp(CPUMIPSState *env)
     }
     return prev;
 }
-#endif /* !CONFIG_USER_ONLY */
