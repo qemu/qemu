@@ -578,13 +578,18 @@ static void *fv_queue_thread(void *opaque)
     struct VuDev *dev = &qi->virtio_dev->dev;
     struct VuVirtq *q = vu_get_queue(dev, qi->qidx);
     struct fuse_session *se = qi->virtio_dev->se;
-    GThreadPool *pool;
+    GThreadPool *pool = NULL;
+    GList *req_list = NULL;
 
-    pool = g_thread_pool_new(fv_queue_worker, qi, se->thread_pool_size, FALSE,
-                             NULL);
-    if (!pool) {
-        fuse_log(FUSE_LOG_ERR, "%s: g_thread_pool_new failed\n", __func__);
-        return NULL;
+    if (se->thread_pool_size) {
+        fuse_log(FUSE_LOG_DEBUG, "%s: Creating thread pool for Queue %d\n",
+                 __func__, qi->qidx);
+        pool = g_thread_pool_new(fv_queue_worker, qi, se->thread_pool_size,
+                                 FALSE, NULL);
+        if (!pool) {
+            fuse_log(FUSE_LOG_ERR, "%s: g_thread_pool_new failed\n", __func__);
+            return NULL;
+        }
     }
 
     fuse_log(FUSE_LOG_INFO, "%s: Start for queue %d kick_fd %d\n", __func__,
@@ -659,14 +664,27 @@ static void *fv_queue_thread(void *opaque)
 
             req->reply_sent = false;
 
-            g_thread_pool_push(pool, req, NULL);
+            if (!se->thread_pool_size) {
+                req_list = g_list_prepend(req_list, req);
+            } else {
+                g_thread_pool_push(pool, req, NULL);
+            }
         }
 
         pthread_mutex_unlock(&qi->vq_lock);
         pthread_rwlock_unlock(&qi->virtio_dev->vu_dispatch_rwlock);
+
+        /* Process all the requests. */
+        if (!se->thread_pool_size && req_list != NULL) {
+            g_list_foreach(req_list, fv_queue_worker, qi);
+            g_list_free(req_list);
+            req_list = NULL;
+        }
     }
 
-    g_thread_pool_free(pool, FALSE, TRUE);
+    if (pool) {
+        g_thread_pool_free(pool, FALSE, TRUE);
+    }
 
     return NULL;
 }
