@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-#
+#!/usr/bin/env python3
+
 # Test hot plugging and unplugging with iothreads
 #
 # Copyright (C) 2019 Igalia, S.L.
@@ -17,133 +17,90 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
 
-# creator
-owner=berto@igalia.com
+import iotests
+import os
 
-seq=`basename $0`
-echo "QA output created by $seq"
+nbd_sock = iotests.file_path('nbd.sock', base_dir=iotests.sock_dir)
 
-status=1	# failure is the default!
+class TestCase(iotests.QMPTestCase):
+    test_driver = "null-co"
 
-_cleanup()
-{
-    rm -f "$SOCK_DIR/nbd"
-}
-trap "_cleanup; exit \$status" 0 1 2 3 15
+    def required_drivers(self):
+        return [self.test_driver]
 
-# get standard environment, filters and checks
-. ./common.rc
-. ./common.filter
+    @iotests.skip_if_unsupported(required_drivers)
+    def setUp(self):
+        self.vm = iotests.VM()
+        self.vm.launch()
 
-_supported_fmt generic
-_supported_proto generic
+    def tearDown(self):
+        self.vm.shutdown()
 
-do_run_qemu()
-{
-    echo Testing: "$@"
-    $QEMU -nographic -qmp stdio -serial none "$@"
-    echo
-}
+    def test1(self):
+        iotests.log('==Unplug a SCSI disk and then plug it again==')
+        self.vm.qmp_log('blockdev-add', driver='null-co', read_zeroes=True, node_name='hd0')
+        self.vm.qmp_log('object-add', qom_type='iothread', id="iothread0")
+        self.vm.qmp_log('device_add', id='scsi0', driver=iotests.get_virtio_scsi_device(), iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
+        self.vm.qmp_log('device_add', id='scsi-hd0', driver='scsi-hd', drive='hd0')
+        self.vm.qmp_log('device_del', id='scsi-hd0')
+        self.vm.event_wait('DEVICE_DELETED')
+        self.vm.qmp_log('device_add', id='scsi-hd0', driver='scsi-hd', drive='hd0')
+        self.vm.qmp_log('device_del', id='scsi-hd0')
+        self.vm.event_wait('DEVICE_DELETED')
+        self.vm.qmp_log('blockdev-del', node_name='hd0')
 
-# Remove QMP events from (pretty-printed) output. Doesn't handle
-# nested dicts correctly, but we don't get any of those in this test.
-_filter_qmp_events()
-{
-    tr '\n' '\t' | sed -e \
-	's/{\s*"timestamp":\s*{[^}]*},\s*"event":[^,}]*\(,\s*"data":\s*{[^}]*}\)\?\s*}\s*//g' \
-	| tr '\t' '\n'
-}
+    def test2(self):
+        iotests.log('==Attach two SCSI disks using the same block device and the same iothread==')
+        self.vm.qmp_log('blockdev-add', driver='null-co', read_zeroes=True, node_name='hd0', read_only=True)
+        self.vm.qmp_log('object-add', qom_type='iothread', id="iothread0")
+        self.vm.qmp_log('device_add', id='scsi0', driver=iotests.get_virtio_scsi_device(), iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
 
-run_qemu()
-{
-    do_run_qemu "$@" 2>&1 | _filter_qmp | _filter_qmp_events
-}
+        self.vm.qmp_log('device_add', id='scsi-hd0', driver='scsi-hd', drive='hd0')
+        self.vm.qmp_log('device_add', id='scsi-hd1', driver='scsi-hd', drive='hd0')
+        self.vm.qmp_log('device_del', id='scsi-hd0')
+        self.vm.event_wait('DEVICE_DELETED')
+        self.vm.qmp_log('device_del', id='scsi-hd1')
+        self.vm.event_wait('DEVICE_DELETED')
+        self.vm.qmp_log('blockdev-del', node_name='hd0')
 
-case "$QEMU_DEFAULT_MACHINE" in
-  s390-ccw-virtio)
-      virtio_scsi=virtio-scsi-ccw
-      ;;
-  *)
-      virtio_scsi=virtio-scsi-pci
-      ;;
-esac
+    def test3(self):
+        iotests.log('==Attach two SCSI disks using the same block device but different iothreads==')
 
-echo
-echo === Unplug a SCSI disk and then plug it again ===
-echo
+        self.vm.qmp_log('blockdev-add', driver='null-co', read_zeroes=True, node_name='hd0', read_only=True)
 
-run_qemu <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "blockdev-add", "arguments": {"driver": "null-co", "read-zeroes": true, "node-name": "hd0"}}
-{ "execute": "object-add", "arguments": {"qom-type": "iothread", "id": "iothread0"}}
-{ "execute": "device_add", "arguments": {"id": "scsi0", "driver": "${virtio_scsi}", "iothread": "iothread0"}}
-{ "execute": "device_add", "arguments": {"id": "scsi-hd0", "driver": "scsi-hd", "drive": "hd0"}}
-{ "execute": "device_del", "arguments": {"id": "scsi-hd0"}}
-{ "execute": "device_add", "arguments": {"id": "scsi-hd0", "driver": "scsi-hd", "drive": "hd0"}}
-{ "execute": "device_del", "arguments": {"id": "scsi-hd0"}}
-{ "execute": "device_del", "arguments": {"id": "scsi0"}}
-{ "execute": "blockdev-del", "arguments": {"node-name": "hd0"}}
-{ "execute": "quit"}
-EOF
+        self.vm.qmp_log('object-add', qom_type='iothread', id="iothread0")
+        self.vm.qmp_log('object-add', qom_type='iothread', id="iothread1")
 
-echo
-echo === Attach two SCSI disks using the same block device and the same iothread ===
-echo
+        self.vm.qmp_log('device_add', id='scsi0', driver=iotests.get_virtio_scsi_device(), iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
+        self.vm.qmp_log('device_add', id='scsi1', driver=iotests.get_virtio_scsi_device(), iothread='iothread1', filters=[iotests.filter_qmp_virtio_scsi])
 
-run_qemu <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "blockdev-add", "arguments": {"driver": "null-co", "read-zeroes": true, "node-name": "hd0", "read-only": true}}
-{ "execute": "object-add", "arguments": {"qom-type": "iothread", "id": "iothread0"}}
-{ "execute": "device_add", "arguments": {"id": "scsi0", "driver": "${virtio_scsi}", "iothread": "iothread0"}}
-{ "execute": "device_add", "arguments": {"id": "scsi-hd0", "driver": "scsi-hd", "drive": "hd0"}}
-{ "execute": "device_add", "arguments": {"id": "scsi-hd1", "driver": "scsi-hd", "drive": "hd0"}}
-{ "execute": "device_del", "arguments": {"id": "scsi-hd0"}}
-{ "execute": "device_del", "arguments": {"id": "scsi-hd1"}}
-{ "execute": "device_del", "arguments": {"id": "scsi0"}}
-{ "execute": "blockdev-del", "arguments": {"node-name": "hd0"}}
-{ "execute": "quit"}
-EOF
+        self.vm.qmp_log('device_add', id='scsi-hd0', driver='scsi-hd', drive='hd0', bus="scsi0.0")
+        self.vm.qmp_log('device_add', id='scsi-hd1', driver='scsi-hd', drive='hd0', bus="scsi1.0")
 
-echo
-echo === Attach two SCSI disks using the same block device but different iothreads ===
-echo
+        self.vm.qmp_log('device_del', id='scsi-hd0')
+        self.vm.event_wait('DEVICE_DELETED')
+        self.vm.qmp_log('device_add', id='scsi-hd1', driver='scsi-hd', drive='hd0', bus="scsi1.0")
 
-run_qemu <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "blockdev-add", "arguments": {"driver": "null-co", "read-zeroes": true, "node-name": "hd0", "read-only": true}}
-{ "execute": "object-add", "arguments": {"qom-type": "iothread", "id": "iothread0"}}
-{ "execute": "object-add", "arguments": {"qom-type": "iothread", "id": "iothread1"}}
-{ "execute": "device_add", "arguments": {"id": "scsi0", "driver": "${virtio_scsi}", "iothread": "iothread0"}}
-{ "execute": "device_add", "arguments": {"id": "scsi1", "driver": "${virtio_scsi}", "iothread": "iothread1"}}
-{ "execute": "device_add", "arguments": {"id": "scsi-hd0", "driver": "scsi-hd", "drive": "hd0", "bus": "scsi0.0"}}
-{ "execute": "device_add", "arguments": {"id": "scsi-hd1", "driver": "scsi-hd", "drive": "hd0", "bus": "scsi1.0"}}
-{ "execute": "device_del", "arguments": {"id": "scsi-hd0"}}
-{ "execute": "device_add", "arguments": {"id": "scsi-hd1", "driver": "scsi-hd", "drive": "hd0", "bus": "scsi1.0"}}
-{ "execute": "device_del", "arguments": {"id": "scsi-hd1"}}
-{ "execute": "device_del", "arguments": {"id": "scsi0"}}
-{ "execute": "device_del", "arguments": {"id": "scsi1"}}
-{ "execute": "blockdev-del", "arguments": {"node-name": "hd0"}}
-{ "execute": "quit"}
-EOF
+        self.vm.qmp_log('device_del', id='scsi-hd1')
+        self.vm.event_wait('DEVICE_DELETED')
+        self.vm.qmp_log('blockdev-del', node_name='hd0')
 
-echo
-echo === Attach a SCSI disks using the same block device as a NBD server ===
-echo
+    def test4(self):
+        iotests.log('==Attach a SCSI disks using the same block device as a NBD server==')
 
-run_qemu <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "blockdev-add", "arguments": {"driver": "null-co", "read-zeroes": true, "node-name": "hd0", "read-only": true}}
-{ "execute": "nbd-server-start", "arguments": {"addr":{"type":"unix","data":{"path":"$SOCK_DIR/nbd"}}}}
-{ "execute": "nbd-server-add", "arguments": {"device":"hd0"}}
-{ "execute": "object-add", "arguments": {"qom-type": "iothread", "id": "iothread0"}}
-{ "execute": "device_add", "arguments": {"id": "scsi0", "driver": "${virtio_scsi}", "iothread": "iothread0"}}
-{ "execute": "device_add", "arguments": {"id": "scsi-hd0", "driver": "scsi-hd", "drive": "hd0", "bus": "scsi0.0"}}
-{ "execute": "quit"}
-EOF
+        self.vm.qmp_log('blockdev-add', driver='null-co', read_zeroes=True, node_name='hd0', read_only=True)
 
-# success, all done
-echo "*** done"
-rm -f $seq.full
-status=0
+        self.vm.qmp_log('nbd-server-start',
+                        filters=[iotests.filter_qmp_testfiles],
+                        addr={'type':'unix', 'data':{'path':nbd_sock}})
+
+        self.vm.qmp_log('nbd-server-add', device='hd0')
+
+        self.vm.qmp_log('object-add', qom_type='iothread', id="iothread0")
+        self.vm.qmp_log('device_add', id='scsi0', driver=iotests.get_virtio_scsi_device(), iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
+        self.vm.qmp_log('device_add', id='scsi-hd0', driver='scsi-hd', drive='hd0')
+
+if __name__ == '__main__':
+    iotests.activate_logging()
+    iotests.main()

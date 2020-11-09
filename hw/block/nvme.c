@@ -452,7 +452,7 @@ static uint16_t nvme_map_sgl_data(NvmeCtrl *n, QEMUSGList *qsg,
              * segments and/or descriptors. The controller might accept
              * ignoring the rest of the SGL.
              */
-            uint16_t sgls = le16_to_cpu(n->id_ctrl.sgls);
+            uint32_t sgls = le32_to_cpu(n->id_ctrl.sgls);
             if (sgls & NVME_CTRL_SGLS_EXCESS_LENGTH) {
                 break;
             }
@@ -2562,8 +2562,7 @@ int nvme_register_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
 
     if (!nsid) {
         for (int i = 1; i <= n->num_namespaces; i++) {
-            NvmeNamespace *ns = nvme_ns(n, i);
-            if (!ns) {
+            if (!nvme_ns(n, i)) {
                 nsid = ns->params.nsid = i;
                 break;
             }
@@ -2800,7 +2799,6 @@ static void nvme_exit(PCIDevice *pci_dev)
     NvmeCtrl *n = NVME(pci_dev);
 
     nvme_clear_ctrl(n);
-    g_free(n->namespaces);
     g_free(n->cq);
     g_free(n->sq);
     g_free(n->aer_reqs);

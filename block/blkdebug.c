@@ -173,7 +173,7 @@ static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
 {
     struct add_rule_data *d = opaque;
     BDRVBlkdebugState *s = d->s;
-    const char* event_name;
+    const char *event_name;
     int event;
     struct BlkdebugRule *rule;
     int64_t sector;

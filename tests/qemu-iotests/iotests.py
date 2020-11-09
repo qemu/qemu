@@ -392,6 +392,16 @@ def filter_qmp_testfiles(qmsg):
         return value
     return filter_qmp(qmsg, _filter)
 
+def filter_virtio_scsi(output: str) -> str:
+    return re.sub(r'(virtio-scsi)-(ccw|pci)', r'\1', output)
+
+def filter_qmp_virtio_scsi(qmsg):
+    def _filter(_key, value):
+        if is_str(value):
+            return filter_virtio_scsi(value)
+        return value
+    return filter_qmp(qmsg, _filter)
+
 def filter_generated_node_ids(msg):
     return re.sub("#block[0-9]+", "NODE_NAME", msg)
 
