@@ -515,7 +515,7 @@ static void test_opts_parse(void)
     error_free_or_abort(&err);
     g_assert(!opts);
 
-    /* Implied value */
+    /* Implied value (qemu_opts_parse warns but accepts it) */
     opts = qemu_opts_parse(&opts_list_03, "an,noaus,noaus=",
                            false, &error_abort);
     g_assert_cmpuint(opts_count(opts), ==, 3);
