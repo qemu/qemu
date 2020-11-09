@@ -84,11 +84,25 @@ static QemuOptsList opts_list_03 = {
     },
 };
 
+static QemuOptsList opts_list_04 = {
+    .name = "opts_list_04",
+    .head = QTAILQ_HEAD_INITIALIZER(opts_list_04.head),
+    .merge_lists = true,
+    .desc = {
+        {
+            .name = "str3",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
 static void register_opts(void)
 {
     qemu_add_opts(&opts_list_01);
     qemu_add_opts(&opts_list_02);
     qemu_add_opts(&opts_list_03);
+    qemu_add_opts(&opts_list_04);
 }
 
 static void test_find_unknown_opts(void)
@@ -402,17 +416,17 @@ static void test_qemu_opts_set(void)
     QemuOpts *opts;
     const char *opt;
 
-    list = qemu_find_opts("opts_list_01");
+    list = qemu_find_opts("opts_list_04");
     g_assert(list != NULL);
     g_assert(QTAILQ_EMPTY(&list->head));
-    g_assert_cmpstr(list->name, ==, "opts_list_01");
+    g_assert_cmpstr(list->name, ==, "opts_list_04");
 
     /* should not find anything at this point */
     opts = qemu_opts_find(list, NULL);
     g_assert(opts == NULL);
 
     /* implicitly create opts and set str3 value */
-    qemu_opts_set(list, NULL, "str3", "value", &error_abort);
+    qemu_opts_set(list, "str3", "value", &error_abort);
     g_assert(!QTAILQ_EMPTY(&list->head));
 
     /* get the just created opts */
