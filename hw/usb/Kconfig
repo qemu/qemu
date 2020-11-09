@@ -43,8 +43,7 @@ config USB_XHCI_PCI
 config USB_XHCI_NEC
     bool
     default y if PCI_DEVICES
-    depends on PCI
-    select USB_XHCI
+    select USB_XHCI_PCI
 
 config USB_XHCI_SYSBUS
     bool
