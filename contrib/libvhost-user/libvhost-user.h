@@ -136,7 +136,7 @@ typedef struct VhostUserMemory {
 } VhostUserMemory;
 
 typedef struct VhostUserMemRegMsg {
-    uint32_t padding;
+    uint64_t padding;
     VhostUserMemoryRegion region;
 } VhostUserMemRegMsg;
 
