@@ -329,7 +329,7 @@ vhost_crypto=""
 vhost_scsi=""
 vhost_vsock=""
 vhost_user=""
-vhost_user_blk_server=""
+vhost_user_blk_server="auto"
 vhost_user_fs=""
 kvm="auto"
 hax="auto"
@@ -1247,9 +1247,9 @@ for opt do
   ;;
   --enable-vhost-vsock) vhost_vsock="yes"
   ;;
-  --disable-vhost-user-blk-server) vhost_user_blk_server="no"
+  --disable-vhost-user-blk-server) vhost_user_blk_server="disabled"
   ;;
-  --enable-vhost-user-blk-server) vhost_user_blk_server="yes"
+  --enable-vhost-user-blk-server) vhost_user_blk_server="enabled"
   ;;
   --disable-vhost-user-fs) vhost_user_fs="no"
   ;;
@@ -2388,12 +2388,6 @@ if test "$vhost_net" = ""; then
   test "$vhost_net_user" = "yes" && vhost_net=yes
   test "$vhost_net_vdpa" = "yes" && vhost_net=yes
   test "$vhost_kernel" = "yes" && vhost_net=yes
-fi
-
-# libvhost-user is Linux-only
-test "$vhost_user_blk_server" = "" && vhost_user_blk_server=$linux
-if test "$vhost_user_blk_server" = "yes" && test "$linux" = "no"; then
-  error_exit "--enable-vhost-user-blk-server is only available on Linux"
 fi
 
 ##########################################
@@ -6289,9 +6283,6 @@ fi
 if test "$vhost_vdpa" = "yes" ; then
   echo "CONFIG_VHOST_VDPA=y" >> $config_host_mak
 fi
-if test "$vhost_user_blk_server" = "yes" ; then
-  echo "CONFIG_VHOST_USER_BLK_SERVER=y" >> $config_host_mak
-fi
 if test "$vhost_user_fs" = "yes" ; then
   echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak
 fi
@@ -7012,6 +7003,7 @@ NINJA=$ninja $meson setup \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt \
         -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
+        -Dvhost_user_blk_server=$vhost_user_blk_server \
         $cross_arg \
         "$PWD" "$source_path"
 

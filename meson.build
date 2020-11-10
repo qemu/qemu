@@ -751,6 +751,16 @@ statx_test = '''
 
 has_statx = cc.links(statx_test)
 
+have_vhost_user_blk_server = (targetos == 'linux')
+
+if get_option('vhost_user_blk_server').enabled()
+    if targetos != 'linux'
+        error('vhost_user_blk_server requires linux')
+    endif
+elif get_option('vhost_user_blk_server').disabled() or not have_system
+    have_vhost_user_blk_server = false
+endif
+
 #################
 # config-host.h #
 #################
@@ -775,6 +785,7 @@ config_host_data.set('CONFIG_MPATH_NEW_API', mpathpersist_new_api)
 config_host_data.set('CONFIG_CURSES', curses.found())
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
+config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
 config_host_data.set('CONFIG_VNC', vnc.found())
 config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
 config_host_data.set('CONFIG_VNC_PNG', png.found())
@@ -2103,6 +2114,7 @@ summary_info += {'vhost-crypto support': config_host.has_key('CONFIG_VHOST_CRYPT
 summary_info += {'vhost-scsi support': config_host.has_key('CONFIG_VHOST_SCSI')}
 summary_info += {'vhost-vsock support': config_host.has_key('CONFIG_VHOST_VSOCK')}
 summary_info += {'vhost-user support': config_host.has_key('CONFIG_VHOST_KERNEL')}
+summary_info += {'vhost-user-blk server support': have_vhost_user_blk_server}
 summary_info += {'vhost-user-fs support': config_host.has_key('CONFIG_VHOST_USER_FS')}
 summary_info += {'vhost-vdpa support': config_host.has_key('CONFIG_VHOST_VDPA')}
 summary_info += {'Trace backends':    config_host['TRACE_BACKENDS']}
