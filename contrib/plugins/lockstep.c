@@ -268,11 +268,13 @@ static bool setup_socket(const char *path)
     socket_fd = accept(fd, NULL, NULL);
     if (socket_fd < 0 && errno != EINTR) {
         perror("accept socket");
+        close(fd);
         return false;
     }
 
     qemu_plugin_outs("setup_socket::ready\n");
 
+    close(fd);
     return true;
 }
 
