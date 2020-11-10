@@ -751,11 +751,14 @@ statx_test = '''
 
 has_statx = cc.links(statx_test)
 
-have_vhost_user_blk_server = (targetos == 'linux')
+have_vhost_user_blk_server = (targetos == 'linux' and
+    'CONFIG_VHOST_USER' in config_host)
 
 if get_option('vhost_user_blk_server').enabled()
     if targetos != 'linux'
         error('vhost_user_blk_server requires linux')
+    elif 'CONFIG_VHOST_USER' not in config_host
+        error('vhost_user_blk_server requires vhost-user support')
     endif
 elif get_option('vhost_user_blk_server').disabled() or not have_system
     have_vhost_user_blk_server = false
