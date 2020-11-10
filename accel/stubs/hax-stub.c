@@ -14,7 +14,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "sysemu/hax.h"
 
 int hax_sync_vcpus(void)
