@@ -303,11 +303,9 @@ void ctucan_mem_write(CtuCanCoreState *s, hwaddr addr, uint64_t val,
         addr -= CTU_CAN_FD_TXTB1_DATA_1;
         buff_num = addr / CTUCAN_CORE_TXBUFF_SPAN;
         addr %= CTUCAN_CORE_TXBUFF_SPAN;
-        addr &= ~3;
         if ((buff_num < CTUCAN_CORE_TXBUF_NUM) &&
-            (addr < sizeof(s->tx_buffer[buff_num].data))) {
-            uint32_t *bufp = (uint32_t *)(s->tx_buffer[buff_num].data + addr);
-            *bufp = cpu_to_le32(val);
+            ((addr + size) <= sizeof(s->tx_buffer[buff_num].data))) {
+            stn_le_p(s->tx_buffer[buff_num].data + addr, size, val);
         }
     } else {
         switch (addr & ~3) {
