@@ -456,6 +456,8 @@ static void macio_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_OTHERS << 8;
     device_class_set_props(dc, macio_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    /* Reason: requires PIC property links to be set in macio_*_realize() */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo macio_bus_info = {
