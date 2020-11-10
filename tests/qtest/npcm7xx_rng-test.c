@@ -126,7 +126,7 @@ static double calc_runs_p(const unsigned long *buf, unsigned int nr_bits)
     pi = (double)nr_ones / nr_bits;
 
     for (k = 0; k < nr_bits - 1; k++) {
-        vn_obs += !(test_bit(k, buf) ^ test_bit(k + 1, buf));
+        vn_obs += (test_bit(k, buf) ^ test_bit(k + 1, buf));
     }
     vn_obs += 1;
 

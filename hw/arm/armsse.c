@@ -1074,7 +1074,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                                         qdev_get_gpio_in(dev_splitter, 0));
             qdev_connect_gpio_out(dev_splitter, 0,
                                   qdev_get_gpio_in_named(dev_secctl,
-                                                         "mpc_status", 0));
+                                                         "mpc_status",
+                                                         i - IOTS_NUM_EXP_MPC));
         }
 
         qdev_connect_gpio_out(dev_splitter, 1,

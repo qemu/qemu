@@ -133,8 +133,6 @@ static void stm32f2xx_syscfg_init(Object *obj)
 {
     STM32F2XXSyscfgState *s = STM32F2XX_SYSCFG(obj);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
-
     memory_region_init_io(&s->mmio, obj, &stm32f2xx_syscfg_ops, s,
                           TYPE_STM32F2XX_SYSCFG, 0x400);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);

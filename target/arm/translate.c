@@ -9171,7 +9171,7 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             - Hardware watchpoints.
            Hardware breakpoints have already been handled and skip this code.
          */
-        switch(dc->base.is_jmp) {
+        switch (dc->base.is_jmp) {
         case DISAS_NEXT:
         case DISAS_TOO_MANY:
             gen_goto_tb(dc, 1, dc->base.pc_next);

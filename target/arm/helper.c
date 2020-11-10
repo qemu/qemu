@@ -12508,7 +12508,7 @@ uint32_t HELPER(usad8)(uint32_t a, uint32_t b)
     uint32_t sum;
     sum = do_usad(a, b);
     sum += do_usad(a >> 8, b >> 8);
-    sum += do_usad(a >> 16, b >>16);
+    sum += do_usad(a >> 16, b >> 16);
     sum += do_usad(a >> 24, b >> 24);
     return sum;
 }
