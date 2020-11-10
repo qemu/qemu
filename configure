@@ -328,7 +328,7 @@ vhost_net=""
 vhost_crypto=""
 vhost_scsi=""
 vhost_vsock=""
-vhost_user=""
+vhost_user="no"
 vhost_user_blk_server="auto"
 vhost_user_fs=""
 kvm="auto"
@@ -718,7 +718,6 @@ fi
 case $targetos in
 MINGW32*)
   mingw32="yes"
-  vhost_user="no"
   audio_possible_drivers="dsound sdl"
   if check_include dsound.h; then
     audio_drv_list="dsound"
@@ -797,6 +796,7 @@ Linux)
   audio_possible_drivers="oss alsa sdl pa"
   linux="yes"
   linux_user="yes"
+  vhost_user="yes"
 ;;
 esac
 
@@ -2341,9 +2341,8 @@ fi
 # vhost interdependencies and host support
 
 # vhost backends
-test "$vhost_user" = "" && vhost_user=yes
-if test "$vhost_user" = "yes" && test "$mingw32" = "yes"; then
-  error_exit "vhost-user isn't available on win32"
+if test "$vhost_user" = "yes" && test "$linux" != "yes"; then
+  error_exit "vhost-user is only available on Linux"
 fi
 test "$vhost_vdpa" = "" && vhost_vdpa=$linux
 if test "$vhost_vdpa" = "yes" && test "$linux" != "yes"; then
