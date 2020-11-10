@@ -878,6 +878,41 @@ static inline uint16_t nvme_check_bounds(NvmeNamespace *ns, uint64_t slba,
     return NVME_SUCCESS;
 }
 
+static void nvme_aio_err(NvmeRequest *req, int ret)
+{
+    uint16_t status = NVME_SUCCESS;
+    Error *local_err = NULL;
+
+    switch (req->cmd.opcode) {
+    case NVME_CMD_READ:
+        status = NVME_UNRECOVERED_READ;
+        break;
+    case NVME_CMD_FLUSH:
+    case NVME_CMD_WRITE:
+    case NVME_CMD_WRITE_ZEROES:
+        status = NVME_WRITE_FAULT;
+        break;
+    default:
+        status = NVME_INTERNAL_DEV_ERROR;
+        break;
+    }
+
+    trace_pci_nvme_err_aio(nvme_cid(req), strerror(ret), status);
+
+    error_setg_errno(&local_err, -ret, "aio failed");
+    error_report_err(local_err);
+
+    /*
+     * Set the command status code to the first encountered error but allow a
+     * subsequent Internal Device Error to trump it.
+     */
+    if (req->status && status != NVME_INTERNAL_DEV_ERROR) {
+        return;
+    }
+
+    req->status = status;
+}
+
 static void nvme_rw_cb(void *opaque, int ret)
 {
     NvmeRequest *req = opaque;
@@ -887,37 +922,13 @@ static void nvme_rw_cb(void *opaque, int ret)
     BlockAcctCookie *acct = &req->acct;
     BlockAcctStats *stats = blk_get_stats(blk);
 
-    Error *local_err = NULL;
-
     trace_pci_nvme_rw_cb(nvme_cid(req), blk_name(blk));
 
     if (!ret) {
         block_acct_done(stats, acct);
     } else {
-        uint16_t status;
-
         block_acct_failed(stats, acct);
-
-        switch (req->cmd.opcode) {
-        case NVME_CMD_READ:
-            status = NVME_UNRECOVERED_READ;
-            break;
-        case NVME_CMD_FLUSH:
-        case NVME_CMD_WRITE:
-        case NVME_CMD_WRITE_ZEROES:
-            status = NVME_WRITE_FAULT;
-            break;
-        default:
-            status = NVME_INTERNAL_DEV_ERROR;
-            break;
-        }
-
-        trace_pci_nvme_err_aio(nvme_cid(req), strerror(ret), status);
-
-        error_setg_errno(&local_err, -ret, "aio failed");
-        error_report_err(local_err);
-
-        req->status = status;
+        nvme_aio_err(req, ret);
     }
 
     nvme_enqueue_req_completion(nvme_cq(req), req);
