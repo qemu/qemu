@@ -85,6 +85,42 @@ this code that are retained.
 #include "fpu/softfloat-types.h"
 #include "qemu/host-utils.h"
 
+/**
+ * shl_double: double-word merging left shift
+ * @l: left or most-significant word
+ * @r: right or least-significant word
+ * @c: shift count
+ *
+ * Shift @l left by @c bits, shifting in bits from @r.
+ */
+static inline uint64_t shl_double(uint64_t l, uint64_t r, int c)
+{
+#if defined(__x86_64__)
+    asm("shld %b2, %1, %0" : "+r"(l) : "r"(r), "ci"(c));
+    return l;
+#else
+    return c ? (l << c) | (r >> (64 - c)) : l;
+#endif
+}
+
+/**
+ * shr_double: double-word merging right shift
+ * @l: left or most-significant word
+ * @r: right or least-significant word
+ * @c: shift count
+ *
+ * Shift @r right by @c bits, shifting in bits from @l.
+ */
+static inline uint64_t shr_double(uint64_t l, uint64_t r, int c)
+{
+#if defined(__x86_64__)
+    asm("shrd %b2, %1, %0" : "+r"(r) : "r"(l), "ci"(c));
+    return r;
+#else
+    return c ? (r >> c) | (l << (64 - c)) : r;
+#endif
+}
+
 /*----------------------------------------------------------------------------
 | Shifts `a' right by the number of bits given in `count'.  If any nonzero
 | bits are shifted off, they are ``jammed'' into the least significant bit of
