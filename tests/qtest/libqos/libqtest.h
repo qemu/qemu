@@ -88,7 +88,7 @@ void qtest_quit(QTestState *s);
  * @fds: array of file descriptors
  * @fds_num: number of elements in @fds
  * @fmt: QMP message to send to qemu, formatted like
- * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
  * supported after '%'.
  *
  * Sends a QMP message to QEMU with fds and returns the response.
@@ -101,7 +101,7 @@ QDict *qtest_qmp_fds(QTestState *s, int *fds, size_t fds_num,
  * qtest_qmp:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to qemu, formatted like
- * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
  * supported after '%'.
  *
  * Sends a QMP message to QEMU and returns the response.
@@ -113,7 +113,7 @@ QDict *qtest_qmp(QTestState *s, const char *fmt, ...)
  * qtest_qmp_send:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to qemu, formatted like
- * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
  * supported after '%'.
  *
  * Sends a QMP message to QEMU and leaves the response in the stream.
@@ -138,7 +138,7 @@ void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
  * @fds: array of file descriptors
  * @fds_num: number of elements in @fds
  * @fmt: QMP message to send to QEMU, formatted like
- * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
  * supported after '%'.
  * @ap: QMP message arguments
  *
@@ -152,7 +152,7 @@ QDict *qtest_vqmp_fds(QTestState *s, int *fds, size_t fds_num,
  * qtest_vqmp:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU, formatted like
- * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
  * supported after '%'.
  * @ap: QMP message arguments
  *
@@ -167,7 +167,7 @@ QDict *qtest_vqmp(QTestState *s, const char *fmt, va_list ap)
  * @fds: array of file descriptors
  * @fds_num: number of elements in @fds
  * @fmt: QMP message to send to QEMU, formatted like
- * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
  * supported after '%'.
  * @ap: QMP message arguments
  *
@@ -181,7 +181,7 @@ void qtest_qmp_vsend_fds(QTestState *s, int *fds, size_t fds_num,
  * qtest_qmp_vsend:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU, formatted like
- * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
  * supported after '%'.
  * @ap: QMP message arguments
  *
@@ -636,7 +636,7 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data);
  * qtest_qmp_assert_success:
  * @qts: QTestState instance to operate on
  * @fmt: QMP message to send to qemu, formatted like
- * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
  * supported after '%'.
  *
  * Sends a QMP message to QEMU and asserts that a 'return' key is present in
@@ -683,7 +683,7 @@ void qtest_qmp_device_add_qdict(QTestState *qts, const char *drv,
  * @driver: Name of the device that should be added
  * @id: Identification string
  * @fmt: QMP message to send to qemu, formatted like
- * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
  * supported after '%'.
  *
  * Generic hot-plugging test via the device_add QMP command.

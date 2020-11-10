@@ -70,10 +70,8 @@ void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx,
     qtest_end();
     tpm_util_swtpm_kill(swtpm_pid);
 
-    if (addr) {
-        g_unlink(addr->u.q_unix.path);
-        qapi_free_SocketAddress(addr);
-    }
+    g_unlink(addr->u.q_unix.path);
+    qapi_free_SocketAddress(addr);
 }
 
 void tpm_test_swtpm_migration_test(const char *src_tpm_path,

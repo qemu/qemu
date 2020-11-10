@@ -2525,7 +2525,7 @@ R: Thomas Huth <thuth@redhat.com>
 S: Maintained
 F: tests/qtest/fuzz/
 F: scripts/oss-fuzz/
-F: docs/devel/fuzzing.txt
+F: docs/devel/fuzzing.rst
 
 Register API
 M: Alistair Francis <alistair@alistair23.me>
@@ -3156,6 +3156,7 @@ S: Maintained
 F: .gitlab-ci.yml
 F: .gitlab-ci.d/crossbuilds.yml
 F: .gitlab-ci.d/*py
+F: scripts/ci/gitlab-pipeline-status
 
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>

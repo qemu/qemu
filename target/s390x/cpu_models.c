@@ -986,7 +986,7 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
 static void get_feature(Object *obj, Visitor *v, const char *name,
                         void *opaque, Error **errp)
 {
-    S390Feat feat = (S390Feat) opaque;
+    S390Feat feat = (S390Feat) (uintptr_t) opaque;
     S390CPU *cpu = S390_CPU(obj);
     bool value;
 
@@ -1003,7 +1003,7 @@ static void get_feature(Object *obj, Visitor *v, const char *name,
 static void set_feature(Object *obj, Visitor *v, const char *name,
                         void *opaque, Error **errp)
 {
-    S390Feat feat = (S390Feat) opaque;
+    S390Feat feat = (S390Feat) (uintptr_t) opaque;
     DeviceState *dev = DEVICE(obj);
     S390CPU *cpu = S390_CPU(obj);
     bool value;
@@ -1037,7 +1037,7 @@ static void set_feature(Object *obj, Visitor *v, const char *name,
 static void get_feature_group(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
-    S390FeatGroup group = (S390FeatGroup) opaque;
+    S390FeatGroup group = (S390FeatGroup) (uintptr_t) opaque;
     const S390FeatGroupDef *def = s390_feat_group_def(group);
     S390CPU *cpu = S390_CPU(obj);
     S390FeatBitmap tmp;
@@ -1058,7 +1058,7 @@ static void get_feature_group(Object *obj, Visitor *v, const char *name,
 static void set_feature_group(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
-    S390FeatGroup group = (S390FeatGroup) opaque;
+    S390FeatGroup group = (S390FeatGroup) (uintptr_t) opaque;
     const S390FeatGroupDef *def = s390_feat_group_def(group);
     DeviceState *dev = DEVICE(obj);
     S390CPU *cpu = S390_CPU(obj);

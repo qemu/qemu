@@ -177,6 +177,7 @@ html_theme_options = {
 html_sidebars = {
     '**': [
         'about.html',
+        'editpage.html',
         'navigation.html',
         'searchbox.html',
     ]

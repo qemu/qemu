@@ -7,12 +7,6 @@ stages:
   - build
   - test
 
-# We assume GitLab has it's own caching set up for RPM/APT repositories so we
-# just take care of avocado assets here.
-cache:
-  paths:
-    - $HOME/avocado/data/cache
-
 include:
   - local: '/.gitlab-ci.d/edk2.yml'
   - local: '/.gitlab-ci.d/opensbi.yml'
@@ -80,6 +74,7 @@ build-system-ubuntu:
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
       moxie-softmmu microblazeel-softmmu mips64el-softmmu
     MAKE_CHECK_ARGS: check-build
+    CONFIGURE_ARGS: --enable-docs
   artifacts:
     expire_in: 2 days
     paths:
@@ -111,6 +106,7 @@ build-system-debian:
     TARGETS: arm-softmmu avr-softmmu i386-softmmu mipsel-softmmu
       riscv64-softmmu sh4eb-softmmu sparc-softmmu xtensaeb-softmmu
     MAKE_CHECK_ARGS: check-build
+    CONFIGURE_ARGS: --enable-docs
   artifacts:
     expire_in: 2 days
     paths:
@@ -139,7 +135,7 @@ build-system-fedora:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
-    CONFIGURE_ARGS: --disable-gcrypt --enable-nettle
+    CONFIGURE_ARGS: --disable-gcrypt --enable-nettle --enable-docs
     TARGETS: tricore-softmmu microblaze-softmmu mips-softmmu
       xtensa-softmmu m68k-softmmu riscv32-softmmu ppc-softmmu sparc64-softmmu
     MAKE_CHECK_ARGS: check-build
@@ -423,3 +419,17 @@ check-dco:
       - $CI_PROJECT_NAMESPACE == 'qemu-project' && $CI_COMMIT_BRANCH == 'master'
   variables:
     GIT_DEPTH: 1000
+
+pages:
+  image: $CI_REGISTRY_IMAGE/qemu/ubuntu2004:latest
+  stage: test
+  needs:
+    - job: build-system-ubuntu
+      artifacts: true
+  script:
+    - mkdir public
+    - mv build/docs/index.html public/
+    - for i in devel interop specs system tools user ; do mv build/docs/$i public/ ; done
+  artifacts:
+    paths:
+      - public

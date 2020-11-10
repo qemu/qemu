@@ -536,7 +536,7 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
         if (kvm_supports_sve) {
             g_assert(vls != 0);
             max_vq = 64 - __builtin_clzll(vls);
-            sprintf(max_name, "sve%d", max_vq * 128);
+            sprintf(max_name, "sve%u", max_vq * 128);
 
             /* Enabling a supported length is of course fine. */
             assert_sve_vls(qts, "host", vls, "{ %s: true }", max_name);
@@ -556,7 +556,7 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
                  * unless all larger, supported vector lengths are also
                  * disabled.
                  */
-                sprintf(name, "sve%d", vq * 128);
+                sprintf(name, "sve%u", vq * 128);
                 error = g_strdup_printf("cannot disable %s", name);
                 assert_error(qts, "host", error,
                              "{ %s: true, %s: false }",
@@ -569,7 +569,7 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
              * we need at least one vector length enabled.
              */
             vq = __builtin_ffsll(vls);
-            sprintf(name, "sve%d", vq * 128);
+            sprintf(name, "sve%u", vq * 128);
             error = g_strdup_printf("cannot disable %s", name);
             assert_error(qts, "host", error, "{ %s: false }", name);
             g_free(error);
@@ -581,7 +581,7 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
                 }
             }
             if (vq <= SVE_MAX_VQ) {
-                sprintf(name, "sve%d", vq * 128);
+                sprintf(name, "sve%u", vq * 128);
                 error = g_strdup_printf("cannot enable %s", name);
                 assert_error(qts, "host", error, "{ %s: true }", name);
                 g_free(error);

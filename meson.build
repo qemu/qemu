@@ -1450,11 +1450,7 @@ trace_events_subdirs += [
   'util',
 ]
 
-vhost_user = not_found
-if 'CONFIG_VHOST_USER' in config_host
-  subdir('contrib/libvhost-user')
-endif
-
+subdir('contrib/libvhost-user')
 subdir('qapi')
 subdir('qobject')
 subdir('stubs')
