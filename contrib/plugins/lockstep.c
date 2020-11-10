@@ -292,6 +292,7 @@ static bool connect_socket(const char *path)
 
     if (connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr)) < 0) {
         perror("failed to connect");
+        close(fd);
         return false;
     }
 
