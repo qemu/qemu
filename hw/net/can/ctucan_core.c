@@ -240,8 +240,6 @@ static void ctucan_send_ready_buffers(CtuCanCoreState *s)
     uint8_t *pf;
     int buff2tx_idx;
     uint32_t tx_prio_max;
-    unsigned int buff_st;
-    uint32_t buff_st_mask;
 
     if (!s->mode_settings.s.ena) {
         return;
@@ -256,10 +254,7 @@ static void ctucan_send_ready_buffers(CtuCanCoreState *s)
         for (i = 0; i < CTUCAN_CORE_TXBUF_NUM; i++) {
             uint32_t prio;
 
-            buff_st_mask = 0xf << (i * 4);
-            buff_st = (s->tx_status.u32 >> (i * 4)) & 0xf;
-
-            if (buff_st != TXT_RDY) {
+            if (extract32(s->tx_status.u32, i * 4, 4) != TXT_RDY) {
                 continue;
             }
             prio = (s->tx_priority.u32 >> (i * 4)) & 0x7;
@@ -271,10 +266,7 @@ static void ctucan_send_ready_buffers(CtuCanCoreState *s)
         if (buff2tx_idx == -1) {
             break;
         }
-        buff_st_mask = 0xf << (buff2tx_idx * 4);
-        buff_st = (s->tx_status.u32 >> (buff2tx_idx * 4)) & 0xf;
         int_stat.u32 = 0;
-        buff_st = TXT_RDY;
         pf = s->tx_buffer[buff2tx_idx].data;
         ctucan_buff2frame(pf, &frame);
         s->status.s.idle = 0;
@@ -283,12 +275,11 @@ static void ctucan_send_ready_buffers(CtuCanCoreState *s)
         s->status.s.idle = 1;
         s->status.s.txs = 0;
         s->tx_fr_ctr.s.tx_fr_ctr_val++;
-        buff_st = TXT_TOK;
         int_stat.s.txi = 1;
         int_stat.s.txbhci = 1;
         s->int_stat.u32 |= int_stat.u32 & ~s->int_mask.u32;
-        s->tx_status.u32 = (s->tx_status.u32 & ~buff_st_mask) |
-                        (buff_st << (buff2tx_idx * 4));
+        s->tx_status.u32 = deposit32(s->tx_status.u32,
+                                     buff2tx_idx * 4, 4, TXT_TOK);
     } while (1);
 }
 
@@ -303,7 +294,7 @@ void ctucan_mem_write(CtuCanCoreState *s, hwaddr addr, uint64_t val,
     DPRINTF("write 0x%02llx addr 0x%02x\n",
             (unsigned long long)val, (unsigned int)addr);
 
-    if (addr > CTUCAN_CORE_MEM_SIZE) {
+    if (addr >= CTUCAN_CORE_MEM_SIZE) {
         return;
     }
 
@@ -312,9 +303,9 @@ void ctucan_mem_write(CtuCanCoreState *s, hwaddr addr, uint64_t val,
         addr -= CTU_CAN_FD_TXTB1_DATA_1;
         buff_num = addr / CTUCAN_CORE_TXBUFF_SPAN;
         addr %= CTUCAN_CORE_TXBUFF_SPAN;
-        if (buff_num < CTUCAN_CORE_TXBUF_NUM) {
-            uint32_t *bufp = (uint32_t *)(s->tx_buffer[buff_num].data + addr);
-            *bufp = cpu_to_le32(val);
+        if ((buff_num < CTUCAN_CORE_TXBUF_NUM) &&
+            ((addr + size) <= sizeof(s->tx_buffer[buff_num].data))) {
+            stn_le_p(s->tx_buffer[buff_num].data + addr, size, val);
         }
     } else {
         switch (addr & ~3) {

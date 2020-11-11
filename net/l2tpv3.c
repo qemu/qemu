@@ -655,9 +655,8 @@ int net_init_l2tpv3(const Netdev *netdev,
         error_setg(errp, "could not bind socket err=%i", errno);
         goto outerr;
     }
-    if (result) {
-        freeaddrinfo(result);
-    }
+
+    freeaddrinfo(result);
 
     memset(&hints, 0, sizeof(hints));
 
@@ -686,9 +685,7 @@ int net_init_l2tpv3(const Netdev *netdev,
     memcpy(s->dgram_dst, result->ai_addr, result->ai_addrlen);
     s->dst_size = result->ai_addrlen;
 
-    if (result) {
-        freeaddrinfo(result);
-    }
+    freeaddrinfo(result);
 
     if (l2tpv3->has_counter && l2tpv3->counter) {
         s->has_counter = true;
