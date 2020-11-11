@@ -45,7 +45,7 @@ static void ibex_plic_irqs_set_pending(IbexPlicState *s, int irq, bool level)
 
     if (s->claimed[pending_num] & 1 << (irq % 32)) {
         /*
-         * The interrupt has been claimed, but not compelted.
+         * The interrupt has been claimed, but not completed.
          * The pending bit can't be set.
          */
         return;
@@ -133,7 +133,7 @@ static uint64_t ibex_plic_read(void *opaque, hwaddr addr,
         int pending_num = s->claim / 32;
         s->pending[pending_num] &= ~(1 << (s->claim % 32));
 
-        /* Set the interrupt as claimed, but not compelted */
+        /* Set the interrupt as claimed, but not completed */
         s->claimed[pending_num] |= 1 << (s->claim % 32);
 
         /* Return the current claimed interrupt */
