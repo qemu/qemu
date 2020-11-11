@@ -167,8 +167,6 @@ void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
 
 /**
  * trace_init_backends:
- * @file:   Name of trace output file; may be NULL.
- *          Corresponds to commandline option "--trace file=...".
  *
  * Initialize the tracing backend.
  *
@@ -178,14 +176,12 @@ bool trace_init_backends(void);
 
 /**
  * trace_init_file:
- * @file:   Name of trace output file; may be NULL.
- *          Corresponds to commandline option "--trace file=...".
  *
  * Record the name of the output file for the tracing backend.
  * Exits if no selected backend does not support specifying the
- * output file, and a non-NULL file was passed.
+ * output file, and a file was specified with "-trace file=...".
  */
-void trace_init_file(const char *file);
+void trace_init_file(void);
 
 /**
  * trace_init_vcpu:
@@ -229,10 +225,8 @@ extern QemuOptsList qemu_trace_opts;
  * @optarg: A string argument of --trace command line argument
  *
  * Initialize tracing subsystem.
- *
- * Returns the filename to save trace to.  It must be freed with g_free().
  */
-char *trace_opt_parse(const char *optarg);
+void trace_opt_parse(const char *optarg);
 
 /**
  * trace_get_vcpu_event_count:
