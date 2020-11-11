@@ -803,6 +803,14 @@ static FloatParts128 *parts128_muladd(FloatParts128 *a, FloatParts128 *b,
 #define parts_muladd(A, B, C, Z, S) \
     PARTS_GENERIC_64_128(muladd, A)(A, B, C, Z, S)
 
+static FloatParts64 *parts64_div(FloatParts64 *a, FloatParts64 *b,
+                                 float_status *s);
+static FloatParts128 *parts128_div(FloatParts128 *a, FloatParts128 *b,
+                                   float_status *s);
+
+#define parts_div(A, B, S) \
+    PARTS_GENERIC_64_128(div, A)(A, B, S)
+
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
@@ -894,6 +902,87 @@ static void frac128_clear(FloatParts128 *a)
 }
 
 #define frac_clear(A)  FRAC_GENERIC_64_128(clear, A)(A)
+
+static bool frac64_div(FloatParts64 *a, FloatParts64 *b)
+{
+    uint64_t n1, n0, r, q;
+    bool ret;
+
+    /*
+     * We want a 2*N / N-bit division to produce exactly an N-bit
+     * result, so that we do not lose any precision and so that we
+     * do not have to renormalize afterward.  If A.frac < B.frac,
+     * then division would produce an (N-1)-bit result; shift A left
+     * by one to produce the an N-bit result, and return true to
+     * decrement the exponent to match.
+     *
+     * The udiv_qrnnd algorithm that we're using requires normalization,
+     * i.e. the msb of the denominator must be set, which is already true.
+     */
+    ret = a->frac < b->frac;
+    if (ret) {
+        n0 = a->frac;
+        n1 = 0;
+    } else {
+        n0 = a->frac >> 1;
+        n1 = a->frac << 63;
+    }
+    q = udiv_qrnnd(&r, n0, n1, b->frac);
+
+    /* Set lsb if there is a remainder, to set inexact. */
+    a->frac = q | (r != 0);
+
+    return ret;
+}
+
+static bool frac128_div(FloatParts128 *a, FloatParts128 *b)
+{
+    uint64_t q0, q1, a0, a1, b0, b1;
+    uint64_t r0, r1, r2, r3, t0, t1, t2, t3;
+    bool ret = false;
+
+    a0 = a->frac_hi, a1 = a->frac_lo;
+    b0 = b->frac_hi, b1 = b->frac_lo;
+
+    ret = lt128(a0, a1, b0, b1);
+    if (!ret) {
+        a1 = shr_double(a0, a1, 1);
+        a0 = a0 >> 1;
+    }
+
+    /* Use 128/64 -> 64 division as estimate for 192/128 -> 128 division. */
+    q0 = estimateDiv128To64(a0, a1, b0);
+
+    /*
+     * Estimate is high because B1 was not included (unless B1 == 0).
+     * Reduce quotient and increase remainder until remainder is non-negative.
+     * This loop will execute 0 to 2 times.
+     */
+    mul128By64To192(b0, b1, q0, &t0, &t1, &t2);
+    sub192(a0, a1, 0, t0, t1, t2, &r0, &r1, &r2);
+    while (r0 != 0) {
+        q0--;
+        add192(r0, r1, r2, 0, b0, b1, &r0, &r1, &r2);
+    }
+
+    /* Repeat using the remainder, producing a second word of quotient. */
+    q1 = estimateDiv128To64(r1, r2, b0);
+    mul128By64To192(b0, b1, q1, &t1, &t2, &t3);
+    sub192(r1, r2, 0, t1, t2, t3, &r1, &r2, &r3);
+    while (r1 != 0) {
+        q1--;
+        add192(r1, r2, r3, 0, b0, b1, &r1, &r2, &r3);
+    }
+
+    /* Any remainder indicates inexact; set sticky bit. */
+    q1 |= (r2 | r3) != 0;
+
+    a->frac_hi = q0;
+    a->frac_lo = q1;
+    return ret;
+}
+
+#define frac_div(A, B)  FRAC_GENERIC_64_128(div, A)(A, B)
 
 static bool frac64_eqz(FloatParts64 *a)
 {
@@ -1821,110 +1910,42 @@ float128 QEMU_FLATTEN float128_muladd(float128 a, float128 b, float128 c,
 }
 
 /*
- * Returns the result of dividing the floating-point value `a' by the
- * corresponding value `b'. The operation is performed according to
- * the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+ * Division
  */
-
-static FloatParts64 div_floats(FloatParts64 a, FloatParts64 b, float_status *s)
-{
-    bool sign = a.sign ^ b.sign;
-
-    if (a.cls == float_class_normal && b.cls == float_class_normal) {
-        uint64_t n0, n1, q, r;
-        int exp = a.exp - b.exp;
-
-        /*
-         * We want a 2*N / N-bit division to produce exactly an N-bit
-         * result, so that we do not lose any precision and so that we
-         * do not have to renormalize afterward.  If A.frac < B.frac,
-         * then division would produce an (N-1)-bit result; shift A left
-         * by one to produce the an N-bit result, and decrement the
-         * exponent to match.
-         *
-         * The udiv_qrnnd algorithm that we're using requires normalization,
-         * i.e. the msb of the denominator must be set, which is already true.
-         */
-        if (a.frac < b.frac) {
-            exp -= 1;
-            shift128Left(0, a.frac, DECOMPOSED_BINARY_POINT + 1, &n1, &n0);
-        } else {
-            shift128Left(0, a.frac, DECOMPOSED_BINARY_POINT, &n1, &n0);
-        }
-        q = udiv_qrnnd(&r, n1, n0, b.frac);
-
-        /* Set lsb if there is a remainder, to set inexact. */
-        a.frac = q | (r != 0);
-        a.sign = sign;
-        a.exp = exp;
-        return a;
-    }
-    /* handle all the NaN cases */
-    if (is_nan(a.cls) || is_nan(b.cls)) {
-        return *parts_pick_nan(&a, &b, s);
-    }
-    /* 0/0 or Inf/Inf */
-    if (a.cls == b.cls
-        &&
-        (a.cls == float_class_inf || a.cls == float_class_zero)) {
-        float_raise(float_flag_invalid, s);
-        parts_default_nan(&a, s);
-        return a;
-    }
-    /* Inf / x or 0 / x */
-    if (a.cls == float_class_inf || a.cls == float_class_zero) {
-        a.sign = sign;
-        return a;
-    }
-    /* Div 0 => Inf */
-    if (b.cls == float_class_zero) {
-        float_raise(float_flag_divbyzero, s);
-        a.cls = float_class_inf;
-        a.sign = sign;
-        return a;
-    }
-    /* Div by Inf */
-    if (b.cls == float_class_inf) {
-        a.cls = float_class_zero;
-        a.sign = sign;
-        return a;
-    }
-    g_assert_not_reached();
-}
 
 float16 float16_div(float16 a, float16 b, float_status *status)
 {
-    FloatParts64 pa, pb, pr;
+    FloatParts64 pa, pb, *pr;
 
     float16_unpack_canonical(&pa, a, status);
     float16_unpack_canonical(&pb, b, status);
-    pr = div_floats(pa, pb, status);
+    pr = parts_div(&pa, &pb, status);
 
-    return float16_round_pack_canonical(&pr, status);
+    return float16_round_pack_canonical(pr, status);
 }
 
 static float32 QEMU_SOFTFLOAT_ATTR
 soft_f32_div(float32 a, float32 b, float_status *status)
 {
-    FloatParts64 pa, pb, pr;
+    FloatParts64 pa, pb, *pr;
 
     float32_unpack_canonical(&pa, a, status);
     float32_unpack_canonical(&pb, b, status);
-    pr = div_floats(pa, pb, status);
+    pr = parts_div(&pa, &pb, status);
 
-    return float32_round_pack_canonical(&pr, status);
+    return float32_round_pack_canonical(pr, status);
 }
 
 static float64 QEMU_SOFTFLOAT_ATTR
 soft_f64_div(float64 a, float64 b, float_status *status)
 {
-    FloatParts64 pa, pb, pr;
+    FloatParts64 pa, pb, *pr;
 
     float64_unpack_canonical(&pa, a, status);
     float64_unpack_canonical(&pb, b, status);
-    pr = div_floats(pa, pb, status);
+    pr = parts_div(&pa, &pb, status);
 
-    return float64_round_pack_canonical(&pr, status);
+    return float64_round_pack_canonical(pr, status);
 }
 
 static float hard_f32_div(float a, float b)
@@ -1985,20 +2006,28 @@ float64_div(float64 a, float64 b, float_status *s)
                         f64_div_pre, f64_div_post);
 }
 
-/*
- * Returns the result of dividing the bfloat16
- * value `a' by the corresponding value `b'.
- */
-
-bfloat16 bfloat16_div(bfloat16 a, bfloat16 b, float_status *status)
+bfloat16 QEMU_FLATTEN
+bfloat16_div(bfloat16 a, bfloat16 b, float_status *status)
 {
-    FloatParts64 pa, pb, pr;
+    FloatParts64 pa, pb, *pr;
 
     bfloat16_unpack_canonical(&pa, a, status);
     bfloat16_unpack_canonical(&pb, b, status);
-    pr = div_floats(pa, pb, status);
+    pr = parts_div(&pa, &pb, status);
 
-    return bfloat16_round_pack_canonical(&pr, status);
+    return bfloat16_round_pack_canonical(pr, status);
+}
+
+float128 QEMU_FLATTEN
+float128_div(float128 a, float128 b, float_status *status)
+{
+    FloatParts128 pa, pb, *pr;
+
+    float128_unpack_canonical(&pa, a, status);
+    float128_unpack_canonical(&pb, b, status);
+    pr = parts_div(&pa, &pb, status);
+
+    return float128_round_pack_canonical(pr, status);
 }
 
 /*
@@ -7120,93 +7149,6 @@ float128 float128_round_to_int(float128 a, float_status *status)
         float_raise(float_flag_inexact, status);
     }
     return z;
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of dividing the quadruple-precision floating-point value
-| `a' by the corresponding value `b'.  The operation is performed according to
-| the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float128 float128_div(float128 a, float128 b, float_status *status)
-{
-    bool aSign, bSign, zSign;
-    int32_t aExp, bExp, zExp;
-    uint64_t aSig0, aSig1, bSig0, bSig1, zSig0, zSig1, zSig2;
-    uint64_t rem0, rem1, rem2, rem3, term0, term1, term2, term3;
-
-    aSig1 = extractFloat128Frac1( a );
-    aSig0 = extractFloat128Frac0( a );
-    aExp = extractFloat128Exp( a );
-    aSign = extractFloat128Sign( a );
-    bSig1 = extractFloat128Frac1( b );
-    bSig0 = extractFloat128Frac0( b );
-    bExp = extractFloat128Exp( b );
-    bSign = extractFloat128Sign( b );
-    zSign = aSign ^ bSign;
-    if ( aExp == 0x7FFF ) {
-        if (aSig0 | aSig1) {
-            return propagateFloat128NaN(a, b, status);
-        }
-        if ( bExp == 0x7FFF ) {
-            if (bSig0 | bSig1) {
-                return propagateFloat128NaN(a, b, status);
-            }
-            goto invalid;
-        }
-        return packFloat128( zSign, 0x7FFF, 0, 0 );
-    }
-    if ( bExp == 0x7FFF ) {
-        if (bSig0 | bSig1) {
-            return propagateFloat128NaN(a, b, status);
-        }
-        return packFloat128( zSign, 0, 0, 0 );
-    }
-    if ( bExp == 0 ) {
-        if ( ( bSig0 | bSig1 ) == 0 ) {
-            if ( ( aExp | aSig0 | aSig1 ) == 0 ) {
- invalid:
-                float_raise(float_flag_invalid, status);
-                return float128_default_nan(status);
-            }
-            float_raise(float_flag_divbyzero, status);
-            return packFloat128( zSign, 0x7FFF, 0, 0 );
-        }
-        normalizeFloat128Subnormal( bSig0, bSig1, &bExp, &bSig0, &bSig1 );
-    }
-    if ( aExp == 0 ) {
-        if ( ( aSig0 | aSig1 ) == 0 ) return packFloat128( zSign, 0, 0, 0 );
-        normalizeFloat128Subnormal( aSig0, aSig1, &aExp, &aSig0, &aSig1 );
-    }
-    zExp = aExp - bExp + 0x3FFD;
-    shortShift128Left(
-        aSig0 | UINT64_C(0x0001000000000000), aSig1, 15, &aSig0, &aSig1 );
-    shortShift128Left(
-        bSig0 | UINT64_C(0x0001000000000000), bSig1, 15, &bSig0, &bSig1 );
-    if ( le128( bSig0, bSig1, aSig0, aSig1 ) ) {
-        shift128Right( aSig0, aSig1, 1, &aSig0, &aSig1 );
-        ++zExp;
-    }
-    zSig0 = estimateDiv128To64( aSig0, aSig1, bSig0 );
-    mul128By64To192( bSig0, bSig1, zSig0, &term0, &term1, &term2 );
-    sub192( aSig0, aSig1, 0, term0, term1, term2, &rem0, &rem1, &rem2 );
-    while ( (int64_t) rem0 < 0 ) {
-        --zSig0;
-        add192( rem0, rem1, rem2, 0, bSig0, bSig1, &rem0, &rem1, &rem2 );
-    }
-    zSig1 = estimateDiv128To64( rem1, rem2, bSig0 );
-    if ( ( zSig1 & 0x3FFF ) <= 4 ) {
-        mul128By64To192( bSig0, bSig1, zSig1, &term1, &term2, &term3 );
-        sub192( rem1, rem2, 0, term1, term2, term3, &rem1, &rem2, &rem3 );
-        while ( (int64_t) rem1 < 0 ) {
-            --zSig1;
-            add192( rem1, rem2, rem3, 0, bSig0, bSig1, &rem1, &rem2, &rem3 );
-        }
-        zSig1 |= ( ( rem1 | rem2 | rem3 ) != 0 );
-    }
-    shift128ExtraRightJamming( zSig0, zSig1, 0, 15, &zSig0, &zSig1, &zSig2 );
-    return roundAndPackFloat128(zSign, zExp, zSig0, zSig1, zSig2, status);
 
 }
 

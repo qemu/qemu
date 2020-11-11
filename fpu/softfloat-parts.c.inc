@@ -539,3 +539,58 @@ static FloatPartsN *partsN(muladd)(FloatPartsN *a, FloatPartsN *b,
     parts_default_nan(a, s);
     return a;
 }
+
+/*
+ * Returns the result of dividing the floating-point value `a' by the
+ * corresponding value `b'. The operation is performed according to
+ * the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+ */
+static FloatPartsN *partsN(div)(FloatPartsN *a, FloatPartsN *b,
+                                float_status *s)
+{
+    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+    bool sign = a->sign ^ b->sign;
+
+    if (likely(ab_mask == float_cmask_normal)) {
+        a->sign = sign;
+        a->exp -= b->exp + frac_div(a, b);
+        return a;
+    }
+
+    /* 0/0 or Inf/Inf => NaN */
+    if (unlikely(ab_mask == float_cmask_zero) ||
+        unlikely(ab_mask == float_cmask_inf)) {
+        float_raise(float_flag_invalid, s);
+        parts_default_nan(a, s);
+        return a;
+    }
+
+    /* All the NaN cases */
+    if (unlikely(ab_mask & float_cmask_anynan)) {
+        return parts_pick_nan(a, b, s);
+    }
+
+    a->sign = sign;
+
+    /* Inf / X */
+    if (a->cls == float_class_inf) {
+        return a;
+    }
+
+    /* 0 / X */
+    if (a->cls == float_class_zero) {
+        return a;
+    }
+
+    /* X / Inf */
+    if (b->cls == float_class_inf) {
+        a->cls = float_class_zero;
+        return a;
+    }
+
+    /* X / 0 => Inf */
+    g_assert(b->cls == float_class_zero);
+    float_raise(float_flag_divbyzero, s);
+    a->cls = float_class_inf;
+    return a;
+}
