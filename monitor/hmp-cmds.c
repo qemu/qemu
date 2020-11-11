@@ -24,6 +24,7 @@
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
+#include "qemu/help_option.h"
 #include "monitor/monitor-internal.h"
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
@@ -1631,7 +1632,12 @@ void hmp_netdev_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     QemuOpts *opts;
+    const char *type = qdict_get_try_str(qdict, "type");
 
+    if (type && is_help_option(type)) {
+        show_netdevs();
+        return;
+    }
     opts = qemu_opts_from_qdict(qemu_find_opts("netdev"), qdict, &err);
     if (err) {
         goto out;

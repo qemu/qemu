@@ -44,6 +44,7 @@
 #include "qemu/config-file.h"
 #include "qemu/ctype.h"
 #include "qemu/iov.h"
+#include "qemu/qemu-print.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "qapi/error.h"
@@ -1025,7 +1026,7 @@ static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
     return 0;
 }
 
-static void show_netdevs(void)
+void show_netdevs(void)
 {
     int idx;
     const char *available_netdevs[] = {
@@ -1055,9 +1056,9 @@ static void show_netdevs(void)
 #endif
     };
 
-    printf("Available netdev backend types:\n");
+    qemu_printf("Available netdev backend types:\n");
     for (idx = 0; idx < ARRAY_SIZE(available_netdevs); idx++) {
-        puts(available_netdevs[idx]);
+        qemu_printf("%s\n", available_netdevs[idx]);
     }
 }
 
@@ -1068,42 +1069,35 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
     int ret = -1;
     Visitor *v = opts_visitor_new(opts);
 
-    const char *type = qemu_opt_get(opts, "type");
+    /* Parse convenience option format ip6-net=fec0::0[/64] */
+    const char *ip6_net = qemu_opt_get(opts, "ipv6-net");
 
-    if (is_netdev && type && is_help_option(type)) {
-        show_netdevs();
-        exit(0);
-    } else {
-        /* Parse convenience option format ip6-net=fec0::0[/64] */
-        const char *ip6_net = qemu_opt_get(opts, "ipv6-net");
+    if (ip6_net) {
+        char *prefix_addr;
+        unsigned long prefix_len = 64; /* Default 64bit prefix length. */
 
-        if (ip6_net) {
-            char *prefix_addr;
-            unsigned long prefix_len = 64; /* Default 64bit prefix length. */
-
-            substrings = g_strsplit(ip6_net, "/", 2);
-            if (!substrings || !substrings[0]) {
-                error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "ipv6-net",
-                           "a valid IPv6 prefix");
-                goto out;
-            }
-
-            prefix_addr = substrings[0];
-
-            /* Handle user-specified prefix length. */
-            if (substrings[1] &&
-                qemu_strtoul(substrings[1], NULL, 10, &prefix_len))
-            {
-                error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                           "ipv6-prefixlen", "a number");
-                goto out;
-            }
-
-            qemu_opt_set(opts, "ipv6-prefix", prefix_addr, &error_abort);
-            qemu_opt_set_number(opts, "ipv6-prefixlen", prefix_len,
-                                &error_abort);
-            qemu_opt_unset(opts, "ipv6-net");
+        substrings = g_strsplit(ip6_net, "/", 2);
+        if (!substrings || !substrings[0]) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "ipv6-net",
+                       "a valid IPv6 prefix");
+            goto out;
         }
+
+        prefix_addr = substrings[0];
+
+        /* Handle user-specified prefix length. */
+        if (substrings[1] &&
+            qemu_strtoul(substrings[1], NULL, 10, &prefix_len))
+        {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       "ipv6-prefixlen", "a number");
+            goto out;
+        }
+
+        qemu_opt_set(opts, "ipv6-prefix", prefix_addr, &error_abort);
+        qemu_opt_set_number(opts, "ipv6-prefixlen", prefix_len,
+                            &error_abort);
+        qemu_opt_unset(opts, "ipv6-net");
     }
 
     /* Create an ID for -net if the user did not specify one */
@@ -1421,6 +1415,12 @@ static int net_init_client(void *dummy, QemuOpts *opts, Error **errp)
 
 static int net_init_netdev(void *dummy, QemuOpts *opts, Error **errp)
 {
+    const char *type = qemu_opt_get(opts, "type");
+
+    if (type && is_help_option(type)) {
+        show_netdevs();
+        exit(0);
+    }
     return net_client_init(opts, true, errp);
 }
 
