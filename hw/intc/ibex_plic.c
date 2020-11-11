@@ -48,6 +48,7 @@ static void ibex_plic_irqs_set_pending(IbexPlicState *s, int irq, bool level)
          * The interrupt has been claimed, but not completed.
          * The pending bit can't be set.
          */
+        s->hidden_pending[pending_num] |= level << (irq % 32);
         return;
     }
 
@@ -176,8 +177,21 @@ static void ibex_plic_write(void *opaque, hwaddr addr,
             s->claim = 0;
         }
         if (s->claimed[value / 32] & 1 << (value % 32)) {
+            int pending_num = value / 32;
+
             /* This value was already claimed, clear it. */
-            s->claimed[value / 32] &= ~(1 << (value % 32));
+            s->claimed[pending_num] &= ~(1 << (value % 32));
+
+            if (s->hidden_pending[pending_num] & (1 << (value % 32))) {
+                /*
+                 * If the bit in hidden_pending is set then that means we
+                 * received an interrupt between claiming and completing
+                 * the interrupt that hasn't since been de-asserted.
+                 * On hardware this would trigger an interrupt, so let's
+                 * trigger one here as well.
+                 */
+                s->pending[pending_num] |= 1 << (value % 32);
+            }
         }
     }
 
@@ -239,6 +253,7 @@ static void ibex_plic_realize(DeviceState *dev, Error **errp)
     int i;
 
     s->pending = g_new0(uint32_t, s->pending_num);
+    s->hidden_pending = g_new0(uint32_t, s->pending_num);
     s->claimed = g_new0(uint32_t, s->pending_num);
     s->source = g_new0(uint32_t, s->source_num);
     s->priority = g_new0(uint32_t, s->priority_num);
