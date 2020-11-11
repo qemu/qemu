@@ -337,22 +337,6 @@ static void tmp421_realize(DeviceState *dev, Error **errp)
     tmp421_reset(&s->i2c);
 }
 
-static void tmp421_initfn(Object *obj)
-{
-    object_property_add(obj, "temperature0", "int",
-                        tmp421_get_temperature,
-                        tmp421_set_temperature, NULL, NULL);
-    object_property_add(obj, "temperature1", "int",
-                        tmp421_get_temperature,
-                        tmp421_set_temperature, NULL, NULL);
-    object_property_add(obj, "temperature2", "int",
-                        tmp421_get_temperature,
-                        tmp421_set_temperature, NULL, NULL);
-    object_property_add(obj, "temperature3", "int",
-                        tmp421_get_temperature,
-                        tmp421_set_temperature, NULL, NULL);
-}
-
 static void tmp421_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -365,6 +349,19 @@ static void tmp421_class_init(ObjectClass *klass, void *data)
     k->send = tmp421_tx;
     dc->vmsd = &vmstate_tmp421;
     sc->dev = (DeviceInfo *) data;
+
+    object_class_property_add(klass, "temperature0", "int",
+                              tmp421_get_temperature,
+                              tmp421_set_temperature, NULL, NULL);
+    object_class_property_add(klass, "temperature1", "int",
+                              tmp421_get_temperature,
+                              tmp421_set_temperature, NULL, NULL);
+    object_class_property_add(klass, "temperature2", "int",
+                              tmp421_get_temperature,
+                              tmp421_set_temperature, NULL, NULL);
+    object_class_property_add(klass, "temperature3", "int",
+                              tmp421_get_temperature,
+                              tmp421_set_temperature, NULL, NULL);
 }
 
 static const TypeInfo tmp421_info = {
@@ -372,7 +369,6 @@ static const TypeInfo tmp421_info = {
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(TMP421State),
     .class_size    = sizeof(TMP421Class),
-    .instance_init = tmp421_initfn,
     .abstract      = true,
 };
 
