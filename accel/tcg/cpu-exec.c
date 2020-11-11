@@ -198,7 +198,7 @@ static void collect_memory_snapshot(void) {
                     " %512s", &min, &max, &flag_r, &flag_w, &flag_x,
                     &flag_p, &offset, &dev_maj, &dev_min, &inode, path);
 
-    if ((fields < 10) || (fields > 11))
+    if ((fields < 10) || (fields > 11) || !h2g_valid(min))
         continue;
     
     int flags = page_get_flags(h2g(min));
@@ -425,7 +425,7 @@ void afl_setup(void) {
                         " %512s", &min, &max, &flag_r, &flag_w, &flag_x,
                         &flag_p, &offset, &dev_maj, &dev_min, &inode, path);
 
-        if (!flag_x || (fields < 10) || (fields > 11))
+        if ((fields < 10) || (fields > 11) || !flag_x || !h2g_valid(min))
             continue;
         
         int flags = page_get_flags(h2g(min));
