@@ -1782,7 +1782,7 @@ TranslationBlock *afl_gen_edge(CPUState *cpu, unsigned long afl_id)
     }
     tb->tc.size = gen_code_size;
 
-    atomic_set(&tcg_ctx->code_gen_ptr, (void *)
+    qatomic_set(&tcg_ctx->code_gen_ptr, (void *)
         ROUND_UP((uintptr_t)gen_code_buf + gen_code_size + search_size,
                  CODE_GEN_ALIGN));
 
