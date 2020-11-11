@@ -3517,6 +3517,10 @@ int main(int argc, char *argv[])
         }
     } else {
         lo.source = strdup("/");
+        if (!lo.source) {
+            fuse_log(FUSE_LOG_ERR, "failed to strdup source\n");
+            goto err_out1;
+        }
     }
 
     if (lo.xattrmap) {
