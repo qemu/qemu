@@ -284,24 +284,6 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
     }
 }
 
-static void filter_mirror_class_init(ObjectClass *oc, void *data)
-{
-    NetFilterClass *nfc = NETFILTER_CLASS(oc);
-
-    nfc->setup = filter_mirror_setup;
-    nfc->cleanup = filter_mirror_cleanup;
-    nfc->receive_iov = filter_mirror_receive_iov;
-}
-
-static void filter_redirector_class_init(ObjectClass *oc, void *data)
-{
-    NetFilterClass *nfc = NETFILTER_CLASS(oc);
-
-    nfc->setup = filter_redirector_setup;
-    nfc->cleanup = filter_redirector_cleanup;
-    nfc->receive_iov = filter_redirector_receive_iov;
-}
-
 static char *filter_redirector_get_indev(Object *obj, Error **errp)
 {
     MirrorState *s = FILTER_REDIRECTOR(obj);
@@ -386,6 +368,24 @@ static void filter_redirector_set_vnet_hdr(Object *obj,
     MirrorState *s = FILTER_REDIRECTOR(obj);
 
     s->vnet_hdr = value;
+}
+
+static void filter_mirror_class_init(ObjectClass *oc, void *data)
+{
+    NetFilterClass *nfc = NETFILTER_CLASS(oc);
+
+    nfc->setup = filter_mirror_setup;
+    nfc->cleanup = filter_mirror_cleanup;
+    nfc->receive_iov = filter_mirror_receive_iov;
+}
+
+static void filter_redirector_class_init(ObjectClass *oc, void *data)
+{
+    NetFilterClass *nfc = NETFILTER_CLASS(oc);
+
+    nfc->setup = filter_redirector_setup;
+    nfc->cleanup = filter_redirector_cleanup;
+    nfc->receive_iov = filter_redirector_receive_iov;
 }
 
 static void filter_mirror_init(Object *obj)

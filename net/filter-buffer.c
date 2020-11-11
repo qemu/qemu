@@ -144,16 +144,6 @@ static void filter_buffer_status_changed(NetFilterState *nf, Error **errp)
     }
 }
 
-static void filter_buffer_class_init(ObjectClass *oc, void *data)
-{
-    NetFilterClass *nfc = NETFILTER_CLASS(oc);
-
-    nfc->setup = filter_buffer_setup;
-    nfc->cleanup = filter_buffer_cleanup;
-    nfc->receive_iov = filter_buffer_receive_iov;
-    nfc->status_changed = filter_buffer_status_changed;
-}
-
 static void filter_buffer_get_interval(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
@@ -180,6 +170,16 @@ static void filter_buffer_set_interval(Object *obj, Visitor *v,
         return;
     }
     s->interval = value;
+}
+
+static void filter_buffer_class_init(ObjectClass *oc, void *data)
+{
+    NetFilterClass *nfc = NETFILTER_CLASS(oc);
+
+    nfc->setup = filter_buffer_setup;
+    nfc->cleanup = filter_buffer_cleanup;
+    nfc->receive_iov = filter_buffer_receive_iov;
+    nfc->status_changed = filter_buffer_status_changed;
 }
 
 static void filter_buffer_init(Object *obj)
