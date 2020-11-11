@@ -365,7 +365,7 @@ int migrate_send_rp_req_pages(MigrationIncomingState *mis,
                               RAMBlock *rb, ram_addr_t start, uint64_t haddr)
 {
     void *aligned = (void *)(uintptr_t)(haddr & (-qemu_ram_pagesize(rb)));
-    bool received;
+    bool received = false;
 
     WITH_QEMU_LOCK_GUARD(&mis->page_request_mutex) {
         received = ramblock_recv_bitmap_test_byte_offset(rb, start);
