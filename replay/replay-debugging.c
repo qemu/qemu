@@ -278,7 +278,6 @@ static void replay_continue_stop(void *opaque)
             replay_continue_end();
         }
         replay_last_snapshot = replay_get_current_icount();
-        return;
     } else {
         /* Seek to the very first step */
         replay_seek(0, replay_stop_vm_debug, &err);
@@ -286,9 +285,7 @@ static void replay_continue_stop(void *opaque)
             error_free(err);
             replay_continue_end();
         }
-        return;
     }
-    replay_continue_end();
 }
 
 bool replay_reverse_continue(void)
