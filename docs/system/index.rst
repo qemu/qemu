@@ -30,6 +30,7 @@ Contents:
    gdb
    managed-startup
    cpu-hotplug
+   virtio-pmem
    targets
    security
    deprecated
