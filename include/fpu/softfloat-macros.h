@@ -484,24 +484,14 @@ mul64To128(uint64_t a, uint64_t b, uint64_t *z0Ptr, uint64_t *z1Ptr)
 *----------------------------------------------------------------------------*/
 
 static inline void
- mul128By64To192(
-     uint64_t a0,
-     uint64_t a1,
-     uint64_t b,
-     uint64_t *z0Ptr,
-     uint64_t *z1Ptr,
-     uint64_t *z2Ptr
- )
+mul128By64To192(uint64_t a0, uint64_t a1, uint64_t b,
+                uint64_t *z0Ptr, uint64_t *z1Ptr, uint64_t *z2Ptr)
 {
-    uint64_t z0, z1, z2, more1;
+    uint64_t z0, z1, m1;
 
-    mul64To128( a1, b, &z1, &z2 );
-    mul64To128( a0, b, &z0, &more1 );
-    add128( z0, more1, 0, z1, &z0, &z1 );
-    *z2Ptr = z2;
-    *z1Ptr = z1;
-    *z0Ptr = z0;
-
+    mul64To128(a1, b, &m1, z2Ptr);
+    mul64To128(a0, b, &z0, &z1);
+    add128(z0, z1, 0, m1, z0Ptr, z1Ptr);
 }
 
 /*----------------------------------------------------------------------------
