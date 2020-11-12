@@ -31,6 +31,7 @@ Contents:
    managed-startup
    cpu-hotplug
    virtio-pmem
+   pr-manager
    targets
    security
    deprecated
