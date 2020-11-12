@@ -2479,13 +2479,11 @@ void helper_##op(CPUPPCState *env, uint32_t opcode,                      \
     if (float64_is_signaling_nan(xa->VsrD(0), &env->fp_status) ||        \
         float64_is_signaling_nan(xb->VsrD(0), &env->fp_status)) {        \
         vxsnan_flag = true;                                              \
-        cc = CRF_SO;                                                     \
         if (fpscr_ve == 0 && ordered) {                                  \
             vxvc_flag = true;                                            \
         }                                                                \
     } else if (float64_is_quiet_nan(xa->VsrD(0), &env->fp_status) ||     \
                float64_is_quiet_nan(xb->VsrD(0), &env->fp_status)) {     \
-        cc = CRF_SO;                                                     \
         if (ordered) {                                                   \
             vxvc_flag = true;                                            \
         }                                                                \
@@ -2497,12 +2495,19 @@ void helper_##op(CPUPPCState *env, uint32_t opcode,                      \
         float_invalid_op_vxvc(env, 0, GETPC());                          \
     }                                                                    \
                                                                          \
-    if (float64_lt(xa->VsrD(0), xb->VsrD(0), &env->fp_status)) {         \
+    switch (float64_compare(xa->VsrD(0), xb->VsrD(0), &env->fp_status)) {\
+    case float_relation_less:                                            \
         cc |= CRF_LT;                                                    \
-    } else if (!float64_le(xa->VsrD(0), xb->VsrD(0), &env->fp_status)) { \
-        cc |= CRF_GT;                                                    \
-    } else {                                                             \
+        break;                                                           \
+    case float_relation_equal:                                           \
         cc |= CRF_EQ;                                                    \
+        break;                                                           \
+    case float_relation_greater:                                         \
+        cc |= CRF_GT;                                                    \
+        break;                                                           \
+    case float_relation_unordered:                                       \
+        cc |= CRF_SO;                                                    \
+        break;                                                           \
     }                                                                    \
                                                                          \
     env->fpscr &= ~FP_FPCC;                                              \
@@ -2545,12 +2550,19 @@ void helper_##op(CPUPPCState *env, uint32_t opcode,                     \
         float_invalid_op_vxvc(env, 0, GETPC());                         \
     }                                                                   \
                                                                         \
-    if (float128_lt(xa->f128, xb->f128, &env->fp_status)) {             \
+    switch (float128_compare(xa->f128, xb->f128, &env->fp_status)) {    \
+    case float_relation_less:                                           \
         cc |= CRF_LT;                                                   \
-    } else if (!float128_le(xa->f128, xb->f128, &env->fp_status)) {     \
-        cc |= CRF_GT;                                                   \
-    } else {                                                            \
+        break;                                                          \
+    case float_relation_equal:                                          \
         cc |= CRF_EQ;                                                   \
+        break;                                                          \
+    case float_relation_greater:                                        \
+        cc |= CRF_GT;                                                   \
+        break;                                                          \
+    case float_relation_unordered:                                      \
+        cc |= CRF_SO;                                                   \
+        break;                                                          \
     }                                                                   \
                                                                         \
     env->fpscr &= ~FP_FPCC;                                             \
