@@ -2475,25 +2475,6 @@ static inline void do_scalar_cmp(CPUPPCState *env, ppc_vsr_t *xa, ppc_vsr_t *xb,
 
     helper_reset_fpstatus(env);
 
-    if (float64_is_signaling_nan(xa->VsrD(0), &env->fp_status) ||
-        float64_is_signaling_nan(xb->VsrD(0), &env->fp_status)) {
-        vxsnan_flag = true;
-        if (fpscr_ve == 0 && ordered) {
-            vxvc_flag = true;
-        }
-    } else if (float64_is_quiet_nan(xa->VsrD(0), &env->fp_status) ||
-               float64_is_quiet_nan(xb->VsrD(0), &env->fp_status)) {
-        if (ordered) {
-            vxvc_flag = true;
-        }
-    }
-    if (vxsnan_flag) {
-        float_invalid_op_vxsnan(env, GETPC());
-    }
-    if (vxvc_flag) {
-        float_invalid_op_vxvc(env, 0, GETPC());
-    }
-
     switch (float64_compare(xa->VsrD(0), xb->VsrD(0), &env->fp_status)) {
     case float_relation_less:
         cc = CRF_LT;
@@ -2506,6 +2487,27 @@ static inline void do_scalar_cmp(CPUPPCState *env, ppc_vsr_t *xa, ppc_vsr_t *xb,
         break;
     case float_relation_unordered:
         cc = CRF_SO;
+
+        if (float64_is_signaling_nan(xa->VsrD(0), &env->fp_status) ||
+            float64_is_signaling_nan(xb->VsrD(0), &env->fp_status)) {
+            vxsnan_flag = true;
+            if (fpscr_ve == 0 && ordered) {
+                vxvc_flag = true;
+            }
+        } else if (float64_is_quiet_nan(xa->VsrD(0), &env->fp_status) ||
+                   float64_is_quiet_nan(xb->VsrD(0), &env->fp_status)) {
+            if (ordered) {
+                vxvc_flag = true;
+            }
+        }
+
+        if (vxsnan_flag) {
+            float_invalid_op_vxsnan(env, GETPC());
+        }
+        if (vxvc_flag) {
+            float_invalid_op_vxvc(env, 0, GETPC());
+        }
+
         break;
     default:
         g_assert_not_reached();
@@ -2538,25 +2540,6 @@ static inline void do_scalar_cmpq(CPUPPCState *env, ppc_vsr_t *xa,
 
     helper_reset_fpstatus(env);
 
-    if (float128_is_signaling_nan(xa->f128, &env->fp_status) ||
-        float128_is_signaling_nan(xb->f128, &env->fp_status)) {
-        vxsnan_flag = true;
-        if (fpscr_ve == 0 && ordered) {
-            vxvc_flag = true;
-        }
-    } else if (float128_is_quiet_nan(xa->f128, &env->fp_status) ||
-               float128_is_quiet_nan(xb->f128, &env->fp_status)) {
-        if (ordered) {
-            vxvc_flag = true;
-        }
-    }
-    if (vxsnan_flag) {
-        float_invalid_op_vxsnan(env, GETPC());
-    }
-    if (vxvc_flag) {
-        float_invalid_op_vxvc(env, 0, GETPC());
-    }
-
     switch (float128_compare(xa->f128, xb->f128, &env->fp_status)) {
     case float_relation_less:
         cc = CRF_LT;
@@ -2569,6 +2552,27 @@ static inline void do_scalar_cmpq(CPUPPCState *env, ppc_vsr_t *xa,
         break;
     case float_relation_unordered:
         cc = CRF_SO;
+
+        if (float128_is_signaling_nan(xa->f128, &env->fp_status) ||
+            float128_is_signaling_nan(xb->f128, &env->fp_status)) {
+            vxsnan_flag = true;
+            if (fpscr_ve == 0 && ordered) {
+                vxvc_flag = true;
+            }
+        } else if (float128_is_quiet_nan(xa->f128, &env->fp_status) ||
+                   float128_is_quiet_nan(xb->f128, &env->fp_status)) {
+            if (ordered) {
+                vxvc_flag = true;
+            }
+        }
+
+        if (vxsnan_flag) {
+            float_invalid_op_vxsnan(env, GETPC());
+        }
+        if (vxvc_flag) {
+            float_invalid_op_vxvc(env, 0, GETPC());
+        }
+
         break;
     default:
         g_assert_not_reached();
