@@ -2797,6 +2797,39 @@ static int qemu_read_default_config_file(void)
     return 0;
 }
 
+static int qemu_set_option(const char *str)
+{
+    Error *local_err = NULL;
+    char group[64], id[64], arg[64];
+    QemuOptsList *list;
+    QemuOpts *opts;
+    int rc, offset;
+
+    rc = sscanf(str, "%63[^.].%63[^.].%63[^=]%n", group, id, arg, &offset);
+    if (rc < 3 || str[offset] != '=') {
+        error_report("can't parse: \"%s\"", str);
+        return -1;
+    }
+
+    list = qemu_find_opts(group);
+    if (list == NULL) {
+        return -1;
+    }
+
+    opts = qemu_opts_find(list, id);
+    if (!opts) {
+        error_report("there is no %s \"%s\" defined",
+                     list->name, id);
+        return -1;
+    }
+
+    if (!qemu_opt_set(opts, arg, str + offset + 1, &local_err)) {
+        error_report_err(local_err);
+        return -1;
+    }
+    return 0;
+}
+
 static void user_register_global_props(void)
 {
     qemu_opts_foreach(qemu_find_opts("global"),
