@@ -362,3 +362,54 @@ static FloatPartsN *partsN(addsub)(FloatPartsN *a, FloatPartsN *b,
  p_nan:
     return parts_pick_nan(a, b, s);
 }
+
+/*
+ * Returns the result of multiplying the floating-point values `a' and
+ * `b'. The operation is performed according to the IEC/IEEE Standard
+ * for Binary Floating-Point Arithmetic.
+ */
+static FloatPartsN *partsN(mul)(FloatPartsN *a, FloatPartsN *b,
+                                float_status *s)
+{
+    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+    bool sign = a->sign ^ b->sign;
+
+    if (likely(ab_mask == float_cmask_normal)) {
+        FloatPartsW tmp;
+
+        frac_mulw(&tmp, a, b);
+        frac_truncjam(a, &tmp);
+
+        a->exp += b->exp + 1;
+        if (!(a->frac_hi & DECOMPOSED_IMPLICIT_BIT)) {
+            frac_add(a, a, a);
+            a->exp -= 1;
+        }
+
+        a->sign = sign;
+        return a;
+    }
+
+    /* Inf * Zero == NaN */
+    if (unlikely(ab_mask == float_cmask_infzero)) {
+        float_raise(float_flag_invalid, s);
+        parts_default_nan(a, s);
+        return a;
+    }
+
+    if (unlikely(ab_mask & float_cmask_anynan)) {
+        return parts_pick_nan(a, b, s);
+    }
+
+    /* Multiply by 0 or Inf */
+    if (ab_mask & float_cmask_inf) {
+        a->cls = float_class_inf;
+        a->sign = sign;
+        return a;
+    }
+
+    g_assert(ab_mask & float_cmask_zero);
+    a->cls = float_class_zero;
+    a->sign = sign;
+    return a;
+}
