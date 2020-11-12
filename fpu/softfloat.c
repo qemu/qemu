@@ -511,10 +511,20 @@ static inline __attribute__((unused)) bool is_qnan(FloatClass c)
  */
 
 typedef struct {
-    uint64_t frac;
-    int32_t  exp;
     FloatClass cls;
     bool sign;
+    int32_t exp;
+    union {
+        /* Routines that know the structure may reference the singular name. */
+        uint64_t frac;
+        /*
+         * Routines expanded with multiple structures reference "hi" and "lo"
+         * depending on the operation.  In FloatParts64, "hi" and "lo" are
+         * both the same word and aliased here.
+         */
+        uint64_t frac_hi;
+        uint64_t frac_lo;
+    };
 } FloatParts64;
 
 #define DECOMPOSED_BINARY_POINT    63
