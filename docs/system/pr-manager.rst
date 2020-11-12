@@ -1,8 +1,8 @@
-======================================
+===============================
 Persistent reservation managers
-======================================
+===============================
 
-SCSI persistent Reservations allow restricting access to block devices
+SCSI persistent reservations allow restricting access to block devices
 to specific initiators in a shared storage setup.  When implementing
 clustering of virtual machines, it is a common requirement for virtual
 machines to send persistent reservation SCSI commands.  However,
