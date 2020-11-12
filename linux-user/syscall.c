@@ -813,6 +813,12 @@ safe_syscall5(int, mq_timedsend, int, mqdes, const char *, msg_ptr,
 safe_syscall5(int, mq_timedreceive, int, mqdes, char *, msg_ptr,
               size_t, len, unsigned *, prio, const struct timespec *, timeout)
 #endif
+#if defined(TARGET_NR_copy_file_range) && defined(__NR_copy_file_range)
+safe_syscall6(ssize_t, copy_file_range, int, infd, loff_t *, pinoff,
+              int, outfd, loff_t *, poutoff, size_t, length,
+              unsigned int, flags)
+#endif
+
 /* We do ioctl like this rather than via safe_syscall3 to preserve the
  * "third argument might be integer or pointer or not present" behaviour of
  * the libc function.
@@ -13063,6 +13069,42 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #if defined TARGET_NR_membarrier && defined __NR_membarrier
     case TARGET_NR_membarrier:
         return get_errno(membarrier(arg1, arg2));
+#endif
+
+#if defined(TARGET_NR_copy_file_range) && defined(__NR_copy_file_range)
+    case TARGET_NR_copy_file_range:
+        {
+            loff_t inoff, outoff;
+            loff_t *pinoff = NULL, *poutoff = NULL;
+
+            if (arg2) {
+                if (get_user_u64(inoff, arg2)) {
+                    return -TARGET_EFAULT;
+                }
+                pinoff = &inoff;
+            }
+            if (arg4) {
+                if (get_user_u64(outoff, arg4)) {
+                    return -TARGET_EFAULT;
+                }
+                poutoff = &outoff;
+            }
+            ret = get_errno(safe_copy_file_range(arg1, pinoff, arg3, poutoff,
+                                                 arg5, arg6));
+            if (!is_error(ret) && ret > 0) {
+                if (arg2) {
+                    if (put_user_u64(inoff, arg2)) {
+                        return -TARGET_EFAULT;
+                    }
+                }
+                if (arg4) {
+                    if (put_user_u64(outoff, arg4)) {
+                        return -TARGET_EFAULT;
+                    }
+                }
+            }
+        }
+        return ret;
 #endif
 
     default:
