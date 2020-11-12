@@ -610,14 +610,6 @@ static void lo_init(void *userdata, struct fuse_conn_info *conn)
                  "does not support it\n");
         lo->announce_submounts = false;
     }
-
-#ifndef CONFIG_STATX
-    if (lo->announce_submounts) {
-        fuse_log(FUSE_LOG_WARNING, "lo_init: Cannot announce submounts, there "
-                 "is no statx()\n");
-        lo->announce_submounts = false;
-    }
-#endif
 }
 
 static void lo_getattr(fuse_req_t req, fuse_ino_t ino,
@@ -3433,6 +3425,7 @@ int main(int argc, char *argv[])
         .proc_self_fd = -1,
     };
     struct lo_map_elem *root_elem;
+    struct lo_map_elem *reserve_elem;
     int ret = -1;
 
     /* Don't mask creation mode, kernel already did that */
@@ -3452,8 +3445,17 @@ int main(int argc, char *argv[])
      * [1] Root inode
      */
     lo_map_init(&lo.ino_map);
-    lo_map_reserve(&lo.ino_map, 0)->in_use = false;
+    reserve_elem = lo_map_reserve(&lo.ino_map, 0);
+    if (!reserve_elem) {
+        fuse_log(FUSE_LOG_ERR, "failed to alloc reserve_elem.\n");
+        goto err_out1;
+    }
+    reserve_elem->in_use = false;
     root_elem = lo_map_reserve(&lo.ino_map, lo.root.fuse_ino);
+    if (!root_elem) {
+        fuse_log(FUSE_LOG_ERR, "failed to alloc root_elem.\n");
+        goto err_out1;
+    }
     root_elem->inode = &lo.root;
 
     lo_map_init(&lo.dirp_map);
@@ -3515,6 +3517,10 @@ int main(int argc, char *argv[])
         }
     } else {
         lo.source = strdup("/");
+        if (!lo.source) {
+            fuse_log(FUSE_LOG_ERR, "failed to strdup source\n");
+            goto err_out1;
+        }
     }
 
     if (lo.xattrmap) {

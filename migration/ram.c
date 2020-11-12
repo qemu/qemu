@@ -3741,7 +3741,7 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block)
     }
 
     if (end_mark != RAMBLOCK_RECV_BITMAP_ENDING) {
-        error_report("%s: ramblock '%s' end mark incorrect: 0x%"PRIu64,
+        error_report("%s: ramblock '%s' end mark incorrect: 0x%"PRIx64,
                      __func__, block->idstr, end_mark);
         ret = -EINVAL;
         goto out;
