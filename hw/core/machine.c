@@ -1174,17 +1174,16 @@ void machine_run_board_init(MachineState *machine)
     }
 
     machine_class->init(machine);
+    phase_advance(PHASE_MACHINE_INITIALIZED);
 }
 
 static NotifierList machine_init_done_notifiers =
     NOTIFIER_LIST_INITIALIZER(machine_init_done_notifiers);
 
-static bool machine_init_done;
-
 void qemu_add_machine_init_done_notifier(Notifier *notify)
 {
     notifier_list_add(&machine_init_done_notifiers, notify);
-    if (machine_init_done) {
+    if (phase_check(PHASE_MACHINE_READY)) {
         notify->notify(notify, NULL);
     }
 }
@@ -1207,7 +1206,7 @@ void qdev_machine_creation_done(void)
      * ok, initial machine setup is done, starting from now we can
      * only create hotpluggable devices
      */
-    qdev_hotplug = true;
+    phase_advance(PHASE_MACHINE_READY);
     qdev_assert_realized_properly();
 
     /* TODO: once all bus devices are qdevified, this should be done
@@ -1222,7 +1221,6 @@ void qdev_machine_creation_done(void)
      */
     qemu_register_reset(resettable_cold_reset_fn, sysbus_get_default());
 
-    machine_init_done = true;
     notifier_list_notify(&machine_init_done_notifiers, NULL);
 
     if (rom_check_and_register_reset() != 0) {

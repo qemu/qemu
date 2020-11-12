@@ -286,9 +286,9 @@ HotpluggableCPUList *qmp_query_hotpluggable_cpus(Error **errp)
 
 void qmp_set_numa_node(NumaOptions *cmd, Error **errp)
 {
-    if (qdev_hotplug) {
-         error_setg(errp, "The command is permitted only before the machine has been created");
-         return;
+    if (phase_check(PHASE_MACHINE_INITIALIZED)) {
+        error_setg(errp, "The command is permitted only before the machine has been created");
+        return;
     }
 
     set_numa_options(MACHINE(qdev_get_machine()), cmd, errp);

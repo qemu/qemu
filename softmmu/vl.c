@@ -2406,10 +2406,6 @@ static void qemu_init_displays(void)
     }
 }
 
-/*
- * Called after leaving preconfig state.  From here on runstate is
- * RUN_STATE_PRELAUNCH or RUN_STATE_INMIGRATE.
- */
 static void qemu_init_board(void)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(current_machine);
@@ -2424,6 +2420,7 @@ static void qemu_init_board(void)
         exit(1);
     }
 
+    /* From here on we enter MACHINE_PHASE_INITIALIZED.  */
     machine_run_board_init(current_machine);
 
     /*
@@ -2490,7 +2487,7 @@ static void qemu_machine_creation_done(void)
 
 void qmp_x_exit_preconfig(Error **errp)
 {
-    if (qdev_hotplug) {
+    if (phase_check(PHASE_MACHINE_INITIALIZED)) {
         error_setg(errp, "The command is permitted only before machine initialization");
         return;
     }
@@ -3469,12 +3466,14 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_create_early_backends();
 
     qemu_apply_machine_options();
+    phase_advance(PHASE_MACHINE_CREATED);
 
     /*
      * Note: uses machine properties such as kernel-irqchip, must run
      * after machine_set_property().
      */
     configure_accelerators(argv[0]);
+    phase_advance(PHASE_ACCEL_CREATED);
 
     /*
      * Beware, QOM objects created before this point miss global and
