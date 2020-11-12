@@ -21,6 +21,7 @@ Contents:
    monitor
    images
    net
+   virtio-net-failover
    usb
    ivshmem
    linuxboot
