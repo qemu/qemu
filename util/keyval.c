@@ -311,6 +311,86 @@ static char *reassemble_key(GSList *key)
 }
 
 /*
+ * Recursive worker for keyval_merge.
+ *
+ * @str is the path that led to the * current dictionary (to be used for
+ * error messages).  It is modified internally but restored before the
+ * function returns.
+ */
+static void keyval_do_merge(QDict *dest, const QDict *merged, GString *str, Error **errp)
+{
+    size_t save_len = str->len;
+    const QDictEntry *ent;
+    QObject *old_value;
+
+    for (ent = qdict_first(merged); ent; ent = qdict_next(merged, ent)) {
+        old_value = qdict_get(dest, ent->key);
+        if (old_value) {
+            if (qobject_type(old_value) != qobject_type(ent->value)) {
+                error_setg(errp, "Parameter '%s%s' used inconsistently",
+                           str->str, ent->key);
+                return;
+            } else if (qobject_type(ent->value) == QTYPE_QDICT) {
+                /* Merge sub-dictionaries.  */
+                g_string_append(str, ent->key);
+                g_string_append_c(str, '.');
+                keyval_do_merge(qobject_to(QDict, old_value),
+                                qobject_to(QDict, ent->value),
+                                str, errp);
+                g_string_truncate(str, save_len);
+                continue;
+            } else if (qobject_type(ent->value) == QTYPE_QLIST) {
+                /* Append to old list.  */
+                QList *old = qobject_to(QList, old_value);
+                QList *new = qobject_to(QList, ent->value);
+                const QListEntry *item;
+                QLIST_FOREACH_ENTRY(new, item) {
+                    qobject_ref(item->value);
+                    qlist_append_obj(old, item->value);
+                }
+                continue;
+            } else {
+                assert(qobject_type(ent->value) == QTYPE_QSTRING);
+            }
+        }
+
+        qobject_ref(ent->value);
+        qdict_put_obj(dest, ent->key, ent->value);
+    }
+}
+
+/* Merge the @merged dictionary into @dest.
+ *
+ * The dictionaries are expected to be returned by the keyval parser, and
+ * therefore the only expected scalar type is the string.  In case the same
+ * path is present in both @dest and @merged, the semantics are as follows:
+ *
+ * - lists are concatenated
+ *
+ * - dictionaries are merged recursively
+ *
+ * - for scalar values, @merged wins
+ *
+ * In case an error is reported, @dest may already have been modified.
+ *
+ * This function can be used to implement semantics analogous to QemuOpts's
+ * .merge_lists = true case, or to implement -set for options backed by QDicts.
+ *
+ * Note: while QemuOpts is commonly used so that repeated keys overwrite
+ * ("last one wins"), it can also be used so that repeated keys build up
+ * a list. keyval_merge() can only be used when the options' semantics are
+ * the former, not the latter.
+ */
+void keyval_merge(QDict *dest, const QDict *merged, Error **errp)
+{
+    GString *str;
+
+    str = g_string_new("");
+    keyval_do_merge(dest, merged, str, errp);
+    g_string_free(str, TRUE);
+}
+
+/*
  * Listify @cur recursively.
  * Replace QDicts whose keys are all valid list indexes by QLists.
  * @key_of_cur is the list of key fragments leading up to @cur.
