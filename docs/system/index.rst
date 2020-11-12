@@ -29,6 +29,7 @@ Contents:
    tls
    gdb
    managed-startup
+   cpu-hotplug
    targets
    security
    deprecated
