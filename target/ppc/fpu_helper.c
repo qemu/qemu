@@ -2501,13 +2501,6 @@ static inline void do_scalar_cmp(CPUPPCState *env, ppc_vsr_t *xa, ppc_vsr_t *xb,
             }
         }
 
-        if (vxsnan_flag) {
-            float_invalid_op_vxsnan(env, GETPC());
-        }
-        if (vxvc_flag) {
-            float_invalid_op_vxvc(env, 0, GETPC());
-        }
-
         break;
     default:
         g_assert_not_reached();
@@ -2516,6 +2509,13 @@ static inline void do_scalar_cmp(CPUPPCState *env, ppc_vsr_t *xa, ppc_vsr_t *xb,
     env->fpscr &= ~FP_FPCC;
     env->fpscr |= cc << FPSCR_FPCC;
     env->crf[crf_idx] = cc;
+
+    if (vxsnan_flag) {
+        float_invalid_op_vxsnan(env, GETPC());
+    }
+    if (vxvc_flag) {
+        float_invalid_op_vxvc(env, 0, GETPC());
+    }
 
     do_float_check_status(env, GETPC());
 }
@@ -2566,13 +2566,6 @@ static inline void do_scalar_cmpq(CPUPPCState *env, ppc_vsr_t *xa,
             }
         }
 
-        if (vxsnan_flag) {
-            float_invalid_op_vxsnan(env, GETPC());
-        }
-        if (vxvc_flag) {
-            float_invalid_op_vxvc(env, 0, GETPC());
-        }
-
         break;
     default:
         g_assert_not_reached();
@@ -2581,6 +2574,13 @@ static inline void do_scalar_cmpq(CPUPPCState *env, ppc_vsr_t *xa,
     env->fpscr &= ~FP_FPCC;
     env->fpscr |= cc << FPSCR_FPCC;
     env->crf[crf_idx] = cc;
+
+    if (vxsnan_flag) {
+        float_invalid_op_vxsnan(env, GETPC());
+    }
+    if (vxvc_flag) {
+        float_invalid_op_vxvc(env, 0, GETPC());
+    }
 
     do_float_check_status(env, GETPC());
 }
