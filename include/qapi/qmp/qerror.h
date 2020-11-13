@@ -43,9 +43,6 @@
 #define QERR_FEATURE_DISABLED \
     "The feature '%s' is not enabled"
 
-#define QERR_INVALID_BLOCK_FORMAT \
-    "Invalid block format '%s'"
-
 #define QERR_INVALID_PARAMETER \
     "Invalid parameter '%s'"
 
@@ -54,9 +51,6 @@
 
 #define QERR_INVALID_PARAMETER_VALUE \
     "Parameter '%s' expects %s"
-
-#define QERR_INVALID_PASSWORD \
-    "Password incorrect"
 
 #define QERR_IO_ERROR \
     "An IO error has occurred"
