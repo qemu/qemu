@@ -27,17 +27,36 @@
 
 #include "hcd-xhci-pci.h"
 
+typedef struct XHCINecState {
+    /*< private >*/
+    XHCIPciState parent_obj;
+    /*< public >*/
+    uint32_t flags;
+    uint32_t intrs;
+    uint32_t slots;
+} XHCINecState;
+
 static Property nec_xhci_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("msi", XHCIPciState, msi, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_ON_OFF_AUTO("msix", XHCIPciState, msix, ON_OFF_AUTO_AUTO),
-    DEFINE_PROP_BIT("superspeed-ports-first", XHCIPciState,
-                    xhci.flags, XHCI_FLAG_SS_FIRST, true),
-    DEFINE_PROP_BIT("force-pcie-endcap", XHCIPciState, xhci.flags,
+    DEFINE_PROP_BIT("superspeed-ports-first", XHCINecState, flags,
+                    XHCI_FLAG_SS_FIRST, true),
+    DEFINE_PROP_BIT("force-pcie-endcap", XHCINecState, flags,
                     XHCI_FLAG_FORCE_PCIE_ENDCAP, false),
-    DEFINE_PROP_UINT32("intrs", XHCIPciState, xhci.numintrs, XHCI_MAXINTRS),
-    DEFINE_PROP_UINT32("slots", XHCIPciState, xhci.numslots, XHCI_MAXSLOTS),
+    DEFINE_PROP_UINT32("intrs", XHCINecState, intrs, XHCI_MAXINTRS),
+    DEFINE_PROP_UINT32("slots", XHCINecState, slots, XHCI_MAXSLOTS),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static void nec_xhci_instance_init(Object *obj)
+{
+    XHCIPciState *pci = XHCI_PCI(obj);
+    XHCINecState *nec = container_of(pci, XHCINecState, parent_obj);
+
+    pci->xhci.flags    = nec->flags;
+    pci->xhci.numintrs = nec->intrs;
+    pci->xhci.numslots = nec->slots;
+}
 
 static void nec_xhci_class_init(ObjectClass *klass, void *data)
 {
@@ -53,6 +72,8 @@ static void nec_xhci_class_init(ObjectClass *klass, void *data)
 static const TypeInfo nec_xhci_info = {
     .name          = TYPE_NEC_XHCI,
     .parent        = TYPE_XHCI_PCI,
+    .instance_size = sizeof(XHCINecState),
+    .instance_init = nec_xhci_instance_init,
     .class_init    = nec_xhci_class_init,
 };
 
