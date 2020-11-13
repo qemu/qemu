@@ -128,6 +128,9 @@ qauthz_list_file_complete(UserCreatable *uc, Error **errp)
     }
 
     fauthz->list = qauthz_list_file_load(fauthz, errp);
+    if (!fauthz->list) {
+        return;
+    }
 
     if (!fauthz->refresh) {
         return;
