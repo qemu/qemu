@@ -384,7 +384,7 @@ static int64_t expr_unary(Monitor *mon)
                 pch++;
             }
             *q = 0;
-            ret = get_monitor_def(&reg, buf);
+            ret = get_monitor_def(mon, &reg, buf);
             if (ret < 0) {
                 expr_error(mon, "unknown register");
             }

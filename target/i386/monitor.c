@@ -656,7 +656,7 @@ void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
         int id = qdict_get_try_int(qdict, "apic-id", 0);
         cs = cpu_by_arch_id(id);
     } else {
-        cs = mon_get_cpu();
+        cs = mon_get_cpu(mon);
     }
 
 
