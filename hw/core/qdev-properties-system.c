@@ -776,7 +776,7 @@ static void set_pci_devfn(Object *obj, Visitor *v, const char *name,
         }
         if (value < -1 || value > 255) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                       name ? name : "null", "pci_devfn");
+                       name ? name : "null", "a value between -1 and 255");
             return;
         }
         *ptr = value;
