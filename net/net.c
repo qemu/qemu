@@ -1013,7 +1013,7 @@ static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
     if (net_client_init_fun[netdev->type](netdev, netdev->id, peer, errp) < 0) {
         /* FIXME drop when all init functions store an Error */
         if (errp && !*errp) {
-            error_setg(errp, QERR_DEVICE_INIT_FAILED,
+            error_setg(errp, "Device '%s' could not be initialized",
                        NetClientDriver_str(netdev->type));
         }
         return -1;

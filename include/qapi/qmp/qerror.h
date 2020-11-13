@@ -25,20 +25,11 @@
 #define QERR_DEVICE_HAS_NO_MEDIUM \
     "Device '%s' has no medium"
 
-#define QERR_DEVICE_INIT_FAILED \
-    "Device '%s' could not be initialized"
-
 #define QERR_DEVICE_IN_USE \
     "Device '%s' is in use"
 
 #define QERR_DEVICE_NO_HOTPLUG \
     "Device '%s' does not support hotplugging"
-
-#define QERR_FD_NOT_FOUND \
-    "File descriptor named '%s' not found"
-
-#define QERR_FD_NOT_SUPPLIED \
-    "No file descriptor supplied via SCM_RIGHTS"
 
 #define QERR_FEATURE_DISABLED \
     "The feature '%s' is not enabled"

@@ -1232,7 +1232,7 @@ void qmp_getfd(const char *fdname, Error **errp)
 
     fd = qemu_chr_fe_get_msgfd(&cur_mon->chr);
     if (fd == -1) {
-        error_setg(errp, QERR_FD_NOT_SUPPLIED);
+        error_setg(errp, "No file descriptor supplied via SCM_RIGHTS");
         return;
     }
 
@@ -1286,7 +1286,7 @@ void qmp_closefd(const char *fdname, Error **errp)
     }
 
     qemu_mutex_unlock(&cur_mon->mon_lock);
-    error_setg(errp, QERR_FD_NOT_FOUND, fdname);
+    error_setg(errp, "File descriptor named '%s' not found", fdname);
 }
 
 int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
@@ -1357,7 +1357,7 @@ AddfdInfo *qmp_add_fd(bool has_fdset_id, int64_t fdset_id, bool has_opaque,
 
     fd = qemu_chr_fe_get_msgfd(&mon->chr);
     if (fd == -1) {
-        error_setg(errp, QERR_FD_NOT_SUPPLIED);
+        error_setg(errp, "No file descriptor supplied via SCM_RIGHTS");
         goto error;
     }
 
@@ -1410,7 +1410,7 @@ error:
     } else {
         snprintf(fd_str, sizeof(fd_str), "fdset-id:%" PRId64, fdset_id);
     }
-    error_setg(errp, QERR_FD_NOT_FOUND, fd_str);
+    error_setg(errp, "File descriptor named '%s' not found", fd_str);
 }
 
 FdsetInfoList *qmp_query_fdsets(Error **errp)
