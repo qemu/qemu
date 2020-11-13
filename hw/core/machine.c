@@ -16,16 +16,21 @@
 #include "sysemu/replay.h"
 #include "qemu/units.h"
 #include "hw/boards.h"
+#include "hw/loader.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-common.h"
 #include "qapi/visitor.h"
 #include "hw/sysbus.h"
+#include "sysemu/cpus.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "sysemu/numa.h"
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"
 #include "hw/pci/pci.h"
 #include "hw/mem/nvdimm.h"
+#include "migration/global_state.h"
 #include "migration/vmstate.h"
 
 GlobalProperty hw_compat_5_2[] = {};
@@ -1189,10 +1194,50 @@ void qemu_remove_machine_init_done_notifier(Notifier *notify)
     notifier_remove(notify);
 }
 
-void qemu_run_machine_init_done_notifiers(void)
+void qdev_machine_creation_done(void)
 {
+    cpu_synchronize_all_post_init();
+
+    if (current_machine->boot_once) {
+        qemu_boot_set(current_machine->boot_once, &error_fatal);
+        qemu_register_reset(restore_boot_order, g_strdup(current_machine->boot_order));
+    }
+
+    /*
+     * ok, initial machine setup is done, starting from now we can
+     * only create hotpluggable devices
+     */
+    qdev_hotplug = true;
+    qdev_assert_realized_properly();
+
+    /* TODO: once all bus devices are qdevified, this should be done
+     * when bus is created by qdev.c */
+    /*
+     * TODO: If we had a main 'reset container' that the whole system
+     * lived in, we could reset that using the multi-phase reset
+     * APIs. For the moment, we just reset the sysbus, which will cause
+     * all devices hanging off it (and all their child buses, recursively)
+     * to be reset. Note that this will *not* reset any Device objects
+     * which are not attached to some part of the qbus tree!
+     */
+    qemu_register_reset(resettable_cold_reset_fn, sysbus_get_default());
+
     machine_init_done = true;
     notifier_list_notify(&machine_init_done_notifiers, NULL);
+
+    if (rom_check_and_register_reset() != 0) {
+        error_report("rom check and register reset failed");
+        exit(1);
+    }
+
+    replay_start();
+
+    /* This checkpoint is required by replay to separate prior clock
+       reading from the other reads, because timer polling functions query
+       clock values from the log. */
+    replay_checkpoint(CHECKPOINT_RESET);
+    qemu_system_reset(SHUTDOWN_CAUSE_NONE);
+    register_global_state();
 }
 
 static const TypeInfo machine_info = {
