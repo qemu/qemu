@@ -83,6 +83,7 @@ this code that are retained.
 #define FPU_SOFTFLOAT_MACROS_H
 
 #include "fpu/softfloat-types.h"
+#include "qemu/host-utils.h"
 
 /*----------------------------------------------------------------------------
 | Shifts `a' right by the number of bits given in `count'.  If any nonzero
@@ -403,16 +404,12 @@ static inline void
 | are stored at the locations pointed to by `z0Ptr' and `z1Ptr'.
 *----------------------------------------------------------------------------*/
 
-static inline void
- add128(
-     uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1, uint64_t *z0Ptr, uint64_t *z1Ptr )
+static inline void add128(uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1,
+                          uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
-    uint64_t z1;
-
-    z1 = a1 + b1;
-    *z1Ptr = z1;
-    *z0Ptr = a0 + b0 + ( z1 < a1 );
-
+    bool c = 0;
+    *z1Ptr = uadd64_carry(a1, b1, &c);
+    *z0Ptr = uadd64_carry(a0, b0, &c);
 }
 
 /*----------------------------------------------------------------------------
@@ -423,34 +420,14 @@ static inline void
 | `z1Ptr', and `z2Ptr'.
 *----------------------------------------------------------------------------*/
 
-static inline void
- add192(
-     uint64_t a0,
-     uint64_t a1,
-     uint64_t a2,
-     uint64_t b0,
-     uint64_t b1,
-     uint64_t b2,
-     uint64_t *z0Ptr,
-     uint64_t *z1Ptr,
-     uint64_t *z2Ptr
- )
+static inline void add192(uint64_t a0, uint64_t a1, uint64_t a2,
+                          uint64_t b0, uint64_t b1, uint64_t b2,
+                          uint64_t *z0Ptr, uint64_t *z1Ptr, uint64_t *z2Ptr)
 {
-    uint64_t z0, z1, z2;
-    int8_t carry0, carry1;
-
-    z2 = a2 + b2;
-    carry1 = ( z2 < a2 );
-    z1 = a1 + b1;
-    carry0 = ( z1 < a1 );
-    z0 = a0 + b0;
-    z1 += carry1;
-    z0 += ( z1 < carry1 );
-    z0 += carry0;
-    *z2Ptr = z2;
-    *z1Ptr = z1;
-    *z0Ptr = z0;
-
+    bool c = 0;
+    *z2Ptr = uadd64_carry(a2, b2, &c);
+    *z1Ptr = uadd64_carry(a1, b1, &c);
+    *z0Ptr = uadd64_carry(a0, b0, &c);
 }
 
 /*----------------------------------------------------------------------------
@@ -461,14 +438,12 @@ static inline void
 | `z1Ptr'.
 *----------------------------------------------------------------------------*/
 
-static inline void
- sub128(
-     uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1, uint64_t *z0Ptr, uint64_t *z1Ptr )
+static inline void sub128(uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1,
+                          uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
-
-    *z1Ptr = a1 - b1;
-    *z0Ptr = a0 - b0 - ( a1 < b1 );
-
+    bool c = 0;
+    *z1Ptr = usub64_borrow(a1, b1, &c);
+    *z0Ptr = usub64_borrow(a0, b0, &c);
 }
 
 /*----------------------------------------------------------------------------
@@ -479,34 +454,14 @@ static inline void
 | pointed to by `z0Ptr', `z1Ptr', and `z2Ptr'.
 *----------------------------------------------------------------------------*/
 
-static inline void
- sub192(
-     uint64_t a0,
-     uint64_t a1,
-     uint64_t a2,
-     uint64_t b0,
-     uint64_t b1,
-     uint64_t b2,
-     uint64_t *z0Ptr,
-     uint64_t *z1Ptr,
-     uint64_t *z2Ptr
- )
+static inline void sub192(uint64_t a0, uint64_t a1, uint64_t a2,
+                          uint64_t b0, uint64_t b1, uint64_t b2,
+                          uint64_t *z0Ptr, uint64_t *z1Ptr, uint64_t *z2Ptr)
 {
-    uint64_t z0, z1, z2;
-    int8_t borrow0, borrow1;
-
-    z2 = a2 - b2;
-    borrow1 = ( a2 < b2 );
-    z1 = a1 - b1;
-    borrow0 = ( a1 < b1 );
-    z0 = a0 - b0;
-    z0 -= ( z1 < borrow1 );
-    z1 -= borrow1;
-    z0 -= borrow0;
-    *z2Ptr = z2;
-    *z1Ptr = z1;
-    *z0Ptr = z0;
-
+    bool c = 0;
+    *z2Ptr = usub64_borrow(a2, b2, &c);
+    *z1Ptr = usub64_borrow(a1, b1, &c);
+    *z0Ptr = usub64_borrow(a0, b0, &c);
 }
 
 /*----------------------------------------------------------------------------
