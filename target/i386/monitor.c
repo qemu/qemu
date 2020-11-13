@@ -222,7 +222,7 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 
-    env = mon_get_cpu_env();
+    env = mon_get_cpu_env(mon);
     if (!env) {
         monitor_printf(mon, "No CPU available\n");
         return;
@@ -550,7 +550,7 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 
-    env = mon_get_cpu_env();
+    env = mon_get_cpu_env(mon);
     if (!env) {
         monitor_printf(mon, "No CPU available\n");
         return;
@@ -601,9 +601,10 @@ void hmp_mce(Monitor *mon, const QDict *qdict)
     }
 }
 
-static target_long monitor_get_pc(const struct MonitorDef *md, int val)
+static target_long monitor_get_pc(Monitor *mon, const struct MonitorDef *md,
+                                  int val)
 {
-    CPUArchState *env = mon_get_cpu_env();
+    CPUArchState *env = mon_get_cpu_env(mon);
     return env->eip + env->segs[R_CS].base;
 }
 
@@ -656,7 +657,7 @@ void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
         int id = qdict_get_try_int(qdict, "apic-id", 0);
         cs = cpu_by_arch_id(id);
     } else {
-        cs = mon_get_cpu();
+        cs = mon_get_cpu(mon);
     }
 
 
