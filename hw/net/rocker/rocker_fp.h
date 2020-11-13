@@ -28,7 +28,7 @@ int fp_port_eg(FpPort *port, const struct iovec *iov, int iovcnt);
 
 char *fp_port_get_name(FpPort *port);
 bool fp_port_get_link_up(FpPort *port);
-void fp_port_get_info(FpPort *port, RockerPortList *info);
+RockerPort *fp_port_get_info(FpPort *port);
 void fp_port_get_macaddr(FpPort *port, MACAddr *macaddr);
 void fp_port_set_macaddr(FpPort *port, MACAddr *macaddr);
 uint8_t fp_port_get_learning(FpPort *port);
