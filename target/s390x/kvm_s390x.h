@@ -45,5 +45,6 @@ void kvm_s390_set_max_pagesize(uint64_t pagesize, Error **errp);
 void kvm_s390_crypto_reset(void);
 void kvm_s390_restart_interrupt(S390CPU *cpu);
 void kvm_s390_stop_interrupt(S390CPU *cpu);
+void kvm_s390_set_diag318(CPUState *cs, uint64_t diag318_info);
 
 #endif /* KVM_S390X_H */
