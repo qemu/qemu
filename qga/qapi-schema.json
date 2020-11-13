@@ -870,9 +870,9 @@
 #
 # @name: device node (Linux) or device UNC (Windows)
 # @partition: whether this is a partition or disk
-# @dependents: list of dependent devices; e.g. for LVs of the LVM this will
-#              hold the list of PVs, for LUKS encrypted volume this will
-#              contain the disk where the volume is placed.     (Linux)
+# @dependencies: list of device dependencies; e.g. for LVs of the LVM this will
+#                hold the list of PVs, for LUKS encrypted volume this will
+#                contain the disk where the volume is placed.     (Linux)
 # @address: disk address information (only for non-virtual devices)
 # @alias: optional alias assigned to the disk, on Linux this is a name assigned
 #         by device mapper
@@ -880,7 +880,7 @@
 # Since 5.2
 ##
 { 'struct': 'GuestDiskInfo',
-  'data': {'name': 'str', 'partition': 'bool', 'dependents': ['str'],
+  'data': {'name': 'str', 'partition': 'bool', '*dependencies': ['str'],
            '*address': 'GuestDiskAddress', '*alias': 'str'} }
 
 ##

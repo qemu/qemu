@@ -1285,6 +1285,7 @@ static void get_disk_deps(const char *disk_dir, GuestDiskInfo *disk)
         g_debug("failed to list entries in %s", deps_dir);
         return;
     }
+    disk->has_dependencies = true;
     while ((dep = g_dir_read_name(dp_deps)) != NULL) {
         g_autofree char *dep_dir = NULL;
         strList *dep_item = NULL;
@@ -1297,8 +1298,8 @@ static void get_disk_deps(const char *disk_dir, GuestDiskInfo *disk)
             g_debug("  adding dependent device: %s", dev_name);
             dep_item = g_new0(strList, 1);
             dep_item->value = dev_name;
-            dep_item->next = disk->dependents;
-            disk->dependents = dep_item;
+            dep_item->next = disk->dependencies;
+            disk->dependencies = dep_item;
         }
     }
     g_dir_close(dp_deps);
@@ -1351,8 +1352,9 @@ static GuestDiskInfoList *get_disk_partitions(
         partition->name = dev_name;
         partition->partition = true;
         /* Add parent disk as dependent for easier tracking of hierarchy */
-        partition->dependents = g_new0(strList, 1);
-        partition->dependents->value = g_strdup(disk_dev);
+        partition->dependencies = g_new0(strList, 1);
+        partition->dependencies->value = g_strdup(disk_dev);
+        partition->has_dependencies = true;
 
         item = g_new0(GuestDiskInfoList, 1);
         item->value = partition;
