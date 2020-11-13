@@ -1441,8 +1441,7 @@ static void check_suspend_mode(GuestSuspendMode mode, Error **errp)
         }
         break;
     default:
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "mode",
-                   "GuestSuspendMode");
+        abort();
     }
 }
 
