@@ -601,7 +601,8 @@ void hmp_mce(Monitor *mon, const QDict *qdict)
     }
 }
 
-static target_long monitor_get_pc(const struct MonitorDef *md, int val)
+static target_long monitor_get_pc(Monitor *mon, const struct MonitorDef *md,
+                                  int val)
 {
     CPUArchState *env = mon_get_cpu_env();
     return env->eip + env->segs[R_CS].base;

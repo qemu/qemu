@@ -33,7 +33,8 @@
 struct MonitorDef {
     const char *name;
     int offset;
-    target_long (*get_value)(const struct MonitorDef *md, int val);
+    target_long (*get_value)(Monitor *mon, const struct MonitorDef *md,
+                             int val);
     int type;
 };
 

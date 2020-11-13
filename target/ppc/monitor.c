@@ -29,7 +29,8 @@
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
 
-static target_long monitor_get_ccr(const struct MonitorDef *md, int val)
+static target_long monitor_get_ccr(Monitor *mon, const struct MonitorDef *md,
+                                   int val)
 {
     CPUArchState *env = mon_get_cpu_env();
     unsigned int u;
@@ -43,19 +44,22 @@ static target_long monitor_get_ccr(const struct MonitorDef *md, int val)
     return u;
 }
 
-static target_long monitor_get_decr(const struct MonitorDef *md, int val)
+static target_long monitor_get_decr(Monitor *mon, const struct MonitorDef *md,
+                                    int val)
 {
     CPUArchState *env = mon_get_cpu_env();
     return cpu_ppc_load_decr(env);
 }
 
-static target_long monitor_get_tbu(const struct MonitorDef *md, int val)
+static target_long monitor_get_tbu(Monitor *mon, const struct MonitorDef *md,
+                                   int val)
 {
     CPUArchState *env = mon_get_cpu_env();
     return cpu_ppc_load_tbu(env);
 }
 
-static target_long monitor_get_tbl(const struct MonitorDef *md, int val)
+static target_long monitor_get_tbl(Monitor *mon, const struct MonitorDef *md,
+                                   int val)
 {
     CPUArchState *env = mon_get_cpu_env();
     return cpu_ppc_load_tbl(env);
