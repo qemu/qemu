@@ -1415,6 +1415,14 @@ static void invalid_dict_comma(void)
     g_assert(obj == NULL);
 }
 
+static void invalid_dict_key(void)
+{
+    Error *err = NULL;
+    QObject *obj = qobject_from_json("{32:'abc'}", &err);
+    error_free_or_abort(&err);
+    g_assert(obj == NULL);
+}
+
 static void unterminated_literal(void)
 {
     Error *err = NULL;
@@ -1500,6 +1508,7 @@ int main(int argc, char **argv)
     g_test_add_func("/errors/unterminated/dict_comma", unterminated_dict_comma);
     g_test_add_func("/errors/invalid_array_comma", invalid_array_comma);
     g_test_add_func("/errors/invalid_dict_comma", invalid_dict_comma);
+    g_test_add_func("/errors/invalid_dict_key", invalid_dict_key);
     g_test_add_func("/errors/unterminated/literal", unterminated_literal);
     g_test_add_func("/errors/limits/nesting", limits_nesting);
     g_test_add_func("/errors/multiple_values", multiple_values);
