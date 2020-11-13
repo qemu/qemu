@@ -73,7 +73,8 @@ qauthz_list_file_load(QAuthZListFile *fauthz, Error **errp)
 
     pdict = qobject_to(QDict, obj);
     if (!pdict) {
-        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "obj", "dict");
+        error_setg(errp, "File '%s' must contain a JSON object",
+                   fauthz->filename);
         goto cleanup;
     }
 
