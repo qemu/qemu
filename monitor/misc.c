@@ -294,9 +294,9 @@ CPUState *mon_get_cpu(Monitor *mon)
     return mon_get_cpu_sync(mon, true);
 }
 
-CPUArchState *mon_get_cpu_env(void)
+CPUArchState *mon_get_cpu_env(Monitor *mon)
 {
-    CPUState *cs = mon_get_cpu(monitor_cur());
+    CPUState *cs = mon_get_cpu(mon);
 
     return cs ? cs->env_ptr : NULL;
 }
@@ -1680,7 +1680,7 @@ int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
             if (md->get_value) {
                 *pval = md->get_value(mon, md, md->offset);
             } else {
-                CPUArchState *env = mon_get_cpu_env();
+                CPUArchState *env = mon_get_cpu_env(mon);
                 ptr = (uint8_t *)env + md->offset;
                 switch(md->type) {
                 case MD_I32:
