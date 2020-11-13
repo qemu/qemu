@@ -7,7 +7,6 @@
  */
 
 #include <pthread.h>
-#include "config-host.h"
 
 /*
  * Versioned symbols cannot be used in some cases because it

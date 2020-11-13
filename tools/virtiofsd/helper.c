@@ -16,16 +16,8 @@
 #include "fuse_misc.h"
 #include "fuse_opt.h"
 
-#include <errno.h>
-#include <limits.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/resource.h>
-#include <unistd.h>
 
 #define FUSE_HELPER_OPT(t, p)                       \
     {                                               \

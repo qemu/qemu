@@ -11,7 +11,6 @@
 #ifndef SWIM_H
 #define SWIM_H
 
-#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 

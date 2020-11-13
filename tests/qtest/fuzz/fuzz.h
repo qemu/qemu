@@ -14,7 +14,6 @@
 #ifndef FUZZER_H_
 #define FUZZER_H_
 
-#include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 

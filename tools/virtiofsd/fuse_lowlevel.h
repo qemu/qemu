@@ -25,10 +25,7 @@
 
 #include "fuse_common.h"
 
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <sys/types.h>
 #include <sys/uio.h>
 #include <utime.h>
 

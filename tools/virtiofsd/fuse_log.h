@@ -14,7 +14,6 @@
  * This file defines the logging interface of FUSE
  */
 
-#include <stdarg.h>
 
 /**
  * Log severity level

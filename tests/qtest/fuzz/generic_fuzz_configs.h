@@ -13,7 +13,6 @@
 #ifndef GENERIC_FUZZ_CONFIGS_H
 #define GENERIC_FUZZ_CONFIGS_H
 
-#include "qemu/osdep.h"
 
 typedef struct generic_fuzz_config {
     const char *name, *args, *objects;

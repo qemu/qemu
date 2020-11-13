@@ -15,7 +15,6 @@
 #ifndef VUGPU_H
 #define VUGPU_H
 
-#include "qemu/osdep.h"
 
 #include "libvhost-user-glib.h"
 #include "standard-headers/linux/virtio_gpu.h"
