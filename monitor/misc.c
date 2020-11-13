@@ -441,7 +441,7 @@ void qmp_client_migrate_info(const char *protocol, const char *hostname,
                                     has_port ? port : -1,
                                     has_tls_port ? tls_port : -1,
                                     cert_subject)) {
-            error_setg(errp, QERR_UNDEFINED_ERROR);
+            error_setg(errp, "Could not set up display for migration");
             return;
         }
         return;
