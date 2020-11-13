@@ -16,8 +16,6 @@
  * These macros will go away, please don't use in new code, and do not
  * add new ones!
  */
-#define QERR_BASE_NOT_FOUND \
-    "Base '%s' not found"
 
 #define QERR_BUS_NO_HOTPLUG \
     "Bus '%s' does not support hotplugging"
