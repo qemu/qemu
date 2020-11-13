@@ -215,7 +215,6 @@ MachineInfoList *qmp_query_machines(Error **errp)
 
     for (el = machines; el; el = el->next) {
         MachineClass *mc = el->data;
-        MachineInfoList *entry;
         MachineInfo *info;
 
         info = g_malloc0(sizeof(*info));
@@ -243,10 +242,7 @@ MachineInfoList *qmp_query_machines(Error **errp)
             info->has_default_ram_id = true;
         }
 
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = info;
-        entry->next = mach_list;
-        mach_list = entry;
+        QAPI_LIST_PREPEND(mach_list, info);
     }
 
     g_slist_free(machines);

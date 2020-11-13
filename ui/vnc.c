@@ -365,14 +365,11 @@ static VncDisplay *vnc_display_find(const char *id)
 
 static VncClientInfoList *qmp_query_client_list(VncDisplay *vd)
 {
-    VncClientInfoList *cinfo, *prev = NULL;
+    VncClientInfoList *prev = NULL;
     VncState *client;
 
     QTAILQ_FOREACH(client, &vd->clients, next) {
-        cinfo = g_new0(VncClientInfoList, 1);
-        cinfo->value = qmp_query_vnc_client(client);
-        cinfo->next = prev;
-        prev = cinfo;
+        QAPI_LIST_PREPEND(prev, qmp_query_vnc_client(client));
     }
     return prev;
 }
@@ -453,7 +450,6 @@ static VncServerInfo2List *qmp_query_server_entry(QIOChannelSocket *ioc,
                                                   int subauth,
                                                   VncServerInfo2List *prev)
 {
-    VncServerInfo2List *list;
     VncServerInfo2 *info;
     Error *err = NULL;
     SocketAddress *addr;
@@ -476,10 +472,8 @@ static VncServerInfo2List *qmp_query_server_entry(QIOChannelSocket *ioc,
     qmp_query_auth(auth, subauth, &info->auth,
                    &info->vencrypt, &info->has_vencrypt);
 
-    list = g_new0(VncServerInfo2List, 1);
-    list->value = info;
-    list->next = prev;
-    return list;
+    QAPI_LIST_PREPEND(prev, info);
+    return prev;
 }
 
 static void qmp_query_auth(int auth, int subauth,
@@ -554,7 +548,7 @@ static void qmp_query_auth(int auth, int subauth,
 
 VncInfo2List *qmp_query_vnc_servers(Error **errp)
 {
-    VncInfo2List *item, *prev = NULL;
+    VncInfo2List *prev = NULL;
     VncInfo2 *info;
     VncDisplay *vd;
     DeviceState *dev;
@@ -583,10 +577,7 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
                 vd->ws_subauth, info->server);
         }
 
-        item = g_new0(VncInfo2List, 1);
-        item->value = info;
-        item->next = prev;
-        prev = item;
+        QAPI_LIST_PREPEND(prev, info);
     }
     return prev;
 }

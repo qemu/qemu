@@ -42,15 +42,6 @@ static GICCapability *gic_cap_new(int version)
     return cap;
 }
 
-static GICCapabilityList *gic_cap_list_add(GICCapabilityList *head,
-                                           GICCapability *cap)
-{
-    GICCapabilityList *item = g_new0(GICCapabilityList, 1);
-    item->value = cap;
-    item->next = head;
-    return item;
-}
-
 static inline void gic_cap_kvm_probe(GICCapability *v2, GICCapability *v3)
 {
 #ifdef CONFIG_KVM
@@ -84,8 +75,8 @@ GICCapabilityList *qmp_query_gic_capabilities(Error **errp)
 
     gic_cap_kvm_probe(v2, v3);
 
-    head = gic_cap_list_add(head, v2);
-    head = gic_cap_list_add(head, v3);
+    QAPI_LIST_PREPEND(head, v2);
+    QAPI_LIST_PREPEND(head, v3);
 
     return head;
 }

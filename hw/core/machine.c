@@ -504,11 +504,7 @@ static void machine_set_nvdimm_persistence(Object *obj, const char *value,
 
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type)
 {
-    strList *item = g_new0(strList, 1);
-
-    item->value = g_strdup(type);
-    item->next = mc->allowed_dynamic_sysbus_devices;
-    mc->allowed_dynamic_sysbus_devices = item;
+    QAPI_LIST_PREPEND(mc->allowed_dynamic_sysbus_devices, g_strdup(type));
 }
 
 static void validate_sysbus_device(SysBusDevice *sbdev, void *opaque)
@@ -569,7 +565,6 @@ HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine)
 
     for (i = 0; i < machine->possible_cpus->len; i++) {
         Object *cpu;
-        HotpluggableCPUList *list_item = g_new0(typeof(*list_item), 1);
         HotpluggableCPU *cpu_item = g_new0(typeof(*cpu_item), 1);
 
         cpu_item->type = g_strdup(machine->possible_cpus->cpus[i].type);
@@ -582,9 +577,7 @@ HotpluggableCPUList *machine_query_hotpluggable_cpus(MachineState *machine)
             cpu_item->has_qom_path = true;
             cpu_item->qom_path = object_get_canonical_path(cpu);
         }
-        list_item->value = cpu_item;
-        list_item->next = head;
-        head = list_item;
+        QAPI_LIST_PREPEND(head, cpu_item);
     }
     return head;
 }

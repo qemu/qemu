@@ -351,135 +351,51 @@ static void test_primitive_lists(gconstpointer opaque)
     for (i = 0; i < 32; i++) {
         switch (pl.type) {
         case PTYPE_STRING: {
-            strList *tmp = g_new0(strList, 1);
-            tmp->value = g_strdup(pt->value.string);
-            if (pl.value.strings == NULL) {
-                pl.value.strings = tmp;
-            } else {
-                tmp->next = pl.value.strings;
-                pl.value.strings = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.strings, g_strdup(pt->value.string));
             break;
         }
         case PTYPE_INTEGER: {
-            intList *tmp = g_new0(intList, 1);
-            tmp->value = pt->value.integer;
-            if (pl.value.integers == NULL) {
-                pl.value.integers = tmp;
-            } else {
-                tmp->next = pl.value.integers;
-                pl.value.integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.integers, pt->value.integer);
             break;
         }
         case PTYPE_S8: {
-            int8List *tmp = g_new0(int8List, 1);
-            tmp->value = pt->value.s8;
-            if (pl.value.s8_integers == NULL) {
-                pl.value.s8_integers = tmp;
-            } else {
-                tmp->next = pl.value.s8_integers;
-                pl.value.s8_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.s8_integers, pt->value.s8);
             break;
         }
         case PTYPE_S16: {
-            int16List *tmp = g_new0(int16List, 1);
-            tmp->value = pt->value.s16;
-            if (pl.value.s16_integers == NULL) {
-                pl.value.s16_integers = tmp;
-            } else {
-                tmp->next = pl.value.s16_integers;
-                pl.value.s16_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.s16_integers, pt->value.s16);
             break;
         }
         case PTYPE_S32: {
-            int32List *tmp = g_new0(int32List, 1);
-            tmp->value = pt->value.s32;
-            if (pl.value.s32_integers == NULL) {
-                pl.value.s32_integers = tmp;
-            } else {
-                tmp->next = pl.value.s32_integers;
-                pl.value.s32_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.s32_integers, pt->value.s32);
             break;
         }
         case PTYPE_S64: {
-            int64List *tmp = g_new0(int64List, 1);
-            tmp->value = pt->value.s64;
-            if (pl.value.s64_integers == NULL) {
-                pl.value.s64_integers = tmp;
-            } else {
-                tmp->next = pl.value.s64_integers;
-                pl.value.s64_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.s64_integers, pt->value.s64);
             break;
         }
         case PTYPE_U8: {
-            uint8List *tmp = g_new0(uint8List, 1);
-            tmp->value = pt->value.u8;
-            if (pl.value.u8_integers == NULL) {
-                pl.value.u8_integers = tmp;
-            } else {
-                tmp->next = pl.value.u8_integers;
-                pl.value.u8_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.u8_integers, pt->value.u8);
             break;
         }
         case PTYPE_U16: {
-            uint16List *tmp = g_new0(uint16List, 1);
-            tmp->value = pt->value.u16;
-            if (pl.value.u16_integers == NULL) {
-                pl.value.u16_integers = tmp;
-            } else {
-                tmp->next = pl.value.u16_integers;
-                pl.value.u16_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.u16_integers, pt->value.u16);
             break;
         }
         case PTYPE_U32: {
-            uint32List *tmp = g_new0(uint32List, 1);
-            tmp->value = pt->value.u32;
-            if (pl.value.u32_integers == NULL) {
-                pl.value.u32_integers = tmp;
-            } else {
-                tmp->next = pl.value.u32_integers;
-                pl.value.u32_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.u32_integers, pt->value.u32);
             break;
         }
         case PTYPE_U64: {
-            uint64List *tmp = g_new0(uint64List, 1);
-            tmp->value = pt->value.u64;
-            if (pl.value.u64_integers == NULL) {
-                pl.value.u64_integers = tmp;
-            } else {
-                tmp->next = pl.value.u64_integers;
-                pl.value.u64_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.u64_integers, pt->value.u64);
             break;
         }
         case PTYPE_NUMBER: {
-            numberList *tmp = g_new0(numberList, 1);
-            tmp->value = pt->value.number;
-            if (pl.value.numbers == NULL) {
-                pl.value.numbers = tmp;
-            } else {
-                tmp->next = pl.value.numbers;
-                pl.value.numbers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.numbers, pt->value.number);
             break;
         }
         case PTYPE_BOOLEAN: {
-            boolList *tmp = g_new0(boolList, 1);
-            tmp->value = pt->value.boolean;
-            if (pl.value.booleans == NULL) {
-                pl.value.booleans = tmp;
-            } else {
-                tmp->next = pl.value.booleans;
-                pl.value.booleans = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.booleans, pt->value.boolean);
             break;
         }
         default:
@@ -704,10 +620,7 @@ static void test_nested_struct_list(gconstpointer opaque)
     int i = 0;
 
     for (i = 0; i < 8; i++) {
-        tmp = g_new0(UserDefTwoList, 1);
-        tmp->value = nested_struct_create();
-        tmp->next = listp;
-        listp = tmp;
+        QAPI_LIST_PREPEND(listp, nested_struct_create());
     }
 
     ops->serialize(listp, &serialize_data, visit_nested_struct_list,

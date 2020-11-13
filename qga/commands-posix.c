@@ -1036,7 +1036,6 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
 {
     GuestDiskAddress *disk;
     GuestPCIAddress *pciaddr;
-    GuestDiskAddressList *list = NULL;
     bool has_hwinf;
 #ifdef CONFIG_LIBUDEV
     struct udev *udev = NULL;
@@ -1052,9 +1051,6 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
     disk = g_new0(GuestDiskAddress, 1);
     disk->pci_controller = pciaddr;
     disk->bus_type = GUEST_DISK_BUS_TYPE_UNKNOWN;
-
-    list = g_new0(GuestDiskAddressList, 1);
-    list->value = disk;
 
 #ifdef CONFIG_LIBUDEV
     udev = udev_new();
@@ -1089,10 +1085,9 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
     }
 
     if (has_hwinf || disk->has_dev || disk->has_serial) {
-        list->next = fs->disk;
-        fs->disk = list;
+        QAPI_LIST_PREPEND(fs->disk, disk);
     } else {
-        qapi_free_GuestDiskAddressList(list);
+        qapi_free_GuestDiskAddress(disk);
     }
 }
 
@@ -1288,7 +1283,6 @@ static void get_disk_deps(const char *disk_dir, GuestDiskInfo *disk)
     disk->has_dependencies = true;
     while ((dep = g_dir_read_name(dp_deps)) != NULL) {
         g_autofree char *dep_dir = NULL;
-        strList *dep_item = NULL;
         char *dev_name;
 
         /* Add dependent disks */
@@ -1296,10 +1290,7 @@ static void get_disk_deps(const char *disk_dir, GuestDiskInfo *disk)
         dev_name = get_device_for_syspath(dep_dir);
         if (dev_name != NULL) {
             g_debug("  adding dependent device: %s", dev_name);
-            dep_item = g_new0(strList, 1);
-            dep_item->value = dev_name;
-            dep_item->next = disk->dependencies;
-            disk->dependencies = dep_item;
+            QAPI_LIST_PREPEND(disk->dependencies, dev_name);
         }
     }
     g_dir_close(dp_deps);
@@ -1318,7 +1309,7 @@ static GuestDiskInfoList *get_disk_partitions(
     const char *disk_name, const char *disk_dir,
     const char *disk_dev)
 {
-    GuestDiskInfoList *item, *ret = list;
+    GuestDiskInfoList *ret = list;
     struct dirent *de_disk;
     DIR *dp_disk = NULL;
     size_t len = strlen(disk_name);
@@ -1352,15 +1343,9 @@ static GuestDiskInfoList *get_disk_partitions(
         partition->name = dev_name;
         partition->partition = true;
         /* Add parent disk as dependent for easier tracking of hierarchy */
-        partition->dependencies = g_new0(strList, 1);
-        partition->dependencies->value = g_strdup(disk_dev);
-        partition->has_dependencies = true;
+        QAPI_LIST_PREPEND(partition->dependencies, g_strdup(disk_dev));
 
-        item = g_new0(GuestDiskInfoList, 1);
-        item->value = partition;
-        item->next = ret;
-        ret = item;
-
+        QAPI_LIST_PREPEND(ret, partition);
     }
     closedir(dp_disk);
 
@@ -1369,7 +1354,7 @@ static GuestDiskInfoList *get_disk_partitions(
 
 GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
 {
-    GuestDiskInfoList *item, *ret = NULL;
+    GuestDiskInfoList *ret = NULL;
     GuestDiskInfo *disk;
     DIR *dp = NULL;
     struct dirent *de = NULL;
@@ -1415,10 +1400,7 @@ GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
         disk->partition = false;
         disk->alias = get_alias_for_syspath(disk_dir);
         disk->has_alias = (disk->alias != NULL);
-        item = g_new0(GuestDiskInfoList, 1);
-        item->value = disk;
-        item->next = ret;
-        ret = item;
+        QAPI_LIST_PREPEND(ret, disk);
 
         /* Get address for non-virtual devices */
         bool is_virtual = is_disk_virtual(disk_dir, &local_err);
@@ -1495,7 +1477,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 {
     FsMountList mounts;
     struct FsMount *mount;
-    GuestFilesystemInfoList *new, *ret = NULL;
+    GuestFilesystemInfoList *ret = NULL;
     Error *local_err = NULL;
 
     QTAILQ_INIT(&mounts);
@@ -1508,10 +1490,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
     QTAILQ_FOREACH(mount, &mounts, next) {
         g_debug("Building guest fsinfo for '%s'", mount->dirname);
 
-        new = g_malloc0(sizeof(*ret));
-        new->value = build_guest_fsinfo(mount, &local_err);
-        new->next = ret;
-        ret = new;
+        QAPI_LIST_PREPEND(ret, build_guest_fsinfo(mount, &local_err));
         if (local_err) {
             error_propagate(errp, local_err);
             qapi_free_GuestFilesystemInfoList(ret);
@@ -1777,7 +1756,6 @@ GuestFilesystemTrimResponse *
 qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
     GuestFilesystemTrimResponse *response;
-    GuestFilesystemTrimResultList *list;
     GuestFilesystemTrimResult *result;
     int ret = 0;
     FsMountList mounts;
@@ -1801,10 +1779,7 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
         result = g_malloc0(sizeof(*result));
         result->path = g_strdup(mount->dirname);
 
-        list = g_malloc0(sizeof(*list));
-        list->value = result;
-        list->next = response->paths;
-        response->paths = list;
+        QAPI_LIST_PREPEND(response->paths, result);
 
         fd = qemu_open_old(mount->dirname, O_RDONLY);
         if (fd == -1) {

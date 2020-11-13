@@ -1430,33 +1430,26 @@ FdsetInfoList *qmp_query_fdsets(Error **errp)
 
     QEMU_LOCK_GUARD(&mon_fdsets_lock);
     QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
-        FdsetInfoList *fdset_info = g_malloc0(sizeof(*fdset_info));
-        FdsetFdInfoList *fdsetfd_list = NULL;
+        FdsetInfo *fdset_info = g_malloc0(sizeof(*fdset_info));
 
-        fdset_info->value = g_malloc0(sizeof(*fdset_info->value));
-        fdset_info->value->fdset_id = mon_fdset->id;
+        fdset_info->fdset_id = mon_fdset->id;
 
         QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
-            FdsetFdInfoList *fdsetfd_info;
+            FdsetFdInfo *fdsetfd_info;
 
             fdsetfd_info = g_malloc0(sizeof(*fdsetfd_info));
-            fdsetfd_info->value = g_malloc0(sizeof(*fdsetfd_info->value));
-            fdsetfd_info->value->fd = mon_fdset_fd->fd;
+            fdsetfd_info->fd = mon_fdset_fd->fd;
             if (mon_fdset_fd->opaque) {
-                fdsetfd_info->value->has_opaque = true;
-                fdsetfd_info->value->opaque = g_strdup(mon_fdset_fd->opaque);
+                fdsetfd_info->has_opaque = true;
+                fdsetfd_info->opaque = g_strdup(mon_fdset_fd->opaque);
             } else {
-                fdsetfd_info->value->has_opaque = false;
+                fdsetfd_info->has_opaque = false;
             }
 
-            fdsetfd_info->next = fdsetfd_list;
-            fdsetfd_list = fdsetfd_info;
+            QAPI_LIST_PREPEND(fdset_info->fds, fdsetfd_info);
         }
 
-        fdset_info->value->fds = fdsetfd_list;
-
-        fdset_info->next = fdset_list;
-        fdset_list = fdset_info;
+        QAPI_LIST_PREPEND(fdset_list, fdset_info);
     }
 
     return fdset_list;

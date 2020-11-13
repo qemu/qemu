@@ -293,17 +293,12 @@ qmp_guest_ssh_get_authorized_keys(const char *username, Error **errp)
 
     ret = g_new0(GuestAuthorizedKeys, 1);
     for (i = 0; authkeys[i] != NULL; i++) {
-        strList *new;
-
         g_strstrip(authkeys[i]);
         if (!authkeys[i][0] || authkeys[i][0] == '#') {
             continue;
         }
 
-        new = g_new0(strList, 1);
-        new->value = g_strdup(authkeys[i]);
-        new->next = ret->keys;
-        ret->keys = new;
+        QAPI_LIST_PREPEND(ret->keys, g_strdup(authkeys[i]));
     }
 
     return g_steal_pointer(&ret);
