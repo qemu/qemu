@@ -130,8 +130,6 @@ typedef QSIMPLEQ_HEAD(, BlockdevOptionsQueueEntry) BlockdevOptionsQueue;
 
 static const char *cpu_option;
 static const char *mem_path;
-static const char *boot_order;
-static const char *boot_once;
 static const char *incoming;
 static const char *loadvm;
 static ram_addr_t maxram_size;
@@ -2472,6 +2470,8 @@ static void qemu_apply_machine_options(void)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(current_machine);
     QemuOpts *machine_opts = qemu_get_machine_opts();
+    const char *boot_order = NULL;
+    const char *boot_once = NULL;
     QemuOpts *opts;
 
     qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
@@ -2501,6 +2501,7 @@ static void qemu_apply_machine_options(void)
     }
 
     current_machine->boot_order = boot_order;
+    current_machine->boot_once = boot_once;
 
     if (semihosting_enabled() && !semihosting_get_argc()) {
         const char *kernel_filename = qemu_opt_get(machine_opts, "kernel");
@@ -2508,7 +2509,6 @@ static void qemu_apply_machine_options(void)
         /* fall back to the -kernel/-append */
         semihosting_arg_fallback(kernel_filename, kernel_cmdline);
     }
-
 }
 
 static void qemu_create_early_backends(void)
@@ -3220,9 +3220,9 @@ static void qemu_machine_creation_done(void)
 
     qdev_prop_check_globals();
 
-    if (boot_once) {
-        qemu_boot_set(boot_once, &error_fatal);
-        qemu_register_reset(restore_boot_order, g_strdup(boot_order));
+    if (current_machine->boot_once) {
+        qemu_boot_set(current_machine->boot_once, &error_fatal);
+        qemu_register_reset(restore_boot_order, g_strdup(current_machine->boot_order));
     }
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {

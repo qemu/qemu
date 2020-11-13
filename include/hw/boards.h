@@ -283,6 +283,7 @@ struct MachineState {
     ram_addr_t maxram_size;
     uint64_t   ram_slots;
     const char *boot_order;
+    const char *boot_once;
     char *kernel_filename;
     char *kernel_cmdline;
     char *initrd_filename;
