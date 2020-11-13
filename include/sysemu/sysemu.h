@@ -24,6 +24,8 @@ void qemu_remove_machine_init_done_notifier(Notifier *notify);
 
 void configure_rtc(QemuOpts *opts);
 
+void qemu_init_subsystems(void);
+
 extern int autostart;
 
 typedef enum {
@@ -44,6 +46,7 @@ extern int alt_grab;
 extern int ctrl_grab;
 extern int graphic_rotate;
 extern int no_shutdown;
+extern int no_reboot;
 extern int old_param;
 extern int boot_menu;
 extern bool boot_strict;
