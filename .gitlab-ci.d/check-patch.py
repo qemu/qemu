@@ -45,9 +45,9 @@ if log == "":
 
 errors = False
 
-print("\nChecking all commits since %s...\n" % ancestor)
+print("\nChecking all commits since %s...\n" % ancestor, flush=True)
 
-ret = subprocess.run(["scripts/checkpatch.pl", ancestor + "..."])
+ret = subprocess.run(["scripts/checkpatch.pl", "--terse", ancestor + "..."])
 
 if ret.returncode != 0:
     print("    ❌ FAIL one or more commits failed scripts/checkpatch.pl")
