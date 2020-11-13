@@ -114,6 +114,17 @@ $QEMU_IO -c "write -P 0 $((0x200000)) $((0x10000))" "$TEST_IMG.0" | _filter_qemu
 $QEMU_IO -c "write -z   $((0x200000)) $((0x30000))" "$TEST_IMG.1" | _filter_qemu_io
 $QEMU_IO -c "write -P 0 $((0x200000)) $((0x20000))" "$TEST_IMG.2" | _filter_qemu_io
 
+# Test 5: write data to a region and then zeroize it, doing it
+# directly on the quorum device instead of the individual images.
+# This has no effect on the end result but proves that the quorum driver
+# supports 'write -z'.
+$QEMU_IO -c "open -o $quorum" -c "write -P 1 $((0x250000)) $((0x10000))" | _filter_qemu_io
+# Verify the data that we just wrote
+$QEMU_IO -c "open -o $quorum" -c "read -P 1 $((0x250000)) $((0x10000))" | _filter_qemu_io
+$QEMU_IO -c "open -o $quorum" -c "write -z $((0x250000)) $((0x10000))" | _filter_qemu_io
+# Now it should read back as zeroes
+$QEMU_IO -c "open -o $quorum" -c "read -P 0 $((0x250000)) $((0x10000))" | _filter_qemu_io
+
 echo
 echo '### Launch the drive-mirror job'
 echo

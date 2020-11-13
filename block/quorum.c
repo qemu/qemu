@@ -692,8 +692,13 @@ static void write_quorum_entry(void *opaque)
     QuorumChildRequest *sacb = &acb->qcrs[i];
 
     sacb->bs = s->children[i]->bs;
-    sacb->ret = bdrv_co_pwritev(s->children[i], acb->offset, acb->bytes,
-                                acb->qiov, acb->flags);
+    if (acb->flags & BDRV_REQ_ZERO_WRITE) {
+        sacb->ret = bdrv_co_pwrite_zeroes(s->children[i], acb->offset,
+                                          acb->bytes, acb->flags);
+    } else {
+        sacb->ret = bdrv_co_pwritev(s->children[i], acb->offset, acb->bytes,
+                                    acb->qiov, acb->flags);
+    }
     if (sacb->ret == 0) {
         acb->success_count++;
     } else {
@@ -737,6 +742,14 @@ static int quorum_co_pwritev(BlockDriverState *bs, uint64_t offset,
     quorum_aio_finalize(acb);
 
     return ret;
+}
+
+static int quorum_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+                                   int bytes, BdrvRequestFlags flags)
+
+{
+    return quorum_co_pwritev(bs, offset, bytes, NULL,
+                             flags | BDRV_REQ_ZERO_WRITE);
 }
 
 static int64_t quorum_getlength(BlockDriverState *bs)
@@ -897,6 +910,21 @@ static QemuOptsList quorum_runtime_opts = {
     },
 };
 
+static void quorum_refresh_flags(BlockDriverState *bs)
+{
+    BDRVQuorumState *s = bs->opaque;
+    int i;
+
+    bs->supported_zero_flags =
+        BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK;
+
+    for (i = 0; i < s->num_children; i++) {
+        bs->supported_zero_flags &= s->children[i]->bs->supported_zero_flags;
+    }
+
+    bs->supported_zero_flags |= BDRV_REQ_WRITE_UNCHANGED;
+}
+
 static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
                        Error **errp)
 {
@@ -991,6 +1019,7 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     s->next_child_index = s->num_children;
 
     bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED;
+    quorum_refresh_flags(bs);
 
     g_free(opened);
     goto exit;
@@ -1062,6 +1091,7 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
     }
     s->children = g_renew(BdrvChild *, s->children, s->num_children + 1);
     s->children[s->num_children++] = child;
+    quorum_refresh_flags(bs);
 
 out:
     bdrv_drained_end(bs);
@@ -1106,6 +1136,7 @@ static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
     s->children = g_renew(BdrvChild *, s->children, --s->num_children);
     bdrv_unref_child(bs, child);
 
+    quorum_refresh_flags(bs);
     bdrv_drained_end(bs);
 }
 
@@ -1256,6 +1287,7 @@ static BlockDriver bdrv_quorum = {
 
     .bdrv_co_preadv                     = quorum_co_preadv,
     .bdrv_co_pwritev                    = quorum_co_pwritev,
+    .bdrv_co_pwrite_zeroes              = quorum_co_pwrite_zeroes,
 
     .bdrv_add_child                     = quorum_add_child,
     .bdrv_del_child                     = quorum_del_child,
