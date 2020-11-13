@@ -76,7 +76,7 @@ static int qemu_fifo_write(QEMUFIFO *f, const uint8_t *buf, int len1)
     if (len1 > l)
         len1 = l;
     len = len1;
-    while (len > 0) {
+    if (len > 0) {
         l = f->buf_size - f->wptr;
         if (l > len)
             l = len;
@@ -85,7 +85,6 @@ static int qemu_fifo_write(QEMUFIFO *f, const uint8_t *buf, int len1)
         if (f->wptr >= f->buf_size)
             f->wptr = 0;
         buf += l;
-        len -= l;
     }
     f->count += len1;
     return len1;
