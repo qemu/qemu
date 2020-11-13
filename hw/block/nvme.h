@@ -151,7 +151,11 @@ typedef struct NvmeCtrl {
     uint16_t    temperature;
     uint8_t     smart_critical_warning;
 
-    HostMemoryBackend *pmrdev;
+    struct {
+        HostMemoryBackend *dev;
+        bool              cmse;
+        hwaddr            cba;
+    } pmr;
 
     uint8_t     aer_mask;
     NvmeRequest **aer_reqs;
