@@ -26,6 +26,7 @@
 #ifndef HOST_UTILS_H
 #define HOST_UTILS_H
 
+#include "qemu/compiler.h"
 #include "qemu/bswap.h"
 
 #ifdef CONFIG_INT128
@@ -578,6 +579,55 @@ static inline bool umul64_overflow(uint64_t x, uint64_t y, uint64_t *ret)
     uint64_t hi;
     mulu64(ret, &hi, x, y);
     return hi != 0;
+#endif
+}
+
+/**
+ * uadd64_carry - addition with carry-in and carry-out
+ * @x, @y: addends
+ * @pcarry: in-out carry value
+ *
+ * Computes @x + @y + *@pcarry, placing the carry-out back
+ * into *@pcarry and returning the 64-bit sum.
+ */
+static inline uint64_t uadd64_carry(uint64_t x, uint64_t y, bool *pcarry)
+{
+#if __has_builtin(__builtin_addcll)
+    unsigned long long c = *pcarry;
+    x = __builtin_addcll(x, y, c, &c);
+    *pcarry = c & 1;
+    return x;
+#else
+    bool c = *pcarry;
+    /* This is clang's internal expansion of __builtin_addc. */
+    c = uadd64_overflow(x, c, &x);
+    c |= uadd64_overflow(x, y, &x);
+    *pcarry = c;
+    return x;
+#endif
+}
+
+/**
+ * usub64_borrow - subtraction with borrow-in and borrow-out
+ * @x, @y: addends
+ * @pborrow: in-out borrow value
+ *
+ * Computes @x - @y - *@pborrow, placing the borrow-out back
+ * into *@pborrow and returning the 64-bit sum.
+ */
+static inline uint64_t usub64_borrow(uint64_t x, uint64_t y, bool *pborrow)
+{
+#if __has_builtin(__builtin_subcll)
+    unsigned long long b = *pborrow;
+    x = __builtin_subcll(x, y, b, &b);
+    *pborrow = b & 1;
+    return x;
+#else
+    bool b = *pborrow;
+    b = usub64_overflow(x, b, &x);
+    b |= usub64_overflow(x, y, &x);
+    *pborrow = b;
+    return x;
 #endif
 }
 
