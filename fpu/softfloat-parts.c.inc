@@ -883,3 +883,35 @@ static uint64_t partsN(float_to_uint)(FloatPartsN *p, FloatRoundMode rmode,
     float_raise(flags, s);
     return r;
 }
+
+/*
+ * Integer to float conversions
+ *
+ * Returns the result of converting the two's complement integer `a'
+ * to the floating-point format. The conversion is performed according
+ * to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+ */
+static void partsN(sint_to_float)(FloatPartsN *p, int64_t a,
+                                  int scale, float_status *s)
+{
+    uint64_t f = a;
+    int shift;
+
+    memset(p, 0, sizeof(*p));
+
+    if (a == 0) {
+        p->cls = float_class_zero;
+        return;
+    }
+
+    p->cls = float_class_normal;
+    if (a < 0) {
+        f = -f;
+        p->sign = true;
+    }
+    shift = clz64(f);
+    scale = MIN(MAX(scale, -0x10000), 0x10000);
+
+    p->exp = DECOMPOSED_BINARY_POINT - shift + scale;
+    p->frac_hi = f << shift;
+}

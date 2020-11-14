@@ -849,6 +849,14 @@ static uint64_t parts128_float_to_uint(FloatParts128 *p, FloatRoundMode rmode,
 #define parts_float_to_uint(P, R, Z, M, S) \
     PARTS_GENERIC_64_128(float_to_uint, P)(P, R, Z, M, S)
 
+static void parts64_sint_to_float(FloatParts64 *p, int64_t a,
+                                  int scale, float_status *s);
+static void parts128_sint_to_float(FloatParts128 *p, int64_t a,
+                                   int scale, float_status *s);
+
+#define parts_sint_to_float(P, I, Z, S) \
+    PARTS_GENERIC_64_128(sint_to_float, P)(P, I, Z, S)
+
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
@@ -2940,42 +2948,15 @@ uint64_t bfloat16_to_uint64_round_to_zero(bfloat16 a, float_status *s)
 }
 
 /*
- * Integer to float conversions
- *
- * Returns the result of converting the two's complement integer `a'
- * to the floating-point format. The conversion is performed according
- * to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+ * Signed integer to floating-point conversions
  */
-
-static FloatParts64 int_to_float(int64_t a, int scale, float_status *status)
-{
-    FloatParts64 r = { .sign = false };
-
-    if (a == 0) {
-        r.cls = float_class_zero;
-    } else {
-        uint64_t f = a;
-        int shift;
-
-        r.cls = float_class_normal;
-        if (a < 0) {
-            f = -f;
-            r.sign = true;
-        }
-        shift = clz64(f);
-        scale = MIN(MAX(scale, -0x10000), 0x10000);
-
-        r.exp = DECOMPOSED_BINARY_POINT - shift + scale;
-        r.frac = f << shift;
-    }
-
-    return r;
-}
 
 float16 int64_to_float16_scalbn(int64_t a, int scale, float_status *status)
 {
-    FloatParts64 pa = int_to_float(a, scale, status);
-    return float16_round_pack_canonical(&pa, status);
+    FloatParts64 p;
+
+    parts_sint_to_float(&p, a, scale, status);
+    return float16_round_pack_canonical(&p, status);
 }
 
 float16 int32_to_float16_scalbn(int32_t a, int scale, float_status *status)
@@ -3010,8 +2991,10 @@ float16 int8_to_float16(int8_t a, float_status *status)
 
 float32 int64_to_float32_scalbn(int64_t a, int scale, float_status *status)
 {
-    FloatParts64 pa = int_to_float(a, scale, status);
-    return float32_round_pack_canonical(&pa, status);
+    FloatParts64 p;
+
+    parts64_sint_to_float(&p, a, scale, status);
+    return float32_round_pack_canonical(&p, status);
 }
 
 float32 int32_to_float32_scalbn(int32_t a, int scale, float_status *status)
@@ -3041,8 +3024,10 @@ float32 int16_to_float32(int16_t a, float_status *status)
 
 float64 int64_to_float64_scalbn(int64_t a, int scale, float_status *status)
 {
-    FloatParts64 pa = int_to_float(a, scale, status);
-    return float64_round_pack_canonical(&pa, status);
+    FloatParts64 p;
+
+    parts_sint_to_float(&p, a, scale, status);
+    return float64_round_pack_canonical(&p, status);
 }
 
 float64 int32_to_float64_scalbn(int32_t a, int scale, float_status *status)
@@ -3070,15 +3055,12 @@ float64 int16_to_float64(int16_t a, float_status *status)
     return int64_to_float64_scalbn(a, 0, status);
 }
 
-/*
- * Returns the result of converting the two's complement integer `a'
- * to the bfloat16 format.
- */
-
 bfloat16 int64_to_bfloat16_scalbn(int64_t a, int scale, float_status *status)
 {
-    FloatParts64 pa = int_to_float(a, scale, status);
-    return bfloat16_round_pack_canonical(&pa, status);
+    FloatParts64 p;
+
+    parts_sint_to_float(&p, a, scale, status);
+    return bfloat16_round_pack_canonical(&p, status);
 }
 
 bfloat16 int32_to_bfloat16_scalbn(int32_t a, int scale, float_status *status)
@@ -3104,6 +3086,19 @@ bfloat16 int32_to_bfloat16(int32_t a, float_status *status)
 bfloat16 int16_to_bfloat16(int16_t a, float_status *status)
 {
     return int64_to_bfloat16_scalbn(a, 0, status);
+}
+
+float128 int64_to_float128(int64_t a, float_status *status)
+{
+    FloatParts128 p;
+
+    parts_sint_to_float(&p, a, 0, status);
+    return float128_round_pack_canonical(&p, status);
+}
+
+float128 int32_to_float128(int32_t a, float_status *status)
+{
+    return int64_to_float128(a, status);
 }
 
 /*
@@ -4957,28 +4952,6 @@ floatx80 int32_to_floatx80(int32_t a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
-| Returns the result of converting the 32-bit two's complement integer `a' to
-| the quadruple-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float128 int32_to_float128(int32_t a, float_status *status)
-{
-    bool zSign;
-    uint32_t absA;
-    int8_t shiftCount;
-    uint64_t zSig0;
-
-    if ( a == 0 ) return packFloat128( 0, 0, 0, 0 );
-    zSign = ( a < 0 );
-    absA = zSign ? - a : a;
-    shiftCount = clz32(absA) + 17;
-    zSig0 = absA;
-    return packFloat128( zSign, 0x402E - shiftCount, zSig0<<shiftCount, 0 );
-
-}
-
-/*----------------------------------------------------------------------------
 | Returns the result of converting the 64-bit two's complement integer `a'
 | to the extended double-precision floating-point format.  The conversion
 | is performed according to the IEC/IEEE Standard for Binary Floating-Point
@@ -4996,39 +4969,6 @@ floatx80 int64_to_floatx80(int64_t a, float_status *status)
     absA = zSign ? - a : a;
     shiftCount = clz64(absA);
     return packFloatx80( zSign, 0x403E - shiftCount, absA<<shiftCount );
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the 64-bit two's complement integer `a' to
-| the quadruple-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float128 int64_to_float128(int64_t a, float_status *status)
-{
-    bool zSign;
-    uint64_t absA;
-    int8_t shiftCount;
-    int32_t zExp;
-    uint64_t zSig0, zSig1;
-
-    if ( a == 0 ) return packFloat128( 0, 0, 0, 0 );
-    zSign = ( a < 0 );
-    absA = zSign ? - a : a;
-    shiftCount = clz64(absA) + 49;
-    zExp = 0x406E - shiftCount;
-    if ( 64 <= shiftCount ) {
-        zSig1 = 0;
-        zSig0 = absA;
-        shiftCount -= 64;
-    }
-    else {
-        zSig1 = absA;
-        zSig0 = 0;
-    }
-    shortShift128Left( zSig0, zSig1, shiftCount, &zSig0, &zSig1 );
-    return packFloat128( zSign, zExp, zSig0, zSig1 );
 
 }
 
