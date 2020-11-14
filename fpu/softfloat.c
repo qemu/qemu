@@ -2092,6 +2092,35 @@ static void parts128_float_to_float(FloatParts128 *a, float_status *s)
 #define parts_float_to_float(P, S) \
     PARTS_GENERIC_64_128(float_to_float, P)(P, S)
 
+static void parts_float_to_float_narrow(FloatParts64 *a, FloatParts128 *b,
+                                        float_status *s)
+{
+    a->cls = b->cls;
+    a->sign = b->sign;
+    a->exp = b->exp;
+
+    if (a->cls == float_class_normal) {
+        frac_truncjam(a, b);
+    } else if (is_nan(a->cls)) {
+        /* Discard the low bits of the NaN. */
+        a->frac = b->frac_hi;
+        parts_return_nan(a, s);
+    }
+}
+
+static void parts_float_to_float_widen(FloatParts128 *a, FloatParts64 *b,
+                                       float_status *s)
+{
+    a->cls = b->cls;
+    a->sign = b->sign;
+    a->exp = b->exp;
+    frac_widen(a, b);
+
+    if (is_nan(a->cls)) {
+        parts_return_nan(a, s);
+    }
+}
+
 float32 float16_to_float32(float16 a, bool ieee, float_status *s)
 {
     const FloatFmt *fmt16 = ieee ? &float16_params : &float16_params_ahp;
@@ -2213,6 +2242,46 @@ bfloat16 float64_to_bfloat16(float64 a, float_status *s)
     float64_unpack_canonical(&p, a, s);
     parts_float_to_float(&p, s);
     return bfloat16_round_pack_canonical(&p, s);
+}
+
+float32 float128_to_float32(float128 a, float_status *s)
+{
+    FloatParts64 p64;
+    FloatParts128 p128;
+
+    float128_unpack_canonical(&p128, a, s);
+    parts_float_to_float_narrow(&p64, &p128, s);
+    return float32_round_pack_canonical(&p64, s);
+}
+
+float64 float128_to_float64(float128 a, float_status *s)
+{
+    FloatParts64 p64;
+    FloatParts128 p128;
+
+    float128_unpack_canonical(&p128, a, s);
+    parts_float_to_float_narrow(&p64, &p128, s);
+    return float64_round_pack_canonical(&p64, s);
+}
+
+float128 float32_to_float128(float32 a, float_status *s)
+{
+    FloatParts64 p64;
+    FloatParts128 p128;
+
+    float32_unpack_canonical(&p64, a, s);
+    parts_float_to_float_widen(&p128, &p64, s);
+    return float128_round_pack_canonical(&p128, s);
+}
+
+float128 float64_to_float128(float64 a, float_status *s)
+{
+    FloatParts64 p64;
+    FloatParts128 p128;
+
+    float64_unpack_canonical(&p64, a, s);
+    parts_float_to_float_widen(&p128, &p64, s);
+    return float128_round_pack_canonical(&p128, s);
 }
 
 /*
@@ -5176,38 +5245,6 @@ floatx80 float32_to_floatx80(float32 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
-| Returns the result of converting the single-precision floating-point value
-| `a' to the double-precision floating-point format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float128 float32_to_float128(float32 a, float_status *status)
-{
-    bool aSign;
-    int aExp;
-    uint32_t aSig;
-
-    a = float32_squash_input_denormal(a, status);
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-    if ( aExp == 0xFF ) {
-        if (aSig) {
-            return commonNaNToFloat128(float32ToCommonNaN(a, status), status);
-        }
-        return packFloat128( aSign, 0x7FFF, 0, 0 );
-    }
-    if ( aExp == 0 ) {
-        if ( aSig == 0 ) return packFloat128( aSign, 0, 0, 0 );
-        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
-        --aExp;
-    }
-    return packFloat128( aSign, aExp + 0x3F80, ( (uint64_t) aSig )<<25, 0 );
-
-}
-
-/*----------------------------------------------------------------------------
 | Returns the remainder of the single-precision floating-point value `a'
 | with respect to the corresponding value `b'.  The operation is performed
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
@@ -5479,40 +5516,6 @@ floatx80 float64_to_floatx80(float64 a, float_status *status)
             aSign, aExp + 0x3C00, (aSig | UINT64_C(0x0010000000000000)) << 11);
 
 }
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the double-precision floating-point value
-| `a' to the quadruple-precision floating-point format.  The conversion is
-| performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float128 float64_to_float128(float64 a, float_status *status)
-{
-    bool aSign;
-    int aExp;
-    uint64_t aSig, zSig0, zSig1;
-
-    a = float64_squash_input_denormal(a, status);
-    aSig = extractFloat64Frac( a );
-    aExp = extractFloat64Exp( a );
-    aSign = extractFloat64Sign( a );
-    if ( aExp == 0x7FF ) {
-        if (aSig) {
-            return commonNaNToFloat128(float64ToCommonNaN(a, status), status);
-        }
-        return packFloat128( aSign, 0x7FFF, 0, 0 );
-    }
-    if ( aExp == 0 ) {
-        if ( aSig == 0 ) return packFloat128( aSign, 0, 0, 0 );
-        normalizeFloat64Subnormal( aSig, &aExp, &aSig );
-        --aExp;
-    }
-    shift128Right( aSig, 0, 4, &zSig0, &zSig1 );
-    return packFloat128( aSign, aExp + 0x3C00, zSig0, zSig1 );
-
-}
-
 
 /*----------------------------------------------------------------------------
 | Returns the remainder of the double-precision floating-point value `a'
@@ -6913,74 +6916,6 @@ uint32_t float128_to_uint32(float128 a, float_status *status)
     set_float_exception_flags(old_exc_flags, status);
     float_raise(float_flag_invalid, status);
     return res;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the quadruple-precision floating-point
-| value `a' to the single-precision floating-point format.  The conversion
-| is performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float32 float128_to_float32(float128 a, float_status *status)
-{
-    bool aSign;
-    int32_t aExp;
-    uint64_t aSig0, aSig1;
-    uint32_t zSig;
-
-    aSig1 = extractFloat128Frac1( a );
-    aSig0 = extractFloat128Frac0( a );
-    aExp = extractFloat128Exp( a );
-    aSign = extractFloat128Sign( a );
-    if ( aExp == 0x7FFF ) {
-        if ( aSig0 | aSig1 ) {
-            return commonNaNToFloat32(float128ToCommonNaN(a, status), status);
-        }
-        return packFloat32( aSign, 0xFF, 0 );
-    }
-    aSig0 |= ( aSig1 != 0 );
-    shift64RightJamming( aSig0, 18, &aSig0 );
-    zSig = aSig0;
-    if ( aExp || zSig ) {
-        zSig |= 0x40000000;
-        aExp -= 0x3F81;
-    }
-    return roundAndPackFloat32(aSign, aExp, zSig, status);
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the quadruple-precision floating-point
-| value `a' to the double-precision floating-point format.  The conversion
-| is performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float64 float128_to_float64(float128 a, float_status *status)
-{
-    bool aSign;
-    int32_t aExp;
-    uint64_t aSig0, aSig1;
-
-    aSig1 = extractFloat128Frac1( a );
-    aSig0 = extractFloat128Frac0( a );
-    aExp = extractFloat128Exp( a );
-    aSign = extractFloat128Sign( a );
-    if ( aExp == 0x7FFF ) {
-        if ( aSig0 | aSig1 ) {
-            return commonNaNToFloat64(float128ToCommonNaN(a, status), status);
-        }
-        return packFloat64( aSign, 0x7FF, 0 );
-    }
-    shortShift128Left( aSig0, aSig1, 14, &aSig0, &aSig1 );
-    aSig0 |= ( aSig1 != 0 );
-    if ( aExp || aSig0 ) {
-        aSig0 |= UINT64_C(0x4000000000000000);
-        aExp -= 0x3C01;
-    }
-    return roundAndPackFloat64(aSign, aExp, aSig0, status);
-
 }
 
 /*----------------------------------------------------------------------------
