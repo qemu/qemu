@@ -35,6 +35,7 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
+#include "fpu_helper.h"
 
 #define MIPS_DEBUG_DISAS 0
 

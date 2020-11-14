@@ -27,6 +27,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "fpu/softfloat.h"
+#include "fpu_helper.h"
 
 
 /* Complex FPU operations which may need stack space. */
