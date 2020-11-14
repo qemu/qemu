@@ -594,3 +594,160 @@ static FloatPartsN *partsN(div)(FloatPartsN *a, FloatPartsN *b,
     a->cls = float_class_inf;
     return a;
 }
+
+/*
+ * Rounds the floating-point value `a' to an integer, and returns the
+ * result as a floating-point value. The operation is performed
+ * according to the IEC/IEEE Standard for Binary Floating-Point
+ * Arithmetic.
+ *
+ * parts_round_to_int_normal is an internal helper function for
+ * normal numbers only, returning true for inexact but not directly
+ * raising float_flag_inexact.
+ */
+static bool partsN(round_to_int_normal)(FloatPartsN *a, FloatRoundMode rmode,
+                                        int scale, int frac_size)
+{
+    uint64_t frac_lsb, frac_lsbm1, rnd_even_mask, rnd_mask, inc;
+    int shift_adj;
+
+    scale = MIN(MAX(scale, -0x10000), 0x10000);
+    a->exp += scale;
+
+    if (a->exp < 0) {
+        bool one;
+
+        /* All fractional */
+        switch (rmode) {
+        case float_round_nearest_even:
+            one = false;
+            if (a->exp == -1) {
+                FloatPartsN tmp;
+                /* Shift left one, discarding DECOMPOSED_IMPLICIT_BIT */
+                frac_add(&tmp, a, a);
+                /* Anything remaining means frac > 0.5. */
+                one = !frac_eqz(&tmp);
+            }
+            break;
+        case float_round_ties_away:
+            one = a->exp == -1;
+            break;
+        case float_round_to_zero:
+            one = false;
+            break;
+        case float_round_up:
+            one = !a->sign;
+            break;
+        case float_round_down:
+            one = a->sign;
+            break;
+        case float_round_to_odd:
+            one = true;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        frac_clear(a);
+        a->exp = 0;
+        if (one) {
+            a->frac_hi = DECOMPOSED_IMPLICIT_BIT;
+        } else {
+            a->cls = float_class_zero;
+        }
+        return true;
+    }
+
+    if (a->exp >= frac_size) {
+        /* All integral */
+        return false;
+    }
+
+    if (N > 64 && a->exp < N - 64) {
+        /*
+         * Rounding is not in the low word -- shift lsb to bit 2,
+         * which leaves room for sticky and rounding bit.
+         */
+        shift_adj = (N - 1) - (a->exp + 2);
+        frac_shrjam(a, shift_adj);
+        frac_lsb = 1 << 2;
+    } else {
+        shift_adj = 0;
+        frac_lsb = DECOMPOSED_IMPLICIT_BIT >> (a->exp & 63);
+    }
+
+    frac_lsbm1 = frac_lsb >> 1;
+    rnd_mask = frac_lsb - 1;
+    rnd_even_mask = rnd_mask | frac_lsb;
+
+    if (!(a->frac_lo & rnd_mask)) {
+        /* Fractional bits already clear, undo the shift above. */
+        frac_shl(a, shift_adj);
+        return false;
+    }
+
+    switch (rmode) {
+    case float_round_nearest_even:
+        inc = ((a->frac_lo & rnd_even_mask) != frac_lsbm1 ? frac_lsbm1 : 0);
+        break;
+    case float_round_ties_away:
+        inc = frac_lsbm1;
+        break;
+    case float_round_to_zero:
+        inc = 0;
+        break;
+    case float_round_up:
+        inc = a->sign ? 0 : rnd_mask;
+        break;
+    case float_round_down:
+        inc = a->sign ? rnd_mask : 0;
+        break;
+    case float_round_to_odd:
+        inc = a->frac_lo & frac_lsb ? 0 : rnd_mask;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (shift_adj == 0) {
+        if (frac_addi(a, a, inc)) {
+            frac_shr(a, 1);
+            a->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
+            a->exp++;
+        }
+        a->frac_lo &= ~rnd_mask;
+    } else {
+        frac_addi(a, a, inc);
+        a->frac_lo &= ~rnd_mask;
+        /* Be careful shifting back, not to overflow */
+        frac_shl(a, shift_adj - 1);
+        if (a->frac_hi & DECOMPOSED_IMPLICIT_BIT) {
+            a->exp++;
+        } else {
+            frac_add(a, a, a);
+        }
+    }
+    return true;
+}
+
+static void partsN(round_to_int)(FloatPartsN *a, FloatRoundMode rmode,
+                                 int scale, float_status *s,
+                                 const FloatFmt *fmt)
+{
+    switch (a->cls) {
+    case float_class_qnan:
+    case float_class_snan:
+        parts_return_nan(a, s);
+        break;
+    case float_class_zero:
+    case float_class_inf:
+        break;
+    case float_class_normal:
+        if (parts_round_to_int_normal(a, rmode, scale, fmt->frac_size)) {
+            float_raise(float_flag_inexact, s);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
