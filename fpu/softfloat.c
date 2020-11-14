@@ -2037,83 +2037,105 @@ float128_div(float128 a, float128 b, float_status *status)
  * conversion is performed according to the IEC/IEEE Standard for
  * Binary Floating-Point Arithmetic.
  *
- * The float_to_float helper only needs to take care of raising
- * invalid exceptions and handling the conversion on NaNs.
+ * Usually this only needs to take care of raising invalid exceptions
+ * and handling the conversion on NaNs.
  */
 
-static FloatParts64 float_to_float(FloatParts64 a, const FloatFmt *dstf,
-                                 float_status *s)
+static void parts_float_to_ahp(FloatParts64 *a, float_status *s)
 {
-    if (dstf->arm_althp) {
-        switch (a.cls) {
-        case float_class_qnan:
-        case float_class_snan:
-            /* There is no NaN in the destination format.  Raise Invalid
-             * and return a zero with the sign of the input NaN.
-             */
-            float_raise(float_flag_invalid, s);
-            a.cls = float_class_zero;
-            a.frac = 0;
-            a.exp = 0;
-            break;
+    switch (a->cls) {
+    case float_class_qnan:
+    case float_class_snan:
+        /*
+         * There is no NaN in the destination format.  Raise Invalid
+         * and return a zero with the sign of the input NaN.
+         */
+        float_raise(float_flag_invalid, s);
+        a->cls = float_class_zero;
+        break;
 
-        case float_class_inf:
-            /* There is no Inf in the destination format.  Raise Invalid
-             * and return the maximum normal with the correct sign.
-             */
-            float_raise(float_flag_invalid, s);
-            a.cls = float_class_normal;
-            a.exp = dstf->exp_max;
-            a.frac = ((1ull << dstf->frac_size) - 1) << dstf->frac_shift;
-            break;
+    case float_class_inf:
+        /*
+         * There is no Inf in the destination format.  Raise Invalid
+         * and return the maximum normal with the correct sign.
+         */
+        float_raise(float_flag_invalid, s);
+        a->cls = float_class_normal;
+        a->exp = float16_params_ahp.exp_max;
+        a->frac = MAKE_64BIT_MASK(float16_params_ahp.frac_shift,
+                                  float16_params_ahp.frac_size + 1);
+        break;
 
-        default:
-            break;
-        }
-    } else if (is_nan(a.cls)) {
-        parts_return_nan(&a, s);
+    case float_class_normal:
+    case float_class_zero:
+        break;
+
+    default:
+        g_assert_not_reached();
     }
-    return a;
 }
+
+static void parts64_float_to_float(FloatParts64 *a, float_status *s)
+{
+    if (is_nan(a->cls)) {
+        parts_return_nan(a, s);
+    }
+}
+
+static void parts128_float_to_float(FloatParts128 *a, float_status *s)
+{
+    if (is_nan(a->cls)) {
+        parts_return_nan(a, s);
+    }
+}
+
+#define parts_float_to_float(P, S) \
+    PARTS_GENERIC_64_128(float_to_float, P)(P, S)
 
 float32 float16_to_float32(float16 a, bool ieee, float_status *s)
 {
     const FloatFmt *fmt16 = ieee ? &float16_params : &float16_params_ahp;
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float16a_unpack_canonical(&pa, a, s, fmt16);
-    pr = float_to_float(pa, &float32_params, s);
-    return float32_round_pack_canonical(&pr, s);
+    float16a_unpack_canonical(&p, a, s, fmt16);
+    parts_float_to_float(&p, s);
+    return float32_round_pack_canonical(&p, s);
 }
 
 float64 float16_to_float64(float16 a, bool ieee, float_status *s)
 {
     const FloatFmt *fmt16 = ieee ? &float16_params : &float16_params_ahp;
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float16a_unpack_canonical(&pa, a, s, fmt16);
-    pr = float_to_float(pa, &float64_params, s);
-    return float64_round_pack_canonical(&pr, s);
+    float16a_unpack_canonical(&p, a, s, fmt16);
+    parts_float_to_float(&p, s);
+    return float64_round_pack_canonical(&p, s);
 }
 
 float16 float32_to_float16(float32 a, bool ieee, float_status *s)
 {
-    const FloatFmt *fmt16 = ieee ? &float16_params : &float16_params_ahp;
-    FloatParts64 pa, pr;
+    FloatParts64 p;
+    const FloatFmt *fmt;
 
-    float32_unpack_canonical(&pa, a, s);
-    pr = float_to_float(pa, fmt16, s);
-    return float16a_round_pack_canonical(&pr, s, fmt16);
+    float32_unpack_canonical(&p, a, s);
+    if (ieee) {
+        parts_float_to_float(&p, s);
+        fmt = &float16_params;
+    } else {
+        parts_float_to_ahp(&p, s);
+        fmt = &float16_params_ahp;
+    }
+    return float16a_round_pack_canonical(&p, s, fmt);
 }
 
 static float64 QEMU_SOFTFLOAT_ATTR
 soft_float32_to_float64(float32 a, float_status *s)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float32_unpack_canonical(&pa, a, s);
-    pr = float_to_float(pa, &float64_params, s);
-    return float64_round_pack_canonical(&pr, s);
+    float32_unpack_canonical(&p, a, s);
+    parts_float_to_float(&p, s);
+    return float64_round_pack_canonical(&p, s);
 }
 
 float64 float32_to_float64(float32 a, float_status *s)
@@ -2134,57 +2156,63 @@ float64 float32_to_float64(float32 a, float_status *s)
 
 float16 float64_to_float16(float64 a, bool ieee, float_status *s)
 {
-    const FloatFmt *fmt16 = ieee ? &float16_params : &float16_params_ahp;
-    FloatParts64 pa, pr;
+    FloatParts64 p;
+    const FloatFmt *fmt;
 
-    float64_unpack_canonical(&pa, a, s);
-    pr = float_to_float(pa, fmt16, s);
-    return float16a_round_pack_canonical(&pr, s, fmt16);
+    float64_unpack_canonical(&p, a, s);
+    if (ieee) {
+        parts_float_to_float(&p, s);
+        fmt = &float16_params;
+    } else {
+        parts_float_to_ahp(&p, s);
+        fmt = &float16_params_ahp;
+    }
+    return float16a_round_pack_canonical(&p, s, fmt);
 }
 
 float32 float64_to_float32(float64 a, float_status *s)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float64_unpack_canonical(&pa, a, s);
-    pr = float_to_float(pa, &float32_params, s);
-    return float32_round_pack_canonical(&pr, s);
+    float64_unpack_canonical(&p, a, s);
+    parts_float_to_float(&p, s);
+    return float32_round_pack_canonical(&p, s);
 }
 
 float32 bfloat16_to_float32(bfloat16 a, float_status *s)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    bfloat16_unpack_canonical(&pa, a, s);
-    pr = float_to_float(pa, &float32_params, s);
-    return float32_round_pack_canonical(&pr, s);
+    bfloat16_unpack_canonical(&p, a, s);
+    parts_float_to_float(&p, s);
+    return float32_round_pack_canonical(&p, s);
 }
 
 float64 bfloat16_to_float64(bfloat16 a, float_status *s)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    bfloat16_unpack_canonical(&pa, a, s);
-    pr = float_to_float(pa, &float64_params, s);
-    return float64_round_pack_canonical(&pr, s);
+    bfloat16_unpack_canonical(&p, a, s);
+    parts_float_to_float(&p, s);
+    return float64_round_pack_canonical(&p, s);
 }
 
 bfloat16 float32_to_bfloat16(float32 a, float_status *s)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float32_unpack_canonical(&pa, a, s);
-    pr = float_to_float(pa, &bfloat16_params, s);
-    return bfloat16_round_pack_canonical(&pr, s);
+    float32_unpack_canonical(&p, a, s);
+    parts_float_to_float(&p, s);
+    return bfloat16_round_pack_canonical(&p, s);
 }
 
 bfloat16 float64_to_bfloat16(float64 a, float_status *s)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float64_unpack_canonical(&pa, a, s);
-    pr = float_to_float(pa, &bfloat16_params, s);
-    return bfloat16_round_pack_canonical(&pr, s);
+    float64_unpack_canonical(&p, a, s);
+    parts_float_to_float(&p, s);
+    return bfloat16_round_pack_canonical(&p, s);
 }
 
 /*
