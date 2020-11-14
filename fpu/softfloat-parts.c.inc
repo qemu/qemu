@@ -915,3 +915,26 @@ static void partsN(sint_to_float)(FloatPartsN *p, int64_t a,
     p->exp = DECOMPOSED_BINARY_POINT - shift + scale;
     p->frac_hi = f << shift;
 }
+
+/*
+ * Unsigned Integer to float conversions
+ *
+ * Returns the result of converting the unsigned integer `a' to the
+ * floating-point format. The conversion is performed according to the
+ * IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+ */
+static void partsN(uint_to_float)(FloatPartsN *p, uint64_t a,
+                                  int scale, float_status *status)
+{
+    memset(p, 0, sizeof(*p));
+
+    if (a == 0) {
+        p->cls = float_class_zero;
+    } else {
+        int shift = clz64(a);
+        scale = MIN(MAX(scale, -0x10000), 0x10000);
+        p->cls = float_class_normal;
+        p->exp = DECOMPOSED_BINARY_POINT - shift + scale;
+        p->frac_hi = a << shift;
+    }
+}

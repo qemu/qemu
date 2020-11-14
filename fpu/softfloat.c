@@ -857,6 +857,14 @@ static void parts128_sint_to_float(FloatParts128 *p, int64_t a,
 #define parts_sint_to_float(P, I, Z, S) \
     PARTS_GENERIC_64_128(sint_to_float, P)(P, I, Z, S)
 
+static void parts64_uint_to_float(FloatParts64 *p, uint64_t a,
+                                  int scale, float_status *s);
+static void parts128_uint_to_float(FloatParts128 *p, uint64_t a,
+                                   int scale, float_status *s);
+
+#define parts_uint_to_float(P, I, Z, S) \
+    PARTS_GENERIC_64_128(uint_to_float, P)(P, I, Z, S)
+
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
@@ -3102,35 +3110,15 @@ float128 int32_to_float128(int32_t a, float_status *status)
 }
 
 /*
- * Unsigned Integer to float conversions
- *
- * Returns the result of converting the unsigned integer `a' to the
- * floating-point format. The conversion is performed according to the
- * IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+ * Unsigned Integer to floating-point conversions
  */
-
-static FloatParts64 uint_to_float(uint64_t a, int scale, float_status *status)
-{
-    FloatParts64 r = { .sign = false };
-    int shift;
-
-    if (a == 0) {
-        r.cls = float_class_zero;
-    } else {
-        scale = MIN(MAX(scale, -0x10000), 0x10000);
-        shift = clz64(a);
-        r.cls = float_class_normal;
-        r.exp = DECOMPOSED_BINARY_POINT - shift + scale;
-        r.frac = a << shift;
-    }
-
-    return r;
-}
 
 float16 uint64_to_float16_scalbn(uint64_t a, int scale, float_status *status)
 {
-    FloatParts64 pa = uint_to_float(a, scale, status);
-    return float16_round_pack_canonical(&pa, status);
+    FloatParts64 p;
+
+    parts_uint_to_float(&p, a, scale, status);
+    return float16_round_pack_canonical(&p, status);
 }
 
 float16 uint32_to_float16_scalbn(uint32_t a, int scale, float_status *status)
@@ -3165,8 +3153,10 @@ float16 uint8_to_float16(uint8_t a, float_status *status)
 
 float32 uint64_to_float32_scalbn(uint64_t a, int scale, float_status *status)
 {
-    FloatParts64 pa = uint_to_float(a, scale, status);
-    return float32_round_pack_canonical(&pa, status);
+    FloatParts64 p;
+
+    parts_uint_to_float(&p, a, scale, status);
+    return float32_round_pack_canonical(&p, status);
 }
 
 float32 uint32_to_float32_scalbn(uint32_t a, int scale, float_status *status)
@@ -3196,8 +3186,10 @@ float32 uint16_to_float32(uint16_t a, float_status *status)
 
 float64 uint64_to_float64_scalbn(uint64_t a, int scale, float_status *status)
 {
-    FloatParts64 pa = uint_to_float(a, scale, status);
-    return float64_round_pack_canonical(&pa, status);
+    FloatParts64 p;
+
+    parts_uint_to_float(&p, a, scale, status);
+    return float64_round_pack_canonical(&p, status);
 }
 
 float64 uint32_to_float64_scalbn(uint32_t a, int scale, float_status *status)
@@ -3225,15 +3217,12 @@ float64 uint16_to_float64(uint16_t a, float_status *status)
     return uint64_to_float64_scalbn(a, 0, status);
 }
 
-/*
- * Returns the result of converting the unsigned integer `a' to the
- * bfloat16 format.
- */
-
 bfloat16 uint64_to_bfloat16_scalbn(uint64_t a, int scale, float_status *status)
 {
-    FloatParts64 pa = uint_to_float(a, scale, status);
-    return bfloat16_round_pack_canonical(&pa, status);
+    FloatParts64 p;
+
+    parts_uint_to_float(&p, a, scale, status);
+    return bfloat16_round_pack_canonical(&p, status);
 }
 
 bfloat16 uint32_to_bfloat16_scalbn(uint32_t a, int scale, float_status *status)
@@ -3259,6 +3248,14 @@ bfloat16 uint32_to_bfloat16(uint32_t a, float_status *status)
 bfloat16 uint16_to_bfloat16(uint16_t a, float_status *status)
 {
     return uint64_to_bfloat16_scalbn(a, 0, status);
+}
+
+float128 uint64_to_float128(uint64_t a, float_status *status)
+{
+    FloatParts128 p;
+
+    parts_uint_to_float(&p, a, 0, status);
+    return float128_round_pack_canonical(&p, status);
 }
 
 /* Float Min/Max */
@@ -4970,20 +4967,6 @@ floatx80 int64_to_floatx80(int64_t a, float_status *status)
     shiftCount = clz64(absA);
     return packFloatx80( zSign, 0x403E - shiftCount, absA<<shiftCount );
 
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the 64-bit unsigned integer `a'
-| to the quadruple-precision floating-point format.  The conversion is performed
-| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float128 uint64_to_float128(uint64_t a, float_status *status)
-{
-    if (a == 0) {
-        return float128_zero;
-    }
-    return normalizeRoundAndPackFloat128(0, 0x406E, 0, a, status);
 }
 
 /*----------------------------------------------------------------------------
