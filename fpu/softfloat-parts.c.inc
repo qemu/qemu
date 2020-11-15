@@ -1018,3 +1018,60 @@ static FloatPartsN *partsN(minmax)(FloatPartsN *a, FloatPartsN *b,
     }
     return cmp < 0 ? b : a;
 }
+
+/*
+ * Floating point compare
+ */
+static FloatRelation partsN(compare)(FloatPartsN *a, FloatPartsN *b,
+                                     float_status *s, bool is_quiet)
+{
+    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+    int cmp;
+
+    if (likely(ab_mask == float_cmask_normal)) {
+        if (a->sign != b->sign) {
+            goto a_sign;
+        }
+        if (a->exp != b->exp) {
+            cmp = a->exp < b->exp ? -1 : 1;
+        } else {
+            cmp = frac_cmp(a, b);
+        }
+        if (a->sign) {
+            cmp = -cmp;
+        }
+        return cmp;
+    }
+
+    if (unlikely(ab_mask & float_cmask_anynan)) {
+        if (!is_quiet || (ab_mask & float_cmask_snan)) {
+            float_raise(float_flag_invalid, s);
+        }
+        return float_relation_unordered;
+    }
+
+    if (ab_mask & float_cmask_zero) {
+        if (ab_mask == float_cmask_zero) {
+            return float_relation_equal;
+        } else if (a->cls == float_class_zero) {
+            goto b_sign;
+        } else {
+            goto a_sign;
+        }
+    }
+
+    if (ab_mask == float_cmask_inf) {
+        if (a->sign == b->sign) {
+            return float_relation_equal;
+        }
+    } else if (b->cls == float_class_inf) {
+        goto b_sign;
+    } else {
+        g_assert(a->cls == float_class_inf);
+    }
+
+ a_sign:
+    return a->sign ? float_relation_less : float_relation_greater;
+ b_sign:
+    return b->sign ? float_relation_greater : float_relation_less;
+}

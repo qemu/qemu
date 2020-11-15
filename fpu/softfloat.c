@@ -882,6 +882,14 @@ static FloatParts128 *parts128_minmax(FloatParts128 *a, FloatParts128 *b,
 #define parts_minmax(A, B, S, F) \
     PARTS_GENERIC_64_128(minmax, A)(A, B, S, F)
 
+static int parts64_compare(FloatParts64 *a, FloatParts64 *b,
+                           float_status *s, bool q);
+static int parts128_compare(FloatParts128 *a, FloatParts128 *b,
+                            float_status *s, bool q);
+
+#define parts_compare(A, B, S, Q) \
+    PARTS_GENERIC_64_128(compare, A)(A, B, S, Q)
+
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
@@ -3357,92 +3365,42 @@ MINMAX_2(float128)
 #undef MINMAX_1
 #undef MINMAX_2
 
-/* Floating point compare */
-static FloatRelation compare_floats(FloatParts64 a, FloatParts64 b, bool is_quiet,
-                                    float_status *s)
+/*
+ * Floating point compare
+ */
+
+static FloatRelation QEMU_FLATTEN
+float16_do_compare(float16 a, float16 b, float_status *s, bool is_quiet)
 {
-    if (is_nan(a.cls) || is_nan(b.cls)) {
-        if (!is_quiet ||
-            a.cls == float_class_snan ||
-            b.cls == float_class_snan) {
-            float_raise(float_flag_invalid, s);
-        }
-        return float_relation_unordered;
-    }
+    FloatParts64 pa, pb;
 
-    if (a.cls == float_class_zero) {
-        if (b.cls == float_class_zero) {
-            return float_relation_equal;
-        }
-        return b.sign ? float_relation_greater : float_relation_less;
-    } else if (b.cls == float_class_zero) {
-        return a.sign ? float_relation_less : float_relation_greater;
-    }
-
-    /* The only really important thing about infinity is its sign. If
-     * both are infinities the sign marks the smallest of the two.
-     */
-    if (a.cls == float_class_inf) {
-        if ((b.cls == float_class_inf) && (a.sign == b.sign)) {
-            return float_relation_equal;
-        }
-        return a.sign ? float_relation_less : float_relation_greater;
-    } else if (b.cls == float_class_inf) {
-        return b.sign ? float_relation_greater : float_relation_less;
-    }
-
-    if (a.sign != b.sign) {
-        return a.sign ? float_relation_less : float_relation_greater;
-    }
-
-    if (a.exp == b.exp) {
-        if (a.frac == b.frac) {
-            return float_relation_equal;
-        }
-        if (a.sign) {
-            return a.frac > b.frac ?
-                float_relation_less : float_relation_greater;
-        } else {
-            return a.frac > b.frac ?
-                float_relation_greater : float_relation_less;
-        }
-    } else {
-        if (a.sign) {
-            return a.exp > b.exp ? float_relation_less : float_relation_greater;
-        } else {
-            return a.exp > b.exp ? float_relation_greater : float_relation_less;
-        }
-    }
+    float16_unpack_canonical(&pa, a, s);
+    float16_unpack_canonical(&pb, b, s);
+    return parts_compare(&pa, &pb, s, is_quiet);
 }
-
-#define COMPARE(name, attr, sz)                                         \
-static int attr                                                         \
-name(float ## sz a, float ## sz b, bool is_quiet, float_status *s)      \
-{                                                                       \
-    FloatParts64 pa, pb;                                                \
-    float ## sz ## _unpack_canonical(&pa, a, s);                        \
-    float ## sz ## _unpack_canonical(&pb, b, s);                        \
-    return compare_floats(pa, pb, is_quiet, s);                         \
-}
-
-COMPARE(soft_f16_compare, QEMU_FLATTEN, 16)
-COMPARE(soft_f32_compare, QEMU_SOFTFLOAT_ATTR, 32)
-COMPARE(soft_f64_compare, QEMU_SOFTFLOAT_ATTR, 64)
-
-#undef COMPARE
 
 FloatRelation float16_compare(float16 a, float16 b, float_status *s)
 {
-    return soft_f16_compare(a, b, false, s);
+    return float16_do_compare(a, b, s, false);
 }
 
 FloatRelation float16_compare_quiet(float16 a, float16 b, float_status *s)
 {
-    return soft_f16_compare(a, b, true, s);
+    return float16_do_compare(a, b, s, true);
+}
+
+static FloatRelation QEMU_SOFTFLOAT_ATTR
+float32_do_compare(float32 a, float32 b, float_status *s, bool is_quiet)
+{
+    FloatParts64 pa, pb;
+
+    float32_unpack_canonical(&pa, a, s);
+    float32_unpack_canonical(&pb, b, s);
+    return parts_compare(&pa, &pb, s, is_quiet);
 }
 
 static FloatRelation QEMU_FLATTEN
-f32_compare(float32 xa, float32 xb, bool is_quiet, float_status *s)
+float32_hs_compare(float32 xa, float32 xb, float_status *s, bool is_quiet)
 {
     union_float32 ua, ub;
 
@@ -3463,25 +3421,36 @@ f32_compare(float32 xa, float32 xb, bool is_quiet, float_status *s)
     if (likely(isless(ua.h, ub.h))) {
         return float_relation_less;
     }
-    /* The only condition remaining is unordered.
+    /*
+     * The only condition remaining is unordered.
      * Fall through to set flags.
      */
  soft:
-    return soft_f32_compare(ua.s, ub.s, is_quiet, s);
+    return float32_do_compare(ua.s, ub.s, s, is_quiet);
 }
 
 FloatRelation float32_compare(float32 a, float32 b, float_status *s)
 {
-    return f32_compare(a, b, false, s);
+    return float32_hs_compare(a, b, s, false);
 }
 
 FloatRelation float32_compare_quiet(float32 a, float32 b, float_status *s)
 {
-    return f32_compare(a, b, true, s);
+    return float32_hs_compare(a, b, s, true);
+}
+
+static FloatRelation QEMU_SOFTFLOAT_ATTR
+float64_do_compare(float64 a, float64 b, float_status *s, bool is_quiet)
+{
+    FloatParts64 pa, pb;
+
+    float64_unpack_canonical(&pa, a, s);
+    float64_unpack_canonical(&pb, b, s);
+    return parts_compare(&pa, &pb, s, is_quiet);
 }
 
 static FloatRelation QEMU_FLATTEN
-f64_compare(float64 xa, float64 xb, bool is_quiet, float_status *s)
+float64_hs_compare(float64 xa, float64 xb, float_status *s, bool is_quiet)
 {
     union_float64 ua, ub;
 
@@ -3502,41 +3471,62 @@ f64_compare(float64 xa, float64 xb, bool is_quiet, float_status *s)
     if (likely(isless(ua.h, ub.h))) {
         return float_relation_less;
     }
-    /* The only condition remaining is unordered.
+    /*
+     * The only condition remaining is unordered.
      * Fall through to set flags.
      */
  soft:
-    return soft_f64_compare(ua.s, ub.s, is_quiet, s);
+    return float64_do_compare(ua.s, ub.s, s, is_quiet);
 }
 
 FloatRelation float64_compare(float64 a, float64 b, float_status *s)
 {
-    return f64_compare(a, b, false, s);
+    return float64_hs_compare(a, b, s, false);
 }
 
 FloatRelation float64_compare_quiet(float64 a, float64 b, float_status *s)
 {
-    return f64_compare(a, b, true, s);
+    return float64_hs_compare(a, b, s, true);
 }
 
 static FloatRelation QEMU_FLATTEN
-soft_bf16_compare(bfloat16 a, bfloat16 b, bool is_quiet, float_status *s)
+bfloat16_do_compare(bfloat16 a, bfloat16 b, float_status *s, bool is_quiet)
 {
     FloatParts64 pa, pb;
 
     bfloat16_unpack_canonical(&pa, a, s);
     bfloat16_unpack_canonical(&pb, b, s);
-    return compare_floats(pa, pb, is_quiet, s);
+    return parts_compare(&pa, &pb, s, is_quiet);
 }
 
 FloatRelation bfloat16_compare(bfloat16 a, bfloat16 b, float_status *s)
 {
-    return soft_bf16_compare(a, b, false, s);
+    return bfloat16_do_compare(a, b, s, false);
 }
 
 FloatRelation bfloat16_compare_quiet(bfloat16 a, bfloat16 b, float_status *s)
 {
-    return soft_bf16_compare(a, b, true, s);
+    return bfloat16_do_compare(a, b, s, true);
+}
+
+static FloatRelation QEMU_FLATTEN
+float128_do_compare(float128 a, float128 b, float_status *s, bool is_quiet)
+{
+    FloatParts128 pa, pb;
+
+    float128_unpack_canonical(&pa, a, s);
+    float128_unpack_canonical(&pb, b, s);
+    return parts_compare(&pa, &pb, s, is_quiet);
+}
+
+FloatRelation float128_compare(float128 a, float128 b, float_status *s)
+{
+    return float128_do_compare(a, b, s, false);
+}
+
+FloatRelation float128_compare_quiet(float128 a, float128 b, float_status *s)
+{
+    return float128_do_compare(a, b, s, true);
 }
 
 /* Multiply A by 2 raised to the power N.  */
@@ -6607,52 +6597,6 @@ FloatRelation floatx80_compare_quiet(floatx80 a, floatx80 b,
                                      float_status *status)
 {
     return floatx80_compare_internal(a, b, 1, status);
-}
-
-static inline FloatRelation
-float128_compare_internal(float128 a, float128 b, bool is_quiet,
-                          float_status *status)
-{
-    bool aSign, bSign;
-
-    if (( ( extractFloat128Exp( a ) == 0x7fff ) &&
-          ( extractFloat128Frac0( a ) | extractFloat128Frac1( a ) ) ) ||
-        ( ( extractFloat128Exp( b ) == 0x7fff ) &&
-          ( extractFloat128Frac0( b ) | extractFloat128Frac1( b ) ) )) {
-        if (!is_quiet ||
-            float128_is_signaling_nan(a, status) ||
-            float128_is_signaling_nan(b, status)) {
-            float_raise(float_flag_invalid, status);
-        }
-        return float_relation_unordered;
-    }
-    aSign = extractFloat128Sign( a );
-    bSign = extractFloat128Sign( b );
-    if ( aSign != bSign ) {
-        if ( ( ( ( a.high | b.high )<<1 ) | a.low | b.low ) == 0 ) {
-            /* zero case */
-            return float_relation_equal;
-        } else {
-            return 1 - (2 * aSign);
-        }
-    } else {
-        if (a.low == b.low && a.high == b.high) {
-            return float_relation_equal;
-        } else {
-            return 1 - 2 * (aSign ^ ( lt128( a.high, a.low, b.high, b.low ) ));
-        }
-    }
-}
-
-FloatRelation float128_compare(float128 a, float128 b, float_status *status)
-{
-    return float128_compare_internal(a, b, 0, status);
-}
-
-FloatRelation float128_compare_quiet(float128 a, float128 b,
-                                     float_status *status)
-{
-    return float128_compare_internal(a, b, 1, status);
 }
 
 floatx80 floatx80_scalbn(floatx80 a, int n, float_status *status)
