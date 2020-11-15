@@ -482,6 +482,15 @@ enum {
     float_cmask_anynan  = float_cmask_qnan | float_cmask_snan,
 };
 
+/* Flags for parts_minmax. */
+enum {
+    /* Set for minimum; clear for maximum. */
+    minmax_ismin = 1,
+    /* Set for the IEEE 754-2008 minNum() and maxNum() operations. */
+    minmax_isnum = 2,
+    /* Set for the IEEE 754-2008 minNumMag() and minNumMag() operations. */
+    minmax_ismag = 4,
+};
 
 /* Simple helpers for checking if, or what kind of, NaN we have */
 static inline __attribute__((unused)) bool is_nan(FloatClass c)
@@ -864,6 +873,14 @@ static void parts128_uint_to_float(FloatParts128 *p, uint64_t a,
 
 #define parts_uint_to_float(P, I, Z, S) \
     PARTS_GENERIC_64_128(uint_to_float, P)(P, I, Z, S)
+
+static FloatParts64 *parts64_minmax(FloatParts64 *a, FloatParts64 *b,
+                                    float_status *s, int flags);
+static FloatParts128 *parts128_minmax(FloatParts128 *a, FloatParts128 *b,
+                                      float_status *s, int flags);
+
+#define parts_minmax(A, B, S, F) \
+    PARTS_GENERIC_64_128(minmax, A)(A, B, S, F)
 
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
@@ -3258,145 +3275,74 @@ float128 uint64_to_float128(uint64_t a, float_status *status)
     return float128_round_pack_canonical(&p, status);
 }
 
-/* Float Min/Max */
-/* min() and max() functions. These can't be implemented as
- * 'compare and pick one input' because that would mishandle
- * NaNs and +0 vs -0.
- *
- * minnum() and maxnum() functions. These are similar to the min()
- * and max() functions but if one of the arguments is a QNaN and
- * the other is numerical then the numerical argument is returned.
- * SNaNs will get quietened before being returned.
- * minnum() and maxnum correspond to the IEEE 754-2008 minNum()
- * and maxNum() operations. min() and max() are the typical min/max
- * semantics provided by many CPUs which predate that specification.
- *
- * minnummag() and maxnummag() functions correspond to minNumMag()
- * and minNumMag() from the IEEE-754 2008.
+/*
+ * Minimum and maximum
  */
-static FloatParts64 minmax_floats(FloatParts64 a, FloatParts64 b, bool ismin,
-                                bool ieee, bool ismag, float_status *s)
+
+static float16 float16_minmax(float16 a, float16 b, float_status *s, int flags)
 {
-    if (unlikely(is_nan(a.cls) || is_nan(b.cls))) {
-        if (ieee) {
-            /* Takes two floating-point values `a' and `b', one of
-             * which is a NaN, and returns the appropriate NaN
-             * result. If either `a' or `b' is a signaling NaN,
-             * the invalid exception is raised.
-             */
-            if (is_snan(a.cls) || is_snan(b.cls)) {
-                return *parts_pick_nan(&a, &b, s);
-            } else if (is_nan(a.cls) && !is_nan(b.cls)) {
-                return b;
-            } else if (is_nan(b.cls) && !is_nan(a.cls)) {
-                return a;
-            }
-        }
-        return *parts_pick_nan(&a, &b, s);
-    } else {
-        int a_exp, b_exp;
+    FloatParts64 pa, pb, *pr;
 
-        switch (a.cls) {
-        case float_class_normal:
-            a_exp = a.exp;
-            break;
-        case float_class_inf:
-            a_exp = INT_MAX;
-            break;
-        case float_class_zero:
-            a_exp = INT_MIN;
-            break;
-        default:
-            g_assert_not_reached();
-            break;
-        }
-        switch (b.cls) {
-        case float_class_normal:
-            b_exp = b.exp;
-            break;
-        case float_class_inf:
-            b_exp = INT_MAX;
-            break;
-        case float_class_zero:
-            b_exp = INT_MIN;
-            break;
-        default:
-            g_assert_not_reached();
-            break;
-        }
+    float16_unpack_canonical(&pa, a, s);
+    float16_unpack_canonical(&pb, b, s);
+    pr = parts_minmax(&pa, &pb, s, flags);
 
-        if (ismag && (a_exp != b_exp || a.frac != b.frac)) {
-            bool a_less = a_exp < b_exp;
-            if (a_exp == b_exp) {
-                a_less = a.frac < b.frac;
-            }
-            return a_less ^ ismin ? b : a;
-        }
-
-        if (a.sign == b.sign) {
-            bool a_less = a_exp < b_exp;
-            if (a_exp == b_exp) {
-                a_less = a.frac < b.frac;
-            }
-            return a.sign ^ a_less ^ ismin ? b : a;
-        } else {
-            return a.sign ^ ismin ? b : a;
-        }
-    }
+    return float16_round_pack_canonical(pr, s);
 }
 
-#define MINMAX(sz, name, ismin, isiee, ismag)                           \
-float ## sz float ## sz ## _ ## name(float ## sz a, float ## sz b,      \
-                                     float_status *s)                   \
-{                                                                       \
-    FloatParts64 pa, pb, pr;                                            \
-    float ## sz ## _unpack_canonical(&pa, a, s);                        \
-    float ## sz ## _unpack_canonical(&pb, b, s);                        \
-    pr = minmax_floats(pa, pb, ismin, isiee, ismag, s);                 \
-    return float ## sz ## _round_pack_canonical(&pr, s);                \
+static bfloat16 bfloat16_minmax(bfloat16 a, bfloat16 b,
+                                float_status *s, int flags)
+{
+    FloatParts64 pa, pb, *pr;
+
+    bfloat16_unpack_canonical(&pa, a, s);
+    bfloat16_unpack_canonical(&pb, b, s);
+    pr = parts_minmax(&pa, &pb, s, flags);
+
+    return bfloat16_round_pack_canonical(pr, s);
 }
 
-MINMAX(16, min, true, false, false)
-MINMAX(16, minnum, true, true, false)
-MINMAX(16, minnummag, true, true, true)
-MINMAX(16, max, false, false, false)
-MINMAX(16, maxnum, false, true, false)
-MINMAX(16, maxnummag, false, true, true)
+static float32 float32_minmax(float32 a, float32 b, float_status *s, int flags)
+{
+    FloatParts64 pa, pb, *pr;
 
-MINMAX(32, min, true, false, false)
-MINMAX(32, minnum, true, true, false)
-MINMAX(32, minnummag, true, true, true)
-MINMAX(32, max, false, false, false)
-MINMAX(32, maxnum, false, true, false)
-MINMAX(32, maxnummag, false, true, true)
+    float32_unpack_canonical(&pa, a, s);
+    float32_unpack_canonical(&pb, b, s);
+    pr = parts_minmax(&pa, &pb, s, flags);
 
-MINMAX(64, min, true, false, false)
-MINMAX(64, minnum, true, true, false)
-MINMAX(64, minnummag, true, true, true)
-MINMAX(64, max, false, false, false)
-MINMAX(64, maxnum, false, true, false)
-MINMAX(64, maxnummag, false, true, true)
-
-#undef MINMAX
-
-#define BF16_MINMAX(name, ismin, isiee, ismag)                          \
-bfloat16 bfloat16_ ## name(bfloat16 a, bfloat16 b, float_status *s)     \
-{                                                                       \
-    FloatParts64 pa, pb, pr;                                            \
-    bfloat16_unpack_canonical(&pa, a, s);                               \
-    bfloat16_unpack_canonical(&pb, b, s);                               \
-    pr = minmax_floats(pa, pb, ismin, isiee, ismag, s);                 \
-    return bfloat16_round_pack_canonical(&pr, s);                       \
+    return float32_round_pack_canonical(pr, s);
 }
 
-BF16_MINMAX(min, true, false, false)
-BF16_MINMAX(minnum, true, true, false)
-BF16_MINMAX(minnummag, true, true, true)
-BF16_MINMAX(max, false, false, false)
-BF16_MINMAX(maxnum, false, true, false)
-BF16_MINMAX(maxnummag, false, true, true)
+static float64 float64_minmax(float64 a, float64 b, float_status *s, int flags)
+{
+    FloatParts64 pa, pb, *pr;
 
-#undef BF16_MINMAX
+    float64_unpack_canonical(&pa, a, s);
+    float64_unpack_canonical(&pb, b, s);
+    pr = parts_minmax(&pa, &pb, s, flags);
+
+    return float64_round_pack_canonical(pr, s);
+}
+
+#define MINMAX_1(type, name, flags) \
+    type type##_##name(type a, type b, float_status *s) \
+    { return type##_minmax(a, b, s, flags); }
+
+#define MINMAX_2(type) \
+    MINMAX_1(type, max, 0)                                      \
+    MINMAX_1(type, maxnum, minmax_isnum)                        \
+    MINMAX_1(type, maxnummag, minmax_isnum | minmax_ismag)      \
+    MINMAX_1(type, min, minmax_ismin)                           \
+    MINMAX_1(type, minnum, minmax_ismin | minmax_isnum)         \
+    MINMAX_1(type, minnummag, minmax_ismin | minmax_isnum | minmax_ismag)
+
+MINMAX_2(float16)
+MINMAX_2(bfloat16)
+MINMAX_2(float32)
+MINMAX_2(float64)
+
+#undef MINMAX_1
+#undef MINMAX_2
 
 /* Floating point compare */
 static FloatRelation compare_floats(FloatParts64 a, FloatParts64 b, bool is_quiet,
