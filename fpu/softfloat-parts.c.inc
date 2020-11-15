@@ -1075,3 +1075,24 @@ static FloatRelation partsN(compare)(FloatPartsN *a, FloatPartsN *b,
  b_sign:
     return b->sign ? float_relation_greater : float_relation_less;
 }
+
+/*
+ * Multiply A by 2 raised to the power N.
+ */
+static void partsN(scalbn)(FloatPartsN *a, int n, float_status *s)
+{
+    switch (a->cls) {
+    case float_class_snan:
+    case float_class_qnan:
+        parts_return_nan(a, s);
+        break;
+    case float_class_zero:
+    case float_class_inf:
+        break;
+    case float_class_normal:
+        a->exp += MIN(MAX(n, -0x10000), 0x10000);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}

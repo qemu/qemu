@@ -890,6 +890,12 @@ static int parts128_compare(FloatParts128 *a, FloatParts128 *b,
 #define parts_compare(A, B, S, Q) \
     PARTS_GENERIC_64_128(compare, A)(A, B, S, Q)
 
+static void parts64_scalbn(FloatParts64 *a, int n, float_status *s);
+static void parts128_scalbn(FloatParts128 *a, int n, float_status *s);
+
+#define parts_scalbn(A, N, S) \
+    PARTS_GENERIC_64_128(scalbn, A)(A, N, S)
+
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
@@ -3529,58 +3535,53 @@ FloatRelation float128_compare_quiet(float128 a, float128 b, float_status *s)
     return float128_do_compare(a, b, s, true);
 }
 
-/* Multiply A by 2 raised to the power N.  */
-static FloatParts64 scalbn_decomposed(FloatParts64 a, int n, float_status *s)
-{
-    if (unlikely(is_nan(a.cls))) {
-        parts_return_nan(&a, s);
-    }
-    if (a.cls == float_class_normal) {
-        /* The largest float type (even though not supported by FloatParts64)
-         * is float128, which has a 15 bit exponent.  Bounding N to 16 bits
-         * still allows rounding to infinity, without allowing overflow
-         * within the int32_t that backs FloatParts64.exp.
-         */
-        n = MIN(MAX(n, -0x10000), 0x10000);
-        a.exp += n;
-    }
-    return a;
-}
+/*
+ * Scale by 2**N
+ */
 
 float16 float16_scalbn(float16 a, int n, float_status *status)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float16_unpack_canonical(&pa, a, status);
-    pr = scalbn_decomposed(pa, n, status);
-    return float16_round_pack_canonical(&pr, status);
+    float16_unpack_canonical(&p, a, status);
+    parts_scalbn(&p, n, status);
+    return float16_round_pack_canonical(&p, status);
 }
 
 float32 float32_scalbn(float32 a, int n, float_status *status)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float32_unpack_canonical(&pa, a, status);
-    pr = scalbn_decomposed(pa, n, status);
-    return float32_round_pack_canonical(&pr, status);
+    float32_unpack_canonical(&p, a, status);
+    parts_scalbn(&p, n, status);
+    return float32_round_pack_canonical(&p, status);
 }
 
 float64 float64_scalbn(float64 a, int n, float_status *status)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float64_unpack_canonical(&pa, a, status);
-    pr = scalbn_decomposed(pa, n, status);
-    return float64_round_pack_canonical(&pr, status);
+    float64_unpack_canonical(&p, a, status);
+    parts_scalbn(&p, n, status);
+    return float64_round_pack_canonical(&p, status);
 }
 
 bfloat16 bfloat16_scalbn(bfloat16 a, int n, float_status *status)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    bfloat16_unpack_canonical(&pa, a, status);
-    pr = scalbn_decomposed(pa, n, status);
-    return bfloat16_round_pack_canonical(&pr, status);
+    bfloat16_unpack_canonical(&p, a, status);
+    parts_scalbn(&p, n, status);
+    return bfloat16_round_pack_canonical(&p, status);
+}
+
+float128 float128_scalbn(float128 a, int n, float_status *status)
+{
+    FloatParts128 p;
+
+    float128_unpack_canonical(&p, a, status);
+    parts_scalbn(&p, n, status);
+    return float128_round_pack_canonical(&p, status);
 }
 
 /*
@@ -6636,42 +6637,6 @@ floatx80 floatx80_scalbn(floatx80 a, int n, float_status *status)
     aExp += n;
     return normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision,
                                          aSign, aExp, aSig, 0, status);
-}
-
-float128 float128_scalbn(float128 a, int n, float_status *status)
-{
-    bool aSign;
-    int32_t aExp;
-    uint64_t aSig0, aSig1;
-
-    aSig1 = extractFloat128Frac1( a );
-    aSig0 = extractFloat128Frac0( a );
-    aExp = extractFloat128Exp( a );
-    aSign = extractFloat128Sign( a );
-    if ( aExp == 0x7FFF ) {
-        if ( aSig0 | aSig1 ) {
-            return propagateFloat128NaN(a, a, status);
-        }
-        return a;
-    }
-    if (aExp != 0) {
-        aSig0 |= UINT64_C(0x0001000000000000);
-    } else if (aSig0 == 0 && aSig1 == 0) {
-        return a;
-    } else {
-        aExp++;
-    }
-
-    if (n > 0x10000) {
-        n = 0x10000;
-    } else if (n < -0x10000) {
-        n = -0x10000;
-    }
-
-    aExp += n - 1;
-    return normalizeRoundAndPackFloat128( aSign, aExp, aSig0, aSig1
-                                         , status);
-
 }
 
 static void __attribute__((constructor)) softfloat_init(void)
