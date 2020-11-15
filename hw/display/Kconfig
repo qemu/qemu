@@ -9,9 +9,6 @@ config EDID
 config FW_CFG_DMA
     bool
 
-config ADS7846
-    bool
-
 config VGA_CIRRUS
     bool
     default y if PCI_DEVICES
