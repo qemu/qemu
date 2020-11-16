@@ -413,6 +413,12 @@ typedef enum {
     MAN_GENERIC,
 } Manufacturer;
 
+typedef enum {
+    MODE_STD = 0,
+    MODE_DIO = 1,
+    MODE_QIO = 2
+} SPIMode;
+
 #define M25P80_INTERNAL_DATA_BUFFER_SZ 16
 
 struct Flash {
@@ -820,6 +826,17 @@ static void reset_memory(Flash *s)
     trace_m25p80_reset_done(s);
 }
 
+static uint8_t numonyx_mode(Flash *s)
+{
+    if (!(s->enh_volatile_cfg & EVCFG_QUAD_IO_DISABLED)) {
+        return MODE_QIO;
+    } else if (!(s->enh_volatile_cfg & EVCFG_DUAL_IO_DISABLED)) {
+        return MODE_DIO;
+    } else {
+        return MODE_STD;
+    }
+}
+
 static void decode_fast_read_cmd(Flash *s)
 {
     s->needed_bytes = get_addr_length(s);
@@ -950,14 +967,8 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case ERASE4_32K:
     case ERASE_SECTOR:
     case ERASE4_SECTOR:
-    case READ:
-    case READ4:
-    case DPP:
-    case QPP:
-    case QPP_4:
     case PP:
     case PP4:
-    case PP4_4:
     case DIE_ERASE:
     case RDID_90:
     case RDID_AB:
@@ -966,24 +977,84 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         s->len = 0;
         s->state = STATE_COLLECTING_DATA;
         break;
+    case READ:
+    case READ4:
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) == MODE_STD) {
+            s->needed_bytes = get_addr_length(s);
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "DIO or QIO mode\n", s->cmd_in_progress);
+        }
+        break;
+    case DPP:
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_QIO) {
+            s->needed_bytes = get_addr_length(s);
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "QIO mode\n", s->cmd_in_progress);
+        }
+        break;
+    case QPP:
+    case QPP_4:
+    case PP4_4:
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_DIO) {
+            s->needed_bytes = get_addr_length(s);
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "DIO mode\n", s->cmd_in_progress);
+        }
+        break;
 
     case FAST_READ:
     case FAST_READ4:
+        decode_fast_read_cmd(s);
+        break;
     case DOR:
     case DOR4:
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_QIO) {
+            decode_fast_read_cmd(s);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "QIO mode\n", s->cmd_in_progress);
+        }
+        break;
     case QOR:
     case QOR4:
-        decode_fast_read_cmd(s);
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_DIO) {
+            decode_fast_read_cmd(s);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "DIO mode\n", s->cmd_in_progress);
+        }
         break;
 
     case DIOR:
     case DIOR4:
-        decode_dio_read_cmd(s);
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_QIO) {
+            decode_dio_read_cmd(s);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "QIO mode\n", s->cmd_in_progress);
+        }
         break;
 
     case QIOR:
     case QIOR4:
-        decode_qio_read_cmd(s);
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_DIO) {
+            decode_qio_read_cmd(s);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "DIO mode\n", s->cmd_in_progress);
+        }
         break;
 
     case WRSR:
@@ -1035,17 +1106,22 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
 
     case JEDEC_READ:
-        trace_m25p80_populated_jedec(s);
-        for (i = 0; i < s->pi->id_len; i++) {
-            s->data[i] = s->pi->id[i];
-        }
-        for (; i < SPI_NOR_MAX_ID_LEN; i++) {
-            s->data[i] = 0;
-        }
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) == MODE_STD) {
+            trace_m25p80_populated_jedec(s);
+            for (i = 0; i < s->pi->id_len; i++) {
+                s->data[i] = s->pi->id[i];
+            }
+            for (; i < SPI_NOR_MAX_ID_LEN; i++) {
+                s->data[i] = 0;
+            }
 
-        s->len = SPI_NOR_MAX_ID_LEN;
-        s->pos = 0;
-        s->state = STATE_READING_DATA;
+            s->len = SPI_NOR_MAX_ID_LEN;
+            s->pos = 0;
+            s->state = STATE_READING_DATA;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute JEDEC read "
+                          "in DIO or QIO mode\n");
+        }
         break;
 
     case RDCR:
