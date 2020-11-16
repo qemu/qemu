@@ -1160,6 +1160,7 @@ static abi_long target_to_host_data_route_rtattr(struct rtattr *rtattr)
         break;
     /* u32 */
     case QEMU_RTA_PRIORITY:
+    case QEMU_RTA_TABLE:
     case QEMU_RTA_OIF:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
@@ -1200,11 +1201,10 @@ static abi_long target_to_host_data_route(struct nlmsghdr *nlh)
     struct rtmsg *rtm;
 
     switch (nlh->nlmsg_type) {
-    case RTM_GETLINK:
-        break;
     case RTM_NEWLINK:
     case RTM_DELLINK:
     case RTM_SETLINK:
+    case RTM_GETLINK:
         if (nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(*ifi))) {
             ifi = NLMSG_DATA(nlh);
             ifi->ifi_type = tswap16(ifi->ifi_type);
@@ -1225,10 +1225,9 @@ static abi_long target_to_host_data_route(struct nlmsghdr *nlh)
                                        NLMSG_LENGTH(sizeof(*ifa)));
         }
         break;
-    case RTM_GETROUTE:
-        break;
     case RTM_NEWROUTE:
     case RTM_DELROUTE:
+    case RTM_GETROUTE:
         if (nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(*rtm))) {
             rtm = NLMSG_DATA(nlh);
             rtm->rtm_flags = tswap32(rtm->rtm_flags);
