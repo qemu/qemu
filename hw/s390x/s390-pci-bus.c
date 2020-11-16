@@ -732,6 +732,13 @@ static void s390_pci_iommu_free(S390pciState *s, PCIBus *bus, int32_t devfn)
 
     table->iommu[PCI_SLOT(devfn)] = NULL;
     g_hash_table_destroy(iommu->iotlb);
+    /*
+     * An attached PCI device may have memory listeners, eg. VFIO PCI.
+     * The associated subregion will already have been unmapped in
+     * s390_pci_iommu_disable in response to the guest deconfigure request.
+     * Remove the listeners now before destroying the address space.
+     */
+    address_space_remove_listeners(&iommu->as);
     address_space_destroy(&iommu->as);
     object_unparent(OBJECT(&iommu->mr));
     object_unparent(OBJECT(iommu));
