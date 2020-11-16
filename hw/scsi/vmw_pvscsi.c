@@ -511,7 +511,7 @@ pvscsi_write_sense(PVSCSIRequest *r, uint8_t *sense, int len)
 }
 
 static void
-pvscsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid)
+pvscsi_command_complete(SCSIRequest *req, size_t resid)
 {
     PVSCSIRequest *pvscsi_req = req->hba_private;
     PVSCSIState *s;
@@ -528,7 +528,7 @@ pvscsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid)
         pvscsi_req->cmp.hostStatus = BTSTAT_DATARUN;
     }
 
-    pvscsi_req->cmp.scsiStatus = status;
+    pvscsi_req->cmp.scsiStatus = req->status;
     if (pvscsi_req->cmp.scsiStatus == CHECK_CONDITION) {
         uint8_t sense[SCSI_SENSE_BUF_SIZE];
         int sense_len =

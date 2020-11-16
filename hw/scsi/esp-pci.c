@@ -329,13 +329,12 @@ static const VMStateDescription vmstate_esp_pci_scsi = {
     }
 };
 
-static void esp_pci_command_complete(SCSIRequest *req, uint32_t status,
-                                     size_t resid)
+static void esp_pci_command_complete(SCSIRequest *req, size_t resid)
 {
     ESPState *s = req->hba_private;
     PCIESPState *pci = container_of(s, PCIESPState, esp);
 
-    esp_command_complete(req, status, resid);
+    esp_command_complete(req, resid);
     pci->dma_regs[DMA_WBC] = 0;
     pci->dma_regs[DMA_STAT] |= DMA_STAT_DONE;
 }

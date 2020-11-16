@@ -551,19 +551,19 @@ static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 }
 
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
-static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status, size_t resid)
+static void vscsi_command_complete(SCSIRequest *sreq, size_t resid)
 {
     VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(sreq->bus->qbus.parent);
     vscsi_req *req = sreq->hba_private;
     int32_t res_in = 0, res_out = 0;
 
-    trace_spapr_vscsi_command_complete(sreq->tag, status, req);
+    trace_spapr_vscsi_command_complete(sreq->tag, sreq->status, req);
     if (req == NULL) {
         fprintf(stderr, "VSCSI: Can't find request for tag 0x%x\n", sreq->tag);
         return;
     }
 
-    if (status == CHECK_CONDITION) {
+    if (sreq->status == CHECK_CONDITION) {
         req->senselen = scsi_req_get_sense(req->sreq, req->sense,
                                            sizeof(req->sense));
         trace_spapr_vscsi_command_complete_sense_data1(req->senselen,
@@ -574,8 +574,8 @@ static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status, size_t re
                 req->sense[12], req->sense[13], req->sense[14], req->sense[15]);
     }
 
-    trace_spapr_vscsi_command_complete_status(status);
-    if (status == 0) {
+    trace_spapr_vscsi_command_complete_status(sreq->status);
+    if (sreq->status == 0) {
         /* We handle overflows, not underflows for normal commands,
          * but hopefully nobody cares
          */
@@ -585,7 +585,7 @@ static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status, size_t re
             res_in = req->data_len;
         }
     }
-    vscsi_send_rsp(s, req, status, res_in, res_out);
+    vscsi_send_rsp(s, req, sreq->status, res_in, res_out);
     vscsi_put_req(req);
 }
 
