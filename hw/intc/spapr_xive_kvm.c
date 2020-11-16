@@ -36,9 +36,10 @@ typedef struct KVMEnabledCPU {
 static QLIST_HEAD(, KVMEnabledCPU)
     kvm_enabled_cpus = QLIST_HEAD_INITIALIZER(&kvm_enabled_cpus);
 
-static bool kvm_cpu_is_enabled(unsigned long vcpu_id)
+static bool kvm_cpu_is_enabled(CPUState *cs)
 {
     KVMEnabledCPU *enabled_cpu;
+    unsigned long vcpu_id = kvm_arch_vcpu_id(cs);
 
     QLIST_FOREACH(enabled_cpu, &kvm_enabled_cpus, node) {
         if (enabled_cpu->vcpu_id == vcpu_id) {
@@ -146,45 +147,6 @@ int kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp)
     return s.ret;
 }
 
-/*
- * Allocate the vCPU IPIs from the vCPU context. This will allocate
- * the XIVE IPI interrupt on the chip on which the vCPU is running.
- * This gives a better distribution of IPIs when the guest has a lot
- * of vCPUs. When the vCPUs are pinned, this will make the IPI local
- * to the chip of the vCPU. It will reduce rerouting between interrupt
- * controllers and gives better performance.
- */
-typedef struct {
-    SpaprXive *xive;
-    Error *err;
-    int rc;
-} XiveInitIPI;
-
-static void kvmppc_xive_reset_ipi_on_cpu(CPUState *cs, run_on_cpu_data arg)
-{
-    unsigned long ipi = kvm_arch_vcpu_id(cs);
-    XiveInitIPI *s = arg.host_ptr;
-    uint64_t state = 0;
-
-    s->rc = kvm_device_access(s->xive->fd, KVM_DEV_XIVE_GRP_SOURCE, ipi,
-                              &state, true, &s->err);
-}
-
-static int kvmppc_xive_reset_ipi(SpaprXive *xive, CPUState *cs, Error **errp)
-{
-    XiveInitIPI s = {
-        .xive = xive,
-        .err  = NULL,
-        .rc   = 0,
-    };
-
-    run_on_cpu(cs, kvmppc_xive_reset_ipi_on_cpu, RUN_ON_CPU_HOST_PTR(&s));
-    if (s.err) {
-        error_propagate(errp, s.err);
-    }
-    return s.rc;
-}
-
 int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
 {
     ERRP_GUARD();
@@ -195,7 +157,7 @@ int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
     assert(xive->fd != -1);
 
     /* Check if CPU was hot unplugged and replugged. */
-    if (kvm_cpu_is_enabled(kvm_arch_vcpu_id(tctx->cs))) {
+    if (kvm_cpu_is_enabled(tctx->cs)) {
         return 0;
     }
 
@@ -211,12 +173,6 @@ int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
             error_append_hint(errp, "Try -smp maxcpus=N with N < %u\n",
                               MACHINE(qdev_get_machine())->smp.max_cpus);
         }
-        return ret;
-    }
-
-    /* Create/reset the vCPU IPI */
-    ret = kvmppc_xive_reset_ipi(xive, tctx->cs, errp);
-    if (ret < 0) {
         return ret;
     }
 
@@ -279,12 +235,6 @@ int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
 
     assert(xive->fd != -1);
 
-    /*
-     * The vCPU IPIs are now allocated in kvmppc_xive_cpu_connect()
-     * and not with all sources in kvmppc_xive_source_reset()
-     */
-    assert(srcno >= SPAPR_XIRQ_BASE);
-
     if (xive_source_irq_is_lsi(xsrc, srcno)) {
         state |= KVM_XIVE_LEVEL_SENSITIVE;
         if (xsrc->status[srcno] & XIVE_STATUS_ASSERTED) {
@@ -296,28 +246,12 @@ int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
                              true, errp);
 }
 
-/*
- * To be valid, a source must have been claimed by the machine (valid
- * entry in the EAS table) and if it is a vCPU IPI, the vCPU should
- * have been enabled, which means the IPI has been allocated in
- * kvmppc_xive_cpu_connect().
- */
-static bool xive_source_is_valid(SpaprXive *xive, int i)
-{
-    return xive_eas_is_valid(&xive->eat[i]) &&
-        (i >= SPAPR_XIRQ_BASE || kvm_cpu_is_enabled(i));
-}
-
 static int kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
 {
     SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     int i;
 
-    /*
-     * Skip the vCPU IPIs. These are created/reset when the vCPUs are
-     * connected in kvmppc_xive_cpu_connect()
-     */
-    for (i = SPAPR_XIRQ_BASE; i < xsrc->nr_irqs; i++) {
+    for (i = 0; i < xsrc->nr_irqs; i++) {
         int ret;
 
         if (!xive_eas_is_valid(&xive->eat[i])) {
@@ -399,7 +333,7 @@ static void kvmppc_xive_source_get_state(XiveSource *xsrc)
     for (i = 0; i < xsrc->nr_irqs; i++) {
         uint8_t pq;
 
-        if (!xive_source_is_valid(xive, i)) {
+        if (!xive_eas_is_valid(&xive->eat[i])) {
             continue;
         }
 
@@ -582,7 +516,7 @@ static void kvmppc_xive_change_state_handler(void *opaque, int running,
             uint8_t pq;
             uint8_t old_pq;
 
-            if (!xive_source_is_valid(xive, i)) {
+            if (!xive_eas_is_valid(&xive->eat[i])) {
                 continue;
             }
 
@@ -610,7 +544,7 @@ static void kvmppc_xive_change_state_handler(void *opaque, int running,
     for (i = 0; i < xsrc->nr_irqs; i++) {
         uint8_t pq;
 
-        if (!xive_source_is_valid(xive, i)) {
+        if (!xive_eas_is_valid(&xive->eat[i])) {
             continue;
         }
 
@@ -713,20 +647,20 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
         }
     }
 
-    /*
-     * We can only restore the source config if the source has been
-     * previously set in KVM. Since we don't do that at reset time
-     * when restoring a VM, let's do it now.
-     */
-    ret = kvmppc_xive_source_reset(&xive->source, &local_err);
-    if (ret < 0) {
-        goto fail;
-    }
-
     /* Restore the EAT */
     for (i = 0; i < xive->nr_irqs; i++) {
-        if (!xive_source_is_valid(xive, i)) {
+        if (!xive_eas_is_valid(&xive->eat[i])) {
             continue;
+        }
+
+        /*
+         * We can only restore the source config if the source has been
+         * previously set in KVM. Since we don't do that for all interrupts
+         * at reset time anymore, let's do it now.
+         */
+        ret = kvmppc_xive_source_reset_one(&xive->source, i, &local_err);
+        if (ret < 0) {
+            goto fail;
         }
 
         ret = kvmppc_xive_set_source_config(xive, i, &xive->eat[i], &local_err);
