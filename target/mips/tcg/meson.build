@@ -18,6 +18,7 @@ mips_ss.add(files(
   'translate.c',
   'translate_addr_const.c',
   'txx9_translate.c',
+  'vr54xx_helper.c',
 ))
 mips_ss.add(when: 'TARGET_MIPS64', if_true: files(
   'tx79_translate.c',
