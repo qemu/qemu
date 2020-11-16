@@ -2168,6 +2168,7 @@ static void send_color_map(VncState *vs)
 {
     int i;
 
+    vnc_lock_output(vs);
     vnc_write_u8(vs, VNC_MSG_SERVER_SET_COLOUR_MAP_ENTRIES);
     vnc_write_u8(vs,  0);    /* padding     */
     vnc_write_u16(vs, 0);    /* first color */
@@ -2180,6 +2181,7 @@ static void send_color_map(VncState *vs)
         vnc_write_u16(vs, (((i >> pf->gshift) & pf->gmax) << (16 - pf->gbits)));
         vnc_write_u16(vs, (((i >> pf->bshift) & pf->bmax) << (16 - pf->bbits)));
     }
+    vnc_unlock_output(vs);
 }
 
 static void set_pixel_format(VncState *vs, int bits_per_pixel,
