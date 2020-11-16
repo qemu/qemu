@@ -908,15 +908,13 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
             return;
         }
 
-        if (recursive) {
-            need_reset = true;
-            msg = g_strdup_printf("CPU %d: Previous MCE still in progress, "
-                                  "raising triple fault", cs->cpu_index);
-        }
-
         if (!(cenv->cr[4] & CR4_MCE_MASK)) {
             need_reset = true;
             msg = g_strdup_printf("CPU %d: MCE capability is not enabled, "
+                                  "raising triple fault", cs->cpu_index);
+        } else if (recursive) {
+            need_reset = true;
+            msg = g_strdup_printf("CPU %d: Previous MCE still in progress, "
                                   "raising triple fault", cs->cpu_index);
         }
 
