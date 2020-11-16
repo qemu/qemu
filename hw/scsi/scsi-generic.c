@@ -129,6 +129,8 @@ static int execute_command(BlockBackend *blk,
     r->io_header.usr_ptr = r;
     r->io_header.flags |= SG_FLAG_DIRECT_IO;
 
+    trace_scsi_generic_aio_sgio_command(r->req.tag, r->req.cmd.buf[0],
+                                        r->io_header.timeout);
     r->req.aiocb = blk_aio_ioctl(blk, SG_IO, &r->io_header, complete, r);
     if (r->req.aiocb == NULL) {
         return -EIO;
@@ -525,8 +527,12 @@ int scsi_SG_IO_FROM_DEV(BlockBackend *blk, uint8_t *cmd, uint8_t cmd_size,
     io_header.sbp = sensebuf;
     io_header.timeout = timeout * 1000;
 
+    trace_scsi_generic_ioctl_sgio_command(cmd[0], io_header.timeout);
     ret = blk_ioctl(blk, SG_IO, &io_header);
-    if (ret < 0 || io_header.driver_status || io_header.host_status) {
+    if (ret < 0 || io_header.status ||
+        io_header.driver_status || io_header.host_status) {
+        trace_scsi_generic_ioctl_sgio_done(cmd[0], ret, io_header.status,
+                                           io_header.host_status);
         return -1;
     }
     return 0;

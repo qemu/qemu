@@ -2788,7 +2788,8 @@ static BlockAIOCB *scsi_block_do_sgio(SCSIBlockReq *req,
     io_header->timeout = s->qdev.io_timeout * 1000;
     io_header->usr_ptr = r;
     io_header->flags |= SG_FLAG_DIRECT_IO;
-
+    trace_scsi_disk_aio_sgio_command(r->req.tag, req->cdb[0], lba,
+                                     nb_logical_blocks, io_header->timeout);
     aiocb = blk_aio_ioctl(s->qdev.conf.blk, SG_IO, io_header, cb, opaque);
     assert(aiocb != NULL);
     return aiocb;
