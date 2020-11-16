@@ -4914,23 +4914,36 @@ void sve_ldnfff1_r(CPUARMState *env, void *vg, const target_ulong addr,
         } while (reg_off <= reg_last && (reg_off & 63));
     } while (reg_off <= reg_last);
 
-    /*
-     * MemSingleNF is allowed to fail for any reason.  We have special
-     * code above to handle the first element crossing a page boundary.
-     * As an implementation choice, decline to handle a cross-page element
-     * in any other position.
-     */
-    reg_off = info.reg_off_split;
-    if (reg_off >= 0) {
-        goto do_fault;
-    }
-
  second_page:
     reg_off = info.reg_off_first[1];
     if (likely(reg_off < 0)) {
         /* No active elements on the second page.  All done. */
         return;
     }
+
+    mem_off = info.mem_off_first[1];
+    reg_last = info.reg_off_last[1];
+    host = info.page[1].host;
+
+    do {
+        uint64_t pg = *(uint64_t *)(vg + (reg_off >> 3));
+        do {
+            if ((pg >> (reg_off & 63)) & 1) {
+                if (unlikely(flags & TLB_WATCHPOINT) &&
+                    (cpu_watchpoint_address_matches
+                     (env_cpu(env), addr + mem_off, 1 << msz)
+                     & BP_MEM_READ)) {
+                    goto do_fault;
+                }
+                if (mtedesc && !mte_probe1(env, mtedesc, addr + mem_off)) {
+                    goto do_fault;
+                }
+                host_fn(vd, reg_off, host + mem_off);
+            }
+            reg_off += 1 << esz;
+            mem_off += 1 << msz;
+        } while (reg_off <= reg_last && (reg_off & 63));
+    } while (reg_off <= reg_last);
 
     /*
      * MemSingleNF is allowed to fail for any reason.  As an implementation
