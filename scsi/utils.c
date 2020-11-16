@@ -658,26 +658,3 @@ int scsi_sense_from_host_status(uint8_t host_status,
     }
     return GOOD;
 }
-
-#ifdef CONFIG_LINUX
-int sg_io_sense_from_errno(int errno_value, struct sg_io_hdr *io_hdr,
-                           SCSISense *sense)
-{
-    if (errno_value != 0) {
-        return scsi_sense_from_errno(errno_value, sense);
-    } else {
-        int status = scsi_sense_from_host_status(io_hdr->host_status, sense);
-        if (status) {
-            return status;
-        } else if (io_hdr->driver_status & SG_ERR_DRIVER_TIMEOUT) {
-            return BUSY;
-        } else if (io_hdr->status) {
-            return io_hdr->status;
-        } else if (io_hdr->driver_status & SG_ERR_DRIVER_SENSE) {
-            return CHECK_CONDITION;
-        } else {
-            return GOOD;
-        }
-    }
-}
-#endif
