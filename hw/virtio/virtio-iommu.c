@@ -129,7 +129,7 @@ static void virtio_iommu_notify_map(IOMMUMemoryRegion *mr, hwaddr virt_start,
                                     hwaddr virt_end, hwaddr paddr,
                                     uint32_t flags)
 {
-    IOMMUTLBEntry entry;
+    IOMMUTLBEvent event;
     IOMMUAccessFlags perm = IOMMU_ACCESS_FLAG(flags & VIRTIO_IOMMU_MAP_F_READ,
                                               flags & VIRTIO_IOMMU_MAP_F_WRITE);
 
@@ -141,19 +141,20 @@ static void virtio_iommu_notify_map(IOMMUMemoryRegion *mr, hwaddr virt_start,
     trace_virtio_iommu_notify_map(mr->parent_obj.name, virt_start, virt_end,
                                   paddr, perm);
 
-    entry.target_as = &address_space_memory;
-    entry.addr_mask = virt_end - virt_start;
-    entry.iova = virt_start;
-    entry.perm = perm;
-    entry.translated_addr = paddr;
+    event.type = IOMMU_NOTIFIER_MAP;
+    event.entry.target_as = &address_space_memory;
+    event.entry.addr_mask = virt_end - virt_start;
+    event.entry.iova = virt_start;
+    event.entry.perm = perm;
+    event.entry.translated_addr = paddr;
 
-    memory_region_notify_iommu(mr, 0, entry);
+    memory_region_notify_iommu(mr, 0, event);
 }
 
 static void virtio_iommu_notify_unmap(IOMMUMemoryRegion *mr, hwaddr virt_start,
                                       hwaddr virt_end)
 {
-    IOMMUTLBEntry entry;
+    IOMMUTLBEvent event;
 
     if (!(mr->iommu_notify_flags & IOMMU_NOTIFIER_UNMAP)) {
         return;
@@ -161,13 +162,14 @@ static void virtio_iommu_notify_unmap(IOMMUMemoryRegion *mr, hwaddr virt_start,
 
     trace_virtio_iommu_notify_unmap(mr->parent_obj.name, virt_start, virt_end);
 
-    entry.target_as = &address_space_memory;
-    entry.addr_mask = virt_end - virt_start;
-    entry.iova = virt_start;
-    entry.perm = IOMMU_NONE;
-    entry.translated_addr = 0;
+    event.type = IOMMU_NOTIFIER_UNMAP;
+    event.entry.target_as = &address_space_memory;
+    event.entry.addr_mask = virt_end - virt_start;
+    event.entry.iova = virt_start;
+    event.entry.perm = IOMMU_NONE;
+    event.entry.translated_addr = 0;
 
-    memory_region_notify_iommu(mr, 0, entry);
+    memory_region_notify_iommu(mr, 0, event);
 }
 
 static gboolean virtio_iommu_notify_unmap_cb(gpointer key, gpointer value,
