@@ -120,6 +120,7 @@ static void ppc6xx_set_irq(void *opaque, int pin, int level)
             } else {
                 cpu_ppc_tb_stop(env);
             }
+            break;
         case PPC6xx_INPUT_INT:
             /* Level sensitive - active high */
             LOG_IRQ("%s: set the external IRQ state to %d\n",
