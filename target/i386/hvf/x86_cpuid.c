@@ -122,6 +122,10 @@ uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
                 CPUID_PAT | CPUID_PSE36 | CPUID_EXT2_MMXEXT | CPUID_MMX |
                 CPUID_FXSR | CPUID_EXT2_FXSR | CPUID_EXT2_PDPE1GB | CPUID_EXT2_3DNOWEXT |
                 CPUID_EXT2_3DNOW | CPUID_EXT2_LM | CPUID_EXT2_RDTSCP | CPUID_EXT2_NX;
+        hv_vmx_read_capability(HV_VMX_CAP_PROCBASED2, &cap);
+        if (!(cap & CPU_BASED2_RDTSCP)) {
+            edx &= ~CPUID_EXT2_RDTSCP;
+        }
         hv_vmx_read_capability(HV_VMX_CAP_PROCBASED, &cap);
         if (!(cap & CPU_BASED_TSC_OFFSET)) {
             edx &= ~CPUID_EXT2_RDTSCP;
