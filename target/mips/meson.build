@@ -8,6 +8,7 @@ mips_ss.add(when: 'CONFIG_TCG', if_true: files(
   'fpu_helper.c',
   'lmmi_helper.c',
   'msa_helper.c',
+  'msa_translate.c',
   'op_helper.c',
   'tlb_helper.c',
   'translate.c',
