@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "exec/ramlist.h"
 #include "exec/cpu-common.h"
+#include "exec/memory.h"
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "standard-headers/linux/pci_regs.h"
@@ -494,8 +495,20 @@ QEMUVFIOState *qemu_vfio_open_pci(const char *device, Error **errp)
     int r;
     QEMUVFIOState *s = g_new0(QEMUVFIOState, 1);
 
+    /*
+     * VFIO may pin all memory inside mappings, resulting it in pinning
+     * all memory inside RAM blocks unconditionally.
+     */
+    r = ram_block_discard_disable(true);
+    if (r) {
+        error_setg_errno(errp, -r, "Cannot set discarding of RAM broken");
+        g_free(s);
+        return NULL;
+    }
+
     r = qemu_vfio_init_pci(s, device, errp);
     if (r) {
+        ram_block_discard_disable(false);
         g_free(s);
         return NULL;
     }
@@ -837,4 +850,5 @@ void qemu_vfio_close(QEMUVFIOState *s)
     close(s->device);
     close(s->group);
     close(s->container);
+    ram_block_discard_disable(false);
 }
