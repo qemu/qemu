@@ -44,6 +44,8 @@ option('brlapi', type : 'feature', value : 'auto',
        description: 'brlapi character device driver')
 option('bzip2', type : 'feature', value : 'auto',
        description: 'bzip2 support for DMG images')
+option('cap_ng', type : 'feature', value : 'auto',
+       description: 'cap_ng support')
 option('cocoa', type : 'feature', value : 'auto',
        description: 'Cocoa user interface (macOS only)')
 option('curl', type : 'feature', value : 'auto',

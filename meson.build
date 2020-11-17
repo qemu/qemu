@@ -338,10 +338,28 @@ if not get_option('seccomp').auto() or have_system or have_tools
                        required: get_option('seccomp'),
                        method: 'pkg-config', static: enable_static)
 endif
+
 libcap_ng = not_found
-if 'CONFIG_LIBCAP_NG' in config_host
-  libcap_ng = declare_dependency(link_args: config_host['LIBCAP_NG_LIBS'].split())
+if not get_option('cap_ng').auto() or have_system or have_tools
+  libcap_ng = cc.find_library('cap-ng', has_headers: ['cap-ng.h'],
+                              required: get_option('cap_ng'),
+                              static: enable_static)
 endif
+if libcap_ng.found() and not cc.links('''
+   #include <cap-ng.h>
+   int main(void)
+   {
+     capng_capability_to_name(CAPNG_EFFECTIVE);
+     return 0;
+   }''', dependencies: libcap_ng)
+  libcap_ng = not_found
+  if get_option('cap_ng').enabled()
+    error('could not link libcap-ng')
+  else
+    warning('could not link libcap-ng, disabling')
+  endif
+endif
+
 if get_option('xkbcommon').auto() and not have_system and not have_tools
   xkbcommon = not_found
 else
@@ -1013,6 +1031,7 @@ if glusterfs.found()
   config_host_data.set('CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT', glusterfs_ftruncate_has_stat)
   config_host_data.set('CONFIG_GLUSTERFS_IOCB_HAS_STAT', glusterfs_iocb_has_stat)
 endif
+config_host_data.set('CONFIG_LIBCAP_NG', libcap_ng.found())
 config_host_data.set('CONFIG_LIBISCSI', libiscsi.found())
 config_host_data.set('CONFIG_LIBNFS', libnfs.found())
 config_host_data.set('CONFIG_RBD', rbd.found())
@@ -2354,7 +2373,7 @@ summary_info += {'fdatasync':         config_host.has_key('CONFIG_FDATASYNC')}
 summary_info += {'madvise':           config_host.has_key('CONFIG_MADVISE')}
 summary_info += {'posix_madvise':     config_host.has_key('CONFIG_POSIX_MADVISE')}
 summary_info += {'posix_memalign':    config_host.has_key('CONFIG_POSIX_MEMALIGN')}
-summary_info += {'libcap-ng support': config_host.has_key('CONFIG_LIBCAP_NG')}
+summary_info += {'libcap-ng support': libcap_ng.found()}
 summary_info += {'vhost-kernel support': config_host.has_key('CONFIG_VHOST_KERNEL')}
 summary_info += {'vhost-net support': config_host.has_key('CONFIG_VHOST_NET')}
 summary_info += {'vhost-crypto support': config_host.has_key('CONFIG_VHOST_CRYPTO')}

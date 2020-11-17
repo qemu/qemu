@@ -330,7 +330,7 @@ xen_ctrl_version="$default_feature"
 xen_pci_passthrough="auto"
 linux_aio="$default_feature"
 linux_io_uring="$default_feature"
-cap_ng="$default_feature"
+cap_ng="auto"
 attr="$default_feature"
 libattr="$default_feature"
 xfs="$default_feature"
@@ -1122,9 +1122,9 @@ for opt do
   ;;
   --enable-tcg-interpreter) tcg_interpreter="yes"
   ;;
-  --disable-cap-ng)  cap_ng="no"
+  --disable-cap-ng)  cap_ng="disabled"
   ;;
-  --enable-cap-ng) cap_ng="yes"
+  --enable-cap-ng) cap_ng="enabled"
   ;;
   --disable-tcg) tcg="disabled"
   ;;
@@ -3189,28 +3189,6 @@ EOF
       feature_not_found "netmap"
     fi
     netmap=no
-  fi
-fi
-
-##########################################
-# libcap-ng library probe
-if test "$cap_ng" != "no" ; then
-  cap_libs="-lcap-ng"
-  cat > $TMPC << EOF
-#include <cap-ng.h>
-int main(void)
-{
-    capng_capability_to_name(CAPNG_EFFECTIVE);
-    return 0;
-}
-EOF
-  if compile_prog "" "$cap_libs" ; then
-    cap_ng=yes
-  else
-    if test "$cap_ng" = "yes" ; then
-      feature_not_found "cap_ng" "Install libcap-ng devel"
-    fi
-    cap_ng=no
   fi
 fi
 
@@ -5702,10 +5680,6 @@ fi
 if test "$gprof" = "yes" ; then
   echo "CONFIG_GPROF=y" >> $config_host_mak
 fi
-if test "$cap_ng" = "yes" ; then
-  echo "CONFIG_LIBCAP_NG=y" >> $config_host_mak
-  echo "LIBCAP_NG_LIBS=$cap_libs" >> $config_host_mak
-fi
 echo "CONFIG_AUDIO_DRIVERS=$audio_drv_list" >> $config_host_mak
 for drv in $audio_drv_list; do
     def=CONFIG_AUDIO_$(echo $drv | LC_ALL=C tr '[a-z]' '[A-Z]')
@@ -6603,7 +6577,7 @@ NINJA=$ninja $meson setup \
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
-        -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs \
+        -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek \
