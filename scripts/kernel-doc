@@ -71,8 +71,6 @@ Output selection (mutually exclusive):
 			DOC: sections. May be specified multiple times.
 
 Output selection modifiers:
-  -sphinx-version VER   Generate rST syntax for the specified Sphinx version.
-                        Only works with reStructuredTextFormat.
   -no-doc-sections	Do not output DOC: sections.
   -enable-lineno        Enable output of #define LINENO lines. Only works with
                         reStructuredText format.
@@ -294,7 +292,6 @@ use constant {
 };
 my $output_selection = OUTPUT_ALL;
 my $show_not_found = 0;	# No longer used
-my $sphinx_version = "0.0"; # if not specified, assume old
 
 my @export_file_list;
 
@@ -460,8 +457,6 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 	    $enable_lineno = 1;
     } elsif ($cmd eq 'show-not-found') {
 	$show_not_found = 1;  # A no-op but don't fail
-    } elsif ($cmd eq 'sphinx-version') {
-        $sphinx_version = shift @ARGV;
     } else {
 	# Unknown argument
         usage();
@@ -989,16 +984,7 @@ sub output_struct_rst(%) {
     my $oldprefix = $lineprefix;
     my $name = $args{'type'} . " " . $args{'struct'};
 
-    # Sphinx 3.0 and up will emit warnings for "c:type:: struct Foo".
-    # It wants to see "c:struct:: Foo" (and will add the word 'struct' in
-    # the rendered output).
-    if ((split(/\./, $sphinx_version))[0] >= 3) {
-        my $sname = $name;
-        $sname =~ s/^struct //;
-        print "\n\n.. c:struct:: " . $sname . "\n\n";
-    } else {
-        print "\n\n.. c:type:: " . $name . "\n\n";
-    }
+    print "\n\n.. c:type:: " . $name . "\n\n";
     print_lineno($declaration_start_line);
     $lineprefix = "   ";
     output_highlight_rst($args{'purpose'});
