@@ -328,10 +328,40 @@ if not get_option('libnfs').auto() or have_block
                       required: get_option('libnfs'),
                       method: 'pkg-config', static: enable_static)
 endif
+
+libattr_test = '''
+  #include <stddef.h>
+  #include <sys/types.h>
+  #ifdef CONFIG_LIBATTR
+  #include <attr/xattr.h>
+  #else
+  #include <sys/xattr.h>
+  #endif
+  int main(void) { getxattr(NULL, NULL, NULL, 0); setxattr(NULL, NULL, NULL, 0, 0); return 0; }'''
+
 libattr = not_found
-if 'CONFIG_ATTR' in config_host
-  libattr = declare_dependency(link_args: config_host['LIBATTR_LIBS'].split())
+have_old_libattr = false
+if not get_option('attr').disabled()
+  if cc.links(libattr_test)
+    libattr = declare_dependency()
+  else
+    libattr = cc.find_library('attr', has_headers: ['attr/xattr.h'],
+                              required: get_option('attr'),
+                              static: enable_static)
+    if libattr.found() and not \
+      cc.links(libattr_test, dependencies: libattr, args: '-DCONFIG_LIBATTR')
+      libattr = not_found
+      if get_option('attr').enabled()
+        error('could not link libattr')
+      else
+        warning('could not link libattr, disabling')
+      endif
+    else
+      have_old_libattr = libattr.found()
+    endif
+  endif
 endif
+
 seccomp = not_found
 if not get_option('seccomp').auto() or have_system or have_tools
   seccomp = dependency('libseccomp', version: '>=2.3.0',
@@ -1014,6 +1044,7 @@ config_host_data.set_quoted('CONFIG_QEMU_LOCALSTATEDIR', get_option('prefix') / 
 config_host_data.set_quoted('CONFIG_QEMU_MODDIR', get_option('prefix') / qemu_moddir)
 config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_option('sysconfdir'))
 
+config_host_data.set('CONFIG_ATTR', libattr.found())
 config_host_data.set('CONFIG_BRLAPI', brlapi.found())
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
@@ -1031,6 +1062,7 @@ if glusterfs.found()
   config_host_data.set('CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT', glusterfs_ftruncate_has_stat)
   config_host_data.set('CONFIG_GLUSTERFS_IOCB_HAS_STAT', glusterfs_iocb_has_stat)
 endif
+config_host_data.set('CONFIG_LIBATTR', have_old_libattr)
 config_host_data.set('CONFIG_LIBCAP_NG', libcap_ng.found())
 config_host_data.set('CONFIG_LIBISCSI', libiscsi.found())
 config_host_data.set('CONFIG_LIBNFS', libnfs.found())
@@ -2352,7 +2384,7 @@ summary_info += {'vde support':       config_host.has_key('CONFIG_VDE')}
 summary_info += {'netmap support':    config_host.has_key('CONFIG_NETMAP')}
 summary_info += {'Linux AIO support': config_host.has_key('CONFIG_LINUX_AIO')}
 summary_info += {'Linux io_uring support': config_host.has_key('CONFIG_LINUX_IO_URING')}
-summary_info += {'ATTR/XATTR support': config_host.has_key('CONFIG_ATTR')}
+summary_info += {'ATTR/XATTR support': libattr.found()}
 summary_info += {'Install blobs':     get_option('install_blobs')}
 summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
 summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}

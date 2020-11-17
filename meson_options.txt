@@ -40,6 +40,8 @@ option('cfi', type: 'boolean', value: 'false',
 option('cfi_debug', type: 'boolean', value: 'false',
        description: 'Verbose errors in case of CFI violation')
 
+option('attr', type : 'feature', value : 'auto',
+       description: 'attr/xattr support')
 option('brlapi', type : 'feature', value : 'auto',
        description: 'brlapi character device driver')
 option('bzip2', type : 'feature', value : 'auto',

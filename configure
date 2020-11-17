@@ -331,8 +331,7 @@ xen_pci_passthrough="auto"
 linux_aio="$default_feature"
 linux_io_uring="$default_feature"
 cap_ng="auto"
-attr="$default_feature"
-libattr="$default_feature"
+attr="auto"
 xfs="$default_feature"
 tcg="enabled"
 membarrier="$default_feature"
@@ -1229,9 +1228,9 @@ for opt do
   ;;
   --enable-linux-io-uring) linux_io_uring="yes"
   ;;
-  --disable-attr) attr="no"
+  --disable-attr) attr="disabled"
   ;;
-  --enable-attr) attr="yes"
+  --enable-attr) attr="enabled"
   ;;
   --disable-membarrier) membarrier="no"
   ;;
@@ -3576,36 +3575,6 @@ elif test "$tpm" = "yes"; then
 fi
 
 ##########################################
-# attr probe
-
-libattr_libs=
-if test "$attr" != "no" ; then
-  cat > $TMPC <<EOF
-#include <stdio.h>
-#include <sys/types.h>
-#ifdef CONFIG_LIBATTR
-#include <attr/xattr.h>
-#else
-#include <sys/xattr.h>
-#endif
-int main(void) { getxattr(NULL, NULL, NULL, 0); setxattr(NULL, NULL, NULL, 0, 0); return 0; }
-EOF
-  if compile_prog "" "" ; then
-    attr=yes
-  # Older distros have <attr/xattr.h>, and need -lattr:
-  elif compile_prog "-DCONFIG_LIBATTR" "-lattr" ; then
-    attr=yes
-    libattr_libs="-lattr"
-    libattr=yes
-  else
-    if test "$attr" = "yes" ; then
-      feature_not_found "ATTR" "Install libc6 or libattr devel"
-    fi
-    attr=no
-  fi
-fi
-
-##########################################
 # iovec probe
 cat > $TMPC <<EOF
 #include <sys/types.h>
@@ -5899,13 +5868,6 @@ if test "$linux_io_uring" = "yes" ; then
   echo "LINUX_IO_URING_CFLAGS=$linux_io_uring_cflags" >> $config_host_mak
   echo "LINUX_IO_URING_LIBS=$linux_io_uring_libs" >> $config_host_mak
 fi
-if test "$attr" = "yes" ; then
-  echo "CONFIG_ATTR=y" >> $config_host_mak
-  echo "LIBATTR_LIBS=$libattr_libs" >> $config_host_mak
-fi
-if test "$libattr" = "yes" ; then
-  echo "CONFIG_LIBATTR=y" >> $config_host_mak
-fi
 if test "$vhost_scsi" = "yes" ; then
   echo "CONFIG_VHOST_SCSI=y" >> $config_host_mak
 fi
@@ -6578,6 +6540,7 @@ NINJA=$ninja $meson setup \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
         -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
+        -Dattr=$attr \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek \
