@@ -617,9 +617,40 @@ if 'CONFIG_RBD' in config_host
   rbd = declare_dependency(link_args: config_host['RBD_LIBS'].split())
 endif
 glusterfs = not_found
-if 'CONFIG_GLUSTERFS' in config_host
-  glusterfs = declare_dependency(compile_args: config_host['GLUSTERFS_CFLAGS'].split(),
-                                 link_args: config_host['GLUSTERFS_LIBS'].split())
+glusterfs_ftruncate_has_stat = false
+glusterfs_iocb_has_stat = false
+if not get_option('glusterfs').auto() or have_block
+  glusterfs = dependency('glusterfs-api', version: '>=3',
+                         required: get_option('glusterfs'),
+                         method: 'pkg-config', static: enable_static)
+  if glusterfs.found()
+    glusterfs_ftruncate_has_stat = cc.links('''
+      #include <glusterfs/api/glfs.h>
+
+      int
+      main(void)
+      {
+          /* new glfs_ftruncate() passes two additional args */
+          return glfs_ftruncate(NULL, 0, NULL, NULL);
+      }
+    ''', dependencies: glusterfs)
+    glusterfs_iocb_has_stat = cc.links('''
+      #include <glusterfs/api/glfs.h>
+
+      /* new glfs_io_cbk() passes two additional glfs_stat structs */
+      static void
+      glusterfs_iocb(glfs_fd_t *fd, ssize_t ret, struct glfs_stat *prestat, struct glfs_stat *poststat, void *data)
+      {}
+
+      int
+      main(void)
+      {
+          glfs_io_cbk iocb = &glusterfs_iocb;
+          iocb(NULL, 0 , NULL, NULL, NULL);
+          return 0;
+      }
+    ''', dependencies: glusterfs)
+  endif
 endif
 libssh = not_found
 if 'CONFIG_LIBSSH' in config_host
@@ -880,6 +911,15 @@ config_host_data.set('CONFIG_MPATH', mpathpersist.found())
 config_host_data.set('CONFIG_MPATH_NEW_API', mpathpersist_new_api)
 config_host_data.set('CONFIG_CURL', curl.found())
 config_host_data.set('CONFIG_CURSES', curses.found())
+config_host_data.set('CONFIG_GLUSTERFS', glusterfs.found())
+if glusterfs.found()
+  config_host_data.set('CONFIG_GLUSTERFS_XLATOR_OPT', glusterfs.version().version_compare('>=4'))
+  config_host_data.set('CONFIG_GLUSTERFS_DISCARD', glusterfs.version().version_compare('>=5'))
+  config_host_data.set('CONFIG_GLUSTERFS_FALLOCATE', glusterfs.version().version_compare('>=6'))
+  config_host_data.set('CONFIG_GLUSTERFS_ZEROFILL', glusterfs.version().version_compare('>=6'))
+  config_host_data.set('CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT', glusterfs_ftruncate_has_stat)
+  config_host_data.set('CONFIG_GLUSTERFS_IOCB_HAS_STAT', glusterfs_iocb_has_stat)
+endif
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
@@ -2257,7 +2297,7 @@ summary_info += {'coroutine pool':    config_host['CONFIG_COROUTINE_POOL'] == '1
 summary_info += {'debug stack usage': config_host.has_key('CONFIG_DEBUG_STACK_USAGE')}
 summary_info += {'mutex debugging':   config_host.has_key('CONFIG_DEBUG_MUTEX')}
 summary_info += {'crypto afalg':      config_host.has_key('CONFIG_AF_ALG')}
-summary_info += {'GlusterFS support': config_host.has_key('CONFIG_GLUSTERFS')}
+summary_info += {'GlusterFS support': glusterfs.found()}
 summary_info += {'gcov':              get_option('b_coverage')}
 summary_info += {'TPM support':       config_host.has_key('CONFIG_TPM')}
 summary_info += {'libssh support':    config_host.has_key('CONFIG_LIBSSH')}
