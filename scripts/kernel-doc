@@ -860,23 +860,7 @@ sub output_function_rst(%) {
 	output_highlight_rst($args{'purpose'});
 	$start = "\n\n**Syntax**\n\n  ``";
     } else {
-        if ((split(/\./, $sphinx_version))[0] >= 3) {
-            # Sphinx 3 and later distinguish macros and functions and
-            # complain if you use c:function with something that's not
-            # syntactically valid as a function declaration.
-            # We assume that anything with a return type is a function
-            # and anything without is a macro.
-            if ($args{'functiontype'} ne "") {
-                print ".. c:function:: ";
-            } else {
-                print ".. c:macro:: ";
-            }
-        } else {
-            # Older Sphinx don't support documenting macros that take
-            # arguments with c:macro, and don't complain about the use
-            # of c:function for this.
-            print ".. c:function:: ";
-        }
+	print ".. c:function:: ";
     }
     if ($args{'functiontype'} ne "") {
 	$start .= $args{'functiontype'} . " " . $args{'function'} . " (";
