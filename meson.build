@@ -749,10 +749,24 @@ snappy = not_found
 if 'CONFIG_SNAPPY' in config_host
   snappy = declare_dependency(link_args: config_host['SNAPPY_LIBS'].split())
 endif
+
 lzo = not_found
-if 'CONFIG_LZO' in config_host
-  lzo = declare_dependency(link_args: config_host['LZO_LIBS'].split())
+if not get_option('lzo').auto() or have_system
+  lzo = cc.find_library('lzo2', has_headers: ['lzo/lzo1x.h'],
+                        required: get_option('lzo'),
+                        static: enable_static)
 endif
+if lzo.found() and not cc.links('''
+   #include <lzo/lzo1x.h>
+   int main(void) { lzo_version(); return 0; }''', dependencies: lzo)
+  lzo = not_found
+  if get_option('lzo').enabled()
+    error('could not link liblzo2')
+  else
+    warning('could not link liblzo2, disabling')
+  endif
+endif
+
 rdma = not_found
 if 'CONFIG_RDMA' in config_host
   rdma = declare_dependency(link_args: config_host['RDMA_LIBS'].split())
@@ -937,6 +951,7 @@ config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_opti
 config_host_data.set('CONFIG_BRLAPI', brlapi.found())
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
+config_host_data.set('CONFIG_LZO', lzo.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
 config_host_data.set('CONFIG_MPATH_NEW_API', mpathpersist_new_api)
 config_host_data.set('CONFIG_CURL', curl.found())
@@ -2336,7 +2351,7 @@ summary_info += {'TPM support':       config_host.has_key('CONFIG_TPM')}
 summary_info += {'libssh support':    config_host.has_key('CONFIG_LIBSSH')}
 summary_info += {'QOM debugging':     config_host.has_key('CONFIG_QOM_CAST_DEBUG')}
 summary_info += {'Live block migration': config_host.has_key('CONFIG_LIVE_BLOCK_MIGRATION')}
-summary_info += {'lzo support':       config_host.has_key('CONFIG_LZO')}
+summary_info += {'lzo support':       lzo.found()}
 summary_info += {'snappy support':    config_host.has_key('CONFIG_SNAPPY')}
 summary_info += {'bzip2 support':     libbzip2.found()}
 summary_info += {'lzfse support':     config_host.has_key('CONFIG_LZFSE')}

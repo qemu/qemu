@@ -393,7 +393,7 @@ opengl_dmabuf="no"
 cpuid_h="no"
 avx2_opt="$default_feature"
 capstone="auto"
-lzo="$default_feature"
+lzo="auto"
 snappy="$default_feature"
 bzip2="auto"
 lzfse="$default_feature"
@@ -1311,9 +1311,9 @@ for opt do
   ;;
   --disable-zlib-test)
   ;;
-  --disable-lzo) lzo="no"
+  --disable-lzo) lzo="disabled"
   ;;
-  --enable-lzo) lzo="yes"
+  --enable-lzo) lzo="enabled"
   ;;
   --disable-snappy) snappy="no"
   ;;
@@ -2455,25 +2455,6 @@ EOF
   if ! compile_object ; then
     feature_not_found "nptl" "Install glibc and linux kernel headers."
   fi
-fi
-
-##########################################
-# lzo check
-
-if test "$lzo" != "no" ; then
-    cat > $TMPC << EOF
-#include <lzo/lzo1x.h>
-int main(void) { lzo_version(); return 0; }
-EOF
-    if compile_prog "" "-llzo2" ; then
-        lzo_libs="-llzo2"
-        lzo="yes"
-    else
-        if test "$lzo" = "yes"; then
-            feature_not_found "liblzo2" "Install liblzo2 devel"
-        fi
-        lzo="no"
-    fi
 fi
 
 ##########################################
@@ -6157,11 +6138,6 @@ if test "$avx512f_opt" = "yes" ; then
   echo "CONFIG_AVX512F_OPT=y" >> $config_host_mak
 fi
 
-if test "$lzo" = "yes" ; then
-  echo "CONFIG_LZO=y" >> $config_host_mak
-  echo "LZO_LIBS=$lzo_libs" >> $config_host_mak
-fi
-
 if test "$snappy" = "yes" ; then
   echo "CONFIG_SNAPPY=y" >> $config_host_mak
   echo "SNAPPY_LIBS=$snappy_libs" >> $config_host_mak
@@ -6741,7 +6717,7 @@ NINJA=$ninja $meson setup \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
-        -Drbd=$rbd \
+        -Drbd=$rbd -Dlzo=$lzo \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek \
