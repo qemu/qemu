@@ -38,6 +38,7 @@
 #include "qapi/qapi-visit-block-core.h"
 #include "qapi/qapi-visit-block-export.h"
 #include "qapi/qapi-visit-control.h"
+#include "qapi/qapi-visit-qom.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qobject-input-visitor.h"
@@ -133,15 +134,6 @@ enum {
 };
 
 extern QemuOptsList qemu_chardev_opts;
-
-static QemuOptsList qemu_object_opts = {
-    .name = "object",
-    .implied_opt_name = "qom-type",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
-    .desc = {
-        { }
-    },
-};
 
 static void init_qmp_commands(void)
 {
@@ -282,14 +274,22 @@ static void process_options(int argc, char *argv[])
             {
                 QDict *args;
                 bool help;
+                Visitor *v;
+                ObjectOptions *options;
 
                 args = keyval_parse(optarg, "qom-type", &help, &error_fatal);
                 if (help) {
                     user_creatable_print_help_from_qdict(args);
                     exit(EXIT_SUCCESS);
                 }
-                user_creatable_add_dict(args, true, &error_fatal);
+
+                v = qobject_input_visitor_new_keyval(QOBJECT(args));
+                visit_type_ObjectOptions(v, NULL, &options, &error_fatal);
+                visit_free(v);
                 qobject_unref(args);
+
+                qmp_object_add(options, &error_fatal);
+                qapi_free_ObjectOptions(options);
                 break;
             }
         case OPTION_PIDFILE:
@@ -338,7 +338,6 @@ int main(int argc, char *argv[])
 
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_TRACE);
-    qemu_add_opts(&qemu_object_opts);
     qemu_add_opts(&qemu_trace_opts);
     qcrypto_init(&error_fatal);
     bdrv_init();
