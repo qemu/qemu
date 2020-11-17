@@ -397,7 +397,7 @@ lzo="auto"
 snappy="auto"
 bzip2="auto"
 lzfse="auto"
-zstd="$default_feature"
+zstd="auto"
 guest_agent="$default_feature"
 guest_agent_with_vss="no"
 guest_agent_ntddscsi="no"
@@ -1327,9 +1327,9 @@ for opt do
   ;;
   --disable-lzfse) lzfse="disabled"
   ;;
-  --disable-zstd) zstd="no"
+  --disable-zstd) zstd="disabled"
   ;;
-  --enable-zstd) zstd="yes"
+  --enable-zstd) zstd="enabled"
   ;;
   --enable-guest-agent) guest_agent="yes"
   ;;
@@ -2455,23 +2455,6 @@ EOF
   if ! compile_object ; then
     feature_not_found "nptl" "Install glibc and linux kernel headers."
   fi
-fi
-
-##########################################
-# zstd check
-
-if test "$zstd" != "no" ; then
-    libzstd_minver="1.4.0"
-    if $pkg_config --atleast-version=$libzstd_minver libzstd ; then
-        zstd_cflags="$($pkg_config --cflags libzstd)"
-        zstd_libs="$($pkg_config --libs libzstd)"
-        zstd="yes"
-    else
-        if test "$zstd" = "yes" ; then
-            feature_not_found "libzstd" "Install libzstd devel"
-        fi
-        zstd="no"
-    fi
 fi
 
 ##########################################
@@ -6101,12 +6084,6 @@ if test "$avx512f_opt" = "yes" ; then
   echo "CONFIG_AVX512F_OPT=y" >> $config_host_mak
 fi
 
-if test "$zstd" = "yes" ; then
-  echo "CONFIG_ZSTD=y" >> $config_host_mak
-  echo "ZSTD_CFLAGS=$zstd_cflags" >> $config_host_mak
-  echo "ZSTD_LIBS=$zstd_libs" >> $config_host_mak
-fi
-
 if test "$seccomp" = "yes"; then
   echo "CONFIG_SECCOMP=y" >> $config_host_mak
   echo "SECCOMP_CFLAGS=$seccomp_cflags" >> $config_host_mak
@@ -6671,6 +6648,7 @@ NINJA=$ninja $meson setup \
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
+        -Dzstd=$zstd \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek \

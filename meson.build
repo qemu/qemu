@@ -384,9 +384,10 @@ if not get_option('libiscsi').auto() or have_block
                          method: 'pkg-config', static: enable_static)
 endif
 zstd = not_found
-if 'CONFIG_ZSTD' in config_host
-  zstd = declare_dependency(compile_args: config_host['ZSTD_CFLAGS'].split(),
-                            link_args: config_host['ZSTD_LIBS'].split())
+if not get_option('zstd').auto() or have_block
+  zstd = dependency('libzstd', version: '>=1.4.0',
+                    required: get_option('zstd'),
+                    method: 'pkg-config', static: enable_static)
 endif
 gbm = not_found
 if 'CONFIG_GBM' in config_host
@@ -1008,6 +1009,7 @@ config_host_data.set('CONFIG_KEYUTILS', keyutils.found())
 config_host_data.set('CONFIG_GETTID', has_gettid)
 config_host_data.set('CONFIG_MALLOC_TRIM', has_malloc_trim)
 config_host_data.set('CONFIG_STATX', has_statx)
+config_host_data.set('CONFIG_ZSTD', zstd.found())
 config_host_data.set('CONFIG_FUSE', fuse.found())
 config_host_data.set('CONFIG_FUSE_LSEEK', fuse_lseek.found())
 config_host_data.set('CONFIG_CFI', get_option('cfi'))
@@ -2383,7 +2385,7 @@ summary_info += {'lzo support':       lzo.found()}
 summary_info += {'snappy support':    snappy.found()}
 summary_info += {'bzip2 support':     libbzip2.found()}
 summary_info += {'lzfse support':     liblzfse.found()}
-summary_info += {'zstd support':      config_host.has_key('CONFIG_ZSTD')}
+summary_info += {'zstd support':      zstd.found()}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
 summary_info += {'libxml2':           config_host.has_key('CONFIG_LIBXML2')}
 summary_info += {'memory allocator':  get_option('malloc')}
