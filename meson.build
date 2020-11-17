@@ -403,6 +403,7 @@ endif
 libudev = not_found
 if targetos == 'linux' and (have_system or have_tools)
   libudev = dependency('libudev',
+                       method: 'pkg-config',
                        required: get_option('libudev'),
                        static: enable_static)
 endif
