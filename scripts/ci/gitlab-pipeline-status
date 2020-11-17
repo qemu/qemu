@@ -31,7 +31,7 @@ class NoPipelineFound(Exception):
     """Communication is successfull but pipeline is not found."""
 
 
-def get_local_branch_commit(branch='staging'):
+def get_local_branch_commit(branch):
     """
     Returns the commit sha1 for the *local* branch named "staging"
     """
@@ -126,18 +126,16 @@ def create_parser():
                         help=('The GitLab project ID. Defaults to the project '
                               'for https://gitlab.com/qemu-project/qemu, that '
                               'is, "%(default)s"'))
-    try:
-        default_commit = get_local_branch_commit()
-        commit_required = False
-    except ValueError:
-        default_commit = ''
-        commit_required = True
-    parser.add_argument('-c', '--commit', required=commit_required,
-                        default=default_commit,
+    parser.add_argument('-b', '--branch', type=str, default="staging",
+                        help=('Specify the branch to check. '
+                              'Use HEAD for your current branch. '
+                              'Otherwise looks at "%(default)s"'))
+    parser.add_argument('-c', '--commit',
+                        default=None,
                         help=('Look for a pipeline associated with the given '
                               'commit.  If one is not explicitly given, the '
-                              'commit associated with the local branch named '
-                              '"staging" is used.  Default: %(default)s'))
+                              'commit associated with the default branch '
+                              'is used.'))
     parser.add_argument('--verbose', action='store_true', default=False,
                         help=('A minimal verbosity level that prints the '
                               'overall result of the check/wait'))
@@ -149,6 +147,10 @@ def main():
     """
     parser = create_parser()
     args = parser.parse_args()
+
+    if not args.commit:
+        args.commit = get_local_branch_commit(args.branch)
+
     success = False
     try:
         if args.wait:
