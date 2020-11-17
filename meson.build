@@ -323,8 +323,10 @@ if 'CONFIG_LIBXML2' in config_host
                                link_args: config_host['LIBXML2_LIBS'].split())
 endif
 libnfs = not_found
-if 'CONFIG_LIBNFS' in config_host
-  libnfs = declare_dependency(link_args: config_host['LIBNFS_LIBS'].split())
+if not get_option('libnfs').auto() or have_block
+  libnfs = dependency('libnfs', version: '>=1.9.3',
+                      required: get_option('libnfs'),
+                      method: 'pkg-config', static: enable_static)
 endif
 libattr = not_found
 if 'CONFIG_ATTR' in config_host
@@ -934,6 +936,7 @@ if glusterfs.found()
   config_host_data.set('CONFIG_GLUSTERFS_IOCB_HAS_STAT', glusterfs_iocb_has_stat)
 endif
 config_host_data.set('CONFIG_LIBISCSI', libiscsi.found())
+config_host_data.set('CONFIG_LIBNFS', libnfs.found())
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
@@ -2293,7 +2296,7 @@ summary_info += {'usb net redir':     config_host.has_key('CONFIG_USB_REDIR')}
 summary_info += {'OpenGL support':    config_host.has_key('CONFIG_OPENGL')}
 summary_info += {'OpenGL dmabufs':    config_host.has_key('CONFIG_OPENGL_DMABUF')}
 summary_info += {'libiscsi support':  libiscsi.found()}
-summary_info += {'libnfs support':    config_host.has_key('CONFIG_LIBNFS')}
+summary_info += {'libnfs support':    libnfs.found()}
 summary_info += {'build guest agent': config_host.has_key('CONFIG_GUEST_AGENT')}
 if targetos == 'windows'
   if 'WIN_SDK' in config_host
