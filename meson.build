@@ -333,9 +333,10 @@ if 'CONFIG_ATTR' in config_host
   libattr = declare_dependency(link_args: config_host['LIBATTR_LIBS'].split())
 endif
 seccomp = not_found
-if 'CONFIG_SECCOMP' in config_host
-  seccomp = declare_dependency(compile_args: config_host['SECCOMP_CFLAGS'].split(),
-                               link_args: config_host['SECCOMP_LIBS'].split())
+if not get_option('seccomp').auto() or have_system or have_tools
+  seccomp = dependency('libseccomp', version: '>=2.3.0',
+                       required: get_option('seccomp'),
+                       method: 'pkg-config', static: enable_static)
 endif
 libcap_ng = not_found
 if 'CONFIG_LIBCAP_NG' in config_host
@@ -998,6 +999,7 @@ config_host_data.set('CONFIG_LIBNFS', libnfs.found())
 config_host_data.set('CONFIG_RBD', rbd.found())
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
+config_host_data.set('CONFIG_SECCOMP', seccomp.found())
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
 config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
 config_host_data.set('CONFIG_VNC', vnc.found())
@@ -2367,7 +2369,7 @@ if targetos == 'windows'
   summary_info += {'QGA w32 disk info': config_host.has_key('CONFIG_QGA_NTDDSCSI')}
   summary_info += {'QGA MSI support':   config_host.has_key('CONFIG_QGA_MSI')}
 endif
-summary_info += {'seccomp support':   config_host.has_key('CONFIG_SECCOMP')}
+summary_info += {'seccomp support':   seccomp.found()}
 summary_info += {'CFI support':       get_option('cfi')}
 summary_info += {'CFI debug support': get_option('cfi_debug')}
 summary_info += {'coroutine backend': config_host['CONFIG_COROUTINE_BACKEND']}

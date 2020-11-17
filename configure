@@ -413,7 +413,7 @@ debug_stack_usage="no"
 crypto_afalg="no"
 cfi="false"
 cfi_debug="false"
-seccomp="$default_feature"
+seccomp="auto"
 glusterfs="auto"
 gtk="$default_feature"
 gtk_gl="no"
@@ -1355,9 +1355,9 @@ for opt do
   ;;
   --disable-tools) want_tools="no"
   ;;
-  --enable-seccomp) seccomp="yes"
+  --enable-seccomp) seccomp="enabled"
   ;;
-  --disable-seccomp) seccomp="no"
+  --disable-seccomp) seccomp="disabled"
   ;;
   --disable-glusterfs) glusterfs="disabled"
   ;;
@@ -2455,24 +2455,6 @@ EOF
   if ! compile_object ; then
     feature_not_found "nptl" "Install glibc and linux kernel headers."
   fi
-fi
-
-##########################################
-# libseccomp check
-
-if test "$seccomp" != "no" ; then
-    libseccomp_minver="2.3.0"
-    if $pkg_config --atleast-version=$libseccomp_minver libseccomp ; then
-        seccomp_cflags="$($pkg_config --cflags libseccomp)"
-        seccomp_libs="$($pkg_config --libs libseccomp)"
-        seccomp="yes"
-    else
-        if test "$seccomp" = "yes" ; then
-            feature_not_found "libseccomp" \
-                 "Install libseccomp devel >= $libseccomp_minver"
-        fi
-        seccomp="no"
-    fi
 fi
 
 ##########################################
@@ -6084,12 +6066,6 @@ if test "$avx512f_opt" = "yes" ; then
   echo "CONFIG_AVX512F_OPT=y" >> $config_host_mak
 fi
 
-if test "$seccomp" = "yes"; then
-  echo "CONFIG_SECCOMP=y" >> $config_host_mak
-  echo "SECCOMP_CFLAGS=$seccomp_cflags" >> $config_host_mak
-  echo "SECCOMP_LIBS=$seccomp_libs" >> $config_host_mak
-fi
-
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
   echo "CONFIG_BSD=y" >> $config_host_mak
@@ -6648,7 +6624,7 @@ NINJA=$ninja $meson setup \
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
-        -Dzstd=$zstd \
+        -Dzstd=$zstd -Dseccomp=$seccomp \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek \
