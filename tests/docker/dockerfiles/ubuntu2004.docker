@@ -23,6 +23,7 @@ ENV PACKAGES flex bison \
     libiscsi-dev \
     libjemalloc-dev \
     libjpeg-turbo8-dev \
+    liblttng-ust-dev \
     liblzo2-dev \
     libncurses5-dev \
     libncursesw5-dev \
