@@ -395,7 +395,7 @@ avx2_opt="$default_feature"
 capstone="auto"
 lzo="$default_feature"
 snappy="$default_feature"
-bzip2="$default_feature"
+bzip2="auto"
 lzfse="$default_feature"
 zstd="$default_feature"
 guest_agent="$default_feature"
@@ -1319,9 +1319,9 @@ for opt do
   ;;
   --enable-snappy) snappy="yes"
   ;;
-  --disable-bzip2) bzip2="no"
+  --disable-bzip2) bzip2="disabled"
   ;;
-  --enable-bzip2) bzip2="yes"
+  --enable-bzip2) bzip2="enabled"
   ;;
   --enable-lzfse) lzfse="yes"
   ;;
@@ -2492,24 +2492,6 @@ EOF
             feature_not_found "libsnappy" "Install libsnappy devel"
         fi
         snappy="no"
-    fi
-fi
-
-##########################################
-# bzip2 check
-
-if test "$bzip2" != "no" ; then
-    cat > $TMPC << EOF
-#include <bzlib.h>
-int main(void) { BZ2_bzlibVersion(); return 0; }
-EOF
-    if compile_prog "" "-lbz2" ; then
-        bzip2="yes"
-    else
-        if test "$bzip2" = "yes"; then
-            feature_not_found "libbzip2" "Install libbzip2 devel"
-        fi
-        bzip2="no"
     fi
 fi
 
@@ -6237,11 +6219,6 @@ if test "$snappy" = "yes" ; then
   echo "SNAPPY_LIBS=$snappy_libs" >> $config_host_mak
 fi
 
-if test "$bzip2" = "yes" ; then
-  echo "CONFIG_BZIP2=y" >> $config_host_mak
-  echo "BZIP2_LIBS=-lbz2" >> $config_host_mak
-fi
-
 if test "$lzfse" = "yes" ; then
   echo "CONFIG_LZFSE=y" >> $config_host_mak
   echo "LZFSE_LIBS=-llzfse" >> $config_host_mak
@@ -6829,7 +6806,7 @@ NINJA=$ninja $meson setup \
         -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
         -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
-        -Dcurl=$curl -Dglusterfs=$glusterfs \
+        -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 \
         -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \

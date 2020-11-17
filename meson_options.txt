@@ -42,6 +42,8 @@ option('cfi_debug', type: 'boolean', value: 'false',
 
 option('brlapi', type : 'feature', value : 'auto',
        description: 'brlapi character device driver')
+option('bzip2', type : 'feature', value : 'auto',
+       description: 'bzip2 support for DMG images')
 option('cocoa', type : 'feature', value : 'auto',
        description: 'Cocoa user interface (macOS only)')
 option('curl', type : 'feature', value : 'auto',

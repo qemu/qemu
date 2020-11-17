@@ -658,8 +658,20 @@ if 'CONFIG_LIBSSH' in config_host
                               link_args: config_host['LIBSSH_LIBS'].split())
 endif
 libbzip2 = not_found
-if 'CONFIG_BZIP2' in config_host
-  libbzip2 = declare_dependency(link_args: config_host['BZIP2_LIBS'].split())
+if not get_option('bzip2').auto() or have_block
+  libbzip2 = cc.find_library('bz2', has_headers: ['bzlib.h'],
+                             required: get_option('bzip2'),
+                             static: enable_static)
+  if libbzip2.found() and not cc.links('''
+     #include <bzlib.h>
+     int main(void) { BZ2_bzlibVersion(); return 0; }''', dependencies: libbzip2)
+    libbzip2 = not_found
+    if get_option('bzip2').enabled()
+      error('could not link libbzip2')
+    else
+      warning('could not link libbzip2, disabling')
+    endif
+  endif
 endif
 liblzfse = not_found
 if 'CONFIG_LZFSE' in config_host
@@ -2305,7 +2317,7 @@ summary_info += {'QOM debugging':     config_host.has_key('CONFIG_QOM_CAST_DEBUG
 summary_info += {'Live block migration': config_host.has_key('CONFIG_LIVE_BLOCK_MIGRATION')}
 summary_info += {'lzo support':       config_host.has_key('CONFIG_LZO')}
 summary_info += {'snappy support':    config_host.has_key('CONFIG_SNAPPY')}
-summary_info += {'bzip2 support':     config_host.has_key('CONFIG_BZIP2')}
+summary_info += {'bzip2 support':     libbzip2.found()}
 summary_info += {'lzfse support':     config_host.has_key('CONFIG_LZFSE')}
 summary_info += {'zstd support':      config_host.has_key('CONFIG_ZSTD')}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
