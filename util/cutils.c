@@ -891,10 +891,11 @@ char *freq_to_str(uint64_t freq_hz)
     double freq = freq_hz;
     size_t idx = 0;
 
-    while (freq >= 1000.0 && idx < ARRAY_SIZE(suffixes)) {
+    while (freq >= 1000.0) {
         freq /= 1000.0;
         idx++;
     }
+    assert(idx < ARRAY_SIZE(suffixes));
 
     return g_strdup_printf("%0.3g %sHz", freq, suffixes[idx]);
 }
