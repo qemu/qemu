@@ -175,6 +175,8 @@ enum {
     QEMU_IFLA_BRPORT_NEIGH_SUPPRESS,
     QEMU_IFLA_BRPORT_ISOLATED,
     QEMU_IFLA_BRPORT_BACKUP_PORT,
+    QEMU_IFLA_BRPORT_MRP_RING_OPEN,
+    QEMU_IFLA_BRPORT_MRP_IN_OPEN,
     QEMU___IFLA_BRPORT_MAX
 };
 
@@ -552,6 +554,8 @@ static abi_long host_to_target_slave_data_bridge_nlattr(struct nlattr *nlattr,
     case QEMU_IFLA_BRPORT_BCAST_FLOOD:
     case QEMU_IFLA_BRPORT_NEIGH_SUPPRESS:
     case QEMU_IFLA_BRPORT_ISOLATED:
+    case QEMU_IFLA_BRPORT_MRP_RING_OPEN:
+    case QEMU_IFLA_BRPORT_MRP_IN_OPEN:
         break;
     /* uint16_t */
     case QEMU_IFLA_BRPORT_PRIORITY:
@@ -1125,7 +1129,14 @@ static abi_long target_to_host_for_each_rtattr(struct rtattr *rtattr,
 
 static abi_long target_to_host_data_link_rtattr(struct rtattr *rtattr)
 {
+    uint32_t *u32;
+
     switch (rtattr->rta_type) {
+    /* uint32_t */
+    case QEMU_IFLA_EXT_MASK:
+        u32 = RTA_DATA(rtattr);
+        *u32 = tswap32(*u32);
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "Unknown target QEMU_IFLA type: %d\n",
                       rtattr->rta_type);
