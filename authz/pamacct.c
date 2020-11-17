@@ -84,6 +84,12 @@ qauthz_pam_prop_get_service(Object *obj,
 static void
 qauthz_pam_complete(UserCreatable *uc, Error **errp)
 {
+    QAuthZPAM *pauthz = QAUTHZ_PAM(uc);
+
+    if (!pauthz->service) {
+        error_setg(errp, "The 'service' property must be set");
+        return;
+    }
 }
 
 
