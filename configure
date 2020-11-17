@@ -5928,15 +5928,6 @@ if test "$bigendian" = "yes" ; then
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
-  rc_version=$(cat $source_path/VERSION)
-  version_major=${rc_version%%.*}
-  rc_version=${rc_version#*.}
-  version_minor=${rc_version%%.*}
-  rc_version=${rc_version#*.}
-  version_subminor=${rc_version%%.*}
-  version_micro=0
-  echo "CONFIG_FILEVERSION=$version_major,$version_minor,$version_subminor,$version_micro" >> $config_host_mak
-  echo "CONFIG_PRODUCTVERSION=$version_major,$version_minor,$version_subminor,$version_micro" >> $config_host_mak
   if test "$guest_agent_with_vss" = "yes" ; then
     echo "CONFIG_QGA_VSS=y" >> $config_host_mak
     echo "QGA_VSS_PROVIDER=$qga_vss_provider" >> $config_host_mak
