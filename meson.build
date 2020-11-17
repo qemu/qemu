@@ -958,21 +958,19 @@ if link_language == 'cpp'
   }
 endif
 
-kconfig_external_symbols = [
-  'CONFIG_KVM',
-  'CONFIG_XEN',
-  'CONFIG_TPM',
-  'CONFIG_SPICE',
-  'CONFIG_IVSHMEM',
-  'CONFIG_OPENGL',
-  'CONFIG_X11',
-  'CONFIG_VHOST_USER',
-  'CONFIG_VHOST_VDPA',
-  'CONFIG_VHOST_KERNEL',
-  'CONFIG_VIRTFS',
-  'CONFIG_LINUX',
-  'CONFIG_PVRDMA',
-]
+host_kconfig = \
+  ('CONFIG_TPM' in config_host ? ['CONFIG_TPM=y'] : []) + \
+  ('CONFIG_SPICE' in config_host ? ['CONFIG_SPICE=y'] : []) + \
+  ('CONFIG_IVSHMEM' in config_host ? ['CONFIG_IVSHMEM=y'] : []) + \
+  ('CONFIG_OPENGL' in config_host ? ['CONFIG_OPENGL=y'] : []) + \
+  ('CONFIG_X11' in config_host ? ['CONFIG_X11=y'] : []) + \
+  ('CONFIG_VHOST_USER' in config_host ? ['CONFIG_VHOST_USER=y'] : []) + \
+  ('CONFIG_VHOST_VDPA' in config_host ? ['CONFIG_VHOST_VDPA=y'] : []) + \
+  ('CONFIG_VHOST_KERNEL' in config_host ? ['CONFIG_VHOST_KERNEL=y'] : []) + \
+  ('CONFIG_VIRTFS' in config_host ? ['CONFIG_VIRTFS=y'] : []) + \
+  ('CONFIG_LINUX' in config_host ? ['CONFIG_LINUX=y'] : []) + \
+  ('CONFIG_PVRDMA' in config_host ? ['CONFIG_PVRDMA=y'] : [])
+
 ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_ARCH' ]
 
 default_targets = 'CONFIG_DEFAULT_TARGETS' in config_host
@@ -1007,7 +1005,7 @@ foreach target : target_dirs
     }
   endif
 
-  have_accel = false
+  accel_kconfig = []
   foreach sym: accelerators
     if sym == 'CONFIG_TCG' or target in accelerator_targets.get(sym, [])
       config_target += { sym: 'y' }
@@ -1015,10 +1013,10 @@ foreach target : target_dirs
       if sym == 'CONFIG_XEN' and have_xen_pci_passthrough
         config_target += { 'CONFIG_XEN_PCI_PASSTHROUGH': 'y' }
       endif
-      have_accel = true
+      accel_kconfig += [ sym + '=y' ]
     endif
   endforeach
-  if not have_accel
+  if accel_kconfig.length() == 0
     if default_targets
       continue
     endif
@@ -1072,13 +1070,6 @@ foreach target : target_dirs
                                                configuration: config_target_data)}
 
   if target.endswith('-softmmu')
-    base_kconfig = []
-    foreach sym : kconfig_external_symbols
-      if sym in config_target or sym in config_host
-        base_kconfig += '@0@=y'.format(sym)
-      endif
-    endforeach
-
     config_devices_mak = target + '-config-devices.mak'
     config_devices_mak = configure_file(
       input: ['default-configs/devices' / target + '.mak', 'Kconfig'],
@@ -1087,7 +1078,7 @@ foreach target : target_dirs
       capture: true,
       command: [minikconf, config_host['CONFIG_MINIKCONF_MODE'],
                 config_devices_mak, '@DEPFILE@', '@INPUT@',
-                base_kconfig])
+                host_kconfig, accel_kconfig])
 
     config_devices_data = configuration_data()
     config_devices = keyval.load(config_devices_mak)

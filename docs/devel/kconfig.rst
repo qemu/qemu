@@ -288,21 +288,20 @@ they will include all these symbols and some help text on what they do.
 ----------------
 
 In some special cases, a configurable element depends on host features
-that are detected by QEMU's configure script; for example some devices
-depend on the availability of KVM or on the presence of a library on
-the host.
+that are detected by QEMU's configure or ``meson.build`` scripts; for
+example some devices depend on the availability of KVM or on the presence
+of a library on the host.
 
 These symbols should be listed in ``Kconfig.host`` like this::
 
-    config KVM
+    config TPM
       bool
 
-and also listed as follows in the top-level Makefile's ``MINIKCONF_ARGS``
+and also listed as follows in the top-level meson.build's host_kconfig
 variable::
 
-    MINIKCONF_ARGS = \
-      $@ $*/config-devices.mak.d $< $(MINIKCONF_INPUTS) \
-      CONFIG_KVM=$(CONFIG_KVM) \
-      CONFIG_SPICE=$(CONFIG_SPICE) \
-      CONFIG_TPM=$(CONFIG_TPM) \
+    host_kconfig = \
+      ('CONFIG_TPM' in config_host ? ['CONFIG_TPM=y'] : []) + \
+      ('CONFIG_SPICE' in config_host ? ['CONFIG_SPICE=y'] : []) + \
+      ('CONFIG_IVSHMEM' in config_host ? ['CONFIG_IVSHMEM=y'] : []) + \
       ...

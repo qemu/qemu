@@ -1,3 +1,12 @@
+config WHPX
+    bool
+
+config HAX
+    bool
+
+config HVF
+    bool
+
 config TCG
     bool
 
