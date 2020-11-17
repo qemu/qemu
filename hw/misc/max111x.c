@@ -185,6 +185,7 @@ static void max111x_class_init(ObjectClass *klass, void *data)
     k->transfer = max111x_transfer;
     dc->reset = max111x_reset;
     dc->vmsd = &vmstate_max111x;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo max111x_info = {

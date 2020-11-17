@@ -169,12 +169,6 @@ CPU_CONVERT(le, 16, uint16_t)
 CPU_CONVERT(le, 32, uint32_t)
 CPU_CONVERT(le, 64, uint64_t)
 
-/* len must be one of 1, 2, 4 */
-static inline uint32_t qemu_bswap_len(uint32_t value, int len)
-{
-    return bswap32(value) >> (32 - 8 * len);
-}
-
 /*
  * Same as cpu_to_le{16,32}, except that gcc will figure the result is
  * a compile-time constant if you pass in a constant.  So this can be

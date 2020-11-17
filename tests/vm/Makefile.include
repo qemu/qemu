@@ -4,7 +4,7 @@
 
 EFI_AARCH64 = $(wildcard $(BUILD_DIR)/pc-bios/edk2-aarch64-code.fd)
 
-IMAGES := freebsd netbsd openbsd centos fedora
+IMAGES := freebsd netbsd openbsd centos fedora haiku.x86_64
 ifneq ($(GENISOIMAGE),)
 IMAGES += ubuntu.i386 centos
 ifneq ($(EFI_AARCH64),)
@@ -41,6 +41,7 @@ endif
 else
 	@echo "  (install genisoimage to build centos/ubuntu images)"
 endif
+	@echo "  vm-build-haiku.x86_64           - Build QEMU in Haiku VM"
 	@echo ""
 	@echo "  vm-build-all                    - Build QEMU in all VMs"
 	@echo "  vm-clean-all                    - Clean up VM images"
