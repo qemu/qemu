@@ -328,7 +328,7 @@ between the snapshots. Each of the passes include the following steps:
  1. loading the snapshot
  2. replaying to examine the breakpoints
  3. if breakpoint or watchpoint was met
-    - loading the snaphot again
+    - loading the snapshot again
     - replaying to the required breakpoint
  4. else
     - proceeding to the p.1 with the earlier snapshot
