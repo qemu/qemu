@@ -691,10 +691,24 @@ if not get_option('bzip2').auto() or have_block
     endif
   endif
 endif
+
 liblzfse = not_found
-if 'CONFIG_LZFSE' in config_host
-  liblzfse = declare_dependency(link_args: config_host['LZFSE_LIBS'].split())
+if not get_option('lzfse').auto() or have_block
+  liblzfse = cc.find_library('lzfse', has_headers: ['lzfse.h'],
+                             required: get_option('lzfse'),
+                             static: enable_static)
 endif
+if liblzfse.found() and not cc.links('''
+   #include <lzfse.h>
+   int main(void) { lzfse_decode_scratch_size(); return 0; }''', dependencies: liblzfse)
+  liblzfse = not_found
+  if get_option('lzfse').enabled()
+    error('could not link liblzfse')
+  else
+    warning('could not link liblzfse, disabling')
+  endif
+endif
+
 oss = not_found
 if 'CONFIG_AUDIO_OSS' in config_host
   oss = declare_dependency(link_args: config_host['OSS_LIBS'].split())
@@ -2368,7 +2382,7 @@ summary_info += {'Live block migration': config_host.has_key('CONFIG_LIVE_BLOCK_
 summary_info += {'lzo support':       lzo.found()}
 summary_info += {'snappy support':    snappy.found()}
 summary_info += {'bzip2 support':     libbzip2.found()}
-summary_info += {'lzfse support':     config_host.has_key('CONFIG_LZFSE')}
+summary_info += {'lzfse support':     liblzfse.found()}
 summary_info += {'zstd support':      config_host.has_key('CONFIG_ZSTD')}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
 summary_info += {'libxml2':           config_host.has_key('CONFIG_LIBXML2')}

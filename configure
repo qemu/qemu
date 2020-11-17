@@ -396,7 +396,7 @@ capstone="auto"
 lzo="auto"
 snappy="auto"
 bzip2="auto"
-lzfse="$default_feature"
+lzfse="auto"
 zstd="$default_feature"
 guest_agent="$default_feature"
 guest_agent_with_vss="no"
@@ -1323,9 +1323,9 @@ for opt do
   ;;
   --enable-bzip2) bzip2="enabled"
   ;;
-  --enable-lzfse) lzfse="yes"
+  --enable-lzfse) lzfse="enabled"
   ;;
-  --disable-lzfse) lzfse="no"
+  --disable-lzfse) lzfse="disabled"
   ;;
   --disable-zstd) zstd="no"
   ;;
@@ -2455,24 +2455,6 @@ EOF
   if ! compile_object ; then
     feature_not_found "nptl" "Install glibc and linux kernel headers."
   fi
-fi
-
-##########################################
-# lzfse check
-
-if test "$lzfse" != "no" ; then
-    cat > $TMPC << EOF
-#include <lzfse.h>
-int main(void) { lzfse_decode_scratch_size(); return 0; }
-EOF
-    if compile_prog "" "-llzfse" ; then
-        lzfse="yes"
-    else
-        if test "$lzfse" = "yes"; then
-            feature_not_found "lzfse" "Install lzfse devel"
-        fi
-        lzfse="no"
-    fi
 fi
 
 ##########################################
@@ -6119,11 +6101,6 @@ if test "$avx512f_opt" = "yes" ; then
   echo "CONFIG_AVX512F_OPT=y" >> $config_host_mak
 fi
 
-if test "$lzfse" = "yes" ; then
-  echo "CONFIG_LZFSE=y" >> $config_host_mak
-  echo "LZFSE_LIBS=-llzfse" >> $config_host_mak
-fi
-
 if test "$zstd" = "yes" ; then
   echo "CONFIG_ZSTD=y" >> $config_host_mak
   echo "ZSTD_CFLAGS=$zstd_cflags" >> $config_host_mak
@@ -6693,7 +6670,7 @@ NINJA=$ninja $meson setup \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
-        -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy \
+        -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek \
