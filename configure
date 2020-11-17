@@ -405,7 +405,7 @@ guest_agent_msi="$default_feature"
 vss_win32_sdk="$default_feature"
 win_sdk="no"
 want_tools="$default_feature"
-libiscsi="$default_feature"
+libiscsi="auto"
 libnfs="$default_feature"
 coroutine=""
 coroutine_pool="$default_feature"
@@ -1138,9 +1138,9 @@ for opt do
   ;;
   --enable-spice) spice="yes"
   ;;
-  --disable-libiscsi) libiscsi="no"
+  --disable-libiscsi) libiscsi="disabled"
   ;;
-  --enable-libiscsi) libiscsi="yes"
+  --enable-libiscsi) libiscsi="enabled"
   ;;
   --disable-libnfs) libnfs="no"
   ;;
@@ -4315,21 +4315,6 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
-# Do we have libiscsi >= 1.9.0
-if test "$libiscsi" != "no" ; then
-  if $pkg_config --atleast-version=1.9.0 libiscsi; then
-    libiscsi="yes"
-    libiscsi_cflags=$($pkg_config --cflags libiscsi)
-    libiscsi_libs=$($pkg_config --libs libiscsi)
-  else
-    if test "$libiscsi" = "yes" ; then
-      feature_not_found "libiscsi" "Install libiscsi >= 1.9.0"
-    fi
-    libiscsi="no"
-  fi
-fi
-
-##########################################
 # Do we need librt
 # uClibc provides 2 versions of clock_gettime(), one with realtime
 # support and one without. This means that the clock_gettime() don't
@@ -6230,12 +6215,6 @@ if test "$zstd" = "yes" ; then
   echo "ZSTD_LIBS=$zstd_libs" >> $config_host_mak
 fi
 
-if test "$libiscsi" = "yes" ; then
-  echo "CONFIG_LIBISCSI=y" >> $config_host_mak
-  echo "LIBISCSI_CFLAGS=$libiscsi_cflags" >> $config_host_mak
-  echo "LIBISCSI_LIBS=$libiscsi_libs" >> $config_host_mak
-fi
-
 if test "$libnfs" = "yes" ; then
   echo "CONFIG_LIBNFS=y" >> $config_host_mak
   echo "LIBNFS_LIBS=$libnfs_libs" >> $config_host_mak
@@ -6806,7 +6785,7 @@ NINJA=$ninja $meson setup \
         -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
         -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
-        -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 \
+        -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \

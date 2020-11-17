@@ -50,6 +50,8 @@ option('curl', type : 'feature', value : 'auto',
        description: 'CURL block device driver')
 option('glusterfs', type : 'feature', value : 'auto',
        description: 'Glusterfs block device driver')
+option('libiscsi', type : 'feature', value : 'auto',
+       description: 'libiscsi userspace initiator')
 option('mpath', type : 'feature', value : 'auto',
        description: 'Multipath persistent reservation passthrough')
 option('iconv', type : 'feature', value : 'auto',

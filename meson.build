@@ -376,9 +376,10 @@ if 'CONFIG_PLUGIN' in config_host
   libdl = cc.find_library('dl', required: true)
 endif
 libiscsi = not_found
-if 'CONFIG_LIBISCSI' in config_host
-  libiscsi = declare_dependency(compile_args: config_host['LIBISCSI_CFLAGS'].split(),
-                                link_args: config_host['LIBISCSI_LIBS'].split())
+if not get_option('libiscsi').auto() or have_block
+  libiscsi = dependency('libiscsi', version: '>=1.9.0',
+                         required: get_option('libiscsi'),
+                         method: 'pkg-config', static: enable_static)
 endif
 zstd = not_found
 if 'CONFIG_ZSTD' in config_host
@@ -932,6 +933,7 @@ if glusterfs.found()
   config_host_data.set('CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT', glusterfs_ftruncate_has_stat)
   config_host_data.set('CONFIG_GLUSTERFS_IOCB_HAS_STAT', glusterfs_iocb_has_stat)
 endif
+config_host_data.set('CONFIG_LIBISCSI', libiscsi.found())
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
@@ -2290,7 +2292,7 @@ summary_info += {'libusb':            config_host.has_key('CONFIG_USB_LIBUSB')}
 summary_info += {'usb net redir':     config_host.has_key('CONFIG_USB_REDIR')}
 summary_info += {'OpenGL support':    config_host.has_key('CONFIG_OPENGL')}
 summary_info += {'OpenGL dmabufs':    config_host.has_key('CONFIG_OPENGL_DMABUF')}
-summary_info += {'libiscsi support':  config_host.has_key('CONFIG_LIBISCSI')}
+summary_info += {'libiscsi support':  libiscsi.found()}
 summary_info += {'libnfs support':    config_host.has_key('CONFIG_LIBNFS')}
 summary_info += {'build guest agent': config_host.has_key('CONFIG_GUEST_AGENT')}
 if targetos == 'windows'
