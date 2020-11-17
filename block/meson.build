@@ -71,14 +71,14 @@ block_modules = {}
 
 modsrc = []
 foreach m : [
-  ['CONFIG_CURL', 'curl', [curl, glib], 'curl.c'],
-  ['CONFIG_GLUSTERFS', 'gluster', glusterfs, 'gluster.c'],
-  ['CONFIG_LIBISCSI', 'iscsi', libiscsi, 'iscsi.c'],
-  ['CONFIG_LIBNFS', 'nfs', libnfs, 'nfs.c'],
-  ['CONFIG_LIBSSH', 'ssh', libssh, 'ssh.c'],
-  ['CONFIG_RBD', 'rbd', rbd, 'rbd.c'],
+  [curl, 'curl', [curl, glib], 'curl.c'],
+  [glusterfs, 'gluster', glusterfs, 'gluster.c'],
+  [libiscsi, 'iscsi', libiscsi, 'iscsi.c'],
+  [libnfs, 'nfs', libnfs, 'nfs.c'],
+  [libssh, 'ssh', libssh, 'ssh.c'],
+  [rbd, 'rbd', rbd, 'rbd.c'],
 ]
-  if config_host.has_key(m[0])
+  if m[0].found()
     if enable_modules
       modsrc += files(m[3])
     endif
@@ -91,10 +91,10 @@ endforeach
 # those are not exactly regular block modules, so treat them apart
 if 'CONFIG_DMG' in config_host
   foreach m : [
-    ['CONFIG_LZFSE', 'dmg-lzfse', liblzfse, 'dmg-lzfse.c'],
-    ['CONFIG_BZIP2', 'dmg-bz2', [glib, libbzip2], 'dmg-bz2.c']
+    [liblzfse, 'dmg-lzfse', liblzfse, 'dmg-lzfse.c'],
+    [libbzip2, 'dmg-bz2', [glib, libbzip2], 'dmg-bz2.c']
   ]
-    if config_host.has_key(m[0])
+    if m[0].found()
       module_ss = ss.source_set()
       module_ss.add(when: m[2], if_true: files(m[3]))
       block_modules += {m[1] : module_ss}
