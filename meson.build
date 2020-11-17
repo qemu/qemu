@@ -396,9 +396,11 @@ if 'CONFIG_VIRGL' in config_host
                              link_args: config_host['VIRGL_LIBS'].split())
 endif
 curl = not_found
-if 'CONFIG_CURL' in config_host
-  curl = declare_dependency(compile_args: config_host['CURL_CFLAGS'].split(),
-                            link_args: config_host['CURL_LIBS'].split())
+if not get_option('curl').auto() or have_block
+  curl = dependency('libcurl', version: '>=7.29.0',
+                    method: 'pkg-config',
+                    required: get_option('curl'),
+                    static: enable_static)
 endif
 libudev = not_found
 if targetos == 'linux' and (have_system or have_tools)
@@ -876,6 +878,7 @@ config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
 config_host_data.set('CONFIG_MPATH_NEW_API', mpathpersist_new_api)
+config_host_data.set('CONFIG_CURL', curl.found())
 config_host_data.set('CONFIG_CURSES', curses.found())
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
@@ -2165,7 +2168,7 @@ summary_info += {'iconv support':     iconv.found()}
 summary_info += {'curses support':    curses.found()}
 # TODO: add back version
 summary_info += {'virgl support':     config_host.has_key('CONFIG_VIRGL')}
-summary_info += {'curl support':      config_host.has_key('CONFIG_CURL')}
+summary_info += {'curl support':      curl.found()}
 summary_info += {'mingw32 support':   targetos == 'windows'}
 summary_info += {'Audio drivers':     config_host['CONFIG_AUDIO_DRIVERS']}
 summary_info += {'Block whitelist (rw)': config_host['CONFIG_BDRV_RW_WHITELIST']}

@@ -306,7 +306,7 @@ for opt do
 done
 
 brlapi="auto"
-curl="$default_feature"
+curl="auto"
 iconv="auto"
 curses="auto"
 docs="auto"
@@ -1215,9 +1215,9 @@ for opt do
   ;;
   --enable-iconv) iconv="enabled"
   ;;
-  --disable-curl) curl="no"
+  --disable-curl) curl="disabled"
   ;;
-  --enable-curl) curl="yes"
+  --enable-curl) curl="enabled"
   ;;
   --disable-fdt) fdt="disabled"
   ;;
@@ -3423,25 +3423,6 @@ for drv in $audio_drv_list; do
     ;;
     esac
 done
-
-##########################################
-# curl probe
-if test "$curl" != "no" ; then
-  cat > $TMPC << EOF
-#include <curl/curl.h>
-int main(void) { curl_easy_init(); curl_multi_setopt(0, 0, 0); return 0; }
-EOF
-  curl_cflags=$($pkg_config libcurl --cflags 2>/dev/null)
-  curl_libs=$($pkg_config libcurl --libs 2>/dev/null)
-  if compile_prog "$curl_cflags" "$curl_libs" ; then
-    curl=yes
-  else
-    if test "$curl" = "yes" ; then
-      feature_not_found "curl" "Install libcurl devel"
-    fi
-    curl=no
-  fi
-fi # test "$curl"
 
 ##########################################
 # glib support probe
@@ -6103,11 +6084,6 @@ fi
 if test "$bswap_h" = "yes" ; then
   echo "CONFIG_MACHINE_BSWAP_H=y" >> $config_host_mak
 fi
-if test "$curl" = "yes" ; then
-  echo "CONFIG_CURL=y" >> $config_host_mak
-  echo "CURL_CFLAGS=$curl_cflags" >> $config_host_mak
-  echo "CURL_LIBS=$curl_libs" >> $config_host_mak
-fi
 if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
@@ -6947,6 +6923,7 @@ NINJA=$ninja $meson setup \
         -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
         -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
+        -Dcurl=$curl \
         -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
