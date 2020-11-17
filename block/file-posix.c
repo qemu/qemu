@@ -1698,6 +1698,7 @@ static int handle_aiocb_write_zeroes_unmap(void *opaque)
     switch (ret) {
     case -ENOTSUP:
     case -EINVAL:
+    case -EBUSY:
         break;
     default:
         return ret;

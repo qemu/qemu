@@ -47,6 +47,33 @@ read 10485760/10485760 bytes at offset 0
 read 10485760/10485760 bytes at offset 0
 10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
+== using quorum rewrite corrupted mode without WRITE permission ==
+-- corrupting --
+wrote 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+-- running quorum --
+Testing: -blockdev file,node-name=file1,filename=TEST_DIR/1.IMGFMT -blockdev file,node-name=file2,filename=TEST_DIR/2.IMGFMT -blockdev file,node-name=file3,filename=TEST_DIR/3.IMGFMT -blockdev {
+        "driver": "quorum",
+        "node-name": "quorum",
+        "read-only": true,
+        "vote-threshold": 2,
+        "rewrite-corrupted": true,
+        "children": [ "file1", "file2", "file3" ]
+    } -device virtio-scsi,id=scsi -device scsi-hd,id=quorum-drive,bus=scsi.0,drive=quorum
+QMP_VERSION
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "QUORUM_REPORT_BAD", "data": {"node-name": "file2", "sectors-count": 20480, "sector-num": 0, "type": "read"}}
+read 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+{"return": ""}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+
+-- checking that the image has been corrected --
+read 10485760/10485760 bytes at offset 0
+10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
 == breaking quorum ==
 wrote 10485760/10485760 bytes at offset 0
 10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)

@@ -321,8 +321,7 @@
 # Configuration info for stdio chardevs.
 #
 # @signal: Allow signals (such as SIGINT triggered by ^C)
-#          be delivered to qemu.  Default: true in -nographic mode,
-#          false otherwise.
+#          be delivered to qemu.  Default: true.
 #
 # Since: 1.5
 ##
