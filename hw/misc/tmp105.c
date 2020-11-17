@@ -225,6 +225,9 @@ static void tmp105_reset(I2CSlave *i2c)
     s->faults = tmp105_faultq[(s->config >> 3) & 3];
     s->alarm = 0;
 
+    s->limit[0] = 0x4b00; /* T_LOW, 75 degrees C */
+    s->limit[1] = 0x5000; /* T_HIGH, 80 degrees C */
+
     tmp105_interrupt_update(s);
 }
 
