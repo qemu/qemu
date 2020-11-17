@@ -383,7 +383,7 @@ qom_cast_debug="yes"
 trace_backends="log"
 trace_file="trace"
 spice="$default_feature"
-rbd="$default_feature"
+rbd="auto"
 smartcard="$default_feature"
 u2f="auto"
 libusb="$default_feature"
@@ -1285,9 +1285,9 @@ for opt do
   ;;
   --enable-opengl) opengl="yes"
   ;;
-  --disable-rbd) rbd="no"
+  --disable-rbd) rbd="disabled"
   ;;
-  --enable-rbd) rbd="yes"
+  --enable-rbd) rbd="enabled"
   ;;
   --disable-xfsctl) xfs="no"
   ;;
@@ -3604,29 +3604,6 @@ int main(void)
 EOF
 if compile_prog "" "$pthread_lib" ; then
   pthread_setname_np_wo_tid=yes
-fi
-
-##########################################
-# rbd probe
-if test "$rbd" != "no" ; then
-  cat > $TMPC <<EOF
-#include <stdio.h>
-#include <rbd/librbd.h>
-int main(void) {
-    rados_t cluster;
-    rados_create(&cluster, NULL);
-    return 0;
-}
-EOF
-  rbd_libs="-lrbd -lrados"
-  if compile_prog "" "$rbd_libs" ; then
-    rbd=yes
-  else
-    if test "$rbd" = "yes" ; then
-      feature_not_found "rados block device" "Install librbd/ceph devel"
-    fi
-    rbd=no
-  fi
 fi
 
 ##########################################
@@ -6215,10 +6192,6 @@ fi
 if test "$qom_cast_debug" = "yes" ; then
   echo "CONFIG_QOM_CAST_DEBUG=y" >> $config_host_mak
 fi
-if test "$rbd" = "yes" ; then
-  echo "CONFIG_RBD=y" >> $config_host_mak
-  echo "RBD_LIBS=$rbd_libs" >> $config_host_mak
-fi
 
 echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak
 if test "$coroutine_pool" = "yes" ; then
@@ -6768,6 +6741,7 @@ NINJA=$ninja $meson setup \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
+        -Drbd=$rbd \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek \

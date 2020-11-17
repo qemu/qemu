@@ -616,9 +616,24 @@ else
 endif
 
 rbd = not_found
-if 'CONFIG_RBD' in config_host
-  rbd = declare_dependency(link_args: config_host['RBD_LIBS'].split())
+if not get_option('rbd').auto() or have_block
+  librados = cc.find_library('rados', required: get_option('rbd'),
+                             static: enable_static)
+  librbd = cc.find_library('rbd', has_headers: ['rbd/librbd.h'],
+                           required: get_option('rbd'),
+                           static: enable_static)
+  if librados.found() and librbd.found() and cc.links('''
+    #include <stdio.h>
+    #include <rbd/librbd.h>
+    int main(void) {
+      rados_t cluster;
+      rados_create(&cluster, NULL);
+      return 0;
+    }''', dependencies: [librbd, librados])
+    rbd = declare_dependency(dependencies: [librbd, librados])
+  endif
 endif
+
 glusterfs = not_found
 glusterfs_ftruncate_has_stat = false
 glusterfs_iocb_has_stat = false
@@ -937,6 +952,7 @@ if glusterfs.found()
 endif
 config_host_data.set('CONFIG_LIBISCSI', libiscsi.found())
 config_host_data.set('CONFIG_LIBNFS', libnfs.found())
+config_host_data.set('CONFIG_RBD', rbd.found())
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
@@ -2287,7 +2303,7 @@ if config_host['TRACE_BACKENDS'].split().contains('simple')
 endif
 # TODO: add back protocol and server version
 summary_info += {'spice support':     config_host.has_key('CONFIG_SPICE')}
-summary_info += {'rbd support':       config_host.has_key('CONFIG_RBD')}
+summary_info += {'rbd support':       rbd.found()}
 summary_info += {'xfsctl support':    config_host.has_key('CONFIG_XFS')}
 summary_info += {'smartcard support': config_host.has_key('CONFIG_SMARTCARD')}
 summary_info += {'U2F support':       u2f.found()}
