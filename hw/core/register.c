@@ -258,10 +258,6 @@ static RegisterInfoArray *register_init_block(DeviceState *owner,
         int index = rae[i].addr / data_size;
         RegisterInfo *r = &ri[index];
 
-        if (data + data_size * index == 0 || !&rae[i]) {
-            continue;
-        }
-
         /* Init the register, this will zero it. */
         object_initialize((void *)r, sizeof(*r), TYPE_REGISTER);
 
