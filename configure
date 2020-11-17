@@ -3505,8 +3505,15 @@ if $pkg_config --atleast-version=$glib_req_ver gio-2.0; then
     # Check that the libraries actually work -- Ubuntu 18.04 ships
     # with pkg-config --static --libs data for gio-2.0 that is missing
     # -lblkid and will give a link error.
-    write_c_skeleton
-    if compile_prog "" "$gio_libs" ; then
+    cat > $TMPC <<EOF
+#include <gio/gio.h>
+int main(void)
+{
+    g_dbus_proxy_new_sync(0, 0, 0, 0, 0, 0, 0, 0);
+    return 0;
+}
+EOF
+    if compile_prog "$gio_cflags" "$gio_libs" ; then
         gio=yes
     else
         gio=no

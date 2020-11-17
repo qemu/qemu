@@ -41,16 +41,40 @@ static void tmp105_alarm_update(TMP105State *s)
             return;
     }
 
-    if ((s->config >> 1) & 1) {					/* TM */
-        if (s->temperature >= s->limit[1])
-            s->alarm = 1;
-        else if (s->temperature < s->limit[0])
-            s->alarm = 1;
+    if (s->config >> 1 & 1) {
+        /*
+         * TM == 1 : Interrupt mode. We signal Alert when the
+         * temperature rises above T_high, and expect the guest to clear
+         * it (eg by reading a device register).
+         */
+        if (s->detect_falling) {
+            if (s->temperature < s->limit[0]) {
+                s->alarm = 1;
+                s->detect_falling = false;
+            }
+        } else {
+            if (s->temperature >= s->limit[1]) {
+                s->alarm = 1;
+                s->detect_falling = true;
+            }
+        }
     } else {
-        if (s->temperature >= s->limit[1])
-            s->alarm = 1;
-        else if (s->temperature < s->limit[0])
-            s->alarm = 0;
+        /*
+         * TM == 0 : Comparator mode. We signal Alert when the temperature
+         * rises above T_high, and stop signalling it when the temperature
+         * falls below T_low.
+         */
+        if (s->detect_falling) {
+            if (s->temperature < s->limit[0]) {
+                s->alarm = 0;
+                s->detect_falling = false;
+            }
+        } else {
+            if (s->temperature >= s->limit[1]) {
+                s->alarm = 1;
+                s->detect_falling = true;
+            }
+        }
     }
 
     tmp105_interrupt_update(s);
@@ -197,6 +221,29 @@ static int tmp105_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static bool detect_falling_needed(void *opaque)
+{
+    TMP105State *s = opaque;
+
+    /*
+     * We only need to migrate the detect_falling bool if it's set;
+     * for migration from older machines we assume that it is false
+     * (ie temperature is not out of range).
+     */
+    return s->detect_falling;
+}
+
+static const VMStateDescription vmstate_tmp105_detect_falling = {
+    .name = "TMP105/detect-falling",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = detect_falling_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(detect_falling, TMP105State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_tmp105 = {
     .name = "TMP105",
     .version_id = 0,
@@ -212,6 +259,10 @@ static const VMStateDescription vmstate_tmp105 = {
         VMSTATE_UINT8(alarm, TMP105State),
         VMSTATE_I2C_SLAVE(i2c, TMP105State),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_tmp105_detect_falling,
+        NULL
     }
 };
 
@@ -224,6 +275,10 @@ static void tmp105_reset(I2CSlave *i2c)
     s->config = 0;
     s->faults = tmp105_faultq[(s->config >> 3) & 3];
     s->alarm = 0;
+    s->detect_falling = false;
+
+    s->limit[0] = 0x4b00; /* T_LOW, 75 degrees C */
+    s->limit[1] = 0x5000; /* T_HIGH, 80 degrees C */
 
     tmp105_interrupt_update(s);
 }

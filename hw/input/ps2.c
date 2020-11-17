@@ -33,12 +33,6 @@
 
 #include "trace.h"
 
-/* debug PC keyboard */
-//#define DEBUG_KBD
-
-/* debug PC keyboard : only mouse */
-//#define DEBUG_MOUSE
-
 /* Keyboard Commands */
 #define KBD_CMD_SET_LEDS	0xED	/* Set keyboard leds */
 #define KBD_CMD_ECHO     	0xEE
@@ -790,9 +784,6 @@ void ps2_write_mouse(void *opaque, int val)
     PS2MouseState *s = (PS2MouseState *)opaque;
 
     trace_ps2_write_mouse(opaque, val);
-#ifdef DEBUG_MOUSE
-    printf("kbd: write mouse 0x%02x\n", val);
-#endif
     switch(s->common.write_cmd) {
     default:
     case -1:
