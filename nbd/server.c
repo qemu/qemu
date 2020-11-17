@@ -2129,8 +2129,8 @@ static void bitmap_to_extents(BdrvDirtyBitmap *bitmap,
     }
 
     if (!full) {
-        /* last non dirty extent */
-        nbd_extent_array_add(es, end - start, 0);
+        /* last non dirty extent, nothing to do if array is now full */
+        (void) nbd_extent_array_add(es, end - start, 0);
     }
 
     bdrv_dirty_bitmap_unlock(bitmap);
