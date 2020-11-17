@@ -29,7 +29,7 @@ softmmu_ss.add(files('msmouse.c', 'wctablet.c', 'testdev.c'))
 
 chardev_modules = {}
 
-if config_host.has_key('CONFIG_BRLAPI')
+if brlapi.found()
   module_ss = ss.source_set()
   module_ss.add(when: [brlapi], if_true: [files('baum.c'), pixman])
   chardev_modules += { 'baum': module_ss }

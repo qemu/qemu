@@ -305,7 +305,7 @@ for opt do
   esac
 done
 
-brlapi="$default_feature"
+brlapi="auto"
 curl="$default_feature"
 iconv="auto"
 curses="auto"
@@ -1104,9 +1104,9 @@ for opt do
   ;;
   --enable-xen-pci-passthrough) xen_pci_passthrough="enabled"
   ;;
-  --disable-brlapi) brlapi="no"
+  --disable-brlapi) brlapi="disabled"
   ;;
-  --enable-brlapi) brlapi="yes"
+  --enable-brlapi) brlapi="enabled"
   ;;
   --disable-kvm) kvm="disabled"
   ;;
@@ -3423,26 +3423,6 @@ for drv in $audio_drv_list; do
     ;;
     esac
 done
-
-##########################################
-# BrlAPI probe
-
-if test "$brlapi" != "no" ; then
-  brlapi_libs="-lbrlapi"
-  cat > $TMPC << EOF
-#include <brlapi.h>
-#include <stddef.h>
-int main( void ) { return brlapi__openConnection (NULL, NULL, NULL); }
-EOF
-  if compile_prog "" "$brlapi_libs" ; then
-    brlapi=yes
-  else
-    if test "$brlapi" = "yes" ; then
-      feature_not_found "brlapi" "Install brlapi devel"
-    fi
-    brlapi=no
-  fi
-fi
 
 ##########################################
 # curl probe
@@ -6133,10 +6113,6 @@ if test "$curl" = "yes" ; then
   echo "CURL_CFLAGS=$curl_cflags" >> $config_host_mak
   echo "CURL_LIBS=$curl_libs" >> $config_host_mak
 fi
-if test "$brlapi" = "yes" ; then
-  echo "CONFIG_BRLAPI=y" >> $config_host_mak
-  echo "BRLAPI_LIBS=$brlapi_libs" >> $config_host_mak
-fi
 if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
@@ -6975,7 +6951,7 @@ NINJA=$ninja $meson setup \
         -Dcocoa=$cocoa -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
         -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
         -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
-        -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt \
+        -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
         -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \

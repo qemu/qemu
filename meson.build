@@ -574,8 +574,21 @@ if have_system and not get_option('curses').disabled()
 endif
 
 brlapi = not_found
-if 'CONFIG_BRLAPI' in config_host
-  brlapi = declare_dependency(link_args: config_host['BRLAPI_LIBS'].split())
+if not get_option('brlapi').auto() or have_system
+  brlapi = cc.find_library('brlapi', has_headers: ['brlapi.h'],
+                         required: get_option('brlapi'),
+                         static: enable_static)
+  if brlapi.found() and not cc.links('''
+     #include <brlapi.h>
+     #include <stddef.h>
+     int main(void) { return brlapi__openConnection (NULL, NULL, NULL); }''', dependencies: brlapi)
+    brlapi = not_found
+    if get_option('brlapi').enabled()
+      error('could not link brlapi')
+    else
+      warning('could not link brlapi, disabling')
+    endif
+  endif
 endif
 
 sdl = not_found
@@ -858,6 +871,7 @@ config_host_data.set_quoted('CONFIG_QEMU_LOCALSTATEDIR', get_option('prefix') / 
 config_host_data.set_quoted('CONFIG_QEMU_MODDIR', get_option('prefix') / qemu_moddir)
 config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_option('sysconfdir'))
 
+config_host_data.set('CONFIG_BRLAPI', brlapi.found())
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
@@ -2169,7 +2183,7 @@ summary_info += {'xen support':       config_host.has_key('CONFIG_XEN_BACKEND')}
 if config_host.has_key('CONFIG_XEN_BACKEND')
   summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}
 endif
-summary_info += {'brlapi support':    config_host.has_key('CONFIG_BRLAPI')}
+summary_info += {'brlapi support':    brlapi.found()}
 summary_info += {'Documentation':     build_docs}
 summary_info += {'PIE':               get_option('b_pie')}
 summary_info += {'vde support':       config_host.has_key('CONFIG_VDE')}
