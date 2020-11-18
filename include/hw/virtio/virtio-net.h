@@ -205,7 +205,6 @@ struct VirtIONet {
     QemuOpts *primary_device_opts;
     QDict *primary_device_dict;
     DeviceState *primary_dev;
-    BusState *primary_bus;
     char *primary_device_id;
     char *standby_id;
     bool primary_should_be_hidden;

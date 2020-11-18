@@ -804,7 +804,6 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
             qemu_opts_del(n->primary_device_opts);
         }
         if (n->primary_dev) {
-            n->primary_bus = n->primary_dev->parent_bus;
             if (err) {
                 qdev_unplug(n->primary_dev, &err);
                 qdev_set_id(n->primary_dev, "");
@@ -3118,6 +3117,7 @@ static bool failover_replug_primary(VirtIONet *n, Error **errp)
     Error *err = NULL;
     HotplugHandler *hotplug_ctrl;
     PCIDevice *pdev = PCI_DEVICE(n->primary_dev);
+    BusState *primary_bus;
 
     if (!pdev->partially_hotplugged) {
         return true;
@@ -3130,12 +3130,12 @@ static bool failover_replug_primary(VirtIONet *n, Error **errp)
             return false;
         }
     }
-    n->primary_bus = n->primary_dev->parent_bus;
-    if (!n->primary_bus) {
+    primary_bus = n->primary_dev->parent_bus;
+    if (!primary_bus) {
         error_setg(errp, "virtio_net: couldn't find primary bus");
         return false;
     }
-    qdev_set_parent_bus(n->primary_dev, n->primary_bus, &error_abort);
+    qdev_set_parent_bus(n->primary_dev, primary_bus, &error_abort);
     qatomic_set(&n->primary_should_be_hidden, false);
     if (!qemu_opt_set_bool(n->primary_device_opts,
                            "partially_hotplugged", true, errp)) {
