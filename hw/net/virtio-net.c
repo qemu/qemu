@@ -832,35 +832,6 @@ static char *failover_find_primary_device_id(VirtIONet *n)
     return fid.id;
 }
 
-static void failover_add_primary(VirtIONet *n, Error **errp)
-{
-    Error *err = NULL;
-    QemuOpts *opts;
-    char *id;
-
-    if (n->primary_dev) {
-        return;
-    }
-
-    id = failover_find_primary_device_id(n);
-    if (!id) {
-        return;
-    }
-    opts = qemu_opts_find(qemu_find_opts("device"), id);
-    if (opts) {
-        n->primary_dev = qdev_device_add(opts, &err);
-        if (err) {
-            qemu_opts_del(opts);
-        }
-    } else {
-        error_setg(errp, "Primary device not found");
-        error_append_hint(errp, "Virtio-net failover will not work. Make "
-                          "sure primary device has parameter"
-                          " failover_pair_id=<virtio-net-id>\n");
-    }
-    error_propagate(errp, err);
-}
-
 /**
  * Find the primary device for this failover virtio-net
  *
@@ -876,6 +847,36 @@ static DeviceState *failover_find_primary_device(VirtIONet *n)
     }
 
     return qdev_find_recursive(sysbus_get_default(), id);
+}
+
+static void failover_add_primary(VirtIONet *n, Error **errp)
+{
+    Error *err = NULL;
+    QemuOpts *opts;
+    char *id;
+    DeviceState *dev = failover_find_primary_device(n);
+
+    if (dev) {
+        return;
+    }
+
+    id = failover_find_primary_device_id(n);
+    if (!id) {
+        return;
+    }
+    opts = qemu_opts_find(qemu_find_opts("device"), id);
+    if (opts) {
+        dev = qdev_device_add(opts, &err);
+        if (err) {
+            qemu_opts_del(opts);
+        }
+    } else {
+        error_setg(errp, "Primary device not found");
+        error_append_hint(errp, "Virtio-net failover will not work. Make "
+                          "sure primary device has parameter"
+                          " failover_pair_id=<virtio-net-id>\n");
+    }
+    error_propagate(errp, err);
 }
 
 static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
@@ -933,18 +934,8 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
         qatomic_set(&n->failover_primary_hidden, false);
         failover_add_primary(n, &err);
         if (err) {
-            n->primary_dev = failover_find_primary_device(n);
-            failover_add_primary(n, &err);
-            if (err) {
-                goto out_err;
-            }
+            warn_report_err(err);
         }
-    }
-    return;
-
-out_err:
-    if (err) {
-        warn_report_err(err);
     }
 }
 
@@ -3420,13 +3411,15 @@ static int virtio_net_pre_save(void *opaque)
 static bool primary_unplug_pending(void *opaque)
 {
     DeviceState *dev = opaque;
+    DeviceState *primary;
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIONet *n = VIRTIO_NET(vdev);
 
     if (!virtio_vdev_has_feature(vdev, VIRTIO_NET_F_STANDBY)) {
         return false;
     }
-    return n->primary_dev ? n->primary_dev->pending_deleted_event : false;
+    primary = failover_find_primary_device(n);
+    return primary ? primary->pending_deleted_event : false;
 }
 
 static bool dev_unplug_pending(void *opaque)
