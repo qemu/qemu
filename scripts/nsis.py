@@ -65,7 +65,7 @@ def main():
             dlldir = "w64"
             makensis += ["-DW64"]
         if os.path.exists(os.path.join(args.srcdir, "dll")):
-            makensis += "-DDLLDIR={0}/dll/{1}".format(args.srcdir, dlldir)
+            makensis += ["-DDLLDIR={0}/dll/{1}".format(args.srcdir, dlldir)]
 
         makensis += ["-DOUTFILE=" + args.outfile] + args.nsisargs
         subprocess.run(makensis)

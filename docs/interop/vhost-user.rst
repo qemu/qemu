@@ -530,7 +530,7 @@ descriptor table (split virtqueue) or descriptor ring (packed
 virtqueue). However, it can't work when we process descriptors
 out-of-order because some entries which store the information of
 inflight descriptors in available ring (split virtqueue) or descriptor
-ring (packed virtqueue) might be overrided by new entries. To solve
+ring (packed virtqueue) might be overridden by new entries. To solve
 this problem, slave need to allocate an extra buffer to store this
 information of inflight descriptors and share it with master for
 persistent. ``VHOST_USER_GET_INFLIGHT_FD`` and

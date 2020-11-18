@@ -198,7 +198,7 @@ This is how it is being done:
 * user distance 121 and beyond will be interpreted as 160
 * user distance 10 stays 10
 
-The reasoning behind this aproximation is to avoid any round up to the local
+The reasoning behind this approximation is to avoid any round up to the local
 distance (10), keeping it exclusive to the 4th NUMA level (which is still
 exclusive to the node_id). All other ranges were chosen under the developer
 discretion of what would be (somewhat) sensible considering the user input.

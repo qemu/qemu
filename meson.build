@@ -490,10 +490,15 @@ if have_system and not get_option('curses').disabled()
       return 0;
     }'''
 
-  curses = dependency((targetos == 'windows' ? 'ncurses' : 'ncursesw'),
-                      required: false,
-                      method: 'pkg-config',
-                      static: enable_static)
+  curses_dep_list = targetos == 'windows' ? ['ncurses', 'ncursesw'] : ['ncursesw']
+  foreach curses_dep : curses_dep_list
+    if not curses.found()
+      curses = dependency(curses_dep,
+                          required: false,
+                          method: 'pkg-config',
+                          static: enable_static)
+    endif
+  endforeach
   msg = get_option('curses').enabled() ? 'curses library not found' : ''
   if curses.found()
     if cc.links(curses_test, dependencies: [curses])

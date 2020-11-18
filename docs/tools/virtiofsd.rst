@@ -174,7 +174,7 @@ Using ':' as the separator a rule is of the form:
 - 'bad' - If a client tries to use a name matching 'key' it's
   denied using EPERM; when the server passes an attribute
   name matching 'prepend' it's hidden.  In many ways it's use is very like
-  'ok' as either an explict terminator or for special handling of certain
+  'ok' as either an explicit terminator or for special handling of certain
   patterns.
 
 **key** is a string tested as a prefix on an attribute name originating
