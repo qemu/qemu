@@ -818,7 +818,7 @@ static int is_my_primary(void *opaque, QemuOpts *opts, Error **errp)
     int ret = 0;
     const char *standby_id = qemu_opt_get(opts, "failover_pair_id");
 
-    if (standby_id != NULL && (g_strcmp0(standby_id, n->netclient_name) == 0)) {
+    if (g_strcmp0(standby_id, n->netclient_name) == 0) {
         n->primary_device_id = g_strdup(opts->id);
         ret = 1;
     }
