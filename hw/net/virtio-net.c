@@ -854,9 +854,7 @@ static DeviceState *virtio_connect_failover_devices(VirtIONet *n, Error **errp)
     Error *err = NULL;
 
     prim_dev = virtio_net_find_primary(n, &err);
-    if (prim_dev) {
-        n->primary_device_id = g_strdup(prim_dev->id);
-    } else {
+    if (!prim_dev) {
         error_propagate(errp, err);
     }
 
