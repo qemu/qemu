@@ -66,10 +66,24 @@ qauthz_simple_finalize(Object *obj)
 
 
 static void
+qauthz_simple_complete(UserCreatable *uc, Error **errp)
+{
+    QAuthZSimple *sauthz = QAUTHZ_SIMPLE(uc);
+
+    if (!sauthz->identity) {
+        error_setg(errp, "The 'identity' property must be set");
+        return;
+    }
+}
+
+
+static void
 qauthz_simple_class_init(ObjectClass *oc, void *data)
 {
     QAuthZClass *authz = QAUTHZ_CLASS(oc);
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
+    ucc->complete = qauthz_simple_complete;
     authz->is_allowed = qauthz_simple_is_allowed;
 
     object_class_property_add_str(oc, "identity",
