@@ -3101,13 +3101,6 @@ EOF
     fi
 fi
 
-#########################################
-# sys/signal.h check
-have_sys_signal_h=no
-if check_include "sys/signal.h" ; then
-  have_sys_signal_h=yes
-fi
-
 ##########################################
 # VTE probe
 
@@ -6203,9 +6196,6 @@ if test "$have_broken_size_max" = "yes" ; then
 fi
 if test "$have_openpty" = "yes" ; then
     echo "HAVE_OPENPTY=y" >> $config_host_mak
-fi
-if test "$have_sys_signal_h" = "yes" ; then
-    echo "HAVE_SYS_SIGNAL_H=y" >> $config_host_mak
 fi
 
 # Work around a system header bug with some kernel/XFS header
