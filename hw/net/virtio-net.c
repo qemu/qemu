@@ -791,17 +791,17 @@ static inline uint64_t virtio_net_supported_guest_offloads(VirtIONet *n)
 static void failover_add_primary(VirtIONet *n, Error **errp)
 {
     Error *err = NULL;
+    QemuOpts *opts;
 
     if (n->primary_dev) {
         return;
     }
 
-    n->primary_device_opts = qemu_opts_find(qemu_find_opts("device"),
-                                            n->primary_device_id);
-    if (n->primary_device_opts) {
-        n->primary_dev = qdev_device_add(n->primary_device_opts, &err);
+    opts = qemu_opts_find(qemu_find_opts("device"), n->primary_device_id);
+    if (opts) {
+        n->primary_dev = qdev_device_add(opts, &err);
         if (err) {
-            qemu_opts_del(n->primary_device_opts);
+            qemu_opts_del(opts);
         }
     } else {
         error_setg(errp, "Primary device not found");
@@ -856,7 +856,6 @@ static DeviceState *virtio_connect_failover_devices(VirtIONet *n, Error **errp)
     prim_dev = virtio_net_find_primary(n, &err);
     if (prim_dev) {
         n->primary_device_id = g_strdup(prim_dev->id);
-        n->primary_device_opts = prim_dev->opts;
     } else {
         error_propagate(errp, err);
     }
@@ -3113,14 +3112,6 @@ static bool failover_replug_primary(VirtIONet *n, Error **errp)
     if (!pdev->partially_hotplugged) {
         return true;
     }
-    if (!n->primary_device_opts) {
-        n->primary_device_opts = qemu_opts_from_qdict(qemu_find_opts("device"),
-                                                      n->primary_device_dict,
-                                                      errp);
-        if (!n->primary_device_opts) {
-            return false;
-        }
-    }
     primary_bus = n->primary_dev->parent_bus;
     if (!primary_bus) {
         error_setg(errp, "virtio_net: couldn't find primary bus");
@@ -3210,8 +3201,6 @@ static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
         n->primary_device_dict = NULL;
         goto out;
     }
-
-    n->primary_device_opts = device_opts;
 
     /* failover_primary_hidden is set during feature negotiation */
     hide = qatomic_read(&n->failover_primary_hidden);
