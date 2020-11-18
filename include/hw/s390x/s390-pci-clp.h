@@ -144,10 +144,10 @@ typedef struct ClpReqQueryPciGrp {
     ClpReqHdr hdr;
     uint32_t fmt;
     uint64_t reserved1;
-#define CLP_REQ_QPCIG_MASK_PFGID 0xff
-    uint32_t g;
-    uint32_t reserved2;
-    uint64_t reserved3;
+    uint8_t reserved2[3];
+    uint8_t g;
+    uint32_t reserved3;
+    uint64_t reserved4;
 } QEMU_PACKED ClpReqQueryPciGrp;
 
 /* Query PCI function group response */

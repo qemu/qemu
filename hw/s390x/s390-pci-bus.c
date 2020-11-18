@@ -777,11 +777,11 @@ static void s390_pci_init_default_group(void)
     group = s390_group_create(ZPCI_DEFAULT_FN_GRP);
     resgrp = &group->zpci_group;
     resgrp->fr = 1;
-    stq_p(&resgrp->dasm, 0);
-    stq_p(&resgrp->msia, ZPCI_MSI_ADDR);
-    stw_p(&resgrp->mui, DEFAULT_MUI);
-    stw_p(&resgrp->i, 128);
-    stw_p(&resgrp->maxstbl, 128);
+    resgrp->dasm = 0;
+    resgrp->msia = ZPCI_MSI_ADDR;
+    resgrp->mui = DEFAULT_MUI;
+    resgrp->i = 128;
+    resgrp->maxstbl = 128;
     resgrp->version = 0;
 }
 
