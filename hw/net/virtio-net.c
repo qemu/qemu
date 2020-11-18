@@ -832,7 +832,7 @@ static int is_my_primary(void *opaque, QemuOpts *opts, Error **errp)
  * @n: VirtIONet device
  * @errp: returns an error if this function fails
  */
-static DeviceState *failover_find_primary_device(VirtIONet *n, Error **errp)
+static DeviceState *failover_find_primary_device(VirtIONet *n)
 {
     Error *err = NULL;
 
@@ -897,10 +897,7 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
         qatomic_set(&n->failover_primary_hidden, false);
         failover_add_primary(n, &err);
         if (err) {
-            n->primary_dev = failover_find_primary_device(n, &err);
-            if (err) {
-                goto out_err;
-            }
+            n->primary_dev = failover_find_primary_device(n);
             failover_add_primary(n, &err);
             if (err) {
                 goto out_err;
@@ -3121,7 +3118,7 @@ static void virtio_net_handle_migration_primary(VirtIONet *n,
     should_be_hidden = qatomic_read(&n->failover_primary_hidden);
 
     if (!n->primary_dev) {
-        n->primary_dev = failover_find_primary_device(n, &err);
+        n->primary_dev = failover_find_primary_device(n);
         if (!n->primary_dev) {
             return;
         }
