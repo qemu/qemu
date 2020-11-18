@@ -3102,13 +3102,6 @@ EOF
 fi
 
 #########################################
-# libdrm check
-have_drm_h=no
-if check_include "libdrm/drm.h" ; then
-    have_drm_h=yes
-fi
-
-#########################################
 # sys/signal.h check
 have_sys_signal_h=no
 if check_include "sys/signal.h" ; then
@@ -6204,9 +6197,6 @@ if test "$tasn1" = "yes" ; then
 fi
 if test "$auth_pam" = "yes" ; then
     echo "CONFIG_AUTH_PAM=y" >> $config_host_mak
-fi
-if test "$have_drm_h" = "yes" ; then
-  echo "HAVE_DRM_H=y" >> $config_host_mak
 fi
 if test "$have_broken_size_max" = "yes" ; then
     echo "HAVE_BROKEN_SIZE_MAX=y" >> $config_host_mak
