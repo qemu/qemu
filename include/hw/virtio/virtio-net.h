@@ -202,7 +202,6 @@ struct VirtIONet {
     AnnounceTimer announce_timer;
     bool needs_vnet_hdr_swap;
     bool mtu_bypass_backend;
-    QDict *primary_device_dict;
     DeviceState *primary_dev;
     char *primary_device_id;
     /* primary failover device is hidden*/

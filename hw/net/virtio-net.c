@@ -3186,28 +3186,21 @@ static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
     if (!device_opts) {
         return -1;
     }
-    n->primary_device_dict = qemu_opts_to_qdict(device_opts,
-                                                n->primary_device_dict);
     standby_id = qemu_opt_get(device_opts, "failover_pair_id");
     if (g_strcmp0(standby_id, n->netclient_name) == 0) {
         match_found = true;
     } else {
         match_found = false;
         hide = false;
-        n->primary_device_dict = NULL;
         goto out;
     }
 
     /* failover_primary_hidden is set during feature negotiation */
     hide = qatomic_read(&n->failover_primary_hidden);
-
-    if (n->primary_device_dict) {
-        g_free(n->primary_device_id);
-        n->primary_device_id = g_strdup(qdict_get_try_str(
-                                            n->primary_device_dict, "id"));
-        if (!n->primary_device_id) {
-            warn_report("primary_device_id not set");
-        }
+    g_free(n->primary_device_id);
+    n->primary_device_id = g_strdup(device_opts->id);
+    if (!n->primary_device_id) {
+        warn_report("primary_device_id not set");
     }
 
 out:
@@ -3396,8 +3389,6 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     if (n->failover) {
         device_listener_unregister(&n->primary_listener);
         g_free(n->primary_device_id);
-        qobject_unref(n->primary_device_dict);
-        n->primary_device_dict = NULL;
     }
 
     max_queues = n->multiqueue ? n->max_queues : 1;
