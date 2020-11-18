@@ -80,3 +80,4 @@ config XILINX_AXI
 config XLNX_ZYNQMP
     bool
     select REGISTER
+    select CAN_BUS
