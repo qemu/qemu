@@ -824,6 +824,7 @@ static char *failover_find_primary_device_id(VirtIONet *n)
     Error *err = NULL;
     FailoverId fid;
 
+    fid.n = n;
     if (!qemu_opts_foreach(qemu_find_opts("device"),
                            failover_set_primary, &fid, &err)) {
         return NULL;
@@ -835,12 +836,17 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
 {
     Error *err = NULL;
     QemuOpts *opts;
+    char *id;
 
     if (n->primary_dev) {
         return;
     }
 
-    opts = qemu_opts_find(qemu_find_opts("device"), n->primary_device_id);
+    id = failover_find_primary_device_id(n);
+    if (!id) {
+        return;
+    }
+    opts = qemu_opts_find(qemu_find_opts("device"), id);
     if (opts) {
         n->primary_dev = qdev_device_add(opts, &err);
         if (err) {
@@ -868,9 +874,8 @@ static DeviceState *failover_find_primary_device(VirtIONet *n)
     if (!id) {
         return NULL;
     }
-    n->primary_device_id = g_strdup(id);
 
-    return qdev_find_recursive(sysbus_get_default(), n->primary_device_id);
+    return qdev_find_recursive(sysbus_get_default(), id);
 }
 
 static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
@@ -3160,7 +3165,7 @@ static void virtio_net_handle_migration_primary(VirtIONet *n,
             vmstate_unregister(VMSTATE_IF(n->primary_dev),
                                qdev_get_vmsd(n->primary_dev),
                                n->primary_dev);
-            qapi_event_send_unplug_primary(n->primary_device_id);
+            qapi_event_send_unplug_primary(n->primary_dev->id);
             qatomic_set(&n->failover_primary_hidden, true);
         } else {
             warn_report("couldn't unplug primary device");
@@ -3186,7 +3191,6 @@ static bool failover_hide_primary_device(DeviceListener *listener,
                                          QemuOpts *device_opts)
 {
     VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
-    bool hide;
     const char *standby_id;
 
     if (!device_opts) {
@@ -3198,10 +3202,7 @@ static bool failover_hide_primary_device(DeviceListener *listener,
     }
 
     /* failover_primary_hidden is set during feature negotiation */
-    hide = qatomic_read(&n->failover_primary_hidden);
-    g_free(n->primary_device_id);
-    n->primary_device_id = g_strdup(device_opts->id);
-    return hide;
+    return qatomic_read(&n->failover_primary_hidden);
 }
 
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
@@ -3378,7 +3379,6 @@ static void virtio_net_device_unrealize(DeviceState *dev)
 
     if (n->failover) {
         device_listener_unregister(&n->primary_listener);
-        g_free(n->primary_device_id);
     }
 
     max_queues = n->multiqueue ? n->max_queues : 1;

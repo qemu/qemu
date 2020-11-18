@@ -203,7 +203,6 @@ struct VirtIONet {
     bool needs_vnet_hdr_swap;
     bool mtu_bypass_backend;
     DeviceState *primary_dev;
-    char *primary_device_id;
     /* primary failover device is hidden*/
     bool failover_primary_hidden;
     bool failover;
