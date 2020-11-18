@@ -836,19 +836,6 @@ static DeviceState *virtio_net_find_primary(VirtIONet *n, Error **errp)
     return qdev_find_recursive(sysbus_get_default(), n->primary_device_id);
 }
 
-static DeviceState *virtio_connect_failover_devices(VirtIONet *n, Error **errp)
-{
-    DeviceState *prim_dev = NULL;
-    Error *err = NULL;
-
-    prim_dev = virtio_net_find_primary(n, &err);
-    if (!prim_dev) {
-        error_propagate(errp, err);
-    }
-
-    return prim_dev;
-}
-
 static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -904,7 +891,7 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
         qatomic_set(&n->failover_primary_hidden, false);
         failover_add_primary(n, &err);
         if (err) {
-            n->primary_dev = virtio_connect_failover_devices(n, &err);
+            n->primary_dev = virtio_net_find_primary(n, &err);
             if (err) {
                 goto out_err;
             }
@@ -3128,7 +3115,7 @@ static void virtio_net_handle_migration_primary(VirtIONet *n,
     should_be_hidden = qatomic_read(&n->failover_primary_hidden);
 
     if (!n->primary_dev) {
-        n->primary_dev = virtio_connect_failover_devices(n, &err);
+        n->primary_dev = virtio_net_find_primary(n, &err);
         if (!n->primary_dev) {
             return;
         }
