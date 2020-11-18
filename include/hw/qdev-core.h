@@ -200,7 +200,7 @@ struct DeviceListener {
      * inform qdev that a device should be hidden, depending on the device
      * opts, for example, to hide a standby device.
      */
-    int (*should_be_hidden)(DeviceListener *listener, QemuOpts *device_opts);
+    bool (*should_be_hidden)(DeviceListener *listener, QemuOpts *device_opts);
     QTAILQ_ENTRY(DeviceListener) link;
 };
 

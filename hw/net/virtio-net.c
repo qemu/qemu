@@ -3161,24 +3161,19 @@ static void virtio_net_migration_state_notifier(Notifier *notifier, void *data)
     virtio_net_handle_migration_primary(n, s);
 }
 
-static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
-                                               QemuOpts *device_opts)
+static bool virtio_net_primary_should_be_hidden(DeviceListener *listener,
+                                                QemuOpts *device_opts)
 {
     VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
-    bool match_found = false;
-    bool hide = false;
+    bool hide;
     const char *standby_id;
 
     if (!device_opts) {
-        return -1;
+        return false;
     }
     standby_id = qemu_opt_get(device_opts, "failover_pair_id");
-    if (g_strcmp0(standby_id, n->netclient_name) == 0) {
-        match_found = true;
-    } else {
-        match_found = false;
-        hide = false;
-        goto out;
+    if (g_strcmp0(standby_id, n->netclient_name) != 0) {
+        return false;
     }
 
     /* failover_primary_hidden is set during feature negotiation */
@@ -3188,15 +3183,7 @@ static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
     if (!n->primary_device_id) {
         warn_report("primary_device_id not set");
     }
-
-out:
-    if (match_found && hide) {
-        return 1;
-    } else if (match_found && !hide) {
-        return 0;
-    } else {
-        return -1;
-    }
+    return hide;
 }
 
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
