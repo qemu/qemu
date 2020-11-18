@@ -828,24 +828,12 @@ static int is_my_primary(void *opaque, QemuOpts *opts, Error **errp)
 
 static DeviceState *virtio_net_find_primary(VirtIONet *n, Error **errp)
 {
-    DeviceState *dev = NULL;
     Error *err = NULL;
 
-    if (qemu_opts_foreach(qemu_find_opts("device"),
-                          is_my_primary, n, &err)) {
-        if (err) {
-            error_propagate(errp, err);
-            return NULL;
-        }
-        if (n->primary_device_id) {
-            dev = qdev_find_recursive(sysbus_get_default(),
-                                      n->primary_device_id);
-        } else {
-            error_setg(errp, "Primary device id not found");
-            return NULL;
-        }
+    if (!qemu_opts_foreach(qemu_find_opts("device"), is_my_primary, n, &err)) {
+        return NULL;
     }
-    return dev;
+    return qdev_find_recursive(sysbus_get_default(), n->primary_device_id);
 }
 
 static DeviceState *virtio_connect_failover_devices(VirtIONet *n, Error **errp)
