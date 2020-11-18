@@ -512,11 +512,9 @@ static void test_disable_on_expiration(gconstpointer test_data)
  */
 static void tim_add_test(const char *name, const TestData *td, GTestDataFunc fn)
 {
-    g_autofree char *full_name;
-
-    full_name = g_strdup_printf("npcm7xx_timer/tim[%d]/timer[%d]/%s",
-                                tim_index(td->tim), timer_index(td->timer),
-                                name);
+    g_autofree char *full_name = g_strdup_printf(
+        "npcm7xx_timer/tim[%d]/timer[%d]/%s", tim_index(td->tim),
+        timer_index(td->timer), name);
     qtest_add_data_func(full_name, td, fn);
 }
 
