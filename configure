@@ -4402,12 +4402,6 @@ if compile_prog "" "" ; then
   syncfs=yes
 fi
 
-# check for kcov support (kernel must be 4.4+, compiled with certain options)
-kcov=no
-if check_include sys/kcov.h ; then
-    kcov=yes
-fi
-
 # check for btrfs filesystem support (kernel must be 3.9+)
 btrfs=no
 if check_include linux/btrfs.h ; then
@@ -6111,9 +6105,6 @@ if test "$clock_adjtime" = "yes" ; then
 fi
 if test "$syncfs" = "yes" ; then
   echo "CONFIG_SYNCFS=y" >> $config_host_mak
-fi
-if test "$kcov" = "yes" ; then
-  echo "CONFIG_KCOV=y" >> $config_host_mak
 fi
 if test "$btrfs" = "yes" ; then
   echo "CONFIG_BTRFS=y" >> $config_host_mak
