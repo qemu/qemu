@@ -205,7 +205,6 @@ struct VirtIONet {
     QDict *primary_device_dict;
     DeviceState *primary_dev;
     char *primary_device_id;
-    char *standby_id;
     /* primary failover device is hidden*/
     bool failover_primary_hidden;
     bool failover;
