@@ -797,7 +797,7 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
     }
 
     n->primary_device_opts = qemu_opts_find(qemu_find_opts("device"),
-            n->primary_device_id);
+                                            n->primary_device_id);
     if (n->primary_device_opts) {
         n->primary_dev = qdev_device_add(n->primary_device_opts, &err);
         if (err) {
@@ -814,9 +814,9 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
     } else {
         error_setg(errp, "Primary device not found");
         error_append_hint(errp, "Virtio-net failover will not work. Make "
-            "sure primary device has parameter"
-            " failover_pair_id=<virtio-net-id>\n");
-}
+                          "sure primary device has parameter"
+                          " failover_pair_id=<virtio-net-id>\n");
+    }
     error_propagate(errp, err);
 }
 
@@ -824,7 +824,6 @@ static int is_my_primary(void *opaque, QemuOpts *opts, Error **errp)
 {
     VirtIONet *n = opaque;
     int ret = 0;
-
     const char *standby_id = qemu_opt_get(opts, "failover_pair_id");
 
     if (standby_id != NULL && (g_strcmp0(standby_id, n->netclient_name) == 0)) {
@@ -841,14 +840,14 @@ static DeviceState *virtio_net_find_primary(VirtIONet *n, Error **errp)
     Error *err = NULL;
 
     if (qemu_opts_foreach(qemu_find_opts("device"),
-                         is_my_primary, n, &err)) {
+                          is_my_primary, n, &err)) {
         if (err) {
             error_propagate(errp, err);
             return NULL;
         }
         if (n->primary_device_id) {
             dev = qdev_find_recursive(sysbus_get_default(),
-                    n->primary_device_id);
+                                      n->primary_device_id);
         } else {
             error_setg(errp, "Primary device id not found");
             return NULL;
@@ -856,8 +855,6 @@ static DeviceState *virtio_net_find_primary(VirtIONet *n, Error **errp)
     }
     return dev;
 }
-
-
 
 static DeviceState *virtio_connect_failover_devices(VirtIONet *n,
                                                     DeviceState *dev,
@@ -3126,9 +3123,9 @@ static bool failover_replug_primary(VirtIONet *n, Error **errp)
         return true;
     }
     if (!n->primary_device_opts) {
-        n->primary_device_opts = qemu_opts_from_qdict(
-                qemu_find_opts("device"),
-                n->primary_device_dict, errp);
+        n->primary_device_opts = qemu_opts_from_qdict(qemu_find_opts("device"),
+                                                      n->primary_device_dict,
+                                                      errp);
         if (!n->primary_device_opts) {
             return false;
         }
@@ -3176,8 +3173,8 @@ static void virtio_net_handle_migration_primary(VirtIONet *n,
     if (migration_in_setup(s) && !should_be_hidden) {
         if (failover_unplug_primary(n)) {
             vmstate_unregister(VMSTATE_IF(n->primary_dev),
-                    qdev_get_vmsd(n->primary_dev),
-                    n->primary_dev);
+                               qdev_get_vmsd(n->primary_dev),
+                               n->primary_dev);
             qapi_event_send_unplug_primary(n->primary_device_id);
             qatomic_set(&n->primary_should_be_hidden, true);
         } else {
@@ -3201,7 +3198,7 @@ static void virtio_net_migration_state_notifier(Notifier *notifier, void *data)
 }
 
 static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
-            QemuOpts *device_opts)
+                                               QemuOpts *device_opts)
 {
     VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
     bool match_found = false;
@@ -3211,11 +3208,11 @@ static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
         return -1;
     }
     n->primary_device_dict = qemu_opts_to_qdict(device_opts,
-            n->primary_device_dict);
+                                                n->primary_device_dict);
     if (n->primary_device_dict) {
         g_free(n->standby_id);
         n->standby_id = g_strdup(qdict_get_try_str(n->primary_device_dict,
-                    "failover_pair_id"));
+                                                   "failover_pair_id"));
     }
     if (g_strcmp0(n->standby_id, n->netclient_name) == 0) {
         match_found = true;
@@ -3235,7 +3232,7 @@ static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
     if (n->primary_device_dict) {
         g_free(n->primary_device_id);
         n->primary_device_id = g_strdup(qdict_get_try_str(
-                    n->primary_device_dict, "id"));
+                                            n->primary_device_dict, "id"));
         if (!n->primary_device_id) {
             warn_report("primary_device_id not set");
         }
