@@ -3161,8 +3161,8 @@ static void virtio_net_migration_state_notifier(Notifier *notifier, void *data)
     virtio_net_handle_migration_primary(n, s);
 }
 
-static bool virtio_net_primary_should_be_hidden(DeviceListener *listener,
-                                                QemuOpts *device_opts)
+static bool failover_hide_primary_device(DeviceListener *listener,
+                                         QemuOpts *device_opts)
 {
     VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
     bool hide;
@@ -3220,8 +3220,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     }
 
     if (n->failover) {
-        n->primary_listener.should_be_hidden =
-            virtio_net_primary_should_be_hidden;
+        n->primary_listener.hide_device = failover_hide_primary_device;
         qatomic_set(&n->failover_primary_hidden, true);
         device_listener_register(&n->primary_listener);
         n->migration_state.notify = virtio_net_migration_state_notifier;

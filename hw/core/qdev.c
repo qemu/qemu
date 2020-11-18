@@ -217,8 +217,8 @@ bool qdev_should_hide_device(QemuOpts *opts)
     DeviceListener *listener;
 
     QTAILQ_FOREACH(listener, &device_listeners, link) {
-        if (listener->should_be_hidden) {
-            if (listener->should_be_hidden(listener, opts)) {
+        if (listener->hide_device) {
+            if (listener->hide_device(listener, opts)) {
                 return true;
             }
         }
