@@ -3173,9 +3173,6 @@ static bool failover_hide_primary_device(DeviceListener *listener,
     hide = qatomic_read(&n->failover_primary_hidden);
     g_free(n->primary_device_id);
     n->primary_device_id = g_strdup(device_opts->id);
-    if (!n->primary_device_id) {
-        warn_report("primary_device_id not set");
-    }
     return hide;
 }
 
