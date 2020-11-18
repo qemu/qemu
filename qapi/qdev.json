@@ -86,7 +86,7 @@
 #        DEVICE_DELETED event. Guest reset will automatically complete removal
 #        for all devices.
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #

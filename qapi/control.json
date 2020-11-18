@@ -87,7 +87,7 @@
 #           exact format depends on the downstream however it highly
 #           recommended that a unique name is used.
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'VersionInfo',
   'data': {'qemu': 'VersionTriple', 'package': 'str'} }
@@ -99,7 +99,7 @@
 #
 # Returns: A @VersionInfo object describing the current version of QEMU.
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -126,7 +126,7 @@
 #
 # @name: The command name
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'CommandInfo', 'data': {'name': 'str'} }
 
@@ -137,7 +137,7 @@
 #
 # Returns: A list of @CommandInfo for all supported commands
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -166,7 +166,7 @@
 #
 # @name: The event name
 #
-# Since: 1.2.0
+# Since: 1.2
 ##
 { 'struct': 'EventInfo', 'data': {'name': 'str'} }
 
@@ -182,7 +182,7 @@
 #
 # Returns: A list of @EventInfo.
 #
-# Since: 1.2.0
+# Since: 1.2
 #
 # Example:
 #
@@ -212,7 +212,7 @@
 # guaranteed.  When using this interface, a premature EOF would not be
 # unexpected.
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #

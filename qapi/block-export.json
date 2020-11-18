@@ -54,7 +54,7 @@
 #
 # Returns: error if the server is already running.
 #
-# Since: 1.3.0
+# Since: 1.3
 ##
 { 'command': 'nbd-server-start',
   'data': { 'addr': 'SocketAddressLegacy',
@@ -155,7 +155,7 @@
 # Returns: error if the server is not running, or export with the same name
 #          already exists.
 #
-# Since: 1.3.0
+# Since: 1.3
 ##
 { 'command': 'nbd-server-add',
   'data': 'NbdServerAddOptions', 'boxed': true, 'features': ['deprecated'] }
@@ -211,7 +211,7 @@
 # Stop QEMU's embedded NBD server, and unregister all devices previously
 # added via @nbd-server-add.
 #
-# Since: 1.3.0
+# Since: 1.3
 ##
 { 'command': 'nbd-server-stop' }
 

@@ -46,7 +46,7 @@
 # @pages-per-second: the number of memory pages transferred per second
 #                    (Since 4.0)
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
@@ -224,7 +224,7 @@
 #        only returned if VFIO device is present, migration is supported by all
 #        VFIO devices and status is 'active' or 'completed' (since 5.2)
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'MigrationInfo',
   'data': {'*status': 'MigrationStatus', '*ram': 'MigrationStats',
@@ -252,7 +252,7 @@
 #
 # Returns: @MigrationInfo
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1143,7 +1143,7 @@
 # @tls-port:     spice tcp port for tls-secured channels
 # @cert-subject: server certificate subject
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1343,7 +1343,7 @@
 #
 # Notes: This command succeeds even if there is no migration process running.
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1383,7 +1383,7 @@
 #
 # Returns: nothing on success
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1407,7 +1407,7 @@
 #
 # Returns: nothing on success
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1486,7 +1486,7 @@
 #
 # Returns: nothing on success
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Notes:
 #
