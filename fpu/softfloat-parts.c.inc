@@ -598,6 +598,212 @@ static FloatPartsN *partsN(div)(FloatPartsN *a, FloatPartsN *b,
 }
 
 /*
+ * Square Root
+ *
+ * The base algorithm is lifted from
+ * https://git.musl-libc.org/cgit/musl/tree/src/math/sqrtf.c
+ * https://git.musl-libc.org/cgit/musl/tree/src/math/sqrt.c
+ * https://git.musl-libc.org/cgit/musl/tree/src/math/sqrtl.c
+ * and is thus MIT licenced.
+ */
+static void partsN(sqrt)(FloatPartsN *a, float_status *status,
+                         const FloatFmt *fmt)
+{
+    const uint32_t three32 = 3u << 30;
+    const uint64_t three64 = 3ull << 62;
+    uint32_t d32, m32, r32, s32, u32;            /* 32-bit computation */
+    uint64_t d64, m64, r64, s64, u64;            /* 64-bit computation */
+    uint64_t dh, dl, rh, rl, sh, sl, uh, ul;     /* 128-bit computation */
+    uint64_t d0h, d0l, d1h, d1l, d2h, d2l;
+    uint64_t discard;
+    bool exp_odd;
+    size_t index;
+
+    if (unlikely(a->cls != float_class_normal)) {
+        switch (a->cls) {
+        case float_class_snan:
+        case float_class_qnan:
+            parts_return_nan(a, status);
+            return;
+        case float_class_zero:
+            return;
+        case float_class_inf:
+            if (unlikely(a->sign)) {
+                goto d_nan;
+            }
+            return;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    if (unlikely(a->sign)) {
+        goto d_nan;
+    }
+
+    /*
+     * Argument reduction.
+     * x = 4^e frac; with integer e, and frac in [1, 4)
+     * m = frac fixed point at bit 62, since we're in base 4.
+     * If base-2 exponent is odd, exchange that for multiply by 2,
+     * which results in no shift.
+     */
+    exp_odd = a->exp & 1;
+    index = extract64(a->frac_hi, 57, 6) | (!exp_odd << 6);
+    if (!exp_odd) {
+        frac_shr(a, 1);
+    }
+
+    /*
+     * Approximate r ~= 1/sqrt(m) and s ~= sqrt(m) when m in [1, 4).
+     *
+     * Initial estimate:
+     * 7-bit lookup table (1-bit exponent and 6-bit significand).
+     *
+     * The relative error (e = r0*sqrt(m)-1) of a linear estimate
+     * (r0 = a*m + b) is |e| < 0.085955 ~ 0x1.6p-4 at best;
+     * a table lookup is faster and needs one less iteration.
+     * The 7-bit table gives |e| < 0x1.fdp-9.
+     *
+     * A Newton-Raphson iteration for r is
+     *   s = m*r
+     *   d = s*r
+     *   u = 3 - d
+     *   r = r*u/2
+     *
+     * Fixed point representations:
+     *   m, s, d, u, three are all 2.30; r is 0.32
+     */
+    m64 = a->frac_hi;
+    m32 = m64 >> 32;
+
+    r32 = rsqrt_tab[index] << 16;
+    /* |r*sqrt(m) - 1| < 0x1.FDp-9 */
+
+    s32 = ((uint64_t)m32 * r32) >> 32;
+    d32 = ((uint64_t)s32 * r32) >> 32;
+    u32 = three32 - d32;
+
+    if (N == 64) {
+        /* float64 or smaller */
+
+        r32 = ((uint64_t)r32 * u32) >> 31;
+        /* |r*sqrt(m) - 1| < 0x1.7Bp-16 */
+
+        s32 = ((uint64_t)m32 * r32) >> 32;
+        d32 = ((uint64_t)s32 * r32) >> 32;
+        u32 = three32 - d32;
+
+        if (fmt->frac_size <= 23) {
+            /* float32 or smaller */
+
+            s32 = ((uint64_t)s32 * u32) >> 32;  /* 3.29 */
+            s32 = (s32 - 1) >> 6;               /* 9.23 */
+            /* s < sqrt(m) < s + 0x1.08p-23 */
+
+            /* compute nearest rounded result to 2.23 bits */
+            uint32_t d0 = (m32 << 16) - s32 * s32;
+            uint32_t d1 = s32 - d0;
+            uint32_t d2 = d1 + s32 + 1;
+            s32 += d1 >> 31;
+            a->frac_hi = (uint64_t)s32 << (64 - 25);
+
+            /* increment or decrement for inexact */
+            if (d2 != 0) {
+                a->frac_hi += ((int32_t)(d1 ^ d2) < 0 ? -1 : 1);
+            }
+            goto done;
+        }
+
+        /* float64 */
+
+        r64 = (uint64_t)r32 * u32 * 2;
+        /* |r*sqrt(m) - 1| < 0x1.37-p29; convert to 64-bit arithmetic */
+        mul64To128(m64, r64, &s64, &discard);
+        mul64To128(s64, r64, &d64, &discard);
+        u64 = three64 - d64;
+
+        mul64To128(s64, u64, &s64, &discard);  /* 3.61 */
+        s64 = (s64 - 2) >> 9;                  /* 12.52 */
+
+        /* Compute nearest rounded result */
+        uint64_t d0 = (m64 << 42) - s64 * s64;
+        uint64_t d1 = s64 - d0;
+        uint64_t d2 = d1 + s64 + 1;
+        s64 += d1 >> 63;
+        a->frac_hi = s64 << (64 - 54);
+
+        /* increment or decrement for inexact */
+        if (d2 != 0) {
+            a->frac_hi += ((int64_t)(d1 ^ d2) < 0 ? -1 : 1);
+        }
+        goto done;
+    }
+
+    r64 = (uint64_t)r32 * u32 * 2;
+    /* |r*sqrt(m) - 1| < 0x1.7Bp-16; convert to 64-bit arithmetic */
+
+    mul64To128(m64, r64, &s64, &discard);
+    mul64To128(s64, r64, &d64, &discard);
+    u64 = three64 - d64;
+    mul64To128(u64, r64, &r64, &discard);
+    r64 <<= 1;
+    /* |r*sqrt(m) - 1| < 0x1.a5p-31 */
+
+    mul64To128(m64, r64, &s64, &discard);
+    mul64To128(s64, r64, &d64, &discard);
+    u64 = three64 - d64;
+    mul64To128(u64, r64, &rh, &rl);
+    add128(rh, rl, rh, rl, &rh, &rl);
+    /* |r*sqrt(m) - 1| < 0x1.c001p-59; change to 128-bit arithmetic */
+
+    mul128To256(a->frac_hi, a->frac_lo, rh, rl, &sh, &sl, &discard, &discard);
+    mul128To256(sh, sl, rh, rl, &dh, &dl, &discard, &discard);
+    sub128(three64, 0, dh, dl, &uh, &ul);
+    mul128To256(uh, ul, sh, sl, &sh, &sl, &discard, &discard);  /* 3.125 */
+    /* -0x1p-116 < s - sqrt(m) < 0x3.8001p-125 */
+
+    sub128(sh, sl, 0, 4, &sh, &sl);
+    shift128Right(sh, sl, 13, &sh, &sl);  /* 16.112 */
+    /* s < sqrt(m) < s + 1ulp */
+
+    /* Compute nearest rounded result */
+    mul64To128(sl, sl, &d0h, &d0l);
+    d0h += 2 * sh * sl;
+    sub128(a->frac_lo << 34, 0, d0h, d0l, &d0h, &d0l);
+    sub128(sh, sl, d0h, d0l, &d1h, &d1l);
+    add128(sh, sl, 0, 1, &d2h, &d2l);
+    add128(d2h, d2l, d1h, d1l, &d2h, &d2l);
+    add128(sh, sl, 0, d1h >> 63, &sh, &sl);
+    shift128Left(sh, sl, 128 - 114, &sh, &sl);
+
+    /* increment or decrement for inexact */
+    if (d2h | d2l) {
+        if ((int64_t)(d1h ^ d2h) < 0) {
+            sub128(sh, sl, 0, 1, &sh, &sl);
+        } else {
+            add128(sh, sl, 0, 1, &sh, &sl);
+        }
+    }
+    a->frac_lo = sl;
+    a->frac_hi = sh;
+
+ done:
+    /* Convert back from base 4 to base 2. */
+    a->exp >>= 1;
+    if (!(a->frac_hi & DECOMPOSED_IMPLICIT_BIT)) {
+        frac_add(a, a, a);
+    } else {
+        a->exp += 1;
+    }
+    return;
+
+ d_nan:
+    float_raise(float_flag_invalid, status);
+    parts_default_nan(a, status);
+}
+
+/*
  * Rounds the floating-point value `a' to an integer, and returns the
  * result as a floating-point value. The operation is performed
  * according to the IEC/IEEE Standard for Binary Floating-Point

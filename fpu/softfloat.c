@@ -820,6 +820,12 @@ static FloatParts128 *parts128_div(FloatParts128 *a, FloatParts128 *b,
 #define parts_div(A, B, S) \
     PARTS_GENERIC_64_128(div, A)(A, B, S)
 
+static void parts64_sqrt(FloatParts64 *a, float_status *s, const FloatFmt *f);
+static void parts128_sqrt(FloatParts128 *a, float_status *s, const FloatFmt *f);
+
+#define parts_sqrt(A, S, F) \
+    PARTS_GENERIC_64_128(sqrt, A)(A, S, F)
+
 static bool parts64_round_to_int_normal(FloatParts64 *a, FloatRoundMode rm,
                                         int scale, int frac_size);
 static bool parts128_round_to_int_normal(FloatParts128 *a, FloatRoundMode r,
@@ -1385,6 +1391,30 @@ static void frac128_widen(FloatParts256 *r, FloatParts128 *a)
 }
 
 #define frac_widen(A, B)  FRAC_GENERIC_64_128(widen, B)(A, B)
+
+/*
+ * Reciprocal sqrt table.  1 bit of exponent, 6-bits of mantessa.
+ * From https://git.musl-libc.org/cgit/musl/tree/src/math/sqrt_data.c
+ * and thus MIT licenced.
+ */
+static const uint16_t rsqrt_tab[128] = {
+    0xb451, 0xb2f0, 0xb196, 0xb044, 0xaef9, 0xadb6, 0xac79, 0xab43,
+    0xaa14, 0xa8eb, 0xa7c8, 0xa6aa, 0xa592, 0xa480, 0xa373, 0xa26b,
+    0xa168, 0xa06a, 0x9f70, 0x9e7b, 0x9d8a, 0x9c9d, 0x9bb5, 0x9ad1,
+    0x99f0, 0x9913, 0x983a, 0x9765, 0x9693, 0x95c4, 0x94f8, 0x9430,
+    0x936b, 0x92a9, 0x91ea, 0x912e, 0x9075, 0x8fbe, 0x8f0a, 0x8e59,
+    0x8daa, 0x8cfe, 0x8c54, 0x8bac, 0x8b07, 0x8a64, 0x89c4, 0x8925,
+    0x8889, 0x87ee, 0x8756, 0x86c0, 0x862b, 0x8599, 0x8508, 0x8479,
+    0x83ec, 0x8361, 0x82d8, 0x8250, 0x81c9, 0x8145, 0x80c2, 0x8040,
+    0xff02, 0xfd0e, 0xfb25, 0xf947, 0xf773, 0xf5aa, 0xf3ea, 0xf234,
+    0xf087, 0xeee3, 0xed47, 0xebb3, 0xea27, 0xe8a3, 0xe727, 0xe5b2,
+    0xe443, 0xe2dc, 0xe17a, 0xe020, 0xdecb, 0xdd7d, 0xdc34, 0xdaf1,
+    0xd9b3, 0xd87b, 0xd748, 0xd61a, 0xd4f1, 0xd3cd, 0xd2ad, 0xd192,
+    0xd07b, 0xcf69, 0xce5b, 0xcd51, 0xcc4a, 0xcb48, 0xca4a, 0xc94f,
+    0xc858, 0xc764, 0xc674, 0xc587, 0xc49d, 0xc3b7, 0xc2d4, 0xc1f4,
+    0xc116, 0xc03c, 0xbf65, 0xbe90, 0xbdbe, 0xbcef, 0xbc23, 0xbb59,
+    0xba91, 0xb9cc, 0xb90a, 0xb84a, 0xb78c, 0xb6d0, 0xb617, 0xb560,
+};
 
 #define partsN(NAME)   glue(glue(glue(parts,N),_),NAME)
 #define FloatPartsN    glue(FloatParts,N)
@@ -3586,103 +3616,35 @@ float128 float128_scalbn(float128 a, int n, float_status *status)
 
 /*
  * Square Root
- *
- * The old softfloat code did an approximation step before zeroing in
- * on the final result. However for simpleness we just compute the
- * square root by iterating down from the implicit bit to enough extra
- * bits to ensure we get a correctly rounded result.
- *
- * This does mean however the calculation is slower than before,
- * especially for 64 bit floats.
  */
-
-static FloatParts64 sqrt_float(FloatParts64 a, float_status *s, const FloatFmt *p)
-{
-    uint64_t a_frac, r_frac, s_frac;
-    int bit, last_bit;
-
-    if (is_nan(a.cls)) {
-        parts_return_nan(&a, s);
-        return a;
-    }
-    if (a.cls == float_class_zero) {
-        return a;  /* sqrt(+-0) = +-0 */
-    }
-    if (a.sign) {
-        float_raise(float_flag_invalid, s);
-        parts_default_nan(&a, s);
-        return a;
-    }
-    if (a.cls == float_class_inf) {
-        return a;  /* sqrt(+inf) = +inf */
-    }
-
-    assert(a.cls == float_class_normal);
-
-    /* We need two overflow bits at the top. Adding room for that is a
-     * right shift. If the exponent is odd, we can discard the low bit
-     * by multiplying the fraction by 2; that's a left shift. Combine
-     * those and we shift right by 1 if the exponent is odd, otherwise 2.
-     */
-    a_frac = a.frac >> (2 - (a.exp & 1));
-    a.exp >>= 1;
-
-    /* Bit-by-bit computation of sqrt.  */
-    r_frac = 0;
-    s_frac = 0;
-
-    /* Iterate from implicit bit down to the 3 extra bits to compute a
-     * properly rounded result. Remember we've inserted two more bits
-     * at the top, so these positions are two less.
-     */
-    bit = DECOMPOSED_BINARY_POINT - 2;
-    last_bit = MAX(p->frac_shift - 4, 0);
-    do {
-        uint64_t q = 1ULL << bit;
-        uint64_t t_frac = s_frac + q;
-        if (t_frac <= a_frac) {
-            s_frac = t_frac + q;
-            a_frac -= t_frac;
-            r_frac += q;
-        }
-        a_frac <<= 1;
-    } while (--bit >= last_bit);
-
-    /* Undo the right shift done above. If there is any remaining
-     * fraction, the result is inexact. Set the sticky bit.
-     */
-    a.frac = (r_frac << 2) + (a_frac != 0);
-
-    return a;
-}
 
 float16 QEMU_FLATTEN float16_sqrt(float16 a, float_status *status)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float16_unpack_canonical(&pa, a, status);
-    pr = sqrt_float(pa, status, &float16_params);
-    return float16_round_pack_canonical(&pr, status);
+    float16_unpack_canonical(&p, a, status);
+    parts_sqrt(&p, status, &float16_params);
+    return float16_round_pack_canonical(&p, status);
 }
 
 static float32 QEMU_SOFTFLOAT_ATTR
 soft_f32_sqrt(float32 a, float_status *status)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float32_unpack_canonical(&pa, a, status);
-    pr = sqrt_float(pa, status, &float32_params);
-    return float32_round_pack_canonical(&pr, status);
+    float32_unpack_canonical(&p, a, status);
+    parts_sqrt(&p, status, &float32_params);
+    return float32_round_pack_canonical(&p, status);
 }
 
 static float64 QEMU_SOFTFLOAT_ATTR
 soft_f64_sqrt(float64 a, float_status *status)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    float64_unpack_canonical(&pa, a, status);
-    pr = sqrt_float(pa, status, &float64_params);
-    return float64_round_pack_canonical(&pr, status);
+    float64_unpack_canonical(&p, a, status);
+    parts_sqrt(&p, status, &float64_params);
+    return float64_round_pack_canonical(&p, status);
 }
 
 float32 QEMU_FLATTEN float32_sqrt(float32 xa, float_status *s)
@@ -3741,11 +3703,20 @@ float64 QEMU_FLATTEN float64_sqrt(float64 xa, float_status *s)
 
 bfloat16 QEMU_FLATTEN bfloat16_sqrt(bfloat16 a, float_status *status)
 {
-    FloatParts64 pa, pr;
+    FloatParts64 p;
 
-    bfloat16_unpack_canonical(&pa, a, status);
-    pr = sqrt_float(pa, status, &bfloat16_params);
-    return bfloat16_round_pack_canonical(&pr, status);
+    bfloat16_unpack_canonical(&p, a, status);
+    parts_sqrt(&p, status, &bfloat16_params);
+    return bfloat16_round_pack_canonical(&p, status);
+}
+
+float128 QEMU_FLATTEN float128_sqrt(float128 a, float_status *status)
+{
+    FloatParts128 p;
+
+    float128_unpack_canonical(&p, a, status);
+    parts_sqrt(&p, status, &float128_params);
+    return float128_round_pack_canonical(&p, status);
 }
 
 /*----------------------------------------------------------------------------
@@ -6471,74 +6442,6 @@ float128 float128_rem(float128 a, float128 b, float_status *status)
     if ( zSign ) sub128( 0, 0, aSig0, aSig1, &aSig0, &aSig1 );
     return normalizeRoundAndPackFloat128(aSign ^ zSign, bExp - 4, aSig0, aSig1,
                                          status);
-}
-
-/*----------------------------------------------------------------------------
-| Returns the square root of the quadruple-precision floating-point value `a'.
-| The operation is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float128 float128_sqrt(float128 a, float_status *status)
-{
-    bool aSign;
-    int32_t aExp, zExp;
-    uint64_t aSig0, aSig1, zSig0, zSig1, zSig2, doubleZSig0;
-    uint64_t rem0, rem1, rem2, rem3, term0, term1, term2, term3;
-
-    aSig1 = extractFloat128Frac1( a );
-    aSig0 = extractFloat128Frac0( a );
-    aExp = extractFloat128Exp( a );
-    aSign = extractFloat128Sign( a );
-    if ( aExp == 0x7FFF ) {
-        if (aSig0 | aSig1) {
-            return propagateFloat128NaN(a, a, status);
-        }
-        if ( ! aSign ) return a;
-        goto invalid;
-    }
-    if ( aSign ) {
-        if ( ( aExp | aSig0 | aSig1 ) == 0 ) return a;
- invalid:
-        float_raise(float_flag_invalid, status);
-        return float128_default_nan(status);
-    }
-    if ( aExp == 0 ) {
-        if ( ( aSig0 | aSig1 ) == 0 ) return packFloat128( 0, 0, 0, 0 );
-        normalizeFloat128Subnormal( aSig0, aSig1, &aExp, &aSig0, &aSig1 );
-    }
-    zExp = ( ( aExp - 0x3FFF )>>1 ) + 0x3FFE;
-    aSig0 |= UINT64_C(0x0001000000000000);
-    zSig0 = estimateSqrt32( aExp, aSig0>>17 );
-    shortShift128Left( aSig0, aSig1, 13 - ( aExp & 1 ), &aSig0, &aSig1 );
-    zSig0 = estimateDiv128To64( aSig0, aSig1, zSig0<<32 ) + ( zSig0<<30 );
-    doubleZSig0 = zSig0<<1;
-    mul64To128( zSig0, zSig0, &term0, &term1 );
-    sub128( aSig0, aSig1, term0, term1, &rem0, &rem1 );
-    while ( (int64_t) rem0 < 0 ) {
-        --zSig0;
-        doubleZSig0 -= 2;
-        add128( rem0, rem1, zSig0>>63, doubleZSig0 | 1, &rem0, &rem1 );
-    }
-    zSig1 = estimateDiv128To64( rem1, 0, doubleZSig0 );
-    if ( ( zSig1 & 0x1FFF ) <= 5 ) {
-        if ( zSig1 == 0 ) zSig1 = 1;
-        mul64To128( doubleZSig0, zSig1, &term1, &term2 );
-        sub128( rem1, 0, term1, term2, &rem1, &rem2 );
-        mul64To128( zSig1, zSig1, &term2, &term3 );
-        sub192( rem1, rem2, 0, 0, term2, term3, &rem1, &rem2, &rem3 );
-        while ( (int64_t) rem1 < 0 ) {
-            --zSig1;
-            shortShift128Left( 0, zSig1, 1, &term2, &term3 );
-            term3 |= 1;
-            term2 |= doubleZSig0;
-            add192( rem1, rem2, rem3, 0, term2, term3, &rem1, &rem2, &rem3 );
-        }
-        zSig1 |= ( ( rem1 | rem2 | rem3 ) != 0 );
-    }
-    shift128ExtraRightJamming( zSig0, zSig1, 0, 14, &zSig0, &zSig1, &zSig2 );
-    return roundAndPackFloat128(0, zExp, zSig0, zSig1, zSig2, status);
-
 }
 
 static inline FloatRelation
