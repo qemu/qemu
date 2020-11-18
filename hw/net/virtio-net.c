@@ -803,13 +803,6 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
         if (err) {
             qemu_opts_del(n->primary_device_opts);
         }
-        if (n->primary_dev) {
-            if (err) {
-                qdev_unplug(n->primary_dev, &err);
-                qdev_set_id(n->primary_dev, "");
-
-            }
-        }
     } else {
         error_setg(errp, "Primary device not found");
         error_append_hint(errp, "Virtio-net failover will not work. Make "
