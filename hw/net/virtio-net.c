@@ -788,6 +788,49 @@ static inline uint64_t virtio_net_supported_guest_offloads(VirtIONet *n)
     return virtio_net_guest_offloads_by_features(vdev->guest_features);
 }
 
+typedef struct {
+    VirtIONet *n;
+    char *id;
+} FailoverId;
+
+/**
+ * Set the id of the failover primary device
+ *
+ * @opaque: FailoverId to setup
+ * @opts: opts for device we are handling
+ * @errp: returns an error if this function fails
+ */
+static int failover_set_primary(void *opaque, QemuOpts *opts, Error **errp)
+{
+    FailoverId *fid = opaque;
+    const char *standby_id = qemu_opt_get(opts, "failover_pair_id");
+
+    if (g_strcmp0(standby_id, fid->n->netclient_name) == 0) {
+        fid->id = g_strdup(opts->id);
+        return 1;
+    }
+
+    return 0;
+}
+
+/**
+ * Find the primary device id for this failover virtio-net
+ *
+ * @n: VirtIONet device
+ * @errp: returns an error if this function fails
+ */
+static char *failover_find_primary_device_id(VirtIONet *n)
+{
+    Error *err = NULL;
+    FailoverId fid;
+
+    if (!qemu_opts_foreach(qemu_find_opts("device"),
+                           failover_set_primary, &fid, &err)) {
+        return NULL;
+    }
+    return fid.id;
+}
+
 static void failover_add_primary(VirtIONet *n, Error **errp)
 {
     Error *err = NULL;
@@ -812,20 +855,6 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
     error_propagate(errp, err);
 }
 
-static int is_my_primary(void *opaque, QemuOpts *opts, Error **errp)
-{
-    VirtIONet *n = opaque;
-    int ret = 0;
-    const char *standby_id = qemu_opt_get(opts, "failover_pair_id");
-
-    if (g_strcmp0(standby_id, n->netclient_name) == 0) {
-        n->primary_device_id = g_strdup(opts->id);
-        ret = 1;
-    }
-
-    return ret;
-}
-
 /**
  * Find the primary device for this failover virtio-net
  *
@@ -834,11 +863,13 @@ static int is_my_primary(void *opaque, QemuOpts *opts, Error **errp)
  */
 static DeviceState *failover_find_primary_device(VirtIONet *n)
 {
-    Error *err = NULL;
+    char *id = failover_find_primary_device_id(n);
 
-    if (!qemu_opts_foreach(qemu_find_opts("device"), is_my_primary, n, &err)) {
+    if (!id) {
         return NULL;
     }
+    n->primary_device_id = g_strdup(id);
+
     return qdev_find_recursive(sysbus_get_default(), n->primary_device_id);
 }
 
