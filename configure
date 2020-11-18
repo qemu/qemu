@@ -2332,12 +2332,6 @@ else
   l2tpv3=no
 fi
 
-if check_include "pty.h" ; then
-  pty_h=yes
-else
-  pty_h=no
-fi
-
 cat > $TMPC <<EOF
 #include <sys/mman.h>
 int main(int argc, char *argv[]) {
@@ -6686,9 +6680,6 @@ fi
 if test "$sheepdog" = "yes" ; then
   add_to deprecated_features "sheepdog"
   echo "CONFIG_SHEEPDOG=y" >> $config_host_mak
-fi
-if test "$pty_h" = "yes" ; then
-  echo "HAVE_PTY_H=y" >> $config_host_mak
 fi
 if test "$have_mlockall" = "yes" ; then
   echo "HAVE_MLOCKALL=y" >> $config_host_mak
