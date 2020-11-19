@@ -537,7 +537,8 @@ void HELPER(gvec_fcmlah_idx)(void *vd, void *vn, void *vm,
     intptr_t index = extract32(desc, SIMD_DATA_SHIFT + 2, 2);
     uint32_t neg_real = flip ^ neg_imag;
     intptr_t elements = opr_sz / sizeof(float16);
-    intptr_t eltspersegment = 16 / sizeof(float16);
+    /* Adjust eltspersegment for simd 4H */
+    intptr_t eltspersegment = MIN(16 / sizeof(float16, elements));
     intptr_t i, j;
 
     /* Shift boolean to the sign bit so we can xor to negate.  */
