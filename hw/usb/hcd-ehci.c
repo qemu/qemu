@@ -1192,7 +1192,7 @@ static int ehci_init_transfer(EHCIPacket *p)
 
     while (bytes > 0) {
         if (cpage > 4) {
-            fprintf(stderr, "cpage out of range (%d)\n", cpage);
+            fprintf(stderr, "cpage out of range (%u)\n", cpage);
             qemu_sglist_destroy(&p->sgl);
             return -1;
         }
@@ -1598,7 +1598,7 @@ static int ehci_state_fetchentry(EHCIState *ehci, int async)
 
     default:
         /* TODO: handle FSTN type */
-        fprintf(stderr, "FETCHENTRY: entry at %X is of type %d "
+        fprintf(stderr, "FETCHENTRY: entry at %X is of type %u "
                 "which is not supported yet\n", entry, NLPTR_TYPE_GET(entry));
         return -1;
     }
