@@ -38,13 +38,13 @@ foreach dir : [ '.' ] + trace_events_subdirs
     trace_dtrace_h = custom_target(fmt.format('trace-dtrace', 'h'),
                                    output: fmt.format('trace-dtrace', 'h'),
                                    input: trace_dtrace,
-                                   command: [ 'dtrace', '-o', '@OUTPUT@', '-h', '-s', '@INPUT@' ])
+                                   command: [ 'dtrace', '-DSTAP_SDT_V2', '-o', '@OUTPUT@', '-h', '-s', '@INPUT@' ])
     trace_ss.add(trace_dtrace_h)
     if host_machine.system() != 'darwin'
       trace_dtrace_o = custom_target(fmt.format('trace-dtrace', 'o'),
                                      output: fmt.format('trace-dtrace', 'o'),
                                      input: trace_dtrace,
-                                     command: [ 'dtrace', '-o', '@OUTPUT@', '-G', '-s', '@INPUT@' ])
+                                     command: [ 'dtrace', '-DSTAP_SDT_V2', '-o', '@OUTPUT@', '-G', '-s', '@INPUT@' ])
       trace_ss.add(trace_dtrace_o)
     endif
 
