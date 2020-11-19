@@ -1515,7 +1515,27 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
             v7m_exception_taken(cpu, excret, true, false);
             return;
         } else {
-            /* Clear s0..s15 and FPSCR */
+            if (arm_feature(env, ARM_FEATURE_V8_1M)) {
+                /* v8.1M adds this NOCP check */
+                bool nsacr_pass = exc_secure ||
+                    extract32(env->v7m.nsacr, 10, 1);
+                bool cpacr_pass = v7m_cpacr_pass(env, exc_secure, true);
+                if (!nsacr_pass) {
+                    armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE, true);
+                    env->v7m.cfsr[M_REG_S] |= R_V7M_CFSR_NOCP_MASK;
+                    qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on existing "
+                        "stackframe: NSACR prevents clearing FPU registers\n");
+                    v7m_exception_taken(cpu, excret, true, false);
+                } else if (!cpacr_pass) {
+                    armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_USAGE,
+                                            exc_secure);
+                    env->v7m.cfsr[exc_secure] |= R_V7M_CFSR_NOCP_MASK;
+                    qemu_log_mask(CPU_LOG_INT, "...taking UsageFault on existing "
+                        "stackframe: CPACR prevents clearing FPU registers\n");
+                    v7m_exception_taken(cpu, excret, true, false);
+                }
+            }
+            /* Clear s0..s15 and FPSCR; TODO also VPR when MVE is implemented */
             int i;
 
             for (i = 0; i < 16; i += 2) {
