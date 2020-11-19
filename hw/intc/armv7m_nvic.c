@@ -2479,6 +2479,43 @@ static const MemoryRegionOps nvic_systick_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+/*
+ * Unassigned portions of the PPB space are RAZ/WI for privileged
+ * accesses, and fault for non-privileged accesses.
+ */
+static MemTxResult ppb_default_read(void *opaque, hwaddr addr,
+                                    uint64_t *data, unsigned size,
+                                    MemTxAttrs attrs)
+{
+    qemu_log_mask(LOG_UNIMP, "Read of unassigned area of PPB: offset 0x%x\n",
+                  (uint32_t)addr);
+    if (attrs.user) {
+        return MEMTX_ERROR;
+    }
+    *data = 0;
+    return MEMTX_OK;
+}
+
+static MemTxResult ppb_default_write(void *opaque, hwaddr addr,
+                                     uint64_t value, unsigned size,
+                                     MemTxAttrs attrs)
+{
+    qemu_log_mask(LOG_UNIMP, "Write of unassigned area of PPB: offset 0x%x\n",
+                  (uint32_t)addr);
+    if (attrs.user) {
+        return MEMTX_ERROR;
+    }
+    return MEMTX_OK;
+}
+
+static const MemoryRegionOps ppb_default_ops = {
+    .read_with_attrs = ppb_default_read,
+    .write_with_attrs = ppb_default_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 8,
+};
+
 static int nvic_post_load(void *opaque, int version_id)
 {
     NVICState *s = opaque;
@@ -2675,7 +2712,6 @@ static void nvic_systick_trigger(void *opaque, int n, int level)
 static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
 {
     NVICState *s = NVIC(dev);
-    int regionlen;
 
     /* The armv7m container object will have set our CPU pointer */
     if (!s->cpu || !arm_feature(&s->cpu->env, ARM_FEATURE_M)) {
@@ -2718,7 +2754,20 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
                                                   M_REG_S));
     }
 
-    /* The NVIC and System Control Space (SCS) starts at 0xe000e000
+    /*
+     * This device provides a single sysbus memory region which
+     * represents the whole of the "System PPB" space. This is the
+     * range from 0xe0000000 to 0xe00fffff and includes the NVIC,
+     * the System Control Space (system registers), the systick timer,
+     * and for CPUs with the Security extension an NS banked version
+     * of all of these.
+     *
+     * The default behaviour for unimplemented registers/ranges
+     * (for instance the Data Watchpoint and Trace unit at 0xe0001000)
+     * is to RAZ/WI for privileged access and BusFault for non-privileged
+     * access.
+     *
+     * The NVIC and System Control Space (SCS) starts at 0xe000e000
      * and looks like this:
      *  0x004 - ICTR
      *  0x010 - 0xff - systick
@@ -2741,32 +2790,39 @@ static void armv7m_nvic_realize(DeviceState *dev, Error **errp)
      * generally code determining which banked register to use should
      * use attrs.secure; code determining actual behaviour of the system
      * should use env->v7m.secure.
+     *
+     * The container covers the whole PPB space. Within it the priority
+     * of overlapping regions is:
+     *  - default region (for RAZ/WI and BusFault) : -1
+     *  - system register regions : 0
+     *  - systick : 1
+     * This is because the systick device is a small block of registers
+     * in the middle of the other system control registers.
      */
-    regionlen = arm_feature(&s->cpu->env, ARM_FEATURE_V8) ? 0x21000 : 0x1000;
-    memory_region_init(&s->container, OBJECT(s), "nvic", regionlen);
-    /* The system register region goes at the bottom of the priority
-     * stack as it covers the whole page.
-     */
+    memory_region_init(&s->container, OBJECT(s), "nvic", 0x100000);
+    memory_region_init_io(&s->defaultmem, OBJECT(s), &ppb_default_ops, s,
+                          "nvic-default", 0x100000);
+    memory_region_add_subregion_overlap(&s->container, 0, &s->defaultmem, -1);
     memory_region_init_io(&s->sysregmem, OBJECT(s), &nvic_sysreg_ops, s,
                           "nvic_sysregs", 0x1000);
-    memory_region_add_subregion(&s->container, 0, &s->sysregmem);
+    memory_region_add_subregion(&s->container, 0xe000, &s->sysregmem);
 
     memory_region_init_io(&s->systickmem, OBJECT(s),
                           &nvic_systick_ops, s,
                           "nvic_systick", 0xe0);
 
-    memory_region_add_subregion_overlap(&s->container, 0x10,
+    memory_region_add_subregion_overlap(&s->container, 0xe010,
                                         &s->systickmem, 1);
 
     if (arm_feature(&s->cpu->env, ARM_FEATURE_V8)) {
         memory_region_init_io(&s->sysreg_ns_mem, OBJECT(s),
                               &nvic_sysreg_ns_ops, &s->sysregmem,
                               "nvic_sysregs_ns", 0x1000);
-        memory_region_add_subregion(&s->container, 0x20000, &s->sysreg_ns_mem);
+        memory_region_add_subregion(&s->container, 0x2e000, &s->sysreg_ns_mem);
         memory_region_init_io(&s->systick_ns_mem, OBJECT(s),
                               &nvic_sysreg_ns_ops, &s->systickmem,
                               "nvic_systick_ns", 0xe0);
-        memory_region_add_subregion_overlap(&s->container, 0x20010,
+        memory_region_add_subregion_overlap(&s->container, 0x2e010,
                                             &s->systick_ns_mem, 1);
     }
 

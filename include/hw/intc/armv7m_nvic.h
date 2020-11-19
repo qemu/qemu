@@ -84,6 +84,7 @@ struct NVICState {
     MemoryRegion systickmem;
     MemoryRegion systick_ns_mem;
     MemoryRegion container;
+    MemoryRegion defaultmem;
 
     uint32_t num_irq;
     qemu_irq excpout;
