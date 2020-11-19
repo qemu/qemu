@@ -722,11 +722,15 @@ load_fail:
      * The HardFault is Secure if BFHFNMINS is 0 (meaning that all HFs are
      * secure); otherwise it targets the same security state as the
      * underlying exception.
+     * In v8.1M HardFaults from vector table fetch fails don't set FORCED.
      */
     if (!(cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
         exc_secure = true;
     }
-    env->v7m.hfsr |= R_V7M_HFSR_VECTTBL_MASK | R_V7M_HFSR_FORCED_MASK;
+    env->v7m.hfsr |= R_V7M_HFSR_VECTTBL_MASK;
+    if (!arm_feature(env, ARM_FEATURE_V8_1M)) {
+        env->v7m.hfsr |= R_V7M_HFSR_FORCED_MASK;
+    }
     armv7m_nvic_set_pending_derived(env->nvic, ARMV7M_EXCP_HARD, exc_secure);
     return false;
 }
