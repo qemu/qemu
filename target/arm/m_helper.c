@@ -1999,6 +1999,64 @@ static bool v7m_read_half_insn(ARMCPU *cpu, ARMMMUIdx mmu_idx,
     return true;
 }
 
+static bool v7m_read_sg_stack_word(ARMCPU *cpu, ARMMMUIdx mmu_idx,
+                                   uint32_t addr, uint32_t *spdata)
+{
+    /*
+     * Read a word of data from the stack for the SG instruction,
+     * writing the value into *spdata. If the load succeeds, return
+     * true; otherwise pend an appropriate exception and return false.
+     * (We can't use data load helpers here that throw an exception
+     * because of the context we're called in, which is halfway through
+     * arm_v7m_cpu_do_interrupt().)
+     */
+    CPUState *cs = CPU(cpu);
+    CPUARMState *env = &cpu->env;
+    MemTxAttrs attrs = {};
+    MemTxResult txres;
+    target_ulong page_size;
+    hwaddr physaddr;
+    int prot;
+    ARMMMUFaultInfo fi = {};
+    ARMCacheAttrs cacheattrs = {};
+    uint32_t value;
+
+    if (get_phys_addr(env, addr, MMU_DATA_LOAD, mmu_idx, &physaddr,
+                      &attrs, &prot, &page_size, &fi, &cacheattrs)) {
+        /* MPU/SAU lookup failed */
+        if (fi.type == ARMFault_QEMU_SFault) {
+            qemu_log_mask(CPU_LOG_INT,
+                          "...SecureFault during stack word read\n");
+            env->v7m.sfsr |= R_V7M_SFSR_AUVIOL_MASK | R_V7M_SFSR_SFARVALID_MASK;
+            env->v7m.sfar = addr;
+            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_SECURE, false);
+        } else {
+            qemu_log_mask(CPU_LOG_INT,
+                          "...MemManageFault during stack word read\n");
+            env->v7m.cfsr[M_REG_S] |= R_V7M_CFSR_DACCVIOL_MASK |
+                R_V7M_CFSR_MMARVALID_MASK;
+            env->v7m.mmfar[M_REG_S] = addr;
+            armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_MEM, false);
+        }
+        return false;
+    }
+    value = address_space_ldl(arm_addressspace(cs, attrs), physaddr,
+                              attrs, &txres);
+    if (txres != MEMTX_OK) {
+        /* BusFault trying to read the data */
+        qemu_log_mask(CPU_LOG_INT,
+                      "...BusFault during stack word read\n");
+        env->v7m.cfsr[M_REG_NS] |=
+            (R_V7M_CFSR_PRECISERR_MASK | R_V7M_CFSR_BFARVALID_MASK);
+        env->v7m.bfar = addr;
+        armv7m_nvic_set_pending(env->nvic, ARMV7M_EXCP_BUS, false);
+        return false;
+    }
+
+    *spdata = value;
+    return true;
+}
+
 static bool v7m_handle_execute_nsc(ARMCPU *cpu)
 {
     /*
@@ -2055,6 +2113,34 @@ static bool v7m_handle_execute_nsc(ARMCPU *cpu)
      */
     qemu_log_mask(CPU_LOG_INT, "...really an SG instruction at 0x%08" PRIx32
                   ", executing it\n", env->regs[15]);
+
+    if (cpu_isar_feature(aa32_m_sec_state, cpu) &&
+        !arm_v7m_is_handler_mode(env)) {
+        /*
+         * v8.1M exception stack frame integrity check. Note that we
+         * must perform the memory access even if CCR_S.TRD is zero
+         * and we aren't going to check what the data loaded is.
+         */
+        uint32_t spdata, sp;
+
+        /*
+         * We know we are currently NS, so the S stack pointers must be
+         * in other_ss_{psp,msp}, not in regs[13]/other_sp.
+         */
+        sp = v7m_using_psp(env) ? env->v7m.other_ss_psp : env->v7m.other_ss_msp;
+        if (!v7m_read_sg_stack_word(cpu, mmu_idx, sp, &spdata)) {
+            /* Stack access failed and an exception has been pended */
+            return false;
+        }
+
+        if (env->v7m.ccr[M_REG_S] & R_V7M_CCR_TRD_MASK) {
+            if (((spdata & ~1) == 0xfefa125a) ||
+                !(env->v7m.control[M_REG_S] & 1)) {
+                goto gen_invep;
+            }
+        }
+    }
+
     env->regs[14] &= ~1;
     env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_SFPA_MASK;
     switch_v7m_security_state(env, true);
