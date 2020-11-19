@@ -3555,6 +3555,15 @@ static inline bool isar_feature_aa32_mprofile(const ARMISARegisters *id)
     return FIELD_EX32(id->id_pfr1, ID_PFR1, MPROGMOD) != 0;
 }
 
+static inline bool isar_feature_aa32_m_sec_state(const ARMISARegisters *id)
+{
+    /*
+     * Return true if M-profile state handling insns
+     * (VSCCLRM, CLRM, FPCTX access insns) are implemented
+     */
+    return FIELD_EX32(id->id_pfr1, ID_PFR1, SECURITY) >= 3;
+}
+
 static inline bool isar_feature_aa32_fp16_arith(const ARMISARegisters *id)
 {
     /* Sadly this is encoded differently for A-profile and M-profile */
