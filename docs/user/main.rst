@@ -170,68 +170,81 @@ QEMU_STRACE
 Other binaries
 ~~~~~~~~~~~~~~
 
-user mode (Alpha)
-``qemu-alpha`` TODO.
+-  user mode (Alpha)
 
-user mode (Arm)
-``qemu-armeb`` TODO.
+   * ``qemu-alpha`` TODO.
 
-user mode (Arm)
-``qemu-arm`` is also capable of running Arm \"Angel\" semihosted ELF
-binaries (as implemented by the arm-elf and arm-eabi Newlib/GDB
-configurations), and arm-uclinux bFLT format binaries.
+-  user mode (Arm)
 
-user mode (ColdFire)
-user mode (M68K)
-``qemu-m68k`` is capable of running semihosted binaries using the BDM
-(m5xxx-ram-hosted.ld) or m68k-sim (sim.ld) syscall interfaces, and
-coldfire uClinux bFLT format binaries.
+   * ``qemu-armeb`` TODO.
 
-The binary format is detected automatically.
+   * ``qemu-arm`` is also capable of running Arm \"Angel\" semihosted ELF
+     binaries (as implemented by the arm-elf and arm-eabi Newlib/GDB
+     configurations), and arm-uclinux bFLT format binaries.
 
-user mode (Cris)
-``qemu-cris`` TODO.
+-  user mode (ColdFire)
 
-user mode (i386)
-``qemu-i386`` TODO. ``qemu-x86_64`` TODO.
+-  user mode (M68K)
 
-user mode (Microblaze)
-``qemu-microblaze`` TODO.
+   * ``qemu-m68k`` is capable of running semihosted binaries using the BDM
+     (m5xxx-ram-hosted.ld) or m68k-sim (sim.ld) syscall interfaces, and
+     coldfire uClinux bFLT format binaries.
 
-user mode (MIPS)
-``qemu-mips`` executes 32-bit big endian MIPS binaries (MIPS O32 ABI).
+   The binary format is detected automatically.
 
-``qemu-mipsel`` executes 32-bit little endian MIPS binaries (MIPS O32
-ABI).
+-  user mode (Cris)
 
-``qemu-mips64`` executes 64-bit big endian MIPS binaries (MIPS N64 ABI).
+   * ``qemu-cris`` TODO.
 
-``qemu-mips64el`` executes 64-bit little endian MIPS binaries (MIPS N64
-ABI).
+-  user mode (i386)
 
-``qemu-mipsn32`` executes 32-bit big endian MIPS binaries (MIPS N32
-ABI).
+   * ``qemu-i386`` TODO.
+   * ``qemu-x86_64`` TODO.
 
-``qemu-mipsn32el`` executes 32-bit little endian MIPS binaries (MIPS N32
-ABI).
+-  user mode (Microblaze)
 
-user mode (NiosII)
-``qemu-nios2`` TODO.
+   * ``qemu-microblaze`` TODO.
 
-user mode (PowerPC)
-``qemu-ppc64abi32`` TODO. ``qemu-ppc64`` TODO. ``qemu-ppc`` TODO.
+-  user mode (MIPS)
 
-user mode (SH4)
-``qemu-sh4eb`` TODO. ``qemu-sh4`` TODO.
+   * ``qemu-mips`` executes 32-bit big endian MIPS binaries (MIPS O32 ABI).
 
-user mode (SPARC)
-``qemu-sparc`` can execute Sparc32 binaries (Sparc32 CPU, 32 bit ABI).
+   * ``qemu-mipsel`` executes 32-bit little endian MIPS binaries (MIPS O32 ABI).
 
-``qemu-sparc32plus`` can execute Sparc32 and SPARC32PLUS binaries
-(Sparc64 CPU, 32 bit ABI).
+   * ``qemu-mips64`` executes 64-bit big endian MIPS binaries (MIPS N64 ABI).
 
-``qemu-sparc64`` can execute some Sparc64 (Sparc64 CPU, 64 bit ABI) and
-SPARC32PLUS binaries (Sparc64 CPU, 32 bit ABI).
+   * ``qemu-mips64el`` executes 64-bit little endian MIPS binaries (MIPS N64
+     ABI).
+
+   * ``qemu-mipsn32`` executes 32-bit big endian MIPS binaries (MIPS N32 ABI).
+
+   * ``qemu-mipsn32el`` executes 32-bit little endian MIPS binaries (MIPS N32
+     ABI).
+
+-  user mode (NiosII)
+
+   * ``qemu-nios2`` TODO.
+
+-  user mode (PowerPC)
+
+   * ``qemu-ppc64abi32`` TODO.
+   * ``qemu-ppc64`` TODO.
+   * ``qemu-ppc`` TODO.
+
+-  user mode (SH4)
+
+   * ``qemu-sh4eb`` TODO.
+   * ``qemu-sh4`` TODO.
+
+-  user mode (SPARC)
+
+   * ``qemu-sparc`` can execute Sparc32 binaries (Sparc32 CPU, 32 bit ABI).
+
+   * ``qemu-sparc32plus`` can execute Sparc32 and SPARC32PLUS binaries
+     (Sparc64 CPU, 32 bit ABI).
+
+   * ``qemu-sparc64`` can execute some Sparc64 (Sparc64 CPU, 64 bit ABI) and
+     SPARC32PLUS binaries (Sparc64 CPU, 32 bit ABI).
 
 BSD User space emulator
 -----------------------
