@@ -6561,6 +6561,12 @@ static void x86_cpu_hyperv_realize(X86CPU *cpu)
         memset(cpu->hyperv_vendor_id, 0, 12);
         memcpy(cpu->hyperv_vendor_id, cpu->hyperv_vendor, len);
     }
+
+    /* 'Hv#1' interface identification*/
+    cpu->hyperv_interface_id[0] = 0x31237648;
+    cpu->hyperv_interface_id[1] = 0;
+    cpu->hyperv_interface_id[2] = 0;
+    cpu->hyperv_interface_id[3] = 0;
 }
 
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
