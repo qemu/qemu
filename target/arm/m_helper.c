@@ -897,10 +897,12 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain,
          * Clear registers if necessary to prevent non-secure exception
          * code being able to see register values from secure code.
          * Where register values become architecturally UNKNOWN we leave
-         * them with their previous values.
+         * them with their previous values. v8.1M is tighter than v8.0M
+         * here and always zeroes the caller-saved registers regardless
+         * of the security state the exception is targeting.
          */
         if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
-            if (!targets_secure) {
+            if (!targets_secure || arm_feature(env, ARM_FEATURE_V8_1M)) {
                 /*
                  * Always clear the caller-saved registers (they have been
                  * pushed to the stack earlier in v7m_push_stack()).
@@ -909,10 +911,16 @@ static void v7m_exception_taken(ARMCPU *cpu, uint32_t lr, bool dotailchain,
                  * v7m_push_callee_stack()).
                  */
                 int i;
+                /*
+                 * r4..r11 are callee-saves, zero only if background
+                 * state was Secure (EXCRET.S == 1) and exception
+                 * targets Non-secure state
+                 */
+                bool zero_callee_saves = !targets_secure &&
+                    (lr & R_V7M_EXCRET_S_MASK);
 
                 for (i = 0; i < 13; i++) {
-                    /* r4..r11 are callee-saves, zero only if EXCRET.S == 1 */
-                    if (i < 4 || i > 11 || (lr & R_V7M_EXCRET_S_MASK)) {
+                    if (i < 4 || i > 11 || zero_callee_saves) {
                         env->regs[i] = 0;
                     }
                 }
