@@ -36,7 +36,7 @@
 
 {
   # Special cases which do not take an early NOCP: VLLDM and VLSTM
-  VLLDM_VLSTM  1110 1100 001 l:1 rn:4 0000 1010 0000 0000
+  VLLDM_VLSTM  1110 1100 001 l:1 rn:4 0000 1010 op:1 000 0000
   # VSCCLRM (new in v8.1M) is similar:
   VSCCLRM      1110 1100 1.01 1111 .... 1011 imm:7 0   vd=%vd_dp size=3
   VSCCLRM      1110 1100 1.01 1111 .... 1010 imm:8     vd=%vd_sp size=2
