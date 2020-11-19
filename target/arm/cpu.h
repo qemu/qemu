@@ -1569,6 +1569,9 @@ enum arm_cpu_mode {
 #define ARM_VFP_FPINST  9
 #define ARM_VFP_FPINST2 10
 
+/* QEMU-internal value meaning "FPSCR, but we care only about NZCV" */
+#define QEMU_VFP_FPSCR_NZCV 0xffff
+
 /* iwMMXt coprocessor control registers.  */
 #define ARM_IWMMXT_wCID  0
 #define ARM_IWMMXT_wCon  1

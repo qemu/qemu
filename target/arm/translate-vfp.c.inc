@@ -607,27 +607,181 @@ static bool trans_VDUP(DisasContext *s, arg_VDUP *a)
     return true;
 }
 
+/*
+ * M-profile provides two different sets of instructions that can
+ * access floating point system registers: VMSR/VMRS (which move
+ * to/from a general purpose register) and VLDR/VSTR sysreg (which
+ * move directly to/from memory). In some cases there are also side
+ * effects which must happen after any write to memory (which could
+ * cause an exception). So we implement the common logic for the
+ * sysreg access in gen_M_fp_sysreg_write() and gen_M_fp_sysreg_read(),
+ * which take pointers to callback functions which will perform the
+ * actual "read/write general purpose register" and "read/write
+ * memory" operations.
+ */
+
+/*
+ * Emit code to store the sysreg to its final destination; frees the
+ * TCG temp 'value' it is passed.
+ */
+typedef void fp_sysreg_storefn(DisasContext *s, void *opaque, TCGv_i32 value);
+/*
+ * Emit code to load the value to be copied to the sysreg; returns
+ * a new TCG temporary
+ */
+typedef TCGv_i32 fp_sysreg_loadfn(DisasContext *s, void *opaque);
+
+/* Common decode/access checks for fp sysreg read/write */
+typedef enum FPSysRegCheckResult {
+    FPSysRegCheckFailed, /* caller should return false */
+    FPSysRegCheckDone, /* caller should return true */
+    FPSysRegCheckContinue, /* caller should continue generating code */
+} FPSysRegCheckResult;
+
+static FPSysRegCheckResult fp_sysreg_checks(DisasContext *s, int regno)
+{
+    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
+        return FPSysRegCheckFailed;
+    }
+
+    switch (regno) {
+    case ARM_VFP_FPSCR:
+    case QEMU_VFP_FPSCR_NZCV:
+        break;
+    default:
+        return FPSysRegCheckFailed;
+    }
+
+    if (!vfp_access_check(s)) {
+        return FPSysRegCheckDone;
+    }
+
+    return FPSysRegCheckContinue;
+}
+
+static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
+
+                                  fp_sysreg_loadfn *loadfn,
+                                 void *opaque)
+{
+    /* Do a write to an M-profile floating point system register */
+    TCGv_i32 tmp;
+
+    switch (fp_sysreg_checks(s, regno)) {
+    case FPSysRegCheckFailed:
+        return false;
+    case FPSysRegCheckDone:
+        return true;
+    case FPSysRegCheckContinue:
+        break;
+    }
+
+    switch (regno) {
+    case ARM_VFP_FPSCR:
+        tmp = loadfn(s, opaque);
+        gen_helper_vfp_set_fpscr(cpu_env, tmp);
+        tcg_temp_free_i32(tmp);
+        gen_lookup_tb(s);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return true;
+}
+
+static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
+                                fp_sysreg_storefn *storefn,
+                                void *opaque)
+{
+    /* Do a read from an M-profile floating point system register */
+    TCGv_i32 tmp;
+
+    switch (fp_sysreg_checks(s, regno)) {
+    case FPSysRegCheckFailed:
+        return false;
+    case FPSysRegCheckDone:
+        return true;
+    case FPSysRegCheckContinue:
+        break;
+    }
+
+    switch (regno) {
+    case ARM_VFP_FPSCR:
+        tmp = tcg_temp_new_i32();
+        gen_helper_vfp_get_fpscr(tmp, cpu_env);
+        storefn(s, opaque, tmp);
+        break;
+    case QEMU_VFP_FPSCR_NZCV:
+        /*
+         * Read just NZCV; this is a special case to avoid the
+         * helper call for the "VMRS to CPSR.NZCV" insn.
+         */
+        tmp = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
+        tcg_gen_andi_i32(tmp, tmp, 0xf0000000);
+        storefn(s, opaque, tmp);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return true;
+}
+
+static void fp_sysreg_to_gpr(DisasContext *s, void *opaque, TCGv_i32 value)
+{
+    arg_VMSR_VMRS *a = opaque;
+
+    if (a->rt == 15) {
+        /* Set the 4 flag bits in the CPSR */
+        gen_set_nzcv(value);
+        tcg_temp_free_i32(value);
+    } else {
+        store_reg(s, a->rt, value);
+    }
+}
+
+static TCGv_i32 gpr_to_fp_sysreg(DisasContext *s, void *opaque)
+{
+    arg_VMSR_VMRS *a = opaque;
+
+    return load_reg(s, a->rt);
+}
+
+static bool gen_M_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
+{
+    /*
+     * Accesses to R15 are UNPREDICTABLE; we choose to undef.
+     * FPSCR -> r15 is a special case which writes to the PSR flags;
+     * set a->reg to a special value to tell gen_M_fp_sysreg_read()
+     * we only care about the top 4 bits of FPSCR there.
+     */
+    if (a->rt == 15) {
+        if (a->l && a->reg == ARM_VFP_FPSCR) {
+            a->reg = QEMU_VFP_FPSCR_NZCV;
+        } else {
+            return false;
+        }
+    }
+
+    if (a->l) {
+        /* VMRS, move FP system register to gp register */
+        return gen_M_fp_sysreg_read(s, a->reg, fp_sysreg_to_gpr, a);
+    } else {
+        /* VMSR, move gp register to FP system register */
+        return gen_M_fp_sysreg_write(s, a->reg, gpr_to_fp_sysreg, a);
+    }
+}
+
 static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
 {
     TCGv_i32 tmp;
     bool ignore_vfp_enabled = false;
 
-    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
-        return false;
+    if (arm_dc_feature(s, ARM_FEATURE_M)) {
+        return gen_M_VMSR_VMRS(s, a);
     }
 
-    if (arm_dc_feature(s, ARM_FEATURE_M)) {
-        /*
-         * The only M-profile VFP vmrs/vmsr sysreg is FPSCR.
-         * Accesses to R15 are UNPREDICTABLE; we choose to undef.
-         * (FPSCR -> r15 is a special case which writes to the PSR flags.)
-         */
-        if (a->reg != ARM_VFP_FPSCR) {
-            return false;
-        }
-        if (a->rt == 15 && !a->l) {
-            return false;
-        }
+    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
+        return false;
     }
 
     switch (a->reg) {
