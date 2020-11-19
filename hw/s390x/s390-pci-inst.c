@@ -281,7 +281,13 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
             goto out;
         }
 
-        memcpy(resquery, &pbdev->zpci_fn, sizeof(*resquery));
+        stq_p(&resquery->sdma, pbdev->zpci_fn.sdma);
+        stq_p(&resquery->edma, pbdev->zpci_fn.edma);
+        stw_p(&resquery->pchid, pbdev->zpci_fn.pchid);
+        resquery->flags = pbdev->zpci_fn.flags;
+        resquery->pfgid = pbdev->zpci_fn.pfgid;
+        stl_p(&resquery->fid, pbdev->zpci_fn.fid);
+        stl_p(&resquery->uid, pbdev->zpci_fn.uid);
 
         for (i = 0; i < PCI_BAR_COUNT; i++) {
             uint32_t data = pci_get_long(pbdev->pdev->config +
@@ -312,7 +318,13 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
             stw_p(&resgrp->hdr.rsp, CLP_RC_QUERYPCIFG_PFGID);
             goto out;
         }
-        memcpy(resgrp, &group->zpci_group, sizeof(ClpRspQueryPciGrp));
+        resgrp->fr = group->zpci_group.fr;
+        stq_p(&resgrp->dasm, group->zpci_group.dasm);
+        stq_p(&resgrp->msia, group->zpci_group.msia);
+        stw_p(&resgrp->mui, group->zpci_group.mui);
+        stw_p(&resgrp->i, group->zpci_group.i);
+        stw_p(&resgrp->maxstbl, group->zpci_group.maxstbl);
+        resgrp->version = group->zpci_group.version;
         stw_p(&resgrp->hdr.rsp, CLP_RC_OK);
         break;
     }
