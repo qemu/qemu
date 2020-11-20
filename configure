@@ -2878,18 +2878,6 @@ EOF
   fi
 fi
 
-if test "$xen_pci_passthrough" != "disabled"; then
-  if test "$xen" = "enabled" && test "$linux" = "yes"; then
-    xen_pci_passthrough=enabled
-  else
-    if test "$xen_pci_passthrough" = "enabled"; then
-      error_exit "User requested feature Xen PCI Passthrough" \
-          " but this feature requires /sys from Linux"
-    fi
-    xen_pci_passthrough=disabled
-  fi
-fi
-
 ##########################################
 # X11 probe
 if $pkg_config --exists "x11"; then
