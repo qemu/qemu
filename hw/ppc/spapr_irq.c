@@ -186,7 +186,7 @@ static int spapr_irq_check(SpaprMachineState *spapr, Error **errp)
     if (kvm_enabled() &&
         spapr->irq == &spapr_irq_dual &&
         kvm_kernel_irqchip_required() &&
-        xics_kvm_has_broken_disconnect(spapr)) {
+        xics_kvm_has_broken_disconnect()) {
         error_setg(errp,
             "KVM is incompatible with ic-mode=dual,kernel-irqchip=on");
         error_append_hint(errp,
