@@ -7,6 +7,8 @@ option('qemu_firmwarepath', type : 'string', value : '',
 option('sphinx_build', type : 'string', value : '',
        description: 'Use specified sphinx-build [$sphinx_build] for building document (default to be empty)')
 
+option('default_devices', type : 'boolean', value : true,
+       description: 'Include a default selection of devices in emulators')
 option('docs', type : 'feature', value : 'auto',
        description: 'Documentations build support')
 option('gettext', type : 'feature', value : 'auto',
