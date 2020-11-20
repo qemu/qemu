@@ -3886,6 +3886,7 @@ static bool spapr_phb_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(dev);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     const unsigned windows_supported = spapr_phb_windows_supported(sphb);
+    SpaprDrc *drc;
 
     if (dev->hotplugged && !smc->dr_phb_enabled) {
         error_setg(errp, "PHB hotplug not supported for this machine");
@@ -3894,6 +3895,12 @@ static bool spapr_phb_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     if (sphb->index == (uint32_t)-1) {
         error_setg(errp, "\"index\" for PAPR PHB is mandatory");
+        return false;
+    }
+
+    drc = spapr_drc_by_id(TYPE_SPAPR_DRC_PHB, sphb->index);
+    if (drc && drc->dev) {
+        error_setg(errp, "PHB %d already attached", sphb->index);
         return false;
     }
 
@@ -3910,8 +3917,7 @@ static bool spapr_phb_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                            errp);
 }
 
-static void spapr_phb_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
-                           Error **errp)
+static void spapr_phb_plug(HotplugHandler *hotplug_dev, DeviceState *dev)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
@@ -3927,9 +3933,8 @@ static void spapr_phb_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     /* hotplug hooks should check it's enabled before getting this far */
     assert(drc);
 
-    if (!spapr_drc_attach(drc, dev, errp)) {
-        return;
-    }
+    /* spapr_phb_pre_plug() already checked the DRC is attachable */
+    spapr_drc_attach(drc, dev, &error_abort);
 
     if (hotplugged) {
         spapr_hotplug_req_add_by_index(drc);
@@ -3997,7 +4002,7 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
         spapr_core_plug(hotplug_dev, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_PCI_HOST_BRIDGE)) {
-        spapr_phb_plug(hotplug_dev, dev, errp);
+        spapr_phb_plug(hotplug_dev, dev);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_TPM_PROXY)) {
         spapr_tpm_proxy_plug(hotplug_dev, dev, errp);
     }
