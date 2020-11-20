@@ -3379,8 +3379,8 @@ int spapr_lmb_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
     return 0;
 }
 
-static bool spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
-                           bool dedicated_hp_event_source, Error **errp)
+static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
+                           bool dedicated_hp_event_source)
 {
     SpaprDrc *drc;
     uint32_t nr_lmbs = size/SPAPR_MEMORY_BLOCK_SIZE;
@@ -3393,15 +3393,12 @@ static bool spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                               addr / SPAPR_MEMORY_BLOCK_SIZE);
         g_assert(drc);
 
-        if (!spapr_drc_attach(drc, dev, errp)) {
-            while (addr > addr_start) {
-                addr -= SPAPR_MEMORY_BLOCK_SIZE;
-                drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB,
-                                      addr / SPAPR_MEMORY_BLOCK_SIZE);
-                spapr_drc_detach(drc);
-            }
-            return false;
-        }
+        /*
+         * memory_device_get_free_addr() provided a range of free addresses
+         * that doesn't overlap with any existing mapping at pre-plug. The
+         * corresponding LMB DRCs are thus assumed to be all attachable.
+         */
+        spapr_drc_attach(drc, dev, &error_abort);
         if (!hotplugged) {
             spapr_drc_reset(drc);
         }
@@ -3422,11 +3419,9 @@ static bool spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                                            nr_lmbs);
         }
     }
-    return true;
 }
 
-static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
-                              Error **errp)
+static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev)
 {
     SpaprMachineState *ms = SPAPR_MACHINE(hotplug_dev);
     PCDIMMDevice *dimm = PC_DIMM(dev);
@@ -3441,24 +3436,15 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     if (!is_nvdimm) {
         addr = object_property_get_uint(OBJECT(dimm),
                                         PC_DIMM_ADDR_PROP, &error_abort);
-        if (!spapr_add_lmbs(dev, addr, size,
-                            spapr_ovec_test(ms->ov5_cas, OV5_HP_EVT), errp)) {
-            goto out_unplug;
-        }
+        spapr_add_lmbs(dev, addr, size,
+                       spapr_ovec_test(ms->ov5_cas, OV5_HP_EVT));
     } else {
         slot = object_property_get_int(OBJECT(dimm),
                                        PC_DIMM_SLOT_PROP, &error_abort);
         /* We should have valid slot number at this point */
         g_assert(slot >= 0);
-        if (!spapr_add_nvdimm(dev, slot, errp)) {
-            goto out_unplug;
-        }
+        spapr_add_nvdimm(dev, slot);
     }
-
-    return;
-
-out_unplug:
-    pc_dimm_unplug(dimm, MACHINE(ms));
 }
 
 static void spapr_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
@@ -4006,7 +3992,7 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        spapr_memory_plug(hotplug_dev, dev, errp);
+        spapr_memory_plug(hotplug_dev, dev);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
         spapr_core_plug(hotplug_dev, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_PCI_HOST_BRIDGE)) {
