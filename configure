@@ -1082,6 +1082,8 @@ for opt do
   ;;
   --disable-slirp) slirp="disabled"
   ;;
+  --enable-slirp) slirp="enabled"
+  ;;
   --enable-slirp=git) slirp="internal"
   ;;
   --enable-slirp=system) slirp="system"
