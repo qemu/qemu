@@ -1607,6 +1607,7 @@ L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/omap*
 F: include/hw/arm/omap.h
+F: docs/system/arm/sx1.rst
 
 IPack
 M: Alberto Garcia <berto@igalia.com>
