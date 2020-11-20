@@ -47,7 +47,6 @@ config USB_XHCI_NEC
 
 config USB_XHCI_SYSBUS
     bool
-    default y
     select USB_XHCI
 
 config USB_MUSB
