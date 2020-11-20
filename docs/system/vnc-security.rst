@@ -1,4 +1,4 @@
-.. _vnc_005fsecurity:
+.. _VNC security:
 
 VNC security
 ------------

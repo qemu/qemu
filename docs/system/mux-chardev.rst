@@ -1,4 +1,4 @@
-.. _mux_005fkeys:
+.. _keys in the character backend multiplexer:
 
 Keys in the character backend multiplexer
 -----------------------------------------

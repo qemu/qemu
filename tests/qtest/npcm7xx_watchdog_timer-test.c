@@ -204,6 +204,7 @@ static void test_enabling_flags(gconstpointer watchdog)
 {
     const Watchdog *wd = watchdog;
     QTestState *qts;
+    QDict *rsp;
 
     /* Neither WTIE or WTRE is set, no interrupt or reset should happen */
     qts = qtest_init("-machine quanta-gsj");
@@ -240,8 +241,9 @@ static void test_enabling_flags(gconstpointer watchdog)
     g_assert_false(qtest_get_irq(qts, wd->irq));
     qtest_clock_step(qts, watchdog_calculate_steps(RESET_CYCLES,
                 watchdog_prescaler(qts, wd)));
-    g_assert_false(strcmp(qdict_get_str(get_watchdog_action(qts), "action"),
-                "reset"));
+    rsp = get_watchdog_action(qts);
+    g_assert_false(strcmp(qdict_get_str(rsp, "action"), "reset"));
+    qobject_unref(rsp);
     qtest_qmp_eventwait(qts, "RESET");
     qtest_quit(qts);
 

@@ -1,4 +1,4 @@
-.. _gdb_005fusage:
+.. _GDB usage:
 
 GDB usage
 ---------
