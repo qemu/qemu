@@ -90,6 +90,7 @@ undocumented; you can get a complete list by running
    arm/nuvoton
    arm/orangepi
    arm/palm
+   arm/raspi
    arm/xscale
    arm/collie
    arm/sx1

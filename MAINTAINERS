@@ -803,6 +803,7 @@ F: hw/arm/raspi_platform.h
 F: hw/*/bcm283*
 F: include/hw/arm/raspi*
 F: include/hw/*/bcm283*
+F: docs/system/arm/raspi.rst
 
 Real View
 M: Peter Maydell <peter.maydell@linaro.org>
