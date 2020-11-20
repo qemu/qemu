@@ -892,21 +892,16 @@ static float64 float64_round_pack_canonical(FloatParts p, float_status *s)
 
 static FloatParts return_nan(FloatParts a, float_status *s)
 {
-    switch (a.cls) {
-    case float_class_snan:
+    g_assert(is_nan(a.cls));
+    if (is_snan(a.cls)) {
         float_raise(float_flag_invalid, s);
-        a = parts_silence_nan(a, s);
-        /* fall through */
-    case float_class_qnan:
-        if (s->default_nan_mode) {
-            return parts_default_nan(s);
+        if (!s->default_nan_mode) {
+            return parts_silence_nan(a, s);
         }
-        break;
-
-    default:
-        g_assert_not_reached();
+    } else if (!s->default_nan_mode) {
+        return a;
     }
-    return a;
+    return parts_default_nan(s);
 }
 
 static FloatParts pick_nan(FloatParts a, FloatParts b, float_status *s)
