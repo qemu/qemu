@@ -466,7 +466,6 @@ gettext="auto"
 fuse="auto"
 fuse_lseek="auto"
 
-bogus_os="no"
 malloc_trim="auto"
 
 # parse CC options second
@@ -619,7 +618,6 @@ else
   # might be going to just print the --help text, or it might
   # be the result of a missing compiler.
   targetos='bogus'
-  bogus_os='yes'
 fi
 
 # Some host OSes need non-standard checks for which CPU to use.
@@ -2014,7 +2012,7 @@ if test -z "$werror" ; then
     fi
 fi
 
-if test "$bogus_os" = "yes"; then
+if test "$targetos" = "bogus"; then
     # Now that we know that we're not printing the help and that
     # the compiler works (so the results of the check_defines we used
     # to identify the OS are reliable), if we didn't recognize the
