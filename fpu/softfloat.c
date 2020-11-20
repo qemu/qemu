@@ -764,6 +764,14 @@ static void parts128_canonicalize(FloatParts128 *p, float_status *status,
 #define parts_canonicalize(A, S, F) \
     PARTS_GENERIC_64_128(canonicalize, A)(A, S, F)
 
+static void parts64_uncanon_normal(FloatParts64 *p, float_status *status,
+                                   const FloatFmt *fmt);
+static void parts128_uncanon_normal(FloatParts128 *p, float_status *status,
+                                    const FloatFmt *fmt);
+
+#define parts_uncanon_normal(A, S, F) \
+    PARTS_GENERIC_64_128(uncanon_normal, A)(A, S, F)
+
 static void parts64_uncanon(FloatParts64 *p, float_status *status,
                             const FloatFmt *fmt);
 static void parts128_uncanon(FloatParts128 *p, float_status *status,
