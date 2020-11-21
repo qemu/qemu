@@ -5792,10 +5792,12 @@ float128 floatx80_to_float128(floatx80 a, float_status *status)
 
 floatx80 floatx80_round(floatx80 a, float_status *status)
 {
-    return roundAndPackFloatx80(status->floatx80_rounding_precision,
-                                extractFloatx80Sign(a),
-                                extractFloatx80Exp(a),
-                                extractFloatx80Frac(a), 0, status);
+    FloatParts128 p;
+
+    if (!floatx80_unpack_canonical(&p, a, status)) {
+        return floatx80_default_nan(status);
+    }
+    return floatx80_round_pack_canonical(&p, status);
 }
 
 /*----------------------------------------------------------------------------
