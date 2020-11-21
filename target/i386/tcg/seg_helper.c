@@ -634,6 +634,24 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
     type = (e2 >> DESC_TYPE_SHIFT) & 0x1f;
     switch (type) {
     case 5: /* task gate */
+    case 6: /* 286 interrupt gate */
+    case 7: /* 286 trap gate */
+    case 14: /* 386 interrupt gate */
+    case 15: /* 386 trap gate */
+        break;
+    default:
+        raise_exception_err(env, EXCP0D_GPF, intno * 8 + 2);
+        break;
+    }
+    dpl = (e2 >> DESC_DPL_SHIFT) & 3;
+    cpl = env->hflags & HF_CPL_MASK;
+    /* check privilege if software int */
+    if (is_int && dpl < cpl) {
+        raise_exception_err(env, EXCP0D_GPF, intno * 8 + 2);
+    }
+
+    if (type == 5) {
+        /* task gate */
         /* must do that check here to return the correct error code */
         if (!(e2 & DESC_P_MASK)) {
             raise_exception_err(env, EXCP0B_NOSEG, intno * 8 + 2);
@@ -661,21 +679,10 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
             SET_ESP(esp, mask);
         }
         return;
-    case 6: /* 286 interrupt gate */
-    case 7: /* 286 trap gate */
-    case 14: /* 386 interrupt gate */
-    case 15: /* 386 trap gate */
-        break;
-    default:
-        raise_exception_err(env, EXCP0D_GPF, intno * 8 + 2);
-        break;
     }
-    dpl = (e2 >> DESC_DPL_SHIFT) & 3;
-    cpl = env->hflags & HF_CPL_MASK;
-    /* check privilege if software int */
-    if (is_int && dpl < cpl) {
-        raise_exception_err(env, EXCP0D_GPF, intno * 8 + 2);
-    }
+
+    /* Otherwise, trap or interrupt gate */
+
     /* check valid bit */
     if (!(e2 & DESC_P_MASK)) {
         raise_exception_err(env, EXCP0B_NOSEG, intno * 8 + 2);
