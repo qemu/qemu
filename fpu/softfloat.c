@@ -2610,6 +2610,19 @@ float128 float128_round_to_int(float128 a, float_status *s)
     return float128_round_pack_canonical(&p, s);
 }
 
+floatx80 floatx80_round_to_int(floatx80 a, float_status *status)
+{
+    FloatParts128 p;
+
+    if (!floatx80_unpack_canonical(&p, a, status)) {
+        return floatx80_default_nan(status);
+    }
+
+    parts_round_to_int(&p, status->float_rounding_mode, 0, status,
+                       &floatx80_params[status->floatx80_rounding_precision]);
+    return floatx80_round_pack_canonical(&p, status);
+}
+
 /*
  * Floating-point to signed integer conversions
  */
@@ -5798,109 +5811,6 @@ floatx80 floatx80_round(floatx80 a, float_status *status)
         return floatx80_default_nan(status);
     }
     return floatx80_round_pack_canonical(&p, status);
-}
-
-/*----------------------------------------------------------------------------
-| Rounds the extended double-precision floating-point value `a' to an integer,
-| and returns the result as an extended quadruple-precision floating-point
-| value.  The operation is performed according to the IEC/IEEE Standard for
-| Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-floatx80 floatx80_round_to_int(floatx80 a, float_status *status)
-{
-    bool aSign;
-    int32_t aExp;
-    uint64_t lastBitMask, roundBitsMask;
-    floatx80 z;
-
-    if (floatx80_invalid_encoding(a)) {
-        float_raise(float_flag_invalid, status);
-        return floatx80_default_nan(status);
-    }
-    aExp = extractFloatx80Exp( a );
-    if ( 0x403E <= aExp ) {
-        if ( ( aExp == 0x7FFF ) && (uint64_t) ( extractFloatx80Frac( a )<<1 ) ) {
-            return propagateFloatx80NaN(a, a, status);
-        }
-        return a;
-    }
-    if ( aExp < 0x3FFF ) {
-        if (    ( aExp == 0 )
-             && ( (uint64_t) ( extractFloatx80Frac( a ) ) == 0 ) ) {
-            return a;
-        }
-        float_raise(float_flag_inexact, status);
-        aSign = extractFloatx80Sign( a );
-        switch (status->float_rounding_mode) {
-         case float_round_nearest_even:
-            if ( ( aExp == 0x3FFE ) && (uint64_t) ( extractFloatx80Frac( a )<<1 )
-               ) {
-                return
-                    packFloatx80( aSign, 0x3FFF, UINT64_C(0x8000000000000000));
-            }
-            break;
-        case float_round_ties_away:
-            if (aExp == 0x3FFE) {
-                return packFloatx80(aSign, 0x3FFF, UINT64_C(0x8000000000000000));
-            }
-            break;
-         case float_round_down:
-            return
-                  aSign ?
-                      packFloatx80( 1, 0x3FFF, UINT64_C(0x8000000000000000))
-                : packFloatx80( 0, 0, 0 );
-         case float_round_up:
-            return
-                  aSign ? packFloatx80( 1, 0, 0 )
-                : packFloatx80( 0, 0x3FFF, UINT64_C(0x8000000000000000));
-
-        case float_round_to_zero:
-            break;
-        default:
-            g_assert_not_reached();
-        }
-        return packFloatx80( aSign, 0, 0 );
-    }
-    lastBitMask = 1;
-    lastBitMask <<= 0x403E - aExp;
-    roundBitsMask = lastBitMask - 1;
-    z = a;
-    switch (status->float_rounding_mode) {
-    case float_round_nearest_even:
-        z.low += lastBitMask>>1;
-        if ((z.low & roundBitsMask) == 0) {
-            z.low &= ~lastBitMask;
-        }
-        break;
-    case float_round_ties_away:
-        z.low += lastBitMask >> 1;
-        break;
-    case float_round_to_zero:
-        break;
-    case float_round_up:
-        if (!extractFloatx80Sign(z)) {
-            z.low += roundBitsMask;
-        }
-        break;
-    case float_round_down:
-        if (extractFloatx80Sign(z)) {
-            z.low += roundBitsMask;
-        }
-        break;
-    default:
-        abort();
-    }
-    z.low &= ~ roundBitsMask;
-    if ( z.low == 0 ) {
-        ++z.high;
-        z.low = UINT64_C(0x8000000000000000);
-    }
-    if (z.low != a.low) {
-        float_raise(float_flag_inexact, status);
-    }
-    return z;
-
 }
 
 /*----------------------------------------------------------------------------
