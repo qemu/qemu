@@ -154,6 +154,14 @@ enum {
     float_flag_output_denormal = 128
 };
 
+/*
+ * Rounding precision for floatx80.
+ */
+typedef enum __attribute__((__packed__)) {
+    floatx80_precision_x,
+    floatx80_precision_d,
+    floatx80_precision_s,
+} FloatX80RoundPrec;
 
 /*
  * Floating Point Status. Individual architectures may maintain
@@ -165,7 +173,7 @@ enum {
 typedef struct float_status {
     FloatRoundMode float_rounding_mode;
     uint8_t     float_exception_flags;
-    signed char floatx80_rounding_precision;
+    FloatX80RoundPrec floatx80_rounding_precision;
     bool tininess_before_rounding;
     /* should denormalised results go to zero and set the inexact flag? */
     bool flush_to_zero;

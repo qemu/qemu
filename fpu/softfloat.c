@@ -4342,10 +4342,10 @@ void normalizeFloatx80Subnormal(uint64_t aSig, int32_t *zExpPtr,
 | a subnormal number, and the underflow and inexact exceptions are raised if
 | the abstract input cannot be represented exactly as a subnormal extended
 | double-precision floating-point number.
-|     If `roundingPrecision' is 32 or 64, the result is rounded to the same
-| number of bits as single or double precision, respectively.  Otherwise, the
-| result is rounded to the full precision of the extended double-precision
-| format.
+|     If `roundingPrecision' is floatx80_precision_s or floatx80_precision_d,
+| the result is rounded to the same number of bits as single or double
+| precision, respectively.  Otherwise, the result is rounded to the full
+| precision of the extended double-precision format.
 |     The input significand must be normalized or smaller.  If the input
 | significand is not normalized, `zExp' must be 0; in that case, the result
 | returned is a subnormal number, and it must not require rounding.  The
@@ -4353,27 +4353,29 @@ void normalizeFloatx80Subnormal(uint64_t aSig, int32_t *zExpPtr,
 | Floating-Point Arithmetic.
 *----------------------------------------------------------------------------*/
 
-floatx80 roundAndPackFloatx80(int8_t roundingPrecision, bool zSign,
+floatx80 roundAndPackFloatx80(FloatX80RoundPrec roundingPrecision, bool zSign,
                               int32_t zExp, uint64_t zSig0, uint64_t zSig1,
                               float_status *status)
 {
-    int8_t roundingMode;
+    FloatRoundMode roundingMode;
     bool roundNearestEven, increment, isTiny;
     int64_t roundIncrement, roundMask, roundBits;
 
     roundingMode = status->float_rounding_mode;
     roundNearestEven = ( roundingMode == float_round_nearest_even );
-    if ( roundingPrecision == 80 ) goto precision80;
-    if ( roundingPrecision == 64 ) {
+    switch (roundingPrecision) {
+    case floatx80_precision_x:
+        goto precision80;
+    case floatx80_precision_d:
         roundIncrement = UINT64_C(0x0000000000000400);
         roundMask = UINT64_C(0x00000000000007FF);
-    }
-    else if ( roundingPrecision == 32 ) {
+        break;
+    case floatx80_precision_s:
         roundIncrement = UINT64_C(0x0000008000000000);
         roundMask = UINT64_C(0x000000FFFFFFFFFF);
-    }
-    else {
-        goto precision80;
+        break;
+    default:
+        g_assert_not_reached();
     }
     zSig0 |= ( zSig1 != 0 );
     switch (roundingMode) {
@@ -4550,7 +4552,7 @@ floatx80 roundAndPackFloatx80(int8_t roundingPrecision, bool zSign,
 | normalized.
 *----------------------------------------------------------------------------*/
 
-floatx80 normalizeRoundAndPackFloatx80(int8_t roundingPrecision,
+floatx80 normalizeRoundAndPackFloatx80(FloatX80RoundPrec roundingPrecision,
                                        bool zSign, int32_t zExp,
                                        uint64_t zSig0, uint64_t zSig1,
                                        float_status *status)
@@ -6203,7 +6205,7 @@ floatx80 floatx80_modrem(floatx80 a, floatx80 b, bool mod, uint64_t *quotient,
     }
     return
         normalizeRoundAndPackFloatx80(
-            80, zSign, bExp + expDiff, aSig0, aSig1, status);
+            floatx80_precision_x, zSign, bExp + expDiff, aSig0, aSig1, status);
 
 }
 

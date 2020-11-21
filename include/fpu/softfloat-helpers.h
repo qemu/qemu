@@ -69,7 +69,7 @@ static inline void set_float_exception_flags(int val, float_status *status)
     status->float_exception_flags = val;
 }
 
-static inline void set_floatx80_rounding_precision(int val,
+static inline void set_floatx80_rounding_precision(FloatX80RoundPrec val,
                                                    float_status *status)
 {
     status->floatx80_rounding_precision = val;
@@ -120,7 +120,8 @@ static inline int get_float_exception_flags(float_status *status)
     return status->float_exception_flags;
 }
 
-static inline int get_floatx80_rounding_precision(float_status *status)
+static inline FloatX80RoundPrec
+get_floatx80_rounding_precision(float_status *status)
 {
     return status->floatx80_rounding_precision;
 }

@@ -963,18 +963,21 @@ static void QEMU_NORETURN run_test(void)
             verCases_usesExact = !!(attrs & FUNC_ARG_EXACT);
 
             for (k = 0; k < 3; k++) {
+                FloatX80RoundPrec qsf_prec80 = floatx80_precision_s;
                 int prec80 = 32;
                 int l;
 
                 if (k == 1) {
                     prec80 = 64;
+                    qsf_prec80 = floatx80_precision_d;
                 } else if (k == 2) {
                     prec80 = 80;
+                    qsf_prec80 = floatx80_precision_x;
                 }
 
                 verCases_roundingPrecision = 0;
                 slow_extF80_roundingPrecision = prec80;
-                qsf.floatx80_rounding_precision = prec80;
+                qsf.floatx80_rounding_precision = qsf_prec80;
 
                 if (attrs & FUNC_EFF_ROUNDINGPRECISION) {
                     verCases_roundingPrecision = prec80;
