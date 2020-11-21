@@ -145,10 +145,10 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
 {
     const int exp_max = fmt->exp_max;
     const int frac_shift = fmt->frac_shift;
-    const uint64_t frac_lsb = fmt->frac_lsb;
-    const uint64_t frac_lsbm1 = fmt->frac_lsbm1;
     const uint64_t round_mask = fmt->round_mask;
-    const uint64_t roundeven_mask = fmt->roundeven_mask;
+    const uint64_t frac_lsb = round_mask + 1;
+    const uint64_t frac_lsbm1 = round_mask ^ (round_mask >> 1);
+    const uint64_t roundeven_mask = round_mask | frac_lsb;
     uint64_t inc;
     bool overflow_norm = false;
     int exp, flags = 0;
