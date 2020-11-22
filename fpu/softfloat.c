@@ -3911,6 +3911,17 @@ float128 float128_scalbn(float128 a, int n, float_status *status)
     return float128_round_pack_canonical(&p, status);
 }
 
+floatx80 floatx80_scalbn(floatx80 a, int n, float_status *status)
+{
+    FloatParts128 p;
+
+    if (!floatx80_unpack_canonical(&p, a, status)) {
+        return floatx80_default_nan(status);
+    }
+    parts_scalbn(&p, n, status);
+    return floatx80_round_pack_canonical(&p, status);
+}
+
 /*
  * Square Root
  */
@@ -5743,45 +5754,6 @@ FloatRelation floatx80_compare_quiet(floatx80 a, floatx80 b,
                                      float_status *status)
 {
     return floatx80_compare_internal(a, b, 1, status);
-}
-
-floatx80 floatx80_scalbn(floatx80 a, int n, float_status *status)
-{
-    bool aSign;
-    int32_t aExp;
-    uint64_t aSig;
-
-    if (floatx80_invalid_encoding(a)) {
-        float_raise(float_flag_invalid, status);
-        return floatx80_default_nan(status);
-    }
-    aSig = extractFloatx80Frac( a );
-    aExp = extractFloatx80Exp( a );
-    aSign = extractFloatx80Sign( a );
-
-    if ( aExp == 0x7FFF ) {
-        if ( aSig<<1 ) {
-            return propagateFloatx80NaN(a, a, status);
-        }
-        return a;
-    }
-
-    if (aExp == 0) {
-        if (aSig == 0) {
-            return a;
-        }
-        aExp++;
-    }
-
-    if (n > 0x10000) {
-        n = 0x10000;
-    } else if (n < -0x10000) {
-        n = -0x10000;
-    }
-
-    aExp += n;
-    return normalizeRoundAndPackFloatx80(status->floatx80_rounding_precision,
-                                         aSign, aExp, aSig, 0, status);
 }
 
 static void __attribute__((constructor)) softfloat_init(void)
