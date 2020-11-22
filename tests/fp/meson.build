@@ -634,3 +634,14 @@ fpbench = executable(
   include_directories: [sfinc, include_directories(tfdir)],
   c_args: fpcflags,
 )
+
+fptestlog2 = executable(
+  'fp-test-log2',
+  ['fp-test-log2.c', '../../fpu/softfloat.c'],
+  link_with: [libsoftfloat],
+  dependencies: [qemuutil],
+  include_directories: [sfinc],
+  c_args: fpcflags,
+)
+test('fp-test-log2', fptestlog2,
+     suite: ['softfloat', 'softfloat-ops'])

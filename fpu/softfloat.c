@@ -927,6 +927,12 @@ static void parts128_scalbn(FloatParts128 *a, int n, float_status *s);
 #define parts_scalbn(A, N, S) \
     PARTS_GENERIC_64_128(scalbn, A)(A, N, S)
 
+static void parts64_log2(FloatParts64 *a, float_status *s, const FloatFmt *f);
+static void parts128_log2(FloatParts128 *a, float_status *s, const FloatFmt *f);
+
+#define parts_log2(A, S, F) \
+    PARTS_GENERIC_64_128(log2, A)(A, S, F)
+
 /*
  * Helper functions for softfloat-parts.c.inc, per-size operations.
  */
@@ -4060,6 +4066,27 @@ floatx80 floatx80_sqrt(floatx80 a, float_status *s)
     return floatx80_round_pack_canonical(&p, s);
 }
 
+/*
+ * log2
+ */
+float32 float32_log2(float32 a, float_status *status)
+{
+    FloatParts64 p;
+
+    float32_unpack_canonical(&p, a, status);
+    parts_log2(&p, status, &float32_params);
+    return float32_round_pack_canonical(&p, status);
+}
+
+float64 float64_log2(float64 a, float_status *status)
+{
+    FloatParts64 p;
+
+    float64_unpack_canonical(&p, a, status);
+    parts_log2(&p, status, &float64_params);
+    return float64_round_pack_canonical(&p, status);
+}
+
 /*----------------------------------------------------------------------------
 | The pattern for a default generated NaN.
 *----------------------------------------------------------------------------*/
@@ -5247,56 +5274,6 @@ float32 float32_exp2(float32 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
-| Returns the binary log of the single-precision floating-point value `a'.
-| The operation is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-float32 float32_log2(float32 a, float_status *status)
-{
-    bool aSign, zSign;
-    int aExp;
-    uint32_t aSig, zSig, i;
-
-    a = float32_squash_input_denormal(a, status);
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-
-    if ( aExp == 0 ) {
-        if ( aSig == 0 ) return packFloat32( 1, 0xFF, 0 );
-        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
-    }
-    if ( aSign ) {
-        float_raise(float_flag_invalid, status);
-        return float32_default_nan(status);
-    }
-    if ( aExp == 0xFF ) {
-        if (aSig) {
-            return propagateFloat32NaN(a, float32_zero, status);
-        }
-        return a;
-    }
-
-    aExp -= 0x7F;
-    aSig |= 0x00800000;
-    zSign = aExp < 0;
-    zSig = aExp << 23;
-
-    for (i = 1 << 22; i > 0; i >>= 1) {
-        aSig = ( (uint64_t)aSig * aSig ) >> 23;
-        if ( aSig & 0x01000000 ) {
-            aSig >>= 1;
-            zSig |= i;
-        }
-    }
-
-    if ( zSign )
-        zSig = -zSig;
-
-    return normalizeRoundAndPackFloat32(zSign, 0x85, zSig, status);
-}
-
-/*----------------------------------------------------------------------------
 | Returns the remainder of the double-precision floating-point value `a'
 | with respect to the corresponding value `b'.  The operation is performed
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
@@ -5382,55 +5359,6 @@ float64 float64_rem(float64 a, float64 b, float_status *status)
     if ( zSign ) aSig = - aSig;
     return normalizeRoundAndPackFloat64(aSign ^ zSign, bExp, aSig, status);
 
-}
-
-/*----------------------------------------------------------------------------
-| Returns the binary log of the double-precision floating-point value `a'.
-| The operation is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-float64 float64_log2(float64 a, float_status *status)
-{
-    bool aSign, zSign;
-    int aExp;
-    uint64_t aSig, aSig0, aSig1, zSig, i;
-    a = float64_squash_input_denormal(a, status);
-
-    aSig = extractFloat64Frac( a );
-    aExp = extractFloat64Exp( a );
-    aSign = extractFloat64Sign( a );
-
-    if ( aExp == 0 ) {
-        if ( aSig == 0 ) return packFloat64( 1, 0x7FF, 0 );
-        normalizeFloat64Subnormal( aSig, &aExp, &aSig );
-    }
-    if ( aSign ) {
-        float_raise(float_flag_invalid, status);
-        return float64_default_nan(status);
-    }
-    if ( aExp == 0x7FF ) {
-        if (aSig) {
-            return propagateFloat64NaN(a, float64_zero, status);
-        }
-        return a;
-    }
-
-    aExp -= 0x3FF;
-    aSig |= UINT64_C(0x0010000000000000);
-    zSign = aExp < 0;
-    zSig = (uint64_t)aExp << 52;
-    for (i = 1LL << 51; i > 0; i >>= 1) {
-        mul64To128( aSig, aSig, &aSig0, &aSig1 );
-        aSig = ( aSig0 << 12 ) | ( aSig1 >> 52 );
-        if ( aSig & UINT64_C(0x0020000000000000) ) {
-            aSig >>= 1;
-            zSig |= i;
-        }
-    }
-
-    if ( zSign )
-        zSig = -zSig;
-    return normalizeRoundAndPackFloat64(zSign, 0x408, zSig, status);
 }
 
 /*----------------------------------------------------------------------------
