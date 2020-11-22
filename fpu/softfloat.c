@@ -3862,6 +3862,28 @@ FloatRelation float128_compare_quiet(float128 a, float128 b, float_status *s)
     return float128_do_compare(a, b, s, true);
 }
 
+static FloatRelation QEMU_FLATTEN
+floatx80_do_compare(floatx80 a, floatx80 b, float_status *s, bool is_quiet)
+{
+    FloatParts128 pa, pb;
+
+    if (!floatx80_unpack_canonical(&pa, a, s) ||
+        !floatx80_unpack_canonical(&pb, b, s)) {
+        return float_relation_unordered;
+    }
+    return parts_compare(&pa, &pb, s, is_quiet);
+}
+
+FloatRelation floatx80_compare(floatx80 a, floatx80 b, float_status *s)
+{
+    return floatx80_do_compare(a, b, s, false);
+}
+
+FloatRelation floatx80_compare_quiet(floatx80 a, floatx80 b, float_status *s)
+{
+    return floatx80_do_compare(a, b, s, true);
+}
+
 /*
  * Scale by 2**N
  */
@@ -5696,66 +5718,6 @@ float128 float128_rem(float128 a, float128 b, float_status *status)
     return normalizeRoundAndPackFloat128(aSign ^ zSign, bExp - 4, aSig0, aSig1,
                                          status);
 }
-
-static inline FloatRelation
-floatx80_compare_internal(floatx80 a, floatx80 b, bool is_quiet,
-                          float_status *status)
-{
-    bool aSign, bSign;
-
-    if (floatx80_invalid_encoding(a) || floatx80_invalid_encoding(b)) {
-        float_raise(float_flag_invalid, status);
-        return float_relation_unordered;
-    }
-    if (( ( extractFloatx80Exp( a ) == 0x7fff ) &&
-          ( extractFloatx80Frac( a )<<1 ) ) ||
-        ( ( extractFloatx80Exp( b ) == 0x7fff ) &&
-          ( extractFloatx80Frac( b )<<1 ) )) {
-        if (!is_quiet ||
-            floatx80_is_signaling_nan(a, status) ||
-            floatx80_is_signaling_nan(b, status)) {
-            float_raise(float_flag_invalid, status);
-        }
-        return float_relation_unordered;
-    }
-    aSign = extractFloatx80Sign( a );
-    bSign = extractFloatx80Sign( b );
-    if ( aSign != bSign ) {
-
-        if ( ( ( (uint16_t) ( ( a.high | b.high ) << 1 ) ) == 0) &&
-             ( ( a.low | b.low ) == 0 ) ) {
-            /* zero case */
-            return float_relation_equal;
-        } else {
-            return 1 - (2 * aSign);
-        }
-    } else {
-        /* Normalize pseudo-denormals before comparison.  */
-        if ((a.high & 0x7fff) == 0 && a.low & UINT64_C(0x8000000000000000)) {
-            ++a.high;
-        }
-        if ((b.high & 0x7fff) == 0 && b.low & UINT64_C(0x8000000000000000)) {
-            ++b.high;
-        }
-        if (a.low == b.low && a.high == b.high) {
-            return float_relation_equal;
-        } else {
-            return 1 - 2 * (aSign ^ ( lt128( a.high, a.low, b.high, b.low ) ));
-        }
-    }
-}
-
-FloatRelation floatx80_compare(floatx80 a, floatx80 b, float_status *status)
-{
-    return floatx80_compare_internal(a, b, 0, status);
-}
-
-FloatRelation floatx80_compare_quiet(floatx80 a, floatx80 b,
-                                     float_status *status)
-{
-    return floatx80_compare_internal(a, b, 1, status);
-}
-
 static void __attribute__((constructor)) softfloat_init(void)
 {
     union_float64 ua, ub, uc, ur;
