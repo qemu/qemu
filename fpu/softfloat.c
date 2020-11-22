@@ -3881,6 +3881,17 @@ float128 QEMU_FLATTEN float128_sqrt(float128 a, float_status *status)
     return float128_round_pack_canonical(&p, status);
 }
 
+floatx80 floatx80_sqrt(floatx80 a, float_status *s)
+{
+    FloatParts128 p;
+
+    if (!floatx80_unpack_canonical(&p, a, s)) {
+        return floatx80_default_nan(s);
+    }
+    parts_sqrt(&p, s, &floatx80_params[s->floatx80_rounding_precision]);
+    return floatx80_round_pack_canonical(&p, s);
+}
+
 /*----------------------------------------------------------------------------
 | The pattern for a default generated NaN.
 *----------------------------------------------------------------------------*/
@@ -6042,77 +6053,6 @@ floatx80 floatx80_mod(floatx80 a, floatx80 b, float_status *status)
 {
     uint64_t quotient;
     return floatx80_modrem(a, b, true, &quotient, status);
-}
-
-/*----------------------------------------------------------------------------
-| Returns the square root of the extended double-precision floating-point
-| value `a'.  The operation is performed according to the IEC/IEEE Standard
-| for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-floatx80 floatx80_sqrt(floatx80 a, float_status *status)
-{
-    bool aSign;
-    int32_t aExp, zExp;
-    uint64_t aSig0, aSig1, zSig0, zSig1, doubleZSig0;
-    uint64_t rem0, rem1, rem2, rem3, term0, term1, term2, term3;
-
-    if (floatx80_invalid_encoding(a)) {
-        float_raise(float_flag_invalid, status);
-        return floatx80_default_nan(status);
-    }
-    aSig0 = extractFloatx80Frac( a );
-    aExp = extractFloatx80Exp( a );
-    aSign = extractFloatx80Sign( a );
-    if ( aExp == 0x7FFF ) {
-        if ((uint64_t)(aSig0 << 1)) {
-            return propagateFloatx80NaN(a, a, status);
-        }
-        if ( ! aSign ) return a;
-        goto invalid;
-    }
-    if ( aSign ) {
-        if ( ( aExp | aSig0 ) == 0 ) return a;
- invalid:
-        float_raise(float_flag_invalid, status);
-        return floatx80_default_nan(status);
-    }
-    if ( aExp == 0 ) {
-        if ( aSig0 == 0 ) return packFloatx80( 0, 0, 0 );
-        normalizeFloatx80Subnormal( aSig0, &aExp, &aSig0 );
-    }
-    zExp = ( ( aExp - 0x3FFF )>>1 ) + 0x3FFF;
-    zSig0 = estimateSqrt32( aExp, aSig0>>32 );
-    shift128Right( aSig0, 0, 2 + ( aExp & 1 ), &aSig0, &aSig1 );
-    zSig0 = estimateDiv128To64( aSig0, aSig1, zSig0<<32 ) + ( zSig0<<30 );
-    doubleZSig0 = zSig0<<1;
-    mul64To128( zSig0, zSig0, &term0, &term1 );
-    sub128( aSig0, aSig1, term0, term1, &rem0, &rem1 );
-    while ( (int64_t) rem0 < 0 ) {
-        --zSig0;
-        doubleZSig0 -= 2;
-        add128( rem0, rem1, zSig0>>63, doubleZSig0 | 1, &rem0, &rem1 );
-    }
-    zSig1 = estimateDiv128To64( rem1, 0, doubleZSig0 );
-    if ( ( zSig1 & UINT64_C(0x3FFFFFFFFFFFFFFF) ) <= 5 ) {
-        if ( zSig1 == 0 ) zSig1 = 1;
-        mul64To128( doubleZSig0, zSig1, &term1, &term2 );
-        sub128( rem1, 0, term1, term2, &rem1, &rem2 );
-        mul64To128( zSig1, zSig1, &term2, &term3 );
-        sub192( rem1, rem2, 0, 0, term2, term3, &rem1, &rem2, &rem3 );
-        while ( (int64_t) rem1 < 0 ) {
-            --zSig1;
-            shortShift128Left( 0, zSig1, 1, &term2, &term3 );
-            term3 |= 1;
-            term2 |= doubleZSig0;
-            add192( rem1, rem2, rem3, 0, term2, term3, &rem1, &rem2, &rem3 );
-        }
-        zSig1 |= ( ( rem1 | rem2 | rem3 ) != 0 );
-    }
-    shortShift128Left( 0, zSig1, 1, &zSig0, &zSig1 );
-    zSig0 |= doubleZSig0;
-    return roundAndPackFloatx80(status->floatx80_rounding_precision,
-                                0, zExp, zSig0, zSig1, status);
 }
 
 /*----------------------------------------------------------------------------
