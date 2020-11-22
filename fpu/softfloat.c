@@ -2561,6 +2561,73 @@ float128 float64_to_float128(float64 a, float_status *s)
     return float128_round_pack_canonical(&p128, s);
 }
 
+float32 floatx80_to_float32(floatx80 a, float_status *s)
+{
+    FloatParts64 p64;
+    FloatParts128 p128;
+
+    if (floatx80_unpack_canonical(&p128, a, s)) {
+        parts_float_to_float_narrow(&p64, &p128, s);
+    } else {
+        parts_default_nan(&p64, s);
+    }
+    return float32_round_pack_canonical(&p64, s);
+}
+
+float64 floatx80_to_float64(floatx80 a, float_status *s)
+{
+    FloatParts64 p64;
+    FloatParts128 p128;
+
+    if (floatx80_unpack_canonical(&p128, a, s)) {
+        parts_float_to_float_narrow(&p64, &p128, s);
+    } else {
+        parts_default_nan(&p64, s);
+    }
+    return float64_round_pack_canonical(&p64, s);
+}
+
+float128 floatx80_to_float128(floatx80 a, float_status *s)
+{
+    FloatParts128 p;
+
+    if (floatx80_unpack_canonical(&p, a, s)) {
+        parts_float_to_float(&p, s);
+    } else {
+        parts_default_nan(&p, s);
+    }
+    return float128_round_pack_canonical(&p, s);
+}
+
+floatx80 float32_to_floatx80(float32 a, float_status *s)
+{
+    FloatParts64 p64;
+    FloatParts128 p128;
+
+    float32_unpack_canonical(&p64, a, s);
+    parts_float_to_float_widen(&p128, &p64, s);
+    return floatx80_round_pack_canonical(&p128, s);
+}
+
+floatx80 float64_to_floatx80(float64 a, float_status *s)
+{
+    FloatParts64 p64;
+    FloatParts128 p128;
+
+    float64_unpack_canonical(&p64, a, s);
+    parts_float_to_float_widen(&p128, &p64, s);
+    return floatx80_round_pack_canonical(&p128, s);
+}
+
+floatx80 float128_to_floatx80(float128 a, float_status *s)
+{
+    FloatParts128 p;
+
+    float128_unpack_canonical(&p, a, s);
+    parts_float_to_float(&p, s);
+    return floatx80_round_pack_canonical(&p, s);
+}
+
 /*
  * Round to integral value
  */
@@ -5047,42 +5114,6 @@ static float128 normalizeRoundAndPackFloat128(bool zSign, int32_t zExp,
 }
 
 /*----------------------------------------------------------------------------
-| Returns the result of converting the single-precision floating-point value
-| `a' to the extended double-precision floating-point format.  The conversion
-| is performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic.
-*----------------------------------------------------------------------------*/
-
-floatx80 float32_to_floatx80(float32 a, float_status *status)
-{
-    bool aSign;
-    int aExp;
-    uint32_t aSig;
-
-    a = float32_squash_input_denormal(a, status);
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-    if ( aExp == 0xFF ) {
-        if (aSig) {
-            floatx80 res = commonNaNToFloatx80(float32ToCommonNaN(a, status),
-                                               status);
-            return floatx80_silence_nan(res, status);
-        }
-        return packFloatx80(aSign,
-                            floatx80_infinity_high,
-                            floatx80_infinity_low);
-    }
-    if ( aExp == 0 ) {
-        if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
-        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
-    }
-    aSig |= 0x00800000;
-    return packFloatx80( aSign, aExp + 0x3F80, ( (uint64_t) aSig )<<40 );
-
-}
-
-/*----------------------------------------------------------------------------
 | Returns the remainder of the single-precision floating-point value `a'
 | with respect to the corresponding value `b'.  The operation is performed
 | according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
@@ -5316,43 +5347,6 @@ float32 float32_log2(float32 a, float_status *status)
         zSig = -zSig;
 
     return normalizeRoundAndPackFloat32(zSign, 0x85, zSig, status);
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the double-precision floating-point value
-| `a' to the extended double-precision floating-point format.  The conversion
-| is performed according to the IEC/IEEE Standard for Binary Floating-Point
-| Arithmetic.
-*----------------------------------------------------------------------------*/
-
-floatx80 float64_to_floatx80(float64 a, float_status *status)
-{
-    bool aSign;
-    int aExp;
-    uint64_t aSig;
-
-    a = float64_squash_input_denormal(a, status);
-    aSig = extractFloat64Frac( a );
-    aExp = extractFloat64Exp( a );
-    aSign = extractFloat64Sign( a );
-    if ( aExp == 0x7FF ) {
-        if (aSig) {
-            floatx80 res = commonNaNToFloatx80(float64ToCommonNaN(a, status),
-                                               status);
-            return floatx80_silence_nan(res, status);
-        }
-        return packFloatx80(aSign,
-                            floatx80_infinity_high,
-                            floatx80_infinity_low);
-    }
-    if ( aExp == 0 ) {
-        if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
-        normalizeFloat64Subnormal( aSig, &aExp, &aSig );
-    }
-    return
-        packFloatx80(
-            aSign, aExp + 0x3C00, (aSig | UINT64_C(0x0010000000000000)) << 11);
-
 }
 
 /*----------------------------------------------------------------------------
@@ -5666,104 +5660,6 @@ int64_t floatx80_to_int64_round_to_zero(floatx80 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
-| Returns the result of converting the extended double-precision floating-
-| point value `a' to the single-precision floating-point format.  The
-| conversion is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float32 floatx80_to_float32(floatx80 a, float_status *status)
-{
-    bool aSign;
-    int32_t aExp;
-    uint64_t aSig;
-
-    if (floatx80_invalid_encoding(a)) {
-        float_raise(float_flag_invalid, status);
-        return float32_default_nan(status);
-    }
-    aSig = extractFloatx80Frac( a );
-    aExp = extractFloatx80Exp( a );
-    aSign = extractFloatx80Sign( a );
-    if ( aExp == 0x7FFF ) {
-        if ( (uint64_t) ( aSig<<1 ) ) {
-            float32 res = commonNaNToFloat32(floatx80ToCommonNaN(a, status),
-                                             status);
-            return float32_silence_nan(res, status);
-        }
-        return packFloat32( aSign, 0xFF, 0 );
-    }
-    shift64RightJamming( aSig, 33, &aSig );
-    if ( aExp || aSig ) aExp -= 0x3F81;
-    return roundAndPackFloat32(aSign, aExp, aSig, status);
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the extended double-precision floating-
-| point value `a' to the double-precision floating-point format.  The
-| conversion is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float64 floatx80_to_float64(floatx80 a, float_status *status)
-{
-    bool aSign;
-    int32_t aExp;
-    uint64_t aSig, zSig;
-
-    if (floatx80_invalid_encoding(a)) {
-        float_raise(float_flag_invalid, status);
-        return float64_default_nan(status);
-    }
-    aSig = extractFloatx80Frac( a );
-    aExp = extractFloatx80Exp( a );
-    aSign = extractFloatx80Sign( a );
-    if ( aExp == 0x7FFF ) {
-        if ( (uint64_t) ( aSig<<1 ) ) {
-            float64 res = commonNaNToFloat64(floatx80ToCommonNaN(a, status),
-                                             status);
-            return float64_silence_nan(res, status);
-        }
-        return packFloat64( aSign, 0x7FF, 0 );
-    }
-    shift64RightJamming( aSig, 1, &zSig );
-    if ( aExp || aSig ) aExp -= 0x3C01;
-    return roundAndPackFloat64(aSign, aExp, zSig, status);
-
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the extended double-precision floating-
-| point value `a' to the quadruple-precision floating-point format.  The
-| conversion is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-float128 floatx80_to_float128(floatx80 a, float_status *status)
-{
-    bool aSign;
-    int aExp;
-    uint64_t aSig, zSig0, zSig1;
-
-    if (floatx80_invalid_encoding(a)) {
-        float_raise(float_flag_invalid, status);
-        return float128_default_nan(status);
-    }
-    aSig = extractFloatx80Frac( a );
-    aExp = extractFloatx80Exp( a );
-    aSign = extractFloatx80Sign( a );
-    if ( ( aExp == 0x7FFF ) && (uint64_t) ( aSig<<1 ) ) {
-        float128 res = commonNaNToFloat128(floatx80ToCommonNaN(a, status),
-                                           status);
-        return float128_silence_nan(res, status);
-    }
-    shift128Right( aSig<<1, 0, 16, &zSig0, &zSig1 );
-    return packFloat128( aSign, aExp, zSig0, zSig1 );
-
-}
-
-/*----------------------------------------------------------------------------
 | Rounds the extended double-precision floating-point value `a'
 | to the precision provided by floatx80_rounding_precision and returns the
 | result as an extended double-precision floating-point value.
@@ -5933,44 +5829,6 @@ floatx80 floatx80_mod(floatx80 a, floatx80 b, float_status *status)
 {
     uint64_t quotient;
     return floatx80_modrem(a, b, true, &quotient, status);
-}
-
-/*----------------------------------------------------------------------------
-| Returns the result of converting the quadruple-precision floating-point
-| value `a' to the extended double-precision floating-point format.  The
-| conversion is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-floatx80 float128_to_floatx80(float128 a, float_status *status)
-{
-    bool aSign;
-    int32_t aExp;
-    uint64_t aSig0, aSig1;
-
-    aSig1 = extractFloat128Frac1( a );
-    aSig0 = extractFloat128Frac0( a );
-    aExp = extractFloat128Exp( a );
-    aSign = extractFloat128Sign( a );
-    if ( aExp == 0x7FFF ) {
-        if ( aSig0 | aSig1 ) {
-            floatx80 res = commonNaNToFloatx80(float128ToCommonNaN(a, status),
-                                               status);
-            return floatx80_silence_nan(res, status);
-        }
-        return packFloatx80(aSign, floatx80_infinity_high,
-                                   floatx80_infinity_low);
-    }
-    if ( aExp == 0 ) {
-        if ( ( aSig0 | aSig1 ) == 0 ) return packFloatx80( aSign, 0, 0 );
-        normalizeFloat128Subnormal( aSig0, aSig1, &aExp, &aSig0, &aSig1 );
-    }
-    else {
-        aSig0 |= UINT64_C(0x0001000000000000);
-    }
-    shortShift128Left( aSig0, aSig1, 15, &aSig0, &aSig1 );
-    return roundAndPackFloatx80(80, aSign, aExp, aSig0, aSig1, status);
-
 }
 
 /*----------------------------------------------------------------------------
