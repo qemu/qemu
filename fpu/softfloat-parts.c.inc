@@ -155,7 +155,13 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
 
     switch (s->float_rounding_mode) {
     case float_round_nearest_even:
-        inc = ((p->frac_lo & roundeven_mask) != frac_lsbm1 ? frac_lsbm1 : 0);
+        if (N > 64 && frac_lsb == 0) {
+            inc = ((p->frac_hi & 1) || (p->frac_lo & round_mask) != frac_lsbm1
+                   ? frac_lsbm1 : 0);
+        } else {
+            inc = ((p->frac_lo & roundeven_mask) != frac_lsbm1
+                   ? frac_lsbm1 : 0);
+        }
         break;
     case float_round_ties_away:
         inc = frac_lsbm1;
@@ -176,7 +182,11 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
         overflow_norm = true;
         /* fall through */
     case float_round_to_odd_inf:
-        inc = p->frac_lo & frac_lsb ? 0 : round_mask;
+        if (N > 64 && frac_lsb == 0) {
+            inc = p->frac_hi & 1 ? 0 : round_mask;
+        } else {
+            inc = p->frac_lo & frac_lsb ? 0 : round_mask;
+        }
         break;
     default:
         g_assert_not_reached();
@@ -191,8 +201,8 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
                 p->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
                 exp++;
             }
+            p->frac_lo &= ~round_mask;
         }
-        frac_shr(p, frac_shift);
 
         if (fmt->arm_althp) {
             /* ARM Alt HP eschews Inf and NaN for a wider exponent.  */
@@ -201,18 +211,21 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
                 flags = float_flag_invalid;
                 exp = exp_max;
                 frac_allones(p);
+                p->frac_lo &= ~round_mask;
             }
         } else if (unlikely(exp >= exp_max)) {
             flags |= float_flag_overflow | float_flag_inexact;
             if (overflow_norm) {
                 exp = exp_max - 1;
                 frac_allones(p);
+                p->frac_lo &= ~round_mask;
             } else {
                 p->cls = float_class_inf;
                 exp = exp_max;
                 frac_clear(p);
             }
         }
+        frac_shr(p, frac_shift);
     } else if (s->flush_to_zero) {
         flags |= float_flag_output_denormal;
         p->cls = float_class_zero;
@@ -232,18 +245,29 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
             /* Need to recompute round-to-even/round-to-odd. */
             switch (s->float_rounding_mode) {
             case float_round_nearest_even:
-                inc = ((p->frac_lo & roundeven_mask) != frac_lsbm1
-                       ? frac_lsbm1 : 0);
+                if (N > 64 && frac_lsb == 0) {
+                    inc = ((p->frac_hi & 1) ||
+                           (p->frac_lo & round_mask) != frac_lsbm1
+                           ? frac_lsbm1 : 0);
+                } else {
+                    inc = ((p->frac_lo & roundeven_mask) != frac_lsbm1
+                           ? frac_lsbm1 : 0);
+                }
                 break;
             case float_round_to_odd:
             case float_round_to_odd_inf:
-                inc = p->frac_lo & frac_lsb ? 0 : round_mask;
+                if (N > 64 && frac_lsb == 0) {
+                    inc = p->frac_hi & 1 ? 0 : round_mask;
+                } else {
+                    inc = p->frac_lo & frac_lsb ? 0 : round_mask;
+                }
                 break;
             default:
                 break;
             }
             flags |= float_flag_inexact;
             frac_addi(p, p, inc);
+            p->frac_lo &= ~round_mask;
         }
 
         exp = (p->frac_hi & DECOMPOSED_IMPLICIT_BIT) != 0;
