@@ -5210,47 +5210,40 @@ static const float64 float32_exp2_coefficients[15] =
 
 float32 float32_exp2(float32 a, float_status *status)
 {
-    bool aSign;
-    int aExp;
-    uint32_t aSig;
-    float64 r, x, xn;
+    FloatParts64 xp, xnp, tp, rp;
     int i;
-    a = float32_squash_input_denormal(a, status);
 
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-
-    if ( aExp == 0xFF) {
-        if (aSig) {
-            return propagateFloat32NaN(a, float32_zero, status);
+    float32_unpack_canonical(&xp, a, status);
+    if (unlikely(xp.cls != float_class_normal)) {
+        switch (xp.cls) {
+        case float_class_snan:
+        case float_class_qnan:
+            parts_return_nan(&xp, status);
+            return float32_round_pack_canonical(&xp, status);
+        case float_class_inf:
+            return xp.sign ? float32_zero : a;
+        case float_class_zero:
+            return float32_one;
+        default:
+            break;
         }
-        return (aSign) ? float32_zero : a;
-    }
-    if (aExp == 0) {
-        if (aSig == 0) return float32_one;
+        g_assert_not_reached();
     }
 
     float_raise(float_flag_inexact, status);
 
-    /* ******************************* */
-    /* using float64 for approximation */
-    /* ******************************* */
-    x = float32_to_float64(a, status);
-    x = float64_mul(x, float64_ln2, status);
+    float64_unpack_canonical(&xnp, float64_ln2, status);
+    xp = *parts_mul(&xp, &tp, status);
+    xnp = xp;
 
-    xn = x;
-    r = float64_one;
+    float64_unpack_canonical(&rp, float64_one, status);
     for (i = 0 ; i < 15 ; i++) {
-        float64 f;
-
-        f = float64_mul(xn, float32_exp2_coefficients[i], status);
-        r = float64_add(r, f, status);
-
-        xn = float64_mul(xn, x, status);
+        float64_unpack_canonical(&tp, float32_exp2_coefficients[i], status);
+        rp = *parts_muladd(&tp, &xp, &rp, 0, status);
+        xnp = *parts_mul(&xnp, &xp, status);
     }
 
-    return float64_to_float32(r, status);
+    return float32_round_pack_canonical(&rp, status);
 }
 
 /*----------------------------------------------------------------------------
