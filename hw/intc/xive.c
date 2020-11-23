@@ -21,6 +21,7 @@
 #include "hw/irq.h"
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive_regs.h"
+#include "trace.h"
 
 /*
  * XIVE Thread Interrupt Management context
@@ -93,6 +94,10 @@ static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
 
         /* Drop Exception bit */
         regs[TM_NSR] &= ~mask;
+
+        trace_xive_tctx_accept(tctx->cs->cpu_index, ring,
+                               regs[TM_IPB], regs[TM_PIPR],
+                               regs[TM_CPPR], regs[TM_NSR]);
     }
 
     return (nsr << 8) | regs[TM_CPPR];
@@ -113,12 +118,21 @@ static void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring)
         default:
             g_assert_not_reached();
         }
+        trace_xive_tctx_notify(tctx->cs->cpu_index, ring,
+                               regs[TM_IPB], regs[TM_PIPR],
+                               regs[TM_CPPR], regs[TM_NSR]);
         qemu_irq_raise(xive_tctx_output(tctx, ring));
     }
 }
 
 static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
 {
+    uint8_t *regs = &tctx->regs[ring];
+
+    trace_xive_tctx_set_cppr(tctx->cs->cpu_index, ring,
+                             regs[TM_IPB], regs[TM_PIPR],
+                             cppr, regs[TM_NSR]);
+
     if (cppr > XIVE_PRIORITY_MAX) {
         cppr = 0xff;
     }
@@ -508,6 +522,8 @@ void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
 {
     const XiveTmOp *xto;
 
+    trace_xive_tctx_tm_write(offset, size, value);
+
     /*
      * TODO: check V bit in Q[0-3]W2
      */
@@ -545,6 +561,7 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
                            unsigned size)
 {
     const XiveTmOp *xto;
+    uint64_t ret;
 
     /*
      * TODO: check V bit in Q[0-3]W2
@@ -560,7 +577,8 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
                           "@%"HWADDR_PRIx"\n", offset);
             return -1;
         }
-        return xto->read_handler(xptr, tctx, offset, size);
+        ret = xto->read_handler(xptr, tctx, offset, size);
+        goto out;
     }
 
     /*
@@ -568,13 +586,17 @@ uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
      */
     xto = xive_tm_find_op(offset, size, false);
     if (xto) {
-        return xto->read_handler(xptr, tctx, offset, size);
+        ret = xto->read_handler(xptr, tctx, offset, size);
+        goto out;
     }
 
     /*
      * Finish with raw access to the register values
      */
-    return xive_tm_raw_read(tctx, offset, size);
+    ret = xive_tm_raw_read(tctx, offset, size);
+out:
+    trace_xive_tctx_tm_read(offset, size, ret);
+    return ret;
 }
 
 static char *xive_tctx_ring_print(uint8_t *ring)
@@ -1005,6 +1027,8 @@ static uint64_t xive_source_esb_read(void *opaque, hwaddr addr, unsigned size)
                       offset);
     }
 
+    trace_xive_source_esb_read(addr, srcno, ret);
+
     return ret;
 }
 
@@ -1029,6 +1053,8 @@ static void xive_source_esb_write(void *opaque, hwaddr addr,
     uint32_t offset = addr & 0xFFF;
     uint32_t srcno = addr >> xsrc->esb_shift;
     bool notify = false;
+
+    trace_xive_source_esb_write(addr, srcno, value);
 
     /* In a two pages ESB MMIO setting, trigger page only triggers */
     if (xive_source_is_trigger_page(xsrc, addr)) {
@@ -1507,6 +1533,7 @@ static bool xive_presenter_notify(XiveFabric *xfb, uint8_t format,
 
     /* handle CPU exception delivery */
     if (count) {
+        trace_xive_presenter_notify(nvt_blk, nvt_idx, match.ring);
         xive_tctx_ipb_update(match.tctx, match.ring, priority_to_ipb(priority));
     }
 
@@ -1558,6 +1585,7 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     }
 
     if (!xive_end_is_valid(&end)) {
+        trace_xive_router_end_notify(end_blk, end_idx, end_data);
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: END %x/%x is invalid\n",
                       end_blk, end_idx);
         return;
@@ -1683,6 +1711,10 @@ do_escalation:
         }
     }
 
+    trace_xive_router_end_escalate(end_blk, end_idx,
+           (uint8_t) xive_get_field32(END_W4_ESC_END_BLOCK, end.w4),
+           (uint32_t) xive_get_field32(END_W4_ESC_END_INDEX, end.w4),
+           (uint32_t) xive_get_field32(END_W5_ESC_END_DATA,  end.w5));
     /*
      * The END trigger becomes an Escalation trigger
      */
@@ -1795,6 +1827,8 @@ static uint64_t xive_end_source_read(void *opaque, hwaddr addr, unsigned size)
      */
     end_blk = xive_router_get_block_id(xsrc->xrtr);
     end_idx = addr >> (xsrc->esb_shift + 1);
+
+    trace_xive_end_source_read(end_blk, end_idx, addr);
 
     if (xive_router_get_end(xsrc->xrtr, end_blk, end_idx, &end)) {
         qemu_log_mask(LOG_GUEST_ERROR, "XIVE: No END %x/%x\n", end_blk,

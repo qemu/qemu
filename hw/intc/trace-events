@@ -203,3 +203,36 @@ heathrow_set_irq(int num, int level) "set_irq: num=0x%02x level=%d"
 # bcm2835_ic.c
 bcm2835_ic_set_gpu_irq(int irq, int level) "GPU irq #%d level %d"
 bcm2835_ic_set_cpu_irq(int irq, int level) "CPU irq #%d level %d"
+
+# spapr_xive.c
+spapr_xive_claim_irq(uint32_t lisn, bool lsi) "lisn=0x%x lsi=%d"
+spapr_xive_free_irq(uint32_t lisn) "lisn=0x%x"
+spapr_xive_set_irq(uint32_t lisn, uint32_t val) "lisn=0x%x val=%d"
+spapr_xive_get_source_info(uint64_t flags, uint64_t lisn) "flags=0x%"PRIx64" lisn=0x%"PRIx64
+spapr_xive_set_source_config(uint64_t flags, uint64_t lisn, uint64_t target, uint64_t priority, uint64_t eisn) "flags=0x%"PRIx64" lisn=0x%"PRIx64" target=0x%"PRIx64" priority=0x%"PRIx64" eisn=0x%"PRIx64
+spapr_xive_get_source_config(uint64_t flags, uint64_t lisn) "flags=0x%"PRIx64" lisn=0x%"PRIx64
+spapr_xive_get_queue_info(uint64_t flags, uint64_t target, uint64_t priority) "flags=0x%"PRIx64" target=0x%"PRIx64" priority=0x%"PRIx64
+spapr_xive_set_queue_config(uint64_t flags, uint64_t target, uint64_t priority, uint64_t qpage, uint64_t qsize) "flags=0x%"PRIx64" target=0x%"PRIx64" priority=0x%"PRIx64" qpage=0x%"PRIx64" qsize=0x%"PRIx64
+spapr_xive_get_queue_config(uint64_t flags, uint64_t target, uint64_t priority) "flags=0x%"PRIx64" target=0x%"PRIx64" priority=0x%"PRIx64
+spapr_xive_set_os_reporting_line(uint64_t flags) "flags=0x%"PRIx64
+spapr_xive_get_os_reporting_line(uint64_t flags) "flags=0x%"PRIx64
+spapr_xive_esb(uint64_t flags, uint64_t lisn, uint64_t offset, uint64_t data) "flags=0x%"PRIx64" lisn=0x%"PRIx64" offset=0x%"PRIx64" data=0x%"PRIx64
+spapr_xive_sync(uint64_t flags, uint64_t lisn) "flags=0x%"PRIx64" lisn=0x%"PRIx64
+spapr_xive_reset(uint64_t flags) "flags=0x%"PRIx64
+
+# spapr_xive_kvm.c
+kvm_xive_cpu_connect(uint32_t id) "connect CPU%d to KVM device"
+kvm_xive_source_reset(uint32_t srcno) "IRQ 0x%x"
+
+# xive.c
+xive_tctx_accept(uint32_t index, uint8_t ring, uint8_t ipb, uint8_t pipr, uint8_t cppr, uint8_t nsr) "target=%d ring=0x%x IBP=0x%02x PIPR=0x%02x CPPR=0x%02x NSR=0x%02x ACK"
+xive_tctx_notify(uint32_t index, uint8_t ring, uint8_t ipb, uint8_t pipr, uint8_t cppr, uint8_t nsr) "target=%d ring=0x%x IBP=0x%02x PIPR=0x%02x CPPR=0x%02x NSR=0x%02x raise !"
+xive_tctx_set_cppr(uint32_t index, uint8_t ring, uint8_t ipb, uint8_t pipr, uint8_t cppr, uint8_t nsr) "target=%d ring=0x%x IBP=0x%02x PIPR=0x%02x new CPPR=0x%02x NSR=0x%02x"
+xive_source_esb_read(uint64_t addr, uint32_t srcno, uint64_t value) "@0x0x%"PRIx64" IRQ 0x%x val=0x0x%"PRIx64
+xive_source_esb_write(uint64_t addr, uint32_t srcno, uint64_t value) "@0x0x%"PRIx64" IRQ 0x%x val=0x0x%"PRIx64
+xive_router_end_notify(uint8_t end_blk, uint32_t end_idx, uint32_t end_data) "END 0x%02x/0x%04x -> enqueue 0x%08x"
+xive_router_end_escalate(uint8_t end_blk, uint32_t end_idx, uint8_t esc_blk, uint32_t esc_idx, uint32_t end_data) "END 0x%02x/0x%04x -> escalate END 0x%02x/0x%04x data 0x%08x"
+xive_tctx_tm_write(uint64_t offset, unsigned int size, uint64_t value) "@0x0x%"PRIx64" sz=%d val=0x%" PRIx64
+xive_tctx_tm_read(uint64_t offset, unsigned int size, uint64_t value) "@0x0x%"PRIx64" sz=%d val=0x%" PRIx64
+xive_presenter_notify(uint8_t nvt_blk, uint32_t nvt_idx, uint8_t ring) "found NVT 0x%x/0x%x ring=0x%x"
+xive_end_source_read(uint8_t end_blk, uint32_t end_idx, uint64_t addr) "END 0x%x/0x%x @0x0x%"PRIx64

@@ -24,6 +24,7 @@
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive_regs.h"
 #include "hw/qdev-properties.h"
+#include "trace.h"
 
 /*
  * XIVE Virtualization Controller BAR and Thread Managment BAR that we
@@ -556,6 +557,8 @@ static int spapr_xive_claim_irq(SpaprInterruptController *intc, int lisn,
 
     assert(lisn < xive->nr_irqs);
 
+    trace_spapr_xive_claim_irq(lisn, lsi);
+
     if (xive_eas_is_valid(&xive->eat[lisn])) {
         error_setg(errp, "IRQ %d is not free", lisn);
         return -EBUSY;
@@ -580,6 +583,8 @@ static void spapr_xive_free_irq(SpaprInterruptController *intc, int lisn)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
     assert(lisn < xive->nr_irqs);
+
+    trace_spapr_xive_free_irq(lisn);
 
     xive->eat[lisn].w &= cpu_to_be64(~EAS_VALID);
 }
@@ -646,6 +651,8 @@ static void spapr_xive_cpu_intc_destroy(SpaprInterruptController *intc,
 static void spapr_xive_set_irq(SpaprInterruptController *intc, int irq, int val)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
+
+    trace_spapr_xive_set_irq(irq, val);
 
     if (spapr_xive_in_kernel(xive)) {
         kvmppc_xive_source_set_irq(&xive->source, irq, val);
@@ -894,6 +901,8 @@ static target_ulong h_int_get_source_info(PowerPCCPU *cpu,
     target_ulong flags  = args[0];
     target_ulong lisn   = args[1];
 
+    trace_spapr_xive_get_source_info(flags, lisn);
+
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         return H_FUNCTION;
     }
@@ -1009,6 +1018,8 @@ static target_ulong h_int_set_source_config(PowerPCCPU *cpu,
     uint8_t end_blk;
     uint32_t end_idx;
 
+    trace_spapr_xive_set_source_config(flags, lisn, target, priority, eisn);
+
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         return H_FUNCTION;
     }
@@ -1114,6 +1125,8 @@ static target_ulong h_int_get_source_config(PowerPCCPU *cpu,
     uint8_t nvt_blk;
     uint32_t end_idx, nvt_idx;
 
+    trace_spapr_xive_get_source_config(flags, lisn);
+
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         return H_FUNCTION;
     }
@@ -1187,6 +1200,8 @@ static target_ulong h_int_get_queue_info(PowerPCCPU *cpu,
     XiveEND *end;
     uint8_t end_blk;
     uint32_t end_idx;
+
+    trace_spapr_xive_get_queue_info(flags, target, priority);
 
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         return H_FUNCTION;
@@ -1274,6 +1289,8 @@ static target_ulong h_int_set_queue_config(PowerPCCPU *cpu,
     XiveEND end;
     uint8_t end_blk, nvt_blk;
     uint32_t end_idx, nvt_idx;
+
+    trace_spapr_xive_set_queue_config(flags, target, priority, qpage, qsize);
 
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         return H_FUNCTION;
@@ -1442,6 +1459,8 @@ static target_ulong h_int_get_queue_config(PowerPCCPU *cpu,
     uint8_t end_blk;
     uint32_t end_idx;
 
+    trace_spapr_xive_get_queue_config(flags, target, priority);
+
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         return H_FUNCTION;
     }
@@ -1535,6 +1554,10 @@ static target_ulong h_int_set_os_reporting_line(PowerPCCPU *cpu,
                                                 target_ulong opcode,
                                                 target_ulong *args)
 {
+    target_ulong flags   = args[0];
+
+    trace_spapr_xive_set_os_reporting_line(flags);
+
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         return H_FUNCTION;
     }
@@ -1571,6 +1594,10 @@ static target_ulong h_int_get_os_reporting_line(PowerPCCPU *cpu,
                                                 target_ulong opcode,
                                                 target_ulong *args)
 {
+    target_ulong flags   = args[0];
+
+    trace_spapr_xive_get_os_reporting_line(flags);
+
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         return H_FUNCTION;
     }
@@ -1622,6 +1649,8 @@ static target_ulong h_int_esb(PowerPCCPU *cpu,
     target_ulong data   = args[3];
     hwaddr mmio_addr;
     XiveSource *xsrc = &xive->source;
+
+    trace_spapr_xive_esb(flags, lisn, offset, data);
 
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         return H_FUNCTION;
@@ -1692,6 +1721,8 @@ static target_ulong h_int_sync(PowerPCCPU *cpu,
     target_ulong flags = args[0];
     target_ulong lisn = args[1];
 
+    trace_spapr_xive_sync(flags, lisn);
+
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         return H_FUNCTION;
     }
@@ -1756,6 +1787,8 @@ static target_ulong h_int_reset(PowerPCCPU *cpu,
 {
     SpaprXive *xive = spapr->xive;
     target_ulong flags   = args[0];
+
+    trace_spapr_xive_reset(flags);
 
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         return H_FUNCTION;
