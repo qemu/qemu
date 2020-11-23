@@ -205,8 +205,15 @@ static bool memory_region_ioeventfd_before(MemoryRegionIoeventfd *a,
 static bool memory_region_ioeventfd_equal(MemoryRegionIoeventfd *a,
                                           MemoryRegionIoeventfd *b)
 {
-    return !memory_region_ioeventfd_before(a, b)
-        && !memory_region_ioeventfd_before(b, a);
+    if (int128_eq(a->addr.start, b->addr.start) &&
+        (!int128_nz(a->addr.size) || !int128_nz(b->addr.size) ||
+         (int128_eq(a->addr.size, b->addr.size) &&
+          (a->match_data == b->match_data) &&
+          ((a->match_data && (a->data == b->data)) || !a->match_data) &&
+          (a->e == b->e))))
+        return true;
+
+    return false;
 }
 
 /* Range of memory in the global map.  Addresses are absolute. */

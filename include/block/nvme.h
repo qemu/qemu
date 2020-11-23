@@ -501,6 +501,11 @@ typedef struct QEMU_PACKED NvmeCreateCq {
 #define NVME_CQ_FLAGS_PC(cq_flags)  (cq_flags & 0x1)
 #define NVME_CQ_FLAGS_IEN(cq_flags) ((cq_flags >> 1) & 0x1)
 
+enum NvmeFlagsCq {
+    NVME_CQ_PC          = 1,
+    NVME_CQ_IEN         = 2,
+};
+
 typedef struct QEMU_PACKED NvmeCreateSq {
     uint8_t     opcode;
     uint8_t     flags;
@@ -518,12 +523,13 @@ typedef struct QEMU_PACKED NvmeCreateSq {
 #define NVME_SQ_FLAGS_PC(sq_flags)      (sq_flags & 0x1)
 #define NVME_SQ_FLAGS_QPRIO(sq_flags)   ((sq_flags >> 1) & 0x3)
 
-enum NvmeQueueFlags {
-    NVME_Q_PC           = 1,
-    NVME_Q_PRIO_URGENT  = 0,
-    NVME_Q_PRIO_HIGH    = 1,
-    NVME_Q_PRIO_NORMAL  = 2,
-    NVME_Q_PRIO_LOW     = 3,
+enum NvmeFlagsSq {
+    NVME_SQ_PC          = 1,
+
+    NVME_SQ_PRIO_URGENT = 0,
+    NVME_SQ_PRIO_HIGH   = 1,
+    NVME_SQ_PRIO_NORMAL = 2,
+    NVME_SQ_PRIO_LOW    = 3,
 };
 
 typedef struct QEMU_PACKED NvmeIdentify {
