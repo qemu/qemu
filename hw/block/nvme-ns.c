@@ -37,13 +37,25 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     BlockDriverInfo bdi;
     NvmeIdNs *id_ns = &ns->id_ns;
     int lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
-    int npdg;
+    int npdg, nlbas;
 
     ns->id_ns.dlfeat = 0x9;
 
     id_ns->lbaf[lba_index].ds = 31 - clz32(ns->blkconf.logical_block_size);
+    id_ns->lbaf[lba_index].ms = ns->params.ms;
 
-    id_ns->nsze = cpu_to_le64(nvme_ns_nlbas(ns));
+    if (ns->params.ms) {
+        id_ns->mc = 0x3;
+
+        if (ns->params.mset) {
+            id_ns->flbas |= 0x10;
+        }
+    }
+
+    nlbas = nvme_ns_nlbas(ns);
+
+    id_ns->nsze = cpu_to_le64(nlbas);
+    ns->mdata_offset = nvme_l2b(ns, nlbas);
 
     ns->csi = NVME_CSI_NVM;
 
@@ -140,7 +152,7 @@ static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
      */
     ns->zone_size = zone_size / lbasz;
     ns->zone_capacity = zone_cap / lbasz;
-    ns->num_zones = ns->size / lbasz / ns->zone_size;
+    ns->num_zones = nvme_ns_nlbas(ns) / ns->zone_size;
 
     /* Do a few more sanity checks of ZNS properties */
     if (!ns->num_zones) {
@@ -402,6 +414,8 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_BOOL("detached", NvmeNamespace, params.detached, false),
     DEFINE_PROP_UINT32("nsid", NvmeNamespace, params.nsid, 0),
     DEFINE_PROP_UUID("uuid", NvmeNamespace, params.uuid),
+    DEFINE_PROP_UINT16("ms", NvmeNamespace, params.ms, 0),
+    DEFINE_PROP_UINT8("mset", NvmeNamespace, params.mset, 0),
     DEFINE_PROP_UINT16("mssrl", NvmeNamespace, params.mssrl, 128),
     DEFINE_PROP_UINT32("mcl", NvmeNamespace, params.mcl, 128),
     DEFINE_PROP_UINT8("msrc", NvmeNamespace, params.msrc, 127),

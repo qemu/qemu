@@ -30,6 +30,9 @@ typedef struct NvmeNamespaceParams {
     uint32_t nsid;
     QemuUUID uuid;
 
+    uint16_t ms;
+    uint8_t  mset;
+
     uint16_t mssrl;
     uint32_t mcl;
     uint8_t  msrc;
@@ -48,6 +51,7 @@ typedef struct NvmeNamespace {
     BlockConf    blkconf;
     int32_t      bootindex;
     int64_t      size;
+    int64_t      mdata_offset;
     NvmeIdNs     id_ns;
     const uint32_t *iocs;
     uint8_t      csi;
@@ -101,16 +105,39 @@ static inline uint8_t nvme_ns_lbads(NvmeNamespace *ns)
     return nvme_ns_lbaf(ns)->ds;
 }
 
-/* calculate the number of LBAs that the namespace can accomodate */
-static inline uint64_t nvme_ns_nlbas(NvmeNamespace *ns)
-{
-    return ns->size >> nvme_ns_lbads(ns);
-}
-
 /* convert an LBA to the equivalent in bytes */
 static inline size_t nvme_l2b(NvmeNamespace *ns, uint64_t lba)
 {
     return lba << nvme_ns_lbads(ns);
+}
+
+static inline size_t nvme_lsize(NvmeNamespace *ns)
+{
+    return 1 << nvme_ns_lbads(ns);
+}
+
+static inline uint16_t nvme_msize(NvmeNamespace *ns)
+{
+    return nvme_ns_lbaf(ns)->ms;
+}
+
+static inline size_t nvme_m2b(NvmeNamespace *ns, uint64_t lba)
+{
+    return nvme_msize(ns) * lba;
+}
+
+static inline bool nvme_ns_ext(NvmeNamespace *ns)
+{
+    return !!NVME_ID_NS_FLBAS_EXTENDED(ns->id_ns.flbas);
+}
+
+/* calculate the number of LBAs that the namespace can accomodate */
+static inline uint64_t nvme_ns_nlbas(NvmeNamespace *ns)
+{
+    if (ns->params.ms) {
+        return ns->size / (nvme_lsize(ns) + nvme_msize(ns));
+    }
+    return ns->size >> nvme_ns_lbads(ns);
 }
 
 typedef struct NvmeCtrl NvmeCtrl;
