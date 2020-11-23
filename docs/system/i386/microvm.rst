@@ -1,6 +1,5 @@
-====================
-microvm Machine Type
-====================
+'microvm' virtual platform (``microvm``)
+========================================
 
 ``microvm`` is a machine type inspired by ``Firecracker`` and
 constructed after its machine model.

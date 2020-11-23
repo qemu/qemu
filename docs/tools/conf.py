@@ -22,6 +22,8 @@ man_pages = [
      ['Fabrice Bellard'], 1),
     ('qemu-nbd', 'qemu-nbd', u'QEMU Disk Network Block Device Server',
      ['Anthony Liguori <anthony@codemonkey.ws>'], 8),
+    ('qemu-pr-helper', 'qemu-pr-helper', 'QEMU persistent reservation helper',
+     [], 8),
     ('qemu-trace-stap', 'qemu-trace-stap', u'QEMU SystemTap trace tool',
      [], 1),
     ('virtfs-proxy-helper', 'virtfs-proxy-helper',

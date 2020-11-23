@@ -36,6 +36,7 @@
 #else
 #include "exec/gdbstub.h"
 #include "qemu/cutils.h"
+#include "hw/arm/boot.h"
 #endif
 
 #define TARGET_SYS_OPEN        0x01
@@ -1014,6 +1015,9 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             int i;
 #ifdef CONFIG_USER_ONLY
             TaskState *ts = cs->opaque;
+#else
+            const struct arm_boot_info *info = env->boot_info;
+            target_ulong rambase = info->loader_start;
 #endif
 
             GET_ARG(0);
@@ -1046,10 +1050,10 @@ target_ulong do_arm_semihosting(CPUARMState *env)
 #else
             limit = ram_size;
             /* TODO: Make this use the limit of the loaded application.  */
-            retvals[0] = limit / 2;
-            retvals[1] = limit;
-            retvals[2] = limit; /* Stack base */
-            retvals[3] = 0; /* Stack limit.  */
+            retvals[0] = rambase + limit / 2;
+            retvals[1] = rambase + limit;
+            retvals[2] = rambase + limit; /* Stack base */
+            retvals[3] = rambase; /* Stack limit.  */
 #endif
 
             for (i = 0; i < ARRAY_SIZE(retvals); i++) {

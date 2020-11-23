@@ -12,6 +12,7 @@ Contents:
 
    qemu-img
    qemu-nbd
+   qemu-pr-helper
    qemu-trace-stap
    virtfs-proxy-helper
    virtiofsd

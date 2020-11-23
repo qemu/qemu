@@ -586,7 +586,7 @@ struct SpitzLCDTG {
 static void spitz_bl_update(SpitzLCDTG *s)
 {
     if (s->bl_power && s->bl_intensity)
-        zaurus_printf("LCD Backlight now at %i/63\n", s->bl_intensity);
+        zaurus_printf("LCD Backlight now at %u/63\n", s->bl_intensity);
     else
         zaurus_printf("LCD Backlight now off\n");
 }
