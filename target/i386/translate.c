@@ -3936,14 +3936,14 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 }
                 ot = mo_64_32(s->dflag);
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
-                /* Note that by zero-extending the mask operand, we
+                /* Note that by zero-extending the source operand, we
                    automatically handle zero-extending the result.  */
                 if (ot == MO_64) {
                     tcg_gen_mov_tl(s->T1, cpu_regs[s->vex_v]);
                 } else {
                     tcg_gen_ext32u_tl(s->T1, cpu_regs[s->vex_v]);
                 }
-                gen_helper_pdep(cpu_regs[reg], s->T0, s->T1);
+                gen_helper_pdep(cpu_regs[reg], s->T1, s->T0);
                 break;
 
             case 0x2f5: /* pext Gy, By, Ey */
@@ -3954,14 +3954,14 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 }
                 ot = mo_64_32(s->dflag);
                 gen_ldst_modrm(env, s, modrm, ot, OR_TMP0, 0);
-                /* Note that by zero-extending the mask operand, we
+                /* Note that by zero-extending the source operand, we
                    automatically handle zero-extending the result.  */
                 if (ot == MO_64) {
                     tcg_gen_mov_tl(s->T1, cpu_regs[s->vex_v]);
                 } else {
                     tcg_gen_ext32u_tl(s->T1, cpu_regs[s->vex_v]);
                 }
-                gen_helper_pext(cpu_regs[reg], s->T0, s->T1);
+                gen_helper_pext(cpu_regs[reg], s->T1, s->T0);
                 break;
 
             case 0x1f6: /* adcx Gy, Ey */
