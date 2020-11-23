@@ -178,6 +178,12 @@ static void boot_setup(void)
     memcpy(lpmsg + 10, loadparm_str, 8);
     sclp_print(lpmsg);
 
+    /*
+     * Clear out any potential S390EP magic (see jump_to_low_kernel()),
+     * so we don't taint our decision-making process during a reboot.
+     */
+    memset((char *)S390EP, 0, 6);
+
     have_iplb = store_iplb(&iplb);
 }
 

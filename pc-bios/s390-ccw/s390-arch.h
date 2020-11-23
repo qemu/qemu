@@ -95,6 +95,9 @@ typedef struct LowCore {
 
 extern LowCore *lowcore;
 
+/* Location of "S390EP" in a Linux binary (see arch/s390/boot/head.S) */
+#define S390EP 0x10008
+
 static inline void set_prefix(uint32_t address)
 {
     asm volatile("spx %0" : : "m" (address) : "memory");

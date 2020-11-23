@@ -78,7 +78,7 @@ void jump_to_low_kernel(void)
      * kernel start address (when jumping to the PSW-at-zero address instead,
      * the kernel startup code fails when we booted from a network device).
      */
-    if (!memcmp((char *)0x10008, "S390EP", 6)) {
+    if (!memcmp((char *)S390EP, "S390EP", 6)) {
         jump_to_IPL_code(KERN_IMAGE_START);
     }
 
