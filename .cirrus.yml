@@ -18,6 +18,7 @@ freebsd_12_task:
     - gmake -j$(sysctl -n hw.ncpu) check V=1
 
 macos_task:
+  timeout_in: 90m
   osx_instance:
     image: catalina-base
   install_script:
@@ -32,6 +33,7 @@ macos_task:
     - gmake check V=1
 
 macos_xcode_task:
+  timeout_in: 90m
   osx_instance:
     # this is an alias for the latest Xcode
     image: catalina-xcode

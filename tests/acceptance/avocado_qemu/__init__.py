@@ -171,7 +171,8 @@ class Test(avocado.Test):
             self.cancel("No QEMU binary defined or found in the build tree")
 
     def _new_vm(self, *args):
-        vm = QEMUMachine(self.qemu_bin, sock_dir=tempfile.mkdtemp())
+        self._sd = tempfile.TemporaryDirectory(prefix="avo_qemu_sock_")
+        vm = QEMUMachine(self.qemu_bin, sock_dir=self._sd.name)
         if args:
             vm.add_args(*args)
         return vm
@@ -192,6 +193,7 @@ class Test(avocado.Test):
     def tearDown(self):
         for vm in self._vms.values():
             vm.shutdown()
+        self._sd = None
 
     def fetch_asset(self, name,
                     asset_hash=None, algorithm=None,

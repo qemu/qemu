@@ -303,7 +303,8 @@ class QEMUMachine:
         return args
 
     def _pre_launch(self) -> None:
-        self._temp_dir = tempfile.mkdtemp(dir=self._test_dir)
+        self._temp_dir = tempfile.mkdtemp(prefix="qemu-machine-",
+                                          dir=self._test_dir)
         self._qemu_log_path = os.path.join(self._temp_dir, self._name + ".log")
         self._qemu_log_file = open(self._qemu_log_path, 'wb')
 
