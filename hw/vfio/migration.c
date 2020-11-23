@@ -882,7 +882,7 @@ int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
     Error *local_err = NULL;
     int ret = -ENOTSUP;
 
-    if (!container->dirty_pages_supported) {
+    if (!vbasedev->enable_migration || !container->dirty_pages_supported) {
         goto add_blocker;
     }
 
