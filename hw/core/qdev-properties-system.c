@@ -858,7 +858,7 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
     Property *prop = opaque;
     PCIHostDeviceAddress *addr = qdev_get_prop_ptr(dev, prop);
     char *str, *p;
-    const char *e;
+    char *e;
     unsigned long val;
     unsigned long dom = 0, bus = 0;
     unsigned int slot = 0, func = 0;
@@ -873,23 +873,23 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
     }
 
     p = str;
-    if (qemu_strtoul(p, &e, 16, &val) < 0 || val > 0xffff || e == p) {
-        goto inval;
-    }
-    if (*e != ':') {
+    val = strtoul(p, &e, 16);
+    if (e == p || *e != ':') {
         goto inval;
     }
     bus = val;
 
-    p = (char *)e + 1;
-    if (qemu_strtoul(p, &e, 16, &val) < 0 || val > 0x1f || e == p) {
+    p = e + 1;
+    val = strtoul(p, &e, 16);
+    if (e == p) {
         goto inval;
     }
     if (*e == ':') {
         dom = bus;
         bus = val;
-        p = (char *)e + 1;
-        if (qemu_strtoul(p, &e, 16, &val) < 0 || val > 0x1f || e == p) {
+        p = e + 1;
+        val = strtoul(p, &e, 16);
+        if (e == p) {
             goto inval;
         }
     }
@@ -898,13 +898,14 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
     if (*e != '.') {
         goto inval;
     }
-    p = (char *)e + 1;
-    if (qemu_strtoul(p, &e, 10, &val) < 0 || val > 7 || e == p) {
+    p = e + 1;
+    val = strtoul(p, &e, 10);
+    if (e == p) {
         goto inval;
     }
     func = val;
 
-    if (bus > 0xff) {
+    if (dom > 0xffff || bus > 0xff || slot > 0x1f || func > 7) {
         goto inval;
     }
 
