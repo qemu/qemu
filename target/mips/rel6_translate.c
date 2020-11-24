@@ -18,6 +18,13 @@
 #include "decode-mips32r6.c.inc"
 #include "decode-mips64r6.c.inc"
 
+bool trans_REMOVED(DisasContext *ctx, arg_REMOVED *a)
+{
+    gen_reserved_instruction(ctx);
+
+    return true;
+}
+
 static bool trans_LSA(DisasContext *ctx, arg_rtype *a)
 {
     return gen_lsa(ctx, a->rd, a->rt, a->rs, a->sa);
