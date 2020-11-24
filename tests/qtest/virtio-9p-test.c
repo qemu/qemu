@@ -1456,6 +1456,15 @@ static void register_virtio_9p_test(void)
 
 
     /* 9pfs test cases using the 'local' filesystem driver */
+
+    /*
+     * XXX: Until we are sure that these tests can run everywhere,
+     * keep them as "slow" so that they aren't run with "make check".
+     */
+    if (!g_test_slow()) {
+        return;
+    }
+
     opts.before = assign_9p_local_driver;
     qos_add_test("local/config", "virtio-9p", pci_config,  &opts);
     qos_add_test("local/create_dir", "virtio-9p", fs_create_dir, &opts);
