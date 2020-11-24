@@ -817,6 +817,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
         if (ret < 0) {
             error_setg_errno(errp, -ret, "%s: Can't use file descriptor %d",
                              name, fd);
+            close(fd);
             return -1;
         }
 
@@ -831,6 +832,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
                          vhostfdname, vnet_hdr, fd, &err);
         if (err) {
             error_propagate(errp, err);
+            close(fd);
             return -1;
         }
     } else if (tap->has_fds) {
@@ -951,7 +953,8 @@ free_fail:
             script = default_script = get_relocated_path(DEFAULT_NETWORK_SCRIPT);
         }
         if (!downscript) {
-            downscript = default_downscript = get_relocated_path(DEFAULT_NETWORK_SCRIPT);
+            downscript = default_downscript =
+                                 get_relocated_path(DEFAULT_NETWORK_DOWN_SCRIPT);
         }
 
         if (tap->has_ifname) {
