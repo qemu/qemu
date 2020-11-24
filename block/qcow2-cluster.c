@@ -2010,13 +2010,16 @@ static int zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
             continue;
         }
 
+        /* First update L2 entries */
         qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_slice);
-        if (unmap) {
-            qcow2_free_any_cluster(bs, old_l2_entry, QCOW2_DISCARD_REQUEST);
-        }
         set_l2_entry(s, l2_slice, l2_index + i, new_l2_entry);
         if (has_subclusters(s)) {
             set_l2_bitmap(s, l2_slice, l2_index + i, new_l2_bitmap);
+        }
+
+        /* Then decrease the refcount */
+        if (unmap) {
+            qcow2_free_any_cluster(bs, old_l2_entry, QCOW2_DISCARD_REQUEST);
         }
     }
 
