@@ -149,6 +149,14 @@ static void fsl_imx6ul_init(Object *obj)
         snprintf(name, NAME_SIZE, "wdt%d", i);
         object_initialize_child(obj, name, &s->wdt[i], TYPE_IMX2_WDT);
     }
+    
+    /*
+     * ADC
+     */
+    for (i = 0; i < FSL_IMX6UL_NUM_ADCS; i++) {
+        snprintf(name, NAME_SIZE, "adc%d", i);
+        object_initialize_child(obj, name, &s->adc[i], TYPE_IMX6UL_ADC);
+    }
 }
 
 static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
@@ -522,6 +530,27 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
                            qdev_get_gpio_in(DEVICE(&s->a7mpcore),
                                             FSL_IMX6UL_WDOGn_IRQ[i]));
     }
+    
+    /*
+     * ADC
+     */
+    for (i = 0; i < FSL_IMX6UL_NUM_ADCS; i++) {
+        static const hwaddr FSL_IMX6UL_ADCn_ADDR[FSL_IMX6UL_NUM_ADCS] = {
+            FSL_IMX6UL_ADC1_ADDR,
+            FSL_IMX6UL_ADC2_ADDR
+        };
+        static const int FSL_IMX6UL_ADCn_IRQ[FSL_IMX6UL_NUM_ADCS] = {
+            FSL_IMX6UL_ADC1_IRQ,
+            FSL_IMX6UL_ADC2_IRQ
+        };
+
+        sysbus_realize(SYS_BUS_DEVICE(&s->adc[i]), &error_abort);
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->adc[i]), 0, FSL_IMX6UL_ADCn_ADDR[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->adc[i]), 0, qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+                                            FSL_IMX6UL_ADCn_IRQ[i]));
+    }
+
 
     /*
      * GPR
@@ -537,10 +566,10 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     /*
      * PWM
      */
-    create_unimplemented_device("pwm1", FSL_IMX6UL_PWM1_ADDR, 0x4000);
-    create_unimplemented_device("pwm2", FSL_IMX6UL_PWM2_ADDR, 0x4000);
-    create_unimplemented_device("pwm3", FSL_IMX6UL_PWM3_ADDR, 0x4000);
-    create_unimplemented_device("pwm4", FSL_IMX6UL_PWM4_ADDR, 0x4000);
+    //create_unimplemented_device("pwm1", FSL_IMX6UL_PWM1_ADDR, 0x4000);
+    //create_unimplemented_device("pwm2", FSL_IMX6UL_PWM2_ADDR, 0x4000);
+    //create_unimplemented_device("pwm3", FSL_IMX6UL_PWM3_ADDR, 0x4000);
+    //create_unimplemented_device("pwm4", FSL_IMX6UL_PWM4_ADDR, 0x4000);
 
     /*
      * CAN
@@ -557,20 +586,20 @@ static void fsl_imx6ul_realize(DeviceState *dev, Error **errp)
     /*
      * ADCs
      */
-    for (i = 0; i < FSL_IMX6UL_NUM_ADCS; i++) {
-        static const hwaddr FSL_IMX6UL_ADCn_ADDR[FSL_IMX6UL_NUM_ADCS] = {
-            FSL_IMX6UL_ADC1_ADDR,
-            FSL_IMX6UL_ADC2_ADDR,
-        };
+    //for (i = 0; i < FSL_IMX6UL_NUM_ADCS; i++) {
+    //    static const hwaddr FSL_IMX6UL_ADCn_ADDR[FSL_IMX6UL_NUM_ADCS] = {
+    //        FSL_IMX6UL_ADC1_ADDR,
+    //        FSL_IMX6UL_ADC2_ADDR,
+    //    };
 
-        snprintf(name, NAME_SIZE, "adc%d", i);
-        create_unimplemented_device(name, FSL_IMX6UL_ADCn_ADDR[i], 0x4000);
-    }
+    //    snprintf(name, NAME_SIZE, "adc%d", i);
+    //    create_unimplemented_device(name, FSL_IMX6UL_ADCn_ADDR[i], 0x4000);
+    //}
 
     /*
      * LCD
      */
-    create_unimplemented_device("lcdif", FSL_IMX6UL_LCDIF_ADDR, 0x4000);
+    //create_unimplemented_device("lcdif", FSL_IMX6UL_LCDIF_ADDR, 0x4000);
 
     /*
      * ROM memory

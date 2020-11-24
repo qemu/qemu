@@ -36,6 +36,7 @@
 #include "hw/net/imx_fec.h"
 #include "hw/usb/chipidea.h"
 #include "hw/usb/imx-usb-phy.h"
+#include "hw/adc/imx6ul_adc.h"
 #include "exec/memory.h"
 #include "cpu.h"
 #include "qom/object.h"
@@ -83,6 +84,7 @@ struct FslIMX6ULState {
     SDHCIState         usdhc[FSL_IMX6UL_NUM_USDHCS];
     IMX2WdtState       wdt[FSL_IMX6UL_NUM_WDTS];
     IMXUSBPHYState     usbphy[FSL_IMX6UL_NUM_USB_PHYS];
+    IMX6ULADCState     adc[FSL_IMX6UL_NUM_ADCS];
     ChipideaState      usb[FSL_IMX6UL_NUM_USBS];
     MemoryRegion       rom;
     MemoryRegion       caam;

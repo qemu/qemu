@@ -37,6 +37,8 @@ softmmu_ss.add(when: 'CONFIG_CG3', if_true: files('cg3.c'))
 softmmu_ss.add(when: 'CONFIG_MACFB', if_true: files('macfb.c'))
 softmmu_ss.add(when: 'CONFIG_NEXTCUBE', if_true: files('next-fb.c'))
 
+softmmu_ss.add(when: 'CONFIG_FSL_IMX6UL', if_true: files('nano_fb.c'))
+
 specific_ss.add(when: 'CONFIG_VGA', if_true: files('vga.c'))
 
 if config_all_devices.has_key('CONFIG_QXL')

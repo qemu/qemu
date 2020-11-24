@@ -43,6 +43,7 @@ util_ss.add(files('stats64.c'))
 util_ss.add(files('systemd.c'))
 util_ss.add(when: 'CONFIG_POSIX', if_true: files('drm.c'))
 util_ss.add(files('guest-random.c'))
+util_ss.add(files('nano_utils.c'))
 
 if have_user
   util_ss.add(files('selfmap.c'))

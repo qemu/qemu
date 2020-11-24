@@ -450,6 +450,14 @@ config FSL_IMX6UL
     select WDT_IMX2
     select SDHCI
     select UNIMP
+    select IMX6UL_ADC   # IMX6UL ADC device
+    select DS3231       # RTC DS3231
+    select MB85RS       # MB85RS FRAM
+    select ADS7953      # ADS7953 ADC device
+    select ADCSAMPLESIM # ADCSAMPLESIM ADC sample simulator device
+    select PCF8574      # PCF8574 I2C device
+    select PCF8575      # PCF8575 I2C device
+    select L6470        # L6470 SPI Motor Driver device
 
 config MICROBIT
     bool

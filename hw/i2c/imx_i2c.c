@@ -94,9 +94,11 @@ static inline void imx_i2c_raise_interrupt(IMXI2CState *s)
      * raise an interrupt if the device is enabled and it is configured
      * to generate some interrupts.
      */
-    if (imx_i2c_is_enabled(s) && imx_i2c_interrupt_is_enabled(s)) {
+    if (imx_i2c_is_enabled(s)) {
         s->i2sr |= I2SR_IIF;
-        qemu_irq_raise(s->irq);
+        if(imx_i2c_interrupt_is_enabled(s)) {
+	    qemu_irq_raise(s->irq);
+        }
     }
 }
 

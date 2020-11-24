@@ -88,6 +88,14 @@ if cpu in ['x86', 'x86_64']
   }
 endif
 
+
+configure_file(input: meson.source_root()/'p5_panel.bmp',      output: 'p5_panel.bmp',      copy: true)
+configure_file(input: meson.source_root()/'light_green.bmp',      output: 'light_green.bmp',      copy: true)
+configure_file(input: meson.source_root()/'light_red.bmp',      output: 'light_red.bmp',      copy: true)
+configure_file(input: meson.source_root()/'light_off.bmp',      output: 'light_off.bmp',      copy: true)
+configure_file(input: meson.source_root()/'start_button_on.bmp',      output: 'start_button_on.bmp',      copy: true)
+configure_file(input: meson.source_root()/'start_button_off.bmp',      output: 'start_button_off.bmp',      copy: true)
+
 ##################
 # Compiler flags #
 ##################

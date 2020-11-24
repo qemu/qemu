@@ -75,6 +75,12 @@
 #define ECSPI_STATREG_RO (1 << 6)
 #define ECSPI_STATREG_TC (1 << 7)
 
+/* ECSPI_TESTREG */
+#define ECSPI_TESTREG_RXCNT_MASK 0x7F00
+#define ECSPI_TESTREG_RXCNT_SHIFT 8
+#define ECSPI_TESTREG_TXCNT_MASK 0x7F
+#define ECSPI_TESTREG_TXCNT_SHIFT 0
+
 #define EXTRACT(value, name) extract32(value, name##_SHIFT, name##_LENGTH)
 
 #define TYPE_IMX_SPI "imx.spi"

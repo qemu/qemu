@@ -4,6 +4,18 @@ config PL022
 
 config SSI
     bool
+    
+config MB85RS
+    bool
+    select SSI
+    
+config ADS7953
+    bool
+    select SSI
+    
+config L6470
+    bool
+    select SSI
 
 config XILINX_SPI
     bool

@@ -14,6 +14,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include <math.h>
 
 #ifndef DEBUG_IMX_SPI
 #define DEBUG_IMX_SPI 0
@@ -152,8 +153,28 @@ static bool imx_spi_is_multiple_master_burst(IMXSPIState *s)
            ((wave & (1 << imx_spi_selected_channel(s))) ? true : false);
 }
 
-static void imx_spi_flush_txfifo(IMXSPIState *s)
+static void imx_spi_select(IMXSPIState *s)
 {
+    // ToDo: IRQ call should be based on the configuration
+    //       as either active high or low.
+    qemu_set_irq(s->cs_lines[imx_spi_selected_channel(s)], 0);
+}
+
+static void imx_spi_deselect(IMXSPIState *s)
+{
+    // ToDo: IRQ call should be based on the configuration
+    //       as either active high or low.
+    qemu_set_irq(s->cs_lines[imx_spi_selected_channel(s)], 1);
+}
+
+static void imx_spi_update_fifo_count(IMXSPIState *s)
+{
+    s->regs[ECSPI_TESTREG] = ((fifo32_num_used(&s->rx_fifo) << ECSPI_TESTREG_RXCNT_SHIFT) & ECSPI_TESTREG_RXCNT_MASK) +
+        (fifo32_num_used(&s->tx_fifo) & ECSPI_TESTREG_TXCNT_MASK);
+}
+
+static void imx_spi_flush_txfifo(IMXSPIState *s)
+{ 
     uint32_t tx;
     uint32_t rx;
 
@@ -162,12 +183,20 @@ static void imx_spi_flush_txfifo(IMXSPIState *s)
 
     while (!fifo32_is_empty(&s->tx_fifo)) {
         int tx_burst = 0;
-        int index = 0;
 
         if (s->burst_length <= 0) {
             s->burst_length = imx_spi_burst_length(s);
 
             DPRINTF("Burst length = %d\n", s->burst_length);
+
+            //Add sanity check to avoid hanging in this loop
+            if (s->burst_length <= 0) {
+                assert(0);
+                break;
+            }
+
+            //Assert the cs line
+            imx_spi_select(s);
 
             if (imx_spi_is_multiple_master_burst(s)) {
                 s->regs[ECSPI_CONREG] |= ECSPI_CONREG_XCH;
@@ -182,23 +211,21 @@ static void imx_spi_flush_txfifo(IMXSPIState *s)
 
         rx = 0;
 
-        while (tx_burst > 0) {
-            uint8_t byte = tx & 0xff;
+        // This change is done to allow sending multiple bytes if the burst length is more than a byte upto 4 bytes at a time.
+        if (tx_burst > 0) {
+            uint32_t transfer_value = tx & ((uint32_t) (pow(2, tx_burst) - 1));
 
-            DPRINTF("writing 0x%02x\n", (uint32_t)byte);
+            DPRINTF("writing 0x%02x\n", transfer_value);
 
-            /* We need to write one byte at a time */
-            byte = ssi_transfer(s->bus, byte);
+            /* Write bits equal to burst length upto a maximum of 32 bits at a time */
+            transfer_value = ssi_transfer(s->bus, transfer_value);
 
-            DPRINTF("0x%02x read\n", (uint32_t)byte);
+            DPRINTF("0x%02x read\n", transfer_value);
 
-            tx = tx >> 8;
-            rx |= (byte << (index * 8));
+            rx = transfer_value;
 
-            /* Remove 8 bits from the actual burst */
-            tx_burst -= 8;
-            s->burst_length -= 8;
-            index++;
+            /* Remove tx_burst bits from the actual burst */
+            s->burst_length -= tx_burst;
         }
 
         DPRINTF("data rx:0x%08x\n", rx);
@@ -210,6 +237,9 @@ static void imx_spi_flush_txfifo(IMXSPIState *s)
         }
 
         if (s->burst_length <= 0) {
+            // Deassert the cs line
+            imx_spi_deselect(s);
+
             if (!imx_spi_is_multiple_master_burst(s)) {
                 s->regs[ECSPI_STATREG] |= ECSPI_STATREG_TC;
                 break;
@@ -226,6 +256,11 @@ static void imx_spi_flush_txfifo(IMXSPIState *s)
 
     DPRINTF("End: TX Fifo Size = %d, RX Fifo Size = %d\n",
             fifo32_num_used(&s->tx_fifo), fifo32_num_used(&s->rx_fifo));
+
+    // 1. Update FIFO content count
+    // 2. Move update of the irq at appropriate locations
+    imx_spi_update_fifo_count(s);
+    imx_spi_update_irq(s);
 }
 
 static void imx_spi_reset(DeviceState *dev)
@@ -270,6 +305,11 @@ static uint64_t imx_spi_read(void *opaque, hwaddr offset, unsigned size)
             value = fifo32_pop(&s->rx_fifo);
         }
 
+        // 1. Update FIFO content count
+        // 2. Move update of the irq at appropriate locations
+        imx_spi_update_fifo_count(s);
+        imx_spi_update_irq(s);
+
         break;
     case ECSPI_TXDATA:
         qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Trying to read from TX FIFO\n",
@@ -292,7 +332,7 @@ static uint64_t imx_spi_read(void *opaque, hwaddr offset, unsigned size)
 
     DPRINTF("reg[%s] => 0x%" PRIx32 "\n", imx_spi_reg_name(index), value);
 
-    imx_spi_update_irq(s);
+    // Move update of the irq at appropriate locations
 
     return (uint64_t)value;
 }
@@ -331,6 +371,13 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
 
         fifo32_push(&s->tx_fifo, (uint32_t)value);
 
+        // 1. Update FIFO content count
+        // 2. Move update of the irq at appropriate locations
+        imx_spi_update_fifo_count(s);
+        if (fifo32_is_full(&s->tx_fifo)) {
+            imx_spi_update_irq(s);
+        }
+
         if (imx_spi_channel_is_master(s) &&
             (s->regs[ECSPI_CONREG] & ECSPI_CONREG_SMC)) {
             /*
@@ -357,14 +404,9 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
         }
 
         if (imx_spi_channel_is_master(s)) {
-            int i;
-
             /* We are in master mode */
 
-            for (i = 0; i < 4; i++) {
-                qemu_set_irq(s->cs_lines[i],
-                             i == imx_spi_selected_channel(s) ? 0 : 1);
-            }
+            // Toggle CS only when transmitting inside imx_spi_flush_txfifo()
 
             if ((value & change_mask & ECSPI_CONREG_SMC) &&
                 !fifo32_is_empty(&s->tx_fifo)) {
@@ -392,7 +434,7 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     }
 
-    imx_spi_update_irq(s);
+    // Move update of the irq at appropriate locations
 }
 
 static const struct MemoryRegionOps imx_spi_ops = {

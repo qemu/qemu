@@ -1,0 +1,27 @@
+Build P5 Qemu in linux terminal:
+
+1. get the p5 qemu source code:
+git clone ssh://git@atlassianserver.nanosonics.com.au:7999/pen/p5qemu.git
+
+2. get submodules:
+cd p5qemu
+git submodule init
+git submodule update --recursive
+
+3. p5 qemu configuration & build:
+cd ..
+mkdir build_p5_qemu
+cd build_p5_qemu
+../p5qemu/configure --enable-debug --target-list=arm-softmmu
+make
+
+4. create emmc image and partition it:
+see the link below for detail steps to create a raw image named emmc8G.raw
+http://atlassianserver.nanosonics.com.au:8090/pages/viewpage.action?spaceKey=SE&title=How+to+create+and+partition+a+virtual+EMMC
+
+
+5. run qemu with command:
+./qemu-system-arm -machine nano-imx6ul -kernel ~/endocleanerdevicesoftware.out -rtc base=localtime -display default,show-cursor=on -drive id=myemmc,file=emmc8G.raw,format=raw -device sd-card,drive=myemmc,emmc=true
+
+Note:
+~/endocleanerdevicesoftware.out is the location of p5 image built by IAR, change the path when necessary. 

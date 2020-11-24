@@ -1,2 +1,8 @@
 config STM32F2XX_ADC
     bool
+    
+config IMX6UL_ADC
+    bool
+    
+config ADCSAMPLESIM
+    bool
