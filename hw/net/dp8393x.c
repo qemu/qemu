@@ -495,6 +495,10 @@ static void dp8393x_do_transmit_packets(dp8393xState *s)
         } else {
             /* Remove existing FCS */
             tx_len -= 4;
+            if (tx_len < 0) {
+                SONIC_ERROR("tx_len is %d\n", tx_len);
+                break;
+            }
         }
 
         if (s->regs[SONIC_RCR] & (SONIC_RCR_LB1 | SONIC_RCR_LB0)) {
