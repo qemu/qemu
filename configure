@@ -1912,9 +1912,6 @@ fi
 
 case "$meson" in
     git | internal)
-        if ! $python -c 'import pkg_resources' > /dev/null 2>&1; then
-            error_exit "Python setuptools not found"
-        fi
         meson="$python ${source_path}/meson/meson.py"
         ;;
     *) meson=$(command -v "$meson") ;;
