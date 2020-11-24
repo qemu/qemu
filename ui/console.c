@@ -264,7 +264,9 @@ static void gui_setup_refresh(DisplayState *ds)
 
 void graphic_hw_update_done(QemuConsole *con)
 {
-    qemu_co_queue_restart_all(&con->dump_queue);
+    if (con) {
+        qemu_co_queue_restart_all(&con->dump_queue);
+    }
 }
 
 void graphic_hw_update(QemuConsole *con)
