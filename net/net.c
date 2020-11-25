@@ -983,6 +983,7 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
 static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
 {
     NetClientState *peer = NULL;
+    NetClientState *nc;
 
     if (is_netdev) {
         if (netdev->type == NET_CLIENT_DRIVER_NIC ||
@@ -1010,6 +1011,12 @@ static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
         }
     }
 
+    nc = qemu_find_netdev(netdev->id);
+    if (nc) {
+        error_setg(errp, "Duplicate ID '%s'", netdev->id);
+        return -1;
+    }
+
     if (net_client_init_fun[netdev->type](netdev, netdev->id, peer, errp) < 0) {
         /* FIXME drop when all init functions store an Error */
         if (errp && !*errp) {
@@ -1020,8 +1027,6 @@ static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
     }
 
     if (is_netdev) {
-        NetClientState *nc;
-
         nc = qemu_find_netdev(netdev->id);
         assert(nc);
         nc->is_netdev = true;
@@ -1135,6 +1140,7 @@ void qmp_netdev_add(Netdev *netdev, Error **errp)
 void qmp_netdev_del(const char *id, Error **errp)
 {
     NetClientState *nc;
+    QemuOpts *opts;
 
     nc = qemu_find_netdev(id);
     if (!nc) {
@@ -1149,6 +1155,16 @@ void qmp_netdev_del(const char *id, Error **errp)
     }
 
     qemu_del_net_client(nc);
+
+    /*
+     * Wart: we need to delete the QemuOpts associated with netdevs
+     * created via CLI or HMP, to avoid bogus "Duplicate ID" errors in
+     * HMP netdev_add.
+     */
+    opts = qemu_opts_find(qemu_find_opts("netdev"), id);
+    if (opts) {
+        qemu_opts_del(opts);
+    }
 }
 
 static void netfilter_print_info(Monitor *mon, NetFilterState *nf)
