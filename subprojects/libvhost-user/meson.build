@@ -10,6 +10,10 @@ vhost_user = static_library('vhost-user',
                             include_directories: inc,
                             c_args: '-D_GNU_SOURCE')
 
+executable('link-test', files('link-test.c'),
+           link_whole: vhost_user,
+           include_directories: inc)
+
 vhost_user_glib = static_library('vhost-user-glib',
                                  files('libvhost-user-glib.c'),
                                  include_directories: inc,
