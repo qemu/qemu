@@ -27,7 +27,6 @@
 #include <sys/eventfd.h>
 #include <sys/mman.h>
 #include <endian.h>
-#include "qemu/compiler.h"
 
 #if defined(__linux__)
 #include <sys/syscall.h>
@@ -59,6 +58,10 @@
 
 /* Round number up to multiple */
 #define ALIGN_UP(n, m) ALIGN_DOWN((n) + (m) - 1, (m))
+
+#ifndef unlikely
+#define unlikely(x)   __builtin_expect(!!(x), 0)
+#endif
 
 /* Align each region to cache line size in inflight buffer */
 #define INFLIGHT_ALIGNMENT 64
