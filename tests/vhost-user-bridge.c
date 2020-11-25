@@ -34,7 +34,7 @@
 #include "qemu/ctype.h"
 #include "qemu/iov.h"
 #include "standard-headers/linux/virtio_net.h"
-#include "contrib/libvhost-user/libvhost-user.h"
+#include "libvhost-user.h"
 
 #define VHOST_USER_BRIDGE_DEBUG 1
 

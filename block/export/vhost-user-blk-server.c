@@ -11,7 +11,7 @@
  */
 #include "qemu/osdep.h"
 #include "block/block.h"
-#include "contrib/libvhost-user/libvhost-user.h"
+#include "subprojects/libvhost-user/libvhost-user.h" /* only for the type definitions */
 #include "standard-headers/linux/virtio_blk.h"
 #include "qemu/vhost-user-server.h"
 #include "vhost-user-blk-server.h"

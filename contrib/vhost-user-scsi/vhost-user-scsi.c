@@ -15,7 +15,7 @@
 #define inline __attribute__((gnu_inline))  /* required for libiscsi v1.9.0 */
 #include <iscsi/scsi-lowlevel.h>
 #undef inline
-#include "contrib/libvhost-user/libvhost-user-glib.h"
+#include "libvhost-user-glib.h"
 #include "standard-headers/linux/virtio_scsi.h"
 
 

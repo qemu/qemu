@@ -11,7 +11,7 @@
 #ifndef VHOST_USER_SERVER_H
 #define VHOST_USER_SERVER_H
 
-#include "contrib/libvhost-user/libvhost-user.h"
+#include "subprojects/libvhost-user/libvhost-user.h" /* only for the type definitions */
 #include "io/channel-socket.h"
 #include "io/channel-file.h"
 #include "io/net-listener.h"

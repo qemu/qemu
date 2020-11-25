@@ -12,8 +12,7 @@
 #include "qemu/iov.h"
 #include "qemu/bswap.h"
 #include "qemu/sockets.h"
-#include "contrib/libvhost-user/libvhost-user.h"
-#include "contrib/libvhost-user/libvhost-user-glib.h"
+#include "libvhost-user-glib.h"
 #include "standard-headers/linux/virtio_input.h"
 #include "qapi/error.h"
 

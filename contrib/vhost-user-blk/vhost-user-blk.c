@@ -17,8 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "standard-headers/linux/virtio_blk.h"
-#include "contrib/libvhost-user/libvhost-user-glib.h"
-#include "contrib/libvhost-user/libvhost-user.h"
+#include "libvhost-user-glib.h"
 
 #if defined(__linux__)
 #include <linux/fs.h>
