@@ -111,6 +111,7 @@ fixture_tear_down(TestFixture *fixture, gconstpointer data)
 
     g_rmdir(fixture->test_dir);
     g_free(fixture->test_dir);
+    close(fixture->fd);
 }
 
 static void qmp_assertion_message_error(const char     *domain,
