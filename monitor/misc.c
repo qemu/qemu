@@ -919,7 +919,7 @@ static void hmp_ioport_read(Monitor *mon, const QDict *qdict)
         suffix = 'l';
         break;
     }
-    monitor_printf(mon, "port%c[0x%04x] = %#0*x\n",
+    monitor_printf(mon, "port%c[0x%04x] = 0x%0*x\n",
                    suffix, addr, size * 2, val);
 }
 
