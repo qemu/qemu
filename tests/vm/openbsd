@@ -30,7 +30,6 @@ class OpenBSDVM(basevm.BaseVM):
         "git",
         "pkgconf",
         "bzip2", "xz",
-        "py3-setuptools",
         "ninja",
 
         # gnu tools

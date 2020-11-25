@@ -30,7 +30,6 @@ ENV PACKAGES \
     perl-Test-Harness \
     python3 \
     python3-PyYAML \
-    python3-setuptools \
     tar \
     which
 
