@@ -1084,7 +1084,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         case sd_identification_state:
         case sd_standby_state:
             sd->state = sd_standby_state;
-            sd_set_rca(sd, req.arg > 16);
+            sd_set_rca(sd, req.arg >> 16);
             return sd->emmc ? sd_r1 : sd_r6;
 
         default:
