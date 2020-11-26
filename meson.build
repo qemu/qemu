@@ -654,9 +654,8 @@ if get_option('vnc').enabled()
   vnc = declare_dependency() # dummy dependency
   png = dependency('libpng', required: get_option('vnc_png'),
                    method: 'pkg-config', static: enable_static)
-  jpeg = cc.find_library('jpeg', has_headers: ['jpeglib.h'],
-                         required: get_option('vnc_jpeg'),
-                         static: enable_static)
+  jpeg = dependency('libjpeg', required: get_option('vnc_jpeg'),
+                    method: 'pkg-config', static: enable_static)
   sasl = cc.find_library('sasl2', has_headers: ['sasl/sasl.h'],
                          required: get_option('vnc_sasl'),
                          static: enable_static)
@@ -1956,7 +1955,7 @@ if host_machine.system() == 'windows'
     '@OUTPUT@',
     get_option('prefix'),
     meson.current_source_dir(),
-    host_machine.cpu_family(),
+    host_machine.cpu(),
     '--',
     '-DDISPLAYVERSION=' + meson.project_version(),
   ]

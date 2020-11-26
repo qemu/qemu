@@ -77,7 +77,6 @@ class HaikuVM(basevm.BaseVM):
         "devel:libusb_1.0",
         "devel:libz",
         "ninja",
-        "setuptools_python3"
     ]
 
     # https://dev.haiku-os.org/ticket/16512 virtio disk1 shows up as 0 (reversed order)

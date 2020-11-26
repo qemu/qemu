@@ -31,7 +31,6 @@ class NetBSDVM(basevm.BaseVM):
         "pkgconf",
         "xz",
         "python37",
-        "py37-setuptools",
         "ninja-build",
 
         # gnu tools

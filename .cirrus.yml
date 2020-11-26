@@ -87,7 +87,6 @@ windows_msys2_task:
         C:\tools\msys64\usr\bin\bash.exe -lc "pacman --noconfirm -S --needed \
           diffutils git grep make pkg-config sed \
           mingw-w64-x86_64-python \
-          mingw-w64-x86_64-python-setuptools \
           mingw-w64-x86_64-toolchain \
           mingw-w64-x86_64-SDL2 \
           mingw-w64-x86_64-SDL2_image \
