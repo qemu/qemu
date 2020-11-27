@@ -143,6 +143,11 @@ field of the ``BlockDeviceInfo`` struct should be used instead, which is the
 type of the ``inserted`` field in query-block replies, as well as the
 type of array items in query-named-block-nodes.
 
+``object-add`` option ``props`` (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''
+
+Specify the properties for the object as top-level arguments instead.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
