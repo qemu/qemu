@@ -21,11 +21,10 @@ static void add_one_netfilter(void)
                    " 'arguments': {"
                    "   'qom-type': 'filter-buffer',"
                    "   'id': 'qtest-f0',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+                   "   'netdev': 'qtest-bn0',"
+                   "   'queue': 'rx',"
+                   "   'interval': 1000"
+                   "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
@@ -49,11 +48,10 @@ static void remove_netdev_with_one_netfilter(void)
                    " 'arguments': {"
                    "   'qom-type': 'filter-buffer',"
                    "   'id': 'qtest-f0',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+                   "   'netdev': 'qtest-bn0',"
+                   "   'queue': 'rx',"
+                   "   'interval': 1000"
+                   "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
@@ -87,11 +85,10 @@ static void add_multi_netfilter(void)
                    " 'arguments': {"
                    "   'qom-type': 'filter-buffer',"
                    "   'id': 'qtest-f0',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+                   "   'netdev': 'qtest-bn0',"
+                   "   'queue': 'rx',"
+                   "   'interval': 1000"
+                   "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
@@ -101,11 +98,10 @@ static void add_multi_netfilter(void)
                    " 'arguments': {"
                    "   'qom-type': 'filter-buffer',"
                    "   'id': 'qtest-f1',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+                   "   'netdev': 'qtest-bn0',"
+                   "   'queue': 'rx',"
+                   "   'interval': 1000"
+                   "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
@@ -137,11 +133,10 @@ static void remove_netdev_with_multi_netfilter(void)
                    " 'arguments': {"
                    "   'qom-type': 'filter-buffer',"
                    "   'id': 'qtest-f0',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+                   "   'netdev': 'qtest-bn0',"
+                   "   'queue': 'rx',"
+                   "   'interval': 1000"
+                   "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
@@ -151,11 +146,10 @@ static void remove_netdev_with_multi_netfilter(void)
                    " 'arguments': {"
                    "   'qom-type': 'filter-buffer',"
                    "   'id': 'qtest-f1',"
-                   "   'props': {"
-                   "     'netdev': 'qtest-bn0',"
-                   "     'queue': 'rx',"
-                   "     'interval': 1000"
-                   "}}}");
+                   "   'netdev': 'qtest-bn0',"
+                   "   'queue': 'rx',"
+                   "   'interval': 1000"
+                   "}}");
 
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
