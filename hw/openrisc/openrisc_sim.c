@@ -34,6 +34,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
+#include "hw/core/split-irq.h"
 
 #define KERNEL_LOAD_ADDR 0x100
 
@@ -64,8 +65,16 @@ static void openrisc_sim_net_init(hwaddr base, hwaddr descriptors,
 
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
-    for (i = 0; i < num_cpus; i++) {
-        sysbus_connect_irq(s, 0, cpu_irqs[i][irq_pin]);
+    if (num_cpus > 1) {
+        DeviceState *splitter = qdev_new(TYPE_SPLIT_IRQ);
+        qdev_prop_set_uint32(splitter, "num-lines", num_cpus);
+        qdev_realize_and_unref(splitter, NULL, &error_fatal);
+        for (i = 0; i < num_cpus; i++) {
+            qdev_connect_gpio_out(splitter, i, cpu_irqs[i][irq_pin]);
+        }
+        sysbus_connect_irq(s, 0, qdev_get_gpio_in(splitter, 0));
+    } else {
+        sysbus_connect_irq(s, 0, cpu_irqs[0][irq_pin]);
     }
     sysbus_mmio_map(s, 0, base);
     sysbus_mmio_map(s, 1, descriptors);

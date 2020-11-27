@@ -3,3 +3,4 @@ config OR1K_SIM
     select SERIAL
     select OPENCORES_ETH
     select OMPIC
+    select SPLIT_IRQ
