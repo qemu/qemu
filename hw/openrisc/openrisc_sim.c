@@ -54,7 +54,7 @@ static void main_cpu_reset(void *opaque)
 
 static qemu_irq get_cpu_irq(OpenRISCCPU *cpus[], int cpunum, int irq_pin)
 {
-    return cpus[cpunum]->env.irq[irq_pin];
+    return qdev_get_gpio_in_named(DEVICE(cpus[cpunum]), "IRQ", irq_pin);
 }
 
 static void openrisc_sim_net_init(hwaddr base, hwaddr descriptors,
@@ -154,7 +154,6 @@ static void openrisc_sim_init(MachineState *machine)
             fprintf(stderr, "Unable to find CPU definition!\n");
             exit(1);
         }
-        cpu_openrisc_pic_init(cpus[n]);
 
         cpu_openrisc_clock_init(cpus[n]);
 
