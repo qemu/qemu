@@ -1,4 +1,9 @@
+gen = [
+  decodetree.process('msa32.decode', extra_args: '--static-decode=decode_msa32'),
+]
+
 mips_ss = ss.source_set()
+mips_ss.add(gen)
 mips_ss.add(files(
   'cpu.c',
   'gdbstub.c',
