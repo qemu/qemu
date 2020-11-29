@@ -544,7 +544,8 @@ static int glue(load_elf, SZ)(const char *name, int fd,
             if (mem_size != 0) {
                 if (load_rom) {
                     g_autofree char *label =
-                        g_strdup_printf("phdr #%d: %s", i, name);
+                        g_strdup_printf("%s ELF program header segment %d",
+                                        name, i);
 
                     /*
                      * rom_add_elf_program() takes its own reference to
