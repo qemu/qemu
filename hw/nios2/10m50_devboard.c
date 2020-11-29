@@ -52,7 +52,7 @@ static void nios2_10m50_ghrd_init(MachineState *machine)
     ram_addr_t tcm_size = 0x1000;    /* 1 kiB, but QEMU limit is 4 kiB */
     ram_addr_t ram_base = 0x08000000;
     ram_addr_t ram_size = 0x08000000;
-    qemu_irq *cpu_irq, irq[32];
+    qemu_irq irq[32];
     int i;
 
     /* Physical TCM (tb_ram_1k) with alias at 0xc0000000 */
@@ -75,17 +75,8 @@ static void nios2_10m50_ghrd_init(MachineState *machine)
 
     /* Create CPU -- FIXME */
     cpu = NIOS2_CPU(cpu_create(TYPE_NIOS2_CPU));
-
-    /* Register: CPU interrupt controller (PIC) */
-    cpu_irq = nios2_cpu_pic_init(cpu);
-
-    /* Register: Internal Interrupt Controller (IIC) */
-    dev = qdev_new("altera,iic");
-    object_property_add_const_link(OBJECT(dev), "cpu", OBJECT(cpu));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irq[0]);
     for (i = 0; i < 32; i++) {
-        irq[i] = qdev_get_gpio_in(dev, i);
+        irq[i] = qdev_get_gpio_in_named(DEVICE(cpu), "IRQ", i);
     }
 
     /* Register: Altera 16550 UART */

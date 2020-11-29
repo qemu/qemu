@@ -26,32 +26,6 @@
 
 #include "boot.h"
 
-static void nios2_pic_cpu_handler(void *opaque, int irq, int level)
-{
-    Nios2CPU *cpu = opaque;
-    CPUNios2State *env = &cpu->env;
-    CPUState *cs = CPU(cpu);
-    int type = irq ? CPU_INTERRUPT_NMI : CPU_INTERRUPT_HARD;
-
-    if (type == CPU_INTERRUPT_HARD) {
-        env->irq_pending = level;
-
-        if (level && (env->regs[CR_STATUS] & CR_STATUS_PIE)) {
-            env->irq_pending = 0;
-            cpu_interrupt(cs, type);
-        } else if (!level) {
-            env->irq_pending = 0;
-            cpu_reset_interrupt(cs, type);
-        }
-    } else {
-        if (level) {
-            cpu_interrupt(cs, type);
-        } else {
-            cpu_reset_interrupt(cs, type);
-        }
-    }
-}
-
 void nios2_check_interrupts(CPUNios2State *env)
 {
     if (env->irq_pending &&
@@ -59,9 +33,4 @@ void nios2_check_interrupts(CPUNios2State *env)
         env->irq_pending = 0;
         cpu_interrupt(env_cpu(env), CPU_INTERRUPT_HARD);
     }
-}
-
-qemu_irq *nios2_cpu_pic_init(Nios2CPU *cpu)
-{
-    return qemu_allocate_irqs(nios2_pic_cpu_handler, cpu, 2);
 }
