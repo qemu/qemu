@@ -533,7 +533,7 @@ static void mips_cpu_reset(DeviceState *dev)
     }
 
     /* MSA */
-    if (env->CP0_Config3 & (1 << CP0C3_MSAP)) {
+    if (ase_msa_available(env)) {
         msa_reset(env);
     }
 
