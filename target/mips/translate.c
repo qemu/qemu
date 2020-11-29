@@ -2492,8 +2492,8 @@ static TCGv cpu_dspctrl, btarget;
 TCGv bcond;
 static TCGv cpu_lladdr, cpu_llval;
 static TCGv_i32 hflags;
-static TCGv_i32 fpu_fcr0, fpu_fcr31;
-static TCGv_i64 fpu_f64[32];
+TCGv_i32 fpu_fcr0, fpu_fcr31;
+TCGv_i64 fpu_f64[32];
 static TCGv_i64 msa_wr_d[64];
 
 #if defined(TARGET_MIPS64)
@@ -2768,7 +2768,7 @@ void gen_reserved_instruction(DisasContext *ctx)
 }
 
 /* Floating point register moves. */
-static void gen_load_fpr32(DisasContext *ctx, TCGv_i32 t, int reg)
+void gen_load_fpr32(DisasContext *ctx, TCGv_i32 t, int reg)
 {
     if (ctx->hflags & MIPS_HFLAG_FRE) {
         generate_exception(ctx, EXCP_RI);
@@ -2776,7 +2776,7 @@ static void gen_load_fpr32(DisasContext *ctx, TCGv_i32 t, int reg)
     tcg_gen_extrl_i64_i32(t, fpu_f64[reg]);
 }
 
-static void gen_store_fpr32(DisasContext *ctx, TCGv_i32 t, int reg)
+void gen_store_fpr32(DisasContext *ctx, TCGv_i32 t, int reg)
 {
     TCGv_i64 t64;
     if (ctx->hflags & MIPS_HFLAG_FRE) {
@@ -2809,7 +2809,7 @@ static void gen_store_fpr32h(DisasContext *ctx, TCGv_i32 t, int reg)
     }
 }
 
-static void gen_load_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
+void gen_load_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 {
     if (ctx->hflags & MIPS_HFLAG_F64) {
         tcg_gen_mov_i64(t, fpu_f64[reg]);
@@ -2818,7 +2818,7 @@ static void gen_load_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
     }
 }
 
-static void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
+void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 {
     if (ctx->hflags & MIPS_HFLAG_F64) {
         tcg_gen_mov_i64(fpu_f64[reg], t);
@@ -2832,7 +2832,7 @@ static void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
     }
 }
 
-static inline int get_fp_bit(int cc)
+int get_fp_bit(int cc)
 {
     if (cc) {
         return 24 + cc;
@@ -2899,14 +2899,14 @@ void gen_move_high32(TCGv ret, TCGv_i64 arg)
 #endif
 }
 
-static inline void check_cp0_enabled(DisasContext *ctx)
+void check_cp0_enabled(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_CP0))) {
         generate_exception_end(ctx, EXCP_CpU);
     }
 }
 
-static inline void check_cp1_enabled(DisasContext *ctx)
+void check_cp1_enabled(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_FPU))) {
         generate_exception_err(ctx, EXCP_CpU, 1);
@@ -2918,7 +2918,7 @@ static inline void check_cp1_enabled(DisasContext *ctx)
  * This is associated with the nabla symbol in the MIPS32 and MIPS64
  * opcode tables.
  */
-static inline void check_cop1x(DisasContext *ctx)
+void check_cop1x(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_COP1X))) {
         gen_reserved_instruction(ctx);
@@ -2929,7 +2929,7 @@ static inline void check_cop1x(DisasContext *ctx)
  * Verify that the processor is running with 64-bit floating-point
  * operations enabled.
  */
-static inline void check_cp1_64bitmode(DisasContext *ctx)
+void check_cp1_64bitmode(DisasContext *ctx)
 {
     if (unlikely(~ctx->hflags & (MIPS_HFLAG_F64 | MIPS_HFLAG_COP1X))) {
         gen_reserved_instruction(ctx);
@@ -2947,7 +2947,7 @@ static inline void check_cp1_64bitmode(DisasContext *ctx)
  * Multiple 64 bit wide registers can be checked by calling
  * gen_op_cp1_registers(freg1 | freg2 | ... | fregN);
  */
-static inline void check_cp1_registers(DisasContext *ctx, int regs)
+void check_cp1_registers(DisasContext *ctx, int regs)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_F64) && (regs & 1))) {
         gen_reserved_instruction(ctx);
