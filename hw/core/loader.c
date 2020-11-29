@@ -1166,28 +1166,35 @@ static void rom_reset(void *unused)
     }
 }
 
+/* Return true if two consecutive ROMs in the ROM list overlap */
+static bool roms_overlap(Rom *last_rom, Rom *this_rom)
+{
+    if (!last_rom) {
+        return false;
+    }
+    return last_rom->as == this_rom->as &&
+        last_rom->addr + last_rom->romsize > this_rom->addr;
+}
+
 int rom_check_and_register_reset(void)
 {
-    hwaddr addr = 0;
     MemoryRegionSection section;
-    Rom *rom;
-    AddressSpace *as = NULL;
+    Rom *rom, *last_rom = NULL;
 
     QTAILQ_FOREACH(rom, &roms, next) {
         if (rom->fw_file) {
             continue;
         }
         if (!rom->mr) {
-            if ((addr > rom->addr) && (as == rom->as)) {
+            if (roms_overlap(last_rom, rom)) {
                 fprintf(stderr, "rom: requested regions overlap "
                         "(rom %s. free=0x" TARGET_FMT_plx
                         ", addr=0x" TARGET_FMT_plx ")\n",
-                        rom->name, addr, rom->addr);
+                        rom->name, last_rom->addr + last_rom->romsize,
+                        rom->addr);
                 return -1;
             }
-            addr  = rom->addr;
-            addr += rom->romsize;
-            as = rom->as;
+            last_rom = rom;
         }
         section = memory_region_find(rom->mr ? rom->mr : get_system_memory(),
                                      rom->addr, 1);
