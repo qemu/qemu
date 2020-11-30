@@ -51,6 +51,10 @@ class S390CCWVirtioMachine(Test):
                          '-initrd', initrd_path,
                          '-append', kernel_command_line,
                          '-device', 'virtio-net-ccw,devno=fe.1.1111',
+                         '-device',
+                         'virtio-rng-ccw,devno=fe.2.0000,max_revision=0',
+                         '-device',
+                         'virtio-rng-ccw,devno=fe.3.1234,max_revision=2',
                          '-device', 'zpci,uid=5,target=zzz',
                          '-device', 'virtio-net-pci,id=zzz')
         self.vm.launch()
@@ -60,9 +64,21 @@ class S390CCWVirtioMachine(Test):
         # first debug shell is too early, we need to wait for device detection
         exec_command_and_wait_for_pattern(self, 'exit', shell_ready)
 
-        ccw_bus_id="0.1.1111"
+        ccw_bus_ids="0.1.1111  0.2.0000  0.3.1234"
         pci_bus_id="0005:00:00.0"
         exec_command_and_wait_for_pattern(self, 'ls /sys/bus/ccw/devices/',
-                                          ccw_bus_id)
+                                          ccw_bus_ids)
         exec_command_and_wait_for_pattern(self, 'ls /sys/bus/pci/devices/',
                                           pci_bus_id)
+        # check that the device at 0.2.0000 is in legacy mode, while the
+        # device at 0.3.1234 has the virtio-1 feature bit set
+        virtio_rng_features="00000000000000000000000000001100" + \
+                            "10000000000000000000000000000000"
+        virtio_rng_features_legacy="00000000000000000000000000001100" + \
+                                   "00000000000000000000000000000000"
+        exec_command_and_wait_for_pattern(self,
+                        'cat /sys/bus/ccw/devices/0.2.0000/virtio?/features',
+                        virtio_rng_features_legacy)
+        exec_command_and_wait_for_pattern(self,
+                        'cat /sys/bus/ccw/devices/0.3.1234/virtio?/features',
+                        virtio_rng_features)
