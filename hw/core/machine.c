@@ -1179,7 +1179,7 @@ void machine_run_board_init(MachineState *machine)
 static NotifierList machine_init_done_notifiers =
     NOTIFIER_LIST_INITIALIZER(machine_init_done_notifiers);
 
-bool machine_init_done;
+static bool machine_init_done;
 
 void qemu_add_machine_init_done_notifier(Notifier *notify)
 {

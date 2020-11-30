@@ -3462,6 +3462,8 @@ void qemu_init(int argc, char **argv, char **envp)
 
     qemu_create_machine(select_machine());
 
+    suspend_mux_open();
+
     qemu_disable_default_devices();
     qemu_create_default_devices();
     qemu_create_early_backends();
@@ -3525,4 +3527,5 @@ void qemu_init(int argc, char **argv, char **envp)
     }
     accel_setup_post(current_machine);
     os_setup_post();
+    resume_mux_open();
 }
