@@ -245,6 +245,7 @@ static void nvdimm_class_init(ObjectClass *oc, void *data)
 
     nvc->read_label_data = nvdimm_read_label_data;
     nvc->write_label_data = nvdimm_write_label_data;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static TypeInfo nvdimm_info = {
