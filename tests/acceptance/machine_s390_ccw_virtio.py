@@ -56,7 +56,9 @@ class S390CCWVirtioMachine(Test):
                          '-device',
                          'virtio-rng-ccw,devno=fe.3.1234,max_revision=2',
                          '-device', 'zpci,uid=5,target=zzz',
-                         '-device', 'virtio-net-pci,id=zzz')
+                         '-device', 'virtio-net-pci,id=zzz',
+                         '-device', 'zpci,uid=0xa,fid=12,target=serial',
+                         '-device', 'virtio-serial-pci,id=serial')
         self.vm.launch()
 
         shell_ready = "sh: can't access tty; job control turned off"
@@ -65,11 +67,11 @@ class S390CCWVirtioMachine(Test):
         exec_command_and_wait_for_pattern(self, 'exit', shell_ready)
 
         ccw_bus_ids="0.1.1111  0.2.0000  0.3.1234"
-        pci_bus_id="0005:00:00.0"
+        pci_bus_ids="0005:00:00.0  000a:00:00.0"
         exec_command_and_wait_for_pattern(self, 'ls /sys/bus/ccw/devices/',
                                           ccw_bus_ids)
         exec_command_and_wait_for_pattern(self, 'ls /sys/bus/pci/devices/',
-                                          pci_bus_id)
+                                          pci_bus_ids)
         # check that the device at 0.2.0000 is in legacy mode, while the
         # device at 0.3.1234 has the virtio-1 feature bit set
         virtio_rng_features="00000000000000000000000000001100" + \
@@ -93,3 +95,7 @@ class S390CCWVirtioMachine(Test):
         exec_command_and_wait_for_pattern(self,
                     'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_device',
                     '0x0001')
+        # check fid propagation
+        exec_command_and_wait_for_pattern(self,
+                        'cat /sys/bus/pci/devices/000a\:00\:00.0/function_id',
+                        '0x0000000c')
