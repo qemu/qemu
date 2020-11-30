@@ -31763,7 +31763,7 @@ void cpu_mips_realize_env(CPUMIPSState *env)
     mmu_init(env, env->cpu_model);
 #endif
     fpu_init(env, env->cpu_model);
-    mvp_init(env, env->cpu_model);
+    mvp_init(env);
 }
 
 bool cpu_type_supports_cps_smp(const char *cpu_type)
