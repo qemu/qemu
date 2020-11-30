@@ -80,9 +80,6 @@ class KernelDocDirective(Directive):
         # Tell sphinx of the dependency
         env.note_dependency(os.path.abspath(filename))
 
-        # Disabled temporarily while scripts/kernel-doc is updated
-        return []
-
         tab_width = self.options.get('tab-width', self.state.document.settings.tab_width)
 
         # FIXME: make this nicer and more robust against errors
