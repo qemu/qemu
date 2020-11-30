@@ -191,9 +191,9 @@ qcrypto_secret_prop_set_loaded(Object *obj,
 
         secret->rawdata = input;
         secret->rawlen = inputlen;
-    } else {
-        g_free(secret->rawdata);
-        secret->rawlen = 0;
+    } else if (secret->rawdata) {
+        error_setg(errp, "Cannot unload secret");
+        return;
     }
 }
 
