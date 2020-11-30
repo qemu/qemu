@@ -379,8 +379,8 @@
 #define MSTATUS_MXR         0x00080000
 #define MSTATUS_VM          0x1F000000 /* until: priv-1.9.1 */
 #define MSTATUS_TVM         0x00100000 /* since: priv-1.10 */
-#define MSTATUS_TW          0x20000000 /* since: priv-1.10 */
-#define MSTATUS_TSR         0x40000000 /* since: priv-1.10 */
+#define MSTATUS_TW          0x00200000 /* since: priv-1.10 */
+#define MSTATUS_TSR         0x00400000 /* since: priv-1.10 */
 #define MSTATUS_GVA         0x4000000000ULL
 #define MSTATUS_MPV         0x8000000000ULL
 
