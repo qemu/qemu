@@ -82,3 +82,14 @@ class S390CCWVirtioMachine(Test):
         exec_command_and_wait_for_pattern(self,
                         'cat /sys/bus/ccw/devices/0.3.1234/virtio?/features',
                         virtio_rng_features)
+        # verify that we indeed have virtio-net devices (without having the
+        # virtio-net driver handy)
+        exec_command_and_wait_for_pattern(self,
+                                    'cat /sys/bus/ccw/devices/0.1.1111/cutype',
+                                    '3832/01')
+        exec_command_and_wait_for_pattern(self,
+                    'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_vendor',
+                    '0x1af4')
+        exec_command_and_wait_for_pattern(self,
+                    'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_device',
+                    '0x0001')
