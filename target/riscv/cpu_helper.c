@@ -367,7 +367,8 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         vm = get_field(env->hgatp, HGATP_MODE);
         widened = 2;
     }
-    sum = get_field(env->mstatus, MSTATUS_SUM);
+    /* status.SUM will be ignored if execute on background */
+    sum = get_field(env->mstatus, MSTATUS_SUM) || use_background;
     switch (vm) {
     case VM_1_10_SV32:
       levels = 2; ptidxbits = 10; ptesize = 4; break;
