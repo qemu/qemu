@@ -694,10 +694,9 @@ qcrypto_tls_creds_x509_prop_set_loaded(Object *obj,
 {
     QCryptoTLSCredsX509 *creds = QCRYPTO_TLS_CREDS_X509(obj);
 
+    qcrypto_tls_creds_x509_unload(creds);
     if (value) {
         qcrypto_tls_creds_x509_load(creds, errp);
-    } else {
-        qcrypto_tls_creds_x509_unload(creds);
     }
 }
 
