@@ -269,6 +269,13 @@ qcrypto_secret_prop_get_keyid(Object *obj,
 
 
 static void
+qcrypto_secret_complete(UserCreatable *uc, Error **errp)
+{
+    object_property_set_bool(OBJECT(uc), "loaded", true, errp);
+}
+
+
+static void
 qcrypto_secret_finalize(Object *obj)
 {
     QCryptoSecretCommon *secret = QCRYPTO_SECRET_COMMON(obj);
@@ -281,6 +288,10 @@ qcrypto_secret_finalize(Object *obj)
 static void
 qcrypto_secret_class_init(ObjectClass *oc, void *data)
 {
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
+
+    ucc->complete = qcrypto_secret_complete;
+
     object_class_property_add_bool(oc, "loaded",
                                    qcrypto_secret_prop_get_loaded,
                                    qcrypto_secret_prop_set_loaded);
@@ -390,6 +401,10 @@ static const TypeInfo qcrypto_secret_info = {
     .class_size = sizeof(QCryptoSecretCommonClass),
     .class_init = qcrypto_secret_class_init,
     .abstract = true,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_USER_CREATABLE },
+        { }
+    }
 };
 
 
