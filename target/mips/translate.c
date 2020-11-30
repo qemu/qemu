@@ -6,6 +6,7 @@
  *  Copyright (c) 2006 Thiemo Seufer (MIPS32R2 support)
  *  Copyright (c) 2009 CodeSourcery (MIPS16 and microMIPS support)
  *  Copyright (c) 2012 Jia Liu & Dongxue Zhang (MIPS ASE DSP support)
+ *  Copyright (c) 2020 Philippe Mathieu-Daudé
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -135,8 +136,6 @@ enum {
     OPC_JIALC    = (0x3E << 26),
     /* MDMX ASE specific */
     OPC_MDMX     = (0x1E << 26),
-    /* MSA ASE, same as MDMX */
-    OPC_MSA      = OPC_MDMX,
     /* Cache and prefetch */
     OPC_CACHE    = (0x2F << 26),
     OPC_PREF     = (0x33 << 26),
@@ -28827,21 +28826,6 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             }
             break;
         }
-        case OPC_BZ_V:
-        case OPC_BNZ_V:
-        case OPC_BZ_B:
-        case OPC_BZ_H:
-        case OPC_BZ_W:
-        case OPC_BZ_D:
-        case OPC_BNZ_B:
-        case OPC_BNZ_H:
-        case OPC_BNZ_W:
-        case OPC_BNZ_D:
-            if (ase_msa_available(env)) {
-                gen_msa_branch(ctx, op1);
-                break;
-            }
-            /* fall through */
         default:
             MIPS_INVAL("cp1");
             gen_reserved_instruction(ctx);
@@ -29023,16 +29007,13 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             gen_compute_branch(ctx, op, 4, rs, rt, offset, 4);
         }
         break;
-    case OPC_MSA: /* OPC_MDMX */
+    case OPC_MDMX: /* MMI_OPC_LQ */
         if (ctx->insn_flags & INSN_R5900) {
 #if defined(TARGET_MIPS64)
-            gen_mmi_lq(env, ctx);    /* MMI_OPC_LQ */
+            gen_mmi_lq(env, ctx);
 #endif
         } else {
             /* MDMX: Not implemented. */
-            if (ase_msa_available(env)) {
-                gen_msa(ctx);
-            }
         }
         break;
     case OPC_PCREL:
@@ -29063,6 +29044,13 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         tcg_gen_movi_i32(hflags, ctx->hflags & ~MIPS_HFLAG_BMASK);
         gen_goto_tb(ctx, 1, ctx->base.pc_next + 4);
         gen_set_label(l1);
+    }
+
+    /* Transition to the auto-generated decoder.  */
+
+    /* ISA extensions */
+    if (ase_msa_available(env) && decode_ase_msa(ctx, ctx->opcode)) {
+        return;
     }
 
     if (decode_opc_legacy(env, ctx)) {

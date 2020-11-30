@@ -412,33 +412,6 @@ static bool trans_BNZ_x(DisasContext *ctx, arg_msa_bz *a)
     return gen_msa_BxZ(ctx, a->df, a->wt, a->s16, true);
 }
 
-void gen_msa_branch(DisasContext *ctx, uint32_t op1)
-{
-    uint8_t df = (ctx->opcode >> 21) & 0x3;
-    uint8_t wt = (ctx->opcode >> 16) & 0x1f;
-    int64_t s16 = (int16_t)ctx->opcode;
-
-    switch (op1) {
-    case OPC_BZ_V:
-    case OPC_BNZ_V:
-        gen_msa_BxZ_V(ctx, wt, s16, (op1 == OPC_BZ_V) ?
-                                    TCG_COND_EQ : TCG_COND_NE);
-        break;
-    case OPC_BZ_B:
-    case OPC_BZ_H:
-    case OPC_BZ_W:
-    case OPC_BZ_D:
-        gen_msa_BxZ(ctx, df, wt, s16, false);
-        break;
-    case OPC_BNZ_B:
-    case OPC_BNZ_H:
-    case OPC_BNZ_W:
-    case OPC_BNZ_D:
-        gen_msa_BxZ(ctx, df, wt, s16, true);
-        break;
-    }
-}
-
 static void gen_msa_i8(DisasContext *ctx)
 {
 #define MASK_MSA_I8(op)    (MASK_MSA_MINOR(op) | (op & (0x03 << 24)))
@@ -2188,7 +2161,7 @@ static void gen_msa_vec(DisasContext *ctx)
     }
 }
 
-void gen_msa(DisasContext *ctx)
+static void gen_msa(DisasContext *ctx)
 {
     uint32_t opcode = ctx->opcode;
 
