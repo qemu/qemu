@@ -276,6 +276,8 @@ void ide_atapi_cmd_reply_end(IDEState *s)
         s->packet_transfer_size -= size;
         s->elementary_transfer_size -= size;
         s->io_buffer_index += size;
+        assert(size <= s->io_buffer_total_len);
+        assert(s->io_buffer_index <= s->io_buffer_total_len);
 
         /* Some adapters process PIO data right away.  In that case, we need
          * to avoid mutual recursion between ide_transfer_start
