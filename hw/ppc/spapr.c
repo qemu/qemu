@@ -3784,15 +3784,13 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     /*
      * Set compatibility mode to match the boot CPU, which was either set
-     * by the machine reset code or by CAS.
+     * by the machine reset code or by CAS. This really shouldn't fail at
+     * this point.
      */
     if (hotplugged) {
         for (i = 0; i < cc->nr_threads; i++) {
-            if (ppc_set_compat(core->threads[i],
-                               POWERPC_CPU(first_cpu)->compat_pvr,
-                               errp) < 0) {
-                return;
-            }
+            ppc_set_compat(core->threads[i], POWERPC_CPU(first_cpu)->compat_pvr,
+                           &error_abort);
         }
     }
 
