@@ -45,6 +45,7 @@ static void test_lp1878642_pci_bus_get_irq_level_assert(void)
     qtest_outl(s, 0xcf8, 0x8400f841);
     qtest_outl(s, 0xcfc, 0xebed205d);
     qtest_outl(s, 0x5d02, 0xebed205d);
+    qtest_quit(s);
 }
 
 int main(int argc, char **argv)
