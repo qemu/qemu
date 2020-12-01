@@ -3782,13 +3782,6 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     core_slot->cpu = OBJECT(dev);
 
-    if (smc->pre_2_10_has_unused_icps) {
-        for (i = 0; i < cc->nr_threads; i++) {
-            cs = CPU(core->threads[i]);
-            pre_2_10_vmstate_unregister_dummy_icp(cs->cpu_index);
-        }
-    }
-
     /*
      * Set compatibility mode to match the boot CPU, which was either set
      * by the machine reset code or by CAS.
@@ -3800,6 +3793,13 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                errp) < 0) {
                 return;
             }
+        }
+    }
+
+    if (smc->pre_2_10_has_unused_icps) {
+        for (i = 0; i < cc->nr_threads; i++) {
+            cs = CPU(core->threads[i]);
+            pre_2_10_vmstate_unregister_dummy_icp(cs->cpu_index);
         }
     }
 }
