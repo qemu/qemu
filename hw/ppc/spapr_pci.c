@@ -1601,7 +1601,7 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
     }
 
     /* spapr_pci_pre_plug() already checked the DRC is attachable */
-    spapr_drc_attach(drc, DEVICE(pdev), &error_abort);
+    spapr_drc_attach(drc, DEVICE(pdev));
 
     /* If this is function 0, signal hotplug for all the device functions.
      * Otherwise defer sending the hotplug event.

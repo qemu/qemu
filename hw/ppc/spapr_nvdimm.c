@@ -101,7 +101,7 @@ void spapr_add_nvdimm(DeviceState *dev, uint64_t slot)
      * pc_dimm_get_free_slot() provided a free slot at pre-plug. The
      * corresponding DRC is thus assumed to be attachable.
      */
-    spapr_drc_attach(drc, dev, &error_abort);
+    spapr_drc_attach(drc, dev);
 
     if (hotplugged) {
         spapr_hotplug_req_add_by_index(drc);
