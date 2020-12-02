@@ -1027,7 +1027,8 @@ static void timebase_save(PPCTimebase *tb)
      */
     tb->guest_timebase = ticks + first_ppc_cpu->env.tb_env->tb_offset;
 
-    tb->runstate_paused = runstate_check(RUN_STATE_PAUSED);
+    tb->runstate_paused =
+        runstate_check(RUN_STATE_PAUSED) || runstate_check(RUN_STATE_SAVE_VM);
 }
 
 static void timebase_load(PPCTimebase *tb)
@@ -1088,7 +1089,7 @@ static int timebase_pre_save(void *opaque)
 {
     PPCTimebase *tb = opaque;
 
-    /* guest_timebase won't be overridden in case of paused guest */
+    /* guest_timebase won't be overridden in case of paused guest or savevm */
     if (!tb->runstate_paused) {
         timebase_save(tb);
     }
