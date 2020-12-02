@@ -916,6 +916,7 @@ static GString *generic_fuzz_predefined_config_cmdline(FuzzTarget *t)
     g_assert(t->opaque);
 
     config = t->opaque;
+    setenv("QEMU_AVOID_DOUBLE_FETCH", "1", 1);
     setenv("QEMU_FUZZ_ARGS", config->args, 1);
     setenv("QEMU_FUZZ_OBJECTS", config->objects, 1);
     return generic_fuzz_cmdline(t);
