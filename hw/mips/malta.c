@@ -1135,8 +1135,10 @@ static void malta_mips_config(MIPSCPU *cpu)
     CPUMIPSState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
-    env->mvp->CP0_MVPConf0 |= ((smp_cpus - 1) << CP0MVPC0_PVPE) |
+    if (ase_mt_available(env)) {
+        env->mvp->CP0_MVPConf0 |= ((smp_cpus - 1) << CP0MVPC0_PVPE) |
                          ((smp_cpus * cs->nr_threads - 1) << CP0MVPC0_PTC);
+    }
 }
 
 static void main_cpu_reset(void *opaque)
