@@ -419,7 +419,7 @@ void cpu_mips_store_status(CPUMIPSState *env, target_ulong val)
         tlb_flush(env_cpu(env));
     }
 #endif
-    if (env->CP0_Config3 & (1 << CP0C3_MT)) {
+    if (ase_mt_available(env)) {
         sync_c0_status(env, env, env->current_tc);
     } else {
         compute_hflags(env);
