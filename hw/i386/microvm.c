@@ -178,8 +178,13 @@ static void microvm_devices_init(MicrovmMachineState *mms)
 
     kvmclock_create(true);
 
-    mms->virtio_irq_base = x86_machine_is_acpi_enabled(x86ms) ? 16 : 5;
-    for (i = 0; i < VIRTIO_NUM_TRANSPORTS; i++) {
+    mms->virtio_irq_base = 5;
+    mms->virtio_num_transports = 8;
+    if (x86_machine_is_acpi_enabled(x86ms)) {
+        mms->virtio_irq_base = 16;
+    }
+
+    for (i = 0; i < mms->virtio_num_transports; i++) {
         sysbus_create_simple("virtio-mmio",
                              VIRTIO_MMIO_BASE + i * 512,
                              x86ms->gsi[mms->virtio_irq_base + i]);
