@@ -2481,13 +2481,16 @@ void coroutine_fn qmp_block_resize(bool has_device, const char *device,
         return;
     }
 
+    bdrv_co_lock(bs);
     bdrv_drained_begin(bs);
+    bdrv_co_unlock(bs);
+
     old_ctx = bdrv_co_enter(bs);
     blk_truncate(blk, size, false, PREALLOC_MODE_OFF, 0, errp);
     bdrv_co_leave(bs, old_ctx);
-    bdrv_drained_end(bs);
 
     bdrv_co_lock(bs);
+    bdrv_drained_end(bs);
     blk_unref(blk);
     bdrv_co_unlock(bs);
 }
