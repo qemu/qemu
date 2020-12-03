@@ -2454,7 +2454,7 @@ void coroutine_fn qmp_block_resize(bool has_device, const char *device,
                                    int64_t size, Error **errp)
 {
     Error *local_err = NULL;
-    BlockBackend *blk = NULL;
+    BlockBackend *blk;
     BlockDriverState *bs;
     AioContext *old_ctx;
 
@@ -2468,17 +2468,17 @@ void coroutine_fn qmp_block_resize(bool has_device, const char *device,
 
     if (size < 0) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
-        goto out;
+        return;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, NULL)) {
         error_setg(errp, QERR_DEVICE_IN_USE, device);
-        goto out;
+        return;
     }
 
     blk = blk_new_with_bs(bs, BLK_PERM_RESIZE, BLK_PERM_ALL, errp);
     if (!blk) {
-        goto out;
+        return;
     }
 
     bdrv_drained_begin(bs);
@@ -2487,7 +2487,6 @@ void coroutine_fn qmp_block_resize(bool has_device, const char *device,
     bdrv_co_leave(bs, old_ctx);
     bdrv_drained_end(bs);
 
-out:
     bdrv_co_lock(bs);
     blk_unref(blk);
     bdrv_co_unlock(bs);
