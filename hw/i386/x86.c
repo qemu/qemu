@@ -588,11 +588,17 @@ void gsi_handler(void *opaque, int n, int level)
     GSIState *s = opaque;
 
     trace_x86_gsi_interrupt(n, level);
-    if (n < ISA_NUM_IRQS) {
-        /* Under KVM, Kernel will forward to both PIC and IOAPIC */
-        qemu_set_irq(s->i8259_irq[n], level);
+    switch (n) {
+    case 0 ... ISA_NUM_IRQS - 1:
+        if (s->i8259_irq[n]) {
+            /* Under KVM, Kernel will forward to both PIC and IOAPIC */
+            qemu_set_irq(s->i8259_irq[n], level);
+        }
+        /* fall through */
+    case ISA_NUM_IRQS ... IOAPIC_NUM_PINS - 1:
+        qemu_set_irq(s->ioapic_irq[n], level);
+        break;
     }
-    qemu_set_irq(s->ioapic_irq[n], level);
 }
 
 void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
