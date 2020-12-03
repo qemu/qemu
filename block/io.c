@@ -176,6 +176,13 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
     /* Then let the driver override it */
     if (drv->bdrv_refresh_limits) {
         drv->bdrv_refresh_limits(bs, errp);
+        if (*errp) {
+            return;
+        }
+    }
+
+    if (bs->bl.request_alignment > BDRV_MAX_ALIGNMENT) {
+        error_setg(errp, "Driver requires too large request alignment");
     }
 }
 
@@ -884,13 +891,31 @@ static bool coroutine_fn bdrv_wait_serialising_requests(BdrvTrackedRequest *self
     return waited;
 }
 
-static int bdrv_check_byte_request(int64_t offset, size_t size)
+int bdrv_check_request(int64_t offset, int64_t bytes)
 {
-    if (size > BDRV_REQUEST_MAX_BYTES) {
+    if (offset < 0 || bytes < 0) {
         return -EIO;
     }
 
-    if (offset < 0) {
+    if (bytes > BDRV_MAX_LENGTH) {
+        return -EIO;
+    }
+
+    if (offset > BDRV_MAX_LENGTH - bytes) {
+        return -EIO;
+    }
+
+    return 0;
+}
+
+static int bdrv_check_request32(int64_t offset, int64_t bytes)
+{
+    int ret = bdrv_check_request(offset, bytes);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (bytes > BDRV_REQUEST_MAX_BYTES) {
         return -EIO;
     }
 
@@ -1641,7 +1666,7 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
         return -ENOMEDIUM;
     }
 
-    ret = bdrv_check_byte_request(offset, bytes);
+    ret = bdrv_check_request32(offset, bytes);
     if (ret < 0) {
         return ret;
     }
@@ -2057,7 +2082,7 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
         return -ENOMEDIUM;
     }
 
-    ret = bdrv_check_byte_request(offset, bytes);
+    ret = bdrv_check_request32(offset, bytes);
     if (ret < 0) {
         return ret;
     }
@@ -2787,8 +2812,9 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
         return -EPERM;
     }
 
-    if (offset < 0 || bytes < 0 || bytes > INT64_MAX - offset) {
-        return -EIO;
+    ret = bdrv_check_request(offset, bytes);
+    if (ret < 0) {
+        return ret;
     }
 
     /* Do nothing if disabled.  */
@@ -3047,7 +3073,7 @@ static int coroutine_fn bdrv_co_copy_range_internal(
     if (!dst || !dst->bs || !bdrv_is_inserted(dst->bs)) {
         return -ENOMEDIUM;
     }
-    ret = bdrv_check_byte_request(dst_offset, bytes);
+    ret = bdrv_check_request32(dst_offset, bytes);
     if (ret) {
         return ret;
     }
@@ -3058,7 +3084,7 @@ static int coroutine_fn bdrv_co_copy_range_internal(
     if (!src || !src->bs || !bdrv_is_inserted(src->bs)) {
         return -ENOMEDIUM;
     }
-    ret = bdrv_check_byte_request(src_offset, bytes);
+    ret = bdrv_check_request32(src_offset, bytes);
     if (ret) {
         return ret;
     }
@@ -3186,6 +3212,13 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
     if (offset < 0) {
         error_setg(errp, "Image size cannot be negative");
         return -EINVAL;
+    }
+
+    ret = bdrv_check_request(offset, 0);
+    if (ret < 0) {
+        error_setg(errp, "Required too big image size, it must be not greater "
+                   "than %" PRId64, BDRV_MAX_LENGTH);
+        return ret;
     }
 
     old_size = bdrv_getlength(bs);
