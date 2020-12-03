@@ -72,6 +72,7 @@
 #define MICROVM_MACHINE_PIC                 "pic"
 #define MICROVM_MACHINE_RTC                 "rtc"
 #define MICROVM_MACHINE_PCIE                "pcie"
+#define MICROVM_MACHINE_IOAPIC2             "ioapic2"
 #define MICROVM_MACHINE_ISA_SERIAL          "isa-serial"
 #define MICROVM_MACHINE_OPTION_ROMS         "x-option-roms"
 #define MICROVM_MACHINE_AUTO_KERNEL_CMDLINE "auto-kernel-cmdline"
@@ -90,6 +91,7 @@ struct MicrovmMachineState {
     OnOffAuto pit;
     OnOffAuto rtc;
     OnOffAuto pcie;
+    OnOffAuto ioapic2;
     bool isa_serial;
     bool option_roms;
     bool auto_kernel_cmdline;
