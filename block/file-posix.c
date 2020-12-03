@@ -2952,7 +2952,6 @@ raw_do_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int bytes,
 
         end = INT64_MAX & -(uint64_t)bs->bl.request_alignment;
         req->bytes = end - req->offset;
-        req->overlap_bytes = req->bytes;
 
         bdrv_mark_request_serialising(req, bs->bl.request_alignment);
     }
