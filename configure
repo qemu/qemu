@@ -411,6 +411,8 @@ coroutine=""
 coroutine_pool="$default_feature"
 debug_stack_usage="no"
 crypto_afalg="no"
+cfi="false"
+cfi_debug="false"
 seccomp="$default_feature"
 glusterfs="$default_feature"
 glusterfs_xlator_opt="no"
@@ -1195,6 +1197,16 @@ for opt do
   ;;
   --disable-safe-stack) safe_stack="no"
   ;;
+  --enable-cfi)
+      cfi="true";
+      lto="true";
+  ;;
+  --disable-cfi) cfi="false"
+  ;;
+  --enable-cfi-debug) cfi_debug="true"
+  ;;
+  --disable-cfi-debug) cfi_debug="false"
+  ;;
   --disable-curses) curses="disabled"
   ;;
   --enable-curses) curses="enabled"
@@ -1788,7 +1800,13 @@ disabled with --disable-FEATURE, default is enabled if available
   sparse          sparse checker
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
-
+  cfi             Enable Control-Flow Integrity for indirect function calls.
+                  In case of a cfi violation, QEMU is terminated with SIGILL
+                  Depends on lto and is incompatible with modules
+                  Automatically enables Link-Time Optimization (lto)
+  cfi-debug       In case of a cfi violation, a message containing the line that
+                  triggered the error is written to stderr. After the error,
+                  QEMU is still terminated with SIGILL
   gnutls          GNUTLS cryptography support
   nettle          nettle cryptography support
   gcrypt          libgcrypt cryptography support
@@ -6971,7 +6989,7 @@ NINJA=$ninja $meson setup \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         ${staticpic:+-Db_staticpic=$staticpic} \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
-        -Db_lto=$lto \
+        -Db_lto=$lto -Dcfi=$cfi -Dcfi_debug=$cfi_debug \
         -Dmalloc=$malloc -Dmalloc_trim=$malloc_trim -Dsparse=$sparse \
         -Dkvm=$kvm -Dhax=$hax -Dwhpx=$whpx -Dhvf=$hvf \
         -Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \
