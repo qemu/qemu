@@ -43,16 +43,23 @@ static void ibex_plic_irqs_set_pending(IbexPlicState *s, int irq, bool level)
 {
     int pending_num = irq / 32;
 
+    if (!level) {
+        /*
+         * If the level is low make sure we clear the hidden_pending.
+         */
+        s->hidden_pending[pending_num] &= ~(1 << (irq % 32));
+    }
+
     if (s->claimed[pending_num] & 1 << (irq % 32)) {
         /*
          * The interrupt has been claimed, but not completed.
          * The pending bit can't be set.
+         * Save the pending level for after the interrupt is completed.
          */
         s->hidden_pending[pending_num] |= level << (irq % 32);
-        return;
+    } else {
+        s->pending[pending_num] |= level << (irq % 32);
     }
-
-    s->pending[pending_num] |= level << (irq % 32);
 }
 
 static bool ibex_plic_irqs_pending(IbexPlicState *s, uint32_t context)
