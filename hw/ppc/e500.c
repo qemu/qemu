@@ -926,6 +926,7 @@ void ppce500_init(MachineState *machine)
                                 ccsr_addr_space);
 
     mpicdev = ppce500_init_mpic(pms, ccsr_addr_space, irqs);
+    g_free(irqs);
 
     /* Serial */
     if (serial_hd(0)) {
