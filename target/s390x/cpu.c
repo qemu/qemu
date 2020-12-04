@@ -313,6 +313,11 @@ static void s390_cpu_finalize(Object *obj)
 #if !defined(CONFIG_USER_ONLY)
     S390CPU *cpu = S390_CPU(obj);
 
+    timer_del(cpu->env.tod_timer);
+    timer_free(cpu->env.tod_timer);
+    timer_del(cpu->env.cpu_timer);
+    timer_free(cpu->env.cpu_timer);
+
     qemu_unregister_reset(s390_cpu_machine_reset_cb, cpu);
     g_free(cpu->irqstate);
 #endif
