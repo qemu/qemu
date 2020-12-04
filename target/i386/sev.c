@@ -335,26 +335,6 @@ static const TypeInfo sev_guest_info = {
     }
 };
 
-static SevGuestState *
-lookup_sev_guest_info(const char *id)
-{
-    Object *obj;
-    SevGuestState *info;
-
-    obj = object_resolve_path_component(object_get_objects_root(), id);
-    if (!obj) {
-        return NULL;
-    }
-
-    info = (SevGuestState *)
-            object_dynamic_cast(obj, TYPE_SEV_GUEST);
-    if (!info) {
-        return NULL;
-    }
-
-    return info;
-}
-
 bool
 sev_enabled(void)
 {
@@ -682,10 +662,9 @@ sev_vm_state_change(void *opaque, int running, RunState state)
     }
 }
 
-int
-sev_guest_init(const char *id)
+int sev_kvm_init(ConfidentialGuestSupport *cgs)
 {
-    SevGuestState *sev;
+    SevGuestState *sev = SEV_GUEST(cgs);
     char *devname;
     int ret, fw_error;
     uint32_t ebx;
@@ -696,13 +675,6 @@ sev_guest_init(const char *id)
     if (ret) {
         error_report("%s: cannot disable RAM discard", __func__);
         return -1;
-    }
-
-    sev = lookup_sev_guest_info(id);
-    if (!sev) {
-        error_report("%s: '%s' is not a valid '%s' object",
-                     __func__, id, TYPE_SEV_GUEST);
-        goto err;
     }
 
     sev_guest = sev;

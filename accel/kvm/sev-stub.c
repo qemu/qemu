@@ -15,7 +15,8 @@
 #include "qemu-common.h"
 #include "sysemu/sev.h"
 
-int sev_guest_init(const char *id)
+int sev_kvm_init(ConfidentialGuestSupport *cgs)
 {
-    return -1;
+    /* SEV can't be selected if it's not compiled */
+    g_assert_not_reached();
 }

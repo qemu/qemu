@@ -2184,8 +2184,9 @@ static int kvm_init(MachineState *ms)
      * if memory encryption object is specified then initialize the memory
      * encryption context.
      */
-    if (ms->memory_encryption) {
-        ret = sev_guest_init(ms->memory_encryption);
+    if (ms->cgs) {
+        /* FIXME handle mechanisms other than SEV */
+        ret = sev_kvm_init(ms->cgs);
         if (ret < 0) {
             goto err;
         }
