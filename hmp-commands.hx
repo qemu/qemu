@@ -1302,8 +1302,8 @@ ERST
 	              " -c for correctable error\n\t\t\t"
                       "<id> = qdev device id\n\t\t\t"
                       "<error_status> = error string or 32bit\n\t\t\t"
-                      "<tlb header> = 32bit x 4\n\t\t\t"
-                      "<tlb header prefix> = 32bit x 4",
+                      "<tlp header> = 32bit x 4\n\t\t\t"
+                      "<tlp header prefix> = 32bit x 4",
         .cmd        = hmp_pcie_aer_inject_error,
     },
 
