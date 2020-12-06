@@ -399,6 +399,8 @@ void sync_c0_status(CPUMIPSState *env, CPUMIPSState *cpu, int tc);
 void cpu_mips_store_status(CPUMIPSState *env, target_ulong val);
 void cpu_mips_store_cause(CPUMIPSState *env, target_ulong val);
 
+const char *mips_exception_name(int32_t exception);
+
 void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env, uint32_t exception,
                                           int error_code, uintptr_t pc);
 
