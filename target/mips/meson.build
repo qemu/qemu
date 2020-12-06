@@ -14,6 +14,7 @@ mips_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'))
 
 mips_softmmu_ss = ss.source_set()
 mips_softmmu_ss.add(files(
+  'addr.c',
   'cp0_helper.c',
   'cp0_timer.c',
   'machine.c',
