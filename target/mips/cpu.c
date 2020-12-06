@@ -312,7 +312,7 @@ static bool mips_cpu_has_work(CPUState *cs)
     return has_work;
 }
 
-#include "translate_init.c.inc"
+#include "cpu-defs.c.inc"
 
 static void mips_cpu_reset(DeviceState *dev)
 {
