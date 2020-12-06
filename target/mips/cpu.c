@@ -315,3 +315,21 @@ bool cpu_supports_isa(const CPUMIPSState *env, uint64_t isa_mask)
 {
     return (env->cpu_model->insn_flags & isa_mask) != 0;
 }
+
+bool cpu_type_supports_isa(const char *cpu_type, uint64_t isa)
+{
+    const MIPSCPUClass *mcc = MIPS_CPU_CLASS(object_class_by_name(cpu_type));
+    return (mcc->cpu_def->insn_flags & isa) != 0;
+}
+
+bool cpu_type_supports_cps_smp(const char *cpu_type)
+{
+    const MIPSCPUClass *mcc = MIPS_CPU_CLASS(object_class_by_name(cpu_type));
+    return (mcc->cpu_def->CP0_Config3 & (1 << CP0C3_CMGCR)) != 0;
+}
+
+void cpu_set_exception_base(int vp_index, target_ulong address)
+{
+    MIPSCPU *vp = MIPS_CPU(qemu_get_cpu(vp_index));
+    vp->env.exception_base = address;
+}
