@@ -3380,6 +3380,9 @@ static void setup_root(struct lo_data *lo, struct lo_inode *root)
     root->key.mnt_id = mnt_id;
     root->nlookup = 2;
     g_atomic_int_set(&root->refcount, 2);
+    pthread_mutex_init(&root->plock_mutex, NULL);
+    root->posix_locks = g_hash_table_new_full(
+        g_direct_hash, g_direct_equal, NULL, posix_locks_value_destroy);
 }
 
 static guint lo_key_hash(gconstpointer key)
@@ -3401,6 +3404,10 @@ static void fuse_lo_data_cleanup(struct lo_data *lo)
 {
     if (lo->inodes) {
         g_hash_table_destroy(lo->inodes);
+    }
+
+    if (lo->root.posix_locks) {
+        g_hash_table_destroy(lo->root.posix_locks);
     }
     lo_map_destroy(&lo->fd_map);
     lo_map_destroy(&lo->dirp_map);
