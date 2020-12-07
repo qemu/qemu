@@ -310,3 +310,8 @@ MIPSCPU *mips_cpu_create_with_clock(const char *cpu_type, Clock *cpu_refclk)
 
     return MIPS_CPU(cpu);
 }
+
+bool cpu_supports_isa(const CPUMIPSState *env, uint64_t isa_mask)
+{
+    return (env->cpu_model->insn_flags & isa_mask) != 0;
+}
