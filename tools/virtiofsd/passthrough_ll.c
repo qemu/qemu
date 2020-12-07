@@ -902,10 +902,11 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         inode->key.ino = e->attr.st_ino;
         inode->key.dev = e->attr.st_dev;
         inode->key.mnt_id = mnt_id;
-        pthread_mutex_init(&inode->plock_mutex, NULL);
-        inode->posix_locks = g_hash_table_new_full(
-            g_direct_hash, g_direct_equal, NULL, posix_locks_value_destroy);
-
+        if (lo->posix_lock) {
+            pthread_mutex_init(&inode->plock_mutex, NULL);
+            inode->posix_locks = g_hash_table_new_full(
+                g_direct_hash, g_direct_equal, NULL, posix_locks_value_destroy);
+        }
         pthread_mutex_lock(&lo->mutex);
         inode->fuse_ino = lo_add_inode_mapping(req, inode);
         g_hash_table_insert(lo->inodes, &inode->key, inode);
@@ -1291,12 +1292,13 @@ static void unref_inode(struct lo_data *lo, struct lo_inode *inode, uint64_t n)
     if (!inode->nlookup) {
         lo_map_remove(&lo->ino_map, inode->fuse_ino);
         g_hash_table_remove(lo->inodes, &inode->key);
-        if (g_hash_table_size(inode->posix_locks)) {
-            fuse_log(FUSE_LOG_WARNING, "Hash table is not empty\n");
+        if (lo->posix_lock) {
+            if (g_hash_table_size(inode->posix_locks)) {
+                fuse_log(FUSE_LOG_WARNING, "Hash table is not empty\n");
+            }
+            g_hash_table_destroy(inode->posix_locks);
+            pthread_mutex_destroy(&inode->plock_mutex);
         }
-        g_hash_table_destroy(inode->posix_locks);
-        pthread_mutex_destroy(&inode->plock_mutex);
-
         /* Drop our refcount from lo_do_lookup() */
         lo_inode_put(lo, &inode);
     }
@@ -1772,6 +1774,11 @@ static void lo_getlk(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
              ino, fi->flags, fi->lock_owner, lock->l_type, lock->l_start,
              lock->l_len);
 
+    if (!lo->posix_lock) {
+        fuse_reply_err(req, ENOSYS);
+        return;
+    }
+
     inode = lo_inode(req, ino);
     if (!inode) {
         fuse_reply_err(req, EBADF);
@@ -1816,6 +1823,11 @@ static void lo_setlk(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
              " l_start=0x%lx l_len=0x%lx\n",
              ino, fi->flags, lock->l_type, lock->l_pid, fi->lock_owner, sleep,
              lock->l_whence, lock->l_start, lock->l_len);
+
+    if (!lo->posix_lock) {
+        fuse_reply_err(req, ENOSYS);
+        return;
+    }
 
     if (sleep) {
         fuse_reply_err(req, EOPNOTSUPP);
@@ -1941,6 +1953,7 @@ static void lo_flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     int res;
     (void)ino;
     struct lo_inode *inode;
+    struct lo_data *lo = lo_data(req);
 
     inode = lo_inode(req, ino);
     if (!inode) {
@@ -1949,12 +1962,14 @@ static void lo_flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     }
 
     /* An fd is going away. Cleanup associated posix locks */
-    pthread_mutex_lock(&inode->plock_mutex);
-    g_hash_table_remove(inode->posix_locks, GUINT_TO_POINTER(fi->lock_owner));
-    pthread_mutex_unlock(&inode->plock_mutex);
-
+    if (lo->posix_lock) {
+        pthread_mutex_lock(&inode->plock_mutex);
+        g_hash_table_remove(inode->posix_locks,
+            GUINT_TO_POINTER(fi->lock_owner));
+        pthread_mutex_unlock(&inode->plock_mutex);
+    }
     res = close(dup(lo_fi_fd(req, fi)));
-    lo_inode_put(lo_data(req), &inode);
+    lo_inode_put(lo, &inode);
     fuse_reply_err(req, res == -1 ? errno : 0);
 }
 
@@ -3380,9 +3395,11 @@ static void setup_root(struct lo_data *lo, struct lo_inode *root)
     root->key.mnt_id = mnt_id;
     root->nlookup = 2;
     g_atomic_int_set(&root->refcount, 2);
-    pthread_mutex_init(&root->plock_mutex, NULL);
-    root->posix_locks = g_hash_table_new_full(
-        g_direct_hash, g_direct_equal, NULL, posix_locks_value_destroy);
+    if (lo->posix_lock) {
+        pthread_mutex_init(&root->plock_mutex, NULL);
+        root->posix_locks = g_hash_table_new_full(
+            g_direct_hash, g_direct_equal, NULL, posix_locks_value_destroy);
+    }
 }
 
 static guint lo_key_hash(gconstpointer key)
