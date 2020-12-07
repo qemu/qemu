@@ -1,4 +1,3 @@
-
 .cross_system_build_job:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
@@ -119,6 +118,12 @@ cross-s390x-user:
   extends: .cross_user_build_job
   variables:
     IMAGE: debian-s390x-cross
+
+cross-s390x-kvm-only:
+  extends: .cross_accel_build_job
+  variables:
+    IMAGE: debian-s390x-cross
+    ACCEL_CONFIGURE_OPTS: --disable-tcg
 
 cross-win32-system:
   extends: .cross_system_build_job
