@@ -71,6 +71,7 @@ static uint64_t cpu_hotplug_rd(void *opaque, hwaddr addr, unsigned size)
         val |= cdev->cpu ? 1 : 0;
         val |= cdev->is_inserting ? 2 : 0;
         val |= cdev->is_removing  ? 4 : 0;
+        val |= cdev->fw_remove  ? 16 : 0;
         trace_cpuhp_acpi_read_flags(cpu_st->selector, val);
         break;
     case ACPI_CPU_CMD_DATA_OFFSET_RW:
@@ -148,6 +149,14 @@ static void cpu_hotplug_wr(void *opaque, hwaddr addr, uint64_t data,
             hotplug_ctrl = qdev_get_hotplug_handler(dev);
             hotplug_handler_unplug(hotplug_ctrl, dev, NULL);
             object_unparent(OBJECT(dev));
+            cdev->fw_remove = false;
+        } else if (data & 16) {
+            if (!cdev->cpu || cdev->cpu == first_cpu) {
+                trace_cpuhp_acpi_fw_remove_invalid_cpu(cpu_st->selector);
+                break;
+            }
+            trace_cpuhp_acpi_fw_remove_cpu(cpu_st->selector);
+            cdev->fw_remove = true;
         }
         break;
     case ACPI_CPU_CMD_OFFSET_WR:
@@ -159,7 +168,8 @@ static void cpu_hotplug_wr(void *opaque, hwaddr addr, uint64_t data,
 
                 do {
                     cdev = &cpu_st->devs[iter];
-                    if (cdev->is_inserting || cdev->is_removing) {
+                    if (cdev->is_inserting || cdev->is_removing ||
+                        cdev->fw_remove) {
                         cpu_st->selector = iter;
                         trace_cpuhp_acpi_cpu_has_events(cpu_st->selector,
                             cdev->is_inserting, cdev->is_removing);
