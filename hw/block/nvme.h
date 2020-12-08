@@ -6,6 +6,9 @@
 
 #define NVME_MAX_NAMESPACES 256
 
+#define NVME_DEFAULT_ZONE_SIZE   (128 * MiB)
+#define NVME_DEFAULT_MAX_ZA_SIZE (128 * KiB)
+
 typedef struct NvmeParams {
     char     *serial;
     uint32_t num_queues; /* deprecated since 5.1 */
@@ -16,6 +19,7 @@ typedef struct NvmeParams {
     uint32_t aer_max_queued;
     uint8_t  mdts;
     bool     use_intel_id;
+    uint32_t zasl_bs;
 } NvmeParams;
 
 typedef struct NvmeAsyncEvent {
@@ -148,6 +152,8 @@ typedef struct NvmeCtrl {
     NvmeRequest **aer_reqs;
     QTAILQ_HEAD(, NvmeAsyncEvent) aer_queue;
     int         aer_queued;
+
+    uint8_t     zasl;
 
     NvmeNamespace   namespace;
     NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES];

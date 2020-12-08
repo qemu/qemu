@@ -136,6 +136,18 @@ static const uint32_t nvme_cse_iocs_nvm[256] = {
     [NVME_CMD_COMPARE]              = NVME_CMD_EFF_CSUPP,
 };
 
+static const uint32_t nvme_cse_iocs_zoned[256] = {
+    [NVME_CMD_FLUSH]                = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_WRITE_ZEROES]         = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_WRITE]                = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_READ]                 = NVME_CMD_EFF_CSUPP,
+    [NVME_CMD_DSM]                  = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_COMPARE]              = NVME_CMD_EFF_CSUPP,
+    [NVME_CMD_ZONE_APPEND]          = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_ZONE_MGMT_SEND]       = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_CMD_ZONE_MGMT_RECV]       = NVME_CMD_EFF_CSUPP,
+};
+
 static void nvme_process_sq(void *opaque);
 
 static uint16_t nvme_cid(NvmeRequest *req)
@@ -150,6 +162,48 @@ static uint16_t nvme_cid(NvmeRequest *req)
 static uint16_t nvme_sqid(NvmeRequest *req)
 {
     return le16_to_cpu(req->sq->sqid);
+}
+
+static void nvme_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
+                                   enum NvmeZoneState state)
+{
+    if (QTAILQ_IN_USE(zone, entry)) {
+        switch (nvme_get_zone_state(zone)) {
+        case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+            QTAILQ_REMOVE(&ns->exp_open_zones, zone, entry);
+            break;
+        case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+            QTAILQ_REMOVE(&ns->imp_open_zones, zone, entry);
+            break;
+        case NVME_ZONE_STATE_CLOSED:
+            QTAILQ_REMOVE(&ns->closed_zones, zone, entry);
+            break;
+        case NVME_ZONE_STATE_FULL:
+            QTAILQ_REMOVE(&ns->full_zones, zone, entry);
+        default:
+            ;
+        }
+    }
+
+    nvme_set_zone_state(zone, state);
+
+    switch (state) {
+    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+        QTAILQ_INSERT_TAIL(&ns->exp_open_zones, zone, entry);
+        break;
+    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+        QTAILQ_INSERT_TAIL(&ns->imp_open_zones, zone, entry);
+        break;
+    case NVME_ZONE_STATE_CLOSED:
+        QTAILQ_INSERT_TAIL(&ns->closed_zones, zone, entry);
+        break;
+    case NVME_ZONE_STATE_FULL:
+        QTAILQ_INSERT_TAIL(&ns->full_zones, zone, entry);
+    case NVME_ZONE_STATE_READ_ONLY:
+        break;
+    default:
+        zone->d.za = 0;
+    }
 }
 
 static bool nvme_addr_is_cmb(NvmeCtrl *n, hwaddr addr)
@@ -959,6 +1013,7 @@ static void nvme_aio_err(NvmeRequest *req, int ret)
     case NVME_CMD_FLUSH:
     case NVME_CMD_WRITE:
     case NVME_CMD_WRITE_ZEROES:
+    case NVME_CMD_ZONE_APPEND:
         status = NVME_WRITE_FAULT;
         break;
     default:
@@ -982,6 +1037,201 @@ static void nvme_aio_err(NvmeRequest *req, int ret)
     req->status = status;
 }
 
+static inline uint32_t nvme_zone_idx(NvmeNamespace *ns, uint64_t slba)
+{
+    return ns->zone_size_log2 > 0 ? slba >> ns->zone_size_log2 :
+                                    slba / ns->zone_size;
+}
+
+static inline NvmeZone *nvme_get_zone_by_slba(NvmeNamespace *ns, uint64_t slba)
+{
+    uint32_t zone_idx = nvme_zone_idx(ns, slba);
+
+    assert(zone_idx < ns->num_zones);
+    return &ns->zone_array[zone_idx];
+}
+
+static uint16_t nvme_check_zone_state_for_write(NvmeZone *zone)
+{
+    uint16_t status;
+
+    switch (nvme_get_zone_state(zone)) {
+    case NVME_ZONE_STATE_EMPTY:
+    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+    case NVME_ZONE_STATE_CLOSED:
+        status = NVME_SUCCESS;
+        break;
+    case NVME_ZONE_STATE_FULL:
+        status = NVME_ZONE_FULL;
+        break;
+    case NVME_ZONE_STATE_OFFLINE:
+        status = NVME_ZONE_OFFLINE;
+        break;
+    case NVME_ZONE_STATE_READ_ONLY:
+        status = NVME_ZONE_READ_ONLY;
+        break;
+    default:
+        assert(false);
+    }
+
+    return status;
+}
+
+static uint16_t nvme_check_zone_write(NvmeCtrl *n, NvmeNamespace *ns,
+                                      NvmeZone *zone, uint64_t slba,
+                                      uint32_t nlb, bool append)
+{
+    uint16_t status;
+
+    if (unlikely((slba + nlb) > nvme_zone_wr_boundary(zone))) {
+        status = NVME_ZONE_BOUNDARY_ERROR;
+    } else {
+        status = nvme_check_zone_state_for_write(zone);
+    }
+
+    if (status != NVME_SUCCESS) {
+        trace_pci_nvme_err_zone_write_not_ok(slba, nlb, status);
+    } else {
+        assert(nvme_wp_is_valid(zone));
+        if (append) {
+            if (unlikely(slba != zone->d.zslba)) {
+                trace_pci_nvme_err_append_not_at_start(slba, zone->d.zslba);
+                status = NVME_ZONE_INVALID_WRITE;
+            }
+            if (nvme_l2b(ns, nlb) > (n->page_size << n->zasl)) {
+                trace_pci_nvme_err_append_too_large(slba, nlb, n->zasl);
+                status = NVME_INVALID_FIELD;
+            }
+        } else if (unlikely(slba != zone->w_ptr)) {
+            trace_pci_nvme_err_write_not_at_wp(slba, zone->d.zslba,
+                                               zone->w_ptr);
+            status = NVME_ZONE_INVALID_WRITE;
+        }
+    }
+
+    return status;
+}
+
+static uint16_t nvme_check_zone_state_for_read(NvmeZone *zone)
+{
+    uint16_t status;
+
+    switch (nvme_get_zone_state(zone)) {
+    case NVME_ZONE_STATE_EMPTY:
+    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+    case NVME_ZONE_STATE_FULL:
+    case NVME_ZONE_STATE_CLOSED:
+    case NVME_ZONE_STATE_READ_ONLY:
+        status = NVME_SUCCESS;
+        break;
+    case NVME_ZONE_STATE_OFFLINE:
+        status = NVME_ZONE_OFFLINE;
+        break;
+    default:
+        assert(false);
+    }
+
+    return status;
+}
+
+static uint16_t nvme_check_zone_read(NvmeNamespace *ns, uint64_t slba,
+                                     uint32_t nlb)
+{
+    NvmeZone *zone = nvme_get_zone_by_slba(ns, slba);
+    uint64_t bndry = nvme_zone_rd_boundary(ns, zone);
+    uint64_t end = slba + nlb;
+    uint16_t status;
+
+    status = nvme_check_zone_state_for_read(zone);
+    if (status != NVME_SUCCESS) {
+        ;
+    } else if (unlikely(end > bndry)) {
+        if (!ns->params.cross_zone_read) {
+            status = NVME_ZONE_BOUNDARY_ERROR;
+        } else {
+            /*
+             * Read across zone boundary - check that all subsequent
+             * zones that are being read have an appropriate state.
+             */
+            do {
+                zone++;
+                status = nvme_check_zone_state_for_read(zone);
+                if (status != NVME_SUCCESS) {
+                    break;
+                }
+            } while (end > nvme_zone_rd_boundary(ns, zone));
+        }
+    }
+
+    return status;
+}
+
+static void nvme_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
+                                      bool failed)
+{
+    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
+    NvmeZone *zone;
+    NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
+    uint64_t slba;
+    uint32_t nlb;
+
+    slba = le64_to_cpu(rw->slba);
+    nlb = le16_to_cpu(rw->nlb) + 1;
+    zone = nvme_get_zone_by_slba(ns, slba);
+
+    if (failed) {
+        res->slba = 0;
+        zone->d.wp += nlb;
+    } else if (zone->w_ptr == nvme_zone_wr_boundary(zone)) {
+        switch (nvme_get_zone_state(zone)) {
+        case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+        case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+        case NVME_ZONE_STATE_CLOSED:
+        case NVME_ZONE_STATE_EMPTY:
+            nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_FULL);
+            /* fall through */
+        case NVME_ZONE_STATE_FULL:
+            break;
+        default:
+            assert(false);
+        }
+        zone->d.wp = zone->w_ptr;
+    } else {
+        zone->d.wp += nlb;
+    }
+}
+
+static uint64_t nvme_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
+                                     uint32_t nlb)
+{
+    uint64_t result = zone->w_ptr;
+    uint8_t zs;
+
+    zone->w_ptr += nlb;
+
+    if (zone->w_ptr < nvme_zone_wr_boundary(zone)) {
+        zs = nvme_get_zone_state(zone);
+        switch (zs) {
+        case NVME_ZONE_STATE_EMPTY:
+        case NVME_ZONE_STATE_CLOSED:
+            nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_IMPLICITLY_OPEN);
+        }
+    }
+
+    return result;
+}
+
+static inline bool nvme_is_write(NvmeRequest *req)
+{
+    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
+
+    return rw->opcode == NVME_CMD_WRITE ||
+           rw->opcode == NVME_CMD_ZONE_APPEND ||
+           rw->opcode == NVME_CMD_WRITE_ZEROES;
+}
+
 static void nvme_rw_cb(void *opaque, int ret)
 {
     NvmeRequest *req = opaque;
@@ -992,6 +1242,10 @@ static void nvme_rw_cb(void *opaque, int ret)
     BlockAcctStats *stats = blk_get_stats(blk);
 
     trace_pci_nvme_rw_cb(nvme_cid(req), blk_name(blk));
+
+    if (ns->params.zoned && nvme_is_write(req)) {
+        nvme_finalize_zoned_write(ns, req, ret != 0);
+    }
 
     if (!ret) {
         block_acct_done(stats, acct);
@@ -1225,6 +1479,14 @@ static uint16_t nvme_read(NvmeCtrl *n, NvmeRequest *req)
         goto invalid;
     }
 
+    if (ns->params.zoned) {
+        status = nvme_check_zone_read(ns, slba, nlb);
+        if (status != NVME_SUCCESS) {
+            trace_pci_nvme_err_zone_read_not_ok(slba, nlb, status);
+            goto invalid;
+        }
+    }
+
     status = nvme_map_dptr(n, data_size, req);
     if (status) {
         goto invalid;
@@ -1255,7 +1517,8 @@ invalid:
     return status | NVME_DNR;
 }
 
-static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool wrz)
+static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
+                              bool wrz)
 {
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
     NvmeNamespace *ns = req->ns;
@@ -1263,6 +1526,8 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool wrz)
     uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb) + 1;
     uint64_t data_size = nvme_l2b(ns, nlb);
     uint64_t data_offset;
+    NvmeZone *zone;
+    NvmeZonedResult *res = (NvmeZonedResult *)&req->cqe;
     BlockBackend *blk = ns->blkconf.blk;
     uint16_t status;
 
@@ -1280,6 +1545,25 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool wrz)
     status = nvme_check_bounds(ns, slba, nlb);
     if (status) {
         trace_pci_nvme_err_invalid_lba_range(slba, nlb, ns->id_ns.nsze);
+        goto invalid;
+    }
+
+    if (ns->params.zoned) {
+        zone = nvme_get_zone_by_slba(ns, slba);
+
+        status = nvme_check_zone_write(n, ns, zone, slba, nlb, append);
+        if (status != NVME_SUCCESS) {
+            goto invalid;
+        }
+
+        if (append) {
+            slba = zone->w_ptr;
+        }
+
+        res->slba = nvme_advance_zone_wp(ns, zone, nlb);
+    } else if (append) {
+        trace_pci_nvme_err_invalid_opc(rw->opcode);
+        status = NVME_INVALID_OPCODE;
         goto invalid;
     }
 
@@ -1315,12 +1599,445 @@ invalid:
 
 static inline uint16_t nvme_write(NvmeCtrl *n, NvmeRequest *req)
 {
-    return nvme_do_write(n, req, false);
+    return nvme_do_write(n, req, false, false);
 }
 
 static inline uint16_t nvme_write_zeroes(NvmeCtrl *n, NvmeRequest *req)
 {
-    return nvme_do_write(n, req, true);
+    return nvme_do_write(n, req, false, true);
+}
+
+static inline uint16_t nvme_zone_append(NvmeCtrl *n, NvmeRequest *req)
+{
+    return nvme_do_write(n, req, true, false);
+}
+
+static uint16_t nvme_get_mgmt_zone_slba_idx(NvmeNamespace *ns, NvmeCmd *c,
+                                            uint64_t *slba, uint32_t *zone_idx)
+{
+    uint32_t dw10 = le32_to_cpu(c->cdw10);
+    uint32_t dw11 = le32_to_cpu(c->cdw11);
+
+    if (!ns->params.zoned) {
+        trace_pci_nvme_err_invalid_opc(c->opcode);
+        return NVME_INVALID_OPCODE | NVME_DNR;
+    }
+
+    *slba = ((uint64_t)dw11) << 32 | dw10;
+    if (unlikely(*slba >= ns->id_ns.nsze)) {
+        trace_pci_nvme_err_invalid_lba_range(*slba, 0, ns->id_ns.nsze);
+        *slba = 0;
+        return NVME_LBA_RANGE | NVME_DNR;
+    }
+
+    *zone_idx = nvme_zone_idx(ns, *slba);
+    assert(*zone_idx < ns->num_zones);
+
+    return NVME_SUCCESS;
+}
+
+typedef uint16_t (*op_handler_t)(NvmeNamespace *, NvmeZone *,
+                                 enum NvmeZoneState);
+
+enum NvmeZoneProcessingMask {
+    NVME_PROC_CURRENT_ZONE    = 0,
+    NVME_PROC_IMP_OPEN_ZONES  = 1 << 0,
+    NVME_PROC_EXP_OPEN_ZONES  = 1 << 1,
+    NVME_PROC_CLOSED_ZONES    = 1 << 2,
+    NVME_PROC_READ_ONLY_ZONES = 1 << 3,
+    NVME_PROC_FULL_ZONES      = 1 << 4,
+};
+
+static uint16_t nvme_open_zone(NvmeNamespace *ns, NvmeZone *zone,
+                               enum NvmeZoneState state)
+{
+    switch (state) {
+    case NVME_ZONE_STATE_EMPTY:
+    case NVME_ZONE_STATE_CLOSED:
+    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+        nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_EXPLICITLY_OPEN);
+        /* fall through */
+    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+        return NVME_SUCCESS;
+    default:
+        return NVME_ZONE_INVAL_TRANSITION;
+    }
+}
+
+static uint16_t nvme_close_zone(NvmeNamespace *ns, NvmeZone *zone,
+                                enum NvmeZoneState state)
+{
+    switch (state) {
+    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+        nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_CLOSED);
+        /* fall through */
+    case NVME_ZONE_STATE_CLOSED:
+        return NVME_SUCCESS;
+    default:
+        return NVME_ZONE_INVAL_TRANSITION;
+    }
+}
+
+static uint16_t nvme_finish_zone(NvmeNamespace *ns, NvmeZone *zone,
+                                 enum NvmeZoneState state)
+{
+    switch (state) {
+    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+    case NVME_ZONE_STATE_CLOSED:
+    case NVME_ZONE_STATE_EMPTY:
+        zone->w_ptr = nvme_zone_wr_boundary(zone);
+        zone->d.wp = zone->w_ptr;
+        nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_FULL);
+        /* fall through */
+    case NVME_ZONE_STATE_FULL:
+        return NVME_SUCCESS;
+    default:
+        return NVME_ZONE_INVAL_TRANSITION;
+    }
+}
+
+static uint16_t nvme_reset_zone(NvmeNamespace *ns, NvmeZone *zone,
+                                enum NvmeZoneState state)
+{
+    switch (state) {
+    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+    case NVME_ZONE_STATE_CLOSED:
+    case NVME_ZONE_STATE_FULL:
+        zone->w_ptr = zone->d.zslba;
+        zone->d.wp = zone->w_ptr;
+        nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_EMPTY);
+        /* fall through */
+    case NVME_ZONE_STATE_EMPTY:
+        return NVME_SUCCESS;
+    default:
+        return NVME_ZONE_INVAL_TRANSITION;
+    }
+}
+
+static uint16_t nvme_offline_zone(NvmeNamespace *ns, NvmeZone *zone,
+                                  enum NvmeZoneState state)
+{
+    switch (state) {
+    case NVME_ZONE_STATE_READ_ONLY:
+        nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_OFFLINE);
+        /* fall through */
+    case NVME_ZONE_STATE_OFFLINE:
+        return NVME_SUCCESS;
+    default:
+        return NVME_ZONE_INVAL_TRANSITION;
+    }
+}
+
+static uint16_t nvme_bulk_proc_zone(NvmeNamespace *ns, NvmeZone *zone,
+                                    enum NvmeZoneProcessingMask proc_mask,
+                                    op_handler_t op_hndlr)
+{
+    uint16_t status = NVME_SUCCESS;
+    enum NvmeZoneState zs = nvme_get_zone_state(zone);
+    bool proc_zone;
+
+    switch (zs) {
+    case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+        proc_zone = proc_mask & NVME_PROC_IMP_OPEN_ZONES;
+        break;
+    case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+        proc_zone = proc_mask & NVME_PROC_EXP_OPEN_ZONES;
+        break;
+    case NVME_ZONE_STATE_CLOSED:
+        proc_zone = proc_mask & NVME_PROC_CLOSED_ZONES;
+        break;
+    case NVME_ZONE_STATE_READ_ONLY:
+        proc_zone = proc_mask & NVME_PROC_READ_ONLY_ZONES;
+        break;
+    case NVME_ZONE_STATE_FULL:
+        proc_zone = proc_mask & NVME_PROC_FULL_ZONES;
+        break;
+    default:
+        proc_zone = false;
+    }
+
+    if (proc_zone) {
+        status = op_hndlr(ns, zone, zs);
+    }
+
+    return status;
+}
+
+static uint16_t nvme_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
+                                enum NvmeZoneProcessingMask proc_mask,
+                                op_handler_t op_hndlr)
+{
+    NvmeZone *next;
+    uint16_t status = NVME_SUCCESS;
+    int i;
+
+    if (!proc_mask) {
+        status = op_hndlr(ns, zone, nvme_get_zone_state(zone));
+    } else {
+        if (proc_mask & NVME_PROC_CLOSED_ZONES) {
+            QTAILQ_FOREACH_SAFE(zone, &ns->closed_zones, entry, next) {
+                status = nvme_bulk_proc_zone(ns, zone, proc_mask, op_hndlr);
+                if (status != NVME_SUCCESS) {
+                    goto out;
+                }
+            }
+        }
+        if (proc_mask & NVME_PROC_IMP_OPEN_ZONES) {
+            QTAILQ_FOREACH_SAFE(zone, &ns->imp_open_zones, entry, next) {
+                status = nvme_bulk_proc_zone(ns, zone, proc_mask, op_hndlr);
+                if (status != NVME_SUCCESS) {
+                    goto out;
+                }
+            }
+        }
+        if (proc_mask & NVME_PROC_EXP_OPEN_ZONES) {
+            QTAILQ_FOREACH_SAFE(zone, &ns->exp_open_zones, entry, next) {
+                status = nvme_bulk_proc_zone(ns, zone, proc_mask, op_hndlr);
+                if (status != NVME_SUCCESS) {
+                    goto out;
+                }
+            }
+        }
+        if (proc_mask & NVME_PROC_FULL_ZONES) {
+            QTAILQ_FOREACH_SAFE(zone, &ns->full_zones, entry, next) {
+                status = nvme_bulk_proc_zone(ns, zone, proc_mask, op_hndlr);
+                if (status != NVME_SUCCESS) {
+                    goto out;
+                }
+            }
+        }
+
+        if (proc_mask & NVME_PROC_READ_ONLY_ZONES) {
+            for (i = 0; i < ns->num_zones; i++, zone++) {
+                status = nvme_bulk_proc_zone(ns, zone, proc_mask, op_hndlr);
+                if (status != NVME_SUCCESS) {
+                    goto out;
+                }
+            }
+        }
+    }
+
+out:
+    return status;
+}
+
+static uint16_t nvme_zone_mgmt_send(NvmeCtrl *n, NvmeRequest *req)
+{
+    NvmeCmd *cmd = (NvmeCmd *)&req->cmd;
+    NvmeNamespace *ns = req->ns;
+    NvmeZone *zone;
+    uint32_t dw13 = le32_to_cpu(cmd->cdw13);
+    uint64_t slba = 0;
+    uint32_t zone_idx = 0;
+    uint16_t status;
+    uint8_t action;
+    bool all;
+    enum NvmeZoneProcessingMask proc_mask = NVME_PROC_CURRENT_ZONE;
+
+    action = dw13 & 0xff;
+    all = dw13 & 0x100;
+
+    req->status = NVME_SUCCESS;
+
+    if (!all) {
+        status = nvme_get_mgmt_zone_slba_idx(ns, cmd, &slba, &zone_idx);
+        if (status) {
+            return status;
+        }
+    }
+
+    zone = &ns->zone_array[zone_idx];
+    if (slba != zone->d.zslba) {
+        trace_pci_nvme_err_unaligned_zone_cmd(action, slba, zone->d.zslba);
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    switch (action) {
+
+    case NVME_ZONE_ACTION_OPEN:
+        if (all) {
+            proc_mask = NVME_PROC_CLOSED_ZONES;
+        }
+        trace_pci_nvme_open_zone(slba, zone_idx, all);
+        status = nvme_do_zone_op(ns, zone, proc_mask, nvme_open_zone);
+        break;
+
+    case NVME_ZONE_ACTION_CLOSE:
+        if (all) {
+            proc_mask = NVME_PROC_IMP_OPEN_ZONES | NVME_PROC_EXP_OPEN_ZONES;
+        }
+        trace_pci_nvme_close_zone(slba, zone_idx, all);
+        status = nvme_do_zone_op(ns, zone, proc_mask, nvme_close_zone);
+        break;
+
+    case NVME_ZONE_ACTION_FINISH:
+        if (all) {
+            proc_mask = NVME_PROC_IMP_OPEN_ZONES | NVME_PROC_EXP_OPEN_ZONES |
+                        NVME_PROC_CLOSED_ZONES;
+        }
+        trace_pci_nvme_finish_zone(slba, zone_idx, all);
+        status = nvme_do_zone_op(ns, zone, proc_mask, nvme_finish_zone);
+        break;
+
+    case NVME_ZONE_ACTION_RESET:
+        if (all) {
+            proc_mask = NVME_PROC_IMP_OPEN_ZONES | NVME_PROC_EXP_OPEN_ZONES |
+                        NVME_PROC_CLOSED_ZONES | NVME_PROC_FULL_ZONES;
+        }
+        trace_pci_nvme_reset_zone(slba, zone_idx, all);
+        status = nvme_do_zone_op(ns, zone, proc_mask, nvme_reset_zone);
+        break;
+
+    case NVME_ZONE_ACTION_OFFLINE:
+        if (all) {
+            proc_mask = NVME_PROC_READ_ONLY_ZONES;
+        }
+        trace_pci_nvme_offline_zone(slba, zone_idx, all);
+        status = nvme_do_zone_op(ns, zone, proc_mask, nvme_offline_zone);
+        break;
+
+    case NVME_ZONE_ACTION_SET_ZD_EXT:
+        trace_pci_nvme_set_descriptor_extension(slba, zone_idx);
+        return NVME_INVALID_FIELD | NVME_DNR;
+        break;
+
+    default:
+        trace_pci_nvme_err_invalid_mgmt_action(action);
+        status = NVME_INVALID_FIELD;
+    }
+
+    if (status == NVME_ZONE_INVAL_TRANSITION) {
+        trace_pci_nvme_err_invalid_zone_state_transition(action, slba,
+                                                         zone->d.za);
+    }
+    if (status) {
+        status |= NVME_DNR;
+    }
+
+    return status;
+}
+
+static bool nvme_zone_matches_filter(uint32_t zafs, NvmeZone *zl)
+{
+    enum NvmeZoneState zs = nvme_get_zone_state(zl);
+
+    switch (zafs) {
+    case NVME_ZONE_REPORT_ALL:
+        return true;
+    case NVME_ZONE_REPORT_EMPTY:
+        return zs == NVME_ZONE_STATE_EMPTY;
+    case NVME_ZONE_REPORT_IMPLICITLY_OPEN:
+        return zs == NVME_ZONE_STATE_IMPLICITLY_OPEN;
+    case NVME_ZONE_REPORT_EXPLICITLY_OPEN:
+        return zs == NVME_ZONE_STATE_EXPLICITLY_OPEN;
+    case NVME_ZONE_REPORT_CLOSED:
+        return zs == NVME_ZONE_STATE_CLOSED;
+    case NVME_ZONE_REPORT_FULL:
+        return zs == NVME_ZONE_STATE_FULL;
+    case NVME_ZONE_REPORT_READ_ONLY:
+        return zs == NVME_ZONE_STATE_READ_ONLY;
+    case NVME_ZONE_REPORT_OFFLINE:
+        return zs == NVME_ZONE_STATE_OFFLINE;
+    default:
+        return false;
+    }
+}
+
+static uint16_t nvme_zone_mgmt_recv(NvmeCtrl *n, NvmeRequest *req)
+{
+    NvmeCmd *cmd = (NvmeCmd *)&req->cmd;
+    NvmeNamespace *ns = req->ns;
+    /* cdw12 is zero-based number of dwords to return. Convert to bytes */
+    uint32_t data_size = (le32_to_cpu(cmd->cdw12) + 1) << 2;
+    uint32_t dw13 = le32_to_cpu(cmd->cdw13);
+    uint32_t zone_idx, zra, zrasf, partial;
+    uint64_t max_zones, nr_zones = 0;
+    uint16_t status;
+    uint64_t slba, capacity = nvme_ns_nlbas(ns);
+    NvmeZoneDescr *z;
+    NvmeZone *zone;
+    NvmeZoneReportHeader *header;
+    void *buf, *buf_p;
+    size_t zone_entry_sz;
+
+    req->status = NVME_SUCCESS;
+
+    status = nvme_get_mgmt_zone_slba_idx(ns, cmd, &slba, &zone_idx);
+    if (status) {
+        return status;
+    }
+
+    zra = dw13 & 0xff;
+    if (zra != NVME_ZONE_REPORT) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    zrasf = (dw13 >> 8) & 0xff;
+    if (zrasf > NVME_ZONE_REPORT_OFFLINE) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    if (data_size < sizeof(NvmeZoneReportHeader)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    status = nvme_check_mdts(n, data_size);
+    if (status) {
+        trace_pci_nvme_err_mdts(nvme_cid(req), data_size);
+        return status;
+    }
+
+    partial = (dw13 >> 16) & 0x01;
+
+    zone_entry_sz = sizeof(NvmeZoneDescr);
+
+    max_zones = (data_size - sizeof(NvmeZoneReportHeader)) / zone_entry_sz;
+    buf = g_malloc0(data_size);
+
+    zone = &ns->zone_array[zone_idx];
+    for (; slba < capacity; slba += ns->zone_size) {
+        if (partial && nr_zones >= max_zones) {
+            break;
+        }
+        if (nvme_zone_matches_filter(zrasf, zone++)) {
+            nr_zones++;
+        }
+    }
+    header = (NvmeZoneReportHeader *)buf;
+    header->nr_zones = cpu_to_le64(nr_zones);
+
+    buf_p = buf + sizeof(NvmeZoneReportHeader);
+    for (; zone_idx < ns->num_zones && max_zones > 0; zone_idx++) {
+        zone = &ns->zone_array[zone_idx];
+        if (nvme_zone_matches_filter(zrasf, zone)) {
+            z = (NvmeZoneDescr *)buf_p;
+            buf_p += sizeof(NvmeZoneDescr);
+
+            z->zt = zone->d.zt;
+            z->zs = zone->d.zs;
+            z->zcap = cpu_to_le64(zone->d.zcap);
+            z->zslba = cpu_to_le64(zone->d.zslba);
+            z->za = zone->d.za;
+
+            if (nvme_wp_is_valid(zone)) {
+                z->wp = cpu_to_le64(zone->d.wp);
+            } else {
+                z->wp = cpu_to_le64(~0ULL);
+            }
+
+            max_zones--;
+        }
+    }
+
+    status = nvme_dma(n, (uint8_t *)buf, data_size,
+                      DMA_DIRECTION_FROM_DEVICE, req);
+
+    g_free(buf);
+
+    return status;
 }
 
 static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
@@ -1349,6 +2066,8 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
         return nvme_flush(n, req);
     case NVME_CMD_WRITE_ZEROES:
         return nvme_write_zeroes(n, req);
+    case NVME_CMD_ZONE_APPEND:
+        return nvme_zone_append(n, req);
     case NVME_CMD_WRITE:
         return nvme_write(n, req);
     case NVME_CMD_READ:
@@ -1357,6 +2076,10 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
         return nvme_compare(n, req);
     case NVME_CMD_DSM:
         return nvme_dsm(n, req);
+    case NVME_CMD_ZONE_MGMT_SEND:
+        return nvme_zone_mgmt_send(n, req);
+    case NVME_CMD_ZONE_MGMT_RECV:
+        return nvme_zone_mgmt_recv(n, req);
     default:
         assert(false);
     }
@@ -1619,6 +2342,9 @@ static uint16_t nvme_cmd_effects(NvmeCtrl *n, uint8_t csi, uint32_t buf_len,
         case NVME_CSI_NVM:
             src_iocs = nvme_cse_iocs_nvm;
             break;
+        case NVME_CSI_ZONED:
+            src_iocs = nvme_cse_iocs_zoned;
+            break;
         }
     }
 
@@ -1799,6 +2525,16 @@ static uint16_t nvme_rpt_empty_id_struct(NvmeCtrl *n, NvmeRequest *req)
     return nvme_dma(n, id, sizeof(id), DMA_DIRECTION_FROM_DEVICE, req);
 }
 
+static inline bool nvme_csi_has_nvm_support(NvmeNamespace *ns)
+{
+    switch (ns->csi) {
+    case NVME_CSI_NVM:
+    case NVME_CSI_ZONED:
+        return true;
+    }
+    return false;
+}
+
 static uint16_t nvme_identify_ctrl(NvmeCtrl *n, NvmeRequest *req)
 {
     trace_pci_nvme_identify_ctrl();
@@ -1810,11 +2546,18 @@ static uint16_t nvme_identify_ctrl(NvmeCtrl *n, NvmeRequest *req)
 static uint16_t nvme_identify_ctrl_csi(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeIdentify *c = (NvmeIdentify *)&req->cmd;
+    NvmeIdCtrlZoned id = {};
 
     trace_pci_nvme_identify_ctrl_csi(c->csi);
 
     if (c->csi == NVME_CSI_NVM) {
         return nvme_rpt_empty_id_struct(n, req);
+    } else if (c->csi == NVME_CSI_ZONED) {
+        if (n->params.zasl_bs) {
+            id.zasl = n->zasl;
+        }
+        return nvme_dma(n, (uint8_t *)&id, sizeof(id),
+                        DMA_DIRECTION_FROM_DEVICE, req);
     }
 
     return NVME_INVALID_FIELD | NVME_DNR;
@@ -1837,8 +2580,12 @@ static uint16_t nvme_identify_ns(NvmeCtrl *n, NvmeRequest *req)
         return nvme_rpt_empty_id_struct(n, req);
     }
 
-    return nvme_dma(n, (uint8_t *)&ns->id_ns, sizeof(NvmeIdNs),
-                    DMA_DIRECTION_FROM_DEVICE, req);
+    if (c->csi == NVME_CSI_NVM && nvme_csi_has_nvm_support(ns)) {
+        return nvme_dma(n, (uint8_t *)&ns->id_ns, sizeof(NvmeIdNs),
+                        DMA_DIRECTION_FROM_DEVICE, req);
+    }
+
+    return NVME_INVALID_CMD_SET | NVME_DNR;
 }
 
 static uint16_t nvme_identify_ns_csi(NvmeCtrl *n, NvmeRequest *req)
@@ -1858,8 +2605,11 @@ static uint16_t nvme_identify_ns_csi(NvmeCtrl *n, NvmeRequest *req)
         return nvme_rpt_empty_id_struct(n, req);
     }
 
-    if (c->csi == NVME_CSI_NVM) {
+    if (c->csi == NVME_CSI_NVM && nvme_csi_has_nvm_support(ns)) {
         return nvme_rpt_empty_id_struct(n, req);
+    } else if (c->csi == NVME_CSI_ZONED && ns->csi == NVME_CSI_ZONED) {
+        return nvme_dma(n, (uint8_t *)ns->id_ns_zoned, sizeof(NvmeIdNsZoned),
+                        DMA_DIRECTION_FROM_DEVICE, req);
     }
 
     return NVME_INVALID_FIELD | NVME_DNR;
@@ -1923,7 +2673,7 @@ static uint16_t nvme_identify_nslist_csi(NvmeCtrl *n, NvmeRequest *req)
         return NVME_INVALID_NSID | NVME_DNR;
     }
 
-    if (c->csi != NVME_CSI_NVM) {
+    if (c->csi != NVME_CSI_NVM && c->csi != NVME_CSI_ZONED) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -1932,7 +2682,7 @@ static uint16_t nvme_identify_nslist_csi(NvmeCtrl *n, NvmeRequest *req)
         if (!ns) {
             continue;
         }
-        if (ns->params.nsid <= min_nsid) {
+        if (ns->params.nsid <= min_nsid || c->csi != ns->csi) {
             continue;
         }
         list_ptr[j++] = cpu_to_le32(ns->params.nsid);
@@ -1999,6 +2749,8 @@ static uint16_t nvme_identify_cmd_set(NvmeCtrl *n, NvmeRequest *req)
     trace_pci_nvme_identify_cmd_set();
 
     NVME_SET_CSI(*list, NVME_CSI_NVM);
+    NVME_SET_CSI(*list, NVME_CSI_ZONED);
+
     return nvme_dma(n, list, data_len, DMA_DIRECTION_FROM_DEVICE, req);
 }
 
@@ -2565,6 +3317,13 @@ static void nvme_select_ns_iocs(NvmeCtrl *n)
                 ns->iocs = nvme_cse_iocs_nvm;
             }
             break;
+        case NVME_CSI_ZONED:
+            if (NVME_CC_CSS(n->bar.cc) == NVME_CC_CSS_CSI) {
+                ns->iocs = nvme_cse_iocs_zoned;
+            } else if (NVME_CC_CSS(n->bar.cc) == NVME_CC_CSS_NVM) {
+                ns->iocs = nvme_cse_iocs_nvm;
+            }
+            break;
         }
     }
 }
@@ -2662,6 +3421,17 @@ static int nvme_start_ctrl(NvmeCtrl *n)
                  NVME_AQA_ACQS(n->bar.aqa) + 1, 1);
     nvme_init_sq(&n->admin_sq, n, n->bar.asq, 0, 0,
                  NVME_AQA_ASQS(n->bar.aqa) + 1);
+
+    if (!n->params.zasl_bs) {
+        n->zasl = n->params.mdts;
+    } else {
+        if (n->params.zasl_bs < n->page_size) {
+            trace_pci_nvme_err_startfail_zasl_too_small(n->params.zasl_bs,
+                                                        n->page_size);
+            return -1;
+        }
+        n->zasl = 31 - clz32(n->params.zasl_bs / n->page_size);
+    }
 
     nvme_set_timestamp(n, 0ULL);
 
@@ -3087,6 +3857,13 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
 
         host_memory_backend_set_mapped(n->pmrdev, true);
     }
+
+    if (n->params.zasl_bs) {
+        if (!is_power_of_2(n->params.zasl_bs)) {
+            error_setg(errp, "zone append size limit has to be a power of 2");
+            return;
+        }
+    }
 }
 
 static void nvme_init_state(NvmeCtrl *n)
@@ -3351,8 +4128,20 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 static void nvme_exit(PCIDevice *pci_dev)
 {
     NvmeCtrl *n = NVME(pci_dev);
+    NvmeNamespace *ns;
+    int i;
 
     nvme_ctrl_shutdown(n);
+
+    for (i = 1; i <= n->num_namespaces; i++) {
+        ns = nvme_ns(n, i);
+        if (!ns) {
+            continue;
+        }
+
+        nvme_ns_cleanup(ns);
+    }
+
     g_free(n->cq);
     g_free(n->sq);
     g_free(n->aer_reqs);
@@ -3380,6 +4169,8 @@ static Property nvme_props[] = {
     DEFINE_PROP_UINT32("aer_max_queued", NvmeCtrl, params.aer_max_queued, 64),
     DEFINE_PROP_UINT8("mdts", NvmeCtrl, params.mdts, 7),
     DEFINE_PROP_BOOL("use-intel-id", NvmeCtrl, params.use_intel_id, false),
+    DEFINE_PROP_SIZE32("zoned.append_size_limit", NvmeCtrl, params.zasl_bs,
+                       NVME_DEFAULT_MAX_ZA_SIZE),
     DEFINE_PROP_END_OF_LIST(),
 };
 
