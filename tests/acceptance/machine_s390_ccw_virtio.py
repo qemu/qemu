@@ -99,3 +99,27 @@ class S390CCWVirtioMachine(Test):
         exec_command_and_wait_for_pattern(self,
                         'cat /sys/bus/pci/devices/000a\:00\:00.0/function_id',
                         '0x0000000c')
+        # add another device
+        exec_command_and_wait_for_pattern(self,
+                                    'dmesg -c > /dev/null; echo dm_clear\ 1',
+                                    'dm_clear 1')
+        self.vm.command('device_add', driver='virtio-net-ccw',
+                        devno='fe.0.4711', id='net_4711')
+        exec_command_and_wait_for_pattern(self,
+                        'while ! (dmesg -c | grep CRW) ; do sleep 1 ; done',
+                        'CRW reports')
+        exec_command_and_wait_for_pattern(self, 'ls /sys/bus/ccw/devices/',
+                                          '0.0.4711')
+        # and detach it again
+        exec_command_and_wait_for_pattern(self,
+                                    'dmesg -c > /dev/null; echo dm_clear\ 2',
+                                    'dm_clear 2')
+        self.vm.command('device_del', id='net_4711')
+        self.vm.event_wait(name='DEVICE_DELETED',
+                           match={'data': {'device': 'net_4711'}})
+        exec_command_and_wait_for_pattern(self,
+                        'while ! (dmesg -c | grep CRW) ; do sleep 1 ; done',
+                        'CRW reports')
+        exec_command_and_wait_for_pattern(self,
+                                          'ls /sys/bus/ccw/devices/0.0.4711',
+                                          'No such file or directory')
