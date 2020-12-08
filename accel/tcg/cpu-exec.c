@@ -685,7 +685,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
     insns_left = MIN(0xffff, cpu->icount_budget);
     cpu_neg(cpu)->icount_decr.u16.low = insns_left;
     cpu->icount_extra = cpu->icount_budget - insns_left;
-    if (!cpu->icount_extra) {
+    if (!cpu->icount_extra && insns_left < tb->icount) {
         /* Execute any remaining instructions, then let the main loop
          * handle the next event.
          */
