@@ -1,5 +1,6 @@
 gen = [
   decodetree.process('msa32.decode', extra_args: '--static-decode=decode_msa32'),
+  decodetree.process('msa64.decode', extra_args: '--static-decode=decode_msa64'),
 ]
 
 mips_ss = ss.source_set()
