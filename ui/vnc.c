@@ -2061,9 +2061,6 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
         case VNC_ENCODING_RAW:
             vs->vnc_encoding = enc;
             break;
-        case VNC_ENCODING_COPYRECT:
-            vs->features |= VNC_FEATURE_COPYRECT_MASK;
-            break;
         case VNC_ENCODING_HEXTILE:
             vs->features |= VNC_FEATURE_HEXTILE_MASK;
             vs->vnc_encoding = enc;
