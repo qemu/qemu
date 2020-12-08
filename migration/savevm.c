@@ -2833,6 +2833,7 @@ int save_snapshot(const char *name, Error **errp)
     if (ret < 0) {
         error_setg(errp, "Error while creating snapshot on '%s'",
                    bdrv_get_device_or_node_name(bs));
+        bdrv_all_delete_snapshot(sn->name, &bs, NULL);
         goto the_end;
     }
 
