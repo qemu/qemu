@@ -17,6 +17,7 @@ mips_ss.add(when: 'CONFIG_TCG', if_true: files(
   'op_helper.c',
   'tlb_helper.c',
   'translate.c',
+  'translate_addr_const.c',
 ))
 mips_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'))
 
