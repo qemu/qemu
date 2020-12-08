@@ -2122,12 +2122,6 @@ uint32_t qemu_console_get_head(QemuConsole *con)
     return con ? con->head : -1;
 }
 
-QemuUIInfo *qemu_console_get_ui_info(QemuConsole *con)
-{
-    assert(con != NULL);
-    return &con->ui_info;
-}
-
 int qemu_console_get_width(QemuConsole *con, int fallback)
 {
     if (con == NULL) {
