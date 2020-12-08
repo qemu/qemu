@@ -2008,16 +2008,24 @@ static uint16_t nvme_identify(NvmeCtrl *n, NvmeRequest *req)
 
     switch (le32_to_cpu(c->cns)) {
     case NVME_ID_CNS_NS:
+         /* fall through */
+    case NVME_ID_CNS_NS_PRESENT:
         return nvme_identify_ns(n, req);
     case NVME_ID_CNS_CS_NS:
+         /* fall through */
+    case NVME_ID_CNS_CS_NS_PRESENT:
         return nvme_identify_ns_csi(n, req);
     case NVME_ID_CNS_CTRL:
         return nvme_identify_ctrl(n, req);
     case NVME_ID_CNS_CS_CTRL:
         return nvme_identify_ctrl_csi(n, req);
     case NVME_ID_CNS_NS_ACTIVE_LIST:
+         /* fall through */
+    case NVME_ID_CNS_NS_PRESENT_LIST:
         return nvme_identify_nslist(n, req);
     case NVME_ID_CNS_CS_NS_ACTIVE_LIST:
+         /* fall through */
+    case NVME_ID_CNS_CS_NS_PRESENT_LIST:
         return nvme_identify_nslist_csi(n, req);
     case NVME_ID_CNS_NS_DESCR_LIST:
         return nvme_identify_ns_descr_list(n, req);
