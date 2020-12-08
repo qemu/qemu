@@ -937,6 +937,18 @@ static int vnc_cursor_define(VncState *vs)
     QEMUCursor *c = vs->vd->cursor;
     int isize;
 
+    if (vnc_has_feature(vs, VNC_FEATURE_ALPHA_CURSOR)) {
+        vnc_lock_output(vs);
+        vnc_write_u8(vs,  VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
+        vnc_write_u8(vs,  0);  /*  padding     */
+        vnc_write_u16(vs, 1);  /*  # of rects  */
+        vnc_framebuffer_update(vs, c->hot_x, c->hot_y, c->width, c->height,
+                               VNC_ENCODING_ALPHA_CURSOR);
+        vnc_write_s32(vs, VNC_ENCODING_RAW);
+        vnc_write(vs, c->data, c->width * c->height * 4);
+        vnc_unlock_output(vs);
+        return 0;
+    }
     if (vnc_has_feature(vs, VNC_FEATURE_RICH_CURSOR)) {
         vnc_lock_output(vs);
         vnc_write_u8(vs,  VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
@@ -2102,9 +2114,9 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
         case VNC_ENCODING_RICH_CURSOR:
             vs->features |= VNC_FEATURE_RICH_CURSOR_MASK;
-            if (vs->vd->cursor) {
-                vnc_cursor_define(vs);
-            }
+            break;
+        case VNC_ENCODING_ALPHA_CURSOR:
+            vs->features |= VNC_FEATURE_ALPHA_CURSOR_MASK;
             break;
         case VNC_ENCODING_EXT_KEY_EVENT:
             send_ext_key_event_ack(vs);
@@ -2134,6 +2146,9 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
     vnc_desktop_resize(vs);
     check_pointer_type_change(&vs->mouse_mode_notifier, NULL);
     vnc_led_state_change(vs);
+    if (vs->vd->cursor) {
+        vnc_cursor_define(vs);
+    }
 }
 
 static void set_pixel_conversion(VncState *vs)
