@@ -129,7 +129,7 @@ void nvme_ns_drain(NvmeNamespace *ns)
     blk_drain(ns->blkconf.blk);
 }
 
-void nvme_ns_flush(NvmeNamespace *ns)
+void nvme_ns_shutdown(NvmeNamespace *ns)
 {
     blk_flush(ns->blkconf.blk);
 }

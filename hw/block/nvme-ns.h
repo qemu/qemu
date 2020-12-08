@@ -73,6 +73,6 @@ typedef struct NvmeCtrl NvmeCtrl;
 
 int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp);
 void nvme_ns_drain(NvmeNamespace *ns);
-void nvme_ns_flush(NvmeNamespace *ns);
+void nvme_ns_shutdown(NvmeNamespace *ns);
 
 #endif /* NVME_NS_H */
