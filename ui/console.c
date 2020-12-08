@@ -1544,19 +1544,27 @@ static void dpy_set_ui_info_timer(void *opaque)
 
 bool dpy_ui_info_supported(QemuConsole *con)
 {
+    if (con == NULL) {
+        con = active_console;
+    }
+
     return con->hw_ops->ui_info != NULL;
 }
 
 const QemuUIInfo *dpy_get_ui_info(const QemuConsole *con)
 {
-    assert(con != NULL);
+    if (con == NULL) {
+        con = active_console;
+    }
 
     return &con->ui_info;
 }
 
 int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info)
 {
-    assert(con != NULL);
+    if (con == NULL) {
+        con = active_console;
+    }
 
     if (!dpy_ui_info_supported(con)) {
         return -1;
