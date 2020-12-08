@@ -135,6 +135,21 @@ static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
     ns->zone_size = zone_size / lbasz;
     ns->zone_capacity = zone_cap / lbasz;
     ns->num_zones = ns->size / lbasz / ns->zone_size;
+
+    /* Do a few more sanity checks of ZNS properties */
+    if (ns->params.max_open_zones > ns->num_zones) {
+        error_setg(errp,
+                   "max_open_zones value %u exceeds the number of zones %u",
+                   ns->params.max_open_zones, ns->num_zones);
+        return -1;
+    }
+    if (ns->params.max_active_zones > ns->num_zones) {
+        error_setg(errp,
+                   "max_active_zones value %u exceeds the number of zones %u",
+                   ns->params.max_active_zones, ns->num_zones);
+        return -1;
+    }
+
     return 0;
 }
 
@@ -182,8 +197,8 @@ static void nvme_ns_init_zoned(NvmeCtrl *n, NvmeNamespace *ns, int lba_index)
     id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
 
     /* MAR/MOR are zeroes-based, 0xffffffff means no limit */
-    id_ns_z->mar = 0xffffffff;
-    id_ns_z->mor = 0xffffffff;
+    id_ns_z->mar = cpu_to_le32(ns->params.max_active_zones - 1);
+    id_ns_z->mor = cpu_to_le32(ns->params.max_open_zones - 1);
     id_ns_z->zoc = 0;
     id_ns_z->ozcs = ns->params.cross_zone_read ? 0x01 : 0x00;
 
@@ -209,6 +224,7 @@ static void nvme_clear_zone(NvmeNamespace *ns, NvmeZone *zone)
             trace_pci_nvme_clear_ns_close(state, zone->d.zslba);
             nvme_set_zone_state(zone, NVME_ZONE_STATE_CLOSED);
         }
+        nvme_aor_inc_active(ns);
         QTAILQ_INSERT_HEAD(&ns->closed_zones, zone, entry);
     } else {
         trace_pci_nvme_clear_ns_reset(state, zone->d.zslba);
@@ -225,16 +241,23 @@ static void nvme_zoned_ns_shutdown(NvmeNamespace *ns)
 
     QTAILQ_FOREACH_SAFE(zone, &ns->closed_zones, entry, next) {
         QTAILQ_REMOVE(&ns->closed_zones, zone, entry);
+        nvme_aor_dec_active(ns);
         nvme_clear_zone(ns, zone);
     }
     QTAILQ_FOREACH_SAFE(zone, &ns->imp_open_zones, entry, next) {
         QTAILQ_REMOVE(&ns->imp_open_zones, zone, entry);
+        nvme_aor_dec_open(ns);
+        nvme_aor_dec_active(ns);
         nvme_clear_zone(ns, zone);
     }
     QTAILQ_FOREACH_SAFE(zone, &ns->exp_open_zones, entry, next) {
         QTAILQ_REMOVE(&ns->exp_open_zones, zone, entry);
+        nvme_aor_dec_open(ns);
+        nvme_aor_dec_active(ns);
         nvme_clear_zone(ns, zone);
     }
+
+    assert(ns->nr_open_zones == 0);
 }
 
 static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
@@ -320,6 +343,10 @@ static Property nvme_ns_props[] = {
                      0),
     DEFINE_PROP_BOOL("zoned.cross_read", NvmeNamespace,
                      params.cross_zone_read, false),
+    DEFINE_PROP_UINT32("zoned.max_active", NvmeNamespace,
+                       params.max_active_zones, 0),
+    DEFINE_PROP_UINT32("zoned.max_open", NvmeNamespace,
+                       params.max_open_zones, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
