@@ -3284,18 +3284,38 @@ static void setup_nofile_rlimit(unsigned long rlimit_nofile)
 static void log_func(enum fuse_log_level level, const char *fmt, va_list ap)
 {
     g_autofree char *localfmt = NULL;
+    struct timespec ts;
+    struct tm tm;
+    char sec_fmt[sizeof "2020-12-07 18:17:54"];
+    char zone_fmt[sizeof "+0100"];
 
     if (current_log_level < level) {
         return;
     }
 
     if (current_log_level == FUSE_LOG_DEBUG) {
-        if (!use_syslog) {
-            localfmt = g_strdup_printf("[%" PRId64 "] [ID: %08ld] %s",
-                                       get_clock(), syscall(__NR_gettid), fmt);
-        } else {
+        if (use_syslog) {
+            /* no timestamp needed */
             localfmt = g_strdup_printf("[ID: %08ld] %s", syscall(__NR_gettid),
                                        fmt);
+        } else {
+            /* try formatting a broken-down timestamp */
+            if (clock_gettime(CLOCK_REALTIME, &ts) != -1 &&
+                localtime_r(&ts.tv_sec, &tm) != NULL &&
+                strftime(sec_fmt, sizeof sec_fmt, "%Y-%m-%d %H:%M:%S",
+                         &tm) != 0 &&
+                strftime(zone_fmt, sizeof zone_fmt, "%z", &tm) != 0) {
+                localfmt = g_strdup_printf("[%s.%02ld%s] [ID: %08ld] %s",
+                                           sec_fmt,
+                                           ts.tv_nsec / (10L * 1000 * 1000),
+                                           zone_fmt, syscall(__NR_gettid),
+                                           fmt);
+            } else {
+                /* fall back to a flat timestamp */
+                localfmt = g_strdup_printf("[%" PRId64 "] [ID: %08ld] %s",
+                                           get_clock(), syscall(__NR_gettid),
+                                           fmt);
+            }
         }
         fmt = localfmt;
     }
@@ -3415,6 +3435,9 @@ int main(int argc, char *argv[])
     struct lo_map_elem *root_elem;
     struct lo_map_elem *reserve_elem;
     int ret = -1;
+
+    /* Initialize time conversion information for localtime_r(). */
+    tzset();
 
     /* Don't mask creation mode, kernel already did that */
     umask(0);
