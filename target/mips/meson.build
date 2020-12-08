@@ -1,4 +1,6 @@
 gen = [
+  decodetree.process('mips32r6.decode', extra_args: '--static-decode=decode_mips32r6'),
+  decodetree.process('mips64r6.decode', extra_args: '--static-decode=decode_mips64r6'),
   decodetree.process('msa32.decode', extra_args: '--static-decode=decode_msa32'),
   decodetree.process('msa64.decode', extra_args: '--static-decode=decode_msa64'),
 ]
@@ -16,6 +18,7 @@ mips_ss.add(when: 'CONFIG_TCG', if_true: files(
   'msa_helper.c',
   'msa_translate.c',
   'op_helper.c',
+  'rel6_translate.c',
   'tlb_helper.c',
   'translate.c',
   'translate_addr_const.c',
