@@ -101,7 +101,7 @@ struct lo_inode {
      * This counter keeps the inode alive during the FUSE session.
      * Incremented when the FUSE inode number is sent in a reply
      * (FUSE_LOOKUP, FUSE_READDIRPLUS, etc).  Decremented when an inode is
-     * released by requests like FUSE_FORGET, FUSE_RMDIR, FUSE_RENAME, etc.
+     * released by a FUSE_FORGET request.
      *
      * Note that this value is untrusted because the client can manipulate
      * it arbitrarily using FUSE_FORGET requests.
