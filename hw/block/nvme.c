@@ -3419,7 +3419,7 @@ static void nvme_process_sq(void *opaque)
     }
 }
 
-static void nvme_clear_ctrl(NvmeCtrl *n)
+static void nvme_ctrl_reset(NvmeCtrl *n)
 {
     NvmeNamespace *ns;
     int i;
@@ -3453,11 +3453,7 @@ static void nvme_clear_ctrl(NvmeCtrl *n)
     n->aer_queued = 0;
     n->outstanding_aers = 0;
     n->qs_created = false;
-}
 
-static void nvme_ctrl_reset(NvmeCtrl *n)
-{
-    nvme_clear_ctrl(n);
     n->bar.cc = 0;
 }
 
@@ -3466,7 +3462,9 @@ static void nvme_ctrl_shutdown(NvmeCtrl *n)
     NvmeNamespace *ns;
     int i;
 
-    nvme_clear_ctrl(n);
+    if (n->pmrdev) {
+        memory_region_msync(&n->pmrdev->mr, 0, n->pmrdev->size);
+    }
 
     for (i = 1; i <= n->num_namespaces; i++) {
         ns = nvme_ns(n, i);
@@ -4318,7 +4316,7 @@ static void nvme_exit(PCIDevice *pci_dev)
     NvmeNamespace *ns;
     int i;
 
-    nvme_ctrl_shutdown(n);
+    nvme_ctrl_reset(n);
 
     for (i = 1; i <= n->num_namespaces; i++) {
         ns = nvme_ns(n, i);
