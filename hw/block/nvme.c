@@ -1740,11 +1740,10 @@ typedef uint16_t (*op_handler_t)(NvmeNamespace *, NvmeZone *,
 
 enum NvmeZoneProcessingMask {
     NVME_PROC_CURRENT_ZONE    = 0,
-    NVME_PROC_IMP_OPEN_ZONES  = 1 << 0,
-    NVME_PROC_EXP_OPEN_ZONES  = 1 << 1,
-    NVME_PROC_CLOSED_ZONES    = 1 << 2,
-    NVME_PROC_READ_ONLY_ZONES = 1 << 3,
-    NVME_PROC_FULL_ZONES      = 1 << 4,
+    NVME_PROC_OPENED_ZONES    = 1 << 0,
+    NVME_PROC_CLOSED_ZONES    = 1 << 1,
+    NVME_PROC_READ_ONLY_ZONES = 1 << 2,
+    NVME_PROC_FULL_ZONES      = 1 << 3,
 };
 
 static uint16_t nvme_open_zone(NvmeNamespace *ns, NvmeZone *zone,
@@ -1885,10 +1884,8 @@ static uint16_t nvme_bulk_proc_zone(NvmeNamespace *ns, NvmeZone *zone,
 
     switch (zs) {
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
-        proc_zone = proc_mask & NVME_PROC_IMP_OPEN_ZONES;
-        break;
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
-        proc_zone = proc_mask & NVME_PROC_EXP_OPEN_ZONES;
+        proc_zone = proc_mask & NVME_PROC_OPENED_ZONES;
         break;
     case NVME_ZONE_STATE_CLOSED:
         proc_zone = proc_mask & NVME_PROC_CLOSED_ZONES;
@@ -1929,15 +1926,14 @@ static uint16_t nvme_do_zone_op(NvmeNamespace *ns, NvmeZone *zone,
                 }
             }
         }
-        if (proc_mask & NVME_PROC_IMP_OPEN_ZONES) {
+        if (proc_mask & NVME_PROC_OPENED_ZONES) {
             QTAILQ_FOREACH_SAFE(zone, &ns->imp_open_zones, entry, next) {
                 status = nvme_bulk_proc_zone(ns, zone, proc_mask, op_hndlr);
                 if (status != NVME_SUCCESS) {
                     goto out;
                 }
             }
-        }
-        if (proc_mask & NVME_PROC_EXP_OPEN_ZONES) {
+
             QTAILQ_FOREACH_SAFE(zone, &ns->exp_open_zones, entry, next) {
                 status = nvme_bulk_proc_zone(ns, zone, proc_mask, op_hndlr);
                 if (status != NVME_SUCCESS) {
@@ -2012,7 +2008,7 @@ static uint16_t nvme_zone_mgmt_send(NvmeCtrl *n, NvmeRequest *req)
 
     case NVME_ZONE_ACTION_CLOSE:
         if (all) {
-            proc_mask = NVME_PROC_IMP_OPEN_ZONES | NVME_PROC_EXP_OPEN_ZONES;
+            proc_mask = NVME_PROC_OPENED_ZONES;
         }
         trace_pci_nvme_close_zone(slba, zone_idx, all);
         status = nvme_do_zone_op(ns, zone, proc_mask, nvme_close_zone);
@@ -2020,8 +2016,7 @@ static uint16_t nvme_zone_mgmt_send(NvmeCtrl *n, NvmeRequest *req)
 
     case NVME_ZONE_ACTION_FINISH:
         if (all) {
-            proc_mask = NVME_PROC_IMP_OPEN_ZONES | NVME_PROC_EXP_OPEN_ZONES |
-                        NVME_PROC_CLOSED_ZONES;
+            proc_mask = NVME_PROC_OPENED_ZONES | NVME_PROC_CLOSED_ZONES;
         }
         trace_pci_nvme_finish_zone(slba, zone_idx, all);
         status = nvme_do_zone_op(ns, zone, proc_mask, nvme_finish_zone);
@@ -2029,8 +2024,8 @@ static uint16_t nvme_zone_mgmt_send(NvmeCtrl *n, NvmeRequest *req)
 
     case NVME_ZONE_ACTION_RESET:
         if (all) {
-            proc_mask = NVME_PROC_IMP_OPEN_ZONES | NVME_PROC_EXP_OPEN_ZONES |
-                        NVME_PROC_CLOSED_ZONES | NVME_PROC_FULL_ZONES;
+            proc_mask = NVME_PROC_OPENED_ZONES | NVME_PROC_CLOSED_ZONES |
+                NVME_PROC_FULL_ZONES;
         }
         trace_pci_nvme_reset_zone(slba, zone_idx, all);
         status = nvme_do_zone_op(ns, zone, proc_mask, nvme_reset_zone);
