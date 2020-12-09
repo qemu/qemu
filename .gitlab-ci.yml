@@ -199,27 +199,84 @@ build-disabled:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
-    CONFIGURE_ARGS: --disable-attr --disable-avx2 --disable-bochs
-      --disable-brlapi --disable-bzip2 --disable-cap-ng --disable-capstone
-      --disable-cloop --disable-coroutine-pool --disable-curl --disable-curses
-      --disable-dmg --disable-docs --disable-glusterfs --disable-gnutls
-      --disable-gtk --disable-guest-agent --disable-iconv --disable-kvm
-      --disable-libiscsi --disable-libpmem --disable-libssh --disable-libusb
-      --disable-libxml2 --disable-linux-aio --disable-live-block-migration
-      --disable-lzo --disable-malloc-trim --disable-mpath --disable-nettle
-      --disable-numa --disable-parallels --disable-pie --disable-qcow1
-      --disable-qed --disable-qom-cast-debug --disable-rbd --disable-rdma
-      --disable-replication --disable-sdl --disable-seccomp --disable-sheepdog
-      --disable-slirp --disable-smartcard --disable-snappy --disable-spice
-      --disable-strip --disable-tpm --disable-usb-redir --disable-vdi
-      --disable-vhost-crypto --disable-vhost-net --disable-vhost-scsi
-      --disable-vhost-user --disable-vhost-vdpa --disable-vhost-vsock
-      --disable-virglrenderer --disable-vnc --disable-vte --disable-vvfat
-      --disable-xen --disable-zstd
+    CONFIGURE_ARGS:
+      --disable-attr
+      --disable-auth-pam
+      --disable-avx2
+      --disable-bochs
+      --disable-brlapi
+      --disable-bzip2
+      --disable-cap-ng
+      --disable-capstone
+      --disable-cloop
+      --disable-coroutine-pool
+      --disable-curl
+      --disable-curses
+      --disable-dmg
+      --disable-docs
+      --disable-gcrypt
+      --disable-glusterfs
+      --disable-gnutls
+      --disable-gtk
+      --disable-guest-agent
+      --disable-iconv
+      --disable-keyring
+      --disable-kvm
+      --disable-libiscsi
+      --disable-libpmem
+      --disable-libssh
+      --disable-libudev
+      --disable-libusb
+      --disable-libxml2
+      --disable-linux-aio
+      --disable-live-block-migration
+      --disable-lzo
+      --disable-malloc-trim
+      --disable-mpath
+      --disable-nettle
+      --disable-numa
+      --disable-opengl
+      --disable-parallels
+      --disable-pie
+      --disable-qcow1
+      --disable-qed
+      --disable-qom-cast-debug
+      --disable-rbd
+      --disable-rdma
+      --disable-replication
+      --disable-sdl
+      --disable-seccomp
+      --disable-sheepdog
+      --disable-slirp
+      --disable-smartcard
+      --disable-snappy
+      --disable-sparse
+      --disable-spice
+      --disable-strip
+      --disable-tpm
+      --disable-usb-redir
+      --disable-vdi
+      --disable-vhost-crypto
+      --disable-vhost-net
+      --disable-vhost-scsi
+      --disable-vhost-user
+      --disable-vhost-vdpa
+      --disable-vhost-vsock
+      --disable-virglrenderer
+      --disable-vnc
+      --disable-vte
+      --disable-vvfat
+      --disable-xen
+      --disable-zstd
     TARGETS: arm-softmmu i386-softmmu ppc64-softmmu mips64-softmmu
       s390x-softmmu i386-linux-user
     MAKE_CHECK_ARGS: check-qtest SPEED=slow
 
+# This jobs explicitly disable TCG (--disable-tcg), KVM is detected by
+# the configure script. The container doesn't contain Xen headers so
+# Xen accelerator is not detected / selected. As result it build the
+# i386-softmmu and x86_64-softmmu with KVM being the single accelerator
+# available.
 build-tcg-disabled:
   <<: *native_build_job_definition
   variables:
@@ -245,6 +302,13 @@ build-user:
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-system
+    MAKE_CHECK_ARGS: check-tcg
+
+build-user-static:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: debian-all-test-cross
+    CONFIGURE_ARGS: --disable-tools --disable-system --static
     MAKE_CHECK_ARGS: check-tcg
 
 # Only build the softmmu targets we have check-tcg tests for
@@ -348,6 +412,22 @@ build-tci:
       done
     - QTEST_QEMU_BINARY="./qemu-system-x86_64" ./tests/qtest/pxe-test
     - QTEST_QEMU_BINARY="./qemu-system-s390x" ./tests/qtest/pxe-test -m slow
+
+# Alternate coroutines implementations are only really of interest to KVM users
+# However we can't test against KVM on Gitlab-CI so we can only run unit tests
+build-coroutine-ucontext:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: ubuntu2004
+    CONFIGURE_ARGS: --with-coroutine=ucontext --disable-tcg
+    MAKE_CHECK_ARGS: check-unit
+
+build-coroutine-sigaltstack:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: ubuntu2004
+    CONFIGURE_ARGS: --with-coroutine=sigaltstack --disable-tcg
+    MAKE_CHECK_ARGS: check-unit
 
 # Most jobs test latest gcrypt or nettle builds
 #
