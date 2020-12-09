@@ -172,6 +172,9 @@ extern bool have_movbe;
 #define TCG_TARGET_HAS_muls2_i64        1
 #define TCG_TARGET_HAS_muluh_i64        0
 #define TCG_TARGET_HAS_mulsh_i64        0
+#define TCG_TARGET_HAS_qemu_st8_i32     0
+#else
+#define TCG_TARGET_HAS_qemu_st8_i32     1
 #endif
 
 /* We do not support older SSE systems, only beginning with AVX1.  */

@@ -1427,6 +1427,9 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_qemu_st_i64:
         return true;
 
+    case INDEX_op_qemu_st8_i32:
+        return TCG_TARGET_HAS_qemu_st8_i32;
+
     case INDEX_op_goto_ptr:
         return TCG_TARGET_HAS_goto_ptr;
 
@@ -2087,6 +2090,7 @@ static void tcg_dump_ops(TCGContext *s, bool have_prefs)
                 break;
             case INDEX_op_qemu_ld_i32:
             case INDEX_op_qemu_st_i32:
+            case INDEX_op_qemu_st8_i32:
             case INDEX_op_qemu_ld_i64:
             case INDEX_op_qemu_st_i64:
                 {

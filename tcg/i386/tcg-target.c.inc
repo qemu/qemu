@@ -245,11 +245,21 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         ct->regs |= ALL_VECTOR_REGS;
         break;
 
-        /* qemu_ld/st address constraint */
     case 'L':
+        /* qemu_ld/st data+address constraint */
         ct->regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xff;
+#ifdef CONFIG_SOFTMMU
         tcg_regset_reset_reg(ct->regs, TCG_REG_L0);
         tcg_regset_reset_reg(ct->regs, TCG_REG_L1);
+#endif
+        break;
+    case 's':
+        /* qemu_st8_i32 data constraint */
+        ct->regs = 0xf;
+#ifdef CONFIG_SOFTMMU
+        tcg_regset_reset_reg(ct->regs, TCG_REG_L0);
+        tcg_regset_reset_reg(ct->regs, TCG_REG_L1);
+#endif
         break;
 
     case 'e':
@@ -2120,7 +2130,6 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
                                    TCGReg base, int index, intptr_t ofs,
                                    int seg, MemOp memop)
 {
-    const TCGReg scratch = TCG_REG_L0;
     bool use_movbe = false;
     int movop = OPC_MOVL_EvGv;
 
@@ -2136,15 +2145,8 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
 
     switch (memop & MO_SIZE) {
     case MO_8:
-        /*
-         * In 32-bit mode, 8-bit stores can only happen from [abcd]x.
-         * TODO: Adjust constraints such that this is is forced,
-         * then we won't need a scratch at all for user-only.
-         */
-        if (TCG_TARGET_REG_BITS == 32 && datalo >= 4) {
-            tcg_out_mov(s, TCG_TYPE_I32, scratch, datalo);
-            datalo = scratch;
-        }
+        /* This is handled with constraints on INDEX_op_qemu_st8_i32. */
+        tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || datalo < 4);
         tcg_out_modrm_sib_offset(s, OPC_MOVB_EvGv + P_REXB_R + seg,
                                  datalo, base, index, 0, ofs);
         break;
@@ -2491,6 +2493,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_ld(s, args, 1);
         break;
     case INDEX_op_qemu_st_i32:
+    case INDEX_op_qemu_st8_i32:
         tcg_out_qemu_st(s, args, 0);
         break;
     case INDEX_op_qemu_st_i64:
@@ -2949,9 +2952,11 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     static const TCGTargetOpDef r_0_ci = { .args_ct_str = { "r", "0", "ci" } };
     static const TCGTargetOpDef r_L = { .args_ct_str = { "r", "L" } };
     static const TCGTargetOpDef L_L = { .args_ct_str = { "L", "L" } };
+    static const TCGTargetOpDef s_L = { .args_ct_str = { "s", "L" } };
     static const TCGTargetOpDef r_L_L = { .args_ct_str = { "r", "L", "L" } };
     static const TCGTargetOpDef r_r_L = { .args_ct_str = { "r", "r", "L" } };
     static const TCGTargetOpDef L_L_L = { .args_ct_str = { "L", "L", "L" } };
+    static const TCGTargetOpDef s_L_L = { .args_ct_str = { "s", "L", "L" } };
     static const TCGTargetOpDef r_r_L_L
         = { .args_ct_str = { "r", "r", "L", "L" } };
     static const TCGTargetOpDef L_L_L_L
@@ -3145,6 +3150,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         return TARGET_LONG_BITS <= TCG_TARGET_REG_BITS ? &r_L : &r_L_L;
     case INDEX_op_qemu_st_i32:
         return TARGET_LONG_BITS <= TCG_TARGET_REG_BITS ? &L_L : &L_L_L;
+    case INDEX_op_qemu_st8_i32:
+        return TARGET_LONG_BITS <= TCG_TARGET_REG_BITS ? &s_L : &s_L_L;
     case INDEX_op_qemu_ld_i64:
         return (TCG_TARGET_REG_BITS == 64 ? &r_L
                 : TARGET_LONG_BITS <= TCG_TARGET_REG_BITS ? &r_r_L
