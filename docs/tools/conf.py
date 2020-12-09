@@ -20,6 +20,8 @@ html_theme_options['description'] = \
 man_pages = [
     ('qemu-img', 'qemu-img', u'QEMU disk image utility',
      ['Fabrice Bellard'], 1),
+    ('qemu-storage-daemon', 'qemu-storage-daemon', u'QEMU storage daemon',
+     [], 1),
     ('qemu-nbd', 'qemu-nbd', u'QEMU Disk Network Block Device Server',
      ['Anthony Liguori <anthony@codemonkey.ws>'], 8),
     ('qemu-pr-helper', 'qemu-pr-helper', 'QEMU persistent reservation helper',
