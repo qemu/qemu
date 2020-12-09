@@ -2165,6 +2165,15 @@ F: qobject/block-qdict.c
 F: tests/check-block-qdict.c
 T: git https://repo.or.cz/qemu/kevin.git block
 
+Storage daemon
+M: Kevin Wolf <kwolf@redhat.com>
+L: qemu-block@nongnu.org
+S: Supported
+F: storage-daemon/
+F: docs/interop/qemu-storage-daemon-qmp-ref.rst
+F: docs/tools/qemu-storage-daemon.rst
+T: git https://repo.or.cz/qemu/kevin.git block
+
 Block I/O path
 M: Stefan Hajnoczi <stefanha@redhat.com>
 M: Fam Zheng <fam@euphon.net>
