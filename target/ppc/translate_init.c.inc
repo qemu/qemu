@@ -10671,7 +10671,7 @@ static void ppc_cpu_reset(DeviceState *dev)
 #endif
 
 #if defined(TARGET_PPC64)
-    if (env->mmu_model & POWERPC_MMU_64) {
+    if (mmu_is_64bit(env->mmu_model)) {
         msr |= (1ULL << MSR_SF);
     }
 #endif

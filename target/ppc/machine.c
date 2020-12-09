@@ -550,7 +550,7 @@ static bool sr_needed(void *opaque)
 #ifdef TARGET_PPC64
     PowerPCCPU *cpu = opaque;
 
-    return !(cpu->env.mmu_model & POWERPC_MMU_64);
+    return !mmu_is_64bit(cpu->env.mmu_model);
 #else
     return true;
 #endif
@@ -606,7 +606,7 @@ static bool slb_needed(void *opaque)
     PowerPCCPU *cpu = opaque;
 
     /* We don't support any of the old segment table based 64-bit CPUs */
-    return cpu->env.mmu_model & POWERPC_MMU_64;
+    return mmu_is_64bit(cpu->env.mmu_model);
 }
 
 static int slb_post_load(void *opaque, int version_id)
