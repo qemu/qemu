@@ -747,7 +747,7 @@ static PCIINTxRoute spapr_route_intx_pin_to_irq(void *opaque, int pin)
 static void spapr_msi_write(void *opaque, hwaddr addr,
                             uint64_t data, unsigned size)
 {
-    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    SpaprMachineState *spapr = opaque;
     uint32_t irq = data;
 
     trace_spapr_pci_msi_write(addr, data, irq);
