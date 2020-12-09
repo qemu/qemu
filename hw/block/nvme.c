@@ -198,7 +198,7 @@ static uint16_t nvme_sqid(NvmeRequest *req)
 }
 
 static void nvme_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
-                                   enum NvmeZoneState state)
+                                   NvmeZoneState state)
 {
     if (QTAILQ_IN_USE(zone, entry)) {
         switch (nvme_get_zone_state(zone)) {
@@ -1735,8 +1735,7 @@ static uint16_t nvme_get_mgmt_zone_slba_idx(NvmeNamespace *ns, NvmeCmd *c,
     return NVME_SUCCESS;
 }
 
-typedef uint16_t (*op_handler_t)(NvmeNamespace *, NvmeZone *,
-                                 enum NvmeZoneState);
+typedef uint16_t (*op_handler_t)(NvmeNamespace *, NvmeZone *, NvmeZoneState);
 
 enum NvmeZoneProcessingMask {
     NVME_PROC_CURRENT_ZONE    = 0,
@@ -1747,7 +1746,7 @@ enum NvmeZoneProcessingMask {
 };
 
 static uint16_t nvme_open_zone(NvmeNamespace *ns, NvmeZone *zone,
-                               enum NvmeZoneState state)
+                               NvmeZoneState state)
 {
     uint16_t status;
 
@@ -1780,7 +1779,7 @@ static uint16_t nvme_open_zone(NvmeNamespace *ns, NvmeZone *zone,
 }
 
 static uint16_t nvme_close_zone(NvmeNamespace *ns, NvmeZone *zone,
-                                enum NvmeZoneState state)
+                                NvmeZoneState state)
 {
     switch (state) {
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
@@ -1796,7 +1795,7 @@ static uint16_t nvme_close_zone(NvmeNamespace *ns, NvmeZone *zone,
 }
 
 static uint16_t nvme_finish_zone(NvmeNamespace *ns, NvmeZone *zone,
-                                 enum NvmeZoneState state)
+                                 NvmeZoneState state)
 {
     switch (state) {
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
@@ -1819,7 +1818,7 @@ static uint16_t nvme_finish_zone(NvmeNamespace *ns, NvmeZone *zone,
 }
 
 static uint16_t nvme_reset_zone(NvmeNamespace *ns, NvmeZone *zone,
-                                enum NvmeZoneState state)
+                                NvmeZoneState state)
 {
     switch (state) {
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
@@ -1842,7 +1841,7 @@ static uint16_t nvme_reset_zone(NvmeNamespace *ns, NvmeZone *zone,
 }
 
 static uint16_t nvme_offline_zone(NvmeNamespace *ns, NvmeZone *zone,
-                                  enum NvmeZoneState state)
+                                  NvmeZoneState state)
 {
     switch (state) {
     case NVME_ZONE_STATE_READ_ONLY:
@@ -1879,7 +1878,7 @@ static uint16_t nvme_bulk_proc_zone(NvmeNamespace *ns, NvmeZone *zone,
                                     op_handler_t op_hndlr)
 {
     uint16_t status = NVME_SUCCESS;
-    enum NvmeZoneState zs = nvme_get_zone_state(zone);
+    NvmeZoneState zs = nvme_get_zone_state(zone);
     bool proc_zone;
 
     switch (zs) {
@@ -2077,7 +2076,7 @@ static uint16_t nvme_zone_mgmt_send(NvmeCtrl *n, NvmeRequest *req)
 
 static bool nvme_zone_matches_filter(uint32_t zafs, NvmeZone *zl)
 {
-    enum NvmeZoneState zs = nvme_get_zone_state(zl);
+    NvmeZoneState zs = nvme_get_zone_state(zl);
 
     switch (zafs) {
     case NVME_ZONE_REPORT_ALL:

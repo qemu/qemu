@@ -102,12 +102,12 @@ static inline size_t nvme_l2b(NvmeNamespace *ns, uint64_t lba)
 
 typedef struct NvmeCtrl NvmeCtrl;
 
-static inline enum NvmeZoneState nvme_get_zone_state(NvmeZone *zone)
+static inline NvmeZoneState nvme_get_zone_state(NvmeZone *zone)
 {
     return zone->d.zs >> 4;
 }
 
-static inline void nvme_set_zone_state(NvmeZone *zone, enum NvmeZoneState state)
+static inline void nvme_set_zone_state(NvmeZone *zone, NvmeZoneState state)
 {
     zone->d.zs = state << 4;
 }

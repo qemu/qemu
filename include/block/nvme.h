@@ -1212,7 +1212,7 @@ typedef struct QEMU_PACKED NvmeZoneDescr {
     uint8_t     rsvd32[32];
 } NvmeZoneDescr;
 
-enum NvmeZoneState {
+typedef enum NvmeZoneState {
     NVME_ZONE_STATE_RESERVED         = 0x00,
     NVME_ZONE_STATE_EMPTY            = 0x01,
     NVME_ZONE_STATE_IMPLICITLY_OPEN  = 0x02,
@@ -1221,7 +1221,7 @@ enum NvmeZoneState {
     NVME_ZONE_STATE_READ_ONLY        = 0x0D,
     NVME_ZONE_STATE_FULL             = 0x0E,
     NVME_ZONE_STATE_OFFLINE          = 0x0F,
-};
+} NvmeZoneState;
 
 static inline void _nvme_check_size(void)
 {
