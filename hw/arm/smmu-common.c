@@ -465,14 +465,15 @@ IOMMUMemoryRegion *smmu_iommu_mr(SMMUState *s, uint32_t sid)
 /* Unmap the whole notifier's range */
 static void smmu_unmap_notifier_range(IOMMUNotifier *n)
 {
-    IOMMUTLBEntry entry;
+    IOMMUTLBEvent event;
 
-    entry.target_as = &address_space_memory;
-    entry.iova = n->start;
-    entry.perm = IOMMU_NONE;
-    entry.addr_mask = n->end - n->start;
+    event.type = IOMMU_NOTIFIER_UNMAP;
+    event.entry.target_as = &address_space_memory;
+    event.entry.iova = n->start;
+    event.entry.perm = IOMMU_NONE;
+    event.entry.addr_mask = n->end - n->start;
 
-    memory_region_notify_one(n, &entry);
+    memory_region_notify_iommu_one(n, &event);
 }
 
 /* Unmap all notifiers attached to @mr */

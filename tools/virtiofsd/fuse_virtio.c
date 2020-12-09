@@ -35,7 +35,7 @@
 #include <grp.h>
 #include <unistd.h>
 
-#include "contrib/libvhost-user/libvhost-user.h"
+#include "libvhost-user.h"
 
 struct fv_VuDev;
 struct fv_QueueInfo {

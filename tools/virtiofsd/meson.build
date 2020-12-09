@@ -8,8 +8,7 @@ executable('virtiofsd', files(
   'helper.c',
   'passthrough_ll.c',
   'passthrough_seccomp.c'),
-  link_with: libvhost_user,
-  dependencies: [seccomp, qemuutil, libcap_ng],
+  dependencies: [seccomp, qemuutil, libcap_ng, vhost_user],
   install: true,
   install_dir: get_option('libexecdir'))
 

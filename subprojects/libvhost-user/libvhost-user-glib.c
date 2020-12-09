@@ -12,9 +12,15 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
-#include "qemu/osdep.h"
-
 #include "libvhost-user-glib.h"
+
+#ifndef container_of
+#define container_of(ptr, type, member)              \
+    __extension__({                                  \
+        void *__mptr = (void *)(ptr);                \
+        ((type *)(__mptr - offsetof(type, member))); \
+    })
+#endif
 
 /* glib event loop integration for libvhost-user and misc callbacks */
 

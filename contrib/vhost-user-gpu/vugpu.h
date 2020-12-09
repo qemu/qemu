@@ -17,7 +17,7 @@
 
 #include "qemu/osdep.h"
 
-#include "contrib/libvhost-user/libvhost-user-glib.h"
+#include "libvhost-user-glib.h"
 #include "standard-headers/linux/virtio_gpu.h"
 
 #include "qemu/queue.h"

@@ -11,7 +11,7 @@
  */
 #include "qemu/osdep.h"
 #include "block/block.h"
-#include "contrib/libvhost-user/libvhost-user.h"
+#include "subprojects/libvhost-user/libvhost-user.h" /* only for the type definitions */
 #include "standard-headers/linux/virtio_blk.h"
 #include "qemu/vhost-user-server.h"
 #include "vhost-user-blk-server.h"
@@ -267,7 +267,9 @@ vu_blk_get_config(VuDev *vu_dev, uint8_t *config, uint32_t len)
     VuServer *server = container_of(vu_dev, VuServer, vu_dev);
     VuBlkExport *vexp = container_of(server, VuBlkExport, vu_server);
 
-    g_return_val_if_fail(len <= sizeof(struct virtio_blk_config), -1);
+    if (len > sizeof(struct virtio_blk_config)) {
+        return -1;
+    }
 
     memcpy(config, &vexp->blkcfg, len);
     return 0;

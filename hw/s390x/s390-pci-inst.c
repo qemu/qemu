@@ -602,15 +602,18 @@ static uint32_t s390_pci_update_iotlb(S390PCIIOMMU *iommu,
                                       S390IOTLBEntry *entry)
 {
     S390IOTLBEntry *cache = g_hash_table_lookup(iommu->iotlb, &entry->iova);
-    IOMMUTLBEntry notify = {
-        .target_as = &address_space_memory,
-        .iova = entry->iova,
-        .translated_addr = entry->translated_addr,
-        .perm = entry->perm,
-        .addr_mask = ~PAGE_MASK,
+    IOMMUTLBEvent event = {
+        .type = entry->perm ? IOMMU_NOTIFIER_MAP : IOMMU_NOTIFIER_UNMAP,
+        .entry = {
+            .target_as = &address_space_memory,
+            .iova = entry->iova,
+            .translated_addr = entry->translated_addr,
+            .perm = entry->perm,
+            .addr_mask = ~PAGE_MASK,
+        },
     };
 
-    if (entry->perm == IOMMU_NONE) {
+    if (event.type == IOMMU_NOTIFIER_UNMAP) {
         if (!cache) {
             goto out;
         }
@@ -623,9 +626,11 @@ static uint32_t s390_pci_update_iotlb(S390PCIIOMMU *iommu,
                 goto out;
             }
 
-            notify.perm = IOMMU_NONE;
-            memory_region_notify_iommu(&iommu->iommu_mr, 0, notify);
-            notify.perm = entry->perm;
+            event.type = IOMMU_NOTIFIER_UNMAP;
+            event.entry.perm = IOMMU_NONE;
+            memory_region_notify_iommu(&iommu->iommu_mr, 0, event);
+            event.type = IOMMU_NOTIFIER_MAP;
+            event.entry.perm = entry->perm;
         }
 
         cache = g_new(S390IOTLBEntry, 1);
@@ -637,7 +642,7 @@ static uint32_t s390_pci_update_iotlb(S390PCIIOMMU *iommu,
         dec_dma_avail(iommu);
     }
 
-    memory_region_notify_iommu(&iommu->iommu_mr, 0, notify);
+    memory_region_notify_iommu(&iommu->iommu_mr, 0, event);
 
 out:
     return iommu->dma_limit ? iommu->dma_limit->avail : 1;

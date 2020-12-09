@@ -44,6 +44,7 @@ typedef struct PCMachineState {
     bool sata_enabled;
     bool pit_enabled;
     bool hpet_enabled;
+    uint64_t max_fw_size;
 
     /* NUMA information: */
     uint64_t numa_nodes;
@@ -60,6 +61,7 @@ typedef struct PCMachineState {
 #define PC_MACHINE_SMBUS            "smbus"
 #define PC_MACHINE_SATA             "sata"
 #define PC_MACHINE_PIT              "pit"
+#define PC_MACHINE_MAX_FW_SIZE      "max-fw-size"
 
 /**
  * PCMachineClass:
@@ -190,6 +192,9 @@ void pc_system_firmware_init(PCMachineState *pcms, MemoryRegion *rom_memory);
 /* acpi-build.c */
 void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
                        const CPUArchIdList *apic_ids, GArray *entry);
+
+extern GlobalProperty pc_compat_5_2[];
+extern const size_t pc_compat_5_2_len;
 
 extern GlobalProperty pc_compat_5_1[];
 extern const size_t pc_compat_5_1_len;

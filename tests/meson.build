@@ -264,8 +264,7 @@ endforeach
 if have_tools and 'CONFIG_VHOST_USER' in config_host and 'CONFIG_LINUX' in config_host
   executable('vhost-user-bridge',
              sources: files('vhost-user-bridge.c'),
-             link_with: [libvhost_user],
-             dependencies: [qemuutil])
+             dependencies: [qemuutil, vhost_user])
 endif
 
 if have_system and 'CONFIG_POSIX' in config_host

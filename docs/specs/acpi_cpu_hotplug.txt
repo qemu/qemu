@@ -56,8 +56,11 @@ read access:
               no device check event to OSPM was issued.
               It's valid only when bit 0 is set.
            2: Device remove event, used to distinguish device for which
-              no device eject request to OSPM was issued.
-           3-7: reserved and should be ignored by OSPM
+              no device eject request to OSPM was issued. Firmware must
+              ignore this bit.
+           3: reserved and should be ignored by OSPM
+           4: if set to 1, OSPM requests firmware to perform device eject.
+           5-7: reserved and should be ignored by OSPM
     [0x5-0x7] reserved
     [0x8] Command data: (DWORD access)
           contains 0 unless value last stored in 'Command field' is one of:
@@ -79,10 +82,16 @@ write access:
                selected CPU device
             2: if set to 1 clears device remove event, set by OSPM
                after it has emitted device eject request for the
-               selected CPU device
+               selected CPU device.
             3: if set to 1 initiates device eject, set by OSPM when it
-               triggers CPU device removal and calls _EJ0 method
-            4-7: reserved, OSPM must clear them before writing to register
+               triggers CPU device removal and calls _EJ0 method or by firmware
+               when bit #4 is set. In case bit #4 were set, it's cleared as
+               part of device eject.
+            4: if set to 1, OSPM hands over device eject to firmware.
+               Firmware shall issue device eject request as described above
+               (bit #3) and OSPM should not touch device eject bit (#3) in case
+               it's asked firmware to perform CPU device eject.
+            5-7: reserved, OSPM must clear them before writing to register
     [0x5] Command field: (1 byte access)
           value:
             0: selects a CPU device with inserting/removing events and

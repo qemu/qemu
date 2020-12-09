@@ -59,6 +59,7 @@ struct GPEXConfig {
     MemMapEntry mmio64;
     MemMapEntry pio;
     int         irq;
+    PCIBus      *bus;
 };
 
 int gpex_set_irq_num(GPEXHost *s, int index, int gsi);

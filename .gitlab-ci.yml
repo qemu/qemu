@@ -535,6 +535,17 @@ check-dco:
   variables:
     GIT_DEPTH: 1000
 
+build-libvhost-user:
+  stage: build
+  image: $CI_REGISTRY_IMAGE/qemu/fedora:latest
+  before_script:
+    - dnf install -y meson ninja-build
+  script:
+    - mkdir subprojects/libvhost-user/build
+    - cd subprojects/libvhost-user/build
+    - meson
+    - ninja
+
 pages:
   image: $CI_REGISTRY_IMAGE/qemu/ubuntu2004:latest
   stage: test
