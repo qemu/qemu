@@ -23,4 +23,6 @@ man_pages = [
      [], 7),
     ('qemu-qmp-ref', 'qemu-qmp-ref', 'QEMU QMP Reference Manual',
      [], 7),
+    ('qemu-storage-daemon-qmp-ref', 'qemu-storage-daemon-qmp-ref',
+     'QEMU Storage Daemon QMP Reference Manual', [], 7),
 ]

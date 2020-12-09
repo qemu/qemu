@@ -56,6 +56,7 @@ if build_docs
         'qemu-ga.8': (have_tools ? 'man8' : ''),
         'qemu-ga-ref.7': 'man7',
         'qemu-qmp-ref.7': 'man7',
+        'qemu-storage-daemon-qmp-ref.7': (have_tools ? 'man7' : ''),
     },
     'tools': {
         'qemu-img.1': (have_tools ? 'man1' : ''),
