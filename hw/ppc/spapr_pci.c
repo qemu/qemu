@@ -2493,9 +2493,8 @@ static int spapr_switch_one_vga(DeviceState *dev, void *opaque)
     return 0;
 }
 
-void spapr_pci_switch_vga(bool big_endian)
+void spapr_pci_switch_vga(SpaprMachineState *spapr, bool big_endian)
 {
-    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     SpaprPhbState *sphb;
 
     /*

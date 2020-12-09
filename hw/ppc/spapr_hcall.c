@@ -1351,6 +1351,7 @@ static target_ulong h_logical_dcbf(PowerPCCPU *cpu, SpaprMachineState *spapr,
 }
 
 static target_ulong h_set_mode_resource_le(PowerPCCPU *cpu,
+                                           SpaprMachineState *spapr,
                                            target_ulong mflags,
                                            target_ulong value1,
                                            target_ulong value2)
@@ -1365,12 +1366,12 @@ static target_ulong h_set_mode_resource_le(PowerPCCPU *cpu,
     switch (mflags) {
     case H_SET_MODE_ENDIAN_BIG:
         spapr_set_all_lpcrs(0, LPCR_ILE);
-        spapr_pci_switch_vga(true);
+        spapr_pci_switch_vga(spapr, true);
         return H_SUCCESS;
 
     case H_SET_MODE_ENDIAN_LITTLE:
         spapr_set_all_lpcrs(LPCR_ILE, LPCR_ILE);
-        spapr_pci_switch_vga(false);
+        spapr_pci_switch_vga(spapr, false);
         return H_SUCCESS;
     }
 
@@ -1411,7 +1412,7 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     switch (resource) {
     case H_SET_MODE_RESOURCE_LE:
-        ret = h_set_mode_resource_le(cpu, args[0], args[2], args[3]);
+        ret = h_set_mode_resource_le(cpu, spapr, args[0], args[2], args[3]);
         break;
     case H_SET_MODE_RESOURCE_ADDR_TRANS_MODE:
         ret = h_set_mode_resource_addr_trans_mode(cpu, args[0],
