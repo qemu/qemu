@@ -35,5 +35,6 @@ Contents:
    targets
    security
    deprecated
+   removed-features
    build-platforms
    license
