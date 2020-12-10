@@ -791,7 +791,7 @@ static void utf8_string(void)
     }
 }
 
-static void simple_number(void)
+static void int_number(void)
 {
     struct {
         const char *encoded;
@@ -824,6 +824,42 @@ static void simple_number(void)
         } else {
             g_assert(!qnum_get_try_uint(qnum, &uval));
         }
+        g_assert_cmpfloat(qnum_get_double(qnum), ==,
+                          (double)test_cases[i].decoded);
+
+        str = qobject_to_json(QOBJECT(qnum));
+        g_assert_cmpstr(qstring_get_str(str), ==,
+                        test_cases[i].reencoded ?: test_cases[i].encoded);
+        qobject_unref(str);
+
+        qobject_unref(qnum);
+    }
+}
+
+static void uint_number(void)
+{
+    struct {
+        const char *encoded;
+        uint64_t decoded;
+        const char *reencoded;
+    } test_cases[] = {
+        { "9223372036854775808", (uint64_t)1 << 63 },
+        {},
+    };
+    int i;
+    QNum *qnum;
+    int64_t ival;
+    uint64_t uval;
+    QString *str;
+
+    for (i = 0; test_cases[i].encoded; i++) {
+        qnum = qobject_to(QNum,
+                          qobject_from_json(test_cases[i].encoded,
+                                            &error_abort));
+        g_assert(qnum);
+        g_assert(qnum_get_try_uint(qnum, &uval));
+        g_assert_cmpuint(uval, ==, test_cases[i].decoded);
+        g_assert(!qnum_get_try_int(qnum, &ival));
         g_assert_cmpfloat(qnum_get_double(qnum), ==,
                           (double)test_cases[i].decoded);
 
@@ -1487,7 +1523,8 @@ int main(int argc, char **argv)
     g_test_add_func("/literals/string/quotes", string_with_quotes);
     g_test_add_func("/literals/string/utf8", utf8_string);
 
-    g_test_add_func("/literals/number/simple", simple_number);
+    g_test_add_func("/literals/number/int", int_number);
+    g_test_add_func("/literals/number/uint", uint_number);
     g_test_add_func("/literals/number/large", large_number);
     g_test_add_func("/literals/number/float", float_number);
 
