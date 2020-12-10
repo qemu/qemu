@@ -55,7 +55,6 @@ typedef struct PrimitiveType {
         int16_t s16;
         int32_t s32;
         int64_t s64;
-        intmax_t max;
     } value;
     enum PrimitiveTypeKind type;
     const char *description;
@@ -307,15 +306,46 @@ static void test_primitives(gconstpointer opaque)
                      &error_abort);
 
     g_assert(pt_copy != NULL);
-    if (pt->type == PTYPE_STRING) {
+    switch (pt->type) {
+    case PTYPE_STRING:
         g_assert_cmpstr(pt->value.string, ==, pt_copy->value.string);
         g_free((char *)pt_copy->value.string);
-    } else if (pt->type == PTYPE_NUMBER) {
+        break;
+    case PTYPE_BOOLEAN:
+        g_assert_cmpint(pt->value.boolean, ==, pt->value.boolean);
+        break;
+    case PTYPE_NUMBER:
         g_assert_cmpfloat(pt->value.number, ==, pt_copy->value.number);
-    } else if (pt->type == PTYPE_BOOLEAN) {
-        g_assert_cmpint(!!pt->value.max, ==, !!pt->value.max);
-    } else {
-        g_assert_cmpint(pt->value.max, ==, pt_copy->value.max);
+        break;
+    case PTYPE_INTEGER:
+        g_assert_cmpint(pt->value.integer, ==, pt_copy->value.integer);
+        break;
+    case PTYPE_U8:
+        g_assert_cmpuint(pt->value.u8, ==, pt_copy->value.u8);
+        break;
+    case PTYPE_U16:
+        g_assert_cmpuint(pt->value.u16, ==, pt_copy->value.u16);
+        break;
+    case PTYPE_U32:
+        g_assert_cmpuint(pt->value.u32, ==, pt_copy->value.u32);
+        break;
+    case PTYPE_U64:
+        g_assert_cmpuint(pt->value.u64, ==, pt_copy->value.u64);
+        break;
+    case PTYPE_S8:
+        g_assert_cmpint(pt->value.s8, ==, pt_copy->value.s8);
+        break;
+    case PTYPE_S16:
+        g_assert_cmpint(pt->value.s16, ==, pt_copy->value.s16);
+        break;
+    case PTYPE_S32:
+        g_assert_cmpint(pt->value.s32, ==, pt_copy->value.s32);
+        break;
+    case PTYPE_S64:
+        g_assert_cmpint(pt->value.s64, ==, pt_copy->value.s64);
+        break;
+    case PTYPE_EOL:
+        g_assert_not_reached();
     }
 
     ops->cleanup(serialize_data);
