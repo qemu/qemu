@@ -24,7 +24,7 @@
 # Notes: @filename is encoded using the QEMU command line character device
 #        encoding.  See the QEMU man page for details.
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'ChardevInfo',
   'data': { 'label': 'str',
@@ -38,7 +38,7 @@
 #
 # Returns: a list of @ChardevInfo
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #

@@ -2531,7 +2531,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     if (has_base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
-            error_setg(errp, QERR_BASE_NOT_FOUND, base);
+            error_setg(errp, "Can't find '%s' in the backing chain", base);
             goto out;
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
@@ -2703,13 +2703,16 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
         }
     } else if (has_base && base) {
         base_bs = bdrv_find_backing_image(top_bs, base);
+        if (base_bs == NULL) {
+            error_setg(errp, "Can't find '%s' in the backing chain", base);
+            goto out;
+        }
     } else {
         base_bs = bdrv_find_base(top_bs);
-    }
-
-    if (base_bs == NULL) {
-        error_setg(errp, QERR_BASE_NOT_FOUND, base ? base : "NULL");
-        goto out;
+        if (base_bs == NULL) {
+            error_setg(errp, "There is no backimg image");
+            goto out;
+        }
     }
 
     assert(bdrv_get_aio_context(base_bs) == aio_context);
@@ -2988,7 +2991,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     }
     if (granularity & (granularity - 1)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
-                   "power of 2");
+                   "a power of 2");
         return;
     }
 

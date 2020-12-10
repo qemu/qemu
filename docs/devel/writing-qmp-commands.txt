@@ -243,7 +243,7 @@ There are many examples of such documentation in the schema file already, but
 here goes "hello-world"'s new entry for qapi/misc.json:
 
 ##
-# @hello-world
+# @hello-world:
 #
 # Print a client provided string to the standard output stream.
 #

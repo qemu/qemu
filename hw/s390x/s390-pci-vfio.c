@@ -9,11 +9,12 @@
  * directory.
  */
 
+#include "qemu/osdep.h"
+
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 #include <linux/vfio_zdev.h>
 
-#include "qemu/osdep.h"
 #include "trace.h"
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/s390-pci-clp.h"

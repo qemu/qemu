@@ -16,17 +16,7 @@
 #include "fuse_opt.h"
 #include "fuse_virtio.h"
 
-#include <assert.h>
-#include <errno.h>
-#include <glib.h>
-#include <limits.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/file.h>
-#include <unistd.h>
 
 #define THREAD_POOL_SIZE 64
 

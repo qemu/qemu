@@ -10,10 +10,7 @@
 #include "passthrough_seccomp.h"
 #include "fuse_i.h"
 #include "fuse_log.h"
-#include <errno.h>
-#include <glib.h>
 #include <seccomp.h>
-#include <stdlib.h>
 
 /* Bodge for libseccomp 2.4.2 which broke ppoll */
 #if !defined(__SNR_ppoll) && defined(__SNR_brk)

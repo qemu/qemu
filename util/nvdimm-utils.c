@@ -1,3 +1,4 @@
+#include "qemu/osdep.h"
 #include "qemu/nvdimm-utils.h"
 #include "hw/mem/nvdimm.h"
 

@@ -334,7 +334,7 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
         shutdown_flag |= EWX_REBOOT;
     } else {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "mode",
-                   "halt|powerdown|reboot");
+                   "'halt', 'powerdown', or 'reboot'");
         return;
     }
 
@@ -1441,8 +1441,7 @@ static void check_suspend_mode(GuestSuspendMode mode, Error **errp)
         }
         break;
     default:
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "mode",
-                   "GuestSuspendMode");
+        abort();
     }
 }
 

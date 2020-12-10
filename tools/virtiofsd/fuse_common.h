@@ -18,8 +18,6 @@
 
 #include "fuse_log.h"
 #include "fuse_opt.h"
-#include <stdint.h>
-#include <sys/types.h>
 
 /** Major version of FUSE library interface */
 #define FUSE_MAJOR_VERSION 3

@@ -71,7 +71,7 @@
 # @arch: architecture of the cpu, which determines which additional fields
 #        will be listed (since 2.6)
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Notes: @halted is a transient state that changes frequently.  By the time the
 #        data is sent to the client, the guest may no longer be halted.
@@ -196,7 +196,7 @@
 #
 # Returns: a list of @CpuInfo for each virtual CPU
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -319,23 +319,23 @@
 # @is-default: whether the machine is default
 #
 # @cpu-max: maximum number of CPUs supported by the machine type
-#           (since 1.5.0)
+#           (since 1.5)
 #
-# @hotpluggable-cpus: cpu hotplug via -device is supported (since 2.7.0)
+# @hotpluggable-cpus: cpu hotplug via -device is supported (since 2.7)
 #
 # @numa-mem-supported: true if '-numa node,mem' option is supported by
 #                      the machine type and false otherwise (since 4.1)
 #
 # @deprecated: if true, the machine type is deprecated and may be removed
 #              in future versions of QEMU according to the QEMU deprecation
-#              policy (since 4.1.0)
+#              policy (since 4.1)
 #
 # @default-cpu-type: default CPU model typename if none is requested via
 #                    the -cpu argument. (since 4.2)
 #
 # @default-ram-id: the default ID of initial RAM memory backend (since 5.2)
 #
-# Since: 1.2.0
+# Since: 1.2
 ##
 { 'struct': 'MachineInfo',
   'data': { 'name': 'str', '*alias': 'str',
@@ -351,7 +351,7 @@
 #
 # Returns: a list of MachineInfo
 #
-# Since: 1.2.0
+# Since: 1.2
 ##
 { 'command': 'query-machines', 'returns': ['MachineInfo'] }
 
@@ -386,7 +386,7 @@
 #
 # @arch: the target architecture
 #
-# Since: 1.2.0
+# Since: 1.2
 ##
 { 'struct': 'TargetInfo',
   'data': { 'arch': 'SysEmuTarget' } }
@@ -398,7 +398,7 @@
 #
 # Returns: TargetInfo
 #
-# Since: 1.2.0
+# Since: 1.2
 ##
 { 'command': 'query-target', 'returns': 'TargetInfo' }
 
@@ -409,7 +409,7 @@
 #
 # @UUID: the UUID of the guest
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Notes: If no UUID was specified for the guest, a null UUID is returned.
 ##
@@ -422,7 +422,7 @@
 #
 # Returns: The @UuidInfo for the guest
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -457,7 +457,7 @@
 #
 # Performs a hard reset of a guest.
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -472,7 +472,7 @@
 #
 # Requests that a guest perform a powerdown operation.
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Notes: A guest may or may not respond to this command.  This command
 #        returning does not indicate that a guest has accepted the request or
@@ -549,7 +549,7 @@
 #
 # Returns:  If successful, nothing
 #
-# Since:  0.14.0
+# Since:  0.14
 #
 # Note: prior to 2.1, this command was only supported for x86 and s390 VMs
 #
@@ -570,7 +570,7 @@
 #
 # @present: true if KVM acceleration is built into this executable
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
 
@@ -581,7 +581,7 @@
 #
 # Returns: @KvmInfo
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -933,7 +933,7 @@
 #
 # Returns: Nothing on success
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Notes: Errors were not reliably returned until 1.1
 #
@@ -962,7 +962,7 @@
 #
 # Returns: Nothing on success
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Notes: Errors were not reliably returned until 1.1
 #
@@ -1185,7 +1185,7 @@
 #        the balloon size may not have changed.  A guest can change the balloon
 #        size independent of this command.
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1205,7 +1205,7 @@
 # @actual: the logical size of the VM in bytes
 #          Formula used: logical_vm_size = vm_ram_size - balloon_size
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 ##
 { 'struct': 'BalloonInfo', 'data': {'actual': 'int' } }
@@ -1220,7 +1220,7 @@
 #            kernel module cannot support it, KvmMissingCap
 #          - If no balloon device is present, DeviceNotActive
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1268,7 +1268,7 @@
 #                  is omitted if target doesn't support memory hotplug
 #                  (i.e. CONFIG_MEM_DEVICE not defined at build time).
 #
-# Since: 2.11.0
+# Since: 2.11
 ##
 { 'struct': 'MemoryInfo',
   'data'  : { 'base-memory': 'size', '*plugged-memory': 'size' } }
@@ -1284,7 +1284,7 @@
 # -> { "execute": "query-memory-size-summary" }
 # <- { "return": { "base-memory": 4294967296, "plugged-memory": 0 } }
 #
-# Since: 2.11.0
+# Since: 2.11
 ##
 { 'command': 'query-memory-size-summary', 'returns': 'MemoryInfo' }
 

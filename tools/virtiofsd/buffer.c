@@ -12,11 +12,6 @@
 #include "qemu/osdep.h"
 #include "fuse_i.h"
 #include "fuse_lowlevel.h"
-#include <assert.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 size_t fuse_buf_size(const struct fuse_bufvec *bufv)
 {

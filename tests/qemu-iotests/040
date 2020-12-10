@@ -156,7 +156,7 @@ class TestSingleDrive(ImageCommitTestCase):
         self.assert_no_active_block_jobs()
         result = self.vm.qmp('block-commit', device='drive0', top='%s' % backing_img, base='%s' % backing_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
-        self.assert_qmp(result, 'error/desc', 'Base \'%s\' not found' % backing_img)
+        self.assert_qmp(result, 'error/desc', "Can't find '%s' in the backing chain" % backing_img)
 
     def test_top_invalid(self):
         self.assert_no_active_block_jobs()
@@ -168,7 +168,7 @@ class TestSingleDrive(ImageCommitTestCase):
         self.assert_no_active_block_jobs()
         result = self.vm.qmp('block-commit', device='drive0', top='%s' % mid_img, base='badfile')
         self.assert_qmp(result, 'error/class', 'GenericError')
-        self.assert_qmp(result, 'error/desc', 'Base \'badfile\' not found')
+        self.assert_qmp(result, 'error/desc', "Can't find 'badfile' in the backing chain")
 
     def test_top_node_invalid(self):
         self.assert_no_active_block_jobs()
@@ -208,7 +208,7 @@ class TestSingleDrive(ImageCommitTestCase):
         self.assert_no_active_block_jobs()
         result = self.vm.qmp('block-commit', device='drive0', top='%s' % backing_img, base='%s' % mid_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
-        self.assert_qmp(result, 'error/desc', 'Base \'%s\' not found' % mid_img)
+        self.assert_qmp(result, 'error/desc', "Can't find '%s' in the backing chain" % mid_img)
 
     def test_top_and_base_node_reversed(self):
         self.assert_no_active_block_jobs()
@@ -349,7 +349,7 @@ class TestRelativePaths(ImageCommitTestCase):
         self.assert_no_active_block_jobs()
         result = self.vm.qmp('block-commit', device='drive0', top='%s' % self.mid_img, base='%s' % self.mid_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
-        self.assert_qmp(result, 'error/desc', 'Base \'%s\' not found' % self.mid_img)
+        self.assert_qmp(result, 'error/desc', "Can't find '%s' in the backing chain" % self.mid_img)
 
     def test_top_invalid(self):
         self.assert_no_active_block_jobs()
@@ -361,7 +361,7 @@ class TestRelativePaths(ImageCommitTestCase):
         self.assert_no_active_block_jobs()
         result = self.vm.qmp('block-commit', device='drive0', top='%s' % self.mid_img, base='badfile')
         self.assert_qmp(result, 'error/class', 'GenericError')
-        self.assert_qmp(result, 'error/desc', 'Base \'badfile\' not found')
+        self.assert_qmp(result, 'error/desc', "Can't find 'badfile' in the backing chain")
 
     def test_top_is_active(self):
         self.run_commit_test(self.test_img, self.backing_img)
@@ -372,7 +372,7 @@ class TestRelativePaths(ImageCommitTestCase):
         self.assert_no_active_block_jobs()
         result = self.vm.qmp('block-commit', device='drive0', top='%s' % self.backing_img, base='%s' % self.mid_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
-        self.assert_qmp(result, 'error/desc', 'Base \'%s\' not found' % self.mid_img)
+        self.assert_qmp(result, 'error/desc', "Can't find '%s' in the backing chain" % self.mid_img)
 
 
 class TestSetSpeed(ImageCommitTestCase):

@@ -107,7 +107,7 @@
 #
 # @status: the virtual machine @RunState
 #
-# Since:  0.14.0
+# Since:  0.14
 #
 # Notes: @singlestep is enabled through the GDB stub
 ##
@@ -121,7 +121,7 @@
 #
 # Returns: @StatusInfo reflecting all VCPUs
 #
-# Since:  0.14.0
+# Since:  0.14
 #
 # Example:
 #
@@ -149,7 +149,7 @@
 # Note: If the command-line option "-no-shutdown" has been specified, qemu will
 #       not exit, and a STOP event will eventually follow the SHUTDOWN event
 #
-# Since: 0.12.0
+# Since: 0.12
 #
 # Example:
 #
@@ -165,7 +165,7 @@
 # Emitted when the virtual machine is powered down through the power control
 # system, such as via ACPI.
 #
-# Since: 0.12.0
+# Since: 0.12
 #
 # Example:
 #
@@ -187,7 +187,7 @@
 #
 # @reason: The @ShutdownCause of the RESET. (since 4.0)
 #
-# Since: 0.12.0
+# Since: 0.12
 #
 # Example:
 #
@@ -202,7 +202,7 @@
 #
 # Emitted when the virtual machine is stopped
 #
-# Since: 0.12.0
+# Since: 0.12
 #
 # Example:
 #
@@ -217,7 +217,7 @@
 #
 # Emitted when the virtual machine resumes execution
 #
-# Since: 0.12.0
+# Since: 0.12
 #
 # Example:
 #
@@ -288,7 +288,7 @@
 #
 # Note: This event is rate-limited.
 #
-# Since: 0.13.0
+# Since: 0.13
 #
 # Example:
 #

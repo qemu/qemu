@@ -6,7 +6,6 @@
 
 #include "qemu/osdep.h"
 
-#include <glib.h>
 #include <linux/input.h>
 
 #include "qemu/iov.h"

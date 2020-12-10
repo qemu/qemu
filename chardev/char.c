@@ -521,7 +521,7 @@ static const ChardevClass *char_get_class(const char *driver, Error **errp)
 
     if (object_class_is_abstract(oc)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
-                   "abstract device type");
+                   "an abstract device type");
         return NULL;
     }
 
