@@ -94,12 +94,6 @@ QEMU 5.1 has three options:
       to the user to load all the images they need.
  3. ``-bios <file>`` - Tells QEMU to load the specified file as the firmwrae.
 
-``-show-cursor`` option (since 5.0)
-'''''''''''''''''''''''''''''''''''
-
-Use ``-display sdl,show-cursor=on`` or
- ``-display gtk,show-cursor=on`` instead.
-
 ``Configuring floppies with ``-global``
 '''''''''''''''''''''''''''''''''''''''
 
