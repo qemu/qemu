@@ -136,7 +136,7 @@ static void test_visitor_out_number(TestOutputVisitorData *data,
     visit_type_number(data->ov, NULL, &value, &error_abort);
 
     str = visitor_get(data);
-    g_assert_cmpstr(str, ==, "3.141593");
+    g_assert_cmpstr(str, ==, "3.1415926535897931");
 }
 
 static void test_visitor_out_string(TestOutputVisitorData *data,
