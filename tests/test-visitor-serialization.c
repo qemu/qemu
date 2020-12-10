@@ -311,17 +311,7 @@ static void test_primitives(gconstpointer opaque)
         g_assert_cmpstr(pt->value.string, ==, pt_copy->value.string);
         g_free((char *)pt_copy->value.string);
     } else if (pt->type == PTYPE_NUMBER) {
-        GString *double_expected = g_string_new("");
-        GString *double_actual = g_string_new("");
-        /* we serialize with %f for our reference visitors, so rather than fuzzy
-         * floating math to test "equality", just compare the formatted values
-         */
-        g_string_printf(double_expected, "%.6f", pt->value.number);
-        g_string_printf(double_actual, "%.6f", pt_copy->value.number);
-        g_assert_cmpstr(double_actual->str, ==, double_expected->str);
-
-        g_string_free(double_expected, true);
-        g_string_free(double_actual, true);
+        g_assert_cmpfloat(pt->value.number, ==, pt_copy->value.number);
     } else if (pt->type == PTYPE_BOOLEAN) {
         g_assert_cmpint(!!pt->value.max, ==, !!pt->value.max);
     } else {
@@ -703,10 +693,6 @@ static PrimitiveType pt_values[] = {
         .value.boolean = 0,
     },
     /* number tests (double) */
-    /* note: we format these to %.6f before comparing, since that's how
-     * we serialize them and it doesn't make sense to check precision
-     * beyond that.
-     */
     {
         .description = "number_sanity1",
         .type = PTYPE_NUMBER,
@@ -715,7 +701,7 @@ static PrimitiveType pt_values[] = {
     {
         .description = "number_sanity2",
         .type = PTYPE_NUMBER,
-        .value.number = 3.14159265,
+        .value.number = 3.141593,
     },
     {
         .description = "number_min",
