@@ -104,9 +104,6 @@ const struct mixeng_volume nominal_volume = {
 
 static bool legacy_config = true;
 
-#ifdef AUDIO_IS_FLAWLESS_AND_NO_CHECKS_ARE_REQURIED
-#error No its not
-#else
 int audio_bug (const char *funcname, int cond)
 {
     if (cond) {
@@ -119,25 +116,11 @@ int audio_bug (const char *funcname, int cond)
             AUD_log (NULL, "I am sorry\n");
         }
         AUD_log (NULL, "Context:\n");
-
-#if defined AUDIO_BREAKPOINT_ON_BUG
-#  if defined HOST_I386
-#    if defined __GNUC__
-        __asm__ ("int3");
-#    elif defined _MSC_VER
-        _asm _emit 0xcc;
-#    else
-        abort ();
-#    endif
-#  else
-        abort ();
-#  endif
-#endif
+        abort();
     }
 
     return cond;
 }
-#endif
 
 static inline int audio_bits_to_index (int bits)
 {
