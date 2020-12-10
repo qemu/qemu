@@ -3713,17 +3713,6 @@ SRST
     Do not start CPU at startup (you must type 'c' in the monitor).
 ERST
 
-DEF("realtime", HAS_ARG, QEMU_OPTION_realtime,
-    "-realtime [mlock=on|off]\n"
-    "                run qemu with realtime features\n"
-    "                mlock=on|off controls mlock support (default: on)\n",
-    QEMU_ARCH_ALL)
-SRST
-``-realtime mlock=on|off``
-    Run qemu with realtime features. mlocking qemu and guest memory can
-    be enabled via ``mlock=on`` (enabled by default).
-ERST
-
 DEF("overcommit", HAS_ARG, QEMU_OPTION_overcommit,
     "-overcommit [mem-lock=on|off][cpu-pm=on|off]\n"
     "                run qemu with overcommit hints\n"
@@ -3739,8 +3728,7 @@ SRST
 
     Locking qemu and guest memory can be enabled via ``mem-lock=on``
     (disabled by default). This works when host memory is not
-    overcommitted and reduces the worst-case latency for guest. This is
-    equivalent to ``realtime``.
+    overcommitted and reduces the worst-case latency for guest.
 
     Guest ability to manage power state of host cpus (increasing latency
     for other processes on the same host cpu, but decreasing latency for

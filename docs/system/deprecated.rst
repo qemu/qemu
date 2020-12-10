@@ -75,12 +75,6 @@ The ``pretty=on|off`` switch has no effect for HMP monitors, but is
 silently ignored. Using the switch with HMP monitors will become an
 error in the future.
 
-``-realtime`` (since 4.1)
-'''''''''''''''''''''''''
-
-The ``-realtime mlock=on|off`` argument has been replaced by the
-``-overcommit mem-lock=on|off`` argument.
-
 RISC-V ``-bios`` (since 5.1)
 ''''''''''''''''''''''''''''
 

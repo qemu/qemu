@@ -326,18 +326,6 @@ static QemuOptsList qemu_tpmdev_opts = {
     },
 };
 
-static QemuOptsList qemu_realtime_opts = {
-    .name = "realtime",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_realtime_opts.head),
-    .desc = {
-        {
-            .name = "mlock",
-            .type = QEMU_OPT_BOOL,
-        },
-        { /* end of list */ }
-    },
-};
-
 static QemuOptsList qemu_overcommit_opts = {
     .name = "overcommit",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_overcommit_opts.head),
@@ -2600,7 +2588,6 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_add_fd_opts);
     qemu_add_opts(&qemu_object_opts);
     qemu_add_opts(&qemu_tpmdev_opts);
-    qemu_add_opts(&qemu_realtime_opts);
     qemu_add_opts(&qemu_overcommit_opts);
     qemu_add_opts(&qemu_msg_opts);
     qemu_add_opts(&qemu_name_opts);
@@ -3418,27 +3405,13 @@ void qemu_init(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
-            case QEMU_OPTION_realtime:
-                warn_report("'-realtime mlock=...' is deprecated, please use "
-                             "'-overcommit mem-lock=...' instead");
-                opts = qemu_opts_parse_noisily(qemu_find_opts("realtime"),
-                                               optarg, false);
-                if (!opts) {
-                    exit(1);
-                }
-                /* Don't override the -overcommit option if set */
-                enable_mlock = enable_mlock ||
-                    qemu_opt_get_bool(opts, "mlock", true);
-                break;
             case QEMU_OPTION_overcommit:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("overcommit"),
                                                optarg, false);
                 if (!opts) {
                     exit(1);
                 }
-                /* Don't override the -realtime option if set */
-                enable_mlock = enable_mlock ||
-                    qemu_opt_get_bool(opts, "mem-lock", false);
+                enable_mlock = qemu_opt_get_bool(opts, "mem-lock", false);
                 enable_cpu_pm = qemu_opt_get_bool(opts, "cpu-pm", false);
                 break;
             case QEMU_OPTION_msg:

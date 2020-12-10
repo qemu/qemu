@@ -20,6 +20,12 @@ for the ``id`` parameter, which should now be used instead.
 
 The ``-no-kvm`` argument was a synonym for setting ``-machine accel=tcg``.
 
+``-realtime`` (removed in 6.0)
+''''''''''''''''''''''''''''''
+
+The ``-realtime mlock=on|off`` argument has been replaced by the
+``-overcommit mem-lock=on|off`` argument.
+
 ``-tb-size`` option (removed in 6.0)
 ''''''''''''''''''''''''''''''''''''
 
