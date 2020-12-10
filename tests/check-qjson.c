@@ -807,7 +807,8 @@ static void simple_number(void)
     };
     int i;
     QNum *qnum;
-    int64_t val;
+    int64_t ival;
+    uint64_t uval;
     QString *str;
 
     for (i = 0; test_cases[i].encoded; i++) {
@@ -815,8 +816,16 @@ static void simple_number(void)
                           qobject_from_json(test_cases[i].encoded,
                                             &error_abort));
         g_assert(qnum);
-        g_assert(qnum_get_try_int(qnum, &val));
-        g_assert_cmpint(val, ==, test_cases[i].decoded);
+        g_assert(qnum_get_try_int(qnum, &ival));
+        g_assert_cmpint(ival, ==, test_cases[i].decoded);
+        if (test_cases[i].decoded >= 0) {
+            g_assert(qnum_get_try_uint(qnum, &uval));
+            g_assert_cmpuint(uval, ==, (uint64_t)test_cases[i].decoded);
+        } else {
+            g_assert(!qnum_get_try_uint(qnum, &uval));
+        }
+        g_assert_cmpfloat(qnum_get_double(qnum), ==,
+                          (double)test_cases[i].decoded);
 
         str = qobject_to_json(QOBJECT(qnum));
         g_assert_cmpstr(qstring_get_str(str), ==,
@@ -885,6 +894,8 @@ static void float_number(void)
     };
     int i;
     QNum *qnum;
+    int64_t ival;
+    uint64_t uval;
     QString *str;
 
     for (i = 0; test_cases[i].encoded; i++) {
@@ -893,6 +904,8 @@ static void float_number(void)
                                             &error_abort));
         g_assert(qnum);
         g_assert_cmpfloat(qnum_get_double(qnum), ==, test_cases[i].decoded);
+        g_assert(!qnum_get_try_int(qnum, &ival));
+        g_assert(!qnum_get_try_uint(qnum, &uval));
 
         str = qobject_to_json(QOBJECT(qnum));
         g_assert_cmpstr(qstring_get_str(str), ==,
