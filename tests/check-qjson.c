@@ -844,6 +844,7 @@ static void uint_number(void)
         const char *reencoded;
     } test_cases[] = {
         { "9223372036854775808", (uint64_t)1 << 63 },
+        { "18446744073709551615", UINT64_MAX },
         {},
     };
     int i;
@@ -872,49 +873,6 @@ static void uint_number(void)
     }
 }
 
-static void large_number(void)
-{
-    const char *maxu64 = "18446744073709551615"; /* 2^64-1 */
-    const char *gtu64 = "18446744073709551616"; /* 2^64 */
-    const char *lti64 = "-9223372036854775809"; /* -2^63 - 1 */
-    QNum *qnum;
-    QString *str;
-    uint64_t val;
-    int64_t ival;
-
-    qnum = qobject_to(QNum, qobject_from_json(maxu64, &error_abort));
-    g_assert(qnum);
-    g_assert_cmpuint(qnum_get_uint(qnum), ==, 18446744073709551615U);
-    g_assert(!qnum_get_try_int(qnum, &ival));
-
-    str = qobject_to_json(QOBJECT(qnum));
-    g_assert_cmpstr(qstring_get_str(str), ==, maxu64);
-    qobject_unref(str);
-    qobject_unref(qnum);
-
-    qnum = qobject_to(QNum, qobject_from_json(gtu64, &error_abort));
-    g_assert(qnum);
-    g_assert_cmpfloat(qnum_get_double(qnum), ==, 18446744073709552e3);
-    g_assert(!qnum_get_try_uint(qnum, &val));
-    g_assert(!qnum_get_try_int(qnum, &ival));
-
-    str = qobject_to_json(QOBJECT(qnum));
-    g_assert_cmpstr(qstring_get_str(str), ==, gtu64);
-    qobject_unref(str);
-    qobject_unref(qnum);
-
-    qnum = qobject_to(QNum, qobject_from_json(lti64, &error_abort));
-    g_assert(qnum);
-    g_assert_cmpfloat(qnum_get_double(qnum), ==, -92233720368547758e2);
-    g_assert(!qnum_get_try_uint(qnum, &val));
-    g_assert(!qnum_get_try_int(qnum, &ival));
-
-    str = qobject_to_json(QOBJECT(qnum));
-    g_assert_cmpstr(qstring_get_str(str), ==, "-9223372036854775808");
-    qobject_unref(str);
-    qobject_unref(qnum);
-}
-
 static void float_number(void)
 {
     struct {
@@ -926,6 +884,8 @@ static void float_number(void)
         { "0.222", 0.222 },
         { "-32.12313", -32.12313 },
         { "-32.20e-10", -32.20e-10, "-0" /* BUG */ },
+        { "18446744073709551616", 0x1p64 },
+        { "-9223372036854775809", -0x1p63, "-9223372036854775808" },
         {},
     };
     int i;
@@ -1525,7 +1485,6 @@ int main(int argc, char **argv)
 
     g_test_add_func("/literals/number/int", int_number);
     g_test_add_func("/literals/number/uint", uint_number);
-    g_test_add_func("/literals/number/large", large_number);
     g_test_add_func("/literals/number/float", float_number);
 
     g_test_add_func("/literals/keyword", keyword_literal);
