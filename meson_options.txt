@@ -9,7 +9,7 @@ option('sphinx_build', type : 'string', value : '',
 
 option('docs', type : 'feature', value : 'auto',
        description: 'Documentations build support')
-option('gettext', type : 'boolean', value : true,
+option('gettext', type : 'feature', value : 'auto',
        description: 'Localization of the GTK+ user interface')
 option('install_blobs', type : 'boolean', value : true,
        description: 'install provided firmware blobs')

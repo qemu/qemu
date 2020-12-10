@@ -448,7 +448,7 @@ libdaxctl=""
 meson=""
 ninja=""
 skip_meson=no
-gettext=""
+gettext="auto"
 fuse="auto"
 fuse_lseek="auto"
 
@@ -1016,9 +1016,9 @@ for opt do
   ;;
   --enable-vnc) vnc="enabled"
   ;;
-  --disable-gettext) gettext="false"
+  --disable-gettext) gettext="disabled"
   ;;
-  --enable-gettext) gettext="true"
+  --enable-gettext) gettext="enabled"
   ;;
   --oss-lib=*) oss_lib="$optarg"
   ;;
@@ -2845,19 +2845,6 @@ if test "$xen_pci_passthrough" != "disabled"; then
           " but this feature requires /sys from Linux"
     fi
     xen_pci_passthrough=disabled
-  fi
-fi
-
-##########################################
-# gettext probe
-if test "$gettext" != "false" ; then
-  if has xgettext; then
-    gettext=true
-  else
-    if test "$gettext" = "true" ; then
-      feature_not_found "gettext" "Install xgettext binary"
-    fi
-    gettext=false
   fi
 fi
 
