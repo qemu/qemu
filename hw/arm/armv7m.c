@@ -136,7 +136,7 @@ static void armv7m_instance_init(Object *obj)
 
     memory_region_init(&s->container, obj, "armv7m-container", UINT64_MAX);
 
-    object_initialize_child(obj, "nvnic", &s->nvic, TYPE_NVIC);
+    object_initialize_child(obj, "nvic", &s->nvic, TYPE_NVIC);
     object_property_add_alias(obj, "num-irq",
                               OBJECT(&s->nvic), "num-irq");
 
@@ -225,7 +225,7 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(sbd, 0,
                        qdev_get_gpio_in(DEVICE(s->cpu), ARM_CPU_IRQ));
 
-    memory_region_add_subregion(&s->container, 0xe000e000,
+    memory_region_add_subregion(&s->container, 0xe0000000,
                                 sysbus_mmio_get_region(sbd, 0));
 
     for (i = 0; i < ARRAY_SIZE(s->bitband); i++) {

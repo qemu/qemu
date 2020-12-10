@@ -156,6 +156,7 @@ qtests_aarch64 = \
   ['arm-cpu-features',
    'numa-test',
    'boot-serial-test',
+   'xlnx-can-test',
    'migration-test']
 
 qtests_s390x = \

@@ -633,6 +633,6 @@ static inline uint64_t l1std_l2ptr(STEDesc *desc)
     return hi << 32 | lo;
 }
 
-#define L1STD_SPAN(stm) (extract32((stm)->word[0], 0, 4))
+#define L1STD_SPAN(stm) (extract32((stm)->word[0], 0, 5))
 
 #endif
