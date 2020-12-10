@@ -94,19 +94,33 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
             f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
 
         ## Generate the qemu DEF_HELPER type for each result
+        ## Iterate over this list twice
+        ## - Emit the scalar result
+        ## - Emit the vector result
         i=0
         for regtype,regid,toss,numregs in regs:
             if (hex_common.is_written(regid)):
-                gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
+                if (not hex_common.is_hvx_reg(regtype)):
+                    gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
                 i += 1
 
         ## Put the env between the outputs and inputs
         f.write(', env' )
         i += 1
 
+        # Second pass
+        for regtype,regid,toss,numregs in regs:
+            if (hex_common.is_written(regid)):
+                if (hex_common.is_hvx_reg(regtype)):
+                    gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
+                    i += 1
+
         ## Generate the qemu type for each input operand (regs and immediates)
         for regtype,regid,toss,numregs in regs:
             if (hex_common.is_read(regid)):
+                if (hex_common.is_hvx_reg(regtype) and
+                    hex_common.is_readwrite(regid)):
+                    continue
                 gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
                 i += 1
         for immlett,bits,immshift in imms:
