@@ -793,37 +793,35 @@ static void utf8_string(void)
 
 static void simple_number(void)
 {
-    int i;
     struct {
         const char *encoded;
         int64_t decoded;
-        int skip;
+        const char *reencoded;
     } test_cases[] = {
         { "0", 0 },
         { "1234", 1234 },
         { "1", 1 },
         { "-32", -32 },
-        { "-0", 0, .skip = 1 },
-        { },
+        { "-0", 0, "0" },
+        {},
     };
+    int i;
+    QNum *qnum;
+    int64_t val;
+    QString *str;
 
     for (i = 0; test_cases[i].encoded; i++) {
-        QNum *qnum;
-        int64_t val;
-
         qnum = qobject_to(QNum,
                           qobject_from_json(test_cases[i].encoded,
                                             &error_abort));
         g_assert(qnum);
         g_assert(qnum_get_try_int(qnum, &val));
         g_assert_cmpint(val, ==, test_cases[i].decoded);
-        if (test_cases[i].skip == 0) {
-            QString *str;
 
-            str = qobject_to_json(QOBJECT(qnum));
-            g_assert(strcmp(qstring_get_str(str), test_cases[i].encoded) == 0);
-            qobject_unref(str);
-        }
+        str = qobject_to_json(QOBJECT(qnum));
+        g_assert_cmpstr(qstring_get_str(str), ==,
+                        test_cases[i].reencoded ?: test_cases[i].encoded);
+        qobject_unref(str);
 
         qobject_unref(qnum);
     }
@@ -874,35 +872,32 @@ static void large_number(void)
 
 static void float_number(void)
 {
-    int i;
     struct {
         const char *encoded;
         double decoded;
-        int skip;
+        const char *reencoded;
     } test_cases[] = {
         { "32.43", 32.43 },
         { "0.222", 0.222 },
         { "-32.12313", -32.12313 },
-        { "-32.20e-10", -32.20e-10, .skip = 1 },
-        { },
+        { "-32.20e-10", -32.20e-10, "-0" /* BUG */ },
+        {},
     };
+    int i;
+    QNum *qnum;
+    QString *str;
 
     for (i = 0; test_cases[i].encoded; i++) {
-        QObject *obj;
-        QNum *qnum;
-
-        obj = qobject_from_json(test_cases[i].encoded, &error_abort);
-        qnum = qobject_to(QNum, obj);
+        qnum = qobject_to(QNum,
+                          qobject_from_json(test_cases[i].encoded,
+                                            &error_abort));
         g_assert(qnum);
-        g_assert(qnum_get_double(qnum) == test_cases[i].decoded);
+        g_assert_cmpfloat(qnum_get_double(qnum), ==, test_cases[i].decoded);
 
-        if (test_cases[i].skip == 0) {
-            QString *str;
-
-            str = qobject_to_json(obj);
-            g_assert(strcmp(qstring_get_str(str), test_cases[i].encoded) == 0);
-            qobject_unref(str);
-        }
+        str = qobject_to_json(QOBJECT(qnum));
+        g_assert_cmpstr(qstring_get_str(str), ==,
+                        test_cases[i].reencoded ?: test_cases[i].encoded);
+        qobject_unref(str);
 
         qobject_unref(qnum);
     }
