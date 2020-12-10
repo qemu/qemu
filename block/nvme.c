@@ -1389,6 +1389,29 @@ out:
 
 }
 
+static int coroutine_fn nvme_co_truncate(BlockDriverState *bs, int64_t offset,
+                                         bool exact, PreallocMode prealloc,
+                                         BdrvRequestFlags flags, Error **errp)
+{
+    int64_t cur_length;
+
+    if (prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Unsupported preallocation mode '%s'",
+                   PreallocMode_str(prealloc));
+        return -ENOTSUP;
+    }
+
+    cur_length = nvme_getlength(bs);
+    if (offset != cur_length && exact) {
+        error_setg(errp, "Cannot resize NVMe devices");
+        return -ENOTSUP;
+    } else if (offset > cur_length) {
+        error_setg(errp, "Cannot grow NVMe devices");
+        return -EINVAL;
+    }
+
+    return 0;
+}
 
 static int nvme_reopen_prepare(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue, Error **errp)
@@ -1523,6 +1546,7 @@ static BlockDriver bdrv_nvme = {
     .bdrv_close               = nvme_close,
     .bdrv_getlength           = nvme_getlength,
     .bdrv_probe_blocksizes    = nvme_probe_blocksizes,
+    .bdrv_co_truncate         = nvme_co_truncate,
 
     .bdrv_co_preadv           = nvme_co_preadv,
     .bdrv_co_pwritev          = nvme_co_pwritev,
