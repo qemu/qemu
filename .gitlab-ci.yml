@@ -526,6 +526,13 @@ build-without-default-devices:
     IMAGE: centos8
     CONFIGURE_ARGS: --without-default-devices --disable-user
 
+build-without-default-features:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: debian-amd64
+    CONFIGURE_ARGS: --without-default-features --disable-user
+    MAKE_CHECK_ARGS: check-unit
+
 check-patch:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/centos8:latest
