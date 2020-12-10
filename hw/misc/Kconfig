@@ -13,6 +13,10 @@ config TMP421
     bool
     depends on I2C
 
+config EMC141X
+    bool
+    depends on I2C
+
 config ISA_DEBUG
     bool
     depends on ISA_BUS
