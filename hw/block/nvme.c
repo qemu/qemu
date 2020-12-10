@@ -1707,10 +1707,6 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
         }
 
         res->slba = nvme_advance_zone_wp(ns, zone, nlb);
-    } else if (append) {
-        trace_pci_nvme_err_invalid_opc(rw->opcode);
-        status = NVME_INVALID_OPCODE;
-        goto invalid;
     }
 
     data_offset = nvme_l2b(ns, slba);
