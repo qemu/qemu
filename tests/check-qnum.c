@@ -150,6 +150,12 @@ static void qnum_to_string_test(void)
     g_assert_cmpstr(tmp, ==, "0.42");
     g_free(tmp);
     qobject_unref(qn);
+
+    qn = qnum_from_double(2.718281828459045);
+    tmp = qnum_to_string(qn);
+    g_assert_cmpstr(tmp, ==, "2.718282"); /* BUG */
+    g_free(tmp);
+    qobject_unref(qn);
 }
 
 int main(int argc, char **argv)
