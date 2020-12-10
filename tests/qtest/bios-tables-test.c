@@ -1124,7 +1124,7 @@ static void test_acpi_microvm_tcg(void)
     test_data data;
 
     test_acpi_microvm_prepare(&data);
-    test_acpi_one(" -machine microvm,acpi=on,rtc=off",
+    test_acpi_one(" -machine microvm,acpi=on,ioapic2=off,rtc=off",
                   &data);
     free_test_data(&data);
 }
@@ -1135,7 +1135,7 @@ static void test_acpi_microvm_usb_tcg(void)
 
     test_acpi_microvm_prepare(&data);
     data.variant = ".usb";
-    test_acpi_one(" -machine microvm,acpi=on,usb=on,rtc=off",
+    test_acpi_one(" -machine microvm,acpi=on,ioapic2=off,usb=on,rtc=off",
                   &data);
     free_test_data(&data);
 }
@@ -1146,7 +1146,7 @@ static void test_acpi_microvm_rtc_tcg(void)
 
     test_acpi_microvm_prepare(&data);
     data.variant = ".rtc";
-    test_acpi_one(" -machine microvm,acpi=on,rtc=on",
+    test_acpi_one(" -machine microvm,acpi=on,ioapic2=off,rtc=on",
                   &data);
     free_test_data(&data);
 }
@@ -1158,7 +1158,18 @@ static void test_acpi_microvm_pcie_tcg(void)
     test_acpi_microvm_prepare(&data);
     data.variant = ".pcie";
     data.tcg_only = true; /* need constant host-phys-bits */
-    test_acpi_one(" -machine microvm,acpi=on,rtc=off,pcie=on",
+    test_acpi_one(" -machine microvm,acpi=on,ioapic2=off,rtc=off,pcie=on",
+                  &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_microvm_ioapic2_tcg(void)
+{
+    test_data data;
+
+    test_acpi_microvm_prepare(&data);
+    data.variant = ".ioapic2";
+    test_acpi_one(" -machine microvm,acpi=on,ioapic2=on,rtc=off",
                   &data);
     free_test_data(&data);
 }
@@ -1323,6 +1334,7 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/microvm", test_acpi_microvm_tcg);
         qtest_add_func("acpi/microvm/usb", test_acpi_microvm_usb_tcg);
         qtest_add_func("acpi/microvm/rtc", test_acpi_microvm_rtc_tcg);
+        qtest_add_func("acpi/microvm/ioapic2", test_acpi_microvm_ioapic2_tcg);
         if (strcmp(arch, "x86_64") == 0) {
             qtest_add_func("acpi/microvm/pcie", test_acpi_microvm_pcie_tcg);
         }

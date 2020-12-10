@@ -96,13 +96,6 @@ static void microvm_set_rtc(MicrovmMachineState *mms, ISADevice *s)
     rtc_set_memory(s, 0x5d, val >> 16);
 }
 
-static void microvm_gsi_handler(void *opaque, int n, int level)
-{
-    GSIState *s = opaque;
-
-    qemu_set_irq(s->ioapic_irq[n], level);
-}
-
 static void create_gpex(MicrovmMachineState *mms)
 {
     X86MachineState *x86ms = X86_MACHINE(mms);
@@ -152,34 +145,56 @@ static void create_gpex(MicrovmMachineState *mms)
     }
 }
 
+static int microvm_ioapics(MicrovmMachineState *mms)
+{
+    if (!x86_machine_is_acpi_enabled(X86_MACHINE(mms))) {
+        return 1;
+    }
+    if (mms->ioapic2 == ON_OFF_AUTO_OFF) {
+        return 1;
+    }
+    return 2;
+}
+
 static void microvm_devices_init(MicrovmMachineState *mms)
 {
     X86MachineState *x86ms = X86_MACHINE(mms);
     ISABus *isa_bus;
     ISADevice *rtc_state;
     GSIState *gsi_state;
+    int ioapics;
     int i;
 
     /* Core components */
-
+    ioapics = microvm_ioapics(mms);
     gsi_state = g_malloc0(sizeof(*gsi_state));
-    if (mms->pic == ON_OFF_AUTO_ON || mms->pic == ON_OFF_AUTO_AUTO) {
-        x86ms->gsi = qemu_allocate_irqs(gsi_handler, gsi_state, GSI_NUM_PINS);
-    } else {
-        x86ms->gsi = qemu_allocate_irqs(microvm_gsi_handler,
-                                        gsi_state, GSI_NUM_PINS);
-    }
+    x86ms->gsi = qemu_allocate_irqs(gsi_handler, gsi_state,
+                                    IOAPIC_NUM_PINS * ioapics);
 
     isa_bus = isa_bus_new(NULL, get_system_memory(), get_system_io(),
                           &error_abort);
     isa_bus_irqs(isa_bus, x86ms->gsi);
 
     ioapic_init_gsi(gsi_state, "machine");
+    if (ioapics > 1) {
+        x86ms->ioapic2 = ioapic_init_secondary(gsi_state);
+    }
 
     kvmclock_create(true);
 
-    mms->virtio_irq_base = x86_machine_is_acpi_enabled(x86ms) ? 16 : 5;
-    for (i = 0; i < VIRTIO_NUM_TRANSPORTS; i++) {
+    mms->virtio_irq_base = 5;
+    mms->virtio_num_transports = 8;
+    if (x86ms->ioapic2) {
+        mms->pcie_irq_base = 16;    /* 16 -> 19 */
+        /* use second ioapic (24 -> 47) for virtio-mmio irq lines */
+        mms->virtio_irq_base = IO_APIC_SECONDARY_IRQBASE;
+        mms->virtio_num_transports = IOAPIC_NUM_PINS;
+    } else if (x86_machine_is_acpi_enabled(x86ms)) {
+        mms->pcie_irq_base = 12;    /* 12 -> 15 */
+        mms->virtio_irq_base = 16;  /* 16 -> 23 */
+    }
+
+    for (i = 0; i < mms->virtio_num_transports; i++) {
         sysbus_create_simple("virtio-mmio",
                              VIRTIO_MMIO_BASE + i * 512,
                              x86ms->gsi[mms->virtio_irq_base + i]);
@@ -221,12 +236,12 @@ static void microvm_devices_init(MicrovmMachineState *mms)
         mms->gpex.mmio32.size = PCIE_MMIO_SIZE;
         mms->gpex.ecam.base   = PCIE_ECAM_BASE;
         mms->gpex.ecam.size   = PCIE_ECAM_SIZE;
-        mms->gpex.irq         = PCIE_IRQ_BASE;
+        mms->gpex.irq         = mms->pcie_irq_base;
         create_gpex(mms);
-        x86ms->pci_irq_mask = ((1 << (PCIE_IRQ_BASE + 0)) |
-                               (1 << (PCIE_IRQ_BASE + 1)) |
-                               (1 << (PCIE_IRQ_BASE + 2)) |
-                               (1 << (PCIE_IRQ_BASE + 3)));
+        x86ms->pci_irq_mask = ((1 << (mms->pcie_irq_base + 0)) |
+                               (1 << (mms->pcie_irq_base + 1)) |
+                               (1 << (mms->pcie_irq_base + 2)) |
+                               (1 << (mms->pcie_irq_base + 3)));
     } else {
         x86ms->pci_irq_mask = 0;
     }
@@ -550,6 +565,23 @@ static void microvm_machine_set_pcie(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &mms->pcie, errp);
 }
 
+static void microvm_machine_get_ioapic2(Object *obj, Visitor *v, const char *name,
+                                        void *opaque, Error **errp)
+{
+    MicrovmMachineState *mms = MICROVM_MACHINE(obj);
+    OnOffAuto ioapic2 = mms->ioapic2;
+
+    visit_type_OnOffAuto(v, name, &ioapic2, errp);
+}
+
+static void microvm_machine_set_ioapic2(Object *obj, Visitor *v, const char *name,
+                                        void *opaque, Error **errp)
+{
+    MicrovmMachineState *mms = MICROVM_MACHINE(obj);
+
+    visit_type_OnOffAuto(v, name, &mms->ioapic2, errp);
+}
+
 static bool microvm_machine_get_isa_serial(Object *obj, Error **errp)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(obj);
@@ -626,6 +658,7 @@ static void microvm_machine_initfn(Object *obj)
     mms->pit = ON_OFF_AUTO_AUTO;
     mms->rtc = ON_OFF_AUTO_AUTO;
     mms->pcie = ON_OFF_AUTO_AUTO;
+    mms->ioapic2 = ON_OFF_AUTO_AUTO;
     mms->isa_serial = true;
     mms->option_roms = true;
     mms->auto_kernel_cmdline = true;
@@ -698,6 +731,13 @@ static void microvm_class_init(ObjectClass *oc, void *data)
                               NULL, NULL);
     object_class_property_set_description(oc, MICROVM_MACHINE_PCIE,
         "Enable PCIe");
+
+    object_class_property_add(oc, MICROVM_MACHINE_IOAPIC2, "OnOffAuto",
+                              microvm_machine_get_ioapic2,
+                              microvm_machine_set_ioapic2,
+                              NULL, NULL);
+    object_class_property_set_description(oc, MICROVM_MACHINE_IOAPIC2,
+        "Enable second IO-APIC");
 
     object_class_property_add_bool(oc, MICROVM_MACHINE_ISA_SERIAL,
                                    microvm_machine_get_isa_serial,
