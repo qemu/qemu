@@ -73,7 +73,7 @@ struct arm_regs {
   
   uint32_t cpsr;
 
-  uint8_t vfp_zregs[16][32];
+  uint8_t vfp_zregs[32][16];
   uint32_t vfp_xregs[16];
 
 };
@@ -131,8 +131,8 @@ struct arm64_regs {
   
   uint32_t cpsr;
 
-  uint8_t vfp_zregs[16 * 16][32];
-  uint8_t vfp_pregs[32][17];
+  uint8_t vfp_zregs[32][16*16];
+  uint8_t vfp_pregs[17][32];
   uint32_t vfp_xregs[16];
 
 };
