@@ -71,6 +71,16 @@
 #define   INTR_CTRL_CMD_ABORT_EN          (1 << 2)
 #define   INTR_CTRL_WRITE_PROTECT_EN      (1 << 1)
 
+/* Command Control Register */
+#define R_CE_CMD_CTRL      (0x0C / 4)
+#define   CTRL_ADDR_BYTE0_DISABLE_SHIFT       4
+#define   CTRL_DATA_BYTE0_DISABLE_SHIFT       0
+
+#define aspeed_smc_addr_byte_enabled(s, i)                               \
+    (!((s)->regs[R_CE_CMD_CTRL] & (1 << (CTRL_ADDR_BYTE0_DISABLE_SHIFT + (i)))))
+#define aspeed_smc_data_byte_enabled(s, i)                               \
+    (!((s)->regs[R_CE_CMD_CTRL] & (1 << (CTRL_DATA_BYTE0_DISABLE_SHIFT + (i)))))
+
 /* CEx Control Register */
 #define R_CTRL0           (0x10 / 4)
 #define   CTRL_IO_QPI              (1 << 31)
@@ -702,19 +712,17 @@ static void aspeed_smc_flash_setup(AspeedSMCFlash *fl, uint32_t addr)
 {
     const AspeedSMCState *s = fl->controller;
     uint8_t cmd = aspeed_smc_flash_cmd(fl);
-    int i;
+    int i = aspeed_smc_flash_is_4byte(fl) ? 4 : 3;
 
     /* Flash access can not exceed CS segment */
     addr = aspeed_smc_check_segment_addr(fl, addr);
 
     ssi_transfer(s->spi, cmd);
-
-    if (aspeed_smc_flash_is_4byte(fl)) {
-        ssi_transfer(s->spi, (addr >> 24) & 0xff);
+    while (i--) {
+        if (aspeed_smc_addr_byte_enabled(s, i)) {
+            ssi_transfer(s->spi, (addr >> (i * 8)) & 0xff);
+        }
     }
-    ssi_transfer(s->spi, (addr >> 16) & 0xff);
-    ssi_transfer(s->spi, (addr >> 8) & 0xff);
-    ssi_transfer(s->spi, (addr & 0xff));
 
     /*
      * Use fake transfers to model dummy bytes. The value should
@@ -988,6 +996,7 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         (addr >= s->r_timings &&
          addr < s->r_timings + s->ctrl->nregs_timings) ||
         addr == s->r_ce_ctrl ||
+        addr == R_CE_CMD_CTRL ||
         addr == R_INTR_CTRL ||
         addr == R_DUMMY_DATA ||
         (s->ctrl->has_dma && addr == R_DMA_CTRL) ||
@@ -1276,6 +1285,8 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
         if (value != s->regs[R_SEG_ADDR0 + cs]) {
             aspeed_smc_flash_set_segment(s, cs, value);
         }
+    } else if (addr == R_CE_CMD_CTRL) {
+        s->regs[addr] = value & 0xff;
     } else if (addr == R_DUMMY_DATA) {
         s->regs[addr] = value & 0xff;
     } else if (addr == R_INTR_CTRL) {
