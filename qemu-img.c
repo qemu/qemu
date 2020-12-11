@@ -33,7 +33,6 @@
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
@@ -627,7 +626,7 @@ fail:
 
 static void dump_json_image_check(ImageCheck *check, bool quiet)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
@@ -635,10 +634,10 @@ static void dump_json_image_check(ImageCheck *check, bool quiet)
     visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    qprintf(quiet, "%s\n", qstring_get_str(str));
+    qprintf(quiet, "%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static void dump_human_image_check(ImageCheck *check, bool quiet)
@@ -2789,7 +2788,7 @@ static void dump_snapshots(BlockDriverState *bs)
 
 static void dump_json_image_info_list(ImageInfoList *list)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
@@ -2797,15 +2796,15 @@ static void dump_json_image_info_list(ImageInfoList *list)
     visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    printf("%s\n", qstring_get_str(str));
+    printf("%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static void dump_json_image_info(ImageInfo *info)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
@@ -2813,10 +2812,10 @@ static void dump_json_image_info(ImageInfo *info)
     visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    printf("%s\n", qstring_get_str(str));
+    printf("%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static void dump_human_image_info_list(ImageInfoList *list)
@@ -5236,7 +5235,7 @@ out:
 
 static void dump_json_block_measure_info(BlockMeasureInfo *info)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
@@ -5244,10 +5243,10 @@ static void dump_json_block_measure_info(BlockMeasureInfo *info)
     visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    printf("%s\n", qstring_get_str(str));
+    printf("%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static int img_measure(int argc, char **argv)

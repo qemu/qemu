@@ -284,15 +284,15 @@ static void to_json(const QObject *obj, GString *accu, bool pretty, int indent)
     }
 }
 
-QString *qobject_to_json_pretty(const QObject *obj, bool pretty)
+GString *qobject_to_json_pretty(const QObject *obj, bool pretty)
 {
     GString *accu = g_string_new(NULL);
 
     to_json(obj, accu, pretty, 0);
-    return qstring_from_gstring(accu);
+    return accu;
 }
 
-QString *qobject_to_json(const QObject *obj)
+GString *qobject_to_json(const QObject *obj)
 {
     return qobject_to_json_pretty(obj, false);
 }

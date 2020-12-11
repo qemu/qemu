@@ -232,7 +232,7 @@ static void qemu_rbd_parse_filename(const char *filename, QDict *options,
 
     if (keypairs) {
         qdict_put(options, "=keyvalue-pairs",
-                  qobject_to_json(QOBJECT(keypairs)));
+                  qstring_from_gstring(qobject_to_json(QOBJECT(keypairs))));
     }
 
 done:

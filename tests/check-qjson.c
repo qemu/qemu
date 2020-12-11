@@ -35,17 +35,15 @@ static QString *from_json_str(const char *jstr, bool single, Error **errp)
 
 static char *to_json_str(QString *str)
 {
-    QString *json = qobject_to_json(QOBJECT(str));
-    char *jstr;
+    GString *json = qobject_to_json(QOBJECT(str));
 
     if (!json) {
         return NULL;
     }
     /* peel off double quotes */
-    jstr = g_strndup(qstring_get_str(json) + 1,
-                     qstring_get_length(json) - 2);
-    qobject_unref(json);
-    return jstr;
+    g_string_truncate(json, json->len - 1);
+    g_string_erase(json, 0, 1);
+    return g_string_free(json, false);
 }
 
 static void escaped_string(void)
@@ -809,7 +807,7 @@ static void int_number(void)
     QNum *qnum;
     int64_t ival;
     uint64_t uval;
-    QString *str;
+    GString *str;
 
     for (i = 0; test_cases[i].encoded; i++) {
         qnum = qobject_to(QNum,
@@ -828,9 +826,9 @@ static void int_number(void)
                           (double)test_cases[i].decoded);
 
         str = qobject_to_json(QOBJECT(qnum));
-        g_assert_cmpstr(qstring_get_str(str), ==,
+        g_assert_cmpstr(str->str, ==,
                         test_cases[i].reencoded ?: test_cases[i].encoded);
-        qobject_unref(str);
+        g_string_free(str, true);
 
         qobject_unref(qnum);
     }
@@ -851,7 +849,7 @@ static void uint_number(void)
     QNum *qnum;
     int64_t ival;
     uint64_t uval;
-    QString *str;
+    GString *str;
 
     for (i = 0; test_cases[i].encoded; i++) {
         qnum = qobject_to(QNum,
@@ -865,9 +863,9 @@ static void uint_number(void)
                           (double)test_cases[i].decoded);
 
         str = qobject_to_json(QOBJECT(qnum));
-        g_assert_cmpstr(qstring_get_str(str), ==,
+        g_assert_cmpstr(str->str, ==,
                         test_cases[i].reencoded ?: test_cases[i].encoded);
-        qobject_unref(str);
+        g_string_free(str, true);
 
         qobject_unref(qnum);
     }
@@ -892,7 +890,7 @@ static void float_number(void)
     QNum *qnum;
     int64_t ival;
     uint64_t uval;
-    QString *str;
+    GString *str;
 
     for (i = 0; test_cases[i].encoded; i++) {
         qnum = qobject_to(QNum,
@@ -904,9 +902,9 @@ static void float_number(void)
         g_assert(!qnum_get_try_uint(qnum, &uval));
 
         str = qobject_to_json(QOBJECT(qnum));
-        g_assert_cmpstr(qstring_get_str(str), ==,
+        g_assert_cmpstr(str->str, ==,
                         test_cases[i].reencoded ?: test_cases[i].encoded);
-        qobject_unref(str);
+        g_string_free(str, true);
 
         qobject_unref(qnum);
     }
@@ -917,7 +915,7 @@ static void keyword_literal(void)
     QObject *obj;
     QBool *qbool;
     QNull *null;
-    QString *str;
+    GString *str;
 
     obj = qobject_from_json("true", &error_abort);
     qbool = qobject_to(QBool, obj);
@@ -925,8 +923,8 @@ static void keyword_literal(void)
     g_assert(qbool_get_bool(qbool) == true);
 
     str = qobject_to_json(obj);
-    g_assert(strcmp(qstring_get_str(str), "true") == 0);
-    qobject_unref(str);
+    g_assert_cmpstr(str->str, ==, "true");
+    g_string_free(str, true);
 
     qobject_unref(qbool);
 
@@ -936,8 +934,8 @@ static void keyword_literal(void)
     g_assert(qbool_get_bool(qbool) == false);
 
     str = qobject_to_json(obj);
-    g_assert(strcmp(qstring_get_str(str), "false") == 0);
-    qobject_unref(str);
+    g_assert_cmpstr(str->str, ==, "false");
+    g_string_free(str, true);
 
     qobject_unref(qbool);
 
@@ -1087,7 +1085,7 @@ static void simple_dict(void)
 
     for (i = 0; test_cases[i].encoded; i++) {
         QObject *obj;
-        QString *str;
+        GString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
         g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
@@ -1095,10 +1093,10 @@ static void simple_dict(void)
         str = qobject_to_json(obj);
         qobject_unref(obj);
 
-        obj = qobject_from_json(qstring_get_str(str), &error_abort);
+        obj = qobject_from_json(str->str, &error_abort);
         g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
         qobject_unref(obj);
-        qobject_unref(str);
+        g_string_free(str, true);
     }
 }
 
@@ -1196,7 +1194,7 @@ static void simple_list(void)
 
     for (i = 0; test_cases[i].encoded; i++) {
         QObject *obj;
-        QString *str;
+        GString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
         g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
@@ -1204,10 +1202,10 @@ static void simple_list(void)
         str = qobject_to_json(obj);
         qobject_unref(obj);
 
-        obj = qobject_from_json(qstring_get_str(str), &error_abort);
+        obj = qobject_from_json(str->str, &error_abort);
         g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
         qobject_unref(obj);
-        qobject_unref(str);
+        g_string_free(str, true);
     }
 }
 
@@ -1258,7 +1256,7 @@ static void simple_whitespace(void)
 
     for (i = 0; test_cases[i].encoded; i++) {
         QObject *obj;
-        QString *str;
+        GString *str;
 
         obj = qobject_from_json(test_cases[i].encoded, &error_abort);
         g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
@@ -1266,11 +1264,11 @@ static void simple_whitespace(void)
         str = qobject_to_json(obj);
         qobject_unref(obj);
 
-        obj = qobject_from_json(qstring_get_str(str), &error_abort);
+        obj = qobject_from_json(str->str, &error_abort);
         g_assert(qlit_equal_qobject(&test_cases[i].decoded, obj));
 
         qobject_unref(obj);
-        qobject_unref(str);
+        g_string_free(str, true);
     }
 }
 

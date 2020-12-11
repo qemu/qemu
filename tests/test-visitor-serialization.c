@@ -957,15 +957,15 @@ static void qmp_deserialize(void **native_out, void *datap,
                             VisitorFunc visit, Error **errp)
 {
     QmpSerializeData *d = datap;
-    QString *output_json;
+    GString *output_json;
     QObject *obj_orig, *obj;
 
     visit_complete(d->qov, &d->obj);
     obj_orig = d->obj;
     output_json = qobject_to_json(obj_orig);
-    obj = qobject_from_json(qstring_get_str(output_json), &error_abort);
+    obj = qobject_from_json(output_json->str, &error_abort);
 
-    qobject_unref(output_json);
+    g_string_free(output_json, true);
     d->qiv = qobject_input_visitor_new(obj);
     qobject_unref(obj_orig);
     qobject_unref(obj);

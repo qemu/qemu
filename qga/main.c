@@ -22,7 +22,6 @@
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
-#include "qapi/qmp/qstring.h"
 #include "guest-agent-core.h"
 #include "qga-qapi-init-commands.h"
 #include "qapi/qmp/qerror.h"
@@ -528,8 +527,7 @@ fail:
 
 static int send_response(GAState *s, const QDict *rsp)
 {
-    const char *buf;
-    QString *payload_qstr, *response_qstr;
+    GString *response;
     GIOStatus status;
 
     g_assert(s->channel);
@@ -538,25 +536,19 @@ static int send_response(GAState *s, const QDict *rsp)
         return 0;
     }
 
-    payload_qstr = qobject_to_json(QOBJECT(rsp));
-    if (!payload_qstr) {
+    response = qobject_to_json(QOBJECT(rsp));
+    if (!response) {
         return -EINVAL;
     }
 
     if (s->delimit_response) {
         s->delimit_response = false;
-        response_qstr = qstring_new();
-        qstring_append_chr(response_qstr, QGA_SENTINEL_BYTE);
-        qstring_append(response_qstr, qstring_get_str(payload_qstr));
-        qobject_unref(payload_qstr);
-    } else {
-        response_qstr = payload_qstr;
+        g_string_prepend_c(response, QGA_SENTINEL_BYTE);
     }
 
-    qstring_append_chr(response_qstr, '\n');
-    buf = qstring_get_str(response_qstr);
-    status = ga_channel_write_all(s->channel, buf, strlen(buf));
-    qobject_unref(response_qstr);
+    g_string_append_c(response, '\n');
+    status = ga_channel_write_all(s->channel, response->str, response->len);
+    g_string_free(response, true);
     if (status != G_IO_STATUS_NORMAL) {
         return -EIO;
     }

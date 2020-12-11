@@ -110,15 +110,15 @@ static void monitor_qmp_cleanup_queue_and_resume(MonitorQMP *mon)
 void qmp_send_response(MonitorQMP *mon, const QDict *rsp)
 {
     const QObject *data = QOBJECT(rsp);
-    QString *json;
+    GString *json;
 
     json = qobject_to_json_pretty(data, mon->pretty);
     assert(json != NULL);
 
-    qstring_append_chr(json, '\n');
-    monitor_puts(&mon->common, qstring_get_str(json));
+    g_string_append_c(json, '\n');
+    monitor_puts(&mon->common, json->str);
 
-    qobject_unref(json);
+    g_string_free(json, true);
 }
 
 /*
@@ -320,9 +320,9 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
     } /* else will fail qmp_dispatch() */
 
     if (req && trace_event_get_state_backends(TRACE_HANDLE_QMP_COMMAND)) {
-        QString *req_json = qobject_to_json(req);
-        trace_handle_qmp_command(mon, qstring_get_str(req_json));
-        qobject_unref(req_json);
+        GString *req_json = qobject_to_json(req);
+        trace_handle_qmp_command(mon, req_json->str);
+        g_string_free(req_json, true);
     }
 
     if (qdict && qmp_is_oob(qdict)) {
