@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/qmp/qstring.h"
+#include "qobject-internal.h"
 
 /**
  * qstring_new(): Create a new empty QString

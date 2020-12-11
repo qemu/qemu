@@ -17,6 +17,7 @@
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/queue.h"
+#include "qobject-internal.h"
 
 /**
  * qlist_new(): Create a new QList

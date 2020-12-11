@@ -39,10 +39,8 @@ void qdict_put_obj(QDict *qdict, const char *key, QObject *value);
 void qdict_del(QDict *qdict, const char *key);
 int qdict_haskey(const QDict *qdict, const char *key);
 QObject *qdict_get(const QDict *qdict, const char *key);
-bool qdict_is_equal(const QObject *x, const QObject *y);
 const QDictEntry *qdict_first(const QDict *qdict);
 const QDictEntry *qdict_next(const QDict *qdict, const QDictEntry *entry);
-void qdict_destroy_obj(QObject *obj);
 
 /* Helper to qdict_put_obj(), accepts any object */
 #define qdict_put(qdict, key, obj) \

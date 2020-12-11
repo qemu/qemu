@@ -64,14 +64,6 @@ QEMU_BUILD_BUG_MSG(QTYPE__MAX != 7,
 #define qobject_to(type, obj)                                       \
     ((type *)qobject_check_type(obj, glue(QTYPE_CAST_TO_, type)))
 
-/* Initialize an object to default values */
-static inline void qobject_init(QObject *obj, QType type)
-{
-    assert(QTYPE_NONE < type && type < QTYPE__MAX);
-    obj->base.refcnt = 1;
-    obj->base.type = type;
-}
-
 static inline void qobject_ref_impl(QObject *obj)
 {
     if (obj) {
@@ -90,6 +82,7 @@ bool qobject_is_equal(const QObject *x, const QObject *y);
 
 /**
  * qobject_destroy(): Free resources used by the object
+ * For use via qobject_unref() only!
  */
 void qobject_destroy(QObject *obj);
 
