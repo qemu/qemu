@@ -149,28 +149,23 @@ QDict *qdict_from_jsonf_nofail(const char *string, ...)
     return qdict;
 }
 
-static void json_pretty_newline(QString *str, bool pretty, int indent)
+static void json_pretty_newline(GString *accu, bool pretty, int indent)
 {
-    int i;
-
     if (pretty) {
-        qstring_append(str, "\n");
-        for (i = 0; i < indent; i++) {
-            qstring_append(str, "    ");
-        }
+        g_string_append_printf(accu, "\n%*s", indent * 4, "");
     }
 }
 
-static void to_json(const QObject *obj, QString *str, bool pretty, int indent)
+static void to_json(const QObject *obj, GString *accu, bool pretty, int indent)
 {
     switch (qobject_type(obj)) {
     case QTYPE_QNULL:
-        qstring_append(str, "null");
+        g_string_append(accu, "null");
         break;
     case QTYPE_QNUM: {
         QNum *val = qobject_to(QNum, obj);
         char *buffer = qnum_to_string(val);
-        qstring_append(str, buffer);
+        g_string_append(accu, buffer);
         g_free(buffer);
         break;
     }
@@ -178,35 +173,34 @@ static void to_json(const QObject *obj, QString *str, bool pretty, int indent)
         QString *val = qobject_to(QString, obj);
         const char *ptr;
         int cp;
-        char buf[16];
         char *end;
 
         ptr = qstring_get_str(val);
-        qstring_append(str, "\"");
+        g_string_append_c(accu, '"');
 
         for (; *ptr; ptr = end) {
             cp = mod_utf8_codepoint(ptr, 6, &end);
             switch (cp) {
             case '\"':
-                qstring_append(str, "\\\"");
+                g_string_append(accu, "\\\"");
                 break;
             case '\\':
-                qstring_append(str, "\\\\");
+                g_string_append(accu, "\\\\");
                 break;
             case '\b':
-                qstring_append(str, "\\b");
+                g_string_append(accu, "\\b");
                 break;
             case '\f':
-                qstring_append(str, "\\f");
+                g_string_append(accu, "\\f");
                 break;
             case '\n':
-                qstring_append(str, "\\n");
+                g_string_append(accu, "\\n");
                 break;
             case '\r':
-                qstring_append(str, "\\r");
+                g_string_append(accu, "\\r");
                 break;
             case '\t':
-                qstring_append(str, "\\t");
+                g_string_append(accu, "\\t");
                 break;
             default:
                 if (cp < 0) {
@@ -214,20 +208,18 @@ static void to_json(const QObject *obj, QString *str, bool pretty, int indent)
                 }
                 if (cp > 0xFFFF) {
                     /* beyond BMP; need a surrogate pair */
-                    snprintf(buf, sizeof(buf), "\\u%04X\\u%04X",
-                             0xD800 + ((cp - 0x10000) >> 10),
-                             0xDC00 + ((cp - 0x10000) & 0x3FF));
+                    g_string_append_printf(accu, "\\u%04X\\u%04X",
+                                           0xD800 + ((cp - 0x10000) >> 10),
+                                           0xDC00 + ((cp - 0x10000) & 0x3FF));
                 } else if (cp < 0x20 || cp >= 0x7F) {
-                    snprintf(buf, sizeof(buf), "\\u%04X", cp);
+                    g_string_append_printf(accu, "\\u%04X", cp);
                 } else {
-                    buf[0] = cp;
-                    buf[1] = 0;
+                    g_string_append_c(accu, cp);
                 }
-                qstring_append(str, buf);
             }
         };
 
-        qstring_append(str, "\"");
+        g_string_append_c(accu, '"');
         break;
     }
     case QTYPE_QDICT: {
@@ -237,25 +229,25 @@ static void to_json(const QObject *obj, QString *str, bool pretty, int indent)
         const QDictEntry *entry;
         QString *qkey;
 
-        qstring_append(str, "{");
+        g_string_append_c(accu, '{');
 
         for (entry = qdict_first(val);
              entry;
              entry = qdict_next(val, entry)) {
-            qstring_append(str, sep);
-            json_pretty_newline(str, pretty, indent + 1);
+            g_string_append(accu, sep);
+            json_pretty_newline(accu, pretty, indent + 1);
 
             qkey = qstring_from_str(qdict_entry_key(entry));
-            to_json(QOBJECT(qkey), str, pretty, indent + 1);
+            to_json(QOBJECT(qkey), accu, pretty, indent + 1);
             qobject_unref(qkey);
 
-            qstring_append(str, ": ");
-            to_json(qdict_entry_value(entry), str, pretty, indent + 1);
+            g_string_append(accu, ": ");
+            to_json(qdict_entry_value(entry), accu, pretty, indent + 1);
             sep = comma;
         }
 
-        json_pretty_newline(str, pretty, indent);
-        qstring_append(str, "}");
+        json_pretty_newline(accu, pretty, indent);
+        g_string_append_c(accu, '}');
         break;
     }
     case QTYPE_QLIST: {
@@ -264,26 +256,26 @@ static void to_json(const QObject *obj, QString *str, bool pretty, int indent)
         const char *sep = "";
         QListEntry *entry;
 
-        qstring_append(str, "[");
+        g_string_append_c(accu, '[');
 
         QLIST_FOREACH_ENTRY(val, entry) {
-            qstring_append(str, sep);
-            json_pretty_newline(str, pretty, indent + 1);
-            to_json(qlist_entry_obj(entry), str, pretty, indent + 1);
+            g_string_append(accu, sep);
+            json_pretty_newline(accu, pretty, indent + 1);
+            to_json(qlist_entry_obj(entry), accu, pretty, indent + 1);
             sep = comma;
         }
 
-        json_pretty_newline(str, pretty, indent);
-        qstring_append(str, "]");
+        json_pretty_newline(accu, pretty, indent);
+        g_string_append_c(accu, ']');
         break;
     }
     case QTYPE_QBOOL: {
         QBool *val = qobject_to(QBool, obj);
 
         if (qbool_get_bool(val)) {
-            qstring_append(str, "true");
+            g_string_append(accu, "true");
         } else {
-            qstring_append(str, "false");
+            g_string_append(accu, "false");
         }
         break;
     }
@@ -294,11 +286,10 @@ static void to_json(const QObject *obj, QString *str, bool pretty, int indent)
 
 QString *qobject_to_json_pretty(const QObject *obj, bool pretty)
 {
-    QString *str = qstring_new();
+    GString *accu = g_string_new(NULL);
 
-    to_json(obj, str, pretty, 0);
-
-    return str;
+    to_json(obj, accu, pretty, 0);
+    return qstring_from_gstring(accu);
 }
 
 QString *qobject_to_json(const QObject *obj)

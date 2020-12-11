@@ -66,6 +66,25 @@ QString *qstring_from_str(const char *str)
     return qstring_from_substr(str, 0, strlen(str));
 }
 
+/**
+ * qstring_from_gstring(): Convert a GString to a QString
+ *
+ * Return strong reference.
+ */
+
+QString *qstring_from_gstring(GString *gstr)
+{
+    QString *qstring;
+
+    qstring = g_malloc(sizeof(*qstring));
+    qobject_init(QOBJECT(qstring), QTYPE_QSTRING);
+    qstring->length = gstr->len;
+    qstring->capacity = gstr->allocated_len;
+    qstring->string = g_string_free(gstr, false);
+    return qstring;
+}
+
+
 static void capacity_increase(QString *qstring, size_t len)
 {
     if (qstring->capacity < (qstring->length + len)) {
