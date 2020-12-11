@@ -29,7 +29,6 @@
 #include "qapi/qapi-emit-events.h"
 #include "qapi/qapi-visit-control.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qstring.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "sysemu/qtest.h"
@@ -181,22 +180,19 @@ static void monitor_flush_locked(Monitor *mon)
         return;
     }
 
-    buf = qstring_get_str(mon->outbuf);
-    len = qstring_get_length(mon->outbuf);
+    buf = mon->outbuf->str;
+    len = mon->outbuf->len;
 
     if (len && !mon->mux_out) {
         rc = qemu_chr_fe_write(&mon->chr, (const uint8_t *) buf, len);
         if ((rc < 0 && errno != EAGAIN) || (rc == len)) {
             /* all flushed or error */
-            qobject_unref(mon->outbuf);
-            mon->outbuf = qstring_new();
+            g_string_truncate(mon->outbuf, 0);
             return;
         }
         if (rc > 0) {
             /* partial write */
-            QString *tmp = qstring_from_str(buf + rc);
-            qobject_unref(mon->outbuf);
-            mon->outbuf = tmp;
+            g_string_erase(mon->outbuf, 0, rc);
         }
         if (mon->out_watch == 0) {
             mon->out_watch =
@@ -223,9 +219,9 @@ int monitor_puts(Monitor *mon, const char *str)
     for (i = 0; str[i]; i++) {
         c = str[i];
         if (c == '\n') {
-            qstring_append_chr(mon->outbuf, '\r');
+            g_string_append_c(mon->outbuf, '\r');
         }
-        qstring_append_chr(mon->outbuf, c);
+        g_string_append_c(mon->outbuf, c);
         if (c == '\n') {
             monitor_flush_locked(mon);
         }
@@ -602,7 +598,7 @@ void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
     }
     qemu_mutex_init(&mon->mon_lock);
     mon->is_qmp = is_qmp;
-    mon->outbuf = qstring_new();
+    mon->outbuf = g_string_new(NULL);
     mon->skip_flush = skip_flush;
     mon->use_io_thread = use_io_thread;
 }
@@ -616,7 +612,7 @@ void monitor_data_destroy(Monitor *mon)
     } else {
         readline_free(container_of(mon, MonitorHMP, common)->rs);
     }
-    qobject_unref(mon->outbuf);
+    g_string_free(mon->outbuf, true);
     qemu_mutex_destroy(&mon->mon_lock);
 }
 

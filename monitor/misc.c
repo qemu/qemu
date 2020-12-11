@@ -136,7 +136,7 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     handle_hmp_command(&hmp, command_line);
 
     WITH_QEMU_LOCK_GUARD(&hmp.common.mon_lock) {
-        output = g_strdup(qstring_get_str(hmp.common.outbuf));
+        output = g_strdup(hmp.common.outbuf->str);
     }
 
 out:
