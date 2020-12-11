@@ -106,6 +106,10 @@ void net_checksum_calculate(uint8_t *data, int length)
         return; /* not IPv4 */
     }
 
+    if (IP4_IS_FRAGMENT(ip)) {
+        return; /* a fragmented IP packet */
+    }
+
     ip_len = lduw_be_p(&ip->ip_len);
 
     /* Last, check that we have enough data for the all IP frame */
