@@ -14,13 +14,13 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qmp/json-parser.h"
+#include "qapi/qmp/json-writer.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
-#include "qemu/unicode.h"
 
 typedef struct JSONParsingState
 {
@@ -149,132 +149,69 @@ QDict *qdict_from_jsonf_nofail(const char *string, ...)
     return qdict;
 }
 
-static void json_pretty_newline(GString *accu, bool pretty, int indent)
-{
-    if (pretty) {
-        g_string_append_printf(accu, "\n%*s", indent * 4, "");
-    }
-}
-
-static void quoted_str(const char *str, GString *accu)
-{
-    const char *ptr;
-    int cp;
-    char *end;
-
-    g_string_append_c(accu, '"');
-
-    for (ptr = str; *ptr; ptr = end) {
-        cp = mod_utf8_codepoint(ptr, 6, &end);
-        switch (cp) {
-        case '\"':
-            g_string_append(accu, "\\\"");
-            break;
-        case '\\':
-            g_string_append(accu, "\\\\");
-            break;
-        case '\b':
-            g_string_append(accu, "\\b");
-            break;
-        case '\f':
-            g_string_append(accu, "\\f");
-            break;
-        case '\n':
-            g_string_append(accu, "\\n");
-            break;
-        case '\r':
-            g_string_append(accu, "\\r");
-            break;
-        case '\t':
-            g_string_append(accu, "\\t");
-            break;
-        default:
-            if (cp < 0) {
-                cp = 0xFFFD; /* replacement character */
-            }
-            if (cp > 0xFFFF) {
-                /* beyond BMP; need a surrogate pair */
-                g_string_append_printf(accu, "\\u%04X\\u%04X",
-                                       0xD800 + ((cp - 0x10000) >> 10),
-                                       0xDC00 + ((cp - 0x10000) & 0x3FF));
-            } else if (cp < 0x20 || cp >= 0x7F) {
-                g_string_append_printf(accu, "\\u%04X", cp);
-            } else {
-                g_string_append_c(accu, cp);
-            }
-        }
-    };
-
-    g_string_append_c(accu, '"');
-}
-
-static void to_json(const QObject *obj, GString *accu, bool pretty, int indent)
+static void to_json(JSONWriter *writer, const char *name,
+                    const QObject *obj)
 {
     switch (qobject_type(obj)) {
     case QTYPE_QNULL:
-        g_string_append(accu, "null");
+        json_writer_null(writer, name);
         break;
     case QTYPE_QNUM: {
         QNum *val = qobject_to(QNum, obj);
-        char *buffer = qnum_to_string(val);
-        g_string_append(accu, buffer);
-        g_free(buffer);
+
+        switch (val->kind) {
+        case QNUM_I64:
+            json_writer_int64(writer, name, val->u.i64);
+            break;
+        case QNUM_U64:
+            json_writer_uint64(writer, name, val->u.u64);
+            break;
+        case QNUM_DOUBLE:
+            json_writer_double(writer, name, val->u.dbl);
+            break;
+        default:
+            abort();
+        }
         break;
     }
     case QTYPE_QSTRING: {
-        quoted_str(qstring_get_str(qobject_to(QString, obj)), accu);
+        QString *val = qobject_to(QString, obj);
+
+        json_writer_str(writer, name, qstring_get_str(val));
         break;
     }
     case QTYPE_QDICT: {
         QDict *val = qobject_to(QDict, obj);
-        const char *comma = pretty ? "," : ", ";
-        const char *sep = "";
         const QDictEntry *entry;
 
-        g_string_append_c(accu, '{');
+        json_writer_start_object(writer, name);
 
         for (entry = qdict_first(val);
              entry;
              entry = qdict_next(val, entry)) {
-            g_string_append(accu, sep);
-            json_pretty_newline(accu, pretty, indent + 1);
-            quoted_str(qdict_entry_key(entry), accu);
-            g_string_append(accu, ": ");
-            to_json(qdict_entry_value(entry), accu, pretty, indent + 1);
-            sep = comma;
+            to_json(writer, qdict_entry_key(entry), qdict_entry_value(entry));
         }
 
-        json_pretty_newline(accu, pretty, indent);
-        g_string_append_c(accu, '}');
+        json_writer_end_object(writer);
         break;
     }
     case QTYPE_QLIST: {
         QList *val = qobject_to(QList, obj);
-        const char *comma = pretty ? "," : ", ";
-        const char *sep = "";
         QListEntry *entry;
 
-        g_string_append_c(accu, '[');
+        json_writer_start_array(writer, name);
 
         QLIST_FOREACH_ENTRY(val, entry) {
-            g_string_append(accu, sep);
-            json_pretty_newline(accu, pretty, indent + 1);
-            to_json(qlist_entry_obj(entry), accu, pretty, indent + 1);
-            sep = comma;
+            to_json(writer, NULL, qlist_entry_obj(entry));
         }
 
-        json_pretty_newline(accu, pretty, indent);
-        g_string_append_c(accu, ']');
+        json_writer_end_array(writer);
         break;
     }
     case QTYPE_QBOOL: {
         QBool *val = qobject_to(QBool, obj);
 
-        if (qbool_get_bool(val)) {
-            g_string_append(accu, "true");
-        } else {
-            g_string_append(accu, "false");
-        }
+        json_writer_bool(writer, name, qbool_get_bool(val));
         break;
     }
     default:
@@ -284,10 +221,10 @@ static void to_json(const QObject *obj, GString *accu, bool pretty, int indent)
 
 GString *qobject_to_json_pretty(const QObject *obj, bool pretty)
 {
-    GString *accu = g_string_new(NULL);
+    JSONWriter *writer = json_writer_new(pretty);
 
-    to_json(obj, accu, pretty, 0);
-    return accu;
+    to_json(writer, NULL, obj);
+    return json_writer_get_and_free(writer);
 }
 
 GString *qobject_to_json(const QObject *obj)

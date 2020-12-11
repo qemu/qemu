@@ -168,11 +168,6 @@ char *qnum_to_string(QNum *qn)
     case QNUM_U64:
         return g_strdup_printf("%" PRIu64, qn->u.u64);
     case QNUM_DOUBLE:
-        /* FIXME: g_strdup_printf() is locale dependent; but JSON requires
-         * numbers to be formatted as if in the C locale. Dependence
-         * on C locale is a pervasive issue in QEMU. */
-        /* FIXME: This risks printing Inf or NaN, which are not valid
-         * JSON values. */
         /* 17 digits suffice for IEEE double */
         return g_strdup_printf("%.17g", qn->u.dbl);
     }
