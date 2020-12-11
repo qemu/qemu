@@ -30,6 +30,7 @@
 #include "trace.h"
 #include "hw/qdev-core.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
@@ -2042,6 +2043,17 @@ static void send_ext_audio_ack(VncState *vs)
     vnc_flush(vs);
 }
 
+static void send_xvp_message(VncState *vs, int code)
+{
+    vnc_lock_output(vs);
+    vnc_write_u8(vs, VNC_MSG_SERVER_XVP);
+    vnc_write_u8(vs, 0); /* pad */
+    vnc_write_u8(vs, 1); /* version */
+    vnc_write_u8(vs, code);
+    vnc_unlock_output(vs);
+    vnc_flush(vs);
+}
+
 static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 {
     int i;
@@ -2120,6 +2132,12 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
         case VNC_ENCODING_LED_STATE:
             vs->features |= VNC_FEATURE_LED_STATE_MASK;
+            break;
+        case VNC_ENCODING_XVP:
+            if (vs->vd->power_control) {
+                vs->features |= VNC_FEATURE_XVP;
+                send_xvp_message(vs, VNC_XVP_CODE_INIT);
+            }
             break;
         case VNC_ENCODING_COMPRESSLEVEL0 ... VNC_ENCODING_COMPRESSLEVEL0 + 9:
             vs->tight->compression = (enc & 0x0F);
@@ -2352,6 +2370,42 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         }
 
         client_cut_text(vs, read_u32(data, 4), data + 8);
+        break;
+    case VNC_MSG_CLIENT_XVP:
+        if (!(vs->features & VNC_FEATURE_XVP)) {
+            error_report("vnc: xvp client message while disabled");
+            vnc_client_error(vs);
+            break;
+        }
+        if (len == 1) {
+            return 4;
+        }
+        if (len == 4) {
+            uint8_t version = read_u8(data, 2);
+            uint8_t action = read_u8(data, 3);
+
+            if (version != 1) {
+                error_report("vnc: xvp client message version %d != 1",
+                             version);
+                vnc_client_error(vs);
+                break;
+            }
+
+            switch (action) {
+            case VNC_XVP_ACTION_SHUTDOWN:
+                qemu_system_powerdown_request();
+                break;
+            case VNC_XVP_ACTION_REBOOT:
+                send_xvp_message(vs, VNC_XVP_CODE_FAIL);
+                break;
+            case VNC_XVP_ACTION_RESET:
+                qemu_system_reset_request(SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET);
+                break;
+            default:
+                send_xvp_message(vs, VNC_XVP_CODE_FAIL);
+                break;
+            }
+        }
         break;
     case VNC_MSG_CLIENT_QEMU:
         if (len == 1)
@@ -3379,6 +3433,9 @@ static QemuOptsList qemu_vnc_opts = {
         },{
             .name = "audiodev",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "power-control",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },
@@ -3941,6 +3998,8 @@ void vnc_display_open(const char *id, Error **errp)
     if (!vd->lossy) {
         vd->non_adaptive = true;
     }
+
+    vd->power_control = qemu_opt_get_bool(opts, "power-control", false);
 
     if (tlsauthz) {
         vd->tlsauthzid = g_strdup(tlsauthz);
