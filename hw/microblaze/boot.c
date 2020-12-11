@@ -26,6 +26,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "cpu.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
@@ -170,7 +171,7 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
         /* Not an ELF image nor an u-boot image, try a RAW image.  */
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(kernel_filename, ddr_base,
-                                              ram_size);
+                                              ramsize);
             boot_info.bootstrap_pc = ddr_base;
             high = (ddr_base + kernel_size + 3) & ~3;
         }
@@ -185,11 +186,11 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
 
             initrd_size = load_ramdisk(initrd_filename,
                                        boot_info.initrd_start,
-                                       ram_size - initrd_offset);
+                                       ramsize - initrd_offset);
             if (initrd_size < 0) {
                 initrd_size = load_image_targphys(initrd_filename,
                                                   boot_info.initrd_start,
-                                                  ram_size - initrd_offset);
+                                                  ramsize - initrd_offset);
             }
             if (initrd_size < 0) {
                 error_report("could not load initrd '%s'",
@@ -206,7 +207,7 @@ void microblaze_load_kernel(MicroBlazeCPU *cpu, hwaddr ddr_base,
         }
         /* Provide a device-tree.  */
         boot_info.fdt = boot_info.cmdline + 4096;
-        microblaze_load_dtb(boot_info.fdt, ram_size,
+        microblaze_load_dtb(boot_info.fdt, ramsize,
                             boot_info.initrd_start,
                             boot_info.initrd_end,
                             kernel_cmdline,

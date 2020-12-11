@@ -309,7 +309,7 @@ static void aspeed_machine_init(MachineState *machine)
     /*
      * This will error out if isize is not supported by memory controller.
      */
-    object_property_set_uint(OBJECT(&bmc->soc), "ram-size", ram_size,
+    object_property_set_uint(OBJECT(&bmc->soc), "ram-size", machine->ram_size,
                              &error_fatal);
 
     for (i = 0; i < sc->macs_num; i++) {
@@ -346,8 +346,8 @@ static void aspeed_machine_init(MachineState *machine)
     max_ram_size = object_property_get_uint(OBJECT(&bmc->soc), "max-ram-size",
                                             &error_abort);
     memory_region_init_io(&bmc->max_ram, NULL, &max_ram_ops, NULL,
-                          "max_ram", max_ram_size  - ram_size);
-    memory_region_add_subregion(&bmc->ram_container, ram_size, &bmc->max_ram);
+                          "max_ram", max_ram_size  - machine->ram_size);
+    memory_region_add_subregion(&bmc->ram_container, machine->ram_size, &bmc->max_ram);
 
     aspeed_board_init_flashes(&bmc->soc.fmc, bmc->fmc_model ?
                               bmc->fmc_model : amc->fmc_model);
@@ -392,7 +392,7 @@ static void aspeed_machine_init(MachineState *machine)
         aspeed_board_binfo.smp_loader_start = AST_SMP_MBOX_CODE;
     }
 
-    aspeed_board_binfo.ram_size = ram_size;
+    aspeed_board_binfo.ram_size = machine->ram_size;
     aspeed_board_binfo.loader_start = sc->memmap[ASPEED_DEV_SDRAM];
     aspeed_board_binfo.nb_cpus = sc->num_cpus;
 

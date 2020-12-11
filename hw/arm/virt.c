@@ -30,6 +30,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qemu/option.h"
 #include "monitor/qdev.h"
@@ -1047,6 +1048,7 @@ static bool virt_firmware_init(VirtMachineState *vms,
                                MemoryRegion *secure_sysmem)
 {
     int i;
+    const char *bios_name;
     BlockBackend *pflash_blk0;
 
     /* Map legacy -drive if=pflash to machine properties */
@@ -1059,6 +1061,7 @@ static bool virt_firmware_init(VirtMachineState *vms,
 
     pflash_blk0 = pflash_cfi01_get_blk(vms->flash[0]);
 
+    bios_name = MACHINE(vms)->firmware;
     if (bios_name) {
         char *fname;
         MemoryRegion *mr;

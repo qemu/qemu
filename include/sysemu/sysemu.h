@@ -8,21 +8,21 @@
 
 /* vl.c */
 
-extern const char *bios_name;
 extern int only_migratable;
 extern const char *qemu_name;
 extern QemuUUID qemu_uuid;
 extern bool qemu_uuid_set;
-
-void qemu_add_data_dir(char *path);
 
 void qemu_add_exit_notifier(Notifier *notify);
 void qemu_remove_exit_notifier(Notifier *notify);
 
 extern bool machine_init_done;
 
+void qemu_run_machine_init_done_notifiers(void);
 void qemu_add_machine_init_done_notifier(Notifier *notify);
 void qemu_remove_machine_init_done_notifier(Notifier *notify);
+
+void configure_rtc(QemuOpts *opts);
 
 extern int autostart;
 
@@ -71,10 +71,6 @@ void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict);
 
 /* Return the Chardev for serial port i, or NULL if none */
 Chardev *serial_hd(int i);
-/* return the number of serial ports defined by the user. serial_hd(i)
- * will always return NULL for any i which is greater than or equal to this.
- */
-int serial_max_hds(void);
 
 /* parallel ports */
 

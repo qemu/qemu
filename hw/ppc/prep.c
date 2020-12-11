@@ -237,6 +237,7 @@ static int prep_set_cmos_checksum(DeviceState *dev, void *opaque)
 
 static void ibm_40p_init(MachineState *machine)
 {
+    const char *bios_name = machine->firmware ?: "openbios-ppc";
     CPUPPCState *env = NULL;
     uint16_t cmos_checksum;
     PowerPCCPU *cpu;
@@ -271,9 +272,6 @@ static void ibm_40p_init(MachineState *machine)
 
     /* PCI host */
     dev = qdev_new("raven-pcihost");
-    if (!bios_name) {
-        bios_name = "openbios-ppc";
-    }
     qdev_prop_set_string(dev, "bios-name", bios_name);
     qdev_prop_set_uint32(dev, "elf-machine", PPC_ELF_MACHINE);
     pcihost = SYS_BUS_DEVICE(dev);
@@ -422,7 +420,7 @@ static void ibm_40p_init(MachineState *machine)
 
     /* Prepare firmware configuration for Open Hack'Ware */
     if (m48t59) {
-        PPC_NVRAM_set_params(m48t59, NVRAM_SIZE, "PREP", ram_size,
+        PPC_NVRAM_set_params(m48t59, NVRAM_SIZE, "PREP", machine->ram_size,
                              boot_device,
                              kernel_base, kernel_size,
                              machine->kernel_cmdline,

@@ -48,4 +48,6 @@ bool kvm_has_waitpkg(void);
 
 bool kvm_hv_vpindex_settable(void);
 
+uint64_t kvm_swizzle_msi_ext_dest_id(uint64_t address);
+
 #endif

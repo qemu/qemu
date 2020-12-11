@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "exec/cpu-defs.h"
@@ -120,7 +121,8 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
     }
 
     firmware_size = load_image_targphys_as(firmware_filename,
-                                           firmware_load_addr, ram_size, NULL);
+                                           firmware_load_addr,
+                                           current_machine->ram_size, NULL);
 
     if (firmware_size > 0) {
         return firmware_load_addr + firmware_size;
@@ -148,7 +150,7 @@ target_ulong riscv_load_kernel(const char *kernel_filename,
     }
 
     if (load_image_targphys_as(kernel_filename, kernel_start_addr,
-                               ram_size, NULL) > 0) {
+                               current_machine->ram_size, NULL) > 0) {
         return kernel_start_addr;
     }
 

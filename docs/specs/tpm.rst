@@ -343,7 +343,7 @@ In case an Arm virt machine is emulated, use the following command line:
     -device tpm-tis-device,tpmdev=tpm0 \
     -device virtio-blk-pci,drive=drv0 \
     -drive format=qcow2,file=hda.qcow2,if=none,id=drv0 \
-    -drive if=pflash,format=raw,file=flash0.img,readonly \
+    -drive if=pflash,format=raw,file=flash0.img,readonly=on \
     -drive if=pflash,format=raw,file=flash1.img
 
 In case SeaBIOS is used as firmware, it should show the TPM menu item

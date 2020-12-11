@@ -788,14 +788,6 @@ char *qdev_get_fw_dev_path(DeviceState *dev);
 char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
 
 /**
- * @qdev_machine_init
- *
- * Initialize platform devices before machine init.  This is a hack until full
- * support for composition is added.
- */
-void qdev_machine_init(void);
-
-/**
  * device_legacy_reset:
  *
  * Reset a single device (by calling the reset method).

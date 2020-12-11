@@ -868,6 +868,7 @@ static void next_cube_init(MachineState *machine)
     MemoryRegion *bmapm1 = g_new(MemoryRegion, 1);
     MemoryRegion *bmapm2 = g_new(MemoryRegion, 1);
     MemoryRegion *sysmem = get_system_memory();
+    const char *bios_name = machine->firmware ?: ROM_FILE;
     NeXTState *ns = NEXT_MACHINE(machine);
     DeviceState *dev;
 
@@ -924,9 +925,6 @@ static void next_cube_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x0200e000);
 
     /* Load ROM here */
-    if (bios_name == NULL) {
-        bios_name = ROM_FILE;
-    }
     /* still not sure if the rom should also be mapped at 0x0*/
     memory_region_init_rom(rom, NULL, "next.rom", 0x20000, &error_fatal);
     memory_region_add_subregion(sysmem, 0x01000000, rom);

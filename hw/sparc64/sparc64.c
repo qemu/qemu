@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "hw/boards.h"
 #include "hw/char/serial.h"
 #include "hw/sparc/sparc64.h"
 #include "qemu/timer.h"
@@ -180,7 +181,7 @@ static void main_cpu_reset(void *opaque)
     cpu_timer_reset(env->hstick);
 
     env->gregs[1] = 0; /* Memory start */
-    env->gregs[2] = ram_size; /* Memory size */
+    env->gregs[2] = current_machine->ram_size; /* Memory size */
     env->gregs[3] = 0; /* Machine description XXX */
     if (nr_resets++ == 0) {
         /* Power on reset */

@@ -642,7 +642,7 @@ void numa_complete_configuration(MachineState *ms)
 
     /*
      * If memory hotplug is enabled (slot > 0) or memory devices are enabled
-     * (ms->maxram_size > ram_size) but without '-numa' options explicitly on
+     * (ms->maxram_size > ms->ram_size) but without '-numa' options explicitly on
      * CLI, guests will break.
      *
      *   Windows: won't enable memory hotplug without SRAT table at all
@@ -663,7 +663,7 @@ void numa_complete_configuration(MachineState *ms)
          mc->auto_enable_numa)) {
             NumaNodeOptions node = { };
             parse_numa_node(ms, &node, &error_abort);
-            numa_info[0].node_mem = ram_size;
+            numa_info[0].node_mem = ms->ram_size;
     }
 
     assert(max_numa_nodeid <= MAX_NODES);
@@ -687,10 +687,10 @@ void numa_complete_configuration(MachineState *ms)
         for (i = 0; i < ms->numa_state->num_nodes; i++) {
             numa_total += numa_info[i].node_mem;
         }
-        if (numa_total != ram_size) {
+        if (numa_total != ms->ram_size) {
             error_report("total memory for NUMA nodes (0x%" PRIx64 ")"
                          " should equal RAM size (0x" RAM_ADDR_FMT ")",
-                         numa_total, ram_size);
+                         numa_total, ms->ram_size);
             exit(1);
         }
 
@@ -702,7 +702,7 @@ void numa_complete_configuration(MachineState *ms)
             }
             ms->ram = g_new(MemoryRegion, 1);
             memory_region_init(ms->ram, OBJECT(ms), mc->default_ram_id,
-                               ram_size);
+                               ms->ram_size);
             numa_init_memdev_container(ms, ms->ram);
         }
         /* QEMU needs at least all unique node pair distances to build

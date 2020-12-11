@@ -104,7 +104,7 @@ static struct arm_boot_info z2_binfo = {
 #define Z2_GPIO_LCD_CS      88
 
 struct ZipitLCD {
-    SSISlave ssidev;
+    SSIPeripheral ssidev;
     int32_t selected;
     int32_t enabled;
     uint8_t buf[3];
@@ -115,7 +115,7 @@ struct ZipitLCD {
 #define TYPE_ZIPIT_LCD "zipit-lcd"
 OBJECT_DECLARE_SIMPLE_TYPE(ZipitLCD, ZIPIT_LCD)
 
-static uint32_t zipit_lcd_transfer(SSISlave *dev, uint32_t value)
+static uint32_t zipit_lcd_transfer(SSIPeripheral *dev, uint32_t value)
 {
     ZipitLCD *z = ZIPIT_LCD(dev);
     uint16_t val;
@@ -155,7 +155,7 @@ static void z2_lcd_cs(void *opaque, int line, int level)
     z2_lcd->selected = !level;
 }
 
-static void zipit_lcd_realize(SSISlave *dev, Error **errp)
+static void zipit_lcd_realize(SSIPeripheral *dev, Error **errp)
 {
     ZipitLCD *z = ZIPIT_LCD(dev);
     z->selected = 0;
@@ -168,7 +168,7 @@ static VMStateDescription vmstate_zipit_lcd_state = {
     .version_id = 2,
     .minimum_version_id = 2,
     .fields = (VMStateField[]) {
-        VMSTATE_SSI_SLAVE(ssidev, ZipitLCD),
+        VMSTATE_SSI_PERIPHERAL(ssidev, ZipitLCD),
         VMSTATE_INT32(selected, ZipitLCD),
         VMSTATE_INT32(enabled, ZipitLCD),
         VMSTATE_BUFFER(buf, ZipitLCD),
@@ -181,7 +181,7 @@ static VMStateDescription vmstate_zipit_lcd_state = {
 static void zipit_lcd_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
 
     k->realize = zipit_lcd_realize;
     k->transfer = zipit_lcd_transfer;
@@ -190,7 +190,7 @@ static void zipit_lcd_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo zipit_lcd_info = {
     .name          = TYPE_ZIPIT_LCD,
-    .parent        = TYPE_SSI_SLAVE,
+    .parent        = TYPE_SSI_PERIPHERAL,
     .instance_size = sizeof(ZipitLCD),
     .class_init    = zipit_lcd_class_init,
 };
@@ -329,7 +329,7 @@ static void z2_init(MachineState *machine)
 
     type_register_static(&zipit_lcd_info);
     type_register_static(&aer915_info);
-    z2_lcd = ssi_create_slave(mpu->ssp[1], TYPE_ZIPIT_LCD);
+    z2_lcd = ssi_create_peripheral(mpu->ssp[1], TYPE_ZIPIT_LCD);
     bus = pxa2xx_i2c_bus(mpu->i2c[0]);
     i2c_slave_create_simple(bus, TYPE_AER915, 0x55);
     wm = DEVICE(i2c_slave_create_simple(bus, TYPE_WM8750, 0x1b));

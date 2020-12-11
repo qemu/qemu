@@ -928,12 +928,6 @@ BlockBackend *blk_by_qdev_id(const char *id, Error **errp)
     return blk;
 }
 
-void qdev_machine_init(void)
-{
-    qdev_get_peripheral_anon();
-    qdev_get_peripheral();
-}
-
 QemuOptsList qemu_device_opts = {
     .name = "device",
     .implied_opt_name = "driver",

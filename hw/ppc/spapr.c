@@ -26,6 +26,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "sysemu/sysemu.h"
@@ -2657,6 +2658,7 @@ static void spapr_machine_init(MachineState *machine)
     SpaprMachineState *spapr = SPAPR_MACHINE(machine);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const char *bios_name = machine->firmware ?: FW_FILE_NAME;
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
     PCIHostState *phb;
@@ -2876,10 +2878,8 @@ static void spapr_machine_init(MachineState *machine)
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
 
-    for (i = 0; i < serial_max_hds(); i++) {
-        if (serial_hd(i)) {
-            spapr_vty_create(spapr->vio_bus, serial_hd(i));
-        }
+    for (i = 0; serial_hd(i); i++) {
+        spapr_vty_create(spapr->vio_bus, serial_hd(i));
     }
 
     /* We always have at least the nvram device on VIO */
@@ -2980,9 +2980,6 @@ static void spapr_machine_init(MachineState *machine)
         }
     }
 
-    if (bios_name == NULL) {
-        bios_name = FW_FILE_NAME;
-    }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (!filename) {
         error_report("Could not find LPAR firmware '%s'", bios_name);

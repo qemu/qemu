@@ -16,6 +16,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "e500.h"
@@ -1035,7 +1036,7 @@ void ppce500_init(MachineState *machine)
      * -kernel to users but allows them to run through u-boot as well.
      */
     kernel_as_payload = false;
-    if (bios_name == NULL) {
+    if (machine->firmware == NULL) {
         if (machine->kernel_filename) {
             payload_name = machine->kernel_filename;
             kernel_as_payload = true;
@@ -1043,7 +1044,7 @@ void ppce500_init(MachineState *machine)
             payload_name = "u-boot.e500";
         }
     } else {
-        payload_name = bios_name;
+        payload_name = machine->firmware;
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, payload_name);

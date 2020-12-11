@@ -35,6 +35,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/dma.h"
 #include "sysemu/reset.h"
+#include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
@@ -154,7 +155,7 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
 
         if (size < 0 || s->force_raw) {
             /* Default to the maximum size being the machine's ram size */
-            size = load_image_targphys_as(s->file, s->addr, ram_size, as);
+            size = load_image_targphys_as(s->file, s->addr, current_machine->ram_size, as);
         } else {
             s->addr = entry;
         }

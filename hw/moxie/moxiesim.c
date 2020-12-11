@@ -82,7 +82,7 @@ static void load_kernel(MoxieCPU *cpu, LoaderParams *loader_params)
             }
             initrd_size = load_image_targphys(loader_params->initrd_filename,
                                               initrd_offset,
-                                              ram_size);
+                                              loader_params->ram_size);
         }
         if (initrd_size == (target_ulong)-1) {
             error_report("could not load initial ram disk '%s'",
@@ -133,9 +133,9 @@ static void moxiesim_init(MachineState *machine)
         loader_params.initrd_filename = initrd_filename;
         load_kernel(cpu, &loader_params);
     }
-    if (bios_name) {
-        if (load_image_targphys(bios_name, FIRMWARE_BASE, FIRMWARE_SIZE) < 0) {
-            error_report("Failed to load firmware '%s'", bios_name);
+    if (machine->firmware) {
+        if (load_image_targphys(machine->firmware, FIRMWARE_BASE, FIRMWARE_SIZE) < 0) {
+            error_report("Failed to load firmware '%s'", machine->firmware);
         }
     }
 

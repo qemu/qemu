@@ -58,7 +58,6 @@ void dump_vmstate_json_to_file(FILE *out_fp);
 /* migration/migration.c */
 void migration_object_init(void);
 void migration_shutdown(void);
-void qemu_start_incoming_migration(const char *uri, Error **errp);
 bool migration_is_idle(void);
 bool migration_is_active(MigrationState *);
 void add_migration_state_change_notifier(Notifier *notify);

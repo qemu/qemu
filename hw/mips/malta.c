@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "cpu.h"
 #include "hw/clock.h"
 #include "hw/southbridge/piix.h"
@@ -1087,7 +1088,7 @@ static int64_t load_kernel(void)
             }
             initrd_size = load_image_targphys(loaderparams.initrd_filename,
                                               initrd_offset,
-                                              ram_size - initrd_offset);
+                                              loaderparams.ram_size - initrd_offset);
         }
         if (initrd_size == (target_ulong) -1) {
             error_report("could not load initial ram disk '%s'",
@@ -1333,7 +1334,7 @@ void mips_malta_init(MachineState *machine)
         if (!dinfo) {
             /* Load a BIOS image. */
             filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
-                                      bios_name ?: BIOS_FILENAME);
+                                      machine->firmware ?: BIOS_FILENAME);
             if (filename) {
                 bios_size = load_image_targphys(filename, FLASH_ADDRESS,
                                                 BIOS_SIZE);
@@ -1342,8 +1343,8 @@ void mips_malta_init(MachineState *machine)
                 bios_size = -1;
             }
             if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
-                bios_name && !qtest_enabled()) {
-                error_report("Could not load MIPS bios '%s'", bios_name);
+                machine->firmware && !qtest_enabled()) {
+                error_report("Could not load MIPS bios '%s'", machine->firmware);
                 exit(1);
             }
         }

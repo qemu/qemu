@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -297,16 +298,16 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     memory_region_init_ram(sysram, NULL, "highbank.sysram", 0x8000,
                            &error_fatal);
     memory_region_add_subregion(sysmem, 0xfff88000, sysram);
-    if (bios_name != NULL) {
-        sysboot_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+    if (machine->firmware != NULL) {
+        sysboot_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
         if (sysboot_filename != NULL) {
             if (load_image_targphys(sysboot_filename, 0xfff88000, 0x8000) < 0) {
-                error_report("Unable to load %s", bios_name);
+                error_report("Unable to load %s", machine->firmware);
                 exit(1);
             }
             g_free(sysboot_filename);
         } else {
-            error_report("Unable to find %s", bios_name);
+            error_report("Unable to find %s", machine->firmware);
             exit(1);
         }
     }

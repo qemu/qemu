@@ -30,13 +30,20 @@
  */
 #define LIST_WINHVPLATFORM_FUNCTIONS_SUPPLEMENTAL(X) \
   X(HRESULT, WHvSuspendPartitionTime, (WHV_PARTITION_HANDLE Partition)) \
+  X(HRESULT, WHvRequestInterrupt, (WHV_PARTITION_HANDLE Partition, \
+        WHV_INTERRUPT_CONTROL* Interrupt, UINT32 InterruptControlSize)) \
+  X(HRESULT, WHvGetVirtualProcessorInterruptControllerState2, \
+        (WHV_PARTITION_HANDLE Partition, UINT32 VpIndex, PVOID State, \
+         UINT32 StateSize, UINT32* WrittenSize)) \
+  X(HRESULT, WHvSetVirtualProcessorInterruptControllerState2, \
+        (WHV_PARTITION_HANDLE Partition, UINT32 VpIndex, PVOID State, \
+         UINT32 StateSize)) \
 
 #define LIST_WINHVEMULATION_FUNCTIONS(X) \
   X(HRESULT, WHvEmulatorCreateEmulator, (const WHV_EMULATOR_CALLBACKS* Callbacks, WHV_EMULATOR_HANDLE* Emulator)) \
   X(HRESULT, WHvEmulatorDestroyEmulator, (WHV_EMULATOR_HANDLE Emulator)) \
   X(HRESULT, WHvEmulatorTryIoEmulation, (WHV_EMULATOR_HANDLE Emulator, VOID* Context, const WHV_VP_EXIT_CONTEXT* VpContext, const WHV_X64_IO_PORT_ACCESS_CONTEXT* IoInstructionContext, WHV_EMULATOR_STATUS* EmulatorReturnStatus)) \
   X(HRESULT, WHvEmulatorTryMmioEmulation, (WHV_EMULATOR_HANDLE Emulator, VOID* Context, const WHV_VP_EXIT_CONTEXT* VpContext, const WHV_MEMORY_ACCESS_CONTEXT* MmioInstructionContext, WHV_EMULATOR_STATUS* EmulatorReturnStatus)) \
-
 
 #define WHP_DEFINE_TYPE(return_type, function_name, signature) \
     typedef return_type (WINAPI *function_name ## _t) signature;

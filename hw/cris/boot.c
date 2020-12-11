@@ -81,7 +81,7 @@ void cris_load_image(CRISCPU *cpu, struct cris_load_info *li)
     if (image_size < 0) {
         /* Takes a kimage from the axis devboard SDK.  */
         image_size = load_image_targphys(li->image_filename, 0x40004000,
-                                         ram_size);
+                                         li->ram_size);
         li->entry = 0x40004000;
     }
 

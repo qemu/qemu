@@ -30,6 +30,7 @@
 #include "sysemu/hvf.h"
 #include "sysemu/cpus.h"
 #include "sysemu/xen.h"
+#include "sysemu/whpx.h"
 #include "kvm_i386.h"
 #include "sev_i386.h"
 
@@ -800,7 +801,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "kvmclock", "kvm-nopiodelay", "kvm-mmu", "kvmclock",
             "kvm-asyncpf", "kvm-steal-time", "kvm-pv-eoi", "kvm-pv-unhalt",
             NULL, "kvm-pv-tlb-flush", NULL, "kvm-pv-ipi",
-            "kvm-poll-control", "kvm-pv-sched-yield", "kvm-asyncpf-int", NULL,
+            "kvm-poll-control", "kvm-pv-sched-yield", "kvm-asyncpf-int", "kvm-msi-ext-dest-id",
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             "kvmclock-stable-bit", NULL, NULL, NULL,
@@ -4139,6 +4140,7 @@ static PropValue kvm_default_props[] = {
     { "kvm-pv-eoi", "on" },
     { "kvmclock-stable-bit", "on" },
     { "x2apic", "on" },
+    { "kvm-msi-ext-dest-id", "off" },
     { "acpi", "off" },
     { "monitor", "off" },
     { "svm", "off" },
@@ -5165,6 +5167,8 @@ static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
     if (kvm_enabled()) {
         if (!kvm_irqchip_in_kernel()) {
             x86_cpu_change_kvm_default("x2apic", "off");
+        } else if (kvm_irqchip_is_split() && kvm_enable_x2apic()) {
+            x86_cpu_change_kvm_default("kvm-msi-ext-dest-id", "on");
         }
 
         x86_cpu_apply_props(cpu, kvm_default_props);
@@ -6173,6 +6177,8 @@ APICCommonClass *apic_get_class(void)
         apic_type = "kvm-apic";
     } else if (xen_enabled()) {
         apic_type = "xen-apic";
+    } else if (whpx_apic_in_platform()) {
+        apic_type = "whpx-apic";
     }
 
     return APIC_COMMON_CLASS(object_class_by_name(apic_type));

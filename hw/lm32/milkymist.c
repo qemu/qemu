@@ -21,6 +21,7 @@
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
@@ -108,6 +109,7 @@ static void
 milkymist_init(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    const char *bios_name = machine->firmware ?: BIOS_FILENAME;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -162,9 +164,6 @@ milkymist_init(MachineState *machine)
     }
 
     /* load bios rom */
-    if (bios_name == NULL) {
-        bios_name = BIOS_FILENAME;
-    }
     bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
 
     if (bios_filename) {

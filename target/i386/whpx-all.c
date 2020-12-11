@@ -19,10 +19,15 @@
 #include "sysemu/runstate.h"
 #include "qemu/main-loop.h"
 #include "hw/boards.h"
+#include "hw/i386/ioapic.h"
+#include "hw/i386/apic_internal.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/qapi-types-common.h"
+#include "qapi/qapi-visit-common.h"
 #include "migration/blocker.h"
 #include "whp-dispatch.h"
+#include <winerror.h>
 
 #include "whpx-cpus.h"
 
@@ -30,11 +35,6 @@
 #include <WinHvEmulation.h>
 
 #define HYPERV_APIC_BUS_FREQUENCY      (200000000ULL)
-
-struct whpx_state {
-    uint64_t mem_quota;
-    WHV_PARTITION_HANDLE partition;
-};
 
 static const WHV_REGISTER_NAME whpx_register_names[] = {
 
@@ -152,6 +152,7 @@ struct whpx_vcpu {
     WHV_EMULATOR_HANDLE emulator;
     bool window_registered;
     bool interruptable;
+    bool ready_for_pic_interrupt;
     uint64_t tpr;
     uint64_t apic_base;
     bool interruption_pending;
@@ -163,7 +164,7 @@ struct whpx_vcpu {
 static bool whpx_allowed;
 static bool whp_dispatch_initialized;
 static HMODULE hWinHvPlatform, hWinHvEmulation;
-
+static uint32_t max_vcpu_index;
 struct whpx_state whpx_global;
 struct WHPDispatch whp_dispatch;
 
@@ -599,6 +600,10 @@ static void whpx_get_registers(CPUState *cpu)
 
     assert(idx == RTL_NUMBER_OF(whpx_register_names));
 
+    if (whpx_apic_in_platform()) {
+        whpx_apic_get(x86_cpu->apic_state);
+    }
+
     return;
 }
 
@@ -820,26 +825,42 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     }
 
     /* Get pending hard interruption or replay one that was overwritten */
-    if (!vcpu->interruption_pending &&
-        vcpu->interruptable && (env->eflags & IF_MASK)) {
-        assert(!new_int.InterruptionPending);
-        if (cpu->interrupt_request & CPU_INTERRUPT_HARD) {
-            cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
-            irq = cpu_get_pic_interrupt(env);
-            if (irq >= 0) {
-                new_int.InterruptionType = WHvX64PendingInterrupt;
-                new_int.InterruptionPending = 1;
-                new_int.InterruptionVector = irq;
+    if (!whpx_apic_in_platform()) {
+        if (!vcpu->interruption_pending &&
+            vcpu->interruptable && (env->eflags & IF_MASK)) {
+            assert(!new_int.InterruptionPending);
+            if (cpu->interrupt_request & CPU_INTERRUPT_HARD) {
+                cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
+                irq = cpu_get_pic_interrupt(env);
+                if (irq >= 0) {
+                    new_int.InterruptionType = WHvX64PendingInterrupt;
+                    new_int.InterruptionPending = 1;
+                    new_int.InterruptionVector = irq;
+                }
             }
         }
-    }
 
-    /* Setup interrupt state if new one was prepared */
-    if (new_int.InterruptionPending) {
-        reg_values[reg_count].PendingInterruption = new_int;
-        reg_names[reg_count] = WHvRegisterPendingInterruption;
-        reg_count += 1;
-    }
+        /* Setup interrupt state if new one was prepared */
+        if (new_int.InterruptionPending) {
+            reg_values[reg_count].PendingInterruption = new_int;
+            reg_names[reg_count] = WHvRegisterPendingInterruption;
+            reg_count += 1;
+        }
+    } else if (vcpu->ready_for_pic_interrupt &&
+               (cpu->interrupt_request & CPU_INTERRUPT_HARD)) {
+        cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
+        irq = cpu_get_pic_interrupt(env);
+        if (irq >= 0) {
+            reg_names[reg_count] = WHvRegisterPendingEvent;
+            reg_values[reg_count].ExtIntEvent = (WHV_X64_PENDING_EXT_INT_EVENT)
+            {
+                .EventPending = 1,
+                .EventType = WHvX64PendingEventExtInt,
+                .Vector = irq,
+            };
+            reg_count += 1;
+        }
+     }
 
     /* Sync the TPR to the CR8 if was modified during the intercept */
     tpr = cpu_get_apic_tpr(x86_cpu->apic_state);
@@ -854,14 +875,17 @@ static void whpx_vcpu_pre_run(CPUState *cpu)
     /* Update the state of the interrupt delivery notification */
     if (!vcpu->window_registered &&
         cpu->interrupt_request & CPU_INTERRUPT_HARD) {
-        reg_values[reg_count].DeliverabilityNotifications.InterruptNotification
-            = 1;
+        reg_values[reg_count].DeliverabilityNotifications =
+            (WHV_X64_DELIVERABILITY_NOTIFICATIONS_REGISTER) {
+                .InterruptNotification = 1
+            };
         vcpu->window_registered = 1;
         reg_names[reg_count] = WHvX64RegisterDeliverabilityNotifications;
         reg_count += 1;
     }
 
     qemu_mutex_unlock_iothread();
+    vcpu->ready_for_pic_interrupt = false;
 
     if (reg_count) {
         hr = whp_dispatch.WHvSetVirtualProcessorRegisters(
@@ -948,7 +972,7 @@ static int whpx_vcpu_run(CPUState *cpu)
     int ret;
 
     whpx_vcpu_process_async_events(cpu);
-    if (cpu->halted) {
+    if (cpu->halted && !whpx_apic_in_platform()) {
         cpu->exception_index = EXCP_HLT;
         qatomic_set(&cpu->exit_request, false);
         return 0;
@@ -992,13 +1016,113 @@ static int whpx_vcpu_run(CPUState *cpu)
             break;
 
         case WHvRunVpExitReasonX64InterruptWindow:
+            vcpu->ready_for_pic_interrupt = 1;
             vcpu->window_registered = 0;
             ret = 0;
+            break;
+
+        case WHvRunVpExitReasonX64ApicEoi:
+            assert(whpx_apic_in_platform());
+            ioapic_eoi_broadcast(vcpu->exit_ctx.ApicEoi.InterruptVector);
             break;
 
         case WHvRunVpExitReasonX64Halt:
             ret = whpx_handle_halt(cpu);
             break;
+
+        case WHvRunVpExitReasonX64ApicInitSipiTrap: {
+            WHV_INTERRUPT_CONTROL ipi = {0};
+            uint64_t icr = vcpu->exit_ctx.ApicInitSipi.ApicIcr;
+            uint32_t delivery_mode =
+                (icr & APIC_ICR_DELIV_MOD) >> APIC_ICR_DELIV_MOD_SHIFT;
+            int dest_shorthand =
+                (icr & APIC_ICR_DEST_SHORT) >> APIC_ICR_DEST_SHORT_SHIFT;
+            bool broadcast = false;
+            bool include_self = false;
+            uint32_t i;
+
+            /* We only registered for INIT and SIPI exits. */
+            if ((delivery_mode != APIC_DM_INIT) &&
+                (delivery_mode != APIC_DM_SIPI)) {
+                error_report(
+                    "WHPX: Unexpected APIC exit that is not a INIT or SIPI");
+                break;
+            }
+
+            if (delivery_mode == APIC_DM_INIT) {
+                ipi.Type = WHvX64InterruptTypeInit;
+            } else {
+                ipi.Type = WHvX64InterruptTypeSipi;
+            }
+
+            ipi.DestinationMode =
+                ((icr & APIC_ICR_DEST_MOD) >> APIC_ICR_DEST_MOD_SHIFT) ?
+                    WHvX64InterruptDestinationModeLogical :
+                    WHvX64InterruptDestinationModePhysical;
+
+            ipi.TriggerMode =
+                ((icr & APIC_ICR_TRIGGER_MOD) >> APIC_ICR_TRIGGER_MOD_SHIFT) ?
+                    WHvX64InterruptTriggerModeLevel :
+                    WHvX64InterruptTriggerModeEdge;
+
+            ipi.Vector = icr & APIC_VECTOR_MASK;
+            switch (dest_shorthand) {
+            /* no shorthand. Bits 56-63 contain the destination. */
+            case 0:
+                ipi.Destination = (icr >> 56) & APIC_VECTOR_MASK;
+                hr = whp_dispatch.WHvRequestInterrupt(whpx->partition,
+                        &ipi, sizeof(ipi));
+                if (FAILED(hr)) {
+                    error_report("WHPX: Failed to request interrupt  hr=%08lx",
+                        hr);
+                }
+
+                break;
+
+            /* self */
+            case 1:
+                include_self = true;
+                break;
+
+            /* broadcast, including self */
+            case 2:
+                broadcast = true;
+                include_self = true;
+                break;
+
+            /* broadcast, excluding self */
+            case 3:
+                broadcast = true;
+                break;
+            }
+
+            if (!broadcast && !include_self) {
+                break;
+            }
+
+            for (i = 0; i <= max_vcpu_index; i++) {
+                if (i == cpu->cpu_index && !include_self) {
+                    continue;
+                }
+
+                /*
+                 * Assuming that APIC Ids are identity mapped since
+                 * WHvX64RegisterApicId & WHvX64RegisterInitialApicId registers
+                 * are not handled yet and the hypervisor doesn't allow the
+                 * guest to modify the APIC ID.
+                 */
+                ipi.Destination = i;
+                hr = whp_dispatch.WHvRequestInterrupt(whpx->partition,
+                        &ipi, sizeof(ipi));
+                if (FAILED(hr)) {
+                    error_report(
+                        "WHPX: Failed to request SIPI for %d,  hr=%08lx",
+                        i, hr);
+                }
+            }
+
+            break;
+        }
 
         case WHvRunVpExitReasonCanceled:
             cpu->exception_index = EXCP_INTERRUPT;
@@ -1314,6 +1438,7 @@ int whpx_init_vcpu(CPUState *cpu)
     vcpu->interruptable = true;
     cpu->vcpu_dirty = true;
     cpu->hax_vcpu = (struct hax_vcpu_state *)vcpu;
+    max_vcpu_index = max(max_vcpu_index, cpu->cpu_index);
     qemu_add_vm_change_state_handler(whpx_cpu_update_state, cpu->env_ptr);
 
     return 0;
@@ -1549,6 +1674,43 @@ error:
     return false;
 }
 
+static void whpx_set_kernel_irqchip(Object *obj, Visitor *v,
+                                   const char *name, void *opaque,
+                                   Error **errp)
+{
+    struct whpx_state *whpx = &whpx_global;
+    OnOffSplit mode;
+
+    if (!visit_type_OnOffSplit(v, name, &mode, errp)) {
+        return;
+    }
+
+    switch (mode) {
+    case ON_OFF_SPLIT_ON:
+        whpx->kernel_irqchip_allowed = true;
+        whpx->kernel_irqchip_required = true;
+        break;
+
+    case ON_OFF_SPLIT_OFF:
+        whpx->kernel_irqchip_allowed = false;
+        whpx->kernel_irqchip_required = false;
+        break;
+
+    case ON_OFF_SPLIT_SPLIT:
+        error_setg(errp, "WHPX: split irqchip currently not supported");
+        error_append_hint(errp,
+            "Try without kernel-irqchip or with kernel-irqchip=on|off");
+        break;
+
+    default:
+        /*
+         * The value was checked in visit_type_OnOffSplit() above. If
+         * we get here, then something is wrong in QEMU.
+         */
+        abort();
+    }
+}
+
 /*
  * Partition support
  */
@@ -1562,6 +1724,7 @@ static int whpx_accel_init(MachineState *ms)
     UINT32 whpx_cap_size;
     WHV_PARTITION_PROPERTY prop;
     UINT32 cpuidExitList[] = {1, 0x80000001};
+    WHV_CAPABILITY_FEATURES features = {0};
 
     whpx = &whpx_global;
 
@@ -1570,7 +1733,6 @@ static int whpx_accel_init(MachineState *ms)
         goto error;
     }
 
-    memset(whpx, 0, sizeof(struct whpx_state));
     whpx->mem_quota = ms->ram_size;
 
     hr = whp_dispatch.WHvGetCapability(
@@ -1579,6 +1741,14 @@ static int whpx_accel_init(MachineState *ms)
     if (FAILED(hr) || !whpx_cap.HypervisorPresent) {
         error_report("WHPX: No accelerator found, hr=%08lx", hr);
         ret = -ENOSPC;
+        goto error;
+    }
+
+    hr = whp_dispatch.WHvGetCapability(
+        WHvCapabilityCodeFeatures, &features, sizeof(features), NULL);
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to query capabilities, hr=%08lx", hr);
+        ret = -EINVAL;
         goto error;
     }
 
@@ -1604,18 +1774,55 @@ static int whpx_accel_init(MachineState *ms)
         goto error;
     }
 
+    /*
+     * Error out if WHP doesn't support apic emulation and user is requiring
+     * it.
+     */
+    if (whpx->kernel_irqchip_required && (!features.LocalApicEmulation ||
+            !whp_dispatch.WHvSetVirtualProcessorInterruptControllerState2)) {
+        error_report("WHPX: kernel irqchip requested, but unavailable. "
+            "Try without kernel-irqchip or with kernel-irqchip=off");
+        ret = -EINVAL;
+        goto error;
+    }
+
+    if (whpx->kernel_irqchip_allowed && features.LocalApicEmulation &&
+        whp_dispatch.WHvSetVirtualProcessorInterruptControllerState2) {
+        WHV_X64_LOCAL_APIC_EMULATION_MODE mode =
+            WHvX64LocalApicEmulationModeXApic;
+        printf("WHPX: setting APIC emulation mode in the hypervisor\n");
+        hr = whp_dispatch.WHvSetPartitionProperty(
+            whpx->partition,
+            WHvPartitionPropertyCodeLocalApicEmulationMode,
+            &mode,
+            sizeof(mode));
+        if (FAILED(hr)) {
+            error_report("WHPX: Failed to enable kernel irqchip hr=%08lx", hr);
+            if (whpx->kernel_irqchip_required) {
+                error_report("WHPX: kernel irqchip requested, but unavailable");
+                ret = -EINVAL;
+                goto error;
+            }
+        } else {
+            whpx->apic_in_platform = true;
+        }
+    }
+
+    /* Register for MSR and CPUID exits */
     memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
     prop.ExtendedVmExits.X64MsrExit = 1;
     prop.ExtendedVmExits.X64CpuidExit = 1;
-    hr = whp_dispatch.WHvSetPartitionProperty(
-        whpx->partition,
-        WHvPartitionPropertyCodeExtendedVmExits,
-        &prop,
-        sizeof(WHV_PARTITION_PROPERTY));
+    if (whpx_apic_in_platform()) {
+        prop.ExtendedVmExits.X64ApicInitSipiExitTrap = 1;
+    }
 
+    hr = whp_dispatch.WHvSetPartitionProperty(
+            whpx->partition,
+            WHvPartitionPropertyCodeExtendedVmExits,
+            &prop,
+            sizeof(WHV_PARTITION_PROPERTY));
     if (FAILED(hr)) {
-        error_report("WHPX: Failed to enable partition extended X64MsrExit and"
-                     " X64CpuidExit hr=%08lx", hr);
+        error_report("WHPX: Failed to enable MSR & CPUIDexit, hr=%08lx", hr);
         ret = -EINVAL;
         goto error;
     }
@@ -1668,11 +1875,27 @@ static void whpx_accel_class_init(ObjectClass *oc, void *data)
     ac->name = "WHPX";
     ac->init_machine = whpx_accel_init;
     ac->allowed = &whpx_allowed;
+
+    object_class_property_add(oc, "kernel-irqchip", "on|off|split",
+        NULL, whpx_set_kernel_irqchip,
+        NULL, NULL);
+    object_class_property_set_description(oc, "kernel-irqchip",
+        "Configure WHPX in-kernel irqchip");
+}
+
+static void whpx_accel_instance_init(Object *obj)
+{
+    struct whpx_state *whpx = &whpx_global;
+
+    memset(whpx, 0, sizeof(struct whpx_state));
+    /* Turn on kernel-irqchip, by default */
+    whpx->kernel_irqchip_allowed = true;
 }
 
 static const TypeInfo whpx_accel_type = {
     .name = ACCEL_CLASS_NAME("whpx"),
     .parent = TYPE_ACCEL,
+    .instance_init = whpx_accel_instance_init,
     .class_init = whpx_accel_class_init,
 };
 

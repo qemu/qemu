@@ -26,11 +26,13 @@
 #include "qemu/cutils.h"
 #include "qemu/units.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qapi-visit-common.h"
 #include "qapi/visitor.h"
 #include "sysemu/qtest.h"
+#include "sysemu/whpx.h"
 #include "sysemu/numa.h"
 #include "sysemu/replay.h"
 #include "sysemu/sysemu.h"
@@ -53,8 +55,6 @@
 #include "standard-headers/asm-x86/bootparam.h"
 #include CONFIG_DEVICES
 #include "kvm_i386.h"
-
-#define BIOS_FILENAME "bios.bin"
 
 /* Physical Address of PVH entry point read from kernel ELF NOTE */
 static size_t pvh_start_addr;
@@ -532,7 +532,8 @@ static void pic_irq_request(void *opaque, int irq, int level)
     X86CPU *cpu = X86_CPU(cs);
 
     trace_x86_pic_interrupt(irq, level);
-    if (cpu->apic_state && !kvm_irqchip_in_kernel()) {
+    if (cpu->apic_state && !kvm_irqchip_in_kernel() &&
+        !whpx_apic_in_platform()) {
         CPU_FOREACH(cs) {
             cpu = X86_CPU(cs);
             if (apic_accept_pic_intr(cpu->apic_state)) {
@@ -558,7 +559,7 @@ int cpu_get_pic_interrupt(CPUX86State *env)
     X86CPU *cpu = env_archcpu(env);
     int intno;
 
-    if (!kvm_irqchip_in_kernel()) {
+    if (!kvm_irqchip_in_kernel() && !whpx_apic_in_platform()) {
         intno = apic_get_interrupt(cpu->apic_state);
         if (intno >= 0) {
             return intno;
@@ -1078,17 +1079,17 @@ void x86_load_linux(X86MachineState *x86ms,
     nb_option_roms++;
 }
 
-void x86_bios_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
+void x86_bios_rom_init(MachineState *ms, const char *default_firmware,
+                       MemoryRegion *rom_memory, bool isapc_ram_fw)
 {
+    const char *bios_name;
     char *filename;
     MemoryRegion *bios, *isa_bios;
     int bios_size, isa_bios_size;
     int ret;
 
     /* BIOS load */
-    if (bios_name == NULL) {
-        bios_name = BIOS_FILENAME;
-    }
+    bios_name = ms->firmware ?: default_firmware;
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (filename) {
         bios_size = get_image_size(filename);

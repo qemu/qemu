@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "cpu.h"
@@ -134,14 +135,14 @@ static int64_t load_kernel(CPUMIPSState *env)
         initrd_size = get_image_size(loaderparams.initrd_filename);
         if (initrd_size > 0) {
             initrd_offset = ROUND_UP(kernel_high, INITRD_PAGE_SIZE);
-            if (initrd_offset + initrd_size > ram_size) {
+            if (initrd_offset + initrd_size > loaderparams.ram_size) {
                 error_report("memory too small for initial ram disk '%s'",
                              loaderparams.initrd_filename);
                 exit(1);
             }
             initrd_size = load_image_targphys(loaderparams.initrd_filename,
                                               initrd_offset,
-                                              ram_size - initrd_offset);
+                                              loaderparams.ram_size - initrd_offset);
         }
         if (initrd_size == (target_ulong) -1) {
             error_report("could not load initial ram disk '%s'",
@@ -338,7 +339,7 @@ static void mips_fuloong2e_init(MachineState *machine)
         write_bootloader(env, memory_region_get_ram_ptr(bios), kernel_entry);
     } else {
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
-                                  bios_name ?: FULOONG_BIOSNAME);
+                                  machine->firmware ?: FULOONG_BIOSNAME);
         if (filename) {
             bios_size = load_image_targphys(filename, 0x1fc00000LL,
                                             BIOS_SIZE);
@@ -348,8 +349,8 @@ static void mips_fuloong2e_init(MachineState *machine)
         }
 
         if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
-            bios_name && !qtest_enabled()) {
-            error_report("Could not load MIPS bios '%s'", bios_name);
+            machine->firmware && !qtest_enabled()) {
+            error_report("Could not load MIPS bios '%s'", machine->firmware);
             exit(1);
         }
     }

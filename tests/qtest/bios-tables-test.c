@@ -674,14 +674,14 @@ static void test_acpi_one(const char *params, test_data *data)
         if (data->cd) {
             args = g_strdup_printf("-machine %s %s -accel tcg "
                 "-nodefaults -nographic "
-                "-drive if=pflash,format=raw,file=%s,readonly "
+                "-drive if=pflash,format=raw,file=%s,readonly=on "
                 "-drive if=pflash,format=raw,file=%s,snapshot=on -cdrom %s %s",
                 data->machine, data->tcg_only ? "" : "-accel kvm",
                 data->uefi_fl1, data->uefi_fl2, data->cd, params ? params : "");
         } else {
             args = g_strdup_printf("-machine %s %s -accel tcg "
                 "-nodefaults -nographic "
-                "-drive if=pflash,format=raw,file=%s,readonly "
+                "-drive if=pflash,format=raw,file=%s,readonly=on "
                 "-drive if=pflash,format=raw,file=%s,snapshot=on %s",
                 data->machine, data->tcg_only ? "" : "-accel kvm",
                 data->uefi_fl1, data->uefi_fl2, params ? params : "");

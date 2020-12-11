@@ -118,8 +118,6 @@
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
 
-static bool deferred_incoming;
-
 /* Messages sent on the return path from destination to source */
 enum mig_rp_message_type {
     MIG_RP_MSG_INVALID = 0,  /* Must be 0 */
@@ -182,6 +180,10 @@ void migration_object_init(void)
         error_report_err(err);
         exit(1);
     }
+
+    blk_mig_init();
+    ram_mig_init();
+    dirty_bitmap_mig_init();
 }
 
 void migration_shutdown(void)
@@ -269,19 +271,6 @@ static bool migrate_late_block_activate(void)
 
     return s->enabled_capabilities[
         MIGRATION_CAPABILITY_LATE_BLOCK_ACTIVATE];
-}
-
-/*
- * Called on -incoming with a defer: uri.
- * The migration can be started later after any parameters have been
- * changed.
- */
-static void deferred_incoming_migration(Error **errp)
-{
-    if (deferred_incoming) {
-        error_setg(errp, "Incoming migration already deferred");
-    }
-    deferred_incoming = true;
 }
 
 /*
@@ -425,16 +414,14 @@ void migrate_add_address(SocketAddress *address)
     addrs->value = QAPI_CLONE(SocketAddress, address);
 }
 
-void qemu_start_incoming_migration(const char *uri, Error **errp)
+static void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p = NULL;
 
     qapi_event_send_migration(MIGRATION_STATUS_SETUP);
-    if (!strcmp(uri, "defer")) {
-        deferred_incoming_migration(errp);
-    } else if (strstart(uri, "tcp:", &p) ||
-               strstart(uri, "unix:", NULL) ||
-               strstart(uri, "vsock:", NULL)) {
+    if (strstart(uri, "tcp:", &p) ||
+        strstart(uri, "unix:", NULL) ||
+        strstart(uri, "vsock:", NULL)) {
         socket_start_incoming_migration(p ? p : uri, errp);
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
@@ -1984,12 +1971,12 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
     Error *local_err = NULL;
     static bool once = true;
 
-    if (!deferred_incoming) {
-        error_setg(errp, "For use with '-incoming defer'");
-        return;
-    }
     if (!once) {
         error_setg(errp, "The incoming migration has already been started");
+        return;
+    }
+    if (!runstate_check(RUN_STATE_INMIGRATE)) {
+        error_setg(errp, "'-incoming' was not specified on the command line");
         return;
     }
 

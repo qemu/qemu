@@ -1397,8 +1397,8 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
              */
             bus = qdev_get_child_bus(dev, "ssi");
 
-            sddev = ssi_create_slave(bus, "ssi-sd");
-            ssddev = ssi_create_slave(bus, "ssd0323");
+            sddev = ssi_create_peripheral(bus, "ssi-sd");
+            ssddev = ssi_create_peripheral(bus, "ssd0323");
             gpio_out[GPIO_D][0] = qemu_irq_split(
                     qdev_get_gpio_in_named(sddev, SSI_GPIO_CS, 0),
                     qdev_get_gpio_in_named(ssddev, SSI_GPIO_CS, 0));

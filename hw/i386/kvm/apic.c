@@ -183,6 +183,13 @@ static void kvm_send_msi(MSIMessage *msg)
 {
     int ret;
 
+    /*
+     * The message has already passed through interrupt remapping if enabled,
+     * but the legacy extended destination ID in low bits still needs to be
+     * handled.
+     */
+    msg->address = kvm_swizzle_msi_ext_dest_id(msg->address);
+
     ret = kvm_irqchip_send_msi(kvm_state, *msg);
     if (ret < 0) {
         fprintf(stderr, "KVM: injection failed, MSI lost (%s)\n",

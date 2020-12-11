@@ -21,6 +21,7 @@
 #include "hw/dma/i8257.h"
 #include "net/net.h"
 #include "qemu/cutils.h"
+#include "qemu/datadir.h"
 #include "net/net.h"
 
 #define MAX_IDE_BUS 2
@@ -107,7 +108,7 @@ static void clipper_init(MachineState *machine)
        but one explicitly written for the emulation, we might as
        well load it directly from and ELF image.  */
     palcode_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
-                                bios_name ? bios_name : "palcode-clipper");
+                                      machine->firmware ?: "palcode-clipper");
     if (palcode_filename == NULL) {
         error_report("no palcode provided");
         exit(1);

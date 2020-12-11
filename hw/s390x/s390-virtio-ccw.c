@@ -17,6 +17,7 @@
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "exec/ram_addr.h"
+#include "hw/boards.h"
 #include "hw/s390x/s390-virtio-hcall.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
@@ -142,8 +143,9 @@ static int virtio_ccw_hcall_notify(const uint64_t *args)
 static int virtio_ccw_hcall_early_printk(const uint64_t *args)
 {
     uint64_t mem = args[0];
+    MachineState *ms = MACHINE(qdev_get_machine());
 
-    if (mem < ram_size) {
+    if (mem < ms->ram_size) {
         /* Early printk */
         return 0;
     }
@@ -259,7 +261,8 @@ static void ccw_init(MachineState *machine)
     /* get a BUS */
     css_bus = virtual_css_bus_init();
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
-                      machine->initrd_filename, "s390-ccw.img",
+                      machine->initrd_filename,
+                      machine->firmware ?: "s390-ccw.img",
                       "s390-netboot.img", true);
 
     dev = qdev_new(TYPE_S390_PCI_HOST_BRIDGE);

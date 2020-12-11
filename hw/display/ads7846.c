@@ -19,7 +19,7 @@
 #include "qom/object.h"
 
 struct ADS7846State {
-    SSISlave ssidev;
+    SSIPeripheral ssidev;
     qemu_irq interrupt;
 
     int input[8];
@@ -63,7 +63,7 @@ static void ads7846_int_update(ADS7846State *s)
         qemu_set_irq(s->interrupt, s->pressure == 0);
 }
 
-static uint32_t ads7846_transfer(SSISlave *dev, uint32_t value)
+static uint32_t ads7846_transfer(SSIPeripheral *dev, uint32_t value)
 {
     ADS7846State *s = ADS7846(dev);
 
@@ -131,7 +131,7 @@ static const VMStateDescription vmstate_ads7846 = {
     .minimum_version_id = 1,
     .post_load = ads7856_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_SSI_SLAVE(ssidev, ADS7846State),
+        VMSTATE_SSI_PERIPHERAL(ssidev, ADS7846State),
         VMSTATE_INT32_ARRAY(input, ADS7846State, 8),
         VMSTATE_INT32(noise, ADS7846State),
         VMSTATE_INT32(cycle, ADS7846State),
@@ -140,7 +140,7 @@ static const VMStateDescription vmstate_ads7846 = {
     }
 };
 
-static void ads7846_realize(SSISlave *d, Error **errp)
+static void ads7846_realize(SSIPeripheral *d, Error **errp)
 {
     DeviceState *dev = DEVICE(d);
     ADS7846State *s = ADS7846(d);
@@ -164,7 +164,7 @@ static void ads7846_realize(SSISlave *d, Error **errp)
 static void ads7846_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
 
     k->realize = ads7846_realize;
     k->transfer = ads7846_transfer;
@@ -173,7 +173,7 @@ static void ads7846_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo ads7846_info = {
     .name          = TYPE_ADS7846,
-    .parent        = TYPE_SSI_SLAVE,
+    .parent        = TYPE_SSI_PERIPHERAL,
     .instance_size = sizeof(ADS7846State),
     .class_init    = ads7846_class_init,
 };

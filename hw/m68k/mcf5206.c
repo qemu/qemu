@@ -10,6 +10,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "cpu.h"
+#include "hw/boards.h"
 #include "hw/irq.h"
 #include "hw/m68k/mcf.h"
 #include "qemu/timer.h"
@@ -312,8 +313,9 @@ static uint64_t m5206_mbar_read(m5206_mbar_state *s,
         /* FIXME: currently hardcoded to 128Mb.  */
         {
             uint32_t mask = ~0;
-            while (mask > ram_size)
+            while (mask > current_machine->ram_size) {
                 mask >>= 1;
+            }
             return mask & 0x0ffe0000;
         }
     case 0x5c: return 1; /* DRAM bank 1 empty.  */

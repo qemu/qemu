@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/arm/boot.h"
@@ -560,7 +561,7 @@ static void vexpress_common_init(MachineState *machine)
     /*
      * If a bios file was provided, attempt to map it into memory
      */
-    if (bios_name) {
+    if (machine->firmware) {
         char *fn;
         int image_size;
 
@@ -570,16 +571,16 @@ static void vexpress_common_init(MachineState *machine)
                          "but you cannot use both options at once");
             exit(1);
         }
-        fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
         if (!fn) {
-            error_report("Could not find ROM image '%s'", bios_name);
+            error_report("Could not find ROM image '%s'", machine->firmware);
             exit(1);
         }
         image_size = load_image_targphys(fn, map[VE_NORFLASH0],
                                          VEXPRESS_FLASH_SIZE);
         g_free(fn);
         if (image_size < 0) {
-            error_report("Could not load ROM image '%s'", bios_name);
+            error_report("Could not load ROM image '%s'", machine->firmware);
             exit(1);
         }
     }
