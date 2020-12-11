@@ -89,7 +89,7 @@ static void escaped_string(void)
         for (j = 0; j < 2; j++) {
             if (test_cases[i].utf8_out) {
                 cstr = from_json_str(test_cases[i].json_in, j, &error_abort);
-                g_assert_cmpstr(qstring_get_try_str(cstr),
+                g_assert_cmpstr(qstring_get_str(cstr),
                                 ==, test_cases[i].utf8_out);
                 if (!test_cases[i].skip) {
                     jstr = to_json_str(cstr);
@@ -751,7 +751,7 @@ static void utf8_string(void)
             /* Parse @json_in, expect @utf8_out */
             if (utf8_out) {
                 str = from_json_str(json_in, j, &error_abort);
-                g_assert_cmpstr(qstring_get_try_str(str), ==, utf8_out);
+                g_assert_cmpstr(qstring_get_str(str), ==, utf8_out);
                 qobject_unref(str);
             } else {
                 str = from_json_str(json_in, j, NULL);
@@ -782,7 +782,7 @@ static void utf8_string(void)
             /* Parse @json_out right back, unless it has replacements */
             if (!strstr(json_out, "\\uFFFD")) {
                 str = from_json_str(json_out, j, &error_abort);
-                g_assert_cmpstr(qstring_get_try_str(str), ==, utf8_in);
+                g_assert_cmpstr(qstring_get_str(str), ==, utf8_in);
                 qobject_unref(str);
             }
         }
@@ -1021,9 +1021,8 @@ static void interpolation_valid(void)
 
     /* string */
 
-    qstr = qobject_to(QString,
-                     qobject_from_jsonf_nofail("%s", value_s));
-    g_assert_cmpstr(qstring_get_try_str(qstr), ==, value_s);
+    qstr = qobject_to(QString, qobject_from_jsonf_nofail("%s", value_s));
+    g_assert_cmpstr(qstring_get_str(qstr), ==, value_s);
     qobject_unref(qstr);
 
     /* object */

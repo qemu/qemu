@@ -28,7 +28,6 @@ QString *qstring_from_substr(const char *str, size_t start, size_t end);
 QString *qstring_from_gstring(GString *gstr);
 size_t qstring_get_length(const QString *qstring);
 const char *qstring_get_str(const QString *qstring);
-const char *qstring_get_try_str(const QString *qstring);
 void qstring_append_int(QString *qstring, int64_t value);
 void qstring_append(QString *qstring, const char *str);
 void qstring_append_chr(QString *qstring, int c);

@@ -140,16 +140,6 @@ const char *qstring_get_str(const QString *qstring)
 }
 
 /**
- * qstring_get_try_str(): Return a pointer to the stored string
- *
- * NOTE: will return NULL if qstring is not provided.
- */
-const char *qstring_get_try_str(const QString *qstring)
-{
-    return qstring ? qstring_get_str(qstring) : NULL;
-}
-
-/**
  * qstring_is_equal(): Test whether the two QStrings are equal
  */
 bool qstring_is_equal(const QObject *x, const QObject *y)
