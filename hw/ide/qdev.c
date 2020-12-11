@@ -26,6 +26,7 @@
 #include "qemu/module.h"
 #include "hw/ide/internal.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"

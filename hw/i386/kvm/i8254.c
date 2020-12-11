@@ -32,6 +32,7 @@
 #include "sysemu/runstate.h"
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
+#include "hw/qdev-properties-system.h"
 #include "sysemu/kvm.h"
 #include "qom/object.h"
 
