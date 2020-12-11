@@ -905,6 +905,11 @@ static void set_size(Object *obj, Visitor *v, const char *name, void *opaque,
     Property *prop = opaque;
     uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
 
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
     visit_type_size(v, name, ptr, errp);
 }
 
