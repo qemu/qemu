@@ -309,7 +309,7 @@ const GlobalProperty *qdev_find_global_prop(Object *obj,
                                             const char *name);
 int qdev_prop_check_globals(void);
 void qdev_prop_set_globals(DeviceState *dev);
-void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
+void error_set_from_qdev_prop_error(Error **errp, int ret, Object *obj,
                                     Property *prop, const char *value);
 
 /**
