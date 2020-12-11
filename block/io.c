@@ -1475,15 +1475,16 @@ err:
  * reads; any other features must be implemented by the caller.
  */
 static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
-    BdrvTrackedRequest *req, int64_t offset, unsigned int bytes,
+    BdrvTrackedRequest *req, int64_t offset, int64_t bytes,
     int64_t align, QEMUIOVector *qiov, size_t qiov_offset, int flags)
 {
     BlockDriverState *bs = child->bs;
     int64_t total_bytes, max_bytes;
     int ret = 0;
-    uint64_t bytes_remaining = bytes;
+    int64_t bytes_remaining = bytes;
     int max_transfer;
 
+    bdrv_check_qiov_request(offset, bytes, qiov, qiov_offset, &error_abort);
     assert(is_power_of_2(align));
     assert((offset & (align - 1)) == 0);
     assert((bytes & (align - 1)) == 0);
@@ -1545,7 +1546,7 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
     }
 
     while (bytes_remaining) {
-        int num;
+        int64_t num;
 
         if (max_bytes) {
             num = MIN(bytes_remaining, MIN(max_bytes, max_transfer));
@@ -1652,7 +1653,7 @@ static int bdrv_padding_rmw_read(BdrvChild *child,
     assert(req->serialising && pad->buf);
 
     if (pad->head || pad->merge_reads) {
-        uint64_t bytes = pad->merge_reads ? pad->buf_len : align;
+        int64_t bytes = pad->merge_reads ? pad->buf_len : align;
 
         qemu_iovec_init_buf(&local_qiov, pad->buf, bytes);
 
