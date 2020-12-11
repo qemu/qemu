@@ -30,6 +30,7 @@
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu-version.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
@@ -472,6 +473,25 @@ static QemuOptsList qemu_fw_cfg_opts = {
             .type = QEMU_OPT_STRING,
             .help = "Sets id of the object generating the fw_cfg blob "
                     "to be inserted",
+        },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_action_opts = {
+    .name = "action",
+    .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_action_opts.head),
+    .desc = {
+        {
+            .name = "shutdown",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "reboot",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "watchdog",
+            .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
     },
@@ -2298,6 +2318,26 @@ static void qemu_process_sugar_options(void)
     }
 }
 
+/* -action processing */
+
+/*
+ * Process all the -action parameters parsed from cmdline.
+ */
+static int process_runstate_actions(void *opaque, QemuOpts *opts, Error **errp)
+{
+    Error *local_err = NULL;
+    QDict *qdict = qemu_opts_to_qdict(opts, NULL);
+    QObject *ret = NULL;
+    qmp_marshal_set_action(qdict, &ret, &local_err);
+    qobject_unref(ret);
+    qobject_unref(qdict);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return 1;
+    }
+    return 0;
+}
+
 static void qemu_process_early_options(void)
 {
 #ifdef CONFIG_SECCOMP
@@ -2309,6 +2349,11 @@ static void qemu_process_early_options(void)
 
     qemu_opts_foreach(qemu_find_opts("name"),
                       parse_name, NULL, &error_fatal);
+
+    if (qemu_opts_foreach(qemu_find_opts("action"),
+                          process_runstate_actions, NULL, &error_fatal)) {
+        exit(1);
+    }
 
 #ifndef _WIN32
     qemu_opts_foreach(qemu_find_opts("add-fd"),
@@ -2560,6 +2605,7 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_icount_opts);
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
+    qemu_add_opts(&qemu_action_opts);
     module_call_init(MODULE_INIT_OPTS);
 
     error_init(argv[0]);
@@ -3010,6 +3056,12 @@ void qemu_init(int argc, char **argv, char **envp)
                 }
                 watchdog = optarg;
                 break;
+            case QEMU_OPTION_action:
+                olist = qemu_find_opts("action");
+                if (!qemu_opts_parse_noisily(olist, optarg, false)) {
+                     exit(1);
+                }
+                break;
             case QEMU_OPTION_watchdog_action:
                 if (select_watchdog_action(optarg) == -1) {
                     error_report("unknown -watchdog-action parameter");
@@ -3155,10 +3207,12 @@ void qemu_init(int argc, char **argv, char **envp)
                 qemu_opts_parse_noisily(olist, "hpet=off", false);
                 break;
             case QEMU_OPTION_no_reboot:
-                reboot_action = REBOOT_ACTION_SHUTDOWN;
+                olist = qemu_find_opts("action");
+                qemu_opts_parse_noisily(olist, "reboot=shutdown", false);
                 break;
             case QEMU_OPTION_no_shutdown:
-                shutdown_action = SHUTDOWN_ACTION_PAUSE;
+                olist = qemu_find_opts("action");
+                qemu_opts_parse_noisily(olist, "shutdown=pause", false);
                 break;
             case QEMU_OPTION_show_cursor:
                 warn_report("The -show-cursor option is deprecated. Please "
