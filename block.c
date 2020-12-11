@@ -4021,7 +4021,7 @@ static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
         new_backing_bs = NULL;
         break;
     case QTYPE_QSTRING:
-        str = qobject_get_try_str(value);
+        str = qstring_get_str(qobject_to(QString, value));
         new_backing_bs = bdrv_lookup_bs(NULL, str, errp);
         if (new_backing_bs == NULL) {
             return -EINVAL;
@@ -4284,8 +4284,8 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
                 }
 
                 if (child) {
-                    const char *str = qobject_get_try_str(new);
-                    if (!strcmp(child->bs->node_name, str)) {
+                    if (!strcmp(child->bs->node_name,
+                                qstring_get_str(qobject_to(QString, new)))) {
                         continue; /* Found child with this name, skip option */
                     }
                 }
