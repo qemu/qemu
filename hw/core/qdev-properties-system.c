@@ -32,11 +32,11 @@
 #include "hw/pci/pci.h"
 #include "util/block-helpers.h"
 
-static bool check_prop_still_unset(DeviceState *dev, const char *name,
+static bool check_prop_still_unset(Object *obj, const char *name,
                                    const void *old_val, const char *new_val,
                                    Error **errp)
 {
-    const GlobalProperty *prop = qdev_find_global_prop(OBJECT(dev), name);
+    const GlobalProperty *prop = qdev_find_global_prop(obj, name);
 
     if (!old_val) {
         return true;
@@ -105,7 +105,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
      * TODO Should this really be an error?  If no, the old value
      * needs to be released before we store the new one.
      */
-    if (!check_prop_still_unset(dev, name, *ptr, str, errp)) {
+    if (!check_prop_still_unset(obj, name, *ptr, str, errp)) {
         return;
     }
 
@@ -247,7 +247,7 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
      * TODO Should this really be an error?  If no, the old value
      * needs to be released before we store the new one.
      */
-    if (!check_prop_still_unset(dev, name, be->chr, str, errp)) {
+    if (!check_prop_still_unset(obj, name, be->chr, str, errp)) {
         return;
     }
 
@@ -429,7 +429,7 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
          * TODO Should this really be an error?  If no, the old value
          * needs to be released before we store the new one.
          */
-        if (!check_prop_still_unset(dev, name, ncs[i], str, errp)) {
+        if (!check_prop_still_unset(obj, name, ncs[i], str, errp)) {
             goto out;
         }
 
