@@ -863,24 +863,22 @@ static void qdev_class_add_property(DeviceClass *klass, const char *name,
                                     Property *prop)
 {
     ObjectClass *oc = OBJECT_CLASS(klass);
+    ObjectProperty *op;
 
     if (prop->info->create) {
-        prop->info->create(oc, name, prop);
+        op = prop->info->create(oc, name, prop);
     } else {
-        ObjectProperty *op;
-
         op = object_class_property_add(oc,
                                        name, prop->info->name,
                                        field_prop_getter(prop->info),
                                        field_prop_setter(prop->info),
                                        prop->info->release,
                                        prop);
-        if (prop->set_default) {
-            prop->info->set_default_value(op, prop);
-        }
     }
-    object_class_property_set_description(oc, name,
-                                          prop->info->description);
+    if (prop->set_default) {
+        prop->info->set_default_value(op, prop);
+    }
+    object_class_property_set_description(oc, name, prop->info->description);
 }
 
 /**
