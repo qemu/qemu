@@ -2135,6 +2135,7 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
     uint64_t align = bs->bl.request_alignment;
     BdrvRequestPadding pad;
     int ret;
+    bool padded = false;
 
     trace_bdrv_co_pwritev(child->bs, offset, bytes, flags);
 
@@ -2166,20 +2167,32 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
         return 0;
     }
 
+    if (!(flags & BDRV_REQ_ZERO_WRITE)) {
+        /*
+         * Pad request for following read-modify-write cycle.
+         * bdrv_co_do_zero_pwritev() does aligning by itself, so, we do
+         * alignment only if there is no ZERO flag.
+         */
+        padded = bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes,
+                                  &pad);
+    }
+
     bdrv_inc_in_flight(bs);
-    /*
-     * Align write if necessary by performing a read-modify-write cycle.
-     * Pad qiov with the read parts and be sure to have a tracked request not
-     * only for bdrv_aligned_pwritev, but also for the reads of the RMW cycle.
-     */
     tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_WRITE);
 
     if (flags & BDRV_REQ_ZERO_WRITE) {
+        assert(!padded);
         ret = bdrv_co_do_zero_pwritev(child, offset, bytes, flags, &req);
         goto out;
     }
 
-    if (bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes, &pad)) {
+    if (padded) {
+        /*
+         * Request was unaligned to request_alignment and therefore
+         * padded.  We are going to do read-modify-write, and must
+         * serialize the request to prevent interactions of the
+         * widened region with other transactions.
+         */
         bdrv_make_request_serialising(&req, align);
         bdrv_padding_rmw_read(child, &req, &pad, false);
     }
