@@ -43,8 +43,6 @@ extern int win2k_install_hack;
 extern int alt_grab;
 extern int ctrl_grab;
 extern int graphic_rotate;
-extern int no_shutdown;
-extern int no_reboot;
 extern int old_param;
 extern int boot_menu;
 extern bool boot_strict;

@@ -36,6 +36,7 @@
 #include "qemu/uuid.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
+#include "sysemu/runstate-action.h"
 #include "sysemu/seccomp.h"
 #include "sysemu/tcg.h"
 #include "sysemu/xen.h"
@@ -3154,10 +3155,10 @@ void qemu_init(int argc, char **argv, char **envp)
                 qemu_opts_parse_noisily(olist, "hpet=off", false);
                 break;
             case QEMU_OPTION_no_reboot:
-                no_reboot = 1;
+                reboot_action = REBOOT_ACTION_SHUTDOWN;
                 break;
             case QEMU_OPTION_no_shutdown:
-                no_shutdown = 1;
+                shutdown_action = SHUTDOWN_ACTION_PAUSE;
                 break;
             case QEMU_OPTION_show_cursor:
                 warn_report("The -show-cursor option is deprecated. Please "

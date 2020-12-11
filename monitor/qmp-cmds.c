@@ -26,6 +26,7 @@
 #include "ui/vnc.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
+#include "sysemu/runstate-action.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/block-backend.h"
@@ -72,7 +73,7 @@ UuidInfo *qmp_query_uuid(Error **errp)
 
 void qmp_quit(Error **errp)
 {
-    no_shutdown = 0;
+    shutdown_action = SHUTDOWN_ACTION_POWEROFF;
     qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_QMP_QUIT);
 }
 

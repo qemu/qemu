@@ -46,8 +46,6 @@ Chardev *parallel_hds[MAX_PARALLEL_PORTS];
 int win2k_install_hack;
 int singlestep;
 int fd_bootchk = 1;
-int no_reboot;
-int no_shutdown;
 int graphic_rotate;
 QEMUOptionRom option_rom[MAX_OPTION_ROMS];
 int nb_option_roms;

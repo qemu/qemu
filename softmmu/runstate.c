@@ -54,6 +54,7 @@
 #include "sysemu/replay.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
+#include "sysemu/runstate-action.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/tpm.h"
 #include "trace.h"
@@ -471,7 +472,7 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
     qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
                                    !!info, info);
     vm_stop(RUN_STATE_GUEST_PANICKED);
-    if (!no_shutdown) {
+    if (shutdown_action == SHUTDOWN_ACTION_POWEROFF) {
         qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_POWEROFF,
                                        !!info, info);
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_PANIC);
@@ -512,7 +513,8 @@ void qemu_system_guest_crashloaded(GuestPanicInformation *info)
 
 void qemu_system_reset_request(ShutdownCause reason)
 {
-    if (no_reboot && reason != SHUTDOWN_CAUSE_SUBSYSTEM_RESET) {
+    if (reboot_action == REBOOT_ACTION_SHUTDOWN &&
+        reason != SHUTDOWN_CAUSE_SUBSYSTEM_RESET) {
         shutdown_requested = reason;
     } else {
         reset_requested = reason;
@@ -591,7 +593,7 @@ void qemu_system_killed(int signal, pid_t pid)
 {
     shutdown_signal = signal;
     shutdown_pid = pid;
-    no_shutdown = 0;
+    shutdown_action = SHUTDOWN_ACTION_POWEROFF;
 
     /* Cannot call qemu_system_shutdown_request directly because
      * we are in a signal handler.
@@ -658,7 +660,7 @@ static bool main_loop_should_exit(void)
     if (request) {
         qemu_kill_report();
         qemu_system_shutdown(request);
-        if (no_shutdown) {
+        if (shutdown_action == SHUTDOWN_ACTION_PAUSE) {
             vm_stop(RUN_STATE_SHUTDOWN);
         } else {
             return true;
