@@ -93,7 +93,7 @@ typedef struct BdrvTrackedRequest {
     struct BdrvTrackedRequest *waiting_for;
 } BdrvTrackedRequest;
 
-int bdrv_check_request(int64_t offset, int64_t bytes);
+int bdrv_check_request(int64_t offset, int64_t bytes, Error **errp);
 
 struct BlockDriver {
     const char *format_name;
