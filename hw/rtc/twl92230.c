@@ -697,6 +697,7 @@ static void menelaus_write(void *opaque, uint8_t addr, uint8_t value)
 #ifdef VERBOSE
         printf("%s: unknown register %02x\n", __func__, addr);
 #endif
+        break;
     }
 }
 
