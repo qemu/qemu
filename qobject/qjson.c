@@ -156,6 +156,58 @@ static void json_pretty_newline(GString *accu, bool pretty, int indent)
     }
 }
 
+static void quoted_str(const char *str, GString *accu)
+{
+    const char *ptr;
+    int cp;
+    char *end;
+
+    g_string_append_c(accu, '"');
+
+    for (ptr = str; *ptr; ptr = end) {
+        cp = mod_utf8_codepoint(ptr, 6, &end);
+        switch (cp) {
+        case '\"':
+            g_string_append(accu, "\\\"");
+            break;
+        case '\\':
+            g_string_append(accu, "\\\\");
+            break;
+        case '\b':
+            g_string_append(accu, "\\b");
+            break;
+        case '\f':
+            g_string_append(accu, "\\f");
+            break;
+        case '\n':
+            g_string_append(accu, "\\n");
+            break;
+        case '\r':
+            g_string_append(accu, "\\r");
+            break;
+        case '\t':
+            g_string_append(accu, "\\t");
+            break;
+        default:
+            if (cp < 0) {
+                cp = 0xFFFD; /* replacement character */
+            }
+            if (cp > 0xFFFF) {
+                /* beyond BMP; need a surrogate pair */
+                g_string_append_printf(accu, "\\u%04X\\u%04X",
+                                       0xD800 + ((cp - 0x10000) >> 10),
+                                       0xDC00 + ((cp - 0x10000) & 0x3FF));
+            } else if (cp < 0x20 || cp >= 0x7F) {
+                g_string_append_printf(accu, "\\u%04X", cp);
+            } else {
+                g_string_append_c(accu, cp);
+            }
+        }
+    };
+
+    g_string_append_c(accu, '"');
+}
+
 static void to_json(const QObject *obj, GString *accu, bool pretty, int indent)
 {
     switch (qobject_type(obj)) {
@@ -170,56 +222,7 @@ static void to_json(const QObject *obj, GString *accu, bool pretty, int indent)
         break;
     }
     case QTYPE_QSTRING: {
-        QString *val = qobject_to(QString, obj);
-        const char *ptr;
-        int cp;
-        char *end;
-
-        ptr = qstring_get_str(val);
-        g_string_append_c(accu, '"');
-
-        for (; *ptr; ptr = end) {
-            cp = mod_utf8_codepoint(ptr, 6, &end);
-            switch (cp) {
-            case '\"':
-                g_string_append(accu, "\\\"");
-                break;
-            case '\\':
-                g_string_append(accu, "\\\\");
-                break;
-            case '\b':
-                g_string_append(accu, "\\b");
-                break;
-            case '\f':
-                g_string_append(accu, "\\f");
-                break;
-            case '\n':
-                g_string_append(accu, "\\n");
-                break;
-            case '\r':
-                g_string_append(accu, "\\r");
-                break;
-            case '\t':
-                g_string_append(accu, "\\t");
-                break;
-            default:
-                if (cp < 0) {
-                    cp = 0xFFFD; /* replacement character */
-                }
-                if (cp > 0xFFFF) {
-                    /* beyond BMP; need a surrogate pair */
-                    g_string_append_printf(accu, "\\u%04X\\u%04X",
-                                           0xD800 + ((cp - 0x10000) >> 10),
-                                           0xDC00 + ((cp - 0x10000) & 0x3FF));
-                } else if (cp < 0x20 || cp >= 0x7F) {
-                    g_string_append_printf(accu, "\\u%04X", cp);
-                } else {
-                    g_string_append_c(accu, cp);
-                }
-            }
-        };
-
-        g_string_append_c(accu, '"');
+        quoted_str(qstring_get_str(qobject_to(QString, obj)), accu);
         break;
     }
     case QTYPE_QDICT: {
@@ -227,7 +230,6 @@ static void to_json(const QObject *obj, GString *accu, bool pretty, int indent)
         const char *comma = pretty ? "," : ", ";
         const char *sep = "";
         const QDictEntry *entry;
-        QString *qkey;
 
         g_string_append_c(accu, '{');
 
@@ -236,11 +238,7 @@ static void to_json(const QObject *obj, GString *accu, bool pretty, int indent)
              entry = qdict_next(val, entry)) {
             g_string_append(accu, sep);
             json_pretty_newline(accu, pretty, indent + 1);
-
-            qkey = qstring_from_str(qdict_entry_key(entry));
-            to_json(QOBJECT(qkey), accu, pretty, indent + 1);
-            qobject_unref(qkey);
-
+            quoted_str(qdict_entry_key(entry), accu);
             g_string_append(accu, ": ");
             to_json(qdict_entry_value(entry), accu, pretty, indent + 1);
             sep = comma;
