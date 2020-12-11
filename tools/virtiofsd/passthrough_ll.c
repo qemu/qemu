@@ -1961,6 +1961,12 @@ static void lo_flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
         return;
     }
 
+    if (!S_ISREG(inode->filetype)) {
+        lo_inode_put(lo, &inode);
+        fuse_reply_err(req, EBADF);
+        return;
+    }
+
     /* An fd is going away. Cleanup associated posix locks */
     if (lo->posix_lock) {
         pthread_mutex_lock(&inode->plock_mutex);
