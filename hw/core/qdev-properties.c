@@ -559,10 +559,9 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
      * array-length field in the device struct, we have to create the
      * array itself and dynamically add the corresponding properties.
      */
-    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     uint32_t *alenptr = object_field_prop_ptr(obj, prop);
-    void **arrayptr = (void *)dev + prop->arrayoffset;
+    void **arrayptr = (void *)obj + prop->arrayoffset;
     void *eltptr;
     const char *arrayname;
     int i;
@@ -602,7 +601,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
          * they get the right answer despite the array element not actually
          * being inside the device struct.
          */
-        arrayprop->prop.offset = eltptr - (void *)dev;
+        arrayprop->prop.offset = eltptr - (void *)obj;
         assert(object_field_prop_ptr(obj, &arrayprop->prop) == eltptr);
         object_property_add(obj, propname,
                             arrayprop->prop.info->name,
