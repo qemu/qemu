@@ -189,7 +189,7 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
     QDict *cur;
     int ret;
     QObject *next;
-    QString *val;
+    GString *val;
 
     key = params;
     val_end = NULL;
@@ -263,7 +263,7 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
 
     if (key == implied_key) {
         assert(!*s);
-        val = qstring_from_substr(params, 0, val_end - params);
+        val = g_string_new_len(params, val_end - params);
         s = val_end;
         if (*s == ',') {
             s++;
@@ -276,7 +276,7 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
         }
         s++;
 
-        val = qstring_new();
+        val = g_string_new(NULL);
         for (;;) {
             if (!*s) {
                 break;
@@ -286,11 +286,12 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
                     break;
                 }
             }
-            qstring_append_chr(val, *s++);
+            g_string_append_c(val, *s++);
         }
     }
 
-    if (!keyval_parse_put(cur, key_in_cur, val, key, key_end, errp)) {
+    if (!keyval_parse_put(cur, key_in_cur, qstring_from_gstring(val),
+                          key, key_end, errp)) {
         return NULL;
     }
     return s;
