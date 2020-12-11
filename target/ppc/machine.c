@@ -134,7 +134,7 @@ static int get_avr(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_avr(QEMUFile *f, void *pv, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     ppc_avr_t *v = pv;
 
@@ -166,7 +166,7 @@ static int get_fpr(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_fpr(QEMUFile *f, void *pv, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     ppc_vsr_t *v = pv;
 
@@ -197,7 +197,7 @@ static int get_vsr(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_vsr(QEMUFile *f, void *pv, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     ppc_vsr_t *v = pv;
 
@@ -455,7 +455,7 @@ static int get_vscr(QEMUFile *f, void *opaque, size_t size,
 }
 
 static int put_vscr(QEMUFile *f, void *opaque, size_t size,
-                    const VMStateField *field, QJSON *vmdesc)
+                    const VMStateField *field, JSONWriter *vmdesc)
 {
     PowerPCCPU *cpu = opaque;
     qemu_put_be32(f, helper_mfvscr(&cpu->env));
@@ -580,7 +580,7 @@ static int get_slbe(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_slbe(QEMUFile *f, void *pv, size_t size,
-                    const VMStateField *field, QJSON *vmdesc)
+                    const VMStateField *field, JSONWriter *vmdesc)
 {
     ppc_slb_t *v = pv;
 

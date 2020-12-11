@@ -634,7 +634,7 @@ void msix_unset_vector_notifiers(PCIDevice *dev)
 }
 
 static int put_msix_state(QEMUFile *f, void *pv, size_t size,
-                          const VMStateField *field, QJSON *vmdesc)
+                          const VMStateField *field, JSONWriter *vmdesc)
 {
     msix_save(pv, f);
 

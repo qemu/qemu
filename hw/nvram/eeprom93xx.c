@@ -104,7 +104,7 @@ static int get_uint16_from_uint8(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_unused(QEMUFile *f, void *pv, size_t size,
-                      const VMStateField *field, QJSON *vmdesc)
+                      const VMStateField *field, JSONWriter *vmdesc)
 {
     fprintf(stderr, "uint16_from_uint8 is used only for backwards compatibility.\n");
     fprintf(stderr, "Never should be used to write a new state.\n");

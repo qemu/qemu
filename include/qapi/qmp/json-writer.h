@@ -14,8 +14,6 @@
 #ifndef JSON_WRITER_H
 #define JSON_WRITER_H
 
-typedef struct JSONWriter JSONWriter;
-
 JSONWriter *json_writer_new(bool pretty);
 const char *json_writer_get(JSONWriter *);
 GString *json_writer_get_and_free(JSONWriter *);

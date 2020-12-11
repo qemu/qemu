@@ -42,6 +42,7 @@
 #include "postcopy-ram.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-migration.h"
+#include "qapi/qmp/json-writer.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "sysemu/cpus.h"
@@ -58,7 +59,6 @@
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/xen.h"
-#include "qjson.h"
 #include "migration/colo.h"
 #include "qemu/bitmap.h"
 #include "net/announce.h"
@@ -209,7 +209,7 @@ static int get_timer(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_timer(QEMUFile *f, void *pv, size_t size,
-                     const VMStateField *field, QJSON *vmdesc)
+                     const VMStateField *field, JSONWriter *vmdesc)
 {
     QEMUTimer *v = pv;
     timer_put(f, v);
@@ -406,7 +406,7 @@ static int get_capability(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_capability(QEMUFile *f, void *pv, size_t size,
-                          const VMStateField *field, QJSON *vmdesc)
+                          const VMStateField *field, JSONWriter *vmdesc)
 {
     MigrationCapability *capability = pv;
     const char *capability_str = MigrationCapability_str(*capability);
@@ -884,7 +884,8 @@ static int vmstate_load(QEMUFile *f, SaveStateEntry *se)
     return vmstate_load_state(f, se->vmsd, se->opaque, se->load_version_id);
 }
 
-static void vmstate_save_old_style(QEMUFile *f, SaveStateEntry *se, QJSON *vmdesc)
+static void vmstate_save_old_style(QEMUFile *f, SaveStateEntry *se,
+                                   JSONWriter *vmdesc)
 {
     int64_t old_offset, size;
 
@@ -893,18 +894,19 @@ static void vmstate_save_old_style(QEMUFile *f, SaveStateEntry *se, QJSON *vmdes
     size = qemu_ftell_fast(f) - old_offset;
 
     if (vmdesc) {
-        json_prop_int(vmdesc, "size", size);
-        json_start_array(vmdesc, "fields");
-        json_start_object(vmdesc, NULL);
-        json_prop_str(vmdesc, "name", "data");
-        json_prop_int(vmdesc, "size", size);
-        json_prop_str(vmdesc, "type", "buffer");
-        json_end_object(vmdesc);
-        json_end_array(vmdesc);
+        json_writer_int64(vmdesc, "size", size);
+        json_writer_start_array(vmdesc, "fields");
+        json_writer_start_object(vmdesc, NULL);
+        json_writer_str(vmdesc, "name", "data");
+        json_writer_int64(vmdesc, "size", size);
+        json_writer_str(vmdesc, "type", "buffer");
+        json_writer_end_object(vmdesc);
+        json_writer_end_array(vmdesc);
     }
 }
 
-static int vmstate_save(QEMUFile *f, SaveStateEntry *se, QJSON *vmdesc)
+static int vmstate_save(QEMUFile *f, SaveStateEntry *se,
+                        JSONWriter *vmdesc)
 {
     trace_vmstate_save(se->idstr, se->vmsd ? se->vmsd->name : "(old)");
     if (!se->vmsd) {
@@ -1357,14 +1359,15 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
                                                     bool in_postcopy,
                                                     bool inactivate_disks)
 {
-    g_autoptr(QJSON) vmdesc = NULL;
+    g_autoptr(JSONWriter) vmdesc = NULL;
     int vmdesc_len;
     SaveStateEntry *se;
     int ret;
 
-    vmdesc = qjson_new();
-    json_prop_int(vmdesc, "page_size", qemu_target_page_size());
-    json_start_array(vmdesc, "devices");
+    vmdesc = json_writer_new(false);
+    json_writer_start_object(vmdesc, NULL);
+    json_writer_int64(vmdesc, "page_size", qemu_target_page_size());
+    json_writer_start_array(vmdesc, "devices");
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
 
         if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
@@ -1377,9 +1380,9 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
 
         trace_savevm_section_start(se->idstr, se->section_id);
 
-        json_start_object(vmdesc, NULL);
-        json_prop_str(vmdesc, "name", se->idstr);
-        json_prop_int(vmdesc, "instance_id", se->instance_id);
+        json_writer_start_object(vmdesc, NULL);
+        json_writer_str(vmdesc, "name", se->idstr);
+        json_writer_int64(vmdesc, "instance_id", se->instance_id);
 
         save_section_header(f, se, QEMU_VM_SECTION_FULL);
         ret = vmstate_save(f, se, vmdesc);
@@ -1390,7 +1393,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         trace_savevm_section_end(se->idstr, se->section_id, 0);
         save_section_footer(f, se);
 
-        json_end_object(vmdesc);
+        json_writer_end_object(vmdesc);
     }
 
     if (inactivate_disks) {
@@ -1409,14 +1412,14 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         qemu_put_byte(f, QEMU_VM_EOF);
     }
 
-    json_end_array(vmdesc);
-    qjson_finish(vmdesc);
-    vmdesc_len = strlen(qjson_get_str(vmdesc));
+    json_writer_end_array(vmdesc);
+    json_writer_end_object(vmdesc);
+    vmdesc_len = strlen(json_writer_get(vmdesc));
 
     if (should_send_vmdesc()) {
         qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
         qemu_put_be32(f, vmdesc_len);
-        qemu_put_buffer(f, (uint8_t *)qjson_get_str(vmdesc), vmdesc_len);
+        qemu_put_buffer(f, (uint8_t *)json_writer_get(vmdesc), vmdesc_len);
     }
 
     return 0;

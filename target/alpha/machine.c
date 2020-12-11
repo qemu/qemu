@@ -11,7 +11,7 @@ static int get_fpcr(QEMUFile *f, void *opaque, size_t size,
 }
 
 static int put_fpcr(QEMUFile *f, void *opaque, size_t size,
-                    const VMStateField *field, QJSON *vmdesc)
+                    const VMStateField *field, JSONWriter *vmdesc)
 {
     CPUAlphaState *env = opaque;
     qemu_put_be64(f, cpu_alpha_load_fpcr(env));
