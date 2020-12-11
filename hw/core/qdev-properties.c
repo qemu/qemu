@@ -542,7 +542,7 @@ static void set_size32(Object *obj, Visitor *v, const char *name, void *opaque,
         error_setg(errp,
                    "Property %s.%s doesn't take value %" PRIu64
                    " (maximum: %u)",
-                   dev->id ? : "", name, value, UINT32_MAX);
+                   object_get_typename(obj), name, value, UINT32_MAX);
         return;
     }
 
