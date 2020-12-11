@@ -851,9 +851,10 @@ const PropertyInfo qdev_prop_size = {
 
 /* --- object link property --- */
 
-static void create_link_property(ObjectClass *oc, Property *prop)
+static void create_link_property(ObjectClass *oc, const char *name,
+                                 Property *prop)
 {
-    object_class_property_add_link(oc, prop->name, prop->link_type,
+    object_class_property_add_link(oc, name, prop->link_type,
                                    prop->offset,
                                    qdev_prop_allow_set_link_before_realize,
                                    OBJ_PROP_LINK_STRONG);
@@ -893,7 +894,7 @@ static void qdev_class_add_property(DeviceClass *klass, const char *name,
     ObjectClass *oc = OBJECT_CLASS(klass);
 
     if (prop->info->create) {
-        prop->info->create(oc, prop);
+        prop->info->create(oc, name, prop);
     } else {
         ObjectProperty *op;
 
