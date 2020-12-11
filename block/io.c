@@ -1665,6 +1665,7 @@ static void bdrv_padding_destroy(BdrvRequestPadding *pad)
         qemu_vfree(pad->buf);
         qemu_iovec_destroy(&pad->local_qiov);
     }
+    memset(pad, 0, sizeof(*pad));
 }
 
 /*
@@ -1674,33 +1675,42 @@ static void bdrv_padding_destroy(BdrvRequestPadding *pad)
  * read of padding, bdrv_padding_rmw_read() should be called separately if
  * needed.
  *
- * All parameters except @bs are in-out: they represent original request at
- * function call and padded (if padding needed) at function finish.
- *
- * Function always succeeds.
+ * Request parameters (@qiov, &qiov_offset, &offset, &bytes) are in-out:
+ *  - on function start they represent original request
+ *  - on failure or when padding is not needed they are unchanged
+ *  - on success when padding is needed they represent padded request
  */
-static bool bdrv_pad_request(BlockDriverState *bs,
-                             QEMUIOVector **qiov, size_t *qiov_offset,
-                             int64_t *offset, unsigned int *bytes,
-                             BdrvRequestPadding *pad)
+static int bdrv_pad_request(BlockDriverState *bs,
+                            QEMUIOVector **qiov, size_t *qiov_offset,
+                            int64_t *offset, unsigned int *bytes,
+                            BdrvRequestPadding *pad, bool *padded)
 {
     int ret;
 
     if (!bdrv_init_padding(bs, *offset, *bytes, pad)) {
-        return false;
+        if (padded) {
+            *padded = false;
+        }
+        return 0;
     }
 
     ret = qemu_iovec_init_extended(&pad->local_qiov, pad->buf, pad->head,
                                    *qiov, *qiov_offset, *bytes,
                                    pad->buf + pad->buf_len - pad->tail,
                                    pad->tail);
-    assert(ret == 0);
+    if (ret < 0) {
+        bdrv_padding_destroy(pad);
+        return ret;
+    }
     *bytes += pad->head + pad->tail;
     *offset -= pad->head;
     *qiov = &pad->local_qiov;
     *qiov_offset = 0;
+    if (padded) {
+        *padded = true;
+    }
 
-    return true;
+    return 0;
 }
 
 int coroutine_fn bdrv_co_preadv(BdrvChild *child,
@@ -1750,7 +1760,11 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
         flags |= BDRV_REQ_COPY_ON_READ;
     }
 
-    bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes, &pad);
+    ret = bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes, &pad,
+                           NULL);
+    if (ret < 0) {
+        return ret;
+    }
 
     tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_READ);
     ret = bdrv_aligned_preadv(child, &req, offset, bytes,
@@ -2173,8 +2187,11 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
          * bdrv_co_do_zero_pwritev() does aligning by itself, so, we do
          * alignment only if there is no ZERO flag.
          */
-        padded = bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes,
-                                  &pad);
+        ret = bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes, &pad,
+                               &padded);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     bdrv_inc_in_flight(bs);
