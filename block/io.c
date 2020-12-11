@@ -1680,13 +1680,17 @@ static bool bdrv_pad_request(BlockDriverState *bs,
                              int64_t *offset, unsigned int *bytes,
                              BdrvRequestPadding *pad)
 {
+    int ret;
+
     if (!bdrv_init_padding(bs, *offset, *bytes, pad)) {
         return false;
     }
 
-    qemu_iovec_init_extended(&pad->local_qiov, pad->buf, pad->head,
-                             *qiov, *qiov_offset, *bytes,
-                             pad->buf + pad->buf_len - pad->tail, pad->tail);
+    ret = qemu_iovec_init_extended(&pad->local_qiov, pad->buf, pad->head,
+                                   *qiov, *qiov_offset, *bytes,
+                                   pad->buf + pad->buf_len - pad->tail,
+                                   pad->tail);
+    assert(ret == 0);
     *bytes += pad->head + pad->tail;
     *offset -= pad->head;
     *qiov = &pad->local_qiov;

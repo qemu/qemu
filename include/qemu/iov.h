@@ -222,7 +222,7 @@ static inline void *qemu_iovec_buf(QEMUIOVector *qiov)
 
 void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint);
 void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov);
-void qemu_iovec_init_extended(
+int qemu_iovec_init_extended(
         QEMUIOVector *qiov,
         void *head_buf, size_t head_len,
         QEMUIOVector *mid_qiov, size_t mid_offset, size_t mid_len,
