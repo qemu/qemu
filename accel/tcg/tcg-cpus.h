@@ -1,5 +1,7 @@
 /*
- * Accelerator CPUS Interface
+ * QEMU TCG vCPU common functionality
+ *
+ * Functionality common to all TCG vcpu variants: mttcg, rr and icount.
  *
  * Copyright 2020 SUSE LLC
  *
@@ -12,6 +14,12 @@
 
 #include "sysemu/cpus.h"
 
-extern const CpusAccel tcg_cpus;
+extern const CpusAccel tcg_cpus_mttcg;
+extern const CpusAccel tcg_cpus_icount;
+extern const CpusAccel tcg_cpus_rr;
+
+void tcg_cpus_destroy(CPUState *cpu);
+int tcg_cpus_exec(CPUState *cpu);
+void tcg_cpus_handle_interrupt(CPUState *cpu, int mask);
 
 #endif /* TCG_CPUS_H */
