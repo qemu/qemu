@@ -469,13 +469,23 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
     if (current_cpu) {
         current_cpu->crash_occurred = true;
     }
-    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
-                                   !!info, info);
-    vm_stop(RUN_STATE_GUEST_PANICKED);
-    if (shutdown_action == SHUTDOWN_ACTION_POWEROFF) {
+    /*
+     * TODO:  Currently the available panic actions are: none, pause, and
+     * poweroff, but in principle debug and reset could be supported as well.
+     * Investigate any potential use cases for the unimplemented actions.
+     */
+    if (panic_action == PANIC_ACTION_PAUSE) {
+        qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
+                                        !!info, info);
+        vm_stop(RUN_STATE_GUEST_PANICKED);
+    } else if (panic_action == PANIC_ACTION_POWEROFF) {
         qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_POWEROFF,
                                        !!info, info);
+        vm_stop(RUN_STATE_GUEST_PANICKED);
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_PANIC);
+    } else {
+        qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_RUN,
+                                        !!info, info);
     }
 
     if (info) {

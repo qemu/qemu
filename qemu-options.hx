@@ -3899,6 +3899,8 @@ DEF("action", HAS_ARG, QEMU_OPTION_action,
     "                   action when guest reboots [default=none]\n"
     "-action shutdown=poweroff|pause\n"
     "                   action when guest shuts down [default=poweroff]\n"
+    "-action panic=poweroff|pause|none\n"
+    "                   action when guest panics [default=poweroff]\n"
     "-action watchdog=reset|shutdown|poweroff|inject-nmi|pause|debug|none\n"
     "                   action when watchdog fires [default=reset]\n",
     QEMU_ARCH_ALL)
@@ -3911,6 +3913,7 @@ SRST
 
     Examples:
 
+    ``-action panic=none``
     ``-action reboot=shutdown,shutdown=pause``
     ``-watchdog i6300esb -action watchdog=pause``
 

@@ -15,6 +15,7 @@
 
 RebootAction reboot_action = REBOOT_ACTION_NONE;
 ShutdownAction shutdown_action = SHUTDOWN_ACTION_POWEROFF;
+PanicAction panic_action = PANIC_ACTION_POWEROFF;
 
 /*
  * Receives actions to be applied for specific guest events
@@ -28,6 +29,10 @@ void qmp_set_action(bool has_reboot, RebootAction reboot,
 {
     if (has_reboot) {
         reboot_action = reboot;
+    }
+
+    if (has_panic) {
+        panic_action = panic;
     }
 
     if (has_watchdog) {

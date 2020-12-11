@@ -354,6 +354,18 @@
   'data': [ 'poweroff', 'pause' ] }
 
 ##
+# @PanicAction:
+#
+# @none: Continue VM execution
+#
+# @pause: Pause the VM
+#
+# Since: 6.0
+##
+{ 'enum': 'PanicAction',
+  'data': [ 'poweroff', 'pause', 'none' ] }
+
+##
 # @watchdog-set-action:
 #
 # Set watchdog action
@@ -372,6 +384,8 @@
 #
 # @shutdown: @ShutdownAction action taken on guest shutdown.
 #
+# @panic: @PanicAction action taken on guest panic.
+#
 # @watchdog: @WatchdogAction action taken when watchdog timer expires .
 #
 # Returns: Nothing on success.
@@ -383,12 +397,14 @@
 # -> { "execute": "set-action",
 #      "arguments": { "reboot": "shutdown",
 #                     "shutdown" : "pause",
+#                     "panic": "pause",
 #                     "watchdog": "inject-nmi" } }
 # <- { "return": {} }
 ##
 { 'command': 'set-action',
   'data': { '*reboot': 'RebootAction',
             '*shutdown': 'ShutdownAction',
+            '*panic': 'PanicAction',
             '*watchdog': 'WatchdogAction' },
   'allow-preconfig': true }
 

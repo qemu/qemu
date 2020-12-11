@@ -14,5 +14,6 @@
 /* in softmmu/runstate-action.c */
 extern RebootAction reboot_action;
 extern ShutdownAction shutdown_action;
+extern PanicAction panic_action;
 
 #endif /* RUNSTATE_ACTION_H */

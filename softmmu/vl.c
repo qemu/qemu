@@ -490,6 +490,9 @@ static QemuOptsList qemu_action_opts = {
             .name = "reboot",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "panic",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "watchdog",
             .type = QEMU_OPT_STRING,
         },
@@ -3212,7 +3215,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_no_shutdown:
                 olist = qemu_find_opts("action");
-                qemu_opts_parse_noisily(olist, "shutdown=pause", false);
+                qemu_opts_parse_noisily(olist, "panic=pause,shutdown=pause", false);
                 break;
             case QEMU_OPTION_show_cursor:
                 warn_report("The -show-cursor option is deprecated. Please "
