@@ -78,7 +78,7 @@ void hmp_qom_get(Monitor *mon, const QDict *qdict)
     QObject *obj = qmp_qom_get(path, property, &err);
 
     if (err == NULL) {
-        QString *str = qobject_to_json_pretty(obj);
+        QString *str = qobject_to_json_pretty(obj, true);
         monitor_printf(mon, "%s\n", qstring_get_str(str));
         qobject_unref(str);
     }

@@ -633,7 +633,7 @@ static void dump_json_image_check(ImageCheck *check, bool quiet)
 
     visit_type_ImageCheck(v, NULL, &check, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
     qprintf(quiet, "%s\n", qstring_get_str(str));
     qobject_unref(obj);
@@ -2795,7 +2795,7 @@ static void dump_json_image_info_list(ImageInfoList *list)
 
     visit_type_ImageInfoList(v, NULL, &list, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
     printf("%s\n", qstring_get_str(str));
     qobject_unref(obj);
@@ -2811,7 +2811,7 @@ static void dump_json_image_info(ImageInfo *info)
 
     visit_type_ImageInfo(v, NULL, &info, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
     printf("%s\n", qstring_get_str(str));
     qobject_unref(obj);
@@ -5242,7 +5242,7 @@ static void dump_json_block_measure_info(BlockMeasureInfo *info)
 
     visit_type_BlockMeasureInfo(v, NULL, &info, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
     printf("%s\n", qstring_get_str(str));
     qobject_unref(obj);

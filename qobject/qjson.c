@@ -149,8 +149,6 @@ QDict *qdict_from_jsonf_nofail(const char *string, ...)
     return qdict;
 }
 
-static void to_json(const QObject *obj, QString *str, int pretty, int indent);
-
 static void json_pretty_newline(QString *str, bool pretty, int indent)
 {
     int i;
@@ -163,7 +161,7 @@ static void json_pretty_newline(QString *str, bool pretty, int indent)
     }
 }
 
-static void to_json(const QObject *obj, QString *str, int pretty, int indent)
+static void to_json(const QObject *obj, QString *str, bool pretty, int indent)
 {
     switch (qobject_type(obj)) {
     case QTYPE_QNULL:
@@ -294,20 +292,16 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
     }
 }
 
-QString *qobject_to_json(const QObject *obj)
+QString *qobject_to_json_pretty(const QObject *obj, bool pretty)
 {
     QString *str = qstring_new();
 
-    to_json(obj, str, 0, 0);
+    to_json(obj, str, pretty, 0);
 
     return str;
 }
 
-QString *qobject_to_json_pretty(const QObject *obj)
+QString *qobject_to_json(const QObject *obj)
 {
-    QString *str = qstring_new();
-
-    to_json(obj, str, 1, 0);
-
-    return str;
+    return qobject_to_json_pretty(obj, false);
 }

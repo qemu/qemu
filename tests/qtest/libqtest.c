@@ -1197,7 +1197,7 @@ void qtest_qmp_assert_success(QTestState *qts, const char *fmt, ...)
 
     g_assert(response);
     if (!qdict_haskey(response, "return")) {
-        QString *s = qobject_to_json_pretty(QOBJECT(response));
+        QString *s = qobject_to_json_pretty(QOBJECT(response), true);
         g_test_message("%s", qstring_get_str(s));
         qobject_unref(s);
     }
