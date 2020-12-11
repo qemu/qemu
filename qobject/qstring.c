@@ -150,17 +150,6 @@ const char *qstring_get_try_str(const QString *qstring)
 }
 
 /**
- * qobject_get_try_str(): Return a pointer to the corresponding string
- *
- * NOTE: the string will only be returned if the object is valid, and
- * its type is QString, otherwise NULL is returned.
- */
-const char *qobject_get_try_str(const QObject *qstring)
-{
-    return qstring_get_try_str(qobject_to(QString, qstring));
-}
-
-/**
  * qstring_is_equal(): Test whether the two QStrings are equal
  */
 bool qstring_is_equal(const QObject *x, const QObject *y)
