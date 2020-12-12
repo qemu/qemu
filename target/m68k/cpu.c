@@ -260,10 +260,198 @@ static void m68k_cpu_initfn(Object *obj)
     cpu_set_cpustate_pointers(cpu);
 }
 
+#if defined(CONFIG_SOFTMMU)
+static bool fpu_needed(void *opaque)
+{
+    M68kCPU *s = opaque;
+
+    return m68k_feature(&s->env, M68K_FEATURE_CF_FPU) ||
+           m68k_feature(&s->env, M68K_FEATURE_FPU);
+}
+
+typedef struct m68k_FPReg_tmp {
+    FPReg *parent;
+    uint64_t tmp_mant;
+    uint16_t tmp_exp;
+} m68k_FPReg_tmp;
+
+static void cpu_get_fp80(uint64_t *pmant, uint16_t *pexp, floatx80 f)
+{
+    CPU_LDoubleU temp;
+
+    temp.d = f;
+    *pmant = temp.l.lower;
+    *pexp = temp.l.upper;
+}
+
+static floatx80 cpu_set_fp80(uint64_t mant, uint16_t upper)
+{
+    CPU_LDoubleU temp;
+
+    temp.l.upper = upper;
+    temp.l.lower = mant;
+    return temp.d;
+}
+
+static int freg_pre_save(void *opaque)
+{
+    m68k_FPReg_tmp *tmp = opaque;
+
+    cpu_get_fp80(&tmp->tmp_mant, &tmp->tmp_exp, tmp->parent->d);
+
+    return 0;
+}
+
+static int freg_post_load(void *opaque, int version)
+{
+    m68k_FPReg_tmp *tmp = opaque;
+
+    tmp->parent->d = cpu_set_fp80(tmp->tmp_mant, tmp->tmp_exp);
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_freg_tmp = {
+    .name = "freg_tmp",
+    .post_load = freg_post_load,
+    .pre_save  = freg_pre_save,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(tmp_mant, m68k_FPReg_tmp),
+        VMSTATE_UINT16(tmp_exp, m68k_FPReg_tmp),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_freg = {
+    .name = "freg",
+    .fields = (VMStateField[]) {
+        VMSTATE_WITH_TMP(FPReg, m68k_FPReg_tmp, vmstate_freg_tmp),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int fpu_post_load(void *opaque, int version)
+{
+    M68kCPU *s = opaque;
+
+    cpu_m68k_restore_fp_status(&s->env);
+
+    return 0;
+}
+
+const VMStateDescription vmmstate_fpu = {
+    .name = "cpu/fpu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = fpu_needed,
+    .post_load = fpu_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.fpcr, M68kCPU),
+        VMSTATE_UINT32(env.fpsr, M68kCPU),
+        VMSTATE_STRUCT_ARRAY(env.fregs, M68kCPU, 8, 0, vmstate_freg, FPReg),
+        VMSTATE_STRUCT(env.fp_result, M68kCPU, 0, vmstate_freg, FPReg),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool cf_spregs_needed(void *opaque)
+{
+    M68kCPU *s = opaque;
+
+    return m68k_feature(&s->env, M68K_FEATURE_CF_ISA_A);
+}
+
+const VMStateDescription vmstate_cf_spregs = {
+    .name = "cpu/cf_spregs",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = cf_spregs_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64_ARRAY(env.macc, M68kCPU, 4),
+        VMSTATE_UINT32(env.macsr, M68kCPU),
+        VMSTATE_UINT32(env.mac_mask, M68kCPU),
+        VMSTATE_UINT32(env.rambar0, M68kCPU),
+        VMSTATE_UINT32(env.mbar, M68kCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool cpu_68040_mmu_needed(void *opaque)
+{
+    M68kCPU *s = opaque;
+
+    return m68k_feature(&s->env, M68K_FEATURE_M68040);
+}
+
+const VMStateDescription vmstate_68040_mmu = {
+    .name = "cpu/68040_mmu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = cpu_68040_mmu_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.mmu.ar, M68kCPU),
+        VMSTATE_UINT32(env.mmu.ssw, M68kCPU),
+        VMSTATE_UINT16(env.mmu.tcr, M68kCPU),
+        VMSTATE_UINT32(env.mmu.urp, M68kCPU),
+        VMSTATE_UINT32(env.mmu.srp, M68kCPU),
+        VMSTATE_BOOL(env.mmu.fault, M68kCPU),
+        VMSTATE_UINT32_ARRAY(env.mmu.ttr, M68kCPU, 4),
+        VMSTATE_UINT32(env.mmu.mmusr, M68kCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool cpu_68040_spregs_needed(void *opaque)
+{
+    M68kCPU *s = opaque;
+
+    return m68k_feature(&s->env, M68K_FEATURE_M68040);
+}
+
+const VMStateDescription vmstate_68040_spregs = {
+    .name = "cpu/68040_spregs",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = cpu_68040_spregs_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(env.vbr, M68kCPU),
+        VMSTATE_UINT32(env.cacr, M68kCPU),
+        VMSTATE_UINT32(env.sfc, M68kCPU),
+        VMSTATE_UINT32(env.dfc, M68kCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_m68k_cpu = {
     .name = "cpu",
-    .unmigratable = 1,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(env.dregs, M68kCPU, 8),
+        VMSTATE_UINT32_ARRAY(env.aregs, M68kCPU, 8),
+        VMSTATE_UINT32(env.pc, M68kCPU),
+        VMSTATE_UINT32(env.sr, M68kCPU),
+        VMSTATE_INT32(env.current_sp, M68kCPU),
+        VMSTATE_UINT32_ARRAY(env.sp, M68kCPU, 3),
+        VMSTATE_UINT32(env.cc_op, M68kCPU),
+        VMSTATE_UINT32(env.cc_x, M68kCPU),
+        VMSTATE_UINT32(env.cc_n, M68kCPU),
+        VMSTATE_UINT32(env.cc_v, M68kCPU),
+        VMSTATE_UINT32(env.cc_c, M68kCPU),
+        VMSTATE_UINT32(env.cc_z, M68kCPU),
+        VMSTATE_INT32(env.pending_vector, M68kCPU),
+        VMSTATE_INT32(env.pending_level, M68kCPU),
+        VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmmstate_fpu,
+        &vmstate_cf_spregs,
+        &vmstate_68040_mmu,
+        &vmstate_68040_spregs,
+        NULL
+    },
 };
+#endif
 
 static void m68k_cpu_class_init(ObjectClass *c, void *data)
 {
@@ -287,13 +475,12 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
 #if defined(CONFIG_SOFTMMU)
     cc->do_transaction_failed = m68k_cpu_transaction_failed;
     cc->get_phys_page_debug = m68k_cpu_get_phys_page_debug;
+    dc->vmsd = &vmstate_m68k_cpu;
 #endif
     cc->disas_set_info = m68k_cpu_disas_set_info;
     cc->tcg_initialize = m68k_tcg_init;
 
     cc->gdb_num_core_regs = 18;
-
-    dc->vmsd = &vmstate_m68k_cpu;
 }
 
 static void m68k_cpu_class_init_cf_core(ObjectClass *c, void *data)
