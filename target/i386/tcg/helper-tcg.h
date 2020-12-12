@@ -78,19 +78,8 @@ void QEMU_NORETURN raise_interrupt(CPUX86State *nenv, int intno, int is_int,
 /* cc_helper.c */
 extern const uint8_t parity_table[256];
 
-/*
- * NOTE: the translator must set DisasContext.cc_op to CC_OP_EFLAGS
- * after generating a call to a helper that uses this.
- */
-static inline void cpu_load_eflags(CPUX86State *env, int eflags,
-                                   int update_mask)
-{
-    CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-    CC_OP = CC_OP_EFLAGS;
-    env->df = 1 - (2 * ((eflags >> 10) & 1));
-    env->eflags = (env->eflags & ~update_mask) |
-        (eflags & update_mask) | 0x2;
-}
+/* misc_helper.c */
+void cpu_load_eflags(CPUX86State *env, int eflags, int update_mask);
 
 /* svm_helper.c */
 void QEMU_NORETURN cpu_vmexit(CPUX86State *nenv, uint32_t exit_code,
