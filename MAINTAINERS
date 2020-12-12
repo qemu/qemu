@@ -445,7 +445,6 @@ M: Cameron Esfahani <dirty@apple.com>
 M: Roman Bolshakov <r.bolshakov@yadro.com>
 W: https://wiki.qemu.org/Features/HVF
 S: Maintained
-F: accel/stubs/hvf-stub.c
 F: target/i386/hvf/
 F: include/sysemu/hvf.h
 
