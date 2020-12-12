@@ -24,6 +24,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/address-spaces.h"
+#include "helper-tcg.h"
 
 void helper_outb(CPUX86State *env, uint32_t port, uint32_t data)
 {

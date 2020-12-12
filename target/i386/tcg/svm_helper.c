@@ -22,6 +22,7 @@
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
+#include "helper-tcg.h"
 
 /* Secure Virtual Machine helpers */
 

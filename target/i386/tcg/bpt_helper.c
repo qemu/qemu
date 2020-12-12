@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "helper-tcg.h"
 
 
 #ifndef CONFIG_USER_ONLY

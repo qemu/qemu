@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 #include "sysemu/runstate.h"
 #include "exec/helper-proto.h"
+#include "helper-tcg.h"
 
 void helper_raise_interrupt(CPUX86State *env, int intno, int next_eip_addend)
 {

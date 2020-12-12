@@ -24,6 +24,7 @@
 #include "exec/helper-proto.h"
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
+#include "helper-tcg.h"
 
 //#define DEBUG_MULDIV
 

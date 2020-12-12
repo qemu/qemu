@@ -22,6 +22,8 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/log.h"
+#include "helper-tcg.h"
+
 
 /* SMM support */
 
