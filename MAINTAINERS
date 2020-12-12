@@ -452,11 +452,7 @@ F: include/sysemu/hvf.h
 WHPX CPUs
 M: Sunil Muthuswamy <sunilmut@microsoft.com>
 S: Supported
-F: target/i386/whpx-all.c
-F: target/i386/whpx-apic.c
-F: target/i386/whpx-cpus.c
-F: target/i386/whp-dispatch.h
-F: accel/stubs/whpx-stub.c
+F: target/i386/whpx/
 F: include/sysemu/whpx.h
 
 Guest CPU Cores (Xen)
