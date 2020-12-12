@@ -492,7 +492,7 @@ W: https://github.com/intel/haxm/issues
 S: Maintained
 F: accel/stubs/hax-stub.c
 F: include/sysemu/hax.h
-F: target/i386/hax-*
+F: target/i386/hax/
 
 Hosts
 -----

@@ -84,13 +84,13 @@ void hax_memory_init(void);
 
 
 #ifdef CONFIG_POSIX
-#include "target/i386/hax-posix.h"
+#include "hax-posix.h"
 #endif
 
 #ifdef CONFIG_WIN32
-#include "target/i386/hax-windows.h"
+#include "hax-windows.h"
 #endif
 
-#include "target/i386/hax-interface.h"
+#include "hax-interface.h"
 
 #endif
