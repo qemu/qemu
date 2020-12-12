@@ -105,7 +105,7 @@ struct ppcuic_t {
     qemu_irq *irqs;
 };
 
-static void ppcuic_trigger_irq (ppcuic_t *uic)
+static void ppcuic_trigger_irq(ppcuic_t *uic)
 {
     uint32_t ir, cr;
     int start, end, inc, i;
@@ -156,26 +156,28 @@ static void ppcuic_trigger_irq (ppcuic_t *uic)
     }
 }
 
-static void ppcuic_set_irq (void *opaque, int irq_num, int level)
+static void ppcuic_set_irq(void *opaque, int irq_num, int level)
 {
     ppcuic_t *uic;
     uint32_t mask, sr;
 
     uic = opaque;
-    mask = 1U << (31-irq_num);
+    mask = 1U << (31 - irq_num);
     LOG_UIC("%s: irq %d level %d uicsr %08" PRIx32
                 " mask %08" PRIx32 " => %08" PRIx32 " %08" PRIx32 "\n",
                 __func__, irq_num, level,
                 uic->uicsr, mask, uic->uicsr & mask, level << irq_num);
-    if (irq_num < 0 || irq_num > 31)
+    if (irq_num < 0 || irq_num > 31) {
         return;
+    }
     sr = uic->uicsr;
 
     /* Update status register */
     if (uic->uictr & mask) {
         /* Edge sensitive interrupt */
-        if (level == 1)
+        if (level == 1) {
             uic->uicsr |= mask;
+        }
     } else {
         /* Level sensitive interrupt */
         if (level == 1) {
@@ -188,11 +190,12 @@ static void ppcuic_set_irq (void *opaque, int irq_num, int level)
     }
     LOG_UIC("%s: irq %d level %d sr %" PRIx32 " => "
                 "%08" PRIx32 "\n", __func__, irq_num, level, uic->uicsr, sr);
-    if (sr != uic->uicsr)
+    if (sr != uic->uicsr) {
         ppcuic_trigger_irq(uic);
+    }
 }
 
-static uint32_t dcr_read_uic (void *opaque, int dcrn)
+static uint32_t dcr_read_uic(void *opaque, int dcrn)
 {
     ppcuic_t *uic;
     uint32_t ret;
@@ -220,13 +223,15 @@ static uint32_t dcr_read_uic (void *opaque, int dcrn)
         ret = uic->uicsr & uic->uicer;
         break;
     case DCR_UICVR:
-        if (!uic->use_vectors)
+        if (!uic->use_vectors) {
             goto no_read;
+        }
         ret = uic->uicvr;
         break;
     case DCR_UICVCR:
-        if (!uic->use_vectors)
+        if (!uic->use_vectors) {
             goto no_read;
+        }
         ret = uic->uicvcr;
         break;
     default:
@@ -238,7 +243,7 @@ static uint32_t dcr_read_uic (void *opaque, int dcrn)
     return ret;
 }
 
-static void dcr_write_uic (void *opaque, int dcrn, uint32_t val)
+static void dcr_write_uic(void *opaque, int dcrn, uint32_t val)
 {
     ppcuic_t *uic;
 
