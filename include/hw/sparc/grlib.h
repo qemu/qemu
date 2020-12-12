@@ -36,8 +36,6 @@
 
 typedef void (*set_pil_in_fn) (void *opaque, uint32_t pil_in);
 
-void grlib_irqmp_set_irq(void *opaque, int irq, int level);
-
 void grlib_irqmp_ack(DeviceState *dev, int intno);
 
 /* GPTimer */
