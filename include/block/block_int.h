@@ -70,6 +70,12 @@ enum BdrvTrackedRequestType {
     BDRV_TRACKED_TRUNCATE,
 };
 
+/*
+ * That is not quite good that BdrvTrackedRequest structure is public,
+ * as block/io.c is very careful about incoming offset/bytes being
+ * correct. Be sure to assert bdrv_check_request() succeeded after any
+ * modification of BdrvTrackedRequest object out of block/io.c
+ */
 typedef struct BdrvTrackedRequest {
     BlockDriverState *bs;
     int64_t offset;
@@ -86,6 +92,8 @@ typedef struct BdrvTrackedRequest {
 
     struct BdrvTrackedRequest *waiting_for;
 } BdrvTrackedRequest;
+
+int bdrv_check_request(int64_t offset, int64_t bytes);
 
 struct BlockDriver {
     const char *format_name;

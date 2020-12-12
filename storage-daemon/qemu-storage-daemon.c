@@ -314,6 +314,9 @@ int main(int argc, char *argv[])
         main_loop_wait(false);
     }
 
+    bdrv_drain_all_begin();
+    bdrv_close_all();
+
     monitor_cleanup();
     qemu_chr_cleanup();
     user_creatable_cleanup();

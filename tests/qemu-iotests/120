@@ -38,7 +38,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt generic
-_supported_proto file
+_supported_proto file fuse
 _unsupported_fmt luks
 _require_drivers raw
 

@@ -34,7 +34,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt luks
-_supported_proto file #TODO
+_supported_proto file fuse #TODO
 
 QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
 

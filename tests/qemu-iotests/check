@@ -270,6 +270,7 @@ image protocol options
     -rbd                test rbd
     -sheepdog           test sheepdog
     -nbd                test nbd
+    -fuse               test fuse
     -ssh                test ssh
     -nfs                test nfs
 
@@ -379,6 +380,11 @@ testlist options
 
         -nbd)
             IMGPROTO=nbd
+            xpand=false
+            ;;
+
+        -fuse)
+            IMGPROTO=fuse
             xpand=false
             ;;
 
@@ -643,6 +649,17 @@ if [ -z $QEMU_NBD_PROG ]; then
     fi
 fi
 export QEMU_NBD_PROG="$(type -p "$QEMU_NBD_PROG")"
+
+if [ -z "$QSD_PROG" ]; then
+    if [ -x "$build_iotests/qemu-storage-daemon" ]; then
+        export QSD_PROG="$build_iotests/qemu-storage-daemon"
+    elif [ -x "$build_root/storage-daemon/qemu-storage-daemon" ]; then
+        export QSD_PROG="$build_root/storage-daemon/qemu-storage-daemon"
+    else
+        _init_error "qemu-storage-daemon not found"
+    fi
+fi
+export QSD_PROG="$(type -p "$QSD_PROG")"
 
 if [ -x "$build_iotests/socket_scm_helper" ]
 then

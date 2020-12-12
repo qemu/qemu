@@ -64,6 +64,8 @@ static void test_threshold_not_trigger(void)
     req.offset = 1024;
     req.bytes = 1024;
 
+    assert(bdrv_check_request(req.offset, req.bytes) == 0);
+
     bdrv_write_threshold_set(&bs, threshold);
     amount = bdrv_write_threshold_exceeded(&bs, &req);
     g_assert_cmpuint(amount, ==, 0);
@@ -81,6 +83,8 @@ static void test_threshold_trigger(void)
     memset(&req, 0, sizeof(req));
     req.offset = (4 * 1024 * 1024) - 1024;
     req.bytes = 2 * 1024;
+
+    assert(bdrv_check_request(req.offset, req.bytes) == 0);
 
     bdrv_write_threshold_set(&bs, threshold);
     amount = bdrv_write_threshold_exceeded(&bs, &req);

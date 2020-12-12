@@ -37,7 +37,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt qcow2
-_supported_proto file
+_supported_proto file fuse
 # data_file does not support compressed clusters
 _unsupported_imgopts data_file
 
@@ -47,6 +47,8 @@ size=128M
 echo
 echo "== creating backing file for COW tests =="
 
+TEST_IMG_SAVE=$TEST_IMG
+TEST_IMG="$TEST_IMG.base"
 _make_test_img $size
 
 backing_io()
@@ -67,8 +69,7 @@ backing_io()
 
 backing_io 0 32 write | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 
-mv "$TEST_IMG" "$TEST_IMG.base"
-
+TEST_IMG=$TEST_IMG_SAVE
 _make_test_img -b "$TEST_IMG.base" -F $IMGFMT 6G
 
 echo

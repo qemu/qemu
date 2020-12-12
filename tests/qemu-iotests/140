@@ -44,7 +44,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.qemu
 
 _supported_fmt generic
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 
 _make_test_img 64k

@@ -53,6 +53,11 @@ static void can_host_connect(CanHostState *ch, Error **errp)
     CanHostClass *chc = CAN_HOST_GET_CLASS(ch);
     Error *local_err = NULL;
 
+    if (ch->bus == NULL) {
+        error_setg(errp, "'canbus' property not set");
+        return;
+    }
+
     chc->connect(ch, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
