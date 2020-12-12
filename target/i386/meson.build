@@ -4,6 +4,7 @@ i386_ss.add(files(
   'gdbstub.c',
   'helper.c',
   'xsave_helper.c',
+  'cpu-dump.c',
 ))
 i386_ss.add(when: 'CONFIG_SEV', if_true: files('sev.c'), if_false: files('sev-stub.c'))
 
