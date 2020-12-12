@@ -240,14 +240,18 @@ static void cpu_exec_enter(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    cc->cpu_exec_enter(cpu);
+    if (cc->cpu_exec_enter) {
+        cc->cpu_exec_enter(cpu);
+    }
 }
 
 static void cpu_exec_exit(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    cc->cpu_exec_exit(cpu);
+    if (cc->cpu_exec_exit) {
+        cc->cpu_exec_exit(cpu);
+    }
 }
 
 void cpu_exec_step_atomic(CPUState *cpu)
@@ -619,7 +623,8 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
            True when it is, and we should restart on a new TB,
            and via longjmp via cpu_loop_exit.  */
         else {
-            if (cc->cpu_exec_interrupt(cpu, interrupt_request)) {
+            if (cc->cpu_exec_interrupt &&
+                cc->cpu_exec_interrupt(cpu, interrupt_request)) {
                 if (need_replay_interrupt(interrupt_request)) {
                     replay_interrupt();
                 }
