@@ -21,7 +21,7 @@
 #include "hw/timer/hpet.h"
 #include "hw/nvram/fw_cfg.h"
 #include "e820_memory_layout.h"
-#include "kvm_i386.h"
+#include "kvm/kvm_i386.h"
 #include CONFIG_DEVICES
 
 struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};

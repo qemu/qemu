@@ -51,7 +51,7 @@
 
 #include "cpu.h"
 #include "elf.h"
-#include "kvm_i386.h"
+#include "kvm/kvm_i386.h"
 #include "hw/xen/start_info.h"
 
 #define MICROVM_QBOOT_FILENAME "qboot.rom"

@@ -426,7 +426,7 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
-F: target/i386/kvm.c
+F: target/i386/kvm/
 F: scripts/kvm/vmxcap
 
 Guest CPU Cores (other accelerators)

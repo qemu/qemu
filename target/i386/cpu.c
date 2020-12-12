@@ -31,7 +31,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/xen.h"
 #include "sysemu/whpx.h"
-#include "kvm_i386.h"
+#include "kvm/kvm_i386.h"
 #include "sev_i386.h"
 
 #include "qemu/error-report.h"

@@ -24,7 +24,7 @@
 #include "qemu/qemu-print.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
-#include "kvm_i386.h"
+#include "kvm/kvm_i386.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/tcg.h"
 #include "sysemu/hw_accel.h"

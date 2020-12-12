@@ -22,7 +22,7 @@
 
 #include "sysemu/tcg.h"
 #include "cpu-qom.h"
-#include "hyperv-proto.h"
+#include "kvm/hyperv-proto.h"
 #include "exec/cpu-defs.h"
 #include "qapi/qapi-types-common.h"
 
