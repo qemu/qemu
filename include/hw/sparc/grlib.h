@@ -34,8 +34,6 @@
 /* IRQMP */
 #define TYPE_GRLIB_IRQMP "grlib,irqmp"
 
-typedef void (*set_pil_in_fn) (void *opaque, uint32_t pil_in);
-
 void grlib_irqmp_ack(DeviceState *dev, int intno);
 
 /* GPTimer */
