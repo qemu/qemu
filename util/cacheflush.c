@@ -21,29 +21,32 @@
 #include <sys/cachectl.h>
 #endif
 
-void flush_icache_range(uintptr_t start, uintptr_t stop)
+void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
-    cacheflush((void *)start, stop - start, ICACHE);
+    if (rx != rw) {
+        cacheflush((void *)rw, len, DCACHE);
+    }
+    cacheflush((void *)rx, len, ICACHE);
 }
 
 #elif defined(__powerpc__)
 
-void flush_icache_range(uintptr_t start, uintptr_t stop)
+void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
-    uintptr_t p, start1, stop1;
+    uintptr_t p, b, e;
     size_t dsize = qemu_dcache_linesize;
     size_t isize = qemu_icache_linesize;
 
-    start1 = start & ~(dsize - 1);
-    stop1 = (stop + dsize - 1) & ~(dsize - 1);
-    for (p = start1; p < stop1; p += dsize) {
+    b = rw & ~(dsize - 1);
+    e = (rw + len + dsize - 1) & ~(dsize - 1);
+    for (p = b; p < e; p += dsize) {
         asm volatile ("dcbst 0,%0" : : "r"(p) : "memory");
     }
     asm volatile ("sync" : : : "memory");
 
-    start &= start & ~(isize - 1);
-    stop1 = (stop + isize - 1) & ~(isize - 1);
-    for (p = start1; p < stop1; p += isize) {
+    b = rx & ~(isize - 1);
+    e = (rx + len + isize - 1) & ~(isize - 1);
+    for (p = b; p < e; p += isize) {
         asm volatile ("icbi 0,%0" : : "r"(p) : "memory");
     }
     asm volatile ("sync" : : : "memory");
@@ -52,20 +55,23 @@ void flush_icache_range(uintptr_t start, uintptr_t stop)
 
 #elif defined(__sparc__)
 
-void flush_icache_range(uintptr_t start, uintptr_t stop)
+void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
-    uintptr_t p;
-
-    for (p = start & -8; p < ((stop + 7) & -8); p += 8) {
+    /* No additional data flush to the RW virtual address required. */
+    uintptr_t p, end = (rx + len + 7) & -8;
+    for (p = rx & -8; p < end; p += 8) {
         __asm__ __volatile__("flush\t%0" : : "r" (p));
     }
 }
 
 #else
 
-void flush_icache_range(uintptr_t start, uintptr_t stop)
+void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
-    __builtin___clear_cache((char *)start, (char *)stop);
+    if (rw != rx) {
+        __builtin___clear_cache((char *)rw, (char *)rw + len);
+    }
+    __builtin___clear_cache((char *)rx, (char *)rx + len);
 }
 
 #endif

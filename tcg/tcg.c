@@ -1079,7 +1079,8 @@ void tcg_prologue_init(TCGContext *s)
 
     buf1 = s->code_ptr;
 #ifndef CONFIG_TCG_INTERPRETER
-    flush_icache_range((uintptr_t)buf0, (uintptr_t)buf1);
+    flush_idcache_range((uintptr_t)buf0, (uintptr_t)buf0,
+                        tcg_ptr_byte_diff(buf1, buf0));
 #endif
 
     /* Deduct the prologue from the buffer.  */
@@ -4328,7 +4329,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 
 #ifndef CONFIG_TCG_INTERPRETER
     /* flush instruction cache */
-    flush_icache_range((uintptr_t)s->code_buf, (uintptr_t)s->code_ptr);
+    flush_idcache_range((uintptr_t)s->code_buf, (uintptr_t)s->code_buf,
+                        tcg_ptr_byte_diff(s->code_ptr, s->code_buf));
 #endif
 
     return tcg_current_code_size(s);
