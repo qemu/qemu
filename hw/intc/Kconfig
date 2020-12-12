@@ -62,6 +62,9 @@ config S390_FLIC_KVM
 config OMPIC
     bool
 
+config PPC_UIC
+    bool
+
 config RX_ICU
     bool
 
