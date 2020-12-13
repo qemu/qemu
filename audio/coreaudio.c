@@ -593,21 +593,19 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
     int err;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
 
-    if (!audio_is_cleaning_up()) {
-        /* stop playback */
-        if (isPlaying(core->outputDeviceID)) {
-            status = AudioDeviceStop(core->outputDeviceID, core->ioprocid);
-            if (status != kAudioHardwareNoError) {
-                coreaudio_logerr (status, "Could not stop playback\n");
-            }
-        }
-
-        /* remove callback */
-        status = AudioDeviceDestroyIOProcID(core->outputDeviceID,
-                                            core->ioprocid);
+    /* stop playback */
+    if (isPlaying(core->outputDeviceID)) {
+        status = AudioDeviceStop(core->outputDeviceID, core->ioprocid);
         if (status != kAudioHardwareNoError) {
-            coreaudio_logerr (status, "Could not remove IOProc\n");
+            coreaudio_logerr(status, "Could not stop playback\n");
         }
+    }
+
+    /* remove callback */
+    status = AudioDeviceDestroyIOProcID(core->outputDeviceID,
+                                        core->ioprocid);
+    if (status != kAudioHardwareNoError) {
+        coreaudio_logerr(status, "Could not remove IOProc\n");
     }
     core->outputDeviceID = kAudioDeviceUnknown;
 
@@ -633,13 +631,11 @@ static void coreaudio_enable_out(HWVoiceOut *hw, bool enable)
         }
     } else {
         /* stop playback */
-        if (!audio_is_cleaning_up()) {
-            if (isPlaying(core->outputDeviceID)) {
-                status = AudioDeviceStop(core->outputDeviceID,
-                                         core->ioprocid);
-                if (status != kAudioHardwareNoError) {
-                    coreaudio_logerr (status, "Could not pause playback\n");
-                }
+        if (isPlaying(core->outputDeviceID)) {
+            status = AudioDeviceStop(core->outputDeviceID,
+                                     core->ioprocid);
+            if (status != kAudioHardwareNoError) {
+                coreaudio_logerr(status, "Could not pause playback\n");
             }
         }
     }
