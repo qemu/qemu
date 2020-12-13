@@ -798,7 +798,8 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
     refresh_rate_millihz = gd_refresh_rate_millihz(vc->window ?
                                                    vc->window : s->window);
     if (refresh_rate_millihz) {
-        vc->gfx.dcl.update_interval = MILLISEC_PER_SEC / refresh_rate_millihz;
+        /* T = 1 / f = 1 [s*Hz] / f = 1000*1000 [ms*mHz] / f */
+        vc->gfx.dcl.update_interval = 1000 * 1000 / refresh_rate_millihz;
     }
 
     fbw = surface_width(vc->gfx.ds);
