@@ -482,7 +482,7 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     Audiodev *dev = drv_opaque;
     AudiodevCoreaudioPerDirectionOptions *cpdo = dev->u.coreaudio.out;
     int frames;
-    struct audsettings fake_as;
+    struct audsettings obt_as;
 
     /* create mutex */
     err = pthread_mutex_init(&core->mutex, NULL);
@@ -491,8 +491,8 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
         return -1;
     }
 
-    fake_as = *as;
-    as = &fake_as;
+    obt_as = *as;
+    as = &obt_as;
     as->fmt = AUDIO_FORMAT_F32;
     audio_pcm_init_info (&hw->info, as);
 
