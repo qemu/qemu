@@ -752,13 +752,13 @@ static void gd_resize_event(GtkGLArea *area,
  * If available, return the refresh rate of the display in milli-Hertz,
  * else return 0.
  */
-static int gd_refresh_rate_millihz(GtkWidget *window)
+static int gd_refresh_rate_millihz(GtkWidget *widget)
 {
 #ifdef GDK_VERSION_3_22
-    GdkWindow *win = gtk_widget_get_window(window);
+    GdkWindow *win = gtk_widget_get_window(widget);
 
     if (win) {
-        GdkDisplay *dpy = gtk_widget_get_display(window);
+        GdkDisplay *dpy = gtk_widget_get_display(widget);
         GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, win);
 
         return gdk_monitor_get_refresh_rate(monitor);
