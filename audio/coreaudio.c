@@ -584,17 +584,6 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
         return -1;
     }
 
-    /* start Playback */
-    if (!isPlaying(core->outputDeviceID)) {
-        status = AudioDeviceStart(core->outputDeviceID, core->ioprocid);
-        if (status != kAudioHardwareNoError) {
-            coreaudio_logerr2 (status, typ, "Could not start playback\n");
-            AudioDeviceDestroyIOProcID(core->outputDeviceID, core->ioprocid);
-            core->outputDeviceID = kAudioDeviceUnknown;
-            return -1;
-        }
-    }
-
     return 0;
 }
 
