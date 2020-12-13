@@ -1588,13 +1588,6 @@ static void audio_vm_change_state_handler (void *opaque, int running,
     audio_reset_timer (s);
 }
 
-static bool is_cleaning_up;
-
-bool audio_is_cleaning_up(void)
-{
-    return is_cleaning_up;
-}
-
 static void free_audio_state(AudioState *s)
 {
     HWVoiceOut *hwo, *hwon;
@@ -1647,7 +1640,6 @@ static void free_audio_state(AudioState *s)
 
 void audio_cleanup(void)
 {
-    is_cleaning_up = true;
     while (!QTAILQ_EMPTY(&audio_states)) {
         AudioState *s = QTAILQ_FIRST(&audio_states);
         QTAILQ_REMOVE(&audio_states, s, list);
