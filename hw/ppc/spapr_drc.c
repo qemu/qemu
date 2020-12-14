@@ -832,6 +832,12 @@ int spapr_dt_drc(void *fdt, int offset, Object *owner, uint32_t drc_type_mask)
     GString *drc_names, *drc_types;
     int ret;
 
+    /*
+     * This should really be only called once per node since it overwrites
+     * the OF properties if they already exist.
+     */
+    g_assert(!fdt_get_property(fdt, offset, "ibm,drc-indexes", NULL));
+
     /* the first entry of each properties is a 32-bit integer encoding
      * the number of elements in the array. we won't know this until
      * we complete the iteration through all the matching DRCs, but

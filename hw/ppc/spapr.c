@@ -1120,6 +1120,7 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
     MachineState *machine = MACHINE(spapr);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
+    uint32_t root_drc_type_mask = 0;
     int ret;
     void *fdt;
     SpaprPhbState *phb;
@@ -1194,8 +1195,18 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
 
     spapr_dt_cpus(fdt, spapr);
 
+    /* ibm,drc-indexes and friends */
     if (smc->dr_lmb_enabled) {
-        _FDT(spapr_dt_drc(fdt, 0, NULL, SPAPR_DR_CONNECTOR_TYPE_LMB));
+        root_drc_type_mask |= SPAPR_DR_CONNECTOR_TYPE_LMB;
+    }
+    if (smc->dr_phb_enabled) {
+        root_drc_type_mask |= SPAPR_DR_CONNECTOR_TYPE_PHB;
+    }
+    if (mc->nvdimm_supported) {
+        root_drc_type_mask |= SPAPR_DR_CONNECTOR_TYPE_PMEM;
+    }
+    if (root_drc_type_mask) {
+        _FDT(spapr_dt_drc(fdt, 0, NULL, root_drc_type_mask));
     }
 
     if (mc->has_hotpluggable_cpus) {
@@ -1230,14 +1241,6 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
         if (spapr->initrd_size) {
             _FDT((fdt_add_mem_rsv(fdt, spapr->initrd_base,
                                   spapr->initrd_size)));
-        }
-    }
-
-    if (smc->dr_phb_enabled) {
-        ret = spapr_dt_drc(fdt, 0, NULL, SPAPR_DR_CONNECTOR_TYPE_PHB);
-        if (ret < 0) {
-            error_report("Couldn't set up PHB DR device tree properties");
-            exit(1);
         }
     }
 
