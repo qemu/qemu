@@ -600,13 +600,11 @@ static void gen_op_calc_cc(DisasContext *s)
         dummy = tcg_const_i64(0);
         /* FALLTHRU */
     case CC_OP_ADD_64:
-    case CC_OP_ADDU_64:
     case CC_OP_ADDC_64:
     case CC_OP_SUB_64:
     case CC_OP_SUBU_64:
     case CC_OP_SUBB_64:
     case CC_OP_ADD_32:
-    case CC_OP_ADDU_32:
     case CC_OP_ADDC_32:
     case CC_OP_SUB_32:
     case CC_OP_SUBU_32:
@@ -650,6 +648,7 @@ static void gen_op_calc_cc(DisasContext *s)
         /* 1 argument */
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, dummy, cc_dst, dummy);
         break;
+    case CC_OP_ADDU:
     case CC_OP_ICM:
     case CC_OP_LTGT_32:
     case CC_OP_LTGT_64:
@@ -666,13 +665,11 @@ static void gen_op_calc_cc(DisasContext *s)
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, cc_src, cc_dst, dummy);
         break;
     case CC_OP_ADD_64:
-    case CC_OP_ADDU_64:
     case CC_OP_ADDC_64:
     case CC_OP_SUB_64:
     case CC_OP_SUBU_64:
     case CC_OP_SUBB_64:
     case CC_OP_ADD_32:
-    case CC_OP_ADDU_32:
     case CC_OP_ADDC_32:
     case CC_OP_SUB_32:
     case CC_OP_SUBU_32:
@@ -849,20 +846,19 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         account_inline_branch(s, old_cc_op);
         break;
 
-    case CC_OP_ADDU_32:
-    case CC_OP_ADDU_64:
+    case CC_OP_ADDU:
         switch (mask) {
-        case 8 | 2: /* vr == 0 */
+        case 8 | 2: /* result == 0 */
             cond = TCG_COND_EQ;
             break;
-        case 4 | 1: /* vr != 0 */
+        case 4 | 1: /* result != 0 */
             cond = TCG_COND_NE;
             break;
-        case 8 | 4: /* no carry -> vr >= src */
-            cond = TCG_COND_GEU;
+        case 8 | 4: /* no carry */
+            cond = TCG_COND_EQ;
             break;
-        case 2 | 1: /* carry -> vr < src */
-            cond = TCG_COND_LTU;
+        case 2 | 1: /* carry */
+            cond = TCG_COND_NE;
             break;
         default:
             goto do_dynamic;
@@ -950,26 +946,21 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         tcg_gen_and_i64(c->u.s64.a, cc_src, cc_dst);
         break;
 
-    case CC_OP_ADDU_32:
-        c->is_64 = false;
-        c->u.s32.a = tcg_temp_new_i32();
-        c->u.s32.b = tcg_temp_new_i32();
-        tcg_gen_extrl_i64_i32(c->u.s32.a, cc_vr);
-        if (cond == TCG_COND_EQ || cond == TCG_COND_NE) {
-            tcg_gen_movi_i32(c->u.s32.b, 0);
-        } else {
-            tcg_gen_extrl_i64_i32(c->u.s32.b, cc_src);
-        }
-        break;
-
-    case CC_OP_ADDU_64:
-        c->u.s64.a = cc_vr;
+    case CC_OP_ADDU:
+        c->is_64 = true;
+        c->u.s64.b = tcg_const_i64(0);
         c->g1 = true;
-        if (cond == TCG_COND_EQ || cond == TCG_COND_NE) {
-            c->u.s64.b = tcg_const_i64(0);
-        } else {
-            c->u.s64.b = cc_src;
-            c->g2 = true;
+        switch (mask) {
+        case 8 | 2:
+        case 4 | 1: /* result */
+            c->u.s64.a = cc_dst;
+            break;
+        case 8 | 4:
+        case 2 | 1: /* carry */
+            c->u.s64.a = cc_src;
+            break;
+        default:
+            g_assert_not_reached();
         }
         break;
 
@@ -1445,6 +1436,13 @@ static DisasJumpType op_add(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static DisasJumpType op_addu64(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_movi_i64(cc_src, 0);
+    tcg_gen_add2_i64(o->out, cc_src, o->in1, cc_src, o->in2, cc_src);
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_addc(DisasContext *s, DisasOps *o)
 {
     DisasCompare cmp;
@@ -1474,9 +1472,10 @@ static DisasJumpType op_addc(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_asi(DisasContext *s, DisasOps *o)
 {
-    o->in1 = tcg_temp_new_i64();
+    bool non_atomic = !s390_has_feat(S390_FEAT_STFLE_45);
 
-    if (!s390_has_feat(S390_FEAT_STFLE_45)) {
+    o->in1 = tcg_temp_new_i64();
+    if (non_atomic) {
         tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
     } else {
         /* Perform the atomic addition in memory. */
@@ -1487,7 +1486,30 @@ static DisasJumpType op_asi(DisasContext *s, DisasOps *o)
     /* Recompute also for atomic case: needed for setting CC. */
     tcg_gen_add_i64(o->out, o->in1, o->in2);
 
-    if (!s390_has_feat(S390_FEAT_STFLE_45)) {
+    if (non_atomic) {
+        tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), s->insn->data);
+    }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_asiu64(DisasContext *s, DisasOps *o)
+{
+    bool non_atomic = !s390_has_feat(S390_FEAT_STFLE_45);
+
+    o->in1 = tcg_temp_new_i64();
+    if (non_atomic) {
+        tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
+    } else {
+        /* Perform the atomic addition in memory. */
+        tcg_gen_atomic_fetch_add_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+                                     s->insn->data);
+    }
+
+    /* Recompute also for atomic case: needed for setting CC. */
+    tcg_gen_movi_i64(cc_src, 0);
+    tcg_gen_add2_i64(o->out, cc_src, o->in1, cc_src, o->in2, cc_src);
+
+    if (non_atomic) {
         tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), s->insn->data);
     }
     return DISAS_NEXT;
@@ -5185,12 +5207,14 @@ static void cout_adds64(DisasContext *s, DisasOps *o)
 
 static void cout_addu32(DisasContext *s, DisasOps *o)
 {
-    gen_op_update3_cc_i64(s, CC_OP_ADDU_32, o->in1, o->in2, o->out);
+    tcg_gen_shri_i64(cc_src, o->out, 32);
+    tcg_gen_ext32u_i64(cc_dst, o->out);
+    gen_op_update2_cc_i64(s, CC_OP_ADDU, cc_src, cc_dst);
 }
 
 static void cout_addu64(DisasContext *s, DisasOps *o)
 {
-    gen_op_update3_cc_i64(s, CC_OP_ADDU_64, o->in1, o->in2, o->out);
+    gen_op_update2_cc_i64(s, CC_OP_ADDU, cc_src, o->out);
 }
 
 static void cout_addc32(DisasContext *s, DisasOps *o)
@@ -5636,6 +5660,13 @@ static void in1_r2_sr32(DisasContext *s, DisasOps *o)
     tcg_gen_shri_i64(o->in1, regs[get_field(s, r2)], 32);
 }
 #define SPEC_in1_r2_sr32 0
+
+static void in1_r2_32u(DisasContext *s, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_ext32u_i64(o->in1, regs[get_field(s, r2)]);
+}
+#define SPEC_in1_r2_32u 0
 
 static void in1_r3(DisasContext *s, DisasOps *o)
 {
