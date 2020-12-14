@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/bitops.h"
 #include "qemu-common.h"
 #include "qemu/datadir.h"
 #include "cpu.h"
@@ -1135,8 +1136,13 @@ static void malta_mips_config(MIPSCPU *cpu)
     CPUMIPSState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
-    env->mvp->CP0_MVPConf0 |= ((smp_cpus - 1) << CP0MVPC0_PVPE) |
-                         ((smp_cpus * cs->nr_threads - 1) << CP0MVPC0_PTC);
+    if (ase_mt_available(env)) {
+        env->mvp->CP0_MVPConf0 = deposit32(env->mvp->CP0_MVPConf0,
+                                           CP0MVPC0_PTC, 8,
+                                           smp_cpus * cs->nr_threads - 1);
+        env->mvp->CP0_MVPConf0 = deposit32(env->mvp->CP0_MVPConf0,
+                                           CP0MVPC0_PVPE, 4, smp_cpus - 1);
+    }
 }
 
 static void main_cpu_reset(void *opaque)
@@ -1205,7 +1211,7 @@ static void create_cps(MachineState *ms, MaltaState *s,
 static void mips_create_cpu(MachineState *ms, MaltaState *s,
                             qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
-    if ((ms->smp.cpus > 1) && cpu_supports_cps_smp(ms->cpu_type)) {
+    if ((ms->smp.cpus > 1) && cpu_type_supports_cps_smp(ms->cpu_type)) {
         create_cps(ms, s, cbus_irq, i8259_irq);
     } else {
         create_cpu_without_cps(ms, s, cbus_irq, i8259_irq);
@@ -1309,7 +1315,7 @@ void mips_malta_init(MachineState *machine)
         loaderparams.initrd_filename = initrd_filename;
         kernel_entry = load_kernel();
 
-        if (!cpu_supports_isa(machine->cpu_type, ISA_NANOMIPS32)) {
+        if (!cpu_type_supports_isa(machine->cpu_type, ISA_NANOMIPS32)) {
             write_bootloader(memory_region_get_ram_ptr(bios),
                              bootloader_run_addr, kernel_entry);
         } else {

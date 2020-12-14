@@ -389,7 +389,7 @@ S: Maintained
 F: target/arm/kvm.c
 
 MIPS KVM CPUs
-M: Huacai Chen <chenhc@lemote.com>
+M: Huacai Chen <chenhuacai@kernel.org>
 S: Odd Fixes
 F: target/mips/kvm.c
 
@@ -1151,7 +1151,7 @@ F: hw/mips/mipssim.c
 F: hw/net/mipsnet.c
 
 Fuloong 2E
-M: Huacai Chen <chenhc@lemote.com>
+M: Huacai Chen <chenhuacai@kernel.org>
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Odd Fixes
@@ -1161,7 +1161,7 @@ F: hw/pci-host/bonito.c
 F: include/hw/isa/vt82c686.h
 
 Loongson-3 virtual platforms
-M: Huacai Chen <chenhc@lemote.com>
+M: Huacai Chen <chenhuacai@kernel.org>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Maintained
 F: hw/intc/loongson_liointc.c
@@ -2876,7 +2876,7 @@ F: disas/i386.c
 MIPS TCG target
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
-R: Huacai Chen <chenhc@lemote.com>
+R: Huacai Chen <chenhuacai@kernel.org>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
 S: Odd Fixes

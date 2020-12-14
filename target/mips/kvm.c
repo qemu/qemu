@@ -19,13 +19,10 @@
 #include "internal.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
-#include "qemu/timer.h"
 #include "sysemu/kvm.h"
 #include "sysemu/kvm_int.h"
 #include "sysemu/runstate.h"
-#include "sysemu/cpus.h"
 #include "kvm_mips.h"
-#include "exec/memattrs.h"
 #include "hw/boards.h"
 
 #define DEBUG_KVM 0
@@ -198,9 +195,7 @@ int kvm_mips_set_interrupt(MIPSCPU *cpu, int irq, int level)
     CPUState *cs = CPU(cpu);
     struct kvm_mips_interrupt intr;
 
-    if (!kvm_enabled()) {
-        return 0;
-    }
+    assert(kvm_enabled());
 
     intr.cpu = -1;
 
@@ -221,9 +216,7 @@ int kvm_mips_set_ipi_interrupt(MIPSCPU *cpu, int irq, int level)
     CPUState *dest_cs = CPU(cpu);
     struct kvm_mips_interrupt intr;
 
-    if (!kvm_enabled()) {
-        return 0;
-    }
+    assert(kvm_enabled());
 
     intr.cpu = dest_cs->cpu_index;
 

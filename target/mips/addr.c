@@ -21,7 +21,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/mips/cpudevs.h"
+#include "cpu.h"
 
 static int mips_um_ksegs;
 

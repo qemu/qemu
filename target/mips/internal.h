@@ -8,6 +8,7 @@
 #ifndef MIPS_INTERNAL_H
 #define MIPS_INTERNAL_H
 
+#include "exec/memattrs.h"
 #include "fpu/softfloat-helpers.h"
 
 /*
@@ -15,10 +16,11 @@
  * CP0C0_MT field.
  */
 enum mips_mmu_types {
-    MMU_TYPE_NONE,
-    MMU_TYPE_R4000,
-    MMU_TYPE_RESERVED,
-    MMU_TYPE_FMT,
+    MMU_TYPE_NONE       = 0,
+    MMU_TYPE_R4000      = 1,    /* Standard TLB */
+    MMU_TYPE_BAT        = 2,    /* Block Address Translation */
+    MMU_TYPE_FMT        = 3,    /* Fixed Mapping */
+    MMU_TYPE_DVF        = 4,    /* Dual VTLB and FTLB */
     MMU_TYPE_R3000,
     MMU_TYPE_R6000,
     MMU_TYPE_R8000
@@ -205,10 +207,6 @@ static inline bool cpu_mips_hw_interrupts_pending(CPUMIPSState *env)
 
 void mips_tcg_init(void);
 
-/* TODO QOM'ify CPU reset and remove */
-void cpu_state_reset(CPUMIPSState *s);
-void cpu_mips_realize_env(CPUMIPSState *env);
-
 /* cp0_timer.c */
 uint32_t cpu_mips_get_count(CPUMIPSState *env);
 void cpu_mips_store_count(CPUMIPSState *env, uint32_t value);
@@ -225,7 +223,8 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 uint32_t float_class_s(uint32_t arg, float_status *fst);
 uint64_t float_class_d(uint64_t arg, float_status *fst);
 
-extern unsigned int ieee_rm[];
+extern const FloatRoundMode ieee_rm[4];
+
 void update_pagemask(CPUMIPSState *env, target_ulong arg1, int32_t *pagemask);
 
 static inline void restore_rounding_mode(CPUMIPSState *env)
