@@ -1,5 +1,6 @@
 softmmu_ss.add(files('hid.c'))
 softmmu_ss.add(when: 'CONFIG_ADB', if_true: files('adb.c', 'adb-mouse.c', 'adb-kbd.c'))
+softmmu_ss.add(when: 'CONFIG_ADS7846', if_true: files('ads7846.c'))
 softmmu_ss.add(when: 'CONFIG_LM832X', if_true: files('lm832x.c'))
 softmmu_ss.add(when: 'CONFIG_PCKBD', if_true: files('pckbd.c'))
 softmmu_ss.add(when: 'CONFIG_PL050', if_true: files('pl050.c'))

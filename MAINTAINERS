@@ -2442,7 +2442,7 @@ F: scripts/simplebench/
 
 QAPI
 M: Markus Armbruster <armbru@redhat.com>
-M: Michael Roth <mdroth@linux.vnet.ibm.com>
+M: Michael Roth <michael.roth@amd.com>
 S: Supported
 F: qapi/
 X: qapi/*.json
@@ -2486,7 +2486,7 @@ F: tests/data/qobject/qdict.txt
 T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 QEMU Guest Agent
-M: Michael Roth <mdroth@linux.vnet.ibm.com>
+M: Michael Roth <michael.roth@amd.com>
 S: Maintained
 F: qga/
 F: docs/interop/qemu-ga.rst
