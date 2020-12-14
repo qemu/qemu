@@ -601,11 +601,9 @@ static void gen_op_calc_cc(DisasContext *s)
         /* FALLTHRU */
     case CC_OP_ADD_64:
     case CC_OP_SUB_64:
-    case CC_OP_SUBU_64:
     case CC_OP_SUBB_64:
     case CC_OP_ADD_32:
     case CC_OP_SUB_32:
-    case CC_OP_SUBU_32:
     case CC_OP_SUBB_32:
         local_cc_op = tcg_const_i32(s->cc_op);
         break;
@@ -656,6 +654,7 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_TM_64:
     case CC_OP_SLA_32:
     case CC_OP_SLA_64:
+    case CC_OP_SUBU:
     case CC_OP_NZ_F128:
     case CC_OP_VC:
     case CC_OP_MULS_64:
@@ -664,11 +663,9 @@ static void gen_op_calc_cc(DisasContext *s)
         break;
     case CC_OP_ADD_64:
     case CC_OP_SUB_64:
-    case CC_OP_SUBU_64:
     case CC_OP_SUBB_64:
     case CC_OP_ADD_32:
     case CC_OP_SUB_32:
-    case CC_OP_SUBU_32:
     case CC_OP_SUBB_32:
         /* 3 arguments */
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, cc_src, cc_dst, cc_vr);
@@ -843,6 +840,7 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         break;
 
     case CC_OP_ADDU:
+    case CC_OP_SUBU:
         switch (mask) {
         case 8 | 2: /* result == 0 */
             cond = TCG_COND_EQ;
@@ -850,33 +848,11 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         case 4 | 1: /* result != 0 */
             cond = TCG_COND_NE;
             break;
-        case 8 | 4: /* no carry */
-            cond = TCG_COND_EQ;
+        case 8 | 4: /* !carry (borrow) */
+            cond = old_cc_op == CC_OP_ADDU ? TCG_COND_EQ : TCG_COND_NE;
             break;
-        case 2 | 1: /* carry */
-            cond = TCG_COND_NE;
-            break;
-        default:
-            goto do_dynamic;
-        }
-        account_inline_branch(s, old_cc_op);
-        break;
-
-    case CC_OP_SUBU_32:
-    case CC_OP_SUBU_64:
-        /* Note that CC=0 is impossible; treat it as dont-care.  */
-        switch (mask & 7) {
-        case 2: /* zero -> op1 == op2 */
-            cond = TCG_COND_EQ;
-            break;
-        case 4 | 1: /* !zero -> op1 != op2 */
-            cond = TCG_COND_NE;
-            break;
-        case 4: /* borrow (!carry) -> op1 < op2 */
-            cond = TCG_COND_LTU;
-            break;
-        case 2 | 1: /* !borrow (carry) -> op1 >= op2 */
-            cond = TCG_COND_GEU;
+        case 2 | 1: /* carry (!borrow) */
+            cond = old_cc_op == CC_OP_ADDU ? TCG_COND_NE : TCG_COND_EQ;
             break;
         default:
             goto do_dynamic;
@@ -911,7 +887,6 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         break;
     case CC_OP_LTGT_32:
     case CC_OP_LTUGTU_32:
-    case CC_OP_SUBU_32:
         c->is_64 = false;
         c->u.s32.a = tcg_temp_new_i32();
         tcg_gen_extrl_i64_i32(c->u.s32.a, cc_src);
@@ -928,7 +903,6 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         break;
     case CC_OP_LTGT_64:
     case CC_OP_LTUGTU_64:
-    case CC_OP_SUBU_64:
         c->u.s64.a = cc_src;
         c->u.s64.b = cc_dst;
         c->g1 = c->g2 = true;
@@ -943,6 +917,7 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         break;
 
     case CC_OP_ADDU:
+    case CC_OP_SUBU:
         c->is_64 = true;
         c->u.s64.b = tcg_const_i64(0);
         c->g1 = true;
@@ -1445,6 +1420,9 @@ static void compute_carry(DisasContext *s)
     switch (s->cc_op) {
     case CC_OP_ADDU:
         /* The carry value is already in cc_src (1,0). */
+        break;
+    case CC_OP_SUBU:
+        tcg_gen_addi_i64(cc_src, cc_src, 1);
         break;
     default:
         gen_op_calc_cc(s);
@@ -4761,6 +4739,13 @@ static DisasJumpType op_sub(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static DisasJumpType op_subu64(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_movi_i64(cc_src, 0);
+    tcg_gen_sub2_i64(o->out, cc_src, o->in1, cc_src, o->in2, cc_src);
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_subb(DisasContext *s, DisasOps *o)
 {
     DisasCompare cmp;
@@ -5312,12 +5297,14 @@ static void cout_subs64(DisasContext *s, DisasOps *o)
 
 static void cout_subu32(DisasContext *s, DisasOps *o)
 {
-    gen_op_update3_cc_i64(s, CC_OP_SUBU_32, o->in1, o->in2, o->out);
+    tcg_gen_sari_i64(cc_src, o->out, 32);
+    tcg_gen_ext32u_i64(cc_dst, o->out);
+    gen_op_update2_cc_i64(s, CC_OP_SUBU, cc_src, cc_dst);
 }
 
 static void cout_subu64(DisasContext *s, DisasOps *o)
 {
-    gen_op_update3_cc_i64(s, CC_OP_SUBU_64, o->in1, o->in2, o->out);
+    gen_op_update2_cc_i64(s, CC_OP_SUBU, cc_src, o->out);
 }
 
 static void cout_subb32(DisasContext *s, DisasOps *o)
