@@ -281,13 +281,6 @@ a future version of QEMU. It's unclear whether anybody is still using
 CPU emulation in QEMU, and there are no test images available to make
 sure that the code is still working.
 
-``compat`` property of server class POWER CPUs (since 5.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``compat`` property used to set backwards compatibility modes for
-the processor has been deprecated. The ``max-cpu-compat`` property of
-the ``pseries`` machine type should be used instead.
-
 ``lm32`` CPUs (since 5.2.0)
 '''''''''''''''''''''''''''
 

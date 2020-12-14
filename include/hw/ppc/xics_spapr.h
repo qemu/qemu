@@ -38,6 +38,6 @@ DECLARE_INSTANCE_CHECKER(ICSState, ICS_SPAPR,
 int xics_kvm_connect(SpaprInterruptController *intc, uint32_t nr_servers,
                      Error **errp);
 void xics_kvm_disconnect(SpaprInterruptController *intc);
-bool xics_kvm_has_broken_disconnect(SpaprMachineState *spapr);
+bool xics_kvm_has_broken_disconnect(void);
 
 #endif /* XICS_SPAPR_H */

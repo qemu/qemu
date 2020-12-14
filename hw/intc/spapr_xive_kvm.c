@@ -20,6 +20,7 @@
 #include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xive.h"
 #include "kvm_ppc.h"
+#include "trace.h"
 
 #include <sys/ioctl.h>
 
@@ -162,6 +163,8 @@ int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
     }
 
     vcpu_id = kvm_arch_vcpu_id(tctx->cs);
+
+    trace_kvm_xive_cpu_connect(vcpu_id);
 
     ret = kvm_vcpu_enable_cap(tctx->cs, KVM_CAP_PPC_IRQ_XIVE, 0, xive->fd,
                               vcpu_id, 0);
@@ -307,6 +310,8 @@ uint64_t kvmppc_xive_esb_rw(XiveSource *xsrc, int srcno, uint32_t offset,
     if (write) {
         return xive_esb_rw(xsrc, srcno, offset, data, 1);
     }
+
+    trace_kvm_xive_source_reset(srcno);
 
     /*
      * Special Load EOI handling for LSI sources. Q bit is never set

@@ -89,7 +89,7 @@ bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
 }
 
 
-bool spapr_add_nvdimm(DeviceState *dev, uint64_t slot, Error **errp)
+void spapr_add_nvdimm(DeviceState *dev, uint64_t slot)
 {
     SpaprDrc *drc;
     bool hotplugged = spapr_drc_hotplugged(dev);
@@ -97,14 +97,15 @@ bool spapr_add_nvdimm(DeviceState *dev, uint64_t slot, Error **errp)
     drc = spapr_drc_by_id(TYPE_SPAPR_DRC_PMEM, slot);
     g_assert(drc);
 
-    if (!spapr_drc_attach(drc, dev, errp)) {
-        return false;
-    }
+    /*
+     * pc_dimm_get_free_slot() provided a free slot at pre-plug. The
+     * corresponding DRC is thus assumed to be attachable.
+     */
+    spapr_drc_attach(drc, dev);
 
     if (hotplugged) {
         spapr_hotplug_req_add_by_index(drc);
     }
-    return true;
 }
 
 static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,

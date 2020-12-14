@@ -266,7 +266,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
      */
     if (excp == POWERPC_EXCP_HV_EMU
 #if defined(TARGET_PPC64)
-        && !((env->mmu_model & POWERPC_MMU_64) && (env->msr_mask & MSR_HVB))
+        && !(mmu_is_64bit(env->mmu_model) && (env->msr_mask & MSR_HVB))
 #endif /* defined(TARGET_PPC64) */
 
     ) {
@@ -824,7 +824,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             vector = (uint32_t)vector;
         }
     } else {
-        if (!msr_isf && !(env->mmu_model & POWERPC_MMU_64)) {
+        if (!msr_isf && !mmu_is_64bit(env->mmu_model)) {
             vector = (uint32_t)vector;
         } else {
             new_msr |= (target_ulong)1 << MSR_SF;

@@ -235,7 +235,13 @@ SpaprDrc *spapr_drc_by_index(uint32_t index);
 SpaprDrc *spapr_drc_by_id(const char *type, uint32_t id);
 int spapr_dt_drc(void *fdt, int offset, Object *owner, uint32_t drc_type_mask);
 
-bool spapr_drc_attach(SpaprDrc *drc, DeviceState *d, Error **errp);
+/*
+ * These functions respectively abort if called with a device already
+ * attached or no device attached. In the case of spapr_drc_attach(),
+ * this means that the attachability of the DRC *must* be checked
+ * beforehand (eg. check drc->dev at pre-plug).
+ */
+void spapr_drc_attach(SpaprDrc *drc, DeviceState *d);
 void spapr_drc_detach(SpaprDrc *drc);
 
 /* Returns true if a hot plug/unplug request is pending */
