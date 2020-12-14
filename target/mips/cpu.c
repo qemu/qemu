@@ -105,10 +105,16 @@ static bool mips_cpu_has_work(CPUState *cs)
 
 #include "translate_init.c.inc"
 
-/* TODO QOM'ify CPU reset and remove */
-static void cpu_state_reset(CPUMIPSState *env)
+static void mips_cpu_reset(DeviceState *dev)
 {
-    CPUState *cs = env_cpu(env);
+    CPUState *cs = CPU(dev);
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(cpu);
+    CPUMIPSState *env = &cpu->env;
+
+    mcc->parent_reset(dev);
+
+    memset(env, 0, offsetof(CPUMIPSState, end_reset_fields));
 
     /* Reset registers to their default values */
     env->CP0_PRid = env->cpu_model->CP0_PRid;
@@ -331,20 +337,6 @@ static void cpu_state_reset(CPUMIPSState *env)
         /* UHI interface can be used to obtain argc and argv */
         env->active_tc.gpr[4] = -1;
     }
-}
-
-static void mips_cpu_reset(DeviceState *dev)
-{
-    CPUState *s = CPU(dev);
-    MIPSCPU *cpu = MIPS_CPU(s);
-    MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(cpu);
-    CPUMIPSState *env = &cpu->env;
-
-    mcc->parent_reset(dev);
-
-    memset(env, 0, offsetof(CPUMIPSState, end_reset_fields));
-
-    cpu_state_reset(env);
 
 #ifndef CONFIG_USER_ONLY
     if (kvm_enabled()) {
