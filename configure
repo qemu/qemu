@@ -359,7 +359,7 @@ sanitizers="no"
 tsan="no"
 fortify_source="$default_feature"
 strip_opt="yes"
-tcg_interpreter="no"
+tcg_interpreter="false"
 bigendian="no"
 mingw32="no"
 gcov="no"
@@ -1119,9 +1119,9 @@ for opt do
   ;;
   --enable-whpx) whpx="enabled"
   ;;
-  --disable-tcg-interpreter) tcg_interpreter="no"
+  --disable-tcg-interpreter) tcg_interpreter="true"
   ;;
-  --enable-tcg-interpreter) tcg_interpreter="yes"
+  --enable-tcg-interpreter) tcg_interpreter="false"
   ;;
   --disable-cap-ng)  cap_ng="disabled"
   ;;
@@ -5833,11 +5833,6 @@ if test "$signalfd" = "yes" ; then
 fi
 if test "$optreset" = "yes" ; then
   echo "HAVE_OPTRESET=y" >> $config_host_mak
-fi
-if test "$tcg" = "enabled"; then
-  if test "$tcg_interpreter" = "yes" ; then
-    echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
-  fi
 fi
 if test "$fdatasync" = "yes" ; then
   echo "CONFIG_FDATASYNC=y" >> $config_host_mak

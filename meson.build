@@ -113,25 +113,8 @@ if targetos == 'linux'
                         language: ['c', 'cpp'])
 endif
 
-if 'CONFIG_TCG_INTERPRETER' in config_host
-  tcg_arch = 'tci'
-elif config_host['ARCH'] == 'sparc64'
-  tcg_arch = 'sparc'
-elif config_host['ARCH'] == 's390x'
-  tcg_arch = 's390'
-elif config_host['ARCH'] in ['x86_64', 'x32']
-  tcg_arch = 'i386'
-elif config_host['ARCH'] == 'ppc64'
-  tcg_arch = 'ppc'
-elif config_host['ARCH'] in ['riscv32', 'riscv64']
-  tcg_arch = 'riscv'
-else
-  tcg_arch = config_host['ARCH']
-endif
-add_project_arguments('-iquote', meson.current_source_dir() / 'tcg' / tcg_arch,
-                      '-iquote', '.',
+add_project_arguments('-iquote', '.',
                       '-iquote', meson.current_source_dir(),
-                      '-iquote', meson.current_source_dir() / 'accel/tcg',
                       '-iquote', meson.current_source_dir() / 'include',
                       '-iquote', meson.current_source_dir() / 'disas/libvixl',
                       language: ['c', 'cpp', 'objc'])
@@ -226,14 +209,33 @@ if not get_option('hax').disabled()
     accelerators += 'CONFIG_HAX'
   endif
 endif
+
+tcg_arch = config_host['ARCH']
 if not get_option('tcg').disabled()
   if cpu not in supported_cpus
-    if 'CONFIG_TCG_INTERPRETER' in config_host
+    if get_option('tcg_interpreter')
       warning('Unsupported CPU @0@, will use TCG with TCI (experimental)'.format(cpu))
     else
       error('Unsupported CPU @0@, try --enable-tcg-interpreter'.format(cpu))
     endif
   endif
+  if get_option('tcg_interpreter')
+    tcg_arch = 'tci'
+  elif config_host['ARCH'] == 'sparc64'
+    tcg_arch = 'sparc'
+  elif config_host['ARCH'] == 's390x'
+    tcg_arch = 's390'
+  elif config_host['ARCH'] in ['x86_64', 'x32']
+    tcg_arch = 'i386'
+  elif config_host['ARCH'] == 'ppc64'
+    tcg_arch = 'ppc'
+  elif config_host['ARCH'] in ['riscv32', 'riscv64']
+    tcg_arch = 'riscv'
+  endif
+  add_project_arguments('-iquote', meson.current_source_dir() / 'tcg' / tcg_arch,
+                        '-iquote', meson.current_source_dir() / 'accel/tcg',
+                        language: ['c', 'cpp', 'objc'])
+
   accelerators += 'CONFIG_TCG'
   config_host += { 'CONFIG_TCG': 'y' }
 endif
@@ -1234,7 +1236,9 @@ foreach target : target_dirs
     if sym == 'CONFIG_TCG' or target in accelerator_targets.get(sym, [])
       config_target += { sym: 'y' }
       config_all += { sym: 'y' }
-      if sym == 'CONFIG_XEN' and have_xen_pci_passthrough
+      if sym == 'CONFIG_TCG' and tcg_arch == 'tci'
+        config_target += { 'CONFIG_TCG_INTERPRETER': 'y' }
+      elif sym == 'CONFIG_XEN' and have_xen_pci_passthrough
         config_target += { 'CONFIG_XEN_PCI_PASSTHROUGH': 'y' }
       endif
       accel_kconfig += [ sym + '=y' ]
@@ -2411,7 +2415,7 @@ summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
 summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
 if config_all.has_key('CONFIG_TCG')
   summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
-  summary_info += {'TCG interpreter':   config_host.has_key('CONFIG_TCG_INTERPRETER')}
+  summary_info += {'TCG interpreter':   tcg_arch == 'tci'}
 endif
 summary_info += {'malloc trim support': has_malloc_trim}
 summary_info += {'RDMA support':      config_host.has_key('CONFIG_RDMA')}
