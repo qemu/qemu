@@ -295,7 +295,7 @@ static void test_qmp_preconfig(void)
     rsp = qtest_qmp(qs, "{ 'execute': 'query-status' }");
     ret = qdict_get_qdict(rsp, "return");
     g_assert(ret);
-    g_assert_cmpstr(qdict_get_try_str(ret, "status"), ==, "preconfig");
+    g_assert_cmpstr(qdict_get_try_str(ret, "status"), ==, "prelaunch");
     qobject_unref(rsp);
 
     /* exit preconfig state */

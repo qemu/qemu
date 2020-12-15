@@ -219,7 +219,8 @@
 # -> { "execute": "quit" }
 # <- { "return": {} }
 ##
-{ 'command': 'quit' }
+{ 'command': 'quit',
+  'allow-preconfig': true }
 
 ##
 # @MonitorMode:

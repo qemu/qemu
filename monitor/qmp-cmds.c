@@ -26,6 +26,7 @@
 #include "ui/vnc.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
+#include "sysemu/runstate-action.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/block-backend.h"
@@ -72,7 +73,7 @@ UuidInfo *qmp_query_uuid(Error **errp)
 
 void qmp_quit(Error **errp)
 {
-    no_shutdown = 0;
+    shutdown_action = SHUTDOWN_ACTION_POWEROFF;
     qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_QMP_QUIT);
 }
 
@@ -100,16 +101,6 @@ void qmp_system_reset(Error **errp)
 void qmp_system_powerdown(Error **errp)
 {
     qemu_system_powerdown_request();
-}
-
-void qmp_x_exit_preconfig(Error **errp)
-{
-    if (!runstate_check(RUN_STATE_PRECONFIG)) {
-        error_setg(errp, "The command is permitted only in '%s' state",
-                   RunState_str(RUN_STATE_PRECONFIG));
-        return;
-    }
-    qemu_exit_preconfig_request();
 }
 
 void qmp_cont(Error **errp)

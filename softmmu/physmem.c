@@ -3255,6 +3255,7 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
     AddressSpaceDispatch *d;
     hwaddr l;
     MemoryRegion *mr;
+    Int128 diff;
 
     assert(len > 0);
 
@@ -3262,6 +3263,15 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
     cache->fv = address_space_get_flatview(as);
     d = flatview_to_dispatch(cache->fv);
     cache->mrs = *address_space_translate_internal(d, addr, &cache->xlat, &l, true);
+
+    /*
+     * cache->xlat is now relative to cache->mrs.mr, not to the section itself.
+     * Take that into account to compute how many bytes are there between
+     * cache->xlat and the end of the section.
+     */
+    diff = int128_sub(cache->mrs.size,
+		      int128_make64(cache->xlat - cache->mrs.offset_within_region));
+    l = int128_get64(int128_min(diff, int128_make64(l)));
 
     mr = cache->mrs.mr;
     memory_region_ref(mr);

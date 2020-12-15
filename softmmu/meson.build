@@ -4,14 +4,17 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'cpus.c',
   'cpu-throttle.c',
   'datadir.c',
+  'globals.c',
   'physmem.c',
   'ioport.c',
   'rtc.c',
+  'runstate.c',
   'memory.c',
   'memory_mapping.c',
   'qtest.c',
   'vl.c',
   'cpu-timers.c',
+  'runstate-action.c',
 )])
 
 specific_ss.add(when: ['CONFIG_SOFTMMU', 'CONFIG_TCG'], if_true: [files(

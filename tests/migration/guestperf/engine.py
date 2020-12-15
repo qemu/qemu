@@ -304,7 +304,7 @@ class Engine(object):
             argv_source += ["-mem-path", "/dev/shm",
                             "-mem-prealloc"]
         if hardware._locked_pages:
-            argv_source += ["-realtime", "mlock=on"]
+            argv_source += ["-overcommit", "mem-lock=on"]
         if hardware._huge_pages:
             pass
 

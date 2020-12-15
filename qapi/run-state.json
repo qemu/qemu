@@ -50,15 +50,12 @@
 # @colo: guest is paused to save/restore VM state under colo checkpoint,
 #        VM can not get into this state unless colo capability is enabled
 #        for migration. (since 2.8)
-# @preconfig: QEMU is paused before board specific init callback is executed.
-#             The state is reachable only if the --preconfig CLI option is used.
-#             (Since 3.0)
 ##
 { 'enum': 'RunState',
   'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
             'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
             'running', 'save-vm', 'shutdown', 'suspended', 'watchdog',
-            'guest-panicked', 'colo', 'preconfig' ] }
+            'guest-panicked', 'colo' ] }
 
 ##
 # @ShutdownCause:
@@ -329,6 +326,46 @@
             'inject-nmi' ] }
 
 ##
+# @RebootAction:
+#
+# Possible QEMU actions upon guest reboot
+#
+# @none: Reset the VM
+#
+# @shutdown: Shutdown the VM and exit
+#
+# Since: 6.0
+##
+{ 'enum': 'RebootAction',
+  'data': [ 'none', 'shutdown' ] }
+
+##
+# @ShutdownAction:
+#
+# Possible QEMU actions upon guest shutdown
+#
+# @poweroff: Shutdown the VM and exit
+#
+# @pause: pause the VM#
+#
+# Since: 6.0
+##
+{ 'enum': 'ShutdownAction',
+  'data': [ 'poweroff', 'pause' ] }
+
+##
+# @PanicAction:
+#
+# @none: Continue VM execution
+#
+# @pause: Pause the VM
+#
+# Since: 6.0
+##
+{ 'enum': 'PanicAction',
+  'data': [ 'poweroff', 'pause', 'none' ] }
+
+##
 # @watchdog-set-action:
 #
 # Set watchdog action
@@ -336,6 +373,40 @@
 # Since: 2.11
 ##
 { 'command': 'watchdog-set-action', 'data' : {'action': 'WatchdogAction'} }
+
+##
+# @set-action:
+#
+# Set the actions that will be taken by the emulator in response to guest
+# events.
+#
+# @reboot: @RebootAction action taken on guest reboot.
+#
+# @shutdown: @ShutdownAction action taken on guest shutdown.
+#
+# @panic: @PanicAction action taken on guest panic.
+#
+# @watchdog: @WatchdogAction action taken when watchdog timer expires .
+#
+# Returns: Nothing on success.
+#
+# Since: 6.0
+#
+# Example:
+#
+# -> { "execute": "set-action",
+#      "arguments": { "reboot": "shutdown",
+#                     "shutdown" : "pause",
+#                     "panic": "pause",
+#                     "watchdog": "inject-nmi" } }
+# <- { "return": {} }
+##
+{ 'command': 'set-action',
+  'data': { '*reboot': 'RebootAction',
+            '*shutdown': 'ShutdownAction',
+            '*panic': 'PanicAction',
+            '*watchdog': 'WatchdogAction' },
+  'allow-preconfig': true }
 
 ##
 # @GUEST_PANICKED:

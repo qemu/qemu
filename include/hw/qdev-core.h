@@ -780,12 +780,12 @@ const VMStateDescription *qdev_get_vmsd(DeviceState *dev);
 
 const char *qdev_fw_name(DeviceState *dev);
 
+void qdev_assert_realized_properly(void);
 Object *qdev_get_machine(void);
 
 /* FIXME: make this a link<> */
 bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp);
 
-extern bool qdev_hotplug;
 extern bool qdev_hot_removed;
 
 char *qdev_get_dev_path(DeviceState *dev);
@@ -810,5 +810,36 @@ void device_listener_unregister(DeviceListener *listener);
  * and return if the device should be added now or not.
  */
 bool qdev_should_hide_device(QemuOpts *opts);
+
+typedef enum MachineInitPhase {
+    /* current_machine is NULL.  */
+    PHASE_NO_MACHINE,
+
+    /* current_machine is not NULL, but current_machine->accel is NULL.  */
+    PHASE_MACHINE_CREATED,
+
+    /*
+     * current_machine->accel is not NULL, but the machine properties have
+     * not been validated and machine_class->init has not yet been called.
+     */
+    PHASE_ACCEL_CREATED,
+
+    /*
+     * machine_class->init has been called, thus creating any embedded
+     * devices and validating machine properties.  Devices created at
+     * this time are considered to be cold-plugged.
+     */
+    PHASE_MACHINE_INITIALIZED,
+
+    /*
+     * QEMU is ready to start CPUs and devices created at this time
+     * are considered to be hot-plugged.  The monitor is not restricted
+     * to "preconfig" commands.
+     */
+    PHASE_MACHINE_READY,
+} MachineInitPhase;
+
+extern bool phase_check(MachineInitPhase phase);
+extern void phase_advance(MachineInitPhase phase);
 
 #endif

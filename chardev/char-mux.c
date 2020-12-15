@@ -33,6 +33,13 @@
 
 /* MUX driver for serial I/O splitting */
 
+/*
+ * Set to false by suspend_mux_open.  Open events are delayed until
+ * resume_mux_open.  Usually suspend_mux_open is called before
+ * command line processing and resume_mux_open afterwards.
+ */
+static bool muxes_opened = true;
+
 /* Called with chr_write_lock held.  */
 static int mux_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
@@ -237,7 +244,7 @@ void mux_chr_send_all_event(Chardev *chr, QEMUChrEvent event)
     MuxChardev *d = MUX_CHARDEV(chr);
     int i;
 
-    if (!machine_init_done) {
+    if (!muxes_opened) {
         return;
     }
 
@@ -328,7 +335,7 @@ static void qemu_chr_open_mux(Chardev *chr,
     /* only default to opened state if we've realized the initial
      * set of muxes
      */
-    *be_opened = machine_init_done;
+    *be_opened = muxes_opened;
     qemu_chr_fe_init(&d->chr, drv, errp);
 }
 
@@ -360,17 +367,40 @@ static void qemu_chr_parse_mux(QemuOpts *opts, ChardevBackend *backend,
  * mux will receive CHR_EVENT_OPENED notifications for the BE
  * immediately.
  */
-static int open_muxes(Chardev *chr)
+static void open_muxes(Chardev *chr)
 {
     /* send OPENED to all already-attached FEs */
     mux_chr_send_all_event(chr, CHR_EVENT_OPENED);
+
     /*
      * mark mux as OPENED so any new FEs will immediately receive
      * OPENED event
      */
     chr->be_open = 1;
+}
+
+void suspend_mux_open(void)
+{
+    muxes_opened = false;
+}
+
+static int chardev_options_parsed_cb(Object *child, void *opaque)
+{
+    Chardev *chr = (Chardev *)child;
+    ChardevClass *class = CHARDEV_GET_CLASS(chr);
+
+    if (!chr->be_open && class->chr_options_parsed) {
+        class->chr_options_parsed(chr);
+    }
 
     return 0;
+}
+
+void resume_mux_open(void)
+{
+    muxes_opened = true;
+    object_child_foreach(get_chardevs_root(),
+                         chardev_options_parsed_cb, NULL);
 }
 
 static void char_mux_class_init(ObjectClass *oc, void *data)
@@ -383,7 +413,7 @@ static void char_mux_class_init(ObjectClass *oc, void *data)
     cc->chr_accept_input = mux_chr_accept_input;
     cc->chr_add_watch = mux_chr_add_watch;
     cc->chr_be_event = mux_chr_be_event;
-    cc->chr_machine_done = open_muxes;
+    cc->chr_options_parsed = open_muxes;
     cc->chr_update_read_handler = mux_chr_update_read_handlers;
 }
 

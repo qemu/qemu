@@ -179,6 +179,7 @@ static uint64_t msix_table_mmio_read(void *opaque, hwaddr addr,
 {
     PCIDevice *dev = opaque;
 
+    assert(addr + size <= dev->msix_entries_nr * PCI_MSIX_ENTRY_SIZE);
     return pci_get_long(dev->msix_table + addr);
 }
 
@@ -188,6 +189,8 @@ static void msix_table_mmio_write(void *opaque, hwaddr addr,
     PCIDevice *dev = opaque;
     int vector = addr / PCI_MSIX_ENTRY_SIZE;
     bool was_masked;
+
+    assert(addr + size <= dev->msix_entries_nr * PCI_MSIX_ENTRY_SIZE);
 
     was_masked = msix_is_masked(dev, vector);
     pci_set_long(dev->msix_table + addr, val);

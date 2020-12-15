@@ -671,9 +671,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
     trace_init_file();
-    if (qemu_plugin_load_list(&plugins)) {
-        exit(1);
-    }
+    qemu_plugin_load_list(&plugins, &error_fatal);
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));

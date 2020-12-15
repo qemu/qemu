@@ -41,7 +41,6 @@ override CFLAGS += $(call cc-option, $(Wa)-32)
 
 LD_I386_EMULATION ?= elf_i386
 override LDFLAGS = -m $(LD_I386_EMULATION) -T $(SRC_DIR)/flat.lds
-override LDFLAGS += $(LDFLAGS_NOPIE)
 
 all: multiboot.bin linuxboot.bin linuxboot_dma.bin kvmvapic.bin pvh.bin
 
