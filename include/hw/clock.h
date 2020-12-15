@@ -16,6 +16,8 @@
 
 #include "qom/object.h"
 #include "qemu/queue.h"
+#include "qemu/host-utils.h"
+#include "qemu/bitops.h"
 
 #define TYPE_CLOCK "clock"
 OBJECT_DECLARE_SIMPLE_TYPE(Clock, CLOCK)
@@ -216,6 +218,45 @@ static inline unsigned clock_get_hz(Clock *clk)
 static inline unsigned clock_get_ns(Clock *clk)
 {
     return CLOCK_PERIOD_TO_NS(clock_get(clk));
+}
+
+/**
+ * clock_ticks_to_ns:
+ * @clk: the clock to query
+ * @ticks: number of ticks
+ *
+ * Returns the length of time in nanoseconds for this clock
+ * to tick @ticks times. Because a clock can have a period
+ * which is not a whole number of nanoseconds, it is important
+ * to use this function when calculating things like timer
+ * expiry deadlines, rather than attempting to obtain a "period
+ * in nanoseconds" value and then multiplying that by a number
+ * of ticks.
+ *
+ * The result could in theory be too large to fit in a 64-bit
+ * value if the number of ticks and the clock period are both
+ * large; to avoid overflow the result will be saturated to INT64_MAX
+ * (because this is the largest valid input to the QEMUTimer APIs).
+ * Since INT64_MAX nanoseconds is almost 300 years, anything with
+ * an expiry later than that is in the "will never happen" category
+ * and callers can reasonably not special-case the saturated result.
+ */
+static inline uint64_t clock_ticks_to_ns(const Clock *clk, uint64_t ticks)
+{
+    uint64_t ns_low, ns_high;
+
+    /*
+     * clk->period is the period in units of 2^-32 ns, so
+     * (clk->period * ticks) is the required length of time in those
+     * units, and we can convert to nanoseconds by multiplying by
+     * 2^32, which is the same as shifting the 128-bit multiplication
+     * result right by 32.
+     */
+    mulu64(&ns_low, &ns_high, clk->period, ticks);
+    if (ns_high & MAKE_64BIT_MASK(31, 33)) {
+        return INT64_MAX;
+    }
+    return ns_low >> 32 | ns_high << 32;
 }
 
 /**

@@ -258,6 +258,35 @@ Here is an example:
                         clock_get_ns(dev->my_clk_input));
     }
 
+Calculating expiry deadlines
+----------------------------
+
+A commonly required operation for a clock is to calculate how long
+it will take for the clock to tick N times; this can then be used
+to set a timer expiry deadline. Use the function ``clock_ticks_to_ns()``,
+which takes an unsigned 64-bit count of ticks and returns the length
+of time in nanoseconds required for the clock to tick that many times.
+
+It is important not to try to calculate expiry deadlines using a
+shortcut like multiplying a "period of clock in nanoseconds" value
+by the tick count, because clocks can have periods which are not a
+whole number of nanoseconds, and the accumulated error in the
+multiplication can be significant.
+
+For a clock with a very long period and a large number of ticks,
+the result of this function could in theory be too large to fit in
+a 64-bit value. To avoid overflow in this case, ``clock_ticks_to_ns()``
+saturates the result to INT64_MAX (because this is the largest valid
+input to the QEMUTimer APIs). Since INT64_MAX nanoseconds is almost
+300 years, anything with an expiry later than that is in the "will
+never happen" category. Callers of ``clock_ticks_to_ns()`` should
+therefore generally not special-case the possibility of a saturated
+result but just allow the timer to be set to that far-future value.
+(If you are performing further calculations on the returned value
+rather than simply passing it to a QEMUTimer function like
+``timer_mod_ns()`` then you should be careful to avoid overflow
+in those calculations, of course.)
+
 Changing a clock period
 -----------------------
 
