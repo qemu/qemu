@@ -27,6 +27,7 @@
 #include "hw/ide/ahci.h"
 #include "hw/loader.h"
 #include "hw/loader-fit.h"
+#include "hw/mips/bootloader.h"
 #include "hw/mips/cps.h"
 #include "hw/pci-host/xilinx-pcie.h"
 #include "hw/qdev-clock.h"
@@ -324,21 +325,7 @@ static void gen_firmware(uint32_t *p, hwaddr kernel_entry, hwaddr fdt_addr,
      * a2/$6 = 0
      * a3/$7 = 0
      */
-    stl_p(p++, 0x2404fffe);                     /* li   $4, -2 */
-                                                /* lui  $5, hi(fdt_addr) */
-    stl_p(p++, 0x3c050000 | ((fdt_addr >> 16) & 0xffff));
-    if (fdt_addr & 0xffff) {                    /* ori  $5, lo(fdt_addr) */
-        stl_p(p++, 0x34a50000 | (fdt_addr & 0xffff));
-    }
-    stl_p(p++, 0x34060000);                     /* li   $6, 0 */
-    stl_p(p++, 0x34070000);                     /* li   $7, 0 */
-
-    /* Load kernel entry address & jump to it */
-                                                /* lui  $25, hi(kernel_entry) */
-    stl_p(p++, 0x3c190000 | ((kernel_entry >> 16) & 0xffff));
-                                                /* ori  $25, lo(kernel_entry) */
-    stl_p(p++, 0x37390000 | (kernel_entry & 0xffff));
-    stl_p(p++, 0x03200009);                     /* jr   $25 */
+    bl_gen_jump_kernel(&p, 0, (int32_t)-2, fdt_addr, 0, 0, kernel_entry);
 }
 
 static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
