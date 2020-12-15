@@ -268,7 +268,11 @@ endif
 # grandfathered in from the QEMU Makefiles.
 add_project_arguments(config_host['GLIB_CFLAGS'].split(),
                       native: false, language: ['c', 'cpp', 'objc'])
-glib = declare_dependency(link_args: config_host['GLIB_LIBS'].split())
+glib = declare_dependency(compile_args: config_host['GLIB_CFLAGS'].split(),
+                          link_args: config_host['GLIB_LIBS'].split())
+# override glib dep with the configure results (for subprojects)
+meson.override_dependency('glib-2.0', glib)
+
 gio = not_found
 if 'CONFIG_GIO' in config_host
   gio = declare_dependency(compile_args: config_host['GIO_CFLAGS'].split(),
