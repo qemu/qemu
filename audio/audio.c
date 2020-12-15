@@ -1684,7 +1684,9 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
          * backend and this can go away.
          */
         driver = audio_driver_lookup("spice");
-        driver->can_be_default = 1;
+        if (driver) {
+            driver->can_be_default = 1;
+        }
     }
 
     if (dev) {
