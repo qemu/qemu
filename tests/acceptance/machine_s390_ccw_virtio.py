@@ -64,9 +64,9 @@ class S390CCWVirtioMachine(Test):
                          '-append', kernel_command_line,
                          '-device', 'virtio-net-ccw,devno=fe.1.1111',
                          '-device',
-                         'virtio-rng-ccw,devno=fe.2.0000,max_revision=0',
+                         'virtio-rng-ccw,devno=fe.2.0000,max_revision=0,id=rn1',
                          '-device',
-                         'virtio-rng-ccw,devno=fe.3.1234,max_revision=2',
+                         'virtio-rng-ccw,devno=fe.3.1234,max_revision=2,id=rn2',
                          '-device', 'zpci,uid=5,target=zzz',
                          '-device', 'virtio-net-pci,id=zzz',
                          '-device', 'zpci,uid=0xa,fid=12,target=serial',
@@ -96,6 +96,19 @@ class S390CCWVirtioMachine(Test):
         exec_command_and_wait_for_pattern(self,
                         'cat /sys/bus/ccw/devices/0.3.1234/virtio?/features',
                         virtio_rng_features)
+        # check that /dev/hwrng works - and that it's gone after ejecting
+        exec_command_and_wait_for_pattern(self,
+                        'dd if=/dev/hwrng of=/dev/null bs=1k count=10',
+                        '10+0 records out')
+        self.clear_guest_dmesg()
+        self.vm.command('device_del', id='rn1')
+        self.wait_for_crw_reports()
+        self.clear_guest_dmesg()
+        self.vm.command('device_del', id='rn2')
+        self.wait_for_crw_reports()
+        exec_command_and_wait_for_pattern(self,
+                        'dd if=/dev/hwrng of=/dev/null bs=1k count=10',
+                        'dd: /dev/hwrng: No such device')
         # verify that we indeed have virtio-net devices (without having the
         # virtio-net driver handy)
         exec_command_and_wait_for_pattern(self,
