@@ -264,4 +264,16 @@ static inline bool clock_is_enabled(const Clock *clk)
     return clock_get(clk) != 0;
 }
 
+/**
+ * clock_display_freq: return human-readable representation of clock frequency
+ * @clk: clock
+ *
+ * Return a string which has a human-readable representation of the
+ * clock's frequency, e.g. "33.3 MHz". This is intended for debug
+ * and display purposes.
+ *
+ * The caller is responsible for freeing the string with g_free().
+ */
+char *clock_display_freq(Clock *clk);
+
 #endif /* QEMU_HW_CLOCK_H */

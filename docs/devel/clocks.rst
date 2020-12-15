@@ -267,6 +267,11 @@ Here is an example:
                         clock_get(dev->my_clk_input));
     }
 
+If you are only interested in the frequency for displaying it to
+humans (for instance in debugging), use ``clock_display_freq()``,
+which returns a prettified string-representation, e.g. "33.3 MHz".
+The caller must free the string with g_free() after use.
+
 Calculating expiry deadlines
 ----------------------------
 

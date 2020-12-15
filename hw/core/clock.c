@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "hw/clock.h"
 #include "trace.h"
 
@@ -109,6 +110,11 @@ static void clock_disconnect(Clock *clk)
 
     clk->source = NULL;
     QLIST_REMOVE(clk, sibling);
+}
+
+char *clock_display_freq(Clock *clk)
+{
+    return freq_to_str(clock_get_hz(clk));
 }
 
 static void clock_initfn(Object *obj)
