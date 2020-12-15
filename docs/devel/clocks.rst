@@ -238,8 +238,17 @@ object during device instance init. For example:
 Fetching clock frequency/period
 -------------------------------
 
-To get the current state of a clock, use the functions ``clock_get()``,
-``clock_get_ns()`` or ``clock_get_hz()``.
+To get the current state of a clock, use the functions ``clock_get()``
+or ``clock_get_hz()``.
+
+``clock_get()`` returns the period of the clock in its fully precise
+internal representation, as an unsigned 64-bit integer in units of
+2^-32 nanoseconds. (For many purposes ``clock_ticks_to_ns()`` will
+be more convenient; see the section below on expiry deadlines.)
+
+``clock_get_hz()`` returns the frequency of the clock, rounded to the
+next lowest integer. This implies some inaccuracy due to the rounding,
+so be cautious about using it in calculations.
 
 It is also possible to register a callback on clock frequency changes.
 Here is an example:
@@ -254,8 +263,8 @@ Here is an example:
          */
 
         /* do something with the new period */
-        fprintf(stdout, "device new period is %" PRIu64 "ns\n",
-                        clock_get_ns(dev->my_clk_input));
+        fprintf(stdout, "device new period is %" PRIu64 "* 2^-32 ns\n",
+                        clock_get(dev->my_clk_input));
     }
 
 Calculating expiry deadlines
