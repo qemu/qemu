@@ -1302,9 +1302,9 @@ void mips_malta_init(MachineState *machine)
         /* For KVM we reserve 1MB of RAM for running bootloader */
         if (kvm_enabled()) {
             ram_low_size -= 0x100000;
-            bootloader_run_addr = 0x40000000 + ram_low_size;
+            bootloader_run_addr = cpu_mips_kvm_um_phys_to_kseg0(NULL, ram_low_size);
         } else {
-            bootloader_run_addr = 0xbfc00000;
+            bootloader_run_addr = cpu_mips_phys_to_kseg0(NULL, RESET_ADDRESS);
         }
 
         /* Write a small bootloader to the flash location. */
