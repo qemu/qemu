@@ -49,7 +49,8 @@
 
 #define DEBUG_FULOONG2E_INIT
 
-#define ENVP_ADDR               0x80002000l
+#define ENVP_PADDR              0x2000
+#define ENVP_VADDR              cpu_mips_phys_to_kseg0(NULL, ENVP_PADDR)
 #define ENVP_NB_ENTRIES         16
 #define ENVP_ENTRY_SIZE         256
 
@@ -100,7 +101,7 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t *prom_buf, int index,
     }
 
     table_addr = sizeof(int32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
-    prom_buf[index] = tswap32(ENVP_ADDR + table_addr);
+    prom_buf[index] = tswap32(ENVP_VADDR + table_addr);
 
     va_start(ap, string);
     vsnprintf((char *)prom_buf + table_addr, ENVP_ENTRY_SIZE, string, ap);
@@ -172,8 +173,7 @@ static uint64_t load_kernel(CPUMIPSState *env)
     prom_set(prom_buf, index++, "modetty0=38400n8r");
     prom_set(prom_buf, index++, NULL);
 
-    rom_add_blob_fixed("prom", prom_buf, prom_size,
-                       cpu_mips_kseg0_to_phys(NULL, ENVP_ADDR));
+    rom_add_blob_fixed("prom", prom_buf, prom_size, ENVP_PADDR);
 
     g_free(prom_buf);
     return kernel_entry;
@@ -199,14 +199,14 @@ static void write_bootloader(CPUMIPSState *env, uint8_t *base,
     stl_p(p++, 0x3c040000);
     /* ori a0, a0, 2 */
     stl_p(p++, 0x34840002);
-    /* lui a1, high(ENVP_ADDR) */
-    stl_p(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));
-    /* ori a1, a0, low(ENVP_ADDR) */
-    stl_p(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));
-    /* lui a2, high(ENVP_ADDR + 8) */
-    stl_p(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff));
-    /* ori a2, a2, low(ENVP_ADDR + 8) */
-    stl_p(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));
+    /* lui a1, high(ENVP_VADDR) */
+    stl_p(p++, 0x3c050000 | ((ENVP_VADDR >> 16) & 0xffff));
+    /* ori a1, a0, low(ENVP_VADDR) */
+    stl_p(p++, 0x34a50000 | (ENVP_VADDR & 0xffff));
+    /* lui a2, high(ENVP_VADDR + 8) */
+    stl_p(p++, 0x3c060000 | (((ENVP_VADDR + 8) >> 16) & 0xffff));
+    /* ori a2, a2, low(ENVP_VADDR + 8) */
+    stl_p(p++, 0x34c60000 | ((ENVP_VADDR + 8) & 0xffff));
     /* lui a3, high(env->ram_size) */
     stl_p(p++, 0x3c070000 | (loaderparams.ram_size >> 16));
     /* ori a3, a3, low(env->ram_size) */

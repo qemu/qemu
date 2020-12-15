@@ -62,7 +62,8 @@
 #include "hw/mips/cps.h"
 #include "hw/qdev-clock.h"
 
-#define ENVP_ADDR           0x80002000l
+#define ENVP_PADDR          0x2000
+#define ENVP_VADDR          cpu_mips_phys_to_kseg0(NULL, ENVP_PADDR)
 #define ENVP_NB_ENTRIES     16
 #define ENVP_ENTRY_SIZE     256
 
@@ -656,29 +657,29 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
                                 /* li a0,2                      */
     }
 
-    stw_p(p++, 0xe3a0 | NM_HI1(ENVP_ADDR - 64));
+    stw_p(p++, 0xe3a0 | NM_HI1(ENVP_VADDR - 64));
 
-    stw_p(p++, NM_HI2(ENVP_ADDR - 64));
-                                /* lui sp,%hi(ENVP_ADDR - 64)   */
+    stw_p(p++, NM_HI2(ENVP_VADDR - 64));
+                                /* lui sp,%hi(ENVP_VADDR - 64)   */
 
-    stw_p(p++, 0x83bd); stw_p(p++, NM_LO(ENVP_ADDR - 64));
-                                /* ori sp,sp,%lo(ENVP_ADDR - 64) */
+    stw_p(p++, 0x83bd); stw_p(p++, NM_LO(ENVP_VADDR - 64));
+                                /* ori sp,sp,%lo(ENVP_VADDR - 64) */
 
-    stw_p(p++, 0xe0a0 | NM_HI1(ENVP_ADDR));
+    stw_p(p++, 0xe0a0 | NM_HI1(ENVP_VADDR));
 
-    stw_p(p++, NM_HI2(ENVP_ADDR));
-                                /* lui a1,%hi(ENVP_ADDR)        */
+    stw_p(p++, NM_HI2(ENVP_VADDR));
+                                /* lui a1,%hi(ENVP_VADDR)        */
 
-    stw_p(p++, 0x80a5); stw_p(p++, NM_LO(ENVP_ADDR));
-                                /* ori a1,a1,%lo(ENVP_ADDR)     */
+    stw_p(p++, 0x80a5); stw_p(p++, NM_LO(ENVP_VADDR));
+                                /* ori a1,a1,%lo(ENVP_VADDR)     */
 
-    stw_p(p++, 0xe0c0 | NM_HI1(ENVP_ADDR + 8));
+    stw_p(p++, 0xe0c0 | NM_HI1(ENVP_VADDR + 8));
 
-    stw_p(p++, NM_HI2(ENVP_ADDR + 8));
-                                /* lui a2,%hi(ENVP_ADDR + 8)    */
+    stw_p(p++, NM_HI2(ENVP_VADDR + 8));
+                                /* lui a2,%hi(ENVP_VADDR + 8)    */
 
-    stw_p(p++, 0x80c6); stw_p(p++, NM_LO(ENVP_ADDR + 8));
-                                /* ori a2,a2,%lo(ENVP_ADDR + 8) */
+    stw_p(p++, 0x80c6); stw_p(p++, NM_LO(ENVP_VADDR + 8));
+                                /* ori a2,a2,%lo(ENVP_VADDR + 8) */
 
     stw_p(p++, 0xe0e0 | NM_HI1(loaderparams.ram_low_size));
 
@@ -878,18 +879,18 @@ static void write_bootloader(uint8_t *base, uint64_t run_addr,
         stl_p(p++, 0x24040002);              /* addiu a0, zero, 2 */
     }
 
-    /* lui sp, high(ENVP_ADDR) */
-    stl_p(p++, 0x3c1d0000 | (((ENVP_ADDR - 64) >> 16) & 0xffff));
-    /* ori sp, sp, low(ENVP_ADDR) */
-    stl_p(p++, 0x37bd0000 | ((ENVP_ADDR - 64) & 0xffff));
-    /* lui a1, high(ENVP_ADDR) */
-    stl_p(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));
-    /* ori a1, a1, low(ENVP_ADDR) */
-    stl_p(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));
-    /* lui a2, high(ENVP_ADDR + 8) */
-    stl_p(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff));
-    /* ori a2, a2, low(ENVP_ADDR + 8) */
-    stl_p(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));
+    /* lui sp, high(ENVP_VADDR) */
+    stl_p(p++, 0x3c1d0000 | (((ENVP_VADDR - 64) >> 16) & 0xffff));
+    /* ori sp, sp, low(ENVP_VADDR) */
+    stl_p(p++, 0x37bd0000 | ((ENVP_VADDR - 64) & 0xffff));
+    /* lui a1, high(ENVP_VADDR) */
+    stl_p(p++, 0x3c050000 | ((ENVP_VADDR >> 16) & 0xffff));
+    /* ori a1, a1, low(ENVP_VADDR) */
+    stl_p(p++, 0x34a50000 | (ENVP_VADDR & 0xffff));
+    /* lui a2, high(ENVP_VADDR + 8) */
+    stl_p(p++, 0x3c060000 | (((ENVP_VADDR + 8) >> 16) & 0xffff));
+    /* ori a2, a2, low(ENVP_VADDR + 8) */
+    stl_p(p++, 0x34c60000 | ((ENVP_VADDR + 8) & 0xffff));
     /* lui a3, high(ram_low_size) */
     stl_p(p++, 0x3c070000 | (loaderparams.ram_low_size >> 16));
     /* ori a3, a3, low(ram_low_size) */
@@ -1015,7 +1016,7 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t *prom_buf, int index,
     }
 
     table_addr = sizeof(uint32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
-    prom_buf[index] = tswap32(ENVP_ADDR + table_addr);
+    prom_buf[index] = tswap32(ENVP_VADDR + table_addr);
 
     va_start(ap, string);
     vsnprintf((char *)prom_buf + table_addr, ENVP_ENTRY_SIZE, string, ap);
@@ -1122,8 +1123,7 @@ static uint64_t load_kernel(void)
     prom_set(prom_buf, prom_index++, "38400n8r");
     prom_set(prom_buf, prom_index++, NULL);
 
-    rom_add_blob_fixed("prom", prom_buf, prom_size,
-                       cpu_mips_kseg0_to_phys(NULL, ENVP_ADDR));
+    rom_add_blob_fixed("prom", prom_buf, prom_size, ENVP_PADDR);
 
     g_free(prom_buf);
     return kernel_entry;
