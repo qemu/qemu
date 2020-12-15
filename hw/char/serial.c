@@ -941,10 +941,8 @@ static void serial_unrealize(DeviceState *dev)
 
     qemu_chr_fe_deinit(&s->chr, false);
 
-    timer_del(s->modem_status_poll);
     timer_free(s->modem_status_poll);
 
-    timer_del(s->fifo_timeout_timer);
     timer_free(s->fifo_timeout_timer);
 
     fifo8_destroy(&s->recv_fifo);

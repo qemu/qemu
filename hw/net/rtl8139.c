@@ -3338,7 +3338,6 @@ static void pci_rtl8139_uninit(PCIDevice *dev)
 
     g_free(s->cplus_txbuffer);
     s->cplus_txbuffer = NULL;
-    timer_del(s->timer);
     timer_free(s->timer);
     qemu_del_nic(s->nic);
 }

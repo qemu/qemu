@@ -951,7 +951,6 @@ static void colo_compare_timer_init(CompareState *s)
 static void colo_compare_timer_del(CompareState *s)
 {
     if (s->packet_check_timer) {
-        timer_del(s->packet_check_timer);
         timer_free(s->packet_check_timer);
         s->packet_check_timer = NULL;
     }

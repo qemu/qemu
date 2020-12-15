@@ -1586,7 +1586,6 @@ static void hmp_migrate_status_cb(void *opaque)
             error_report("%s", info->error_desc);
         }
         monitor_resume(status->mon);
-        timer_del(status->timer);
         timer_free(status->timer);
         g_free(status);
     }

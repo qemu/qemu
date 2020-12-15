@@ -76,7 +76,6 @@ static void timer_cancel(SpiceTimer *timer)
 
 static void timer_remove(SpiceTimer *timer)
 {
-    timer_del(timer->timer);
     timer_free(timer->timer);
     g_free(timer);
 }

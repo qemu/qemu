@@ -194,7 +194,6 @@ static void nbd_recv_coroutines_wake_all(BDRVNBDState *s)
 static void reconnect_delay_timer_del(BDRVNBDState *s)
 {
     if (s->reconnect_delay_timer) {
-        timer_del(s->reconnect_delay_timer);
         timer_free(s->reconnect_delay_timer);
         s->reconnect_delay_timer = NULL;
     }

@@ -41,7 +41,6 @@ void qemu_announce_timer_del(AnnounceTimer *timer, bool free_named)
 {
     bool free_timer = false;
     if (timer->tm) {
-        timer_del(timer->tm);
         timer_free(timer->tm);
         timer->tm = NULL;
     }

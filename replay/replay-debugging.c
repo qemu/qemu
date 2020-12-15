@@ -78,7 +78,6 @@ static void replay_delete_break(void)
     assert(replay_mutex_locked());
 
     if (replay_break_timer) {
-        timer_del(replay_break_timer);
         timer_free(replay_break_timer);
         replay_break_timer = NULL;
     }

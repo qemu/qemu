@@ -852,7 +852,6 @@ static void cache_clean_timer_del(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     if (s->cache_clean_timer) {
-        timer_del(s->cache_clean_timer);
         timer_free(s->cache_clean_timer);
         s->cache_clean_timer = NULL;
     }

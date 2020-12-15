@@ -97,7 +97,6 @@ static void usb_ohci_exit(PCIDevice *dev)
         usb_bus_release(&s->bus);
     }
 
-    timer_del(s->eof_timer);
     timer_free(s->eof_timer);
 }
 

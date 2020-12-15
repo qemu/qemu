@@ -2716,7 +2716,6 @@ void ide_init2(IDEBus *bus, qemu_irq irq)
 
 void ide_exit(IDEState *s)
 {
-    timer_del(s->sector_write_timer);
     timer_free(s->sector_write_timer);
     qemu_vfree(s->smart_selftest_data);
     qemu_vfree(s->io_buffer);

@@ -474,7 +474,6 @@ static void ioapic_unrealize(DeviceState *dev)
 {
     IOAPICCommonState *s = IOAPIC_COMMON(dev);
 
-    timer_del(s->delayed_ioapic_service_timer);
     timer_free(s->delayed_ioapic_service_timer);
 }
 

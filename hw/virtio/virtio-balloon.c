@@ -204,7 +204,6 @@ static bool balloon_stats_enabled(const VirtIOBalloon *s)
 static void balloon_stats_destroy_timer(VirtIOBalloon *s)
 {
     if (balloon_stats_enabled(s)) {
-        timer_del(s->stats_timer);
         timer_free(s->stats_timer);
         s->stats_timer = NULL;
         s->stats_poll_interval = 0;

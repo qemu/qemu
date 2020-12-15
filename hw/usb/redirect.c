@@ -1481,7 +1481,6 @@ static void usbredir_unrealize(USBDevice *udev)
     qemu_bh_delete(dev->chardev_close_bh);
     qemu_bh_delete(dev->device_reject_bh);
 
-    timer_del(dev->attach_timer);
     timer_free(dev->attach_timer);
 
     usbredir_cleanup_device_queues(dev);
