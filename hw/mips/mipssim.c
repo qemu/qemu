@@ -60,9 +60,9 @@ typedef struct ResetData {
     uint64_t vector;
 } ResetData;
 
-static int64_t load_kernel(void)
+static uint64_t load_kernel(void)
 {
-    int64_t entry, kernel_high, initrd_size;
+    uint64_t entry, kernel_high, initrd_size;
     long kernel_size;
     ram_addr_t initrd_offset;
     int big_endian;
@@ -75,8 +75,8 @@ static int64_t load_kernel(void)
 
     kernel_size = load_elf(loaderparams.kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
-                           (uint64_t *)&entry, NULL,
-                           (uint64_t *)&kernel_high, NULL, big_endian,
+                           &entry, NULL,
+                           &kernel_high, NULL, big_endian,
                            EM_MIPS, 1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",

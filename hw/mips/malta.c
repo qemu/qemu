@@ -616,8 +616,8 @@ static void network_init(PCIBus *pci_bus)
     }
 }
 
-static void write_bootloader_nanomips(uint8_t *base, int64_t run_addr,
-                                      int64_t kernel_entry)
+static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
+                                      uint64_t kernel_entry)
 {
     uint16_t *p;
 
@@ -840,8 +840,8 @@ static void write_bootloader_nanomips(uint8_t *base, int64_t run_addr,
  *   a2 - 32-bit address of the environment variables table
  *   a3 - RAM size in bytes
  */
-static void write_bootloader(uint8_t *base, int64_t run_addr,
-                             int64_t kernel_entry)
+static void write_bootloader(uint8_t *base, uint64_t run_addr,
+                             uint64_t kernel_entry)
 {
     uint32_t *p;
 
@@ -1003,7 +1003,7 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t *prom_buf, int index,
                                         const char *string, ...)
 {
     va_list ap;
-    int32_t table_addr;
+    uint32_t table_addr;
 
     if (index >= ENVP_NB_ENTRIES) {
         return;
@@ -1014,7 +1014,7 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t *prom_buf, int index,
         return;
     }
 
-    table_addr = sizeof(int32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
+    table_addr = sizeof(uint32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
     prom_buf[index] = tswap32(ENVP_ADDR + table_addr);
 
     va_start(ap, string);
@@ -1023,9 +1023,9 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t *prom_buf, int index,
 }
 
 /* Kernel */
-static int64_t load_kernel(void)
+static uint64_t load_kernel(void)
 {
-    int64_t kernel_entry, kernel_high, initrd_size;
+    uint64_t kernel_entry, kernel_high, initrd_size;
     long kernel_size;
     ram_addr_t initrd_offset;
     int big_endian;
@@ -1042,8 +1042,8 @@ static int64_t load_kernel(void)
 
     kernel_size = load_elf(loaderparams.kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
-                           (uint64_t *)&kernel_entry, NULL,
-                           (uint64_t *)&kernel_high, NULL, big_endian, EM_MIPS,
+                           &kernel_entry, NULL,
+                           &kernel_high, NULL, big_endian, EM_MIPS,
                            1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
@@ -1234,7 +1234,7 @@ void mips_malta_init(MachineState *machine)
     MemoryRegion *bios, *bios_copy = g_new(MemoryRegion, 1);
     const size_t smbus_eeprom_size = 8 * 256;
     uint8_t *smbus_eeprom_buf = g_malloc0(smbus_eeprom_size);
-    int64_t kernel_entry, bootloader_run_addr;
+    uint64_t kernel_entry, bootloader_run_addr;
     PCIBus *pci_bus;
     ISABus *isa_bus;
     qemu_irq cbus_irq, i8259_irq;

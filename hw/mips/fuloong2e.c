@@ -107,9 +107,9 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t *prom_buf, int index,
     va_end(ap);
 }
 
-static int64_t load_kernel(CPUMIPSState *env)
+static uint64_t load_kernel(CPUMIPSState *env)
 {
-    int64_t kernel_entry, kernel_high, initrd_size;
+    uint64_t kernel_entry, kernel_high, initrd_size;
     int index = 0;
     long kernel_size;
     ram_addr_t initrd_offset;
@@ -118,8 +118,8 @@ static int64_t load_kernel(CPUMIPSState *env)
 
     kernel_size = load_elf(loaderparams.kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
-                           (uint64_t *)&kernel_entry, NULL,
-                           (uint64_t *)&kernel_high, NULL,
+                           &kernel_entry, NULL,
+                           &kernel_high, NULL,
                            0, EM_MIPS, 1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
@@ -180,7 +180,7 @@ static int64_t load_kernel(CPUMIPSState *env)
 }
 
 static void write_bootloader(CPUMIPSState *env, uint8_t *base,
-                             int64_t kernel_addr)
+                             uint64_t kernel_addr)
 {
     uint32_t *p;
 
@@ -299,7 +299,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     long bios_size;
     uint8_t *spd_data;
-    int64_t kernel_entry;
+    uint64_t kernel_entry;
     PCIDevice *pci_dev;
     PCIBus *pci_bus;
     ISABus *isa_bus;
