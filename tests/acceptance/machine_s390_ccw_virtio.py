@@ -70,7 +70,8 @@ class S390CCWVirtioMachine(Test):
                          '-device', 'zpci,uid=5,target=zzz',
                          '-device', 'virtio-net-pci,id=zzz',
                          '-device', 'zpci,uid=0xa,fid=12,target=serial',
-                         '-device', 'virtio-serial-pci,id=serial')
+                         '-device', 'virtio-serial-pci,id=serial',
+                         '-device', 'virtio-balloon-ccw')
         self.vm.launch()
 
         shell_ready = "sh: can't access tty; job control turned off"
@@ -140,3 +141,12 @@ class S390CCWVirtioMachine(Test):
         exec_command_and_wait_for_pattern(self,
                                           'ls /sys/bus/ccw/devices/0.0.4711',
                                           'No such file or directory')
+        # test the virtio-balloon device
+        exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
+                                          'MemTotal:         115640 kB')
+        self.vm.command('human-monitor-command', command_line='balloon 96')
+        exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
+                                          'MemTotal:          82872 kB')
+        self.vm.command('human-monitor-command', command_line='balloon 128')
+        exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
+                                          'MemTotal:         115640 kB')
