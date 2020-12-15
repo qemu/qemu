@@ -380,8 +380,8 @@ static void mips_cp0_period_set(MIPSCPU *cpu)
 {
     CPUMIPSState *env = &cpu->env;
 
-    env->cp0_count_ns = cpu->cp0_count_rate
-                        * clock_get_ns(MIPS_CPU(cpu)->clock);
+    env->cp0_count_ns = clock_ticks_to_ns(MIPS_CPU(cpu)->clock,
+                                          cpu->cp0_count_rate);
     assert(env->cp0_count_ns);
 }
 
