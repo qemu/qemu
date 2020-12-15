@@ -1298,7 +1298,7 @@ static void char_file_test_internal(Chardev *ext_chr, const char *filepath)
     g_assert(strncmp(contents, "hello!", 6) == 0);
 
     if (!ext_chr) {
-        object_unref(OBJECT(chr));
+        object_unparent(OBJECT(chr));
         g_unlink(out);
     }
     g_free(contents);
