@@ -482,7 +482,7 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     Audiodev *dev = drv_opaque;
     AudiodevCoreaudioPerDirectionOptions *cpdo = dev->u.coreaudio.out;
     int frames;
-    struct audsettings fake_as;
+    struct audsettings obt_as;
 
     /* create mutex */
     err = pthread_mutex_init(&core->mutex, NULL);
@@ -491,8 +491,8 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
         return -1;
     }
 
-    fake_as = *as;
-    as = &fake_as;
+    obt_as = *as;
+    as = &obt_as;
     as->fmt = AUDIO_FORMAT_F32;
     audio_pcm_init_info (&hw->info, as);
 
@@ -584,17 +584,6 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
         return -1;
     }
 
-    /* start Playback */
-    if (!isPlaying(core->outputDeviceID)) {
-        status = AudioDeviceStart(core->outputDeviceID, core->ioprocid);
-        if (status != kAudioHardwareNoError) {
-            coreaudio_logerr2 (status, typ, "Could not start playback\n");
-            AudioDeviceDestroyIOProcID(core->outputDeviceID, core->ioprocid);
-            core->outputDeviceID = kAudioDeviceUnknown;
-            return -1;
-        }
-    }
-
     return 0;
 }
 
@@ -604,21 +593,19 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
     int err;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
 
-    if (!audio_is_cleaning_up()) {
-        /* stop playback */
-        if (isPlaying(core->outputDeviceID)) {
-            status = AudioDeviceStop(core->outputDeviceID, core->ioprocid);
-            if (status != kAudioHardwareNoError) {
-                coreaudio_logerr (status, "Could not stop playback\n");
-            }
-        }
-
-        /* remove callback */
-        status = AudioDeviceDestroyIOProcID(core->outputDeviceID,
-                                            core->ioprocid);
+    /* stop playback */
+    if (isPlaying(core->outputDeviceID)) {
+        status = AudioDeviceStop(core->outputDeviceID, core->ioprocid);
         if (status != kAudioHardwareNoError) {
-            coreaudio_logerr (status, "Could not remove IOProc\n");
+            coreaudio_logerr(status, "Could not stop playback\n");
         }
+    }
+
+    /* remove callback */
+    status = AudioDeviceDestroyIOProcID(core->outputDeviceID,
+                                        core->ioprocid);
+    if (status != kAudioHardwareNoError) {
+        coreaudio_logerr(status, "Could not remove IOProc\n");
     }
     core->outputDeviceID = kAudioDeviceUnknown;
 
@@ -644,13 +631,11 @@ static void coreaudio_enable_out(HWVoiceOut *hw, bool enable)
         }
     } else {
         /* stop playback */
-        if (!audio_is_cleaning_up()) {
-            if (isPlaying(core->outputDeviceID)) {
-                status = AudioDeviceStop(core->outputDeviceID,
-                                         core->ioprocid);
-                if (status != kAudioHardwareNoError) {
-                    coreaudio_logerr (status, "Could not pause playback\n");
-                }
+        if (isPlaying(core->outputDeviceID)) {
+            status = AudioDeviceStop(core->outputDeviceID,
+                                     core->ioprocid);
+            if (status != kAudioHardwareNoError) {
+                coreaudio_logerr(status, "Could not pause playback\n");
             }
         }
     }
