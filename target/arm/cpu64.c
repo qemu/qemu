@@ -762,15 +762,6 @@ static void aarch64_cpu_set_aarch64(Object *obj, bool value, Error **errp)
     }
 }
 
-static void aarch64_cpu_initfn(Object *obj)
-{
-    object_property_add_bool(obj, "aarch64", aarch64_cpu_get_aarch64,
-                             aarch64_cpu_set_aarch64);
-    object_property_set_description(obj, "aarch64",
-                                    "Set on/off to enable/disable aarch64 "
-                                    "execution state ");
-}
-
 static void aarch64_cpu_finalizefn(Object *obj)
 {
 }
@@ -790,6 +781,12 @@ static void aarch64_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_num_core_regs = 34;
     cc->gdb_core_xml_file = "aarch64-core.xml";
     cc->gdb_arch_name = aarch64_gdb_arch_name;
+
+    object_class_property_add_bool(oc, "aarch64", aarch64_cpu_get_aarch64,
+                                   aarch64_cpu_set_aarch64);
+    object_class_property_set_description(oc, "aarch64",
+                                          "Set on/off to enable/disable aarch64 "
+                                          "execution state ");
 }
 
 static void aarch64_cpu_instance_init(Object *obj)
@@ -827,7 +824,6 @@ static const TypeInfo aarch64_cpu_type_info = {
     .name = TYPE_AARCH64_CPU,
     .parent = TYPE_ARM_CPU,
     .instance_size = sizeof(ARMCPU),
-    .instance_init = aarch64_cpu_initfn,
     .instance_finalize = aarch64_cpu_finalizefn,
     .abstract = true,
     .class_size = sizeof(AArch64CPUClass),
