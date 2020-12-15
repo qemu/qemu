@@ -17,12 +17,24 @@ from avocado_qemu import wait_for_console_pattern
 class S390CCWVirtioMachine(Test):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
+    timeout = 120
+
     def wait_for_console_pattern(self, success_message, vm=None):
         wait_for_console_pattern(self, success_message,
                                  failure_message='Kernel panic - not syncing',
                                  vm=vm)
 
-    timeout = 120
+    def wait_for_crw_reports(self):
+        exec_command_and_wait_for_pattern(self,
+                        'while ! (dmesg -c | grep CRW) ; do sleep 1 ; done',
+                        'CRW reports')
+
+    dmesg_clear_count = 1
+    def clear_guest_dmesg(self):
+        exec_command_and_wait_for_pattern(self, 'dmesg -c > /dev/null; '
+                    'echo dm_clear\ ' + str(self.dmesg_clear_count),
+                    'dm_clear ' + str(self.dmesg_clear_count))
+        self.dmesg_clear_count += 1
 
     def test_s390x_devices(self):
 
@@ -100,26 +112,18 @@ class S390CCWVirtioMachine(Test):
                         'cat /sys/bus/pci/devices/000a\:00\:00.0/function_id',
                         '0x0000000c')
         # add another device
-        exec_command_and_wait_for_pattern(self,
-                                    'dmesg -c > /dev/null; echo dm_clear\ 1',
-                                    'dm_clear 1')
+        self.clear_guest_dmesg()
         self.vm.command('device_add', driver='virtio-net-ccw',
                         devno='fe.0.4711', id='net_4711')
-        exec_command_and_wait_for_pattern(self,
-                        'while ! (dmesg -c | grep CRW) ; do sleep 1 ; done',
-                        'CRW reports')
+        self.wait_for_crw_reports()
         exec_command_and_wait_for_pattern(self, 'ls /sys/bus/ccw/devices/',
                                           '0.0.4711')
         # and detach it again
-        exec_command_and_wait_for_pattern(self,
-                                    'dmesg -c > /dev/null; echo dm_clear\ 2',
-                                    'dm_clear 2')
+        self.clear_guest_dmesg()
         self.vm.command('device_del', id='net_4711')
         self.vm.event_wait(name='DEVICE_DELETED',
                            match={'data': {'device': 'net_4711'}})
-        exec_command_and_wait_for_pattern(self,
-                        'while ! (dmesg -c | grep CRW) ; do sleep 1 ; done',
-                        'CRW reports')
+        self.wait_for_crw_reports()
         exec_command_and_wait_for_pattern(self,
                                           'ls /sys/bus/ccw/devices/0.0.4711',
                                           'No such file or directory')
