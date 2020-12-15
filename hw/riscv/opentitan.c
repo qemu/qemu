@@ -35,22 +35,33 @@ static const struct MemmapEntry {
     [IBEX_DEV_ROM] =            {  0x00008000, 16 * KiB },
     [IBEX_DEV_RAM] =            {  0x10000000,  0x10000 },
     [IBEX_DEV_FLASH] =          {  0x20000000,  0x80000 },
-    [IBEX_DEV_UART] =           {  0x40000000,  0x10000 },
-    [IBEX_DEV_GPIO] =           {  0x40010000,  0x10000 },
-    [IBEX_DEV_SPI] =            {  0x40020000,  0x10000 },
-    [IBEX_DEV_FLASH_CTRL] =     {  0x40030000,  0x10000 },
-    [IBEX_DEV_PINMUX] =         {  0x40070000,  0x10000 },
-    [IBEX_DEV_RV_TIMER] =       {  0x40080000,  0x10000 },
-    [IBEX_DEV_PLIC] =           {  0x40090000,  0x10000 },
-    [IBEX_DEV_PWRMGR] =         {  0x400A0000,  0x10000 },
-    [IBEX_DEV_RSTMGR] =         {  0x400B0000,  0x10000 },
-    [IBEX_DEV_CLKMGR] =         {  0x400C0000,  0x10000 },
-    [IBEX_DEV_AES] =            {  0x40110000,  0x10000 },
-    [IBEX_DEV_HMAC] =           {  0x40120000,  0x10000 },
-    [IBEX_DEV_ALERT_HANDLER] =  {  0x40130000,  0x10000 },
-    [IBEX_DEV_NMI_GEN] =        {  0x40140000,  0x10000 },
-    [IBEX_DEV_USBDEV] =         {  0x40150000,  0x10000 },
-    [IBEX_DEV_PADCTRL] =        {  0x40160000,  0x10000 }
+    [IBEX_DEV_UART] =           {  0x40000000,  0x1000  },
+    [IBEX_DEV_GPIO] =           {  0x40040000,  0x1000  },
+    [IBEX_DEV_SPI] =            {  0x40050000,  0x1000  },
+    [IBEX_DEV_I2C] =            {  0x40080000,  0x1000  },
+    [IBEX_DEV_PATTGEN] =        {  0x400e0000,  0x1000  },
+    [IBEX_DEV_RV_TIMER] =       {  0x40100000,  0x1000  },
+    [IBEX_DEV_SENSOR_CTRL] =    {  0x40110000,  0x1000  },
+    [IBEX_DEV_OTP_CTRL] =       {  0x40130000,  0x4000  },
+    [IBEX_DEV_PWRMGR] =         {  0x40400000,  0x1000  },
+    [IBEX_DEV_RSTMGR] =         {  0x40410000,  0x1000  },
+    [IBEX_DEV_CLKMGR] =         {  0x40420000,  0x1000  },
+    [IBEX_DEV_PINMUX] =         {  0x40460000,  0x1000  },
+    [IBEX_DEV_PADCTRL] =        {  0x40470000,  0x1000  },
+    [IBEX_DEV_USBDEV] =         {  0x40500000,  0x1000  },
+    [IBEX_DEV_FLASH_CTRL] =     {  0x41000000,  0x1000  },
+    [IBEX_DEV_PLIC] =           {  0x41010000,  0x1000  },
+    [IBEX_DEV_AES] =            {  0x41100000,  0x1000  },
+    [IBEX_DEV_HMAC] =           {  0x41110000,  0x1000  },
+    [IBEX_DEV_KMAC] =           {  0x41120000,  0x1000  },
+    [IBEX_DEV_KEYMGR] =         {  0x41130000,  0x1000  },
+    [IBEX_DEV_CSRNG] =          {  0x41150000,  0x1000  },
+    [IBEX_DEV_ENTROPY] =        {  0x41160000,  0x1000  },
+    [IBEX_DEV_EDNO] =           {  0x41170000,  0x1000  },
+    [IBEX_DEV_EDN1] =           {  0x41180000,  0x1000  },
+    [IBEX_DEV_ALERT_HANDLER] =  {  0x411b0000,  0x1000  },
+    [IBEX_DEV_NMI_GEN] =        {  0x411c0000,  0x1000  },
+    [IBEX_DEV_OTBN] =           {  0x411d0000,  0x10000 },
 };
 
 static void opentitan_board_init(MachineState *machine)
@@ -156,30 +167,52 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         memmap[IBEX_DEV_GPIO].base, memmap[IBEX_DEV_GPIO].size);
     create_unimplemented_device("riscv.lowrisc.ibex.spi",
         memmap[IBEX_DEV_SPI].base, memmap[IBEX_DEV_SPI].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.flash_ctrl",
-        memmap[IBEX_DEV_FLASH_CTRL].base, memmap[IBEX_DEV_FLASH_CTRL].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.i2c",
+        memmap[IBEX_DEV_I2C].base, memmap[IBEX_DEV_I2C].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.pattgen",
+        memmap[IBEX_DEV_PATTGEN].base, memmap[IBEX_DEV_PATTGEN].size);
     create_unimplemented_device("riscv.lowrisc.ibex.rv_timer",
         memmap[IBEX_DEV_RV_TIMER].base, memmap[IBEX_DEV_RV_TIMER].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.sensor_ctrl",
+        memmap[IBEX_DEV_SENSOR_CTRL].base, memmap[IBEX_DEV_SENSOR_CTRL].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.otp_ctrl",
+        memmap[IBEX_DEV_OTP_CTRL].base, memmap[IBEX_DEV_OTP_CTRL].size);
     create_unimplemented_device("riscv.lowrisc.ibex.pwrmgr",
         memmap[IBEX_DEV_PWRMGR].base, memmap[IBEX_DEV_PWRMGR].size);
     create_unimplemented_device("riscv.lowrisc.ibex.rstmgr",
         memmap[IBEX_DEV_RSTMGR].base, memmap[IBEX_DEV_RSTMGR].size);
     create_unimplemented_device("riscv.lowrisc.ibex.clkmgr",
         memmap[IBEX_DEV_CLKMGR].base, memmap[IBEX_DEV_CLKMGR].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.pinmux",
+        memmap[IBEX_DEV_PINMUX].base, memmap[IBEX_DEV_PINMUX].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.padctrl",
+        memmap[IBEX_DEV_PADCTRL].base, memmap[IBEX_DEV_PADCTRL].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.usbdev",
+        memmap[IBEX_DEV_USBDEV].base, memmap[IBEX_DEV_USBDEV].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.flash_ctrl",
+        memmap[IBEX_DEV_FLASH_CTRL].base, memmap[IBEX_DEV_FLASH_CTRL].size);
     create_unimplemented_device("riscv.lowrisc.ibex.aes",
         memmap[IBEX_DEV_AES].base, memmap[IBEX_DEV_AES].size);
     create_unimplemented_device("riscv.lowrisc.ibex.hmac",
         memmap[IBEX_DEV_HMAC].base, memmap[IBEX_DEV_HMAC].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.pinmux",
-        memmap[IBEX_DEV_PINMUX].base, memmap[IBEX_DEV_PINMUX].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.kmac",
+        memmap[IBEX_DEV_KMAC].base, memmap[IBEX_DEV_KMAC].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.keymgr",
+        memmap[IBEX_DEV_KEYMGR].base, memmap[IBEX_DEV_KEYMGR].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.csrng",
+        memmap[IBEX_DEV_CSRNG].base, memmap[IBEX_DEV_CSRNG].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.entropy",
+        memmap[IBEX_DEV_ENTROPY].base, memmap[IBEX_DEV_ENTROPY].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.edn0",
+        memmap[IBEX_DEV_EDNO].base, memmap[IBEX_DEV_EDNO].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.edn1",
+        memmap[IBEX_DEV_EDN1].base, memmap[IBEX_DEV_EDN1].size);
     create_unimplemented_device("riscv.lowrisc.ibex.alert_handler",
         memmap[IBEX_DEV_ALERT_HANDLER].base, memmap[IBEX_DEV_ALERT_HANDLER].size);
     create_unimplemented_device("riscv.lowrisc.ibex.nmi_gen",
         memmap[IBEX_DEV_NMI_GEN].base, memmap[IBEX_DEV_NMI_GEN].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.usbdev",
-        memmap[IBEX_DEV_USBDEV].base, memmap[IBEX_DEV_USBDEV].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.padctrl",
-        memmap[IBEX_DEV_PADCTRL].base, memmap[IBEX_DEV_PADCTRL].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.otbn",
+        memmap[IBEX_DEV_OTBN].base, memmap[IBEX_DEV_OTBN].size);
 }
 
 static void lowrisc_ibex_soc_class_init(ObjectClass *oc, void *data)
