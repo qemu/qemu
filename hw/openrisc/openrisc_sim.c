@@ -34,6 +34,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
+#include "hw/core/split-irq.h"
 
 #define KERNEL_LOAD_ADDR 0x100
 
@@ -51,8 +52,13 @@ static void main_cpu_reset(void *opaque)
     cpu_set_pc(cs, boot_info.bootstrap_pc);
 }
 
+static qemu_irq get_cpu_irq(OpenRISCCPU *cpus[], int cpunum, int irq_pin)
+{
+    return qdev_get_gpio_in_named(DEVICE(cpus[cpunum]), "IRQ", irq_pin);
+}
+
 static void openrisc_sim_net_init(hwaddr base, hwaddr descriptors,
-                                  int num_cpus, qemu_irq **cpu_irqs,
+                                  int num_cpus, OpenRISCCPU *cpus[],
                                   int irq_pin, NICInfo *nd)
 {
     DeviceState *dev;
@@ -64,15 +70,23 @@ static void openrisc_sim_net_init(hwaddr base, hwaddr descriptors,
 
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
-    for (i = 0; i < num_cpus; i++) {
-        sysbus_connect_irq(s, 0, cpu_irqs[i][irq_pin]);
+    if (num_cpus > 1) {
+        DeviceState *splitter = qdev_new(TYPE_SPLIT_IRQ);
+        qdev_prop_set_uint32(splitter, "num-lines", num_cpus);
+        qdev_realize_and_unref(splitter, NULL, &error_fatal);
+        for (i = 0; i < num_cpus; i++) {
+            qdev_connect_gpio_out(splitter, i, get_cpu_irq(cpus, i, irq_pin));
+        }
+        sysbus_connect_irq(s, 0, qdev_get_gpio_in(splitter, 0));
+    } else {
+        sysbus_connect_irq(s, 0, get_cpu_irq(cpus, 0, irq_pin));
     }
     sysbus_mmio_map(s, 0, base);
     sysbus_mmio_map(s, 1, descriptors);
 }
 
 static void openrisc_sim_ompic_init(hwaddr base, int num_cpus,
-                                    qemu_irq **cpu_irqs, int irq_pin)
+                                    OpenRISCCPU *cpus[], int irq_pin)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -84,7 +98,7 @@ static void openrisc_sim_ompic_init(hwaddr base, int num_cpus,
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     for (i = 0; i < num_cpus; i++) {
-        sysbus_connect_irq(s, i, cpu_irqs[i][irq_pin]);
+        sysbus_connect_irq(s, i, get_cpu_irq(cpus, i, irq_pin));
     }
     sysbus_mmio_map(s, 0, base);
 }
@@ -127,26 +141,23 @@ static void openrisc_sim_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
     const char *kernel_filename = machine->kernel_filename;
-    OpenRISCCPU *cpu = NULL;
+    OpenRISCCPU *cpus[2] = {};
     MemoryRegion *ram;
-    qemu_irq *cpu_irqs[2];
     qemu_irq serial_irq;
     int n;
     unsigned int smp_cpus = machine->smp.cpus;
 
     assert(smp_cpus >= 1 && smp_cpus <= 2);
     for (n = 0; n < smp_cpus; n++) {
-        cpu = OPENRISC_CPU(cpu_create(machine->cpu_type));
-        if (cpu == NULL) {
+        cpus[n] = OPENRISC_CPU(cpu_create(machine->cpu_type));
+        if (cpus[n] == NULL) {
             fprintf(stderr, "Unable to find CPU definition!\n");
             exit(1);
         }
-        cpu_openrisc_pic_init(cpu);
-        cpu_irqs[n] = (qemu_irq *) cpu->env.irq;
 
-        cpu_openrisc_clock_init(cpu);
+        cpu_openrisc_clock_init(cpus[n]);
 
-        qemu_register_reset(main_cpu_reset, cpu);
+        qemu_register_reset(main_cpu_reset, cpus[n]);
     }
 
     ram = g_malloc(sizeof(*ram));
@@ -155,15 +166,16 @@ static void openrisc_sim_init(MachineState *machine)
 
     if (nd_table[0].used) {
         openrisc_sim_net_init(0x92000000, 0x92000400, smp_cpus,
-                              cpu_irqs, 4, nd_table);
+                              cpus, 4, nd_table);
     }
 
     if (smp_cpus > 1) {
-        openrisc_sim_ompic_init(0x98000000, smp_cpus, cpu_irqs, 1);
+        openrisc_sim_ompic_init(0x98000000, smp_cpus, cpus, 1);
 
-        serial_irq = qemu_irq_split(cpu_irqs[0][2], cpu_irqs[1][2]);
+        serial_irq = qemu_irq_split(get_cpu_irq(cpus, 0, 2),
+                                    get_cpu_irq(cpus, 1, 2));
     } else {
-        serial_irq = cpu_irqs[0][2];
+        serial_irq = get_cpu_irq(cpus, 0, 2);
     }
 
     serial_mm_init(get_system_memory(), 0x90000000, 0, serial_irq,

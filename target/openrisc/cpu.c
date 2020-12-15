@@ -65,6 +65,34 @@ static void openrisc_cpu_reset(DeviceState *dev)
 #endif
 }
 
+#ifndef CONFIG_USER_ONLY
+static void openrisc_cpu_set_irq(void *opaque, int irq, int level)
+{
+    OpenRISCCPU *cpu = (OpenRISCCPU *)opaque;
+    CPUState *cs = CPU(cpu);
+    uint32_t irq_bit;
+
+    if (irq > 31 || irq < 0) {
+        return;
+    }
+
+    irq_bit = 1U << irq;
+
+    if (level) {
+        cpu->env.picsr |= irq_bit;
+    } else {
+        cpu->env.picsr &= ~irq_bit;
+    }
+
+    if (cpu->env.picsr & cpu->env.picmr) {
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+    } else {
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        cpu->env.picsr = 0;
+    }
+}
+#endif
+
 static void openrisc_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -88,6 +116,10 @@ static void openrisc_cpu_initfn(Object *obj)
     OpenRISCCPU *cpu = OPENRISC_CPU(obj);
 
     cpu_set_cpustate_pointers(cpu);
+
+#ifndef CONFIG_USER_ONLY
+    qdev_init_gpio_in_named(DEVICE(cpu), openrisc_cpu_set_irq, "IRQ", NR_IRQS);
+#endif
 }
 
 /* CPU models */

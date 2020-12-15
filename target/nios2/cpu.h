@@ -201,9 +201,6 @@ void nios2_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
                                    MMUAccessType access_type,
                                    int mmu_idx, uintptr_t retaddr);
 
-qemu_irq *nios2_cpu_pic_init(Nios2CPU *cpu);
-void nios2_check_interrupts(CPUNios2State *env);
-
 void do_nios2_semihosting(CPUNios2State *env);
 
 #define CPU_RESOLVING_TYPE TYPE_NIOS2_CPU

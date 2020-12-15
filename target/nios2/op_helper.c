@@ -36,6 +36,15 @@ void helper_mmu_write(CPUNios2State *env, uint32_t rn, uint32_t v)
     mmu_write(env, rn, v);
 }
 
+static void nios2_check_interrupts(CPUNios2State *env)
+{
+    if (env->irq_pending &&
+        (env->regs[CR_STATUS] & CR_STATUS_PIE)) {
+        env->irq_pending = 0;
+        cpu_interrupt(env_cpu(env), CPU_INTERRUPT_HARD);
+    }
+}
+
 void helper_check_interrupts(CPUNios2State *env)
 {
     qemu_mutex_lock_iothread();

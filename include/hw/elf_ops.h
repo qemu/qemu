@@ -330,7 +330,6 @@ static int glue(load_elf, SZ)(const char *name, int fd,
     uint64_t addr, low = (uint64_t)-1, high = 0;
     GMappedFile *mapped_file = NULL;
     uint8_t *data = NULL;
-    char label[128];
     int ret = ELF_LOAD_FAILED;
 
     if (read(fd, &ehdr, sizeof(ehdr)) != sizeof(ehdr))
@@ -544,7 +543,9 @@ static int glue(load_elf, SZ)(const char *name, int fd,
              */
             if (mem_size != 0) {
                 if (load_rom) {
-                    snprintf(label, sizeof(label), "phdr #%d: %s", i, name);
+                    g_autofree char *label =
+                        g_strdup_printf("%s ELF program header segment %d",
+                                        name, i);
 
                     /*
                      * rom_add_elf_program() takes its own reference to

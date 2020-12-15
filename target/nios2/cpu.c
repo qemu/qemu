@@ -64,6 +64,26 @@ static void nios2_cpu_reset(DeviceState *dev)
 #endif
 }
 
+#ifndef CONFIG_USER_ONLY
+static void nios2_cpu_set_irq(void *opaque, int irq, int level)
+{
+    Nios2CPU *cpu = opaque;
+    CPUNios2State *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+
+    env->regs[CR_IPENDING] = deposit32(env->regs[CR_IPENDING], irq, 1, !!level);
+
+    env->irq_pending = env->regs[CR_IPENDING] & env->regs[CR_IENABLE];
+
+    if (env->irq_pending && (env->regs[CR_STATUS] & CR_STATUS_PIE)) {
+        env->irq_pending = 0;
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+    } else if (!env->irq_pending) {
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+    }
+}
+#endif
+
 static void nios2_cpu_initfn(Object *obj)
 {
     Nios2CPU *cpu = NIOS2_CPU(obj);
@@ -72,6 +92,15 @@ static void nios2_cpu_initfn(Object *obj)
 
 #if !defined(CONFIG_USER_ONLY)
     mmu_init(&cpu->env);
+
+    /*
+     * These interrupt lines model the IIC (internal interrupt
+     * controller). QEMU does not currently support the EIC
+     * (external interrupt controller) -- if we did it would be
+     * a separate device in hw/intc with a custom interface to
+     * the CPU, and boards using it would not wire up these IRQ lines.
+     */
+    qdev_init_gpio_in_named(DEVICE(cpu), nios2_cpu_set_irq, "IRQ", 32);
 #endif
 }
 

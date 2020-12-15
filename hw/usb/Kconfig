@@ -112,3 +112,13 @@ config IMX_USBPHY
     bool
     default y
     depends on USB
+
+config USB_DWC3
+    bool
+    select USB_XHCI_SYSBUS
+    select REGISTER
+
+config XLNX_USB_SUBSYS
+    bool
+    default y if XLNX_VERSAL
+    select USB_DWC3
