@@ -92,9 +92,9 @@ const generic_fuzz_config predefined_configs[] = {
     },{
         .name = "floppy",
         .args = "-machine pc -nodefaults -device floppy,id=floppy0 "
-        "-drive id=disk0,file=null-co://,file.read-zeroes=on,if=none "
+        "-drive id=disk0,file=null-co://,file.read-zeroes=on,if=none,format=raw "
         "-device floppy,drive=disk0,drive-type=288",
-        .objects = "fd* floppy*",
+        .objects = "fd* floppy* i8257",
     },{
         .name = "xhci",
         .args = "-machine q35 -nodefaults "
