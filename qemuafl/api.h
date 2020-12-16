@@ -20,7 +20,7 @@ struct x86_regs {
     uint32_t flags;
   };
   
-  uint8_t xmm_regs[16][8];
+  uint8_t xmm_regs[8][16];
 
 };
 
@@ -42,7 +42,7 @@ struct x86_64_regs {
     uint64_t flags;
   };
   
-  uint8_t zmm_regs[64][32];
+  uint8_t zmm_regs[32][64];
 
 };
 
