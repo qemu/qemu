@@ -11,22 +11,22 @@ for debugging, profiling, and observing execution.
 Quickstart
 ==========
 
-1. Build with the 'simple' trace backend::
+Enable tracing of ``memory_region_ops_read`` and ``memory_region_ops_write``
+events::
 
-    ./configure --enable-trace-backends=simple
-    make
+    $ qemu --trace "memory_region_ops_*" ...
+    ...
+    719585@1608130130.441188:memory_region_ops_read cpu 0 mr 0x562fdfbb3820 addr 0x3cc value 0x67 size 1
+    719585@1608130130.441190:memory_region_ops_write cpu 0 mr 0x562fdfbd2f00 addr 0x3d4 value 0x70e size 2
 
-2. Create a file with the events you want to trace::
+This output comes from the "log" trace backend that is enabled by default when
+``./configure --enable-trace-backends=BACKENDS`` was not explicitly specified.
 
-    echo memory_region_ops_read >/tmp/events
+More than one trace event pattern can be specified by providing a file
+instead::
 
-3. Run the virtual machine to produce a trace file::
-
-    qemu --trace events=/tmp/events ... # your normal QEMU invocation
-
-4. Pretty-print the binary trace file::
-
-    ./scripts/simpletrace.py trace-events-all trace-* # Override * with QEMU <pid>
+    $ echo "memory_region_ops_*" >/tmp/events
+    $ qemu --trace events=/tmp/events ...
 
 Trace events
 ============
@@ -195,7 +195,7 @@ script.
 
 The trace backends are chosen at configure time::
 
-    ./configure --enable-trace-backends=simple
+    ./configure --enable-trace-backends=simple,dtrace
 
 For a list of supported trace backends, try ./configure --help or see below.
 If multiple backends are enabled, the trace is sent to them all.
@@ -227,10 +227,11 @@ uses DPRINTF().
 Simpletrace
 -----------
 
-The "simple" backend supports common use cases and comes as part of the QEMU
-source tree.  It may not be as powerful as platform-specific or third-party
-trace backends but it is portable.  This is the recommended trace backend
-unless you have specific needs for more advanced backends.
+The "simple" backend writes binary trace logs to a file from a thread, making
+it lower overhead than the "log" backend. A Python API is available for writing
+offline trace file analysis scripts. It may not be as powerful as
+platform-specific or third-party trace backends but it is portable and has no
+special library dependencies.
 
 Monitor commands
 ~~~~~~~~~~~~~~~~
