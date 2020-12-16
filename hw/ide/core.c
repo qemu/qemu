@@ -165,7 +165,7 @@ static void ide_identify(IDEState *s)
         put_le16(p + 76, (1 << 8));
     }
 
-    put_le16(p + 80, 0xf0); /* ata3 -> ata6 supported */
+    put_le16(p + 80, ((1 << 6) | (1 << 5) (1 << 4) (1 << 3)); /* ata3 -> ata6 supported */
     put_le16(p + 81, 0x16); /* conforms to ata5 */
     /* 14=NOP supported, 5=WCACHE supported, 0=SMART supported */
     put_le16(p + 82, (1 << 14) | (1 << 5) | 1);
