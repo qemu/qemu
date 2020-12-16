@@ -1305,6 +1305,11 @@ static inline bool ase_mt_available(CPUMIPSState *env)
     return env->CP0_Config3 & (1 << CP0C3_MT);
 }
 
+static inline bool cpu_type_is_64bit(const char *cpu_type)
+{
+    return cpu_type_supports_isa(cpu_type, CPU_MIPS64);
+}
+
 void cpu_set_exception_base(int vp_index, target_ulong address);
 
 /* addr.c */
