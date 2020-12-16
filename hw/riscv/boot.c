@@ -41,7 +41,17 @@
 
 bool riscv_is_32_bit(MachineState *machine)
 {
-    if (!strncmp(machine->cpu_type, "rv32", 4)) {
+    /*
+     * To determine if the CPU is 32-bit we need to check a few different CPUs.
+     *
+     * If the CPU starts with rv32
+     * If the CPU is a sifive 3 seriries CPU (E31, U34)
+     * If it's the Ibex CPU
+     */
+    if (!strncmp(machine->cpu_type, "rv32", 4) ||
+        (!strncmp(machine->cpu_type, "sifive", 6) &&
+            machine->cpu_type[8] == '3') ||
+        !strncmp(machine->cpu_type, "lowrisc-ibex", 12)) {
         return true;
     } else {
         return false;
