@@ -65,6 +65,7 @@ static int stream_prepare(Job *job)
     BlockDriverState *bs = blk_bs(bjob->blk);
     BlockDriverState *unfiltered_bs = bdrv_skip_filters(bs);
     BlockDriverState *base = bdrv_filter_or_cow_bs(s->above_base);
+    BlockDriverState *unfiltered_base = bdrv_skip_filters(base);
     Error *local_err = NULL;
     int ret = 0;
 
@@ -73,10 +74,10 @@ static int stream_prepare(Job *job)
 
     if (bdrv_cow_child(unfiltered_bs)) {
         const char *base_id = NULL, *base_fmt = NULL;
-        if (base) {
-            base_id = s->backing_file_str;
-            if (base->drv) {
-                base_fmt = base->drv->format_name;
+        if (unfiltered_base) {
+            base_id = s->backing_file_str ?: unfiltered_base->filename;
+            if (unfiltered_base->drv) {
+                base_fmt = unfiltered_base->drv->format_name;
             }
         }
         bdrv_set_backing_hd(unfiltered_bs, base, &local_err);
