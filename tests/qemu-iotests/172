@@ -73,7 +73,7 @@ check_floppy_qtree()
     (QEMU_OPTIONS="" do_run_qemu "$@" |
 	_filter_testdir |_filter_generated_node_ids | _filter_hmp |
         sed -ne '/^          dev: isa-fdc/,/^          dev:/{x;p};/^[a-z][^ ]* (NODE_NAME):* /,/^(qemu)$/{p}') 2>&1 |
-    _filter_win32 | _filter_qemu
+    _filter_win32 | _filter_qemu | _filter_qom_path
 }
 
 check_cache_mode()
