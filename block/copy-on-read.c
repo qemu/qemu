@@ -24,18 +24,24 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "block/copy-on-read.h"
 
 
 typedef struct BDRVStateCOR {
     bool active;
+    BlockDriverState *bottom_bs;
+    bool chain_frozen;
 } BDRVStateCOR;
 
 
 static int cor_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
+    BlockDriverState *bottom_bs = NULL;
     BDRVStateCOR *state = bs->opaque;
+    /* Find a bottom node name, if any */
+    const char *bottom_node = qdict_get_try_str(options, "bottom");
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
                                BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
@@ -51,7 +57,38 @@ static int cor_open(BlockDriverState *bs, QDict *options, int flags,
         ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
             bs->file->bs->supported_zero_flags);
 
+    if (bottom_node) {
+        bottom_bs = bdrv_find_node(bottom_node);
+        if (!bottom_bs) {
+            error_setg(errp, "Bottom node '%s' not found", bottom_node);
+            qdict_del(options, "bottom");
+            return -EINVAL;
+        }
+        qdict_del(options, "bottom");
+
+        if (!bottom_bs->drv) {
+            error_setg(errp, "Bottom node '%s' not opened", bottom_node);
+            return -EINVAL;
+        }
+
+        if (bottom_bs->drv->is_filter) {
+            error_setg(errp, "Bottom node '%s' is a filter", bottom_node);
+            return -EINVAL;
+        }
+
+        if (bdrv_freeze_backing_chain(bs, bottom_bs, errp) < 0) {
+            return -EINVAL;
+        }
+        state->chain_frozen = true;
+
+        /*
+         * We do freeze the chain, so it shouldn't be removed. Still, storing a
+         * pointer worth bdrv_ref().
+         */
+        bdrv_ref(bottom_bs);
+    }
     state->active = true;
+    state->bottom_bs = bottom_bs;
 
     /*
      * We don't need to call bdrv_child_refresh_perms() now as the permissions
@@ -107,8 +144,46 @@ static int coroutine_fn cor_co_preadv_part(BlockDriverState *bs,
                                            size_t qiov_offset,
                                            int flags)
 {
-    return bdrv_co_preadv_part(bs->file, offset, bytes, qiov, qiov_offset,
-                               flags | BDRV_REQ_COPY_ON_READ);
+    int64_t n;
+    int local_flags;
+    int ret;
+    BDRVStateCOR *state = bs->opaque;
+
+    if (!state->bottom_bs) {
+        return bdrv_co_preadv_part(bs->file, offset, bytes, qiov, qiov_offset,
+                                   flags | BDRV_REQ_COPY_ON_READ);
+    }
+
+    while (bytes) {
+        local_flags = flags;
+
+        /* In case of failure, try to copy-on-read anyway */
+        ret = bdrv_is_allocated(bs->file->bs, offset, bytes, &n);
+        if (ret <= 0) {
+            ret = bdrv_is_allocated_above(bdrv_backing_chain_next(bs->file->bs),
+                                          state->bottom_bs, true, offset,
+                                          n, &n);
+            if (ret > 0 || ret < 0) {
+                local_flags |= BDRV_REQ_COPY_ON_READ;
+            }
+            /* Finish earlier if the end of a backing file has been reached */
+            if (n == 0) {
+                break;
+            }
+        }
+
+        ret = bdrv_co_preadv_part(bs->file, offset, n, qiov, qiov_offset,
+                                  local_flags);
+        if (ret < 0) {
+            return ret;
+        }
+
+        offset += n;
+        qiov_offset += n;
+        bytes -= n;
+    }
+
+    return 0;
 }
 
 
@@ -160,11 +235,25 @@ static void cor_lock_medium(BlockDriverState *bs, bool locked)
 }
 
 
+static void cor_close(BlockDriverState *bs)
+{
+    BDRVStateCOR *s = bs->opaque;
+
+    if (s->chain_frozen) {
+        s->chain_frozen = false;
+        bdrv_unfreeze_backing_chain(bs, s->bottom_bs);
+    }
+
+    bdrv_unref(s->bottom_bs);
+}
+
+
 static BlockDriver bdrv_copy_on_read = {
     .format_name                        = "copy-on-read",
     .instance_size                      = sizeof(BDRVStateCOR),
 
     .bdrv_open                          = cor_open,
+    .bdrv_close                         = cor_close,
     .bdrv_child_perm                    = cor_child_perm,
 
     .bdrv_getlength                     = cor_getlength,
@@ -201,6 +290,11 @@ void bdrv_cor_filter_drop(BlockDriverState *cor_filter_bs)
     bdrv_drained_begin(bs);
     /* Drop permissions before the graph change. */
     s->active = false;
+    /* unfreeze, as otherwise bdrv_replace_node() will fail */
+    if (s->chain_frozen) {
+        s->chain_frozen = false;
+        bdrv_unfreeze_backing_chain(cor_filter_bs, s->bottom_bs);
+    }
     bdrv_child_refresh_perms(cor_filter_bs, child, &error_abort);
     bdrv_replace_node(cor_filter_bs, bs, &error_abort);
 
