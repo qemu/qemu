@@ -431,7 +431,7 @@ void cpu_mips_store_cause(CPUMIPSState *env, target_ulong val)
     uint32_t old = env->CP0_Cause;
     int i;
 
-    if (env->insn_flags & ISA_MIPS32R2) {
+    if (env->insn_flags & ISA_MIPS_R2) {
         mask |= 1 << CP0Ca_DC;
     }
     if (env->insn_flags & ISA_MIPS32R6) {

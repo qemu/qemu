@@ -44,7 +44,7 @@ static void cpu_mips_timer_update(CPUMIPSState *env)
 static void cpu_mips_timer_expire(CPUMIPSState *env)
 {
     cpu_mips_timer_update(env);
-    if (env->insn_flags & ISA_MIPS32R2) {
+    if (env->insn_flags & ISA_MIPS_R2) {
         env->CP0_Cause |= 1 << CP0Ca_TI;
     }
     qemu_irq_raise(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
@@ -93,7 +93,7 @@ void cpu_mips_store_compare(CPUMIPSState *env, uint32_t value)
     if (!(env->CP0_Cause & (1 << CP0Ca_DC))) {
         cpu_mips_timer_update(env);
     }
-    if (env->insn_flags & ISA_MIPS32R2) {
+    if (env->insn_flags & ISA_MIPS_R2) {
         env->CP0_Cause &= ~(1 << CP0Ca_TI);
     }
     qemu_irq_lower(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
