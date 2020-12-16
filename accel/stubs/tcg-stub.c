@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "tcg/tcg.h"
 #include "exec/exec-all.h"
 
 void tb_flush(CPUState *cpu)

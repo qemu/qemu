@@ -49,7 +49,7 @@
 
 #include "exec/cputlb.h"
 #include "exec/tb-hash.h"
-#include "translate-all.h"
+#include "exec/translate-all.h"
 #include "qemu/bitmap.h"
 #include "qemu/error-report.h"
 #include "qemu/qemu-print.h"
