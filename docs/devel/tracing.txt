@@ -218,6 +218,23 @@ source tree.  It may not be as powerful as platform-specific or third-party
 trace backends but it is portable.  This is the recommended trace backend
 unless you have specific needs for more advanced backends.
 
+==== Monitor commands ====
+
+* trace-file on|off|flush|set <path>
+  Enable/disable/flush the trace file or set the trace file name.
+
+==== Analyzing trace files ====
+
+The "simple" backend produces binary trace files that can be formatted with the
+simpletrace.py script.  The script takes the "trace-events-all" file and the
+binary trace:
+
+    ./scripts/simpletrace.py trace-events-all trace-12345
+
+You must ensure that the same "trace-events-all" file was used to build QEMU,
+otherwise trace event declarations may have changed and output will not be
+consistent.
+
 === Ftrace ===
 
 The "ftrace" backend writes trace data to ftrace marker. This effectively
@@ -245,23 +262,6 @@ NOTE: syslog may squash duplicate consecutive trace events and apply rate
       limiting.
 
 Restriction: "syslog" backend is restricted to POSIX compliant OS.
-
-==== Monitor commands ====
-
-* trace-file on|off|flush|set <path>
-  Enable/disable/flush the trace file or set the trace file name.
-
-==== Analyzing trace files ====
-
-The "simple" backend produces binary trace files that can be formatted with the
-simpletrace.py script.  The script takes the "trace-events-all" file and the
-binary trace:
-
-    ./scripts/simpletrace.py trace-events-all trace-12345
-
-You must ensure that the same "trace-events-all" file was used to build QEMU,
-otherwise trace event declarations may have changed and output will not be
-consistent.
 
 === LTTng Userspace Tracer ===
 
