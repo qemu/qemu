@@ -71,7 +71,7 @@ foreach d : [
                 input: meson.source_root() / 'trace-events',
                 command: [ tracetool, '--group=root', '--format=@0@'.format(d[1]), '@INPUT@' ],
                 capture: true)
-  specific_ss.add(gen)
+  specific_ss.add(when: 'CONFIG_TCG', if_true: gen)
 endforeach
 
 if 'CONFIG_TRACE_UST' in config_host
