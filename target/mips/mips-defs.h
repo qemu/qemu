@@ -1,12 +1,6 @@
 #ifndef QEMU_MIPS_DEFS_H
 #define QEMU_MIPS_DEFS_H
 
-/*
- * If we want to use host float regs...
- *
- * #define USE_HOST_FLOAT_REGS
- */
-
 /* Real pages are variable size... */
 #define MIPS_TLB_MAX 128
 
