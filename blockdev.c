@@ -2500,6 +2500,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_base, const char *base,
                       bool has_base_node, const char *base_node,
                       bool has_backing_file, const char *backing_file,
+                      bool has_bottom, const char *bottom,
                       bool has_speed, int64_t speed,
                       bool has_on_error, BlockdevOnError on_error,
                       bool has_filter_node_name, const char *filter_node_name,
@@ -2507,11 +2508,30 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_auto_dismiss, bool auto_dismiss,
                       Error **errp)
 {
-    BlockDriverState *bs, *iter;
+    BlockDriverState *bs, *iter, *iter_end;
     BlockDriverState *base_bs = NULL;
+    BlockDriverState *bottom_bs = NULL;
     AioContext *aio_context;
     Error *local_err = NULL;
     int job_flags = JOB_DEFAULT;
+
+    if (has_base && has_base_node) {
+        error_setg(errp, "'base' and 'base-node' cannot be specified "
+                   "at the same time");
+        return;
+    }
+
+    if (has_base && has_bottom) {
+        error_setg(errp, "'base' and 'bottom' cannot be specified "
+                   "at the same time");
+        return;
+    }
+
+    if (has_bottom && has_base_node) {
+        error_setg(errp, "'bottom' and 'base-node' cannot be specified "
+                   "at the same time");
+        return;
+    }
 
     if (!has_on_error) {
         on_error = BLOCKDEV_ON_ERROR_REPORT;
@@ -2524,12 +2544,6 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    if (has_base && has_base_node) {
-        error_setg(errp, "'base' and 'base-node' cannot be specified "
-                   "at the same time");
-        goto out;
-    }
 
     if (has_base) {
         base_bs = bdrv_find_backing_image(bs, base);
@@ -2554,8 +2568,33 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         bdrv_refresh_filename(base_bs);
     }
 
-    /* Check for op blockers in the whole chain between bs and base */
-    for (iter = bs; iter && iter != base_bs;
+    if (has_bottom) {
+        bottom_bs = bdrv_lookup_bs(NULL, bottom, errp);
+        if (!bottom_bs) {
+            goto out;
+        }
+        if (!bottom_bs->drv) {
+            error_setg(errp, "Node '%s' is not open", bottom);
+            goto out;
+        }
+        if (bottom_bs->drv->is_filter) {
+            error_setg(errp, "Node '%s' is a filter, use a non-filter node "
+                       "as 'bottom'", bottom);
+            goto out;
+        }
+        if (!bdrv_chain_contains(bs, bottom_bs)) {
+            error_setg(errp, "Node '%s' is not in a chain starting from '%s'",
+                       bottom, device);
+            goto out;
+        }
+        assert(bdrv_get_aio_context(bottom_bs) == aio_context);
+    }
+
+    /*
+     * Check for op blockers in the whole chain between bs and base (or bottom)
+     */
+    iter_end = has_bottom ? bdrv_filter_or_cow_bs(bottom_bs) : base_bs;
+    for (iter = bs; iter && iter != iter_end;
          iter = bdrv_filter_or_cow_bs(iter))
     {
         if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_STREAM, errp)) {
@@ -2579,7 +2618,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     }
 
     stream_start(has_job_id ? job_id : NULL, bs, base_bs, backing_file,
-                 job_flags, has_speed ? speed : 0, on_error,
+                 bottom_bs, job_flags, has_speed ? speed : 0, on_error,
                  filter_node_name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);

@@ -2517,10 +2517,14 @@
 # @device: the device or node name of the top image
 #
 # @base: the common backing file name.
-#        It cannot be set if @base-node is also set.
+#        It cannot be set if @base-node or @bottom is also set.
 #
 # @base-node: the node name of the backing file.
-#             It cannot be set if @base is also set. (Since 2.8)
+#             It cannot be set if @base or @bottom is also set. (Since 2.8)
+#
+# @bottom: the last node in the chain that should be streamed into
+#          top. It cannot be set if @base or @base-node is also set.
+#          It cannot be filter node. (Since 6.0)
 #
 # @backing-file: The backing file string to write into the top
 #                image. This filename is not validated.
@@ -2576,8 +2580,8 @@
 ##
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
-            '*base-node': 'str', '*backing-file': 'str', '*speed': 'int',
-            '*on-error': 'BlockdevOnError',
+            '*base-node': 'str', '*backing-file': 'str', '*bottom': 'str',
+            '*speed': 'int', '*on-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
 

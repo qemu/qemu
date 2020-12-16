@@ -221,6 +221,7 @@ static const BlockJobDriver stream_job_driver = {
 
 void stream_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, const char *backing_file_str,
+                  BlockDriverState *bottom,
                   int creation_flags, int64_t speed,
                   BlockdevOnError on_error,
                   const char *filter_node_name,
@@ -230,25 +231,42 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     BlockDriverState *iter;
     bool bs_read_only;
     int basic_flags = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED;
-    BlockDriverState *base_overlay = bdrv_find_overlay(bs, base);
+    BlockDriverState *base_overlay;
     BlockDriverState *above_base;
 
-    if (!base_overlay) {
-        error_setg(errp, "'%s' is not in the backing chain of '%s'",
-                   base->node_name, bs->node_name);
-        return;
-    }
+    assert(!(base && bottom));
+    assert(!(backing_file_str && bottom));
 
-    /*
-     * Find the node directly above @base.  @base_overlay is a COW overlay, so
-     * it must have a bdrv_cow_child(), but it is the immediate overlay of
-     * @base, so between the two there can only be filters.
-     */
-    above_base = base_overlay;
-    if (bdrv_cow_bs(above_base) != base) {
-        above_base = bdrv_cow_bs(above_base);
-        while (bdrv_filter_bs(above_base) != base) {
-            above_base = bdrv_filter_bs(above_base);
+    if (bottom) {
+        /*
+         * New simple interface. The code is written in terms of old interface
+         * with @base parameter (still, it doesn't freeze link to base, so in
+         * this mean old code is correct for new interface). So, for now, just
+         * emulate base_overlay and above_base. Still, when old interface
+         * finally removed, we should refactor code to use only "bottom", but
+         * not "*base*" things.
+         */
+        assert(!bottom->drv->is_filter);
+        base_overlay = above_base = bottom;
+    } else {
+        base_overlay = bdrv_find_overlay(bs, base);
+        if (!base_overlay) {
+            error_setg(errp, "'%s' is not in the backing chain of '%s'",
+                       base->node_name, bs->node_name);
+            return;
+        }
+
+        /*
+         * Find the node directly above @base.  @base_overlay is a COW overlay,
+         * so it must have a bdrv_cow_child(), but it is the immediate overlay
+         * of @base, so between the two there can only be filters.
+         */
+        above_base = base_overlay;
+        if (bdrv_cow_bs(above_base) != base) {
+            above_base = bdrv_cow_bs(above_base);
+            while (bdrv_filter_bs(above_base) != base) {
+                above_base = bdrv_filter_bs(above_base);
+            }
         }
     }
 
