@@ -22,10 +22,11 @@
 
 #include "exec/cpu-defs.h"
 #include "hw/loader.h"
+#include "hw/riscv/riscv_hart.h"
 
-bool riscv_is_32_bit(MachineState *machine);
+bool riscv_is_32bit(RISCVHartArrayState harts);
 
-target_ulong riscv_calc_kernel_start_addr(MachineState *machine,
+target_ulong riscv_calc_kernel_start_addr(RISCVHartArrayState harts,
                                           target_ulong firmware_end_addr);
 target_ulong riscv_find_and_load_firmware(MachineState *machine,
                                           const char *default_machine_firmware,
@@ -41,7 +42,8 @@ target_ulong riscv_load_kernel(const char *kernel_filename,
 hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
                          uint64_t kernel_entry, hwaddr *start);
 uint32_t riscv_load_fdt(hwaddr dram_start, uint64_t dram_size, void *fdt);
-void riscv_setup_rom_reset_vec(MachineState *machine, hwaddr saddr,
+void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState harts,
+                               hwaddr saddr,
                                hwaddr rom_base, hwaddr rom_size,
                                uint64_t kernel_entry,
                                uint32_t fdt_load_addr, void *fdt);

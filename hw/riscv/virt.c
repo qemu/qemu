@@ -601,7 +601,7 @@ static void virt_machine_init(MachineState *machine)
 
     /* create device tree */
     create_fdt(s, memmap, machine->ram_size, machine->kernel_cmdline,
-               riscv_is_32_bit(machine));
+               riscv_is_32bit(s->soc[0]));
 
     /* boot rom */
     memory_region_init_rom(mask_rom, NULL, "riscv_virt_board.mrom",
@@ -609,7 +609,7 @@ static void virt_machine_init(MachineState *machine)
     memory_region_add_subregion(system_memory, memmap[VIRT_MROM].base,
                                 mask_rom);
 
-    if (riscv_is_32_bit(machine)) {
+    if (riscv_is_32bit(s->soc[0])) {
         firmware_end_addr = riscv_find_and_load_firmware(machine,
                                     "opensbi-riscv32-generic-fw_dynamic.bin",
                                     start_addr, NULL);
@@ -620,7 +620,7 @@ static void virt_machine_init(MachineState *machine)
     }
 
     if (machine->kernel_filename) {
-        kernel_start_addr = riscv_calc_kernel_start_addr(machine,
+        kernel_start_addr = riscv_calc_kernel_start_addr(s->soc[0],
                                                          firmware_end_addr);
 
         kernel_entry = riscv_load_kernel(machine->kernel_filename,
@@ -656,7 +656,8 @@ static void virt_machine_init(MachineState *machine)
     fdt_load_addr = riscv_load_fdt(memmap[VIRT_DRAM].base,
                                    machine->ram_size, s->fdt);
     /* load the reset vector */
-    riscv_setup_rom_reset_vec(machine, start_addr, virt_memmap[VIRT_MROM].base,
+    riscv_setup_rom_reset_vec(machine, s->soc[0], start_addr,
+                              virt_memmap[VIRT_MROM].base,
                               virt_memmap[VIRT_MROM].size, kernel_entry,
                               fdt_load_addr, s->fdt);
 

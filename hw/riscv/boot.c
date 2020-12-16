@@ -33,28 +33,16 @@
 
 #include <libfdt.h>
 
-bool riscv_is_32_bit(MachineState *machine)
+bool riscv_is_32bit(RISCVHartArrayState harts)
 {
-    /*
-     * To determine if the CPU is 32-bit we need to check a few different CPUs.
-     *
-     * If the CPU starts with rv32
-     * If the CPU is a sifive 3 seriries CPU (E31, U34)
-     * If it's the Ibex CPU
-     */
-    if (!strncmp(machine->cpu_type, "rv32", 4) ||
-        (!strncmp(machine->cpu_type, "sifive", 6) &&
-            machine->cpu_type[8] == '3') ||
-        !strncmp(machine->cpu_type, "lowrisc-ibex", 12)) {
-        return true;
-    } else {
-        return false;
-    }
+    RISCVCPU hart = harts.harts[0];
+
+    return riscv_cpu_is_32bit(&hart.env);
 }
 
-target_ulong riscv_calc_kernel_start_addr(MachineState *machine,
+target_ulong riscv_calc_kernel_start_addr(RISCVHartArrayState harts,
                                           target_ulong firmware_end_addr) {
-    if (riscv_is_32_bit(machine)) {
+    if (riscv_is_32bit(harts)) {
         return QEMU_ALIGN_UP(firmware_end_addr, 4 * MiB);
     } else {
         return QEMU_ALIGN_UP(firmware_end_addr, 2 * MiB);
@@ -259,7 +247,8 @@ void riscv_rom_copy_firmware_info(MachineState *machine, hwaddr rom_base,
                            &address_space_memory);
 }
 
-void riscv_setup_rom_reset_vec(MachineState *machine, hwaddr start_addr,
+void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState harts,
+                               hwaddr start_addr,
                                hwaddr rom_base, hwaddr rom_size,
                                uint64_t kernel_entry,
                                uint32_t fdt_load_addr, void *fdt)
@@ -267,7 +256,7 @@ void riscv_setup_rom_reset_vec(MachineState *machine, hwaddr start_addr,
     int i;
     uint32_t start_addr_hi32 = 0x00000000;
 
-    if (!riscv_is_32_bit(machine)) {
+    if (!riscv_is_32bit(harts)) {
         start_addr_hi32 = start_addr >> 32;
     }
     /* reset vector */
@@ -284,7 +273,7 @@ void riscv_setup_rom_reset_vec(MachineState *machine, hwaddr start_addr,
         0x00000000,
                                      /* fw_dyn: */
     };
-    if (riscv_is_32_bit(machine)) {
+    if (riscv_is_32bit(harts)) {
         reset_vec[3] = 0x0202a583;   /*     lw     a1, 32(t0) */
         reset_vec[4] = 0x0182a283;   /*     lw     t0, 24(t0) */
     } else {
