@@ -354,7 +354,7 @@ static inline void compute_hflags(CPUMIPSState *env)
     } else if (((env->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_UM) &&
                !(env->CP0_Status & (1 << CP0St_UX))) {
         env->hflags |= MIPS_HFLAG_AWRAP;
-    } else if (env->insn_flags & ISA_MIPS32R6) {
+    } else if (env->insn_flags & ISA_MIPS_R6) {
         /* Address wrapping for Supervisor and Kernel is specified in R6 */
         if ((((env->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_SM) &&
              !(env->CP0_Status & (1 << CP0St_SX))) ||
@@ -365,7 +365,7 @@ static inline void compute_hflags(CPUMIPSState *env)
     }
 #endif
     if (((env->CP0_Status & (1 << CP0St_CU0)) &&
-         !(env->insn_flags & ISA_MIPS32R6)) ||
+         !(env->insn_flags & ISA_MIPS_R6)) ||
         !(env->hflags & MIPS_HFLAG_KSU)) {
         env->hflags |= MIPS_HFLAG_CP0;
     }

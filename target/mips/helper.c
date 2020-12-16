@@ -397,7 +397,7 @@ void cpu_mips_store_status(CPUMIPSState *env, target_ulong val)
     uint32_t mask = env->CP0_Status_rw_bitmask;
     target_ulong old = env->CP0_Status;
 
-    if (env->insn_flags & ISA_MIPS32R6) {
+    if (env->insn_flags & ISA_MIPS_R6) {
         bool has_supervisor = extract32(mask, CP0St_KSU, 2) == 0x3;
 #if defined(TARGET_MIPS64)
         uint32_t ksux = (1 << CP0St_KX) & val;
@@ -434,7 +434,7 @@ void cpu_mips_store_cause(CPUMIPSState *env, target_ulong val)
     if (env->insn_flags & ISA_MIPS_R2) {
         mask |= 1 << CP0Ca_DC;
     }
-    if (env->insn_flags & ISA_MIPS32R6) {
+    if (env->insn_flags & ISA_MIPS_R6) {
         mask &= ~((1 << CP0Ca_WP) & val);
     }
 
@@ -1145,7 +1145,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
  enter_debug_mode:
         if (env->insn_flags & ISA_MIPS3) {
             env->hflags |= MIPS_HFLAG_64;
-            if (!(env->insn_flags & ISA_MIPS32R6) ||
+            if (!(env->insn_flags & ISA_MIPS_R6) ||
                 env->CP0_Status & (1 << CP0St_KX)) {
                 env->hflags &= ~MIPS_HFLAG_AWRAP;
             }
@@ -1174,7 +1174,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         env->CP0_Status |= (1 << CP0St_ERL) | (1 << CP0St_BEV);
         if (env->insn_flags & ISA_MIPS3) {
             env->hflags |= MIPS_HFLAG_64;
-            if (!(env->insn_flags & ISA_MIPS32R6) ||
+            if (!(env->insn_flags & ISA_MIPS_R6) ||
                 env->CP0_Status & (1 << CP0St_KX)) {
                 env->hflags &= ~MIPS_HFLAG_AWRAP;
             }
@@ -1360,7 +1360,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
             env->CP0_Status |= (1 << CP0St_EXL);
             if (env->insn_flags & ISA_MIPS3) {
                 env->hflags |= MIPS_HFLAG_64;
-                if (!(env->insn_flags & ISA_MIPS32R6) ||
+                if (!(env->insn_flags & ISA_MIPS_R6) ||
                     env->CP0_Status & (1 << CP0St_KX)) {
                     env->hflags &= ~MIPS_HFLAG_AWRAP;
                 }

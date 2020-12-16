@@ -72,7 +72,7 @@ static bool mips_cpu_has_work(CPUState *cs)
     if ((cs->interrupt_request & CPU_INTERRUPT_HARD) &&
         cpu_mips_hw_interrupts_pending(env)) {
         if (cpu_mips_hw_interrupts_enabled(env) ||
-            (env->insn_flags & ISA_MIPS32R6)) {
+            (env->insn_flags & ISA_MIPS_R6)) {
             has_work = true;
         }
     }
@@ -288,13 +288,13 @@ static void cpu_state_reset(CPUMIPSState *env)
     /* XKPhys (note, SegCtl2.XR = 0, so XAM won't be used) */
     env->CP0_SegCtl1 |= (CP0SC_AM_UK << CP0SC1_XAM);
 #endif /* !CONFIG_USER_ONLY */
-    if ((env->insn_flags & ISA_MIPS32R6) &&
+    if ((env->insn_flags & ISA_MIPS_R6) &&
         (env->active_fpu.fcr0 & (1 << FCR0_F64))) {
         /* Status.FR = 0 mode in 64-bit FPU not allowed in R6 */
         env->CP0_Status |= (1 << CP0St_FR);
     }
 
-    if (env->insn_flags & ISA_MIPS32R6) {
+    if (env->insn_flags & ISA_MIPS_R6) {
         /* PTW  =  1 */
         env->CP0_PWSize = 0x40;
         /* GDI  = 12 */
