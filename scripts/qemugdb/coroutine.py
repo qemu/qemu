@@ -88,8 +88,11 @@ def bt_jmpbuf(jmpbuf):
 
     selected_frame.select()
 
+def co_cast(co):
+    return co.cast(gdb.lookup_type('CoroutineUContext').pointer())
+
 def coroutine_to_jmpbuf(co):
-    coroutine_pointer = co.cast(gdb.lookup_type('CoroutineUContext').pointer())
+    coroutine_pointer = co_cast(co)
     return coroutine_pointer['env']['__jmpbuf']
 
 
@@ -106,6 +109,29 @@ class CoroutineCommand(gdb.Command):
             return
 
         bt_jmpbuf(coroutine_to_jmpbuf(gdb.parse_and_eval(argv[0])))
+
+class CoroutineBt(gdb.Command):
+    '''Display backtrace including coroutine switches'''
+    def __init__(self):
+        gdb.Command.__init__(self, 'qemu bt', gdb.COMMAND_STACK,
+                             gdb.COMPLETE_NONE)
+
+    def invoke(self, arg, from_tty):
+
+        gdb.execute("bt")
+
+        if gdb.parse_and_eval("qemu_in_coroutine()") == False:
+            return
+
+        co_ptr = gdb.parse_and_eval("qemu_coroutine_self()")
+
+        while True:
+            co = co_cast(co_ptr)
+            co_ptr = co["base"]["caller"]
+            if co_ptr == 0:
+                break
+            gdb.write("Coroutine at " + str(co_ptr) + ":\n")
+            bt_jmpbuf(coroutine_to_jmpbuf(co_ptr))
 
 class CoroutineSPFunction(gdb.Function):
     def __init__(self):
