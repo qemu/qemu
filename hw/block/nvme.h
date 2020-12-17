@@ -20,6 +20,7 @@ typedef struct NvmeParams {
     uint8_t  mdts;
     bool     use_intel_id;
     uint32_t zasl_bs;
+    bool     legacy_cmb;
 } NvmeParams;
 
 typedef struct NvmeAsyncEvent {
@@ -127,7 +128,6 @@ typedef struct NvmeCtrl {
     PCIDevice    parent_obj;
     MemoryRegion bar0;
     MemoryRegion iomem;
-    MemoryRegion ctrl_mem;
     NvmeBar      bar;
     NvmeParams   params;
     NvmeBus      bus;
@@ -143,13 +143,19 @@ typedef struct NvmeCtrl {
     uint32_t    num_namespaces;
     uint32_t    max_q_ents;
     uint8_t     outstanding_aers;
-    uint8_t     *cmbuf;
     uint32_t    irq_status;
     uint64_t    host_timestamp;                 /* Timestamp sent by the host */
     uint64_t    timestamp_set_qemu_clock_ms;    /* QEMU clock time */
     uint64_t    starttime_ms;
     uint16_t    temperature;
     uint8_t     smart_critical_warning;
+
+    struct {
+        MemoryRegion mem;
+        uint8_t      *buf;
+        bool         cmse;
+        hwaddr       cba;
+    } cmb;
 
     struct {
         HostMemoryBackend *dev;
