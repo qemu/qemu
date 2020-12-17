@@ -821,10 +821,12 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     mr = s390_get_subregion(mr, offset, len);
     offset -= mr->addr;
 
-    if (!memory_region_access_valid(mr, offset, len, true,
-                                    MEMTXATTRS_UNSPECIFIED)) {
-        s390_program_interrupt(env, PGM_OPERAND, ra);
-        return 0;
+    for (i = 0; i < len; i += 8) {
+        if (!memory_region_access_valid(mr, offset + i, 8, true,
+                                        MEMTXATTRS_UNSPECIFIED)) {
+            s390_program_interrupt(env, PGM_OPERAND, ra);
+            return 0;
+        }
     }
 
     if (s390_cpu_virt_mem_read(cpu, gaddr, ar, buffer, len)) {
