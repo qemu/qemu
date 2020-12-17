@@ -1,7 +1,9 @@
 QA output created by 143
 { 'execute': 'qmp_capabilities' }
 {"return": {}}
-{ 'execute': 'nbd-server-start', 'arguments': { 'addr': { 'type': 'unix', 'data': { 'path': 'SOCK_DIR/nbd' }}}}
+{ 'execute': 'nbd-server-start',
+       'arguments': { 'addr': { 'type': 'unix',
+                                'data': { 'path': 'SOCK_DIR/nbd' }}}}
 {"return": {}}
 qemu-io: can't open device nbd+unix:///no_such_export?socket=SOCK_DIR/nbd: Requested export not available
 server reported: export 'no_such_export' not present

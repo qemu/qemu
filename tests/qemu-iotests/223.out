@@ -26,31 +26,48 @@ wrote 2097152/2097152 bytes at offset 2097152
 
 {"execute":"qmp_capabilities"}
 {"return": {}}
-{"execute":"blockdev-add", "arguments":{"driver":"IMGFMT", "node-name":"n", "file":{"driver":"file", "filename":"TEST_DIR/t.IMGFMT"}}}
+{"execute":"blockdev-add",
+  "arguments":{"driver":"IMGFMT", "node-name":"n",
+    "file":{"driver":"file", "filename":"TEST_DIR/t.IMGFMT"}}}
 {"return": {}}
-{"execute":"block-dirty-bitmap-disable", "arguments":{"node":"n", "name":"b"}}
+{"execute":"block-dirty-bitmap-disable",
+  "arguments":{"node":"n", "name":"b"}}
 {"return": {}}
 
 === Set up NBD with normal access ===
 
-{"execute":"nbd-server-add", "arguments":{"device":"n"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n"}}
 {"error": {"class": "GenericError", "desc": "NBD server not running"}}
-{"execute":"nbd-server-start", "arguments":{"addr":{"type":"unix", "data":{"path":"SOCK_DIR/nbd"}}}}
+{"execute":"nbd-server-start",
+  "arguments":{"addr":{"type":"unix",
+    "data":{"path":"SOCK_DIR/nbd"}}}}
 {"return": {}}
-{"execute":"nbd-server-start", "arguments":{"addr":{"type":"unix", "data":{"path":"SOCK_DIR/nbd1"}}}}
+{"execute":"nbd-server-start",
+  "arguments":{"addr":{"type":"unix",
+    "data":{"path":"SOCK_DIR/nbd1"}}}}
 {"error": {"class": "GenericError", "desc": "NBD server already running"}}
 exports available: 0
-{"execute":"nbd-server-add", "arguments":{"device":"n", "bitmap":"b"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n", "bitmap":"b"}}
 {"return": {}}
-{"execute":"nbd-server-add", "arguments":{"device":"nosuch"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"nosuch"}}
 {"error": {"class": "GenericError", "desc": "Cannot find device=nosuch nor node_name=nosuch"}}
-{"execute":"nbd-server-add", "arguments":{"device":"n"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n"}}
 {"error": {"class": "GenericError", "desc": "Block export id 'n' is already in use"}}
-{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b2"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n", "name":"n2",
+  "bitmap":"b2"}}
 {"error": {"class": "GenericError", "desc": "Enabled bitmap 'b2' incompatible with readonly export"}}
-{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b3"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n", "name":"n2",
+  "bitmap":"b3"}}
 {"error": {"class": "GenericError", "desc": "Bitmap 'b3' is not found"}}
-{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "writable":true, "description":"some text", "bitmap":"b2"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n", "name":"n2", "writable":true,
+  "description":"some text", "bitmap":"b2"}}
 {"return": {}}
 exports available: 2
  export: 'n'
@@ -99,12 +116,15 @@ read 2097152/2097152 bytes at offset 2097152
 
 === End qemu NBD server ===
 
-{"execute":"nbd-server-remove", "arguments":{"name":"n"}}
+{"execute":"nbd-server-remove",
+  "arguments":{"name":"n"}}
 {"return": {}}
-{"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
+{"execute":"nbd-server-remove",
+  "arguments":{"name":"n2"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n"}}
 {"return": {}}
-{"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
+{"execute":"nbd-server-remove",
+  "arguments":{"name":"n2"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n2"}}
 {"error": {"class": "GenericError", "desc": "Export 'n2' is not found"}}
 {"execute":"nbd-server-stop"}
@@ -114,26 +134,41 @@ read 2097152/2097152 bytes at offset 2097152
 
 === Set up NBD with iothread access ===
 
-{"execute":"x-blockdev-set-iothread", "arguments":{"node-name":"n", "iothread":"io0"}}
+{"execute":"x-blockdev-set-iothread",
+  "arguments":{"node-name":"n", "iothread":"io0"}}
 {"return": {}}
-{"execute":"nbd-server-add", "arguments":{"device":"n"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n"}}
 {"error": {"class": "GenericError", "desc": "NBD server not running"}}
-{"execute":"nbd-server-start", "arguments":{"addr":{"type":"unix", "data":{"path":"SOCK_DIR/nbd"}}}}
+{"execute":"nbd-server-start",
+  "arguments":{"addr":{"type":"unix",
+    "data":{"path":"SOCK_DIR/nbd"}}}}
 {"return": {}}
-{"execute":"nbd-server-start", "arguments":{"addr":{"type":"unix", "data":{"path":"SOCK_DIR/nbd1"}}}}
+{"execute":"nbd-server-start",
+  "arguments":{"addr":{"type":"unix",
+    "data":{"path":"SOCK_DIR/nbd1"}}}}
 {"error": {"class": "GenericError", "desc": "NBD server already running"}}
 exports available: 0
-{"execute":"nbd-server-add", "arguments":{"device":"n", "bitmap":"b"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n", "bitmap":"b"}}
 {"return": {}}
-{"execute":"nbd-server-add", "arguments":{"device":"nosuch"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"nosuch"}}
 {"error": {"class": "GenericError", "desc": "Cannot find device=nosuch nor node_name=nosuch"}}
-{"execute":"nbd-server-add", "arguments":{"device":"n"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n"}}
 {"error": {"class": "GenericError", "desc": "Block export id 'n' is already in use"}}
-{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b2"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n", "name":"n2",
+  "bitmap":"b2"}}
 {"error": {"class": "GenericError", "desc": "Enabled bitmap 'b2' incompatible with readonly export"}}
-{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "bitmap":"b3"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n", "name":"n2",
+  "bitmap":"b3"}}
 {"error": {"class": "GenericError", "desc": "Bitmap 'b3' is not found"}}
-{"execute":"nbd-server-add", "arguments":{"device":"n", "name":"n2", "writable":true, "description":"some text", "bitmap":"b2"}}
+{"execute":"nbd-server-add",
+  "arguments":{"device":"n", "name":"n2", "writable":true,
+  "description":"some text", "bitmap":"b2"}}
 {"return": {}}
 exports available: 2
  export: 'n'
@@ -182,12 +217,15 @@ read 2097152/2097152 bytes at offset 2097152
 
 === End qemu NBD server ===
 
-{"execute":"nbd-server-remove", "arguments":{"name":"n"}}
+{"execute":"nbd-server-remove",
+  "arguments":{"name":"n"}}
 {"return": {}}
-{"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
+{"execute":"nbd-server-remove",
+  "arguments":{"name":"n2"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n"}}
 {"return": {}}
-{"execute":"nbd-server-remove", "arguments":{"name":"n2"}}
+{"execute":"nbd-server-remove",
+  "arguments":{"name":"n2"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "n2"}}
 {"error": {"class": "GenericError", "desc": "Export 'n2' is not found"}}
 {"execute":"nbd-server-stop"}

@@ -8,20 +8,34 @@ Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
 
 === Creating backing chain ===
 
-{ 'execute': 'blockdev-snapshot-sync', 'arguments': { 'device': 'disk', 'snapshot-file': 'TEST_DIR/t.IMGFMT.mid', 'format': 'IMGFMT', 'mode': 'absolute-paths' } }
+{ 'execute': 'blockdev-snapshot-sync',
+       'arguments': { 'device': 'disk',
+                      'snapshot-file': 'TEST_DIR/t.IMGFMT.mid',
+                      'format': 'IMGFMT',
+                      'mode': 'absolute-paths' } }
 Formatting 'TEST_DIR/t.qcow2.mid', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=67108864 backing_file=TEST_DIR/t.qcow2.base backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 {"return": {}}
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'qemu-io disk "write 0 4M"' } }
+{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io disk "write 0 4M"' } }
 wrote 4194304/4194304 bytes at offset 0
 4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {"return": ""}
-{ 'execute': 'blockdev-snapshot-sync', 'arguments': { 'device': 'disk', 'snapshot-file': 'TEST_DIR/t.IMGFMT', 'format': 'IMGFMT', 'mode': 'absolute-paths' } }
+{ 'execute': 'blockdev-snapshot-sync',
+       'arguments': { 'device': 'disk',
+                      'snapshot-file': 'TEST_DIR/t.IMGFMT',
+                      'format': 'IMGFMT',
+                      'mode': 'absolute-paths' } }
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=67108864 backing_file=TEST_DIR/t.qcow2.mid backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 {"return": {}}
 
 === Start commit job and exit qemu ===
 
-{ 'execute': 'block-commit', 'arguments': { 'device': 'disk', 'base':'TEST_DIR/t.IMGFMT.base', 'top': 'TEST_DIR/t.IMGFMT.mid', 'speed': 65536 } }
+{ 'execute': 'block-commit',
+       'arguments': { 'device': 'disk',
+                      'base':'TEST_DIR/t.IMGFMT.base',
+                      'top': 'TEST_DIR/t.IMGFMT.mid',
+                      'speed': 65536 } }
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "disk"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "disk"}}
 {"return": {}}
@@ -34,7 +48,10 @@ Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off comp
 
 { 'execute': 'qmp_capabilities' }
 {"return": {}}
-{ 'execute': 'block-commit', 'arguments': { 'device': 'disk', 'base':'TEST_DIR/t.IMGFMT.base', 'speed': 65536 } }
+{ 'execute': 'block-commit',
+       'arguments': { 'device': 'disk',
+                      'base':'TEST_DIR/t.IMGFMT.base',
+                      'speed': 65536 } }
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "disk"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "disk"}}
 {"return": {}}
@@ -47,7 +64,12 @@ Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off comp
 
 { 'execute': 'qmp_capabilities' }
 {"return": {}}
-{ 'execute': 'drive-mirror', 'arguments': { 'device': 'disk', 'target': 'TEST_DIR/t.IMGFMT.copy', 'format': 'IMGFMT', 'sync': 'full', 'speed': 65536 } }
+{ 'execute': 'drive-mirror',
+       'arguments': { 'device': 'disk',
+                      'target': 'TEST_DIR/t.IMGFMT.copy',
+                      'format': 'IMGFMT',
+                      'sync': 'full',
+                      'speed': 65536 } }
 Formatting 'TEST_DIR/t.qcow2.copy', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=67108864 lazy_refcounts=off refcount_bits=16
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "disk"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "disk"}}
@@ -61,7 +83,12 @@ Formatting 'TEST_DIR/t.qcow2.copy', fmt=qcow2 cluster_size=65536 extended_l2=off
 
 { 'execute': 'qmp_capabilities' }
 {"return": {}}
-{ 'execute': 'drive-backup', 'arguments': { 'device': 'disk', 'target': 'TEST_DIR/t.IMGFMT.copy', 'format': 'IMGFMT', 'sync': 'full', 'speed': 65536 } }
+{ 'execute': 'drive-backup',
+       'arguments': { 'device': 'disk',
+                      'target': 'TEST_DIR/t.IMGFMT.copy',
+                      'format': 'IMGFMT',
+                      'sync': 'full',
+                      'speed': 65536 } }
 Formatting 'TEST_DIR/t.qcow2.copy', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=67108864 lazy_refcounts=off refcount_bits=16
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "disk"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "disk"}}
@@ -77,7 +104,9 @@ Formatting 'TEST_DIR/t.qcow2.copy', fmt=qcow2 cluster_size=65536 extended_l2=off
 
 { 'execute': 'qmp_capabilities' }
 {"return": {}}
-{ 'execute': 'block-stream', 'arguments': { 'device': 'disk', 'speed': 65536 } }
+{ 'execute': 'block-stream',
+       'arguments': { 'device': 'disk',
+                      'speed': 65536 } }
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "disk"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "disk"}}
 {"return": {}}

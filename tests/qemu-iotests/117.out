@@ -2,11 +2,18 @@ QA output created by 117
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536
 { 'execute': 'qmp_capabilities' }
 {"return": {}}
-{ 'execute': 'blockdev-add', 'arguments': { 'node-name': 'protocol', 'driver': 'file', 'filename': 'TEST_DIR/t.IMGFMT' } }
+{ 'execute': 'blockdev-add',
+       'arguments': { 'node-name': 'protocol',
+                      'driver': 'file',
+                      'filename': 'TEST_DIR/t.IMGFMT' } }
 {"return": {}}
-{ 'execute': 'blockdev-add', 'arguments': { 'node-name': 'format', 'driver': 'IMGFMT', 'file': 'protocol' } }
+{ 'execute': 'blockdev-add',
+       'arguments': { 'node-name': 'format',
+                      'driver': 'IMGFMT',
+                      'file': 'protocol' } }
 {"return": {}}
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'qemu-io format "write -P 42 0 64k"' } }
+{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'qemu-io format "write -P 42 0 64k"' } }
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {"return": ""}

@@ -11,18 +11,23 @@ Formatting 'TEST_DIR/t.IMGFMT.dest', fmt=IMGFMT size=67108864
 
 === Write something on the source ===
 
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'qemu-io disk "write -P 0x55 0 64k"' } }
+{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io disk "write -P 0x55 0 64k"' } }
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {"return": ""}
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'qemu-io disk "read -P 0x55 0 64k"' } }
+{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io disk "read -P 0x55 0 64k"' } }
 read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {"return": ""}
 
 === Do block migration to destination ===
 
-{ 'execute': 'migrate', 'arguments': { 'uri': 'unix:SOCK_DIR/migrate', 'blk': true } }
+{ 'execute': 'migrate',
+       'arguments': { 'uri': 'unix:SOCK_DIR/migrate', 'blk': true } }
 {"return": {}}
 { 'execute': 'query-status' }
 {"return": {"status": "postmigrate", "singlestep": false, "running": false}}
@@ -32,11 +37,15 @@ read 65536/65536 bytes at offset 0
 { 'execute': 'query-status' }
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "RESUME"}
 {"return": {"status": "running", "singlestep": false, "running": true}}
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'qemu-io disk "read -P 0x55 0 64k"' } }
+{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io disk "read -P 0x55 0 64k"' } }
 read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {"return": ""}
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'qemu-io disk "write -P 0x66 1M 64k"' } }
+{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line':
+                      'qemu-io disk "write -P 0x66 1M 64k"' } }
 wrote 65536/65536 bytes at offset 1048576
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {"return": ""}

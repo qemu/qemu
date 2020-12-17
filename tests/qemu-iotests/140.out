@@ -4,13 +4,17 @@ wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 { 'execute': 'qmp_capabilities' }
 {"return": {}}
-{ 'execute': 'nbd-server-start', 'arguments': { 'addr': { 'type': 'unix', 'data': { 'path': 'SOCK_DIR/nbd' }}}}
+{ 'execute': 'nbd-server-start',
+       'arguments': { 'addr': { 'type': 'unix',
+                                'data': { 'path': 'SOCK_DIR/nbd' }}}}
 {"return": {}}
-{ 'execute': 'nbd-server-add', 'arguments': { 'device': 'drv' }}
+{ 'execute': 'nbd-server-add',
+       'arguments': { 'device': 'drv' }}
 {"return": {}}
 read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-{ 'execute': 'eject', 'arguments': { 'device': 'drv' }}
+{ 'execute': 'eject',
+       'arguments': { 'device': 'drv' }}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "drv"}}
 qemu-io: can't open device nbd+unix:///drv?socket=SOCK_DIR/nbd: Requested export not available
 server reported: export 'drv' not present

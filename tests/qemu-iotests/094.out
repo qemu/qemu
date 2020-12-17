@@ -3,13 +3,19 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/source.IMGFMT', fmt=IMGFMT size=67108864
 {'execute': 'qmp_capabilities'}
 {"return": {}}
-{'execute': 'drive-mirror', 'arguments': {'device': 'src', 'target': 'nbd+unix:///?socket=SOCK_DIR/nbd', 'format': 'nbd', 'sync':'full', 'mode':'existing'}}
+{'execute': 'drive-mirror',
+      'arguments': {'device': 'src',
+                    'target': 'nbd+unix:///?socket=SOCK_DIR/nbd',
+                    'format': 'nbd',
+                    'sync':'full',
+                    'mode':'existing'}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "src"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "ready", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_READY", "data": {"device": "src", "len": 67108864, "offset": 67108864, "speed": 0, "type": "mirror"}}
-{'execute': 'block-job-complete', 'arguments': {'device': 'src'}}
+{'execute': 'block-job-complete',
+      'arguments': {'device': 'src'}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "waiting", "id": "src"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "pending", "id": "src"}}
