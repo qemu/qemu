@@ -822,8 +822,9 @@ static int calculate_geometry(int64_t total_sectors, uint16_t *cyls,
 static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
                                int64_t total_sectors)
 {
+    uint8_t dyndisk_header_buf[1024];
     VHDDynDiskHeader *dyndisk_header =
-        (VHDDynDiskHeader *) buf;
+        (VHDDynDiskHeader *)dyndisk_header_buf;
     uint8_t bat_sector[512];
     size_t block_size, num_bat_entries;
     int i;
@@ -858,7 +859,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     }
 
     /* Prepare the Dynamic Disk Header */
-    memset(buf, 0, 1024);
+    memset(dyndisk_header_buf, 0, 1024);
 
     memcpy(dyndisk_header->magic, "cxsparse", 8);
 
@@ -872,12 +873,13 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     dyndisk_header->block_size = cpu_to_be32(block_size);
     dyndisk_header->max_table_entries = cpu_to_be32(num_bat_entries);
 
-    dyndisk_header->checksum = cpu_to_be32(vpc_checksum(buf, 1024));
+    dyndisk_header->checksum = cpu_to_be32(vpc_checksum(dyndisk_header_buf,
+                                                        1024));
 
     /* Write the header */
     offset = 512;
 
-    ret = blk_pwrite(blk, offset, buf, 1024, 0);
+    ret = blk_pwrite(blk, offset, dyndisk_header_buf, 1024, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -972,8 +974,8 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;
 
-    uint8_t buf[1024];
-    VHDFooter *footer = (VHDFooter *) buf;
+    uint8_t footer_buf[HEADER_SIZE];
+    VHDFooter *footer = (VHDFooter *)footer_buf;
     uint16_t cyls = 0;
     uint8_t heads = 0;
     uint8_t secs_per_cyl = 0;
@@ -1036,7 +1038,7 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     }
 
     /* Prepare the Hard Disk Footer */
-    memset(buf, 0, 1024);
+    memset(footer_buf, 0, HEADER_SIZE);
 
     memcpy(footer->creator, "conectix", 8);
     if (vpc_opts->force_size) {
@@ -1069,15 +1071,15 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     qemu_uuid_generate(&uuid);
     footer->uuid = uuid;
 
-    footer->checksum = cpu_to_be32(vpc_checksum(buf, HEADER_SIZE));
+    footer->checksum = cpu_to_be32(vpc_checksum(footer_buf, HEADER_SIZE));
 
     if (disk_type == VHD_DYNAMIC) {
-        ret = create_dynamic_disk(blk, buf, total_sectors);
+        ret = create_dynamic_disk(blk, footer_buf, total_sectors);
         if (ret < 0) {
             error_setg(errp, "Unable to create or write VHD header");
         }
     } else {
-        ret = create_fixed_disk(blk, buf, total_size, errp);
+        ret = create_fixed_disk(blk, footer_buf, total_size, errp);
     }
 
 out:
