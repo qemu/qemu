@@ -824,6 +824,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
 {
     VHDDynDiskHeader *dyndisk_header =
         (VHDDynDiskHeader *) buf;
+    uint8_t bat_sector[512];
     size_t block_size, num_bat_entries;
     int i;
     int ret;
@@ -847,9 +848,9 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     /* Write the initial BAT */
     offset = 3 * 512;
 
-    memset(buf, 0xFF, 512);
+    memset(bat_sector, 0xFF, 512);
     for (i = 0; i < DIV_ROUND_UP(num_bat_entries * 4, 512); i++) {
-        ret = blk_pwrite(blk, offset, buf, 512, 0);
+        ret = blk_pwrite(blk, offset, bat_sector, 512, 0);
         if (ret < 0) {
             goto fail;
         }
