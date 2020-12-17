@@ -4,21 +4,8 @@ i386_ss.add(files(
   'gdbstub.c',
   'helper.c',
   'xsave_helper.c',
+  'cpu-dump.c',
 ))
-i386_ss.add(when: 'CONFIG_TCG', if_true: files(
-  'bpt_helper.c',
-  'cc_helper.c',
-  'excp_helper.c',
-  'fpu_helper.c',
-  'int_helper.c',
-  'mem_helper.c',
-  'misc_helper.c',
-  'mpx_helper.c',
-  'seg_helper.c',
-  'smm_helper.c',
-  'svm_helper.c',
-  'translate.c'), if_false: files('tcg-stub.c'))
-i386_ss.add(when: 'CONFIG_KVM', if_false: files('kvm-stub.c'))
 i386_ss.add(when: 'CONFIG_SEV', if_true: files('sev.c'), if_false: files('sev-stub.c'))
 
 i386_softmmu_ss = ss.source_set()
@@ -28,22 +15,12 @@ i386_softmmu_ss.add(files(
   'machine.c',
   'monitor.c',
 ))
-i386_softmmu_ss.add(when: 'CONFIG_HYPERV', if_true: files('hyperv.c'), if_false: files('hyperv-stub.c'))
-i386_softmmu_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'))
-i386_softmmu_ss.add(when: 'CONFIG_WHPX', if_true: files(
-  'whpx-all.c',
-  'whpx-cpus.c',
-  'whpx-apic.c',
-))
-i386_softmmu_ss.add(when: 'CONFIG_HAX', if_true: files(
-  'hax-all.c',
-  'hax-mem.c',
-  'hax-cpus.c',
-))
-i386_softmmu_ss.add(when: ['CONFIG_HAX', 'CONFIG_POSIX'], if_true: files('hax-posix.c'))
-i386_softmmu_ss.add(when: ['CONFIG_HAX', 'CONFIG_WIN32'], if_true: files('hax-windows.c'))
 
+subdir('kvm')
+subdir('hax')
+subdir('whpx')
 subdir('hvf')
+subdir('tcg')
 
 target_arch += {'i386': i386_ss}
 target_softmmu_arch += {'i386': i386_softmmu_ss}

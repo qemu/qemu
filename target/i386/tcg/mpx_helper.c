@@ -22,6 +22,7 @@
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
+#include "helper-tcg.h"
 
 
 void helper_bndck(CPUX86State *env, uint32_t fail)

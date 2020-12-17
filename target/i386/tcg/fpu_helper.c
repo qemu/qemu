@@ -26,10 +26,17 @@
 #include "exec/cpu_ldst.h"
 #include "fpu/softfloat.h"
 #include "fpu/softfloat-macros.h"
+#include "helper-tcg.h"
 
 #ifdef CONFIG_SOFTMMU
 #include "hw/irq.h"
 #endif
+
+/* float macros */
+#define FT0    (env->ft0)
+#define ST0    (env->fpregs[env->fpstt].d)
+#define ST(n)  (env->fpregs[(env->fpstt + (n)) & 7].d)
+#define ST1    ST(1)
 
 #define FPU_RC_MASK         0xc00
 #define FPU_RC_NEAR         0x000
@@ -2986,23 +2993,21 @@ void update_mxcsr_status(CPUX86State *env)
 
 void update_mxcsr_from_sse_status(CPUX86State *env)
 {
-    if (tcg_enabled()) {
-        uint8_t flags = get_float_exception_flags(&env->sse_status);
-        /*
-         * The MXCSR denormal flag has opposite semantics to
-         * float_flag_input_denormal (the softfloat code sets that flag
-         * only when flushing input denormals to zero, but SSE sets it
-         * only when not flushing them to zero), so is not converted
-         * here.
-         */
-        env->mxcsr |= ((flags & float_flag_invalid ? FPUS_IE : 0) |
-                       (flags & float_flag_divbyzero ? FPUS_ZE : 0) |
-                       (flags & float_flag_overflow ? FPUS_OE : 0) |
-                       (flags & float_flag_underflow ? FPUS_UE : 0) |
-                       (flags & float_flag_inexact ? FPUS_PE : 0) |
-                       (flags & float_flag_output_denormal ? FPUS_UE | FPUS_PE :
-                        0));
-    }
+    uint8_t flags = get_float_exception_flags(&env->sse_status);
+    /*
+     * The MXCSR denormal flag has opposite semantics to
+     * float_flag_input_denormal (the softfloat code sets that flag
+     * only when flushing input denormals to zero, but SSE sets it
+     * only when not flushing them to zero), so is not converted
+     * here.
+     */
+    env->mxcsr |= ((flags & float_flag_invalid ? FPUS_IE : 0) |
+                   (flags & float_flag_divbyzero ? FPUS_ZE : 0) |
+                   (flags & float_flag_overflow ? FPUS_OE : 0) |
+                   (flags & float_flag_underflow ? FPUS_UE : 0) |
+                   (flags & float_flag_inexact ? FPUS_PE : 0) |
+                   (flags & float_flag_output_denormal ? FPUS_UE | FPUS_PE :
+                    0));
 }
 
 void helper_update_mxcsr(CPUX86State *env)
