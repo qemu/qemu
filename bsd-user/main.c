@@ -512,6 +512,7 @@ void cpu_loop(CPUSPARCState *env)
         case 0x141:
             if (bsd_type != target_freebsd)
                 goto badtrap;
+            /* fallthrough */
         case 0x100:
 #endif
             syscall_nr = env->gregs[1];
