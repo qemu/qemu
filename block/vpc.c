@@ -39,8 +39,6 @@
 
 /**************************************************************/
 
-#define HEADER_SIZE 512
-
 //#define CACHE
 
 enum vhd_type {
@@ -253,7 +251,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = bdrv_pread(bs->file, 0, &s->footer, HEADER_SIZE);
+    ret = bdrv_pread(bs->file, 0, &s->footer, sizeof(s->footer));
     if (ret < 0) {
         error_setg(errp, "Unable to read VHD header");
         goto fail;
@@ -266,15 +264,15 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
             ret = offset;
             error_setg(errp, "Invalid file size");
             goto fail;
-        } else if (offset < HEADER_SIZE) {
+        } else if (offset < sizeof(*footer)) {
             ret = -EINVAL;
             error_setg(errp, "File too small for a VHD header");
             goto fail;
         }
 
         /* If a fixed disk, the footer is found only at the end of the file */
-        ret = bdrv_pread(bs->file, offset - HEADER_SIZE, footer,
-                         HEADER_SIZE);
+        ret = bdrv_pread(bs->file, offset - sizeof(*footer),
+                         footer, sizeof(*footer));
         if (ret < 0) {
             goto fail;
         }
@@ -288,7 +286,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
 
     checksum = be32_to_cpu(footer->checksum);
     footer->checksum = 0;
-    if (vpc_checksum(footer, HEADER_SIZE) != checksum) {
+    if (vpc_checksum(footer, sizeof(*footer)) != checksum) {
         error_setg(errp, "Incorrect header checksum");
         ret = -EINVAL;
         goto fail;
@@ -538,7 +536,7 @@ static int rewrite_footer(BlockDriverState *bs)
     BDRVVPCState *s = bs->opaque;
     int64_t offset = s->free_data_block_offset;
 
-    ret = bdrv_pwrite_sync(bs->file, offset, &s->footer, HEADER_SIZE);
+    ret = bdrv_pwrite_sync(bs->file, offset, &s->footer, sizeof(s->footer));
     if (ret < 0)
         return ret;
 
@@ -833,13 +831,13 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
     block_size = 0x200000;
     num_bat_entries = DIV_ROUND_UP(total_sectors, block_size / 512);
 
-    ret = blk_pwrite(blk, offset, footer, HEADER_SIZE, 0);
+    ret = blk_pwrite(blk, offset, footer, sizeof(*footer), 0);
     if (ret < 0) {
         goto fail;
     }
 
     offset = 1536 + ((num_bat_entries * 4 + 511) & ~511);
-    ret = blk_pwrite(blk, offset, footer, HEADER_SIZE, 0);
+    ret = blk_pwrite(blk, offset, footer, sizeof(*footer), 0);
     if (ret < 0) {
         goto fail;
     }
@@ -893,14 +891,15 @@ static int create_fixed_disk(BlockBackend *blk, VHDFooter *footer,
     int ret;
 
     /* Add footer to total size */
-    total_size += HEADER_SIZE;
+    total_size += sizeof(*footer);
 
     ret = blk_truncate(blk, total_size, false, PREALLOC_MODE_OFF, 0, errp);
     if (ret < 0) {
         return ret;
     }
 
-    ret = blk_pwrite(blk, total_size - HEADER_SIZE, footer, HEADER_SIZE, 0);
+    ret = blk_pwrite(blk, total_size - sizeof(*footer),
+                     footer, sizeof(*footer), 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Unable to write VHD header");
         return ret;
@@ -1035,7 +1034,7 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     }
 
     /* Prepare the Hard Disk Footer */
-    memset(&footer, 0, HEADER_SIZE);
+    memset(&footer, 0, sizeof(footer));
 
     memcpy(footer.creator, "conectix", 8);
     if (vpc_opts->force_size) {
@@ -1048,7 +1047,7 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     footer.features = cpu_to_be32(0x02);
     footer.version = cpu_to_be32(0x00010000);
     if (disk_type == VHD_DYNAMIC) {
-        footer.data_offset = cpu_to_be64(HEADER_SIZE);
+        footer.data_offset = cpu_to_be64(sizeof(footer));
     } else {
         footer.data_offset = cpu_to_be64(0xFFFFFFFFFFFFFFFFULL);
     }
@@ -1068,7 +1067,7 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     qemu_uuid_generate(&uuid);
     footer.uuid = uuid;
 
-    footer.checksum = cpu_to_be32(vpc_checksum(&footer, HEADER_SIZE));
+    footer.checksum = cpu_to_be32(vpc_checksum(&footer, sizeof(footer)));
 
     if (disk_type == VHD_DYNAMIC) {
         ret = create_dynamic_disk(blk, &footer, total_sectors);
