@@ -344,7 +344,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (disk_type == VHD_DYNAMIC) {
         ret = bdrv_pread(bs->file, be64_to_cpu(footer->data_offset),
-                         &dyndisk_header, 1024);
+                         &dyndisk_header, sizeof(dyndisk_header));
         if (ret < 0) {
             error_setg(errp, "Error reading dynamic VHD header");
             goto fail;
@@ -858,7 +858,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     }
 
     /* Prepare the Dynamic Disk Header */
-    memset(&dyndisk_header, 0, 1024);
+    memset(&dyndisk_header, 0, sizeof(dyndisk_header));
 
     memcpy(dyndisk_header.magic, "cxsparse", 8);
 
@@ -872,12 +872,13 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     dyndisk_header.block_size = cpu_to_be32(block_size);
     dyndisk_header.max_table_entries = cpu_to_be32(num_bat_entries);
 
-    dyndisk_header.checksum = cpu_to_be32(vpc_checksum(&dyndisk_header, 1024));
+    dyndisk_header.checksum = cpu_to_be32(
+        vpc_checksum(&dyndisk_header, sizeof(dyndisk_header)));
 
     /* Write the header */
     offset = 512;
 
-    ret = blk_pwrite(blk, offset, &dyndisk_header, 1024, 0);
+    ret = blk_pwrite(blk, offset, &dyndisk_header, sizeof(dyndisk_header), 0);
     if (ret < 0) {
         goto fail;
     }
