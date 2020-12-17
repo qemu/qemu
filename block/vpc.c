@@ -172,8 +172,9 @@ static QemuOptsList vpc_runtime_opts = {
 
 static QemuOptsList vpc_create_opts;
 
-static uint32_t vpc_checksum(uint8_t *buf, size_t size)
+static uint32_t vpc_checksum(void *p, size_t size)
 {
+    uint8_t *buf = p;
     uint32_t res = 0;
     int i;
 
