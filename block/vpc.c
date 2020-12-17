@@ -819,7 +819,7 @@ static int calculate_geometry(int64_t total_sectors, uint16_t *cyls,
     return 0;
 }
 
-static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
+static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
                                int64_t total_sectors)
 {
     VHDDynDiskHeader dyndisk_header;
@@ -833,13 +833,13 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     block_size = 0x200000;
     num_bat_entries = DIV_ROUND_UP(total_sectors, block_size / 512);
 
-    ret = blk_pwrite(blk, offset, buf, HEADER_SIZE, 0);
+    ret = blk_pwrite(blk, offset, footer, HEADER_SIZE, 0);
     if (ret < 0) {
         goto fail;
     }
 
     offset = 1536 + ((num_bat_entries * 4 + 511) & ~511);
-    ret = blk_pwrite(blk, offset, buf, HEADER_SIZE, 0);
+    ret = blk_pwrite(blk, offset, footer, HEADER_SIZE, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -887,7 +887,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     return ret;
 }
 
-static int create_fixed_disk(BlockBackend *blk, uint8_t *buf,
+static int create_fixed_disk(BlockBackend *blk, VHDFooter *footer,
                              int64_t total_size, Error **errp)
 {
     int ret;
@@ -900,7 +900,7 @@ static int create_fixed_disk(BlockBackend *blk, uint8_t *buf,
         return ret;
     }
 
-    ret = blk_pwrite(blk, total_size - HEADER_SIZE, buf, HEADER_SIZE, 0);
+    ret = blk_pwrite(blk, total_size - HEADER_SIZE, footer, HEADER_SIZE, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Unable to write VHD header");
         return ret;
@@ -1071,12 +1071,12 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     footer.checksum = cpu_to_be32(vpc_checksum(&footer, HEADER_SIZE));
 
     if (disk_type == VHD_DYNAMIC) {
-        ret = create_dynamic_disk(blk, (uint8_t *)&footer, total_sectors);
+        ret = create_dynamic_disk(blk, &footer, total_sectors);
         if (ret < 0) {
             error_setg(errp, "Unable to create or write VHD header");
         }
     } else {
-        ret = create_fixed_disk(blk, (uint8_t *)&footer, total_size, errp);
+        ret = create_fixed_disk(blk, &footer, total_size, errp);
     }
 
 out:
