@@ -220,7 +220,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
     bool use_chs;
-    uint8_t buf[HEADER_SIZE];
+    uint8_t dyndisk_header_buf[1024];
     uint32_t checksum;
     uint64_t computed_size;
     uint64_t pagetable_size;
@@ -340,14 +340,14 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (disk_type == VHD_DYNAMIC) {
-        ret = bdrv_pread(bs->file, be64_to_cpu(footer->data_offset), buf,
-                         HEADER_SIZE);
+        ret = bdrv_pread(bs->file, be64_to_cpu(footer->data_offset),
+                         dyndisk_header_buf, 1024);
         if (ret < 0) {
             error_setg(errp, "Error reading dynamic VHD header");
             goto fail;
         }
 
-        dyndisk_header = (VHDDynDiskHeader *) buf;
+        dyndisk_header = (VHDDynDiskHeader *)dyndisk_header_buf;
 
         if (strncmp(dyndisk_header->magic, "cxsparse", 8)) {
             error_setg(errp, "Invalid header magic");
