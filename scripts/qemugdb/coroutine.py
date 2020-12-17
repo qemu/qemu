@@ -70,6 +70,11 @@ def bt_jmpbuf(jmpbuf):
     regs = get_jmpbuf_regs(jmpbuf)
     old = dict()
 
+    # remember current stack frame and select the topmost
+    # so that register modifications don't wreck it
+    selected_frame = gdb.selected_frame()
+    gdb.newest_frame().select()
+
     for i in regs:
         old[i] = gdb.parse_and_eval('(uint64_t)$%s' % i)
 
@@ -80,6 +85,8 @@ def bt_jmpbuf(jmpbuf):
 
     for i in regs:
         gdb.execute('set $%s = %s' % (i, old[i]))
+
+    selected_frame.select()
 
 def coroutine_to_jmpbuf(co):
     coroutine_pointer = co.cast(gdb.lookup_type('CoroutineUContext').pointer())
