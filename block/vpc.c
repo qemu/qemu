@@ -127,7 +127,10 @@ typedef struct vhd_dyndisk_header {
         uint32_t    reserved;
         uint64_t    data_offset;
     } parent_locator[8];
+    uint8_t     reserved2[256];
 } QEMU_PACKED VHDDynDiskHeader;
+
+QEMU_BUILD_BUG_ON(sizeof(VHDDynDiskHeader) != 1024);
 
 typedef struct BDRVVPCState {
     CoMutex lock;
@@ -217,11 +220,10 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVVPCState *s = bs->opaque;
     int i;
     VHDFooter *footer;
-    VHDDynDiskHeader *dyndisk_header;
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
     bool use_chs;
-    uint8_t dyndisk_header_buf[1024];
+    VHDDynDiskHeader dyndisk_header;
     uint32_t checksum;
     uint64_t computed_size;
     uint64_t pagetable_size;
@@ -342,21 +344,19 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (disk_type == VHD_DYNAMIC) {
         ret = bdrv_pread(bs->file, be64_to_cpu(footer->data_offset),
-                         dyndisk_header_buf, 1024);
+                         &dyndisk_header, 1024);
         if (ret < 0) {
             error_setg(errp, "Error reading dynamic VHD header");
             goto fail;
         }
 
-        dyndisk_header = (VHDDynDiskHeader *)dyndisk_header_buf;
-
-        if (strncmp(dyndisk_header->magic, "cxsparse", 8)) {
+        if (strncmp(dyndisk_header.magic, "cxsparse", 8)) {
             error_setg(errp, "Invalid header magic");
             ret = -EINVAL;
             goto fail;
         }
 
-        s->block_size = be32_to_cpu(dyndisk_header->block_size);
+        s->block_size = be32_to_cpu(dyndisk_header.block_size);
         if (!is_power_of_2(s->block_size) || s->block_size < BDRV_SECTOR_SIZE) {
             error_setg(errp, "Invalid block size %" PRIu32, s->block_size);
             ret = -EINVAL;
@@ -364,7 +364,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         }
         s->bitmap_size = ((s->block_size / (8 * 512)) + 511) & ~511;
 
-        s->max_table_entries = be32_to_cpu(dyndisk_header->max_table_entries);
+        s->max_table_entries = be32_to_cpu(dyndisk_header.max_table_entries);
 
         if ((bs->total_sectors * 512) / s->block_size > 0xffffffffU) {
             error_setg(errp, "Too many blocks");
@@ -396,7 +396,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
 
-        s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
+        s->bat_offset = be64_to_cpu(dyndisk_header.table_offset);
 
         ret = bdrv_pread(bs->file, s->bat_offset, s->pagetable,
                          pagetable_size);
@@ -823,9 +823,7 @@ static int calculate_geometry(int64_t total_sectors, uint16_t *cyls,
 static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
                                int64_t total_sectors)
 {
-    uint8_t dyndisk_header_buf[1024];
-    VHDDynDiskHeader *dyndisk_header =
-        (VHDDynDiskHeader *)dyndisk_header_buf;
+    VHDDynDiskHeader dyndisk_header;
     uint8_t bat_sector[512];
     size_t block_size, num_bat_entries;
     int i;
@@ -860,27 +858,26 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     }
 
     /* Prepare the Dynamic Disk Header */
-    memset(dyndisk_header_buf, 0, 1024);
+    memset(&dyndisk_header, 0, 1024);
 
-    memcpy(dyndisk_header->magic, "cxsparse", 8);
+    memcpy(dyndisk_header.magic, "cxsparse", 8);
 
     /*
      * Note: The spec is actually wrong here for data_offset, it says
      * 0xFFFFFFFF, but MS tools expect all 64 bits to be set.
      */
-    dyndisk_header->data_offset = cpu_to_be64(0xFFFFFFFFFFFFFFFFULL);
-    dyndisk_header->table_offset = cpu_to_be64(3 * 512);
-    dyndisk_header->version = cpu_to_be32(0x00010000);
-    dyndisk_header->block_size = cpu_to_be32(block_size);
-    dyndisk_header->max_table_entries = cpu_to_be32(num_bat_entries);
+    dyndisk_header.data_offset = cpu_to_be64(0xFFFFFFFFFFFFFFFFULL);
+    dyndisk_header.table_offset = cpu_to_be64(3 * 512);
+    dyndisk_header.version = cpu_to_be32(0x00010000);
+    dyndisk_header.block_size = cpu_to_be32(block_size);
+    dyndisk_header.max_table_entries = cpu_to_be32(num_bat_entries);
 
-    dyndisk_header->checksum = cpu_to_be32(vpc_checksum(dyndisk_header_buf,
-                                                        1024));
+    dyndisk_header.checksum = cpu_to_be32(vpc_checksum(&dyndisk_header, 1024));
 
     /* Write the header */
     offset = 512;
 
-    ret = blk_pwrite(blk, offset, dyndisk_header_buf, 1024, 0);
+    ret = blk_pwrite(blk, offset, &dyndisk_header, 1024, 0);
     if (ret < 0) {
         goto fail;
     }
