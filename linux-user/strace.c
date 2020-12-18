@@ -7,6 +7,7 @@
 #include <sys/mount.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <netinet/udp.h>
 #include <linux/if_packet.h>
 #include <linux/netlink.h>
 #include <sched.h>
@@ -2641,6 +2642,11 @@ static void do_print_sockopt(const char *name, abi_long arg1)
     switch (level) {
     case SOL_TCP:
         qemu_log("SOL_TCP,");
+        print_raw_param(TARGET_ABI_FMT_ld, optname, 0);
+        print_pointer(optval, 0);
+        break;
+    case SOL_UDP:
+        qemu_log("SOL_UDP,");
         print_raw_param(TARGET_ABI_FMT_ld, optname, 0);
         print_pointer(optval, 0);
         break;
