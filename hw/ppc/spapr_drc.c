@@ -949,6 +949,37 @@ out:
     return ret;
 }
 
+void spapr_drc_reset_all(SpaprMachineState *spapr)
+{
+    Object *drc_container;
+    ObjectProperty *prop;
+    ObjectPropertyIterator iter;
+
+    drc_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
+restart:
+    object_property_iter_init(&iter, drc_container);
+    while ((prop = object_property_iter_next(&iter))) {
+        SpaprDrc *drc;
+
+        if (!strstart(prop->type, "link<", NULL)) {
+            continue;
+        }
+        drc = SPAPR_DR_CONNECTOR(object_property_get_link(drc_container,
+                                                          prop->name,
+                                                          &error_abort));
+
+        /*
+         * This will complete any pending plug/unplug requests.
+         * In case of a unplugged PHB or PCI bridge, this will
+         * cause some DRCs to be destroyed and thus potentially
+         * invalidate the iterator.
+         */
+        if (spapr_drc_reset(drc)) {
+            goto restart;
+        }
+    }
+}
+
 /*
  * RTAS calls
  */
