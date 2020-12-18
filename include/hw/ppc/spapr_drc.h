@@ -224,7 +224,8 @@ static inline bool spapr_drc_hotplugged(DeviceState *dev)
     return dev->hotplugged && !runstate_check(RUN_STATE_INMIGRATE);
 }
 
-void spapr_drc_reset(SpaprDrc *drc);
+/* Returns true if an unplug request completed */
+bool spapr_drc_reset(SpaprDrc *drc);
 
 uint32_t spapr_drc_index(SpaprDrc *drc);
 SpaprDrcType spapr_drc_type(SpaprDrc *drc);

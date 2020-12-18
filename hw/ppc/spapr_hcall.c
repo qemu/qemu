@@ -1639,6 +1639,7 @@ static void spapr_handle_transient_dev_before_cas(SpaprMachineState *spapr)
     ObjectPropertyIterator iter;
 
     drc_container = container_get(object_get_root(), "/dr-connector");
+restart:
     object_property_iter_init(&iter, drc_container);
     while ((prop = object_property_iter_next(&iter))) {
         SpaprDrc *drc;
@@ -1652,8 +1653,13 @@ static void spapr_handle_transient_dev_before_cas(SpaprMachineState *spapr)
 
         /*
          * This will complete any pending plug/unplug requests.
+         * In case of a unplugged PHB or PCI bridge, this will
+         * cause some DRCs to be destroyed and thus potentially
+         * invalidate the iterator.
          */
-        spapr_drc_reset(drc);
+        if (spapr_drc_reset(drc)) {
+            goto restart;
+        }
     }
 
     spapr_clear_pending_hotplug_events(spapr);

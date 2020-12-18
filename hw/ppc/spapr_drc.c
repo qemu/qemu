@@ -417,9 +417,10 @@ void spapr_drc_detach(SpaprDrc *drc)
     spapr_drc_release(drc);
 }
 
-void spapr_drc_reset(SpaprDrc *drc)
+bool spapr_drc_reset(SpaprDrc *drc)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    bool unplug_completed = false;
 
     trace_spapr_drc_reset(spapr_drc_index(drc));
 
@@ -428,6 +429,7 @@ void spapr_drc_reset(SpaprDrc *drc)
      */
     if (drc->unplug_requested) {
         spapr_drc_release(drc);
+        unplug_completed = true;
     }
 
     if (drc->dev) {
@@ -444,6 +446,8 @@ void spapr_drc_reset(SpaprDrc *drc)
         drc->ccs_offset = -1;
         drc->ccs_depth = -1;
     }
+
+    return unplug_completed;
 }
 
 static bool spapr_drc_unplug_requested_needed(void *opaque)
