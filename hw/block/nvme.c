@@ -4501,7 +4501,7 @@ static void nvme_set_smart_warning(Object *obj, Visitor *v, const char *name,
 
     cap = NVME_SMART_SPARE | NVME_SMART_TEMPERATURE | NVME_SMART_RELIABILITY
           | NVME_SMART_MEDIA_READ_ONLY | NVME_SMART_FAILED_VOLATILE_MEDIA;
-    if (NVME_CAP_PMR(n->bar.cap)) {
+    if (NVME_CAP_PMRS(n->bar.cap)) {
         cap |= NVME_SMART_PMR_UNRELIABLE;
     }
 
