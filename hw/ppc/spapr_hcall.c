@@ -1650,9 +1650,10 @@ static void spapr_handle_transient_dev_before_cas(SpaprMachineState *spapr)
                                                           prop->name,
                                                           &error_abort));
 
-        if (spapr_drc_transient(drc)) {
-            spapr_drc_reset(drc);
-        }
+        /*
+         * This will complete any pending plug/unplug requests.
+         */
+        spapr_drc_reset(drc);
     }
 
     spapr_clear_pending_hotplug_events(spapr);

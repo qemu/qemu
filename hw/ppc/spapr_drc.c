@@ -462,8 +462,9 @@ static const VMStateDescription vmstate_spapr_drc_unplug_requested = {
     }
 };
 
-bool spapr_drc_transient(SpaprDrc *drc)
+static bool spapr_drc_needed(void *opaque)
 {
+    SpaprDrc *drc = opaque;
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
     /*
@@ -481,11 +482,6 @@ bool spapr_drc_transient(SpaprDrc *drc)
      */
     return drc->state != drck->ready_state ||
         spapr_drc_unplug_requested(drc);
-}
-
-static bool spapr_drc_needed(void *opaque)
-{
-    return spapr_drc_transient(opaque);
 }
 
 static const VMStateDescription vmstate_spapr_drc = {
