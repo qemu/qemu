@@ -503,7 +503,7 @@ static const VMStateDescription vmstate_spapr_drc = {
     }
 };
 
-static void realize(DeviceState *d, Error **errp)
+static void drc_realize(DeviceState *d, Error **errp)
 {
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
     Object *root_container;
@@ -530,7 +530,7 @@ static void realize(DeviceState *d, Error **errp)
     trace_spapr_drc_realize_complete(spapr_drc_index(drc));
 }
 
-static void unrealize(DeviceState *d)
+static void drc_unrealize(DeviceState *d)
 {
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
     Object *root_container;
@@ -579,8 +579,8 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
 {
     DeviceClass *dk = DEVICE_CLASS(k);
 
-    dk->realize = realize;
-    dk->unrealize = unrealize;
+    dk->realize = drc_realize;
+    dk->unrealize = drc_unrealize;
     /*
      * Reason: DR connector needs to be wired to either the machine or to a
      * PHB in spapr_dr_connector_new().
@@ -628,7 +628,7 @@ static void realize_physical(DeviceState *d, Error **errp)
     SpaprDrcPhysical *drcp = SPAPR_DRC_PHYSICAL(d);
     Error *local_err = NULL;
 
-    realize(d, &local_err);
+    drc_realize(d, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -644,7 +644,7 @@ static void unrealize_physical(DeviceState *d)
 {
     SpaprDrcPhysical *drcp = SPAPR_DRC_PHYSICAL(d);
 
-    unrealize(d);
+    drc_unrealize(d);
     vmstate_unregister(VMSTATE_IF(drcp), &vmstate_spapr_drc_physical, drcp);
     qemu_unregister_reset(drc_physical_reset, drcp);
 }
