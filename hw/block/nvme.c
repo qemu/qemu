@@ -3848,8 +3848,16 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_pmrcap_readonly,
                        "invalid write to PMRCAP register, ignored");
         return;
-    case 0xE04: /* TODO PMRCTL */
-        break;
+    case 0xE04: /* PMRCTL */
+        n->bar.pmrctl = data;
+        if (NVME_PMRCTL_EN(data)) {
+            memory_region_set_enabled(&n->pmrdev->mr, true);
+            n->bar.pmrsts = 0;
+        } else {
+            memory_region_set_enabled(&n->pmrdev->mr, false);
+            NVME_PMRSTS_SET_NRDY(n->bar.pmrsts, 1);
+        }
+        return;
     case 0xE08: /* PMRSTS */
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_pmrsts_readonly,
                        "invalid write to PMRSTS register, ignored");
@@ -4225,6 +4233,8 @@ static void nvme_init_pmr(NvmeCtrl *n, PCIDevice *pci_dev)
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
                      PCI_BASE_ADDRESS_MEM_TYPE_64 |
                      PCI_BASE_ADDRESS_MEM_PREFETCH, &n->pmrdev->mr);
+
+    memory_region_set_enabled(&n->pmrdev->mr, false);
 }
 
 static int nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
