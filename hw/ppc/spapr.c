@@ -1566,19 +1566,6 @@ void spapr_setup_hpt(SpaprMachineState *spapr)
     }
 }
 
-static int spapr_reset_drcs(Object *child, void *opaque)
-{
-    SpaprDrc *drc =
-        (SpaprDrc *) object_dynamic_cast(child,
-                                                 TYPE_SPAPR_DR_CONNECTOR);
-
-    if (drc) {
-        spapr_drc_reset(drc);
-    }
-
-    return 0;
-}
-
 static void spapr_machine_reset(MachineState *machine)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(machine);
@@ -1633,7 +1620,7 @@ static void spapr_machine_reset(MachineState *machine)
      * will crash QEMU if the DIMM holding the vring goes away). To avoid such
      * situations, we reset DRCs after all devices have been reset.
      */
-    object_child_foreach_recursive(object_get_root(), spapr_reset_drcs, NULL);
+    spapr_drc_reset_all(spapr);
 
     spapr_clear_pending_events(spapr);
 
