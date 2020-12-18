@@ -4217,43 +4217,9 @@ static void nvme_init_cmb(NvmeCtrl *n, PCIDevice *pci_dev)
 
 static void nvme_init_pmr(NvmeCtrl *n, PCIDevice *pci_dev)
 {
-    /* PMR Capabities register */
-    n->bar.pmrcap = 0;
-    NVME_PMRCAP_SET_RDS(n->bar.pmrcap, 0);
-    NVME_PMRCAP_SET_WDS(n->bar.pmrcap, 0);
     NVME_PMRCAP_SET_BIR(n->bar.pmrcap, NVME_PMR_BIR);
-    NVME_PMRCAP_SET_PMRTU(n->bar.pmrcap, 0);
     /* Turn on bit 1 support */
     NVME_PMRCAP_SET_PMRWBM(n->bar.pmrcap, 0x02);
-    NVME_PMRCAP_SET_PMRTO(n->bar.pmrcap, 0);
-    NVME_PMRCAP_SET_CMSS(n->bar.pmrcap, 0);
-
-    /* PMR Control register */
-    n->bar.pmrctl = 0;
-    NVME_PMRCTL_SET_EN(n->bar.pmrctl, 0);
-
-    /* PMR Status register */
-    n->bar.pmrsts = 0;
-    NVME_PMRSTS_SET_ERR(n->bar.pmrsts, 0);
-    NVME_PMRSTS_SET_NRDY(n->bar.pmrsts, 0);
-    NVME_PMRSTS_SET_HSTS(n->bar.pmrsts, 0);
-    NVME_PMRSTS_SET_CBAI(n->bar.pmrsts, 0);
-
-    /* PMR Elasticity Buffer Size register */
-    n->bar.pmrebs = 0;
-    NVME_PMREBS_SET_PMRSZU(n->bar.pmrebs, 0);
-    NVME_PMREBS_SET_RBB(n->bar.pmrebs, 0);
-    NVME_PMREBS_SET_PMRWBZ(n->bar.pmrebs, 0);
-
-    /* PMR Sustained Write Throughput register */
-    n->bar.pmrswtp = 0;
-    NVME_PMRSWTP_SET_PMRSWTU(n->bar.pmrswtp, 0);
-    NVME_PMRSWTP_SET_PMRSWTV(n->bar.pmrswtp, 0);
-
-    /* PMR Memory Space Control register */
-    n->bar.pmrmsc = 0;
-    NVME_PMRMSC_SET_CMSE(n->bar.pmrmsc, 0);
-    NVME_PMRMSC_SET_CBA(n->bar.pmrmsc, 0);
 
     pci_register_bar(pci_dev, NVME_PMRCAP_BIR(n->bar.pmrcap),
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
