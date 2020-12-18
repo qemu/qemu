@@ -379,8 +379,8 @@
 #define MSTATUS_MXR         0x00080000
 #define MSTATUS_VM          0x1F000000 /* until: priv-1.9.1 */
 #define MSTATUS_TVM         0x00100000 /* since: priv-1.10 */
-#define MSTATUS_TW          0x20000000 /* since: priv-1.10 */
-#define MSTATUS_TSR         0x40000000 /* since: priv-1.10 */
+#define MSTATUS_TW          0x00200000 /* since: priv-1.10 */
+#define MSTATUS_TSR         0x00400000 /* since: priv-1.10 */
 #define MSTATUS_GVA         0x4000000000ULL
 #define MSTATUS_MPV         0x8000000000ULL
 
@@ -437,9 +437,7 @@
 #define HSTATUS_VGEIN        0x0003F000
 #define HSTATUS_VTVM         0x00100000
 #define HSTATUS_VTSR         0x00400000
-#if defined(TARGET_RISCV64)
-#define HSTATUS_VSXL        0x300000000
-#endif
+#define HSTATUS_VSXL         0x300000000
 
 #define HSTATUS32_WPRI       0xFF8FF87E
 #define HSTATUS64_WPRI       0xFFFFFFFFFF8FF87EULL
