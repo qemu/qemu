@@ -112,6 +112,9 @@ typedef enum {
 #define NUMA_ASSOC_SIZE            (MAX_DISTANCE_REF_POINTS + 1)
 #define VCPU_ASSOC_SIZE            (NUMA_ASSOC_SIZE + 1)
 
+/* Max number of these GPUsper a physical box */
+#define NVGPU_MAX_NUM                6
+
 typedef struct SpaprCapabilities SpaprCapabilities;
 struct SpaprCapabilities {
     uint8_t caps[SPAPR_CAP_NUM];
@@ -240,7 +243,7 @@ struct SpaprMachineState {
     unsigned gpu_numa_id;
     SpaprTpmProxy *tpm_proxy;
 
-    uint32_t numa_assoc_array[MAX_NODES][NUMA_ASSOC_SIZE];
+    uint32_t numa_assoc_array[MAX_NODES + NVGPU_MAX_NUM][NUMA_ASSOC_SIZE];
 
     Error *fwnmi_migration_blocker;
 };

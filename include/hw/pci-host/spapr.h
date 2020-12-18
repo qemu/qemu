@@ -115,8 +115,6 @@ struct SpaprPhbState {
 #define SPAPR_PCI_NV2RAM64_WIN_BASE  SPAPR_PCI_LIMIT
 #define SPAPR_PCI_NV2RAM64_WIN_SIZE  (2 * TiB) /* For up to 6 GPUs 256GB each */
 
-/* Max number of these GPUsper a physical box */
-#define NVGPU_MAX_NUM                6
 /* Max number of NVLinks per GPU in any physical box */
 #define NVGPU_MAX_LINKS              3
 
