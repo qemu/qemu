@@ -5,6 +5,24 @@
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
 
+struct whpx_state {
+    uint64_t mem_quota;
+    WHV_PARTITION_HANDLE partition;
+    bool kernel_irqchip_allowed;
+    bool kernel_irqchip_required;
+    bool apic_in_platform;
+};
+
+struct whpx_lapic_state {
+    struct {
+        uint32_t data;
+        uint32_t padding[3];
+    } fields[256];
+};
+
+extern struct whpx_state whpx_global;
+void whpx_apic_get(DeviceState *s);
+
 #define WHV_E_UNKNOWN_CAPABILITY 0x80370300L
 
 #define LIST_WINHVPLATFORM_FUNCTIONS(X) \

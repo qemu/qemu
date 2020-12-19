@@ -15,28 +15,8 @@
 
 #ifdef CONFIG_WHPX
 
-#include "whp-dispatch.h"
-
-struct whpx_state {
-    uint64_t mem_quota;
-    WHV_PARTITION_HANDLE partition;
-    bool kernel_irqchip_allowed;
-    bool kernel_irqchip_required;
-    bool apic_in_platform;
-};
-
-struct whpx_lapic_state {
-    struct {
-        uint32_t data;
-        uint32_t padding[3];
-    } fields[256];
-};
-
-extern struct whpx_state whpx_global;
 int whpx_enabled(void);
-
-void whpx_apic_get(DeviceState *s);
-#define whpx_apic_in_platform() (whpx_global.apic_in_platform)
+bool whpx_apic_in_platform(void);
 
 #else /* CONFIG_WHPX */
 
