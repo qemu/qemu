@@ -26,13 +26,10 @@
 #include "qapi/qapi-types-common.h"
 #include "qapi/qapi-visit-common.h"
 #include "migration/blocker.h"
-#include "whp-dispatch.h"
 #include <winerror.h>
 
 #include "whpx-cpus.h"
-
-#include <WinHvPlatform.h>
-#include <WinHvEmulation.h>
+#include "whpx-internal.h"
 
 #define HYPERV_APIC_BUS_FREQUENCY      (200000000ULL)
 

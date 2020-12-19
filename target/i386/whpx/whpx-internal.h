@@ -1,5 +1,5 @@
-#ifndef WHP_DISPATCH_H
-#define WHP_DISPATCH_H
+#ifndef WHP_INTERNAL_H
+#define WHP_INTERNAL_H
 
 #include <windows.h>
 #include <WinHvPlatform.h>
@@ -72,4 +72,4 @@ typedef enum WHPFunctionList {
     WINHV_PLATFORM_FNS_SUPPLEMENTAL
 } WHPFunctionList;
 
-#endif /* WHP_DISPATCH_H */
+#endif /* WHP_INTERNAL_H */

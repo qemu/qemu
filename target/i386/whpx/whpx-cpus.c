@@ -15,10 +15,8 @@
 #include "qemu/guest-random.h"
 
 #include "sysemu/whpx.h"
+#include "whpx-internal.h"
 #include "whpx-cpus.h"
-
-#include <WinHvPlatform.h>
-#include <WinHvEmulation.h>
 
 static void *whpx_cpu_thread_fn(void *arg)
 {
