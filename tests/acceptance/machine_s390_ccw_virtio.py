@@ -9,10 +9,13 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import os
+import tempfile
 
 from avocado_qemu import Test
 from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
+from avocado.utils import archive
 
 class S390CCWVirtioMachine(Test):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
@@ -150,3 +153,110 @@ class S390CCWVirtioMachine(Test):
         self.vm.command('human-monitor-command', command_line='balloon 128')
         exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
                                           'MemTotal:         115640 kB')
+
+
+    def test_s390x_fedora(self):
+
+        """
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        :avocado: tags=device:virtio-gpu
+        :avocado: tags=device:virtio-crypto
+        :avocado: tags=device:virtio-net
+        """
+
+        kernel_url = ('https://archives.fedoraproject.org/pub/archive'
+                      '/fedora-secondary/releases/31/Server/s390x/os'
+                      '/images/kernel.img')
+        kernel_hash = 'b93d1efcafcf29c1673a4ce371a1f8b43941cfeb'
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+
+        initrd_url = ('https://archives.fedoraproject.org/pub/archive'
+                      '/fedora-secondary/releases/31/Server/s390x/os'
+                      '/images/initrd.img')
+        initrd_hash = '3de45d411df5624b8d8ef21cd0b44419ab59b12f'
+        initrd_path_xz = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+        initrd_path = os.path.join(self.workdir, 'initrd-raw.img')
+        archive.lzma_uncompress(initrd_path_xz, initrd_path)
+
+        self.vm.set_console()
+        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE + ' audit=0 '
+                              'rd.plymouth=0 plymouth.enable=0 rd.rescue')
+        self.vm.add_args('-nographic',
+                         '-smp', '4',
+                         '-m', '512',
+                         '-name', 'Some Guest Name',
+                         '-uuid', '30de4fd9-b4d5-409e-86a5-09b387f70bfa',
+                         '-kernel', kernel_path,
+                         '-initrd', initrd_path,
+                         '-append', kernel_command_line,
+                         '-device', 'zpci,uid=7,target=n',
+                         '-device', 'virtio-net-pci,id=n,mac=02:ca:fe:fa:ce:12',
+                         '-device', 'virtio-rng-ccw,devno=fe.1.9876',
+                         '-device', 'virtio-gpu-ccw,devno=fe.2.5432')
+        self.vm.launch()
+        self.wait_for_console_pattern('Entering emergency mode')
+
+        # Some tests to see whether the CLI options have been considered:
+        self.log.info("Test whether QEMU CLI options have been considered")
+        exec_command_and_wait_for_pattern(self, 'lspci',
+                             '0007:00:00.0 Class 0200: Device 1af4:1000')
+        exec_command_and_wait_for_pattern(self,
+                             'cat /sys/class/net/enP7p0s0/address',
+                             '02:ca:fe:fa:ce:12')
+        exec_command_and_wait_for_pattern(self, 'lscss', '0.1.9876')
+        exec_command_and_wait_for_pattern(self, 'lscss', '0.2.5432')
+        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
+                             'processors    : 4')
+        exec_command_and_wait_for_pattern(self, 'grep MemTotal /proc/meminfo',
+                             'MemTotal:         499848 kB')
+        exec_command_and_wait_for_pattern(self, 'grep Name /proc/sysinfo',
+                             'Extended Name:   Some Guest Name')
+        exec_command_and_wait_for_pattern(self, 'grep UUID /proc/sysinfo',
+                             '30de4fd9-b4d5-409e-86a5-09b387f70bfa')
+
+        # Disable blinking cursor, then write some stuff into the framebuffer.
+        # QEMU's PPM screendumps contain uncompressed 24-bit values, while the
+        # framebuffer uses 32-bit, so we pad our text with some spaces when
+        # writing to the framebuffer. Since the PPM is uncompressed, we then
+        # can simply read the written "magic bytes" back from the PPM file to
+        # check whether the framebuffer is working as expected.
+        self.log.info("Test screendump of virtio-gpu device")
+        exec_command_and_wait_for_pattern(self,
+            'echo -e "\e[?25l" > /dev/tty0', ':/#')
+        exec_command_and_wait_for_pattern(self, 'for ((i=0;i<250;i++)); do '
+            'echo " The  qu ick  fo x j ump s o ver  a  laz y d og" >> fox.txt;'
+            'done',
+            ':/#')
+        exec_command_and_wait_for_pattern(self,
+            'dd if=fox.txt of=/dev/fb0 bs=1000 oflag=sync,nocache ; rm fox.txt',
+            '12+0 records out')
+        with tempfile.NamedTemporaryFile(suffix='.ppm',
+                                         prefix='qemu-scrdump-') as ppmfile:
+            self.vm.command('screendump', filename=ppmfile.name)
+            ppmfile.seek(0)
+            line = ppmfile.readline()
+            self.assertEqual(line, b"P6\n")
+            line = ppmfile.readline()
+            self.assertEqual(line, b"1024 768\n")
+            line = ppmfile.readline()
+            self.assertEqual(line, b"255\n")
+            line = ppmfile.readline()
+            self.assertEqual(line, b"The quick fox jumps over a lazy dog\n")
+
+        # Hot-plug a virtio-crypto device and see whether it gets accepted
+        self.log.info("Test hot-plug virtio-crypto device")
+        self.clear_guest_dmesg()
+        self.vm.command('object-add', qom_type='cryptodev-backend-builtin',
+                        id='cbe0')
+        self.vm.command('device_add', driver='virtio-crypto-ccw', id='crypdev0',
+                        cryptodev='cbe0', devno='fe.0.2342')
+        exec_command_and_wait_for_pattern(self,
+                        'while ! (dmesg -c | grep Accelerator.device) ; do'
+                        ' sleep 1 ; done', 'Accelerator device is ready')
+        exec_command_and_wait_for_pattern(self, 'lscss', '0.0.2342')
+        self.vm.command('device_del', id='crypdev0')
+        self.vm.command('object-del', id='cbe0')
+        exec_command_and_wait_for_pattern(self,
+                        'while ! (dmesg -c | grep Start.virtcrypto_remove) ; do'
+                        ' sleep 1 ; done', 'Start virtcrypto_remove.')
