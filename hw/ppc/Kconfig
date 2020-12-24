@@ -7,8 +7,8 @@ config PSERIES
     select PCI
     select SPAPR_VSCSI
     select VFIO if LINUX   # needed by spapr_pci_vfio.c
-    select XICS_SPAPR
-    select XIVE_SPAPR
+    select XICS
+    select XIVE
     select MSI_NONBROKEN
     select FDT_PPC
     select CHRP_NVRAM
@@ -128,16 +128,6 @@ config VIRTEX
     select XILINX
     select XILINX_ETHLITE
     select FDT_PPC
-
-config XIVE
-    bool
-    depends on POWERNV || PSERIES
-
-config XIVE_SPAPR
-    bool
-    default y
-    depends on PSERIES
-    select XIVE
 
 # Only used by 64-bit targets
 config FW_CFG_PPC

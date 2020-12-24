@@ -32,11 +32,9 @@ config ARM_GIC_KVM
 
 config XICS
     bool
-    depends on POWERNV || PSERIES
 
-config XICS_SPAPR
+config XIVE
     bool
-    select XICS
 
 config ALLWINNER_A10_PIC
     bool
