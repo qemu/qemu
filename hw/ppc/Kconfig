@@ -139,11 +139,6 @@ config XIVE_SPAPR
     depends on PSERIES
     select XIVE
 
-config XIVE_KVM
-    bool
-    default y
-    depends on XIVE_SPAPR && KVM
-
 # Only used by 64-bit targets
 config FW_CFG_PPC
     bool
