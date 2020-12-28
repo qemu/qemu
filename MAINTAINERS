@@ -2732,6 +2732,13 @@ F: util/uuid.c
 F: include/qemu/uuid.h
 F: tests/test-uuid.c
 
+Yank feature
+M: Lukas Straub <lukasstraub2@web.de>
+S: Odd fixes
+F: util/yank.c
+F: include/qemu/yank.h
+F: qapi/yank.json
+
 COLO Framework
 M: zhanghailiang <zhang.zhanghailiang@huawei.com>
 S: Maintained
