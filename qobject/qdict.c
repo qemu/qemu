@@ -43,8 +43,8 @@ static unsigned int tdb_hash(const char *name)
     unsigned   i;      /* Used to cycle through random values. */
 
     /* Set the initial value from the key size. */
-    for (value = 0x238F13AF * strlen(name), i=0; name[i]; i++)
-        value = (value + (((const unsigned char *)name)[i] << (i*5 % 24)));
+    for (value = 0x238F13AF * strlen(name), i = 0; name[i]; i++)
+        value = (value + (((const unsigned char *)name)[i] << (i * 5 % 24)));
 
     return (1103515243 * value + 12345);
 }
