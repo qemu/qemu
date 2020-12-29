@@ -38,8 +38,6 @@ struct MacIOGPIOState {
     SysBusDevice parent;
     /*< public >*/
 
-    OpenPICState *pic;
-
     MemoryRegion gpiomem;
     qemu_irq gpio_extirqs[10];
     uint8_t gpio_levels[8];
