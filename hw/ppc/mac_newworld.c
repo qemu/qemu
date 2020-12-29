@@ -139,6 +139,7 @@ static void ppc_core99_init(MachineState *machine)
     int machine_arch;
     SysBusDevice *s;
     DeviceState *dev, *pic_dev;
+    DeviceState *uninorth_internal_dev = NULL, *uninorth_agp_dev = NULL;
     hwaddr nvram_addr = 0xFFF04000;
     uint64_t tbfreq;
     unsigned int smp_cpus = machine->smp.cpus;
@@ -320,34 +321,23 @@ static void ppc_core99_init(MachineState *machine)
         sysbus_mmio_map(s, 0, 0xf0800000);
         sysbus_mmio_map(s, 1, 0xf0c00000);
 
-        for (i = 0; i < 4; i++) {
-            qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(pic_dev, 0x1b + i));
-        }
-
         machine_arch = ARCH_MAC99_U3;
     } else {
         /* Use values found on a real PowerMac */
         /* Uninorth AGP bus */
-        dev = qdev_new(TYPE_UNI_NORTH_AGP_HOST_BRIDGE);
-        s = SYS_BUS_DEVICE(dev);
+        uninorth_agp_dev = qdev_new(TYPE_UNI_NORTH_AGP_HOST_BRIDGE);
+        s = SYS_BUS_DEVICE(uninorth_agp_dev);
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf0800000);
         sysbus_mmio_map(s, 1, 0xf0c00000);
 
-        for (i = 0; i < 4; i++) {
-            qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(pic_dev, 0x1b + i));
-        }
-
         /* Uninorth internal bus */
-        dev = qdev_new(TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE);
-        s = SYS_BUS_DEVICE(dev);
+        uninorth_internal_dev = qdev_new(
+                                TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE);
+        s = SYS_BUS_DEVICE(uninorth_internal_dev);
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf4800000);
         sysbus_mmio_map(s, 1, 0xf4c00000);
-
-        for (i = 0; i < 4; i++) {
-            qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(pic_dev, 0x1b + i));
-        }
 
         /* Uninorth main bus */
         dev = qdev_new(TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
@@ -363,10 +353,6 @@ static void ppc_core99_init(MachineState *machine)
                                     sysbus_mmio_get_region(s, 3));
         sysbus_mmio_map(s, 0, 0xf2800000);
         sysbus_mmio_map(s, 1, 0xf2c00000);
-
-        for (i = 0; i < 4; i++) {
-            qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(pic_dev, 0x1b + i));
-        }
 
         machine_arch = ARCH_MAC99;
     }
@@ -400,6 +386,26 @@ static void ppc_core99_init(MachineState *machine)
     qdev_prop_set_chr(DEVICE(escc), "chrB", serial_hd(1));
 
     pci_realize_and_unref(macio, pci_bus, &error_fatal);
+
+    for (i = 0; i < 4; i++) {
+        qdev_connect_gpio_out(DEVICE(uninorth_pci), i,
+                              qdev_get_gpio_in(pic_dev, 0x1b + i));
+    }
+
+    /* TODO: additional PCI buses only wired up for 32-bit machines */
+    if (PPC_INPUT(env) != PPC_FLAGS_INPUT_970) {
+        /* Uninorth AGP bus */
+        for (i = 0; i < 4; i++) {
+            qdev_connect_gpio_out(uninorth_agp_dev, i,
+                                  qdev_get_gpio_in(pic_dev, 0x1b + i));
+        }
+
+        /* Uninorth internal bus */
+        for (i = 0; i < 4; i++) {
+            qdev_connect_gpio_out(uninorth_internal_dev, i,
+                                  qdev_get_gpio_in(pic_dev, 0x1b + i));
+        }
+    }
 
     /* We only emulate 2 out of 3 IDE controllers for now */
     ide_drive_get(hd, ARRAY_SIZE(hd));
