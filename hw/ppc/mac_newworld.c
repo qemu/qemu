@@ -293,18 +293,6 @@ static void ppc_core99_init(MachineState *machine)
         }
     }
 
-    pic_dev = qdev_new(TYPE_OPENPIC);
-    qdev_prop_set_uint32(pic_dev, "model", OPENPIC_MODEL_KEYLARGO);
-    s = SYS_BUS_DEVICE(pic_dev);
-    sysbus_realize_and_unref(s, &error_fatal);
-    k = 0;
-    for (i = 0; i < smp_cpus; i++) {
-        for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
-            sysbus_connect_irq(s, k++, openpic_irqs[i].irq[j]);
-        }
-    }
-    g_free(openpic_irqs);
-
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
         /* 970 gets a U3 bus */
         /* Uninorth AGP bus */
@@ -378,8 +366,6 @@ static void ppc_core99_init(MachineState *machine)
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     qdev_prop_set_bit(dev, "has-pmu", has_pmu);
     qdev_prop_set_bit(dev, "has-adb", has_adb);
-    object_property_set_link(OBJECT(macio), "pic", OBJECT(pic_dev),
-                             &error_abort);
 
     escc = ESCC(object_resolve_path_component(OBJECT(macio), "escc"));
     qdev_prop_set_chr(DEVICE(escc), "chrA", serial_hd(0));
@@ -387,6 +373,7 @@ static void ppc_core99_init(MachineState *machine)
 
     pci_realize_and_unref(macio, pci_bus, &error_fatal);
 
+    pic_dev = DEVICE(object_resolve_path_component(OBJECT(macio), "pic"));
     for (i = 0; i < 4; i++) {
         qdev_connect_gpio_out(DEVICE(uninorth_pci), i,
                               qdev_get_gpio_in(pic_dev, 0x1b + i));
@@ -406,6 +393,16 @@ static void ppc_core99_init(MachineState *machine)
                                   qdev_get_gpio_in(pic_dev, 0x1b + i));
         }
     }
+
+    /* OpenPIC */
+    s = SYS_BUS_DEVICE(pic_dev);
+    k = 0;
+    for (i = 0; i < smp_cpus; i++) {
+        for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
+            sysbus_connect_irq(s, k++, openpic_irqs[i].irq[j]);
+        }
+    }
+    g_free(openpic_irqs);
 
     /* We only emulate 2 out of 3 IDE controllers for now */
     ide_drive_get(hd, ARRAY_SIZE(hd));
