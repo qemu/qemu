@@ -99,7 +99,7 @@ struct OldWorldMacIOState {
     MacIOState parent_obj;
     /*< public >*/
 
-    HeathrowState *pic;
+    HeathrowState pic;
 
     MacIONVRAMState nvram;
     MACIOIDEState ide[2];

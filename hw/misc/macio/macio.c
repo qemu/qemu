@@ -140,7 +140,7 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
 {
     MacIOState *s = MACIO(d);
     OldWorldMacIOState *os = OLDWORLD_MACIO(d);
-    DeviceState *pic_dev = DEVICE(os->pic);
+    DeviceState *pic_dev = DEVICE(&os->pic);
     Error *err = NULL;
     SysBusDevice *sysbus_dev;
 
@@ -149,6 +149,14 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
         error_propagate(errp, err);
         return;
     }
+
+    /* Heathrow PIC */
+    if (!qdev_realize(DEVICE(&os->pic), BUS(&s->macio_bus), errp)) {
+        return;
+    }
+    sysbus_dev = SYS_BUS_DEVICE(&os->pic);
+    memory_region_add_subregion(&s->bar, 0x0,
+                                sysbus_mmio_get_region(sysbus_dev, 0));
 
     qdev_prop_set_uint64(DEVICE(&s->cuda), "timebase-frequency",
                          s->frequency);
@@ -174,11 +182,6 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
     memory_region_add_subregion(&s->bar, 0x60000,
                                 sysbus_mmio_get_region(sysbus_dev, 0));
     pmac_format_nvram_partition(&os->nvram, os->nvram.size);
-
-    /* Heathrow PIC */
-    sysbus_dev = SYS_BUS_DEVICE(os->pic);
-    memory_region_add_subregion(&s->bar, 0x0,
-                                sysbus_mmio_get_region(sysbus_dev, 0));
 
     /* IDE buses */
     macio_realize_ide(s, &os->ide[0],
@@ -218,10 +221,7 @@ static void macio_oldworld_init(Object *obj)
     DeviceState *dev;
     int i;
 
-    object_property_add_link(obj, "pic", TYPE_HEATHROW,
-                             (Object **) &os->pic,
-                             qdev_prop_allow_set_link_before_realize,
-                             0);
+    object_initialize_child(OBJECT(s), "pic", &os->pic, TYPE_HEATHROW);
 
     object_initialize_child(OBJECT(s), "cuda", &s->cuda, TYPE_CUDA);
 
