@@ -2985,6 +2985,10 @@ int Disassembler::SubstituteImmediateField(const Instruction* instr,
           }
           return 3;
         }
+        default: {
+          VIXL_UNIMPLEMENTED();
+          return 0;
+        }
       }
     }
     case 'C': {  // ICondB - Immediate Conditional Branch.

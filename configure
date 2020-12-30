@@ -2023,6 +2023,7 @@ add_to warn_flags -Wempty-body
 add_to warn_flags -Wnested-externs
 add_to warn_flags -Wendif-labels
 add_to warn_flags -Wexpansion-to-defined
+add_to warn_flags -Wimplicit-fallthrough=2
 
 nowarn_flags=
 add_to nowarn_flags -Wno-initializer-overrides

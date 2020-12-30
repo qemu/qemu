@@ -27,6 +27,7 @@ tfdir = 'berkeley-testfloat-3/source'
 sfinc = include_directories(sfdir / 'include', sfspedir)
 
 tfcflags = [
+  '-Wno-implicit-fallthrough',
   '-Wno-strict-prototypes',
   '-Wno-unknown-pragmas',
   '-Wno-uninitialized',
@@ -209,6 +210,7 @@ libtestfloat = static_library(
 )
 
 sfcflags = [
+  '-Wno-implicit-fallthrough',
   '-Wno-missing-prototypes',
   '-Wno-redundant-decls',
   '-Wno-return-type',
