@@ -728,7 +728,8 @@ static void bonito_realize(PCIDevice *dev, Error **errp)
     pci_set_word(dev->config + PCI_SUBSYSTEM_ID, 0x0000);
 
     pci_set_byte(dev->config + PCI_INTERRUPT_LINE, 0x00);
-    pci_set_byte(dev->config + PCI_INTERRUPT_PIN, 0x01);
+    pci_config_set_interrupt_pin(dev->config, 0x01); /* interrupt pin A */
+
     pci_set_byte(dev->config + PCI_MIN_GNT, 0x3c);
     pci_set_byte(dev->config + PCI_MAX_LAT, 0x00);
 
