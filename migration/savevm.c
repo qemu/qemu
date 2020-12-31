@@ -2728,7 +2728,7 @@ int qemu_load_device_state(QEMUFile *f)
 int save_snapshot(const char *name, Error **errp)
 {
     BlockDriverState *bs, *bs1;
-    QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
+    QEMUSnapshotInfo sn1, *sn = &sn1;
     int ret = -1, ret2;
     QEMUFile *f;
     int saved_vm_running;
@@ -2797,13 +2797,7 @@ int save_snapshot(const char *name, Error **errp)
     }
 
     if (name) {
-        ret = bdrv_snapshot_find(bs, old_sn, name);
-        if (ret >= 0) {
-            pstrcpy(sn->name, sizeof(sn->name), old_sn->name);
-            pstrcpy(sn->id_str, sizeof(sn->id_str), old_sn->id_str);
-        } else {
-            pstrcpy(sn->name, sizeof(sn->name), name);
-        }
+        pstrcpy(sn->name, sizeof(sn->name), name);
     } else {
         /* cast below needed for OpenBSD where tv_sec is still 'long' */
         localtime_r((const time_t *)&tv.tv_sec, &tm);
@@ -2839,6 +2833,7 @@ int save_snapshot(const char *name, Error **errp)
     if (ret < 0) {
         error_setg(errp, "Error while creating snapshot on '%s'",
                    bdrv_get_device_or_node_name(bs));
+        bdrv_all_delete_snapshot(sn->name, &bs, NULL);
         goto the_end;
     }
 

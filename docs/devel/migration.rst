@@ -53,22 +53,23 @@ savevm/loadvm functionality.
 Debugging
 =========
 
-The migration stream can be analyzed thanks to `scripts/analyze_migration.py`.
+The migration stream can be analyzed thanks to `scripts/analyze-migration.py`.
 
 Example usage:
 
 .. code-block:: shell
 
-  $ qemu-system-x86_64
-   (qemu) migrate "exec:cat > mig"
-  $ ./scripts/analyze_migration.py -f mig
+  $ qemu-system-x86_64 -display none -monitor stdio
+  (qemu) migrate "exec:cat > mig"
+  (qemu) q
+  $ ./scripts/analyze-migration.py -f mig
   {
     "ram (3)": {
         "section sizes": {
             "pc.ram": "0x0000000008000000",
   ...
 
-See also ``analyze_migration.py -h`` help for more options.
+See also ``analyze-migration.py -h`` help for more options.
 
 Common infrastructure
 =====================

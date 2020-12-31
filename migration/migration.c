@@ -2102,6 +2102,12 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
         return false;
     }
 
+    if (runstate_check(RUN_STATE_POSTMIGRATE)) {
+        error_setg(errp, "Can't migrate the vm that was paused due to "
+                   "previous migration");
+        return false;
+    }
+
     if (migration_is_blocked(errp)) {
         return false;
     }

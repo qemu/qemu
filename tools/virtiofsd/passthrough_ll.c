@@ -101,7 +101,7 @@ struct lo_inode {
      * This counter keeps the inode alive during the FUSE session.
      * Incremented when the FUSE inode number is sent in a reply
      * (FUSE_LOOKUP, FUSE_READDIRPLUS, etc).  Decremented when an inode is
-     * released by requests like FUSE_FORGET, FUSE_RMDIR, FUSE_RENAME, etc.
+     * released by a FUSE_FORGET request.
      *
      * Note that this value is untrusted because the client can manipulate
      * it arbitrarily using FUSE_FORGET requests.
@@ -902,10 +902,11 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         inode->key.ino = e->attr.st_ino;
         inode->key.dev = e->attr.st_dev;
         inode->key.mnt_id = mnt_id;
-        pthread_mutex_init(&inode->plock_mutex, NULL);
-        inode->posix_locks = g_hash_table_new_full(
-            g_direct_hash, g_direct_equal, NULL, posix_locks_value_destroy);
-
+        if (lo->posix_lock) {
+            pthread_mutex_init(&inode->plock_mutex, NULL);
+            inode->posix_locks = g_hash_table_new_full(
+                g_direct_hash, g_direct_equal, NULL, posix_locks_value_destroy);
+        }
         pthread_mutex_lock(&lo->mutex);
         inode->fuse_ino = lo_add_inode_mapping(req, inode);
         g_hash_table_insert(lo->inodes, &inode->key, inode);
@@ -1291,12 +1292,13 @@ static void unref_inode(struct lo_data *lo, struct lo_inode *inode, uint64_t n)
     if (!inode->nlookup) {
         lo_map_remove(&lo->ino_map, inode->fuse_ino);
         g_hash_table_remove(lo->inodes, &inode->key);
-        if (g_hash_table_size(inode->posix_locks)) {
-            fuse_log(FUSE_LOG_WARNING, "Hash table is not empty\n");
+        if (lo->posix_lock) {
+            if (g_hash_table_size(inode->posix_locks)) {
+                fuse_log(FUSE_LOG_WARNING, "Hash table is not empty\n");
+            }
+            g_hash_table_destroy(inode->posix_locks);
+            pthread_mutex_destroy(&inode->plock_mutex);
         }
-        g_hash_table_destroy(inode->posix_locks);
-        pthread_mutex_destroy(&inode->plock_mutex);
-
         /* Drop our refcount from lo_do_lookup() */
         lo_inode_put(lo, &inode);
     }
@@ -1772,6 +1774,11 @@ static void lo_getlk(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
              ino, fi->flags, fi->lock_owner, lock->l_type, lock->l_start,
              lock->l_len);
 
+    if (!lo->posix_lock) {
+        fuse_reply_err(req, ENOSYS);
+        return;
+    }
+
     inode = lo_inode(req, ino);
     if (!inode) {
         fuse_reply_err(req, EBADF);
@@ -1816,6 +1823,11 @@ static void lo_setlk(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
              " l_start=0x%lx l_len=0x%lx\n",
              ino, fi->flags, lock->l_type, lock->l_pid, fi->lock_owner, sleep,
              lock->l_whence, lock->l_start, lock->l_len);
+
+    if (!lo->posix_lock) {
+        fuse_reply_err(req, ENOSYS);
+        return;
+    }
 
     if (sleep) {
         fuse_reply_err(req, EOPNOTSUPP);
@@ -1941,6 +1953,7 @@ static void lo_flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     int res;
     (void)ino;
     struct lo_inode *inode;
+    struct lo_data *lo = lo_data(req);
 
     inode = lo_inode(req, ino);
     if (!inode) {
@@ -1948,13 +1961,21 @@ static void lo_flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
         return;
     }
 
-    /* An fd is going away. Cleanup associated posix locks */
-    pthread_mutex_lock(&inode->plock_mutex);
-    g_hash_table_remove(inode->posix_locks, GUINT_TO_POINTER(fi->lock_owner));
-    pthread_mutex_unlock(&inode->plock_mutex);
+    if (!S_ISREG(inode->filetype)) {
+        lo_inode_put(lo, &inode);
+        fuse_reply_err(req, EBADF);
+        return;
+    }
 
+    /* An fd is going away. Cleanup associated posix locks */
+    if (lo->posix_lock) {
+        pthread_mutex_lock(&inode->plock_mutex);
+        g_hash_table_remove(inode->posix_locks,
+            GUINT_TO_POINTER(fi->lock_owner));
+        pthread_mutex_unlock(&inode->plock_mutex);
+    }
     res = close(dup(lo_fi_fd(req, fi)));
-    lo_inode_put(lo_data(req), &inode);
+    lo_inode_put(lo, &inode);
     fuse_reply_err(req, res == -1 ? errno : 0);
 }
 
@@ -3284,18 +3305,38 @@ static void setup_nofile_rlimit(unsigned long rlimit_nofile)
 static void log_func(enum fuse_log_level level, const char *fmt, va_list ap)
 {
     g_autofree char *localfmt = NULL;
+    struct timespec ts;
+    struct tm tm;
+    char sec_fmt[sizeof "2020-12-07 18:17:54"];
+    char zone_fmt[sizeof "+0100"];
 
     if (current_log_level < level) {
         return;
     }
 
     if (current_log_level == FUSE_LOG_DEBUG) {
-        if (!use_syslog) {
-            localfmt = g_strdup_printf("[%" PRId64 "] [ID: %08ld] %s",
-                                       get_clock(), syscall(__NR_gettid), fmt);
-        } else {
+        if (use_syslog) {
+            /* no timestamp needed */
             localfmt = g_strdup_printf("[ID: %08ld] %s", syscall(__NR_gettid),
                                        fmt);
+        } else {
+            /* try formatting a broken-down timestamp */
+            if (clock_gettime(CLOCK_REALTIME, &ts) != -1 &&
+                localtime_r(&ts.tv_sec, &tm) != NULL &&
+                strftime(sec_fmt, sizeof sec_fmt, "%Y-%m-%d %H:%M:%S",
+                         &tm) != 0 &&
+                strftime(zone_fmt, sizeof zone_fmt, "%z", &tm) != 0) {
+                localfmt = g_strdup_printf("[%s.%02ld%s] [ID: %08ld] %s",
+                                           sec_fmt,
+                                           ts.tv_nsec / (10L * 1000 * 1000),
+                                           zone_fmt, syscall(__NR_gettid),
+                                           fmt);
+            } else {
+                /* fall back to a flat timestamp */
+                localfmt = g_strdup_printf("[%" PRId64 "] [ID: %08ld] %s",
+                                           get_clock(), syscall(__NR_gettid),
+                                           fmt);
+            }
         }
         fmt = localfmt;
     }
@@ -3360,6 +3401,11 @@ static void setup_root(struct lo_data *lo, struct lo_inode *root)
     root->key.mnt_id = mnt_id;
     root->nlookup = 2;
     g_atomic_int_set(&root->refcount, 2);
+    if (lo->posix_lock) {
+        pthread_mutex_init(&root->plock_mutex, NULL);
+        root->posix_locks = g_hash_table_new_full(
+            g_direct_hash, g_direct_equal, NULL, posix_locks_value_destroy);
+    }
 }
 
 static guint lo_key_hash(gconstpointer key)
@@ -3381,6 +3427,10 @@ static void fuse_lo_data_cleanup(struct lo_data *lo)
 {
     if (lo->inodes) {
         g_hash_table_destroy(lo->inodes);
+    }
+
+    if (lo->root.posix_locks) {
+        g_hash_table_destroy(lo->root.posix_locks);
     }
     lo_map_destroy(&lo->fd_map);
     lo_map_destroy(&lo->dirp_map);
@@ -3415,6 +3465,9 @@ int main(int argc, char *argv[])
     struct lo_map_elem *root_elem;
     struct lo_map_elem *reserve_elem;
     int ret = -1;
+
+    /* Initialize time conversion information for localtime_r(). */
+    tzset();
 
     /* Don't mask creation mode, kernel already did that */
     umask(0);
