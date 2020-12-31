@@ -402,8 +402,10 @@ void sparc64_set_context(CPUSPARCState *env)
     abi_ulong ucp_addr;
     struct target_ucontext *ucp;
     target_mc_gregset_t *grp;
+    target_mc_fpu_t *fpup;
     abi_ulong pc, npc, tstate;
     unsigned int i;
+    unsigned char fenab;
 
     ucp_addr = env->regwptr[WREG_O0];
     if (!lock_user_struct(VERIFY_READ, ucp, ucp_addr, 1)) {
@@ -436,16 +438,16 @@ void sparc64_set_context(CPUSPARCState *env)
     env->npc = npc;
     __get_user(env->y, &((*grp)[SPARC_MC_Y]));
     __get_user(tstate, &((*grp)[SPARC_MC_TSTATE]));
+    /* Honour TSTATE_ASI, TSTATE_ICC and TSTATE_XCC only */
     env->asi = (tstate >> 24) & 0xff;
-    cpu_put_ccr(env, tstate >> 32);
-    cpu_put_cwp64(env, tstate & 0x1f);
+    cpu_put_ccr(env, (tstate >> 32) & 0xff);
     __get_user(env->gregs[1], (&(*grp)[SPARC_MC_G1]));
     __get_user(env->gregs[2], (&(*grp)[SPARC_MC_G2]));
     __get_user(env->gregs[3], (&(*grp)[SPARC_MC_G3]));
     __get_user(env->gregs[4], (&(*grp)[SPARC_MC_G4]));
     __get_user(env->gregs[5], (&(*grp)[SPARC_MC_G5]));
     __get_user(env->gregs[6], (&(*grp)[SPARC_MC_G6]));
-    __get_user(env->gregs[7], (&(*grp)[SPARC_MC_G7]));
+    /* Skip g7 as that's the thread register in userspace */
 
     /*
      * Note that unlike the kernel, we didn't need to mess with the
@@ -467,26 +469,42 @@ void sparc64_set_context(CPUSPARCState *env)
     __get_user(env->regwptr[WREG_FP], &(ucp->tuc_mcontext.mc_fp));
     __get_user(env->regwptr[WREG_I7], &(ucp->tuc_mcontext.mc_i7));
 
-    /* FIXME this does not match how the kernel handles the FPU in
-     * its sparc64_set_context implementation. In particular the FPU
-     * is only restored if fenab is non-zero in:
-     *   __get_user(fenab, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_enab));
-     */
-    __get_user(env->fprs, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_fprs));
-    {
-        uint32_t *src = ucp->tuc_mcontext.mc_fpregs.mcfpu_fregs.sregs;
-        for (i = 0; i < 64; i++, src++) {
-            if (i & 1) {
-                __get_user(env->fpr[i/2].l.lower, src);
-            } else {
-                __get_user(env->fpr[i/2].l.upper, src);
+    fpup = &ucp->tuc_mcontext.mc_fpregs;
+
+    __get_user(fenab, &(fpup->mcfpu_enab));
+    if (fenab) {
+        abi_ulong fprs;
+
+        /*
+         * We use the FPRS from the guest only in deciding whether
+         * to restore the upper, lower, or both banks of the FPU regs.
+         * The kernel here writes the FPU register data into the
+         * process's current_thread_info state and unconditionally
+         * clears FPRS and TSTATE_PEF: this disables the FPU so that the
+         * next FPU-disabled trap will copy the data out of
+         * current_thread_info and into the real FPU registers.
+         * QEMU doesn't need to handle lazy-FPU-state-restoring like that,
+         * so we always load the data directly into the FPU registers
+         * and leave FPRS and TSTATE_PEF alone (so the FPU stays enabled).
+         * Note that because we (and the kernel) always write zeroes for
+         * the fenab and fprs in sparc64_get_context() none of this code
+         * will execute unless the guest manually constructed or changed
+         * the context structure.
+         */
+        __get_user(fprs, &(fpup->mcfpu_fprs));
+        if (fprs & FPRS_DL) {
+            for (i = 0; i < 16; i++) {
+                __get_user(env->fpr[i].ll, &(fpup->mcfpu_fregs.dregs[i]));
             }
         }
+        if (fprs & FPRS_DU) {
+            for (i = 16; i < 32; i++) {
+                __get_user(env->fpr[i].ll, &(fpup->mcfpu_fregs.dregs[i]));
+            }
+        }
+        __get_user(env->fsr, &(fpup->mcfpu_fsr));
+        __get_user(env->gsr, &(fpup->mcfpu_gsr));
     }
-    __get_user(env->fsr,
-               &(ucp->tuc_mcontext.mc_fpregs.mcfpu_fsr));
-    __get_user(env->gsr,
-               &(ucp->tuc_mcontext.mc_fpregs.mcfpu_gsr));
     unlock_user_struct(ucp, ucp_addr, 0);
     return;
 do_sigsegv:
@@ -509,7 +527,9 @@ void sparc64_get_context(CPUSPARCState *env)
     if (!lock_user_struct(VERIFY_WRITE, ucp, ucp_addr, 0)) {
         goto do_sigsegv;
     }
-    
+
+    memset(ucp, 0, sizeof(*ucp));
+
     mcp = &ucp->tuc_mcontext;
     grp = &mcp->mc_gregs;
 
@@ -535,12 +555,9 @@ void sparc64_get_context(CPUSPARCState *env)
         for (i = 0; i < TARGET_NSIG_WORDS; i++, dst++, src++) {
             __put_user(*src, dst);
         }
-        if (err)
-            goto do_sigsegv;
     }
 
-    /* XXX: tstate must be saved properly */
-    //    __put_user(env->tstate, &((*grp)[SPARC_MC_TSTATE]));
+    __put_user(sparc64_tstate(env), &((*grp)[SPARC_MC_TSTATE]));
     __put_user(env->pc, &((*grp)[SPARC_MC_PC]));
     __put_user(env->npc, &((*grp)[SPARC_MC_NPC]));
     __put_user(env->y, &((*grp)[SPARC_MC_Y]));
@@ -572,22 +589,12 @@ void sparc64_get_context(CPUSPARCState *env)
     __put_user(env->regwptr[WREG_FP], &(mcp->mc_fp));
     __put_user(env->regwptr[WREG_I7], &(mcp->mc_i7));
 
-    {
-        uint32_t *dst = ucp->tuc_mcontext.mc_fpregs.mcfpu_fregs.sregs;
-        for (i = 0; i < 64; i++, dst++) {
-            if (i & 1) {
-                __put_user(env->fpr[i/2].l.lower, dst);
-            } else {
-                __put_user(env->fpr[i/2].l.upper, dst);
-            }
-        }
-    }
-    __put_user(env->fsr, &(mcp->mc_fpregs.mcfpu_fsr));
-    __put_user(env->gsr, &(mcp->mc_fpregs.mcfpu_gsr));
-    __put_user(env->fprs, &(mcp->mc_fpregs.mcfpu_fprs));
+    /*
+     * We don't write out the FPU state. This matches the kernel's
+     * implementation (which has the code for doing this but
+     * hidden behind an "if (fenab)" where fenab is always 0).
+     */
 
-    if (err)
-        goto do_sigsegv;
     unlock_user_struct(ucp, ucp_addr, 1);
     return;
 do_sigsegv:
