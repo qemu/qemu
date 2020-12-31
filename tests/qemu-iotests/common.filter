@@ -37,7 +37,7 @@ _filter_generated_node_ids()
 
 _filter_qom_path()
 {
-    $SED -e 's#\(Attached to: *\) /.*#\1 PATH#'
+    $SED -e '/Attached to:/s/\device[[0-9]\+\]/device[N]/g'
 }
 
 # replace occurrences of the actual TEST_DIR value with TEST_DIR

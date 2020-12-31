@@ -592,7 +592,7 @@ static int64_t nfs_client_open_qdict(NFSClient *client, QDict *options,
                                      int flags, int open_flags, Error **errp)
 {
     BlockdevOptionsNfs *opts;
-    int ret;
+    int64_t ret;
 
     opts = nfs_options_qdict_to_qapi(options, errp);
     if (opts == NULL) {
