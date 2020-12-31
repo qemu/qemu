@@ -205,7 +205,12 @@ def qemu_io_log(*args):
 
 def qemu_io_silent(*args):
     '''Run qemu-io and return the exit code, suppressing stdout'''
-    args = qemu_io_args + list(args)
+    if '-f' in args or '--image-opts' in args:
+        default_args = qemu_io_args_no_fmt
+    else:
+        default_args = qemu_io_args
+
+    args = default_args + list(args)
     exitcode = subprocess.call(args, stdout=open('/dev/null', 'w'))
     if exitcode < 0:
         sys.stderr.write('qemu-io received signal %i: %s\n' %
@@ -1118,6 +1123,11 @@ def _verify_aio_mode(supported_aio_modes: Sequence[str] = ()) -> None:
     if supported_aio_modes and (aiomode not in supported_aio_modes):
         notrun('not suitable for this aio mode: %s' % aiomode)
 
+def _verify_formats(required_formats: Sequence[str] = ()) -> None:
+    usf_list = list(set(required_formats) - set(supported_formats()))
+    if usf_list:
+        notrun(f'formats {usf_list} are not whitelisted')
+
 def supports_quorum():
     return 'quorum' in qemu_img_pipe('--help')
 
@@ -1275,7 +1285,8 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
                          supported_aio_modes: Sequence[str] = (),
                          unsupported_fmts: Sequence[str] = (),
                          supported_protocols: Sequence[str] = (),
-                         unsupported_protocols: Sequence[str] = ()) -> bool:
+                         unsupported_protocols: Sequence[str] = (),
+                         required_fmts: Sequence[str] = ()) -> bool:
     """
     Perform necessary setup for either script-style or unittest-style tests.
 
@@ -1301,6 +1312,7 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
     _verify_platform(supported=supported_platforms)
     _verify_cache_mode(supported_cache_modes)
     _verify_aio_mode(supported_aio_modes)
+    _verify_formats(required_fmts)
 
     return debug
 

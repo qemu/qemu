@@ -10,16 +10,42 @@ Is another process using the image [TEST_DIR/t.qcow2]?
 
 {'execute': 'qmp_capabilities'}
 {"return": {}}
-{'execute': 'blockdev-add', 'arguments': { 'node-name': 'node0', 'driver': 'file', 'filename': 'TEST_DIR/t.IMGFMT', 'locking': 'on' } }
+{'execute': 'blockdev-add',
+      'arguments': {
+          'node-name': 'node0',
+          'driver': 'file',
+          'filename': 'TEST_DIR/t.IMGFMT',
+          'locking': 'on'
+          } }
 {"return": {}}
-{'execute': 'blockdev-snapshot-sync', 'arguments': { 'node-name': 'node0', 'snapshot-file': 'TEST_DIR/t.IMGFMT.overlay', 'snapshot-node-name': 'node1' } }
+{'execute': 'blockdev-snapshot-sync',
+      'arguments': {
+          'node-name': 'node0',
+          'snapshot-file': 'TEST_DIR/t.IMGFMT.overlay',
+          'snapshot-node-name': 'node1'
+      } }
 Formatting 'TEST_DIR/t.qcow2.overlay', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=197120 backing_file=TEST_DIR/t.qcow2 backing_fmt=file lazy_refcounts=off refcount_bits=16
 {"return": {}}
-{'execute': 'blockdev-add', 'arguments': { 'node-name': 'node1', 'driver': 'file', 'filename': 'TEST_DIR/t.IMGFMT', 'locking': 'on' } }
+{'execute': 'blockdev-add',
+      'arguments': {
+          'node-name': 'node1',
+          'driver': 'file',
+          'filename': 'TEST_DIR/t.IMGFMT',
+          'locking': 'on'
+          } }
 {"return": {}}
-{'execute': 'nbd-server-start', 'arguments': { 'addr': { 'type': 'unix', 'data': { 'path': 'SOCK_DIR/nbd.socket' } } } }
+{'execute': 'nbd-server-start',
+      'arguments': {
+          'addr': {
+              'type': 'unix',
+              'data': {
+                  'path': 'SOCK_DIR/nbd.socket'
+              } } } }
 {"return": {}}
-{'execute': 'nbd-server-add', 'arguments': { 'device': 'node1' } }
+{'execute': 'nbd-server-add',
+      'arguments': {
+          'device': 'node1'
+      } }
 {"return": {}}
 
 === Testing failure to loosen restrictions ===

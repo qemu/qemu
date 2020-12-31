@@ -146,14 +146,9 @@ _send_qemu_cmd()
         count=${qemu_cmd_repeat}
         use_error="no"
     fi
-    # This array element extraction is done to accommodate pathnames with spaces
-    if [ -z "${success_or_failure}" ]; then
-        cmd=${@: 1:${#@}-1}
-        shift $(($# - 1))
-    else
-        cmd=${@: 1:${#@}-2}
-        shift $(($# - 2))
-    fi
+
+    cmd=$1
+    shift
 
     # Display QMP being sent, but not HMP (since HMP already echoes its
     # input back to output); decide based on leading '{'

@@ -68,7 +68,7 @@ $QEMU_IO -c 'write 0 64k' "$TEST_IMG" | _filter_qemu_io
 qemu_comm_method=monitor _launch_qemu -drive if=none,file="$TEST_IMG",id=drv0
 
 # Wait for a prompt to appear (so we know qemu has opened the image)
-_send_qemu_cmd '' '(qemu)'
+_send_qemu_cmd $QEMU_HANDLE '' '(qemu)'
 
 $QEMU_IMG resize --shrink --image-opts \
     "driver=raw,file.driver=file,file.filename=$TEST_IMG,file.locking=off" \

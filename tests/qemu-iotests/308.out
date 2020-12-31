@@ -5,42 +5,91 @@ wrote 67108864/67108864 bytes at offset 0
 64 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 {'execute': 'qmp_capabilities'}
 {"return": {}}
-{'execute': 'blockdev-add', 'arguments': { 'driver': 'file', 'node-name': 'node-protocol', 'filename': 'TEST_DIR/t.IMGFMT' } }
+{'execute': 'blockdev-add',
+      'arguments': {
+          'driver': 'file',
+          'node-name': 'node-protocol',
+          'filename': 'TEST_DIR/t.IMGFMT'
+      } }
 {"return": {}}
-{'execute': 'blockdev-add', 'arguments': { 'driver': 'IMGFMT', 'node-name': 'node-format', 'file': 'node-protocol' } }
+{'execute': 'blockdev-add',
+      'arguments': {
+          'driver': 'IMGFMT',
+          'node-name': 'node-format',
+          'file': 'node-protocol'
+      } }
 {"return": {}}
 
 === Mountpoint not present ===
-{'execute': 'block-export-add', 'arguments': { 'type': 'fuse', 'id': 'export-err', 'node-name': 'node-format', 'mountpoint': 'TEST_DIR/t.IMGFMT.fuse' } }
+{'execute': 'block-export-add',
+          'arguments': {
+              'type': 'fuse',
+              'id': 'export-err',
+              'node-name': 'node-format',
+              'mountpoint': 'TEST_DIR/t.IMGFMT.fuse'
+          } }
 {"error": {"class": "GenericError", "desc": "Failed to stat 'TEST_DIR/t.IMGFMT.fuse': No such file or directory"}}
 
 === Mountpoint is a directory ===
-{'execute': 'block-export-add', 'arguments': { 'type': 'fuse', 'id': 'export-err', 'node-name': 'node-format', 'mountpoint': 'TEST_DIR/t.IMGFMT.fuse' } }
+{'execute': 'block-export-add',
+          'arguments': {
+              'type': 'fuse',
+              'id': 'export-err',
+              'node-name': 'node-format',
+              'mountpoint': 'TEST_DIR/t.IMGFMT.fuse'
+          } }
 {"error": {"class": "GenericError", "desc": "'TEST_DIR/t.IMGFMT.fuse' is not a regular file"}}
 
 === Mountpoint is a regular file ===
-{'execute': 'block-export-add', 'arguments': { 'type': 'fuse', 'id': 'export-mp', 'node-name': 'node-format', 'mountpoint': 'TEST_DIR/t.IMGFMT.fuse' } }
+{'execute': 'block-export-add',
+          'arguments': {
+              'type': 'fuse',
+              'id': 'export-mp',
+              'node-name': 'node-format',
+              'mountpoint': 'TEST_DIR/t.IMGFMT.fuse'
+          } }
 {"return": {}}
 Images are identical.
 
 === Mount over existing file ===
-{'execute': 'block-export-add', 'arguments': { 'type': 'fuse', 'id': 'export-img', 'node-name': 'node-format', 'mountpoint': 'TEST_DIR/t.IMGFMT' } }
+{'execute': 'block-export-add',
+          'arguments': {
+              'type': 'fuse',
+              'id': 'export-img',
+              'node-name': 'node-format',
+              'mountpoint': 'TEST_DIR/t.IMGFMT'
+          } }
 {"return": {}}
 Images are identical.
 
 === Double export ===
-{'execute': 'block-export-add', 'arguments': { 'type': 'fuse', 'id': 'export-err', 'node-name': 'node-format', 'mountpoint': 'TEST_DIR/t.IMGFMT.fuse' } }
+{'execute': 'block-export-add',
+          'arguments': {
+              'type': 'fuse',
+              'id': 'export-err',
+              'node-name': 'node-format',
+              'mountpoint': 'TEST_DIR/t.IMGFMT.fuse'
+          } }
 {"error": {"class": "GenericError", "desc": "There already is a FUSE export on 'TEST_DIR/t.IMGFMT.fuse'"}}
 
 === Remove export ===
 virtual size: 64 MiB (67108864 bytes)
-{'execute': 'block-export-del', 'arguments': { 'id': 'export-mp' } }
+{'execute': 'block-export-del',
+          'arguments': {
+              'id': 'export-mp'
+          } }
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "export-mp"}}
 virtual size: 0 B (0 bytes)
 
 === Writable export ===
-{'execute': 'block-export-add', 'arguments': { 'type': 'fuse', 'id': 'export-mp', 'node-name': 'node-format', 'mountpoint': 'TEST_DIR/t.IMGFMT.fuse', 'writable': true } }
+{'execute': 'block-export-add',
+          'arguments': {
+              'type': 'fuse',
+              'id': 'export-mp',
+              'node-name': 'node-format',
+              'mountpoint': 'TEST_DIR/t.IMGFMT.fuse', 'writable': true
+          } }
 {"return": {}}
 write failed: Permission denied
 wrote 65536/65536 bytes at offset 1048576
@@ -49,15 +98,30 @@ wrote 65536/65536 bytes at offset 1048576
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 === Resizing exports ===
-{'execute': 'block-export-del', 'arguments': { 'id': 'export-mp' } }
+{'execute': 'block-export-del',
+          'arguments': {
+              'id': 'export-mp'
+          } }
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "export-mp"}}
-{'execute': 'block-export-del', 'arguments': { 'id': 'export-img' } }
+{'execute': 'block-export-del',
+          'arguments': {
+              'id': 'export-img'
+          } }
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "export-img"}}
-{'execute': 'blockdev-del', 'arguments': { 'node-name': 'node-format' } }
+{'execute': 'blockdev-del',
+      'arguments': {
+          'node-name': 'node-format'
+      } }
 {"return": {}}
-{'execute': 'block-export-add', 'arguments': { 'type': 'fuse', 'id': 'export-mp', 'node-name': 'node-protocol', 'mountpoint': 'TEST_DIR/t.IMGFMT.fuse', 'writable': true } }
+{'execute': 'block-export-add',
+          'arguments': {
+              'type': 'fuse',
+              'id': 'export-mp',
+              'node-name': 'node-protocol',
+              'mountpoint': 'TEST_DIR/t.IMGFMT.fuse', 'writable': true
+          } }
 {"return": {}}
 
 --- Try growing non-growable export ---
@@ -72,10 +136,19 @@ OK: Post-truncate image size is as expected
 OK: Disk usage grew with fallocate
 
 --- Try growing growable export ---
-{'execute': 'block-export-del', 'arguments': { 'id': 'export-mp' } }
+{'execute': 'block-export-del',
+          'arguments': {
+              'id': 'export-mp'
+          } }
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "export-mp"}}
-{'execute': 'block-export-add', 'arguments': { 'type': 'fuse', 'id': 'export-mp', 'node-name': 'node-protocol', 'mountpoint': 'TEST_DIR/t.IMGFMT.fuse', 'writable': true, 'growable': true } }
+{'execute': 'block-export-add',
+          'arguments': {
+              'type': 'fuse',
+              'id': 'export-mp',
+              'node-name': 'node-protocol',
+              'mountpoint': 'TEST_DIR/t.IMGFMT.fuse', 'writable': true, 'growable': true
+          } }
 {"return": {}}
 65536+0 records in
 65536+0 records out
