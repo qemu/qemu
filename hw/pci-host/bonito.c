@@ -468,8 +468,8 @@ static uint32_t bonito_sbridge_pciaddr(void *opaque, hwaddr addr)
     regno = (cfgaddr & BONITO_PCICONF_REG_MASK) >> BONITO_PCICONF_REG_OFFSET;
 
     if (idsel == 0) {
-        error_report("error in bonito pci config address " TARGET_FMT_plx
-                     ",pcimap_cfg=%x", addr, s->regs[BONITO_PCIMAP_CFG]);
+        error_report("error in bonito pci config address 0x" TARGET_FMT_plx
+                     ",pcimap_cfg=0x%x", addr, s->regs[BONITO_PCIMAP_CFG]);
         exit(1);
     }
     pciaddr = PCI_ADDR(pci_bus_num(phb->bus), devno, funno, regno);
