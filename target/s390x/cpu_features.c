@@ -107,8 +107,45 @@ void s390_fill_feat_block(const S390FeatBitmap features, S390FeatType type,
         feat = find_next_bit(features, S390_FEAT_MAX, feat + 1);
     }
 
-    if (type == S390_FEAT_TYPE_SCLP_FAC134 && s390_is_pv()) {
+    if (!s390_is_pv()) {
+        return;
+    }
+
+    /*
+     * Some facilities are not available for CPUs in protected mode:
+     * - All SIE facilities because SIE is not available
+     * - DIAG318
+     *
+     * As VMs can move in and out of protected mode the CPU model
+     * doesn't protect us from that problem because it is only
+     * validated at the start of the VM.
+     */
+    switch (type) {
+    case S390_FEAT_TYPE_SCLP_CPU:
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_F2)->bit, data);
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_SKEY)->bit, data);
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_GPERE)->bit, data);
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_SIIF)->bit, data);
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_SIGPIF)->bit, data);
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_IB)->bit, data);
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_CEI)->bit, data);
+        break;
+    case S390_FEAT_TYPE_SCLP_CONF_CHAR:
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_GSLS)->bit, data);
+        clear_be_bit(s390_feat_def(S390_FEAT_HPMA2)->bit, data);
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_KSS)->bit, data);
+        break;
+    case S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT:
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_64BSCAO)->bit, data);
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_CMMA)->bit, data);
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_PFMFI)->bit, data);
+        clear_be_bit(s390_feat_def(S390_FEAT_SIE_IBS)->bit, data);
+        break;
+    case S390_FEAT_TYPE_SCLP_FAC134:
         clear_be_bit(s390_feat_def(S390_FEAT_DIAG_318)->bit, data);
+        break;
+    default:
+        return;
     }
 }
 

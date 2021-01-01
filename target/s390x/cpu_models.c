@@ -239,8 +239,29 @@ bool s390_has_feat(S390Feat feat)
         }
         return 0;
     }
-    if (feat == S390_FEAT_DIAG_318 && s390_is_pv()) {
-        return false;
+
+    if (s390_is_pv()) {
+        switch (feat) {
+        case S390_FEAT_DIAG_318:
+        case S390_FEAT_HPMA2:
+        case S390_FEAT_SIE_F2:
+        case S390_FEAT_SIE_SKEY:
+        case S390_FEAT_SIE_GPERE:
+        case S390_FEAT_SIE_SIIF:
+        case S390_FEAT_SIE_SIGPIF:
+        case S390_FEAT_SIE_IB:
+        case S390_FEAT_SIE_CEI:
+        case S390_FEAT_SIE_KSS:
+        case S390_FEAT_SIE_GSLS:
+        case S390_FEAT_SIE_64BSCAO:
+        case S390_FEAT_SIE_CMMA:
+        case S390_FEAT_SIE_PFMFI:
+        case S390_FEAT_SIE_IBS:
+            return false;
+            break;
+        default:
+            break;
+        }
     }
     return test_bit(feat, cpu->model->features);
 }
