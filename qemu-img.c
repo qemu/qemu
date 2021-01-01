@@ -33,7 +33,6 @@
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
@@ -627,18 +626,18 @@ fail:
 
 static void dump_json_image_check(ImageCheck *check, bool quiet)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
     visit_type_ImageCheck(v, NULL, &check, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    qprintf(quiet, "%s\n", qstring_get_str(str));
+    qprintf(quiet, "%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static void dump_human_image_check(ImageCheck *check, bool quiet)
@@ -1652,14 +1651,13 @@ static void do_dirty_bitmap_merge(const char *dst_node, const char *dst_name,
                                   Error **errp)
 {
     BlockDirtyBitmapMergeSource *merge_src;
-    BlockDirtyBitmapMergeSourceList *list;
+    BlockDirtyBitmapMergeSourceList *list = NULL;
 
     merge_src = g_new0(BlockDirtyBitmapMergeSource, 1);
     merge_src->type = QTYPE_QDICT;
     merge_src->u.external.node = g_strdup(src_node);
     merge_src->u.external.name = g_strdup(src_name);
-    list = g_new0(BlockDirtyBitmapMergeSourceList, 1);
-    list->value = merge_src;
+    QAPI_LIST_PREPEND(list, merge_src);
     qmp_block_dirty_bitmap_merge(dst_node, dst_name, list, errp);
     qapi_free_BlockDirtyBitmapMergeSourceList(list);
 }
@@ -2790,34 +2788,34 @@ static void dump_snapshots(BlockDriverState *bs)
 
 static void dump_json_image_info_list(ImageInfoList *list)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
     visit_type_ImageInfoList(v, NULL, &list, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    printf("%s\n", qstring_get_str(str));
+    printf("%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static void dump_json_image_info(ImageInfo *info)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
     visit_type_ImageInfo(v, NULL, &info, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    printf("%s\n", qstring_get_str(str));
+    printf("%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static void dump_human_image_info_list(ImageInfoList *list)
@@ -5237,18 +5235,18 @@ out:
 
 static void dump_json_block_measure_info(BlockMeasureInfo *info)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
     visit_type_BlockMeasureInfo(v, NULL, &info, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    printf("%s\n", qstring_get_str(str));
+    printf("%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static int img_measure(int argc, char **argv)

@@ -16,6 +16,7 @@
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qstring.h"
+#include "qobject-internal.h"
 
 /**
  * qdict_new(): Create a new QDict

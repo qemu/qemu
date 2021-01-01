@@ -29,7 +29,7 @@ static int get_bool(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_bool(QEMUFile *f, void *pv, size_t size,
-                    const VMStateField *field, QJSON *vmdesc)
+                    const VMStateField *field, JSONWriter *vmdesc)
 {
     bool *v = pv;
     qemu_put_byte(f, *v);
@@ -53,7 +53,7 @@ static int get_int8(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_int8(QEMUFile *f, void *pv, size_t size,
-                    const VMStateField *field, QJSON *vmdesc)
+                    const VMStateField *field, JSONWriter *vmdesc)
 {
     int8_t *v = pv;
     qemu_put_s8s(f, v);
@@ -77,7 +77,7 @@ static int get_int16(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_int16(QEMUFile *f, void *pv, size_t size,
-                     const VMStateField *field, QJSON *vmdesc)
+                     const VMStateField *field, JSONWriter *vmdesc)
 {
     int16_t *v = pv;
     qemu_put_sbe16s(f, v);
@@ -101,7 +101,7 @@ static int get_int32(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_int32(QEMUFile *f, void *pv, size_t size,
-                     const VMStateField *field, QJSON *vmdesc)
+                     const VMStateField *field, JSONWriter *vmdesc)
 {
     int32_t *v = pv;
     qemu_put_sbe32s(f, v);
@@ -178,7 +178,7 @@ static int get_int64(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_int64(QEMUFile *f, void *pv, size_t size,
-                     const VMStateField *field, QJSON *vmdesc)
+                     const VMStateField *field, JSONWriter *vmdesc)
 {
     int64_t *v = pv;
     qemu_put_sbe64s(f, v);
@@ -202,7 +202,7 @@ static int get_uint8(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_uint8(QEMUFile *f, void *pv, size_t size,
-                     const VMStateField *field, QJSON *vmdesc)
+                     const VMStateField *field, JSONWriter *vmdesc)
 {
     uint8_t *v = pv;
     qemu_put_8s(f, v);
@@ -226,7 +226,7 @@ static int get_uint16(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_uint16(QEMUFile *f, void *pv, size_t size,
-                      const VMStateField *field, QJSON *vmdesc)
+                      const VMStateField *field, JSONWriter *vmdesc)
 {
     uint16_t *v = pv;
     qemu_put_be16s(f, v);
@@ -250,7 +250,7 @@ static int get_uint32(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_uint32(QEMUFile *f, void *pv, size_t size,
-                      const VMStateField *field, QJSON *vmdesc)
+                      const VMStateField *field, JSONWriter *vmdesc)
 {
     uint32_t *v = pv;
     qemu_put_be32s(f, v);
@@ -300,7 +300,7 @@ static int get_uint64(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_uint64(QEMUFile *f, void *pv, size_t size,
-                      const VMStateField *field, QJSON *vmdesc)
+                      const VMStateField *field, JSONWriter *vmdesc)
 {
     uint64_t *v = pv;
     qemu_put_be64s(f, v);
@@ -325,7 +325,7 @@ static int get_nullptr(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_nullptr(QEMUFile *f, void *pv, size_t size,
-                        const VMStateField *field, QJSON *vmdesc)
+                        const VMStateField *field, JSONWriter *vmdesc)
 
 {
     if (pv == NULL) {
@@ -432,7 +432,7 @@ static int get_cpudouble(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_cpudouble(QEMUFile *f, void *pv, size_t size,
-                         const VMStateField *field, QJSON *vmdesc)
+                         const VMStateField *field, JSONWriter *vmdesc)
 {
     CPU_DoubleU *v = pv;
     qemu_put_be32s(f, &v->l.upper);
@@ -457,7 +457,7 @@ static int get_buffer(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_buffer(QEMUFile *f, void *pv, size_t size,
-                      const VMStateField *field, QJSON *vmdesc)
+                      const VMStateField *field, JSONWriter *vmdesc)
 {
     uint8_t *v = pv;
     qemu_put_buffer(f, v, size);
@@ -488,7 +488,7 @@ static int get_unused_buffer(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_unused_buffer(QEMUFile *f, void *pv, size_t size,
-                             const VMStateField *field, QJSON *vmdesc)
+                             const VMStateField *field, JSONWriter *vmdesc)
 {
     static const uint8_t buf[1024];
     int block_len;
@@ -530,7 +530,7 @@ static int get_tmp(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_tmp(QEMUFile *f, void *pv, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     const VMStateDescription *vmsd = field->vmsd;
     void *tmp = g_malloc(size);
@@ -573,7 +573,7 @@ static int get_bitmap(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_bitmap(QEMUFile *f, void *pv, size_t size,
-                      const VMStateField *field, QJSON *vmdesc)
+                      const VMStateField *field, JSONWriter *vmdesc)
 {
     unsigned long *bmp = pv;
     int i, idx = 0;
@@ -637,7 +637,7 @@ static int get_qtailq(QEMUFile *f, void *pv, size_t unused_size,
 
 /* put for QTAILQ */
 static int put_qtailq(QEMUFile *f, void *pv, size_t unused_size,
-                      const VMStateField *field, QJSON *vmdesc)
+                      const VMStateField *field, JSONWriter *vmdesc)
 {
     const VMStateDescription *vmsd = field->vmsd;
     /* offset of the QTAILQ entry in a QTAILQ element*/
@@ -670,7 +670,7 @@ struct put_gtree_data {
     QEMUFile *f;
     const VMStateDescription *key_vmsd;
     const VMStateDescription *val_vmsd;
-    QJSON *vmdesc;
+    JSONWriter *vmdesc;
     int ret;
 };
 
@@ -703,7 +703,7 @@ static gboolean put_gtree_elem(gpointer key, gpointer value, gpointer data)
 }
 
 static int put_gtree(QEMUFile *f, void *pv, size_t unused_size,
-                     const VMStateField *field, QJSON *vmdesc)
+                     const VMStateField *field, JSONWriter *vmdesc)
 {
     bool direct_key = (!field->start);
     const VMStateDescription *key_vmsd = direct_key ? NULL : &field->vmsd[1];
@@ -819,7 +819,7 @@ const VMStateInfo vmstate_info_gtree = {
 };
 
 static int put_qlist(QEMUFile *f, void *pv, size_t unused_size,
-                     const VMStateField *field, QJSON *vmdesc)
+                     const VMStateField *field, JSONWriter *vmdesc)
 {
     const VMStateDescription *vmsd = field->vmsd;
     /* offset of the QTAILQ entry in a QTAILQ element*/

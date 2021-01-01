@@ -223,7 +223,8 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
                                   const void *unused)
 {
     const char *value_str = "list value";
-    TestStructList *p, *head = NULL;
+    TestStruct *value;
+    TestStructList *head = NULL;
     const int max_items = 10;
     bool value_bool = true;
     int value_int = 10;
@@ -233,14 +234,12 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
 
     /* Build the list in reverse order... */
     for (i = 0; i < max_items; i++) {
-        p = g_malloc0(sizeof(*p));
-        p->value = g_malloc0(sizeof(*p->value));
-        p->value->integer = value_int + (max_items - i - 1);
-        p->value->boolean = value_bool;
-        p->value->string = g_strdup(value_str);
+        value = g_malloc0(sizeof(*value));
+        value->integer = value_int + (max_items - i - 1);
+        value->boolean = value_bool;
+        value->string = g_strdup(value_str);
 
-        p->next = head;
-        head = p;
+        QAPI_LIST_PREPEND(head, value);
     }
 
     visit_type_TestStructList(data->ov, NULL, &head, &error_abort);
@@ -270,26 +269,25 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
 static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
                                             const void *unused)
 {
-    UserDefTwoList *p, *head = NULL;
+    UserDefTwo *value;
+    UserDefTwoList *head = NULL;
     const char string[] = "foo bar";
     int i, max_count = 1024;
 
     for (i = 0; i < max_count; i++) {
-        p = g_malloc0(sizeof(*p));
-        p->value = g_malloc0(sizeof(*p->value));
+        value = g_malloc0(sizeof(*value));
 
-        p->value->string0 = g_strdup(string);
-        p->value->dict1 = g_new0(UserDefTwoDict, 1);
-        p->value->dict1->string1 = g_strdup(string);
-        p->value->dict1->dict2 = g_new0(UserDefTwoDictDict, 1);
-        p->value->dict1->dict2->userdef = g_new0(UserDefOne, 1);
-        p->value->dict1->dict2->userdef->string = g_strdup(string);
-        p->value->dict1->dict2->userdef->integer = 42;
-        p->value->dict1->dict2->string = g_strdup(string);
-        p->value->dict1->has_dict3 = false;
+        value->string0 = g_strdup(string);
+        value->dict1 = g_new0(UserDefTwoDict, 1);
+        value->dict1->string1 = g_strdup(string);
+        value->dict1->dict2 = g_new0(UserDefTwoDictDict, 1);
+        value->dict1->dict2->userdef = g_new0(UserDefOne, 1);
+        value->dict1->dict2->userdef->string = g_strdup(string);
+        value->dict1->dict2->userdef->integer = 42;
+        value->dict1->dict2->string = g_strdup(string);
+        value->dict1->has_dict3 = false;
 
-        p->next = head;
-        head = p;
+        QAPI_LIST_PREPEND(head, value);
     }
 
     qapi_free_UserDefTwoList(head);

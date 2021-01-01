@@ -970,7 +970,7 @@ static const VMStateDescription vmstate_virtio_gpu_scanouts = {
 };
 
 static int virtio_gpu_save(QEMUFile *f, void *opaque, size_t size,
-                           const VMStateField *field, QJSON *vmdesc)
+                           const VMStateField *field, JSONWriter *vmdesc)
 {
     VirtIOGPU *g = opaque;
     struct virtio_gpu_simple_resource *res;

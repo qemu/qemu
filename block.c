@@ -217,7 +217,7 @@ void bdrv_parse_filename_strip_prefix(const char *filename, const char *prefix,
         /* Stripping the explicit protocol prefix may result in a protocol
          * prefix being (wrongly) detected (if the filename contains a colon) */
         if (path_has_protocol(filename)) {
-            QString *fat_filename;
+            GString *fat_filename;
 
             /* This means there is some colon before the first slash; therefore,
              * this cannot be an absolute path */
@@ -225,12 +225,13 @@ void bdrv_parse_filename_strip_prefix(const char *filename, const char *prefix,
 
             /* And we can thus fix the protocol detection issue by prefixing it
              * by "./" */
-            fat_filename = qstring_from_str("./");
-            qstring_append(fat_filename, filename);
+            fat_filename = g_string_new("./");
+            g_string_append(fat_filename, filename);
 
-            assert(!path_has_protocol(qstring_get_str(fat_filename)));
+            assert(!path_has_protocol(fat_filename->str));
 
-            qdict_put(options, "filename", fat_filename);
+            qdict_put(options, "filename",
+                      qstring_from_gstring(fat_filename));
         } else {
             /* If no protocol prefix was detected, we can use the shortened
              * filename as-is */
@@ -3977,7 +3978,7 @@ static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
         new_backing_bs = NULL;
         break;
     case QTYPE_QSTRING:
-        str = qobject_get_try_str(value);
+        str = qstring_get_str(qobject_to(QString, value));
         new_backing_bs = bdrv_lookup_bs(NULL, str, errp);
         if (new_backing_bs == NULL) {
             return -EINVAL;
@@ -4240,8 +4241,8 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
                 }
 
                 if (child) {
-                    const char *str = qobject_get_try_str(new);
-                    if (!strcmp(child->bs->node_name, str)) {
+                    if (!strcmp(child->bs->node_name,
+                                qstring_get_str(qobject_to(QString, new)))) {
                         continue; /* Found child with this name, skip option */
                     }
                 }
@@ -6938,13 +6939,13 @@ void bdrv_refresh_filename(BlockDriverState *bs)
     if (bs->exact_filename[0]) {
         pstrcpy(bs->filename, sizeof(bs->filename), bs->exact_filename);
     } else {
-        QString *json = qobject_to_json(QOBJECT(bs->full_open_options));
+        GString *json = qobject_to_json(QOBJECT(bs->full_open_options));
         if (snprintf(bs->filename, sizeof(bs->filename), "json:%s",
-                     qstring_get_str(json)) >= sizeof(bs->filename)) {
+                     json->str) >= sizeof(bs->filename)) {
             /* Give user a hint if we truncated things. */
             strcpy(bs->filename + sizeof(bs->filename) - 4, "...");
         }
-        qobject_unref(json);
+        g_string_free(json, true);
     }
 }
 

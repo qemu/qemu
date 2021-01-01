@@ -147,7 +147,13 @@ static void qnum_to_string_test(void)
 
     qn = qnum_from_double(0.42);
     tmp = qnum_to_string(qn);
-    g_assert_cmpstr(tmp, ==, "0.42");
+    g_assert_cmpstr(tmp, ==, "0.41999999999999998");
+    g_free(tmp);
+    qobject_unref(qn);
+
+    qn = qnum_from_double(2.718281828459045);
+    tmp = qnum_to_string(qn);
+    g_assert_cmpstr(tmp, ==, "2.7182818284590451");
     g_free(tmp);
     qobject_unref(qn);
 }

@@ -145,14 +145,11 @@ static struct PostcopyBlocktimeContext *blocktime_context_new(void)
 static uint32List *get_vcpu_blocktime_list(PostcopyBlocktimeContext *ctx)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
-    uint32List *list = NULL, *entry = NULL;
+    uint32List *list = NULL;
     int i;
 
     for (i = ms->smp.cpus - 1; i >= 0; i--) {
-        entry = g_new0(uint32List, 1);
-        entry->value = ctx->vcpu_blocktime[i];
-        entry->next = list;
-        list = entry;
+        QAPI_LIST_PREPEND(list, ctx->vcpu_blocktime[i]);
     }
 
     return list;

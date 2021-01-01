@@ -359,8 +359,8 @@ static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
         return -EINVAL;
     }
 
-    gconf->server = g_new0(SocketAddressList, 1);
-    gconf->server->value = gsconf = g_new0(SocketAddress, 1);
+    gsconf = g_new0(SocketAddress, 1);
+    QAPI_LIST_PREPEND(gconf->server, gsconf);
 
     /* transport */
     if (!uri->scheme || !strcmp(uri->scheme, "gluster")) {

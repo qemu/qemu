@@ -258,7 +258,7 @@ static bool print_type_number(Visitor *v, const char *name, double *obj,
                               Error **errp)
 {
     StringOutputVisitor *sov = to_sov(v);
-    string_output_set(sov, g_strdup_printf("%f", *obj));
+    string_output_set(sov, g_strdup_printf("%.17g", *obj));
     return true;
 }
 

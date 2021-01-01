@@ -31,7 +31,6 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
-#include "qapi/qmp/qstring.h"
 #include "trace.h"
 
 struct QMPRequest {
@@ -110,15 +109,15 @@ static void monitor_qmp_cleanup_queue_and_resume(MonitorQMP *mon)
 void qmp_send_response(MonitorQMP *mon, const QDict *rsp)
 {
     const QObject *data = QOBJECT(rsp);
-    QString *json;
+    GString *json;
 
-    json = mon->pretty ? qobject_to_json_pretty(data) : qobject_to_json(data);
+    json = qobject_to_json_pretty(data, mon->pretty);
     assert(json != NULL);
 
-    qstring_append_chr(json, '\n');
-    monitor_puts(&mon->common, qstring_get_str(json));
+    g_string_append_c(json, '\n');
+    monitor_puts(&mon->common, json->str);
 
-    qobject_unref(json);
+    g_string_free(json, true);
 }
 
 /*
@@ -276,9 +275,15 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
             mon->qmp_requests->length == QMP_REQ_QUEUE_LEN_MAX - 1;
         qemu_mutex_unlock(&mon->qmp_queue_lock);
         if (req_obj->req) {
-            QDict *qdict = qobject_to(QDict, req_obj->req);
-            QObject *id = qdict ? qdict_get(qdict, "id") : NULL;
-            trace_monitor_qmp_cmd_in_band(qobject_get_try_str(id) ?: "");
+            if (trace_event_get_state(TRACE_MONITOR_QMP_CMD_IN_BAND)) {
+                QDict *qdict = qobject_to(QDict, req_obj->req);
+                QObject *id = qdict ? qdict_get(qdict, "id") : NULL;
+                GString *id_json;
+
+                id_json = id ? qobject_to_json(id) : g_string_new(NULL);
+                trace_monitor_qmp_cmd_in_band(id_json->str);
+                g_string_free(id_json, true);
+            }
             monitor_qmp_dispatch(mon, req_obj->req);
         } else {
             assert(req_obj->err);
@@ -308,26 +313,27 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
 static void handle_qmp_command(void *opaque, QObject *req, Error *err)
 {
     MonitorQMP *mon = opaque;
-    QObject *id = NULL;
-    QDict *qdict;
+    QDict *qdict = qobject_to(QDict, req);
     QMPRequest *req_obj;
 
     assert(!req != !err);
 
-    qdict = qobject_to(QDict, req);
-    if (qdict) {
-        id = qdict_get(qdict, "id");
-    } /* else will fail qmp_dispatch() */
-
     if (req && trace_event_get_state_backends(TRACE_HANDLE_QMP_COMMAND)) {
-        QString *req_json = qobject_to_json(req);
-        trace_handle_qmp_command(mon, qstring_get_str(req_json));
-        qobject_unref(req_json);
+        GString *req_json = qobject_to_json(req);
+        trace_handle_qmp_command(mon, req_json->str);
+        g_string_free(req_json, true);
     }
 
     if (qdict && qmp_is_oob(qdict)) {
         /* OOB commands are executed immediately */
-        trace_monitor_qmp_cmd_out_of_band(qobject_get_try_str(id) ?: "");
+        if (trace_event_get_state(TRACE_MONITOR_QMP_CMD_OUT_OF_BAND)) {
+            QObject *id = qdict_get(qdict, "id");
+            GString *id_json;
+
+            id_json = id ? qobject_to_json(id) : g_string_new(NULL);
+            trace_monitor_qmp_cmd_out_of_band(id_json->str);
+            g_string_free(id_json, true);
+        }
         monitor_qmp_dispatch(mon, req);
         qobject_unref(req);
         return;

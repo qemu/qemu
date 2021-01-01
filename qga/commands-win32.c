@@ -874,7 +874,7 @@ err_close:
 static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
 {
     Error *local_err = NULL;
-    GuestDiskAddressList *list = NULL, *cur_item = NULL;
+    GuestDiskAddressList *list = NULL;
     GuestDiskAddress *disk = NULL;
     int i;
     HANDLE vol_h;
@@ -926,10 +926,8 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
                 error_free(local_err);
                 goto out;
             }
-            list = g_malloc0(sizeof(*list));
-            list->value = disk;
+            QAPI_LIST_PREPEND(list, disk);
             disk = NULL;
-            list->next = NULL;
             goto out;
         } else {
             error_setg_win32(errp, GetLastError(),
@@ -960,11 +958,8 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
             error_propagate(errp, local_err);
             goto out;
         }
-        cur_item = g_malloc0(sizeof(*list));
-        cur_item->value = disk;
+        QAPI_LIST_PREPEND(list, disk);
         disk = NULL;
-        cur_item->next = list;
-        list = cur_item;
     }
 
 
@@ -982,7 +977,7 @@ out:
 GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
 {
     ERRP_GUARD();
-    GuestDiskInfoList *new = NULL, *ret = NULL;
+    GuestDiskInfoList *ret = NULL;
     HDEVINFO dev_info;
     SP_DEVICE_INTERFACE_DATA dev_iface_data;
     int i;
@@ -1064,10 +1059,7 @@ GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
             disk->has_address = true;
         }
 
-        new = g_malloc0(sizeof(GuestDiskInfoList));
-        new->value = disk;
-        new->next = ret;
-        ret = new;
+        QAPI_LIST_PREPEND(ret, disk);
     }
 
     SetupDiDestroyDeviceInfoList(dev_info);
@@ -1165,7 +1157,7 @@ free:
 GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 {
     HANDLE vol_h;
-    GuestFilesystemInfoList *new, *ret = NULL;
+    GuestFilesystemInfoList *ret = NULL;
     char guid[256];
 
     vol_h = FindFirstVolume(guid, sizeof(guid));
@@ -1183,10 +1175,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
             error_free(local_err);
             continue;
         }
-        new = g_malloc(sizeof(*ret));
-        new->value = info;
-        new->next = ret;
-        ret = new;
+        QAPI_LIST_PREPEND(ret, info);
     } while (FindNextVolume(vol_h, guid, sizeof(guid)));
 
     if (GetLastError() != ERROR_NO_MORE_FILES) {
@@ -1330,7 +1319,6 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 
     do {
         GuestFilesystemTrimResult *res;
-        GuestFilesystemTrimResultList *list;
         PWCHAR uc_path;
         DWORD char_count = 0;
         char *path, *out;
@@ -1369,11 +1357,7 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 
         res->path = path;
 
-        list = g_new0(GuestFilesystemTrimResultList, 1);
-        list->value = res;
-        list->next = resp->paths;
-
-        resp->paths = list;
+        QAPI_LIST_PREPEND(resp->paths, res);
 
         memset(argv, 0, sizeof(argv));
         argv[0] = (gchar *)"defrag.exe";

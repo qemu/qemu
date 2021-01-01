@@ -386,7 +386,7 @@ static void kvm_s390_release_adapter_routes(S390FLICState *fs,
  * reached
  */
 static int kvm_flic_save(QEMUFile *f, void *opaque, size_t size,
-                         const VMStateField *field, QJSON *vmdesc)
+                         const VMStateField *field, JSONWriter *vmdesc)
 {
     KVMS390FLICState *flic = opaque;
     int len = FLIC_SAVE_INITIAL_SIZE;

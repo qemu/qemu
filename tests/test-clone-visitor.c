@@ -65,16 +65,13 @@ static void test_clone_alternate(void)
 
 static void test_clone_list_union(void)
 {
-    uint8List *src, *dst;
+    uint8List *src = NULL, *dst;
     uint8List *tmp = NULL;
     int i;
 
     /* Build list in reverse */
     for (i = 10; i; i--) {
-        src = g_new0(uint8List, 1);
-        src->next = tmp;
-        src->value = i;
-        tmp = src;
+        QAPI_LIST_PREPEND(src, i);
     }
 
     dst = QAPI_CLONE(uint8List, src);

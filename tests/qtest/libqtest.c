@@ -652,27 +652,25 @@ void qmp_fd_vsend_fds(int fd, int *fds, size_t fds_num,
     /* No need to send anything for an empty QObject.  */
     if (qobj) {
         int log = getenv("QTEST_LOG") != NULL;
-        QString *qstr = qobject_to_json(qobj);
-        const char *str;
+        GString *str = qobject_to_json(qobj);
 
         /*
          * BUG: QMP doesn't react to input until it sees a newline, an
          * object, or an array.  Work-around: give it a newline.
          */
-        qstring_append_chr(qstr, '\n');
-        str = qstring_get_str(qstr);
+        g_string_append_c(str, '\n');
 
         if (log) {
-            fprintf(stderr, "%s", str);
+            fprintf(stderr, "%s", str->str);
         }
         /* Send QMP request */
         if (fds && fds_num > 0) {
-            socket_send_fds(fd, fds, fds_num, str, qstring_get_length(qstr));
+            socket_send_fds(fd, fds, fds_num, str->str, str->len);
         } else {
-            socket_send(fd, str, qstring_get_length(qstr));
+            socket_send(fd, str->str, str->len);
         }
 
-        qobject_unref(qstr);
+        g_string_free(str, true);
         qobject_unref(qobj);
     }
 }
@@ -1197,9 +1195,9 @@ void qtest_qmp_assert_success(QTestState *qts, const char *fmt, ...)
 
     g_assert(response);
     if (!qdict_haskey(response, "return")) {
-        QString *s = qobject_to_json_pretty(QOBJECT(response));
-        g_test_message("%s", qstring_get_str(s));
-        qobject_unref(s);
+        GString *s = qobject_to_json_pretty(QOBJECT(response), true);
+        g_test_message("%s", s->str);
+        g_string_free(s, true);
     }
     g_assert(qdict_haskey(response, "return"));
     qobject_unref(response);

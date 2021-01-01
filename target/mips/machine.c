@@ -31,7 +31,7 @@ static int get_fpr(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_fpr(QEMUFile *f, void *pv, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     int i;
     fpr_t *v = pv;
@@ -156,7 +156,7 @@ static int get_tlb(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_tlb(QEMUFile *f, void *pv, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     r4k_tlb_t *v = pv;
 

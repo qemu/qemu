@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/qmp/qnum.h"
+#include "qobject-internal.h"
 
 /**
  * qnum_from_int(): Create a new QNum from an int64_t
@@ -161,37 +162,14 @@ double qnum_get_double(QNum *qn)
 
 char *qnum_to_string(QNum *qn)
 {
-    char *buffer;
-    int len;
-
     switch (qn->kind) {
     case QNUM_I64:
         return g_strdup_printf("%" PRId64, qn->u.i64);
     case QNUM_U64:
         return g_strdup_printf("%" PRIu64, qn->u.u64);
     case QNUM_DOUBLE:
-        /* FIXME: snprintf() is locale dependent; but JSON requires
-         * numbers to be formatted as if in the C locale. Dependence
-         * on C locale is a pervasive issue in QEMU. */
-        /* FIXME: This risks printing Inf or NaN, which are not valid
-         * JSON values. */
-        /* FIXME: the default precision of 6 for %f often causes
-         * rounding errors; we should be using DBL_DECIMAL_DIG (17),
-         * and only rounding to a shorter number if the result would
-         * still produce the same floating point value.  */
-        buffer = g_strdup_printf("%f" , qn->u.dbl);
-        len = strlen(buffer);
-        while (len > 0 && buffer[len - 1] == '0') {
-            len--;
-        }
-
-        if (len && buffer[len - 1] == '.') {
-            buffer[len - 1] = 0;
-        } else {
-            buffer[len] = 0;
-        }
-
-        return buffer;
+        /* 17 digits suffice for IEEE double */
+        return g_strdup_printf("%.17g", qn->u.dbl);
     }
 
     assert(0);

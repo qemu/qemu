@@ -46,7 +46,7 @@ static int get_msr(QEMUFile *f, void *opaque, size_t size,
 }
 
 static int put_msr(QEMUFile *f, void *opaque, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     CPUMBState *env = container_of(opaque, CPUMBState, msr);
 

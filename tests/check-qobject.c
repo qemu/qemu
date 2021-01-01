@@ -155,8 +155,7 @@ static void qobject_is_equal_string_test(void)
     str_case = qstring_from_str("Foo");
 
     /* Should yield "foo" */
-    str_built = qstring_from_substr("form", 0, 2);
-    qstring_append_chr(str_built, 'o');
+    str_built = qstring_from_substr("buffoon", 3, 6);
 
     check_unequal(str_base, str_whitespace_0, str_whitespace_1,
                   str_whitespace_2, str_whitespace_3, str_case);

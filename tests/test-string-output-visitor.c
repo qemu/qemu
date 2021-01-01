@@ -130,13 +130,13 @@ static void test_visitor_out_bool(TestOutputVisitorData *data,
 static void test_visitor_out_number(TestOutputVisitorData *data,
                                     const void *unused)
 {
-    double value = 3.14;
+    double value = 3.1415926535897932;
     char *str;
 
     visit_type_number(data->ov, NULL, &value, &error_abort);
 
     str = visitor_get(data);
-    g_assert_cmpstr(str, ==, "3.140000");
+    g_assert_cmpstr(str, ==, "3.1415926535897931");
 }
 
 static void test_visitor_out_string(TestOutputVisitorData *data,

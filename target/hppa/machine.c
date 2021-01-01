@@ -52,7 +52,7 @@ static int get_psw(QEMUFile *f, void *opaque, size_t size,
 }
 
 static int put_psw(QEMUFile *f, void *opaque, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     CPUHPPAState *env = opaque;
     qemu_put_betr(f, cpu_hppa_get_psw(env));
@@ -93,7 +93,7 @@ static int get_tlb(QEMUFile *f, void *opaque, size_t size,
 }
 
 static int put_tlb(QEMUFile *f, void *opaque, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     hppa_tlb_entry *ent = opaque;
     uint32_t val = 0;

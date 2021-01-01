@@ -105,7 +105,7 @@ struct Monitor {
      * Members that are protected by the per-monitor lock
      */
     QLIST_HEAD(, mon_fd_t) fds;
-    QString *outbuf;
+    GString *outbuf;
     guint out_watch;
     /* Read under either BQL or mon_lock, written with BQL+mon_lock.  */
     int mux_out;

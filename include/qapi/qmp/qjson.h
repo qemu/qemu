@@ -25,7 +25,7 @@ QDict *qdict_from_vjsonf_nofail(const char *string, va_list ap)
 QDict *qdict_from_jsonf_nofail(const char *string, ...)
     GCC_FMT_ATTR(1, 2);
 
-QString *qobject_to_json(const QObject *obj);
-QString *qobject_to_json_pretty(const QObject *obj);
+GString *qobject_to_json(const QObject *obj);
+GString *qobject_to_json_pretty(const QObject *obj, bool pretty);
 
 #endif /* QJSON_H */

@@ -55,7 +55,6 @@ typedef struct PrimitiveType {
         int16_t s16;
         int32_t s32;
         int64_t s64;
-        intmax_t max;
     } value;
     enum PrimitiveTypeKind type;
     const char *description;
@@ -307,25 +306,46 @@ static void test_primitives(gconstpointer opaque)
                      &error_abort);
 
     g_assert(pt_copy != NULL);
-    if (pt->type == PTYPE_STRING) {
+    switch (pt->type) {
+    case PTYPE_STRING:
         g_assert_cmpstr(pt->value.string, ==, pt_copy->value.string);
         g_free((char *)pt_copy->value.string);
-    } else if (pt->type == PTYPE_NUMBER) {
-        GString *double_expected = g_string_new("");
-        GString *double_actual = g_string_new("");
-        /* we serialize with %f for our reference visitors, so rather than fuzzy
-         * floating math to test "equality", just compare the formatted values
-         */
-        g_string_printf(double_expected, "%.6f", pt->value.number);
-        g_string_printf(double_actual, "%.6f", pt_copy->value.number);
-        g_assert_cmpstr(double_actual->str, ==, double_expected->str);
-
-        g_string_free(double_expected, true);
-        g_string_free(double_actual, true);
-    } else if (pt->type == PTYPE_BOOLEAN) {
-        g_assert_cmpint(!!pt->value.max, ==, !!pt->value.max);
-    } else {
-        g_assert_cmpint(pt->value.max, ==, pt_copy->value.max);
+        break;
+    case PTYPE_BOOLEAN:
+        g_assert_cmpint(pt->value.boolean, ==, pt->value.boolean);
+        break;
+    case PTYPE_NUMBER:
+        g_assert_cmpfloat(pt->value.number, ==, pt_copy->value.number);
+        break;
+    case PTYPE_INTEGER:
+        g_assert_cmpint(pt->value.integer, ==, pt_copy->value.integer);
+        break;
+    case PTYPE_U8:
+        g_assert_cmpuint(pt->value.u8, ==, pt_copy->value.u8);
+        break;
+    case PTYPE_U16:
+        g_assert_cmpuint(pt->value.u16, ==, pt_copy->value.u16);
+        break;
+    case PTYPE_U32:
+        g_assert_cmpuint(pt->value.u32, ==, pt_copy->value.u32);
+        break;
+    case PTYPE_U64:
+        g_assert_cmpuint(pt->value.u64, ==, pt_copy->value.u64);
+        break;
+    case PTYPE_S8:
+        g_assert_cmpint(pt->value.s8, ==, pt_copy->value.s8);
+        break;
+    case PTYPE_S16:
+        g_assert_cmpint(pt->value.s16, ==, pt_copy->value.s16);
+        break;
+    case PTYPE_S32:
+        g_assert_cmpint(pt->value.s32, ==, pt_copy->value.s32);
+        break;
+    case PTYPE_S64:
+        g_assert_cmpint(pt->value.s64, ==, pt_copy->value.s64);
+        break;
+    case PTYPE_EOL:
+        g_assert_not_reached();
     }
 
     ops->cleanup(serialize_data);
@@ -351,135 +371,51 @@ static void test_primitive_lists(gconstpointer opaque)
     for (i = 0; i < 32; i++) {
         switch (pl.type) {
         case PTYPE_STRING: {
-            strList *tmp = g_new0(strList, 1);
-            tmp->value = g_strdup(pt->value.string);
-            if (pl.value.strings == NULL) {
-                pl.value.strings = tmp;
-            } else {
-                tmp->next = pl.value.strings;
-                pl.value.strings = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.strings, g_strdup(pt->value.string));
             break;
         }
         case PTYPE_INTEGER: {
-            intList *tmp = g_new0(intList, 1);
-            tmp->value = pt->value.integer;
-            if (pl.value.integers == NULL) {
-                pl.value.integers = tmp;
-            } else {
-                tmp->next = pl.value.integers;
-                pl.value.integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.integers, pt->value.integer);
             break;
         }
         case PTYPE_S8: {
-            int8List *tmp = g_new0(int8List, 1);
-            tmp->value = pt->value.s8;
-            if (pl.value.s8_integers == NULL) {
-                pl.value.s8_integers = tmp;
-            } else {
-                tmp->next = pl.value.s8_integers;
-                pl.value.s8_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.s8_integers, pt->value.s8);
             break;
         }
         case PTYPE_S16: {
-            int16List *tmp = g_new0(int16List, 1);
-            tmp->value = pt->value.s16;
-            if (pl.value.s16_integers == NULL) {
-                pl.value.s16_integers = tmp;
-            } else {
-                tmp->next = pl.value.s16_integers;
-                pl.value.s16_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.s16_integers, pt->value.s16);
             break;
         }
         case PTYPE_S32: {
-            int32List *tmp = g_new0(int32List, 1);
-            tmp->value = pt->value.s32;
-            if (pl.value.s32_integers == NULL) {
-                pl.value.s32_integers = tmp;
-            } else {
-                tmp->next = pl.value.s32_integers;
-                pl.value.s32_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.s32_integers, pt->value.s32);
             break;
         }
         case PTYPE_S64: {
-            int64List *tmp = g_new0(int64List, 1);
-            tmp->value = pt->value.s64;
-            if (pl.value.s64_integers == NULL) {
-                pl.value.s64_integers = tmp;
-            } else {
-                tmp->next = pl.value.s64_integers;
-                pl.value.s64_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.s64_integers, pt->value.s64);
             break;
         }
         case PTYPE_U8: {
-            uint8List *tmp = g_new0(uint8List, 1);
-            tmp->value = pt->value.u8;
-            if (pl.value.u8_integers == NULL) {
-                pl.value.u8_integers = tmp;
-            } else {
-                tmp->next = pl.value.u8_integers;
-                pl.value.u8_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.u8_integers, pt->value.u8);
             break;
         }
         case PTYPE_U16: {
-            uint16List *tmp = g_new0(uint16List, 1);
-            tmp->value = pt->value.u16;
-            if (pl.value.u16_integers == NULL) {
-                pl.value.u16_integers = tmp;
-            } else {
-                tmp->next = pl.value.u16_integers;
-                pl.value.u16_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.u16_integers, pt->value.u16);
             break;
         }
         case PTYPE_U32: {
-            uint32List *tmp = g_new0(uint32List, 1);
-            tmp->value = pt->value.u32;
-            if (pl.value.u32_integers == NULL) {
-                pl.value.u32_integers = tmp;
-            } else {
-                tmp->next = pl.value.u32_integers;
-                pl.value.u32_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.u32_integers, pt->value.u32);
             break;
         }
         case PTYPE_U64: {
-            uint64List *tmp = g_new0(uint64List, 1);
-            tmp->value = pt->value.u64;
-            if (pl.value.u64_integers == NULL) {
-                pl.value.u64_integers = tmp;
-            } else {
-                tmp->next = pl.value.u64_integers;
-                pl.value.u64_integers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.u64_integers, pt->value.u64);
             break;
         }
         case PTYPE_NUMBER: {
-            numberList *tmp = g_new0(numberList, 1);
-            tmp->value = pt->value.number;
-            if (pl.value.numbers == NULL) {
-                pl.value.numbers = tmp;
-            } else {
-                tmp->next = pl.value.numbers;
-                pl.value.numbers = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.numbers, pt->value.number);
             break;
         }
         case PTYPE_BOOLEAN: {
-            boolList *tmp = g_new0(boolList, 1);
-            tmp->value = pt->value.boolean;
-            if (pl.value.booleans == NULL) {
-                pl.value.booleans = tmp;
-            } else {
-                tmp->next = pl.value.booleans;
-                pl.value.booleans = tmp;
-            }
+            QAPI_LIST_PREPEND(pl.value.booleans, pt->value.boolean);
             break;
         }
         default:
@@ -704,10 +640,7 @@ static void test_nested_struct_list(gconstpointer opaque)
     int i = 0;
 
     for (i = 0; i < 8; i++) {
-        tmp = g_new0(UserDefTwoList, 1);
-        tmp->value = nested_struct_create();
-        tmp->next = listp;
-        listp = tmp;
+        QAPI_LIST_PREPEND(listp, nested_struct_create());
     }
 
     ops->serialize(listp, &serialize_data, visit_nested_struct_list,
@@ -790,10 +723,6 @@ static PrimitiveType pt_values[] = {
         .value.boolean = 0,
     },
     /* number tests (double) */
-    /* note: we format these to %.6f before comparing, since that's how
-     * we serialize them and it doesn't make sense to check precision
-     * beyond that.
-     */
     {
         .description = "number_sanity1",
         .type = PTYPE_NUMBER,
@@ -802,7 +731,7 @@ static PrimitiveType pt_values[] = {
     {
         .description = "number_sanity2",
         .type = PTYPE_NUMBER,
-        .value.number = 3.14159265,
+        .value.number = 3.141593,
     },
     {
         .description = "number_min",
@@ -1028,15 +957,15 @@ static void qmp_deserialize(void **native_out, void *datap,
                             VisitorFunc visit, Error **errp)
 {
     QmpSerializeData *d = datap;
-    QString *output_json;
+    GString *output_json;
     QObject *obj_orig, *obj;
 
     visit_complete(d->qov, &d->obj);
     obj_orig = d->obj;
     output_json = qobject_to_json(obj_orig);
-    obj = qobject_from_json(qstring_get_str(output_json), &error_abort);
+    obj = qobject_from_json(output_json->str, &error_abort);
 
-    qobject_unref(output_json);
+    g_string_free(output_json, true);
     d->qiv = qobject_input_visitor_new(obj);
     qobject_unref(obj_orig);
     qobject_unref(obj);

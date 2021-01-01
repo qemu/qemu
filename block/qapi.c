@@ -486,12 +486,7 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
     ds->account_failed = stats->account_failed;
 
     while ((ts = block_acct_interval_next(stats, ts))) {
-        BlockDeviceTimedStatsList *timed_stats =
-            g_malloc0(sizeof(*timed_stats));
         BlockDeviceTimedStats *dev_stats = g_malloc0(sizeof(*dev_stats));
-        timed_stats->next = ds->timed_stats;
-        timed_stats->value = dev_stats;
-        ds->timed_stats = timed_stats;
 
         TimedAverage *rd = &ts->latency[BLOCK_ACCT_READ];
         TimedAverage *wr = &ts->latency[BLOCK_ACCT_WRITE];
@@ -515,6 +510,8 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
             block_acct_queue_depth(ts, BLOCK_ACCT_READ);
         dev_stats->avg_wr_queue_depth =
             block_acct_queue_depth(ts, BLOCK_ACCT_WRITE);
+
+        QAPI_LIST_PREPEND(ds->timed_stats, dev_stats);
     }
 
     bdrv_latency_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_READ],

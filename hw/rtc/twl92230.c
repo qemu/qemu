@@ -746,7 +746,7 @@ static int get_int32_as_uint16(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_int32_as_uint16(QEMUFile *f, void *pv, size_t size,
-                               const VMStateField *field, QJSON *vmdesc)
+                               const VMStateField *field, JSONWriter *vmdesc)
 {
     int *v = pv;
     qemu_put_be16(f, *v);

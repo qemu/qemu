@@ -43,7 +43,7 @@ struct VMStateInfo {
     const char *name;
     int (*get)(QEMUFile *f, void *pv, size_t size, const VMStateField *field);
     int (*put)(QEMUFile *f, void *pv, size_t size, const VMStateField *field,
-               QJSON *vmdesc);
+               JSONWriter *vmdesc);
 };
 
 enum VMStateFlags {
@@ -1169,9 +1169,10 @@ extern const VMStateInfo vmstate_info_qlist;
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id);
 int vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
-                       void *opaque, QJSON *vmdesc);
+                       void *opaque, JSONWriter *vmdesc);
 int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
-                         void *opaque, QJSON *vmdesc, int version_id);
+                         void *opaque, JSONWriter *vmdesc,
+                         int version_id);
 
 bool vmstate_save_needed(const VMStateDescription *vmsd, void *opaque);
 

@@ -437,17 +437,14 @@ static void rxfilter_notify(NetClientState *nc)
 
 static intList *get_vlan_table(VirtIONet *n)
 {
-    intList *list, *entry;
+    intList *list;
     int i, j;
 
     list = NULL;
     for (i = 0; i < MAX_VLAN >> 5; i++) {
         for (j = 0; n->vlans[i] && j <= 0x1f; j++) {
             if (n->vlans[i] & (1U << j)) {
-                entry = g_malloc0(sizeof(*entry));
-                entry->value = (i << 5) + j;
-                entry->next = list;
-                list = entry;
+                QAPI_LIST_PREPEND(list, (i << 5) + j);
             }
         }
     }
@@ -460,7 +457,7 @@ static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
     VirtIONet *n = qemu_get_nic_opaque(nc);
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     RxFilterInfo *info;
-    strList *str_list, *entry;
+    strList *str_list;
     int i;
 
     info = g_malloc0(sizeof(*info));
@@ -491,19 +488,15 @@ static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
 
     str_list = NULL;
     for (i = 0; i < n->mac_table.first_multi; i++) {
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = qemu_mac_strdup_printf(n->mac_table.macs + i * ETH_ALEN);
-        entry->next = str_list;
-        str_list = entry;
+        QAPI_LIST_PREPEND(str_list,
+                      qemu_mac_strdup_printf(n->mac_table.macs + i * ETH_ALEN));
     }
     info->unicast_table = str_list;
 
     str_list = NULL;
     for (i = n->mac_table.first_multi; i < n->mac_table.in_use; i++) {
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = qemu_mac_strdup_printf(n->mac_table.macs + i * ETH_ALEN);
-        entry->next = str_list;
-        str_list = entry;
+        QAPI_LIST_PREPEND(str_list,
+                      qemu_mac_strdup_printf(n->mac_table.macs + i * ETH_ALEN));
     }
     info->multicast_table = str_list;
     info->vlan_table = get_vlan_table(n);

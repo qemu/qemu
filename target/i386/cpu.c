@@ -5014,7 +5014,6 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     ObjectClass *oc = data;
     X86CPUClass *cc = X86_CPU_CLASS(oc);
     CpuDefinitionInfoList **cpu_list = user_data;
-    CpuDefinitionInfoList *entry;
     CpuDefinitionInfo *info;
 
     info = g_malloc0(sizeof(*info));
@@ -5039,10 +5038,7 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
         info->has_alias_of = !!info->alias_of;
     }
 
-    entry = g_malloc0(sizeof(*entry));
-    entry->value = info;
-    entry->next = *cpu_list;
-    *cpu_list = entry;
+    QAPI_LIST_PREPEND(*cpu_list, info);
 }
 
 CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
