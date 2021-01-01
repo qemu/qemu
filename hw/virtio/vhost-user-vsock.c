@@ -13,6 +13,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "hw/virtio/vhost-user-vsock.h"
 
 static const int user_feature_bits[] = {

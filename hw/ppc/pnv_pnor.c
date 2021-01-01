@@ -17,6 +17,7 @@
 #include "hw/loader.h"
 #include "hw/ppc/pnv_pnor.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 
 static uint64_t pnv_pnor_read(void *opaque, hwaddr addr, unsigned size)
 {

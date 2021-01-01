@@ -32,6 +32,7 @@
 #include "hw/arm/exynos4210.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 
 #include "trace.h"
 #include "qom/object.h"

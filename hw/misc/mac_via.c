@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "sysemu/block-backend.h"
 #include "trace.h"
 #include "qemu/log.h"

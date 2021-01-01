@@ -34,6 +34,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"

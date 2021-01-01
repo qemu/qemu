@@ -26,6 +26,7 @@
 
 #include "hw/char/lm32_juart.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "qom/object.h"
 
 enum {

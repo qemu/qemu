@@ -13,6 +13,7 @@
 
 #include "exec/hwaddr.h"
 #include "qapi/qapi-types-block-core.h"
+#include "hw/qdev-properties-system.h"
 
 /* Configuration */
 
