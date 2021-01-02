@@ -168,22 +168,22 @@ struct VT686PMState {
     uint32_t smb_io_base;
 };
 
-struct VT686AC97State {
+struct VIAAC97State {
     PCIDevice dev;
 };
 
-struct VT686MC97State {
+struct VIAMC97State {
     PCIDevice dev;
 };
 
 #define TYPE_VT82C686B_PM_DEVICE "VT82C686B_PM"
 OBJECT_DECLARE_SIMPLE_TYPE(VT686PMState, VT82C686B_PM_DEVICE)
 
-#define TYPE_VT82C686B_MC97_DEVICE "VT82C686B_MC97"
-OBJECT_DECLARE_SIMPLE_TYPE(VT686MC97State, VT82C686B_MC97_DEVICE)
+#define TYPE_VIA_MC97_DEVICE "VIA_MC97"
+OBJECT_DECLARE_SIMPLE_TYPE(VIAMC97State, VIA_MC97_DEVICE)
 
-#define TYPE_VT82C686B_AC97_DEVICE "VT82C686B_AC97"
-OBJECT_DECLARE_SIMPLE_TYPE(VT686AC97State, VT82C686B_AC97_DEVICE)
+#define TYPE_VIA_AC97_DEVICE "VIA_AC97"
+OBJECT_DECLARE_SIMPLE_TYPE(VIAAC97State, VIA_AC97_DEVICE)
 
 static void pm_update_sci(VT686PMState *s)
 {
@@ -260,7 +260,7 @@ static const VMStateDescription vmstate_acpi = {
 
 static void vt82c686b_ac97_realize(PCIDevice *dev, Error **errp)
 {
-    VT686AC97State *s = VT82C686B_AC97_DEVICE(dev);
+    VIAAC97State *s = VIA_AC97_DEVICE(dev);
     uint8_t *pci_conf = s->dev.config;
 
     pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_INVALIDATE |
@@ -274,7 +274,7 @@ void vt82c686b_ac97_init(PCIBus *bus, int devfn)
 {
     PCIDevice *dev;
 
-    dev = pci_new(devfn, TYPE_VT82C686B_AC97_DEVICE);
+    dev = pci_new(devfn, TYPE_VIA_AC97_DEVICE);
     pci_realize_and_unref(dev, bus, &error_fatal);
 }
 
@@ -293,9 +293,9 @@ static void via_ac97_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo via_ac97_info = {
-    .name          = TYPE_VT82C686B_AC97_DEVICE,
+    .name          = TYPE_VIA_AC97_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VT686AC97State),
+    .instance_size = sizeof(VIAAC97State),
     .class_init    = via_ac97_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -305,7 +305,7 @@ static const TypeInfo via_ac97_info = {
 
 static void vt82c686b_mc97_realize(PCIDevice *dev, Error **errp)
 {
-    VT686MC97State *s = VT82C686B_MC97_DEVICE(dev);
+    VIAMC97State *s = VIA_MC97_DEVICE(dev);
     uint8_t *pci_conf = s->dev.config;
 
     pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_INVALIDATE |
@@ -318,7 +318,7 @@ void vt82c686b_mc97_init(PCIBus *bus, int devfn)
 {
     PCIDevice *dev;
 
-    dev = pci_new(devfn, TYPE_VT82C686B_MC97_DEVICE);
+    dev = pci_new(devfn, TYPE_VIA_MC97_DEVICE);
     pci_realize_and_unref(dev, bus, &error_fatal);
 }
 
@@ -337,9 +337,9 @@ static void via_mc97_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo via_mc97_info = {
-    .name          = TYPE_VT82C686B_MC97_DEVICE,
+    .name          = TYPE_VIA_MC97_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VT686MC97State),
+    .instance_size = sizeof(VIAMC97State),
     .class_init    = via_mc97_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
