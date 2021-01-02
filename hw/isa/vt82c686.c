@@ -49,7 +49,6 @@ struct VT82C686BISAState {
     SuperIOConfig superio_conf;
 };
 
-#define TYPE_VT82C686B_ISA "vt82c686b-isa"
 OBJECT_DECLARE_SIMPLE_TYPE(VT82C686BISAState, VT82C686B_ISA)
 
 static void superio_ioport_writeb(void *opaque, hwaddr addr, uint64_t data,
@@ -365,14 +364,6 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
      */
     memory_region_add_subregion(isa_bus->address_space_io, 0x3f0,
                                 &vt82c->superio);
-}
-
-ISABus *vt82c686b_isa_init(PCIBus *bus, int devfn)
-{
-    PCIDevice *d;
-
-    d = pci_create_simple_multifunction(bus, devfn, true, TYPE_VT82C686B_ISA);
-    return ISA_BUS(qdev_get_child_bus(DEVICE(d), "isa.0"));
 }
 
 static void via_class_init(ObjectClass *klass, void *data)
