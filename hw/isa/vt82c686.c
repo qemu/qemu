@@ -179,12 +179,6 @@ struct VIAMC97State {
 #define TYPE_VT82C686B_PM "VT82C686B_PM"
 OBJECT_DECLARE_SIMPLE_TYPE(VT686PMState, VT82C686B_PM)
 
-#define TYPE_VIA_MC97 "VIA_MC97"
-OBJECT_DECLARE_SIMPLE_TYPE(VIAMC97State, VIA_MC97)
-
-#define TYPE_VIA_AC97 "VIA_AC97"
-OBJECT_DECLARE_SIMPLE_TYPE(VIAAC97State, VIA_AC97)
-
 static void pm_update_sci(VT686PMState *s)
 {
     int sci_level, pmsts;
@@ -254,9 +248,12 @@ static const VMStateDescription vmstate_acpi = {
 };
 
 /*
- * TODO: vt82c686b_ac97_init() and vt82c686b_mc97_init()
+ * TODO: VIA_AC97 and VIA_MC97
  * just register a PCI device now, functionalities will be implemented later.
  */
+
+OBJECT_DECLARE_SIMPLE_TYPE(VIAMC97State, VIA_MC97)
+OBJECT_DECLARE_SIMPLE_TYPE(VIAAC97State, VIA_AC97)
 
 static void vt82c686b_ac97_realize(PCIDevice *dev, Error **errp)
 {
@@ -268,14 +265,6 @@ static void vt82c686b_ac97_realize(PCIDevice *dev, Error **errp)
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_CAP_LIST |
                  PCI_STATUS_DEVSEL_MEDIUM);
     pci_set_long(pci_conf + PCI_INTERRUPT_PIN, 0x03);
-}
-
-void vt82c686b_ac97_init(PCIBus *bus, int devfn)
-{
-    PCIDevice *dev;
-
-    dev = pci_new(devfn, TYPE_VIA_AC97);
-    pci_realize_and_unref(dev, bus, &error_fatal);
 }
 
 static void via_ac97_class_init(ObjectClass *klass, void *data)
@@ -312,14 +301,6 @@ static void vt82c686b_mc97_realize(PCIDevice *dev, Error **errp)
                  PCI_COMMAND_VGA_PALETTE);
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM);
     pci_set_long(pci_conf + PCI_INTERRUPT_PIN, 0x03);
-}
-
-void vt82c686b_mc97_init(PCIBus *bus, int devfn)
-{
-    PCIDevice *dev;
-
-    dev = pci_new(devfn, TYPE_VIA_MC97);
-    pci_realize_and_unref(dev, bus, &error_fatal);
 }
 
 static void via_mc97_class_init(ObjectClass *klass, void *data)
