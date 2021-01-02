@@ -13,27 +13,13 @@
 #include "hw/isa/vt82c686.h"
 #include "hw/pci/pci.h"
 
-struct VIAAC97State {
-    PCIDevice dev;
-};
-
-struct VIAMC97State {
-    PCIDevice dev;
-};
-
-OBJECT_DECLARE_SIMPLE_TYPE(VIAAC97State, VIA_AC97)
-OBJECT_DECLARE_SIMPLE_TYPE(VIAMC97State, VIA_MC97)
-
-static void via_ac97_realize(PCIDevice *dev, Error **errp)
+static void via_ac97_realize(PCIDevice *pci_dev, Error **errp)
 {
-    VIAAC97State *s = VIA_AC97(dev);
-    uint8_t *pci_conf = s->dev.config;
-
-    pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_INVALIDATE |
-                 PCI_COMMAND_PARITY);
-    pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_CAP_LIST |
-                 PCI_STATUS_DEVSEL_MEDIUM);
-    pci_set_long(pci_conf + PCI_INTERRUPT_PIN, 0x03);
+    pci_set_word(pci_dev->config + PCI_COMMAND,
+                 PCI_COMMAND_INVALIDATE | PCI_COMMAND_PARITY);
+    pci_set_word(pci_dev->config + PCI_STATUS,
+                 PCI_STATUS_CAP_LIST | PCI_STATUS_DEVSEL_MEDIUM);
+    pci_set_long(pci_dev->config + PCI_INTERRUPT_PIN, 0x03);
 }
 
 static void via_ac97_class_init(ObjectClass *klass, void *data)
@@ -47,13 +33,15 @@ static void via_ac97_class_init(ObjectClass *klass, void *data)
     k->revision = 0x50;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    dc->desc = "AC97";
+    dc->desc = "VIA AC97";
+    /* Reason: Part of a south bridge chip */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo via_ac97_info = {
     .name          = TYPE_VIA_AC97,
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VIAAC97State),
+    .instance_size = sizeof(PCIDevice),
     .class_init    = via_ac97_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -61,15 +49,12 @@ static const TypeInfo via_ac97_info = {
     },
 };
 
-static void via_mc97_realize(PCIDevice *dev, Error **errp)
+static void via_mc97_realize(PCIDevice *pci_dev, Error **errp)
 {
-    VIAMC97State *s = VIA_MC97(dev);
-    uint8_t *pci_conf = s->dev.config;
-
-    pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_INVALIDATE |
-                 PCI_COMMAND_VGA_PALETTE);
-    pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM);
-    pci_set_long(pci_conf + PCI_INTERRUPT_PIN, 0x03);
+    pci_set_word(pci_dev->config + PCI_COMMAND,
+                 PCI_COMMAND_INVALIDATE | PCI_COMMAND_VGA_PALETTE);
+    pci_set_word(pci_dev->config + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM);
+    pci_set_long(pci_dev->config + PCI_INTERRUPT_PIN, 0x03);
 }
 
 static void via_mc97_class_init(ObjectClass *klass, void *data)
@@ -83,13 +68,15 @@ static void via_mc97_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_COMMUNICATION_OTHER;
     k->revision = 0x30;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
-    dc->desc = "MC97";
+    dc->desc = "VIA MC97";
+    /* Reason: Part of a south bridge chip */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo via_mc97_info = {
     .name          = TYPE_VIA_MC97,
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VIAMC97State),
+    .instance_size = sizeof(PCIDevice),
     .class_init    = via_mc97_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
