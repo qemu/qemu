@@ -129,6 +129,11 @@ abi_ulong afl_set_brk(abi_ulong new_brk);
 void afl_save_regs(struct api_regs* regs, CPUArchState* env);
 void afl_restore_regs(struct api_regs* regs, CPUArchState* env);
 
+#if !defined(TARGET_X86_64) && !defined(TARGET_I386) && !defined(TARGET_AARCH64) && !defined(TARGET_ARM)
+static void afl_save_regs(struct api_regs* regs, CPUArchState* env) {}
+static void afl_restore_regs(struct api_regs* regs, CPUArchState* env) {}
+#endif
+
 void afl_target_unmap_trackeds(void);
 
 int open_self_maps(void *cpu_env, int fd);
