@@ -12,4 +12,4 @@ io_ss.add(files(
   'dns-resolver.c',
   'net-listener.c',
   'task.c',
-))
+), gnutls)
