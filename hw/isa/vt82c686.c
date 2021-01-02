@@ -27,14 +27,7 @@
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 #include "qom/object.h"
-
-/* #define DEBUG_VT82C686B */
-
-#ifdef DEBUG_VT82C686B
-#define DPRINTF(fmt, ...) fprintf(stderr, "%s: " fmt, __func__, ##__VA_ARGS__)
-#else
-#define DPRINTF(fmt, ...)
-#endif
+#include "trace.h"
 
 typedef struct SuperIOConfig {
     uint8_t config[0x100];
@@ -55,12 +48,12 @@ static void superio_ioport_writeb(void *opaque, hwaddr addr, uint64_t data,
 {
     SuperIOConfig *superio_conf = opaque;
 
-    DPRINTF("superio_ioport_writeb  address 0x%x  val 0x%x\n", addr, data);
-    if (addr == 0x3f0) {
+    if (addr == 0x3f0) { /* config index register */
         superio_conf->index = data & 0xff;
     } else {
         bool can_write = true;
-        /* 0x3f1 */
+        /* 0x3f1, config data register */
+        trace_via_superio_write(superio_conf->index, data & 0xff);
         switch (superio_conf->index) {
         case 0x00 ... 0xdf:
         case 0xe4:
@@ -73,18 +66,7 @@ static void superio_ioport_writeb(void *opaque, hwaddr addr, uint64_t data,
         case 0xfd ... 0xff:
             can_write = false;
             break;
-        case 0xe7:
-            if ((data & 0xff) != 0xfe) {
-                DPRINTF("change uart 1 base. unsupported yet\n");
-                can_write = false;
-            }
-            break;
-        case 0xe8:
-            if ((data & 0xff) != 0xbe) {
-                DPRINTF("change uart 2 base. unsupported yet\n");
-                can_write = false;
-            }
-            break;
+        /* case 0xe6 ... 0xe8: Should set base port of parallel and serial */
         default:
             break;
 
@@ -98,9 +80,10 @@ static void superio_ioport_writeb(void *opaque, hwaddr addr, uint64_t data,
 static uint64_t superio_ioport_readb(void *opaque, hwaddr addr, unsigned size)
 {
     SuperIOConfig *superio_conf = opaque;
+    uint8_t val = superio_conf->config[superio_conf->index];
 
-    DPRINTF("superio_ioport_readb  address 0x%x\n", addr);
-    return superio_conf->config[superio_conf->index];
+    trace_via_superio_read(superio_conf->index, val);
+    return val;
 }
 
 static const MemoryRegionOps superio_ops = {
@@ -141,16 +124,14 @@ static void vt82c686b_isa_reset(DeviceState *dev)
 }
 
 /* write config pci function0 registers. PCI-ISA bridge */
-static void vt82c686b_write_config(PCIDevice *d, uint32_t address,
+static void vt82c686b_write_config(PCIDevice *d, uint32_t addr,
                                    uint32_t val, int len)
 {
     VT82C686BISAState *vt686 = VT82C686B_ISA(d);
 
-    DPRINTF("vt82c686b_write_config  address 0x%x  val 0x%x len 0x%x\n",
-           address, val, len);
-
-    pci_default_write_config(d, address, val, len);
-    if (address == 0x85) {  /* enable or disable super IO configure */
+    trace_via_isa_write(addr, val, len);
+    pci_default_write_config(d, addr, val, len);
+    if (addr == 0x85) {  /* enable or disable super IO configure */
         memory_region_set_enabled(&vt686->superio, val & 0x2);
     }
 }
@@ -203,12 +184,10 @@ static void pm_io_space_update(VT686PMState *s)
     memory_region_transaction_commit();
 }
 
-static void pm_write_config(PCIDevice *d,
-                            uint32_t address, uint32_t val, int len)
+static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
 {
-    DPRINTF("pm_write_config  address 0x%x  val 0x%x len 0x%x\n",
-           address, val, len);
-    pci_default_write_config(d, address, val, len);
+    trace_via_pm_write(addr, val, len);
+    pci_default_write_config(d, addr, val, len);
 }
 
 static int vmstate_acpi_post_load(void *opaque, int version_id)
