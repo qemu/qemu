@@ -48,7 +48,8 @@
 #elif defined(TARGET_ARM)
 #define api_regs arm_regs
 #else
-#define api_regs int
+struct generic_api_regs { int v; };
+#define api_regs generic_api_regs
 #endif
 
 /* NeverZero */
