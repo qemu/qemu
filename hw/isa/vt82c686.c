@@ -95,8 +95,8 @@ static const MemoryRegionOps superio_ops = {
 
 static void vt82c686b_isa_reset(DeviceState *dev)
 {
-    VT82C686BISAState *vt82c = VT82C686B_ISA(dev);
-    uint8_t *pci_conf = vt82c->dev.config;
+    VT82C686BISAState *s = VT82C686B_ISA(dev);
+    uint8_t *pci_conf = s->dev.config;
 
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
     pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
@@ -112,24 +112,24 @@ static void vt82c686b_isa_reset(DeviceState *dev)
     pci_conf[0x5f] = 0x04;
     pci_conf[0x77] = 0x10; /* GPIO Control 1/2/3/4 */
 
-    vt82c->superio_conf.config[0xe0] = 0x3c;
-    vt82c->superio_conf.config[0xe2] = 0x03;
-    vt82c->superio_conf.config[0xe3] = 0xfc;
-    vt82c->superio_conf.config[0xe6] = 0xde;
-    vt82c->superio_conf.config[0xe7] = 0xfe;
-    vt82c->superio_conf.config[0xe8] = 0xbe;
+    s->superio_conf.config[0xe0] = 0x3c;
+    s->superio_conf.config[0xe2] = 0x03;
+    s->superio_conf.config[0xe3] = 0xfc;
+    s->superio_conf.config[0xe6] = 0xde;
+    s->superio_conf.config[0xe7] = 0xfe;
+    s->superio_conf.config[0xe8] = 0xbe;
 }
 
 /* write config pci function0 registers. PCI-ISA bridge */
 static void vt82c686b_write_config(PCIDevice *d, uint32_t addr,
                                    uint32_t val, int len)
 {
-    VT82C686BISAState *vt686 = VT82C686B_ISA(d);
+    VT82C686BISAState *s = VT82C686B_ISA(d);
 
     trace_via_isa_write(addr, val, len);
     pci_default_write_config(d, addr, val, len);
     if (addr == 0x85) {  /* enable or disable super IO configure */
-        memory_region_set_enabled(&vt686->superio, val & 0x2);
+        memory_region_set_enabled(&s->superio, val & 0x2);
     }
 }
 
@@ -289,7 +289,7 @@ static const VMStateDescription vmstate_via = {
 /* init the PCI-to-ISA bridge */
 static void vt82c686b_realize(PCIDevice *d, Error **errp)
 {
-    VT82C686BISAState *vt82c = VT82C686B_ISA(d);
+    VT82C686BISAState *s = VT82C686B_ISA(d);
     uint8_t *pci_conf;
     ISABus *isa_bus;
     uint8_t *wmask;
@@ -311,15 +311,15 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
         }
     }
 
-    memory_region_init_io(&vt82c->superio, OBJECT(d), &superio_ops,
-                          &vt82c->superio_conf, "superio", 2);
-    memory_region_set_enabled(&vt82c->superio, false);
+    memory_region_init_io(&s->superio, OBJECT(d), &superio_ops,
+                          &s->superio_conf, "superio", 2);
+    memory_region_set_enabled(&s->superio, false);
     /*
      * The floppy also uses 0x3f0 and 0x3f1.
      * But we do not emulate a floppy, so just set it here.
      */
     memory_region_add_subregion(isa_bus->address_space_io, 0x3f0,
-                                &vt82c->superio);
+                                &s->superio);
 }
 
 static void via_class_init(ObjectClass *klass, void *data)
