@@ -126,10 +126,10 @@ void afl_float_compcov_log_80(target_ulong cur_loc, floatx80 arg1,
 abi_ulong afl_get_brk(void);
 abi_ulong afl_set_brk(abi_ulong new_brk);
 
+#if defined(TARGET_X86_64) || defined(TARGET_I386) || defined(TARGET_AARCH64) || defined(TARGET_ARM)
 void afl_save_regs(struct api_regs* regs, CPUArchState* env);
 void afl_restore_regs(struct api_regs* regs, CPUArchState* env);
-
-#if !defined(TARGET_X86_64) && !defined(TARGET_I386) && !defined(TARGET_AARCH64) && !defined(TARGET_ARM)
+#else
 static void afl_save_regs(struct api_regs* regs, CPUArchState* env) {}
 static void afl_restore_regs(struct api_regs* regs, CPUArchState* env) {}
 #endif
