@@ -27,7 +27,7 @@
 #include "trace.h"
 
 typedef struct SuperIOConfig {
-    uint8_t config[0x100];
+    uint8_t regs[0x100];
     uint8_t index;
     uint8_t data;
 } SuperIOConfig;
@@ -35,23 +35,23 @@ typedef struct SuperIOConfig {
 struct VT82C686BISAState {
     PCIDevice dev;
     MemoryRegion superio;
-    SuperIOConfig superio_conf;
+    SuperIOConfig superio_cfg;
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(VT82C686BISAState, VT82C686B_ISA)
 
-static void superio_ioport_writeb(void *opaque, hwaddr addr, uint64_t data,
-                                  unsigned size)
+static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
+                              unsigned size)
 {
-    SuperIOConfig *superio_conf = opaque;
+    SuperIOConfig *sc = opaque;
 
     if (addr == 0x3f0) { /* config index register */
-        superio_conf->index = data & 0xff;
+        sc->index = data & 0xff;
     } else {
         bool can_write = true;
         /* 0x3f1, config data register */
-        trace_via_superio_write(superio_conf->index, data & 0xff);
-        switch (superio_conf->index) {
+        trace_via_superio_write(sc->index, data & 0xff);
+        switch (sc->index) {
         case 0x00 ... 0xdf:
         case 0xe4:
         case 0xe5:
@@ -69,23 +69,23 @@ static void superio_ioport_writeb(void *opaque, hwaddr addr, uint64_t data,
 
         }
         if (can_write) {
-            superio_conf->config[superio_conf->index] = data & 0xff;
+            sc->regs[sc->index] = data & 0xff;
         }
     }
 }
 
-static uint64_t superio_ioport_readb(void *opaque, hwaddr addr, unsigned size)
+static uint64_t superio_cfg_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SuperIOConfig *superio_conf = opaque;
-    uint8_t val = superio_conf->config[superio_conf->index];
+    SuperIOConfig *sc = opaque;
+    uint8_t val = sc->regs[sc->index];
 
-    trace_via_superio_read(superio_conf->index, val);
+    trace_via_superio_read(sc->index, val);
     return val;
 }
 
-static const MemoryRegionOps superio_ops = {
-    .read = superio_ioport_readb,
-    .write = superio_ioport_writeb,
+static const MemoryRegionOps superio_cfg_ops = {
+    .read = superio_cfg_read,
+    .write = superio_cfg_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -112,12 +112,12 @@ static void vt82c686b_isa_reset(DeviceState *dev)
     pci_conf[0x5f] = 0x04;
     pci_conf[0x77] = 0x10; /* GPIO Control 1/2/3/4 */
 
-    s->superio_conf.config[0xe0] = 0x3c;
-    s->superio_conf.config[0xe2] = 0x03;
-    s->superio_conf.config[0xe3] = 0xfc;
-    s->superio_conf.config[0xe6] = 0xde;
-    s->superio_conf.config[0xe7] = 0xfe;
-    s->superio_conf.config[0xe8] = 0xbe;
+    s->superio_cfg.regs[0xe0] = 0x3c; /* Device ID */
+    s->superio_cfg.regs[0xe2] = 0x03; /* Function select */
+    s->superio_cfg.regs[0xe3] = 0xfc; /* Floppy ctrl base addr */
+    s->superio_cfg.regs[0xe6] = 0xde; /* Parallel port base addr */
+    s->superio_cfg.regs[0xe7] = 0xfe; /* Serial port 1 base addr */
+    s->superio_cfg.regs[0xe8] = 0xbe; /* Serial port 2 base addr */
 }
 
 /* write config pci function0 registers. PCI-ISA bridge */
@@ -311,8 +311,8 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
         }
     }
 
-    memory_region_init_io(&s->superio, OBJECT(d), &superio_ops,
-                          &s->superio_conf, "superio", 2);
+    memory_region_init_io(&s->superio, OBJECT(d), &superio_cfg_ops,
+                          &s->superio_cfg, "superio", 2);
     memory_region_set_enabled(&s->superio, false);
     /*
      * The floppy also uses 0x3f0 and 0x3f1.
