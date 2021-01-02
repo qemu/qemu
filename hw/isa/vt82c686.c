@@ -16,9 +16,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
 #include "hw/isa/superio.h"
-#include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "hw/mips/mips.h"
 #include "hw/isa/apm.h"
 #include "hw/acpi/acpi.h"
 #include "hw/i2c/pm_smbus.h"
@@ -26,7 +24,6 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
-#include "qom/object.h"
 #include "trace.h"
 
 typedef struct SuperIOConfig {
@@ -135,8 +132,6 @@ static void vt82c686b_write_config(PCIDevice *d, uint32_t addr,
         memory_region_set_enabled(&vt686->superio, val & 0x2);
     }
 }
-
-#define ACPI_DBG_IO_ADDR  0xb044
 
 struct VT686PMState {
     PCIDevice dev;
