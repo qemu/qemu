@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/vt82c686.h"
-#include "hw/i2c/i2c.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
@@ -167,7 +166,6 @@ struct VT686PMState {
     uint32_t smb_io_base;
 };
 
-#define TYPE_VT82C686B_PM "VT82C686B_PM"
 OBJECT_DECLARE_SIMPLE_TYPE(VT686PMState, VT82C686B_PM)
 
 static void pm_update_sci(VT686PMState *s)
@@ -269,22 +267,6 @@ static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_cnt_init(&s->ar, &s->io, false, false, 2);
-}
-
-I2CBus *vt82c686b_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                          qemu_irq sci_irq)
-{
-    PCIDevice *dev;
-    VT686PMState *s;
-
-    dev = pci_new(devfn, TYPE_VT82C686B_PM);
-    qdev_prop_set_uint32(&dev->qdev, "smb_io_base", smb_io_base);
-
-    s = VT82C686B_PM(dev);
-
-    pci_realize_and_unref(dev, bus, &error_fatal);
-
-    return s->smb.smbus;
 }
 
 static Property via_pm_properties[] = {
