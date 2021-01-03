@@ -169,7 +169,7 @@ static void ppc440_pcix_reg_write4(void *opaque, hwaddr addr,
 {
     struct PPC440PCIXState *s = opaque;
 
-    trace_ppc440_pcix_reg_read(addr, val);
+    trace_ppc440_pcix_reg_write(addr, val, size);
     switch (addr) {
     case PCI_VENDOR_ID ... PCI_MAX_LAT:
         stl_le_p(s->dev->config + addr, val);
