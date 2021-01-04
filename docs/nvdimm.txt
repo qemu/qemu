@@ -17,8 +17,8 @@ following command line options:
 
  -machine pc,nvdimm
  -m $RAM_SIZE,slots=$N,maxmem=$MAX_SIZE
- -object memory-backend-file,id=mem1,share=on,mem-path=$PATH,size=$NVDIMM_SIZE
- -device nvdimm,id=nvdimm1,memdev=mem1
+ -object memory-backend-file,id=mem1,share=on,mem-path=$PATH,size=$NVDIMM_SIZE,readonly=off
+ -device nvdimm,id=nvdimm1,memdev=mem1,unarmed=off
 
 Where,
 
@@ -31,9 +31,10 @@ Where,
    of normal RAM devices and vNVDIMM devices, e.g. $MAX_SIZE should be
    >= $RAM_SIZE + $NVDIMM_SIZE here.
 
- - "object memory-backend-file,id=mem1,share=on,mem-path=$PATH,size=$NVDIMM_SIZE"
-   creates a backend storage of size $NVDIMM_SIZE on a file $PATH. All
-   accesses to the virtual NVDIMM device go to the file $PATH.
+ - "object memory-backend-file,id=mem1,share=on,mem-path=$PATH,
+   size=$NVDIMM_SIZE,readonly=off" creates a backend storage of size
+   $NVDIMM_SIZE on a file $PATH. All accesses to the virtual NVDIMM device go
+   to the file $PATH.
 
    "share=on/off" controls the visibility of guest writes. If
    "share=on", then guest writes will be applied to the backend
@@ -42,8 +43,17 @@ Where,
    "share=off", then guest writes won't be applied to the backend
    file and thus will be invisible to other guests.
 
- - "device nvdimm,id=nvdimm1,memdev=mem1" creates a virtual NVDIMM
-   device whose storage is provided by above memory backend device.
+   "readonly=on/off" controls whether the file $PATH is opened read-only or
+   read/write (default).
+
+ - "device nvdimm,id=nvdimm1,memdev=mem1,unarmed=off" creates a read/write
+   virtual NVDIMM device whose storage is provided by above memory backend
+   device.
+
+   "unarmed" controls the ACPI NFIT NVDIMM Region Mapping Structure "NVDIMM
+   State Flags" Bit 3 indicating that the device is "unarmed" and cannot accept
+   persistent writes. Linux guest drivers set the device to read-only when this
+   bit is present. Set unarmed to on when the memdev has readonly=on.
 
 Multiple vNVDIMM devices can be created if multiple pairs of "-object"
 and "-device" are provided.

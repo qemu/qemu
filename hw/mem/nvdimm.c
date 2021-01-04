@@ -146,6 +146,15 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
         return;
     }
 
+    if (!nvdimm->unarmed && memory_region_is_rom(mr)) {
+        HostMemoryBackend *hostmem = dimm->hostmem;
+
+        error_setg(errp, "'unarmed' property must be off since memdev %s "
+                   "is read-only",
+                   object_get_canonical_path_component(OBJECT(hostmem)));
+        return;
+    }
+
     nvdimm->nvdimm_mr = g_new(MemoryRegion, 1);
     memory_region_init_alias(nvdimm->nvdimm_mr, OBJECT(dimm),
                              "nvdimm-memory", mr, 0, pmem_size);
