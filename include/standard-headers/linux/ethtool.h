@@ -16,7 +16,7 @@
 
 #include "net/eth.h"
 
-#include "standard-headers/linux/kernel.h"
+#include "standard-headers/linux/const.h"
 #include "standard-headers/linux/types.h"
 #include "standard-headers/linux/if_ether.h"
 
