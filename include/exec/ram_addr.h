@@ -110,6 +110,7 @@ long qemu_maxrampagesize(void);
  *              - RAM_PMEM: the backend @mem_path or @fd is persistent memory
  *              Other bits are ignored.
  *  @mem_path or @fd: specify the backing file or device
+ *  @readonly: true to open @path for reading, false for read/write.
  *  @errp: pointer to Error*, to store an error if it happens
  *
  * Return:
@@ -118,9 +119,9 @@ long qemu_maxrampagesize(void);
  */
 RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
                                    uint32_t ram_flags, const char *mem_path,
-                                   Error **errp);
+                                   bool readonly, Error **errp);
 RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
-                                 uint32_t ram_flags, int fd,
+                                 uint32_t ram_flags, int fd, bool readonly,
                                  Error **errp);
 
 RAMBlock *qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,

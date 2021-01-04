@@ -85,9 +85,11 @@ size_t qemu_mempath_getpagesize(const char *mem_path)
 void *qemu_ram_mmap(int fd,
                     size_t size,
                     size_t align,
+                    bool readonly,
                     bool shared,
                     bool is_pmem)
 {
+    int prot;
     int flags;
     int map_sync_flags = 0;
     int guardfd;
@@ -146,8 +148,9 @@ void *qemu_ram_mmap(int fd,
 
     offset = QEMU_ALIGN_UP((uintptr_t)guardptr, align) - (uintptr_t)guardptr;
 
-    ptr = mmap(guardptr + offset, size, PROT_READ | PROT_WRITE,
-               flags | map_sync_flags, fd, 0);
+    prot = PROT_READ | (readonly ? 0 : PROT_WRITE);
+
+    ptr = mmap(guardptr + offset, size, prot, flags | map_sync_flags, fd, 0);
 
     if (ptr == MAP_FAILED && map_sync_flags) {
         if (errno == ENOTSUP) {
@@ -171,8 +174,7 @@ void *qemu_ram_mmap(int fd,
          * if map failed with MAP_SHARED_VALIDATE | MAP_SYNC,
          * we will remove these flags to handle compatibility.
          */
-        ptr = mmap(guardptr + offset, size, PROT_READ | PROT_WRITE,
-                   flags, fd, 0);
+        ptr = mmap(guardptr + offset, size, prot, flags, fd, 0);
     }
 
     if (ptr == MAP_FAILED) {
