@@ -444,7 +444,6 @@ static void boston_mach_init(MachineState *machine)
     DriveInfo *hd[6];
     Chardev *chr;
     int fw_size, fit_err;
-    bool is_64b;
 
     if ((machine->ram_size % GiB) ||
         (machine->ram_size > (2 * GiB))) {
@@ -462,8 +461,6 @@ static void boston_mach_init(MachineState *machine)
         error_report("Boston requires CPUs which support CPS");
         exit(1);
     }
-
-    is_64b = cpu_type_supports_isa(machine->cpu_type, ISA_MIPS64);
 
     object_initialize_child(OBJECT(machine), "cps", &s->cps, TYPE_MIPS_CPS);
     object_property_set_str(OBJECT(&s->cps), "cpu-type", machine->cpu_type,
@@ -545,7 +542,8 @@ static void boston_mach_init(MachineState *machine)
         }
 
         gen_firmware(memory_region_get_ram_ptr(flash) + 0x7c00000,
-                     s->kernel_entry, s->fdt_base, is_64b);
+                     s->kernel_entry, s->fdt_base,
+                     cpu_type_is_64bit(machine->cpu_type));
     } else if (!qtest_enabled()) {
         error_report("Please provide either a -kernel or -bios argument");
         exit(1);
