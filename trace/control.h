@@ -201,10 +201,11 @@ void trace_fini_vcpu(CPUState *vcpu);
 
 /**
  * trace_list_events:
+ * @f: Where to send output.
  *
  * List all available events.
  */
-void trace_list_events(void);
+void trace_list_events(FILE *f);
 
 /**
  * trace_enable_events:
