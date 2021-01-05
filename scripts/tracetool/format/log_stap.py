@@ -54,6 +54,7 @@ def c_fmt_to_stap(fmt):
             else:
                 if state == STATE_MACRO:
                     bits.append(c_macro_to_format(macro))
+                    macro = ""
                 state = STATE_LITERAL
         elif fmt[i] == ' ' or fmt[i] == '\t':
             if state == STATE_MACRO:
