@@ -547,6 +547,9 @@ static void do_dup(unsigned vece, uint32_t dofs, uint32_t oprsz,
         in_c = dup_const(vece, in_c);
         if (in_c == 0) {
             oprsz = maxsz;
+            vece = MO_8;
+        } else if (in_c == dup_const(MO_8, in_c)) {
+            vece = MO_8;
         }
     }
 
@@ -628,6 +631,35 @@ static void do_dup(unsigned vece, uint32_t dofs, uint32_t oprsz,
     /* Otherwise implement out of line.  */
     t_ptr = tcg_temp_new_ptr();
     tcg_gen_addi_ptr(t_ptr, cpu_env, dofs);
+
+    /*
+     * This may be expand_clr for the tail of an operation, e.g.
+     * oprsz == 8 && maxsz == 64.  The size of the clear is misaligned
+     * wrt simd_desc and will assert.  Simply pass all replicated byte
+     * stores through to memset.
+     */
+    if (oprsz == maxsz && vece == MO_8) {
+        TCGv_ptr t_size = tcg_const_ptr(oprsz);
+        TCGv_i32 t_val;
+
+        if (in_32) {
+            t_val = in_32;
+        } else if (in_64) {
+            t_val = tcg_temp_new_i32();
+            tcg_gen_extrl_i64_i32(t_val, in_64);
+        } else {
+            t_val = tcg_const_i32(in_c);
+        }
+        gen_helper_memset(t_ptr, t_ptr, t_val, t_size);
+
+        if (!in_32) {
+            tcg_temp_free_i32(t_val);
+        }
+        tcg_temp_free_ptr(t_size);
+        tcg_temp_free_ptr(t_ptr);
+        return;
+    }
+
     t_desc = tcg_const_i32(simd_desc(oprsz, maxsz, 0));
 
     if (vece == MO_64) {
