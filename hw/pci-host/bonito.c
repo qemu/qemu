@@ -196,8 +196,7 @@ FIELD(BONGENCFG, PCIQUEUE,      12, 1)
 #define PCI_IDSEL_VIA686B          (1 << PCI_IDSEL_VIA686B_BIT)
 
 #define PCI_ADDR(busno , devno , funno , regno)  \
-    ((((busno) << 16) & 0xff0000) + (((devno) << 11) & 0xf800) + \
-    (((funno) << 8) & 0x700) + (regno))
+    ((PCI_BUILD_BDF(busno, PCI_DEVFN(devno , funno)) << 8) + (regno))
 
 typedef struct BonitoState BonitoState;
 
@@ -469,8 +468,8 @@ static uint32_t bonito_sbridge_pciaddr(void *opaque, hwaddr addr)
     regno = (cfgaddr & BONITO_PCICONF_REG_MASK) >> BONITO_PCICONF_REG_OFFSET;
 
     if (idsel == 0) {
-        error_report("error in bonito pci config address " TARGET_FMT_plx
-                     ",pcimap_cfg=%x", addr, s->regs[BONITO_PCIMAP_CFG]);
+        error_report("error in bonito pci config address 0x" TARGET_FMT_plx
+                     ",pcimap_cfg=0x%x", addr, s->regs[BONITO_PCIMAP_CFG]);
         exit(1);
     }
     pciaddr = PCI_ADDR(pci_bus_num(phb->bus), devno, funno, regno);
@@ -571,7 +570,7 @@ static int pci_bonito_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     int slot;
 
-    slot = (pci_dev->devfn >> 3);
+    slot = PCI_SLOT(pci_dev->devfn);
 
     switch (slot) {
     case 5:   /* FULOONG2E_VIA_SLOT, SouthBridge, IDE, USB, ACPI, AC97, MC97 */
@@ -632,7 +631,7 @@ static void bonito_pcihost_realize(DeviceState *dev, Error **errp)
     phb->bus = pci_register_root_bus(dev, "pci",
                                      pci_bonito_set_irq, pci_bonito_map_irq,
                                      dev, &bs->pci_mem, get_system_io(),
-                                     0x28, 32, TYPE_PCI_BUS);
+                                     PCI_DEVFN(5, 0), 32, TYPE_PCI_BUS);
 
     for (size_t i = 0; i < 3; i++) {
         char *name = g_strdup_printf("pci.lomem%zu", i);
@@ -729,7 +728,8 @@ static void bonito_realize(PCIDevice *dev, Error **errp)
     pci_set_word(dev->config + PCI_SUBSYSTEM_ID, 0x0000);
 
     pci_set_byte(dev->config + PCI_INTERRUPT_LINE, 0x00);
-    pci_set_byte(dev->config + PCI_INTERRUPT_PIN, 0x01);
+    pci_config_set_interrupt_pin(dev->config, 0x01); /* interrupt pin A */
+
     pci_set_byte(dev->config + PCI_MIN_GNT, 0x3c);
     pci_set_byte(dev->config + PCI_MAX_LAT, 0x00);
 

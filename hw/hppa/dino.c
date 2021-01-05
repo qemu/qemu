@@ -496,7 +496,7 @@ static void dino_set_irq(void *opaque, int irq, int level)
 
 static int dino_pci_map_irq(PCIDevice *d, int irq_num)
 {
-    int slot = d->devfn >> 3;
+    int slot = PCI_SLOT(d->devfn);
 
     assert(irq_num >= 0 && irq_num <= 3);
 

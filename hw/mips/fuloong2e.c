@@ -14,8 +14,8 @@
  * Fuloong 2e mini pc is based on ICT/ST Loongson 2e CPU (MIPS III like, 800MHz)
  * https://www.linux-mips.org/wiki/Fuloong_2E
  *
- * Loongson 2e user manual:
- * http://www.loongsondeveloper.com/doc/Loongson2EUserGuide.pdf
+ * Loongson 2e manuals:
+ * https://github.com/loongson-community/docs/tree/master/2E
  */
 
 #include "qemu/osdep.h"
@@ -47,9 +47,8 @@
 #include "sysemu/reset.h"
 #include "qemu/error-report.h"
 
-#define DEBUG_FULOONG2E_INIT
-
-#define ENVP_ADDR               0x80002000l
+#define ENVP_PADDR              0x2000
+#define ENVP_VADDR              cpu_mips_phys_to_kseg0(NULL, ENVP_PADDR)
 #define ENVP_NB_ENTRIES         16
 #define ENVP_ENTRY_SIZE         256
 
@@ -61,14 +60,7 @@
  * PMON is not part of qemu and released with BSD license, anyone
  * who want to build a pmon binary please first git-clone the source
  * from the git repository at:
- * http://www.loongson.cn/support/git/pmon
- * Then follow the "Compile Guide" available at:
- * http://dev.lemote.com/code/pmon
- *
- * Notes:
- * 1, don't use the source at http://dev.lemote.com/http_git/pmon.git
- * 2, use "Bonito2edev" to replace "dir_corresponding_to_your_target_hardware"
- * in the "Compile Guide".
+ * https://github.com/loongson-community/pmon
  */
 #define FULOONG_BIOSNAME "pmon_2e.bin"
 
@@ -100,16 +92,16 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t *prom_buf, int index,
     }
 
     table_addr = sizeof(int32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
-    prom_buf[index] = tswap32(ENVP_ADDR + table_addr);
+    prom_buf[index] = tswap32(ENVP_VADDR + table_addr);
 
     va_start(ap, string);
     vsnprintf((char *)prom_buf + table_addr, ENVP_ENTRY_SIZE, string, ap);
     va_end(ap);
 }
 
-static int64_t load_kernel(CPUMIPSState *env)
+static uint64_t load_kernel(MIPSCPU *cpu)
 {
-    int64_t kernel_entry, kernel_high, initrd_size;
+    uint64_t kernel_entry, kernel_high, initrd_size;
     int index = 0;
     long kernel_size;
     ram_addr_t initrd_offset;
@@ -118,8 +110,8 @@ static int64_t load_kernel(CPUMIPSState *env)
 
     kernel_size = load_elf(loaderparams.kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
-                           (uint64_t *)&kernel_entry, NULL,
-                           (uint64_t *)&kernel_high, NULL,
+                           &kernel_entry, NULL,
+                           &kernel_high, NULL,
                            0, EM_MIPS, 1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
@@ -167,20 +159,18 @@ static int64_t load_kernel(CPUMIPSState *env)
 
     /* Setup minimum environment variables */
     prom_set(prom_buf, index++, "busclock=33000000");
-    prom_set(prom_buf, index++, "cpuclock=100000000");
+    prom_set(prom_buf, index++, "cpuclock=%u", clock_get_hz(cpu->clock));
     prom_set(prom_buf, index++, "memsize=%"PRIi64, loaderparams.ram_size / MiB);
-    prom_set(prom_buf, index++, "modetty0=38400n8r");
     prom_set(prom_buf, index++, NULL);
 
-    rom_add_blob_fixed("prom", prom_buf, prom_size,
-                       cpu_mips_kseg0_to_phys(NULL, ENVP_ADDR));
+    rom_add_blob_fixed("prom", prom_buf, prom_size, ENVP_PADDR);
 
     g_free(prom_buf);
     return kernel_entry;
 }
 
 static void write_bootloader(CPUMIPSState *env, uint8_t *base,
-                             int64_t kernel_addr)
+                             uint64_t kernel_addr)
 {
     uint32_t *p;
 
@@ -199,14 +189,14 @@ static void write_bootloader(CPUMIPSState *env, uint8_t *base,
     stl_p(p++, 0x3c040000);
     /* ori a0, a0, 2 */
     stl_p(p++, 0x34840002);
-    /* lui a1, high(ENVP_ADDR) */
-    stl_p(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));
-    /* ori a1, a0, low(ENVP_ADDR) */
-    stl_p(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));
-    /* lui a2, high(ENVP_ADDR + 8) */
-    stl_p(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff));
-    /* ori a2, a2, low(ENVP_ADDR + 8) */
-    stl_p(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));
+    /* lui a1, high(ENVP_VADDR) */
+    stl_p(p++, 0x3c050000 | ((ENVP_VADDR >> 16) & 0xffff));
+    /* ori a1, a0, low(ENVP_VADDR) */
+    stl_p(p++, 0x34a50000 | (ENVP_VADDR & 0xffff));
+    /* lui a2, high(ENVP_VADDR + 8) */
+    stl_p(p++, 0x3c060000 | (((ENVP_VADDR + 8) >> 16) & 0xffff));
+    /* ori a2, a2, low(ENVP_VADDR + 8) */
+    stl_p(p++, 0x34c60000 | ((ENVP_VADDR + 8) & 0xffff));
     /* lui a3, high(env->ram_size) */
     stl_p(p++, 0x3c070000 | (loaderparams.ram_size >> 16));
     /* ori a3, a3, low(env->ram_size) */
@@ -240,7 +230,9 @@ static void vt82c686b_southbridge_init(PCIBus *pci_bus, int slot, qemu_irq intc,
     ISABus *isa_bus;
     PCIDevice *dev;
 
-    isa_bus = vt82c686b_isa_init(pci_bus, PCI_DEVFN(slot, 0));
+    dev = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(slot, 0), true,
+                                          TYPE_VT82C686B_ISA);
+    isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(dev), "isa.0"));
     assert(isa_bus);
     *p_isa_bus = isa_bus;
     /* Interrupt controller */
@@ -259,11 +251,14 @@ static void vt82c686b_southbridge_init(PCIBus *pci_bus, int slot, qemu_irq intc,
     pci_create_simple(pci_bus, PCI_DEVFN(slot, 2), "vt82c686b-usb-uhci");
     pci_create_simple(pci_bus, PCI_DEVFN(slot, 3), "vt82c686b-usb-uhci");
 
-    *i2c_bus = vt82c686b_pm_init(pci_bus, PCI_DEVFN(slot, 4), 0xeee1, NULL);
+    dev = pci_new(PCI_DEVFN(slot, 4), TYPE_VT82C686B_PM);
+    qdev_prop_set_uint32(DEVICE(dev), "smb_io_base", 0xeee1);
+    pci_realize_and_unref(dev, pci_bus, &error_fatal);
+    *i2c_bus = I2C_BUS(qdev_get_child_bus(DEVICE(dev), "i2c"));
 
     /* Audio support */
-    vt82c686b_ac97_init(pci_bus, PCI_DEVFN(slot, 5));
-    vt82c686b_mc97_init(pci_bus, PCI_DEVFN(slot, 6));
+    pci_create_simple(pci_bus, PCI_DEVFN(slot, 5), TYPE_VIA_AC97);
+    pci_create_simple(pci_bus, PCI_DEVFN(slot, 6), TYPE_VIA_MC97);
 }
 
 /* Network support */
@@ -294,7 +289,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     long bios_size;
     uint8_t *spd_data;
-    int64_t kernel_entry;
+    uint64_t kernel_entry;
     PCIDevice *pci_dev;
     PCIBus *pci_bus;
     ISABus *isa_bus;
@@ -335,7 +330,7 @@ static void mips_fuloong2e_init(MachineState *machine)
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
-        kernel_entry = load_kernel(env);
+        kernel_entry = load_kernel(cpu);
         write_bootloader(env, memory_region_get_ram_ptr(bios), kernel_entry);
     } else {
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,

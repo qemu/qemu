@@ -1159,6 +1159,9 @@ M: Huacai Chen <chenhuacai@kernel.org>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Maintained
 F: hw/intc/loongson_liointc.c
+F: hw/mips/loongson3_bootp.c
+F: hw/mips/loongson3_bootp.h
+F: hw/mips/loongson3_virt.c
 
 Boston
 M: Paul Burton <paulburton@kernel.org>

@@ -32,9 +32,24 @@ config FULOONG
     bool
     select PCI_BONITO
 
+config LOONGSON3V
+    bool
+    imply VIRTIO_VGA
+    imply QXL if SPICE
+    select SERIAL
+    select GOLDFISH_RTC
+    select LOONGSON_LIOINTC
+    select PCI_DEVICES
+    select PCI_EXPRESS_GENERIC_BRIDGE
+    select MSI_NONBROKEN
+    select FW_CFG_MIPS
+
 config MIPS_CPS
     bool
     select PTIMER
 
 config MIPS_BOSTON
+    bool
+
+config FW_CFG_MIPS
     bool

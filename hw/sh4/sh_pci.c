@@ -109,7 +109,7 @@ static const MemoryRegionOps sh_pci_reg_ops = {
 
 static int sh_pci_map_irq(PCIDevice *d, int irq_num)
 {
-    return (d->devfn >> 3);
+    return PCI_SLOT(d->devfn);
 }
 
 static void sh_pci_set_irq(void *opaque, int irq_num, int level)

@@ -238,8 +238,17 @@ object during device instance init. For example:
 Fetching clock frequency/period
 -------------------------------
 
-To get the current state of a clock, use the functions ``clock_get()``,
-``clock_get_ns()`` or ``clock_get_hz()``.
+To get the current state of a clock, use the functions ``clock_get()``
+or ``clock_get_hz()``.
+
+``clock_get()`` returns the period of the clock in its fully precise
+internal representation, as an unsigned 64-bit integer in units of
+2^-32 nanoseconds. (For many purposes ``clock_ticks_to_ns()`` will
+be more convenient; see the section below on expiry deadlines.)
+
+``clock_get_hz()`` returns the frequency of the clock, rounded to the
+next lowest integer. This implies some inaccuracy due to the rounding,
+so be cautious about using it in calculations.
 
 It is also possible to register a callback on clock frequency changes.
 Here is an example:
@@ -254,9 +263,43 @@ Here is an example:
          */
 
         /* do something with the new period */
-        fprintf(stdout, "device new period is %" PRIu64 "ns\n",
-                        clock_get_ns(dev->my_clk_input));
+        fprintf(stdout, "device new period is %" PRIu64 "* 2^-32 ns\n",
+                        clock_get(dev->my_clk_input));
     }
+
+If you are only interested in the frequency for displaying it to
+humans (for instance in debugging), use ``clock_display_freq()``,
+which returns a prettified string-representation, e.g. "33.3 MHz".
+The caller must free the string with g_free() after use.
+
+Calculating expiry deadlines
+----------------------------
+
+A commonly required operation for a clock is to calculate how long
+it will take for the clock to tick N times; this can then be used
+to set a timer expiry deadline. Use the function ``clock_ticks_to_ns()``,
+which takes an unsigned 64-bit count of ticks and returns the length
+of time in nanoseconds required for the clock to tick that many times.
+
+It is important not to try to calculate expiry deadlines using a
+shortcut like multiplying a "period of clock in nanoseconds" value
+by the tick count, because clocks can have periods which are not a
+whole number of nanoseconds, and the accumulated error in the
+multiplication can be significant.
+
+For a clock with a very long period and a large number of ticks,
+the result of this function could in theory be too large to fit in
+a 64-bit value. To avoid overflow in this case, ``clock_ticks_to_ns()``
+saturates the result to INT64_MAX (because this is the largest valid
+input to the QEMUTimer APIs). Since INT64_MAX nanoseconds is almost
+300 years, anything with an expiry later than that is in the "will
+never happen" category. Callers of ``clock_ticks_to_ns()`` should
+therefore generally not special-case the possibility of a saturated
+result but just allow the timer to be set to that far-future value.
+(If you are performing further calculations on the returned value
+rather than simply passing it to a QEMUTimer function like
+``timer_mod_ns()`` then you should be careful to avoid overflow
+in those calculations, of course.)
 
 Changing a clock period
 -----------------------

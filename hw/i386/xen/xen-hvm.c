@@ -140,7 +140,7 @@ typedef struct XenIOState {
 
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 {
-    return irq_num + ((pci_dev->devfn >> 3) << 2);
+    return irq_num + (PCI_SLOT(pci_dev->devfn) << 2);
 }
 
 void xen_piix3_set_irq(void *opaque, int irq_num, int level)
