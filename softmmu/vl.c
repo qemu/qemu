@@ -2361,11 +2361,6 @@ static void qemu_process_early_options(void)
                       cleanup_add_fd, NULL, &error_fatal);
 #endif
 
-    if (!trace_init_backends()) {
-        exit(1);
-    }
-    trace_init_file();
-
     /* Open the logfile at this point and set the log mask if necessary.  */
     qemu_set_log_filename(log_file, &error_fatal);
     if (log_mask) {
@@ -3474,6 +3469,19 @@ void qemu_init(int argc, char **argv, char **envp)
 
     qemu_process_help_options();
     qemu_maybe_daemonize(pid_file);
+
+    /*
+     * The trace backend must be initialized after daemonizing.
+     * trace_init_backends() will call st_init(), which will create the
+     * trace thread in the parent, and also register st_flush_trace_buffer()
+     * in atexit(). This function will force the parent to wait for the
+     * writeout thread to finish, which will not occur, and the parent
+     * process will be left in the host.
+     */
+    if (!trace_init_backends()) {
+        exit(1);
+    }
+    trace_init_file();
 
     qemu_init_main_loop(&error_fatal);
     cpu_timers_init();
