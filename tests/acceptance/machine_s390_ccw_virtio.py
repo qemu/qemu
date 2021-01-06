@@ -241,7 +241,7 @@ class S390CCWVirtioMachine(Test):
             self.assertEqual(line, b"1024 768\n")
             line = ppmfile.readline()
             self.assertEqual(line, b"255\n")
-            line = ppmfile.readline()
+            line = ppmfile.readline(256)
             self.assertEqual(line, b"The quick fox jumps over a lazy dog\n")
 
         # Hot-plug a virtio-crypto device and see whether it gets accepted

@@ -18,7 +18,6 @@ freebsd_12_task:
     - gmake -j$(sysctl -n hw.ncpu) check V=1
 
 macos_task:
-  timeout_in: 90m
   osx_instance:
     image: catalina-base
   install_script:
@@ -30,10 +29,13 @@ macos_task:
                    --extra-cflags='-Wno-error=deprecated-declarations'
                    || { cat config.log meson-logs/meson-log.txt; exit 1; }
     - gmake -j$(sysctl -n hw.ncpu)
-    - gmake check V=1
+    - gmake check-unit V=1
+    - gmake check-block V=1
+    - gmake check-qapi-schema V=1
+    - gmake check-softfloat V=1
+    - gmake check-qtest-x86_64 V=1
 
 macos_xcode_task:
-  timeout_in: 90m
   osx_instance:
     # this is an alias for the latest Xcode
     image: catalina-xcode
@@ -45,7 +47,11 @@ macos_xcode_task:
     - ../configure --extra-cflags='-Wno-error=deprecated-declarations' --enable-modules
                    --enable-werror --cc=clang || { cat config.log meson-logs/meson-log.txt; exit 1; }
     - gmake -j$(sysctl -n hw.ncpu)
-    - gmake check V=1
+    - gmake check-unit V=1
+    - gmake check-block V=1
+    - gmake check-qapi-schema V=1
+    - gmake check-softfloat V=1
+    - gmake check-qtest-x86_64 V=1
 
 windows_msys2_task:
   timeout_in: 90m

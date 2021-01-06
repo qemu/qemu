@@ -20,6 +20,7 @@ RUN apt update && \
         bc \
         build-essential \
         ca-certificates \
+        ccache \
         clang \
         dbus \
         gdb-multiarch \
