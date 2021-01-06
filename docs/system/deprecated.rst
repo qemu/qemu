@@ -309,11 +309,6 @@ The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
 System emulator machines
 ------------------------
 
-mips ``fulong2e`` machine (since 5.1)
-'''''''''''''''''''''''''''''''''''''
-
-This machine has been renamed ``fuloong2e``.
-
 ``pc-1.0``, ``pc-1.1``, ``pc-1.2`` and ``pc-1.3`` (since 5.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
