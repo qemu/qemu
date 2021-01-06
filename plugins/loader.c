@@ -32,6 +32,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "hw/boards.h"
 #endif
+#include "qemu/compiler.h"
 
 #include "plugin.h"
 
@@ -150,6 +151,12 @@ static uint64_t xorshift64star(uint64_t x)
     return x * UINT64_C(2685821657736338717);
 }
 
+/*
+ * Disable CFI checks.
+ * The install and version functions have been loaded from an external library
+ * so we do not have type information
+ */
+QEMU_DISABLE_CFI
 static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info, Error **errp)
 {
     qemu_plugin_install_func_t install;

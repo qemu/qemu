@@ -133,6 +133,7 @@ Makefile.ninja: build.ninja
 
 # A separate rule is needed for Makefile dependencies to avoid -n
 build.ninja: build.ninja.stamp
+$(build-files):
 build.ninja.stamp: meson.stamp $(build-files)
 	$(NINJA) $(if $V,-v,) build.ninja && touch $@
 endif

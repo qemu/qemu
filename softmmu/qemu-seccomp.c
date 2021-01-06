@@ -202,7 +202,6 @@ static int seccomp_start(uint32_t seccomp_opts, Error **errp)
     return rc < 0 ? -1 : 0;
 }
 
-#ifdef CONFIG_SECCOMP
 int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
 {
     if (qemu_opt_get_bool(opts, "enable", false)) {
@@ -328,4 +327,3 @@ static void seccomp_register(void)
     }
 }
 opts_init(seccomp_register);
-#endif

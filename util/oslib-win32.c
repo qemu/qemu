@@ -221,7 +221,6 @@ int qemu_try_set_nonblock(int fd)
     if (ioctlsocket(fd, FIONBIO, &opt) != NO_ERROR) {
         return -socket_error();
     }
-    qemu_fd_register(fd);
     return 0;
 }
 

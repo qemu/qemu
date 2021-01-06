@@ -268,7 +268,11 @@ endif
 # grandfathered in from the QEMU Makefiles.
 add_project_arguments(config_host['GLIB_CFLAGS'].split(),
                       native: false, language: ['c', 'cpp', 'objc'])
-glib = declare_dependency(link_args: config_host['GLIB_LIBS'].split())
+glib = declare_dependency(compile_args: config_host['GLIB_CFLAGS'].split(),
+                          link_args: config_host['GLIB_LIBS'].split())
+# override glib dep with the configure results (for subprojects)
+meson.override_dependency('glib-2.0', glib)
+
 gio = not_found
 if 'CONFIG_GIO' in config_host
   gio = declare_dependency(compile_args: config_host['GIO_CFLAGS'].split(),
@@ -319,22 +323,73 @@ if 'CONFIG_LIBXML2' in config_host
                                link_args: config_host['LIBXML2_LIBS'].split())
 endif
 libnfs = not_found
-if 'CONFIG_LIBNFS' in config_host
-  libnfs = declare_dependency(link_args: config_host['LIBNFS_LIBS'].split())
+if not get_option('libnfs').auto() or have_block
+  libnfs = dependency('libnfs', version: '>=1.9.3',
+                      required: get_option('libnfs'),
+                      method: 'pkg-config', static: enable_static)
 endif
+
+libattr_test = '''
+  #include <stddef.h>
+  #include <sys/types.h>
+  #ifdef CONFIG_LIBATTR
+  #include <attr/xattr.h>
+  #else
+  #include <sys/xattr.h>
+  #endif
+  int main(void) { getxattr(NULL, NULL, NULL, 0); setxattr(NULL, NULL, NULL, 0, 0); return 0; }'''
+
 libattr = not_found
-if 'CONFIG_ATTR' in config_host
-  libattr = declare_dependency(link_args: config_host['LIBATTR_LIBS'].split())
+have_old_libattr = false
+if not get_option('attr').disabled()
+  if cc.links(libattr_test)
+    libattr = declare_dependency()
+  else
+    libattr = cc.find_library('attr', has_headers: ['attr/xattr.h'],
+                              required: get_option('attr'),
+                              static: enable_static)
+    if libattr.found() and not \
+      cc.links(libattr_test, dependencies: libattr, args: '-DCONFIG_LIBATTR')
+      libattr = not_found
+      if get_option('attr').enabled()
+        error('could not link libattr')
+      else
+        warning('could not link libattr, disabling')
+      endif
+    else
+      have_old_libattr = libattr.found()
+    endif
+  endif
 endif
+
 seccomp = not_found
-if 'CONFIG_SECCOMP' in config_host
-  seccomp = declare_dependency(compile_args: config_host['SECCOMP_CFLAGS'].split(),
-                               link_args: config_host['SECCOMP_LIBS'].split())
+if not get_option('seccomp').auto() or have_system or have_tools
+  seccomp = dependency('libseccomp', version: '>=2.3.0',
+                       required: get_option('seccomp'),
+                       method: 'pkg-config', static: enable_static)
 endif
+
 libcap_ng = not_found
-if 'CONFIG_LIBCAP_NG' in config_host
-  libcap_ng = declare_dependency(link_args: config_host['LIBCAP_NG_LIBS'].split())
+if not get_option('cap_ng').auto() or have_system or have_tools
+  libcap_ng = cc.find_library('cap-ng', has_headers: ['cap-ng.h'],
+                              required: get_option('cap_ng'),
+                              static: enable_static)
 endif
+if libcap_ng.found() and not cc.links('''
+   #include <cap-ng.h>
+   int main(void)
+   {
+     capng_capability_to_name(CAPNG_EFFECTIVE);
+     return 0;
+   }''', dependencies: libcap_ng)
+  libcap_ng = not_found
+  if get_option('cap_ng').enabled()
+    error('could not link libcap-ng')
+  else
+    warning('could not link libcap-ng, disabling')
+  endif
+endif
+
 if get_option('xkbcommon').auto() and not have_system and not have_tools
   xkbcommon = not_found
 else
@@ -372,14 +427,16 @@ if 'CONFIG_PLUGIN' in config_host
   libdl = cc.find_library('dl', required: true)
 endif
 libiscsi = not_found
-if 'CONFIG_LIBISCSI' in config_host
-  libiscsi = declare_dependency(compile_args: config_host['LIBISCSI_CFLAGS'].split(),
-                                link_args: config_host['LIBISCSI_LIBS'].split())
+if not get_option('libiscsi').auto() or have_block
+  libiscsi = dependency('libiscsi', version: '>=1.9.0',
+                         required: get_option('libiscsi'),
+                         method: 'pkg-config', static: enable_static)
 endif
 zstd = not_found
-if 'CONFIG_ZSTD' in config_host
-  zstd = declare_dependency(compile_args: config_host['ZSTD_CFLAGS'].split(),
-                            link_args: config_host['ZSTD_LIBS'].split())
+if not get_option('zstd').auto() or have_block
+  zstd = dependency('libzstd', version: '>=1.4.0',
+                    required: get_option('zstd'),
+                    method: 'pkg-config', static: enable_static)
 endif
 gbm = not_found
 if 'CONFIG_GBM' in config_host
@@ -392,13 +449,16 @@ if 'CONFIG_VIRGL' in config_host
                              link_args: config_host['VIRGL_LIBS'].split())
 endif
 curl = not_found
-if 'CONFIG_CURL' in config_host
-  curl = declare_dependency(compile_args: config_host['CURL_CFLAGS'].split(),
-                            link_args: config_host['CURL_LIBS'].split())
+if not get_option('curl').auto() or have_block
+  curl = dependency('libcurl', version: '>=7.29.0',
+                    method: 'pkg-config',
+                    required: get_option('curl'),
+                    static: enable_static)
 endif
 libudev = not_found
 if targetos == 'linux' and (have_system or have_tools)
   libudev = dependency('libudev',
+                       method: 'pkg-config',
                        required: get_option('libudev'),
                        static: enable_static)
 endif
@@ -500,16 +560,16 @@ if have_system and not get_option('curses').disabled()
     endif
   endforeach
   msg = get_option('curses').enabled() ? 'curses library not found' : ''
+  curses_compile_args = ['-DNCURSES_WIDECHAR']
   if curses.found()
-    if cc.links(curses_test, dependencies: [curses])
-      curses = declare_dependency(compile_args: '-DNCURSES_WIDECHAR', dependencies: [curses])
+    if cc.links(curses_test, args: curses_compile_args, dependencies: [curses])
+      curses = declare_dependency(compile_args: curses_compile_args, dependencies: [curses])
     else
       msg = 'curses package not usable'
       curses = not_found
     endif
   endif
   if not curses.found()
-    curses_compile_args = ['-DNCURSES_WIDECHAR']
     has_curses_h = cc.has_header('curses.h', args: curses_compile_args)
     if targetos != 'windows' and not has_curses_h
       message('Trying with /usr/include/ncursesw')
@@ -569,8 +629,21 @@ if have_system and not get_option('curses').disabled()
 endif
 
 brlapi = not_found
-if 'CONFIG_BRLAPI' in config_host
-  brlapi = declare_dependency(link_args: config_host['BRLAPI_LIBS'].split())
+if not get_option('brlapi').auto() or have_system
+  brlapi = cc.find_library('brlapi', has_headers: ['brlapi.h'],
+                         required: get_option('brlapi'),
+                         static: enable_static)
+  if brlapi.found() and not cc.links('''
+     #include <brlapi.h>
+     #include <stddef.h>
+     int main(void) { return brlapi__openConnection (NULL, NULL, NULL); }''', dependencies: brlapi)
+    brlapi = not_found
+    if get_option('brlapi').enabled()
+      error('could not link brlapi')
+    else
+      warning('could not link brlapi, disabling')
+    endif
+  endif
 endif
 
 sdl = not_found
@@ -593,13 +666,59 @@ else
 endif
 
 rbd = not_found
-if 'CONFIG_RBD' in config_host
-  rbd = declare_dependency(link_args: config_host['RBD_LIBS'].split())
+if not get_option('rbd').auto() or have_block
+  librados = cc.find_library('rados', required: get_option('rbd'),
+                             static: enable_static)
+  librbd = cc.find_library('rbd', has_headers: ['rbd/librbd.h'],
+                           required: get_option('rbd'),
+                           static: enable_static)
+  if librados.found() and librbd.found() and cc.links('''
+    #include <stdio.h>
+    #include <rbd/librbd.h>
+    int main(void) {
+      rados_t cluster;
+      rados_create(&cluster, NULL);
+      return 0;
+    }''', dependencies: [librbd, librados])
+    rbd = declare_dependency(dependencies: [librbd, librados])
+  endif
 endif
+
 glusterfs = not_found
-if 'CONFIG_GLUSTERFS' in config_host
-  glusterfs = declare_dependency(compile_args: config_host['GLUSTERFS_CFLAGS'].split(),
-                                 link_args: config_host['GLUSTERFS_LIBS'].split())
+glusterfs_ftruncate_has_stat = false
+glusterfs_iocb_has_stat = false
+if not get_option('glusterfs').auto() or have_block
+  glusterfs = dependency('glusterfs-api', version: '>=3',
+                         required: get_option('glusterfs'),
+                         method: 'pkg-config', static: enable_static)
+  if glusterfs.found()
+    glusterfs_ftruncate_has_stat = cc.links('''
+      #include <glusterfs/api/glfs.h>
+
+      int
+      main(void)
+      {
+          /* new glfs_ftruncate() passes two additional args */
+          return glfs_ftruncate(NULL, 0, NULL, NULL);
+      }
+    ''', dependencies: glusterfs)
+    glusterfs_iocb_has_stat = cc.links('''
+      #include <glusterfs/api/glfs.h>
+
+      /* new glfs_io_cbk() passes two additional glfs_stat structs */
+      static void
+      glusterfs_iocb(glfs_fd_t *fd, ssize_t ret, struct glfs_stat *prestat, struct glfs_stat *poststat, void *data)
+      {}
+
+      int
+      main(void)
+      {
+          glfs_io_cbk iocb = &glusterfs_iocb;
+          iocb(NULL, 0 , NULL, NULL, NULL);
+          return 0;
+      }
+    ''', dependencies: glusterfs)
+  endif
 endif
 libssh = not_found
 if 'CONFIG_LIBSSH' in config_host
@@ -607,13 +726,39 @@ if 'CONFIG_LIBSSH' in config_host
                               link_args: config_host['LIBSSH_LIBS'].split())
 endif
 libbzip2 = not_found
-if 'CONFIG_BZIP2' in config_host
-  libbzip2 = declare_dependency(link_args: config_host['BZIP2_LIBS'].split())
+if not get_option('bzip2').auto() or have_block
+  libbzip2 = cc.find_library('bz2', has_headers: ['bzlib.h'],
+                             required: get_option('bzip2'),
+                             static: enable_static)
+  if libbzip2.found() and not cc.links('''
+     #include <bzlib.h>
+     int main(void) { BZ2_bzlibVersion(); return 0; }''', dependencies: libbzip2)
+    libbzip2 = not_found
+    if get_option('bzip2').enabled()
+      error('could not link libbzip2')
+    else
+      warning('could not link libbzip2, disabling')
+    endif
+  endif
 endif
+
 liblzfse = not_found
-if 'CONFIG_LZFSE' in config_host
-  liblzfse = declare_dependency(link_args: config_host['LZFSE_LIBS'].split())
+if not get_option('lzfse').auto() or have_block
+  liblzfse = cc.find_library('lzfse', has_headers: ['lzfse.h'],
+                             required: get_option('lzfse'),
+                             static: enable_static)
 endif
+if liblzfse.found() and not cc.links('''
+   #include <lzfse.h>
+   int main(void) { lzfse_decode_scratch_size(); return 0; }''', dependencies: liblzfse)
+  liblzfse = not_found
+  if get_option('lzfse').enabled()
+    error('could not link liblzfse')
+  else
+    warning('could not link liblzfse, disabling')
+  endif
+endif
+
 oss = not_found
 if 'CONFIG_AUDIO_OSS' in config_host
   oss = declare_dependency(link_args: config_host['OSS_LIBS'].split())
@@ -664,14 +809,41 @@ if get_option('vnc').enabled()
                               compile_args: '-DSTRUCT_IOVEC_DEFINED')
   endif
 endif
+
 snappy = not_found
-if 'CONFIG_SNAPPY' in config_host
-  snappy = declare_dependency(link_args: config_host['SNAPPY_LIBS'].split())
+if not get_option('snappy').auto() or have_system
+  snappy = cc.find_library('snappy', has_headers: ['snappy-c.h'],
+                           required: get_option('snappy'),
+                           static: enable_static)
 endif
+if snappy.found() and not cc.links('''
+   #include <snappy-c.h>
+   int main(void) { snappy_max_compressed_length(4096); return 0; }''', dependencies: snappy)
+  snappy = not_found
+  if get_option('snappy').enabled()
+    error('could not link libsnappy')
+  else
+    warning('could not link libsnappy, disabling')
+  endif
+endif
+
 lzo = not_found
-if 'CONFIG_LZO' in config_host
-  lzo = declare_dependency(link_args: config_host['LZO_LIBS'].split())
+if not get_option('lzo').auto() or have_system
+  lzo = cc.find_library('lzo2', has_headers: ['lzo/lzo1x.h'],
+                        required: get_option('lzo'),
+                        static: enable_static)
 endif
+if lzo.found() and not cc.links('''
+   #include <lzo/lzo1x.h>
+   int main(void) { lzo_version(); return 0; }''', dependencies: lzo)
+  lzo = not_found
+  if get_option('lzo').enabled()
+    error('could not link liblzo2')
+  else
+    warning('could not link liblzo2, disabling')
+  endif
+endif
+
 rdma = not_found
 if 'CONFIG_RDMA' in config_host
   rdma = declare_dependency(link_args: config_host['RDMA_LIBS'].split())
@@ -773,6 +945,7 @@ elif get_option('vhost_user_blk_server').disabled() or not have_system
     have_vhost_user_blk_server = false
 endif
 
+
 if get_option('fuse').disabled() and get_option('fuse_lseek').enabled()
   error('Cannot enable fuse-lseek while fuse is disabled')
 endif
@@ -795,9 +968,68 @@ if not get_option('fuse_lseek').disabled()
   endif
 endif
 
+if get_option('cfi')
+  cfi_flags=[]
+  # Check for dependency on LTO
+  if not get_option('b_lto')
+    error('Selected Control-Flow Integrity but LTO is disabled')
+  endif
+  if config_host.has_key('CONFIG_MODULES')
+    error('Selected Control-Flow Integrity is not compatible with modules')
+  endif
+  # Check for cfi flags. CFI requires LTO so we can't use
+  # get_supported_arguments, but need a more complex "compiles" which allows
+  # custom arguments
+  if cc.compiles('int main () { return 0; }', name: '-fsanitize=cfi-icall',
+                 args: ['-flto', '-fsanitize=cfi-icall'] )
+    cfi_flags += '-fsanitize=cfi-icall'
+  else
+    error('-fsanitize=cfi-icall is not supported by the compiler')
+  endif
+  if cc.compiles('int main () { return 0; }',
+                 name: '-fsanitize-cfi-icall-generalize-pointers',
+                 args: ['-flto', '-fsanitize=cfi-icall',
+                        '-fsanitize-cfi-icall-generalize-pointers'] )
+    cfi_flags += '-fsanitize-cfi-icall-generalize-pointers'
+  else
+    error('-fsanitize-cfi-icall-generalize-pointers is not supported by the compiler')
+  endif
+  if get_option('cfi_debug')
+    if cc.compiles('int main () { return 0; }',
+                   name: '-fno-sanitize-trap=cfi-icall',
+                   args: ['-flto', '-fsanitize=cfi-icall',
+                          '-fno-sanitize-trap=cfi-icall'] )
+      cfi_flags += '-fno-sanitize-trap=cfi-icall'
+    else
+      error('-fno-sanitize-trap=cfi-icall is not supported by the compiler')
+    endif
+  endif
+  add_project_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
+  add_project_link_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
+endif
+
 #################
 # config-host.h #
 #################
+
+have_virtfs = (targetos == 'linux' and
+    have_system and
+    libattr.found() and
+    libcap_ng.found())
+
+if get_option('virtfs').enabled()
+  if not have_virtfs
+    if targetos != 'linux'
+      error('virtio-9p (virtfs) requires Linux')
+    elif not libcap_ng.found() or not libattr.found()
+      error('virtio-9p (virtfs) requires libcap-ng-devel and libattr-devel')
+    elif not have_system
+      error('virtio-9p (virtfs) needs system emulation support')
+    endif
+  endif
+elif get_option('virtfs').disabled()
+  have_virtfs = false
+endif
 
 config_host_data.set_quoted('CONFIG_BINDIR', get_option('prefix') / get_option('bindir'))
 config_host_data.set_quoted('CONFIG_PREFIX', get_option('prefix'))
@@ -812,25 +1044,48 @@ config_host_data.set_quoted('CONFIG_QEMU_LOCALSTATEDIR', get_option('prefix') / 
 config_host_data.set_quoted('CONFIG_QEMU_MODDIR', get_option('prefix') / qemu_moddir)
 config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_option('sysconfdir'))
 
+config_host_data.set('CONFIG_ATTR', libattr.found())
+config_host_data.set('CONFIG_BRLAPI', brlapi.found())
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_LIBUDEV', libudev.found())
+config_host_data.set('CONFIG_LZO', lzo.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
 config_host_data.set('CONFIG_MPATH_NEW_API', mpathpersist_new_api)
+config_host_data.set('CONFIG_CURL', curl.found())
 config_host_data.set('CONFIG_CURSES', curses.found())
+config_host_data.set('CONFIG_GLUSTERFS', glusterfs.found())
+if glusterfs.found()
+  config_host_data.set('CONFIG_GLUSTERFS_XLATOR_OPT', glusterfs.version().version_compare('>=4'))
+  config_host_data.set('CONFIG_GLUSTERFS_DISCARD', glusterfs.version().version_compare('>=5'))
+  config_host_data.set('CONFIG_GLUSTERFS_FALLOCATE', glusterfs.version().version_compare('>=6'))
+  config_host_data.set('CONFIG_GLUSTERFS_ZEROFILL', glusterfs.version().version_compare('>=6'))
+  config_host_data.set('CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT', glusterfs_ftruncate_has_stat)
+  config_host_data.set('CONFIG_GLUSTERFS_IOCB_HAS_STAT', glusterfs_iocb_has_stat)
+endif
+config_host_data.set('CONFIG_LIBATTR', have_old_libattr)
+config_host_data.set('CONFIG_LIBCAP_NG', libcap_ng.found())
+config_host_data.set('CONFIG_LIBISCSI', libiscsi.found())
+config_host_data.set('CONFIG_LIBNFS', libnfs.found())
+config_host_data.set('CONFIG_RBD', rbd.found())
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
+config_host_data.set('CONFIG_SECCOMP', seccomp.found())
+config_host_data.set('CONFIG_SNAPPY', snappy.found())
 config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
 config_host_data.set('CONFIG_VNC', vnc.found())
 config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
 config_host_data.set('CONFIG_VNC_PNG', png.found())
 config_host_data.set('CONFIG_VNC_SASL', sasl.found())
+config_host_data.set('CONFIG_VIRTFS', have_virtfs)
 config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
 config_host_data.set('CONFIG_KEYUTILS', keyutils.found())
 config_host_data.set('CONFIG_GETTID', has_gettid)
 config_host_data.set('CONFIG_MALLOC_TRIM', has_malloc_trim)
 config_host_data.set('CONFIG_STATX', has_statx)
+config_host_data.set('CONFIG_ZSTD', zstd.found())
 config_host_data.set('CONFIG_FUSE', fuse.found())
 config_host_data.set('CONFIG_FUSE_LSEEK', fuse_lseek.found())
+config_host_data.set('CONFIG_CFI', get_option('cfi'))
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
 config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0])
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
@@ -911,21 +1166,19 @@ if link_language == 'cpp'
   }
 endif
 
-kconfig_external_symbols = [
-  'CONFIG_KVM',
-  'CONFIG_XEN',
-  'CONFIG_TPM',
-  'CONFIG_SPICE',
-  'CONFIG_IVSHMEM',
-  'CONFIG_OPENGL',
-  'CONFIG_X11',
-  'CONFIG_VHOST_USER',
-  'CONFIG_VHOST_VDPA',
-  'CONFIG_VHOST_KERNEL',
-  'CONFIG_VIRTFS',
-  'CONFIG_LINUX',
-  'CONFIG_PVRDMA',
-]
+host_kconfig = \
+  ('CONFIG_TPM' in config_host ? ['CONFIG_TPM=y'] : []) + \
+  ('CONFIG_SPICE' in config_host ? ['CONFIG_SPICE=y'] : []) + \
+  ('CONFIG_IVSHMEM' in config_host ? ['CONFIG_IVSHMEM=y'] : []) + \
+  ('CONFIG_OPENGL' in config_host ? ['CONFIG_OPENGL=y'] : []) + \
+  ('CONFIG_X11' in config_host ? ['CONFIG_X11=y'] : []) + \
+  ('CONFIG_VHOST_USER' in config_host ? ['CONFIG_VHOST_USER=y'] : []) + \
+  ('CONFIG_VHOST_VDPA' in config_host ? ['CONFIG_VHOST_VDPA=y'] : []) + \
+  ('CONFIG_VHOST_KERNEL' in config_host ? ['CONFIG_VHOST_KERNEL=y'] : []) + \
+  (have_virtfs ? ['CONFIG_VIRTFS=y'] : []) + \
+  ('CONFIG_LINUX' in config_host ? ['CONFIG_LINUX=y'] : []) + \
+  ('CONFIG_PVRDMA' in config_host ? ['CONFIG_PVRDMA=y'] : [])
+
 ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_ARCH' ]
 
 default_targets = 'CONFIG_DEFAULT_TARGETS' in config_host
@@ -960,7 +1213,7 @@ foreach target : target_dirs
     }
   endif
 
-  have_accel = false
+  accel_kconfig = []
   foreach sym: accelerators
     if sym == 'CONFIG_TCG' or target in accelerator_targets.get(sym, [])
       config_target += { sym: 'y' }
@@ -968,10 +1221,10 @@ foreach target : target_dirs
       if sym == 'CONFIG_XEN' and have_xen_pci_passthrough
         config_target += { 'CONFIG_XEN_PCI_PASSTHROUGH': 'y' }
       endif
-      have_accel = true
+      accel_kconfig += [ sym + '=y' ]
     endif
   endforeach
-  if not have_accel
+  if accel_kconfig.length() == 0
     if default_targets
       continue
     endif
@@ -1025,22 +1278,16 @@ foreach target : target_dirs
                                                configuration: config_target_data)}
 
   if target.endswith('-softmmu')
-    base_kconfig = []
-    foreach sym : kconfig_external_symbols
-      if sym in config_target or sym in config_host
-        base_kconfig += '@0@=y'.format(sym)
-      endif
-    endforeach
-
     config_devices_mak = target + '-config-devices.mak'
     config_devices_mak = configure_file(
       input: ['default-configs/devices' / target + '.mak', 'Kconfig'],
       output: config_devices_mak,
       depfile: config_devices_mak + '.d',
       capture: true,
-      command: [minikconf, config_host['CONFIG_MINIKCONF_MODE'],
+      command: [minikconf,
+                get_option('default_devices') ? '--defconfig' : '--allnoconfig',
                 config_devices_mak, '@DEPFILE@', '@INPUT@',
-                base_kconfig])
+                host_kconfig, accel_kconfig])
 
     config_devices_data = configuration_data()
     config_devices = keyval.load(config_devices_mak)
@@ -2079,6 +2326,7 @@ summary_info += {'gprof enabled':     config_host.has_key('CONFIG_GPROF')}
 summary_info += {'sparse enabled':    sparse.found()}
 summary_info += {'strip binaries':    get_option('strip')}
 summary_info += {'profiler':          config_host.has_key('CONFIG_PROFILER')}
+summary_info += {'link-time optimization (LTO)': get_option('b_lto')}
 summary_info += {'static build':      config_host.has_key('CONFIG_STATIC')}
 if targetos == 'darwin'
   summary_info += {'Cocoa support': config_host.has_key('CONFIG_COCOA')}
@@ -2111,12 +2359,12 @@ summary_info += {'iconv support':     iconv.found()}
 summary_info += {'curses support':    curses.found()}
 # TODO: add back version
 summary_info += {'virgl support':     config_host.has_key('CONFIG_VIRGL')}
-summary_info += {'curl support':      config_host.has_key('CONFIG_CURL')}
+summary_info += {'curl support':      curl.found()}
 summary_info += {'mingw32 support':   targetos == 'windows'}
 summary_info += {'Audio drivers':     config_host['CONFIG_AUDIO_DRIVERS']}
 summary_info += {'Block whitelist (rw)': config_host['CONFIG_BDRV_RW_WHITELIST']}
 summary_info += {'Block whitelist (ro)': config_host['CONFIG_BDRV_RO_WHITELIST']}
-summary_info += {'VirtFS support':    config_host.has_key('CONFIG_VIRTFS')}
+summary_info += {'VirtFS support':    have_virtfs}
 summary_info += {'build virtiofs daemon': have_virtiofsd}
 summary_info += {'Multipath support': mpathpersist.found()}
 summary_info += {'VNC support':       vnc.found()}
@@ -2129,14 +2377,14 @@ summary_info += {'xen support':       config_host.has_key('CONFIG_XEN_BACKEND')}
 if config_host.has_key('CONFIG_XEN_BACKEND')
   summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}
 endif
-summary_info += {'brlapi support':    config_host.has_key('CONFIG_BRLAPI')}
+summary_info += {'brlapi support':    brlapi.found()}
 summary_info += {'Documentation':     build_docs}
 summary_info += {'PIE':               get_option('b_pie')}
 summary_info += {'vde support':       config_host.has_key('CONFIG_VDE')}
 summary_info += {'netmap support':    config_host.has_key('CONFIG_NETMAP')}
 summary_info += {'Linux AIO support': config_host.has_key('CONFIG_LINUX_AIO')}
 summary_info += {'Linux io_uring support': config_host.has_key('CONFIG_LINUX_IO_URING')}
-summary_info += {'ATTR/XATTR support': config_host.has_key('CONFIG_ATTR')}
+summary_info += {'ATTR/XATTR support': libattr.found()}
 summary_info += {'Install blobs':     get_option('install_blobs')}
 summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
 summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
@@ -2157,7 +2405,7 @@ summary_info += {'fdatasync':         config_host.has_key('CONFIG_FDATASYNC')}
 summary_info += {'madvise':           config_host.has_key('CONFIG_MADVISE')}
 summary_info += {'posix_madvise':     config_host.has_key('CONFIG_POSIX_MADVISE')}
 summary_info += {'posix_memalign':    config_host.has_key('CONFIG_POSIX_MEMALIGN')}
-summary_info += {'libcap-ng support': config_host.has_key('CONFIG_LIBCAP_NG')}
+summary_info += {'libcap-ng support': libcap_ng.found()}
 summary_info += {'vhost-kernel support': config_host.has_key('CONFIG_VHOST_KERNEL')}
 summary_info += {'vhost-net support': config_host.has_key('CONFIG_VHOST_NET')}
 summary_info += {'vhost-crypto support': config_host.has_key('CONFIG_VHOST_CRYPTO')}
@@ -2173,7 +2421,7 @@ if config_host['TRACE_BACKENDS'].split().contains('simple')
 endif
 # TODO: add back protocol and server version
 summary_info += {'spice support':     config_host.has_key('CONFIG_SPICE')}
-summary_info += {'rbd support':       config_host.has_key('CONFIG_RBD')}
+summary_info += {'rbd support':       rbd.found()}
 summary_info += {'xfsctl support':    config_host.has_key('CONFIG_XFS')}
 summary_info += {'smartcard support': config_host.has_key('CONFIG_SMARTCARD')}
 summary_info += {'U2F support':       u2f.found()}
@@ -2181,8 +2429,8 @@ summary_info += {'libusb':            config_host.has_key('CONFIG_USB_LIBUSB')}
 summary_info += {'usb net redir':     config_host.has_key('CONFIG_USB_REDIR')}
 summary_info += {'OpenGL support':    config_host.has_key('CONFIG_OPENGL')}
 summary_info += {'OpenGL dmabufs':    config_host.has_key('CONFIG_OPENGL_DMABUF')}
-summary_info += {'libiscsi support':  config_host.has_key('CONFIG_LIBISCSI')}
-summary_info += {'libnfs support':    config_host.has_key('CONFIG_LIBNFS')}
+summary_info += {'libiscsi support':  libiscsi.found()}
+summary_info += {'libnfs support':    libnfs.found()}
 summary_info += {'build guest agent': config_host.has_key('CONFIG_GUEST_AGENT')}
 if targetos == 'windows'
   if 'WIN_SDK' in config_host
@@ -2192,23 +2440,25 @@ if targetos == 'windows'
   summary_info += {'QGA w32 disk info': config_host.has_key('CONFIG_QGA_NTDDSCSI')}
   summary_info += {'QGA MSI support':   config_host.has_key('CONFIG_QGA_MSI')}
 endif
-summary_info += {'seccomp support':   config_host.has_key('CONFIG_SECCOMP')}
+summary_info += {'seccomp support':   seccomp.found()}
+summary_info += {'CFI support':       get_option('cfi')}
+summary_info += {'CFI debug support': get_option('cfi_debug')}
 summary_info += {'coroutine backend': config_host['CONFIG_COROUTINE_BACKEND']}
 summary_info += {'coroutine pool':    config_host['CONFIG_COROUTINE_POOL'] == '1'}
 summary_info += {'debug stack usage': config_host.has_key('CONFIG_DEBUG_STACK_USAGE')}
 summary_info += {'mutex debugging':   config_host.has_key('CONFIG_DEBUG_MUTEX')}
 summary_info += {'crypto afalg':      config_host.has_key('CONFIG_AF_ALG')}
-summary_info += {'GlusterFS support': config_host.has_key('CONFIG_GLUSTERFS')}
+summary_info += {'GlusterFS support': glusterfs.found()}
 summary_info += {'gcov':              get_option('b_coverage')}
 summary_info += {'TPM support':       config_host.has_key('CONFIG_TPM')}
 summary_info += {'libssh support':    config_host.has_key('CONFIG_LIBSSH')}
 summary_info += {'QOM debugging':     config_host.has_key('CONFIG_QOM_CAST_DEBUG')}
 summary_info += {'Live block migration': config_host.has_key('CONFIG_LIVE_BLOCK_MIGRATION')}
-summary_info += {'lzo support':       config_host.has_key('CONFIG_LZO')}
-summary_info += {'snappy support':    config_host.has_key('CONFIG_SNAPPY')}
-summary_info += {'bzip2 support':     config_host.has_key('CONFIG_BZIP2')}
-summary_info += {'lzfse support':     config_host.has_key('CONFIG_LZFSE')}
-summary_info += {'zstd support':      config_host.has_key('CONFIG_ZSTD')}
+summary_info += {'lzo support':       lzo.found()}
+summary_info += {'snappy support':    snappy.found()}
+summary_info += {'bzip2 support':     libbzip2.found()}
+summary_info += {'lzfse support':     liblzfse.found()}
+summary_info += {'zstd support':      zstd.found()}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
 summary_info += {'libxml2':           config_host.has_key('CONFIG_LIBXML2')}
 summary_info += {'memory allocator':  get_option('malloc')}
@@ -2228,7 +2478,7 @@ summary_info += {'capstone':          capstone_opt == 'disabled' ? false : capst
 summary_info += {'libpmem support':   config_host.has_key('CONFIG_LIBPMEM')}
 summary_info += {'libdaxctl support': config_host.has_key('CONFIG_LIBDAXCTL')}
 summary_info += {'libudev':           libudev.found()}
-summary_info += {'default devices':   config_host['CONFIG_MINIKCONF_MODE'] == '--defconfig'}
+summary_info += {'default devices':   get_option('default_devices')}
 summary_info += {'plugin support':    config_host.has_key('CONFIG_PLUGIN')}
 summary_info += {'fuzzing support':   config_host.has_key('CONFIG_FUZZ')}
 if config_host.has_key('HAVE_GDB_BIN')

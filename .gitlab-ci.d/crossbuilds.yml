@@ -7,10 +7,10 @@
     - cd build
     - PKG_CONFIG_PATH=$PKG_CONFIG_PATH
       ../configure --enable-werror $QEMU_CONFIGURE_OPTS --disable-user
-        --target-list-exclude="aarch64-softmmu i386-softmmu microblaze-softmmu
-          mips-softmmu mipsel-softmmu mips64-softmmu ppc64-softmmu sh4-softmmu
-          xtensa-softmmu"
-    - make -j$(expr $(nproc) + 1) all check-build
+        --target-list-exclude="arm-softmmu cris-softmmu i386-softmmu
+          microblaze-softmmu mips-softmmu mipsel-softmmu mips64-softmmu
+          ppc-softmmu sh4-softmmu xtensa-softmmu"
+    - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
 
 # Job to cross-build specific accelerators.
 #
@@ -37,7 +37,7 @@
     - cd build
     - PKG_CONFIG_PATH=$PKG_CONFIG_PATH
       ../configure --enable-werror $QEMU_CONFIGURE_OPTS --disable-system
-    - make -j$(expr $(nproc) + 1) all check-build
+    - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
 
 cross-armel-system:
   extends: .cross_system_build_job
@@ -68,6 +68,18 @@ cross-arm64-user:
   extends: .cross_user_build_job
   variables:
     IMAGE: debian-arm64-cross
+
+cross-i386-system:
+  extends: .cross_system_build_job
+  variables:
+    IMAGE: fedora-i386-cross
+    MAKE_CHECK_ARGS: check-qtest
+
+cross-i386-user:
+  extends: .cross_user_build_job
+  variables:
+    IMAGE: fedora-i386-cross
+    MAKE_CHECK_ARGS: check
 
 cross-mips-system:
   extends: .cross_system_build_job

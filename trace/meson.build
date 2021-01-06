@@ -1,3 +1,4 @@
+
 specific_ss.add(files('control-target.c'))
 
 trace_events_files = []
@@ -66,7 +67,7 @@ foreach d : [
                 output: d[0],
                 input: meson.source_root() / 'trace-events',
                 command: [ tracetool, '--group=root', '--format=@0@'.format(d[1]), '@INPUT@', '@OUTPUT@' ])
-  specific_ss.add(gen)
+  specific_ss.add(when: 'CONFIG_TCG', if_true: gen)
 endforeach
 
 if 'CONFIG_TRACE_UST' in config_host

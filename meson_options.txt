@@ -7,9 +7,11 @@ option('qemu_firmwarepath', type : 'string', value : '',
 option('sphinx_build', type : 'string', value : '',
        description: 'Use specified sphinx-build [$sphinx_build] for building document (default to be empty)')
 
+option('default_devices', type : 'boolean', value : true,
+       description: 'Include a default selection of devices in emulators')
 option('docs', type : 'feature', value : 'auto',
        description: 'Documentations build support')
-option('gettext', type : 'boolean', value : true,
+option('gettext', type : 'feature', value : 'auto',
        description: 'Localization of the GTK+ user interface')
 option('install_blobs', type : 'boolean', value : true,
        description: 'install provided firmware blobs')
@@ -35,9 +37,29 @@ option('xen_pci_passthrough', type: 'feature', value: 'auto',
        description: 'Xen PCI passthrough support')
 option('tcg', type: 'feature', value: 'auto',
        description: 'TCG support')
+option('cfi', type: 'boolean', value: 'false',
+       description: 'Control-Flow Integrity (CFI)')
+option('cfi_debug', type: 'boolean', value: 'false',
+       description: 'Verbose errors in case of CFI violation')
 
+option('attr', type : 'feature', value : 'auto',
+       description: 'attr/xattr support')
+option('brlapi', type : 'feature', value : 'auto',
+       description: 'brlapi character device driver')
+option('bzip2', type : 'feature', value : 'auto',
+       description: 'bzip2 support for DMG images')
+option('cap_ng', type : 'feature', value : 'auto',
+       description: 'cap_ng support')
 option('cocoa', type : 'feature', value : 'auto',
        description: 'Cocoa user interface (macOS only)')
+option('curl', type : 'feature', value : 'auto',
+       description: 'CURL block device driver')
+option('glusterfs', type : 'feature', value : 'auto',
+       description: 'Glusterfs block device driver')
+option('libiscsi', type : 'feature', value : 'auto',
+       description: 'libiscsi userspace initiator')
+option('libnfs', type : 'feature', value : 'auto',
+       description: 'libnfs block device driver')
 option('mpath', type : 'feature', value : 'auto',
        description: 'Multipath persistent reservation passthrough')
 option('iconv', type : 'feature', value : 'auto',
@@ -46,10 +68,20 @@ option('curses', type : 'feature', value : 'auto',
        description: 'curses UI')
 option('libudev', type : 'feature', value : 'auto',
        description: 'Use libudev to enumerate host devices')
+option('lzfse', type : 'feature', value : 'auto',
+       description: 'lzfse support for DMG images')
+option('lzo', type : 'feature', value : 'auto',
+       description: 'lzo compression support')
+option('rbd', type : 'feature', value : 'auto',
+       description: 'Ceph block device driver')
 option('sdl', type : 'feature', value : 'auto',
        description: 'SDL user interface')
 option('sdl_image', type : 'feature', value : 'auto',
        description: 'SDL Image support for icons')
+option('seccomp', type : 'feature', value : 'auto',
+       description: 'seccomp support')
+option('snappy', type : 'feature', value : 'auto',
+       description: 'snappy compression support')
 option('u2f', type : 'feature', value : 'auto',
        description: 'U2F emulation support')
 option('vnc', type : 'feature', value : 'enabled',
@@ -62,14 +94,19 @@ option('vnc_sasl', type : 'feature', value : 'auto',
        description: 'SASL authentication for VNC server')
 option('xkbcommon', type : 'feature', value : 'auto',
        description: 'xkbcommon support')
-option('virtiofsd', type: 'feature', value: 'auto',
-       description: 'build virtiofs daemon (virtiofsd)')
-option('vhost_user_blk_server', type: 'feature', value: 'auto',
-       description: 'build vhost-user-blk server')
+option('zstd', type : 'feature', value : 'auto',
+       description: 'zstd compression support')
 option('fuse', type: 'feature', value: 'auto',
        description: 'FUSE block device export')
 option('fuse_lseek', type : 'feature', value : 'auto',
        description: 'SEEK_HOLE/SEEK_DATA support for FUSE exports')
+
+option('vhost_user_blk_server', type: 'feature', value: 'auto',
+       description: 'build vhost-user-blk server')
+option('virtfs', type: 'feature', value: 'auto',
+       description: 'virtio-9p support')
+option('virtiofsd', type: 'feature', value: 'auto',
+       description: 'build virtiofs daemon (virtiofsd)')
 
 option('capstone', type: 'combo', value: 'auto',
        choices: ['disabled', 'enabled', 'auto', 'system', 'internal'],

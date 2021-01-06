@@ -1,14 +1,26 @@
-FROM fedora:30
+FROM fedora:31
 ENV PACKAGES \
+    bzip2 \
+    diffutils \
+    findutils \
     gcc \
+    git \
+    libtasn1-devel.i686 \
+    libzstd-devel.i686 \
+    make \
+    meson \
+    ninja-build \
     glib2-devel.i686 \
     glibc-devel.i686 \
     glibc-static.i686 \
     gnutls-devel.i686 \
     nettle-devel.i686 \
+    perl-Test-Harness \
     pixman-devel.i686 \
-    zlib-devel.i686 \
-    libzstd-devel.i686
+    zlib-devel.i686
+
+ENV QEMU_CONFIGURE_OPTS --extra-cflags=-m32 --disable-vhost-user
+ENV PKG_CONFIG_PATH /usr/lib/pkgconfig
 
 RUN dnf install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt

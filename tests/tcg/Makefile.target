@@ -94,7 +94,7 @@ ifdef CONFIG_USER_ONLY
 -include $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.target
 
 # Add the common build options
-CFLAGS+=-Wall -O0 -g -fno-strict-aliasing
+CFLAGS+=-Wall -Werror -O0 -g -fno-strict-aliasing
 ifeq ($(BUILD_STATIC),y)
 LDFLAGS+=-static
 endif

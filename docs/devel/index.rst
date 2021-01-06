@@ -15,14 +15,15 @@ Contents:
 
    build-system
    kconfig
+   testing
+   fuzzing
+   control-flow-integrity
    loads-stores
    memory
    migration
    atomics
    stable-process
-   testing
    qtest
-   fuzzing
    decodetree
    secure-coding-practices
    tcg

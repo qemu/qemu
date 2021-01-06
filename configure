@@ -242,6 +242,7 @@ host_cc="cc"
 audio_win_int=""
 libs_qga=""
 debug_info="yes"
+lto="false"
 stack_protector=""
 safe_stack=""
 use_containers="yes"
@@ -293,8 +294,19 @@ unset target_list_exclude
 # Distributions want to ensure that several features are compiled in, and it
 # is impossible without a --enable-foo that exits if a feature is not found.
 
-brlapi=""
-curl=""
+default_feature=""
+# parse CC options second
+for opt do
+  optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
+  case "$opt" in
+      --without-default-features)
+          default_feature="no"
+  ;;
+  esac
+done
+
+brlapi="auto"
+curl="auto"
 iconv="auto"
 curses="auto"
 docs="auto"
@@ -303,52 +315,51 @@ netmap="no"
 sdl="auto"
 sdl_image="auto"
 virtiofsd="auto"
-virtfs=""
+virtfs="auto"
 libudev="auto"
 mpath="auto"
 vnc="enabled"
 sparse="auto"
-vde=""
+vde="$default_feature"
 vnc_sasl="auto"
 vnc_jpeg="auto"
 vnc_png="auto"
 xkbcommon="auto"
-xen=""
-xen_ctrl_version=""
+xen="$default_feature"
+xen_ctrl_version="$default_feature"
 xen_pci_passthrough="auto"
-linux_aio=""
-linux_io_uring=""
-cap_ng=""
-attr=""
-libattr=""
-xfs=""
+linux_aio="$default_feature"
+linux_io_uring="$default_feature"
+cap_ng="auto"
+attr="auto"
+xfs="$default_feature"
 tcg="enabled"
-membarrier=""
-vhost_net=""
-vhost_crypto=""
-vhost_scsi=""
-vhost_vsock=""
+membarrier="$default_feature"
+vhost_net="$default_feature"
+vhost_crypto="$default_feature"
+vhost_scsi="$default_feature"
+vhost_vsock="$default_feature"
 vhost_user="no"
 vhost_user_blk_server="auto"
-vhost_user_fs=""
+vhost_user_fs="$default_feature"
 kvm="auto"
 hax="auto"
 hvf="auto"
 whpx="auto"
-rdma=""
-pvrdma=""
+rdma="$default_feature"
+pvrdma="$default_feature"
 gprof="no"
 debug_tcg="no"
 debug="no"
 sanitizers="no"
 tsan="no"
-fortify_source=""
+fortify_source="$default_feature"
 strip_opt="yes"
 tcg_interpreter="no"
 bigendian="no"
 mingw32="no"
 gcov="no"
-EXESUF=""
+EXESUF="$default_feature"
 HOST_DSOSUF=".so"
 modules="no"
 module_upgrades="no"
@@ -370,92 +381,87 @@ pie=""
 qom_cast_debug="yes"
 trace_backends="log"
 trace_file="trace"
-spice=""
-rbd=""
-smartcard=""
+spice="$default_feature"
+rbd="auto"
+smartcard="$default_feature"
 u2f="auto"
-libusb=""
-usb_redir=""
-opengl=""
+libusb="$default_feature"
+usb_redir="$default_feature"
+opengl="$default_feature"
 opengl_dmabuf="no"
 cpuid_h="no"
-avx2_opt=""
+avx2_opt="$default_feature"
 capstone="auto"
-lzo=""
-snappy=""
-bzip2=""
-lzfse=""
-zstd=""
-guest_agent=""
+lzo="auto"
+snappy="auto"
+bzip2="auto"
+lzfse="auto"
+zstd="auto"
+guest_agent="$default_feature"
 guest_agent_with_vss="no"
 guest_agent_ntddscsi="no"
-guest_agent_msi=""
-vss_win32_sdk=""
+guest_agent_msi="$default_feature"
+vss_win32_sdk="$default_feature"
 win_sdk="no"
-want_tools=""
-libiscsi=""
-libnfs=""
+want_tools="$default_feature"
+libiscsi="auto"
+libnfs="auto"
 coroutine=""
-coroutine_pool=""
+coroutine_pool="$default_feature"
 debug_stack_usage="no"
 crypto_afalg="no"
-seccomp=""
-glusterfs=""
-glusterfs_xlator_opt="no"
-glusterfs_discard="no"
-glusterfs_fallocate="no"
-glusterfs_zerofill="no"
-glusterfs_ftruncate_has_stat="no"
-glusterfs_iocb_has_stat="no"
-gtk=""
+cfi="false"
+cfi_debug="false"
+seccomp="auto"
+glusterfs="auto"
+gtk="$default_feature"
 gtk_gl="no"
 tls_priority="NORMAL"
-gnutls=""
-nettle=""
+gnutls="$default_feature"
+nettle="$default_feature"
 nettle_xts="no"
-gcrypt=""
+gcrypt="$default_feature"
 gcrypt_hmac="no"
 gcrypt_xts="no"
 qemu_private_xts="yes"
-auth_pam=""
-vte=""
-virglrenderer=""
-tpm=""
-libssh=""
-live_block_migration="yes"
-numa=""
+auth_pam="$default_feature"
+vte="$default_feature"
+virglrenderer="$default_feature"
+tpm="$default_feature"
+libssh="$default_feature"
+live_block_migration=${default_feature:-yes}
+numa="$default_feature"
 tcmalloc="no"
 jemalloc="no"
-replication="yes"
-bochs="yes"
-cloop="yes"
-dmg="yes"
-qcow1="yes"
-vdi="yes"
-vvfat="yes"
-qed="yes"
-parallels="yes"
+replication=${default_feature:-yes}
+bochs=${default_feature:-yes}
+cloop=${default_feature:-yes}
+dmg=${default_feature:-yes}
+qcow1=${default_feature:-yes}
+vdi=${default_feature:-yes}
+vvfat=${default_feature:-yes}
+qed=${default_feature:-yes}
+parallels=${default_feature:-yes}
 sheepdog="no"
-libxml2=""
+libxml2="$default_feature"
 debug_mutex="no"
-libpmem=""
-default_devices="yes"
+libpmem="$default_feature"
+default_devices="true"
 plugins="no"
 fuzzing="no"
 rng_none="no"
-secret_keyring=""
-libdaxctl=""
+secret_keyring="$default_feature"
+libdaxctl="$default_feature"
 meson=""
 ninja=""
 skip_meson=no
-gettext=""
+gettext="auto"
 fuse="auto"
 fuse_lseek="auto"
 
-bogus_os="no"
 malloc_trim="auto"
 
-# parse CC options first
+# parse CC options second
 for opt do
   optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
   case "$opt" in
@@ -605,7 +611,6 @@ else
   # might be going to just print the --help text, or it might
   # be the result of a missing compiler.
   targetos='bogus'
-  bogus_os='yes'
 fi
 
 # Some host OSes need non-standard checks for which CPU to use.
@@ -798,7 +803,7 @@ Linux)
   audio_possible_drivers="oss alsa sdl pa"
   linux="yes"
   linux_user="yes"
-  vhost_user="yes"
+  vhost_user=${default_feature:-yes}
 ;;
 esac
 
@@ -938,9 +943,11 @@ for opt do
   ;;
   --with-trace-file=*) trace_file="$optarg"
   ;;
-  --with-default-devices) default_devices="yes"
+  --with-default-devices) default_devices="true"
   ;;
-  --without-default-devices) default_devices="no"
+  --without-default-devices) default_devices="false"
+  ;;
+  --without-default-features) # processed above
   ;;
   --enable-gprof) gprof="yes"
   ;;
@@ -996,9 +1003,9 @@ for opt do
   ;;
   --enable-qom-cast-debug) qom_cast_debug="yes"
   ;;
-  --disable-virtfs) virtfs="no"
+  --disable-virtfs) virtfs="disabled"
   ;;
-  --enable-virtfs) virtfs="yes"
+  --enable-virtfs) virtfs="enabled"
   ;;
   --disable-libudev) libudev="disabled"
   ;;
@@ -1016,9 +1023,9 @@ for opt do
   ;;
   --enable-vnc) vnc="enabled"
   ;;
-  --disable-gettext) gettext="false"
+  --disable-gettext) gettext="disabled"
   ;;
-  --enable-gettext) gettext="true"
+  --enable-gettext) gettext="enabled"
   ;;
   --oss-lib=*) oss_lib="$optarg"
   ;;
@@ -1068,6 +1075,8 @@ for opt do
   ;;
   --disable-slirp) slirp="disabled"
   ;;
+  --enable-slirp) slirp="enabled"
+  ;;
   --enable-slirp=git) slirp="internal"
   ;;
   --enable-slirp=system) slirp="system"
@@ -1088,9 +1097,9 @@ for opt do
   ;;
   --enable-xen-pci-passthrough) xen_pci_passthrough="enabled"
   ;;
-  --disable-brlapi) brlapi="no"
+  --disable-brlapi) brlapi="disabled"
   ;;
-  --enable-brlapi) brlapi="yes"
+  --enable-brlapi) brlapi="enabled"
   ;;
   --disable-kvm) kvm="disabled"
   ;;
@@ -1112,9 +1121,9 @@ for opt do
   ;;
   --enable-tcg-interpreter) tcg_interpreter="yes"
   ;;
-  --disable-cap-ng)  cap_ng="no"
+  --disable-cap-ng)  cap_ng="disabled"
   ;;
-  --enable-cap-ng) cap_ng="yes"
+  --enable-cap-ng) cap_ng="enabled"
   ;;
   --disable-tcg) tcg="disabled"
   ;;
@@ -1128,13 +1137,13 @@ for opt do
   ;;
   --enable-spice) spice="yes"
   ;;
-  --disable-libiscsi) libiscsi="no"
+  --disable-libiscsi) libiscsi="disabled"
   ;;
-  --enable-libiscsi) libiscsi="yes"
+  --enable-libiscsi) libiscsi="enabled"
   ;;
-  --disable-libnfs) libnfs="no"
+  --disable-libnfs) libnfs="disabled"
   ;;
-  --enable-libnfs) libnfs="yes"
+  --enable-libnfs) libnfs="enabled"
   ;;
   --enable-profiler) profiler="yes"
   ;;
@@ -1169,6 +1178,10 @@ for opt do
   ;;
   --disable-werror) werror="no"
   ;;
+  --enable-lto) lto="true"
+  ;;
+  --disable-lto) lto="false"
+  ;;
   --enable-stack-protector) stack_protector="yes"
   ;;
   --disable-stack-protector) stack_protector="no"
@@ -1176,6 +1189,16 @@ for opt do
   --enable-safe-stack) safe_stack="yes"
   ;;
   --disable-safe-stack) safe_stack="no"
+  ;;
+  --enable-cfi)
+      cfi="true";
+      lto="true";
+  ;;
+  --disable-cfi) cfi="false"
+  ;;
+  --enable-cfi-debug) cfi_debug="true"
+  ;;
+  --disable-cfi-debug) cfi_debug="false"
   ;;
   --disable-curses) curses="disabled"
   ;;
@@ -1185,9 +1208,9 @@ for opt do
   ;;
   --enable-iconv) iconv="enabled"
   ;;
-  --disable-curl) curl="no"
+  --disable-curl) curl="disabled"
   ;;
-  --enable-curl) curl="yes"
+  --enable-curl) curl="enabled"
   ;;
   --disable-fdt) fdt="disabled"
   ;;
@@ -1205,9 +1228,9 @@ for opt do
   ;;
   --enable-linux-io-uring) linux_io_uring="yes"
   ;;
-  --disable-attr) attr="no"
+  --disable-attr) attr="disabled"
   ;;
-  --enable-attr) attr="yes"
+  --enable-attr) attr="enabled"
   ;;
   --disable-membarrier) membarrier="no"
   ;;
@@ -1261,9 +1284,9 @@ for opt do
   ;;
   --enable-opengl) opengl="yes"
   ;;
-  --disable-rbd) rbd="no"
+  --disable-rbd) rbd="disabled"
   ;;
-  --enable-rbd) rbd="yes"
+  --enable-rbd) rbd="enabled"
   ;;
   --disable-xfsctl) xfs="no"
   ;;
@@ -1287,25 +1310,25 @@ for opt do
   ;;
   --disable-zlib-test)
   ;;
-  --disable-lzo) lzo="no"
+  --disable-lzo) lzo="disabled"
   ;;
-  --enable-lzo) lzo="yes"
+  --enable-lzo) lzo="enabled"
   ;;
-  --disable-snappy) snappy="no"
+  --disable-snappy) snappy="disabled"
   ;;
-  --enable-snappy) snappy="yes"
+  --enable-snappy) snappy="enabled"
   ;;
-  --disable-bzip2) bzip2="no"
+  --disable-bzip2) bzip2="disabled"
   ;;
-  --enable-bzip2) bzip2="yes"
+  --enable-bzip2) bzip2="enabled"
   ;;
-  --enable-lzfse) lzfse="yes"
+  --enable-lzfse) lzfse="enabled"
   ;;
-  --disable-lzfse) lzfse="no"
+  --disable-lzfse) lzfse="disabled"
   ;;
-  --disable-zstd) zstd="no"
+  --disable-zstd) zstd="disabled"
   ;;
-  --enable-zstd) zstd="yes"
+  --enable-zstd) zstd="enabled"
   ;;
   --enable-guest-agent) guest_agent="yes"
   ;;
@@ -1331,11 +1354,11 @@ for opt do
   ;;
   --disable-tools) want_tools="no"
   ;;
-  --enable-seccomp) seccomp="yes"
+  --enable-seccomp) seccomp="enabled"
   ;;
-  --disable-seccomp) seccomp="no"
+  --disable-seccomp) seccomp="disabled"
   ;;
-  --disable-glusterfs) glusterfs="no"
+  --disable-glusterfs) glusterfs="disabled"
   ;;
   --disable-avx2) avx2_opt="no"
   ;;
@@ -1346,7 +1369,7 @@ for opt do
   --enable-avx512f) avx512f_opt="yes"
   ;;
 
-  --enable-glusterfs) glusterfs="yes"
+  --enable-glusterfs) glusterfs="enabled"
   ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
       echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
@@ -1706,6 +1729,10 @@ Advanced options (experts only):
   --efi-aarch64=PATH       PATH of efi file to use for aarch64 VMs.
   --with-suffix=SUFFIX     suffix for QEMU data inside datadir/libdir/sysconfdir/docdir [$qemu_suffix]
   --with-pkgversion=VERS   use specified string as sub-version of the package
+  --without-default-features default all --enable-* options to "disabled"
+  --without-default-devices  do not include any device that is not needed to
+                           start the emulator (only use if you are including
+                           desired devices in default-configs/devices/)
   --enable-debug           enable common debug build options
   --enable-sanitizers      enable default sanitizers
   --enable-tsan            enable thread sanitizer
@@ -1747,7 +1774,8 @@ Advanced options (experts only):
   --gdb=GDB-path           gdb to use for gdbstub tests [$gdb_bin]
 
 Optional features, enabled with --enable-FEATURE and
-disabled with --disable-FEATURE, default is enabled if available:
+disabled with --disable-FEATURE, default is enabled if available
+(unless built with --without-default-features):
 
   system          all system emulation targets
   user            supported user emulation targets
@@ -1761,10 +1789,17 @@ disabled with --disable-FEATURE, default is enabled if available:
   module-upgrades try to load modules from alternate paths for upgrades
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
+  lto             Enable Link-Time Optimization.
   sparse          sparse checker
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
-
+  cfi             Enable Control-Flow Integrity for indirect function calls.
+                  In case of a cfi violation, QEMU is terminated with SIGILL
+                  Depends on lto and is incompatible with modules
+                  Automatically enables Link-Time Optimization (lto)
+  cfi-debug       In case of a cfi violation, a message containing the line that
+                  triggered the error is written to stderr. After the error,
+                  QEMU is still terminated with SIGILL
   gnutls          GNUTLS cryptography support
   nettle          nettle cryptography support
   gcrypt          libgcrypt cryptography support
@@ -1972,7 +2007,7 @@ if test -z "$werror" ; then
     fi
 fi
 
-if test "$bogus_os" = "yes"; then
+if test "$targetos" = "bogus"; then
     # Now that we know that we're not printing the help and that
     # the compiler works (so the results of the check_defines we used
     # to identify the OS are reliable), if we didn't recognize the
@@ -2422,115 +2457,6 @@ EOF
 fi
 
 ##########################################
-# lzo check
-
-if test "$lzo" != "no" ; then
-    cat > $TMPC << EOF
-#include <lzo/lzo1x.h>
-int main(void) { lzo_version(); return 0; }
-EOF
-    if compile_prog "" "-llzo2" ; then
-        lzo_libs="-llzo2"
-        lzo="yes"
-    else
-        if test "$lzo" = "yes"; then
-            feature_not_found "liblzo2" "Install liblzo2 devel"
-        fi
-        lzo="no"
-    fi
-fi
-
-##########################################
-# snappy check
-
-if test "$snappy" != "no" ; then
-    cat > $TMPC << EOF
-#include <snappy-c.h>
-int main(void) { snappy_max_compressed_length(4096); return 0; }
-EOF
-    if compile_prog "" "-lsnappy" ; then
-        snappy_libs='-lsnappy'
-        snappy="yes"
-    else
-        if test "$snappy" = "yes"; then
-            feature_not_found "libsnappy" "Install libsnappy devel"
-        fi
-        snappy="no"
-    fi
-fi
-
-##########################################
-# bzip2 check
-
-if test "$bzip2" != "no" ; then
-    cat > $TMPC << EOF
-#include <bzlib.h>
-int main(void) { BZ2_bzlibVersion(); return 0; }
-EOF
-    if compile_prog "" "-lbz2" ; then
-        bzip2="yes"
-    else
-        if test "$bzip2" = "yes"; then
-            feature_not_found "libbzip2" "Install libbzip2 devel"
-        fi
-        bzip2="no"
-    fi
-fi
-
-##########################################
-# lzfse check
-
-if test "$lzfse" != "no" ; then
-    cat > $TMPC << EOF
-#include <lzfse.h>
-int main(void) { lzfse_decode_scratch_size(); return 0; }
-EOF
-    if compile_prog "" "-llzfse" ; then
-        lzfse="yes"
-    else
-        if test "$lzfse" = "yes"; then
-            feature_not_found "lzfse" "Install lzfse devel"
-        fi
-        lzfse="no"
-    fi
-fi
-
-##########################################
-# zstd check
-
-if test "$zstd" != "no" ; then
-    libzstd_minver="1.4.0"
-    if $pkg_config --atleast-version=$libzstd_minver libzstd ; then
-        zstd_cflags="$($pkg_config --cflags libzstd)"
-        zstd_libs="$($pkg_config --libs libzstd)"
-        zstd="yes"
-    else
-        if test "$zstd" = "yes" ; then
-            feature_not_found "libzstd" "Install libzstd devel"
-        fi
-        zstd="no"
-    fi
-fi
-
-##########################################
-# libseccomp check
-
-if test "$seccomp" != "no" ; then
-    libseccomp_minver="2.3.0"
-    if $pkg_config --atleast-version=$libseccomp_minver libseccomp ; then
-        seccomp_cflags="$($pkg_config --cflags libseccomp)"
-        seccomp_libs="$($pkg_config --libs libseccomp)"
-        seccomp="yes"
-    else
-        if test "$seccomp" = "yes" ; then
-            feature_not_found "libseccomp" \
-                 "Install libseccomp devel >= $libseccomp_minver"
-        fi
-        seccomp="no"
-    fi
-fi
-
-##########################################
 # xen probe
 
 if test "$xen" != "disabled" ; then
@@ -2833,31 +2759,6 @@ EOF
         xen_libs="$xen_libs $xen_stable_libs "
       fi
     fi
-  fi
-fi
-
-if test "$xen_pci_passthrough" != "disabled"; then
-  if test "$xen" = "enabled" && test "$linux" = "yes"; then
-    xen_pci_passthrough=enabled
-  else
-    if test "$xen_pci_passthrough" = "enabled"; then
-      error_exit "User requested feature Xen PCI Passthrough" \
-          " but this feature requires /sys from Linux"
-    fi
-    xen_pci_passthrough=disabled
-  fi
-fi
-
-##########################################
-# gettext probe
-if test "$gettext" != "false" ; then
-  if has xgettext; then
-    gettext=true
-  else
-    if test "$gettext" = "true" ; then
-      feature_not_found "gettext" "Install xgettext binary"
-    fi
-    gettext=false
   fi
 fi
 
@@ -3291,28 +3192,6 @@ EOF
 fi
 
 ##########################################
-# libcap-ng library probe
-if test "$cap_ng" != "no" ; then
-  cap_libs="-lcap-ng"
-  cat > $TMPC << EOF
-#include <cap-ng.h>
-int main(void)
-{
-    capng_capability_to_name(CAPNG_EFFECTIVE);
-    return 0;
-}
-EOF
-  if compile_prog "" "$cap_libs" ; then
-    cap_ng=yes
-  else
-    if test "$cap_ng" = "yes" ; then
-      feature_not_found "cap_ng" "Install libcap-ng devel"
-    fi
-    cap_ng=no
-  fi
-fi
-
-##########################################
 # Sound support libraries probe
 
 audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/,/ /g')
@@ -3406,50 +3285,6 @@ for drv in $audio_drv_list; do
     ;;
     esac
 done
-
-##########################################
-# BrlAPI probe
-
-if test "$brlapi" != "no" ; then
-  brlapi_libs="-lbrlapi"
-  cat > $TMPC << EOF
-#include <brlapi.h>
-#include <stddef.h>
-int main( void ) { return brlapi__openConnection (NULL, NULL, NULL); }
-EOF
-  if compile_prog "" "$brlapi_libs" ; then
-    brlapi=yes
-  else
-    if test "$brlapi" = "yes" ; then
-      feature_not_found "brlapi" "Install brlapi devel"
-    fi
-    brlapi=no
-  fi
-fi
-
-##########################################
-# curl probe
-if test "$curl" != "no" ; then
-  if $pkg_config libcurl --exists; then
-    curlconfig="$pkg_config libcurl"
-  else
-    curlconfig=curl-config
-  fi
-  cat > $TMPC << EOF
-#include <curl/curl.h>
-int main(void) { curl_easy_init(); curl_multi_setopt(0, 0, 0); return 0; }
-EOF
-  curl_cflags=$($curlconfig --cflags 2>/dev/null)
-  curl_libs=$($curlconfig --libs 2>/dev/null)
-  if compile_prog "$curl_cflags" "$curl_libs" ; then
-    curl=yes
-  else
-    if test "$curl" = "yes" ; then
-      feature_not_found "curl" "Install libcurl devel"
-    fi
-    curl=no
-  fi
-fi # test "$curl"
 
 ##########################################
 # glib support probe
@@ -3658,29 +3493,6 @@ if compile_prog "" "$pthread_lib" ; then
 fi
 
 ##########################################
-# rbd probe
-if test "$rbd" != "no" ; then
-  cat > $TMPC <<EOF
-#include <stdio.h>
-#include <rbd/librbd.h>
-int main(void) {
-    rados_t cluster;
-    rados_create(&cluster, NULL);
-    return 0;
-}
-EOF
-  rbd_libs="-lrbd -lrados"
-  if compile_prog "" "$rbd_libs" ; then
-    rbd=yes
-  else
-    if test "$rbd" = "yes" ; then
-      feature_not_found "rados block device" "Install librbd/ceph devel"
-    fi
-    rbd=no
-  fi
-fi
-
-##########################################
 # libssh probe
 if test "$libssh" != "no" ; then
   if $pkg_config --exists libssh; then
@@ -3759,36 +3571,6 @@ if test "$tpm" = ""; then
 elif test "$tpm" = "yes"; then
   if test "$mingw32" = "yes" ; then
     error_exit "TPM emulation only available on POSIX systems"
-  fi
-fi
-
-##########################################
-# attr probe
-
-libattr_libs=
-if test "$attr" != "no" ; then
-  cat > $TMPC <<EOF
-#include <stdio.h>
-#include <sys/types.h>
-#ifdef CONFIG_LIBATTR
-#include <attr/xattr.h>
-#else
-#include <sys/xattr.h>
-#endif
-int main(void) { getxattr(NULL, NULL, NULL, 0); setxattr(NULL, NULL, NULL, 0, 0); return 0; }
-EOF
-  if compile_prog "" "" ; then
-    attr=yes
-  # Older distros have <attr/xattr.h>, and need -lattr:
-  elif compile_prog "-DCONFIG_LIBATTR" "-lattr" ; then
-    attr=yes
-    libattr_libs="-lattr"
-    libattr=yes
-  else
-    if test "$attr" = "yes" ; then
-      feature_not_found "ATTR" "Install libc6 or libattr devel"
-    fi
-    attr=no
   fi
 fi
 
@@ -3895,64 +3677,6 @@ if test "$libxml2" != "no" ; then
         fi
         libxml2="no"
     fi
-fi
-
-##########################################
-# glusterfs probe
-if test "$glusterfs" != "no" ; then
-  if $pkg_config --atleast-version=3 glusterfs-api; then
-    glusterfs="yes"
-    glusterfs_cflags=$($pkg_config --cflags glusterfs-api)
-    glusterfs_libs=$($pkg_config --libs glusterfs-api)
-    if $pkg_config --atleast-version=4 glusterfs-api; then
-      glusterfs_xlator_opt="yes"
-    fi
-    if $pkg_config --atleast-version=5 glusterfs-api; then
-      glusterfs_discard="yes"
-    fi
-    if $pkg_config --atleast-version=6 glusterfs-api; then
-      glusterfs_fallocate="yes"
-      glusterfs_zerofill="yes"
-    fi
-    cat > $TMPC << EOF
-#include <glusterfs/api/glfs.h>
-
-int
-main(void)
-{
-	/* new glfs_ftruncate() passes two additional args */
-	return glfs_ftruncate(NULL, 0, NULL, NULL);
-}
-EOF
-    if compile_prog "$glusterfs_cflags" "$glusterfs_libs" ; then
-      glusterfs_ftruncate_has_stat="yes"
-    fi
-    cat > $TMPC << EOF
-#include <glusterfs/api/glfs.h>
-
-/* new glfs_io_cbk() passes two additional glfs_stat structs */
-static void
-glusterfs_iocb(glfs_fd_t *fd, ssize_t ret, struct glfs_stat *prestat, struct glfs_stat *poststat, void *data)
-{}
-
-int
-main(void)
-{
-	glfs_io_cbk iocb = &glusterfs_iocb;
-	iocb(NULL, 0 , NULL, NULL, NULL);
-	return 0;
-}
-EOF
-    if compile_prog "$glusterfs_cflags" "$glusterfs_libs" ; then
-      glusterfs_iocb_has_stat="yes"
-    fi
-  else
-    if test "$glusterfs" = "yes" ; then
-      feature_not_found "GlusterFS backend support" \
-          "Install glusterfs-api devel >= 3"
-    fi
-    glusterfs="no"
-  fi
 fi
 
 # Check for inotify functions when we are building linux-user
@@ -4421,21 +4145,6 @@ int main(void) { return bswap32(0); }
 EOF
 if compile_prog "" "" ; then
   bswap_h=yes
-fi
-
-##########################################
-# Do we have libiscsi >= 1.9.0
-if test "$libiscsi" != "no" ; then
-  if $pkg_config --atleast-version=1.9.0 libiscsi; then
-    libiscsi="yes"
-    libiscsi_cflags=$($pkg_config --cflags libiscsi)
-    libiscsi_libs=$($pkg_config --libs libiscsi)
-  else
-    if test "$libiscsi" = "yes" ; then
-      feature_not_found "libiscsi" "Install libiscsi >= 1.9.0"
-    fi
-    libiscsi="no"
-  fi
 fi
 
 ##########################################
@@ -5685,20 +5394,6 @@ if test "$have_ubsan" = "yes"; then
 fi
 
 ##########################################
-# Do we have libnfs
-if test "$libnfs" != "no" ; then
-  if $pkg_config --atleast-version=1.9.3 libnfs; then
-    libnfs="yes"
-    libnfs_libs=$($pkg_config --libs libnfs)
-  else
-    if test "$libnfs" = "yes" ; then
-      feature_not_found "libnfs" "Install libnfs devel >= 1.9.3"
-    fi
-    libnfs="no"
-  fi
-fi
-
-##########################################
 
 # Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
 if test "$solaris" = "no" && test "$tsan" = "no"; then
@@ -5726,24 +5421,6 @@ fi
 # We can only support ivshmem if we have eventfd
 if [ "$eventfd" = "yes" ]; then
   ivshmem=yes
-fi
-
-if test "$softmmu" = yes ; then
-  if test "$linux" = yes; then
-    if test "$virtfs" != no && test "$cap_ng" = yes && test "$attr" = yes ; then
-      virtfs=yes
-    else
-      if test "$virtfs" = yes; then
-        error_exit "VirtFS requires libcap-ng devel and libattr devel"
-      fi
-      virtfs=no
-    fi
-  else
-    if test "$virtfs" = yes; then
-      error_exit "VirtFS is supported only on Linux"
-    fi
-    virtfs=no
-  fi
 fi
 
 # Probe for guest agent support/options
@@ -5895,11 +5572,6 @@ echo "GIT_UPDATE=$git_update" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 
-if test "$default_devices" = "yes" ; then
-  echo "CONFIG_MINIKCONF_MODE=--defconfig" >> $config_host_mak
-else
-  echo "CONFIG_MINIKCONF_MODE=--allnoconfig" >> $config_host_mak
-fi
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
 fi
@@ -5911,15 +5583,6 @@ if test "$bigendian" = "yes" ; then
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
-  rc_version=$(cat $source_path/VERSION)
-  version_major=${rc_version%%.*}
-  rc_version=${rc_version#*.}
-  version_minor=${rc_version%%.*}
-  rc_version=${rc_version#*.}
-  version_subminor=${rc_version%%.*}
-  version_micro=0
-  echo "CONFIG_FILEVERSION=$version_major,$version_minor,$version_subminor,$version_micro" >> $config_host_mak
-  echo "CONFIG_PRODUCTVERSION=$version_major,$version_minor,$version_subminor,$version_micro" >> $config_host_mak
   if test "$guest_agent_with_vss" = "yes" ; then
     echo "CONFIG_QGA_VSS=y" >> $config_host_mak
     echo "QGA_VSS_PROVIDER=$qga_vss_provider" >> $config_host_mak
@@ -5980,10 +5643,6 @@ if test "$l2tpv3" = "yes" ; then
 fi
 if test "$gprof" = "yes" ; then
   echo "CONFIG_GPROF=y" >> $config_host_mak
-fi
-if test "$cap_ng" = "yes" ; then
-  echo "CONFIG_LIBCAP_NG=y" >> $config_host_mak
-  echo "LIBCAP_NG_LIBS=$cap_libs" >> $config_host_mak
 fi
 echo "CONFIG_AUDIO_DRIVERS=$audio_drv_list" >> $config_host_mak
 for drv in $audio_drv_list; do
@@ -6120,15 +5779,6 @@ fi
 if test "$bswap_h" = "yes" ; then
   echo "CONFIG_MACHINE_BSWAP_H=y" >> $config_host_mak
 fi
-if test "$curl" = "yes" ; then
-  echo "CONFIG_CURL=y" >> $config_host_mak
-  echo "CURL_CFLAGS=$curl_cflags" >> $config_host_mak
-  echo "CURL_LIBS=$curl_libs" >> $config_host_mak
-fi
-if test "$brlapi" = "yes" ; then
-  echo "CONFIG_BRLAPI=y" >> $config_host_mak
-  echo "BRLAPI_LIBS=$brlapi_libs" >> $config_host_mak
-fi
 if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
@@ -6212,16 +5862,6 @@ if test "$linux_io_uring" = "yes" ; then
   echo "CONFIG_LINUX_IO_URING=y" >> $config_host_mak
   echo "LINUX_IO_URING_CFLAGS=$linux_io_uring_cflags" >> $config_host_mak
   echo "LINUX_IO_URING_LIBS=$linux_io_uring_libs" >> $config_host_mak
-fi
-if test "$attr" = "yes" ; then
-  echo "CONFIG_ATTR=y" >> $config_host_mak
-  echo "LIBATTR_LIBS=$libattr_libs" >> $config_host_mak
-fi
-if test "$libattr" = "yes" ; then
-  echo "CONFIG_LIBATTR=y" >> $config_host_mak
-fi
-if test "$virtfs" = "yes" ; then
-  echo "CONFIG_VIRTFS=y" >> $config_host_mak
 fi
 if test "$vhost_scsi" = "yes" ; then
   echo "CONFIG_VHOST_SCSI=y" >> $config_host_mak
@@ -6336,49 +5976,6 @@ if test "$avx512f_opt" = "yes" ; then
   echo "CONFIG_AVX512F_OPT=y" >> $config_host_mak
 fi
 
-if test "$lzo" = "yes" ; then
-  echo "CONFIG_LZO=y" >> $config_host_mak
-  echo "LZO_LIBS=$lzo_libs" >> $config_host_mak
-fi
-
-if test "$snappy" = "yes" ; then
-  echo "CONFIG_SNAPPY=y" >> $config_host_mak
-  echo "SNAPPY_LIBS=$snappy_libs" >> $config_host_mak
-fi
-
-if test "$bzip2" = "yes" ; then
-  echo "CONFIG_BZIP2=y" >> $config_host_mak
-  echo "BZIP2_LIBS=-lbz2" >> $config_host_mak
-fi
-
-if test "$lzfse" = "yes" ; then
-  echo "CONFIG_LZFSE=y" >> $config_host_mak
-  echo "LZFSE_LIBS=-llzfse" >> $config_host_mak
-fi
-
-if test "$zstd" = "yes" ; then
-  echo "CONFIG_ZSTD=y" >> $config_host_mak
-  echo "ZSTD_CFLAGS=$zstd_cflags" >> $config_host_mak
-  echo "ZSTD_LIBS=$zstd_libs" >> $config_host_mak
-fi
-
-if test "$libiscsi" = "yes" ; then
-  echo "CONFIG_LIBISCSI=y" >> $config_host_mak
-  echo "LIBISCSI_CFLAGS=$libiscsi_cflags" >> $config_host_mak
-  echo "LIBISCSI_LIBS=$libiscsi_libs" >> $config_host_mak
-fi
-
-if test "$libnfs" = "yes" ; then
-  echo "CONFIG_LIBNFS=y" >> $config_host_mak
-  echo "LIBNFS_LIBS=$libnfs_libs" >> $config_host_mak
-fi
-
-if test "$seccomp" = "yes"; then
-  echo "CONFIG_SECCOMP=y" >> $config_host_mak
-  echo "SECCOMP_CFLAGS=$seccomp_cflags" >> $config_host_mak
-  echo "SECCOMP_LIBS=$seccomp_libs" >> $config_host_mak
-fi
-
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
   echo "CONFIG_BSD=y" >> $config_host_mak
@@ -6386,10 +5983,6 @@ fi
 
 if test "$qom_cast_debug" = "yes" ; then
   echo "CONFIG_QOM_CAST_DEBUG=y" >> $config_host_mak
-fi
-if test "$rbd" = "yes" ; then
-  echo "CONFIG_RBD=y" >> $config_host_mak
-  echo "RBD_LIBS=$rbd_libs" >> $config_host_mak
 fi
 
 echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak
@@ -6457,36 +6050,6 @@ fi
 
 if test "$getauxval" = "yes" ; then
   echo "CONFIG_GETAUXVAL=y" >> $config_host_mak
-fi
-
-if test "$glusterfs" = "yes" ; then
-  echo "CONFIG_GLUSTERFS=y" >> $config_host_mak
-  echo "GLUSTERFS_CFLAGS=$glusterfs_cflags" >> $config_host_mak
-  echo "GLUSTERFS_LIBS=$glusterfs_libs" >> $config_host_mak
-fi
-
-if test "$glusterfs_xlator_opt" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_XLATOR_OPT=y" >> $config_host_mak
-fi
-
-if test "$glusterfs_discard" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_DISCARD=y" >> $config_host_mak
-fi
-
-if test "$glusterfs_fallocate" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_FALLOCATE=y" >> $config_host_mak
-fi
-
-if test "$glusterfs_zerofill" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_ZEROFILL=y" >> $config_host_mak
-fi
-
-if test "$glusterfs_ftruncate_has_stat" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT=y" >> $config_host_mak
-fi
-
-if test "$glusterfs_iocb_has_stat" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_IOCB_HAS_STAT=y" >> $config_host_mak
 fi
 
 if test "$libssh" = "yes" ; then
@@ -6870,13 +6433,6 @@ for rom in seabios; do
     echo "RANLIB=$ranlib" >> $config_mak
 done
 
-# set up qemu-iotests in this build directory
-iotests_common_env="tests/qemu-iotests/common.env"
-
-echo "# Automatically generated by configure - do not modify" > "$iotests_common_env"
-echo >> "$iotests_common_env"
-echo "export PYTHON='$python'" >> "$iotests_common_env"
-
 if test "$skip_meson" = no; then
 cross="config-meson.cross.new"
 meson_quote() {
@@ -6960,17 +6516,23 @@ NINJA=$ninja $meson setup \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         ${staticpic:+-Db_staticpic=$staticpic} \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
+        -Db_lto=$lto -Dcfi=$cfi -Dcfi_debug=$cfi_debug \
         -Dmalloc=$malloc -Dmalloc_trim=$malloc_trim -Dsparse=$sparse \
         -Dkvm=$kvm -Dhax=$hax -Dwhpx=$whpx -Dhvf=$hvf \
         -Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \
         -Dcocoa=$cocoa -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
         -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
         -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
-        -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt \
-        -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
+        -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
+        -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
+        -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
+        -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
+        -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
+        -Dattr=$attr -Ddefault_devices=$default_devices \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek \
+        $(if test "$default_features" = no; then echo "-Dauto_features=disabled"; fi) \
         $cross_arg \
         "$PWD" "$source_path"
 
