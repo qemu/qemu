@@ -33,6 +33,9 @@
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
 #include "hw/sysbus.h"
+#include "hw/intc/ppc-uic.h"
+#include "hw/qdev-properties.h"
+#include "qapi/error.h"
 
 #define BINARY_DEVICE_TREE_FILE "bamboo.dtb"
 
@@ -168,13 +171,13 @@ static void bamboo_init(MachineState *machine)
     MemoryRegion *ram_memories = g_new(MemoryRegion, PPC440EP_SDRAM_NR_BANKS);
     hwaddr ram_bases[PPC440EP_SDRAM_NR_BANKS];
     hwaddr ram_sizes[PPC440EP_SDRAM_NR_BANKS];
-    qemu_irq *pic;
-    qemu_irq *irqs;
     PCIBus *pcibus;
     PowerPCCPU *cpu;
     CPUPPCState *env;
     target_long initrd_size = 0;
     DeviceState *dev;
+    DeviceState *uicdev;
+    SysBusDevice *uicsbd;
     int success;
     int i;
 
@@ -192,10 +195,17 @@ static void bamboo_init(MachineState *machine)
     ppc_dcr_init(env, NULL, NULL);
 
     /* interrupt controller */
-    irqs = g_new0(qemu_irq, PPCUIC_OUTPUT_NB);
-    irqs[PPCUIC_OUTPUT_INT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT];
-    irqs[PPCUIC_OUTPUT_CINT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT];
-    pic = ppcuic_init(env, irqs, 0x0C0, 0, 1);
+    uicdev = qdev_new(TYPE_PPC_UIC);
+    uicsbd = SYS_BUS_DEVICE(uicdev);
+
+    object_property_set_link(OBJECT(uicdev), "cpu", OBJECT(cpu),
+                             &error_fatal);
+    sysbus_realize_and_unref(uicsbd, &error_fatal);
+
+    sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_INT,
+                       ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT]);
+    sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_CINT,
+                       ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT]);
 
     /* SDRAM controller */
     memset(ram_bases, 0, sizeof(ram_bases));
@@ -203,14 +213,18 @@ static void bamboo_init(MachineState *machine)
     ppc4xx_sdram_banks(machine->ram, PPC440EP_SDRAM_NR_BANKS, ram_memories,
                        ram_bases, ram_sizes, ppc440ep_sdram_bank_sizes);
     /* XXX 440EP's ECC interrupts are on UIC1, but we've only created UIC0. */
-    ppc4xx_sdram_init(env, pic[14], PPC440EP_SDRAM_NR_BANKS, ram_memories,
+    ppc4xx_sdram_init(env,
+                      qdev_get_gpio_in(uicdev, 14),
+                      PPC440EP_SDRAM_NR_BANKS, ram_memories,
                       ram_bases, ram_sizes, 1);
 
     /* PCI */
     dev = sysbus_create_varargs(TYPE_PPC4xx_PCI_HOST_BRIDGE,
                                 PPC440EP_PCI_CONFIG,
-                                pic[pci_irq_nrs[0]], pic[pci_irq_nrs[1]],
-                                pic[pci_irq_nrs[2]], pic[pci_irq_nrs[3]],
+                                qdev_get_gpio_in(uicdev, pci_irq_nrs[0]),
+                                qdev_get_gpio_in(uicdev, pci_irq_nrs[1]),
+                                qdev_get_gpio_in(uicdev, pci_irq_nrs[2]),
+                                qdev_get_gpio_in(uicdev, pci_irq_nrs[3]),
                                 NULL);
     pcibus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
     if (!pcibus) {
@@ -223,12 +237,14 @@ static void bamboo_init(MachineState *machine)
     memory_region_add_subregion(get_system_memory(), PPC440EP_PCI_IO, isa);
 
     if (serial_hd(0) != NULL) {
-        serial_mm_init(address_space_mem, 0xef600300, 0, pic[0],
+        serial_mm_init(address_space_mem, 0xef600300, 0,
+                       qdev_get_gpio_in(uicdev, 0),
                        PPC_SERIAL_MM_BAUDBASE, serial_hd(0),
                        DEVICE_BIG_ENDIAN);
     }
     if (serial_hd(1) != NULL) {
-        serial_mm_init(address_space_mem, 0xef600400, 0, pic[1],
+        serial_mm_init(address_space_mem, 0xef600400, 0,
+                       qdev_get_gpio_in(uicdev, 1),
                        PPC_SERIAL_MM_BAUDBASE, serial_hd(1),
                        DEVICE_BIG_ENDIAN);
     }

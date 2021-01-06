@@ -1632,32 +1632,6 @@ static uint32_t cas_check_pvr(PowerPCCPU *cpu, uint32_t max_compat,
     return best_compat;
 }
 
-static void spapr_handle_transient_dev_before_cas(SpaprMachineState *spapr)
-{
-    Object *drc_container;
-    ObjectProperty *prop;
-    ObjectPropertyIterator iter;
-
-    drc_container = container_get(object_get_root(), "/dr-connector");
-    object_property_iter_init(&iter, drc_container);
-    while ((prop = object_property_iter_next(&iter))) {
-        SpaprDrc *drc;
-
-        if (!strstart(prop->type, "link<", NULL)) {
-            continue;
-        }
-        drc = SPAPR_DR_CONNECTOR(object_property_get_link(drc_container,
-                                                          prop->name,
-                                                          &error_abort));
-
-        if (spapr_drc_transient(drc)) {
-            spapr_drc_reset(drc);
-        }
-    }
-
-    spapr_clear_pending_hotplug_events(spapr);
-}
-
 target_ulong do_client_architecture_support(PowerPCCPU *cpu,
                                             SpaprMachineState *spapr,
                                             target_ulong vec,
@@ -1815,7 +1789,12 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
 
     spapr_irq_update_active_intc(spapr);
 
-    spapr_handle_transient_dev_before_cas(spapr);
+    /*
+     * Process all pending hot-plug/unplug requests now. An updated full
+     * rendered FDT will be returned to the guest.
+     */
+    spapr_drc_reset_all(spapr);
+    spapr_clear_pending_hotplug_events(spapr);
 
     /*
      * If spapr_machine_reset() did not set up a HPT but one is necessary

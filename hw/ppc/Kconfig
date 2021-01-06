@@ -7,8 +7,8 @@ config PSERIES
     select PCI
     select SPAPR_VSCSI
     select VFIO if LINUX   # needed by spapr_pci_vfio.c
-    select XICS_SPAPR
-    select XIVE_SPAPR
+    select XICS
+    select XIVE
     select MSI_NONBROKEN
     select FDT_PPC
     select CHRP_NVRAM
@@ -29,15 +29,13 @@ config POWERNV
     select XICS
     select XIVE
     select FDT_PPC
-    select PCI_EXPRESS
-    select MSI_NONBROKEN
+    select PCI_POWERNV
 
 config PPC405
     bool
     select M48T59
     select PFLASH_CFI02
     select PPC4XX
-    select SERIAL
 
 config PPC440
     bool
@@ -46,13 +44,14 @@ config PPC440
     imply E1000_PCI
     select PCI_EXPRESS
     select PPC4XX
-    select SERIAL
     select FDT_PPC
 
 config PPC4XX
     bool
     select BITBANG_I2C
     select PCI
+    select PPC_UIC
+    select SERIAL
 
 config SAM460EX
     bool
@@ -61,12 +60,10 @@ config SAM460EX
     select IDE_SII3112
     select M41T80
     select PPC440
-    select SERIAL
     select SM501
     select SMBUS_EEPROM
     select USB_EHCI_SYSBUS
     select USB_OHCI
-    select FDT_PPC
 
 config PREP
     bool
@@ -123,25 +120,9 @@ config VIRTEX
     bool
     select PPC4XX
     select PFLASH_CFI01
-    select SERIAL
     select XILINX
     select XILINX_ETHLITE
     select FDT_PPC
-
-config XIVE
-    bool
-    depends on POWERNV || PSERIES
-
-config XIVE_SPAPR
-    bool
-    default y
-    depends on PSERIES
-    select XIVE
-
-config XIVE_KVM
-    bool
-    default y
-    depends on XIVE_SPAPR && KVM
 
 # Only used by 64-bit targets
 config FW_CFG_PPC

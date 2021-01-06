@@ -23,7 +23,7 @@ pci_ss.add(when: 'CONFIG_VERSATILE_PCI', if_true: files('versatile.c'))
 
 softmmu_ss.add_all(when: 'CONFIG_PCI', if_true: pci_ss)
 
-specific_ss.add(when: 'CONFIG_POWERNV', if_true: files(
+specific_ss.add(when: 'CONFIG_PCI_POWERNV', if_true: files(
   'pnv_phb3.c',
   'pnv_phb3_msi.c',
   'pnv_phb3_pbcq.c',
