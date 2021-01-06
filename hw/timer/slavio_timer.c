@@ -332,6 +332,10 @@ static const MemoryRegionOps slavio_timer_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 4,
         .max_access_size = 4,
     },
 };

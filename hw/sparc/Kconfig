@@ -14,6 +14,7 @@ config SUN4M
     select M48T59
     select STP2000
     select CHRP_NVRAM
+    select OR_IRQ
 
 config LEON3
     bool
