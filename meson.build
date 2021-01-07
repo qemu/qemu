@@ -776,19 +776,31 @@ if 'CONFIG_OPENGL' in config_host
   opengl = declare_dependency(compile_args: config_host['OPENGL_CFLAGS'].split(),
                               link_args: config_host['OPENGL_LIBS'].split())
 endif
+
 gtk = not_found
-if 'CONFIG_GTK' in config_host
-  gtk = declare_dependency(compile_args: config_host['GTK_CFLAGS'].split(),
-                              link_args: config_host['GTK_LIBS'].split())
+gtkx11 = not_found
+if not get_option('gtk').auto() or have_system
+  gtk = dependency('gtk+-3.0', version: '>=3.22.0',
+                   method: 'pkg-config',
+                   required: get_option('gtk'),
+                   static: enable_static)
+  if gtk.found()
+    gtkx11 = dependency('gtk+-x11-3.0', version: '>=3.22.0',
+                        method: 'pkg-config',
+                        required: false,
+                        static: enable_static)
+    gtk = declare_dependency(dependencies: [gtk, gtkx11])
+  endif
 endif
+
 vte = not_found
 if 'CONFIG_VTE' in config_host
   vte = declare_dependency(compile_args: config_host['VTE_CFLAGS'].split(),
                            link_args: config_host['VTE_LIBS'].split())
 endif
 x11 = not_found
-if config_host.has_key('CONFIG_NEED_X11')
-  x11 = dependency('x11', method: 'pkg-config', required: false,
+if gtkx11.found() or 'lm32-softmmu' in target_dirs
+  x11 = dependency('x11', method: 'pkg-config', required: gtkx11.found(),
                    static: enable_static)
 endif
 vnc = not_found
@@ -1062,6 +1074,7 @@ if glusterfs.found()
   config_host_data.set('CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT', glusterfs_ftruncate_has_stat)
   config_host_data.set('CONFIG_GLUSTERFS_IOCB_HAS_STAT', glusterfs_iocb_has_stat)
 endif
+config_host_data.set('CONFIG_GTK', gtk.found())
 config_host_data.set('CONFIG_LIBATTR', have_old_libattr)
 config_host_data.set('CONFIG_LIBCAP_NG', libcap_ng.found())
 config_host_data.set('CONFIG_LIBISCSI', libiscsi.found())
@@ -2230,7 +2243,7 @@ subdir('tools')
 subdir('pc-bios')
 subdir('docs')
 subdir('tests')
-if 'CONFIG_GTK' in config_host
+if gtk.found()
   subdir('po')
 endif
 
@@ -2247,7 +2260,7 @@ if host_machine.system() == 'windows'
   if build_docs
     nsis_cmd += '-DCONFIG_DOCUMENTATION=y'
   endif
-  if 'CONFIG_GTK' in config_host
+  if gtk.found()
     nsis_cmd += '-DCONFIG_GTK=y'
   endif
 
@@ -2338,7 +2351,7 @@ endif
 summary_info += {'SDL support':       sdl.found()}
 summary_info += {'SDL image support': sdl_image.found()}
 # TODO: add back version
-summary_info += {'GTK support':       config_host.has_key('CONFIG_GTK')}
+summary_info += {'GTK support':       gtk.found()}
 summary_info += {'pixman':            pixman.found()}
 # TODO: add back version
 summary_info += {'VTE support':       config_host.has_key('CONFIG_VTE')}
