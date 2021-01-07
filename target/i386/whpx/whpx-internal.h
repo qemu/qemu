@@ -13,13 +13,6 @@ struct whpx_state {
     bool apic_in_platform;
 };
 
-struct whpx_lapic_state {
-    struct {
-        uint32_t data;
-        uint32_t padding[3];
-    } fields[256];
-};
-
 extern struct whpx_state whpx_global;
 void whpx_apic_get(DeviceState *s);
 
