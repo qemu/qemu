@@ -169,7 +169,6 @@ version_res = []
 coref = []
 iokit = []
 emulator_link_args = []
-cocoa = not_found
 hvf = not_found
 if targetos == 'windows'
   socket = cc.find_library('ws2_32')
@@ -182,7 +181,6 @@ if targetos == 'windows'
 elif targetos == 'darwin'
   coref = dependency('appleframeworks', modules: 'CoreFoundation')
   iokit = dependency('appleframeworks', modules: 'IOKit')
-  cocoa = dependency('appleframeworks', modules: 'Cocoa', required: get_option('cocoa'))
 elif targetos == 'sunos'
   socket = [cc.find_library('socket'),
             cc.find_library('nsl'),
@@ -255,9 +253,6 @@ if not have_xen_pci_passthrough and get_option('xen_pci_passthrough').enabled()
   else
     error('Xen PCI passthrough requested but Xen not enabled')
   endif
-endif
-if not cocoa.found() and get_option('cocoa').enabled()
-  error('Cocoa not available on this platform')
 endif
 
 ################
@@ -360,6 +355,14 @@ if not get_option('attr').disabled()
       have_old_libattr = libattr.found()
     endif
   endif
+endif
+
+cocoa = dependency('appleframeworks', modules: 'Cocoa', required: get_option('cocoa'))
+if cocoa.found() and get_option('sdl').enabled()
+  error('Cocoa and SDL cannot be enabled at the same time')
+endif
+if cocoa.found() and get_option('gtk').enabled()
+  error('Cocoa and GTK+ cannot be enabled at the same time')
 endif
 
 seccomp = not_found
@@ -647,7 +650,7 @@ if not get_option('brlapi').auto() or have_system
 endif
 
 sdl = not_found
-if have_system
+if not get_option('sdl').auto() or (have_system and not cocoa.found())
   sdl = dependency('sdl2', required: get_option('sdl'), static: enable_static)
   sdl_image = not_found
 endif
@@ -779,7 +782,7 @@ endif
 
 gtk = not_found
 gtkx11 = not_found
-if not get_option('gtk').auto() or have_system
+if not get_option('gtk').auto() or (have_system and not cocoa.found())
   gtk = dependency('gtk+-3.0', version: '>=3.22.0',
                    method: 'pkg-config',
                    required: get_option('gtk'),
