@@ -1541,6 +1541,7 @@ void tcg_optimize(TCGContext *s)
             case INDEX_op_qemu_ld_i32:
             case INDEX_op_qemu_ld_i64:
             case INDEX_op_qemu_st_i32:
+            case INDEX_op_qemu_st8_i32:
             case INDEX_op_qemu_st_i64:
             case INDEX_op_call:
                 /* Opcodes that touch guest memory stop the optimization.  */

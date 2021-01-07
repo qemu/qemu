@@ -299,7 +299,7 @@ char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size)
 }
 
 /* Disassemble this for me please... (debugging). */
-void disas(FILE *out, void *code, unsigned long size)
+void disas(FILE *out, const void *code, unsigned long size)
 {
     uintptr_t pc;
     int count;

@@ -502,6 +502,7 @@ goto_ptr opcode, emitting this op is equivalent to emitting exit_tb(0).
 
 * qemu_ld_i32/i64 t0, t1, flags, memidx
 * qemu_st_i32/i64 t0, t1, flags, memidx
+* qemu_st8_i32 t0, t1, flags, memidx
 
 Load data at the guest address t1 into t0, or store data in t0 at guest
 address t1.  The _i32/_i64 size applies to the size of the input/output
@@ -517,6 +518,10 @@ of the memory access.
 
 For a 32-bit host, qemu_ld/st_i64 is guaranteed to only be used with a
 64-bit memory access specified in flags.
+
+For i386, qemu_st8_i32 is exactly like qemu_st_i32, except the size of
+the memory operation is known to be 8-bit.  This allows the backend to
+provide a different set of register constraints.
 
 ********* Host vector operations
 

@@ -56,7 +56,7 @@ static inline void log_target_disas(CPUState *cpu, target_ulong start,
     rcu_read_unlock();
 }
 
-static inline void log_disas(void *code, unsigned long size)
+static inline void log_disas(const void *code, unsigned long size)
 {
     QemuLogFile *logfile;
     rcu_read_lock();
