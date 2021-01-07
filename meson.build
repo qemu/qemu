@@ -787,9 +787,9 @@ if 'CONFIG_VTE' in config_host
                            link_args: config_host['VTE_LIBS'].split())
 endif
 x11 = not_found
-if 'CONFIG_X11' in config_host
-  x11 = declare_dependency(compile_args: config_host['X11_CFLAGS'].split(),
-                           link_args: config_host['X11_LIBS'].split())
+if config_host.has_key('CONFIG_NEED_X11')
+  x11 = dependency('x11', method: 'pkg-config', required: false,
+                   static: enable_static)
 endif
 vnc = not_found
 png = not_found
@@ -1085,6 +1085,7 @@ config_host_data.set('CONFIG_STATX', has_statx)
 config_host_data.set('CONFIG_ZSTD', zstd.found())
 config_host_data.set('CONFIG_FUSE', fuse.found())
 config_host_data.set('CONFIG_FUSE_LSEEK', fuse_lseek.found())
+config_host_data.set('CONFIG_X11', x11.found())
 config_host_data.set('CONFIG_CFI', get_option('cfi'))
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
 config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0])
@@ -1171,7 +1172,7 @@ host_kconfig = \
   ('CONFIG_SPICE' in config_host ? ['CONFIG_SPICE=y'] : []) + \
   ('CONFIG_IVSHMEM' in config_host ? ['CONFIG_IVSHMEM=y'] : []) + \
   ('CONFIG_OPENGL' in config_host ? ['CONFIG_OPENGL=y'] : []) + \
-  ('CONFIG_X11' in config_host ? ['CONFIG_X11=y'] : []) + \
+  (x11.found() ? ['CONFIG_X11=y'] : []) + \
   ('CONFIG_VHOST_USER' in config_host ? ['CONFIG_VHOST_USER=y'] : []) + \
   ('CONFIG_VHOST_VDPA' in config_host ? ['CONFIG_VHOST_VDPA=y'] : []) + \
   ('CONFIG_VHOST_KERNEL' in config_host ? ['CONFIG_VHOST_KERNEL=y'] : []) + \

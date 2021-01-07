@@ -2760,14 +2760,6 @@ EOF
 fi
 
 ##########################################
-# X11 probe
-if $pkg_config --exists "x11"; then
-    have_x11=yes
-    x11_cflags=$($pkg_config --cflags x11)
-    x11_libs=$($pkg_config --libs x11)
-fi
-
-##########################################
 # GTK probe
 
 if test "$gtk" != "no"; then
@@ -5681,10 +5673,8 @@ fi
 if test "$module_upgrades" = "yes"; then
   echo "CONFIG_MODULE_UPGRADES=y" >> $config_host_mak
 fi
-if test "$have_x11" = "yes" && test "$need_x11" = "yes"; then
-  echo "CONFIG_X11=y" >> $config_host_mak
-  echo "X11_CFLAGS=$x11_cflags" >> $config_host_mak
-  echo "X11_LIBS=$x11_libs" >> $config_host_mak
+if test "$need_x11" = "yes"; then
+  echo "CONFIG_NEED_X11=y" >> $config_host_mak
 fi
 if test "$pipe2" = "yes" ; then
   echo "CONFIG_PIPE2=y" >> $config_host_mak
