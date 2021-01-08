@@ -3547,13 +3547,6 @@ int gdbserver_start(const char *device)
     return 0;
 }
 
-void gdbserver_cleanup(void)
-{
-    if (gdbserver_state.init) {
-        put_packet("W00");
-    }
-}
-
 static void register_types(void)
 {
     type_register_static(&char_gdb_type_info);
