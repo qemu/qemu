@@ -42,6 +42,7 @@ Supported devices
  * USB host (USBH)
  * GPIO controller
  * Analog to Digital Converter (ADC)
+ * Pulse Width Modulation (PWM)
 
 Missing devices
 ---------------
@@ -61,7 +62,6 @@ Missing devices
  * Peripheral SPI controller (PSPI)
  * SD/MMC host
  * PECI interface
- * Pulse Width Modulation (PWM)
  * Tachometer
  * PCI and PCIe root complex and bridges
  * VDM and MCTP support

@@ -102,6 +102,8 @@ enum NPCM7xxInterrupt {
     NPCM7XX_WDG2_IRQ,                   /* Timer Module 2 Watchdog */
     NPCM7XX_EHCI_IRQ            = 61,
     NPCM7XX_OHCI_IRQ            = 62,
+    NPCM7XX_PWM0_IRQ            = 93,   /* PWM module 0 */
+    NPCM7XX_PWM1_IRQ,                   /* PWM module 1 */
     NPCM7XX_GPIO0_IRQ           = 116,
     NPCM7XX_GPIO1_IRQ,
     NPCM7XX_GPIO2_IRQ,
@@ -142,6 +144,12 @@ static const hwaddr npcm7xx_fiu3_flash_addr[] = {
     0xa8000000, /* CS1 */
     0xb0000000, /* CS2 */
     0xb8000000, /* CS3 */
+};
+
+/* Register base address for each PWM Module */
+static const hwaddr npcm7xx_pwm_addr[] = {
+    0xf0103000,
+    0xf0104000,
 };
 
 static const struct {
@@ -353,6 +361,10 @@ static void npcm7xx_init(Object *obj)
         object_initialize_child(obj, npcm7xx_fiu[i].name, &s->fiu[i],
                                 TYPE_NPCM7XX_FIU);
     }
+
+    for (i = 0; i < ARRAY_SIZE(s->pwm); i++) {
+        object_initialize_child(obj, "pwm[*]", &s->pwm[i], TYPE_NPCM7XX_PWM);
+    }
 }
 
 static void npcm7xx_realize(DeviceState *dev, Error **errp)
@@ -513,6 +525,18 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->ohci), 0,
                        npcm7xx_irq(s, NPCM7XX_OHCI_IRQ));
 
+    /* PWM Modules. Cannot fail. */
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_pwm_addr) != ARRAY_SIZE(s->pwm));
+    for (i = 0; i < ARRAY_SIZE(s->pwm); i++) {
+        SysBusDevice *sbd = SYS_BUS_DEVICE(&s->pwm[i]);
+
+        qdev_connect_clock_in(DEVICE(&s->pwm[i]), "clock", qdev_get_clock_out(
+                    DEVICE(&s->clk), "apb3-clock"));
+        sysbus_realize(sbd, &error_abort);
+        sysbus_mmio_map(sbd, 0, npcm7xx_pwm_addr[i]);
+        sysbus_connect_irq(sbd, i, npcm7xx_irq(s, NPCM7XX_PWM0_IRQ + i));
+    }
+
     /*
      * Flash Interface Unit (FIU). Can fail if incorrect number of chip selects
      * specified, but this is a programming error.
@@ -580,8 +604,6 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("npcm7xx.peci",         0xf0100000,   4 * KiB);
     create_unimplemented_device("npcm7xx.siox[1]",      0xf0101000,   4 * KiB);
     create_unimplemented_device("npcm7xx.siox[2]",      0xf0102000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.pwm[0]",       0xf0103000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.pwm[1]",       0xf0104000,   4 * KiB);
     create_unimplemented_device("npcm7xx.mft[0]",       0xf0180000,   4 * KiB);
     create_unimplemented_device("npcm7xx.mft[1]",       0xf0181000,   4 * KiB);
     create_unimplemented_device("npcm7xx.mft[2]",       0xf0182000,   4 * KiB);
