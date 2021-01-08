@@ -276,7 +276,7 @@ static int arm_gdb_get_svereg(CPUARMState *env, GByteArray *buf, int reg)
          * while the ZCR works in Vector Quads (VQ) which is 128bit chunks.
          */
         int vq = sve_zcr_len_for_el(env, arm_current_el(env)) + 1;
-        return gdb_get_reg32(buf, vq * 2);
+        return gdb_get_reg64(buf, vq * 2);
     }
     default:
         /* gdbstub asked for something out our range */
