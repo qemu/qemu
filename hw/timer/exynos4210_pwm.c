@@ -410,6 +410,16 @@ static void exynos4210_pwm_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
+static void exynos4210_pwm_finalize(Object *obj)
+{
+    Exynos4210PWMState *s = EXYNOS4210_PWM(obj);
+    int i;
+
+    for (i = 0; i < EXYNOS4210_PWM_TIMERS_NUM; i++) {
+        ptimer_free(s->timer[i].ptimer);
+    }
+}
+
 static void exynos4210_pwm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -423,6 +433,7 @@ static const TypeInfo exynos4210_pwm_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210PWMState),
     .instance_init = exynos4210_pwm_init,
+    .instance_finalize = exynos4210_pwm_finalize,
     .class_init    = exynos4210_pwm_class_init,
 };
 

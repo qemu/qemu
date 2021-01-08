@@ -26,7 +26,6 @@
 #include "hw/arm/boot.h"
 #include "hw/loader.h"
 #include "net/net.h"
-#include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
@@ -38,6 +37,7 @@
 #include "hw/cpu/a15mpcore.h"
 #include "qemu/log.h"
 #include "qom/object.h"
+#include "cpu.h"
 
 #define SMP_BOOT_ADDR           0x100
 #define SMP_BOOT_REG            0x40
@@ -396,15 +396,9 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     highbank_binfo.loader_start = 0;
     highbank_binfo.write_secondary_boot = hb_write_secondary;
     highbank_binfo.secondary_cpu_reset_hook = hb_reset_secondary;
-    if (!kvm_enabled()) {
-        highbank_binfo.board_setup_addr = BOARD_SETUP_ADDR;
-        highbank_binfo.write_board_setup = hb_write_board_setup;
-        highbank_binfo.secure_board_setup = true;
-    } else {
-        warn_report("cannot load built-in Monitor support "
-                    "if KVM is enabled. Some guests (such as Linux) "
-                    "may not boot.");
-    }
+    highbank_binfo.board_setup_addr = BOARD_SETUP_ADDR;
+    highbank_binfo.write_board_setup = hb_write_board_setup;
+    highbank_binfo.secure_board_setup = true;
 
     arm_load_kernel(ARM_CPU(first_cpu), machine, &highbank_binfo);
 }

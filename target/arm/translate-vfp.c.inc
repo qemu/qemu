@@ -663,6 +663,7 @@ static FPSysRegCheckResult fp_sysreg_checks(DisasContext *s, int regno)
         }
         break;
     case ARM_VFP_FPCXT_S:
+    case ARM_VFP_FPCXT_NS:
         if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
             return false;
         }
@@ -674,11 +675,46 @@ static FPSysRegCheckResult fp_sysreg_checks(DisasContext *s, int regno)
         return FPSysRegCheckFailed;
     }
 
-    if (!vfp_access_check(s)) {
+    /*
+     * FPCXT_NS is a special case: it has specific handling for
+     * "current FP state is inactive", and must do the PreserveFPState()
+     * but not the usual full set of actions done by ExecuteFPCheck().
+     * So we don't call vfp_access_check() and the callers must handle this.
+     */
+    if (regno != ARM_VFP_FPCXT_NS && !vfp_access_check(s)) {
         return FPSysRegCheckDone;
     }
-
     return FPSysRegCheckContinue;
+}
+
+static void gen_branch_fpInactive(DisasContext *s, TCGCond cond,
+                                  TCGLabel *label)
+{
+    /*
+     * FPCXT_NS is a special case: it has specific handling for
+     * "current FP state is inactive", and must do the PreserveFPState()
+     * but not the usual full set of actions done by ExecuteFPCheck().
+     * We don't have a TB flag that matches the fpInactive check, so we
+     * do it at runtime as we don't expect FPCXT_NS accesses to be frequent.
+     *
+     * Emit code that checks fpInactive and does a conditional
+     * branch to label based on it:
+     *  if cond is TCG_COND_NE then branch if fpInactive != 0 (ie if inactive)
+     *  if cond is TCG_COND_EQ then branch if fpInactive == 0 (ie if active)
+     */
+    assert(cond == TCG_COND_EQ || cond == TCG_COND_NE);
+
+    /* fpInactive = FPCCR_NS.ASPEN == 1 && CONTROL.FPCA == 0 */
+    TCGv_i32 aspen, fpca;
+    aspen = load_cpu_field(v7m.fpccr[M_REG_NS]);
+    fpca = load_cpu_field(v7m.control[M_REG_S]);
+    tcg_gen_andi_i32(aspen, aspen, R_V7M_FPCCR_ASPEN_MASK);
+    tcg_gen_xori_i32(aspen, aspen, R_V7M_FPCCR_ASPEN_MASK);
+    tcg_gen_andi_i32(fpca, fpca, R_V7M_CONTROL_FPCA_MASK);
+    tcg_gen_or_i32(fpca, fpca, aspen);
+    tcg_gen_brcondi_i32(tcg_invert_cond(cond), fpca, 0, label);
+    tcg_temp_free_i32(aspen);
+    tcg_temp_free_i32(fpca);
 }
 
 static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
@@ -688,6 +724,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
 {
     /* Do a write to an M-profile floating point system register */
     TCGv_i32 tmp;
+    TCGLabel *lab_end = NULL;
 
     switch (fp_sysreg_checks(s, regno)) {
     case FPSysRegCheckFailed:
@@ -721,10 +758,20 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         tcg_temp_free_i32(tmp);
         break;
     }
+    case ARM_VFP_FPCXT_NS:
+        lab_end = gen_new_label();
+        /* fpInactive case: write is a NOP, so branch to end */
+        gen_branch_fpInactive(s, TCG_COND_NE, lab_end);
+        /* !fpInactive: PreserveFPState(), and reads same as FPCXT_S */
+        gen_preserve_fp_state(s);
+        /* fall through */
     case ARM_VFP_FPCXT_S:
     {
-        TCGv_i32 sfpa, control, fpscr;
-        /* Set FPSCR[27:0] and CONTROL.SFPA from value */
+        TCGv_i32 sfpa, control;
+        /*
+         * Set FPSCR and CONTROL.SFPA from value; the new FPSCR takes
+         * bits [27:0] from value and zeroes bits [31:28].
+         */
         tmp = loadfn(s, opaque);
         sfpa = tcg_temp_new_i32();
         tcg_gen_shri_i32(sfpa, tmp, 31);
@@ -732,17 +779,17 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         tcg_gen_deposit_i32(control, control, sfpa,
                             R_V7M_CONTROL_SFPA_SHIFT, 1);
         store_cpu_field(control, v7m.control[M_REG_S]);
-        fpscr = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
-        tcg_gen_andi_i32(fpscr, fpscr, FPCR_NZCV_MASK);
         tcg_gen_andi_i32(tmp, tmp, ~FPCR_NZCV_MASK);
-        tcg_gen_or_i32(fpscr, fpscr, tmp);
-        store_cpu_field(fpscr, vfp.xregs[ARM_VFP_FPSCR]);
+        gen_helper_vfp_set_fpscr(cpu_env, tmp);
         tcg_temp_free_i32(tmp);
         tcg_temp_free_i32(sfpa);
         break;
     }
     default:
         g_assert_not_reached();
+    }
+    if (lab_end) {
+        gen_set_label(lab_end);
     }
     return true;
 }
@@ -753,6 +800,8 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
 {
     /* Do a read from an M-profile floating point system register */
     TCGv_i32 tmp;
+    TCGLabel *lab_end = NULL;
+    bool lookup_tb = false;
 
     switch (fp_sysreg_checks(s, regno)) {
     case FPSysRegCheckFailed:
@@ -811,11 +860,58 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
         fpscr = load_cpu_field(v7m.fpdscr[M_REG_NS]);
         gen_helper_vfp_set_fpscr(cpu_env, fpscr);
         tcg_temp_free_i32(fpscr);
-        gen_lookup_tb(s);
+        lookup_tb = true;
+        break;
+    }
+    case ARM_VFP_FPCXT_NS:
+    {
+        TCGv_i32 control, sfpa, fpscr, fpdscr, zero;
+        TCGLabel *lab_active = gen_new_label();
+
+        lookup_tb = true;
+
+        gen_branch_fpInactive(s, TCG_COND_EQ, lab_active);
+        /* fpInactive case: reads as FPDSCR_NS */
+        TCGv_i32 tmp = load_cpu_field(v7m.fpdscr[M_REG_NS]);
+        storefn(s, opaque, tmp);
+        lab_end = gen_new_label();
+        tcg_gen_br(lab_end);
+
+        gen_set_label(lab_active);
+        /* !fpInactive: Reads the same as FPCXT_S, but side effects differ */
+        gen_preserve_fp_state(s);
+        tmp = tcg_temp_new_i32();
+        sfpa = tcg_temp_new_i32();
+        fpscr = tcg_temp_new_i32();
+        gen_helper_vfp_get_fpscr(fpscr, cpu_env);
+        tcg_gen_andi_i32(tmp, fpscr, ~FPCR_NZCV_MASK);
+        control = load_cpu_field(v7m.control[M_REG_S]);
+        tcg_gen_andi_i32(sfpa, control, R_V7M_CONTROL_SFPA_MASK);
+        tcg_gen_shli_i32(sfpa, sfpa, 31 - R_V7M_CONTROL_SFPA_SHIFT);
+        tcg_gen_or_i32(tmp, tmp, sfpa);
+        tcg_temp_free_i32(control);
+        /* Store result before updating FPSCR, in case it faults */
+        storefn(s, opaque, tmp);
+        /* If SFPA is zero then set FPSCR from FPDSCR_NS */
+        fpdscr = load_cpu_field(v7m.fpdscr[M_REG_NS]);
+        zero = tcg_const_i32(0);
+        tcg_gen_movcond_i32(TCG_COND_EQ, fpscr, sfpa, zero, fpdscr, fpscr);
+        gen_helper_vfp_set_fpscr(cpu_env, fpscr);
+        tcg_temp_free_i32(zero);
+        tcg_temp_free_i32(sfpa);
+        tcg_temp_free_i32(fpdscr);
+        tcg_temp_free_i32(fpscr);
         break;
     }
     default:
         g_assert_not_reached();
+    }
+
+    if (lab_end) {
+        gen_set_label(lab_end);
+    }
+    if (lookup_tb) {
+        gen_lookup_tb(s);
     }
     return true;
 }

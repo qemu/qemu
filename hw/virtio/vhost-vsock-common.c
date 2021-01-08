@@ -151,7 +151,6 @@ static void vhost_vsock_common_post_load_timer_cleanup(VHostVSockCommon *vvc)
         return;
     }
 
-    timer_del(vvc->post_load_timer);
     timer_free(vvc->post_load_timer);
     vvc->post_load_timer = NULL;
 }

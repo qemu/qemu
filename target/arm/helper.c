@@ -12928,7 +12928,7 @@ static uint32_t rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
         if (FIELD_EX32(flags, TBFLAG_A64, UNPRIV)
             && tbid
             && !(env->pstate & PSTATE_TCO)
-            && (sctlr & SCTLR_TCF0)
+            && (sctlr & SCTLR_TCF)
             && allocation_tag_access_enabled(env, 0, sctlr)) {
             flags = FIELD_DP32(flags, TBFLAG_A64, MTE0_ACTIVE, 1);
         }

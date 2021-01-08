@@ -1052,7 +1052,6 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
 static void nvme_free_sq(NvmeSQueue *sq, NvmeCtrl *n)
 {
     n->sq[sq->sqid] = NULL;
-    timer_del(sq->timer);
     timer_free(sq->timer);
     g_free(sq->io_req);
     if (sq->sqid) {
@@ -1334,7 +1333,6 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
 static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
 {
     n->cq[cq->cqid] = NULL;
-    timer_del(cq->timer);
     timer_free(cq->timer);
     msix_vector_unuse(&n->parent_obj, cq->vector);
     if (cq->cqid) {

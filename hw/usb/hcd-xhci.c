@@ -3395,7 +3395,6 @@ static void usb_xhci_unrealize(DeviceState *dev)
     }
 
     if (xhci->mfwrap_timer) {
-        timer_del(xhci->mfwrap_timer);
         timer_free(xhci->mfwrap_timer);
         xhci->mfwrap_timer = NULL;
     }

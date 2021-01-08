@@ -184,7 +184,6 @@ static void *net_slirp_timer_new(SlirpTimerCb cb,
 
 static void net_slirp_timer_free(void *timer, void *opaque)
 {
-    timer_del(timer);
     timer_free(timer);
 }
 

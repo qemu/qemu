@@ -363,7 +363,6 @@ static void spapr_vlan_instance_finalize(Object *obj)
     }
 
     if (dev->rxp_timer) {
-        timer_del(dev->rxp_timer);
         timer_free(dev->rxp_timer);
     }
 }

@@ -183,7 +183,6 @@ static void pci_pcnet_uninit(PCIDevice *dev)
     PCIPCNetState *d = PCI_PCNET(dev);
 
     qemu_free_irq(d->state.irq);
-    timer_del(d->state.poll_timer);
     timer_free(d->state.poll_timer);
     qemu_del_nic(d->state.nic);
 }

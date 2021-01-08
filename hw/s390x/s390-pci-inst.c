@@ -955,7 +955,6 @@ void pci_dereg_ioat(S390PCIIOMMU *iommu)
 void fmb_timer_free(S390PCIBusDevice *pbdev)
 {
     if (pbdev->fmb_timer) {
-        timer_del(pbdev->fmb_timer);
         timer_free(pbdev->fmb_timer);
         pbdev->fmb_timer = NULL;
     }

@@ -888,7 +888,6 @@ static void apic_unrealize(DeviceState *dev)
 {
     APICCommonState *s = APIC(dev);
 
-    timer_del(s->timer);
     timer_free(s->timer);
     local_apics[s->id] = NULL;
 }

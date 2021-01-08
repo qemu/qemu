@@ -584,6 +584,14 @@ static void exynos4210_rtc_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
+static void exynos4210_rtc_finalize(Object *obj)
+{
+    Exynos4210RTCState *s = EXYNOS4210_RTC(obj);
+
+    ptimer_free(s->ptimer);
+    ptimer_free(s->ptimer_1Hz);
+}
+
 static void exynos4210_rtc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -597,6 +605,7 @@ static const TypeInfo exynos4210_rtc_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210RTCState),
     .instance_init = exynos4210_rtc_init,
+    .instance_finalize = exynos4210_rtc_finalize,
     .class_init    = exynos4210_rtc_class_init,
 };
 
