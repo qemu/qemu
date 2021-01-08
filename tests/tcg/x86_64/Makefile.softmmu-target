@@ -19,6 +19,7 @@ CFLAGS+=-nostdlib -ggdb -O0 $(MINILIB_INC)
 LDFLAGS+=-static -nostdlib $(CRT_OBJS) $(MINILIB_OBJS) -lgcc
 
 TESTS+=$(MULTIARCH_TESTS)
+EXTRA_RUNS+=$(MULTIARCH_RUNS)
 
 # building head blobs
 .PRECIOUS: $(CRT_OBJS)
