@@ -62,7 +62,7 @@ static void npcm7xx_mc_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_io(&s->mmio, OBJECT(s), &npcm7xx_mc_ops, s, "regs",
                           NPCM7XX_MC_REGS_SIZE);
-    sysbus_init_mmio(&s->parent, &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->mmio);
 }
 
 static void npcm7xx_mc_class_init(ObjectClass *klass, void *data)

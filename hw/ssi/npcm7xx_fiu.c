@@ -498,7 +498,7 @@ static void npcm7xx_fiu_hold_reset(Object *obj)
 static void npcm7xx_fiu_realize(DeviceState *dev, Error **errp)
 {
     NPCM7xxFIUState *s = NPCM7XX_FIU(dev);
-    SysBusDevice *sbd = &s->parent;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     int i;
 
     if (s->cs_count <= 0) {

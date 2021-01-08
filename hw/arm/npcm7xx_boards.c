@@ -82,7 +82,7 @@ static NPCM7xxState *npcm7xx_create_soc(MachineState *machine,
                                         uint32_t hw_straps)
 {
     NPCM7xxMachineClass *nmc = NPCM7XX_MACHINE_GET_CLASS(machine);
-    MachineClass *mc = &nmc->parent;
+    MachineClass *mc = MACHINE_CLASS(nmc);
     Object *obj;
 
     if (strcmp(machine->cpu_type, mc->default_cpu_type) != 0) {

@@ -913,7 +913,7 @@ static void npcm7xx_clk_init(Object *obj)
 
     memory_region_init_io(&s->iomem, obj, &npcm7xx_clk_ops, s,
                           TYPE_NPCM7XX_CLK, 4 * KiB);
-    sysbus_init_mmio(&s->parent, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
 }
 
 static int npcm7xx_clk_post_load(void *opaque, int version_id)
