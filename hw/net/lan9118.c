@@ -1206,7 +1206,7 @@ static uint64_t lan9118_readl(void *opaque, hwaddr offset,
     case 0x40:
         return rx_status_fifo_pop(s);
     case 0x44:
-        return s->rx_status_fifo[s->tx_status_fifo_head];
+        return s->rx_status_fifo[s->rx_status_fifo_head];
     case 0x48:
         return tx_status_fifo_pop(s);
     case 0x4c:
