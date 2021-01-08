@@ -724,7 +724,9 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
 
     if (!guest_range_valid(old_addr, old_size) ||
         ((flags & MREMAP_FIXED) &&
-         !guest_range_valid(new_addr, new_size))) {
+         !guest_range_valid(new_addr, new_size)) ||
+        ((flags & MREMAP_MAYMOVE) == 0 &&
+         !guest_range_valid(old_addr, new_size))) {
         errno = ENOMEM;
         return -1;
     }
