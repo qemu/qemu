@@ -54,9 +54,7 @@ run-gdbstub-sha1: sha1
 		--bin $< --test $(MULTIARCH_SRC)/gdbstub/sha1.py, \
 	"basic gdbstub support")
 
-# Disable this for now -- it provokes a gdb internal-error on
-# Ubuntu gdb 8.1.1-0ubuntu1.
-# EXTRA_RUNS += run-gdbstub-sha1
+EXTRA_RUNS += run-gdbstub-sha1
 endif
 
 
