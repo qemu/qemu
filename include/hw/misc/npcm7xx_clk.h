@@ -21,12 +21,6 @@
 #include "hw/sysbus.h"
 
 /*
- * The reference clock frequency for the timer modules, and the SECCNT and
- * CNTR25M registers in this module, is always 25 MHz.
- */
-#define NPCM7XX_TIMER_REF_HZ            (25000000)
-
-/*
  * Number of registers in our device state structure. Don't change this without
  * incrementing the version_id in the vmstate.
  */
