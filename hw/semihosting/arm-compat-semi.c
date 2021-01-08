@@ -1,6 +1,6 @@
 /*
  *  Semihosting support for systems modeled on the Arm "Angel"
- *  semihosting syscalls design.
+ *  semihosting syscalls design. This includes Arm and RISC-V processors
  *
  *  Copyright (c) 2005, 2007 CodeSourcery.
  *  Copyright (c) 2019 Linaro
@@ -25,6 +25,10 @@
  *  ARM Semihosting is documented in:
  *     Semihosting for AArch32 and AArch64 Release 2.0
  *     https://static.docs.arm.com/100863/0200/semihosting.pdf
+ *
+ *  RISC-V Semihosting is documented in:
+ *     RISC-V Semihosting
+ *     https://github.com/riscv/riscv-semihosting-spec/blob/main/riscv-semihosting-spec.adoc
  */
 
 #include "qemu/osdep.h"
@@ -222,6 +226,42 @@ common_semi_rambase(CPUState *cs)
 
 #endif /* TARGET_ARM */
 
+#ifdef TARGET_RISCV
+static inline target_ulong
+common_semi_arg(CPUState *cs, int argno)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+    return env->gpr[xA0 + argno];
+}
+
+static inline void
+common_semi_set_ret(CPUState *cs, target_ulong ret)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+    env->gpr[xA0] = ret;
+}
+
+static inline bool
+common_semi_sys_exit_extended(CPUState *cs, int nr)
+{
+    return (nr == TARGET_SYS_EXIT_EXTENDED || sizeof(target_ulong) == 8);
+}
+
+#ifndef CONFIG_USER_ONLY
+
+static inline target_ulong
+common_semi_rambase(CPUState *cs)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+    return common_semi_find_region_base(env->gpr[xSP]);
+}
+#endif
+
+#endif
+
 /*
  * Allocate a new guest file descriptor and return it; if we
  * couldn't allocate a new fd then return -1.
@@ -397,6 +437,12 @@ static target_ulong common_semi_flen_buf(CPUState *cs)
     } else {
         sp = env->regs[13];
     }
+#endif
+#ifdef TARGET_RISCV
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+
+    sp = env->gpr[xSP];
 #endif
 
     return sp - 64;
@@ -739,6 +785,37 @@ static const GuestFDFunctions guestfd_fns[] = {
     (is_a64(env) ?                                      \
      put_user_u64(val, args + (n) * 8) :                \
      put_user_u32(val, args + (n) * 4))
+#endif
+
+#ifdef TARGET_RISCV
+
+/*
+ * get_user_ual is defined as get_user_u32 in softmmu-semi.h,
+ * we need a macro that fetches a target_ulong
+ */
+#define get_user_utl(arg, p)                    \
+    ((sizeof(target_ulong) == 8) ?              \
+     get_user_u64(arg, p) :                     \
+     get_user_u32(arg, p))
+
+/*
+ * put_user_ual is defined as put_user_u32 in softmmu-semi.h,
+ * we need a macro that stores a target_ulong
+ */
+#define put_user_utl(arg, p)                    \
+    ((sizeof(target_ulong) == 8) ?              \
+     put_user_u64(arg, p) :                     \
+     put_user_u32(arg, p))
+
+#define GET_ARG(n) do {                                                 \
+        if (get_user_utl(arg ## n, args + (n) * sizeof(target_ulong))) { \
+            errno = EFAULT;                                             \
+            return set_swi_errno(cs, -1);                              \
+        }                                                               \
+    } while (0)
+
+#define SET_ARG(n, val)                                 \
+    put_user_utl(val, args + (n) * sizeof(target_ulong))
 #endif
 
 /*
@@ -1179,6 +1256,9 @@ target_ulong do_common_semihosting(CPUState *cs)
         if (is_a64(cs->env_ptr)) {
             return 0;
         }
+#endif
+#ifdef TARGET_RISCV
+        return 0;
 #endif
         /* fall through -- invalid for A32/T32 */
     default:
