@@ -4048,6 +4048,18 @@ static void spapr_machine_device_unplug(HotplugHandler *hotplug_dev,
     }
 }
 
+bool spapr_memory_hot_unplug_supported(SpaprMachineState *spapr)
+{
+    return spapr_ovec_test(spapr->ov5_cas, OV5_HP_EVT) ||
+        /*
+         * CAS will process all pending unplug requests.
+         *
+         * HACK: a guest could theoretically have cleared all bits in OV5,
+         * but none of the guests we care for do.
+         */
+        spapr_ovec_empty(spapr->ov5_cas);
+}
+
 static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
                                                 DeviceState *dev, Error **errp)
 {
@@ -4056,16 +4068,9 @@ static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
     SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
-        if (!smc->pre_6_0_memory_unplug ||
-            spapr_ovec_test(sms->ov5_cas, OV5_HP_EVT)) {
+        if (spapr_memory_hot_unplug_supported(sms)) {
             spapr_memory_unplug_request(hotplug_dev, dev, errp);
         } else {
-            /* NOTE: this means there is a window after guest reset, prior to
-             * CAS negotiation, where unplug requests will fail due to the
-             * capability not being detected yet. This is a bit different than
-             * the case with PCI unplug, where the events will be queued and
-             * eventually handled by the guest after boot
-             */
             error_setg(errp, "Memory hot unplug not supported for this guest");
         }
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE)) {
@@ -4543,11 +4548,8 @@ DEFINE_SPAPR_MACHINE(6_0, "6.0", true);
  */
 static void spapr_machine_5_2_class_options(MachineClass *mc)
 {
-    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
-
     spapr_machine_6_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_5_2, hw_compat_5_2_len);
-    smc->pre_6_0_memory_unplug = true;
 }
 
 DEFINE_SPAPR_MACHINE(5_2, "5.2", false);
