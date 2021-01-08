@@ -33,15 +33,6 @@ PowerPCCPU *ppc4xx_init(const char *cpu_model,
                         clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
                         uint32_t sysclk);
 
-/* PowerPC 4xx universal interrupt controller */
-enum {
-    PPCUIC_OUTPUT_INT = 0,
-    PPCUIC_OUTPUT_CINT = 1,
-    PPCUIC_OUTPUT_NB,
-};
-qemu_irq *ppcuic_init (CPUPPCState *env, qemu_irq *irqs,
-                       uint32_t dcr_base, int has_ssr, int has_vr);
-
 void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
                         MemoryRegion ram_memories[],
                         hwaddr ram_bases[], hwaddr ram_sizes[],

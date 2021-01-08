@@ -78,44 +78,6 @@ PowerPCCPU *ppc4xx_init(const char *cpu_type,
 }
 
 /*****************************************************************************/
-/* "Universal" Interrupt controller */
-
-qemu_irq *ppcuic_init (CPUPPCState *env, qemu_irq *irqs,
-                       uint32_t dcr_base, int has_ssr, int has_vr)
-{
-    DeviceState *uicdev = qdev_new(TYPE_PPC_UIC);
-    SysBusDevice *uicsbd = SYS_BUS_DEVICE(uicdev);
-    qemu_irq *uic_irqs;
-    int i;
-
-    qdev_prop_set_uint32(uicdev, "dcr-base", dcr_base);
-    qdev_prop_set_bit(uicdev, "use-vectors", has_vr);
-    object_property_set_link(OBJECT(uicdev), "cpu", OBJECT(env_cpu(env)),
-                             &error_fatal);
-    sysbus_realize_and_unref(uicsbd, &error_fatal);
-
-    sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_INT, irqs[PPCUIC_OUTPUT_INT]);
-    sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_CINT, irqs[PPCUIC_OUTPUT_CINT]);
-
-    /*
-     * Return an allocated array of the UIC's input IRQ lines.
-     * This is an ugly temporary API to retain compatibility with
-     * the ppcuic_init() interface from the pre-QOM-conversion UIC.
-     * None of the callers free this array, so it is leaked -- but
-     * so was the array allocated by qemu_allocate_irqs() in the
-     * old code.
-     *
-     * The callers should just instantiate the UIC and wire it up
-     * themselves rather than passing qemu_irq* in and out of this function.
-     */
-    uic_irqs = g_new0(qemu_irq, UIC_MAX_IRQ);
-    for (i = 0; i < UIC_MAX_IRQ; i++) {
-        uic_irqs[i] = qdev_get_gpio_in(uicdev, i);
-    }
-    return uic_irqs;
-}
-
-/*****************************************************************************/
 /* SDRAM controller */
 typedef struct ppc4xx_sdram_t ppc4xx_sdram_t;
 struct ppc4xx_sdram_t {
