@@ -17,6 +17,7 @@
 #define NPCM7XX_H
 
 #include "hw/boards.h"
+#include "hw/adc/npcm7xx_adc.h"
 #include "hw/cpu/a9mpcore.h"
 #include "hw/gpio/npcm7xx_gpio.h"
 #include "hw/mem/npcm7xx_mc.h"
@@ -76,6 +77,7 @@ typedef struct NPCM7xxState {
     NPCM7xxGCRState     gcr;
     NPCM7xxCLKState     clk;
     NPCM7xxTimerCtrlState tim[3];
+    NPCM7xxADCState     adc;
     NPCM7xxOTPState     key_storage;
     NPCM7xxOTPState     fuse_array;
     NPCM7xxMCState      mc;

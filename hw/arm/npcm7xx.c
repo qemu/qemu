@@ -51,6 +51,9 @@
 #define NPCM7XX_EHCI_BA         (0xf0806000)
 #define NPCM7XX_OHCI_BA         (0xf0807000)
 
+/* ADC Module */
+#define NPCM7XX_ADC_BA          (0xf000c000)
+
 /* Internal AHB SRAM */
 #define NPCM7XX_RAM3_BA         (0xc0008000)
 #define NPCM7XX_RAM3_SZ         (4 * KiB)
@@ -60,6 +63,7 @@
 #define NPCM7XX_RAM2_SZ         (128 * KiB)
 #define NPCM7XX_ROM_BA          (0xffff0000)
 #define NPCM7XX_ROM_SZ          (64 * KiB)
+
 
 /* Clock configuration values to be fixed up when bypassing bootloader */
 
@@ -73,6 +77,7 @@
  * interrupts.
  */
 enum NPCM7xxInterrupt {
+    NPCM7XX_ADC_IRQ             = 0,
     NPCM7XX_UART0_IRQ           = 2,
     NPCM7XX_UART1_IRQ,
     NPCM7XX_UART2_IRQ,
@@ -296,6 +301,14 @@ static void npcm7xx_init_fuses(NPCM7xxState *s)
                             sizeof(value));
 }
 
+static void npcm7xx_write_adc_calibration(NPCM7xxState *s)
+{
+    /* Both ADC and the fuse array must have realized. */
+    QEMU_BUILD_BUG_ON(sizeof(s->adc.calibration_r_values) != 4);
+    npcm7xx_otp_array_write(&s->fuse_array, s->adc.calibration_r_values,
+            NPCM7XX_FUSE_ADC_CALIB, sizeof(s->adc.calibration_r_values));
+}
+
 static qemu_irq npcm7xx_irq(NPCM7xxState *s, int n)
 {
     return qdev_get_gpio_in(DEVICE(&s->a9mpcore), n);
@@ -322,6 +335,7 @@ static void npcm7xx_init(Object *obj)
                             TYPE_NPCM7XX_FUSE_ARRAY);
     object_initialize_child(obj, "mc", &s->mc, TYPE_NPCM7XX_MC);
     object_initialize_child(obj, "rng", &s->rng, TYPE_NPCM7XX_RNG);
+    object_initialize_child(obj, "adc", &s->adc, TYPE_NPCM7XX_ADC);
 
     for (i = 0; i < ARRAY_SIZE(s->tim); i++) {
         object_initialize_child(obj, "tim[*]", &s->tim[i], TYPE_NPCM7XX_TIMER);
@@ -413,6 +427,15 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     /* Fake Memory Controller (MC). Cannot fail. */
     sysbus_realize(SYS_BUS_DEVICE(&s->mc), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->mc), 0, NPCM7XX_MC_BA);
+
+    /* ADC Modules. Cannot fail. */
+    qdev_connect_clock_in(DEVICE(&s->adc), "clock", qdev_get_clock_out(
+                          DEVICE(&s->clk), "adc-clock"));
+    sysbus_realize(SYS_BUS_DEVICE(&s->adc), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->adc), 0, NPCM7XX_ADC_BA);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->adc), 0,
+            npcm7xx_irq(s, NPCM7XX_ADC_IRQ));
+    npcm7xx_write_adc_calibration(s);
 
     /* Timer Modules (TIM). Cannot fail. */
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_tim_addr) != ARRAY_SIZE(s->tim));
@@ -528,7 +551,6 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("npcm7xx.vdmx",         0xe0800000,   4 * KiB);
     create_unimplemented_device("npcm7xx.pcierc",       0xe1000000,  64 * KiB);
     create_unimplemented_device("npcm7xx.kcs",          0xf0007000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.adc",          0xf000c000,   4 * KiB);
     create_unimplemented_device("npcm7xx.gfxi",         0xf000e000,   4 * KiB);
     create_unimplemented_device("npcm7xx.gpio[0]",      0xf0010000,   4 * KiB);
     create_unimplemented_device("npcm7xx.gpio[1]",      0xf0011000,   4 * KiB);
