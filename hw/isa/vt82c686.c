@@ -27,9 +27,10 @@
 #include "exec/address-spaces.h"
 #include "trace.h"
 
-OBJECT_DECLARE_SIMPLE_TYPE(VT686PMState, VT82C686B_PM)
+#define TYPE_VIA_PM "via-pm"
+OBJECT_DECLARE_SIMPLE_TYPE(ViaPMState, VIA_PM)
 
-struct VT686PMState {
+struct ViaPMState {
     PCIDevice dev;
     MemoryRegion io;
     ACPIREGS ar;
@@ -37,7 +38,7 @@ struct VT686PMState {
     PMSMBus smb;
 };
 
-static void pm_io_space_update(VT686PMState *s)
+static void pm_io_space_update(ViaPMState *s)
 {
     uint32_t pmbase = pci_get_long(s->dev.config + 0x48) & 0xff80UL;
 
@@ -47,7 +48,7 @@ static void pm_io_space_update(VT686PMState *s)
     memory_region_transaction_commit();
 }
 
-static void smb_io_space_update(VT686PMState *s)
+static void smb_io_space_update(ViaPMState *s)
 {
     uint32_t smbase = pci_get_long(s->dev.config + 0x90) & 0xfff0UL;
 
@@ -59,7 +60,7 @@ static void smb_io_space_update(VT686PMState *s)
 
 static int vmstate_acpi_post_load(void *opaque, int version_id)
 {
-    VT686PMState *s = opaque;
+    ViaPMState *s = opaque;
 
     pm_io_space_update(s);
     smb_io_space_update(s);
@@ -72,20 +73,20 @@ static const VMStateDescription vmstate_acpi = {
     .minimum_version_id = 1,
     .post_load = vmstate_acpi_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, VT686PMState),
-        VMSTATE_UINT16(ar.pm1.evt.sts, VT686PMState),
-        VMSTATE_UINT16(ar.pm1.evt.en, VT686PMState),
-        VMSTATE_UINT16(ar.pm1.cnt.cnt, VT686PMState),
-        VMSTATE_STRUCT(apm, VT686PMState, 0, vmstate_apm, APMState),
-        VMSTATE_TIMER_PTR(ar.tmr.timer, VT686PMState),
-        VMSTATE_INT64(ar.tmr.overflow_time, VT686PMState),
+        VMSTATE_PCI_DEVICE(dev, ViaPMState),
+        VMSTATE_UINT16(ar.pm1.evt.sts, ViaPMState),
+        VMSTATE_UINT16(ar.pm1.evt.en, ViaPMState),
+        VMSTATE_UINT16(ar.pm1.cnt.cnt, ViaPMState),
+        VMSTATE_STRUCT(apm, ViaPMState, 0, vmstate_apm, APMState),
+        VMSTATE_TIMER_PTR(ar.tmr.timer, ViaPMState),
+        VMSTATE_INT64(ar.tmr.overflow_time, ViaPMState),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
 {
-    VT686PMState *s = VT82C686B_PM(d);
+    ViaPMState *s = VIA_PM(d);
 
     trace_via_pm_write(addr, val, len);
     pci_default_write_config(d, addr, val, len);
@@ -127,7 +128,7 @@ static const MemoryRegionOps pm_io_ops = {
     },
 };
 
-static void pm_update_sci(VT686PMState *s)
+static void pm_update_sci(ViaPMState *s)
 {
     int sci_level, pmsts;
 
@@ -145,13 +146,13 @@ static void pm_update_sci(VT686PMState *s)
 
 static void pm_tmr_timer(ACPIREGS *ar)
 {
-    VT686PMState *s = container_of(ar, VT686PMState, ar);
+    ViaPMState *s = container_of(ar, ViaPMState, ar);
     pm_update_sci(s);
 }
 
-static void vt82c686b_pm_reset(DeviceState *d)
+static void via_pm_reset(DeviceState *d)
 {
-    VT686PMState *s = VT82C686B_PM(d);
+    ViaPMState *s = VIA_PM(d);
 
     memset(s->dev.config + PCI_CONFIG_HEADER_SIZE, 0,
            PCI_CONFIG_SPACE_SIZE - PCI_CONFIG_HEADER_SIZE);
@@ -164,9 +165,9 @@ static void vt82c686b_pm_reset(DeviceState *d)
     smb_io_space_update(s);
 }
 
-static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
+static void via_pm_realize(PCIDevice *dev, Error **errp)
 {
-    VT686PMState *s = VT82C686B_PM(dev);
+    ViaPMState *s = VIA_PM(dev);
 
     pci_set_word(dev->config + PCI_STATUS, PCI_STATUS_FAST_BACK |
                  PCI_STATUS_DEVSEL_MEDIUM);
@@ -177,8 +178,7 @@ static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
 
     apm_init(dev, &s->apm, NULL, s);
 
-    memory_region_init_io(&s->io, OBJECT(dev), &pm_io_ops, s,
-                          "vt82c686-pm", 128);
+    memory_region_init_io(&s->io, OBJECT(dev), &pm_io_ops, s, "via-pm", 128);
     memory_region_add_subregion(pci_address_space_io(dev), 0, &s->io);
     memory_region_set_enabled(&s->io, false);
 
@@ -187,33 +187,59 @@ static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
     acpi_pm1_cnt_init(&s->ar, &s->io, false, false, 2);
 }
 
+typedef struct via_pm_init_info {
+    uint16_t device_id;
+} ViaPMInitInfo;
+
 static void via_pm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    ViaPMInitInfo *info = data;
 
-    k->realize = vt82c686b_pm_realize;
+    k->realize = via_pm_realize;
     k->config_write = pm_write_config;
     k->vendor_id = PCI_VENDOR_ID_VIA;
-    k->device_id = PCI_DEVICE_ID_VIA_ACPI;
+    k->device_id = info->device_id;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
     k->revision = 0x40;
-    dc->reset = vt82c686b_pm_reset;
-    dc->desc = "PM";
+    dc->reset = via_pm_reset;
     /* Reason: part of VIA south bridge, does not exist stand alone */
     dc->user_creatable = false;
     dc->vmsd = &vmstate_acpi;
 }
 
 static const TypeInfo via_pm_info = {
-    .name          = TYPE_VT82C686B_PM,
+    .name          = TYPE_VIA_PM,
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VT686PMState),
-    .class_init    = via_pm_class_init,
+    .instance_size = sizeof(ViaPMState),
+    .abstract      = true,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
+};
+
+static const ViaPMInitInfo vt82c686b_pm_init_info = {
+    .device_id = PCI_DEVICE_ID_VIA_82C686B_PM,
+};
+
+static const TypeInfo vt82c686b_pm_info = {
+    .name          = TYPE_VT82C686B_PM,
+    .parent        = TYPE_VIA_PM,
+    .class_init    = via_pm_class_init,
+    .class_data    = (void *)&vt82c686b_pm_init_info,
+};
+
+static const ViaPMInitInfo vt8231_pm_init_info = {
+    .device_id = PCI_DEVICE_ID_VIA_8231_PM,
+};
+
+static const TypeInfo vt8231_pm_info = {
+    .name          = TYPE_VT8231_PM,
+    .parent        = TYPE_VIA_PM,
+    .class_init    = via_pm_class_init,
+    .class_data    = (void *)&vt8231_pm_init_info,
 };
 
 
@@ -424,6 +450,8 @@ static const TypeInfo via_superio_info = {
 static void vt82c686b_register_types(void)
 {
     type_register_static(&via_pm_info);
+    type_register_static(&vt82c686b_pm_info);
+    type_register_static(&vt8231_pm_info);
     type_register_static(&via_info);
     type_register_static(&via_superio_info);
 }
