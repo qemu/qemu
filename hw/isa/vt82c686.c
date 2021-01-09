@@ -258,7 +258,6 @@ static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
 {
     SuperIOConfig *sc = opaque;
     uint8_t idx = sc->regs[0];
-    bool can_write = true;
 
     if (addr == 0x3f0) { /* config index register */
         idx = data & 0xff;
@@ -276,15 +275,13 @@ static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
     case 0xf7:
     case 0xf9 ... 0xfb:
     case 0xfd ... 0xff:
-        can_write = false;
-        break;
+        /* ignore write to read only registers */
+        return;
     /* case 0xe6 ... 0xe8: Should set base port of parallel and serial */
     default:
         break;
     }
-    if (can_write) {
-        sc->regs[idx] = data & 0xff;
-    }
+    sc->regs[idx] = data & 0xff;
 }
 
 static uint64_t superio_cfg_read(void *opaque, hwaddr addr, unsigned size)
