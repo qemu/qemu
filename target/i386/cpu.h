@@ -1807,7 +1807,7 @@ void cpu_sync_bndcs_hflags(CPUX86State *env);
 /* this function must always be used to load data in the segment
    cache: it synchronizes the hflags with the segment cache values */
 static inline void cpu_x86_load_seg_cache(CPUX86State *env,
-                                          int seg_reg, unsigned int selector,
+                                          X86Seg seg_reg, unsigned int selector,
                                           target_ulong base,
                                           unsigned int limit,
                                           unsigned int flags)
@@ -1896,7 +1896,7 @@ int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
 /* cpu-exec.c */
 /* the following helpers are only usable in user mode simulation as
    they can trigger unexpected exceptions */
-void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector);
+void cpu_x86_load_seg(CPUX86State *s, X86Seg seg_reg, int selector);
 void cpu_x86_fsave(CPUX86State *s, target_ulong ptr, int data32);
 void cpu_x86_frstor(CPUX86State *s, target_ulong ptr, int data32);
 void cpu_x86_fxsave(CPUX86State *s, target_ulong ptr);

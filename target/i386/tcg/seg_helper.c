@@ -176,8 +176,8 @@ static inline void get_ss_esp_from_tss(CPUX86State *env, uint32_t *ss_ptr,
     }
 }
 
-static void tss_load_seg(CPUX86State *env, int seg_reg, int selector, int cpl,
-                         uintptr_t retaddr)
+static void tss_load_seg(CPUX86State *env, X86Seg seg_reg, int selector,
+                         int cpl, uintptr_t retaddr)
 {
     uint32_t e1, e2;
     int rpl, dpl;
@@ -2098,7 +2098,7 @@ void helper_iret_real(CPUX86State *env, int shift)
     env->hflags2 &= ~HF2_NMI_MASK;
 }
 
-static inline void validate_seg(CPUX86State *env, int seg_reg, int cpl)
+static inline void validate_seg(CPUX86State *env, X86Seg seg_reg, int cpl)
 {
     int dpl;
     uint32_t e2;
@@ -2623,7 +2623,7 @@ void helper_verw(CPUX86State *env, target_ulong selector1)
 }
 
 #if defined(CONFIG_USER_ONLY)
-void cpu_x86_load_seg(CPUX86State *env, int seg_reg, int selector)
+void cpu_x86_load_seg(CPUX86State *env, X86Seg seg_reg, int selector)
 {
     if (!(env->cr[0] & CR0_PE_MASK) || (env->eflags & VM_MASK)) {
         int dpl = (env->eflags & VM_MASK) ? 3 : 0;
