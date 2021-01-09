@@ -250,7 +250,6 @@ static const TypeInfo vt8231_pm_info = {
 
 typedef struct SuperIOConfig {
     uint8_t regs[0x100];
-    uint8_t index;
     MemoryRegion io;
 } SuperIOConfig;
 
@@ -258,14 +257,15 @@ static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned size)
 {
     SuperIOConfig *sc = opaque;
+    uint8_t idx = sc->regs[0];
 
     if (addr == 0x3f0) { /* config index register */
-        sc->index = data & 0xff;
+        idx = data & 0xff;
     } else {
         bool can_write = true;
         /* 0x3f1, config data register */
-        trace_via_superio_write(sc->index, data & 0xff);
-        switch (sc->index) {
+        trace_via_superio_write(idx, data & 0xff);
+        switch (idx) {
         case 0x00 ... 0xdf:
         case 0xe4:
         case 0xe5:
@@ -283,7 +283,7 @@ static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
 
         }
         if (can_write) {
-            sc->regs[sc->index] = data & 0xff;
+            sc->regs[idx] = data & 0xff;
         }
     }
 }
@@ -291,9 +291,16 @@ static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
 static uint64_t superio_cfg_read(void *opaque, hwaddr addr, unsigned size)
 {
     SuperIOConfig *sc = opaque;
-    uint8_t val = sc->regs[sc->index];
+    uint8_t idx = sc->regs[0];
+    uint8_t val = sc->regs[idx];
 
-    trace_via_superio_read(sc->index, val);
+    if (addr == 0) {
+        return idx;
+    }
+    if (addr == 1 && idx == 0) {
+        val = 0; /* reading reg 0 where we store index value */
+    }
+    trace_via_superio_read(idx, val);
     return val;
 }
 
