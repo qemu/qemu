@@ -363,24 +363,16 @@ static void vt82c686b_isa_reset(DeviceState *dev)
 static void vt82c686b_realize(PCIDevice *d, Error **errp)
 {
     VT82C686BISAState *s = VT82C686B_ISA(d);
-    uint8_t *pci_conf;
+    DeviceState *dev = DEVICE(d);
     ISABus *isa_bus;
-    uint8_t *wmask;
     int i;
 
-    isa_bus = isa_bus_new(DEVICE(d), get_system_memory(),
-                          pci_address_space_io(d), errp);
-    if (!isa_bus) {
-        return;
-    }
+    isa_bus = isa_bus_new(dev, get_system_memory(), pci_address_space_io(d),
+                          &error_fatal);
 
-    pci_conf = d->config;
-    pci_config_set_prog_interface(pci_conf, 0x0);
-
-    wmask = d->wmask;
-    for (i = 0x00; i < 0xff; i++) {
-        if (i <= 0x03 || (i >= 0x08 && i <= 0x3f)) {
-            wmask[i] = 0x00;
+    for (i = 0; i < PCI_CONFIG_HEADER_SIZE; i++) {
+        if (i < PCI_COMMAND || i >= PCI_REVISION_ID) {
+            d->wmask[i] = 0;
         }
     }
 
