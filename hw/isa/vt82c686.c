@@ -176,7 +176,7 @@ static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
     apm_init(dev, &s->apm, NULL, s);
 
     memory_region_init_io(&s->io, OBJECT(dev), &pm_io_ops, s,
-                          "vt82c686-pm", 64);
+                          "vt82c686-pm", 128);
     memory_region_add_subregion(pci_address_space_io(dev), 0, &s->io);
     memory_region_set_enabled(&s->io, false);
 
