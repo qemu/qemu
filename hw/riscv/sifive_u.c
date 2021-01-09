@@ -628,11 +628,7 @@ static void sifive_u_machine_class_init(ObjectClass *oc, void *data)
     mc->init = sifive_u_machine_init;
     mc->max_cpus = SIFIVE_U_MANAGEMENT_CPU_COUNT + SIFIVE_U_COMPUTE_CPU_COUNT;
     mc->min_cpus = SIFIVE_U_MANAGEMENT_CPU_COUNT + 1;
-#if defined(TARGET_RISCV32)
-    mc->default_cpu_type = TYPE_RISCV_CPU_SIFIVE_U34;
-#elif defined(TARGET_RISCV64)
-    mc->default_cpu_type = TYPE_RISCV_CPU_SIFIVE_U54;
-#endif
+    mc->default_cpu_type = SIFIVE_U_CPU;
     mc->default_cpus = mc->min_cpus;
 
     object_class_property_add_bool(oc, "start-in-flash",
