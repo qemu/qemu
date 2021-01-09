@@ -25,9 +25,6 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/clock.h"
-#include "hw/intc/i8259.h"
-#include "hw/dma/i8257.h"
-#include "hw/isa/superio.h"
 #include "net/net.h"
 #include "hw/boards.h"
 #include "hw/i2c/smbus_eeprom.h"
@@ -39,13 +36,13 @@
 #include "qemu/log.h"
 #include "hw/loader.h"
 #include "hw/ide/pci.h"
+#include "hw/qdev-properties.h"
 #include "elf.h"
 #include "hw/isa/vt82c686.h"
-#include "hw/rtc/mc146818rtc.h"
-#include "hw/timer/i8254.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
+#include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
 
 #define ENVP_PADDR              0x2000
@@ -203,26 +200,13 @@ static void main_cpu_reset(void *opaque)
 }
 
 static void vt82c686b_southbridge_init(PCIBus *pci_bus, int slot, qemu_irq intc,
-                                       I2CBus **i2c_bus, ISABus **p_isa_bus)
+                                       I2CBus **i2c_bus)
 {
-    qemu_irq *i8259;
-    ISABus *isa_bus;
     PCIDevice *dev;
 
     dev = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(slot, 0), true,
                                           TYPE_VT82C686B_ISA);
-    isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(dev), "isa.0"));
-    assert(isa_bus);
-    *p_isa_bus = isa_bus;
-    /* Interrupt controller */
-    /* The 8259 -> IP5  */
-    i8259 = i8259_init(isa_bus, intc);
-    isa_bus_irqs(isa_bus, i8259);
-    /* init other devices */
-    i8254_pit_init(isa_bus, 0x40, 0, NULL);
-    i8257_dma_init(isa_bus, 0);
-    /* Super I/O */
-    isa_create_simple(isa_bus, TYPE_VT82C686B_SUPERIO);
+    qdev_connect_gpio_out(DEVICE(dev), 0, intc);
 
     dev = pci_create_simple(pci_bus, PCI_DEVFN(slot, 1), "via-ide");
     pci_ide_create_devs(dev);
@@ -269,7 +253,6 @@ static void mips_fuloong2e_init(MachineState *machine)
     uint64_t kernel_entry;
     PCIDevice *pci_dev;
     PCIBus *pci_bus;
-    ISABus *isa_bus;
     I2CBus *smbus;
     Clock *cpuclk;
     MIPSCPU *cpu;
@@ -336,7 +319,7 @@ static void mips_fuloong2e_init(MachineState *machine)
 
     /* South bridge -> IP5 */
     vt82c686b_southbridge_init(pci_bus, FULOONG2E_VIA_SLOT, env->irq[5],
-                               &smbus, &isa_bus);
+                               &smbus);
 
     /* GPU */
     if (vga_interface_type != VGA_NONE) {
@@ -350,8 +333,6 @@ static void mips_fuloong2e_init(MachineState *machine)
     /* Populate SPD eeprom data */
     spd_data = spd_data_generate(DDR, machine->ram_size);
     smbus_eeprom_init_one(smbus, 0x50, spd_data);
-
-    mc146818_rtc_init(isa_bus, 2000, NULL);
 
     /* Network card: RTL8139D */
     network_init(pci_bus);
