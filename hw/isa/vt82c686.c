@@ -26,6 +26,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/i2c/pm_smbus.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "qemu/timer.h"
@@ -279,6 +280,8 @@ static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
         return;
     /* case 0xe6 ... 0xe8: Should set base port of parallel and serial */
     default:
+        qemu_log_mask(LOG_UNIMP,
+                      "via_superio_cfg: unimplemented register 0x%x\n", idx);
         break;
     }
     sc->regs[idx] = data & 0xff;
