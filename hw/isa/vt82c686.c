@@ -200,8 +200,9 @@ static void via_pm_class_init(ObjectClass *klass, void *data)
     k->revision = 0x40;
     dc->reset = vt82c686b_pm_reset;
     dc->desc = "PM";
+    /* Reason: part of VIA south bridge, does not exist stand alone */
+    dc->user_creatable = false;
     dc->vmsd = &vmstate_acpi;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo via_pm_info = {
