@@ -39,14 +39,11 @@ struct VT686PMState {
 
 static void pm_io_space_update(VT686PMState *s)
 {
-    uint32_t pm_io_base;
-
-    pm_io_base = pci_get_long(s->dev.config + 0x40);
-    pm_io_base &= 0xffc0;
+    uint32_t pmbase = pci_get_long(s->dev.config + 0x48) & 0xff80UL;
 
     memory_region_transaction_begin();
-    memory_region_set_enabled(&s->io, s->dev.config[0x80] & 1);
-    memory_region_set_address(&s->io, pm_io_base);
+    memory_region_set_address(&s->io, pmbase);
+    memory_region_set_enabled(&s->io, s->dev.config[0x41] & BIT(7));
     memory_region_transaction_commit();
 }
 
@@ -92,6 +89,13 @@ static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
 
     trace_via_pm_write(addr, val, len);
     pci_default_write_config(d, addr, val, len);
+    if (ranges_overlap(addr, len, 0x48, 4)) {
+        uint32_t v = pci_get_long(s->dev.config + 0x48);
+        pci_set_long(s->dev.config + 0x48, (v & 0xff80UL) | 1);
+    }
+    if (range_covers_byte(addr, len, 0x41)) {
+        pm_io_space_update(s);
+    }
     if (ranges_overlap(addr, len, 0x90, 4)) {
         uint32_t v = pci_get_long(s->dev.config + 0x90);
         pci_set_long(s->dev.config + 0x90, (v & 0xfff0UL) | 1);
@@ -156,17 +160,15 @@ static void vt82c686b_pm_reset(DeviceState *d)
     /* SMBus IO base */
     pci_set_long(s->dev.config + 0x90, 1);
 
+    pm_io_space_update(s);
     smb_io_space_update(s);
 }
 
 static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
 {
     VT686PMState *s = VT82C686B_PM(dev);
-    uint8_t *pci_conf;
 
-    pci_conf = s->dev.config;
-    pci_set_word(pci_conf + PCI_COMMAND, 0);
-    pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_FAST_BACK |
+    pci_set_word(dev->config + PCI_STATUS, PCI_STATUS_FAST_BACK |
                  PCI_STATUS_DEVSEL_MEDIUM);
 
     pm_smbus_init(DEVICE(s), &s->smb, false);
