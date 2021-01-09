@@ -260,12 +260,13 @@ static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
     SuperIOConfig *sc = opaque;
     uint8_t idx = sc->regs[0];
 
-    if (addr == 0x3f0) { /* config index register */
-        idx = data & 0xff;
+    if (addr == 0) { /* config index register */
+        sc->regs[0] = data;
         return;
     }
-    /* 0x3f1, config data register */
-    trace_via_superio_write(idx, data & 0xff);
+
+    /* config data register */
+    trace_via_superio_write(idx, data);
     switch (idx) {
     case 0x00 ... 0xdf:
     case 0xe4:
@@ -284,7 +285,7 @@ static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
                       "via_superio_cfg: unimplemented register 0x%x\n", idx);
         break;
     }
-    sc->regs[idx] = data & 0xff;
+    sc->regs[idx] = data;
 }
 
 static uint64_t superio_cfg_read(void *opaque, hwaddr addr, unsigned size)
