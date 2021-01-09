@@ -22,6 +22,7 @@
 #include "hw/i2c/pm_smbus.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qemu/range.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
@@ -34,7 +35,6 @@ struct VT686PMState {
     ACPIREGS ar;
     APMState apm;
     PMSMBus smb;
-    uint32_t smb_io_base;
 };
 
 static void pm_io_space_update(VT686PMState *s)
@@ -50,11 +50,22 @@ static void pm_io_space_update(VT686PMState *s)
     memory_region_transaction_commit();
 }
 
+static void smb_io_space_update(VT686PMState *s)
+{
+    uint32_t smbase = pci_get_long(s->dev.config + 0x90) & 0xfff0UL;
+
+    memory_region_transaction_begin();
+    memory_region_set_address(&s->smb.io, smbase);
+    memory_region_set_enabled(&s->smb.io, s->dev.config[0xd2] & BIT(0));
+    memory_region_transaction_commit();
+}
+
 static int vmstate_acpi_post_load(void *opaque, int version_id)
 {
     VT686PMState *s = opaque;
 
     pm_io_space_update(s);
+    smb_io_space_update(s);
     return 0;
 }
 
@@ -77,8 +88,18 @@ static const VMStateDescription vmstate_acpi = {
 
 static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
 {
+    VT686PMState *s = VT82C686B_PM(d);
+
     trace_via_pm_write(addr, val, len);
     pci_default_write_config(d, addr, val, len);
+    if (ranges_overlap(addr, len, 0x90, 4)) {
+        uint32_t v = pci_get_long(s->dev.config + 0x90);
+        pci_set_long(s->dev.config + 0x90, (v & 0xfff0UL) | 1);
+    }
+    if (range_covers_byte(addr, len, 0xd2)) {
+        s->dev.config[0xd2] &= 0xf;
+        smb_io_space_update(s);
+    }
 }
 
 static void pm_update_sci(VT686PMState *s)
@@ -103,6 +124,17 @@ static void pm_tmr_timer(ACPIREGS *ar)
     pm_update_sci(s);
 }
 
+static void vt82c686b_pm_reset(DeviceState *d)
+{
+    VT686PMState *s = VT82C686B_PM(d);
+
+    /* SMBus IO base */
+    pci_set_long(s->dev.config + 0x90, 1);
+    s->dev.config[0xd2] = 0;
+
+    smb_io_space_update(s);
+}
+
 static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
 {
     VT686PMState *s = VT82C686B_PM(dev);
@@ -116,13 +148,9 @@ static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
     /* 0x48-0x4B is Power Management I/O Base */
     pci_set_long(pci_conf + 0x48, 0x00000001);
 
-    /* SMB ports:0xeee0~0xeeef */
-    s->smb_io_base = ((s->smb_io_base & 0xfff0) + 0x0);
-    pci_conf[0x90] = s->smb_io_base | 1;
-    pci_conf[0x91] = s->smb_io_base >> 8;
-    pci_conf[0xd2] = 0x90;
     pm_smbus_init(DEVICE(s), &s->smb, false);
-    memory_region_add_subregion(get_system_io(), s->smb_io_base, &s->smb.io);
+    memory_region_add_subregion(pci_address_space_io(dev), 0, &s->smb.io);
+    memory_region_set_enabled(&s->smb.io, false);
 
     apm_init(dev, &s->apm, NULL, s);
 
@@ -135,11 +163,6 @@ static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
     acpi_pm1_cnt_init(&s->ar, &s->io, false, false, 2);
 }
 
-static Property via_pm_properties[] = {
-    DEFINE_PROP_UINT32("smb_io_base", VT686PMState, smb_io_base, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void via_pm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -151,10 +174,10 @@ static void via_pm_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_ACPI;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
     k->revision = 0x40;
+    dc->reset = vt82c686b_pm_reset;
     dc->desc = "PM";
     dc->vmsd = &vmstate_acpi;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    device_class_set_props(dc, via_pm_properties);
 }
 
 static const TypeInfo via_pm_info = {
