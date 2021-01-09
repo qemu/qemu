@@ -149,9 +149,12 @@ static void vt82c686b_pm_reset(DeviceState *d)
 {
     VT686PMState *s = VT82C686B_PM(d);
 
+    memset(s->dev.config + PCI_CONFIG_HEADER_SIZE, 0,
+           PCI_CONFIG_SPACE_SIZE - PCI_CONFIG_HEADER_SIZE);
+    /* Power Management IO base */
+    pci_set_long(s->dev.config + 0x48, 1);
     /* SMBus IO base */
     pci_set_long(s->dev.config + 0x90, 1);
-    s->dev.config[0xd2] = 0;
 
     smb_io_space_update(s);
 }
@@ -165,9 +168,6 @@ static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
     pci_set_word(pci_conf + PCI_COMMAND, 0);
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_FAST_BACK |
                  PCI_STATUS_DEVSEL_MEDIUM);
-
-    /* 0x48-0x4B is Power Management I/O Base */
-    pci_set_long(pci_conf + 0x48, 0x00000001);
 
     pm_smbus_init(DEVICE(s), &s->smb, false);
     memory_region_add_subregion(pci_address_space_io(dev), 0, &s->smb.io);
