@@ -102,6 +102,27 @@ static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
     }
 }
 
+static void pm_io_write(void *op, hwaddr addr, uint64_t data, unsigned size)
+{
+    trace_via_pm_io_write(addr, data, size);
+}
+
+static uint64_t pm_io_read(void *op, hwaddr addr, unsigned size)
+{
+    trace_via_pm_io_read(addr, 0, size);
+    return 0;
+}
+
+static const MemoryRegionOps pm_io_ops = {
+    .read = pm_io_read,
+    .write = pm_io_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
 static void pm_update_sci(VT686PMState *s)
 {
     int sci_level, pmsts;
@@ -154,9 +175,10 @@ static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
 
     apm_init(dev, &s->apm, NULL, s);
 
-    memory_region_init(&s->io, OBJECT(dev), "vt82c686-pm", 64);
+    memory_region_init_io(&s->io, OBJECT(dev), &pm_io_ops, s,
+                          "vt82c686-pm", 64);
+    memory_region_add_subregion(pci_address_space_io(dev), 0, &s->io);
     memory_region_set_enabled(&s->io, false);
-    memory_region_add_subregion(get_system_io(), 0, &s->io);
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
