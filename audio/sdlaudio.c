@@ -240,28 +240,24 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
     }
 }
 
-#define SDL_WRAPPER_FUNC(name, ret_type, args_decl, args, fail, unlock) \
-    static ret_type glue(sdl_, name)args_decl                           \
-    {                                                                   \
-        ret_type ret;                                                   \
-                                                                        \
-        SDL_LockAudio();                                                \
-                                                                        \
-        ret = glue(audio_generic_, name)args;                           \
-                                                                        \
-        SDL_UnlockAudio();                                              \
-        return ret;                                                     \
+#define SDL_WRAPPER_FUNC(name, ret_type, args_decl, args)      \
+    static ret_type glue(sdl_, name)args_decl                  \
+    {                                                          \
+        ret_type ret;                                          \
+                                                               \
+        SDL_LockAudio();                                       \
+        ret = glue(audio_generic_, name)args;                  \
+        SDL_UnlockAudio();                                     \
+                                                               \
+        return ret;                                            \
     }
 
 SDL_WRAPPER_FUNC(get_buffer_out, void *, (HWVoiceOut *hw, size_t *size),
-                 (hw, size), *size = 0, sdl_unlock)
+                 (hw, size))
 SDL_WRAPPER_FUNC(put_buffer_out, size_t,
-                 (HWVoiceOut *hw, void *buf, size_t size), (hw, buf, size),
-                 /*nothing*/, sdl_unlock_and_post)
+                 (HWVoiceOut *hw, void *buf, size_t size), (hw, buf, size))
 SDL_WRAPPER_FUNC(write, size_t,
-                 (HWVoiceOut *hw, void *buf, size_t size), (hw, buf, size),
-                 /*nothing*/, sdl_unlock_and_post)
-
+                 (HWVoiceOut *hw, void *buf, size_t size), (hw, buf, size))
 #undef SDL_WRAPPER_FUNC
 
 static void sdl_fini_out (HWVoiceOut *hw)
