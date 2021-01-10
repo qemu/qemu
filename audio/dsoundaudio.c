@@ -347,7 +347,7 @@ static int dsound_open (dsound *s)
     HRESULT hr;
     HWND hwnd;
 
-    hwnd = GetForegroundWindow ();
+    hwnd = GetDesktopWindow();
     hr = IDirectSound_SetCooperativeLevel (
         s->dsound,
         hwnd,
