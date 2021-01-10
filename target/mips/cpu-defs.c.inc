@@ -486,8 +486,8 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31 = (1 << FCR31_ABS2008) | (1 << FCR31_NAN2008),
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_NANOMIPS32 | ASE_DSP | ASE_DSP_R2 | ASE_DSP_R3 |
-                      ASE_MT,
+        .insn_flags = CPU_MIPS32R6 | ISA_NANOMIPS32 |
+                      ASE_DSP | ASE_DSP_R2 | ASE_DSP_R3 | ASE_MT,
         .mmu_type = MMU_TYPE_R4000,
     },
 #if defined(TARGET_MIPS64)
