@@ -539,8 +539,7 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = audio_buffer_samples(
-        qapi_AudiodevPaPerDirectionOptions_base(ppdo),
-        &obt_as, ppdo->buffer_length);
+        qapi_AudiodevPaPerDirectionOptions_base(ppdo), &obt_as, 46440);
 
     return 0;
 
@@ -587,8 +586,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = audio_buffer_samples(
-        qapi_AudiodevPaPerDirectionOptions_base(ppdo),
-        &obt_as, ppdo->buffer_length);
+        qapi_AudiodevPaPerDirectionOptions_base(ppdo), &obt_as, 46440);
 
     return 0;
 
@@ -738,10 +736,6 @@ static void qpa_volume_in(HWVoiceIn *hw, Volume *vol)
 static int qpa_validate_per_direction_opts(Audiodev *dev,
                                            AudiodevPaPerDirectionOptions *pdo)
 {
-    if (!pdo->has_buffer_length) {
-        pdo->has_buffer_length = true;
-        pdo->buffer_length = 46440;
-    }
     if (!pdo->has_latency) {
         pdo->has_latency = true;
         pdo->latency = 15000;
