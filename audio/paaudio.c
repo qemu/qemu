@@ -538,6 +538,10 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
     }
 
     audio_pcm_init_info (&hw->info, &obt_as);
+    /*
+     * This is wrong. hw->samples counts in frames. hw->samples will be
+     * number of channels times larger than expected.
+     */
     hw->samples = audio_buffer_samples(
         qapi_AudiodevPaPerDirectionOptions_base(ppdo), &obt_as, 46440);
 
@@ -585,6 +589,10 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     }
 
     audio_pcm_init_info (&hw->info, &obt_as);
+    /*
+     * This is wrong. hw->samples counts in frames. hw->samples will be
+     * number of channels times larger than expected.
+     */
     hw->samples = audio_buffer_samples(
         qapi_AudiodevPaPerDirectionOptions_base(ppdo), &obt_as, 46440);
 
