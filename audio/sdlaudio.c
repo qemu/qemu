@@ -276,12 +276,18 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
     int endianness;
     int err;
     AudioFormat effective_fmt;
+    AudiodevSdlPerDirectionOptions *spdo = s->dev->u.sdl.out;
     struct audsettings obt_as;
 
     req.freq = as->freq;
     req.format = aud_to_sdlfmt (as->fmt);
     req.channels = as->nchannels;
-    req.samples = audio_buffer_samples(s->dev->u.sdl.out, as, 11610);
+    /*
+     * This is wrong. SDL samples are QEMU frames. The buffer size will be
+     * the requested buffer size multiplied by the number of channels.
+     */
+    req.samples = audio_buffer_samples(
+        qapi_AudiodevSdlPerDirectionOptions_base(spdo), as, 11610);
     req.callback = sdl_callback;
     req.userdata = sdl;
 
@@ -301,7 +307,8 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
     obt_as.endianness = endianness;
 
     audio_pcm_init_info (&hw->info, &obt_as);
-    hw->samples = obt.samples;
+    hw->samples = (spdo->has_buffer_count ? spdo->buffer_count : 4) *
+        obt.samples;
 
     s->initialized = 1;
     s->exit = 0;
