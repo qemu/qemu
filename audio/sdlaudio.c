@@ -211,27 +211,26 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
     SDLAudioState *s = &glob_sdl;
     HWVoiceOut *hw = &sdl->hw;
 
-    if (s->exit) {
-        return;
-    }
+    if (!s->exit) {
 
-    /* dolog("callback: len=%d avail=%zu\n", len, hw->pending_emul); */
+        /* dolog("callback: len=%d avail=%zu\n", len, hw->pending_emul); */
 
-    while (hw->pending_emul && len) {
-        size_t write_len;
-        ssize_t start = ((ssize_t) hw->pos_emul) - hw->pending_emul;
-        if (start < 0) {
-            start += hw->size_emul;
+        while (hw->pending_emul && len) {
+            size_t write_len;
+            ssize_t start = (ssize_t)hw->pos_emul - hw->pending_emul;
+            if (start < 0) {
+                start += hw->size_emul;
+            }
+            assert(start >= 0 && start < hw->size_emul);
+
+            write_len = MIN(MIN(hw->pending_emul, len),
+                            hw->size_emul - start);
+
+            memcpy(buf, hw->buf_emul + start, write_len);
+            hw->pending_emul -= write_len;
+            len -= write_len;
+            buf += write_len;
         }
-        assert(start >= 0 && start < hw->size_emul);
-
-        write_len = MIN(MIN(hw->pending_emul, len),
-                        hw->size_emul - start);
-
-        memcpy(buf, hw->buf_emul + start, write_len);
-        hw->pending_emul -= write_len;
-        len -= write_len;
-        buf += write_len;
     }
 
     /* clear remaining buffer that we couldn't fill with data */
