@@ -342,7 +342,7 @@ static void dsound_clear_sample (HWVoiceOut *hw, LPDIRECTSOUNDBUFFER dsb,
     dsound_unlock_out (dsb, p1, p2, blen1, blen2);
 }
 
-static int dsound_open (dsound *s)
+static int dsound_set_cooperative_level(dsound *s)
 {
     HRESULT hr;
     HWND hwnd;
@@ -673,7 +673,7 @@ static void *dsound_audio_init(Audiodev *dev)
         }
     }
 
-    err = dsound_open (s);
+    err = dsound_set_cooperative_level(s);
     if (err) {
         dsound_audio_fini (s);
         return NULL;
