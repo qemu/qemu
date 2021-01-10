@@ -762,6 +762,7 @@ static struct audio_pcm_ops oss_pcm_ops = {
     .init_in  = oss_init_in,
     .fini_in  = oss_fini_in,
     .read     = oss_read,
+    .run_buffer_in = audio_generic_run_buffer_in,
     .enable_in = oss_enable_in
 };
 

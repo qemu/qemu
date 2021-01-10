@@ -929,6 +929,7 @@ static struct audio_pcm_ops alsa_pcm_ops = {
     .init_in  = alsa_init_in,
     .fini_in  = alsa_fini_in,
     .read     = alsa_read,
+    .run_buffer_in = audio_generic_run_buffer_in,
     .enable_in = alsa_enable_in,
 };
 

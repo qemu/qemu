@@ -657,6 +657,7 @@ static struct audio_pcm_ops jack_pcm_ops = {
     .init_in        = qjack_init_in,
     .fini_in        = qjack_fini_in,
     .read           = qjack_read,
+    .run_buffer_in  = audio_generic_run_buffer_in,
     .enable_in      = qjack_enable_in
 };
 

@@ -1241,6 +1241,10 @@ static size_t audio_pcm_hw_run_in(HWVoiceIn *hw, size_t samples)
     size_t conv = 0;
     STSampleBuffer *conv_buf = hw->conv_buf;
 
+    if (hw->pcm_ops->run_buffer_in) {
+        hw->pcm_ops->run_buffer_in(hw);
+    }
+
     while (samples) {
         size_t proc;
         size_t size = samples * hw->info.bytes_per_frame;
@@ -1381,10 +1385,8 @@ void audio_run(AudioState *s, const char *msg)
 #endif
 }
 
-void *audio_generic_get_buffer_in(HWVoiceIn *hw, size_t *size)
+void audio_generic_run_buffer_in(HWVoiceIn *hw)
 {
-    ssize_t start;
-
     if (unlikely(!hw->buf_emul)) {
         size_t calc_size = hw->conv_buf->size * hw->info.bytes_per_frame;
         hw->buf_emul = g_malloc(calc_size);
@@ -1403,8 +1405,12 @@ void *audio_generic_get_buffer_in(HWVoiceIn *hw, size_t *size)
             break;
         }
     }
+}
 
-    start = ((ssize_t) hw->pos_emul) - hw->pending_emul;
+void *audio_generic_get_buffer_in(HWVoiceIn *hw, size_t *size)
+{
+    ssize_t start = (ssize_t)hw->pos_emul - hw->pending_emul;
+
     if (start < 0) {
         start += hw->size_emul;
     }
@@ -1504,6 +1510,10 @@ size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
 size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
 {
     size_t total = 0;
+
+    if (hw->pcm_ops->run_buffer_in) {
+        hw->pcm_ops->run_buffer_in(hw);
+    }
 
     while (total < size) {
         size_t src_size = size - total;
