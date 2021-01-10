@@ -54,7 +54,7 @@ int waveformat_from_audio_settings (WAVEFORMATEX *wfx,
         break;
 
     default:
-        dolog ("Internal logic error: Bad audio format %d\n", as->freq);
+        dolog("Internal logic error: Bad audio format %d\n", as->fmt);
         return -1;
     }
 
