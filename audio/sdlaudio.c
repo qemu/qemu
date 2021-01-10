@@ -495,8 +495,8 @@ static struct audio_driver sdl_audio_driver = {
     .fini           = sdl_audio_fini,
     .pcm_ops        = &sdl_pcm_ops,
     .can_be_default = 1,
-    .max_voices_out = 1,
-    .max_voices_in  = 1,
+    .max_voices_out = INT_MAX,
+    .max_voices_in  = INT_MAX,
     .voice_size_out = sizeof(SDLVoiceOut),
     .voice_size_in  = sizeof(SDLVoiceIn),
 };
