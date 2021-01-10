@@ -235,7 +235,8 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
 
     /* clear remaining buffer that we couldn't fill with data */
     if (len) {
-        memset(buf, 0, len);
+        audio_pcm_info_clear_buf(&hw->info, buf,
+                                 len / hw->info.bytes_per_frame);
     }
 }
 
