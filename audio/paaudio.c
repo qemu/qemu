@@ -269,6 +269,11 @@ static size_t qpa_write(HWVoiceOut *hw, void *data, size_t length)
 
     CHECK_DEAD_GOTO(c, p->stream, unlock_and_fail,
                     "pa_threaded_mainloop_lock failed\n");
+    if (pa_stream_get_state(p->stream) != PA_STREAM_READY) {
+        /* wait for stream to become ready */
+        l = 0;
+        goto unlock;
+    }
 
     l = pa_stream_writable_size(p->stream);
 
@@ -282,6 +287,7 @@ static size_t qpa_write(HWVoiceOut *hw, void *data, size_t length)
     r = pa_stream_write(p->stream, data, l, NULL, 0LL, PA_SEEK_RELATIVE);
     CHECK_SUCCESS_GOTO(c, r >= 0, unlock_and_fail, "pa_stream_write failed\n");
 
+unlock:
     pa_threaded_mainloop_unlock(c->mainloop);
     return l;
 
