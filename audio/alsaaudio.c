@@ -599,7 +599,7 @@ static int alsa_open(bool in, struct alsa_params_req *req,
     }
 
 #ifdef DEBUG
-    alsa_dump_info(req, obt, obtfmt, pdo);
+    alsa_dump_info(req, obt, obtfmt, apdo);
 #endif
     return 0;
 

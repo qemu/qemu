@@ -215,7 +215,7 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
         return;
     }
 
-    /* dolog ("in callback samples=%zu live=%zu\n", samples, sdl->live); */
+    /* dolog("callback: len=%d avail=%zu\n", len, hw->pending_emul); */
 
     while (hw->pending_emul && len) {
         size_t write_len;
