@@ -531,7 +531,7 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 40,
         .PABITS = 32,
-        .insn_flags = CPU_VR54XX,
+        .insn_flags = CPU_MIPS4 | INSN_VR54XX,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -781,7 +781,7 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 40,
         .PABITS = 40,
-        .insn_flags = CPU_LOONGSON2E,
+        .insn_flags = CPU_MIPS3 | INSN_LOONGSON2E,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -801,7 +801,7 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 40,
         .PABITS = 40,
-        .insn_flags = CPU_LOONGSON2F,
+        .insn_flags = CPU_MIPS3 | INSN_LOONGSON2F | ASE_LMMI,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -830,7 +830,8 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 42,
         .PABITS = 48,
-        .insn_flags = CPU_LOONGSON3A,
+        .insn_flags = CPU_MIPS64R2 | INSN_LOONGSON3A |
+                      ASE_LMMI | ASE_LEXT,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -887,7 +888,8 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 48,
         .PABITS = 48,
-        .insn_flags = CPU_LOONGSON3A,
+        .insn_flags = CPU_MIPS64R2 | INSN_LOONGSON3A |
+                      ASE_LMMI | ASE_LEXT,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
