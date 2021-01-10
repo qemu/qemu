@@ -47,6 +47,14 @@ typedef struct SDLVoiceOut {
     SDL_AudioDeviceID devid;
 } SDLVoiceOut;
 
+typedef struct SDLVoiceIn {
+    HWVoiceIn hw;
+    int exit;
+    int initialized;
+    Audiodev *dev;
+    SDL_AudioDeviceID devid;
+} SDLVoiceIn;
+
 static void GCC_FMT_ATTR (1, 2) sdl_logerr (const char *fmt, ...)
 {
     va_list ap;
@@ -240,6 +248,45 @@ static void sdl_callback_out(void *opaque, Uint8 *buf, int len)
     }
 }
 
+static void sdl_close_in(SDLVoiceIn *sdl)
+{
+    if (sdl->initialized) {
+        SDL_LockAudioDevice(sdl->devid);
+        sdl->exit = 1;
+        SDL_UnlockAudioDevice(sdl->devid);
+        SDL_PauseAudioDevice(sdl->devid, 1);
+        sdl->initialized = 0;
+    }
+    if (sdl->devid) {
+        SDL_CloseAudioDevice(sdl->devid);
+        sdl->devid = 0;
+    }
+}
+
+static void sdl_callback_in(void *opaque, Uint8 *buf, int len)
+{
+    SDLVoiceIn *sdl = opaque;
+    HWVoiceIn *hw = &sdl->hw;
+
+    if (sdl->exit) {
+        return;
+    }
+
+    /* dolog("callback_in: len=%d pending=%zu\n", len, hw->pending_emul); */
+
+    while (hw->pending_emul < hw->size_emul && len) {
+        size_t read_len = MIN(len, MIN(hw->size_emul - hw->pos_emul,
+                                       hw->size_emul - hw->pending_emul));
+
+        memcpy(hw->buf_emul + hw->pos_emul, buf, read_len);
+
+        hw->pending_emul += read_len;
+        hw->pos_emul = (hw->pos_emul + read_len) % hw->size_emul;
+        len -= read_len;
+        buf += read_len;
+    }
+}
+
 #define SDL_WRAPPER_FUNC(name, ret_type, args_decl, args, dir) \
     static ret_type glue(sdl_, name)args_decl                  \
     {                                                          \
@@ -253,13 +300,30 @@ static void sdl_callback_out(void *opaque, Uint8 *buf, int len)
         return ret;                                            \
     }
 
+#define SDL_WRAPPER_VOID_FUNC(name, args_decl, args, dir)      \
+    static void glue(sdl_, name)args_decl                      \
+    {                                                          \
+        glue(SDLVoice, dir) *sdl = (glue(SDLVoice, dir) *)hw;  \
+                                                               \
+        SDL_LockAudioDevice(sdl->devid);                       \
+        glue(audio_generic_, name)args;                        \
+        SDL_UnlockAudioDevice(sdl->devid);                     \
+    }
+
 SDL_WRAPPER_FUNC(get_buffer_out, void *, (HWVoiceOut *hw, size_t *size),
                  (hw, size), Out)
 SDL_WRAPPER_FUNC(put_buffer_out, size_t,
                  (HWVoiceOut *hw, void *buf, size_t size), (hw, buf, size), Out)
 SDL_WRAPPER_FUNC(write, size_t,
                  (HWVoiceOut *hw, void *buf, size_t size), (hw, buf, size), Out)
+SDL_WRAPPER_FUNC(read, size_t, (HWVoiceIn *hw, void *buf, size_t size),
+                 (hw, buf, size), In)
+SDL_WRAPPER_FUNC(get_buffer_in, void *, (HWVoiceIn *hw, size_t *size),
+                 (hw, size), In)
+SDL_WRAPPER_VOID_FUNC(put_buffer_in, (HWVoiceIn *hw, void *buf, size_t size),
+                      (hw, buf, size), In)
 #undef SDL_WRAPPER_FUNC
+#undef SDL_WRAPPER_VOID_FUNC
 
 static void sdl_fini_out(HWVoiceOut *hw)
 {
@@ -325,6 +389,69 @@ static void sdl_enable_out(HWVoiceOut *hw, bool enable)
     SDL_PauseAudioDevice(sdl->devid, !enable);
 }
 
+static void sdl_fini_in(HWVoiceIn *hw)
+{
+    SDLVoiceIn *sdl = (SDLVoiceIn *)hw;
+
+    sdl_close_in(sdl);
+}
+
+static int sdl_init_in(HWVoiceIn *hw, audsettings *as, void *drv_opaque)
+{
+    SDLVoiceIn *sdl = (SDLVoiceIn *)hw;
+    SDL_AudioSpec req, obt;
+    int endianness;
+    int err;
+    AudioFormat effective_fmt;
+    Audiodev *dev = drv_opaque;
+    AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl.in;
+    struct audsettings obt_as;
+
+    req.freq = as->freq;
+    req.format = aud_to_sdlfmt(as->fmt);
+    req.channels = as->nchannels;
+    /* SDL samples are QEMU frames */
+    req.samples = audio_buffer_frames(
+        qapi_AudiodevSdlPerDirectionOptions_base(spdo), as, 11610);
+    req.callback = sdl_callback_in;
+    req.userdata = sdl;
+
+    sdl->dev = dev;
+    sdl->devid = sdl_open(&req, &obt, 1);
+    if (!sdl->devid) {
+        return -1;
+    }
+
+    err = sdl_to_audfmt(obt.format, &effective_fmt, &endianness);
+    if (err) {
+        sdl_close_in(sdl);
+        return -1;
+    }
+
+    obt_as.freq = obt.freq;
+    obt_as.nchannels = obt.channels;
+    obt_as.fmt = effective_fmt;
+    obt_as.endianness = endianness;
+
+    audio_pcm_init_info(&hw->info, &obt_as);
+    hw->samples = (spdo->has_buffer_count ? spdo->buffer_count : 4) *
+        obt.samples;
+    hw->size_emul = hw->samples * hw->info.bytes_per_frame;
+    hw->buf_emul = g_malloc(hw->size_emul);
+    hw->pos_emul = hw->pending_emul = 0;
+
+    sdl->initialized = 1;
+    sdl->exit = 0;
+    return 0;
+}
+
+static void sdl_enable_in(HWVoiceIn *hw, bool enable)
+{
+    SDLVoiceIn *sdl = (SDLVoiceIn *)hw;
+
+    SDL_PauseAudioDevice(sdl->devid, !enable);
+}
+
 static void *sdl_audio_init(Audiodev *dev)
 {
     if (SDL_InitSubSystem (SDL_INIT_AUDIO)) {
@@ -350,6 +477,15 @@ static struct audio_pcm_ops sdl_pcm_ops = {
   /* wrapper for audio_generic_put_buffer_out */
     .put_buffer_out = sdl_put_buffer_out,
     .enable_out = sdl_enable_out,
+    .init_in = sdl_init_in,
+    .fini_in = sdl_fini_in,
+  /* wrapper for audio_generic_read */
+    .read = sdl_read,
+  /* wrapper for audio_generic_get_buffer_in */
+    .get_buffer_in = sdl_get_buffer_in,
+  /* wrapper for audio_generic_put_buffer_in */
+    .put_buffer_in = sdl_put_buffer_in,
+    .enable_in = sdl_enable_in,
 };
 
 static struct audio_driver sdl_audio_driver = {
@@ -360,9 +496,9 @@ static struct audio_driver sdl_audio_driver = {
     .pcm_ops        = &sdl_pcm_ops,
     .can_be_default = 1,
     .max_voices_out = 1,
-    .max_voices_in  = 0,
-    .voice_size_out = sizeof (SDLVoiceOut),
-    .voice_size_in  = 0
+    .max_voices_in  = 1,
+    .voice_size_out = sizeof(SDLVoiceOut),
+    .voice_size_in  = sizeof(SDLVoiceIn),
 };
 
 static void register_audio_sdl(void)
