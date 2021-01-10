@@ -312,7 +312,6 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     s->initialized = 1;
     s->exit = 0;
-    SDL_PauseAudio (0);
     return 0;
 }
 
