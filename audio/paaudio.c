@@ -517,7 +517,8 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
     ss.rate = as->freq;
 
     ba.tlength = pa_usec_to_bytes(ppdo->latency, &ss);
-    ba.minreq = -1;
+    ba.minreq = pa_usec_to_bytes(MIN(ppdo->latency >> 2,
+                                     (g->dev->timer_period >> 2) * 3), &ss);
     ba.maxlength = -1;
     ba.prebuf = -1;
 
