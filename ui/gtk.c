@@ -683,7 +683,7 @@ static const DisplayChangeListenerOps dcl_egl_ops = {
 
 /** QEMU Events **/
 
-static void gd_change_runstate(void *opaque, int running, RunState state)
+static void gd_change_runstate(void *opaque, bool running, RunState state)
 {
     GtkDisplayState *s = opaque;
 

@@ -693,7 +693,7 @@ static int kvm_inject_mce_oldstyle(X86CPU *cpu)
     return 0;
 }
 
-static void cpu_update_state(void *opaque, int running, RunState state)
+static void cpu_update_state(void *opaque, bool running, RunState state)
 {
     CPUX86State *env = opaque;
 

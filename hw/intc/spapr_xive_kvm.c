@@ -504,7 +504,7 @@ static int kvmppc_xive_get_queues(SpaprXive *xive, Error **errp)
  * runs again. If an interrupt was queued while the VM was stopped,
  * simply generate a trigger.
  */
-static void kvmppc_xive_change_state_handler(void *opaque, int running,
+static void kvmppc_xive_change_state_handler(void *opaque, bool running,
                                              RunState state)
 {
     SpaprXive *xive = opaque;

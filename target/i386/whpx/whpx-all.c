@@ -1318,7 +1318,7 @@ void whpx_cpu_synchronize_pre_loadvm(CPUState *cpu)
 
 static Error *whpx_migration_blocker;
 
-static void whpx_cpu_update_state(void *opaque, int running, RunState state)
+static void whpx_cpu_update_state(void *opaque, bool running, RunState state)
 {
     CPUX86State *env = opaque;
 

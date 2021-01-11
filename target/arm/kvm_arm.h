@@ -352,7 +352,7 @@ void kvm_arm_get_virtual_time(CPUState *cs);
  */
 void kvm_arm_put_virtual_time(CPUState *cs);
 
-void kvm_arm_vm_state_change(void *opaque, int running, RunState state);
+void kvm_arm_vm_state_change(void *opaque, bool running, RunState state);
 
 int kvm_arm_vgic_probe(void);
 

@@ -78,7 +78,7 @@ static void kvm_s390_tod_set(S390TODState *td, const S390TOD *tod, Error **errp)
     }
 }
 
-static void kvm_s390_tod_vm_state_change(void *opaque, int running,
+static void kvm_s390_tod_vm_state_change(void *opaque, bool running,
                                          RunState state)
 {
     S390TODState *td = opaque;
