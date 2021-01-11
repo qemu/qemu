@@ -12,6 +12,7 @@
 import os
 import tempfile
 
+from avocado import skipIf
 from avocado_qemu import Test
 from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
@@ -133,8 +134,10 @@ class S390CCWVirtioMachine(Test):
         self.vm.command('device_add', driver='virtio-net-ccw',
                         devno='fe.0.4711', id='net_4711')
         self.wait_for_crw_reports()
-        exec_command_and_wait_for_pattern(self, 'ls /sys/bus/ccw/devices/',
-                                          '0.0.4711')
+        exec_command_and_wait_for_pattern(self, 'for i in 1 2 3 4 5 6 7 ; do '
+                    'if [ -e /sys/bus/ccw/devices/*4711 ]; then break; fi ;'
+                    'sleep 1 ; done ; ls /sys/bus/ccw/devices/',
+                    '0.0.4711')
         # and detach it again
         self.clear_guest_dmesg()
         self.vm.command('device_del', id='net_4711')
@@ -155,6 +158,7 @@ class S390CCWVirtioMachine(Test):
                                           'MemTotal:         115640 kB')
 
 
+    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_s390x_fedora(self):
 
         """
@@ -199,6 +203,9 @@ class S390CCWVirtioMachine(Test):
 
         # Some tests to see whether the CLI options have been considered:
         self.log.info("Test whether QEMU CLI options have been considered")
+        exec_command_and_wait_for_pattern(self,
+                        'while ! (dmesg | grep enP7p0s0) ; do sleep 1 ; done',
+                        'virtio_net virtio0 enP7p0s0: renamed')
         exec_command_and_wait_for_pattern(self, 'lspci',
                              '0007:00:00.0 Class 0200: Device 1af4:1000')
         exec_command_and_wait_for_pattern(self,
@@ -222,6 +229,9 @@ class S390CCWVirtioMachine(Test):
         # can simply read the written "magic bytes" back from the PPM file to
         # check whether the framebuffer is working as expected.
         self.log.info("Test screendump of virtio-gpu device")
+        exec_command_and_wait_for_pattern(self,
+                        'while ! (dmesg | grep gpudrmfb) ; do sleep 1 ; done',
+                        'virtio_gpudrmfb frame buffer device')
         exec_command_and_wait_for_pattern(self,
             'echo -e "\e[?25l" > /dev/tty0', ':/#')
         exec_command_and_wait_for_pattern(self, 'for ((i=0;i<250;i++)); do '

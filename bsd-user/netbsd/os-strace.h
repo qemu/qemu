@@ -1,0 +1,1 @@
+/* XXX NetBSD dependent strace print functions */

@@ -2047,6 +2047,7 @@ foreach target : target_dirs
       target_inc += include_directories('linux-user/host/' / config_host['ARCH'])
     else
       base_dir = 'bsd-user'
+      target_inc += include_directories('bsd-user/freebsd')
     endif
     target_inc += include_directories(
       base_dir,

@@ -1,6 +1,7 @@
 /*
- *  sparc dependent system call definitions
+ *  FreeBSD dependent strace print functions
  *
+ *  Copyright (c) 2013 Stacey D. Son
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,22 +16,14 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TARGET_SYSCALL_H
-#define TARGET_SYSCALL_H
 
-struct target_pt_regs {
-	abi_ulong psr;
-	abi_ulong pc;
-	abi_ulong npc;
-	abi_ulong y;
-	abi_ulong u_regs[16];
-};
+#include "target_arch_sysarch.h"    /* architecture dependent functions */
 
-#define UNAME_MACHINE           "sun4"
-#define TARGET_HW_MACHINE       "sparc"
-#define TARGET_HW_MACHINE_ARCH  "sparc"
 
-#define TARGET_SPARC_UTRAP_INSTALL      1
-#define TARGET_SPARC_SIGTRAMP_INSTALL   2
-
-#endif /* TARGET_SYSCALL_H */
+static inline void do_os_print_sysarch(const struct syscallname *name,
+        abi_long arg1, abi_long arg2, abi_long arg3, abi_long arg4,
+        abi_long arg5, abi_long arg6)
+{
+    /* This is arch dependent */
+    do_freebsd_arch_print_sysarch(name, arg1, arg2, arg3, arg4, arg5, arg6);
+}
