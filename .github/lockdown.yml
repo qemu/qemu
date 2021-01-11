@@ -10,8 +10,8 @@ issues:
   comment: |
     Thank you for your interest in the QEMU project.
 
-    This repository is a read-only mirror of the project's master
-    repostories hosted on https://git.qemu.org/git/qemu.git.
+    This repository is a read-only mirror of the project's repostories hosted
+    at https://gitlab.com/qemu-project/qemu.git.
     The project does not process issues filed on GitHub.
 
     The project issues are tracked on Launchpad:
@@ -24,8 +24,8 @@ pulls:
   comment: |
     Thank you for your interest in the QEMU project.
 
-    This repository is a read-only mirror of the project's master
-    repostories hosted on https://git.qemu.org/git/qemu.git.
+    This repository is a read-only mirror of the project's repostories hosted
+    on https://gitlab.com/qemu-project/qemu.git.
     The project does not process merge requests filed on GitHub.
 
     QEMU welcomes contributions of code (either fixing bugs or adding new
