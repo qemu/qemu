@@ -537,7 +537,8 @@ static int v9fs_request(V9fsProxy *proxy, int type, void *response, ...)
     }
 
     /* marshal the header details */
-    proxy_marshal(iovec, 0, "dd", header.type, header.size);
+    retval = proxy_marshal(iovec, 0, "dd", header.type, header.size);
+    assert(retval == 4 * 2);
     header.size += PROXY_HDR_SZ;
 
     retval = qemu_write_full(proxy->sockfd, iovec->iov_base, header.size);
