@@ -16,6 +16,7 @@
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "hw/block/block.h"
 #include "hw/pci/pci.h"
 #include "sysemu/sysemu.h"
@@ -226,6 +227,22 @@ static void nvme_ns_init_zoned(NvmeCtrl *n, NvmeNamespace *ns, int lba_index)
     ns->id_ns.nsze = cpu_to_le64(ns->num_zones * ns->zone_size);
     ns->id_ns.ncap = ns->id_ns.nsze;
     ns->id_ns.nuse = ns->id_ns.ncap;
+
+    /*
+     * The device uses the BDRV_BLOCK_ZERO flag to determine the "deallocated"
+     * status of logical blocks. Since the spec defines that logical blocks
+     * SHALL be deallocated when then zone is in the Empty or Offline states,
+     * we can only support DULBE if the zone size is a multiple of the
+     * calculated NPDG.
+     */
+    if (ns->zone_size % (ns->id_ns.npdg + 1)) {
+        warn_report("the zone size (%"PRIu64" blocks) is not a multiple of "
+                    "the calculated deallocation granularity (%d blocks); "
+                    "DULBE support disabled",
+                    ns->zone_size, ns->id_ns.npdg + 1);
+
+        ns->id_ns.nsfeat &= ~0x4;
+    }
 
     ns->id_ns_zoned = id_ns_z;
 }
