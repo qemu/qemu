@@ -3234,7 +3234,7 @@ static void vnc_display_close(VncDisplay *vd)
     vd->auth = VNC_AUTH_INVALID;
     vd->subauth = VNC_AUTH_INVALID;
     if (vd->tlscreds) {
-        object_unparent(OBJECT(vd->tlscreds));
+        object_unref(OBJECT(vd->tlscreds));
         vd->tlscreds = NULL;
     }
     if (vd->tlsauthz) {
