@@ -3285,8 +3285,7 @@ static DisasJumpType op_lpq(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_lura(DisasContext *s, DisasOps *o)
 {
-    o->addr1 = get_address(s, 0, get_field(s, r2), 0);
-    tcg_gen_qemu_ld_tl(o->out, o->addr1, MMU_REAL_IDX, s->insn->data);
+    tcg_gen_qemu_ld_tl(o->out, o->in2, MMU_REAL_IDX, s->insn->data);
     return DISAS_NEXT;
 }
 #endif
@@ -4234,7 +4233,8 @@ static DisasJumpType op_ectg(DisasContext *s, DisasOps *o)
     tcg_gen_addi_i64(o->in1, regs[b1], d1);
     o->in2 = tcg_temp_new_i64();
     tcg_gen_addi_i64(o->in2, regs[b2], d2);
-    o->addr1 = get_address(s, 0, r3, 0);
+    o->addr1 = tcg_temp_new_i64();
+    gen_addi_and_wrap_i64(s, o->addr1, regs[r3], 0);
 
     /* load the third operand into r3 before modifying anything */
     tcg_gen_qemu_ld64(regs[r3], o->addr1, get_mem_index(s));
@@ -4539,8 +4539,7 @@ static DisasJumpType op_stnosm(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stura(DisasContext *s, DisasOps *o)
 {
-    o->addr1 = get_address(s, 0, get_field(s, r2), 0);
-    tcg_gen_qemu_st_tl(o->in1, o->addr1, MMU_REAL_IDX, s->insn->data);
+    tcg_gen_qemu_st_tl(o->in1, o->in2, MMU_REAL_IDX, s->insn->data);
 
     if (s->base.tb->flags & FLAG_MASK_PER) {
         update_psw_addr(s);
@@ -5923,7 +5922,11 @@ static void in2_x2l(DisasContext *s, DisasOps *o)
 
 static void in2_ra2(DisasContext *s, DisasOps *o)
 {
-    o->in2 = get_address(s, 0, get_field(s, r2), 0);
+    int r2 = get_field(s, r2);
+
+    /* Note: *don't* treat !r2 as 0, use the reg value. */
+    o->in2 = tcg_temp_new_i64();
+    gen_addi_and_wrap_i64(s, o->in2, regs[r2], 0);
 }
 #define SPEC_in2_ra2 0
 
