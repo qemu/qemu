@@ -1,0 +1,29 @@
+QA output created by 313
+
+### Create the image
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=SIZE
+
+### Write data to allocate more refcount blocks than the cache can hold
+
+wrote 8347648/8347648 bytes at offset 0
+7.961 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+### Create an overlay
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=SIZE backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT
+
+### Fill the overlay with zeroes
+
+wrote 8347648/8347648 bytes at offset 0
+7.961 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+### Commit changes to the base image
+
+Image committed.
+
+### Check the base image
+
+No errors were found on the image.
+Image end offset: 8396800
+*** done
