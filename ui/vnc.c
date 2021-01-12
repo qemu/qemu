@@ -655,10 +655,35 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
     vnc_write_s32(vs, encoding);
 }
 
+static void vnc_desktop_resize_ext(VncState *vs, int reject_reason)
+{
+    vnc_lock_output(vs);
+    vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
+    vnc_write_u8(vs, 0);
+    vnc_write_u16(vs, 1); /* number of rects */
+    vnc_framebuffer_update(vs,
+                           reject_reason ? 1 : 0,
+                           reject_reason,
+                           vs->client_width, vs->client_height,
+                           VNC_ENCODING_DESKTOP_RESIZE_EXT);
+    vnc_write_u8(vs, 1);  /* number of screens */
+    vnc_write_u8(vs, 0);  /* padding */
+    vnc_write_u8(vs, 0);  /* padding */
+    vnc_write_u8(vs, 0);  /* padding */
+    vnc_write_u32(vs, 0); /* screen id */
+    vnc_write_u16(vs, 0); /* screen x-pos */
+    vnc_write_u16(vs, 0); /* screen y-pos */
+    vnc_write_u16(vs, vs->client_width);
+    vnc_write_u16(vs, vs->client_height);
+    vnc_write_u32(vs, 0); /* screen flags */
+    vnc_unlock_output(vs);
+    vnc_flush(vs);
+}
 
 static void vnc_desktop_resize(VncState *vs)
 {
-    if (vs->ioc == NULL || !vnc_has_feature(vs, VNC_FEATURE_RESIZE)) {
+    if (vs->ioc == NULL || (!vnc_has_feature(vs, VNC_FEATURE_RESIZE) &&
+                            !vnc_has_feature(vs, VNC_FEATURE_RESIZE_EXT))) {
         return;
     }
 
@@ -668,6 +693,12 @@ static void vnc_desktop_resize(VncState *vs)
            pixman_image_get_height(vs->vd->server) >= 0);
     vs->client_width = pixman_image_get_width(vs->vd->server);
     vs->client_height = pixman_image_get_height(vs->vd->server);
+
+    if (vnc_has_feature(vs, VNC_FEATURE_RESIZE_EXT)) {
+        vnc_desktop_resize_ext(vs, 0);
+        return;
+    }
+
     vnc_lock_output(vs);
     vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
     vnc_write_u8(vs, 0);
@@ -2114,6 +2145,9 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
         case VNC_ENCODING_DESKTOPRESIZE:
             vs->features |= VNC_FEATURE_RESIZE_MASK;
             break;
+        case VNC_ENCODING_DESKTOP_RESIZE_EXT:
+            vs->features |= VNC_FEATURE_RESIZE_EXT_MASK;
+            break;
         case VNC_ENCODING_POINTER_TYPE_CHANGE:
             vs->features |= VNC_FEATURE_POINTER_TYPE_CHANGE_MASK;
             break;
@@ -2474,6 +2508,34 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
             break;
         }
         break;
+    case VNC_MSG_CLIENT_SET_DESKTOP_SIZE:
+    {
+        size_t size;
+        uint8_t screens;
+
+        if (len < 8) {
+            return 8;
+        }
+
+        screens = read_u8(data, 6);
+        size    = 8 + screens * 16;
+        if (len < size) {
+            return size;
+        }
+
+        if (dpy_ui_info_supported(vs->vd->dcl.con)) {
+            QemuUIInfo info;
+            memset(&info, 0, sizeof(info));
+            info.width = read_u16(data, 2);
+            info.height = read_u16(data, 4);
+            dpy_set_ui_info(vs->vd->dcl.con, &info);
+            vnc_desktop_resize_ext(vs, 4 /* Request forwarded */);
+        } else {
+            vnc_desktop_resize_ext(vs, 3 /* Invalid screen layout */);
+        }
+
+        break;
+    }
     default:
         VNC_DEBUG("Msg: %d\n", data[0]);
         vnc_client_error(vs);
