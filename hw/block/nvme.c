@@ -1268,10 +1268,13 @@ static void nvme_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
     nlb = le16_to_cpu(rw->nlb) + 1;
     zone = nvme_get_zone_by_slba(ns, slba);
 
+    zone->d.wp += nlb;
+
     if (failed) {
         res->slba = 0;
-        zone->d.wp += nlb;
-    } else if (zone->w_ptr == nvme_zone_wr_boundary(zone)) {
+    }
+
+    if (zone->d.wp == nvme_zone_wr_boundary(zone)) {
         switch (nvme_get_zone_state(zone)) {
         case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         case NVME_ZONE_STATE_EXPLICITLY_OPEN:
@@ -1288,9 +1291,6 @@ static void nvme_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
         default:
             assert(false);
         }
-        zone->d.wp = zone->w_ptr;
-    } else {
-        zone->d.wp += nlb;
     }
 }
 
