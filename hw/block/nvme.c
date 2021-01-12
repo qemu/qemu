@@ -2590,7 +2590,9 @@ static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
 {
     n->cq[cq->cqid] = NULL;
     timer_free(cq->timer);
-    msix_vector_unuse(&n->parent_obj, cq->vector);
+    if (msix_enabled(&n->parent_obj)) {
+        msix_vector_unuse(&n->parent_obj, cq->vector);
+    }
     if (cq->cqid) {
         g_free(cq);
     }
@@ -2624,8 +2626,10 @@ static void nvme_init_cq(NvmeCQueue *cq, NvmeCtrl *n, uint64_t dma_addr,
 {
     int ret;
 
-    ret = msix_vector_use(&n->parent_obj, vector);
-    assert(ret == 0);
+    if (msix_enabled(&n->parent_obj)) {
+        ret = msix_vector_use(&n->parent_obj, vector);
+        assert(ret == 0);
+    }
     cq->ctrl = n;
     cq->cqid = cqid;
     cq->size = size;
@@ -4161,9 +4165,12 @@ static void nvme_init_pmr(NvmeCtrl *n, PCIDevice *pci_dev)
                      PCI_BASE_ADDRESS_MEM_PREFETCH, &n->pmrdev->mr);
 }
 
-static void nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
+static int nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
 {
     uint8_t *pci_conf = pci_dev->config;
+    int ret;
+
+    Error *err = NULL;
 
     pci_conf[PCI_INTERRUPT_PIN] = 1;
     pci_config_set_prog_interface(pci_conf, 0x2);
@@ -4183,8 +4190,14 @@ static void nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
                           n->reg_size);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
                      PCI_BASE_ADDRESS_MEM_TYPE_64, &n->iomem);
-    if (msix_init_exclusive_bar(pci_dev, n->params.msix_qsize, 4, errp)) {
-        return;
+    ret = msix_init_exclusive_bar(pci_dev, n->params.msix_qsize, 4, &err);
+    if (ret < 0) {
+        if (ret == -ENOTSUP) {
+            warn_report_err(err);
+        } else {
+            error_propagate(errp, err);
+            return ret;
+        }
     }
 
     if (n->params.cmb_size_mb) {
@@ -4192,6 +4205,8 @@ static void nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     } else if (n->pmrdev) {
         nvme_init_pmr(n, pci_dev);
     }
+
+    return 0;
 }
 
 static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
@@ -4280,9 +4295,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
                         &pci_dev->qdev, n->parent_obj.qdev.id);
 
     nvme_init_state(n);
-    nvme_init_pci(n, pci_dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (nvme_init_pci(n, pci_dev, errp)) {
         return;
     }
 
