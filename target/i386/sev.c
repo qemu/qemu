@@ -682,7 +682,7 @@ sev_vm_state_change(void *opaque, int running, RunState state)
     }
 }
 
-void *
+int
 sev_guest_init(const char *id)
 {
     SevGuestState *sev;
@@ -695,7 +695,7 @@ sev_guest_init(const char *id)
     ret = ram_block_discard_disable(true);
     if (ret) {
         error_report("%s: cannot disable RAM discard", __func__);
-        return NULL;
+        return -1;
     }
 
     sev = lookup_sev_guest_info(id);
@@ -766,23 +766,27 @@ sev_guest_init(const char *id)
     qemu_add_machine_init_done_notifier(&sev_machine_done_notify);
     qemu_add_vm_change_state_handler(sev_vm_state_change, sev);
 
-    return sev;
+    return 0;
 err:
     sev_guest = NULL;
     ram_block_discard_disable(false);
-    return NULL;
+    return -1;
 }
 
 int
-sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len)
+sev_encrypt_flash(uint8_t *ptr, uint64_t len, Error **errp)
 {
-    SevGuestState *sev = handle;
-
-    assert(sev);
+    if (!sev_guest) {
+        return 0;
+    }
 
     /* if SEV is in update state then encrypt the data else do nothing */
-    if (sev_check_state(sev, SEV_STATE_LAUNCH_UPDATE)) {
-        return sev_launch_update_data(sev, ptr, len);
+    if (sev_check_state(sev_guest, SEV_STATE_LAUNCH_UPDATE)) {
+        int ret = sev_launch_update_data(sev_guest, ptr, len);
+        if (ret < 0) {
+            error_setg(errp, "failed to encrypt pflash rom");
+            return ret;
+        }
     }
 
     return 0;
