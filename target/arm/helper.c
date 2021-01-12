@@ -1049,8 +1049,8 @@ static CPAccessResult cpacr_access(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     if (arm_feature(env, ARM_FEATURE_V8)) {
         /* Check if CPACR accesses are to be trapped to EL2 */
-        if (arm_current_el(env) == 1 &&
-            (env->cp15.cptr_el[2] & CPTR_TCPAC) && !arm_is_secure(env)) {
+        if (arm_current_el(env) == 1 && arm_is_el2_enabled(env) &&
+            (env->cp15.cptr_el[2] & CPTR_TCPAC)) {
             return CP_ACCESS_TRAP_EL2;
         /* Check if CPACR accesses are to be trapped to EL3 */
         } else if (arm_current_el(env) < 3 &&
@@ -2520,7 +2520,7 @@ static CPAccessResult gt_counter_access(CPUARMState *env, int timeridx,
                                         bool isread)
 {
     unsigned int cur_el = arm_current_el(env);
-    bool secure = arm_is_secure(env);
+    bool has_el2 = arm_is_el2_enabled(env);
     uint64_t hcr = arm_hcr_el2_eff(env);
 
     switch (cur_el) {
@@ -2544,8 +2544,7 @@ static CPAccessResult gt_counter_access(CPUARMState *env, int timeridx,
             }
         } else {
             /* If HCR_EL2.<E2H> == 0: check CNTHCTL_EL2.EL1PCEN. */
-            if (arm_feature(env, ARM_FEATURE_EL2) &&
-                timeridx == GTIMER_PHYS && !secure &&
+            if (has_el2 && timeridx == GTIMER_PHYS &&
                 !extract32(env->cp15.cnthctl_el2, 1, 1)) {
                 return CP_ACCESS_TRAP_EL2;
             }
@@ -2554,8 +2553,7 @@ static CPAccessResult gt_counter_access(CPUARMState *env, int timeridx,
 
     case 1:
         /* Check CNTHCTL_EL2.EL1PCTEN, which changes location based on E2H. */
-        if (arm_feature(env, ARM_FEATURE_EL2) &&
-            timeridx == GTIMER_PHYS && !secure &&
+        if (has_el2 && timeridx == GTIMER_PHYS &&
             (hcr & HCR_E2H
              ? !extract32(env->cp15.cnthctl_el2, 10, 1)
              : !extract32(env->cp15.cnthctl_el2, 0, 1))) {
@@ -2570,7 +2568,7 @@ static CPAccessResult gt_timer_access(CPUARMState *env, int timeridx,
                                       bool isread)
 {
     unsigned int cur_el = arm_current_el(env);
-    bool secure = arm_is_secure(env);
+    bool has_el2 = arm_is_el2_enabled(env);
     uint64_t hcr = arm_hcr_el2_eff(env);
 
     switch (cur_el) {
@@ -2591,8 +2589,7 @@ static CPAccessResult gt_timer_access(CPUARMState *env, int timeridx,
         /* fall through */
 
     case 1:
-        if (arm_feature(env, ARM_FEATURE_EL2) &&
-            timeridx == GTIMER_PHYS && !secure) {
+        if (has_el2 && timeridx == GTIMER_PHYS) {
             if (hcr & HCR_E2H) {
                 /* If HCR_EL2.<E2H,TGE> == '10': check CNTHCTL_EL2.EL1PTEN. */
                 if (!extract32(env->cp15.cnthctl_el2, 11, 1)) {
@@ -4248,11 +4245,9 @@ static const ARMCPRegInfo strongarm_cp_reginfo[] = {
 
 static uint64_t midr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    ARMCPU *cpu = env_archcpu(env);
     unsigned int cur_el = arm_current_el(env);
-    bool secure = arm_is_secure(env);
 
-    if (arm_feature(&cpu->env, ARM_FEATURE_EL2) && !secure && cur_el == 1) {
+    if (arm_is_el2_enabled(env) && cur_el == 1) {
         return env->cp15.vpidr_el2;
     }
     return raw_read(env, ri);
@@ -4279,9 +4274,8 @@ static uint64_t mpidr_read_val(CPUARMState *env)
 static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     unsigned int cur_el = arm_current_el(env);
-    bool secure = arm_is_secure(env);
 
-    if (arm_feature(env, ARM_FEATURE_EL2) && !secure && cur_el == 1) {
+    if (arm_is_el2_enabled(env) && cur_el == 1) {
         return env->cp15.vmpidr_el2;
     }
     return mpidr_read_val(env);
@@ -5348,7 +5342,7 @@ uint64_t arm_hcr_el2_eff(CPUARMState *env)
 {
     uint64_t ret = env->cp15.hcr_el2;
 
-    if (arm_is_secure_below_el3(env)) {
+    if (!arm_is_el2_enabled(env)) {
         /*
          * "This register has no effect if EL2 is not enabled in the
          * current Security state".  This is ARMv8.4-SecEL2 speak for
@@ -6145,7 +6139,7 @@ int sve_exception_el(CPUARMState *env, int el)
     /* CPTR_EL2.  Since TZ and TFP are positive,
      * they will be zero when EL2 is not present.
      */
-    if (el <= 2 && !arm_is_secure_below_el3(env)) {
+    if (el <= 2 && arm_is_el2_enabled(env)) {
         if (env->cp15.cptr_el[2] & CPTR_TZ) {
             return 2;
         }
@@ -8720,8 +8714,7 @@ static int bad_mode_switch(CPUARMState *env, int mode, CPSRWriteType write_type)
         }
         return 0;
     case ARM_CPU_MODE_HYP:
-        return !arm_feature(env, ARM_FEATURE_EL2)
-            || arm_current_el(env) < 2 || arm_is_secure_below_el3(env);
+        return !arm_is_el2_enabled(env) || arm_current_el(env) < 2;
     case ARM_CPU_MODE_MON:
         return arm_current_el(env) < 3;
     default:
@@ -12647,7 +12640,7 @@ int fp_exception_el(CPUARMState *env, int cur_el)
 
     /* CPTR_EL2 : present in v7VE or v8 */
     if (cur_el <= 2 && extract32(env->cp15.cptr_el[2], 10, 1)
-        && !arm_is_secure_below_el3(env)) {
+        && arm_is_el2_enabled(env)) {
         /* Trap FP ops at EL2, NS-EL1 or NS-EL0 to EL2 */
         return 2;
     }
