@@ -2148,6 +2148,18 @@ static inline bool arm_is_secure(CPUARMState *env)
     return arm_is_secure_below_el3(env);
 }
 
+/*
+ * Return true if the current security state has AArch64 EL2 or AArch32 Hyp.
+ * This corresponds to the pseudocode EL2Enabled()
+ */
+static inline bool arm_is_el2_enabled(CPUARMState *env)
+{
+    if (arm_feature(env, ARM_FEATURE_EL2)) {
+        return !arm_is_secure_below_el3(env);
+    }
+    return false;
+}
+
 #else
 static inline bool arm_is_secure_below_el3(CPUARMState *env)
 {
@@ -2155,6 +2167,11 @@ static inline bool arm_is_secure_below_el3(CPUARMState *env)
 }
 
 static inline bool arm_is_secure(CPUARMState *env)
+{
+    return false;
+}
+
+static inline bool arm_is_el2_enabled(CPUARMState *env)
 {
     return false;
 }
