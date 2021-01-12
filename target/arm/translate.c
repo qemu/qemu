@@ -5282,7 +5282,14 @@ static bool valid_cp(DisasContext *s, int cp)
      * only cp14 and cp15 are valid, and other values aren't considered
      * to be in the coprocessor-instruction space at all. v8M still
      * permits coprocessors 0..7.
+     * For XScale, we must not decode the XScale cp0, cp1 space as
+     * a standard coprocessor insn, because we want to fall through to
+     * the legacy disas_xscale_insn() decoder after decodetree is done.
      */
+    if (arm_dc_feature(s, ARM_FEATURE_XSCALE) && (cp == 0 || cp == 1)) {
+        return false;
+    }
+
     if (arm_dc_feature(s, ARM_FEATURE_V8) &&
         !arm_dc_feature(s, ARM_FEATURE_M)) {
         return cp >= 14;

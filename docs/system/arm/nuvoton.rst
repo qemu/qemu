@@ -41,6 +41,8 @@ Supported devices
  * Random Number Generator (RNG)
  * USB host (USBH)
  * GPIO controller
+ * Analog to Digital Converter (ADC)
+ * Pulse Width Modulation (PWM)
 
 Missing devices
 ---------------
@@ -58,10 +60,8 @@ Missing devices
  * USB device (USBD)
  * SMBus controller (SMBF)
  * Peripheral SPI controller (PSPI)
- * Analog to Digital Converter (ADC)
  * SD/MMC host
  * PECI interface
- * Pulse Width Modulation (PWM)
  * Tachometer
  * PCI and PCIe root complex and bridges
  * VDM and MCTP support

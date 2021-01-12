@@ -1176,8 +1176,9 @@ QemuCocoaView *cocoaView;
 - (void) openDocumentation: (NSString *) filename
 {
     /* Where to look for local files */
-    NSString *path_array[] = {@"../share/doc/qemu/", @"../doc/qemu/", @"../docs/"};
+    NSString *path_array[] = {@"../share/doc/qemu/", @"../doc/qemu/", @"docs/"};
     NSString *full_file_path;
+    NSURL *full_file_url;
 
     /* iterate thru the possible paths until the file is found */
     int index;
@@ -1186,7 +1187,9 @@ QemuCocoaView *cocoaView;
         full_file_path = [full_file_path stringByDeletingLastPathComponent];
         full_file_path = [NSString stringWithFormat: @"%@/%@%@", full_file_path,
                           path_array[index], filename];
-        if ([[NSWorkspace sharedWorkspace] openFile: full_file_path] == YES) {
+        full_file_url = [NSURL fileURLWithPath: full_file_path
+                                   isDirectory: false];
+        if ([[NSWorkspace sharedWorkspace] openURL: full_file_url] == YES) {
             return;
         }
     }

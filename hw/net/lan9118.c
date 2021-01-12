@@ -40,6 +40,17 @@ do { hw_error("lan9118: error: " fmt , ## __VA_ARGS__);} while (0)
 do { fprintf(stderr, "lan9118: error: " fmt , ## __VA_ARGS__);} while (0)
 #endif
 
+/* The tx and rx fifo ports are a range of aliased 32-bit registers */
+#define RX_DATA_FIFO_PORT_FIRST 0x00
+#define RX_DATA_FIFO_PORT_LAST 0x1f
+#define TX_DATA_FIFO_PORT_FIRST 0x20
+#define TX_DATA_FIFO_PORT_LAST 0x3f
+
+#define RX_STATUS_FIFO_PORT 0x40
+#define RX_STATUS_FIFO_PEEK 0x44
+#define TX_STATUS_FIFO_PORT 0x48
+#define TX_STATUS_FIFO_PEEK 0x4c
+
 #define CSR_ID_REV      0x50
 #define CSR_IRQ_CFG     0x54
 #define CSR_INT_STS     0x58
@@ -1020,7 +1031,8 @@ static void lan9118_writel(void *opaque, hwaddr offset,
     offset &= 0xff;
 
     //DPRINTF("Write reg 0x%02x = 0x%08x\n", (int)offset, val);
-    if (offset >= 0x20 && offset < 0x40) {
+    if (offset >= TX_DATA_FIFO_PORT_FIRST &&
+        offset <= TX_DATA_FIFO_PORT_LAST) {
         /* TX FIFO */
         tx_fifo_push(s, val);
         return;
@@ -1198,18 +1210,18 @@ static uint64_t lan9118_readl(void *opaque, hwaddr offset,
     lan9118_state *s = (lan9118_state *)opaque;
 
     //DPRINTF("Read reg 0x%02x\n", (int)offset);
-    if (offset < 0x20) {
+    if (offset <= RX_DATA_FIFO_PORT_LAST) {
         /* RX FIFO */
         return rx_fifo_pop(s);
     }
     switch (offset) {
-    case 0x40:
+    case RX_STATUS_FIFO_PORT:
         return rx_status_fifo_pop(s);
-    case 0x44:
-        return s->rx_status_fifo[s->tx_status_fifo_head];
-    case 0x48:
+    case RX_STATUS_FIFO_PEEK:
+        return s->rx_status_fifo[s->rx_status_fifo_head];
+    case TX_STATUS_FIFO_PORT:
         return tx_status_fifo_pop(s);
-    case 0x4c:
+    case TX_STATUS_FIFO_PEEK:
         return s->tx_status_fifo[s->tx_status_fifo_head];
     case CSR_ID_REV:
         return 0x01180001;

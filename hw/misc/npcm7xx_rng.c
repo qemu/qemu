@@ -143,7 +143,7 @@ static void npcm7xx_rng_init(Object *obj)
 
     memory_region_init_io(&s->iomem, obj, &npcm7xx_rng_ops, s, "regs",
                           NPCM7XX_RNG_REGS_SIZE);
-    sysbus_init_mmio(&s->parent, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
 }
 
 static const VMStateDescription vmstate_npcm7xx_rng = {

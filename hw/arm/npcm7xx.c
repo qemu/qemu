@@ -22,6 +22,7 @@
 #include "hw/char/serial.h"
 #include "hw/loader.h"
 #include "hw/misc/unimp.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/units.h"
@@ -50,6 +51,9 @@
 #define NPCM7XX_EHCI_BA         (0xf0806000)
 #define NPCM7XX_OHCI_BA         (0xf0807000)
 
+/* ADC Module */
+#define NPCM7XX_ADC_BA          (0xf000c000)
+
 /* Internal AHB SRAM */
 #define NPCM7XX_RAM3_BA         (0xc0008000)
 #define NPCM7XX_RAM3_SZ         (4 * KiB)
@@ -59,6 +63,7 @@
 #define NPCM7XX_RAM2_SZ         (128 * KiB)
 #define NPCM7XX_ROM_BA          (0xffff0000)
 #define NPCM7XX_ROM_SZ          (64 * KiB)
+
 
 /* Clock configuration values to be fixed up when bypassing bootloader */
 
@@ -72,6 +77,7 @@
  * interrupts.
  */
 enum NPCM7xxInterrupt {
+    NPCM7XX_ADC_IRQ             = 0,
     NPCM7XX_UART0_IRQ           = 2,
     NPCM7XX_UART1_IRQ,
     NPCM7XX_UART2_IRQ,
@@ -96,6 +102,8 @@ enum NPCM7xxInterrupt {
     NPCM7XX_WDG2_IRQ,                   /* Timer Module 2 Watchdog */
     NPCM7XX_EHCI_IRQ            = 61,
     NPCM7XX_OHCI_IRQ            = 62,
+    NPCM7XX_PWM0_IRQ            = 93,   /* PWM module 0 */
+    NPCM7XX_PWM1_IRQ,                   /* PWM module 1 */
     NPCM7XX_GPIO0_IRQ           = 116,
     NPCM7XX_GPIO1_IRQ,
     NPCM7XX_GPIO2_IRQ,
@@ -136,6 +144,12 @@ static const hwaddr npcm7xx_fiu3_flash_addr[] = {
     0xa8000000, /* CS1 */
     0xb0000000, /* CS2 */
     0xb8000000, /* CS3 */
+};
+
+/* Register base address for each PWM Module */
+static const hwaddr npcm7xx_pwm_addr[] = {
+    0xf0103000,
+    0xf0104000,
 };
 
 static const struct {
@@ -295,6 +309,14 @@ static void npcm7xx_init_fuses(NPCM7xxState *s)
                             sizeof(value));
 }
 
+static void npcm7xx_write_adc_calibration(NPCM7xxState *s)
+{
+    /* Both ADC and the fuse array must have realized. */
+    QEMU_BUILD_BUG_ON(sizeof(s->adc.calibration_r_values) != 4);
+    npcm7xx_otp_array_write(&s->fuse_array, s->adc.calibration_r_values,
+            NPCM7XX_FUSE_ADC_CALIB, sizeof(s->adc.calibration_r_values));
+}
+
 static qemu_irq npcm7xx_irq(NPCM7xxState *s, int n)
 {
     return qdev_get_gpio_in(DEVICE(&s->a9mpcore), n);
@@ -321,6 +343,7 @@ static void npcm7xx_init(Object *obj)
                             TYPE_NPCM7XX_FUSE_ARRAY);
     object_initialize_child(obj, "mc", &s->mc, TYPE_NPCM7XX_MC);
     object_initialize_child(obj, "rng", &s->rng, TYPE_NPCM7XX_RNG);
+    object_initialize_child(obj, "adc", &s->adc, TYPE_NPCM7XX_ADC);
 
     for (i = 0; i < ARRAY_SIZE(s->tim); i++) {
         object_initialize_child(obj, "tim[*]", &s->tim[i], TYPE_NPCM7XX_TIMER);
@@ -337,6 +360,10 @@ static void npcm7xx_init(Object *obj)
     for (i = 0; i < ARRAY_SIZE(s->fiu); i++) {
         object_initialize_child(obj, npcm7xx_fiu[i].name, &s->fiu[i],
                                 TYPE_NPCM7XX_FIU);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->pwm); i++) {
+        object_initialize_child(obj, "pwm[*]", &s->pwm[i], TYPE_NPCM7XX_PWM);
     }
 }
 
@@ -413,12 +440,25 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->mc), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->mc), 0, NPCM7XX_MC_BA);
 
+    /* ADC Modules. Cannot fail. */
+    qdev_connect_clock_in(DEVICE(&s->adc), "clock", qdev_get_clock_out(
+                          DEVICE(&s->clk), "adc-clock"));
+    sysbus_realize(SYS_BUS_DEVICE(&s->adc), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->adc), 0, NPCM7XX_ADC_BA);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->adc), 0,
+            npcm7xx_irq(s, NPCM7XX_ADC_IRQ));
+    npcm7xx_write_adc_calibration(s);
+
     /* Timer Modules (TIM). Cannot fail. */
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_tim_addr) != ARRAY_SIZE(s->tim));
     for (i = 0; i < ARRAY_SIZE(s->tim); i++) {
         SysBusDevice *sbd = SYS_BUS_DEVICE(&s->tim[i]);
         int first_irq;
         int j;
+
+        /* Connect the timer clock. */
+        qdev_connect_clock_in(DEVICE(&s->tim[i]), "clock", qdev_get_clock_out(
+                    DEVICE(&s->clk), "timer-clock"));
 
         sysbus_realize(sbd, &error_abort);
         sysbus_mmio_map(sbd, 0, npcm7xx_tim_addr[i]);
@@ -485,6 +525,18 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->ohci), 0,
                        npcm7xx_irq(s, NPCM7XX_OHCI_IRQ));
 
+    /* PWM Modules. Cannot fail. */
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_pwm_addr) != ARRAY_SIZE(s->pwm));
+    for (i = 0; i < ARRAY_SIZE(s->pwm); i++) {
+        SysBusDevice *sbd = SYS_BUS_DEVICE(&s->pwm[i]);
+
+        qdev_connect_clock_in(DEVICE(&s->pwm[i]), "clock", qdev_get_clock_out(
+                    DEVICE(&s->clk), "apb3-clock"));
+        sysbus_realize(sbd, &error_abort);
+        sysbus_mmio_map(sbd, 0, npcm7xx_pwm_addr[i]);
+        sysbus_connect_irq(sbd, i, npcm7xx_irq(s, NPCM7XX_PWM0_IRQ + i));
+    }
+
     /*
      * Flash Interface Unit (FIU). Can fail if incorrect number of chip selects
      * specified, but this is a programming error.
@@ -523,7 +575,6 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("npcm7xx.vdmx",         0xe0800000,   4 * KiB);
     create_unimplemented_device("npcm7xx.pcierc",       0xe1000000,  64 * KiB);
     create_unimplemented_device("npcm7xx.kcs",          0xf0007000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.adc",          0xf000c000,   4 * KiB);
     create_unimplemented_device("npcm7xx.gfxi",         0xf000e000,   4 * KiB);
     create_unimplemented_device("npcm7xx.gpio[0]",      0xf0010000,   4 * KiB);
     create_unimplemented_device("npcm7xx.gpio[1]",      0xf0011000,   4 * KiB);
@@ -553,8 +604,6 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("npcm7xx.peci",         0xf0100000,   4 * KiB);
     create_unimplemented_device("npcm7xx.siox[1]",      0xf0101000,   4 * KiB);
     create_unimplemented_device("npcm7xx.siox[2]",      0xf0102000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.pwm[0]",       0xf0103000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.pwm[1]",       0xf0104000,   4 * KiB);
     create_unimplemented_device("npcm7xx.mft[0]",       0xf0180000,   4 * KiB);
     create_unimplemented_device("npcm7xx.mft[1]",       0xf0181000,   4 * KiB);
     create_unimplemented_device("npcm7xx.mft[2]",       0xf0182000,   4 * KiB);

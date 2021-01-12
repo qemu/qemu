@@ -371,7 +371,7 @@ static void npcm7xx_otp_realize(DeviceState *dev, Error **errp)
 {
     NPCM7xxOTPClass *oc = NPCM7XX_OTP_GET_CLASS(dev);
     NPCM7xxOTPState *s = NPCM7XX_OTP(dev);
-    SysBusDevice *sbd = &s->parent;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     memset(s->array, 0, sizeof(s->array));
 
