@@ -22,10 +22,15 @@ events::
 This output comes from the "log" trace backend that is enabled by default when
 ``./configure --enable-trace-backends=BACKENDS`` was not explicitly specified.
 
-More than one trace event pattern can be specified by providing a file
-instead::
+Multiple patterns can be specified by repeating the ``--trace`` option::
+
+    $ qemu --trace "kvm_*" --trace "virtio_*" ...
+
+When patterns are used frequently it is more convenient to store them in a
+file to avoid long command-line options::
 
     $ echo "memory_region_ops_*" >/tmp/events
+    $ echo "kvm_*" >>/tmp/events
     $ qemu --trace events=/tmp/events ...
 
 Trace events
