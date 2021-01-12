@@ -23,14 +23,6 @@
 #include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 
-/* CSR function table */
-static riscv_csr_operations csr_ops[];
-
-/* CSR function table constants */
-enum {
-    CSR_TABLE_SIZE = 0x1000
-};
-
 /* CSR function table public API */
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops)
 {
@@ -1378,7 +1370,7 @@ int riscv_csrrw_debug(CPURISCVState *env, int csrno, target_ulong *ret_value,
 }
 
 /* Control and Status Register function table */
-static riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
+riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* User Floating-Point CSRs */
     [CSR_FFLAGS] =              { fs,   read_fflags,      write_fflags      },
     [CSR_FRM] =                 { fs,   read_frm,         write_frm         },
