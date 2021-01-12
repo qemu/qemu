@@ -2832,9 +2832,20 @@ static bool msr_banked_access_decode(DisasContext *s, int r, int sysm, int rn,
         }
         if (s->current_el == 1) {
             /* If we're in Secure EL1 (which implies that EL3 is AArch64)
-             * then accesses to Mon registers trap to EL3
+             * then accesses to Mon registers trap to Secure EL2, if it exists,
+             * otherwise EL3.
              */
-            TCGv_i32 tcg_el = tcg_const_i32(3);
+            TCGv_i32 tcg_el;
+
+            if (arm_dc_feature(s, ARM_FEATURE_AARCH64) &&
+                dc_isar_feature(aa64_sel2, s)) {
+                /* Target EL is EL<3 minus SCR_EL3.EEL2> */
+                tcg_el = load_cpu_field(cp15.scr_el3);
+                tcg_gen_sextract_i32(tcg_el, tcg_el, ctz32(SCR_EEL2), 1);
+                tcg_gen_addi_i32(tcg_el, tcg_el, 3);
+            } else {
+                tcg_el = tcg_const_i32(3);
+            }
 
             gen_exception_el(s, EXCP_UDEF, syn_uncategorized(), tcg_el);
             tcg_temp_free_i32(tcg_el);
