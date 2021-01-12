@@ -49,3 +49,21 @@ class PpcMachine(Test):
         self.vm.launch()
         wait_for_console_pattern(self, 'QEMU advent calendar 2020',
                                  self.panic_message)
+
+    def test_ppc_virtex_ml507(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:virtex-ml507
+        """
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2020/download/hippo.tar.gz')
+        tar_hash = '306b95bfe7d147f125aa176a877e266db8ef914a'
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        archive.extract(file_path, self.workdir)
+        self.vm.set_console()
+        self.vm.add_args('-kernel', self.workdir + '/hippo/hippo.linux',
+                         '-dtb', self.workdir + '/hippo/virtex440-ml507.dtb',
+                         '-m', '512')
+        self.vm.launch()
+        wait_for_console_pattern(self, 'QEMU advent calendar 2020',
+                                 self.panic_message)
