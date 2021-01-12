@@ -3198,6 +3198,12 @@ S: Maintained
 F: .cirrus.yml
 W: https://cirrus-ci.com/github/qemu/qemu
 
+Windows Hosted Continuous Integration
+M: Yonggang Luo <luoyonggang@gmail.com>
+S: Maintained
+F: .cirrus.yml
+W: https://cirrus-ci.com/github/qemu/qemu
+
 GitLab Continuous Integration
 M: Thomas Huth <thuth@redhat.com>
 M: Philippe Mathieu-Daudé <philmd@redhat.com>

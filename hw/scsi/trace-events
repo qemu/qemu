@@ -294,6 +294,15 @@ lsi_awoken(void) "Woken by SIGP"
 lsi_reg_read(const char *name, int offset, uint8_t ret) "Read reg %s 0x%x = 0x%02x"
 lsi_reg_write(const char *name, int offset, uint8_t val) "Write reg %s 0x%x = 0x%02x"
 
+# virtio-scsi.c
+virtio_scsi_cmd_req(int lun, uint32_t tag, uint8_t cmd) "virtio_scsi_cmd_req lun=%u tag=0x%x cmd=0x%x"
+virtio_scsi_cmd_resp(int lun, uint32_t tag, int response, uint8_t status) "virtio_scsi_cmd_resp lun=%u tag=0x%x response=%d status=0x%x"
+virtio_scsi_tmf_req(int lun, uint32_t tag, int subtype) "virtio_scsi_tmf_req lun=%u tag=0x%x subtype=%d"
+virtio_scsi_tmf_resp(int lun, uint32_t tag, int response) "virtio_scsi_tmf_resp lun=%u tag=0x%x response=%d"
+virtio_scsi_an_req(int lun, uint32_t event_requested) "virtio_scsi_an_req lun=%u event_requested=0x%x"
+virtio_scsi_an_resp(int lun, int response) "virtio_scsi_an_resp lun=%u response=%d"
+virtio_scsi_event(int lun, int event, int reason) "virtio_scsi_event lun=%u event=%d reason=%d"
+
 # scsi-disk.c
 scsi_disk_check_condition(uint32_t tag, uint8_t key, uint8_t asc, uint8_t ascq) "Command complete tag=0x%x sense=%d/%d/%d"
 scsi_disk_read_complete(uint32_t tag, size_t size) "Data ready tag=0x%x len=%zd"

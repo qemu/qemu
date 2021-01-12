@@ -201,7 +201,9 @@ qos_test_ss.add(
   'virtio-serial-test.c',
   'vmxnet3-test.c',
 )
-qos_test_ss.add(when: 'CONFIG_VIRTFS', if_true: files('virtio-9p-test.c'))
+if have_virtfs
+  qos_test_ss.add(files('virtio-9p-test.c'))
+endif
 qos_test_ss.add(when: 'CONFIG_VHOST_USER', if_true: files('vhost-user-test.c'))
 
 tpmemu_files = ['tpm-emu.c', 'tpm-util.c', 'tpm-tests.c']

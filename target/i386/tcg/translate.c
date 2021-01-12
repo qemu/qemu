@@ -2287,13 +2287,13 @@ static void gen_cmovcc1(CPUX86State *env, DisasContext *s, MemOp ot, int b,
     }
 }
 
-static inline void gen_op_movl_T0_seg(DisasContext *s, int seg_reg)
+static inline void gen_op_movl_T0_seg(DisasContext *s, X86Seg seg_reg)
 {
     tcg_gen_ld32u_tl(s->T0, cpu_env,
                      offsetof(CPUX86State,segs[seg_reg].selector));
 }
 
-static inline void gen_op_movl_seg_T0_vm(DisasContext *s, int seg_reg)
+static inline void gen_op_movl_seg_T0_vm(DisasContext *s, X86Seg seg_reg)
 {
     tcg_gen_ext16u_tl(s->T0, s->T0);
     tcg_gen_st32_tl(s->T0, cpu_env,
@@ -2303,7 +2303,7 @@ static inline void gen_op_movl_seg_T0_vm(DisasContext *s, int seg_reg)
 
 /* move T0 to seg_reg and compute if the CPU state may change. Never
    call this function with seg_reg == R_CS */
-static void gen_movl_seg_T0(DisasContext *s, int seg_reg)
+static void gen_movl_seg_T0(DisasContext *s, X86Seg seg_reg)
 {
     if (s->pe && !s->vm86) {
         tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);

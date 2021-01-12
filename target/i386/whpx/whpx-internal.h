@@ -1,9 +1,20 @@
-#ifndef WHP_DISPATCH_H
-#define WHP_DISPATCH_H
+#ifndef WHP_INTERNAL_H
+#define WHP_INTERNAL_H
 
 #include <windows.h>
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
+
+struct whpx_state {
+    uint64_t mem_quota;
+    WHV_PARTITION_HANDLE partition;
+    bool kernel_irqchip_allowed;
+    bool kernel_irqchip_required;
+    bool apic_in_platform;
+};
+
+extern struct whpx_state whpx_global;
+void whpx_apic_get(DeviceState *s);
 
 #define WHV_E_UNKNOWN_CAPABILITY 0x80370300L
 
@@ -72,4 +83,4 @@ typedef enum WHPFunctionList {
     WINHV_PLATFORM_FNS_SUPPLEMENTAL
 } WHPFunctionList;
 
-#endif /* WHP_DISPATCH_H */
+#endif /* WHP_INTERNAL_H */

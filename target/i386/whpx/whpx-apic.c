@@ -18,7 +18,14 @@
 #include "hw/pci/msi.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/whpx.h"
-#include "whp-dispatch.h"
+#include "whpx-internal.h"
+
+struct whpx_lapic_state {
+    struct {
+        uint32_t data;
+        uint32_t padding[3];
+    } fields[256];
+};
 
 static void whpx_put_apic_state(APICCommonState *s,
                                 struct whpx_lapic_state *kapic)
