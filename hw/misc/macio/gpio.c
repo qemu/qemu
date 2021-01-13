@@ -57,10 +57,7 @@ void macio_set_gpio(MacIOGPIOState *s, uint32_t gpio, bool state)
 
     s->gpio_regs[gpio] = new_reg;
 
-    /* This is will work until we fix the binding between MacIO and
-     * the MPIC properly so we can route all GPIOs and avoid going
-     * via the top level platform code.
-     *
+    /*
      * Note that we probably need to get access to the MPIC config to
      * decode polarity since qemu always use "raise" regardless.
      *
@@ -152,25 +149,15 @@ static const MemoryRegionOps macio_gpio_ops = {
     },
 };
 
-static void macio_gpio_realize(DeviceState *dev, Error **errp)
-{
-    MacIOGPIOState *s = MACIO_GPIO(dev);
-
-    s->gpio_extirqs[1] = qdev_get_gpio_in(DEVICE(s->pic),
-                                          NEWWORLD_EXTING_GPIO1);
-    s->gpio_extirqs[9] = qdev_get_gpio_in(DEVICE(s->pic),
-                                          NEWWORLD_EXTING_GPIO9);
-}
-
 static void macio_gpio_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     MacIOGPIOState *s = MACIO_GPIO(obj);
+    int i;
 
-    object_property_add_link(obj, "pic", TYPE_OPENPIC,
-                             (Object **) &s->pic,
-                             qdev_prop_allow_set_link_before_realize,
-                             0);
+    for (i = 0; i < 10; i++) {
+        sysbus_init_irq(sbd, &s->gpio_extirqs[i]);
+    }
 
     memory_region_init_io(&s->gpiomem, OBJECT(s), &macio_gpio_ops, obj,
                           "gpio", 0x30);
@@ -207,7 +194,6 @@ static void macio_gpio_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
 
-    dc->realize = macio_gpio_realize;
     dc->reset = macio_gpio_reset;
     dc->vmsd = &vmstate_macio_gpio;
     nc->nmi_monitor_handler = macio_gpio_nmi;

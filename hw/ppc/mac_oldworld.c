@@ -98,7 +98,7 @@ static void ppc_heathrow_init(MachineState *machine)
     MACIOIDEState *macio_ide;
     ESCCState *escc;
     SysBusDevice *s;
-    DeviceState *dev, *pic_dev;
+    DeviceState *dev, *pic_dev, *grackle_dev;
     BusState *adb_bus;
     uint64_t bios_addr;
     int bios_size;
@@ -227,23 +227,6 @@ static void ppc_heathrow_init(MachineState *machine)
         }
     }
 
-    /* XXX: we register only 1 output pin for heathrow PIC */
-    pic_dev = qdev_new(TYPE_HEATHROW);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(pic_dev), &error_fatal);
-
-    /* Connect the heathrow PIC outputs to the 6xx bus */
-    for (i = 0; i < smp_cpus; i++) {
-        switch (PPC_INPUT(env)) {
-        case PPC_FLAGS_INPUT_6xx:
-            qdev_connect_gpio_out(pic_dev, 0,
-                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT]);
-            break;
-        default:
-            error_report("Bus model not supported on OldWorld Mac machine");
-            exit(1);
-        }
-    }
-
     /* Timebase Frequency */
     if (kvm_enabled()) {
         tbfreq = kvmppc_get_tbfreq();
@@ -251,16 +234,10 @@ static void ppc_heathrow_init(MachineState *machine)
         tbfreq = TBFREQ;
     }
 
-    /* init basic PC hardware */
-    if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
-        error_report("Only 6xx bus is supported on heathrow machine");
-        exit(1);
-    }
-
     /* Grackle PCI host bridge */
-    dev = qdev_new(TYPE_GRACKLE_PCI_HOST_BRIDGE);
-    qdev_prop_set_uint32(dev, "ofw-addr", 0x80000000);
-    s = SYS_BUS_DEVICE(dev);
+    grackle_dev = qdev_new(TYPE_GRACKLE_PCI_HOST_BRIDGE);
+    qdev_prop_set_uint32(grackle_dev, "ofw-addr", 0x80000000);
+    s = SYS_BUS_DEVICE(grackle_dev);
     sysbus_realize_and_unref(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, GRACKLE_BASE);
@@ -272,26 +249,12 @@ static void ppc_heathrow_init(MachineState *machine)
     memory_region_add_subregion(get_system_memory(), 0xfe000000,
                                 sysbus_mmio_get_region(s, 3));
 
-    for (i = 0; i < 4; i++) {
-        qdev_connect_gpio_out(dev, i, qdev_get_gpio_in(pic_dev, 0x15 + i));
-    }
-
-    pci_bus = PCI_HOST_BRIDGE(dev)->bus;
-
-    pci_vga_init(pci_bus);
-
-    for (i = 0; i < nb_nics; i++) {
-        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
-    }
-
-    ide_drive_get(hd, ARRAY_SIZE(hd));
+    pci_bus = PCI_HOST_BRIDGE(grackle_dev)->bus;
 
     /* MacIO */
     macio = pci_new(PCI_DEVFN(16, 0), TYPE_OLDWORLD_MACIO);
     dev = DEVICE(macio);
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
-    object_property_set_link(OBJECT(macio), "pic", OBJECT(pic_dev),
-                             &error_abort);
 
     escc = ESCC(object_resolve_path_component(OBJECT(macio), "escc"));
     qdev_prop_set_chr(DEVICE(escc), "chrA", serial_hd(0));
@@ -299,6 +262,34 @@ static void ppc_heathrow_init(MachineState *machine)
 
     pci_realize_and_unref(macio, pci_bus, &error_fatal);
 
+    pic_dev = DEVICE(object_resolve_path_component(OBJECT(macio), "pic"));
+    for (i = 0; i < 4; i++) {
+        qdev_connect_gpio_out(grackle_dev, i,
+                              qdev_get_gpio_in(pic_dev, 0x15 + i));
+    }
+
+    /* Connect the heathrow PIC outputs to the 6xx bus */
+    for (i = 0; i < smp_cpus; i++) {
+        switch (PPC_INPUT(env)) {
+        case PPC_FLAGS_INPUT_6xx:
+            /* XXX: we register only 1 output pin for heathrow PIC */
+            qdev_connect_gpio_out(pic_dev, 0,
+                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT]);
+            break;
+        default:
+            error_report("Bus model not supported on OldWorld Mac machine");
+            exit(1);
+        }
+    }
+
+    pci_vga_init(pci_bus);
+
+    for (i = 0; i < nb_nics; i++) {
+        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
+    }
+
+    /* MacIO IDE */
+    ide_drive_get(hd, ARRAY_SIZE(hd));
     macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
                                                         "ide[0]"));
     macio_ide_init_drives(macio_ide, hd);
@@ -307,6 +298,7 @@ static void ppc_heathrow_init(MachineState *machine)
                                                         "ide[1]"));
     macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
+    /* MacIO CUDA/ADB */
     dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
     adb_bus = qdev_get_child_bus(dev, "adb.0");
     dev = qdev_new(TYPE_ADB_KEYBOARD);
