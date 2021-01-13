@@ -4319,6 +4319,7 @@ static void max_x86_cpu_initfn(Object *obj)
         if (lmce_supported()) {
             object_property_set_bool(OBJECT(cpu), "lmce", true, &error_abort);
         }
+        object_property_set_bool(OBJECT(cpu), "host-phys-bits", true, &error_abort);
     } else {
         object_property_set_str(OBJECT(cpu), "vendor", CPUID_VENDOR_AMD,
                                 &error_abort);
