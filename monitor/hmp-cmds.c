@@ -76,20 +76,20 @@ void hmp_handle_error(Monitor *mon, Error *err)
 static strList *strList_from_comma_list(const char *in)
 {
     strList *res = NULL;
-    strList **hook = &res;
+    strList **tail = &res;
 
     while (in && in[0]) {
         char *comma = strchr(in, ',');
-        *hook = g_new0(strList, 1);
+        char *value;
 
         if (comma) {
-            (*hook)->value = g_strndup(in, comma - in);
+            value = g_strndup(in, comma - in);
             in = comma + 1; /* skip the , */
         } else {
-            (*hook)->value = g_strdup(in);
+            value = g_strdup(in);
             in = NULL;
         }
-        hook = &(*hook)->next;
+        QAPI_LIST_APPEND(tail, value);
     }
 
     return res;

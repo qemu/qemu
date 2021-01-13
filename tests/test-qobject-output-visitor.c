@@ -442,122 +442,86 @@ static void init_list_union(UserDefListUnion *cvalue)
     int i;
     switch (cvalue->type) {
     case USER_DEF_LIST_UNION_KIND_INTEGER: {
-        intList **list = &cvalue->u.integer.data;
+        intList **tail = &cvalue->u.integer.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(intList, 1);
-            (*list)->value = i;
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, i);
         }
         break;
     }
     case USER_DEF_LIST_UNION_KIND_S8: {
-        int8List **list = &cvalue->u.s8.data;
+        int8List **tail = &cvalue->u.s8.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(int8List, 1);
-            (*list)->value = i;
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, i);
         }
         break;
     }
     case USER_DEF_LIST_UNION_KIND_S16: {
-        int16List **list = &cvalue->u.s16.data;
+        int16List **tail = &cvalue->u.s16.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(int16List, 1);
-            (*list)->value = i;
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, i);
         }
         break;
     }
     case USER_DEF_LIST_UNION_KIND_S32: {
-        int32List **list = &cvalue->u.s32.data;
+        int32List **tail = &cvalue->u.s32.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(int32List, 1);
-            (*list)->value = i;
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, i);
         }
         break;
     }
     case USER_DEF_LIST_UNION_KIND_S64: {
-        int64List **list = &cvalue->u.s64.data;
+        int64List **tail = &cvalue->u.s64.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(int64List, 1);
-            (*list)->value = i;
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, i);
         }
         break;
     }
     case USER_DEF_LIST_UNION_KIND_U8: {
-        uint8List **list = &cvalue->u.u8.data;
+        uint8List **tail = &cvalue->u.u8.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(uint8List, 1);
-            (*list)->value = i;
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, i);
         }
         break;
     }
     case USER_DEF_LIST_UNION_KIND_U16: {
-        uint16List **list = &cvalue->u.u16.data;
+        uint16List **tail = &cvalue->u.u16.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(uint16List, 1);
-            (*list)->value = i;
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, i);
         }
         break;
     }
     case USER_DEF_LIST_UNION_KIND_U32: {
-        uint32List **list = &cvalue->u.u32.data;
+        uint32List **tail = &cvalue->u.u32.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(uint32List, 1);
-            (*list)->value = i;
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, i);
         }
         break;
     }
     case USER_DEF_LIST_UNION_KIND_U64: {
-        uint64List **list = &cvalue->u.u64.data;
+        uint64List **tail = &cvalue->u.u64.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(uint64List, 1);
-            (*list)->value = i;
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, i);
         }
         break;
     }
     case USER_DEF_LIST_UNION_KIND_BOOLEAN: {
-        boolList **list = &cvalue->u.boolean.data;
+        boolList **tail = &cvalue->u.boolean.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(boolList, 1);
-            (*list)->value = QEMU_IS_ALIGNED(i, 3);
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, QEMU_IS_ALIGNED(i, 3));
         }
         break;
     }
     case USER_DEF_LIST_UNION_KIND_STRING: {
-        strList **list = &cvalue->u.string.data;
+        strList **tail = &cvalue->u.string.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(strList, 1);
-            (*list)->value = g_strdup_printf("%d", i);
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, g_strdup_printf("%d", i));
         }
         break;
     }
     case USER_DEF_LIST_UNION_KIND_NUMBER: {
-        numberList **list = &cvalue->u.number.data;
+        numberList **tail = &cvalue->u.number.data;
         for (i = 0; i < 32; i++) {
-            *list = g_new0(numberList, 1);
-            (*list)->value = (double)i / 3;
-            (*list)->next = NULL;
-            list = &(*list)->next;
+            QAPI_LIST_APPEND(tail, (double)i / 3);
         }
         break;
     }

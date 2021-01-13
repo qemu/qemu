@@ -1061,7 +1061,7 @@ fail:
 static Qcow2BitmapInfoFlagsList *get_bitmap_info_flags(uint32_t flags)
 {
     Qcow2BitmapInfoFlagsList *list = NULL;
-    Qcow2BitmapInfoFlagsList **plist = &list;
+    Qcow2BitmapInfoFlagsList **tail = &list;
     int i;
 
     static const struct {
@@ -1076,11 +1076,7 @@ static Qcow2BitmapInfoFlagsList *get_bitmap_info_flags(uint32_t flags)
 
     for (i = 0; i < map_size; ++i) {
         if (flags & map[i].bme) {
-            Qcow2BitmapInfoFlagsList *entry =
-                g_new0(Qcow2BitmapInfoFlagsList, 1);
-            entry->value = map[i].info;
-            *plist = entry;
-            plist = &entry->next;
+            QAPI_LIST_APPEND(tail, map[i].info);
             flags &= ~map[i].bme;
         }
     }
@@ -1105,7 +1101,7 @@ Qcow2BitmapInfoList *qcow2_get_bitmap_info_list(BlockDriverState *bs,
     Qcow2BitmapList *bm_list;
     Qcow2Bitmap *bm;
     Qcow2BitmapInfoList *list = NULL;
-    Qcow2BitmapInfoList **plist = &list;
+    Qcow2BitmapInfoList **tail = &list;
 
     if (s->nb_bitmaps == 0) {
         return NULL;
@@ -1119,13 +1115,10 @@ Qcow2BitmapInfoList *qcow2_get_bitmap_info_list(BlockDriverState *bs,
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
         Qcow2BitmapInfo *info = g_new0(Qcow2BitmapInfo, 1);
-        Qcow2BitmapInfoList *obj = g_new0(Qcow2BitmapInfoList, 1);
         info->granularity = 1U << bm->granularity_bits;
         info->name = g_strdup(bm->name);
         info->flags = get_bitmap_info_flags(bm->flags & ~BME_RESERVED_FLAGS);
-        obj->value = info;
-        *plist = obj;
-        plist = &obj->next;
+        QAPI_LIST_APPEND(tail, info);
     }
 
     bitmap_list_free(bm_list);

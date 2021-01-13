@@ -2928,7 +2928,7 @@ static ImageInfoSpecific *vmdk_get_specific_info(BlockDriverState *bs,
     int i;
     BDRVVmdkState *s = bs->opaque;
     ImageInfoSpecific *spec_info = g_new0(ImageInfoSpecific, 1);
-    ImageInfoList **next;
+    ImageInfoList **tail;
 
     *spec_info = (ImageInfoSpecific){
         .type = IMAGE_INFO_SPECIFIC_KIND_VMDK,
@@ -2943,12 +2943,9 @@ static ImageInfoSpecific *vmdk_get_specific_info(BlockDriverState *bs,
         .parent_cid = s->parent_cid,
     };
 
-    next = &spec_info->u.vmdk.data->extents;
+    tail = &spec_info->u.vmdk.data->extents;
     for (i = 0; i < s->num_extents; i++) {
-        *next = g_new0(ImageInfoList, 1);
-        (*next)->value = vmdk_get_extent_info(&s->extents[i]);
-        (*next)->next = NULL;
-        next = &(*next)->next;
+        QAPI_LIST_APPEND(tail, vmdk_get_extent_info(&s->extents[i]));
     }
 
     return spec_info;

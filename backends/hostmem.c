@@ -80,7 +80,7 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     uint16List *host_nodes = NULL;
-    uint16List **node = &host_nodes;
+    uint16List **tail = &host_nodes;
     unsigned long value;
 
     value = find_first_bit(backend->host_nodes, MAX_NODES);
@@ -88,9 +88,7 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
         goto ret;
     }
 
-    *node = g_malloc0(sizeof(**node));
-    (*node)->value = value;
-    node = &(*node)->next;
+    QAPI_LIST_APPEND(tail, value);
 
     do {
         value = find_next_bit(backend->host_nodes, MAX_NODES, value + 1);
@@ -98,9 +96,7 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
             break;
         }
 
-        *node = g_malloc0(sizeof(**node));
-        (*node)->value = value;
-        node = &(*node)->next;
+        QAPI_LIST_APPEND(tail, value);
     } while (true);
 
 ret:

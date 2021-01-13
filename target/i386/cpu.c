@@ -4818,20 +4818,17 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose);
 
 /* Build a list with the name of all features on a feature word array */
 static void x86_cpu_list_feature_names(FeatureWordArray features,
-                                       strList **feat_names)
+                                       strList **list)
 {
+    strList **tail = list;
     FeatureWord w;
-    strList **next = feat_names;
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         uint64_t filtered = features[w];
         int i;
         for (i = 0; i < 64; i++) {
             if (filtered & (1ULL << i)) {
-                strList *new = g_new0(strList, 1);
-                new->value = g_strdup(x86_cpu_feature_name(w, i));
-                *next = new;
-                next = &new->next;
+                QAPI_LIST_APPEND(tail, g_strdup(x86_cpu_feature_name(w, i)));
             }
         }
     }
@@ -4852,16 +4849,14 @@ static void x86_cpu_get_unavailable_features(Object *obj, Visitor *v,
  * running using the current machine and accelerator.
  */
 static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
-                                                 strList **missing_feats)
+                                                 strList **list)
 {
+    strList **tail = list;
     X86CPU *xc;
     Error *err = NULL;
-    strList **next = missing_feats;
 
     if (xcc->host_cpuid_required && !accel_uses_host_cpuid()) {
-        strList *new = g_new0(strList, 1);
-        new->value = g_strdup("kvm");
-        *missing_feats = new;
+        QAPI_LIST_APPEND(tail, g_strdup("kvm"));
         return;
     }
 
@@ -4873,16 +4868,13 @@ static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
          * but in case it does, just report the model as not
          * runnable at all using the "type" property.
          */
-        strList *new = g_new0(strList, 1);
-        new->value = g_strdup("type");
-        *next = new;
-        next = &new->next;
+        QAPI_LIST_APPEND(tail, g_strdup("type"));
         error_free(err);
     }
 
     x86_cpu_filter_features(xc, false);
 
-    x86_cpu_list_feature_names(xc->filtered_features, next);
+    x86_cpu_list_feature_names(xc->filtered_features, tail);
 
     object_unref(OBJECT(xc));
 }

@@ -342,11 +342,10 @@ void qmp_block_export_del(const char *id,
 
 BlockExportInfoList *qmp_query_block_exports(Error **errp)
 {
-    BlockExportInfoList *head = NULL, **p_next = &head;
+    BlockExportInfoList *head = NULL, **tail = &head;
     BlockExport *exp;
 
     QLIST_FOREACH(exp, &block_exports, next) {
-        BlockExportInfoList *entry = g_new0(BlockExportInfoList, 1);
         BlockExportInfo *info = g_new(BlockExportInfo, 1);
         *info = (BlockExportInfo) {
             .id             = g_strdup(exp->id),
@@ -355,9 +354,7 @@ BlockExportInfoList *qmp_query_block_exports(Error **errp)
             .shutting_down  = !exp->user_owned,
         };
 
-        entry->value = info;
-        *p_next = entry;
-        p_next = &entry->next;
+        QAPI_LIST_APPEND(tail, info);
     }
 
     return head;
