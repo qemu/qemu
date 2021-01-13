@@ -92,7 +92,8 @@ struct QIOChannel {
  * provide additional optional features.
  *
  * Consult the corresponding public API docs for a description
- * of the semantics of each callback
+ * of the semantics of each callback. io_shutdown in particular
+ * must be thread-safe, terminate quickly and must not block.
  */
 struct QIOChannelClass {
     ObjectClass parent;
@@ -509,6 +510,8 @@ int qio_channel_close(QIOChannel *ioc,
  * caller may check for the feature flag
  * QIO_CHANNEL_FEATURE_SHUTDOWN prior to calling
  * this method.
+ *
+ * This function is thread-safe, terminates quickly and does not block.
  *
  * Returns: 0 on success, -1 on error
  */

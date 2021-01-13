@@ -937,6 +937,7 @@ static void char_socket_client_dupid_test(gconstpointer opaque)
     g_assert_nonnull(opts);
     chr1 = qemu_chr_new_from_opts(opts, NULL, &error_abort);
     g_assert_nonnull(chr1);
+    qemu_chr_wait_connected(chr1, &error_abort);
 
     chr2 = qemu_chr_new_from_opts(opts, NULL, &local_err);
     g_assert_null(chr2);

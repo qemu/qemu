@@ -47,6 +47,7 @@ qapi_all_modules = [
   'trace',
   'transaction',
   'ui',
+  'yank',
 ]
 
 qapi_storage_daemon_modules = [

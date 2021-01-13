@@ -50,6 +50,7 @@ endif
 
 if have_system
   util_ss.add(when: 'CONFIG_GIO', if_true: [files('dbus.c'), gio])
+  util_ss.add(files('yank.c'))
 endif
 
 if have_block
