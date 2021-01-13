@@ -1349,6 +1349,15 @@ void arm_log_exception(int idx);
 #define TAG_GRANULE      (1 << LOG2_TAG_GRANULE)
 
 /*
+ * SVE predicates are 1/8 the size of SVE vectors, and cannot use
+ * the same simd_desc() encoding due to restrictions on size.
+ * Use these instead.
+ */
+FIELD(PREDDESC, OPRSZ, 0, 6)
+FIELD(PREDDESC, ESZ, 6, 2)
+FIELD(PREDDESC, DATA, 8, 24)
+
+/*
  * The SVE simd_data field, for memory ops, contains either
  * rd (5 bits) or a shift count (2 bits).
  */
