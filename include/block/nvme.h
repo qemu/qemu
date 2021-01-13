@@ -951,7 +951,8 @@ typedef struct QEMU_PACKED NvmeIdCtrl {
     uint32_t    rtd3e;
     uint32_t    oaes;
     uint32_t    ctratt;
-    uint8_t     rsvd100[12];
+    uint8_t     rsvd100[11];
+    uint8_t     cntrltype;
     uint8_t     fguid[16];
     uint8_t     rsvd128[128];
     uint16_t    oacs;
