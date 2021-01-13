@@ -1494,10 +1494,10 @@ static bool do_pfirst_pnext(DisasContext *s, arg_rr_esz *a,
     TCGv_ptr t_pd = tcg_temp_new_ptr();
     TCGv_ptr t_pg = tcg_temp_new_ptr();
     TCGv_i32 t;
-    unsigned desc;
+    unsigned desc = 0;
 
-    desc = DIV_ROUND_UP(pred_full_reg_size(s), 8);
-    desc = deposit32(desc, SIMD_DATA_SHIFT, 2, a->esz);
+    desc = FIELD_DP32(desc, PREDDESC, OPRSZ, pred_full_reg_size(s));
+    desc = FIELD_DP32(desc, PREDDESC, ESZ, a->esz);
 
     tcg_gen_addi_ptr(t_pd, cpu_env, pred_full_reg_offset(s, a->rd));
     tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, a->rn));
