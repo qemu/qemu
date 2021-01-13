@@ -1683,41 +1683,34 @@ static PciDeviceInfoList *qmp_query_pci_devices(PCIBus *bus, int bus_num);
 
 static PciMemoryRegionList *qmp_query_pci_regions(const PCIDevice *dev)
 {
-    PciMemoryRegionList *head = NULL, *cur_item = NULL;
+    PciMemoryRegionList *head = NULL, **tail = &head;
     int i;
 
     for (i = 0; i < PCI_NUM_REGIONS; i++) {
         const PCIIORegion *r = &dev->io_regions[i];
-        PciMemoryRegionList *region;
+        PciMemoryRegion *region;
 
         if (!r->size) {
             continue;
         }
 
         region = g_malloc0(sizeof(*region));
-        region->value = g_malloc0(sizeof(*region->value));
 
         if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
-            region->value->type = g_strdup("io");
+            region->type = g_strdup("io");
         } else {
-            region->value->type = g_strdup("memory");
-            region->value->has_prefetch = true;
-            region->value->prefetch = !!(r->type & PCI_BASE_ADDRESS_MEM_PREFETCH);
-            region->value->has_mem_type_64 = true;
-            region->value->mem_type_64 = !!(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64);
+            region->type = g_strdup("memory");
+            region->has_prefetch = true;
+            region->prefetch = !!(r->type & PCI_BASE_ADDRESS_MEM_PREFETCH);
+            region->has_mem_type_64 = true;
+            region->mem_type_64 = !!(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64);
         }
 
-        region->value->bar = i;
-        region->value->address = r->addr;
-        region->value->size = r->size;
+        region->bar = i;
+        region->address = r->addr;
+        region->size = r->size;
 
-        /* XXX: waiting for the qapi to support GSList */
-        if (!cur_item) {
-            head = cur_item = region;
-        } else {
-            cur_item->next = region;
-            cur_item = region;
-        }
+        QAPI_LIST_APPEND(tail, region);
     }
 
     return head;
@@ -1814,23 +1807,14 @@ static PciDeviceInfo *qmp_query_pci_device(PCIDevice *dev, PCIBus *bus,
 
 static PciDeviceInfoList *qmp_query_pci_devices(PCIBus *bus, int bus_num)
 {
-    PciDeviceInfoList *info, *head = NULL, *cur_item = NULL;
+    PciDeviceInfoList *head = NULL, **tail = &head;
     PCIDevice *dev;
     int devfn;
 
     for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
         dev = bus->devices[devfn];
         if (dev) {
-            info = g_malloc0(sizeof(*info));
-            info->value = qmp_query_pci_device(dev, bus, bus_num);
-
-            /* XXX: waiting for the qapi to support GSList */
-            if (!cur_item) {
-                head = cur_item = info;
-            } else {
-                cur_item->next = info;
-                cur_item = info;
-            }
+            QAPI_LIST_APPEND(tail, qmp_query_pci_device(dev, bus, bus_num));
         }
     }
 
@@ -1853,21 +1837,13 @@ static PciInfo *qmp_query_pci_bus(PCIBus *bus, int bus_num)
 
 PciInfoList *qmp_query_pci(Error **errp)
 {
-    PciInfoList *info, *head = NULL, *cur_item = NULL;
+    PciInfoList *head = NULL, **tail = &head;
     PCIHostState *host_bridge;
 
     QLIST_FOREACH(host_bridge, &pci_host_bridges, next) {
-        info = g_malloc0(sizeof(*info));
-        info->value = qmp_query_pci_bus(host_bridge->bus,
-                                        pci_bus_num(host_bridge->bus));
-
-        /* XXX: waiting for the qapi to support GSList */
-        if (!cur_item) {
-            head = cur_item = info;
-        } else {
-            cur_item->next = info;
-            cur_item = info;
-        }
+        QAPI_LIST_APPEND(tail,
+                         qmp_query_pci_bus(host_bridge->bus,
+                                           pci_bus_num(host_bridge->bus)));
     }
 
     return head;

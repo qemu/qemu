@@ -198,7 +198,7 @@ int bdrv_query_snapshot_info_list(BlockDriverState *bs,
 {
     int i, sn_count;
     QEMUSnapshotInfo *sn_tab = NULL;
-    SnapshotInfoList *info_list, *cur_item = NULL, *head = NULL;
+    SnapshotInfoList *head = NULL, **tail = &head;
     SnapshotInfo *info;
 
     sn_count = bdrv_snapshot_list(bs, &sn_tab);
@@ -233,17 +233,7 @@ int bdrv_query_snapshot_info_list(BlockDriverState *bs,
         info->icount        = sn_tab[i].icount;
         info->has_icount    = sn_tab[i].icount != -1ULL;
 
-        info_list = g_new0(SnapshotInfoList, 1);
-        info_list->value = info;
-
-        /* XXX: waiting for the qapi to support qemu-queue.h types */
-        if (!cur_item) {
-            head = cur_item = info_list;
-        } else {
-            cur_item->next = info_list;
-            cur_item = info_list;
-        }
-
+        QAPI_LIST_APPEND(tail, info);
     }
 
     g_free(sn_tab);

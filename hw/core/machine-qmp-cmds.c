@@ -28,11 +28,11 @@ CpuInfoList *qmp_query_cpus(Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     MachineClass *mc = MACHINE_GET_CLASS(ms);
-    CpuInfoList *head = NULL, *cur_item = NULL;
+    CpuInfoList *head = NULL, **tail = &head;
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
-        CpuInfoList *info;
+        CpuInfo *value;
 #if defined(TARGET_I386)
         X86CPU *x86_cpu = X86_CPU(cpu);
         CPUX86State *env = &x86_cpu->env;
@@ -58,53 +58,46 @@ CpuInfoList *qmp_query_cpus(Error **errp)
 
         cpu_synchronize_state(cpu);
 
-        info = g_malloc0(sizeof(*info));
-        info->value = g_malloc0(sizeof(*info->value));
-        info->value->CPU = cpu->cpu_index;
-        info->value->current = (cpu == first_cpu);
-        info->value->halted = cpu->halted;
-        info->value->qom_path = object_get_canonical_path(OBJECT(cpu));
-        info->value->thread_id = cpu->thread_id;
+        value = g_malloc0(sizeof(*value));
+        value->CPU = cpu->cpu_index;
+        value->current = (cpu == first_cpu);
+        value->halted = cpu->halted;
+        value->qom_path = object_get_canonical_path(OBJECT(cpu));
+        value->thread_id = cpu->thread_id;
 #if defined(TARGET_I386)
-        info->value->arch = CPU_INFO_ARCH_X86;
-        info->value->u.x86.pc = env->eip + env->segs[R_CS].base;
+        value->arch = CPU_INFO_ARCH_X86;
+        value->u.x86.pc = env->eip + env->segs[R_CS].base;
 #elif defined(TARGET_PPC)
-        info->value->arch = CPU_INFO_ARCH_PPC;
-        info->value->u.ppc.nip = env->nip;
+        value->arch = CPU_INFO_ARCH_PPC;
+        value->u.ppc.nip = env->nip;
 #elif defined(TARGET_SPARC)
-        info->value->arch = CPU_INFO_ARCH_SPARC;
-        info->value->u.q_sparc.pc = env->pc;
-        info->value->u.q_sparc.npc = env->npc;
+        value->arch = CPU_INFO_ARCH_SPARC;
+        value->u.q_sparc.pc = env->pc;
+        value->u.q_sparc.npc = env->npc;
 #elif defined(TARGET_MIPS)
-        info->value->arch = CPU_INFO_ARCH_MIPS;
-        info->value->u.q_mips.PC = env->active_tc.PC;
+        value->arch = CPU_INFO_ARCH_MIPS;
+        value->u.q_mips.PC = env->active_tc.PC;
 #elif defined(TARGET_TRICORE)
-        info->value->arch = CPU_INFO_ARCH_TRICORE;
-        info->value->u.tricore.PC = env->PC;
+        value->arch = CPU_INFO_ARCH_TRICORE;
+        value->u.tricore.PC = env->PC;
 #elif defined(TARGET_S390X)
-        info->value->arch = CPU_INFO_ARCH_S390;
-        info->value->u.s390.cpu_state = env->cpu_state;
+        value->arch = CPU_INFO_ARCH_S390;
+        value->u.s390.cpu_state = env->cpu_state;
 #elif defined(TARGET_RISCV)
-        info->value->arch = CPU_INFO_ARCH_RISCV;
-        info->value->u.riscv.pc = env->pc;
+        value->arch = CPU_INFO_ARCH_RISCV;
+        value->u.riscv.pc = env->pc;
 #else
-        info->value->arch = CPU_INFO_ARCH_OTHER;
+        value->arch = CPU_INFO_ARCH_OTHER;
 #endif
-        info->value->has_props = !!mc->cpu_index_to_instance_props;
-        if (info->value->has_props) {
+        value->has_props = !!mc->cpu_index_to_instance_props;
+        if (value->has_props) {
             CpuInstanceProperties *props;
             props = g_malloc0(sizeof(*props));
             *props = mc->cpu_index_to_instance_props(ms, cpu->cpu_index);
-            info->value->props = props;
+            value->props = props;
         }
 
-        /* XXX: waiting for the qapi to support GSList */
-        if (!cur_item) {
-            head = cur_item = info;
-        } else {
-            cur_item->next = info;
-            cur_item = info;
-        }
+        QAPI_LIST_APPEND(tail, value);
     }
 
     return head;
@@ -170,39 +163,33 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     MachineClass *mc = MACHINE_GET_CLASS(ms);
-    CpuInfoFastList *head = NULL, *cur_item = NULL;
+    CpuInfoFastList *head = NULL, **tail = &head;
     SysEmuTarget target = qapi_enum_parse(&SysEmuTarget_lookup, TARGET_NAME,
                                           -1, &error_abort);
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
-        CpuInfoFastList *info = g_malloc0(sizeof(*info));
-        info->value = g_malloc0(sizeof(*info->value));
+        CpuInfoFast *value = g_malloc0(sizeof(*value));
 
-        info->value->cpu_index = cpu->cpu_index;
-        info->value->qom_path = object_get_canonical_path(OBJECT(cpu));
-        info->value->thread_id = cpu->thread_id;
+        value->cpu_index = cpu->cpu_index;
+        value->qom_path = object_get_canonical_path(OBJECT(cpu));
+        value->thread_id = cpu->thread_id;
 
-        info->value->has_props = !!mc->cpu_index_to_instance_props;
-        if (info->value->has_props) {
+        value->has_props = !!mc->cpu_index_to_instance_props;
+        if (value->has_props) {
             CpuInstanceProperties *props;
             props = g_malloc0(sizeof(*props));
             *props = mc->cpu_index_to_instance_props(ms, cpu->cpu_index);
-            info->value->props = props;
+            value->props = props;
         }
 
-        info->value->arch = sysemu_target_to_cpuinfo_arch(target);
-        info->value->target = target;
+        value->arch = sysemu_target_to_cpuinfo_arch(target);
+        value->target = target;
         if (target == SYS_EMU_TARGET_S390X) {
-            cpustate_to_cpuinfo_s390(&info->value->u.s390x, cpu);
+            cpustate_to_cpuinfo_s390(&value->u.s390x, cpu);
         }
 
-        if (!cur_item) {
-            head = cur_item = info;
-        } else {
-            cur_item->next = info;
-            cur_item = info;
-        }
+        QAPI_LIST_APPEND(tail, value);
     }
 
     return head;

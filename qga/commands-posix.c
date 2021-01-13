@@ -3138,11 +3138,10 @@ static double ga_get_login_time(struct utmpx *user_info)
 GuestUserList *qmp_guest_get_users(Error **errp)
 {
     GHashTable *cache = NULL;
-    GuestUserList *head = NULL, *cur_item = NULL;
+    GuestUserList *head = NULL, **tail = &head;
     struct utmpx *user_info = NULL;
     gpointer value = NULL;
     GuestUser *user = NULL;
-    GuestUserList *item = NULL;
     double login_time = 0;
 
     cache = g_hash_table_new(g_str_hash, g_str_equal);
@@ -3165,19 +3164,13 @@ GuestUserList *qmp_guest_get_users(Error **errp)
             continue;
         }
 
-        item = g_new0(GuestUserList, 1);
-        item->value = g_new0(GuestUser, 1);
-        item->value->user = g_strdup(user_info->ut_user);
-        item->value->login_time = ga_get_login_time(user_info);
+        user = g_new0(GuestUser, 1);
+        user->user = g_strdup(user_info->ut_user);
+        user->login_time = ga_get_login_time(user_info);
 
-        g_hash_table_insert(cache, item->value->user, item->value);
+        g_hash_table_insert(cache, user->user, user);
 
-        if (!cur_item) {
-            head = cur_item = item;
-        } else {
-            cur_item->next = item;
-            cur_item = item;
-        }
+        QAPI_LIST_APPEND(tail, user);
     }
     endutxent();
     g_hash_table_destroy(cache);
