@@ -293,41 +293,31 @@ void qmp_set_numa_node(NumaOptions *cmd, Error **errp)
 static int query_memdev(Object *obj, void *opaque)
 {
     MemdevList **list = opaque;
-    MemdevList *m = NULL;
+    Memdev *m;
     QObject *host_nodes;
     Visitor *v;
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
         m = g_malloc0(sizeof(*m));
 
-        m->value = g_malloc0(sizeof(*m->value));
+        m->id = g_strdup(object_get_canonical_path_component(obj));
+        m->has_id = !!m->id;
 
-        m->value->id = g_strdup(object_get_canonical_path_component(obj));
-        m->value->has_id = !!m->value->id;
-
-        m->value->size = object_property_get_uint(obj, "size",
-                                                  &error_abort);
-        m->value->merge = object_property_get_bool(obj, "merge",
-                                                   &error_abort);
-        m->value->dump = object_property_get_bool(obj, "dump",
-                                                  &error_abort);
-        m->value->prealloc = object_property_get_bool(obj,
-                                                      "prealloc",
-                                                      &error_abort);
-        m->value->policy = object_property_get_enum(obj,
-                                                    "policy",
-                                                    "HostMemPolicy",
-                                                    &error_abort);
+        m->size = object_property_get_uint(obj, "size", &error_abort);
+        m->merge = object_property_get_bool(obj, "merge", &error_abort);
+        m->dump = object_property_get_bool(obj, "dump", &error_abort);
+        m->prealloc = object_property_get_bool(obj, "prealloc", &error_abort);
+        m->policy = object_property_get_enum(obj, "policy", "HostMemPolicy",
+                                             &error_abort);
         host_nodes = object_property_get_qobject(obj,
                                                  "host-nodes",
                                                  &error_abort);
         v = qobject_input_visitor_new(host_nodes);
-        visit_type_uint16List(v, NULL, &m->value->host_nodes, &error_abort);
+        visit_type_uint16List(v, NULL, &m->host_nodes, &error_abort);
         visit_free(v);
         qobject_unref(host_nodes);
 
-        m->next = *list;
-        *list = m;
+        QAPI_LIST_PREPEND(*list, m);
     }
 
     return 0;
