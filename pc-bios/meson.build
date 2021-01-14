@@ -1,5 +1,4 @@
 if install_edk2_blobs
-  bzip2 = find_program('bzip2', required: true)
   fds = [
     'edk2-aarch64-code.fd',
     'edk2-arm-code.fd',

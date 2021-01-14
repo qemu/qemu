@@ -96,6 +96,8 @@ if get_option('install_blobs')
   endforeach
 endif
 
+bzip2 = find_program('bzip2', required: install_edk2_blobs)
+
 ##################
 # Compiler flags #
 ##################
