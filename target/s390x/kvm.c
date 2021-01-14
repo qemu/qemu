@@ -29,6 +29,7 @@
 #include "internal.h"
 #include "kvm_s390x.h"
 #include "sysemu/kvm_int.h"
+#include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
@@ -1910,18 +1911,15 @@ static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr, uint8_t ar)
                                                     strlen(qemu_name)));
     }
     sysib.vm[0].ext_name_encoding = 2; /* 2 = UTF-8 */
-    memset(sysib.ext_names[0], 0, sizeof(sysib.ext_names[0]));
     /* If hypervisor specifies zero Extended Name in STSI322 SYSIB, it's
      * considered by s390 as not capable of providing any Extended Name.
      * Therefore if no name was specified on qemu invocation, we go with the
      * same "KVMguest" default, which KVM has filled into short name field.
      */
-    if (qemu_name) {
-        strncpy((char *)sysib.ext_names[0], qemu_name,
-                sizeof(sysib.ext_names[0]));
-    } else {
-        strcpy((char *)sysib.ext_names[0], "KVMguest");
-    }
+    strpadcpy((char *)sysib.ext_names[0],
+              sizeof(sysib.ext_names[0]),
+              qemu_name ?: "KVMguest", '\0');
+
     /* Insert UUID */
     memcpy(sysib.vm[0].uuid, &qemu_uuid, sizeof(sysib.vm[0].uuid));
 
