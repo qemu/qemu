@@ -282,9 +282,17 @@ TAGS:
 
 .PHONY: cscope
 cscope:
-	rm -f "$(SRC_PATH)"/cscope.*
-	$(find-src-path) -print | sed -e 's,^\./,,' > "$(SRC_PATH)/cscope.files"
-	cscope -b -i"$(SRC_PATH)/cscope.files" -f"$(SRC_PATH)"/cscope.out
+	$(call quiet-command,			\
+		rm -f "$(SRC_PATH)/"cscope.* ,	\
+		"cscope", "Remove old $@ files")
+	$(call quiet-command, 					\
+		($(find-src-path) -print | sed -e 's,^\./,,'    \
+		> "$(SRC_PATH)/cscope.files"), 			\
+		"cscope", "Create file list")
+	$(call quiet-command, 				\
+		cscope -b -i"$(SRC_PATH)/cscope.files" 	\
+		-f"$(SRC_PATH)"/cscope.out, 		\
+		"cscope", "Re-index $(SRC_PATH)")
 
 # Needed by "meson install"
 export DESTDIR
