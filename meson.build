@@ -100,12 +100,12 @@ if 'CONFIG_FUZZ' in config_host
                               native: false, language: ['c', 'cpp', 'objc'])
 endif
 
-add_project_arguments(config_host['QEMU_CFLAGS'].split(),
-                      native: false, language: ['c', 'objc'])
-add_project_arguments(config_host['QEMU_CXXFLAGS'].split(),
-                      native: false, language: 'cpp')
-add_project_link_arguments(config_host['QEMU_LDFLAGS'].split(),
-                           native: false, language: ['c', 'cpp', 'objc'])
+add_global_arguments(config_host['QEMU_CFLAGS'].split(),
+                     native: false, language: ['c', 'objc'])
+add_global_arguments(config_host['QEMU_CXXFLAGS'].split(),
+                     native: false, language: 'cpp')
+add_global_link_arguments(config_host['QEMU_LDFLAGS'].split(),
+                          native: false, language: ['c', 'cpp', 'objc'])
 
 if targetos == 'linux'
   add_project_arguments('-isystem', meson.current_source_dir() / 'linux-headers',
@@ -1021,8 +1021,8 @@ if get_option('cfi')
       error('-fno-sanitize-trap=cfi-icall is not supported by the compiler')
     endif
   endif
-  add_project_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
-  add_project_link_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
+  add_global_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
+  add_global_link_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
 endif
 
 #################
