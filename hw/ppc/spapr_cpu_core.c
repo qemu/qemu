@@ -277,8 +277,8 @@ static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
 {
     SpaprCpuCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(sc);
     CPUCore *cc = CPU_CORE(sc);
-    Object *obj;
-    char *id;
+    g_autoptr(Object) obj = NULL;
+    g_autofree char *id = NULL;
     CPUState *cs;
     PowerPCCPU *cpu;
 
@@ -293,23 +293,17 @@ static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
     cs->start_powered_off = true;
     cs->cpu_index = cc->core_id + i;
     if (!spapr_set_vcpu_id(cpu, cs->cpu_index, errp)) {
-        goto err;
+        return NULL;
     }
 
     cpu->node_id = sc->node_id;
 
     id = g_strdup_printf("thread[%d]", i);
     object_property_add_child(OBJECT(sc), id, obj);
-    g_free(id);
 
     cpu->machine_data = g_new0(SpaprCpuState, 1);
 
-    object_unref(obj);
     return cpu;
-
-err:
-    object_unref(obj);
-    return NULL;
 }
 
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
