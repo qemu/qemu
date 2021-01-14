@@ -342,6 +342,7 @@ vhost_vsock="$default_feature"
 vhost_user="no"
 vhost_user_blk_server="auto"
 vhost_user_fs="$default_feature"
+bpf=""
 kvm="auto"
 hax="auto"
 hvf="auto"
@@ -1236,6 +1237,10 @@ for opt do
   ;;
   --enable-membarrier) membarrier="yes"
   ;;
+  --disable-bpf) bpf="no"
+  ;;
+  --enable-bpf) bpf="yes"
+  ;;
   --disable-blobs) blobs="false"
   ;;
   --with-pkgversion=*) pkgversion="$optarg"
@@ -1845,6 +1850,7 @@ disabled with --disable-FEATURE, default is enabled if available
   vhost-user      vhost-user backend support
   vhost-user-blk-server    vhost-user-blk server support
   vhost-vdpa      vhost-vdpa kernel backend support
+  bpf             BPF kernel support
   spice           spice
   rbd             rados block device (rbd)
   libiscsi        iscsi support
@@ -5058,6 +5064,30 @@ else
 fi
 
 ##########################################
+# check for usable bpf system call
+if test "$bpf" = ""; then
+    have_bpf=no
+    if test "$linux" = "yes" -a "$bigendian" != "yes"; then
+        cat > $TMPC << EOF
+    #include <stdlib.h>
+    #include <bpf/libbpf.h>
+    int main(void) {
+        struct bpf_object *obj = NULL;
+        bpf_object__load(obj);
+        exit(0);
+    }
+EOF
+        if compile_prog "" "-lbpf" ; then
+            have_bpf=yes
+            bpf=yes
+        fi
+    fi
+    if test "$have_bpf" = "no"; then
+      feature_not_found "bpf" "the libbpf is not available"
+    fi
+fi
+
+##########################################
 # check if rtnetlink.h exists and is useful
 have_rtnetlink=no
 cat > $TMPC << EOF
@@ -5904,6 +5934,9 @@ if test "$preadv" = "yes" ; then
 fi
 if test "$membarrier" = "yes" ; then
   echo "CONFIG_MEMBARRIER=y" >> $config_host_mak
+fi
+if test "$bpf" = "yes" -a "$bigendian" != "yes" -a "$linux" = "yes" ; then
+  echo "CONFIG_EBPF=y" >> $config_host_mak
 fi
 if test "$signalfd" = "yes" ; then
   echo "CONFIG_SIGNALFD=y" >> $config_host_mak

@@ -968,6 +968,13 @@ if not get_option('fuse_lseek').disabled()
   endif
 endif
 
+# libbpf
+libbpf = not_found
+if 'CONFIG_EBPF' in config_host
+  libbpf = cc.find_library('bpf', required: true)
+
+endif
+
 if get_option('cfi')
   cfi_flags=[]
   # Check for dependency on LTO
@@ -1685,6 +1692,7 @@ if have_system
     'backends',
     'backends/tpm',
     'chardev',
+    'ebpf',
     'hw/9pfs',
     'hw/acpi',
     'hw/alpha',
@@ -1850,6 +1858,9 @@ subdir('accel')
 subdir('plugins')
 subdir('bsd-user')
 subdir('linux-user')
+subdir('ebpf')
+
+common_ss.add(libbpf)
 
 bsd_user_ss.add(files('gdbstub.c'))
 specific_ss.add_all(when: 'CONFIG_BSD_USER', if_true: bsd_user_ss)
@@ -2415,6 +2426,7 @@ summary_info += {'vhost-user support': config_host.has_key('CONFIG_VHOST_USER')}
 summary_info += {'vhost-user-blk server support': have_vhost_user_blk_server}
 summary_info += {'vhost-user-fs support': config_host.has_key('CONFIG_VHOST_USER_FS')}
 summary_info += {'vhost-vdpa support': config_host.has_key('CONFIG_VHOST_VDPA')}
+summary_info += {'bpf support': config_host.has_key('CONFIG_EBPF')}
 summary_info += {'Trace backends':    config_host['TRACE_BACKENDS']}
 if config_host['TRACE_BACKENDS'].split().contains('simple')
   summary_info += {'Trace output file': config_host['CONFIG_TRACE_FILE'] + '-<pid>'}
@@ -2516,3 +2528,4 @@ if not supported_oses.contains(targetos)
   message('if you care about QEMU on this platform you should contact')
   message('us upstream at qemu-devel@nongnu.org.')
 endif
+
