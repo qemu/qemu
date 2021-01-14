@@ -146,6 +146,8 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
     Aml *method, *crs, *dev, *rbuf;
     PCIBus *bus = cfg->bus;
     CrsRangeSet crs_range_set;
+    CrsRangeEntry *entry;
+    int i;
 
     /* start to construct the tables for pxb */
     crs_range_set_init(&crs_range_set);
@@ -193,7 +195,6 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
             aml_append(scope, dev);
         }
     }
-    crs_range_set_free(&crs_range_set);
 
     /* tables for the main */
     dev = aml_device("%s", "PCI0");
@@ -211,36 +212,55 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
     aml_append(method, aml_return(aml_int(cfg->ecam.base)));
     aml_append(dev, method);
 
+    /*
+     * At this point crs_range_set has all the ranges used by pci
+     * busses *other* than PCI0.  These ranges will be excluded from
+     * the PCI0._CRS.
+     */
     rbuf = aml_resource_template();
     aml_append(rbuf,
         aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
                             0x0000, 0x0000, nr_pcie_buses - 1, 0x0000,
                             nr_pcie_buses));
     if (cfg->mmio32.size) {
-        aml_append(rbuf,
-                   aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
-                                    AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000,
-                                    cfg->mmio32.base,
-                                    cfg->mmio32.base + cfg->mmio32.size - 1,
-                                    0x0000,
-                                    cfg->mmio32.size));
+        crs_replace_with_free_ranges(crs_range_set.mem_ranges,
+                                     cfg->mmio32.base,
+                                     cfg->mmio32.base + cfg->mmio32.size - 1);
+        for (i = 0; i < crs_range_set.mem_ranges->len; i++) {
+            entry = g_ptr_array_index(crs_range_set.mem_ranges, i);
+            aml_append(rbuf,
+                aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
+                                 AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000,
+                                 entry->base, entry->limit,
+                                 0x0000, entry->limit - entry->base + 1));
+        }
     }
     if (cfg->pio.size) {
-        aml_append(rbuf,
-                   aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
-                                AML_ENTIRE_RANGE, 0x0000, 0x0000,
-                                cfg->pio.size - 1,
-                                cfg->pio.base,
-                                cfg->pio.size));
+        crs_replace_with_free_ranges(crs_range_set.io_ranges,
+                                     0x0000,
+                                     cfg->pio.size - 1);
+        for (i = 0; i < crs_range_set.io_ranges->len; i++) {
+            entry = g_ptr_array_index(crs_range_set.io_ranges, i);
+            aml_append(rbuf,
+                aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
+                             AML_ENTIRE_RANGE, 0x0000, entry->base,
+                             entry->limit, cfg->pio.base,
+                             entry->limit - entry->base + 1));
+        }
     }
     if (cfg->mmio64.size) {
-        aml_append(rbuf,
-                   aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
-                                    AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000,
-                                    cfg->mmio64.base,
-                                    cfg->mmio64.base + cfg->mmio64.size - 1,
-                                    0x0000,
-                                    cfg->mmio64.size));
+        crs_replace_with_free_ranges(crs_range_set.mem_64bit_ranges,
+                                     cfg->mmio64.base,
+                                     cfg->mmio64.base + cfg->mmio64.size - 1);
+        for (i = 0; i < crs_range_set.mem_64bit_ranges->len; i++) {
+            entry = g_ptr_array_index(crs_range_set.mem_64bit_ranges, i);
+            aml_append(rbuf,
+                aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
+                                 AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000,
+                                 entry->base,
+                                 entry->limit, 0x0000,
+                                 entry->limit - entry->base + 1));
+        }
     }
     aml_append(dev, aml_name_decl("_CRS", rbuf));
 
@@ -259,4 +279,6 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
     aml_append(dev_res0, aml_name_decl("_CRS", crs));
     aml_append(dev, dev_res0);
     aml_append(scope, dev);
+
+    crs_range_set_free(&crs_range_set);
 }
