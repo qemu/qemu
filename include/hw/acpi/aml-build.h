@@ -452,7 +452,9 @@ void crs_replace_with_free_ranges(GPtrArray *ranges,
 void crs_range_set_init(CrsRangeSet *range_set);
 void crs_range_set_free(CrsRangeSet *range_set);
 
-Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set);
+Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
+               uint32_t mmio32_offset, uint64_t mmio64_offset,
+               uint16_t bus_nr_offset);
 
 void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
                        uint64_t len, int node, MemoryAffinityFlags flags);
