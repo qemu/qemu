@@ -7,20 +7,8 @@ env:
   matrix:
     - IMAGE=debian-amd64
       TARGET_LIST=x86_64-softmmu,x86_64-linux-user
-    - IMAGE=debian-armel-cross
-      TARGET_LIST=arm-softmmu,arm-linux-user,armeb-linux-user
-    - IMAGE=debian-armhf-cross
-      TARGET_LIST=arm-softmmu,arm-linux-user,armeb-linux-user
-    - IMAGE=debian-arm64-cross
-      TARGET_LIST=aarch64-softmmu,aarch64-linux-user
-    - IMAGE=debian-s390x-cross
-      TARGET_LIST=s390x-softmmu,s390x-linux-user
     - IMAGE=debian-mips-cross
-      TARGET_LIST=mips-softmmu,mipsel-linux-user
-    - IMAGE=debian-mips64el-cross
-      TARGET_LIST=mips64el-softmmu,mips64el-linux-user
-    - IMAGE=debian-ppc64el-cross
-      TARGET_LIST=ppc64-softmmu,ppc64-linux-user,ppc64abi32-linux-user
+      TARGET_LIST=mips-softmmu
 build:
   pre_ci_boot:
     image_name: registry.gitlab.com/qemu-project/qemu/qemu/${IMAGE}
