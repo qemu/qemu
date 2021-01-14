@@ -3075,7 +3075,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
     }
     if (is_xmm
         && !(s->flags & HF_OSFXSR_MASK)
-        && ((b != 0x38 && b != 0x3a) || (s->prefix & PREFIX_DATA))) {
+        && (b != 0x38 && b != 0x3a)) {
         goto unknown_op;
     }
     if (b == 0x0e) {
