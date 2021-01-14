@@ -20,6 +20,7 @@
 # See the syntax and semantics in docs/devel/decodetree.rst.
 #
 
+import io
 import os
 import re
 import sys
@@ -1304,7 +1305,7 @@ def main():
 
     for filename in args:
         input_file = filename
-        f = open(filename, 'r')
+        f = open(filename, 'rt', encoding='utf-8')
         parse_file(f, toppat)
         f.close()
 
@@ -1324,9 +1325,11 @@ def main():
         prop_size(stree)
 
     if output_file:
-        output_fd = open(output_file, 'w')
+        output_fd = open(output_file, 'wt', encoding='utf-8')
     else:
-        output_fd = sys.stdout
+        output_fd = io.TextIOWrapper(sys.stdout.buffer,
+                                     encoding=sys.stdout.encoding,
+                                     errors="ignore")
 
     output_autogen()
     for n in sorted(arguments.keys()):

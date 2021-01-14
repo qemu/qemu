@@ -83,7 +83,6 @@ bool tcg_can_emit_vecop_list(const TCGOpcode *list,
         case INDEX_op_xor_vec:
         case INDEX_op_mov_vec:
         case INDEX_op_dup_vec:
-        case INDEX_op_dupi_vec:
         case INDEX_op_dup2_vec:
         case INDEX_op_ld_vec:
         case INDEX_op_st_vec:
@@ -216,25 +215,17 @@ void tcg_gen_mov_vec(TCGv_vec r, TCGv_vec a)
     }
 }
 
-#define MO_REG  (TCG_TARGET_REG_BITS == 64 ? MO_64 : MO_32)
-
-static void do_dupi_vec(TCGv_vec r, unsigned vece, TCGArg a)
-{
-    TCGTemp *rt = tcgv_vec_temp(r);
-    vec_gen_2(INDEX_op_dupi_vec, rt->base_type, vece, temp_arg(rt), a);
-}
-
 TCGv_vec tcg_const_zeros_vec(TCGType type)
 {
     TCGv_vec ret = tcg_temp_new_vec(type);
-    do_dupi_vec(ret, MO_REG, 0);
+    tcg_gen_dupi_vec(MO_64, ret, 0);
     return ret;
 }
 
 TCGv_vec tcg_const_ones_vec(TCGType type)
 {
     TCGv_vec ret = tcg_temp_new_vec(type);
-    do_dupi_vec(ret, MO_REG, -1);
+    tcg_gen_dupi_vec(MO_64, ret, -1);
     return ret;
 }
 
@@ -250,41 +241,10 @@ TCGv_vec tcg_const_ones_vec_matching(TCGv_vec m)
     return tcg_const_ones_vec(t->base_type);
 }
 
-void tcg_gen_dup64i_vec(TCGv_vec r, uint64_t a)
-{
-    if (TCG_TARGET_REG_BITS == 64) {
-        do_dupi_vec(r, MO_64, a);
-    } else if (a == dup_const(MO_32, a)) {
-        do_dupi_vec(r, MO_32, a);
-    } else {
-        TCGv_i64 c = tcg_const_i64(a);
-        tcg_gen_dup_i64_vec(MO_64, r, c);
-        tcg_temp_free_i64(c);
-    }
-}
-
-void tcg_gen_dup32i_vec(TCGv_vec r, uint32_t a)
-{
-    do_dupi_vec(r, MO_REG, dup_const(MO_32, a));
-}
-
-void tcg_gen_dup16i_vec(TCGv_vec r, uint32_t a)
-{
-    do_dupi_vec(r, MO_REG, dup_const(MO_16, a));
-}
-
-void tcg_gen_dup8i_vec(TCGv_vec r, uint32_t a)
-{
-    do_dupi_vec(r, MO_REG, dup_const(MO_8, a));
-}
-
 void tcg_gen_dupi_vec(unsigned vece, TCGv_vec r, uint64_t a)
 {
-    if (vece == MO_64) {
-        tcg_gen_dup64i_vec(r, a);
-    } else {
-        do_dupi_vec(r, MO_REG, dup_const(vece, a));
-    }
+    TCGTemp *rt = tcgv_vec_temp(r);
+    tcg_gen_mov_vec(r, tcg_constant_vec(rt->base_type, vece, a));
 }
 
 void tcg_gen_dup_i64_vec(unsigned vece, TCGv_vec r, TCGv_i64 a)
@@ -489,8 +449,8 @@ void tcg_gen_abs_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
             if (tcg_can_emit_vec_op(INDEX_op_sari_vec, type, vece) > 0) {
                 tcg_gen_sari_vec(vece, t, a, (8 << vece) - 1);
             } else {
-                do_dupi_vec(t, MO_REG, 0);
-                tcg_gen_cmp_vec(TCG_COND_LT, vece, t, a, t);
+                tcg_gen_cmp_vec(TCG_COND_LT, vece, t, a,
+                                tcg_constant_vec(type, vece, 0));
             }
             tcg_gen_xor_vec(vece, r, a, t);
             tcg_gen_sub_vec(vece, r, r, t);
