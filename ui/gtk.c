@@ -752,7 +752,7 @@ static void gd_resize_event(GtkGLArea *area,
  * If available, return the update interval of the monitor in ms,
  * else return 0 (the default update interval).
  */
-static int gd_monitor_update_interval(GtkWidget *widget)
+int gd_monitor_update_interval(GtkWidget *widget)
 {
 #ifdef GDK_VERSION_3_22
     GdkWindow *win = gtk_widget_get_window(widget);
