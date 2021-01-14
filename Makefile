@@ -250,8 +250,13 @@ find-src-path = find "$(SRC_PATH)/" -path "$(SRC_PATH)/meson" -prune -o \( -name
 
 .PHONY: ctags
 ctags:
-	rm -f "$(SRC_PATH)/"tags
-	$(find-src-path) -exec ctags -f "$(SRC_PATH)/"tags --append {} +
+	$(call quiet-command, 			\
+		rm -f "$(SRC_PATH)/"tags, 	\
+		"CTAGS", "Remove old tags")
+	$(call quiet-command, \
+		$(find-src-path) -exec ctags 		\
+		-f "$(SRC_PATH)/"tags --append {} +,	\
+		"CTAGS", "Re-index $(SRC_PATH)")
 
 .PHONY: gtags
 gtags:
