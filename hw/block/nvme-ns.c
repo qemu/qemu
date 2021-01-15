@@ -134,6 +134,13 @@ static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
     ns->num_zones = ns->size / lbasz / ns->zone_size;
 
     /* Do a few more sanity checks of ZNS properties */
+    if (!ns->num_zones) {
+        error_setg(errp,
+                   "insufficient drive capacity, must be at least the size "
+                   "of one zone (%"PRIu64"B)", zone_size);
+        return -1;
+    }
+
     if (ns->params.max_open_zones > ns->num_zones) {
         error_setg(errp,
                    "max_open_zones value %u exceeds the number of zones %u",
