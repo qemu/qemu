@@ -421,12 +421,12 @@ COREAUDIO_WRAPPER_FUNC(write, size_t, (HWVoiceOut *hw, void *buf, size_t size),
 /* callback to feed audiooutput buffer */
 static OSStatus audioDeviceIOProc(
     AudioDeviceID inDevice,
-    const AudioTimeStamp* inNow,
-    const AudioBufferList* inInputData,
-    const AudioTimeStamp* inInputTime,
-    AudioBufferList* outOutputData,
-    const AudioTimeStamp* inOutputTime,
-    void* hwptr)
+    const AudioTimeStamp *inNow,
+    const AudioBufferList *inInputData,
+    const AudioTimeStamp *inInputTime,
+    AudioBufferList *outOutputData,
+    const AudioTimeStamp *inOutputTime,
+    void *hwptr)
 {
     UInt32 frameCount, pending_frames;
     void *out = outOutputData->mBuffers[0].mData;
