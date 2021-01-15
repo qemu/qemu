@@ -1828,7 +1828,7 @@ X: hw/9pfs/xen-9p*
 F: fsdev/
 F: docs/interop/virtfs-proxy-helper.rst
 F: tests/qtest/virtio-9p-test.c
-T: git https://github.com/gkurz/qemu.git 9p-next
+T: git https://gitlab.com/gkurz/qemu.git 9p-next
 
 virtio-blk
 M: Stefan Hajnoczi <stefanha@redhat.com>
