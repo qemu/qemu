@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "ui/console.h"
 #include "target/m68k/cpu.h"
+#include "migration/vmstate.h"
 
 /* #define DEBUG_NEXT */
 #ifdef DEBUG_NEXT
@@ -891,6 +892,37 @@ static Property next_pc_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription next_rtc_vmstate = {
+    .name = "next-rtc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8_ARRAY(ram, NextRtc, 32),
+        VMSTATE_UINT8(command, NextRtc),
+        VMSTATE_UINT8(value, NextRtc),
+        VMSTATE_UINT8(status, NextRtc),
+        VMSTATE_UINT8(control, NextRtc),
+        VMSTATE_UINT8(retval, NextRtc),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static const VMStateDescription next_pc_vmstate = {
+    .name = "next-pc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(scr1, NeXTPC),
+        VMSTATE_UINT32(scr2, NeXTPC),
+        VMSTATE_UINT32(int_mask, NeXTPC),
+        VMSTATE_UINT32(int_status, NeXTPC),
+        VMSTATE_UINT8(scsi_csr_1, NeXTPC),
+        VMSTATE_UINT8(scsi_csr_2, NeXTPC),
+        VMSTATE_STRUCT(rtc, NeXTPC, 0, next_rtc_vmstate, NextRtc),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static void next_pc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -899,7 +931,7 @@ static void next_pc_class_init(ObjectClass *klass, void *data)
     dc->realize = next_pc_realize;
     dc->reset = next_pc_reset;
     device_class_set_props(dc, next_pc_properties);
-    /* We will add the VMState in a later commit */
+    dc->vmsd = &next_pc_vmstate;
 }
 
 static const TypeInfo next_pc_info = {
