@@ -735,10 +735,6 @@ static const MemoryRegionOps dma_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-/*
- * TODO: set the shift numbers as values in the enum, so the first switch
- * will not be needed
- */
 static void next_irq(void *opaque, int number, int level)
 {
     NeXTPC *s = NEXT_PC(opaque);
@@ -839,19 +835,8 @@ static void next_irq(void *opaque, int number, int level)
     }
 }
 
-static void next_serial_irq(void *opaque, int n, int level)
-{
-    /* DPRINTF("SCC IRQ NUM %i\n",n); */
-    if (n) {
-        next_irq(opaque, NEXT_SCC_DMA_I, level);
-    } else {
-        next_irq(opaque, NEXT_SCC_I, level);
-    }
-}
-
 static void next_escc_init(DeviceState *pcdev)
 {
-    qemu_irq *ser_irq = qemu_allocate_irqs(next_serial_irq, pcdev, 2);
     DeviceState *dev;
     SysBusDevice *s;
 
@@ -867,8 +852,8 @@ static void next_escc_init(DeviceState *pcdev)
 
     s = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_connect_irq(s, 0, ser_irq[0]);
-    sysbus_connect_irq(s, 1,  ser_irq[1]);
+    sysbus_connect_irq(s, 0, qdev_get_gpio_in(pcdev, NEXT_SCC_I));
+    sysbus_connect_irq(s, 1, qdev_get_gpio_in(pcdev, NEXT_SCC_DMA_I));
     sysbus_mmio_map(s, 0, 0x2118000);
 }
 
@@ -886,6 +871,8 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
 {
     NeXTPC *s = NEXT_PC(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    qdev_init_gpio_in(dev, next_irq, NEXT_NUM_IRQS);
 
     memory_region_init_io(&s->mmiomem, OBJECT(s), &mmio_ops, s,
                           "next.mmio", 0xD0000);

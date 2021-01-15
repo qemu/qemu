@@ -39,7 +39,8 @@ enum next_irqs {
     NEXT_ENRX_DMA_I,
     NEXT_SCSI_DMA_I,
     NEXT_SCC_DMA_I,
-    NEXT_SND_I
+    NEXT_SND_I,
+    NEXT_NUM_IRQS
 };
 
 #endif /* NEXT_CUBE_H */
