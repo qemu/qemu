@@ -30,6 +30,7 @@
 #include "trace.h"
 #include "hw/qdev-core.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
@@ -654,14 +655,35 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
     vnc_write_s32(vs, encoding);
 }
 
+static void vnc_desktop_resize_ext(VncState *vs, int reject_reason)
+{
+    vnc_lock_output(vs);
+    vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
+    vnc_write_u8(vs, 0);
+    vnc_write_u16(vs, 1); /* number of rects */
+    vnc_framebuffer_update(vs,
+                           reject_reason ? 1 : 0,
+                           reject_reason,
+                           vs->client_width, vs->client_height,
+                           VNC_ENCODING_DESKTOP_RESIZE_EXT);
+    vnc_write_u8(vs, 1);  /* number of screens */
+    vnc_write_u8(vs, 0);  /* padding */
+    vnc_write_u8(vs, 0);  /* padding */
+    vnc_write_u8(vs, 0);  /* padding */
+    vnc_write_u32(vs, 0); /* screen id */
+    vnc_write_u16(vs, 0); /* screen x-pos */
+    vnc_write_u16(vs, 0); /* screen y-pos */
+    vnc_write_u16(vs, vs->client_width);
+    vnc_write_u16(vs, vs->client_height);
+    vnc_write_u32(vs, 0); /* screen flags */
+    vnc_unlock_output(vs);
+    vnc_flush(vs);
+}
 
 static void vnc_desktop_resize(VncState *vs)
 {
-    if (vs->ioc == NULL || !vnc_has_feature(vs, VNC_FEATURE_RESIZE)) {
-        return;
-    }
-    if (vs->client_width == pixman_image_get_width(vs->vd->server) &&
-        vs->client_height == pixman_image_get_height(vs->vd->server)) {
+    if (vs->ioc == NULL || (!vnc_has_feature(vs, VNC_FEATURE_RESIZE) &&
+                            !vnc_has_feature(vs, VNC_FEATURE_RESIZE_EXT))) {
         return;
     }
 
@@ -671,6 +693,12 @@ static void vnc_desktop_resize(VncState *vs)
            pixman_image_get_height(vs->vd->server) >= 0);
     vs->client_width = pixman_image_get_width(vs->vd->server);
     vs->client_height = pixman_image_get_height(vs->vd->server);
+
+    if (vnc_has_feature(vs, VNC_FEATURE_RESIZE_EXT)) {
+        vnc_desktop_resize_ext(vs, 0);
+        return;
+    }
+
     vnc_lock_output(vs);
     vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
     vnc_write_u8(vs, 0);
@@ -792,9 +820,7 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
     QTAILQ_FOREACH(vs, &vd->clients, next) {
         vnc_colordepth(vs);
         vnc_desktop_resize(vs);
-        if (vs->vd->cursor) {
-            vnc_cursor_define(vs);
-        }
+        vnc_cursor_define(vs);
         memset(vs->dirty, 0x00, sizeof(vs->dirty));
         vnc_set_area_dirty(vs->dirty, vd, 0, 0,
                            vnc_width(vd),
@@ -927,6 +953,10 @@ static int vnc_cursor_define(VncState *vs)
 {
     QEMUCursor *c = vs->vd->cursor;
     int isize;
+
+    if (!vs->vd->cursor) {
+        return -1;
+    }
 
     if (vnc_has_feature(vs, VNC_FEATURE_ALPHA_CURSOR)) {
         vnc_lock_output(vs);
@@ -2011,6 +2041,10 @@ static void framebuffer_update_request(VncState *vs, int incremental,
     } else {
         vs->update = VNC_STATE_UPDATE_FORCE;
         vnc_set_area_dirty(vs->dirty, vs->vd, x, y, w, h);
+        vnc_colordepth(vs);
+        vnc_desktop_resize(vs);
+        vnc_led_state_change(vs);
+        vnc_cursor_define(vs);
     }
 }
 
@@ -2038,6 +2072,17 @@ static void send_ext_audio_ack(VncState *vs)
                            pixman_image_get_width(vs->vd->server),
                            pixman_image_get_height(vs->vd->server),
                            VNC_ENCODING_AUDIO);
+    vnc_unlock_output(vs);
+    vnc_flush(vs);
+}
+
+static void send_xvp_message(VncState *vs, int code)
+{
+    vnc_lock_output(vs);
+    vnc_write_u8(vs, VNC_MSG_SERVER_XVP);
+    vnc_write_u8(vs, 0); /* pad */
+    vnc_write_u8(vs, 1); /* version */
+    vnc_write_u8(vs, code);
     vnc_unlock_output(vs);
     vnc_flush(vs);
 }
@@ -2100,6 +2145,9 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
         case VNC_ENCODING_DESKTOPRESIZE:
             vs->features |= VNC_FEATURE_RESIZE_MASK;
             break;
+        case VNC_ENCODING_DESKTOP_RESIZE_EXT:
+            vs->features |= VNC_FEATURE_RESIZE_EXT_MASK;
+            break;
         case VNC_ENCODING_POINTER_TYPE_CHANGE:
             vs->features |= VNC_FEATURE_POINTER_TYPE_CHANGE_MASK;
             break;
@@ -2121,6 +2169,12 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
         case VNC_ENCODING_LED_STATE:
             vs->features |= VNC_FEATURE_LED_STATE_MASK;
             break;
+        case VNC_ENCODING_XVP:
+            if (vs->vd->power_control) {
+                vs->features |= VNC_FEATURE_XVP;
+                send_xvp_message(vs, VNC_XVP_CODE_INIT);
+            }
+            break;
         case VNC_ENCODING_COMPRESSLEVEL0 ... VNC_ENCODING_COMPRESSLEVEL0 + 9:
             vs->tight->compression = (enc & 0x0F);
             break;
@@ -2134,12 +2188,7 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
         }
     }
-    vnc_desktop_resize(vs);
     check_pointer_type_change(&vs->mouse_mode_notifier, NULL);
-    vnc_led_state_change(vs);
-    if (vs->vd->cursor) {
-        vnc_cursor_define(vs);
-    }
 }
 
 static void set_pixel_conversion(VncState *vs)
@@ -2353,6 +2402,42 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 
         client_cut_text(vs, read_u32(data, 4), data + 8);
         break;
+    case VNC_MSG_CLIENT_XVP:
+        if (!(vs->features & VNC_FEATURE_XVP)) {
+            error_report("vnc: xvp client message while disabled");
+            vnc_client_error(vs);
+            break;
+        }
+        if (len == 1) {
+            return 4;
+        }
+        if (len == 4) {
+            uint8_t version = read_u8(data, 2);
+            uint8_t action = read_u8(data, 3);
+
+            if (version != 1) {
+                error_report("vnc: xvp client message version %d != 1",
+                             version);
+                vnc_client_error(vs);
+                break;
+            }
+
+            switch (action) {
+            case VNC_XVP_ACTION_SHUTDOWN:
+                qemu_system_powerdown_request();
+                break;
+            case VNC_XVP_ACTION_REBOOT:
+                send_xvp_message(vs, VNC_XVP_CODE_FAIL);
+                break;
+            case VNC_XVP_ACTION_RESET:
+                qemu_system_reset_request(SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET);
+                break;
+            default:
+                send_xvp_message(vs, VNC_XVP_CODE_FAIL);
+                break;
+            }
+        }
+        break;
     case VNC_MSG_CLIENT_QEMU:
         if (len == 1)
             return 2;
@@ -2423,6 +2508,34 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
             break;
         }
         break;
+    case VNC_MSG_CLIENT_SET_DESKTOP_SIZE:
+    {
+        size_t size;
+        uint8_t screens;
+
+        if (len < 8) {
+            return 8;
+        }
+
+        screens = read_u8(data, 6);
+        size    = 8 + screens * 16;
+        if (len < size) {
+            return size;
+        }
+
+        if (dpy_ui_info_supported(vs->vd->dcl.con)) {
+            QemuUIInfo info;
+            memset(&info, 0, sizeof(info));
+            info.width = read_u16(data, 2);
+            info.height = read_u16(data, 4);
+            dpy_set_ui_info(vs->vd->dcl.con, &info);
+            vnc_desktop_resize_ext(vs, 4 /* Request forwarded */);
+        } else {
+            vnc_desktop_resize_ext(vs, 3 /* Invalid screen layout */);
+        }
+
+        break;
+    }
     default:
         VNC_DEBUG("Msg: %d\n", data[0]);
         vnc_client_error(vs);
@@ -3234,7 +3347,7 @@ static void vnc_display_close(VncDisplay *vd)
     vd->auth = VNC_AUTH_INVALID;
     vd->subauth = VNC_AUTH_INVALID;
     if (vd->tlscreds) {
-        object_unparent(OBJECT(vd->tlscreds));
+        object_unref(OBJECT(vd->tlscreds));
         vd->tlscreds = NULL;
     }
     if (vd->tlsauthz) {
@@ -3379,6 +3492,9 @@ static QemuOptsList qemu_vnc_opts = {
         },{
             .name = "audiodev",
             .type = QEMU_OPT_STRING,
+        },{
+            .name = "power-control",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },
@@ -3748,6 +3864,7 @@ static int vnc_display_connect(VncDisplay *vd,
     sioc = qio_channel_socket_new();
     qio_channel_set_name(QIO_CHANNEL(sioc), "vnc-reverse");
     if (qio_channel_socket_connect_sync(sioc, saddr[0], errp) < 0) {
+        object_unref(OBJECT(sioc));
         return -1;
     }
     vnc_connect(vd, sioc, false, false);
@@ -3941,6 +4058,8 @@ void vnc_display_open(const char *id, Error **errp)
     if (!vd->lossy) {
         vd->non_adaptive = true;
     }
+
+    vd->power_control = qemu_opt_get_bool(opts, "power-control", false);
 
     if (tlsauthz) {
         vd->tlsauthzid = g_strdup(tlsauthz);

@@ -176,6 +176,7 @@ struct VncDisplay
     int ws_subauth; /* Used by websockets */
     bool lossy;
     bool non_adaptive;
+    bool power_control;
     QCryptoTLSCreds *tlscreds;
     QAuthZ *tlsauthz;
     char *tlsauthzid;
@@ -412,6 +413,7 @@ enum {
 #define VNC_ENCODING_TIGHT_PNG            0xFFFFFEFC /* -260 */
 #define VNC_ENCODING_LED_STATE            0XFFFFFEFB /* -261 */
 #define VNC_ENCODING_DESKTOP_RESIZE_EXT   0XFFFFFECC /* -308 */
+#define VNC_ENCODING_XVP                  0XFFFFFECB /* -309 */
 #define VNC_ENCODING_ALPHA_CURSOR         0XFFFFFEC6 /* -314 */
 #define VNC_ENCODING_WMVi                 0x574D5669
 
@@ -442,6 +444,7 @@ enum {
 
 enum VncFeatures {
     VNC_FEATURE_RESIZE,
+    VNC_FEATURE_RESIZE_EXT,
     VNC_FEATURE_HEXTILE,
     VNC_FEATURE_POINTER_TYPE_CHANGE,
     VNC_FEATURE_WMVI,
@@ -453,9 +456,11 @@ enum VncFeatures {
     VNC_FEATURE_ZRLE,
     VNC_FEATURE_ZYWRLE,
     VNC_FEATURE_LED_STATE,
+    VNC_FEATURE_XVP,
 };
 
 #define VNC_FEATURE_RESIZE_MASK              (1 << VNC_FEATURE_RESIZE)
+#define VNC_FEATURE_RESIZE_EXT_MASK          (1 << VNC_FEATURE_RESIZE_EXT)
 #define VNC_FEATURE_HEXTILE_MASK             (1 << VNC_FEATURE_HEXTILE)
 #define VNC_FEATURE_POINTER_TYPE_CHANGE_MASK (1 << VNC_FEATURE_POINTER_TYPE_CHANGE)
 #define VNC_FEATURE_WMVI_MASK                (1 << VNC_FEATURE_WMVI)
@@ -467,6 +472,7 @@ enum VncFeatures {
 #define VNC_FEATURE_ZRLE_MASK                (1 << VNC_FEATURE_ZRLE)
 #define VNC_FEATURE_ZYWRLE_MASK              (1 << VNC_FEATURE_ZYWRLE)
 #define VNC_FEATURE_LED_STATE_MASK           (1 << VNC_FEATURE_LED_STATE)
+#define VNC_FEATURE_XVP_MASK                 (1 << VNC_FEATURE_XVP)
 
 
 /* Client -> Server message IDs */
@@ -518,6 +524,15 @@ enum VncFeatures {
 #define VNC_MSG_SERVER_QEMU_AUDIO_END             0
 #define VNC_MSG_SERVER_QEMU_AUDIO_BEGIN           1
 #define VNC_MSG_SERVER_QEMU_AUDIO_DATA            2
+
+/* XVP server -> client status code */
+#define VNC_XVP_CODE_FAIL 0
+#define VNC_XVP_CODE_INIT 1
+
+/* XVP client -> server action request  */
+#define VNC_XVP_ACTION_SHUTDOWN 2
+#define VNC_XVP_ACTION_REBOOT 3
+#define VNC_XVP_ACTION_RESET 4
 
 
 /*****************************************************************************

@@ -2222,6 +2222,10 @@ SRST
         transmission. When not using an -audiodev argument, this option
         must be omitted, otherwise is must be present and specify a
         valid audiodev.
+
+    ``power-control``
+        Permit the remote client to issue shutdown, reboot or reset power
+        control requests.
 ERST
 
 ARCHHEADING(, QEMU_ARCH_I386)
