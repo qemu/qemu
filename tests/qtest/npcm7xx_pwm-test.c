@@ -175,6 +175,7 @@ static int pwm_index(const PWM *pwm)
 static uint64_t pwm_qom_get(QTestState *qts, const char *path, const char *name)
 {
     QDict *response;
+    uint64_t val;
 
     g_test_message("Getting properties %s from %s", name, path);
     response = qtest_qmp(qts, "{ 'execute': 'qom-get',"
@@ -182,7 +183,9 @@ static uint64_t pwm_qom_get(QTestState *qts, const char *path, const char *name)
             path, name);
     /* The qom set message returns successfully. */
     g_assert_true(qdict_haskey(response, "return"));
-    return qnum_get_uint(qobject_to(QNum, qdict_get(response, "return")));
+    val = qnum_get_uint(qobject_to(QNum, qdict_get(response, "return")));
+    qobject_unref(response);
+    return val;
 }
 
 static uint64_t pwm_get_freq(QTestState *qts, int module_index, int pwm_index)
