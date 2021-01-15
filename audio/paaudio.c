@@ -480,7 +480,7 @@ static pa_stream *qpa_simple_new (
     }
 
     if (r < 0) {
-      goto fail;
+        goto fail;
     }
 
     pa_threaded_mainloop_unlock(c->mainloop);
