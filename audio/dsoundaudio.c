@@ -89,7 +89,9 @@ static void dsound_log_hresult (HRESULT hr)
 #endif
 #ifdef DSERR_ALLOCATED
     case DSERR_ALLOCATED:
-        str = "The request failed because resources, such as a priority level, were already in use by another caller";
+        str = "The request failed because resources, "
+              "such as a priority level, were already in use "
+              "by another caller";
         break;
 #endif
 #ifdef DSERR_ALREADYINITIALIZED
@@ -104,7 +106,8 @@ static void dsound_log_hresult (HRESULT hr)
 #endif
 #ifdef DSERR_BADSENDBUFFERGUID
     case DSERR_BADSENDBUFFERGUID:
-        str = "The GUID specified in an audiopath file does not match a valid mix-in buffer";
+        str = "The GUID specified in an audiopath file "
+              "does not match a valid mix-in buffer";
         break;
 #endif
 #ifdef DSERR_BUFFERLOST
@@ -114,26 +117,35 @@ static void dsound_log_hresult (HRESULT hr)
 #endif
 #ifdef DSERR_BUFFERTOOSMALL
     case DSERR_BUFFERTOOSMALL:
-        str = "The buffer size is not great enough to enable effects processing";
+        str = "The buffer size is not great enough to "
+              "enable effects processing";
         break;
 #endif
 #ifdef DSERR_CONTROLUNAVAIL
     case DSERR_CONTROLUNAVAIL:
-        str = "The buffer control (volume, pan, and so on) requested by the caller is not available. Controls must be specified when the buffer is created, using the dwFlags member of DSBUFFERDESC";
+        str = "The buffer control (volume, pan, and so on) "
+              "requested by the caller is not available. "
+              "Controls must be specified when the buffer is created, "
+              "using the dwFlags member of DSBUFFERDESC";
         break;
 #endif
 #ifdef DSERR_DS8_REQUIRED
     case DSERR_DS8_REQUIRED:
-        str = "A DirectSound object of class CLSID_DirectSound8 or later is required for the requested functionality. For more information, see IDirectSound8 Interface";
+        str = "A DirectSound object of class CLSID_DirectSound8 or later "
+              "is required for the requested functionality. "
+              "For more information, see IDirectSound8 Interface";
         break;
 #endif
 #ifdef DSERR_FXUNAVAILABLE
     case DSERR_FXUNAVAILABLE:
-        str = "The effects requested could not be found on the system, or they are in the wrong order or in the wrong location; for example, an effect expected in hardware was found in software";
+        str = "The effects requested could not be found on the system, "
+              "or they are in the wrong order or in the wrong location; "
+              "for example, an effect expected in hardware "
+              "was found in software";
         break;
 #endif
 #ifdef DSERR_GENERIC
-    case DSERR_GENERIC :
+    case DSERR_GENERIC:
         str = "An undetermined error occurred inside the DirectSound subsystem";
         break;
 #endif
@@ -154,7 +166,8 @@ static void dsound_log_hresult (HRESULT hr)
 #endif
 #ifdef DSERR_NODRIVER
     case DSERR_NODRIVER:
-        str = "No sound driver is available for use, or the given GUID is not a valid DirectSound device ID";
+        str = "No sound driver is available for use, "
+              "or the given GUID is not a valid DirectSound device ID";
         break;
 #endif
 #ifdef DSERR_NOINTERFACE
@@ -169,12 +182,14 @@ static void dsound_log_hresult (HRESULT hr)
 #endif
 #ifdef DSERR_OTHERAPPHASPRIO
     case DSERR_OTHERAPPHASPRIO:
-        str = "Another application has a higher priority level, preventing this call from succeeding";
+        str = "Another application has a higher priority level, "
+              "preventing this call from succeeding";
         break;
 #endif
 #ifdef DSERR_OUTOFMEMORY
     case DSERR_OUTOFMEMORY:
-        str = "The DirectSound subsystem could not allocate sufficient memory to complete the caller's request";
+        str = "The DirectSound subsystem could not allocate "
+               "sufficient memory to complete the caller's request";
         break;
 #endif
 #ifdef DSERR_PRIOLEVELNEEDED
@@ -189,7 +204,9 @@ static void dsound_log_hresult (HRESULT hr)
 #endif
 #ifdef DSERR_UNINITIALIZED
     case DSERR_UNINITIALIZED:
-        str = "The Initialize method has not been called or has not been called successfully before other methods were called";
+        str = "The Initialize method has not been called "
+              "or has not been called successfully "
+              "before other methods were called";
         break;
 #endif
 #ifdef DSERR_UNSUPPORTED
@@ -198,7 +215,7 @@ static void dsound_log_hresult (HRESULT hr)
         break;
 #endif
     default:
-        AUD_log (AUDIO_CAP, "Reason: Unknown (HRESULT %#lx)\n", hr);
+        AUD_log (AUDIO_CAP, "Reason: Unknown (HRESULT 0x%lx)\n", hr);
         return;
     }
 
@@ -342,12 +359,12 @@ static void dsound_clear_sample (HWVoiceOut *hw, LPDIRECTSOUNDBUFFER dsb,
     dsound_unlock_out (dsb, p1, p2, blen1, blen2);
 }
 
-static int dsound_open (dsound *s)
+static int dsound_set_cooperative_level(dsound *s)
 {
     HRESULT hr;
     HWND hwnd;
 
-    hwnd = GetForegroundWindow ();
+    hwnd = GetDesktopWindow();
     hr = IDirectSound_SetCooperativeLevel (
         s->dsound,
         hwnd,
@@ -404,8 +421,7 @@ static void dsound_enable_out(HWVoiceOut *hw, bool enable)
                 dsound_logerr (hr, "Could not stop playing buffer\n");
                 return;
             }
-        }
-        else {
+        } else {
             dolog ("warning: Voice is not playing\n");
         }
     }
@@ -509,8 +525,7 @@ static void dsound_enable_in(HWVoiceIn *hw, bool enable)
                 dsound_logerr (hr, "Could not stop capturing\n");
                 return;
             }
-        }
-        else {
+        } else {
             dolog ("warning: Voice is not capturing\n");
         }
     }
@@ -659,8 +674,7 @@ static void *dsound_audio_init(Audiodev *dev)
         );
     if (FAILED (hr)) {
         dsound_logerr (hr, "Could not create DirectSoundCapture instance\n");
-    }
-    else {
+    } else {
         hr = IDirectSoundCapture_Initialize (s->dsound_capture, NULL);
         if (FAILED (hr)) {
             dsound_logerr (hr, "Could not initialize DirectSoundCapture\n");
@@ -673,7 +687,7 @@ static void *dsound_audio_init(Audiodev *dev)
         }
     }
 
-    err = dsound_open (s);
+    err = dsound_set_cooperative_level(s);
     if (err) {
         dsound_audio_fini (s);
         return NULL;

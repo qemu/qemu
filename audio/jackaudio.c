@@ -277,7 +277,7 @@ static int qjack_process(jack_nframes_t nframes, void *arg)
         if (likely(c->enabled)) {
             qjack_buffer_read_l(&c->fifo, buffers, nframes);
         } else {
-            for(int i = 0; i < c->nchannels; ++i) {
+            for (int i = 0; i < c->nchannels; ++i) {
                 memset(buffers[i], 0, nframes * sizeof(float));
             }
         }
@@ -657,6 +657,7 @@ static struct audio_pcm_ops jack_pcm_ops = {
     .init_in        = qjack_init_in,
     .fini_in        = qjack_fini_in,
     .read           = qjack_read,
+    .run_buffer_in  = audio_generic_run_buffer_in,
     .enable_in      = qjack_enable_in
 };
 

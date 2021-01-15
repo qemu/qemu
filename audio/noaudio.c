@@ -124,6 +124,7 @@ static struct audio_pcm_ops no_pcm_ops = {
     .init_in  = no_init_in,
     .fini_in  = no_fini_in,
     .read     = no_read,
+    .run_buffer_in = audio_generic_run_buffer_in,
     .enable_in = no_enable_in
 };
 

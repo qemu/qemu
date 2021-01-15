@@ -5,6 +5,7 @@
 
 #define AUDIO_CAP "win-int"
 #include <windows.h>
+#include <mmreg.h>
 #include <mmsystem.h>
 
 #include "audio.h"
@@ -16,7 +17,6 @@ int waveformat_from_audio_settings (WAVEFORMATEX *wfx,
 {
     memset (wfx, 0, sizeof (*wfx));
 
-    wfx->wFormatTag = WAVE_FORMAT_PCM;
     wfx->nChannels = as->nchannels;
     wfx->nSamplesPerSec = as->freq;
     wfx->nAvgBytesPerSec = as->freq << (as->nchannels == 2);
@@ -26,11 +26,13 @@ int waveformat_from_audio_settings (WAVEFORMATEX *wfx,
     switch (as->fmt) {
     case AUDIO_FORMAT_S8:
     case AUDIO_FORMAT_U8:
+        wfx->wFormatTag = WAVE_FORMAT_PCM;
         wfx->wBitsPerSample = 8;
         break;
 
     case AUDIO_FORMAT_S16:
     case AUDIO_FORMAT_U16:
+        wfx->wFormatTag = WAVE_FORMAT_PCM;
         wfx->wBitsPerSample = 16;
         wfx->nAvgBytesPerSec <<= 1;
         wfx->nBlockAlign <<= 1;
@@ -38,13 +40,21 @@ int waveformat_from_audio_settings (WAVEFORMATEX *wfx,
 
     case AUDIO_FORMAT_S32:
     case AUDIO_FORMAT_U32:
+        wfx->wFormatTag = WAVE_FORMAT_PCM;
+        wfx->wBitsPerSample = 32;
+        wfx->nAvgBytesPerSec <<= 2;
+        wfx->nBlockAlign <<= 2;
+        break;
+
+    case AUDIO_FORMAT_F32:
+        wfx->wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
         wfx->wBitsPerSample = 32;
         wfx->nAvgBytesPerSec <<= 2;
         wfx->nBlockAlign <<= 2;
         break;
 
     default:
-        dolog ("Internal logic error: Bad audio format %d\n", as->freq);
+        dolog("Internal logic error: Bad audio format %d\n", as->fmt);
         return -1;
     }
 
@@ -54,12 +64,6 @@ int waveformat_from_audio_settings (WAVEFORMATEX *wfx,
 int waveformat_to_audio_settings (WAVEFORMATEX *wfx,
                                   struct audsettings *as)
 {
-    if (wfx->wFormatTag != WAVE_FORMAT_PCM) {
-        dolog ("Invalid wave format, tag is not PCM, but %d\n",
-               wfx->wFormatTag);
-        return -1;
-    }
-
     if (!wfx->nSamplesPerSec) {
         dolog ("Invalid wave format, frequency is zero\n");
         return -1;
@@ -83,23 +87,42 @@ int waveformat_to_audio_settings (WAVEFORMATEX *wfx,
         return -1;
     }
 
-    switch (wfx->wBitsPerSample) {
-    case 8:
-        as->fmt = AUDIO_FORMAT_U8;
-        break;
+    if (wfx->wFormatTag == WAVE_FORMAT_PCM) {
+        switch (wfx->wBitsPerSample) {
+        case 8:
+            as->fmt = AUDIO_FORMAT_U8;
+            break;
 
-    case 16:
-        as->fmt = AUDIO_FORMAT_S16;
-        break;
+        case 16:
+            as->fmt = AUDIO_FORMAT_S16;
+            break;
 
-    case 32:
-        as->fmt = AUDIO_FORMAT_S32;
-        break;
+        case 32:
+            as->fmt = AUDIO_FORMAT_S32;
+            break;
 
-    default:
-        dolog ("Invalid wave format, bits per sample is not "
-               "8, 16 or 32, but %d\n",
-               wfx->wBitsPerSample);
+        default:
+            dolog("Invalid PCM wave format, bits per sample is not "
+                  "8, 16 or 32, but %d\n",
+                  wfx->wBitsPerSample);
+            return -1;
+        }
+    } else if (wfx->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) {
+        switch (wfx->wBitsPerSample) {
+        case 32:
+            as->fmt = AUDIO_FORMAT_F32;
+            break;
+
+        default:
+            dolog("Invalid IEEE_FLOAT wave format, bits per sample is not "
+                  "32, but %d\n",
+                  wfx->wBitsPerSample);
+            return -1;
+        }
+    } else {
+        dolog("Invalid wave format, tag is not PCM and not IEEE_FLOAT, "
+              "but %d\n",
+              wfx->wFormatTag);
         return -1;
     }
 
