@@ -524,8 +524,7 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     } else if (frameRange.mMaximum < frames) {
         core->audioDevicePropertyBufferFrameSize = (UInt32) frameRange.mMaximum;
         dolog ("warning: Downsizing Buffer Frames to %f\n", frameRange.mMaximum);
-    }
-    else {
+    } else {
         core->audioDevicePropertyBufferFrameSize = frames;
     }
 

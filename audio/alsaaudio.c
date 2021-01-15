@@ -278,32 +278,28 @@ static snd_pcm_format_t aud_to_alsafmt (AudioFormat fmt, int endianness)
     case AUDIO_FORMAT_S16:
         if (endianness) {
             return SND_PCM_FORMAT_S16_BE;
-        }
-        else {
+        } else {
             return SND_PCM_FORMAT_S16_LE;
         }
 
     case AUDIO_FORMAT_U16:
         if (endianness) {
             return SND_PCM_FORMAT_U16_BE;
-        }
-        else {
+        } else {
             return SND_PCM_FORMAT_U16_LE;
         }
 
     case AUDIO_FORMAT_S32:
         if (endianness) {
             return SND_PCM_FORMAT_S32_BE;
-        }
-        else {
+        } else {
             return SND_PCM_FORMAT_S32_LE;
         }
 
     case AUDIO_FORMAT_U32:
         if (endianness) {
             return SND_PCM_FORMAT_U32_BE;
-        }
-        else {
+        } else {
             return SND_PCM_FORMAT_U32_LE;
         }
 
@@ -722,8 +718,7 @@ static int alsa_voice_ctl (snd_pcm_t *handle, const char *typ, int ctl)
             alsa_logerr (err, "Could not stop %s\n", typ);
             return -1;
         }
-    }
-    else {
+    } else {
         err = snd_pcm_prepare (handle);
         if (err < 0) {
             alsa_logerr (err, "Could not prepare handle for %s\n", typ);

@@ -404,8 +404,7 @@ static void dsound_enable_out(HWVoiceOut *hw, bool enable)
                 dsound_logerr (hr, "Could not stop playing buffer\n");
                 return;
             }
-        }
-        else {
+        } else {
             dolog ("warning: Voice is not playing\n");
         }
     }
@@ -509,8 +508,7 @@ static void dsound_enable_in(HWVoiceIn *hw, bool enable)
                 dsound_logerr (hr, "Could not stop capturing\n");
                 return;
             }
-        }
-        else {
+        } else {
             dolog ("warning: Voice is not capturing\n");
         }
     }
@@ -659,8 +657,7 @@ static void *dsound_audio_init(Audiodev *dev)
         );
     if (FAILED (hr)) {
         dsound_logerr (hr, "Could not create DirectSoundCapture instance\n");
-    }
-    else {
+    } else {
         hr = IDirectSoundCapture_Initialize (s->dsound_capture, NULL);
         if (FAILED (hr)) {
             dsound_logerr (hr, "Could not initialize DirectSoundCapture\n");

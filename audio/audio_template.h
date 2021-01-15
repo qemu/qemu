@@ -47,8 +47,7 @@ static void glue(audio_init_nb_voices_, TYPE)(AudioState *s,
 #ifdef DAC
             dolog ("Driver `%s' does not support " NAME "\n", drv->name);
 #endif
-        }
-        else {
+        } else {
             dolog ("Driver `%s' does not support %d " NAME " voices, max %d\n",
                    drv->name,
                    glue (s->nb_hw_voices_, TYPE),
@@ -387,8 +386,7 @@ static SW *glue(audio_pcm_create_voice_pair_, TYPE)(
 
     if (pdo->fixed_settings) {
         hw_as = audiodev_to_audsettings(pdo);
-    }
-    else {
+    } else {
         hw_as = *as;
     }
 
@@ -498,8 +496,7 @@ SW *glue (AUD_open_, TYPE) (
         if (glue (audio_pcm_sw_init_, TYPE) (sw, hw, name, as)) {
             goto fail;
         }
-    }
-    else {
+    } else {
         sw = glue(audio_pcm_create_voice_pair_, TYPE)(s, name, as);
         if (!sw) {
             dolog ("Failed to create voice `%s'\n", name);
@@ -553,8 +550,7 @@ uint64_t glue (AUD_get_elapsed_usec_, TYPE) (SW *sw, QEMUAudioTimeStamp *ts)
 
     if (cur_ts >= old_ts) {
         delta = cur_ts - old_ts;
-    }
-    else {
+    } else {
         delta = UINT64_MAX - old_ts + cur_ts;
     }
 
