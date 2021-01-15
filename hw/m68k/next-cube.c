@@ -90,6 +90,17 @@ struct NeXTState {
     NextRtc rtc;
 };
 
+#define TYPE_NEXT_PC "next-pc"
+OBJECT_DECLARE_SIMPLE_TYPE(NeXTPC, NEXT_PC)
+
+/* NeXT Peripheral Controller */
+struct NeXTPC {
+    SysBusDevice parent_obj;
+
+    /* Temporary until all functionality has been moved into this device */
+    NeXTState *ns;
+};
+
 /* Thanks to NeXT forums for this */
 /*
 static const uint8_t rtc_ram3[32] = {
@@ -857,6 +868,31 @@ static void next_escc_init(M68kCPU *cpu)
     sysbus_mmio_map(s, 0, 0x2118000);
 }
 
+static void next_pc_reset(DeviceState *dev)
+{
+}
+
+static void next_pc_realize(DeviceState *dev, Error **errp)
+{
+}
+
+static void next_pc_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->desc = "NeXT Peripheral Controller";
+    dc->realize = next_pc_realize;
+    dc->reset = next_pc_reset;
+    /* We will add the VMState in a later commit */
+}
+
+static const TypeInfo next_pc_info = {
+    .name = TYPE_NEXT_PC,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(NeXTPC),
+    .class_init = next_pc_class_init,
+};
+
 static void next_cube_init(MachineState *machine)
 {
     M68kCPU *cpu;
@@ -871,6 +907,7 @@ static void next_cube_init(MachineState *machine)
     const char *bios_name = machine->firmware ?: ROM_FILE;
     NeXTState *ns = NEXT_MACHINE(machine);
     DeviceState *dev;
+    DeviceState *pcdev;
 
     /* Initialize the cpu core */
     cpu = M68K_CPU(cpu_create(machine->cpu_type));
@@ -883,6 +920,12 @@ static void next_cube_init(MachineState *machine)
     /* Initialize CPU registers.  */
     env->vbr = 0;
     env->sr  = 0x2700;
+
+    /* Peripheral Controller */
+    pcdev = qdev_new(TYPE_NEXT_PC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(pcdev), &error_fatal);
+    /* Temporary while we refactor this code */
+    NEXT_PC(pcdev)->ns = ns;
 
     /* Set internal registers to initial values */
     /*     0x0000XX00 << vital bits */
@@ -978,6 +1021,7 @@ static const TypeInfo next_typeinfo = {
 static void next_register_type(void)
 {
     type_register_static(&next_typeinfo);
+    type_register_static(&next_pc_info);
 }
 
 type_init(next_register_type)
