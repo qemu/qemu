@@ -84,9 +84,6 @@ struct NeXTState {
     qemu_irq scsi_reset;
     qemu_irq *fd_irq;
 
-    uint32_t scr1;
-    uint32_t scr2;
-
     NextRtc rtc;
 };
 
@@ -99,6 +96,11 @@ struct NeXTPC {
 
     /* Temporary until all functionality has been moved into this device */
     NeXTState *ns;
+
+    MemoryRegion mmiomem;
+
+    uint32_t scr1;
+    uint32_t scr2;
 };
 
 /* Thanks to NeXT forums for this */
@@ -121,13 +123,13 @@ static const uint8_t rtc_ram2[32] = {
 #define SCR2_RTDATA 0x4
 #define SCR2_TOBCD(x) (((x / 10) << 4) + (x % 10))
 
-static void nextscr2_write(NeXTState *s, uint32_t val, int size)
+static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
 {
     static int led;
     static int phase;
     static uint8_t old_scr2;
     uint8_t scr2_2;
-    NextRtc *rtc = &s->rtc;
+    NextRtc *rtc = &s->ns->rtc;
 
     if (size == 4) {
         scr2_2 = (val >> 8) & 0xFF;
@@ -239,7 +241,7 @@ static void nextscr2_write(NeXTState *s, uint32_t val, int size)
                     /* clear FTU */
                     if (rtc->value & 0x04) {
                         rtc->status = rtc->status & (~0x18);
-                        s->int_status = s->int_status & (~0x04);
+                        s->ns->int_status = s->ns->int_status & (~0x04);
                     }
                 }
             }
@@ -255,7 +257,7 @@ static void nextscr2_write(NeXTState *s, uint32_t val, int size)
     old_scr2 = scr2_2;
 }
 
-static uint32_t mmio_readb(NeXTState *s, hwaddr addr)
+static uint32_t mmio_readb(NeXTPC *s, hwaddr addr)
 {
     switch (addr) {
     case 0xc000:
@@ -285,7 +287,7 @@ static uint32_t mmio_readb(NeXTState *s, hwaddr addr)
     }
 }
 
-static uint32_t mmio_readw(NeXTState *s, hwaddr addr)
+static uint32_t mmio_readw(NeXTPC *s, hwaddr addr)
 {
     switch (addr) {
     default:
@@ -294,16 +296,16 @@ static uint32_t mmio_readw(NeXTState *s, hwaddr addr)
     }
 }
 
-static uint32_t mmio_readl(NeXTState *s, hwaddr addr)
+static uint32_t mmio_readl(NeXTPC *s, hwaddr addr)
 {
     switch (addr) {
     case 0x7000:
-        /* DPRINTF("Read INT status: %x\n", s->int_status); */
-        return s->int_status;
+        /* DPRINTF("Read INT status: %x\n", s->ns->int_status); */
+        return s->ns->int_status;
 
     case 0x7800:
-        DPRINTF("MMIO Read INT mask: %x\n", s->int_mask);
-        return s->int_mask;
+        DPRINTF("MMIO Read INT mask: %x\n", s->ns->int_mask);
+        return s->ns->int_mask;
 
     case 0xc000:
         return s->scr1;
@@ -317,7 +319,7 @@ static uint32_t mmio_readl(NeXTState *s, hwaddr addr)
     }
 }
 
-static void mmio_writeb(NeXTState *s, hwaddr addr, uint32_t val)
+static void mmio_writeb(NeXTPC *s, hwaddr addr, uint32_t val)
 {
     switch (addr) {
     case 0xd003:
@@ -329,21 +331,21 @@ static void mmio_writeb(NeXTState *s, hwaddr addr, uint32_t val)
 
 }
 
-static void mmio_writew(NeXTState *s, hwaddr addr, uint32_t val)
+static void mmio_writew(NeXTPC *s, hwaddr addr, uint32_t val)
 {
     DPRINTF("MMIO Write W\n");
 }
 
-static void mmio_writel(NeXTState *s, hwaddr addr, uint32_t val)
+static void mmio_writel(NeXTPC *s, hwaddr addr, uint32_t val)
 {
     switch (addr) {
     case 0x7000:
-        DPRINTF("INT Status old: %x new: %x\n", s->int_status, val);
-        s->int_status = val;
+        DPRINTF("INT Status old: %x new: %x\n", s->ns->int_status, val);
+        s->ns->int_status = val;
         break;
     case 0x7800:
-        DPRINTF("INT Mask old: %x new: %x\n", s->int_mask, val);
-        s->int_mask  = val;
+        DPRINTF("INT Mask old: %x new: %x\n", s->ns->int_mask, val);
+        s->ns->int_mask  = val;
         break;
     case 0xc000:
         DPRINTF("SCR1 Write: %x\n", val);
@@ -359,15 +361,15 @@ static void mmio_writel(NeXTState *s, hwaddr addr, uint32_t val)
 
 static uint64_t mmio_readfn(void *opaque, hwaddr addr, unsigned size)
 {
-    NeXTState *ns = NEXT_MACHINE(opaque);
+    NeXTPC *s = NEXT_PC(opaque);
 
     switch (size) {
     case 1:
-        return mmio_readb(ns, addr);
+        return mmio_readb(s, addr);
     case 2:
-        return mmio_readw(ns, addr);
+        return mmio_readw(s, addr);
     case 4:
-        return mmio_readl(ns, addr);
+        return mmio_readl(s, addr);
     default:
         g_assert_not_reached();
     }
@@ -376,17 +378,17 @@ static uint64_t mmio_readfn(void *opaque, hwaddr addr, unsigned size)
 static void mmio_writefn(void *opaque, hwaddr addr, uint64_t value,
                          unsigned size)
 {
-    NeXTState *ns = NEXT_MACHINE(opaque);
+    NeXTPC *s = NEXT_PC(opaque);
 
     switch (size) {
     case 1:
-        mmio_writeb(ns, addr, value);
+        mmio_writeb(s, addr, value);
         break;
     case 2:
-        mmio_writew(ns, addr, value);
+        mmio_writew(s, addr, value);
         break;
     case 4:
-        mmio_writel(ns, addr, value);
+        mmio_writel(s, addr, value);
         break;
     default:
         g_assert_not_reached();
@@ -870,10 +872,23 @@ static void next_escc_init(M68kCPU *cpu)
 
 static void next_pc_reset(DeviceState *dev)
 {
+    NeXTPC *s = NEXT_PC(dev);
+
+    /* Set internal registers to initial values */
+    /*     0x0000XX00 << vital bits */
+    s->scr1 = 0x00011102;
+    s->scr2 = 0x00ff0c80;
 }
 
 static void next_pc_realize(DeviceState *dev, Error **errp)
 {
+    NeXTPC *s = NEXT_PC(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    memory_region_init_io(&s->mmiomem, OBJECT(s), &mmio_ops, s,
+                          "next.mmio", 0xD0000);
+
+    sysbus_init_mmio(sbd, &s->mmiomem);
 }
 
 static void next_pc_class_init(ObjectClass *klass, void *data)
@@ -898,7 +913,6 @@ static void next_cube_init(MachineState *machine)
     M68kCPU *cpu;
     CPUM68KState *env;
     MemoryRegion *rom = g_new(MemoryRegion, 1);
-    MemoryRegion *mmiomem = g_new(MemoryRegion, 1);
     MemoryRegion *scrmem = g_new(MemoryRegion, 1);
     MemoryRegion *dmamem = g_new(MemoryRegion, 1);
     MemoryRegion *bmapm1 = g_new(MemoryRegion, 1);
@@ -927,10 +941,6 @@ static void next_cube_init(MachineState *machine)
     /* Temporary while we refactor this code */
     NEXT_PC(pcdev)->ns = ns;
 
-    /* Set internal registers to initial values */
-    /*     0x0000XX00 << vital bits */
-    ns->scr1 = 0x00011102;
-    ns->scr2 = 0x00ff0c80;
     ns->rtc.status = 0x90;
 
     /* Load RTC RAM - TODO: provide possibility to load contents from file */
@@ -945,9 +955,7 @@ static void next_cube_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x0B000000);
 
     /* MMIO */
-    memory_region_init_io(mmiomem, NULL, &mmio_ops, machine, "next.mmio",
-                          0xD0000);
-    memory_region_add_subregion(sysmem, 0x02000000, mmiomem);
+    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 0, 0x02000000);
 
     /* BMAP memory */
     memory_region_init_ram_shared_nomigrate(bmapm1, NULL, "next.bmapmem", 64,
