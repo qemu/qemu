@@ -203,13 +203,13 @@ static void glue (audio_pcm_hw_gc_, TYPE) (HW **hwp)
 
     if (!hw->sw_head.lh_first) {
 #ifdef DAC
-        audio_detach_capture (hw);
+        audio_detach_capture(hw);
 #endif
-        QLIST_REMOVE (hw, entries);
-        glue (hw->pcm_ops->fini_, TYPE) (hw);
-        glue (s->nb_hw_voices_, TYPE) += 1;
-        glue (audio_pcm_hw_free_resources_ , TYPE) (hw);
-        g_free (hw);
+        QLIST_REMOVE(hw, entries);
+        glue(hw->pcm_ops->fini_, TYPE) (hw);
+        glue(s->nb_hw_voices_, TYPE) += 1;
+        glue(audio_pcm_hw_free_resources_ , TYPE) (hw);
+        g_free(hw);
         *hwp = NULL;
     }
 }
