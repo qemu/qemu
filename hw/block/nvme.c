@@ -980,6 +980,35 @@ static void nvme_enqueue_event(NvmeCtrl *n, uint8_t event_type,
     nvme_process_aers(n);
 }
 
+static void nvme_smart_event(NvmeCtrl *n, uint8_t event)
+{
+    uint8_t aer_info;
+
+    /* Ref SPEC <Asynchronous Event Information 0x2013 SMART / Health Status> */
+    if (!(NVME_AEC_SMART(n->features.async_config) & event)) {
+        return;
+    }
+
+    switch (event) {
+    case NVME_SMART_SPARE:
+        aer_info = NVME_AER_INFO_SMART_SPARE_THRESH;
+        break;
+    case NVME_SMART_TEMPERATURE:
+        aer_info = NVME_AER_INFO_SMART_TEMP_THRESH;
+        break;
+    case NVME_SMART_RELIABILITY:
+    case NVME_SMART_MEDIA_READ_ONLY:
+    case NVME_SMART_FAILED_VOLATILE_MEDIA:
+    case NVME_SMART_PMR_UNRELIABLE:
+        aer_info = NVME_AER_INFO_SMART_RELIABILITY;
+        break;
+    default:
+        return;
+    }
+
+    nvme_enqueue_event(n, NVME_AER_TYPE_SMART, aer_info, NVME_LOG_SMART_INFO);
+}
+
 static void nvme_clear_events(NvmeCtrl *n, uint8_t event_type)
 {
     n->aer_mask &= ~(1 << event_type);
@@ -3317,12 +3346,9 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
             return NVME_INVALID_FIELD | NVME_DNR;
         }
 
-        if (((n->temperature >= n->features.temp_thresh_hi) ||
-             (n->temperature <= n->features.temp_thresh_low)) &&
-            NVME_AEC_SMART(n->features.async_config) & NVME_SMART_TEMPERATURE) {
-            nvme_enqueue_event(n, NVME_AER_TYPE_SMART,
-                               NVME_AER_INFO_SMART_TEMP_THRESH,
-                               NVME_LOG_SMART_INFO);
+        if ((n->temperature >= n->features.temp_thresh_hi) ||
+            (n->temperature <= n->features.temp_thresh_low)) {
+            nvme_smart_event(n, NVME_AER_INFO_SMART_TEMP_THRESH);
         }
 
         break;
@@ -4446,7 +4472,7 @@ static void nvme_set_smart_warning(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     NvmeCtrl *n = NVME(obj);
-    uint8_t value, cap = 0;
+    uint8_t value, old_value, cap = 0, index, event;
 
     if (!visit_type_uint8(v, name, &value, errp)) {
         return;
@@ -4464,7 +4490,15 @@ static void nvme_set_smart_warning(Object *obj, Visitor *v, const char *name,
         return;
     }
 
+    old_value = n->smart_critical_warning;
     n->smart_critical_warning = value;
+
+    /* only inject new bits of smart critical warning */
+    for (index = 0; index < NVME_SMART_WARN_MAX; index++) {
+        event = 1 << index;
+        if (value & ~old_value & event)
+            nvme_smart_event(n, event);
+    }
 }
 
 static const VMStateDescription nvme_vmstate = {
