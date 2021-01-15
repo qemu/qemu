@@ -133,7 +133,7 @@ static void dsound_log_hresult (HRESULT hr)
         break;
 #endif
 #ifdef DSERR_GENERIC
-    case DSERR_GENERIC :
+    case DSERR_GENERIC:
         str = "An undetermined error occurred inside the DirectSound subsystem";
         break;
 #endif

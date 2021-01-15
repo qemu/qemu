@@ -277,7 +277,7 @@ static int qjack_process(jack_nframes_t nframes, void *arg)
         if (likely(c->enabled)) {
             qjack_buffer_read_l(&c->fifo, buffers, nframes);
         } else {
-            for(int i = 0; i < c->nchannels; ++i) {
+            for (int i = 0; i < c->nchannels; ++i) {
                 memset(buffers[i], 0, nframes * sizeof(float));
             }
         }

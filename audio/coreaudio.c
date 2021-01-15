@@ -270,7 +270,7 @@ static void coreaudio_logstatus (OSStatus status)
 {
     const char *str = "BUG";
 
-    switch(status) {
+    switch (status) {
     case kAudioHardwareNoError:
         str = "kAudioHardwareNoError";
         break;
