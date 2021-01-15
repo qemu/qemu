@@ -33,14 +33,12 @@
 
 #include <libfdt.h>
 
-bool riscv_is_32bit(RISCVHartArrayState harts)
+bool riscv_is_32bit(RISCVHartArrayState *harts)
 {
-    RISCVCPU hart = harts.harts[0];
-
-    return riscv_cpu_is_32bit(&hart.env);
+    return riscv_cpu_is_32bit(&harts->harts[0].env);
 }
 
-target_ulong riscv_calc_kernel_start_addr(RISCVHartArrayState harts,
+target_ulong riscv_calc_kernel_start_addr(RISCVHartArrayState *harts,
                                           target_ulong firmware_end_addr) {
     if (riscv_is_32bit(harts)) {
         return QEMU_ALIGN_UP(firmware_end_addr, 4 * MiB);
@@ -247,7 +245,7 @@ void riscv_rom_copy_firmware_info(MachineState *machine, hwaddr rom_base,
                            &address_space_memory);
 }
 
-void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState harts,
+void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts,
                                hwaddr start_addr,
                                hwaddr rom_base, hwaddr rom_size,
                                uint64_t kernel_entry,
