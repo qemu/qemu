@@ -95,6 +95,8 @@ struct NeXTPC {
     /* Temporary until all functionality has been moved into this device */
     NeXTState *ns;
 
+    M68kCPU *cpu;
+
     MemoryRegion mmiomem;
     MemoryRegion scrmem;
 
@@ -740,9 +742,9 @@ static const MemoryRegionOps dma_ops = {
  */
 static void next_irq(void *opaque, int number, int level)
 {
-    M68kCPU *cpu = opaque;
+    NeXTPC *s = NEXT_PC(opaque);
+    M68kCPU *cpu = s->cpu;
     int shift = 0;
-    NeXTState *ns = NEXT_MACHINE(qdev_get_machine());
 
     /* first switch sets interupt status */
     /* DPRINTF("IRQ %i\n",number); */
@@ -797,14 +799,14 @@ static void next_irq(void *opaque, int number, int level)
      * this HAS to be wrong, the interrupt handlers in mach and together
      * int_status and int_mask and return if there is a hit
      */
-    if (ns->int_mask & (1 << shift)) {
+    if (s->ns->int_mask & (1 << shift)) {
         DPRINTF("%x interrupt masked @ %x\n", 1 << shift, cpu->env.pc);
         /* return; */
     }
 
     /* second switch triggers the correct interrupt */
     if (level) {
-        ns->int_status |= 1 << shift;
+        s->ns->int_status |= 1 << shift;
 
         switch (number) {
         /* level 3 - floppy, kbd/mouse, power, ether rx/tx, scsi, clock */
@@ -833,7 +835,7 @@ static void next_irq(void *opaque, int number, int level)
             break;
         }
     } else {
-        ns->int_status &= ~(1 << shift);
+        s->ns->int_status &= ~(1 << shift);
         cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
     }
 }
@@ -848,9 +850,9 @@ static void next_serial_irq(void *opaque, int n, int level)
     }
 }
 
-static void next_escc_init(M68kCPU *cpu)
+static void next_escc_init(DeviceState *pcdev)
 {
-    qemu_irq *ser_irq = qemu_allocate_irqs(next_serial_irq, cpu, 2);
+    qemu_irq *ser_irq = qemu_allocate_irqs(next_serial_irq, pcdev, 2);
     DeviceState *dev;
     SysBusDevice *s;
 
@@ -894,6 +896,17 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->scrmem);
 }
 
+/*
+ * If the m68k CPU implemented its inbound irq lines as GPIO lines
+ * rather than via the m68k_set_irq_level() function we would not need
+ * this cpu link property and could instead provide outbound IRQ lines
+ * that the board could wire up to the CPU.
+ */
+static Property next_pc_properties[] = {
+    DEFINE_PROP_LINK("cpu", NeXTPC, cpu, TYPE_M68K_CPU, M68kCPU *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void next_pc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -901,6 +914,7 @@ static void next_pc_class_init(ObjectClass *klass, void *data)
     dc->desc = "NeXT Peripheral Controller";
     dc->realize = next_pc_realize;
     dc->reset = next_pc_reset;
+    device_class_set_props(dc, next_pc_properties);
     /* We will add the VMState in a later commit */
 }
 
@@ -939,6 +953,7 @@ static void next_cube_init(MachineState *machine)
 
     /* Peripheral Controller */
     pcdev = qdev_new(TYPE_NEXT_PC);
+    object_property_set_link(OBJECT(pcdev), "cpu", OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(pcdev), &error_fatal);
     /* Temporary while we refactor this code */
     NEXT_PC(pcdev)->ns = ns;
@@ -997,7 +1012,7 @@ static void next_cube_init(MachineState *machine)
     }
 
     /* Serial */
-    next_escc_init(cpu);
+    next_escc_init(pcdev);
 
     /* TODO: */
     /* Network */
