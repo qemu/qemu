@@ -502,9 +502,9 @@ static int coroutine_fn v9fs_mark_fids_unreclaim(V9fsPDU *pdu, V9fsPath *path)
 {
     int err;
     V9fsState *s = pdu->s;
-    V9fsFidState *fidp, head_fid;
+    V9fsFidState *fidp;
 
-    head_fid.next = s->fid_list;
+again:
     for (fidp = s->fid_list; fidp; fidp = fidp->next) {
         if (fidp->path.size != path->size) {
             continue;
@@ -524,7 +524,7 @@ static int coroutine_fn v9fs_mark_fids_unreclaim(V9fsPDU *pdu, V9fsPath *path)
              * switched to the worker thread
              */
             if (err == 0) {
-                fidp = &head_fid;
+                goto again;
             }
         }
     }
