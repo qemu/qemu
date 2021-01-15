@@ -2490,6 +2490,7 @@ static uint16_t nvme_smart_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
     }
 
     trans_len = MIN(sizeof(smart) - off, buf_len);
+    smart.critical_warning = n->smart_critical_warning;
 
     smart.data_units_read[0] = cpu_to_le64(DIV_ROUND_UP(stats.units_read,
                                                         1000));
@@ -4432,6 +4433,40 @@ static Property nvme_props[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void nvme_get_smart_warning(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    NvmeCtrl *n = NVME(obj);
+    uint8_t value = n->smart_critical_warning;
+
+    visit_type_uint8(v, name, &value, errp);
+}
+
+static void nvme_set_smart_warning(Object *obj, Visitor *v, const char *name,
+                                   void *opaque, Error **errp)
+{
+    NvmeCtrl *n = NVME(obj);
+    uint8_t value, cap = 0;
+
+    if (!visit_type_uint8(v, name, &value, errp)) {
+        return;
+    }
+
+    cap = NVME_SMART_SPARE | NVME_SMART_TEMPERATURE | NVME_SMART_RELIABILITY
+          | NVME_SMART_MEDIA_READ_ONLY | NVME_SMART_FAILED_VOLATILE_MEDIA;
+    if (NVME_CAP_PMR(n->bar.cap)) {
+        cap |= NVME_SMART_PMR_UNRELIABLE;
+    }
+
+    if ((value & cap) != value) {
+        error_setg(errp, "unsupported smart critical warning bits: 0x%x",
+                   value & ~cap);
+        return;
+    }
+
+    n->smart_critical_warning = value;
+}
+
 static const VMStateDescription nvme_vmstate = {
     .name = "nvme",
     .unmigratable = 1,
@@ -4455,13 +4490,17 @@ static void nvme_class_init(ObjectClass *oc, void *data)
 
 static void nvme_instance_init(Object *obj)
 {
-    NvmeCtrl *s = NVME(obj);
+    NvmeCtrl *n = NVME(obj);
 
-    if (s->namespace.blkconf.blk) {
-        device_add_bootindex_property(obj, &s->namespace.blkconf.bootindex,
+    if (n->namespace.blkconf.blk) {
+        device_add_bootindex_property(obj, &n->namespace.blkconf.bootindex,
                                       "bootindex", "/namespace@1,0",
                                       DEVICE(obj));
     }
+
+    object_property_add(obj, "smart_critical_warning", "uint8",
+                        nvme_get_smart_warning,
+                        nvme_set_smart_warning, NULL, NULL);
 }
 
 static const TypeInfo nvme_info = {
