@@ -215,7 +215,7 @@ static void dsound_log_hresult (HRESULT hr)
         break;
 #endif
     default:
-        AUD_log (AUDIO_CAP, "Reason: Unknown (HRESULT %#lx)\n", hr);
+        AUD_log (AUDIO_CAP, "Reason: Unknown (HRESULT 0x%lx)\n", hr);
         return;
     }
 
