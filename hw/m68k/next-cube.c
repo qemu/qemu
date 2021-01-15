@@ -76,8 +76,6 @@ struct NeXTState {
     uint32_t int_mask;
     uint32_t int_status;
 
-    uint8_t scsi_csr_1;
-    uint8_t scsi_csr_2;
     next_dma dma[10];
     qemu_irq *scsi_irq;
     qemu_irq scsi_dma;
@@ -98,9 +96,12 @@ struct NeXTPC {
     NeXTState *ns;
 
     MemoryRegion mmiomem;
+    MemoryRegion scrmem;
 
     uint32_t scr1;
     uint32_t scr2;
+    uint8_t scsi_csr_1;
+    uint8_t scsi_csr_2;
 };
 
 /* Thanks to NeXT forums for this */
@@ -403,7 +404,7 @@ static const MemoryRegionOps mmio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint32_t scr_readb(NeXTState *s, hwaddr addr)
+static uint32_t scr_readb(NeXTPC *s, hwaddr addr)
 {
     switch (addr) {
     case 0x14108:
@@ -437,13 +438,13 @@ static uint32_t scr_readb(NeXTState *s, hwaddr addr)
     }
 }
 
-static uint32_t scr_readw(NeXTState *s, hwaddr addr)
+static uint32_t scr_readw(NeXTPC *s, hwaddr addr)
 {
     DPRINTF("BMAP Read W @ %x\n", (unsigned int)addr);
     return 0;
 }
 
-static uint32_t scr_readl(NeXTState *s, hwaddr addr)
+static uint32_t scr_readl(NeXTPC *s, hwaddr addr)
 {
     DPRINTF("BMAP Read L @ %x\n", (unsigned int)addr);
     return 0;
@@ -456,7 +457,7 @@ static uint32_t scr_readl(NeXTState *s, hwaddr addr)
 #define SCSICSR_CPUDMA  0x10  /* if set, dma enabled */
 #define SCSICSR_INTMASK 0x20  /* if set, interrupt enabled */
 
-static void scr_writeb(NeXTState *s, hwaddr addr, uint32_t value)
+static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
 {
     switch (addr) {
     case 0x14108:
@@ -502,9 +503,9 @@ static void scr_writeb(NeXTState *s, hwaddr addr, uint32_t value)
             DPRINTF("SCSICSR CPUDMA\n");
             /* qemu_irq_raise(s->scsi_dma); */
 
-            s->int_status |= 0x4000000;
+            s->ns->int_status |= 0x4000000;
         } else {
-            s->int_status &= ~(0x4000000);
+            s->ns->int_status &= ~(0x4000000);
         }
         if (value & SCSICSR_INTMASK) {
             DPRINTF("SCSICSR INTMASK\n");
@@ -534,27 +535,27 @@ static void scr_writeb(NeXTState *s, hwaddr addr, uint32_t value)
     }
 }
 
-static void scr_writew(NeXTState *s, hwaddr addr, uint32_t value)
+static void scr_writew(NeXTPC *s, hwaddr addr, uint32_t value)
 {
     DPRINTF("BMAP Write W @ %x with %x\n", (unsigned int)addr, value);
 }
 
-static void scr_writel(NeXTState *s, hwaddr addr, uint32_t value)
+static void scr_writel(NeXTPC *s, hwaddr addr, uint32_t value)
 {
     DPRINTF("BMAP Write L @ %x with %x\n", (unsigned int)addr, value);
 }
 
 static uint64_t scr_readfn(void *opaque, hwaddr addr, unsigned size)
 {
-    NeXTState *ns = NEXT_MACHINE(opaque);
+    NeXTPC *s = NEXT_PC(opaque);
 
     switch (size) {
     case 1:
-        return scr_readb(ns, addr);
+        return scr_readb(s, addr);
     case 2:
-        return scr_readw(ns, addr);
+        return scr_readw(s, addr);
     case 4:
-        return scr_readl(ns, addr);
+        return scr_readl(s, addr);
     default:
         g_assert_not_reached();
     }
@@ -563,17 +564,17 @@ static uint64_t scr_readfn(void *opaque, hwaddr addr, unsigned size)
 static void scr_writefn(void *opaque, hwaddr addr, uint64_t value,
                         unsigned size)
 {
-    NeXTState *ns = NEXT_MACHINE(opaque);
+    NeXTPC *s = NEXT_PC(opaque);
 
     switch (size) {
     case 1:
-        scr_writeb(ns, addr, value);
+        scr_writeb(s, addr, value);
         break;
     case 2:
-        scr_writew(ns, addr, value);
+        scr_writew(s, addr, value);
         break;
     case 4:
-        scr_writel(ns, addr, value);
+        scr_writel(s, addr, value);
         break;
     default:
         g_assert_not_reached();
@@ -887,8 +888,10 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_io(&s->mmiomem, OBJECT(s), &mmio_ops, s,
                           "next.mmio", 0xD0000);
-
+    memory_region_init_io(&s->scrmem, OBJECT(s), &scr_ops, s,
+                          "next.scr", 0x20000);
     sysbus_init_mmio(sbd, &s->mmiomem);
+    sysbus_init_mmio(sbd, &s->scrmem);
 }
 
 static void next_pc_class_init(ObjectClass *klass, void *data)
@@ -913,7 +916,6 @@ static void next_cube_init(MachineState *machine)
     M68kCPU *cpu;
     CPUM68KState *env;
     MemoryRegion *rom = g_new(MemoryRegion, 1);
-    MemoryRegion *scrmem = g_new(MemoryRegion, 1);
     MemoryRegion *dmamem = g_new(MemoryRegion, 1);
     MemoryRegion *bmapm1 = g_new(MemoryRegion, 1);
     MemoryRegion *bmapm2 = g_new(MemoryRegion, 1);
@@ -957,6 +959,9 @@ static void next_cube_init(MachineState *machine)
     /* MMIO */
     sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 0, 0x02000000);
 
+    /* BMAP IO - acts as a catch-all for now */
+    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 1, 0x02100000);
+
     /* BMAP memory */
     memory_region_init_ram_shared_nomigrate(bmapm1, NULL, "next.bmapmem", 64,
                                             true, &error_fatal);
@@ -964,11 +969,6 @@ static void next_cube_init(MachineState *machine)
     /* The Rev_2.5_v66.bin firmware accesses it at 0x820c0020, too */
     memory_region_init_alias(bmapm2, NULL, "next.bmapmem2", bmapm1, 0x0, 64);
     memory_region_add_subregion(sysmem, 0x820c0000, bmapm2);
-
-    /* BMAP IO - acts as a catch-all for now */
-    memory_region_init_io(scrmem, NULL, &scr_ops, machine, "next.scr",
-                          0x20000);
-    memory_region_add_subregion(sysmem, 0x02100000, scrmem);
 
     /* KBD */
     dev = qdev_new(TYPE_NEXTKBD);
