@@ -74,10 +74,6 @@ struct NeXTState {
     MachineState parent;
 
     next_dma dma[10];
-    qemu_irq *scsi_irq;
-    qemu_irq scsi_dma;
-    qemu_irq scsi_reset;
-    qemu_irq *fd_irq;
 };
 
 #define TYPE_NEXT_PC "next-pc"
