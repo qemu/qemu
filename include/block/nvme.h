@@ -789,6 +789,7 @@ enum NvmeSmartWarn {
     NVME_SMART_RELIABILITY            = 1 << 2,
     NVME_SMART_MEDIA_READ_ONLY        = 1 << 3,
     NVME_SMART_FAILED_VOLATILE_MEDIA  = 1 << 4,
+    NVME_SMART_PMR_UNRELIABLE         = 1 << 5,
 };
 
 typedef struct NvmeEffectsLog {
