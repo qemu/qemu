@@ -78,8 +78,6 @@ struct NeXTState {
     qemu_irq scsi_dma;
     qemu_irq scsi_reset;
     qemu_irq *fd_irq;
-
-    NextRtc rtc;
 };
 
 #define TYPE_NEXT_PC "next-pc"
@@ -88,9 +86,6 @@ OBJECT_DECLARE_SIMPLE_TYPE(NeXTPC, NEXT_PC)
 /* NeXT Peripheral Controller */
 struct NeXTPC {
     SysBusDevice parent_obj;
-
-    /* Temporary until all functionality has been moved into this device */
-    NeXTState *ns;
 
     M68kCPU *cpu;
 
@@ -103,6 +98,8 @@ struct NeXTPC {
     uint8_t scsi_csr_2;
     uint32_t int_mask;
     uint32_t int_status;
+
+    NextRtc rtc;
 };
 
 /* Thanks to NeXT forums for this */
@@ -131,7 +128,7 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
     static int phase;
     static uint8_t old_scr2;
     uint8_t scr2_2;
-    NextRtc *rtc = &s->ns->rtc;
+    NextRtc *rtc = &s->rtc;
 
     if (size == 4) {
         scr2_2 = (val >> 8) & 0xFF;
@@ -865,6 +862,11 @@ static void next_pc_reset(DeviceState *dev)
     /*     0x0000XX00 << vital bits */
     s->scr1 = 0x00011102;
     s->scr2 = 0x00ff0c80;
+
+    s->rtc.status = 0x90;
+
+    /* Load RTC RAM - TODO: provide possibility to load contents from file */
+    memcpy(s->rtc.ram, rtc_ram2, 32);
 }
 
 static void next_pc_realize(DeviceState *dev, Error **errp)
@@ -921,7 +923,6 @@ static void next_cube_init(MachineState *machine)
     MemoryRegion *bmapm2 = g_new(MemoryRegion, 1);
     MemoryRegion *sysmem = get_system_memory();
     const char *bios_name = machine->firmware ?: ROM_FILE;
-    NeXTState *ns = NEXT_MACHINE(machine);
     DeviceState *dev;
     DeviceState *pcdev;
 
@@ -941,13 +942,6 @@ static void next_cube_init(MachineState *machine)
     pcdev = qdev_new(TYPE_NEXT_PC);
     object_property_set_link(OBJECT(pcdev), "cpu", OBJECT(cpu), &error_abort);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(pcdev), &error_fatal);
-    /* Temporary while we refactor this code */
-    NEXT_PC(pcdev)->ns = ns;
-
-    ns->rtc.status = 0x90;
-
-    /* Load RTC RAM - TODO: provide possibility to load contents from file */
-    memcpy(ns->rtc.ram, rtc_ram2, 32);
 
     /* 64MB RAM starting at 0x04000000  */
     memory_region_add_subregion(sysmem, 0x04000000, machine->ram);
