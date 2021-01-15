@@ -1,0 +1,27 @@
+# MIPS64 Release 6 instruction set
+#
+# Copyright (C) 2020  Philippe Mathieu-Daudé
+#
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Reference:
+#       MIPS Architecture for Programmers Volume II-A
+#       The MIPS64 Instruction Set Reference Manual, Revision 6.06
+#       (Document Number: MD00087-2B-MIPS64BIS-AFP-6.06)
+#
+
+&rtype              rs rt rd sa !extern
+
+&REMOVED            !extern
+
+@lsa                ...... rs:5 rt:5 rd:5 ... sa:2 ......   &rtype
+
+DLSA                000000 ..... ..... ..... 000 .. 010101  @lsa
+
+REMOVED             011010 ----- ----- ----------------     # LDL
+REMOVED             011011 ----- ----- ----------------     # LDR
+REMOVED             101100 ----- ----- ----------------     # SDL
+REMOVED             101101 ----- ----- ----------------     # SDR
+
+REMOVED             110100 ----- ----- ----------------     # LLD
+REMOVED             111100 ----- ----- ----------------     # SCD

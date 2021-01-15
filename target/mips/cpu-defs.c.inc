@@ -72,7 +72,7 @@ const mips_def_t mips_defs[] =
         .CP0_Status_rw_bitmask = 0x1278FF17,
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_MIPS32,
+        .insn_flags = CPU_MIPS32R1,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -94,7 +94,7 @@ const mips_def_t mips_defs[] =
         .CP0_Status_rw_bitmask = 0x1258FF17,
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_MIPS32 | ASE_MIPS16,
+        .insn_flags = CPU_MIPS32R1 | ASE_MIPS16,
         .mmu_type = MMU_TYPE_FMT,
     },
     {
@@ -114,7 +114,7 @@ const mips_def_t mips_defs[] =
         .CP0_Status_rw_bitmask = 0x1278FF17,
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_MIPS32,
+        .insn_flags = CPU_MIPS32R1,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -134,7 +134,7 @@ const mips_def_t mips_defs[] =
         .CP0_Status_rw_bitmask = 0x1258FF17,
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_MIPS32 | ASE_MIPS16,
+        .insn_flags = CPU_MIPS32R1 | ASE_MIPS16,
         .mmu_type = MMU_TYPE_FMT,
     },
     {
@@ -408,7 +408,7 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 32,
         .PABITS = 40,
-        .insn_flags = CPU_MIPS32R5 | ASE_MSA,
+        .insn_flags = CPU_MIPS32R5,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -486,8 +486,8 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31 = (1 << FCR31_ABS2008) | (1 << FCR31_NAN2008),
         .SEGBITS = 32,
         .PABITS = 32,
-        .insn_flags = CPU_NANOMIPS32 | ASE_DSP | ASE_DSP_R2 | ASE_DSP_R3 |
-                      ASE_MT,
+        .insn_flags = CPU_MIPS32R6 | ISA_NANOMIPS32 |
+                      ASE_DSP | ASE_DSP_R2 | ASE_DSP_R3 | ASE_MT,
         .mmu_type = MMU_TYPE_R4000,
     },
 #if defined(TARGET_MIPS64)
@@ -495,7 +495,8 @@ const mips_def_t mips_defs[] =
         .name = "R4000",
         .CP0_PRid = 0x00000400,
         /* No L2 cache, icache size 8k, dcache size 8k, uncached coherency. */
-        .CP0_Config0 = (1 << 17) | (0x1 << 9) | (0x1 << 6) | (0x2 << CP0C0_K0),
+        .CP0_Config0 = (2 << CP0C0_Impl) | (1 << CP0C0_IC) | (1 << CP0C0_DC) |
+                       (2 << CP0C0_K0),
         /* Note: Config1 is only used internally, the R4000 has only Config0. */
         .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
         .CP0_LLAddr_rw_bitmask = 0xFFFFFFFF,
@@ -516,7 +517,8 @@ const mips_def_t mips_defs[] =
         .name = "VR5432",
         .CP0_PRid = 0x00005400,
         /* No L2 cache, icache size 8k, dcache size 8k, uncached coherency. */
-        .CP0_Config0 = (1 << 17) | (0x1 << 9) | (0x1 << 6) | (0x2 << CP0C0_K0),
+        .CP0_Config0 = (2 << CP0C0_Impl) | (1 << CP0C0_IC) | (1 << CP0C0_DC) |
+                       (2 << CP0C0_K0),
         .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
         .CP0_LLAddr_rw_bitmask = 0xFFFFFFFFL,
         .CP0_LLAddr_shift = 4,
@@ -529,7 +531,7 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 40,
         .PABITS = 32,
-        .insn_flags = CPU_VR54XX,
+        .insn_flags = CPU_MIPS4 | INSN_VR54XX,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -550,7 +552,7 @@ const mips_def_t mips_defs[] =
         .CP0_Status_rw_bitmask = 0x12F8FFFF,
         .SEGBITS = 42,
         .PABITS = 36,
-        .insn_flags = CPU_MIPS64,
+        .insn_flags = CPU_MIPS64R1,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -576,7 +578,7 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 42,
         .PABITS = 36,
-        .insn_flags = CPU_MIPS64,
+        .insn_flags = CPU_MIPS64R1,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -605,7 +607,7 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 40,
         .PABITS = 36,
-        .insn_flags = CPU_MIPS64 | ASE_MIPS3D,
+        .insn_flags = CPU_MIPS64R1 | ASE_MIPS3D,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -719,7 +721,7 @@ const mips_def_t mips_defs[] =
         .MSAIR = 0x03 << MSAIR_ProcID,
         .SEGBITS = 48,
         .PABITS = 48,
-        .insn_flags = CPU_MIPS64R6 | ASE_MSA,
+        .insn_flags = CPU_MIPS64R6,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -759,15 +761,15 @@ const mips_def_t mips_defs[] =
         .MSAIR = 0x03 << MSAIR_ProcID,
         .SEGBITS = 48,
         .PABITS = 48,
-        .insn_flags = CPU_MIPS64R6 | ASE_MSA,
+        .insn_flags = CPU_MIPS64R6,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
         .name = "Loongson-2E",
         .CP0_PRid = 0x6302,
         /* 64KB I-cache and d-cache. 4 way with 32 bit cache line size.  */
-        .CP0_Config0 = (0x1<<17) | (0x1<<16) | (0x1<<11) | (0x1<<8) |
-                       (0x1<<5) | (0x1<<4) | (0x1<<1),
+        .CP0_Config0 = (3 << CP0C0_Impl) | (4 << CP0C0_IC) | (4 << CP0C0_DC) |
+                       (1 << CP0C0_IB) | (1 << CP0C0_DB) | (0x2 << CP0C0_K0),
         /* Note: Config1 is only used internally,
            Loongson-2E has only Config0.  */
         .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
@@ -779,15 +781,15 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 40,
         .PABITS = 40,
-        .insn_flags = CPU_LOONGSON2E,
+        .insn_flags = CPU_MIPS3 | INSN_LOONGSON2E,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
         .name = "Loongson-2F",
         .CP0_PRid = 0x6303,
         /* 64KB I-cache and d-cache. 4 way with 32 bit cache line size.  */
-        .CP0_Config0 = (0x1<<17) | (0x1<<16) | (0x1<<11) | (0x1<<8) |
-                       (0x1<<5) | (0x1<<4) | (0x1<<1),
+        .CP0_Config0 = (3 << CP0C0_Impl) | (4 << CP0C0_IC) | (4 << CP0C0_DC) |
+                       (1 << CP0C0_IB) | (1 << CP0C0_DB) | (0x2 << CP0C0_K0),
         /* Note: Config1 is only used internally,
            Loongson-2F has only Config0.  */
         .CP0_Config1 = (1 << CP0C1_FP) | (47 << CP0C1_MMU),
@@ -799,7 +801,7 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 40,
         .PABITS = 40,
-        .insn_flags = CPU_LOONGSON2F,
+        .insn_flags = CPU_MIPS3 | INSN_LOONGSON2F | ASE_LMMI,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -828,7 +830,8 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 42,
         .PABITS = 48,
-        .insn_flags = CPU_LOONGSON3A,
+        .insn_flags = CPU_MIPS64R2 | INSN_LOONGSON3A |
+                      ASE_LMMI | ASE_LEXT,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -885,7 +888,8 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .SEGBITS = 48,
         .PABITS = 48,
-        .insn_flags = CPU_LOONGSON3A | ASE_MSA,
+        .insn_flags = CPU_MIPS64R2 | INSN_LOONGSON3A |
+                      ASE_LMMI | ASE_LEXT,
         .mmu_type = MMU_TYPE_R4000,
     },
     {
@@ -931,54 +935,6 @@ void mips_cpu_list(void)
     }
 }
 
-#ifndef CONFIG_USER_ONLY
-static void no_mmu_init (CPUMIPSState *env, const mips_def_t *def)
-{
-    env->tlb->nb_tlb = 1;
-    env->tlb->map_address = &no_mmu_map_address;
-}
-
-static void fixed_mmu_init (CPUMIPSState *env, const mips_def_t *def)
-{
-    env->tlb->nb_tlb = 1;
-    env->tlb->map_address = &fixed_mmu_map_address;
-}
-
-static void r4k_mmu_init (CPUMIPSState *env, const mips_def_t *def)
-{
-    env->tlb->nb_tlb = 1 + ((def->CP0_Config1 >> CP0C1_MMU) & 63);
-    env->tlb->map_address = &r4k_map_address;
-    env->tlb->helper_tlbwi = r4k_helper_tlbwi;
-    env->tlb->helper_tlbwr = r4k_helper_tlbwr;
-    env->tlb->helper_tlbp = r4k_helper_tlbp;
-    env->tlb->helper_tlbr = r4k_helper_tlbr;
-    env->tlb->helper_tlbinv = r4k_helper_tlbinv;
-    env->tlb->helper_tlbinvf = r4k_helper_tlbinvf;
-}
-
-static void mmu_init (CPUMIPSState *env, const mips_def_t *def)
-{
-    env->tlb = g_malloc0(sizeof(CPUMIPSTLBContext));
-
-    switch (def->mmu_type) {
-        case MMU_TYPE_NONE:
-            no_mmu_init(env, def);
-            break;
-        case MMU_TYPE_R4000:
-            r4k_mmu_init(env, def);
-            break;
-        case MMU_TYPE_FMT:
-            fixed_mmu_init(env, def);
-            break;
-        case MMU_TYPE_R3000:
-        case MMU_TYPE_R6000:
-        case MMU_TYPE_R8000:
-        default:
-            cpu_abort(env_cpu(env), "MMU type not supported\n");
-    }
-}
-#endif /* CONFIG_USER_ONLY */
-
 static void fpu_init (CPUMIPSState *env, const mips_def_t *def)
 {
     int i;
@@ -1018,34 +974,4 @@ static void mvp_init(CPUMIPSState *env)
     env->mvp->CP0_MVPConf1 = (1U << CP0MVPC1_CIM) | (1 << CP0MVPC1_CIF) |
                              (0x0 << CP0MVPC1_PCX) | (0x0 << CP0MVPC1_PCP2) |
                              (0x1 << CP0MVPC1_PCP1);
-}
-
-static void msa_reset(CPUMIPSState *env)
-{
-#ifdef CONFIG_USER_ONLY
-    /* MSA access enabled */
-    env->CP0_Config5 |= 1 << CP0C5_MSAEn;
-    env->CP0_Status |= (1 << CP0St_CU1) | (1 << CP0St_FR);
-#endif
-
-    /* MSA CSR:
-       - non-signaling floating point exception mode off (NX bit is 0)
-       - Cause, Enables, and Flags are all 0
-       - round to nearest / ties to even (RM bits are 0) */
-    env->active_tc.msacsr = 0;
-
-    restore_msa_fp_status(env);
-
-    /* tininess detected after rounding.*/
-    set_float_detect_tininess(float_tininess_after_rounding,
-                              &env->active_tc.msa_fp_status);
-
-    /* clear float_status exception flags */
-    set_float_exception_flags(0, &env->active_tc.msa_fp_status);
-
-    /* clear float_status nan mode */
-    set_default_nan_mode(0, &env->active_tc.msa_fp_status);
-
-    /* set proper signanling bit meaning ("1" means "quiet") */
-    set_snan_bit_is_one(0, &env->active_tc.msa_fp_status);
 }

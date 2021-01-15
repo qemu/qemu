@@ -527,7 +527,7 @@ void helper_mtc0_index(CPUMIPSState *env, target_ulong arg1)
     uint32_t index_p = env->CP0_Index & 0x80000000;
     uint32_t tlb_index = arg1 & 0x7fffffff;
     if (tlb_index < env->tlb->nb_tlb) {
-        if (env->insn_flags & ISA_MIPS32R6) {
+        if (env->insn_flags & ISA_MIPS_R6) {
             index_p |= arg1 & 0x80000000;
         }
         env->CP0_Index = index_p | tlb_index;
@@ -960,7 +960,7 @@ void helper_mtc0_pwfield(CPUMIPSState *env, target_ulong arg1)
     uint32_t old_ptei = (env->CP0_PWField >> CP0PF_PTEI) & 0x3FULL;
     uint32_t new_ptei = (arg1 >> CP0PF_PTEI) & 0x3FULL;
 
-    if ((env->insn_flags & ISA_MIPS32R6)) {
+    if ((env->insn_flags & ISA_MIPS_R6)) {
         if (((arg1 >> CP0PF_BDI) & 0x3FULL) < 12) {
             mask &= ~(0x3FULL << CP0PF_BDI);
         }
@@ -980,7 +980,7 @@ void helper_mtc0_pwfield(CPUMIPSState *env, target_ulong arg1)
     env->CP0_PWField = arg1 & mask;
 
     if ((new_ptei >= 32) ||
-            ((env->insn_flags & ISA_MIPS32R6) &&
+            ((env->insn_flags & ISA_MIPS_R6) &&
                     (new_ptei == 0 || new_ptei == 1))) {
         env->CP0_PWField = (env->CP0_PWField & ~0x3FULL) |
                 (old_ptei << CP0PF_PTEI);
@@ -990,7 +990,7 @@ void helper_mtc0_pwfield(CPUMIPSState *env, target_ulong arg1)
     uint32_t old_ptew = (env->CP0_PWField >> CP0PF_PTEW) & 0x3F;
     uint32_t new_ptew = (arg1 >> CP0PF_PTEW) & 0x3F;
 
-    if ((env->insn_flags & ISA_MIPS32R6)) {
+    if ((env->insn_flags & ISA_MIPS_R6)) {
         if (((arg1 >> CP0PF_GDW) & 0x3F) < 12) {
             mask &= ~(0x3F << CP0PF_GDW);
         }
@@ -1007,7 +1007,7 @@ void helper_mtc0_pwfield(CPUMIPSState *env, target_ulong arg1)
     env->CP0_PWField = arg1 & mask;
 
     if ((new_ptew >= 32) ||
-            ((env->insn_flags & ISA_MIPS32R6) &&
+            ((env->insn_flags & ISA_MIPS_R6) &&
                     (new_ptew == 0 || new_ptew == 1))) {
         env->CP0_PWField = (env->CP0_PWField & ~0x3F) |
                 (old_ptew << CP0PF_PTEW);
@@ -1026,7 +1026,7 @@ void helper_mtc0_pwsize(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_wired(CPUMIPSState *env, target_ulong arg1)
 {
-    if (env->insn_flags & ISA_MIPS32R6) {
+    if (env->insn_flags & ISA_MIPS_R6) {
         if (arg1 < env->tlb->nb_tlb) {
             env->CP0_Wired = arg1;
         }
@@ -1075,10 +1075,10 @@ void helper_mtc0_hwrena(CPUMIPSState *env, target_ulong arg1)
     uint32_t mask = 0x0000000F;
 
     if ((env->CP0_Config1 & (1 << CP0C1_PC)) &&
-        (env->insn_flags & ISA_MIPS32R6)) {
+        (env->insn_flags & ISA_MIPS_R6)) {
         mask |= (1 << 4);
     }
-    if (env->insn_flags & ISA_MIPS32R6) {
+    if (env->insn_flags & ISA_MIPS_R6) {
         mask |= (1 << 5);
     }
     if (env->CP0_Config3 & (1 << CP0C3_ULRI)) {
@@ -1149,7 +1149,7 @@ void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
 
     /* 1k pages not implemented */
 #if defined(TARGET_MIPS64)
-    if (env->insn_flags & ISA_MIPS32R6) {
+    if (env->insn_flags & ISA_MIPS_R6) {
         int entryhi_r = extract64(arg1, 62, 2);
         int config0_at = extract32(env->CP0_Config0, 13, 2);
         bool no_supervisor = (env->CP0_Status_rw_bitmask & 0x8) == 0;

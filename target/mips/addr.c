@@ -40,6 +40,16 @@ uint64_t cpu_mips_kvm_um_phys_to_kseg0(void *opaque, uint64_t addr)
     return addr | 0x40000000ll;
 }
 
+uint64_t cpu_mips_kseg1_to_phys(void *opaque, uint64_t addr)
+{
+    return addr & 0x1fffffffll;
+}
+
+uint64_t cpu_mips_phys_to_kseg1(void *opaque, uint64_t addr)
+{
+    return (addr & 0x1fffffffll) | 0xffffffffa0000000ll;
+}
+
 bool mips_um_ksegs_enabled(void)
 {
     return mips_um_ksegs;

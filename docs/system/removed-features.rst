@@ -120,6 +120,11 @@ mips ``r4k`` platform (removed in 5.2)
 This machine type was very old and unmaintained. Users should use the ``malta``
 machine type instead.
 
+mips ``fulong2e`` machine alias (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''
+
+This machine has been renamed ``fuloong2e``.
+
 Related binaries
 ----------------
 

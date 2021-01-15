@@ -383,7 +383,6 @@ static void mips_fuloong2e_init(MachineState *machine)
 static void mips_fuloong2e_machine_init(MachineClass *mc)
 {
     mc->desc = "Fuloong 2e mini pc";
-    mc->alias = "fulong2e";             /* Incorrect name used up to QEMU 4.2 */
     mc->init = mips_fuloong2e_init;
     mc->block_default_type = IF_IDE;
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("Loongson-2E");

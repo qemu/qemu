@@ -27,6 +27,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "fpu/softfloat.h"
+#include "fpu_helper.h"
 
 
 /* Complex FPU operations which may need stack space. */
@@ -145,7 +146,7 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
         }
         break;
     case 25:
-        if ((env->insn_flags & ISA_MIPS32R6) || (arg1 & 0xffffff00)) {
+        if ((env->insn_flags & ISA_MIPS_R6) || (arg1 & 0xffffff00)) {
             return;
         }
         env->active_fpu.fcr31 = (env->active_fpu.fcr31 & 0x017fffff) |
@@ -172,7 +173,7 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
                (env->active_fpu.fcr31 & ~(env->active_fpu.fcr31_rw_bitmask));
         break;
     default:
-        if (env->insn_flags & ISA_MIPS32R6) {
+        if (env->insn_flags & ISA_MIPS_R6) {
             do_raise_exception(env, EXCP_RI, GETPC());
         }
         return;
