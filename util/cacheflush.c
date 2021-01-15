@@ -32,7 +32,7 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
  * We want to save the whole contents of CTR_EL0, so that we
  * have more than the linesize, but also IDC and DIC.
  */
-static unsigned int save_ctr_el0;
+static uint64_t save_ctr_el0;
 static void __attribute__((constructor)) init_ctr_el0(void)
 {
     asm volatile("mrs\t%0, ctr_el0" : "=r"(save_ctr_el0));
@@ -46,9 +46,9 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
     const unsigned CTR_IDC = 1u << 28;
     const unsigned CTR_DIC = 1u << 29;
-    const unsigned int ctr_el0 = save_ctr_el0;
-    const uintptr_t icache_lsize = 4 << extract32(ctr_el0, 0, 4);
-    const uintptr_t dcache_lsize = 4 << extract32(ctr_el0, 16, 4);
+    const uint64_t ctr_el0 = save_ctr_el0;
+    const uintptr_t icache_lsize = 4 << extract64(ctr_el0, 0, 4);
+    const uintptr_t dcache_lsize = 4 << extract64(ctr_el0, 16, 4);
     uintptr_t p;
 
     /*
