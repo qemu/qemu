@@ -724,7 +724,7 @@ static const MemoryRegionOps dma_ops = {
  * TODO: set the shift numbers as values in the enum, so the first switch
  * will not be needed
  */
-void next_irq(void *opaque, int number, int level)
+static void next_irq(void *opaque, int number, int level)
 {
     M68kCPU *cpu = opaque;
     int shift = 0;

@@ -42,6 +42,4 @@ enum next_irqs {
     NEXT_SND_I
 };
 
-void next_irq(void *opaque, int number, int level);
-
 #endif /* NEXT_CUBE_H */
