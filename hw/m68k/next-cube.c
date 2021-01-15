@@ -73,9 +73,6 @@ typedef struct NextRtc {
 struct NeXTState {
     MachineState parent;
 
-    uint32_t int_mask;
-    uint32_t int_status;
-
     next_dma dma[10];
     qemu_irq *scsi_irq;
     qemu_irq scsi_dma;
@@ -104,6 +101,8 @@ struct NeXTPC {
     uint32_t scr2;
     uint8_t scsi_csr_1;
     uint8_t scsi_csr_2;
+    uint32_t int_mask;
+    uint32_t int_status;
 };
 
 /* Thanks to NeXT forums for this */
@@ -244,7 +243,7 @@ static void nextscr2_write(NeXTPC *s, uint32_t val, int size)
                     /* clear FTU */
                     if (rtc->value & 0x04) {
                         rtc->status = rtc->status & (~0x18);
-                        s->ns->int_status = s->ns->int_status & (~0x04);
+                        s->int_status = s->int_status & (~0x04);
                     }
                 }
             }
@@ -303,12 +302,12 @@ static uint32_t mmio_readl(NeXTPC *s, hwaddr addr)
 {
     switch (addr) {
     case 0x7000:
-        /* DPRINTF("Read INT status: %x\n", s->ns->int_status); */
-        return s->ns->int_status;
+        /* DPRINTF("Read INT status: %x\n", s->int_status); */
+        return s->int_status;
 
     case 0x7800:
-        DPRINTF("MMIO Read INT mask: %x\n", s->ns->int_mask);
-        return s->ns->int_mask;
+        DPRINTF("MMIO Read INT mask: %x\n", s->int_mask);
+        return s->int_mask;
 
     case 0xc000:
         return s->scr1;
@@ -343,12 +342,12 @@ static void mmio_writel(NeXTPC *s, hwaddr addr, uint32_t val)
 {
     switch (addr) {
     case 0x7000:
-        DPRINTF("INT Status old: %x new: %x\n", s->ns->int_status, val);
-        s->ns->int_status = val;
+        DPRINTF("INT Status old: %x new: %x\n", s->int_status, val);
+        s->int_status = val;
         break;
     case 0x7800:
-        DPRINTF("INT Mask old: %x new: %x\n", s->ns->int_mask, val);
-        s->ns->int_mask  = val;
+        DPRINTF("INT Mask old: %x new: %x\n", s->int_mask, val);
+        s->int_mask  = val;
         break;
     case 0xc000:
         DPRINTF("SCR1 Write: %x\n", val);
@@ -505,9 +504,9 @@ static void scr_writeb(NeXTPC *s, hwaddr addr, uint32_t value)
             DPRINTF("SCSICSR CPUDMA\n");
             /* qemu_irq_raise(s->scsi_dma); */
 
-            s->ns->int_status |= 0x4000000;
+            s->int_status |= 0x4000000;
         } else {
-            s->ns->int_status &= ~(0x4000000);
+            s->int_status &= ~(0x4000000);
         }
         if (value & SCSICSR_INTMASK) {
             DPRINTF("SCSICSR INTMASK\n");
@@ -799,14 +798,14 @@ static void next_irq(void *opaque, int number, int level)
      * this HAS to be wrong, the interrupt handlers in mach and together
      * int_status and int_mask and return if there is a hit
      */
-    if (s->ns->int_mask & (1 << shift)) {
+    if (s->int_mask & (1 << shift)) {
         DPRINTF("%x interrupt masked @ %x\n", 1 << shift, cpu->env.pc);
         /* return; */
     }
 
     /* second switch triggers the correct interrupt */
     if (level) {
-        s->ns->int_status |= 1 << shift;
+        s->int_status |= 1 << shift;
 
         switch (number) {
         /* level 3 - floppy, kbd/mouse, power, ether rx/tx, scsi, clock */
@@ -835,7 +834,7 @@ static void next_irq(void *opaque, int number, int level)
             break;
         }
     } else {
-        s->ns->int_status &= ~(1 << shift);
+        s->int_status &= ~(1 << shift);
         cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
     }
 }
