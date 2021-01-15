@@ -250,7 +250,7 @@ void tpm_util_wait_for_migration_complete(QTestState *who)
         status = qdict_get_str(rsp_return, "status");
         completed = strcmp(status, "completed") == 0;
         g_assert_cmpstr(status, !=,  "failed");
-        qobject_unref(rsp_return);
+        qobject_unref(rsp);
         if (completed) {
             return;
         }
