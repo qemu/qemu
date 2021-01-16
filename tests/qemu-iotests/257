@@ -192,6 +192,7 @@ def blockdev_backup(vm, device, target, sync, **kwargs):
                         target=target,
                         sync=sync,
                         filter_node_name='backup-top',
+                        x_perf={'max-workers': 1},
                         **kwargs)
     return result
 
