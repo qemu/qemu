@@ -723,7 +723,7 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
 }
 
 int coroutine_fn block_copy(BlockCopyState *s, int64_t start, int64_t bytes,
-                            bool ignore_ratelimit, bool *error_is_read)
+                            bool ignore_ratelimit)
 {
     BlockCopyCallState call_state = {
         .s = s,
@@ -733,13 +733,7 @@ int coroutine_fn block_copy(BlockCopyState *s, int64_t start, int64_t bytes,
         .max_workers = BLOCK_COPY_MAX_WORKERS,
     };
 
-    int ret = block_copy_common(&call_state);
-
-    if (error_is_read && ret < 0) {
-        *error_is_read = call_state.error_is_read;
-    }
-
-    return ret;
+    return block_copy_common(&call_state);
 }
 
 static void coroutine_fn block_copy_async_co_entry(void *opaque)

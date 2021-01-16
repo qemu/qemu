@@ -35,7 +35,7 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
                                      int64_t offset, int64_t *count);
 
 int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
-                            bool ignore_ratelimit, bool *error_is_read);
+                            bool ignore_ratelimit);
 
 /*
  * Run block-copy in a coroutine, create corresponding BlockCopyCallState
