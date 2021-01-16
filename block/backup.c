@@ -72,7 +72,7 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
 
     trace_backup_do_cow_enter(job, start, offset, bytes);
 
-    ret = block_copy(job->bcs, start, end - start, error_is_read);
+    ret = block_copy(job->bcs, start, end - start, true, error_is_read);
 
     trace_backup_do_cow_return(job, offset, bytes, ret);
 

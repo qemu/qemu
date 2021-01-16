@@ -41,7 +41,7 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
                                      int64_t offset, int64_t *count);
 
 int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
-                            bool *error_is_read);
+                            bool ignore_ratelimit, bool *error_is_read);
 
 /*
  * Run block-copy in a coroutine, create corresponding BlockCopyCallState
@@ -75,6 +75,9 @@ bool block_copy_call_finished(BlockCopyCallState *call_state);
 bool block_copy_call_succeeded(BlockCopyCallState *call_state);
 bool block_copy_call_failed(BlockCopyCallState *call_state);
 int block_copy_call_status(BlockCopyCallState *call_state, bool *error_is_read);
+
+void block_copy_set_speed(BlockCopyState *s, uint64_t speed);
+void block_copy_kick(BlockCopyCallState *call_state);
 
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s);
 void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip);
