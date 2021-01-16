@@ -272,6 +272,8 @@ struct RISCVCPU {
     CPUNegativeOffsetState neg;
     CPURISCVState env;
 
+    char *dyn_csr_xml;
+
     /* Configuration Settings */
     struct {
         bool ext_i;

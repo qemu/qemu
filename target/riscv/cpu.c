@@ -569,6 +569,17 @@ static gchar *riscv_gdb_arch_name(CPUState *cs)
     }
 }
 
+static const char *riscv_gdb_get_dynamic_xml(CPUState *cs, const char *xmlname)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+
+    if (strcmp(xmlname, "riscv-csr.xml") == 0) {
+        return cpu->dyn_csr_xml;
+    }
+
+    return NULL;
+}
+
 static void riscv_cpu_class_init(ObjectClass *c, void *data)
 {
     RISCVCPUClass *mcc = RISCV_CPU_CLASS(c);
@@ -605,6 +616,7 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
     cc->vmsd = &vmstate_riscv_cpu;
 #endif
     cc->gdb_arch_name = riscv_gdb_arch_name;
+    cc->gdb_get_dynamic_xml = riscv_gdb_get_dynamic_xml;
 #ifdef CONFIG_TCG
     cc->tcg_initialize = riscv_translate_init;
     cc->tlb_fill = riscv_cpu_tlb_fill;
