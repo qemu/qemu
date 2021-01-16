@@ -10,22 +10,22 @@ incompatible_features     []
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 incompatible_features     [3]
 
-=== Testing zlib with incompatible bit set  ===
+=== Testing zlib with incompatible bit set ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 incompatible_features     [3]
 
-=== Testing zstd with incompatible bit unset  ===
+=== Testing zstd with incompatible bit unset ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 incompatible_features     []
 
-=== Testing compression type values  ===
+=== Testing compression type values ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-   0
+0
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-   1
+1
 
 === Testing simple reading and writing with zstd ===
 
