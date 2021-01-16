@@ -49,9 +49,15 @@ int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
  *
  * Caller is responsible to call block_copy_call_free() to free
  * BlockCopyCallState object.
+ *
+ * @max_workers means maximum of parallel coroutines to execute sub-requests,
+ * must be > 0.
+ *
+ * @max_chunk means maximum length for one IO operation. Zero means unlimited.
  */
 BlockCopyCallState *block_copy_async(BlockCopyState *s,
                                      int64_t offset, int64_t bytes,
+                                     int max_workers, int64_t max_chunk,
                                      BlockCopyAsyncCallbackFunc cb,
                                      void *cb_opaque);
 
