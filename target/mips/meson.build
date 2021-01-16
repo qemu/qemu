@@ -31,10 +31,10 @@ mips_softmmu_ss.add(files(
   'addr.c',
   'cp0_timer.c',
   'machine.c',
-  'mips-semi.c',
 ))
 mips_softmmu_ss.add(when: 'CONFIG_TCG', if_true: files(
   'cp0_helper.c',
+  'mips-semi.c',
 ))
 
 mips_ss.add_all(when: 'CONFIG_TCG', if_true: [mips_tcg_ss])
