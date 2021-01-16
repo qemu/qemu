@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw
 #
 # Test FUSE exports (in ways that are not captured by the generic
 # tests)

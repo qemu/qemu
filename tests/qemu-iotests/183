@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw migration quick
 #
 # Test old-style block migration (migrate -b)
 #

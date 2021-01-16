@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# group: auto quick
 #
 # Test shutdown when bitmap is exported through NBD server
 #

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# group: quick
 
 # Test hot plugging and unplugging with iothreads
 #
