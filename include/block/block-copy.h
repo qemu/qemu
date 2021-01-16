@@ -19,7 +19,9 @@
 #include "qemu/co-shared-resource.h"
 
 typedef void (*ProgressBytesCallbackFunc)(int64_t bytes, void *opaque);
+typedef void (*BlockCopyAsyncCallbackFunc)(void *opaque);
 typedef struct BlockCopyState BlockCopyState;
+typedef struct BlockCopyCallState BlockCopyCallState;
 
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      int64_t cluster_size, bool use_copy_range,
@@ -40,6 +42,33 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
 
 int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
                             bool *error_is_read);
+
+/*
+ * Run block-copy in a coroutine, create corresponding BlockCopyCallState
+ * object and return pointer to it. Never returns NULL.
+ *
+ * Caller is responsible to call block_copy_call_free() to free
+ * BlockCopyCallState object.
+ */
+BlockCopyCallState *block_copy_async(BlockCopyState *s,
+                                     int64_t offset, int64_t bytes,
+                                     BlockCopyAsyncCallbackFunc cb,
+                                     void *cb_opaque);
+
+/*
+ * Free finished BlockCopyCallState. Trying to free running
+ * block-copy will crash.
+ */
+void block_copy_call_free(BlockCopyCallState *call_state);
+
+/*
+ * Note, that block-copy call is marked finished prior to calling
+ * the callback.
+ */
+bool block_copy_call_finished(BlockCopyCallState *call_state);
+bool block_copy_call_succeeded(BlockCopyCallState *call_state);
+bool block_copy_call_failed(BlockCopyCallState *call_state);
+int block_copy_call_status(BlockCopyCallState *call_state, bool *error_is_read);
 
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s);
 void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip);
