@@ -1377,7 +1377,7 @@
 # Optional parameters for backup. These parameters don't affect
 # functionality, but may significantly affect performance.
 #
-# @use-copy-range: Use copy offloading. Default true.
+# @use-copy-range: Use copy offloading. Default false.
 #
 # @max-workers: Maximum number of parallel requests for the sustained background
 #               copying process. Doesn't influence copy-before-write operations.
