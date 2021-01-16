@@ -454,7 +454,9 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
         t->call_state->error_is_read = error_is_read;
     } else {
         progress_work_done(t->s->progress, t->bytes);
-        t->s->progress_bytes_callback(t->bytes, t->s->progress_opaque);
+        if (t->s->progress_bytes_callback) {
+            t->s->progress_bytes_callback(t->bytes, t->s->progress_opaque);
+        }
     }
     co_put_to_shres(t->s->mem, t->bytes);
     block_copy_task_end(t, ret);
