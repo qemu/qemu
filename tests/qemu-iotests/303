@@ -56,7 +56,7 @@ qemu_img_create('-f', iotests.imgfmt, disk, '10M')
 
 add_bitmap(1, 0, 6, False)
 add_bitmap(2, 6, 8, True)
-dump = ['qcow2.py', disk, 'dump-header']
+dump = ['./qcow2.py', disk, 'dump-header']
 subprocess.run(dump)
 # Dump the metadata in JSON format
 dump.append('-j')
