@@ -46,6 +46,7 @@ typedef struct BackupBlockJob {
     uint64_t len;
     uint64_t bytes_read;
     int64_t cluster_size;
+    BackupPerf perf;
 
     BlockCopyState *bcs;
 } BackupBlockJob;
@@ -335,6 +336,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   BitmapSyncMode bitmap_mode,
                   bool compress,
                   const char *filter_node_name,
+                  BackupPerf *perf,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   int creation_flags,
@@ -441,7 +443,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   (compress ? BDRV_REQ_WRITE_COMPRESSED : 0),
 
     backup_top = bdrv_backup_top_append(bs, target, filter_node_name,
-                                        cluster_size, write_flags, &bcs, errp);
+                                        cluster_size, perf,
+                                        write_flags, &bcs, errp);
     if (!backup_top) {
         goto error;
     }
@@ -464,6 +467,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     job->bcs = bcs;
     job->cluster_size = cluster_size;
     job->len = len;
+    job->perf = *perf;
 
     block_copy_set_progress_callback(bcs, backup_progress_bytes_callback, job);
     block_copy_set_progress_meter(bcs, &job->common.job.progress);
