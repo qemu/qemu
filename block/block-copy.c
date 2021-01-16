@@ -30,7 +30,15 @@
 static coroutine_fn int block_copy_task_entry(AioTask *task);
 
 typedef struct BlockCopyCallState {
+    /* IN parameters */
+    BlockCopyState *s;
+    int64_t offset;
+    int64_t bytes;
+
+    /* State */
     bool failed;
+
+    /* OUT parameters */
     bool error_is_read;
 } BlockCopyCallState;
 
@@ -544,15 +552,17 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
  * Returns 1 if dirty clusters found and successfully copied, 0 if no dirty
  * clusters found and -errno on failure.
  */
-static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
-                                                  int64_t offset, int64_t bytes,
-                                                  bool *error_is_read)
+static int coroutine_fn
+block_copy_dirty_clusters(BlockCopyCallState *call_state)
 {
+    BlockCopyState *s = call_state->s;
+    int64_t offset = call_state->offset;
+    int64_t bytes = call_state->bytes;
+
     int ret = 0;
     bool found_dirty = false;
     int64_t end = offset + bytes;
     AioTaskPool *aio = NULL;
-    BlockCopyCallState call_state = {false, false};
 
     /*
      * block_copy() user is responsible for keeping source and target in same
@@ -568,7 +578,7 @@ static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
         BlockCopyTask *task;
         int64_t status_bytes;
 
-        task = block_copy_task_create(s, &call_state, offset, bytes);
+        task = block_copy_task_create(s, call_state, offset, bytes);
         if (!task) {
             /* No more dirty bits in the bitmap */
             trace_block_copy_skip_range(s, offset, bytes);
@@ -633,15 +643,12 @@ out:
 
         aio_task_pool_free(aio);
     }
-    if (error_is_read && ret < 0) {
-        *error_is_read = call_state.error_is_read;
-    }
 
     return ret < 0 ? ret : found_dirty;
 }
 
 /*
- * block_copy
+ * block_copy_common
  *
  * Copy requested region, accordingly to dirty bitmap.
  * Collaborate with parallel block_copy requests: if they succeed it will help
@@ -649,16 +656,16 @@ out:
  * it means that some I/O operation failed in context of _this_ block_copy call,
  * not some parallel operation.
  */
-int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
-                            bool *error_is_read)
+static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
 {
     int ret;
 
     do {
-        ret = block_copy_dirty_clusters(s, offset, bytes, error_is_read);
+        ret = block_copy_dirty_clusters(call_state);
 
         if (ret == 0) {
-            ret = block_copy_wait_one(s, offset, bytes);
+            ret = block_copy_wait_one(call_state->s, call_state->offset,
+                                      call_state->bytes);
         }
 
         /*
@@ -671,6 +678,24 @@ int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
          *    It may have failed and produced new dirty bits.
          */
     } while (ret > 0);
+
+    return ret;
+}
+
+int coroutine_fn block_copy(BlockCopyState *s, int64_t start, int64_t bytes,
+                            bool *error_is_read)
+{
+    BlockCopyCallState call_state = {
+        .s = s,
+        .offset = start,
+        .bytes = bytes,
+    };
+
+    int ret = block_copy_common(&call_state);
+
+    if (error_is_read && ret < 0) {
+        *error_is_read = call_state.error_is_read;
+    }
 
     return ret;
 }
