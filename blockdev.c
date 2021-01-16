@@ -2829,7 +2829,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
 {
     BlockJob *job = NULL;
     BdrvDirtyBitmap *bmap = NULL;
-    BackupPerf perf = { .use_copy_range = true };
+    BackupPerf perf = { .use_copy_range = true, .max_workers = 64 };
     int job_flags = JOB_DEFAULT;
 
     if (!backup->has_speed) {
@@ -2857,6 +2857,12 @@ static BlockJob *do_backup_common(BackupCommon *backup,
     if (backup->x_perf) {
         if (backup->x_perf->has_use_copy_range) {
             perf.use_copy_range = backup->x_perf->use_copy_range;
+        }
+        if (backup->x_perf->has_max_workers) {
+            perf.max_workers = backup->x_perf->max_workers;
+        }
+        if (backup->x_perf->has_max_chunk) {
+            perf.max_chunk = backup->x_perf->max_chunk;
         }
     }
 

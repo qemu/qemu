@@ -388,6 +388,29 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         return NULL;
     }
 
+    cluster_size = backup_calculate_cluster_size(target, errp);
+    if (cluster_size < 0) {
+        goto error;
+    }
+
+    if (perf->max_workers < 1) {
+        error_setg(errp, "max-workers must be greater than zero");
+        return NULL;
+    }
+
+    if (perf->max_chunk < 0) {
+        error_setg(errp, "max-chunk must be zero (which means no limit) or "
+                   "positive");
+        return NULL;
+    }
+
+    if (perf->max_chunk && perf->max_chunk < cluster_size) {
+        error_setg(errp, "Required max-chunk (%" PRIi64 ") is less than backup "
+                   "cluster size (%" PRIi64 ")", perf->max_chunk, cluster_size);
+        return NULL;
+    }
+
+
     if (sync_bitmap) {
         /* If we need to write to this bitmap, check that we can: */
         if (bitmap_mode != BITMAP_SYNC_MODE_NEVER &&
@@ -417,11 +440,6 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
 
     if (target_len != len) {
         error_setg(errp, "Source and target image have different sizes");
-        goto error;
-    }
-
-    cluster_size = backup_calculate_cluster_size(target, errp);
-    if (cluster_size < 0) {
         goto error;
     }
 
