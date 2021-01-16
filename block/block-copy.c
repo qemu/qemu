@@ -42,6 +42,9 @@ typedef struct BlockCopyCallState {
     /* Coroutine where async block-copy is running */
     Coroutine *co;
 
+    /* To reference all call states from BlockCopyState */
+    QLIST_ENTRY(BlockCopyCallState) list;
+
     /* State */
     int ret;
     bool finished;
@@ -81,7 +84,8 @@ typedef struct BlockCopyState {
     bool use_copy_range;
     int64_t copy_size;
     uint64_t len;
-    QLIST_HEAD(, BlockCopyTask) tasks;
+    QLIST_HEAD(, BlockCopyTask) tasks; /* All tasks from all block-copy calls */
+    QLIST_HEAD(, BlockCopyCallState) calls;
 
     BdrvRequestFlags write_flags;
 
@@ -282,6 +286,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
     }
 
     QLIST_INIT(&s->tasks);
+    QLIST_INIT(&s->calls);
 
     return s;
 }
@@ -669,6 +674,8 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
 {
     int ret;
 
+    QLIST_INSERT_HEAD(&call_state->s->calls, call_state, list);
+
     do {
         ret = block_copy_dirty_clusters(call_state);
 
@@ -693,6 +700,8 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
     if (call_state->cb) {
         call_state->cb(call_state->cb_opaque);
     }
+
+    QLIST_REMOVE(call_state, list);
 
     return ret;
 }
