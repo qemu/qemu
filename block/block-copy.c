@@ -51,6 +51,7 @@ typedef struct BlockCopyCallState {
     int ret;
     bool finished;
     QemuCoSleepState *sleep_state;
+    bool cancelled;
 
     /* OUT parameters */
     bool error_is_read;
@@ -594,7 +595,7 @@ block_copy_dirty_clusters(BlockCopyCallState *call_state)
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
     assert(QEMU_IS_ALIGNED(bytes, s->cluster_size));
 
-    while (bytes && aio_task_pool_status(aio) == 0) {
+    while (bytes && aio_task_pool_status(aio) == 0 && !call_state->cancelled) {
         BlockCopyTask *task;
         int64_t status_bytes;
 
@@ -707,7 +708,7 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
     do {
         ret = block_copy_dirty_clusters(call_state);
 
-        if (ret == 0) {
+        if (ret == 0 && !call_state->cancelled) {
             ret = block_copy_wait_one(call_state->s, call_state->offset,
                                       call_state->bytes);
         }
@@ -721,7 +722,7 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
          * 2. We have waited for some intersecting block-copy request
          *    It may have failed and produced new dirty bits.
          */
-    } while (ret > 0);
+    } while (ret > 0 && !call_state->cancelled);
 
     call_state->finished = true;
 
@@ -801,12 +802,19 @@ bool block_copy_call_finished(BlockCopyCallState *call_state)
 
 bool block_copy_call_succeeded(BlockCopyCallState *call_state)
 {
-    return call_state->finished && call_state->ret == 0;
+    return call_state->finished && !call_state->cancelled &&
+        call_state->ret == 0;
 }
 
 bool block_copy_call_failed(BlockCopyCallState *call_state)
 {
-    return call_state->finished && call_state->ret < 0;
+    return call_state->finished && !call_state->cancelled &&
+        call_state->ret < 0;
+}
+
+bool block_copy_call_cancelled(BlockCopyCallState *call_state)
+{
+    return call_state->cancelled;
 }
 
 int block_copy_call_status(BlockCopyCallState *call_state, bool *error_is_read)
@@ -816,6 +824,12 @@ int block_copy_call_status(BlockCopyCallState *call_state, bool *error_is_read)
         *error_is_read = call_state->error_is_read;
     }
     return call_state->ret;
+}
+
+void block_copy_call_cancel(BlockCopyCallState *call_state)
+{
+    call_state->cancelled = true;
+    block_copy_kick(call_state);
 }
 
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s)

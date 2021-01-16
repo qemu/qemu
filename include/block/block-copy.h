@@ -74,10 +74,23 @@ void block_copy_call_free(BlockCopyCallState *call_state);
 bool block_copy_call_finished(BlockCopyCallState *call_state);
 bool block_copy_call_succeeded(BlockCopyCallState *call_state);
 bool block_copy_call_failed(BlockCopyCallState *call_state);
+bool block_copy_call_cancelled(BlockCopyCallState *call_state);
 int block_copy_call_status(BlockCopyCallState *call_state, bool *error_is_read);
 
 void block_copy_set_speed(BlockCopyState *s, uint64_t speed);
 void block_copy_kick(BlockCopyCallState *call_state);
+
+/*
+ * Cancel running block-copy call.
+ *
+ * Cancel leaves block-copy state valid: dirty bits are correct and you may use
+ * cancel + <run block_copy with same parameters> to emulate pause/resume.
+ *
+ * Note also, that the cancel is async: it only marks block-copy call to be
+ * cancelled. So, the call may be cancelled (block_copy_call_cancelled() reports
+ * true) but not yet finished (block_copy_call_finished() reports false).
+ */
+void block_copy_call_cancel(BlockCopyCallState *call_state);
 
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s);
 void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip);
