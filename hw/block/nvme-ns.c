@@ -205,7 +205,7 @@ static void nvme_ns_zoned_init_state(NvmeNamespace *ns)
     }
 }
 
-static void nvme_ns_init_zoned(NvmeCtrl *n, NvmeNamespace *ns, int lba_index)
+static void nvme_ns_init_zoned(NvmeNamespace *ns, int lba_index)
 {
     NvmeIdNsZoned *id_ns_z;
 
@@ -322,7 +322,7 @@ int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
         if (nvme_ns_zoned_check_calc_geometry(ns, errp) != 0) {
             return -1;
         }
-        nvme_ns_init_zoned(n, ns, 0);
+        nvme_ns_init_zoned(ns, 0);
     }
 
     if (nvme_register_namespace(n, ns, errp)) {
