@@ -301,7 +301,7 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
     return 0;
 }
 
-int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
+int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
 {
     if (nvme_ns_check_constraints(ns, errp)) {
         return -1;
@@ -353,7 +353,7 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
     NvmeCtrl *n = NVME(s->parent);
     Error *local_err = NULL;
 
-    if (nvme_ns_setup(n, ns, &local_err)) {
+    if (nvme_ns_setup(ns, &local_err)) {
         error_propagate_prepend(errp, local_err,
                                 "could not setup namespace: ");
         return;
