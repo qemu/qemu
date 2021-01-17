@@ -66,7 +66,7 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     return 0;
 }
 
-static int nvme_ns_init_blk(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
+static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
 {
     bool read_only;
 
@@ -307,7 +307,7 @@ int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
         return -1;
     }
 
-    if (nvme_ns_init_blk(n, ns, errp)) {
+    if (nvme_ns_init_blk(ns, errp)) {
         return -1;
     }
 
