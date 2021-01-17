@@ -121,7 +121,6 @@ typedef struct NvmeFeatureVal {
         uint16_t temp_thresh_low;
     };
     uint32_t    async_config;
-    uint32_t    vwc;
 } NvmeFeatureVal;
 
 typedef struct NvmeCtrl {

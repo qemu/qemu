@@ -3097,6 +3097,7 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
     NvmeGetFeatureSelect sel = NVME_GETFEAT_SELECT(dw10);
     uint16_t iv;
     NvmeNamespace *ns;
+    int i;
 
     static const uint32_t nvme_feature_default[NVME_FID_MAX] = {
         [NVME_ARBITRATION] = NVME_ARB_AB_NOLIMIT,
@@ -3172,7 +3173,17 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
         result = ns->features.err_rec;
         goto out;
     case NVME_VOLATILE_WRITE_CACHE:
-        result = n->features.vwc;
+        for (i = 1; i <= n->num_namespaces; i++) {
+            ns = nvme_ns(n, i);
+            if (!ns) {
+                continue;
+            }
+
+            result = blk_enable_write_cache(ns->blkconf.blk);
+            if (result) {
+                break;
+            }
+        }
         trace_pci_nvme_getfeat_vwcache(result ? "enabled" : "disabled");
         goto out;
     case NVME_ASYNCHRONOUS_EVENT_CONF:
@@ -3335,8 +3346,6 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
         ns->features.err_rec = dw11;
         break;
     case NVME_VOLATILE_WRITE_CACHE:
-        n->features.vwc = dw11 & 0x1;
-
         for (i = 1; i <= n->num_namespaces; i++) {
             ns = nvme_ns(n, i);
             if (!ns) {

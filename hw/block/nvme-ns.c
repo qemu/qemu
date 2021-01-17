@@ -90,10 +90,6 @@ static int nvme_ns_init_blk(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
         return -1;
     }
 
-    if (blk_enable_write_cache(ns->blkconf.blk)) {
-        n->features.vwc = 0x1;
-    }
-
     return 0;
 }
 
