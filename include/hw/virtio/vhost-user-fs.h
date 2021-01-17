@@ -39,6 +39,7 @@ struct VHostUserFS {
     VhostUserState vhost_user;
     VirtQueue **req_vqs;
     VirtQueue *hiprio_vq;
+    int32_t bootindex;
 
     /*< public >*/
 };

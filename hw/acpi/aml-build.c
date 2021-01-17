@@ -2076,7 +2076,9 @@ void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
                  tpm2_ptr, "TPM2", table_data->len - tpm2_start, 4, NULL, NULL);
 }
 
-Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
+Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
+               uint32_t mmio32_offset, uint64_t mmio64_offset,
+               uint16_t bus_nr_offset)
 {
     Aml *crs = aml_resource_template();
     CrsRangeSet temp_range_set;
@@ -2189,10 +2191,10 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
     for (i = 0; i < temp_range_set.io_ranges->len; i++) {
         entry = g_ptr_array_index(temp_range_set.io_ranges, i);
         aml_append(crs,
-                   aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
-                               AML_POS_DECODE, AML_ENTIRE_RANGE,
-                               0, entry->base, entry->limit, 0,
-                               entry->limit - entry->base + 1));
+                   aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                                AML_POS_DECODE, AML_ENTIRE_RANGE,
+                                0, entry->base, entry->limit, io_offset,
+                                entry->limit - entry->base + 1));
         crs_range_insert(range_set->io_ranges, entry->base, entry->limit);
     }
 
@@ -2205,7 +2207,7 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
                    aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
                                     AML_MAX_FIXED, AML_NON_CACHEABLE,
                                     AML_READ_WRITE,
-                                    0, entry->base, entry->limit, 0,
+                                    0, entry->base, entry->limit, mmio32_offset,
                                     entry->limit - entry->base + 1));
         crs_range_insert(range_set->mem_ranges, entry->base, entry->limit);
     }
@@ -2217,7 +2219,7 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
                    aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED,
                                     AML_MAX_FIXED, AML_NON_CACHEABLE,
                                     AML_READ_WRITE,
-                                    0, entry->base, entry->limit, 0,
+                                    0, entry->base, entry->limit, mmio64_offset,
                                     entry->limit - entry->base + 1));
         crs_range_insert(range_set->mem_64bit_ranges,
                          entry->base, entry->limit);
@@ -2230,7 +2232,7 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
                             0,
                             pci_bus_num(host->bus),
                             max_bus,
-                            0,
+                            bus_nr_offset,
                             max_bus - pci_bus_num(host->bus) + 1));
 
     return crs;

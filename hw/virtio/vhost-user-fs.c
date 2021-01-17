@@ -22,6 +22,7 @@
 #include "qemu/error-report.h"
 #include "hw/virtio/vhost-user-fs.h"
 #include "monitor/monitor.h"
+#include "sysemu/sysemu.h"
 
 static void vuf_get_config(VirtIODevice *vdev, uint8_t *config)
 {
@@ -279,6 +280,14 @@ static Property vuf_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void vuf_instance_init(Object *obj)
+{
+    VHostUserFS *fs = VHOST_USER_FS(obj);
+
+    device_add_bootindex_property(obj, &fs->bootindex, "bootindex",
+                                  "/filesystem@0", DEVICE(obj));
+}
+
 static void vuf_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -300,6 +309,7 @@ static const TypeInfo vuf_info = {
     .name = TYPE_VHOST_USER_FS,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VHostUserFS),
+    .instance_init = vuf_instance_init,
     .class_init = vuf_class_init,
 };
 
