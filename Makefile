@@ -250,19 +250,49 @@ find-src-path = find "$(SRC_PATH)/" -path "$(SRC_PATH)/meson" -prune -o \( -name
 
 .PHONY: ctags
 ctags:
-	rm -f "$(SRC_PATH)/"tags
-	$(find-src-path) -exec ctags -f "$(SRC_PATH)/"tags --append {} +
+	$(call quiet-command, 			\
+		rm -f "$(SRC_PATH)/"tags, 	\
+		"CTAGS", "Remove old tags")
+	$(call quiet-command, \
+		$(find-src-path) -exec ctags 		\
+		-f "$(SRC_PATH)/"tags --append {} +,	\
+		"CTAGS", "Re-index $(SRC_PATH)")
+
+.PHONY: gtags
+gtags:
+	$(call quiet-command, 			\
+		rm -f "$(SRC_PATH)/"GTAGS; 	\
+		rm -f "$(SRC_PATH)/"GRTAGS; 	\
+		rm -f "$(SRC_PATH)/"GPATH, 	\
+		"GTAGS", "Remove old $@ files")
+	$(call quiet-command, 				\
+	        (cd $(SRC_PATH) && 			\
+		 $(find-src-path) | gtags -f -), 	\
+		"GTAGS", "Re-index $(SRC_PATH)")
 
 .PHONY: TAGS
 TAGS:
-	rm -f "$(SRC_PATH)/"TAGS
-	$(find-src-path) -exec etags -f "$(SRC_PATH)/"TAGS --append {} +
+	$(call quiet-command, 			\
+		rm -f "$(SRC_PATH)/"TAGS,	\
+		"TAGS", "Remove old $@")
+	$(call quiet-command, 				\
+		$(find-src-path) -exec etags 		\
+		-f "$(SRC_PATH)/"TAGS --append {} +, 	\
+		"TAGS", "Re-index $(SRC_PATH)")
 
 .PHONY: cscope
 cscope:
-	rm -f "$(SRC_PATH)"/cscope.*
-	$(find-src-path) -print | sed -e 's,^\./,,' > "$(SRC_PATH)/cscope.files"
-	cscope -b -i"$(SRC_PATH)/cscope.files" -f"$(SRC_PATH)"/cscope.out
+	$(call quiet-command,			\
+		rm -f "$(SRC_PATH)/"cscope.* ,	\
+		"cscope", "Remove old $@ files")
+	$(call quiet-command, 					\
+		($(find-src-path) -print | sed -e 's,^\./,,'    \
+		> "$(SRC_PATH)/cscope.files"), 			\
+		"cscope", "Create file list")
+	$(call quiet-command, 				\
+		cscope -b -i"$(SRC_PATH)/cscope.files" 	\
+		-f"$(SRC_PATH)"/cscope.out, 		\
+		"cscope", "Re-index $(SRC_PATH)")
 
 # Needed by "meson install"
 export DESTDIR
@@ -279,7 +309,7 @@ help:
 	$(call print-help,all,Build all)
 	$(call print-help,dir/file.o,Build specified target only)
 	$(call print-help,install,Install QEMU, documentation and tools)
-	$(call print-help,ctags/TAGS,Generate tags file for editors)
+	$(call print-help,ctags/gtags/TAGS,Generate tags file for editors)
 	$(call print-help,cscope,Generate cscope index)
 	$(call print-help,sparse,Run sparse on the QEMU source)
 	@echo  ''

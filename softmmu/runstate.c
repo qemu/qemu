@@ -775,7 +775,7 @@ void qemu_init_subsystems(void)
 
 void qemu_cleanup(void)
 {
-    gdbserver_cleanup();
+    gdb_exit(0);
 
     /*
      * cleaning up the migration object cancels any existing migration

@@ -1,7 +1,7 @@
 #
 # Docker x86_64 target
 #
-# This docker target builds on the debian Stretch base image. Further
+# This docker target builds on the Debian Buster base image. Further
 # libraries which are not widely available are installed by hand.
 #
 FROM qemu/debian10
@@ -14,7 +14,10 @@ RUN apt update && \
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
     apt install -y --no-install-recommends \
+        cscope \
         genisoimage \
+        exuberant-ctags \
+        global \
         libbz2-dev \
         liblzo2-dev \
         libgcrypt20-dev \

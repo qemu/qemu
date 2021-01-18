@@ -79,7 +79,6 @@ build-system-ubuntu:
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
       moxie-softmmu microblazeel-softmmu mips64el-softmmu
     MAKE_CHECK_ARGS: check-build
-    CONFIGURE_ARGS: --enable-docs
   artifacts:
     expire_in: 2 days
     paths:
@@ -111,7 +110,6 @@ build-system-debian:
     TARGETS: arm-softmmu avr-softmmu i386-softmmu mipsel-softmmu
       riscv64-softmmu sh4eb-softmmu sparc-softmmu xtensaeb-softmmu
     MAKE_CHECK_ARGS: check-build
-    CONFIGURE_ARGS: --enable-docs
   artifacts:
     expire_in: 2 days
     paths:
@@ -125,6 +123,19 @@ check-system-debian:
   variables:
     IMAGE: debian-amd64
     MAKE_CHECK_ARGS: check
+
+# No targets are built here, just tools, docs, and unit tests. This
+# also feeds into the eventual documentation deployment steps later
+build-tools-and-docs-debian:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: debian-amd64
+    MAKE_CHECK_ARGS: check-unit check-softfloat ctags TAGS cscope
+    CONFIGURE_ARGS: --disable-system --disable-user --enable-docs --enable-tools
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - build
 
 acceptance-system-debian:
   <<: *native_test_job_definition
@@ -596,14 +607,21 @@ build-libvhost-user:
     - meson
     - ninja
 
+# Prepare for GitLab pages deployment. Anything copied into the
+# "public" directory will be deployed to $USER.gitlab.io/$PROJECT
 pages:
-  image: $CI_REGISTRY_IMAGE/qemu/ubuntu2004:latest
+  image: $CI_REGISTRY_IMAGE/qemu/debian-amd64:latest
   stage: test
   needs:
-    - job: build-system-ubuntu
-      artifacts: true
+    - job: build-tools-and-docs-debian
   script:
-    - mkdir public
+    - mkdir -p public
+    # HTML-ised source tree
+    - make gtags
+    - htags -anT --tree-view=filetree -m qemu_init
+        -t "Welcome to the QEMU sourcecode"
+    - mv HTML public/src
+    # Project documentation
     - mv build/docs/index.html public/
     - for i in devel interop specs system tools user ; do mv build/docs/$i public/ ; done
   artifacts:

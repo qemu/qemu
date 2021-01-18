@@ -119,15 +119,6 @@ after_script:
 
 jobs:
   include:
-    # Just build tools and run minimal unit and softfloat checks
-    - name: "GCC check-unit and check-softfloat"
-      env:
-        - BASE_CONFIG="--enable-tools"
-        - CONFIG="--disable-user --disable-system"
-        - TEST_CMD="make check-unit check-softfloat -j${JOBS}"
-        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
-
-
     # --enable-debug implies --enable-debug-tcg, also runs quite a bit slower
     - name: "GCC debug (main-softmmu)"
       env:
@@ -146,22 +137,6 @@ jobs:
       env:
         - CONFIG="--enable-modules --target-list=${MAIN_SOFTMMU_TARGETS}"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
-
-
-    # Check we can build docs and tools (out of tree)
-    - name: "tools and docs (bionic)"
-      dist: bionic
-      env:
-        - BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
-        - BASE_CONFIG="--enable-tools --enable-docs"
-        - CONFIG="--target-list=x86_64-softmmu,aarch64-linux-user"
-        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
-      addons:
-        apt:
-          packages:
-            - ninja-build
-            - python3-sphinx
-            - perl
 
 
     # Test with Clang for compile portability (Travis uses clang-5.0)
