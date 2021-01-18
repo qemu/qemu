@@ -68,7 +68,7 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
     def test_drive_mirror(self):
         self.do_test_stop("drive-mirror", device="drive0",
                           target=self.target_img, format=iotests.imgfmt,
-                          sync="full")
+                          sync="full", buf_size=65536)
 
     def test_drive_backup(self):
         self.do_test_stop("drive-backup", device="drive0",
