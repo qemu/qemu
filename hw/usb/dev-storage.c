@@ -613,8 +613,8 @@ static void usb_msd_storage_realize(USBDevice *dev, Error **errp)
         return;
     }
 
-    if (!blkconf_apply_backend_options(&s->conf, blk_is_read_only(blk), true,
-                                       errp)) {
+    if (!blkconf_apply_backend_options(&s->conf, !blk_supports_write_perm(blk),
+                                       true, errp)) {
         return;
     }
 

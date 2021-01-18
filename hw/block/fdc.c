@@ -444,7 +444,7 @@ static void fd_revalidate(FDrive *drv)
 
     FLOPPY_DPRINTF("revalidate\n");
     if (drv->blk != NULL) {
-        drv->ro = blk_is_read_only(drv->blk);
+        drv->ro = !blk_is_writable(drv->blk);
         if (!blk_is_inserted(drv->blk)) {
             FLOPPY_DPRINTF("No disk in drive\n");
             drv->disk = FLOPPY_DRIVE_TYPE_NONE;
@@ -479,8 +479,8 @@ static void fd_change_cb(void *opaque, bool load, Error **errp)
         blk_set_perm(drive->blk, 0, BLK_PERM_ALL, &error_abort);
     } else {
         if (!blkconf_apply_backend_options(drive->conf,
-                                           blk_is_read_only(drive->blk), false,
-                                           errp)) {
+                                           !blk_supports_write_perm(drive->blk),
+                                           false, errp)) {
             return;
         }
     }
@@ -553,7 +553,8 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
          * read-only node later */
         read_only = true;
     } else {
-        read_only = !blk_bs(dev->conf.blk) || blk_is_read_only(dev->conf.blk);
+        read_only = !blk_bs(dev->conf.blk) ||
+                    !blk_supports_write_perm(dev->conf.blk);
     }
 
     if (!blkconf_blocksizes(&dev->conf, errp)) {

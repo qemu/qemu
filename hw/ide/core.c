@@ -2537,7 +2537,7 @@ int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
             error_setg(errp, "Device needs media, but drive is empty");
             return -1;
         }
-        if (blk_is_read_only(blk)) {
+        if (!blk_is_writable(blk)) {
             error_setg(errp, "Can't use a read-only drive");
             return -1;
         }
