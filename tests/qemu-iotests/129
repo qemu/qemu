@@ -27,6 +27,7 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
     test_img = os.path.join(iotests.test_dir, 'test.img')
     target_img = os.path.join(iotests.test_dir, 'target.img')
     base_img = os.path.join(iotests.test_dir, 'base.img')
+    overlay_img = os.path.join(iotests.test_dir, 'overlay.img')
 
     def setUp(self):
         iotests.qemu_img('create', '-f', iotests.imgfmt, self.base_img, "1G")
@@ -37,6 +38,7 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
         self.vm.add_object('throttle-group,id=tg0,x-bps-total=1024')
 
         source_drive = 'driver=throttle,' \
+                       'node-name=source,' \
                        'throttle-group=tg0,' \
                        f'file.driver={iotests.imgfmt},' \
                        f'file.file.filename={self.test_img}'
@@ -46,7 +48,8 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
 
     def tearDown(self):
         self.vm.shutdown()
-        for img in (self.test_img, self.target_img, self.base_img):
+        for img in (self.test_img, self.target_img, self.base_img,
+                    self.overlay_img):
             iotests.try_remove(img)
 
     def do_test_stop(self, cmd, **args):
@@ -73,7 +76,27 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
                           sync="full")
 
     def test_block_commit(self):
-        self.do_test_stop("block-commit", device="drive0")
+        # Add overlay above the source node so that we actually use a
+        # commit job instead of a mirror job
+
+        iotests.qemu_img('create', '-f', iotests.imgfmt, self.overlay_img,
+                         '1G')
+
+        result = self.vm.qmp('blockdev-add', **{
+                                 'node-name': 'overlay',
+                                 'driver': iotests.imgfmt,
+                                 'file': {
+                                     'driver': 'file',
+                                     'filename': self.overlay_img
+                                 }
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-snapshot',
+                             node='source', overlay='overlay')
+        self.assert_qmp(result, 'return', {})
+
+        self.do_test_stop('block-commit', device='drive0', top_node='source')
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=["qcow2"],
