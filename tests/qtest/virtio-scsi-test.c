@@ -200,6 +200,32 @@ static void test_unaligned_write_same(void *obj, void *data,
     qvirtio_scsi_pci_free(vs);
 }
 
+static void test_write_to_cdrom(void *obj, void *data,
+                                QGuestAllocator *t_alloc)
+{
+    QVirtioSCSI *scsi = obj;
+    QVirtioSCSIQueues *vs;
+    uint8_t buf[2048] = { 0 };
+    const uint8_t write_cdb[VIRTIO_SCSI_CDB_SIZE] = {
+        /* WRITE(10) to LBA 0, transfer length 1 */
+        0x2a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00
+    };
+    struct virtio_scsi_cmd_resp resp;
+
+    alloc = t_alloc;
+    vs = qvirtio_scsi_init(scsi->vdev);
+
+    virtio_scsi_do_command(vs, write_cdb, NULL, 0, buf, 2048, &resp);
+    g_assert_cmphex(resp.response, ==, 0);
+    g_assert_cmphex(resp.status, ==, CHECK_CONDITION);
+    g_assert_cmphex(resp.sense[0], ==, 0x70);
+    g_assert_cmphex(resp.sense[2], ==, DATA_PROTECT);
+    g_assert_cmphex(resp.sense[12], ==, 0x27); /* WRITE PROTECTED */
+    g_assert_cmphex(resp.sense[13], ==, 0x00); /* WRITE PROTECTED */
+
+    qvirtio_scsi_pci_free(vs);
+}
+
 static void test_iothread_attach_node(void *obj, void *data,
                                       QGuestAllocator *t_alloc)
 {
@@ -267,6 +293,16 @@ static void *virtio_scsi_setup(GString *cmd_line, void *arg)
     return arg;
 }
 
+static void *virtio_scsi_setup_cd(GString *cmd_line, void *arg)
+{
+    g_string_append(cmd_line,
+                    " -drive file=null-co://,"
+                    "file.read-zeroes=on,"
+                    "if=none,id=dr1,format=raw "
+                    "-device scsi-cd,drive=dr1,lun=0,scsi-id=1");
+    return arg;
+}
+
 static void *virtio_scsi_setup_iothread(GString *cmd_line, void *arg)
 {
     g_string_append(cmd_line,
@@ -286,6 +322,9 @@ static void register_virtio_scsi_test(void)
     opts.before = virtio_scsi_setup;
     qos_add_test("unaligned-write-same", "virtio-scsi",
                  test_unaligned_write_same, &opts);
+
+    opts.before = virtio_scsi_setup_cd;
+    qos_add_test("write-to-cdrom", "virtio-scsi", test_write_to_cdrom, &opts);
 
     opts.before = virtio_scsi_setup_iothread;
     opts.edge = (QOSGraphEdgeOptions) {
