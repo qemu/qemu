@@ -3878,7 +3878,7 @@ static uint64_t nvme_mmio_read(void *opaque, hwaddr addr, unsigned size)
     uint8_t *ptr = (uint8_t *)&n->bar;
     uint64_t val = 0;
 
-    trace_pci_nvme_mmio_read(addr);
+    trace_pci_nvme_mmio_read(addr, size);
 
     if (unlikely(addr & (sizeof(uint32_t) - 1))) {
         NVME_GUEST_ERR(pci_nvme_ub_mmiord_misaligned32,
@@ -4042,7 +4042,7 @@ static void nvme_mmio_write(void *opaque, hwaddr addr, uint64_t data,
 {
     NvmeCtrl *n = (NvmeCtrl *)opaque;
 
-    trace_pci_nvme_mmio_write(addr, data);
+    trace_pci_nvme_mmio_write(addr, data, size);
 
     if (addr < sizeof(n->bar)) {
         nvme_write_bar(n, addr, data, size);
