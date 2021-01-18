@@ -272,6 +272,8 @@ struct RISCVCPU {
     CPUNegativeOffsetState neg;
     CPURISCVState env;
 
+    char *dyn_csr_xml;
+
     /* Configuration Settings */
     struct {
         bool ext_i;
@@ -472,11 +474,20 @@ typedef int (*riscv_csr_op_fn)(CPURISCVState *env, int csrno,
     target_ulong *ret_value, target_ulong new_value, target_ulong write_mask);
 
 typedef struct {
+    const char *name;
     riscv_csr_predicate_fn predicate;
     riscv_csr_read_fn read;
     riscv_csr_write_fn write;
     riscv_csr_op_fn op;
 } riscv_csr_operations;
+
+/* CSR function table constants */
+enum {
+    CSR_TABLE_SIZE = 0x1000
+};
+
+/* CSR function table */
+extern riscv_csr_operations csr_ops[];
 
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
 void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);

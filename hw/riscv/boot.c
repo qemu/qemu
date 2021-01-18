@@ -33,14 +33,12 @@
 
 #include <libfdt.h>
 
-bool riscv_is_32bit(RISCVHartArrayState harts)
+bool riscv_is_32bit(RISCVHartArrayState *harts)
 {
-    RISCVCPU hart = harts.harts[0];
-
-    return riscv_cpu_is_32bit(&hart.env);
+    return riscv_cpu_is_32bit(&harts->harts[0].env);
 }
 
-target_ulong riscv_calc_kernel_start_addr(RISCVHartArrayState harts,
+target_ulong riscv_calc_kernel_start_addr(RISCVHartArrayState *harts,
                                           target_ulong firmware_end_addr) {
     if (riscv_is_32bit(harts)) {
         return QEMU_ALIGN_UP(firmware_end_addr, 4 * MiB);
@@ -194,11 +192,11 @@ uint32_t riscv_load_fdt(hwaddr dram_base, uint64_t mem_size, void *fdt)
     /*
      * We should put fdt as far as possible to avoid kernel/initrd overwriting
      * its content. But it should be addressable by 32 bit system as well.
-     * Thus, put it at an aligned address that less than fdt size from end of
-     * dram or 4GB whichever is lesser.
+     * Thus, put it at an 16MB aligned address that less than fdt size from the
+     * end of dram or 3GB whichever is lesser.
      */
-    temp = MIN(dram_end, 4096 * MiB);
-    fdt_addr = QEMU_ALIGN_DOWN(temp - fdtsize, 2 * MiB);
+    temp = MIN(dram_end, 3072 * MiB);
+    fdt_addr = QEMU_ALIGN_DOWN(temp - fdtsize, 16 * MiB);
 
     fdt_pack(fdt);
     /* copy in the device tree */
@@ -247,7 +245,7 @@ void riscv_rom_copy_firmware_info(MachineState *machine, hwaddr rom_base,
                            &address_space_memory);
 }
 
-void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState harts,
+void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts,
                                hwaddr start_addr,
                                hwaddr rom_base, hwaddr rom_size,
                                uint64_t kernel_entry,

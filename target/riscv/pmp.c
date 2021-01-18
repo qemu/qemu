@@ -74,7 +74,7 @@ static inline int pmp_is_locked(CPURISCVState *env, uint32_t pmp_index)
 /*
  * Count the number of active rules.
  */
-static inline uint32_t pmp_get_num_rules(CPURISCVState *env)
+uint32_t pmp_get_num_rules(CPURISCVState *env)
 {
      return env->pmp_state.num_rules;
 }
@@ -237,7 +237,7 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
 
     /* Short cut if no rules */
     if (0 == pmp_get_num_rules(env)) {
-        return true;
+        return (env->priv == PRV_M) ? true : false;
     }
 
     if (size == 0) {

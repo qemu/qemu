@@ -63,8 +63,13 @@ static uint64_t sifive_u_otp_read(void *opaque, hwaddr addr, unsigned int size)
             if (s->blk) {
                 int32_t buf;
 
-                blk_pread(s->blk, s->pa * SIFIVE_U_OTP_FUSE_WORD, &buf,
-                          SIFIVE_U_OTP_FUSE_WORD);
+                if (blk_pread(s->blk, s->pa * SIFIVE_U_OTP_FUSE_WORD, &buf,
+                              SIFIVE_U_OTP_FUSE_WORD) < 0) {
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "read error index<%d>\n", s->pa);
+                    return 0xff;
+                }
+
                 return buf;
             }
 
@@ -161,8 +166,12 @@ static void sifive_u_otp_write(void *opaque, hwaddr addr,
 
             /* write to backend */
             if (s->blk) {
-                blk_pwrite(s->blk, s->pa * SIFIVE_U_OTP_FUSE_WORD,
-                           &s->fuse[s->pa], SIFIVE_U_OTP_FUSE_WORD, 0);
+                if (blk_pwrite(s->blk, s->pa * SIFIVE_U_OTP_FUSE_WORD,
+                               &s->fuse[s->pa], SIFIVE_U_OTP_FUSE_WORD,
+                               0) < 0) {
+                    qemu_log_mask(LOG_GUEST_ERROR,
+                                  "write error index<%d>\n", s->pa);
+                }
             }
 
             /* update written bit */
@@ -249,12 +258,18 @@ static void sifive_u_otp_reset(DeviceState *dev)
         int index = SIFIVE_U_OTP_SERIAL_ADDR;
 
         serial_data = s->serial;
-        blk_pwrite(s->blk, index * SIFIVE_U_OTP_FUSE_WORD,
-                   &serial_data, SIFIVE_U_OTP_FUSE_WORD, 0);
+        if (blk_pwrite(s->blk, index * SIFIVE_U_OTP_FUSE_WORD,
+                       &serial_data, SIFIVE_U_OTP_FUSE_WORD, 0) < 0) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "write error index<%d>\n", index);
+        }
 
         serial_data = ~(s->serial);
-        blk_pwrite(s->blk, (index + 1) * SIFIVE_U_OTP_FUSE_WORD,
-                   &serial_data, SIFIVE_U_OTP_FUSE_WORD, 0);
+        if (blk_pwrite(s->blk, (index + 1) * SIFIVE_U_OTP_FUSE_WORD,
+                       &serial_data, SIFIVE_U_OTP_FUSE_WORD, 0) < 0) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "write error index<%d>\n", index + 1);
+        }
     }
 
     /* Initialize write-once map */

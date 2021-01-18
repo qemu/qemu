@@ -466,7 +466,7 @@ static void sifive_u_machine_init(MachineState *machine)
 
     /* create device tree */
     create_fdt(s, memmap, machine->ram_size, machine->kernel_cmdline,
-               riscv_is_32bit(s->soc.u_cpus));
+               riscv_is_32bit(&s->soc.u_cpus));
 
     if (s->start_in_flash) {
         /*
@@ -495,7 +495,7 @@ static void sifive_u_machine_init(MachineState *machine)
         break;
     }
 
-    if (riscv_is_32bit(s->soc.u_cpus)) {
+    if (riscv_is_32bit(&s->soc.u_cpus)) {
         firmware_end_addr = riscv_find_and_load_firmware(machine,
                                     "opensbi-riscv32-generic-fw_dynamic.bin",
                                     start_addr, NULL);
@@ -506,7 +506,7 @@ static void sifive_u_machine_init(MachineState *machine)
     }
 
     if (machine->kernel_filename) {
-        kernel_start_addr = riscv_calc_kernel_start_addr(s->soc.u_cpus,
+        kernel_start_addr = riscv_calc_kernel_start_addr(&s->soc.u_cpus,
                                                          firmware_end_addr);
 
         kernel_entry = riscv_load_kernel(machine->kernel_filename,
@@ -533,7 +533,7 @@ static void sifive_u_machine_init(MachineState *machine)
     /* Compute the fdt load address in dram */
     fdt_load_addr = riscv_load_fdt(memmap[SIFIVE_U_DEV_DRAM].base,
                                    machine->ram_size, s->fdt);
-    if (!riscv_is_32bit(s->soc.u_cpus)) {
+    if (!riscv_is_32bit(&s->soc.u_cpus)) {
         start_addr_hi32 = (uint64_t)start_addr >> 32;
     }
 
@@ -552,7 +552,7 @@ static void sifive_u_machine_init(MachineState *machine)
         0x00000000,
                                        /* fw_dyn: */
     };
-    if (riscv_is_32bit(s->soc.u_cpus)) {
+    if (riscv_is_32bit(&s->soc.u_cpus)) {
         reset_vec[4] = 0x0202a583;     /*     lw     a1, 32(t0) */
         reset_vec[5] = 0x0182a283;     /*     lw     t0, 24(t0) */
     } else {
@@ -628,11 +628,7 @@ static void sifive_u_machine_class_init(ObjectClass *oc, void *data)
     mc->init = sifive_u_machine_init;
     mc->max_cpus = SIFIVE_U_MANAGEMENT_CPU_COUNT + SIFIVE_U_COMPUTE_CPU_COUNT;
     mc->min_cpus = SIFIVE_U_MANAGEMENT_CPU_COUNT + 1;
-#if defined(TARGET_RISCV32)
-    mc->default_cpu_type = TYPE_RISCV_CPU_SIFIVE_U34;
-#elif defined(TARGET_RISCV64)
-    mc->default_cpu_type = TYPE_RISCV_CPU_SIFIVE_U54;
-#endif
+    mc->default_cpu_type = SIFIVE_U_CPU;
     mc->default_cpus = mc->min_cpus;
 
     object_class_property_add_bool(oc, "start-in-flash",
