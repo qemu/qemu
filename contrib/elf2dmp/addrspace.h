@@ -10,9 +10,9 @@
 
 #include "qemu_elf.h"
 
-#define PAGE_BITS 12
-#define PAGE_SIZE (1ULL << PAGE_BITS)
-#define PFN_MASK (~(PAGE_SIZE - 1))
+#define ELF2DMP_PAGE_BITS 12
+#define ELF2DMP_PAGE_SIZE (1ULL << ELF2DMP_PAGE_BITS)
+#define ELF2DMP_PFN_MASK (~(ELF2DMP_PAGE_SIZE - 1))
 
 #define INVALID_PA  UINT64_MAX
 
