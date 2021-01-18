@@ -194,6 +194,13 @@ static void pl031_init(Object *obj)
     s->timer = timer_new_ns(rtc_clock, pl031_interrupt, s);
 }
 
+static void pl031_finalize(Object *obj)
+{
+    PL031State *s = PL031(obj);
+
+    timer_free(s->timer);
+}
+
 static int pl031_pre_save(void *opaque)
 {
     PL031State *s = opaque;
@@ -329,6 +336,7 @@ static const TypeInfo pl031_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL031State),
     .instance_init = pl031_init,
+    .instance_finalize = pl031_finalize,
     .class_init    = pl031_class_init,
 };
 
