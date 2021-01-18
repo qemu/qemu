@@ -279,7 +279,7 @@ struct V9fsFidState {
     int open_flags;
     uid_t uid;
     int ref;
-    int clunked;
+    bool clunked;
     V9fsFidState *next;
     V9fsFidState *rclm_lst;
 };

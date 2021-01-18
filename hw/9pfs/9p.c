@@ -413,7 +413,7 @@ static V9fsFidState *clunk_fid(V9fsState *s, int32_t fid)
     }
     fidp = *fidpp;
     *fidpp = fidp->next;
-    fidp->clunked = 1;
+    fidp->clunked = true;
     return fidp;
 }
 
@@ -544,7 +544,7 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
 
         /* Clunk fid */
         s->fid_list = fidp->next;
-        fidp->clunked = 1;
+        fidp->clunked = true;
 
         put_fid(pdu, fidp);
     }
