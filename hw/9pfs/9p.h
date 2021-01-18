@@ -280,7 +280,7 @@ struct V9fsFidState {
     uid_t uid;
     int ref;
     bool clunked;
-    V9fsFidState *next;
+    QSIMPLEQ_ENTRY(V9fsFidState) next;
     V9fsFidState *rclm_lst;
 };
 
@@ -339,7 +339,7 @@ typedef struct {
 struct V9fsState {
     QLIST_HEAD(, V9fsPDU) free_list;
     QLIST_HEAD(, V9fsPDU) active_list;
-    V9fsFidState *fid_list;
+    QSIMPLEQ_HEAD(, V9fsFidState) fid_list;
     FileOperations *ops;
     FsContext ctx;
     char *tag;
