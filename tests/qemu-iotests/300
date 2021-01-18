@@ -28,7 +28,6 @@ import qemu
 
 BlockBitmapMapping = List[Dict[str, Union[str, List[Dict[str, str]]]]]
 
-assert iotests.sock_dir is not None
 mig_sock = os.path.join(iotests.sock_dir, 'mig_sock')
 
 
