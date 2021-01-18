@@ -15,7 +15,7 @@
 #include "qemu/cutils.h"
 #include "../migration/xbzrle.h"
 
-#define PAGE_SIZE 4096
+#define XBZRLE_PAGE_SIZE 4096
 
 static void test_uleb(void)
 {
@@ -41,11 +41,11 @@ static void test_uleb(void)
 
 static void test_encode_decode_zero(void)
 {
-    uint8_t *buffer = g_malloc0(PAGE_SIZE);
-    uint8_t *compressed = g_malloc0(PAGE_SIZE);
+    uint8_t *buffer = g_malloc0(XBZRLE_PAGE_SIZE);
+    uint8_t *compressed = g_malloc0(XBZRLE_PAGE_SIZE);
     int i = 0;
     int dlen = 0;
-    int diff_len = g_test_rand_int_range(0, PAGE_SIZE - 1006);
+    int diff_len = g_test_rand_int_range(0, XBZRLE_PAGE_SIZE - 1006);
 
     for (i = diff_len; i > 0; i--) {
         buffer[1000 + i] = i;
@@ -55,8 +55,8 @@ static void test_encode_decode_zero(void)
     buffer[1000 + diff_len + 5] = 105;
 
     /* encode zero page */
-    dlen = xbzrle_encode_buffer(buffer, buffer, PAGE_SIZE, compressed,
-                       PAGE_SIZE);
+    dlen = xbzrle_encode_buffer(buffer, buffer, XBZRLE_PAGE_SIZE, compressed,
+                       XBZRLE_PAGE_SIZE);
     g_assert(dlen == 0);
 
     g_free(buffer);
@@ -65,11 +65,11 @@ static void test_encode_decode_zero(void)
 
 static void test_encode_decode_unchanged(void)
 {
-    uint8_t *compressed = g_malloc0(PAGE_SIZE);
-    uint8_t *test = g_malloc0(PAGE_SIZE);
+    uint8_t *compressed = g_malloc0(XBZRLE_PAGE_SIZE);
+    uint8_t *test = g_malloc0(XBZRLE_PAGE_SIZE);
     int i = 0;
     int dlen = 0;
-    int diff_len = g_test_rand_int_range(0, PAGE_SIZE - 1006);
+    int diff_len = g_test_rand_int_range(0, XBZRLE_PAGE_SIZE - 1006);
 
     for (i = diff_len; i > 0; i--) {
         test[1000 + i] = i + 4;
@@ -79,8 +79,8 @@ static void test_encode_decode_unchanged(void)
     test[1000 + diff_len + 5] = 109;
 
     /* test unchanged buffer */
-    dlen = xbzrle_encode_buffer(test, test, PAGE_SIZE, compressed,
-                                PAGE_SIZE);
+    dlen = xbzrle_encode_buffer(test, test, XBZRLE_PAGE_SIZE, compressed,
+                                XBZRLE_PAGE_SIZE);
     g_assert(dlen == 0);
 
     g_free(test);
@@ -89,21 +89,21 @@ static void test_encode_decode_unchanged(void)
 
 static void test_encode_decode_1_byte(void)
 {
-    uint8_t *buffer = g_malloc0(PAGE_SIZE);
-    uint8_t *test = g_malloc0(PAGE_SIZE);
-    uint8_t *compressed = g_malloc(PAGE_SIZE);
+    uint8_t *buffer = g_malloc0(XBZRLE_PAGE_SIZE);
+    uint8_t *test = g_malloc0(XBZRLE_PAGE_SIZE);
+    uint8_t *compressed = g_malloc(XBZRLE_PAGE_SIZE);
     int dlen = 0, rc = 0;
     uint8_t buf[2];
 
-    test[PAGE_SIZE - 1] = 1;
+    test[XBZRLE_PAGE_SIZE - 1] = 1;
 
-    dlen = xbzrle_encode_buffer(buffer, test, PAGE_SIZE, compressed,
-                       PAGE_SIZE);
+    dlen = xbzrle_encode_buffer(buffer, test, XBZRLE_PAGE_SIZE, compressed,
+                       XBZRLE_PAGE_SIZE);
     g_assert(dlen == (uleb128_encode_small(&buf[0], 4095) + 2));
 
-    rc = xbzrle_decode_buffer(compressed, dlen, buffer, PAGE_SIZE);
-    g_assert(rc == PAGE_SIZE);
-    g_assert(memcmp(test, buffer, PAGE_SIZE) == 0);
+    rc = xbzrle_decode_buffer(compressed, dlen, buffer, XBZRLE_PAGE_SIZE);
+    g_assert(rc == XBZRLE_PAGE_SIZE);
+    g_assert(memcmp(test, buffer, XBZRLE_PAGE_SIZE) == 0);
 
     g_free(buffer);
     g_free(compressed);
@@ -112,18 +112,18 @@ static void test_encode_decode_1_byte(void)
 
 static void test_encode_decode_overflow(void)
 {
-    uint8_t *compressed = g_malloc0(PAGE_SIZE);
-    uint8_t *test = g_malloc0(PAGE_SIZE);
-    uint8_t *buffer = g_malloc0(PAGE_SIZE);
+    uint8_t *compressed = g_malloc0(XBZRLE_PAGE_SIZE);
+    uint8_t *test = g_malloc0(XBZRLE_PAGE_SIZE);
+    uint8_t *buffer = g_malloc0(XBZRLE_PAGE_SIZE);
     int i = 0, rc = 0;
 
-    for (i = 0; i < PAGE_SIZE / 2 - 1; i++) {
+    for (i = 0; i < XBZRLE_PAGE_SIZE / 2 - 1; i++) {
         test[i * 2] = 1;
     }
 
     /* encode overflow */
-    rc = xbzrle_encode_buffer(buffer, test, PAGE_SIZE, compressed,
-                              PAGE_SIZE);
+    rc = xbzrle_encode_buffer(buffer, test, XBZRLE_PAGE_SIZE, compressed,
+                              XBZRLE_PAGE_SIZE);
     g_assert(rc == -1);
 
     g_free(buffer);
@@ -133,13 +133,13 @@ static void test_encode_decode_overflow(void)
 
 static void encode_decode_range(void)
 {
-    uint8_t *buffer = g_malloc0(PAGE_SIZE);
-    uint8_t *compressed = g_malloc(PAGE_SIZE);
-    uint8_t *test = g_malloc0(PAGE_SIZE);
+    uint8_t *buffer = g_malloc0(XBZRLE_PAGE_SIZE);
+    uint8_t *compressed = g_malloc(XBZRLE_PAGE_SIZE);
+    uint8_t *test = g_malloc0(XBZRLE_PAGE_SIZE);
     int i = 0, rc = 0;
     int dlen = 0;
 
-    int diff_len = g_test_rand_int_range(0, PAGE_SIZE - 1006);
+    int diff_len = g_test_rand_int_range(0, XBZRLE_PAGE_SIZE - 1006);
 
     for (i = diff_len; i > 0; i--) {
         buffer[1000 + i] = i;
@@ -153,12 +153,12 @@ static void encode_decode_range(void)
     test[1000 + diff_len + 5] = 109;
 
     /* test encode/decode */
-    dlen = xbzrle_encode_buffer(test, buffer, PAGE_SIZE, compressed,
-                                PAGE_SIZE);
+    dlen = xbzrle_encode_buffer(test, buffer, XBZRLE_PAGE_SIZE, compressed,
+                                XBZRLE_PAGE_SIZE);
 
-    rc = xbzrle_decode_buffer(compressed, dlen, test, PAGE_SIZE);
-    g_assert(rc < PAGE_SIZE);
-    g_assert(memcmp(test, buffer, PAGE_SIZE) == 0);
+    rc = xbzrle_decode_buffer(compressed, dlen, test, XBZRLE_PAGE_SIZE);
+    g_assert(rc < XBZRLE_PAGE_SIZE);
+    g_assert(memcmp(test, buffer, XBZRLE_PAGE_SIZE) == 0);
 
     g_free(buffer);
     g_free(compressed);

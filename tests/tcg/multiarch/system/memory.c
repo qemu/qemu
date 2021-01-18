@@ -20,12 +20,12 @@
 # error "Target does not specify CHECK_UNALIGNED"
 #endif
 
-#define PAGE_SIZE 4096             /* nominal 4k "pages" */
-#define TEST_SIZE (PAGE_SIZE * 4)  /* 4 pages */
+#define MEM_PAGE_SIZE 4096             /* nominal 4k "pages" */
+#define TEST_SIZE (MEM_PAGE_SIZE * 4)  /* 4 pages */
 
 #define ARRAY_SIZE(x) ((sizeof(x) / sizeof((x)[0])))
 
-__attribute__((aligned(PAGE_SIZE)))
+__attribute__((aligned(MEM_PAGE_SIZE)))
 static uint8_t test_data[TEST_SIZE];
 
 typedef void (*init_ufn) (int offset);

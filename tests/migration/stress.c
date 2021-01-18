@@ -27,7 +27,7 @@
 
 const char *argv0;
 
-#define PAGE_SIZE 4096
+#define RAM_PAGE_SIZE 4096
 
 #ifndef CONFIG_GETTID
 static int gettid(void)
@@ -158,11 +158,11 @@ static unsigned long long now(void)
 
 static void stressone(unsigned long long ramsizeMB)
 {
-    size_t pagesPerMB = 1024 * 1024 / PAGE_SIZE;
+    size_t pagesPerMB = 1024 * 1024 / RAM_PAGE_SIZE;
     g_autofree char *ram = g_malloc(ramsizeMB * 1024 * 1024);
     char *ramptr;
     size_t i, j, k;
-    g_autofree char *data = g_malloc(PAGE_SIZE);
+    g_autofree char *data = g_malloc(RAM_PAGE_SIZE);
     char *dataptr;
     size_t nMB = 0;
     unsigned long long before, after;
@@ -174,7 +174,7 @@ static void stressone(unsigned long long ramsizeMB)
      * calloc instead :-) */
     memset(ram, 0xfe, ramsizeMB * 1024 * 1024);
 
-    if (random_bytes(data, PAGE_SIZE) < 0) {
+    if (random_bytes(data, RAM_PAGE_SIZE) < 0) {
         return;
     }
 
@@ -186,7 +186,7 @@ static void stressone(unsigned long long ramsizeMB)
         for (i = 0; i < ramsizeMB; i++, nMB++) {
             for (j = 0; j < pagesPerMB; j++) {
                 dataptr = data;
-                for (k = 0; k < PAGE_SIZE; k += sizeof(long long)) {
+                for (k = 0; k < RAM_PAGE_SIZE; k += sizeof(long long)) {
                     ramptr += sizeof(long long);
                     dataptr += sizeof(long long);
                     *(unsigned long long *)ramptr ^= *(unsigned long long *)dataptr;
