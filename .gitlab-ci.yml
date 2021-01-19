@@ -622,8 +622,8 @@ pages:
         -t "Welcome to the QEMU sourcecode"
     - mv HTML public/src
     # Project documentation
-    - mv build/docs/index.html public/
-    - for i in devel interop specs system tools user ; do mv build/docs/$i public/ ; done
+    - make -C build install DESTDIR=$(pwd)/temp-install
+    - mv temp-install/usr/local/share/doc/qemu/* public/
   artifacts:
     paths:
       - public

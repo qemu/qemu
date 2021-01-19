@@ -1347,7 +1347,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
     bool exc_secure = false;
     bool return_to_secure;
     bool ftype;
-    bool restore_s16_s31;
+    bool restore_s16_s31 = false;
 
     /*
      * If we're not in Handler mode then jumps to magic exception-exit

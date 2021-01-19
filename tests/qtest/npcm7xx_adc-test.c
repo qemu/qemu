@@ -129,6 +129,7 @@ static void adc_qom_set(QTestState *qts, const ADC *adc,
             path, name, value);
     /* The qom set message returns successfully. */
     g_assert_true(qdict_haskey(response, "return"));
+    qobject_unref(response);
 }
 
 static void adc_write_input(QTestState *qts, const ADC *adc,
