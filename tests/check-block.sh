@@ -60,6 +60,13 @@ if ! (sed --version | grep 'GNU sed') > /dev/null 2>&1 ; then
         echo "GNU sed not available ==> Not running the qemu-iotests."
         exit 0
     fi
+else
+    # Double-check that we're not using BusyBox' sed which says
+    # that "This is not GNU sed version 4.0" ...
+    if sed --version | grep -q 'not GNU sed' ; then
+        echo "BusyBox sed not supported ==> Not running the qemu-iotests."
+        exit 0
+    fi
 fi
 
 cd tests/qemu-iotests
