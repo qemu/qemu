@@ -132,6 +132,22 @@ static const int tcg_target_call_oarg_regs[] = {
 # define TCG_REG_L1 TCG_REG_EDX
 #endif
 
+#define ALL_BYTEH_REGS         0x0000000fu
+#if TCG_TARGET_REG_BITS == 64
+# define ALL_GENERAL_REGS      0x0000ffffu
+# define ALL_VECTOR_REGS       0xffff0000u
+# define ALL_BYTEL_REGS        ALL_GENERAL_REGS
+#else
+# define ALL_GENERAL_REGS      0x000000ffu
+# define ALL_VECTOR_REGS       0x00ff0000u
+# define ALL_BYTEL_REGS        ALL_BYTEH_REGS
+#endif
+#ifdef CONFIG_SOFTMMU
+# define SOFTMMU_RESERVE_REGS  ((1 << TCG_REG_L0) | (1 << TCG_REG_L1))
+#else
+# define SOFTMMU_RESERVE_REGS  0
+#endif
+
 /* The host compiler should supply <cpuid.h> to enable runtime features
    detection, as we're not going to go so far as our own inline assembly.
    If not available, default values will be assumed.  */
@@ -193,14 +209,6 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     return true;
 }
 
-#if TCG_TARGET_REG_BITS == 64
-#define ALL_GENERAL_REGS   0x0000ffffu
-#define ALL_VECTOR_REGS    0xffff0000u
-#else
-#define ALL_GENERAL_REGS   0x000000ffu
-#define ALL_VECTOR_REGS    0x00ff0000u
-#endif
-
 /* parse target specific constraints */
 static const char *target_parse_constraint(TCGArgConstraint *ct,
                                            const char *ct_str, TCGType type)
@@ -226,11 +234,11 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         break;
     case 'q':
         /* A register that can be used as a byte operand.  */
-        ct->regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xf;
+        ct->regs |= ALL_BYTEL_REGS;
         break;
     case 'Q':
         /* A register with an addressable second byte (e.g. %ah).  */
-        ct->regs = 0xf;
+        ct->regs |= ALL_BYTEH_REGS;
         break;
     case 'r':
         /* A general register.  */
@@ -247,19 +255,11 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
 
     case 'L':
         /* qemu_ld/st data+address constraint */
-        ct->regs = TCG_TARGET_REG_BITS == 64 ? 0xffff : 0xff;
-#ifdef CONFIG_SOFTMMU
-        tcg_regset_reset_reg(ct->regs, TCG_REG_L0);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_L1);
-#endif
+        ct->regs |= ALL_GENERAL_REGS & ~SOFTMMU_RESERVE_REGS;
         break;
     case 's':
         /* qemu_st8_i32 data constraint */
-        ct->regs = 0xf;
-#ifdef CONFIG_SOFTMMU
-        tcg_regset_reset_reg(ct->regs, TCG_REG_L0);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_L1);
-#endif
+        ct->regs |= ALL_BYTEL_REGS & ~SOFTMMU_RESERVE_REGS;
         break;
 
     case 'e':
