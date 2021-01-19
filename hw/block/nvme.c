@@ -1213,9 +1213,8 @@ static uint16_t nvme_check_zone_state_for_write(NvmeZone *zone)
     return NVME_INTERNAL_DEV_ERROR;
 }
 
-static uint16_t nvme_check_zone_write(NvmeCtrl *n, NvmeNamespace *ns,
-                                      NvmeZone *zone, uint64_t slba,
-                                      uint32_t nlb)
+static uint16_t nvme_check_zone_write(NvmeNamespace *ns, NvmeZone *zone,
+                                      uint64_t slba, uint32_t nlb)
 {
     uint64_t zcap = nvme_zone_wr_boundary(zone);
     uint16_t status;
@@ -1778,7 +1777,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
             res->slba = cpu_to_le64(slba);
         }
 
-        status = nvme_check_zone_write(n, ns, zone, slba, nlb);
+        status = nvme_check_zone_write(ns, zone, slba, nlb);
         if (status) {
             goto invalid;
         }
