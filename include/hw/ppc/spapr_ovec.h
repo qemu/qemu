@@ -71,6 +71,7 @@ void spapr_ovec_cleanup(SpaprOptionVector *ov);
 void spapr_ovec_set(SpaprOptionVector *ov, long bitnr);
 void spapr_ovec_clear(SpaprOptionVector *ov, long bitnr);
 bool spapr_ovec_test(SpaprOptionVector *ov, long bitnr);
+bool spapr_ovec_empty(SpaprOptionVector *ov);
 SpaprOptionVector *spapr_ovec_parse_vector(target_ulong table_addr, int vector);
 int spapr_dt_ovec(void *fdt, int fdt_offset,
                   SpaprOptionVector *ov, const char *name);

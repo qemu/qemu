@@ -47,6 +47,13 @@ OBJECT_DECLARE_SIMPLE_TYPE(PPCUIC, PPC_UIC)
 
 #define UIC_MAX_IRQ 32
 
+/* Symbolic constants for the sysbus IRQ outputs */
+enum {
+    PPCUIC_OUTPUT_INT = 0,
+    PPCUIC_OUTPUT_CINT = 1,
+    PPCUIC_OUTPUT_NB,
+};
+
 struct PPCUIC {
     /*< private >*/
     SysBusDevice parent_obj;

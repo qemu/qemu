@@ -151,7 +151,6 @@ static void ref405ep_init(MachineState *machine)
     CPUPPCState *env;
     DeviceState *dev;
     SysBusDevice *s;
-    qemu_irq *pic;
     MemoryRegion *bios;
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     ram_addr_t bdloc;
@@ -167,6 +166,7 @@ static void ref405ep_init(MachineState *machine)
     int len;
     DriveInfo *dinfo;
     MemoryRegion *sysmem = get_system_memory();
+    DeviceState *uicdev;
 
     if (machine->ram_size != mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
@@ -184,7 +184,7 @@ static void ref405ep_init(MachineState *machine)
     ram_bases[1] = 0x00000000;
     ram_sizes[1] = 0x00000000;
     env = ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
-                        33333333, &pic, kernel_filename == NULL ? 0 : 1);
+                        33333333, &uicdev, kernel_filename == NULL ? 0 : 1);
     /* allocate SRAM */
     sram_size = 512 * KiB;
     memory_region_init_ram(sram, NULL, "ef405ep.sram", sram_size,
@@ -429,7 +429,6 @@ static void taihu_405ep_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
     char *filename;
-    qemu_irq *pic;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *bios;
     MemoryRegion *ram_memories = g_new(MemoryRegion, 2);
@@ -440,6 +439,7 @@ static void taihu_405ep_init(MachineState *machine)
     int linux_boot;
     int fl_idx;
     DriveInfo *dinfo;
+    DeviceState *uicdev;
 
     if (machine->ram_size != mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
@@ -459,7 +459,7 @@ static void taihu_405ep_init(MachineState *machine)
                              "taihu_405ep.ram-1", machine->ram, ram_bases[1],
                              ram_sizes[1]);
     ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
-                  33333333, &pic, kernel_filename == NULL ? 0 : 1);
+                  33333333, &uicdev, kernel_filename == NULL ? 0 : 1);
     /* allocate and load BIOS */
     fl_idx = 0;
 #if defined(USE_FLASH_BIOS)

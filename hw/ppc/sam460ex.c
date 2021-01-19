@@ -39,6 +39,7 @@
 #include "hw/usb/hcd-ehci.h"
 #include "hw/ppc/fdt.h"
 #include "hw/qdev-properties.h"
+#include "hw/intc/ppc-uic.h"
 
 #include <libfdt.h>
 
@@ -281,7 +282,9 @@ static void sam460ex_init(MachineState *machine)
     hwaddr ram_bases[SDRAM_NR_BANKS] = {0};
     hwaddr ram_sizes[SDRAM_NR_BANKS] = {0};
     MemoryRegion *l2cache_ram = g_new(MemoryRegion, 1);
-    qemu_irq *irqs, *uic[4];
+    DeviceState *uic[4];
+    qemu_irq mal_irqs[4];
+    int i;
     PCIBus *pci_bus;
     PowerPCCPU *cpu;
     CPUPPCState *env;
@@ -312,13 +315,38 @@ static void sam460ex_init(MachineState *machine)
     ppc4xx_plb_init(env);
 
     /* interrupt controllers */
-    irqs = g_new0(qemu_irq, PPCUIC_OUTPUT_NB);
-    irqs[PPCUIC_OUTPUT_INT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT];
-    irqs[PPCUIC_OUTPUT_CINT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT];
-    uic[0] = ppcuic_init(env, irqs, 0xc0, 0, 1);
-    uic[1] = ppcuic_init(env, &uic[0][30], 0xd0, 0, 1);
-    uic[2] = ppcuic_init(env, &uic[0][10], 0xe0, 0, 1);
-    uic[3] = ppcuic_init(env, &uic[0][16], 0xf0, 0, 1);
+    for (i = 0; i < ARRAY_SIZE(uic); i++) {
+        SysBusDevice *sbd;
+        /*
+         * UICs 1, 2 and 3 are cascaded through UIC 0.
+         * input_ints[n] is the interrupt number on UIC 0 which
+         * the INT output of UIC n is connected to. The CINT output
+         * of UIC n connects to input_ints[n] + 1.
+         * The entry in input_ints[] for UIC 0 is ignored, because UIC 0's
+         * INT and CINT outputs are connected to the CPU.
+         */
+        const int input_ints[] = { -1, 30, 10, 16 };
+
+        uic[i] = qdev_new(TYPE_PPC_UIC);
+        sbd = SYS_BUS_DEVICE(uic[i]);
+
+        qdev_prop_set_uint32(uic[i], "dcr-base", 0xc0 + i * 0x10);
+        object_property_set_link(OBJECT(uic[i]), "cpu", OBJECT(cpu),
+                                 &error_fatal);
+        sysbus_realize_and_unref(sbd, &error_fatal);
+
+        if (i == 0) {
+            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_INT,
+                               ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT]);
+            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_CINT,
+                               ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT]);
+        } else {
+            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_INT,
+                               qdev_get_gpio_in(uic[0], input_ints[i]));
+            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_CINT,
+                               qdev_get_gpio_in(uic[0], input_ints[i] + 1));
+        }
+    }
 
     /* SDRAM controller */
     /* put all RAM on first bank because board has one slot
@@ -331,7 +359,8 @@ static void sam460ex_init(MachineState *machine)
                       ram_bases, ram_sizes, 1);
 
     /* IIC controllers and devices */
-    dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600700, uic[0][2]);
+    dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600700,
+                               qdev_get_gpio_in(uic[0], 2));
     i2c = PPC4xx_I2C(dev)->bus;
     /* SPD EEPROM on RAM module */
     spd_data = spd_data_generate(ram_sizes[0] < 128 * MiB ? DDR : DDR2,
@@ -341,7 +370,8 @@ static void sam460ex_init(MachineState *machine)
     /* RTC */
     i2c_slave_create_simple(i2c, "m41t80", 0x68);
 
-    dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600800, uic[0][3]);
+    dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600800,
+                               qdev_get_gpio_in(uic[0], 3));
 
     /* External bus controller */
     ppc405_ebc_init(env);
@@ -356,7 +386,10 @@ static void sam460ex_init(MachineState *machine)
     ppc4xx_sdr_init(env);
 
     /* MAL */
-    ppc4xx_mal_init(env, 4, 16, &uic[2][3]);
+    for (i = 0; i < ARRAY_SIZE(mal_irqs); i++) {
+        mal_irqs[0] = qdev_get_gpio_in(uic[2], 3 + i);
+    }
+    ppc4xx_mal_init(env, 4, 16, mal_irqs);
 
     /* DMA */
     ppc4xx_dma_init(env, 0x200);
@@ -369,26 +402,25 @@ static void sam460ex_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0x400000000LL, l2cache_ram);
 
     /* USB */
-    sysbus_create_simple(TYPE_PPC4xx_EHCI, 0x4bffd0400, uic[2][29]);
+    sysbus_create_simple(TYPE_PPC4xx_EHCI, 0x4bffd0400,
+                         qdev_get_gpio_in(uic[2], 29));
     dev = qdev_new("sysbus-ohci");
     qdev_prop_set_string(dev, "masterbus", "usb-bus.0");
     qdev_prop_set_uint32(dev, "num-ports", 6);
     sbdev = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sbdev, &error_fatal);
     sysbus_mmio_map(sbdev, 0, 0x4bffd0000);
-    sysbus_connect_irq(sbdev, 0, uic[2][30]);
+    sysbus_connect_irq(sbdev, 0, qdev_get_gpio_in(uic[2], 30));
     usb_create_simple(usb_bus_find(-1), "usb-kbd");
     usb_create_simple(usb_bus_find(-1), "usb-mouse");
 
     /* PCI bus */
     ppc460ex_pcie_init(env);
     /* All PCI irqs are connected to the same UIC pin (cf. UBoot source) */
-    dev = sysbus_create_simple("ppc440-pcix-host", 0xc0ec00000, uic[1][0]);
-    pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
-    if (!pci_bus) {
-        error_report("couldn't create PCI controller!");
-        exit(1);
-    }
+    dev = sysbus_create_simple("ppc440-pcix-host", 0xc0ec00000,
+                               qdev_get_gpio_in(uic[1], 0));
+    pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
+
     memory_region_init_alias(isa, NULL, "isa_mmio", get_system_io(),
                              0, 0x10000);
     memory_region_add_subregion(get_system_memory(), 0xc08000000, isa);
@@ -405,12 +437,14 @@ static void sam460ex_init(MachineState *machine)
     /* SoC has 4 UARTs
      * but board has only one wired and two are present in fdt */
     if (serial_hd(0) != NULL) {
-        serial_mm_init(address_space_mem, 0x4ef600300, 0, uic[1][1],
+        serial_mm_init(address_space_mem, 0x4ef600300, 0,
+                       qdev_get_gpio_in(uic[1], 1),
                        PPC_SERIAL_MM_BAUDBASE, serial_hd(0),
                        DEVICE_BIG_ENDIAN);
     }
     if (serial_hd(1) != NULL) {
-        serial_mm_init(address_space_mem, 0x4ef600400, 0, uic[0][1],
+        serial_mm_init(address_space_mem, 0x4ef600400, 0,
+                       qdev_get_gpio_in(uic[0], 1),
                        PPC_SERIAL_MM_BAUDBASE, serial_hd(1),
                        DEVICE_BIG_ENDIAN);
     }
