@@ -1188,7 +1188,7 @@ static uint16_t nvme_check_zone_state_for_write(NvmeZone *zone)
 
 static uint16_t nvme_check_zone_write(NvmeCtrl *n, NvmeNamespace *ns,
                                       NvmeZone *zone, uint64_t slba,
-                                      uint32_t nlb, bool append)
+                                      uint32_t nlb)
 {
     uint16_t status;
 
@@ -1202,16 +1202,8 @@ static uint16_t nvme_check_zone_write(NvmeCtrl *n, NvmeNamespace *ns,
         trace_pci_nvme_err_zone_write_not_ok(slba, nlb, status);
     } else {
         assert(nvme_wp_is_valid(zone));
-        if (append) {
-            if (unlikely(slba != zone->d.zslba)) {
-                trace_pci_nvme_err_append_not_at_start(slba, zone->d.zslba);
-                status = NVME_INVALID_FIELD;
-            }
-            if (nvme_l2b(ns, nlb) > (n->page_size << n->zasl)) {
-                trace_pci_nvme_err_append_too_large(slba, nlb, n->zasl);
-                status = NVME_INVALID_FIELD;
-            }
-        } else if (unlikely(slba != zone->w_ptr)) {
+
+        if (unlikely(slba != zone->w_ptr)) {
             trace_pci_nvme_err_write_not_at_wp(slba, zone->d.zslba,
                                                zone->w_ptr);
             status = NVME_ZONE_INVALID_WRITE;
@@ -1349,10 +1341,9 @@ static void nvme_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req,
     }
 }
 
-static uint64_t nvme_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
-                                     uint32_t nlb)
+static void nvme_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
+                                 uint32_t nlb)
 {
-    uint64_t result = zone->w_ptr;
     uint8_t zs;
 
     zone->w_ptr += nlb;
@@ -1368,8 +1359,6 @@ static uint64_t nvme_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
             nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_IMPLICITLY_OPEN);
         }
     }
-
-    return result;
 }
 
 static inline bool nvme_is_write(NvmeRequest *req)
@@ -1747,7 +1736,24 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
     if (ns->params.zoned) {
         zone = nvme_get_zone_by_slba(ns, slba);
 
-        status = nvme_check_zone_write(n, ns, zone, slba, nlb, append);
+        if (append) {
+            if (unlikely(slba != zone->d.zslba)) {
+                trace_pci_nvme_err_append_not_at_start(slba, zone->d.zslba);
+                status = NVME_INVALID_FIELD;
+                goto invalid;
+            }
+
+            if (nvme_l2b(ns, nlb) > (n->page_size << n->zasl)) {
+                trace_pci_nvme_err_append_too_large(slba, nlb, n->zasl);
+                status = NVME_INVALID_FIELD;
+                goto invalid;
+            }
+
+            slba = zone->w_ptr;
+            res->slba = cpu_to_le64(slba);
+        }
+
+        status = nvme_check_zone_write(n, ns, zone, slba, nlb);
         if (status) {
             goto invalid;
         }
@@ -1757,11 +1763,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
             goto invalid;
         }
 
-        if (append) {
-            slba = zone->w_ptr;
-        }
-
-        res->slba = nvme_advance_zone_wp(ns, zone, nlb);
+        nvme_advance_zone_wp(ns, zone, nlb);
     }
 
     data_offset = nvme_l2b(ns, slba);
