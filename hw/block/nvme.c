@@ -1161,56 +1161,53 @@ static inline NvmeZone *nvme_get_zone_by_slba(NvmeNamespace *ns, uint64_t slba)
 
 static uint16_t nvme_check_zone_state_for_write(NvmeZone *zone)
 {
-    uint16_t status;
+    uint64_t zslba = zone->d.zslba;
 
     switch (nvme_get_zone_state(zone)) {
     case NVME_ZONE_STATE_EMPTY:
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
     case NVME_ZONE_STATE_CLOSED:
-        status = NVME_SUCCESS;
-        break;
+        return NVME_SUCCESS;
     case NVME_ZONE_STATE_FULL:
-        status = NVME_ZONE_FULL;
-        break;
+        trace_pci_nvme_err_zone_is_full(zslba);
+        return NVME_ZONE_FULL;
     case NVME_ZONE_STATE_OFFLINE:
-        status = NVME_ZONE_OFFLINE;
-        break;
+        trace_pci_nvme_err_zone_is_offline(zslba);
+        return NVME_ZONE_OFFLINE;
     case NVME_ZONE_STATE_READ_ONLY:
-        status = NVME_ZONE_READ_ONLY;
-        break;
+        trace_pci_nvme_err_zone_is_read_only(zslba);
+        return NVME_ZONE_READ_ONLY;
     default:
         assert(false);
     }
 
-    return status;
+    return NVME_INTERNAL_DEV_ERROR;
 }
 
 static uint16_t nvme_check_zone_write(NvmeCtrl *n, NvmeNamespace *ns,
                                       NvmeZone *zone, uint64_t slba,
                                       uint32_t nlb)
 {
+    uint64_t zcap = nvme_zone_wr_boundary(zone);
     uint16_t status;
 
-    if (unlikely((slba + nlb) > nvme_zone_wr_boundary(zone))) {
-        status = NVME_ZONE_BOUNDARY_ERROR;
-    } else {
-        status = nvme_check_zone_state_for_write(zone);
-    }
-
+    status = nvme_check_zone_state_for_write(zone);
     if (status) {
-        trace_pci_nvme_err_zone_write_not_ok(slba, nlb, status);
-    } else {
-        assert(nvme_wp_is_valid(zone));
-
-        if (unlikely(slba != zone->w_ptr)) {
-            trace_pci_nvme_err_write_not_at_wp(slba, zone->d.zslba,
-                                               zone->w_ptr);
-            status = NVME_ZONE_INVALID_WRITE;
-        }
+        return status;
     }
 
-    return status;
+    if (unlikely(slba != zone->w_ptr)) {
+        trace_pci_nvme_err_write_not_at_wp(slba, zone->d.zslba, zone->w_ptr);
+        return NVME_ZONE_INVALID_WRITE;
+    }
+
+    if (unlikely((slba + nlb) > zcap)) {
+        trace_pci_nvme_err_zone_boundary(slba, nlb, zcap);
+        return NVME_ZONE_BOUNDARY_ERROR;
+    }
+
+    return NVME_SUCCESS;
 }
 
 static uint16_t nvme_check_zone_state_for_read(NvmeZone *zone)
