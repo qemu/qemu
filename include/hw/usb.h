@@ -231,6 +231,9 @@ struct USBDevice {
     void *opaque;
     uint32_t flags;
 
+    char *pcap_filename;
+    FILE *pcap;
+
     /* Actual connected speed */
     int speed;
     /* Supported speeds, not in info because it may be variable (hostdevs) */
@@ -569,5 +572,10 @@ const USBDesc *usb_device_get_usb_desc(USBDevice *dev);
 int usb_get_quirks(uint16_t vendor_id, uint16_t product_id,
                    uint8_t interface_class, uint8_t interface_subclass,
                    uint8_t interface_protocol);
+
+/* pcap.c */
+void usb_pcap_init(FILE *fp);
+void usb_pcap_ctrl(USBPacket *p, bool setup);
+void usb_pcap_data(USBPacket *p, bool setup);
 
 #endif

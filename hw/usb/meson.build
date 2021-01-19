@@ -5,6 +5,7 @@ softmmu_ss.add(files(
   'bus.c',
   'combined-packet.c',
   'core.c',
+  'pcap.c',
   'libhw.c'
 ))
 
