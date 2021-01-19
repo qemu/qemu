@@ -35,6 +35,7 @@
 #define __AFL_QEMU_COMMON
 
 #include "imported/config.h"
+#include "imported/types.h"
 #include "imported/cmplog.h"
 
 #include "api.h"
