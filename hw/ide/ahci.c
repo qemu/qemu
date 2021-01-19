@@ -700,7 +700,7 @@ static void ahci_reset_port(AHCIState *s, int port)
 }
 
 /* Buffer pretty output based on a raw FIS structure. */
-static char *ahci_pretty_buffer_fis(uint8_t *fis, int cmd_len)
+static char *ahci_pretty_buffer_fis(const uint8_t *fis, int cmd_len)
 {
     int i;
     GString *s = g_string_new("FIS:");
@@ -1100,11 +1100,11 @@ static void execute_ncq_command(NCQTransferState *ncq_tfs)
 }
 
 
-static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
+static void process_ncq_command(AHCIState *s, int port, const uint8_t *cmd_fis,
                                 uint8_t slot)
 {
     AHCIDevice *ad = &s->dev[port];
-    NCQFrame *ncq_fis = (NCQFrame*)cmd_fis;
+    const NCQFrame *ncq_fis = (NCQFrame *)cmd_fis;
     uint8_t tag = ncq_fis->tag >> 3;
     NCQTransferState *ncq_tfs = &ad->ncq_tfs[tag];
     size_t size;
@@ -1185,7 +1185,7 @@ static AHCICmdHdr *get_cmd_header(AHCIState *s, uint8_t port, uint8_t slot)
 }
 
 static void handle_reg_h2d_fis(AHCIState *s, int port,
-                               uint8_t slot, uint8_t *cmd_fis)
+                               uint8_t slot, const uint8_t *cmd_fis)
 {
     IDEState *ide_state = &s->dev[port].port.ifs[0];
     AHCICmdHdr *cmd = get_cmd_header(s, port, slot);
@@ -1301,7 +1301,7 @@ static int handle_cmd(AHCIState *s, int port, uint8_t slot)
     tbl_addr = le64_to_cpu(cmd->tbl_addr);
     cmd_len = 0x80;
     cmd_fis = dma_memory_map(s->as, tbl_addr, &cmd_len,
-                             DMA_DIRECTION_FROM_DEVICE);
+                             DMA_DIRECTION_TO_DEVICE);
     if (!cmd_fis) {
         trace_handle_cmd_badfis(s, port);
         return -1;
@@ -1326,7 +1326,7 @@ static int handle_cmd(AHCIState *s, int port, uint8_t slot)
     }
 
 out:
-    dma_memory_unmap(s->as, cmd_fis, cmd_len, DMA_DIRECTION_FROM_DEVICE,
+    dma_memory_unmap(s->as, cmd_fis, cmd_len, DMA_DIRECTION_TO_DEVICE,
                      cmd_len);
 
     if (s->dev[port].port.ifs[0].status & (BUSY_STAT|DRQ_STAT)) {
