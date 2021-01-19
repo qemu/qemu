@@ -1,3 +1,13 @@
+/*
+ * NeXT Cube
+ *
+ * Copyright (c) 2011 Bryce Lanham
+ *
+ * This code is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published
+ * by the Free Software Foundation; either version 2 of the License,
+ * or (at your option) any later version.
+ */
 
 #ifndef NEXT_CUBE_H
 #define NEXT_CUBE_H
@@ -39,9 +49,8 @@ enum next_irqs {
     NEXT_ENRX_DMA_I,
     NEXT_SCSI_DMA_I,
     NEXT_SCC_DMA_I,
-    NEXT_SND_I
+    NEXT_SND_I,
+    NEXT_NUM_IRQS
 };
-
-void next_irq(void *opaque, int number, int level);
 
 #endif /* NEXT_CUBE_H */
