@@ -28,7 +28,8 @@
 #include "hw/acpi/pci.h"
 #include "hw/pci/pcie_host.h"
 
-void build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
+void build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info,
+                const char *oem_id, const char *oem_table_id)
 {
     int mcfg_start = table_data->len;
 
@@ -56,6 +57,6 @@ void build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
     build_append_int_noprefix(table_data, 0, 4);
 
     build_header(linker, table_data, (void *)(table_data->data + mcfg_start),
-                 "MCFG", table_data->len - mcfg_start, 1, NULL, NULL);
+                 "MCFG", table_data->len - mcfg_start, 1, oem_id, oem_table_id);
 }
 
