@@ -251,58 +251,7 @@ void qmp_change_vnc_password(const char *password, Error **errp)
         error_setg(errp, "Could not set password");
     }
 }
-
-static void qmp_change_vnc_listen(const char *target, Error **errp)
-{
-    QemuOptsList *olist = qemu_find_opts("vnc");
-    QemuOpts *opts;
-
-    if (strstr(target, "id=")) {
-        error_setg(errp, "id not supported");
-        return;
-    }
-
-    opts = qemu_opts_find(olist, "default");
-    if (opts) {
-        qemu_opts_del(opts);
-    }
-    opts = vnc_parse(target, errp);
-    if (!opts) {
-        return;
-    }
-
-    vnc_display_open("default", errp);
-}
-
-static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
-                           Error **errp)
-{
-    if (strcmp(target, "passwd") == 0 || strcmp(target, "password") == 0) {
-        if (!has_arg) {
-            error_setg(errp, QERR_MISSING_PARAMETER, "password");
-        } else {
-            qmp_change_vnc_password(arg, errp);
-        }
-    } else {
-        qmp_change_vnc_listen(target, errp);
-    }
-}
-#endif /* !CONFIG_VNC */
-
-void qmp_change(const char *device, const char *target,
-                bool has_arg, const char *arg, Error **errp)
-{
-    if (strcmp(device, "vnc") == 0) {
-#ifdef CONFIG_VNC
-        qmp_change_vnc(target, has_arg, arg, errp);
-#else
-        error_setg(errp, QERR_FEATURE_DISABLED, "vnc");
 #endif
-    } else {
-        qmp_blockdev_change_medium(true, device, false, NULL, target,
-                                   has_arg, arg, false, 0, errp);
-    }
-}
 
 void qmp_add_client(const char *protocol, const char *fdname,
                     bool has_skipauth, bool skipauth, bool has_tls, bool tls,

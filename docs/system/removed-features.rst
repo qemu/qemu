@@ -53,6 +53,11 @@ are automatically loaded from qcow2 images.
 Use ``device_add`` for hotplugging vCPUs instead of ``cpu-add``.  See
 documentation of ``query-hotpluggable-cpus`` for additional details.
 
+``change`` (removed in 6.0)
+'''''''''''''''''''''''''''
+
+Use ``blockdev-change-medium`` or ``change-vnc-password`` instead.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 

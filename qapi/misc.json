@@ -239,55 +239,6 @@
   'features': [ 'savevm-monitor-nodes' ] }
 
 ##
-# @change:
-#
-# This command is multiple commands multiplexed together.
-#
-# @device: This is normally the name of a block device but it may also be 'vnc'.
-#          when it's 'vnc', then sub command depends on @target
-#
-# @target: If @device is a block device, then this is the new filename.
-#          If @device is 'vnc', then if the value 'password' selects the vnc
-#          change password command.   Otherwise, this specifies a new server URI
-#          address to listen to for VNC connections.
-#
-# @arg: If @device is a block device, then this is an optional format to open
-#       the device with.
-#       If @device is 'vnc' and @target is 'password', this is the new VNC
-#       password to set.  See change-vnc-password for additional notes.
-#
-# Features:
-# @deprecated: This command is deprecated.  For changing block
-#              devices, use 'blockdev-change-medium' instead; for changing VNC
-#              parameters, use 'change-vnc-password' instead.
-#
-# Returns: - Nothing on success.
-#          - If @device is not a valid block device, DeviceNotFound
-#
-# Since: 0.14
-#
-# Example:
-#
-# 1. Change a removable medium
-#
-# -> { "execute": "change",
-#      "arguments": { "device": "ide1-cd0",
-#                     "target": "/srv/images/Fedora-12-x86_64-DVD.iso" } }
-# <- { "return": {} }
-#
-# 2. Change VNC password
-#
-# -> { "execute": "change",
-#      "arguments": { "device": "vnc", "target": "password",
-#                     "arg": "foobar1" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'change',
-  'data': {'device': 'str', 'target': 'str', '*arg': 'str'},
-  'features': [ 'deprecated' ] }
-
-##
 # @getfd:
 #
 # Receive a file descriptor via SCM rights and assign it a name
