@@ -3900,12 +3900,12 @@ SRST
 ERST
 
 DEF("action", HAS_ARG, QEMU_OPTION_action,
-    "-action reboot=none|shutdown\n"
-    "                   action when guest reboots [default=none]\n"
+    "-action reboot=reset|shutdown\n"
+    "                   action when guest reboots [default=reset]\n"
     "-action shutdown=poweroff|pause\n"
     "                   action when guest shuts down [default=poweroff]\n"
-    "-action panic=poweroff|pause|none\n"
-    "                   action when guest panics [default=poweroff]\n"
+    "-action panic=pause|shutdown|none\n"
+    "                   action when guest panics [default=shutdown]\n"
     "-action watchdog=reset|shutdown|poweroff|inject-nmi|pause|debug|none\n"
     "                   action when watchdog fires [default=reset]\n",
     QEMU_ARCH_ALL)

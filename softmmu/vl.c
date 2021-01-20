@@ -3202,7 +3202,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_no_shutdown:
                 olist = qemu_find_opts("action");
-                qemu_opts_parse_noisily(olist, "panic=pause,shutdown=pause", false);
+                qemu_opts_parse_noisily(olist, "shutdown=pause", false);
                 break;
             case QEMU_OPTION_uuid:
                 if (qemu_uuid_parse(optarg, &qemu_uuid) < 0) {
