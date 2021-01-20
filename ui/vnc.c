@@ -50,6 +50,7 @@
 #include "crypto/random.h"
 #include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
+#include "qemu/help_option.h"
 #include "io/dns-resolver.h"
 
 #define VNC_REFRESH_INTERVAL_BASE GUI_REFRESH_INTERVAL_DEFAULT
@@ -4211,14 +4212,14 @@ static void vnc_auto_assign_id(QemuOptsList *olist, QemuOpts *opts)
     qemu_opts_set_id(opts, id);
 }
 
-QemuOpts *vnc_parse(const char *str, Error **errp)
+void vnc_parse(const char *str)
 {
     QemuOptsList *olist = qemu_find_opts("vnc");
-    QemuOpts *opts = qemu_opts_parse(olist, str, true, errp);
+    QemuOpts *opts = qemu_opts_parse_noisily(olist, str, !is_help_option(str));
     const char *id;
 
     if (!opts) {
-        return NULL;
+        exit(1);
     }
 
     id = qemu_opts_id(opts);
@@ -4226,7 +4227,6 @@ QemuOpts *vnc_parse(const char *str, Error **errp)
         /* auto-assign id if not present */
         vnc_auto_assign_id(olist, opts);
     }
-    return opts;
 }
 
 int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)

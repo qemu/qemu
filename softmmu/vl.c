@@ -1113,7 +1113,7 @@ static void parse_display(const char *p)
          * display access.
          */
         if (*opts == '=') {
-            vnc_parse(opts + 1, &error_fatal);
+            vnc_parse(opts + 1);
         } else {
             error_report("VNC requires a display argument vnc=<display>");
             exit(1);
@@ -1402,7 +1402,7 @@ static void qemu_create_default_devices(void)
         if (!qemu_display_find_default(&dpy)) {
             dpy.type = DISPLAY_TYPE_NONE;
 #if defined(CONFIG_VNC)
-            vnc_parse("localhost:0,to=99,id=default", &error_abort);
+            vnc_parse("localhost:0,to=99,id=default");
 #endif
         }
     }
@@ -3186,7 +3186,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_vnc:
-                vnc_parse(optarg, &error_fatal);
+                vnc_parse(optarg);
                 break;
             case QEMU_OPTION_no_acpi:
                 olist = qemu_find_opts("machine");
