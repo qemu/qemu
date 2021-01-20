@@ -1034,6 +1034,8 @@ have_virtfs = (targetos == 'linux' and
     libattr.found() and
     libcap_ng.found())
 
+have_virtfs_proxy_helper = have_virtfs and have_tools
+
 if get_option('virtfs').enabled()
   if not have_virtfs
     if targetos != 'linux'
