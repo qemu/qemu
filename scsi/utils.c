@@ -197,6 +197,11 @@ const struct SCSISense sense_code_INVALID_PARAM = {
     .key = ILLEGAL_REQUEST, .asc = 0x26, .ascq = 0x00
 };
 
+/* Illegal request, Invalid value in parameter list */
+const struct SCSISense sense_code_INVALID_PARAM_VALUE = {
+    .key = ILLEGAL_REQUEST, .asc = 0x26, .ascq = 0x01
+};
+
 /* Illegal request, Parameter list length error */
 const struct SCSISense sense_code_INVALID_PARAM_LEN = {
     .key = ILLEGAL_REQUEST, .asc = 0x1a, .ascq = 0x00
