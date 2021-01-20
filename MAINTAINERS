@@ -1142,7 +1142,7 @@ F: tests/acceptance/machine_mips_malta.py
 
 Mipssim
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
-S: Orphaned
+S: Orphan
 F: hw/mips/mipssim.c
 F: hw/net/mipsnet.c
 
@@ -1999,8 +1999,7 @@ F: include/hw/nvram/chrp_nvram.h
 F: tests/qtest/prom-env-test.c
 
 VM Generation ID
-M: Ben Warren <ben@skyportsystems.com>
-S: Maintained
+S: Orphan
 F: hw/acpi/vmgenid.c
 F: include/hw/acpi/vmgenid.h
 F: docs/specs/vmgenid.txt
@@ -2444,7 +2443,7 @@ T: git https://gitlab.com/jsnow/qemu.git python
 Python scripts
 M: Eduardo Habkost <ehabkost@redhat.com>
 M: Cleber Rosa <crosa@redhat.com>
-S: Odd fixes
+S: Odd Fixes
 F: scripts/*.py
 F: tests/*.py
 
@@ -2681,7 +2680,7 @@ F: tests/test-coroutine.c
 
 Buffers
 M: Daniel P. Berrange <berrange@redhat.com>
-S: Odd fixes
+S: Odd Fixes
 F: util/buffer.c
 F: include/qemu/buffer.h
 
@@ -2710,7 +2709,7 @@ F: qapi/sockets.json
 
 File monitor
 M: Daniel P. Berrange <berrange@redhat.com>
-S: Odd fixes
+S: Odd Fixes
 F: util/filemonitor*.c
 F: include/qemu/filemonitor.h
 F: tests/test-util-filemonitor.c
@@ -3264,7 +3263,7 @@ S: Odd Fixes
 F: scripts/git-submodule.sh
 
 UI translations
-S: Orphaned
+S: Orphan
 F: po/*.po
 
 Sphinx documentation configuration and build machinery
