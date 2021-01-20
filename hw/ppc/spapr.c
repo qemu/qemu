@@ -3756,6 +3756,19 @@ int spapr_core_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
 
     spapr_dt_cpu(cs, fdt, offset, spapr);
 
+    /*
+     * spapr_dt_cpu() does not fill the 'name' property in the
+     * CPU node. The function is called during boot process, before
+     * and after CAS, and overwriting the 'name' property written
+     * by SLOF is not allowed.
+     *
+     * Write it manually after spapr_dt_cpu(). This makes the hotplug
+     * CPUs more compatible with the coldplugged ones, which have
+     * the 'name' property. Linux Kernel also relies on this
+     * property to identify CPU nodes.
+     */
+    _FDT((fdt_setprop_string(fdt, offset, "name", nodename)));
+
     *fdt_start_offset = offset;
     return 0;
 }
