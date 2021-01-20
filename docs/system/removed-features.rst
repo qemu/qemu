@@ -68,6 +68,12 @@ The ``[hub_id name]`` parameter tuple of the 'hostfwd_add' and
 Use ``device_add`` for hotplugging vCPUs instead of ``cpu-add``.  See
 documentation of ``query-hotpluggable-cpus`` for additional details.
 
+``change vnc TARGET`` (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''
+
+No replacement.  The ``change vnc password`` and ``change DEVICE MEDIUM``
+commands are not affected.
+
 Guest Emulator ISAs
 -------------------
 
