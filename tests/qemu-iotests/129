@@ -71,9 +71,14 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
                           sync="full", buf_size=65536)
 
     def test_drive_backup(self):
+        # Limit max-chunk and max-workers so that block-copy will not
+        # launch so many workers working on so much data each that
+        # stop's bdrv_drain_all() would finish the job
         self.do_test_stop("drive-backup", device="drive0",
                           target=self.target_img, format=iotests.imgfmt,
-                          sync="full")
+                          sync="full",
+                          x_perf={ 'max-chunk': 65536,
+                                   'max-workers': 8 })
 
     def test_block_commit(self):
         # Add overlay above the source node so that we actually use a
