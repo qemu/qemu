@@ -37,6 +37,7 @@ ENV PACKAGES flex bison \
     libsasl2-dev \
     libsdl2-dev \
     libseccomp-dev \
+    libslirp-dev \
     libsnappy-dev \
     libspice-protocol-dev \
     libspice-server-dev \
