@@ -404,7 +404,7 @@ zstd="auto"
 guest_agent="$default_feature"
 guest_agent_with_vss="no"
 guest_agent_ntddscsi="no"
-guest_agent_msi="$default_feature"
+guest_agent_msi="auto"
 vss_win32_sdk="$default_feature"
 win_sdk="no"
 want_tools="$default_feature"
@@ -1334,9 +1334,9 @@ for opt do
   ;;
   --disable-guest-agent) guest_agent="no"
   ;;
-  --enable-guest-agent-msi) guest_agent_msi="yes"
+  --enable-guest-agent-msi) guest_agent_msi="enabled"
   ;;
-  --disable-guest-agent-msi) guest_agent_msi="no"
+  --disable-guest-agent-msi) guest_agent_msi="disabled"
   ;;
   --with-vss-sdk) vss_win32_sdk=""
   ;;
@@ -5341,62 +5341,19 @@ if [ "$guest_agent" != "no" ]; then
   fi
 fi
 
-# Guest agent Window MSI  package
+# Guest agent Windows MSI package
 
-if test "$guest_agent" != yes; then
-  if test "$guest_agent_msi" = yes; then
-    error_exit "MSI guest agent package requires guest agent enabled"
-  fi
-  guest_agent_msi=no
-elif test "$mingw32" != "yes"; then
-  if test "$guest_agent_msi" = "yes"; then
-    error_exit "MSI guest agent package is available only for MinGW Windows cross-compilation"
-  fi
-  guest_agent_msi=no
-elif ! has wixl; then
-  if test "$guest_agent_msi" = "yes"; then
-    error_exit "MSI guest agent package requires wixl tool installed ( usually from msitools package )"
-  fi
-  guest_agent_msi=no
-else
-  # we support qemu-ga, mingw32, and wixl: default to MSI enabled if it wasn't
-  # disabled explicitly
-  if test "$guest_agent_msi" != "no"; then
-    guest_agent_msi=yes
-  fi
+if test "$QEMU_GA_MANUFACTURER" = ""; then
+  QEMU_GA_MANUFACTURER=QEMU
+fi
+if test "$QEMU_GA_DISTRO" = ""; then
+  QEMU_GA_DISTRO=Linux
+fi
+if test "$QEMU_GA_VERSION" = ""; then
+    QEMU_GA_VERSION=$(cat $source_path/VERSION)
 fi
 
-if test "$guest_agent_msi" = "yes"; then
-  if test "$guest_agent_with_vss" = "yes"; then
-    QEMU_GA_MSI_WITH_VSS="-D InstallVss"
-  fi
-
-  if test "$QEMU_GA_MANUFACTURER" = ""; then
-    QEMU_GA_MANUFACTURER=QEMU
-  fi
-
-  if test "$QEMU_GA_DISTRO" = ""; then
-    QEMU_GA_DISTRO=Linux
-  fi
-
-  if test "$QEMU_GA_VERSION" = ""; then
-      QEMU_GA_VERSION=$(cat $source_path/VERSION)
-  fi
-
-  QEMU_GA_MSI_MINGW_DLL_PATH="-D Mingw_dlls=$($pkg_config --variable=prefix glib-2.0)/bin"
-
-  case "$cpu" in
-  x86_64)
-    QEMU_GA_MSI_ARCH="-a x64 -D Arch=64"
-    ;;
-  i386)
-    QEMU_GA_MSI_ARCH="-D Arch=32"
-    ;;
-  *)
-    error_exit "CPU $cpu not supported for building installation package"
-    ;;
-  esac
-fi
+QEMU_GA_MSI_MINGW_DLL_PATH="$($pkg_config --variable=prefix glib-2.0)/bin"
 
 # Mac OS X ships with a broken assembler
 roms=
@@ -5495,15 +5452,10 @@ if test "$mingw32" = "yes" ; then
   if test "$guest_agent_ntddscsi" = "yes" ; then
     echo "CONFIG_QGA_NTDDSCSI=y" >> $config_host_mak
   fi
-  if test "$guest_agent_msi" = "yes"; then
-    echo "CONFIG_QGA_MSI=y" >> $config_host_mak
-    echo "QEMU_GA_MSI_MINGW_DLL_PATH=${QEMU_GA_MSI_MINGW_DLL_PATH}" >> $config_host_mak
-    echo "QEMU_GA_MSI_WITH_VSS=${QEMU_GA_MSI_WITH_VSS}" >> $config_host_mak
-    echo "QEMU_GA_MSI_ARCH=${QEMU_GA_MSI_ARCH}" >> $config_host_mak
-    echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER}" >> $config_host_mak
-    echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO}" >> $config_host_mak
-    echo "QEMU_GA_VERSION=${QEMU_GA_VERSION}" >> $config_host_mak
-  fi
+  echo "QEMU_GA_MSI_MINGW_DLL_PATH=${QEMU_GA_MSI_MINGW_DLL_PATH}" >> $config_host_mak
+  echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER}" >> $config_host_mak
+  echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO}" >> $config_host_mak
+  echo "QEMU_GA_VERSION=${QEMU_GA_VERSION}" >> $config_host_mak
 else
   echo "CONFIG_POSIX=y" >> $config_host_mak
 fi
@@ -6420,7 +6372,7 @@ NINJA=$ninja $meson setup \
         -Dattr=$attr -Ddefault_devices=$default_devices \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
-        -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek \
+        -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek -Dguest_agent_msi=$guest_agent_msi \
         $(if test "$default_features" = no; then echo "-Dauto_features=disabled"; fi) \
         $cross_arg \
         "$PWD" "$source_path"

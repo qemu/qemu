@@ -2196,6 +2196,8 @@ endif
 
 if 'CONFIG_GUEST_AGENT' in config_host
   subdir('qga')
+elif get_option('guest_agent_msi').enabled()
+  error('Guest agent MSI requested, but the guest agent is not being built')
 endif
 
 # Don't build qemu-keymap if xkbcommon is not explicitly enabled
@@ -2460,9 +2462,11 @@ if targetos == 'windows'
   if 'WIN_SDK' in config_host
     summary_info += {'Windows SDK':       config_host['WIN_SDK']}
   endif
-  summary_info += {'QGA VSS support':   config_host.has_key('CONFIG_QGA_VSS')}
-  summary_info += {'QGA w32 disk info': config_host.has_key('CONFIG_QGA_NTDDSCSI')}
-  summary_info += {'QGA MSI support':   config_host.has_key('CONFIG_QGA_MSI')}
+  if config_host.has_key('CONFIG_GUEST_AGENT')
+    summary_info += {'QGA VSS support':   config_host.has_key('CONFIG_QGA_VSS')}
+    summary_info += {'QGA w32 disk info': config_host.has_key('CONFIG_QGA_NTDDSCSI')}
+    summary_info += {'QGA MSI support':   wixl.found()}
+  endif
 endif
 summary_info += {'seccomp support':   seccomp.found()}
 summary_info += {'CFI support':       get_option('cfi')}

@@ -55,33 +55,46 @@ if targetos == 'windows'
     gen_tlb = []
   endif
 
-  wixl = find_program('wixl', required: false)
+  qemu_ga_msi_arch = {
+    'x86': ['-D', 'Arch=32'],
+    'x86_64': ['-a', 'x64', '-D', 'Arch=64']
+  }
+  wixl = not_found
+  if cpu in qemu_ga_msi_arch
+    wixl = find_program('wixl', required: get_option('guest_agent_msi'))
+  elif get_option('guest_agent_msi').enabled()
+    error('CPU not supported for building guest agent installation package')
+  endif
+
   if wixl.found()
     deps = [gen_tlb, qga]
-    if 'CONFIG_QGA_VSS' in config_host and 'QEMU_GA_MSI_WITH_VSS' in config_host
+    qemu_ga_msi_vss = []
+    if 'CONFIG_QGA_VSS' in config_host
+      qemu_ga_msi_vss = ['-D', 'InstallVss']
       deps += qga_vss
     endif
-    if 'CONFIG_QGA_MSI' in config_host
-      qga_msi = custom_target('QGA MSI',
-                              input: files('installer/qemu-ga.wxs'),
-                              output: 'qemu-ga-@0@.msi'.format(config_host['ARCH']),
-                              depends: deps,
-                              command: [
-                                find_program('env'),
-                                'QEMU_GA_VERSION=' + config_host['QEMU_GA_VERSION'],
-                                'QEMU_GA_MANUFACTURER=' + config_host['QEMU_GA_MANUFACTURER'],
-                                'QEMU_GA_DISTRO=' + config_host['QEMU_GA_DISTRO'],
-                                'BUILD_DIR=' + meson.build_root(),
-                                wixl, '-o', '@OUTPUT0@', '@INPUT0@',
-                                config_host['QEMU_GA_MSI_ARCH'].split(),
-                                config_host['QEMU_GA_MSI_WITH_VSS'].split(),
-                                config_host['QEMU_GA_MSI_MINGW_DLL_PATH'].split(),
-                              ])
-      all_qga += [qga_msi]
-      alias_target('msi', qga_msi)
-    endif
+    qga_msi = custom_target('QGA MSI',
+                            input: files('installer/qemu-ga.wxs'),
+                            output: 'qemu-ga-@0@.msi'.format(config_host['ARCH']),
+                            depends: deps,
+                            command: [
+                              find_program('env'),
+                              'QEMU_GA_VERSION=' + config_host['QEMU_GA_VERSION'],
+                              'QEMU_GA_MANUFACTURER=' + config_host['QEMU_GA_MANUFACTURER'],
+                              'QEMU_GA_DISTRO=' + config_host['QEMU_GA_DISTRO'],
+                              'BUILD_DIR=' + meson.build_root(),
+                              wixl, '-o', '@OUTPUT0@', '@INPUT0@',
+                              qemu_ga_msi_arch[cpu],
+                              qemu_ga_msi_vss,
+                              '-D', 'Mingw_dlls=' + config_host['QEMU_GA_MSI_MINGW_DLL_PATH'],
+                            ])
+    all_qga += [qga_msi]
+    alias_target('msi', qga_msi)
   endif
 else
+  if get_option('guest_agent_msi').enabled()
+    error('MSI guest agent package is available only for MinGW Windows cross-compilation')
+  endif
   install_subdir('run', install_dir: get_option('localstatedir'))
 endif
 
