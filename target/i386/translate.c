@@ -1444,12 +1444,12 @@ static void gen_op(DisasContext *s1, int op, MemOp ot, int d)
             tcg_gen_neg_tl(s1->T0, s1->T1);
             tcg_gen_atomic_fetch_add_tl(s1->cc_srcT, s1->A0, s1->T0,
                                         s1->mem_index, ot | MO_LE);
-            tcg_gen_sub_tl(s1->T0, s1->cc_srcT, s1->T1);
             afl_gen_compcov(s1->pc, s1->cc_srcT, s1->T1, ot, d == OR_EAX);
+            tcg_gen_sub_tl(s1->T0, s1->cc_srcT, s1->T1);
         } else {
             tcg_gen_mov_tl(s1->cc_srcT, s1->T0);
-            tcg_gen_sub_tl(s1->T0, s1->T0, s1->T1);
             afl_gen_compcov(s1->pc, s1->T0, s1->T1, ot, d == OR_EAX);
+            tcg_gen_sub_tl(s1->T0, s1->T0, s1->T1);
             gen_op_st_rm_T0_A0(s1, ot, d);
         }
         gen_op_update2_cc(s1);
@@ -1492,8 +1492,8 @@ static void gen_op(DisasContext *s1, int op, MemOp ot, int d)
     case OP_CMPL:
         tcg_gen_mov_tl(cpu_cc_src, s1->T1);
         tcg_gen_mov_tl(s1->cc_srcT, s1->T0);
-        tcg_gen_sub_tl(cpu_cc_dst, s1->T0, s1->T1);
         afl_gen_compcov(s1->pc, s1->T0, s1->T1, ot, d == OR_EAX);
+        tcg_gen_sub_tl(cpu_cc_dst, s1->T0, s1->T1);
         set_cc_op(s1, CC_OP_SUBB + ot);
         break;
     }
