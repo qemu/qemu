@@ -41,6 +41,7 @@
 #include "exec/cpu-all.h"
 #include "sysemu/cpu-timers.h"
 #include "sysemu/replay.h"
+#include "internal.h"
 
 /* -icount align implementation. */
 
