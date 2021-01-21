@@ -2310,8 +2310,25 @@ summary_info += {'Source path':       meson.current_source_dir()}
 summary_info += {'GIT submodules':    config_host['GIT_SUBMODULES']}
 summary(summary_info, bool_yn: true, section: 'Directories')
 
+# Host binaries
 summary_info = {}
-summary_info += {'GIT binary':        config_host['GIT']}
+summary_info += {'git':               config_host['GIT']}
+summary_info += {'make':              config_host['MAKE']}
+summary_info += {'python':            '@0@ (version: @1@)'.format(python.full_path(), python.language_version())}
+summary_info += {'sphinx-build':      sphinx_build.found()}
+if config_host.has_key('HAVE_GDB_BIN')
+  summary_info += {'gdb':             config_host['HAVE_GDB_BIN']}
+endif
+summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
+if targetos == 'windows' and config_host.has_key('CONFIG_GUEST_AGENT')
+  summary_info += {'wixl':            wixl.found() ? wixl.full_path() : false}
+endif
+if slirp_opt != 'disabled'
+  summary_info += {'smbd':            config_host['CONFIG_SMBD_COMMAND']}
+endif
+summary(summary_info, bool_yn: true, section: 'Host binaries')
+
+summary_info = {}
 summary_info += {'C compiler':        meson.get_compiler('c').cmd_array()[0]}
 summary_info += {'Host C compiler':   meson.get_compiler('c', native: true).cmd_array()[0]}
 if link_language == 'cpp'
@@ -2337,15 +2354,8 @@ if link_args.length() > 0
 endif
 summary_info += {'QEMU_CFLAGS':       config_host['QEMU_CFLAGS']}
 summary_info += {'QEMU_LDFLAGS':      config_host['QEMU_LDFLAGS']}
-summary_info += {'make':              config_host['MAKE']}
-summary_info += {'python':            '@0@ (version: @1@)'.format(python.full_path(), python.language_version())}
-summary_info += {'sphinx-build':      sphinx_build.found()}
-summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
 # TODO: add back version
 summary_info += {'slirp support':     slirp_opt == 'disabled' ? false : slirp_opt}
-if slirp_opt != 'disabled'
-  summary_info += {'smbd':            config_host['CONFIG_SMBD_COMMAND']}
-endif
 summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
 if config_host.has_key('CONFIG_MODULES')
   summary_info += {'alternative module path': config_host.has_key('CONFIG_MODULE_UPGRADES')}
@@ -2469,7 +2479,6 @@ if targetos == 'windows'
   if config_host.has_key('CONFIG_GUEST_AGENT')
     summary_info += {'QGA VSS support':   config_host.has_key('CONFIG_QGA_VSS')}
     summary_info += {'QGA w32 disk info': config_host.has_key('CONFIG_QGA_NTDDSCSI')}
-    summary_info += {'QGA MSI support':   wixl.found()}
   endif
 endif
 summary_info += {'seccomp support':   seccomp.found()}
@@ -2513,9 +2522,6 @@ summary_info += {'libudev':           libudev.found()}
 summary_info += {'default devices':   get_option('default_devices')}
 summary_info += {'plugin support':    config_host.has_key('CONFIG_PLUGIN')}
 summary_info += {'fuzzing support':   config_host.has_key('CONFIG_FUZZ')}
-if config_host.has_key('HAVE_GDB_BIN')
-  summary_info += {'gdb':             config_host['HAVE_GDB_BIN']}
-endif
 summary_info += {'thread sanitizer':  config_host.has_key('CONFIG_TSAN')}
 summary_info += {'rng-none':          config_host.has_key('CONFIG_RNG_NONE')}
 summary_info += {'Linux keyring':     config_host.has_key('CONFIG_SECRET_KEYRING')}
