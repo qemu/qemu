@@ -15,6 +15,7 @@ ENV PACKAGES \
     gettext \
     git \
     glib2-devel \
+    glibc-static \
     gnutls-devel \
     libaio-devel \
     libepoxy-devel \
