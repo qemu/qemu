@@ -2333,6 +2333,7 @@ summary_info = {}
 summary_info += {'Documentation':     build_docs}
 summary_info += {'system-mode emulation': have_system}
 summary_info += {'user-mode emulation': have_user}
+summary_info += {'block layer':       have_block}
 summary_info += {'Install blobs':     get_option('install_blobs')}
 summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
 if config_host.has_key('CONFIG_MODULES')
@@ -2445,6 +2446,30 @@ if have_system
 endif
 summary(summary_info, bool_yn: true, section: 'Targets and accelerators')
 
+# Block layer
+summary_info = {}
+summary_info += {'coroutine backend': config_host['CONFIG_COROUTINE_BACKEND']}
+summary_info += {'coroutine pool':    config_host['CONFIG_COROUTINE_POOL'] == '1'}
+if have_block
+  summary_info += {'Block whitelist (rw)': config_host['CONFIG_BDRV_RW_WHITELIST']}
+  summary_info += {'Block whitelist (ro)': config_host['CONFIG_BDRV_RO_WHITELIST']}
+  summary_info += {'VirtFS support':    have_virtfs}
+  summary_info += {'build virtiofs daemon': have_virtiofsd}
+  summary_info += {'Live block migration': config_host.has_key('CONFIG_LIVE_BLOCK_MIGRATION')}
+  summary_info += {'replication support': config_host.has_key('CONFIG_REPLICATION')}
+  summary_info += {'bochs support':     config_host.has_key('CONFIG_BOCHS')}
+  summary_info += {'cloop support':     config_host.has_key('CONFIG_CLOOP')}
+  summary_info += {'dmg support':       config_host.has_key('CONFIG_DMG')}
+  summary_info += {'qcow v1 support':   config_host.has_key('CONFIG_QCOW1')}
+  summary_info += {'vdi support':       config_host.has_key('CONFIG_VDI')}
+  summary_info += {'vvfat support':     config_host.has_key('CONFIG_VVFAT')}
+  summary_info += {'qed support':       config_host.has_key('CONFIG_QED')}
+  summary_info += {'parallels support': config_host.has_key('CONFIG_PARALLELS')}
+  summary_info += {'sheepdog support':  config_host.has_key('CONFIG_SHEEPDOG')}
+  summary_info += {'FUSE exports':      fuse.found()}
+endif
+summary(summary_info, bool_yn: true, section: 'Block layer support')
+
 summary_info = {}
 if targetos == 'darwin'
   summary_info += {'Cocoa support':   cocoa.found()}
@@ -2479,10 +2504,6 @@ summary_info += {'curses support':    curses.found()}
 # TODO: add back version
 summary_info += {'virgl support':     config_host.has_key('CONFIG_VIRGL')}
 summary_info += {'curl support':      curl.found()}
-summary_info += {'Block whitelist (rw)': config_host['CONFIG_BDRV_RW_WHITELIST']}
-summary_info += {'Block whitelist (ro)': config_host['CONFIG_BDRV_RO_WHITELIST']}
-summary_info += {'VirtFS support':    have_virtfs}
-summary_info += {'build virtiofs daemon': have_virtiofsd}
 summary_info += {'Multipath support': mpathpersist.found()}
 summary_info += {'VNC support':       vnc.found()}
 if vnc.found()
@@ -2519,13 +2540,10 @@ if targetos == 'windows'
   endif
 endif
 summary_info += {'seccomp support':   seccomp.found()}
-summary_info += {'coroutine backend': config_host['CONFIG_COROUTINE_BACKEND']}
-summary_info += {'coroutine pool':    config_host['CONFIG_COROUTINE_POOL'] == '1'}
 summary_info += {'crypto afalg':      config_host.has_key('CONFIG_AF_ALG')}
 summary_info += {'GlusterFS support': glusterfs.found()}
 summary_info += {'TPM support':       config_host.has_key('CONFIG_TPM')}
 summary_info += {'libssh support':    config_host.has_key('CONFIG_LIBSSH')}
-summary_info += {'Live block migration': config_host.has_key('CONFIG_LIVE_BLOCK_MIGRATION')}
 summary_info += {'lzo support':       lzo.found()}
 summary_info += {'snappy support':    snappy.found()}
 summary_info += {'bzip2 support':     libbzip2.found()}
@@ -2533,23 +2551,12 @@ summary_info += {'lzfse support':     liblzfse.found()}
 summary_info += {'zstd support':      zstd.found()}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
 summary_info += {'libxml2':           config_host.has_key('CONFIG_LIBXML2')}
-summary_info += {'replication support': config_host.has_key('CONFIG_REPLICATION')}
-summary_info += {'bochs support':     config_host.has_key('CONFIG_BOCHS')}
-summary_info += {'cloop support':     config_host.has_key('CONFIG_CLOOP')}
-summary_info += {'dmg support':       config_host.has_key('CONFIG_DMG')}
-summary_info += {'qcow v1 support':   config_host.has_key('CONFIG_QCOW1')}
-summary_info += {'vdi support':       config_host.has_key('CONFIG_VDI')}
-summary_info += {'vvfat support':     config_host.has_key('CONFIG_VVFAT')}
-summary_info += {'qed support':       config_host.has_key('CONFIG_QED')}
-summary_info += {'parallels support': config_host.has_key('CONFIG_PARALLELS')}
-summary_info += {'sheepdog support':  config_host.has_key('CONFIG_SHEEPDOG')}
 summary_info += {'capstone':          capstone_opt == 'disabled' ? false : capstone_opt}
 summary_info += {'libpmem support':   config_host.has_key('CONFIG_LIBPMEM')}
 summary_info += {'libdaxctl support': config_host.has_key('CONFIG_LIBDAXCTL')}
 summary_info += {'libudev':           libudev.found()}
 summary_info += {'rng-none':          config_host.has_key('CONFIG_RNG_NONE')}
 summary_info += {'Linux keyring':     config_host.has_key('CONFIG_SECRET_KEYRING')}
-summary_info += {'FUSE exports':      fuse.found()}
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
 summary(summary_info, bool_yn: true)
 
