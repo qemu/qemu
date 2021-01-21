@@ -311,7 +311,7 @@ static V9fsFidState *alloc_fid(V9fsState *s, int32_t fid)
      * reclaim won't close the file descriptor
      */
     f->flags |= FID_REFERENCED;
-    QSIMPLEQ_INSERT_HEAD(&s->fid_list, f, next);
+    QSIMPLEQ_INSERT_TAIL(&s->fid_list, f, next);
 
     v9fs_readdir_init(s->proto_version, &f->fs.dir);
     v9fs_readdir_init(s->proto_version, &f->fs_reclaim.dir);
@@ -497,32 +497,50 @@ static int coroutine_fn v9fs_mark_fids_unreclaim(V9fsPDU *pdu, V9fsPath *path)
 {
     int err;
     V9fsState *s = pdu->s;
-    V9fsFidState *fidp;
+    V9fsFidState *fidp, *fidp_next;
 
-again:
-    QSIMPLEQ_FOREACH(fidp, &s->fid_list, next) {
-        if (fidp->path.size != path->size) {
-            continue;
-        }
-        if (!memcmp(fidp->path.data, path->data, path->size)) {
+    fidp = QSIMPLEQ_FIRST(&s->fid_list);
+    if (!fidp) {
+        return 0;
+    }
+
+    /*
+     * v9fs_reopen_fid() can yield : a reference on the fid must be held
+     * to ensure its pointer remains valid and we can safely pass it to
+     * QSIMPLEQ_NEXT(). The corresponding put_fid() can also yield so
+     * we must keep a reference on the next fid as well. So the logic here
+     * is to get a reference on a fid and only put it back during the next
+     * iteration after we could get a reference on the next fid. Start with
+     * the first one.
+     */
+    for (fidp->ref++; fidp; fidp = fidp_next) {
+        if (fidp->path.size == path->size &&
+            !memcmp(fidp->path.data, path->data, path->size)) {
             /* Mark the fid non reclaimable. */
             fidp->flags |= FID_NON_RECLAIMABLE;
 
             /* reopen the file/dir if already closed */
             err = v9fs_reopen_fid(pdu, fidp);
             if (err < 0) {
+                put_fid(pdu, fidp);
                 return err;
             }
-            /*
-             * Go back to head of fid list because
-             * the list could have got updated when
-             * switched to the worker thread
-             */
-            if (err == 0) {
-                goto again;
-            }
         }
+
+        fidp_next = QSIMPLEQ_NEXT(fidp, next);
+
+        if (fidp_next) {
+            /*
+             * Ensure the next fid survives a potential clunk request during
+             * put_fid() below and v9fs_reopen_fid() in the next iteration.
+             */
+            fidp_next->ref++;
+        }
+
+        /* We're done with this fid */
+        put_fid(pdu, fidp);
     }
+
     return 0;
 }
 
