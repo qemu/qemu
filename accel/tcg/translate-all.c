@@ -2461,23 +2461,6 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     cpu_loop_exit_noexc(cpu);
 }
 
-static void tb_jmp_cache_clear_page(CPUState *cpu, target_ulong page_addr)
-{
-    unsigned int i, i0 = tb_jmp_cache_hash_page(page_addr);
-
-    for (i = 0; i < TB_JMP_PAGE_SIZE; i++) {
-        qatomic_set(&cpu->tb_jmp_cache[i0 + i], NULL);
-    }
-}
-
-void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr)
-{
-    /* Discard jump cache entries for any tb which might potentially
-       overlap the flushed page.  */
-    tb_jmp_cache_clear_page(cpu, addr - TARGET_PAGE_SIZE);
-    tb_jmp_cache_clear_page(cpu, addr);
-}
-
 static void print_qht_statistics(struct qht_stats hst)
 {
     uint32_t hgram_opts;
