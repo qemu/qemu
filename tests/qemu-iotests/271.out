@@ -500,7 +500,7 @@ L2 entry #0: 0x8000000000050001 0000000000000001
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
 L2 entry #1: 0x8000000000060000 00000001ffffffff
-qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0x1); further corruption events will be suppressed
+qcow2: Marking image as corrupt: Invalid cluster entry found (L2 offset: 0x40000, L2 index: 0x1); further corruption events will be suppressed
 write failed: Input/output error
 
 ### Corrupted L2 entries - write test (unallocated) ###
@@ -515,14 +515,14 @@ L2 entry #0: 0x8000000000060000 0000000000000001
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
 L2 entry #0: 0x0000000000000000 0000000000000001
-qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+qcow2: Marking image as corrupt: Invalid cluster entry found (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
 write failed: Input/output error
 
 # Both 'subcluster is zero' and 'subcluster is allocated' bits set
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
 L2 entry #1: 0x0000000000000000 0000000100000001
-qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0x1); further corruption events will be suppressed
+qcow2: Marking image as corrupt: Invalid cluster entry found (L2 offset: 0x40000, L2 index: 0x1); further corruption events will be suppressed
 write failed: Input/output error
 
 ### Compressed cluster with subcluster bitmap != 0 - write test ###
@@ -583,7 +583,7 @@ read 524288/524288 bytes at offset 0
 read 524288/524288 bytes at offset 524288
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Offset          Length          Mapped to       File
-0               0x80000        0               TEST_DIR/t.qcow2.base
+0               0x80000         0               TEST_DIR/t.qcow2.base
 # backing file and preallocation=falloc
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=524288 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw preallocation=falloc
 Image resized.
@@ -592,7 +592,7 @@ read 524288/524288 bytes at offset 0
 read 524288/524288 bytes at offset 524288
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Offset          Length          Mapped to       File
-0               0x80000        0               TEST_DIR/t.qcow2.base
+0               0x80000         0               TEST_DIR/t.qcow2.base
 # backing file and preallocation=full
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=524288 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=raw preallocation=full
 Image resized.
@@ -601,7 +601,7 @@ read 524288/524288 bytes at offset 0
 read 524288/524288 bytes at offset 524288
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Offset          Length          Mapped to       File
-0               0x80000        0               TEST_DIR/t.qcow2.base
+0               0x80000         0               TEST_DIR/t.qcow2.base
 
 ### Image resizing with preallocation and backing files ###
 

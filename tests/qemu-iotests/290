@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw auto quick
 #
 # Test how 'qemu-io -c discard' behaves on v2 and v3 qcow2 images
 #

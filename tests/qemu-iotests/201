@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw migration quick
 #
 # Test savevm and loadvm after live migration with postcopy flag
 #

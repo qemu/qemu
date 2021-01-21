@@ -101,9 +101,8 @@ def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
                             universal_newlines=True)
     output = subp.communicate()[0]
     if subp.returncode < 0:
-        sys.stderr.write('%s received signal %i: %s\n'
-                         % (tool, -subp.returncode,
-                            ' '.join(qemu_img_args + list(args))))
+        cmd = ' '.join(args)
+        sys.stderr.write(f'{tool} received signal {-subp.returncode}: {cmd}\n')
     return (output, subp.returncode)
 
 def qemu_img_pipe_and_status(*args: str) -> Tuple[str, int]:
@@ -189,14 +188,7 @@ def img_info_log(filename, filter_path=None, imgopts=False, extra_args=()):
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     args = qemu_io_args + list(args)
-    subp = subprocess.Popen(args, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT,
-                            universal_newlines=True)
-    output = subp.communicate()[0]
-    if subp.returncode < 0:
-        sys.stderr.write('qemu-io received signal %i: %s\n'
-                         % (-subp.returncode, ' '.join(args)))
-    return output
+    return qemu_tool_pipe_and_status('qemu-io', args)[0]
 
 def qemu_io_log(*args):
     result = qemu_io(*args)
