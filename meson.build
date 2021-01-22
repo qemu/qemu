@@ -1877,29 +1877,31 @@ subdir('libdecnumber')
 subdir('target')
 subdir('dump')
 
-block_ss.add(files(
-  'block.c',
-  'blockjob.c',
-  'job.c',
-  'qemu-io-cmds.c',
-))
-block_ss.add(when: 'CONFIG_REPLICATION', if_true: files('replication.c'))
+if have_block
+  block_ss.add(files(
+    'block.c',
+    'blockjob.c',
+    'job.c',
+    'qemu-io-cmds.c',
+  ))
+  block_ss.add(when: 'CONFIG_REPLICATION', if_true: files('replication.c'))
 
-subdir('nbd')
-subdir('scsi')
-subdir('block')
+  subdir('nbd')
+  subdir('scsi')
+  subdir('block')
 
-blockdev_ss.add(files(
-  'blockdev.c',
-  'blockdev-nbd.c',
-  'iothread.c',
-  'job-qmp.c',
-), gnutls)
+  blockdev_ss.add(files(
+    'blockdev.c',
+    'blockdev-nbd.c',
+    'iothread.c',
+    'job-qmp.c',
+  ), gnutls)
 
-# os-posix.c contains POSIX-specific functions used by qemu-storage-daemon,
-# os-win32.c does not
-blockdev_ss.add(when: 'CONFIG_POSIX', if_true: files('os-posix.c'))
-softmmu_ss.add(when: 'CONFIG_WIN32', if_true: [files('os-win32.c')])
+  # os-posix.c contains POSIX-specific functions used by qemu-storage-daemon,
+  # os-win32.c does not
+  blockdev_ss.add(when: 'CONFIG_POSIX', if_true: files('os-posix.c'))
+  softmmu_ss.add(when: 'CONFIG_WIN32', if_true: [files('os-win32.c')])
+endif
 
 common_ss.add(files('cpus-common.c'))
 
