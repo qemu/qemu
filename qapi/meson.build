@@ -43,7 +43,6 @@ qapi_all_modules = [
   'sockets',
   'trace',
   'transaction',
-  'ui',
   'yank',
 ]
 if have_system
@@ -55,6 +54,11 @@ if have_system
     'rdma',
     'rocker',
     'tpm',
+  ]
+endif
+if have_system or have_tools
+  qapi_all_modules += [
+    'ui',
   ]
 endif
 
