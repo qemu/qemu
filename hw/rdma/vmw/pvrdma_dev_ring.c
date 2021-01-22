@@ -22,11 +22,10 @@
 #include "trace.h"
 
 #include "../rdma_utils.h"
-#include "standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_ring.h"
 #include "pvrdma_dev_ring.h"
 
 int pvrdma_ring_init(PvrdmaRing *ring, const char *name, PCIDevice *dev,
-                     struct pvrdma_ring *ring_state, uint32_t max_elems,
+                     PvrdmaRingState *ring_state, uint32_t max_elems,
                      size_t elem_sz, dma_addr_t *tbl, uint32_t npages)
 {
     int i;
@@ -73,48 +72,54 @@ out:
 
 void *pvrdma_ring_next_elem_read(PvrdmaRing *ring)
 {
-    int e;
-    unsigned int idx = 0, offset;
+    unsigned int idx, offset;
+    const uint32_t tail = qatomic_read(&ring->ring_state->prod_tail);
+    const uint32_t head = qatomic_read(&ring->ring_state->cons_head);
 
-    e = pvrdma_idx_ring_has_data(ring->ring_state, ring->max_elems, &idx);
-    if (e <= 0) {
+    if (tail & ~((ring->max_elems << 1) - 1) ||
+        head & ~((ring->max_elems << 1) - 1) ||
+        tail == head) {
         trace_pvrdma_ring_next_elem_read_no_data(ring->name);
         return NULL;
     }
 
+    idx = head & (ring->max_elems - 1);
     offset = idx * ring->elem_sz;
     return ring->pages[offset / TARGET_PAGE_SIZE] + (offset % TARGET_PAGE_SIZE);
 }
 
 void pvrdma_ring_read_inc(PvrdmaRing *ring)
 {
-    pvrdma_idx_ring_inc(&ring->ring_state->cons_head, ring->max_elems);
+    uint32_t idx = qatomic_read(&ring->ring_state->cons_head);
+
+    idx = (idx + 1) & ((ring->max_elems << 1) - 1);
+    qatomic_set(&ring->ring_state->cons_head, idx);
 }
 
 void *pvrdma_ring_next_elem_write(PvrdmaRing *ring)
 {
-    int idx;
-    unsigned int offset, tail;
+    unsigned int idx, offset;
+    const uint32_t tail = qatomic_read(&ring->ring_state->prod_tail);
+    const uint32_t head = qatomic_read(&ring->ring_state->cons_head);
 
-    idx = pvrdma_idx_ring_has_space(ring->ring_state, ring->max_elems, &tail);
-    if (idx <= 0) {
+    if (tail & ~((ring->max_elems << 1) - 1) ||
+        head & ~((ring->max_elems << 1) - 1) ||
+        tail == (head ^ ring->max_elems)) {
         rdma_error_report("CQ is full");
         return NULL;
     }
 
-    idx = pvrdma_idx(&ring->ring_state->prod_tail, ring->max_elems);
-    if (idx < 0 || tail != idx) {
-        rdma_error_report("Invalid idx %d", idx);
-        return NULL;
-    }
-
+    idx = tail & (ring->max_elems - 1);
     offset = idx * ring->elem_sz;
     return ring->pages[offset / TARGET_PAGE_SIZE] + (offset % TARGET_PAGE_SIZE);
 }
 
 void pvrdma_ring_write_inc(PvrdmaRing *ring)
 {
-    pvrdma_idx_ring_inc(&ring->ring_state->prod_tail, ring->max_elems);
+    uint32_t idx = qatomic_read(&ring->ring_state->prod_tail);
+
+    idx = (idx + 1) & ((ring->max_elems << 1) - 1);
+    qatomic_set(&ring->ring_state->prod_tail, idx);
 }
 
 void pvrdma_ring_free(PvrdmaRing *ring)
