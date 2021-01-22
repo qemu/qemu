@@ -18,8 +18,6 @@ if have_system or have_tools
 endif
 
 qapi_all_modules = [
-  'acpi',
-  'audio',
   'authz',
   'block',
   'block-core',
@@ -39,14 +37,10 @@ qapi_all_modules = [
   'misc-target',
   'net',
   'pragma',
-  'pci',
   'qom',
-  'rdma',
   'replay',
-  'rocker',
   'run-state',
   'sockets',
-  'tpm',
   'trace',
   'transaction',
   'ui',
@@ -54,7 +48,13 @@ qapi_all_modules = [
 ]
 if have_system
   qapi_all_modules += [
+    'acpi',
+    'audio',
     'qdev',
+    'pci',
+    'rdma',
+    'rocker',
+    'tpm',
   ]
 endif
 
