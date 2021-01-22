@@ -276,7 +276,9 @@ test('decodetree', sh,
      workdir: meson.current_source_dir() / 'decode',
      suite: 'decodetree')
 
-subdir('fp')
+if 'CONFIG_TCG' in config_all
+  subdir('fp')
+endif
 
 if not get_option('tcg').disabled()
   if 'CONFIG_PLUGIN' in config_host
