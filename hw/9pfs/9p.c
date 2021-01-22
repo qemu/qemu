@@ -416,7 +416,9 @@ void coroutine_fn v9fs_reclaim_fd(V9fsPDU *pdu)
 {
     int reclaim_count = 0;
     V9fsState *s = pdu->s;
-    V9fsFidState *f, *reclaim_list = NULL;
+    V9fsFidState *f;
+    QSLIST_HEAD(, V9fsFidState) reclaim_list =
+        QSLIST_HEAD_INITIALIZER(reclaim_list);
 
     QSIMPLEQ_FOREACH(f, &s->fid_list, next) {
         /*
@@ -448,8 +450,7 @@ void coroutine_fn v9fs_reclaim_fd(V9fsPDU *pdu)
                  * a clunk request won't free this fid
                  */
                 f->ref++;
-                f->rclm_lst = reclaim_list;
-                reclaim_list = f;
+                QSLIST_INSERT_HEAD(&reclaim_list, f, reclaim_next);
                 f->fs_reclaim.fd = f->fs.fd;
                 f->fs.fd = -1;
                 reclaim_count++;
@@ -461,8 +462,7 @@ void coroutine_fn v9fs_reclaim_fd(V9fsPDU *pdu)
                  * a clunk request won't free this fid
                  */
                 f->ref++;
-                f->rclm_lst = reclaim_list;
-                reclaim_list = f;
+                QSLIST_INSERT_HEAD(&reclaim_list, f, reclaim_next);
                 f->fs_reclaim.dir.stream = f->fs.dir.stream;
                 f->fs.dir.stream = NULL;
                 reclaim_count++;
@@ -476,15 +476,14 @@ void coroutine_fn v9fs_reclaim_fd(V9fsPDU *pdu)
      * Now close the fid in reclaim list. Free them if they
      * are already clunked.
      */
-    while (reclaim_list) {
-        f = reclaim_list;
-        reclaim_list = f->rclm_lst;
+    while (!QSLIST_EMPTY(&reclaim_list)) {
+        f = QSLIST_FIRST(&reclaim_list);
+        QSLIST_REMOVE(&reclaim_list, f, V9fsFidState, reclaim_next);
         if (f->fid_type == P9_FID_FILE) {
             v9fs_co_close(pdu, &f->fs_reclaim);
         } else if (f->fid_type == P9_FID_DIR) {
             v9fs_co_closedir(pdu, &f->fs_reclaim);
         }
-        f->rclm_lst = NULL;
         /*
          * Now drop the fid reference, free it
          * if clunked.

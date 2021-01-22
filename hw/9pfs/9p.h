@@ -281,7 +281,7 @@ struct V9fsFidState {
     int ref;
     bool clunked;
     QSIMPLEQ_ENTRY(V9fsFidState) next;
-    V9fsFidState *rclm_lst;
+    QSLIST_ENTRY(V9fsFidState) reclaim_next;
 };
 
 typedef enum AffixType_t {
