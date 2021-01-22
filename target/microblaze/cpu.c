@@ -375,7 +375,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->tlb_fill = mb_cpu_tlb_fill;
 #ifndef CONFIG_USER_ONLY
     cc->do_transaction_failed = mb_cpu_transaction_failed;
-    cc->get_phys_page_debug = mb_cpu_get_phys_page_debug;
+    cc->get_phys_page_attrs_debug = mb_cpu_get_phys_page_attrs_debug;
     dc->vmsd = &vmstate_mb_cpu;
 #endif
     device_class_set_props(dc, mb_properties);
