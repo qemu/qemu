@@ -35,7 +35,6 @@ qapi_all_modules = [
   'misc-target',
   'net',
   'pragma',
-  'qdev',
   'pci',
   'qom',
   'rdma',
@@ -49,6 +48,11 @@ qapi_all_modules = [
   'ui',
   'yank',
 ]
+if have_system
+  qapi_all_modules += [
+    'qdev',
+  ]
+endif
 
 qapi_storage_daemon_modules = [
   'block-core',
