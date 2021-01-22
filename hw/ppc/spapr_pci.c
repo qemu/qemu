@@ -1344,15 +1344,29 @@ static int spapr_dt_pci_bus(SpaprPhbState *sphb, PCIBus *bus,
     return offset;
 }
 
+char *spapr_pci_fw_dev_name(PCIDevice *dev)
+{
+    const gchar *basename;
+    int slot = PCI_SLOT(dev->devfn);
+    int func = PCI_FUNC(dev->devfn);
+    uint32_t ccode = pci_default_read_config(dev, PCI_CLASS_PROG, 3);
+
+    basename = dt_name_from_class((ccode >> 16) & 0xff, (ccode >> 8) & 0xff,
+                                  ccode & 0xff);
+
+    if (func != 0) {
+        return g_strdup_printf("%s@%x,%x", basename, slot, func);
+    } else {
+        return g_strdup_printf("%s@%x", basename, slot);
+    }
+}
+
 /* create OF node for pci device and required OF DT properties */
 static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
                                void *fdt, int parent_offset)
 {
     int offset;
-    const gchar *basename;
-    gchar *nodename;
-    int slot = PCI_SLOT(dev->devfn);
-    int func = PCI_FUNC(dev->devfn);
+    g_autofree gchar *nodename = spapr_pci_fw_dev_name(dev);
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     ResourceProps rp;
     SpaprDrc *drc = drc_from_dev(sphb, dev);
@@ -1369,18 +1383,7 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
     uint32_t pci_status = pci_default_read_config(dev, PCI_STATUS, 2);
     gchar *loc_code;
 
-    basename = dt_name_from_class((ccode >> 16) & 0xff, (ccode >> 8) & 0xff,
-                                  ccode & 0xff);
-
-    if (func != 0) {
-        nodename = g_strdup_printf("%s@%x,%x", basename, slot, func);
-    } else {
-        nodename = g_strdup_printf("%s@%x", basename, slot);
-    }
-
     _FDT(offset = fdt_add_subnode(fdt, parent_offset, nodename));
-
-    g_free(nodename);
 
     /* in accordance with PAPR+ v2.7 13.6.3, Table 181 */
     _FDT(fdt_setprop_cell(fdt, offset, "vendor-id", vendor_id));

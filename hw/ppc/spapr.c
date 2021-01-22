@@ -3054,6 +3054,7 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
     SCSIDevice *d = CAST(SCSIDevice,  dev, TYPE_SCSI_DEVICE);
     SpaprPhbState *phb = CAST(SpaprPhbState, dev, TYPE_SPAPR_PCI_HOST_BRIDGE);
     VHostSCSICommon *vsc = CAST(VHostSCSICommon, dev, TYPE_VHOST_SCSI_COMMON);
+    PCIDevice *pcidev = CAST(PCIDevice, dev, TYPE_PCI_DEVICE);
 
     if (d) {
         void *spapr = CAST(void, bus->parent, "spapr-vscsi");
@@ -3125,6 +3126,10 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
         /* SLOF uses "pci" instead of "pci-bridge" for PCI bridges */
         PCIDevice *pcidev = CAST(PCIDevice, dev, TYPE_PCI_DEVICE);
         return g_strdup_printf("pci@%x", PCI_SLOT(pcidev->devfn));
+    }
+
+    if (pcidev) {
+        return spapr_pci_fw_dev_name(pcidev);
     }
 
     return NULL;
