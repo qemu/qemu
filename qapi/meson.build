@@ -4,14 +4,18 @@ util_ss.add(files(
   'qapi-dealloc-visitor.c',
   'qapi-util.c',
   'qapi-visit-core.c',
-  'qmp-dispatch.c',
-  'qmp-event.c',
-  'qmp-registry.c',
   'qobject-input-visitor.c',
   'qobject-output-visitor.c',
   'string-input-visitor.c',
   'string-output-visitor.c',
 ))
+if have_system or have_tools
+  util_ss.add(files(
+    'qmp-dispatch.c',
+    'qmp-event.c',
+    'qmp-registry.c',
+  ))
+endif
 
 qapi_all_modules = [
   'acpi',
