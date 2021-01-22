@@ -1460,6 +1460,7 @@ if capstone_opt == 'internal'
   ]
 
   libcapstone = static_library('capstone',
+                               build_by_default: false,
                                sources: capstone_files,
                                c_args: capstone_cargs,
                                include_directories: 'capstone/include')
@@ -1537,6 +1538,7 @@ if have_system
 
     slirp_inc = include_directories('slirp', 'slirp/src')
     libslirp = static_library('slirp',
+                              build_by_default: false,
                               sources: slirp_files,
                               c_args: slirp_cargs,
                               include_directories: slirp_inc)
@@ -1582,6 +1584,7 @@ if have_system
 
     fdt_inc = include_directories('dtc/libfdt')
     libfdt = static_library('fdt',
+                            build_by_default: false,
                             sources: fdt_files,
                             include_directories: fdt_inc)
     fdt = declare_dependency(link_with: libfdt,
