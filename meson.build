@@ -1744,7 +1744,20 @@ trace_events_subdirs = [
   'accel/kvm',
   'accel/tcg',
   'crypto',
+  'hw/core',
+  'qapi',
+  'qom',
   'monitor',
+  'target/arm',
+  'target/hppa',
+  'target/i386',
+  'target/i386/kvm',
+  'target/mips',
+  'target/ppc',
+  'target/riscv',
+  'target/s390x',
+  'target/sparc',
+  'util',
 ]
 if have_user
   trace_events_subdirs += [ 'linux-user' ]
@@ -1817,21 +1830,6 @@ if have_system
     'ui',
   ]
 endif
-trace_events_subdirs += [
-  'hw/core',
-  'qapi',
-  'qom',
-  'target/arm',
-  'target/hppa',
-  'target/i386',
-  'target/i386/kvm',
-  'target/mips',
-  'target/ppc',
-  'target/riscv',
-  'target/s390x',
-  'target/sparc',
-  'util',
-]
 
 vhost_user = not_found
 if 'CONFIG_VHOST_USER' in config_host
