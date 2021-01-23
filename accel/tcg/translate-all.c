@@ -1926,11 +1926,17 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     ti = profile_getclock();
 #endif
 
+    gen_code_size = sigsetjmp(tcg_ctx->jmp_trans, 0);
+    if (unlikely(gen_code_size != 0)) {
+        goto error_return;
+    }
+
     tcg_func_start(tcg_ctx);
 
     tcg_ctx->cpu = env_cpu(env);
     gen_intermediate_code(cpu, tb, max_insns);
     tcg_ctx->cpu = NULL;
+    max_insns = tb->icount;
 
     trace_translate_block(tb, tb->pc, tb->tc.ptr);
 
@@ -1955,6 +1961,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
     gen_code_size = tcg_gen_code(tcg_ctx, tb);
     if (unlikely(gen_code_size < 0)) {
+ error_return:
         switch (gen_code_size) {
         case -1:
             /*
@@ -1966,6 +1973,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
              * flush the TBs, allocate a new TB, re-initialize it per
              * above, and re-do the actual code generation.
              */
+            qemu_log_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT,
+                          "Restarting code generation for "
+                          "code_gen_buffer overflow\n");
             goto buffer_overflow;
 
         case -2:
@@ -1978,9 +1988,12 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
              * Try again with half as many insns as we attempted this time.
              * If a single insn overflows, there's a bug somewhere...
              */
-            max_insns = tb->icount;
             assert(max_insns > 1);
             max_insns /= 2;
+            qemu_log_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT,
+                          "Restarting code generation with "
+                          "smaller translation block (max %d insns)\n",
+                          max_insns);
             goto tb_overflow;
 
         default:
