@@ -23,6 +23,7 @@ static Property usb_props[] = {
                     USB_DEV_FLAG_FULL_PATH, true),
     DEFINE_PROP_BIT("msos-desc", USBDevice, flags,
                     USB_DEV_FLAG_MSOS_DESC_ENABLE, true),
+    DEFINE_PROP_STRING("pcap", USBDevice, pcap_filename),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -270,6 +271,17 @@ static void usb_qdev_realize(DeviceState *qdev, Error **errp)
             return;
         }
     }
+
+    if (dev->pcap_filename) {
+        int fd = qemu_open_old(dev->pcap_filename, O_CREAT | O_WRONLY | O_TRUNC, 0666);
+        if (fd < 0) {
+            error_setg(errp, "open %s failed", dev->pcap_filename);
+            usb_qdev_unrealize(qdev);
+            return;
+        }
+        dev->pcap = fdopen(fd, "w");
+        usb_pcap_init(dev->pcap);
+    }
 }
 
 static void usb_qdev_unrealize(DeviceState *qdev)
@@ -281,6 +293,10 @@ static void usb_qdev_unrealize(DeviceState *qdev)
         QLIST_REMOVE(s, next);
         g_free(s->str);
         g_free(s);
+    }
+
+    if (dev->pcap) {
+        fclose(dev->pcap);
     }
 
     if (dev->attached) {

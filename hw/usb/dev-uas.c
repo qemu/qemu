@@ -16,6 +16,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
+#include "qemu/log.h"
 
 #include "hw/usb.h"
 #include "migration/vmstate.h"
@@ -70,7 +71,7 @@ typedef struct {
     uint8_t    reserved_2;
     uint64_t   lun;
     uint8_t    cdb[16];
-    uint8_t    add_cdb[];
+    uint8_t    add_cdb[1];      /* not supported by QEMU */
 } QEMU_PACKED  uas_iu_command;
 
 typedef struct {
@@ -700,6 +701,11 @@ static void usb_uas_command(UASDevice *uas, uas_iu *iu)
     uint32_t len;
     uint16_t tag = be16_to_cpu(iu->hdr.tag);
 
+    if (iu->command.add_cdb_length > 0) {
+        qemu_log_mask(LOG_UNIMP, "additional adb length not yet supported\n");
+        goto unsupported_len;
+    }
+
     if (uas_using_streams(uas) && tag > UAS_MAX_STREAMS) {
         goto invalid_tag;
     }
@@ -733,6 +739,10 @@ static void usb_uas_command(UASDevice *uas, uas_iu *iu)
         req->data_size = len;
         scsi_req_continue(req->req);
     }
+    return;
+
+unsupported_len:
+    usb_uas_queue_fake_sense(uas, tag, sense_code_INVALID_PARAM_VALUE);
     return;
 
 invalid_tag:
