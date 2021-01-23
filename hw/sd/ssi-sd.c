@@ -78,6 +78,12 @@ OBJECT_DECLARE_SIMPLE_TYPE(ssi_sd_state, SSI_SD)
 #define SSI_SDR_ADDRESS_ERROR   0x2000
 #define SSI_SDR_PARAMETER_ERROR 0x4000
 
+/* single block read/write, multiple block read */
+#define SSI_TOKEN_SINGLE        0xfe
+
+/* dummy value - don't care */
+#define SSI_DUMMY               0xff
+
 static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
 {
     ssi_sd_state *s = SSI_SD(dev);
@@ -91,14 +97,14 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
 
     switch (s->mode) {
     case SSI_SD_CMD:
-        if (val == 0xff) {
+        if (val == SSI_DUMMY) {
             DPRINTF("NULL command\n");
-            return 0xff;
+            return SSI_DUMMY;
         }
         s->cmd = val & 0x3f;
         s->mode = SSI_SD_CMDARG;
         s->arglen = 0;
-        return 0xff;
+        return SSI_DUMMY;
     case SSI_SD_CMDARG:
         if (s->arglen == 4) {
             SDRequest request;
@@ -173,15 +179,15 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
         } else {
             s->cmdarg[s->arglen++] = val;
         }
-        return 0xff;
+        return SSI_DUMMY;
     case SSI_SD_PREP_RESP:
         DPRINTF("Prepare card response (Ncr)\n");
         s->mode = SSI_SD_RESPONSE;
-        return 0xff;
+        return SSI_DUMMY;
     case SSI_SD_RESPONSE:
         if (s->stopping) {
             s->stopping = 0;
-            return 0xff;
+            return SSI_DUMMY;
         }
         if (s->response_pos < s->arglen) {
             DPRINTF("Response 0x%02x\n", s->response[s->response_pos]);
@@ -194,16 +200,16 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
             DPRINTF("End of command\n");
             s->mode = SSI_SD_CMD;
         }
-        return 0xff;
+        return SSI_DUMMY;
     case SSI_SD_PREP_DATA:
         DPRINTF("Prepare data block (Nac)\n");
         s->mode = SSI_SD_DATA_START;
-        return 0xff;
+        return SSI_DUMMY;
     case SSI_SD_DATA_START:
         DPRINTF("Start read block\n");
         s->mode = SSI_SD_DATA_READ;
         s->response_pos = 0;
-        return 0xfe;
+        return SSI_TOKEN_SINGLE;
     case SSI_SD_DATA_READ:
         val = sdbus_read_byte(&s->sdbus);
         s->crc16 = crc_ccitt_false(s->crc16, (uint8_t *)&val, 1);
@@ -224,7 +230,7 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
         return val;
     }
     /* Should never happen.  */
-    return 0xff;
+    return SSI_DUMMY;
 }
 
 static int ssi_sd_post_load(void *opaque, int version_id)
