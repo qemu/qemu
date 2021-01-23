@@ -828,6 +828,10 @@ int hvf_vcpu_exec(CPUState *cpu)
             uint32_t rcx = (uint32_t)rreg(cpu->hvf_fd, HV_X86_RCX);
             uint32_t rdx = (uint32_t)rreg(cpu->hvf_fd, HV_X86_RDX);
 
+            if (rax == 1) {
+                /* CPUID1.ecx.OSXSAVE needs to know CR4 */
+                env->cr[4] = rvmcs(cpu->hvf_fd, VMCS_GUEST_CR4);
+            }
             hvf_cpu_x86_cpuid(env, rax, rcx, &rax, &rbx, &rcx, &rdx);
 
             wreg(cpu->hvf_fd, HV_X86_RAX, rax);
