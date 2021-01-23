@@ -36,6 +36,7 @@ do { fprintf(stderr, "ssi_sd: error: " fmt , ## __VA_ARGS__);} while (0)
 typedef enum {
     SSI_SD_CMD = 0,
     SSI_SD_CMDARG,
+    SSI_SD_PREP_RESP,
     SSI_SD_RESPONSE,
     SSI_SD_DATA_START,
     SSI_SD_DATA_READ,
@@ -163,11 +164,15 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
                 s->response[1] = status;
                 DPRINTF("Card status 0x%02x\n", status);
             }
-            s->mode = SSI_SD_RESPONSE;
+            s->mode = SSI_SD_PREP_RESP;
             s->response_pos = 0;
         } else {
             s->cmdarg[s->arglen++] = val;
         }
+        return 0xff;
+    case SSI_SD_PREP_RESP:
+        DPRINTF("Prepare card response (Ncr)\n");
+        s->mode = SSI_SD_RESPONSE;
         return 0xff;
     case SSI_SD_RESPONSE:
         if (s->stopping) {
@@ -224,8 +229,8 @@ static int ssi_sd_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ssi_sd = {
     .name = "ssi_sd",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .post_load = ssi_sd_post_load,
     .fields = (VMStateField []) {
         VMSTATE_UINT32(mode, ssi_sd_state),
