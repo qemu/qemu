@@ -88,6 +88,16 @@ if cpu in ['x86', 'x86_64']
   }
 endif
 
+edk2_targets = [ 'arm-softmmu', 'aarch64-softmmu', 'i386-softmmu', 'x86_64-softmmu' ]
+install_edk2_blobs = false
+if get_option('install_blobs')
+  foreach target : target_dirs
+    install_edk2_blobs = install_edk2_blobs or target in edk2_targets
+  endforeach
+endif
+
+bzip2 = find_program('bzip2', required: install_edk2_blobs)
+
 ##################
 # Compiler flags #
 ##################
@@ -100,12 +110,12 @@ if 'CONFIG_FUZZ' in config_host
                               native: false, language: ['c', 'cpp', 'objc'])
 endif
 
-add_project_arguments(config_host['QEMU_CFLAGS'].split(),
-                      native: false, language: ['c', 'objc'])
-add_project_arguments(config_host['QEMU_CXXFLAGS'].split(),
-                      native: false, language: 'cpp')
-add_project_link_arguments(config_host['QEMU_LDFLAGS'].split(),
-                           native: false, language: ['c', 'cpp', 'objc'])
+add_global_arguments(config_host['QEMU_CFLAGS'].split(),
+                     native: false, language: ['c', 'objc'])
+add_global_arguments(config_host['QEMU_CXXFLAGS'].split(),
+                     native: false, language: 'cpp')
+add_global_link_arguments(config_host['QEMU_LDFLAGS'].split(),
+                          native: false, language: ['c', 'cpp', 'objc'])
 
 if targetos == 'linux'
   add_project_arguments('-isystem', meson.current_source_dir() / 'linux-headers',
@@ -113,25 +123,8 @@ if targetos == 'linux'
                         language: ['c', 'cpp'])
 endif
 
-if 'CONFIG_TCG_INTERPRETER' in config_host
-  tcg_arch = 'tci'
-elif config_host['ARCH'] == 'sparc64'
-  tcg_arch = 'sparc'
-elif config_host['ARCH'] == 's390x'
-  tcg_arch = 's390'
-elif config_host['ARCH'] in ['x86_64', 'x32']
-  tcg_arch = 'i386'
-elif config_host['ARCH'] == 'ppc64'
-  tcg_arch = 'ppc'
-elif config_host['ARCH'] in ['riscv32', 'riscv64']
-  tcg_arch = 'riscv'
-else
-  tcg_arch = config_host['ARCH']
-endif
-add_project_arguments('-iquote', meson.current_source_dir() / 'tcg' / tcg_arch,
-                      '-iquote', '.',
+add_project_arguments('-iquote', '.',
                       '-iquote', meson.current_source_dir(),
-                      '-iquote', meson.current_source_dir() / 'accel/tcg',
                       '-iquote', meson.current_source_dir() / 'include',
                       '-iquote', meson.current_source_dir() / 'disas/libvixl',
                       language: ['c', 'cpp', 'objc'])
@@ -226,14 +219,33 @@ if not get_option('hax').disabled()
     accelerators += 'CONFIG_HAX'
   endif
 endif
+
+tcg_arch = config_host['ARCH']
 if not get_option('tcg').disabled()
   if cpu not in supported_cpus
-    if 'CONFIG_TCG_INTERPRETER' in config_host
+    if get_option('tcg_interpreter')
       warning('Unsupported CPU @0@, will use TCG with TCI (experimental)'.format(cpu))
     else
       error('Unsupported CPU @0@, try --enable-tcg-interpreter'.format(cpu))
     endif
   endif
+  if get_option('tcg_interpreter')
+    tcg_arch = 'tci'
+  elif config_host['ARCH'] == 'sparc64'
+    tcg_arch = 'sparc'
+  elif config_host['ARCH'] == 's390x'
+    tcg_arch = 's390'
+  elif config_host['ARCH'] in ['x86_64', 'x32']
+    tcg_arch = 'i386'
+  elif config_host['ARCH'] == 'ppc64'
+    tcg_arch = 'ppc'
+  elif config_host['ARCH'] in ['riscv32', 'riscv64']
+    tcg_arch = 'riscv'
+  endif
+  add_project_arguments('-iquote', meson.current_source_dir() / 'tcg' / tcg_arch,
+                        '-iquote', meson.current_source_dir() / 'accel/tcg',
+                        language: ['c', 'cpp', 'objc'])
+
   accelerators += 'CONFIG_TCG'
   config_host += { 'CONFIG_TCG': 'y' }
 endif
@@ -1019,8 +1031,8 @@ if get_option('cfi')
       error('-fno-sanitize-trap=cfi-icall is not supported by the compiler')
     endif
   endif
-  add_project_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
-  add_project_link_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
+  add_global_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
+  add_global_link_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
 endif
 
 #################
@@ -1031,6 +1043,8 @@ have_virtfs = (targetos == 'linux' and
     have_system and
     libattr.found() and
     libcap_ng.found())
+
+have_virtfs_proxy_helper = have_virtfs and have_tools
 
 if get_option('virtfs').enabled()
   if not have_virtfs
@@ -1234,7 +1248,9 @@ foreach target : target_dirs
     if sym == 'CONFIG_TCG' or target in accelerator_targets.get(sym, [])
       config_target += { sym: 'y' }
       config_all += { sym: 'y' }
-      if sym == 'CONFIG_XEN' and have_xen_pci_passthrough
+      if sym == 'CONFIG_TCG' and tcg_arch == 'tci'
+        config_target += { 'CONFIG_TCG_INTERPRETER': 'y' }
+      elif sym == 'CONFIG_XEN' and have_xen_pci_passthrough
         config_target += { 'CONFIG_XEN_PCI_PASSTHROUGH': 'y' }
       endif
       accel_kconfig += [ sym + '=y' ]
@@ -2190,6 +2206,8 @@ endif
 
 if 'CONFIG_GUEST_AGENT' in config_host
   subdir('qga')
+elif get_option('guest_agent_msi').enabled()
+  error('Guest agent MSI requested, but the guest agent is not being built')
 endif
 
 # Don't build qemu-keymap if xkbcommon is not explicitly enabled
@@ -2279,6 +2297,7 @@ endif
 # Configuration summary #
 #########################
 
+# Directories
 summary_info = {}
 summary_info += {'Install prefix':    get_option('prefix')}
 summary_info += {'BIOS directory':    qemu_datadir}
@@ -2298,8 +2317,64 @@ endif
 summary_info += {'Doc directory':     get_option('docdir')}
 summary_info += {'Build directory':   meson.current_build_dir()}
 summary_info += {'Source path':       meson.current_source_dir()}
-summary_info += {'GIT binary':        config_host['GIT']}
 summary_info += {'GIT submodules':    config_host['GIT_SUBMODULES']}
+summary(summary_info, bool_yn: true, section: 'Directories')
+
+# Host binaries
+summary_info = {}
+summary_info += {'git':               config_host['GIT']}
+summary_info += {'make':              config_host['MAKE']}
+summary_info += {'python':            '@0@ (version: @1@)'.format(python.full_path(), python.language_version())}
+summary_info += {'sphinx-build':      sphinx_build.found()}
+if config_host.has_key('HAVE_GDB_BIN')
+  summary_info += {'gdb':             config_host['HAVE_GDB_BIN']}
+endif
+summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
+if targetos == 'windows' and config_host.has_key('CONFIG_GUEST_AGENT')
+  summary_info += {'wixl':            wixl.found() ? wixl.full_path() : false}
+endif
+if slirp_opt != 'disabled'
+  summary_info += {'smbd':            config_host['CONFIG_SMBD_COMMAND']}
+endif
+summary(summary_info, bool_yn: true, section: 'Host binaries')
+
+# Configurable features
+summary_info = {}
+summary_info += {'Documentation':     build_docs}
+summary_info += {'system-mode emulation': have_system}
+summary_info += {'user-mode emulation': have_user}
+summary_info += {'block layer':       have_block}
+summary_info += {'Install blobs':     get_option('install_blobs')}
+summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
+if config_host.has_key('CONFIG_MODULES')
+  summary_info += {'alternative module path': config_host.has_key('CONFIG_MODULE_UPGRADES')}
+endif
+summary_info += {'plugin support':    config_host.has_key('CONFIG_PLUGIN')}
+summary_info += {'fuzzing support':   config_host.has_key('CONFIG_FUZZ')}
+if have_system
+  summary_info += {'Audio drivers':     config_host['CONFIG_AUDIO_DRIVERS']}
+endif
+summary_info += {'Trace backends':    config_host['TRACE_BACKENDS']}
+if config_host['TRACE_BACKENDS'].split().contains('simple')
+  summary_info += {'Trace output file': config_host['CONFIG_TRACE_FILE'] + '-<pid>'}
+endif
+summary_info += {'QOM debugging':     config_host.has_key('CONFIG_QOM_CAST_DEBUG')}
+summary_info += {'vhost-kernel support': config_host.has_key('CONFIG_VHOST_KERNEL')}
+summary_info += {'vhost-net support': config_host.has_key('CONFIG_VHOST_NET')}
+summary_info += {'vhost-crypto support': config_host.has_key('CONFIG_VHOST_CRYPTO')}
+summary_info += {'vhost-scsi support': config_host.has_key('CONFIG_VHOST_SCSI')}
+summary_info += {'vhost-vsock support': config_host.has_key('CONFIG_VHOST_VSOCK')}
+summary_info += {'vhost-user support': config_host.has_key('CONFIG_VHOST_USER')}
+summary_info += {'vhost-user-blk server support': have_vhost_user_blk_server}
+summary_info += {'vhost-user-fs support': config_host.has_key('CONFIG_VHOST_USER_FS')}
+summary_info += {'vhost-vdpa support': config_host.has_key('CONFIG_VHOST_VDPA')}
+summary_info += {'build guest agent': config_host.has_key('CONFIG_GUEST_AGENT')}
+summary(summary_info, bool_yn: true, section: 'Configurable features')
+
+# Compilation information
+summary_info = {}
+summary_info += {'host CPU':          cpu}
+summary_info += {'host endianness':   build_machine.endian()}
 summary_info += {'C compiler':        meson.get_compiler('c').cmd_array()[0]}
 summary_info += {'Host C compiler':   meson.get_compiler('c', native: true).cmd_array()[0]}
 if link_language == 'cpp'
@@ -2309,6 +2384,11 @@ else
 endif
 if targetos == 'darwin'
   summary_info += {'Objective-C compiler': meson.get_compiler('objc').cmd_array()[0]}
+endif
+if targetos == 'windows'
+  if 'WIN_SDK' in config_host
+    summary_info += {'Windows SDK':   config_host['WIN_SDK']}
+  endif
 endif
 summary_info += {'ARFLAGS':           config_host['ARFLAGS']}
 summary_info += {'CFLAGS':            ' '.join(get_option('c_args')
@@ -2325,39 +2405,83 @@ if link_args.length() > 0
 endif
 summary_info += {'QEMU_CFLAGS':       config_host['QEMU_CFLAGS']}
 summary_info += {'QEMU_LDFLAGS':      config_host['QEMU_LDFLAGS']}
-summary_info += {'make':              config_host['MAKE']}
-summary_info += {'python':            '@0@ (version: @1@)'.format(python.full_path(), python.language_version())}
-summary_info += {'sphinx-build':      sphinx_build.found()}
-summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
-# TODO: add back version
-summary_info += {'slirp support':     slirp_opt == 'disabled' ? false : slirp_opt}
-if slirp_opt != 'disabled'
-  summary_info += {'smbd':            config_host['CONFIG_SMBD_COMMAND']}
-endif
-summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
-if config_host.has_key('CONFIG_MODULES')
-  summary_info += {'alternative module path': config_host.has_key('CONFIG_MODULE_UPGRADES')}
-endif
-summary_info += {'host CPU':          cpu}
-summary_info += {'host endianness':   build_machine.endian()}
-summary_info += {'target list':       ' '.join(target_dirs)}
-summary_info += {'gprof enabled':     config_host.has_key('CONFIG_GPROF')}
-summary_info += {'sparse enabled':    sparse.found()}
-summary_info += {'strip binaries':    get_option('strip')}
 summary_info += {'profiler':          config_host.has_key('CONFIG_PROFILER')}
 summary_info += {'link-time optimization (LTO)': get_option('b_lto')}
+summary_info += {'PIE':               get_option('b_pie')}
 summary_info += {'static build':      config_host.has_key('CONFIG_STATIC')}
-if targetos == 'darwin'
-  summary_info += {'Cocoa support':   cocoa.found()}
+summary_info += {'malloc trim support': has_malloc_trim}
+summary_info += {'membarrier':        config_host.has_key('CONFIG_MEMBARRIER')}
+summary_info += {'preadv support':    config_host.has_key('CONFIG_PREADV')}
+summary_info += {'fdatasync':         config_host.has_key('CONFIG_FDATASYNC')}
+summary_info += {'madvise':           config_host.has_key('CONFIG_MADVISE')}
+summary_info += {'posix_madvise':     config_host.has_key('CONFIG_POSIX_MADVISE')}
+summary_info += {'posix_memalign':    config_host.has_key('CONFIG_POSIX_MEMALIGN')}
+summary_info += {'debug stack usage': config_host.has_key('CONFIG_DEBUG_STACK_USAGE')}
+summary_info += {'mutex debugging':   config_host.has_key('CONFIG_DEBUG_MUTEX')}
+summary_info += {'memory allocator':  get_option('malloc')}
+summary_info += {'avx2 optimization': config_host.has_key('CONFIG_AVX2_OPT')}
+summary_info += {'avx512f optimization': config_host.has_key('CONFIG_AVX512F_OPT')}
+summary_info += {'gprof enabled':     config_host.has_key('CONFIG_GPROF')}
+summary_info += {'gcov':              get_option('b_coverage')}
+summary_info += {'thread sanitizer':  config_host.has_key('CONFIG_TSAN')}
+summary_info += {'CFI support':       get_option('cfi')}
+if get_option('cfi')
+  summary_info += {'CFI debug support': get_option('cfi_debug')}
 endif
-# TODO: add back version
-summary_info += {'SDL support':       sdl.found()}
-summary_info += {'SDL image support': sdl_image.found()}
-# TODO: add back version
-summary_info += {'GTK support':       gtk.found()}
-summary_info += {'pixman':            pixman.found()}
-# TODO: add back version
-summary_info += {'VTE support':       config_host.has_key('CONFIG_VTE')}
+summary_info += {'strip binaries':    get_option('strip')}
+summary_info += {'sparse':            sparse.found() ? sparse.full_path() : false}
+summary_info += {'mingw32 support':   targetos == 'windows'}
+summary(summary_info, bool_yn: true, section: 'Compilation')
+
+# Targets and accelerators
+summary_info = {}
+if have_system
+  summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
+  summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
+  summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
+  summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
+  summary_info += {'Xen support':       config_host.has_key('CONFIG_XEN_BACKEND')}
+  if config_host.has_key('CONFIG_XEN_BACKEND')
+    summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}
+  endif
+endif
+summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
+if config_all.has_key('CONFIG_TCG')
+  summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
+  summary_info += {'TCG interpreter':   tcg_arch == 'tci'}
+endif
+summary_info += {'target list':       ' '.join(target_dirs)}
+if have_system
+  summary_info += {'default devices':   get_option('default_devices')}
+endif
+summary(summary_info, bool_yn: true, section: 'Targets and accelerators')
+
+# Block layer
+summary_info = {}
+summary_info += {'coroutine backend': config_host['CONFIG_COROUTINE_BACKEND']}
+summary_info += {'coroutine pool':    config_host['CONFIG_COROUTINE_POOL'] == '1'}
+if have_block
+  summary_info += {'Block whitelist (rw)': config_host['CONFIG_BDRV_RW_WHITELIST']}
+  summary_info += {'Block whitelist (ro)': config_host['CONFIG_BDRV_RO_WHITELIST']}
+  summary_info += {'VirtFS support':    have_virtfs}
+  summary_info += {'build virtiofs daemon': have_virtiofsd}
+  summary_info += {'Live block migration': config_host.has_key('CONFIG_LIVE_BLOCK_MIGRATION')}
+  summary_info += {'replication support': config_host.has_key('CONFIG_REPLICATION')}
+  summary_info += {'bochs support':     config_host.has_key('CONFIG_BOCHS')}
+  summary_info += {'cloop support':     config_host.has_key('CONFIG_CLOOP')}
+  summary_info += {'dmg support':       config_host.has_key('CONFIG_DMG')}
+  summary_info += {'qcow v1 support':   config_host.has_key('CONFIG_QCOW1')}
+  summary_info += {'vdi support':       config_host.has_key('CONFIG_VDI')}
+  summary_info += {'vvfat support':     config_host.has_key('CONFIG_VVFAT')}
+  summary_info += {'qed support':       config_host.has_key('CONFIG_QED')}
+  summary_info += {'parallels support': config_host.has_key('CONFIG_PARALLELS')}
+  summary_info += {'sheepdog support':  config_host.has_key('CONFIG_SHEEPDOG')}
+  summary_info += {'FUSE exports':      fuse.found()}
+endif
+summary(summary_info, bool_yn: true, section: 'Block layer support')
+
+# Crypto
+summary_info = {}
 summary_info += {'TLS priority':      config_host['CONFIG_TLS_PRIORITY']}
 summary_info += {'GNUTLS support':    config_host.has_key('CONFIG_GNUTLS')}
 # TODO: add back version
@@ -2371,6 +2495,26 @@ summary_info += {'nettle':            config_host.has_key('CONFIG_NETTLE')}
 if config_host.has_key('CONFIG_NETTLE')
    summary_info += {'  XTS':             not config_host.has_key('CONFIG_QEMU_PRIVATE_XTS')}
 endif
+summary_info += {'crypto afalg':      config_host.has_key('CONFIG_AF_ALG')}
+summary_info += {'rng-none':          config_host.has_key('CONFIG_RNG_NONE')}
+summary_info += {'Linux keyring':     config_host.has_key('CONFIG_SECRET_KEYRING')}
+summary(summary_info, bool_yn: true, section: 'Crypto')
+
+# Libraries
+summary_info = {}
+if targetos == 'darwin'
+  summary_info += {'Cocoa support':   cocoa.found()}
+endif
+# TODO: add back version
+summary_info += {'SDL support':       sdl.found()}
+summary_info += {'SDL image support': sdl_image.found()}
+# TODO: add back version
+summary_info += {'GTK support':       gtk.found()}
+summary_info += {'pixman':            pixman.found()}
+# TODO: add back version
+summary_info += {'VTE support':       config_host.has_key('CONFIG_VTE')}
+# TODO: add back version
+summary_info += {'slirp support':     slirp_opt == 'disabled' ? false : slirp_opt}
 summary_info += {'libtasn1':          config_host.has_key('CONFIG_TASN1')}
 summary_info += {'PAM':               config_host.has_key('CONFIG_AUTH_PAM')}
 summary_info += {'iconv support':     iconv.found()}
@@ -2378,12 +2522,6 @@ summary_info += {'curses support':    curses.found()}
 # TODO: add back version
 summary_info += {'virgl support':     config_host.has_key('CONFIG_VIRGL')}
 summary_info += {'curl support':      curl.found()}
-summary_info += {'mingw32 support':   targetos == 'windows'}
-summary_info += {'Audio drivers':     config_host['CONFIG_AUDIO_DRIVERS']}
-summary_info += {'Block whitelist (rw)': config_host['CONFIG_BDRV_RW_WHITELIST']}
-summary_info += {'Block whitelist (ro)': config_host['CONFIG_BDRV_RO_WHITELIST']}
-summary_info += {'VirtFS support':    have_virtfs}
-summary_info += {'build virtiofs daemon': have_virtiofsd}
 summary_info += {'Multipath support': mpathpersist.found()}
 summary_info += {'VNC support':       vnc.found()}
 if vnc.found()
@@ -2391,52 +2529,16 @@ if vnc.found()
   summary_info += {'VNC JPEG support':  jpeg.found()}
   summary_info += {'VNC PNG support':   png.found()}
 endif
-summary_info += {'xen support':       config_host.has_key('CONFIG_XEN_BACKEND')}
-if config_host.has_key('CONFIG_XEN_BACKEND')
-  summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}
-endif
 summary_info += {'brlapi support':    brlapi.found()}
-summary_info += {'Documentation':     build_docs}
-summary_info += {'PIE':               get_option('b_pie')}
 summary_info += {'vde support':       config_host.has_key('CONFIG_VDE')}
 summary_info += {'netmap support':    config_host.has_key('CONFIG_NETMAP')}
 summary_info += {'Linux AIO support': config_host.has_key('CONFIG_LINUX_AIO')}
 summary_info += {'Linux io_uring support': config_host.has_key('CONFIG_LINUX_IO_URING')}
 summary_info += {'ATTR/XATTR support': libattr.found()}
-summary_info += {'Install blobs':     get_option('install_blobs')}
-summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
-summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
-summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
-summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
-summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
-if config_all.has_key('CONFIG_TCG')
-  summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
-  summary_info += {'TCG interpreter':   config_host.has_key('CONFIG_TCG_INTERPRETER')}
-endif
-summary_info += {'malloc trim support': has_malloc_trim}
 summary_info += {'RDMA support':      config_host.has_key('CONFIG_RDMA')}
 summary_info += {'PVRDMA support':    config_host.has_key('CONFIG_PVRDMA')}
 summary_info += {'fdt support':       fdt_opt == 'disabled' ? false : fdt_opt}
-summary_info += {'membarrier':        config_host.has_key('CONFIG_MEMBARRIER')}
-summary_info += {'preadv support':    config_host.has_key('CONFIG_PREADV')}
-summary_info += {'fdatasync':         config_host.has_key('CONFIG_FDATASYNC')}
-summary_info += {'madvise':           config_host.has_key('CONFIG_MADVISE')}
-summary_info += {'posix_madvise':     config_host.has_key('CONFIG_POSIX_MADVISE')}
-summary_info += {'posix_memalign':    config_host.has_key('CONFIG_POSIX_MEMALIGN')}
 summary_info += {'libcap-ng support': libcap_ng.found()}
-summary_info += {'vhost-kernel support': config_host.has_key('CONFIG_VHOST_KERNEL')}
-summary_info += {'vhost-net support': config_host.has_key('CONFIG_VHOST_NET')}
-summary_info += {'vhost-crypto support': config_host.has_key('CONFIG_VHOST_CRYPTO')}
-summary_info += {'vhost-scsi support': config_host.has_key('CONFIG_VHOST_SCSI')}
-summary_info += {'vhost-vsock support': config_host.has_key('CONFIG_VHOST_VSOCK')}
-summary_info += {'vhost-user support': config_host.has_key('CONFIG_VHOST_USER')}
-summary_info += {'vhost-user-blk server support': have_vhost_user_blk_server}
-summary_info += {'vhost-user-fs support': config_host.has_key('CONFIG_VHOST_USER_FS')}
-summary_info += {'vhost-vdpa support': config_host.has_key('CONFIG_VHOST_VDPA')}
-summary_info += {'Trace backends':    config_host['TRACE_BACKENDS']}
-if config_host['TRACE_BACKENDS'].split().contains('simple')
-  summary_info += {'Trace output file': config_host['CONFIG_TRACE_FILE'] + '-<pid>'}
-endif
 # TODO: add back protocol and server version
 summary_info += {'spice support':     config_host.has_key('CONFIG_SPICE')}
 summary_info += {'rbd support':       rbd.found()}
@@ -2449,29 +2551,16 @@ summary_info += {'OpenGL support':    config_host.has_key('CONFIG_OPENGL')}
 summary_info += {'OpenGL dmabufs':    config_host.has_key('CONFIG_OPENGL_DMABUF')}
 summary_info += {'libiscsi support':  libiscsi.found()}
 summary_info += {'libnfs support':    libnfs.found()}
-summary_info += {'build guest agent': config_host.has_key('CONFIG_GUEST_AGENT')}
 if targetos == 'windows'
-  if 'WIN_SDK' in config_host
-    summary_info += {'Windows SDK':       config_host['WIN_SDK']}
+  if config_host.has_key('CONFIG_GUEST_AGENT')
+    summary_info += {'QGA VSS support':   config_host.has_key('CONFIG_QGA_VSS')}
+    summary_info += {'QGA w32 disk info': config_host.has_key('CONFIG_QGA_NTDDSCSI')}
   endif
-  summary_info += {'QGA VSS support':   config_host.has_key('CONFIG_QGA_VSS')}
-  summary_info += {'QGA w32 disk info': config_host.has_key('CONFIG_QGA_NTDDSCSI')}
-  summary_info += {'QGA MSI support':   config_host.has_key('CONFIG_QGA_MSI')}
 endif
 summary_info += {'seccomp support':   seccomp.found()}
-summary_info += {'CFI support':       get_option('cfi')}
-summary_info += {'CFI debug support': get_option('cfi_debug')}
-summary_info += {'coroutine backend': config_host['CONFIG_COROUTINE_BACKEND']}
-summary_info += {'coroutine pool':    config_host['CONFIG_COROUTINE_POOL'] == '1'}
-summary_info += {'debug stack usage': config_host.has_key('CONFIG_DEBUG_STACK_USAGE')}
-summary_info += {'mutex debugging':   config_host.has_key('CONFIG_DEBUG_MUTEX')}
-summary_info += {'crypto afalg':      config_host.has_key('CONFIG_AF_ALG')}
 summary_info += {'GlusterFS support': glusterfs.found()}
-summary_info += {'gcov':              get_option('b_coverage')}
 summary_info += {'TPM support':       config_host.has_key('CONFIG_TPM')}
 summary_info += {'libssh support':    config_host.has_key('CONFIG_LIBSSH')}
-summary_info += {'QOM debugging':     config_host.has_key('CONFIG_QOM_CAST_DEBUG')}
-summary_info += {'Live block migration': config_host.has_key('CONFIG_LIVE_BLOCK_MIGRATION')}
 summary_info += {'lzo support':       lzo.found()}
 summary_info += {'snappy support':    snappy.found()}
 summary_info += {'bzip2 support':     libbzip2.found()}
@@ -2479,35 +2568,12 @@ summary_info += {'lzfse support':     liblzfse.found()}
 summary_info += {'zstd support':      zstd.found()}
 summary_info += {'NUMA host support': config_host.has_key('CONFIG_NUMA')}
 summary_info += {'libxml2':           config_host.has_key('CONFIG_LIBXML2')}
-summary_info += {'memory allocator':  get_option('malloc')}
-summary_info += {'avx2 optimization': config_host.has_key('CONFIG_AVX2_OPT')}
-summary_info += {'avx512f optimization': config_host.has_key('CONFIG_AVX512F_OPT')}
-summary_info += {'replication support': config_host.has_key('CONFIG_REPLICATION')}
-summary_info += {'bochs support':     config_host.has_key('CONFIG_BOCHS')}
-summary_info += {'cloop support':     config_host.has_key('CONFIG_CLOOP')}
-summary_info += {'dmg support':       config_host.has_key('CONFIG_DMG')}
-summary_info += {'qcow v1 support':   config_host.has_key('CONFIG_QCOW1')}
-summary_info += {'vdi support':       config_host.has_key('CONFIG_VDI')}
-summary_info += {'vvfat support':     config_host.has_key('CONFIG_VVFAT')}
-summary_info += {'qed support':       config_host.has_key('CONFIG_QED')}
-summary_info += {'parallels support': config_host.has_key('CONFIG_PARALLELS')}
-summary_info += {'sheepdog support':  config_host.has_key('CONFIG_SHEEPDOG')}
 summary_info += {'capstone':          capstone_opt == 'disabled' ? false : capstone_opt}
 summary_info += {'libpmem support':   config_host.has_key('CONFIG_LIBPMEM')}
 summary_info += {'libdaxctl support': config_host.has_key('CONFIG_LIBDAXCTL')}
 summary_info += {'libudev':           libudev.found()}
-summary_info += {'default devices':   get_option('default_devices')}
-summary_info += {'plugin support':    config_host.has_key('CONFIG_PLUGIN')}
-summary_info += {'fuzzing support':   config_host.has_key('CONFIG_FUZZ')}
-if config_host.has_key('HAVE_GDB_BIN')
-  summary_info += {'gdb':             config_host['HAVE_GDB_BIN']}
-endif
-summary_info += {'thread sanitizer':  config_host.has_key('CONFIG_TSAN')}
-summary_info += {'rng-none':          config_host.has_key('CONFIG_RNG_NONE')}
-summary_info += {'Linux keyring':     config_host.has_key('CONFIG_SECRET_KEYRING')}
-summary_info += {'FUSE exports':      fuse.found()}
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
-summary(summary_info, bool_yn: true)
+summary(summary_info, bool_yn: true, section: 'Dependencies')
 
 if not supported_cpus.contains(cpu)
   message()

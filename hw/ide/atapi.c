@@ -322,6 +322,8 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
 static void ide_atapi_cmd_read_pio(IDEState *s, int lba, int nb_sectors,
                                    int sector_size)
 {
+    assert(0 <= lba && lba < (s->nb_sectors >> 2));
+
     s->lba = lba;
     s->packet_transfer_size = nb_sectors * sector_size;
     s->elementary_transfer_size = 0;
@@ -420,6 +422,8 @@ eot:
 static void ide_atapi_cmd_read_dma(IDEState *s, int lba, int nb_sectors,
                                    int sector_size)
 {
+    assert(0 <= lba && lba < (s->nb_sectors >> 2));
+
     s->lba = lba;
     s->packet_transfer_size = nb_sectors * sector_size;
     s->io_buffer_size = 0;
@@ -973,17 +977,24 @@ static void cmd_prevent_allow_medium_removal(IDEState *s, uint8_t* buf)
 
 static void cmd_read(IDEState *s, uint8_t* buf)
 {
-    int nb_sectors, lba;
+    unsigned int nb_sectors, lba;
+
+    /* Total logical sectors of ATAPI_SECTOR_SIZE(=2048) bytes */
+    uint64_t total_sectors = s->nb_sectors >> 2;
 
     if (buf[0] == GPCMD_READ_10) {
         nb_sectors = lduw_be_p(buf + 7);
     } else {
         nb_sectors = ldl_be_p(buf + 6);
     }
-
-    lba = ldl_be_p(buf + 2);
     if (nb_sectors == 0) {
         ide_atapi_cmd_ok(s);
+        return;
+    }
+
+    lba = ldl_be_p(buf + 2);
+    if (lba >= total_sectors || lba + nb_sectors - 1 >= total_sectors) {
+        ide_atapi_cmd_error(s, ILLEGAL_REQUEST, ASC_LOGICAL_BLOCK_OOR);
         return;
     }
 
@@ -992,13 +1003,20 @@ static void cmd_read(IDEState *s, uint8_t* buf)
 
 static void cmd_read_cd(IDEState *s, uint8_t* buf)
 {
-    int nb_sectors, lba, transfer_request;
+    unsigned int nb_sectors, lba, transfer_request;
+
+    /* Total logical sectors of ATAPI_SECTOR_SIZE(=2048) bytes */
+    uint64_t total_sectors = s->nb_sectors >> 2;
 
     nb_sectors = (buf[6] << 16) | (buf[7] << 8) | buf[8];
-    lba = ldl_be_p(buf + 2);
-
     if (nb_sectors == 0) {
         ide_atapi_cmd_ok(s);
+        return;
+    }
+
+    lba = ldl_be_p(buf + 2);
+    if (lba >= total_sectors || lba + nb_sectors - 1 >= total_sectors) {
+        ide_atapi_cmd_error(s, ILLEGAL_REQUEST, ASC_LOGICAL_BLOCK_OOR);
         return;
     }
 

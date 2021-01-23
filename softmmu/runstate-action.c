@@ -13,9 +13,9 @@
 #include "qapi/error.h"
 #include "qemu/option_int.h"
 
-RebootAction reboot_action = REBOOT_ACTION_NONE;
+RebootAction reboot_action = REBOOT_ACTION_RESET;
 ShutdownAction shutdown_action = SHUTDOWN_ACTION_POWEROFF;
-PanicAction panic_action = PANIC_ACTION_POWEROFF;
+PanicAction panic_action = PANIC_ACTION_SHUTDOWN;
 
 /*
  * Receives actions to be applied for specific guest events

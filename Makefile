@@ -335,9 +335,7 @@ endif
 ifdef CONFIG_WIN32
 	@echo  'Windows targets:'
 	$(call print-help,installer,Build NSIS-based installer for QEMU)
-ifdef CONFIG_QGA_MSI
 	$(call print-help,msi,Build MSI-based installer for qemu-ga)
-endif
 	@echo  ''
 endif
 	$(call print-help,$(MAKE) [targets],(quiet build, default))

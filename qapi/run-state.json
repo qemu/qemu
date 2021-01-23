@@ -330,14 +330,14 @@
 #
 # Possible QEMU actions upon guest reboot
 #
-# @none: Reset the VM
+# @reset: Reset the VM
 #
-# @shutdown: Shutdown the VM and exit
+# @shutdown: Shutdown the VM and exit, according to the shutdown action
 #
 # Since: 6.0
 ##
 { 'enum': 'RebootAction',
-  'data': [ 'none', 'shutdown' ] }
+  'data': [ 'reset', 'shutdown' ] }
 
 ##
 # @ShutdownAction:
@@ -360,10 +360,12 @@
 #
 # @pause: Pause the VM
 #
+# @shutdown: Shutdown the VM and exit, according to the shutdown action
+#
 # Since: 6.0
 ##
 { 'enum': 'PanicAction',
-  'data': [ 'poweroff', 'pause', 'none' ] }
+  'data': [ 'pause', 'shutdown', 'none' ] }
 
 ##
 # @watchdog-set-action:

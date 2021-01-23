@@ -231,12 +231,6 @@ SRST
     read-write
       Makes the device writable.
 
-  ``change vnc`` *display*,\ *options*
-    Change the configuration of the VNC server. The valid syntax for *display*
-    and *options* are described at :ref:`sec_005finvocation`. eg::
-
-      (qemu) change vnc localhost:1
-
   ``change vnc password`` [*password*]
 
     Change the password associated with the VNC server. If the new password

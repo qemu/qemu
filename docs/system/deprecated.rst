@@ -127,14 +127,15 @@ Drives with interface types other than ``if=none`` are for onboard
 devices.  It is possible to use drives the board doesn't pick up with
 -device.  This usage is now deprecated.  Use ``if=none`` instead.
 
+Short-form boolean options (since 6.0)
+''''''''''''''''''''''''''''''''''''''
+
+Boolean options such as ``share=on``/``share=off`` could be written
+in short form as ``share`` and ``noshare``.  This is now deprecated
+and will cause a warning.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
-
-``change`` (since 2.5.0)
-''''''''''''''''''''''''
-
-Use ``blockdev-change-medium`` or ``change-vnc-password`` instead.
 
 ``blockdev-open-tray``, ``blockdev-close-tray`` argument ``device`` (since 2.8.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
