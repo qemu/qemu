@@ -83,7 +83,7 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
     ssi_sd_state *s = SSI_SD(dev);
 
     /* Special case: allow CMD12 (STOP TRANSMISSION) while reading data.  */
-    if (s->mode == SSI_SD_DATA_READ && val == 0x4d) {
+    if (s->mode == SSI_SD_DATA_READ && val == 0x4c) {
         s->mode = SSI_SD_CMD;
         /* There must be at least one byte delay before the card responds.  */
         s->stopping = 1;
