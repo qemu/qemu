@@ -17,6 +17,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/sd/sd.h"
 #include "qapi/error.h"
+#include "qemu/crc-ccitt.h"
 #include "qemu/module.h"
 #include "qom/object.h"
 
@@ -40,6 +41,7 @@ typedef enum {
     SSI_SD_RESPONSE,
     SSI_SD_DATA_START,
     SSI_SD_DATA_READ,
+    SSI_SD_DATA_CRC16,
 } ssi_sd_mode;
 
 struct ssi_sd_state {
@@ -48,6 +50,7 @@ struct ssi_sd_state {
     int cmd;
     uint8_t cmdarg[4];
     uint8_t response[5];
+    uint16_t crc16;
     int32_t arglen;
     int32_t response_pos;
     int32_t stopping;
@@ -194,12 +197,24 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
     case SSI_SD_DATA_START:
         DPRINTF("Start read block\n");
         s->mode = SSI_SD_DATA_READ;
+        s->response_pos = 0;
         return 0xfe;
     case SSI_SD_DATA_READ:
         val = sdbus_read_byte(&s->sdbus);
+        s->crc16 = crc_ccitt_false(s->crc16, (uint8_t *)&val, 1);
         if (!sdbus_data_ready(&s->sdbus)) {
             DPRINTF("Data read end\n");
+            s->mode = SSI_SD_DATA_CRC16;
+        }
+        return val;
+    case SSI_SD_DATA_CRC16:
+        val = (s->crc16 & 0xff00) >> 8;
+        s->crc16 <<= 8;
+        s->response_pos++;
+        if (s->response_pos == 2) {
+            DPRINTF("CRC16 read end\n");
             s->mode = SSI_SD_CMD;
+            s->response_pos = 0;
         }
         return val;
     }
@@ -211,7 +226,7 @@ static int ssi_sd_post_load(void *opaque, int version_id)
 {
     ssi_sd_state *s = (ssi_sd_state *)opaque;
 
-    if (s->mode > SSI_SD_DATA_READ) {
+    if (s->mode > SSI_SD_DATA_CRC16) {
         return -EINVAL;
     }
     if (s->mode == SSI_SD_CMDARG &&
@@ -229,14 +244,15 @@ static int ssi_sd_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ssi_sd = {
     .name = "ssi_sd",
-    .version_id = 3,
-    .minimum_version_id = 3,
+    .version_id = 4,
+    .minimum_version_id = 4,
     .post_load = ssi_sd_post_load,
     .fields = (VMStateField []) {
         VMSTATE_UINT32(mode, ssi_sd_state),
         VMSTATE_INT32(cmd, ssi_sd_state),
         VMSTATE_UINT8_ARRAY(cmdarg, ssi_sd_state, 4),
         VMSTATE_UINT8_ARRAY(response, ssi_sd_state, 5),
+        VMSTATE_UINT16(crc16, ssi_sd_state),
         VMSTATE_INT32(arglen, ssi_sd_state),
         VMSTATE_INT32(response_pos, ssi_sd_state),
         VMSTATE_INT32(stopping, ssi_sd_state),
@@ -288,6 +304,7 @@ static void ssi_sd_reset(DeviceState *dev)
     s->cmd = 0;
     memset(s->cmdarg, 0, sizeof(s->cmdarg));
     memset(s->response, 0, sizeof(s->response));
+    s->crc16 = 0;
     s->arglen = 0;
     s->response_pos = 0;
     s->stopping = 0;
