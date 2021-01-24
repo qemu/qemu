@@ -2,6 +2,7 @@
 #define HW_NVME_H
 
 #include "block/nvme.h"
+#include "nvme-subsys.h"
 #include "nvme-ns.h"
 
 #define NVME_MAX_NAMESPACES 256
@@ -169,6 +170,8 @@ typedef struct NvmeCtrl {
     int         aer_queued;
 
     uint8_t     zasl;
+
+    NvmeSubsystem   *subsys;
 
     NvmeNamespace   namespace;
     NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES];
