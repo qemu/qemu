@@ -436,7 +436,9 @@ VHostNetState *get_vhost_net(NetClientState *nc)
 
     switch (nc->info->type) {
     case NET_CLIENT_DRIVER_TAP:
-        vhost_net = tap_get_vhost_net(nc);
+        if (!nc->vhost_net_disabled) {
+            vhost_net = tap_get_vhost_net(nc);
+        }
         break;
 #ifdef CONFIG_VHOST_NET_USER
     case NET_CLIENT_DRIVER_VHOST_USER:
