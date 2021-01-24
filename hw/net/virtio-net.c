@@ -529,6 +529,9 @@ static void virtio_net_reset(VirtIODevice *vdev)
     VirtIONet *n = VIRTIO_NET(vdev);
     int i;
 
+    printf("rx received %lu\n", n->debug_rx_received);
+    n->debug_rx_received = 0;
+
     /* Reset back to compatibility mode */
     n->promisc = 1;
     n->allmulti = 0;
@@ -1240,8 +1243,9 @@ static void virtio_net_detach_epbf_rss(VirtIONet *n)
 
 static bool virtio_net_load_ebpf(VirtIONet *n)
 {
-    if (!virtio_net_attach_ebpf_to_backend(n->nic, -1)) {
+    if (!n->allow_ebpf_load || !virtio_net_attach_ebpf_to_backend(n->nic, -1)) {
         /* backend does't support steering ebpf */
+        printf("ebpf is not loaded!\n");
         return false;
     }
 
@@ -2477,11 +2481,14 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf,
                                   size_t size)
 {
     VirtIONet *n = qemu_get_nic_opaque(nc);
+    ssize_t res;
     if ((n->rsc4_enabled || n->rsc6_enabled)) {
-        return virtio_net_rsc_receive(nc, buf, size);
+        res = virtio_net_rsc_receive(nc, buf, size);
     } else {
-        return virtio_net_do_receive(nc, buf, size);
+        res = virtio_net_do_receive(nc, buf, size);
     }
+    n->debug_rx_received += res;
+    return res;
 }
 
 static int32_t virtio_net_flush_tx(VirtIONetQueue *q);
@@ -3631,6 +3638,7 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_INT32("speed", VirtIONet, net_conf.speed, SPEED_UNKNOWN),
     DEFINE_PROP_STRING("duplex", VirtIONet, net_conf.duplex_str),
     DEFINE_PROP_BOOL("failover", VirtIONet, failover, false),
+    DEFINE_PROP_BOOL("use-ebpf", VirtIONet, allow_ebpf_load, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
