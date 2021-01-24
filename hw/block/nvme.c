@@ -17,6 +17,7 @@
 /**
  * Usage: add options:
  *      -drive file=<file>,if=none,id=<drive_id>
+ *      -device nvme-subsys,id=<subsys_id>,nqn=<nqn_id>
  *      -device nvme,serial=<serial>,id=<bus_name>, \
  *              cmb_size_mb=<cmb_size_mb[optional]>, \
  *              [pmrdev=<mem_backend_file_id>,] \
@@ -38,6 +39,17 @@
  *
  * The PMR will use BAR 4/5 exclusively.
  *
+ * To place controller(s) and namespace(s) to a subsystem, then provide
+ * nvme-subsys device as above.
+ *
+ * nvme subsystem device parameters
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * - `nqn`
+ *   This parameter provides the `<nqn_id>` part of the string
+ *   `nqn.2019-08.org.qemu:<nqn_id>` which will be reported in the SUBNQN field
+ *   of subsystem controllers. Note that `<nqn_id>` should be unique per
+ *   subsystem, but this is not enforced by QEMU. If not specified, it will
+ *   default to the value of the `id` parameter (`<subsys_id>`).
  *
  * nvme device parameters
  * ~~~~~~~~~~~~~~~~~~~~~~
