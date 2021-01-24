@@ -47,6 +47,8 @@ typedef struct NvmeNamespace {
     const uint32_t *iocs;
     uint8_t      csi;
 
+    NvmeSubsystem   *subsys;
+
     NvmeIdNsZoned   *id_ns_zoned;
     NvmeZone        *zone_array;
     QTAILQ_HEAD(, NvmeZone) exp_open_zones;
@@ -75,6 +77,11 @@ static inline uint32_t nvme_nsid(NvmeNamespace *ns)
     }
 
     return -1;
+}
+
+static inline bool nvme_ns_shared(NvmeNamespace *ns)
+{
+    return !!ns->subsys;
 }
 
 static inline NvmeLBAF *nvme_ns_lbaf(NvmeNamespace *ns)
