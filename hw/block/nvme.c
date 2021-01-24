@@ -3324,7 +3324,7 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
 
     trace_pci_nvme_setfeat(nvme_cid(req), nsid, fid, save, dw11);
 
-    if (save) {
+    if (save && !(nvme_feature_cap[fid] & NVME_FEAT_CAP_SAVE)) {
         return NVME_FID_NOT_SAVEABLE | NVME_DNR;
     }
 
