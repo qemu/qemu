@@ -1112,6 +1112,7 @@ void tcg_prologue_init(TCGContext *s)
     s->pool_labels = NULL;
 #endif
 
+    qemu_thread_jit_write();
     /* Generate the prologue.  */
     tcg_target_qemu_prologue(s);
 
@@ -1204,18 +1205,23 @@ void tcg_func_start(TCGContext *s)
     QSIMPLEQ_INIT(&s->labels);
 }
 
-static inline TCGTemp *tcg_temp_alloc(TCGContext *s)
+static TCGTemp *tcg_temp_alloc(TCGContext *s)
 {
     int n = s->nb_temps++;
-    tcg_debug_assert(n < TCG_MAX_TEMPS);
+
+    if (n >= TCG_MAX_TEMPS) {
+        /* Signal overflow, starting over with fewer guest insns. */
+        siglongjmp(s->jmp_trans, -2);
+    }
     return memset(&s->temps[n], 0, sizeof(TCGTemp));
 }
 
-static inline TCGTemp *tcg_global_alloc(TCGContext *s)
+static TCGTemp *tcg_global_alloc(TCGContext *s)
 {
     TCGTemp *ts;
 
     tcg_debug_assert(s->nb_globals == s->nb_temps);
+    tcg_debug_assert(s->nb_globals < TCG_MAX_TEMPS);
     s->nb_globals++;
     ts = tcg_temp_alloc(s);
     ts->kind = TEMP_GLOBAL;

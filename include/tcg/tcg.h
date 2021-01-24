@@ -680,6 +680,9 @@ struct TCGContext {
 
     uint16_t gen_insn_end_off[TCG_MAX_INSNS];
     target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
+
+    /* Exit to translator on overflow. */
+    sigjmp_buf jmp_trans;
 };
 
 static inline bool temp_readonly(TCGTemp *ts)
@@ -1325,7 +1328,8 @@ uint64_t dup_const(unsigned vece, uint64_t c);
      ? (  (VECE) == MO_8  ? 0x0101010101010101ull * (uint8_t)(C)   \
         : (VECE) == MO_16 ? 0x0001000100010001ull * (uint16_t)(C)  \
         : (VECE) == MO_32 ? 0x0000000100000001ull * (uint32_t)(C)  \
-        : dup_const(VECE, C))                                      \
+        : (VECE) == MO_64 ? (uint64_t)(C)                          \
+        : (qemu_build_not_reached_always(), 0))                    \
      : dup_const(VECE, C))
 
 

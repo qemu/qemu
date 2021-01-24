@@ -25,6 +25,7 @@
 #include "exec/address-spaces.h"
 #include "exec/cpu_ldst.h"
 #include "exec/cputlb.h"
+#include "exec/tb-hash.h"
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
 #include "tcg/tcg.h"
@@ -36,6 +37,7 @@
 #include "exec/translate-all.h"
 #include "trace/trace-root.h"
 #include "trace/mem.h"
+#include "internal.h"
 #ifdef CONFIG_PLUGIN
 #include "qemu/plugin-memory.h"
 #endif
@@ -95,6 +97,23 @@ static void tlb_window_reset(CPUTLBDesc *desc, int64_t ns,
 {
     desc->window_begin_ns = ns;
     desc->window_max_entries = max_entries;
+}
+
+static void tb_jmp_cache_clear_page(CPUState *cpu, target_ulong page_addr)
+{
+    unsigned int i, i0 = tb_jmp_cache_hash_page(page_addr);
+
+    for (i = 0; i < TB_JMP_PAGE_SIZE; i++) {
+        qatomic_set(&cpu->tb_jmp_cache[i0 + i], NULL);
+    }
+}
+
+static void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr)
+{
+    /* Discard jump cache entries for any tb which might potentially
+       overlap the flushed page.  */
+    tb_jmp_cache_clear_page(cpu, addr - TARGET_PAGE_SIZE);
+    tb_jmp_cache_clear_page(cpu, addr);
 }
 
 /**

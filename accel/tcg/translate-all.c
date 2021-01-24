@@ -60,6 +60,7 @@
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
 #include "qapi/error.h"
+#include "internal.h"
 
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
@@ -243,7 +244,7 @@ static void page_table_config_init(void)
     assert(v_l2_levels >= 0);
 }
 
-void cpu_gen_init(void)
+static void cpu_gen_init(void)
 {
     tcg_context_init(&tcg_init_ctx);
 }
@@ -1669,7 +1670,9 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
 
 static void tb_phys_invalidate__locked(TranslationBlock *tb)
 {
+    qemu_thread_jit_write();
     do_tb_phys_invalidate(tb, true);
+    qemu_thread_jit_execute();
 }
 
 /* invalidate one TB
@@ -1871,6 +1874,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 #endif
 
     assert_memory_lock();
+    qemu_thread_jit_write();
 
     phys_pc = get_page_addr_code(env, pc);
 
@@ -1922,11 +1926,17 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     ti = profile_getclock();
 #endif
 
+    gen_code_size = sigsetjmp(tcg_ctx->jmp_trans, 0);
+    if (unlikely(gen_code_size != 0)) {
+        goto error_return;
+    }
+
     tcg_func_start(tcg_ctx);
 
     tcg_ctx->cpu = env_cpu(env);
     gen_intermediate_code(cpu, tb, max_insns);
     tcg_ctx->cpu = NULL;
+    max_insns = tb->icount;
 
     trace_translate_block(tb, tb->pc, tb->tc.ptr);
 
@@ -1951,6 +1961,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
     gen_code_size = tcg_gen_code(tcg_ctx, tb);
     if (unlikely(gen_code_size < 0)) {
+ error_return:
         switch (gen_code_size) {
         case -1:
             /*
@@ -1962,6 +1973,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
              * flush the TBs, allocate a new TB, re-initialize it per
              * above, and re-do the actual code generation.
              */
+            qemu_log_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT,
+                          "Restarting code generation for "
+                          "code_gen_buffer overflow\n");
             goto buffer_overflow;
 
         case -2:
@@ -1974,9 +1988,12 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
              * Try again with half as many insns as we attempted this time.
              * If a single insn overflows, there's a bug somewhere...
              */
-            max_insns = tb->icount;
             assert(max_insns > 1);
             max_insns /= 2;
+            qemu_log_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT,
+                          "Restarting code generation with "
+                          "smaller translation block (max %d insns)\n",
+                          max_insns);
             goto tb_overflow;
 
         default:
@@ -2459,23 +2476,6 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
      *  second new TB.
      */
     cpu_loop_exit_noexc(cpu);
-}
-
-static void tb_jmp_cache_clear_page(CPUState *cpu, target_ulong page_addr)
-{
-    unsigned int i, i0 = tb_jmp_cache_hash_page(page_addr);
-
-    for (i = 0; i < TB_JMP_PAGE_SIZE; i++) {
-        qatomic_set(&cpu->tb_jmp_cache[i0 + i], NULL);
-    }
-}
-
-void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr)
-{
-    /* Discard jump cache entries for any tb which might potentially
-       overlap the flushed page.  */
-    tb_jmp_cache_clear_page(cpu, addr - TARGET_PAGE_SIZE);
-    tb_jmp_cache_clear_page(cpu, addr);
 }
 
 static void print_qht_statistics(struct qht_stats hst)
