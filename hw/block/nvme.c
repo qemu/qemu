@@ -3396,7 +3396,9 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
         }
 
         assert(ns);
-        ns->features.err_rec = dw11;
+        if (NVME_ID_NS_NSFEAT_DULBE(ns->id_ns.nsfeat))  {
+            ns->features.err_rec = dw11;
+        }
         break;
     case NVME_VOLATILE_WRITE_CACHE:
         for (i = 1; i <= n->num_namespaces; i++) {
