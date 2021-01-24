@@ -1198,7 +1198,7 @@ static uint16_t nvme_check_zone_write(NvmeCtrl *n, NvmeNamespace *ns,
         status = nvme_check_zone_state_for_write(zone);
     }
 
-    if (status != NVME_SUCCESS) {
+    if (status) {
         trace_pci_nvme_err_zone_write_not_ok(slba, nlb, status);
     } else {
         assert(nvme_wp_is_valid(zone));
@@ -1253,7 +1253,7 @@ static uint16_t nvme_check_zone_read(NvmeNamespace *ns, uint64_t slba,
     uint16_t status;
 
     status = nvme_check_zone_state_for_read(zone);
-    if (status != NVME_SUCCESS) {
+    if (status) {
         ;
     } else if (unlikely(end > bndry)) {
         if (!ns->params.cross_zone_read) {
@@ -1266,7 +1266,7 @@ static uint16_t nvme_check_zone_read(NvmeNamespace *ns, uint64_t slba,
             do {
                 zone++;
                 status = nvme_check_zone_state_for_read(zone);
-                if (status != NVME_SUCCESS) {
+                if (status) {
                     break;
                 }
             } while (end > nvme_zone_rd_boundary(ns, zone));
@@ -1677,7 +1677,7 @@ static uint16_t nvme_read(NvmeCtrl *n, NvmeRequest *req)
 
     if (ns->params.zoned) {
         status = nvme_check_zone_read(ns, slba, nlb);
-        if (status != NVME_SUCCESS) {
+        if (status) {
             trace_pci_nvme_err_zone_read_not_ok(slba, nlb, status);
             goto invalid;
         }
@@ -1748,12 +1748,12 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
         zone = nvme_get_zone_by_slba(ns, slba);
 
         status = nvme_check_zone_write(n, ns, zone, slba, nlb, append);
-        if (status != NVME_SUCCESS) {
+        if (status) {
             goto invalid;
         }
 
         status = nvme_auto_open_zone(ns, zone);
-        if (status != NVME_SUCCESS) {
+        if (status) {
             goto invalid;
         }
 
@@ -1852,14 +1852,14 @@ static uint16_t nvme_open_zone(NvmeNamespace *ns, NvmeZone *zone,
     switch (state) {
     case NVME_ZONE_STATE_EMPTY:
         status = nvme_aor_check(ns, 1, 0);
-        if (status != NVME_SUCCESS) {
+        if (status) {
             return status;
         }
         nvme_aor_inc_active(ns);
         /* fall through */
     case NVME_ZONE_STATE_CLOSED:
         status = nvme_aor_check(ns, 0, 1);
-        if (status != NVME_SUCCESS) {
+        if (status) {
             if (state == NVME_ZONE_STATE_EMPTY) {
                 nvme_aor_dec_active(ns);
             }
@@ -1972,7 +1972,7 @@ static uint16_t nvme_set_zd_ext(NvmeNamespace *ns, NvmeZone *zone)
 
     if (state == NVME_ZONE_STATE_EMPTY) {
         status = nvme_aor_check(ns, 1, 0);
-        if (status != NVME_SUCCESS) {
+        if (status) {
             return status;
         }
         nvme_aor_inc_active(ns);
@@ -3301,7 +3301,7 @@ static uint16_t nvme_set_feature_timestamp(NvmeCtrl *n, NvmeRequest *req)
 
     ret = nvme_dma(n, (uint8_t *)&timestamp, sizeof(timestamp),
                    DMA_DIRECTION_TO_DEVICE, req);
-    if (ret != NVME_SUCCESS) {
+    if (ret) {
         return ret;
     }
 
