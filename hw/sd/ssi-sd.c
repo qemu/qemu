@@ -17,6 +17,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/sd/sd.h"
 #include "qapi/error.h"
+#include "qemu/crc-ccitt.h"
 #include "qemu/module.h"
 #include "qom/object.h"
 
@@ -36,9 +37,12 @@ do { fprintf(stderr, "ssi_sd: error: " fmt , ## __VA_ARGS__);} while (0)
 typedef enum {
     SSI_SD_CMD = 0,
     SSI_SD_CMDARG,
+    SSI_SD_PREP_RESP,
     SSI_SD_RESPONSE,
+    SSI_SD_PREP_DATA,
     SSI_SD_DATA_START,
     SSI_SD_DATA_READ,
+    SSI_SD_DATA_CRC16,
 } ssi_sd_mode;
 
 struct ssi_sd_state {
@@ -47,6 +51,7 @@ struct ssi_sd_state {
     int cmd;
     uint8_t cmdarg[4];
     uint8_t response[5];
+    uint16_t crc16;
     int32_t arglen;
     int32_t response_pos;
     int32_t stopping;
@@ -73,12 +78,18 @@ OBJECT_DECLARE_SIMPLE_TYPE(ssi_sd_state, SSI_SD)
 #define SSI_SDR_ADDRESS_ERROR   0x2000
 #define SSI_SDR_PARAMETER_ERROR 0x4000
 
+/* single block read/write, multiple block read */
+#define SSI_TOKEN_SINGLE        0xfe
+
+/* dummy value - don't care */
+#define SSI_DUMMY               0xff
+
 static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
 {
     ssi_sd_state *s = SSI_SD(dev);
 
     /* Special case: allow CMD12 (STOP TRANSMISSION) while reading data.  */
-    if (s->mode == SSI_SD_DATA_READ && val == 0x4d) {
+    if (s->mode == SSI_SD_DATA_READ && val == 0x4c) {
         s->mode = SSI_SD_CMD;
         /* There must be at least one byte delay before the card responds.  */
         s->stopping = 1;
@@ -86,14 +97,14 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
 
     switch (s->mode) {
     case SSI_SD_CMD:
-        if (val == 0xff) {
+        if (val == SSI_DUMMY) {
             DPRINTF("NULL command\n");
-            return 0xff;
+            return SSI_DUMMY;
         }
         s->cmd = val & 0x3f;
         s->mode = SSI_SD_CMDARG;
         s->arglen = 0;
-        return 0xff;
+        return SSI_DUMMY;
     case SSI_SD_CMDARG:
         if (s->arglen == 4) {
             SDRequest request;
@@ -163,16 +174,20 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
                 s->response[1] = status;
                 DPRINTF("Card status 0x%02x\n", status);
             }
-            s->mode = SSI_SD_RESPONSE;
+            s->mode = SSI_SD_PREP_RESP;
             s->response_pos = 0;
         } else {
             s->cmdarg[s->arglen++] = val;
         }
-        return 0xff;
+        return SSI_DUMMY;
+    case SSI_SD_PREP_RESP:
+        DPRINTF("Prepare card response (Ncr)\n");
+        s->mode = SSI_SD_RESPONSE;
+        return SSI_DUMMY;
     case SSI_SD_RESPONSE:
         if (s->stopping) {
             s->stopping = 0;
-            return 0xff;
+            return SSI_DUMMY;
         }
         if (s->response_pos < s->arglen) {
             DPRINTF("Response 0x%02x\n", s->response[s->response_pos]);
@@ -185,28 +200,44 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
             DPRINTF("End of command\n");
             s->mode = SSI_SD_CMD;
         }
-        return 0xff;
+        return SSI_DUMMY;
+    case SSI_SD_PREP_DATA:
+        DPRINTF("Prepare data block (Nac)\n");
+        s->mode = SSI_SD_DATA_START;
+        return SSI_DUMMY;
     case SSI_SD_DATA_START:
         DPRINTF("Start read block\n");
         s->mode = SSI_SD_DATA_READ;
-        return 0xfe;
+        s->response_pos = 0;
+        return SSI_TOKEN_SINGLE;
     case SSI_SD_DATA_READ:
         val = sdbus_read_byte(&s->sdbus);
+        s->crc16 = crc_ccitt_false(s->crc16, (uint8_t *)&val, 1);
         if (!sdbus_data_ready(&s->sdbus)) {
             DPRINTF("Data read end\n");
+            s->mode = SSI_SD_DATA_CRC16;
+        }
+        return val;
+    case SSI_SD_DATA_CRC16:
+        val = (s->crc16 & 0xff00) >> 8;
+        s->crc16 <<= 8;
+        s->response_pos++;
+        if (s->response_pos == 2) {
+            DPRINTF("CRC16 read end\n");
             s->mode = SSI_SD_CMD;
+            s->response_pos = 0;
         }
         return val;
     }
     /* Should never happen.  */
-    return 0xff;
+    return SSI_DUMMY;
 }
 
 static int ssi_sd_post_load(void *opaque, int version_id)
 {
     ssi_sd_state *s = (ssi_sd_state *)opaque;
 
-    if (s->mode > SSI_SD_DATA_READ) {
+    if (s->mode > SSI_SD_DATA_CRC16) {
         return -EINVAL;
     }
     if (s->mode == SSI_SD_CMDARG &&
@@ -224,14 +255,15 @@ static int ssi_sd_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ssi_sd = {
     .name = "ssi_sd",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 5,
+    .minimum_version_id = 5,
     .post_load = ssi_sd_post_load,
     .fields = (VMStateField []) {
         VMSTATE_UINT32(mode, ssi_sd_state),
         VMSTATE_INT32(cmd, ssi_sd_state),
         VMSTATE_UINT8_ARRAY(cmdarg, ssi_sd_state, 4),
         VMSTATE_UINT8_ARRAY(response, ssi_sd_state, 5),
+        VMSTATE_UINT16(crc16, ssi_sd_state),
         VMSTATE_INT32(arglen, ssi_sd_state),
         VMSTATE_INT32(response_pos, ssi_sd_state),
         VMSTATE_INT32(stopping, ssi_sd_state),
@@ -283,6 +315,7 @@ static void ssi_sd_reset(DeviceState *dev)
     s->cmd = 0;
     memset(s->cmdarg, 0, sizeof(s->cmdarg));
     memset(s->response, 0, sizeof(s->response));
+    s->crc16 = 0;
     s->arglen = 0;
     s->response_pos = 0;
     s->stopping = 0;

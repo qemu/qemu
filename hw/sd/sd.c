@@ -271,23 +271,6 @@ static uint8_t sd_crc7(const void *message, size_t width)
     return shift_reg;
 }
 
-static uint16_t sd_crc16(const void *message, size_t width)
-{
-    int i, bit;
-    uint16_t shift_reg = 0x0000;
-    const uint16_t *msg = (const uint16_t *)message;
-    width <<= 1;
-
-    for (i = 0; i < width; i ++, msg ++)
-        for (bit = 15; bit >= 0; bit --) {
-            shift_reg <<= 1;
-            if ((shift_reg >> 15) ^ ((*msg >> bit) & 1))
-                shift_reg ^= 0x1011;
-        }
-
-    return shift_reg;
-}
-
 #define OCR_POWER_DELAY_NS      500000 /* 0.5ms */
 
 FIELD(OCR, VDD_VOLTAGE_WINDOW,          0, 24)
@@ -843,7 +826,6 @@ static void sd_function_switch(SDState *sd, uint32_t arg)
         sd->data[16 - (i >> 1)] |= new_func << ((i % 2) * 4);
     }
     memset(&sd->data[17], 0, 47);
-    stw_be_p(sd->data + 64, sd_crc16(sd->data, 64));
 }
 
 static inline bool sd_wp_addr(SDState *sd, uint64_t addr)
@@ -1517,17 +1499,11 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         if (!sd->spi) {
             goto bad_cmd;
         }
-        goto unimplemented_spi_cmd;
+        return sd_r1;
 
     default:
     bad_cmd:
         qemu_log_mask(LOG_GUEST_ERROR, "SD: Unknown CMD%i\n", req.cmd);
-        return sd_illegal;
-
-    unimplemented_spi_cmd:
-        /* Commands that are recognised but not yet implemented in SPI mode.  */
-        qemu_log_mask(LOG_UNIMP, "SD: CMD%i not implemented in SPI mode\n",
-                      req.cmd);
         return sd_illegal;
     }
 
