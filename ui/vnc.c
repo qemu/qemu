@@ -2046,6 +2046,9 @@ static void framebuffer_update_request(VncState *vs, int incremental,
     } else {
         vs->update = VNC_STATE_UPDATE_FORCE;
         vnc_set_area_dirty(vs->dirty, vs->vd, x, y, w, h);
+        if (vnc_has_feature(vs, VNC_FEATURE_RESIZE_EXT)) {
+            vnc_desktop_resize_ext(vs, 0);
+        }
     }
 }
 
