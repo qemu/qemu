@@ -231,6 +231,13 @@ if not get_option('tcg').disabled()
     else
       error('Unsupported CPU @0@, try --enable-tcg-interpreter'.format(cpu))
     endif
+  elif get_option('tcg_interpreter')
+    warning('Use of the TCG interpretor is not recommended on this host')
+    warning('architecture. There is a native TCG execution backend available')
+    warning('which provides substantially better performance and reliability.')
+    warning('It is strongly recommended to remove the --enable-tcg-interpreter')
+    warning('configuration option on this architecture to use the native')
+    warning('backend.')
   endif
   if get_option('tcg_interpreter')
     tcg_arch = 'tci'
