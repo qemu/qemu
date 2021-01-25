@@ -1156,6 +1156,9 @@ static void qemu_spice_display_init_one(QemuConsole *con)
 
     qemu_spice_create_host_memslot(ssd);
 
+    if (spice_opengl) {
+        qemu_console_set_display_gl_ctx(con, &ssd->dcl);
+    }
     register_displaychangelistener(&ssd->dcl);
 }
 

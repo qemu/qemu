@@ -1465,8 +1465,11 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
 
     assert(!dcl->ds);
 
-    if (dcl->ops->dpy_gl_ctx_create) {
-        qemu_console_set_display_gl_ctx(dcl->con, dcl);
+    if (dcl->con && dcl->con->gl &&
+        dcl->con->gl != dcl) {
+        error_report("Display %s is incompatible with the GL context",
+                     dcl->ops->dpy_name);
+        exit(1);
     }
 
     if (dcl->con) {
