@@ -1062,6 +1062,14 @@ enum NvmeIdCtrlOcfs {
     NVME_OCFS_COPY_FORMAT_0 = 1 << 0,
 };
 
+enum NvmeIdctrlVwc {
+    NVME_VWC_PRESENT                    = 1 << 0,
+    NVME_VWC_NSID_BROADCAST_NO_SUPPORT  = 0 << 1,
+    NVME_VWC_NSID_BROADCAST_RESERVED    = 1 << 1,
+    NVME_VWC_NSID_BROADCAST_CTRL_SPEC   = 2 << 1,
+    NVME_VWC_NSID_BROADCAST_SUPPORT     = 3 << 1,
+};
+
 enum NvmeIdCtrlFrmw {
     NVME_FRMW_SLOT1_RO = 1 << 0,
 };

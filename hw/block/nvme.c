@@ -1466,6 +1466,41 @@ static void nvme_rw_cb(void *opaque, int ret)
     nvme_enqueue_req_completion(nvme_cq(req), req);
 }
 
+struct nvme_aio_flush_ctx {
+    NvmeRequest     *req;
+    NvmeNamespace   *ns;
+    BlockAcctCookie acct;
+};
+
+static void nvme_aio_flush_cb(void *opaque, int ret)
+{
+    struct nvme_aio_flush_ctx *ctx = opaque;
+    NvmeRequest *req = ctx->req;
+    uintptr_t *num_flushes = (uintptr_t *)&req->opaque;
+
+    BlockBackend *blk = ctx->ns->blkconf.blk;
+    BlockAcctCookie *acct = &ctx->acct;
+    BlockAcctStats *stats = blk_get_stats(blk);
+
+    trace_pci_nvme_aio_flush_cb(nvme_cid(req), blk_name(blk));
+
+    if (!ret) {
+        block_acct_done(stats, acct);
+    } else {
+        block_acct_failed(stats, acct);
+        nvme_aio_err(req, ret);
+    }
+
+    (*num_flushes)--;
+    g_free(ctx);
+
+    if (*num_flushes) {
+        return;
+    }
+
+    nvme_enqueue_req_completion(nvme_cq(req), req);
+}
+
 static void nvme_aio_discard_cb(void *opaque, int ret)
 {
     NvmeRequest *req = opaque;
@@ -1949,10 +1984,56 @@ static uint16_t nvme_compare(NvmeCtrl *n, NvmeRequest *req)
 
 static uint16_t nvme_flush(NvmeCtrl *n, NvmeRequest *req)
 {
-    block_acct_start(blk_get_stats(req->ns->blkconf.blk), &req->acct, 0,
-                     BLOCK_ACCT_FLUSH);
-    req->aiocb = blk_aio_flush(req->ns->blkconf.blk, nvme_rw_cb, req);
-    return NVME_NO_COMPLETE;
+    uint32_t nsid = le32_to_cpu(req->cmd.nsid);
+    uintptr_t *num_flushes = (uintptr_t *)&req->opaque;
+    uint16_t status;
+    struct nvme_aio_flush_ctx *ctx;
+    NvmeNamespace *ns;
+
+    trace_pci_nvme_flush(nvme_cid(req), nsid);
+
+    if (nsid != NVME_NSID_BROADCAST) {
+        req->ns = nvme_ns(n, nsid);
+        if (unlikely(!req->ns)) {
+            return NVME_INVALID_FIELD | NVME_DNR;
+        }
+
+        block_acct_start(blk_get_stats(req->ns->blkconf.blk), &req->acct, 0,
+                         BLOCK_ACCT_FLUSH);
+        req->aiocb = blk_aio_flush(req->ns->blkconf.blk, nvme_rw_cb, req);
+        return NVME_NO_COMPLETE;
+    }
+
+    /* 1-initialize; see comment in nvme_dsm */
+    *num_flushes = 1;
+
+    for (int i = 1; i <= n->num_namespaces; i++) {
+        ns = nvme_ns(n, i);
+        if (!ns) {
+            continue;
+        }
+
+        ctx = g_new(struct nvme_aio_flush_ctx, 1);
+        ctx->req = req;
+        ctx->ns = ns;
+
+        (*num_flushes)++;
+
+        block_acct_start(blk_get_stats(ns->blkconf.blk), &ctx->acct, 0,
+                         BLOCK_ACCT_FLUSH);
+        blk_aio_flush(ns->blkconf.blk, nvme_aio_flush_cb, ctx);
+    }
+
+    /* account for the 1-initialization */
+    (*num_flushes)--;
+
+    if (*num_flushes) {
+        status = NVME_NO_COMPLETE;
+    } else {
+        status = req->status;
+    }
+
+    return status;
 }
 
 static uint16_t nvme_read(NvmeCtrl *n, NvmeRequest *req)
@@ -2608,6 +2689,29 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
         return NVME_INVALID_NSID | NVME_DNR;
     }
 
+    /*
+     * In the base NVM command set, Flush may apply to all namespaces
+     * (indicated by NSID being set to 0xFFFFFFFF). But if that feature is used
+     * along with TP 4056 (Namespace Types), it may be pretty screwed up.
+     *
+     * If NSID is indeed set to 0xFFFFFFFF, we simply cannot associate the
+     * opcode with a specific command since we cannot determine a unique I/O
+     * command set. Opcode 0x0 could have any other meaning than something
+     * equivalent to flushing and say it DOES have completely different
+     * semantics in some other command set - does an NSID of 0xFFFFFFFF then
+     * mean "for all namespaces, apply whatever command set specific command
+     * that uses the 0x0 opcode?" Or does it mean "for all namespaces, apply
+     * whatever command that uses the 0x0 opcode if, and only if, it allows
+     * NSID to be 0xFFFFFFFF"?
+     *
+     * Anyway (and luckily), for now, we do not care about this since the
+     * device only supports namespace types that includes the NVM Flush command
+     * (NVM and Zoned), so always do an NVM Flush.
+     */
+    if (req->cmd.opcode == NVME_CMD_FLUSH) {
+        return nvme_flush(n, req);
+    }
+
     req->ns = nvme_ns(n, nsid);
     if (unlikely(!req->ns)) {
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -2619,8 +2723,6 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
     }
 
     switch (req->cmd.opcode) {
-    case NVME_CMD_FLUSH:
-        return nvme_flush(n, req);
     case NVME_CMD_WRITE_ZEROES:
         return nvme_write_zeroes(n, req);
     case NVME_CMD_ZONE_APPEND:
@@ -4750,7 +4852,15 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
                            NVME_ONCS_FEATURES | NVME_ONCS_DSM |
                            NVME_ONCS_COMPARE | NVME_ONCS_COPY);
 
-    id->vwc = (0x2 << 1) | 0x1;
+    /*
+     * NOTE: If this device ever supports a command set that does NOT use 0x0
+     * as a Flush-equivalent operation, support for the broadcast NSID in Flush
+     * should probably be removed.
+     *
+     * See comment in nvme_io_cmd.
+     */
+    id->vwc = NVME_VWC_NSID_BROADCAST_SUPPORT | NVME_VWC_PRESENT;
+
     id->ocfs = cpu_to_le16(NVME_OCFS_COPY_FORMAT_0);
     id->sgls = cpu_to_le32(NVME_CTRL_SGLS_SUPPORT_NO_ALIGN |
                            NVME_CTRL_SGLS_BITBUCKET);
