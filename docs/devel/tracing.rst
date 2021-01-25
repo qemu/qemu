@@ -224,6 +224,9 @@ effectively turns trace events into debug printfs.
 This is the simplest backend and can be used together with existing code that
 uses DPRINTF().
 
+The -msg timestamp=on|off command-line option controls whether or not to print
+the tid/timestamp prefix for each trace event.
+
 Simpletrace
 -----------
 
