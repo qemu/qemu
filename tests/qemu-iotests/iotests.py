@@ -1131,6 +1131,13 @@ def _verify_formats(required_formats: Sequence[str] = ()) -> None:
     if usf_list:
         notrun(f'formats {usf_list} are not whitelisted')
 
+
+def _verify_virtio_blk() -> None:
+    out = qemu_pipe('-M', 'none', '-device', 'help')
+    if 'virtio-blk' not in out:
+        notrun('Missing virtio-blk in QEMU binary')
+
+
 def supports_quorum():
     return 'quorum' in qemu_img_pipe('--help')
 
@@ -1308,6 +1315,7 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
     _verify_cache_mode(supported_cache_modes)
     _verify_aio_mode(supported_aio_modes)
     _verify_formats(required_fmts)
+    _verify_virtio_blk()
 
     return debug
 
