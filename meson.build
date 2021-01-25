@@ -1632,6 +1632,31 @@ tracetool = [
   python, files('scripts/tracetool.py'),
    '--backend=' + config_host['TRACE_BACKENDS']
 ]
+tracetool_depends = files(
+  'scripts/tracetool/backend/log.py',
+  'scripts/tracetool/backend/__init__.py',
+  'scripts/tracetool/backend/dtrace.py',
+  'scripts/tracetool/backend/ftrace.py',
+  'scripts/tracetool/backend/simple.py',
+  'scripts/tracetool/backend/syslog.py',
+  'scripts/tracetool/backend/ust.py',
+  'scripts/tracetool/format/tcg_h.py',
+  'scripts/tracetool/format/ust_events_c.py',
+  'scripts/tracetool/format/ust_events_h.py',
+  'scripts/tracetool/format/__init__.py',
+  'scripts/tracetool/format/d.py',
+  'scripts/tracetool/format/tcg_helper_c.py',
+  'scripts/tracetool/format/simpletrace_stap.py',
+  'scripts/tracetool/format/c.py',
+  'scripts/tracetool/format/h.py',
+  'scripts/tracetool/format/tcg_helper_h.py',
+  'scripts/tracetool/format/log_stap.py',
+  'scripts/tracetool/format/stap.py',
+  'scripts/tracetool/format/tcg_helper_wrapper_h.py',
+  'scripts/tracetool/__init__.py',
+  'scripts/tracetool/transform.py',
+  'scripts/tracetool/vcpu.py'
+)
 
 qemu_version_cmd = [find_program('scripts/qemu-version.sh'),
                     meson.current_source_dir(),
@@ -2219,7 +2244,8 @@ foreach target : target_dirs
                         '--target-type=' + target_type,
                         '--probe-prefix=qemu.' + target_type + '.' + target_name,
                         '@INPUT@', '@OUTPUT@'
-                      ])
+                      ],
+                      depend_files: tracetool_depends)
       endforeach
     endif
   endforeach
