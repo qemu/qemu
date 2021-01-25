@@ -235,7 +235,7 @@
  *    error_propagate_prepend(errp, *errp, ...) by error_prepend(errp, ...)
  *
  * 4. Ensure @errp is valid at return: when you destroy *errp, set
- *    errp = NULL.
+ *    *errp = NULL.
  *
  * Example:
  *
