@@ -157,6 +157,7 @@ Coroutine *qemu_coroutine_new(void)
     sigset_t sigs;
     sigset_t osigs;
     sigjmp_buf old_env;
+    static pthread_mutex_t sigusr2_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     /* The way to manipulate stack is with the sigaltstack function. We
      * prepare a stack, with it delivering a signal to ourselves and then
@@ -186,6 +187,12 @@ Coroutine *qemu_coroutine_new(void)
     sa.sa_handler = coroutine_trampoline;
     sigfillset(&sa.sa_mask);
     sa.sa_flags = SA_ONSTACK;
+
+    /*
+     * sigaction() is a process-global operation.  We must not run
+     * this code in multiple threads at once.
+     */
+    pthread_mutex_lock(&sigusr2_mutex);
     if (sigaction(SIGUSR2, &sa, &osa) != 0) {
         abort();
     }
@@ -234,6 +241,8 @@ Coroutine *qemu_coroutine_new(void)
      * Restore the old SIGUSR2 signal handler and mask
      */
     sigaction(SIGUSR2, &osa, NULL);
+    pthread_mutex_unlock(&sigusr2_mutex);
+
     pthread_sigmask(SIG_SETMASK, &osigs, NULL);
 
     /*
