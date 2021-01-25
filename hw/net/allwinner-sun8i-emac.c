@@ -514,7 +514,7 @@ static void allwinner_sun8i_emac_transmit(AwSun8iEmacState *s)
         /* After the last descriptor, send the packet */
         if (desc.status2 & TX_DESC_STATUS2_LAST_DESC) {
             if (desc.status2 & TX_DESC_STATUS2_CHECKSUM_MASK) {
-                net_checksum_calculate(packet_buf, packet_bytes);
+                net_checksum_calculate(packet_buf, packet_bytes, CSUM_ALL);
             }
 
             qemu_send_packet(nc, packet_buf, packet_bytes);
