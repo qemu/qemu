@@ -255,4 +255,15 @@ void qos_delete_cmd_line(const char *name);
  */
 void qos_graph_node_set_availability(const char *node, bool av);
 
+/*
+ * Prepends a '#' character in front for not breaking TAP output format.
+ */
+#define qos_printf(...) printf("# " __VA_ARGS__)
+
+/*
+ * Intended for printing something literally, i.e. for appending text as is
+ * to a line already been started by qos_printf() before.
+ */
+#define qos_printf_literal printf
+
 #endif
