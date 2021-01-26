@@ -3532,19 +3532,6 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
-# preadv probe
-cat > $TMPC <<EOF
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <unistd.h>
-int main(void) { return preadv(0, 0, 0, 0); }
-EOF
-preadv=no
-if compile_prog "" "" ; then
-  preadv=yes
-fi
-
-##########################################
 # fdt probe
 
 case "$fdt" in
@@ -5747,9 +5734,6 @@ if test "$vhost_user_fs" = "yes" ; then
 fi
 if test "$iovec" = "yes" ; then
   echo "CONFIG_IOVEC=y" >> $config_host_mak
-fi
-if test "$preadv" = "yes" ; then
-  echo "CONFIG_PREADV=y" >> $config_host_mak
 fi
 if test "$membarrier" = "yes" ; then
   echo "CONFIG_MEMBARRIER=y" >> $config_host_mak
