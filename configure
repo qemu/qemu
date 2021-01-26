@@ -6282,6 +6282,7 @@ echo "cpp_link_args = [${LDFLAGS:+$(meson_quote $LDFLAGS)}]" >> $cross
 echo "[binaries]" >> $cross
 echo "c = [$(meson_quote $cc)]" >> $cross
 test -n "$cxx" && echo "cpp = [$(meson_quote $cxx)]" >> $cross
+test -n "$objcc" && echo "objc = [$(meson_quote $objcc)]" >> $cross
 echo "ar = [$(meson_quote $ar)]" >> $cross
 echo "nm = [$(meson_quote $nm)]" >> $cross
 echo "pkgconfig = [$(meson_quote $pkg_config_exe)]" >> $cross
@@ -6299,6 +6300,9 @@ if test "$cross_compile" = "yes"; then
     fi
     if test "$linux" = "yes" ; then
         echo "system = 'linux'" >> $cross
+    fi
+    if test "$darwin" = "yes" ; then
+        echo "system = 'darwin'" >> $cross
     fi
     case "$ARCH" in
         i386|x86_64)
