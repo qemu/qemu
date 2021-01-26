@@ -6305,8 +6305,11 @@ if test "$cross_compile" = "yes"; then
         echo "system = 'darwin'" >> $cross
     fi
     case "$ARCH" in
-        i386|x86_64)
+        i386)
             echo "cpu_family = 'x86'" >> $cross
+            ;;
+        x86_64)
+            echo "cpu_family = 'x86_64'" >> $cross
             ;;
         ppc64le)
             echo "cpu_family = 'ppc64'" >> $cross
