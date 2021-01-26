@@ -412,6 +412,7 @@ typedef enum {
     MAN_NUMONYX,
     MAN_WINBOND,
     MAN_SST,
+    MAN_ISSI,
     MAN_GENERIC,
 } Manufacturer;
 
@@ -487,6 +488,8 @@ static inline Manufacturer get_man(Flash *s)
         return MAN_MACRONIX;
     case 0xBF:
         return MAN_SST;
+    case 0x9D:
+        return MAN_ISSI;
     default:
         return MAN_GENERIC;
     }
@@ -706,6 +709,9 @@ static void complete_collecting_data(Flash *s)
         case MAN_SPANSION:
             s->quad_enable = !!(s->data[1] & 0x02);
             break;
+        case MAN_ISSI:
+            s->quad_enable = extract32(s->data[0], 6, 1);
+            break;
         case MAN_MACRONIX:
             s->quad_enable = extract32(s->data[0], 6, 1);
             if (s->len > 1) {
@@ -895,6 +901,19 @@ static void decode_fast_read_cmd(Flash *s)
                                     SPANSION_DUMMY_CLK_LEN
                                     );
         break;
+    case MAN_ISSI:
+        /*
+         * The Fast Read instruction code is followed by address bytes and
+         * dummy cycles, transmitted via the SI line.
+         *
+         * The number of dummy cycles is configurable but this is currently
+         * unmodeled, hence the default value 8 is used.
+         *
+         * QPI (Quad Peripheral Interface) mode has different default value
+         * of dummy cycles, but this is unsupported at the time being.
+         */
+        s->needed_bytes += 1;
+        break;
     default:
         break;
     }
@@ -933,6 +952,16 @@ static void decode_dio_read_cmd(Flash *s)
             s->needed_bytes += 4;
             break;
         }
+        break;
+    case MAN_ISSI:
+        /*
+         * The Fast Read Dual I/O instruction code is followed by address bytes
+         * and dummy cycles, transmitted via the IO1 and IO0 line.
+         *
+         * The number of dummy cycles is configurable but this is currently
+         * unmodeled, hence the default value 4 is used.
+         */
+        s->needed_bytes += 1;
         break;
     default:
         break;
@@ -973,6 +1002,19 @@ static void decode_qio_read_cmd(Flash *s)
             s->needed_bytes += 6;
             break;
         }
+        break;
+    case MAN_ISSI:
+        /*
+         * The Fast Read Quad I/O instruction code is followed by address bytes
+         * and dummy cycles, transmitted via the IO3, IO2, IO1 and IO0 line.
+         *
+         * The number of dummy cycles is configurable but this is currently
+         * unmodeled, hence the default value 6 is used.
+         *
+         * QPI (Quad Peripheral Interface) mode has different default value
+         * of dummy cycles, but this is unsupported at the time being.
+         */
+        s->needed_bytes += 3;
         break;
     default:
         break;
@@ -1132,7 +1174,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case RDSR:
         s->data[0] = (!!s->write_enable) << 1;
-        if (get_man(s) == MAN_MACRONIX) {
+        if (get_man(s) == MAN_MACRONIX || get_man(s) == MAN_ISSI) {
             s->data[0] |= (!!s->quad_enable) << 6;
         }
         if (get_man(s) == MAN_SST) {
