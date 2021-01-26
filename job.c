@@ -553,6 +553,9 @@ static bool job_timer_not_pending(Job *job)
 void job_pause(Job *job)
 {
     job->pause_count++;
+    if (!job->paused) {
+        job_enter(job);
+    }
 }
 
 void job_resume(Job *job)

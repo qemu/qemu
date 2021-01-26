@@ -821,9 +821,10 @@ _supported_cache_modes()
 # Check whether the filesystem supports O_DIRECT
 _check_o_direct()
 {
-    $QEMU_IMG create -f raw "$TEST_IMG".test_o_direct 1M > /dev/null
-    out=$($QEMU_IO -f raw -t none -c quit "$TEST_IMG".test_o_direct 2>&1)
-    rm -f "$TEST_IMG".test_o_direct
+    testfile="$TEST_DIR"/_check_o_direct
+    $QEMU_IMG create -f raw "$testfile" 1M > /dev/null
+    out=$($QEMU_IO -f raw -t none -c quit "$testfile" 2>&1)
+    rm -f "$testfile"
 
     [[ "$out" != *"O_DIRECT"* ]]
 }
