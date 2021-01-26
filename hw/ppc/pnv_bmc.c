@@ -260,13 +260,8 @@ IPMIBmc *pnv_bmc_create(PnvPnor *pnor)
     Object *obj;
 
     obj = object_new(TYPE_IPMI_BMC_SIMULATOR);
-    object_ref(OBJECT(pnor));
-    object_property_add_const_link(obj, "pnor", OBJECT(pnor));
     qdev_realize(DEVICE(obj), NULL, &error_fatal);
-
-    /* Install the HIOMAP protocol handlers to access the PNOR */
-    ipmi_sim_register_netfn(IPMI_BMC_SIMULATOR(obj), IPMI_NETFN_OEM,
-                            &hiomap_netfn);
+    pnv_bmc_set_pnor(IPMI_BMC(obj), pnor);
 
     return IPMI_BMC(obj);
 }
