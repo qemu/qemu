@@ -1294,7 +1294,7 @@ void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
 
     pq = xive_get_field32(END_W1_ESn, end->w1);
 
-    monitor_printf(mon, "  %08x %c%c %c%c%c%c%c%c%c prio:%d nvt:%02x/%04x",
+    monitor_printf(mon, "  %08x %c%c %c%c%c%c%c%c%c%c prio:%d nvt:%02x/%04x",
                    end_idx,
                    pq & XIVE_ESB_VAL_P ? 'P' : '-',
                    pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
@@ -1305,6 +1305,7 @@ void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
                    xive_end_is_escalate(end) ? 'e' : '-',
                    xive_end_is_uncond_escalation(end)   ? 'u' : '-',
                    xive_end_is_silent_escalation(end)   ? 's' : '-',
+                   xive_end_is_firmware(end)   ? 'f' : '-',
                    priority, nvt_blk, nvt_idx);
 
     if (qaddr_base) {
