@@ -81,7 +81,7 @@
  *         The default value means there is no limit to the number of
  *         concurrently open zones.
  *
- *     zoned.cross_zone_read=<enable RAZB, default: false>
+ *     zoned.cross_read=<enable RAZB, default: false>
  *         Setting this property to true enables Read Across Zone Boundaries.
  */
 
