@@ -38,9 +38,12 @@ include:
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   script:
+    - scripts/git-submodule.sh update
+        $(grep GIT_SUBMODULES build/config-host.mak | sed 's/GIT_SUBMODULES=//')
     - cd build
     - find . -type f -exec touch {} +
-    - make $MAKE_CHECK_ARGS
+    # Avoid recompiling by hiding ninja with NINJA=":"
+    - make NINJA=":" $MAKE_CHECK_ARGS
 
 .acceptance_template: &acceptance_definition
   cache:
