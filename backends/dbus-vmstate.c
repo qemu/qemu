@@ -229,7 +229,10 @@ static int dbus_vmstate_post_load(void *opaque, int version_id)
                                      &bytes_read, NULL, &err)) {
             goto error;
         }
-        g_return_val_if_fail(bytes_read == len, -1);
+        if (bytes_read != len) {
+            error_report("%s: Short read", __func__);
+            return -1;
+        }
         id[len] = 0;
 
         trace_dbus_vmstate_loading(id);
