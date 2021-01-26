@@ -872,6 +872,14 @@ static void pnv_init(MachineState *machine)
     }
 
     /*
+     * The PNOR is mapped on the LPC FW address space by the BMC.
+     * Since we can not reach the remote BMC machine with LPC memops,
+     * map it always for now.
+     */
+    memory_region_add_subregion(pnv->chips[0]->fw_mr, PNOR_SPI_OFFSET,
+                                &pnv->pnor->mmio);
+
+    /*
      * OpenPOWER systems use a IPMI SEL Event message to notify the
      * host to powerdown
      */
@@ -1150,6 +1158,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     qdev_realize(DEVICE(&chip8->lpc), NULL, &error_fatal);
     pnv_xscom_add_subregion(chip, PNV_XSCOM_LPC_BASE, &chip8->lpc.xscom_regs);
 
+    chip->fw_mr = &chip8->lpc.isa_fw;
     chip->dt_isa_nodename = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
                                             (uint64_t) PNV_XSCOM_BASE(chip),
                                             PNV_XSCOM_LPC_BASE);
@@ -1479,6 +1488,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), PNV9_LPCM_BASE(chip),
                                 &chip9->lpc.xscom_regs);
 
+    chip->fw_mr = &chip9->lpc.isa_fw;
     chip->dt_isa_nodename = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",
                                             (uint64_t) PNV9_LPCM_BASE(chip));
 
@@ -1592,6 +1602,7 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), PNV10_LPCM_BASE(chip),
                                 &chip10->lpc.xscom_regs);
 
+    chip->fw_mr = &chip10->lpc.isa_fw;
     chip->dt_isa_nodename = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",
                                             (uint64_t) PNV10_LPCM_BASE(chip));
 }
