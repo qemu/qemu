@@ -51,6 +51,11 @@ typedef struct OemSel {
 #define SOFT_OFF        0x00
 #define SOFT_REBOOT     0x01
 
+static bool pnv_bmc_is_simulator(IPMIBmc *bmc)
+{
+    return object_dynamic_cast(OBJECT(bmc), TYPE_IPMI_BMC_SIMULATOR);
+}
+
 static void pnv_gen_oem_sel(IPMIBmc *bmc, uint8_t reboot)
 {
     /* IPMI SEL Event are 16 bytes long */
@@ -78,6 +83,10 @@ void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt)
     int i;
     const struct ipmi_sdr_compact *sdr;
     uint16_t nextrec;
+
+    if (!pnv_bmc_is_simulator(bmc)) {
+        return;
+    }
 
     offset = fdt_add_subnode(fdt, 0, "bmc");
     _FDT(offset);
@@ -243,6 +252,10 @@ static const IPMINetfn hiomap_netfn = {
 
 void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor)
 {
+    if (!pnv_bmc_is_simulator(bmc)) {
+        return;
+    }
+
     object_ref(OBJECT(pnor));
     object_property_add_const_link(OBJECT(bmc), "pnor", OBJECT(pnor));
 
@@ -286,7 +299,7 @@ static int bmc_find(Object *child, void *opaque)
 
 IPMIBmc *pnv_bmc_find(Error **errp)
 {
-    ForeachArgs args = { TYPE_IPMI_BMC_SIMULATOR, NULL };
+    ForeachArgs args = { TYPE_IPMI_BMC, NULL };
     int ret;
 
     ret = object_child_foreach_recursive(object_get_root(), bmc_find, &args);
