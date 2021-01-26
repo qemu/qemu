@@ -453,6 +453,22 @@ void qos_node_create_machine_args(const char *name,
 void qos_node_create_driver(const char *name, QOSCreateDriverFunc function);
 
 /**
+ * Behaves as qos_node_create_driver() with the extension of allowing to
+ * specify a different node name vs. associated QEMU device name.
+ *
+ * Use this function instead of qos_node_create_driver() if you need to create
+ * several instances of the same QEMU device. You are free to choose a custom
+ * node name, however the chosen node name must always be unique.
+ *
+ * @param name: custom, unique name of the node to be created
+ * @param qemu_name: actual (official) QEMU driver name the node shall be
+ *                   associated with
+ * @param function: driver constructor
+ */
+void qos_node_create_driver_named(const char *name, const char *qemu_name,
+                                  QOSCreateDriverFunc function);
+
+/**
  * qos_node_contains(): creates one or more edges of type QEDGE_CONTAINS
  * and adds them to the edge list mapped to @container in the
  * edge hash table.
