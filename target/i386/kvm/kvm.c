@@ -27,6 +27,7 @@
 #include "sysemu/kvm_int.h"
 #include "sysemu/runstate.h"
 #include "kvm_i386.h"
+#include "sev_i386.h"
 #include "hyperv.h"
 #include "hyperv-proto.h"
 
@@ -4820,4 +4821,9 @@ int kvm_arch_msi_data_to_gsi(uint32_t data)
 bool kvm_has_waitpkg(void)
 {
     return has_msr_umwait;
+}
+
+bool kvm_arch_cpu_check_are_resettable(void)
+{
+    return !sev_es_enabled();
 }
