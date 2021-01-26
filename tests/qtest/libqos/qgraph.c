@@ -805,3 +805,48 @@ void qos_delete_cmd_line(const char *name)
         node->command_line = NULL;
     }
 }
+
+void qos_dump_graph(void)
+{
+    GList *keys;
+    GList *l;
+    QOSGraphEdgeList *list;
+    QOSGraphEdge *e, *next;
+    QOSGraphNode *dest_node, *node;
+
+    qos_printf("ALL QGRAPH EDGES: {\n");
+    keys = g_hash_table_get_keys(edge_table);
+    for (l = keys; l != NULL; l = l->next) {
+        const gchar *key = l->data;
+        qos_printf("\t src='%s'\n", key);
+        list = get_edgelist(key);
+        QSLIST_FOREACH_SAFE(e, list, edge_list, next) {
+            dest_node = g_hash_table_lookup(node_table, e->dest);
+            qos_printf("\t\t|-> dest='%s' type=%d (node=%p)",
+                       e->dest, e->type, dest_node);
+            if (!dest_node) {
+                qos_printf_literal(" <------- ERROR !");
+            }
+            qos_printf_literal("\n");
+        }
+    }
+    g_list_free(keys);
+    qos_printf("}\n");
+
+    qos_printf("ALL QGRAPH NODES: {\n");
+    keys = g_hash_table_get_keys(node_table);
+    for (l = keys; l != NULL; l = l->next) {
+        const gchar *key = l->data;
+        node = g_hash_table_lookup(node_table, key);
+        qos_printf("\t name='%s' ", key);
+        if (node->qemu_name) {
+            qos_printf_literal("qemu_name='%s' ", node->qemu_name);
+        }
+        qos_printf_literal("type=%d cmd_line='%s' [%s]\n",
+                           node->type, node->command_line,
+                           node->available ? "available" : "UNAVAILBLE"
+        );
+    }
+    g_list_free(keys);
+    qos_printf("}\n");
+}
