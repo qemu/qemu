@@ -124,6 +124,7 @@ static void file_memory_backend_set_align(Object *o, Visitor *v,
     fb->align = val;
 }
 
+#ifdef CONFIG_LIBPMEM
 static bool file_memory_backend_get_pmem(Object *o, Error **errp)
 {
     return MEMORY_BACKEND_FILE(o)->is_pmem;
@@ -140,17 +141,9 @@ static void file_memory_backend_set_pmem(Object *o, bool value, Error **errp)
         return;
     }
 
-#ifndef CONFIG_LIBPMEM
-    if (value) {
-        error_setg(errp, "Lack of libpmem support while setting the 'pmem=on'"
-                   " of %s. We can't ensure data persistence.",
-                   object_get_typename(o));
-        return;
-    }
-#endif
-
     fb->is_pmem = value;
 }
+#endif /* CONFIG_LIBPMEM */
 
 static bool file_memory_backend_get_readonly(Object *obj, Error **errp)
 {
@@ -203,8 +196,10 @@ file_backend_class_init(ObjectClass *oc, void *data)
         file_memory_backend_get_align,
         file_memory_backend_set_align,
         NULL, NULL);
+#ifdef CONFIG_LIBPMEM
     object_class_property_add_bool(oc, "pmem",
         file_memory_backend_get_pmem, file_memory_backend_set_pmem);
+#endif
     object_class_property_add_bool(oc, "readonly",
         file_memory_backend_get_readonly,
         file_memory_backend_set_readonly);
