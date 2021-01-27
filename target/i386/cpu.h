@@ -247,6 +247,7 @@ typedef enum X86Seg {
 #define CR4_SMEP_MASK   (1U << 20)
 #define CR4_SMAP_MASK   (1U << 21)
 #define CR4_PKE_MASK   (1U << 22)
+#define CR4_PKS_MASK   (1U << 24)
 
 #define DR6_BD          (1 << 13)
 #define DR6_BS          (1 << 14)
@@ -357,6 +358,7 @@ typedef enum X86Seg {
 
 #define MSR_IA32_TSX_CTRL		0x122
 #define MSR_IA32_TSCDEADLINE            0x6e0
+#define MSR_IA32_PKRS                   0x6e1
 
 #define FEATURE_CONTROL_LOCKED                    (1<<0)
 #define FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX (1<<2)
@@ -772,6 +774,8 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_ECX_MOVDIRI           (1U << 27)
 /* Move 64 Bytes as Direct Store Instruction */
 #define CPUID_7_0_ECX_MOVDIR64B         (1U << 28)
+/* Protection Keys for Supervisor-mode Pages */
+#define CPUID_7_0_ECX_PKS               (1U << 31)
 
 /* AVX512 Neural Network Instructions */
 #define CPUID_7_0_EDX_AVX512_4VNNIW     (1U << 2)
@@ -1487,6 +1491,7 @@ typedef struct CPUX86State {
     uint64_t msr_smi_count;
 
     uint32_t pkru;
+    uint32_t pkrs;
     uint32_t tsx_ctrl;
 
     uint64_t spec_ctrl;
