@@ -745,7 +745,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     trace_nvme_controller_capability("Contiguous Queues Required",
                                      NVME_CAP_CQR(cap));
     trace_nvme_controller_capability("Doorbell Stride",
-                                     2 << (2 + NVME_CAP_DSTRD(cap)));
+                                     1 << (2 + NVME_CAP_DSTRD(cap)));
     trace_nvme_controller_capability("Subsystem Reset Supported",
                                      NVME_CAP_NSSRS(cap));
     trace_nvme_controller_capability("Memory Page Size Minimum",
