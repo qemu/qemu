@@ -551,9 +551,9 @@ build-oss-fuzz:
 build-tci:
   <<: *native_build_job_definition
   needs:
-    job: amd64-fedora-container
+    job: amd64-debian-user-cross-container
   variables:
-    IMAGE: fedora
+    IMAGE: debian-all-test-cross
   script:
     - TARGETS="aarch64 alpha arm hppa m68k microblaze moxie ppc64 s390x x86_64"
     - mkdir build
@@ -561,7 +561,6 @@ build-tci:
     - ../configure --enable-tcg-interpreter
         --target-list="$(for tg in $TARGETS; do echo -n ${tg}'-softmmu '; done)" || { cat config.log meson-logs/meson-log.txt && exit 1; }
     - make -j"$JOBS"
-    - make run-tcg-tests-x86_64-softmmu
     - make tests/qtest/boot-serial-test tests/qtest/cdrom-test tests/qtest/pxe-test
     - for tg in $TARGETS ; do
         export QTEST_QEMU_BINARY="./qemu-system-${tg}" ;
@@ -570,6 +569,7 @@ build-tci:
       done
     - QTEST_QEMU_BINARY="./qemu-system-x86_64" ./tests/qtest/pxe-test
     - QTEST_QEMU_BINARY="./qemu-system-s390x" ./tests/qtest/pxe-test -m slow
+    - make check-tcg
 
 # Alternate coroutines implementations are only really of interest to KVM users
 # However we can't test against KVM on Gitlab-CI so we can only run unit tests
