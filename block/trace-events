@@ -136,6 +136,7 @@ qed_aio_write_main(void *s, void *acb, int ret, uint64_t offset, size_t len) "s 
 # nvme.c
 nvme_controller_capability_raw(uint64_t value) "0x%08"PRIx64
 nvme_controller_capability(const char *desc, uint64_t value) "%s: %"PRIu64
+nvme_controller_spec_version(uint32_t mjr, uint32_t mnr, uint32_t ter) "Specification supported: %u.%u.%u"
 nvme_kick(void *s, unsigned q_index) "s %p q #%u"
 nvme_dma_flush_queue_wait(void *s) "s %p"
 nvme_error(int cmd_specific, int sq_head, int sqid, int cid, int status) "cmd_specific %d sq_head %d sqid %d cid %d status 0x%x"

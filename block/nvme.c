@@ -708,6 +708,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     AioContext *aio_context = bdrv_get_aio_context(bs);
     int ret;
     uint64_t cap;
+    uint32_t ver;
     uint64_t timeout_ms;
     uint64_t deadline, now;
     volatile NvmeBar *regs = NULL;
@@ -763,6 +764,11 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     bs->bl.opt_mem_alignment = s->page_size;
     bs->bl.request_alignment = s->page_size;
     timeout_ms = MIN(500 * NVME_CAP_TO(cap), 30000);
+
+    ver = le32_to_cpu(regs->vs);
+    trace_nvme_controller_spec_version(extract32(ver, 16, 16),
+                                       extract32(ver, 8, 8),
+                                       extract32(ver, 0, 8));
 
     /* Reset device to get a clean state. */
     regs->cc = cpu_to_le32(le32_to_cpu(regs->cc) & 0xFE);
