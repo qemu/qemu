@@ -12418,7 +12418,7 @@ hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
 
     *attrs = (MemTxAttrs) {};
 
-    ret = get_phys_addr(env, addr, 0, mmu_idx, &phys_addr,
+    ret = get_phys_addr(env, addr, MMU_DATA_LOAD, mmu_idx, &phys_addr,
                         attrs, &prot, &page_size, &fi, &cacheattrs);
 
     if (ret) {
