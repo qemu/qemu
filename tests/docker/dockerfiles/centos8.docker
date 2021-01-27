@@ -15,6 +15,7 @@ ENV PACKAGES \
     glib2-devel \
     libaio-devel \
     libepoxy-devel \
+    libfdt-devel \
     libgcrypt-devel \
     lzo-devel \
     make \

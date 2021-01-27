@@ -38,9 +38,12 @@ include:
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   script:
+    - scripts/git-submodule.sh update
+        $(grep GIT_SUBMODULES build/config-host.mak | sed 's/GIT_SUBMODULES=//')
     - cd build
     - find . -type f -exec touch {} +
-    - make $MAKE_CHECK_ARGS
+    # Avoid recompiling by hiding ninja with NINJA=":"
+    - make NINJA=":" $MAKE_CHECK_ARGS
 
 .acceptance_template: &acceptance_definition
   cache:
@@ -109,6 +112,7 @@ build-system-ubuntu:
   <<: *native_build_job_definition
   variables:
     IMAGE: ubuntu2004
+    CONFIGURE_ARGS: --enable-fdt=system --enable-slirp=system
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
       moxie-softmmu microblazeel-softmmu mips64el-softmmu
     MAKE_CHECK_ARGS: check-build
@@ -140,6 +144,7 @@ build-system-debian:
   <<: *native_build_job_definition
   variables:
     IMAGE: debian-amd64
+    CONFIGURE_ARGS: --enable-fdt=system
     TARGETS: arm-softmmu avr-softmmu i386-softmmu mipsel-softmmu
       riscv64-softmmu sh4eb-softmmu sparc-softmmu xtensaeb-softmmu
     MAKE_CHECK_ARGS: check-build
@@ -185,6 +190,7 @@ build-system-fedora:
   variables:
     IMAGE: fedora
     CONFIGURE_ARGS: --disable-gcrypt --enable-nettle --enable-docs
+             --enable-fdt=system --enable-slirp=system --enable-capstone=system
     TARGETS: tricore-softmmu microblaze-softmmu mips-softmmu
       xtensa-softmmu m68k-softmmu riscv32-softmmu ppc-softmmu sparc64-softmmu
     MAKE_CHECK_ARGS: check-build
@@ -216,7 +222,7 @@ build-system-centos:
   <<: *native_build_job_definition
   variables:
     IMAGE: centos8
-    CONFIGURE_ARGS: --disable-nettle --enable-gcrypt
+    CONFIGURE_ARGS: --disable-nettle --enable-gcrypt --enable-fdt=system
     TARGETS: ppc64-softmmu or1k-softmmu s390x-softmmu
       x86_64-softmmu rx-softmmu sh4-softmmu nios2-softmmu
     MAKE_CHECK_ARGS: check-build
@@ -248,6 +254,7 @@ build-system-opensuse:
   <<: *native_build_job_definition
   variables:
     IMAGE: opensuse-leap
+    CONFIGURE_ARGS: --enable-fdt=system
     TARGETS: s390x-softmmu x86_64-softmmu aarch64-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
@@ -410,6 +417,13 @@ build-user-plugins:
     CONFIGURE_ARGS: --disable-tools --disable-system --enable-plugins --enable-debug-tcg --target-list-exclude=sparc64-linux-user,cris-linux-user
     MAKE_CHECK_ARGS: check-tcg
   timeout: 1h 30m
+
+build-user-centos7:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: centos7
+    CONFIGURE_ARGS: --disable-system --disable-tools --disable-docs
+    MAKE_CHECK_ARGS: check-tcg
 
 build-some-softmmu-plugins:
   <<: *native_build_job_definition
@@ -606,6 +620,7 @@ build-without-default-features:
   variables:
     IMAGE: debian-amd64
     CONFIGURE_ARGS: --without-default-features --disable-user
+        --target-list-exclude=arm-softmmu,i386-softmmu,mipsel-softmmu,mips64-softmmu,ppc-softmmu
     MAKE_CHECK_ARGS: check-unit
 
 check-patch:

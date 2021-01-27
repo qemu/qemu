@@ -21,6 +21,7 @@ RUN apt update && \
         libbz2-dev \
         liblzo2-dev \
         libgcrypt20-dev \
+        libfdt-dev \
         librdmacm-dev \
         libsasl2-dev \
         libsnappy-dev \

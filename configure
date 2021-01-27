@@ -2320,6 +2320,12 @@ if test -z "$want_tools"; then
 fi
 
 ##########################################
+# Disable features only meaningful for system-mode emulation
+if test "$softmmu" = "no"; then
+    audio_drv_list=""
+fi
+
+##########################################
 # Some versions of Mac OS X incorrectly define SIZE_MAX
 cat > $TMPC << EOF
 #include <stdint.h>
