@@ -222,7 +222,7 @@ static int is_seg_am_mapped(unsigned int am, bool eu, int mmu_idx)
 
 static int get_seg_physical_address(CPUMIPSState *env, hwaddr *physical,
                                     int *prot, target_ulong real_address,
-                                    int rw, int access_type, int mmu_idx,
+                                    int rw, int mmu_idx,
                                     unsigned int am, bool eu,
                                     target_ulong segmask,
                                     hwaddr physical_base)
@@ -253,7 +253,7 @@ static int get_segctl_physical_address(CPUMIPSState *env, hwaddr *physical,
     hwaddr pa = ((hwaddr)segctl & CP0SC_PA_MASK) << 20;
 
     return get_seg_physical_address(env, physical, prot, real_address, rw,
-                                    access_type, mmu_idx, am, eu, segmask,
+                                    mmu_idx, am, eu, segmask,
                                     pa & ~(hwaddr)segmask);
 }
 
@@ -349,7 +349,7 @@ static int get_physical_address(CPUMIPSState *env, hwaddr *physical,
             /* Does CP0_Status.KX/SX/UX permit the access mode (am) */
             if (env->CP0_Status & am_ksux[am]) {
                 ret = get_seg_physical_address(env, physical, prot,
-                                               real_address, rw, access_type,
+                                               real_address, rw,
                                                mmu_idx, am, false, env->PAMask,
                                                0);
             } else {
