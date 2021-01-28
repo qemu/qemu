@@ -243,13 +243,14 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
         s->mode = SSI_SD_RESPONSE;
         return SSI_DUMMY;
     case SSI_SD_RESPONSE:
-        if (s->stopping) {
-            s->stopping = 0;
-            return SSI_DUMMY;
-        }
         if (s->response_pos < s->arglen) {
             DPRINTF("Response 0x%02x\n", s->response[s->response_pos]);
             return s->response[s->response_pos++];
+        }
+        if (s->stopping) {
+            s->stopping = 0;
+            s->mode = SSI_SD_CMD;
+            return SSI_DUMMY;
         }
         if (sdbus_data_ready(&s->sdbus)) {
             DPRINTF("Data read\n");
