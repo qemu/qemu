@@ -288,13 +288,14 @@ target_ulong helper_rotx(target_ulong rs, uint32_t shift, uint32_t shiftx,
 #ifndef CONFIG_USER_ONLY
 
 static inline hwaddr do_translate_address(CPUMIPSState *env,
-                                                      target_ulong address,
-                                                      int rw, uintptr_t retaddr)
+                                          target_ulong address,
+                                          MMUAccessType access_type,
+                                          uintptr_t retaddr)
 {
     hwaddr paddr;
     CPUState *cs = env_cpu(env);
 
-    paddr = cpu_mips_translate_address(env, address, rw);
+    paddr = cpu_mips_translate_address(env, address, access_type);
 
     if (paddr == -1LL) {
         cpu_loop_exit_restore(cs, retaddr);
