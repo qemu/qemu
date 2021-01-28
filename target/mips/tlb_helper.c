@@ -259,7 +259,7 @@ static int get_segctl_physical_address(CPUMIPSState *env, hwaddr *physical,
 
 static int get_physical_address(CPUMIPSState *env, hwaddr *physical,
                                 int *prot, target_ulong real_address,
-                                int rw, int access_type, int mmu_idx)
+                                int rw, int mmu_idx)
 {
     /* User mode can only access useg/xuseg */
 #if defined(TARGET_MIPS64)
@@ -492,7 +492,7 @@ hwaddr mips_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     hwaddr phys_addr;
     int prot;
 
-    if (get_physical_address(env, &phys_addr, &prot, addr, 0, ACCESS_INT,
+    if (get_physical_address(env, &phys_addr, &prot, addr, 0,
                              cpu_mmu_index(env, false)) != 0) {
         return -1;
     }
@@ -570,7 +570,7 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
     uint64_t w = 0;
 
     if (get_physical_address(env, &paddr, &prot, *vaddr, MMU_DATA_LOAD,
-                             ACCESS_INT, cpu_mmu_index(env, false)) !=
+                             cpu_mmu_index(env, false)) !=
                              TLBRET_MATCH) {
         /* wrong base address */
         return 0;
@@ -598,7 +598,7 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
                 *pw_entrylo0 = entry;
             }
             if (get_physical_address(env, &paddr, &prot, vaddr2, MMU_DATA_LOAD,
-                                     ACCESS_INT, cpu_mmu_index(env, false)) !=
+                                     cpu_mmu_index(env, false)) !=
                                      TLBRET_MATCH) {
                 return 0;
             }
@@ -752,7 +752,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address, int rw,
     /* Leaf Level Page Table - First half of PTE pair */
     vaddr |= ptoffset0;
     if (get_physical_address(env, &paddr, &prot, vaddr, MMU_DATA_LOAD,
-                             ACCESS_INT, cpu_mmu_index(env, false)) !=
+                             cpu_mmu_index(env, false)) !=
                              TLBRET_MATCH) {
         return false;
     }
@@ -765,7 +765,7 @@ static bool page_table_walk_refill(CPUMIPSState *env, vaddr address, int rw,
     /* Leaf Level Page Table - Second half of PTE pair */
     vaddr |= ptoffset1;
     if (get_physical_address(env, &paddr, &prot, vaddr, MMU_DATA_LOAD,
-                             ACCESS_INT, cpu_mmu_index(env, false)) !=
+                             cpu_mmu_index(env, false)) !=
                              TLBRET_MATCH) {
         return false;
     }
@@ -843,16 +843,14 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 #if !defined(CONFIG_USER_ONLY)
     hwaddr physical;
     int prot;
-    int mips_access_type;
 #endif
     int ret = TLBRET_BADADDR;
 
     /* data access */
 #if !defined(CONFIG_USER_ONLY)
     /* XXX: put correct access by using cpu_restore_state() correctly */
-    mips_access_type = ACCESS_INT;
     ret = get_physical_address(env, &physical, &prot, address,
-                               access_type, mips_access_type, mmu_idx);
+                               access_type, mmu_idx);
     switch (ret) {
     case TLBRET_MATCH:
         qemu_log_mask(CPU_LOG_MMU,
@@ -884,7 +882,7 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         env->hflags |= mode;
         if (ret_walker) {
             ret = get_physical_address(env, &physical, &prot, address,
-                                       access_type, mips_access_type, mmu_idx);
+                                       access_type, mmu_idx);
             if (ret == TLBRET_MATCH) {
                 tlb_set_page(cs, address & TARGET_PAGE_MASK,
                              physical & TARGET_PAGE_MASK, prot,
@@ -909,12 +907,10 @@ hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address,
 {
     hwaddr physical;
     int prot;
-    int access_type;
     int ret = 0;
 
     /* data access */
-    access_type = ACCESS_INT;
-    ret = get_physical_address(env, &physical, &prot, address, rw, access_type,
+    ret = get_physical_address(env, &physical, &prot, address, rw,
                                cpu_mmu_index(env, false));
     if (ret != TLBRET_MATCH) {
         raise_mmu_exception(env, address, rw, ret);
