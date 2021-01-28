@@ -83,6 +83,7 @@ struct MPS2MachineState {
     /* CMSDK APB subsystem */
     CMSDKAPBDualTimer dualtimer;
     CMSDKAPBWatchdog watchdog;
+    CMSDKAPBTimer timer[2];
 };
 
 #define TYPE_MPS2_MACHINE "mps2"
@@ -330,8 +331,21 @@ static void mps2_common_init(MachineState *machine)
     }
 
     /* CMSDK APB subsystem */
-    cmsdk_apb_timer_create(0x40000000, qdev_get_gpio_in(armv7m, 8), SYSCLK_FRQ);
-    cmsdk_apb_timer_create(0x40001000, qdev_get_gpio_in(armv7m, 9), SYSCLK_FRQ);
+    for (i = 0; i < ARRAY_SIZE(mms->timer); i++) {
+        g_autofree char *name = g_strdup_printf("timer%d", i);
+        hwaddr base = 0x40000000 + i * 0x1000;
+        int irqno = 8 + i;
+        SysBusDevice *sbd;
+
+        object_initialize_child(OBJECT(mms), name, &mms->timer[i],
+                                TYPE_CMSDK_APB_TIMER);
+        sbd = SYS_BUS_DEVICE(&mms->timer[i]);
+        qdev_prop_set_uint32(DEVICE(&mms->timer[i]), "pclk-frq", SYSCLK_FRQ);
+        sysbus_realize_and_unref(sbd, &error_fatal);
+        sysbus_mmio_map(sbd, 0, base);
+        sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(armv7m, irqno));
+    }
+
     object_initialize_child(OBJECT(mms), "dualtimer", &mms->dualtimer,
                             TYPE_CMSDK_APB_DUALTIMER);
     qdev_prop_set_uint32(DEVICE(&mms->dualtimer), "pclk-frq", SYSCLK_FRQ);

@@ -45,25 +45,4 @@ struct CMSDKAPBTimer {
     uint32_t intstatus;
 };
 
-/**
- * cmsdk_apb_timer_create - convenience function to create TYPE_CMSDK_APB_TIMER
- * @addr: location in system memory to map registers
- * @pclk_frq: frequency in Hz of the PCLK clock (used for calculating baud rate)
- */
-static inline DeviceState *cmsdk_apb_timer_create(hwaddr addr,
-                                                 qemu_irq timerint,
-                                                 uint32_t pclk_frq)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-
-    dev = qdev_new(TYPE_CMSDK_APB_TIMER);
-    s = SYS_BUS_DEVICE(dev);
-    qdev_prop_set_uint32(dev, "pclk-frq", pclk_frq);
-    sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_mmio_map(s, 0, addr);
-    sysbus_connect_irq(s, 0, timerint);
-    return dev;
-}
-
 #endif
