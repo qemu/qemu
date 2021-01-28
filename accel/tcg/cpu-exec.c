@@ -741,18 +741,8 @@ void afl_persistent_iter(CPUArchState *env) {
   
     if (persistent_memory) restore_memory_snapshot();
   
-    if (persistent_save_gpr) {
-    
-      if (afl_persistent_hook_ptr) {
-      
-        struct api_regs hook_regs = saved_regs;
-        afl_persistent_hook_ptr(&hook_regs, guest_base, shared_buf,
-                                *shared_buf_len);
-        afl_restore_regs(&hook_regs, env);
-
-      } else
-        afl_restore_regs(&saved_regs, env);
-      
+    if (persistent_save_gpr && !afl_persistent_hook_ptr) {
+      afl_restore_regs(&saved_regs, env);
     }
 
     if (!disable_caching) {
@@ -773,6 +763,17 @@ void afl_persistent_iter(CPUArchState *env) {
 
     // TODO use only pipe
     raise(SIGSTOP);
+
+    
+    // now we have shared_buf updated and ready to use
+    if (persistent_save_gpr && afl_persistent_hook_ptr) {
+    
+      struct api_regs hook_regs = saved_regs;
+      afl_persistent_hook_ptr(&hook_regs, guest_base, shared_buf,
+                              *shared_buf_len);
+      afl_restore_regs(&hook_regs, env);
+
+    }
 
     afl_area_ptr[0] = 1;
     afl_prev_loc = 0;
