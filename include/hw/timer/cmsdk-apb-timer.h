@@ -18,9 +18,9 @@
 #include "qom/object.h"
 
 #define TYPE_CMSDK_APB_TIMER "cmsdk-apb-timer"
-OBJECT_DECLARE_SIMPLE_TYPE(CMSDKAPBTIMER, CMSDK_APB_TIMER)
+OBJECT_DECLARE_SIMPLE_TYPE(CMSDKAPBTimer, CMSDK_APB_TIMER)
 
-struct CMSDKAPBTIMER {
+struct CMSDKAPBTimer {
     /*< private >*/
     SysBusDevice parent_obj;
 
