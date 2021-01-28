@@ -1826,15 +1826,28 @@ void blk_error_action(BlockBackend *blk, BlockErrorAction action,
     }
 }
 
-bool blk_is_read_only(BlockBackend *blk)
+/*
+ * Returns true if the BlockBackend can support taking write permissions
+ * (because its root node is not read-only).
+ */
+bool blk_supports_write_perm(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
 
     if (bs) {
-        return bdrv_is_read_only(bs);
+        return !bdrv_is_read_only(bs);
     } else {
-        return blk->root_state.read_only;
+        return !blk->root_state.read_only;
     }
+}
+
+/*
+ * Returns true if the BlockBackend can be written to in its current
+ * configuration (i.e. if write permission have been requested)
+ */
+bool blk_is_writable(BlockBackend *blk)
+{
+    return blk->perm & BLK_PERM_WRITE;
 }
 
 bool blk_is_sg(BlockBackend *blk)

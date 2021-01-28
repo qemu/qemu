@@ -400,7 +400,7 @@ static void nand_realize(DeviceState *dev, Error **errp)
     pagesize = 1 << s->oob_shift;
     s->mem_oob = 1;
     if (s->blk) {
-        if (blk_is_read_only(s->blk)) {
+        if (!blk_supports_write_perm(s->blk)) {
             error_setg(errp, "Can't use a read-only drive");
             return;
         }

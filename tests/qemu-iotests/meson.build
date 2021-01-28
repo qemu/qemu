@@ -3,6 +3,3 @@ if 'CONFIG_LINUX' in config_host
 else
     socket_scm_helper = []
 endif
-configure_file(output: 'common.env',
-               input: files('common.env.in'),
-               configuration: {'PYTHON': python.full_path()})

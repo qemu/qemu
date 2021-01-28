@@ -508,7 +508,7 @@ static void flash_sync_page(Flash *s, int page)
 {
     QEMUIOVector *iov;
 
-    if (!s->blk || blk_is_read_only(s->blk)) {
+    if (!s->blk || !blk_is_writable(s->blk)) {
         return;
     }
 
@@ -524,7 +524,7 @@ static inline void flash_sync_area(Flash *s, int64_t off, int64_t len)
 {
     QEMUIOVector *iov;
 
-    if (!s->blk || blk_is_read_only(s->blk)) {
+    if (!s->blk || !blk_is_writable(s->blk)) {
         return;
     }
 
@@ -1434,7 +1434,7 @@ static void m25p80_realize(SSIPeripheral *ss, Error **errp)
 
     if (s->blk) {
         uint64_t perm = BLK_PERM_CONSISTENT_READ |
-                        (blk_is_read_only(s->blk) ? 0 : BLK_PERM_WRITE);
+                        (blk_supports_write_perm(s->blk) ? BLK_PERM_WRITE : 0);
         ret = blk_set_perm(s->blk, perm, BLK_PERM_ALL, errp);
         if (ret < 0) {
             return;

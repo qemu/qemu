@@ -228,7 +228,7 @@ static void sifive_u_otp_realize(DeviceState *dev, Error **errp)
 
         if (s->blk) {
             perm = BLK_PERM_CONSISTENT_READ |
-                   (blk_is_read_only(s->blk) ? 0 : BLK_PERM_WRITE);
+                   (blk_supports_write_perm(s->blk) ? BLK_PERM_WRITE : 0);
             ret = blk_set_perm(s->blk, perm, BLK_PERM_ALL, errp);
             if (ret < 0) {
                 return;

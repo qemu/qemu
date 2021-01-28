@@ -567,7 +567,7 @@ static void xen_disk_realize(XenBlockDevice *blockdev, Error **errp)
         return;
     }
 
-    blockdev->info = blk_is_read_only(conf->blk) ? VDISK_READONLY : 0;
+    blockdev->info = blk_supports_write_perm(conf->blk) ? 0 : VDISK_READONLY;
 }
 
 static void xen_disk_class_init(ObjectClass *class, void *data)

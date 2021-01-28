@@ -168,7 +168,7 @@ static int xen_block_parse_request(XenBlockRequest *request)
     };
 
     if (request->req.operation != BLKIF_OP_READ &&
-        blk_is_read_only(dataplane->blk)) {
+        !blk_is_writable(dataplane->blk)) {
         error_report("error: write req for ro device");
         goto err;
     }

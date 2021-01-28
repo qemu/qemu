@@ -1270,7 +1270,7 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
 
     if (s->qdev.type == TYPE_DISK) {
         dev_specific_param = s->features & (1 << SCSI_DISK_F_DPOFUA) ? 0x10 : 0;
-        if (blk_is_read_only(s->qdev.conf.blk)) {
+        if (!blk_is_writable(s->qdev.conf.blk)) {
             dev_specific_param |= 0x80; /* Readonly.  */
         }
     } else {
@@ -1704,7 +1704,7 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
         goto invalid_param_len;
     }
 
-    if (blk_is_read_only(s->qdev.conf.blk)) {
+    if (!blk_is_writable(s->qdev.conf.blk)) {
         block_acct_invalid(blk_get_stats(s->qdev.conf.blk), BLOCK_ACCT_UNMAP);
         scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
         return;
@@ -1795,7 +1795,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
         return;
     }
 
-    if (blk_is_read_only(s->qdev.conf.blk)) {
+    if (!blk_is_writable(s->qdev.conf.blk)) {
         scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
         return;
     }
@@ -2207,7 +2207,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
     case WRITE_VERIFY_10:
     case WRITE_VERIFY_12:
     case WRITE_VERIFY_16:
-        if (blk_is_read_only(s->qdev.conf.blk)) {
+        if (!blk_is_writable(s->qdev.conf.blk)) {
             scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
             return 0;
         }
@@ -2380,7 +2380,7 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
         }
     }
 
-    read_only = blk_is_read_only(s->qdev.conf.blk);
+    read_only = !blk_supports_write_perm(s->qdev.conf.blk);
     if (dev->type == TYPE_ROM) {
         read_only = true;
     }

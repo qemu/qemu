@@ -48,13 +48,14 @@ static void nvme_ns_init(NvmeNamespace *ns)
 
 static int nvme_ns_init_blk(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
 {
+    bool read_only;
+
     if (!blkconf_blocksizes(&ns->blkconf, errp)) {
         return -1;
     }
 
-    if (!blkconf_apply_backend_options(&ns->blkconf,
-                                       blk_is_read_only(ns->blkconf.blk),
-                                       false, errp)) {
+    read_only = !blk_supports_write_perm(ns->blkconf.blk);
+    if (!blkconf_apply_backend_options(&ns->blkconf, read_only, false, errp)) {
         return -1;
     }
 
