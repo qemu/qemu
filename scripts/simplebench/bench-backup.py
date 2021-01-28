@@ -65,13 +65,26 @@ def bench(args):
             test_cases.append({'id': t, 'source': source, 'target': nbd_drv})
             continue
 
-        fname = dirs[dst] + '/test-target'
-        if args.compressed:
-            fname += '.qcow2'
-        target = drv_file(fname)
-        if args.compressed:
-            target = drv_qcow2(target)
-        test_cases.append({'id': t, 'source': source, 'target': target})
+        if args.target_cache == 'both':
+            target_caches = ['direct', 'cached']
+        else:
+            target_caches = [args.target_cache]
+
+        for c in target_caches:
+            o_direct = c == 'direct'
+            fname = dirs[dst] + '/test-target'
+            if args.compressed:
+                fname += '.qcow2'
+            target = drv_file(fname, o_direct=o_direct)
+            if args.compressed:
+                target = drv_qcow2(target)
+
+            test_id = t
+            if args.target_cache == 'both':
+                test_id += f'({c})'
+
+            test_cases.append({'id': test_id, 'source': source,
+                               'target': target})
 
     binaries = []  # list of (<label>, <path>, [<options>])
     for i, q in enumerate(args.env):
@@ -186,5 +199,11 @@ Tests, in form source-dir-label:target-dir-label''',
 Use compressed backup. It automatically means
 automatically creating qcow2 target with
 lazy_refcounts for each test run''', action='store_true')
+    p.add_argument('--target-cache', help='''\
+Setup cache for target nodes. Options:
+   direct: default, use O_DIRECT and aio=native
+   cached: use system cache (Qemu default) and aio=threads (Qemu default)
+   both: generate two test cases for each src:dst pair''',
+                   default='direct', choices=('direct', 'cached', 'both'))
 
     bench(p.parse_args())

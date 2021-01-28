@@ -115,9 +115,13 @@ def bench_block_copy(qemu_binary, cmd, cmd_options, source, target):
                             '-blockdev', json.dumps(target)])
 
 
-def drv_file(filename):
-    return {'driver': 'file', 'filename': filename,
-            'cache': {'direct': True}, 'aio': 'native'}
+def drv_file(filename, o_direct=True):
+    node = {'driver': 'file', 'filename': filename}
+    if o_direct:
+        node['cache'] = {'direct': True}
+        node['aio'] = 'native'
+
+    return node
 
 
 def drv_nbd(host, port):
