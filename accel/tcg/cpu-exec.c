@@ -589,7 +589,7 @@ void afl_forkserver(CPUState *cpu) {
   if (forkserver_installed == 1) return;
   forkserver_installed = 1;
 
-  if (getenv("AFL_QEMU_DEBUG_MAPS")) open_self_maps(cpu->env_ptr, 0);
+  if (getenv("AFL_QEMU_DEBUG_MAPS")) open_self_maps(cpu->env_ptr, 1);
 
   pid_t child_pid;
   int   t_fd[2];
