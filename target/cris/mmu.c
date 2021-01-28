@@ -152,15 +152,15 @@ static int cris_mmu_translate_page(struct cris_mmu_result *res,
     pid = env->pregs[PR_PID] & 0xff;
 
     switch (rw) {
-    case 2:
+    case MMU_INST_FETCH:
         rwcause = CRIS_MMU_ERR_EXEC;
         mmu = 0;
         break;
-    case 1:
+    case MMU_DATA_STORE:
         rwcause = CRIS_MMU_ERR_WRITE;
         break;
     default:
-    case 0:
+    case MMU_DATA_LOAD:
         rwcause = CRIS_MMU_ERR_READ;
         break;
     }
@@ -219,13 +219,13 @@ static int cris_mmu_translate_page(struct cris_mmu_result *res,
                      vaddr, lo, env->pc));
             match = 0;
             res->bf_vec = vect_base + 2;
-        } else if (rw == 1 && cfg_w && !tlb_w) {
+        } else if (rw == MMU_DATA_STORE && cfg_w && !tlb_w) {
             D(printf("tlb: write protected %x lo=%x pc=%x\n",
                      vaddr, lo, env->pc));
             match = 0;
             /* write accesses never go through the I mmu.  */
             res->bf_vec = vect_base + 3;
-        } else if (rw == 2 && cfg_x && !tlb_x) {
+        } else if (rw == MMU_INST_FETCH && cfg_x && !tlb_x) {
             D(printf("tlb: exec protected %x lo=%x pc=%x\n",
                      vaddr, lo, env->pc));
             match = 0;
@@ -329,8 +329,7 @@ int cris_mmu_translate(struct cris_mmu_result *res,
 
     old_srs = env->pregs[PR_SRS];
 
-    /* rw == 2 means exec, map the access to the insn mmu.  */
-    env->pregs[PR_SRS] = rw == 2 ? 1 : 2;
+    env->pregs[PR_SRS] = rw == MMU_INST_FETCH ? 1 : 2;
 
     if (!cris_mmu_enabled(env->sregs[SFR_RW_GC_CFG])) {
         res->phy = vaddr;
