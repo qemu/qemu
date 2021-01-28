@@ -219,12 +219,12 @@ static void xlnx_zcu102_machine_instance_init(Object *obj)
     s->secure = false;
     /* Default to virt (EL2) being disabled */
     s->virt = false;
-    object_property_add_link(obj, "xlnx-zcu102.canbus0", TYPE_CAN_BUS,
+    object_property_add_link(obj, "canbus0", TYPE_CAN_BUS,
                              (Object **)&s->canbus[0],
                              object_property_allow_set_link,
                              0);
 
-    object_property_add_link(obj, "xlnx-zcu102.canbus1", TYPE_CAN_BUS,
+    object_property_add_link(obj, "canbus1", TYPE_CAN_BUS,
                              (Object **)&s->canbus[1],
                              object_property_allow_set_link,
                              0);
