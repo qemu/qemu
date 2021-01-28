@@ -261,7 +261,7 @@ def clear_bits(newtrace, outpath):
                 data_try = hex(int("".join(data_bin_list), 2))
                 # It seems qtest only accepts padded hex-values.
                 if len(data_try) % 2 == 1:
-                    data_try = data_try[:2] + "0" + data_try[2:-1]
+                    data_try = data_try[:2] + "0" + data_try[2:]
 
                 newtrace[i] = "{prefix} {data_try}\n".format(
                         prefix=prefix,
