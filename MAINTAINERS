@@ -2210,6 +2210,7 @@ F: scsi/*
 
 Block Jobs
 M: John Snow <jsnow@redhat.com>
+M: Vladimir Sementsov-Ogievskiy <vsementsov@virtuozzo.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: blockjob.c
@@ -2222,7 +2223,16 @@ F: block/commit.c
 F: block/stream.c
 F: block/mirror.c
 F: qapi/job.json
+F: block/block-copy.c
+F: include/block/block-copy.c
+F: block/backup-top.h
+F: block/backup-top.c
+F: include/block/aio_task.h
+F: block/aio_task.c
+F: util/qemu-co-shared-resource.c
+F: include/qemu/co-shared-resource.h
 T: git https://gitlab.com/jsnow/qemu.git jobs
+T: git https://src.openvz.org/scm/~vsementsov/qemu.git jobs
 
 Block QAPI, monitor, command line
 M: Markus Armbruster <armbru@redhat.com>
