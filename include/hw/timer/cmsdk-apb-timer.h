@@ -15,11 +15,19 @@
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
+#include "hw/clock.h"
 #include "qom/object.h"
 
 #define TYPE_CMSDK_APB_TIMER "cmsdk-apb-timer"
 OBJECT_DECLARE_SIMPLE_TYPE(CMSDKAPBTimer, CMSDK_APB_TIMER)
 
+/*
+ * QEMU interface:
+ *  + QOM property "pclk-frq": frequency at which the timer is clocked
+ *  + Clock input "pclk": clock for the timer
+ *  + sysbus MMIO region 0: the register bank
+ *  + sysbus IRQ 0: timer interrupt TIMERINT
+ */
 struct CMSDKAPBTimer {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -29,6 +37,7 @@ struct CMSDKAPBTimer {
     qemu_irq timerint;
     uint32_t pclk_frq;
     struct ptimer_state *timer;
+    Clock *pclk;
 
     uint32_t ctrl;
     uint32_t value;
