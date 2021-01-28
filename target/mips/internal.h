@@ -111,7 +111,7 @@ struct CPUMIPSTLBContext {
     uint32_t nb_tlb;
     uint32_t tlb_in_use;
     int (*map_address)(struct CPUMIPSState *env, hwaddr *physical, int *prot,
-                       target_ulong address, int rw);
+                       target_ulong address, MMUAccessType access_type);
     void (*helper_tlbwi)(struct CPUMIPSState *env);
     void (*helper_tlbwr)(struct CPUMIPSState *env);
     void (*helper_tlbp)(struct CPUMIPSState *env);
@@ -126,11 +126,11 @@ struct CPUMIPSTLBContext {
 };
 
 int no_mmu_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
-                       target_ulong address, int rw);
+                       target_ulong address, MMUAccessType access_type);
 int fixed_mmu_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
-                          target_ulong address, int rw);
+                          target_ulong address, MMUAccessType access_type);
 int r4k_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
-                    target_ulong address, int rw);
+                    target_ulong address, MMUAccessType access_type);
 void r4k_helper_tlbwi(CPUMIPSState *env);
 void r4k_helper_tlbwr(CPUMIPSState *env);
 void r4k_helper_tlbp(CPUMIPSState *env);

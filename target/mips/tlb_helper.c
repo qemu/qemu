@@ -39,7 +39,7 @@ enum {
 
 /* no MMU emulation */
 int no_mmu_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
-                       target_ulong address, int rw)
+                       target_ulong address, MMUAccessType access_type)
 {
     *physical = address;
     *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -48,7 +48,7 @@ int no_mmu_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
 
 /* fixed mapping MMU emulation */
 int fixed_mmu_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
-                          target_ulong address, int rw)
+                          target_ulong address, MMUAccessType access_type)
 {
     if (address <= (int32_t)0x7FFFFFFFUL) {
         if (!(env->CP0_Status & (1 << CP0St_ERL))) {
@@ -68,7 +68,7 @@ int fixed_mmu_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
 
 /* MIPS32/MIPS64 R4000-style MMU emulation */
 int r4k_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
-                    target_ulong address, int rw)
+                    target_ulong address, MMUAccessType access_type)
 {
     uint16_t ASID = env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask;
     uint32_t MMID = env->CP0_MemoryMapID;
@@ -97,13 +97,13 @@ int r4k_map_address(CPUMIPSState *env, hwaddr *physical, int *prot,
             if (!(n ? tlb->V1 : tlb->V0)) {
                 return TLBRET_INVALID;
             }
-            if (rw == MMU_INST_FETCH && (n ? tlb->XI1 : tlb->XI0)) {
+            if (access_type == MMU_INST_FETCH && (n ? tlb->XI1 : tlb->XI0)) {
                 return TLBRET_XI;
             }
-            if (rw == MMU_DATA_LOAD && (n ? tlb->RI1 : tlb->RI0)) {
+            if (access_type == MMU_DATA_LOAD && (n ? tlb->RI1 : tlb->RI0)) {
                 return TLBRET_RI;
             }
-            if (rw != MMU_DATA_STORE || (n ? tlb->D1 : tlb->D0)) {
+            if (access_type != MMU_DATA_STORE || (n ? tlb->D1 : tlb->D0)) {
                 *physical = tlb->PFN[n] | (address & (mask >> 1));
                 *prot = PAGE_READ;
                 if (n ? tlb->D1 : tlb->D0) {
