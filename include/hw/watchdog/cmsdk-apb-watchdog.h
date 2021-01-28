@@ -17,6 +17,7 @@
  *
  * QEMU interface:
  *  + QOM property "wdogclk-frq": frequency at which the watchdog is clocked
+ *  + Clock input "WDOGCLK": clock for the watchdog's timer
  *  + sysbus MMIO region 0: the register bank
  *  + sysbus IRQ 0: watchdog interrupt
  *
@@ -33,6 +34,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
+#include "hw/clock.h"
 #include "qom/object.h"
 
 #define TYPE_CMSDK_APB_WATCHDOG "cmsdk-apb-watchdog"
@@ -54,6 +56,7 @@ struct CMSDKAPBWatchdog {
     uint32_t wdogclk_frq;
     bool is_luminary;
     struct ptimer_state *timer;
+    Clock *wdogclk;
 
     uint32_t control;
     uint32_t intstatus;
