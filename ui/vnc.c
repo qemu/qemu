@@ -687,6 +687,10 @@ static void vnc_desktop_resize(VncState *vs)
                             !vnc_has_feature(vs, VNC_FEATURE_RESIZE_EXT))) {
         return;
     }
+    if (vs->client_width == pixman_image_get_width(vs->vd->server) &&
+        vs->client_height == pixman_image_get_height(vs->vd->server)) {
+        return;
+    }
 
     assert(pixman_image_get_width(vs->vd->server) < 65536 &&
            pixman_image_get_width(vs->vd->server) >= 0);
@@ -2042,10 +2046,9 @@ static void framebuffer_update_request(VncState *vs, int incremental,
     } else {
         vs->update = VNC_STATE_UPDATE_FORCE;
         vnc_set_area_dirty(vs->dirty, vs->vd, x, y, w, h);
-        vnc_colordepth(vs);
-        vnc_desktop_resize(vs);
-        vnc_led_state_change(vs);
-        vnc_cursor_define(vs);
+        if (vnc_has_feature(vs, VNC_FEATURE_RESIZE_EXT)) {
+            vnc_desktop_resize_ext(vs, 0);
+        }
     }
 }
 
@@ -2189,7 +2192,10 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
         }
     }
+    vnc_desktop_resize(vs);
     check_pointer_type_change(&vs->mouse_mode_notifier, NULL);
+    vnc_led_state_change(vs);
+    vnc_cursor_define(vs);
 }
 
 static void set_pixel_conversion(VncState *vs)
