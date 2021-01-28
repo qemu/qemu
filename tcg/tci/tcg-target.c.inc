@@ -596,10 +596,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_remu_i64:     /* Optional (TCG_TARGET_HAS_div_i64). */
         TODO();
         break;
-    case INDEX_op_div2_i64:     /* Optional (TCG_TARGET_HAS_div2_i64). */
-    case INDEX_op_divu2_i64:    /* Optional (TCG_TARGET_HAS_div2_i64). */
-        TODO();
-        break;
     case INDEX_op_brcond_i64:
         tcg_out_r(s, args[0]);
         tcg_out_ri64(s, const_args[1], args[1]);
@@ -638,10 +634,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_r(s, args[0]);
         tcg_out_ri32(s, const_args[1], args[1]);
         tcg_out_ri32(s, const_args[2], args[2]);
-        break;
-    case INDEX_op_div2_i32:     /* Optional (TCG_TARGET_HAS_div2_i32). */
-    case INDEX_op_divu2_i32:    /* Optional (TCG_TARGET_HAS_div2_i32). */
-        TODO();
         break;
 #if TCG_TARGET_REG_BITS == 32
     case INDEX_op_add2_i32:
