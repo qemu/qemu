@@ -43,6 +43,8 @@ The virt board supports:
 - Secure-World-only devices if the CPU has TrustZone:
 
   - A second PL011 UART
+  - A second PL061 GPIO controller, with GPIO lines for triggering
+    a system reset or system poweroff
   - A secure flash memory
   - 16MB of secure RAM
 
