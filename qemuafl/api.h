@@ -20,7 +20,7 @@ struct x86_regs {
     uint32_t flags;
   };
   
-  uint8_t xmm_regs[16][8];
+  uint8_t xmm_regs[8][16];
 
 };
 
@@ -42,7 +42,7 @@ struct x86_64_regs {
     uint64_t flags;
   };
   
-  uint8_t zmm_regs[64][32];
+  uint8_t zmm_regs[32][64];
 
 };
 
@@ -73,7 +73,7 @@ struct arm_regs {
   
   uint32_t cpsr;
 
-  uint8_t vfp_zregs[16][32];
+  uint8_t vfp_zregs[32][16];
   uint32_t vfp_xregs[16];
 
 };
@@ -131,8 +131,8 @@ struct arm64_regs {
   
   uint32_t cpsr;
 
-  uint8_t vfp_zregs[16 * 16][32];
-  uint8_t vfp_pregs[32][17];
+  uint8_t vfp_zregs[32][16*16];
+  uint8_t vfp_pregs[17][32];
   uint32_t vfp_xregs[16];
 
 };
