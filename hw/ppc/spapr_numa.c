@@ -47,6 +47,20 @@ static bool spapr_numa_is_symmetrical(MachineState *ms)
 }
 
 /*
+ * NVLink2-connected GPU RAM needs to be placed on a separate NUMA node.
+ * We assign a new numa ID per GPU in spapr_pci_collect_nvgpu() which is
+ * called from vPHB reset handler so we initialize the counter here.
+ * If no NUMA is configured from the QEMU side, we start from 1 as GPU RAM
+ * must be equally distant from any other node.
+ * The final value of spapr->gpu_numa_id is going to be written to
+ * max-associativity-domains in spapr_build_fdt().
+ */
+unsigned int spapr_numa_initial_nvgpu_numa_id(MachineState *machine)
+{
+    return MAX(1, machine->numa_state->num_nodes);
+}
+
+/*
  * This function will translate the user distances into
  * what the kernel understand as possible values: 10
  * (local distance), 20, 40, 80 and 160, and return the equivalent
