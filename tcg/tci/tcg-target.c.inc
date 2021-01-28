@@ -375,10 +375,20 @@ static void tci_out_label(TCGContext *s, TCGLabel *label)
     }
 }
 
+static void stack_bounds_check(TCGReg base, target_long offset)
+{
+    if (base == TCG_REG_CALL_STACK) {
+        tcg_debug_assert(offset < 0);
+        tcg_debug_assert(offset >= -(CPU_TEMP_BUF_NLONGS * sizeof(long)));
+    }
+}
+
 static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
                        intptr_t arg2)
 {
     uint8_t *old_code_ptr = s->code_ptr;
+
+    stack_bounds_check(arg1, arg2);
     if (type == TCG_TYPE_I32) {
         tcg_out_op_t(s, INDEX_op_ld_i32);
         tcg_out_r(s, ret);
@@ -514,6 +524,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_st16_i64:
     case INDEX_op_st32_i64:
     case INDEX_op_st_i64:
+        stack_bounds_check(args[1], args[2]);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         tcg_debug_assert(args[2] == (int32_t)args[2]);
@@ -716,6 +727,8 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
                        intptr_t arg2)
 {
     uint8_t *old_code_ptr = s->code_ptr;
+
+    stack_bounds_check(arg1, arg2);
     if (type == TCG_TYPE_I32) {
         tcg_out_op_t(s, INDEX_op_st_i32);
         tcg_out_r(s, arg);
