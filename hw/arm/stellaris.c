@@ -780,16 +780,6 @@ static DeviceState *stellaris_sys_init(uint32_t base, qemu_irq irq,
     sysbus_mmio_map(sbd, 0, base);
     sysbus_connect_irq(sbd, 0, irq);
 
-    /*
-     * Normally we should not be resetting devices like this during
-     * board creation. For the moment we need to do so, because
-     * system_clock_scale will only get set when the STELLARIS_SYS
-     * device is reset, and we need its initial value to pass to
-     * the watchdog device. This hack can be removed once the
-     * watchdog has been converted to use a Clock input instead.
-     */
-    device_cold_reset(dev);
-
     return dev;
 }
 
