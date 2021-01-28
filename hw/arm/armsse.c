@@ -232,6 +232,16 @@ static void armsse_forward_sec_resp_cfg(ARMSSE *s)
     qdev_connect_gpio_out(dev_splitter, 2, s->sec_resp_cfg_in);
 }
 
+static void armsse_mainclk_update(void *opaque)
+{
+    ARMSSE *s = ARM_SSE(opaque);
+    /*
+     * Set system_clock_scale from our Clock input; this is what
+     * controls the tick rate of the CPU SysTick timer.
+     */
+    system_clock_scale = clock_ticks_to_ns(s->mainclk, 1);
+}
+
 static void armsse_init(Object *obj)
 {
     ARMSSE *s = ARM_SSE(obj);
@@ -242,7 +252,8 @@ static void armsse_init(Object *obj)
     assert(info->sram_banks <= MAX_SRAM_BANKS);
     assert(info->num_cpus <= SSE_MAX_CPUS);
 
-    s->mainclk = qdev_init_clock_in(DEVICE(s), "MAINCLK", NULL, NULL);
+    s->mainclk = qdev_init_clock_in(DEVICE(s), "MAINCLK",
+                                    armsse_mainclk_update, s);
     s->s32kclk = qdev_init_clock_in(DEVICE(s), "S32KCLK", NULL, NULL);
 
     memory_region_init(&s->container, obj, "armsse-container", UINT64_MAX);
@@ -451,9 +462,11 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!s->mainclk_frq) {
-        error_setg(errp, "MAINCLK_FRQ property was not set");
-        return;
+    if (!clock_has_source(s->mainclk)) {
+        error_setg(errp, "MAINCLK clock was not connected");
+    }
+    if (!clock_has_source(s->s32kclk)) {
+        error_setg(errp, "S32KCLK clock was not connected");
     }
 
     assert(info->num_cpus <= SSE_MAX_CPUS);
@@ -1115,7 +1128,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
      */
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->container);
 
-    system_clock_scale = NANOSECONDS_PER_SECOND / s->mainclk_frq;
+    /* Set initial system_clock_scale from MAINCLK */
+    armsse_mainclk_update(s);
 }
 
 static void armsse_idau_check(IDAUInterface *ii, uint32_t address,
