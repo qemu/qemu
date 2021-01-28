@@ -204,6 +204,15 @@ static void cmsdk_apb_timer_reset(DeviceState *dev)
     ptimer_transaction_commit(s->timer);
 }
 
+static void cmsdk_apb_timer_clk_update(void *opaque)
+{
+    CMSDKAPBTimer *s = CMSDK_APB_TIMER(opaque);
+
+    ptimer_transaction_begin(s->timer);
+    ptimer_set_period_from_clock(s->timer, s->pclk, 1);
+    ptimer_transaction_commit(s->timer);
+}
+
 static void cmsdk_apb_timer_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -213,15 +222,16 @@ static void cmsdk_apb_timer_init(Object *obj)
                           s, "cmsdk-apb-timer", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->timerint);
-    s->pclk = qdev_init_clock_in(DEVICE(s), "pclk", NULL, NULL);
+    s->pclk = qdev_init_clock_in(DEVICE(s), "pclk",
+                                 cmsdk_apb_timer_clk_update, s);
 }
 
 static void cmsdk_apb_timer_realize(DeviceState *dev, Error **errp)
 {
     CMSDKAPBTimer *s = CMSDK_APB_TIMER(dev);
 
-    if (s->pclk_frq == 0) {
-        error_setg(errp, "CMSDK APB timer: pclk-frq property must be set");
+    if (!clock_has_source(s->pclk)) {
+        error_setg(errp, "CMSDK APB timer: pclk clock must be connected");
         return;
     }
 
@@ -232,7 +242,7 @@ static void cmsdk_apb_timer_realize(DeviceState *dev, Error **errp)
                            PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
 
     ptimer_transaction_begin(s->timer);
-    ptimer_set_freq(s->timer, s->pclk_frq);
+    ptimer_set_period_from_clock(s->timer, s->pclk, 1);
     ptimer_transaction_commit(s->timer);
 }
 
