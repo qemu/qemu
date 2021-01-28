@@ -19,6 +19,7 @@
 #include "hw/scsi/scsi.h"
 #include "migration/qemu-file-types.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "hw/scsi/emulation.h"
 #include "sysemu/block-backend.h"
 #include "trace.h"
@@ -305,7 +306,7 @@ static void scsi_read_complete(void * opaque, int ret)
      * readonly.
      */
     if ((s->type == TYPE_DISK || s->type == TYPE_TAPE || s->type == TYPE_ZBC) &&
-        blk_is_read_only(s->conf.blk) &&
+        !blk_is_writable(s->conf.blk) &&
         (r->req.cmd.buf[0] == MODE_SENSE ||
          r->req.cmd.buf[0] == MODE_SENSE_10) &&
         (r->req.cmd.buf[1] & 0x8) == 0) {
@@ -693,7 +694,7 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
         return;
     }
     if (!blkconf_apply_backend_options(&s->conf,
-                                       blk_is_read_only(s->conf.blk),
+                                       !blk_supports_write_perm(s->conf.blk),
                                        true, errp)) {
         return;
     }

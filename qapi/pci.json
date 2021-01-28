@@ -18,7 +18,7 @@
 #
 # @limit: the ending address (guest physical)
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'PciMemoryRange', 'data': {'base': 'int', 'limit': 'int'} }
 
@@ -38,7 +38,7 @@
 #
 # @mem_type_64: if @type is 'memory', true if the BAR is 64-bit
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'PciMemoryRegion',
   'data': {'bar': 'int', 'type': 'str', 'address': 'int', 'size': 'int',
@@ -82,7 +82,7 @@
 #
 # @devices: a list of @PciDeviceInfo for each device on this bridge
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'PciBridgeInfo',
   'data': {'bus': 'PciBusInfo', '*devices': ['PciDeviceInfo']} }
@@ -148,7 +148,7 @@
 # Notes: the contents of @class_info.desc are not stable and should only be
 #        treated as informational.
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'PciDeviceInfo',
   'data': {'bus': 'int', 'slot': 'int', 'function': 'int',
@@ -165,7 +165,7 @@
 #
 # @devices: a list of devices on this bus
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'PciInfo', 'data': {'bus': 'int', 'devices': ['PciDeviceInfo']} }
 
@@ -179,7 +179,7 @@
 #          all PCI devices attached to it. Each device is represented by a
 #          json-object.
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #

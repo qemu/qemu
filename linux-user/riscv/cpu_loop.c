@@ -23,6 +23,7 @@
 #include "qemu.h"
 #include "cpu_loop-common.h"
 #include "elf.h"
+#include "hw/semihosting/common-semi.h"
 
 void cpu_loop(CPURISCVState *env)
 {
@@ -90,6 +91,10 @@ void cpu_loop(CPURISCVState *env)
             signum = TARGET_SIGSEGV;
             sigcode = TARGET_SEGV_MAPERR;
             sigaddr = env->badaddr;
+            break;
+        case RISCV_EXCP_SEMIHOST:
+            env->gpr[xA0] = do_common_semihosting(cs);
+            env->pc += 4;
             break;
         case EXCP_DEBUG:
         gdbstep:

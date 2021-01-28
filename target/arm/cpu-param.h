@@ -29,6 +29,6 @@
 # define TARGET_PAGE_BITS_MIN  10
 #endif
 
-#define NB_MMU_MODES 11
+#define NB_MMU_MODES 15
 
 #endif

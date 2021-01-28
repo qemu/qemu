@@ -12,6 +12,7 @@
 # Documentation
 docs/*
 *.rst
+*.rst.inc
 
 # build system
 configure
@@ -28,9 +29,11 @@ qga/*.json
 
 # headers
 *.h
+*.h.inc
 
 # decoding tree specification
 *.decode
 
 # code
 *.c
+*.c.inc

@@ -2105,7 +2105,7 @@ static void cirrus_vga_mem_write(void *opaque,
     } else {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "cirrus: mem_writeb 0x" TARGET_FMT_plx " "
-                      "value 0x%02" PRIu64 "\n", addr, mem_value);
+                      "value 0x%02" PRIx64 "\n", addr, mem_value);
     }
 }
 
@@ -2532,9 +2532,6 @@ static uint64_t cirrus_vga_ioport_read(void *opaque, hwaddr addr,
 	case 0x3c5:
 	    val = cirrus_vga_read_sr(c);
             break;
-#ifdef DEBUG_VGA_REG
-	    printf("vga: read SR%x = 0x%02x\n", s->sr_index, val);
-#endif
 	    break;
 	case 0x3c6:
 	    val = cirrus_read_hidden_dac(c);
@@ -2560,9 +2557,6 @@ static uint64_t cirrus_vga_ioport_read(void *opaque, hwaddr addr,
 	    break;
 	case 0x3cf:
 	    val = cirrus_vga_read_gr(c, s->gr_index);
-#ifdef DEBUG_VGA_REG
-	    printf("vga: read GR%x = 0x%02x\n", s->gr_index, val);
-#endif
 	    break;
 	case 0x3b4:
 	case 0x3d4:
@@ -2571,9 +2565,6 @@ static uint64_t cirrus_vga_ioport_read(void *opaque, hwaddr addr,
 	case 0x3b5:
 	case 0x3d5:
             val = cirrus_vga_read_cr(c, s->cr_index);
-#ifdef DEBUG_VGA_REG
-	    printf("vga: read CR%x = 0x%02x\n", s->cr_index, val);
-#endif
 	    break;
 	case 0x3ba:
 	case 0x3da:
@@ -2645,9 +2636,6 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 	s->sr_index = val;
 	break;
     case 0x3c5:
-#ifdef DEBUG_VGA_REG
-	printf("vga: write SR%x = 0x%02" PRIu64 "\n", s->sr_index, val);
-#endif
 	cirrus_vga_write_sr(c, val);
         break;
     case 0x3c6:
@@ -2670,9 +2658,6 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 	s->gr_index = val;
 	break;
     case 0x3cf:
-#ifdef DEBUG_VGA_REG
-	printf("vga: write GR%x = 0x%02" PRIu64 "\n", s->gr_index, val);
-#endif
 	cirrus_vga_write_gr(c, s->gr_index, val);
 	break;
     case 0x3b4:
@@ -2681,9 +2666,6 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 	break;
     case 0x3b5:
     case 0x3d5:
-#ifdef DEBUG_VGA_REG
-	printf("vga: write CR%x = 0x%02"PRIu64"\n", s->cr_index, val);
-#endif
 	cirrus_vga_write_cr(c, val);
 	break;
     case 0x3ba:

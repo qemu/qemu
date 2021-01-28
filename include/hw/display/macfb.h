@@ -13,7 +13,6 @@
 #ifndef MACFB_H
 #define MACFB_H
 
-#include "qemu/osdep.h"
 #include "exec/memory.h"
 #include "ui/console.h"
 #include "qom/object.h"

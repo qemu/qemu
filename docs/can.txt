@@ -19,7 +19,7 @@ interface to implement because such device can be easily connected
 to systems with different CPU architectures (x86, PowerPC, Arm, etc.).
 
 In 2020, CTU CAN FD controller model has been added as part
-of the bachelor theses of Jan Charvat. This controller is complete
+of the bachelor thesis of Jan Charvat. This controller is complete
 open-source/design/hardware solution. The core designer
 of the project is Ondrej Ille, the financial support has been
 provided by CTU, and more companies including Volkswagen subsidiaries.
@@ -31,7 +31,7 @@ testing lead to goal change to provide environment which provides complete
 emulated environment for testing and RTEMS GSoC slot has been donated
 to work on CAN hardware emulation on QEMU.
 
-Examples how to use CAN emulation for SJA1000 based borads
+Examples how to use CAN emulation for SJA1000 based boards
 ==========================================================
 
 When QEMU with CAN PCI support is compiled then one of the next
@@ -106,8 +106,8 @@ This open-source core provides CAN FD support. CAN FD drames are
 delivered even to the host systems when SocketCAN interface is found
 CAN FD capable.
 
-The PCIe borad emulation is provided for now (the device identifier is
-ctucan_pci). The defauld build defines two CTU CAN FD cores
+The PCIe board emulation is provided for now (the device identifier is
+ctucan_pci). The default build defines two CTU CAN FD cores
 on the board.
 
 Example how to connect the canbus0-bus (virtual wire) to the host

@@ -484,7 +484,7 @@ void xics_kvm_disconnect(SpaprInterruptController *intc)
  * support destruction of a KVM XICS device while the VM is running.
  * Required to start a spapr machine with ic-mode=dual,kernel-irqchip=on.
  */
-bool xics_kvm_has_broken_disconnect(SpaprMachineState *spapr)
+bool xics_kvm_has_broken_disconnect(void)
 {
     int rc;
 

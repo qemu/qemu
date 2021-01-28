@@ -8,7 +8,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,23 +24,13 @@
 #include "qom/object.h"
 
 #include "hw/usb.h"
+#include "hw/usb/xhci.h"
 #include "sysemu/dma.h"
-
-#define TYPE_XHCI "base-xhci"
-#define TYPE_NEC_XHCI "nec-usb-xhci"
-#define TYPE_QEMU_XHCI "qemu-xhci"
 
 OBJECT_DECLARE_SIMPLE_TYPE(XHCIState, XHCI)
 
-#define MAXPORTS_2 15
-#define MAXPORTS_3 15
-
-#define MAXPORTS (MAXPORTS_2 + MAXPORTS_3)
-#define MAXSLOTS 64
-#define MAXINTRS 16
-
 /* Very pessimistic, let's hope it's enough for all cases */
-#define EV_QUEUE (((3 * 24) + 16) * MAXSLOTS)
+#define EV_QUEUE (((3 * 24) + 16) * XHCI_MAXSLOTS)
 
 typedef struct XHCIStreamContext XHCIStreamContext;
 typedef struct XHCIEPContext XHCIEPContext;
@@ -138,7 +128,7 @@ typedef struct XHCIPort {
     uint32_t portnr;
     USBPort  *uport;
     uint32_t speedmask;
-    char name[16];
+    char name[20];
     MemoryRegion mem;
 } XHCIPort;
 
@@ -217,15 +207,15 @@ typedef struct XHCIState {
     uint32_t dcbaap_high;
     uint32_t config;
 
-    USBPort  uports[MAX_CONST(MAXPORTS_2, MAXPORTS_3)];
-    XHCIPort ports[MAXPORTS];
-    XHCISlot slots[MAXSLOTS];
+    USBPort  uports[MAX_CONST(XHCI_MAXPORTS_2, XHCI_MAXPORTS_3)];
+    XHCIPort ports[XHCI_MAXPORTS];
+    XHCISlot slots[XHCI_MAXSLOTS];
     uint32_t numports;
 
     /* Runtime Registers */
     int64_t mfindex_start;
     QEMUTimer *mfwrap_timer;
-    XHCIInterrupter intr[MAXINTRS];
+    XHCIInterrupter intr[XHCI_MAXINTRS];
 
     XHCIRing cmd_ring;
 

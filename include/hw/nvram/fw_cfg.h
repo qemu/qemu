@@ -308,6 +308,15 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename, void *data,
 bool fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
                                const char *gen_id, Error **errp);
 
+/**
+ * fw_cfg_add_extra_pci_roots:
+ * @bus: main pci root bus to be scanned from
+ * @s: fw_cfg device being modified
+ *
+ * Add a new fw_cfg item...
+ */
+void fw_cfg_add_extra_pci_roots(PCIBus *bus, FWCfgState *s);
+
 FWCfgState *fw_cfg_init_io_dma(uint32_t iobase, uint32_t dma_iobase,
                                 AddressSpace *dma_as);
 FWCfgState *fw_cfg_init_io(uint32_t iobase);

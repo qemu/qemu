@@ -26,11 +26,34 @@
 #define BLOCK_COPY_MAX_BUFFER (1 * MiB)
 #define BLOCK_COPY_MAX_MEM (128 * MiB)
 #define BLOCK_COPY_MAX_WORKERS 64
+#define BLOCK_COPY_SLICE_TIME 100000000ULL /* ns */
 
 static coroutine_fn int block_copy_task_entry(AioTask *task);
 
 typedef struct BlockCopyCallState {
-    bool failed;
+    /* IN parameters. Initialized in block_copy_async() and never changed. */
+    BlockCopyState *s;
+    int64_t offset;
+    int64_t bytes;
+    int max_workers;
+    int64_t max_chunk;
+    bool ignore_ratelimit;
+    BlockCopyAsyncCallbackFunc cb;
+    void *cb_opaque;
+
+    /* Coroutine where async block-copy is running */
+    Coroutine *co;
+
+    /* To reference all call states from BlockCopyState */
+    QLIST_ENTRY(BlockCopyCallState) list;
+
+    /* State */
+    int ret;
+    bool finished;
+    QemuCoSleepState *sleep_state;
+    bool cancelled;
+
+    /* OUT parameters */
     bool error_is_read;
 } BlockCopyCallState;
 
@@ -65,7 +88,8 @@ typedef struct BlockCopyState {
     bool use_copy_range;
     int64_t copy_size;
     uint64_t len;
-    QLIST_HEAD(, BlockCopyTask) tasks;
+    QLIST_HEAD(, BlockCopyTask) tasks; /* All tasks from all block-copy calls */
+    QLIST_HEAD(, BlockCopyCallState) calls;
 
     BdrvRequestFlags write_flags;
 
@@ -86,11 +110,11 @@ typedef struct BlockCopyState {
     bool skip_unallocated;
 
     ProgressMeter *progress;
-    /* progress_bytes_callback: called when some copying progress is done. */
-    ProgressBytesCallbackFunc progress_bytes_callback;
-    void *progress_opaque;
 
     SharedResource *mem;
+
+    uint64_t speed;
+    RateLimit rate_limit;
 } BlockCopyState;
 
 static BlockCopyTask *find_conflicting_task(BlockCopyState *s,
@@ -134,10 +158,11 @@ static BlockCopyTask *block_copy_task_create(BlockCopyState *s,
                                              int64_t offset, int64_t bytes)
 {
     BlockCopyTask *task;
+    int64_t max_chunk = MIN_NON_ZERO(s->copy_size, call_state->max_chunk);
 
     if (!bdrv_dirty_bitmap_next_dirty_area(s->copy_bitmap,
                                            offset, offset + bytes,
-                                           s->copy_size, &offset, &bytes))
+                                           max_chunk, &offset, &bytes))
     {
         return NULL;
     }
@@ -218,7 +243,7 @@ static uint32_t block_copy_max_transfer(BdrvChild *source, BdrvChild *target)
 }
 
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
-                                     int64_t cluster_size,
+                                     int64_t cluster_size, bool use_copy_range,
                                      BdrvRequestFlags write_flags, Error **errp)
 {
     BlockCopyState *s;
@@ -260,22 +285,14 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
          * We enable copy-range, but keep small copy_size, until first
          * successful copy_range (look at block_copy_do_copy).
          */
-        s->use_copy_range = true;
+        s->use_copy_range = use_copy_range;
         s->copy_size = MAX(s->cluster_size, BLOCK_COPY_MAX_BUFFER);
     }
 
     QLIST_INIT(&s->tasks);
+    QLIST_INIT(&s->calls);
 
     return s;
-}
-
-void block_copy_set_progress_callback(
-        BlockCopyState *s,
-        ProgressBytesCallbackFunc progress_bytes_callback,
-        void *progress_opaque)
-{
-    s->progress_bytes_callback = progress_bytes_callback;
-    s->progress_opaque = progress_opaque;
 }
 
 void block_copy_set_progress_meter(BlockCopyState *s, ProgressMeter *pm)
@@ -420,12 +437,11 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
 
     ret = block_copy_do_copy(t->s, t->offset, t->bytes, t->zeroes,
                              &error_is_read);
-    if (ret < 0 && !t->call_state->failed) {
-        t->call_state->failed = true;
+    if (ret < 0 && !t->call_state->ret) {
+        t->call_state->ret = ret;
         t->call_state->error_is_read = error_is_read;
     } else {
         progress_work_done(t->s->progress, t->bytes);
-        t->s->progress_bytes_callback(t->bytes, t->s->progress_opaque);
     }
     co_put_to_shres(t->s->mem, t->bytes);
     block_copy_task_end(t, ret);
@@ -544,15 +560,17 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
  * Returns 1 if dirty clusters found and successfully copied, 0 if no dirty
  * clusters found and -errno on failure.
  */
-static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
-                                                  int64_t offset, int64_t bytes,
-                                                  bool *error_is_read)
+static int coroutine_fn
+block_copy_dirty_clusters(BlockCopyCallState *call_state)
 {
+    BlockCopyState *s = call_state->s;
+    int64_t offset = call_state->offset;
+    int64_t bytes = call_state->bytes;
+
     int ret = 0;
     bool found_dirty = false;
     int64_t end = offset + bytes;
     AioTaskPool *aio = NULL;
-    BlockCopyCallState call_state = {false, false};
 
     /*
      * block_copy() user is responsible for keeping source and target in same
@@ -564,11 +582,11 @@ static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
     assert(QEMU_IS_ALIGNED(bytes, s->cluster_size));
 
-    while (bytes && aio_task_pool_status(aio) == 0) {
+    while (bytes && aio_task_pool_status(aio) == 0 && !call_state->cancelled) {
         BlockCopyTask *task;
         int64_t status_bytes;
 
-        task = block_copy_task_create(s, &call_state, offset, bytes);
+        task = block_copy_task_create(s, call_state, offset, bytes);
         if (!task) {
             /* No more dirty bits in the bitmap */
             trace_block_copy_skip_range(s, offset, bytes);
@@ -599,6 +617,21 @@ static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
         }
         task->zeroes = ret & BDRV_BLOCK_ZERO;
 
+        if (s->speed) {
+            if (!call_state->ignore_ratelimit) {
+                uint64_t ns = ratelimit_calculate_delay(&s->rate_limit, 0);
+                if (ns > 0) {
+                    block_copy_task_end(task, -EAGAIN);
+                    g_free(task);
+                    qemu_co_sleep_ns_wakeable(QEMU_CLOCK_REALTIME, ns,
+                                              &call_state->sleep_state);
+                    continue;
+                }
+            }
+
+            ratelimit_calculate_delay(&s->rate_limit, task->bytes);
+        }
+
         trace_block_copy_process(s, task->offset);
 
         co_get_from_shres(s->mem, task->bytes);
@@ -607,7 +640,7 @@ static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
         bytes = end - offset;
 
         if (!aio && bytes) {
-            aio = aio_task_pool_new(BLOCK_COPY_MAX_WORKERS);
+            aio = aio_task_pool_new(call_state->max_workers);
         }
 
         ret = block_copy_task_run(aio, task);
@@ -633,15 +666,19 @@ out:
 
         aio_task_pool_free(aio);
     }
-    if (error_is_read && ret < 0) {
-        *error_is_read = call_state.error_is_read;
-    }
 
     return ret < 0 ? ret : found_dirty;
 }
 
+void block_copy_kick(BlockCopyCallState *call_state)
+{
+    if (call_state->sleep_state) {
+        qemu_co_sleep_wake(call_state->sleep_state);
+    }
+}
+
 /*
- * block_copy
+ * block_copy_common
  *
  * Copy requested region, accordingly to dirty bitmap.
  * Collaborate with parallel block_copy requests: if they succeed it will help
@@ -649,16 +686,18 @@ out:
  * it means that some I/O operation failed in context of _this_ block_copy call,
  * not some parallel operation.
  */
-int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
-                            bool *error_is_read)
+static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
 {
     int ret;
 
-    do {
-        ret = block_copy_dirty_clusters(s, offset, bytes, error_is_read);
+    QLIST_INSERT_HEAD(&call_state->s->calls, call_state, list);
 
-        if (ret == 0) {
-            ret = block_copy_wait_one(s, offset, bytes);
+    do {
+        ret = block_copy_dirty_clusters(call_state);
+
+        if (ret == 0 && !call_state->cancelled) {
+            ret = block_copy_wait_one(call_state->s, call_state->offset,
+                                      call_state->bytes);
         }
 
         /*
@@ -670,9 +709,108 @@ int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
          * 2. We have waited for some intersecting block-copy request
          *    It may have failed and produced new dirty bits.
          */
-    } while (ret > 0);
+    } while (ret > 0 && !call_state->cancelled);
+
+    call_state->finished = true;
+
+    if (call_state->cb) {
+        call_state->cb(call_state->cb_opaque);
+    }
+
+    QLIST_REMOVE(call_state, list);
 
     return ret;
+}
+
+int coroutine_fn block_copy(BlockCopyState *s, int64_t start, int64_t bytes,
+                            bool ignore_ratelimit)
+{
+    BlockCopyCallState call_state = {
+        .s = s,
+        .offset = start,
+        .bytes = bytes,
+        .ignore_ratelimit = ignore_ratelimit,
+        .max_workers = BLOCK_COPY_MAX_WORKERS,
+    };
+
+    return block_copy_common(&call_state);
+}
+
+static void coroutine_fn block_copy_async_co_entry(void *opaque)
+{
+    block_copy_common(opaque);
+}
+
+BlockCopyCallState *block_copy_async(BlockCopyState *s,
+                                     int64_t offset, int64_t bytes,
+                                     int max_workers, int64_t max_chunk,
+                                     BlockCopyAsyncCallbackFunc cb,
+                                     void *cb_opaque)
+{
+    BlockCopyCallState *call_state = g_new(BlockCopyCallState, 1);
+
+    *call_state = (BlockCopyCallState) {
+        .s = s,
+        .offset = offset,
+        .bytes = bytes,
+        .max_workers = max_workers,
+        .max_chunk = max_chunk,
+        .cb = cb,
+        .cb_opaque = cb_opaque,
+
+        .co = qemu_coroutine_create(block_copy_async_co_entry, call_state),
+    };
+
+    qemu_coroutine_enter(call_state->co);
+
+    return call_state;
+}
+
+void block_copy_call_free(BlockCopyCallState *call_state)
+{
+    if (!call_state) {
+        return;
+    }
+
+    assert(call_state->finished);
+    g_free(call_state);
+}
+
+bool block_copy_call_finished(BlockCopyCallState *call_state)
+{
+    return call_state->finished;
+}
+
+bool block_copy_call_succeeded(BlockCopyCallState *call_state)
+{
+    return call_state->finished && !call_state->cancelled &&
+        call_state->ret == 0;
+}
+
+bool block_copy_call_failed(BlockCopyCallState *call_state)
+{
+    return call_state->finished && !call_state->cancelled &&
+        call_state->ret < 0;
+}
+
+bool block_copy_call_cancelled(BlockCopyCallState *call_state)
+{
+    return call_state->cancelled;
+}
+
+int block_copy_call_status(BlockCopyCallState *call_state, bool *error_is_read)
+{
+    assert(call_state->finished);
+    if (error_is_read) {
+        *error_is_read = call_state->error_is_read;
+    }
+    return call_state->ret;
+}
+
+void block_copy_call_cancel(BlockCopyCallState *call_state)
+{
+    call_state->cancelled = true;
+    block_copy_kick(call_state);
 }
 
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s)
@@ -683,4 +821,19 @@ BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s)
 void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip)
 {
     s->skip_unallocated = skip;
+}
+
+void block_copy_set_speed(BlockCopyState *s, uint64_t speed)
+{
+    s->speed = speed;
+    if (speed > 0) {
+        ratelimit_set_speed(&s->rate_limit, speed, BLOCK_COPY_SLICE_TIME);
+    }
+
+    /*
+     * Note: it's good to kick all call states from here, but it should be done
+     * only from a coroutine, to not crash if s->calls list changed while
+     * entering one call. So for now, the only user of this function kicks its
+     * only one call_state by hand.
+     */
 }

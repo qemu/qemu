@@ -14,20 +14,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "sysemu/hax.h"
 
 int hax_sync_vcpus(void)
 {
     return 0;
-}
-
-int hax_init_vcpu(CPUState *cpu)
-{
-    return -ENOSYS;
-}
-
-int hax_smp_cpu_exec(CPUState *cpu)
-{
-    return -ENOSYS;
 }

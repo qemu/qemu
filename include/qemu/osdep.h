@@ -104,10 +104,6 @@ extern int daemon(int, int);
 #include <setjmp.h>
 #include <signal.h>
 
-#ifdef HAVE_SYS_SIGNAL_H
-#include <sys/signal.h>
-#endif
-
 #ifndef _WIN32
 #include <sys/wait.h>
 #else
@@ -121,6 +117,10 @@ extern int daemon(int, int);
 
 #ifdef CONFIG_POSIX
 #include "sysemu/os-posix.h"
+#endif
+
+#ifdef __APPLE__
+#include <AvailabilityMacros.h>
 #endif
 
 #include "glib-compat.h"
@@ -685,5 +685,29 @@ char *qemu_get_host_name(Error **errp);
  * much memory.
  */
 size_t qemu_get_host_physmem(void);
+
+/*
+ * Toggle write/execute on the pages marked MAP_JIT
+ * for the current thread.
+ */
+#if defined(MAC_OS_VERSION_11_0) && \
+    MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_VERSION_11_0
+static inline void qemu_thread_jit_execute(void)
+{
+    if (__builtin_available(macOS 11.0, *)) {
+        pthread_jit_write_protect_np(true);
+    }
+}
+
+static inline void qemu_thread_jit_write(void)
+{
+    if (__builtin_available(macOS 11.0, *)) {
+        pthread_jit_write_protect_np(false);
+    }
+}
+#else
+static inline void qemu_thread_jit_write(void) {}
+static inline void qemu_thread_jit_execute(void) {}
+#endif
 
 #endif

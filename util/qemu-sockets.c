@@ -354,15 +354,15 @@ listen_ok:
     ((rc) == -EINPROGRESS)
 #endif
 
-static int inet_connect_addr(struct addrinfo *addr, Error **errp);
-
-static int inet_connect_addr(struct addrinfo *addr, Error **errp)
+static int inet_connect_addr(const InetSocketAddress *saddr,
+                             struct addrinfo *addr, Error **errp)
 {
     int sock, rc;
 
     sock = qemu_socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     if (sock < 0) {
-        error_setg_errno(errp, errno, "Failed to create socket");
+        error_setg_errno(errp, errno, "Failed to create socket family %d",
+                         addr->ai_family);
         return -1;
     }
     socket_set_fast_reuse(sock);
@@ -376,7 +376,8 @@ static int inet_connect_addr(struct addrinfo *addr, Error **errp)
     } while (rc == -EINTR);
 
     if (rc < 0) {
-        error_setg_errno(errp, errno, "Failed to connect socket");
+        error_setg_errno(errp, errno, "Failed to connect to '%s:%s'",
+                         saddr->host, saddr->port);
         closesocket(sock);
         return -1;
     }
@@ -455,7 +456,7 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
     for (e = res; e != NULL; e = e->ai_next) {
         error_free(local_err);
         local_err = NULL;
-        sock = inet_connect_addr(e, &local_err);
+        sock = inet_connect_addr(saddr, e, &local_err);
         if (sock >= 0) {
             break;
         }
@@ -549,7 +550,8 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
     /* create socket */
     sock = qemu_socket(peer->ai_family, peer->ai_socktype, peer->ai_protocol);
     if (sock < 0) {
-        error_setg_errno(errp, errno, "Failed to create socket");
+        error_setg_errno(errp, errno, "Failed to create socket family %d",
+                         peer->ai_family);
         goto err;
     }
     socket_set_fast_reuse(sock);
@@ -562,7 +564,8 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
 
     /* connect to peer */
     if (connect(sock,peer->ai_addr,peer->ai_addrlen) < 0) {
-        error_setg_errno(errp, errno, "Failed to connect socket");
+        error_setg_errno(errp, errno, "Failed to connect to '%s:%s'",
+                         addr, port);
         goto err;
     }
 
@@ -735,13 +738,15 @@ static bool vsock_parse_vaddr_to_sockaddr(const VsockSocketAddress *vaddr,
     return true;
 }
 
-static int vsock_connect_addr(const struct sockaddr_vm *svm, Error **errp)
+static int vsock_connect_addr(const VsockSocketAddress *vaddr,
+                              const struct sockaddr_vm *svm, Error **errp)
 {
     int sock, rc;
 
     sock = qemu_socket(AF_VSOCK, SOCK_STREAM, 0);
     if (sock < 0) {
-        error_setg_errno(errp, errno, "Failed to create socket");
+        error_setg_errno(errp, errno, "Failed to create socket family %d",
+                         AF_VSOCK);
         return -1;
     }
 
@@ -754,7 +759,8 @@ static int vsock_connect_addr(const struct sockaddr_vm *svm, Error **errp)
     } while (rc == -EINTR);
 
     if (rc < 0) {
-        error_setg_errno(errp, errno, "Failed to connect socket");
+        error_setg_errno(errp, errno, "Failed to connect to '%s:%s'",
+                         vaddr->cid, vaddr->port);
         closesocket(sock);
         return -1;
     }
@@ -770,7 +776,7 @@ static int vsock_connect_saddr(VsockSocketAddress *vaddr, Error **errp)
         return -1;
     }
 
-    return vsock_connect_addr(&svm, errp);
+    return vsock_connect_addr(vaddr, &svm, errp);
 }
 
 static int vsock_listen_saddr(VsockSocketAddress *vaddr,
@@ -854,10 +860,29 @@ static int vsock_parse(VsockSocketAddress *addr, const char *str,
 
 #ifndef _WIN32
 
+static bool saddr_is_abstract(UnixSocketAddress *saddr)
+{
+#ifdef CONFIG_LINUX
+    return saddr->abstract;
+#else
+    return false;
+#endif
+}
+
+static bool saddr_is_tight(UnixSocketAddress *saddr)
+{
+#ifdef CONFIG_LINUX
+    return !saddr->has_tight || saddr->tight;
+#else
+    return false;
+#endif
+}
+
 static int unix_listen_saddr(UnixSocketAddress *saddr,
                              int num,
                              Error **errp)
 {
+    bool abstract = saddr_is_abstract(saddr);
     struct sockaddr_un un;
     int sock, fd;
     char *pathbuf = NULL;
@@ -871,7 +896,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
         return -1;
     }
 
-    if (saddr->path && saddr->path[0]) {
+    if (saddr->path[0] || abstract) {
         path = saddr->path;
     } else {
         const char *tmpdir = getenv("TMPDIR");
@@ -881,10 +906,10 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
 
     pathlen = strlen(path);
     if (pathlen > sizeof(un.sun_path) ||
-        (saddr->abstract && pathlen > (sizeof(un.sun_path) - 1))) {
+        (abstract && pathlen > (sizeof(un.sun_path) - 1))) {
         error_setg(errp, "UNIX socket path '%s' is too long", path);
         error_append_hint(errp, "Path must be less than %zu bytes\n",
-                          saddr->abstract ? sizeof(un.sun_path) - 1 :
+                          abstract ? sizeof(un.sun_path) - 1 :
                           sizeof(un.sun_path));
         goto err;
     }
@@ -906,7 +931,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
         close(fd);
     }
 
-    if (!saddr->abstract && unlink(path) < 0 && errno != ENOENT) {
+    if (!abstract && unlink(path) < 0 && errno != ENOENT) {
         error_setg_errno(errp, errno,
                          "Failed to unlink socket %s", path);
         goto err;
@@ -916,10 +941,10 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
     un.sun_family = AF_UNIX;
     addrlen = sizeof(un);
 
-    if (saddr->abstract) {
+    if (abstract) {
         un.sun_path[0] = '\0';
         memcpy(&un.sun_path[1], path, pathlen);
-        if (saddr->tight) {
+        if (saddr_is_tight(saddr)) {
             addrlen = offsetof(struct sockaddr_un, sun_path) + 1 + pathlen;
         }
     } else {
@@ -946,6 +971,7 @@ err:
 
 static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 {
+    bool abstract = saddr_is_abstract(saddr);
     struct sockaddr_un un;
     int sock, rc;
     size_t pathlen;
@@ -964,10 +990,10 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 
     pathlen = strlen(saddr->path);
     if (pathlen > sizeof(un.sun_path) ||
-        (saddr->abstract && pathlen > (sizeof(un.sun_path) - 1))) {
+        (abstract && pathlen > (sizeof(un.sun_path) - 1))) {
         error_setg(errp, "UNIX socket path '%s' is too long", saddr->path);
         error_append_hint(errp, "Path must be less than %zu bytes\n",
-                          saddr->abstract ? sizeof(un.sun_path) - 1 :
+                          abstract ? sizeof(un.sun_path) - 1 :
                           sizeof(un.sun_path));
         goto err;
     }
@@ -976,10 +1002,10 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
     un.sun_family = AF_UNIX;
     addrlen = sizeof(un);
 
-    if (saddr->abstract) {
+    if (abstract) {
         un.sun_path[0] = '\0';
         memcpy(&un.sun_path[1], saddr->path, pathlen);
-        if (saddr->tight) {
+        if (saddr_is_tight(saddr)) {
             addrlen = offsetof(struct sockaddr_un, sun_path) + 1 + pathlen;
         }
     } else {
@@ -994,7 +1020,7 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
     } while (rc == -EINTR);
 
     if (rc < 0) {
-        error_setg_errno(errp, -rc, "Failed to connect socket %s",
+        error_setg_errno(errp, -rc, "Failed to connect to '%s'",
                          saddr->path);
         goto err;
     }
@@ -1092,6 +1118,7 @@ fail:
 
 static int socket_get_fd(const char *fdstr, int num, Error **errp)
 {
+    Monitor *cur_mon = monitor_cur();
     int fd;
     if (num != 1) {
         error_setg_errno(errp, EINVAL, "socket_get_fd: too many connections");
@@ -1263,10 +1290,20 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
 
     addr = g_new0(SocketAddress, 1);
     addr->type = SOCKET_ADDRESS_TYPE_UNIX;
-    if (su->sun_path[0]) {
-        addr->u.q_unix.path = g_strndup(su->sun_path, sizeof(su->sun_path));
+#ifdef CONFIG_LINUX
+    if (!su->sun_path[0]) {
+        /* Linux abstract socket */
+        addr->u.q_unix.path = g_strndup(su->sun_path + 1,
+                                        sizeof(su->sun_path) - 1);
+        addr->u.q_unix.has_abstract = true;
+        addr->u.q_unix.abstract = true;
+        addr->u.q_unix.has_tight = true;
+        addr->u.q_unix.tight = salen < sizeof(*su);
+        return addr;
     }
+#endif
 
+    addr->u.q_unix.path = g_strndup(su->sun_path, sizeof(su->sun_path));
     return addr;
 }
 #endif /* WIN32 */

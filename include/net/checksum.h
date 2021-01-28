@@ -21,11 +21,16 @@
 #include "qemu/bswap.h"
 struct iovec;
 
+#define CSUM_IP     0x01
+#define CSUM_TCP    0x02
+#define CSUM_UDP    0x04
+#define CSUM_ALL    (CSUM_IP | CSUM_TCP | CSUM_UDP)
+
 uint32_t net_checksum_add_cont(int len, uint8_t *buf, int seq);
 uint16_t net_checksum_finish(uint32_t sum);
 uint16_t net_checksum_tcpudp(uint16_t length, uint16_t proto,
                              uint8_t *addrs, uint8_t *buf);
-void net_checksum_calculate(uint8_t *data, int length);
+void net_checksum_calculate(uint8_t *data, int length, int csum_flag);
 
 static inline uint32_t
 net_checksum_add(int len, uint8_t *buf)

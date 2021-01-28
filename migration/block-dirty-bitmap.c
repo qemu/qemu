@@ -562,8 +562,9 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
         dbms->bitmap_alias = g_strdup(bitmap_alias);
         dbms->bitmap = bitmap;
         dbms->total_sectors = bdrv_nb_sectors(bs);
-        dbms->sectors_per_chunk = CHUNK_SIZE * 8 *
-            bdrv_dirty_bitmap_granularity(bitmap) >> BDRV_SECTOR_BITS;
+        dbms->sectors_per_chunk = CHUNK_SIZE * 8LLU *
+            (bdrv_dirty_bitmap_granularity(bitmap) >> BDRV_SECTOR_BITS);
+        assert(dbms->sectors_per_chunk != 0);
         if (bdrv_dirty_bitmap_enabled(bitmap)) {
             dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_ENABLED;
         }
@@ -1071,18 +1072,15 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
             return -EINVAL;
         }
 
-        if (!s->cancelled) {
-            if (bitmap_alias_map) {
-                bitmap_name = g_hash_table_lookup(bitmap_alias_map,
-                                                  s->bitmap_alias);
-                if (!bitmap_name) {
-                    error_report("Error: Unknown bitmap alias '%s' on node "
-                                 "'%s' (alias '%s')", s->bitmap_alias,
-                                 s->bs->node_name, s->node_alias);
-                    cancel_incoming_locked(s);
-                }
-            } else {
-                bitmap_name = s->bitmap_alias;
+        bitmap_name = s->bitmap_alias;
+        if (!s->cancelled && bitmap_alias_map) {
+            bitmap_name = g_hash_table_lookup(bitmap_alias_map,
+                                              s->bitmap_alias);
+            if (!bitmap_name) {
+                error_report("Error: Unknown bitmap alias '%s' on node "
+                             "'%s' (alias '%s')", s->bitmap_alias,
+                             s->bs->node_name, s->node_alias);
+                cancel_incoming_locked(s);
             }
         }
 

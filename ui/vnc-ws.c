@@ -41,13 +41,14 @@ static void vncws_tls_handshake_done(QIOTask *task,
             g_source_remove(vs->ioc_tag);
         }
         vs->ioc_tag = qio_channel_add_watch(
-            QIO_CHANNEL(vs->ioc), G_IO_IN, vncws_handshake_io, vs, NULL);
+            QIO_CHANNEL(vs->ioc), G_IO_IN | G_IO_HUP | G_IO_ERR,
+            vncws_handshake_io, vs, NULL);
     }
 }
 
 
 gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
-                                GIOCondition condition G_GNUC_UNUSED,
+                                GIOCondition condition,
                                 void *opaque)
 {
     VncState *vs = opaque;
@@ -57,6 +58,11 @@ gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
     if (vs->ioc_tag) {
         g_source_remove(vs->ioc_tag);
         vs->ioc_tag = 0;
+    }
+
+    if (condition & (G_IO_HUP | G_IO_ERR)) {
+        vnc_client_error(vs);
+        return TRUE;
     }
 
     tls = qio_channel_tls_new_server(
@@ -105,13 +111,14 @@ static void vncws_handshake_done(QIOTask *task,
             g_source_remove(vs->ioc_tag);
         }
         vs->ioc_tag = qio_channel_add_watch(
-            vs->ioc, G_IO_IN, vnc_client_io, vs, NULL);
+            vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR,
+            vnc_client_io, vs, NULL);
     }
 }
 
 
 gboolean vncws_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
-                            GIOCondition condition G_GNUC_UNUSED,
+                            GIOCondition condition,
                             void *opaque)
 {
     VncState *vs = opaque;
@@ -120,6 +127,11 @@ gboolean vncws_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
     if (vs->ioc_tag) {
         g_source_remove(vs->ioc_tag);
         vs->ioc_tag = 0;
+    }
+
+    if (condition & (G_IO_HUP | G_IO_ERR)) {
+        vnc_client_error(vs);
+        return TRUE;
     }
 
     wioc = qio_channel_websock_new_server(vs->ioc);

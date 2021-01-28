@@ -26,6 +26,7 @@
 #include "block/trace.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
+#include "block/fuse.h"
 #include "block/nbd.h"
 #include "block/qdict.h"
 #include "qemu/error-report.h"
@@ -48,6 +49,7 @@
 #include "qemu/timer.h"
 #include "qemu/cutils.h"
 #include "qemu/id.h"
+#include "block/coroutines.h"
 
 #ifdef CONFIG_BSD
 #include <sys/ioctl.h>
@@ -215,7 +217,7 @@ void bdrv_parse_filename_strip_prefix(const char *filename, const char *prefix,
         /* Stripping the explicit protocol prefix may result in a protocol
          * prefix being (wrongly) detected (if the filename contains a colon) */
         if (path_has_protocol(filename)) {
-            QString *fat_filename;
+            GString *fat_filename;
 
             /* This means there is some colon before the first slash; therefore,
              * this cannot be an absolute path */
@@ -223,12 +225,13 @@ void bdrv_parse_filename_strip_prefix(const char *filename, const char *prefix,
 
             /* And we can thus fix the protocol detection issue by prefixing it
              * by "./" */
-            fat_filename = qstring_from_str("./");
-            qstring_append(fat_filename, filename);
+            fat_filename = g_string_new("./");
+            g_string_append(fat_filename, filename);
 
-            assert(!path_has_protocol(qstring_get_str(fat_filename)));
+            assert(!path_has_protocol(fat_filename->str));
 
-            qdict_put(options, "filename", fat_filename);
+            qdict_put(options, "filename",
+                      qstring_from_gstring(fat_filename));
         } else {
             /* If no protocol prefix was detected, we can use the shortened
              * filename as-is */
@@ -960,6 +963,11 @@ int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
     }
 
     bs->total_sectors = hint;
+
+    if (bs->total_sectors * BDRV_SECTOR_SIZE > BDRV_MAX_LENGTH) {
+        return -EFBIG;
+    }
+
     return 0;
 }
 
@@ -1893,10 +1901,9 @@ static int bdrv_fill_options(QDict **options, const char *filename,
 
 static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
                                  uint64_t perm, uint64_t shared,
-                                 GSList *ignore_children,
-                                 bool *tighten_restrictions, Error **errp);
+                                 GSList *ignore_children, Error **errp);
 static void bdrv_child_abort_perm_update(BdrvChild *c);
-static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared);
+static void bdrv_child_set_perm(BdrvChild *c);
 
 typedef struct BlockReopenQueueEntry {
      bool prepared;
@@ -1967,42 +1974,17 @@ static void bdrv_child_perm(BlockDriverState *bs, BlockDriverState *child_bs,
  * permissions of all its parents. This involves checking whether all necessary
  * permission changes to child nodes can be performed.
  *
- * Will set *tighten_restrictions to true if and only if new permissions have to
- * be taken or currently shared permissions are to be unshared.  Otherwise,
- * errors are not fatal as long as the caller accepts that the restrictions
- * remain tighter than they need to be.  The caller still has to abort the
- * transaction.
- * @tighten_restrictions cannot be used together with @q: When reopening, we may
- * encounter fatal errors even though no restrictions are to be tightened.  For
- * example, changing a node from RW to RO will fail if the WRITE permission is
- * to be kept.
- *
  * A call to this function must always be followed by a call to bdrv_set_perm()
  * or bdrv_abort_perm_update().
  */
 static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
                            uint64_t cumulative_perms,
                            uint64_t cumulative_shared_perms,
-                           GSList *ignore_children,
-                           bool *tighten_restrictions, Error **errp)
+                           GSList *ignore_children, Error **errp)
 {
     BlockDriver *drv = bs->drv;
     BdrvChild *c;
     int ret;
-
-    assert(!q || !tighten_restrictions);
-
-    if (tighten_restrictions) {
-        uint64_t current_perms, current_shared;
-        uint64_t added_perms, removed_shared_perms;
-
-        bdrv_get_cumulative_perm(bs, &current_perms, &current_shared);
-
-        added_perms = cumulative_perms & ~current_perms;
-        removed_shared_perms = current_shared & ~cumulative_shared_perms;
-
-        *tighten_restrictions = added_perms || removed_shared_perms;
-    }
 
     /* Write permissions never work with read-only images */
     if ((cumulative_perms & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED)) &&
@@ -2047,8 +2029,11 @@ static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
     }
 
     if (drv->bdrv_check_perm) {
-        return drv->bdrv_check_perm(bs, cumulative_perms,
-                                    cumulative_shared_perms, errp);
+        ret = drv->bdrv_check_perm(bs, cumulative_perms,
+                                   cumulative_shared_perms, errp);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     /* Drivers that never have children can omit .bdrv_child_perm() */
@@ -2060,18 +2045,12 @@ static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
     /* Check all children */
     QLIST_FOREACH(c, &bs->children, next) {
         uint64_t cur_perm, cur_shared;
-        bool child_tighten_restr;
 
         bdrv_child_perm(bs, c->bs, c, c->role, q,
                         cumulative_perms, cumulative_shared_perms,
                         &cur_perm, &cur_shared);
         ret = bdrv_child_check_perm(c, q, cur_perm, cur_shared, ignore_children,
-                                    tighten_restrictions ? &child_tighten_restr
-                                                         : NULL,
                                     errp);
-        if (tighten_restrictions) {
-            *tighten_restrictions |= child_tighten_restr;
-        }
         if (ret < 0) {
             return ret;
         }
@@ -2105,15 +2084,17 @@ static void bdrv_abort_perm_update(BlockDriverState *bs)
     }
 }
 
-static void bdrv_set_perm(BlockDriverState *bs, uint64_t cumulative_perms,
-                          uint64_t cumulative_shared_perms)
+static void bdrv_set_perm(BlockDriverState *bs)
 {
+    uint64_t cumulative_perms, cumulative_shared_perms;
     BlockDriver *drv = bs->drv;
     BdrvChild *c;
 
     if (!drv) {
         return;
     }
+
+    bdrv_get_cumulative_perm(bs, &cumulative_perms, &cumulative_shared_perms);
 
     /* Update this node */
     if (drv->bdrv_set_perm) {
@@ -2128,11 +2109,7 @@ static void bdrv_set_perm(BlockDriverState *bs, uint64_t cumulative_perms,
 
     /* Update all children */
     QLIST_FOREACH(c, &bs->children, next) {
-        uint64_t cur_perm, cur_shared;
-        bdrv_child_perm(bs, c->bs, c, c->role, NULL,
-                        cumulative_perms, cumulative_shared_perms,
-                        &cur_perm, &cur_shared);
-        bdrv_child_set_perm(c, cur_perm, cur_shared);
+        bdrv_child_set_perm(c);
     }
 }
 
@@ -2196,22 +2173,18 @@ char *bdrv_perm_names(uint64_t perm)
  * set, the BdrvChild objects in this list are ignored in the calculations;
  * this allows checking permission updates for an existing reference.
  *
- * See bdrv_check_perm() for the semantics of @tighten_restrictions.
- *
  * Needs to be followed by a call to either bdrv_set_perm() or
  * bdrv_abort_perm_update(). */
 static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
                                   uint64_t new_used_perm,
                                   uint64_t new_shared_perm,
                                   GSList *ignore_children,
-                                  bool *tighten_restrictions,
                                   Error **errp)
 {
     BdrvChild *c;
     uint64_t cumulative_perms = new_used_perm;
     uint64_t cumulative_shared_perms = new_shared_perm;
 
-    assert(!q || !tighten_restrictions);
 
     /* There is no reason why anyone couldn't tolerate write_unchanged */
     assert(new_shared_perm & BLK_PERM_WRITE_UNCHANGED);
@@ -2225,10 +2198,6 @@ static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
             char *user = bdrv_child_user_desc(c);
             char *perm_names = bdrv_perm_names(new_used_perm & ~c->shared_perm);
 
-            if (tighten_restrictions) {
-                *tighten_restrictions = true;
-            }
-
             error_setg(errp, "Conflicts with use by %s as '%s', which does not "
                              "allow '%s' on %s",
                        user, c->name, perm_names, bdrv_get_node_name(c->bs));
@@ -2240,10 +2209,6 @@ static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
         if ((c->perm & new_shared_perm) != c->perm) {
             char *user = bdrv_child_user_desc(c);
             char *perm_names = bdrv_perm_names(c->perm & ~new_shared_perm);
-
-            if (tighten_restrictions) {
-                *tighten_restrictions = true;
-            }
 
             error_setg(errp, "Conflicts with use by %s as '%s', which uses "
                              "'%s' on %s",
@@ -2258,21 +2223,19 @@ static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
     }
 
     return bdrv_check_perm(bs, q, cumulative_perms, cumulative_shared_perms,
-                           ignore_children, tighten_restrictions, errp);
+                           ignore_children, errp);
 }
 
 /* Needs to be followed by a call to either bdrv_child_set_perm() or
  * bdrv_child_abort_perm_update(). */
 static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
                                  uint64_t perm, uint64_t shared,
-                                 GSList *ignore_children,
-                                 bool *tighten_restrictions, Error **errp)
+                                 GSList *ignore_children, Error **errp)
 {
     int ret;
 
     ignore_children = g_slist_prepend(g_slist_copy(ignore_children), c);
-    ret = bdrv_check_update_perm(c->bs, q, perm, shared, ignore_children,
-                                 tighten_restrictions, errp);
+    ret = bdrv_check_update_perm(c->bs, q, perm, shared, ignore_children, errp);
     g_slist_free(ignore_children);
 
     if (ret < 0) {
@@ -2295,18 +2258,11 @@ static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
     return 0;
 }
 
-static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared)
+static void bdrv_child_set_perm(BdrvChild *c)
 {
-    uint64_t cumulative_perms, cumulative_shared_perms;
-
     c->has_backup_perm = false;
 
-    c->perm = perm;
-    c->shared_perm = shared;
-
-    bdrv_get_cumulative_perm(c->bs, &cumulative_perms,
-                             &cumulative_shared_perms);
-    bdrv_set_perm(c->bs, cumulative_perms, cumulative_shared_perms);
+    bdrv_set_perm(c->bs);
 }
 
 static void bdrv_child_abort_perm_update(BdrvChild *c)
@@ -2320,18 +2276,33 @@ static void bdrv_child_abort_perm_update(BdrvChild *c)
     bdrv_abort_perm_update(c->bs);
 }
 
+static int bdrv_refresh_perms(BlockDriverState *bs, Error **errp)
+{
+    int ret;
+    uint64_t perm, shared_perm;
+
+    bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
+    ret = bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, errp);
+    if (ret < 0) {
+        bdrv_abort_perm_update(bs);
+        return ret;
+    }
+    bdrv_set_perm(bs);
+
+    return 0;
+}
+
 int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
                             Error **errp)
 {
     Error *local_err = NULL;
     int ret;
-    bool tighten_restrictions;
 
-    ret = bdrv_child_check_perm(c, NULL, perm, shared, NULL,
-                                &tighten_restrictions, &local_err);
+    ret = bdrv_child_check_perm(c, NULL, perm, shared, NULL, &local_err);
     if (ret < 0) {
         bdrv_child_abort_perm_update(c);
-        if (tighten_restrictions) {
+        if ((perm & ~c->perm) || (c->shared_perm & ~shared)) {
+            /* tighten permissions */
             error_propagate(errp, local_err);
         } else {
             /*
@@ -2346,7 +2317,7 @@ int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
         return ret;
     }
 
-    bdrv_child_set_perm(c, perm, shared);
+    bdrv_child_set_perm(c);
 
     return 0;
 }
@@ -2616,7 +2587,6 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
 static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
 {
     BlockDriverState *old_bs = child->bs;
-    uint64_t perm, shared_perm;
 
     /* Asserts that child->frozen == false */
     bdrv_replace_child_noperm(child, new_bs);
@@ -2630,27 +2600,16 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
      * restrictions.
      */
     if (new_bs) {
-        bdrv_get_cumulative_perm(new_bs, &perm, &shared_perm);
-        bdrv_set_perm(new_bs, perm, shared_perm);
+        bdrv_set_perm(new_bs);
     }
 
     if (old_bs) {
-        /* Update permissions for old node. This is guaranteed to succeed
-         * because we're just taking a parent away, so we're loosening
-         * restrictions. */
-        bool tighten_restrictions;
-        int ret;
-
-        bdrv_get_cumulative_perm(old_bs, &perm, &shared_perm);
-        ret = bdrv_check_perm(old_bs, NULL, perm, shared_perm, NULL,
-                              &tighten_restrictions, NULL);
-        assert(tighten_restrictions == false);
-        if (ret < 0) {
-            /* We only tried to loosen restrictions, so errors are not fatal */
-            bdrv_abort_perm_update(old_bs);
-        } else {
-            bdrv_set_perm(old_bs, perm, shared_perm);
-        }
+        /*
+         * Update permissions for old node. We're just taking a parent away, so
+         * we're loosening restrictions. Errors of permission update are not
+         * fatal in this case, ignore them.
+         */
+        bdrv_refresh_perms(old_bs, NULL);
 
         /* When the parent requiring a non-default AioContext is removed, the
          * node moves back to the main AioContext */
@@ -2680,8 +2639,7 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_check_update_perm(child_bs, NULL, perm, shared_perm, NULL, NULL,
-                                 errp);
+    ret = bdrv_check_update_perm(child_bs, NULL, perm, shared_perm, NULL, errp);
     if (ret < 0) {
         bdrv_abort_perm_update(child_bs);
         bdrv_unref(child_bs);
@@ -3813,7 +3771,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
     QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
         BDRVReopenState *state = &bs_entry->state;
         ret = bdrv_check_perm(state->bs, bs_queue, state->perm,
-                              state->shared_perm, NULL, NULL, errp);
+                              state->shared_perm, NULL, errp);
         if (ret < 0) {
             goto cleanup_perm;
         }
@@ -3825,7 +3783,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
                             bs_queue, state->perm, state->shared_perm,
                             &nperm, &nshared);
             ret = bdrv_check_update_perm(state->new_backing_bs, NULL,
-                                         nperm, nshared, NULL, NULL, errp);
+                                         nperm, nshared, NULL, errp);
             if (ret < 0) {
                 goto cleanup_perm;
             }
@@ -3856,7 +3814,13 @@ cleanup_perm:
         }
 
         if (ret == 0) {
-            bdrv_set_perm(state->bs, state->perm, state->shared_perm);
+            uint64_t perm, shared;
+
+            bdrv_get_cumulative_perm(state->bs, &perm, &shared);
+            assert(perm == state->perm);
+            assert(shared == state->shared_perm);
+
+            bdrv_set_perm(state->bs);
         } else {
             bdrv_abort_perm_update(state->bs);
             if (state->replace_backing_bs && state->new_backing_bs) {
@@ -4014,7 +3978,7 @@ static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
         new_backing_bs = NULL;
         break;
     case QTYPE_QSTRING:
-        str = qobject_get_try_str(value);
+        str = qstring_get_str(qobject_to(QString, value));
         new_backing_bs = bdrv_lookup_bs(NULL, str, errp);
         if (new_backing_bs == NULL) {
             return -EINVAL;
@@ -4277,8 +4241,8 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
                 }
 
                 if (child) {
-                    const char *str = qobject_get_try_str(new);
-                    if (!strcmp(child->bs->node_name, str)) {
+                    if (!strcmp(child->bs->node_name,
+                                qstring_get_str(qobject_to(QString, new)))) {
                         continue; /* Found child with this name, skip option */
                     }
                 }
@@ -4457,12 +4421,21 @@ static void bdrv_close(BlockDriverState *bs)
     }
     QLIST_INIT(&bs->aio_notifiers);
     bdrv_drained_end(bs);
+
+    /*
+     * If we're still inside some bdrv_drain_all_begin()/end() sections, end
+     * them now since this BDS won't exist anymore when bdrv_drain_all_end()
+     * gets called.
+     */
+    if (bs->quiesce_counter) {
+        bdrv_drain_all_end_quiesce(bs);
+    }
 }
 
 void bdrv_close_all(void)
 {
     assert(job_next(NULL) == NULL);
-    nbd_export_close_all();
+    blk_exp_close_all();
 
     /* Drop references from requests still in flight, such as canceled block
      * jobs whose AIO context has not been polled yet */
@@ -4553,8 +4526,16 @@ static bool should_update_child(BdrvChild *c, BlockDriverState *to)
     return ret;
 }
 
-void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
-                       Error **errp)
+/*
+ * With auto_skip=true bdrv_replace_node_common skips updating from parents
+ * if it creates a parent-child relation loop or if parent is block-job.
+ *
+ * With auto_skip=false the error is returned if from has a parent which should
+ * not be updated.
+ */
+static void bdrv_replace_node_common(BlockDriverState *from,
+                                     BlockDriverState *to,
+                                     bool auto_skip, Error **errp)
 {
     BdrvChild *c, *next;
     GSList *list = NULL, *p;
@@ -4573,7 +4554,12 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
         assert(c->bs == from);
         if (!should_update_child(c, to)) {
-            continue;
+            if (auto_skip) {
+                continue;
+            }
+            error_setg(errp, "Should not change '%s' link to '%s'",
+                       c->name, from->node_name);
+            goto out;
         }
         if (c->frozen) {
             error_setg(errp, "Cannot change '%s' link to '%s'",
@@ -4587,7 +4573,7 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
 
     /* Check whether the required permissions can be granted on @to, ignoring
      * all BdrvChild in @list so that they can't block themselves. */
-    ret = bdrv_check_update_perm(to, NULL, perm, shared, list, NULL, errp);
+    ret = bdrv_check_update_perm(to, NULL, perm, shared, list, errp);
     if (ret < 0) {
         bdrv_abort_perm_update(to);
         goto out;
@@ -4604,13 +4590,18 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
         bdrv_unref(from);
     }
 
-    bdrv_get_cumulative_perm(to, &perm, &shared);
-    bdrv_set_perm(to, perm, shared);
+    bdrv_set_perm(to);
 
 out:
     g_slist_free(list);
     bdrv_drained_end(from);
     bdrv_unref(from);
+}
+
+void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
+                       Error **errp)
+{
+    return bdrv_replace_node_common(from, to, true, errp);
 }
 
 /*
@@ -4669,6 +4660,31 @@ static void bdrv_delete(BlockDriverState *bs)
     g_free(bs);
 }
 
+BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *node_options,
+                                   int flags, Error **errp)
+{
+    BlockDriverState *new_node_bs;
+    Error *local_err = NULL;
+
+    new_node_bs = bdrv_open(NULL, NULL, node_options, flags, errp);
+    if (new_node_bs == NULL) {
+        error_prepend(errp, "Could not create node: ");
+        return NULL;
+    }
+
+    bdrv_drained_begin(bs);
+    bdrv_replace_node(bs, new_node_bs, &local_err);
+    bdrv_drained_end(bs);
+
+    if (local_err) {
+        bdrv_unref(new_node_bs);
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    return new_node_bs;
+}
+
 /*
  * Run consistency checks on an image
  *
@@ -4676,8 +4692,8 @@ static void bdrv_delete(BlockDriverState *bs)
  * free of errors) or -errno when an internal error occurred. The results of the
  * check are stored in res.
  */
-static int coroutine_fn bdrv_co_check(BlockDriverState *bs,
-                                      BdrvCheckResult *res, BdrvCheckMode fix)
+int coroutine_fn bdrv_co_check(BlockDriverState *bs,
+                               BdrvCheckResult *res, BdrvCheckMode fix)
 {
     if (bs->drv == NULL) {
         return -ENOMEDIUM;
@@ -4688,43 +4704,6 @@ static int coroutine_fn bdrv_co_check(BlockDriverState *bs,
 
     memset(res, 0, sizeof(*res));
     return bs->drv->bdrv_co_check(bs, res, fix);
-}
-
-typedef struct CheckCo {
-    BlockDriverState *bs;
-    BdrvCheckResult *res;
-    BdrvCheckMode fix;
-    int ret;
-} CheckCo;
-
-static void coroutine_fn bdrv_check_co_entry(void *opaque)
-{
-    CheckCo *cco = opaque;
-    cco->ret = bdrv_co_check(cco->bs, cco->res, cco->fix);
-    aio_wait_kick();
-}
-
-int bdrv_check(BlockDriverState *bs,
-               BdrvCheckResult *res, BdrvCheckMode fix)
-{
-    Coroutine *co;
-    CheckCo cco = {
-        .bs = bs,
-        .res = res,
-        .ret = -EINPROGRESS,
-        .fix = fix,
-    };
-
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        bdrv_check_co_entry(&cco);
-    } else {
-        co = qemu_coroutine_create(bdrv_check_co_entry, &cco);
-        bdrv_coroutine_enter(bs, co);
-        BDRV_POLL_WHILE(bs, cco.ret == -EINPROGRESS);
-    }
-
-    return cco.ret;
 }
 
 /*
@@ -4918,9 +4897,11 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
 {
     BlockDriverState *explicit_top = top;
     bool update_inherits_from;
-    BdrvChild *c, *next;
+    BdrvChild *c;
     Error *local_err = NULL;
     int ret = -EIO;
+    g_autoptr(GSList) updated_children = NULL;
+    GSList *p;
 
     bdrv_ref(top);
     bdrv_subtree_drained_begin(top);
@@ -4932,14 +4913,6 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     /* Make sure that base is in the backing chain of top */
     if (!bdrv_chain_contains(top, base)) {
         goto exit;
-    }
-
-    /* This function changes all links that point to top and makes
-     * them point to base. Check that none of them is frozen. */
-    QLIST_FOREACH(c, &top->parents, next_parent) {
-        if (c->frozen) {
-            goto exit;
-        }
     }
 
     /* If 'base' recursively inherits from 'top' then we should set
@@ -4958,36 +4931,36 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
         backing_file_str = base->filename;
     }
 
-    QLIST_FOREACH_SAFE(c, &top->parents, next_parent, next) {
-        /* Check whether we are allowed to switch c from top to base */
-        GSList *ignore_children = g_slist_prepend(NULL, c);
-        ret = bdrv_check_update_perm(base, NULL, c->perm, c->shared_perm,
-                                     ignore_children, NULL, &local_err);
-        g_slist_free(ignore_children);
-        if (ret < 0) {
-            error_report_err(local_err);
-            goto exit;
-        }
+    QLIST_FOREACH(c, &top->parents, next_parent) {
+        updated_children = g_slist_prepend(updated_children, c);
+    }
 
-        /* If so, update the backing file path in the image file */
+    bdrv_replace_node_common(top, base, false, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        goto exit;
+    }
+
+    for (p = updated_children; p; p = p->next) {
+        c = p->data;
+
         if (c->klass->update_filename) {
             ret = c->klass->update_filename(c, base, backing_file_str,
                                             &local_err);
             if (ret < 0) {
-                bdrv_abort_perm_update(base);
+                /*
+                 * TODO: Actually, we want to rollback all previous iterations
+                 * of this loop, and (which is almost impossible) previous
+                 * bdrv_replace_node()...
+                 *
+                 * Note, that c->klass->update_filename may lead to permission
+                 * update, so it's a bad idea to call it inside permission
+                 * update transaction of bdrv_replace_node.
+                 */
                 error_report_err(local_err);
                 goto exit;
             }
         }
-
-        /*
-         * Do the actual switch in the in-memory graph.
-         * Completes bdrv_check_update_perm() transaction internally.
-         * c->frozen is false, we have checked that above.
-         */
-        bdrv_ref(base);
-        bdrv_replace_child(c, base);
-        bdrv_unref(top);
     }
 
     if (update_inherits_from) {
@@ -5118,8 +5091,13 @@ int64_t bdrv_getlength(BlockDriverState *bs)
 {
     int64_t ret = bdrv_nb_sectors(bs);
 
-    ret = ret > INT64_MAX / BDRV_SECTOR_SIZE ? -EFBIG : ret;
-    return ret < 0 ? ret : ret * BDRV_SECTOR_SIZE;
+    if (ret < 0) {
+        return ret;
+    }
+    if (ret > INT64_MAX / BDRV_SECTOR_SIZE) {
+        return -EFBIG;
+    }
+    return ret * BDRV_SECTOR_SIZE;
 }
 
 /* return 0 as number of sectors if no device present or error */
@@ -5247,7 +5225,7 @@ BlockDriverState *bdrv_find_node(const char *node_name)
 BlockDeviceInfoList *bdrv_named_nodes_list(bool flat,
                                            Error **errp)
 {
-    BlockDeviceInfoList *list, *entry;
+    BlockDeviceInfoList *list;
     BlockDriverState *bs;
 
     list = NULL;
@@ -5257,21 +5235,11 @@ BlockDeviceInfoList *bdrv_named_nodes_list(bool flat,
             qapi_free_BlockDeviceInfoList(list);
             return NULL;
         }
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = info;
-        entry->next = list;
-        list = entry;
+        QAPI_LIST_PREPEND(list, info);
     }
 
     return list;
 }
-
-#define QAPI_LIST_ADD(list, element) do { \
-    typeof(list) _tmp = g_new(typeof(*(list)), 1); \
-    _tmp->value = (element); \
-    _tmp->next = (list); \
-    (list) = _tmp; \
-} while (0)
 
 typedef struct XDbgBlockGraphConstructor {
     XDbgBlockGraph *graph;
@@ -5327,7 +5295,7 @@ static void xdbg_graph_add_node(XDbgBlockGraphConstructor *gr, void *node,
     n->type = type;
     n->name = g_strdup(name);
 
-    QAPI_LIST_ADD(gr->graph->nodes, n);
+    QAPI_LIST_PREPEND(gr->graph->nodes, n);
 }
 
 static void xdbg_graph_add_edge(XDbgBlockGraphConstructor *gr, void *parent,
@@ -5346,14 +5314,14 @@ static void xdbg_graph_add_edge(XDbgBlockGraphConstructor *gr, void *parent,
         uint64_t flag = bdrv_qapi_perm_to_blk_perm(qapi_perm);
 
         if (flag & child->perm) {
-            QAPI_LIST_ADD(edge->perm, qapi_perm);
+            QAPI_LIST_PREPEND(edge->perm, qapi_perm);
         }
         if (flag & child->shared_perm) {
-            QAPI_LIST_ADD(edge->shared_perm, qapi_perm);
+            QAPI_LIST_PREPEND(edge->shared_perm, qapi_perm);
         }
     }
 
-    QAPI_LIST_ADD(gr->graph->edges, edge);
+    QAPI_LIST_PREPEND(gr->graph->edges, edge);
 }
 
 
@@ -5553,6 +5521,7 @@ void bdrv_get_backing_filename(BlockDriverState *bs,
 
 int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
+    int ret;
     BlockDriver *drv = bs->drv;
     /* if bs->drv == NULL, bs is closed, so there's nothing to do here */
     if (!drv) {
@@ -5566,7 +5535,16 @@ int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
         return -ENOTSUP;
     }
     memset(bdi, 0, sizeof(*bdi));
-    return drv->bdrv_get_info(bs, bdi);
+    ret = drv->bdrv_get_info(bs, bdi);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (bdi->cluster_size > BDRV_MAX_ALIGNMENT) {
+        return -EINVAL;
+    }
+
+    return 0;
 }
 
 ImageInfoSpecific *bdrv_get_specific_info(BlockDriverState *bs,
@@ -5781,24 +5759,22 @@ void bdrv_init_with_whitelist(void)
     bdrv_init();
 }
 
-static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
-                                                  Error **errp)
+int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BdrvChild *child, *parent;
-    uint64_t perm, shared_perm;
     Error *local_err = NULL;
     int ret;
     BdrvDirtyBitmap *bm;
 
     if (!bs->drv)  {
-        return;
+        return -ENOMEDIUM;
     }
 
     QLIST_FOREACH(child, &bs->children, next) {
         bdrv_co_invalidate_cache(child->bs, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
-            return;
+            return -EINVAL;
         }
     }
 
@@ -5817,20 +5793,18 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
      */
     if (bs->open_flags & BDRV_O_INACTIVE) {
         bs->open_flags &= ~BDRV_O_INACTIVE;
-        bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
-        ret = bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, NULL, errp);
+        ret = bdrv_refresh_perms(bs, errp);
         if (ret < 0) {
             bs->open_flags |= BDRV_O_INACTIVE;
-            return;
+            return ret;
         }
-        bdrv_set_perm(bs, perm, shared_perm);
 
         if (bs->drv->bdrv_co_invalidate_cache) {
             bs->drv->bdrv_co_invalidate_cache(bs, &local_err);
             if (local_err) {
                 bs->open_flags |= BDRV_O_INACTIVE;
                 error_propagate(errp, local_err);
-                return;
+                return -EINVAL;
             }
         }
 
@@ -5842,7 +5816,7 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
         if (ret < 0) {
             bs->open_flags |= BDRV_O_INACTIVE;
             error_setg_errno(errp, -ret, "Could not refresh total sector count");
-            return;
+            return ret;
         }
     }
 
@@ -5852,59 +5826,27 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
             if (local_err) {
                 bs->open_flags |= BDRV_O_INACTIVE;
                 error_propagate(errp, local_err);
-                return;
+                return -EINVAL;
             }
         }
     }
-}
 
-typedef struct InvalidateCacheCo {
-    BlockDriverState *bs;
-    Error **errp;
-    bool done;
-} InvalidateCacheCo;
-
-static void coroutine_fn bdrv_invalidate_cache_co_entry(void *opaque)
-{
-    InvalidateCacheCo *ico = opaque;
-    bdrv_co_invalidate_cache(ico->bs, ico->errp);
-    ico->done = true;
-    aio_wait_kick();
-}
-
-void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
-{
-    Coroutine *co;
-    InvalidateCacheCo ico = {
-        .bs = bs,
-        .done = false,
-        .errp = errp
-    };
-
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        bdrv_invalidate_cache_co_entry(&ico);
-    } else {
-        co = qemu_coroutine_create(bdrv_invalidate_cache_co_entry, &ico);
-        bdrv_coroutine_enter(bs, co);
-        BDRV_POLL_WHILE(bs, !ico.done);
-    }
+    return 0;
 }
 
 void bdrv_invalidate_cache_all(Error **errp)
 {
     BlockDriverState *bs;
-    Error *local_err = NULL;
     BdrvNextIterator it;
 
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
+        int ret;
 
         aio_context_acquire(aio_context);
-        bdrv_invalidate_cache(bs, &local_err);
+        ret = bdrv_invalidate_cache(bs, errp);
         aio_context_release(aio_context);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (ret < 0) {
             bdrv_next_cleanup(&it);
             return;
         }
@@ -5930,8 +5872,6 @@ static bool bdrv_has_bds_parent(BlockDriverState *bs, bool only_active)
 static int bdrv_inactivate_recurse(BlockDriverState *bs)
 {
     BdrvChild *child, *parent;
-    bool tighten_restrictions;
-    uint64_t perm, shared_perm;
     int ret;
 
     if (!bs->drv) {
@@ -5965,18 +5905,12 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs)
 
     bs->open_flags |= BDRV_O_INACTIVE;
 
-    /* Update permissions, they may differ for inactive nodes */
-    bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
-    ret = bdrv_check_perm(bs, NULL, perm, shared_perm, NULL,
-                          &tighten_restrictions, NULL);
-    assert(tighten_restrictions == false);
-    if (ret < 0) {
-        /* We only tried to loosen restrictions, so errors are not fatal */
-        bdrv_abort_perm_update(bs);
-    } else {
-        bdrv_set_perm(bs, perm, shared_perm);
-    }
-
+    /*
+     * Update permissions, they may differ for inactive nodes.
+     * We only tried to loosen restrictions, so errors are not fatal, ignore
+     * them.
+     */
+    bdrv_refresh_perms(bs, NULL);
 
     /* Recursively inactivate children */
     QLIST_FOREACH(child, &bs->children, next) {
@@ -6370,6 +6304,56 @@ out:
 AioContext *bdrv_get_aio_context(BlockDriverState *bs)
 {
     return bs ? bs->aio_context : qemu_get_aio_context();
+}
+
+AioContext *coroutine_fn bdrv_co_enter(BlockDriverState *bs)
+{
+    Coroutine *self = qemu_coroutine_self();
+    AioContext *old_ctx = qemu_coroutine_get_aio_context(self);
+    AioContext *new_ctx;
+
+    /*
+     * Increase bs->in_flight to ensure that this operation is completed before
+     * moving the node to a different AioContext. Read new_ctx only afterwards.
+     */
+    bdrv_inc_in_flight(bs);
+
+    new_ctx = bdrv_get_aio_context(bs);
+    aio_co_reschedule_self(new_ctx);
+    return old_ctx;
+}
+
+void coroutine_fn bdrv_co_leave(BlockDriverState *bs, AioContext *old_ctx)
+{
+    aio_co_reschedule_self(old_ctx);
+    bdrv_dec_in_flight(bs);
+}
+
+void coroutine_fn bdrv_co_lock(BlockDriverState *bs)
+{
+    AioContext *ctx = bdrv_get_aio_context(bs);
+
+    /* In the main thread, bs->aio_context won't change concurrently */
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+
+    /*
+     * We're in coroutine context, so we already hold the lock of the main
+     * loop AioContext. Don't lock it twice to avoid deadlocks.
+     */
+    assert(qemu_in_coroutine());
+    if (ctx != qemu_get_aio_context()) {
+        aio_context_acquire(ctx);
+    }
+}
+
+void coroutine_fn bdrv_co_unlock(BlockDriverState *bs)
+{
+    AioContext *ctx = bdrv_get_aio_context(bs);
+
+    assert(qemu_in_coroutine());
+    if (ctx != qemu_get_aio_context()) {
+        aio_context_release(ctx);
+    }
 }
 
 void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co)
@@ -6980,13 +6964,13 @@ void bdrv_refresh_filename(BlockDriverState *bs)
     if (bs->exact_filename[0]) {
         pstrcpy(bs->filename, sizeof(bs->filename), bs->exact_filename);
     } else {
-        QString *json = qobject_to_json(QOBJECT(bs->full_open_options));
+        GString *json = qobject_to_json(QOBJECT(bs->full_open_options));
         if (snprintf(bs->filename, sizeof(bs->filename), "json:%s",
-                     qstring_get_str(json)) >= sizeof(bs->filename)) {
+                     json->str) >= sizeof(bs->filename)) {
             /* Give user a hint if we truncated things. */
             strcpy(bs->filename + sizeof(bs->filename) - 4, "...");
         }
-        qobject_unref(json);
+        g_string_free(json, true);
     }
 }
 

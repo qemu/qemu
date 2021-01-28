@@ -8,7 +8,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -21,18 +21,15 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
 #include "internal.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
-#include "exec/cpu_ldst.h"
-#include "exec/memop.h"
-#include "sysemu/kvm.h"
 
 
-#ifndef CONFIG_USER_ONLY
 /* SMP helpers.  */
 static bool mips_vpe_is_wfi(MIPSCPU *c)
 {
@@ -201,6 +198,31 @@ static void sync_c0_entryhi(CPUMIPSState *cpu, int tc)
 
     *tcst &= ~cpu->CP0_EntryHi_ASID_mask;
     *tcst |= asid;
+}
+
+/* XXX: do not use a global */
+uint32_t cpu_mips_get_random(CPUMIPSState *env)
+{
+    static uint32_t seed = 1;
+    static uint32_t prev_idx;
+    uint32_t idx;
+    uint32_t nb_rand_tlb = env->tlb->nb_tlb - env->CP0_Wired;
+
+    if (nb_rand_tlb == 1) {
+        return env->tlb->nb_tlb - 1;
+    }
+
+    /* Don't return same value twice, so get another value */
+    do {
+        /*
+         * Use a simple algorithm of Linear Congruential Generator
+         * from ISO/IEC 9899 standard.
+         */
+        seed = 1103515245 * seed + 12345;
+        idx = (seed >> 16) % nb_rand_tlb + env->CP0_Wired;
+    } while (idx == prev_idx);
+    prev_idx = idx;
+    return idx;
 }
 
 /* CP0 helpers */
@@ -505,7 +527,7 @@ void helper_mtc0_index(CPUMIPSState *env, target_ulong arg1)
     uint32_t index_p = env->CP0_Index & 0x80000000;
     uint32_t tlb_index = arg1 & 0x7fffffff;
     if (tlb_index < env->tlb->nb_tlb) {
-        if (env->insn_flags & ISA_MIPS32R6) {
+        if (env->insn_flags & ISA_MIPS_R6) {
             index_p |= arg1 & 0x80000000;
         }
         env->CP0_Index = index_p | tlb_index;
@@ -867,13 +889,29 @@ void helper_mtc0_memorymapid(CPUMIPSState *env, target_ulong arg1)
 
 void update_pagemask(CPUMIPSState *env, target_ulong arg1, int32_t *pagemask)
 {
-    uint64_t mask = arg1 >> (TARGET_PAGE_BITS + 1);
-    if (!(env->insn_flags & ISA_MIPS32R6) || (arg1 == ~0) ||
-        (mask == 0x0000 || mask == 0x0003 || mask == 0x000F ||
-         mask == 0x003F || mask == 0x00FF || mask == 0x03FF ||
-         mask == 0x0FFF || mask == 0x3FFF || mask == 0xFFFF)) {
-        env->CP0_PageMask = arg1 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
+    uint32_t mask;
+    int maskbits;
+
+    /* Don't care MASKX as we don't support 1KB page */
+    mask = extract32((uint32_t)arg1, CP0PM_MASK, 16);
+    maskbits = cto32(mask);
+
+    /* Ensure no more set bit after first zero */
+    if ((mask >> maskbits) != 0) {
+        goto invalid;
     }
+    /* We don't support VTLB entry smaller than target page */
+    if ((maskbits + TARGET_PAGE_BITS_MIN) < TARGET_PAGE_BITS) {
+        goto invalid;
+    }
+    env->CP0_PageMask = mask << CP0PM_MASK;
+
+    return;
+
+invalid:
+    /* When invalid, set to default target page size. */
+    mask = (~TARGET_PAGE_MASK >> TARGET_PAGE_BITS_MIN);
+    env->CP0_PageMask = mask << CP0PM_MASK;
 }
 
 void helper_mtc0_pagemask(CPUMIPSState *env, target_ulong arg1)
@@ -922,7 +960,7 @@ void helper_mtc0_pwfield(CPUMIPSState *env, target_ulong arg1)
     uint32_t old_ptei = (env->CP0_PWField >> CP0PF_PTEI) & 0x3FULL;
     uint32_t new_ptei = (arg1 >> CP0PF_PTEI) & 0x3FULL;
 
-    if ((env->insn_flags & ISA_MIPS32R6)) {
+    if ((env->insn_flags & ISA_MIPS_R6)) {
         if (((arg1 >> CP0PF_BDI) & 0x3FULL) < 12) {
             mask &= ~(0x3FULL << CP0PF_BDI);
         }
@@ -942,7 +980,7 @@ void helper_mtc0_pwfield(CPUMIPSState *env, target_ulong arg1)
     env->CP0_PWField = arg1 & mask;
 
     if ((new_ptei >= 32) ||
-            ((env->insn_flags & ISA_MIPS32R6) &&
+            ((env->insn_flags & ISA_MIPS_R6) &&
                     (new_ptei == 0 || new_ptei == 1))) {
         env->CP0_PWField = (env->CP0_PWField & ~0x3FULL) |
                 (old_ptei << CP0PF_PTEI);
@@ -952,7 +990,7 @@ void helper_mtc0_pwfield(CPUMIPSState *env, target_ulong arg1)
     uint32_t old_ptew = (env->CP0_PWField >> CP0PF_PTEW) & 0x3F;
     uint32_t new_ptew = (arg1 >> CP0PF_PTEW) & 0x3F;
 
-    if ((env->insn_flags & ISA_MIPS32R6)) {
+    if ((env->insn_flags & ISA_MIPS_R6)) {
         if (((arg1 >> CP0PF_GDW) & 0x3F) < 12) {
             mask &= ~(0x3F << CP0PF_GDW);
         }
@@ -969,7 +1007,7 @@ void helper_mtc0_pwfield(CPUMIPSState *env, target_ulong arg1)
     env->CP0_PWField = arg1 & mask;
 
     if ((new_ptew >= 32) ||
-            ((env->insn_flags & ISA_MIPS32R6) &&
+            ((env->insn_flags & ISA_MIPS_R6) &&
                     (new_ptew == 0 || new_ptew == 1))) {
         env->CP0_PWField = (env->CP0_PWField & ~0x3F) |
                 (old_ptew << CP0PF_PTEW);
@@ -988,7 +1026,7 @@ void helper_mtc0_pwsize(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_wired(CPUMIPSState *env, target_ulong arg1)
 {
-    if (env->insn_flags & ISA_MIPS32R6) {
+    if (env->insn_flags & ISA_MIPS_R6) {
         if (arg1 < env->tlb->nb_tlb) {
             env->CP0_Wired = arg1;
         }
@@ -1037,10 +1075,10 @@ void helper_mtc0_hwrena(CPUMIPSState *env, target_ulong arg1)
     uint32_t mask = 0x0000000F;
 
     if ((env->CP0_Config1 & (1 << CP0C1_PC)) &&
-        (env->insn_flags & ISA_MIPS32R6)) {
+        (env->insn_flags & ISA_MIPS_R6)) {
         mask |= (1 << 4);
     }
-    if (env->insn_flags & ISA_MIPS32R6) {
+    if (env->insn_flags & ISA_MIPS_R6) {
         mask |= (1 << 5);
     }
     if (env->CP0_Config3 & (1 << CP0C3_ULRI)) {
@@ -1111,7 +1149,7 @@ void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
 
     /* 1k pages not implemented */
 #if defined(TARGET_MIPS64)
-    if (env->insn_flags & ISA_MIPS32R6) {
+    if (env->insn_flags & ISA_MIPS_R6) {
         int entryhi_r = extract64(arg1, 62, 2);
         int config0_at = extract32(env->CP0_Config0, 13, 2);
         bool no_supervisor = (env->CP0_Status_rw_bitmask & 0x8) == 0;
@@ -1126,7 +1164,7 @@ void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
     old = env->CP0_EntryHi;
     val = (arg1 & mask) | (old & ~mask);
     env->CP0_EntryHi = val;
-    if (env->CP0_Config3 & (1 << CP0C3_MT)) {
+    if (ase_mt_available(env)) {
         sync_c0_entryhi(env, env->current_tc);
     }
     /* If the ASID changes, flush qemu's TLB.  */
@@ -1626,10 +1664,8 @@ target_ulong helper_evpe(CPUMIPSState *env)
     }
     return prev;
 }
-#endif /* !CONFIG_USER_ONLY */
 
 /* R6 Multi-threading */
-#ifndef CONFIG_USER_ONLY
 target_ulong helper_dvp(CPUMIPSState *env)
 {
     CPUState *other_cs = first_cpu;
@@ -1668,4 +1704,3 @@ target_ulong helper_evp(CPUMIPSState *env)
     }
     return prev;
 }
-#endif /* !CONFIG_USER_ONLY */

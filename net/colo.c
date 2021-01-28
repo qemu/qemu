@@ -133,14 +133,11 @@ void reverse_connection_key(ConnectionKey *key)
 
 Connection *connection_new(ConnectionKey *key)
 {
-    Connection *conn = g_slice_new(Connection);
+    Connection *conn = g_slice_new0(Connection);
 
     conn->ip_proto = key->ip_proto;
     conn->processing = false;
-    conn->offset = 0;
     conn->tcp_state = TCPS_CLOSED;
-    conn->pack = 0;
-    conn->sack = 0;
     g_queue_init(&conn->primary_list);
     g_queue_init(&conn->secondary_list);
 

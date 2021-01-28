@@ -117,35 +117,55 @@ static void sh_timer_write(void *opaque, hwaddr offset,
         case 2: freq >>= 6; break;
         case 3: freq >>= 8; break;
         case 4: freq >>= 10; break;
-	case 6:
-	case 7: if (s->feat & TIMER_FEAT_EXTCLK) break;
-	default: hw_error("sh_timer_write: Reserved TPSC value\n"); break;
+        case 6:
+        case 7:
+            if (s->feat & TIMER_FEAT_EXTCLK) {
+                break;
+            }
+            /* fallthrough */
+        default:
+            hw_error("sh_timer_write: Reserved TPSC value\n");
         }
         switch ((value & TIMER_TCR_CKEG) >> 3) {
-	case 0: break;
+        case 0:
+            break;
         case 1:
         case 2:
-        case 3: if (s->feat & TIMER_FEAT_EXTCLK) break;
-	default: hw_error("sh_timer_write: Reserved CKEG value\n"); break;
+        case 3:
+            if (s->feat & TIMER_FEAT_EXTCLK) {
+                break;
+            }
+            /* fallthrough */
+        default:
+            hw_error("sh_timer_write: Reserved CKEG value\n");
         }
         switch ((value & TIMER_TCR_ICPE) >> 6) {
-	case 0: break;
+        case 0:
+            break;
         case 2:
-        case 3: if (s->feat & TIMER_FEAT_CAPT) break;
-	default: hw_error("sh_timer_write: Reserved ICPE value\n"); break;
+        case 3:
+            if (s->feat & TIMER_FEAT_CAPT) {
+                break;
+            }
+            /* fallthrough */
+        default:
+            hw_error("sh_timer_write: Reserved ICPE value\n");
         }
-	if ((value & TIMER_TCR_UNF) == 0)
+        if ((value & TIMER_TCR_UNF) == 0) {
             s->int_level = 0;
+        }
 
-	value &= ~TIMER_TCR_UNF;
+        value &= ~TIMER_TCR_UNF;
 
-	if ((value & TIMER_TCR_ICPF) && (!(s->feat & TIMER_FEAT_CAPT)))
+        if ((value & TIMER_TCR_ICPF) && (!(s->feat & TIMER_FEAT_CAPT))) {
             hw_error("sh_timer_write: Reserved ICPF value\n");
+        }
 
-	value &= ~TIMER_TCR_ICPF; /* capture not supported */
+        value &= ~TIMER_TCR_ICPF; /* capture not supported */
 
-	if (value & TIMER_TCR_RESERVED)
+        if (value & TIMER_TCR_RESERVED) {
             hw_error("sh_timer_write: Reserved TCR bits set\n");
+        }
         s->tcr = value;
         ptimer_set_limit(s->timer, s->tcor, 0);
         ptimer_set_freq(s->timer, freq);
@@ -158,8 +178,9 @@ static void sh_timer_write(void *opaque, hwaddr offset,
     case OFFSET_TCPR:
         if (s->feat & TIMER_FEAT_CAPT) {
             s->tcpr = value;
-	    break;
-	}
+            break;
+        }
+        /* fallthrough */
     default:
         hw_error("sh_timer_write: Bad offset %x\n", (int)offset);
     }
@@ -241,8 +262,9 @@ static uint64_t tmu012_read(void *opaque, hwaddr offset,
 #endif
 
     if (offset >= 0x20) {
-        if (!(s->feat & TMU012_FEAT_3CHAN))
-	    hw_error("tmu012_write: Bad channel offset %x\n", (int)offset);
+        if (!(s->feat & TMU012_FEAT_3CHAN)) {
+            hw_error("tmu012_write: Bad channel offset %x\n", (int)offset);
+        }
         return sh_timer_read(s->timer[2], offset - 0x20);
     }
 
@@ -272,33 +294,36 @@ static void tmu012_write(void *opaque, hwaddr offset,
 #endif
 
     if (offset >= 0x20) {
-        if (!(s->feat & TMU012_FEAT_3CHAN))
-	    hw_error("tmu012_write: Bad channel offset %x\n", (int)offset);
+        if (!(s->feat & TMU012_FEAT_3CHAN)) {
+            hw_error("tmu012_write: Bad channel offset %x\n", (int)offset);
+        }
         sh_timer_write(s->timer[2], offset - 0x20, value);
-	return;
+        return;
     }
 
     if (offset >= 0x14) {
         sh_timer_write(s->timer[1], offset - 0x14, value);
-	return;
+        return;
     }
 
     if (offset >= 0x08) {
         sh_timer_write(s->timer[0], offset - 0x08, value);
-	return;
+        return;
     }
 
     if (offset == 4) {
         sh_timer_start_stop(s->timer[0], value & (1 << 0));
         sh_timer_start_stop(s->timer[1], value & (1 << 1));
-        if (s->feat & TMU012_FEAT_3CHAN)
+        if (s->feat & TMU012_FEAT_3CHAN) {
             sh_timer_start_stop(s->timer[2], value & (1 << 2));
-	else
-            if (value & (1 << 2))
+        } else {
+            if (value & (1 << 2)) {
                 hw_error("tmu012_write: Bad channel\n");
+            }
+        }
 
-	s->tstr = value;
-	return;
+        s->tstr = value;
+        return;
     }
 
     if ((s->feat & TMU012_FEAT_TOCR) && offset == 0) {
@@ -314,8 +339,8 @@ static const MemoryRegionOps tmu012_ops = {
 
 void tmu012_init(MemoryRegion *sysmem, hwaddr base,
                  int feat, uint32_t freq,
-		 qemu_irq ch0_irq, qemu_irq ch1_irq,
-		 qemu_irq ch2_irq0, qemu_irq ch2_irq1)
+                 qemu_irq ch0_irq, qemu_irq ch1_irq,
+                 qemu_irq ch2_irq0, qemu_irq ch2_irq1)
 {
     tmu012_state *s;
     int timer_feat = (feat & TMU012_FEAT_EXTCLK) ? TIMER_FEAT_EXTCLK : 0;
@@ -324,9 +349,10 @@ void tmu012_init(MemoryRegion *sysmem, hwaddr base,
     s->feat = feat;
     s->timer[0] = sh_timer_init(freq, timer_feat, ch0_irq);
     s->timer[1] = sh_timer_init(freq, timer_feat, ch1_irq);
-    if (feat & TMU012_FEAT_3CHAN)
+    if (feat & TMU012_FEAT_3CHAN) {
         s->timer[2] = sh_timer_init(freq, timer_feat | TIMER_FEAT_CAPT,
-				    ch2_irq0); /* ch2_irq1 not supported */
+                                    ch2_irq0); /* ch2_irq1 not supported */
+    }
 
     memory_region_init_io(&s->iomem, NULL, &tmu012_ops, s,
                           "timer", 0x100000000ULL);

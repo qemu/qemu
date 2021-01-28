@@ -41,15 +41,16 @@ add a new unit test:
    test. The test code should be organized with the glib testing framework.
    Copying and modifying an existing test is usually a good idea.
 
-3. Add the test to ``tests/Makefile.include``. First, name the unit test
-   program and add it to ``$(check-unit-y)``; then add a rule to build the
-   executable.  For example:
+3. Add the test to ``tests/meson.build``. The unit tests are listed in a
+   dictionary called ``tests``.  The values are any additional sources and
+   dependencies to be linked with the test.  For a simple test whose source
+   is in ``tests/foo-test.c``, it is enough to add an entry like::
 
-.. code::
-
-  check-unit-y += tests/foo-test$(EXESUF)
-  tests/foo-test$(EXESUF): tests/foo-test.o $(test-util-obj-y)
-  ...
+     {
+       ...
+       'foo-test': [],
+       ...
+     }
 
 Since unit tests don't require environment variables, the simplest way to debug
 a unit test failure is often directly invoking it or even running it under
@@ -70,57 +71,14 @@ QTest
 
 QTest is a device emulation testing framework.  It can be very useful to test
 device models; it could also control certain aspects of QEMU (such as virtual
-clock stepping), with a special purpose "qtest" protocol.  Refer to the
-documentation in ``qtest.c`` for more details of the protocol.
+clock stepping), with a special purpose "qtest" protocol.  Refer to
+:doc:`qtest` for more details.
 
 QTest cases can be executed with
 
 .. code::
 
    make check-qtest
-
-The QTest library is implemented by ``tests/qtest/libqtest.c`` and the API is
-defined in ``tests/qtest/libqtest.h``.
-
-Consider adding a new QTest case when you are introducing a new virtual
-hardware, or extending one if you are adding functionalities to an existing
-virtual device.
-
-On top of libqtest, a higher level library, ``libqos``, was created to
-encapsulate common tasks of device drivers, such as memory management and
-communicating with system buses or devices. Many virtual device tests use
-libqos instead of directly calling into libqtest.
-
-Steps to add a new QTest case are:
-
-1. Create a new source file for the test. (More than one file can be added as
-   necessary.) For example, ``tests/qtest/foo-test.c``.
-
-2. Write the test code with the glib and libqtest/libqos API. See also existing
-   tests and the library headers for reference.
-
-3. Register the new test in ``tests/qtest/Makefile.include``. Add the test
-   executable name to an appropriate ``check-qtest-*-y`` variable. For example:
-
-   ``check-qtest-generic-y = tests/qtest/foo-test$(EXESUF)``
-
-4. Add object dependencies of the executable in the Makefile, including the
-   test source file(s) and other interesting objects. For example:
-
-   ``tests/qtest/foo-test$(EXESUF): tests/qtest/foo-test.o $(libqos-obj-y)``
-
-Debugging a QTest failure is slightly harder than the unit test because the
-tests look up QEMU program names in the environment variables, such as
-``QTEST_QEMU_BINARY`` and ``QTEST_QEMU_IMG``, and also because it is not easy
-to attach gdb to the QEMU process spawned from the test. But manual invoking
-and using gdb on the test is still simple to do: find out the actual command
-from the output of
-
-.. code::
-
-  make check-qtest V=1
-
-which you can run manually.
 
 QAPI schema tests
 -----------------
@@ -153,7 +111,7 @@ check-block
 -----------
 
 ``make check-block`` runs a subset of the block layer iotests (the tests that
-are in the "auto" group in ``tests/qemu-iotests/group``).
+are in the "auto" group).
 See the "QEMU iotests" section below for more information.
 
 GCC gcov support
@@ -265,6 +223,54 @@ Otherwise, image locking implications have to be considered.  For example,
 another application on the host may have locked the file, possibly leading to a
 test failure.  If using such devices are explicitly desired, consider adding
 ``locking=off`` option to disable image locking.
+
+Test case groups
+----------------
+
+"Tests may belong to one or more test groups, which are defined in the form
+of a comment in the test source file. By convention, test groups are listed
+in the second line of the test file, after the "#!/..." line, like this:
+
+.. code::
+
+  #!/usr/bin/env python3
+  # group: auto quick
+  #
+  ...
+
+Another way of defining groups is creating the tests/qemu-iotests/group.local
+file. This should be used only for downstream (this file should never appear
+in upstream). This file may be used for defining some downstream test groups
+or for temporarily disabling tests, like this:
+
+.. code::
+
+  # groups for some company downstream process
+  #
+  # ci - tests to run on build
+  # down - our downstream tests, not for upstream
+  #
+  # Format of each line is:
+  # TEST_NAME TEST_GROUP [TEST_GROUP ]...
+
+  013 ci
+  210 disabled
+  215 disabled
+  our-ugly-workaround-test down ci
+
+Note that the following group names have a special meaning:
+
+- quick: Tests in this group should finish within a few seconds.
+
+- auto: Tests in this group are used during "make check" and should be
+  runnable in any case. That means they should run with every QEMU binary
+  (also non-x86), with every QEMU configuration (i.e. must not fail if
+  an optional feature is not compiled in - but reporting a "skip" is ok),
+  work at least with the qcow2 file format, work with all kind of host
+  filesystems and users (e.g. "nobody" or "root") and must not take too
+  much memory and disk space (since CI pipelines tend to fail otherwise).
+
+- disabled: Tests in this group are disabled and ignored by check.
 
 .. _docker-ref:
 
@@ -696,7 +702,7 @@ To manually install Avocado and its dependencies, run:
 
 Alternatively, follow the instructions on this link:
 
-  http://avocado-framework.readthedocs.io/en/latest/GetStartedGuide.html#installing-avocado
+  https://avocado-framework.readthedocs.io/en/latest/guides/user/chapters/installing.html
 
 Overview
 --------
@@ -879,7 +885,7 @@ Parameter reference
 To understand how Avocado parameters are accessed by tests, and how
 they can be passed to tests, please refer to::
 
-  http://avocado-framework.readthedocs.io/en/latest/WritingTests.html#accessing-test-parameters
+  https://avocado-framework.readthedocs.io/en/latest/guides/writer/chapters/writing.html#accessing-test-parameters
 
 Parameter values can be easily seen in the log files, and will look
 like the following:
@@ -912,6 +918,68 @@ qemu_bin
 ~~~~~~~~
 
 The exact QEMU binary to be used on QEMUMachine.
+
+Skipping tests
+--------------
+The Avocado framework provides Python decorators which allow for easily skip
+tests running under certain conditions. For example, on the lack of a binary
+on the test system or when the running environment is a CI system. For further
+information about those decorators, please refer to::
+
+  https://avocado-framework.readthedocs.io/en/latest/guides/writer/chapters/writing.html#skipping-tests
+
+While the conditions for skipping tests are often specifics of each one, there
+are recurring scenarios identified by the QEMU developers and the use of
+environment variables became a kind of standard way to enable/disable tests.
+
+Here is a list of the most used variables:
+
+AVOCADO_ALLOW_LARGE_STORAGE
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Tests which are going to fetch or produce assets considered *large* are not
+going to run unless that `AVOCADO_ALLOW_LARGE_STORAGE=1` is exported on
+the environment.
+
+The definition of *large* is a bit arbitrary here, but it usually means an
+asset which occupies at least 1GB of size on disk when uncompressed.
+
+AVOCADO_ALLOW_UNTRUSTED_CODE
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+There are tests which will boot a kernel image or firmware that can be
+considered not safe to run on the developer's workstation, thus they are
+skipped by default. The definition of *not safe* is also arbitrary but
+usually it means a blob which either its source or build process aren't
+public available.
+
+You should export `AVOCADO_ALLOW_UNTRUSTED_CODE=1` on the environment in
+order to allow tests which make use of those kind of assets.
+
+AVOCADO_TIMEOUT_EXPECTED
+~~~~~~~~~~~~~~~~~~~~~~~~
+The Avocado framework has a timeout mechanism which interrupts tests to avoid the
+test suite of getting stuck. The timeout value can be set via test parameter or
+property defined in the test class, for further details::
+
+  https://avocado-framework.readthedocs.io/en/latest/guides/writer/chapters/writing.html#setting-a-test-timeout
+
+Even though the timeout can be set by the test developer, there are some tests
+that may not have a well-defined limit of time to finish under certain
+conditions. For example, tests that take longer to execute when QEMU is
+compiled with debug flags. Therefore, the `AVOCADO_TIMEOUT_EXPECTED` variable
+has been used to determine whether those tests should run or not.
+
+GITLAB_CI
+~~~~~~~~~
+A number of tests are flagged to not run on the GitLab CI. Usually because
+they proved to the flaky or there are constraints on the CI environment which
+would make them fail. If you encounter a similar situation then use that
+variable as shown on the code snippet below to skip the test:
+
+.. code::
+
+  @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+  def test(self):
+      do_something()
 
 Uninstalling Avocado
 --------------------
@@ -953,7 +1021,7 @@ compiler flags are needed to build for a given target.
 If you have the ability to run containers as the user you can also
 take advantage of the build systems "Docker" support. It will then use
 containers to build any test case for an enabled guest where there is
-no system compiler available. See :ref: `_docker-ref` for details.
+no system compiler available. See :ref:`docker-ref` for details.
 
 Running subset of tests
 -----------------------

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw auto quick
 #
 # Test case for image corruption (overlapping data structures) in qcow2
 #
@@ -46,7 +47,7 @@ _filter_io_error()
 
 # This tests qcow2-specific low-level functionality
 _supported_fmt qcow2
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 # These tests only work for compat=1.1 images without an external
 # data file with refcount_bits=16

@@ -6,7 +6,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -50,7 +50,6 @@ static const char * const excp_names[0x80] = {
     [TT_EXTINT | 0xd] = "External Interrupt 13",
     [TT_EXTINT | 0xe] = "External Interrupt 14",
     [TT_EXTINT | 0xf] = "External Interrupt 15",
-    [TT_TOVF] = "Tag Overflow",
     [TT_CODE_ACCESS] = "Instruction Access Error",
     [TT_DATA_ACCESS] = "Data Access Error",
     [TT_DIV_ZERO] = "Division By Zero",

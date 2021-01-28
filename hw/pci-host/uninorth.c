@@ -32,8 +32,6 @@
 #include "hw/pci-host/uninorth.h"
 #include "trace.h"
 
-static const int unin_irq_line[] = { 0x1b, 0x1c, 0x1d, 0x1e };
-
 static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     return (irq_num + (pci_dev->devfn >> 3)) & 3;
@@ -43,7 +41,7 @@ static void pci_unin_set_irq(void *opaque, int irq_num, int level)
 {
     UNINHostState *s = opaque;
 
-    trace_unin_set_irq(unin_irq_line[irq_num], level);
+    trace_unin_set_irq(irq_num, level);
     qemu_set_irq(s->irqs[irq_num], level);
 }
 
@@ -65,15 +63,13 @@ static uint32_t unin_get_config_reg(uint32_t reg, uint32_t addr)
         if (slot == 32) {
             slot = -1; /* XXX: should this be 0? */
         }
-        func = (reg >> 8) & 7;
+        func = PCI_FUNC(reg >> 8);
 
         /* ... and then convert them to x86 format */
         /* config pointer */
         retval = (reg & (0xff - 7)) | (addr & 7);
-        /* slot */
-        retval |= slot << 11;
-        /* fn */
-        retval |= func << 8;
+        /* slot, fn */
+        retval |= PCI_DEVFN(slot, func) << 8;
     }
 
     trace_unin_get_config_reg(reg, addr, retval);
@@ -112,15 +108,6 @@ static const MemoryRegionOps unin_data_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void pci_unin_init_irqs(UNINHostState *s)
-{
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(s->irqs); i++) {
-        s->irqs[i] = qdev_get_gpio_in(DEVICE(s->pic), unin_irq_line[i]);
-    }
-}
-
 static char *pci_unin_main_ofw_unit_address(const SysBusDevice *dev)
 {
     UNINHostState *s = UNI_NORTH_PCI_HOST_BRIDGE(dev);
@@ -141,7 +128,6 @@ static void pci_unin_main_realize(DeviceState *dev, Error **errp)
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
     pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north-pci");
-    pci_unin_init_irqs(s);
 
     /* DEC 21154 bridge */
 #if 0
@@ -172,15 +158,12 @@ static void pci_unin_main_init(Object *obj)
                              "unin-pci-hole", &s->pci_mmio,
                              0x80000000ULL, 0x10000000ULL);
 
-    object_property_add_link(obj, "pic", TYPE_OPENPIC,
-                             (Object **) &s->pic,
-                             qdev_prop_allow_set_link_before_realize,
-                             0);
-
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
     sysbus_init_mmio(sbd, &s->pci_hole);
     sysbus_init_mmio(sbd, &s->pci_io);
+
+    qdev_init_gpio_out(DEVICE(obj), s->irqs, ARRAY_SIZE(s->irqs));
 }
 
 static void pci_u3_agp_realize(DeviceState *dev, Error **errp)
@@ -196,7 +179,6 @@ static void pci_u3_agp_realize(DeviceState *dev, Error **errp)
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
     pci_create_simple(h->bus, PCI_DEVFN(11, 0), "u3-agp");
-    pci_unin_init_irqs(s);
 }
 
 static void pci_u3_agp_init(Object *obj)
@@ -220,15 +202,12 @@ static void pci_u3_agp_init(Object *obj)
                              "unin-pci-hole", &s->pci_mmio,
                              0x80000000ULL, 0x70000000ULL);
 
-    object_property_add_link(obj, "pic", TYPE_OPENPIC,
-                             (Object **) &s->pic,
-                             qdev_prop_allow_set_link_before_realize,
-                             0);
-
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
     sysbus_init_mmio(sbd, &s->pci_hole);
     sysbus_init_mmio(sbd, &s->pci_io);
+
+    qdev_init_gpio_out(DEVICE(obj), s->irqs, ARRAY_SIZE(s->irqs));
 }
 
 static void pci_unin_agp_realize(DeviceState *dev, Error **errp)
@@ -244,7 +223,6 @@ static void pci_unin_agp_realize(DeviceState *dev, Error **errp)
                                    PCI_DEVFN(11, 0), 4, TYPE_PCI_BUS);
 
     pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north-agp");
-    pci_unin_init_irqs(s);
 }
 
 static void pci_unin_agp_init(Object *obj)
@@ -259,13 +237,10 @@ static void pci_unin_agp_init(Object *obj)
     memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_le_ops,
                           obj, "unin-agp-conf-data", 0x1000);
 
-    object_property_add_link(obj, "pic", TYPE_OPENPIC,
-                             (Object **) &s->pic,
-                             qdev_prop_allow_set_link_before_realize,
-                             0);
-
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
+
+    qdev_init_gpio_out(DEVICE(obj), s->irqs, ARRAY_SIZE(s->irqs));
 }
 
 static void pci_unin_internal_realize(DeviceState *dev, Error **errp)
@@ -281,7 +256,6 @@ static void pci_unin_internal_realize(DeviceState *dev, Error **errp)
                                    PCI_DEVFN(14, 0), 4, TYPE_PCI_BUS);
 
     pci_create_simple(h->bus, PCI_DEVFN(14, 0), "uni-north-internal-pci");
-    pci_unin_init_irqs(s);
 }
 
 static void pci_unin_internal_init(Object *obj)
@@ -296,13 +270,10 @@ static void pci_unin_internal_init(Object *obj)
     memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_le_ops,
                           obj, "unin-pci-conf-data", 0x1000);
 
-    object_property_add_link(obj, "pic", TYPE_OPENPIC,
-                             (Object **) &s->pic,
-                             qdev_prop_allow_set_link_before_realize,
-                             0);
-
     sysbus_init_mmio(sbd, &h->conf_mem);
     sysbus_init_mmio(sbd, &h->data_mem);
+
+    qdev_init_gpio_out(DEVICE(obj), s->irqs, ARRAY_SIZE(s->irqs));
 }
 
 static void unin_main_pci_host_realize(PCIDevice *d, Error **errp)

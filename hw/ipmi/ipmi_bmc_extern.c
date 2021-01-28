@@ -35,6 +35,7 @@
 #include "chardev/char-fe.h"
 #include "hw/ipmi/ipmi.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
 
@@ -510,7 +511,6 @@ static void ipmi_bmc_extern_finalize(Object *obj)
 {
     IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(obj);
 
-    timer_del(ibe->extern_timer);
     timer_free(ibe->extern_timer);
 }
 

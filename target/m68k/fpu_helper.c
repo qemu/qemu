@@ -135,16 +135,20 @@ static void restore_rounding_mode(CPUM68KState *env)
     }
 }
 
-void cpu_m68k_set_fpcr(CPUM68KState *env, uint32_t val)
+void cpu_m68k_restore_fp_status(CPUM68KState *env)
 {
-    env->fpcr = val & 0xffff;
-
     if (m68k_feature(env, M68K_FEATURE_CF_FPU)) {
         cf_restore_precision_mode(env);
     } else {
         m68k_restore_precision_mode(env);
     }
     restore_rounding_mode(env);
+}
+
+void cpu_m68k_set_fpcr(CPUM68KState *env, uint32_t val)
+{
+    env->fpcr = val & 0xffff;
+    cpu_m68k_restore_fp_status(env);
 }
 
 void HELPER(fitrunc)(CPUM68KState *env, FPReg *res, FPReg *val)

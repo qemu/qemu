@@ -16,8 +16,8 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 QEMU X.Y.Z monitor - type 'help' for more information
-Image resized.
 (qemu)
+Image resized.
 (qemu) qemu-io drv0 map
 64 KiB (0x10000) bytes     allocated at offset 0 bytes (0x0)
 *** done

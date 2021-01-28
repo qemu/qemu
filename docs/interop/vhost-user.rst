@@ -131,6 +131,23 @@ A region is:
 
 :mmap offset: 64-bit offset where region starts in the mapped memory
 
+Single memory region description
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
++---------+---------------+------+--------------+-------------+
+| padding | guest address | size | user address | mmap offset |
++---------+---------------+------+--------------+-------------+
+
+:padding: 64-bit
+
+:guest address: a 64-bit guest address of the region
+
+:size: a 64-bit size
+
+:user address: a 64-bit user address
+
+:mmap offset: 64-bit offset where region starts in the mapped memory
+
 Log description
 ^^^^^^^^^^^^^^^
 
@@ -513,7 +530,7 @@ descriptor table (split virtqueue) or descriptor ring (packed
 virtqueue). However, it can't work when we process descriptors
 out-of-order because some entries which store the information of
 inflight descriptors in available ring (split virtqueue) or descriptor
-ring (packed virtqueue) might be overrided by new entries. To solve
+ring (packed virtqueue) might be overridden by new entries. To solve
 this problem, slave need to allocate an extra buffer to store this
 information of inflight descriptors and share it with master for
 persistent. ``VHOST_USER_GET_INFLIGHT_FD`` and
@@ -1281,7 +1298,7 @@ Master message types
 ``VHOST_USER_ADD_MEM_REG``
   :id: 37
   :equivalent ioctl: N/A
-  :slave payload: memory region
+  :slave payload: single memory region description
 
   When the ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` protocol
   feature has been successfully negotiated, this message is submitted
@@ -1296,7 +1313,7 @@ Master message types
 ``VHOST_USER_REM_MEM_REG``
   :id: 38
   :equivalent ioctl: N/A
-  :slave payload: memory region
+  :slave payload: single memory region description
 
   When the ``VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS`` protocol
   feature has been successfully negotiated, this message is submitted

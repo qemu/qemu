@@ -6,6 +6,10 @@
 # See the COPYING file in the top-level directory.
 
 ##
+# = Audio
+##
+
+##
 # @AudiodevPerDirectionOptions:
 #
 # General audio backend options that are used for both playback and
@@ -298,6 +302,37 @@
     '*server': 'str' } }
 
 ##
+# @AudiodevSdlPerDirectionOptions:
+#
+# Options of the SDL audio backend that are used for both playback and
+# recording.
+#
+# @buffer-count: number of buffers (default 4)
+#
+# Since: 6.0
+##
+{ 'struct': 'AudiodevSdlPerDirectionOptions',
+  'base': 'AudiodevPerDirectionOptions',
+  'data': {
+    '*buffer-count': 'uint32' } }
+
+##
+# @AudiodevSdlOptions:
+#
+# Options of the SDL audio backend.
+#
+# @in: options of the recording stream
+#
+# @out: options of the playback stream
+#
+# Since: 6.0
+##
+{ 'struct': 'AudiodevSdlOptions',
+  'data': {
+    '*in':  'AudiodevSdlPerDirectionOptions',
+    '*out': 'AudiodevSdlPerDirectionOptions' } }
+
+##
 # @AudiodevWavOptions:
 #
 # Options of the wav audio backend.
@@ -381,6 +416,6 @@
     'jack':      'AudiodevJackOptions',
     'oss':       'AudiodevOssOptions',
     'pa':        'AudiodevPaOptions',
-    'sdl':       'AudiodevGenericOptions',
+    'sdl':       'AudiodevSdlOptions',
     'spice':     'AudiodevGenericOptions',
     'wav':       'AudiodevWavOptions' } }

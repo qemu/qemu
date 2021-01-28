@@ -1,0 +1,302 @@
+#!/usr/bin/env python3
+# group: rw migration
+#
+# Tests for dirty bitmaps migration.
+#
+# Copyright (c) 2016-2017 Virtuozzo International GmbH. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+import time
+import itertools
+import operator
+import re
+from iotests import qemu_img, qemu_img_create, Timeout
+
+
+disk_a = os.path.join(iotests.test_dir, 'disk_a')
+disk_b = os.path.join(iotests.test_dir, 'disk_b')
+base_a = os.path.join(iotests.test_dir, 'base_a')
+size = '1M'
+mig_file = os.path.join(iotests.test_dir, 'mig_file')
+mig_cmd = 'exec: cat > ' + mig_file
+incoming_cmd = 'exec: cat ' + mig_file
+
+
+class TestDirtyBitmapMigration(iotests.QMPTestCase):
+    def tearDown(self):
+        self.vm_a.shutdown()
+        self.vm_b.shutdown()
+        os.remove(disk_a)
+        os.remove(disk_b)
+        os.remove(mig_file)
+
+    def setUp(self):
+        qemu_img('create', '-f', iotests.imgfmt, disk_a, size)
+        qemu_img('create', '-f', iotests.imgfmt, disk_b, size)
+
+        self.vm_a = iotests.VM(path_suffix='a').add_drive(disk_a)
+        self.vm_a.launch()
+
+        self.vm_b = iotests.VM(path_suffix='b')
+
+    def add_bitmap(self, vm, granularity, persistent):
+        params = {'node': 'drive0',
+                  'name': 'bitmap0',
+                  'granularity': granularity}
+        if persistent:
+            params['persistent'] = True
+
+        result = vm.qmp('block-dirty-bitmap-add', **params)
+        self.assert_qmp(result, 'return', {});
+
+    def get_bitmap_hash(self, vm):
+        result = vm.qmp('x-debug-block-dirty-bitmap-sha256',
+                        node='drive0', name='bitmap0')
+        return result['return']['sha256']
+
+    def check_bitmap(self, vm, sha256):
+        result = vm.qmp('x-debug-block-dirty-bitmap-sha256',
+                        node='drive0', name='bitmap0')
+        if sha256:
+            self.assert_qmp(result, 'return/sha256', sha256);
+        else:
+            self.assert_qmp(result, 'error/desc',
+                            "Dirty bitmap 'bitmap0' not found");
+
+    def do_test_migration_resume_source(self, persistent, migrate_bitmaps):
+        granularity = 512
+
+        # regions = ((start, count), ...)
+        regions = ((0, 0x10000),
+                   (0xf0000, 0x10000),
+                   (0xa0201, 0x1000))
+
+        mig_caps = [{'capability': 'events', 'state': True}]
+        if migrate_bitmaps:
+            mig_caps.append({'capability': 'dirty-bitmaps', 'state': True})
+
+        result = self.vm_a.qmp('migrate-set-capabilities',
+                               capabilities=mig_caps)
+        self.assert_qmp(result, 'return', {})
+
+        self.add_bitmap(self.vm_a, granularity, persistent)
+        for r in regions:
+            self.vm_a.hmp_qemu_io('drive0', 'write %d %d' % r)
+        sha256 = self.get_bitmap_hash(self.vm_a)
+
+        result = self.vm_a.qmp('migrate', uri=mig_cmd)
+        while True:
+            event = self.vm_a.event_wait('MIGRATION')
+            if event['data']['status'] == 'completed':
+                break
+        while True:
+            result = self.vm_a.qmp('query-status')
+            if (result['return']['status'] == 'postmigrate'):
+                break
+
+        # test that bitmap is still here
+        removed = (not migrate_bitmaps) and persistent
+        self.check_bitmap(self.vm_a, False if removed else sha256)
+
+        result = self.vm_a.qmp('cont')
+        self.assert_qmp(result, 'return', {})
+
+        # test that bitmap is still here after invalidation
+        self.check_bitmap(self.vm_a, sha256)
+
+        # shutdown and check that invalidation didn't fail
+        self.vm_a.shutdown()
+
+        # catch 'Could not reopen qcow2 layer: Bitmap already exists'
+        # possible error
+        log = self.vm_a.get_log()
+        log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
+        log = re.sub(r'^(wrote .* bytes at offset .*\n.*KiB.*ops.*sec.*\n){3}',
+                     '', log)
+        log = re.sub(r'\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
+        self.assertEqual(log, '')
+
+        # test that bitmap is still persistent
+        self.vm_a.launch()
+        self.check_bitmap(self.vm_a, sha256 if persistent else False)
+
+    def do_test_migration(self, persistent, migrate_bitmaps, online,
+                          shared_storage, pre_shutdown):
+        granularity = 512
+
+        # regions = ((start, count), ...)
+        regions = ((0, 0x10000),
+                   (0xf0000, 0x10000),
+                   (0xa0201, 0x1000))
+
+        should_migrate = \
+            (migrate_bitmaps and (persistent or not pre_shutdown)) or \
+            (persistent and shared_storage)
+        mig_caps = [{'capability': 'events', 'state': True}]
+        if migrate_bitmaps:
+            mig_caps.append({'capability': 'dirty-bitmaps', 'state': True})
+
+        self.vm_b.add_incoming(incoming_cmd if online else "defer")
+        self.vm_b.add_drive(disk_a if shared_storage else disk_b)
+
+        if online:
+            os.mkfifo(mig_file)
+            self.vm_b.launch()
+            result = self.vm_b.qmp('migrate-set-capabilities',
+                                   capabilities=mig_caps)
+            self.assert_qmp(result, 'return', {})
+
+        self.add_bitmap(self.vm_a, granularity, persistent)
+        for r in regions:
+            self.vm_a.hmp_qemu_io('drive0', 'write %d %d' % r)
+        sha256 = self.get_bitmap_hash(self.vm_a)
+
+        if pre_shutdown:
+            self.vm_a.shutdown()
+            self.vm_a.launch()
+
+        result = self.vm_a.qmp('migrate-set-capabilities',
+                               capabilities=mig_caps)
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm_a.qmp('migrate', uri=mig_cmd)
+        while True:
+            event = self.vm_a.event_wait('MIGRATION')
+            if event['data']['status'] == 'completed':
+                break
+
+        if not online:
+            self.vm_a.shutdown()
+            self.vm_b.launch()
+            result = self.vm_b.qmp('migrate-set-capabilities',
+                                   capabilities=mig_caps)
+            self.assert_qmp(result, 'return', {})
+            result = self.vm_b.qmp('migrate-incoming', uri=incoming_cmd)
+            self.assert_qmp(result, 'return', {})
+
+        while True:
+            event = self.vm_b.event_wait('MIGRATION')
+            if event['data']['status'] == 'completed':
+                break
+
+        self.check_bitmap(self.vm_b, sha256 if should_migrate else False)
+
+        if should_migrate:
+            self.vm_b.shutdown()
+
+            # catch 'Could not reopen qcow2 layer: Bitmap already exists'
+            # possible error
+            log = self.vm_b.get_log()
+            log = re.sub(r'^\[I \d+\.\d+\] OPENED\n', '', log)
+            log = re.sub(r'\[I \+\d+\.\d+\] CLOSED\n?$', '', log)
+            self.assertEqual(log, '')
+
+            # recreate vm_b, as we don't want -incoming option (this will lead
+            # to "cat" process left alive after test finish)
+            self.vm_b = iotests.VM(path_suffix='b')
+            self.vm_b.add_drive(disk_a if shared_storage else disk_b)
+            self.vm_b.launch()
+            self.check_bitmap(self.vm_b, sha256 if persistent else False)
+
+
+def inject_test_case(klass, name, method, *args, **kwargs):
+    mc = operator.methodcaller(method, *args, **kwargs)
+    setattr(klass, 'test_' + method + name, lambda self: mc(self))
+
+for cmb in list(itertools.product((True, False), repeat=5)):
+    name = ('_' if cmb[0] else '_not_') + 'persistent_'
+    name += ('_' if cmb[1] else '_not_') + 'migbitmap_'
+    name += '_online' if cmb[2] else '_offline'
+    name += '_shared' if cmb[3] else '_nonshared'
+    if (cmb[4]):
+        name += '__pre_shutdown'
+
+    inject_test_case(TestDirtyBitmapMigration, name, 'do_test_migration',
+                     *list(cmb))
+
+for cmb in list(itertools.product((True, False), repeat=2)):
+    name = ('_' if cmb[0] else '_not_') + 'persistent_'
+    name += ('_' if cmb[1] else '_not_') + 'migbitmap'
+
+    inject_test_case(TestDirtyBitmapMigration, name,
+                     'do_test_migration_resume_source', *list(cmb))
+
+
+class TestDirtyBitmapBackingMigration(iotests.QMPTestCase):
+    def setUp(self):
+        qemu_img_create('-f', iotests.imgfmt, base_a, size)
+        qemu_img_create('-f', iotests.imgfmt, '-F', iotests.imgfmt,
+                        '-b', base_a, disk_a, size)
+
+        for f in (disk_a, base_a):
+            qemu_img('bitmap', '--add', f, 'bmap0')
+
+        blockdev = {
+            'node-name': 'node0',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': disk_a
+            },
+            'backing': {
+                'node-name': 'node0-base',
+                'driver': iotests.imgfmt,
+                'file': {
+                    'driver': 'file',
+                    'filename': base_a
+                }
+            }
+        }
+
+        self.vm = iotests.VM()
+        self.vm.launch()
+
+        result = self.vm.qmp('blockdev-add', **blockdev)
+        self.assert_qmp(result, 'return', {})
+
+        # Check that the bitmaps are there
+        for node in self.vm.qmp('query-named-block-nodes', flat=True)['return']:
+            if 'node0' in node['node-name']:
+                self.assert_qmp(node, 'dirty-bitmaps[0]/name', 'bmap0')
+
+        caps = [{'capability': 'events', 'state': True}]
+        result = self.vm.qmp('migrate-set-capabilities', capabilities=caps)
+        self.assert_qmp(result, 'return', {})
+
+    def tearDown(self):
+        self.vm.shutdown()
+        for f in (disk_a, base_a):
+            os.remove(f)
+
+    def test_cont_on_source(self):
+        """
+        Continue the source after migration.
+        """
+        result = self.vm.qmp('migrate', uri=f'exec: cat > /dev/null')
+        self.assert_qmp(result, 'return', {})
+
+        with Timeout(10, 'Migration timeout'):
+            self.vm.wait_migration('postmigrate')
+
+        result = self.vm.qmp('cont')
+        self.assert_qmp(result, 'return', {})
+
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'],
+                 supported_protocols=['file'])

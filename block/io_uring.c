@@ -425,6 +425,6 @@ LuringState *luring_init(Error **errp)
 void luring_cleanup(LuringState *s)
 {
     io_uring_queue_exit(&s->ring);
-    g_free(s);
     trace_luring_cleanup_state(s);
+    g_free(s);
 }

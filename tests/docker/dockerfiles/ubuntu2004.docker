@@ -3,6 +3,7 @@ ENV PACKAGES flex bison \
     ccache \
     clang-10\
     gcc \
+    genisoimage \
     gettext \
     git \
     glusterfs-common \
@@ -22,6 +23,7 @@ ENV PACKAGES flex bison \
     libiscsi-dev \
     libjemalloc-dev \
     libjpeg-turbo8-dev \
+    liblttng-ust-dev \
     liblzo2-dev \
     libncurses5-dev \
     libncursesw5-dev \
@@ -35,6 +37,7 @@ ENV PACKAGES flex bison \
     libsasl2-dev \
     libsdl2-dev \
     libseccomp-dev \
+    libslirp-dev \
     libsnappy-dev \
     libspice-protocol-dev \
     libspice-server-dev \
@@ -46,6 +49,8 @@ ENV PACKAGES flex bison \
     libxen-dev \
     libzstd-dev \
     make \
+    netcat-openbsd \
+    ninja-build \
     python3-numpy \
     python3-opencv \
     python3-pil \

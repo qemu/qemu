@@ -21,7 +21,6 @@
 #include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "migration/vmstate.h"
-#include "tcg/tcg.h"
 #include "qom/object.h"
 
 #define VAPIC_IO_PORT           0x7e

@@ -335,9 +335,8 @@ static char *disk_to_vbd_name(unsigned int disk)
 static void xen_block_get_vdev(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    XenBlockVdev *vdev = qdev_get_prop_ptr(dev, prop);
+    XenBlockVdev *vdev = object_field_prop_ptr(obj, prop);
     char *str;
 
     switch (vdev->type) {
@@ -396,16 +395,10 @@ static int vbd_name_to_disk(const char *name, const char **endp,
 static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    XenBlockVdev *vdev = qdev_get_prop_ptr(dev, prop);
+    XenBlockVdev *vdev = object_field_prop_ptr(obj, prop);
     char *str, *p;
     const char *end;
-
-    if (dev->realized) {
-        qdev_prop_set_after_realize(dev, name, errp);
-        return;
-    }
 
     if (!visit_type_str(v, name, &str, errp)) {
         return;
@@ -574,7 +567,7 @@ static void xen_disk_realize(XenBlockDevice *blockdev, Error **errp)
         return;
     }
 
-    blockdev->info = blk_is_read_only(conf->blk) ? VDISK_READONLY : 0;
+    blockdev->info = blk_supports_write_perm(conf->blk) ? 0 : VDISK_READONLY;
 }
 
 static void xen_disk_class_init(ObjectClass *class, void *data)

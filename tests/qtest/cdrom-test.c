@@ -163,6 +163,18 @@ static void add_s390x_tests(void)
     qtest_add_data_func("cdrom/boot/virtio-scsi",
                         "-device virtio-scsi -device scsi-cd,drive=cdr "
                         "-blockdev file,node-name=cdr,filename=", test_cdboot);
+    qtest_add_data_func("cdrom/boot/with-bootindex",
+                        "-device virtio-serial -device virtio-scsi "
+                        "-device virtio-blk,drive=d1 "
+                        "-drive driver=null-co,read-zeroes=on,if=none,id=d1 "
+                        "-device virtio-blk,drive=d2,bootindex=1 "
+                        "-drive if=none,id=d2,media=cdrom,file=", test_cdboot);
+    qtest_add_data_func("cdrom/boot/without-bootindex",
+                        "-device virtio-scsi -device virtio-serial "
+                        "-device x-terminal3270 -device virtio-blk,drive=d1 "
+                        "-drive driver=null-co,read-zeroes=on,if=none,id=d1 "
+                        "-device virtio-blk,drive=d2 "
+                        "-drive if=none,id=d2,media=cdrom,file=", test_cdboot);
 }
 
 int main(int argc, char **argv)
@@ -205,7 +217,7 @@ int main(int argc, char **argv)
         add_cdrom_param_tests(sparc64machines);
     } else if (!strncmp(arch, "mips64", 6)) {
         const char *mips64machines[] = {
-            "magnum", "malta", "mips", "pica61", NULL
+            "magnum", "malta", "pica61", NULL
         };
         add_cdrom_param_tests(mips64machines);
     } else if (g_str_equal(arch, "arm") || g_str_equal(arch, "aarch64")) {

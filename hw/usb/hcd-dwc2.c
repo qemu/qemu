@@ -238,12 +238,23 @@ static void dwc2_handle_packet(DWC2State *s, uint32_t devadr, USBDevice *dev,
     pid = get_field(hctsiz, TSIZ_SC_MC_PID);
     pcnt = get_field(hctsiz, TSIZ_PKTCNT);
     len = get_field(hctsiz, TSIZ_XFERSIZE);
-    assert(len <= DWC2_MAX_XFER_SIZE);
+    if (len > DWC2_MAX_XFER_SIZE) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: HCTSIZ transfer size too large\n", __func__);
+        return;
+    }
+
     chan = index >> 3;
     p = &s->packet[chan];
 
     trace_usb_dwc2_handle_packet(chan, dev, &p->packet, epnum, types[eptype],
                                  dirs[epdir], mps, len, pcnt);
+
+    if (mps == 0) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                "%s: Bad HCCHAR_MPS set to zero\n", __func__);
+        return;
+    }
 
     if (eptype == USB_ENDPOINT_XFER_CONTROL && pid == TSIZ_SC_MC_PID_SETUP) {
         pid = USB_TOKEN_SETUP;
@@ -663,7 +674,12 @@ static uint64_t dwc2_glbreg_read(void *ptr, hwaddr addr, int index,
     DWC2State *s = ptr;
     uint32_t val;
 
-    assert(addr <= GINTSTS2);
+    if (addr > GINTSTS2) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+                      __func__, addr);
+        return 0;
+    }
+
     val = s->glbreg[index];
 
     switch (addr) {
@@ -690,7 +706,12 @@ static void dwc2_glbreg_write(void *ptr, hwaddr addr, int index, uint64_t val,
     uint32_t old;
     int iflg = 0;
 
-    assert(addr <= GINTSTS2);
+    if (addr > GINTSTS2) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+                      __func__, addr);
+        return;
+    }
+
     mmio = &s->glbreg[index];
     old = *mmio;
 
@@ -715,27 +736,34 @@ static void dwc2_glbreg_write(void *ptr, hwaddr addr, int index, uint64_t val,
         val &= ~GRSTCTL_DMAREQ;
         if (!(old & GRSTCTL_TXFFLSH) && (val & GRSTCTL_TXFFLSH)) {
                 /* TODO - TX fifo flush */
-            qemu_log_mask(LOG_UNIMP, "Tx FIFO flush not implemented\n");
+            qemu_log_mask(LOG_UNIMP, "%s: Tx FIFO flush not implemented\n",
+                          __func__);
         }
         if (!(old & GRSTCTL_RXFFLSH) && (val & GRSTCTL_RXFFLSH)) {
                 /* TODO - RX fifo flush */
-            qemu_log_mask(LOG_UNIMP, "Rx FIFO flush not implemented\n");
+            qemu_log_mask(LOG_UNIMP, "%s: Rx FIFO flush not implemented\n",
+                          __func__);
         }
         if (!(old & GRSTCTL_IN_TKNQ_FLSH) && (val & GRSTCTL_IN_TKNQ_FLSH)) {
                 /* TODO - device IN token queue flush */
-            qemu_log_mask(LOG_UNIMP, "Token queue flush not implemented\n");
+            qemu_log_mask(LOG_UNIMP, "%s: Token queue flush not implemented\n",
+                          __func__);
         }
         if (!(old & GRSTCTL_FRMCNTRRST) && (val & GRSTCTL_FRMCNTRRST)) {
                 /* TODO - host frame counter reset */
-            qemu_log_mask(LOG_UNIMP, "Frame counter reset not implemented\n");
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: Frame counter reset not implemented\n",
+                          __func__);
         }
         if (!(old & GRSTCTL_HSFTRST) && (val & GRSTCTL_HSFTRST)) {
                 /* TODO - host soft reset */
-            qemu_log_mask(LOG_UNIMP, "Host soft reset not implemented\n");
+            qemu_log_mask(LOG_UNIMP, "%s: Host soft reset not implemented\n",
+                          __func__);
         }
         if (!(old & GRSTCTL_CSFTRST) && (val & GRSTCTL_CSFTRST)) {
                 /* TODO - core soft reset */
-            qemu_log_mask(LOG_UNIMP, "Core soft reset not implemented\n");
+            qemu_log_mask(LOG_UNIMP, "%s: Core soft reset not implemented\n",
+                          __func__);
         }
         /* don't allow clearing of self-clearing bits */
         val |= old & (GRSTCTL_TXFFLSH | GRSTCTL_RXFFLSH |
@@ -774,7 +802,12 @@ static uint64_t dwc2_fszreg_read(void *ptr, hwaddr addr, int index,
     DWC2State *s = ptr;
     uint32_t val;
 
-    assert(addr == HPTXFSIZ);
+    if (addr != HPTXFSIZ) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+                      __func__, addr);
+        return 0;
+    }
+
     val = s->fszreg[index];
 
     trace_usb_dwc2_fszreg_read(addr, val);
@@ -789,7 +822,12 @@ static void dwc2_fszreg_write(void *ptr, hwaddr addr, int index, uint64_t val,
     uint32_t *mmio;
     uint32_t old;
 
-    assert(addr == HPTXFSIZ);
+    if (addr != HPTXFSIZ) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+                      __func__, addr);
+        return;
+    }
+
     mmio = &s->fszreg[index];
     old = *mmio;
 
@@ -810,7 +848,12 @@ static uint64_t dwc2_hreg0_read(void *ptr, hwaddr addr, int index,
     DWC2State *s = ptr;
     uint32_t val;
 
-    assert(addr >= HCFG && addr <= HPRT0);
+    if (addr < HCFG || addr > HPRT0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+                      __func__, addr);
+        return 0;
+    }
+
     val = s->hreg0[index];
 
     switch (addr) {
@@ -837,7 +880,12 @@ static void dwc2_hreg0_write(void *ptr, hwaddr addr, int index, uint64_t val,
     int prst = 0;
     int iflg = 0;
 
-    assert(addr >= HCFG && addr <= HPRT0);
+    if (addr < HCFG || addr > HPRT0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+                      __func__, addr);
+        return;
+    }
+
     mmio = &s->hreg0[index];
     old = *mmio;
 
@@ -923,7 +971,12 @@ static uint64_t dwc2_hreg1_read(void *ptr, hwaddr addr, int index,
     DWC2State *s = ptr;
     uint32_t val;
 
-    assert(addr >= HCCHAR(0) && addr <= HCDMAB(DWC2_NB_CHAN - 1));
+    if (addr < HCCHAR(0) || addr > HCDMAB(DWC2_NB_CHAN - 1)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+                      __func__, addr);
+        return 0;
+    }
+
     val = s->hreg1[index];
 
     trace_usb_dwc2_hreg1_read(addr, hreg1nm[index & 7], addr >> 5, val);
@@ -941,7 +994,12 @@ static void dwc2_hreg1_write(void *ptr, hwaddr addr, int index, uint64_t val,
     int enflg = 0;
     int disflg = 0;
 
-    assert(addr >= HCCHAR(0) && addr <= HCDMAB(DWC2_NB_CHAN - 1));
+    if (addr < HCCHAR(0) || addr > HCDMAB(DWC2_NB_CHAN - 1)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+                      __func__, addr);
+        return;
+    }
+
     mmio = &s->hreg1[index];
     old = *mmio;
 
@@ -1008,7 +1066,12 @@ static uint64_t dwc2_pcgreg_read(void *ptr, hwaddr addr, int index,
     DWC2State *s = ptr;
     uint32_t val;
 
-    assert(addr >= PCGCTL && addr <= PCGCCTL1);
+    if (addr < PCGCTL || addr > PCGCCTL1) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+                      __func__, addr);
+        return 0;
+    }
+
     val = s->pcgreg[index];
 
     trace_usb_dwc2_pcgreg_read(addr, pcgregnm[index], val);
@@ -1023,7 +1086,12 @@ static void dwc2_pcgreg_write(void *ptr, hwaddr addr, int index,
     uint32_t *mmio;
     uint32_t old;
 
-    assert(addr >= PCGCTL && addr <= PCGCCTL1);
+    if (addr < PCGCTL || addr > PCGCCTL1) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+                      __func__, addr);
+        return;
+    }
+
     mmio = &s->pcgreg[index];
     old = *mmio;
 
@@ -1108,7 +1176,7 @@ static uint64_t dwc2_hreg2_read(void *ptr, hwaddr addr, unsigned size)
 {
     /* TODO - implement FIFOs to support slave mode */
     trace_usb_dwc2_hreg2_read(addr, addr >> 12, 0);
-    qemu_log_mask(LOG_UNIMP, "FIFO read not implemented\n");
+    qemu_log_mask(LOG_UNIMP, "%s: FIFO read not implemented\n", __func__);
     return 0;
 }
 
@@ -1119,7 +1187,7 @@ static void dwc2_hreg2_write(void *ptr, hwaddr addr, uint64_t val,
 
     /* TODO - implement FIFOs to support slave mode */
     trace_usb_dwc2_hreg2_write(addr, addr >> 12, orig, 0, val);
-    qemu_log_mask(LOG_UNIMP, "FIFO write not implemented\n");
+    qemu_log_mask(LOG_UNIMP, "%s: FIFO write not implemented\n", __func__);
 }
 
 static const MemoryRegionOps dwc2_mmio_hreg2_ops = {

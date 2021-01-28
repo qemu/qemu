@@ -29,14 +29,20 @@
 # If the coprocessor is not present or disabled then we will generate
 # the NOCP exception; otherwise we let the insn through to the main decode.
 
+%vd_dp  22:1 12:4
+%vd_sp  12:4 22:1
+
+&nocp cp
+
 {
   # Special cases which do not take an early NOCP: VLLDM and VLSTM
-  VLLDM_VLSTM  1110 1100 001 l:1 rn:4 0000 1010 0000 0000
-  # TODO: VSCCLRM (new in v8.1M) is similar:
-  #VSCCLRM      1110 1100 1-01 1111 ---- 1011 ---- ---0
+  VLLDM_VLSTM  1110 1100 001 l:1 rn:4 0000 1010 op:1 000 0000
+  # VSCCLRM (new in v8.1M) is similar:
+  VSCCLRM      1110 1100 1.01 1111 .... 1011 imm:7 0   vd=%vd_dp size=3
+  VSCCLRM      1110 1100 1.01 1111 .... 1010 imm:8     vd=%vd_sp size=2
 
-  NOCP         111- 1110 ---- ---- ---- cp:4 ---- ----
-  NOCP         111- 110- ---- ---- ---- cp:4 ---- ----
-  # TODO: From v8.1M onwards we will also want this range to NOCP
-  #NOCP_8_1     111- 1111 ---- ---- ---- ---- ---- ---- cp=10
+  NOCP         111- 1110 ---- ---- ---- cp:4 ---- ---- &nocp
+  NOCP         111- 110- ---- ---- ---- cp:4 ---- ---- &nocp
+  # From v8.1M onwards this range will also NOCP:
+  NOCP_8_1     111- 1111 ---- ---- ---- ---- ---- ---- &nocp cp=10
 }

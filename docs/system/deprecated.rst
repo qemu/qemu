@@ -21,17 +21,6 @@ deprecated.
 System emulator command line arguments
 --------------------------------------
 
-``-machine enforce-config-section=on|off`` (since 3.1)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``enforce-config-section`` parameter is replaced by the
-``-global migration.send-configuration={on|off}`` option.
-
-``-no-kvm`` (since 1.3.0)
-'''''''''''''''''''''''''
-
-The ``-no-kvm`` argument is now a synonym for setting ``-accel tcg``.
-
 ``-usbdevice`` (since 2.10.0)
 '''''''''''''''''''''''''''''
 
@@ -86,12 +75,6 @@ The ``pretty=on|off`` switch has no effect for HMP monitors, but is
 silently ignored. Using the switch with HMP monitors will become an
 error in the future.
 
-``-realtime`` (since 4.1)
-'''''''''''''''''''''''''
-
-The ``-realtime mlock=on|off`` argument has been replaced by the
-``-overcommit mem-lock=on|off`` argument.
-
 RISC-V ``-bios`` (since 5.1)
 ''''''''''''''''''''''''''''
 
@@ -110,19 +93,6 @@ QEMU 5.1 has three options:
  2. ``-bios none`` - QEMU will not automatically load any firmware. It is up
       to the user to load all the images they need.
  3. ``-bios <file>`` - Tells QEMU to load the specified file as the firmwrae.
-
-``-tb-size`` option (since 5.0)
-'''''''''''''''''''''''''''''''
-
-QEMU 5.0 introduced an alternative syntax to specify the size of the translation
-block cache, ``-accel tcg,tb-size=``.  The new syntax deprecates the
-previously available ``-tb-size`` option.
-
-``-show-cursor`` option (since 5.0)
-'''''''''''''''''''''''''''''''''''
-
-Use ``-display sdl,show-cursor=on`` or
- ``-display gtk,show-cursor=on`` instead.
 
 ``Configuring floppies with ``-global``
 '''''''''''''''''''''''''''''''''''''''
@@ -157,14 +127,15 @@ Drives with interface types other than ``if=none`` are for onboard
 devices.  It is possible to use drives the board doesn't pick up with
 -device.  This usage is now deprecated.  Use ``if=none`` instead.
 
+Short-form boolean options (since 6.0)
+''''''''''''''''''''''''''''''''''''''
+
+Boolean options such as ``share=on``/``share=off`` could be written
+in short form as ``share`` and ``noshare``.  This is now deprecated
+and will cause a warning.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
-
-``change`` (since 2.5.0)
-''''''''''''''''''''''''
-
-Use ``blockdev-change-medium`` or ``change-vnc-password`` instead.
 
 ``blockdev-open-tray``, ``blockdev-close-tray`` argument ``device`` (since 2.8.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -264,6 +235,13 @@ chardev client socket with ``wait`` option (since 4.0)
 Character devices creating sockets in client mode should not specify
 the 'wait' field, which is only applicable to sockets in server mode
 
+``nbd-server-add`` and ``nbd-server-remove`` (since 5.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use the more generic commands ``block-export-add`` and ``block-export-del``
+instead.  As part of this deprecation, where ``nbd-server-add`` used a
+single ``bitmap``, the new ``block-export-add`` uses a list of ``bitmaps``.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
@@ -277,12 +255,13 @@ for VNC should be performed using the pluggable QAuthZ objects.
 System emulator CPUS
 --------------------
 
-``compat`` property of server class POWER CPUs (since 5.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+``moxie`` CPU (since 5.2.0)
+'''''''''''''''''''''''''''
 
-The ``compat`` property used to set backwards compatibility modes for
-the processor has been deprecated. The ``max-cpu-compat`` property of
-the ``pseries`` machine type should be used instead.
+The ``moxie`` guest CPU support is deprecated and will be removed in
+a future version of QEMU. It's unclear whether anybody is still using
+CPU emulation in QEMU, and there are no test images available to make
+sure that the code is still working.
 
 ``lm32`` CPUs (since 5.2.0)
 '''''''''''''''''''''''''''
@@ -299,6 +278,19 @@ The ``unicore32`` guest CPU support is deprecated and will be removed in
 a future version of QEMU. Support for this CPU was removed from the
 upstream Linux kernel, and there is no available upstream toolchain
 to build binaries for it.
+
+``Icelake-Client`` CPU Model (since 5.2.0)
+''''''''''''''''''''''''''''''''''''''''''
+
+``Icelake-Client`` CPU Models are deprecated. Use ``Icelake-Server`` CPU
+Models instead.
+
+MIPS ``I7200`` CPU Model (since 5.2)
+''''''''''''''''''''''''''''''''''''
+
+The ``I7200`` guest CPU relies on the nanoMIPS ISA, which is deprecated
+(the ISA has never been upstreamed to a compiler toolchain). Therefore
+this CPU is also deprecated.
 
 System emulator devices
 -----------------------
@@ -318,22 +310,18 @@ The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
 System emulator machines
 ------------------------
 
-mips ``r4k`` platform (since 5.0)
-'''''''''''''''''''''''''''''''''
-
-This machine type is very old and unmaintained. Users should use the ``malta``
-machine type instead.
-
-mips ``fulong2e`` machine (since 5.1)
-'''''''''''''''''''''''''''''''''''''
-
-This machine has been renamed ``fuloong2e``.
-
 ``pc-1.0``, ``pc-1.1``, ``pc-1.2`` and ``pc-1.3`` (since 5.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 These machine types are very old and likely can not be used for live migration
 from old QEMU versions anymore. A newer machine type should be used instead.
+
+Raspberry Pi ``raspi2`` and ``raspi3`` machines (since 5.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The Raspberry Pi machines come in various models (A, A+, B, B+). To be able
+to distinguish which model QEMU is implementing, the ``raspi2`` and ``raspi3``
+machines have been renamed ``raspi2b`` and ``raspi3b``.
 
 Device options
 --------------
@@ -376,6 +364,15 @@ The above, converted to the current supported format::
 
   json:{"file.driver":"rbd", "file.pool":"rbd", "file.image":"name"}
 
+``sheepdog`` driver (since 5.2.0)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``sheepdog`` block device driver is deprecated. The corresponding upstream
+server project is no longer actively maintained. Users are recommended to switch
+to an alternative distributed block device driver such as RBD. The
+``qemu-img convert`` command can be used to liberate existing data by moving
+it out of sheepdog volumes into an alternative storage backend.
+
 linux-user mode CPUs
 --------------------
 
@@ -393,6 +390,13 @@ kernel in 2018, and has also been dropped from glibc.
 The ``ppc64abi32`` architecture has a number of issues which regularly
 trip up our CI testing and is suspected to be quite broken. For that
 reason the maintainers strongly suspect no one actually uses it.
+
+MIPS ``I7200`` CPU (since 5.2)
+''''''''''''''''''''''''''''''
+
+The ``I7200`` guest CPU relies on the nanoMIPS ISA, which is deprecated
+(the ISA has never been upstreamed to a compiler toolchain). Therefore
+this CPU is also deprecated.
 
 Related binaries
 ----------------
@@ -446,7 +450,7 @@ default configuration.
 
 The CPU model runnability guarantee won't apply anymore to
 existing CPU models.  Management software that needs runnability
-guarantees must resolve the CPU model aliases using te
+guarantees must resolve the CPU model aliases using the
 ``alias-of`` field returned by the ``query-cpu-definitions`` QMP
 command.
 
@@ -458,211 +462,11 @@ versions, aliases will point to newer CPU model versions
 depending on the machine type, so management software must
 resolve CPU model aliases before starting a virtual machine.
 
-
-Recently removed features
-=========================
-
-What follows is a record of recently removed, formerly deprecated
-features that serves as a record for users who have encountered
-trouble after a recent upgrade.
-
-System emulator command line arguments
---------------------------------------
-
-``-net ...,name=``\ *name* (removed in 5.1)
-'''''''''''''''''''''''''''''''''''''''''''
-
-The ``name`` parameter of the ``-net`` option was a synonym
-for the ``id`` parameter, which should now be used instead.
-
-QEMU Machine Protocol (QMP) commands
-------------------------------------
-
-``block-dirty-bitmap-add`` "autoload" parameter (since 4.2.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The "autoload" parameter has been ignored since 2.12.0. All bitmaps
-are automatically loaded from qcow2 images.
-
-``cpu-add`` (removed in 5.2)
-''''''''''''''''''''''''''''
-
-Use ``device_add`` for hotplugging vCPUs instead of ``cpu-add``.  See
-documentation of ``query-hotpluggable-cpus`` for additional details.
-
-Human Monitor Protocol (HMP) commands
--------------------------------------
-
-The ``hub_id`` parameter of ``hostfwd_add`` / ``hostfwd_remove`` (removed in 5.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``[hub_id name]`` parameter tuple of the 'hostfwd_add' and
-'hostfwd_remove' HMP commands has been replaced by ``netdev_id``.
-
-``cpu-add`` (removed in 5.2)
-''''''''''''''''''''''''''''
-
-Use ``device_add`` for hotplugging vCPUs instead of ``cpu-add``.  See
-documentation of ``query-hotpluggable-cpus`` for additional details.
-
 Guest Emulator ISAs
 -------------------
 
-RISC-V ISA privilege specification version 1.09.1 (removed in 5.1)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+nanoMIPS ISA
+''''''''''''
 
-The RISC-V ISA privilege specification version 1.09.1 has been removed.
-QEMU supports both the newer version 1.10.0 and the ratified version 1.11.0, these
-should be used instead of the 1.09.1 version.
-
-System emulator CPUS
---------------------
-
-KVM guest support on 32-bit Arm hosts (removed in 5.2)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The Linux kernel has dropped support for allowing 32-bit Arm systems
-to host KVM guests as of the 5.7 kernel. Accordingly, QEMU is deprecating
-its support for this configuration and will remove it in a future version.
-Running 32-bit guests on a 64-bit Arm host remains supported.
-
-RISC-V ISA Specific CPUs (removed in 5.1)
-'''''''''''''''''''''''''''''''''''''''''
-
-The RISC-V cpus with the ISA version in the CPU name have been removed. The
-four CPUs are: ``rv32gcsu-v1.9.1``, ``rv32gcsu-v1.10.0``, ``rv64gcsu-v1.9.1`` and
-``rv64gcsu-v1.10.0``. Instead the version can be specified via the CPU ``priv_spec``
-option when using the ``rv32`` or ``rv64`` CPUs.
-
-RISC-V no MMU CPUs (removed in 5.1)
-'''''''''''''''''''''''''''''''''''
-
-The RISC-V no MMU cpus have been removed. The two CPUs: ``rv32imacu-nommu`` and
-``rv64imacu-nommu`` can no longer be used. Instead the MMU status can be specified
-via the CPU ``mmu`` option when using the ``rv32`` or ``rv64`` CPUs.
-
-System emulator machines
-------------------------
-
-``spike_v1.9.1`` and ``spike_v1.10`` (removed in 5.1)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The version specific Spike machines have been removed in favour of the
-generic ``spike`` machine. If you need to specify an older version of the RISC-V
-spec you can use the ``-cpu rv64gcsu,priv_spec=v1.10.0`` command line argument.
-
-Related binaries
-----------------
-
-``qemu-nbd --partition`` (removed in 5.0)
-'''''''''''''''''''''''''''''''''''''''''
-
-The ``qemu-nbd --partition $digit`` code (also spelled ``-P``)
-could only handle MBR partitions, and never correctly handled logical
-partitions beyond partition 5.  Exporting a partition can still be
-done by utilizing the ``--image-opts`` option with a raw blockdev
-using the ``offset`` and ``size`` parameters layered on top of
-any other existing blockdev. For example, if partition 1 is 100MiB
-long starting at 1MiB, the old command::
-
-  qemu-nbd -t -P 1 -f qcow2 file.qcow2
-
-can be rewritten as::
-
-  qemu-nbd -t --image-opts driver=raw,offset=1M,size=100M,file.driver=qcow2,file.file.driver=file,file.file.filename=file.qcow2
-
-``qemu-img convert -n -o`` (removed in 5.1)
-'''''''''''''''''''''''''''''''''''''''''''
-
-All options specified in ``-o`` are image creation options, so
-they are now rejected when used with ``-n`` to skip image creation.
-
-
-``qemu-img create -b bad file $size`` (removed in 5.1)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-When creating an image with a backing file that could not be opened,
-``qemu-img create`` used to issue a warning about the failure but
-proceed with the image creation if an explicit size was provided.
-However, as the ``-u`` option exists for this purpose, it is safer to
-enforce that any failure to open the backing image (including if the
-backing file is missing or an incorrect format was specified) is an
-error when ``-u`` is not used.
-
-Command line options
---------------------
-
-``-smp`` (invalid topologies) (removed 5.2)
-'''''''''''''''''''''''''''''''''''''''''''
-
-CPU topology properties should describe whole machine topology including
-possible CPUs.
-
-However, historically it was possible to start QEMU with an incorrect topology
-where *n* <= *sockets* * *cores* * *threads* < *maxcpus*,
-which could lead to an incorrect topology enumeration by the guest.
-Support for invalid topologies is removed, the user must ensure
-topologies described with -smp include all possible cpus, i.e.
-*sockets* * *cores* * *threads* = *maxcpus*.
-
-``-numa`` node (without memory specified) (removed 5.2)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Splitting RAM by default between NUMA nodes had the same issues as ``mem``
-parameter with the difference that the role of the user plays QEMU using
-implicit generic or board specific splitting rule.
-Use ``memdev`` with *memory-backend-ram* backend or ``mem`` (if
-it's supported by used machine type) to define mapping explictly instead.
-Users of existing VMs, wishing to preserve the same RAM distribution, should
-configure it explicitly using ``-numa node,memdev`` options. Current RAM
-distribution can be retrieved using HMP command ``info numa`` and if separate
-memory devices (pc|nv-dimm) are present use ``info memory-device`` and subtract
-device memory from output of ``info numa``.
-
-``-numa node,mem=``\ *size* (removed in 5.1)
-''''''''''''''''''''''''''''''''''''''''''''
-
-The parameter ``mem`` of ``-numa node`` was used to assign a part of
-guest RAM to a NUMA node. But when using it, it's impossible to manage a specified
-RAM chunk on the host side (like bind it to a host node, setting bind policy, ...),
-so the guest ends up with the fake NUMA configuration with suboptiomal performance.
-However since 2014 there is an alternative way to assign RAM to a NUMA node
-using parameter ``memdev``, which does the same as ``mem`` and adds
-means to actually manage node RAM on the host side. Use parameter ``memdev``
-with *memory-backend-ram* backend as replacement for parameter ``mem``
-to achieve the same fake NUMA effect or a properly configured
-*memory-backend-file* backend to actually benefit from NUMA configuration.
-New machine versions (since 5.1) will not accept the option but it will still
-work with old machine types. User can check the QAPI schema to see if the legacy
-option is supported by looking at MachineInfo::numa-mem-supported property.
-
-``-mem-path`` fallback to RAM (removed in 5.0)
-''''''''''''''''''''''''''''''''''''''''''''''
-
-If guest RAM allocation from file pointed by ``mem-path`` failed,
-QEMU was falling back to allocating from RAM, which might have resulted
-in unpredictable behavior since the backing file specified by the user
-as ignored. Currently, users are responsible for making sure the backing storage
-specified with ``-mem-path`` can actually provide the guest RAM configured with
-``-m`` and QEMU fails to start up if RAM allocation is unsuccessful.
-
-``-smp`` (invalid topologies) (removed 5.2)
-'''''''''''''''''''''''''''''''''''''''''''
-
-CPU topology properties should describe whole machine topology including
-possible CPUs.
-
-However, historically it was possible to start QEMU with an incorrect topology
-where *n* <= *sockets* * *cores* * *threads* < *maxcpus*,
-which could lead to an incorrect topology enumeration by the guest.
-Support for invalid topologies is removed, the user must ensure
-topologies described with -smp include all possible cpus, i.e.
-*sockets* * *cores* * *threads* = *maxcpus*.
-
-Block devices
--------------
-
-VXHS backend (removed in 5.1)
-'''''''''''''''''''''''''''''
-
-The VXHS code does not compile since v2.12.0. It was removed in 5.1.
+The ``nanoMIPS`` ISA has never been upstreamed to any compiler toolchain.
+As it is hard to generate binaries for it, declare it deprecated.

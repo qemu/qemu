@@ -18,7 +18,7 @@ import ubuntuvm
 DEFAULT_CONFIG = {
     'install_cmds' : "apt-get update,"\
                      "apt-get build-dep -y qemu,"\
-                     "apt-get install -y libfdt-dev language-pack-en",
+                     "apt-get install -y libfdt-dev language-pack-en ninja-build",
 }
 
 class UbuntuX86VM(ubuntuvm.UbuntuVM):

@@ -32,8 +32,6 @@ config USB_EHCI_SYSBUS
 
 config USB_XHCI
     bool
-    default y if PCI_DEVICES
-    depends on PCI
     select USB
 
 config USB_XHCI_PCI
@@ -45,13 +43,11 @@ config USB_XHCI_PCI
 config USB_XHCI_NEC
     bool
     default y if PCI_DEVICES
-    depends on PCI
-    select USB_XHCI
+    select USB_XHCI_PCI
 
 config USB_XHCI_SYSBUS
     bool
-    default y if USB_XHCI
-    select USB
+    select USB_XHCI
 
 config USB_MUSB
     bool
@@ -116,3 +112,13 @@ config IMX_USBPHY
     bool
     default y
     depends on USB
+
+config USB_DWC3
+    bool
+    select USB_XHCI_SYSBUS
+    select REGISTER
+
+config XLNX_USB_SUBSYS
+    bool
+    default y if XLNX_VERSAL
+    select USB_DWC3

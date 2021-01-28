@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw quick
 #
 # Test qemu-img bitmap handling
 #
@@ -36,11 +37,19 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.nbd
 
 _supported_fmt qcow2
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 _require_command QEMU_NBD
 # compat=0.10 does not support bitmaps
 _unsupported_imgopts 'compat=0.10'
+
+# Filter irrelevant format-specific information from the qemu-img info
+# output (we only want the bitmaps, basically)
+_filter_irrelevant_img_info()
+{
+    grep -v -e 'compat' -e 'compression type' -e 'data file' -e 'extended l2' \
+            -e 'lazy refcounts' -e 'refcount bits'
+}
 
 echo
 echo "=== Initial image setup ==="
@@ -79,7 +88,7 @@ echo
 
 # Only bitmaps from the active layer are copied
 $QEMU_IMG convert --bitmaps -O qcow2 "$TEST_IMG.orig" "$TEST_IMG"
-_img_info --format-specific
+_img_info --format-specific | _filter_irrelevant_img_info
 # But we can also merge in bitmaps from other layers.  This test is a bit
 # contrived to cover more code paths, in reality, you could merge directly
 # into b0 without going through tmp
@@ -89,7 +98,7 @@ $QEMU_IMG bitmap --add --merge b0 -b "$TEST_IMG.base" -F $IMGFMT \
 $QEMU_IMG bitmap --merge tmp -f $IMGFMT "$TEST_IMG" b0
 $QEMU_IMG bitmap --remove --image-opts \
     driver=$IMGFMT,file.driver=file,file.filename="$TEST_IMG" tmp
-_img_info --format-specific
+_img_info --format-specific | _filter_irrelevant_img_info
 
 echo
 echo "=== Merge from top layer into backing image ==="
@@ -98,7 +107,7 @@ echo
 $QEMU_IMG rebase -u -F qcow2 -b "$TEST_IMG.base" "$TEST_IMG"
 $QEMU_IMG bitmap --add --merge b2 -b "$TEST_IMG" -F $IMGFMT \
      -f $IMGFMT "$TEST_IMG.base" b3
-_img_info --format-specific --backing-chain
+_img_info --format-specific --backing-chain | _filter_irrelevant_img_info
 
 echo
 echo "=== Check bitmap contents ==="
@@ -107,18 +116,18 @@ echo
 # x-dirty-bitmap is a hack for reading bitmaps; it abuses block status to
 # report "data":false for portions of the bitmap which are set
 IMG="driver=nbd,server.type=unix,server.path=$nbd_unix_socket"
-nbd_server_start_unix_socket -r -f qcow2 -B b0 "$TEST_IMG"
+nbd_server_start_unix_socket -r -f qcow2 \
+    -B b0 -B b1 -B b2 -B b3 "$TEST_IMG"
 $QEMU_IMG map --output=json --image-opts \
     "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b0" | _filter_qemu_img_map
-nbd_server_start_unix_socket -r -f qcow2 -B b1 "$TEST_IMG"
 $QEMU_IMG map --output=json --image-opts \
     "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b1" | _filter_qemu_img_map
-nbd_server_start_unix_socket -r -f qcow2 -B b2 "$TEST_IMG"
 $QEMU_IMG map --output=json --image-opts \
     "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b2" | _filter_qemu_img_map
-nbd_server_start_unix_socket -r -f qcow2 -B b3 "$TEST_IMG"
 $QEMU_IMG map --output=json --image-opts \
     "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b3" | _filter_qemu_img_map
+
+nbd_server_stop
 
 # success, all done
 echo '*** done'

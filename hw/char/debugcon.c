@@ -30,6 +30,7 @@
 #include "chardev/char-fe.h"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "qom/object.h"
 
 #define TYPE_ISA_DEBUGCON_DEVICE "isa-debugcon"

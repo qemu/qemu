@@ -300,22 +300,20 @@ static const MemoryRegionOps icu_ops = {
 static void rxicu_realize(DeviceState *dev, Error **errp)
 {
     RXICUState *icu = RX_ICU(dev);
-    int i, j;
+    int i;
 
     if (icu->init_sense == NULL) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "rx_icu: trigger-level property must be set.");
         return;
     }
-    for (i = j = 0; i < NR_IRQS; i++) {
-        if (icu->init_sense[j] == i) {
-            icu->src[i].sense = TRG_LEVEL;
-            if (j < icu->nr_sense) {
-                j++;
-            }
-        } else {
-            icu->src[i].sense = TRG_PEDGE;
-        }
+
+    for (i = 0; i < NR_IRQS; i++) {
+        icu->src[i].sense = TRG_PEDGE;
+    }
+    for (i = 0; i < icu->nr_sense; i++) {
+        uint8_t irqno = icu->init_sense[i];
+        icu->src[irqno].sense = TRG_LEVEL;
     }
     icu->req_irq = -1;
 }

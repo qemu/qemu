@@ -8,12 +8,11 @@ executable('virtiofsd', files(
   'helper.c',
   'passthrough_ll.c',
   'passthrough_seccomp.c'),
-  link_with: libvhost_user,
-  dependencies: [seccomp, qemuutil, libcap_ng],
+  dependencies: [seccomp, qemuutil, libcap_ng, vhost_user],
   install: true,
   install_dir: get_option('libexecdir'))
 
 configure_file(input: '50-qemu-virtiofsd.json.in',
                output: '50-qemu-virtiofsd.json',
-               configuration: config_host,
+               configuration: { 'libexecdir' : get_option('prefix') / get_option('libexecdir') },
                install_dir: qemu_datadir / 'vhost-user')

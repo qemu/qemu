@@ -213,7 +213,7 @@ static uint16_t handle_sccb_read_events(SCLPEventFacility *ef, SCCB *sccb,
 
     event_buf = &red->ebh;
     event_buf->length = 0;
-    slen = sizeof(sccb->data);
+    slen = sccb_data_len(sccb);
 
     rc = SCLP_RC_NO_EVENT_BUFFERS_STORED;
 

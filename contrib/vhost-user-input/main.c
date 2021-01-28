@@ -6,14 +6,12 @@
 
 #include "qemu/osdep.h"
 
-#include <glib.h>
 #include <linux/input.h>
 
 #include "qemu/iov.h"
 #include "qemu/bswap.h"
 #include "qemu/sockets.h"
-#include "contrib/libvhost-user/libvhost-user.h"
-#include "contrib/libvhost-user/libvhost-user-glib.h"
+#include "libvhost-user-glib.h"
 #include "standard-headers/linux/virtio_input.h"
 #include "qapi/error.h"
 
@@ -212,7 +210,9 @@ static int vi_get_config(VuDev *dev, uint8_t *config, uint32_t len)
 {
     VuInput *vi = container_of(dev, VuInput, dev.parent);
 
-    g_return_val_if_fail(len <= sizeof(*vi->sel_config), -1);
+    if (len > sizeof(*vi->sel_config)) {
+        return -1;
+    }
 
     if (vi->sel_config) {
         memcpy(config, vi->sel_config, len);

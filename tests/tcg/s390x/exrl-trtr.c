@@ -19,7 +19,7 @@ int main(void)
     }
     asm volatile(
         "    j 2f\n"
-        "1:  trtr 3(1,%[op1]),0(%[op2])\n"
+        "1:  trtr 3(1,%[op1]),%[op2]\n"
         "2:  exrl %[op1_len],1b\n"
         "    lgr %[r1],%%r1\n"
         "    lgr %[r2],%%r2\n"
@@ -27,9 +27,9 @@ int main(void)
         : [r1] "+r" (r1),
           [r2] "+r" (r2),
           [cc] "=r" (cc)
-        : [op1] "r" (&op1),
-          [op1_len] "r" (3),
-          [op2] "r" (&op2)
+        : [op1] "a" (&op1),
+          [op1_len] "a" (3),
+          [op2] "Q" (op2)
         : "r1", "r2", "cc");
     cc = (cc >> 28) & 3;
     if (cc != 1) {

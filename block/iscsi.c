@@ -322,25 +322,23 @@ iscsi_aio_cancel(BlockAIOCB *blockacb)
     IscsiAIOCB *acb = (IscsiAIOCB *)blockacb;
     IscsiLun *iscsilun = acb->iscsilun;
 
-    qemu_mutex_lock(&iscsilun->mutex);
+    WITH_QEMU_LOCK_GUARD(&iscsilun->mutex) {
 
-    /* If it was cancelled or completed already, our work is done here */
-    if (acb->cancelled || acb->status != -EINPROGRESS) {
-        qemu_mutex_unlock(&iscsilun->mutex);
-        return;
+        /* If it was cancelled or completed already, our work is done here */
+        if (acb->cancelled || acb->status != -EINPROGRESS) {
+            return;
+        }
+
+        acb->cancelled = true;
+
+        qemu_aio_ref(acb); /* released in iscsi_abort_task_cb() */
+
+        /* send a task mgmt call to the target to cancel the task on the target */
+        if (iscsi_task_mgmt_abort_task_async(iscsilun->iscsi, acb->task,
+                                             iscsi_abort_task_cb, acb) < 0) {
+            qemu_aio_unref(acb); /* since iscsi_abort_task_cb() won't be called */
+        }
     }
-
-    acb->cancelled = true;
-
-    qemu_aio_ref(acb); /* released in iscsi_abort_task_cb() */
-
-    /* send a task mgmt call to the target to cancel the task on the target */
-    if (iscsi_task_mgmt_abort_task_async(iscsilun->iscsi, acb->task,
-                                         iscsi_abort_task_cb, acb) < 0) {
-        qemu_aio_unref(acb); /* since iscsi_abort_task_cb() won't be called */
-    }
-
-    qemu_mutex_unlock(&iscsilun->mutex);
 }
 
 static const AIOCBInfo iscsi_aiocb_info = {
@@ -375,21 +373,21 @@ static void iscsi_timed_check_events(void *opaque)
 {
     IscsiLun *iscsilun = opaque;
 
-    qemu_mutex_lock(&iscsilun->mutex);
+    WITH_QEMU_LOCK_GUARD(&iscsilun->mutex) {
+        /* check for timed out requests */
+        iscsi_service(iscsilun->iscsi, 0);
 
-    /* check for timed out requests */
-    iscsi_service(iscsilun->iscsi, 0);
+        if (iscsilun->request_timed_out) {
+            iscsilun->request_timed_out = false;
+            iscsi_reconnect(iscsilun->iscsi);
+        }
 
-    if (iscsilun->request_timed_out) {
-        iscsilun->request_timed_out = false;
-        iscsi_reconnect(iscsilun->iscsi);
+        /*
+         * newer versions of libiscsi may return zero events. Ensure we are
+         * able to return to service once this situation changes.
+         */
+        iscsi_set_events(iscsilun);
     }
-
-    /* newer versions of libiscsi may return zero events. Ensure we are able
-     * to return to service once this situation changes. */
-    iscsi_set_events(iscsilun);
-
-    qemu_mutex_unlock(&iscsilun->mutex);
 
     timer_mod(iscsilun->event_timer,
               qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + EVENT_INTERVAL);
@@ -1526,12 +1524,10 @@ static void iscsi_detach_aio_context(BlockDriverState *bs)
     iscsilun->events = 0;
 
     if (iscsilun->nop_timer) {
-        timer_del(iscsilun->nop_timer);
         timer_free(iscsilun->nop_timer);
         iscsilun->nop_timer = NULL;
     }
     if (iscsilun->event_timer) {
-        timer_del(iscsilun->event_timer);
         timer_free(iscsilun->event_timer);
         iscsilun->event_timer = NULL;
     }

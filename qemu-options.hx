@@ -34,7 +34,6 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                dea-key-wrap=on|off controls support for DEA key wrapping (default=on)\n"
     "                suppress-vmdesc=on|off disables self-describing migration (default=off)\n"
     "                nvdimm=on|off controls NVDIMM support (default=off)\n"
-    "                enforce-config-section=on|off enforce configuration section migration (default=off)\n"
     "                memory-encryption=@var{} memory encryption object to use (default=none)\n"
     "                hmat=on|off controls ACPI HMAT support (default=off)\n",
     QEMU_ARCH_ALL)
@@ -91,13 +90,6 @@ SRST
     ``nvdimm=on|off``
         Enables or disables NVDIMM support. The default is off.
 
-    ``enforce-config-section=on|off``
-        If ``enforce-config-section`` is set to on, force migration code
-        to send configuration section even if the machine-type sets the
-        ``migration.send-configuration`` property to off. NOTE: this
-        parameter is deprecated. Please use ``-global``
-        ``migration.send-configuration``\ =on\|off instead.
-
     ``memory-encryption=``
         Memory encryption object to use. The default is none.
 
@@ -123,6 +115,7 @@ DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "                igd-passthru=on|off (enable Xen integrated Intel graphics passthrough, default=off)\n"
     "                kernel-irqchip=on|off|split controls accelerated irqchip support (default=on)\n"
     "                kvm-shadow-mem=size of KVM shadow MMU in bytes\n"
+    "                split-wx=on|off (enable TCG split w^x mapping)\n"
     "                tb-size=n (TCG translation block cache size)\n"
     "                thread=single|multi (enable multi-threaded TCG)\n", QEMU_ARCH_ALL)
 SRST
@@ -147,6 +140,12 @@ SRST
 
     ``kvm-shadow-mem=size``
         Defines the size of the KVM shadow MMU.
+
+    ``split-wx=on|off``
+        Controls the use of split w^x mapping for the TCG code generation
+        buffer. Some operating systems require this to be enabled, and in
+        such a case this will default on. On other operating systems, this
+        will default off, but one may enable this for testing or debugging.
 
     ``tb-size=n``
         Controls the size (in MiB) of the TCG translation block cache.
@@ -589,6 +588,7 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
 #endif
 #ifdef CONFIG_AUDIO_SDL
     "-audiodev sdl,id=id[,prop[=value][,...]]\n"
+    "                in|out.buffer-count= number of buffers\n"
 #endif
 #ifdef CONFIG_SPICE
     "-audiodev spice,id=id[,prop[=value][,...]]\n"
@@ -746,7 +746,12 @@ SRST
 ``-audiodev sdl,id=id[,prop[=value][,...]]``
     Creates a backend using SDL. This backend is available on most
     systems, but you should use your platform's native backend if
-    possible. This backend has no backend specific properties.
+    possible.
+
+    SDL specific options are:
+
+    ``in|out.buffer-count=count``
+        Sets the count of the buffers.
 
 ``-audiodev spice,id=id[,prop[=value][,...]]``
     Creates a backend that sends audio through SPICE. This backend
@@ -921,8 +926,8 @@ SRST
 ``-fda file``
   \
 ``-fdb file``
-    Use file as floppy disk 0/1 image (see
-    :ref:`disk_005fimages`).
+    Use file as floppy disk 0/1 image (see the :ref:`disk images` chapter in
+    the System Emulation Users Guide).
 ERST
 
 DEF("hda", HAS_ARG, QEMU_OPTION_hda,
@@ -939,8 +944,8 @@ SRST
 ``-hdc file``
   \ 
 ``-hdd file``
-    Use file as hard disk 0, 1, 2 or 3 image (see
-    :ref:`disk_005fimages`).
+    Use file as hard disk 0, 1, 2 or 3 image (see the :ref:`disk images`
+    chapter in the System Emulation Users Guide).
 ERST
 
 DEF("cdrom", HAS_ARG, QEMU_OPTION_cdrom,
@@ -1053,7 +1058,8 @@ SRST
             The path to the image file in the local filesystem
 
         ``aio``
-            Specifies the AIO backend (threads/native, default: threads)
+            Specifies the AIO backend (threads/native/io_uring,
+            default: threads)
 
         ``locking``
             Specifies whether the image file is protected with Linux OFD
@@ -1175,7 +1181,8 @@ DEF("drive", HAS_ARG, QEMU_OPTION_drive,
     "-drive [file=file][,if=type][,bus=n][,unit=m][,media=d][,index=i]\n"
     "       [,cache=writethrough|writeback|none|directsync|unsafe][,format=f]\n"
     "       [,snapshot=on|off][,rerror=ignore|stop|report]\n"
-    "       [,werror=ignore|stop|report|enospc][,id=name][,aio=threads|native]\n"
+    "       [,werror=ignore|stop|report|enospc][,id=name]\n"
+    "       [,aio=threads|native|io_uring]\n"
     "       [,readonly=on|off][,copy-on-read=on|off]\n"
     "       [,discard=ignore|unmap][,detect-zeroes=on|off|unmap]\n"
     "       [[,bps=b]|[[,bps_rd=r][,bps_wr=w]]]\n"
@@ -1195,9 +1202,9 @@ SRST
     In addition, it knows the following options:
 
     ``file=file``
-        This option defines which disk image (see
-        :ref:`disk_005fimages`) to use with this drive. If
-        the filename contains comma, you must double it (for instance,
+        This option defines which disk image (see the :ref:`disk images`
+        chapter in the System Emulation Users Guide) to use with this drive.
+        If the filename contains comma, you must double it (for instance,
         "file=my,,file" to use file "my,file").
 
         Special files such as iSCSI devices can be specified using
@@ -1247,8 +1254,8 @@ SRST
         The default mode is ``cache=writeback``.
 
     ``aio=aio``
-        aio is "threads", or "native" and selects between pthread based
-        disk I/O and native Linux AIO.
+        aio is "threads", "native", or "io_uring" and selects between pthread
+        based disk I/O, native Linux AIO, or Linux io_uring API.
 
     ``format=format``
         Specify which disk format will be used rather than detecting the
@@ -1406,31 +1413,31 @@ SRST
 ``-snapshot``
     Write to temporary files instead of disk image files. In this case,
     the raw disk image you use is not written back. You can however
-    force the write back by pressing C-a s (see
-    :ref:`disk_005fimages`).
+    force the write back by pressing C-a s (see the :ref:`disk images`
+    chapter in the System Emulation Users Guide).
 ERST
 
 DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
     "-fsdev local,id=id,path=path,security_model=mapped-xattr|mapped-file|passthrough|none\n"
-    " [,writeout=immediate][,readonly][,fmode=fmode][,dmode=dmode]\n"
+    " [,writeout=immediate][,readonly=on][,fmode=fmode][,dmode=dmode]\n"
     " [[,throttling.bps-total=b]|[[,throttling.bps-read=r][,throttling.bps-write=w]]]\n"
     " [[,throttling.iops-total=i]|[[,throttling.iops-read=r][,throttling.iops-write=w]]]\n"
     " [[,throttling.bps-total-max=bm]|[[,throttling.bps-read-max=rm][,throttling.bps-write-max=wm]]]\n"
     " [[,throttling.iops-total-max=im]|[[,throttling.iops-read-max=irm][,throttling.iops-write-max=iwm]]]\n"
     " [[,throttling.iops-size=is]]\n"
-    "-fsdev proxy,id=id,socket=socket[,writeout=immediate][,readonly]\n"
-    "-fsdev proxy,id=id,sock_fd=sock_fd[,writeout=immediate][,readonly]\n"
+    "-fsdev proxy,id=id,socket=socket[,writeout=immediate][,readonly=on]\n"
+    "-fsdev proxy,id=id,sock_fd=sock_fd[,writeout=immediate][,readonly=on]\n"
     "-fsdev synth,id=id\n",
     QEMU_ARCH_ALL)
 
 SRST
-``-fsdev local,id=id,path=path,security_model=security_model [,writeout=writeout][,readonly][,fmode=fmode][,dmode=dmode] [,throttling.option=value[,throttling.option=value[,...]]]``
+``-fsdev local,id=id,path=path,security_model=security_model [,writeout=writeout][,readonly=on][,fmode=fmode][,dmode=dmode] [,throttling.option=value[,throttling.option=value[,...]]]``
   \ 
-``-fsdev proxy,id=id,socket=socket[,writeout=writeout][,readonly]``
+``-fsdev proxy,id=id,socket=socket[,writeout=writeout][,readonly=on]``
   \
-``-fsdev proxy,id=id,sock_fd=sock_fd[,writeout=writeout][,readonly]``
+``-fsdev proxy,id=id,sock_fd=sock_fd[,writeout=writeout][,readonly=on]``
   \
-``-fsdev synth,id=id[,readonly]``
+``-fsdev synth,id=id[,readonly=on]``
     Define a new file system device. Valid options are:
 
     ``local``
@@ -1473,7 +1480,7 @@ SRST
         guest only when the data has been reported as written by the
         storage subsystem.
 
-    ``readonly``
+    ``readonly=on``
         Enables exporting 9p share as a readonly mount for guests. By
         default read-write access is given.
 
@@ -1538,18 +1545,18 @@ ERST
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
     "-virtfs local,path=path,mount_tag=tag,security_model=mapped-xattr|mapped-file|passthrough|none\n"
-    "        [,id=id][,writeout=immediate][,readonly][,fmode=fmode][,dmode=dmode][,multidevs=remap|forbid|warn]\n"
-    "-virtfs proxy,mount_tag=tag,socket=socket[,id=id][,writeout=immediate][,readonly]\n"
-    "-virtfs proxy,mount_tag=tag,sock_fd=sock_fd[,id=id][,writeout=immediate][,readonly]\n"
-    "-virtfs synth,mount_tag=tag[,id=id][,readonly]\n",
+    "        [,id=id][,writeout=immediate][,readonly=on][,fmode=fmode][,dmode=dmode][,multidevs=remap|forbid|warn]\n"
+    "-virtfs proxy,mount_tag=tag,socket=socket[,id=id][,writeout=immediate][,readonly=on]\n"
+    "-virtfs proxy,mount_tag=tag,sock_fd=sock_fd[,id=id][,writeout=immediate][,readonly=on]\n"
+    "-virtfs synth,mount_tag=tag[,id=id][,readonly=on]\n",
     QEMU_ARCH_ALL)
 
 SRST
-``-virtfs local,path=path,mount_tag=mount_tag ,security_model=security_model[,writeout=writeout][,readonly] [,fmode=fmode][,dmode=dmode][,multidevs=multidevs]``
+``-virtfs local,path=path,mount_tag=mount_tag ,security_model=security_model[,writeout=writeout][,readonly=on] [,fmode=fmode][,dmode=dmode][,multidevs=multidevs]``
   \ 
-``-virtfs proxy,socket=socket,mount_tag=mount_tag [,writeout=writeout][,readonly]``
+``-virtfs proxy,socket=socket,mount_tag=mount_tag [,writeout=writeout][,readonly=on]``
   \ 
-``-virtfs proxy,sock_fd=sock_fd,mount_tag=mount_tag [,writeout=writeout][,readonly]``
+``-virtfs proxy,sock_fd=sock_fd,mount_tag=mount_tag [,writeout=writeout][,readonly=on]``
   \
 ``-virtfs synth,mount_tag=mount_tag``
     Define a new virtual filesystem device and expose it to the guest using
@@ -1604,7 +1611,7 @@ SRST
         guest only when the data has been reported as written by the
         storage subsystem.
 
-    ``readonly``
+    ``readonly=on``
         Enables exporting 9p share as a readonly mount for guests. By
         default read-write access is given.
 
@@ -1693,8 +1700,8 @@ DEF("usbdevice", HAS_ARG, QEMU_OPTION_usbdevice,
 SRST
 ``-usbdevice devname``
     Add the USB device devname. Note that this option is deprecated,
-    please use ``-device usb-...`` instead. See
-    :ref:`usb_005fdevices`.
+    please use ``-device usb-...`` instead. See the chapter about
+    :ref:`Connecting USB devices` in the System Emulation Users Guide.
 
     ``mouse``
         Virtual Mouse. This will override the PS/2 mouse emulation when
@@ -2116,7 +2123,7 @@ SRST
         connections.
 
         The password must be set separately using the ``set_password``
-        command in the :ref:`pcsys_005fmonitor`. The
+        command in the :ref:`QEMU monitor`. The
         syntax to change your password is:
         ``set_password <protocol> <password>`` where <protocol> could be
         either "vnc" or "spice".
@@ -2161,8 +2168,8 @@ SRST
         and 'x509' settings to enable use of SSL and server
         certificates. This ensures a data encryption preventing
         compromise of authentication credentials. See the
-        :ref:`vnc_005fsecurity` section for details on
-        using SASL authentication.
+        :ref:`VNC security` section in the System Emulation Users Guide
+        for details on using SASL authentication.
 
     ``sasl-authz=ID``
         Provides the ID of the QAuthZ authorization object against which
@@ -2221,6 +2228,10 @@ SRST
         transmission. When not using an -audiodev argument, this option
         must be omitted, otherwise is must be present and specify a
         valid audiodev.
+
+    ``power-control``
+        Permit the remote client to issue shutdown, reboot or reset power
+        control requests.
 ERST
 
 ARCHHEADING(, QEMU_ARCH_I386)
@@ -3088,7 +3099,9 @@ The general form of a character device option is:
         -serial chardev:char1
 
     When you're using a multiplexed character device, some escape
-    sequences are interpreted in the input. See :ref:`mux_005fkeys`.
+    sequences are interpreted in the input. See the chapter about
+    :ref:`keys in the character backend multiplexer` in the
+    System Emulation Users Guide for more details.
 
     Note that some other command line options may implicitly create
     multiplexed character backends; for instance ``-serial mon:stdio``
@@ -3717,17 +3730,6 @@ SRST
     Do not start CPU at startup (you must type 'c' in the monitor).
 ERST
 
-DEF("realtime", HAS_ARG, QEMU_OPTION_realtime,
-    "-realtime [mlock=on|off]\n"
-    "                run qemu with realtime features\n"
-    "                mlock=on|off controls mlock support (default: on)\n",
-    QEMU_ARCH_ALL)
-SRST
-``-realtime mlock=on|off``
-    Run qemu with realtime features. mlocking qemu and guest memory can
-    be enabled via ``mlock=on`` (enabled by default).
-ERST
-
 DEF("overcommit", HAS_ARG, QEMU_OPTION_overcommit,
     "-overcommit [mem-lock=on|off][cpu-pm=on|off]\n"
     "                run qemu with overcommit hints\n"
@@ -3743,8 +3745,7 @@ SRST
 
     Locking qemu and guest memory can be enabled via ``mem-lock=on``
     (disabled by default). This works when host memory is not
-    overcommitted and reduces the worst-case latency for guest. This is
-    equivalent to ``realtime``.
+    overcommitted and reduces the worst-case latency for guest.
 
     Guest ability to manage power state of host cpus (increasing latency
     for other processes on the same host cpu, but decreasing latency for
@@ -3761,8 +3762,8 @@ DEF("gdb", HAS_ARG, QEMU_OPTION_gdb, \
     QEMU_ARCH_ALL)
 SRST
 ``-gdb dev``
-    Accept a gdb connection on device dev (see
-    :ref:`gdb_005fusage`). Note that this option does not pause QEMU
+    Accept a gdb connection on device dev (see the :ref:`GDB usage` chapter
+    in the System Emulation Users Guide). Note that this option does not pause QEMU
     execution -- if you want QEMU to not start the guest until you
     connect with gdb and issue a ``continue`` command, you will need to
     also pass the ``-S`` option to QEMU.
@@ -3787,7 +3788,7 @@ DEF("s", 0, QEMU_OPTION_s, \
 SRST
 ``-s``
     Shorthand for -gdb tcp::1234, i.e. open a gdbserver on TCP port 1234
-    (see :ref:`gdb_005fusage`).
+    (see the :ref:`GDB usage` chapter in the System Emulation Users Guide).
 ERST
 
 DEF("d", HAS_ARG, QEMU_OPTION_d, \
@@ -3898,6 +3899,31 @@ SRST
     changes to the disk image.
 ERST
 
+DEF("action", HAS_ARG, QEMU_OPTION_action,
+    "-action reboot=reset|shutdown\n"
+    "                   action when guest reboots [default=reset]\n"
+    "-action shutdown=poweroff|pause\n"
+    "                   action when guest shuts down [default=poweroff]\n"
+    "-action panic=pause|shutdown|none\n"
+    "                   action when guest panics [default=shutdown]\n"
+    "-action watchdog=reset|shutdown|poweroff|inject-nmi|pause|debug|none\n"
+    "                   action when watchdog fires [default=reset]\n",
+    QEMU_ARCH_ALL)
+SRST
+``-action event=action``
+    The action parameter serves to modify QEMU's default behavior when
+    certain guest events occur. It provides a generic method for specifying the
+    same behaviors that are modified by the ``-no-reboot`` and ``-no-shutdown``
+    parameters.
+
+    Examples:
+
+    ``-action panic=none``
+    ``-action reboot=shutdown,shutdown=pause``
+    ``-watchdog i6300esb -action watchdog=pause``
+
+ERST
+
 DEF("loadvm", HAS_ARG, QEMU_OPTION_loadvm, \
     "-loadvm [tag|id]\n" \
     "                start right away with a saved state (loadvm in monitor)\n",
@@ -3962,29 +3988,33 @@ SRST
 ERST
 
 DEF("icount", HAS_ARG, QEMU_OPTION_icount, \
-    "-icount [shift=N|auto][,align=on|off][,sleep=on|off,rr=record|replay,rrfile=<filename>,rrsnapshot=<snapshot>]\n" \
+    "-icount [shift=N|auto][,align=on|off][,sleep=on|off][,rr=record|replay,rrfile=<filename>[,rrsnapshot=<snapshot>]]\n" \
     "                enable virtual instruction counter with 2^N clock ticks per\n" \
     "                instruction, enable aligning the host and virtual clocks\n" \
-    "                or disable real time cpu sleeping\n", QEMU_ARCH_ALL)
+    "                or disable real time cpu sleeping, and optionally enable\n" \
+    "                record-and-replay mode\n", QEMU_ARCH_ALL)
 SRST
-``-icount [shift=N|auto][,rr=record|replay,rrfile=filename,rrsnapshot=snapshot]``
+``-icount [shift=N|auto][,align=on|off][,sleep=on|off][,rr=record|replay,rrfile=filename[,rrsnapshot=snapshot]]``
     Enable virtual instruction counter. The virtual cpu will execute one
     instruction every 2^N ns of virtual time. If ``auto`` is specified
     then the virtual cpu speed will be automatically adjusted to keep
     virtual time within a few seconds of real time.
-
-    When the virtual cpu is sleeping, the virtual time will advance at
-    default speed unless ``sleep=on|off`` is specified. With
-    ``sleep=on|off``, the virtual time will jump to the next timer
-    deadline instantly whenever the virtual cpu goes to sleep mode and
-    will not advance if no timer is enabled. This behavior give
-    deterministic execution times from the guest point of view.
 
     Note that while this option can give deterministic behavior, it does
     not provide cycle accurate emulation. Modern CPUs contain
     superscalar out of order cores with complex cache hierarchies. The
     number of instructions executed often has little or no correlation
     with actual performance.
+
+    When the virtual cpu is sleeping, the virtual time will advance at
+    default speed unless ``sleep=on`` is specified. With
+    ``sleep=on``, the virtual time will jump to the next timer
+    deadline instantly whenever the virtual cpu goes to sleep mode and
+    will not advance if no timer is enabled. This behavior gives
+    deterministic execution times from the guest point of view.
+    The default if icount is enabled is ``sleep=off``.
+    ``sleep=on`` cannot be used together with either ``shift=auto``
+    or ``align=on``.
 
     ``align=on`` will activate the delay algorithm which will try to
     synchronise the host clock and the virtual clock. The goal is to
@@ -3995,15 +4025,17 @@ SRST
     ``shift`` is ``auto``. Note: The sync algorithm will work for those
     shift values for which the guest clock runs ahead of the host clock.
     Typically this happens when the shift value is high (how high
-    depends on the host machine).
+    depends on the host machine). The default if icount is enabled
+    is ``align=off``.
 
-    When ``rr`` option is specified deterministic record/replay is
-    enabled. Replay log is written into filename file in record mode and
-    read from this file in replay mode.
-
-    Option rrsnapshot is used to create new vm snapshot named snapshot
-    at the start of execution recording. In replay mode this option is
-    used to load the initial VM state.
+    When the ``rr`` option is specified deterministic record/replay is
+    enabled. The ``rrfile=`` option must also be provided to
+    specify the path to the replay log. In record mode data is written
+    to this file, and in replay mode it is read back.
+    If the ``rrsnapshot`` option is given then it specifies a VM snapshot
+    name. In record mode, a new VM snapshot with the given name is created
+    at the start of execution recording. In replay mode this option
+    specifies the snapshot name used to load the initial VM state.
 ERST
 
 DEF("watchdog", HAS_ARG, QEMU_OPTION_watchdog, \
@@ -4075,21 +4107,6 @@ SRST
 
     ``-echr 0x14``; \ ``-echr 20``
 
-ERST
-
-DEF("show-cursor", 0, QEMU_OPTION_show_cursor, \
-    "-show-cursor    show cursor\n", QEMU_ARCH_ALL)
-SRST
-``-show-cursor``
-    Show cursor.
-ERST
-
-DEF("tb-size", HAS_ARG, QEMU_OPTION_tb_size, \
-    "-tb-size n      set TB size\n", QEMU_ARCH_ALL)
-SRST
-``-tb-size n``
-    Set TCG translation block cache size. Deprecated, use
-    '\ ``-accel tcg,tb-size=n``\ ' instead.
 ERST
 
 DEF("incoming", HAS_ARG, QEMU_OPTION_incoming, \
@@ -4190,10 +4207,10 @@ ERST
 DEF("semihosting", 0, QEMU_OPTION_semihosting,
     "-semihosting    semihosting mode\n",
     QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA | QEMU_ARCH_LM32 |
-    QEMU_ARCH_MIPS | QEMU_ARCH_NIOS2)
+    QEMU_ARCH_MIPS | QEMU_ARCH_NIOS2 | QEMU_ARCH_RISCV)
 SRST
 ``-semihosting``
-    Enable semihosting mode (ARM, M68K, Xtensa, MIPS, Nios II only).
+    Enable semihosting mode (ARM, M68K, Xtensa, MIPS, Nios II, RISC-V only).
 
     Note that this allows guest direct access to the host filesystem, so
     should only be used with a trusted guest OS.
@@ -4205,10 +4222,10 @@ DEF("semihosting-config", HAS_ARG, QEMU_OPTION_semihosting_config,
     "-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,arg=str[,...]]\n" \
     "                semihosting configuration\n",
 QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA | QEMU_ARCH_LM32 |
-QEMU_ARCH_MIPS | QEMU_ARCH_NIOS2)
+QEMU_ARCH_MIPS | QEMU_ARCH_NIOS2 | QEMU_ARCH_RISCV)
 SRST
 ``-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,arg=str[,...]]``
-    Enable and configure semihosting (ARM, M68K, Xtensa, MIPS, Nios II
+    Enable and configure semihosting (ARM, M68K, Xtensa, MIPS, Nios II, RISC-V
     only).
 
     Note that this allows guest direct access to the host filesystem, so
@@ -4222,6 +4239,8 @@ SRST
     Xtensa semihosting provides basic file IO calls, such as
     open/read/write/seek/select. Tensilica baremetal libc for ISS and
     linux platform "sim" use this interface.
+
+    On RISC-V this implements the standard semihosting API, version 0.2.
 
     ``target=native|gdb|auto``
         Defines where the semihosting calls will be addressed, to QEMU
@@ -4348,9 +4367,6 @@ SRST
 ``-enable-fips``
     Enable FIPS 140-2 compliance mode.
 ERST
-
-HXCOMM Deprecated by -accel tcg
-DEF("no-kvm", 0, QEMU_OPTION_no_kvm, "", QEMU_ARCH_I386)
 
 DEF("msg", HAS_ARG, QEMU_OPTION_msg,
     "-msg [timestamp[=on|off]][,guest-name=[on|off]]\n"

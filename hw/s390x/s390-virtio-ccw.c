@@ -17,6 +17,7 @@
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "exec/ram_addr.h"
+#include "hw/boards.h"
 #include "hw/s390x/s390-virtio-hcall.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
@@ -28,7 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/qemu-print.h"
-#include "s390-pci-bus.h"
+#include "hw/s390x/s390-pci-bus.h"
 #include "sysemu/reset.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/s390x/storage-attributes.h"
@@ -101,6 +102,7 @@ static const char *const reset_dev_types[] = {
     "s390-sclp-event-facility",
     "s390-flic",
     "diag288",
+    TYPE_S390_PCI_HOST_BRIDGE,
 };
 
 static void subsystem_reset(void)
@@ -141,8 +143,9 @@ static int virtio_ccw_hcall_notify(const uint64_t *args)
 static int virtio_ccw_hcall_early_printk(const uint64_t *args)
 {
     uint64_t mem = args[0];
+    MachineState *ms = MACHINE(qdev_get_machine());
 
-    if (mem < ram_size) {
+    if (mem < ms->ram_size) {
         /* Early printk */
         return 0;
     }
@@ -161,7 +164,6 @@ static void virtio_ccw_register_hcalls(void)
 static void s390_memory_init(MemoryRegion *ram)
 {
     MemoryRegion *sysmem = get_system_memory();
-    Error *local_err = NULL;
 
     /* allocate RAM for core */
     memory_region_add_subregion(sysmem, 0, ram);
@@ -170,11 +172,7 @@ static void s390_memory_init(MemoryRegion *ram)
      * Configure the maximum page size. As no memory devices were created
      * yet, this is the page size of initial memory only.
      */
-    s390_set_max_pagesize(qemu_maxrampagesize(), &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        exit(EXIT_FAILURE);
-    }
+    s390_set_max_pagesize(qemu_maxrampagesize(), &error_fatal);
     /* Initialize storage key device */
     s390_skeys_init();
     /* Initialize storage attributes device */
@@ -263,7 +261,8 @@ static void ccw_init(MachineState *machine)
     /* get a BUS */
     css_bus = virtual_css_bus_init();
     s390_init_ipl_dev(machine->kernel_filename, machine->kernel_cmdline,
-                      machine->initrd_filename, "s390-ccw.img",
+                      machine->initrd_filename,
+                      machine->firmware ?: "s390-ccw.img",
                       "s390-netboot.img", true);
 
     dev = qdev_new(TYPE_S390_PCI_HOST_BRIDGE);
@@ -489,6 +488,10 @@ static void s390_machine_reset(MachineState *machine)
         break;
     default:
         g_assert_not_reached();
+    }
+
+    CPU_FOREACH(t) {
+        run_on_cpu(t, s390_do_cpu_set_diag318, RUN_ON_CPU_HOST_ULONG(0));
     }
     s390_ipl_clear_reset_request();
 }
@@ -789,14 +792,26 @@ bool css_migration_enabled(void)
     }                                                                         \
     type_init(ccw_machine_register_##suffix)
 
+static void ccw_machine_6_0_instance_options(MachineState *machine)
+{
+}
+
+static void ccw_machine_6_0_class_options(MachineClass *mc)
+{
+}
+DEFINE_CCW_MACHINE(6_0, "6.0", true);
+
 static void ccw_machine_5_2_instance_options(MachineState *machine)
 {
+    ccw_machine_6_0_instance_options(machine);
 }
 
 static void ccw_machine_5_2_class_options(MachineClass *mc)
 {
+    ccw_machine_6_0_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_5_2, hw_compat_5_2_len);
 }
-DEFINE_CCW_MACHINE(5_2, "5.2", true);
+DEFINE_CCW_MACHINE(5_2, "5.2", false);
 
 static void ccw_machine_5_1_instance_options(MachineState *machine)
 {

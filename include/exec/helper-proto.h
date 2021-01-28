@@ -35,10 +35,14 @@ dh_ctype(ret) HELPER(name) (dh_ctype(t1), dh_ctype(t2), dh_ctype(t3), \
                             dh_ctype(t4), dh_ctype(t5), dh_ctype(t6), \
                             dh_ctype(t7));
 
+#define IN_HELPER_PROTO
+
 #include "helper.h"
 #include "trace/generated-helpers.h"
 #include "tcg-runtime.h"
 #include "plugin-helpers.h"
+
+#undef IN_HELPER_PROTO
 
 #undef DEF_HELPER_FLAGS_0
 #undef DEF_HELPER_FLAGS_1

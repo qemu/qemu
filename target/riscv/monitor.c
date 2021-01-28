@@ -204,7 +204,7 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
 
-    env = mon_get_cpu_env();
+    env = mon_get_cpu_env(mon);
     if (!env) {
         monitor_printf(mon, "No CPU available\n");
         return;

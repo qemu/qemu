@@ -5,7 +5,7 @@ config PCIE_PORT
 
 config PXB
     bool
-    default y if Q35
+    default y if Q35 || ARM_VIRT
 
 config XIO3130
     bool

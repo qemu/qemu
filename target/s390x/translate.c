@@ -600,17 +600,9 @@ static void gen_op_calc_cc(DisasContext *s)
         dummy = tcg_const_i64(0);
         /* FALLTHRU */
     case CC_OP_ADD_64:
-    case CC_OP_ADDU_64:
-    case CC_OP_ADDC_64:
     case CC_OP_SUB_64:
-    case CC_OP_SUBU_64:
-    case CC_OP_SUBB_64:
     case CC_OP_ADD_32:
-    case CC_OP_ADDU_32:
-    case CC_OP_ADDC_32:
     case CC_OP_SUB_32:
-    case CC_OP_SUBU_32:
-    case CC_OP_SUBB_32:
         local_cc_op = tcg_const_i32(s->cc_op);
         break;
     case CC_OP_CONST0:
@@ -646,9 +638,11 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_NZ_F64:
     case CC_OP_FLOGR:
     case CC_OP_LCBB:
+    case CC_OP_MULS_32:
         /* 1 argument */
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, dummy, cc_dst, dummy);
         break;
+    case CC_OP_ADDU:
     case CC_OP_ICM:
     case CC_OP_LTGT_32:
     case CC_OP_LTGT_64:
@@ -658,23 +652,17 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_TM_64:
     case CC_OP_SLA_32:
     case CC_OP_SLA_64:
+    case CC_OP_SUBU:
     case CC_OP_NZ_F128:
     case CC_OP_VC:
+    case CC_OP_MULS_64:
         /* 2 arguments */
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, cc_src, cc_dst, dummy);
         break;
     case CC_OP_ADD_64:
-    case CC_OP_ADDU_64:
-    case CC_OP_ADDC_64:
     case CC_OP_SUB_64:
-    case CC_OP_SUBU_64:
-    case CC_OP_SUBB_64:
     case CC_OP_ADD_32:
-    case CC_OP_ADDU_32:
-    case CC_OP_ADDC_32:
     case CC_OP_SUB_32:
-    case CC_OP_SUBU_32:
-    case CC_OP_SUBB_32:
         /* 3 arguments */
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, cc_src, cc_dst, cc_vr);
         break;
@@ -847,42 +835,20 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         account_inline_branch(s, old_cc_op);
         break;
 
-    case CC_OP_ADDU_32:
-    case CC_OP_ADDU_64:
+    case CC_OP_ADDU:
+    case CC_OP_SUBU:
         switch (mask) {
-        case 8 | 2: /* vr == 0 */
+        case 8 | 2: /* result == 0 */
             cond = TCG_COND_EQ;
             break;
-        case 4 | 1: /* vr != 0 */
+        case 4 | 1: /* result != 0 */
             cond = TCG_COND_NE;
             break;
-        case 8 | 4: /* no carry -> vr >= src */
-            cond = TCG_COND_GEU;
+        case 8 | 4: /* !carry (borrow) */
+            cond = old_cc_op == CC_OP_ADDU ? TCG_COND_EQ : TCG_COND_NE;
             break;
-        case 2 | 1: /* carry -> vr < src */
-            cond = TCG_COND_LTU;
-            break;
-        default:
-            goto do_dynamic;
-        }
-        account_inline_branch(s, old_cc_op);
-        break;
-
-    case CC_OP_SUBU_32:
-    case CC_OP_SUBU_64:
-        /* Note that CC=0 is impossible; treat it as dont-care.  */
-        switch (mask & 7) {
-        case 2: /* zero -> op1 == op2 */
-            cond = TCG_COND_EQ;
-            break;
-        case 4 | 1: /* !zero -> op1 != op2 */
-            cond = TCG_COND_NE;
-            break;
-        case 4: /* borrow (!carry) -> op1 < op2 */
-            cond = TCG_COND_LTU;
-            break;
-        case 2 | 1: /* !borrow (carry) -> op1 >= op2 */
-            cond = TCG_COND_GEU;
+        case 2 | 1: /* carry (!borrow) */
+            cond = old_cc_op == CC_OP_ADDU ? TCG_COND_NE : TCG_COND_EQ;
             break;
         default:
             goto do_dynamic;
@@ -917,7 +883,6 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         break;
     case CC_OP_LTGT_32:
     case CC_OP_LTUGTU_32:
-    case CC_OP_SUBU_32:
         c->is_64 = false;
         c->u.s32.a = tcg_temp_new_i32();
         tcg_gen_extrl_i64_i32(c->u.s32.a, cc_src);
@@ -934,7 +899,6 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         break;
     case CC_OP_LTGT_64:
     case CC_OP_LTUGTU_64:
-    case CC_OP_SUBU_64:
         c->u.s64.a = cc_src;
         c->u.s64.b = cc_dst;
         c->g1 = c->g2 = true;
@@ -948,26 +912,22 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         tcg_gen_and_i64(c->u.s64.a, cc_src, cc_dst);
         break;
 
-    case CC_OP_ADDU_32:
-        c->is_64 = false;
-        c->u.s32.a = tcg_temp_new_i32();
-        c->u.s32.b = tcg_temp_new_i32();
-        tcg_gen_extrl_i64_i32(c->u.s32.a, cc_vr);
-        if (cond == TCG_COND_EQ || cond == TCG_COND_NE) {
-            tcg_gen_movi_i32(c->u.s32.b, 0);
-        } else {
-            tcg_gen_extrl_i64_i32(c->u.s32.b, cc_src);
-        }
-        break;
-
-    case CC_OP_ADDU_64:
-        c->u.s64.a = cc_vr;
+    case CC_OP_ADDU:
+    case CC_OP_SUBU:
+        c->is_64 = true;
+        c->u.s64.b = tcg_const_i64(0);
         c->g1 = true;
-        if (cond == TCG_COND_EQ || cond == TCG_COND_NE) {
-            c->u.s64.b = tcg_const_i64(0);
-        } else {
-            c->u.s64.b = cc_src;
-            c->g2 = true;
+        switch (mask) {
+        case 8 | 2:
+        case 4 | 1: /* result */
+            c->u.s64.a = cc_dst;
+            break;
+        case 8 | 4:
+        case 2 | 1: /* carry */
+            c->u.s64.a = cc_src;
+            break;
+        default:
+            g_assert_not_reached();
         }
         break;
 
@@ -1212,6 +1172,7 @@ typedef struct {
 #define IF_DFP      0x0010      /* decimal floating point instruction */
 #define IF_PRIV     0x0020      /* privileged instruction */
 #define IF_VEC      0x0040      /* vector instruction */
+#define IF_IO       0x0080      /* input/output instruction */
 
 struct DisasInsn {
     unsigned opc:16;
@@ -1442,38 +1403,60 @@ static DisasJumpType op_add(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
-static DisasJumpType op_addc(DisasContext *s, DisasOps *o)
+static DisasJumpType op_addu64(DisasContext *s, DisasOps *o)
 {
-    DisasCompare cmp;
-    TCGv_i64 carry;
+    tcg_gen_movi_i64(cc_src, 0);
+    tcg_gen_add2_i64(o->out, cc_src, o->in1, cc_src, o->in2, cc_src);
+    return DISAS_NEXT;
+}
 
-    tcg_gen_add_i64(o->out, o->in1, o->in2);
-
-    /* The carry flag is the msb of CC, therefore the branch mask that would
-       create that comparison is 3.  Feeding the generated comparison to
-       setcond produces the carry flag that we desire.  */
-    disas_jcc(s, &cmp, 3);
-    carry = tcg_temp_new_i64();
-    if (cmp.is_64) {
-        tcg_gen_setcond_i64(cmp.cond, carry, cmp.u.s64.a, cmp.u.s64.b);
-    } else {
-        TCGv_i32 t = tcg_temp_new_i32();
-        tcg_gen_setcond_i32(cmp.cond, t, cmp.u.s32.a, cmp.u.s32.b);
-        tcg_gen_extu_i32_i64(carry, t);
-        tcg_temp_free_i32(t);
+/* Compute carry into cc_src. */
+static void compute_carry(DisasContext *s)
+{
+    switch (s->cc_op) {
+    case CC_OP_ADDU:
+        /* The carry value is already in cc_src (1,0). */
+        break;
+    case CC_OP_SUBU:
+        tcg_gen_addi_i64(cc_src, cc_src, 1);
+        break;
+    default:
+        gen_op_calc_cc(s);
+        /* fall through */
+    case CC_OP_STATIC:
+        /* The carry flag is the msb of CC; compute into cc_src. */
+        tcg_gen_extu_i32_i64(cc_src, cc_op);
+        tcg_gen_shri_i64(cc_src, cc_src, 1);
+        break;
     }
-    free_compare(&cmp);
+}
 
-    tcg_gen_add_i64(o->out, o->out, carry);
-    tcg_temp_free_i64(carry);
+static DisasJumpType op_addc32(DisasContext *s, DisasOps *o)
+{
+    compute_carry(s);
+    tcg_gen_add_i64(o->out, o->in1, o->in2);
+    tcg_gen_add_i64(o->out, o->out, cc_src);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_addc64(DisasContext *s, DisasOps *o)
+{
+    compute_carry(s);
+
+    TCGv_i64 zero = tcg_const_i64(0);
+    tcg_gen_add2_i64(o->out, cc_src, o->in1, zero, cc_src, zero);
+    tcg_gen_add2_i64(o->out, cc_src, o->out, cc_src, o->in2, zero);
+    tcg_temp_free_i64(zero);
+
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_asi(DisasContext *s, DisasOps *o)
 {
-    o->in1 = tcg_temp_new_i64();
+    bool non_atomic = !s390_has_feat(S390_FEAT_STFLE_45);
 
-    if (!s390_has_feat(S390_FEAT_STFLE_45)) {
+    o->in1 = tcg_temp_new_i64();
+    if (non_atomic) {
         tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
     } else {
         /* Perform the atomic addition in memory. */
@@ -1484,7 +1467,30 @@ static DisasJumpType op_asi(DisasContext *s, DisasOps *o)
     /* Recompute also for atomic case: needed for setting CC. */
     tcg_gen_add_i64(o->out, o->in1, o->in2);
 
-    if (!s390_has_feat(S390_FEAT_STFLE_45)) {
+    if (non_atomic) {
+        tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), s->insn->data);
+    }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_asiu64(DisasContext *s, DisasOps *o)
+{
+    bool non_atomic = !s390_has_feat(S390_FEAT_STFLE_45);
+
+    o->in1 = tcg_temp_new_i64();
+    if (non_atomic) {
+        tcg_gen_qemu_ld_tl(o->in1, o->addr1, get_mem_index(s), s->insn->data);
+    } else {
+        /* Perform the atomic addition in memory. */
+        tcg_gen_atomic_fetch_add_i64(o->in1, o->addr1, o->in2, get_mem_index(s),
+                                     s->insn->data);
+    }
+
+    /* Recompute also for atomic case: needed for setting CC. */
+    tcg_gen_movi_i64(cc_src, 0);
+    tcg_gen_add2_i64(o->out, cc_src, o->in1, cc_src, o->in2, cc_src);
+
+    if (non_atomic) {
         tcg_gen_qemu_st_tl(o->out, o->addr1, get_mem_index(s), s->insn->data);
     }
     return DISAS_NEXT;
@@ -2708,6 +2714,12 @@ static DisasJumpType op_msa(DisasContext *s, DisasOps *o)
     TCGv_i32 t_r1, t_r2, t_r3, type;
 
     switch (s->insn->data) {
+    case S390_FEAT_TYPE_KMA:
+        if (r3 == r1 || r3 == r2) {
+            gen_program_exception(s, PGM_SPECIFICATION);
+            return DISAS_NORETURN;
+        }
+        /* FALL THROUGH */
     case S390_FEAT_TYPE_KMCTR:
         if (r3 & 1 || !r3) {
             gen_program_exception(s, PGM_SPECIFICATION);
@@ -3273,8 +3285,7 @@ static DisasJumpType op_lpq(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_lura(DisasContext *s, DisasOps *o)
 {
-    o->addr1 = get_address(s, 0, get_field(s, r2), 0);
-    tcg_gen_qemu_ld_tl(o->out, o->addr1, MMU_REAL_IDX, s->insn->data);
+    tcg_gen_qemu_ld_tl(o->out, o->in2, MMU_REAL_IDX, s->insn->data);
     return DISAS_NEXT;
 }
 #endif
@@ -3299,6 +3310,27 @@ static DisasJumpType op_lcbb(DisasContext *s, DisasOps *o)
     tcg_gen_movi_i64(o->out, 16);
     tcg_gen_umin_i64(o->out, o->out, o->addr1);
     gen_op_update1_cc_i64(s, CC_OP_LCBB, o->out);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_mc(DisasContext *s, DisasOps *o)
+{
+#if !defined(CONFIG_USER_ONLY)
+    TCGv_i32 i2;
+#endif
+    const uint16_t monitor_class = get_field(s, i2);
+
+    if (monitor_class & 0xff00) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+#if !defined(CONFIG_USER_ONLY)
+    i2 = tcg_const_i32(monitor_class);
+    gen_helper_monitor_call(cpu_env, o->addr1, i2);
+    tcg_temp_free_i32(i2);
+#endif
+    /* Defaults to a NOP. */
     return DISAS_NEXT;
 }
 
@@ -3515,6 +3547,12 @@ static DisasJumpType op_mul(DisasContext *s, DisasOps *o)
 static DisasJumpType op_mul128(DisasContext *s, DisasOps *o)
 {
     tcg_gen_mulu2_i64(o->out2, o->out, o->in1, o->in2);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_muls128(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_muls2_i64(o->out2, o->out, o->in1, o->in2);
     return DISAS_NEXT;
 }
 
@@ -3776,22 +3814,23 @@ static DisasJumpType op_risbg(DisasContext *s, DisasOps *o)
         pmask = 0xffffffff00000000ull;
         break;
     case 0x51: /* risblg */
-        i3 &= 31;
-        i4 &= 31;
+        i3 = (i3 & 31) + 32;
+        i4 = (i4 & 31) + 32;
         pmask = 0x00000000ffffffffull;
         break;
     default:
         g_assert_not_reached();
     }
 
-    /* MASK is the set of bits to be inserted from R2.
-       Take care for I3/I4 wraparound.  */
-    mask = pmask >> i3;
+    /* MASK is the set of bits to be inserted from R2. */
     if (i3 <= i4) {
-        mask ^= pmask >> i4 >> 1;
+        /* [0...i3---i4...63] */
+        mask = (-1ull >> i3) & (-1ull << (63 - i4));
     } else {
-        mask |= ~(pmask >> i4 >> 1);
+        /* [0---i4...i3---63] */
+        mask = (-1ull >> i3) | (-1ull << (63 - i4));
     }
+    /* For RISBLG/RISBHG, the wrapping is limited to the high/low doubleword. */
     mask &= pmask;
 
     /* IMASK is the set of bits to be kept from R1.  In the case of the high/low
@@ -3804,9 +3843,6 @@ static DisasJumpType op_risbg(DisasContext *s, DisasOps *o)
     len = i4 - i3 + 1;
     pos = 63 - i4;
     rot = i5 & 63;
-    if (s->fields.op2 == 0x5d) {
-        pos += 32;
-    }
 
     /* In some cases we can implement this with extract.  */
     if (imask == 0 && pos == 0 && len > 0 && len <= rot) {
@@ -4197,7 +4233,8 @@ static DisasJumpType op_ectg(DisasContext *s, DisasOps *o)
     tcg_gen_addi_i64(o->in1, regs[b1], d1);
     o->in2 = tcg_temp_new_i64();
     tcg_gen_addi_i64(o->in2, regs[b2], d2);
-    o->addr1 = get_address(s, 0, r3, 0);
+    o->addr1 = tcg_temp_new_i64();
+    gen_addi_and_wrap_i64(s, o->addr1, regs[r3], 0);
 
     /* load the third operand into r3 before modifying anything */
     tcg_gen_qemu_ld64(regs[r3], o->addr1, get_mem_index(s));
@@ -4502,8 +4539,7 @@ static DisasJumpType op_stnosm(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stura(DisasContext *s, DisasOps *o)
 {
-    o->addr1 = get_address(s, 0, get_field(s, r2), 0);
-    tcg_gen_qemu_st_tl(o->in1, o->addr1, MMU_REAL_IDX, s->insn->data);
+    tcg_gen_qemu_st_tl(o->in1, o->in2, MMU_REAL_IDX, s->insn->data);
 
     if (s->base.tb->flags & FLAG_MASK_PER) {
         update_psw_addr(s);
@@ -4696,29 +4732,58 @@ static DisasJumpType op_sub(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
-static DisasJumpType op_subb(DisasContext *s, DisasOps *o)
+static DisasJumpType op_subu64(DisasContext *s, DisasOps *o)
 {
-    DisasCompare cmp;
-    TCGv_i64 borrow;
+    tcg_gen_movi_i64(cc_src, 0);
+    tcg_gen_sub2_i64(o->out, cc_src, o->in1, cc_src, o->in2, cc_src);
+    return DISAS_NEXT;
+}
 
-    tcg_gen_sub_i64(o->out, o->in1, o->in2);
-
-    /* The !borrow flag is the msb of CC.  Since we want the inverse of
-       that, we ask for a comparison of CC=0 | CC=1 -> mask of 8 | 4.  */
-    disas_jcc(s, &cmp, 8 | 4);
-    borrow = tcg_temp_new_i64();
-    if (cmp.is_64) {
-        tcg_gen_setcond_i64(cmp.cond, borrow, cmp.u.s64.a, cmp.u.s64.b);
-    } else {
-        TCGv_i32 t = tcg_temp_new_i32();
-        tcg_gen_setcond_i32(cmp.cond, t, cmp.u.s32.a, cmp.u.s32.b);
-        tcg_gen_extu_i32_i64(borrow, t);
-        tcg_temp_free_i32(t);
+/* Compute borrow (0, -1) into cc_src. */
+static void compute_borrow(DisasContext *s)
+{
+    switch (s->cc_op) {
+    case CC_OP_SUBU:
+        /* The borrow value is already in cc_src (0,-1). */
+        break;
+    default:
+        gen_op_calc_cc(s);
+        /* fall through */
+    case CC_OP_STATIC:
+        /* The carry flag is the msb of CC; compute into cc_src. */
+        tcg_gen_extu_i32_i64(cc_src, cc_op);
+        tcg_gen_shri_i64(cc_src, cc_src, 1);
+        /* fall through */
+    case CC_OP_ADDU:
+        /* Convert carry (1,0) to borrow (0,-1). */
+        tcg_gen_subi_i64(cc_src, cc_src, 1);
+        break;
     }
-    free_compare(&cmp);
+}
 
-    tcg_gen_sub_i64(o->out, o->out, borrow);
-    tcg_temp_free_i64(borrow);
+static DisasJumpType op_subb32(DisasContext *s, DisasOps *o)
+{
+    compute_borrow(s);
+
+    /* Borrow is {0, -1}, so add to subtract. */
+    tcg_gen_add_i64(o->out, o->in1, cc_src);
+    tcg_gen_sub_i64(o->out, o->out, o->in2);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_subb64(DisasContext *s, DisasOps *o)
+{
+    compute_borrow(s);
+
+    /*
+     * Borrow is {0, -1}, so add to subtract; replicate the
+     * borrow input to produce 128-bit -1 for the addition.
+     */
+    TCGv_i64 zero = tcg_const_i64(0);
+    tcg_gen_add2_i64(o->out, cc_src, o->in1, zero, cc_src, cc_src);
+    tcg_gen_sub2_i64(o->out, cc_src, o->out, cc_src, o->in2, zero);
+    tcg_temp_free_i64(zero);
+
     return DISAS_NEXT;
 }
 
@@ -5149,22 +5214,14 @@ static void cout_adds64(DisasContext *s, DisasOps *o)
 
 static void cout_addu32(DisasContext *s, DisasOps *o)
 {
-    gen_op_update3_cc_i64(s, CC_OP_ADDU_32, o->in1, o->in2, o->out);
+    tcg_gen_shri_i64(cc_src, o->out, 32);
+    tcg_gen_ext32u_i64(cc_dst, o->out);
+    gen_op_update2_cc_i64(s, CC_OP_ADDU, cc_src, cc_dst);
 }
 
 static void cout_addu64(DisasContext *s, DisasOps *o)
 {
-    gen_op_update3_cc_i64(s, CC_OP_ADDU_64, o->in1, o->in2, o->out);
-}
-
-static void cout_addc32(DisasContext *s, DisasOps *o)
-{
-    gen_op_update3_cc_i64(s, CC_OP_ADDC_32, o->in1, o->in2, o->out);
-}
-
-static void cout_addc64(DisasContext *s, DisasOps *o)
-{
-    gen_op_update3_cc_i64(s, CC_OP_ADDC_64, o->in1, o->in2, o->out);
+    gen_op_update2_cc_i64(s, CC_OP_ADDU, cc_src, o->out);
 }
 
 static void cout_cmps32(DisasContext *s, DisasOps *o)
@@ -5255,22 +5312,14 @@ static void cout_subs64(DisasContext *s, DisasOps *o)
 
 static void cout_subu32(DisasContext *s, DisasOps *o)
 {
-    gen_op_update3_cc_i64(s, CC_OP_SUBU_32, o->in1, o->in2, o->out);
+    tcg_gen_sari_i64(cc_src, o->out, 32);
+    tcg_gen_ext32u_i64(cc_dst, o->out);
+    gen_op_update2_cc_i64(s, CC_OP_SUBU, cc_src, cc_dst);
 }
 
 static void cout_subu64(DisasContext *s, DisasOps *o)
 {
-    gen_op_update3_cc_i64(s, CC_OP_SUBU_64, o->in1, o->in2, o->out);
-}
-
-static void cout_subb32(DisasContext *s, DisasOps *o)
-{
-    gen_op_update3_cc_i64(s, CC_OP_SUBB_32, o->in1, o->in2, o->out);
-}
-
-static void cout_subb64(DisasContext *s, DisasOps *o)
-{
-    gen_op_update3_cc_i64(s, CC_OP_SUBB_64, o->in1, o->in2, o->out);
+    gen_op_update2_cc_i64(s, CC_OP_SUBU, cc_src, o->out);
 }
 
 static void cout_tm32(DisasContext *s, DisasOps *o)
@@ -5281,6 +5330,17 @@ static void cout_tm32(DisasContext *s, DisasOps *o)
 static void cout_tm64(DisasContext *s, DisasOps *o)
 {
     gen_op_update2_cc_i64(s, CC_OP_TM_64, o->in1, o->in2);
+}
+
+static void cout_muls32(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_MULS_32, o->out);
+}
+
+static void cout_muls64(DisasContext *s, DisasOps *o)
+{
+    /* out contains "high" part, out2 contains "low" part of 128 bit result */
+    gen_op_update2_cc_i64(s, CC_OP_MULS_64, o->out, o->out2);
 }
 
 /* ====================================================================== */
@@ -5337,6 +5397,12 @@ static void wout_r1(DisasContext *s, DisasOps *o)
     store_reg(get_field(s, r1), o->out);
 }
 #define SPEC_wout_r1 0
+
+static void wout_out2_r1(DisasContext *s, DisasOps *o)
+{
+    store_reg(get_field(s, r1), o->out2);
+}
+#define SPEC_wout_out2_r1 0
 
 static void wout_r1_8(DisasContext *s, DisasOps *o)
 {
@@ -5542,6 +5608,13 @@ static void in1_r1p1(DisasContext *s, DisasOps *o)
 }
 #define SPEC_in1_r1p1 SPEC_r1_even
 
+static void in1_r1p1_o(DisasContext *s, DisasOps *o)
+{
+    o->in1 = regs[get_field(s, r1) + 1];
+    o->g_in1 = true;
+}
+#define SPEC_in1_r1p1_o SPEC_r1_even
+
 static void in1_r1p1_32s(DisasContext *s, DisasOps *o)
 {
     o->in1 = tcg_temp_new_i64();
@@ -5576,6 +5649,13 @@ static void in1_r2_sr32(DisasContext *s, DisasOps *o)
     tcg_gen_shri_i64(o->in1, regs[get_field(s, r2)], 32);
 }
 #define SPEC_in1_r2_sr32 0
+
+static void in1_r2_32u(DisasContext *s, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_ext32u_i64(o->in1, regs[get_field(s, r2)]);
+}
+#define SPEC_in1_r2_32u 0
 
 static void in1_r3(DisasContext *s, DisasOps *o)
 {
@@ -5842,7 +5922,11 @@ static void in2_x2l(DisasContext *s, DisasOps *o)
 
 static void in2_ra2(DisasContext *s, DisasOps *o)
 {
-    o->in2 = get_address(s, 0, get_field(s, r2), 0);
+    int r2 = get_field(s, r2);
+
+    /* Note: *don't* treat !r2 as 0, use the reg value. */
+    o->in2 = tcg_temp_new_i64();
+    gen_addi_and_wrap_i64(s, o->in2, regs[r2], 0);
 }
 #define SPEC_in2_ra2 0
 
@@ -5921,6 +6005,14 @@ static void in2_m2_64(DisasContext *s, DisasOps *o)
     tcg_gen_qemu_ld64(o->in2, o->in2, get_mem_index(s));
 }
 #define SPEC_in2_m2_64 0
+
+static void in2_m2_64w(DisasContext *s, DisasOps *o)
+{
+    in2_a2(s, o);
+    tcg_gen_qemu_ld64(o->in2, o->in2, get_mem_index(s));
+    gen_addi_and_wrap_i64(s, o->in2, o->in2, 0);
+}
+#define SPEC_in2_m2_64w 0
 
 #ifndef CONFIG_USER_ONLY
 static void in2_m2_64a(DisasContext *s, DisasOps *o)
@@ -6093,11 +6185,13 @@ enum DisasInsnEnum {
 #define FAC_MSA3        S390_FEAT_MSA_EXT_3 /* msa-extension-3 facility */
 #define FAC_MSA4        S390_FEAT_MSA_EXT_4 /* msa-extension-4 facility */
 #define FAC_MSA5        S390_FEAT_MSA_EXT_5 /* msa-extension-5 facility */
+#define FAC_MSA8        S390_FEAT_MSA_EXT_8 /* msa-extension-8 facility */
 #define FAC_ECT         S390_FEAT_EXTRACT_CPU_TIME
 #define FAC_PCI         S390_FEAT_ZPCI /* z/PCI facility */
 #define FAC_AIS         S390_FEAT_ADAPTER_INT_SUPPRESSION
 #define FAC_V           S390_FEAT_VECTOR /* vector facility */
 #define FAC_VE          S390_FEAT_VECTOR_ENH /* vector enhancements facility 1 */
+#define FAC_MIE2        S390_FEAT_MISC_INSTRUCTION_EXT2 /* miscellaneous-instruction-extensions facility 2 */
 
 static const DisasInsn insn_info[] = {
 #include "insn-data.def"
@@ -6300,6 +6394,7 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     const DisasInsn *insn;
     DisasJumpType ret = DISAS_NEXT;
     DisasOps o = {};
+    bool icount = false;
 
     /* Search for the insn in the table.  */
     insn = extract_insn(env, s);
@@ -6366,6 +6461,14 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
                 return DISAS_NORETURN;
             }
         }
+
+        /* input/output is the special case for icount mode */
+        if (unlikely(insn->flags & IF_IO)) {
+            icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+            if (icount) {
+                gen_io_start();
+            }
+        }
     }
 
     /* Check for insn specification exceptions.  */
@@ -6417,6 +6520,11 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     }
     if (o.addr1) {
         tcg_temp_free_i64(o.addr1);
+    }
+
+    /* io should be the last instruction in tb when icount is enabled */
+    if (unlikely(icount && ret == DISAS_NEXT)) {
+        ret = DISAS_PC_STALE;
     }
 
 #ifndef CONFIG_USER_ONLY

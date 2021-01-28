@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw auto quick
 #
 # Test that a backing image is put back in read-only mode after
 # block-commit (both when it fails and when it succeeds).
@@ -42,15 +43,15 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # Any format implementing BlockDriver.bdrv_change_backing_file
 _supported_fmt qcow2 qed
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 
 IMG_SIZE=1M
 
 # Create the images: base <- int <- active
-TEST_IMG="$TEST_IMG.base" _make_test_img $IMG_SIZE | _filter_imgfmt
-TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT | _filter_imgfmt
-_make_test_img -b "$TEST_IMG.int" -F $IMGFMT | _filter_imgfmt
+TEST_IMG="$TEST_IMG.base" _make_test_img $IMG_SIZE
+TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT
+_make_test_img -b "$TEST_IMG.int" -F $IMGFMT
 
 # Launch QEMU with these two drives:
 # none0: base (read-only)

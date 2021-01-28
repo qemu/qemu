@@ -54,6 +54,9 @@
 
 #define PPI(irq) ((irq) + 16)
 
+/* See Linux kernel arch/arm64/include/asm/pvclock-abi.h */
+#define PVTIME_SIZE_PER_CPU 64
+
 enum {
     VIRT_FLASH,
     VIRT_MEM,
@@ -81,6 +84,7 @@ enum {
     VIRT_PCDIMM_ACPI,
     VIRT_ACPI_GED,
     VIRT_NVDIMM_ACPI,
+    VIRT_PVTIME,
     VIRT_LOWMEMMAP_LAST,
 };
 
@@ -121,6 +125,7 @@ struct VirtMachineClass {
     bool no_highmem_ecam;
     bool no_ged;   /* Machines < 4.2 has no support for ACPI GED device */
     bool kvm_no_adjvtime;
+    bool no_kvm_steal_time;
     bool acpi_expose_flash;
 };
 
@@ -146,7 +151,6 @@ struct VirtMachineState {
     MemMapEntry *memmap;
     char *pciehb_nodename;
     const int *irqmap;
-    int smp_cpus;
     void *fdt;
     int fdt_size;
     uint32_t clock_phandle;
@@ -158,6 +162,7 @@ struct VirtMachineState {
     DeviceState *gic;
     DeviceState *acpi_dev;
     Notifier powerdown_notifier;
+    PCIBus *bus;
 };
 
 #define VIRT_ECAM_ID(high) (high ? VIRT_HIGH_PCIE_ECAM : VIRT_PCIE_ECAM)
@@ -176,7 +181,7 @@ static inline int virt_gicv3_redist_region_count(VirtMachineState *vms)
 
     assert(vms->gic_version == VIRT_GIC_VERSION_3);
 
-    return vms->smp_cpus > redist0_capacity ? 2 : 1;
+    return MACHINE(vms)->smp.cpus > redist0_capacity ? 2 : 1;
 }
 
 #endif /* QEMU_ARM_VIRT_H */

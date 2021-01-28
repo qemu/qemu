@@ -24,6 +24,7 @@
 #include "hw/block/flash.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "sysemu/block-backend.h"
 #include "exec/memory.h"
 #include "hw/sysbus.h"
@@ -796,7 +797,7 @@ static void onenand_realize(DeviceState *dev, Error **errp)
         s->image = memset(g_malloc(size + (size >> 5)),
                           0xff, size + (size >> 5));
     } else {
-        if (blk_is_read_only(s->blk)) {
+        if (!blk_supports_write_perm(s->blk)) {
             error_setg(errp, "Can't use a read-only drive");
             return;
         }

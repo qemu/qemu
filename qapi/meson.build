@@ -17,8 +17,9 @@ qapi_all_modules = [
   'acpi',
   'audio',
   'authz',
-  'block-core',
   'block',
+  'block-core',
+  'block-export',
   'char',
   'common',
   'control',
@@ -38,6 +39,7 @@ qapi_all_modules = [
   'pci',
   'qom',
   'rdma',
+  'replay',
   'rocker',
   'run-state',
   'sockets',
@@ -45,10 +47,12 @@ qapi_all_modules = [
   'trace',
   'transaction',
   'ui',
+  'yank',
 ]
 
 qapi_storage_daemon_modules = [
   'block-core',
+  'block-export',
   'char',
   'common',
   'control',

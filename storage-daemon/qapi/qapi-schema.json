@@ -15,7 +15,11 @@
 
 { 'include': '../../qapi/pragma.json' }
 
+##
+# = Block devices
+##
 { 'include': '../../qapi/block-core.json' }
+{ 'include': '../../qapi/block-export.json' }
 { 'include': '../../qapi/char.json' }
 { 'include': '../../qapi/common.json' }
 { 'include': '../../qapi/control.json' }

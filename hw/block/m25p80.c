@@ -25,6 +25,7 @@
 #include "qemu/units.h"
 #include "sysemu/block-backend.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "hw/ssi/ssi.h"
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
@@ -136,7 +137,7 @@ typedef struct FlashPartInfo {
 #define VCFG_WRAP_SEQUENTIAL 0x2
 #define NVCFG_XIP_MODE_DISABLED (7 << 9)
 #define NVCFG_XIP_MODE_MASK (7 << 9)
-#define VCFG_XIP_MODE_ENABLED (1 << 3)
+#define VCFG_XIP_MODE_DISABLED (1 << 3)
 #define CFG_DUMMY_CLK_LEN 4
 #define NVCFG_DUMMY_CLK_POS 12
 #define VCFG_DUMMY_CLK_POS 4
@@ -144,9 +145,9 @@ typedef struct FlashPartInfo {
 #define EVCFG_VPP_ACCELERATOR (1 << 3)
 #define EVCFG_RESET_HOLD_ENABLED (1 << 4)
 #define NVCFG_DUAL_IO_MASK (1 << 2)
-#define EVCFG_DUAL_IO_ENABLED (1 << 6)
+#define EVCFG_DUAL_IO_DISABLED (1 << 6)
 #define NVCFG_QUAD_IO_MASK (1 << 3)
-#define EVCFG_QUAD_IO_ENABLED (1 << 7)
+#define EVCFG_QUAD_IO_DISABLED (1 << 7)
 #define NVCFG_4BYTE_ADDR_MASK (1 << 0)
 #define NVCFG_LOWER_SEGMENT_MASK (1 << 1)
 
@@ -359,6 +360,7 @@ typedef enum {
     QPP_4 = 0x34,
     RDID_90 = 0x90,
     RDID_AB = 0xab,
+    AAI_WP = 0xad,
 
     ERASE_4K = 0x20,
     ERASE4_4K = 0x21,
@@ -413,10 +415,16 @@ typedef enum {
     MAN_GENERIC,
 } Manufacturer;
 
+typedef enum {
+    MODE_STD = 0,
+    MODE_DIO = 1,
+    MODE_QIO = 2
+} SPIMode;
+
 #define M25P80_INTERNAL_DATA_BUFFER_SZ 16
 
 struct Flash {
-    SSISlave parent_obj;
+    SSIPeripheral parent_obj;
 
     BlockBackend *blk;
 
@@ -449,6 +457,7 @@ struct Flash {
     bool four_bytes_address_mode;
     bool reset_enable;
     bool quad_enable;
+    bool aai_enable;
     uint8_t ear;
 
     int64_t dirty_page;
@@ -458,7 +467,7 @@ struct Flash {
 };
 
 struct M25P80Class {
-    SSISlaveClass parent_class;
+    SSIPeripheralClass parent_class;
     FlashPartInfo *pi;
 };
 
@@ -499,7 +508,7 @@ static void flash_sync_page(Flash *s, int page)
 {
     QEMUIOVector *iov;
 
-    if (!s->blk || blk_is_read_only(s->blk)) {
+    if (!s->blk || !blk_is_writable(s->blk)) {
         return;
     }
 
@@ -515,7 +524,7 @@ static inline void flash_sync_area(Flash *s, int64_t off, int64_t len)
 {
     QEMUIOVector *iov;
 
-    if (!s->blk || blk_is_read_only(s->blk)) {
+    if (!s->blk || !blk_is_writable(s->blk)) {
         return;
     }
 
@@ -594,6 +603,7 @@ void flash_write8(Flash *s, uint32_t addr, uint8_t data)
 
     if (!s->write_enable) {
         qemu_log_mask(LOG_GUEST_ERROR, "M25P80: write with write protect!\n");
+        return;
     }
 
     if ((prev ^ data) & data) {
@@ -661,6 +671,11 @@ static void complete_collecting_data(Flash *s)
     case PP:
     case PP4:
     case PP4_4:
+        s->state = STATE_PAGE_PROGRAM;
+        break;
+    case AAI_WP:
+        /* AAI programming starts from the even address */
+        s->cur_addr &= ~BIT(0);
         s->state = STATE_PAGE_PROGRAM;
         break;
     case READ:
@@ -761,6 +776,7 @@ static void reset_memory(Flash *s)
     s->write_enable = false;
     s->reset_enable = false;
     s->quad_enable = false;
+    s->aai_enable = false;
 
     switch (get_man(s)) {
     case MAN_NUMONYX:
@@ -768,8 +784,8 @@ static void reset_memory(Flash *s)
         s->volatile_cfg |= VCFG_DUMMY;
         s->volatile_cfg |= VCFG_WRAP_SEQUENTIAL;
         if ((s->nonvolatile_cfg & NVCFG_XIP_MODE_MASK)
-                                != NVCFG_XIP_MODE_DISABLED) {
-            s->volatile_cfg |= VCFG_XIP_MODE_ENABLED;
+                                == NVCFG_XIP_MODE_DISABLED) {
+            s->volatile_cfg |= VCFG_XIP_MODE_DISABLED;
         }
         s->volatile_cfg |= deposit32(s->volatile_cfg,
                             VCFG_DUMMY_CLK_POS,
@@ -784,10 +800,10 @@ static void reset_memory(Flash *s)
         s->enh_volatile_cfg |= EVCFG_VPP_ACCELERATOR;
         s->enh_volatile_cfg |= EVCFG_RESET_HOLD_ENABLED;
         if (s->nonvolatile_cfg & NVCFG_DUAL_IO_MASK) {
-            s->enh_volatile_cfg |= EVCFG_DUAL_IO_ENABLED;
+            s->enh_volatile_cfg |= EVCFG_DUAL_IO_DISABLED;
         }
         if (s->nonvolatile_cfg & NVCFG_QUAD_IO_MASK) {
-            s->enh_volatile_cfg |= EVCFG_QUAD_IO_ENABLED;
+            s->enh_volatile_cfg |= EVCFG_QUAD_IO_DISABLED;
         }
         if (!(s->nonvolatile_cfg & NVCFG_4BYTE_ADDR_MASK)) {
             s->four_bytes_address_mode = true;
@@ -820,6 +836,41 @@ static void reset_memory(Flash *s)
     trace_m25p80_reset_done(s);
 }
 
+static uint8_t numonyx_mode(Flash *s)
+{
+    if (!(s->enh_volatile_cfg & EVCFG_QUAD_IO_DISABLED)) {
+        return MODE_QIO;
+    } else if (!(s->enh_volatile_cfg & EVCFG_DUAL_IO_DISABLED)) {
+        return MODE_DIO;
+    } else {
+        return MODE_STD;
+    }
+}
+
+static uint8_t numonyx_extract_cfg_num_dummies(Flash *s)
+{
+    uint8_t num_dummies;
+    uint8_t mode;
+    assert(get_man(s) == MAN_NUMONYX);
+
+    mode = numonyx_mode(s);
+    num_dummies = extract32(s->volatile_cfg, 4, 4);
+
+    if (num_dummies == 0x0 || num_dummies == 0xf) {
+        switch (s->cmd_in_progress) {
+        case QIOR:
+        case QIOR4:
+            num_dummies = 10;
+            break;
+        default:
+            num_dummies = (mode == MODE_QIO) ? 10 : 8;
+            break;
+        }
+    }
+
+    return num_dummies;
+}
+
 static void decode_fast_read_cmd(Flash *s)
 {
     s->needed_bytes = get_addr_length(s);
@@ -829,7 +880,7 @@ static void decode_fast_read_cmd(Flash *s)
         s->needed_bytes += 8;
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
         break;
     case MAN_MACRONIX:
         if (extract32(s->volatile_cfg, 6, 2) == 1) {
@@ -868,7 +919,7 @@ static void decode_dio_read_cmd(Flash *s)
                                     );
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
         break;
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
@@ -908,7 +959,7 @@ static void decode_qio_read_cmd(Flash *s)
                                     );
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
         break;
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
@@ -931,6 +982,11 @@ static void decode_qio_read_cmd(Flash *s)
     s->state = STATE_COLLECTING_DATA;
 }
 
+static bool is_valid_aai_cmd(uint32_t cmd)
+{
+    return cmd == AAI_WP || cmd == WRDI || cmd == RDSR;
+}
+
 static void decode_new_cmd(Flash *s, uint32_t value)
 {
     int i;
@@ -942,6 +998,11 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         s->reset_enable = false;
     }
 
+    if (get_man(s) == MAN_SST && s->aai_enable && !is_valid_aai_cmd(value)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "M25P80: Invalid cmd within AAI programming sequence");
+    }
+
     switch (value) {
 
     case ERASE_4K:
@@ -950,14 +1011,8 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case ERASE4_32K:
     case ERASE_SECTOR:
     case ERASE4_SECTOR:
-    case READ:
-    case READ4:
-    case DPP:
-    case QPP:
-    case QPP_4:
     case PP:
     case PP4:
-    case PP4_4:
     case DIE_ERASE:
     case RDID_90:
     case RDID_AB:
@@ -966,24 +1021,84 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         s->len = 0;
         s->state = STATE_COLLECTING_DATA;
         break;
+    case READ:
+    case READ4:
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) == MODE_STD) {
+            s->needed_bytes = get_addr_length(s);
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "DIO or QIO mode\n", s->cmd_in_progress);
+        }
+        break;
+    case DPP:
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_QIO) {
+            s->needed_bytes = get_addr_length(s);
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "QIO mode\n", s->cmd_in_progress);
+        }
+        break;
+    case QPP:
+    case QPP_4:
+    case PP4_4:
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_DIO) {
+            s->needed_bytes = get_addr_length(s);
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "DIO mode\n", s->cmd_in_progress);
+        }
+        break;
 
     case FAST_READ:
     case FAST_READ4:
+        decode_fast_read_cmd(s);
+        break;
     case DOR:
     case DOR4:
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_QIO) {
+            decode_fast_read_cmd(s);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "QIO mode\n", s->cmd_in_progress);
+        }
+        break;
     case QOR:
     case QOR4:
-        decode_fast_read_cmd(s);
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_DIO) {
+            decode_fast_read_cmd(s);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "DIO mode\n", s->cmd_in_progress);
+        }
         break;
 
     case DIOR:
     case DIOR4:
-        decode_dio_read_cmd(s);
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_QIO) {
+            decode_dio_read_cmd(s);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "QIO mode\n", s->cmd_in_progress);
+        }
         break;
 
     case QIOR:
     case QIOR4:
-        decode_qio_read_cmd(s);
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) != MODE_DIO) {
+            decode_qio_read_cmd(s);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "DIO mode\n", s->cmd_in_progress);
+        }
         break;
 
     case WRSR:
@@ -1007,6 +1122,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case WRDI:
         s->write_enable = false;
+        if (get_man(s) == MAN_SST) {
+            s->aai_enable = false;
+        }
         break;
     case WREN:
         s->write_enable = true;
@@ -1017,6 +1135,10 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         if (get_man(s) == MAN_MACRONIX) {
             s->data[0] |= (!!s->quad_enable) << 6;
         }
+        if (get_man(s) == MAN_SST) {
+            s->data[0] |= (!!s->aai_enable) << 6;
+        }
+
         s->pos = 0;
         s->len = 1;
         s->data_read_loop = true;
@@ -1035,17 +1157,22 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
 
     case JEDEC_READ:
-        trace_m25p80_populated_jedec(s);
-        for (i = 0; i < s->pi->id_len; i++) {
-            s->data[i] = s->pi->id[i];
-        }
-        for (; i < SPI_NOR_MAX_ID_LEN; i++) {
-            s->data[i] = 0;
-        }
+        if (get_man(s) != MAN_NUMONYX || numonyx_mode(s) == MODE_STD) {
+            trace_m25p80_populated_jedec(s);
+            for (i = 0; i < s->pi->id_len; i++) {
+                s->data[i] = s->pi->id[i];
+            }
+            for (; i < SPI_NOR_MAX_ID_LEN; i++) {
+                s->data[i] = 0;
+            }
 
-        s->len = SPI_NOR_MAX_ID_LEN;
-        s->pos = 0;
-        s->state = STATE_READING_DATA;
+            s->len = SPI_NOR_MAX_ID_LEN;
+            s->pos = 0;
+            s->state = STATE_READING_DATA;
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute JEDEC read "
+                          "in DIO or QIO mode\n");
+        }
         break;
 
     case RDCR:
@@ -1159,6 +1286,24 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case RSTQIO:
         s->quad_enable = false;
         break;
+    case AAI_WP:
+        if (get_man(s) == MAN_SST) {
+            if (s->write_enable) {
+                if (s->aai_enable) {
+                    s->state = STATE_PAGE_PROGRAM;
+                } else {
+                    s->aai_enable = true;
+                    s->needed_bytes = get_addr_length(s);
+                    s->state = STATE_COLLECTING_DATA;
+                }
+            } else {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "M25P80: AAI_WP with write protect\n");
+            }
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Unknown cmd %x\n", value);
+        }
+        break;
     default:
         s->pos = 0;
         s->len = 1;
@@ -1170,7 +1315,7 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     }
 }
 
-static int m25p80_cs(SSISlave *ss, bool select)
+static int m25p80_cs(SSIPeripheral *ss, bool select)
 {
     Flash *s = M25P80(ss);
 
@@ -1190,7 +1335,7 @@ static int m25p80_cs(SSISlave *ss, bool select)
     return 0;
 }
 
-static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
+static uint32_t m25p80_transfer8(SSIPeripheral *ss, uint32_t tx)
 {
     Flash *s = M25P80(ss);
     uint32_t r = 0;
@@ -1204,6 +1349,17 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
         trace_m25p80_page_program(s, s->cur_addr, (uint8_t)tx);
         flash_write8(s, s->cur_addr, (uint8_t)tx);
         s->cur_addr = (s->cur_addr + 1) & (s->size - 1);
+
+        if (get_man(s) == MAN_SST && s->aai_enable && s->cur_addr == 0) {
+            /*
+             * There is no wrap mode during AAI programming once the highest
+             * unprotected memory address is reached. The Write-Enable-Latch
+             * bit is automatically reset, and AAI programming mode aborts.
+             */
+            s->write_enable = false;
+            s->aai_enable = false;
+        }
+
         break;
 
     case STATE_READ:
@@ -1265,7 +1421,7 @@ static uint32_t m25p80_transfer8(SSISlave *ss, uint32_t tx)
     return r;
 }
 
-static void m25p80_realize(SSISlave *ss, Error **errp)
+static void m25p80_realize(SSIPeripheral *ss, Error **errp)
 {
     Flash *s = M25P80(ss);
     M25P80Class *mc = M25P80_GET_CLASS(s);
@@ -1278,7 +1434,7 @@ static void m25p80_realize(SSISlave *ss, Error **errp)
 
     if (s->blk) {
         uint64_t perm = BLK_PERM_CONSISTENT_READ |
-                        (blk_is_read_only(s->blk) ? 0 : BLK_PERM_WRITE);
+                        (blk_supports_write_perm(s->blk) ? BLK_PERM_WRITE : 0);
         ret = blk_set_perm(s->blk, perm, BLK_PERM_ALL, errp);
         if (ret < 0) {
             return;
@@ -1349,6 +1505,24 @@ static const VMStateDescription vmstate_m25p80_data_read_loop = {
     }
 };
 
+static bool m25p80_aai_enable_needed(void *opaque)
+{
+    Flash *s = (Flash *)opaque;
+
+    return s->aai_enable;
+}
+
+static const VMStateDescription vmstate_m25p80_aai_enable = {
+    .name = "m25p80/aai_enable",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = m25p80_aai_enable_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(aai_enable, Flash),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_m25p80 = {
     .name = "m25p80",
     .version_id = 0,
@@ -1379,6 +1553,7 @@ static const VMStateDescription vmstate_m25p80 = {
     },
     .subsections = (const VMStateDescription * []) {
         &vmstate_m25p80_data_read_loop,
+        &vmstate_m25p80_aai_enable,
         NULL
     }
 };
@@ -1386,7 +1561,7 @@ static const VMStateDescription vmstate_m25p80 = {
 static void m25p80_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
     M25P80Class *mc = M25P80_CLASS(klass);
 
     k->realize = m25p80_realize;
@@ -1401,7 +1576,7 @@ static void m25p80_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo m25p80_info = {
     .name           = TYPE_M25P80,
-    .parent         = TYPE_SSI_SLAVE,
+    .parent         = TYPE_SSI_PERIPHERAL,
     .instance_size  = sizeof(Flash),
     .class_size     = sizeof(M25P80Class),
     .abstract       = true,

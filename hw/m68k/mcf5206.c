@@ -10,6 +10,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "cpu.h"
+#include "hw/boards.h"
 #include "hw/irq.h"
 #include "hw/m68k/mcf.h"
 #include "qemu/timer.h"
@@ -164,6 +165,7 @@ typedef struct {
 
     M68kCPU *cpu;
     MemoryRegion iomem;
+    qemu_irq *pic;
     m5206_timer_state *timer[2];
     void *uart[2];
     uint8_t scr;
@@ -311,8 +313,9 @@ static uint64_t m5206_mbar_read(m5206_mbar_state *s,
         /* FIXME: currently hardcoded to 128Mb.  */
         {
             uint32_t mask = ~0;
-            while (mask > ram_size)
+            while (mask > current_machine->ram_size) {
                 mask >>= 1;
+            }
             return mask & 0x0ffe0000;
         }
     case 0x5c: return 1; /* DRAM bank 1 empty.  */
@@ -588,17 +591,16 @@ static const MemoryRegionOps m5206_mbar_ops = {
 static void mcf5206_mbar_realize(DeviceState *dev, Error **errp)
 {
     m5206_mbar_state *s = MCF5206_MBAR(dev);
-    qemu_irq *pic;
 
     memory_region_init_io(&s->iomem, NULL, &m5206_mbar_ops, s,
                           "mbar", 0x00001000);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 
-    pic = qemu_allocate_irqs(m5206_mbar_set_irq, s, 14);
-    s->timer[0] = m5206_timer_init(pic[9]);
-    s->timer[1] = m5206_timer_init(pic[10]);
-    s->uart[0] = mcf_uart_init(pic[12], serial_hd(0));
-    s->uart[1] = mcf_uart_init(pic[13], serial_hd(1));
+    s->pic = qemu_allocate_irqs(m5206_mbar_set_irq, s, 14);
+    s->timer[0] = m5206_timer_init(s->pic[9]);
+    s->timer[1] = m5206_timer_init(s->pic[10]);
+    s->uart[0] = mcf_uart_init(s->pic[12], serial_hd(0));
+    s->uart[1] = mcf_uart_init(s->pic[13], serial_hd(1));
     s->cpu = M68K_CPU(qemu_get_cpu(0));
 }
 

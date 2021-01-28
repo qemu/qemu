@@ -27,7 +27,7 @@
 #
 # Returns: nothing on success.
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -47,7 +47,7 @@
 #
 # @name: The name of the guest
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'NameInfo', 'data': {'*name': 'str'} }
 
@@ -58,7 +58,7 @@
 #
 # Returns: @NameInfo of the guest
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -67,36 +67,6 @@
 #
 ##
 { 'command': 'query-name', 'returns': 'NameInfo', 'allow-preconfig': true }
-
-##
-# @KvmInfo:
-#
-# Information about support for KVM acceleration
-#
-# @enabled: true if KVM acceleration is active
-#
-# @present: true if KVM acceleration is built into this executable
-#
-# Since: 0.14.0
-##
-{ 'struct': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
-
-##
-# @query-kvm:
-#
-# Returns information about KVM acceleration
-#
-# Returns: @KvmInfo
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "query-kvm" }
-# <- { "return": { "enabled": true, "present": true } }
-#
-##
-{ 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
 ##
 # @IOThreadInfo:
@@ -162,7 +132,7 @@
 #
 # Stop all guest VCPU execution.
 #
-# Since:  0.14.0
+# Since:  0.14
 #
 # Notes: This function will succeed even if the guest is already in the stopped
 #        state.  In "inmigrate" state, it will ensure that the guest
@@ -178,106 +148,11 @@
 { 'command': 'stop' }
 
 ##
-# @system_reset:
-#
-# Performs a hard reset of a guest.
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# -> { "execute": "system_reset" }
-# <- { "return": {} }
-#
-##
-{ 'command': 'system_reset' }
-
-##
-# @system_powerdown:
-#
-# Requests that a guest perform a powerdown operation.
-#
-# Since: 0.14.0
-#
-# Notes: A guest may or may not respond to this command.  This command
-#        returning does not indicate that a guest has accepted the request or
-#        that it has shut down.  Many guests will respond to this command by
-#        prompting the user in some way.
-# Example:
-#
-# -> { "execute": "system_powerdown" }
-# <- { "return": {} }
-#
-##
-{ 'command': 'system_powerdown' }
-
-##
-# @memsave:
-#
-# Save a portion of guest memory to a file.
-#
-# @val: the virtual address of the guest to start from
-#
-# @size: the size of memory region to save
-#
-# @filename: the file to save the memory to as binary data
-#
-# @cpu-index: the index of the virtual CPU to use for translating the
-#             virtual address (defaults to CPU 0)
-#
-# Returns: Nothing on success
-#
-# Since: 0.14.0
-#
-# Notes: Errors were not reliably returned until 1.1
-#
-# Example:
-#
-# -> { "execute": "memsave",
-#      "arguments": { "val": 10,
-#                     "size": 100,
-#                     "filename": "/tmp/virtual-mem-dump" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'memsave',
-  'data': {'val': 'int', 'size': 'int', 'filename': 'str', '*cpu-index': 'int'} }
-
-##
-# @pmemsave:
-#
-# Save a portion of guest physical memory to a file.
-#
-# @val: the physical address of the guest to start from
-#
-# @size: the size of memory region to save
-#
-# @filename: the file to save the memory to as binary data
-#
-# Returns: Nothing on success
-#
-# Since: 0.14.0
-#
-# Notes: Errors were not reliably returned until 1.1
-#
-# Example:
-#
-# -> { "execute": "pmemsave",
-#      "arguments": { "val": 10,
-#                     "size": 100,
-#                     "filename": "/tmp/physical-mem-dump" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'pmemsave',
-  'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
-
-##
 # @cont:
 #
 # Resume guest VCPU execution.
 #
-# Since:  0.14.0
+# Since:  0.14
 #
 # Returns:  If successful, nothing
 #
@@ -319,49 +194,6 @@
 { 'command': 'x-exit-preconfig', 'allow-preconfig': true }
 
 ##
-# @system_wakeup:
-#
-# Wake up guest from suspend. If the guest has wake-up from suspend
-# support enabled (wakeup-suspend-support flag from
-# query-current-machine), wake-up guest from suspend if the guest is
-# in SUSPENDED state. Return an error otherwise.
-#
-# Since:  1.1
-#
-# Returns:  nothing.
-#
-# Note: prior to 4.0, this command does nothing in case the guest
-#       isn't suspended.
-#
-# Example:
-#
-# -> { "execute": "system_wakeup" }
-# <- { "return": {} }
-#
-##
-{ 'command': 'system_wakeup' }
-
-##
-# @inject-nmi:
-#
-# Injects a Non-Maskable Interrupt into the default CPU (x86/s390) or all CPUs (ppc64).
-# The command fails when the guest doesn't support injecting.
-#
-# Returns:  If successful, nothing
-#
-# Since:  0.14.0
-#
-# Note: prior to 2.1, this command was only supported for x86 and s390 VMs
-#
-# Example:
-#
-# -> { "execute": "inject-nmi" }
-# <- { "return": {} }
-#
-##
-{ 'command': 'inject-nmi' }
-
-##
 # @human-monitor-command:
 #
 # Execute a command on the human monitor and return the output.
@@ -378,7 +210,7 @@
 #
 # Returns: the output of the command as a string
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Notes: This command only exists as a stop-gap.  Its use is highly
 #        discouraged.  The semantics of this command are not
@@ -407,75 +239,6 @@
   'features': [ 'savevm-monitor-nodes' ] }
 
 ##
-# @change:
-#
-# This command is multiple commands multiplexed together.
-#
-# @device: This is normally the name of a block device but it may also be 'vnc'.
-#          when it's 'vnc', then sub command depends on @target
-#
-# @target: If @device is a block device, then this is the new filename.
-#          If @device is 'vnc', then if the value 'password' selects the vnc
-#          change password command.   Otherwise, this specifies a new server URI
-#          address to listen to for VNC connections.
-#
-# @arg: If @device is a block device, then this is an optional format to open
-#       the device with.
-#       If @device is 'vnc' and @target is 'password', this is the new VNC
-#       password to set.  See change-vnc-password for additional notes.
-#
-# Features:
-# @deprecated: This command is deprecated.  For changing block
-#              devices, use 'blockdev-change-medium' instead; for changing VNC
-#              parameters, use 'change-vnc-password' instead.
-#
-# Returns: - Nothing on success.
-#          - If @device is not a valid block device, DeviceNotFound
-#
-# Since: 0.14.0
-#
-# Example:
-#
-# 1. Change a removable medium
-#
-# -> { "execute": "change",
-#      "arguments": { "device": "ide1-cd0",
-#                     "target": "/srv/images/Fedora-12-x86_64-DVD.iso" } }
-# <- { "return": {} }
-#
-# 2. Change VNC password
-#
-# -> { "execute": "change",
-#      "arguments": { "device": "vnc", "target": "password",
-#                     "arg": "foobar1" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'change',
-  'data': {'device': 'str', 'target': 'str', '*arg': 'str'},
-  'features': [ 'deprecated' ] }
-
-##
-# @xen-set-global-dirty-log:
-#
-# Enable or disable the global dirty log mode.
-#
-# @enable: true to enable, false to disable.
-#
-# Returns: nothing
-#
-# Since: 1.3
-#
-# Example:
-#
-# -> { "execute": "xen-set-global-dirty-log",
-#      "arguments": { "enable": true } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'xen-set-global-dirty-log', 'data': { 'enable': 'bool' } }
-
-##
 # @getfd:
 #
 # Receive a file descriptor via SCM rights and assign it a name
@@ -484,7 +247,7 @@
 #
 # Returns: Nothing on success
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Notes: If @fdname already exists, the file descriptor assigned to
 #        it will be closed and replaced by the received file
@@ -510,7 +273,7 @@
 #
 # Returns: Nothing on success
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -530,7 +293,7 @@
 # @fd: The file descriptor that was received via SCM rights and
 #      added to the fd set.
 #
-# Since: 1.2.0
+# Since: 1.2
 ##
 { 'struct': 'AddfdInfo', 'data': {'fdset-id': 'int', 'fd': 'int'} }
 
@@ -551,7 +314,7 @@
 #
 #        If @fdset-id is not specified, a new fd set will be created.
 #
-# Since: 1.2.0
+# Since: 1.2
 #
 # Example:
 #
@@ -576,7 +339,7 @@
 # Returns: - Nothing on success
 #          - If @fdset-id or @fd is not found, FdNotFound
 #
-# Since: 1.2.0
+# Since: 1.2
 #
 # Notes: The list of fd sets is shared by all monitor connections.
 #
@@ -600,7 +363,7 @@
 #
 # @opaque: A free-form string that can be used to describe the fd.
 #
-# Since: 1.2.0
+# Since: 1.2
 ##
 { 'struct': 'FdsetFdInfo',
   'data': {'fd': 'int', '*opaque': 'str'} }
@@ -614,7 +377,7 @@
 #
 # @fds: A list of file descriptors that belong to this fd set.
 #
-# Since: 1.2.0
+# Since: 1.2
 ##
 { 'struct': 'FdsetInfo',
   'data': {'fdset-id': 'int', 'fds': ['FdsetFdInfo']} }
@@ -626,7 +389,7 @@
 #
 # Returns: A list of @FdsetInfo
 #
-# Since: 1.2.0
+# Since: 1.2
 #
 # Note: The list of fd sets is shared by all monitor connections.
 #
@@ -756,42 +519,3 @@
  'data': { '*option': 'str' },
  'returns': ['CommandLineOptionInfo'],
  'allow-preconfig': true }
-
-##
-# @ReplayMode:
-#
-# Mode of the replay subsystem.
-#
-# @none: normal execution mode. Replay or record are not enabled.
-#
-# @record: record mode. All non-deterministic data is written into the
-#          replay log.
-#
-# @play: replay mode. Non-deterministic data required for system execution
-#        is read from the log.
-#
-# Since: 2.5
-##
-{ 'enum': 'ReplayMode',
-  'data': [ 'none', 'record', 'play' ] }
-
-##
-# @xen-load-devices-state:
-#
-# Load the state of all devices from file. The RAM and the block devices
-# of the VM are not loaded by this command.
-#
-# @filename: the file to load the state of the devices from as binary
-#            data. See xen-save-devices-state.txt for a description of the binary
-#            format.
-#
-# Since: 2.7
-#
-# Example:
-#
-# -> { "execute": "xen-load-devices-state",
-#      "arguments": { "filename": "/tmp/resume" } }
-# <- { "return": {} }
-#
-##
-{ 'command': 'xen-load-devices-state', 'data': {'filename': 'str'} }

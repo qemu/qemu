@@ -134,7 +134,7 @@ static int get_avr(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_avr(QEMUFile *f, void *pv, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     ppc_avr_t *v = pv;
 
@@ -166,7 +166,7 @@ static int get_fpr(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_fpr(QEMUFile *f, void *pv, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     ppc_vsr_t *v = pv;
 
@@ -197,7 +197,7 @@ static int get_vsr(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_vsr(QEMUFile *f, void *pv, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     ppc_vsr_t *v = pv;
 
@@ -337,7 +337,7 @@ static int cpu_post_load(void *opaque, int version_id)
 
     /*
      * If we're operating in compat mode, we should be ok as long as
-     * the destination supports the same compatiblity mode.
+     * the destination supports the same compatibility mode.
      *
      * Otherwise, however, we require that the destination has exactly
      * the same CPU model as the source.
@@ -347,18 +347,19 @@ static int cpu_post_load(void *opaque, int version_id)
     if (cpu->compat_pvr) {
         uint32_t compat_pvr = cpu->compat_pvr;
         Error *local_err = NULL;
+        int ret;
 
         cpu->compat_pvr = 0;
-        ppc_set_compat(cpu, compat_pvr, &local_err);
-        if (local_err) {
+        ret = ppc_set_compat(cpu, compat_pvr, &local_err);
+        if (ret < 0) {
             error_report_err(local_err);
-            return -1;
+            return ret;
         }
     } else
 #endif
     {
         if (!pvr_match(cpu, env->spr[SPR_PVR])) {
-            return -1;
+            return -EINVAL;
         }
     }
 
@@ -454,7 +455,7 @@ static int get_vscr(QEMUFile *f, void *opaque, size_t size,
 }
 
 static int put_vscr(QEMUFile *f, void *opaque, size_t size,
-                    const VMStateField *field, QJSON *vmdesc)
+                    const VMStateField *field, JSONWriter *vmdesc)
 {
     PowerPCCPU *cpu = opaque;
     qemu_put_be32(f, helper_mfvscr(&cpu->env));
@@ -549,7 +550,7 @@ static bool sr_needed(void *opaque)
 #ifdef TARGET_PPC64
     PowerPCCPU *cpu = opaque;
 
-    return !(cpu->env.mmu_model & POWERPC_MMU_64);
+    return !mmu_is_64bit(cpu->env.mmu_model);
 #else
     return true;
 #endif
@@ -579,7 +580,7 @@ static int get_slbe(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_slbe(QEMUFile *f, void *pv, size_t size,
-                    const VMStateField *field, QJSON *vmdesc)
+                    const VMStateField *field, JSONWriter *vmdesc)
 {
     ppc_slb_t *v = pv;
 
@@ -605,7 +606,7 @@ static bool slb_needed(void *opaque)
     PowerPCCPU *cpu = opaque;
 
     /* We don't support any of the old segment table based 64-bit CPUs */
-    return cpu->env.mmu_model & POWERPC_MMU_64;
+    return mmu_is_64bit(cpu->env.mmu_model);
 }
 
 static int slb_post_load(void *opaque, int version_id)

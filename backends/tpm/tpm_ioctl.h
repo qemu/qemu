@@ -12,6 +12,10 @@
 #include <sys/uio.h>
 #include <sys/ioctl.h>
 
+#ifdef HAVE_SYS_IOCCOM_H
+#include <sys/ioccom.h>
+#endif
+
 /*
  * Every response from a command involving a TPM command execution must hold
  * the ptm_res as the first element.

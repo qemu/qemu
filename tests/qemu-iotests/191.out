@@ -16,7 +16,11 @@ wrote 65536/65536 bytes at offset 1048576
 
 === Perform commit job ===
 
-{ 'execute': 'block-commit', 'arguments': { 'job-id': 'commit0', 'device': 'top', 'base':'TEST_DIR/t.IMGFMT.base', 'top': 'TEST_DIR/t.IMGFMT.mid' } }
+{ 'execute': 'block-commit',
+       'arguments': { 'job-id': 'commit0',
+                      'device': 'top',
+                      'base':'TEST_DIR/t.IMGFMT.base',
+                      'top': 'TEST_DIR/t.IMGFMT.mid' } }
 {
     "timestamp": {
         "seconds":  TIMESTAMP,
@@ -427,7 +431,11 @@ wrote 65536/65536 bytes at offset 1048576
 
 === Perform commit job ===
 
-{ 'execute': 'block-commit', 'arguments': { 'job-id': 'commit0', 'device': 'top', 'base':'TEST_DIR/t.IMGFMT.base', 'top': 'TEST_DIR/t.IMGFMT.mid' } }
+{ 'execute': 'block-commit',
+       'arguments': { 'job-id': 'commit0',
+                      'device': 'top',
+                      'base':'TEST_DIR/t.IMGFMT.base',
+                      'top': 'TEST_DIR/t.IMGFMT.mid' } }
 {
     "timestamp": {
         "seconds":  TIMESTAMP,

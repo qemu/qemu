@@ -112,9 +112,7 @@ static void qemu_chr_open_stdio(Chardev *chr,
 
     qemu_chr_open_fd(chr, 0, 1);
 
-    if (opts->has_signal) {
-        stdio_allow_signal = opts->signal;
-    }
+    stdio_allow_signal = !opts->has_signal || opts->signal;
     qemu_chr_set_echo_stdio(chr, false);
 }
 #endif

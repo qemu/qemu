@@ -576,7 +576,6 @@ static void usb_hub_unrealize(USBDevice *dev)
                             &s->ports[i].port);
     }
 
-    timer_del(s->port_timer);
     timer_free(s->port_timer);
 }
 

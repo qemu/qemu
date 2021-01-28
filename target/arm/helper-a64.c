@@ -6,7 +6,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -972,8 +972,7 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
     if (new_el == -1) {
         goto illegal_return;
     }
-    if (new_el > cur_el
-        || (new_el == 2 && !arm_feature(env, ARM_FEATURE_EL2))) {
+    if (new_el > cur_el || (new_el == 2 && !arm_is_el2_enabled(env))) {
         /* Disallow return to an EL which is unimplemented or higher
          * than the current one.
          */
@@ -982,11 +981,6 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
 
     if (new_el != 0 && arm_el_is_aa64(env, new_el) != return_to_aa64) {
         /* Return to an EL which is configured for a different register width */
-        goto illegal_return;
-    }
-
-    if (new_el == 2 && arm_is_secure_below_el3(env)) {
-        /* Return to the non-existent secure-EL2 */
         goto illegal_return;
     }
 

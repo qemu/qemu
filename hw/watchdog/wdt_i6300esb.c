@@ -454,7 +454,6 @@ static void i6300esb_exit(PCIDevice *dev)
 {
     I6300State *d = WATCHDOG_I6300ESB_DEVICE(dev);
 
-    timer_del(d->timer);
     timer_free(d->timer);
 }
 

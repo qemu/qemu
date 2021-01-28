@@ -200,6 +200,38 @@ the list of KVM VCPU features and their descriptions.
                            adjustment, also restoring the legacy (pre-5.0)
                            behavior.
 
+  kvm-steal-time           Since v5.2, kvm-steal-time is enabled by
+                           default when KVM is enabled, the feature is
+                           supported, and the guest is 64-bit.
+
+                           When kvm-steal-time is enabled a 64-bit guest
+                           can account for time its CPUs were not running
+                           due to the host not scheduling the corresponding
+                           VCPU threads.  The accounting statistics may
+                           influence the guest scheduler behavior and/or be
+                           exposed to the guest userspace.
+
+TCG VCPU Features
+=================
+
+TCG VCPU features are CPU features that are specific to TCG.
+Below is the list of TCG VCPU features and their descriptions.
+
+  pauth                    Enable or disable `FEAT_Pauth`, pointer
+                           authentication.  By default, the feature is
+                           enabled with `-cpu max`.
+
+  pauth-impdef             When `FEAT_Pauth` is enabled, either the
+                           *impdef* (Implementation Defined) algorithm
+                           is enabled or the *architected* QARMA algorithm
+                           is enabled.  By default the impdef algorithm
+                           is disabled, and QARMA is enabled.
+
+                           The architected QARMA algorithm has good
+                           cryptographic properties, but can be quite slow
+                           to emulate.  The impdef algorithm used by QEMU
+                           is non-cryptographic but significantly faster.
+
 SVE CPU Properties
 ==================
 

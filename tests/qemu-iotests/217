@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw auto quick
 #
 # I/O errors when working with internal qcow2 snapshots, and repairing
 # the result
@@ -36,7 +37,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # This test is specific to qcow2
 _supported_fmt qcow2
-_supported_proto file
+_supported_proto file fuse
 
 # This test needs clusters with at least a refcount of 2 so that
 # OFLAG_COPIED is not set.  refcount_bits=1 is therefore unsupported.

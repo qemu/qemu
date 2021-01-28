@@ -43,15 +43,23 @@ static void ibex_plic_irqs_set_pending(IbexPlicState *s, int irq, bool level)
 {
     int pending_num = irq / 32;
 
-    if (s->claimed[pending_num] & 1 << (irq % 32)) {
+    if (!level) {
         /*
-         * The interrupt has been claimed, but not compelted.
-         * The pending bit can't be set.
+         * If the level is low make sure we clear the hidden_pending.
          */
-        return;
+        s->hidden_pending[pending_num] &= ~(1 << (irq % 32));
     }
 
-    s->pending[pending_num] |= level << (irq % 32);
+    if (s->claimed[pending_num] & 1 << (irq % 32)) {
+        /*
+         * The interrupt has been claimed, but not completed.
+         * The pending bit can't be set.
+         * Save the pending level for after the interrupt is completed.
+         */
+        s->hidden_pending[pending_num] |= level << (irq % 32);
+    } else {
+        s->pending[pending_num] |= level << (irq % 32);
+    }
 }
 
 static bool ibex_plic_irqs_pending(IbexPlicState *s, uint32_t context)
@@ -133,11 +141,14 @@ static uint64_t ibex_plic_read(void *opaque, hwaddr addr,
         int pending_num = s->claim / 32;
         s->pending[pending_num] &= ~(1 << (s->claim % 32));
 
-        /* Set the interrupt as claimed, but not compelted */
+        /* Set the interrupt as claimed, but not completed */
         s->claimed[pending_num] |= 1 << (s->claim % 32);
 
         /* Return the current claimed interrupt */
         ret = s->claim;
+
+        /* Clear the claimed interrupt */
+        s->claim = 0x00000000;
 
         /* Update the interrupt status after the claim */
         ibex_plic_update(s);
@@ -173,8 +184,21 @@ static void ibex_plic_write(void *opaque, hwaddr addr,
             s->claim = 0;
         }
         if (s->claimed[value / 32] & 1 << (value % 32)) {
+            int pending_num = value / 32;
+
             /* This value was already claimed, clear it. */
-            s->claimed[value / 32] &= ~(1 << (value % 32));
+            s->claimed[pending_num] &= ~(1 << (value % 32));
+
+            if (s->hidden_pending[pending_num] & (1 << (value % 32))) {
+                /*
+                 * If the bit in hidden_pending is set then that means we
+                 * received an interrupt between claiming and completing
+                 * the interrupt that hasn't since been de-asserted.
+                 * On hardware this would trigger an interrupt, so let's
+                 * trigger one here as well.
+                 */
+                s->pending[pending_num] |= 1 << (value % 32);
+            }
         }
     }
 
@@ -236,6 +260,7 @@ static void ibex_plic_realize(DeviceState *dev, Error **errp)
     int i;
 
     s->pending = g_new0(uint32_t, s->pending_num);
+    s->hidden_pending = g_new0(uint32_t, s->pending_num);
     s->claimed = g_new0(uint32_t, s->pending_num);
     s->source = g_new0(uint32_t, s->source_num);
     s->priority = g_new0(uint32_t, s->priority_num);

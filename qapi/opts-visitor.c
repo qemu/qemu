@@ -368,7 +368,6 @@ opts_type_str(Visitor *v, const char *name, char **obj, Error **errp)
 }
 
 
-/* mimics qemu-option.c::parse_option_bool() */
 static bool
 opts_type_bool(Visitor *v, const char *name, bool *obj, Error **errp)
 {
@@ -379,19 +378,8 @@ opts_type_bool(Visitor *v, const char *name, bool *obj, Error **errp)
     if (!opt) {
         return false;
     }
-
     if (opt->str) {
-        if (strcmp(opt->str, "on") == 0 ||
-            strcmp(opt->str, "yes") == 0 ||
-            strcmp(opt->str, "y") == 0) {
-            *obj = true;
-        } else if (strcmp(opt->str, "off") == 0 ||
-            strcmp(opt->str, "no") == 0 ||
-            strcmp(opt->str, "n") == 0) {
-            *obj = false;
-        } else {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
-                       "on|yes|y|off|no|n");
+        if (!qapi_bool_parse(opt->name, opt->str, obj, errp)) {
             return false;
         }
     } else {

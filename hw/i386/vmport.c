@@ -32,6 +32,7 @@
 #include "hw/isa/isa.h"
 #include "hw/i386/vmport.h"
 #include "hw/qdev-properties.h"
+#include "hw/boards.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/qtest.h"
@@ -188,7 +189,7 @@ static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
         return -1;
     }
     cpu->env.regs[R_EBX] = 0x1177;
-    return ram_size;
+    return current_machine->ram_size;
 }
 
 static uint32_t vmport_cmd_get_hz(void *opaque, uint32_t addr)

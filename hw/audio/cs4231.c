@@ -160,17 +160,12 @@ static void cs4231_init(Object *obj)
     sysbus_init_irq(dev, &s->irq);
 }
 
-static Property cs4231_properties[] = {
-    {.name = NULL},
-};
-
 static void cs4231_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset = cs_reset;
     dc->vmsd = &vmstate_cs4231;
-    device_class_set_props(dc, cs4231_properties);
 }
 
 static const TypeInfo cs4231_info = {

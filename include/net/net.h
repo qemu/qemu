@@ -4,6 +4,7 @@
 #include "qemu/queue.h"
 #include "qapi/qapi-types-net.h"
 #include "net/queue.h"
+#include "hw/qdev-properties-system.h"
 
 #define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
 #define MAC_ARG(x) ((uint8_t *)(x))[0], ((uint8_t *)(x))[1], \
@@ -199,6 +200,7 @@ extern const char *host_net_devices[];
 
 /* from net.c */
 int net_client_parse(QemuOptsList *opts_list, const char *str);
+void show_netdevs(void);
 int net_init_clients(Error **errp);
 void net_check_clients(void);
 void net_cleanup(void);

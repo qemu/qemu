@@ -85,15 +85,13 @@ static bool qemu_co_queue_do_restart(CoQueue *queue, bool single)
     return true;
 }
 
-bool coroutine_fn qemu_co_queue_next(CoQueue *queue)
+bool qemu_co_queue_next(CoQueue *queue)
 {
-    assert(qemu_in_coroutine());
     return qemu_co_queue_do_restart(queue, true);
 }
 
-void coroutine_fn qemu_co_queue_restart_all(CoQueue *queue)
+void qemu_co_queue_restart_all(CoQueue *queue)
 {
-    assert(qemu_in_coroutine());
     qemu_co_queue_do_restart(queue, false);
 }
 

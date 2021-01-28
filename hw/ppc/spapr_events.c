@@ -480,9 +480,8 @@ static SpaprEventLogEntry *rtas_event_log_dequeue(SpaprMachineState *spapr,
     return entry;
 }
 
-static bool rtas_event_log_contains(uint32_t event_mask)
+static bool rtas_event_log_contains(SpaprMachineState *spapr, uint32_t event_mask)
 {
-    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     SpaprEventLogEntry *entry = NULL;
 
     QTAILQ_FOREACH(entry, &spapr->pending_events, next) {
@@ -509,10 +508,10 @@ static void spapr_init_v6hdr(struct rtas_event_log_v6 *v6hdr)
     v6hdr->company = cpu_to_be32(RTAS_LOG_V6_COMPANY_IBM);
 }
 
-static void spapr_init_maina(struct rtas_event_log_v6_maina *maina,
+static void spapr_init_maina(SpaprMachineState *spapr,
+                             struct rtas_event_log_v6_maina *maina,
                              int section_count)
 {
-    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     struct tm tm;
     int year;
 
@@ -560,7 +559,7 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
     entry->extended_length = sizeof(*new_epow);
 
     spapr_init_v6hdr(v6hdr);
-    spapr_init_maina(maina, 3 /* Main-A, Main-B and EPOW */);
+    spapr_init_maina(spapr, maina, 3 /* Main-A, Main-B and EPOW */);
 
     mainb->hdr.section_id = cpu_to_be16(RTAS_LOG_V6_SECTION_ID_MAINB);
     mainb->hdr.section_length = cpu_to_be16(sizeof(*mainb));
@@ -613,7 +612,7 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
     entry->extended_length = sizeof(*new_hp);
 
     spapr_init_v6hdr(v6hdr);
-    spapr_init_maina(maina, 3 /* Main-A, Main-B, HP */);
+    spapr_init_maina(spapr, maina, 3 /* Main-A, Main-B, HP */);
 
     mainb->hdr.section_id = cpu_to_be16(RTAS_LOG_V6_SECTION_ID_MAINB);
     mainb->hdr.section_length = cpu_to_be16(sizeof(*mainb));
@@ -659,7 +658,7 @@ static void spapr_hotplug_req_event(uint8_t hp_id, uint8_t hp_action,
         /* we should not be using count_indexed value unless the guest
          * supports dedicated hotplug event source
          */
-        g_assert(spapr_ovec_test(spapr->ov5_cas, OV5_HP_EVT));
+        g_assert(spapr_memory_hot_unplug_supported(spapr));
         hp->drc_id.count_indexed.count =
             cpu_to_be32(drc_id->count_indexed.count);
         hp->drc_id.count_indexed.index =
@@ -808,9 +807,9 @@ static uint32_t spapr_mce_get_elog_type(PowerPCCPU *cpu, bool recovered,
     return summary;
 }
 
-static void spapr_mce_dispatch_elog(PowerPCCPU *cpu, bool recovered)
+static void spapr_mce_dispatch_elog(SpaprMachineState *spapr, PowerPCCPU *cpu,
+                                    bool recovered)
 {
-    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     uint64_t rtas_addr;
@@ -927,7 +926,7 @@ void spapr_mce_req_event(PowerPCCPU *cpu, bool recovered)
         warn_report("Received a fwnmi while migration was in progress");
     }
 
-    spapr_mce_dispatch_elog(cpu, recovered);
+    spapr_mce_dispatch_elog(spapr, cpu, recovered);
 }
 
 static void check_exception(PowerPCCPU *cpu, SpaprMachineState *spapr,
@@ -980,7 +979,7 @@ static void check_exception(PowerPCCPU *cpu, SpaprMachineState *spapr,
      * interrupts.
      */
     for (i = 0; i < EVENT_CLASS_MAX; i++) {
-        if (rtas_event_log_contains(EVENT_CLASS_MASK(i))) {
+        if (rtas_event_log_contains(spapr, EVENT_CLASS_MASK(i))) {
             const SpaprEventSource *source =
                 spapr_event_sources_get_source(spapr->event_sources, i);
 
@@ -1000,10 +999,22 @@ static void event_scan(PowerPCCPU *cpu, SpaprMachineState *spapr,
                        target_ulong args,
                        uint32_t nret, target_ulong rets)
 {
+    int i;
     if (nargs != 4 || nret != 1) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
     }
+
+    for (i = 0; i < EVENT_CLASS_MAX; i++) {
+        if (rtas_event_log_contains(spapr, EVENT_CLASS_MASK(i))) {
+            const SpaprEventSource *source =
+                spapr_event_sources_get_source(spapr->event_sources, i);
+
+            g_assert(source->enabled);
+            qemu_irq_pulse(spapr_qirq(spapr, source->irq));
+        }
+    }
+
     rtas_st(rets, 0, RTAS_OUT_NO_ERRORS_FOUND);
 }
 

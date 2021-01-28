@@ -17,8 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "standard-headers/linux/virtio_blk.h"
-#include "contrib/libvhost-user/libvhost-user-glib.h"
-#include "contrib/libvhost-user/libvhost-user.h"
+#include "libvhost-user-glib.h"
 
 #if defined(__linux__)
 #include <linux/fs.h>
@@ -404,6 +403,10 @@ vub_get_config(VuDev *vu_dev, uint8_t *config, uint32_t len)
     VugDev *gdev;
     VubDev *vdev_blk;
 
+    if (len > sizeof(struct virtio_blk_config)) {
+        return -1;
+    }
+
     gdev = container_of(vu_dev, VugDev, parent);
     vdev_blk = container_of(gdev, VubDev, parent);
     memcpy(config, &vdev_blk->blkcfg, len);
@@ -474,7 +477,7 @@ static int unix_sock_new(char *unix_fn)
     assert(unix_fn);
 
     sock = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (sock <= 0) {
+    if (sock < 0) {
         perror("socket");
         return -1;
     }

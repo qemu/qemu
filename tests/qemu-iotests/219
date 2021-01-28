@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# group: rw
 #
 # Copyright (C) 2018 Red Hat, Inc.
 #
@@ -203,13 +204,13 @@ with iotests.FilePath('disk.img') as disk_path, \
     # but related to this also automatic state transitions like job
     # completion), but still get pause points often enough to avoid making this
     # test very slow, it's important to have the right ratio between speed and
-    # buf_size.
+    # copy-chunk-size.
     #
-    # For backup, buf_size is hard-coded to the source image cluster size (64k),
-    # so we'll pick the same for mirror. The slice time, i.e. the granularity
-    # of the rate limiting is 100ms. With a speed of 256k per second, we can
-    # get four pause points per second. This gives us 250ms per iteration,
-    # which should be enough to stay deterministic.
+    # Chose 64k copy-chunk-size both for mirror (by buf_size) and backup (by
+    # x-max-chunk). The slice time, i.e. the granularity of the rate limiting
+    # is 100ms. With a speed of 256k per second, we can get four pause points
+    # per second. This gives us 250ms per iteration, which should be enough to
+    # stay deterministic.
 
     test_job_lifecycle(vm, 'drive-mirror', has_ready=True, job_args={
         'device': 'drive0-node',
@@ -226,6 +227,7 @@ with iotests.FilePath('disk.img') as disk_path, \
                 'target': copy_path,
                 'sync': 'full',
                 'speed': 262144,
+                'x-perf': {'max-chunk': 65536},
                 'auto-finalize': auto_finalize,
                 'auto-dismiss': auto_dismiss,
             })

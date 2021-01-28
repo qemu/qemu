@@ -17,6 +17,7 @@
 #ifdef CONFIG_LINUX_IO_URING
 #include <liburing.h>
 #endif
+#include "qemu/coroutine.h"
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
 #include "qemu/thread.h"
@@ -653,6 +654,15 @@ static inline bool aio_node_check(AioContext *ctx, bool is_external)
  * qemu_get_current_aio_context() from the coroutine itself).
  */
 void aio_co_schedule(AioContext *ctx, struct Coroutine *co);
+
+/**
+ * aio_co_reschedule_self:
+ * @new_ctx: the new context
+ *
+ * Move the currently running coroutine to new_ctx. If the coroutine is already
+ * running in new_ctx, do nothing.
+ */
+void coroutine_fn aio_co_reschedule_self(AioContext *new_ctx);
 
 /**
  * aio_co_wake:

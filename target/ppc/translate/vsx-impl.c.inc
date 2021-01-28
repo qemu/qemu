@@ -75,29 +75,6 @@ static void gen_lxvd2x(DisasContext *ctx)
     tcg_temp_free_i64(t0);
 }
 
-static void gen_lxvdsx(DisasContext *ctx)
-{
-    TCGv EA;
-    TCGv_i64 t0;
-    TCGv_i64 t1;
-    if (unlikely(!ctx->vsx_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VSXU);
-        return;
-    }
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-    gen_set_access_type(ctx, ACCESS_INT);
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    gen_qemu_ld64_i64(ctx, t0, EA);
-    set_cpu_vsrh(xT(ctx->opcode), t0);
-    tcg_gen_mov_i64(t1, t0);
-    set_cpu_vsrl(xT(ctx->opcode), t1);
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-}
-
 static void gen_lxvw4x(DisasContext *ctx)
 {
     TCGv EA;
@@ -137,6 +114,59 @@ static void gen_lxvw4x(DisasContext *ctx)
     tcg_temp_free(EA);
     tcg_temp_free_i64(xth);
     tcg_temp_free_i64(xtl);
+}
+
+static void gen_lxvwsx(DisasContext *ctx)
+{
+    TCGv EA;
+    TCGv_i32 data;
+
+    if (xT(ctx->opcode) < 32) {
+        if (unlikely(!ctx->vsx_enabled)) {
+            gen_exception(ctx, POWERPC_EXCP_VSXU);
+            return;
+        }
+    } else {
+        if (unlikely(!ctx->altivec_enabled)) {
+            gen_exception(ctx, POWERPC_EXCP_VPU);
+            return;
+        }
+    }
+
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+
+    gen_addr_reg_index(ctx, EA);
+
+    data = tcg_temp_new_i32();
+    tcg_gen_qemu_ld_i32(data, EA, ctx->mem_idx, MO_TEUL);
+    tcg_gen_gvec_dup_i32(MO_UL, vsr_full_offset(xT(ctx->opcode)), 16, 16, data);
+
+    tcg_temp_free(EA);
+    tcg_temp_free_i32(data);
+}
+
+static void gen_lxvdsx(DisasContext *ctx)
+{
+    TCGv EA;
+    TCGv_i64 data;
+
+    if (unlikely(!ctx->vsx_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VSXU);
+        return;
+    }
+
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+
+    gen_addr_reg_index(ctx, EA);
+
+    data = tcg_temp_new_i64();
+    tcg_gen_qemu_ld_i64(data, EA, ctx->mem_idx, MO_TEQ);
+    tcg_gen_gvec_dup_i64(MO_Q, vsr_full_offset(xT(ctx->opcode)), 16, 16, data);
+
+    tcg_temp_free(EA);
+    tcg_temp_free_i64(data);
 }
 
 static void gen_bswap16x8(TCGv_i64 outh, TCGv_i64 outl,

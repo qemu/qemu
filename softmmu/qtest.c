@@ -21,7 +21,7 @@
 #include "exec/memory.h"
 #include "hw/irq.h"
 #include "sysemu/accel.h"
-#include "sysemu/cpus.h"
+#include "sysemu/cpu-timers.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/error-report.h"
@@ -49,91 +49,138 @@ static void *qtest_server_send_opaque;
 #define FMT_timeval "%ld.%06ld"
 
 /**
- * QTest Protocol
+ * DOC: QTest Protocol
  *
  * Line based protocol, request/response based.  Server can send async messages
  * so clients should always handle many async messages before the response
  * comes in.
  *
  * Valid requests
+ * ^^^^^^^^^^^^^^
  *
  * Clock management:
+ * """""""""""""""""
  *
  * The qtest client is completely in charge of the QEMU_CLOCK_VIRTUAL.  qtest commands
  * let you adjust the value of the clock (monotonically).  All the commands
  * return the current value of the clock in nanoseconds.
  *
+ * .. code-block:: none
+ *
  *  > clock_step
  *  < OK VALUE
  *
- *     Advance the clock to the next deadline.  Useful when waiting for
- *     asynchronous events.
+ * Advance the clock to the next deadline.  Useful when waiting for
+ * asynchronous events.
+ *
+ * .. code-block:: none
  *
  *  > clock_step NS
  *  < OK VALUE
  *
- *     Advance the clock by NS nanoseconds.
+ * Advance the clock by NS nanoseconds.
+ *
+ * .. code-block:: none
  *
  *  > clock_set NS
  *  < OK VALUE
  *
- *     Advance the clock to NS nanoseconds (do nothing if it's already past).
+ * Advance the clock to NS nanoseconds (do nothing if it's already past).
  *
  * PIO and memory access:
+ * """"""""""""""""""""""
+ *
+ * .. code-block:: none
  *
  *  > outb ADDR VALUE
  *  < OK
  *
+ * .. code-block:: none
+ *
  *  > outw ADDR VALUE
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > outl ADDR VALUE
  *  < OK
  *
+ * .. code-block:: none
+ *
  *  > inb ADDR
  *  < OK VALUE
+ *
+ * .. code-block:: none
  *
  *  > inw ADDR
  *  < OK VALUE
  *
+ * .. code-block:: none
+ *
  *  > inl ADDR
  *  < OK VALUE
+ *
+ * .. code-block:: none
  *
  *  > writeb ADDR VALUE
  *  < OK
  *
+ * .. code-block:: none
+ *
  *  > writew ADDR VALUE
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > writel ADDR VALUE
  *  < OK
  *
+ * .. code-block:: none
+ *
  *  > writeq ADDR VALUE
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > readb ADDR
  *  < OK VALUE
  *
+ * .. code-block:: none
+ *
  *  > readw ADDR
  *  < OK VALUE
+ *
+ * .. code-block:: none
  *
  *  > readl ADDR
  *  < OK VALUE
  *
+ * .. code-block:: none
+ *
  *  > readq ADDR
  *  < OK VALUE
+ *
+ * .. code-block:: none
  *
  *  > read ADDR SIZE
  *  < OK DATA
  *
+ * .. code-block:: none
+ *
  *  > write ADDR SIZE DATA
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > b64read ADDR SIZE
  *  < OK B64_DATA
  *
+ * .. code-block:: none
+ *
  *  > b64write ADDR SIZE B64_DATA
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > memset ADDR SIZE VALUE
  *  < OK
@@ -149,16 +196,21 @@ static void *qtest_server_send_opaque;
  * If the sizes do not match, the data will be truncated.
  *
  * IRQ management:
+ * """""""""""""""
+ *
+ * .. code-block:: none
  *
  *  > irq_intercept_in QOM-PATH
  *  < OK
+ *
+ * .. code-block:: none
  *
  *  > irq_intercept_out QOM-PATH
  *  < OK
  *
  * Attach to the gpio-in (resp. gpio-out) pins exported by the device at
  * QOM-PATH.  When the pin is triggered, one of the following async messages
- * will be printed to the qtest stream:
+ * will be printed to the qtest stream::
  *
  *  IRQ raise NUM
  *  IRQ lower NUM
@@ -168,12 +220,15 @@ static void *qtest_server_send_opaque;
  * NUM=0 even though it is remapped to GSI 2).
  *
  * Setting interrupt level:
+ * """"""""""""""""""""""""
+ *
+ * .. code-block:: none
  *
  *  > set_irq_in QOM-PATH NAME NUM LEVEL
  *  < OK
  *
- *  where NAME is the name of the irq/gpio list, NUM is an IRQ number and
- *  LEVEL is an signed integer IRQ level.
+ * where NAME is the name of the irq/gpio list, NUM is an IRQ number and
+ * LEVEL is an signed integer IRQ level.
  *
  * Forcibly set the given interrupt pin to the given level.
  *
@@ -271,6 +326,38 @@ static void qtest_irq_handler(void *opaque, int n, int level)
         qtest_sendf(chr, "IRQ %s %d\n",
                     level ? "raise" : "lower", n);
     }
+}
+
+static int64_t qtest_clock_counter;
+
+int64_t qtest_get_virtual_clock(void)
+{
+    return qatomic_read_i64(&qtest_clock_counter);
+}
+
+static void qtest_set_virtual_clock(int64_t count)
+{
+    qatomic_set_i64(&qtest_clock_counter, count);
+}
+
+static void qtest_clock_warp(int64_t dest)
+{
+    int64_t clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    AioContext *aio_context;
+    assert(qtest_enabled());
+    aio_context = qemu_get_aio_context();
+    while (clock < dest) {
+        int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL,
+                                                      QEMU_TIMER_ATTR_ALL);
+        int64_t warp = qemu_soonest_timeout(dest - clock, deadline);
+
+        qtest_set_virtual_clock(qtest_get_virtual_clock() + warp);
+
+        qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
+        timerlist_run_timers(aio_context->tlg.tl[QEMU_CLOCK_VIRTUAL]);
+        clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    }
+    qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
 }
 
 static void qtest_process_command(CharBackend *chr, gchar **words)
@@ -670,7 +757,7 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         g_assert(words[1] && words[2]);
 
         qtest_send_prefix(chr);
-        if (module_load_one(words[1], words[2])) {
+        if (module_load_one(words[1], words[2], false)) {
             qtest_sendf(chr, "OK\n");
         } else {
             qtest_sendf(chr, "FAIL\n");

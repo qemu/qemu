@@ -8,7 +8,7 @@ plug virtual USB devices or real host USB devices (only works with
 certain host operating systems). QEMU will automatically create and
 connect virtual USB hubs as necessary to connect multiple USB devices.
 
-.. _usb_005fdevices:
+.. _Connecting USB devices:
 
 Connecting USB devices
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -27,8 +27,8 @@ option or the ``device_add`` monitor command. Available devices are:
    activated.
 
 ``usb-storage,drive=drive_id``
-   Mass storage device backed by drive_id (see
-   :ref:`disk_005fimages`)
+   Mass storage device backed by drive_id (see the :ref:`disk images`
+   chapter in the System Emulation Users Guide)
 
 ``usb-uas``
    USB attached SCSI device, see

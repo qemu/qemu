@@ -594,6 +594,7 @@ static void test_graph_change_drain_all(void)
 
     g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
     g_assert_cmpint(b_s->drain_count, ==, 0);
+    g_assert_cmpint(qemu_get_aio_context()->external_disable_cnt, ==, 0);
 
     bdrv_unref(bs_b);
     blk_unref(blk_b);
@@ -1872,7 +1873,7 @@ static int coroutine_fn bdrv_replace_test_co_preadv(BlockDriverState *bs,
         }
         s->io_co = NULL;
 
-        ret = bdrv_preadv(bs->backing, offset, qiov);
+        ret = bdrv_co_preadv(bs->backing, offset, bytes, qiov, 0);
         s->has_read = true;
 
         /* Wake up drain_co if it runs */

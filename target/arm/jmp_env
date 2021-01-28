@@ -1,0 +1,1330 @@
+arch_dump.c:    note->sve.max_size = cpu_to_dump32(s, sve_size_vq(cpu->sve_max_vq));
+arch_dump.c:    note->sve.max_vl = cpu_to_dump16(s, cpu->sve_max_vq * 16);
+arch_dump.c:    CPUARMState *env = &cpu->env;
+arch_dump.c:    CPUARMState *env = &cpu->env;
+arch_dump.c:    env = &cpu->env;
+arch_dump.c:            note_size += AARCH64_SVE_NOTE_SIZE(&cpu->env);
+gdbstub64.c:    CPUARMState *env = &cpu->env;
+gdbstub64.c:    CPUARMState *env = &cpu->env;
+translate.h:    /* A copy of cpu->dcz_blocksize. */
+kvm_arm.h:    cpu->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
+kvm_arm.h:    cpu->host_cpu_probe_failed = true;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+arm-semi.c:    CPUARMState *env = &cpu->env;
+machine.c:    return (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    return cpu->env.v7m.csselr[M_REG_NS] <= R_V7M_CSSELR_INDEX_MASK
+machine.c:        && cpu->env.v7m.csselr[M_REG_S] <= R_V7M_CSSELR_INDEX_MASK;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    return cpu->env.pmsav7.rnr[M_REG_NS] < cpu->pmsav7_dregion;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    return cpu->env.pmsav7.rnr[M_REG_S] < cpu->pmsav7_dregion;
+machine.c:    return cpu->env.sau.rnr < cpu->sau_sregion;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    cpu->power_state = powered_off ? PSCI_OFF : PSCI_ON;
+machine.c:    if (cpu->power_state == PSCI_ON ||
+machine.c:        cpu->power_state == PSCI_OFF) {
+machine.c:        bool powered_off = (cpu->power_state == PSCI_OFF) ? true : false;
+machine.c:        pmu_op_start(&cpu->env);
+machine.c:    cpu->cpreg_vmstate_array_len = cpu->cpreg_array_len;
+machine.c:    memcpy(cpu->cpreg_vmstate_indexes, cpu->cpreg_indexes,
+machine.c:           cpu->cpreg_array_len * sizeof(uint64_t));
+machine.c:    memcpy(cpu->cpreg_vmstate_values, cpu->cpreg_values,
+machine.c:           cpu->cpreg_array_len * sizeof(uint64_t));
+machine.c:        pmu_op_finish(&cpu->env);
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:        pmu_op_start(&cpu->env);
+machine.c:    CPUARMState *env = &cpu->env;
+machine.c:    for (i = 0, v = 0; i < cpu->cpreg_array_len
+machine.c:             && v < cpu->cpreg_vmstate_array_len; i++) {
+machine.c:        if (cpu->cpreg_vmstate_indexes[v] > cpu->cpreg_indexes[i]) {
+machine.c:        if (cpu->cpreg_vmstate_indexes[v] < cpu->cpreg_indexes[i]) {
+machine.c:        cpu->cpreg_values[i] = cpu->cpreg_vmstate_values[v];
+machine.c:        pmu_op_finish(&cpu->env);
+machine.c:    arm_rebuild_hflags(&cpu->env);
+psci.c:    CPUARMState *env = &cpu->env;
+psci.c:        if (cpu->psci_conduit != QEMU_PSCI_CONDUIT_HVC) {
+psci.c:        if (cpu->psci_conduit != QEMU_PSCI_CONDUIT_SMC) {
+psci.c:    CPUARMState *env = &cpu->env;
+psci.c:            ret = target_cpu->power_state;
+psci.c:    ret = arm_set_cpu_off(cpu->mp_affinity);
+cpu64.c:    return (cpu->core_count - 1) << 24;
+cpu64.c:    cpu->dtb_compatible = "arm,cortex-a57";
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_V8);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_NEON);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_EL2);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_EL3);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_PMU);
+cpu64.c:    cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A57;
+cpu64.c:    cpu->midr = 0x411fd070;
+cpu64.c:    cpu->revidr = 0x00000000;
+cpu64.c:    cpu->reset_fpsid = 0x41034070;
+cpu64.c:    cpu->isar.mvfr0 = 0x10110222;
+cpu64.c:    cpu->isar.mvfr1 = 0x12111111;
+cpu64.c:    cpu->isar.mvfr2 = 0x00000043;
+cpu64.c:    cpu->ctr = 0x8444c004;
+cpu64.c:    cpu->reset_sctlr = 0x00c50838;
+cpu64.c:    cpu->isar.id_pfr0 = 0x00000131;
+cpu64.c:    cpu->isar.id_pfr1 = 0x00011011;
+cpu64.c:    cpu->isar.id_dfr0 = 0x03010066;
+cpu64.c:    cpu->id_afr0 = 0x00000000;
+cpu64.c:    cpu->isar.id_mmfr0 = 0x10101105;
+cpu64.c:    cpu->isar.id_mmfr1 = 0x40000000;
+cpu64.c:    cpu->isar.id_mmfr2 = 0x01260000;
+cpu64.c:    cpu->isar.id_mmfr3 = 0x02102211;
+cpu64.c:    cpu->isar.id_isar0 = 0x02101110;
+cpu64.c:    cpu->isar.id_isar1 = 0x13112111;
+cpu64.c:    cpu->isar.id_isar2 = 0x21232042;
+cpu64.c:    cpu->isar.id_isar3 = 0x01112131;
+cpu64.c:    cpu->isar.id_isar4 = 0x00011142;
+cpu64.c:    cpu->isar.id_isar5 = 0x00011121;
+cpu64.c:    cpu->isar.id_isar6 = 0;
+cpu64.c:    cpu->isar.id_aa64pfr0 = 0x00002222;
+cpu64.c:    cpu->isar.id_aa64dfr0 = 0x10305106;
+cpu64.c:    cpu->isar.id_aa64isar0 = 0x00011120;
+cpu64.c:    cpu->isar.id_aa64mmfr0 = 0x00001124;
+cpu64.c:    cpu->isar.dbgdidr = 0x3516d000;
+cpu64.c:    cpu->clidr = 0x0a200023;
+cpu64.c:    cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
+cpu64.c:    cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
+cpu64.c:    cpu->ccsidr[2] = 0x70ffe07a; /* 2048KB L2 cache */
+cpu64.c:    cpu->dcz_blocksize = 4; /* 64 bytes */
+cpu64.c:    cpu->gic_num_lrs = 4;
+cpu64.c:    cpu->gic_vpribits = 5;
+cpu64.c:    cpu->gic_vprebits = 5;
+cpu64.c:    cpu->dtb_compatible = "arm,cortex-a53";
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_V8);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_NEON);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_EL2);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_EL3);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_PMU);
+cpu64.c:    cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A53;
+cpu64.c:    cpu->midr = 0x410fd034;
+cpu64.c:    cpu->revidr = 0x00000000;
+cpu64.c:    cpu->reset_fpsid = 0x41034070;
+cpu64.c:    cpu->isar.mvfr0 = 0x10110222;
+cpu64.c:    cpu->isar.mvfr1 = 0x12111111;
+cpu64.c:    cpu->isar.mvfr2 = 0x00000043;
+cpu64.c:    cpu->ctr = 0x84448004; /* L1Ip = VIPT */
+cpu64.c:    cpu->reset_sctlr = 0x00c50838;
+cpu64.c:    cpu->isar.id_pfr0 = 0x00000131;
+cpu64.c:    cpu->isar.id_pfr1 = 0x00011011;
+cpu64.c:    cpu->isar.id_dfr0 = 0x03010066;
+cpu64.c:    cpu->id_afr0 = 0x00000000;
+cpu64.c:    cpu->isar.id_mmfr0 = 0x10101105;
+cpu64.c:    cpu->isar.id_mmfr1 = 0x40000000;
+cpu64.c:    cpu->isar.id_mmfr2 = 0x01260000;
+cpu64.c:    cpu->isar.id_mmfr3 = 0x02102211;
+cpu64.c:    cpu->isar.id_isar0 = 0x02101110;
+cpu64.c:    cpu->isar.id_isar1 = 0x13112111;
+cpu64.c:    cpu->isar.id_isar2 = 0x21232042;
+cpu64.c:    cpu->isar.id_isar3 = 0x01112131;
+cpu64.c:    cpu->isar.id_isar4 = 0x00011142;
+cpu64.c:    cpu->isar.id_isar5 = 0x00011121;
+cpu64.c:    cpu->isar.id_isar6 = 0;
+cpu64.c:    cpu->isar.id_aa64pfr0 = 0x00002222;
+cpu64.c:    cpu->isar.id_aa64dfr0 = 0x10305106;
+cpu64.c:    cpu->isar.id_aa64isar0 = 0x00011120;
+cpu64.c:    cpu->isar.id_aa64mmfr0 = 0x00001122; /* 40 bit physical addr */
+cpu64.c:    cpu->isar.dbgdidr = 0x3516d000;
+cpu64.c:    cpu->clidr = 0x0a200023;
+cpu64.c:    cpu->ccsidr[0] = 0x700fe01a; /* 32KB L1 dcache */
+cpu64.c:    cpu->ccsidr[1] = 0x201fe00a; /* 32KB L1 icache */
+cpu64.c:    cpu->ccsidr[2] = 0x707fe07a; /* 1024KB L2 cache */
+cpu64.c:    cpu->dcz_blocksize = 4; /* 64 bytes */
+cpu64.c:    cpu->gic_num_lrs = 4;
+cpu64.c:    cpu->gic_vpribits = 5;
+cpu64.c:    cpu->gic_vprebits = 5;
+cpu64.c:    cpu->dtb_compatible = "arm,cortex-a72";
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_V8);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_NEON);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_EL2);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_EL3);
+cpu64.c:    set_feature(&cpu->env, ARM_FEATURE_PMU);
+cpu64.c:    cpu->midr = 0x410fd083;
+cpu64.c:    cpu->revidr = 0x00000000;
+cpu64.c:    cpu->reset_fpsid = 0x41034080;
+cpu64.c:    cpu->isar.mvfr0 = 0x10110222;
+cpu64.c:    cpu->isar.mvfr1 = 0x12111111;
+cpu64.c:    cpu->isar.mvfr2 = 0x00000043;
+cpu64.c:    cpu->ctr = 0x8444c004;
+cpu64.c:    cpu->reset_sctlr = 0x00c50838;
+cpu64.c:    cpu->isar.id_pfr0 = 0x00000131;
+cpu64.c:    cpu->isar.id_pfr1 = 0x00011011;
+cpu64.c:    cpu->isar.id_dfr0 = 0x03010066;
+cpu64.c:    cpu->id_afr0 = 0x00000000;
+cpu64.c:    cpu->isar.id_mmfr0 = 0x10201105;
+cpu64.c:    cpu->isar.id_mmfr1 = 0x40000000;
+cpu64.c:    cpu->isar.id_mmfr2 = 0x01260000;
+cpu64.c:    cpu->isar.id_mmfr3 = 0x02102211;
+cpu64.c:    cpu->isar.id_isar0 = 0x02101110;
+cpu64.c:    cpu->isar.id_isar1 = 0x13112111;
+cpu64.c:    cpu->isar.id_isar2 = 0x21232042;
+cpu64.c:    cpu->isar.id_isar3 = 0x01112131;
+cpu64.c:    cpu->isar.id_isar4 = 0x00011142;
+cpu64.c:    cpu->isar.id_isar5 = 0x00011121;
+cpu64.c:    cpu->isar.id_aa64pfr0 = 0x00002222;
+cpu64.c:    cpu->isar.id_aa64dfr0 = 0x10305106;
+cpu64.c:    cpu->isar.id_aa64isar0 = 0x00011120;
+cpu64.c:    cpu->isar.id_aa64mmfr0 = 0x00001124;
+cpu64.c:    cpu->isar.dbgdidr = 0x3516d000;
+cpu64.c:    cpu->clidr = 0x0a200023;
+cpu64.c:    cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
+cpu64.c:    cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
+cpu64.c:    cpu->ccsidr[2] = 0x707fe07a; /* 1MB L2 cache */
+cpu64.c:    cpu->dcz_blocksize = 4; /* 64 bytes */
+cpu64.c:    cpu->gic_num_lrs = 4;
+cpu64.c:    cpu->gic_vpribits = 5;
+cpu64.c:    cpu->gic_vprebits = 5;
+cpu64.c:    if (!bitmap_empty(cpu->sve_vq_map, ARM_MAX_VQ)) {
+cpu64.c:        max_vq = find_last_bit(cpu->sve_vq_map, ARM_MAX_VQ) + 1;
+cpu64.c:        if (cpu->sve_max_vq && max_vq > cpu->sve_max_vq) {
+cpu64.c:                              max_vq * 128, cpu->sve_max_vq,
+cpu64.c:                              cpu->sve_max_vq * 128);
+cpu64.c:            bitmap_andnot(tmp, kvm_supported, cpu->sve_vq_init, max_vq);
+cpu64.c:            bitmap_or(cpu->sve_vq_map, cpu->sve_vq_map, tmp, max_vq);
+cpu64.c:                if (!test_bit(vq - 1, cpu->sve_vq_init)) {
+cpu64.c:                    set_bit(vq - 1, cpu->sve_vq_map);
+cpu64.c:    } else if (cpu->sve_max_vq == 0) {
+cpu64.c:                if (test_bit(vq - 1, cpu->sve_vq_init) &&
+cpu64.c:            bitmap_andnot(cpu->sve_vq_map, kvm_supported,
+cpu64.c:                          cpu->sve_vq_init, max_vq);
+cpu64.c:            if (max_vq == 0 || bitmap_empty(cpu->sve_vq_map, max_vq)) {
+cpu64.c:            if (test_bit(0, cpu->sve_vq_init)) {
+cpu64.c:                if (test_bit(vq - 1, cpu->sve_vq_init)) {
+cpu64.c:            bitmap_complement(cpu->sve_vq_map, cpu->sve_vq_init, max_vq);
+cpu64.c:        max_vq = find_last_bit(cpu->sve_vq_map, max_vq) + 1;
+cpu64.c:    if (cpu->sve_max_vq != 0) {
+cpu64.c:        max_vq = cpu->sve_max_vq;
+cpu64.c:        if (!test_bit(max_vq - 1, cpu->sve_vq_map) &&
+cpu64.c:            test_bit(max_vq - 1, cpu->sve_vq_init)) {
+cpu64.c:        bitmap_complement(tmp, cpu->sve_vq_init, max_vq);
+cpu64.c:        bitmap_or(cpu->sve_vq_map, cpu->sve_vq_map, tmp, max_vq);
+cpu64.c:    bitmap_clear(cpu->sve_vq_map, max_vq, ARM_MAX_VQ - max_vq);
+cpu64.c:        bitmap_xor(tmp, cpu->sve_vq_map, kvm_supported, max_vq);
+cpu64.c:            if (test_bit(vq - 1, cpu->sve_vq_map)) {
+cpu64.c:                if (cpu->sve_max_vq) {
+cpu64.c:                               cpu->sve_max_vq);
+cpu64.c:            if (!test_bit(vq - 1, cpu->sve_vq_map)) {
+cpu64.c:    cpu->sve_max_vq = max_vq;
+cpu64.c:        value = cpu->sve_max_vq;
+cpu64.c:    cpu->sve_max_vq = max_vq;
+cpu64.c:        value = test_bit(vq - 1, cpu->sve_vq_map);
+cpu64.c:        set_bit(vq - 1, cpu->sve_vq_map);
+cpu64.c:        clear_bit(vq - 1, cpu->sve_vq_map);
+cpu64.c:    set_bit(vq - 1, cpu->sve_vq_init);
+cpu64.c:    t = cpu->isar.id_aa64pfr0;
+cpu64.c:    cpu->isar.id_aa64pfr0 = t;
+cpu64.c:        cpu->midr = t;
+cpu64.c:        t = cpu->isar.id_aa64isar0;
+cpu64.c:        cpu->isar.id_aa64isar0 = t;
+cpu64.c:        t = cpu->isar.id_aa64isar1;
+cpu64.c:        cpu->isar.id_aa64isar1 = t;
+cpu64.c:        t = cpu->isar.id_aa64pfr0;
+cpu64.c:        cpu->isar.id_aa64pfr0 = t;
+cpu64.c:        t = cpu->isar.id_aa64pfr1;
+cpu64.c:        cpu->isar.id_aa64pfr1 = t;
+cpu64.c:        t = cpu->isar.id_aa64mmfr1;
+cpu64.c:        cpu->isar.id_aa64mmfr1 = t;
+cpu64.c:        t = cpu->isar.id_aa64mmfr2;
+cpu64.c:        cpu->isar.id_aa64mmfr2 = t;
+cpu64.c:        u = cpu->isar.id_isar5;
+cpu64.c:        cpu->isar.id_isar5 = u;
+cpu64.c:        u = cpu->isar.id_isar6;
+cpu64.c:        cpu->isar.id_isar6 = u;
+cpu64.c:        u = cpu->isar.id_mmfr3;
+cpu64.c:        cpu->isar.id_mmfr3 = u;
+cpu64.c:        u = cpu->isar.id_mmfr4;
+cpu64.c:        cpu->isar.id_mmfr4 = u;
+cpu64.c:        t = cpu->isar.id_aa64dfr0;
+cpu64.c:        cpu->isar.id_aa64dfr0 = t;
+cpu64.c:        u = cpu->isar.id_dfr0;
+cpu64.c:        cpu->isar.id_dfr0 = u;
+cpu64.c:        u = cpu->isar.mvfr1;
+cpu64.c:        cpu->isar.mvfr1 = u;
+cpu64.c:        cpu->ctr = 0x80038003; /* 32 byte I and D cacheline size, VIPT icache */
+cpu64.c:        cpu->dcz_blocksize = 7; /*  512 bytes */
+cpu64.c:    return arm_feature(&cpu->env, ARM_FEATURE_AARCH64);
+cpu64.c:        unset_feature(&cpu->env, ARM_FEATURE_AARCH64);
+cpu64.c:        set_feature(&cpu->env, ARM_FEATURE_AARCH64);
+op_helper.c:        cpu->psci_conduit != QEMU_PSCI_CONDUIT_SMC) {
+kvm.c:    init.target = cpu->kvm_target;
+kvm.c:    memcpy(init.features, cpu->kvm_init_features, sizeof(init.features));
+kvm.c:    CPUARMState *env = &cpu->env;
+kvm.c:            cpu->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
+kvm.c:            cpu->host_cpu_probe_failed = true;
+kvm.c:    cpu->kvm_target = arm_host_cpu_features.target;
+kvm.c:    cpu->dtb_compatible = arm_host_cpu_features.dtb_compatible;
+kvm.c:    cpu->isar = arm_host_cpu_features.isar;
+kvm.c:    CPUARMState *env = &cpu->env;
+kvm.c:        cpu->kvm_adjvtime = true;
+kvm.c:    return cpu->cpu_index;
+kvm.c:    res = bsearch(&regidx, cpu->cpreg_indexes, cpu->cpreg_array_len,
+kvm.c:    return &cpu->cpreg_values[res - cpu->cpreg_indexes];
+kvm.c:    cpu->cpreg_indexes = g_renew(uint64_t, cpu->cpreg_indexes, arraylen);
+kvm.c:    cpu->cpreg_values = g_renew(uint64_t, cpu->cpreg_values, arraylen);
+kvm.c:    cpu->cpreg_vmstate_indexes = g_renew(uint64_t, cpu->cpreg_vmstate_indexes,
+kvm.c:    cpu->cpreg_vmstate_values = g_renew(uint64_t, cpu->cpreg_vmstate_values,
+kvm.c:    cpu->cpreg_array_len = arraylen;
+kvm.c:    cpu->cpreg_vmstate_array_len = arraylen;
+kvm.c:        cpu->cpreg_indexes[arraylen] = regidx;
+kvm.c:    assert(cpu->cpreg_array_len == arraylen);
+kvm.c:    for (i = 0; i < cpu->cpreg_array_len; i++) {
+kvm.c:        uint64_t regidx = cpu->cpreg_indexes[i];
+kvm.c:                cpu->cpreg_values[i] = v32;
+kvm.c:            r.addr = (uintptr_t)(cpu->cpreg_values + i);
+kvm.c:    for (i = 0; i < cpu->cpreg_array_len; i++) {
+kvm.c:        uint64_t regidx = cpu->cpreg_indexes[i];
+kvm.c:            v32 = cpu->cpreg_values[i];
+kvm.c:            r.addr = (uintptr_t)(cpu->cpreg_values + i);
+kvm.c:    if (cpu->kvm_vtime_dirty) {
+kvm.c:        *kvm_arm_get_cpreg_ptr(cpu, KVM_REG_ARM_TIMER_CNT) = cpu->kvm_vtime;
+kvm.c:    if (cpu->kvm_adjvtime) {
+kvm.c:        cpu->kvm_vtime = *kvm_arm_get_cpreg_ptr(cpu, KVM_REG_ARM_TIMER_CNT);
+kvm.c:        cpu->kvm_vtime_dirty = true;
+kvm.c:            .mp_state = (cpu->power_state == PSCI_OFF) ?
+kvm.c:        cpu->power_state = (mp_state.mp_state == KVM_MP_STATE_STOPPED) ?
+kvm.c:        .addr = (uintptr_t)&cpu->kvm_vtime,
+kvm.c:    if (cpu->kvm_vtime_dirty) {
+kvm.c:    cpu->kvm_vtime_dirty = true;
+kvm.c:        .addr = (uintptr_t)&cpu->kvm_vtime,
+kvm.c:    if (!cpu->kvm_vtime_dirty) {
+kvm.c:    cpu->kvm_vtime_dirty = false;
+kvm.c:    CPUARMState *env = &cpu->env;
+kvm.c:    CPUARMState *env = &cpu->env;
+kvm.c:    CPUARMState *env = &cpu->env;
+kvm.c:    if (run->s.regs.device_irq_level != cpu->device_irq_level) {
+kvm.c:        switched_level = cpu->device_irq_level ^ run->s.regs.device_irq_level;
+kvm.c:            qemu_set_irq(cpu->gt_timer_outputs[GTIMER_VIRT],
+kvm.c:            qemu_set_irq(cpu->gt_timer_outputs[GTIMER_PHYS],
+kvm.c:            qemu_set_irq(cpu->pmu_interrupt,
+kvm.c:        cpu->device_irq_level = run->s.regs.device_irq_level;
+kvm.c:        if (cpu->kvm_adjvtime) {
+kvm.c:        if (cpu->kvm_adjvtime) {
+kvm.c:    CPUARMState *env = &cpu->env;
+tlb_helper.c:    CPUARMState *env = &cpu->env;
+tlb_helper.c:    cpu->env.exception.vaddress = address;
+tlb_helper.c:    ret = get_phys_addr(&cpu->env, address, access_type,
+tlb_helper.c:                        core_to_arm_mmu_idx(&cpu->env, mmu_idx),
+cpu.h:#include "cpu-qom.h"
+cpu.h:#include "exec/cpu-defs.h"
+cpu.h:/* We use the combination of InD and Level to index into cpu->ccsidr[];
+cpu.h:    return (cpu->clidr & R_V7M_CLIDR_CTYPE_ALL_MASK) != 0;
+cpu.h:#include "exec/cpu-all.h"
+cpu_tcg.c:    CPUARMState *env = &cpu->env;
+cpu_tcg.c:    cpu->dtb_compatible = "arm,arm926";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_CACHE_TEST_CLEAN);
+cpu_tcg.c:    cpu->midr = 0x41069265;
+cpu_tcg.c:    cpu->reset_fpsid = 0x41011090;
+cpu_tcg.c:    cpu->ctr = 0x1dd20d2;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00090078;
+cpu_tcg.c:    cpu->isar.id_isar1 = FIELD_DP32(cpu->isar.id_isar1, ID_ISAR1, JAZELLE, 1);
+cpu_tcg.c:    cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSHVEC, 1);
+cpu_tcg.c:    cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSP, 1);
+cpu_tcg.c:    cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPDP, 1);
+cpu_tcg.c:    cpu->dtb_compatible = "arm,arm946";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_PMSA);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu_tcg.c:    cpu->midr = 0x41059461;
+cpu_tcg.c:    cpu->ctr = 0x0f004006;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+cpu_tcg.c:    cpu->dtb_compatible = "arm,arm1026";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_AUXCR);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_CACHE_TEST_CLEAN);
+cpu_tcg.c:    cpu->midr = 0x4106a262;
+cpu_tcg.c:    cpu->reset_fpsid = 0x410110a0;
+cpu_tcg.c:    cpu->ctr = 0x1dd20d2;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00090078;
+cpu_tcg.c:    cpu->reset_auxcr = 1;
+cpu_tcg.c:    cpu->isar.id_isar1 = FIELD_DP32(cpu->isar.id_isar1, ID_ISAR1, JAZELLE, 1);
+cpu_tcg.c:    cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSHVEC, 1);
+cpu_tcg.c:    cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSP, 1);
+cpu_tcg.c:    cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPDP, 1);
+cpu_tcg.c:    cpu->dtb_compatible = "arm,arm1136";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V6);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_CACHE_DIRTY_REG);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
+cpu_tcg.c:    cpu->midr = 0x4107b362;
+cpu_tcg.c:    cpu->reset_fpsid = 0x410120b4;
+cpu_tcg.c:    cpu->isar.mvfr0 = 0x11111111;
+cpu_tcg.c:    cpu->isar.mvfr1 = 0x00000000;
+cpu_tcg.c:    cpu->ctr = 0x1dd20d2;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00050078;
+cpu_tcg.c:    cpu->isar.id_pfr0 = 0x111;
+cpu_tcg.c:    cpu->isar.id_pfr1 = 0x1;
+cpu_tcg.c:    cpu->isar.id_dfr0 = 0x2;
+cpu_tcg.c:    cpu->id_afr0 = 0x3;
+cpu_tcg.c:    cpu->isar.id_mmfr0 = 0x01130003;
+cpu_tcg.c:    cpu->isar.id_mmfr1 = 0x10030302;
+cpu_tcg.c:    cpu->isar.id_mmfr2 = 0x01222110;
+cpu_tcg.c:    cpu->isar.id_isar0 = 0x00140011;
+cpu_tcg.c:    cpu->isar.id_isar1 = 0x12002111;
+cpu_tcg.c:    cpu->isar.id_isar2 = 0x11231111;
+cpu_tcg.c:    cpu->isar.id_isar3 = 0x01102131;
+cpu_tcg.c:    cpu->isar.id_isar4 = 0x141;
+cpu_tcg.c:    cpu->reset_auxcr = 7;
+cpu_tcg.c:    cpu->dtb_compatible = "arm,arm1136";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V6K);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V6);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_CACHE_DIRTY_REG);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
+cpu_tcg.c:    cpu->midr = 0x4117b363;
+cpu_tcg.c:    cpu->reset_fpsid = 0x410120b4;
+cpu_tcg.c:    cpu->isar.mvfr0 = 0x11111111;
+cpu_tcg.c:    cpu->isar.mvfr1 = 0x00000000;
+cpu_tcg.c:    cpu->ctr = 0x1dd20d2;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00050078;
+cpu_tcg.c:    cpu->isar.id_pfr0 = 0x111;
+cpu_tcg.c:    cpu->isar.id_pfr1 = 0x1;
+cpu_tcg.c:    cpu->isar.id_dfr0 = 0x2;
+cpu_tcg.c:    cpu->id_afr0 = 0x3;
+cpu_tcg.c:    cpu->isar.id_mmfr0 = 0x01130003;
+cpu_tcg.c:    cpu->isar.id_mmfr1 = 0x10030302;
+cpu_tcg.c:    cpu->isar.id_mmfr2 = 0x01222110;
+cpu_tcg.c:    cpu->isar.id_isar0 = 0x00140011;
+cpu_tcg.c:    cpu->isar.id_isar1 = 0x12002111;
+cpu_tcg.c:    cpu->isar.id_isar2 = 0x11231111;
+cpu_tcg.c:    cpu->isar.id_isar3 = 0x01102131;
+cpu_tcg.c:    cpu->isar.id_isar4 = 0x141;
+cpu_tcg.c:    cpu->reset_auxcr = 7;
+cpu_tcg.c:    cpu->dtb_compatible = "arm,arm1176";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V6K);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_VAPA);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_CACHE_DIRTY_REG);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_EL3);
+cpu_tcg.c:    cpu->midr = 0x410fb767;
+cpu_tcg.c:    cpu->reset_fpsid = 0x410120b5;
+cpu_tcg.c:    cpu->isar.mvfr0 = 0x11111111;
+cpu_tcg.c:    cpu->isar.mvfr1 = 0x00000000;
+cpu_tcg.c:    cpu->ctr = 0x1dd20d2;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00050078;
+cpu_tcg.c:    cpu->isar.id_pfr0 = 0x111;
+cpu_tcg.c:    cpu->isar.id_pfr1 = 0x11;
+cpu_tcg.c:    cpu->isar.id_dfr0 = 0x33;
+cpu_tcg.c:    cpu->id_afr0 = 0;
+cpu_tcg.c:    cpu->isar.id_mmfr0 = 0x01130003;
+cpu_tcg.c:    cpu->isar.id_mmfr1 = 0x10030302;
+cpu_tcg.c:    cpu->isar.id_mmfr2 = 0x01222100;
+cpu_tcg.c:    cpu->isar.id_isar0 = 0x0140011;
+cpu_tcg.c:    cpu->isar.id_isar1 = 0x12002111;
+cpu_tcg.c:    cpu->isar.id_isar2 = 0x11231121;
+cpu_tcg.c:    cpu->isar.id_isar3 = 0x01102131;
+cpu_tcg.c:    cpu->isar.id_isar4 = 0x01141;
+cpu_tcg.c:    cpu->reset_auxcr = 7;
+cpu_tcg.c:    cpu->dtb_compatible = "arm,arm11mpcore";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V6K);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_VAPA);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_MPIDR);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu_tcg.c:    cpu->midr = 0x410fb022;
+cpu_tcg.c:    cpu->reset_fpsid = 0x410120b4;
+cpu_tcg.c:    cpu->isar.mvfr0 = 0x11111111;
+cpu_tcg.c:    cpu->isar.mvfr1 = 0x00000000;
+cpu_tcg.c:    cpu->ctr = 0x1d192992; /* 32K icache 32K dcache */
+cpu_tcg.c:    cpu->isar.id_pfr0 = 0x111;
+cpu_tcg.c:    cpu->isar.id_pfr1 = 0x1;
+cpu_tcg.c:    cpu->isar.id_dfr0 = 0;
+cpu_tcg.c:    cpu->id_afr0 = 0x2;
+cpu_tcg.c:    cpu->isar.id_mmfr0 = 0x01100103;
+cpu_tcg.c:    cpu->isar.id_mmfr1 = 0x10020302;
+cpu_tcg.c:    cpu->isar.id_mmfr2 = 0x01222000;
+cpu_tcg.c:    cpu->isar.id_isar0 = 0x00100011;
+cpu_tcg.c:    cpu->isar.id_isar1 = 0x12002111;
+cpu_tcg.c:    cpu->isar.id_isar2 = 0x11221011;
+cpu_tcg.c:    cpu->isar.id_isar3 = 0x01102131;
+cpu_tcg.c:    cpu->isar.id_isar4 = 0x141;
+cpu_tcg.c:    cpu->reset_auxcr = 1;
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V6);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_M);
+cpu_tcg.c:    cpu->midr = 0x410cc200;
+cpu_tcg.c:    cpu->isar.id_pfr0 = 0x00000030;
+cpu_tcg.c:    cpu->isar.id_pfr1 = 0x00000200;
+cpu_tcg.c:    cpu->isar.id_dfr0 = 0x00100000;
+cpu_tcg.c:    cpu->id_afr0 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr0 = 0x00000030;
+cpu_tcg.c:    cpu->isar.id_mmfr1 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr2 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr3 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_isar0 = 0x01141110;
+cpu_tcg.c:    cpu->isar.id_isar1 = 0x02111000;
+cpu_tcg.c:    cpu->isar.id_isar2 = 0x21112231;
+cpu_tcg.c:    cpu->isar.id_isar3 = 0x01111110;
+cpu_tcg.c:    cpu->isar.id_isar4 = 0x01310102;
+cpu_tcg.c:    cpu->isar.id_isar5 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_isar6 = 0x00000000;
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V7);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_M);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_M_MAIN);
+cpu_tcg.c:    cpu->midr = 0x410fc231;
+cpu_tcg.c:    cpu->pmsav7_dregion = 8;
+cpu_tcg.c:    cpu->isar.id_pfr0 = 0x00000030;
+cpu_tcg.c:    cpu->isar.id_pfr1 = 0x00000200;
+cpu_tcg.c:    cpu->isar.id_dfr0 = 0x00100000;
+cpu_tcg.c:    cpu->id_afr0 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr0 = 0x00000030;
+cpu_tcg.c:    cpu->isar.id_mmfr1 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr2 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr3 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_isar0 = 0x01141110;
+cpu_tcg.c:    cpu->isar.id_isar1 = 0x02111000;
+cpu_tcg.c:    cpu->isar.id_isar2 = 0x21112231;
+cpu_tcg.c:    cpu->isar.id_isar3 = 0x01111110;
+cpu_tcg.c:    cpu->isar.id_isar4 = 0x01310102;
+cpu_tcg.c:    cpu->isar.id_isar5 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_isar6 = 0x00000000;
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V7);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_M);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_M_MAIN);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_THUMB_DSP);
+cpu_tcg.c:    cpu->midr = 0x410fc240; /* r0p0 */
+cpu_tcg.c:    cpu->pmsav7_dregion = 8;
+cpu_tcg.c:    cpu->isar.mvfr0 = 0x10110021;
+cpu_tcg.c:    cpu->isar.mvfr1 = 0x11000011;
+cpu_tcg.c:    cpu->isar.mvfr2 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_pfr0 = 0x00000030;
+cpu_tcg.c:    cpu->isar.id_pfr1 = 0x00000200;
+cpu_tcg.c:    cpu->isar.id_dfr0 = 0x00100000;
+cpu_tcg.c:    cpu->id_afr0 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr0 = 0x00000030;
+cpu_tcg.c:    cpu->isar.id_mmfr1 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr2 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr3 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_isar0 = 0x01141110;
+cpu_tcg.c:    cpu->isar.id_isar1 = 0x02111000;
+cpu_tcg.c:    cpu->isar.id_isar2 = 0x21112231;
+cpu_tcg.c:    cpu->isar.id_isar3 = 0x01111110;
+cpu_tcg.c:    cpu->isar.id_isar4 = 0x01310102;
+cpu_tcg.c:    cpu->isar.id_isar5 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_isar6 = 0x00000000;
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V7);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_M);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_M_MAIN);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_THUMB_DSP);
+cpu_tcg.c:    cpu->midr = 0x411fc272; /* r1p2 */
+cpu_tcg.c:    cpu->pmsav7_dregion = 8;
+cpu_tcg.c:    cpu->isar.mvfr0 = 0x10110221;
+cpu_tcg.c:    cpu->isar.mvfr1 = 0x12000011;
+cpu_tcg.c:    cpu->isar.mvfr2 = 0x00000040;
+cpu_tcg.c:    cpu->isar.id_pfr0 = 0x00000030;
+cpu_tcg.c:    cpu->isar.id_pfr1 = 0x00000200;
+cpu_tcg.c:    cpu->isar.id_dfr0 = 0x00100000;
+cpu_tcg.c:    cpu->id_afr0 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr0 = 0x00100030;
+cpu_tcg.c:    cpu->isar.id_mmfr1 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr2 = 0x01000000;
+cpu_tcg.c:    cpu->isar.id_mmfr3 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_isar0 = 0x01101110;
+cpu_tcg.c:    cpu->isar.id_isar1 = 0x02112000;
+cpu_tcg.c:    cpu->isar.id_isar2 = 0x20232231;
+cpu_tcg.c:    cpu->isar.id_isar3 = 0x01111131;
+cpu_tcg.c:    cpu->isar.id_isar4 = 0x01310132;
+cpu_tcg.c:    cpu->isar.id_isar5 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_isar6 = 0x00000000;
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V8);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_M);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_M_MAIN);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_M_SECURITY);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_THUMB_DSP);
+cpu_tcg.c:    cpu->midr = 0x410fd213; /* r0p3 */
+cpu_tcg.c:    cpu->pmsav7_dregion = 16;
+cpu_tcg.c:    cpu->sau_sregion = 8;
+cpu_tcg.c:    cpu->isar.mvfr0 = 0x10110021;
+cpu_tcg.c:    cpu->isar.mvfr1 = 0x11000011;
+cpu_tcg.c:    cpu->isar.mvfr2 = 0x00000040;
+cpu_tcg.c:    cpu->isar.id_pfr0 = 0x00000030;
+cpu_tcg.c:    cpu->isar.id_pfr1 = 0x00000210;
+cpu_tcg.c:    cpu->isar.id_dfr0 = 0x00200000;
+cpu_tcg.c:    cpu->id_afr0 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr0 = 0x00101F40;
+cpu_tcg.c:    cpu->isar.id_mmfr1 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr2 = 0x01000000;
+cpu_tcg.c:    cpu->isar.id_mmfr3 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_isar0 = 0x01101110;
+cpu_tcg.c:    cpu->isar.id_isar1 = 0x02212000;
+cpu_tcg.c:    cpu->isar.id_isar2 = 0x20232232;
+cpu_tcg.c:    cpu->isar.id_isar3 = 0x01111131;
+cpu_tcg.c:    cpu->isar.id_isar4 = 0x01310132;
+cpu_tcg.c:    cpu->isar.id_isar5 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_isar6 = 0x00000000;
+cpu_tcg.c:    cpu->clidr = 0x00000000;
+cpu_tcg.c:    cpu->ctr = 0x8000c000;
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V7);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V7MP);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_PMSA);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_PMU);
+cpu_tcg.c:    cpu->midr = 0x411fc153; /* r1p3 */
+cpu_tcg.c:    cpu->isar.id_pfr0 = 0x0131;
+cpu_tcg.c:    cpu->isar.id_pfr1 = 0x001;
+cpu_tcg.c:    cpu->isar.id_dfr0 = 0x010400;
+cpu_tcg.c:    cpu->id_afr0 = 0x0;
+cpu_tcg.c:    cpu->isar.id_mmfr0 = 0x0210030;
+cpu_tcg.c:    cpu->isar.id_mmfr1 = 0x00000000;
+cpu_tcg.c:    cpu->isar.id_mmfr2 = 0x01200000;
+cpu_tcg.c:    cpu->isar.id_mmfr3 = 0x0211;
+cpu_tcg.c:    cpu->isar.id_isar0 = 0x02101111;
+cpu_tcg.c:    cpu->isar.id_isar1 = 0x13112111;
+cpu_tcg.c:    cpu->isar.id_isar2 = 0x21232141;
+cpu_tcg.c:    cpu->isar.id_isar3 = 0x01112131;
+cpu_tcg.c:    cpu->isar.id_isar4 = 0x0010142;
+cpu_tcg.c:    cpu->isar.id_isar5 = 0x0;
+cpu_tcg.c:    cpu->isar.id_isar6 = 0x0;
+cpu_tcg.c:    cpu->mp_is_up = true;
+cpu_tcg.c:    cpu->pmsav7_dregion = 16;
+cpu_tcg.c:    cpu->isar.mvfr0 = 0x10110221;
+cpu_tcg.c:    cpu->isar.mvfr1 = 0x00000011;
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V4T);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_OMAPCP);
+cpu_tcg.c:    cpu->midr = ARM_CPUID_TI925T;
+cpu_tcg.c:    cpu->ctr = 0x5109149;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000070;
+cpu_tcg.c:    cpu->dtb_compatible = "intel,sa1100";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_STRONGARM);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu_tcg.c:    cpu->midr = 0x4401A11B;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000070;
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_STRONGARM);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu_tcg.c:    cpu->midr = 0x6901B119;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000070;
+cpu_tcg.c:    cpu->dtb_compatible = "marvell,xscale";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_XSCALE);
+cpu_tcg.c:    cpu->midr = 0x69052100;
+cpu_tcg.c:    cpu->ctr = 0xd172172;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+cpu_tcg.c:    cpu->dtb_compatible = "marvell,xscale";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_XSCALE);
+cpu_tcg.c:    cpu->midr = 0x69052d00;
+cpu_tcg.c:    cpu->ctr = 0xd172172;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+cpu_tcg.c:    cpu->dtb_compatible = "marvell,xscale";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_XSCALE);
+cpu_tcg.c:    cpu->midr = 0x69052903;
+cpu_tcg.c:    cpu->ctr = 0xd172172;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+cpu_tcg.c:    cpu->dtb_compatible = "marvell,xscale";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_XSCALE);
+cpu_tcg.c:    cpu->midr = 0x69052d05;
+cpu_tcg.c:    cpu->ctr = 0xd172172;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+cpu_tcg.c:    cpu->dtb_compatible = "marvell,xscale";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_XSCALE);
+cpu_tcg.c:    cpu->midr = 0x69052d06;
+cpu_tcg.c:    cpu->ctr = 0xd172172;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+cpu_tcg.c:    cpu->dtb_compatible = "marvell,xscale";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_XSCALE);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
+cpu_tcg.c:    cpu->midr = 0x69054110;
+cpu_tcg.c:    cpu->ctr = 0xd172172;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+cpu_tcg.c:    cpu->dtb_compatible = "marvell,xscale";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_XSCALE);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
+cpu_tcg.c:    cpu->midr = 0x69054111;
+cpu_tcg.c:    cpu->ctr = 0xd172172;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+cpu_tcg.c:    cpu->dtb_compatible = "marvell,xscale";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_XSCALE);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
+cpu_tcg.c:    cpu->midr = 0x69054112;
+cpu_tcg.c:    cpu->ctr = 0xd172172;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+cpu_tcg.c:    cpu->dtb_compatible = "marvell,xscale";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_XSCALE);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
+cpu_tcg.c:    cpu->midr = 0x69054113;
+cpu_tcg.c:    cpu->ctr = 0xd172172;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+cpu_tcg.c:    cpu->dtb_compatible = "marvell,xscale";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_XSCALE);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
+cpu_tcg.c:    cpu->midr = 0x69054114;
+cpu_tcg.c:    cpu->ctr = 0xd172172;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+cpu_tcg.c:    cpu->dtb_compatible = "marvell,xscale";
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_V5);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_XSCALE);
+cpu_tcg.c:    set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
+cpu_tcg.c:    cpu->midr = 0x69054117;
+cpu_tcg.c:    cpu->ctr = 0xd172172;
+cpu_tcg.c:    cpu->reset_sctlr = 0x00000078;
+arm-powerctl.c:#include "cpu-qom.h"
+arm-powerctl.c:        if (armcpu->mp_affinity == id) {
+arm-powerctl.c:        if ((info->target_el < 3) && arm_feature(&target_cpu->env,
+arm-powerctl.c:            target_cpu->env.cp15.scr_el3 |= SCR_RW;
+arm-powerctl.c:        if ((info->target_el < 2) && arm_feature(&target_cpu->env,
+arm-powerctl.c:            target_cpu->env.cp15.hcr_el2 |= HCR_RW;
+arm-powerctl.c:        target_cpu->env.pstate = aarch64_pstate_mode(info->target_el, true);
+arm-powerctl.c:        cpsr_write(&target_cpu->env, mode_for_el[info->target_el], CPSR_M,
+arm-powerctl.c:        target_cpu->env.cp15.scr_el3 &= ~SCR_NS;
+arm-powerctl.c:        target_cpu->env.cp15.scr_el3 |= SCR_NS;
+arm-powerctl.c:        target_cpu->env.cp15.nsacr |= 3 << 10;
+arm-powerctl.c:        if (arm_feature(&target_cpu->env, ARM_FEATURE_EL3)
+arm-powerctl.c:            target_cpu->env.cp15.scr_el3 |= SCR_HCE;
+arm-powerctl.c:    assert(info->target_el == arm_current_el(&target_cpu->env));
+arm-powerctl.c:        target_cpu->env.xregs[0] = info->context_id;
+arm-powerctl.c:        target_cpu->env.regs[0] = info->context_id;
+arm-powerctl.c:    arm_rebuild_hflags(&target_cpu->env);
+arm-powerctl.c:    target_cpu->power_state = PSCI_ON;
+arm-powerctl.c:    if (target_cpu->power_state == PSCI_ON) {
+arm-powerctl.c:    if (((target_el == 3) && !arm_feature(&target_cpu->env, ARM_FEATURE_EL3)) ||
+arm-powerctl.c:        ((target_el == 2) && !arm_feature(&target_cpu->env, ARM_FEATURE_EL2))) {
+arm-powerctl.c:    if (!target_aa64 && arm_feature(&target_cpu->env, ARM_FEATURE_AARCH64)) {
+arm-powerctl.c:    if (target_cpu->power_state == PSCI_ON_PENDING) {
+arm-powerctl.c:    target_cpu->power_state = PSCI_ON;
+arm-powerctl.c:    if (target_cpu->power_state == PSCI_ON) {
+arm-powerctl.c:    if (target_cpu->power_state == PSCI_ON_PENDING) {
+arm-powerctl.c:    target_cpu->power_state = PSCI_OFF;
+arm-powerctl.c:    if (target_cpu->power_state == PSCI_OFF) {
+arm-powerctl.c:    if (target_cpu->power_state == PSCI_OFF) {
+m_helper.c:    CPUARMState *env = &cpu->env;
+m_helper.c:    CPUARMState *env = &cpu->env;
+m_helper.c:    CPUARMState *env = &cpu->env;
+m_helper.c:        exc_secure = !(cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK);
+m_helper.c:    if (!(cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+m_helper.c:    CPUARMState *env = &cpu->env;
+m_helper.c:    CPUARMState *env = &cpu->env;
+m_helper.c:    CPUARMState *env = &cpu->env;
+m_helper.c:    CPUARMState *env = &cpu->env;
+m_helper.c:    CPUARMState *env = &cpu->env;
+m_helper.c:    CPUARMState *env = &cpu->env;
+m_helper.c:    CPUARMState *env = &cpu->env;
+m_helper.c:    CPUARMState *env = &cpu->env;
+translate-a64.c:#include "qemuafl/cpu-translate.h"
+translate-a64.c:    CPUARMState *env = cpu->env_ptr;
+translate-a64.c:    dc->isar = &arm_cpu->isar;
+translate-a64.c:    dc->cp_regs = arm_cpu->cp_regs;
+translate-a64.c:    dc->dcz_blocksize = arm_cpu->dcz_blocksize;
+translate-a64.c:    CPUARMState *env = cpu->env_ptr;
+translate.c:#include "qemuafl/cpu-translate.h"
+translate.c:     * the cpu-exec main loop guarantees that we will always go straight
+translate.c:    dc->isar = &cpu->isar;
+translate.c:    dc->cp_regs = cpu->cp_regs;
+translate.c:    CPUARMState *env = cpu->env_ptr;
+translate.c:    CPUARMState *env = cpu->env_ptr;
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:    return (cpu->power_state != PSCI_OFF)
+cpu.c:    QLIST_INSERT_HEAD(&cpu->pre_el_change_hooks, entry, node);
+cpu.c:    QLIST_INSERT_HEAD(&cpu->el_change_hooks, entry, node);
+cpu.c:        ri->resetfn(&cpu->env, ri);
+cpu.c:        CPREG_FIELD64(&cpu->env, ri) = ri->resetvalue;
+cpu.c:        CPREG_FIELD32(&cpu->env, ri) = ri->resetvalue;
+cpu.c:    oldvalue = read_raw_cp_reg(&cpu->env, ri);
+cpu.c:    newvalue = read_raw_cp_reg(&cpu->env, ri);
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:    g_hash_table_foreach(cpu->cp_regs, cp_reg_reset, cpu);
+cpu.c:    g_hash_table_foreach(cpu->cp_regs, cp_reg_check_reset, cpu);
+cpu.c:    env->vfp.xregs[ARM_VFP_FPSID] = cpu->reset_fpsid;
+cpu.c:    env->vfp.xregs[ARM_VFP_MVFR0] = cpu->isar.mvfr0;
+cpu.c:    env->vfp.xregs[ARM_VFP_MVFR1] = cpu->isar.mvfr1;
+cpu.c:    env->vfp.xregs[ARM_VFP_MVFR2] = cpu->isar.mvfr2;
+cpu.c:    cpu->power_state = s->start_powered_off ? PSCI_OFF : PSCI_ON;
+cpu.c:            env->vfp.zcr_el[1] = MIN(cpu->sve_max_vq - 1, 3);
+cpu.c:        env->pc = cpu->rvbar;
+cpu.c:        env->v7m.vecbase[M_REG_S] = cpu->init_svtor & 0xffffff80;
+cpu.c:        if (cpu->pmsav7_dregion > 0) {
+cpu.c:                       * cpu->pmsav7_dregion);
+cpu.c:                       * cpu->pmsav7_dregion);
+cpu.c:                           * cpu->pmsav7_dregion);
+cpu.c:                           * cpu->pmsav7_dregion);
+cpu.c:                       sizeof(*env->pmsav7.drbar) * cpu->pmsav7_dregion);
+cpu.c:                       sizeof(*env->pmsav7.drsr) * cpu->pmsav7_dregion);
+cpu.c:                       sizeof(*env->pmsav7.dracr) * cpu->pmsav7_dregion);
+cpu.c:        if (cpu->sau_sregion > 0) {
+cpu.c:            memset(env->sau.rbar, 0, sizeof(*env->sau.rbar) * cpu->sau_sregion);
+cpu.c:            memset(env->sau.rlar, 0, sizeof(*env->sau.rlar) * cpu->sau_sregion);
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:     * Destroy function for cpu->cp_regs hashtable data entries.
+cpu.c:    cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
+cpu.c:    QLIST_INIT(&cpu->pre_el_change_hooks);
+cpu.c:    QLIST_INIT(&cpu->el_change_hooks);
+cpu.c:    qdev_init_gpio_out(DEVICE(cpu), cpu->gt_timer_outputs,
+cpu.c:                       ARRAY_SIZE(cpu->gt_timer_outputs));
+cpu.c:    qdev_init_gpio_out_named(DEVICE(cpu), &cpu->gicv3_maintenance_interrupt,
+cpu.c:    qdev_init_gpio_out_named(DEVICE(cpu), &cpu->pmu_interrupt,
+cpu.c:    cpu->dtb_compatible = "qemu,unknown";
+cpu.c:    cpu->psci_version = 1; /* By default assume PSCI v0.1 */
+cpu.c:    cpu->kvm_target = QEMU_KVM_ARM_TARGET_NONE;
+cpu.c:        cpu->psci_version = 2; /* TCG implements PSCI 0.2 */
+cpu.c: * because the CPU initfn will have already set cpu->pmsav7_dregion to
+cpu.c:    return cpu->has_pmu;
+cpu.c:        set_feature(&cpu->env, ARM_FEATURE_PMU);
+cpu.c:        unset_feature(&cpu->env, ARM_FEATURE_PMU);
+cpu.c:    cpu->has_pmu = value;
+cpu.c:     *     muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), cpu->gt_cntfrq_hz,
+cpu.c:     * `(NANOSECONDS_PER_SECOND % cpu->gt_cntfrq) > 0` holds. Failing to
+cpu.c:    return NANOSECONDS_PER_SECOND > cpu->gt_cntfrq_hz ?
+cpu.c:      NANOSECONDS_PER_SECOND / cpu->gt_cntfrq_hz : 1;
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_M)) {
+cpu.c:        set_feature(&cpu->env, ARM_FEATURE_PMSA);
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_CBAR) ||
+cpu.c:        arm_feature(&cpu->env, ARM_FEATURE_CBAR_RO)) {
+cpu.c:    if (!arm_feature(&cpu->env, ARM_FEATURE_M)) {
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_EL3)) {
+cpu.c:                                 (Object **)&cpu->secure_memory,
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_EL2)) {
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_PMU)) {
+cpu.c:        cpu->has_pmu = true;
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)
+cpu.c:        cpu->has_vfp = true;
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_NEON)) {
+cpu.c:        cpu->has_neon = true;
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_M) &&
+cpu.c:        arm_feature(&cpu->env, ARM_FEATURE_THUMB_DSP)) {
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_PMSA)) {
+cpu.c:        if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_M_SECURITY)) {
+cpu.c:        object_property_add_link(obj, "idau", TYPE_IDAU_INTERFACE, &cpu->idau,
+cpu.c:                                       &cpu->init_svtor,
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER)) {
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64) &&
+cpu.c:                                 (Object **)&cpu->tag_memory,
+cpu.c:        if (arm_feature(&cpu->env, ARM_FEATURE_EL3)) {
+cpu.c:                                     (Object **)&cpu->secure_tag_memory,
+cpu.c:    g_hash_table_destroy(cpu->cp_regs);
+cpu.c:    QLIST_FOREACH_SAFE(hook, &cpu->pre_el_change_hooks, node, next) {
+cpu.c:    QLIST_FOREACH_SAFE(hook, &cpu->el_change_hooks, node, next) {
+cpu.c:    if (cpu->pmu_timer) {
+cpu.c:        timer_del(cpu->pmu_timer);
+cpu.c:        timer_deinit(cpu->pmu_timer);
+cpu.c:        timer_free(cpu->pmu_timer);
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:    if (cpu->host_cpu_probe_failed) {
+cpu.c:            if (!cpu->gt_cntfrq_hz) {
+cpu.c:                           cpu->gt_cntfrq_hz);
+cpu.c:        cpu->gt_timer[GTIMER_PHYS] = timer_new(QEMU_CLOCK_VIRTUAL, scale,
+cpu.c:        cpu->gt_timer[GTIMER_VIRT] = timer_new(QEMU_CLOCK_VIRTUAL, scale,
+cpu.c:        cpu->gt_timer[GTIMER_HYP] = timer_new(QEMU_CLOCK_VIRTUAL, scale,
+cpu.c:        cpu->gt_timer[GTIMER_SEC] = timer_new(QEMU_CLOCK_VIRTUAL, scale,
+cpu.c:        cpu->gt_timer[GTIMER_HYPVIRT] = timer_new(QEMU_CLOCK_VIRTUAL, scale,
+cpu.c:        cpu->has_vfp != cpu->has_neon) {
+cpu.c:    if (!cpu->has_vfp) {
+cpu.c:        t = cpu->isar.id_aa64isar1;
+cpu.c:        cpu->isar.id_aa64isar1 = t;
+cpu.c:        t = cpu->isar.id_aa64pfr0;
+cpu.c:        cpu->isar.id_aa64pfr0 = t;
+cpu.c:        u = cpu->isar.id_isar6;
+cpu.c:        cpu->isar.id_isar6 = u;
+cpu.c:        u = cpu->isar.mvfr0;
+cpu.c:        cpu->isar.mvfr0 = u;
+cpu.c:        u = cpu->isar.mvfr1;
+cpu.c:        cpu->isar.mvfr1 = u;
+cpu.c:        u = cpu->isar.mvfr2;
+cpu.c:        cpu->isar.mvfr2 = u;
+cpu.c:    if (!cpu->has_neon) {
+cpu.c:        t = cpu->isar.id_aa64isar0;
+cpu.c:        cpu->isar.id_aa64isar0 = t;
+cpu.c:        t = cpu->isar.id_aa64isar1;
+cpu.c:        cpu->isar.id_aa64isar1 = t;
+cpu.c:        t = cpu->isar.id_aa64pfr0;
+cpu.c:        cpu->isar.id_aa64pfr0 = t;
+cpu.c:        u = cpu->isar.id_isar5;
+cpu.c:        cpu->isar.id_isar5 = u;
+cpu.c:        u = cpu->isar.id_isar6;
+cpu.c:        cpu->isar.id_isar6 = u;
+cpu.c:        u = cpu->isar.mvfr1;
+cpu.c:        cpu->isar.mvfr1 = u;
+cpu.c:        u = cpu->isar.mvfr2;
+cpu.c:        cpu->isar.mvfr2 = u;
+cpu.c:    if (!cpu->has_neon && !cpu->has_vfp) {
+cpu.c:        t = cpu->isar.id_aa64isar0;
+cpu.c:        cpu->isar.id_aa64isar0 = t;
+cpu.c:        t = cpu->isar.id_aa64isar1;
+cpu.c:        cpu->isar.id_aa64isar1 = t;
+cpu.c:        u = cpu->isar.mvfr0;
+cpu.c:        cpu->isar.mvfr0 = u;
+cpu.c:        u = cpu->isar.mvfr1;
+cpu.c:        cpu->isar.mvfr1 = u;
+cpu.c:    if (arm_feature(env, ARM_FEATURE_M) && !cpu->has_dsp) {
+cpu.c:        u = cpu->isar.id_isar1;
+cpu.c:        cpu->isar.id_isar1 = u;
+cpu.c:        u = cpu->isar.id_isar2;
+cpu.c:        cpu->isar.id_isar2 = u;
+cpu.c:        u = cpu->isar.id_isar3;
+cpu.c:        cpu->isar.id_isar3 = u;
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+cpu.c:    assert(arm_feature(&cpu->env, ARM_FEATURE_AARCH64) ||
+cpu.c:    /* This cpu-id-to-MPIDR affinity is used only for TCG; KVM will override it.
+cpu.c:    if (cpu->mp_affinity == ARM64_AFFINITY_INVALID) {
+cpu.c:        cpu->mp_affinity = arm_cpu_mp_affinity(cs->cpu_index,
+cpu.c:    if (cpu->reset_hivecs) {
+cpu.c:            cpu->reset_sctlr |= (1 << 13);
+cpu.c:    if (cpu->cfgend) {
+cpu.c:        if (arm_feature(&cpu->env, ARM_FEATURE_V7)) {
+cpu.c:            cpu->reset_sctlr |= SCTLR_EE;
+cpu.c:            cpu->reset_sctlr |= SCTLR_B;
+cpu.c:    if (!cpu->has_el3) {
+cpu.c:        cpu->isar.id_pfr1 &= ~0xf0;
+cpu.c:        cpu->isar.id_aa64pfr0 &= ~0xf000;
+cpu.c:    if (!cpu->has_el2) {
+cpu.c:    if (!cpu->has_pmu) {
+cpu.c:        cpu->pmu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, arm_pmu_timer_cb,
+cpu.c:        cpu->isar.id_aa64dfr0 =
+cpu.c:            FIELD_DP64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, PMUVER, 0);
+cpu.c:        cpu->isar.id_dfr0 = FIELD_DP32(cpu->isar.id_dfr0, ID_DFR0, PERFMON, 0);
+cpu.c:        cpu->pmceid0 = 0;
+cpu.c:        cpu->pmceid1 = 0;
+cpu.c:        cpu->isar.id_aa64pfr0 &= ~0xf00;
+cpu.c:        cpu->isar.id_pfr1 &= ~0xf000;
+cpu.c:    if (cpu->tag_memory == NULL && cpu_isar_feature(aa64_mte, cpu)) {
+cpu.c:        cpu->isar.id_aa64pfr1 =
+cpu.c:            FIELD_DP64(cpu->isar.id_aa64pfr1, ID_AA64PFR1, MTE, 0);
+cpu.c:    if (!cpu->has_mpu) {
+cpu.c:        cpu->pmsav7_dregion = 0;
+cpu.c:    if (cpu->pmsav7_dregion == 0) {
+cpu.c:        cpu->has_mpu = false;
+cpu.c:        uint32_t nr = cpu->pmsav7_dregion;
+cpu.c:        uint32_t nr = cpu->sau_sregion;
+cpu.c:    bool has_secure = cpu->has_el3 || arm_feature(env, ARM_FEATURE_M_SECURITY);
+cpu.c:    if (cpu->tag_memory != NULL) {
+cpu.c:        if (!cpu->secure_memory) {
+cpu.c:            cpu->secure_memory = cs->memory;
+cpu.c:        cpu_address_space_init(cs, ARMASIdx_S, "cpu-secure-memory",
+cpu.c:                               cpu->secure_memory);
+cpu.c:    if (cpu->tag_memory != NULL) {
+cpu.c:        cpu_address_space_init(cs, ARMASIdx_TagNS, "cpu-tag-memory",
+cpu.c:                               cpu->tag_memory);
+cpu.c:            cpu_address_space_init(cs, ARMASIdx_TagS, "cpu-tag-memory",
+cpu.c:                                   cpu->secure_tag_memory);
+cpu.c:    cpu_address_space_init(cs, ARMASIdx_NS, "cpu-memory", cs->memory);
+cpu.c:    if (cpu->core_count == -1) {
+cpu.c:        cpu->core_count = smp_cpus;
+cpu.c:        int dcz_blocklen = 4 << cpu->dcz_blocksize;
+cpu.c:    cpu->dtb_compatible = "arm,cortex-a8";
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_V7);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_NEON);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_EL3);
+cpu.c:    cpu->midr = 0x410fc080;
+cpu.c:    cpu->reset_fpsid = 0x410330c0;
+cpu.c:    cpu->isar.mvfr0 = 0x11110222;
+cpu.c:    cpu->isar.mvfr1 = 0x00011111;
+cpu.c:    cpu->ctr = 0x82048004;
+cpu.c:    cpu->reset_sctlr = 0x00c50078;
+cpu.c:    cpu->isar.id_pfr0 = 0x1031;
+cpu.c:    cpu->isar.id_pfr1 = 0x11;
+cpu.c:    cpu->isar.id_dfr0 = 0x400;
+cpu.c:    cpu->id_afr0 = 0;
+cpu.c:    cpu->isar.id_mmfr0 = 0x31100003;
+cpu.c:    cpu->isar.id_mmfr1 = 0x20000000;
+cpu.c:    cpu->isar.id_mmfr2 = 0x01202000;
+cpu.c:    cpu->isar.id_mmfr3 = 0x11;
+cpu.c:    cpu->isar.id_isar0 = 0x00101111;
+cpu.c:    cpu->isar.id_isar1 = 0x12112111;
+cpu.c:    cpu->isar.id_isar2 = 0x21232031;
+cpu.c:    cpu->isar.id_isar3 = 0x11112131;
+cpu.c:    cpu->isar.id_isar4 = 0x00111142;
+cpu.c:    cpu->isar.dbgdidr = 0x15141000;
+cpu.c:    cpu->clidr = (1 << 27) | (2 << 24) | 3;
+cpu.c:    cpu->ccsidr[0] = 0xe007e01a; /* 16k L1 dcache. */
+cpu.c:    cpu->ccsidr[1] = 0x2007e01a; /* 16k L1 icache. */
+cpu.c:    cpu->ccsidr[2] = 0xf0000000; /* No L2 icache. */
+cpu.c:    cpu->reset_auxcr = 2;
+cpu.c:    cpu->dtb_compatible = "arm,cortex-a9";
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_V7);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_NEON);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_EL3);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_V7MP);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_CBAR);
+cpu.c:    cpu->midr = 0x410fc090;
+cpu.c:    cpu->reset_fpsid = 0x41033090;
+cpu.c:    cpu->isar.mvfr0 = 0x11110222;
+cpu.c:    cpu->isar.mvfr1 = 0x01111111;
+cpu.c:    cpu->ctr = 0x80038003;
+cpu.c:    cpu->reset_sctlr = 0x00c50078;
+cpu.c:    cpu->isar.id_pfr0 = 0x1031;
+cpu.c:    cpu->isar.id_pfr1 = 0x11;
+cpu.c:    cpu->isar.id_dfr0 = 0x000;
+cpu.c:    cpu->id_afr0 = 0;
+cpu.c:    cpu->isar.id_mmfr0 = 0x00100103;
+cpu.c:    cpu->isar.id_mmfr1 = 0x20000000;
+cpu.c:    cpu->isar.id_mmfr2 = 0x01230000;
+cpu.c:    cpu->isar.id_mmfr3 = 0x00002111;
+cpu.c:    cpu->isar.id_isar0 = 0x00101111;
+cpu.c:    cpu->isar.id_isar1 = 0x13112111;
+cpu.c:    cpu->isar.id_isar2 = 0x21232041;
+cpu.c:    cpu->isar.id_isar3 = 0x11112131;
+cpu.c:    cpu->isar.id_isar4 = 0x00111142;
+cpu.c:    cpu->isar.dbgdidr = 0x35141000;
+cpu.c:    cpu->clidr = (1 << 27) | (1 << 24) | 3;
+cpu.c:    cpu->ccsidr[0] = 0xe00fe019; /* 16k L1 dcache. */
+cpu.c:    cpu->ccsidr[1] = 0x200fe019; /* 16k L1 icache. */
+cpu.c:    cpu->dtb_compatible = "arm,cortex-a7";
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_V7VE);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_NEON);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_EL2);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_EL3);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_PMU);
+cpu.c:    cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A7;
+cpu.c:    cpu->midr = 0x410fc075;
+cpu.c:    cpu->reset_fpsid = 0x41023075;
+cpu.c:    cpu->isar.mvfr0 = 0x10110222;
+cpu.c:    cpu->isar.mvfr1 = 0x11111111;
+cpu.c:    cpu->ctr = 0x84448003;
+cpu.c:    cpu->reset_sctlr = 0x00c50078;
+cpu.c:    cpu->isar.id_pfr0 = 0x00001131;
+cpu.c:    cpu->isar.id_pfr1 = 0x00011011;
+cpu.c:    cpu->isar.id_dfr0 = 0x02010555;
+cpu.c:    cpu->id_afr0 = 0x00000000;
+cpu.c:    cpu->isar.id_mmfr0 = 0x10101105;
+cpu.c:    cpu->isar.id_mmfr1 = 0x40000000;
+cpu.c:    cpu->isar.id_mmfr2 = 0x01240000;
+cpu.c:    cpu->isar.id_mmfr3 = 0x02102211;
+cpu.c:    cpu->isar.id_isar0 = 0x02101110;
+cpu.c:    cpu->isar.id_isar1 = 0x13112111;
+cpu.c:    cpu->isar.id_isar2 = 0x21232041;
+cpu.c:    cpu->isar.id_isar3 = 0x11112131;
+cpu.c:    cpu->isar.id_isar4 = 0x10011142;
+cpu.c:    cpu->isar.dbgdidr = 0x3515f005;
+cpu.c:    cpu->clidr = 0x0a200023;
+cpu.c:    cpu->ccsidr[0] = 0x701fe00a; /* 32K L1 dcache */
+cpu.c:    cpu->ccsidr[1] = 0x201fe00a; /* 32K L1 icache */
+cpu.c:    cpu->ccsidr[2] = 0x711fe07a; /* 4096K L2 unified cache */
+cpu.c:    cpu->dtb_compatible = "arm,cortex-a15";
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_V7VE);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_NEON);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_EL2);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_EL3);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_PMU);
+cpu.c:    cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A15;
+cpu.c:    cpu->midr = 0x412fc0f1;
+cpu.c:    cpu->reset_fpsid = 0x410430f0;
+cpu.c:    cpu->isar.mvfr0 = 0x10110222;
+cpu.c:    cpu->isar.mvfr1 = 0x11111111;
+cpu.c:    cpu->ctr = 0x8444c004;
+cpu.c:    cpu->reset_sctlr = 0x00c50078;
+cpu.c:    cpu->isar.id_pfr0 = 0x00001131;
+cpu.c:    cpu->isar.id_pfr1 = 0x00011011;
+cpu.c:    cpu->isar.id_dfr0 = 0x02010555;
+cpu.c:    cpu->id_afr0 = 0x00000000;
+cpu.c:    cpu->isar.id_mmfr0 = 0x10201105;
+cpu.c:    cpu->isar.id_mmfr1 = 0x20000000;
+cpu.c:    cpu->isar.id_mmfr2 = 0x01240000;
+cpu.c:    cpu->isar.id_mmfr3 = 0x02102211;
+cpu.c:    cpu->isar.id_isar0 = 0x02101110;
+cpu.c:    cpu->isar.id_isar1 = 0x13112111;
+cpu.c:    cpu->isar.id_isar2 = 0x21232041;
+cpu.c:    cpu->isar.id_isar3 = 0x11112131;
+cpu.c:    cpu->isar.id_isar4 = 0x10011142;
+cpu.c:    cpu->isar.dbgdidr = 0x3515f021;
+cpu.c:    cpu->clidr = 0x0a200023;
+cpu.c:    cpu->ccsidr[0] = 0x701fe00a; /* 32K L1 dcache */
+cpu.c:    cpu->ccsidr[1] = 0x201fe00a; /* 32K L1 icache */
+cpu.c:    cpu->ccsidr[2] = 0x711fe07a; /* 4096K L2 unified cache */
+cpu.c:    cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSHVEC, 1);
+cpu.c:    set_feature(&cpu->env, ARM_FEATURE_V8);
+cpu.c:        t = cpu->isar.id_isar5;
+cpu.c:        cpu->isar.id_isar5 = t;
+cpu.c:        t = cpu->isar.id_isar6;
+cpu.c:        cpu->isar.id_isar6 = t;
+cpu.c:        t = cpu->isar.mvfr1;
+cpu.c:        cpu->isar.mvfr1 = t;
+cpu.c:        t = cpu->isar.mvfr2;
+cpu.c:        cpu->isar.mvfr2 = t;
+cpu.c:        t = cpu->isar.id_mmfr3;
+cpu.c:        cpu->isar.id_mmfr3 = t;
+cpu.c:        t = cpu->isar.id_mmfr4;
+cpu.c:        cpu->isar.id_mmfr4 = t;
+cpu.c:    CPUARMState *env = &cpu->env;
+cpu.c:    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+internals.h:        FIELD_EX64(cpu->isar.id_aa64mmfr0, ID_AA64MMFR0, PARANGE);
+internals.h:    QLIST_FOREACH_SAFE(hook, &cpu->pre_el_change_hooks, node, next) {
+internals.h:    QLIST_FOREACH_SAFE(hook, &cpu->el_change_hooks, node, next) {
+internals.h:    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+internals.h:        return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, BRPS) + 1;
+internals.h:        return FIELD_EX32(cpu->isar.dbgdidr, DBGDIDR, BRPS) + 1;
+internals.h:    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+internals.h:        return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, WRPS) + 1;
+internals.h:        return FIELD_EX32(cpu->isar.dbgdidr, DBGDIDR, WRPS) + 1;
+internals.h:    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+internals.h:        return FIELD_EX64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, CTX_CMPS) + 1;
+internals.h:        return FIELD_EX32(cpu->isar.dbgdidr, DBGDIDR, CTX_CMPS) + 1;
+helper.c:    key = cpu->dyn_sysreg_xml.data.cpregs.keys[reg];
+helper.c:    ri = get_arm_cp_reginfo(cpu->cp_regs, key);
+helper.c:        for (vq = 0; vq < cpu->sve_max_vq; vq++) {
+helper.c:        for (vq = 0; vq < cpu->sve_max_vq; vq = vq + 4) {
+helper.c:        for (vq = 0; vq < cpu->sve_max_vq; vq++) {
+helper.c:        for (vq = 0; vq < cpu->sve_max_vq; vq = vq + 4) {
+helper.c:    /* Write the coprocessor state from cpu->env to the (index,value) list. */
+helper.c:    for (i = 0; i < cpu->cpreg_array_len; i++) {
+helper.c:        uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+helper.c:        ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
+helper.c:        newval = read_raw_cp_reg(&cpu->env, ri);
+helper.c:            uint64_t oldval = cpu->cpreg_values[i];
+helper.c:            write_raw_cp_reg(&cpu->env, ri, oldval);
+helper.c:            if (read_raw_cp_reg(&cpu->env, ri) != oldval) {
+helper.c:            write_raw_cp_reg(&cpu->env, ri, newval);
+helper.c:        cpu->cpreg_values[i] = newval;
+helper.c:    for (i = 0; i < cpu->cpreg_array_len; i++) {
+helper.c:        uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
+helper.c:        uint64_t v = cpu->cpreg_values[i];
+helper.c:        ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
+helper.c:        write_raw_cp_reg(&cpu->env, ri, v);
+helper.c:        if (read_raw_cp_reg(&cpu->env, ri) != v) {
+helper.c:    ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
+helper.c:        cpu->cpreg_indexes[cpu->cpreg_array_len] = cpreg_to_kvm_id(regidx);
+helper.c:        cpu->cpreg_array_len++;
+helper.c:    ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
+helper.c:        cpu->cpreg_array_len++;
+helper.c:    keys = g_hash_table_get_keys(cpu->cp_regs);
+helper.c:    cpu->cpreg_array_len = 0;
+helper.c:    arraylen = cpu->cpreg_array_len;
+helper.c:    cpu->cpreg_indexes = g_new(uint64_t, arraylen);
+helper.c:    cpu->cpreg_values = g_new(uint64_t, arraylen);
+helper.c:    cpu->cpreg_vmstate_indexes = g_new(uint64_t, arraylen);
+helper.c:    cpu->cpreg_vmstate_values = g_new(uint64_t, arraylen);
+helper.c:    cpu->cpreg_vmstate_array_len = cpu->cpreg_array_len;
+helper.c:    cpu->cpreg_array_len = 0;
+helper.c:    assert(cpu->cpreg_array_len == arraylen);
+helper.c:     * Empty supported_event_map and cpu->pmceid[01] before adding supported
+helper.c:    cpu->pmceid0 = 0;
+helper.c:    cpu->pmceid1 = 0;
+helper.c:        if (cnt->supported(&cpu->env)) {
+helper.c:                cpu->pmceid1 |= event_mask;
+helper.c:                cpu->pmceid0 |= event_mask;
+helper.c:    qemu_set_irq(cpu->pmu_interrupt, (env->cp15.c9_pmcr & PMCRE) &&
+helper.c:            timer_mod_anticipate_ns(cpu->pmu_timer, overflow_at);
+helper.c:            timer_mod_anticipate_ns(cpu->pmu_timer, overflow_at);
+helper.c:    pmu_op_start(&cpu->env);
+helper.c:    pmu_op_finish(&cpu->env);
+helper.c:     * has the effect of setting the cpu->pmu_timer to the next earliest time a
+helper.c:    pmu_op_start(&cpu->env);
+helper.c:    pmu_op_finish(&cpu->env);
+helper.c:    return cpu->ccsidr[index];
+helper.c:    ARMGenericTimer *gt = &cpu->env.cp15.c14_timer[timeridx];
+helper.c:                                      cpu->env.cp15.cntvoff_el2 : 0;
+helper.c:        uint64_t count = gt_get_countervalue(&cpu->env);
+helper.c:        qemu_set_irq(cpu->gt_timer_outputs[timeridx], irqstate);
+helper.c:            timer_mod_ns(cpu->gt_timer[timeridx], INT64_MAX);
+helper.c:            timer_mod(cpu->gt_timer[timeridx], nexttick);
+helper.c:        qemu_set_irq(cpu->gt_timer_outputs[timeridx], 0);
+helper.c:        timer_del(cpu->gt_timer[timeridx]);
+helper.c:    timer_del(cpu->gt_timer[timeridx]);
+helper.c:        qemu_set_irq(cpu->gt_timer_outputs[timeridx], irqstate);
+helper.c:    cpu->env.cp15.c14_cntfrq = cpu->gt_cntfrq_hz;
+helper.c:    uint32_t nrgs = cpu->pmsav7_dregion;
+helper.c:    if (arm_feature(&cpu->env, ARM_FEATURE_EL2) && !secure && cur_el == 1) {
+helper.c:    uint64_t mpidr = cpu->mp_affinity;
+helper.c:        if (cpu->mp_is_up) {
+helper.c:    return cpu->dcz_blocksize | dzp_bit;
+helper.c:    if (arm_feature(env, ARM_FEATURE_PMSA) && !cpu->has_mpu) {
+helper.c:    } else if (cpu->psci_conduit != QEMU_PSCI_CONDUIT_SMC) {
+helper.c:        if (a->feature && !a->feature(&cpu->isar)) {
+helper.c:        src_reg = g_hash_table_lookup(cpu->cp_regs, &a->src_key);
+helper.c:        dst_reg = g_hash_table_lookup(cpu->cp_regs, &a->dst_key);
+helper.c:            ok = g_hash_table_insert(cpu->cp_regs, new_key, new_reg);
+helper.c:    if (!test_bit(start_len, cpu->sve_vq_map)) {
+helper.c:        end_len = find_last_bit(cpu->sve_vq_map, start_len);
+helper.c:    uint32_t zcr_len = cpu->sve_max_vq - 1;
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:    for (i = 0; i < ARRAY_SIZE(cpu->env.cpu_watchpoint); i++) {
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:    for (i = 0; i < ARRAY_SIZE(cpu->env.cpu_breakpoint); i++) {
+helper.c:        .type = ARM_CP_CONST, .resetvalue = cpu->isar.dbgdidr,
+helper.c:    if (arm_feature(&cpu->env, ARM_FEATURE_LPAE)) {
+helper.c:        .resetvalue = (cpu->midr & 0xff000000) | (pmcrn << PMCRN_SHIFT) |
+helper.c:              .resetvalue = extract64(cpu->pmceid0, 32, 32) },
+helper.c:              .resetvalue = extract64(cpu->pmceid1, 32, 32) },
+helper.c:    uint64_t pfr1 = cpu->isar.id_pfr1;
+helper.c:    uint64_t pfr0 = cpu->isar.id_aa64pfr0;
+helper.c:    uint64_t dline_size = 4 << ((cpu->ctr >> 16) & 0xF);
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:              .resetvalue = cpu->isar.id_pfr0 },
+helper.c:              .resetvalue = cpu->isar.id_dfr0 },
+helper.c:              .resetvalue = cpu->id_afr0 },
+helper.c:              .resetvalue = cpu->isar.id_mmfr0 },
+helper.c:              .resetvalue = cpu->isar.id_mmfr1 },
+helper.c:              .resetvalue = cpu->isar.id_mmfr2 },
+helper.c:              .resetvalue = cpu->isar.id_mmfr3 },
+helper.c:              .resetvalue = cpu->isar.id_isar0 },
+helper.c:              .resetvalue = cpu->isar.id_isar1 },
+helper.c:              .resetvalue = cpu->isar.id_isar2 },
+helper.c:              .resetvalue = cpu->isar.id_isar3 },
+helper.c:              .resetvalue = cpu->isar.id_isar4 },
+helper.c:              .resetvalue = cpu->isar.id_isar5 },
+helper.c:              .resetvalue = cpu->isar.id_mmfr4 },
+helper.c:              .resetvalue = cpu->isar.id_isar6 },
+helper.c:            .resetvalue = cpu->clidr
+helper.c:              .resetvalue = cpu->isar.id_aa64pfr0
+helper.c:              .resetvalue = cpu->isar.id_aa64pfr1},
+helper.c:              .resetvalue = cpu->isar.id_aa64dfr0 },
+helper.c:              .resetvalue = cpu->isar.id_aa64dfr1 },
+helper.c:              .resetvalue = cpu->id_aa64afr0 },
+helper.c:              .resetvalue = cpu->id_aa64afr1 },
+helper.c:              .resetvalue = cpu->isar.id_aa64isar0 },
+helper.c:              .resetvalue = cpu->isar.id_aa64isar1 },
+helper.c:              .resetvalue = cpu->isar.id_aa64mmfr0 },
+helper.c:              .resetvalue = cpu->isar.id_aa64mmfr1 },
+helper.c:              .resetvalue = cpu->isar.id_aa64mmfr2 },
+helper.c:              .resetvalue = cpu->isar.mvfr0 },
+helper.c:              .resetvalue = cpu->isar.mvfr1 },
+helper.c:              .resetvalue = cpu->isar.mvfr2 },
+helper.c:              .resetvalue = extract64(cpu->pmceid0, 0, 32) },
+helper.c:              .resetvalue = cpu->pmceid0 },
+helper.c:              .resetvalue = extract64(cpu->pmceid1, 0, 32) },
+helper.c:              .resetvalue = cpu->pmceid1 },
+helper.c:                .type = ARM_CP_CONST, .access = PL1_R, .resetvalue = cpu->rvbar
+helper.c:              .resetvalue = cpu->midr, .type = ARM_CP_ALIAS,
+helper.c:              .access = PL2_RW, .resetvalue = cpu->midr,
+helper.c:                .type = ARM_CP_CONST, .access = PL2_R, .resetvalue = cpu->rvbar
+helper.c:                  .type = ARM_CP_CONST, .resetvalue = cpu->midr,
+helper.c:              .type = ARM_CP_CONST, .access = PL3_R, .resetvalue = cpu->rvbar },
+helper.c:              .resetvalue = cpu->reset_sctlr },
+helper.c:              .access = PL1_R, .resetvalue = cpu->midr,
+helper.c:              .access = PL1_R, .type = ARM_CP_NO_RAW, .resetvalue = cpu->midr,
+helper.c:              .access = PL1_R, .resetvalue = cpu->midr },
+helper.c:              .access = PL1_R, .resetvalue = cpu->midr },
+helper.c:              .type = ARM_CP_CONST, .resetvalue = cpu->revidr },
+helper.c:              .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
+helper.c:              .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
+helper.c:              .resetvalue = cpu->pmsav7_dregion << 8
+helper.c:              .type = ARM_CP_CONST, .resetvalue = cpu->reset_auxcr },
+helper.c:            uint32_t cbar32 = (extract64(cpu->reset_cbar, 18, 14) << 18)
+helper.c:                | extract64(cpu->reset_cbar, 32, 12);
+helper.c:                  .access = PL1_R, .resetvalue = cpu->reset_cbar },
+helper.c:                .access = PL1_R|PL3_W, .resetvalue = cpu->reset_cbar,
+helper.c:            .writefn = sctlr_write, .resetvalue = cpu->reset_sctlr,
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:        if (isar_feature_aa64_sve(&cpu->isar)) {
+helper.c:                (arm_feature(&cpu->env, ARM_FEATURE_V8) && !ns)) {
+helper.c:        oldreg = g_hash_table_lookup(cpu->cp_regs, key);
+helper.c:    g_hash_table_insert(cpu->cp_regs, key, r2);
+helper.c:        if (arm_feature(&cpu->env, ARM_FEATURE_V8) &&
+helper.c:            !arm_feature(&cpu->env, ARM_FEATURE_M)) {
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:        CPUARMState *env = &cpu->env;
+helper.c:    CPUARMState *env = &cpu->env;
+helper.c:        for (n = (int)cpu->pmsav7_dregion - 1; n >= 0; n--) {
+helper.c:    if (cpu->idau) {
+helper.c:        IDAUInterfaceClass *iic = IDAU_INTERFACE_GET_CLASS(cpu->idau);
+helper.c:        IDAUInterface *ii = IDAU_INTERFACE(cpu->idau);
+helper.c:        for (r = 0; r < cpu->sau_sregion; r++) {
+helper.c:        for (n = (int)cpu->pmsav7_dregion - 1; n >= 0; n--) {
+helper.c:    CPUARMState *env = &cpu->env;
+debug_helper.c:    CPUARMState *env = &cpu->env;
+debug_helper.c:    CPUARMState *env = &cpu->env;
+debug_helper.c:    CPUARMState *env = &cpu->env;
+debug_helper.c:    CPUARMState *env = &cpu->env;
+debug_helper.c:    CPUARMState *env = &cpu->env;
+debug_helper.c:    CPUARMState *env = &cpu->env;
+kvm64.c:    assert(cpu->sve_max_vq <= KVM_ARM64_SVE_VQ_MAX);
+kvm64.c:    for (vq = 1; vq <= cpu->sve_max_vq; ++vq) {
+kvm64.c:        if (test_bit(vq - 1, cpu->sve_vq_map)) {
+kvm64.c:    CPUARMState *env = &cpu->env;
+kvm64.c:    if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE ||
+kvm64.c:    memset(cpu->kvm_init_features, 0, sizeof(cpu->kvm_init_features));
+kvm64.c:        cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_POWER_OFF;
+kvm64.c:        cpu->psci_version = 2;
+kvm64.c:        cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_PSCI_0_2;
+kvm64.c:    if (!arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+kvm64.c:        cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_EL1_32BIT;
+kvm64.c:        cpu->has_pmu = false;
+kvm64.c:    if (cpu->has_pmu) {
+kvm64.c:        cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_PMU_V3;
+kvm64.c:        cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_SVE;
+kvm64.c:    cpu->mp_affinity = mpidr & ARM64_AFFINITY_MASK;
+kvm64.c:    CPUARMState *env = &cpu->env;
+kvm64.c:    CPUARMState *env = &cpu->env;
+kvm64.c:        r = sve_bswap64(tmp, &env->vfp.zregs[n].d[0], cpu->sve_max_vq * 2);
+kvm64.c:                        DIV_ROUND_UP(cpu->sve_max_vq * 2, 8));
+kvm64.c:                    DIV_ROUND_UP(cpu->sve_max_vq * 2, 8));
+kvm64.c:    CPUARMState *env = &cpu->env;
+kvm64.c:    CPUARMState *env = &cpu->env;
+kvm64.c:        sve_bswap64(r, r, cpu->sve_max_vq * 2);
+kvm64.c:        sve_bswap64(r, r, DIV_ROUND_UP(cpu->sve_max_vq * 2, 8));
+kvm64.c:    sve_bswap64(r, r, DIV_ROUND_UP(cpu->sve_max_vq * 2, 8));
+kvm64.c:    CPUARMState *env = &cpu->env;
+kvm64.c:    CPUARMState *env = &cpu->env;
+kvm64.c:        CPUARMState *env = &cpu->env;
+gdbstub.c:    CPUARMState *env = &cpu->env;
+gdbstub.c:    CPUARMState *env = &cpu->env;
+gdbstub.c:    CPUARMState *env = &cpu->env;
+gdbstub.c:    DynamicGDBXMLInfo *dyn_xml = &cpu->dyn_sysreg_xml;
+gdbstub.c:    cpu->dyn_sysreg_xml.num = 0;
+gdbstub.c:    cpu->dyn_sysreg_xml.data.cpregs.keys = g_new(uint32_t, g_hash_table_size(cpu->cp_regs));
+gdbstub.c:    g_hash_table_foreach(cpu->cp_regs, arm_register_sysreg_for_xml, &param);
+gdbstub.c:    cpu->dyn_sysreg_xml.desc = g_string_free(s, false);
+gdbstub.c:    return cpu->dyn_sysreg_xml.num;
+gdbstub.c:    DynamicGDBXMLInfo *info = &cpu->dyn_svereg_xml;
+gdbstub.c:    int i, bits, reg_width = (cpu->sve_max_vq * 128);
+gdbstub.c:                           cpu->sve_max_vq);
+gdbstub.c:                               i, cpu->sve_max_vq * 16, base_reg++);
+gdbstub.c:                           cpu->sve_max_vq * 16, base_reg++);
+gdbstub.c:    cpu->dyn_svereg_xml.desc = g_string_free(s, false);
+gdbstub.c:    return cpu->dyn_svereg_xml.num;
+gdbstub.c:        return cpu->dyn_sysreg_xml.desc;
+gdbstub.c:        return cpu->dyn_svereg_xml.desc;

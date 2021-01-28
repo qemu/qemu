@@ -72,8 +72,7 @@ void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
 }
 
 void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
-                     X86MachineState *x86ms, AcpiDeviceIf *adev,
-                     bool has_pci)
+                     X86MachineState *x86ms, AcpiDeviceIf *adev)
 {
     MachineClass *mc = MACHINE_GET_CLASS(x86ms);
     const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(x86ms));
@@ -104,6 +103,16 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
     io_apic->address = cpu_to_le32(IO_APIC_DEFAULT_ADDRESS);
     io_apic->interrupt = cpu_to_le32(0);
 
+    if (x86ms->ioapic2) {
+        AcpiMadtIoApic *io_apic2;
+        io_apic2 = acpi_data_push(table_data, sizeof *io_apic);
+        io_apic2->type = ACPI_APIC_IO;
+        io_apic2->length = sizeof(*io_apic);
+        io_apic2->io_apic_id = ACPI_BUILD_IOAPIC_ID + 1;
+        io_apic2->address = cpu_to_le32(IO_APIC_SECONDARY_ADDRESS);
+        io_apic2->interrupt = cpu_to_le32(IO_APIC_SECONDARY_IRQBASE);
+    }
+
     if (x86ms->apic_xrupt_override) {
         intsrcovr = acpi_data_push(table_data, sizeof *intsrcovr);
         intsrcovr->type   = ACPI_APIC_XRUPT_OVERRIDE;
@@ -113,20 +122,17 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
         intsrcovr->flags  = cpu_to_le16(0); /* conforms to bus specifications */
     }
 
-    if (has_pci) {
-        for (i = 1; i < 16; i++) {
-#define ACPI_BUILD_PCI_IRQS ((1<<5) | (1<<9) | (1<<10) | (1<<11))
-            if (!(ACPI_BUILD_PCI_IRQS & (1 << i))) {
-                /* No need for a INT source override structure. */
-                continue;
-            }
-            intsrcovr = acpi_data_push(table_data, sizeof *intsrcovr);
-            intsrcovr->type   = ACPI_APIC_XRUPT_OVERRIDE;
-            intsrcovr->length = sizeof(*intsrcovr);
-            intsrcovr->source = i;
-            intsrcovr->gsi    = cpu_to_le32(i);
-            intsrcovr->flags  = cpu_to_le16(0xd); /* active high, level triggered */
+    for (i = 1; i < 16; i++) {
+        if (!(x86ms->pci_irq_mask & (1 << i))) {
+            /* No need for a INT source override structure. */
+            continue;
         }
+        intsrcovr = acpi_data_push(table_data, sizeof *intsrcovr);
+        intsrcovr->type   = ACPI_APIC_XRUPT_OVERRIDE;
+        intsrcovr->length = sizeof(*intsrcovr);
+        intsrcovr->source = i;
+        intsrcovr->gsi    = cpu_to_le32(i);
+        intsrcovr->flags  = cpu_to_le16(0xd); /* active high, level triggered */
     }
 
     if (x2apic_mode) {

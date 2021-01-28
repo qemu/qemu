@@ -85,8 +85,13 @@ Line width
 Lines should be 80 characters; try not to make them longer.
 
 Sometimes it is hard to do, especially when dealing with QEMU subsystems
-that use long function or symbol names.  Even in that case, do not make
-lines much longer than 80 characters.
+that use long function or symbol names. If wrapping the line at 80 columns
+is obviously less readable and more awkward, prefer not to wrap it; better
+to have an 85 character line than one which is awkwardly wrapped.
+
+Even in that case, try not to make lines much longer than 80 characters.
+(The checkpatch script will warn at 100 characters, but this is intended
+as a guard against obviously-overlength lines, not a target.)
 
 Rationale:
 

@@ -68,7 +68,7 @@ static int get_psr(QEMUFile *f, void *opaque, size_t size,
 }
 
 static int put_psr(QEMUFile *f, void *opaque, size_t size,
-                   const VMStateField *field, QJSON *vmdesc)
+                   const VMStateField *field, JSONWriter *vmdesc)
 {
     SPARCCPU *cpu = opaque;
     CPUSPARCState *env = &cpu->env;

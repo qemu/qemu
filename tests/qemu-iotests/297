@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
+# group: meta
 #
 # Copyright (C) 2020 Red Hat, Inc.
 #
@@ -15,30 +16,98 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-seq=$(basename $0)
-echo "QA output created by $seq"
+import os
+import re
+import shutil
+import subprocess
+import sys
 
-status=1	# failure is the default!
+import iotests
 
-# get standard environment
-. ./common.rc
 
-if ! type -p "pylint-3" > /dev/null; then
-    _notrun "pylint-3 not found"
-fi
-if ! type -p "mypy" > /dev/null; then
-    _notrun "mypy not found"
-fi
+# TODO: Empty this list!
+SKIP_FILES = (
+    '030', '040', '041', '044', '045', '055', '056', '057', '065', '093',
+    '096', '118', '124', '132', '136', '139', '147', '148', '149',
+    '151', '152', '155', '163', '165', '169', '194', '196', '199', '202',
+    '203', '205', '206', '207', '208', '210', '211', '212', '213', '216',
+    '218', '219', '222', '224', '228', '234', '235', '236', '237', '238',
+    '240', '242', '245', '246', '248', '255', '256', '257', '258', '260',
+    '262', '264', '266', '274', '277', '280', '281', '295', '296', '298',
+    '299', '302', '303', '304', '307',
+    'nbd-fault-injector.py', 'qcow2.py', 'qcow2_format.py', 'qed.py'
+)
 
-pylint-3 --score=n iotests.py
 
-MYPYPATH=../../python/ mypy --warn-unused-configs --disallow-subclassing-any \
-    --disallow-any-generics --disallow-incomplete-defs \
-    --disallow-untyped-decorators --no-implicit-optional \
-    --warn-redundant-casts --warn-unused-ignores \
-    --no-implicit-reexport iotests.py
+def is_python_file(filename):
+    if not os.path.isfile(filename):
+        return False
 
-# success, all done
-echo "*** done"
-rm -f $seq.full
-status=0
+    if filename.endswith('.py'):
+        return True
+
+    with open(filename) as f:
+        try:
+            first_line = f.readline()
+            return re.match('^#!.*python', first_line) is not None
+        except UnicodeDecodeError:  # Ignore binary files
+            return False
+
+
+def run_linters():
+    files = [filename for filename in (set(os.listdir('.')) - set(SKIP_FILES))
+             if is_python_file(filename)]
+
+    iotests.logger.debug('Files to be checked:')
+    iotests.logger.debug(', '.join(sorted(files)))
+
+    print('=== pylint ===')
+    sys.stdout.flush()
+
+    # Todo notes are fine, but fixme's or xxx's should probably just be
+    # fixed (in tests, at least)
+    env = os.environ.copy()
+    qemu_module_path = os.path.join(os.path.dirname(__file__),
+                                    '..', '..', 'python')
+    try:
+        env['PYTHONPATH'] += os.pathsep + qemu_module_path
+    except KeyError:
+        env['PYTHONPATH'] = qemu_module_path
+    subprocess.run(('pylint-3', '--score=n', '--notes=FIXME,XXX', *files),
+                   env=env, check=False)
+
+    print('=== mypy ===')
+    sys.stdout.flush()
+
+    # We have to call mypy separately for each file.  Otherwise, it
+    # will interpret all given files as belonging together (i.e., they
+    # may not both define the same classes, etc.; most notably, they
+    # must not both define the __main__ module).
+    env['MYPYPATH'] = env['PYTHONPATH']
+    for filename in files:
+        p = subprocess.run(('mypy',
+                            '--warn-unused-configs',
+                            '--disallow-subclassing-any',
+                            '--disallow-any-generics',
+                            '--disallow-incomplete-defs',
+                            '--disallow-untyped-decorators',
+                            '--no-implicit-optional',
+                            '--warn-redundant-casts',
+                            '--warn-unused-ignores',
+                            '--no-implicit-reexport',
+                            filename),
+                           env=env,
+                           check=False,
+                           stdout=subprocess.PIPE,
+                           stderr=subprocess.STDOUT,
+                           universal_newlines=True)
+
+        if p.returncode != 0:
+            print(p.stdout)
+
+
+for linter in ('pylint-3', 'mypy'):
+    if shutil.which(linter) is None:
+        iotests.notrun(f'{linter} not found')
+
+iotests.script_main(run_linters)

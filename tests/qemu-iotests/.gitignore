@@ -1,9 +1,0 @@
-check.log
-check.time*
-common.env
-*.out.bad
-*.notrun
-socket_scm_helper
-
-# ignore everything in the scratch directory
-scratch/

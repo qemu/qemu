@@ -12,9 +12,9 @@ softmmu_ss.add(files(
   'keymaps.c',
   'qemu-pixman.c',
 ))
+softmmu_ss.add([spice_headers, files('spice-module.c')])
 
 softmmu_ss.add(when: 'CONFIG_LINUX', if_true: files('input-linux.c'))
-softmmu_ss.add(when: 'CONFIG_SPICE', if_true: files('spice-core.c', 'spice-input.c', 'spice-display.c'))
 softmmu_ss.add(when: cocoa, if_true: files('cocoa.m'))
 
 vnc_ss = ss.source_set()
@@ -29,30 +29,41 @@ vnc_ss.add(files(
   'vnc-ws.c',
   'vnc-jobs.c',
 ))
-vnc_ss.add(zlib, png, jpeg)
+vnc_ss.add(zlib, png, jpeg, gnutls)
 vnc_ss.add(when: sasl, if_true: files('vnc-auth-sasl.c'))
 softmmu_ss.add_all(when: vnc, if_true: vnc_ss)
 softmmu_ss.add(when: vnc, if_false: files('vnc-stubs.c'))
-softmmu_ss.add(when: [opengl, 'CONFIG_OPENGL'], if_true: files('shader.c', 'console-gl.c', 'egl-helpers.c', 'egl-context.c'))
-softmmu_ss.add(when: [opengl, 'CONFIG_OPENGL_DMABUF'], if_true: files('egl-headless.c'))
 specific_ss.add(when: ['CONFIG_SOFTMMU'], if_true: opengl)
 
 ui_modules = {}
 
-if config_host.has_key('CONFIG_CURSES')
+if curses.found()
   curses_ss = ss.source_set()
   curses_ss.add(when: [curses, iconv], if_true: [files('curses.c'), pixman])
   ui_modules += {'curses' : curses_ss}
 endif
 
-if config_host.has_key('CONFIG_GTK')
+if config_host.has_key('CONFIG_OPENGL')
+  opengl_ss = ss.source_set()
+  opengl_ss.add(when: [opengl, pixman, 'CONFIG_OPENGL'],
+               if_true: files('shader.c', 'console-gl.c', 'egl-helpers.c', 'egl-context.c'))
+  ui_modules += {'opengl' : opengl_ss}
+endif
+
+if config_host.has_key('CONFIG_OPENGL_DMABUF')
+  egl_headless_ss = ss.source_set()
+  egl_headless_ss.add(when: [opengl, pixman, 'CONFIG_OPENGL_DMABUF'],
+                      if_true: files('egl-headless.c'))
+  ui_modules += {'egl-headless' : egl_headless_ss}
+endif
+
+if gtk.found()
   softmmu_ss.add(when: 'CONFIG_WIN32', if_true: files('win32-kbd-hook.c'))
 
   gtk_ss = ss.source_set()
   gtk_ss.add(gtk, vte, pixman, files('gtk.c'))
-  gtk_ss.add(when: [x11, 'CONFIG_X11'], if_true: files('x_keymap.c'))
-  gtk_ss.add(when: [opengl, 'CONFIG_OPENGL'], if_true: files('gtk-egl.c'))
-  gtk_ss.add(when: [opengl, 'CONFIG_GTK_GL'], if_true: files('gtk-gl-area.c'))
+  gtk_ss.add(when: x11, if_true: files('x_keymap.c'))
+  gtk_ss.add(when: [opengl, 'CONFIG_OPENGL'], if_true: files('gtk-egl.c', 'gtk-gl-area.c'))
   ui_modules += {'gtk' : gtk_ss}
 endif
 
@@ -66,8 +77,18 @@ if sdl.found()
     'sdl2.c',
   ))
   sdl_ss.add(when: [opengl, 'CONFIG_OPENGL'], if_true: files('sdl2-gl.c'))
-  sdl_ss.add(when: [x11, 'CONFIG_X11'], if_true: files('x_keymap.c'))
+  sdl_ss.add(when: x11, if_true: files('x_keymap.c'))
   ui_modules += {'sdl' : sdl_ss}
+endif
+
+if config_host.has_key('CONFIG_SPICE')
+  spice_core_ss = ss.source_set()
+  spice_core_ss.add(spice, pixman, files(
+    'spice-core.c',
+    'spice-input.c',
+    'spice-display.c'
+  ))
+  ui_modules += {'spice-core' : spice_core_ss}
 endif
 
 if config_host.has_key('CONFIG_SPICE') and config_host.has_key('CONFIG_GIO')
@@ -113,8 +134,11 @@ if have_system or xkbcommon.found()
 endif
 
 subdir('shader')
-subdir('icons')
 
-install_data('qemu.desktop', install_dir: config_host['qemu_desktopdir'])
+if have_system
+  subdir('icons')
+
+  install_data('qemu.desktop', install_dir: qemu_desktopdir)
+endif
 
 modules += {'ui': ui_modules}

@@ -847,6 +847,22 @@
            'slot': 'int', 'function': 'int'} }
 
 ##
+# @GuestCCWAddress:
+#
+# @cssid: channel subsystem image id
+# @ssid: subchannel set id
+# @subchno: subchannel number
+# @devno: device number
+#
+# Since: 6.0
+##
+{ 'struct': 'GuestCCWAddress',
+  'data': {'cssid': 'int',
+           'ssid': 'int',
+           'subchno': 'int',
+           'devno': 'int'} }
+
+##
 # @GuestDiskAddress:
 #
 # @pci-controller: controller's PCI address (fields are set to -1 if invalid)
@@ -856,6 +872,7 @@
 # @unit: unit id
 # @serial: serial number (since: 3.1)
 # @dev: device node (POSIX) or device UNC (Windows) (since: 3.1)
+# @ccw-address: CCW address on s390x (since: 6.0)
 #
 # Since: 2.2
 ##
@@ -863,7 +880,39 @@
   'data': {'pci-controller': 'GuestPCIAddress',
            'bus-type': 'GuestDiskBusType',
            'bus': 'int', 'target': 'int', 'unit': 'int',
-           '*serial': 'str', '*dev': 'str'} }
+           '*serial': 'str', '*dev': 'str',
+           '*ccw-address': 'GuestCCWAddress'} }
+
+##
+# @GuestDiskInfo:
+#
+# @name: device node (Linux) or device UNC (Windows)
+# @partition: whether this is a partition or disk
+# @dependencies: list of device dependencies; e.g. for LVs of the LVM this will
+#                hold the list of PVs, for LUKS encrypted volume this will
+#                contain the disk where the volume is placed.     (Linux)
+# @address: disk address information (only for non-virtual devices)
+# @alias: optional alias assigned to the disk, on Linux this is a name assigned
+#         by device mapper
+#
+# Since 5.2
+##
+{ 'struct': 'GuestDiskInfo',
+  'data': {'name': 'str', 'partition': 'bool', '*dependencies': ['str'],
+           '*address': 'GuestDiskAddress', '*alias': 'str'} }
+
+##
+# @guest-get-disks:
+#
+# Returns: The list of disks in the guest. For Windows these are only the
+#          physical disks. On Linux these are all root block devices of
+#          non-zero size including e.g. removable devices, loop devices,
+#          NBD, etc.
+#
+# Since: 5.2
+##
+{ 'command': 'guest-get-disks',
+  'returns': ['GuestDiskInfo'] }
 
 ##
 # @GuestFilesystemInfo:
@@ -1257,42 +1306,51 @@
   'returns': 'GuestOSInfo' }
 
 ##
-# @GuestDeviceAddressPCI:
+# @GuestDeviceType:
+##
+{ 'enum': 'GuestDeviceType',
+  'data': [ 'pci' ] }
+
+##
+# @GuestDeviceIdPCI:
 #
 # @vendor-id: vendor ID
 # @device-id: device ID
 #
 # Since: 5.2
 ##
-{ 'struct': 'GuestDeviceAddressPCI',
+{ 'struct': 'GuestDeviceIdPCI',
   'data': { 'vendor-id': 'uint16', 'device-id': 'uint16' } }
 
 ##
-# @GuestDeviceAddress:
+# @GuestDeviceId:
 #
-# Address of the device
-# - @pci: address of PCI device, since: 5.2
+# Id of the device
+# - @pci: PCI ID, since: 5.2
 #
 # Since: 5.2
 ##
-{ 'union': 'GuestDeviceAddress',
-  'data': { 'pci': 'GuestDeviceAddressPCI' } }
+{ 'union': 'GuestDeviceId',
+  'base': { 'type': 'GuestDeviceType' },
+  'discriminator': 'type',
+  'data': { 'pci': 'GuestDeviceIdPCI' } }
 
 ##
 # @GuestDeviceInfo:
 #
 # @driver-name: name of the associated driver
-# @driver-date: driver release date in format YYYY-MM-DD
+# @driver-date: driver release date, in nanoseconds since the epoch
 # @driver-version: driver version
+# @id: device ID
 #
 # Since: 5.2
 ##
 { 'struct': 'GuestDeviceInfo',
   'data': {
       'driver-name': 'str',
-      '*driver-date': 'str',
+      '*driver-date': 'int',
       '*driver-version': 'str',
-      '*address': 'GuestDeviceAddress'
+      '*id': 'GuestDeviceId'
   } }
 
 ##
@@ -1306,3 +1364,70 @@
 ##
 { 'command': 'guest-get-devices',
   'returns': ['GuestDeviceInfo'] }
+
+##
+# @GuestAuthorizedKeys:
+#
+# @keys: public keys (in OpenSSH/sshd(8) authorized_keys format)
+#
+# Since: 5.2
+##
+{ 'struct': 'GuestAuthorizedKeys',
+  'data': {
+      'keys': ['str']
+  },
+  'if': 'defined(CONFIG_POSIX)' }
+
+
+##
+# @guest-ssh-get-authorized-keys:
+#
+# @username: the user account to add the authorized keys
+#
+# Return the public keys from user .ssh/authorized_keys on Unix systems (not
+# implemented for other systems).
+#
+# Returns: @GuestAuthorizedKeys
+#
+# Since: 5.2
+##
+{ 'command': 'guest-ssh-get-authorized-keys',
+  'data': { 'username': 'str' },
+  'returns': 'GuestAuthorizedKeys',
+  'if': 'defined(CONFIG_POSIX)' }
+
+##
+# @guest-ssh-add-authorized-keys:
+#
+# @username: the user account to add the authorized keys
+# @keys: the public keys to add (in OpenSSH/sshd(8) authorized_keys format)
+# @reset: ignore the existing content, set it with the given keys only
+#
+# Append public keys to user .ssh/authorized_keys on Unix systems (not
+# implemented for other systems).
+#
+# Returns: Nothing on success.
+#
+# Since: 5.2
+##
+{ 'command': 'guest-ssh-add-authorized-keys',
+  'data': { 'username': 'str', 'keys': ['str'], '*reset': 'bool' },
+  'if': 'defined(CONFIG_POSIX)' }
+
+##
+# @guest-ssh-remove-authorized-keys:
+#
+# @username: the user account to remove the authorized keys
+# @keys: the public keys to remove (in OpenSSH/sshd(8) authorized_keys format)
+#
+# Remove public keys from the user .ssh/authorized_keys on Unix systems (not
+# implemented for other systems). It's not an error if the key is already
+# missing.
+#
+# Returns: Nothing on success.
+#
+# Since: 5.2
+##
+{ 'command': 'guest-ssh-remove-authorized-keys',
+  'data': { 'username': 'str', 'keys': ['str'] },
+  'if': 'defined(CONFIG_POSIX)' }

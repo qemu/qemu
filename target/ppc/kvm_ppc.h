@@ -56,7 +56,7 @@ int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function);
 int kvmppc_get_htab_fd(bool write, uint64_t index, Error **errp);
 int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns);
 int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
-                           uint16_t n_valid, uint16_t n_invalid);
+                           uint16_t n_valid, uint16_t n_invalid, Error **errp);
 void kvmppc_read_hptes(ppc_hash_pte64_t *hptes, hwaddr ptex, int n);
 void kvmppc_write_hpte(hwaddr ptex, uint64_t pte0, uint64_t pte1);
 bool kvmppc_has_cap_fixup_hcalls(void);
@@ -316,7 +316,8 @@ static inline int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize,
 }
 
 static inline int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
-                                         uint16_t n_valid, uint16_t n_invalid)
+                                         uint16_t n_valid, uint16_t n_invalid,
+                                         Error **errp)
 {
     abort();
 }

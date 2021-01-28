@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw quick
 #
 # Test Quorum block driver
 #
@@ -42,18 +43,20 @@ _supported_fmt raw
 _supported_proto file
 _supported_os Linux
 _require_drivers quorum
+_require_devices virtio-scsi
 
 do_run_qemu()
 {
-    echo Testing: "$@" | _filter_imgfmt
+    echo Testing: "$@"
     $QEMU -nographic -qmp stdio -serial none "$@"
     echo
 }
 
 run_qemu()
 {
-    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_qmp\
-                          | _filter_qemu_io | _filter_generated_node_ids
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_imgfmt | _filter_qemu \
+                          | _filter_qmp | _filter_qemu_io \
+                          | _filter_generated_node_ids
 }
 
 quorum="driver=raw,file.driver=quorum,file.vote-threshold=2"
@@ -152,6 +155,59 @@ $QEMU_IO -c "open -o $quorum" -c "read -P 0x32 0 $size" | _filter_qemu_io
 echo
 echo "== checking that quorum has corrected the corrupted file =="
 
+$QEMU_IO -c "read -P 0x32 0 $size" "$TEST_DIR/2.raw" | _filter_qemu_io
+
+echo
+echo "== using quorum rewrite corrupted mode without WRITE permission =="
+
+# The same as above, but this time, do it on a quorum node whose only
+# parent will not take the WRITE permission
+
+echo '-- corrupting --'
+# Only corrupt a portion: The guest device (scsi-hd on virtio-scsi)
+# will read some data (looking for a partition table to guess the
+# disk's geometry), which would trigger a quorum mismatch if the
+# beginning of the image was corrupted.  The subsequent
+# QUORUM_REPORT_BAD event would be suppressed (because at that point,
+# there cannot have been a qmp_capabilities on the monitor).  Because
+# that event is rate-limited, the next QUORUM_REPORT_BAD that happens
+# thanks to our qemu-io read (which should trigger a mismatch) would
+# then be delayed past the VM quit and not appear in the output.
+# So we keep the first 1M intact to see a QUORUM_REPORT_BAD resulting
+# from the qemu-io invocation.
+$QEMU_IO -c "write -P 0x42 1M 1M" "$TEST_DIR/2.raw" | _filter_qemu_io
+
+# Fix the corruption (on a read-only quorum node, i.e. without taking
+# the WRITE permission on it -- its child nodes need to be R/W OTOH,
+# so that rewrite-corrupted works)
+echo
+echo '-- running quorum --'
+run_qemu \
+    -blockdev file,node-name=file1,filename="$TEST_DIR/1.raw" \
+    -blockdev file,node-name=file2,filename="$TEST_DIR/2.raw" \
+    -blockdev file,node-name=file3,filename="$TEST_DIR/3.raw" \
+    -blockdev '{
+        "driver": "quorum",
+        "node-name": "quorum",
+        "read-only": true,
+        "vote-threshold": 2,
+        "rewrite-corrupted": true,
+        "children": [ "file1", "file2", "file3" ]
+    }' \
+    -device virtio-scsi,id=scsi \
+    -device scsi-hd,id=quorum-drive,bus=scsi.0,drive=quorum \
+    <<EOF
+{ "execute": "qmp_capabilities" }
+{
+    "execute": "human-monitor-command",
+    "arguments": {
+        "command-line": 'qemu-io -d quorum-drive "read -P 0x32 0 $size"'
+    }
+}
+{ "execute": "quit" }
+EOF
+
+echo '-- checking that the image has been corrected --'
 $QEMU_IO -c "read -P 0x32 0 $size" "$TEST_DIR/2.raw" | _filter_qemu_io
 
 echo

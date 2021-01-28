@@ -7,11 +7,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "migration/vmstate.h"
 #include "qemu/host-utils.h"
 #include "sysemu/replay.h"
+#include "sysemu/cpu-timers.h"
 #include "sysemu/qtest.h"
 #include "block/aio.h"
 #include "sysemu/cpus.h"
@@ -117,6 +117,10 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
     }
 
     if (delta == 0) {
+        if (s->enabled == 0) {
+            /* trigger callback disabled the timer already */
+            return;
+        }
         if (!qtest_enabled()) {
             fprintf(stderr, "Timer with delta zero, disabling\n");
         }
@@ -134,7 +138,8 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
      * on the current generation of host machines.
      */
 
-    if (s->enabled == 1 && (delta * period < 10000) && !use_icount) {
+    if (s->enabled == 1 && (delta * period < 10000) &&
+        !icount_enabled() && !qtest_enabled()) {
         period = 10000 / delta;
         period_frac = 0;
     }
@@ -217,7 +222,8 @@ uint64_t ptimer_get_count(ptimer_state *s)
             uint32_t period_frac = s->period_frac;
             uint64_t period = s->period;
 
-            if (!oneshot && (s->delta * period < 10000) && !use_icount) {
+            if (!oneshot && (s->delta * period < 10000) &&
+                !icount_enabled() && !qtest_enabled()) {
                 period = 10000 / s->delta;
                 period_frac = 0;
             }

@@ -1,0 +1,2 @@
+[flake8]
+extend-ignore = E722  # Prefer pylint's bare-except checks to flake8's

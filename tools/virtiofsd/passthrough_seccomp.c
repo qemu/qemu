@@ -10,10 +10,7 @@
 #include "passthrough_seccomp.h"
 #include "fuse_i.h"
 #include "fuse_log.h"
-#include <errno.h>
-#include <glib.h>
 #include <seccomp.h>
-#include <stdlib.h>
 
 /* Bodge for libseccomp 2.4.2 which broke ppoll */
 #if !defined(__SNR_ppoll) && defined(__SNR_brk)
@@ -76,6 +73,7 @@ static const int syscall_whitelist[] = {
     SCMP_SYS(mremap),
     SCMP_SYS(munmap),
     SCMP_SYS(newfstatat),
+    SCMP_SYS(statx),
     SCMP_SYS(open),
     SCMP_SYS(openat),
     SCMP_SYS(ppoll),
@@ -118,6 +116,7 @@ static const int syscall_whitelist[] = {
 
 /* Syscalls used when --syslog is enabled */
 static const int syscall_whitelist_syslog[] = {
+    SCMP_SYS(send),
     SCMP_SYS(sendto),
 };
 

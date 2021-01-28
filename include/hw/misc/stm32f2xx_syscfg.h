@@ -53,8 +53,6 @@ struct STM32F2XXSyscfgState {
     uint32_t syscfg_exticr3;
     uint32_t syscfg_exticr4;
     uint32_t syscfg_cmpcr;
-
-    qemu_irq irq;
 };
 
 #endif /* HW_STM32F2XX_SYSCFG_H */

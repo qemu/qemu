@@ -25,6 +25,9 @@
 #include "trace.h"
 #include "multifd.h"
 
+#include "qemu/yank.h"
+#include "io/channel-socket.h"
+
 /* Multiple fd's */
 
 #define MULTIFD_MAGIC 0x11223344U
@@ -739,6 +742,19 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
     multifd_channel_connect(p, ioc, err);
 }
 
+static void *multifd_tls_handshake_thread(void *opaque)
+{
+    MultiFDSendParams *p = opaque;
+    QIOChannelTLS *tioc = QIO_CHANNEL_TLS(p->c);
+
+    qio_channel_tls_handshake(tioc,
+                              multifd_tls_outgoing_handshake,
+                              p,
+                              NULL,
+                              NULL);
+    return NULL;
+}
+
 static void multifd_tls_channel_connect(MultiFDSendParams *p,
                                         QIOChannel *ioc,
                                         Error **errp)
@@ -752,14 +768,13 @@ static void multifd_tls_channel_connect(MultiFDSendParams *p,
         return;
     }
 
+    object_unref(OBJECT(ioc));
     trace_multifd_tls_outgoing_handshake_start(ioc, tioc, hostname);
     qio_channel_set_name(QIO_CHANNEL(tioc), "multifd-tls-outgoing");
-    qio_channel_tls_handshake(tioc,
-                              multifd_tls_outgoing_handshake,
-                              p,
-                              NULL,
-                              NULL);
-
+    p->c = QIO_CHANNEL(tioc);
+    qemu_thread_create(&p->thread, "multifd-tls-handshake-worker",
+                       multifd_tls_handshake_thread, p,
+                       QEMU_THREAD_JOINABLE);
 }
 
 static bool multifd_channel_connect(MultiFDSendParams *p,
@@ -961,6 +976,13 @@ int multifd_load_cleanup(Error **errp)
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
+
+        if (object_dynamic_cast(OBJECT(p->c), TYPE_QIO_CHANNEL_SOCKET)
+            && OBJECT(p->c)->ref == 1) {
+            yank_unregister_function(MIGRATION_YANK_INSTANCE,
+                                     yank_generic_iochannel,
+                                     QIO_CHANNEL(p->c));
+        }
 
         object_unref(OBJECT(p->c));
         p->c = NULL;

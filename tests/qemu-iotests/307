@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+# group: rw quick export
+#
+# Copyright (C) 2020 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
+#
+# Test the block export QAPI interfaces
+
+import iotests
+import os
+
+# Need a writable image format (but not vpc, which rounds the image size, nor
+# luks which requires special command lines)
+iotests.script_initialize(
+    supported_fmts=['generic'],
+    unsupported_fmts=['luks', 'vpc'],
+    supported_platforms=['linux'],
+)
+
+with iotests.FilePath('image') as img, \
+     iotests.FilePath('socket', base_dir=iotests.sock_dir) as socket, \
+     iotests.VM() as vm:
+
+    iotests.qemu_img('create', '-f', iotests.imgfmt, img, '64M')
+    iotests.qemu_io_log('-f', iotests.imgfmt, '-c', 'write -P 0x11 0 4k', img)
+
+    iotests.log('=== Launch VM ===')
+
+    virtio_scsi_device = iotests.get_virtio_scsi_device()
+
+    vm.add_object('iothread,id=iothread0')
+    vm.add_blockdev(f'file,filename={img},node-name=file')
+    vm.add_blockdev(f'{iotests.imgfmt},file=file,node-name=fmt')
+    vm.add_blockdev('raw,file=file,node-name=ro,read-only=on')
+    vm.add_device(f'id=scsi0,driver={virtio_scsi_device},iothread=iothread0')
+    vm.launch()
+
+    vm.qmp_log('nbd-server-start',
+               addr={'type': 'unix', 'data': {'path': socket}},
+               filters=(iotests.filter_qmp_testfiles, ))
+    vm.qmp_log('query-block-exports')
+
+    iotests.log('\n=== Create a read-only NBD export ===')
+
+    vm.qmp_log('block-export-add', id='export0', type='nbd', node_name='fmt')
+    vm.qmp_log('query-block-exports')
+
+    iotests.qemu_nbd_list_log('-k', socket)
+
+    iotests.log('\n=== Try a few invalid things ===')
+
+    vm.qmp_log('block-export-add', id='#invalid', type='nbd', node_name='fmt')
+    vm.qmp_log('block-export-add', id='export0', type='nbd', node_name='fmt')
+    vm.qmp_log('block-export-add', id='export1', type='nbd', node_name='ro',
+               writable=True)
+    vm.qmp_log('block-export-del', id='export1')
+    vm.qmp_log('query-block-exports')
+
+    iotests.log('\n=== Move export to an iothread ===')
+
+    vm.qmp_log('device_add', id='sda', driver='scsi-hd', drive='fmt')
+    vm.qmp_log('query-block-exports')
+    iotests.qemu_nbd_list_log('-k', socket)
+
+    iotests.log('\n=== Add a writable export ===')
+
+    # This fails because share-rw=off
+    vm.qmp_log('block-export-add', id='export1', type='nbd', node_name='fmt',
+               name='export1', writable=True, writethrough=True,
+               description='This is the writable second export')
+
+    vm.qmp_log('device_del', id='sda')
+    event = vm.event_wait(name="DEVICE_DELETED",
+                          match={'data': {'device': 'sda'}})
+    iotests.log(event, filters=[iotests.filter_qmp_event])
+    vm.qmp_log('device_add', id='sda', driver='scsi-hd', drive='fmt',
+               share_rw=True)
+
+    # Now it should work
+    vm.qmp_log('block-export-add', id='export1', type='nbd', node_name='fmt',
+               name='export1', writable=True, writethrough=True,
+               description='This is the writable second export')
+
+    vm.qmp_log('query-block-exports')
+    iotests.qemu_nbd_list_log('-k', socket)
+
+    iotests.log('\n=== Connect qemu-io to export1, try removing exports ===')
+
+    nbd_url = f'nbd+unix:///export1?socket={socket}'
+    qemu_io = iotests.QemuIoInteractive('-f', 'raw', nbd_url)
+
+    iotests.log(qemu_io.cmd('read -P 0x11 0 4k'),
+                filters=[iotests.filter_qemu_io])
+    iotests.log(qemu_io.cmd('write -P 0x22 4k 4k'),
+                filters=[iotests.filter_qemu_io])
+
+    vm.qmp_log('block-export-del', id='export1')
+    vm.qmp_log('block-export-del', id='export0')
+    iotests.log(vm.get_qmp_events_filtered())
+    qemu_io.close()
+
+    vm.qmp_log('query-block-exports')
+    iotests.qemu_nbd_list_log('-k', socket)
+
+    iotests.log('\n=== Connect qemu-io again, try force removing ===')
+
+    qemu_io = iotests.QemuIoInteractive('-f', 'raw', nbd_url)
+    vm.qmp_log('block-export-del', id='export1')
+    vm.qmp_log('block-export-del', id='export1', mode='hard')
+
+    # This should fail now
+    iotests.log(qemu_io.cmd('read -P 0x11 0 4k'))
+    qemu_io.close()
+
+    vm.qmp_log('query-block-exports')
+    iotests.qemu_nbd_list_log('-k', socket)
+
+    iotests.log('\n=== Shut down QEMU ===')
+    vm.shutdown()

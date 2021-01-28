@@ -33,7 +33,6 @@
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
@@ -50,6 +49,8 @@
 #include "block/qapi.h"
 #include "crypto/init.h"
 #include "trace/control.h"
+#include "qemu/throttle.h"
+#include "block/throttle-groups.h"
 
 #define QEMU_IMG_VERSION "qemu-img version " QEMU_FULL_VERSION \
                           "\n" QEMU_COPYRIGHT "\n"
@@ -625,18 +626,18 @@ fail:
 
 static void dump_json_image_check(ImageCheck *check, bool quiet)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
     visit_type_ImageCheck(v, NULL, &check, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    qprintf(quiet, "%s\n", qstring_get_str(str));
+    qprintf(quiet, "%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static void dump_human_image_check(ImageCheck *check, bool quiet)
@@ -980,6 +981,7 @@ static int img_commit(int argc, char **argv)
     CommonBlockJobCBInfo cbi;
     bool image_opts = false;
     AioContext *aio_context;
+    int64_t rate_limit = 0;
 
     fmt = NULL;
     cache = BDRV_DEFAULT_CACHE;
@@ -991,7 +993,7 @@ static int img_commit(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":f:ht:b:dpq",
+        c = getopt_long(argc, argv, ":f:ht:b:dpqr:",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -1025,6 +1027,12 @@ static int img_commit(int argc, char **argv)
             break;
         case 'q':
             quiet = true;
+            break;
+        case 'r':
+            rate_limit = cvtnum("rate limit", optarg);
+            if (rate_limit < 0) {
+                return 1;
+            }
             break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
@@ -1099,7 +1107,7 @@ static int img_commit(int argc, char **argv)
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-    commit_active_start("commit", bs, base_bs, JOB_DEFAULT, 0,
+    commit_active_start("commit", bs, base_bs, JOB_DEFAULT, rate_limit,
                         BLOCKDEV_ON_ERROR_REPORT, NULL, common_block_job_cb,
                         &cbi, false, &local_err);
     aio_context_release(aio_context);
@@ -1643,14 +1651,13 @@ static void do_dirty_bitmap_merge(const char *dst_node, const char *dst_name,
                                   Error **errp)
 {
     BlockDirtyBitmapMergeSource *merge_src;
-    BlockDirtyBitmapMergeSourceList *list;
+    BlockDirtyBitmapMergeSourceList *list = NULL;
 
     merge_src = g_new0(BlockDirtyBitmapMergeSource, 1);
     merge_src->type = QTYPE_QDICT;
     merge_src->u.external.node = g_strdup(src_node);
     merge_src->u.external.name = g_strdup(src_name);
-    list = g_new0(BlockDirtyBitmapMergeSourceList, 1);
-    list->value = merge_src;
+    QAPI_LIST_PREPEND(list, merge_src);
     qmp_block_dirty_bitmap_merge(dst_node, dst_name, list, errp);
     qapi_free_BlockDirtyBitmapMergeSourceList(list);
 }
@@ -1662,6 +1669,7 @@ enum ImgConvertBlockStatus {
 };
 
 #define MAX_COROUTINES 16
+#define CONVERT_THROTTLE_GROUP "img_convert"
 
 typedef struct ImgConvertState {
     BlockBackend **src;
@@ -2177,6 +2185,17 @@ static int convert_copy_bitmaps(BlockDriverState *src, BlockDriverState *dst)
 
 #define MAX_BUF_SECTORS 32768
 
+static void set_rate_limit(BlockBackend *blk, int64_t rate_limit)
+{
+    ThrottleConfig cfg;
+
+    throttle_config_init(&cfg);
+    cfg.buckets[THROTTLE_BPS_WRITE].avg = rate_limit;
+
+    blk_io_limits_enable(blk, CONVERT_THROTTLE_GROUP);
+    blk_set_io_limits(blk, &cfg);
+}
+
 static int img_convert(int argc, char **argv)
 {
     int c, bs_i, flags, src_flags = 0;
@@ -2197,6 +2216,7 @@ static int img_convert(int argc, char **argv)
     bool force_share = false;
     bool explict_min_sparse = false;
     bool bitmaps = false;
+    int64_t rate_limit = 0;
 
     ImgConvertState s = (ImgConvertState) {
         /* Need at least 4k of zeros for sparse detection */
@@ -2219,7 +2239,7 @@ static int img_convert(int argc, char **argv)
             {"bitmaps", no_argument, 0, OPTION_BITMAPS},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:O:B:Cco:l:S:pt:T:qnm:WU",
+        c = getopt_long(argc, argv, ":hf:O:B:Cco:l:S:pt:T:qnm:WUr:",
                         long_options, NULL);
         if (c == -1) {
             break;
@@ -2315,6 +2335,12 @@ static int img_convert(int argc, char **argv)
             break;
         case 'U':
             force_share = true;
+            break;
+        case 'r':
+            rate_limit = cvtnum("rate limit", optarg);
+            if (rate_limit < 0) {
+                goto fail_getopt;
+            }
             break;
         case OPTION_OBJECT: {
             QemuOpts *object_opts;
@@ -2705,6 +2731,10 @@ static int img_convert(int argc, char **argv)
         s.cluster_sectors = bdi.cluster_size / BDRV_SECTOR_SIZE;
     }
 
+    if (rate_limit) {
+        set_rate_limit(s.target, rate_limit);
+    }
+
     ret = convert_do_copy(&s);
 
     /* Now copy the bitmaps */
@@ -2719,7 +2749,6 @@ out:
     qemu_progress_end();
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);
-    qemu_opts_del(sn_opts);
     qobject_unref(open_opts);
     blk_unref(s.target);
     if (s.src) {
@@ -2731,6 +2760,7 @@ out:
     g_free(s.src_sectors);
     g_free(s.src_alignment);
 fail_getopt:
+    qemu_opts_del(sn_opts);
     g_free(options);
 
     return !!ret;
@@ -2758,34 +2788,34 @@ static void dump_snapshots(BlockDriverState *bs)
 
 static void dump_json_image_info_list(ImageInfoList *list)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
     visit_type_ImageInfoList(v, NULL, &list, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    printf("%s\n", qstring_get_str(str));
+    printf("%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static void dump_json_image_info(ImageInfo *info)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
     visit_type_ImageInfo(v, NULL, &info, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    printf("%s\n", qstring_get_str(str));
+    printf("%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static void dump_human_image_info_list(ImageInfoList *list)
@@ -5205,18 +5235,18 @@ out:
 
 static void dump_json_block_measure_info(BlockMeasureInfo *info)
 {
-    QString *str;
+    GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
     visit_type_BlockMeasureInfo(v, NULL, &info, &error_abort);
     visit_complete(v, &obj);
-    str = qobject_to_json_pretty(obj);
+    str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
-    printf("%s\n", qstring_get_str(str));
+    printf("%s\n", str->str);
     qobject_unref(obj);
     visit_free(v);
-    qobject_unref(str);
+    g_string_free(str, true);
 }
 
 static int img_measure(int argc, char **argv)
@@ -5434,7 +5464,6 @@ int main(int argc, char **argv)
     const img_cmd_t *cmd;
     const char *cmdname;
     Error *local_error = NULL;
-    char *trace_file = NULL;
     int c;
     static const struct option long_options[] = {
         {"help", no_argument, 0, 'h'},
@@ -5484,8 +5513,7 @@ int main(int argc, char **argv)
             printf(QEMU_IMG_VERSION);
             return 0;
         case 'T':
-            g_free(trace_file);
-            trace_file = trace_opt_parse(optarg);
+            trace_opt_parse(optarg);
             break;
         }
     }
@@ -5503,7 +5531,7 @@ int main(int argc, char **argv)
     if (!trace_init_backends()) {
         exit(1);
     }
-    trace_init_file(trace_file);
+    trace_init_file();
     qemu_set_log(LOG_TRACE);
 
     /* find the command */

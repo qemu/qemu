@@ -1,0 +1,41 @@
+FROM fedora:32
+
+# Please keep this list sorted alphabetically
+ENV PACKAGES \
+    bc \
+    bzip2 \
+    diffutils \
+    findutils \
+    gcc \
+    gettext \
+    git \
+    hostname \
+    make \
+    meson \
+    mingw32-bzip2 \
+    mingw32-curl \
+    mingw32-glib2 \
+    mingw32-gmp \
+    mingw32-gnutls \
+    mingw32-gtk3 \
+    mingw32-libjpeg-turbo \
+    mingw32-libpng \
+    mingw32-libtasn1 \
+    mingw32-nettle \
+    mingw32-nsis \
+    mingw32-pixman \
+    mingw32-pkg-config \
+    mingw32-SDL2 \
+    perl \
+    perl-Test-Harness \
+    python3 \
+    python3-PyYAML \
+    tar \
+    which
+
+RUN dnf install -y $PACKAGES
+RUN rpm -q $PACKAGES | sort > /packages.txt
+ENV FEATURES mingw
+
+# Specify the cross prefix for this image (see tests/docker/common.rc)
+ENV QEMU_CONFIGURE_OPTS --cross-prefix=i686-w64-mingw32-

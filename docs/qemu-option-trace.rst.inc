@@ -1,7 +1,7 @@
 
 Specify tracing options.
 
-.. option:: [enable=]PATTERN
+``[enable=]PATTERN``
 
   Immediately enable events matching *PATTERN*
   (either event name or a globbing pattern).  This option is only
@@ -11,7 +11,7 @@ Specify tracing options.
 
   Use :option:`-trace help` to print a list of names of trace points.
 
-.. option:: events=FILE
+``events=FILE``
 
   Immediately enable events listed in *FILE*.
   The file must contain one event name (as listed in the ``trace-events-all``
@@ -19,7 +19,7 @@ Specify tracing options.
   available if QEMU has been compiled with the ``simple``, ``log`` or
   ``ftrace`` tracing backend.
 
-.. option:: file=FILE
+``file=FILE``
 
   Log output traces to *FILE*.
   This option is only available if QEMU has been compiled with

@@ -21,6 +21,7 @@ Contents:
    monitor
    images
    net
+   virtio-net-failover
    usb
    ivshmem
    linuxboot
@@ -28,8 +29,12 @@ Contents:
    tls
    gdb
    managed-startup
+   cpu-hotplug
+   virtio-pmem
+   pr-manager
    targets
    security
    deprecated
+   removed-features
    build-platforms
    license

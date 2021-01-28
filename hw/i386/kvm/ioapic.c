@@ -25,27 +25,26 @@ void kvm_pc_setup_irq_routing(bool pci_enabled)
     KVMState *s = kvm_state;
     int i;
 
-    if (kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
-        for (i = 0; i < 8; ++i) {
-            if (i == 2) {
-                continue;
-            }
-            kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_PIC_MASTER, i);
+    assert(kvm_has_gsi_routing());
+    for (i = 0; i < 8; ++i) {
+        if (i == 2) {
+            continue;
         }
-        for (i = 8; i < 16; ++i) {
-            kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_PIC_SLAVE, i - 8);
-        }
-        if (pci_enabled) {
-            for (i = 0; i < 24; ++i) {
-                if (i == 0) {
-                    kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_IOAPIC, 2);
-                } else if (i != 2) {
-                    kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_IOAPIC, i);
-                }
-            }
-        }
-        kvm_irqchip_commit_routes(s);
+        kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_PIC_MASTER, i);
     }
+    for (i = 8; i < 16; ++i) {
+        kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_PIC_SLAVE, i - 8);
+    }
+    if (pci_enabled) {
+        for (i = 0; i < 24; ++i) {
+            if (i == 0) {
+                kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_IOAPIC, 2);
+            } else if (i != 2) {
+                kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_IOAPIC, i);
+            }
+        }
+    }
+    kvm_irqchip_commit_routes(s);
 }
 
 typedef struct KVMIOAPICState KVMIOAPICState;

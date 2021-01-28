@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw quick
 #
 # Test qemu-img vs. unaligned images
 # (See also 253, which is the O_DIRECT version)
@@ -35,7 +36,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt raw
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 
 _default_cache_mode writeback
@@ -46,6 +47,13 @@ echo "=== Check mapping of unaligned raw image ==="
 echo
 
 _make_test_img 65537 # qemu-img create rounds size up
+
+# file-posix allocates the first block of any images when it is created;
+# the size of this block depends on the host page size and the file
+# system block size, none of which are constant.  Discard the whole
+# image so we will not see this allocation in qemu-img map's output.
+$QEMU_IO -c 'discard 0 65537' "$TEST_IMG" | _filter_qemu_io
+
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 truncate --size=65537 "$TEST_IMG" # so we resize it and check again

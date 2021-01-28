@@ -260,7 +260,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         indent = None
         if self._pretty:
             indent = 4
-        jsobj = json.dumps(qmp, indent=indent)
+        jsobj = json.dumps(qmp, indent=indent, sort_keys=self._pretty)
         print(str(jsobj))
 
     def _execute_cmd(self, cmdline):

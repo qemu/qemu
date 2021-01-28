@@ -18,3 +18,8 @@ bool qtest_driver(void)
 {
     return false;
 }
+
+int64_t qtest_get_virtual_clock(void)
+{
+    return 0;
+}

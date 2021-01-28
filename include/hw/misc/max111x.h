@@ -33,7 +33,7 @@
  *    be lowered once it has been asserted.
  */
 struct MAX111xState {
-    SSISlave parent_obj;
+    SSIPeripheral parent_obj;
 
     qemu_irq interrupt;
     /* Values of inputs at system reset (settable by QOM property) */

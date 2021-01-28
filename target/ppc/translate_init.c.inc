@@ -7,7 +7,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -792,7 +792,7 @@ static void gen_spr_generic(CPUPPCState *env)
                  &spr_read_xer, &spr_write_xer,
                  &spr_read_xer, &spr_write_xer,
                  0x00000000);
-    /* Branch contol */
+    /* Branch control */
     spr_register(env, SPR_LR, "LR",
                  &spr_read_lr, &spr_write_lr,
                  &spr_read_lr, &spr_write_lr,
@@ -10328,6 +10328,8 @@ static void ppc_cpu_unrealize(DeviceState *dev)
 
     pcc->parent_unrealize(dev);
 
+    cpu_remove_sync(CPU(cpu));
+
     for (i = 0; i < PPC_CPU_OPCODES_LEN; i++) {
         if (cpu->opcodes[i] == &invalid_handler) {
             continue;
@@ -10468,63 +10470,6 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
     return oc;
 }
 
-static void ppc_cpu_parse_featurestr(const char *type, char *features,
-                                     Error **errp)
-{
-    Object *machine = qdev_get_machine();
-    const PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(object_class_by_name(type));
-
-    if (!features) {
-        return;
-    }
-
-    if (object_property_find(machine, "max-cpu-compat")) {
-        int i;
-        char **inpieces;
-        char *s = features;
-        Error *local_err = NULL;
-        char *compat_str = NULL;
-
-        /*
-         * Backwards compatibility hack:
-         *
-         *   CPUs had a "compat=" property which didn't make sense for
-         *   anything except pseries.  It was replaced by "max-cpu-compat"
-         *   machine option.  This supports old command lines like
-         *       -cpu POWER8,compat=power7
-         *   By stripping the compat option and applying it to the machine
-         *   before passing it on to the cpu level parser.
-         */
-        inpieces = g_strsplit(features, ",", 0);
-        *s = '\0';
-        for (i = 0; inpieces[i]; i++) {
-            if (g_str_has_prefix(inpieces[i], "compat=")) {
-                warn_report_once("CPU 'compat' property is deprecated; "
-                    "use max-cpu-compat machine property instead");
-                compat_str = inpieces[i];
-                continue;
-            }
-            if ((i != 0) && (s != features)) {
-                s = g_stpcpy(s, ",");
-            }
-            s = g_stpcpy(s, inpieces[i]);
-        }
-
-        if (compat_str) {
-            char *v = compat_str + strlen("compat=");
-            object_property_set_str(machine, "max-cpu-compat", v, &local_err);
-        }
-        g_strfreev(inpieces);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-    }
-
-    /* do property processing with generic handler */
-    pcc->parent_parse_features(type, features, errp);
-}
-
 PowerPCCPUClass *ppc_cpu_get_family_class(PowerPCCPUClass *pcc)
 {
     ObjectClass *oc = OBJECT_CLASS(pcc);
@@ -10621,7 +10566,6 @@ static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
     ObjectClass *oc = data;
     CpuDefinitionInfoList **first = user_data;
     const char *typename;
-    CpuDefinitionInfoList *entry;
     CpuDefinitionInfo *info;
 
     typename = object_class_get_name(oc);
@@ -10629,10 +10573,7 @@ static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
     info->name = g_strndup(typename,
                            strlen(typename) - strlen(POWERPC_CPU_TYPE_SUFFIX));
 
-    entry = g_malloc0(sizeof(*entry));
-    entry->value = info;
-    entry->next = *first;
-    *first = entry;
+    QAPI_LIST_PREPEND(*first, info);
 }
 
 CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
@@ -10648,7 +10589,6 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
     for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
         PowerPCCPUAlias *alias = &ppc_cpu_aliases[i];
         ObjectClass *oc;
-        CpuDefinitionInfoList *entry;
         CpuDefinitionInfo *info;
 
         oc = ppc_cpu_class_by_name(alias->model);
@@ -10660,10 +10600,7 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
         info->name = g_strdup(alias->alias);
         info->q_typename = g_strdup(object_class_get_name(oc));
 
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = info;
-        entry->next = cpu_list;
-        cpu_list = entry;
+        QAPI_LIST_PREPEND(cpu_list, info);
     }
 
     return cpu_list;
@@ -10726,7 +10663,7 @@ static void ppc_cpu_reset(DeviceState *dev)
 #endif
 
 #if defined(TARGET_PPC64)
-    if (env->mmu_model & POWERPC_MMU_64) {
+    if (mmu_is_64bit(env->mmu_model)) {
         msr |= (1ULL << MSR_SF);
     }
 #endif
@@ -10903,8 +10840,6 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     device_class_set_parent_reset(dc, ppc_cpu_reset, &pcc->parent_reset);
 
     cc->class_by_name = ppc_cpu_class_by_name;
-    pcc->parent_parse_features = cc->parse_features;
-    cc->parse_features = ppc_cpu_parse_featurestr;
     cc->has_work = ppc_cpu_has_work;
     cc->do_interrupt = ppc_cpu_do_interrupt;
     cc->cpu_exec_interrupt = ppc_cpu_exec_interrupt;

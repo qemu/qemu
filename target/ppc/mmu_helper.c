@@ -6,7 +6,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -179,7 +179,7 @@ static inline int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
             }
             /* Compute access rights */
             access = pp_check(ctx->key, pp, ctx->nx);
-            /* Keep the matching PTE informations */
+            /* Keep the matching PTE information */
             ctx->raddr = pte1;
             ctx->prot = access;
             ret = check_prot(ctx->prot, rw, type);
@@ -1349,11 +1349,12 @@ void dump_mmu(CPUPPCState *env)
         break;
     case POWERPC_MMU_3_00:
         if (ppc64_v3_radix(env_archcpu(env))) {
-            /* TODO - Unsupported */
+            qemu_log_mask(LOG_UNIMP, "%s: the PPC64 MMU is unsupported\n",
+                          __func__);
         } else {
             dump_slb(env_archcpu(env));
-            break;
         }
+        break;
 #endif
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unimplemented\n", __func__);
@@ -2001,7 +2002,7 @@ void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
 void ppc_tlb_invalidate_all(CPUPPCState *env)
 {
 #if defined(TARGET_PPC64)
-    if (env->mmu_model & POWERPC_MMU_64) {
+    if (mmu_is_64bit(env->mmu_model)) {
         env->tlb_need_flush = 0;
         tlb_flush(env_cpu(env));
     } else
@@ -2045,7 +2046,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 #if !defined(FLUSH_ALL_TLBS)
     addr &= TARGET_PAGE_MASK;
 #if defined(TARGET_PPC64)
-    if (env->mmu_model & POWERPC_MMU_64) {
+    if (mmu_is_64bit(env->mmu_model)) {
         /* tlbie invalidate TLBs for all segments */
         /*
          * XXX: given the fact that there are too many segments to invalidate,
@@ -2090,7 +2091,7 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
     qemu_log_mask(CPU_LOG_MMU, "%s: " TARGET_FMT_lx "\n", __func__, value);
     assert(!cpu->vhyp);
 #if defined(TARGET_PPC64)
-    if (env->mmu_model & POWERPC_MMU_64) {
+    if (mmu_is_64bit(env->mmu_model)) {
         target_ulong sdr_mask = SDR_64_HTABORG | SDR_64_HTABSIZE;
         target_ulong htabsize = value & SDR_64_HTABSIZE;
 
@@ -2143,7 +2144,7 @@ void ppc_store_ptcr(CPUPPCState *env, target_ulong value)
 target_ulong helper_load_sr(CPUPPCState *env, target_ulong sr_num)
 {
 #if defined(TARGET_PPC64)
-    if (env->mmu_model & POWERPC_MMU_64) {
+    if (mmu_is_64bit(env->mmu_model)) {
         /* XXX */
         return 0;
     }
@@ -2157,7 +2158,7 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
             "%s: reg=%d " TARGET_FMT_lx " " TARGET_FMT_lx "\n", __func__,
             (int)srnum, value, env->sr[srnum]);
 #if defined(TARGET_PPC64)
-    if (env->mmu_model & POWERPC_MMU_64) {
+    if (mmu_is_64bit(env->mmu_model)) {
         PowerPCCPU *cpu = env_archcpu(env);
         uint64_t esid, vsid;
 
@@ -2176,7 +2177,7 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
         env->sr[srnum] = value;
         /*
          * Invalidating 256MB of virtual memory in 4kB pages is way
-         * longer than flusing the whole TLB.
+         * longer than flushing the whole TLB.
          */
 #if !defined(FLUSH_ALL_TLBS) && 0
         {

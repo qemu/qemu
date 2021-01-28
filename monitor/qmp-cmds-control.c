@@ -69,6 +69,7 @@ static bool qmp_caps_accept(MonitorQMP *mon, QMPCapabilityList *list,
 void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
                           Error **errp)
 {
+    Monitor *cur_mon = monitor_cur();
     MonitorQMP *mon;
 
     assert(monitor_is_qmp(cur_mon));
@@ -119,6 +120,7 @@ static void query_commands_cb(const QmpCommand *cmd, void *opaque)
 CommandInfoList *qmp_query_commands(Error **errp)
 {
     CommandInfoList *list = NULL;
+    Monitor *cur_mon = monitor_cur();
     MonitorQMP *mon;
 
     assert(monitor_is_qmp(cur_mon));
@@ -136,18 +138,18 @@ EventInfoList *qmp_query_events(Error **errp)
      * QAPIEvent_str() and QAPIEvent_lookup[].  When the command goes,
      * they should go, too.
      */
-    EventInfoList *info, *ev_list = NULL;
+    EventInfoList *ev_list = NULL;
     QAPIEvent e;
 
     for (e = 0 ; e < QAPI_EVENT__MAX ; e++) {
         const char *event_name = QAPIEvent_str(e);
+        EventInfo *info;
+
         assert(event_name != NULL);
         info = g_malloc0(sizeof(*info));
-        info->value = g_malloc0(sizeof(*info->value));
-        info->value->name = g_strdup(event_name);
+        info->name = g_strdup(event_name);
 
-        info->next = ev_list;
-        ev_list = info;
+        QAPI_LIST_PREPEND(ev_list, info);
     }
 
     return ev_list;

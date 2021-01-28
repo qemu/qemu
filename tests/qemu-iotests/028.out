@@ -468,6 +468,9 @@ No errors were found on the image.
 
 block-backup
 
+Formatting 'TEST_DIR/t.IMGFMT.copy', fmt=IMGFMT size=4294968832
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) drive_backup -n disk TEST_DIR/t.IMGFMT.copy
 (qemu) info block-jobs
 No active jobs
 === IO: pattern 195

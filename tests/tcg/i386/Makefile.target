@@ -18,6 +18,9 @@ test-i386-pcmpistri: CFLAGS += -msse4.2
 run-test-i386-pcmpistri: QEMU_OPTS += -cpu max
 run-plugin-test-i386-pcmpistri-%: QEMU_OPTS += -cpu max
 
+run-test-i386-bmi2: QEMU_OPTS += -cpu max
+run-plugin-test-i386-bmi2-%: QEMU_OPTS += -cpu max
+
 #
 # hello-i386 is a barebones app
 #

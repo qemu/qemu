@@ -14,6 +14,7 @@
 #include <libcacard.h>
 #include "chardev/char-fe.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -335,7 +336,7 @@ static void passthru_apdu_from_guest(
     PassthruState *card = PASSTHRU_CCID_CARD(base);
 
     if (!qemu_chr_fe_backend_connected(&card->cs)) {
-        printf("ccid-passthru: no chardev, discarding apdu length %d\n", len);
+        printf("ccid-passthru: no chardev, discarding apdu length %u\n", len);
         return;
     }
     ccid_card_vscard_send_apdu(card, apdu, len);

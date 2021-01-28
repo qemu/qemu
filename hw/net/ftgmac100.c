@@ -564,6 +564,7 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
         ptr += len;
         frame_size += len;
         if (bd.des0 & FTGMAC100_TXDES0_LTS) {
+            int csum = 0;
 
             /* Check for VLAN */
             if (flags & FTGMAC100_TXDES1_INS_VLANTAG &&
@@ -573,8 +574,18 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
             }
 
             if (flags & FTGMAC100_TXDES1_IP_CHKSUM) {
-                net_checksum_calculate(s->frame, frame_size);
+                csum |= CSUM_IP;
             }
+            if (flags & FTGMAC100_TXDES1_TCP_CHKSUM) {
+                csum |= CSUM_TCP;
+            }
+            if (flags & FTGMAC100_TXDES1_UDP_CHKSUM) {
+                csum |= CSUM_UDP;
+            }
+            if (csum) {
+                net_checksum_calculate(s->frame, frame_size, csum);
+            }
+
             /* Last buffer in frame.  */
             qemu_send_packet(qemu_get_queue(s->nic), s->frame, frame_size);
             ptr = s->frame;

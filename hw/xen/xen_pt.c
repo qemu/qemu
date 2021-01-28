@@ -58,6 +58,7 @@
 
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "hw/xen/xen.h"
 #include "hw/i386/pc.h"
 #include "hw/xen/xen-legacy-backend.h"
@@ -489,7 +490,7 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s, uint16_t *cmd)
         pci_register_bar(&s->dev, i, type, &s->bar[i]);
 
         XEN_PT_LOG(&s->dev, "IO region %i registered (size=0x%08"PRIx64
-                   " base_addr=0x%08"PRIx64" type: %#x)\n",
+                   " base_addr=0x%08"PRIx64" type: 0x%x)\n",
                    i, r->size, r->base_addr, type);
     }
 
@@ -578,7 +579,7 @@ static void xen_pt_check_bar_overlap(PCIBus *bus, PCIDevice *d, void *opaque)
         if (ranges_overlap(arg->addr, arg->size, r->addr, r->size)) {
             XEN_PT_WARN(&s->dev,
                         "Overlapped to device [%02x:%02x.%d] Region: %i"
-                        " (addr: %#"FMT_PCIBUS", len: %#"FMT_PCIBUS")\n",
+                        " (addr: 0x%"FMT_PCIBUS", len: 0x%"FMT_PCIBUS")\n",
                         pci_bus_num(bus), PCI_SLOT(d->devfn),
                         PCI_FUNC(d->devfn), i, r->addr, r->size);
             arg->rc = true;
@@ -618,8 +619,8 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
     pci_for_each_device(pci_get_bus(d), pci_dev_bus_num(d),
                         xen_pt_check_bar_overlap, &args);
     if (args.rc) {
-        XEN_PT_WARN(d, "Region: %d (addr: %#"FMT_PCIBUS
-                    ", len: %#"FMT_PCIBUS") is overlapped.\n",
+        XEN_PT_WARN(d, "Region: %d (addr: 0x%"FMT_PCIBUS
+                    ", len: 0x%"FMT_PCIBUS") is overlapped.\n",
                     bar, sec->offset_within_address_space,
                     int128_get64(sec->size));
     }
@@ -786,7 +787,7 @@ static void xen_pt_realize(PCIDevice *d, Error **errp)
 
     /* register real device */
     XEN_PT_LOG(d, "Assigning real physical device %02x:%02x.%d"
-               " to devfn %#x\n",
+               " to devfn 0x%x\n",
                s->hostaddr.bus, s->hostaddr.slot, s->hostaddr.function,
                s->dev.devfn);
 

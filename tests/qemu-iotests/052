@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw auto backing quick
 #
 # Test bdrv_pread/bdrv_pwrite using BDRV_O_SNAPSHOT
 #

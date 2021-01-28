@@ -14,10 +14,6 @@
 #include "fuse_i.h"
 #include "fuse_misc.h"
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 struct fuse_opt_context {
     void *data;

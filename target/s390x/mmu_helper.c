@@ -27,6 +27,7 @@
 #include "trace.h"
 #include "hw/hw.h"
 #include "hw/s390x/storage-keys.h"
+#include "hw/boards.h"
 
 /* Fetch/store bits in the translation exception code: */
 #define FS_READ  0x800
@@ -292,10 +293,11 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
 {
     static S390SKeysClass *skeyclass;
     static S390SKeysState *ss;
+    MachineState *ms = MACHINE(qdev_get_machine());
     uint8_t key;
     int rc;
 
-    if (unlikely(addr >= ram_size)) {
+    if (unlikely(addr >= ms->ram_size)) {
         return;
     }
 

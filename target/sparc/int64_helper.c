@@ -6,7 +6,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -131,9 +131,7 @@ void sparc_cpu_do_interrupt(CPUState *cs)
     }
     tsptr = cpu_tsptr(env);
 
-    tsptr->tstate = (cpu_get_ccr(env) << 32) |
-        ((env->asi & 0xff) << 24) | ((env->pstate & 0xf3f) << 8) |
-        cpu_get_cwp64(env);
+    tsptr->tstate = sparc64_tstate(env);
     tsptr->tpc = env->pc;
     tsptr->tnpc = env->npc;
     tsptr->tt = intno;
@@ -148,7 +146,6 @@ void sparc_cpu_do_interrupt(CPUState *cs)
     }
 
     if (env->def.features & CPU_FEATURE_GL) {
-        tsptr->tstate |= (env->gl & 7ULL) << 40;
         cpu_gl_switch_gregs(env, env->gl + 1);
         env->gl++;
     }

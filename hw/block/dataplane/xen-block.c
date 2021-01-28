@@ -168,7 +168,7 @@ static int xen_block_parse_request(XenBlockRequest *request)
     };
 
     if (request->req.operation != BLKIF_OP_READ &&
-        blk_is_read_only(dataplane->blk)) {
+        !blk_is_writable(dataplane->blk)) {
         error_report("error: write req for ro device");
         goto err;
     }
@@ -725,6 +725,7 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
 {
     ERRP_GUARD();
     XenDevice *xendev = dataplane->xendev;
+    AioContext *old_context;
     unsigned int ring_size;
     unsigned int i;
 
@@ -808,10 +809,14 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
         goto stop;
     }
 
-    aio_context_acquire(dataplane->ctx);
+    old_context = blk_get_aio_context(dataplane->blk);
+    aio_context_acquire(old_context);
     /* If other users keep the BlockBackend in the iothread, that's ok */
     blk_set_aio_context(dataplane->blk, dataplane->ctx, NULL);
+    aio_context_release(old_context);
+
     /* Only reason for failure is a NULL channel */
+    aio_context_acquire(dataplane->ctx);
     xen_device_set_event_channel_context(xendev, dataplane->event_channel,
                                          dataplane->ctx, &error_abort);
     aio_context_release(dataplane->ctx);

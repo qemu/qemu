@@ -44,6 +44,7 @@
 #include "qemu/config-file.h"
 #include "qemu/ctype.h"
 #include "qemu/iov.h"
+#include "qemu/qemu-print.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "qapi/error.h"
@@ -411,10 +412,14 @@ void qemu_del_nic(NICState *nic)
 
     qemu_macaddr_set_free(&nic->conf->macaddr);
 
-    /* If this is a peer NIC and peer has already been deleted, free it now. */
-    if (nic->peer_deleted) {
-        for (i = 0; i < queues; i++) {
-            qemu_free_net_client(qemu_get_subqueue(nic, i)->peer);
+    for (i = 0; i < queues; i++) {
+        NetClientState *nc = qemu_get_subqueue(nic, i);
+        /* If this is a peer NIC and peer has already been deleted, free it now. */
+        if (nic->peer_deleted) {
+            qemu_free_net_client(nc->peer);
+        } else if (nc->peer) {
+            /* if there are RX packets pending, complete them */
+            qemu_purge_queued_packets(nc->peer);
         }
     }
 
@@ -978,6 +983,7 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
 static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
 {
     NetClientState *peer = NULL;
+    NetClientState *nc;
 
     if (is_netdev) {
         if (netdev->type == NET_CLIENT_DRIVER_NIC ||
@@ -1005,18 +1011,22 @@ static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
         }
     }
 
+    nc = qemu_find_netdev(netdev->id);
+    if (nc) {
+        error_setg(errp, "Duplicate ID '%s'", netdev->id);
+        return -1;
+    }
+
     if (net_client_init_fun[netdev->type](netdev, netdev->id, peer, errp) < 0) {
         /* FIXME drop when all init functions store an Error */
         if (errp && !*errp) {
-            error_setg(errp, QERR_DEVICE_INIT_FAILED,
+            error_setg(errp, "Device '%s' could not be initialized",
                        NetClientDriver_str(netdev->type));
         }
         return -1;
     }
 
     if (is_netdev) {
-        NetClientState *nc;
-
         nc = qemu_find_netdev(netdev->id);
         assert(nc);
         nc->is_netdev = true;
@@ -1025,7 +1035,7 @@ static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
     return 0;
 }
 
-static void show_netdevs(void)
+void show_netdevs(void)
 {
     int idx;
     const char *available_netdevs[] = {
@@ -1050,11 +1060,14 @@ static void show_netdevs(void)
 #ifdef CONFIG_POSIX
         "vhost-user",
 #endif
+#ifdef CONFIG_VHOST_VDPA
+        "vhost-vdpa",
+#endif
     };
 
-    printf("Available netdev backend types:\n");
+    qemu_printf("Available netdev backend types:\n");
     for (idx = 0; idx < ARRAY_SIZE(available_netdevs); idx++) {
-        puts(available_netdevs[idx]);
+        qemu_printf("%s\n", available_netdevs[idx]);
     }
 }
 
@@ -1065,42 +1078,35 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
     int ret = -1;
     Visitor *v = opts_visitor_new(opts);
 
-    const char *type = qemu_opt_get(opts, "type");
+    /* Parse convenience option format ip6-net=fec0::0[/64] */
+    const char *ip6_net = qemu_opt_get(opts, "ipv6-net");
 
-    if (is_netdev && type && is_help_option(type)) {
-        show_netdevs();
-        exit(0);
-    } else {
-        /* Parse convenience option format ip6-net=fec0::0[/64] */
-        const char *ip6_net = qemu_opt_get(opts, "ipv6-net");
+    if (ip6_net) {
+        char *prefix_addr;
+        unsigned long prefix_len = 64; /* Default 64bit prefix length. */
 
-        if (ip6_net) {
-            char *prefix_addr;
-            unsigned long prefix_len = 64; /* Default 64bit prefix length. */
-
-            substrings = g_strsplit(ip6_net, "/", 2);
-            if (!substrings || !substrings[0]) {
-                error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "ipv6-net",
-                           "a valid IPv6 prefix");
-                goto out;
-            }
-
-            prefix_addr = substrings[0];
-
-            /* Handle user-specified prefix length. */
-            if (substrings[1] &&
-                qemu_strtoul(substrings[1], NULL, 10, &prefix_len))
-            {
-                error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                           "ipv6-prefixlen", "a number");
-                goto out;
-            }
-
-            qemu_opt_set(opts, "ipv6-prefix", prefix_addr, &error_abort);
-            qemu_opt_set_number(opts, "ipv6-prefixlen", prefix_len,
-                                &error_abort);
-            qemu_opt_unset(opts, "ipv6-net");
+        substrings = g_strsplit(ip6_net, "/", 2);
+        if (!substrings || !substrings[0]) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "ipv6-net",
+                       "a valid IPv6 prefix");
+            goto out;
         }
+
+        prefix_addr = substrings[0];
+
+        /* Handle user-specified prefix length. */
+        if (substrings[1] &&
+            qemu_strtoul(substrings[1], NULL, 10, &prefix_len))
+        {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       "ipv6-prefixlen", "a number");
+            goto out;
+        }
+
+        qemu_opt_set(opts, "ipv6-prefix", prefix_addr, &error_abort);
+        qemu_opt_set_number(opts, "ipv6-prefixlen", prefix_len,
+                            &error_abort);
+        qemu_opt_unset(opts, "ipv6-net");
     }
 
     /* Create an ID for -net if the user did not specify one */
@@ -1134,6 +1140,7 @@ void qmp_netdev_add(Netdev *netdev, Error **errp)
 void qmp_netdev_del(const char *id, Error **errp)
 {
     NetClientState *nc;
+    QemuOpts *opts;
 
     nc = qemu_find_netdev(id);
     if (!nc) {
@@ -1148,6 +1155,16 @@ void qmp_netdev_del(const char *id, Error **errp)
     }
 
     qemu_del_net_client(nc);
+
+    /*
+     * Wart: we need to delete the QemuOpts associated with netdevs
+     * created via CLI or HMP, to avoid bogus "Duplicate ID" errors in
+     * HMP netdev_add.
+     */
+    opts = qemu_opts_find(qemu_find_opts("netdev"), id);
+    if (opts) {
+        qemu_opts_del(opts);
+    }
 }
 
 static void netfilter_print_info(Monitor *mon, NetFilterState *nf)
@@ -1418,6 +1435,12 @@ static int net_init_client(void *dummy, QemuOpts *opts, Error **errp)
 
 static int net_init_netdev(void *dummy, QemuOpts *opts, Error **errp)
 {
+    const char *type = qemu_opt_get(opts, "type");
+
+    if (type && is_help_option(type)) {
+        show_netdevs();
+        exit(0);
+    }
     return net_client_init(opts, true, errp);
 }
 

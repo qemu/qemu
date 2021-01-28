@@ -183,13 +183,11 @@ static void process_tx_fcb(eTSEC *etsec)
     uint8_t *l3_header = etsec->tx_buffer + 8 + l3_header_offset;
     /* L4 header */
     uint8_t *l4_header = l3_header + l4_header_offset;
+    int csum = 0;
 
     /* if packet is IP4 and IP checksum is requested */
     if (flags & FCB_TX_IP && flags & FCB_TX_CIP) {
-        /* do IP4 checksum (TODO This function does TCP/UDP checksum
-         * but not sure if it also does IP4 checksum.) */
-        net_checksum_calculate(etsec->tx_buffer + 8,
-                etsec->tx_buffer_len - 8);
+        csum |= CSUM_IP;
     }
     /* TODO Check the correct usage of the PHCS field of the FCB in case the NPH
      * flag is on */
@@ -201,9 +199,7 @@ static void process_tx_fcb(eTSEC *etsec)
             /* if checksum is requested */
             if (flags & FCB_TX_CTU) {
                 /* do UDP checksum */
-
-                net_checksum_calculate(etsec->tx_buffer + 8,
-                        etsec->tx_buffer_len - 8);
+                csum |= CSUM_UDP;
             } else {
                 /* set checksum field to 0 */
                 l4_header[6] = 0;
@@ -211,9 +207,13 @@ static void process_tx_fcb(eTSEC *etsec)
             }
         } else if (flags & FCB_TX_CTU) { /* if TCP and checksum is requested */
             /* do TCP checksum */
-            net_checksum_calculate(etsec->tx_buffer + 8,
-                                   etsec->tx_buffer_len - 8);
+            csum |= CSUM_TCP;
         }
+    }
+
+    if (csum) {
+        net_checksum_calculate(etsec->tx_buffer + 8,
+                               etsec->tx_buffer_len - 8, csum);
     }
 }
 

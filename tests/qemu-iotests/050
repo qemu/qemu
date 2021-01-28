@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw auto backing quick
 #
 # Test qemu-img rebase with zero clusters
 #
@@ -39,7 +40,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt qcow2 qed
-_supported_proto file
+_supported_proto file fuse
 
 echo
 echo "== Creating images =="

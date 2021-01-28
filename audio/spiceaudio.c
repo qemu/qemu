@@ -106,7 +106,7 @@ static int line_out_init(HWVoiceOut *hw, struct audsettings *as,
     out->active = 0;
 
     out->sin.base.sif = &playback_sif.base;
-    qemu_spice_add_interface (&out->sin.base);
+    qemu_spice.add_interface(&out->sin.base);
 #if SPICE_INTERFACE_PLAYBACK_MAJOR > 1 || SPICE_INTERFACE_PLAYBACK_MINOR >= 3
     spice_server_set_playback_rate(&out->sin, settings.freq);
 #endif
@@ -215,7 +215,7 @@ static int line_in_init(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     in->active = 0;
 
     in->sin.base.sif = &record_sif.base;
-    qemu_spice_add_interface (&in->sin.base);
+    qemu_spice.add_interface(&in->sin.base);
 #if SPICE_INTERFACE_RECORD_MAJOR > 2 || SPICE_INTERFACE_RECORD_MINOR >= 3
     spice_server_set_record_rate(&in->sin, settings.freq);
 #endif
@@ -293,6 +293,7 @@ static struct audio_pcm_ops audio_callbacks = {
     .init_in  = line_in_init,
     .fini_in  = line_in_fini,
     .read     = line_in_read,
+    .run_buffer_in = audio_generic_run_buffer_in,
     .enable_in = line_in_enable,
 #if ((SPICE_INTERFACE_RECORD_MAJOR >= 2) && (SPICE_INTERFACE_RECORD_MINOR >= 2))
     .volume_in = line_in_volume,

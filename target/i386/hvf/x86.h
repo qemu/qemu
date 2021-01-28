@@ -5,7 +5,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -214,16 +214,16 @@ static inline uint32_t x86_call_gate_offset(x86_call_gate *gate)
     return (uint32_t)((gate->offset1 << 16) | gate->offset0);
 }
 
-#define LDT_SEL     0
-#define GDT_SEL     1
+#define GDT_SEL     0
+#define LDT_SEL     1
 
 typedef struct x68_segment_selector {
     union {
         uint16_t sel;
         struct {
-            uint16_t rpl:3;
+            uint16_t rpl:2;
             uint16_t ti:1;
-            uint16_t index:12;
+            uint16_t index:13;
         };
     };
 } __attribute__ ((__packed__)) x68_segment_selector;

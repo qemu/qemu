@@ -9,7 +9,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -59,25 +59,6 @@ static inline int neon_3same_fp_size(DisasContext *s, int x)
 #include "decode-neon-dp.c.inc"
 #include "decode-neon-ls.c.inc"
 #include "decode-neon-shared.c.inc"
-
-/* Return the offset of a 2**SIZE piece of a NEON register, at index ELE,
- * where 0 is the least significant end of the register.
- */
-static inline long
-neon_element_offset(int reg, int element, MemOp size)
-{
-    int element_size = 1 << size;
-    int ofs = element * element_size;
-#ifdef HOST_WORDS_BIGENDIAN
-    /* Calculate the offset assuming fully little-endian,
-     * then XOR to account for the order of the 8-byte units.
-     */
-    if (element_size < 8) {
-        ofs ^= 8 - element_size;
-    }
-#endif
-    return neon_reg_offset(reg, 0) + ofs;
-}
 
 static void neon_load_element(TCGv_i32 var, int reg, int ele, MemOp mop)
 {
@@ -585,12 +566,12 @@ static bool trans_VLD_all_lanes(DisasContext *s, arg_VLD_all_lanes *a)
              * We cannot write 16 bytes at once because the
              * destination is unaligned.
              */
-            tcg_gen_gvec_dup_i32(size, neon_reg_offset(vd, 0),
+            tcg_gen_gvec_dup_i32(size, neon_full_reg_offset(vd),
                                  8, 8, tmp);
-            tcg_gen_gvec_mov(0, neon_reg_offset(vd + 1, 0),
-                             neon_reg_offset(vd, 0), 8, 8);
+            tcg_gen_gvec_mov(0, neon_full_reg_offset(vd + 1),
+                             neon_full_reg_offset(vd), 8, 8);
         } else {
-            tcg_gen_gvec_dup_i32(size, neon_reg_offset(vd, 0),
+            tcg_gen_gvec_dup_i32(size, neon_full_reg_offset(vd),
                                  vec_size, vec_size, tmp);
         }
         tcg_gen_addi_i32(addr, addr, 1 << size);
@@ -691,9 +672,9 @@ static bool trans_VLDST_single(DisasContext *s, arg_VLDST_single *a)
 static bool do_3same(DisasContext *s, arg_3same *a, GVecGen3Fn fn)
 {
     int vec_size = a->q ? 16 : 8;
-    int rd_ofs = neon_reg_offset(a->vd, 0);
-    int rn_ofs = neon_reg_offset(a->vn, 0);
-    int rm_ofs = neon_reg_offset(a->vm, 0);
+    int rd_ofs = neon_full_reg_offset(a->vd);
+    int rn_ofs = neon_full_reg_offset(a->vn);
+    int rm_ofs = neon_full_reg_offset(a->vm);
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -975,18 +956,24 @@ static bool do_3same_pair(DisasContext *s, arg_3same *a, NeonGenTwoOpFn *fn)
      * early. Since Q is 0 there are always just two passes, so instead
      * of a complicated loop over each pass we just unroll.
      */
-    tmp = neon_load_reg(a->vn, 0);
-    tmp2 = neon_load_reg(a->vn, 1);
+    tmp = tcg_temp_new_i32();
+    tmp2 = tcg_temp_new_i32();
+    tmp3 = tcg_temp_new_i32();
+
+    read_neon_element32(tmp, a->vn, 0, MO_32);
+    read_neon_element32(tmp2, a->vn, 1, MO_32);
     fn(tmp, tmp, tmp2);
-    tcg_temp_free_i32(tmp2);
 
-    tmp3 = neon_load_reg(a->vm, 0);
-    tmp2 = neon_load_reg(a->vm, 1);
+    read_neon_element32(tmp3, a->vm, 0, MO_32);
+    read_neon_element32(tmp2, a->vm, 1, MO_32);
     fn(tmp3, tmp3, tmp2);
-    tcg_temp_free_i32(tmp2);
 
-    neon_store_reg(a->vd, 0, tmp);
-    neon_store_reg(a->vd, 1, tmp3);
+    write_neon_element32(tmp, a->vd, 0, MO_32);
+    write_neon_element32(tmp3, a->vd, 1, MO_32);
+
+    tcg_temp_free_i32(tmp);
+    tcg_temp_free_i32(tmp2);
+    tcg_temp_free_i32(tmp3);
     return true;
 }
 
@@ -1177,8 +1164,8 @@ static bool do_vector_2sh(DisasContext *s, arg_2reg_shift *a, GVecGen2iFn *fn)
 {
     /* Handle a 2-reg-shift insn which can be vectorized. */
     int vec_size = a->q ? 16 : 8;
-    int rd_ofs = neon_reg_offset(a->vd, 0);
-    int rm_ofs = neon_reg_offset(a->vm, 0);
+    int rd_ofs = neon_full_reg_offset(a->vd);
+    int rm_ofs = neon_full_reg_offset(a->vm);
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -1278,9 +1265,9 @@ static bool do_2shift_env_64(DisasContext *s, arg_2reg_shift *a,
     for (pass = 0; pass < a->q + 1; pass++) {
         TCGv_i64 tmp = tcg_temp_new_i64();
 
-        neon_load_reg64(tmp, a->vm + pass);
+        read_neon_element64(tmp, a->vm, pass, MO_64);
         fn(tmp, cpu_env, tmp, constimm);
-        neon_store_reg64(tmp, a->vd + pass);
+        write_neon_element64(tmp, a->vd, pass, MO_64);
         tcg_temp_free_i64(tmp);
     }
     tcg_temp_free_i64(constimm);
@@ -1294,7 +1281,7 @@ static bool do_2shift_env_32(DisasContext *s, arg_2reg_shift *a,
      * 2-reg-and-shift operations, size < 3 case, where the
      * helper needs to be passed cpu_env.
      */
-    TCGv_i32 constimm;
+    TCGv_i32 constimm, tmp;
     int pass;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
@@ -1320,12 +1307,14 @@ static bool do_2shift_env_32(DisasContext *s, arg_2reg_shift *a,
      * by immediate using the variable shift operations.
      */
     constimm = tcg_const_i32(dup_const(a->size, a->shift));
+    tmp = tcg_temp_new_i32();
 
     for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
-        TCGv_i32 tmp = neon_load_reg(a->vm, pass);
+        read_neon_element32(tmp, a->vm, pass, MO_32);
         fn(tmp, cpu_env, tmp, constimm);
-        neon_store_reg(a->vd, pass, tmp);
+        write_neon_element32(tmp, a->vd, pass, MO_32);
     }
+    tcg_temp_free_i32(tmp);
     tcg_temp_free_i32(constimm);
     return true;
 }
@@ -1383,21 +1372,21 @@ static bool do_2shift_narrow_64(DisasContext *s, arg_2reg_shift *a,
     constimm = tcg_const_i64(-a->shift);
     rm1 = tcg_temp_new_i64();
     rm2 = tcg_temp_new_i64();
+    rd = tcg_temp_new_i32();
 
     /* Load both inputs first to avoid potential overwrite if rm == rd */
-    neon_load_reg64(rm1, a->vm);
-    neon_load_reg64(rm2, a->vm + 1);
+    read_neon_element64(rm1, a->vm, 0, MO_64);
+    read_neon_element64(rm2, a->vm, 1, MO_64);
 
     shiftfn(rm1, rm1, constimm);
-    rd = tcg_temp_new_i32();
     narrowfn(rd, cpu_env, rm1);
-    neon_store_reg(a->vd, 0, rd);
+    write_neon_element32(rd, a->vd, 0, MO_32);
 
     shiftfn(rm2, rm2, constimm);
-    rd = tcg_temp_new_i32();
     narrowfn(rd, cpu_env, rm2);
-    neon_store_reg(a->vd, 1, rd);
+    write_neon_element32(rd, a->vd, 1, MO_32);
 
+    tcg_temp_free_i32(rd);
     tcg_temp_free_i64(rm1);
     tcg_temp_free_i64(rm2);
     tcg_temp_free_i64(constimm);
@@ -1447,10 +1436,14 @@ static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
     constimm = tcg_const_i32(imm);
 
     /* Load all inputs first to avoid potential overwrite */
-    rm1 = neon_load_reg(a->vm, 0);
-    rm2 = neon_load_reg(a->vm, 1);
-    rm3 = neon_load_reg(a->vm + 1, 0);
-    rm4 = neon_load_reg(a->vm + 1, 1);
+    rm1 = tcg_temp_new_i32();
+    rm2 = tcg_temp_new_i32();
+    rm3 = tcg_temp_new_i32();
+    rm4 = tcg_temp_new_i32();
+    read_neon_element32(rm1, a->vm, 0, MO_32);
+    read_neon_element32(rm2, a->vm, 1, MO_32);
+    read_neon_element32(rm3, a->vm, 2, MO_32);
+    read_neon_element32(rm4, a->vm, 3, MO_32);
     rtmp = tcg_temp_new_i64();
 
     shiftfn(rm1, rm1, constimm);
@@ -1460,7 +1453,8 @@ static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
     tcg_temp_free_i32(rm2);
 
     narrowfn(rm1, cpu_env, rtmp);
-    neon_store_reg(a->vd, 0, rm1);
+    write_neon_element32(rm1, a->vd, 0, MO_32);
+    tcg_temp_free_i32(rm1);
 
     shiftfn(rm3, rm3, constimm);
     shiftfn(rm4, rm4, constimm);
@@ -1471,7 +1465,8 @@ static bool do_2shift_narrow_32(DisasContext *s, arg_2reg_shift *a,
 
     narrowfn(rm3, cpu_env, rtmp);
     tcg_temp_free_i64(rtmp);
-    neon_store_reg(a->vd, 1, rm3);
+    write_neon_element32(rm3, a->vd, 1, MO_32);
+    tcg_temp_free_i32(rm3);
     return true;
 }
 
@@ -1572,8 +1567,10 @@ static bool do_vshll_2sh(DisasContext *s, arg_2reg_shift *a,
         widen_mask = dup_const(a->size + 1, widen_mask);
     }
 
-    rm0 = neon_load_reg(a->vm, 0);
-    rm1 = neon_load_reg(a->vm, 1);
+    rm0 = tcg_temp_new_i32();
+    rm1 = tcg_temp_new_i32();
+    read_neon_element32(rm0, a->vm, 0, MO_32);
+    read_neon_element32(rm1, a->vm, 1, MO_32);
     tmp = tcg_temp_new_i64();
 
     widenfn(tmp, rm0);
@@ -1582,7 +1579,7 @@ static bool do_vshll_2sh(DisasContext *s, arg_2reg_shift *a,
         tcg_gen_shli_i64(tmp, tmp, a->shift);
         tcg_gen_andi_i64(tmp, tmp, ~widen_mask);
     }
-    neon_store_reg64(tmp, a->vd);
+    write_neon_element64(tmp, a->vd, 0, MO_64);
 
     widenfn(tmp, rm1);
     tcg_temp_free_i32(rm1);
@@ -1590,7 +1587,7 @@ static bool do_vshll_2sh(DisasContext *s, arg_2reg_shift *a,
         tcg_gen_shli_i64(tmp, tmp, a->shift);
         tcg_gen_andi_i64(tmp, tmp, ~widen_mask);
     }
-    neon_store_reg64(tmp, a->vd + 1);
+    write_neon_element64(tmp, a->vd, 1, MO_64);
     tcg_temp_free_i64(tmp);
     return true;
 }
@@ -1620,8 +1617,8 @@ static bool do_fp_2sh(DisasContext *s, arg_2reg_shift *a,
 {
     /* FP operations in 2-reg-and-shift group */
     int vec_size = a->q ? 16 : 8;
-    int rd_ofs = neon_reg_offset(a->vd, 0);
-    int rm_ofs = neon_reg_offset(a->vm, 0);
+    int rd_ofs = neon_full_reg_offset(a->vd);
+    int rm_ofs = neon_full_reg_offset(a->vm);
     TCGv_ptr fpst;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
@@ -1756,7 +1753,7 @@ static bool do_1reg_imm(DisasContext *s, arg_1reg_imm *a,
         return true;
     }
 
-    reg_ofs = neon_reg_offset(a->vd, 0);
+    reg_ofs = neon_full_reg_offset(a->vd);
     vec_size = a->q ? 16 : 8;
     imm = asimd_imm_const(a->imm, a->cmode, a->op);
 
@@ -1791,11 +1788,10 @@ static bool trans_Vimm_1r(DisasContext *s, arg_1reg_imm *a)
 static bool do_prewiden_3d(DisasContext *s, arg_3diff *a,
                            NeonGenWidenFn *widenfn,
                            NeonGenTwo64OpFn *opfn,
-                           bool src1_wide)
+                           int src1_mop, int src2_mop)
 {
     /* 3-regs different lengths, prewidening case (VADDL/VSUBL/VAADW/VSUBW) */
     TCGv_i64 rn0_64, rn1_64, rm_64;
-    TCGv_i32 rm;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -1807,12 +1803,12 @@ static bool do_prewiden_3d(DisasContext *s, arg_3diff *a,
         return false;
     }
 
-    if (!widenfn || !opfn) {
+    if (!opfn) {
         /* size == 3 case, which is an entirely different insn group */
         return false;
     }
 
-    if ((a->vd & 1) || (src1_wide && (a->vn & 1))) {
+    if ((a->vd & 1) || (src1_mop == MO_Q && (a->vn & 1))) {
         return false;
     }
 
@@ -1824,38 +1820,50 @@ static bool do_prewiden_3d(DisasContext *s, arg_3diff *a,
     rn1_64 = tcg_temp_new_i64();
     rm_64 = tcg_temp_new_i64();
 
-    if (src1_wide) {
-        neon_load_reg64(rn0_64, a->vn);
+    if (src1_mop >= 0) {
+        read_neon_element64(rn0_64, a->vn, 0, src1_mop);
     } else {
-        TCGv_i32 tmp = neon_load_reg(a->vn, 0);
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        read_neon_element32(tmp, a->vn, 0, MO_32);
         widenfn(rn0_64, tmp);
         tcg_temp_free_i32(tmp);
     }
-    rm = neon_load_reg(a->vm, 0);
+    if (src2_mop >= 0) {
+        read_neon_element64(rm_64, a->vm, 0, src2_mop);
+    } else {
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        read_neon_element32(tmp, a->vm, 0, MO_32);
+        widenfn(rm_64, tmp);
+        tcg_temp_free_i32(tmp);
+    }
 
-    widenfn(rm_64, rm);
-    tcg_temp_free_i32(rm);
     opfn(rn0_64, rn0_64, rm_64);
 
     /*
      * Load second pass inputs before storing the first pass result, to
      * avoid incorrect results if a narrow input overlaps with the result.
      */
-    if (src1_wide) {
-        neon_load_reg64(rn1_64, a->vn + 1);
+    if (src1_mop >= 0) {
+        read_neon_element64(rn1_64, a->vn, 1, src1_mop);
     } else {
-        TCGv_i32 tmp = neon_load_reg(a->vn, 1);
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        read_neon_element32(tmp, a->vn, 1, MO_32);
         widenfn(rn1_64, tmp);
         tcg_temp_free_i32(tmp);
     }
-    rm = neon_load_reg(a->vm, 1);
+    if (src2_mop >= 0) {
+        read_neon_element64(rm_64, a->vm, 1, src2_mop);
+    } else {
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        read_neon_element32(tmp, a->vm, 1, MO_32);
+        widenfn(rm_64, tmp);
+        tcg_temp_free_i32(tmp);
+    }
 
-    neon_store_reg64(rn0_64, a->vd);
+    write_neon_element64(rn0_64, a->vd, 0, MO_64);
 
-    widenfn(rm_64, rm);
-    tcg_temp_free_i32(rm);
     opfn(rn1_64, rn1_64, rm_64);
-    neon_store_reg64(rn1_64, a->vd + 1);
+    write_neon_element64(rn1_64, a->vd, 1, MO_64);
 
     tcg_temp_free_i64(rn0_64);
     tcg_temp_free_i64(rn1_64);
@@ -1864,14 +1872,13 @@ static bool do_prewiden_3d(DisasContext *s, arg_3diff *a,
     return true;
 }
 
-#define DO_PREWIDEN(INSN, S, EXT, OP, SRC1WIDE)                         \
+#define DO_PREWIDEN(INSN, S, OP, SRC1WIDE, SIGN)                        \
     static bool trans_##INSN##_3d(DisasContext *s, arg_3diff *a)        \
     {                                                                   \
         static NeonGenWidenFn * const widenfn[] = {                     \
             gen_helper_neon_widen_##S##8,                               \
             gen_helper_neon_widen_##S##16,                              \
-            tcg_gen_##EXT##_i32_i64,                                    \
-            NULL,                                                       \
+            NULL, NULL,                                                 \
         };                                                              \
         static NeonGenTwo64OpFn * const addfn[] = {                     \
             gen_helper_neon_##OP##l_u16,                                \
@@ -1879,18 +1886,20 @@ static bool do_prewiden_3d(DisasContext *s, arg_3diff *a,
             tcg_gen_##OP##_i64,                                         \
             NULL,                                                       \
         };                                                              \
-        return do_prewiden_3d(s, a, widenfn[a->size],                   \
-                              addfn[a->size], SRC1WIDE);                \
+        int narrow_mop = a->size == MO_32 ? MO_32 | SIGN : -1;          \
+        return do_prewiden_3d(s, a, widenfn[a->size], addfn[a->size],   \
+                              SRC1WIDE ? MO_Q : narrow_mop,             \
+                              narrow_mop);                              \
     }
 
-DO_PREWIDEN(VADDL_S, s, ext, add, false)
-DO_PREWIDEN(VADDL_U, u, extu, add, false)
-DO_PREWIDEN(VSUBL_S, s, ext, sub, false)
-DO_PREWIDEN(VSUBL_U, u, extu, sub, false)
-DO_PREWIDEN(VADDW_S, s, ext, add, true)
-DO_PREWIDEN(VADDW_U, u, extu, add, true)
-DO_PREWIDEN(VSUBW_S, s, ext, sub, true)
-DO_PREWIDEN(VSUBW_U, u, extu, sub, true)
+DO_PREWIDEN(VADDL_S, s, add, false, MO_SIGN)
+DO_PREWIDEN(VADDL_U, u, add, false, 0)
+DO_PREWIDEN(VSUBL_S, s, sub, false, MO_SIGN)
+DO_PREWIDEN(VSUBL_U, u, sub, false, 0)
+DO_PREWIDEN(VADDW_S, s, add, true, MO_SIGN)
+DO_PREWIDEN(VADDW_U, u, add, true, 0)
+DO_PREWIDEN(VSUBW_S, s, sub, true, MO_SIGN)
+DO_PREWIDEN(VSUBW_U, u, sub, true, 0)
 
 static bool do_narrow_3d(DisasContext *s, arg_3diff *a,
                          NeonGenTwo64OpFn *opfn, NeonGenNarrowFn *narrowfn)
@@ -1927,23 +1936,25 @@ static bool do_narrow_3d(DisasContext *s, arg_3diff *a,
     rd0 = tcg_temp_new_i32();
     rd1 = tcg_temp_new_i32();
 
-    neon_load_reg64(rn_64, a->vn);
-    neon_load_reg64(rm_64, a->vm);
+    read_neon_element64(rn_64, a->vn, 0, MO_64);
+    read_neon_element64(rm_64, a->vm, 0, MO_64);
 
     opfn(rn_64, rn_64, rm_64);
 
     narrowfn(rd0, rn_64);
 
-    neon_load_reg64(rn_64, a->vn + 1);
-    neon_load_reg64(rm_64, a->vm + 1);
+    read_neon_element64(rn_64, a->vn, 1, MO_64);
+    read_neon_element64(rm_64, a->vm, 1, MO_64);
 
     opfn(rn_64, rn_64, rm_64);
 
     narrowfn(rd1, rn_64);
 
-    neon_store_reg(a->vd, 0, rd0);
-    neon_store_reg(a->vd, 1, rd1);
+    write_neon_element32(rd0, a->vd, 0, MO_32);
+    write_neon_element32(rd1, a->vd, 1, MO_32);
 
+    tcg_temp_free_i32(rd0);
+    tcg_temp_free_i32(rd1);
     tcg_temp_free_i64(rn_64);
     tcg_temp_free_i64(rm_64);
 
@@ -2018,14 +2029,14 @@ static bool do_long_3d(DisasContext *s, arg_3diff *a,
     rd0 = tcg_temp_new_i64();
     rd1 = tcg_temp_new_i64();
 
-    rn = neon_load_reg(a->vn, 0);
-    rm = neon_load_reg(a->vm, 0);
+    rn = tcg_temp_new_i32();
+    rm = tcg_temp_new_i32();
+    read_neon_element32(rn, a->vn, 0, MO_32);
+    read_neon_element32(rm, a->vm, 0, MO_32);
     opfn(rd0, rn, rm);
-    tcg_temp_free_i32(rn);
-    tcg_temp_free_i32(rm);
 
-    rn = neon_load_reg(a->vn, 1);
-    rm = neon_load_reg(a->vm, 1);
+    read_neon_element32(rn, a->vn, 1, MO_32);
+    read_neon_element32(rm, a->vm, 1, MO_32);
     opfn(rd1, rn, rm);
     tcg_temp_free_i32(rn);
     tcg_temp_free_i32(rm);
@@ -2033,18 +2044,15 @@ static bool do_long_3d(DisasContext *s, arg_3diff *a,
     /* Don't store results until after all loads: they might overlap */
     if (accfn) {
         tmp = tcg_temp_new_i64();
-        neon_load_reg64(tmp, a->vd);
-        accfn(tmp, tmp, rd0);
-        neon_store_reg64(tmp, a->vd);
-        neon_load_reg64(tmp, a->vd + 1);
-        accfn(tmp, tmp, rd1);
-        neon_store_reg64(tmp, a->vd + 1);
+        read_neon_element64(tmp, a->vd, 0, MO_64);
+        accfn(rd0, tmp, rd0);
+        read_neon_element64(tmp, a->vd, 1, MO_64);
+        accfn(rd1, tmp, rd1);
         tcg_temp_free_i64(tmp);
-    } else {
-        neon_store_reg64(rd0, a->vd);
-        neon_store_reg64(rd1, a->vd + 1);
     }
 
+    write_neon_element64(rd0, a->vd, 0, MO_64);
+    write_neon_element64(rd1, a->vd, 1, MO_64);
     tcg_temp_free_i64(rd0);
     tcg_temp_free_i64(rd1);
 
@@ -2300,9 +2308,9 @@ static bool trans_VMULL_P_3d(DisasContext *s, arg_3diff *a)
         return true;
     }
 
-    tcg_gen_gvec_3_ool(neon_reg_offset(a->vd, 0),
-                       neon_reg_offset(a->vn, 0),
-                       neon_reg_offset(a->vm, 0),
+    tcg_gen_gvec_3_ool(neon_full_reg_offset(a->vd),
+                       neon_full_reg_offset(a->vn),
+                       neon_full_reg_offset(a->vm),
                        16, 16, 0, fn_gvec);
     return true;
 }
@@ -2327,16 +2335,16 @@ static void gen_neon_dup_high16(TCGv_i32 var)
 
 static inline TCGv_i32 neon_get_scalar(int size, int reg)
 {
-    TCGv_i32 tmp;
-    if (size == 1) {
-        tmp = neon_load_reg(reg & 7, reg >> 4);
+    TCGv_i32 tmp = tcg_temp_new_i32();
+    if (size == MO_16) {
+        read_neon_element32(tmp, reg & 7, reg >> 4, MO_32);
         if (reg & 8) {
             gen_neon_dup_high16(tmp);
         } else {
             gen_neon_dup_low16(tmp);
         }
     } else {
-        tmp = neon_load_reg(reg & 15, reg >> 4);
+        read_neon_element32(tmp, reg & 15, reg >> 4, MO_32);
     }
     return tmp;
 }
@@ -2350,7 +2358,7 @@ static bool do_2scalar(DisasContext *s, arg_2scalar *a,
      * perform an accumulation operation of that result into the
      * destination.
      */
-    TCGv_i32 scalar;
+    TCGv_i32 scalar, tmp;
     int pass;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
@@ -2377,17 +2385,20 @@ static bool do_2scalar(DisasContext *s, arg_2scalar *a,
     }
 
     scalar = neon_get_scalar(a->size, a->vm);
+    tmp = tcg_temp_new_i32();
 
     for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
-        TCGv_i32 tmp = neon_load_reg(a->vn, pass);
+        read_neon_element32(tmp, a->vn, pass, MO_32);
         opfn(tmp, tmp, scalar);
         if (accfn) {
-            TCGv_i32 rd = neon_load_reg(a->vd, pass);
+            TCGv_i32 rd = tcg_temp_new_i32();
+            read_neon_element32(rd, a->vd, pass, MO_32);
             accfn(tmp, rd, tmp);
             tcg_temp_free_i32(rd);
         }
-        neon_store_reg(a->vd, pass, tmp);
+        write_neon_element32(tmp, a->vd, pass, MO_32);
     }
+    tcg_temp_free_i32(tmp);
     tcg_temp_free_i32(scalar);
     return true;
 }
@@ -2445,8 +2456,8 @@ static bool do_2scalar_fp_vec(DisasContext *s, arg_2scalar *a,
 {
     /* Two registers and a scalar, using gvec */
     int vec_size = a->q ? 16 : 8;
-    int rd_ofs = neon_reg_offset(a->vd, 0);
-    int rn_ofs = neon_reg_offset(a->vn, 0);
+    int rd_ofs = neon_full_reg_offset(a->vd);
+    int rn_ofs = neon_full_reg_offset(a->vn);
     int rm_ofs;
     int idx;
     TCGv_ptr fpstatus;
@@ -2477,7 +2488,7 @@ static bool do_2scalar_fp_vec(DisasContext *s, arg_2scalar *a,
     /* a->vm is M:Vm, which encodes both register and index */
     idx = extract32(a->vm, a->size + 2, 2);
     a->vm = extract32(a->vm, 0, a->size + 2);
-    rm_ofs = neon_reg_offset(a->vm, 0);
+    rm_ofs = neon_full_reg_offset(a->vm);
 
     fpstatus = fpstatus_ptr(a->size == 1 ? FPST_STD_F16 : FPST_STD);
     tcg_gen_gvec_3_ptr(rd_ofs, rn_ofs, rm_ofs, fpstatus,
@@ -2542,7 +2553,7 @@ static bool do_vqrdmlah_2sc(DisasContext *s, arg_2scalar *a,
      * performs a kind of fused op-then-accumulate using a helper
      * function that takes all of rd, rn and the scalar at once.
      */
-    TCGv_i32 scalar;
+    TCGv_i32 scalar, rn, rd;
     int pass;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
@@ -2573,14 +2584,17 @@ static bool do_vqrdmlah_2sc(DisasContext *s, arg_2scalar *a,
     }
 
     scalar = neon_get_scalar(a->size, a->vm);
+    rn = tcg_temp_new_i32();
+    rd = tcg_temp_new_i32();
 
     for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
-        TCGv_i32 rn = neon_load_reg(a->vn, pass);
-        TCGv_i32 rd = neon_load_reg(a->vd, pass);
+        read_neon_element32(rn, a->vn, pass, MO_32);
+        read_neon_element32(rd, a->vd, pass, MO_32);
         opfn(rd, cpu_env, rn, scalar, rd);
-        tcg_temp_free_i32(rn);
-        neon_store_reg(a->vd, pass, rd);
+        write_neon_element32(rd, a->vd, pass, MO_32);
     }
+    tcg_temp_free_i32(rn);
+    tcg_temp_free_i32(rd);
     tcg_temp_free_i32(scalar);
 
     return true;
@@ -2647,12 +2661,12 @@ static bool do_2scalar_long(DisasContext *s, arg_2scalar *a,
     scalar = neon_get_scalar(a->size, a->vm);
 
     /* Load all inputs before writing any outputs, in case of overlap */
-    rn = neon_load_reg(a->vn, 0);
+    rn = tcg_temp_new_i32();
+    read_neon_element32(rn, a->vn, 0, MO_32);
     rn0_64 = tcg_temp_new_i64();
     opfn(rn0_64, rn, scalar);
-    tcg_temp_free_i32(rn);
 
-    rn = neon_load_reg(a->vn, 1);
+    read_neon_element32(rn, a->vn, 1, MO_32);
     rn1_64 = tcg_temp_new_i64();
     opfn(rn1_64, rn, scalar);
     tcg_temp_free_i32(rn);
@@ -2660,17 +2674,15 @@ static bool do_2scalar_long(DisasContext *s, arg_2scalar *a,
 
     if (accfn) {
         TCGv_i64 t64 = tcg_temp_new_i64();
-        neon_load_reg64(t64, a->vd);
-        accfn(t64, t64, rn0_64);
-        neon_store_reg64(t64, a->vd);
-        neon_load_reg64(t64, a->vd + 1);
-        accfn(t64, t64, rn1_64);
-        neon_store_reg64(t64, a->vd + 1);
+        read_neon_element64(t64, a->vd, 0, MO_64);
+        accfn(rn0_64, t64, rn0_64);
+        read_neon_element64(t64, a->vd, 1, MO_64);
+        accfn(rn1_64, t64, rn1_64);
         tcg_temp_free_i64(t64);
-    } else {
-        neon_store_reg64(rn0_64, a->vd);
-        neon_store_reg64(rn1_64, a->vd + 1);
     }
+
+    write_neon_element64(rn0_64, a->vd, 0, MO_64);
+    write_neon_element64(rn1_64, a->vd, 1, MO_64);
     tcg_temp_free_i64(rn0_64);
     tcg_temp_free_i64(rn1_64);
     return true;
@@ -2803,10 +2815,10 @@ static bool trans_VEXT(DisasContext *s, arg_VEXT *a)
         right = tcg_temp_new_i64();
         dest = tcg_temp_new_i64();
 
-        neon_load_reg64(right, a->vn);
-        neon_load_reg64(left, a->vm);
+        read_neon_element64(right, a->vn, 0, MO_64);
+        read_neon_element64(left, a->vm, 0, MO_64);
         tcg_gen_extract2_i64(dest, right, left, a->imm * 8);
-        neon_store_reg64(dest, a->vd);
+        write_neon_element64(dest, a->vd, 0, MO_64);
 
         tcg_temp_free_i64(left);
         tcg_temp_free_i64(right);
@@ -2822,21 +2834,21 @@ static bool trans_VEXT(DisasContext *s, arg_VEXT *a)
         destright = tcg_temp_new_i64();
 
         if (a->imm < 8) {
-            neon_load_reg64(right, a->vn);
-            neon_load_reg64(middle, a->vn + 1);
+            read_neon_element64(right, a->vn, 0, MO_64);
+            read_neon_element64(middle, a->vn, 1, MO_64);
             tcg_gen_extract2_i64(destright, right, middle, a->imm * 8);
-            neon_load_reg64(left, a->vm);
+            read_neon_element64(left, a->vm, 0, MO_64);
             tcg_gen_extract2_i64(destleft, middle, left, a->imm * 8);
         } else {
-            neon_load_reg64(right, a->vn + 1);
-            neon_load_reg64(middle, a->vm);
+            read_neon_element64(right, a->vn, 1, MO_64);
+            read_neon_element64(middle, a->vm, 0, MO_64);
             tcg_gen_extract2_i64(destright, right, middle, (a->imm - 8) * 8);
-            neon_load_reg64(left, a->vm + 1);
+            read_neon_element64(left, a->vm, 1, MO_64);
             tcg_gen_extract2_i64(destleft, middle, left, (a->imm - 8) * 8);
         }
 
-        neon_store_reg64(destright, a->vd);
-        neon_store_reg64(destleft, a->vd + 1);
+        write_neon_element64(destright, a->vd, 0, MO_64);
+        write_neon_element64(destleft, a->vd, 1, MO_64);
 
         tcg_temp_free_i64(destright);
         tcg_temp_free_i64(destleft);
@@ -2849,9 +2861,8 @@ static bool trans_VEXT(DisasContext *s, arg_VEXT *a)
 
 static bool trans_VTBL(DisasContext *s, arg_VTBL *a)
 {
-    int n;
-    TCGv_i32 tmp, tmp2, tmp3, tmp4;
-    TCGv_ptr ptr1;
+    TCGv_i64 val, def;
+    TCGv_i32 desc;
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -2863,43 +2874,34 @@ static bool trans_VTBL(DisasContext *s, arg_VTBL *a)
         return false;
     }
 
-    if (!vfp_access_check(s)) {
-        return true;
-    }
-
-    n = a->len + 1;
-    if ((a->vn + n) > 32) {
+    if ((a->vn + a->len + 1) > 32) {
         /*
          * This is UNPREDICTABLE; we choose to UNDEF to avoid the
          * helper function running off the end of the register file.
          */
         return false;
     }
-    n <<= 3;
-    if (a->op) {
-        tmp = neon_load_reg(a->vd, 0);
-    } else {
-        tmp = tcg_temp_new_i32();
-        tcg_gen_movi_i32(tmp, 0);
+
+    if (!vfp_access_check(s)) {
+        return true;
     }
-    tmp2 = neon_load_reg(a->vm, 0);
-    ptr1 = vfp_reg_ptr(true, a->vn);
-    tmp4 = tcg_const_i32(n);
-    gen_helper_neon_tbl(tmp2, tmp2, tmp, ptr1, tmp4);
-    tcg_temp_free_i32(tmp);
+
+    desc = tcg_const_i32((a->vn << 2) | a->len);
+    def = tcg_temp_new_i64();
     if (a->op) {
-        tmp = neon_load_reg(a->vd, 1);
+        read_neon_element64(def, a->vd, 0, MO_64);
     } else {
-        tmp = tcg_temp_new_i32();
-        tcg_gen_movi_i32(tmp, 0);
+        tcg_gen_movi_i64(def, 0);
     }
-    tmp3 = neon_load_reg(a->vm, 1);
-    gen_helper_neon_tbl(tmp3, tmp3, tmp, ptr1, tmp4);
-    tcg_temp_free_i32(tmp4);
-    tcg_temp_free_ptr(ptr1);
-    neon_store_reg(a->vd, 0, tmp2);
-    neon_store_reg(a->vd, 1, tmp3);
-    tcg_temp_free_i32(tmp);
+    val = tcg_temp_new_i64();
+    read_neon_element64(val, a->vm, 0, MO_64);
+
+    gen_helper_neon_tbl(val, cpu_env, desc, val, def);
+    write_neon_element64(val, a->vd, 0, MO_64);
+
+    tcg_temp_free_i64(def);
+    tcg_temp_free_i64(val);
+    tcg_temp_free_i32(desc);
     return true;
 }
 
@@ -2923,7 +2925,7 @@ static bool trans_VDUP_scalar(DisasContext *s, arg_VDUP_scalar *a)
         return true;
     }
 
-    tcg_gen_gvec_dup_mem(a->size, neon_reg_offset(a->vd, 0),
+    tcg_gen_gvec_dup_mem(a->size, neon_full_reg_offset(a->vd),
                          neon_element_offset(a->vm, a->index, a->size),
                          a->q ? 16 : 8, a->q ? 16 : 8);
     return true;
@@ -2932,6 +2934,7 @@ static bool trans_VDUP_scalar(DisasContext *s, arg_VDUP_scalar *a)
 static bool trans_VREV64(DisasContext *s, arg_VREV64 *a)
 {
     int pass, half;
+    TCGv_i32 tmp[2];
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -2955,11 +2958,12 @@ static bool trans_VREV64(DisasContext *s, arg_VREV64 *a)
         return true;
     }
 
-    for (pass = 0; pass < (a->q ? 2 : 1); pass++) {
-        TCGv_i32 tmp[2];
+    tmp[0] = tcg_temp_new_i32();
+    tmp[1] = tcg_temp_new_i32();
 
+    for (pass = 0; pass < (a->q ? 2 : 1); pass++) {
         for (half = 0; half < 2; half++) {
-            tmp[half] = neon_load_reg(a->vm, pass * 2 + half);
+            read_neon_element32(tmp[half], a->vm, pass * 2 + half, MO_32);
             switch (a->size) {
             case 0:
                 tcg_gen_bswap32_i32(tmp[half], tmp[half]);
@@ -2973,9 +2977,12 @@ static bool trans_VREV64(DisasContext *s, arg_VREV64 *a)
                 g_assert_not_reached();
             }
         }
-        neon_store_reg(a->vd, pass * 2, tmp[1]);
-        neon_store_reg(a->vd, pass * 2 + 1, tmp[0]);
+        write_neon_element32(tmp[1], a->vd, pass * 2, MO_32);
+        write_neon_element32(tmp[0], a->vd, pass * 2 + 1, MO_32);
     }
+
+    tcg_temp_free_i32(tmp[0]);
+    tcg_temp_free_i32(tmp[1]);
     return true;
 }
 
@@ -3020,23 +3027,25 @@ static bool do_2misc_pairwise(DisasContext *s, arg_2misc *a,
         rm0_64 = tcg_temp_new_i64();
         rm1_64 = tcg_temp_new_i64();
         rd_64 = tcg_temp_new_i64();
-        tmp = neon_load_reg(a->vm, pass * 2);
+
+        tmp = tcg_temp_new_i32();
+        read_neon_element32(tmp, a->vm, pass * 2, MO_32);
         widenfn(rm0_64, tmp);
-        tcg_temp_free_i32(tmp);
-        tmp = neon_load_reg(a->vm, pass * 2 + 1);
+        read_neon_element32(tmp, a->vm, pass * 2 + 1, MO_32);
         widenfn(rm1_64, tmp);
         tcg_temp_free_i32(tmp);
+
         opfn(rd_64, rm0_64, rm1_64);
         tcg_temp_free_i64(rm0_64);
         tcg_temp_free_i64(rm1_64);
 
         if (accfn) {
             TCGv_i64 tmp64 = tcg_temp_new_i64();
-            neon_load_reg64(tmp64, a->vd + pass);
+            read_neon_element64(tmp64, a->vd, pass, MO_64);
             accfn(rd_64, tmp64, rd_64);
             tcg_temp_free_i64(tmp64);
         }
-        neon_store_reg64(rd_64, a->vd + pass);
+        write_neon_element64(rd_64, a->vd, pass, MO_64);
         tcg_temp_free_i64(rd_64);
     }
     return true;
@@ -3234,12 +3243,14 @@ static bool do_vmovn(DisasContext *s, arg_2misc *a,
     rd0 = tcg_temp_new_i32();
     rd1 = tcg_temp_new_i32();
 
-    neon_load_reg64(rm, a->vm);
+    read_neon_element64(rm, a->vm, 0, MO_64);
     narrowfn(rd0, cpu_env, rm);
-    neon_load_reg64(rm, a->vm + 1);
+    read_neon_element64(rm, a->vm, 1, MO_64);
     narrowfn(rd1, cpu_env, rm);
-    neon_store_reg(a->vd, 0, rd0);
-    neon_store_reg(a->vd, 1, rd1);
+    write_neon_element32(rd0, a->vd, 0, MO_32);
+    write_neon_element32(rd1, a->vd, 1, MO_32);
+    tcg_temp_free_i32(rd0);
+    tcg_temp_free_i32(rd1);
     tcg_temp_free_i64(rm);
     return true;
 }
@@ -3296,16 +3307,18 @@ static bool trans_VSHLL(DisasContext *s, arg_2misc *a)
     }
 
     rd = tcg_temp_new_i64();
+    rm0 = tcg_temp_new_i32();
+    rm1 = tcg_temp_new_i32();
 
-    rm0 = neon_load_reg(a->vm, 0);
-    rm1 = neon_load_reg(a->vm, 1);
+    read_neon_element32(rm0, a->vm, 0, MO_32);
+    read_neon_element32(rm1, a->vm, 1, MO_32);
 
     widenfn(rd, rm0);
     tcg_gen_shli_i64(rd, rd, 8 << a->size);
-    neon_store_reg64(rd, a->vd);
+    write_neon_element64(rd, a->vd, 0, MO_64);
     widenfn(rd, rm1);
     tcg_gen_shli_i64(rd, rd, 8 << a->size);
-    neon_store_reg64(rd, a->vd + 1);
+    write_neon_element64(rd, a->vd, 1, MO_64);
 
     tcg_temp_free_i64(rd);
     tcg_temp_free_i32(rm0);
@@ -3339,21 +3352,25 @@ static bool trans_VCVT_F16_F32(DisasContext *s, arg_2misc *a)
 
     fpst = fpstatus_ptr(FPST_STD);
     ahp = get_ahp_flag();
-    tmp = neon_load_reg(a->vm, 0);
+    tmp = tcg_temp_new_i32();
+    read_neon_element32(tmp, a->vm, 0, MO_32);
     gen_helper_vfp_fcvt_f32_to_f16(tmp, tmp, fpst, ahp);
-    tmp2 = neon_load_reg(a->vm, 1);
+    tmp2 = tcg_temp_new_i32();
+    read_neon_element32(tmp2, a->vm, 1, MO_32);
     gen_helper_vfp_fcvt_f32_to_f16(tmp2, tmp2, fpst, ahp);
     tcg_gen_shli_i32(tmp2, tmp2, 16);
     tcg_gen_or_i32(tmp2, tmp2, tmp);
-    tcg_temp_free_i32(tmp);
-    tmp = neon_load_reg(a->vm, 2);
+    read_neon_element32(tmp, a->vm, 2, MO_32);
     gen_helper_vfp_fcvt_f32_to_f16(tmp, tmp, fpst, ahp);
-    tmp3 = neon_load_reg(a->vm, 3);
-    neon_store_reg(a->vd, 0, tmp2);
+    tmp3 = tcg_temp_new_i32();
+    read_neon_element32(tmp3, a->vm, 3, MO_32);
+    write_neon_element32(tmp2, a->vd, 0, MO_32);
+    tcg_temp_free_i32(tmp2);
     gen_helper_vfp_fcvt_f32_to_f16(tmp3, tmp3, fpst, ahp);
     tcg_gen_shli_i32(tmp3, tmp3, 16);
     tcg_gen_or_i32(tmp3, tmp3, tmp);
-    neon_store_reg(a->vd, 1, tmp3);
+    write_neon_element32(tmp3, a->vd, 1, MO_32);
+    tcg_temp_free_i32(tmp3);
     tcg_temp_free_i32(tmp);
     tcg_temp_free_i32(ahp);
     tcg_temp_free_ptr(fpst);
@@ -3388,21 +3405,25 @@ static bool trans_VCVT_F32_F16(DisasContext *s, arg_2misc *a)
     fpst = fpstatus_ptr(FPST_STD);
     ahp = get_ahp_flag();
     tmp3 = tcg_temp_new_i32();
-    tmp = neon_load_reg(a->vm, 0);
-    tmp2 = neon_load_reg(a->vm, 1);
+    tmp2 = tcg_temp_new_i32();
+    tmp = tcg_temp_new_i32();
+    read_neon_element32(tmp, a->vm, 0, MO_32);
+    read_neon_element32(tmp2, a->vm, 1, MO_32);
     tcg_gen_ext16u_i32(tmp3, tmp);
     gen_helper_vfp_fcvt_f16_to_f32(tmp3, tmp3, fpst, ahp);
-    neon_store_reg(a->vd, 0, tmp3);
+    write_neon_element32(tmp3, a->vd, 0, MO_32);
     tcg_gen_shri_i32(tmp, tmp, 16);
     gen_helper_vfp_fcvt_f16_to_f32(tmp, tmp, fpst, ahp);
-    neon_store_reg(a->vd, 1, tmp);
-    tmp3 = tcg_temp_new_i32();
+    write_neon_element32(tmp, a->vd, 1, MO_32);
+    tcg_temp_free_i32(tmp);
     tcg_gen_ext16u_i32(tmp3, tmp2);
     gen_helper_vfp_fcvt_f16_to_f32(tmp3, tmp3, fpst, ahp);
-    neon_store_reg(a->vd, 2, tmp3);
+    write_neon_element32(tmp3, a->vd, 2, MO_32);
+    tcg_temp_free_i32(tmp3);
     tcg_gen_shri_i32(tmp2, tmp2, 16);
     gen_helper_vfp_fcvt_f16_to_f32(tmp2, tmp2, fpst, ahp);
-    neon_store_reg(a->vd, 3, tmp2);
+    write_neon_element32(tmp2, a->vd, 3, MO_32);
+    tcg_temp_free_i32(tmp2);
     tcg_temp_free_i32(ahp);
     tcg_temp_free_ptr(fpst);
 
@@ -3412,8 +3433,8 @@ static bool trans_VCVT_F32_F16(DisasContext *s, arg_2misc *a)
 static bool do_2misc_vec(DisasContext *s, arg_2misc *a, GVecGen2Fn *fn)
 {
     int vec_size = a->q ? 16 : 8;
-    int rd_ofs = neon_reg_offset(a->vd, 0);
-    int rm_ofs = neon_reg_offset(a->vm, 0);
+    int rd_ofs = neon_full_reg_offset(a->vd);
+    int rm_ofs = neon_full_reg_offset(a->vm);
 
     if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
         return false;
@@ -3508,6 +3529,7 @@ DO_2M_CRYPTO(SHA256SU0, aa32_sha2, 2)
 
 static bool do_2misc(DisasContext *s, arg_2misc *a, NeonGenOneOpFn *fn)
 {
+    TCGv_i32 tmp;
     int pass;
 
     /* Handle a 2-reg-misc operation by iterating 32 bits at a time */
@@ -3533,11 +3555,13 @@ static bool do_2misc(DisasContext *s, arg_2misc *a, NeonGenOneOpFn *fn)
         return true;
     }
 
+    tmp = tcg_temp_new_i32();
     for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
-        TCGv_i32 tmp = neon_load_reg(a->vm, pass);
+        read_neon_element32(tmp, a->vm, pass, MO_32);
         fn(tmp, tmp);
-        neon_store_reg(a->vd, pass, tmp);
+        write_neon_element32(tmp, a->vd, pass, MO_32);
     }
+    tcg_temp_free_i32(tmp);
 
     return true;
 }
@@ -3812,10 +3836,10 @@ static bool trans_VSWP(DisasContext *s, arg_2misc *a)
     rm = tcg_temp_new_i64();
     rd = tcg_temp_new_i64();
     for (pass = 0; pass < (a->q ? 2 : 1); pass++) {
-        neon_load_reg64(rm, a->vm + pass);
-        neon_load_reg64(rd, a->vd + pass);
-        neon_store_reg64(rm, a->vd + pass);
-        neon_store_reg64(rd, a->vm + pass);
+        read_neon_element64(rm, a->vm, pass, MO_64);
+        read_neon_element64(rd, a->vd, pass, MO_64);
+        write_neon_element64(rm, a->vd, pass, MO_64);
+        write_neon_element64(rd, a->vm, pass, MO_64);
     }
     tcg_temp_free_i64(rm);
     tcg_temp_free_i64(rd);
@@ -3890,25 +3914,29 @@ static bool trans_VTRN(DisasContext *s, arg_2misc *a)
         return true;
     }
 
-    if (a->size == 2) {
+    tmp = tcg_temp_new_i32();
+    tmp2 = tcg_temp_new_i32();
+    if (a->size == MO_32) {
         for (pass = 0; pass < (a->q ? 4 : 2); pass += 2) {
-            tmp = neon_load_reg(a->vm, pass);
-            tmp2 = neon_load_reg(a->vd, pass + 1);
-            neon_store_reg(a->vm, pass, tmp2);
-            neon_store_reg(a->vd, pass + 1, tmp);
+            read_neon_element32(tmp, a->vm, pass, MO_32);
+            read_neon_element32(tmp2, a->vd, pass + 1, MO_32);
+            write_neon_element32(tmp2, a->vm, pass, MO_32);
+            write_neon_element32(tmp, a->vd, pass + 1, MO_32);
         }
     } else {
         for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
-            tmp = neon_load_reg(a->vm, pass);
-            tmp2 = neon_load_reg(a->vd, pass);
-            if (a->size == 0) {
+            read_neon_element32(tmp, a->vm, pass, MO_32);
+            read_neon_element32(tmp2, a->vd, pass, MO_32);
+            if (a->size == MO_8) {
                 gen_neon_trn_u8(tmp, tmp2);
             } else {
                 gen_neon_trn_u16(tmp, tmp2);
             }
-            neon_store_reg(a->vm, pass, tmp2);
-            neon_store_reg(a->vd, pass, tmp);
+            write_neon_element32(tmp2, a->vm, pass, MO_32);
+            write_neon_element32(tmp, a->vd, pass, MO_32);
         }
     }
+    tcg_temp_free_i32(tmp);
+    tcg_temp_free_i32(tmp2);
     return true;
 }

@@ -59,6 +59,7 @@
 #include "sysemu/arch_init.h"
 #include "sysemu/qtest.h"
 #include "sysemu/runstate.h"
+#include "sysemu/replay.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
 #include "qemu/main-loop.h"
@@ -1190,6 +1191,10 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
     info->vm_state_size = sn.vm_state_size;
     info->vm_clock_nsec = sn.vm_clock_nsec % 1000000000;
     info->vm_clock_sec = sn.vm_clock_nsec / 1000000000;
+    if (sn.icount != -1ULL) {
+        info->icount = sn.icount;
+        info->has_icount = true;
+    }
 
     return info;
 
@@ -1350,6 +1355,11 @@ static void internal_snapshot_prepare(BlkActionState *common,
     sn->date_sec = tv.tv_sec;
     sn->date_nsec = tv.tv_usec * 1000;
     sn->vm_clock_nsec = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    if (replay_mode != REPLAY_MODE_NONE) {
+        sn->icount = replay_get_current_icount();
+    } else {
+        sn->icount = -1ULL;
+    }
 
     ret1 = bdrv_snapshot_create(bs, sn);
     if (ret1 < 0) {
@@ -1817,6 +1827,7 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     if (set_backing_hd) {
         bdrv_set_backing_hd(target_bs, source, &local_err);
         if (local_err) {
+            error_propagate(errp, local_err);
             goto unref;
         }
     }
@@ -2439,14 +2450,14 @@ BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
     return ret;
 }
 
-void qmp_block_resize(bool has_device, const char *device,
-                      bool has_node_name, const char *node_name,
-                      int64_t size, Error **errp)
+void coroutine_fn qmp_block_resize(bool has_device, const char *device,
+                                   bool has_node_name, const char *node_name,
+                                   int64_t size, Error **errp)
 {
     Error *local_err = NULL;
-    BlockBackend *blk = NULL;
+    BlockBackend *blk;
     BlockDriverState *bs;
-    AioContext *aio_context;
+    AioContext *old_ctx;
 
     bs = bdrv_lookup_bs(has_device ? device : NULL,
                         has_node_name ? node_name : NULL,
@@ -2456,49 +2467,71 @@ void qmp_block_resize(bool has_device, const char *device,
         return;
     }
 
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
     if (size < 0) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
-        goto out;
+        return;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, NULL)) {
         error_setg(errp, QERR_DEVICE_IN_USE, device);
-        goto out;
+        return;
     }
 
     blk = blk_new_with_bs(bs, BLK_PERM_RESIZE, BLK_PERM_ALL, errp);
     if (!blk) {
-        goto out;
+        return;
     }
 
+    bdrv_co_lock(bs);
     bdrv_drained_begin(bs);
-    blk_truncate(blk, size, false, PREALLOC_MODE_OFF, 0, errp);
-    bdrv_drained_end(bs);
+    bdrv_co_unlock(bs);
 
-out:
+    old_ctx = bdrv_co_enter(bs);
+    blk_truncate(blk, size, false, PREALLOC_MODE_OFF, 0, errp);
+    bdrv_co_leave(bs, old_ctx);
+
+    bdrv_co_lock(bs);
+    bdrv_drained_end(bs);
     blk_unref(blk);
-    aio_context_release(aio_context);
+    bdrv_co_unlock(bs);
 }
 
 void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_base, const char *base,
                       bool has_base_node, const char *base_node,
                       bool has_backing_file, const char *backing_file,
+                      bool has_bottom, const char *bottom,
                       bool has_speed, int64_t speed,
                       bool has_on_error, BlockdevOnError on_error,
+                      bool has_filter_node_name, const char *filter_node_name,
                       bool has_auto_finalize, bool auto_finalize,
                       bool has_auto_dismiss, bool auto_dismiss,
                       Error **errp)
 {
-    BlockDriverState *bs, *iter;
+    BlockDriverState *bs, *iter, *iter_end;
     BlockDriverState *base_bs = NULL;
+    BlockDriverState *bottom_bs = NULL;
     AioContext *aio_context;
     Error *local_err = NULL;
-    const char *base_name = NULL;
     int job_flags = JOB_DEFAULT;
+
+    if (has_base && has_base_node) {
+        error_setg(errp, "'base' and 'base-node' cannot be specified "
+                   "at the same time");
+        return;
+    }
+
+    if (has_base && has_bottom) {
+        error_setg(errp, "'base' and 'bottom' cannot be specified "
+                   "at the same time");
+        return;
+    }
+
+    if (has_bottom && has_base_node) {
+        error_setg(errp, "'bottom' and 'base-node' cannot be specified "
+                   "at the same time");
+        return;
+    }
 
     if (!has_on_error) {
         on_error = BLOCKDEV_ON_ERROR_REPORT;
@@ -2512,20 +2545,13 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (has_base && has_base_node) {
-        error_setg(errp, "'base' and 'base-node' cannot be specified "
-                   "at the same time");
-        goto out;
-    }
-
     if (has_base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
-            error_setg(errp, QERR_BASE_NOT_FOUND, base);
+            error_setg(errp, "Can't find '%s' in the backing chain", base);
             goto out;
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
-        base_name = base;
     }
 
     if (has_base_node) {
@@ -2540,11 +2566,35 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
         bdrv_refresh_filename(base_bs);
-        base_name = base_bs->filename;
     }
 
-    /* Check for op blockers in the whole chain between bs and base */
-    for (iter = bs; iter && iter != base_bs;
+    if (has_bottom) {
+        bottom_bs = bdrv_lookup_bs(NULL, bottom, errp);
+        if (!bottom_bs) {
+            goto out;
+        }
+        if (!bottom_bs->drv) {
+            error_setg(errp, "Node '%s' is not open", bottom);
+            goto out;
+        }
+        if (bottom_bs->drv->is_filter) {
+            error_setg(errp, "Node '%s' is a filter, use a non-filter node "
+                       "as 'bottom'", bottom);
+            goto out;
+        }
+        if (!bdrv_chain_contains(bs, bottom_bs)) {
+            error_setg(errp, "Node '%s' is not in a chain starting from '%s'",
+                       bottom, device);
+            goto out;
+        }
+        assert(bdrv_get_aio_context(bottom_bs) == aio_context);
+    }
+
+    /*
+     * Check for op blockers in the whole chain between bs and base (or bottom)
+     */
+    iter_end = has_bottom ? bdrv_filter_or_cow_bs(bottom_bs) : base_bs;
+    for (iter = bs; iter && iter != iter_end;
          iter = bdrv_filter_or_cow_bs(iter))
     {
         if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_STREAM, errp)) {
@@ -2560,9 +2610,6 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         goto out;
     }
 
-    /* backing_file string overrides base bs filename */
-    base_name = has_backing_file ? backing_file : base_name;
-
     if (has_auto_finalize && !auto_finalize) {
         job_flags |= JOB_MANUAL_FINALIZE;
     }
@@ -2570,8 +2617,9 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         job_flags |= JOB_MANUAL_DISMISS;
     }
 
-    stream_start(has_job_id ? job_id : NULL, bs, base_bs, base_name,
-                 job_flags, has_speed ? speed : 0, on_error, &local_err);
+    stream_start(has_job_id ? job_id : NULL, bs, base_bs, backing_file,
+                 bottom_bs, job_flags, has_speed ? speed : 0, on_error,
+                 filter_node_name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
@@ -2693,13 +2741,16 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
         }
     } else if (has_base && base) {
         base_bs = bdrv_find_backing_image(top_bs, base);
+        if (base_bs == NULL) {
+            error_setg(errp, "Can't find '%s' in the backing chain", base);
+            goto out;
+        }
     } else {
         base_bs = bdrv_find_base(top_bs);
-    }
-
-    if (base_bs == NULL) {
-        error_setg(errp, QERR_BASE_NOT_FOUND, base ? base : "NULL");
-        goto out;
+        if (base_bs == NULL) {
+            error_setg(errp, "There is no backimg image");
+            goto out;
+        }
     }
 
     assert(bdrv_get_aio_context(base_bs) == aio_context);
@@ -2778,6 +2829,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
 {
     BlockJob *job = NULL;
     BdrvDirtyBitmap *bmap = NULL;
+    BackupPerf perf = { .max_workers = 64 };
     int job_flags = JOB_DEFAULT;
 
     if (!backup->has_speed) {
@@ -2800,6 +2852,18 @@ static BlockJob *do_backup_common(BackupCommon *backup,
     }
     if (!backup->has_compress) {
         backup->compress = false;
+    }
+
+    if (backup->x_perf) {
+        if (backup->x_perf->has_use_copy_range) {
+            perf.use_copy_range = backup->x_perf->use_copy_range;
+        }
+        if (backup->x_perf->has_max_workers) {
+            perf.max_workers = backup->x_perf->max_workers;
+        }
+        if (backup->x_perf->has_max_chunk) {
+            perf.max_chunk = backup->x_perf->max_chunk;
+        }
     }
 
     if ((backup->sync == MIRROR_SYNC_MODE_BITMAP) ||
@@ -2875,6 +2939,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
                             backup->sync, bmap, backup->bitmap_mode,
                             backup->compress,
                             backup->filter_node_name,
+                            &perf,
                             backup->on_source_error,
                             backup->on_target_error,
                             job_flags, NULL, NULL, txn, errp);
@@ -2978,7 +3043,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     }
     if (granularity & (granularity - 1)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
-                   "power of 2");
+                   "a power of 2");
         return;
     }
 

@@ -310,13 +310,13 @@ static void cap_safe_indirect_branch_apply(SpaprMachineState *spapr,
 
 #define VALUE_DESC_TRISTATE     " (broken, workaround, fixed)"
 
-void spapr_check_pagesize(SpaprMachineState *spapr, hwaddr pagesize,
+bool spapr_check_pagesize(SpaprMachineState *spapr, hwaddr pagesize,
                           Error **errp)
 {
     hwaddr maxpagesize = (1ULL << spapr->eff.caps[SPAPR_CAP_HPT_MAXPAGESIZE]);
 
     if (!kvmppc_hpt_needs_host_contiguous_pages()) {
-        return;
+        return true;
     }
 
     if (maxpagesize > pagesize) {
@@ -324,7 +324,10 @@ void spapr_check_pagesize(SpaprMachineState *spapr, hwaddr pagesize,
                    "Can't support %"HWADDR_PRIu" kiB guest pages with %"
                    HWADDR_PRIu" kiB host pages with this KVM implementation",
                    maxpagesize >> 10, pagesize >> 10);
+        return false;
     }
+
+    return true;
 }
 
 static void cap_hpt_maxpagesize_apply(SpaprMachineState *spapr,

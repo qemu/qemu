@@ -7,24 +7,29 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.
 
 === Send a write command to a drive opened in read-only mode (1)
 
-{ 'execute': 'human-monitor-command', 'arguments': {'command-line': 'qemu-io none0 "aio_write 0 2k"'}}
+{ 'execute': 'human-monitor-command',
+       'arguments': {'command-line': 'qemu-io none0 "aio_write 0 2k"'}}
 {"return": "Block node is read-onlyrn"}
 
 === Run block-commit on base using an invalid filter node name
 
-{ 'execute': 'block-commit', 'arguments': {'job-id': 'job0', 'device': 'none1', 'top-node': 'int', 'filter-node-name': '1234'}}
+{ 'execute': 'block-commit',
+       'arguments': {'job-id': 'job0', 'device': 'none1', 'top-node': 'int',
+                     'filter-node-name': '1234'}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "job0"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "null", "id": "job0"}}
 {"error": {"class": "GenericError", "desc": "Invalid node name"}}
 
 === Send a write command to a drive opened in read-only mode (2)
 
-{ 'execute': 'human-monitor-command', 'arguments': {'command-line': 'qemu-io none0 "aio_write 0 2k"'}}
+{ 'execute': 'human-monitor-command',
+       'arguments': {'command-line': 'qemu-io none0 "aio_write 0 2k"'}}
 {"return": "Block node is read-onlyrn"}
 
 === Run block-commit on base using the default filter node name
 
-{ 'execute': 'block-commit', 'arguments': {'job-id': 'job0', 'device': 'none1', 'top-node': 'int'}}
+{ 'execute': 'block-commit',
+       'arguments': {'job-id': 'job0', 'device': 'none1', 'top-node': 'int'}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "job0"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "job0"}}
 {"return": {}}
@@ -36,6 +41,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.
 
 === Send a write command to a drive opened in read-only mode (3)
 
-{ 'execute': 'human-monitor-command', 'arguments': {'command-line': 'qemu-io none0 "aio_write 0 2k"'}}
+{ 'execute': 'human-monitor-command',
+       'arguments': {'command-line': 'qemu-io none0 "aio_write 0 2k"'}}
 {"return": "Block node is read-onlyrn"}
 *** done

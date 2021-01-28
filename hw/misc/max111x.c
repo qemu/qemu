@@ -85,7 +85,7 @@ static void max111x_write(MAX111xState *s, uint32_t value)
     qemu_irq_raise(s->interrupt);
 }
 
-static uint32_t max111x_transfer(SSISlave *dev, uint32_t value)
+static uint32_t max111x_transfer(SSIPeripheral *dev, uint32_t value)
 {
     MAX111xState *s = MAX_111X(dev);
     max111x_write(s, value);
@@ -97,7 +97,7 @@ static const VMStateDescription vmstate_max111x = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_SSI_SLAVE(parent_obj, MAX111xState),
+        VMSTATE_SSI_PERIPHERAL(parent_obj, MAX111xState),
         VMSTATE_UINT8(tb1, MAX111xState),
         VMSTATE_UINT8(rb2, MAX111xState),
         VMSTATE_UINT8(rb3, MAX111xState),
@@ -117,7 +117,7 @@ static void max111x_input_set(void *opaque, int line, int value)
     s->input[line] = value;
 }
 
-static int max111x_init(SSISlave *d, int inputs)
+static int max111x_init(SSIPeripheral *d, int inputs)
 {
     DeviceState *dev = DEVICE(d);
     MAX111xState *s = MAX_111X(dev);
@@ -130,12 +130,12 @@ static int max111x_init(SSISlave *d, int inputs)
     return 0;
 }
 
-static void max1110_realize(SSISlave *dev, Error **errp)
+static void max1110_realize(SSIPeripheral *dev, Error **errp)
 {
     max111x_init(dev, 8);
 }
 
-static void max1111_realize(SSISlave *dev, Error **errp)
+static void max1111_realize(SSIPeripheral *dev, Error **errp)
 {
     max111x_init(dev, 4);
 }
@@ -179,17 +179,18 @@ static Property max1111_properties[] = {
 
 static void max111x_class_init(ObjectClass *klass, void *data)
 {
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->transfer = max111x_transfer;
     dc->reset = max111x_reset;
     dc->vmsd = &vmstate_max111x;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo max111x_info = {
     .name          = TYPE_MAX_111X,
-    .parent        = TYPE_SSI_SLAVE,
+    .parent        = TYPE_SSI_PERIPHERAL,
     .instance_size = sizeof(MAX111xState),
     .class_init    = max111x_class_init,
     .abstract      = true,
@@ -197,7 +198,7 @@ static const TypeInfo max111x_info = {
 
 static void max1110_class_init(ObjectClass *klass, void *data)
 {
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->realize = max1110_realize;
@@ -212,7 +213,7 @@ static const TypeInfo max1110_info = {
 
 static void max1111_class_init(ObjectClass *klass, void *data)
 {
-    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->realize = max1111_realize;

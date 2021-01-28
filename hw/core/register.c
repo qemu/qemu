@@ -80,7 +80,7 @@ void register_write(RegisterInfo *reg, uint64_t val, uint64_t we,
 
     if (!ac || !ac->name) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: write to undefined device state "
-                      "(written value: %#" PRIx64 ")\n", prefix, val);
+                      "(written value: 0x%" PRIx64 ")\n", prefix, val);
         return;
     }
 
@@ -89,14 +89,14 @@ void register_write(RegisterInfo *reg, uint64_t val, uint64_t we,
     test = (old_val ^ val) & ac->rsvd;
     if (test) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: change of value in reserved bit"
-                      "fields: %#" PRIx64 ")\n", prefix, test);
+                      "fields: 0x%" PRIx64 ")\n", prefix, test);
     }
 
     test = val & ac->unimp;
     if (test) {
         qemu_log_mask(LOG_UNIMP,
-                      "%s:%s writing %#" PRIx64 " to unimplemented bits:" \
-                      " %#" PRIx64 "\n",
+                      "%s:%s writing 0x%" PRIx64 " to unimplemented bits:" \
+                      " 0x%" PRIx64 "\n",
                       prefix, reg->access->name, val, ac->unimp);
     }
 
@@ -112,7 +112,7 @@ void register_write(RegisterInfo *reg, uint64_t val, uint64_t we,
     }
 
     if (debug) {
-        qemu_log("%s:%s: write of value %#" PRIx64 "\n", prefix, ac->name,
+        qemu_log("%s:%s: write of value 0x%" PRIx64 "\n", prefix, ac->name,
                  new_val);
     }
 
@@ -150,7 +150,7 @@ uint64_t register_read(RegisterInfo *reg, uint64_t re, const char* prefix,
     }
 
     if (debug) {
-        qemu_log("%s:%s: read of value %#" PRIx64 "\n", prefix,
+        qemu_log("%s:%s: read of value 0x%" PRIx64 "\n", prefix,
                  ac->name, ret);
     }
 
@@ -193,7 +193,7 @@ void register_write_memory(void *opaque, hwaddr addr,
 
     if (!reg) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: write to unimplemented register " \
-                      "at address: %#" PRIx64 "\n", reg_array->prefix, addr);
+                      "at address: 0x%" PRIx64 "\n", reg_array->prefix, addr);
         return;
     }
 
@@ -222,7 +222,7 @@ uint64_t register_read_memory(void *opaque, hwaddr addr,
 
     if (!reg) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s:  read to unimplemented register " \
-                      "at address: %#" PRIx64 "\n", reg_array->prefix, addr);
+                      "at address: 0x%" PRIx64 "\n", reg_array->prefix, addr);
         return 0;
     }
 
@@ -257,10 +257,6 @@ static RegisterInfoArray *register_init_block(DeviceState *owner,
     for (i = 0; i < num; i++) {
         int index = rae[i].addr / data_size;
         RegisterInfo *r = &ri[index];
-
-        if (data + data_size * index == 0 || !&rae[i]) {
-            continue;
-        }
 
         /* Init the register, this will zero it. */
         object_initialize((void *)r, sizeof(*r), TYPE_REGISTER);

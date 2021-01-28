@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# group: rw
 #
 # Test qcow2 and file image creation
 #
@@ -23,7 +24,8 @@
 import iotests
 from iotests import imgfmt
 
-iotests.script_initialize(supported_fmts=['qcow2'])
+iotests.script_initialize(supported_fmts=['qcow2'],
+                          supported_protocols=['file'])
 iotests.verify_working_luks()
 
 with iotests.FilePath('t.qcow2') as disk_path, \
@@ -201,7 +203,7 @@ with iotests.FilePath('t.qcow2') as disk_path, \
 
     vm.launch()
     for size in [ 1234, 18446744073709551104, 9223372036854775808,
-                  9223372036854775296 ]:
+                  9223372036854775296, 9223372035781033984 ]:
         vm.blockdev_create({ 'driver': imgfmt,
                              'file': 'node0',
                              'size': size })

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw quick
 #
 # Test for auto-read-only with commit block job
 #
@@ -41,7 +42,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # Requires backing files and .bdrv_change_backing_file support
 _supported_fmt qcow2 qed
-_supported_proto file
+_supported_proto file fuse
 
 size=128M
 

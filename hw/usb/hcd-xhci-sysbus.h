@@ -15,7 +15,6 @@
 #include "hcd-xhci.h"
 #include "hw/sysbus.h"
 
-#define TYPE_XHCI_SYSBUS "sysbus-xhci"
 #define XHCI_SYSBUS(obj) \
     OBJECT_CHECK(XHCISysbusState, (obj), TYPE_XHCI_SYSBUS)
 

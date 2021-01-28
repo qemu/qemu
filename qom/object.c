@@ -685,6 +685,7 @@ static void object_finalize(void *data)
     object_deinit(obj, ti);
 
     g_assert(obj->ref == 0);
+    g_assert(obj->parent == NULL);
     if (obj->free) {
         obj->free(obj);
     }
@@ -1196,11 +1197,11 @@ object_property_try_add(Object *obj, const char *name, const char *type,
 
     if (name_len >= 3 && !memcmp(name + name_len - 3, "[*]", 4)) {
         int i;
-        ObjectProperty *ret;
+        ObjectProperty *ret = NULL;
         char *name_no_array = g_strdup(name);
 
         name_no_array[name_len - 3] = '\0';
-        for (i = 0; ; ++i) {
+        for (i = 0; i < INT16_MAX; ++i) {
             char *full_name = g_strdup_printf("%s[%d]", name_no_array, i);
 
             ret = object_property_try_add(obj, full_name, type, get, set,
@@ -1211,6 +1212,7 @@ object_property_try_add(Object *obj, const char *name, const char *type,
             }
         }
         g_free(name_no_array);
+        assert(ret);
         return ret;
     }
 
@@ -1291,7 +1293,8 @@ ObjectProperty *object_property_find_err(Object *obj, const char *name,
 {
     ObjectProperty *prop = object_property_find(obj, name);
     if (!prop) {
-        error_setg(errp, "Property '.%s' not found", name);
+        error_setg(errp, "Property '%s.%s' not found",
+                   object_get_typename(obj), name);
     }
     return prop;
 }
@@ -1413,15 +1416,18 @@ char *object_property_get_str(Object *obj, const char *name,
                               Error **errp)
 {
     QObject *ret = object_property_get_qobject(obj, name, errp);
+    QString *qstring;
     char *retval;
 
     if (!ret) {
         return NULL;
     }
-
-    retval = g_strdup(qobject_get_try_str(ret));
-    if (!retval) {
+    qstring = qobject_to(QString, ret);
+    if (!qstring) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name, "string");
+        retval = NULL;
+    } else {
+        retval = g_strdup(qstring_get_str(qstring));
     }
 
     qobject_unref(ret);
@@ -2173,11 +2179,10 @@ static void property_set_str(Object *obj, Visitor *v, const char *name,
     g_free(value);
 }
 
-static void property_release_str(Object *obj, const char *name,
-                                 void *opaque)
+static void property_release_data(Object *obj, const char *name,
+                                  void *opaque)
 {
-    StringProperty *prop = opaque;
-    g_free(prop);
+    g_free(opaque);
 }
 
 ObjectProperty *
@@ -2193,7 +2198,7 @@ object_property_add_str(Object *obj, const char *name,
     return object_property_add(obj, name, "string",
                                get ? property_get_str : NULL,
                                set ? property_set_str : NULL,
-                               property_release_str,
+                               property_release_data,
                                prop);
 }
 
@@ -2250,13 +2255,6 @@ static void property_set_bool(Object *obj, Visitor *v, const char *name,
     prop->set(obj, value, errp);
 }
 
-static void property_release_bool(Object *obj, const char *name,
-                                  void *opaque)
-{
-    BoolProperty *prop = opaque;
-    g_free(prop);
-}
-
 ObjectProperty *
 object_property_add_bool(Object *obj, const char *name,
                          bool (*get)(Object *, Error **),
@@ -2270,7 +2268,7 @@ object_property_add_bool(Object *obj, const char *name,
     return object_property_add(obj, name, "bool",
                                get ? property_get_bool : NULL,
                                set ? property_set_bool : NULL,
-                               property_release_bool,
+                               property_release_data,
                                prop);
 }
 
@@ -2319,13 +2317,6 @@ static void property_set_enum(Object *obj, Visitor *v, const char *name,
     prop->set(obj, value, errp);
 }
 
-static void property_release_enum(Object *obj, const char *name,
-                                  void *opaque)
-{
-    EnumProperty *prop = opaque;
-    g_free(prop);
-}
-
 ObjectProperty *
 object_property_add_enum(Object *obj, const char *name,
                          const char *typename,
@@ -2342,7 +2333,7 @@ object_property_add_enum(Object *obj, const char *name,
     return object_property_add(obj, name, typename,
                                get ? property_get_enum : NULL,
                                set ? property_set_enum : NULL,
-                               property_release_enum,
+                               property_release_data,
                                prop);
 }
 
@@ -2409,13 +2400,6 @@ out_end:
     visit_end_struct(v, NULL);
 }
 
-static void property_release_tm(Object *obj, const char *name,
-                                void *opaque)
-{
-    TMProperty *prop = opaque;
-    g_free(prop);
-}
-
 ObjectProperty *
 object_property_add_tm(Object *obj, const char *name,
                        void (*get)(Object *, struct tm *, Error **))
@@ -2426,7 +2410,7 @@ object_property_add_tm(Object *obj, const char *name,
 
     return object_property_add(obj, name, "struct tm",
                                get ? property_get_tm : NULL, NULL,
-                               property_release_tm,
+                               property_release_data,
                                prop);
 }
 

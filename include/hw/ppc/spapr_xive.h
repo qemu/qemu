@@ -66,8 +66,6 @@ typedef struct SpaprXiveClass {
  */
 #define SPAPR_XIVE_BLOCK_ID 0x0
 
-void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon);
-
 struct SpaprMachineState;
 void spapr_xive_hcall_init(struct SpaprMachineState *spapr);
 void spapr_xive_mmio_set_enabled(SpaprXive *xive, bool enable);

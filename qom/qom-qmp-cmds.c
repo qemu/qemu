@@ -46,14 +46,12 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 
     object_property_iter_init(&iter, obj);
     while ((prop = object_property_iter_next(&iter))) {
-        ObjectPropertyInfoList *entry = g_malloc0(sizeof(*entry));
+        ObjectPropertyInfo *value = g_malloc0(sizeof(ObjectPropertyInfo));
 
-        entry->value = g_malloc0(sizeof(ObjectPropertyInfo));
-        entry->next = props;
-        props = entry;
+        QAPI_LIST_PREPEND(props, value);
 
-        entry->value->name = g_strdup(prop->name);
-        entry->value->type = g_strdup(prop->type);
+        value->name = g_strdup(prop->name);
+        value->type = g_strdup(prop->type);
     }
 
     return props;
@@ -90,7 +88,7 @@ QObject *qmp_qom_get(const char *path, const char *property, Error **errp)
 
 static void qom_list_types_tramp(ObjectClass *klass, void *data)
 {
-    ObjectTypeInfoList *e, **pret = data;
+    ObjectTypeInfoList **pret = data;
     ObjectTypeInfo *info;
     ObjectClass *parent = object_class_get_parent(klass);
 
@@ -102,10 +100,7 @@ static void qom_list_types_tramp(ObjectClass *klass, void *data)
         info->parent = g_strdup(object_class_get_name(parent));
     }
 
-    e = g_malloc0(sizeof(*e));
-    e->value = info;
-    e->next = *pret;
-    *pret = e;
+    QAPI_LIST_PREPEND(*pret, info);
 }
 
 ObjectTypeInfoList *qmp_qom_list_types(bool has_implements,
@@ -138,15 +133,10 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
         return NULL;
     }
 
-    klass = object_class_dynamic_cast(klass, TYPE_DEVICE);
-    if (klass == NULL) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "typename", TYPE_DEVICE);
-        return NULL;
-    }
-
-    if (object_class_is_abstract(klass)) {
+    if (!object_class_dynamic_cast(klass, TYPE_DEVICE)
+        || object_class_is_abstract(klass)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "typename",
-                   "non-abstract device type");
+                   "a non-abstract device type");
         return NULL;
     }
 
@@ -155,7 +145,6 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
     object_property_iter_init(&iter, obj);
     while ((prop = object_property_iter_next(&iter))) {
         ObjectPropertyInfo *info;
-        ObjectPropertyInfoList *entry;
 
         /* Skip Object and DeviceState properties */
         if (strcmp(prop->name, "type") == 0 ||
@@ -181,10 +170,7 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
         info->default_value = qobject_ref(prop->defval);
         info->has_default_value = !!info->default_value;
 
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = info;
-        entry->next = prop_list;
-        prop_list = entry;
+        QAPI_LIST_PREPEND(prop_list, info);
     }
 
     object_unref(obj);
@@ -208,9 +194,9 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
         return NULL;
     }
 
-    klass = object_class_dynamic_cast(klass, TYPE_OBJECT);
-    if (klass == NULL) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "typename", TYPE_OBJECT);
+    if (!object_class_dynamic_cast(klass, TYPE_OBJECT)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "typename",
+                   "a QOM type");
         return NULL;
     }
 
@@ -222,7 +208,6 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
     }
     while ((prop = object_property_iter_next(&iter))) {
         ObjectPropertyInfo *info;
-        ObjectPropertyInfoList *entry;
 
         info = g_malloc0(sizeof(*info));
         info->name = g_strdup(prop->name);
@@ -230,10 +215,7 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
         info->has_description = !!prop->description;
         info->description = g_strdup(prop->description);
 
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = info;
-        entry->next = prop_list;
-        prop_list = entry;
+        QAPI_LIST_PREPEND(prop_list, info);
     }
 
     object_unref(obj);

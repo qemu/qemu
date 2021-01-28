@@ -360,7 +360,7 @@ static void *hpt_prepare_thread(void *opaque)
     SpaprPendingHpt *pending = opaque;
     size_t size = 1ULL << pending->shift;
 
-    pending->hpt = qemu_memalign(size, size);
+    pending->hpt = qemu_try_memalign(size, size);
     if (pending->hpt) {
         memset(pending->hpt, 0, size);
         pending->ret = H_SUCCESS;
@@ -1351,6 +1351,7 @@ static target_ulong h_logical_dcbf(PowerPCCPU *cpu, SpaprMachineState *spapr,
 }
 
 static target_ulong h_set_mode_resource_le(PowerPCCPU *cpu,
+                                           SpaprMachineState *spapr,
                                            target_ulong mflags,
                                            target_ulong value1,
                                            target_ulong value2)
@@ -1365,12 +1366,12 @@ static target_ulong h_set_mode_resource_le(PowerPCCPU *cpu,
     switch (mflags) {
     case H_SET_MODE_ENDIAN_BIG:
         spapr_set_all_lpcrs(0, LPCR_ILE);
-        spapr_pci_switch_vga(true);
+        spapr_pci_switch_vga(spapr, true);
         return H_SUCCESS;
 
     case H_SET_MODE_ENDIAN_LITTLE:
         spapr_set_all_lpcrs(LPCR_ILE, LPCR_ILE);
-        spapr_pci_switch_vga(false);
+        spapr_pci_switch_vga(spapr, false);
         return H_SUCCESS;
     }
 
@@ -1411,7 +1412,7 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     switch (resource) {
     case H_SET_MODE_RESOURCE_LE:
-        ret = h_set_mode_resource_le(cpu, args[0], args[2], args[3]);
+        ret = h_set_mode_resource_le(cpu, spapr, args[0], args[2], args[3]);
         break;
     case H_SET_MODE_RESOURCE_ADDR_TRANS_MODE:
         ret = h_set_mode_resource_addr_trans_mode(cpu, args[0],
@@ -1590,12 +1591,11 @@ static target_ulong h_signal_sys_reset(PowerPCCPU *cpu,
     }
 }
 
-static uint32_t cas_check_pvr(SpaprMachineState *spapr, PowerPCCPU *cpu,
-                              target_ulong *addr, bool *raw_mode_supported,
-                              Error **errp)
+/* Returns either a logical PVR or zero if none was found */
+static uint32_t cas_check_pvr(PowerPCCPU *cpu, uint32_t max_compat,
+                              target_ulong *addr, bool *raw_mode_supported)
 {
     bool explicit_match = false; /* Matched the CPU's real PVR */
-    uint32_t max_compat = spapr->max_compat_pvr;
     uint32_t best_compat = 0;
     int i;
 
@@ -1624,14 +1624,6 @@ static uint32_t cas_check_pvr(SpaprMachineState *spapr, PowerPCCPU *cpu,
         }
     }
 
-    if ((best_compat == 0) && (!explicit_match || max_compat)) {
-        /* We couldn't find a suitable compatibility mode, and either
-         * the guest doesn't support "raw" mode for this CPU, or raw
-         * mode is disabled because a maximum compat mode is set */
-        error_setg(errp, "Couldn't negotiate a suitable PVR during CAS");
-        return 0;
-    }
-
     *raw_mode_supported = explicit_match;
 
     /* Parsing finished */
@@ -1640,32 +1632,7 @@ static uint32_t cas_check_pvr(SpaprMachineState *spapr, PowerPCCPU *cpu,
     return best_compat;
 }
 
-static void spapr_handle_transient_dev_before_cas(SpaprMachineState *spapr)
-{
-    Object *drc_container;
-    ObjectProperty *prop;
-    ObjectPropertyIterator iter;
-
-    drc_container = container_get(object_get_root(), "/dr-connector");
-    object_property_iter_init(&iter, drc_container);
-    while ((prop = object_property_iter_next(&iter))) {
-        SpaprDrc *drc;
-
-        if (!strstart(prop->type, "link<", NULL)) {
-            continue;
-        }
-        drc = SPAPR_DR_CONNECTOR(object_property_get_link(drc_container,
-                                                          prop->name,
-                                                          &error_abort));
-
-        if (spapr_drc_transient(drc)) {
-            spapr_drc_reset(drc);
-        }
-    }
-
-    spapr_clear_pending_hotplug_events(spapr);
-}
-
+static
 target_ulong do_client_architecture_support(PowerPCCPU *cpu,
                                             SpaprMachineState *spapr,
                                             target_ulong vec,
@@ -1675,11 +1642,11 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
     uint32_t cas_pvr;
     SpaprOptionVector *ov1_guest, *ov5_guest;
     bool guest_radix;
-    Error *local_err = NULL;
     bool raw_mode_supported = false;
     bool guest_xive;
     CPUState *cs;
     void *fdt;
+    uint32_t max_compat = spapr->max_compat_pvr;
 
     /* CAS is supposed to be called early when only the boot vCPU is active. */
     CPU_FOREACH(cs) {
@@ -1692,16 +1659,22 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
         }
     }
 
-    cas_pvr = cas_check_pvr(spapr, cpu, &vec, &raw_mode_supported, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
+    cas_pvr = cas_check_pvr(cpu, max_compat, &vec, &raw_mode_supported);
+    if (!cas_pvr && (!raw_mode_supported || max_compat)) {
+        /*
+         * We couldn't find a suitable compatibility mode, and either
+         * the guest doesn't support "raw" mode for this CPU, or "raw"
+         * mode is disabled because a maximum compat mode is set.
+         */
+        error_report("Couldn't negotiate a suitable PVR during CAS");
         return H_HARDWARE;
     }
 
     /* Update CPUs */
     if (cpu->compat_pvr != cas_pvr) {
-        ppc_set_compat_all(cas_pvr, &local_err);
-        if (local_err) {
+        Error *local_err = NULL;
+
+        if (ppc_set_compat_all(cas_pvr, &local_err) < 0) {
             /* We fail to set compat mode (likely because running with KVM PR),
              * but maybe we can fallback to raw mode if the guest supports it.
              */
@@ -1710,7 +1683,6 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
                 return H_HARDWARE;
             }
             error_free(local_err);
-            local_err = NULL;
         }
     }
 
@@ -1818,7 +1790,12 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
 
     spapr_irq_update_active_intc(spapr);
 
-    spapr_handle_transient_dev_before_cas(spapr);
+    /*
+     * Process all pending hot-plug/unplug requests now. An updated full
+     * rendered FDT will be returned to the guest.
+     */
+    spapr_drc_reset_all(spapr);
+    spapr_clear_pending_hotplug_events(spapr);
 
     /*
      * If spapr_machine_reset() did not set up a HPT but one is necessary

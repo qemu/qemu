@@ -13,7 +13,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -1647,11 +1647,8 @@ pci_e1000_uninit(PCIDevice *dev)
 {
     E1000State *d = E1000(dev);
 
-    timer_del(d->autoneg_timer);
     timer_free(d->autoneg_timer);
-    timer_del(d->mit_timer);
     timer_free(d->mit_timer);
-    timer_del(d->flush_queue_timer);
     timer_free(d->flush_queue_timer);
     qemu_del_nic(d->nic);
 }

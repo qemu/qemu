@@ -1,17 +1,12 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# kvm.c
-kvm_x86_fixup_msi_error(uint32_t gsi) "VT-d failed to remap interrupt for GSI %" PRIu32
-kvm_x86_add_msi_route(int virq) "Adding route entry for virq %d"
-kvm_x86_remove_msi_route(int virq) "Removing route entry for virq %d"
-kvm_x86_update_msi_routes(int num) "Updated %d MSI routes"
-
 # sev.c
 kvm_sev_init(void) ""
-kvm_memcrypt_register_region(void *addr, size_t len) "addr %p len 0x%zu"
-kvm_memcrypt_unregister_region(void *addr, size_t len) "addr %p len 0x%zu"
+kvm_memcrypt_register_region(void *addr, size_t len) "addr %p len 0x%zx"
+kvm_memcrypt_unregister_region(void *addr, size_t len) "addr %p len 0x%zx"
 kvm_sev_change_state(const char *old, const char *new) "%s -> %s"
 kvm_sev_launch_start(int policy, void *session, void *pdh) "policy 0x%x session %p pdh %p"
-kvm_sev_launch_update_data(void *addr, uint64_t len) "addr %p len 0x%" PRIu64
+kvm_sev_launch_update_data(void *addr, uint64_t len) "addr %p len 0x%" PRIx64
 kvm_sev_launch_measurement(const char *value) "data %s"
 kvm_sev_launch_finish(void) ""
+kvm_sev_launch_secret(uint64_t hpa, uint64_t hva, uint64_t secret, int len) "hpa 0x%" PRIx64 " hva 0x%" PRIx64 " data 0x%" PRIx64 " len %d"

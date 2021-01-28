@@ -293,7 +293,6 @@ typedef struct CPUOpenRISCState {
     uint32_t picmr;         /* Interrupt mask register */
     uint32_t picsr;         /* Interrupt contrl register*/
 #endif
-    void *irq[32];          /* Interrupt irq input */
 } CPUOpenRISCState;
 
 /**

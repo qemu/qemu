@@ -535,7 +535,7 @@ void vfio_probe_igd_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     /*
-     * Assume we have no GMS memory, but allow it to be overrided by device
+     * Assume we have no GMS memory, but allow it to be overridden by device
      * option (experimental).  The spec doesn't actually allow zero GMS when
      * when IVD (IGD VGA Disable) is clear, but the claim is that it's unused,
      * so let's not waste VM memory for it.

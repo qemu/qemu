@@ -8,7 +8,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -474,7 +474,6 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
     SpaprVioDevice *dev = (SpaprVioDevice *)qdev;
     SpaprVioDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
     char *id;
-    Error *local_err = NULL;
 
     if (dev->reg != -1) {
         /*
@@ -510,16 +509,15 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
     dev->irq = spapr_vio_reg_to_irq(dev->reg);
 
     if (SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
-        dev->irq = spapr_irq_findone(spapr, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        int irq = spapr_irq_findone(spapr, errp);
+
+        if (irq < 0) {
             return;
         }
+        dev->irq = irq;
     }
 
-    spapr_irq_claim(spapr, dev->irq, false, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (spapr_irq_claim(spapr, dev->irq, false, errp) < 0) {
         return;
     }
 
@@ -527,10 +525,10 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
         uint32_t liobn = SPAPR_VIO_LIOBN(dev->reg);
 
         memory_region_init(&dev->mrroot, OBJECT(dev), "iommu-spapr-root",
-                           ram_size);
+                           MACHINE(spapr)->ram_size);
         memory_region_init_alias(&dev->mrbypass, OBJECT(dev),
                                  "iommu-spapr-bypass", get_system_memory(),
-                                 0, ram_size);
+                                 0, MACHINE(spapr)->ram_size);
         memory_region_add_subregion_overlap(&dev->mrroot, 0, &dev->mrbypass, 1);
         address_space_init(&dev->as, &dev->mrroot, qdev->id);
 

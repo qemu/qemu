@@ -6,7 +6,7 @@ config ARM_VIRT
     imply VFIO_PLATFORM
     imply VFIO_XGMAC
     imply TPM_TIS_SYSBUS
-    select A15MPCORE
+    select ARM_GIC
     select ACPI
     select ARM_SMMUV3
     select GPIO_KEY
@@ -26,6 +26,7 @@ config ARM_VIRT
     select ACPI_MEMORY_HOTPLUG
     select ACPI_HW_REDUCED
     select ACPI_NVDIMM
+    select ACPI_APEI
 
 config CHEETAH
     bool
@@ -93,6 +94,7 @@ config MUSCA
 
 config MUSICPAL
     bool
+    select OR_IRQ
     select BITBANG_I2C
     select MARVELL_88W8618
     select PTIMER
@@ -150,10 +152,11 @@ config TOSA
     select ZAURUS  # scoop
     select MICRODRIVE
     select PXA2XX
+    select LED
 
 config SPITZ
     bool
-    select ADS7846 # display
+    select ADS7846 # touch-screen controller
     select MAX111X # A/D converter
     select WM8750  # audio codec
     select MAX7310 # GPIO expander
@@ -210,6 +213,7 @@ config SBSA_REF
     select PL031 # RTC
     select PL061 # GPIO
     select USB_EHCI_SYSBUS
+    select WDT_SBSA
 
 config SABRELITE
     bool
@@ -288,6 +292,7 @@ config ZYNQ
 
 config ARM_V7M
     bool
+    select PTIMER
 
 config ALLWINNER_A10
     bool
@@ -402,7 +407,9 @@ config ASPEED_SOC
     select SSI_M25P80
     select TMP105
     select TMP421
+    select EMC141X
     select UNIMP
+    select LED
 
 config MPS2
     bool

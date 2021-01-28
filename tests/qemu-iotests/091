@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw migration quick
 #
 # Live migration test
 #
@@ -44,7 +45,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.qemu
 
 _supported_fmt qcow2
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 _supported_cache_modes writethrough none writeback
 _default_cache_mode none writeback
@@ -96,7 +97,8 @@ _send_qemu_cmd $h2 'qemu-io disk flush' "(qemu)"
 _send_qemu_cmd $h2 'quit' ""
 _send_qemu_cmd $h1 'quit' ""
 
-wait
+wait=yes _cleanup_qemu >/dev/null
+
 echo "Check image pattern"
 ${QEMU_IO} -c "read -P 0x22 0 4M" "${TEST_IMG}" | _filter_testdir | _filter_qemu_io
 

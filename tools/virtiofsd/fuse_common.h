@@ -18,8 +18,6 @@
 
 #include "fuse_log.h"
 #include "fuse_opt.h"
-#include <stdint.h>
-#include <sys/types.h>
 
 /** Major version of FUSE library interface */
 #define FUSE_MAJOR_VERSION 3
@@ -351,6 +349,13 @@ struct fuse_file_info {
  * Setting (or unsetting) this flag in the `want` field has *no effect*.
  */
 #define FUSE_CAP_NO_OPENDIR_SUPPORT (1 << 24)
+
+/**
+ * Indicates that the kernel supports the FUSE_ATTR_SUBMOUNT flag.
+ *
+ * Setting (or unsetting) this flag in the `want` field has *no effect*.
+ */
+#define FUSE_CAP_SUBMOUNTS (1 << 27)
 
 /**
  * Ioctl flags
@@ -802,15 +807,6 @@ void fuse_remove_signal_handlers(struct fuse_session *se);
  *
  * On 32bit systems please add -D_FILE_OFFSET_BITS=64 to your compile flags!
  */
-
-#if defined(__GNUC__) &&                                      \
-    (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 6) && \
-    !defined __cplusplus
-_Static_assert(sizeof(off_t) == 8, "fuse: off_t must be 64bit");
-#else
-struct _fuse_off_t_must_be_64bit_dummy_struct {
-    unsigned _fuse_off_t_must_be_64bit:((sizeof(off_t) == 8) ? 1 : -1);
-};
-#endif
+QEMU_BUILD_BUG_ON(sizeof(off_t) != 8);
 
 #endif /* FUSE_COMMON_H_ */

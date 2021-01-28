@@ -23,6 +23,7 @@ typedef enum {
     S390_FEAT_TYPE_STFL,
     S390_FEAT_TYPE_SCLP_CONF_CHAR,
     S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT,
+    S390_FEAT_TYPE_SCLP_FAC134,
     S390_FEAT_TYPE_SCLP_CPU,
     S390_FEAT_TYPE_MISC,
     S390_FEAT_TYPE_PLO,
@@ -80,6 +81,10 @@ const S390FeatGroupDef *s390_feat_group_def(S390FeatGroup group);
 
 #define BE_BIT_NR(BIT) (BIT ^ (BITS_PER_LONG - 1))
 
+static inline void clear_be_bit(unsigned int bit_nr, uint8_t *array)
+{
+    array[bit_nr / 8] &= ~(0x80 >> (bit_nr % 8));
+}
 static inline void set_be_bit(unsigned int bit_nr, uint8_t *array)
 {
     array[bit_nr / 8] |= 0x80 >> (bit_nr % 8);

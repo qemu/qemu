@@ -174,6 +174,12 @@ uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
             | (env->vfp.vec_len << 16)
             | (env->vfp.vec_stride << 20);
 
+    /*
+     * M-profile LTPSIZE overlaps A-profile Stride; whichever of the
+     * two is not applicable to this CPU will always be zero.
+     */
+    fpscr |= env->v7m.ltpsize << 16;
+
     fpscr |= vfp_get_fpscr_from_host(env);
 
     i = env->vfp.qc[0] | env->vfp.qc[1] | env->vfp.qc[2] | env->vfp.qc[3];
@@ -194,36 +200,45 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
         val &= ~FPCR_FZ16;
     }
 
-    if (arm_feature(env, ARM_FEATURE_M)) {
+    vfp_set_fpscr_to_host(env, val);
+
+    if (!arm_feature(env, ARM_FEATURE_M)) {
         /*
-         * M profile FPSCR is RES0 for the QC, STRIDE, FZ16, LEN bits
-         * and also for the trapped-exception-handling bits IxE.
+         * Short-vector length and stride; on M-profile these bits
+         * are used for different purposes.
+         * We can't make this conditional be "if MVFR0.FPShVec != 0",
+         * because in v7A no-short-vector-support cores still had to
+         * allow Stride/Len to be written with the only effect that
+         * some insns are required to UNDEF if the guest sets them.
+         *
+         * TODO: if M-profile MVE implemented, set LTPSIZE.
          */
-        val &= 0xf7c0009f;
+        env->vfp.vec_len = extract32(val, 16, 3);
+        env->vfp.vec_stride = extract32(val, 20, 2);
     }
 
-    vfp_set_fpscr_to_host(env, val);
+    if (arm_feature(env, ARM_FEATURE_NEON)) {
+        /*
+         * The bit we set within fpscr_q is arbitrary; the register as a
+         * whole being zero/non-zero is what counts.
+         * TODO: M-profile MVE also has a QC bit.
+         */
+        env->vfp.qc[0] = val & FPCR_QC;
+        env->vfp.qc[1] = 0;
+        env->vfp.qc[2] = 0;
+        env->vfp.qc[3] = 0;
+    }
 
     /*
      * We don't implement trapped exception handling, so the
      * trap enable bits, IDE|IXE|UFE|OFE|DZE|IOE are all RAZ/WI (not RES0!)
      *
-     * If we exclude the exception flags, IOC|DZC|OFC|UFC|IXC|IDC
-     * (which are stored in fp_status), and the other RES0 bits
-     * in between, then we clear all of the low 16 bits.
+     * The exception flags IOC|DZC|OFC|UFC|IXC|IDC are stored in
+     * fp_status; QC, Len and Stride are stored separately earlier.
+     * Clear out all of those and the RES0 bits: only NZCV, AHP, DN,
+     * FZ, RMode and FZ16 are kept in vfp.xregs[FPSCR].
      */
     env->vfp.xregs[ARM_VFP_FPSCR] = val & 0xf7c80000;
-    env->vfp.vec_len = (val >> 16) & 7;
-    env->vfp.vec_stride = (val >> 20) & 3;
-
-    /*
-     * The bit we set within fpscr_q is arbitrary; the register as a
-     * whole being zero/non-zero is what counts.
-     */
-    env->vfp.qc[0] = val & FPCR_QC;
-    env->vfp.qc[1] = 0;
-    env->vfp.qc[2] = 0;
-    env->vfp.qc[3] = 0;
 }
 
 void vfp_set_fpscr(CPUARMState *env, uint32_t val)
@@ -393,11 +408,31 @@ float32 VFP_HELPER(fcvts, d)(float64 x, CPUARMState *env)
     return float64_to_float32(x, &env->vfp.fp_status);
 }
 
-/* VFP3 fixed point conversion.  */
+/*
+ * VFP3 fixed point conversion. The AArch32 versions of fix-to-float
+ * must always round-to-nearest; the AArch64 ones honour the FPSCR
+ * rounding mode. (For AArch32 Neon the standard-FPSCR is set to
+ * round-to-nearest so either helper will work.) AArch32 float-to-fix
+ * must round-to-zero.
+ */
 #define VFP_CONV_FIX_FLOAT(name, p, fsz, ftype, isz, itype)            \
 ftype HELPER(vfp_##name##to##p)(uint##isz##_t  x, uint32_t shift,      \
                                      void *fpstp) \
 { return itype##_to_##float##fsz##_scalbn(x, -shift, fpstp); }
+
+#define VFP_CONV_FIX_FLOAT_ROUND(name, p, fsz, ftype, isz, itype)      \
+    ftype HELPER(vfp_##name##to##p##_round_to_nearest)(uint##isz##_t  x, \
+                                                     uint32_t shift,   \
+                                                     void *fpstp)      \
+    {                                                                  \
+        ftype ret;                                                     \
+        float_status *fpst = fpstp;                                    \
+        FloatRoundMode oldmode = fpst->float_rounding_mode;            \
+        fpst->float_rounding_mode = float_round_nearest_even;          \
+        ret = itype##_to_##float##fsz##_scalbn(x, -shift, fpstp);      \
+        fpst->float_rounding_mode = oldmode;                           \
+        return ret;                                                    \
+    }
 
 #define VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, ftype, isz, itype, ROUND, suff) \
 uint##isz##_t HELPER(vfp_to##name##p##suff)(ftype x, uint32_t shift,      \
@@ -412,6 +447,7 @@ uint##isz##_t HELPER(vfp_to##name##p##suff)(ftype x, uint32_t shift,      \
 
 #define VFP_CONV_FIX(name, p, fsz, ftype, isz, itype)            \
 VFP_CONV_FIX_FLOAT(name, p, fsz, ftype, isz, itype)              \
+VFP_CONV_FIX_FLOAT_ROUND(name, p, fsz, ftype, isz, itype)        \
 VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, ftype, isz, itype,        \
                          float_round_to_zero, _round_to_zero)    \
 VFP_CONV_FLOAT_FIX_ROUND(name, p, fsz, ftype, isz, itype,        \

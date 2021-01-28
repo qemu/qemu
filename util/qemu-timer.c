@@ -26,8 +26,10 @@
 #include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "qemu/lockable.h"
+#include "sysemu/cpu-timers.h"
 #include "sysemu/replay.h"
 #include "sysemu/cpus.h"
+#include "sysemu/qtest.h"
 
 #ifdef CONFIG_POSIX
 #include <pthread.h>
@@ -134,7 +136,7 @@ static void qemu_clock_init(QEMUClockType type, QEMUTimerListNotifyCB *notify_cb
 
 bool qemu_clock_use_for_deadline(QEMUClockType type)
 {
-    return !(use_icount && (type == QEMU_CLOCK_VIRTUAL));
+    return !(icount_enabled() && (type == QEMU_CLOCK_VIRTUAL));
 }
 
 void qemu_clock_notify(QEMUClockType type)
@@ -416,8 +418,8 @@ static bool timer_mod_ns_locked(QEMUTimerList *timer_list,
 static void timerlist_rearm(QEMUTimerList *timer_list)
 {
     /* Interrupt execution to force deadline recalculation.  */
-    if (timer_list->clock->type == QEMU_CLOCK_VIRTUAL) {
-        qemu_start_warp_timer();
+    if (icount_enabled() && timer_list->clock->type == QEMU_CLOCK_VIRTUAL) {
+        icount_start_warp_timer();
     }
     timerlist_notify(timer_list);
 }
@@ -633,11 +635,7 @@ int64_t qemu_clock_get_ns(QEMUClockType type)
         return get_clock();
     default:
     case QEMU_CLOCK_VIRTUAL:
-        if (use_icount) {
-            return cpu_get_icount();
-        } else {
-            return cpu_get_clock();
-        }
+        return cpus_get_virtual_clock();
     case QEMU_CLOCK_HOST:
         return REPLAY_CLOCK(REPLAY_CLOCK_HOST, get_clock_realtime());
     case QEMU_CLOCK_VIRTUAL_RT:

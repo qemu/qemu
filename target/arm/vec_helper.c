@@ -6,7 +6,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -293,7 +293,7 @@ void HELPER(gvec_sdot_idx_b)(void *vd, void *vn, void *vm, uint32_t desc)
     intptr_t index = simd_data(desc);
     uint32_t *d = vd;
     int8_t *n = vn;
-    int8_t *m_indexed = (int8_t *)vm + index * 4;
+    int8_t *m_indexed = (int8_t *)vm + H4(index) * 4;
 
     /* Notice the special case of opr_sz == 8, from aa64/aa32 advsimd.
      * Otherwise opr_sz is a multiple of 16.
@@ -324,7 +324,7 @@ void HELPER(gvec_udot_idx_b)(void *vd, void *vn, void *vm, uint32_t desc)
     intptr_t index = simd_data(desc);
     uint32_t *d = vd;
     uint8_t *n = vn;
-    uint8_t *m_indexed = (uint8_t *)vm + index * 4;
+    uint8_t *m_indexed = (uint8_t *)vm + H4(index) * 4;
 
     /* Notice the special case of opr_sz == 8, from aa64/aa32 advsimd.
      * Otherwise opr_sz is a multiple of 16.
@@ -1858,10 +1858,10 @@ DO_ABA(gvec_uaba_d, uint64_t)
         r2 = float16_##OP(m[H2(0)], m[H2(1)], fpst);                    \
         r3 = float16_##OP(m[H2(2)], m[H2(3)], fpst);                    \
                                                                         \
-        d[H4(0)] = r0;                                                  \
-        d[H4(1)] = r1;                                                  \
-        d[H4(2)] = r2;                                                  \
-        d[H4(3)] = r3;                                                  \
+        d[H2(0)] = r0;                                                  \
+        d[H2(1)] = r1;                                                  \
+        d[H2(2)] = r2;                                                  \
+        d[H2(3)] = r3;                                                  \
     }
 
 DO_NEON_PAIRWISE(neon_padd, add)

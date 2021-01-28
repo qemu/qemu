@@ -6,7 +6,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -28,8 +28,8 @@
 #include "hw/loader.h"
 #include "hw/loader-fit.h"
 #include "hw/mips/cps.h"
-#include "hw/mips/cpudevs.h"
 #include "hw/pci-host/xilinx-pcie.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -43,10 +43,10 @@
 #include <libfdt.h>
 #include "qom/object.h"
 
-#define TYPE_MIPS_BOSTON "mips-boston"
+#define TYPE_BOSTON "mips-boston"
 typedef struct BostonState BostonState;
 DECLARE_INSTANCE_CHECKER(BostonState, BOSTON,
-                         TYPE_MIPS_BOSTON)
+                         TYPE_BOSTON)
 
 struct BostonState {
     SysBusDevice parent_obj;
@@ -54,6 +54,7 @@ struct BostonState {
     MachineState *mach;
     MIPSCPSState cps;
     SerialMM *uart;
+    Clock *cpuclk;
 
     CharBackend lcd_display;
     char lcd_content[8];
@@ -251,10 +252,19 @@ static const MemoryRegionOps boston_platreg_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void mips_boston_instance_init(Object *obj)
+{
+    BostonState *s = BOSTON(obj);
+
+    s->cpuclk = qdev_init_clock_out(DEVICE(obj), "cpu-refclk");
+    clock_set_hz(s->cpuclk, 1000000000); /* 1 GHz */
+}
+
 static const TypeInfo boston_device = {
-    .name          = TYPE_MIPS_BOSTON,
+    .name          = TYPE_BOSTON,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BostonState),
+    .instance_init = mips_boston_instance_init,
 };
 
 static void boston_register_types(void)
@@ -338,11 +348,9 @@ static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
     MachineState *machine = s->mach;
     const char *cmdline;
     int err;
-    void *fdt;
-    size_t fdt_sz, ram_low_sz, ram_high_sz;
-
-    fdt_sz = fdt_totalsize(fdt_orig) * 2;
-    fdt = g_malloc0(fdt_sz);
+    size_t ram_low_sz, ram_high_sz;
+    size_t fdt_sz = fdt_totalsize(fdt_orig) * 2;
+    g_autofree void *fdt = g_malloc0(fdt_sz);
 
     err = fdt_open_into(fdt_orig, fdt, fdt_sz);
     if (err) {
@@ -369,7 +377,7 @@ static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
 
     s->fdt_base = *load_addr;
 
-    return fdt;
+    return g_steal_pointer(&fdt);
 }
 
 static const void *boston_kernel_filter(void *opaque, const void *kernel,
@@ -436,7 +444,6 @@ static void boston_mach_init(MachineState *machine)
     DriveInfo *hd[6];
     Chardev *chr;
     int fw_size, fit_err;
-    bool is_64b;
 
     if ((machine->ram_size % GiB) ||
         (machine->ram_size > (2 * GiB))) {
@@ -444,24 +451,24 @@ static void boston_mach_init(MachineState *machine)
         exit(1);
     }
 
-    dev = qdev_new(TYPE_MIPS_BOSTON);
+    dev = qdev_new(TYPE_BOSTON);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     s = BOSTON(dev);
     s->mach = machine;
 
-    if (!cpu_supports_cps_smp(machine->cpu_type)) {
+    if (!cpu_type_supports_cps_smp(machine->cpu_type)) {
         error_report("Boston requires CPUs which support CPS");
         exit(1);
     }
-
-    is_64b = cpu_supports_isa(machine->cpu_type, ISA_MIPS64);
 
     object_initialize_child(OBJECT(machine), "cps", &s->cps, TYPE_MIPS_CPS);
     object_property_set_str(OBJECT(&s->cps), "cpu-type", machine->cpu_type,
                             &error_fatal);
     object_property_set_int(OBJECT(&s->cps), "num-vp", machine->smp.cpus,
                             &error_fatal);
+    qdev_connect_clock_in(DEVICE(&s->cps), "clk-in",
+                          qdev_get_clock_out(dev, "cpu-refclk"));
     sysbus_realize(SYS_BUS_DEVICE(&s->cps), &error_fatal);
 
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->cps), 0, 0, 1);
@@ -535,7 +542,8 @@ static void boston_mach_init(MachineState *machine)
         }
 
         gen_firmware(memory_region_get_ram_ptr(flash) + 0x7c00000,
-                     s->kernel_entry, s->fdt_base, is_64b);
+                     s->kernel_entry, s->fdt_base,
+                     cpu_type_is_64bit(machine->cpu_type));
     } else if (!qtest_enabled()) {
         error_report("Please provide either a -kernel or -bios argument");
         exit(1);

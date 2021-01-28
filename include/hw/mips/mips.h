@@ -2,8 +2,10 @@
 #define HW_MIPS_H
 /* Definitions for mips board emulation.  */
 
+#include "qemu/units.h"
+
 /* Kernels can be configured with 64KB pages */
-#define INITRD_PAGE_MASK (~((1 << 16) - 1))
+#define INITRD_PAGE_SIZE (64 * KiB)
 
 #include "exec/memory.h"
 

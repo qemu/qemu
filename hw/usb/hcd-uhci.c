@@ -1283,7 +1283,6 @@ static void usb_uhci_exit(PCIDevice *dev)
     trace_usb_uhci_exit();
 
     if (s->frame_timer) {
-        timer_del(s->frame_timer);
         timer_free(s->frame_timer);
         s->frame_timer = NULL;
     }

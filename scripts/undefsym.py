@@ -15,12 +15,11 @@ def filter_lines_set(stdout, from_staticlib):
     linesSet = set()
     for line in stdout.splitlines():
         tokens = line.split(b' ')
-        if len(tokens) >= 1:
-            if len(tokens) > 1:
-                if from_staticlib and tokens[1] == b'U':
-                    continue
-                if not from_staticlib and tokens[1] != b'U':
-                    continue
+        if len(tokens) >= 2:
+            if from_staticlib and tokens[1] == b'U':
+                continue
+            if not from_staticlib and tokens[1] != b'U':
+                continue
             new_line = b'-Wl,-u,' + tokens[0]
             if not new_line in linesSet:
                 linesSet.add(new_line)

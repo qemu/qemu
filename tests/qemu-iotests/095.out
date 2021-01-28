@@ -12,7 +12,9 @@ virtual size: 5 MiB (5242880 bytes)
 
 { 'execute': 'qmp_capabilities' }
 {"return": {}}
-{ 'execute': 'block-commit', 'arguments': { 'device': 'test', 'top': 'TEST_DIR/t.IMGFMT.snp1' } }
+{ 'execute': 'block-commit',
+                                 'arguments': { 'device': 'test',
+                                 'top': 'TEST_DIR/t.IMGFMT.snp1' } }
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "test"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "test"}}
 {"return": {}}

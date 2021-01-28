@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw backing quick
 #
 # Test qemu-img --backing-chain --image-opts
 #
@@ -36,7 +37,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # Backing files are required...
 _supported_fmt qcow qcow2 vmdk qed
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 _unsupported_imgopts "subformat=monolithicFlat" \
                      "subformat=twoGbMaxExtentFlat" \

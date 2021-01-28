@@ -26,6 +26,7 @@ import sys
 import os
 import subprocess
 import simplebench
+from results_to_text import results_to_text
 
 
 def bench_func(env, case):
@@ -167,4 +168,4 @@ if __name__ == '__main__':
 
     result = simplebench.bench(bench_func, test_envs, test_cases, count=3,
                                initial_run=False)
-    print(simplebench.ascii(result))
+    print(results_to_text(result))

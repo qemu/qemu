@@ -40,15 +40,16 @@ SRST
 ERST
 
     {
-        .name       = "q|quit",
+        .name       = "quit|q",
         .args_type  = "",
         .params     = "",
         .help       = "quit the emulator",
         .cmd        = hmp_quit,
+        .flags      = "p",
     },
 
 SRST
-``q`` or ``quit``
+``quit`` or ``q``
   Quit the emulator.
 ERST
 
@@ -76,6 +77,7 @@ ERST
         .params     = "device size",
         .help       = "resize a block image",
         .cmd        = hmp_block_resize,
+        .coroutine  = true,
     },
 
 SRST
@@ -229,12 +231,6 @@ SRST
     read-write
       Makes the device writable.
 
-  ``change vnc`` *display*,\ *options*
-    Change the configuration of the VNC server. The valid syntax for *display*
-    and *options* are described at :ref:`sec_005finvocation`. eg::
-
-      (qemu) change vnc localhost:1
-
   ``change vnc password`` [*password*]
 
     Change the password associated with the VNC server. If the new password
@@ -253,6 +249,7 @@ ERST
         .help       = "save screen from head 'head' of display device 'device' "
                       "into PPM image 'filename'",
         .cmd        = hmp_screendump,
+        .coroutine  = true,
     },
 
 SRST
@@ -398,7 +395,7 @@ SRST
 ERST
 
     {
-        .name       = "c|cont",
+        .name       = "cont|c",
         .args_type  = "",
         .params     = "",
         .help       = "resume emulation",
@@ -406,7 +403,7 @@ ERST
     },
 
 SRST
-``c`` or ``cont``
+``cont`` or ``c``
   Resume emulation.
 ERST
 
@@ -551,7 +548,7 @@ SRST
 ERST
 
     {
-        .name       = "p|print",
+        .name       = "print|p",
         .args_type  = "fmt:/,val:l",
         .params     = "/fmt expr",
         .help       = "print expression value (use $reg for CPU register access)",
@@ -559,7 +556,7 @@ ERST
     },
 
 SRST
-``p`` or ``print/``\ *fmt* *expr*
+``print`` or ``p/``\ *fmt* *expr*
   Print expression value. Only the *format* part of *fmt* is
   used.
 ERST
@@ -1300,8 +1297,8 @@ ERST
 	              " -c for correctable error\n\t\t\t"
                       "<id> = qdev device id\n\t\t\t"
                       "<error_status> = error string or 32bit\n\t\t\t"
-                      "<tlb header> = 32bit x 4\n\t\t\t"
-                      "<tlb header prefix> = 32bit x 4",
+                      "<tlp header> = 32bit x 4\n\t\t\t"
+                      "<tlp header prefix> = 32bit x 4",
         .cmd        = hmp_pcie_aer_inject_error,
     },
 
@@ -1802,6 +1799,56 @@ ERST
 SRST
 ``qom-set`` *path* *property* *value*
   Set QOM property *property* of object at location *path* to value *value*
+ERST
+
+    {
+        .name       = "replay_break",
+        .args_type  = "icount:i",
+        .params     = "icount",
+        .help       = "set breakpoint at the specified instruction count",
+        .cmd        = hmp_replay_break,
+    },
+
+SRST
+``replay_break`` *icount*
+  Set replay breakpoint at instruction count *icount*.
+  Execution stops when the specified instruction is reached.
+  There can be at most one breakpoint. When breakpoint is set, any prior
+  one is removed.  The breakpoint may be set only in replay mode and only
+  "in the future", i.e. at instruction counts greater than the current one.
+  The current instruction count can be observed with ``info replay``.
+ERST
+
+    {
+        .name       = "replay_delete_break",
+        .args_type  = "",
+        .params     = "",
+        .help       = "remove replay breakpoint",
+        .cmd        = hmp_replay_delete_break,
+    },
+
+SRST
+``replay_delete_break``
+  Remove replay breakpoint which was previously set with ``replay_break``.
+  The command is ignored when there are no replay breakpoints.
+ERST
+
+    {
+        .name       = "replay_seek",
+        .args_type  = "icount:i",
+        .params     = "icount",
+        .help       = "replay execution to the specified instruction count",
+        .cmd        = hmp_replay_seek,
+    },
+
+SRST
+``replay_seek`` *icount*
+  Automatically proceed to the instruction count *icount*, when
+  replaying the execution. The command automatically loads nearest
+  snapshot and replays the execution to find the desired instruction.
+  When there is no preceding snapshot or the execution is not replayed,
+  then the command fails.
+  *icount* for the reference may be observed with ``info replay`` command.
 ERST
 
     {

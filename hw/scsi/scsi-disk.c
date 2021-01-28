@@ -34,6 +34,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
@@ -461,6 +462,25 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
             }
             error = scsi_sense_buf_to_errno(r->req.sense, sizeof(r->req.sense));
             break;
+#ifdef CONFIG_LINUX
+            /* These errno mapping are specific to Linux.  For more information:
+             * - scsi_decide_disposition in drivers/scsi/scsi_error.c
+             * - scsi_result_to_blk_status in drivers/scsi/scsi_lib.c
+             * - blk_errors[] in block/blk-core.c
+             */
+        case EBADE:
+            /* DID_NEXUS_FAILURE -> BLK_STS_NEXUS.  */
+            scsi_req_complete(&r->req, RESERVATION_CONFLICT);
+            break;
+        case ENODATA:
+            /* DID_MEDIUM_ERROR -> BLK_STS_MEDIUM.  */
+            scsi_check_condition(r, SENSE_CODE(READ_ERROR));
+            break;
+        case EREMOTEIO:
+            /* DID_TARGET_FAILURE -> BLK_STS_TARGET.  */
+            scsi_req_complete(&r->req, HARDWARE_ERROR);
+            break;
+#endif
         case ENOMEDIUM:
             scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
             break;
@@ -1250,7 +1270,7 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
 
     if (s->qdev.type == TYPE_DISK) {
         dev_specific_param = s->features & (1 << SCSI_DISK_F_DPOFUA) ? 0x10 : 0;
-        if (blk_is_read_only(s->qdev.conf.blk)) {
+        if (!blk_is_writable(s->qdev.conf.blk)) {
             dev_specific_param |= 0x80; /* Readonly.  */
         }
     } else {
@@ -1684,7 +1704,7 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
         goto invalid_param_len;
     }
 
-    if (blk_is_read_only(s->qdev.conf.blk)) {
+    if (!blk_is_writable(s->qdev.conf.blk)) {
         block_acct_invalid(blk_get_stats(s->qdev.conf.blk), BLOCK_ACCT_UNMAP);
         scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
         return;
@@ -1775,7 +1795,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
         return;
     }
 
-    if (blk_is_read_only(s->qdev.conf.blk)) {
+    if (!blk_is_writable(s->qdev.conf.blk)) {
         scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
         return;
     }
@@ -2187,7 +2207,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
     case WRITE_VERIFY_10:
     case WRITE_VERIFY_12:
     case WRITE_VERIFY_16:
-        if (blk_is_read_only(s->qdev.conf.blk)) {
+        if (!blk_is_writable(s->qdev.conf.blk)) {
             scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
             return 0;
         }
@@ -2360,7 +2380,7 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
         }
     }
 
-    read_only = blk_is_read_only(s->qdev.conf.blk);
+    read_only = !blk_supports_write_perm(s->qdev.conf.blk);
     if (dev->type == TYPE_ROM) {
         read_only = true;
     }

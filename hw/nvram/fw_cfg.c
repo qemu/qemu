@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 #include "sysemu/reset.h"
@@ -40,6 +41,7 @@
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/pci/pci_bus.h"
 
 #define FW_CFG_FILE_SLOTS_DFLT 0x20
 
@@ -581,7 +583,7 @@ static int get_uint32_as_uint16(QEMUFile *f, void *pv, size_t size,
 }
 
 static int put_unused(QEMUFile *f, void *pv, size_t size,
-                      const VMStateField *field, QJSON *vmdesc)
+                      const VMStateField *field, JSONWriter *vmdesc)
 {
     fprintf(stderr, "uint32_as_uint16 is only used for backward compatibility.\n");
     fprintf(stderr, "This functions shouldn't be called.\n");
@@ -1061,6 +1063,28 @@ bool fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
     return true;
 }
 
+void fw_cfg_add_extra_pci_roots(PCIBus *bus, FWCfgState *s)
+{
+    int extra_hosts = 0;
+
+    if (!bus) {
+        return;
+    }
+
+    QLIST_FOREACH(bus, &bus->child, sibling) {
+        /* look for expander root buses */
+        if (pci_bus_is_root(bus)) {
+            extra_hosts++;
+        }
+    }
+
+    if (extra_hosts && s) {
+        uint64_t *val = g_malloc(sizeof(*val));
+        *val = cpu_to_le64(extra_hosts);
+        fw_cfg_add_file(s, "etc/extra-pci-roots", val, sizeof(*val));
+    }
+}
+
 static void fw_cfg_machine_reset(void *opaque)
 {
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
@@ -1360,18 +1384,11 @@ static const TypeInfo fw_cfg_mem_info = {
     .class_init    = fw_cfg_mem_class_init,
 };
 
-static const TypeInfo fw_cfg_data_generator_interface_info = {
-    .parent = TYPE_INTERFACE,
-    .name = TYPE_FW_CFG_DATA_GENERATOR_INTERFACE,
-    .class_size = sizeof(FWCfgDataGeneratorClass),
-};
-
 static void fw_cfg_register_types(void)
 {
     type_register_static(&fw_cfg_info);
     type_register_static(&fw_cfg_io_info);
     type_register_static(&fw_cfg_mem_info);
-    type_register_static(&fw_cfg_data_generator_interface_info);
 }
 
 type_init(fw_cfg_register_types)

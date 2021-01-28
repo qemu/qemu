@@ -16,6 +16,8 @@
 
 #include "qom/object.h"
 #include "qemu/queue.h"
+#include "qemu/host-utils.h"
+#include "qemu/bitops.h"
 
 #define TYPE_CLOCK "clock"
 OBJECT_DECLARE_SIMPLE_TYPE(Clock, CLOCK)
@@ -38,7 +40,6 @@ typedef void ClockCallback(void *opaque);
  * macro helpers to convert to hertz / nanosecond
  */
 #define CLOCK_PERIOD_FROM_NS(ns) ((ns) * (CLOCK_PERIOD_1SEC / 1000000000llu))
-#define CLOCK_PERIOD_TO_NS(per) ((per) / (CLOCK_PERIOD_1SEC / 1000000000llu))
 #define CLOCK_PERIOD_FROM_HZ(hz) (((hz) != 0) ? CLOCK_PERIOD_1SEC / (hz) : 0u)
 #define CLOCK_PERIOD_TO_HZ(per) (((per) != 0) ? CLOCK_PERIOD_1SEC / (per) : 0u)
 
@@ -81,6 +82,11 @@ extern const VMStateDescription vmstate_clock;
     VMSTATE_CLOCK_V(field, state, 0)
 #define VMSTATE_CLOCK_V(field, state, version) \
     VMSTATE_STRUCT_POINTER_V(field, state, version, vmstate_clock, Clock)
+#define VMSTATE_ARRAY_CLOCK(field, state, num) \
+    VMSTATE_ARRAY_CLOCK_V(field, state, num, 0)
+#define VMSTATE_ARRAY_CLOCK_V(field, state, num, version)          \
+    VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(field, state, num, version, \
+                                       vmstate_clock, Clock)
 
 /**
  * clock_setup_canonical_path:
@@ -89,6 +95,19 @@ extern const VMStateDescription vmstate_clock;
  * compute the canonical path of the clock (used by log messages)
  */
 void clock_setup_canonical_path(Clock *clk);
+
+/**
+ * clock_new:
+ * @parent: the clock parent
+ * @name: the clock object name
+ *
+ * Helper function to create a new clock and parent it to @parent. There is no
+ * need to call clock_setup_canonical_path on the returned clock as it is done
+ * by this function.
+ *
+ * @return the newly created clock
+ */
+Clock *clock_new(Object *parent, const char *name);
 
 /**
  * clock_set_callback:
@@ -195,9 +214,43 @@ static inline unsigned clock_get_hz(Clock *clk)
     return CLOCK_PERIOD_TO_HZ(clock_get(clk));
 }
 
-static inline unsigned clock_get_ns(Clock *clk)
+/**
+ * clock_ticks_to_ns:
+ * @clk: the clock to query
+ * @ticks: number of ticks
+ *
+ * Returns the length of time in nanoseconds for this clock
+ * to tick @ticks times. Because a clock can have a period
+ * which is not a whole number of nanoseconds, it is important
+ * to use this function when calculating things like timer
+ * expiry deadlines, rather than attempting to obtain a "period
+ * in nanoseconds" value and then multiplying that by a number
+ * of ticks.
+ *
+ * The result could in theory be too large to fit in a 64-bit
+ * value if the number of ticks and the clock period are both
+ * large; to avoid overflow the result will be saturated to INT64_MAX
+ * (because this is the largest valid input to the QEMUTimer APIs).
+ * Since INT64_MAX nanoseconds is almost 300 years, anything with
+ * an expiry later than that is in the "will never happen" category
+ * and callers can reasonably not special-case the saturated result.
+ */
+static inline uint64_t clock_ticks_to_ns(const Clock *clk, uint64_t ticks)
 {
-    return CLOCK_PERIOD_TO_NS(clock_get(clk));
+    uint64_t ns_low, ns_high;
+
+    /*
+     * clk->period is the period in units of 2^-32 ns, so
+     * (clk->period * ticks) is the required length of time in those
+     * units, and we can convert to nanoseconds by multiplying by
+     * 2^32, which is the same as shifting the 128-bit multiplication
+     * result right by 32.
+     */
+    mulu64(&ns_low, &ns_high, clk->period, ticks);
+    if (ns_high & MAKE_64BIT_MASK(31, 33)) {
+        return INT64_MAX;
+    }
+    return ns_low >> 32 | ns_high << 32;
 }
 
 /**
@@ -210,5 +263,17 @@ static inline bool clock_is_enabled(const Clock *clk)
 {
     return clock_get(clk) != 0;
 }
+
+/**
+ * clock_display_freq: return human-readable representation of clock frequency
+ * @clk: clock
+ *
+ * Return a string which has a human-readable representation of the
+ * clock's frequency, e.g. "33.3 MHz". This is intended for debug
+ * and display purposes.
+ *
+ * The caller is responsible for freeing the string with g_free().
+ */
+char *clock_display_freq(Clock *clk);
 
 #endif /* QEMU_HW_CLOCK_H */

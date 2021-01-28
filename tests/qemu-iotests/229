@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: auto quick
 #
 # Test for force canceling a running blockjob that is paused in
 # an error state.
@@ -44,15 +45,14 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # Needs backing file and backing format support
 _supported_fmt qcow2 qed
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 # blkdebug can only inject errors on bs->file, so external data files
 # do not work with this test
 _unsupported_imgopts data_file
 
 
-DEST_IMG="$TEST_DIR/d.$IMGFMT"
-TEST_IMG="$TEST_DIR/b.$IMGFMT"
+DEST_IMG="$TEST_IMG.dest"
 BLKDEBUG_CONF="$TEST_DIR/blkdebug.conf"
 
 _make_test_img 2M

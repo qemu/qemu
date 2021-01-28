@@ -13,7 +13,6 @@
 #include "qapi/qapi-commands-qom.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
-#include "qapi/qmp/qstring.h"
 #include "qom/object.h"
 
 void hmp_qom_list(Monitor *mon, const QDict *qdict)
@@ -78,9 +77,9 @@ void hmp_qom_get(Monitor *mon, const QDict *qdict)
     QObject *obj = qmp_qom_get(path, property, &err);
 
     if (err == NULL) {
-        QString *str = qobject_to_json_pretty(obj);
-        monitor_printf(mon, "%s\n", qstring_get_str(str));
-        qobject_unref(str);
+        GString *str = qobject_to_json_pretty(obj, true);
+        monitor_printf(mon, "%s\n", str->str);
+        g_string_free(str, true);
     }
 
     qobject_unref(obj);

@@ -17,6 +17,7 @@
 #include "hw/loader.h"
 #include "hw/ppc/pnv_pnor.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 
 static uint64_t pnv_pnor_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -85,7 +86,7 @@ static void pnv_pnor_realize(DeviceState *dev, Error **errp)
 
     if (s->blk) {
         uint64_t perm = BLK_PERM_CONSISTENT_READ |
-                        (blk_is_read_only(s->blk) ? 0 : BLK_PERM_WRITE);
+                        (blk_supports_write_perm(s->blk) ? BLK_PERM_WRITE : 0);
         ret = blk_set_perm(s->blk, perm, BLK_PERM_ALL, errp);
         if (ret < 0) {
             return;

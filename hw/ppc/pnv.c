@@ -6,7 +6,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "sysemu/qtest.h"
@@ -61,7 +62,7 @@
 
 #define FW_FILE_NAME            "skiboot.lid"
 #define FW_LOAD_ADDR            0x0
-#define FW_MAX_SIZE             (4 * MiB)
+#define FW_MAX_SIZE             (16 * MiB)
 
 #define KERNEL_LOAD_ADDR        0x20000000
 #define KERNEL_MAX_SIZE         (256 * MiB)
@@ -713,6 +714,7 @@ static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
 
 static void pnv_init(MachineState *machine)
 {
+    const char *bios_name = machine->firmware ?: FW_FILE_NAME;
     PnvMachineState *pnv = PNV_MACHINE(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     char *fw_filename;
@@ -739,10 +741,6 @@ static void pnv_init(MachineState *machine)
     pnv->pnor = PNV_PNOR(dev);
 
     /* load skiboot firmware  */
-    if (bios_name == NULL) {
-        bios_name = FW_FILE_NAME;
-    }
-
     fw_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (!fw_filename) {
         error_report("Could not find OPAL firmware '%s'", bios_name);

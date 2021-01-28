@@ -425,7 +425,8 @@ _qemu_img_wrapper commit -b TEST_DIR/t.qcow2.b TEST_DIR/t.qcow2.c
 { 'execute': 'qmp_capabilities' }
 {"return": {}}
 Adding drive
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_add 0 if=none,id=d0,file=TEST_DIR/t.IMGFMT' } }
+{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'drive_add 0 if=none,id=d0,file=TEST_DIR/t.IMGFMT' } }
 {"return": "OKrn"}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
@@ -435,25 +436,30 @@ Creating overlay with qemu-img when the guest is running should be allowed
 
 _qemu_img_wrapper create -f qcow2 -b TEST_DIR/t.qcow2 -F qcow2 TEST_DIR/t.qcow2.overlay
 == Closing an image should unlock it ==
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_del d0' } }
+{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'drive_del d0' } }
 {"return": ""}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 Adding two and closing one
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_add 0 if=none,id=d0,file=TEST_DIR/t.IMGFMT,readonly=on' } }
+{ 'execute': 'human-monitor-command',
+           'arguments': { 'command-line': 'drive_add 0 if=none,id=d0,file=TEST_DIR/t.IMGFMT,readonly=on' } }
 {"return": "OKrn"}
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_add 0 if=none,id=d1,file=TEST_DIR/t.IMGFMT,readonly=on' } }
+{ 'execute': 'human-monitor-command',
+           'arguments': { 'command-line': 'drive_add 0 if=none,id=d1,file=TEST_DIR/t.IMGFMT,readonly=on' } }
 {"return": "OKrn"}
 
 _qemu_img_wrapper info TEST_DIR/t.qcow2
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_del d0' } }
+{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'drive_del d0' } }
 {"return": ""}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 qemu-io: can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 Closing the other
-{ 'execute': 'human-monitor-command', 'arguments': { 'command-line': 'drive_del d1' } }
+{ 'execute': 'human-monitor-command',
+       'arguments': { 'command-line': 'drive_del d1' } }
 {"return": ""}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw
 #
 # Test exiting qemu while jobs are still running
 #
@@ -182,7 +183,8 @@ _send_qemu_cmd $h \
                       'target': '$TEST_IMG.copy',
                       'format': '$IMGFMT',
                       'sync': 'full',
-                      'speed': 65536 } }" \
+                      'speed': 65536,
+                      'x-perf': {'max-chunk': 65536} } }" \
     "return"
 
 # If we don't sleep here 'quit' command races with disk I/O

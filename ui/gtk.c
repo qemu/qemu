@@ -33,6 +33,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-control.h"
+#include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qemu/cutils.h"
 
@@ -395,7 +396,7 @@ static void gd_update_full_redraw(VirtualConsole *vc)
     int ww, wh;
     ww = gdk_window_get_width(gtk_widget_get_window(area));
     wh = gdk_window_get_height(gtk_widget_get_window(area));
-#if defined(CONFIG_GTK_GL)
+#if defined(CONFIG_OPENGL)
     if (vc->gfx.gls && gtk_use_gl_area) {
         gtk_gl_area_queue_render(GTK_GL_AREA(vc->gfx.drawing_area));
         return;
@@ -624,7 +625,7 @@ static const DisplayChangeListenerOps dcl_ops = {
 
 /** DisplayState Callbacks (opengl version) **/
 
-#if defined(CONFIG_GTK_GL)
+#if defined(CONFIG_OPENGL)
 
 static const DisplayChangeListenerOps dcl_gl_area_ops = {
     .dpy_name             = "gtk-egl",
@@ -643,7 +644,7 @@ static const DisplayChangeListenerOps dcl_gl_area_ops = {
     .dpy_gl_update           = gd_gl_area_scanout_flush,
 };
 
-#endif /* CONFIG_GTK_GL */
+#endif /* CONFIG_OPENGL */
 
 static const DisplayChangeListenerOps dcl_egl_ops = {
     .dpy_name             = "gtk-egl",
@@ -724,7 +725,7 @@ static void gd_set_ui_info(VirtualConsole *vc, gint width, gint height)
     dpy_set_ui_info(vc->gfx.dcl.con, &info);
 }
 
-#if defined(CONFIG_GTK_GL)
+#if defined(CONFIG_OPENGL)
 
 static gboolean gd_render_event(GtkGLArea *area, GdkGLContext *context,
                                 void *opaque)
@@ -748,19 +749,24 @@ static void gd_resize_event(GtkGLArea *area,
 #endif
 
 /*
- * If available, return the refresh rate of the display in milli-Hertz,
- * else return 0.
+ * If available, return the update interval of the monitor in ms,
+ * else return 0 (the default update interval).
  */
-static int gd_refresh_rate_millihz(GtkWidget *window)
+int gd_monitor_update_interval(GtkWidget *widget)
 {
 #ifdef GDK_VERSION_3_22
-    GdkWindow *win = gtk_widget_get_window(window);
+    GdkWindow *win = gtk_widget_get_window(widget);
 
     if (win) {
-        GdkDisplay *dpy = gtk_widget_get_display(window);
+        GdkDisplay *dpy = gtk_widget_get_display(widget);
         GdkMonitor *monitor = gdk_display_get_monitor_at_window(dpy, win);
+        int refresh_rate = gdk_monitor_get_refresh_rate(monitor); /* [mHz] */
 
-        return gdk_monitor_get_refresh_rate(monitor);
+        if (refresh_rate) {
+            /* T = 1 / f = 1 [s*Hz] / f = 1000*1000 [ms*mHz] / f */
+            return MIN(1000 * 1000 / refresh_rate,
+                       GUI_REFRESH_INTERVAL_DEFAULT);
+        }
     }
 #endif
     return 0;
@@ -773,7 +779,6 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
     int mx, my;
     int ww, wh;
     int fbw, fbh;
-    int refresh_rate_millihz;
 
 #if defined(CONFIG_OPENGL)
     if (vc->gfx.gls) {
@@ -794,11 +799,8 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
         return FALSE;
     }
 
-    refresh_rate_millihz = gd_refresh_rate_millihz(vc->window ?
-                                                   vc->window : s->window);
-    if (refresh_rate_millihz) {
-        vc->gfx.dcl.update_interval = MILLISEC_PER_SEC / refresh_rate_millihz;
-    }
+    vc->gfx.dcl.update_interval =
+        gd_monitor_update_interval(vc->window ? vc->window : s->window);
 
     fbw = surface_width(vc->gfx.ds);
     fbh = surface_height(vc->gfx.ds);
@@ -1864,7 +1866,7 @@ static void gd_connect_vc_gfx_signals(VirtualConsole *vc)
 {
     g_signal_connect(vc->gfx.drawing_area, "draw",
                      G_CALLBACK(gd_draw_event), vc);
-#if defined(CONFIG_GTK_GL)
+#if defined(CONFIG_OPENGL)
     if (gtk_use_gl_area) {
         /* wire up GtkGlArea events */
         g_signal_connect(vc->gfx.drawing_area, "render",
@@ -1991,12 +1993,12 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
 
 #if defined(CONFIG_OPENGL)
     if (display_opengl) {
-#if defined(CONFIG_GTK_GL)
+#if defined(CONFIG_OPENGL)
         if (gtk_use_gl_area) {
             vc->gfx.drawing_area = gtk_gl_area_new();
             vc->gfx.dcl.ops = &dcl_gl_area_ops;
         } else
-#endif /* CONFIG_GTK_GL */
+#endif /* CONFIG_OPENGL */
         {
             vc->gfx.drawing_area = gtk_drawing_area_new();
             /*
@@ -2313,7 +2315,7 @@ static void early_gtk_display_init(DisplayOptions *opts)
     assert(opts->type == DISPLAY_TYPE_GTK);
     if (opts->has_gl && opts->gl != DISPLAYGL_MODE_OFF) {
 #if defined(CONFIG_OPENGL)
-#if defined(CONFIG_GTK_GL) && defined(GDK_WINDOWING_WAYLAND)
+#if defined(GDK_WINDOWING_WAYLAND)
         if (GDK_IS_WAYLAND_DISPLAY(gdk_display_get_default())) {
             gtk_use_gl_area = true;
             gtk_gl_area_init();

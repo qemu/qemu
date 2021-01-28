@@ -8,19 +8,33 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=536870912
 
 { 'execute': 'qmp_capabilities' }
 {"return": {}}
-{ 'execute': 'blockdev-snapshot-sync', 'arguments': { 'device': 'virtio0', 'snapshot-file':'TEST_DIR/tmp.IMGFMT', 'format': 'IMGFMT' } }
+{ 'execute': 'blockdev-snapshot-sync',
+                                'arguments': {
+                                             'device': 'virtio0',
+                                             'snapshot-file':'TEST_DIR/tmp.IMGFMT',
+                                             'format': 'IMGFMT'
+                                             }
+                    }
 Formatting 'TEST_DIR/tmp.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=536870912 backing_file=TEST_DIR/t.qcow2 backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 {"return": {}}
 
 === Performing block-commit on active layer ===
 
-{ 'execute': 'block-commit', 'arguments': { 'device': 'virtio0' } }
+{ 'execute': 'block-commit',
+                                'arguments': {
+                                                 'device': 'virtio0'
+                                              }
+                    }
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "virtio0"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "virtio0"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "ready", "id": "virtio0"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_READY", "data": {"device": "virtio0", "len": 0, "offset": 0, "speed": 0, "type": "commit"}}
-{ 'execute': 'block-job-complete', 'arguments': { 'device': 'virtio0' } }
+{ 'execute': 'block-job-complete',
+                                'arguments': {
+                                                'device': 'virtio0'
+                                              }
+                   }
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "waiting", "id": "virtio0"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "pending", "id": "virtio0"}}
@@ -30,7 +44,13 @@ Formatting 'TEST_DIR/tmp.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off co
 
 === Performing Live Snapshot 2 ===
 
-{ 'execute': 'blockdev-snapshot-sync', 'arguments': { 'device': 'virtio0', 'snapshot-file':'TEST_DIR/tmp2.IMGFMT', 'format': 'IMGFMT' } }
+{ 'execute': 'blockdev-snapshot-sync',
+                                'arguments': {
+                                                'device': 'virtio0',
+                                                'snapshot-file':'TEST_DIR/tmp2.IMGFMT',
+                                                'format': 'IMGFMT'
+                                              }
+                   }
 Formatting 'TEST_DIR/tmp2.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=536870912 backing_file=TEST_DIR/t.qcow2 backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
 {"return": {}}
 *** done

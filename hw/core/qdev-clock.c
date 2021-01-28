@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-core.h"
 #include "qapi/error.h"
@@ -60,6 +61,14 @@ static NamedClockList *qdev_init_clocklist(DeviceState *dev, const char *name,
                                  object_get_typename(OBJECT(clk)),
                                  (Object **) &ncl->clock,
                                  NULL, OBJ_PROP_LINK_STRONG);
+        /*
+         * Since the link property has the OBJ_PROP_LINK_STRONG flag, the clk
+         * object reference count gets decremented on property deletion.
+         * However object_property_add_link does not increment it since it
+         * doesn't know the linked object. Increment it here to ensure the
+         * aliased clock stays alive during this device life-time.
+         */
+        object_ref(OBJECT(clk));
     }
 
     ncl->clock = clk;
@@ -153,6 +162,11 @@ Clock *qdev_get_clock_in(DeviceState *dev, const char *name)
     assert(name);
 
     ncl = qdev_get_clocklist(dev, name);
+    if (!ncl) {
+        error_report("Can not find clock-in '%s' for device type '%s'",
+                     name, object_get_typename(OBJECT(dev)));
+        abort();
+    }
     assert(!ncl->output);
 
     return ncl->clock;
@@ -165,6 +179,11 @@ Clock *qdev_get_clock_out(DeviceState *dev, const char *name)
     assert(name);
 
     ncl = qdev_get_clocklist(dev, name);
+    if (!ncl) {
+        error_report("Can not find clock-out '%s' for device type '%s'",
+                     name, object_get_typename(OBJECT(dev)));
+        abort();
+    }
     assert(ncl->output);
 
     return ncl->clock;

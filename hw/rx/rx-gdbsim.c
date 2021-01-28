@@ -106,6 +106,16 @@ static void rx_gdbsim_init(MachineState *machine)
                              rxc->xtal_freq_hz, &error_abort);
     object_property_set_bool(OBJECT(&s->mcu), "load-kernel",
                              kernel_filename != NULL, &error_abort);
+
+    if (!kernel_filename) {
+        if (machine->firmware) {
+            rom_add_file_fixed(machine->firmware, RX62N_CFLASH_BASE, 0);
+        } else if (!qtest_enabled()) {
+            error_report("No bios or kernel specified");
+            exit(1);
+        }
+    }
+
     qdev_realize(DEVICE(&s->mcu), NULL, &error_abort);
 
     /* Load kernel and dtb */
@@ -122,9 +132,8 @@ static void rx_gdbsim_init(MachineState *machine)
         if (dtb_filename) {
             ram_addr_t dtb_offset;
             int dtb_size;
-            void *dtb;
+            g_autofree void *dtb = load_device_tree(dtb_filename, &dtb_size);
 
-            dtb = load_device_tree(dtb_filename, &dtb_size);
             if (dtb == NULL) {
                 error_report("Couldn't open dtb file %s", dtb_filename);
                 exit(1);

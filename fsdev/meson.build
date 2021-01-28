@@ -8,7 +8,6 @@ fsdev_ss.add(when: ['CONFIG_FSDEV_9P'], if_true: files(
 ), if_false: files('qemu-fsdev-dummy.c'))
 softmmu_ss.add_all(when: 'CONFIG_LINUX', if_true: fsdev_ss)
 
-have_virtfs_proxy_helper = have_tools and libattr.found() and libcap_ng.found() and 'CONFIG_VIRTFS' in config_host
 if have_virtfs_proxy_helper
   executable('virtfs-proxy-helper',
              files('virtfs-proxy-helper.c', '9p-marshal.c', '9p-iov-marshal.c'),

@@ -26,6 +26,7 @@
 #else
 #include "exec/gdbstub.h"
 #include "exec/softmmu-semi.h"
+#include "hw/boards.h"
 #endif
 #include "qemu/log.h"
 
@@ -194,7 +195,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
     args = env->dregs[1];
     switch (nr) {
     case HOSTED_EXIT:
-        gdb_exit(env, env->dregs[0]);
+        gdb_exit(env->dregs[0]);
         exit(env->dregs[0]);
     case HOSTED_OPEN:
         GET_ARG(0);
@@ -455,8 +456,8 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
          * FIXME: This is wrong for boards where RAM does not start at
          * address zero.
          */
-        env->dregs[1] = ram_size;
-        env->aregs[7] = ram_size;
+        env->dregs[1] = current_machine->ram_size;
+        env->aregs[7] = current_machine->ram_size;
 #endif
         return;
     default:

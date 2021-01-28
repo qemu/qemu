@@ -55,6 +55,7 @@ const int vdpa_feature_bits[] = {
     VIRTIO_F_IOMMU_PLATFORM,
     VIRTIO_F_RING_PACKED,
     VIRTIO_NET_F_GUEST_ANNOUNCE,
+    VIRTIO_NET_F_STATUS,
     VHOST_INVALID_FEATURE_BIT
 };
 
@@ -143,6 +144,10 @@ static void vhost_vdpa_cleanup(NetClientState *nc)
         vhost_net_cleanup(s->vhost_net);
         g_free(s->vhost_net);
         s->vhost_net = NULL;
+    }
+     if (s->vhost_vdpa.device_fd >= 0) {
+        qemu_close(s->vhost_vdpa.device_fd);
+        s->vhost_vdpa.device_fd = -1;
     }
 }
 

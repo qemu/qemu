@@ -24,8 +24,11 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/bitops.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "cpu.h"
+#include "hw/clock.h"
 #include "hw/southbridge/piix.h"
 #include "hw/isa/superio.h"
 #include "hw/char/serial.h"
@@ -57,8 +60,10 @@
 #include "sysemu/kvm.h"
 #include "hw/semihosting/semihost.h"
 #include "hw/mips/cps.h"
+#include "hw/qdev-clock.h"
 
-#define ENVP_ADDR           0x80002000l
+#define ENVP_PADDR          0x2000
+#define ENVP_VADDR          cpu_mips_phys_to_kseg0(NULL, ENVP_PADDR)
 #define ENVP_NB_ENTRIES     16
 #define ENVP_ENTRY_SIZE     256
 
@@ -94,6 +99,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(MaltaState, MIPS_MALTA)
 struct MaltaState {
     SysBusDevice parent_obj;
 
+    Clock *cpuclk;
     MIPSCPSState cps;
     qemu_irq i8259[ISA_NUM_IRQS];
 };
@@ -575,7 +581,7 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
     memory_region_init_alias(&s->iomem_lo, NULL, "malta-fpga",
                              &s->iomem, 0, 0x900);
     memory_region_init_alias(&s->iomem_hi, NULL, "malta-fpga",
-                             &s->iomem, 0xa00, 0x10000 - 0xa00);
+                             &s->iomem, 0xa00, 0x100000 - 0xa00);
 
     memory_region_add_subregion(address_space, base, &s->iomem_lo);
     memory_region_add_subregion(address_space, base + 0xa00, &s->iomem_hi);
@@ -611,8 +617,8 @@ static void network_init(PCIBus *pci_bus)
     }
 }
 
-static void write_bootloader_nanomips(uint8_t *base, int64_t run_addr,
-                                      int64_t kernel_entry)
+static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
+                                      uint64_t kernel_entry)
 {
     uint16_t *p;
 
@@ -651,29 +657,29 @@ static void write_bootloader_nanomips(uint8_t *base, int64_t run_addr,
                                 /* li a0,2                      */
     }
 
-    stw_p(p++, 0xe3a0 | NM_HI1(ENVP_ADDR - 64));
+    stw_p(p++, 0xe3a0 | NM_HI1(ENVP_VADDR - 64));
 
-    stw_p(p++, NM_HI2(ENVP_ADDR - 64));
-                                /* lui sp,%hi(ENVP_ADDR - 64)   */
+    stw_p(p++, NM_HI2(ENVP_VADDR - 64));
+                                /* lui sp,%hi(ENVP_VADDR - 64)   */
 
-    stw_p(p++, 0x83bd); stw_p(p++, NM_LO(ENVP_ADDR - 64));
-                                /* ori sp,sp,%lo(ENVP_ADDR - 64) */
+    stw_p(p++, 0x83bd); stw_p(p++, NM_LO(ENVP_VADDR - 64));
+                                /* ori sp,sp,%lo(ENVP_VADDR - 64) */
 
-    stw_p(p++, 0xe0a0 | NM_HI1(ENVP_ADDR));
+    stw_p(p++, 0xe0a0 | NM_HI1(ENVP_VADDR));
 
-    stw_p(p++, NM_HI2(ENVP_ADDR));
-                                /* lui a1,%hi(ENVP_ADDR)        */
+    stw_p(p++, NM_HI2(ENVP_VADDR));
+                                /* lui a1,%hi(ENVP_VADDR)        */
 
-    stw_p(p++, 0x80a5); stw_p(p++, NM_LO(ENVP_ADDR));
-                                /* ori a1,a1,%lo(ENVP_ADDR)     */
+    stw_p(p++, 0x80a5); stw_p(p++, NM_LO(ENVP_VADDR));
+                                /* ori a1,a1,%lo(ENVP_VADDR)     */
 
-    stw_p(p++, 0xe0c0 | NM_HI1(ENVP_ADDR + 8));
+    stw_p(p++, 0xe0c0 | NM_HI1(ENVP_VADDR + 8));
 
-    stw_p(p++, NM_HI2(ENVP_ADDR + 8));
-                                /* lui a2,%hi(ENVP_ADDR + 8)    */
+    stw_p(p++, NM_HI2(ENVP_VADDR + 8));
+                                /* lui a2,%hi(ENVP_VADDR + 8)    */
 
-    stw_p(p++, 0x80c6); stw_p(p++, NM_LO(ENVP_ADDR + 8));
-                                /* ori a2,a2,%lo(ENVP_ADDR + 8) */
+    stw_p(p++, 0x80c6); stw_p(p++, NM_LO(ENVP_VADDR + 8));
+                                /* ori a2,a2,%lo(ENVP_VADDR + 8) */
 
     stw_p(p++, 0xe0e0 | NM_HI1(loaderparams.ram_low_size));
 
@@ -835,8 +841,8 @@ static void write_bootloader_nanomips(uint8_t *base, int64_t run_addr,
  *   a2 - 32-bit address of the environment variables table
  *   a3 - RAM size in bytes
  */
-static void write_bootloader(uint8_t *base, int64_t run_addr,
-                             int64_t kernel_entry)
+static void write_bootloader(uint8_t *base, uint64_t run_addr,
+                             uint64_t kernel_entry)
 {
     uint32_t *p;
 
@@ -873,18 +879,18 @@ static void write_bootloader(uint8_t *base, int64_t run_addr,
         stl_p(p++, 0x24040002);              /* addiu a0, zero, 2 */
     }
 
-    /* lui sp, high(ENVP_ADDR) */
-    stl_p(p++, 0x3c1d0000 | (((ENVP_ADDR - 64) >> 16) & 0xffff));
-    /* ori sp, sp, low(ENVP_ADDR) */
-    stl_p(p++, 0x37bd0000 | ((ENVP_ADDR - 64) & 0xffff));
-    /* lui a1, high(ENVP_ADDR) */
-    stl_p(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));
-    /* ori a1, a1, low(ENVP_ADDR) */
-    stl_p(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));
-    /* lui a2, high(ENVP_ADDR + 8) */
-    stl_p(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff));
-    /* ori a2, a2, low(ENVP_ADDR + 8) */
-    stl_p(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));
+    /* lui sp, high(ENVP_VADDR) */
+    stl_p(p++, 0x3c1d0000 | (((ENVP_VADDR - 64) >> 16) & 0xffff));
+    /* ori sp, sp, low(ENVP_VADDR) */
+    stl_p(p++, 0x37bd0000 | ((ENVP_VADDR - 64) & 0xffff));
+    /* lui a1, high(ENVP_VADDR) */
+    stl_p(p++, 0x3c050000 | ((ENVP_VADDR >> 16) & 0xffff));
+    /* ori a1, a1, low(ENVP_VADDR) */
+    stl_p(p++, 0x34a50000 | (ENVP_VADDR & 0xffff));
+    /* lui a2, high(ENVP_VADDR + 8) */
+    stl_p(p++, 0x3c060000 | (((ENVP_VADDR + 8) >> 16) & 0xffff));
+    /* ori a2, a2, low(ENVP_VADDR + 8) */
+    stl_p(p++, 0x34c60000 | ((ENVP_VADDR + 8) & 0xffff));
     /* lui a3, high(ram_low_size) */
     stl_p(p++, 0x3c070000 | (loaderparams.ram_low_size >> 16));
     /* ori a3, a3, low(ram_low_size) */
@@ -998,7 +1004,7 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t *prom_buf, int index,
                                         const char *string, ...)
 {
     va_list ap;
-    int32_t table_addr;
+    uint32_t table_addr;
 
     if (index >= ENVP_NB_ENTRIES) {
         return;
@@ -1009,8 +1015,8 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t *prom_buf, int index,
         return;
     }
 
-    table_addr = sizeof(int32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
-    prom_buf[index] = tswap32(ENVP_ADDR + table_addr);
+    table_addr = sizeof(uint32_t) * ENVP_NB_ENTRIES + index * ENVP_ENTRY_SIZE;
+    prom_buf[index] = tswap32(ENVP_VADDR + table_addr);
 
     va_start(ap, string);
     vsnprintf((char *)prom_buf + table_addr, ENVP_ENTRY_SIZE, string, ap);
@@ -1018,9 +1024,9 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t *prom_buf, int index,
 }
 
 /* Kernel */
-static int64_t load_kernel(void)
+static uint64_t load_kernel(void)
 {
-    int64_t kernel_entry, kernel_high, initrd_size;
+    uint64_t kernel_entry, kernel_high, initrd_size;
     long kernel_size;
     ram_addr_t initrd_offset;
     int big_endian;
@@ -1037,8 +1043,8 @@ static int64_t load_kernel(void)
 
     kernel_size = load_elf(loaderparams.kernel_filename, NULL,
                            cpu_mips_kseg0_to_phys, NULL,
-                           (uint64_t *)&kernel_entry, NULL,
-                           (uint64_t *)&kernel_high, NULL, big_endian, EM_MIPS,
+                           &kernel_entry, NULL,
+                           &kernel_high, NULL, big_endian, EM_MIPS,
                            1, 0);
     if (kernel_size < 0) {
         error_report("could not load kernel '%s': %s",
@@ -1074,9 +1080,9 @@ static int64_t load_kernel(void)
              * the initrd.  It takes at most 128kiB for 2GB RAM and 4kiB
              * pages.
              */
-            initrd_offset = (loaderparams.ram_low_size - initrd_size
-                             - (128 * KiB)
-                             - ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
+            initrd_offset = ROUND_UP(loaderparams.ram_low_size
+                                     - (initrd_size + 128 * KiB),
+                                     INITRD_PAGE_SIZE);
             if (kernel_high >= initrd_offset) {
                 error_report("memory too small for initial ram disk '%s'",
                              loaderparams.initrd_filename);
@@ -1084,7 +1090,7 @@ static int64_t load_kernel(void)
             }
             initrd_size = load_image_targphys(loaderparams.initrd_filename,
                                               initrd_offset,
-                                              ram_size - initrd_offset);
+                                              loaderparams.ram_size - initrd_offset);
         }
         if (initrd_size == (target_ulong) -1) {
             error_report("could not load initial ram disk '%s'",
@@ -1117,8 +1123,7 @@ static int64_t load_kernel(void)
     prom_set(prom_buf, prom_index++, "38400n8r");
     prom_set(prom_buf, prom_index++, NULL);
 
-    rom_add_blob_fixed("prom", prom_buf, prom_size,
-                       cpu_mips_kseg0_to_phys(NULL, ENVP_ADDR));
+    rom_add_blob_fixed("prom", prom_buf, prom_size, ENVP_PADDR);
 
     g_free(prom_buf);
     return kernel_entry;
@@ -1131,8 +1136,13 @@ static void malta_mips_config(MIPSCPU *cpu)
     CPUMIPSState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
-    env->mvp->CP0_MVPConf0 |= ((smp_cpus - 1) << CP0MVPC0_PVPE) |
-                         ((smp_cpus * cs->nr_threads - 1) << CP0MVPC0_PTC);
+    if (ase_mt_available(env)) {
+        env->mvp->CP0_MVPConf0 = deposit32(env->mvp->CP0_MVPConf0,
+                                           CP0MVPC0_PTC, 8,
+                                           smp_cpus * cs->nr_threads - 1);
+        env->mvp->CP0_MVPConf0 = deposit32(env->mvp->CP0_MVPConf0,
+                                           CP0MVPC0_PVPE, 4, smp_cpus - 1);
+    }
 }
 
 static void main_cpu_reset(void *opaque)
@@ -1159,7 +1169,7 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
-static void create_cpu_without_cps(MachineState *ms,
+static void create_cpu_without_cps(MachineState *ms, MaltaState *s,
                                    qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
     CPUMIPSState *env;
@@ -1167,7 +1177,7 @@ static void create_cpu_without_cps(MachineState *ms,
     int i;
 
     for (i = 0; i < ms->smp.cpus; i++) {
-        cpu = MIPS_CPU(cpu_create(ms->cpu_type));
+        cpu = mips_cpu_create_with_clock(ms->cpu_type, s->cpuclk);
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);
@@ -1189,6 +1199,7 @@ static void create_cps(MachineState *ms, MaltaState *s,
                             &error_fatal);
     object_property_set_int(OBJECT(&s->cps), "num-vp", ms->smp.cpus,
                             &error_fatal);
+    qdev_connect_clock_in(DEVICE(&s->cps), "clk-in", s->cpuclk);
     sysbus_realize(SYS_BUS_DEVICE(&s->cps), &error_fatal);
 
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->cps), 0, 0, 1);
@@ -1200,10 +1211,10 @@ static void create_cps(MachineState *ms, MaltaState *s,
 static void mips_create_cpu(MachineState *ms, MaltaState *s,
                             qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
-    if ((ms->smp.cpus > 1) && cpu_supports_cps_smp(ms->cpu_type)) {
+    if ((ms->smp.cpus > 1) && cpu_type_supports_cps_smp(ms->cpu_type)) {
         create_cps(ms, s, cbus_irq, i8259_irq);
     } else {
-        create_cpu_without_cps(ms, cbus_irq, i8259_irq);
+        create_cpu_without_cps(ms, s, cbus_irq, i8259_irq);
     }
 }
 
@@ -1223,7 +1234,7 @@ void mips_malta_init(MachineState *machine)
     MemoryRegion *bios, *bios_copy = g_new(MemoryRegion, 1);
     const size_t smbus_eeprom_size = 8 * 256;
     uint8_t *smbus_eeprom_buf = g_malloc0(smbus_eeprom_size);
-    int64_t kernel_entry, bootloader_run_addr;
+    uint64_t kernel_entry, bootloader_run_addr;
     PCIBus *pci_bus;
     ISABus *isa_bus;
     qemu_irq cbus_irq, i8259_irq;
@@ -1231,18 +1242,11 @@ void mips_malta_init(MachineState *machine)
     DriveInfo *dinfo;
     int fl_idx = 0;
     int be;
+    MaltaState *s;
+    DeviceState *dev;
 
-    DeviceState *dev = qdev_new(TYPE_MIPS_MALTA);
-    MaltaState *s = MIPS_MALTA(dev);
-
-    /*
-     * The whole address space decoded by the GT-64120A doesn't generate
-     * exception when accessing invalid memory. Create an empty slot to
-     * emulate this feature.
-     */
-    empty_slot_init("GT64120", 0, 0x20000000);
-
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    s = MIPS_MALTA(qdev_new(TYPE_MIPS_MALTA));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(s), &error_fatal);
 
     /* create CPU */
     mips_create_cpu(machine, s, &cbus_irq, &i8259_irq);
@@ -1298,9 +1302,9 @@ void mips_malta_init(MachineState *machine)
         /* For KVM we reserve 1MB of RAM for running bootloader */
         if (kvm_enabled()) {
             ram_low_size -= 0x100000;
-            bootloader_run_addr = 0x40000000 + ram_low_size;
+            bootloader_run_addr = cpu_mips_kvm_um_phys_to_kseg0(NULL, ram_low_size);
         } else {
-            bootloader_run_addr = 0xbfc00000;
+            bootloader_run_addr = cpu_mips_phys_to_kseg0(NULL, RESET_ADDRESS);
         }
 
         /* Write a small bootloader to the flash location. */
@@ -1311,7 +1315,7 @@ void mips_malta_init(MachineState *machine)
         loaderparams.initrd_filename = initrd_filename;
         kernel_entry = load_kernel();
 
-        if (!cpu_supports_isa(machine->cpu_type, ISA_NANOMIPS32)) {
+        if (!cpu_type_supports_isa(machine->cpu_type, ISA_NANOMIPS32)) {
             write_bootloader(memory_region_get_ram_ptr(bios),
                              bootloader_run_addr, kernel_entry);
         } else {
@@ -1335,10 +1339,8 @@ void mips_malta_init(MachineState *machine)
         /* Load firmware from flash. */
         if (!dinfo) {
             /* Load a BIOS image. */
-            if (bios_name == NULL) {
-                bios_name = BIOS_FILENAME;
-            }
-            filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+            filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                      machine->firmware ?: BIOS_FILENAME);
             if (filename) {
                 bios_size = load_image_targphys(filename, FLASH_ADDRESS,
                                                 BIOS_SIZE);
@@ -1347,9 +1349,8 @@ void mips_malta_init(MachineState *machine)
                 bios_size = -1;
             }
             if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
-                !kernel_filename && !qtest_enabled()) {
-                error_report("Could not load MIPS bios '%s', and no "
-                             "-kernel argument was specified", bios_name);
+                machine->firmware && !qtest_enabled()) {
+                error_report("Could not load MIPS bios '%s'", machine->firmware);
                 exit(1);
             }
         }
@@ -1395,6 +1396,12 @@ void mips_malta_init(MachineState *machine)
 
     /* Northbridge */
     pci_bus = gt64120_register(s->i8259);
+    /*
+     * The whole address space decoded by the GT-64120A doesn't generate
+     * exception when accessing invalid memory. Create an empty slot to
+     * emulate this feature.
+     */
+    empty_slot_init("GT64120", 0, 0x20000000);
 
     /* Southbridge */
     dev = piix4_create(pci_bus, &isa_bus, &smbus);
@@ -1421,10 +1428,19 @@ void mips_malta_init(MachineState *machine)
     pci_vga_init(pci_bus);
 }
 
+static void mips_malta_instance_init(Object *obj)
+{
+    MaltaState *s = MIPS_MALTA(obj);
+
+    s->cpuclk = qdev_init_clock_out(DEVICE(obj), "cpu-refclk");
+    clock_set_hz(s->cpuclk, 320000000); /* 320 MHz */
+}
+
 static const TypeInfo mips_malta_device = {
     .name          = TYPE_MIPS_MALTA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MaltaState),
+    .instance_init = mips_malta_instance_init,
 };
 
 static void mips_malta_machine_init(MachineClass *mc)

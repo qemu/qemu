@@ -14,6 +14,7 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
+#include "hw/ptimer.h"
 
 #define TYPE_SYSTICK "armv7m_systick"
 
@@ -27,7 +28,7 @@ struct SysTickState {
     uint32_t control;
     uint32_t reload;
     int64_t tick;
-    QEMUTimer *timer;
+    ptimer_state *ptimer;
     MemoryRegion iomem;
     qemu_irq irq;
 };

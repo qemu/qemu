@@ -789,16 +789,6 @@ static void n8x0_cbus_setup(struct n800_s *s)
     cbus_attach(cbus, s->tahvo = tahvo_init(tahvo_irq, 1));
 }
 
-static void n8x0_uart_setup(struct n800_s *s)
-{
-    Chardev *radio = qemu_chr_new("bt-dummy-uart", "null", NULL);
-    /*
-     * Note: We used to connect N8X0_BT_RESET_GPIO and N8X0_BT_WKUP_GPIO
-     * here, but this code has been removed with the bluetooth backend.
-     */
-    omap_uart_attach(s->mpu->uart[BT_UART], radio);
-}
-
 static void n8x0_usb_setup(struct n800_s *s)
 {
     SysBusDevice *dev;
@@ -1318,6 +1308,7 @@ static void n8x0_init(MachineState *machine,
         g_free(sz);
         exit(EXIT_FAILURE);
     }
+    binfo->ram_size = machine->ram_size;
 
     memory_region_add_subregion(get_system_memory(), OMAP2_Q2_BASE,
                                 machine->ram);
@@ -1361,7 +1352,6 @@ static void n8x0_init(MachineState *machine,
     n8x0_spi_setup(s);
     n8x0_dss_setup(s);
     n8x0_cbus_setup(s);
-    n8x0_uart_setup(s);
     if (machine_usb(machine)) {
         n8x0_usb_setup(s);
     }
@@ -1379,7 +1369,8 @@ static void n8x0_init(MachineState *machine,
         /* No, wait, better start at the ROM.  */
         s->mpu->cpu->env.regs[15] = OMAP2_Q2_BASE + 0x400000;
 
-        /* This is intended for loading the `secondary.bin' program from
+        /*
+         * This is intended for loading the `secondary.bin' program from
          * Nokia images (the NOLO bootloader).  The entry point seems
          * to be at OMAP2_Q2_BASE + 0x400000.
          *
@@ -1387,9 +1378,15 @@ static void n8x0_init(MachineState *machine,
          * for them the entry point needs to be set to OMAP2_SRAM_BASE.
          *
          * The code above is for loading the `zImage' file from Nokia
-         * images.  */
-        load_image_targphys(option_rom[0].name, OMAP2_Q2_BASE + 0x400000,
-                            machine->ram_size - 0x400000);
+         * images.
+         */
+        if (load_image_targphys(option_rom[0].name,
+                                OMAP2_Q2_BASE + 0x400000,
+                                machine->ram_size - 0x400000) < 0) {
+            error_report("Failed to load secondary bootloader %s",
+                         option_rom[0].name);
+            exit(EXIT_FAILURE);
+        }
 
         n800_setup_nolo_tags(nolo_tags);
         cpu_physical_memory_write(OMAP2_SRAM_BASE, nolo_tags, 0x10000);

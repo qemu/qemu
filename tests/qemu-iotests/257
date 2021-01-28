@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# group: rw
 #
 # Test bitmap-sync backups (incremental, differential, and partials)
 #
@@ -191,6 +192,7 @@ def blockdev_backup(vm, device, target, sync, **kwargs):
                         target=target,
                         sync=sync,
                         filter_node_name='backup-top',
+                        x_perf={'max-workers': 1},
                         **kwargs)
     return result
 

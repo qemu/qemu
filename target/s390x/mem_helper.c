@@ -31,6 +31,7 @@
 
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/s390x/storage-keys.h"
+#include "hw/boards.h"
 #endif
 
 /*****************************************************************************/
@@ -2075,12 +2076,13 @@ uint32_t HELPER(tprot)(CPUS390XState *env, uint64_t a1, uint64_t a2)
 /* insert storage key extended */
 uint64_t HELPER(iske)(CPUS390XState *env, uint64_t r2)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     static S390SKeysState *ss;
     static S390SKeysClass *skeyclass;
     uint64_t addr = wrap_address(env, r2);
     uint8_t key;
 
-    if (addr > ram_size) {
+    if (addr > ms->ram_size) {
         return 0;
     }
 
@@ -2098,12 +2100,13 @@ uint64_t HELPER(iske)(CPUS390XState *env, uint64_t r2)
 /* set storage key extended */
 void HELPER(sske)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     static S390SKeysState *ss;
     static S390SKeysClass *skeyclass;
     uint64_t addr = wrap_address(env, r2);
     uint8_t key;
 
-    if (addr > ram_size) {
+    if (addr > ms->ram_size) {
         return;
     }
 
@@ -2124,11 +2127,12 @@ void HELPER(sske)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 /* reset reference bit extended */
 uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     static S390SKeysState *ss;
     static S390SKeysClass *skeyclass;
     uint8_t re, key;
 
-    if (r2 > ram_size) {
+    if (r2 > ms->ram_size) {
         return 0;
     }
 
@@ -2469,8 +2473,8 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
             uint32_t d1 = extract64(insn, 32, 12);
             uint32_t b2 = extract64(insn, 28, 4);
             uint32_t d2 = extract64(insn, 16, 12);
-            uint64_t a1 = wrap_address(env, env->regs[b1] + d1);
-            uint64_t a2 = wrap_address(env, env->regs[b2] + d2);
+            uint64_t a1 = wrap_address(env, (b1 ? env->regs[b1] : 0) + d1);
+            uint64_t a2 = wrap_address(env, (b2 ? env->regs[b2] : 0) + d2);
 
             env->cc_op = helper(env, l, a1, a2, 0);
             env->psw.addr += ilen;

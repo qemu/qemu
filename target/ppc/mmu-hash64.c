@@ -7,7 +7,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -883,7 +883,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     /*
      * Note on LPCR usage: 970 uses HID4, but our special variant of
      * store_spr copies relevant fields into env->spr[SPR_LPCR].
-     * Similarily we filter unimplemented bits when storing into LPCR
+     * Similarly we filter unimplemented bits when storing into LPCR
      * depending on the MMU version. This code can thus just use the
      * LPCR "as-is".
      */
@@ -1140,7 +1140,7 @@ void ppc_hash64_init(PowerPCCPU *cpu)
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
     if (!pcc->hash64_opts) {
-        assert(!(env->mmu_model & POWERPC_MMU_64));
+        assert(!mmu_is_64bit(env->mmu_model));
         return;
     }
 

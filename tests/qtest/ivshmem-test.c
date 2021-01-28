@@ -135,7 +135,7 @@ static void setup_vm_cmd(IVState *s, const char *cmd, bool msix)
 static void setup_vm(IVState *s)
 {
     char *cmd = g_strdup_printf("-object memory-backend-file"
-                                ",id=mb1,size=1M,share,mem-path=/dev/shm%s"
+                                ",id=mb1,size=1M,share=on,mem-path=/dev/shm%s"
                                 " -device ivshmem-plain,memdev=mb1", tmpshm);
 
     setup_vm_cmd(s, cmd, false);

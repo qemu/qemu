@@ -6,13 +6,21 @@ wrote 42/42 bytes at offset 0
 42 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 { 'execute': 'qmp_capabilities' }
 {"return": {}}
-{ 'execute': 'drive-mirror', 'arguments': { 'job-id': 'mirror', 'device': 'source', 'target': 'TEST_DIR/t.IMGFMT.overlay1', 'mode': 'existing', 'sync': 'top' } }
+{ 'execute': 'drive-mirror',
+       'arguments': {
+           'job-id': 'mirror',
+           'device': 'source',
+           'target': 'TEST_DIR/t.IMGFMT.overlay1',
+           'mode':   'existing',
+           'sync':   'top'
+       } }
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "created", "id": "mirror"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "running", "id": "mirror"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "ready", "id": "mirror"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_JOB_READY", "data": {"device": "mirror", "len": 65536, "offset": 65536, "speed": 0, "type": "mirror"}}
-{ 'execute': 'block-job-complete', 'arguments': { 'device': 'mirror' } }
+{ 'execute': 'block-job-complete',
+       'arguments': { 'device': 'mirror' } }
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "waiting", "id": "mirror"}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "JOB_STATUS_CHANGE", "data": {"status": "pending", "id": "mirror"}}

@@ -107,7 +107,7 @@
 #          - If @device is not a valid block device, DeviceNotFound
 # Notes:    Ejecting a device with no media results in success
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #

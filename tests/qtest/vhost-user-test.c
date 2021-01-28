@@ -537,7 +537,7 @@ static void test_server_create_chr(TestServer *server, const gchar *opt)
 
 static void test_server_listen(TestServer *server)
 {
-    test_server_create_chr(server, ",server,nowait");
+    test_server_create_chr(server, ",server=on,wait=off");
 }
 
 static void test_server_free(TestServer *server)
@@ -846,7 +846,7 @@ static void *vhost_user_test_setup_reconnect(GString *cmd_line, void *arg)
 
     g_thread_new("connect", connect_thread, s);
     append_mem_opts(s, cmd_line, 256, TEST_MEMFD_AUTO);
-    s->vu_ops->append_opts(s, cmd_line, ",server");
+    s->vu_ops->append_opts(s, cmd_line, ",server=on");
 
     g_test_queue_destroy(vhost_user_test_cleanup, s);
 
@@ -883,7 +883,7 @@ static void *vhost_user_test_setup_connect_fail(GString *cmd_line, void *arg)
 
     g_thread_new("connect", connect_thread, s);
     append_mem_opts(s, cmd_line, 256, TEST_MEMFD_AUTO);
-    s->vu_ops->append_opts(s, cmd_line, ",server");
+    s->vu_ops->append_opts(s, cmd_line, ",server=on");
 
     g_test_queue_destroy(vhost_user_test_cleanup, s);
 
@@ -898,7 +898,7 @@ static void *vhost_user_test_setup_flags_mismatch(GString *cmd_line, void *arg)
 
     g_thread_new("connect", connect_thread, s);
     append_mem_opts(s, cmd_line, 256, TEST_MEMFD_AUTO);
-    s->vu_ops->append_opts(s, cmd_line, ",server");
+    s->vu_ops->append_opts(s, cmd_line, ",server=on");
 
     g_test_queue_destroy(vhost_user_test_cleanup, s);
 

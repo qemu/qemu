@@ -1,5 +1,5 @@
+softmmu_ss.add([spice_headers, files('audio.c')])
 softmmu_ss.add(files(
-  'audio.c',
   'audio_legacy.c',
   'mixeng.c',
   'noaudio.c',

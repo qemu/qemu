@@ -13,6 +13,7 @@
 #include "qapi/error.h"
 #include "hw/m68k/mcf.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 

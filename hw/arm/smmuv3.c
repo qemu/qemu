@@ -17,6 +17,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -799,7 +800,7 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
                                uint8_t tg, uint64_t num_pages)
 {
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
-    IOMMUTLBEntry entry;
+    IOMMUTLBEvent event;
     uint8_t granule = tg;
 
     if (!tg) {
@@ -822,12 +823,13 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
         granule = tt->granule_sz;
     }
 
-    entry.target_as = &address_space_memory;
-    entry.iova = iova;
-    entry.addr_mask = num_pages * (1 << granule) - 1;
-    entry.perm = IOMMU_NONE;
+    event.type = IOMMU_NOTIFIER_UNMAP;
+    event.entry.target_as = &address_space_memory;
+    event.entry.iova = iova;
+    event.entry.addr_mask = num_pages * (1 << granule) - 1;
+    event.entry.perm = IOMMU_NONE;
 
-    memory_region_notify_one(n, &entry);
+    memory_region_notify_iommu_one(n, &event);
 }
 
 /* invalidate an asid/iova range tuple in all mr's */
@@ -864,7 +866,7 @@ static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
         scale = CMD_SCALE(cmd);
         num = CMD_NUM(cmd);
         ttl = CMD_TTL(cmd);
-        num_pages = (num + 1) * (1 << (scale));
+        num_pages = (num + 1) * BIT_ULL(scale);
     }
 
     if (type == SMMU_CMD_TLBI_NH_VA) {
@@ -1440,6 +1442,7 @@ static const VMStateDescription vmstate_smmuv3 = {
     .name = "smmuv3",
     .version_id = 1,
     .minimum_version_id = 1,
+    .priority = MIG_PRI_IOMMU,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(features, SMMUv3State),
         VMSTATE_UINT8(sid_size, SMMUv3State),

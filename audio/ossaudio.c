@@ -142,16 +142,14 @@ static int aud_to_ossfmt (AudioFormat fmt, int endianness)
     case AUDIO_FORMAT_S16:
         if (endianness) {
             return AFMT_S16_BE;
-        }
-        else {
+        } else {
             return AFMT_S16_LE;
         }
 
     case AUDIO_FORMAT_U16:
         if (endianness) {
             return AFMT_U16_BE;
-        }
-        else {
+        } else {
             return AFMT_U16_LE;
         }
 
@@ -542,16 +540,14 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
             int trig = 0;
             if (ioctl (fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
                 oss_logerr (errno, "SNDCTL_DSP_SETTRIGGER 0 failed\n");
-            }
-            else {
+            } else {
                 trig = PCM_ENABLE_OUTPUT;
                 if (ioctl (fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
                     oss_logerr (
                         errno,
                         "SNDCTL_DSP_SETTRIGGER PCM_ENABLE_OUTPUT failed\n"
                         );
-                }
-                else {
+                } else {
                     oss->mmapped = 1;
                 }
             }
@@ -762,6 +758,7 @@ static struct audio_pcm_ops oss_pcm_ops = {
     .init_in  = oss_init_in,
     .fini_in  = oss_fini_in,
     .read     = oss_read,
+    .run_buffer_in = audio_generic_run_buffer_in,
     .enable_in = oss_enable_in
 };
 

@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include "hw/char/serial.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
@@ -35,6 +36,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 
 #define UART_LCR_DLAB	0x80	/* Divisor latch access bit */
 
@@ -338,11 +340,7 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
     default:
     case 0:
         if (s->lcr & UART_LCR_DLAB) {
-            if (size == 1) {
-                s->divider = (s->divider & 0xff00) | val;
-            } else {
-                s->divider = val;
-            }
+            s->divider = deposit32(s->divider, 8 * addr, 8, val);
             serial_update_parameters(s);
         } else {
             s->thr = (uint8_t) val;
@@ -364,7 +362,7 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         break;
     case 1:
         if (s->lcr & UART_LCR_DLAB) {
-            s->divider = (s->divider & 0x00ff) | (val << 8);
+            s->divider = deposit32(s->divider, 8 * addr, 8, val);
             serial_update_parameters(s);
         } else {
             uint8_t changed = (s->ier ^ val) & 0x0f;
@@ -478,7 +476,7 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
     default:
     case 0:
         if (s->lcr & UART_LCR_DLAB) {
-            ret = s->divider & 0xff;
+            ret = extract16(s->divider, 8 * addr, 8);
         } else {
             if(s->fcr & UART_FCR_FE) {
                 ret = fifo8_is_empty(&s->recv_fifo) ?
@@ -502,7 +500,7 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case 1:
         if (s->lcr & UART_LCR_DLAB) {
-            ret = (s->divider >> 8) & 0xff;
+            ret = extract16(s->divider, 8 * addr, 8);
         } else {
             ret = s->ier;
         }
@@ -943,10 +941,8 @@ static void serial_unrealize(DeviceState *dev)
 
     qemu_chr_fe_deinit(&s->chr, false);
 
-    timer_del(s->modem_status_poll);
     timer_free(s->modem_status_poll);
 
-    timer_del(s->fifo_timeout_timer);
     timer_free(s->fifo_timeout_timer);
 
     fifo8_destroy(&s->recv_fifo);
@@ -1120,7 +1116,6 @@ static const TypeInfo serial_mm_info = {
     .class_init = serial_mm_class_init,
     .instance_init = serial_mm_instance_init,
     .instance_size = sizeof(SerialMM),
-    .class_init = serial_mm_class_init,
 };
 
 static void serial_register_types(void)

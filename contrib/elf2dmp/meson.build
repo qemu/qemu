@@ -1,4 +1,4 @@
-if 'CONFIG_CURL' in config_host
+if curl.found()
   executable('elf2dmp', files('main.c', 'addrspace.c', 'download.c', 'pdb.c', 'qemu_elf.c'),
              dependencies: [glib, curl],
              install: true)

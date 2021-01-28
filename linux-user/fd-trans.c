@@ -175,6 +175,8 @@ enum {
     QEMU_IFLA_BRPORT_NEIGH_SUPPRESS,
     QEMU_IFLA_BRPORT_ISOLATED,
     QEMU_IFLA_BRPORT_BACKUP_PORT,
+    QEMU_IFLA_BRPORT_MRP_RING_OPEN,
+    QEMU_IFLA_BRPORT_MRP_IN_OPEN,
     QEMU___IFLA_BRPORT_MAX
 };
 
@@ -552,6 +554,8 @@ static abi_long host_to_target_slave_data_bridge_nlattr(struct nlattr *nlattr,
     case QEMU_IFLA_BRPORT_BCAST_FLOOD:
     case QEMU_IFLA_BRPORT_NEIGH_SUPPRESS:
     case QEMU_IFLA_BRPORT_ISOLATED:
+    case QEMU_IFLA_BRPORT_MRP_RING_OPEN:
+    case QEMU_IFLA_BRPORT_MRP_IN_OPEN:
         break;
     /* uint16_t */
     case QEMU_IFLA_BRPORT_PRIORITY:
@@ -1125,7 +1129,14 @@ static abi_long target_to_host_for_each_rtattr(struct rtattr *rtattr,
 
 static abi_long target_to_host_data_link_rtattr(struct rtattr *rtattr)
 {
+    uint32_t *u32;
+
     switch (rtattr->rta_type) {
+    /* uint32_t */
+    case QEMU_IFLA_EXT_MASK:
+        u32 = RTA_DATA(rtattr);
+        *u32 = tswap32(*u32);
+        break;
     default:
         qemu_log_mask(LOG_UNIMP, "Unknown target QEMU_IFLA type: %d\n",
                       rtattr->rta_type);
@@ -1160,6 +1171,7 @@ static abi_long target_to_host_data_route_rtattr(struct rtattr *rtattr)
         break;
     /* u32 */
     case QEMU_RTA_PRIORITY:
+    case QEMU_RTA_TABLE:
     case QEMU_RTA_OIF:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
@@ -1200,11 +1212,10 @@ static abi_long target_to_host_data_route(struct nlmsghdr *nlh)
     struct rtmsg *rtm;
 
     switch (nlh->nlmsg_type) {
-    case RTM_GETLINK:
-        break;
     case RTM_NEWLINK:
     case RTM_DELLINK:
     case RTM_SETLINK:
+    case RTM_GETLINK:
         if (nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(*ifi))) {
             ifi = NLMSG_DATA(nlh);
             ifi->ifi_type = tswap16(ifi->ifi_type);
@@ -1225,10 +1236,9 @@ static abi_long target_to_host_data_route(struct nlmsghdr *nlh)
                                        NLMSG_LENGTH(sizeof(*ifa)));
         }
         break;
-    case RTM_GETROUTE:
-        break;
     case RTM_NEWROUTE:
     case RTM_DELROUTE:
+    case RTM_GETROUTE:
         if (nlh->nlmsg_len >= NLMSG_LENGTH(sizeof(*rtm))) {
             rtm = NLMSG_DATA(nlh);
             rtm->rtm_flags = tswap32(rtm->rtm_flags);

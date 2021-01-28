@@ -219,9 +219,9 @@ static void rtas_stop_self(PowerPCCPU *cpu, SpaprMachineState *spapr,
 }
 
 static void rtas_ibm_suspend_me(PowerPCCPU *cpu, SpaprMachineState *spapr,
-                           uint32_t token, uint32_t nargs,
-                           target_ulong args,
-                           uint32_t nret, target_ulong rets)
+                                uint32_t token, uint32_t nargs,
+                                target_ulong args,
+                                uint32_t nret, target_ulong rets)
 {
     CPUState *cs;
 

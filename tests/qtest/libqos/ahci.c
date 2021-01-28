@@ -637,9 +637,12 @@ void ahci_exec(AHCIQState *ahci, uint8_t port,
     AHCICommand *cmd;
     int rc;
     AHCIOpts *opts;
+    uint64_t buffer_in;
 
     opts = g_memdup((opts_in == NULL ? &default_opts : opts_in),
                     sizeof(AHCIOpts));
+
+    buffer_in = opts->buffer;
 
     /* No guest buffer provided, create one. */
     if (opts->size && !opts->buffer) {
@@ -686,7 +689,7 @@ void ahci_exec(AHCIQState *ahci, uint8_t port,
         g_assert_cmpint(rc, ==, 0);
     }
     ahci_command_free(cmd);
-    if (opts->buffer != opts_in->buffer) {
+    if (opts->buffer != buffer_in) {
         ahci_free(ahci, opts->buffer);
     }
     g_free(opts);

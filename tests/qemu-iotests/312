@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+# group: rw quick
+#
+# Test drive-mirror with quorum
+#
+# The goal of this test is to check how the quorum driver reports
+# regions that are known to read as zeroes (BDRV_BLOCK_ZERO). The idea
+# is that drive-mirror will try the efficient representation of zeroes
+# in the destination image instead of writing actual zeroes.
+#
+# Copyright (C) 2020 Igalia, S.L.
+# Author: Alberto Garcia <berto@igalia.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=berto@igalia.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _rm_test_img "$TEST_IMG.0"
+    _rm_test_img "$TEST_IMG.1"
+    _rm_test_img "$TEST_IMG.2"
+    _rm_test_img "$TEST_IMG.3"
+    _cleanup_qemu
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+_unsupported_imgopts cluster_size data_file
+
+echo
+echo '### Create all images' # three source (quorum), one destination
+echo
+TEST_IMG="$TEST_IMG.0" _make_test_img -o cluster_size=64k 10M
+TEST_IMG="$TEST_IMG.1" _make_test_img -o cluster_size=64k 10M
+TEST_IMG="$TEST_IMG.2" _make_test_img -o cluster_size=64k 10M
+TEST_IMG="$TEST_IMG.3" _make_test_img -o cluster_size=64k 10M
+
+quorum="driver=raw,file.driver=quorum,file.vote-threshold=2"
+quorum="$quorum,file.children.0.file.filename=$TEST_IMG.0"
+quorum="$quorum,file.children.1.file.filename=$TEST_IMG.1"
+quorum="$quorum,file.children.2.file.filename=$TEST_IMG.2"
+quorum="$quorum,file.children.0.driver=$IMGFMT"
+quorum="$quorum,file.children.1.driver=$IMGFMT"
+quorum="$quorum,file.children.2.driver=$IMGFMT"
+
+echo
+echo '### Output of qemu-img map (empty quorum)'
+echo
+$QEMU_IMG map --image-opts $quorum | _filter_qemu_img_map
+
+# Now we write data to the quorum. All three images will read as
+# zeroes in all cases, but with different ways to represent them
+# (unallocated clusters, zero clusters, data clusters with zeroes)
+# that will have an effect on how the data will be mirrored and the
+# output of qemu-img map on the resulting image.
+echo
+echo '### Write data to the quorum'
+echo
+# Test 1: data regions surrounded by unallocated clusters.
+# Three data regions, the largest one (0x30000) will be picked, end result:
+# offset 0x10000, length 0x30000 -> data
+$QEMU_IO -c "write -P 0 $((0x10000)) $((0x10000))" "$TEST_IMG.0" | _filter_qemu_io
+$QEMU_IO -c "write -P 0 $((0x10000)) $((0x30000))" "$TEST_IMG.1" | _filter_qemu_io
+$QEMU_IO -c "write -P 0 $((0x10000)) $((0x20000))" "$TEST_IMG.2" | _filter_qemu_io
+
+# Test 2: zero regions surrounded by data clusters.
+# First we allocate the data clusters.
+$QEMU_IO -c "open -o $quorum" -c "write -P 0 $((0x100000)) $((0x40000))" | _filter_qemu_io
+
+# Three zero regions, the smallest one (0x10000) will be picked, end result:
+# offset 0x100000, length 0x10000 -> data
+# offset 0x110000, length 0x10000 -> zeroes
+# offset 0x120000, length 0x20000 -> data
+$QEMU_IO -c "write -z $((0x110000)) $((0x10000))" "$TEST_IMG.0" | _filter_qemu_io
+$QEMU_IO -c "write -z $((0x110000)) $((0x30000))" "$TEST_IMG.1" | _filter_qemu_io
+$QEMU_IO -c "write -z $((0x110000)) $((0x20000))" "$TEST_IMG.2" | _filter_qemu_io
+
+# Test 3: zero clusters surrounded by unallocated clusters.
+# Everything reads as zeroes, no effect on the end result.
+$QEMU_IO -c "write -z $((0x150000)) $((0x10000))" "$TEST_IMG.0" | _filter_qemu_io
+$QEMU_IO -c "write -z $((0x150000)) $((0x30000))" "$TEST_IMG.1" | _filter_qemu_io
+$QEMU_IO -c "write -z $((0x150000)) $((0x20000))" "$TEST_IMG.2" | _filter_qemu_io
+
+# Test 4: mix of data and zero clusters.
+# The zero region will be ignored in favor of the largest data region
+# (0x20000), end result:
+# offset 0x200000, length 0x20000 -> data
+$QEMU_IO -c "write -P 0 $((0x200000)) $((0x10000))" "$TEST_IMG.0" | _filter_qemu_io
+$QEMU_IO -c "write -z   $((0x200000)) $((0x30000))" "$TEST_IMG.1" | _filter_qemu_io
+$QEMU_IO -c "write -P 0 $((0x200000)) $((0x20000))" "$TEST_IMG.2" | _filter_qemu_io
+
+# Test 5: write data to a region and then zeroize it, doing it
+# directly on the quorum device instead of the individual images.
+# This has no effect on the end result but proves that the quorum driver
+# supports 'write -z'.
+$QEMU_IO -c "open -o $quorum" -c "write -P 1 $((0x250000)) $((0x10000))" | _filter_qemu_io
+# Verify the data that we just wrote
+$QEMU_IO -c "open -o $quorum" -c "read -P 1 $((0x250000)) $((0x10000))" | _filter_qemu_io
+$QEMU_IO -c "open -o $quorum" -c "write -z $((0x250000)) $((0x10000))" | _filter_qemu_io
+# Now it should read back as zeroes
+$QEMU_IO -c "open -o $quorum" -c "read -P 0 $((0x250000)) $((0x10000))" | _filter_qemu_io
+
+echo
+echo '### Launch the drive-mirror job'
+echo
+qemu_comm_method="qmp" _launch_qemu -drive if=virtio,"$quorum"
+h=$QEMU_HANDLE
+_send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" 'return'
+
+_send_qemu_cmd $h \
+    "{'execute': 'drive-mirror',
+                 'arguments': {'device': 'virtio0',
+                               'format': '$IMGFMT',
+                               'target': '$TEST_IMG.3',
+                               'sync':   'full',
+                               'mode':   'existing' }}"    \
+     "BLOCK_JOB_READY.*virtio0"
+
+_send_qemu_cmd $h \
+    "{ 'execute': 'block-job-complete',
+       'arguments': { 'device': 'virtio0' } }" \
+    'BLOCK_JOB_COMPLETED'
+
+_send_qemu_cmd $h "{ 'execute': 'quit' }" ''
+
+echo
+echo '### Output of qemu-img map (destination image)'
+echo
+$QEMU_IMG map "$TEST_IMG.3" | _filter_qemu_img_map
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

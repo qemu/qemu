@@ -25,10 +25,7 @@
 
 #include "fuse_common.h"
 
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <sys/types.h>
 #include <sys/uio.h>
 #include <utime.h>
 
@@ -102,6 +99,11 @@ struct fuse_entry_param {
      *  large value.
      */
     double entry_timeout;
+
+    /**
+     * Flags for fuse_attr.flags that do not fit into attr.
+     */
+    uint32_t attr_flags;
 };
 
 /**

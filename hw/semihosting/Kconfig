@@ -1,3 +1,7 @@
 
 config SEMIHOSTING
        bool
+
+config ARM_COMPATIBLE_SEMIHOSTING
+       bool
+       select SEMIHOSTING

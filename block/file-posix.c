@@ -216,6 +216,20 @@ typedef struct RawPosixAIOData {
 static int cdrom_reopen(BlockDriverState *bs);
 #endif
 
+/*
+ * Elide EAGAIN and EACCES details when failing to lock, as this
+ * indicates that the specified file region is already locked by
+ * another process, which is considered a common scenario.
+ */
+#define raw_lock_error_setg_errno(errp, err, fmt, ...)                  \
+    do {                                                                \
+        if ((err) == EAGAIN || (err) == EACCES) {                       \
+            error_setg((errp), (fmt), ## __VA_ARGS__);                  \
+        } else {                                                        \
+            error_setg_errno((errp), (err), (fmt), ## __VA_ARGS__);     \
+        }                                                               \
+    } while (0)
+
 #if defined(__NetBSD__)
 static int raw_normalize_devicepath(const char **filename, Error **errp)
 {
@@ -836,7 +850,8 @@ static int raw_apply_lock_bytes(BDRVRawState *s, int fd,
         if ((perm_lock_bits & bit) && !(locked_perm & bit)) {
             ret = qemu_lock_fd(fd, off, 1, false);
             if (ret) {
-                error_setg(errp, "Failed to lock byte %d", off);
+                raw_lock_error_setg_errno(errp, -ret, "Failed to lock byte %d",
+                                          off);
                 return ret;
             } else if (s) {
                 s->locked_perm |= bit;
@@ -844,7 +859,7 @@ static int raw_apply_lock_bytes(BDRVRawState *s, int fd,
         } else if (unlock && (locked_perm & bit) && !(perm_lock_bits & bit)) {
             ret = qemu_unlock_fd(fd, off, 1);
             if (ret) {
-                error_setg(errp, "Failed to unlock byte %d", off);
+                error_setg_errno(errp, -ret, "Failed to unlock byte %d", off);
                 return ret;
             } else if (s) {
                 s->locked_perm &= ~bit;
@@ -857,7 +872,8 @@ static int raw_apply_lock_bytes(BDRVRawState *s, int fd,
         if ((shared_perm_lock_bits & bit) && !(locked_shared_perm & bit)) {
             ret = qemu_lock_fd(fd, off, 1, false);
             if (ret) {
-                error_setg(errp, "Failed to lock byte %d", off);
+                raw_lock_error_setg_errno(errp, -ret, "Failed to lock byte %d",
+                                          off);
                 return ret;
             } else if (s) {
                 s->locked_shared_perm |= bit;
@@ -866,7 +882,7 @@ static int raw_apply_lock_bytes(BDRVRawState *s, int fd,
                    !(shared_perm_lock_bits & bit)) {
             ret = qemu_unlock_fd(fd, off, 1);
             if (ret) {
-                error_setg(errp, "Failed to unlock byte %d", off);
+                error_setg_errno(errp, -ret, "Failed to unlock byte %d", off);
                 return ret;
             } else if (s) {
                 s->locked_shared_perm &= ~bit;
@@ -890,9 +906,10 @@ static int raw_check_lock_bytes(int fd, uint64_t perm, uint64_t shared_perm,
             ret = qemu_lock_fd_test(fd, off, 1, true);
             if (ret) {
                 char *perm_name = bdrv_perm_names(p);
-                error_setg(errp,
-                           "Failed to get \"%s\" lock",
-                           perm_name);
+
+                raw_lock_error_setg_errno(errp, -ret,
+                                          "Failed to get \"%s\" lock",
+                                          perm_name);
                 g_free(perm_name);
                 return ret;
             }
@@ -905,9 +922,10 @@ static int raw_check_lock_bytes(int fd, uint64_t perm, uint64_t shared_perm,
             ret = qemu_lock_fd_test(fd, off, 1, true);
             if (ret) {
                 char *perm_name = bdrv_perm_names(p);
-                error_setg(errp,
-                           "Failed to get shared \"%s\" lock",
-                           perm_name);
+
+                raw_lock_error_setg_errno(errp, -ret,
+                                          "Failed to get shared \"%s\" lock",
+                                          perm_name);
                 g_free(perm_name);
                 return ret;
             }
@@ -1698,6 +1716,7 @@ static int handle_aiocb_write_zeroes_unmap(void *opaque)
     switch (ret) {
     case -ENOTSUP:
     case -EINVAL:
+    case -EBUSY:
         break;
     default:
         return ret;
@@ -2110,7 +2129,7 @@ static void raw_aio_attach_aio_context(BlockDriverState *bs,
 #endif
 #ifdef CONFIG_LINUX_IO_URING
     if (s->use_linux_io_uring) {
-        Error *local_err;
+        Error *local_err = NULL;
         if (!aio_setup_linux_io_uring(new_context, &local_err)) {
             error_reportf_err(local_err, "Unable to use linux io_uring, "
                                          "falling back to thread pool: ");
@@ -2925,7 +2944,6 @@ raw_do_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int bytes,
 #ifdef CONFIG_FALLOCATE
     if (offset + bytes > bs->total_sectors * BDRV_SECTOR_SIZE) {
         BdrvTrackedRequest *req;
-        uint64_t end;
 
         /*
          * This is a workaround for a bug in the Linux XFS driver,
@@ -2949,11 +2967,11 @@ raw_do_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int bytes,
         assert(req->offset <= offset);
         assert(req->offset + req->bytes >= offset + bytes);
 
-        end = INT64_MAX & -(uint64_t)bs->bl.request_alignment;
-        req->bytes = end - req->offset;
-        req->overlap_bytes = req->bytes;
+        req->bytes = BDRV_MAX_LENGTH - req->offset;
 
-        bdrv_mark_request_serialising(req, bs->bl.request_alignment);
+        assert(bdrv_check_request(req->offset, req->bytes) == 0);
+
+        bdrv_make_request_serialising(req, bs->bl.request_alignment);
     }
 #endif
 
@@ -3103,7 +3121,7 @@ static int raw_check_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared,
     }
 
     /* Copy locks to the new fd */
-    if (s->perm_change_fd) {
+    if (s->perm_change_fd && s->use_lock) {
         ret = raw_apply_lock_bytes(NULL, s->perm_change_fd, perm, ~shared,
                                    false, errp);
         if (ret < 0) {

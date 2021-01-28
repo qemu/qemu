@@ -10,10 +10,8 @@
 #ifndef VHOST_USER_GPU_VUGBM_H
 #define VHOST_USER_GPU_VUGBM_H
 
-#include "qemu/osdep.h"
 
 #ifdef CONFIG_MEMFD
-#include <sys/mman.h>
 #include <sys/ioctl.h>
 #endif
 

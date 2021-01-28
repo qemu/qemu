@@ -9,7 +9,7 @@
 #include "qemu/cutils.h"
 #include "hw/display/edid.h"
 
-static qemu_edid_info info = (qemu_edid_info) {
+static qemu_edid_info info = {
     .prefx = 1024,
     .prefy = 768,
 };

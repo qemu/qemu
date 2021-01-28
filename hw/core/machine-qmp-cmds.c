@@ -215,7 +215,6 @@ MachineInfoList *qmp_query_machines(Error **errp)
 
     for (el = machines; el; el = el->next) {
         MachineClass *mc = el->data;
-        MachineInfoList *entry;
         MachineInfo *info;
 
         info = g_malloc0(sizeof(*info));
@@ -243,10 +242,7 @@ MachineInfoList *qmp_query_machines(Error **errp)
             info->has_default_ram_id = true;
         }
 
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = info;
-        entry->next = mach_list;
-        mach_list = entry;
+        QAPI_LIST_PREPEND(mach_list, info);
     }
 
     g_slist_free(machines);
@@ -286,10 +282,9 @@ HotpluggableCPUList *qmp_query_hotpluggable_cpus(Error **errp)
 
 void qmp_set_numa_node(NumaOptions *cmd, Error **errp)
 {
-    if (!runstate_check(RUN_STATE_PRECONFIG)) {
-        error_setg(errp, "The command is permitted only in '%s' state",
-                   RunState_str(RUN_STATE_PRECONFIG));
-         return;
+    if (phase_check(PHASE_MACHINE_INITIALIZED)) {
+        error_setg(errp, "The command is permitted only before the machine has been created");
+        return;
     }
 
     set_numa_options(MACHINE(qdev_get_machine()), cmd, errp);

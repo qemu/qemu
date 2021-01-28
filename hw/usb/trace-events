@@ -252,6 +252,18 @@ usb_hub_attach(int addr, int nr) "dev %d, port %d"
 usb_hub_detach(int addr, int nr) "dev %d, port %d"
 usb_hub_status_report(int addr, int status) "dev %d, status 0x%x"
 
+# dev-storage.c
+usb_msd_reset(void) ""
+usb_msd_maxlun(unsigned maxlun) "%d"
+usb_msd_send_status(unsigned status, unsigned tag, size_t size) "status %d, tag 0x%x, len %zd"
+usb_msd_data_in(unsigned packet, unsigned remaining, unsigned total) "%d/%d (scsi %d)"
+usb_msd_data_out(unsigned packet, unsigned remaining) "%d/%d"
+usb_msd_packet_async(void) ""
+usb_msd_packet_complete(void) ""
+usb_msd_cmd_submit(unsigned lun, unsigned tag, unsigned flags, unsigned len, unsigned data_len) "lun %u, tag 0x%x, flags 0x%08x, len %d, data-len %d"
+usb_msd_cmd_complete(unsigned status, unsigned tag) "status %d, tag 0x%x"
+usb_msd_cmd_cancel(unsigned tag) "tag 0x%x"
+
 # dev-uas.c
 usb_uas_reset(int addr) "dev %d"
 usb_uas_command(int addr, uint16_t tag, int lun, uint32_t lun64_1, uint32_t lun64_2) "dev %d, tag 0x%x, lun %d, lun64 0x%08x-0x%08x"
@@ -320,3 +332,16 @@ usb_host_parse_interface(int bus, int addr, int num, int alt, int active) "dev %
 usb_host_parse_endpoint(int bus, int addr, int ep, const char *dir, const char *type, int active) "dev %d:%d, ep %d, %s, %s, active %d"
 usb_host_parse_error(int bus, int addr, const char *errmsg) "dev %d:%d, msg %s"
 usb_host_remote_wakeup_removed(int bus, int addr) "dev %d:%d"
+
+# dev-serial.c
+usb_serial_reset(int bus, int addr) "dev %d:%u reset"
+usb_serial_handle_control(int bus, int addr, int request, int value) "dev %d:%u got control 0x%x, value 0x%x"
+usb_serial_unsupported_parity(int bus, int addr, int value) "dev %d:%u unsupported parity %d"
+usb_serial_unsupported_stopbits(int bus, int addr, int value) "dev %d:%u unsupported stop bits %d"
+usb_serial_unsupported_control(int bus, int addr, int request, int value) "dev %d:%u got unsupported/bogus control 0x%x, value 0x%x"
+usb_serial_unsupported_data_bits(int bus, int addr, int value) "dev %d:%u unsupported data bits %d, falling back to 8"
+usb_serial_bad_token(int bus, int addr) "dev %d:%u bad token"
+usb_serial_set_baud(int bus, int addr, int baud) "dev %d:%u baud rate %d"
+usb_serial_set_data(int bus, int addr, int parity, int data, int stop) "dev %d:%u parity %c, data bits %d, stop bits %d"
+usb_serial_set_flow_control(int bus, int addr, int index) "dev %d:%u flow control %d"
+usb_serial_set_xonxoff(int bus, int addr, uint8_t xon, uint8_t xoff) "dev %d:%u xon 0x%x xoff 0x%x"

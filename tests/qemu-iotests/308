@@ -1,0 +1,340 @@
+#!/usr/bin/env bash
+# group: rw
+#
+# Test FUSE exports (in ways that are not captured by the generic
+# tests)
+#
+# Copyright (C) 2020 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq=$(basename "$0")
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_qemu
+    _cleanup_test_img
+    rmdir "$EXT_MP" 2>/dev/null
+    rm -f "$EXT_MP"
+    rm -f "$COPIED_IMG"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+# Generic format, but needs a plain filename
+_supported_fmt generic
+if [ "$IMGOPTSSYNTAX" = "true" ]; then
+    _unsupported_fmt $IMGFMT
+fi
+# We need the image to have exactly the specified size, and VPC does
+# not allow that by default
+_unsupported_fmt vpc
+
+_supported_proto file # We create the FUSE export manually
+_supported_os Linux # We need /dev/urandom
+
+# $1: Export ID
+# $2: Options (beyond the node-name and ID)
+# $3: Expected return value (defaults to 'return')
+# $4: Node to export (defaults to 'node-format')
+fuse_export_add()
+{
+    _send_qemu_cmd $QEMU_HANDLE \
+        "{'execute': 'block-export-add',
+          'arguments': {
+              'type': 'fuse',
+              'id': '$1',
+              'node-name': '${4:-node-format}',
+              $2
+          } }" \
+        "${3:-return}" \
+        | _filter_imgfmt
+}
+
+# $1: Export ID
+fuse_export_del()
+{
+    _send_qemu_cmd $QEMU_HANDLE \
+        "{'execute': 'block-export-del',
+          'arguments': {
+              'id': '$1'
+          } }" \
+        'return'
+
+    _send_qemu_cmd $QEMU_HANDLE \
+        '' \
+        'BLOCK_EXPORT_DELETED'
+}
+
+# Return the length of the protocol file
+# $1: Protocol node export mount point
+# $2: Original file (to compare)
+get_proto_len()
+{
+    len1=$(stat -c '%s' "$1")
+    len2=$(stat -c '%s' "$2")
+
+    if [ "$len1" != "$len2" ]; then
+        echo 'ERROR: Length of export and original differ:' >&2
+        echo "$len1 != $len2" >&2
+    else
+        echo '(OK: Lengths of export and original are the same)' >&2
+    fi
+
+    echo "$len1"
+}
+
+COPIED_IMG="$TEST_IMG.copy"
+EXT_MP="$TEST_IMG.fuse"
+
+echo '=== Set up ==='
+
+# Create image with random data
+_make_test_img 64M
+$QEMU_IO -c 'write -s /dev/urandom 0 64M' "$TEST_IMG" | _filter_qemu_io
+
+_launch_qemu
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'qmp_capabilities'}" \
+    'return'
+
+# Separate blockdev-add calls for format and protocol so we can remove
+# the format layer later on
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'blockdev-add',
+      'arguments': {
+          'driver': 'file',
+          'node-name': 'node-protocol',
+          'filename': '$TEST_IMG'
+      } }" \
+    'return'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'blockdev-add',
+      'arguments': {
+          'driver': '$IMGFMT',
+          'node-name': 'node-format',
+          'file': 'node-protocol'
+      } }" \
+    'return'
+
+echo
+echo '=== Mountpoint not present ==='
+
+rmdir "$EXT_MP" 2>/dev/null
+rm -f "$EXT_MP"
+output=$(fuse_export_add 'export-err' "'mountpoint': '$EXT_MP'" error)
+
+if echo "$output" | grep -q "Invalid parameter 'fuse'"; then
+    _notrun 'No FUSE support'
+fi
+
+echo "$output"
+
+echo
+echo '=== Mountpoint is a directory ==='
+
+mkdir "$EXT_MP"
+fuse_export_add 'export-err' "'mountpoint': '$EXT_MP'" error
+rmdir "$EXT_MP"
+
+echo
+echo '=== Mountpoint is a regular file ==='
+
+touch "$EXT_MP"
+fuse_export_add 'export-mp' "'mountpoint': '$EXT_MP'"
+
+# Check that the export presents the same data as the original image
+$QEMU_IMG compare -f raw -F $IMGFMT -U "$EXT_MP" "$TEST_IMG"
+
+echo
+echo '=== Mount over existing file ==='
+
+# This is the coolest feature of FUSE exports: You can transparently
+# make images in any format appear as raw images
+fuse_export_add 'export-img' "'mountpoint': '$TEST_IMG'"
+
+# Accesses both exports at the same time, so we get a concurrency test
+$QEMU_IMG compare -f raw -F raw -U "$EXT_MP" "$TEST_IMG"
+
+# Just to be sure, we later want to compare the data offline.  Also,
+# this allows us to see that cp works without complaining.
+# (This is not a given, because cp will expect a short read at EOF.
+# Internally, qemu does not allow short reads, so we have to check
+# whether the FUSE export driver lets them work.)
+cp "$TEST_IMG" "$COPIED_IMG"
+
+# $TEST_IMG will be in mode 0400 because it is read-only; we are going
+# to write to the copy, so make it writable
+chmod 0600 "$COPIED_IMG"
+
+echo
+echo '=== Double export ==='
+
+# We have already seen that exporting a node twice works fine, but you
+# cannot export anything twice on the same mount point.  The reason is
+# that qemu has to stat the given mount point, and this would have to
+# be answered by the same qemu instance if it already has an export
+# there.  However, it cannot answer the stat because it is itself
+# caught up in that same stat.
+fuse_export_add 'export-err' "'mountpoint': '$EXT_MP'" error
+
+echo
+echo '=== Remove export ==='
+
+# Double-check that $EXT_MP appears as a non-empty file (the raw image)
+$QEMU_IMG info -f raw "$EXT_MP" | grep 'virtual size'
+
+fuse_export_del 'export-mp'
+
+# See that the file appears empty again
+$QEMU_IMG info -f raw "$EXT_MP" | grep 'virtual size'
+
+echo
+echo '=== Writable export ==='
+
+fuse_export_add 'export-mp' "'mountpoint': '$EXT_MP', 'writable': true"
+
+# Check that writing to the read-only export fails
+$QEMU_IO -f raw -c 'write -P 42 1M 64k' "$TEST_IMG" | _filter_qemu_io
+
+# But here it should work
+$QEMU_IO -f raw -c 'write -P 42 1M 64k' "$EXT_MP" | _filter_qemu_io
+
+# (Adjust the copy, too)
+$QEMU_IO -f raw -c 'write -P 42 1M 64k' "$COPIED_IMG" | _filter_qemu_io
+
+echo
+echo '=== Resizing exports ==='
+
+# Here, we need to export the protocol node -- the format layer may
+# not be growable, simply because the format does not support it.
+
+# Remove all exports and the format node first so permissions will not
+# get in the way
+fuse_export_del 'export-mp'
+fuse_export_del 'export-img'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'blockdev-del',
+      'arguments': {
+          'node-name': 'node-format'
+      } }" \
+    'return'
+
+# Now export the protocol node
+fuse_export_add \
+    'export-mp' \
+    "'mountpoint': '$EXT_MP', 'writable': true" \
+    'return' \
+    'node-protocol'
+
+echo
+echo '--- Try growing non-growable export ---'
+
+# Get the current size so we can write beyond the EOF
+orig_len=$(get_proto_len "$EXT_MP" "$TEST_IMG")
+orig_disk_usage=$(stat -c '%b' "$TEST_IMG")
+
+# Should fail (exports are non-growable by default)
+# (Note that qemu-io can never write beyond the EOF, so we have to use
+# dd here)
+dd if=/dev/zero of="$EXT_MP" bs=1 count=64k seek=$orig_len 2>&1 \
+    | _filter_testdir | _filter_imgfmt
+
+echo
+echo '--- Resize export ---'
+
+# But we can truncate it explicitly; even with fallocate
+fallocate -o "$orig_len" -l 64k "$EXT_MP"
+
+new_len=$(get_proto_len "$EXT_MP" "$TEST_IMG")
+if [ "$new_len" != "$((orig_len + 65536))" ]; then
+    echo 'ERROR: Unexpected post-truncate image size:'
+    echo "$new_len != $((orig_len + 65536))"
+else
+    echo 'OK: Post-truncate image size is as expected'
+fi
+
+new_disk_usage=$(stat -c '%b' "$TEST_IMG")
+if [ "$new_disk_usage" -gt "$orig_disk_usage" ]; then
+    echo 'OK: Disk usage grew with fallocate'
+else
+    echo 'ERROR: Disk usage did not grow despite fallocate:'
+    echo "$orig_disk_usage => $new_disk_usage"
+fi
+
+echo
+echo '--- Try growing growable export ---'
+
+# Now export as growable
+fuse_export_del 'export-mp'
+fuse_export_add \
+    'export-mp' \
+    "'mountpoint': '$EXT_MP', 'writable': true, 'growable': true" \
+    'return' \
+    'node-protocol'
+
+# Now we should be able to write beyond the EOF
+dd if=/dev/zero of="$EXT_MP" bs=1 count=64k seek=$new_len 2>&1 \
+    | _filter_testdir | _filter_imgfmt
+
+new_len=$(get_proto_len "$EXT_MP" "$TEST_IMG")
+if [ "$new_len" != "$((orig_len + 131072))" ]; then
+    echo 'ERROR: Unexpected post-grow image size:'
+    echo "$new_len != $((orig_len + 131072))"
+else
+    echo 'OK: Post-grow image size is as expected'
+fi
+
+echo
+echo '--- Shrink export ---'
+
+# Now go back to the original size
+truncate -s "$orig_len" "$EXT_MP"
+
+new_len=$(get_proto_len "$EXT_MP" "$TEST_IMG")
+if [ "$new_len" != "$orig_len" ]; then
+    echo 'ERROR: Unexpected post-truncate image size:'
+    echo "$new_len != $orig_len"
+else
+    echo 'OK: Post-truncate image size is as expected'
+fi
+
+echo
+echo '=== Tear down ==='
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'quit'}" \
+    'return'
+
+wait=yes _cleanup_qemu
+
+echo
+echo '=== Compare copy with original ==='
+
+$QEMU_IMG compare -f raw -F $IMGFMT "$COPIED_IMG" "$TEST_IMG"
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

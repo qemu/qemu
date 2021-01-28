@@ -6,7 +6,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -233,6 +233,12 @@ typedef struct CPUMBState CPUMBState;
 
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
+/* use-non-secure property masks */
+#define USE_NON_SECURE_M_AXI_DP_MASK 0x1
+#define USE_NON_SECURE_M_AXI_IP_MASK 0x2
+#define USE_NON_SECURE_M_AXI_DC_MASK 0x4
+#define USE_NON_SECURE_M_AXI_IC_MASK 0x8
+
 struct CPUMBState {
     uint32_t bvalue;   /* TCG temporary, only valid during a TB */
     uint32_t btarget;  /* Full resolved branch destination */
@@ -316,6 +322,7 @@ typedef struct {
     bool use_msr_instr;
     bool use_pcmp_instr;
     bool use_mmu;
+    uint8_t use_non_secure;
     bool dcache_writeback;
     bool endi;
     bool dopb_bus_exception;
@@ -337,6 +344,10 @@ struct MicroBlazeCPU {
     CPUState parent_obj;
 
     /*< public >*/
+    bool ns_axi_dp;
+    bool ns_axi_ip;
+    bool ns_axi_dc;
+    bool ns_axi_ic;
 
     CPUNegativeOffsetState neg;
     CPUMBState env;
@@ -350,7 +361,8 @@ void mb_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
                                 MMUAccessType access_type,
                                 int mmu_idx, uintptr_t retaddr);
 void mb_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
-hwaddr mb_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+hwaddr mb_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
+                                        MemTxAttrs *attrs);
 int mb_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mb_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 

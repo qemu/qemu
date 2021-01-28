@@ -35,11 +35,6 @@
 !define OUTFILE "qemu-setup.exe"
 !endif
 
-; Optionally install documentation.
-!ifndef CONFIG_DOCUMENTATION
-!define CONFIG_DOCUMENTATION
-!endif
-
 ; Use maximum compression.
 SetCompressor /SOLID lzma
 
@@ -116,26 +111,13 @@ Section "${PRODUCT} (required)"
     ; Set output path to the installation directory.
     SetOutPath "$INSTDIR"
 
-    File "${SRCDIR}\Changelog"
     File "${SRCDIR}\COPYING"
     File "${SRCDIR}\COPYING.LIB"
     File "${SRCDIR}\README.rst"
     File "${SRCDIR}\VERSION"
 
-    File "${BINDIR}\*.bmp"
-    File "${BINDIR}\*.bin"
-    File "${BINDIR}\*.dtb"
-    File "${BINDIR}\*.fd"
-    File "${BINDIR}\*.img"
-    File "${BINDIR}\*.lid"
-    File "${BINDIR}\*.ndrv"
-    File "${BINDIR}\*.rom"
-    File "${BINDIR}\openbios-*"
-
     File /r "${BINDIR}\keymaps"
-!ifdef CONFIG_GTK
     File /r "${BINDIR}\share"
-!endif
 
 !ifdef W64
     SetRegView 64
@@ -176,21 +158,11 @@ SectionEnd
 
 !ifdef CONFIG_DOCUMENTATION
 Section "Documentation" SectionDoc
-    SetOutPath "$INSTDIR"
-    File "${BINDIR}\index.html"
-    SetOutPath "$INSTDIR\interop"
-    FILE /r "${BINDIR}\interop\*.*"
-    SetOutPath "$INSTDIR\specs"
-    FILE /r "${BINDIR}\specs\*.*"
-    SetOutPath "$INSTDIR\system"
-    FILE /r "${BINDIR}\system\*.*"
-    SetOutPath "$INSTDIR\tools"
-    FILE /r "${BINDIR}\tools\*.*"
-    SetOutPath "$INSTDIR\user"
-    FILE /r "${BINDIR}\user\*.*"
+    SetOutPath "$INSTDIR\doc"
+    File /r "${BINDIR}\doc"
     SetOutPath "$INSTDIR"
     CreateDirectory "$SMPROGRAMS\${PRODUCT}"
-    CreateShortCut "$SMPROGRAMS\${PRODUCT}\User Documentation.lnk" "$INSTDIR\index.html" "" "$INSTDIR\index.html" 0
+    CreateShortCut "$SMPROGRAMS\${PRODUCT}\User Documentation.lnk" "$INSTDIR\doc\index.html" "" "$INSTDIR\doc\index.html" 0
 SectionEnd
 !endif
 
@@ -238,13 +210,7 @@ Section "Uninstall"
     Delete "$INSTDIR\qemu-io.exe"
     Delete "$INSTDIR\qemu.exe"
     Delete "$INSTDIR\qemu-system-*.exe"
-    Delete "$INSTDIR\index.html"
-    RMDir /r "$INSTDIR\interop"
-    RMDir /r "$INSTDIR\specs"
-    RMDir /r "$INSTDIR\system"
-    RMDir /r "$INSTDIR\tools"
-    RMDir /r "$INSTDIR\user"
-    RMDir /r "$INSTDIR\keymaps"
+    RMDir /r "$INSTDIR\doc"
     RMDir /r "$INSTDIR\share"
     ; Remove generated files
     Delete "$INSTDIR\stderr.txt"

@@ -46,7 +46,7 @@
 # @pages-per-second: the number of memory pages transferred per second
 #                    (Since 4.0)
 #
-# Since: 0.14.0
+# Since: 0.14
 ##
 { 'struct': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
@@ -147,6 +147,18 @@
             'active', 'postcopy-active', 'postcopy-paused',
             'postcopy-recover', 'completed', 'failed', 'colo',
             'pre-switchover', 'device', 'wait-unplug' ] }
+##
+# @VfioStats:
+#
+# Detailed VFIO devices migration statistics
+#
+# @transferred: amount of bytes transferred to the target VM by VFIO devices
+#
+# Since: 5.2
+#
+##
+{ 'struct': 'VfioStats',
+  'data': {'transferred': 'int' } }
 
 ##
 # @MigrationInfo:
@@ -208,11 +220,16 @@
 #
 # @socket-address: Only used for tcp, to know what the real port is (Since 4.0)
 #
-# Since: 0.14.0
+# @vfio: @VfioStats containing detailed VFIO devices migration statistics,
+#        only returned if VFIO device is present, migration is supported by all
+#        VFIO devices and status is 'active' or 'completed' (since 5.2)
+#
+# Since: 0.14
 ##
 { 'struct': 'MigrationInfo',
   'data': {'*status': 'MigrationStatus', '*ram': 'MigrationStats',
            '*disk': 'MigrationStats',
+           '*vfio': 'VfioStats',
            '*xbzrle-cache': 'XBZRLECacheStats',
            '*total-time': 'int',
            '*expected-downtime': 'int',
@@ -235,7 +252,7 @@
 #
 # Returns: @MigrationInfo
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1126,7 +1143,7 @@
 # @tls-port:     spice tcp port for tls-secured channels
 # @cert-subject: server certificate subject
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1326,7 +1343,7 @@
 #
 # Notes: This command succeeds even if there is no migration process running.
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1366,7 +1383,7 @@
 #
 # Returns: nothing on success
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1390,7 +1407,7 @@
 #
 # Returns: nothing on success
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Example:
 #
@@ -1469,7 +1486,7 @@
 #
 # Returns: nothing on success
 #
-# Since: 0.14.0
+# Since: 0.14
 #
 # Notes:
 #
@@ -1550,6 +1567,47 @@
 ##
 { 'command': 'xen-save-devices-state',
   'data': {'filename': 'str', '*live':'bool' } }
+
+##
+# @xen-set-global-dirty-log:
+#
+# Enable or disable the global dirty log mode.
+#
+# @enable: true to enable, false to disable.
+#
+# Returns: nothing
+#
+# Since: 1.3
+#
+# Example:
+#
+# -> { "execute": "xen-set-global-dirty-log",
+#      "arguments": { "enable": true } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'xen-set-global-dirty-log', 'data': { 'enable': 'bool' } }
+
+##
+# @xen-load-devices-state:
+#
+# Load the state of all devices from file. The RAM and the block devices
+# of the VM are not loaded by this command.
+#
+# @filename: the file to load the state of the devices from as binary
+#            data. See xen-save-devices-state.txt for a description of the binary
+#            format.
+#
+# Since: 2.7
+#
+# Example:
+#
+# -> { "execute": "xen-load-devices-state",
+#      "arguments": { "filename": "/tmp/resume" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'xen-load-devices-state', 'data': {'filename': 'str'} }
 
 ##
 # @xen-set-replication:
@@ -1743,10 +1801,8 @@
 #
 # Information about current dirty page rate of vm.
 #
-# @dirty-rate: @dirtyrate describing the dirty page rate of vm
-#              in units of MB/s.
-#              If this field returns '-1', it means querying has not
-#              yet started or completed.
+# @dirty-rate: an estimate of the dirty page rate of the VM in units of
+#              MB/s, present only when estimating the rate has completed.
 #
 # @status: status containing dirtyrate query status includes
 #          'unstarted' or 'measuring' or 'measured'
@@ -1759,7 +1815,7 @@
 #
 ##
 { 'struct': 'DirtyRateInfo',
-  'data': {'dirty-rate': 'int64',
+  'data': {'*dirty-rate': 'int64',
            'status': 'DirtyRateStatus',
            'start-time': 'int64',
            'calc-time': 'int64'} }

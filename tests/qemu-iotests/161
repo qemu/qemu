@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw auto quick
 #
 # Test reopening a backing image after block-stream and block-commit
 #
@@ -42,15 +43,15 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 # Any format implementing BlockDriver.bdrv_change_backing_file
 _supported_fmt qcow2 qed
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 
 IMG_SIZE=1M
 
 # Create the images
-TEST_IMG="$TEST_IMG.base" _make_test_img $IMG_SIZE | _filter_imgfmt
-TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT | _filter_imgfmt
-_make_test_img -b "$TEST_IMG.int" -F $IMGFMT -F $IMGFMT | _filter_imgfmt
+TEST_IMG="$TEST_IMG.base" _make_test_img $IMG_SIZE
+TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT
+_make_test_img -b "$TEST_IMG.int" -F $IMGFMT -F $IMGFMT
 
 # First test: reopen $TEST.IMG changing the detect-zeroes option on
 # its backing file ($TEST_IMG.int).
@@ -105,9 +106,9 @@ echo
 echo "*** Commit and then change an option on the backing file"
 echo
 # Create the images again
-TEST_IMG="$TEST_IMG.base" _make_test_img $IMG_SIZE | _filter_imgfmt
-TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT| _filter_imgfmt
-_make_test_img -b "$TEST_IMG.int" -F $IMGFMT | _filter_imgfmt
+TEST_IMG="$TEST_IMG.base" _make_test_img $IMG_SIZE
+TEST_IMG="$TEST_IMG.int" _make_test_img -b "$TEST_IMG.base" -F $IMGFMT
+_make_test_img -b "$TEST_IMG.int" -F $IMGFMT
 
 _launch_qemu -drive if=none,file="${TEST_IMG}"
 _send_qemu_cmd $QEMU_HANDLE \

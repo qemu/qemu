@@ -47,21 +47,6 @@ static void qstring_get_str_test(void)
     qobject_unref(qstring);
 }
 
-static void qstring_append_chr_test(void)
-{
-    int i;
-    QString *qstring;
-    const char *str = "qstring append char unit-test";
-
-    qstring = qstring_new();
-
-    for (i = 0; str[i]; i++)
-        qstring_append_chr(qstring, str[i]);
-
-    g_assert(strcmp(str, qstring_get_str(qstring)) == 0);
-    qobject_unref(qstring);
-}
-
 static void qstring_from_substr_test(void)
 {
     QString *qs;
@@ -90,7 +75,6 @@ int main(int argc, char **argv)
 
     g_test_add_func("/public/from_str", qstring_from_str_test);
     g_test_add_func("/public/get_str", qstring_get_str_test);
-    g_test_add_func("/public/append_chr", qstring_append_chr_test);
     g_test_add_func("/public/from_substr", qstring_from_substr_test);
     g_test_add_func("/public/to_qstring", qobject_to_qstring_test);
 

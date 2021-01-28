@@ -28,10 +28,10 @@
 #define rdma_info_report(fmt, ...) \
     info_report("%s: " fmt, "rdma", ## __VA_ARGS__)
 
-typedef struct RdmaProtectedQList {
+typedef struct RdmaProtectedGQueue {
     QemuMutex lock;
-    QList *list;
-} RdmaProtectedQList;
+    GQueue *list;
+} RdmaProtectedGQueue;
 
 typedef struct RdmaProtectedGSList {
     QemuMutex lock;
@@ -40,10 +40,11 @@ typedef struct RdmaProtectedGSList {
 
 void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t plen);
 void rdma_pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len);
-void rdma_protected_qlist_init(RdmaProtectedQList *list);
-void rdma_protected_qlist_destroy(RdmaProtectedQList *list);
-void rdma_protected_qlist_append_int64(RdmaProtectedQList *list, int64_t value);
-int64_t rdma_protected_qlist_pop_int64(RdmaProtectedQList *list);
+void rdma_protected_gqueue_init(RdmaProtectedGQueue *list);
+void rdma_protected_gqueue_destroy(RdmaProtectedGQueue *list);
+void rdma_protected_gqueue_append_int64(RdmaProtectedGQueue *list,
+                                        int64_t value);
+int64_t rdma_protected_gqueue_pop_int64(RdmaProtectedGQueue *list);
 void rdma_protected_gslist_init(RdmaProtectedGSList *list);
 void rdma_protected_gslist_destroy(RdmaProtectedGSList *list);
 void rdma_protected_gslist_append_int32(RdmaProtectedGSList *list,

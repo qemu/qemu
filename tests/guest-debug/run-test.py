@@ -16,6 +16,7 @@ import subprocess
 import shutil
 import shlex
 import os
+from time import sleep
 from tempfile import TemporaryDirectory
 
 def get_args():
@@ -27,9 +28,20 @@ def get_args():
                         required=True)
     parser.add_argument("--test", help="GDB test script",
                         required=True)
-    parser.add_argument("--gdb", help="The gdb binary to use", default=None)
+    parser.add_argument("--gdb", help="The gdb binary to use",
+                        default=None)
+    parser.add_argument("--output", help="A file to redirect output to")
 
     return parser.parse_args()
+
+
+def log(output, msg):
+    if output:
+        output.write(msg + "\n")
+        output.flush()
+    else:
+        print(msg)
+
 
 if __name__ == '__main__':
     args = get_args()
@@ -42,17 +54,25 @@ if __name__ == '__main__':
     if not args.gdb:
         print("We need gdb to run the test")
         exit(-1)
+    if args.output:
+        output = open(args.output, "w")
+    else:
+        output = None
 
     socket_dir = TemporaryDirectory("qemu-gdbstub")
     socket_name = os.path.join(socket_dir.name, "gdbstub.socket")
 
     # Launch QEMU with binary
     if "system" in args.qemu:
-        cmd = "%s %s %s -s -S" % (args.qemu, args.qargs, args.binary)
+        cmd = "%s %s %s -gdb unix:path=%s,server" % (args.qemu,
+                                                     args.qargs,
+                                                     args.binary,
+                                                     socket_name)
     else:
         cmd = "%s %s -g %s %s" % (args.qemu, args.qargs, socket_name,
                                   args.binary)
 
+    log(output, "QEMU CMD: %s" % (cmd))
     inferior = subprocess.Popen(shlex.split(cmd))
 
     # Now launch gdb with our test and collect the result
@@ -62,16 +82,15 @@ if __name__ == '__main__':
     # disable prompts in case of crash
     gdb_cmd += " -ex 'set confirm off'"
     # connect to remote
-    if "system" in args.qemu:
-        gdb_cmd += " -ex 'target remote localhost:1234'"
-    else:
-        gdb_cmd += " -ex 'target remote %s'" % (socket_name)
+    gdb_cmd += " -ex 'target remote %s'" % (socket_name)
     # finally the test script itself
     gdb_cmd += " -x %s" % (args.test)
 
-    print("GDB CMD: %s" % (gdb_cmd))
 
-    result = subprocess.call(gdb_cmd, shell=True);
+    sleep(1)
+    log(output, "GDB CMD: %s" % (gdb_cmd))
+
+    result = subprocess.call(gdb_cmd, shell=True, stdout=output)
 
     # A negative result is the result of an internal gdb failure like
     # a crash. We force a return of 0 so we don't fail the test on

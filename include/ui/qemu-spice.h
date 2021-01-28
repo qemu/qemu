@@ -19,24 +19,17 @@
 #define QEMU_SPICE_H
 
 #include "qapi/error.h"
+#include "ui/qemu-spice-module.h"
 
 #ifdef CONFIG_SPICE
 
 #include <spice.h>
 #include "qemu/config-file.h"
 
-extern int using_spice;
-
-void qemu_spice_init(void);
 void qemu_spice_input_init(void);
 void qemu_spice_display_init(void);
-int qemu_spice_display_add_client(int csock, int skipauth, int tls);
-int qemu_spice_add_interface(SpiceBaseInstance *sin);
 bool qemu_spice_have_display_interface(QemuConsole *con);
 int qemu_spice_add_display_interface(QXLInstance *qxlin, QemuConsole *con);
-int qemu_spice_set_passwd(const char *passwd,
-                          bool fail_if_connected, bool disconnect_if_connected);
-int qemu_spice_set_pw_expire(time_t expires);
 int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
                             const char *subject);
 
@@ -45,46 +38,12 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
 #else
 #define SPICE_NEEDS_SET_MM_TIME 0
 #endif
-void qemu_spice_register_ports(void);
 
 #else  /* CONFIG_SPICE */
 
 #include "qemu/error-report.h"
 
-#define using_spice 0
 #define spice_displays 0
-static inline int qemu_spice_set_passwd(const char *passwd,
-                                        bool fail_if_connected,
-                                        bool disconnect_if_connected)
-{
-    return -1;
-}
-static inline int qemu_spice_set_pw_expire(time_t expires)
-{
-    return -1;
-}
-static inline int qemu_spice_migrate_info(const char *h, int p, int t,
-                                          const char *s)
-{
-    return -1;
-}
-
-static inline int qemu_spice_display_add_client(int csock, int skipauth,
-                                                int tls)
-{
-    return -1;
-}
-
-static inline void qemu_spice_display_init(void)
-{
-    /* This must never be called if CONFIG_SPICE is disabled */
-    error_report("spice support is disabled");
-    abort();
-}
-
-static inline void qemu_spice_init(void)
-{
-}
 
 #endif /* CONFIG_SPICE */
 

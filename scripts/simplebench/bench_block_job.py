@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Benchmark block jobs
 #
@@ -78,16 +78,19 @@ def bench_block_job(cmd, cmd_args, qemu_args):
 
 
 # Bench backup or mirror
-def bench_block_copy(qemu_binary, cmd, source, target):
+def bench_block_copy(qemu_binary, cmd, cmd_options, source, target):
     """Helper to run bench_block_job() for mirror or backup"""
     assert cmd in ('blockdev-backup', 'blockdev-mirror')
 
     source['node-name'] = 'source'
     target['node-name'] = 'target'
 
-    return bench_block_job(cmd,
-                           {'job-id': 'job0', 'device': 'source',
-                            'target': 'target', 'sync': 'full'},
+    cmd_options['job-id'] = 'job0'
+    cmd_options['device'] = 'source'
+    cmd_options['target'] = 'target'
+    cmd_options['sync'] = 'full'
+
+    return bench_block_job(cmd, cmd_options,
                            [qemu_binary,
                             '-blockdev', json.dumps(source),
                             '-blockdev', json.dumps(target)])

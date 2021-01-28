@@ -1,4 +1,4 @@
-.. _disk_005fimages:
+.. _disk images:
 
 Disk Images
 -----------

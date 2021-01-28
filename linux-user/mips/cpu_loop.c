@@ -23,6 +23,7 @@
 #include "cpu_loop-common.h"
 #include "elf.h"
 #include "internal.h"
+#include "fpu_helper.h"
 
 # ifdef TARGET_ABI_MIPSO32
 #  define MIPS_SYSCALL_NUMBER_UNUSED -1
@@ -104,18 +105,22 @@ void cpu_loop(CPUMIPSState *env)
                     if ((ret = get_user_ual(arg8, sp_reg + 28)) != 0) {
                         goto done_syscall;
                     }
+                    /* fall through */
                 case 7:
                     if ((ret = get_user_ual(arg7, sp_reg + 24)) != 0) {
                         goto done_syscall;
                     }
+                    /* fall through */
                 case 6:
                     if ((ret = get_user_ual(arg6, sp_reg + 20)) != 0) {
                         goto done_syscall;
                     }
+                    /* fall through */
                 case 5:
                     if ((ret = get_user_ual(arg5, sp_reg + 16)) != 0) {
                         goto done_syscall;
                     }
+                    /* fall through */
                 default:
                     break;
                 }
@@ -380,10 +385,8 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
     prog_req.frdefault &= interp_req.frdefault;
     prog_req.fre &= interp_req.fre;
 
-    bool cpu_has_mips_r2_r6 = env->insn_flags & ISA_MIPS32R2 ||
-                              env->insn_flags & ISA_MIPS64R2 ||
-                              env->insn_flags & ISA_MIPS32R6 ||
-                              env->insn_flags & ISA_MIPS64R6;
+    bool cpu_has_mips_r2_r6 = env->insn_flags & ISA_MIPS_R2 ||
+                              env->insn_flags & ISA_MIPS_R6;
 
     if (prog_req.fre && !prog_req.frdefault && !prog_req.fr1) {
         env->CP0_Config5 |= (1 << CP0C5_FRE);

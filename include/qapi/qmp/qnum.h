@@ -68,7 +68,4 @@ double qnum_get_double(QNum *qn);
 
 char *qnum_to_string(QNum *qn);
 
-bool qnum_is_equal(const QObject *x, const QObject *y);
-void qnum_destroy_obj(QObject *obj);
-
 #endif /* QNUM_H */

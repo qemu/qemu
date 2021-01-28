@@ -50,6 +50,7 @@ struct X86MachineState {
     ISADevice *rtc;
     FWCfgState *fw_cfg;
     qemu_irq *gsi;
+    DeviceState *ioapic2;
     GMappedFile *initrd_mapped_file;
     HotplugHandler *acpi_dev;
 
@@ -58,6 +59,7 @@ struct X86MachineState {
 
     /* CPU and apic information: */
     bool apic_xrupt_override;
+    unsigned pci_irq_mask;
     unsigned apic_id_limit;
     uint16_t boot_cpus;
     unsigned smp_dies;
@@ -100,7 +102,8 @@ void x86_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
 void x86_cpu_unplug_cb(HotplugHandler *hotplug_dev,
                        DeviceState *dev, Error **errp);
 
-void x86_bios_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw);
+void x86_bios_rom_init(MachineState *ms, const char *default_firmware,
+                       MemoryRegion *rom_memory, bool isapc_ram_fw);
 
 void x86_load_linux(X86MachineState *x86ms,
                     FWCfgState *fw_cfg,
@@ -114,17 +117,17 @@ bool x86_machine_is_acpi_enabled(const X86MachineState *x86ms);
 /* Global System Interrupts */
 
 #define GSI_NUM_PINS IOAPIC_NUM_PINS
+#define ACPI_BUILD_PCI_IRQS ((1<<5) | (1<<9) | (1<<10) | (1<<11))
 
 typedef struct GSIState {
     qemu_irq i8259_irq[ISA_NUM_IRQS];
     qemu_irq ioapic_irq[IOAPIC_NUM_PINS];
+    qemu_irq ioapic2_irq[IOAPIC_NUM_PINS];
 } GSIState;
 
 qemu_irq x86_allocate_cpu_irq(void);
 void gsi_handler(void *opaque, int n, int level);
 void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
-
-/* hpet.c */
-extern int no_hpet;
+DeviceState *ioapic_init_secondary(GSIState *gsi_state);
 
 #endif

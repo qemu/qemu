@@ -240,6 +240,9 @@ static void readline_hist_add(ReadLineState *rs, const char *cmdline)
         }
         if (strcmp(hist_entry, cmdline) == 0) {
         same_entry:
+            if (idx == READLINE_MAX_CMDS - 1) {
+                return;
+            }
             new_entry = hist_entry;
             /* Put this entry at the end of history */
             memmove(&rs->history[idx], &rs->history[idx + 1],

@@ -9,101 +9,154 @@ freebsd_12_task:
   install_script:
     - ASSUME_ALWAYS_YES=yes pkg bootstrap -f ;
     - pkg install -y bash curl cyrus-sasl git glib gmake gnutls gsed
-          nettle perl5 pixman pkgconf png usbredir
+          nettle perl5 pixman pkgconf png usbredir ninja
   script:
     - mkdir build
     - cd build
-    - ../configure --enable-werror || { cat config.log; exit 1; }
+    - ../configure --enable-werror || { cat config.log meson-logs/meson-log.txt; exit 1; }
     - gmake -j$(sysctl -n hw.ncpu)
-    - gmake -j$(sysctl -n hw.ncpu) check
+    - gmake -j$(sysctl -n hw.ncpu) check V=1
 
 macos_task:
   osx_instance:
     image: catalina-base
   install_script:
-    - brew install pkg-config python gnu-sed glib pixman make sdl2 bash
+    - brew install pkg-config python gnu-sed glib pixman make sdl2 bash ninja
   script:
     - mkdir build
     - cd build
     - ../configure --python=/usr/local/bin/python3 --enable-werror
                    --extra-cflags='-Wno-error=deprecated-declarations'
-                   || { cat config.log; exit 1; }
+                   || { cat config.log meson-logs/meson-log.txt; exit 1; }
     - gmake -j$(sysctl -n hw.ncpu)
-    - gmake check
+    - gmake check-unit V=1
+    - gmake check-block V=1
+    - gmake check-qapi-schema V=1
+    - gmake check-softfloat V=1
+    - gmake check-qtest-x86_64 V=1
 
 macos_xcode_task:
   osx_instance:
     # this is an alias for the latest Xcode
     image: catalina-xcode
   install_script:
-    - brew install pkg-config gnu-sed glib pixman make sdl2 bash
+    - brew install pkg-config gnu-sed glib pixman make sdl2 bash ninja
   script:
     - mkdir build
     - cd build
-    - ../configure --extra-cflags='-Wno-error=deprecated-declarations'
-                   --enable-werror --cc=clang || { cat config.log; exit 1; }
+    - ../configure --extra-cflags='-Wno-error=deprecated-declarations' --enable-modules
+                   --enable-werror --cc=clang || { cat config.log meson-logs/meson-log.txt; exit 1; }
     - gmake -j$(sysctl -n hw.ncpu)
-    - gmake check
+    - gmake check-unit V=1
+    - gmake check-block V=1
+    - gmake check-qapi-schema V=1
+    - gmake check-softfloat V=1
+    - gmake check-qtest-x86_64 V=1
 
 windows_msys2_task:
+  timeout_in: 90m
   windows_container:
-    image: cirrusci/windowsservercore:cmake
+    image: cirrusci/windowsservercore:2019
     os_version: 2019
     cpu: 8
     memory: 8G
   env:
+    CIRRUS_SHELL: powershell
     MSYS: winsymlinks:nativestrict
     MSYSTEM: MINGW64
+    MSYS2_URL: https://github.com/msys2/msys2-installer/releases/download/2021-01-05/msys2-base-x86_64-20210105.sfx.exe
+    MSYS2_FINGERPRINT: 0
+    MSYS2_PACKAGES: "
+      diffutils git grep make pkg-config sed
+      mingw-w64-x86_64-python
+      mingw-w64-x86_64-python-sphinx
+      mingw-w64-x86_64-toolchain
+      mingw-w64-x86_64-SDL2
+      mingw-w64-x86_64-SDL2_image
+      mingw-w64-x86_64-gtk3
+      mingw-w64-x86_64-glib2
+      mingw-w64-x86_64-ninja
+      mingw-w64-x86_64-jemalloc
+      mingw-w64-x86_64-lzo2
+      mingw-w64-x86_64-zstd
+      mingw-w64-x86_64-libjpeg-turbo
+      mingw-w64-x86_64-pixman
+      mingw-w64-x86_64-libgcrypt
+      mingw-w64-x86_64-libpng
+      mingw-w64-x86_64-libssh
+      mingw-w64-x86_64-libxml2
+      mingw-w64-x86_64-snappy
+      mingw-w64-x86_64-libusb
+      mingw-w64-x86_64-usbredir
+      mingw-w64-x86_64-libtasn1
+      mingw-w64-x86_64-nettle
+      mingw-w64-x86_64-cyrus-sasl
+      mingw-w64-x86_64-curl
+      mingw-w64-x86_64-gnutls
+      mingw-w64-x86_64-libnfs
+    "
     CHERE_INVOKING: 1
-  printenv_script:
-    - C:\tools\msys64\usr\bin\bash.exe -lc 'printenv'
+  msys2_cache:
+    folder: C:\tools\archive
+    reupload_on_changes: false
+    # These env variables are used to generate fingerprint to trigger the cache procedure
+    # If wanna to force re-populate msys2, increase MSYS2_FINGERPRINT
+    fingerprint_script:
+      - |
+        echo $env:CIRRUS_TASK_NAME
+        echo $env:MSYS2_URL
+        echo $env:MSYS2_FINGERPRINT
+        echo $env:MSYS2_PACKAGES
+    populate_script:
+      - |
+        md -Force C:\tools\archive\pkg
+        $start_time = Get-Date
+        bitsadmin /transfer msys_download /dynamic /download /priority FOREGROUND $env:MSYS2_URL C:\tools\archive\base.exe
+        Write-Output "Download time taken: $((Get-Date).Subtract($start_time))"
+        cd C:\tools
+        C:\tools\archive\base.exe -y
+        del -Force C:\tools\archive\base.exe
+        Write-Output "Base install time taken: $((Get-Date).Subtract($start_time))"
+        $start_time = Get-Date
+
+        ((Get-Content -path C:\tools\msys64\etc\\post-install\\07-pacman-key.post -Raw) -replace '--refresh-keys', '--version') | Set-Content -Path C:\tools\msys64\etc\\post-install\\07-pacman-key.post
+        C:\tools\msys64\usr\bin\bash.exe -lc "sed -i 's/^CheckSpace/#CheckSpace/g' /etc/pacman.conf"
+        C:\tools\msys64\usr\bin\bash.exe -lc "export"
+        C:\tools\msys64\usr\bin\pacman.exe --noconfirm -Sy
+        echo Y | C:\tools\msys64\usr\bin\pacman.exe --noconfirm -Suu --overwrite=*
+        taskkill /F /FI "MODULES eq msys-2.0.dll"
+        tasklist
+        C:\tools\msys64\usr\bin\bash.exe -lc "mv -f /etc/pacman.conf.pacnew /etc/pacman.conf || true"
+        C:\tools\msys64\usr\bin\bash.exe -lc "pacman --noconfirm -Suu --overwrite=*"
+        Write-Output "Core install time taken: $((Get-Date).Subtract($start_time))"
+        $start_time = Get-Date
+
+        C:\tools\msys64\usr\bin\bash.exe -lc "pacman --noconfirm -S --needed $env:MSYS2_PACKAGES"
+        Write-Output "Package install time taken: $((Get-Date).Subtract($start_time))"
+        $start_time = Get-Date
+
+        del -Force -ErrorAction SilentlyContinue C:\tools\msys64\etc\mtab
+        del -Force -ErrorAction SilentlyContinue C:\tools\msys64\dev\fd
+        del -Force -ErrorAction SilentlyContinue C:\tools\msys64\dev\stderr
+        del -Force -ErrorAction SilentlyContinue C:\tools\msys64\dev\stdin
+        del -Force -ErrorAction SilentlyContinue C:\tools\msys64\dev\stdout
+        del -Force -Recurse -ErrorAction SilentlyContinue C:\tools\msys64\var\cache\pacman\pkg
+        tar cf C:\tools\archive\msys64.tar -C C:\tools\ msys64
+
+        Write-Output "Package archive time taken: $((Get-Date).Subtract($start_time))"
+        del -Force -Recurse -ErrorAction SilentlyContinue c:\tools\msys64 
   install_script:
-    - C:\tools\msys64\usr\bin\bash.exe -lc "cd /c/tools &&
-        curl -O http://repo.msys2.org/msys/x86_64/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz"
-    - C:\tools\msys64\usr\bin\bash.exe -lc "cd /c/tools &&
-        curl -O http://repo.msys2.org/msys/x86_64/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig"
-    - C:\tools\msys64\usr\bin\bash.exe -lc "cd /c/tools &&
-        pacman -U --noconfirm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz"
-    - C:\tools\msys64\usr\bin\bash.exe -lc "pacman --noconfirm -Sy"
-    - C:\tools\msys64\usr\bin\bash.exe -lc "pacman --noconfirm -S --needed
-        bash pacman pacman-mirrors msys2-runtime"
-    - taskkill /F /IM gpg-agent.exe
-    - C:\tools\msys64\usr\bin\bash.exe -lc "pacman --noconfirm -Su"
-    - C:\tools\msys64\usr\bin\bash.exe -lc "pacman --noconfirm -S --needed
-        base-devel
-        git
-        mingw-w64-x86_64-python
-        mingw-w64-x86_64-python-setuptools
-        mingw-w64-x86_64-toolchain
-        mingw-w64-x86_64-capstone
-        mingw-w64-x86_64-SDL2
-        mingw-w64-x86_64-SDL2_image
-        mingw-w64-x86_64-gtk3
-        mingw-w64-x86_64-glib2
-        mingw-w64-x86_64-ninja
-        mingw-w64-x86_64-make
-        mingw-w64-x86_64-lzo2
-        mingw-w64-x86_64-zstd
-        mingw-w64-x86_64-libjpeg-turbo
-        mingw-w64-x86_64-pixman
-        mingw-w64-x86_64-libgcrypt
-        mingw-w64-x86_64-libpng
-        mingw-w64-x86_64-libssh
-        mingw-w64-x86_64-libxml2
-        mingw-w64-x86_64-snappy
-        mingw-w64-x86_64-libusb
-        mingw-w64-x86_64-usbredir
-        mingw-w64-x86_64-libtasn1
-        mingw-w64-x86_64-nettle
-        mingw-w64-x86_64-cyrus-sasl
-        mingw-w64-x86_64-curl
-        mingw-w64-x86_64-gnutls
-        mingw-w64-x86_64-zstd"
+    - |
+      $start_time = Get-Date
+      cd C:\tools
+      ls C:\tools\archive\msys64.tar
+      tar xf C:\tools\archive\msys64.tar
+      Write-Output "Extract msys2 time taken: $((Get-Date).Subtract($start_time))"
   script:
     - C:\tools\msys64\usr\bin\bash.exe -lc "mkdir build"
-    - C:\tools\msys64\usr\bin\bash.exe -lc "cd build && ../configure
-      --python=python3 --ninja=ninja
-      --target-list-exclude=i386-softmmu,arm-softmmu,ppc-softmmu,mips-softmmu"
-    - C:\tools\msys64\usr\bin\bash.exe -lc "cd build && make -j$NUMBER_OF_PROCESSORS"
+    - C:\tools\msys64\usr\bin\bash.exe -lc "cd build && ../configure --python=python3"
+    - C:\tools\msys64\usr\bin\bash.exe -lc "cd build && make -j8"
+    - exit $LastExitCode
   test_script:
     - C:\tools\msys64\usr\bin\bash.exe -lc "cd build && make V=1 check"
+    - exit $LastExitCode

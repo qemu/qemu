@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw
 #
 # Test encryption key management with luks
 # Based on 134
@@ -38,7 +39,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt qcow2 luks
-_supported_proto file #TODO
+_supported_proto file fuse #TODO
 _require_working_luks
 
 QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT

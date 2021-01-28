@@ -22,7 +22,6 @@ class IbmPrep40pMachine(Test):
     # All rights reserved.
     # U.S. Government Users Restricted Rights - Use, duplication or disclosure
     # restricted by GSA ADP Schedule Contract with IBM Corp.
-    @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     def test_factory_firmware_and_netbsd(self):
         """
@@ -35,7 +34,7 @@ class IbmPrep40pMachine(Test):
                     '7020-40p/P12H0456.IMG')
         bios_hash = '1775face4e6dc27f3a6ed955ef6eb331bf817f03'
         bios_path = self.fetch_asset(bios_url, asset_hash=bios_hash)
-        drive_url = ('https://cdn.netbsd.org/pub/NetBSD/NetBSD-archive/'
+        drive_url = ('https://archive.netbsd.org/pub/NetBSD-archive/'
                      'NetBSD-4.0/prep/installation/floppy/generic_com0.fs')
         drive_hash = 'dbcfc09912e71bd5f0d82c7c1ee43082fb596ceb'
         drive_path = self.fetch_asset(drive_url, asset_hash=drive_hash)
@@ -61,7 +60,6 @@ class IbmPrep40pMachine(Test):
         wait_for_console_pattern(self, '>> Memory: 192M')
         wait_for_console_pattern(self, '>> CPU type PowerPC,604')
 
-    @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     def test_openbios_and_netbsd(self):
         """
         :avocado: tags=arch:ppc

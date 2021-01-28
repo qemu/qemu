@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: auto
 #
 # Test that qemu-io fail with non-zero exit code
 #
@@ -40,7 +41,15 @@ _unsupported_fmt raw
 
 
 size=256K
-IMGFMT=raw IMGKEYSECRET= _make_test_img --no-opts $size | _filter_imgfmt
+
+# _make_test_img may set variables that we need to retain.  Everything
+# in a pipe is executed in a subshell, so doing so would throw away
+# all changes.  Therefore, we have to store the output in some temp
+# file and filter that.
+scratch_out="$TEST_DIR/img-create.out"
+IMGFMT=raw IMGKEYSECRET= _make_test_img --no-opts $size >"$scratch_out"
+_filter_imgfmt <"$scratch_out"
+rm -f "$scratch_out"
 
 echo
 echo "== reading wrong format should fail =="

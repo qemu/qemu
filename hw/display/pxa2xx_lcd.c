@@ -17,6 +17,7 @@
 #include "ui/console.h"
 #include "hw/arm/pxa.h"
 #include "ui/pixel_ops.h"
+#include "hw/boards.h"
 /* FIXME: For graphic_rotate. Should probably be done in common code.  */
 #include "sysemu/sysemu.h"
 #include "framebuffer.h"
@@ -305,7 +306,7 @@ static void pxa2xx_descriptor_load(PXA2xxLCDState *s)
             descptr = s->dma_ch[i].descriptor;
 
         if (!((descptr >= PXA2XX_SDRAM_BASE && descptr +
-                 sizeof(desc) <= PXA2XX_SDRAM_BASE + ram_size) ||
+                 sizeof(desc) <= PXA2XX_SDRAM_BASE + current_machine->ram_size) ||
                 (descptr >= PXA2XX_INTERNAL_BASE && descptr + sizeof(desc) <=
                  PXA2XX_INTERNAL_BASE + PXA2XX_INTERNAL_SIZE))) {
             continue;
@@ -850,7 +851,7 @@ static void pxa2xx_update_display(void *opaque)
             }
             fbptr = s->dma_ch[ch].source;
             if (!((fbptr >= PXA2XX_SDRAM_BASE &&
-                     fbptr <= PXA2XX_SDRAM_BASE + ram_size) ||
+                     fbptr <= PXA2XX_SDRAM_BASE + current_machine->ram_size) ||
                     (fbptr >= PXA2XX_INTERNAL_BASE &&
                      fbptr <= PXA2XX_INTERNAL_BASE + PXA2XX_INTERNAL_SIZE))) {
                 pxa2xx_dma_ber_set(s, ch);

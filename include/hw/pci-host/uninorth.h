@@ -26,7 +26,6 @@
 #define UNINORTH_H
 
 #include "hw/pci/pci_host.h"
-#include "hw/ppc/openpic.h"
 #include "qom/object.h"
 
 /* UniNorth version */
@@ -51,7 +50,6 @@ struct UNINHostState {
     PCIHostState parent_obj;
 
     uint32_t ofw_addr;
-    OpenPICState *pic;
     qemu_irq irqs[4];
     MemoryRegion pci_mmio;
     MemoryRegion pci_hole;

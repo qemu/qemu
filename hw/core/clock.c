@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "hw/clock.h"
 #include "trace.h"
 
@@ -21,6 +22,21 @@ void clock_setup_canonical_path(Clock *clk)
 {
     g_free(clk->canonical_path);
     clk->canonical_path = object_get_canonical_path(OBJECT(clk));
+}
+
+Clock *clock_new(Object *parent, const char *name)
+{
+    Object *obj;
+    Clock *clk;
+
+    obj = object_new(TYPE_CLOCK);
+    object_property_add_child(parent, name, obj);
+    object_unref(obj);
+
+    clk = CLOCK(obj);
+    clock_setup_canonical_path(clk);
+
+    return clk;
 }
 
 void clock_set_callback(Clock *clk, ClockCallback *cb, void *opaque)
@@ -39,8 +55,8 @@ bool clock_set(Clock *clk, uint64_t period)
     if (clk->period == period) {
         return false;
     }
-    trace_clock_set(CLOCK_PATH(clk), CLOCK_PERIOD_TO_NS(clk->period),
-                    CLOCK_PERIOD_TO_NS(period));
+    trace_clock_set(CLOCK_PATH(clk), CLOCK_PERIOD_TO_HZ(clk->period),
+                    CLOCK_PERIOD_TO_HZ(period));
     clk->period = period;
 
     return true;
@@ -54,7 +70,7 @@ static void clock_propagate_period(Clock *clk, bool call_callbacks)
         if (child->period != clk->period) {
             child->period = clk->period;
             trace_clock_update(CLOCK_PATH(child), CLOCK_PATH(clk),
-                               CLOCK_PERIOD_TO_NS(clk->period),
+                               CLOCK_PERIOD_TO_HZ(clk->period),
                                call_callbacks);
             if (call_callbacks && child->callback) {
                 child->callback(child->callback_opaque);
@@ -94,6 +110,11 @@ static void clock_disconnect(Clock *clk)
 
     clk->source = NULL;
     QLIST_REMOVE(clk, sibling);
+}
+
+char *clock_display_freq(Clock *clk)
+{
+    return freq_to_str(clock_get_hz(clk));
 }
 
 static void clock_initfn(Object *obj)

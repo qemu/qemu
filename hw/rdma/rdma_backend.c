@@ -78,7 +78,7 @@ static void clean_recv_mads(RdmaBackendDev *backend_dev)
     unsigned long cqe_ctx_id;
 
     do {
-        cqe_ctx_id = rdma_protected_qlist_pop_int64(&backend_dev->
+        cqe_ctx_id = rdma_protected_gqueue_pop_int64(&backend_dev->
                                                     recv_mads_list);
         if (cqe_ctx_id != -ENOENT) {
             qatomic_inc(&backend_dev->rdma_dev_res->stats.missing_cqe);
@@ -597,7 +597,7 @@ static unsigned int save_mad_recv_buffer(RdmaBackendDev *backend_dev,
     bctx->up_ctx = ctx;
     bctx->sge = *sge;
 
-    rdma_protected_qlist_append_int64(&backend_dev->recv_mads_list, bctx_id);
+    rdma_protected_gqueue_append_int64(&backend_dev->recv_mads_list, bctx_id);
 
     return 0;
 }
@@ -1111,7 +1111,7 @@ static void process_incoming_mad_req(RdmaBackendDev *backend_dev,
 
     trace_mad_message("recv", msg->umad.mad, msg->umad_len);
 
-    cqe_ctx_id = rdma_protected_qlist_pop_int64(&backend_dev->recv_mads_list);
+    cqe_ctx_id = rdma_protected_gqueue_pop_int64(&backend_dev->recv_mads_list);
     if (cqe_ctx_id == -ENOENT) {
         rdma_warn_report("No more free MADs buffers, waiting for a while");
         sleep(THR_POLL_TO);
@@ -1185,7 +1185,7 @@ static int mad_init(RdmaBackendDev *backend_dev, CharBackend *mad_chr_be)
         return -EIO;
     }
 
-    rdma_protected_qlist_init(&backend_dev->recv_mads_list);
+    rdma_protected_gqueue_init(&backend_dev->recv_mads_list);
 
     enable_rdmacm_mux_async(backend_dev);
 
@@ -1205,7 +1205,7 @@ static void mad_fini(RdmaBackendDev *backend_dev)
 {
     disable_rdmacm_mux_async(backend_dev);
     qemu_chr_fe_disconnect(backend_dev->rdmacm_mux.chr_be);
-    rdma_protected_qlist_destroy(&backend_dev->recv_mads_list);
+    rdma_protected_gqueue_destroy(&backend_dev->recv_mads_list);
 }
 
 int rdma_backend_get_gid_index(RdmaBackendDev *backend_dev,

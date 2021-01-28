@@ -12,11 +12,6 @@
 #include "fuse_i.h"
 #include "fuse_lowlevel.h"
 
-#include <errno.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static struct fuse_session *fuse_instance;
 

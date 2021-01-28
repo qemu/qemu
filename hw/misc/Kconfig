@@ -13,6 +13,10 @@ config TMP421
     bool
     depends on I2C
 
+config EMC141X
+    bool
+    depends on I2C
+
 config ISA_DEBUG
     bool
     depends on ISA_BUS
@@ -93,9 +97,11 @@ config MIPS_ITU
 
 config MPS2_FPGAIO
     bool
+    select LED
 
 config MPS2_SCC
     bool
+    select LED
 
 config TZ_MPC
     bool
@@ -126,12 +132,24 @@ config AUX
 config UNIMP
     bool
 
+config LED
+    bool
+
 config MAC_VIA
     bool
     select MOS6522
     select ADB
 
 config AVR_POWER
+    bool
+
+config MCHP_PFSOC_DMC
+    bool
+
+config MCHP_PFSOC_IOSCB
+    bool
+
+config MCHP_PFSOC_SYSREG
     bool
 
 config SIFIVE_TEST

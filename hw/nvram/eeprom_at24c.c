@@ -13,6 +13,7 @@
 #include "qemu/module.h"
 #include "hw/i2c/i2c.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "sysemu/block-backend.h"
 #include "qom/object.h"
 

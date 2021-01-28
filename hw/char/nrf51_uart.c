@@ -18,6 +18,7 @@
 #include "hw/char/nrf51_uart.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 

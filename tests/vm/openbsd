@@ -22,24 +22,24 @@ class OpenBSDVM(basevm.BaseVM):
     name = "openbsd"
     arch = "x86_64"
 
-    link = "https://cdn.openbsd.org/pub/OpenBSD/6.6/amd64/install66.iso"
-    csum = "b22e63df56e6266de6bbeed8e9be0fbe9ee2291551c5bc03f3cc2e4ab9436ee3"
+    link = "https://cdn.openbsd.org/pub/OpenBSD/6.8/amd64/install68.iso"
+    csum = "47e291fcc2d0c1a8ae0b66329f040b33af755b6adbd21739e20bb5ad56f62b6c"
     size = "20G"
     pkgs = [
         # tools
         "git",
         "pkgconf",
         "bzip2", "xz",
-        "py3-setuptools",
+        "ninja",
 
         # gnu tools
         "bash",
         "gmake",
         "gsed",
-        "gettext",
+        "gettext-tools",
 
         # libs: usb
-        "libusb1",
+        "libusb1--",
 
         # libs: crypto
         "gnutls",

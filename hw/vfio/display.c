@@ -186,7 +186,6 @@ static void vfio_display_edid_exit(VFIODisplay *dpy)
 
     g_free(dpy->edid_regs);
     g_free(dpy->edid_blob);
-    timer_del(dpy->edid_link_timer);
     timer_free(dpy->edid_link_timer);
 }
 

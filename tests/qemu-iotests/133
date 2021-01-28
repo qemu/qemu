@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: auto quick
 #
 # Test for reopen
 #
@@ -37,7 +38,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt qcow2
-_supported_proto file
+_supported_proto file fuse
 
 TEST_IMG="$TEST_IMG.base" _make_test_img 64M
 _make_test_img -b "$TEST_IMG.base" -F $IMGFMT

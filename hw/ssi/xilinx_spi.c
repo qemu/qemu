@@ -142,7 +142,7 @@ static void xlx_spi_update_irq(XilinxSPI *s)
        irq chain unless things really changed.  */
     if (pending != s->irqline) {
         s->irqline = pending;
-        DB_PRINT("irq_change of state %d ISR:%x IER:%X\n",
+        DB_PRINT("irq_change of state %u ISR:%x IER:%X\n",
                     pending, s->regs[R_IPISR], s->regs[R_IPIER]);
         qemu_set_irq(s->irq, pending);
     }

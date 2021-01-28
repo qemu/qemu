@@ -102,6 +102,22 @@ static int validate_prot_to_pageflags(int *host_prot, int prot)
     *host_prot = (prot & (PROT_READ | PROT_WRITE))
                | (prot & PROT_EXEC ? PROT_READ : 0);
 
+#ifdef TARGET_AARCH64
+    /*
+     * The PROT_BTI bit is only accepted if the cpu supports the feature.
+     * Since this is the unusual case, don't bother checking unless
+     * the bit has been requested.  If set and valid, record the bit
+     * within QEMU's page_flags.
+     */
+    if (prot & TARGET_PROT_BTI) {
+        ARMCPU *cpu = ARM_CPU(thread_cpu);
+        if (cpu_isar_feature(aa64_bti, cpu)) {
+            valid |= TARGET_PROT_BTI;
+            page_flags |= PAGE_BTI;
+        }
+    }
+#endif
+
     return prot & ~valid ? 0 : page_flags;
 }
 
@@ -789,17 +805,20 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
         }
         if (prot == 0) {
             host_addr = mremap(g2h(old_addr), old_size, new_size, flags);
-            if (host_addr != MAP_FAILED && reserved_va && old_size > new_size) {
-                mmap_reserve(old_addr + old_size, old_size - new_size);
+
+            if (host_addr != MAP_FAILED) {
+                /* Check if address fits target address space */
+                if (!guest_range_valid(h2g(host_addr), new_size)) {
+                    /* Revert mremap() changes */
+                    host_addr = mremap(g2h(old_addr), new_size, old_size,
+                                       flags);
+                    errno = ENOMEM;
+                    host_addr = MAP_FAILED;
+                } else if (reserved_va && old_size > new_size) {
+                    mmap_reserve(old_addr + old_size, old_size - new_size);
+                }
             }
         } else {
-            errno = ENOMEM;
-            host_addr = MAP_FAILED;
-        }
-        /* Check if address fits target address space */
-        if ((unsigned long)host_addr + new_size > (abi_ulong)-1) {
-            /* Revert mremap() changes */
-            host_addr = mremap(g2h(old_addr), new_size, old_size, flags);
             errno = ENOMEM;
             host_addr = MAP_FAILED;
         }

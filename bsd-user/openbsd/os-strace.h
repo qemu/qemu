@@ -1,0 +1,1 @@
+/* XXX OpenBSD dependent strace print functions */

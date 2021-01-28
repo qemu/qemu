@@ -3,6 +3,8 @@
 
 #include "qemu/queue.h"
 #include "qemu/bitmap.h"
+#include "qemu/rcu.h"
+#include "qemu/rcu_queue.h"
 #include "qom/object.h"
 #include "hw/hotplug.h"
 #include "hw/resettable.h"
@@ -79,16 +81,17 @@ typedef void (*BusUnrealize)(BusState *bus);
  * </note>
  *
  * # Hiding a device #
- * To hide a device, a DeviceListener function should_be_hidden() needs to
+ * To hide a device, a DeviceListener function hide_device() needs to
  * be registered.
- * It can be used to defer adding a device and therefore hide it from the
- * guest. The handler registering to this DeviceListener can save the QOpts
- * passed to it for re-using it later and must return that it wants the device
- * to be/remain hidden or not. When the handler function decides the device
- * shall not be hidden it will be added in qdev_device_add() and
- * realized as any other device. Otherwise qdev_device_add() will return early
- * without adding the device. The guest will not see a "hidden" device
- * until it was marked don't hide and qdev_device_add called again.
+ * It can be used to defer adding a device and therefore hide it from
+ * the guest. The handler registering to this DeviceListener can save
+ * the QOpts passed to it for re-using it later. It must return if it
+ * wants the device to be hidden or visible. When the handler function
+ * decides the device shall be visible it will be added with
+ * qdev_device_add() and realized as any other device. Otherwise
+ * qdev_device_add() will return early without adding the device. The
+ * guest will not see a "hidden" device until it was marked visible
+ * and qdev_device_add called again.
  *
  */
 struct DeviceClass {
@@ -161,6 +164,8 @@ struct NamedClockList {
 /**
  * DeviceState:
  * @realized: Indicates whether the device has been fully constructed.
+ *            When accessed outside big qemu lock, must be accessed with
+ *            qatomic_load_acquire()
  * @reset: ResettableState for the device; handled by Resettable interface.
  *
  * This structure should not be accessed directly.  We declare it here
@@ -192,11 +197,12 @@ struct DeviceListener {
     void (*realize)(DeviceListener *listener, DeviceState *dev);
     void (*unrealize)(DeviceListener *listener, DeviceState *dev);
     /*
-     * This callback is called upon init of the DeviceState and allows to
-     * inform qdev that a device should be hidden, depending on the device
-     * opts, for example, to hide a standby device.
+     * This callback is called upon init of the DeviceState and
+     * informs qdev if a device should be visible or hidden.  We can
+     * hide a failover device depending for example on the device
+     * opts.
      */
-    int (*should_be_hidden)(DeviceListener *listener, QemuOpts *device_opts);
+    bool (*hide_device)(DeviceListener *listener, QemuOpts *device_opts);
     QTAILQ_ENTRY(DeviceListener) link;
 };
 
@@ -210,13 +216,24 @@ struct BusClass {
     /* FIXME first arg should be BusState */
     void (*print_dev)(Monitor *mon, DeviceState *dev, int indent);
     char *(*get_dev_path)(DeviceState *dev);
+
     /*
      * This callback is used to create Open Firmware device path in accordance
      * with OF spec http://forthworks.com/standards/of1275.pdf. Individual bus
      * bindings can be found at http://playground.sun.com/1275/bindings/.
      */
     char *(*get_fw_dev_path)(DeviceState *dev);
+
     void (*reset)(BusState *bus);
+
+    /*
+     * Return whether the device can be added to @bus,
+     * based on the address that was set (via device properties)
+     * before realize.  If not, on return @errp contains the
+     * human-readable error message.
+     */
+    bool (*check_address)(BusState *bus, DeviceState *dev, Error **errp);
+
     BusRealize realize;
     BusUnrealize unrealize;
 
@@ -227,6 +244,7 @@ struct BusClass {
 };
 
 typedef struct BusChild {
+    struct rcu_head rcu;
     DeviceState *child;
     int index;
     QTAILQ_ENTRY(BusChild) sibling;
@@ -247,46 +265,15 @@ struct BusState {
     int max_index;
     bool realized;
     int num_children;
+
+    /*
+     * children is a RCU QTAILQ, thus readers must use RCU to access it,
+     * and writers must hold the big qemu lock
+     */
+
     QTAILQ_HEAD(, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
     ResettableState reset;
-};
-
-/**
- * Property:
- * @set_default: true if the default value should be set from @defval,
- *    in which case @info->set_default_value must not be NULL
- *    (if false then no default value is set by the property system
- *     and the field retains whatever value it was given by instance_init).
- * @defval: default value for the property. This is used only if @set_default
- *     is true.
- */
-struct Property {
-    const char   *name;
-    const PropertyInfo *info;
-    ptrdiff_t    offset;
-    uint8_t      bitnr;
-    bool         set_default;
-    union {
-        int64_t i;
-        uint64_t u;
-    } defval;
-    int          arrayoffset;
-    const PropertyInfo *arrayinfo;
-    int          arrayfieldsize;
-    const char   *link_type;
-};
-
-struct PropertyInfo {
-    const char *name;
-    const char *description;
-    const QEnumLookup *enum_table;
-    int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
-    void (*set_default_value)(ObjectProperty *op, const Property *prop);
-    void (*create)(ObjectClass *oc, Property *prop);
-    ObjectPropertyAccessor *get;
-    ObjectPropertyAccessor *set;
-    ObjectPropertyRelease *release;
 };
 
 /**
@@ -420,6 +407,22 @@ void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp);
 void qdev_machine_creation_done(void);
 bool qdev_machine_modified(void);
+
+/**
+ * GpioPolarity: Polarity of a GPIO line
+ *
+ * GPIO lines use either positive (active-high) logic,
+ * or negative (active-low) logic.
+ *
+ * In active-high logic (%GPIO_POLARITY_ACTIVE_HIGH), a pin is
+ * active when the voltage on the pin is high (relative to ground);
+ * whereas in active-low logic (%GPIO_POLARITY_ACTIVE_LOW), a pin
+ * is active when the voltage on the pin is low (or grounded).
+ */
+typedef enum {
+    GPIO_POLARITY_ACTIVE_LOW,
+    GPIO_POLARITY_ACTIVE_HIGH
+} GpioPolarity;
 
 /**
  * qdev_get_gpio_in: Get one of a device's anonymous input GPIO lines
@@ -748,14 +751,6 @@ char *qdev_get_fw_dev_path(DeviceState *dev);
 char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
 
 /**
- * @qdev_machine_init
- *
- * Initialize platform devices before machine init.  This is a hack until full
- * support for composition is added.
- */
-void qdev_machine_init(void);
-
-/**
  * device_legacy_reset:
  *
  * Reset a single device (by calling the reset method).
@@ -785,12 +780,12 @@ const VMStateDescription *qdev_get_vmsd(DeviceState *dev);
 
 const char *qdev_fw_name(DeviceState *dev);
 
+void qdev_assert_realized_properly(void);
 Object *qdev_get_machine(void);
 
 /* FIXME: make this a link<> */
-void qdev_set_parent_bus(DeviceState *dev, BusState *bus);
+bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp);
 
-extern bool qdev_hotplug;
 extern bool qdev_hot_removed;
 
 char *qdev_get_dev_path(DeviceState *dev);
@@ -815,5 +810,36 @@ void device_listener_unregister(DeviceListener *listener);
  * and return if the device should be added now or not.
  */
 bool qdev_should_hide_device(QemuOpts *opts);
+
+typedef enum MachineInitPhase {
+    /* current_machine is NULL.  */
+    PHASE_NO_MACHINE,
+
+    /* current_machine is not NULL, but current_machine->accel is NULL.  */
+    PHASE_MACHINE_CREATED,
+
+    /*
+     * current_machine->accel is not NULL, but the machine properties have
+     * not been validated and machine_class->init has not yet been called.
+     */
+    PHASE_ACCEL_CREATED,
+
+    /*
+     * machine_class->init has been called, thus creating any embedded
+     * devices and validating machine properties.  Devices created at
+     * this time are considered to be cold-plugged.
+     */
+    PHASE_MACHINE_INITIALIZED,
+
+    /*
+     * QEMU is ready to start CPUs and devices created at this time
+     * are considered to be hot-plugged.  The monitor is not restricted
+     * to "preconfig" commands.
+     */
+    PHASE_MACHINE_READY,
+} MachineInitPhase;
+
+extern bool phase_check(MachineInitPhase phase);
+extern void phase_advance(MachineInitPhase phase);
 
 #endif

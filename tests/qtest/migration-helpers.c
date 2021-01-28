@@ -17,10 +17,12 @@
 
 bool got_stop;
 
-static void stop_cb(void *opaque, const char *name, QDict *data)
+static void check_stop_event(QTestState *who)
 {
-    if (!strcmp(name, "STOP")) {
+    QDict *event = qtest_qmp_event_ref(who, "STOP");
+    if (event) {
         got_stop = true;
+        qobject_unref(event);
     }
 }
 
@@ -30,12 +32,23 @@ static void stop_cb(void *opaque, const char *name, QDict *data)
 QDict *wait_command_fd(QTestState *who, int fd, const char *command, ...)
 {
     va_list ap;
+    QDict *resp, *ret;
 
     va_start(ap, command);
     qtest_qmp_vsend_fds(who, &fd, 1, command, ap);
     va_end(ap);
 
-    return qtest_qmp_receive_success(who, stop_cb, NULL);
+    resp = qtest_qmp_receive(who);
+    check_stop_event(who);
+
+    g_assert(!qdict_haskey(resp, "error"));
+    g_assert(qdict_haskey(resp, "return"));
+
+    ret = qdict_get_qdict(resp, "return");
+    qobject_ref(ret);
+    qobject_unref(resp);
+
+    return ret;
 }
 
 /*
@@ -44,12 +57,22 @@ QDict *wait_command_fd(QTestState *who, int fd, const char *command, ...)
 QDict *wait_command(QTestState *who, const char *command, ...)
 {
     va_list ap;
+    QDict *resp, *ret;
 
     va_start(ap, command);
-    qtest_qmp_vsend(who, command, ap);
+    resp = qtest_vqmp(who, command, ap);
     va_end(ap);
 
-    return qtest_qmp_receive_success(who, stop_cb, NULL);
+    check_stop_event(who);
+
+    g_assert(!qdict_haskey(resp, "error"));
+    g_assert(qdict_haskey(resp, "return"));
+
+    ret = qdict_get_qdict(resp, "return");
+    qobject_ref(ret);
+    qobject_unref(resp);
+
+    return ret;
 }
 
 /*

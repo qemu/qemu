@@ -8,9 +8,9 @@ The QEMU Object Model provides a framework for registering user creatable
 types and instantiating objects from those types.  QOM provides the following
 features:
 
- - System for dynamically registering types
- - Support for single-inheritance of types
- - Multiple inheritance of stateless interfaces
+- System for dynamically registering types
+- Support for single-inheritance of types
+- Multiple inheritance of stateless interfaces
 
 .. code-block:: c
    :caption: Creating a minimal type
@@ -174,17 +174,17 @@ dynamically cast it to an object that implements the interface.
 Methods
 =======
 
-A <emphasis>method</emphasis> is a function within the namespace scope of
+A *method* is a function within the namespace scope of
 a class. It usually operates on the object instance by passing it as a
 strongly-typed first argument.
 If it does not operate on an object instance, it is dubbed
-<emphasis>class method</emphasis>.
+*class method*.
 
 Methods cannot be overloaded. That is, the #ObjectClass and method name
 uniquely identity the function to be called; the signature does not vary
 except for trailing varargs.
 
-Methods are always <emphasis>virtual</emphasis>. Overriding a method in
+Methods are always *virtual*. Overriding a method in
 #TypeInfo.class_init of a subclass leads to any user of the class obtained
 via OBJECT_GET_CLASS() accessing the overridden function.
 The original function is not automatically invoked. It is the responsibility
@@ -284,28 +284,29 @@ in the header file:
 .. code-block:: c
    :caption: Declaring a simple type
 
-    OBJECT_DECLARE_SIMPLE_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
+   OBJECT_DECLARE_SIMPLE_TYPE(MyDevice, my_device,
+                              MY_DEVICE, DEVICE)
 
 This is equivalent to the following:
 
 .. code-block:: c
    :caption: Expansion from declaring a simple type
 
-    typedef struct MyDevice MyDevice;
-    typedef struct MyDeviceClass MyDeviceClass;
+   typedef struct MyDevice MyDevice;
+   typedef struct MyDeviceClass MyDeviceClass;
 
-    G_DEFINE_AUTOPTR_CLEANUP_FUNC(MyDeviceClass, object_unref)
+   G_DEFINE_AUTOPTR_CLEANUP_FUNC(MyDeviceClass, object_unref)
 
-    #define MY_DEVICE_GET_CLASS(void *obj) \
-            OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
-    #define MY_DEVICE_CLASS(void *klass) \
-            OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
-    #define MY_DEVICE(void *obj)
-            OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
+   #define MY_DEVICE_GET_CLASS(void *obj) \
+           OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
+   #define MY_DEVICE_CLASS(void *klass) \
+           OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
+   #define MY_DEVICE(void *obj)
+           OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
 
-    struct MyDeviceClass {
-        DeviceClass parent_class;
-    };
+   struct MyDeviceClass {
+       DeviceClass parent_class;
+   };
 
 The 'struct MyDevice' needs to be declared separately.
 If the type requires virtual functions to be declared in the class
@@ -319,33 +320,33 @@ In the simple case the OBJECT_DEFINE_TYPE macro is suitable:
 .. code-block:: c
    :caption: Defining a simple type
 
-    OBJECT_DEFINE_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
+   OBJECT_DEFINE_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
 
 This is equivalent to the following:
 
 .. code-block:: c
    :caption: Expansion from defining a simple type
 
-    static void my_device_finalize(Object *obj);
-    static void my_device_class_init(ObjectClass *oc, void *data);
-    static void my_device_init(Object *obj);
+   static void my_device_finalize(Object *obj);
+   static void my_device_class_init(ObjectClass *oc, void *data);
+   static void my_device_init(Object *obj);
 
-    static const TypeInfo my_device_info = {
-        .parent = TYPE_DEVICE,
-        .name = TYPE_MY_DEVICE,
-        .instance_size = sizeof(MyDevice),
-        .instance_init = my_device_init,
-        .instance_finalize = my_device_finalize,
-        .class_size = sizeof(MyDeviceClass),
-        .class_init = my_device_class_init,
-    };
+   static const TypeInfo my_device_info = {
+       .parent = TYPE_DEVICE,
+       .name = TYPE_MY_DEVICE,
+       .instance_size = sizeof(MyDevice),
+       .instance_init = my_device_init,
+       .instance_finalize = my_device_finalize,
+       .class_size = sizeof(MyDeviceClass),
+       .class_init = my_device_class_init,
+   };
 
-    static void
-    my_device_register_types(void)
-    {
-        type_register_static(&my_device_info);
-    }
-    type_init(my_device_register_types);
+   static void
+   my_device_register_types(void)
+   {
+       type_register_static(&my_device_info);
+   }
+   type_init(my_device_register_types);
 
 This is sufficient to get the type registered with the type
 system, and the three standard methods now need to be implemented
@@ -358,9 +359,10 @@ This accepts an array of interface type names.
 .. code-block:: c
    :caption: Defining a simple type implementing interfaces
 
-    OBJECT_DEFINE_TYPE_WITH_INTERFACES(MyDevice, my_device,
-                                       MY_DEVICE, DEVICE,
-                                       { TYPE_USER_CREATABLE }, { NULL })
+   OBJECT_DEFINE_TYPE_WITH_INTERFACES(MyDevice, my_device,
+                                      MY_DEVICE, DEVICE,
+                                      { TYPE_USER_CREATABLE },
+                                      { NULL })
 
 If the type is not intended to be instantiated, then then
 the OBJECT_DEFINE_ABSTRACT_TYPE() macro can be used instead:
@@ -368,7 +370,8 @@ the OBJECT_DEFINE_ABSTRACT_TYPE() macro can be used instead:
 .. code-block:: c
    :caption: Defining a simple abstract type
 
-    OBJECT_DEFINE_ABSTRACT_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
+   OBJECT_DEFINE_ABSTRACT_TYPE(MyDevice, my_device,
+                               MY_DEVICE, DEVICE)
 
 
 

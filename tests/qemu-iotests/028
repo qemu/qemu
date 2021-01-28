@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw backing quick
 #
 # Test that backing files can be smaller than the image
 #
@@ -46,7 +47,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # Any format supporting backing files except vmdk and qcow which do not support
 # smaller backing files.
 _supported_fmt qcow2 qed
-_supported_proto file
+_supported_proto file fuse
 _supported_os Linux
 
 # Choose a size that is not necessarily a cluster size multiple for image
@@ -116,16 +117,10 @@ else
     QEMU_COMM_TIMEOUT=1
 fi
 
-# Silence output since it contains the disk image path and QEMU's readline
-# character echoing makes it very hard to filter the output. Plus, there
-# is no telling how many times the command will repeat before succeeding.
-# (Note that creating the image results in a "Formatting..." message over
-# stdout, which is the same channel the monitor uses.  We cannot reliably
-# wait for it because the monitor output may interact with it in such a
-# way that _timed_wait_for cannot read it.  However, once the block job is
-# done, we know that the "Formatting..." message must have appeared
-# already, so the output is still deterministic.)
-silent=y _send_qemu_cmd $h "drive_backup disk ${TEST_IMG}.copy" "(qemu)"
+TEST_IMG="$TEST_IMG.copy" _make_test_img $image_size
+_send_qemu_cmd $h "drive_backup -n disk ${TEST_IMG}.copy" "(qemu)" \
+    | _filter_imgfmt
+
 silent=y qemu_cmd_repeat=20 _send_qemu_cmd $h "info block-jobs" "No active jobs"
 _send_qemu_cmd $h "info block-jobs" "No active jobs"
 _send_qemu_cmd $h 'quit' ""

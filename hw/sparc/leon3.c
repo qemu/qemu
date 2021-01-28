@@ -27,6 +27,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
+#include "qemu/datadir.h"
 #include "cpu.h"
 #include "hw/irq.h"
 #include "qemu/timer.h"
@@ -50,8 +51,6 @@
 #define LEON3_PROM_FILENAME "u-boot.bin"
 #define LEON3_PROM_OFFSET    (0x00000000)
 #define LEON3_RAM_OFFSET     (0x40000000)
-
-#define MAX_PILS 16
 
 #define LEON3_UART_OFFSET  (0x80000100)
 #define LEON3_UART_IRQ     (3)
@@ -185,6 +184,7 @@ static void leon3_set_pil_in(void *opaque, int n, int level)
 static void leon3_generic_hw_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
+    const char *bios_name = machine->firmware ?: LEON3_PROM_FILENAME;
     const char *kernel_filename = machine->kernel_filename;
     SPARCCPU *cpu;
     CPUSPARCState   *env;
@@ -192,11 +192,10 @@ static void leon3_generic_hw_init(MachineState *machine)
     MemoryRegion *prom = g_new(MemoryRegion, 1);
     int         ret;
     char       *filename;
-    qemu_irq   *cpu_irqs = NULL;
     int         bios_size;
     int         prom_size;
     ResetData  *reset_info;
-    DeviceState *dev;
+    DeviceState *dev, *irqmpdev;
     int i;
     AHBPnp *ahb_pnp;
     APBPnp *apb_pnp;
@@ -228,16 +227,15 @@ static void leon3_generic_hw_init(MachineState *machine)
                             GRLIB_AHB_SLAVE, GRLIB_AHBMEM_AREA);
 
     /* Allocate IRQ manager */
-    dev = qdev_new(TYPE_GRLIB_IRQMP);
+    irqmpdev = qdev_new(TYPE_GRLIB_IRQMP);
     qdev_init_gpio_in_named_with_opaque(DEVICE(cpu), leon3_set_pil_in,
                                         env, "pil", 1);
-    qdev_connect_gpio_out_named(dev, "grlib-irq", 0,
+    qdev_connect_gpio_out_named(irqmpdev, "grlib-irq", 0,
                                 qdev_get_gpio_in_named(DEVICE(cpu), "pil", 0));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_IRQMP_OFFSET);
-    env->irq_manager = dev;
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(irqmpdev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(irqmpdev), 0, LEON3_IRQMP_OFFSET);
+    env->irq_manager = irqmpdev;
     env->qemu_irq_ack = leon3_irq_manager;
-    cpu_irqs = qemu_allocate_irqs(grlib_irqmp_set_irq, dev, MAX_PILS);
     grlib_apb_pnp_add_entry(apb_pnp, LEON3_IRQMP_OFFSET, 0xFFF,
                             GRLIB_VENDOR_GAISLER, GRLIB_IRQMP_DEV,
                             2, 0, GRLIB_APBIO_AREA);
@@ -259,9 +257,6 @@ static void leon3_generic_hw_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, LEON3_PROM_OFFSET, prom);
 
     /* Load boot prom */
-    if (bios_name == NULL) {
-        bios_name = LEON3_PROM_FILENAME;
-    }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
 
     if (filename) {
@@ -331,7 +326,7 @@ static void leon3_generic_hw_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_TIMER_OFFSET);
     for (i = 0; i < LEON3_TIMER_COUNT; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
-                           cpu_irqs[LEON3_TIMER_IRQ + i]);
+                           qdev_get_gpio_in(irqmpdev, LEON3_TIMER_IRQ + i));
     }
 
     grlib_apb_pnp_add_entry(apb_pnp, LEON3_TIMER_OFFSET, 0xFFF,
@@ -343,7 +338,8 @@ static void leon3_generic_hw_init(MachineState *machine)
     qdev_prop_set_chr(dev, "chrdev", serial_hd(0));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_UART_OFFSET);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irqs[LEON3_UART_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                       qdev_get_gpio_in(irqmpdev, LEON3_UART_IRQ));
     grlib_apb_pnp_add_entry(apb_pnp, LEON3_UART_OFFSET, 0xFFF,
                             GRLIB_VENDOR_GAISLER, GRLIB_APBUART_DEV, 1,
                             LEON3_UART_IRQ, GRLIB_APBIO_AREA);

@@ -1,0 +1,36 @@
+# MIPS32 Release 6 instruction set
+#
+# Copyright (C) 2020  Philippe Mathieu-Daudé
+#
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Reference:
+#       MIPS Architecture for Programmers Volume II-A
+#       The MIPS32 Instruction Set Reference Manual, Revision 6.06
+#       (Document Number: MD00086-2B-MIPS32BIS-AFP-06.06)
+#
+
+&rtype              rs rt rd sa
+
+@lsa                ...... rs:5 rt:5 rd:5 ... sa:2 ......   &rtype
+
+LSA                 000000 ..... ..... ..... 000 .. 000101  @lsa
+
+REMOVED             010011 ----- ----- ----- ----- ------   # COP1X (COP3)
+
+REMOVED             011100 ----- ----- ----- ----- ------   # SPECIAL2
+
+REMOVED             011111 ----- ----- ----------  011001   # LWLE
+REMOVED             011111 ----- ----- ----------  011010   # LWRE
+REMOVED             011111 ----- ----- ----------  100001   # SWLE
+REMOVED             011111 ----- ----- ----------  100010   # SWRE
+
+REMOVED             100010 ----- ----- ----------------     # LWL
+REMOVED             100110 ----- ----- ----------------     # LWR
+REMOVED             101010 ----- ----- ----------------     # SWL
+REMOVED             101110 ----- ----- ----------------     # SWR
+
+REMOVED             101111 ----- ----- ----------------     # CACHE
+REMOVED             110000 ----- ----- ----------------     # LL
+REMOVED             110011 ----- ----- ----------------     # PREF
+REMOVED             111000 ----- ----- ----------------     # SC

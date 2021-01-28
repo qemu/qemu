@@ -1437,7 +1437,7 @@ static void print_direntry(const direntry_t* direntry)
         for(i=0;i<11;i++)
             ADD_CHAR(direntry->name[i]);
         buffer[j] = 0;
-        fprintf(stderr,"%s attributes=0x%02x begin=%d size=%d\n",
+        fprintf(stderr, "%s attributes=0x%02x begin=%u size=%u\n",
                 buffer,
                 direntry->attributes,
                 begin_of_direntry(direntry),le32_to_cpu(direntry->size));
@@ -1446,7 +1446,7 @@ static void print_direntry(const direntry_t* direntry)
 
 static void print_mapping(const mapping_t* mapping)
 {
-    fprintf(stderr, "mapping (%p): begin, end = %d, %d, dir_index = %d, "
+    fprintf(stderr, "mapping (%p): begin, end = %u, %u, dir_index = %u, "
         "first_mapping_index = %d, name = %s, mode = 0x%x, " ,
         mapping, mapping->begin, mapping->end, mapping->dir_index,
         mapping->first_mapping_index, mapping->path, mapping->mode);
@@ -1454,7 +1454,7 @@ static void print_mapping(const mapping_t* mapping)
     if (mapping->mode & MODE_DIRECTORY)
         fprintf(stderr, "parent_mapping_index = %d, first_dir_index = %d\n", mapping->info.dir.parent_mapping_index, mapping->info.dir.first_dir_index);
     else
-        fprintf(stderr, "offset = %d\n", mapping->info.file.offset);
+        fprintf(stderr, "offset = %u\n", mapping->info.file.offset);
 }
 #endif
 
@@ -1588,7 +1588,7 @@ typedef struct commit_t {
 static void clear_commits(BDRVVVFATState* s)
 {
     int i;
-DLOG(fprintf(stderr, "clear_commits (%d commits)\n", s->commits.next));
+DLOG(fprintf(stderr, "clear_commits (%u commits)\n", s->commits.next));
     for (i = 0; i < s->commits.next; i++) {
         commit_t* commit = array_get(&(s->commits), i);
         assert(commit->path || commit->action == ACTION_WRITEOUT);
@@ -2648,7 +2648,9 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
     fprintf(stderr, "handle_renames\n");
     for (i = 0; i < s->commits.next; i++) {
         commit_t* commit = array_get(&(s->commits), i);
-        fprintf(stderr, "%d, %s (%d, %d)\n", i, commit->path ? commit->path : "(null)", commit->param.rename.cluster, commit->action);
+        fprintf(stderr, "%d, %s (%u, %d)\n", i,
+                commit->path ? commit->path : "(null)",
+                commit->param.rename.cluster, commit->action);
     }
 #endif
 

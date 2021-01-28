@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# group: rw quick
 #
 # Tests that "bdrv_drain_all" doesn't drain block jobs
 #
@@ -20,68 +21,87 @@
 
 import os
 import iotests
-import time
 
 class TestStopWithBlockJob(iotests.QMPTestCase):
     test_img = os.path.join(iotests.test_dir, 'test.img')
     target_img = os.path.join(iotests.test_dir, 'target.img')
     base_img = os.path.join(iotests.test_dir, 'base.img')
+    overlay_img = os.path.join(iotests.test_dir, 'overlay.img')
 
     def setUp(self):
         iotests.qemu_img('create', '-f', iotests.imgfmt, self.base_img, "1G")
         iotests.qemu_img('create', '-f', iotests.imgfmt, self.test_img,
                          "-b", self.base_img, '-F', iotests.imgfmt)
-        iotests.qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 1M 128M', self.test_img)
-        self.vm = iotests.VM().add_drive(self.test_img)
+        iotests.qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 1M 128M',
+                        self.test_img)
+        self.vm = iotests.VM()
+        self.vm.add_object('throttle-group,id=tg0,x-bps-total=1024')
+
+        source_drive = 'driver=throttle,' \
+                       'node-name=source,' \
+                       'throttle-group=tg0,' \
+                       f'file.driver={iotests.imgfmt},' \
+                       f'file.file.filename={self.test_img}'
+
+        self.vm.add_drive(None, source_drive)
         self.vm.launch()
 
     def tearDown(self):
-        params = {"device": "drive0",
-                  "bps": 0,
-                  "bps_rd": 0,
-                  "bps_wr": 0,
-                  "iops": 0,
-                  "iops_rd": 0,
-                  "iops_wr": 0,
-                 }
-        result = self.vm.qmp("block_set_io_throttle", conv_keys=False,
-                             **params)
         self.vm.shutdown()
+        for img in (self.test_img, self.target_img, self.base_img,
+                    self.overlay_img):
+            iotests.try_remove(img)
 
     def do_test_stop(self, cmd, **args):
         """Test 'stop' while block job is running on a throttled drive.
         The 'stop' command shouldn't drain the job"""
-        params = {"device": "drive0",
-                  "bps": 1024,
-                  "bps_rd": 0,
-                  "bps_wr": 0,
-                  "iops": 0,
-                  "iops_rd": 0,
-                  "iops_wr": 0,
-                 }
-        result = self.vm.qmp("block_set_io_throttle", conv_keys=False,
-                             **params)
-        self.assert_qmp(result, 'return', {})
         result = self.vm.qmp(cmd, **args)
         self.assert_qmp(result, 'return', {})
+
         result = self.vm.qmp("stop")
         self.assert_qmp(result, 'return', {})
         result = self.vm.qmp("query-block-jobs")
-        self.assert_qmp(result, 'return[0]/busy', True)
+
+        self.assert_qmp(result, 'return[0]/status', 'running')
         self.assert_qmp(result, 'return[0]/ready', False)
 
     def test_drive_mirror(self):
         self.do_test_stop("drive-mirror", device="drive0",
-                          target=self.target_img,
-                          sync="full")
+                          target=self.target_img, format=iotests.imgfmt,
+                          sync="full", buf_size=65536)
 
     def test_drive_backup(self):
+        # Limit max-chunk and max-workers so that block-copy will not
+        # launch so many workers working on so much data each that
+        # stop's bdrv_drain_all() would finish the job
         self.do_test_stop("drive-backup", device="drive0",
-                          target=self.target_img,
-                          sync="full")
+                          target=self.target_img, format=iotests.imgfmt,
+                          sync="full",
+                          x_perf={ 'max-chunk': 65536,
+                                   'max-workers': 8 })
 
     def test_block_commit(self):
-        self.do_test_stop("block-commit", device="drive0")
+        # Add overlay above the source node so that we actually use a
+        # commit job instead of a mirror job
+
+        iotests.qemu_img('create', '-f', iotests.imgfmt, self.overlay_img,
+                         '1G')
+
+        result = self.vm.qmp('blockdev-add', **{
+                                 'node-name': 'overlay',
+                                 'driver': iotests.imgfmt,
+                                 'file': {
+                                     'driver': 'file',
+                                     'filename': self.overlay_img
+                                 }
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-snapshot',
+                             node='source', overlay='overlay')
+        self.assert_qmp(result, 'return', {})
+
+        self.do_test_stop('block-commit', device='drive0', top_node='source')
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=["qcow2"],

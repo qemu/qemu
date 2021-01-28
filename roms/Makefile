@@ -102,7 +102,7 @@ build-seabios-config-%: config.%
 		OUT=$(CURDIR)/seabios/builds/$*/ all
 
 
-.PHONY: sgabios skiboot
+.PHONY: sgabios skiboot qboot
 sgabios:
 	$(MAKE) -C sgabios
 	cp sgabios/sgabios.bin ../pc-bios
@@ -186,9 +186,13 @@ opensbi64-generic:
 	cp opensbi/build/platform/generic/firmware/fw_dynamic.bin ../pc-bios/opensbi-riscv64-generic-fw_dynamic.bin
 	cp opensbi/build/platform/generic/firmware/fw_dynamic.elf ../pc-bios/opensbi-riscv64-generic-fw_dynamic.elf
 
+MESON = meson
+NINJA = ninja
 qboot:
-	$(MAKE) -C qboot
-	cp qboot/bios.bin ../pc-bios/qboot.rom
+	mkdir -p qboot/build
+	$(MESON) setup $(if $(wildcard qboot/build/meson-private),--wipe,) qboot qboot/build
+	$(NINJA) -C qboot/build
+	cp qboot/build/bios.bin ../pc-bios/qboot.rom
 
 npcm7xx_bootrom:
 	$(MAKE) -C vbootrom CROSS_COMPILE=$(arm_cross_prefix)

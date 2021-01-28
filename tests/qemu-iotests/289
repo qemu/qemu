@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw quick
 #
 # qcow2 v3-exclusive error path testing
 # (026 tests paths common to v2 and v3)
@@ -38,7 +39,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.pattern
 
 _supported_fmt qcow2
-_supported_proto file
+_supported_proto file fuse
 # This is a v3-exclusive test;
 # As for data_file, error paths often very much depend on whether
 # there is an external data file or not; so we create one exactly when

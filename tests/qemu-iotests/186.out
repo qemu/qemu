@@ -7,7 +7,7 @@ Testing: -device floppy
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 /machine/peripheral-anon/device[1]: [not inserted]
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -23,7 +23,7 @@ Testing: -device ide-cd
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 /machine/peripheral-anon/device[1]: [not inserted]
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -39,7 +39,7 @@ Testing: -device scsi-cd
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 /machine/peripheral-anon/device[1]: [not inserted]
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -58,7 +58,7 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device ide-hd,d
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 null: json:{"read-zeroes": true, "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Cache mode:       writeback
 (qemu) quit
 
@@ -74,7 +74,7 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device scsi-hd,
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 null: json:{"read-zeroes": true, "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Cache mode:       writeback
 (qemu) quit
 
@@ -90,7 +90,7 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device virtio-b
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 null: json:{"read-zeroes": true, "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]/virtio-backend
     Cache mode:       writeback
 (qemu) quit
 
@@ -98,7 +98,7 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device virtio-b
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 null: json:{"read-zeroes": true, "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral/qdev_id/virtio-backend
     Cache mode:       writeback
 (qemu) quit
 
@@ -106,7 +106,7 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device floppy,d
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 null: json:{"read-zeroes": true, "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
     Cache mode:       writeback
 (qemu) quit
@@ -124,7 +124,7 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device ide-cd,d
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 null: json:{"read-zeroes": true, "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
     Cache mode:       writeback
 (qemu) quit
@@ -142,7 +142,7 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device scsi-cd,
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 null: json:{"read-zeroes": true, "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
     Cache mode:       writeback
 (qemu) quit
@@ -191,7 +191,7 @@ none0 (null): json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
     Cache mode:       writeback
 
 null: json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral/qdev_id/virtio-backend
     Cache mode:       writeback
 (qemu) quit
 
@@ -241,7 +241,7 @@ Testing: -drive if=none,driver=null-co,read-zeroes=on,node-name=null -device ide
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 none0 (null): json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Cache mode:       writeback
 (qemu) quit
 
@@ -257,7 +257,7 @@ Testing: -drive if=none,driver=null-co,read-zeroes=on,node-name=null -device scs
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 none0 (null): json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Cache mode:       writeback
 (qemu) quit
 
@@ -273,7 +273,7 @@ Testing: -drive if=none,driver=null-co,read-zeroes=on,node-name=null -device vir
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 none0 (null): json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]/virtio-backend
     Cache mode:       writeback
 (qemu) quit
 
@@ -281,7 +281,7 @@ Testing: -drive if=none,driver=null-co,read-zeroes=on,node-name=null -device vir
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 none0 (null): json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral/qdev_id/virtio-backend
     Cache mode:       writeback
 (qemu) quit
 
@@ -289,7 +289,7 @@ Testing: -drive if=none,driver=null-co,read-zeroes=on,node-name=null -device flo
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 none0 (null): json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
     Cache mode:       writeback
 (qemu) quit
@@ -307,7 +307,7 @@ Testing: -drive if=none,driver=null-co,read-zeroes=on,node-name=null -device ide
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 none0 (null): json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
     Cache mode:       writeback
 (qemu) quit
@@ -325,7 +325,7 @@ Testing: -drive if=none,driver=null-co,read-zeroes=on,node-name=null -device scs
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 none0 (null): json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
     Cache mode:       writeback
 (qemu) quit
@@ -353,7 +353,7 @@ Testing: -drive if=none -device floppy,drive=none0
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 none0: [not inserted]
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -369,7 +369,7 @@ Testing: -drive if=none -device ide-cd,drive=none0
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 none0: [not inserted]
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -385,7 +385,7 @@ Testing: -drive if=none -device scsi-cd,drive=none0
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 none0: [not inserted]
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -404,7 +404,7 @@ Testing: -drive if=floppy
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 floppy0: [not inserted]
-    Attached to:      PATH
+    Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -412,7 +412,7 @@ Testing: -drive if=floppy,driver=null-co,read-zeroes=on
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 floppy0 (NODE_NAME): json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
     Cache mode:       writeback
 (qemu) quit
@@ -421,7 +421,7 @@ Testing: -drive if=ide,driver=null-co,read-zeroes=on
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 ide0-hd0 (NODE_NAME): json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/unattached/device[N]
     Cache mode:       writeback
 (qemu) quit
 
@@ -429,7 +429,7 @@ Testing: -drive if=ide,media=cdrom
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 ide0-cd0: [not inserted]
-    Attached to:      PATH
+    Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
 (qemu) quit
 
@@ -437,7 +437,7 @@ Testing: -drive if=ide,driver=null-co,read-zeroes=on,media=cdrom
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 ide0-cd0 (NODE_NAME): json:{"read-zeroes": "on", "driver": "null-co"} (null-co, read-only)
-    Attached to:      PATH
+    Attached to:      /machine/unattached/device[N]
     Removable device: not locked, tray closed
     Cache mode:       writeback
 (qemu) quit
@@ -446,7 +446,7 @@ Testing: -drive if=virtio,driver=null-co,read-zeroes=on
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 virtio0 (NODE_NAME): json:{"read-zeroes": "on", "driver": "null-co"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/peripheral-anon/device[N]/virtio-backend
     Cache mode:       writeback
 (qemu) quit
 
@@ -454,7 +454,7 @@ Testing: -drive if=pflash,driver=null-co,read-zeroes=on,size=1M
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) info block
 pflash0 (NODE_NAME): json:{"read-zeroes": "on", "driver": "null-co", "size": "1M"} (null-co)
-    Attached to:      PATH
+    Attached to:      /machine/system.flash0
     Cache mode:       writeback
 (qemu) quit
 

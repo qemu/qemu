@@ -217,6 +217,11 @@ static uint64_t zynq_slcr_compute_pll(uint64_t input, uint32_t ctrl_reg)
         return 0;
     }
 
+    /* Consider zero feedback as maximum divide ratio possible */
+    if (!mult) {
+        mult = 1 << R_xxx_PLL_CTRL_PLL_FPDIV_LENGTH;
+    }
+
     /* frequency multiplier -> period division */
     return input / mult;
 }

@@ -57,6 +57,12 @@ def generate(events, backend, group):
                 # Avoid it by changing probe type to signed char * beforehand.
                 if type_ == 'int8_t *':
                     type_ = 'signed char *'
+
+            # SystemTap dtrace(1) emits a warning when long long is used
+            type_ = type_.replace('unsigned long long', 'uint64_t')
+            type_ = type_.replace('signed long long', 'int64_t')
+            type_ = type_.replace('long long', 'int64_t')
+
             if name in RESERVED_WORDS:
                 name += '_'
             args.append(type_ + ' ' + name)

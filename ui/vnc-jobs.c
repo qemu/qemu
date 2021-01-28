@@ -151,7 +151,8 @@ void vnc_jobs_consume_buffer(VncState *vs)
             }
             if (vs->disconnecting == FALSE) {
                 vs->ioc_tag = qio_channel_add_watch(
-                    vs->ioc, G_IO_IN | G_IO_OUT, vnc_client_io, vs, NULL);
+                    vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_OUT,
+                    vnc_client_io, vs, NULL);
             }
         }
         buffer_move(&vs->output, &vs->jobs_buffer);

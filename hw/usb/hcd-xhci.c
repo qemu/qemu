@@ -8,7 +8,7 @@
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -46,15 +46,13 @@
 #define TRANSFER_LIMIT  256
 
 #define LEN_CAP         0x40
-#define LEN_OPER        (0x400 + 0x10 * MAXPORTS)
-#define LEN_RUNTIME     ((MAXINTRS + 1) * 0x20)
-#define LEN_DOORBELL    ((MAXSLOTS + 1) * 0x20)
+#define LEN_OPER        (0x400 + 0x10 * XHCI_MAXPORTS)
+#define LEN_RUNTIME     ((XHCI_MAXINTRS + 1) * 0x20)
+#define LEN_DOORBELL    ((XHCI_MAXSLOTS + 1) * 0x20)
 
 #define OFF_OPER        LEN_CAP
 #define OFF_RUNTIME     0x1000
 #define OFF_DOORBELL    0x2000
-/* must be power of 2 */
-#define LEN_REGS        0x4000
 
 #if (OFF_OPER + LEN_OPER) > OFF_RUNTIME
 #error Increase OFF_RUNTIME
@@ -62,8 +60,8 @@
 #if (OFF_RUNTIME + LEN_RUNTIME) > OFF_DOORBELL
 #error Increase OFF_DOORBELL
 #endif
-#if (OFF_DOORBELL + LEN_DOORBELL) > LEN_REGS
-# error Increase LEN_REGS
+#if (OFF_DOORBELL + LEN_DOORBELL) > XHCI_LEN_REGS
+# error Increase XHCI_LEN_REGS
 #endif
 
 /* bit definitions */
@@ -1906,7 +1904,9 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         streamid = 0;
         xhci_set_ep_state(xhci, epctx, NULL, EP_RUNNING);
     }
-    assert(ring->dequeue != 0);
+    if (!ring->dequeue) {
+        return;
+    }
 
     epctx->kick_active++;
     while (1) {
@@ -3010,14 +3010,17 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
                                uint64_t val, unsigned size)
 {
     XHCIState *xhci = ptr;
-    int v = (reg - 0x20) / 0x20;
-    XHCIInterrupter *intr = &xhci->intr[v];
+    XHCIInterrupter *intr;
+    int v;
+
     trace_usb_xhci_runtime_write(reg, val);
 
     if (reg < 0x20) {
         trace_usb_xhci_unimplemented("runtime write", reg);
         return;
     }
+    v = (reg - 0x20) / 0x20;
+    intr = &xhci->intr[v];
 
     switch (reg & 0x1f) {
     case 0x00: /* IMAN */
@@ -3276,11 +3279,11 @@ static void usb_xhci_init(XHCIState *xhci)
 
     xhci->usbsts = USBSTS_HCH;
 
-    if (xhci->numports_2 > MAXPORTS_2) {
-        xhci->numports_2 = MAXPORTS_2;
+    if (xhci->numports_2 > XHCI_MAXPORTS_2) {
+        xhci->numports_2 = XHCI_MAXPORTS_2;
     }
-    if (xhci->numports_3 > MAXPORTS_3) {
-        xhci->numports_3 = MAXPORTS_3;
+    if (xhci->numports_3 > XHCI_MAXPORTS_3) {
+        xhci->numports_3 = XHCI_MAXPORTS_3;
     }
     usbports = MAX(xhci->numports_2, xhci->numports_3);
     xhci->numports = xhci->numports_2 + xhci->numports_3;
@@ -3302,7 +3305,7 @@ static void usb_xhci_init(XHCIState *xhci)
                 USB_SPEED_MASK_LOW  |
                 USB_SPEED_MASK_FULL |
                 USB_SPEED_MASK_HIGH;
-            assert(i < MAXPORTS);
+            assert(i < XHCI_MAXPORTS);
             snprintf(port->name, sizeof(port->name), "usb2 port #%d", i+1);
             speedmask |= port->speedmask;
         }
@@ -3316,7 +3319,7 @@ static void usb_xhci_init(XHCIState *xhci)
             }
             port->uport = &xhci->uports[i];
             port->speedmask = USB_SPEED_MASK_SUPER;
-            assert(i < MAXPORTS);
+            assert(i < XHCI_MAXPORTS);
             snprintf(port->name, sizeof(port->name), "usb3 port #%d", i+1);
             speedmask |= port->speedmask;
         }
@@ -3331,8 +3334,8 @@ static void usb_xhci_realize(DeviceState *dev, Error **errp)
 
     XHCIState *xhci = XHCI(dev);
 
-    if (xhci->numintrs > MAXINTRS) {
-        xhci->numintrs = MAXINTRS;
+    if (xhci->numintrs > XHCI_MAXINTRS) {
+        xhci->numintrs = XHCI_MAXINTRS;
     }
     while (xhci->numintrs & (xhci->numintrs - 1)) {   /* ! power of 2 */
         xhci->numintrs++;
@@ -3340,8 +3343,8 @@ static void usb_xhci_realize(DeviceState *dev, Error **errp)
     if (xhci->numintrs < 1) {
         xhci->numintrs = 1;
     }
-    if (xhci->numslots > MAXSLOTS) {
-        xhci->numslots = MAXSLOTS;
+    if (xhci->numslots > XHCI_MAXSLOTS) {
+        xhci->numslots = XHCI_MAXSLOTS;
     }
     if (xhci->numslots < 1) {
         xhci->numslots = 1;
@@ -3355,7 +3358,7 @@ static void usb_xhci_realize(DeviceState *dev, Error **errp)
     usb_xhci_init(xhci);
     xhci->mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, xhci);
 
-    memory_region_init(&xhci->mem, OBJECT(dev), "xhci", LEN_REGS);
+    memory_region_init(&xhci->mem, OBJECT(dev), "xhci", XHCI_LEN_REGS);
     memory_region_init_io(&xhci->mem_cap, OBJECT(dev), &xhci_cap_ops, xhci,
                           "capabilities", LEN_CAP);
     memory_region_init_io(&xhci->mem_oper, OBJECT(dev), &xhci_oper_ops, xhci,
@@ -3392,7 +3395,6 @@ static void usb_xhci_unrealize(DeviceState *dev)
     }
 
     if (xhci->mfwrap_timer) {
-        timer_del(xhci->mfwrap_timer);
         timer_free(xhci->mfwrap_timer);
         xhci->mfwrap_timer = NULL;
     }

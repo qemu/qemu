@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# group: rw backing
 #
 # Tests for drive-backup
 #
@@ -307,8 +308,13 @@ class BackupTest(iotests.QMPTestCase):
         event = self.vm.event_wait(name="BLOCK_JOB_ERROR",
                                    match={'data': {'device': 'drive0'}})
         self.assertNotEqual(event, None)
-        # OK, job should be wedged
-        res = self.vm.qmp('query-block-jobs')
+        # OK, job should pause, but it can't do it immediately, as it can't
+        # cancel other parallel requests (which didn't fail)
+        with iotests.Timeout(60, "Timeout waiting for backup actually paused"):
+            while True:
+                res = self.vm.qmp('query-block-jobs')
+                if res['return'][0]['status'] == 'paused':
+                    break
         self.assert_qmp(res, 'return[0]/status', 'paused')
         res = self.vm.qmp('block-job-dismiss', id='drive0')
         self.assert_qmp(res, 'error/desc',

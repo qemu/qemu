@@ -1,3 +1,6 @@
+# QOM interfaces must be available anytime QOM is used.
+qom_ss.add(files('fw_cfg-interface.c'))
+
 softmmu_ss.add(files('fw_cfg.c'))
 softmmu_ss.add(when: 'CONFIG_CHRP_NVRAM', if_true: files('chrp_nvram.c'))
 softmmu_ss.add(when: 'CONFIG_DS1225Y', if_true: files('ds1225y.c'))

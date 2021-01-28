@@ -263,9 +263,10 @@ uint64_t virtio_get_blocks(void)
     return 0;
 }
 
-void virtio_blk_setup_device(SubChannelId schid)
+int virtio_blk_setup_device(SubChannelId schid)
 {
     VDev *vdev = virtio_get_device();
+    int ret = 0;
 
     vdev->schid = schid;
     virtio_setup_ccw(vdev);
@@ -288,9 +289,11 @@ void virtio_blk_setup_device(SubChannelId schid)
             "Config: CDB size mismatch");
 
         sclp_print("Using virtio-scsi.\n");
-        virtio_scsi_setup(vdev);
+        ret = virtio_scsi_setup(vdev);
         break;
     default:
         panic("\n! No IPL device available !\n");
     }
+
+    return ret;
 }

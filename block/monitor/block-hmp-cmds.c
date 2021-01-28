@@ -40,6 +40,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "qapi/qapi-commands-block.h"
+#include "qapi/qapi-commands-block-export.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
@@ -397,7 +398,7 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
     Error *local_err = NULL;
     BlockInfoList *block_list, *info;
     SocketAddress *addr;
-    BlockExportNbd export;
+    NbdServerAddOptions export;
 
     if (writable && !all) {
         error_setg(&local_err, "-w only valid together with -a");
@@ -410,7 +411,7 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
         goto exit;
     }
 
-    nbd_server_start(addr, NULL, NULL, &local_err);
+    nbd_server_start(addr, NULL, NULL, 0, &local_err);
     qapi_free_SocketAddress(addr);
     if (local_err != NULL) {
         goto exit;
@@ -430,7 +431,7 @@ void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
             continue;
         }
 
-        export = (BlockExportNbd) {
+        export = (NbdServerAddOptions) {
             .device         = info->value->device,
             .has_writable   = true,
             .writable       = writable,
@@ -457,7 +458,7 @@ void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
     bool writable = qdict_get_try_bool(qdict, "writable", false);
     Error *local_err = NULL;
 
-    BlockExportNbd export = {
+    NbdServerAddOptions export = {
         .device         = (char *) device,
         .has_name       = !!name,
         .name           = (char *) name,
@@ -475,8 +476,8 @@ void hmp_nbd_server_remove(Monitor *mon, const QDict *qdict)
     bool force = qdict_get_try_bool(qdict, "force", false);
     Error *err = NULL;
 
-    /* Rely on NBD_SERVER_REMOVE_MODE_SAFE being the default */
-    qmp_nbd_server_remove(name, force, NBD_SERVER_REMOVE_MODE_HARD, &err);
+    /* Rely on BLOCK_EXPORT_REMOVE_MODE_SAFE being the default */
+    qmp_nbd_server_remove(name, force, BLOCK_EXPORT_REMOVE_MODE_HARD, &err);
     hmp_handle_error(mon, err);
 }
 
@@ -506,9 +507,10 @@ void hmp_block_stream(Monitor *mon, const QDict *qdict)
     int64_t speed = qdict_get_try_int(qdict, "speed", 0);
 
     qmp_block_stream(true, device, device, base != NULL, base, false, NULL,
-                     false, NULL, qdict_haskey(qdict, "speed"), speed, true,
-                     BLOCKDEV_ON_ERROR_REPORT, false, false, false, false,
-                     &error);
+                     false, NULL, false, NULL,
+                     qdict_haskey(qdict, "speed"), speed, true,
+                     BLOCKDEV_ON_ERROR_REPORT, false, NULL, false, false, false,
+                     false, &error);
 
     hmp_handle_error(mon, error);
 }

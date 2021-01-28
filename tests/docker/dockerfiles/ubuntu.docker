@@ -60,6 +60,7 @@ ENV PACKAGES \
     libxen-dev \
     libzstd-dev \
     make \
+    ninja-build \
     python3-yaml \
     python3-sphinx \
     sparse \

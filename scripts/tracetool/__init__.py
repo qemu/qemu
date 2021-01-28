@@ -31,14 +31,36 @@ def error(*lines):
     sys.exit(1)
 
 
+out_lineno = 1
+out_filename = '<none>'
+out_fobj = sys.stdout
+
+def out_open(filename):
+    global out_filename, out_fobj
+    out_filename = filename
+    out_fobj = open(filename, 'wt')
+
 def out(*lines, **kwargs):
     """Write a set of output lines.
 
     You can use kwargs as a shorthand for mapping variables when formatting all
     the strings in lines.
+
+    The 'out_lineno' kwarg is automatically added to reflect the current output
+    file line number. The 'out_next_lineno' kwarg is also automatically added
+    with the next output line number. The 'out_filename' kwarg is automatically
+    added with the output filename.
     """
-    lines = [ l % kwargs for l in lines ]
-    sys.stdout.writelines("\n".join(lines) + "\n")
+    global out_lineno
+    output = []
+    for l in lines:
+        kwargs['out_lineno'] = out_lineno
+        kwargs['out_next_lineno'] = out_lineno + 1
+        kwargs['out_filename'] = out_filename
+        output.append(l % kwargs)
+        out_lineno += 1
+
+    out_fobj.writelines("\n".join(output) + "\n")
 
 # We only want to allow standard C types or fixed sized
 # integer types. We don't want QEMU specific types
@@ -196,6 +218,10 @@ class Event(object):
         Properties of the event.
     args : Arguments
         The event arguments.
+    lineno : int
+        The line number in the input file.
+    filename : str
+        The path to the input file.
 
     """
 
@@ -208,7 +234,7 @@ class Event(object):
 
     _VALID_PROPS = set(["disable", "tcg", "tcg-trans", "tcg-exec", "vcpu"])
 
-    def __init__(self, name, props, fmt, args, orig=None,
+    def __init__(self, name, props, fmt, args, lineno, filename, orig=None,
                  event_trans=None, event_exec=None):
         """
         Parameters
@@ -221,6 +247,10 @@ class Event(object):
             Event printing format string(s).
         args : Arguments
             Event arguments.
+        lineno : int
+            The line number in the input file.
+        filename : str
+            The path to the input file.
         orig : Event or None
             Original Event before transformation/generation.
         event_trans : Event or None
@@ -233,6 +263,8 @@ class Event(object):
         self.properties = props
         self.fmt = fmt
         self.args = args
+        self.lineno = int(lineno)
+        self.filename = str(filename)
         self.event_trans = event_trans
         self.event_exec = event_exec
 
@@ -254,16 +286,21 @@ class Event(object):
     def copy(self):
         """Create a new copy."""
         return Event(self.name, list(self.properties), self.fmt,
-                     self.args.copy(), self, self.event_trans, self.event_exec)
+                     self.args.copy(), self.lineno, self.filename,
+                     self, self.event_trans, self.event_exec)
 
     @staticmethod
-    def build(line_str):
+    def build(line_str, lineno, filename):
         """Build an Event instance from a string.
 
         Parameters
         ----------
         line_str : str
             Line describing the event.
+        lineno : int
+            Line number in input file.
+        filename : str
+            Path to input file.
         """
         m = Event._CRE.match(line_str)
         assert m is not None
@@ -293,7 +330,7 @@ class Event(object):
         if "tcg" in props and isinstance(fmt, str):
             raise ValueError("Events with 'tcg' property must have two format strings")
 
-        event = Event(name, props, fmt, args)
+        event = Event(name, props, fmt, args, lineno, filename)
 
         # add implicit arguments when using the 'vcpu' property
         import tracetool.vcpu
@@ -338,6 +375,8 @@ class Event(object):
                      list(self.properties),
                      self.fmt,
                      self.args.transform(*trans),
+                     self.lineno,
+                     self.filename,
                      self)
 
 
@@ -364,7 +403,7 @@ def read_events(fobj, fname):
             continue
 
         try:
-            event = Event.build(line)
+            event = Event.build(line, lineno, fname)
         except ValueError as e:
             arg0 = 'Error at %s:%d: %s' % (fname, lineno, e.args[0])
             e.args = (arg0,) + e.args[1:]

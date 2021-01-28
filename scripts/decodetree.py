@@ -4,7 +4,7 @@
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
 # License as published by the Free Software Foundation; either
-# version 2 of the License, or (at your option) any later version.
+# version 2.1 of the License, or (at your option) any later version.
 #
 # This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,6 +20,7 @@
 # See the syntax and semantics in docs/devel/decodetree.rst.
 #
 
+import io
 import os
 import re
 import sys
@@ -548,7 +549,7 @@ class Tree:
             output(ind, '    /* ',
                    str_match_bits(innerbits, innermask), ' */\n')
             s.output_code(i + 4, extracted, innerbits, innermask)
-            output(ind, '    return false;\n')
+            output(ind, '    break;\n')
         output(ind, '}\n')
 # end Tree
 
@@ -1304,7 +1305,7 @@ def main():
 
     for filename in args:
         input_file = filename
-        f = open(filename, 'r')
+        f = open(filename, 'rt', encoding='utf-8')
         parse_file(f, toppat)
         f.close()
 
@@ -1324,9 +1325,11 @@ def main():
         prop_size(stree)
 
     if output_file:
-        output_fd = open(output_file, 'w')
+        output_fd = open(output_file, 'wt', encoding='utf-8')
     else:
-        output_fd = sys.stdout
+        output_fd = io.TextIOWrapper(sys.stdout.buffer,
+                                     encoding=sys.stdout.encoding,
+                                     errors="ignore")
 
     output_autogen()
     for n in sorted(arguments.keys()):

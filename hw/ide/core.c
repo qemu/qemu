@@ -2254,10 +2254,8 @@ static void ide_perform_srst(IDEState *s)
     /* Cancel PIO callback, reset registers/signature, etc */
     ide_reset(s);
 
-    if (s->drive_kind == IDE_CD) {
-        /* ATAPI drives do not set READY or SEEK */
-        s->status = 0x00;
-    }
+    /* perform diagnostic */
+    cmd_exec_dev_diagnostic(s, WIN_DIAGNOSE);
 }
 
 static void ide_bus_perform_srst(void *opaque)
@@ -2270,6 +2268,8 @@ static void ide_bus_perform_srst(void *opaque)
         s = &bus->ifs[i];
         ide_perform_srst(s);
     }
+
+    bus->cmd &= ~IDE_CTRL_RESET;
 }
 
 void ide_ctrl_write(void *opaque, uint32_t addr, uint32_t val)
@@ -2282,15 +2282,13 @@ void ide_ctrl_write(void *opaque, uint32_t addr, uint32_t val)
 
     /* Device0 and Device1 each have their own control register,
      * but QEMU models it as just one register in the controller. */
-    if ((bus->cmd & IDE_CTRL_RESET) &&
-        !(val & IDE_CTRL_RESET)) {
-        /* SRST triggers on falling edge */
+    if (!(bus->cmd & IDE_CTRL_RESET) && (val & IDE_CTRL_RESET)) {
         for (i = 0; i < 2; i++) {
             s = &bus->ifs[i];
             s->status |= BUSY_STAT;
         }
-        aio_bh_schedule_oneshot(qemu_get_aio_context(),
-                                ide_bus_perform_srst, bus);
+        replay_bh_schedule_oneshot_event(qemu_get_aio_context(),
+                                         ide_bus_perform_srst, bus);
     }
 
     bus->cmd = val;
@@ -2539,7 +2537,7 @@ int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
             error_setg(errp, "Device needs media, but drive is empty");
             return -1;
         }
-        if (blk_is_read_only(blk)) {
+        if (!blk_is_writable(blk)) {
             error_setg(errp, "Can't use a read-only drive");
             return -1;
         }
@@ -2718,7 +2716,6 @@ void ide_init2(IDEBus *bus, qemu_irq irq)
 
 void ide_exit(IDEState *s)
 {
-    timer_del(s->sector_write_timer);
     timer_free(s->sector_write_timer);
     qemu_vfree(s->smart_selftest_data);
     qemu_vfree(s->io_buffer);
