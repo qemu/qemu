@@ -577,6 +577,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_sar_i64:
     case INDEX_op_rotl_i64:     /* Optional (TCG_TARGET_HAS_rot_i64). */
     case INDEX_op_rotr_i64:     /* Optional (TCG_TARGET_HAS_rot_i64). */
+    case INDEX_op_div_i64:      /* Optional (TCG_TARGET_HAS_div_i64). */
+    case INDEX_op_divu_i64:     /* Optional (TCG_TARGET_HAS_div_i64). */
+    case INDEX_op_rem_i64:      /* Optional (TCG_TARGET_HAS_div_i64). */
+    case INDEX_op_remu_i64:     /* Optional (TCG_TARGET_HAS_div_i64). */
         tcg_out_r(s, args[0]);
         tcg_out_ri64(s, const_args[1], args[1]);
         tcg_out_ri64(s, const_args[2], args[2]);
@@ -589,12 +593,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out8(s, args[3]);
         tcg_debug_assert(args[4] <= UINT8_MAX);
         tcg_out8(s, args[4]);
-        break;
-    case INDEX_op_div_i64:      /* Optional (TCG_TARGET_HAS_div_i64). */
-    case INDEX_op_divu_i64:     /* Optional (TCG_TARGET_HAS_div_i64). */
-    case INDEX_op_rem_i64:      /* Optional (TCG_TARGET_HAS_div_i64). */
-    case INDEX_op_remu_i64:     /* Optional (TCG_TARGET_HAS_div_i64). */
-        TODO();
         break;
     case INDEX_op_brcond_i64:
         tcg_out_r(s, args[0]);
