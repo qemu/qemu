@@ -1885,7 +1885,7 @@ static int qcrypto_block_luks_get_info(QCryptoBlock *block,
 {
     QCryptoBlockLUKS *luks = block->opaque;
     QCryptoBlockInfoLUKSSlot *slot;
-    QCryptoBlockInfoLUKSSlotList *slots = NULL, **prev = &info->u.luks.slots;
+    QCryptoBlockInfoLUKSSlotList **tail = &info->u.luks.slots;
     size_t i;
 
     info->u.luks.cipher_alg = luks->cipher_alg;
@@ -1902,10 +1902,7 @@ static int qcrypto_block_luks_get_info(QCryptoBlock *block,
                                   sizeof(luks->header.uuid));
 
     for (i = 0; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS; i++) {
-        slots = g_new0(QCryptoBlockInfoLUKSSlotList, 1);
-        *prev = slots;
-
-        slots->value = slot = g_new0(QCryptoBlockInfoLUKSSlot, 1);
+        slot = g_new0(QCryptoBlockInfoLUKSSlot, 1);
         slot->active = luks->header.key_slots[i].active ==
             QCRYPTO_BLOCK_LUKS_KEY_SLOT_ENABLED;
         slot->key_offset = luks->header.key_slots[i].key_offset_sector
@@ -1917,7 +1914,7 @@ static int qcrypto_block_luks_get_info(QCryptoBlock *block,
             slot->stripes = luks->header.key_slots[i].stripes;
         }
 
-        prev = &slots->next;
+        QAPI_LIST_APPEND(tail, slot);
     }
 
     return 0;

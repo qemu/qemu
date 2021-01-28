@@ -354,11 +354,11 @@ static const char *wan_compression_names[] = {
 
 static SpiceChannelList *qmp_query_spice_channels(void)
 {
-    SpiceChannelList *cur_item = NULL, *head = NULL;
+    SpiceChannelList *head = NULL, **tail = &head;
     ChannelList *item;
 
     QTAILQ_FOREACH(item, &channel_list, link) {
-        SpiceChannelList *chan;
+        SpiceChannel *chan;
         char host[NI_MAXHOST], port[NI_MAXSERV];
         struct sockaddr *paddr;
         socklen_t plen;
@@ -366,29 +366,22 @@ static SpiceChannelList *qmp_query_spice_channels(void)
         assert(item->info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT);
 
         chan = g_malloc0(sizeof(*chan));
-        chan->value = g_malloc0(sizeof(*chan->value));
 
         paddr = (struct sockaddr *)&item->info->paddr_ext;
         plen = item->info->plen_ext;
         getnameinfo(paddr, plen,
                     host, sizeof(host), port, sizeof(port),
                     NI_NUMERICHOST | NI_NUMERICSERV);
-        chan->value->host = g_strdup(host);
-        chan->value->port = g_strdup(port);
-        chan->value->family = inet_netfamily(paddr->sa_family);
+        chan->host = g_strdup(host);
+        chan->port = g_strdup(port);
+        chan->family = inet_netfamily(paddr->sa_family);
 
-        chan->value->connection_id = item->info->connection_id;
-        chan->value->channel_type = item->info->type;
-        chan->value->channel_id = item->info->id;
-        chan->value->tls = item->info->flags & SPICE_CHANNEL_EVENT_FLAG_TLS;
+        chan->connection_id = item->info->connection_id;
+        chan->channel_type = item->info->type;
+        chan->channel_id = item->info->id;
+        chan->tls = item->info->flags & SPICE_CHANNEL_EVENT_FLAG_TLS;
 
-       /* XXX: waiting for the qapi to support GSList */
-        if (!cur_item) {
-            head = cur_item = chan;
-        } else {
-            cur_item->next = chan;
-            cur_item = chan;
-        }
+        QAPI_LIST_APPEND(tail, chan);
     }
 
     return head;

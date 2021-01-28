@@ -164,28 +164,25 @@ static JobInfo *job_query_single(Job *job, Error **errp)
 
 JobInfoList *qmp_query_jobs(Error **errp)
 {
-    JobInfoList *head = NULL, **p_next = &head;
+    JobInfoList *head = NULL, **tail = &head;
     Job *job;
 
     for (job = job_next(NULL); job; job = job_next(job)) {
-        JobInfoList *elem;
+        JobInfo *value;
         AioContext *aio_context;
 
         if (job_is_internal(job)) {
             continue;
         }
-        elem = g_new0(JobInfoList, 1);
         aio_context = job->aio_context;
         aio_context_acquire(aio_context);
-        elem->value = job_query_single(job, errp);
+        value = job_query_single(job, errp);
         aio_context_release(aio_context);
-        if (!elem->value) {
-            g_free(elem);
+        if (!value) {
             qapi_free_JobInfoList(head);
             return NULL;
         }
-        *p_next = elem;
-        p_next = &elem->next;
+        QAPI_LIST_APPEND(tail, value);
     }
 
     return head;
