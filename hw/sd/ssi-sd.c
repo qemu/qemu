@@ -176,9 +176,9 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
                 s->arglen = 1;
                 s->response[0] = 4;
                 DPRINTF("SD command failed\n");
-            } else if (s->cmd == 58) {
-                /* CMD58 returns R3 response (OCR)  */
-                DPRINTF("Returned OCR\n");
+            } else if (s->cmd == 8 || s->cmd == 58) {
+                /* CMD8/CMD58 returns R3/R7 response */
+                DPRINTF("Returned R3/R7\n");
                 s->arglen = 5;
                 s->response[0] = 1;
                 memcpy(&s->response[1], longresp, 4);
