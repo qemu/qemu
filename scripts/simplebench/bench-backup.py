@@ -23,7 +23,7 @@ import json
 
 import simplebench
 from results_to_text import results_to_text
-from bench_block_job import bench_block_copy, drv_file, drv_nbd
+from bench_block_job import bench_block_copy, drv_file, drv_nbd, drv_qcow2
 
 
 def bench_func(env, case):
@@ -37,29 +37,41 @@ def bench_func(env, case):
 def bench(args):
     test_cases = []
 
-    sources = {}
-    targets = {}
-    for d in args.dir:
-        label, path = d.split(':')  # paths with colon not supported
-        sources[label] = drv_file(path + '/test-source')
-        targets[label] = drv_file(path + '/test-target')
+    # paths with colon not supported, so we just split by ':'
+    dirs = dict(d.split(':') for d in args.dir)
 
+    nbd_drv = None
     if args.nbd:
         nbd = args.nbd.split(':')
         host = nbd[0]
         port = '10809' if len(nbd) == 1 else nbd[1]
-        drv = drv_nbd(host, port)
-        sources['nbd'] = drv
-        targets['nbd'] = drv
+        nbd_drv = drv_nbd(host, port)
 
     for t in args.test:
         src, dst = t.split(':')
 
-        test_cases.append({
-            'id': t,
-            'source': sources[src],
-            'target': targets[dst]
-        })
+        if src == 'nbd' and dst == 'nbd':
+            raise ValueError("Can't use 'nbd' label for both src and dst")
+
+        if (src == 'nbd' or dst == 'nbd') and not nbd_drv:
+            raise ValueError("'nbd' label used but --nbd is not given")
+
+        if src == 'nbd':
+            source = nbd_drv
+        else:
+            source = drv_file(dirs[src] + '/test-source')
+
+        if dst == 'nbd':
+            test_cases.append({'id': t, 'source': source, 'target': nbd_drv})
+            continue
+
+        fname = dirs[dst] + '/test-target'
+        if args.compressed:
+            fname += '.qcow2'
+        target = drv_file(fname)
+        if args.compressed:
+            target = drv_qcow2(target)
+        test_cases.append({'id': t, 'source': source, 'target': target})
 
     binaries = []  # list of (<label>, <path>, [<options>])
     for i, q in enumerate(args.env):
@@ -106,6 +118,13 @@ def bench(args):
             elif opt.startswith('max-workers='):
                 x_perf['max-workers'] = int(opt.split('=')[1])
 
+        backup_options = {}
+        if x_perf:
+            backup_options['x-perf'] = x_perf
+
+        if args.compressed:
+            backup_options['compress'] = True
+
         if is_mirror:
             assert not x_perf
             test_envs.append({
@@ -117,7 +136,7 @@ def bench(args):
             test_envs.append({
                 'id': f'backup({label})\n' + '\n'.join(opts),
                 'cmd': 'blockdev-backup',
-                'cmd-options': {'x-perf': x_perf} if x_perf else {},
+                'cmd-options': backup_options,
                 'qemu-binary': path
             })
 
@@ -163,5 +182,9 @@ default port 10809). Use it in tests, label is "nbd"
     p.add_argument('--test', nargs='+', help='''\
 Tests, in form source-dir-label:target-dir-label''',
                    action=ExtendAction)
+    p.add_argument('--compressed', help='''\
+Use compressed backup. It automatically means
+automatically creating qcow2 target with
+lazy_refcounts for each test run''', action='store_true')
 
     bench(p.parse_args())
