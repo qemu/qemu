@@ -222,7 +222,7 @@ static int is_seg_am_mapped(unsigned int am, bool eu, int mmu_idx)
 
 static int get_seg_physical_address(CPUMIPSState *env, hwaddr *physical,
                                     int *prot, target_ulong real_address,
-                                    int rw, int mmu_idx,
+                                    MMUAccessType access_type, int mmu_idx,
                                     unsigned int am, bool eu,
                                     target_ulong segmask,
                                     hwaddr physical_base)
@@ -234,7 +234,8 @@ static int get_seg_physical_address(CPUMIPSState *env, hwaddr *physical,
         return mapped;
     } else if (mapped) {
         /* The segment is TLB mapped */
-        return env->tlb->map_address(env, physical, prot, real_address, rw);
+        return env->tlb->map_address(env, physical, prot, real_address,
+                                     access_type);
     } else {
         /* The segment is unmapped */
         *physical = physical_base | (real_address & segmask);
@@ -245,15 +246,15 @@ static int get_seg_physical_address(CPUMIPSState *env, hwaddr *physical,
 
 static int get_segctl_physical_address(CPUMIPSState *env, hwaddr *physical,
                                        int *prot, target_ulong real_address,
-                                       int rw, int mmu_idx,
+                                       MMUAccessType access_type, int mmu_idx,
                                        uint16_t segctl, target_ulong segmask)
 {
     unsigned int am = (segctl & CP0SC_AM_MASK) >> CP0SC_AM;
     bool eu = (segctl >> CP0SC_EU) & 1;
     hwaddr pa = ((hwaddr)segctl & CP0SC_PA_MASK) << 20;
 
-    return get_seg_physical_address(env, physical, prot, real_address, rw,
-                                    mmu_idx, am, eu, segmask,
+    return get_seg_physical_address(env, physical, prot, real_address,
+                                    access_type, mmu_idx, am, eu, segmask,
                                     pa & ~(hwaddr)segmask);
 }
 
