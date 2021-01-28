@@ -83,7 +83,10 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True,
             dim = 'seconds'
         result['dimension'] = dim
         result['average'] = statistics.mean(r[dim] for r in succeeded)
-        result['stdev'] = statistics.stdev(r[dim] for r in succeeded)
+        if len(succeeded) == 1:
+            result['stdev'] = 0
+        else:
+            result['stdev'] = statistics.stdev(r[dim] for r in succeeded)
 
     if len(succeeded) < count:
         result['n-failed'] = count - len(succeeded)
