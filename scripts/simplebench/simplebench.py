@@ -19,9 +19,11 @@
 #
 
 import statistics
+import time
 
 
-def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
+def bench_one(test_func, test_env, test_case, count=5, initial_run=True,
+              slow_limit=100):
     """Benchmark one test-case
 
     test_func   -- benchmarking function with prototype
@@ -36,6 +38,8 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
     test_case   -- test case - opaque second argument for test_func
     count       -- how many times to call test_func, to calculate average
     initial_run -- do initial run of test_func, which don't get into result
+    slow_limit  -- stop at slow run (that exceedes the slow_limit by seconds).
+                   (initial run is not measured)
 
     Returns dict with the following fields:
         'runs':     list of test_func results
@@ -53,10 +57,18 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
 
     runs = []
     for i in range(count):
+        t = time.time()
+
         print('  #run {}'.format(i+1))
         res = test_func(test_env, test_case)
         print('   ', res)
         runs.append(res)
+
+        if time.time() - t > slow_limit:
+            print('    - run is too slow, stop here')
+            break
+
+    count = len(runs)
 
     result = {'runs': runs}
 
