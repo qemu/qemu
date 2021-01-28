@@ -259,7 +259,7 @@ static int get_segctl_physical_address(CPUMIPSState *env, hwaddr *physical,
 
 static int get_physical_address(CPUMIPSState *env, hwaddr *physical,
                                 int *prot, target_ulong real_address,
-                                int rw, int mmu_idx)
+                                MMUAccessType access_type, int mmu_idx)
 {
     /* User mode can only access useg/xuseg */
 #if defined(TARGET_MIPS64)
@@ -306,14 +306,14 @@ static int get_physical_address(CPUMIPSState *env, hwaddr *physical,
             segctl = env->CP0_SegCtl2 >> 16;
         }
         ret = get_segctl_physical_address(env, physical, prot,
-                                          real_address, rw,
+                                          real_address, access_type,
                                           mmu_idx, segctl, 0x3FFFFFFF);
 #if defined(TARGET_MIPS64)
     } else if (address < 0x4000000000000000ULL) {
         /* xuseg */
         if (UX && address <= (0x3FFFFFFFFFFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot,
-                                        real_address, rw);
+                                        real_address, access_type);
         } else {
             ret = TLBRET_BADADDR;
         }
@@ -322,7 +322,7 @@ static int get_physical_address(CPUMIPSState *env, hwaddr *physical,
         if ((supervisor_mode || kernel_mode) &&
             SX && address <= (0x7FFFFFFFFFFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot,
-                                        real_address, rw);
+                                        real_address, access_type);
         } else {
             ret = TLBRET_BADADDR;
         }
@@ -349,7 +349,7 @@ static int get_physical_address(CPUMIPSState *env, hwaddr *physical,
             /* Does CP0_Status.KX/SX/UX permit the access mode (am) */
             if (env->CP0_Status & am_ksux[am]) {
                 ret = get_seg_physical_address(env, physical, prot,
-                                               real_address, rw,
+                                               real_address, access_type,
                                                mmu_idx, am, false, env->PAMask,
                                                0);
             } else {
@@ -363,7 +363,7 @@ static int get_physical_address(CPUMIPSState *env, hwaddr *physical,
         if (kernel_mode && KX &&
             address <= (0xFFFFFFFF7FFFFFFFULL & env->SEGMask)) {
             ret = env->tlb->map_address(env, physical, prot,
-                                        real_address, rw);
+                                        real_address, access_type);
         } else {
             ret = TLBRET_BADADDR;
         }
@@ -371,17 +371,17 @@ static int get_physical_address(CPUMIPSState *env, hwaddr *physical,
     } else if (address < KSEG1_BASE) {
         /* kseg0 */
         ret = get_segctl_physical_address(env, physical, prot, real_address,
-                                          rw, mmu_idx,
+                                          access_type, mmu_idx,
                                           env->CP0_SegCtl1 >> 16, 0x1FFFFFFF);
     } else if (address < KSEG2_BASE) {
         /* kseg1 */
         ret = get_segctl_physical_address(env, physical, prot, real_address,
-                                          rw, mmu_idx,
+                                          access_type, mmu_idx,
                                           env->CP0_SegCtl1, 0x1FFFFFFF);
     } else if (address < KSEG3_BASE) {
         /* sseg (kseg2) */
         ret = get_segctl_physical_address(env, physical, prot, real_address,
-                                          rw, mmu_idx,
+                                          access_type, mmu_idx,
                                           env->CP0_SegCtl0 >> 16, 0x1FFFFFFF);
     } else {
         /*
@@ -389,7 +389,7 @@ static int get_physical_address(CPUMIPSState *env, hwaddr *physical,
          * XXX: debug segment is not emulated
          */
         ret = get_segctl_physical_address(env, physical, prot, real_address,
-                                          rw, mmu_idx,
+                                          access_type, mmu_idx,
                                           env->CP0_SegCtl0, 0x1FFFFFFF);
     }
     return ret;
