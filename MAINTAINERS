@@ -3209,6 +3209,8 @@ F: docs/devel/multi-process.rst
 F: docs/system/multi-process.rst
 F: hw/pci-host/remote.c
 F: include/hw/pci-host/remote.h
+F: hw/remote/machine.c
+F: include/hw/remote/machine.h
 
 Build and test automation
 -------------------------
