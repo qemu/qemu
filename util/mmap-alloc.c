@@ -87,7 +87,8 @@ void *qemu_ram_mmap(int fd,
                     size_t align,
                     bool readonly,
                     bool shared,
-                    bool is_pmem)
+                    bool is_pmem,
+                    off_t map_offset)
 {
     int prot;
     int flags;
@@ -150,7 +151,8 @@ void *qemu_ram_mmap(int fd,
 
     prot = PROT_READ | (readonly ? 0 : PROT_WRITE);
 
-    ptr = mmap(guardptr + offset, size, prot, flags | map_sync_flags, fd, 0);
+    ptr = mmap(guardptr + offset, size, prot,
+               flags | map_sync_flags, fd, map_offset);
 
     if (ptr == MAP_FAILED && map_sync_flags) {
         if (errno == ENOTSUP) {
@@ -174,7 +176,7 @@ void *qemu_ram_mmap(int fd,
          * if map failed with MAP_SHARED_VALIDATE | MAP_SYNC,
          * we will remove these flags to handle compatibility.
          */
-        ptr = mmap(guardptr + offset, size, prot, flags, fd, 0);
+        ptr = mmap(guardptr + offset, size, prot, flags, fd, map_offset);
     }
 
     if (ptr == MAP_FAILED) {
