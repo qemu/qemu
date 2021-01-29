@@ -228,15 +228,23 @@ static void imx_spi_flush_txfifo(IMXSPIState *s)
             fifo32_num_used(&s->tx_fifo), fifo32_num_used(&s->rx_fifo));
 }
 
-static void imx_spi_reset(DeviceState *dev)
+static void imx_spi_common_reset(IMXSPIState *s)
 {
-    IMXSPIState *s = IMX_SPI(dev);
+    int i;
 
-    DPRINTF("\n");
-
-    memset(s->regs, 0, sizeof(s->regs));
-
-    s->regs[ECSPI_STATREG] = 0x00000003;
+    for (i = 0; i < ARRAY_SIZE(s->regs); i++) {
+        switch (i) {
+        case ECSPI_CONREG:
+            /* CONREG is not updated on soft reset */
+            break;
+        case ECSPI_STATREG:
+            s->regs[i] = 0x00000003;
+            break;
+        default:
+            s->regs[i] = 0;
+            break;
+        }
+    }
 
     imx_spi_rxfifo_reset(s);
     imx_spi_txfifo_reset(s);
@@ -246,9 +254,17 @@ static void imx_spi_reset(DeviceState *dev)
 
 static void imx_spi_soft_reset(IMXSPIState *s)
 {
-    imx_spi_reset(DEVICE(s));
+    imx_spi_common_reset(s);
 
     imx_spi_update_irq(s);
+}
+
+static void imx_spi_reset(DeviceState *dev)
+{
+    IMXSPIState *s = IMX_SPI(dev);
+
+    imx_spi_common_reset(s);
+    s->regs[ECSPI_CONREG] = 0;
 }
 
 static uint64_t imx_spi_read(void *opaque, hwaddr offset, unsigned size)
