@@ -181,9 +181,7 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R1,
     TCG_REG_R2,
     TCG_REG_R3,
-#if 0 /* used for TCG_REG_CALL_STACK */
     TCG_REG_R4,
-#endif
     TCG_REG_R5,
     TCG_REG_R6,
     TCG_REG_R7,
@@ -206,19 +204,16 @@ static const int tcg_target_call_iarg_regs[] = {
     TCG_REG_R1,
     TCG_REG_R2,
     TCG_REG_R3,
-#if 0 /* used for TCG_REG_CALL_STACK */
     TCG_REG_R4,
-#endif
     TCG_REG_R5,
-    TCG_REG_R6,
 #if TCG_TARGET_REG_BITS == 32
     /* 32 bit hosts need 2 * MAX_OPC_PARAM_IARGS registers. */
+    TCG_REG_R6,
     TCG_REG_R7,
     TCG_REG_R8,
     TCG_REG_R9,
     TCG_REG_R10,
     TCG_REG_R11,
-    TCG_REG_R12,
 #endif
 };
 
