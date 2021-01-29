@@ -1188,4 +1188,6 @@ void qemu_spice_display_init(void)
         }
         qemu_spice_display_init_one(con);
     }
+
+    qemu_spice_display_init_done();
 }
