@@ -15,11 +15,13 @@
 #include "hw/boards.h"
 #include "hw/pci-host/remote.h"
 #include "io/channel.h"
+#include "hw/remote/iohub.h"
 
 struct RemoteMachineState {
     MachineState parent_obj;
 
     RemotePCIHost *host;
+    RemoteIOHubState iohub;
 };
 
 /* Used to pass to co-routine device and ioc. */
