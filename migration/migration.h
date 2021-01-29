@@ -20,6 +20,7 @@
 #include "qemu/thread.h"
 #include "qemu/coroutine_int.h"
 #include "io/channel.h"
+#include "io/channel-buffer.h"
 #include "net/announce.h"
 #include "qom/object.h"
 
@@ -147,8 +148,10 @@ struct MigrationState {
 
     /*< public >*/
     QemuThread thread;
+    QEMUBH *vm_start_bh;
     QEMUBH *cleanup_bh;
     QEMUFile *to_dst_file;
+    QIOChannelBuffer *bioc;
     /*
      * Protects to_dst_file pointer.  We need to make sure we won't
      * yield or hang during the critical section, since this lock will
