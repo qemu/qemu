@@ -248,7 +248,7 @@ class TestRunner(ContextManager['TestRunner']):
 
         with f_test.open(encoding="utf-8") as f:
             try:
-                if f.readline() == '#!/usr/bin/env python3':
+                if f.readline().rstrip() == '#!/usr/bin/env python3':
                     args.insert(0, self.env.python)
             except UnicodeDecodeError:  # binary test? for future.
                 pass
