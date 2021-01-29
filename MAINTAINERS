@@ -3206,6 +3206,7 @@ M: Jagannathan Raman <jag.raman@oracle.com>
 M: John G Johnson <john.g.johnson@oracle.com>
 S: Maintained
 F: docs/devel/multi-process.rst
+F: docs/system/multi-process.rst
 
 Build and test automation
 -------------------------
