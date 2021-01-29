@@ -1818,6 +1818,7 @@ if have_system
     'net',
     'softmmu',
     'ui',
+    'hw/remote',
   ]
 endif
 if have_system or have_user
