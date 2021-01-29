@@ -3200,6 +3200,13 @@ S: Maintained
 F: hw/semihosting/
 F: include/hw/semihosting/
 
+Multi-process QEMU
+M: Elena Ufimtseva <elena.ufimtseva@oracle.com>
+M: Jagannathan Raman <jag.raman@oracle.com>
+M: John G Johnson <john.g.johnson@oracle.com>
+S: Maintained
+F: docs/devel/multi-process.rst
+
 Build and test automation
 -------------------------
 Build and test automation
