@@ -793,29 +793,21 @@ void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value)
 
 MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
 {
-    MigrationCapabilityStatusList *head = NULL;
-    MigrationCapabilityStatusList *caps;
+    MigrationCapabilityStatusList *head = NULL, **tail = &head;
+    MigrationCapabilityStatus *caps;
     MigrationState *s = migrate_get_current();
     int i;
 
-    caps = NULL; /* silence compiler warning */
     for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
 #ifndef CONFIG_LIVE_BLOCK_MIGRATION
         if (i == MIGRATION_CAPABILITY_BLOCK) {
             continue;
         }
 #endif
-        if (head == NULL) {
-            head = g_malloc0(sizeof(*caps));
-            caps = head;
-        } else {
-            caps->next = g_malloc0(sizeof(*caps));
-            caps = caps->next;
-        }
-        caps->value =
-            g_malloc(sizeof(*caps->value));
-        caps->value->capability = i;
-        caps->value->state = s->enabled_capabilities[i];
+        caps = g_malloc0(sizeof(*caps));
+        caps->capability = i;
+        caps->state = s->enabled_capabilities[i];
+        QAPI_LIST_APPEND(tail, caps);
     }
 
     return head;

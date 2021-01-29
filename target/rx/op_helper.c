@@ -201,14 +201,14 @@ void helper_scmpu(CPURXState *env)
     if (env->regs[3] == 0) {
         return;
     }
-    while (env->regs[3] != 0) {
+    do {
         tmp0 = cpu_ldub_data_ra(env, env->regs[1]++, GETPC());
         tmp1 = cpu_ldub_data_ra(env, env->regs[2]++, GETPC());
         env->regs[3]--;
         if (tmp0 != tmp1 || tmp0 == '\0') {
             break;
         }
-    }
+    } while (env->regs[3] != 0);
     env->psw_z = tmp0 - tmp1;
     env->psw_c = (tmp0 >= tmp1);
 }
@@ -287,14 +287,14 @@ void helper_suntil(CPURXState *env, uint32_t sz)
     if (env->regs[3] == 0) {
         return ;
     }
-    while (env->regs[3] != 0) {
+    do {
         tmp = cpu_ldufn[sz](env, env->regs[1], GETPC());
         env->regs[1] += 1 << sz;
         env->regs[3]--;
         if (tmp == env->regs[2]) {
             break;
         }
-    }
+    } while (env->regs[3] != 0);
     env->psw_z = tmp - env->regs[2];
     env->psw_c = (tmp <= env->regs[2]);
 }
@@ -306,14 +306,14 @@ void helper_swhile(CPURXState *env, uint32_t sz)
     if (env->regs[3] == 0) {
         return ;
     }
-    while (env->regs[3] != 0) {
+    do {
         tmp = cpu_ldufn[sz](env, env->regs[1], GETPC());
         env->regs[1] += 1 << sz;
         env->regs[3]--;
         if (tmp != env->regs[2]) {
             break;
         }
-    }
+    } while (env->regs[3] != 0);
     env->psw_z = env->regs[3];
     env->psw_c = (tmp <= env->regs[2]);
 }

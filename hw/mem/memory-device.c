@@ -199,7 +199,7 @@ out:
 MemoryDeviceInfoList *qmp_memory_device_list(void)
 {
     GSList *devices = NULL, *item;
-    MemoryDeviceInfoList *list = NULL, *prev = NULL;
+    MemoryDeviceInfoList *list = NULL, **tail = &list;
 
     object_child_foreach(qdev_get_machine(), memory_device_build_list,
                          &devices);
@@ -207,19 +207,11 @@ MemoryDeviceInfoList *qmp_memory_device_list(void)
     for (item = devices; item; item = g_slist_next(item)) {
         const MemoryDeviceState *md = MEMORY_DEVICE(item->data);
         const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(item->data);
-        MemoryDeviceInfoList *elem = g_new0(MemoryDeviceInfoList, 1);
         MemoryDeviceInfo *info = g_new0(MemoryDeviceInfo, 1);
 
         mdc->fill_device_info(md, info);
 
-        elem->value = info;
-        elem->next = NULL;
-        if (prev) {
-            prev->next = elem;
-        } else {
-            list = elem;
-        }
-        prev = elem;
+        QAPI_LIST_APPEND(tail, info);
     }
 
     g_slist_free(devices);
