@@ -187,7 +187,6 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R5,
     TCG_REG_R6,
     TCG_REG_R7,
-#if TCG_TARGET_NB_REGS >= 16
     TCG_REG_R8,
     TCG_REG_R9,
     TCG_REG_R10,
@@ -196,7 +195,6 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R13,
     TCG_REG_R14,
     TCG_REG_R15,
-#endif
 };
 
 #if MAX_OPC_PARAM_IARGS != 6
@@ -216,15 +214,11 @@ static const int tcg_target_call_iarg_regs[] = {
 #if TCG_TARGET_REG_BITS == 32
     /* 32 bit hosts need 2 * MAX_OPC_PARAM_IARGS registers. */
     TCG_REG_R7,
-#if TCG_TARGET_NB_REGS >= 16
     TCG_REG_R8,
     TCG_REG_R9,
     TCG_REG_R10,
     TCG_REG_R11,
     TCG_REG_R12,
-#else
-# error Too few input registers available
-#endif
 #endif
 };
 
@@ -245,7 +239,6 @@ static const char *const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r05",
     "r06",
     "r07",
-#if TCG_TARGET_NB_REGS >= 16
     "r08",
     "r09",
     "r10",
@@ -254,25 +247,6 @@ static const char *const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r13",
     "r14",
     "r15",
-#if TCG_TARGET_NB_REGS >= 32
-    "r16",
-    "r17",
-    "r18",
-    "r19",
-    "r20",
-    "r21",
-    "r22",
-    "r23",
-    "r24",
-    "r25",
-    "r26",
-    "r27",
-    "r28",
-    "r29",
-    "r30",
-    "r31"
-#endif
-#endif
 };
 #endif
 
