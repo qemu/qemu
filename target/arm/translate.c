@@ -39,6 +39,9 @@
 
 #include "qemuafl/cpu-translate.h"
 
+// TODO QASAN shadow stack
+//#include "qemuafl/qasan-qemu.h"
+
 // SP = 13, LINK = 14
 
 #define AFL_QEMU_TARGET_ARM_SNIPPET                                            \
