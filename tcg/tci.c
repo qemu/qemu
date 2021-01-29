@@ -128,11 +128,13 @@ static void tci_write_reg8(tcg_target_ulong *regs, TCGReg index, uint8_t value)
     tci_write_reg(regs, index, value);
 }
 
+#if TCG_TARGET_REG_BITS == 64
 static void
 tci_write_reg16(tcg_target_ulong *regs, TCGReg index, uint16_t value)
 {
     tci_write_reg(regs, index, value);
 }
+#endif
 
 static void
 tci_write_reg32(tcg_target_ulong *regs, TCGReg index, uint32_t value)
