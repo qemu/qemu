@@ -1,0 +1,3 @@
+config MULTIPROCESS
+    bool
+    depends on PCI && KVM
