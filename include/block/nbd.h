@@ -364,7 +364,7 @@ static inline int nbd_read(QIOChannel *ioc, void *buffer, size_t size,
         if (desc) {
             error_prepend(errp, "Failed to read %s: ", desc);
         }
-        return -1;
+        return ret;
     }
 
     return 0;
@@ -375,8 +375,9 @@ static inline int nbd_read##bits(QIOChannel *ioc,                       \
                                  uint##bits##_t *val,                   \
                                  const char *desc, Error **errp)        \
 {                                                                       \
-    if (nbd_read(ioc, val, sizeof(*val), desc, errp) < 0) {             \
-        return -1;                                                      \
+    int ret = nbd_read(ioc, val, sizeof(*val), desc, errp);             \
+    if (ret < 0) {                                                      \
+        return ret;                                                     \
     }                                                                   \
     *val = be##bits##_to_cpu(*val);                                     \
     return 0;                                                           \
