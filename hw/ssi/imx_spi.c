@@ -128,7 +128,14 @@ static uint8_t imx_spi_selected_channel(IMXSPIState *s)
 
 static uint32_t imx_spi_burst_length(IMXSPIState *s)
 {
-    return EXTRACT(s->regs[ECSPI_CONREG], ECSPI_CONREG_BURST_LENGTH) + 1;
+    uint32_t burst;
+
+    burst = EXTRACT(s->regs[ECSPI_CONREG], ECSPI_CONREG_BURST_LENGTH) + 1;
+    if (burst % 8) {
+        burst = ROUND_UP(burst, 8);
+    }
+
+    return burst;
 }
 
 static bool imx_spi_is_enabled(IMXSPIState *s)
@@ -328,6 +335,7 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
     IMXSPIState *s = opaque;
     uint32_t index = offset >> 2;
     uint32_t change_mask;
+    uint32_t burst;
 
     if (index >=  ECSPI_MAX) {
         qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
@@ -379,6 +387,13 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     case ECSPI_CONREG:
         s->regs[ECSPI_CONREG] = value;
+
+        burst = EXTRACT(s->regs[ECSPI_CONREG], ECSPI_CONREG_BURST_LENGTH) + 1;
+        if (burst % 8) {
+            qemu_log_mask(LOG_UNIMP,
+                          "[%s]%s: burst length %d not supported: rounding up to next multiple of 8\n",
+                          TYPE_IMX_SPI, __func__, burst);
+        }
 
         if (!imx_spi_is_enabled(s)) {
             /* device is disabled, so this is a soft reset */
