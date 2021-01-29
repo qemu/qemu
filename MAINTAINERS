@@ -3207,6 +3207,8 @@ M: John G Johnson <john.g.johnson@oracle.com>
 S: Maintained
 F: docs/devel/multi-process.rst
 F: docs/system/multi-process.rst
+F: hw/pci-host/remote.c
+F: include/hw/pci-host/remote.h
 
 Build and test automation
 -------------------------
