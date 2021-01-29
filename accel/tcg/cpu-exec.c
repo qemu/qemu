@@ -773,17 +773,30 @@ int cpu_exec(CPUState *cpu)
     /* prepare setjmp context for exception handling */
     if (sigsetjmp(cpu->jmp_env, 0) != 0) {
 #if defined(__clang__)
-        /* Some compilers wrongly smash all local variables after
-         * siglongjmp. There were bug reports for gcc 4.5.0 and clang.
+        /*
+         * Some compilers wrongly smash all local variables after
+         * siglongjmp (the spec requires that only non-volatile locals
+         * which are changed between the sigsetjmp and siglongjmp are
+         * permitted to be trashed). There were bug reports for gcc
+         * 4.5.0 and clang.  The bug is fixed in all versions of gcc
+         * that we support, but is still unfixed in clang:
+         *   https://bugs.llvm.org/show_bug.cgi?id=21183
+         *
          * Reload essential local variables here for those compilers.
-         * Newer versions of gcc would complain about this code (-Wclobbered). */
+         * Newer versions of gcc would complain about this code (-Wclobbered),
+         * so we only perform the workaround for clang.
+         */
         cpu = current_cpu;
         cc = CPU_GET_CLASS(cpu);
-#else /* buggy compiler */
-        /* Assert that the compiler does not smash local variables. */
+#else
+        /*
+         * Non-buggy compilers preserve these locals; assert that
+         * they have the correct value.
+         */
         g_assert(cpu == current_cpu);
         g_assert(cc == CPU_GET_CLASS(cpu));
-#endif /* buggy compiler */
+#endif
+
 #ifndef CONFIG_SOFTMMU
         tcg_debug_assert(!have_mmap_lock());
 #endif
