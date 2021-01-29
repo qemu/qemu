@@ -140,6 +140,21 @@ void clock_clear_callback(Clock *clk);
 void clock_set_source(Clock *clk, Clock *src);
 
 /**
+ * clock_has_source:
+ * @clk: the clock
+ *
+ * Returns true if the clock has a source clock connected to it.
+ * This is useful for devices which have input clocks which must
+ * be connected by the board/SoC code which creates them. The
+ * device code can use this to check in its realize method that
+ * the clock has been connected.
+ */
+static inline bool clock_has_source(const Clock *clk)
+{
+    return clk->source != NULL;
+}
+
+/**
  * clock_set:
  * @clk: the clock to initialize.
  * @value: the clock's value, 0 means unclocked

@@ -235,6 +235,22 @@ object during device instance init. For example:
     /* set initial value to 10ns / 100MHz */
     clock_set_ns(clk, 10);
 
+To enforce that the clock is wired up by the board code, you can
+call ``clock_has_source()`` in your device's realize method:
+
+.. code-block:: c
+
+   if (!clock_has_source(s->clk)) {
+       error_setg(errp, "MyDevice: clk input must be connected");
+       return;
+   }
+
+Note that this only checks that the clock has been wired up; it is
+still possible that the output clock connected to it is disabled
+or has not yet been configured, in which case the period will be
+zero. You should use the clock callback to find out when the clock
+period changes.
+
 Fetching clock frequency/period
 -------------------------------
 

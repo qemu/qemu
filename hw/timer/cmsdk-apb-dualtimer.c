@@ -25,6 +25,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/registerfields.h"
+#include "hw/qdev-clock.h"
 #include "hw/timer/cmsdk-apb-dualtimer.h"
 #include "migration/vmstate.h"
 
@@ -105,6 +106,22 @@ static void cmsdk_apb_dualtimer_update(CMSDKAPBDualTimer *s)
     qemu_set_irq(s->timerintc, timintc);
 }
 
+static int cmsdk_dualtimermod_divisor(CMSDKAPBDualTimerModule *m)
+{
+    /* Return the divisor set by the current CONTROL.PRESCALE value */
+    switch (FIELD_EX32(m->control, CONTROL, PRESCALE)) {
+    case 0:
+        return 1;
+    case 1:
+        return 16;
+    case 2:
+    case 3: /* UNDEFINED, we treat like 2 (and complained when it was set) */
+        return 256;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void cmsdk_dualtimermod_write_control(CMSDKAPBDualTimerModule *m,
                                              uint32_t newctrl)
 {
@@ -145,7 +162,7 @@ static void cmsdk_dualtimermod_write_control(CMSDKAPBDualTimerModule *m,
         default:
             g_assert_not_reached();
         }
-        ptimer_set_freq(m->timer, m->parent->pclk_frq / divisor);
+        ptimer_set_period_from_clock(m->timer, m->parent->timclk, divisor);
     }
 
     if (changed & R_CONTROL_MODE_MASK) {
@@ -413,7 +430,8 @@ static void cmsdk_dualtimermod_reset(CMSDKAPBDualTimerModule *m)
      * limit must both be set to 0xffff, so we wrap at 16 bits.
      */
     ptimer_set_limit(m->timer, 0xffff, 1);
-    ptimer_set_freq(m->timer, m->parent->pclk_frq);
+    ptimer_set_period_from_clock(m->timer, m->parent->timclk,
+                                 cmsdk_dualtimermod_divisor(m));
     ptimer_transaction_commit(m->timer);
 }
 
@@ -431,6 +449,20 @@ static void cmsdk_apb_dualtimer_reset(DeviceState *dev)
     s->timeritop = 0;
 }
 
+static void cmsdk_apb_dualtimer_clk_update(void *opaque)
+{
+    CMSDKAPBDualTimer *s = CMSDK_APB_DUALTIMER(opaque);
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(s->timermod); i++) {
+        CMSDKAPBDualTimerModule *m = &s->timermod[i];
+        ptimer_transaction_begin(m->timer);
+        ptimer_set_period_from_clock(m->timer, m->parent->timclk,
+                                     cmsdk_dualtimermod_divisor(m));
+        ptimer_transaction_commit(m->timer);
+    }
+}
+
 static void cmsdk_apb_dualtimer_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -445,6 +477,8 @@ static void cmsdk_apb_dualtimer_init(Object *obj)
     for (i = 0; i < ARRAY_SIZE(s->timermod); i++) {
         sysbus_init_irq(sbd, &s->timermod[i].timerint);
     }
+    s->timclk = qdev_init_clock_in(DEVICE(s), "TIMCLK",
+                                   cmsdk_apb_dualtimer_clk_update, s);
 }
 
 static void cmsdk_apb_dualtimer_realize(DeviceState *dev, Error **errp)
@@ -452,8 +486,8 @@ static void cmsdk_apb_dualtimer_realize(DeviceState *dev, Error **errp)
     CMSDKAPBDualTimer *s = CMSDK_APB_DUALTIMER(dev);
     int i;
 
-    if (s->pclk_frq == 0) {
-        error_setg(errp, "CMSDK APB timer: pclk-frq property must be set");
+    if (!clock_has_source(s->timclk)) {
+        error_setg(errp, "CMSDK APB dualtimer: TIMCLK clock must be connected");
         return;
     }
 
@@ -485,9 +519,10 @@ static const VMStateDescription cmsdk_dualtimermod_vmstate = {
 
 static const VMStateDescription cmsdk_apb_dualtimer_vmstate = {
     .name = "cmsdk-apb-dualtimer",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
+        VMSTATE_CLOCK(timclk, CMSDKAPBDualTimer),
         VMSTATE_STRUCT_ARRAY(timermod, CMSDKAPBDualTimer,
                              CMSDK_APB_DUALTIMER_NUM_MODULES,
                              1, cmsdk_dualtimermod_vmstate,
@@ -498,11 +533,6 @@ static const VMStateDescription cmsdk_apb_dualtimer_vmstate = {
     }
 };
 
-static Property cmsdk_apb_dualtimer_properties[] = {
-    DEFINE_PROP_UINT32("pclk-frq", CMSDKAPBDualTimer, pclk_frq, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void cmsdk_apb_dualtimer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -510,7 +540,6 @@ static void cmsdk_apb_dualtimer_class_init(ObjectClass *klass, void *data)
     dc->realize = cmsdk_apb_dualtimer_realize;
     dc->vmsd = &cmsdk_apb_dualtimer_vmstate;
     dc->reset = cmsdk_apb_dualtimer_reset;
-    device_class_set_props(dc, cmsdk_apb_dualtimer_properties);
 }
 
 static const TypeInfo cmsdk_apb_dualtimer_info = {

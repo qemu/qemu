@@ -138,9 +138,9 @@ static void test_can_bus(void)
     uint8_t can_timestamp = 1;
 
     QTestState *qts = qtest_init("-machine xlnx-zcu102"
-                " -object can-bus,id=canbus0"
-                " -machine xlnx-zcu102.canbus0=canbus0"
-                " -machine xlnx-zcu102.canbus1=canbus0"
+                " -object can-bus,id=canbus"
+                " -machine canbus0=canbus"
+                " -machine canbus1=canbus"
                 );
 
     /* Configure the CAN0 and CAN1. */
@@ -175,9 +175,9 @@ static void test_can_loopback(void)
     uint32_t status = 0;
 
     QTestState *qts = qtest_init("-machine xlnx-zcu102"
-                " -object can-bus,id=canbus0"
-                " -machine xlnx-zcu102.canbus0=canbus0"
-                " -machine xlnx-zcu102.canbus1=canbus0"
+                " -object can-bus,id=canbus"
+                " -machine canbus0=canbus"
+                " -machine canbus1=canbus"
                 );
 
     /* Configure the CAN0 in loopback mode. */
@@ -223,9 +223,9 @@ static void test_can_filter(void)
     uint8_t can_timestamp = 1;
 
     QTestState *qts = qtest_init("-machine xlnx-zcu102"
-                " -object can-bus,id=canbus0"
-                " -machine xlnx-zcu102.canbus0=canbus0"
-                " -machine xlnx-zcu102.canbus1=canbus0"
+                " -object can-bus,id=canbus"
+                " -machine canbus0=canbus"
+                " -machine canbus1=canbus"
                 );
 
     /* Configure the CAN0 and CAN1. */
@@ -271,9 +271,9 @@ static void test_can_sleepmode(void)
     uint8_t can_timestamp = 1;
 
     QTestState *qts = qtest_init("-machine xlnx-zcu102"
-                " -object can-bus,id=canbus0"
-                " -machine xlnx-zcu102.canbus0=canbus0"
-                " -machine xlnx-zcu102.canbus1=canbus0"
+                " -object can-bus,id=canbus"
+                " -machine canbus0=canbus"
+                " -machine canbus1=canbus"
                 );
 
     /* Configure the CAN0. */
@@ -317,9 +317,9 @@ static void test_can_snoopmode(void)
     uint8_t can_timestamp = 1;
 
     QTestState *qts = qtest_init("-machine xlnx-zcu102"
-                " -object can-bus,id=canbus0"
-                " -machine xlnx-zcu102.canbus0=canbus0"
-                " -machine xlnx-zcu102.canbus1=canbus0"
+                " -object can-bus,id=canbus"
+                " -machine canbus0=canbus"
+                " -machine canbus1=canbus"
                 );
 
     /* Configure the CAN0. */
