@@ -21,6 +21,8 @@ disable=invalid-name,
         unsubscriptable-object,
         # These are temporary, and should be removed:
         missing-docstring,
+        too-many-return-statements,
+        too-many-statements
 
 [FORMAT]
 
