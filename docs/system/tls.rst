@@ -64,7 +64,7 @@ interactive prompts from certtool::
    cert_signing_key
    EOF
    # certtool --generate-self-signed \
-              --load-privkey ca-key.pem
+              --load-privkey ca-key.pem \
               --template ca.info \
               --outfile ca-cert.pem
 

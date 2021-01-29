@@ -30,7 +30,7 @@
  * This stores some static data that is needed when
  * encoding extensions in the x509 certs
  */
-ASN1_TYPE pkix_asn1;
+asn1_node pkix_asn1;
 
 /*
  * To avoid consuming random entropy to generate keys,
@@ -139,7 +139,7 @@ void test_tls_cleanup(const char *keyfile)
 /*
  * Turns an ASN1 object into a DER encoded byte array
  */
-static void test_tls_der_encode(ASN1_TYPE src,
+static void test_tls_der_encode(asn1_node src,
                                 const char *src_name,
                                 gnutls_datum_t *res)
 {
@@ -317,7 +317,7 @@ test_tls_generate_cert(QCryptoTLSTestCertReq *req,
      * the 'critical' field which we want control over
      */
     if (req->basicConstraintsEnable) {
-        ASN1_TYPE ext = ASN1_TYPE_EMPTY;
+        asn1_node ext = NULL;
 
         asn1_create_element(pkix_asn1, "PKIX1.BasicConstraints", &ext);
         asn1_write_value(ext, "cA",
@@ -344,7 +344,7 @@ test_tls_generate_cert(QCryptoTLSTestCertReq *req,
      * to be 'critical'
      */
     if (req->keyUsageEnable) {
-        ASN1_TYPE ext = ASN1_TYPE_EMPTY;
+        asn1_node ext = NULL;
         char str[2];
 
         str[0] = req->keyUsageValue & 0xff;
@@ -374,7 +374,7 @@ test_tls_generate_cert(QCryptoTLSTestCertReq *req,
      * set this the hard way building up ASN1 data ourselves
      */
     if (req->keyPurposeEnable) {
-        ASN1_TYPE ext = ASN1_TYPE_EMPTY;
+        asn1_node ext = NULL;
 
         asn1_create_element(pkix_asn1, "PKIX1.ExtKeyUsageSyntax", &ext);
         if (req->keyPurposeOID1) {

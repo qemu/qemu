@@ -1080,9 +1080,9 @@ int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
 
         rk = key->rd_key;
 
-        if (bits==128)
+        if (bits == 128)
                 key->rounds = 10;
-        else if (bits==192)
+        else if (bits == 192)
                 key->rounds = 12;
         else
                 key->rounds = 14;
@@ -1182,7 +1182,7 @@ int AES_set_decrypt_key(const unsigned char *userKey, const int bits,
         rk = key->rd_key;
 
         /* invert the order of the round keys: */
-        for (i = 0, j = 4*(key->rounds); i < j; i += 4, j -= 4) {
+        for (i = 0, j = 4 * (key->rounds); i < j; i += 4, j -= 4) {
                 temp = rk[i    ]; rk[i    ] = rk[j    ]; rk[j    ] = temp;
                 temp = rk[i + 1]; rk[i + 1] = rk[j + 1]; rk[j + 1] = temp;
                 temp = rk[i + 2]; rk[i + 2] = rk[j + 2]; rk[j + 2] = temp;

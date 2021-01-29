@@ -73,7 +73,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(QAuthZListFile,
  * The object can be created on the command line using
  *
  *   -object authz-list-file,id=authz0,\
- *           filename=/etc/qemu/myvm-vnc.acl,refresh=yes
+ *           filename=/etc/qemu/myvm-vnc.acl,refresh=on
  *
  */
 struct QAuthZListFile {

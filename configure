@@ -255,12 +255,12 @@ gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
 
 if test -e "$source_path/.git"
 then
-    git_update=yes
+    git_submodules_action="update"
     git_submodules="ui/keycodemapdb"
     git_submodules="$git_submodules tests/fp/berkeley-testfloat-3"
     git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
 else
-    git_update=no
+    git_submodules_action="ignore"
     git_submodules=""
 
     if ! test -f "$source_path/ui/keycodemapdb/README"
@@ -1499,9 +1499,16 @@ for opt do
   ;;
   --with-git=*) git="$optarg"
   ;;
-  --enable-git-update) git_update=yes
+  --enable-git-update)
+      git_submodules_action="update"
+      echo "--enable-git-update deprecated, use --with-git-submodules=update"
   ;;
-  --disable-git-update) git_update=no
+  --disable-git-update)
+      git_submodules_action="validate"
+      echo "--disable-git-update deprecated, use --with-git-submodules=validate"
+  ;;
+  --with-git-submodules=*)
+      git_submodules_action="$optarg"
   ;;
   --enable-debug-mutex) debug_mutex=yes
   ;;
@@ -1556,6 +1563,21 @@ for opt do
   ;;
   esac
 done
+
+case $git_submodules_action in
+    update|validate)
+        if test ! -e "$source_path/.git"; then
+            echo "ERROR: cannot $git_submodules_action git submodules without .git"
+            exit 1
+        fi
+    ;;
+    ignore)
+    ;;
+    *)
+        echo "ERROR: invalid --with-git-submodules= value '$git_submodules_action'"
+        exit 1
+    ;;
+esac
 
 libdir="${libdir:-$prefix/lib}"
 libexecdir="${libexecdir:-$prefix/libexec}"
@@ -1701,6 +1723,9 @@ Advanced options (experts only):
   --ninja=NINJA            use specified ninja [$ninja]
   --smbd=SMBD              use specified smbd [$smbd]
   --with-git=GIT           use specified git [$git]
+  --with-git-submodules=update   update git submodules (default if .git dir exists)
+  --with-git-submodules=validate fail if git submodules are not up to date
+  --with-git-submodules=ignore   do not update or check git submodules (default if no .git dir)
   --static                 enable static build [$static]
   --mandir=PATH            install man pages in PATH
   --datadir=PATH           install firmware in PATH/$qemu_suffix
@@ -1917,7 +1942,7 @@ python="$python -B"
 if test -z "$meson"; then
     if test "$explicit_python" = no && has meson && version_ge "$(meson --version)" 0.55.3; then
         meson=meson
-    elif test -e "${source_path}/.git" && test $git_update = 'yes' ; then
+    elif test $git_submodules_action != 'ignore' ; then
         meson=git
     elif test -e "${source_path}/meson/meson.py" ; then
         meson=internal
@@ -1985,7 +2010,7 @@ fi
 # Consult white-list to determine whether to enable werror
 # by default.  Only enable by default for git builds
 if test -z "$werror" ; then
-    if test -e "$source_path/.git" && \
+    if test "$git_submodules_action" != "ignore" && \
         { test "$linux" = "yes" || test "$mingw32" = "yes"; }; then
         werror="yes"
     else
@@ -3558,7 +3583,7 @@ fi
 case "$fdt" in
   auto | enabled | internal)
     # Simpler to always update submodule, even if not needed.
-    if test -e "${source_path}/.git" && test $git_update = 'yes' ; then
+    if test "$git_submodules_action" != "ignore"; then
       git_submodules="${git_submodules} dtc"
     fi
     ;;
@@ -4272,7 +4297,7 @@ fi
 case "$capstone" in
   auto | enabled | internal)
     # Simpler to always update submodule, even if not needed.
-    if test -e "${source_path}/.git" && test $git_update = 'yes' ; then
+    if test "$git_submodules_action" != "ignore"; then
       git_submodules="${git_submodules} capstone"
     fi
     ;;
@@ -5219,7 +5244,7 @@ fi
 case "$slirp" in
   auto | enabled | internal)
     # Simpler to always update submodule, even if not needed.
-    if test -e "${source_path}/.git" && test $git_update = 'yes' ; then
+    if test "$git_submodules_action" != "ignore"; then
       git_submodules="${git_submodules} slirp"
     fi
     ;;
@@ -5393,7 +5418,7 @@ if test "$cpu" = "s390x" ; then
     roms="$roms s390-ccw"
     # SLOF is required for building the s390-ccw firmware on s390x,
     # since it is using the libnet code from SLOF for network booting.
-    if test -e "${source_path}/.git" ; then
+    if test "$git_submodules_action" != "ignore"; then
       git_submodules="${git_submodules} roms/SLOF"
     fi
   fi
@@ -5431,8 +5456,8 @@ else
     cxx=
 fi
 
-if test $git_update = 'yes' ; then
-    (cd "${source_path}" && GIT="$git" "./scripts/git-submodule.sh" update "$git_submodules")
+if !(GIT="$git" "$source_path/scripts/git-submodule.sh" "$git_submodules_action" "$git_submodules"); then
+    exit 1
 fi
 
 config_host_mak="config-host.mak"
@@ -5443,7 +5468,7 @@ echo >> $config_host_mak
 echo all: >> $config_host_mak
 echo "GIT=$git" >> $config_host_mak
 echo "GIT_SUBMODULES=$git_submodules" >> $config_host_mak
-echo "GIT_UPDATE=$git_update" >> $config_host_mak
+echo "GIT_SUBMODULES_ACTION=$git_submodules_action" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 

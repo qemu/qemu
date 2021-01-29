@@ -143,7 +143,7 @@ qcrypto_tls_creds_check_cert_key_usage(QCryptoTLSCredsX509 *creds,
     if (status < 0) {
         if (status == GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE) {
             usage = isCA ? GNUTLS_KEY_KEY_CERT_SIGN :
-                GNUTLS_KEY_DIGITAL_SIGNATURE|GNUTLS_KEY_KEY_ENCIPHERMENT;
+                GNUTLS_KEY_DIGITAL_SIGNATURE | GNUTLS_KEY_KEY_ENCIPHERMENT;
         } else {
             error_setg(errp,
                        "Unable to query certificate %s key usage: %s",
@@ -694,10 +694,9 @@ qcrypto_tls_creds_x509_prop_set_loaded(Object *obj,
 {
     QCryptoTLSCredsX509 *creds = QCRYPTO_TLS_CREDS_X509(obj);
 
+    qcrypto_tls_creds_x509_unload(creds);
     if (value) {
         qcrypto_tls_creds_x509_load(creds, errp);
-    } else {
-        qcrypto_tls_creds_x509_unload(creds);
     }
 }
 

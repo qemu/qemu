@@ -125,7 +125,7 @@ void test_tls_cleanup(const char *keyfile);
     };                                                                  \
     test_tls_generate_cert(&varname, NULL)
 
-extern const ASN1_ARRAY_TYPE pkix_asn1_tab[];
+extern const asn1_static_node pkix_asn1_tab[];
 
 #endif /* QCRYPTO_HAVE_TLS_TEST_SUPPORT */
 
