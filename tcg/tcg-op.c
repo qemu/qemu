@@ -32,6 +32,25 @@
 #include "trace/mem.h"
 #include "exec/plugin-gen.h"
 
+#include "qemuafl/qasan-qemu.h"
+
+#define GEN_QASAN_OP(OP) \
+void qasan_gen_##OP(TCGv addr, int off) { \
+  \
+  if (use_qasan && cur_block_is_good) \
+    gen_helper_qasan_##OP(cpu_env, addr); \
+ \
+}
+
+GEN_QASAN_OP(load1)
+GEN_QASAN_OP(load2)
+GEN_QASAN_OP(load4)
+GEN_QASAN_OP(load8)
+GEN_QASAN_OP(store1)
+GEN_QASAN_OP(store2)
+GEN_QASAN_OP(store4)
+GEN_QASAN_OP(store8)
+
 /* Reduce the number of ifdefs below.  This assumes that all uses of
    TCGV_HIGH and TCGV_LOW are properly protected by a conditional that
    the compiler can eliminate.  */
@@ -2838,9 +2857,18 @@ void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
     }
 
     addr = plugin_prep_mem_callbacks(addr);
+
+    switch (memop & MO_SIZE) {
+        case MO_64: qasan_gen_load8(addr, idx); break;
+        case MO_32: qasan_gen_load4(addr, idx); break;
+        case MO_16: qasan_gen_load2(addr, idx); break;
+        case MO_8:  qasan_gen_load1(addr, idx); break;
+        default: qasan_gen_load4(addr, idx); break;
+    }
+    
     gen_ldst_i32(INDEX_op_qemu_ld_i32, val, addr, memop, idx);
     plugin_gen_mem_callbacks(addr, info);
-
+    
     if ((orig_memop ^ memop) & MO_BSWAP) {
         switch (orig_memop & MO_SIZE) {
         case MO_16:
@@ -2885,6 +2913,15 @@ void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
     }
 
     addr = plugin_prep_mem_callbacks(addr);
+
+    switch (memop & MO_SIZE) {
+        case MO_64: qasan_gen_store8(addr, idx); break;
+        case MO_32: qasan_gen_store4(addr, idx); break;
+        case MO_16: qasan_gen_store2(addr, idx); break;
+        case MO_8:  qasan_gen_store1(addr, idx); break;
+        default: qasan_gen_store4(addr, idx); break;
+    }
+
     if (TCG_TARGET_HAS_qemu_st8_i32 && (memop & MO_SIZE) == MO_8) {
         gen_ldst_i32(INDEX_op_qemu_st8_i32, val, addr, memop, idx);
     } else {
@@ -2927,6 +2964,15 @@ void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
     }
 
     addr = plugin_prep_mem_callbacks(addr);
+
+    switch (memop & MO_SIZE) {
+        case MO_64: qasan_gen_load8(addr, idx); break;
+        case MO_32: qasan_gen_load4(addr, idx); break;
+        case MO_16: qasan_gen_load2(addr, idx); break;
+        case MO_8:  qasan_gen_load1(addr, idx); break;
+        default: qasan_gen_load8(addr, idx); break;
+    }
+    
     gen_ldst_i64(INDEX_op_qemu_ld_i64, val, addr, memop, idx);
     plugin_gen_mem_callbacks(addr, info);
 
@@ -2990,6 +3036,15 @@ void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
     }
 
     addr = plugin_prep_mem_callbacks(addr);
+
+    switch (memop & MO_SIZE) {
+        case MO_64: qasan_gen_store8(addr, idx); break;
+        case MO_32: qasan_gen_store4(addr, idx); break;
+        case MO_16: qasan_gen_store2(addr, idx); break;
+        case MO_8:  qasan_gen_store1(addr, idx); break;
+        default: qasan_gen_store8(addr, idx); break;
+    }
+
     gen_ldst_i64(INDEX_op_qemu_st_i64, val, addr, memop, idx);
     plugin_gen_mem_callbacks(addr, info);
 

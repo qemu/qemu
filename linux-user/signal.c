@@ -25,6 +25,8 @@
 #include "trace.h"
 #include "signal-common.h"
 
+#include "qemuafl/qasan-qemu.h"
+
 static struct target_sigaction sigact_table[TARGET_NSIG];
 
 static void host_signal_handler(int host_signum, siginfo_t *info,
@@ -627,10 +629,14 @@ static void QEMU_NORETURN dump_core_and_abort(int target_sig)
     TaskState *ts = (TaskState *)cpu->opaque;
     int host_sig, core_dumped = 0;
     struct sigaction act;
-
     host_sig = target_to_host_signal(target_sig);
     trace_user_force_sig(env, target_sig, host_sig);
     gdb_signalled(env, target_sig);
+
+#ifdef ASAN_GIOVESE
+    if (use_qasan)
+      asan_giovese_deadly_signal(host_sig, PC_GET(env), PC_GET(env), BP_GET(env), SP_GET(env));
+#endif
 
     /* dump core if supported by target binary format */
     if (core_dump_signal(target_sig) && (ts->bprm->core_dump != NULL)) {

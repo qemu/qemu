@@ -48,6 +48,8 @@
 #include "cpu_loop-common.h"
 #include "crypto/init.h"
 
+#include "qemuafl/qasan-qemu.h"
+
 char *exec_path;
 
 int singlestep;
@@ -630,6 +632,18 @@ int main(int argc, char **argv, char **envp)
     int execfd;
     int log_mask;
     unsigned long max_reserved_va;
+
+    use_qasan = !!getenv("AFL_USE_QASAN");
+
+    if (getenv("QASAN_MAX_CALL_STACK"))
+      qasan_max_call_stack = atoi(getenv("QASAN_MAX_CALL_STACK"));
+    if (getenv("QASAN_SYMBOLIZE"))
+      qasan_symbolize = atoi(getenv("QASAN_SYMBOLIZE"));
+
+#ifdef ASAN_GIOVESE
+    if (use_qasan)
+      asan_giovese_init();
+#endif
 
     error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);

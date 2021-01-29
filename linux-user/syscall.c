@@ -135,6 +135,7 @@
 #include "tcg/tcg.h"
 
 #include "qemuafl/common.h"
+#include "qemuafl/qasan-qemu.h"
 
 #ifndef CLONE_IO
 #define CLONE_IO                0x80000000      /* Clone io context */
@@ -8474,6 +8475,15 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                     return -TARGET_EFAULT;
                 if (!addr)
                     break;
+                // QASAN: remove preloaded library
+                if (!getenv("QASAN_PRESERVE_EXECVE")) {
+                  if (!strncmp("LD_PRELOAD=", (char *)addr, 11)) {
+                    char* data = (char *)addr + 11;
+                    char* have_qasan = strstr(data, "libqasan.so");
+                    if (have_qasan)
+                      *data = 0;
+                  }
+                }
                 envc++;
             }
 
@@ -12243,8 +12253,19 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         return get_errno(safe_tkill((int)arg1, target_to_host_signal(arg2)));
 
     case TARGET_NR_tgkill:
-        return get_errno(safe_tgkill((int)arg1, (int)arg2,
-                         target_to_host_signal(arg3)));
+        {
+          int pid  = (int)arg1,
+              tgid = (int)arg2,
+              sig  = (int)arg3;
+
+          /* Not entirely sure if the below is correct for all architectures. */
+
+          if(afl_forksrv_pid && afl_forksrv_pid == pid && sig == SIGABRT)
+              pid = tgid = getpid();
+
+          return get_errno(safe_tgkill(pid, tgid, target_to_host_signal(sig)));
+
+        }
 
 #ifdef TARGET_NR_set_robust_list
     case TARGET_NR_set_robust_list:
@@ -13169,6 +13190,15 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         }
         return ret;
 #endif
+
+    case QASAN_FAKESYS_NR:
+        /* QASAN syscall */
+        if (use_qasan) {
+          return qasan_actions_dispatcher(cpu_env, arg1, arg2, arg3, arg4);
+        } else {
+          fprintf(stderr, "QAsan syscall unsupported without enabling QASan mode (AFL_USE_QASAN)\n");
+          return -TARGET_ENOSYS;
+        }
 
     default:
         qemu_log_mask(LOG_UNIMP, "Unsupported syscall: %d\n", num);

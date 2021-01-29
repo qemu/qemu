@@ -33,6 +33,7 @@
 #include "trace-tcg.h"
 #include "exec/log.h"
 
+#include "qemuafl/qasan-qemu.h"
 #include "qemuafl/cpu-translate.h"
 #include "qemuafl/api.h"
 
@@ -4244,6 +4245,14 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                 goto unknown_op;
             }
 
+            if (b == 0xf2 && use_qasan) {
+                /* QASAN backdoor */
+                gen_helper_qasan_fake_instr(cpu_regs[R_EAX], cpu_env,
+                                            cpu_regs[R_EAX], cpu_regs[R_EDI],
+                                            cpu_regs[R_ESI], cpu_regs[R_EDX]);
+                break;
+            }
+
             sse_fn_eppi = sse_op_table7[b].op[b1];
             if (!sse_fn_eppi) {
                 goto unknown_op;
@@ -5175,6 +5184,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             next_eip = s->pc - s->cs_base;
             if (__afl_cmp_map && afl_must_instrument(next_eip))
               gen_helper_afl_cmplog_rtn(cpu_env);
+            if (use_qasan && qasan_max_call_stack)
+              gen_helper_qasan_shadow_stack_push(tcg_const_tl(s->pc));
             tcg_gen_movi_tl(s->T1, next_eip);
             gen_push_v(s, s->T1);
             gen_op_jmp_v(s->T0);
@@ -5186,6 +5197,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             gen_add_A0_im(s, 1 << ot);
             gen_op_ld_v(s, MO_16, s->T0, s->A0);
         do_lcall:
+            if (use_qasan && qasan_max_call_stack)
+              gen_helper_qasan_shadow_stack_push(tcg_const_tl(s->pc));
             if (s->pe && !s->vm86) {
                 tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
                 gen_helper_lcall_protected(cpu_env, s->tmp2_i32, s->T1,
@@ -6630,6 +6643,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         val = x86_ldsw_code(env, s);
         ot = gen_pop_T0(s);
         gen_stack_update(s, val + (1 << ot));
+        if (use_qasan && qasan_max_call_stack)
+          gen_helper_qasan_shadow_stack_pop(s->T0);
         /* Note that gen_pop_T0 uses a zero-extending load.  */
         gen_op_jmp_v(s->T0);
         gen_bnd_jmp(s);
@@ -6638,6 +6653,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     case 0xc3: /* ret */
         ot = gen_pop_T0(s);
         gen_pop_update(s, ot);
+        if (use_qasan && qasan_max_call_stack)
+          gen_helper_qasan_shadow_stack_pop(s->T0);
         /* Note that gen_pop_T0 uses a zero-extending load.  */
         gen_op_jmp_v(s->T0);
         gen_bnd_jmp(s);
@@ -6651,10 +6668,13 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             gen_jmp_im(s, pc_start - s->cs_base);
             gen_helper_lret_protected(cpu_env, tcg_const_i32(dflag - 1),
                                       tcg_const_i32(val));
+            // QASAN: TODO
         } else {
             gen_stack_A0(s);
             /* pop offset */
             gen_op_ld_v(s, dflag, s->T0, s->A0);
+            if (use_qasan && qasan_max_call_stack)
+              gen_helper_qasan_shadow_stack_pop(s->T0);
             /* NOTE: keeping EIP updated is not a problem in case of
                exception */
             gen_op_jmp_v(s->T0);
@@ -6700,6 +6720,8 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             next_eip = s->pc - s->cs_base;
             if (__afl_cmp_map && afl_must_instrument(next_eip))
               gen_helper_afl_cmplog_rtn(cpu_env);
+            if (use_qasan && qasan_max_call_stack)
+              gen_helper_qasan_shadow_stack_push(tcg_const_tl(s->pc));
             tval += next_eip;
             if (dflag == MO_16) {
                 tval &= 0xffff;

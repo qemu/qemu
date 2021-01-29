@@ -88,6 +88,7 @@ extern abi_ulong       afl_persistent_addr;
 extern abi_ulong       afl_persistent_ret_addr;
 extern u8              afl_compcov_level;
 extern unsigned char   afl_fork_child;
+extern unsigned int    afl_forksrv_pid;
 extern unsigned char   is_persistent;
 extern target_long     persistent_stack_offset;
 extern unsigned char   persistent_first_pass;
@@ -95,6 +96,8 @@ extern unsigned char   persistent_exits;
 extern unsigned char   persistent_save_gpr;
 extern unsigned char   persistent_memory;
 extern int             persisent_retaddr_offset;
+extern int             use_qasan;
+extern __thread int    cur_block_is_good;
 extern struct api_regs saved_regs;
 
 extern u8 * shared_buf;
