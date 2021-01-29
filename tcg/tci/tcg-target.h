@@ -157,9 +157,6 @@ typedef enum {
 
     TCG_AREG0 = TCG_REG_R14,
     TCG_REG_CALL_STACK = TCG_REG_R15,
-
-    /* Special value UINT8_MAX is used by TCI to encode constant values. */
-    TCG_CONST = UINT8_MAX
 } TCGReg;
 
 /* Used for function call generation. */
