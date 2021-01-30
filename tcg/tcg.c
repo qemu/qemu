@@ -147,7 +147,12 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
                        intptr_t arg2);
 static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
                         TCGReg base, intptr_t ofs);
+#ifdef CONFIG_TCG_INTERPRETER
+static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target,
+                         ffi_cif *cif);
+#else
 static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target);
+#endif
 static bool tcg_target_const_match(int64_t val, TCGType type, int ct);
 #ifdef TCG_TARGET_NEED_LDST_LABELS
 static int tcg_out_ldst_finalize(TCGContext *s);
@@ -1554,25 +1559,37 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     for (i = 0; i < nargs; i++) {
         int argtype = extract32(typemask, (i + 1) * 3, 3);
         bool is_64bit = (argtype & ~1) == dh_typecode_i64;
+        bool want_align = false;
+
+#if defined(CONFIG_TCG_INTERPRETER)
+        /*
+         * Align all arguments, so that they land in predictable places
+         * for passing off to ffi_call.
+         */
+        want_align = true;
+#elif defined(TCG_TARGET_CALL_ALIGN_ARGS)
+        /* Some targets want aligned 64 bit args */
+        want_align = is_64bit;
+#endif
+
+        if (TCG_TARGET_REG_BITS < 64 && want_align && (real_args & 1)) {
+            op->args[pi++] = TCG_CALL_DUMMY_ARG;
+            real_args++;
+        }
 
         if (TCG_TARGET_REG_BITS < 64 && is_64bit) {
-#ifdef TCG_TARGET_CALL_ALIGN_ARGS
-            /* some targets want aligned 64 bit args */
-            if (real_args & 1) {
-                op->args[pi++] = TCG_CALL_DUMMY_ARG;
-                real_args++;
-            }
-#endif
-           /* If stack grows up, then we will be placing successive
-              arguments at lower addresses, which means we need to
-              reverse the order compared to how we would normally
-              treat either big or little-endian.  For those arguments
-              that will wind up in registers, this still works for
-              HPPA (the only current STACK_GROWSUP target) since the
-              argument registers are *also* allocated in decreasing
-              order.  If another such target is added, this logic may
-              have to get more complicated to differentiate between
-              stack arguments and register arguments.  */
+            /*
+             * If stack grows up, then we will be placing successive
+             * arguments at lower addresses, which means we need to
+             * reverse the order compared to how we would normally
+             * treat either big or little-endian.  For those arguments
+             * that will wind up in registers, this still works for
+             * HPPA (the only current STACK_GROWSUP target) since the
+             * argument registers are *also* allocated in decreasing
+             * order.  If another such target is added, this logic may
+             * have to get more complicated to differentiate between
+             * stack arguments and register arguments.
+             */
 #if defined(HOST_WORDS_BIGENDIAN) != defined(TCG_TARGET_STACK_GROWSUP)
             op->args[pi++] = temp_arg(args[i] + 1);
             op->args[pi++] = temp_arg(args[i]);
@@ -3836,6 +3853,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     const int nb_oargs = TCGOP_CALLO(op);
     const int nb_iargs = TCGOP_CALLI(op);
     const TCGLifeData arg_life = op->life;
+    const TCGHelperInfo *info;
     int flags, nb_regs, i;
     TCGReg reg;
     TCGArg arg;
@@ -3847,7 +3865,8 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     TCGRegSet allocated_regs;
 
     func_addr = tcg_call_func(op);
-    flags = tcg_call_flags(op);
+    info = tcg_call_info(op);
+    flags = info->flags;
 
     nb_regs = ARRAY_SIZE(tcg_target_call_iarg_regs);
     if (nb_regs > nb_iargs) {
@@ -3939,7 +3958,16 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
         save_globals(s, allocated_regs);
     }
 
+#ifdef CONFIG_TCG_INTERPRETER
+    {
+        gpointer hash = (gpointer)(uintptr_t)info->typemask;
+        ffi_cif *cif = g_hash_table_lookup(ffi_table, hash);
+        assert(cif != NULL);
+        tcg_out_call(s, func_addr, cif);
+    }
+#else
     tcg_out_call(s, func_addr);
+#endif
 
     /* assign output registers and emit moves if needed */
     for(i = 0; i < nb_oargs; i++) {
