@@ -8471,18 +8471,37 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             envc = 0;
             guest_envp = arg3;
             for (gp = guest_envp; gp; gp += sizeof(abi_ulong)) {
-                if (get_user_ual(addr, gp))
-                    return -TARGET_EFAULT;
-                if (!addr)
-                    break;
-                // QASAN: remove preloaded library
+                /* QASAN: remove preloaded library */
                 if (!getenv("QASAN_PRESERVE_EXECVE")) {
-                  if (!strncmp("LD_PRELOAD=", (char *)addr, 11)) {
-                    char* data = (char *)addr + 11;
-                    char* have_qasan = strstr(data, "libqasan.so");
-                    if (have_qasan)
-                      *data = 0;
-                  }
+                    /*
+                     * If we need to clear the LD_PRELOAD list, run the memory
+                     * lock and unlock methods to inspect the contents within
+                     * the strings.
+                     */
+                    abi_long len = target_strlen(gp);
+                    if (len < 0) {
+                        return -TARGET_EFAULT;
+                    }
+                    char *env = lock_user(VERIFY_WRITE, gp, (long)(len + 1), 0);
+                    if (!strncmp("LD_PRELOAD=", env, 11)) {
+                        env += 11;
+                        char *libqasan = strstr(env, "libqasan.so");
+                        if (libqasan) {
+                            *libqasan = 0;
+                        }
+                    }
+                    unlock_user(env, gp, (long)(len + 1));
+                } else {
+                    /*
+                     * otherwise use the original behavior to check for valid
+                     * addresses and NULL (end-of-list).
+                     */
+                    if (!get_user_ual(addr, gp)) {
+                        return -TARGET_EFAULT;
+                    }
+                    if (!addr) {
+                        break;
+                    }
                 }
                 envc++;
             }

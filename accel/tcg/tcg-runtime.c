@@ -760,7 +760,7 @@ target_long qasan_actions_dispatcher(void *cpu_env,
         }
 
         default:
-        fprintf(stderr, "Invalid QASAN action %ld\n", action);
+        fprintf(stderr, "Invalid QASAN action " TARGET_FMT_ld "\n", action);
         abort();
     }
 

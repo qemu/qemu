@@ -1180,29 +1180,27 @@ static void print_alloc_location_chunk(struct chunk_info* ckinfo,
   if (fault_addr >= ckinfo->start && fault_addr < ckinfo->end)
     fprintf(stderr,
             ANSI_COLOR_HGRN
-            "0x%012" PRIxPTR
-            " is located %ld bytes inside of %ld-byte region [0x%012" PRIxPTR
-            ",0x%012" PRIxPTR ")" ANSI_COLOR_RESET "\n",
+            "0x" TARGET_FMT_lx " is located " TARGET_FMT_ld
+            " bytes inside of " TARGET_FMT_ld "-byte region [0x"
+            TARGET_FMT_lx ",0x" TARGET_FMT_lx ")" ANSI_COLOR_RESET "\n",
             fault_addr, fault_addr - ckinfo->start, ckinfo->end - ckinfo->start,
             ckinfo->start, ckinfo->end);
   else if (ckinfo->start >= fault_addr)
-    fprintf(
-        stderr,
-        ANSI_COLOR_HGRN
-        "0x%012" PRIxPTR
-        " is located %ld bytes to the left of %ld-byte region [0x%012" PRIxPTR
-        ",0x%012" PRIxPTR ")" ANSI_COLOR_RESET "\n",
-        fault_addr, ckinfo->start - fault_addr, ckinfo->end - ckinfo->start,
-        ckinfo->start, ckinfo->end);
+    fprintf(stderr,
+            ANSI_COLOR_HGRN
+            "0x" TARGET_FMT_lx " is located " TARGET_FMT_ld
+            " bytes to the left of " TARGET_FMT_ld "-byte region [0x"
+            TARGET_FMT_lx ",0x" TARGET_FMT_lx ")" ANSI_COLOR_RESET "\n",
+            fault_addr, ckinfo->start - fault_addr, ckinfo->end - ckinfo->start,
+            ckinfo->start, ckinfo->end);
   else
-    fprintf(
-        stderr,
-        ANSI_COLOR_HGRN
-        "0x%012" PRIxPTR
-        " is located %ld bytes to the right of %ld-byte region [0x%012" PRIxPTR
-        ",0x%012" PRIxPTR ")" ANSI_COLOR_RESET "\n",
-        fault_addr, fault_addr - ckinfo->end, ckinfo->end - ckinfo->start,
-        ckinfo->start, ckinfo->end);
+    fprintf(stderr,
+            ANSI_COLOR_HGRN
+            "0x" TARGET_FMT_lx " is located " TARGET_FMT_ld
+            " bytes to the right of " TARGET_FMT_ld "-byte region [0x"
+            TARGET_FMT_lx ",0x" TARGET_FMT_lx ")" ANSI_COLOR_RESET "\n",
+            fault_addr, fault_addr - ckinfo->end, ckinfo->end - ckinfo->start,
+            ckinfo->start, ckinfo->end);
 
   if (ckinfo->free_ctx) {
 
@@ -1214,12 +1212,11 @@ static void print_alloc_location_chunk(struct chunk_info* ckinfo,
 
       char* printable = asan_giovese_printaddr(ckinfo->free_ctx->addresses[i]);
       if (printable)
-        fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i,
+        fprintf(stderr, "    #%zu 0x" TARGET_FMT_lx "%s\n", i,
                 ckinfo->free_ctx->addresses[i], printable);
       else
-        fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i,
+        fprintf(stderr, "    #%zu 0x" TARGET_FMT_lx "\n", i,
                 ckinfo->free_ctx->addresses[i]);
-
     }
 
     fputc('\n', stderr);
@@ -1241,10 +1238,10 @@ static void print_alloc_location_chunk(struct chunk_info* ckinfo,
 
     char* printable = asan_giovese_printaddr(ckinfo->alloc_ctx->addresses[i]);
     if (printable)
-      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i,
+      fprintf(stderr, "    #%zu 0x" TARGET_FMT_lx "%s\n", i,
               ckinfo->alloc_ctx->addresses[i], printable);
     else
-      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i,
+      fprintf(stderr, "    #%zu 0x" TARGET_FMT_lx "\n", i,
               ckinfo->alloc_ctx->addresses[i]);
 
   }
@@ -1285,7 +1282,8 @@ static void print_alloc_location(target_ulong addr, target_ulong fault_addr) {
 
   }
 
-  fprintf(stderr, "Address 0x%012" PRIxPTR " is a wild pointer.\n", fault_addr);
+  fprintf(stderr, "Address 0x" TARGET_FMT_lx " is a wild pointer.\n",
+          fault_addr);
 
 }
 
@@ -1301,25 +1299,25 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
   if (!poisoned_find_error(addr, n, &fault_addr, &error_type)) return 0;
   
   fprintf(stderr,
-          "================================================================="
-          "\n" ANSI_COLOR_HRED "==%d==ERROR: " ASAN_NAME_STR
-          ": %s on address 0x%012" PRIxPTR " at pc 0x%012" PRIxPTR
-          " bp 0x%012" PRIxPTR " sp 0x%012" PRIxPTR ANSI_COLOR_RESET "\n",
+          "=================================================================\n"
+          ANSI_COLOR_HRED "==%d==ERROR: " ASAN_NAME_STR ": %s on address 0x"
+          TARGET_FMT_lx " at pc 0x" TARGET_FMT_lx " bp 0x" TARGET_FMT_lx
+          " sp 0x" TARGET_FMT_lx ANSI_COLOR_RESET "\n",
           getpid(), error_type, addr, pc, bp, sp);
 
   fprintf(stderr,
-          ANSI_COLOR_HBLU "%s of size %lu at 0x%012" PRIxPTR
-                          " thread T%d" ANSI_COLOR_RESET "\n",
+          ANSI_COLOR_HBLU "%s of size %zu at 0x" TARGET_FMT_lx " thread T%d"
+          ANSI_COLOR_RESET "\n",
           access_type_str[access_type], n, addr, ctx.tid);
   size_t i;
   for (i = 0; i < ctx.size; ++i) {
 
     char* printable = asan_giovese_printaddr(ctx.addresses[i]);
     if (printable)
-      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i, ctx.addresses[i],
+      fprintf(stderr, "    #%zu 0x" TARGET_FMT_lx "%s\n", i, ctx.addresses[i],
               printable);
     else
-      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i, ctx.addresses[i]);
+      fprintf(stderr, "    #%zu 0x" TARGET_FMT_lx "\n", i, ctx.addresses[i]);
 
   }
 
@@ -1412,10 +1410,11 @@ int asan_giovese_deadly_signal(int signum, target_ulong addr, target_ulong pc, t
 
   fprintf(stderr,
           ASAN_NAME_STR ":DEADLYSIGNAL\n"
-          "================================================================="
-          "\n" ANSI_COLOR_HRED "==%d==ERROR: " ASAN_NAME_STR
-          ": %s on unknown address 0x%012" PRIxPTR " (pc 0x%012" PRIxPTR
-          " bp 0x%012" PRIxPTR " sp 0x%012" PRIxPTR " T%d)" ANSI_COLOR_RESET "\n",
+          "=================================================================\n"
+          ANSI_COLOR_HRED "==%d==ERROR: " ASAN_NAME_STR
+          ": %s on unknown address 0x" TARGET_FMT_lx " (pc 0x" TARGET_FMT_lx
+          " bp 0x" TARGET_FMT_lx " sp 0x" TARGET_FMT_lx " T%d)" ANSI_COLOR_RESET
+          "\n",
           getpid(), error_type, addr, pc, bp, sp, ctx.tid);
 
   size_t i;
@@ -1423,10 +1422,10 @@ int asan_giovese_deadly_signal(int signum, target_ulong addr, target_ulong pc, t
 
     char* printable = asan_giovese_printaddr(ctx.addresses[i]);
     if (printable)
-      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i, ctx.addresses[i],
+      fprintf(stderr, "    #%zu 0x" TARGET_FMT_lx "%s\n", i, ctx.addresses[i],
               printable);
     else
-      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i, ctx.addresses[i]);
+      fprintf(stderr, "    #%zu 0x" TARGET_FMT_lx "\n", i, ctx.addresses[i]);
 
   }
   
@@ -1452,8 +1451,8 @@ int asan_giovese_badfree(target_ulong addr, target_ulong pc) {
   fprintf(stderr,
           "================================================================="
           "\n" ANSI_COLOR_HRED "==%d==ERROR: " ASAN_NAME_STR
-          ": attempting free on address which was not malloc()-ed: 0x%012"
-          PRIxPTR " in thread T%d" ANSI_COLOR_RESET "\n", getpid(), addr,
+          ": attempting free on address which was not malloc()-ed: 0x"
+          TARGET_FMT_lx " in thread T%d" ANSI_COLOR_RESET "\n", getpid(), addr,
           ctx.tid);
 
   size_t i;
@@ -1461,10 +1460,10 @@ int asan_giovese_badfree(target_ulong addr, target_ulong pc) {
 
     char* printable = asan_giovese_printaddr(ctx.addresses[i]);
     if (printable)
-      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i, ctx.addresses[i],
+      fprintf(stderr, "    #%zu 0x" TARGET_FMT_lx "%s\n", i, ctx.addresses[i],
               printable);
     else
-      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i, ctx.addresses[i]);
+      fprintf(stderr, "    #%zu 0x" TARGET_FMT_lx "\n", i, ctx.addresses[i]);
 
   }
   
