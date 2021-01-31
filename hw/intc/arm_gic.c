@@ -1477,7 +1477,7 @@ static void gic_dist_writel(void *opaque, hwaddr offset,
         int target_cpu;
 
         cpu = gic_get_current_cpu(s);
-        irq = value & 0x3ff;
+        irq = value & 0xf;
         switch ((value >> 24) & 3) {
         case 0:
             mask = (value >> 16) & ALL_CPU_MASK;
