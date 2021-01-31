@@ -63,7 +63,33 @@
                dc->pc_curr == afl_persistent_ret_addr) {                       \
                                                                                \
       TCGv_i32 tmp = tcg_const_i32(afl_persistent_addr);                       \
-      gen_bx(dc, tmp);                                                          \
+      gen_bx(dc, tmp);                                                         \
+      tcg_temp_free_i32(tmp);                                                  \
+                                                                               \
+    }                                                                          \
+                                                                               \
+  }
+
+#define AFL_QEMU_TARGET_THUMB_SNIPPET                                          \
+  if (is_persistent) {                                                         \
+                                                                               \
+    if (dc->pc_curr == (afl_persistent_addr & ~1)) {                           \
+                                                                               \
+      gen_helper_afl_persistent_routine(cpu_env);                              \
+                                                                               \
+      if (afl_persistent_ret_addr == 0 && !persistent_exits) {                 \
+                                                                               \
+        tcg_gen_movi_i32(cpu_R[14], afl_persistent_addr | 1);                  \
+                                                                               \
+      }                                                                        \
+                                                                               \
+      if (!persistent_save_gpr) afl_gen_tcg_plain_call(&afl_persistent_loop);  \
+                                                                               \
+    } else if (afl_persistent_ret_addr &&                                      \
+               dc->pc_curr == afl_persistent_ret_addr) {                       \
+                                                                               \
+      TCGv_i32 tmp = tcg_const_i32(afl_persistent_addr | 1);                   \
+      gen_bx(dc, tmp);                                                         \
       tcg_temp_free_i32(tmp);                                                  \
                                                                                \
     }                                                                          \
@@ -9342,7 +9368,7 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 
     dc->pc_curr = dc->base.pc_next;
     
-    AFL_QEMU_TARGET_ARM_SNIPPET
+    AFL_QEMU_TARGET_THUMB_SNIPPET
     
     insn = arm_lduw_code(env, dc->base.pc_next, dc->sctlr_b);
     is_16bit = thumb_insn_is_16bit(dc, dc->base.pc_next, insn);
