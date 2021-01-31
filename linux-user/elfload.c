@@ -2209,7 +2209,7 @@ static uintptr_t pgd_find_hole_fallback(uintptr_t guest_size, uintptr_t brk,
             void * mmap_start = mmap((void *) align_start, guest_size,
                                      PROT_NONE, flags, -1, 0);
             if (mmap_start != MAP_FAILED) {
-                munmap((void *) align_start, guest_size);
+                munmap(mmap_start, guest_size);
                 if (MAP_FIXED_NOREPLACE != 0 ||
                     mmap_start == (void *) align_start) {
                     return (uintptr_t) mmap_start + offset;
