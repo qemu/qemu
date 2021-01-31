@@ -364,6 +364,7 @@ config XLNX_VERSAL
     select VIRTIO_MMIO
     select UNIMP
     select XLNX_ZDMA
+    select XLNX_ZYNQMP
 
 config NPCM7XX
     bool
