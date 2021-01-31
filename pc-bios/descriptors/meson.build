@@ -9,7 +9,7 @@ if install_edk2_blobs
   ]
     configure_file(input: files(f),
                    output: f,
-                   configuration: {'DATADIR': qemu_datadir},
+                   configuration: {'DATADIR': get_option('prefix') / qemu_datadir},
                    install: get_option('install_blobs'),
                    install_dir: qemu_datadir / 'firmware')
   endforeach
