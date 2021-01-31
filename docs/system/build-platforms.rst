@@ -25,55 +25,38 @@ software in their distro, QEMU upstream code will not add explicit
 support for those backports, unless the feature is auto-detectable in a
 manner that works for the upstream releases too.
 
-The Repology site https://repology.org is a useful resource to identify
+The `Repology`_ site is a useful resource to identify
 currently shipped versions of software in various operating systems,
 though it does not cover all distros listed below.
 
-Linux OS
---------
+Linux OS, macOS, FreeBSD, NetBSD, OpenBSD
+-----------------------------------------
 
-For distributions with frequent, short-lifetime releases, the project
-will aim to support all versions that are not end of life by their
-respective vendors. For the purposes of identifying supported software
-versions, the project will look at Fedora, Ubuntu, and openSUSE distros.
-Other short- lifetime distros will be assumed to ship similar software
-versions.
+The project aims to support the most recent major version at all times. Support
+for the previous major version will be dropped 2 years after the new major
+version is released or when the vendor itself drops support, whichever comes
+first. In this context, third-party efforts to extend the lifetime of a distro
+are not considered, even when they are endorsed by the vendor (eg. Debian LTS).
 
-For distributions with long-lifetime releases, the project will aim to
-support the most recent major version at all times. Support for the
-previous major version will be dropped 2 years after the new major
-version is released, or when it reaches "end of life". For the purposes
-of identifying supported software versions, the project will look at
-RHEL, Debian, Ubuntu LTS, and SLES distros. Other long-lifetime distros
-will be assumed to ship similar software versions.
+For the purposes of identifying supported software versions available on Linux,
+the project will look at CentOS, Debian, Fedora, openSUSE, RHEL, SLES and
+Ubuntu LTS. Other distros will be assumed to ship similar software versions.
+
+For FreeBSD and OpenBSD, decisions will be made based on the contents of the
+respective ports repository, while NetBSD will use the pkgsrc repository.
+
+For macOS, `HomeBrew`_ will be used, although `MacPorts`_ is expected to carry
+similar versions.
 
 Windows
 -------
 
-The project supports building with current versions of the MinGW
-toolchain, hosted on Linux.
+The project supports building with current versions of the MinGW toolchain,
+hosted on Linux (Debian/Fedora).
 
-macOS
------
+The version of the Windows API that's currently targeted is Vista / Server
+2008.
 
-The project supports building with the two most recent versions of
-macOS, with the current Homebrew package set available.
-
-FreeBSD
--------
-
-The project aims to support all versions which are not end of
-life.
-
-NetBSD
-------
-
-The project aims to support the most recent major version at all times.
-Support for the previous major version will be dropped 2 years after the
-new major version is released.
-
-OpenBSD
--------
-
-The project aims to support all versions which are not end of
-life.
+.. _HomeBrew: https://brew.sh/
+.. _MacPorts: https://www.macports.org/
+.. _Repology: https://repology.org/

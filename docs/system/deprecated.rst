@@ -134,6 +134,18 @@ Boolean options such as ``share=on``/``share=off`` could be written
 in short form as ``share`` and ``noshare``.  This is now deprecated
 and will cause a warning.
 
+``--enable-fips`` (since 6.0)
+'''''''''''''''''''''''''''''
+
+This option restricts usage of certain cryptographic algorithms when
+the host is operating in FIPS mode.
+
+If FIPS compliance is required, QEMU should be built with the ``libgcrypt``
+library enabled as a cryptography provider.
+
+Neither the ``nettle`` library, or the built-in cryptography provider are
+supported on FIPS enabled hosts.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 

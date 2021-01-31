@@ -65,7 +65,7 @@ encrypted session.
 .. parsed-literal::
 
    |qemu_system| [...OPTIONS...] \
-     -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=no \
+     -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=off \
      -vnc :1,tls-creds=tls0 -monitor stdio
 
 In the above example ``/etc/pki/qemu`` should contain at least three
@@ -84,12 +84,12 @@ connecting. The server will request that the client provide a
 certificate, which it will then validate against the CA certificate.
 This is a good choice if deploying in an environment with a private
 internal certificate authority. It uses the same syntax as previously,
-but with ``verify-peer`` set to ``yes`` instead.
+but with ``verify-peer`` set to ``on`` instead.
 
 .. parsed-literal::
 
    |qemu_system| [...OPTIONS...] \
-     -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=yes \
+     -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=on \
      -vnc :1,tls-creds=tls0 -monitor stdio
 
 .. _vnc_005fsec_005fcertificate_005fpw:
@@ -103,7 +103,7 @@ authentication to provide two layers of authentication for clients.
 .. parsed-literal::
 
    |qemu_system| [...OPTIONS...] \
-     -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=yes \
+     -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=on \
      -vnc :1,tls-creds=tls0,password -monitor stdio
    (qemu) change vnc password
    Password: ********
@@ -145,7 +145,7 @@ x509 options:
 .. parsed-literal::
 
    |qemu_system| [...OPTIONS...] \
-     -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=yes \
+     -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=on \
      -vnc :1,tls-creds=tls0,sasl -monitor stdio
 
 .. _vnc_005fsetup_005fsasl:

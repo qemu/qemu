@@ -103,20 +103,10 @@ qcrypto_secret_prop_get_key(Object *obj, Visitor *v,
 
 
 static void
-qcrypto_secret_keyring_complete(UserCreatable *uc, Error **errp)
-{
-    object_property_set_bool(OBJECT(uc), "loaded", true, errp);
-}
-
-
-static void
 qcrypto_secret_keyring_class_init(ObjectClass *oc, void *data)
 {
     QCryptoSecretCommonClass *sic = QCRYPTO_SECRET_COMMON_CLASS(oc);
     sic->load_data = qcrypto_secret_keyring_load_data;
-
-    UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
-    ucc->complete = qcrypto_secret_keyring_complete;
 
     object_class_property_add(oc, "serial", "int32_t",
                                   qcrypto_secret_prop_get_key,
@@ -130,10 +120,6 @@ static const TypeInfo qcrypto_secret_info = {
     .name = TYPE_QCRYPTO_SECRET_KEYRING,
     .instance_size = sizeof(QCryptoSecretKeyring),
     .class_init = qcrypto_secret_keyring_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
 };
 
 

@@ -123,10 +123,9 @@ qcrypto_tls_creds_anon_prop_set_loaded(Object *obj,
 {
     QCryptoTLSCredsAnon *creds = QCRYPTO_TLS_CREDS_ANON(obj);
 
+    qcrypto_tls_creds_anon_unload(creds);
     if (value) {
         qcrypto_tls_creds_anon_load(creds, errp);
-    } else {
-        qcrypto_tls_creds_anon_unload(creds);
     }
 }
 

@@ -56,7 +56,7 @@ static const unsigned char pc1[56] = {
         13,  5, 60, 52, 44, 36, 28,	20, 12,  4, 27, 19, 11,  3 };
 
 static const unsigned char totrot[16] = {
-        1,2,4,6,8,10,12,14,15,17,19,21,23,25,27,28 };
+        1, 2, 4, 6, 8, 10, 12, 14, 15, 17, 19, 21, 23, 25, 27, 28 };
 
 static const unsigned char pc2[48] = {
         13, 16, 10, 23,  0,  4,  2, 27, 14,  5, 20,  9,
@@ -93,7 +93,7 @@ void deskey(unsigned char *key, int edf)
                     }
                 for( j = 0; j < 24; j++ ) {
                         if( pcr[pc2[j]] ) kn[m] |= bigbyte[j];
-                        if( pcr[pc2[j+24]] ) kn[n] |= bigbyte[j];
+                        if( pcr[pc2[j + 24]] ) kn[n] |= bigbyte[j];
                         }
                 }
         cookey(kn);

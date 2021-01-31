@@ -28,7 +28,7 @@
 static bool failauth;
 
 /*
- * These two functions are exported by libpam.so.
+ * These three functions are exported by libpam.so.
  *
  * By defining them again here, our impls are resolved
  * by the linker instead of those in libpam.so
@@ -50,6 +50,7 @@ pam_start(const char *service_name, const char *user,
         failauth = false;
     }
 
+    *pamh = (pam_handle_t *)0xbadeaffe;
     return PAM_SUCCESS;
 }
 
@@ -61,6 +62,13 @@ pam_acct_mgmt(pam_handle_t *pamh, int flags)
         return PAM_AUTH_ERR;
     }
 
+    return PAM_SUCCESS;
+}
+
+
+int
+pam_end(pam_handle_t *pamh, int status)
+{
     return PAM_SUCCESS;
 }
 

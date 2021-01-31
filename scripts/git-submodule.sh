@@ -9,9 +9,14 @@ command=$1
 shift
 maybe_modules="$@"
 
+# if --with-git-submodules=ignore, do nothing
+test "$command" = "ignore" && exit 0
+
 test -z "$GIT" && GIT=git
 
-error() {
+cd "$(dirname "$0")/.."
+
+update_error() {
     echo "$0: $*"
     echo
     echo "Unable to automatically checkout GIT submodules '$modules'."
@@ -24,12 +29,25 @@ error() {
     echo "Alternatively you may disable automatic GIT submodule checkout"
     echo "with:"
     echo
-    echo " $ ./configure --disable-git-update"
+    echo " $ ./configure --with-git-submodules=validate"
     echo
     echo "and then manually update submodules prior to running make, with:"
     echo
     echo " $ scripts/git-submodule.sh update $modules"
     echo
+    exit 1
+}
+
+validate_error() {
+    if test "$1" = "validate"; then
+        echo "GIT submodules checkout is out of date, and submodules"
+        echo "configured for validate only. Please run"
+        echo "  scripts/git-submodule.sh update $maybe_modules"
+        echo "from the source directory or call configure with"
+        echo "  --with-git-submodules=update"
+        echo "To disable GIT submodules validation, use"
+        echo "  --with-git-submodules=ignore"
+    fi
     exit 1
 }
 
@@ -52,18 +70,18 @@ then
 fi
 
 case "$command" in
-status)
+status|validate)
     if test -z "$maybe_modules"
     then
-         test -s ${substat} && exit 1 || exit 0
+         test -s ${substat} && validate_error "$command" || exit 0
     fi
 
-    test -f "$substat" || exit 1
+    test -f "$substat" || validate_error "$command"
     for module in $modules; do
         CURSTATUS=$($GIT submodule status $module)
         OLDSTATUS=$(cat $substat | grep $module)
         if test "$CURSTATUS" != "$OLDSTATUS"; then
-            exit 1
+            validate_error "$command"
         fi
     done
     exit 0
@@ -76,10 +94,10 @@ update)
     fi
 
     $GIT submodule update --init $modules 1>/dev/null
-    test $? -ne 0 && error "failed to update modules"
+    test $? -ne 0 && update_error "failed to update modules"
 
     $GIT submodule status $modules > "${substat}"
-    test $? -ne 0 && error "failed to save git submodule status" >&2
+    test $? -ne 0 && update_error "failed to save git submodule status" >&2
     ;;
 esac
 

@@ -710,4 +710,16 @@ static inline void qemu_thread_jit_write(void) {}
 static inline void qemu_thread_jit_execute(void) {}
 #endif
 
+/**
+ * Platforms which do not support system() return ENOSYS
+ */
+#ifndef HAVE_SYSTEM_FUNCTION
+#define system platform_does_not_support_system
+static inline int platform_does_not_support_system(const char *command)
+{
+    errno = ENOSYS;
+    return -1;
+}
+#endif /* !HAVE_SYSTEM_FUNCTION */
+
 #endif
