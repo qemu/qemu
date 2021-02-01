@@ -40,7 +40,7 @@ from .source import QAPISourceInfo
 
 
 class QAPIGen:
-    def __init__(self, fname: Optional[str]):
+    def __init__(self, fname: str):
         self.fname = fname
         self._preamble = ''
         self._body = ''
@@ -125,7 +125,7 @@ def build_params(arg_type: Optional[QAPISchemaObjectType],
 
 
 class QAPIGenCCode(QAPIGen):
-    def __init__(self, fname: Optional[str]):
+    def __init__(self, fname: str):
         super().__init__(fname)
         self._start_if: Optional[Tuple[List[str], str, str]] = None
 
