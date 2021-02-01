@@ -213,7 +213,7 @@ void %(event_emit)s(%(event_enum)s event, QDict *qdict);
 
     def visit_event(self,
                     name: str,
-                    info: QAPISourceInfo,
+                    info: Optional[QAPISourceInfo],
                     ifcond: List[str],
                     features: List[QAPISchemaFeature],
                     arg_type: Optional[QAPISchemaObjectType],

@@ -350,7 +350,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
 
     def visit_alternate_type(self,
                              name: str,
-                             info: QAPISourceInfo,
+                             info: Optional[QAPISourceInfo],
                              ifcond: List[str],
                              features: List[QAPISchemaFeature],
                              variants: QAPISchemaVariants) -> None:

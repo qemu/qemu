@@ -336,7 +336,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
 
     def visit_enum_type(self,
                         name: str,
-                        info: QAPISourceInfo,
+                        info: Optional[QAPISourceInfo],
                         ifcond: List[str],
                         features: List[QAPISchemaFeature],
                         members: List[QAPISchemaEnumMember],
@@ -378,7 +378,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
 
     def visit_alternate_type(self,
                              name: str,
-                             info: QAPISourceInfo,
+                             info: Optional[QAPISourceInfo],
                              ifcond: List[str],
                              features: List[QAPISchemaFeature],
                              variants: QAPISchemaVariants) -> None:

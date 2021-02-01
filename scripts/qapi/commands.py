@@ -296,7 +296,7 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
 
     def visit_command(self,
                       name: str,
-                      info: QAPISourceInfo,
+                      info: Optional[QAPISourceInfo],
                       ifcond: List[str],
                       features: List[QAPISchemaFeature],
                       arg_type: Optional[QAPISchemaObjectType],

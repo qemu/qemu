@@ -325,7 +325,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
             self._add_module(name, self._user_blurb)
             self._begin_user_module(name)
 
-    def visit_include(self, name: str, info: QAPISourceInfo) -> None:
+    def visit_include(self, name: str, info: Optional[QAPISourceInfo]) -> None:
         relname = os.path.relpath(self._module_filename(self._what, name),
                                   os.path.dirname(self._genh.fname))
         self._genh.preamble_add(mcgen('''
