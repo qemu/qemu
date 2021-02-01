@@ -285,7 +285,8 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._add_module(name, blurb)
 
     def _add_system_module(self, name: Optional[str], blurb: str) -> None:
-        self._add_module(name and './' + name, blurb)
+        assert QAPISchemaModule.is_system_module(name)
+        self._add_module(name, blurb)
 
     def write(self, output_dir: str, opt_builtins: bool = False) -> None:
         for name in self._module:
