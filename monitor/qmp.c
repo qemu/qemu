@@ -214,7 +214,7 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
 {
     QMPRequest *req_obj = NULL;
     QDict *rsp;
-    bool need_resume;
+    bool oob_enabled;
     MonitorQMP *mon;
 
     while (true) {
@@ -273,11 +273,32 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
         aio_co_schedule(qemu_get_aio_context(), qmp_dispatcher_co);
         qemu_coroutine_yield();
 
+        /*
+         * @req_obj has a request, we hold req_obj->mon->qmp_queue_lock
+         */
+
         mon = req_obj->mon;
-        /* qmp_oob_enabled() might change after "qmp_capabilities" */
-        need_resume = !qmp_oob_enabled(mon) ||
-            mon->qmp_requests->length == QMP_REQ_QUEUE_LEN_MAX - 1;
+
+        /*
+         * We need to resume the monitor if handle_qmp_command()
+         * suspended it.  Two cases:
+         * 1. OOB enabled: mon->qmp_requests has no more space
+         *    Resume right away, so that OOB commands can get executed while
+         *    this request is being processed.
+         * 2. OOB disabled: always
+         *    Resume only after we're done processing the request,
+         * We need to save qmp_oob_enabled() for later, because
+         * qmp_qmp_capabilities() can change it.
+         */
+        oob_enabled = qmp_oob_enabled(mon);
+        if (oob_enabled
+            && mon->qmp_requests->length == QMP_REQ_QUEUE_LEN_MAX - 1) {
+            monitor_resume(&mon->common);
+        }
+
         qemu_mutex_unlock(&mon->qmp_queue_lock);
+
+        /* Process request */
         if (req_obj->req) {
             if (trace_event_get_state(TRACE_MONITOR_QMP_CMD_IN_BAND)) {
                 QDict *qdict = qobject_to(QDict, req_obj->req);
@@ -298,10 +319,10 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
             qobject_unref(rsp);
         }
 
-        if (need_resume) {
-            /* Pairs with the monitor_suspend() in handle_qmp_command() */
+        if (!oob_enabled) {
             monitor_resume(&mon->common);
         }
+
         qmp_request_free(req_obj);
 
         /*
