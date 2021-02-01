@@ -21,11 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
 #include "qemu/osdep.h"
 #include <alsa/asoundlib.h>
+#include "qemu-common.h"
 #include "qemu/main-loop.h"
-#include "qemu/module.h"
 #include "audio.h"
 #include "trace.h"
 

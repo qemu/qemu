@@ -26,7 +26,7 @@
 #include <CoreAudio/CoreAudio.h>
 #include <pthread.h>            /* pthread_X */
 
-#include "qemu/module.h"
+#include "qemu-common.h"
 #include "audio.h"
 
 #define AUDIO_CAP "coreaudio"

@@ -24,8 +24,8 @@
 #include "qemu/osdep.h"
 #include "audio.h"
 #include "audio_int.h"
+#include "qemu-common.h"
 #include "qemu/cutils.h"
-#include "qemu/timer.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-audio.h"
 #include "qapi/visitor-impl.h"
@@ -338,13 +338,8 @@ static AudiodevListEntry *legacy_opt(const char *drvname)
     handle_per_direction(audio_get_pdo_in(e->dev), "QEMU_AUDIO_ADC_");
     handle_per_direction(audio_get_pdo_out(e->dev), "QEMU_AUDIO_DAC_");
 
-    /* Original description: Timer period in HZ (0 - use lowest possible) */
     get_int("QEMU_AUDIO_TIMER_PERIOD",
             &e->dev->timer_period, &e->dev->has_timer_period);
-    if (e->dev->has_timer_period && e->dev->timer_period) {
-        e->dev->timer_period = NANOSECONDS_PER_SECOND / 1000 /
-                               e->dev->timer_period;
-    }
 
     switch (e->dev->driver) {
     case AUDIODEV_DRIVER_ALSA:

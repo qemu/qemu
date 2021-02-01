@@ -21,7 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "audio.h"
@@ -32,7 +31,6 @@
 #include "qapi/qapi-visit-audio.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
-#include "qemu/module.h"
 #include "sysemu/replay.h"
 #include "trace.h"
 
@@ -1473,7 +1471,7 @@ static int audio_init(Audiodev *dev)
     if (dev->timer_period <= 0) {
         s->period_ticks = 1;
     } else {
-        s->period_ticks = dev->timer_period * SCALE_US;
+        s->period_ticks = NANOSECONDS_PER_SECOND / dev->timer_period;
     }
 
     e = qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);
