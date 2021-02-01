@@ -21,6 +21,7 @@
 #define TARGET_O_CLOEXEC     010000000
 #define TARGET___O_SYNC      000100000
 #define TARGET_O_PATH        020000000
+#define TARGET___O_TMPFILE   040000000
 
 #define TARGET_F_RDLCK         1
 #define TARGET_F_WRLCK         2
