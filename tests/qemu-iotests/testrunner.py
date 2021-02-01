@@ -301,8 +301,10 @@ class TestRunner(ContextManager['TestRunner']):
         last_el = self.last_elapsed.get(test)
         start = datetime.datetime.now().strftime('%H:%M:%S')
 
-        self.test_print_one_line(test=test, starttime=start, lasttime=last_el,
-                                 end='\r', test_field_width=test_field_width)
+        if not self.makecheck:
+            self.test_print_one_line(test=test, starttime=start,
+                                     lasttime=last_el, end='\r',
+                                     test_field_width=test_field_width)
 
         res = self.do_run_test(test)
 
