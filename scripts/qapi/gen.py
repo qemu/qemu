@@ -272,21 +272,14 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
                             self._module_basename(what, name))
 
     def _add_module(self, name: str, blurb: str) -> None:
+        if QAPISchemaModule.is_user_module(name):
+            if self._main_module is None:
+                self._main_module = name
         basename = self._module_filename(self._what, name)
         genc = QAPIGenC(basename + '.c', blurb, self._pydoc)
         genh = QAPIGenH(basename + '.h', blurb, self._pydoc)
         self._module[name] = (genc, genh)
         self._genc, self._genh = self._module[name]
-
-    def _add_user_module(self, name: str, blurb: str) -> None:
-        assert QAPISchemaModule.is_user_module(name)
-        if self._main_module is None:
-            self._main_module = name
-        self._add_module(name, blurb)
-
-    def _add_system_module(self, name: str, blurb: str) -> None:
-        assert QAPISchemaModule.is_system_module(name)
-        self._add_module(name, blurb)
 
     def write(self, output_dir: str, opt_builtins: bool = False) -> None:
         for name in self._module:
@@ -305,7 +298,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
     def visit_module(self, name: str) -> None:
         if QAPISchemaModule.is_builtin_module(name):
             if self._builtin_blurb:
-                self._add_system_module(name, self._builtin_blurb)
+                self._add_module(name, self._builtin_blurb)
                 self._begin_builtin_module()
             else:
                 # The built-in module has not been created.  No code may
@@ -314,7 +307,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
                 self._genh = None
         else:
             assert QAPISchemaModule.is_user_module(name)
-            self._add_user_module(name, self._user_blurb)
+            self._add_module(name, self._user_blurb)
             self._begin_user_module(name)
 
     def visit_include(self, name: str, info: QAPISourceInfo) -> None:

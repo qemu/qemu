@@ -286,7 +286,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
                              types=types))
 
     def visit_end(self) -> None:
-        self._add_system_module('./init', ' * QAPI Commands initialization')
+        self._add_module('./init', ' * QAPI Commands initialization')
         self._genh.add(mcgen('''
 #include "qapi/qmp/dispatch.h"
 
