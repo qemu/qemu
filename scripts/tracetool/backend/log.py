@@ -20,6 +20,7 @@ PUBLIC = True
 
 def generate_h_begin(events, group):
     out('#include "qemu/log-for-trace.h"',
+        '#include "qemu/error-report.h"',
         '')
 
 
@@ -35,14 +36,20 @@ def generate_h(event, group):
         cond = "trace_event_get_state(%s)" % ("TRACE_" + event.name.upper())
 
     out('    if (%(cond)s && qemu_loglevel_mask(LOG_TRACE)) {',
-        '        struct timeval _now;',
-        '        gettimeofday(&_now, NULL);',
+        '        if (message_with_timestamp) {',
+        '            struct timeval _now;',
+        '            gettimeofday(&_now, NULL);',
         '#line %(event_lineno)d "%(event_filename)s"',
-        '        qemu_log("%%d@%%zu.%%06zu:%(name)s " %(fmt)s "\\n",',
-        '                 qemu_get_thread_id(),',
-        '                 (size_t)_now.tv_sec, (size_t)_now.tv_usec',
-        '                 %(argnames)s);',
+        '            qemu_log("%%d@%%zu.%%06zu:%(name)s " %(fmt)s "\\n",',
+        '                     qemu_get_thread_id(),',
+        '                     (size_t)_now.tv_sec, (size_t)_now.tv_usec',
+        '                     %(argnames)s);',
         '#line %(out_next_lineno)d "%(out_filename)s"',
+        '        } else {',
+        '#line %(event_lineno)d "%(event_filename)s"',
+        '            qemu_log("%(name)s " %(fmt)s "\\n"%(argnames)s);',
+        '#line %(out_next_lineno)d "%(out_filename)s"',
+        '        }',
         '    }',
         cond=cond,
         event_lineno=event.lineno,

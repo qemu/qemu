@@ -54,6 +54,7 @@ def c_fmt_to_stap(fmt):
             else:
                 if state == STATE_MACRO:
                     bits.append(c_macro_to_format(macro))
+                    macro = ""
                 state = STATE_LITERAL
         elif fmt[i] == ' ' or fmt[i] == '\t':
             if state == STATE_MACRO:
@@ -77,7 +78,12 @@ def c_fmt_to_stap(fmt):
     elif state == STATE_LITERAL:
         bits.append(literal)
 
-    fmt = re.sub("%(\d*)z(x|u|d)", "%\\1\\2", "".join(bits))
+    # All variables in systemtap are 64-bit in size
+    # The "%l" integer size qualifier is thus redundant
+    # and "%ll" is not valid at all. Similarly the size_t
+    # based "%z" size qualifier is not valid. We just
+    # strip all size qualifiers for sanity.
+    fmt = re.sub("%(\d*)(l+|z)(x|u|d)", "%\\1\\3", "".join(bits))
     return fmt
 
 def generate(events, backend, group):

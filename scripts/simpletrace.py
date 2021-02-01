@@ -174,7 +174,9 @@ def process(events, log, analyzer, read_header=True):
     if read_header:
         read_trace_header(log)
 
-    dropped_event = Event.build("Dropped_Event(uint64_t num_events_dropped)")
+    frameinfo = inspect.getframeinfo(inspect.currentframe())
+    dropped_event = Event.build("Dropped_Event(uint64_t num_events_dropped)",
+                                frameinfo.lineno + 1, frameinfo.filename)
     edict = {"dropped": dropped_event}
     idtoname = {dropped_event_id: "dropped"}
 
