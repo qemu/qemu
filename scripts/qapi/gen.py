@@ -31,7 +31,11 @@ from .common import (
     guardstart,
     mcgen,
 )
-from .schema import QAPISchemaObjectType, QAPISchemaVisitor
+from .schema import (
+    QAPISchemaModule,
+    QAPISchemaObjectType,
+    QAPISchemaVisitor,
+)
 from .source import QAPISourceInfo
 
 
@@ -246,21 +250,14 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._main_module: Optional[str] = None
 
     @staticmethod
-    def _is_user_module(name: Optional[str]) -> bool:
-        return bool(name and not name.startswith('./'))
-
-    @staticmethod
-    def _is_builtin_module(name: Optional[str]) -> bool:
-        return not name
-
-    def _module_dirname(self, name: Optional[str]) -> str:
-        if self._is_user_module(name):
+    def _module_dirname(name: Optional[str]) -> str:
+        if QAPISchemaModule.is_user_module(name):
             return os.path.dirname(name)
         return ''
 
     def _module_basename(self, what: str, name: Optional[str]) -> str:
-        ret = '' if self._is_builtin_module(name) else self._prefix
-        if self._is_user_module(name):
+        ret = '' if QAPISchemaModule.is_builtin_module(name) else self._prefix
+        if QAPISchemaModule.is_user_module(name):
             basename = os.path.basename(name)
             ret += what
             if name != self._main_module:
@@ -282,7 +279,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._genc, self._genh = self._module[name]
 
     def _add_user_module(self, name: str, blurb: str) -> None:
-        assert self._is_user_module(name)
+        assert QAPISchemaModule.is_user_module(name)
         if self._main_module is None:
             self._main_module = name
         self._add_module(name, blurb)
@@ -292,7 +289,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
 
     def write(self, output_dir: str, opt_builtins: bool = False) -> None:
         for name in self._module:
-            if self._is_builtin_module(name) and not opt_builtins:
+            if QAPISchemaModule.is_builtin_module(name) and not opt_builtins:
                 continue
             (genc, genh) = self._module[name]
             genc.write(output_dir)

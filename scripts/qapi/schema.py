@@ -141,6 +141,33 @@ class QAPISchemaModule:
         self.name = name
         self._entity_list = []
 
+    @staticmethod
+    def is_system_module(name: Optional[str]) -> bool:
+        """
+        System modules are internally defined modules.
+
+        Their names start with the "./" prefix.
+        """
+        return name is None or name.startswith('./')
+
+    @classmethod
+    def is_user_module(cls, name: Optional[str]) -> bool:
+        """
+        User modules are those defined by the user in qapi JSON files.
+
+        They do not start with the "./" prefix.
+        """
+        return not cls.is_system_module(name)
+
+    @staticmethod
+    def is_builtin_module(name: Optional[str]) -> bool:
+        """
+        The built-in module is a single System module for the built-in types.
+
+        It is presently always the value 'None'.
+        """
+        return name is None
+
     def add_entity(self, ent):
         self._entity_list.append(ent)
 
@@ -871,8 +898,8 @@ class QAPISchema:
         return typ
 
     def _module_name(self, fname):
-        if fname is None:
-            return None
+        if QAPISchemaModule.is_system_module(fname):
+            return fname
         return os.path.relpath(fname, self._schema_dir)
 
     def _make_module(self, fname):
