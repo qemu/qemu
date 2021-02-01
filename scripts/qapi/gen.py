@@ -290,6 +290,13 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._module[name] = (genc, genh)
         self._current_module = name
 
+    @contextmanager
+    def _temp_module(self, name: str) -> Iterator[None]:
+        old_module = self._current_module
+        self._current_module = name
+        yield
+        self._current_module = old_module
+
     def write(self, output_dir: str, opt_builtins: bool = False) -> None:
         for name in self._module:
             if QAPISchemaModule.is_builtin_module(name) and not opt_builtins:
