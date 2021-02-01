@@ -85,7 +85,13 @@ typedef struct CPUM68KState {
     uint32_t pc;
     uint32_t sr;
 
-    /* SSP and USP.  The current_sp is stored in aregs[7], the other here.  */
+    /*
+     * The 68020/30/40 support two supervisor stacks, ISP and MSP.
+     * The 68000/10, Coldfire, and CPU32 only have USP/SSP.
+     *
+     * The current_sp is stored in aregs[7], the other here.
+     * The USP, SSP, and if used the additional ISP for 68020/30/40.
+     */
     int current_sp;
     uint32_t sp[3];
 
@@ -484,6 +490,7 @@ enum m68k_features {
     M68K_FEATURE_CF_EMAC,
     M68K_FEATURE_CF_EMAC_B,   /* Revision B EMAC (dual accumulate). */
     M68K_FEATURE_USP, /* User Stack Pointer. (680[012346]0, ISA A+, B or C).*/
+    M68K_FEATURE_MSP, /* Master Stack Pointer. (680[234]0) */
     M68K_FEATURE_EXT_FULL,    /* 68020+ full extension word. */
     M68K_FEATURE_WORD_INDEX,  /* word sized address index registers. */
     M68K_FEATURE_SCALED_INDEX, /* scaled address index registers. */
