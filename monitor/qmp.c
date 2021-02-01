@@ -79,7 +79,7 @@ static void monitor_qmp_cleanup_queue_and_resume(MonitorQMP *mon)
     qemu_mutex_lock(&mon->qmp_queue_lock);
 
     /*
-     * Same condition as in monitor_qmp_bh_dispatcher(), but before
+     * Same condition as in monitor_qmp_dispatcher_co(), but before
      * removing an element from the queue (hence no `- 1`).
      * Also, the queue should not be empty either, otherwise the
      * monitor hasn't been suspended yet (or was already resumed).
@@ -349,7 +349,7 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
 
     /*
      * Suspend the monitor when we can't queue more requests after
-     * this one.  Dequeuing in monitor_qmp_bh_dispatcher() or
+     * this one.  Dequeuing in monitor_qmp_dispatcher_co() or
      * monitor_qmp_cleanup_queue_and_resume() will resume it.
      * Note that when OOB is disabled, we queue at most one command,
      * for backward compatibility.
