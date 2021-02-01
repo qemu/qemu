@@ -113,6 +113,7 @@ void qmp_send_response(MonitorQMP *mon, const QDict *rsp)
 
     json = qobject_to_json_pretty(data, mon->pretty);
     assert(json != NULL);
+    trace_monitor_qmp_respond(mon, json->str);
 
     g_string_append_c(json, '\n');
     monitor_puts(&mon->common, json->str);
@@ -251,6 +252,9 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
             }
         }
 
+        trace_monitor_qmp_in_band_dequeue(req_obj,
+                                          req_obj->mon->qmp_requests->length);
+
         if (qatomic_xchg(&qmp_dispatcher_co_busy, true) == true) {
             /*
              * Someone rescheduled us (probably because a new requests
@@ -287,6 +291,7 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
             monitor_qmp_dispatch(mon, req_obj->req);
         } else {
             assert(req_obj->err);
+            trace_monitor_qmp_err_in_band(error_get_pretty(req_obj->err));
             rsp = qmp_error_response(req_obj->err);
             req_obj->err = NULL;
             monitor_qmp_respond(mon, rsp);
@@ -364,6 +369,8 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
      * handled in time order.  Ownership for req_obj, req,
      * etc. will be delivered to the handler side.
      */
+    trace_monitor_qmp_in_band_enqueue(req_obj, mon,
+                                      mon->qmp_requests->length);
     assert(mon->qmp_requests->length < QMP_REQ_QUEUE_LEN_MAX);
     g_queue_push_tail(mon->qmp_requests, req_obj);
     qemu_mutex_unlock(&mon->qmp_queue_lock);
