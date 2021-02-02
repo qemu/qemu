@@ -1630,7 +1630,7 @@ static void pc_machine_set_oem_id(Object *obj, const char *value, Error **errp)
         return;
     }
 
-    strncpy(pcms->oem_id, value, len + 1);
+    strncpy(pcms->oem_id, value, 6);
 }
 
 static char *pc_machine_get_oem_table_id(Object *obj, Error **errp)
@@ -1652,7 +1652,7 @@ static void pc_machine_set_oem_table_id(Object *obj, const char *value,
           "8 bytes in size");
         return;
     }
-    strncpy(pcms->oem_table_id, value, len + 1);
+    strncpy(pcms->oem_table_id, value, 8);
 }
 
 static void pc_machine_initfn(Object *obj)

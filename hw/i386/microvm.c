@@ -668,7 +668,7 @@ static void microvm_machine_set_oem_id(Object *obj, const char *value,
         return;
     }
 
-    strncpy(mms->oem_id, value, len + 1);
+    strncpy(mms->oem_id, value, 6);
 }
 
 static char *microvm_machine_get_oem_table_id(Object *obj, Error **errp)
@@ -690,7 +690,7 @@ static void microvm_machine_set_oem_table_id(Object *obj, const char *value,
           "8 bytes in size");
         return;
     }
-    strncpy(mms->oem_table_id, value, len + 1);
+    strncpy(mms->oem_table_id, value, 8);
 }
 
 static void microvm_machine_initfn(Object *obj)
