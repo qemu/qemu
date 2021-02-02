@@ -198,8 +198,8 @@ has() {
 }
 
 version_ge () {
-    local_ver1=`echo $1 | tr . ' '`
-    local_ver2=`echo $2 | tr . ' '`
+    local_ver1=$(expr "$1" : '\([0-9.]*\)' | tr . ' ')
+    local_ver2=$(echo "$2" | tr . ' ')
     while true; do
         set x $local_ver1
         local_first=${2-0}
