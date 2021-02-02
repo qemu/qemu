@@ -103,7 +103,12 @@ def _copy_with_mkdir(src, root_dir, sub_path='.'):
         pass
 
     dest_file = "%s/%s" % (dest_dir, os.path.basename(src))
-    copy(src, dest_file)
+
+    try:
+        copy(src, dest_file)
+    except FileNotFoundError:
+        print("Couldn't copy %s to %s" % (src, dest_file))
+        pass
 
 
 def _get_so_libs(executable):
