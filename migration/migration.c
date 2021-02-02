@@ -2308,7 +2308,7 @@ void qmp_migrate_set_cache_size(int64_t value, Error **errp)
     qmp_migrate_set_parameters(&p, errp);
 }
 
-int64_t qmp_query_migrate_cache_size(Error **errp)
+uint64_t qmp_query_migrate_cache_size(Error **errp)
 {
     return migrate_xbzrle_cache_size();
 }
@@ -2538,7 +2538,7 @@ int migrate_use_xbzrle(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_XBZRLE];
 }
 
-int64_t migrate_xbzrle_cache_size(void)
+uint64_t migrate_xbzrle_cache_size(void)
 {
     MigrationState *s;
 

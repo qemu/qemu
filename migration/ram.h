@@ -47,7 +47,7 @@ bool ramblock_is_ignored(RAMBlock *block);
     INTERNAL_RAMBLOCK_FOREACH(block)                   \
         if (!qemu_ram_is_migratable(block)) {} else
 
-int xbzrle_cache_resize(int64_t new_size, Error **errp);
+int xbzrle_cache_resize(uint64_t new_size, Error **errp);
 uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_total(void);
 

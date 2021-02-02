@@ -38,7 +38,7 @@ struct PageCache {
     size_t num_items;
 };
 
-PageCache *cache_init(int64_t new_size, size_t page_size, Error **errp)
+PageCache *cache_init(uint64_t new_size, size_t page_size, Error **errp)
 {
     int64_t i;
     size_t num_pages = new_size / page_size;

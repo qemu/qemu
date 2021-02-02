@@ -28,7 +28,7 @@ typedef struct PageCache PageCache;
  * @page_size: cache page size
  * @errp: set *errp if the check failed, with reason
  */
-PageCache *cache_init(int64_t cache_size, size_t page_size, Error **errp);
+PageCache *cache_init(uint64_t cache_size, size_t page_size, Error **errp);
 /**
  * cache_fini: free all cache resources
  * @cache pointer to the PageCache struct
