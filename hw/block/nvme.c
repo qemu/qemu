@@ -1703,7 +1703,6 @@ static void nvme_aio_copy_in_cb(void *opaque, int ret)
 struct nvme_compare_ctx {
     QEMUIOVector iov;
     uint8_t *bounce;
-    size_t len;
 };
 
 static void nvme_compare_cb(void *opaque, int ret)
@@ -1724,16 +1723,16 @@ static void nvme_compare_cb(void *opaque, int ret)
         goto out;
     }
 
-    buf = g_malloc(ctx->len);
+    buf = g_malloc(ctx->iov.size);
 
-    status = nvme_dma(nvme_ctrl(req), buf, ctx->len, DMA_DIRECTION_TO_DEVICE,
-                      req);
+    status = nvme_dma(nvme_ctrl(req), buf, ctx->iov.size,
+                      DMA_DIRECTION_TO_DEVICE, req);
     if (status) {
         req->status = status;
         goto out;
     }
 
-    if (memcmp(buf, ctx->bounce, ctx->len)) {
+    if (memcmp(buf, ctx->bounce, ctx->iov.size)) {
         req->status = NVME_CMP_FAILURE;
     }
 
@@ -1974,7 +1973,6 @@ static uint16_t nvme_compare(NvmeCtrl *n, NvmeRequest *req)
 
     ctx = g_new(struct nvme_compare_ctx, 1);
     ctx->bounce = bounce;
-    ctx->len = len;
 
     req->opaque = ctx;
 
