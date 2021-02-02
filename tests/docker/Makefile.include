@@ -1,6 +1,6 @@
 # Makefile for Docker tests
 
-.PHONY: docker docker-test docker-clean docker-image docker-qemu-src
+.PHONY: docker docker-help docker-test docker-clean docker-image docker-qemu-src
 
 NULL :=
 SPACE := $(NULL) #
@@ -217,6 +217,8 @@ endif
 	@echo '    ENGINE=auto/docker/podman'
 	@echo '                         Specify which container engine to run.'
 	@echo '    REGISTRY=url         Cache builds from registry (default:$(DOCKER_REGISTRY))'
+
+docker-help: docker
 
 # This rule if for directly running against an arbitrary docker target.
 # It is called by the expanded docker targets (e.g. make
