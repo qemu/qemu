@@ -90,11 +90,11 @@ run-guest-tests: guest-tests
 
 else
 guest-tests:
-	$(call quiet-command, /bin/true, "BUILD", \
+	$(call quiet-command, true, "BUILD", \
 		"$(TARGET) guest-tests SKIPPED")
 
 run-guest-tests:
-	$(call quiet-command, /bin/true, "RUN", \
+	$(call quiet-command, true, "RUN", \
 		"tests for $(TARGET) SKIPPED")
 endif
 
