@@ -135,7 +135,7 @@ class TestEnv(ContextManager['TestEnv']):
         if not os.path.exists(self.qemu_prog):
             pattern = root('qemu-system-*')
             try:
-                progs = glob.iglob(pattern)
+                progs = sorted(glob.iglob(pattern))
                 self.qemu_prog = next(p for p in progs if isxfile(p))
             except StopIteration:
                 sys.exit("Not found any Qemu executable binary by pattern "
