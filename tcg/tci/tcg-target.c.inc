@@ -27,6 +27,9 @@
 static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 {
     switch (op) {
+    case INDEX_op_goto_ptr:
+        return C_O0_I1(r);
+
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8s_i32:
     case INDEX_op_ld16u_i32:
@@ -260,6 +263,15 @@ static void tcg_out_op_p(TCGContext *s, TCGOpcode op, void *p0)
     }
     insn = deposit32(insn, 0, 8, op);
     insn = deposit32(insn, 12, 20, diff);
+    tcg_out32(s, insn);
+}
+
+static void tcg_out_op_r(TCGContext *s, TCGOpcode op, TCGReg r0)
+{
+    tcg_insn_unit insn = 0;
+
+    insn = deposit32(insn, 0, 8, op);
+    insn = deposit32(insn, 8, 4, r0);
     tcg_out32(s, insn);
 }
 
@@ -563,6 +575,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         /* indirect jump method. */
         tcg_out_op_p(s, opc, s->tb_jmp_target_addr + args[0]);
         set_jmp_reset_offset(s, args[0]);
+        break;
+
+    case INDEX_op_goto_ptr:
+        tcg_out_op_r(s, opc, args[0]);
         break;
 
     case INDEX_op_br:

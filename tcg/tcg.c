@@ -785,10 +785,16 @@ void tcg_prologue_init(TCGContext *s)
     }
 #endif
 
-    /* Assert that goto_ptr is implemented completely.  */
+#ifndef CONFIG_TCG_INTERPRETER
+    /*
+     * Assert that goto_ptr is implemented completely, setting an epilogue.
+     * For tci, we use NULL as the signal to return from the interpreter,
+     * so skip this check.
+     */
     if (TCG_TARGET_HAS_goto_ptr) {
         tcg_debug_assert(tcg_code_gen_epilogue != NULL);
     }
+#endif
 }
 
 void tcg_func_start(TCGContext *s)
