@@ -174,6 +174,8 @@ INITIALIZE_MIGRATE_CAPS_SET(check_caps_background_snapshot,
 static MigrationState *current_migration;
 static MigrationIncomingState *current_incoming;
 
+static GSList *migration_blockers;
+
 static bool migration_object_check(MigrationState *ms, Error **errp);
 static int migration_maybe_pause(MigrationState *s,
                                  int *current_active_state,
@@ -1073,6 +1075,27 @@ static void populate_vfio_info(MigrationInfo *info)
 static void fill_source_migration_info(MigrationInfo *info)
 {
     MigrationState *s = migrate_get_current();
+
+    info->blocked = migration_is_blocked(NULL);
+    info->has_blocked_reasons = info->blocked;
+    info->blocked_reasons = NULL;
+    if (info->blocked) {
+        GSList *cur_blocker = migration_blockers;
+
+        /*
+         * There are two types of reasons a migration might be blocked;
+         * a) devices marked in VMState as non-migratable, and
+         * b) Explicit migration blockers
+         * We need to add both of them here.
+         */
+        qemu_savevm_non_migratable_list(&info->blocked_reasons);
+
+        while (cur_blocker) {
+            QAPI_LIST_PREPEND(info->blocked_reasons,
+                              g_strdup(error_get_pretty(cur_blocker->data)));
+            cur_blocker = g_slist_next(cur_blocker);
+        }
+    }
 
     switch (s->state) {
     case MIGRATION_STATUS_NONE:
@@ -2024,8 +2047,6 @@ void migrate_init(MigrationState *s)
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
 }
-
-static GSList *migration_blockers;
 
 int migrate_add_blocker(Error *reason, Error **errp)
 {
