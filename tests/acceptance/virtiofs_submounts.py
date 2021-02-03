@@ -235,7 +235,7 @@ class VirtiofsSubmountsTest(BootLinux):
 
         self.ssh_key = os.path.join(self.workdir, 'id_ed25519')
 
-        self.run(('ssh-keygen', '-t', 'ed25519', '-f', self.ssh_key))
+        self.run(('ssh-keygen', '-N', '', '-t', 'ed25519', '-f', self.ssh_key))
 
         pubkey = open(self.ssh_key + '.pub').read()
 
