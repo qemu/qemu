@@ -86,17 +86,18 @@ class VirtiofsSubmountsTest(BootLinux):
                 re.search(r'TCP.HOST_FORWARD.*127\.0\.0\.1\s*(\d+)\s+10\.',
                           line)
             if match is not None:
-                port = match[1]
+                port = int(match[1])
                 break
 
         self.assertIsNotNone(port)
-        self.log.debug('sshd listening on port: ' + port)
+        self.assertGreater(port, 0)
+        self.log.debug('sshd listening on port: %d', port)
         return port
 
     def ssh_connect(self, username, keyfile):
         self.ssh_logger = logging.getLogger('ssh')
         port = self.get_portfwd()
-        self.ssh_session = ssh.Session('127.0.0.1', port=int(port),
+        self.ssh_session = ssh.Session('127.0.0.1', port=port,
                                        user=username, key=keyfile)
         for i in range(10):
             try:
