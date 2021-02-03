@@ -247,7 +247,7 @@ class VirtiofsSubmountsTest(BootLinux):
 
         # Allow us to connect to SSH
         self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22',
-                         '-device', 'e1000,netdev=vnet')
+                         '-device', 'virtio-net,netdev=vnet')
 
         if not kvm_available(self.arch, self.qemu_bin):
             self.cancel(KVM_NOT_AVAILABLE)
