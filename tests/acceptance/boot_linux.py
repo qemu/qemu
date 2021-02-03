@@ -12,14 +12,7 @@ import os
 
 from avocado_qemu import LinuxTest, BUILD_DIR
 
-from qemu.accel import kvm_available
-from qemu.accel import tcg_available
-
 from avocado import skipIf
-
-ACCEL_NOT_AVAILABLE_FMT = "%s accelerator does not seem to be available"
-KVM_NOT_AVAILABLE = ACCEL_NOT_AVAILABLE_FMT % "KVM"
-TCG_NOT_AVAILABLE = ACCEL_NOT_AVAILABLE_FMT % "TCG"
 
 
 class BootLinuxX8664(LinuxTest):
@@ -34,8 +27,7 @@ class BootLinuxX8664(LinuxTest):
         :avocado: tags=machine:pc
         :avocado: tags=accel:tcg
         """
-        if not tcg_available(self.qemu_bin):
-            self.cancel(TCG_NOT_AVAILABLE)
+        self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")
         self.launch_and_wait()
 
@@ -44,8 +36,7 @@ class BootLinuxX8664(LinuxTest):
         :avocado: tags=machine:pc
         :avocado: tags=accel:kvm
         """
-        if not kvm_available(self.arch, self.qemu_bin):
-            self.cancel(KVM_NOT_AVAILABLE)
+        self.require_accelerator("kvm")
         self.vm.add_args("-accel", "kvm")
         self.launch_and_wait()
 
@@ -54,8 +45,7 @@ class BootLinuxX8664(LinuxTest):
         :avocado: tags=machine:q35
         :avocado: tags=accel:tcg
         """
-        if not tcg_available(self.qemu_bin):
-            self.cancel(TCG_NOT_AVAILABLE)
+        self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")
         self.launch_and_wait()
 
@@ -64,8 +54,7 @@ class BootLinuxX8664(LinuxTest):
         :avocado: tags=machine:q35
         :avocado: tags=accel:kvm
         """
-        if not kvm_available(self.arch, self.qemu_bin):
-            self.cancel(KVM_NOT_AVAILABLE)
+        self.require_accelerator("kvm")
         self.vm.add_args("-accel", "kvm")
         self.launch_and_wait()
 
@@ -91,8 +80,7 @@ class BootLinuxAarch64(LinuxTest):
         :avocado: tags=accel:tcg
         :avocado: tags=cpu:max
         """
-        if not tcg_available(self.qemu_bin):
-            self.cancel(TCG_NOT_AVAILABLE)
+        self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")
         self.vm.add_args("-cpu", "max")
         self.vm.add_args("-machine", "virt,gic-version=2")
@@ -105,8 +93,7 @@ class BootLinuxAarch64(LinuxTest):
         :avocado: tags=cpu:host
         :avocado: tags=device:gicv2
         """
-        if not kvm_available(self.arch, self.qemu_bin):
-            self.cancel(KVM_NOT_AVAILABLE)
+        self.require_accelerator("kvm")
         self.vm.add_args("-accel", "kvm")
         self.vm.add_args("-cpu", "host")
         self.vm.add_args("-machine", "virt,gic-version=2")
@@ -119,8 +106,7 @@ class BootLinuxAarch64(LinuxTest):
         :avocado: tags=cpu:host
         :avocado: tags=device:gicv3
         """
-        if not kvm_available(self.arch, self.qemu_bin):
-            self.cancel(KVM_NOT_AVAILABLE)
+        self.require_accelerator("kvm")
         self.vm.add_args("-accel", "kvm")
         self.vm.add_args("-cpu", "host")
         self.vm.add_args("-machine", "virt,gic-version=3")
@@ -140,8 +126,7 @@ class BootLinuxPPC64(LinuxTest):
         :avocado: tags=machine:pseries
         :avocado: tags=accel:tcg
         """
-        if not tcg_available(self.qemu_bin):
-            self.cancel(TCG_NOT_AVAILABLE)
+        self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")
         self.launch_and_wait()
 
@@ -159,7 +144,6 @@ class BootLinuxS390X(LinuxTest):
         :avocado: tags=machine:s390-ccw-virtio
         :avocado: tags=accel:tcg
         """
-        if not tcg_available(self.qemu_bin):
-            self.cancel(TCG_NOT_AVAILABLE)
+        self.require_accelerator("tcg")
         self.vm.add_args("-accel", "tcg")
         self.launch_and_wait()

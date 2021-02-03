@@ -39,6 +39,8 @@ else:
 
 sys.path.append(os.path.join(SOURCE_DIR, 'python'))
 
+from qemu.accel import kvm_available
+from qemu.accel import tcg_available
 from qemu.machine import QEMUMachine
 
 def is_readable_executable_file(path):
@@ -161,6 +163,28 @@ class Test(avocado.Test):
         if len(vals) == 1:
             return vals.pop()
         return None
+
+    def require_accelerator(self, accelerator):
+        """
+        Requires an accelerator to be available for the test to continue
+
+        It takes into account the currently set qemu binary.
+
+        If the check fails, the test is canceled.  If the check itself
+        for the given accelerator is not available, the test is also
+        canceled.
+
+        :param accelerator: name of the accelerator, such as "kvm" or "tcg"
+        :type accelerator: str
+        """
+        checker = {'tcg': tcg_available,
+                   'kvm': kvm_available}.get(accelerator)
+        if checker is None:
+            self.cancel("Don't know how to check for the presence "
+                        "of accelerator %s" % accelerator)
+        if not checker(qemu_bin=self.qemu_bin):
+            self.cancel("%s accelerator does not seem to be "
+                        "available" % accelerator)
 
     def setUp(self):
         self._vms = {}

@@ -9,8 +9,6 @@ from avocado_qemu import LinuxTest, BUILD_DIR
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import ssh
 
-from qemu.accel import kvm_available
-
 
 def run_cmd(args):
     subp = subprocess.Popen(args,
@@ -260,8 +258,7 @@ class VirtiofsSubmountsTest(LinuxTest):
         self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22',
                          '-device', 'virtio-net,netdev=vnet')
 
-        if not kvm_available(self.arch, self.qemu_bin):
-            self.cancel(KVM_NOT_AVAILABLE)
+        self.require_accelerator("kvm")
         self.vm.add_args('-accel', 'kvm')
 
     def tearDown(self):
