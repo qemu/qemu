@@ -10,16 +10,11 @@
 
 import os
 
-from avocado_qemu import Test, BUILD_DIR
+from avocado_qemu import LinuxTest, BUILD_DIR
 
 from qemu.accel import kvm_available
 from qemu.accel import tcg_available
 
-from avocado.utils import cloudinit
-from avocado.utils import network
-from avocado.utils import vmimage
-from avocado.utils import datadrainer
-from avocado.utils.path import find_command
 from avocado import skipIf
 
 ACCEL_NOT_AVAILABLE_FMT = "%s accelerator does not seem to be available"
@@ -27,86 +22,7 @@ KVM_NOT_AVAILABLE = ACCEL_NOT_AVAILABLE_FMT % "KVM"
 TCG_NOT_AVAILABLE = ACCEL_NOT_AVAILABLE_FMT % "TCG"
 
 
-class BootLinuxBase(Test):
-    def download_boot(self):
-        self.log.debug('Looking for and selecting a qemu-img binary to be '
-                       'used to create the bootable snapshot image')
-        # If qemu-img has been built, use it, otherwise the system wide one
-        # will be used.  If none is available, the test will cancel.
-        qemu_img = os.path.join(BUILD_DIR, 'qemu-img')
-        if not os.path.exists(qemu_img):
-            qemu_img = find_command('qemu-img', False)
-        if qemu_img is False:
-            self.cancel('Could not find "qemu-img", which is required to '
-                        'create the bootable image')
-        vmimage.QEMU_IMG = qemu_img
-
-        self.log.info('Downloading/preparing boot image')
-        # Fedora 31 only provides ppc64le images
-        image_arch = self.arch
-        if image_arch == 'ppc64':
-            image_arch = 'ppc64le'
-        try:
-            boot = vmimage.get(
-                'fedora', arch=image_arch, version='31',
-                checksum=self.chksum,
-                algorithm='sha256',
-                cache_dir=self.cache_dirs[0],
-                snapshot_dir=self.workdir)
-        except:
-            self.cancel('Failed to download/prepare boot image')
-        return boot.path
-
-    def prepare_cloudinit(self, ssh_pubkey=None):
-        self.log.info('Preparing cloudinit image')
-        try:
-            cloudinit_iso = os.path.join(self.workdir, 'cloudinit.iso')
-            self.phone_home_port = network.find_free_port()
-            cloudinit.iso(cloudinit_iso, self.name,
-                          username='root',
-                          password='password',
-                          # QEMU's hard coded usermode router address
-                          phone_home_host='10.0.2.2',
-                          phone_home_port=self.phone_home_port,
-                          authorized_key=ssh_pubkey)
-        except Exception:
-            self.cancel('Failed to prepare the cloudinit image')
-        return cloudinit_iso
-
-class BootLinux(BootLinuxBase):
-    """
-    Boots a Linux system, checking for a successful initialization
-    """
-
-    timeout = 900
-    chksum = None
-
-    def setUp(self, ssh_pubkey=None):
-        super(BootLinux, self).setUp()
-        self.vm.add_args('-smp', '2')
-        self.vm.add_args('-m', '1024')
-        self.set_up_boot()
-        self.set_up_cloudinit(ssh_pubkey)
-
-    def set_up_boot(self):
-        path = self.download_boot()
-        self.vm.add_args('-drive', 'file=%s' % path)
-
-    def set_up_cloudinit(self, ssh_pubkey=None):
-        cloudinit_iso = self.prepare_cloudinit(ssh_pubkey)
-        self.vm.add_args('-drive', 'file=%s,format=raw' % cloudinit_iso)
-
-    def launch_and_wait(self):
-        self.vm.set_console()
-        self.vm.launch()
-        console_drainer = datadrainer.LineLogger(self.vm.console_socket.fileno(),
-                                                 logger=self.log.getChild('console'))
-        console_drainer.start()
-        self.log.info('VM launched, waiting for boot confirmation from guest')
-        cloudinit.wait_for_phone_home(('0.0.0.0', self.phone_home_port), self.name)
-
-
-class BootLinuxX8664(BootLinux):
+class BootLinuxX8664(LinuxTest):
     """
     :avocado: tags=arch:x86_64
     """
@@ -154,7 +70,7 @@ class BootLinuxX8664(BootLinux):
         self.launch_and_wait()
 
 
-class BootLinuxAarch64(BootLinux):
+class BootLinuxAarch64(LinuxTest):
     """
     :avocado: tags=arch:aarch64
     :avocado: tags=machine:virt
@@ -212,7 +128,7 @@ class BootLinuxAarch64(BootLinux):
         self.launch_and_wait()
 
 
-class BootLinuxPPC64(BootLinux):
+class BootLinuxPPC64(LinuxTest):
     """
     :avocado: tags=arch:ppc64
     """
@@ -230,7 +146,7 @@ class BootLinuxPPC64(BootLinux):
         self.launch_and_wait()
 
 
-class BootLinuxS390X(BootLinux):
+class BootLinuxS390X(LinuxTest):
     """
     :avocado: tags=arch:s390x
     """
