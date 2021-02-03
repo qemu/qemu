@@ -136,8 +136,7 @@ class VirtiofsSubmountsTest(BootLinux):
         return (stdout, stderr, ret)
 
     def set_up_shared_dir(self):
-        atwd = os.getenv('AVOCADO_TEST_WORKDIR')
-        self.shared_dir = os.path.join(atwd, 'virtiofs-shared')
+        self.shared_dir = os.path.join(self.workdir, 'virtiofs-shared')
 
         os.mkdir(self.shared_dir)
 
@@ -234,8 +233,7 @@ class VirtiofsSubmountsTest(BootLinux):
 
         self.seed = self.params.get('seed')
 
-        atwd = os.getenv('AVOCADO_TEST_WORKDIR')
-        self.ssh_key = os.path.join(atwd, 'id_ed25519')
+        self.ssh_key = os.path.join(self.workdir, 'id_ed25519')
 
         self.run(('ssh-keygen', '-t', 'ed25519', '-f', self.ssh_key))
 
