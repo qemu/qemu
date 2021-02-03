@@ -29,6 +29,7 @@ struct HostMemoryBackendFile {
     uint64_t align;
     bool discard_data;
     bool is_pmem;
+    bool readonly;
 };
 
 static void
@@ -56,7 +57,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
                                      backend->size, fb->align,
                                      (backend->share ? RAM_SHARED : 0) |
                                      (fb->is_pmem ? RAM_PMEM : 0),
-                                     fb->mem_path, errp);
+                                     fb->mem_path, fb->readonly, errp);
     g_free(name);
 #endif
 }
@@ -151,6 +152,28 @@ static void file_memory_backend_set_pmem(Object *o, bool value, Error **errp)
     fb->is_pmem = value;
 }
 
+static bool file_memory_backend_get_readonly(Object *obj, Error **errp)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(obj);
+
+    return fb->readonly;
+}
+
+static void file_memory_backend_set_readonly(Object *obj, bool value,
+                                             Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(obj);
+
+    if (host_memory_backend_mr_inited(backend)) {
+        error_setg(errp, "cannot change property 'readonly' of %s.",
+                   object_get_typename(obj));
+        return;
+    }
+
+    fb->readonly = value;
+}
+
 static void file_backend_unparent(Object *obj)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
@@ -182,6 +205,9 @@ file_backend_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_add_bool(oc, "pmem",
         file_memory_backend_get_pmem, file_memory_backend_set_pmem);
+    object_class_property_add_bool(oc, "readonly",
+        file_memory_backend_get_readonly,
+        file_memory_backend_set_readonly);
 }
 
 static void file_backend_instance_finalize(Object *o)
