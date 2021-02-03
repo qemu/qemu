@@ -765,9 +765,6 @@ and hypothetical example follows:
 
 
   class MultipleMachines(Test):
-      """
-      :avocado: enable
-      """
       def test_multiple_machines(self):
           first_machine = self.get_vm()
           second_machine = self.get_vm()
