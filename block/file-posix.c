@@ -2969,7 +2969,7 @@ raw_do_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int bytes,
 
         req->bytes = BDRV_MAX_LENGTH - req->offset;
 
-        assert(bdrv_check_request(req->offset, req->bytes) == 0);
+        bdrv_check_request(req->offset, req->bytes, &error_abort);
 
         bdrv_make_request_serialising(req, bs->bl.request_alignment);
     }

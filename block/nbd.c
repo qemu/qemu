@@ -235,7 +235,14 @@ static void nbd_client_detach_aio_context(BlockDriverState *bs)
 
     /* Timer is deleted in nbd_client_co_drain_begin() */
     assert(!s->reconnect_delay_timer);
-    qio_channel_detach_aio_context(QIO_CHANNEL(s->ioc));
+    /*
+     * If reconnect is in progress we may have no ->ioc.  It will be
+     * re-instantiated in the proper aio context once the connection is
+     * reestablished.
+     */
+    if (s->ioc) {
+        qio_channel_detach_aio_context(QIO_CHANNEL(s->ioc));
+    }
 }
 
 static void nbd_client_attach_aio_context_bh(void *opaque)
@@ -243,13 +250,15 @@ static void nbd_client_attach_aio_context_bh(void *opaque)
     BlockDriverState *bs = opaque;
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
-    /*
-     * The node is still drained, so we know the coroutine has yielded in
-     * nbd_read_eof(), the only place where bs->in_flight can reach 0, or it is
-     * entered for the first time. Both places are safe for entering the
-     * coroutine.
-     */
-    qemu_aio_coroutine_enter(bs->aio_context, s->connection_co);
+    if (s->connection_co) {
+        /*
+         * The node is still drained, so we know the coroutine has yielded in
+         * nbd_read_eof(), the only place where bs->in_flight can reach 0, or
+         * it is entered for the first time. Both places are safe for entering
+         * the coroutine.
+         */
+        qemu_aio_coroutine_enter(bs->aio_context, s->connection_co);
+    }
     bdrv_dec_in_flight(bs);
 }
 
