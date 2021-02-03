@@ -106,7 +106,7 @@ class VirtiofsSubmountsTest(BootLinux):
             except:
                 time.sleep(4)
                 pass
-        self.fail('sshd timeout')
+        self.fail('ssh connection timeout')
 
     def ssh_command(self, command):
         self.ssh_logger.info(command)
