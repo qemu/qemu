@@ -290,13 +290,15 @@ class LinuxTest(Test):
         try:
             cloudinit_iso = os.path.join(self.workdir, 'cloudinit.iso')
             self.phone_home_port = network.find_free_port()
+            with open(ssh_pubkey) as pubkey:
+                pubkey_content = pubkey.read()
             cloudinit.iso(cloudinit_iso, self.name,
                           username='root',
                           password='password',
                           # QEMU's hard coded usermode router address
                           phone_home_host='10.0.2.2',
                           phone_home_port=self.phone_home_port,
-                          authorized_key=ssh_pubkey)
+                          authorized_key=pubkey_content)
         except Exception:
             self.cancel('Failed to prepare the cloudinit image')
         return cloudinit_iso
