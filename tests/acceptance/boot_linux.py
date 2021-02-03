@@ -70,7 +70,7 @@ class BootLinuxBase(Test):
                           phone_home_port=self.phone_home_port,
                           authorized_key=ssh_pubkey)
         except Exception:
-            self.cancel('Failed to prepared cloudinit image')
+            self.cancel('Failed to prepare the cloudinit image')
         return cloudinit_iso
 
 class BootLinux(BootLinuxBase):
