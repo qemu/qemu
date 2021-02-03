@@ -10,6 +10,7 @@
 
 import logging
 import os
+import shutil
 import sys
 import uuid
 import tempfile
@@ -254,7 +255,20 @@ class LinuxTest(Test):
         self.vm.add_args('-smp', '2')
         self.vm.add_args('-m', '1024')
         self.set_up_boot()
+        if ssh_pubkey is None:
+            ssh_pubkey, self.ssh_key = self.set_up_existing_ssh_keys()
         self.set_up_cloudinit(ssh_pubkey)
+
+    def set_up_existing_ssh_keys(self):
+        ssh_public_key = os.path.join(SOURCE_DIR, 'tests', 'keys', 'id_rsa.pub')
+        source_private_key = os.path.join(SOURCE_DIR, 'tests', 'keys', 'id_rsa')
+        ssh_dir = os.path.join(self.workdir, '.ssh')
+        os.mkdir(ssh_dir, mode=0o700)
+        ssh_private_key = os.path.join(ssh_dir,
+                                       os.path.basename(source_private_key))
+        shutil.copyfile(source_private_key, ssh_private_key)
+        os.chmod(ssh_private_key, 0o600)
+        return (ssh_public_key, ssh_private_key)
 
     def download_boot(self):
         self.log.debug('Looking for and selecting a qemu-img binary to be '
