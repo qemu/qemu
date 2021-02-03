@@ -83,7 +83,7 @@ class VirtiofsSubmountsTest(BootLinux):
                               command_line='info usernet')
         for line in res.split('\r\n'):
             match = \
-                re.search(r'TCP.HOST_FORWARD.*127\.0\.0\.1\s*(\d+)\s+10\.',
+                re.search(r'TCP.HOST_FORWARD.*127\.0\.0\.1\s+(\d+)\s+10\.',
                           line)
             if match is not None:
                 port = int(match[1])
