@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "hw/core/tcg-cpu-ops.h"
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg.h"
@@ -187,8 +188,8 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
     clear_helper_retaddr();
 
     cc = CPU_GET_CLASS(cpu);
-    cc->tcg_ops.tlb_fill(cpu, address, 0, access_type,
-                         MMU_USER_IDX, false, pc);
+    cc->tcg_ops->tlb_fill(cpu, address, 0, access_type,
+                          MMU_USER_IDX, false, pc);
     g_assert_not_reached();
 }
 
@@ -218,8 +219,8 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
         } else {
             CPUState *cpu = env_cpu(env);
             CPUClass *cc = CPU_GET_CLASS(cpu);
-            cc->tcg_ops.tlb_fill(cpu, addr, fault_size, access_type,
-                                 MMU_USER_IDX, false, ra);
+            cc->tcg_ops->tlb_fill(cpu, addr, fault_size, access_type,
+                                  MMU_USER_IDX, false, ra);
             g_assert_not_reached();
         }
     }

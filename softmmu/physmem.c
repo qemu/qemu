@@ -24,6 +24,11 @@
 #include "qemu/cutils.h"
 #include "qemu/cacheflush.h"
 #include "cpu.h"
+
+#ifdef CONFIG_TCG
+#include "hw/core/tcg-cpu-ops.h"
+#endif /* CONFIG_TCG */
+
 #include "exec/exec-all.h"
 #include "exec/target_page.h"
 #include "hw/qdev-core.h"
@@ -894,9 +899,9 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
         return;
     }
 
-    if (cc->tcg_ops.adjust_watchpoint_address) {
+    if (cc->tcg_ops->adjust_watchpoint_address) {
         /* this is currently used only by ARM BE32 */
-        addr = cc->tcg_ops.adjust_watchpoint_address(cpu, addr, len);
+        addr = cc->tcg_ops->adjust_watchpoint_address(cpu, addr, len);
     }
     QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
         if (watchpoint_address_matches(wp, addr, len)
@@ -917,8 +922,8 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
             wp->hitaddr = MAX(addr, wp->vaddr);
             wp->hitattrs = attrs;
             if (!cpu->watchpoint_hit) {
-                if (wp->flags & BP_CPU && cc->tcg_ops.debug_check_watchpoint &&
-                    !cc->tcg_ops.debug_check_watchpoint(cpu, wp)) {
+                if (wp->flags & BP_CPU && cc->tcg_ops->debug_check_watchpoint &&
+                    !cc->tcg_ops->debug_check_watchpoint(cpu, wp)) {
                     wp->flags &= ~BP_WATCHPOINT_HIT;
                     continue;
                 }

@@ -10,6 +10,9 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#ifdef CONFIG_TCG
+#include "hw/core/tcg-cpu-ops.h"
+#endif /* CONFIG_TCG */
 #include "internals.h"
 
 /* CPU models. These are not needed for the AArch64 linux-user build. */
@@ -34,7 +37,7 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     if (interrupt_request & CPU_INTERRUPT_HARD
         && (armv7m_nvic_can_take_pending_exception(env->nvic))) {
         cs->exception_index = EXCP_IRQ;
-        cc->tcg_ops.do_interrupt(cs);
+        cc->tcg_ops->do_interrupt(cs);
         ret = true;
     }
     return ret;
@@ -660,6 +663,24 @@ static void pxa270c5_initfn(Object *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+#ifdef CONFIG_TCG
+static struct TCGCPUOps arm_v7m_tcg_ops = {
+    .initialize = arm_translate_init,
+    .synchronize_from_tb = arm_cpu_synchronize_from_tb,
+    .cpu_exec_interrupt = arm_v7m_cpu_exec_interrupt,
+    .tlb_fill = arm_cpu_tlb_fill,
+    .debug_excp_handler = arm_debug_excp_handler,
+
+#if !defined(CONFIG_USER_ONLY)
+    .do_interrupt = arm_v7m_cpu_do_interrupt,
+    .do_transaction_failed = arm_cpu_do_transaction_failed,
+    .do_unaligned_access = arm_cpu_do_unaligned_access,
+    .adjust_watchpoint_address = arm_adjust_watchpoint_address,
+    .debug_check_watchpoint = arm_debug_check_watchpoint,
+#endif /* !CONFIG_USER_ONLY */
+};
+#endif /* CONFIG_TCG */
+
 static void arm_v7m_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -667,10 +688,7 @@ static void arm_v7m_class_init(ObjectClass *oc, void *data)
 
     acc->info = data;
 #ifdef CONFIG_TCG
-    cc->tcg_ops.cpu_exec_interrupt = arm_v7m_cpu_exec_interrupt;
-#ifndef CONFIG_USER_ONLY
-    cc->tcg_ops.do_interrupt = arm_v7m_cpu_do_interrupt;
-#endif
+    cc->tcg_ops = &arm_v7m_tcg_ops;
 #endif /* CONFIG_TCG */
 
     cc->gdb_core_xml_file = "arm-m-profile.xml";

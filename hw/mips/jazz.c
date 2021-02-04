@@ -53,6 +53,9 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
+#ifdef CONFIG_TCG
+#include "hw/core/tcg-cpu-ops.h"
+#endif /* CONFIG_TCG */
 
 enum jazz_model_e {
     JAZZ_MAGNUM,
@@ -209,8 +212,8 @@ static void mips_jazz_init(MachineState *machine,
      */
     cc = CPU_GET_CLASS(cpu);
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
-    real_do_transaction_failed = cc->tcg_ops.do_transaction_failed;
-    cc->tcg_ops.do_transaction_failed = mips_jazz_do_transaction_failed;
+    real_do_transaction_failed = cc->tcg_ops->do_transaction_failed;
+    cc->tcg_ops->do_transaction_failed = mips_jazz_do_transaction_failed;
 #endif /* CONFIG_TCG && !CONFIG_USER_ONLY */
 
     /* allocate RAM */

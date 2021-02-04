@@ -26,6 +26,9 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "cpu.h"
+#ifdef CONFIG_TCG
+#include "hw/core/tcg-cpu-ops.h"
+#endif /* CONFIG_TCG */
 #include "internals.h"
 #include "exec/exec-all.h"
 #include "hw/qdev-properties.h"
@@ -55,8 +58,8 @@ static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 }
 
 #ifdef CONFIG_TCG
-static void arm_cpu_synchronize_from_tb(CPUState *cs,
-                                        const TranslationBlock *tb)
+void arm_cpu_synchronize_from_tb(CPUState *cs,
+                                 const TranslationBlock *tb)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -590,7 +593,7 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
  found:
     cs->exception_index = excp_idx;
     env->exception.target_el = target_el;
-    cc->tcg_ops.do_interrupt(cs);
+    cc->tcg_ops->do_interrupt(cs);
     return true;
 }
 
@@ -2242,6 +2245,24 @@ static gchar *arm_gdb_arch_name(CPUState *cs)
     return g_strdup("arm");
 }
 
+#ifdef CONFIG_TCG
+static struct TCGCPUOps arm_tcg_ops = {
+    .initialize = arm_translate_init,
+    .synchronize_from_tb = arm_cpu_synchronize_from_tb,
+    .cpu_exec_interrupt = arm_cpu_exec_interrupt,
+    .tlb_fill = arm_cpu_tlb_fill,
+    .debug_excp_handler = arm_debug_excp_handler,
+
+#if !defined(CONFIG_USER_ONLY)
+    .do_interrupt = arm_cpu_do_interrupt,
+    .do_transaction_failed = arm_cpu_do_transaction_failed,
+    .do_unaligned_access = arm_cpu_do_unaligned_access,
+    .adjust_watchpoint_address = arm_adjust_watchpoint_address,
+    .debug_check_watchpoint = arm_debug_check_watchpoint,
+#endif /* !CONFIG_USER_ONLY */
+};
+#endif /* CONFIG_TCG */
+
 static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -2274,19 +2295,9 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_get_dynamic_xml = arm_gdb_get_dynamic_xml;
     cc->gdb_stop_before_watchpoint = true;
     cc->disas_set_info = arm_disas_set_info;
+
 #ifdef CONFIG_TCG
-    cc->tcg_ops.initialize = arm_translate_init;
-    cc->tcg_ops.cpu_exec_interrupt = arm_cpu_exec_interrupt;
-    cc->tcg_ops.synchronize_from_tb = arm_cpu_synchronize_from_tb;
-    cc->tcg_ops.tlb_fill = arm_cpu_tlb_fill;
-    cc->tcg_ops.debug_excp_handler = arm_debug_excp_handler;
-#if !defined(CONFIG_USER_ONLY)
-    cc->tcg_ops.do_interrupt = arm_cpu_do_interrupt;
-    cc->tcg_ops.do_transaction_failed = arm_cpu_do_transaction_failed;
-    cc->tcg_ops.do_unaligned_access = arm_cpu_do_unaligned_access;
-    cc->tcg_ops.adjust_watchpoint_address = arm_adjust_watchpoint_address;
-    cc->tcg_ops.debug_check_watchpoint = arm_debug_check_watchpoint;
-#endif /* CONFIG_TCG && !CONFIG_USER_ONLY */
+    cc->tcg_ops = &arm_tcg_ops;
 #endif /* CONFIG_TCG */
 }
 

@@ -663,6 +663,26 @@ static Property mips_cpu_properties[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
+#ifdef CONFIG_TCG
+#include "hw/core/tcg-cpu-ops.h"
+/*
+ * NB: cannot be const, as some elements are changed for specific
+ * mips hardware (see hw/mips/jazz.c).
+ */
+static struct TCGCPUOps mips_tcg_ops = {
+    .initialize = mips_tcg_init,
+    .synchronize_from_tb = mips_cpu_synchronize_from_tb,
+    .cpu_exec_interrupt = mips_cpu_exec_interrupt,
+    .tlb_fill = mips_cpu_tlb_fill,
+
+#if !defined(CONFIG_USER_ONLY)
+    .do_interrupt = mips_cpu_do_interrupt,
+    .do_transaction_failed = mips_cpu_do_transaction_failed,
+    .do_unaligned_access = mips_cpu_do_unaligned_access,
+#endif /* !CONFIG_USER_ONLY */
+};
+#endif /* CONFIG_TCG */
+
 static void mips_cpu_class_init(ObjectClass *c, void *data)
 {
     MIPSCPUClass *mcc = MIPS_CPU_CLASS(c);
@@ -685,21 +705,11 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->vmsd = &vmstate_mips_cpu;
 #endif
     cc->disas_set_info = mips_cpu_disas_set_info;
-#ifdef CONFIG_TCG
-    cc->tcg_ops.initialize = mips_tcg_init;
-    cc->tcg_ops.do_interrupt = mips_cpu_do_interrupt;
-    cc->tcg_ops.cpu_exec_interrupt = mips_cpu_exec_interrupt;
-    cc->tcg_ops.synchronize_from_tb = mips_cpu_synchronize_from_tb;
-    cc->tcg_ops.tlb_fill = mips_cpu_tlb_fill;
-#ifndef CONFIG_USER_ONLY
-    cc->tcg_ops.do_transaction_failed = mips_cpu_do_transaction_failed;
-    cc->tcg_ops.do_unaligned_access = mips_cpu_do_unaligned_access;
-
-#endif /* CONFIG_USER_ONLY */
-#endif /* CONFIG_TCG */
-
     cc->gdb_num_core_regs = 73;
     cc->gdb_stop_before_watchpoint = true;
+#ifdef CONFIG_TCG
+    cc->tcg_ops = &mips_tcg_ops;
+#endif /* CONFIG_TCG */
 }
 
 static const TypeInfo mips_cpu_type_info = {

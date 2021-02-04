@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
+#include "hw/core/tcg-cpu-ops.h"
 #include "exec/exec-all.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
@@ -1305,9 +1306,35 @@ static void tlb_fill(CPUState *cpu, target_ulong addr, int size,
      * This is not a probe, so only valid return is success; failure
      * should result in exception + longjmp to the cpu loop.
      */
-    ok = cc->tcg_ops.tlb_fill(cpu, addr, size,
-                              access_type, mmu_idx, false, retaddr);
+    ok = cc->tcg_ops->tlb_fill(cpu, addr, size,
+                               access_type, mmu_idx, false, retaddr);
     assert(ok);
+}
+
+static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
+                                        MMUAccessType access_type,
+                                        int mmu_idx, uintptr_t retaddr)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    cc->tcg_ops->do_unaligned_access(cpu, addr, access_type, mmu_idx, retaddr);
+}
+
+static inline void cpu_transaction_failed(CPUState *cpu, hwaddr physaddr,
+                                          vaddr addr, unsigned size,
+                                          MMUAccessType access_type,
+                                          int mmu_idx, MemTxAttrs attrs,
+                                          MemTxResult response,
+                                          uintptr_t retaddr)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (!cpu->ignore_memory_transaction_failures &&
+        cc->tcg_ops->do_transaction_failed) {
+        cc->tcg_ops->do_transaction_failed(cpu, physaddr, addr, size,
+                                           access_type, mmu_idx, attrs,
+                                           response, retaddr);
+    }
 }
 
 static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
@@ -1577,8 +1604,8 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
             CPUState *cs = env_cpu(env);
             CPUClass *cc = CPU_GET_CLASS(cs);
 
-            if (!cc->tcg_ops.tlb_fill(cs, addr, fault_size, access_type,
-                                      mmu_idx, nonfault, retaddr)) {
+            if (!cc->tcg_ops->tlb_fill(cs, addr, fault_size, access_type,
+                                       mmu_idx, nonfault, retaddr)) {
                 /* Non-faulting page table read failed.  */
                 *phost = NULL;
                 return TLB_INVALID_MASK;

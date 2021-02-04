@@ -10827,6 +10827,23 @@ static Property ppc_cpu_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+#ifdef CONFIG_TCG
+#include "hw/core/tcg-cpu-ops.h"
+
+static struct TCGCPUOps ppc_tcg_ops = {
+  .initialize = ppc_translate_init,
+  .cpu_exec_interrupt = ppc_cpu_exec_interrupt,
+  .tlb_fill = ppc_cpu_tlb_fill,
+
+#ifndef CONFIG_USER_ONLY
+  .do_interrupt = ppc_cpu_do_interrupt,
+  .cpu_exec_enter = ppc_cpu_exec_enter,
+  .cpu_exec_exit = ppc_cpu_exec_exit,
+  .do_unaligned_access = ppc_cpu_do_unaligned_access,
+#endif /* !CONFIG_USER_ONLY */
+};
+#endif /* CONFIG_TCG */
+
 static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
@@ -10878,21 +10895,13 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 #ifndef CONFIG_USER_ONLY
     cc->virtio_is_big_endian = ppc_cpu_is_big_endian;
 #endif
-#ifdef CONFIG_TCG
-    cc->tcg_ops.initialize = ppc_translate_init;
-    cc->tcg_ops.cpu_exec_interrupt = ppc_cpu_exec_interrupt;
-    cc->tcg_ops.do_interrupt = ppc_cpu_do_interrupt;
-    cc->tcg_ops.tlb_fill = ppc_cpu_tlb_fill;
-#ifndef CONFIG_USER_ONLY
-    cc->tcg_ops.cpu_exec_enter = ppc_cpu_exec_enter;
-    cc->tcg_ops.cpu_exec_exit = ppc_cpu_exec_exit;
-    cc->tcg_ops.do_unaligned_access = ppc_cpu_do_unaligned_access;
-#endif /* !CONFIG_USER_ONLY */
-#endif /* CONFIG_TCG */
-
     cc->disas_set_info = ppc_disas_set_info;
 
     dc->fw_name = "PowerPC,UNKNOWN";
+
+#ifdef CONFIG_TCG
+    cc->tcg_ops = &ppc_tcg_ops;
+#endif /* CONFIG_TCG */
 }
 
 static const TypeInfo ppc_cpu_type_info = {
