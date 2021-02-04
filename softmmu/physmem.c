@@ -894,7 +894,10 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
         return;
     }
 
-    addr = cc->adjust_watchpoint_address(cpu, addr, len);
+    if (cc->tcg_ops.adjust_watchpoint_address) {
+        /* this is currently used only by ARM BE32 */
+        addr = cc->tcg_ops.adjust_watchpoint_address(cpu, addr, len);
+    }
     QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
         if (watchpoint_address_matches(wp, addr, len)
             && (wp->flags & flags)) {
