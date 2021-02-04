@@ -2280,12 +2280,12 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->tcg_ops.synchronize_from_tb = arm_cpu_synchronize_from_tb;
     cc->tcg_ops.tlb_fill = arm_cpu_tlb_fill;
     cc->tcg_ops.debug_excp_handler = arm_debug_excp_handler;
-    cc->debug_check_watchpoint = arm_debug_check_watchpoint;
 #if !defined(CONFIG_USER_ONLY)
+    cc->tcg_ops.do_interrupt = arm_cpu_do_interrupt;
     cc->tcg_ops.do_transaction_failed = arm_cpu_do_transaction_failed;
     cc->tcg_ops.do_unaligned_access = arm_cpu_do_unaligned_access;
     cc->tcg_ops.adjust_watchpoint_address = arm_adjust_watchpoint_address;
-    cc->tcg_ops.do_interrupt = arm_cpu_do_interrupt;
+    cc->tcg_ops.debug_check_watchpoint = arm_debug_check_watchpoint;
 #endif /* CONFIG_TCG && !CONFIG_USER_ONLY */
 #endif /* CONFIG_TCG */
 }

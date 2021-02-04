@@ -917,8 +917,8 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
             wp->hitaddr = MAX(addr, wp->vaddr);
             wp->hitattrs = attrs;
             if (!cpu->watchpoint_hit) {
-                if (wp->flags & BP_CPU &&
-                    !cc->debug_check_watchpoint(cpu, wp)) {
+                if (wp->flags & BP_CPU && cc->tcg_ops.debug_check_watchpoint &&
+                    !cc->tcg_ops.debug_check_watchpoint(cpu, wp)) {
                     wp->flags &= ~BP_WATCHPOINT_HIT;
                     continue;
                 }
