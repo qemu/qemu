@@ -143,6 +143,7 @@ static char *replay_find_nearest_snapshot(int64_t icount,
     QEMUSnapshotInfo *sn_tab;
     QEMUSnapshotInfo *nearest = NULL;
     char *ret = NULL;
+    int rv;
     int nb_sns, i;
     AioContext *aio_context;
 
@@ -159,7 +160,10 @@ static char *replay_find_nearest_snapshot(int64_t icount,
     aio_context_release(aio_context);
 
     for (i = 0; i < nb_sns; i++) {
-        if (bdrv_all_find_snapshot(sn_tab[i].name, false, NULL, NULL) == 0) {
+        rv = bdrv_all_has_snapshot(sn_tab[i].name, false, NULL, NULL);
+        if (rv < 0)
+            goto fail;
+        if (rv == 1) {
             if (sn_tab[i].icount != -1ULL
                 && sn_tab[i].icount <= icount
                 && (!nearest || nearest->icount < sn_tab[i].icount)) {
