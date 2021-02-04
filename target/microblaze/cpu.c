@@ -365,7 +365,6 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = mb_cpu_class_by_name;
     cc->has_work = mb_cpu_has_work;
     cc->tcg_ops.do_interrupt = mb_cpu_do_interrupt;
-    cc->do_unaligned_access = mb_cpu_do_unaligned_access;
     cc->tcg_ops.cpu_exec_interrupt = mb_cpu_exec_interrupt;
     cc->dump_state = mb_cpu_dump_state;
     cc->set_pc = mb_cpu_set_pc;
@@ -375,6 +374,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->tcg_ops.tlb_fill = mb_cpu_tlb_fill;
 #ifndef CONFIG_USER_ONLY
     cc->tcg_ops.do_transaction_failed = mb_cpu_transaction_failed;
+    cc->tcg_ops.do_unaligned_access = mb_cpu_do_unaligned_access;
     cc->get_phys_page_attrs_debug = mb_cpu_get_phys_page_attrs_debug;
     dc->vmsd = &vmstate_mb_cpu;
 #endif

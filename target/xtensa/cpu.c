@@ -203,7 +203,7 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_stop_before_watchpoint = true;
     cc->tcg_ops.tlb_fill = xtensa_cpu_tlb_fill;
 #ifndef CONFIG_USER_ONLY
-    cc->do_unaligned_access = xtensa_cpu_do_unaligned_access;
+    cc->tcg_ops.do_unaligned_access = xtensa_cpu_do_unaligned_access;
     cc->get_phys_page_debug = xtensa_cpu_get_phys_page_debug;
     cc->tcg_ops.do_transaction_failed = xtensa_cpu_do_transaction_failed;
 #endif
