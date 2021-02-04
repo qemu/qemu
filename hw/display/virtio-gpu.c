@@ -814,6 +814,10 @@ void virtio_gpu_process_cmdq(VirtIOGPU *g)
 {
     struct virtio_gpu_ctrl_command *cmd;
 
+    if (g->processing_cmdq) {
+        return;
+    }
+    g->processing_cmdq = true;
     while (!QTAILQ_EMPTY(&g->cmdq)) {
         cmd = QTAILQ_FIRST(&g->cmdq);
 
@@ -843,6 +847,7 @@ void virtio_gpu_process_cmdq(VirtIOGPU *g)
             g_free(cmd);
         }
     }
+    g->processing_cmdq = false;
 }
 
 static void virtio_gpu_gl_unblock(VirtIOGPUBase *b)
