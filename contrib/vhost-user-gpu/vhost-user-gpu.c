@@ -124,7 +124,7 @@ source_wait_cb(gint fd, GIOCondition condition, gpointer user_data)
     }
 
     /* resume */
-    g->wait_ok = 0;
+    g->wait_in = 0;
     vg_handle_ctrl(&g->dev.parent, 0);
 
     return G_SOURCE_REMOVE;
@@ -133,8 +133,8 @@ source_wait_cb(gint fd, GIOCondition condition, gpointer user_data)
 void
 vg_wait_ok(VuGpu *g)
 {
-    assert(g->wait_ok == 0);
-    g->wait_ok = g_unix_fd_add(g->sock_fd, G_IO_IN | G_IO_HUP,
+    assert(g->wait_in == 0);
+    g->wait_in = g_unix_fd_add(g->sock_fd, G_IO_IN | G_IO_HUP,
                                source_wait_cb, g);
 }
 
@@ -270,7 +270,7 @@ vg_get_display_info(VuGpu *vg, struct virtio_gpu_ctrl_command *cmd)
         .size = 0,
     };
 
-    assert(vg->wait_ok == 0);
+    assert(vg->wait_in == 0);
 
     vg_send_msg(vg, &msg, -1);
     if (!vg_recv_msg(vg, msg.request, sizeof(dpy_info), &dpy_info)) {
@@ -815,7 +815,7 @@ vg_handle_ctrl(VuDev *dev, int qidx)
     size_t len;
 
     for (;;) {
-        if (vg->wait_ok != 0) {
+        if (vg->wait_in != 0) {
             return;
         }
 
@@ -969,18 +969,17 @@ vg_queue_set_started(VuDev *dev, int qidx, bool started)
     }
 }
 
-static void
-set_gpu_protocol_features(VuGpu *g)
+static gboolean
+protocol_features_cb(gint fd, GIOCondition condition, gpointer user_data)
 {
+    VuGpu *g = user_data;
     uint64_t u64;
     VhostUserGpuMsg msg = {
         .request = VHOST_USER_GPU_GET_PROTOCOL_FEATURES
     };
 
-    assert(g->wait_ok == 0);
-    vg_send_msg(g, &msg, -1);
     if (!vg_recv_msg(g, msg.request, sizeof(u64), &u64)) {
-        return;
+        return G_SOURCE_CONTINUE;
     }
 
     msg = (VhostUserGpuMsg) {
@@ -989,6 +988,24 @@ set_gpu_protocol_features(VuGpu *g)
         .payload.u64 = 0
     };
     vg_send_msg(g, &msg, -1);
+
+    g->wait_in = 0;
+    vg_handle_ctrl(&g->dev.parent, 0);
+
+    return G_SOURCE_REMOVE;
+}
+
+static void
+set_gpu_protocol_features(VuGpu *g)
+{
+    VhostUserGpuMsg msg = {
+        .request = VHOST_USER_GPU_GET_PROTOCOL_FEATURES
+    };
+
+    vg_send_msg(g, &msg, -1);
+    assert(g->wait_in == 0);
+    g->wait_in = g_unix_fd_add(g->sock_fd, G_IO_IN | G_IO_HUP,
+                               protocol_features_cb, g);
 }
 
 static int

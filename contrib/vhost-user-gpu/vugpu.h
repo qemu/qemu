@@ -118,7 +118,7 @@ typedef struct VuGpu {
     int sock_fd;
     int drm_rnode_fd;
     GSource *renderer_source;
-    guint wait_ok;
+    guint wait_in;
 
     bool virgl;
     bool virgl_inited;
