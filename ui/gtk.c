@@ -623,6 +623,13 @@ static const DisplayChangeListenerOps dcl_ops = {
 
 #if defined(CONFIG_OPENGL)
 
+static bool gd_has_dmabuf(DisplayChangeListener *dcl)
+{
+    VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
+
+    return vc->gfx.has_dmabuf;
+}
+
 /** DisplayState Callbacks (opengl version) **/
 
 static const DisplayChangeListenerOps dcl_gl_area_ops = {
@@ -661,6 +668,7 @@ static const DisplayChangeListenerOps dcl_egl_ops = {
     .dpy_gl_cursor_position  = gd_egl_cursor_position,
     .dpy_gl_release_dmabuf   = gd_egl_release_dmabuf,
     .dpy_gl_update           = gd_egl_scanout_flush,
+    .dpy_has_dmabuf          = gd_has_dmabuf,
 };
 
 #endif /* CONFIG_OPENGL */
@@ -2004,6 +2012,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
             gtk_widget_set_double_buffered(vc->gfx.drawing_area, FALSE);
 #pragma GCC diagnostic pop
             vc->gfx.dcl.ops = &dcl_egl_ops;
+            vc->gfx.has_dmabuf = qemu_egl_has_dmabuf();
         }
     } else
 #endif
