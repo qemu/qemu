@@ -1,7 +1,7 @@
 kvm_ss = ss.source_set()
 kvm_ss.add(files(
   'kvm-all.c',
-  'kvm-cpus.c',
+  'kvm-accel-ops.c',
 ))
 kvm_ss.add(when: 'CONFIG_SEV', if_false: files('sev-stub.c'))
 

@@ -15,7 +15,7 @@
 #include <sys/ioctl.h>
 
 #include "sysemu/cpus.h"
-#include "hax-cpus.h"
+#include "hax-accel-ops.h"
 
 hax_fd hax_mod_open(void)
 {

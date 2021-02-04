@@ -13,7 +13,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 
-#include "hax-cpus.h"
+#include "hax-accel-ops.h"
 #include "qemu/queue.h"
 
 #define DEBUG_HAX_MEM 0

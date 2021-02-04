@@ -26,7 +26,7 @@
 #include "sysemu/cpus.h"
 #include "qemu/guest-random.h"
 
-#include "hax-cpus.h"
+#include "hax-accel-ops.h"
 
 static void *hax_cpu_thread_fn(void *arg)
 {
@@ -74,12 +74,29 @@ static void hax_start_vcpu_thread(CPUState *cpu)
 #endif
 }
 
-const CpusAccel hax_cpus = {
-    .create_vcpu_thread = hax_start_vcpu_thread,
-    .kick_vcpu_thread = hax_kick_vcpu_thread,
+static void hax_accel_ops_class_init(ObjectClass *oc, void *data)
+{
+    AccelOpsClass *ops = ACCEL_OPS_CLASS(oc);
 
-    .synchronize_post_reset = hax_cpu_synchronize_post_reset,
-    .synchronize_post_init = hax_cpu_synchronize_post_init,
-    .synchronize_state = hax_cpu_synchronize_state,
-    .synchronize_pre_loadvm = hax_cpu_synchronize_pre_loadvm,
+    ops->create_vcpu_thread = hax_start_vcpu_thread;
+    ops->kick_vcpu_thread = hax_kick_vcpu_thread;
+
+    ops->synchronize_post_reset = hax_cpu_synchronize_post_reset;
+    ops->synchronize_post_init = hax_cpu_synchronize_post_init;
+    ops->synchronize_state = hax_cpu_synchronize_state;
+    ops->synchronize_pre_loadvm = hax_cpu_synchronize_pre_loadvm;
+}
+
+static const TypeInfo hax_accel_ops_type = {
+    .name = ACCEL_OPS_NAME("hax"),
+
+    .parent = TYPE_ACCEL_OPS,
+    .class_init = hax_accel_ops_class_init,
+    .abstract = true,
 };
+
+static void hax_accel_ops_register_types(void)
+{
+    type_register_static(&hax_accel_ops_type);
+}
+type_init(hax_accel_ops_register_types);

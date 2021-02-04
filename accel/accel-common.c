@@ -26,6 +26,10 @@
 #include "qemu/osdep.h"
 #include "qemu/accel.h"
 
+#ifndef CONFIG_USER_ONLY
+#include "accel-softmmu.h"
+#endif /* !CONFIG_USER_ONLY */
+
 static const TypeInfo accel_type = {
     .name = TYPE_ACCEL,
     .parent = TYPE_OBJECT,
@@ -40,6 +44,13 @@ AccelClass *accel_find(const char *opt_name)
     AccelClass *ac = ACCEL_CLASS(object_class_by_name(class_name));
     g_free(class_name);
     return ac;
+}
+
+void accel_init_interfaces(AccelClass *ac)
+{
+#ifndef CONFIG_USER_ONLY
+    accel_init_ops_interfaces(ac);
+#endif /* !CONFIG_USER_ONLY */
 }
 
 static void register_accel_types(void)

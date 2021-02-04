@@ -34,7 +34,10 @@
 #include "exec/exec-all.h"
 #include "hw/boards.h"
 
-#include "tcg-cpus.h"
+#include "tcg-accel-ops.h"
+#include "tcg-accel-ops-mttcg.h"
+#include "tcg-accel-ops-rr.h"
+#include "tcg-accel-ops-icount.h"
 
 /* common functionality among all TCG variants */
 
@@ -64,7 +67,7 @@ int tcg_cpus_exec(CPUState *cpu)
 }
 
 /* mask must never be zero, except for A20 change call */
-void tcg_cpus_handle_interrupt(CPUState *cpu, int mask)
+void tcg_handle_interrupt(CPUState *cpu, int mask)
 {
     g_assert(qemu_mutex_iothread_locked());
 
@@ -80,3 +83,43 @@ void tcg_cpus_handle_interrupt(CPUState *cpu, int mask)
         qatomic_set(&cpu_neg(cpu)->icount_decr.u16.high, -1);
     }
 }
+
+static void tcg_accel_ops_init(AccelOpsClass *ops)
+{
+    if (qemu_tcg_mttcg_enabled()) {
+        ops->create_vcpu_thread = mttcg_start_vcpu_thread;
+        ops->kick_vcpu_thread = mttcg_kick_vcpu_thread;
+        ops->handle_interrupt = tcg_handle_interrupt;
+    } else if (icount_enabled()) {
+        ops->create_vcpu_thread = rr_start_vcpu_thread;
+        ops->kick_vcpu_thread = rr_kick_vcpu_thread;
+        ops->handle_interrupt = icount_handle_interrupt;
+        ops->get_virtual_clock = icount_get;
+        ops->get_elapsed_ticks = icount_get;
+    } else {
+        ops->create_vcpu_thread = rr_start_vcpu_thread;
+        ops->kick_vcpu_thread = rr_kick_vcpu_thread;
+        ops->handle_interrupt = tcg_handle_interrupt;
+    }
+}
+
+static void tcg_accel_ops_class_init(ObjectClass *oc, void *data)
+{
+    AccelOpsClass *ops = ACCEL_OPS_CLASS(oc);
+
+    ops->ops_init = tcg_accel_ops_init;
+}
+
+static const TypeInfo tcg_accel_ops_type = {
+    .name = ACCEL_OPS_NAME("tcg"),
+
+    .parent = TYPE_ACCEL_OPS,
+    .class_init = tcg_accel_ops_class_init,
+    .abstract = true,
+};
+
+static void tcg_accel_ops_register_types(void)
+{
+    type_register_static(&tcg_accel_ops_type);
+}
+type_init(tcg_accel_ops_register_types);
