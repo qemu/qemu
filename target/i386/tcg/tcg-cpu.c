@@ -59,7 +59,7 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs,
 
 void tcg_cpu_common_class_init(CPUClass *cc)
 {
-    cc->do_interrupt = x86_cpu_do_interrupt;
+    cc->tcg_ops.do_interrupt = x86_cpu_do_interrupt;
     cc->tcg_ops.cpu_exec_interrupt = x86_cpu_exec_interrupt;
     cc->tcg_ops.synchronize_from_tb = x86_cpu_synchronize_from_tb;
     cc->tcg_ops.cpu_exec_enter = x86_cpu_exec_enter;

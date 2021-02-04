@@ -34,7 +34,7 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     if (interrupt_request & CPU_INTERRUPT_HARD
         && (armv7m_nvic_can_take_pending_exception(env->nvic))) {
         cs->exception_index = EXCP_IRQ;
-        cc->do_interrupt(cs);
+        cc->tcg_ops.do_interrupt(cs);
         ret = true;
     }
     return ret;
@@ -666,12 +666,11 @@ static void arm_v7m_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
 
     acc->info = data;
-#ifndef CONFIG_USER_ONLY
-    cc->do_interrupt = arm_v7m_cpu_do_interrupt;
-#endif
-
 #ifdef CONFIG_TCG
     cc->tcg_ops.cpu_exec_interrupt = arm_v7m_cpu_exec_interrupt;
+#ifndef CONFIG_USER_ONLY
+    cc->tcg_ops.do_interrupt = arm_v7m_cpu_do_interrupt;
+#endif
 #endif /* CONFIG_TCG */
 
     cc->gdb_core_xml_file = "arm-m-profile.xml";
