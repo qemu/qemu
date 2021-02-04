@@ -201,7 +201,6 @@ typedef struct DisplayChangeListenerOps {
                                QEMUGLContext ctx);
     int (*dpy_gl_ctx_make_current)(DisplayChangeListener *dcl,
                                    QEMUGLContext ctx);
-    QEMUGLContext (*dpy_gl_ctx_get_current)(DisplayChangeListener *dcl);
 
     void (*dpy_gl_scanout_disable)(DisplayChangeListener *dcl);
     void (*dpy_gl_scanout_texture)(DisplayChangeListener *dcl,
@@ -303,7 +302,6 @@ QEMUGLContext dpy_gl_ctx_create(QemuConsole *con,
                                 QEMUGLParams *params);
 void dpy_gl_ctx_destroy(QemuConsole *con, QEMUGLContext ctx);
 int dpy_gl_ctx_make_current(QemuConsole *con, QEMUGLContext ctx);
-QEMUGLContext dpy_gl_ctx_get_current(QemuConsole *con);
 
 bool console_has_gl(QemuConsole *con);
 bool console_has_gl_dmabuf(QemuConsole *con);

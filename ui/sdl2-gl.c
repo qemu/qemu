@@ -185,14 +185,6 @@ int sdl2_gl_make_context_current(DisplayChangeListener *dcl,
     return SDL_GL_MakeCurrent(scon->real_window, sdlctx);
 }
 
-QEMUGLContext sdl2_gl_get_current_context(DisplayChangeListener *dcl)
-{
-    SDL_GLContext sdlctx;
-
-    sdlctx = SDL_GL_GetCurrentContext();
-    return (QEMUGLContext)sdlctx;
-}
-
 void sdl2_gl_scanout_disable(DisplayChangeListener *dcl)
 {
     struct sdl2_console *scon = container_of(dcl, struct sdl2_console, dcl);

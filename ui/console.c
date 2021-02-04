@@ -1803,12 +1803,6 @@ int dpy_gl_ctx_make_current(QemuConsole *con, QEMUGLContext ctx)
     return con->gl->ops->dpy_gl_ctx_make_current(con->gl, ctx);
 }
 
-QEMUGLContext dpy_gl_ctx_get_current(QemuConsole *con)
-{
-    assert(con->gl);
-    return con->gl->ops->dpy_gl_ctx_get_current(con->gl);
-}
-
 void dpy_gl_scanout_disable(QemuConsole *con)
 {
     assert(con->gl);
