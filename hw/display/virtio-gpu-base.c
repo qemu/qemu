@@ -97,10 +97,20 @@ static int virtio_gpu_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
 }
 
 static void
-virtio_gpu_gl_block(void *opaque, bool block)
+virtio_gpu_gl_flushed(void *opaque)
 {
     VirtIOGPUBase *g = opaque;
     VirtIOGPUBaseClass *vgc = VIRTIO_GPU_BASE_GET_CLASS(g);
+
+    if (vgc->gl_flushed) {
+        vgc->gl_flushed(g);
+    }
+}
+
+static void
+virtio_gpu_gl_block(void *opaque, bool block)
+{
+    VirtIOGPUBase *g = opaque;
 
     if (block) {
         g->renderer_blocked++;
@@ -108,10 +118,6 @@ virtio_gpu_gl_block(void *opaque, bool block)
         g->renderer_blocked--;
     }
     assert(g->renderer_blocked >= 0);
-
-    if (g->renderer_blocked == 0) {
-        vgc->gl_unblock(g);
-    }
 }
 
 static int
@@ -138,6 +144,7 @@ static const GraphicHwOps virtio_gpu_ops = {
     .text_update = virtio_gpu_text_update,
     .ui_info = virtio_gpu_ui_info,
     .gl_block = virtio_gpu_gl_block,
+    .gl_flushed = virtio_gpu_gl_flushed,
 };
 
 bool

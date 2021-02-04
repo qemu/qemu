@@ -294,6 +294,15 @@ void graphic_hw_gl_block(QemuConsole *con, bool block)
     }
 }
 
+void graphic_hw_gl_flushed(QemuConsole *con)
+{
+    assert(con != NULL);
+
+    if (con->hw_ops->gl_flushed) {
+        con->hw_ops->gl_flushed(con->hw);
+    }
+}
+
 int qemu_console_get_window_id(QemuConsole *con)
 {
     return con->window_id;

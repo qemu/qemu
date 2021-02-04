@@ -121,7 +121,7 @@ struct VirtIOGPUBase {
 struct VirtIOGPUBaseClass {
     VirtioDeviceClass parent;
 
-    void (*gl_unblock)(VirtIOGPUBase *g);
+    void (*gl_flushed)(VirtIOGPUBase *g);
 };
 
 #define VIRTIO_GPU_BASE_PROPERTIES(_state, _conf)                       \

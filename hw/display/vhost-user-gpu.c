@@ -360,7 +360,7 @@ vhost_user_gpu_update_blocked(VhostUserGPU *g, bool blocked)
 }
 
 static void
-vhost_user_gpu_gl_unblock(VirtIOGPUBase *b)
+vhost_user_gpu_gl_flushed(VirtIOGPUBase *b)
 {
     VhostUserGPU *g = VHOST_USER_GPU(b);
 
@@ -578,7 +578,7 @@ vhost_user_gpu_class_init(ObjectClass *klass, void *data)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOGPUBaseClass *vgc = VIRTIO_GPU_BASE_CLASS(klass);
 
-    vgc->gl_unblock = vhost_user_gpu_gl_unblock;
+    vgc->gl_flushed = vhost_user_gpu_gl_flushed;
 
     vdc->realize = vhost_user_gpu_device_realize;
     vdc->reset = vhost_user_gpu_reset;
