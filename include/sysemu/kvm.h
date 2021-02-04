@@ -17,7 +17,7 @@
 #include "qemu/queue.h"
 #include "hw/core/cpu.h"
 #include "exec/memattrs.h"
-#include "sysemu/accel.h"
+#include "qemu/accel.h"
 #include "qom/object.h"
 
 #ifdef NEED_CPU_H

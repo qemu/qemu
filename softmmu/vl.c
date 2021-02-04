@@ -44,7 +44,7 @@
 
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
-#include "sysemu/accel.h"
+#include "qemu/accel.h"
 #include "hw/usb.h"
 #include "hw/isa/isa.h"
 #include "hw/scsi/scsi.h"

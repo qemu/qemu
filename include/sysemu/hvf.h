@@ -13,7 +13,7 @@
 #ifndef HVF_H
 #define HVF_H
 
-#include "sysemu/accel.h"
+#include "qemu/accel.h"
 #include "qom/object.h"
 
 #ifdef CONFIG_HVF

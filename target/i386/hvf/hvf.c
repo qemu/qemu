@@ -69,7 +69,7 @@
 #include "exec/address-spaces.h"
 #include "hw/i386/apic_internal.h"
 #include "qemu/main-loop.h"
-#include "sysemu/accel.h"
+#include "qemu/accel.h"
 #include "target/i386/cpu.h"
 
 #include "hvf-cpus.h"

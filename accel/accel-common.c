@@ -1,5 +1,5 @@
 /*
- * QEMU System Emulator, accelerator interfaces
+ * QEMU accel class, components common to system emulation and user mode
  *
  * Copyright (c) 2003-2008 Fabrice Bellard
  * Copyright (c) 2014 Red Hat Inc.
@@ -24,11 +24,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/accel.h"
-#include "hw/boards.h"
-#include "sysemu/arch_init.h"
-#include "sysemu/sysemu.h"
-#include "qom/object.h"
+#include "qemu/accel.h"
 
 static const TypeInfo accel_type = {
     .name = TYPE_ACCEL,
@@ -44,37 +40,6 @@ AccelClass *accel_find(const char *opt_name)
     AccelClass *ac = ACCEL_CLASS(object_class_by_name(class_name));
     g_free(class_name);
     return ac;
-}
-
-int accel_init_machine(AccelState *accel, MachineState *ms)
-{
-    AccelClass *acc = ACCEL_GET_CLASS(accel);
-    int ret;
-    ms->accelerator = accel;
-    *(acc->allowed) = true;
-    ret = acc->init_machine(ms);
-    if (ret < 0) {
-        ms->accelerator = NULL;
-        *(acc->allowed) = false;
-        object_unref(OBJECT(accel));
-    } else {
-        object_set_accelerator_compat_props(acc->compat_props);
-    }
-    return ret;
-}
-
-AccelState *current_accel(void)
-{
-    return current_machine->accelerator;
-}
-
-void accel_setup_post(MachineState *ms)
-{
-    AccelState *accel = ms->accelerator;
-    AccelClass *acc = ACCEL_GET_CLASS(accel);
-    if (acc->setup_post) {
-        acc->setup_post(ms, accel);
-    }
 }
 
 static void register_accel_types(void)

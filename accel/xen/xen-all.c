@@ -15,7 +15,7 @@
 #include "hw/xen/xen-legacy-backend.h"
 #include "hw/xen/xen_pt.h"
 #include "chardev/char.h"
-#include "sysemu/accel.h"
+#include "qemu/accel.h"
 #include "sysemu/cpus.h"
 #include "sysemu/xen.h"
 #include "sysemu/runstate.h"

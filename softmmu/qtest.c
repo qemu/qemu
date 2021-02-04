@@ -20,7 +20,7 @@
 #include "exec/ioport.h"
 #include "exec/memory.h"
 #include "hw/irq.h"
-#include "sysemu/accel.h"
+#include "qemu/accel.h"
 #include "sysemu/cpu-timers.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
