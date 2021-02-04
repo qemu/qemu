@@ -459,17 +459,17 @@ static void lo_map_remove(struct lo_map *map, size_t key)
 }
 
 /* Assumes lo->mutex is held */
-static ssize_t lo_add_fd_mapping(fuse_req_t req, int fd)
+static ssize_t lo_add_fd_mapping(struct lo_data *lo, int fd)
 {
     struct lo_map_elem *elem;
 
-    elem = lo_map_alloc_elem(&lo_data(req)->fd_map);
+    elem = lo_map_alloc_elem(&lo->fd_map);
     if (!elem) {
         return -1;
     }
 
     elem->fd = fd;
-    return elem - lo_data(req)->fd_map.elems;
+    return elem - lo->fd_map.elems;
 }
 
 /* Assumes lo->mutex is held */
@@ -1651,6 +1651,38 @@ static void update_open_flags(int writeback, int allow_direct_io,
     }
 }
 
+static int lo_do_open(struct lo_data *lo, struct lo_inode *inode,
+                      struct fuse_file_info *fi)
+{
+    char buf[64];
+    ssize_t fh;
+    int fd;
+
+    update_open_flags(lo->writeback, lo->allow_direct_io, fi);
+
+    sprintf(buf, "%i", inode->fd);
+    fd = openat(lo->proc_self_fd, buf, fi->flags & ~O_NOFOLLOW);
+    if (fd == -1) {
+        return errno;
+    }
+
+    pthread_mutex_lock(&lo->mutex);
+    fh = lo_add_fd_mapping(lo, fd);
+    pthread_mutex_unlock(&lo->mutex);
+    if (fh == -1) {
+        close(fd);
+        return ENOMEM;
+    }
+
+    fi->fh = fh;
+    if (lo->cache == CACHE_NONE) {
+        fi->direct_io = 1;
+    } else if (lo->cache == CACHE_ALWAYS) {
+        fi->keep_cache = 1;
+    }
+    return 0;
+}
+
 static void lo_create(fuse_req_t req, fuse_ino_t parent, const char *name,
                       mode_t mode, struct fuse_file_info *fi)
 {
@@ -1691,7 +1723,7 @@ static void lo_create(fuse_req_t req, fuse_ino_t parent, const char *name,
         ssize_t fh;
 
         pthread_mutex_lock(&lo->mutex);
-        fh = lo_add_fd_mapping(req, fd);
+        fh = lo_add_fd_mapping(lo, fd);
         pthread_mutex_unlock(&lo->mutex);
         if (fh == -1) {
             close(fd);
@@ -1892,38 +1924,25 @@ static void lo_fsyncdir(fuse_req_t req, fuse_ino_t ino, int datasync,
 
 static void lo_open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 {
-    int fd;
-    ssize_t fh;
-    char buf[64];
     struct lo_data *lo = lo_data(req);
+    struct lo_inode *inode = lo_inode(req, ino);
+    int err;
 
     fuse_log(FUSE_LOG_DEBUG, "lo_open(ino=%" PRIu64 ", flags=%d)\n", ino,
              fi->flags);
 
-    update_open_flags(lo->writeback, lo->allow_direct_io, fi);
-
-    sprintf(buf, "%i", lo_fd(req, ino));
-    fd = openat(lo->proc_self_fd, buf, fi->flags & ~O_NOFOLLOW);
-    if (fd == -1) {
-        return (void)fuse_reply_err(req, errno);
-    }
-
-    pthread_mutex_lock(&lo->mutex);
-    fh = lo_add_fd_mapping(req, fd);
-    pthread_mutex_unlock(&lo->mutex);
-    if (fh == -1) {
-        close(fd);
-        fuse_reply_err(req, ENOMEM);
+    if (!inode) {
+        fuse_reply_err(req, EBADF);
         return;
     }
 
-    fi->fh = fh;
-    if (lo->cache == CACHE_NONE) {
-        fi->direct_io = 1;
-    } else if (lo->cache == CACHE_ALWAYS) {
-        fi->keep_cache = 1;
+    err = lo_do_open(lo, inode, fi);
+    lo_inode_put(lo, &inode);
+    if (err) {
+        fuse_reply_err(req, err);
+    } else {
+        fuse_reply_open(req, fi);
     }
-    fuse_reply_open(req, fi);
 }
 
 static void lo_release(fuse_req_t req, fuse_ino_t ino,
