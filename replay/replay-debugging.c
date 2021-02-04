@@ -148,7 +148,7 @@ static char *replay_find_nearest_snapshot(int64_t icount,
 
     *snapshot_icount = -1;
 
-    bs = bdrv_all_find_vmstate_bs(false, NULL, NULL);
+    bs = bdrv_all_find_vmstate_bs(NULL, false, NULL, NULL);
     if (!bs) {
         goto fail;
     }
