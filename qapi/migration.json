@@ -1854,3 +1854,176 @@
 # Since: 5.2
 ##
 { 'command': 'query-dirty-rate', 'returns': 'DirtyRateInfo' }
+
+##
+# @snapshot-save:
+#
+# Save a VM snapshot
+#
+# @job-id: identifier for the newly created job
+# @tag: name of the snapshot to create
+# @vmstate: block device node name to save vmstate to
+# @devices: list of block device node names to save a snapshot to
+#
+# Applications should not assume that the snapshot save is complete
+# when this command returns. The job commands / events must be used
+# to determine completion and to fetch details of any errors that arise.
+#
+# Note that execution of the guest CPUs may be stopped during the
+# time it takes to save the snapshot. A future version of QEMU
+# may ensure CPUs are executing continuously.
+#
+# It is strongly recommended that @devices contain all writable
+# block device nodes if a consistent snapshot is required.
+#
+# If @tag already exists, an error will be reported
+#
+# Returns: nothing
+#
+# Example:
+#
+# -> { "execute": "snapshot-save",
+#      "data": {
+#         "job-id": "snapsave0",
+#         "tag": "my-snap",
+#         "vmstate": "disk0",
+#         "devices": ["disk0", "disk1"]
+#      }
+#    }
+# <- { "return": { } }
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "created", "id": "snapsave0"}}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "running", "id": "snapsave0"}}
+# <- {"event": "STOP"}
+# <- {"event": "RESUME"}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "waiting", "id": "snapsave0"}}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "pending", "id": "snapsave0"}}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "concluded", "id": "snapsave0"}}
+# -> {"execute": "query-jobs"}
+# <- {"return": [{"current-progress": 1,
+#                 "status": "concluded",
+#                 "total-progress": 1,
+#                 "type": "snapshot-save",
+#                 "id": "snapsave0"}]}
+#
+# Since: 6.0
+##
+{ 'command': 'snapshot-save',
+  'data': { 'job-id': 'str',
+            'tag': 'str',
+            'vmstate': 'str',
+            'devices': ['str'] } }
+
+##
+# @snapshot-load:
+#
+# Load a VM snapshot
+#
+# @job-id: identifier for the newly created job
+# @tag: name of the snapshot to load.
+# @vmstate: block device node name to load vmstate from
+# @devices: list of block device node names to load a snapshot from
+#
+# Applications should not assume that the snapshot load is complete
+# when this command returns. The job commands / events must be used
+# to determine completion and to fetch details of any errors that arise.
+#
+# Note that execution of the guest CPUs will be stopped during the
+# time it takes to load the snapshot.
+#
+# It is strongly recommended that @devices contain all writable
+# block device nodes that can have changed since the original
+# @snapshot-save command execution.
+#
+# Returns: nothing
+#
+# Example:
+#
+# -> { "execute": "snapshot-load",
+#      "data": {
+#         "job-id": "snapload0",
+#         "tag": "my-snap",
+#         "vmstate": "disk0",
+#         "devices": ["disk0", "disk1"]
+#      }
+#    }
+# <- { "return": { } }
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "created", "id": "snapload0"}}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "running", "id": "snapload0"}}
+# <- {"event": "STOP"}
+# <- {"event": "RESUME"}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "waiting", "id": "snapload0"}}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "pending", "id": "snapload0"}}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "concluded", "id": "snapload0"}}
+# -> {"execute": "query-jobs"}
+# <- {"return": [{"current-progress": 1,
+#                 "status": "concluded",
+#                 "total-progress": 1,
+#                 "type": "snapshot-load",
+#                 "id": "snapload0"}]}
+#
+# Since: 6.0
+##
+{ 'command': 'snapshot-load',
+  'data': { 'job-id': 'str',
+            'tag': 'str',
+            'vmstate': 'str',
+            'devices': ['str'] } }
+
+##
+# @snapshot-delete:
+#
+# Delete a VM snapshot
+#
+# @job-id: identifier for the newly created job
+# @tag: name of the snapshot to delete.
+# @devices: list of block device node names to delete a snapshot from
+#
+# Applications should not assume that the snapshot delete is complete
+# when this command returns. The job commands / events must be used
+# to determine completion and to fetch details of any errors that arise.
+#
+# Returns: nothing
+#
+# Example:
+#
+# -> { "execute": "snapshot-delete",
+#      "data": {
+#         "job-id": "snapdelete0",
+#         "tag": "my-snap",
+#         "devices": ["disk0", "disk1"]
+#      }
+#    }
+# <- { "return": { } }
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "created", "id": "snapdelete0"}}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "running", "id": "snapdelete0"}}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "waiting", "id": "snapdelete0"}}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "pending", "id": "snapdelete0"}}
+# <- {"event": "JOB_STATUS_CHANGE",
+#     "data": {"status": "concluded", "id": "snapdelete0"}}
+# -> {"execute": "query-jobs"}
+# <- {"return": [{"current-progress": 1,
+#                 "status": "concluded",
+#                 "total-progress": 1,
+#                 "type": "snapshot-delete",
+#                 "id": "snapdelete0"}]}
+#
+# Since: 6.0
+##
+{ 'command': 'snapshot-delete',
+  'data': { 'job-id': 'str',
+            'tag': 'str',
+            'devices': ['str'] } }
