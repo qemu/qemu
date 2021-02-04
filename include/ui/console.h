@@ -174,35 +174,49 @@ typedef struct DisplayState DisplayState;
 typedef struct DisplayChangeListenerOps {
     const char *dpy_name;
 
+    /* optional */
     void (*dpy_refresh)(DisplayChangeListener *dcl);
 
+    /* optional */
     void (*dpy_gfx_update)(DisplayChangeListener *dcl,
                            int x, int y, int w, int h);
+    /* optional */
     void (*dpy_gfx_switch)(DisplayChangeListener *dcl,
                            struct DisplaySurface *new_surface);
+    /* optional */
     bool (*dpy_gfx_check_format)(DisplayChangeListener *dcl,
                                  pixman_format_code_t format);
 
+    /* optional */
     void (*dpy_text_cursor)(DisplayChangeListener *dcl,
                             int x, int y);
+    /* optional */
     void (*dpy_text_resize)(DisplayChangeListener *dcl,
                             int w, int h);
+    /* optional */
     void (*dpy_text_update)(DisplayChangeListener *dcl,
                             int x, int y, int w, int h);
 
+    /* optional */
     void (*dpy_mouse_set)(DisplayChangeListener *dcl,
                           int x, int y, int on);
+    /* optional */
     void (*dpy_cursor_define)(DisplayChangeListener *dcl,
                               QEMUCursor *cursor);
 
+    /* required if GL */
     QEMUGLContext (*dpy_gl_ctx_create)(DisplayChangeListener *dcl,
                                        QEMUGLParams *params);
+    /* required if GL */
     void (*dpy_gl_ctx_destroy)(DisplayChangeListener *dcl,
                                QEMUGLContext ctx);
+    /* required if GL */
     int (*dpy_gl_ctx_make_current)(DisplayChangeListener *dcl,
                                    QEMUGLContext ctx);
 
+    /* required if GL */
     void (*dpy_gl_scanout_disable)(DisplayChangeListener *dcl);
+    /* required if GL */
     void (*dpy_gl_scanout_texture)(DisplayChangeListener *dcl,
                                    uint32_t backing_id,
                                    bool backing_y_0_top,
@@ -210,15 +224,20 @@ typedef struct DisplayChangeListenerOps {
                                    uint32_t backing_height,
                                    uint32_t x, uint32_t y,
                                    uint32_t w, uint32_t h);
+    /* optional */
     void (*dpy_gl_scanout_dmabuf)(DisplayChangeListener *dcl,
                                   QemuDmaBuf *dmabuf);
+    /* optional */
     void (*dpy_gl_cursor_dmabuf)(DisplayChangeListener *dcl,
                                  QemuDmaBuf *dmabuf, bool have_hot,
                                  uint32_t hot_x, uint32_t hot_y);
+    /* optional */
     void (*dpy_gl_cursor_position)(DisplayChangeListener *dcl,
                                    uint32_t pos_x, uint32_t pos_y);
+    /* optional */
     void (*dpy_gl_release_dmabuf)(DisplayChangeListener *dcl,
                                   QemuDmaBuf *dmabuf);
+    /* required if GL */
     void (*dpy_gl_update)(DisplayChangeListener *dcl,
                           uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 
