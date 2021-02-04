@@ -198,6 +198,13 @@ void gd_gl_area_scanout_texture(DisplayChangeListener *dcl,
                          backing_id, false);
 }
 
+void gd_gl_area_scanout_disable(DisplayChangeListener *dcl)
+{
+    VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
+
+    gtk_gl_area_set_scanout_mode(vc, false);
+}
+
 void gd_gl_area_scanout_flush(DisplayChangeListener *dcl,
                           uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {

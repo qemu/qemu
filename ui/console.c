@@ -1806,12 +1806,7 @@ int dpy_gl_ctx_make_current(QemuConsole *con, QEMUGLContext ctx)
 void dpy_gl_scanout_disable(QemuConsole *con)
 {
     assert(con->gl);
-    if (con->gl->ops->dpy_gl_scanout_disable) {
-        con->gl->ops->dpy_gl_scanout_disable(con->gl);
-    } else {
-        con->gl->ops->dpy_gl_scanout_texture(con->gl, 0, false, 0, 0,
-                                             0, 0, 0, 0);
-    }
+    con->gl->ops->dpy_gl_scanout_disable(con->gl);
 }
 
 void dpy_gl_scanout_texture(QemuConsole *con,
