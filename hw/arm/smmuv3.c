@@ -1497,6 +1497,11 @@ static int smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,
     SMMUv3State *s3 = sdev->smmu;
     SMMUState *s = &(s3->smmu_state);
 
+    if (new & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) {
+        error_setg(errp, "SMMUv3 does not support dev-iotlb yet");
+        return -EINVAL;
+    }
+
     if (new & IOMMU_NOTIFIER_MAP) {
         error_setg(errp,
                    "device %02x.%02x.%x requires iommu MAP notifier which is "
