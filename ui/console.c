@@ -1476,12 +1476,37 @@ static bool displaychangelistener_has_dmabuf(DisplayChangeListener *dcl)
     return false;
 }
 
+static bool dpy_compatible_with(QemuConsole *con,
+                                DisplayChangeListener *dcl, Error **errp)
+{
+    ERRP_GUARD();
+    int flags;
+
+    flags = con->hw_ops->get_flags ? con->hw_ops->get_flags(con->hw) : 0;
+
+    if (flags & GRAPHIC_FLAGS_GL &&
+        !console_has_gl(con)) {
+        error_setg(errp, "The console requires a GL context.");
+        return false;
+
+    }
+
+    if (flags & GRAPHIC_FLAGS_DMABUF &&
+        !displaychangelistener_has_dmabuf(dcl)) {
+        error_setg(errp, "The console requires display DMABUF support.");
+        return false;
+    }
+
+    return true;
+}
+
 void register_displaychangelistener(DisplayChangeListener *dcl)
 {
     static const char nodev[] =
         "This VM has no graphic display device.";
     static DisplaySurface *dummy;
     QemuConsole *con;
+    Error *err = NULL;
 
     assert(!dcl->ds);
 
@@ -1494,6 +1519,11 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
             exit(1);
         }
         dcl->con->gl = dcl;
+    }
+
+    if (dcl->con && !dpy_compatible_with(dcl->con, dcl, &err)) {
+        error_report_err(err);
+        exit(1);
     }
 
     trace_displaychangelistener_register(dcl, dcl->ops->dpy_name);
