@@ -555,6 +555,38 @@ static int lo_fd(fuse_req_t req, fuse_ino_t ino)
     return fd;
 }
 
+/*
+ * Open a file descriptor for an inode. Returns -EBADF if the inode is not a
+ * regular file or a directory.
+ *
+ * Use this helper function instead of raw openat(2) to prevent security issues
+ * when a malicious client opens special files such as block device nodes.
+ * Symlink inodes are also rejected since symlinks must already have been
+ * traversed on the client side.
+ */
+static int lo_inode_open(struct lo_data *lo, struct lo_inode *inode,
+                         int open_flags)
+{
+    g_autofree char *fd_str = g_strdup_printf("%d", inode->fd);
+    int fd;
+
+    if (!S_ISREG(inode->filetype) && !S_ISDIR(inode->filetype)) {
+        return -EBADF;
+    }
+
+    /*
+     * The file is a symlink so O_NOFOLLOW must be ignored. We checked earlier
+     * that the inode is not a special file but if an external process races
+     * with us then symlinks are traversed here. It is not possible to escape
+     * the shared directory since it is mounted as "/" though.
+     */
+    fd = openat(lo->proc_self_fd, fd_str, open_flags & ~O_NOFOLLOW);
+    if (fd < 0) {
+        return -errno;
+    }
+    return fd;
+}
+
 static void lo_init(void *userdata, struct fuse_conn_info *conn)
 {
     struct lo_data *lo = (struct lo_data *)userdata;
@@ -684,9 +716,9 @@ static void lo_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         if (fi) {
             truncfd = fd;
         } else {
-            sprintf(procname, "%i", ifd);
-            truncfd = openat(lo->proc_self_fd, procname, O_RDWR);
+            truncfd = lo_inode_open(lo, inode, O_RDWR);
             if (truncfd < 0) {
+                errno = -truncfd;
                 goto out_err;
             }
         }
@@ -848,7 +880,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
     struct lo_inode *dir = lo_inode(req, parent);
 
     if (inodep) {
-        *inodep = NULL;
+        *inodep = NULL; /* in case there is an error */
     }
 
     /*
@@ -1664,19 +1696,26 @@ static void update_open_flags(int writeback, int allow_direct_io,
     }
 }
 
+/*
+ * Open a regular file, set up an fd mapping, and fill out the struct
+ * fuse_file_info for it. If existing_fd is not negative, use that fd instead
+ * opening a new one. Takes ownership of existing_fd.
+ *
+ * Returns 0 on success or a positive errno.
+ */
 static int lo_do_open(struct lo_data *lo, struct lo_inode *inode,
-                      struct fuse_file_info *fi)
+                      int existing_fd, struct fuse_file_info *fi)
 {
-    char buf[64];
     ssize_t fh;
-    int fd;
+    int fd = existing_fd;
 
     update_open_flags(lo->writeback, lo->allow_direct_io, fi);
 
-    sprintf(buf, "%i", inode->fd);
-    fd = openat(lo->proc_self_fd, buf, fi->flags & ~O_NOFOLLOW);
-    if (fd == -1) {
-        return errno;
+    if (fd < 0) {
+        fd = lo_inode_open(lo, inode, fi->flags);
+        if (fd < 0) {
+            return -fd;
+        }
     }
 
     pthread_mutex_lock(&lo->mutex);
@@ -1699,9 +1738,10 @@ static int lo_do_open(struct lo_data *lo, struct lo_inode *inode,
 static void lo_create(fuse_req_t req, fuse_ino_t parent, const char *name,
                       mode_t mode, struct fuse_file_info *fi)
 {
-    int fd;
+    int fd = -1;
     struct lo_data *lo = lo_data(req);
     struct lo_inode *parent_inode;
+    struct lo_inode *inode = NULL;
     struct fuse_entry_param e;
     int err;
     struct lo_cred old = {};
@@ -1727,36 +1767,38 @@ static void lo_create(fuse_req_t req, fuse_ino_t parent, const char *name,
 
     update_open_flags(lo->writeback, lo->allow_direct_io, fi);
 
-    fd = openat(parent_inode->fd, name, (fi->flags | O_CREAT) & ~O_NOFOLLOW,
-                mode);
+    /* Try to create a new file but don't open existing files */
+    fd = openat(parent_inode->fd, name, fi->flags | O_CREAT | O_EXCL, mode);
     err = fd == -1 ? errno : 0;
+
     lo_restore_cred(&old);
 
-    if (!err) {
-        ssize_t fh;
-
-        pthread_mutex_lock(&lo->mutex);
-        fh = lo_add_fd_mapping(lo, fd);
-        pthread_mutex_unlock(&lo->mutex);
-        if (fh == -1) {
-            close(fd);
-            err = ENOMEM;
-            goto out;
-        }
-
-        fi->fh = fh;
-        err = lo_do_lookup(req, parent, name, &e, NULL);
+    /* Ignore the error if file exists and O_EXCL was not given */
+    if (err && (err != EEXIST || (fi->flags & O_EXCL))) {
+        goto out;
     }
-    if (lo->cache == CACHE_NONE) {
-        fi->direct_io = 1;
-    } else if (lo->cache == CACHE_ALWAYS) {
-        fi->keep_cache = 1;
+
+    err = lo_do_lookup(req, parent, name, &e, &inode);
+    if (err) {
+        goto out;
+    }
+
+    err = lo_do_open(lo, inode, fd, fi);
+    fd = -1; /* lo_do_open() takes ownership of fd */
+    if (err) {
+        /* Undo lo_do_lookup() nlookup ref */
+        unref_inode_lolocked(lo, inode, 1);
     }
 
 out:
+    lo_inode_put(lo, &inode);
     lo_inode_put(lo, &parent_inode);
 
     if (err) {
+        if (fd >= 0) {
+            close(fd);
+        }
+
         fuse_reply_err(req, err);
     } else {
         fuse_reply_create(req, &e, fi);
@@ -1770,7 +1812,6 @@ static struct lo_inode_plock *lookup_create_plock_ctx(struct lo_data *lo,
                                                       pid_t pid, int *err)
 {
     struct lo_inode_plock *plock;
-    char procname[64];
     int fd;
 
     plock =
@@ -1787,12 +1828,10 @@ static struct lo_inode_plock *lookup_create_plock_ctx(struct lo_data *lo,
     }
 
     /* Open another instance of file which can be used for ofd locks. */
-    sprintf(procname, "%i", inode->fd);
-
     /* TODO: What if file is not writable? */
-    fd = openat(lo->proc_self_fd, procname, O_RDWR);
-    if (fd == -1) {
-        *err = errno;
+    fd = lo_inode_open(lo, inode, O_RDWR);
+    if (fd < 0) {
+        *err = -fd;
         free(plock);
         return NULL;
     }
@@ -1949,7 +1988,7 @@ static void lo_open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
         return;
     }
 
-    err = lo_do_open(lo, inode, fi);
+    err = lo_do_open(lo, inode, -1, fi);
     lo_inode_put(lo, &inode);
     if (err) {
         fuse_reply_err(req, err);
@@ -2014,39 +2053,40 @@ static void lo_flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 static void lo_fsync(fuse_req_t req, fuse_ino_t ino, int datasync,
                      struct fuse_file_info *fi)
 {
+    struct lo_inode *inode = lo_inode(req, ino);
+    struct lo_data *lo = lo_data(req);
     int res;
     int fd;
-    char *buf;
 
     fuse_log(FUSE_LOG_DEBUG, "lo_fsync(ino=%" PRIu64 ", fi=0x%p)\n", ino,
              (void *)fi);
 
+    if (!inode) {
+        fuse_reply_err(req, EBADF);
+        return;
+    }
+
     if (!fi) {
-        struct lo_data *lo = lo_data(req);
-
-        res = asprintf(&buf, "%i", lo_fd(req, ino));
-        if (res == -1) {
-            return (void)fuse_reply_err(req, errno);
-        }
-
-        fd = openat(lo->proc_self_fd, buf, O_RDWR);
-        free(buf);
-        if (fd == -1) {
-            return (void)fuse_reply_err(req, errno);
+        fd = lo_inode_open(lo, inode, O_RDWR);
+        if (fd < 0) {
+            res = -fd;
+            goto out;
         }
     } else {
         fd = lo_fi_fd(req, fi);
     }
 
     if (datasync) {
-        res = fdatasync(fd);
+        res = fdatasync(fd) == -1 ? errno : 0;
     } else {
-        res = fsync(fd);
+        res = fsync(fd) == -1 ? errno : 0;
     }
     if (!fi) {
         close(fd);
     }
-    fuse_reply_err(req, res == -1 ? errno : 0);
+out:
+    lo_inode_put(lo, &inode);
+    fuse_reply_err(req, res);
 }
 
 static void lo_read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t offset,
