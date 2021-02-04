@@ -1463,6 +1463,19 @@ bool console_has_gl(QemuConsole *con)
     return con->gl != NULL;
 }
 
+static bool displaychangelistener_has_dmabuf(DisplayChangeListener *dcl)
+{
+    if (dcl->ops->dpy_has_dmabuf) {
+        return dcl->ops->dpy_has_dmabuf(dcl);
+    }
+
+    if (dcl->ops->dpy_gl_scanout_dmabuf) {
+        return true;
+    }
+
+    return false;
+}
+
 void register_displaychangelistener(DisplayChangeListener *dcl)
 {
     static const char nodev[] =
