@@ -65,7 +65,7 @@ void tcg_cpu_common_class_init(CPUClass *cc)
     cc->tcg_ops.cpu_exec_enter = x86_cpu_exec_enter;
     cc->tcg_ops.cpu_exec_exit = x86_cpu_exec_exit;
     cc->tcg_ops.initialize = tcg_x86_init;
-    cc->tlb_fill = x86_cpu_tlb_fill;
+    cc->tcg_ops.tlb_fill = x86_cpu_tlb_fill;
 #ifndef CONFIG_USER_ONLY
     cc->debug_excp_handler = breakpoint_handler;
 #endif

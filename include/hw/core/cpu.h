@@ -105,6 +105,18 @@ typedef struct TcgCpuOperations {
     void (*cpu_exec_exit)(CPUState *cpu);
     /** @cpu_exec_interrupt: Callback for processing interrupts in cpu_exec */
     bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);
+    /**
+     * @tlb_fill: Handle a softmmu tlb miss or user-only address fault
+     *
+     * For system mode, if the access is valid, call tlb_set_page
+     * and return true; if the access is invalid, and probe is
+     * true, return false; otherwise raise an exception and do
+     * not return.  For user-only mode, always raise an exception
+     * and do not return.
+     */
+    bool (*tlb_fill)(CPUState *cpu, vaddr address, int size,
+                     MMUAccessType access_type, int mmu_idx,
+                     bool probe, uintptr_t retaddr);
 
 } TcgCpuOperations;
 
@@ -138,12 +150,6 @@ typedef struct TcgCpuOperations {
  *       If the target behaviour here is anything other than "set
  *       the PC register to the value passed in" then the target must
  *       also implement the synchronize_from_tb hook.
- * @tlb_fill: Callback for handling a softmmu tlb miss or user-only
- *       address fault.  For system mode, if the access is valid, call
- *       tlb_set_page and return true; if the access is invalid, and
- *       probe is true, return false; otherwise raise an exception and
- *       do not return.  For user-only mode, always raise an exception
- *       and do not return.
  * @get_phys_page_debug: Callback for obtaining a physical address.
  * @get_phys_page_attrs_debug: Callback for obtaining a physical address and the
  *       associated memory transaction attributes to use for the access.
@@ -211,9 +217,6 @@ struct CPUClass {
     void (*get_memory_mapping)(CPUState *cpu, MemoryMappingList *list,
                                Error **errp);
     void (*set_pc)(CPUState *cpu, vaddr value);
-    bool (*tlb_fill)(CPUState *cpu, vaddr address, int size,
-                     MMUAccessType access_type, int mmu_idx,
-                     bool probe, uintptr_t retaddr);
     hwaddr (*get_phys_page_debug)(CPUState *cpu, vaddr addr);
     hwaddr (*get_phys_page_attrs_debug)(CPUState *cpu, vaddr addr,
                                         MemTxAttrs *attrs);

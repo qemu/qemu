@@ -1305,7 +1305,8 @@ static void tlb_fill(CPUState *cpu, target_ulong addr, int size,
      * This is not a probe, so only valid return is success; failure
      * should result in exception + longjmp to the cpu loop.
      */
-    ok = cc->tlb_fill(cpu, addr, size, access_type, mmu_idx, false, retaddr);
+    ok = cc->tcg_ops.tlb_fill(cpu, addr, size,
+                              access_type, mmu_idx, false, retaddr);
     assert(ok);
 }
 
@@ -1576,8 +1577,8 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
             CPUState *cs = env_cpu(env);
             CPUClass *cc = CPU_GET_CLASS(cs);
 
-            if (!cc->tlb_fill(cs, addr, fault_size, access_type,
-                              mmu_idx, nonfault, retaddr)) {
+            if (!cc->tcg_ops.tlb_fill(cs, addr, fault_size, access_type,
+                                      mmu_idx, nonfault, retaddr)) {
                 /* Non-faulting page table read failed.  */
                 *phost = NULL;
                 return TLB_INVALID_MASK;

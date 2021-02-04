@@ -196,7 +196,7 @@ static void rx_cpu_class_init(ObjectClass *klass, void *data)
     cc->get_phys_page_debug = rx_cpu_get_phys_page_debug;
     cc->disas_set_info = rx_cpu_disas_set_info;
     cc->tcg_ops.initialize = rx_translate_init;
-    cc->tlb_fill = rx_cpu_tlb_fill;
+    cc->tcg_ops.tlb_fill = rx_cpu_tlb_fill;
 
     cc->gdb_num_core_regs = 26;
     cc->gdb_core_xml_file = "rx-core.xml";

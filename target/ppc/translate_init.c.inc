@@ -10883,7 +10883,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 #ifdef CONFIG_TCG
     cc->tcg_ops.initialize = ppc_translate_init;
     cc->tcg_ops.cpu_exec_interrupt = ppc_cpu_exec_interrupt;
-    cc->tlb_fill = ppc_cpu_tlb_fill;
+    cc->tcg_ops.tlb_fill = ppc_cpu_tlb_fill;
 #ifndef CONFIG_USER_ONLY
     cc->tcg_ops.cpu_exec_enter = ppc_cpu_exec_enter;
     cc->tcg_ops.cpu_exec_exit = ppc_cpu_exec_exit;

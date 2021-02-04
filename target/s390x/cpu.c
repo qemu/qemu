@@ -516,7 +516,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->disas_set_info = s390_cpu_disas_set_info;
 #ifdef CONFIG_TCG
     cc->tcg_ops.initialize = s390x_translate_init;
-    cc->tlb_fill = s390_cpu_tlb_fill;
+    cc->tcg_ops.tlb_fill = s390_cpu_tlb_fill;
 #endif
 
     cc->gdb_num_core_regs = S390_NUM_CORE_REGS;
