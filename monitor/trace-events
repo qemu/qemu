@@ -10,6 +10,10 @@ monitor_protocol_event_queue(uint32_t event, void *qdict, uint64_t rate) "event=
 monitor_suspend(void *ptr, int cnt) "mon %p: %d"
 
 # qmp.c
+monitor_qmp_in_band_enqueue(void *req, void *mon, unsigned len) "%p mon %p len %u"
+monitor_qmp_in_band_dequeue(void *req, unsigned len) "%p len %u"
 monitor_qmp_cmd_in_band(const char *id) "%s"
+monitor_qmp_err_in_band(const char *desc) "%s"
 monitor_qmp_cmd_out_of_band(const char *id) "%s"
+monitor_qmp_respond(void *mon, const char *json) "mon %p resp: %s"
 handle_qmp_command(void *mon, const char *req) "mon %p req: %s"

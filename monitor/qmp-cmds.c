@@ -23,7 +23,7 @@
 #include "qemu/uuid.h"
 #include "chardev/char.h"
 #include "ui/qemu-spice.h"
-#include "ui/vnc.h"
+#include "ui/console.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
 #include "sysemu/runstate-action.h"
