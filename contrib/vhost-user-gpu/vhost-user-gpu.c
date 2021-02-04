@@ -246,7 +246,7 @@ vg_ctrl_response(VuGpu *g,
     }
     vu_queue_push(&g->dev.parent, cmd->vq, &cmd->elem, s);
     vu_queue_notify(&g->dev.parent, cmd->vq);
-    cmd->finished = true;
+    cmd->state = VG_CMD_STATE_FINISHED;
 }
 
 void
@@ -800,7 +800,7 @@ vg_process_cmd(VuGpu *vg, struct virtio_gpu_ctrl_command *cmd)
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         break;
     }
-    if (!cmd->finished) {
+    if (cmd->state == VG_CMD_STATE_NEW) {
         vg_ctrl_response_nodata(vg, cmd, cmd->error ? cmd->error :
                                 VIRTIO_GPU_RESP_OK_NODATA);
     }
@@ -825,7 +825,7 @@ vg_handle_ctrl(VuDev *dev, int qidx)
         }
         cmd->vq = vq;
         cmd->error = 0;
-        cmd->finished = false;
+        cmd->state = VG_CMD_STATE_NEW;
 
         len = iov_to_buf(cmd->elem.out_sg, cmd->elem.out_num,
                          0, &cmd->cmd_hdr, sizeof(cmd->cmd_hdr));
@@ -844,7 +844,7 @@ vg_handle_ctrl(VuDev *dev, int qidx)
             vg_process_cmd(vg, cmd);
         }
 
-        if (!cmd->finished) {
+        if (cmd->state != VG_CMD_STATE_FINISHED) {
             QTAILQ_INSERT_TAIL(&vg->fenceq, cmd, next);
             vg->inflight++;
         } else {
