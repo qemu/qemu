@@ -2786,18 +2786,18 @@ bool save_snapshot(const char *name, Error **errp)
         return false;
     }
 
-    if (!bdrv_all_can_snapshot(errp)) {
+    if (!bdrv_all_can_snapshot(false, NULL, errp)) {
         return false;
     }
 
     /* Delete old snapshots of the same name */
     if (name) {
-        if (bdrv_all_delete_snapshot(name, errp) < 0) {
+        if (bdrv_all_delete_snapshot(name, false, NULL, errp) < 0) {
             return false;
         }
     }
 
-    bs = bdrv_all_find_vmstate_bs(errp);
+    bs = bdrv_all_find_vmstate_bs(false, NULL, errp);
     if (bs == NULL) {
         return false;
     }
@@ -2862,9 +2862,9 @@ bool save_snapshot(const char *name, Error **errp)
     aio_context_release(aio_context);
     aio_context = NULL;
 
-    ret = bdrv_all_create_snapshot(sn, bs, vm_state_size, errp);
+    ret = bdrv_all_create_snapshot(sn, bs, vm_state_size, false, NULL, errp);
     if (ret < 0) {
-        bdrv_all_delete_snapshot(sn->name, NULL);
+        bdrv_all_delete_snapshot(sn->name, false, NULL, NULL);
         goto the_end;
     }
 
@@ -2974,15 +2974,15 @@ bool load_snapshot(const char *name, Error **errp)
     AioContext *aio_context;
     MigrationIncomingState *mis = migration_incoming_get_current();
 
-    if (!bdrv_all_can_snapshot(errp)) {
+    if (!bdrv_all_can_snapshot(false, NULL, errp)) {
         return false;
     }
-    ret = bdrv_all_find_snapshot(name, errp);
+    ret = bdrv_all_find_snapshot(name, false, NULL, errp);
     if (ret < 0) {
         return false;
     }
 
-    bs_vm_state = bdrv_all_find_vmstate_bs(errp);
+    bs_vm_state = bdrv_all_find_vmstate_bs(false, NULL, errp);
     if (!bs_vm_state) {
         return false;
     }
@@ -3009,7 +3009,7 @@ bool load_snapshot(const char *name, Error **errp)
     /* Flush all IO requests so they don't interfere with the new state.  */
     bdrv_drain_all_begin();
 
-    ret = bdrv_all_goto_snapshot(name, errp);
+    ret = bdrv_all_goto_snapshot(name, false, NULL, errp);
     if (ret < 0) {
         goto err_drain;
     }
