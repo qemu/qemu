@@ -213,6 +213,24 @@ void gd_gl_area_scanout_flush(DisplayChangeListener *dcl,
     gtk_gl_area_queue_render(GTK_GL_AREA(vc->gfx.drawing_area));
 }
 
+void gd_gl_area_scanout_dmabuf(DisplayChangeListener *dcl,
+                               QemuDmaBuf *dmabuf)
+{
+#ifdef CONFIG_OPENGL_DMABUF
+    VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
+
+    gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));
+    egl_dmabuf_import_texture(dmabuf);
+    if (!dmabuf->texture) {
+        return;
+    }
+
+    gd_gl_area_scanout_texture(dcl, dmabuf->texture,
+                               false, dmabuf->width, dmabuf->height,
+                               0, 0, dmabuf->width, dmabuf->height);
+#endif
+}
+
 void gtk_gl_area_init(void)
 {
     display_opengl = 1;

@@ -627,6 +627,12 @@ static bool gd_has_dmabuf(DisplayChangeListener *dcl)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 
+    if (gtk_use_gl_area && !gtk_widget_get_realized(vc->gfx.drawing_area)) {
+        /* FIXME: Assume it will work, actual check done after realize */
+        /* fixing this would require delaying listener registration */
+        return true;
+    }
+
     return vc->gfx.has_dmabuf;
 }
 
@@ -647,6 +653,8 @@ static const DisplayChangeListenerOps dcl_gl_area_ops = {
     .dpy_gl_scanout_texture  = gd_gl_area_scanout_texture,
     .dpy_gl_scanout_disable  = gd_gl_area_scanout_disable,
     .dpy_gl_update           = gd_gl_area_scanout_flush,
+    .dpy_gl_scanout_dmabuf   = gd_gl_area_scanout_dmabuf,
+    .dpy_has_dmabuf          = gd_has_dmabuf,
 };
 
 static const DisplayChangeListenerOps dcl_egl_ops = {
@@ -1983,6 +1991,18 @@ static GtkWidget *gd_create_menu_machine(GtkDisplayState *s)
     return machine_menu;
 }
 
+#if defined(CONFIG_OPENGL)
+static void gl_area_realize(GtkGLArea *area, VirtualConsole *vc)
+{
+    gtk_gl_area_make_current(area);
+    qemu_egl_display = eglGetCurrentDisplay();
+    vc->gfx.has_dmabuf = qemu_egl_has_dmabuf();
+    if (!vc->gfx.has_dmabuf) {
+        error_report("GtkGLArea console lacks DMABUF support.");
+    }
+}
+#endif
+
 static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                               QemuConsole *con, int idx,
                               GSList *group, GtkWidget *view_menu)
@@ -1998,6 +2018,8 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
     if (display_opengl) {
         if (gtk_use_gl_area) {
             vc->gfx.drawing_area = gtk_gl_area_new();
+            g_signal_connect(vc->gfx.drawing_area, "realize",
+                             G_CALLBACK(gl_area_realize), vc);
             vc->gfx.dcl.ops = &dcl_gl_area_ops;
         } else {
             vc->gfx.drawing_area = gtk_drawing_area_new();
