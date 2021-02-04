@@ -382,7 +382,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_num_core_regs = 32 + 27;
 
     cc->disas_set_info = mb_disas_set_info;
-    cc->tcg_initialize = mb_tcg_init;
+    cc->tcg_ops.initialize = mb_tcg_init;
 }
 
 static const TypeInfo mb_cpu_type_info = {

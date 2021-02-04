@@ -237,7 +237,7 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_stop_before_watchpoint = true;
     cc->debug_excp_handler = lm32_debug_excp_handler;
     cc->disas_set_info = lm32_cpu_disas_set_info;
-    cc->tcg_initialize = lm32_translate_init;
+    cc->tcg_ops.initialize = lm32_translate_init;
 }
 
 #define DEFINE_LM32_CPU_TYPE(cpu_model, initfn) \

@@ -10878,7 +10878,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     cc->virtio_is_big_endian = ppc_cpu_is_big_endian;
 #endif
 #ifdef CONFIG_TCG
-    cc->tcg_initialize = ppc_translate_init;
+    cc->tcg_ops.initialize = ppc_translate_init;
     cc->tlb_fill = ppc_cpu_tlb_fill;
 #endif
 #ifndef CONFIG_USER_ONLY

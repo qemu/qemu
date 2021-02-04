@@ -116,7 +116,7 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
     cc->vmsd = &vmstate_moxie_cpu;
 #endif
     cc->disas_set_info = moxie_cpu_disas_set_info;
-    cc->tcg_initialize = moxie_translate_init;
+    cc->tcg_ops.initialize = moxie_translate_init;
 }
 
 static void moxielite_initfn(Object *obj)

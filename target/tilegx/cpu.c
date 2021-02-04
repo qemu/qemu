@@ -153,7 +153,7 @@ static void tilegx_cpu_class_init(ObjectClass *oc, void *data)
     cc->set_pc = tilegx_cpu_set_pc;
     cc->tlb_fill = tilegx_cpu_tlb_fill;
     cc->gdb_num_core_regs = 0;
-    cc->tcg_initialize = tilegx_tcg_init;
+    cc->tcg_ops.initialize = tilegx_tcg_init;
 }
 
 static const TypeInfo tilegx_cpu_type_info = {

@@ -231,7 +231,7 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_alpha_cpu;
 #endif
     cc->disas_set_info = alpha_cpu_disas_set_info;
-    cc->tcg_initialize = alpha_translate_init;
+    cc->tcg_ops.initialize = alpha_translate_init;
 
     cc->gdb_num_core_regs = 67;
 }

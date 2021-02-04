@@ -478,7 +478,7 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     dc->vmsd = &vmstate_m68k_cpu;
 #endif
     cc->disas_set_info = m68k_cpu_disas_set_info;
-    cc->tcg_initialize = m68k_tcg_init;
+    cc->tcg_ops.initialize = m68k_tcg_init;
 
     cc->gdb_num_core_regs = 18;
 }

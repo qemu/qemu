@@ -232,7 +232,7 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = superh_cpu_get_phys_page_debug;
 #endif
     cc->disas_set_info = superh_cpu_disas_set_info;
-    cc->tcg_initialize = sh4_translate_init;
+    cc->tcg_ops.initialize = sh4_translate_init;
 
     cc->gdb_num_core_regs = 59;
 

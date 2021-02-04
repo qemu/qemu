@@ -209,7 +209,7 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
 #endif
     cc->debug_excp_handler = xtensa_breakpoint_handler;
     cc->disas_set_info = xtensa_cpu_disas_set_info;
-    cc->tcg_initialize = xtensa_translate_init;
+    cc->tcg_ops.initialize = xtensa_translate_init;
     dc->vmsd = &vmstate_xtensa_cpu;
 }
 

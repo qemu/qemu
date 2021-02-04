@@ -689,7 +689,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
 #endif
     cc->disas_set_info = mips_cpu_disas_set_info;
 #ifdef CONFIG_TCG
-    cc->tcg_initialize = mips_tcg_init;
+    cc->tcg_ops.initialize = mips_tcg_init;
     cc->tlb_fill = mips_cpu_tlb_fill;
 #endif
 

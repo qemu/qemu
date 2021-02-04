@@ -201,7 +201,7 @@ static void crisv8_cpu_class_init(ObjectClass *oc, void *data)
     ccc->vr = 8;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
     cc->gdb_read_register = crisv10_cpu_gdb_read_register;
-    cc->tcg_initialize = cris_initialize_crisv10_tcg;
+    cc->tcg_ops.initialize = cris_initialize_crisv10_tcg;
 }
 
 static void crisv9_cpu_class_init(ObjectClass *oc, void *data)
@@ -212,7 +212,7 @@ static void crisv9_cpu_class_init(ObjectClass *oc, void *data)
     ccc->vr = 9;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
     cc->gdb_read_register = crisv10_cpu_gdb_read_register;
-    cc->tcg_initialize = cris_initialize_crisv10_tcg;
+    cc->tcg_ops.initialize = cris_initialize_crisv10_tcg;
 }
 
 static void crisv10_cpu_class_init(ObjectClass *oc, void *data)
@@ -223,7 +223,7 @@ static void crisv10_cpu_class_init(ObjectClass *oc, void *data)
     ccc->vr = 10;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
     cc->gdb_read_register = crisv10_cpu_gdb_read_register;
-    cc->tcg_initialize = cris_initialize_crisv10_tcg;
+    cc->tcg_ops.initialize = cris_initialize_crisv10_tcg;
 }
 
 static void crisv11_cpu_class_init(ObjectClass *oc, void *data)
@@ -234,7 +234,7 @@ static void crisv11_cpu_class_init(ObjectClass *oc, void *data)
     ccc->vr = 11;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
     cc->gdb_read_register = crisv10_cpu_gdb_read_register;
-    cc->tcg_initialize = cris_initialize_crisv10_tcg;
+    cc->tcg_ops.initialize = cris_initialize_crisv10_tcg;
 }
 
 static void crisv17_cpu_class_init(ObjectClass *oc, void *data)
@@ -245,7 +245,7 @@ static void crisv17_cpu_class_init(ObjectClass *oc, void *data)
     ccc->vr = 17;
     cc->do_interrupt = crisv10_cpu_do_interrupt;
     cc->gdb_read_register = crisv10_cpu_gdb_read_register;
-    cc->tcg_initialize = cris_initialize_crisv10_tcg;
+    cc->tcg_ops.initialize = cris_initialize_crisv10_tcg;
 }
 
 static void crisv32_cpu_class_init(ObjectClass *oc, void *data)
@@ -284,7 +284,7 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_stop_before_watchpoint = true;
 
     cc->disas_set_info = cris_disas_set_info;
-    cc->tcg_initialize = cris_initialize_tcg;
+    cc->tcg_ops.initialize = cris_initialize_tcg;
 }
 
 #define DEFINE_CRIS_CPU_TYPE(cpu_model, initfn) \

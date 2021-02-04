@@ -154,7 +154,7 @@ static void hppa_cpu_class_init(ObjectClass *oc, void *data)
 #endif
     cc->do_unaligned_access = hppa_cpu_do_unaligned_access;
     cc->disas_set_info = hppa_cpu_disas_set_info;
-    cc->tcg_initialize = hppa_translate_init;
+    cc->tcg_ops.initialize = hppa_translate_init;
 
     cc->gdb_num_core_regs = 128;
 }

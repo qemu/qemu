@@ -159,14 +159,18 @@ void cpu_exec_initfn(CPUState *cpu)
 void cpu_exec_realizefn(CPUState *cpu, Error **errp)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
+#ifdef CONFIG_TCG
     static bool tcg_target_initialized;
+#endif /* CONFIG_TCG */
 
     cpu_list_add(cpu);
 
+#ifdef CONFIG_TCG
     if (tcg_enabled() && !tcg_target_initialized) {
         tcg_target_initialized = true;
-        cc->tcg_initialize();
+        cc->tcg_ops.initialize();
     }
+#endif /* CONFIG_TCG */
     tlb_init(cpu);
 
     qemu_plugin_vcpu_init_hook(cpu);

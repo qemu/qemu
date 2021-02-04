@@ -198,7 +198,7 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_openrisc_cpu;
 #endif
     cc->gdb_num_core_regs = 32 + 3;
-    cc->tcg_initialize = openrisc_translate_init;
+    cc->tcg_ops.initialize = openrisc_translate_init;
     cc->disas_set_info = openrisc_disas_set_info;
 }
 
