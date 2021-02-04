@@ -141,7 +141,7 @@ static void hppa_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = hppa_cpu_class_by_name;
     cc->has_work = hppa_cpu_has_work;
     cc->do_interrupt = hppa_cpu_do_interrupt;
-    cc->cpu_exec_interrupt = hppa_cpu_exec_interrupt;
+    cc->tcg_ops.cpu_exec_interrupt = hppa_cpu_exec_interrupt;
     cc->dump_state = hppa_cpu_dump_state;
     cc->set_pc = hppa_cpu_set_pc;
     cc->tcg_ops.synchronize_from_tb = hppa_cpu_synchronize_from_tb;

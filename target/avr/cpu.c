@@ -199,7 +199,7 @@ static void avr_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->has_work = avr_cpu_has_work;
     cc->do_interrupt = avr_cpu_do_interrupt;
-    cc->cpu_exec_interrupt = avr_cpu_exec_interrupt;
+    cc->tcg_ops.cpu_exec_interrupt = avr_cpu_exec_interrupt;
     cc->dump_state = avr_cpu_dump_state;
     cc->set_pc = avr_cpu_set_pc;
     cc->memory_rw_debug = avr_cpu_memory_rw_debug;
