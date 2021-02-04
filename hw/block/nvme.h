@@ -2,6 +2,7 @@
 #define HW_NVME_H
 
 #include "block/nvme.h"
+#include "hw/pci/pci.h"
 #include "nvme-subsys.h"
 #include "nvme-ns.h"
 
@@ -61,6 +62,15 @@ typedef struct NvmeRequest {
     NvmeSg                  sg;
     QTAILQ_ENTRY(NvmeRequest)entry;
 } NvmeRequest;
+
+typedef struct NvmeBounceContext {
+    NvmeRequest *req;
+
+    struct {
+        QEMUIOVector iov;
+        uint8_t *bounce;
+    } data, mdata;
+} NvmeBounceContext;
 
 static inline const char *nvme_adm_opc_str(uint8_t opc)
 {
@@ -264,6 +274,27 @@ static inline NvmeCtrl *nvme_ctrl(NvmeRequest *req)
     return sq->ctrl;
 }
 
+static inline uint16_t nvme_cid(NvmeRequest *req)
+{
+    if (!req) {
+        return 0xffff;
+    }
+
+    return le16_to_cpu(req->cqe.cid);
+}
+
+typedef enum NvmeTxDirection {
+    NVME_TX_DIRECTION_TO_DEVICE   = 0,
+    NVME_TX_DIRECTION_FROM_DEVICE = 1,
+} NvmeTxDirection;
+
 int nvme_register_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp);
+uint16_t nvme_bounce_data(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
+                          NvmeTxDirection dir, NvmeRequest *req);
+uint16_t nvme_bounce_mdata(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
+                           NvmeTxDirection dir, NvmeRequest *req);
+void nvme_rw_complete_cb(void *opaque, int ret);
+uint16_t nvme_map_dptr(NvmeCtrl *n, NvmeSg *sg, size_t len,
+                       NvmeCmd *cmd);
 
 #endif /* HW_NVME_H */

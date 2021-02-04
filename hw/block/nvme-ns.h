@@ -15,6 +15,8 @@
 #ifndef NVME_NS_H
 #define NVME_NS_H
 
+#include "qemu/uuid.h"
+
 #define TYPE_NVME_NS "nvme-ns"
 #define NVME_NS(obj) \
     OBJECT_CHECK(NvmeNamespace, (obj), TYPE_NVME_NS)
@@ -32,6 +34,8 @@ typedef struct NvmeNamespaceParams {
 
     uint16_t ms;
     uint8_t  mset;
+    uint8_t  pi;
+    uint8_t  pil;
 
     uint16_t mssrl;
     uint32_t mcl;

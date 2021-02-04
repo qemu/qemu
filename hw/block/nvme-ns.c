@@ -39,7 +39,7 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     int lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
     int npdg, nlbas;
 
-    ns->id_ns.dlfeat = 0x9;
+    ns->id_ns.dlfeat = 0x1;
 
     id_ns->lbaf[lba_index].ds = 31 - clz32(ns->blkconf.logical_block_size);
     id_ns->lbaf[lba_index].ms = ns->params.ms;
@@ -50,6 +50,9 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
         if (ns->params.mset) {
             id_ns->flbas |= 0x10;
         }
+
+        id_ns->dpc = 0x1f;
+        id_ns->dps = ((ns->params.pil & 0x1) << 3) | ns->params.pi;
     }
 
     nlbas = nvme_ns_nlbas(ns);
@@ -338,6 +341,12 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
         return -1;
     }
 
+    if (ns->params.pi && !ns->params.ms) {
+        error_setg(errp, "at least 8 bytes of metadata required to enable "
+                   "protection information");
+        return -1;
+    }
+
     return 0;
 }
 
@@ -416,6 +425,8 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_UUID("uuid", NvmeNamespace, params.uuid),
     DEFINE_PROP_UINT16("ms", NvmeNamespace, params.ms, 0),
     DEFINE_PROP_UINT8("mset", NvmeNamespace, params.mset, 0),
+    DEFINE_PROP_UINT8("pi", NvmeNamespace, params.pi, 0),
+    DEFINE_PROP_UINT8("pil", NvmeNamespace, params.pil, 0),
     DEFINE_PROP_UINT16("mssrl", NvmeNamespace, params.mssrl, 128),
     DEFINE_PROP_UINT32("mcl", NvmeNamespace, params.mcl, 128),
     DEFINE_PROP_UINT8("msrc", NvmeNamespace, params.msrc, 127),
