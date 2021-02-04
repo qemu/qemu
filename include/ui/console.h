@@ -368,7 +368,16 @@ static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
     *dest = ch;
 }
 
+enum {
+    GRAPHIC_FLAGS_NONE     = 0,
+    /* require a console/display with GL callbacks */
+    GRAPHIC_FLAGS_GL       = 1 << 0,
+    /* require a console/display with DMABUF import */
+    GRAPHIC_FLAGS_DMABUF   = 1 << 1,
+};
+
 typedef struct GraphicHwOps {
+    int (*get_flags)(void *opaque); /* optional, default 0 */
     void (*invalidate)(void *opaque);
     void (*gfx_update)(void *opaque);
     bool gfx_update_async; /* if true, calls graphic_hw_update_done() */

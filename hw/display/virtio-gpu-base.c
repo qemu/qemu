@@ -114,7 +114,25 @@ virtio_gpu_gl_block(void *opaque, bool block)
     }
 }
 
+static int
+virtio_gpu_get_flags(void *opaque)
+{
+    VirtIOGPUBase *g = opaque;
+    int flags = GRAPHIC_FLAGS_NONE;
+
+    if (virtio_gpu_virgl_enabled(g->conf)) {
+        flags |= GRAPHIC_FLAGS_GL;
+    }
+
+    if (virtio_gpu_dmabuf_enabled(g->conf)) {
+        flags |= GRAPHIC_FLAGS_DMABUF;
+    }
+
+    return flags;
+}
+
 static const GraphicHwOps virtio_gpu_ops = {
+    .get_flags = virtio_gpu_get_flags,
     .invalidate = virtio_gpu_invalidate_display,
     .gfx_update = virtio_gpu_update_display,
     .text_update = virtio_gpu_text_update,
