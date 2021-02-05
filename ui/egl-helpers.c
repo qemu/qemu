@@ -441,6 +441,16 @@ int qemu_egl_init_dpy_mesa(EGLNativeDisplayType dpy, DisplayGLMode mode)
 #endif
 }
 
+bool qemu_egl_has_dmabuf(void)
+{
+    if (qemu_egl_display == EGL_NO_DISPLAY) {
+        return false;
+    }
+
+    return epoxy_has_egl_extension(qemu_egl_display,
+                                   "EGL_EXT_image_dma_buf_import");
+}
+
 EGLContext qemu_egl_init_ctx(void)
 {
     static const EGLint ctx_att_core[] = {

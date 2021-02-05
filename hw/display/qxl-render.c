@@ -181,6 +181,7 @@ void qxl_render_update(PCIQXLDevice *qxl)
         qxl->mode == QXL_MODE_UNDEFINED) {
         qxl_render_update_area_unlocked(qxl);
         qemu_mutex_unlock(&qxl->ssd.lock);
+        graphic_hw_update_done(qxl->ssd.dcl.con);
         return;
     }
 

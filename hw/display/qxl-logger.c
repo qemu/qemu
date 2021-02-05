@@ -189,7 +189,7 @@ static void qxl_log_cmd_surface(PCIQXLDevice *qxl, QXLSurfaceCmd *cmd)
             qxl_name(qxl_surface_cmd, cmd->type),
             cmd->surface_id);
     if (cmd->type == QXL_SURFACE_CMD_CREATE) {
-        fprintf(stderr, " size %dx%d stride %d format %s (count %d, max %d)",
+        fprintf(stderr, " size %dx%d stride %d format %s (count %u, max %u)",
                 cmd->u.surface_create.width,
                 cmd->u.surface_create.height,
                 cmd->u.surface_create.stride,
@@ -197,7 +197,7 @@ static void qxl_log_cmd_surface(PCIQXLDevice *qxl, QXLSurfaceCmd *cmd)
                 qxl->guest_surfaces.count, qxl->guest_surfaces.max);
     }
     if (cmd->type == QXL_SURFACE_CMD_DESTROY) {
-        fprintf(stderr, " (count %d)", qxl->guest_surfaces.count);
+        fprintf(stderr, " (count %u)", qxl->guest_surfaces.count);
     }
 }
 

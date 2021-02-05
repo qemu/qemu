@@ -71,6 +71,7 @@ enum virtio_gpu_base_conf_flags {
     VIRTIO_GPU_FLAG_VIRGL_ENABLED = 1,
     VIRTIO_GPU_FLAG_STATS_ENABLED,
     VIRTIO_GPU_FLAG_EDID_ENABLED,
+    VIRTIO_GPU_FLAG_DMABUF_ENABLED,
 };
 
 #define virtio_gpu_virgl_enabled(_cfg) \
@@ -79,6 +80,8 @@ enum virtio_gpu_base_conf_flags {
     (_cfg.flags & (1 << VIRTIO_GPU_FLAG_STATS_ENABLED))
 #define virtio_gpu_edid_enabled(_cfg) \
     (_cfg.flags & (1 << VIRTIO_GPU_FLAG_EDID_ENABLED))
+#define virtio_gpu_dmabuf_enabled(_cfg) \
+    (_cfg.flags & (1 << VIRTIO_GPU_FLAG_DMABUF_ENABLED))
 
 struct virtio_gpu_base_conf {
     uint32_t max_outputs;
@@ -118,7 +121,7 @@ struct VirtIOGPUBase {
 struct VirtIOGPUBaseClass {
     VirtioDeviceClass parent;
 
-    void (*gl_unblock)(VirtIOGPUBase *g);
+    void (*gl_flushed)(VirtIOGPUBase *g);
 };
 
 #define VIRTIO_GPU_BASE_PROPERTIES(_state, _conf)                       \
@@ -145,6 +148,7 @@ struct VirtIOGPU {
 
     uint64_t hostmem;
 
+    bool processing_cmdq;
     bool renderer_inited;
     bool renderer_reset;
     QEMUTimer *fence_poll;
