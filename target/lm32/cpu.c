@@ -210,6 +210,19 @@ static ObjectClass *lm32_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
+#include "hw/core/tcg-cpu-ops.h"
+
+static struct TCGCPUOps lm32_tcg_ops = {
+    .initialize = lm32_translate_init,
+    .cpu_exec_interrupt = lm32_cpu_exec_interrupt,
+    .tlb_fill = lm32_cpu_tlb_fill,
+    .debug_excp_handler = lm32_debug_excp_handler,
+
+#ifndef CONFIG_USER_ONLY
+    .do_interrupt = lm32_cpu_do_interrupt,
+#endif /* !CONFIG_USER_ONLY */
+};
+
 static void lm32_cpu_class_init(ObjectClass *oc, void *data)
 {
     LM32CPUClass *lcc = LM32_CPU_CLASS(oc);
@@ -222,22 +235,18 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = lm32_cpu_class_by_name;
     cc->has_work = lm32_cpu_has_work;
-    cc->do_interrupt = lm32_cpu_do_interrupt;
-    cc->cpu_exec_interrupt = lm32_cpu_exec_interrupt;
     cc->dump_state = lm32_cpu_dump_state;
     cc->set_pc = lm32_cpu_set_pc;
     cc->gdb_read_register = lm32_cpu_gdb_read_register;
     cc->gdb_write_register = lm32_cpu_gdb_write_register;
-    cc->tlb_fill = lm32_cpu_tlb_fill;
 #ifndef CONFIG_USER_ONLY
     cc->get_phys_page_debug = lm32_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_lm32_cpu;
 #endif
     cc->gdb_num_core_regs = 32 + 7;
     cc->gdb_stop_before_watchpoint = true;
-    cc->debug_excp_handler = lm32_debug_excp_handler;
     cc->disas_set_info = lm32_cpu_disas_set_info;
-    cc->tcg_initialize = lm32_translate_init;
+    cc->tcg_ops = &lm32_tcg_ops;
 }
 
 #define DEFINE_LM32_CPU_TYPE(cpu_model, initfn) \

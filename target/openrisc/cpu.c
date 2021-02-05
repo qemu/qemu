@@ -174,6 +174,18 @@ static void openrisc_any_initfn(Object *obj)
                       | (IMMUCFGR_NTS & (ctz32(TLB_SIZE) << 2));
 }
 
+#include "hw/core/tcg-cpu-ops.h"
+
+static struct TCGCPUOps openrisc_tcg_ops = {
+    .initialize = openrisc_translate_init,
+    .cpu_exec_interrupt = openrisc_cpu_exec_interrupt,
+    .tlb_fill = openrisc_cpu_tlb_fill,
+
+#ifndef CONFIG_USER_ONLY
+    .do_interrupt = openrisc_cpu_do_interrupt,
+#endif /* !CONFIG_USER_ONLY */
+};
+
 static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
 {
     OpenRISCCPUClass *occ = OPENRISC_CPU_CLASS(oc);
@@ -186,20 +198,17 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = openrisc_cpu_class_by_name;
     cc->has_work = openrisc_cpu_has_work;
-    cc->do_interrupt = openrisc_cpu_do_interrupt;
-    cc->cpu_exec_interrupt = openrisc_cpu_exec_interrupt;
     cc->dump_state = openrisc_cpu_dump_state;
     cc->set_pc = openrisc_cpu_set_pc;
     cc->gdb_read_register = openrisc_cpu_gdb_read_register;
     cc->gdb_write_register = openrisc_cpu_gdb_write_register;
-    cc->tlb_fill = openrisc_cpu_tlb_fill;
 #ifndef CONFIG_USER_ONLY
     cc->get_phys_page_debug = openrisc_cpu_get_phys_page_debug;
     dc->vmsd = &vmstate_openrisc_cpu;
 #endif
     cc->gdb_num_core_regs = 32 + 3;
-    cc->tcg_initialize = openrisc_translate_init;
     cc->disas_set_info = openrisc_disas_set_info;
+    cc->tcg_ops = &openrisc_tcg_ops;
 }
 
 /* Sort alphabetically by type name, except for "any". */

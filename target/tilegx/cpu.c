@@ -134,6 +134,18 @@ static bool tilegx_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
+#include "hw/core/tcg-cpu-ops.h"
+
+static struct TCGCPUOps tilegx_tcg_ops = {
+    .initialize = tilegx_tcg_init,
+    .cpu_exec_interrupt = tilegx_cpu_exec_interrupt,
+    .tlb_fill = tilegx_cpu_tlb_fill,
+
+#ifndef CONFIG_USER_ONLY
+    .do_interrupt = tilegx_cpu_do_interrupt,
+#endif /* !CONFIG_USER_ONLY */
+};
+
 static void tilegx_cpu_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -147,13 +159,10 @@ static void tilegx_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = tilegx_cpu_class_by_name;
     cc->has_work = tilegx_cpu_has_work;
-    cc->do_interrupt = tilegx_cpu_do_interrupt;
-    cc->cpu_exec_interrupt = tilegx_cpu_exec_interrupt;
     cc->dump_state = tilegx_cpu_dump_state;
     cc->set_pc = tilegx_cpu_set_pc;
-    cc->tlb_fill = tilegx_cpu_tlb_fill;
     cc->gdb_num_core_regs = 0;
-    cc->tcg_initialize = tilegx_tcg_init;
+    cc->tcg_ops = &tilegx_tcg_ops;
 }
 
 static const TypeInfo tilegx_cpu_type_info = {

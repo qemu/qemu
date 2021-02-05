@@ -171,6 +171,12 @@ static inline int r14_bank_number(int mode)
 void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu);
 void arm_translate_init(void);
 
+#ifdef CONFIG_TCG
+void arm_cpu_synchronize_from_tb(CPUState *cs,
+                                 const struct TranslationBlock *tb);
+#endif /* CONFIG_TCG */
+
+
 enum arm_fprounding {
     FPROUNDING_TIEEVEN,
     FPROUNDING_POSINF,

@@ -32,9 +32,9 @@
 #include "exec/exec-all.h"
 #include "hw/boards.h"
 
-#include "tcg-cpus.h"
-#include "tcg-cpus-rr.h"
-#include "tcg-cpus-icount.h"
+#include "tcg-accel-ops.h"
+#include "tcg-accel-ops-rr.h"
+#include "tcg-accel-ops-icount.h"
 
 /* Kick all RR vCPUs */
 void rr_kick_vcpu_thread(CPUState *unused)
@@ -296,10 +296,3 @@ void rr_start_vcpu_thread(CPUState *cpu)
         cpu->created = true;
     }
 }
-
-const CpusAccel tcg_cpus_rr = {
-    .create_vcpu_thread = rr_start_vcpu_thread,
-    .kick_vcpu_thread = rr_kick_vcpu_thread,
-
-    .handle_interrupt = tcg_cpus_handle_interrupt,
-};

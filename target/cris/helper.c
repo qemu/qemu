@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "hw/core/tcg-cpu-ops.h"
 #include "mmu.h"
 #include "qemu/host-utils.h"
 #include "exec/exec-all.h"
@@ -299,7 +300,7 @@ bool cris_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         && (env->pregs[PR_CCS] & I_FLAG)
         && !env->locked_irq) {
         cs->exception_index = EXCP_IRQ;
-        cc->do_interrupt(cs);
+        cc->tcg_ops->do_interrupt(cs);
         ret = true;
     }
     if (interrupt_request & CPU_INTERRUPT_NMI) {
@@ -311,7 +312,7 @@ bool cris_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         }
         if ((env->pregs[PR_CCS] & m_flag_archval)) {
             cs->exception_index = EXCP_NMI;
-            cc->do_interrupt(cs);
+            cc->tcg_ops->do_interrupt(cs);
             ret = true;
         }
     }

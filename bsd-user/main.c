@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/units.h"
+#include "qemu/accel.h"
 #include "sysemu/tcg.h"
 #include "qemu-version.h"
 #include <machine/trap.h>
@@ -908,10 +909,14 @@ int main(int argc, char **argv)
 #endif
     }
 
-    /* init tcg before creating CPUs and to get qemu_host_page_size */
-    tcg_exec_init(0, false);
-
     cpu_type = parse_cpu_option(cpu_model);
+    /* init tcg before creating CPUs and to get qemu_host_page_size */
+    {
+        AccelClass *ac = ACCEL_GET_CLASS(current_accel());
+
+        ac->init_machine(NULL);
+        accel_init_interfaces(ac);
+    }
     cpu = cpu_create(cpu_type);
     env = cpu->env_ptr;
 #if defined(TARGET_SPARC) || defined(TARGET_PPC)

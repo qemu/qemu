@@ -20,8 +20,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef HW_ACCEL_H
-#define HW_ACCEL_H
+#ifndef QEMU_ACCEL_H
+#define QEMU_ACCEL_H
 
 #include "qom/object.h"
 #include "exec/hwaddr.h"
@@ -37,8 +37,8 @@ typedef struct AccelClass {
     /*< public >*/
 
     const char *name;
-#ifndef CONFIG_USER_ONLY
     int (*init_machine)(MachineState *ms);
+#ifndef CONFIG_USER_ONLY
     void (*setup_post)(MachineState *ms, AccelState *accel);
     bool (*has_memory)(MachineState *ms, AddressSpace *as,
                        hwaddr start_addr, hwaddr size);
@@ -67,11 +67,15 @@ typedef struct AccelClass {
     OBJECT_GET_CLASS(AccelClass, (obj), TYPE_ACCEL)
 
 AccelClass *accel_find(const char *opt_name);
+AccelState *current_accel(void);
+
+void accel_init_interfaces(AccelClass *ac);
+
+#ifndef CONFIG_USER_ONLY
 int accel_init_machine(AccelState *accel, MachineState *ms);
 
 /* Called just before os_setup_post (ie just before drop OS privs) */
 void accel_setup_post(MachineState *ms);
+#endif /* !CONFIG_USER_ONLY */
 
-AccelState *current_accel(void);
-
-#endif
+#endif /* QEMU_ACCEL_H */

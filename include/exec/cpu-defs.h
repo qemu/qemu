@@ -25,9 +25,6 @@
 
 #include "qemu/host-utils.h"
 #include "qemu/thread.h"
-#ifdef CONFIG_TCG
-#include "tcg-target.h"
-#endif
 #ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
 #endif
