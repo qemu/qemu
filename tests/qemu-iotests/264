@@ -94,13 +94,7 @@ class TestNbdReconnect(iotests.QMPTestCase):
             result = self.vm.qmp('blockdev-del', node_name='backup0')
             self.assert_qmp(result, 'return', {})
 
-    def test_mirror_cancel(self):
-        # Mirror speed limit doesn't work well enough, it seems that mirror
-        # will run many parallel requests anyway. MAX_IN_FLIGHT is 16 and
-        # MAX_IO_BYTES is 1M in mirror.c, so let's use 20M disk.
-        self.init_vm(20 * 1024 * 1024)
-        self.start_job('blockdev-mirror')
-
+    def cancel_job(self):
         result = self.vm.qmp('block-job-cancel', device='drive0')
         self.assert_qmp(result, 'return', {})
 
@@ -108,6 +102,19 @@ class TestNbdReconnect(iotests.QMPTestCase):
         self.vm.event_wait('BLOCK_JOB_CANCELLED')
         delta_t = time.time() - start_t
         self.assertTrue(delta_t < 2.0)
+
+    def test_mirror_cancel(self):
+        # Mirror speed limit doesn't work well enough, it seems that mirror
+        # will run many parallel requests anyway. MAX_IN_FLIGHT is 16 and
+        # MAX_IO_BYTES is 1M in mirror.c, so let's use 20M disk.
+        self.init_vm(20 * 1024 * 1024)
+        self.start_job('blockdev-mirror')
+        self.cancel_job()
+
+    def test_backup_cancel(self):
+        self.init_vm(5 * 1024 * 1024)
+        self.start_job('blockdev-backup')
+        self.cancel_job()
 
 
 if __name__ == '__main__':
