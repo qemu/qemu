@@ -44,7 +44,6 @@
 // always little-endian
 struct bochs_header {
     char magic[32];     /* "Bochs Virtual HD Image" */
-    char magic[32];     /* "Bochs Virtual HD Image" */
     char type[16];      /* "Redolog" */
     char subtype[16];   /* "Undoable" / "Volatile" / "Growing" */
     uint32_t version;
@@ -91,7 +90,7 @@ static int bochs_probe(const uint8_t *buf, int buf_size, const char *filename)
         !strcmp(bochs->type, REDOLOG_TYPE) &&
         !strcmp(bochs->subtype, GROWING_TYPE) &&
         ((le32_to_cpu(bochs->version) == HEADER_VERSION) ||
-        (le32_to_cpu(bochs->version) == HEADER_V1)))
+         (le32_to_cpu(bochs->version) == HEADER_V1)))
         return 100;
 
     return 0;
@@ -126,7 +125,7 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
         strcmp(bochs.type, REDOLOG_TYPE) ||
         strcmp(bochs.subtype, GROWING_TYPE) ||
         ((le32_to_cpu(bochs.version) != HEADER_VERSION) &&
-        (le32_to_cpu(bochs.version) != HEADER_V1))) {
+         (le32_to_cpu(bochs.version) != HEADER_V1))) {
         error_setg(errp, "Image not in Bochs format");
         return -EINVAL;
     }
@@ -173,12 +172,12 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     } else if (!is_power_of_2(s->extent_size)) {
         error_setg(errp, "Extent size %" PRIu32 " is not a power of two",
-                   s->extent_size);
+                s->extent_size);
         ret = -EINVAL;
         goto fail;
     } else if (s->extent_size > 0x800000) {
         error_setg(errp, "Extent size %" PRIu32 " is too large",
-                   s->extent_size);
+                s->extent_size);
         ret = -EINVAL;
         goto fail;
     }
@@ -194,7 +193,7 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_co_mutex_init(&s->lock);
     return 0;
 
-fail:
+    fail:
     g_free(s->catalog_bitmap);
     return ret;
 }
@@ -221,8 +220,8 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
     }
 
     bitmap_offset = s->data_offset +
-        (512 * (uint64_t) s->catalog_bitmap[extent_index] *
-        (s->extent_blocks + s->bitmap_blocks));
+                    (512 * (uint64_t) s->catalog_bitmap[extent_index] *
+                     (s->extent_blocks + s->bitmap_blocks));
 
     /* read in bitmap for current extent */
     ret = bdrv_pread(bs->file, bitmap_offset + (extent_offset / 8),
@@ -240,51 +239,51 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 
 static int coroutine_fn
 bochs_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
-                QEMUIOVector *qiov, int flags)
+QEMUIOVector *qiov, int flags)
 {
-    BDRVBochsState *s = bs->opaque;
-    uint64_t sector_num = offset >> BDRV_SECTOR_BITS;
-    int nb_sectors = bytes >> BDRV_SECTOR_BITS;
-    uint64_t bytes_done = 0;
-    QEMUIOVector local_qiov;
-    int ret;
+BDRVBochsState *s = bs->opaque;
+uint64_t sector_num = offset >> BDRV_SECTOR_BITS;
+int nb_sectors = bytes >> BDRV_SECTOR_BITS;
+uint64_t bytes_done = 0;
+QEMUIOVector local_qiov;
+int ret;
 
-    assert(QEMU_IS_ALIGNED(offset, BDRV_SECTOR_SIZE));
-    assert(QEMU_IS_ALIGNED(bytes, BDRV_SECTOR_SIZE));
+assert(QEMU_IS_ALIGNED(offset, BDRV_SECTOR_SIZE));
+assert(QEMU_IS_ALIGNED(bytes, BDRV_SECTOR_SIZE));
 
-    qemu_iovec_init(&local_qiov, qiov->niov);
-    qemu_co_mutex_lock(&s->lock);
+qemu_iovec_init(&local_qiov, qiov->niov);
+qemu_co_mutex_lock(&s->lock);
 
-    while (nb_sectors > 0) {
-        int64_t block_offset = seek_to_sector(bs, sector_num);
-        if (block_offset < 0) {
-            ret = block_offset;
-            goto fail;
-        }
+while (nb_sectors > 0) {
+int64_t block_offset = seek_to_sector(bs, sector_num);
+if (block_offset < 0) {
+ret = block_offset;
+goto fail;
+}
 
-        qemu_iovec_reset(&local_qiov);
-        qemu_iovec_concat(&local_qiov, qiov, bytes_done, 512);
+qemu_iovec_reset(&local_qiov);
+qemu_iovec_concat(&local_qiov, qiov, bytes_done, 512);
 
-        if (block_offset > 0) {
-            ret = bdrv_co_preadv(bs->file, block_offset, 512,
-                                 &local_qiov, 0);
-            if (ret < 0) {
-                goto fail;
-            }
-        } else {
-            qemu_iovec_memset(&local_qiov, 0, 0, 512);
-        }
-        nb_sectors--;
-        sector_num++;
-        bytes_done += 512;
-    }
+if (block_offset > 0) {
+ret = bdrv_co_preadv(bs->file, block_offset, 512,
+                     &local_qiov, 0);
+if (ret < 0) {
+goto fail;
+}
+} else {
+qemu_iovec_memset(&local_qiov, 0, 0, 512);
+}
+nb_sectors--;
+sector_num++;
+bytes_done += 512;
+}
 
-    ret = 0;
+ret = 0;
 fail:
-    qemu_co_mutex_unlock(&s->lock);
-    qemu_iovec_destroy(&local_qiov);
+qemu_co_mutex_unlock(&s->lock);
+qemu_iovec_destroy(&local_qiov);
 
-    return ret;
+return ret;
 }
 
 static void bochs_close(BlockDriverState *bs)
@@ -294,15 +293,15 @@ static void bochs_close(BlockDriverState *bs)
 }
 
 static BlockDriver bdrv_bochs = {
-    .format_name	= "intel",
-    .instance_size	= sizeof(BDRVBochsState),
-    .bdrv_probe		= bochs_probe,
-    .bdrv_open		= bochs_open,
-    .bdrv_child_perm     = bdrv_default_perms,
-    .bdrv_refresh_limits = bochs_refresh_limits,
-    .bdrv_co_preadv = bochs_co_preadv,
-    .bdrv_close		= bochs_close,
-    .is_format          = true,
+        .format_name	= "INTEL",
+        .instance_size	= sizeof(BDRVBochsState),
+        .bdrv_probe		= bochs_probe,
+        .bdrv_open		= bochs_open,
+        .bdrv_child_perm     = bdrv_default_perms,
+        .bdrv_refresh_limits = bochs_refresh_limits,
+        .bdrv_co_preadv = bochs_co_preadv,
+        .bdrv_close		= bochs_close,
+        .is_format          = true,
 };
 
 static void bdrv_bochs_init(void)

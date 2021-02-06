@@ -8,7 +8,7 @@
 #define ACPI_BUILD_TABLE_MAX_SIZE         0x200000
 
 #define ACPI_BUILD_APPNAME6 "INTEL "
-#define ACPI_BUILD_APPNAME4 "INTEL"
+#define ACPI_BUILD_APPNAME8 "INTEL    "
 
 #define ACPI_BUILD_TABLE_FILE "etc/acpi/tables"
 #define ACPI_BUILD_RSDP_FILE "etc/acpi/rsdp"
@@ -362,10 +362,10 @@ Aml *aml_word_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
                  uint16_t addr_max, uint16_t addr_trans,
                  uint16_t len);
 Aml *aml_dword_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
-                 AmlDecode dec, AmlISARanges isa_ranges,
-                 uint32_t addr_gran, uint32_t addr_min,
-                 uint32_t addr_max, uint32_t addr_trans,
-                 uint32_t len);
+                  AmlDecode dec, AmlISARanges isa_ranges,
+                  uint32_t addr_gran, uint32_t addr_min,
+                  uint32_t addr_max, uint32_t addr_trans,
+                  uint32_t len);
 Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
                       AmlMaxFixed max_fixed, AmlCacheable cacheable,
                       AmlReadAndWrite read_and_write,
@@ -448,7 +448,7 @@ build_append_gas_from_struct(GArray *table, const struct AcpiGenericAddress *s)
 
 void crs_range_insert(GPtrArray *ranges, uint64_t base, uint64_t limit);
 void crs_replace_with_free_ranges(GPtrArray *ranges,
-                                         uint64_t start, uint64_t end);
+                                  uint64_t start, uint64_t end);
 void crs_range_set_init(CrsRangeSet *range_set);
 void crs_range_set_free(CrsRangeSet *range_set);
 
@@ -459,10 +459,12 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
 void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
                        uint64_t len, int node, MemoryAffinityFlags flags);
 
-void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms);
+void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
+                const char *oem_id, const char *oem_table_id);
 
 void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
                 const char *oem_id, const char *oem_table_id);
 
-void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog);
+void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
+                const char *oem_id, const char *oem_table_id);
 #endif
