@@ -149,7 +149,7 @@ build_dsdt_microvm(GArray *table_data, BIOSLinker *linker,
     g_array_append_vals(table_data, dsdt->buf->data, dsdt->buf->len);
     build_header(linker, table_data,
         (void *)(table_data->data + table_data->len - dsdt->buf->len),
-        "DSDT", dsdt->buf->len, 2, NULL, NULL);
+                 "DSDT", dsdt->buf->len, 2, mms->oem_id, mms->oem_table_id);
     free_aml_allocator();
 }
 
@@ -201,21 +201,24 @@ static void acpi_build_microvm(AcpiBuildTables *tables,
     pmfadt.dsdt_tbl_offset = &dsdt;
     pmfadt.xdsdt_tbl_offset = &dsdt;
     acpi_add_table(table_offsets, tables_blob);
-    build_fadt(tables_blob, tables->linker, &pmfadt, NULL, NULL);
+    build_fadt(tables_blob, tables->linker, &pmfadt, mms->oem_id,
+               mms->oem_table_id);
 
     acpi_add_table(table_offsets, tables_blob);
     acpi_build_madt(tables_blob, tables->linker, X86_MACHINE(machine),
-                    ACPI_DEVICE_IF(x86ms->acpi_dev));
+                    ACPI_DEVICE_IF(x86ms->acpi_dev), mms->oem_id,
+                    mms->oem_table_id);
 
     xsdt = tables_blob->len;
-    build_xsdt(tables_blob, tables->linker, table_offsets, NULL, NULL);
+    build_xsdt(tables_blob, tables->linker, table_offsets, mms->oem_id,
+               mms->oem_table_id);
 
     /* RSDP is in FSEG memory, so allocate it separately */
     {
         AcpiRsdpData rsdp_data = {
             /* ACPI 2.0: 5.2.4.3 RSDP Structure */
             .revision = 2, /* xsdt needs v2 */
-            .oem_id = ACPI_BUILD_APPNAME6,
+            .oem_id = mms->oem_id,
             .xsdt_tbl_offset = &xsdt,
             .rsdt_tbl_offset = NULL,
         };

@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "hax-cpus.h"
+#include "hax-accel-ops.h"
 
 /*
  * return 0 when success, -1 when driver not loaded,

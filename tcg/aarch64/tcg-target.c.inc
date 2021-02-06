@@ -2488,7 +2488,7 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
     v0 = temp_tcgv_vec(arg_temp(a0));
     v1 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
     a2 = va_arg(va, TCGArg);
-    v2 = temp_tcgv_vec(arg_temp(a2));
+    va_end(va);
 
     switch (opc) {
     case INDEX_op_rotli_vec:
@@ -2502,6 +2502,7 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
     case INDEX_op_shrv_vec:
     case INDEX_op_sarv_vec:
         /* Right shifts are negative left shifts for AArch64.  */
+        v2 = temp_tcgv_vec(arg_temp(a2));
         t1 = tcg_temp_new_vec(type);
         tcg_gen_neg_vec(vece, t1, v2);
         opc = (opc == INDEX_op_shrv_vec
@@ -2512,6 +2513,7 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
         break;
 
     case INDEX_op_rotlv_vec:
+        v2 = temp_tcgv_vec(arg_temp(a2));
         t1 = tcg_temp_new_vec(type);
         c1 = tcg_constant_vec(type, vece, 8 << vece);
         tcg_gen_sub_vec(vece, t1, v2, c1);
@@ -2525,6 +2527,7 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
         break;
 
     case INDEX_op_rotrv_vec:
+        v2 = temp_tcgv_vec(arg_temp(a2));
         t1 = tcg_temp_new_vec(type);
         t2 = tcg_temp_new_vec(type);
         c1 = tcg_constant_vec(type, vece, 8 << vece);
@@ -2543,8 +2546,6 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
     default:
         g_assert_not_reached();
     }
-
-    va_end(va);
 }
 
 static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)

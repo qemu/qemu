@@ -406,6 +406,11 @@ int vhost_backend_handle_iotlb_msg(struct vhost_dev *dev,
 {
     int ret = 0;
 
+    if (unlikely(!dev->vdev)) {
+        error_report("Unexpected IOTLB message when virtio device is stopped");
+        return -EINVAL;
+    }
+
     switch (imsg->type) {
     case VHOST_IOTLB_MISS:
         ret = vhost_device_iotlb_miss(dev, imsg->iova,

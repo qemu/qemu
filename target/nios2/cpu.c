@@ -207,6 +207,18 @@ static Property nios2_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+#include "hw/core/tcg-cpu-ops.h"
+
+static struct TCGCPUOps nios2_tcg_ops = {
+    .initialize = nios2_tcg_init,
+    .cpu_exec_interrupt = nios2_cpu_exec_interrupt,
+    .tlb_fill = nios2_cpu_tlb_fill,
+
+#ifndef CONFIG_USER_ONLY
+    .do_interrupt = nios2_cpu_do_interrupt,
+    .do_unaligned_access = nios2_cpu_do_unaligned_access,
+#endif /* !CONFIG_USER_ONLY */
+};
 
 static void nios2_cpu_class_init(ObjectClass *oc, void *data)
 {
@@ -221,20 +233,16 @@ static void nios2_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = nios2_cpu_class_by_name;
     cc->has_work = nios2_cpu_has_work;
-    cc->do_interrupt = nios2_cpu_do_interrupt;
-    cc->cpu_exec_interrupt = nios2_cpu_exec_interrupt;
     cc->dump_state = nios2_cpu_dump_state;
     cc->set_pc = nios2_cpu_set_pc;
     cc->disas_set_info = nios2_cpu_disas_set_info;
-    cc->tlb_fill = nios2_cpu_tlb_fill;
 #ifndef CONFIG_USER_ONLY
-    cc->do_unaligned_access = nios2_cpu_do_unaligned_access;
     cc->get_phys_page_debug = nios2_cpu_get_phys_page_debug;
 #endif
     cc->gdb_read_register = nios2_cpu_gdb_read_register;
     cc->gdb_write_register = nios2_cpu_gdb_write_register;
     cc->gdb_num_core_regs = 49;
-    cc->tcg_initialize = nios2_tcg_init;
+    cc->tcg_ops = &nios2_tcg_ops;
 }
 
 static const TypeInfo nios2_cpu_type_info = {

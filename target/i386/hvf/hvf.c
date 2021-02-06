@@ -69,10 +69,10 @@
 #include "exec/address-spaces.h"
 #include "hw/i386/apic_internal.h"
 #include "qemu/main-loop.h"
-#include "sysemu/accel.h"
+#include "qemu/accel.h"
 #include "target/i386/cpu.h"
 
-#include "hvf-cpus.h"
+#include "hvf-accel-ops.h"
 
 HVFState *hvf_state;
 
@@ -887,7 +887,6 @@ static int hvf_accel_init(MachineState *ms)
   
     hvf_state = s;
     memory_listener_register(&hvf_memory_listener, &address_space_memory);
-    cpus_register_accel(&hvf_cpus);
     return 0;
 }
 

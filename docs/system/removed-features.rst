@@ -136,6 +136,12 @@ mips ``fulong2e`` machine alias (removed in 6.0)
 
 This machine has been renamed ``fuloong2e``.
 
+``pc-1.0``, ``pc-1.1``, ``pc-1.2`` and ``pc-1.3`` (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+These machine types were very old and likely could not be used for live
+migration from old QEMU versions anymore. Use a newer machine type instead.
+
 Related binaries
 ----------------
 

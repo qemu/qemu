@@ -173,6 +173,19 @@ static void rx_cpu_init(Object *obj)
     qdev_init_gpio_in(DEVICE(cpu), rx_cpu_set_irq, 2);
 }
 
+#include "hw/core/tcg-cpu-ops.h"
+
+static struct TCGCPUOps rx_tcg_ops = {
+    .initialize = rx_translate_init,
+    .synchronize_from_tb = rx_cpu_synchronize_from_tb,
+    .cpu_exec_interrupt = rx_cpu_exec_interrupt,
+    .tlb_fill = rx_cpu_tlb_fill,
+
+#ifndef CONFIG_USER_ONLY
+    .do_interrupt = rx_cpu_do_interrupt,
+#endif /* !CONFIG_USER_ONLY */
+};
+
 static void rx_cpu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -186,20 +199,17 @@ static void rx_cpu_class_init(ObjectClass *klass, void *data)
 
     cc->class_by_name = rx_cpu_class_by_name;
     cc->has_work = rx_cpu_has_work;
-    cc->do_interrupt = rx_cpu_do_interrupt;
-    cc->cpu_exec_interrupt = rx_cpu_exec_interrupt;
     cc->dump_state = rx_cpu_dump_state;
     cc->set_pc = rx_cpu_set_pc;
-    cc->synchronize_from_tb = rx_cpu_synchronize_from_tb;
+
     cc->gdb_read_register = rx_cpu_gdb_read_register;
     cc->gdb_write_register = rx_cpu_gdb_write_register;
     cc->get_phys_page_debug = rx_cpu_get_phys_page_debug;
     cc->disas_set_info = rx_cpu_disas_set_info;
-    cc->tcg_initialize = rx_translate_init;
-    cc->tlb_fill = rx_cpu_tlb_fill;
 
     cc->gdb_num_core_regs = 26;
     cc->gdb_core_xml_file = "rx-core.xml";
+    cc->tcg_ops = &rx_tcg_ops;
 }
 
 static const TypeInfo rx_cpu_info = {

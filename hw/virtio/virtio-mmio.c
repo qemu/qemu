@@ -191,6 +191,14 @@ static uint64_t virtio_mmio_read(void *opaque, hwaddr offset, unsigned size)
             return 0;
         }
         return vdev->generation;
+   case VIRTIO_MMIO_SHM_LEN_LOW:
+   case VIRTIO_MMIO_SHM_LEN_HIGH:
+        /*
+         * VIRTIO_MMIO_SHM_SEL is unimplemented
+         * according to the linux driver, if region length is -1
+         * the shared memory doesn't exist
+         */
+        return -1;
     case VIRTIO_MMIO_DEVICE_FEATURES_SEL:
     case VIRTIO_MMIO_DRIVER_FEATURES:
     case VIRTIO_MMIO_DRIVER_FEATURES_SEL:

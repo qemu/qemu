@@ -893,6 +893,11 @@ static int virtio_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu_mr,
                                             IOMMUNotifierFlag new,
                                             Error **errp)
 {
+    if (new & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) {
+        error_setg(errp, "Virtio-iommu does not support dev-iotlb yet");
+        return -EINVAL;
+    }
+
     if (old == IOMMU_NOTIFIER_NONE) {
         trace_virtio_iommu_notify_flag_add(iommu_mr->parent_obj.name);
     } else if (new == IOMMU_NOTIFIER_NONE) {

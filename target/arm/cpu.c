@@ -26,6 +26,9 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "cpu.h"
+#ifdef CONFIG_TCG
+#include "hw/core/tcg-cpu-ops.h"
+#endif /* CONFIG_TCG */
 #include "internals.h"
 #include "exec/exec-all.h"
 #include "hw/qdev-properties.h"
@@ -54,8 +57,9 @@ static void arm_cpu_set_pc(CPUState *cs, vaddr value)
     }
 }
 
-static void arm_cpu_synchronize_from_tb(CPUState *cs,
-                                        const TranslationBlock *tb)
+#ifdef CONFIG_TCG
+void arm_cpu_synchronize_from_tb(CPUState *cs,
+                                 const TranslationBlock *tb)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -70,6 +74,7 @@ static void arm_cpu_synchronize_from_tb(CPUState *cs,
         env->regs[15] = tb->pc;
     }
 }
+#endif /* CONFIG_TCG */
 
 static bool arm_cpu_has_work(CPUState *cs)
 {
@@ -588,7 +593,7 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
  found:
     cs->exception_index = excp_idx;
     env->exception.target_el = target_el;
-    cc->do_interrupt(cs);
+    cc->tcg_ops->do_interrupt(cs);
     return true;
 }
 
@@ -2240,6 +2245,24 @@ static gchar *arm_gdb_arch_name(CPUState *cs)
     return g_strdup("arm");
 }
 
+#ifdef CONFIG_TCG
+static struct TCGCPUOps arm_tcg_ops = {
+    .initialize = arm_translate_init,
+    .synchronize_from_tb = arm_cpu_synchronize_from_tb,
+    .cpu_exec_interrupt = arm_cpu_exec_interrupt,
+    .tlb_fill = arm_cpu_tlb_fill,
+    .debug_excp_handler = arm_debug_excp_handler,
+
+#if !defined(CONFIG_USER_ONLY)
+    .do_interrupt = arm_cpu_do_interrupt,
+    .do_transaction_failed = arm_cpu_do_transaction_failed,
+    .do_unaligned_access = arm_cpu_do_unaligned_access,
+    .adjust_watchpoint_address = arm_adjust_watchpoint_address,
+    .debug_check_watchpoint = arm_debug_check_watchpoint,
+#endif /* !CONFIG_USER_ONLY */
+};
+#endif /* CONFIG_TCG */
+
 static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -2254,14 +2277,11 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = arm_cpu_class_by_name;
     cc->has_work = arm_cpu_has_work;
-    cc->cpu_exec_interrupt = arm_cpu_exec_interrupt;
     cc->dump_state = arm_cpu_dump_state;
     cc->set_pc = arm_cpu_set_pc;
-    cc->synchronize_from_tb = arm_cpu_synchronize_from_tb;
     cc->gdb_read_register = arm_cpu_gdb_read_register;
     cc->gdb_write_register = arm_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
-    cc->do_interrupt = arm_cpu_do_interrupt;
     cc->get_phys_page_attrs_debug = arm_cpu_get_phys_page_attrs_debug;
     cc->asidx_from_attrs = arm_asidx_from_attrs;
     cc->vmsd = &vmstate_arm_cpu;
@@ -2275,17 +2295,10 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_get_dynamic_xml = arm_gdb_get_dynamic_xml;
     cc->gdb_stop_before_watchpoint = true;
     cc->disas_set_info = arm_disas_set_info;
+
 #ifdef CONFIG_TCG
-    cc->tcg_initialize = arm_translate_init;
-    cc->tlb_fill = arm_cpu_tlb_fill;
-    cc->debug_excp_handler = arm_debug_excp_handler;
-    cc->debug_check_watchpoint = arm_debug_check_watchpoint;
-    cc->do_unaligned_access = arm_cpu_do_unaligned_access;
-#if !defined(CONFIG_USER_ONLY)
-    cc->do_transaction_failed = arm_cpu_do_transaction_failed;
-    cc->adjust_watchpoint_address = arm_adjust_watchpoint_address;
-#endif /* CONFIG_TCG && !CONFIG_USER_ONLY */
-#endif
+    cc->tcg_ops = &arm_tcg_ops;
+#endif /* CONFIG_TCG */
 }
 
 #ifdef CONFIG_KVM

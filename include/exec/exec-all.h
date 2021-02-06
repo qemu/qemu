@@ -544,7 +544,7 @@ void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr);
 
 /* GETPC is the true target of the return instruction that we'll execute.  */
 #if defined(CONFIG_TCG_INTERPRETER)
-extern uintptr_t tci_tb_ptr;
+extern __thread uintptr_t tci_tb_ptr;
 # define GETPC() tci_tb_ptr
 #else
 # define GETPC() \

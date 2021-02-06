@@ -128,7 +128,7 @@ void hw_error(const char *fmt, ...)
 /*
  * The chosen accelerator is supposed to register this.
  */
-static const CpusAccel *cpus_accel;
+static const AccelOpsClass *cpus_accel;
 
 void cpu_synchronize_all_states(void)
 {
@@ -594,11 +594,11 @@ void cpu_remove_sync(CPUState *cpu)
     qemu_mutex_lock_iothread();
 }
 
-void cpus_register_accel(const CpusAccel *ca)
+void cpus_register_accel(const AccelOpsClass *ops)
 {
-    assert(ca != NULL);
-    assert(ca->create_vcpu_thread != NULL); /* mandatory */
-    cpus_accel = ca;
+    assert(ops != NULL);
+    assert(ops->create_vcpu_thread != NULL); /* mandatory */
+    cpus_accel = ops;
 }
 
 void qemu_init_vcpu(CPUState *cpu)
@@ -618,7 +618,7 @@ void qemu_init_vcpu(CPUState *cpu)
         cpu_address_space_init(cpu, 0, "cpu-memory", cpu->memory);
     }
 
-    /* accelerators all implement the CpusAccel interface */
+    /* accelerators all implement the AccelOpsClass */
     g_assert(cpus_accel != NULL && cpus_accel->create_vcpu_thread != NULL);
     cpus_accel->create_vcpu_thread(cpu);
 

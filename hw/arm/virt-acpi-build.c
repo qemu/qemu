@@ -341,7 +341,8 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     iort->length = cpu_to_le32(iort_length);
 
     build_header(linker, table_data, (void *)(table_data->data + iort_start),
-                 "IORT", table_data->len - iort_start, 0, NULL, NULL);
+                 "IORT", table_data->len - iort_start, 0, vms->oem_id,
+                 vms->oem_table_id);
 }
 
 static void
@@ -375,7 +376,8 @@ build_spcr(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     spcr->pci_vendor_id = 0xffff;  /* PCI Vendor ID: not a PCI device */
 
     build_header(linker, table_data, (void *)(table_data->data + spcr_start),
-                 "SPCR", table_data->len - spcr_start, 2, NULL, NULL);
+                 "SPCR", table_data->len - spcr_start, 2, vms->oem_id,
+                 vms->oem_table_id);
 }
 
 static void
@@ -427,7 +429,8 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     }
 
     build_header(linker, table_data, (void *)(table_data->data + srat_start),
-                 "SRAT", table_data->len - srat_start, 3, NULL, NULL);
+                 "SRAT", table_data->len - srat_start, 3, vms->oem_id,
+                 vms->oem_table_id);
 }
 
 /* GTDT */
@@ -462,7 +465,8 @@ build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
     build_header(linker, table_data,
                  (void *)(table_data->data + gtdt_start), "GTDT",
-                 table_data->len - gtdt_start, 2, NULL, NULL);
+                 table_data->len - gtdt_start, 2, vms->oem_id,
+                 vms->oem_table_id);
 }
 
 /* MADT */
@@ -551,7 +555,8 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
     build_header(linker, table_data,
                  (void *)(table_data->data + madt_start), "APIC",
-                 table_data->len - madt_start, 3, NULL, NULL);
+                 table_data->len - madt_start, 3, vms->oem_id,
+                 vms->oem_table_id);
 }
 
 /* FADT */
@@ -581,7 +586,7 @@ static void build_fadt_rev5(GArray *table_data, BIOSLinker *linker,
         g_assert_not_reached();
     }
 
-    build_fadt(table_data, linker, &fadt, NULL, NULL);
+    build_fadt(table_data, linker, &fadt, vms->oem_id, vms->oem_table_id);
 }
 
 /* DSDT */
@@ -645,7 +650,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     g_array_append_vals(table_data, dsdt->buf->data, dsdt->buf->len);
     build_header(linker, table_data,
         (void *)(table_data->data + table_data->len - dsdt->buf->len),
-        "DSDT", dsdt->buf->len, 2, NULL, NULL);
+                 "DSDT", dsdt->buf->len, 2, vms->oem_id,
+                 vms->oem_table_id);
     free_aml_allocator();
 }
 
@@ -704,7 +710,8 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
            .base = vms->memmap[VIRT_ECAM_ID(vms->highmem_ecam)].base,
            .size = vms->memmap[VIRT_ECAM_ID(vms->highmem_ecam)].size,
         };
-        build_mcfg(tables_blob, tables->linker, &mcfg);
+        build_mcfg(tables_blob, tables->linker, &mcfg, vms->oem_id,
+                   vms->oem_table_id);
     }
 
     acpi_add_table(table_offsets, tables_blob);
@@ -713,7 +720,8 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     if (vms->ras) {
         build_ghes_error_table(tables->hardware_errors, tables->linker);
         acpi_add_table(table_offsets, tables_blob);
-        acpi_build_hest(tables_blob, tables->linker);
+        acpi_build_hest(tables_blob, tables->linker, vms->oem_id,
+                        vms->oem_table_id);
     }
 
     if (ms->numa_state->num_nodes > 0) {
@@ -721,13 +729,15 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
         build_srat(tables_blob, tables->linker, vms);
         if (ms->numa_state->have_numa_distance) {
             acpi_add_table(table_offsets, tables_blob);
-            build_slit(tables_blob, tables->linker, ms);
+            build_slit(tables_blob, tables->linker, ms, vms->oem_id,
+                       vms->oem_table_id);
         }
     }
 
     if (ms->nvdimms_state->is_enabled) {
         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker,
-                          ms->nvdimms_state, ms->ram_slots);
+                          ms->nvdimms_state, ms->ram_slots, vms->oem_id,
+                          vms->oem_table_id);
     }
 
     if (its_class_name() && !vmc->no_its) {
@@ -737,18 +747,20 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
 
     if (tpm_get_version(tpm_find()) == TPM_VERSION_2_0) {
         acpi_add_table(table_offsets, tables_blob);
-        build_tpm2(tables_blob, tables->linker, tables->tcpalog);
+        build_tpm2(tables_blob, tables->linker, tables->tcpalog, vms->oem_id,
+                   vms->oem_table_id);
     }
 
     /* XSDT is pointed to by RSDP */
     xsdt = tables_blob->len;
-    build_xsdt(tables_blob, tables->linker, table_offsets, NULL, NULL);
+    build_xsdt(tables_blob, tables->linker, table_offsets, vms->oem_id,
+               vms->oem_table_id);
 
     /* RSDP is in FSEG memory, so allocate it separately */
     {
         AcpiRsdpData rsdp_data = {
             .revision = 2,
-            .oem_id = ACPI_BUILD_APPNAME6,
+            .oem_id = vms->oem_id,
             .xsdt_tbl_offset = &xsdt,
             .rsdt_tbl_offset = NULL,
         };

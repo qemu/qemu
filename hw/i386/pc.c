@@ -1611,6 +1611,50 @@ static void pc_machine_set_max_fw_size(Object *obj, Visitor *v,
     pcms->max_fw_size = value;
 }
 
+static char *pc_machine_get_oem_id(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return g_strdup(pcms->oem_id);
+}
+
+static void pc_machine_set_oem_id(Object *obj, const char *value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    size_t len = strlen(value);
+
+    if (len > 6) {
+        error_setg(errp,
+          "User specified "PC_MACHINE_OEM_ID" value is bigger than "
+          "6 bytes in size");
+        return;
+    }
+
+    strncpy(pcms->oem_id, value, 6);
+}
+
+static char *pc_machine_get_oem_table_id(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return g_strdup(pcms->oem_table_id);
+}
+
+static void pc_machine_set_oem_table_id(Object *obj, const char *value,
+                                        Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    size_t len = strlen(value);
+
+    if (len > 8) {
+        error_setg(errp,
+          "User specified "PC_MACHINE_OEM_TABLE_ID" value is bigger than "
+          "8 bytes in size");
+        return;
+    }
+    strncpy(pcms->oem_table_id, value, 8);
+}
+
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -1623,6 +1667,8 @@ static void pc_machine_initfn(Object *obj)
     pcms->max_ram_below_4g = 0; /* use default */
     /* acpi build is enabled by default if machine supports it */
     pcms->acpi_build_enabled = PC_MACHINE_GET_CLASS(pcms)->has_acpi_build;
+    pcms->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
+    pcms->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
     pcms->smbus_enabled = true;
     pcms->sata_enabled = true;
     pcms->pit_enabled = true;
@@ -1759,6 +1805,24 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, PC_MACHINE_MAX_FW_SIZE,
         "Maximum combined firmware size");
+
+    object_class_property_add_str(oc, PC_MACHINE_OEM_ID,
+                                  pc_machine_get_oem_id,
+                                  pc_machine_set_oem_id);
+    object_class_property_set_description(oc, PC_MACHINE_OEM_ID,
+                                          "Override the default value of field OEMID "
+                                          "in ACPI table header."
+                                          "The string may be up to 6 bytes in size");
+
+
+    object_class_property_add_str(oc, PC_MACHINE_OEM_TABLE_ID,
+                                  pc_machine_get_oem_table_id,
+                                  pc_machine_set_oem_table_id);
+    object_class_property_set_description(oc, PC_MACHINE_OEM_TABLE_ID,
+                                          "Override the default value of field OEM Table ID "
+                                          "in ACPI table header."
+                                          "The string may be up to 8 bytes in size");
+
 }
 
 static const TypeInfo pc_machine_info = {
