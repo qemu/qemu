@@ -2455,7 +2455,7 @@ static void scsi_hd_realize(SCSIDevice *dev, Error **errp)
     s->qdev.blocksize = s->qdev.conf.logical_block_size;
     s->qdev.type = TYPE_DISK;
     if (!s->product) {
-        s->product = g_strdup("QEMU HARDDISK");
+        s->product = g_strdup("QNAND");
     }
     scsi_realize(&s->qdev, errp);
 out:

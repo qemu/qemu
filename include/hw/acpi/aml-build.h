@@ -7,8 +7,8 @@
 /* Reserve RAM space for tables: add another order of magnitude. */
 #define ACPI_BUILD_TABLE_MAX_SIZE         0x200000
 
-#define ACPI_BUILD_APPNAME6 "BOCHS "
-#define ACPI_BUILD_APPNAME4 "BXPC"
+#define ACPI_BUILD_APPNAME6 "INTEL "
+#define ACPI_BUILD_APPNAME4 "INTEL"
 
 #define ACPI_BUILD_TABLE_FILE "etc/acpi/tables"
 #define ACPI_BUILD_RSDP_FILE "etc/acpi/rsdp"

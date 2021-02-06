@@ -44,6 +44,7 @@
 // always little-endian
 struct bochs_header {
     char magic[32];     /* "Bochs Virtual HD Image" */
+    char magic[32];     /* "Bochs Virtual HD Image" */
     char type[16];      /* "Redolog" */
     char subtype[16];   /* "Undoable" / "Volatile" / "Growing" */
     uint32_t version;
@@ -293,7 +294,7 @@ static void bochs_close(BlockDriverState *bs)
 }
 
 static BlockDriver bdrv_bochs = {
-    .format_name	= "bochs",
+    .format_name	= "intel",
     .instance_size	= sizeof(BDRVBochsState),
     .bdrv_probe		= bochs_probe,
     .bdrv_open		= bochs_open,

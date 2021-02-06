@@ -796,8 +796,8 @@ static void cmd_inquiry(IDEState *s, uint8_t *buf)
         buf[5] = 0;    /* reserved */
         buf[6] = 0;    /* reserved */
         buf[7] = 0;    /* reserved */
-        padstr8(buf + 8, 8, "QEMU");
-        padstr8(buf + 16, 16, "QEMU DVD-ROM");
+        padstr8(buf + 8, 8, "SAMSUNG");
+        padstr8(buf + 16, 16, "SAMSUNG-DVD-RW");
         padstr8(buf + 32, 4, s->version);
         idx = 36;
     }
