@@ -477,6 +477,22 @@ static void s390_cpu_reset_full(DeviceState *dev)
     return s390_cpu_reset(s, S390_CPU_RESET_CLEAR);
 }
 
+#ifdef CONFIG_TCG
+#include "hw/core/tcg-cpu-ops.h"
+
+static struct TCGCPUOps s390_tcg_ops = {
+    .initialize = s390x_translate_init,
+    .tlb_fill = s390_cpu_tlb_fill,
+
+#if !defined(CONFIG_USER_ONLY)
+    .cpu_exec_interrupt = s390_cpu_exec_interrupt,
+    .do_interrupt = s390_cpu_do_interrupt,
+    .debug_excp_handler = s390x_cpu_debug_excp_handler,
+    .do_unaligned_access = s390x_cpu_do_unaligned_access,
+#endif /* !CONFIG_USER_ONLY */
+};
+#endif /* CONFIG_TCG */
+
 static void s390_cpu_class_init(ObjectClass *oc, void *data)
 {
     S390CPUClass *scc = S390_CPU_CLASS(oc);
@@ -495,9 +511,6 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     scc->reset = s390_cpu_reset;
     cc->class_by_name = s390_cpu_class_by_name,
     cc->has_work = s390_cpu_has_work;
-#ifdef CONFIG_TCG
-    cc->do_interrupt = s390_cpu_do_interrupt;
-#endif
     cc->dump_state = s390_cpu_dump_state;
     cc->set_pc = s390_cpu_set_pc;
     cc->gdb_read_register = s390_cpu_gdb_read_register;
@@ -507,23 +520,17 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->vmsd = &vmstate_s390_cpu;
     cc->get_crash_info = s390_cpu_get_crash_info;
     cc->write_elf64_note = s390_cpu_write_elf64_note;
-#ifdef CONFIG_TCG
-    cc->cpu_exec_interrupt = s390_cpu_exec_interrupt;
-    cc->debug_excp_handler = s390x_cpu_debug_excp_handler;
-    cc->do_unaligned_access = s390x_cpu_do_unaligned_access;
-#endif
 #endif
     cc->disas_set_info = s390_cpu_disas_set_info;
-#ifdef CONFIG_TCG
-    cc->tcg_initialize = s390x_translate_init;
-    cc->tlb_fill = s390_cpu_tlb_fill;
-#endif
-
     cc->gdb_num_core_regs = S390_NUM_CORE_REGS;
     cc->gdb_core_xml_file = "s390x-core64.xml";
     cc->gdb_arch_name = s390_gdb_arch_name;
 
     s390_cpu_model_class_register_props(oc);
+
+#ifdef CONFIG_TCG
+    cc->tcg_ops = &s390_tcg_ops;
+#endif /* CONFIG_TCG */
 }
 
 static const TypeInfo s390_cpu_type_info = {

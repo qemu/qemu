@@ -359,18 +359,6 @@ static void pc_compat_1_4_fn(MachineState *machine)
     pc_compat_1_5_fn(machine);
 }
 
-static void pc_compat_1_3(MachineState *machine)
-{
-    pc_compat_1_4_fn(machine);
-}
-
-/* PC compat function for pc-1.0 to pc-1.2 */
-static void pc_compat_1_2(MachineState *machine)
-{
-    pc_compat_1_3(machine);
-    x86_cpu_change_kvm_default("kvm-pv-eoi", NULL);
-}
-
 static void pc_init_isa(MachineState *machine)
 {
     pc_init1(machine, TYPE_I440FX_PCI_HOST_BRIDGE, TYPE_I440FX_PCI_DEVICE);
@@ -771,88 +759,6 @@ static void pc_i440fx_1_4_machine_options(MachineClass *m)
 
 DEFINE_I440FX_MACHINE(v1_4, "pc-i440fx-1.4", pc_compat_1_4_fn,
                       pc_i440fx_1_4_machine_options);
-
-static void pc_i440fx_1_3_machine_options(MachineClass *m)
-{
-    X86MachineClass *x86mc = X86_MACHINE_CLASS(m);
-    static GlobalProperty compat[] = {
-        PC_CPU_MODEL_IDS("1.3.0")
-        { "usb-tablet", "usb_version", "1" },
-        { "virtio-net-pci", "ctrl_mac_addr", "off" },
-        { "virtio-net-pci", "mq", "off" },
-        { "e1000", "autonegotiation", "off" },
-    };
-
-    pc_i440fx_1_4_machine_options(m);
-    m->hw_version = "1.3.0";
-    m->deprecation_reason = "use a newer machine type instead";
-    x86mc->compat_apic_id_mode = true;
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
-}
-
-DEFINE_I440FX_MACHINE(v1_3, "pc-1.3", pc_compat_1_3,
-                      pc_i440fx_1_3_machine_options);
-
-
-static void pc_i440fx_1_2_machine_options(MachineClass *m)
-{
-    static GlobalProperty compat[] = {
-        PC_CPU_MODEL_IDS("1.2.0")
-        { "nec-usb-xhci", "msi", "off" },
-        { "nec-usb-xhci", "msix", "off" },
-        { "qxl", "revision", "3" },
-        { "qxl-vga", "revision", "3" },
-        { "VGA", "mmio", "off" },
-    };
-
-    pc_i440fx_1_3_machine_options(m);
-    m->hw_version = "1.2.0";
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
-}
-
-DEFINE_I440FX_MACHINE(v1_2, "pc-1.2", pc_compat_1_2,
-                      pc_i440fx_1_2_machine_options);
-
-
-static void pc_i440fx_1_1_machine_options(MachineClass *m)
-{
-    static GlobalProperty compat[] = {
-        PC_CPU_MODEL_IDS("1.1.0")
-        { "virtio-scsi-pci", "hotplug", "off" },
-        { "virtio-scsi-pci", "param_change", "off" },
-        { "VGA", "vgamem_mb", "8" },
-        { "vmware-svga", "vgamem_mb", "8" },
-        { "qxl-vga", "vgamem_mb", "8" },
-        { "qxl", "vgamem_mb", "8" },
-        { "virtio-blk-pci", "config-wce", "off" },
-    };
-
-    pc_i440fx_1_2_machine_options(m);
-    m->hw_version = "1.1.0";
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
-}
-
-DEFINE_I440FX_MACHINE(v1_1, "pc-1.1", pc_compat_1_2,
-                      pc_i440fx_1_1_machine_options);
-
-static void pc_i440fx_1_0_machine_options(MachineClass *m)
-{
-    static GlobalProperty compat[] = {
-        PC_CPU_MODEL_IDS("1.0")
-        { TYPE_ISA_FDC, "check_media_rate", "off" },
-        { "virtio-balloon-pci", "class", stringify(PCI_CLASS_MEMORY_RAM) },
-        { "apic-common", "vapic", "off" },
-        { TYPE_USB_DEVICE, "full-path", "no" },
-    };
-
-    pc_i440fx_1_1_machine_options(m);
-    m->hw_version = "1.0";
-    compat_props_add(m->compat_props, compat, G_N_ELEMENTS(compat));
-}
-
-DEFINE_I440FX_MACHINE(v1_0, "pc-1.0", pc_compat_1_2,
-                      pc_i440fx_1_0_machine_options);
-
 
 typedef struct {
     uint16_t gpu_device_id;

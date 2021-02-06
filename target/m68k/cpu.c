@@ -453,6 +453,19 @@ static const VMStateDescription vmstate_m68k_cpu = {
 };
 #endif
 
+#include "hw/core/tcg-cpu-ops.h"
+
+static struct TCGCPUOps m68k_tcg_ops = {
+    .initialize = m68k_tcg_init,
+    .cpu_exec_interrupt = m68k_cpu_exec_interrupt,
+    .tlb_fill = m68k_cpu_tlb_fill,
+
+#ifndef CONFIG_USER_ONLY
+    .do_interrupt = m68k_cpu_do_interrupt,
+    .do_transaction_failed = m68k_cpu_transaction_failed,
+#endif /* !CONFIG_USER_ONLY */
+};
+
 static void m68k_cpu_class_init(ObjectClass *c, void *data)
 {
     M68kCPUClass *mcc = M68K_CPU_CLASS(c);
@@ -465,22 +478,18 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
 
     cc->class_by_name = m68k_cpu_class_by_name;
     cc->has_work = m68k_cpu_has_work;
-    cc->do_interrupt = m68k_cpu_do_interrupt;
-    cc->cpu_exec_interrupt = m68k_cpu_exec_interrupt;
     cc->dump_state = m68k_cpu_dump_state;
     cc->set_pc = m68k_cpu_set_pc;
     cc->gdb_read_register = m68k_cpu_gdb_read_register;
     cc->gdb_write_register = m68k_cpu_gdb_write_register;
-    cc->tlb_fill = m68k_cpu_tlb_fill;
 #if defined(CONFIG_SOFTMMU)
-    cc->do_transaction_failed = m68k_cpu_transaction_failed;
     cc->get_phys_page_debug = m68k_cpu_get_phys_page_debug;
     dc->vmsd = &vmstate_m68k_cpu;
 #endif
     cc->disas_set_info = m68k_cpu_disas_set_info;
-    cc->tcg_initialize = m68k_tcg_init;
 
     cc->gdb_num_core_regs = 18;
+    cc->tcg_ops = &m68k_tcg_ops;
 }
 
 static void m68k_cpu_class_init_cf_core(ObjectClass *c, void *data)

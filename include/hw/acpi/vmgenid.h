@@ -31,7 +31,7 @@ static inline Object *find_vmgenid_dev(void)
 }
 
 void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
-                        BIOSLinker *linker);
+                        BIOSLinker *linker, const char *oem_id);
 void vmgenid_add_fw_cfg(VmGenIdState *vms, FWCfgState *s, GArray *guid);
 
 #endif

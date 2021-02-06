@@ -32,7 +32,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
 #include "sysemu/tcg.h"
-#include "sysemu/accel.h"
+#include "qemu/accel.h"
 #include "hw/boards.h"
 #include "migration/vmstate.h"
 

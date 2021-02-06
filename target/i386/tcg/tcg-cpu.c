@@ -57,16 +57,22 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs,
     cpu->env.eip = tb->pc - tb->cs_base;
 }
 
+#include "hw/core/tcg-cpu-ops.h"
+
+static struct TCGCPUOps x86_tcg_ops = {
+    .initialize = tcg_x86_init,
+    .synchronize_from_tb = x86_cpu_synchronize_from_tb,
+    .cpu_exec_enter = x86_cpu_exec_enter,
+    .cpu_exec_exit = x86_cpu_exec_exit,
+    .cpu_exec_interrupt = x86_cpu_exec_interrupt,
+    .do_interrupt = x86_cpu_do_interrupt,
+    .tlb_fill = x86_cpu_tlb_fill,
+#ifndef CONFIG_USER_ONLY
+    .debug_excp_handler = breakpoint_handler,
+#endif /* !CONFIG_USER_ONLY */
+};
+
 void tcg_cpu_common_class_init(CPUClass *cc)
 {
-    cc->do_interrupt = x86_cpu_do_interrupt;
-    cc->cpu_exec_interrupt = x86_cpu_exec_interrupt;
-    cc->synchronize_from_tb = x86_cpu_synchronize_from_tb;
-    cc->cpu_exec_enter = x86_cpu_exec_enter;
-    cc->cpu_exec_exit = x86_cpu_exec_exit;
-    cc->tcg_initialize = tcg_x86_init;
-    cc->tlb_fill = x86_cpu_tlb_fill;
-#ifndef CONFIG_USER_ONLY
-    cc->debug_excp_handler = breakpoint_handler;
-#endif
+    cc->tcg_ops = &x86_tcg_ops;
 }

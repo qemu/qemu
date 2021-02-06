@@ -253,7 +253,8 @@ static void hmat_build_table_structs(GArray *table_data, NumaState *numa_state)
     }
 }
 
-void build_hmat(GArray *table_data, BIOSLinker *linker, NumaState *numa_state)
+void build_hmat(GArray *table_data, BIOSLinker *linker, NumaState *numa_state,
+                const char *oem_id, const char *oem_table_id)
 {
     int hmat_start = table_data->len;
 
@@ -264,5 +265,5 @@ void build_hmat(GArray *table_data, BIOSLinker *linker, NumaState *numa_state)
 
     build_header(linker, table_data,
                  (void *)(table_data->data + hmat_start),
-                 "HMAT", table_data->len - hmat_start, 2, NULL, NULL);
+                 "HMAT", table_data->len - hmat_start, 2, oem_id, oem_table_id);
 }

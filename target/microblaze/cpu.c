@@ -352,6 +352,21 @@ static ObjectClass *mb_cpu_class_by_name(const char *cpu_model)
     return object_class_by_name(TYPE_MICROBLAZE_CPU);
 }
 
+#include "hw/core/tcg-cpu-ops.h"
+
+static struct TCGCPUOps mb_tcg_ops = {
+    .initialize = mb_tcg_init,
+    .synchronize_from_tb = mb_cpu_synchronize_from_tb,
+    .cpu_exec_interrupt = mb_cpu_exec_interrupt,
+    .tlb_fill = mb_cpu_tlb_fill,
+
+#ifndef CONFIG_USER_ONLY
+    .do_interrupt = mb_cpu_do_interrupt,
+    .do_transaction_failed = mb_cpu_transaction_failed,
+    .do_unaligned_access = mb_cpu_do_unaligned_access,
+#endif /* !CONFIG_USER_ONLY */
+};
+
 static void mb_cpu_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -364,17 +379,13 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = mb_cpu_class_by_name;
     cc->has_work = mb_cpu_has_work;
-    cc->do_interrupt = mb_cpu_do_interrupt;
-    cc->do_unaligned_access = mb_cpu_do_unaligned_access;
-    cc->cpu_exec_interrupt = mb_cpu_exec_interrupt;
+
     cc->dump_state = mb_cpu_dump_state;
     cc->set_pc = mb_cpu_set_pc;
-    cc->synchronize_from_tb = mb_cpu_synchronize_from_tb;
     cc->gdb_read_register = mb_cpu_gdb_read_register;
     cc->gdb_write_register = mb_cpu_gdb_write_register;
-    cc->tlb_fill = mb_cpu_tlb_fill;
+
 #ifndef CONFIG_USER_ONLY
-    cc->do_transaction_failed = mb_cpu_transaction_failed;
     cc->get_phys_page_attrs_debug = mb_cpu_get_phys_page_attrs_debug;
     dc->vmsd = &vmstate_mb_cpu;
 #endif
@@ -382,7 +393,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_num_core_regs = 32 + 27;
 
     cc->disas_set_info = mb_disas_set_info;
-    cc->tcg_initialize = mb_tcg_init;
+    cc->tcg_ops = &mb_tcg_ops;
 }
 
 static const TypeInfo mb_cpu_type_info = {

@@ -1067,7 +1067,7 @@ static int tgen_cmp(TCGContext *s, TCGType type, TCGCond c, TCGReg r1,
                 op = (is_unsigned ? RIL_CLFI : RIL_CFI);
                 tcg_out_insn_RIL(s, op, r1, c2);
                 goto exit;
-            } else if (c2 == (is_unsigned ? (uint32_t)c2 : (int32_t)c2)) {
+            } else if (c2 == (is_unsigned ? (TCGArg)(uint32_t)c2 : (TCGArg)(int32_t)c2)) {
                 op = (is_unsigned ? RIL_CLGFI : RIL_CGFI);
                 tcg_out_insn_RIL(s, op, r1, c2);
                 goto exit;

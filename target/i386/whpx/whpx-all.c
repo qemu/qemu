@@ -13,7 +13,7 @@
 #include "exec/address-spaces.h"
 #include "exec/ioport.h"
 #include "qemu-common.h"
-#include "sysemu/accel.h"
+#include "qemu/accel.h"
 #include "sysemu/whpx.h"
 #include "sysemu/cpus.h"
 #include "sysemu/runstate.h"
@@ -28,8 +28,11 @@
 #include "migration/blocker.h"
 #include <winerror.h>
 
-#include "whpx-cpus.h"
 #include "whpx-internal.h"
+#include "whpx-accel-ops.h"
+
+#include <WinHvPlatform.h>
+#include <WinHvEmulation.h>
 
 #define HYPERV_APIC_BUS_FREQUENCY      (200000000ULL)
 
@@ -1845,8 +1848,6 @@ static int whpx_accel_init(MachineState *ms)
     }
 
     whpx_memory_init();
-
-    cpus_register_accel(&whpx_cpus);
 
     printf("Windows Hypervisor Platform accelerator is operational\n");
     return 0;

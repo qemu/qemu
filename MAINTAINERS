@@ -129,6 +129,7 @@ F: include/exec/helper*.h
 F: include/exec/tb-hash.h
 F: include/sysemu/cpus.h
 F: include/sysemu/tcg.h
+F: include/hw/core/tcg-cpu-ops.h
 
 FPU emulation
 M: Aurelien Jarno <aurelien@aurel32.net>
@@ -437,8 +438,10 @@ Overall
 M: Richard Henderson <richard.henderson@linaro.org>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
-F: include/sysemu/accel.h
-F: accel/accel.c
+F: include/qemu/accel.h
+F: include/sysemu/accel-ops.h
+F: include/hw/core/accel-cpu.h
+F: accel/accel-*.c
 F: accel/Makefile.objs
 F: accel/stubs/Makefile.objs
 
