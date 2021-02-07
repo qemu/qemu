@@ -175,6 +175,7 @@ hexagon_ss.add(files(
     'printinsn.c',
     'arch.c',
     'fma_emu.c',
+    'mmvec/decode_ext_mmvec.c',
     'mmvec/system_ext_mmvec.c',
 ))
 

@@ -22,6 +22,7 @@
 #include "decode.h"
 #include "insn.h"
 #include "printinsn.h"
+#include "mmvec/decode_ext_mmvec.h"
 
 #define fZXTN(N, M, VAL) ((VAL) & ((1LL << (N)) - 1))
 
@@ -566,8 +567,12 @@ static void decode_remove_extenders(Packet *packet)
 
 static SlotMask get_valid_slots(const Packet *pkt, unsigned int slot)
 {
-    return find_iclass_slots(pkt->insn[slot].opcode,
-                             pkt->insn[slot].iclass);
+    if (GET_ATTRIB(pkt->insn[slot].opcode, A_EXTENSION)) {
+        return mmvec_ext_decode_find_iclass_slots(pkt->insn[slot].opcode);
+    } else {
+        return find_iclass_slots(pkt->insn[slot].opcode,
+                                 pkt->insn[slot].iclass);
+    }
 }
 
 #define DECODE_NEW_TABLE(TAG, SIZE, WHATNOT)     /* NOTHING */
@@ -728,6 +733,11 @@ decode_insns_tablewalk(Insn *insn, const DectreeTable *table,
         }
         decode_op(insn, opc, encoding);
         return 1;
+    } else if (table->table[i].type == DECTREE_EXTSPACE) {
+        /*
+         * For now, HVX will be the only coproc
+         */
+        return decode_insns_tablewalk(insn, ext_trees[EXT_IDX_mmvec], encoding);
     } else {
         return 0;
     }
@@ -874,6 +884,7 @@ int decode_packet(int max_words, const uint32_t *words, Packet *pkt,
     int words_read = 0;
     bool end_of_packet = false;
     int new_insns = 0;
+    int i;
     uint32_t encoding32;
 
     /* Initialize */
@@ -901,6 +912,11 @@ int decode_packet(int max_words, const uint32_t *words, Packet *pkt,
         return 0;
     }
     pkt->encod_pkt_size_in_bytes = words_read * 4;
+    pkt->pkt_has_hvx = false;
+    for (i = 0; i < num_insns; i++) {
+        pkt->pkt_has_hvx |=
+            GET_ATTRIB(pkt->insn[i].opcode, A_CVI);
+    }
 
     /*
      * Check for :endloop in the parse bits
@@ -930,6 +946,10 @@ int decode_packet(int max_words, const uint32_t *words, Packet *pkt,
     }
     decode_set_slot_number(pkt);
     decode_fill_newvalue_regno(pkt);
+
+    if (pkt->pkt_has_hvx) {
+        mmvec_ext_decode_checks(pkt, disas_only);
+    }
 
     if (!disas_only) {
         decode_shuffle_for_execution(pkt);
