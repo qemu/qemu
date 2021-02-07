@@ -29,6 +29,20 @@ typedef struct NvmeAsyncEvent {
     NvmeAerResult result;
 } NvmeAsyncEvent;
 
+enum {
+    NVME_SG_ALLOC = 1 << 0,
+    NVME_SG_DMA   = 1 << 1,
+};
+
+typedef struct NvmeSg {
+    int flags;
+
+    union {
+        QEMUSGList   qsg;
+        QEMUIOVector iov;
+    };
+} NvmeSg;
+
 typedef struct NvmeRequest {
     struct NvmeSQueue       *sq;
     struct NvmeNamespace    *ns;
@@ -38,8 +52,7 @@ typedef struct NvmeRequest {
     NvmeCqe                 cqe;
     NvmeCmd                 cmd;
     BlockAcctCookie         acct;
-    QEMUSGList              qsg;
-    QEMUIOVector            iov;
+    NvmeSg                  sg;
     QTAILQ_ENTRY(NvmeRequest)entry;
 } NvmeRequest;
 
