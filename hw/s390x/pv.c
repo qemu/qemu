@@ -14,8 +14,11 @@
 #include <linux/kvm.h>
 
 #include "cpu.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
+#include "qom/object_interfaces.h"
+#include "exec/confidential-guest-support.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/pv.h"
 
@@ -110,4 +113,63 @@ void s390_pv_inject_reset_error(CPUState *cs)
 
     /* Report that we are unable to enter protected mode */
     env->regs[r1 + 1] = DIAG_308_RC_INVAL_FOR_PV;
+}
+
+#define TYPE_S390_PV_GUEST "s390-pv-guest"
+OBJECT_DECLARE_SIMPLE_TYPE(S390PVGuest, S390_PV_GUEST)
+
+/**
+ * S390PVGuest:
+ *
+ * The S390PVGuest object is basically a dummy used to tell the
+ * confidential guest support system to use s390's PV mechanism.
+ *
+ * # $QEMU \
+ *         -object s390-pv-guest,id=pv0 \
+ *         -machine ...,confidential-guest-support=pv0
+ */
+struct S390PVGuest {
+    ConfidentialGuestSupport parent_obj;
+};
+
+typedef struct S390PVGuestClass S390PVGuestClass;
+
+struct S390PVGuestClass {
+    ConfidentialGuestSupportClass parent_class;
+};
+
+int s390_pv_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
+{
+    if (!object_dynamic_cast(OBJECT(cgs), TYPE_S390_PV_GUEST)) {
+        return 0;
+    }
+
+    if (!s390_has_feat(S390_FEAT_UNPACK)) {
+        error_setg(errp,
+                   "CPU model does not support Protected Virtualization");
+        return -1;
+    }
+
+    cgs->ready = true;
+
+    return 0;
+}
+
+OBJECT_DEFINE_TYPE_WITH_INTERFACES(S390PVGuest,
+                                   s390_pv_guest,
+                                   S390_PV_GUEST,
+                                   CONFIDENTIAL_GUEST_SUPPORT,
+                                   { TYPE_USER_CREATABLE },
+                                   { NULL })
+
+static void s390_pv_guest_class_init(ObjectClass *oc, void *data)
+{
+}
+
+static void s390_pv_guest_init(Object *obj)
+{
+}
+
+static void s390_pv_guest_finalize(Object *obj)
+{
 }

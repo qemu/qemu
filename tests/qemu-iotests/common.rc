@@ -109,8 +109,14 @@ peek_file_raw()
     dd if="$1" bs=1 skip="$2" count="$3" status=none
 }
 
-
-if ! . ./common.config
+config=common.config
+test -f $config || config=../common.config
+if ! test -f $config
+then
+    echo "$0: failed to find common.config"
+    exit 1
+fi
+if ! . $config
     then
     echo "$0: failed to source common.config"
     exit 1
