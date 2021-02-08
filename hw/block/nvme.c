@@ -3997,8 +3997,10 @@ static int nvme_start_ctrl(NvmeCtrl *n)
         n->zasl = n->params.mdts;
     } else {
         if (n->params.zasl_bs < n->page_size) {
-            trace_pci_nvme_err_startfail_zasl_too_small(n->params.zasl_bs,
-                                                        n->page_size);
+            NVME_GUEST_ERR(pci_nvme_err_startfail_zasl_too_small,
+                           "Zone Append Size Limit (ZASL) of %d bytes is too "
+                           "small; must be at least %d bytes",
+                           n->params.zasl_bs, n->page_size);
             return -1;
         }
         n->zasl = 31 - clz32(n->params.zasl_bs / n->page_size);
@@ -4515,6 +4517,12 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
     if (n->params.zasl_bs) {
         if (!is_power_of_2(n->params.zasl_bs)) {
             error_setg(errp, "zone append size limit has to be a power of 2");
+            return;
+        }
+
+        if (n->params.zasl_bs < 4096) {
+            error_setg(errp, "zone append size limit must be at least "
+                       "4096 bytes");
             return;
         }
     }
