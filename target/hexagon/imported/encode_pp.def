@@ -1,0 +1,2110 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * Encodings for 32 bit instructions
+ *
+ */
+
+
+
+
+DEF_CLASS32("---- ---- -------- PP------ --------",ALL_PP)
+DEF_FIELD32("---- ---- -------- !!------ --------",Parse,"Packet/Loop parse bits")
+DEF_FIELD32("!!!! ---- -------- PP------ --------",ICLASS,"Instruction Class")
+
+#define ICLASS_EXTENDER   "0000"
+#define ICLASS_CJ         "0001"
+#define ICLASS_NCJ        "0010"
+#define ICLASS_V4LDST     "0011"
+#define ICLASS_V2LDST     "0100"
+#define ICLASS_J          "0101"
+#define ICLASS_CR         "0110"
+#define ICLASS_ALU2op     "0111"
+#define ICLASS_S2op       "1000"
+#define ICLASS_LD         "1001"
+#define ICLASS_ST         "1010"
+#define ICLASS_ADDI       "1011"
+#define ICLASS_S3op       "1100"
+#define ICLASS_ALU64      "1101"
+#define ICLASS_M          "1110"
+#define ICLASS_ALU3op     "1111"
+
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*     V4 Immediate Payload    */
+/*                             */
+/*                             */
+/*******************************/
+
+DEF_CLASS32(ICLASS_EXTENDER" ---- -------- PP------ --------",EXTENDER)
+DEF_ENC32(A4_ext, ICLASS_EXTENDER "iiii iiiiiiii PPiiiiii iiiiiiii")
+
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*     V2 PREDICATED LD/ST     */
+/*                             */
+/*                             */
+/*******************************/
+
+DEF_CLASS32(ICLASS_V2LDST" ---- -------- PP------ --------",V2LDST)
+DEF_CLASS32(ICLASS_V2LDST" ---1 -------- PP------ --------",V2LD)
+DEF_CLASS32(ICLASS_V2LDST" ---0 -------- PP------ --------",V2ST)
+DEF_CLASS32(ICLASS_V2LDST" 0--1 -------- PP------ --------",PLD)
+DEF_CLASS32(ICLASS_V2LDST" 0--0 -------- PP------ --------",PST)
+DEF_CLASS32(ICLASS_V2LDST" 1--1 -------- PP------ --------",GPLD)
+DEF_CLASS32(ICLASS_V2LDST" 1--0 -------- PP------ --------",GPST)
+
+DEF_FIELD32(ICLASS_V2LDST" 0!-- -------- PP------ --------",PMEM_Sense,"Sense")
+DEF_FIELD32(ICLASS_V2LDST" 0-!- -------- PP------ --------",PMEM_PredNew,"PredNew")
+DEF_FIELD32(ICLASS_V2LDST" ---1 !!------ PP------ --------",PMEML_Type,"Type")
+DEF_FIELD32(ICLASS_V2LDST" ---1 --!----- PP------ --------",PMEML_UN,"Unsigned")
+DEF_FIELD32(ICLASS_V2LDST" ---0 !!!----- PP------ --------",PMEMS_Type,"Type")
+
+#define STD_PLD_IOENC(TAG,OPC) \
+DEF_ENC32(L2_pload##TAG##t_io,   ICLASS_V2LDST" 0001 "OPC"  sssss  PP0ttiii  iiiddddd")\
+DEF_ENC32(L2_pload##TAG##f_io,   ICLASS_V2LDST" 0101 "OPC"  sssss  PP0ttiii  iiiddddd")\
+DEF_ENC32(L2_pload##TAG##tnew_io,ICLASS_V2LDST" 0011 "OPC"  sssss  PP0ttiii  iiiddddd")\
+DEF_ENC32(L2_pload##TAG##fnew_io,ICLASS_V2LDST" 0111 "OPC"  sssss  PP0ttiii  iiiddddd")
+
+STD_PLD_IOENC(rb,  "000")
+STD_PLD_IOENC(rub, "001")
+STD_PLD_IOENC(rh,  "010")
+STD_PLD_IOENC(ruh, "011")
+STD_PLD_IOENC(ri,  "100")
+STD_PLD_IOENC(rd,  "110") /* note dest reg field LSB=0, 1 is reserved */
+
+
+
+#define STD_PST_IOENC(TAG,OPC,SRC) \
+DEF_ENC32(S2_pstore##TAG##t_io,   ICLASS_V2LDST" 0000 "OPC"  sssss  PPi"SRC"  iiiii0vv")\
+DEF_ENC32(S2_pstore##TAG##f_io,   ICLASS_V2LDST" 0100 "OPC"  sssss  PPi"SRC"  iiiii0vv")\
+DEF_ENC32(S4_pstore##TAG##tnew_io,ICLASS_V2LDST" 0010 "OPC"  sssss  PPi"SRC"  iiiii0vv")\
+DEF_ENC32(S4_pstore##TAG##fnew_io,ICLASS_V2LDST" 0110 "OPC"  sssss  PPi"SRC"  iiiii0vv")
+
+STD_PST_IOENC(rb,    "000","ttttt")
+STD_PST_IOENC(rh,    "010","ttttt")
+STD_PST_IOENC(rf,    "011","ttttt")
+STD_PST_IOENC(ri,    "100","ttttt")
+STD_PST_IOENC(rd,    "110","ttttt")
+STD_PST_IOENC(rbnew, "101","00ttt")
+STD_PST_IOENC(rhnew, "101","01ttt")
+STD_PST_IOENC(rinew, "101","10ttt")
+
+
+
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*     V2 GP-RELATIVE LD/ST    */
+/*                             */
+/*                             */
+/*******************************/
+#define STD_LD_GP(TAG,OPC) \
+DEF_ENC32(L2_load##TAG##gp,   ICLASS_V2LDST" 1ii1 "OPC"  iiiii  PPiiiiii  iiiddddd")
+
+STD_LD_GP(rb,  "000")
+STD_LD_GP(rub, "001")
+STD_LD_GP(rh,  "010")
+STD_LD_GP(ruh, "011")
+STD_LD_GP(ri,  "100")
+STD_LD_GP(rd,  "110") /* note dest reg field LSB=0, 1 is reserved */
+
+#define STD_ST_GP(TAG,OPC,SRC) \
+DEF_ENC32(S2_store##TAG##gp,  ICLASS_V2LDST" 1ii0 "OPC"  iiiii  PPi"SRC"  iiiiiiii")
+
+STD_ST_GP(rb,   "000","ttttt")
+STD_ST_GP(rh,   "010","ttttt")
+STD_ST_GP(rf,   "011","ttttt")
+STD_ST_GP(ri,   "100","ttttt")
+STD_ST_GP(rd,   "110","ttttt")
+STD_ST_GP(rbnew,"101","00ttt")
+STD_ST_GP(rhnew,"101","01ttt")
+STD_ST_GP(rinew,"101","10ttt")
+
+
+
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*     V4LDST                  */
+/*                             */
+/*                             */
+/*******************************/
+
+
+DEF_CLASS32(ICLASS_V4LDST" ---- -------- PP------ --------",V4LDST)
+DEF_CLASS32(ICLASS_V4LDST" 0--- -------- PP------ --------",Pred_RplusR)
+DEF_CLASS32(ICLASS_V4LDST" 100- -------- PP------ --------",Pred_StoreImmed)
+DEF_CLASS32(ICLASS_V4LDST" 101- -------- PP------ --------",RplusR)
+DEF_CLASS32(ICLASS_V4LDST" 110- -------- PP------ --------",StoreImmed)
+DEF_CLASS32(ICLASS_V4LDST" 111- -------- PP------ --------",MemOp)
+
+
+
+
+/*******************************/
+/*    Pred (R+R)               */
+/*******************************/
+
+#define STD_PLD_RRENC(TAG,OPC) \
+DEF_ENC32(L4_pload##TAG##t_rr,   ICLASS_V4LDST" 00 00 "OPC"  sssss  PPittttt  ivvddddd")\
+DEF_ENC32(L4_pload##TAG##f_rr,   ICLASS_V4LDST" 00 01 "OPC"  sssss  PPittttt  ivvddddd")\
+DEF_ENC32(L4_pload##TAG##tnew_rr,ICLASS_V4LDST" 00 10 "OPC"  sssss  PPittttt  ivvddddd")\
+DEF_ENC32(L4_pload##TAG##fnew_rr,ICLASS_V4LDST" 00 11 "OPC"  sssss  PPittttt  ivvddddd")
+
+STD_PLD_RRENC(rb,  "000")
+STD_PLD_RRENC(rub, "001")
+STD_PLD_RRENC(rh,  "010")
+STD_PLD_RRENC(ruh, "011")
+STD_PLD_RRENC(ri,  "100")
+STD_PLD_RRENC(rd,  "110")
+
+#define STD_PST_RRENC(TAG,OPC,SRC) \
+DEF_ENC32(S4_pstore##TAG##t_rr,   ICLASS_V4LDST" 01 00 "OPC"  sssss  PPiuuuuu  ivv"SRC)\
+DEF_ENC32(S4_pstore##TAG##f_rr,   ICLASS_V4LDST" 01 01 "OPC"  sssss  PPiuuuuu  ivv"SRC)\
+DEF_ENC32(S4_pstore##TAG##tnew_rr,ICLASS_V4LDST" 01 10 "OPC"  sssss  PPiuuuuu  ivv"SRC)\
+DEF_ENC32(S4_pstore##TAG##fnew_rr,ICLASS_V4LDST" 01 11 "OPC"  sssss  PPiuuuuu  ivv"SRC)
+
+STD_PST_RRENC(rb,    "000","ttttt")
+STD_PST_RRENC(rh,    "010","ttttt")
+STD_PST_RRENC(rf,    "011","ttttt")
+STD_PST_RRENC(ri,    "100","ttttt")
+STD_PST_RRENC(rd,    "110","ttttt")
+STD_PST_RRENC(rbnew, "101","00ttt")
+STD_PST_RRENC(rhnew, "101","01ttt")
+STD_PST_RRENC(rinew, "101","10ttt")
+
+
+
+/*******************************/
+/*     Pred Store immediates   */
+/*******************************/
+
+#define V4_PSTI(TAG,OPC) \
+DEF_ENC32(S4_storei##TAG##t_io,    ICLASS_V4LDST" 100 00  "OPC"  sssss  PPIiiiii  ivvIIIII")\
+DEF_ENC32(S4_storei##TAG##f_io,    ICLASS_V4LDST" 100 01  "OPC"  sssss  PPIiiiii  ivvIIIII")\
+DEF_ENC32(S4_storei##TAG##tnew_io, ICLASS_V4LDST" 100 10  "OPC"  sssss  PPIiiiii  ivvIIIII")\
+DEF_ENC32(S4_storei##TAG##fnew_io, ICLASS_V4LDST" 100 11  "OPC"  sssss  PPIiiiii  ivvIIIII")
+
+V4_PSTI(rb, "00")
+V4_PSTI(rh, "01")
+V4_PSTI(ri, "10")
+
+
+
+/*******************************/
+/*    (R+R)                    */
+/*******************************/
+
+#define STD_LD_RRENC(TAG,OPC) \
+DEF_ENC32(L4_load##TAG##_rr,     ICLASS_V4LDST" 1010 "OPC"  sssss  PPittttt  i--ddddd")
+
+STD_LD_RRENC(rb,  "000")
+STD_LD_RRENC(rub, "001")
+STD_LD_RRENC(rh,  "010")
+STD_LD_RRENC(ruh, "011")
+STD_LD_RRENC(ri,  "100")
+STD_LD_RRENC(rd,  "110")
+
+#define STD_ST_RRENC(TAG,OPC,SRC) \
+DEF_ENC32(S4_store##TAG##_rr,     ICLASS_V4LDST" 1011 "OPC"  sssss  PPiuuuuu  i--"SRC)
+
+STD_ST_RRENC(rb,    "000","ttttt")
+STD_ST_RRENC(rh,    "010","ttttt")
+STD_ST_RRENC(rf,    "011","ttttt")
+STD_ST_RRENC(ri,    "100","ttttt")
+STD_ST_RRENC(rd,    "110","ttttt")
+STD_ST_RRENC(rbnew, "101","00ttt")
+STD_ST_RRENC(rhnew, "101","01ttt")
+STD_ST_RRENC(rinew, "101","10ttt")
+
+
+
+
+/*******************************/
+/*     Store immediates        */
+/*******************************/
+
+#define V4_STI(TAG,OPC) \
+DEF_ENC32(S4_storei##TAG##_io,     ICLASS_V4LDST" 110 -- "OPC"  sssss  PPIiiiii  iIIIIIII")
+
+
+V4_STI(rb, "00")
+V4_STI(rh, "01")
+V4_STI(ri, "10")
+
+
+/*******************************/
+/*     Memops                 */
+/*******************************/
+
+#define MEMOPENC(TAG,OPC) \
+DEF_ENC32(L4_add_##TAG##_io,         ICLASS_V4LDST" 111 0- " OPC "sssss  PP0iiiii  i00ttttt")\
+DEF_ENC32(L4_sub_##TAG##_io,         ICLASS_V4LDST" 111 0- " OPC "sssss  PP0iiiii  i01ttttt")\
+DEF_ENC32(L4_and_##TAG##_io,         ICLASS_V4LDST" 111 0- " OPC "sssss  PP0iiiii  i10ttttt")\
+DEF_ENC32(L4_or_##TAG##_io,          ICLASS_V4LDST" 111 0- " OPC "sssss  PP0iiiii  i11ttttt")\
+\
+DEF_ENC32(L4_iadd_##TAG##_io,        ICLASS_V4LDST" 111 1- " OPC "sssss  PP0iiiii  i00IIIII")\
+DEF_ENC32(L4_isub_##TAG##_io,        ICLASS_V4LDST" 111 1- " OPC "sssss  PP0iiiii  i01IIIII")\
+DEF_ENC32(L4_iand_##TAG##_io,        ICLASS_V4LDST" 111 1- " OPC "sssss  PP0iiiii  i10IIIII")\
+DEF_ENC32(L4_ior_##TAG##_io,         ICLASS_V4LDST" 111 1- " OPC "sssss  PP0iiiii  i11IIIII")
+
+
+
+MEMOPENC(memopw,"10")
+MEMOPENC(memoph,"01")
+MEMOPENC(memopb,"00")
+
+
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*           LOAD              */
+/*                             */
+/*                             */
+/*******************************/
+DEF_CLASS32(ICLASS_LD" ---- -------- PP------ --------",LD)
+
+
+DEF_CLASS32(ICLASS_LD" 0--- -------- PP------ --------",LD_ADDR_ROFFSET)
+DEF_CLASS32(ICLASS_LD" 101- -------- PP00---- --------",LD_ADDR_POST_IMMED)
+DEF_CLASS32(ICLASS_LD" 101- -------- PP01---- --------",LD_ADDR_ABS_UPDATE_V4)
+DEF_CLASS32(ICLASS_LD" 101- -------- PP1----- --------",LD_ADDR_POST_IMMED_PRED_V2)
+DEF_CLASS32(ICLASS_LD" 110- -------- PP-0---- 0-------",LD_ADDR_POST_REG)
+DEF_CLASS32(ICLASS_LD" 110- -------- PP-1---- --------",LD_ADDR_ABS_PLUS_REG_V4)
+DEF_CLASS32(ICLASS_LD" 100- -------- PP----1- --------",LD_ADDR_POST_CREG_V2)
+DEF_CLASS32(ICLASS_LD" 111- -------- PP------ 1-------",LD_ADDR_PRED_ABS_V4)
+
+DEF_FIELD32(ICLASS_LD" !!!- -------- PP------ --------",LD_Amode,"Amode")
+DEF_FIELD32(ICLASS_LD" ---! !!------ PP------ --------",LD_Type,"Type")
+DEF_FIELD32(ICLASS_LD" ---- --!----- PP------ --------",LD_UN,"Unsigned")
+
+#define STD_LD_ENC(TAG,OPC) \
+DEF_ENC32(L2_load##TAG##_io,   ICLASS_LD" 0 ii "OPC"  sssss  PPiiiiii  iiiddddd")\
+DEF_ENC32(L2_load##TAG##_pi,   ICLASS_LD" 1 01 "OPC"  xxxxx  PP00---i  iiiddddd")\
+DEF_ENC32(L4_load##TAG##_ap,   ICLASS_LD" 1 01 "OPC"  eeeee  PP01IIII  -IIddddd")\
+DEF_ENC32(L2_load##TAG##_pr,   ICLASS_LD" 1 10 "OPC"  xxxxx  PPu0----  0--ddddd")\
+DEF_ENC32(L4_load##TAG##_ur,   ICLASS_LD" 1 10 "OPC"  ttttt  PPi1IIII  iIIddddd")\
+
+
+#define STD_LDX_ENC(TAG,OPC) \
+DEF_ENC32(L2_load##TAG##_io,   ICLASS_LD" 0 ii "OPC"  sssss  PPiiiiii  iiiyyyyy")\
+DEF_ENC32(L2_load##TAG##_pi,   ICLASS_LD" 1 01 "OPC"  xxxxx  PP00---i  iiiyyyyy")\
+DEF_ENC32(L4_load##TAG##_ap,   ICLASS_LD" 1 01 "OPC"  eeeee  PP01IIII  -IIyyyyy")\
+DEF_ENC32(L2_load##TAG##_pr,   ICLASS_LD" 1 10 "OPC"  xxxxx  PPu0----  0--yyyyy")\
+DEF_ENC32(L4_load##TAG##_ur,   ICLASS_LD" 1 10 "OPC"  ttttt  PPi1IIII  iIIyyyyy")\
+
+
+#define STD_PLD_ENC(TAG,OPC) \
+DEF_ENC32(L2_pload##TAG##t_pi,    ICLASS_LD" 1 01 "OPC"  xxxxx  PP100tti  iiiddddd")\
+DEF_ENC32(L2_pload##TAG##f_pi,    ICLASS_LD" 1 01 "OPC"  xxxxx  PP101tti  iiiddddd")\
+DEF_ENC32(L2_pload##TAG##tnew_pi, ICLASS_LD" 1 01 "OPC"  xxxxx  PP110tti  iiiddddd")\
+DEF_ENC32(L2_pload##TAG##fnew_pi, ICLASS_LD" 1 01 "OPC"  xxxxx  PP111tti  iiiddddd")\
+DEF_ENC32(L4_pload##TAG##t_abs,   ICLASS_LD" 1 11 "OPC"  iiiii  PP100tti  1--ddddd")\
+DEF_ENC32(L4_pload##TAG##f_abs,   ICLASS_LD" 1 11 "OPC"  iiiii  PP101tti  1--ddddd")\
+DEF_ENC32(L4_pload##TAG##tnew_abs,ICLASS_LD" 1 11 "OPC"  iiiii  PP110tti  1--ddddd")\
+DEF_ENC32(L4_pload##TAG##fnew_abs,ICLASS_LD" 1 11 "OPC"  iiiii  PP111tti  1--ddddd")
+
+
+/*               0 000  misc: dealloc,loadw_locked,dcfetch      */
+STD_LD_ENC(rb,  "1 000")
+STD_LD_ENC(rub, "1 001")
+STD_LD_ENC(rh,  "1 010")
+STD_LD_ENC(ruh, "1 011")
+STD_LD_ENC(ri,  "1 100")
+STD_LD_ENC(rd,  "1 110") /* note dest reg field LSB=0, 1 is reserved */
+
+STD_PLD_ENC(rb,  "1 000")
+STD_PLD_ENC(rub, "1 001")
+STD_PLD_ENC(rh,  "1 010")
+STD_PLD_ENC(ruh, "1 011")
+STD_PLD_ENC(ri,  "1 100")
+STD_PLD_ENC(rd,  "1 110") /* note dest reg field LSB=0, 1 is reserved */
+
+
+DEF_CLASS32(    ICLASS_LD" 0--0 000----- PP------ --------",LD_MISC)
+DEF_ANTICLASS32(ICLASS_LD" 0--0 000----- PP------ --------",LD_ADDR_ROFFSET)
+DEF_ANTICLASS32(ICLASS_LD" 1010 000----- PP------ --------",LD_ADDR_POST_IMMED)
+DEF_ANTICLASS32(ICLASS_LD" 1100 000----- PP------ --------",LD_ADDR_POST_REG)
+DEF_ANTICLASS32(ICLASS_LD" 1110 000----- PP------ --------",LD_ADDR_POST_REG)
+
+DEF_ENC32(L2_deallocframe,    ICLASS_LD" 000 0 000 sssss PP0----- ---ddddd")
+DEF_ENC32(L4_return,          ICLASS_LD" 011 0 000 sssss PP0000-- ---ddddd")
+DEF_ENC32(L4_return_t,        ICLASS_LD" 011 0 000 sssss PP0100vv ---ddddd")
+DEF_ENC32(L4_return_f,        ICLASS_LD" 011 0 000 sssss PP1100vv ---ddddd")
+DEF_ENC32(L4_return_tnew_pt,  ICLASS_LD" 011 0 000 sssss PP0110vv ---ddddd")
+DEF_ENC32(L4_return_fnew_pt,  ICLASS_LD" 011 0 000 sssss PP1110vv ---ddddd")
+DEF_ENC32(L4_return_tnew_pnt, ICLASS_LD" 011 0 000 sssss PP0010vv ---ddddd")
+DEF_ENC32(L4_return_fnew_pnt, ICLASS_LD" 011 0 000 sssss PP1010vv ---ddddd")
+
+DEF_ENC32(L2_loadw_locked,ICLASS_LD" 001 0 000 sssss PP00---- -00ddddd")
+
+
+
+
+
+
+DEF_ENC32(L4_loadd_locked,ICLASS_LD" 001 0 000 sssss PP01---- -00ddddd")
+DEF_EXT_SPACE(EXTRACTW,   ICLASS_LD" 001 0 000 iiiii PP0iiiii -01iiiii")
+DEF_ENC32(Y2_dcfetchbo,   ICLASS_LD" 010 0 000 sssss PP0--iii iiiiiiii")
+
+
+
+
+
+
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*           STORE             */
+/*                             */
+/*                             */
+/*******************************/
+
+DEF_CLASS32(ICLASS_ST" ---- -------- PP------ --------",ST)
+
+DEF_FIELD32(ICLASS_ST" !!!- -------- PP------ --------",ST_Amode,"Amode")
+DEF_FIELD32(ICLASS_ST" ---! !!------ PP------ --------",ST_Type,"Type")
+DEF_FIELD32(ICLASS_ST" ---- --!----- PP------ --------",ST_UN,"Unsigned")
+
+DEF_CLASS32(ICLASS_ST" 0--1 -------- PP------ --------",ST_ADDR_ROFFSET)
+DEF_CLASS32(ICLASS_ST" 1011 -------- PP0----- 0-----0-",ST_ADDR_POST_IMMED)
+DEF_CLASS32(ICLASS_ST" 1011 -------- PP0----- 1-------",ST_ADDR_ABS_UPDATE_V4)
+DEF_CLASS32(ICLASS_ST" 1011 -------- PP1----- --------",ST_ADDR_POST_IMMED_PRED_V2)
+DEF_CLASS32(ICLASS_ST" 1111 -------- PP------ 1-------",ST_ADDR_PRED_ABS_V4)
+DEF_CLASS32(ICLASS_ST" 1101 -------- PP------ 0-------",ST_ADDR_POST_REG)
+DEF_CLASS32(ICLASS_ST" 1101 -------- PP------ 1-------",ST_ADDR_ABS_PLUS_REG_V4)
+DEF_CLASS32(ICLASS_ST" 1001 -------- PP------ ------1-",ST_ADDR_POST_CREG_V2)
+DEF_CLASS32(ICLASS_ST" 0--0 1------- PP------ --------",ST_MISC_STORELIKE)
+DEF_CLASS32(ICLASS_ST" 1--0 0------- PP------ --------",ST_MISC_BUSOP)
+DEF_CLASS32(ICLASS_ST" 0--0 0------- PP------ --------",ST_MISC_CACHEOP)
+
+
+#define STD_ST_ENC(TAG,OPC,SRC) \
+DEF_ENC32(S2_store##TAG##_io,   ICLASS_ST" 0 ii "OPC"  sssss  PPi"SRC"  iiiiiiii")\
+DEF_ENC32(S2_store##TAG##_pi,   ICLASS_ST" 1 01 "OPC"  xxxxx  PP0"SRC"  0iiii-0-")\
+DEF_ENC32(S4_store##TAG##_ap,   ICLASS_ST" 1 01 "OPC"  eeeee  PP0"SRC"  1-IIIIII")\
+DEF_ENC32(S2_store##TAG##_pr,   ICLASS_ST" 1 10 "OPC"  xxxxx  PPu"SRC"  0-------")\
+DEF_ENC32(S4_store##TAG##_ur,   ICLASS_ST" 1 10 "OPC"  uuuuu  PPi"SRC"  1iIIIIII")\
+
+
+#define STD_PST_ENC(TAG,OPC,SRC) \
+DEF_ENC32(S2_pstore##TAG##t_pi,    ICLASS_ST" 1 01 "OPC"  xxxxx  PP1"SRC"  0iiii0vv")\
+DEF_ENC32(S2_pstore##TAG##f_pi,    ICLASS_ST" 1 01 "OPC"  xxxxx  PP1"SRC"  0iiii1vv")\
+DEF_ENC32(S2_pstore##TAG##tnew_pi, ICLASS_ST" 1 01 "OPC"  xxxxx  PP1"SRC"  1iiii0vv")\
+DEF_ENC32(S2_pstore##TAG##fnew_pi, ICLASS_ST" 1 01 "OPC"  xxxxx  PP1"SRC"  1iiii1vv")\
+DEF_ENC32(S4_pstore##TAG##t_abs,   ICLASS_ST" 1 11 "OPC"  ---ii  PP0"SRC"  1iiii0vv")\
+DEF_ENC32(S4_pstore##TAG##f_abs,   ICLASS_ST" 1 11 "OPC"  ---ii  PP0"SRC"  1iiii1vv")\
+DEF_ENC32(S4_pstore##TAG##tnew_abs,ICLASS_ST" 1 11 "OPC"  ---ii  PP1"SRC"  1iiii0vv")\
+DEF_ENC32(S4_pstore##TAG##fnew_abs,ICLASS_ST" 1 11 "OPC"  ---ii  PP1"SRC"  1iiii1vv")
+
+
+/*                 0 0--  Store Misc */
+/*                 0 1xx  Available */
+STD_ST_ENC(rb,    "1 000","ttttt")
+STD_ST_ENC(rh,    "1 010","ttttt")
+STD_ST_ENC(rf,    "1 011","ttttt")
+STD_ST_ENC(ri,    "1 100","ttttt")
+STD_ST_ENC(rd,    "1 110","ttttt")
+STD_ST_ENC(rbnew, "1 101","00ttt")
+STD_ST_ENC(rhnew, "1 101","01ttt")
+STD_ST_ENC(rinew, "1 101","10ttt")
+
+STD_PST_ENC(rb,    "1 000","ttttt")
+STD_PST_ENC(rh,    "1 010","ttttt")
+STD_PST_ENC(rf,    "1 011","ttttt")
+STD_PST_ENC(ri,    "1 100","ttttt")
+STD_PST_ENC(rd,    "1 110","ttttt")
+STD_PST_ENC(rbnew, "1 101","00ttt")
+STD_PST_ENC(rhnew, "1 101","01ttt")
+STD_PST_ENC(rinew, "1 101","10ttt")
+
+
+
+/* User */
+/*                                   xx - st_misc */
+/*                                                */
+/*                               x bus/cache     */
+/*                                    x store/cache     */
+DEF_ENC32(S2_allocframe,   ICLASS_ST" 000 01 00xxxxx PP000iii iiiiiiii")
+DEF_ENC32(S2_storew_locked,ICLASS_ST" 000 01 01sssss PP-ttttt ------dd")
+DEF_ENC32(S4_stored_locked,ICLASS_ST" 000 01 11sssss PP0ttttt ------dd")
+DEF_ENC32(Y2_dczeroa,      ICLASS_ST" 000 01 10sssss PP0----- --------")
+
+
+DEF_ENC32(Y2_barrier,      ICLASS_ST" 100 00 00----- PP------ 000-----")
+DEF_ENC32(Y2_syncht,       ICLASS_ST" 100 00 10----- PP------ --------")
+
+
+
+DEF_ENC32(Y2_dccleana,     ICLASS_ST" 000 00 00sssss PP------ --------")
+DEF_ENC32(Y2_dcinva,       ICLASS_ST" 000 00 01sssss PP------ --------")
+DEF_ENC32(Y2_dccleaninva,  ICLASS_ST" 000 00 10sssss PP------ --------")
+
+/*******************************/
+/*                             */
+/*                             */
+/*           JUMP              */
+/*                             */
+/*                             */
+/*******************************/
+
+DEF_CLASS32(ICLASS_J" ---- -------- PP------ --------",J)
+DEF_CLASS32(ICLASS_J" 0--- -------- PP------ --------",JUMPR_MISC)
+DEF_CLASS32(ICLASS_J" 10-- -------- PP------ --------",UCJUMP)
+DEF_CLASS32(ICLASS_J" 110- -------- PP------ --------",CJUMP)
+DEF_FIELD32(ICLASS_J" 110- -------- PP--!--- --------",J_DN,"Dot-new")
+DEF_FIELD32(ICLASS_J" 110- -------- PP-!---- --------",J_PT,"Predict-taken")
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_J" 0000 -------- PP------ --------","[#0] PC=(Rs), R31=return")
+DEF_ENC32(J2_callr,     ICLASS_J" 0000  101sssss  PP------  --------")
+
+DEF_FIELDROW_DESC32(ICLASS_J" 0001 -------- PP------ --------","[#1] if (Pu) PC=(Rs), R31=return")
+DEF_ENC32(J2_callrt,    ICLASS_J" 0001  000sssss  PP----uu  --------")
+DEF_ENC32(J2_callrf,    ICLASS_J" 0001  001sssss  PP----uu  --------")
+
+DEF_FIELDROW_DESC32(ICLASS_J" 0010 -------- PP------ --------","[#2] PC=(Rs); ")
+DEF_ENC32(J2_jumpr,      ICLASS_J" 0010  100sssss  PP------  --------")
+DEF_ENC32(J4_hintjumpr,  ICLASS_J" 0010  101sssss  PP------  --------")
+
+DEF_FIELDROW_DESC32(ICLASS_J" 0011 -------- PP------ --------","[#3] if (Pu) PC=(Rs) ")
+DEF_ENC32(J2_jumprt,   ICLASS_J" 0011  010sssss  PP-00-uu  --------")
+DEF_ENC32(J2_jumprf,   ICLASS_J" 0011  011sssss  PP-00-uu  --------")
+DEF_ENC32(J2_jumprtpt,    ICLASS_J" 0011  010sssss  PP-10-uu  --------")
+DEF_ENC32(J2_jumprfpt,    ICLASS_J" 0011  011sssss  PP-10-uu  --------")
+DEF_ENC32(J2_jumprtnew,   ICLASS_J" 0011  010sssss  PP-01-uu  --------")
+DEF_ENC32(J2_jumprfnew,   ICLASS_J" 0011  011sssss  PP-01-uu  --------")
+DEF_ENC32(J2_jumprtnewpt, ICLASS_J" 0011  010sssss  PP-11-uu  --------")
+DEF_ENC32(J2_jumprfnewpt, ICLASS_J" 0011  011sssss  PP-11-uu  --------")
+
+DEF_FIELDROW_DESC32(ICLASS_J" 0100 -------- PP------ --------","[#4] (#u8) ")
+DEF_ENC32(J2_trap0,     ICLASS_J" 0100  00------  PP-iiiii  ---iii--")
+DEF_ENC32(J2_pause,     ICLASS_J" 0100  01------  PP-iiiii  ---iii--")
+
+DEF_FIELDROW_DESC32(ICLASS_J" 0110 -------- PP------ --------","[#6] icop(Rs) ")
+DEF_ENC32(Y2_icinva,    ICLASS_J" 0110  110sssss  PP000---  --------")
+
+DEF_FIELDROW_DESC32(ICLASS_J" 0111 -------- PP------ --------","[#7] () ")
+DEF_ENC32(Y2_isync,     ICLASS_J" 0111  11000000  PP0---00  00000010")
+
+/* JUMP */
+DEF_FIELDROW_DESC32(ICLASS_J" 100- -------- PP------ --------","[#8,9] PC=(#r22)")
+DEF_ENC32(J2_jump,      ICLASS_J" 100i  iiiiiiii  PPiiiiii  iiiiiii-")
+
+DEF_FIELDROW_DESC32(ICLASS_J" 101- -------- PP------ --------","[#10,11] PC=(#r22), R31=return")
+DEF_ENC32(J2_call,      ICLASS_J" 101i  iiiiiiii  PPiiiiii  iiiiiii0")
+
+DEF_FIELDROW_DESC32(ICLASS_J" 1100 -------- PP------ --------","[#12] if (Pu) PC=(#r15)")
+DEF_ENC32(J2_jumpt,  ICLASS_J" 1100  ii0iiiii  PPi00-uu  iiiiiii-")
+DEF_ENC32(J2_jumpf,  ICLASS_J" 1100  ii1iiiii  PPi00-uu  iiiiiii-")
+DEF_ENC32(J2_jumptpt,   ICLASS_J" 1100  ii0iiiii  PPi10-uu  iiiiiii-")
+DEF_ENC32(J2_jumpfpt,   ICLASS_J" 1100  ii1iiiii  PPi10-uu  iiiiiii-")
+DEF_ENC32(J2_jumptnew,  ICLASS_J" 1100  ii0iiiii  PPi01-uu  iiiiiii-")
+DEF_ENC32(J2_jumpfnew,  ICLASS_J" 1100  ii1iiiii  PPi01-uu  iiiiiii-")
+DEF_ENC32(J2_jumptnewpt,ICLASS_J" 1100  ii0iiiii  PPi11-uu  iiiiiii-")
+DEF_ENC32(J2_jumpfnewpt,ICLASS_J" 1100  ii1iiiii  PPi11-uu  iiiiiii-")
+
+DEF_FIELDROW_DESC32(ICLASS_J" 1101 -------- PP------ --------","[#13] if (Pu) PC=(#r15), R31=return")
+DEF_ENC32(J2_callt,     ICLASS_J" 1101  ii0iiiii  PPi-0-uu  iiiiiii-")
+DEF_ENC32(J2_callf,     ICLASS_J" 1101  ii1iiiii  PPi-0-uu  iiiiiii-")
+
+
+
+
+
+
+
+/*******************************/
+/*                             */
+/*        V4                   */
+/*   COMPOUND COMPARE-JUMPS    */
+/*                             */
+/*                             */
+/*******************************/
+
+
+/* EJP: this has to match what we have in htmldocs.py... so I will call it CJ, we can change it */
+DEF_CLASS32(ICLASS_CJ" 0--- -------- PP------ --------",CJ)
+
+DEF_FIELDROW_DESC32(ICLASS_CJ" 00-- -------- -------- --------","[#0-3]  pd=cmp.xx(R,#u5) ; if ([!]p0.new) jump:[h] #s9:2 ")
+DEF_FIELDROW_DESC32(ICLASS_CJ" 010- -------- -------- --------","[#4,5]  pd=cmp.eq(R,R) ; if ([!]p0.new) jump:[h] #s9:2 ")
+DEF_FIELDROW_DESC32(ICLASS_CJ" 0110 -------- -------- --------","[#6]    Rd=#u6 ; jump #s9:2 ")
+DEF_FIELDROW_DESC32(ICLASS_CJ" 0111 -------- -------- --------","[#7]    Rd=Rs ; jump #s9:2 ")
+
+
+#define CMPJMPI_ENC(TAG,OPC) \
+DEF_ENC32(TAG##i_tp0_jump_t,      ICLASS_CJ" 00 0 "OPC"  0iissss  PP1IIIII  iiiiiii-") \
+DEF_ENC32(TAG##i_fp0_jump_t,      ICLASS_CJ" 00 0 "OPC"  1iissss  PP1IIIII  iiiiiii-") \
+DEF_ENC32(TAG##i_tp0_jump_nt,     ICLASS_CJ" 00 0 "OPC"  0iissss  PP0IIIII  iiiiiii-") \
+DEF_ENC32(TAG##i_fp0_jump_nt,     ICLASS_CJ" 00 0 "OPC"  1iissss  PP0IIIII  iiiiiii-") \
+\
+DEF_ENC32(TAG##i_tp1_jump_t,      ICLASS_CJ" 00 1 "OPC"  0iissss  PP1IIIII  iiiiiii-") \
+DEF_ENC32(TAG##i_fp1_jump_t,      ICLASS_CJ" 00 1 "OPC"  1iissss  PP1IIIII  iiiiiii-") \
+DEF_ENC32(TAG##i_tp1_jump_nt,     ICLASS_CJ" 00 1 "OPC"  0iissss  PP0IIIII  iiiiiii-") \
+DEF_ENC32(TAG##i_fp1_jump_nt,     ICLASS_CJ" 00 1 "OPC"  1iissss  PP0IIIII  iiiiiii-")
+
+CMPJMPI_ENC(J4_cmpeq,"00")
+CMPJMPI_ENC(J4_cmpgt,"01")
+CMPJMPI_ENC(J4_cmpgtu,"10")
+
+
+#define CMPJMP1I_ENC(TAG,OPC) \
+DEF_ENC32(TAG##_tp0_jump_t,      ICLASS_CJ" 00 0  11  0iissss  PP1---"OPC"  iiiiiii-") \
+DEF_ENC32(TAG##_fp0_jump_t,      ICLASS_CJ" 00 0  11  1iissss  PP1---"OPC"  iiiiiii-") \
+DEF_ENC32(TAG##_tp0_jump_nt,     ICLASS_CJ" 00 0  11  0iissss  PP0---"OPC"  iiiiiii-") \
+DEF_ENC32(TAG##_fp0_jump_nt,     ICLASS_CJ" 00 0  11  1iissss  PP0---"OPC"  iiiiiii-") \
+\
+DEF_ENC32(TAG##_tp1_jump_t,      ICLASS_CJ" 00 1  11  0iissss  PP1---"OPC"  iiiiiii-") \
+DEF_ENC32(TAG##_fp1_jump_t,      ICLASS_CJ" 00 1  11  1iissss  PP1---"OPC"  iiiiiii-") \
+DEF_ENC32(TAG##_tp1_jump_nt,     ICLASS_CJ" 00 1  11  0iissss  PP0---"OPC"  iiiiiii-") \
+DEF_ENC32(TAG##_fp1_jump_nt,     ICLASS_CJ" 00 1  11  1iissss  PP0---"OPC"  iiiiiii-")
+
+CMPJMP1I_ENC(J4_cmpeqn1,"00")
+CMPJMP1I_ENC(J4_cmpgtn1,"01")
+CMPJMP1I_ENC(J4_tstbit0,"11")
+
+
+
+#define CMPJMPR_ENC(TAG,OPC) \
+DEF_ENC32(TAG##_tp0_jump_t,       ICLASS_CJ" 01 0 "OPC"  0iissss  PP10tttt  iiiiiii-") \
+DEF_ENC32(TAG##_fp0_jump_t,       ICLASS_CJ" 01 0 "OPC"  1iissss  PP10tttt  iiiiiii-") \
+DEF_ENC32(TAG##_tp0_jump_nt,      ICLASS_CJ" 01 0 "OPC"  0iissss  PP00tttt  iiiiiii-") \
+DEF_ENC32(TAG##_fp0_jump_nt,      ICLASS_CJ" 01 0 "OPC"  1iissss  PP00tttt  iiiiiii-") \
+\
+DEF_ENC32(TAG##_tp1_jump_t,       ICLASS_CJ" 01 0 "OPC"  0iissss  PP11tttt  iiiiiii-") \
+DEF_ENC32(TAG##_fp1_jump_t,       ICLASS_CJ" 01 0 "OPC"  1iissss  PP11tttt  iiiiiii-") \
+DEF_ENC32(TAG##_tp1_jump_nt,      ICLASS_CJ" 01 0 "OPC"  0iissss  PP01tttt  iiiiiii-") \
+DEF_ENC32(TAG##_fp1_jump_nt,      ICLASS_CJ" 01 0 "OPC"  1iissss  PP01tttt  iiiiiii-")
+
+CMPJMPR_ENC(J4_cmpeq,"00")
+CMPJMPR_ENC(J4_cmpgt,"01")
+CMPJMPR_ENC(J4_cmpgtu,"10")
+
+
+DEF_ENC32(J4_jumpseti,            ICLASS_CJ" 0110  --iidddd  PPIIIIII  iiiiiii-")
+DEF_ENC32(J4_jumpsetr,            ICLASS_CJ" 0111  --iissss  PP--dddd  iiiiiii-")
+
+
+DEF_EXT_SPACE(EXT_CJ,             ICLASS_CJ"1 iii  iiiiiiii  PPiiiiii  iiiiiiii")
+
+
+
+DEF_CLASS32(ICLASS_NCJ" 0--- -------- PP------ --------",NCJ)
+DEF_FIELDROW_DESC32(ICLASS_NCJ" 00-- -------- -------- --------","[#0-3] if (cmp.xx(R.new,R)) jump:[h] #s9:2 ")
+DEF_FIELDROW_DESC32(ICLASS_NCJ" 01-- -------- -------- --------","[#4-7] if (cmp.xx(R.new,#U5)) jump:[h] #s9:2 ")
+
+#define OPRJMP_ENC(TAG,OPC) \
+DEF_ENC32(TAG##_t_jumpnv_t,       ICLASS_NCJ" 00 "OPC"  0ii-sss  PP1ttttt  iiiiiii-") \
+DEF_ENC32(TAG##_f_jumpnv_t,       ICLASS_NCJ" 00 "OPC"  1ii-sss  PP1ttttt  iiiiiii-") \
+DEF_ENC32(TAG##_t_jumpnv_nt,      ICLASS_NCJ" 00 "OPC"  0ii-sss  PP0ttttt  iiiiiii-") \
+DEF_ENC32(TAG##_f_jumpnv_nt,      ICLASS_NCJ" 00 "OPC"  1ii-sss  PP0ttttt  iiiiiii-")
+
+OPRJMP_ENC(J4_cmpeq,   "000")
+OPRJMP_ENC(J4_cmpgt,   "001")
+OPRJMP_ENC(J4_cmpgtu,  "010")
+OPRJMP_ENC(J4_cmplt,   "011")
+OPRJMP_ENC(J4_cmpltu,  "100")
+
+
+#define OPIJMP_ENC(TAG,OPC) \
+DEF_ENC32(TAG##_t_jumpnv_t,       ICLASS_NCJ" 01 "OPC"  0ii-sss  PP1IIIII  iiiiiii-") \
+DEF_ENC32(TAG##_f_jumpnv_t,       ICLASS_NCJ" 01 "OPC"  1ii-sss  PP1IIIII  iiiiiii-") \
+DEF_ENC32(TAG##_t_jumpnv_nt,      ICLASS_NCJ" 01 "OPC"  0ii-sss  PP0IIIII  iiiiiii-") \
+DEF_ENC32(TAG##_f_jumpnv_nt,      ICLASS_NCJ" 01 "OPC"  1ii-sss  PP0IIIII  iiiiiii-")
+
+OPIJMP_ENC(J4_cmpeqi,  "000")
+OPIJMP_ENC(J4_cmpgti,  "001")
+OPIJMP_ENC(J4_cmpgtui, "010")
+
+
+#define OPI1JMP_ENC(TAG,OPC) \
+DEF_ENC32(TAG##_t_jumpnv_t,       ICLASS_NCJ" 01 "OPC"  0ii-sss  PP1-----  iiiiiii-") \
+DEF_ENC32(TAG##_f_jumpnv_t,       ICLASS_NCJ" 01 "OPC"  1ii-sss  PP1-----  iiiiiii-") \
+DEF_ENC32(TAG##_t_jumpnv_nt,      ICLASS_NCJ" 01 "OPC"  0ii-sss  PP0-----  iiiiiii-") \
+DEF_ENC32(TAG##_f_jumpnv_nt,      ICLASS_NCJ" 01 "OPC"  1ii-sss  PP0-----  iiiiiii-")
+
+OPI1JMP_ENC(J4_cmpeqn1,  "100")
+OPI1JMP_ENC(J4_cmpgtn1,  "101")
+OPI1JMP_ENC(J4_tstbit0,  "011")
+
+
+DEF_EXT_SPACE(EXT_NCJ,             ICLASS_NCJ"1 iii  iiiiiiii  PPiiiiii  iiiiiiii")
+
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*           CR                */
+/*                             */
+/*                             */
+/*******************************/
+
+
+
+DEF_CLASS32(ICLASS_CR" ---- -------- PP------ --------",CR)
+DEF_CLASS32(ICLASS_CR" -0-- -------- PP------ --------",CRUSER)
+DEF_CLASS32(ICLASS_CR" -1-- -------- PP------ --------",CRSUPER)
+
+DEF_FIELD32(ICLASS_CR" -!-- -------- PP------ --------",CR_sm,"Supervisor mode only")
+
+/* User CR ops */
+
+DEF_FIELDROW_DESC32(    ICLASS_CR" 0000  --------  PP------  --------","[#0] (Rs,#r8)")
+DEF_ENC32(J2_loop0r,    ICLASS_CR" 0000  000sssss  PP-iiiii  ---ii---")
+DEF_ENC32(J2_loop1r,    ICLASS_CR" 0000  001sssss  PP-iiiii  ---ii---")
+DEF_ENC32(J2_ploop1sr,  ICLASS_CR" 0000  101sssss  PP-iiiii  ---ii---")
+DEF_ENC32(J2_ploop2sr,  ICLASS_CR" 0000  110sssss  PP-iiiii  ---ii---")
+DEF_ENC32(J2_ploop3sr,  ICLASS_CR" 0000  111sssss  PP-iiiii  ---ii---")
+
+DEF_FIELDROW_DESC32(     ICLASS_CR" 0001  --------  PP------  --------","[#1] (Rs,#r13)")
+DEF_ENC32(J2_jumprz,     ICLASS_CR" 0001  00isssss  PPi0iiii  iiiiiii-")
+DEF_ENC32(J2_jumprzpt,   ICLASS_CR" 0001  00isssss  PPi1iiii  iiiiiii-")
+DEF_ENC32(J2_jumprnz,    ICLASS_CR" 0001  10isssss  PPi0iiii  iiiiiii-")
+DEF_ENC32(J2_jumprnzpt,  ICLASS_CR" 0001  10isssss  PPi1iiii  iiiiiii-")
+
+DEF_ENC32(J2_jumprgtez,  ICLASS_CR" 0001  01isssss  PPi0iiii  iiiiiii-")
+DEF_ENC32(J2_jumprgtezpt,ICLASS_CR" 0001  01isssss  PPi1iiii  iiiiiii-")
+DEF_ENC32(J2_jumprltez,  ICLASS_CR" 0001  11isssss  PPi0iiii  iiiiiii-")
+DEF_ENC32(J2_jumprltezpt,ICLASS_CR" 0001  11isssss  PPi1iiii  iiiiiii-")
+
+DEF_FIELDROW_DESC32(    ICLASS_CR" 0010  --------  PP------  --------","[#2] Cd=Rs ")
+DEF_ENC32(A2_tfrrcr,    ICLASS_CR" 0010  001sssss  PP------  ---ddddd")
+
+DEF_FIELDROW_DESC32(    ICLASS_CR" 0011  --------  PP------  --------","[#3] Cdd=Rss ")
+DEF_ENC32(A4_tfrpcp,    ICLASS_CR" 0011  001sssss  PP------  ---ddddd")
+
+DEF_FIELDROW_DESC32(    ICLASS_CR" 1000  --------  PP------  --------","[#8] Rdd=Css ")
+DEF_ENC32(A4_tfrcpp,    ICLASS_CR" 1000  000sssss  PP------  ---ddddd")
+
+DEF_FIELDROW_DESC32(    ICLASS_CR" 1001  --------  PP------  --------","[#9] (#r8,#U10)")
+DEF_ENC32(J2_ploop1si,  ICLASS_CR" 1001  101IIIII  PP-iiiii  IIIii-II")
+DEF_ENC32(J2_ploop2si,  ICLASS_CR" 1001  110IIIII  PP-iiiii  IIIii-II")
+DEF_ENC32(J2_ploop3si,  ICLASS_CR" 1001  111IIIII  PP-iiiii  IIIii-II")
+DEF_ENC32(J2_loop0i,    ICLASS_CR" 1001  000IIIII  PP-iiiii  IIIii-II")
+DEF_ENC32(J2_loop1i,    ICLASS_CR" 1001  001IIIII  PP-iiiii  IIIii-II")
+
+DEF_FIELDROW_DESC32(    ICLASS_CR" 1010  --------  PP------  --------","[#10] Rd=Cs ")
+DEF_ENC32(A2_tfrcrr,    ICLASS_CR" 1010  000sssss  PP------  ---ddddd")
+DEF_ENC32(C4_addipc,    ICLASS_CR" 1010  01001001  PP-iiiii  i--ddddd")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_CR" 1011  --------  PP0-----  --------","[#11] Pd=(Ps,Pt,Pu)")
+DEF_ENC32(C2_and,       ICLASS_CR" 1011  0000--ss  PP0---tt  ------dd")
+DEF_ENC32(C2_or,        ICLASS_CR" 1011  0010--ss  PP0---tt  ------dd")
+DEF_ENC32(C2_xor,       ICLASS_CR" 1011  0100--ss  PP0---tt  ------dd")
+DEF_ENC32(C2_andn,      ICLASS_CR" 1011  0110--ss  PP0---tt  ------dd")
+DEF_ENC32(C2_any8,      ICLASS_CR" 1011  1000--ss  PP0-----  ------dd")
+DEF_ENC32(C2_all8,      ICLASS_CR" 1011  1010--ss  PP0-----  ------dd")
+DEF_ENC32(C2_not,       ICLASS_CR" 1011  1100--ss  PP0-----  ------dd")
+DEF_ENC32(C2_orn,       ICLASS_CR" 1011  1110--ss  PP0---tt  ------dd")
+
+DEF_ENC32(C4_and_and,   ICLASS_CR" 1011  0001--ss  PP0---tt  uu----dd")
+DEF_ENC32(C4_and_or,    ICLASS_CR" 1011  0011--ss  PP0---tt  uu----dd")
+DEF_ENC32(C4_or_and,    ICLASS_CR" 1011  0101--ss  PP0---tt  uu----dd")
+DEF_ENC32(C4_or_or,     ICLASS_CR" 1011  0111--ss  PP0---tt  uu----dd")
+DEF_ENC32(C4_and_andn,  ICLASS_CR" 1011  1001--ss  PP0---tt  uu----dd")
+DEF_ENC32(C4_and_orn,   ICLASS_CR" 1011  1011--ss  PP0---tt  uu----dd")
+DEF_ENC32(C4_or_andn,   ICLASS_CR" 1011  1101--ss  PP0---tt  uu----dd")
+DEF_ENC32(C4_or_orn,    ICLASS_CR" 1011  1111--ss  PP0---tt  uu----dd")
+
+DEF_ENC32(C4_fastcorner9,       ICLASS_CR"1011 0000--ss  PP1---tt 1--1--dd")
+DEF_ENC32(C4_fastcorner9_not,   ICLASS_CR"1011 0001--ss  PP1---tt 1--1--dd")
+
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*           M                 */
+/*                             */
+/*                             */
+/*******************************/
+
+
+DEF_CLASS32(ICLASS_M" ---- -------- PP------ --------",M)
+DEF_FIELD32(ICLASS_M" !!!! -------- PP------ --------",M_RegType,"Register Type")
+DEF_FIELD32(ICLASS_M" ---- !!!----- PP------ --------",M_MajOp,"Major Opcode")
+DEF_FIELD32(ICLASS_M" ---- -------- PP------ !!!-----",M_MinOp,"Minor Opcode")
+
+
+
+#define SP_MPY(TAG,REGTYPE,DSTCHARS,SAT,RND,UNS)\
+DEF_ENC32(TAG##_ll_s0, ICLASS_M  REGTYPE "0"  UNS RND"sssss  PP-ttttt "SAT"00"   DSTCHARS)\
+DEF_ENC32(TAG##_lh_s0, ICLASS_M  REGTYPE "0"  UNS RND"sssss  PP-ttttt "SAT"01"   DSTCHARS)\
+DEF_ENC32(TAG##_hl_s0, ICLASS_M  REGTYPE "0"  UNS RND"sssss  PP-ttttt "SAT"10"   DSTCHARS)\
+DEF_ENC32(TAG##_hh_s0, ICLASS_M  REGTYPE "0"  UNS RND"sssss  PP-ttttt "SAT"11"   DSTCHARS)\
+DEF_ENC32(TAG##_ll_s1, ICLASS_M  REGTYPE "1"  UNS RND"sssss  PP-ttttt "SAT"00"   DSTCHARS)\
+DEF_ENC32(TAG##_lh_s1, ICLASS_M  REGTYPE "1"  UNS RND"sssss  PP-ttttt "SAT"01"   DSTCHARS)\
+DEF_ENC32(TAG##_hl_s1, ICLASS_M  REGTYPE "1"  UNS RND"sssss  PP-ttttt "SAT"10"   DSTCHARS)\
+DEF_ENC32(TAG##_hh_s1, ICLASS_M  REGTYPE "1"  UNS RND"sssss  PP-ttttt "SAT"11"   DSTCHARS)
+
+/* Double precision                   */
+#define MPY_ENC(TAG,REGTYPE,DSTCHARS,SAT,RNDNAC,UNS,SHFT,VMIN2)\
+DEF_ENC32(TAG, ICLASS_M REGTYPE SHFT UNS RNDNAC"sssss  PP0ttttt "SAT VMIN2 DSTCHARS)
+
+#define MPYI_ENC(TAG,REGTYPE,DSTCHARS,RNDNAC,UNS,SHFT)\
+DEF_ENC32(TAG, ICLASS_M REGTYPE SHFT UNS RNDNAC"sssss  PP0iiiii iii" DSTCHARS)
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 0000 -------- PP------ --------","[#0] Rd=(Rs,#u8)")
+MPYI_ENC(M2_mpysip,          "0000","ddddd","-","-","0"     )
+MPYI_ENC(M2_mpysin,          "0000","ddddd","-","-","1"     )
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 0001 -------- PP------ --------","[#1] Rx=(Rs,#u8)")
+MPYI_ENC(M2_macsip,          "0001","xxxxx","-","-","0"     )
+MPYI_ENC(M2_macsin,          "0001","xxxxx","-","-","1"     )
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 0010 -------- PP------ --------","[#2] Rx=(Rs,#s8)")
+MPYI_ENC(M2_accii,           "0010","xxxxx","-","-","0"     )
+MPYI_ENC(M2_naccii,          "0010","xxxxx","-","-","1"     )
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 0011 -------- PP------ --------","[#3] Ry=(Ru,(Rs,Ry)) ")
+DEF_ENC32(M4_mpyrr_addr,ICLASS_M" 0011 000sssss PP-yyyyy ---uuuuu")
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 0100 -------- PP------ --------","[#4] Rdd=(Rs,Rt)")
+DEF_FIELD32(ICLASS_M"         0100 -------- PP------ --!-----",Ma_tH,"Rt is High") /*Rt high */
+DEF_FIELD32(ICLASS_M"         0100 -------- PP------ -!------",Ma_sH,"Rs is High") /* Rs high */
+SP_MPY(M2_mpyd,              "0100","ddddd","-","0","0")
+SP_MPY(M2_mpyd_rnd,          "0100","ddddd","-","1","0")
+SP_MPY(M2_mpyud,             "0100","ddddd","-","0","1")
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 0101 -------- PP------ --------","[#5] Rdd=(Rs,Rt)")
+MPY_ENC(M2_dpmpyss_s0,       "0101","ddddd","0","0","0","0","00")
+MPY_ENC(M2_dpmpyuu_s0,       "0101","ddddd","0","0","1","0","00")
+MPY_ENC(M2_vmpy2s_s0,        "0101","ddddd","1","0","0","0","01")
+MPY_ENC(M2_vmpy2s_s1,        "0101","ddddd","1","0","0","1","01")
+MPY_ENC(M2_cmpyi_s0,         "0101","ddddd","0","0","0","0","01")
+MPY_ENC(M2_cmpyr_s0,         "0101","ddddd","0","0","0","0","10")
+MPY_ENC(M2_cmpys_s0,         "0101","ddddd","1","0","0","0","10")
+MPY_ENC(M2_cmpys_s1,         "0101","ddddd","1","0","0","1","10")
+MPY_ENC(M2_cmpysc_s0,        "0101","ddddd","1","0","1","0","10")
+MPY_ENC(M2_cmpysc_s1,        "0101","ddddd","1","0","1","1","10")
+MPY_ENC(M2_vmpy2su_s0,       "0101","ddddd","1","0","0","0","11")
+MPY_ENC(M2_vmpy2su_s1,       "0101","ddddd","1","0","0","1","11")
+MPY_ENC(M4_pmpyw,            "0101","ddddd","1","0","1","0","11")
+MPY_ENC(M4_vpmpyh,           "0101","ddddd","1","0","1","1","11")
+MPY_ENC(M5_vmpybuu,          "0101","ddddd","0","0","0","1","01")
+MPY_ENC(M5_vmpybsu,          "0101","ddddd","0","0","1","0","01")
+
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 0110 -------- PP------ --------","[#6] Rxx=(Rs,Rt)")
+DEF_FIELD32(ICLASS_M"         0110 -------- PP------ --!-----",Mb_tH,"Rt is High") /*Rt high */
+DEF_FIELD32(ICLASS_M"         0110 -------- PP------ -!------",Mb_sH,"Rs is High") /* Rs high */
+SP_MPY(M2_mpyd_acc,          "0110","xxxxx","0","0","0")
+SP_MPY(M2_mpyud_acc,         "0110","xxxxx","0","0","1")
+SP_MPY(M2_mpyd_nac,          "0110","xxxxx","0","1","0")
+SP_MPY(M2_mpyud_nac,         "0110","xxxxx","0","1","1")
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 0111 -------- PP------ --------","[#7] Rxx=(Rs,Rt)")
+MPY_ENC(M2_dpmpyss_acc_s0,   "0111","xxxxx","0","0","0","0","00")
+MPY_ENC(M2_dpmpyss_nac_s0,   "0111","xxxxx","0","1","0","0","00")
+MPY_ENC(M2_dpmpyuu_acc_s0,   "0111","xxxxx","0","0","1","0","00")
+MPY_ENC(M2_dpmpyuu_nac_s0,   "0111","xxxxx","0","1","1","0","00")
+MPY_ENC(M2_vmac2s_s0,        "0111","xxxxx","1","0","0","0","01")
+MPY_ENC(M2_vmac2s_s1,        "0111","xxxxx","1","0","0","1","01")
+MPY_ENC(M2_cmaci_s0,         "0111","xxxxx","0","0","0","0","01")
+MPY_ENC(M2_cmacr_s0,         "0111","xxxxx","0","0","0","0","10")
+MPY_ENC(M2_cmacs_s0,         "0111","xxxxx","1","0","0","0","10")
+MPY_ENC(M2_cmacs_s1,         "0111","xxxxx","1","0","0","1","10")
+MPY_ENC(M2_cmacsc_s0,        "0111","xxxxx","1","0","1","0","10")
+MPY_ENC(M2_cmacsc_s1,        "0111","xxxxx","1","0","1","1","10")
+MPY_ENC(M2_vmac2,            "0111","xxxxx","0","1","0","0","01")
+MPY_ENC(M2_cnacs_s0,         "0111","xxxxx","1","0","0","0","11")
+MPY_ENC(M2_cnacs_s1,         "0111","xxxxx","1","0","0","1","11")
+MPY_ENC(M2_cnacsc_s0,        "0111","xxxxx","1","0","1","0","11")
+MPY_ENC(M2_cnacsc_s1,        "0111","xxxxx","1","0","1","1","11")
+MPY_ENC(M2_vmac2su_s0,       "0111","xxxxx","1","1","1","0","01")
+MPY_ENC(M2_vmac2su_s1,       "0111","xxxxx","1","1","1","1","01")
+MPY_ENC(M4_pmpyw_acc,        "0111","xxxxx","1","1","0","0","11")
+MPY_ENC(M4_vpmpyh_acc,       "0111","xxxxx","1","1","0","1","11")
+MPY_ENC(M5_vmacbuu,          "0111","xxxxx","0","0","0","1","01")
+MPY_ENC(M5_vmacbsu,          "0111","xxxxx","0","0","1","1","01")
+
+
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 1000 -------- PP------ --------","[#8] Rdd=(Rss,Rtt)")
+MPY_ENC(M2_vrcmpyi_s0,       "1000","ddddd","0","0","0","0","00")
+MPY_ENC(M2_vdmpys_s0,        "1000","ddddd","1","0","0","0","00")
+MPY_ENC(M2_vdmpys_s1,        "1000","ddddd","1","0","0","1","00")
+MPY_ENC(M2_vrcmpyi_s0c,      "1000","ddddd","0","0","1","0","00")
+MPY_ENC(M2_vabsdiffw,        "1000","ddddd","0","1","0","0","00")
+MPY_ENC(M6_vabsdiffub,       "1000","ddddd","0","1","0","1","00")
+MPY_ENC(M2_vabsdiffh,        "1000","ddddd","0","1","1","0","00")
+MPY_ENC(M6_vabsdiffb,        "1000","ddddd","0","1","1","1","00")
+MPY_ENC(M2_vrcmpys_s1_h,     "1000","ddddd","1","1","0","1","00")
+MPY_ENC(M2_vrcmpys_s1_l,     "1000","ddddd","1","1","1","1","00")
+MPY_ENC(M2_vrcmpyr_s0c,      "1000","ddddd","0","1","1","0","01")
+MPY_ENC(M2_vrcmpyr_s0,       "1000","ddddd","0","0","0","0","01")
+MPY_ENC(A2_vraddub,          "1000","ddddd","0","0","1","0","01")
+MPY_ENC(M2_mmpyl_s0,         "1000","ddddd","1","0","0","0","01")
+MPY_ENC(M2_mmpyl_s1,         "1000","ddddd","1","0","0","1","01")
+MPY_ENC(M2_mmpyl_rs0,        "1000","ddddd","1","1","0","0","01")
+MPY_ENC(M2_mmpyl_rs1,        "1000","ddddd","1","1","0","1","01")
+MPY_ENC(M2_mmpyul_s0,        "1000","ddddd","1","0","1","0","01")
+MPY_ENC(M2_mmpyul_s1,        "1000","ddddd","1","0","1","1","01")
+MPY_ENC(M2_mmpyul_rs0,       "1000","ddddd","1","1","1","0","01")
+MPY_ENC(M2_mmpyul_rs1,       "1000","ddddd","1","1","1","1","01")
+MPY_ENC(M2_vrmpy_s0,         "1000","ddddd","0","0","0","0","10")
+MPY_ENC(A2_vrsadub,          "1000","ddddd","0","0","1","0","10")
+MPY_ENC(M2_vmpy2es_s0,       "1000","ddddd","1","0","0","0","10")
+MPY_ENC(M2_vmpy2es_s1,       "1000","ddddd","1","0","0","1","10")
+MPY_ENC(M2_vcmpy_s0_sat_i,   "1000","ddddd","1","0","1","0","10")
+MPY_ENC(M2_vcmpy_s0_sat_r,   "1000","ddddd","1","1","0","0","10")
+MPY_ENC(M2_vcmpy_s1_sat_i,   "1000","ddddd","1","0","1","1","10")
+MPY_ENC(M2_vcmpy_s1_sat_r,   "1000","ddddd","1","1","0","1","10")
+
+MPY_ENC(M2_mmpyh_s0,         "1000","ddddd","1","0","0","0","11")
+MPY_ENC(M2_mmpyh_s1,         "1000","ddddd","1","0","0","1","11")
+MPY_ENC(M2_mmpyh_rs0,        "1000","ddddd","1","1","0","0","11")
+MPY_ENC(M2_mmpyh_rs1,        "1000","ddddd","1","1","0","1","11")
+MPY_ENC(M2_mmpyuh_s0,        "1000","ddddd","1","0","1","0","11")
+MPY_ENC(M2_mmpyuh_s1,        "1000","ddddd","1","0","1","1","11")
+MPY_ENC(M2_mmpyuh_rs0,       "1000","ddddd","1","1","1","0","11")
+MPY_ENC(M2_mmpyuh_rs1,       "1000","ddddd","1","1","1","1","11")
+
+MPY_ENC(M4_vrmpyeh_s0,       "1000","ddddd","1","0","1","0","00")
+MPY_ENC(M4_vrmpyeh_s1,       "1000","ddddd","1","0","1","1","00")
+MPY_ENC(M4_vrmpyoh_s0,       "1000","ddddd","0","1","0","0","10")
+MPY_ENC(M4_vrmpyoh_s1,       "1000","ddddd","0","1","0","1","10")
+MPY_ENC(M5_vrmpybuu,         "1000","ddddd","0","0","0","1","01")
+MPY_ENC(M5_vrmpybsu,         "1000","ddddd","0","0","1","1","01")
+MPY_ENC(M5_vdmpybsu,         "1000","ddddd","0","1","0","1","01")
+
+MPY_ENC(F2_dfadd,            "1000","ddddd","0","0","0","0","11")
+MPY_ENC(F2_dfsub,            "1000","ddddd","0","0","0","1","11")
+MPY_ENC(F2_dfmpyfix,         "1000","ddddd","0","0","1","0","11")
+MPY_ENC(F2_dfmin,            "1000","ddddd","0","0","1","1","11")
+MPY_ENC(F2_dfmax,            "1000","ddddd","0","1","0","0","11")
+MPY_ENC(F2_dfmpyll,          "1000","ddddd","0","1","0","1","11")
+#ifdef ADD_DP_OPS
+MPY_ENC(F2_dfdivcheat,       "1000","ddddd","0","0","0","1","00")
+
+MPY_ENC(F2_dffixupn,         "1000","ddddd","0","1","0","1","11")
+MPY_ENC(F2_dffixupd,         "1000","ddddd","0","1","1","0","11")
+MPY_ENC(F2_dfrecipa,         "1000","ddddd","0","1","1","1","ee")
+#endif
+
+MPY_ENC(M7_dcmpyrw,          "1000","ddddd","0","0","0","1","10")
+MPY_ENC(M7_dcmpyrwc,         "1000","ddddd","0","0","1","1","10")
+MPY_ENC(M7_dcmpyiw,          "1000","ddddd","0","1","1","0","10")
+MPY_ENC(M7_dcmpyiwc,         "1000","ddddd","0","1","1","1","10")
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 1001 -------- PP------ --------","[#9] Rd=(Rss,Rtt)")
+MPY_ENC(M2_vdmpyrs_s0,       "1001","ddddd","0","0","0","0","00")
+MPY_ENC(M2_vdmpyrs_s1,       "1001","ddddd","0","0","0","1","00")
+
+MPY_ENC(M7_wcmpyrw,          "1001","ddddd","0","0","1","0","00")
+MPY_ENC(M7_wcmpyrw_rnd,      "1001","ddddd","0","0","1","1","00")
+MPY_ENC(M7_wcmpyiw,          "1001","ddddd","0","1","0","0","00")
+MPY_ENC(M7_wcmpyiw_rnd,      "1001","ddddd","0","1","0","1","00")
+
+MPY_ENC(M7_wcmpyrwc,         "1001","ddddd","0","1","1","0","00")
+MPY_ENC(M7_wcmpyrwc_rnd,     "1001","ddddd","0","1","1","1","00")
+MPY_ENC(M7_wcmpyiwc,         "1001","ddddd","1","0","0","0","00")
+MPY_ENC(M7_wcmpyiwc_rnd,     "1001","ddddd","1","0","0","1","00")
+
+
+
+MPY_ENC(M2_vradduh,          "1001","ddddd","-","-","-","0","01")
+MPY_ENC(M2_vrcmpys_s1rp_h,   "1001","ddddd","1","1","-","1","10")
+MPY_ENC(M2_vrcmpys_s1rp_l,   "1001","ddddd","1","1","-","1","11")
+MPY_ENC(M2_vraddh,           "1001","ddddd","1","1","-","0","11")
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 1010 -------- PP------ --------","[#10] Rxx=(Rss,Rtt)")
+MPY_ENC(M2_vrcmaci_s0,       "1010","xxxxx","0","0","0","0","00")
+MPY_ENC(M2_vdmacs_s0,        "1010","xxxxx","1","0","0","0","00")
+MPY_ENC(M2_vdmacs_s1,        "1010","xxxxx","1","0","0","1","00")
+MPY_ENC(M2_vrcmaci_s0c,      "1010","xxxxx","0","0","1","0","00")
+MPY_ENC(M2_vcmac_s0_sat_i,   "1010","xxxxx","1","0","1","0","00")
+MPY_ENC(M2_vcmac_s0_sat_r,   "1010","xxxxx","1","1","0","0","00")
+MPY_ENC(M2_vrcmpys_acc_s1_h, "1010","xxxxx","1","1","0","1","00")
+MPY_ENC(M2_vrcmpys_acc_s1_l, "1010","xxxxx","1","1","1","1","00")
+MPY_ENC(M2_vrcmacr_s0,       "1010","xxxxx","0","0","0","0","01")
+MPY_ENC(A2_vraddub_acc,      "1010","xxxxx","0","0","1","0","01")
+MPY_ENC(M2_mmacls_s0,        "1010","xxxxx","1","0","0","0","01")
+MPY_ENC(M2_mmacls_s1,        "1010","xxxxx","1","0","0","1","01")
+MPY_ENC(M2_mmacls_rs0,       "1010","xxxxx","1","1","0","0","01")
+MPY_ENC(M2_mmacls_rs1,       "1010","xxxxx","1","1","0","1","01")
+MPY_ENC(M2_mmaculs_s0,       "1010","xxxxx","1","0","1","0","01")
+MPY_ENC(M2_mmaculs_s1,       "1010","xxxxx","1","0","1","1","01")
+MPY_ENC(M2_mmaculs_rs0,      "1010","xxxxx","1","1","1","0","01")
+MPY_ENC(M2_mmaculs_rs1,      "1010","xxxxx","1","1","1","1","01")
+MPY_ENC(M2_vrcmacr_s0c,      "1010","xxxxx","0","1","1","0","01")
+MPY_ENC(M2_vrmac_s0,         "1010","xxxxx","0","0","0","0","10")
+MPY_ENC(A2_vrsadub_acc,      "1010","xxxxx","0","0","1","0","10")
+MPY_ENC(M2_vmac2es_s0,       "1010","xxxxx","1","0","0","0","10")
+MPY_ENC(M2_vmac2es_s1,       "1010","xxxxx","1","0","0","1","10")
+MPY_ENC(M2_vmac2es,          "1010","xxxxx","0","1","0","0","10")
+MPY_ENC(M2_mmachs_s0,        "1010","xxxxx","1","0","0","0","11")
+MPY_ENC(M2_mmachs_s1,        "1010","xxxxx","1","0","0","1","11")
+MPY_ENC(M2_mmachs_rs0,       "1010","xxxxx","1","1","0","0","11")
+MPY_ENC(M2_mmachs_rs1,       "1010","xxxxx","1","1","0","1","11")
+MPY_ENC(M2_mmacuhs_s0,       "1010","xxxxx","1","0","1","0","11")
+MPY_ENC(M2_mmacuhs_s1,       "1010","xxxxx","1","0","1","1","11")
+MPY_ENC(M2_mmacuhs_rs0,      "1010","xxxxx","1","1","1","0","11")
+MPY_ENC(M2_mmacuhs_rs1,      "1010","xxxxx","1","1","1","1","11")
+MPY_ENC(M4_vrmpyeh_acc_s0,   "1010","xxxxx","1","1","0","0","10")
+MPY_ENC(M4_vrmpyeh_acc_s1,   "1010","xxxxx","1","1","0","1","10")
+MPY_ENC(M4_vrmpyoh_acc_s0,   "1010","xxxxx","1","1","1","0","10")
+MPY_ENC(M4_vrmpyoh_acc_s1,   "1010","xxxxx","1","1","1","1","10")
+MPY_ENC(M5_vrmacbuu,         "1010","xxxxx","0","0","0","1","01")
+MPY_ENC(M5_vrmacbsu,         "1010","xxxxx","0","0","1","1","01")
+MPY_ENC(M5_vdmacbsu,         "1010","xxxxx","0","1","0","0","01")
+
+MPY_ENC(F2_dfmpylh,          "1010","xxxxx","0","0","0","0","11")
+MPY_ENC(F2_dfmpyhh,          "1010","xxxxx","0","0","0","1","11")
+#ifdef ADD_DP_OPS
+MPY_ENC(F2_dfmpyhh,          "1010","xxxxx","0","0","1","0","11")
+MPY_ENC(F2_dffma,            "1010","xxxxx","0","0","0","0","11")
+MPY_ENC(F2_dffms,            "1010","xxxxx","0","0","0","1","11")
+
+MPY_ENC(F2_dffma_lib,        "1010","xxxxx","0","0","1","0","11")
+MPY_ENC(F2_dffms_lib,        "1010","xxxxx","0","0","1","1","11")
+MPY_ENC(F2_dffma_sc,         "1010","xxxxx","0","1","1","1","uu")
+#endif
+
+
+MPY_ENC(M7_dcmpyrw_acc,      "1010","xxxxx","0","0","0","1","10")
+MPY_ENC(M7_dcmpyrwc_acc,     "1010","xxxxx","0","0","1","1","10")
+MPY_ENC(M7_dcmpyiw_acc,      "1010","xxxxx","0","1","1","0","10")
+MPY_ENC(M7_dcmpyiwc_acc,     "1010","xxxxx","1","0","1","0","10")
+
+
+
+
+/*
+*/
+
+DEF_FIELDROW_DESC32(ICLASS_M" 1011 -------- PP------ --------","[#11] Reserved")
+MPY_ENC(F2_sfadd,            "1011","ddddd","0","0","0","0","00")
+MPY_ENC(F2_sfsub,            "1011","ddddd","0","0","0","0","01")
+MPY_ENC(F2_sfmax,            "1011","ddddd","0","0","0","1","00")
+MPY_ENC(F2_sfmin,            "1011","ddddd","0","0","0","1","01")
+MPY_ENC(F2_sfmpy,            "1011","ddddd","0","0","1","0","00")
+MPY_ENC(F2_sffixupn,         "1011","ddddd","0","0","1","1","00")
+MPY_ENC(F2_sffixupd,         "1011","ddddd","0","0","1","1","01")
+
+DEF_FIELDROW_DESC32(ICLASS_M" 1100 -------- PP------ --------","[#12] Rd=(Rs,Rt)")
+DEF_FIELD32(ICLASS_M"         1100 -------- PP------ --!-----",Mc_tH,"Rt is High") /*Rt high */
+DEF_FIELD32(ICLASS_M"         1100 -------- PP------ -!------",Mc_sH,"Rs is High") /* Rs high */
+SP_MPY(M2_mpy,               "1100","ddddd","0","0","0")
+SP_MPY(M2_mpy_sat,           "1100","ddddd","1","0","0")
+SP_MPY(M2_mpy_rnd,           "1100","ddddd","0","1","0")
+SP_MPY(M2_mpy_sat_rnd,       "1100","ddddd","1","1","0")
+SP_MPY(M2_mpyu,              "1100","ddddd","0","0","1")
+
+DEF_FIELDROW_DESC32(ICLASS_M" 1101 -------- PP------ --------","[#13] Rd=(Rs,Rt)")
+/* EJP: same as mpyi MPY_ENC(M2_mpyui,            "1101","ddddd","0","0","1","0","00") */
+MPY_ENC(M2_mpyi,             "1101","ddddd","0","0","0","0","00")
+MPY_ENC(M2_mpy_up,           "1101","ddddd","0","0","0","0","01")
+MPY_ENC(M2_mpyu_up,          "1101","ddddd","0","0","1","0","01")
+MPY_ENC(M2_dpmpyss_rnd_s0,   "1101","ddddd","0","1","0","0","01")
+MPY_ENC(M2_cmpyrs_s0,        "1101","ddddd","1","1","0","0","10")
+MPY_ENC(M2_cmpyrs_s1,        "1101","ddddd","1","1","0","1","10")
+MPY_ENC(M2_cmpyrsc_s0,       "1101","ddddd","1","1","1","0","10")
+MPY_ENC(M2_cmpyrsc_s1,       "1101","ddddd","1","1","1","1","10")
+MPY_ENC(M2_vmpy2s_s0pack,    "1101","ddddd","1","1","0","0","11")
+MPY_ENC(M2_vmpy2s_s1pack,    "1101","ddddd","1","1","0","1","11")
+MPY_ENC(M2_hmmpyh_rs1,       "1101","ddddd","1","1","0","1","00")
+MPY_ENC(M2_hmmpyl_rs1,       "1101","ddddd","1","1","1","1","00")
+
+MPY_ENC(M2_hmmpyh_s1,        "1101","ddddd","0","1","0","1","00")
+MPY_ENC(M2_hmmpyl_s1,        "1101","ddddd","0","1","0","1","01")
+MPY_ENC(M2_mpy_up_s1,        "1101","ddddd","0","1","0","1","10")
+MPY_ENC(M2_mpy_up_s1_sat,    "1101","ddddd","0","1","1","1","00")
+MPY_ENC(M2_mpysu_up,         "1101","ddddd","0","1","1","0","01")
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 1110 -------- PP------ --------","[#14] Rx=(Rs,Rt)")
+DEF_FIELD32(ICLASS_M"         1110 -------- PP------ --!-----",Md_tH,"Rt is High") /*Rt high */
+DEF_FIELD32(ICLASS_M"         1110 -------- PP------ -!------",Md_sH,"Rs is High") /* Rs high */
+SP_MPY(M2_mpyu_acc,          "1110","xxxxx","0","0","1")
+SP_MPY(M2_mpy_acc,           "1110","xxxxx","0","0","0")
+SP_MPY(M2_mpy_acc_sat,       "1110","xxxxx","1","0","0")
+SP_MPY(M2_mpyu_nac,          "1110","xxxxx","0","1","1")
+SP_MPY(M2_mpy_nac,           "1110","xxxxx","0","1","0")
+SP_MPY(M2_mpy_nac_sat,       "1110","xxxxx","1","1","0")
+
+
+DEF_FIELDROW_DESC32(ICLASS_M" 1111 -------- PP------ --------","[#15] Rx=(Rs,Rt)")
+MPY_ENC(M2_maci,             "1111","xxxxx","0","0","0","0","00")
+MPY_ENC(M2_mnaci,            "1111","xxxxx","0","0","0","1","00")
+MPY_ENC(M2_acci,             "1111","xxxxx","0","0","0","0","01")
+MPY_ENC(M2_nacci,            "1111","xxxxx","0","0","0","1","01")
+MPY_ENC(M2_xor_xacc,         "1111","xxxxx","0","0","0","1","11")
+MPY_ENC(M2_subacc,           "1111","xxxxx","0","0","0","0","11")
+
+MPY_ENC(M4_mac_up_s1_sat,    "1111","xxxxx","0","1","1","0","00")
+MPY_ENC(M4_nac_up_s1_sat,    "1111","xxxxx","0","1","1","0","01")
+
+MPY_ENC(M4_and_and,          "1111","xxxxx","0","0","1","0","00")
+MPY_ENC(M4_and_or,           "1111","xxxxx","0","0","1","0","01")
+MPY_ENC(M4_and_xor,          "1111","xxxxx","0","0","1","0","10")
+MPY_ENC(M4_or_and,           "1111","xxxxx","0","0","1","0","11")
+MPY_ENC(M4_or_or,            "1111","xxxxx","0","0","1","1","00")
+MPY_ENC(M4_or_xor,           "1111","xxxxx","0","0","1","1","01")
+MPY_ENC(M4_xor_and,          "1111","xxxxx","0","0","1","1","10")
+MPY_ENC(M4_xor_or,           "1111","xxxxx","0","0","1","1","11")
+
+MPY_ENC(M4_or_andn,          "1111","xxxxx","0","1","0","0","00")
+MPY_ENC(M4_and_andn,         "1111","xxxxx","0","1","0","0","01")
+MPY_ENC(M4_xor_andn,         "1111","xxxxx","0","1","0","0","10")
+
+MPY_ENC(F2_sffma,            "1111","xxxxx","1","0","0","0","00")
+MPY_ENC(F2_sffms,            "1111","xxxxx","1","0","0","0","01")
+
+MPY_ENC(F2_sffma_lib,        "1111","xxxxx","1","0","0","0","10")
+MPY_ENC(F2_sffms_lib,        "1111","xxxxx","1","0","0","0","11")
+
+MPY_ENC(F2_sffma_sc,         "1111","xxxxx","1","1","1","0","uu")
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*           ALU32_2op         */
+/*                             */
+/*                             */
+/*******************************/
+DEF_CLASS32(ICLASS_ADDI" ---- -------- PP------ --------",ALU32_ADDI)
+
+DEF_CLASS32(ICLASS_ALU2op" ---- -------- PP------ --------",ALU32_2op)
+DEF_FIELD32(ICLASS_ALU2op" !--- -------- PP------ --------",A2_Rs,"No Rs read")
+DEF_FIELD32(ICLASS_ALU2op" -!!! -------- PP------ --------",A2_MajOp,"Major Opcode")
+DEF_FIELD32(ICLASS_ALU2op" ---- !!!----- PP------ --------",A2_MinOp,"Minor Opcode")
+
+DEF_FIELD32(ICLASS_ALU3op" -!!! -------- PP------ --------",A3_MajOp,"Major Opcode")
+DEF_FIELD32(ICLASS_ALU3op" ---- !!!----- PP------ --------",A3_MinOp,"Minor Opcode")
+DEF_CLASS32(ICLASS_ALU3op" ---- -------- PP------ --------",ALU32_3op)
+DEF_FIELD32(ICLASS_ALU3op" !--- -------- PP------ --------",A3_P,"Predicated")
+DEF_FIELD32(ICLASS_ALU3op" ---- -------- PP!----- --------",A3_DN,"Dot-new")
+DEF_FIELD32(ICLASS_ALU3op" ---- -------- PP------ !-------",A3_PS,"Predicate sense")
+
+
+/*************************/
+/* Our good friend addi  */
+/*************************/
+DEF_ENC32(A2_addi,    ICLASS_ADDI"  iiii iiisssss PPiiiiii iiiddddd")
+
+
+/*******************************/
+/* Standard ALU32 insns        */
+/*******************************/
+
+#define ALU32_IRR_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS)\
+DEF_ENC32(TAG, ICLASS_ALU2op" "MAJ4"  "MIN3"sssss  PP"SMOD1"iiiii "VMIN3 DSTCHARS)
+
+#define ALU32_RR_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS)\
+DEF_ENC32(TAG, ICLASS_ALU2op" "MAJ4"  "MIN3"sssss  PP"SMOD1"----- "VMIN3 DSTCHARS)
+
+#define CONDA32_RR_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS)\
+DEF_ENC32(TAG##t,   ICLASS_ALU2op" "MAJ4"  "MIN3"sssss  PP"SMOD1"-00uu "VMIN3 DSTCHARS)\
+DEF_ENC32(TAG##f,   ICLASS_ALU2op" "MAJ4"  "MIN3"sssss  PP"SMOD1"-10uu "VMIN3 DSTCHARS)\
+DEF_ENC32(TAG##tnew,ICLASS_ALU2op" "MAJ4"  "MIN3"sssss  PP"SMOD1"-01uu "VMIN3 DSTCHARS)\
+DEF_ENC32(TAG##fnew,ICLASS_ALU2op" "MAJ4"  "MIN3"sssss  PP"SMOD1"-11uu "VMIN3 DSTCHARS)
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 0000 -------- PP------ --------","[#0] (Pu) Rd=(Rs)")
+DEF_FIELD32(            ICLASS_ALU2op" 0000 -------- PP!----- --------",A32a_C,"Conditional")
+DEF_FIELD32(            ICLASS_ALU2op" 0000 -------- PP--!--- --------",A32a_S,"Predicate sense")
+DEF_FIELD32(            ICLASS_ALU2op" 0000 -------- PP---!-- --------",A32a_dn,"Dot-new")
+
+ALU32_RR_ENC(A2_aslh,                 "0000","000","0","---","ddddd")
+ALU32_RR_ENC(A2_asrh,                 "0000","001","0","---","ddddd")
+ALU32_RR_ENC(A2_tfr,                  "0000","011","0","---","ddddd")
+ALU32_RR_ENC(A2_sxtb,                 "0000","101","0","---","ddddd")
+ALU32_RR_ENC(A2_zxth,                 "0000","110","0","---","ddddd")
+ALU32_RR_ENC(A2_sxth,                 "0000","111","0","---","ddddd")
+
+CONDA32_RR_ENC(A4_paslh,               "0000","000","1","---","ddddd")
+CONDA32_RR_ENC(A4_pasrh,               "0000","001","1","---","ddddd")
+CONDA32_RR_ENC(A4_pzxtb,               "0000","100","1","---","ddddd")
+CONDA32_RR_ENC(A4_psxtb,               "0000","101","1","---","ddddd")
+CONDA32_RR_ENC(A4_pzxth,               "0000","110","1","---","ddddd")
+CONDA32_RR_ENC(A4_psxth,               "0000","111","1","---","ddddd")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 0001 -------- PP------ --------","[#1] Rx=(#u16)")
+DEF_ENC32(A2_tfril,     ICLASS_ALU2op" 0001 ii1xxxxx PPiiiiii iiiiiiii")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 0010 -------- PP------ --------","[#2] Rx=(#u16)")
+DEF_ENC32(A2_tfrih,     ICLASS_ALU2op" 0010 ii1xxxxx PPiiiiii iiiiiiii")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 0011 -------- PP------ --------","[#3] Rd=(Pu,Rs,#s8)")
+DEF_ENC32(C2_muxir,     ICLASS_ALU2op" 0011 0uusssss PP0iiiii iiiddddd")
+DEF_ENC32(C2_muxri,     ICLASS_ALU2op" 0011 1uusssss PP0iiiii iiiddddd")
+
+DEF_ENC32(A4_combineri, ICLASS_ALU2op" 0011 -00sssss PP1iiiii iiiddddd") /* Rdd = (Rs,#s8) */
+DEF_ENC32(A4_combineir, ICLASS_ALU2op" 0011 -01sssss PP1iiiii iiiddddd") /* Rdd = (Rs,#s8) */
+DEF_ENC32(A4_rcmpeqi,   ICLASS_ALU2op" 0011 -10sssss PP1iiiii iiiddddd") /* Rd = (Rs,#s8) */
+DEF_ENC32(A4_rcmpneqi,  ICLASS_ALU2op" 0011 -11sssss PP1iiiii iiiddddd") /* Rd = (Rs,#s8) */
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 0100 -------- PP------ --------","[#4] (Pu) Rd=(Rs,#s8)")
+DEF_FIELD32(            ICLASS_ALU2op" 0100 -------- PP!----- --------",A32a_DN,"Dot-new")
+DEF_FIELD32(            ICLASS_ALU2op" 0100 !------- PP------ --------",A32a_PS,"Predicate sense")
+DEF_ENC32(A2_paddit,    ICLASS_ALU2op" 0100 0uusssss PP0iiiii iiiddddd")
+DEF_ENC32(A2_padditnew, ICLASS_ALU2op" 0100 0uusssss PP1iiiii iiiddddd")
+DEF_ENC32(A2_paddif,    ICLASS_ALU2op" 0100 1uusssss PP0iiiii iiiddddd")
+DEF_ENC32(A2_paddifnew, ICLASS_ALU2op" 0100 1uusssss PP1iiiii iiiddddd")
+
+
+DEF_FIELDROW_DESC32(     ICLASS_ALU2op" 0101 -------- PP------ --------","[#5] Pd=(Rs,#s10)")
+DEF_ENC32(C2_cmpeqi,     ICLASS_ALU2op" 0101 00isssss PPiiiiii iii000dd")
+DEF_ENC32(C2_cmpgti,     ICLASS_ALU2op" 0101 01isssss PPiiiiii iii000dd")
+DEF_ENC32(C2_cmpgtui,    ICLASS_ALU2op" 0101 100sssss PPiiiiii iii000dd")
+
+DEF_ENC32(C4_cmpneqi,    ICLASS_ALU2op" 0101 00isssss PPiiiiii iii100dd")
+DEF_ENC32(C4_cmpltei,    ICLASS_ALU2op" 0101 01isssss PPiiiiii iii100dd")
+DEF_ENC32(C4_cmplteui,   ICLASS_ALU2op" 0101 100sssss PPiiiiii iii100dd")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 0110 -------- PP------ --------","[#6] Rd=(Rs,#s10)")
+ALU32_IRR_ENC(A2_andir,               "0110","00i","i","iii","ddddd")
+ALU32_IRR_ENC(A2_subri,               "0110","01i","i","iii","ddddd")
+ALU32_IRR_ENC(A2_orir,                "0110","10i","i","iii","ddddd")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 0111 -------- PP------ --------","[#7] Reserved")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 1000 -------- PP------ --------","[#8] Rd=#s16")
+DEF_ENC32(A2_tfrsi,     ICLASS_ALU2op" 1000 ii-iiiii PPiiiiii iiiddddd")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 1001 -------- PP------ --------","[#9] Reserved")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 101- -------- PP------ --------","[#10,#11] Rd=(Pu,#s8,#S8)")
+DEF_ENC32(C2_muxii,     ICLASS_ALU2op" 101u uIIIIIII PPIiiiii iiiddddd")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 1100 -------- PP------ --------","[#12] Rdd=(#s8,#S8)")
+DEF_ENC32(A2_combineii, ICLASS_ALU2op" 1100 0IIIIIII PPIiiiii iiiddddd")
+DEF_ENC32(A4_combineii, ICLASS_ALU2op" 1100 1--IIIII PPIiiiii iiiddddd")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 1101 -------- PP------ --------","[#13] Reserved")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 1110 -------- PP------ --------","[#14] (Pu) Rd=#s12")
+DEF_FIELD32(            ICLASS_ALU2op" 1110 ---0---- PP!----- --------",A32c_DN,"Dot-new")
+DEF_FIELD32(            ICLASS_ALU2op" 1110 !--0---- PP------ --------",A32c_PS,"Predicate sense")
+DEF_ENC32(C2_cmovenewit,ICLASS_ALU2op" 1110 0uu0iiii PP1iiiii iiiddddd")
+DEF_ENC32(C2_cmovenewif,ICLASS_ALU2op" 1110 1uu0iiii PP1iiiii iiiddddd")
+DEF_ENC32(C2_cmoveit,   ICLASS_ALU2op" 1110 0uu0iiii PP0iiiii iiiddddd")
+DEF_ENC32(C2_cmoveif,   ICLASS_ALU2op" 1110 1uu0iiii PP0iiiii iiiddddd")
+
+
+DEF_FIELDROW_DESC32(    ICLASS_ALU2op" 1111 -------- PP------ --------","[#15] nop")
+DEF_ENC32(A2_nop,       ICLASS_ALU2op" 1111 -------- PP------ --------")
+
+
+
+
+
+
+
+
+
+
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*    ALU32_3op                */
+/*                             */
+/*                             */
+/*******************************/
+
+
+#define V2A32_RRR_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS)\
+DEF_ENC32(TAG, ICLASS_ALU3op" "MAJ4"  "MIN3"sssss  PP"SMOD1"ttttt "VMIN3 DSTCHARS)
+
+#define V2A32_RR_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS)\
+DEF_ENC32(TAG, ICLASS_ALU3op" "MAJ4"  "MIN3"sssss  PP"SMOD1"----- "VMIN3 DSTCHARS)
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  0000 -------- PP------ --------","[#0] Reserved")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  0001 -------- PP------ --------","[#1] Rd=(Rs,Rt)")
+V2A32_RRR_ENC(A2_and,              "0001","000","-","---","ddddd")
+V2A32_RRR_ENC(A2_or,               "0001","001","-","---","ddddd")
+V2A32_RRR_ENC(A2_xor,              "0001","011","-","---","ddddd")
+V2A32_RRR_ENC(A4_andn,             "0001","100","-","---","ddddd")
+V2A32_RRR_ENC(A4_orn,              "0001","101","-","---","ddddd")
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  0010 -------- PP------ --------","[#2] Pd=(Rs,Rt)")
+V2A32_RRR_ENC(C2_cmpeq,            "0010","-00","-","---","000dd")
+V2A32_RRR_ENC(C2_cmpgt,            "0010","-10","-","---","000dd")
+V2A32_RRR_ENC(C2_cmpgtu,           "0010","-11","-","---","000dd")
+
+V2A32_RRR_ENC(C4_cmpneq,           "0010","-00","-","---","100dd")
+V2A32_RRR_ENC(C4_cmplte,           "0010","-10","-","---","100dd")
+V2A32_RRR_ENC(C4_cmplteu,          "0010","-11","-","---","100dd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  0011 -------- PP------ --------","[#3] Rd=(Rs,Rt)")
+V2A32_RRR_ENC(A2_add,              "0011","000","-","---","ddddd")
+V2A32_RRR_ENC(A2_sub,              "0011","001","-","---","ddddd")
+V2A32_RRR_ENC(A2_combine_hh,       "0011","100","-","---","ddddd")
+V2A32_RRR_ENC(A2_combine_hl,       "0011","101","-","---","ddddd")
+V2A32_RRR_ENC(A2_combine_lh,       "0011","110","-","---","ddddd")
+V2A32_RRR_ENC(A2_combine_ll,       "0011","111","-","---","ddddd")
+V2A32_RRR_ENC(A4_rcmpeq,           "0011","010","-","---","ddddd")
+V2A32_RRR_ENC(A4_rcmpneq,          "0011","011","-","---","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  0100 -------- PP------ --------","[#4] Rd=(Pu,Rs,Rt)")
+V2A32_RRR_ENC(C2_mux,              "0100","---","-","-uu","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  0101 -------- PP------ --------","[#5] Rdd=(Rs,Rt)")
+V2A32_RRR_ENC(A2_combinew,         "0101","0--","-","---","ddddd")
+V2A32_RRR_ENC(S2_packhl,           "0101","1--","-","---","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  0110 -------- PP------ --------","[#6] Rd=(Rs,Rt)")
+V2A32_RRR_ENC(A2_svaddh,           "0110","000","-","---","ddddd")
+V2A32_RRR_ENC(A2_svaddhs,          "0110","001","-","---","ddddd")
+V2A32_RRR_ENC(A2_svadduhs,         "0110","011","-","---","ddddd")
+V2A32_RRR_ENC(A2_svsubh,           "0110","100","-","---","ddddd")
+V2A32_RRR_ENC(A2_svsubhs,          "0110","101","-","---","ddddd")
+V2A32_RRR_ENC(A2_svsubuhs,         "0110","111","-","---","ddddd")
+V2A32_RRR_ENC(A2_addsat,           "0110","010","-","---","ddddd")
+V2A32_RRR_ENC(A2_subsat,           "0110","110","-","---","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  0111 -------- PP------ --------","[#7] Rd=(Rs,Rt)")
+V2A32_RRR_ENC(A2_svavgh,           "0111","-00","-","---","ddddd")
+V2A32_RRR_ENC(A2_svavghs,          "0111","-01","-","---","ddddd")
+V2A32_RRR_ENC(A2_svnavgh,          "0111","-11","-","---","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  1000 -------- PP------ --------","[#8] Reserved")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  1001 -------- PP------ --------","[#9] (Pu) Rd=(Rs,Rt)")
+V2A32_RRR_ENC(A2_pandt,            "1001","-00","0","0uu","ddddd")
+V2A32_RRR_ENC(A2_pandtnew,         "1001","-00","1","0uu","ddddd")
+V2A32_RRR_ENC(A2_pandf,            "1001","-00","0","1uu","ddddd")
+V2A32_RRR_ENC(A2_pandfnew,         "1001","-00","1","1uu","ddddd")
+V2A32_RRR_ENC(A2_port,             "1001","-01","0","0uu","ddddd")
+V2A32_RRR_ENC(A2_portnew,          "1001","-01","1","0uu","ddddd")
+V2A32_RRR_ENC(A2_porf,             "1001","-01","0","1uu","ddddd")
+V2A32_RRR_ENC(A2_porfnew,          "1001","-01","1","1uu","ddddd")
+V2A32_RRR_ENC(A2_pxort,            "1001","-11","0","0uu","ddddd")
+V2A32_RRR_ENC(A2_pxortnew,         "1001","-11","1","0uu","ddddd")
+V2A32_RRR_ENC(A2_pxorf,            "1001","-11","0","1uu","ddddd")
+V2A32_RRR_ENC(A2_pxorfnew,         "1001","-11","1","1uu","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  1010 -------- PP------ --------","[#10] Reserved")
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  1011 -------- PP------ --------","[#11] (Pu) Rd=(Rs,Rt)")
+V2A32_RRR_ENC(A2_paddt,            "1011","0-0","0","0uu","ddddd")
+V2A32_RRR_ENC(A2_paddtnew,         "1011","0-0","1","0uu","ddddd")
+V2A32_RRR_ENC(A2_paddf,            "1011","0-0","0","1uu","ddddd")
+V2A32_RRR_ENC(A2_paddfnew,         "1011","0-0","1","1uu","ddddd")
+V2A32_RRR_ENC(A2_psubt,            "1011","0-1","0","0uu","ddddd")
+V2A32_RRR_ENC(A2_psubtnew,         "1011","0-1","1","0uu","ddddd")
+V2A32_RRR_ENC(A2_psubf,            "1011","0-1","0","1uu","ddddd")
+V2A32_RRR_ENC(A2_psubfnew,         "1011","0-1","1","1uu","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  1100 -------- PP------ --------","[#12] Reserved")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  1101 -------- PP------ --------","[#13] (Pu) Rdd=(Rs,Rt)")
+V2A32_RRR_ENC(C2_ccombinewnewt,    "1101","000","1","0uu","ddddd")
+V2A32_RRR_ENC(C2_ccombinewnewf,    "1101","000","1","1uu","ddddd")
+V2A32_RRR_ENC(C2_ccombinewt,       "1101","000","0","0uu","ddddd")
+V2A32_RRR_ENC(C2_ccombinewf,       "1101","000","0","1uu","ddddd")
+
+
+
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU3op"  1110 -------- PP------ --------","[#14] Reserved")
+
+
+
+
+
+
+
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*    S                        */
+/*                             */
+/*                             */
+/*******************************/
+
+DEF_CLASS32(ICLASS_S2op" ---- -------- PP------ --------",S_2op)
+DEF_FIELD32(ICLASS_S2op" !!!! -------- PP------ --------",STYPEB_RegType,"Register Type")
+DEF_FIELD32(ICLASS_S2op" ---- !!------ PP------ --------",S2_MajOp,"Major Opcode")
+DEF_FIELD32(ICLASS_S2op" ---- -------- PP------ !!!-----",S2_MinOp,"Minor Opcode")
+
+DEF_CLASS32(ICLASS_S3op" ---- -------- PP------ --------",S_3op)
+DEF_FIELD32(ICLASS_S3op" !!!! -------- PP------ --------",STYPEA_RegType,"Register Type")
+DEF_FIELD32(ICLASS_S3op" ---- !!------ PP------ --------",S3_Maj,"Major Opcode")
+DEF_FIELD32(ICLASS_S3op" ---- -------- PP------ !!------",S3_Min,"Minor Opcode")
+
+
+#define SH_RRR_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS) \
+DEF_ENC32(TAG,ICLASS_S3op" "MAJ4"  "MIN3"sssss  PP"SMOD1"ttttt "VMIN3 DSTCHARS)
+
+#define SH_RRRiENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS) \
+DEF_ENC32(TAG,ICLASS_S3op" "MAJ4"  "MIN3"iiiii  PP"SMOD1"ttttt "VMIN3 DSTCHARS)
+
+#define SH_RRR_ENCX(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS) \
+DEF_ENC32(TAG,ICLASS_S3op" "MAJ4"  "MIN3"sssss  PP"SMOD1"xxxxx "VMIN3 DSTCHARS)
+
+#define SH3_RR_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS) \
+DEF_ENC32(TAG,ICLASS_S3op" "MAJ4"  "MIN3"sssss  PP"SMOD1"----- "VMIN3 DSTCHARS)
+
+#define SH_PPP_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS) \
+DEF_ENC32(TAG,ICLASS_S3op" "MAJ4"  "MIN3"---ss  PP"SMOD1"---tt "VMIN3 DSTCHARS)
+
+#define SH2_RR_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS) \
+DEF_ENC32(TAG,ICLASS_S2op" "MAJ4"  "MIN3"sssss  PP"SMOD1"----- "VMIN3 DSTCHARS)
+
+#define SH2_PPP_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS) \
+DEF_ENC32(TAG,ICLASS_S2op" "MAJ4"  "MIN3"---ss  PP"SMOD1"---tt "VMIN3 DSTCHARS)
+
+#define SH_RRI4_ENC(TAG,MAJ4,MIN3,VMIN3,DSTCHARS) \
+DEF_ENC32(TAG,ICLASS_S2op" "MAJ4" "MIN3 "sssss PP00iiii " VMIN3 DSTCHARS)
+
+#define SH_RRI5_ENC(TAG,MAJ4,MIN3,VMIN3,DSTCHARS) \
+DEF_ENC32(TAG,ICLASS_S2op" "MAJ4" "MIN3 "sssss PP0iiiii " VMIN3 DSTCHARS)
+
+#define SH_RRI6_ENC(TAG,MAJ4,MIN3,VMIN3,DSTCHARS) \
+DEF_ENC32(TAG,ICLASS_S2op" "MAJ4" "MIN3 "sssss PPiiiiii " VMIN3 DSTCHARS)
+
+#define RSHIFTTYPES(TAGEND,MAJ4,MIN3,SMOD1,DMOD1,DSTCHARS) \
+SH_RRR_ENC(S2_asr_r_##TAGEND,MAJ4,MIN3,SMOD1,"00"DMOD1,DSTCHARS) \
+SH_RRR_ENC(S2_lsr_r_##TAGEND,MAJ4,MIN3,SMOD1,"01"DMOD1,DSTCHARS) \
+SH_RRR_ENC(S2_asl_r_##TAGEND,MAJ4,MIN3,SMOD1,"10"DMOD1,DSTCHARS) \
+SH_RRR_ENC(S2_lsl_r_##TAGEND,MAJ4,MIN3,SMOD1,"11"DMOD1,DSTCHARS)
+
+
+#define I5SHIFTTYPES(TAGEND,MAJ4,MIN3,SMOD1,DSTCHARS) \
+SH_RRI5_ENC(S2_asr_i_##TAGEND,MAJ4,MIN3,SMOD1 "00",DSTCHARS) \
+SH_RRI5_ENC(S2_lsr_i_##TAGEND,MAJ4,MIN3,SMOD1 "01",DSTCHARS) \
+SH_RRI5_ENC(S2_asl_i_##TAGEND,MAJ4,MIN3,SMOD1 "10",DSTCHARS) \
+SH_RRI5_ENC(S6_rol_i_##TAGEND,MAJ4,MIN3,SMOD1 "11",DSTCHARS)
+
+#define I5SHIFTTYPES_NOROL(TAGEND,MAJ4,MIN3,SMOD1,DSTCHARS) \
+SH_RRI5_ENC(S2_asr_i_##TAGEND,MAJ4,MIN3,SMOD1 "00",DSTCHARS) \
+SH_RRI5_ENC(S2_lsr_i_##TAGEND,MAJ4,MIN3,SMOD1 "01",DSTCHARS) \
+SH_RRI5_ENC(S2_asl_i_##TAGEND,MAJ4,MIN3,SMOD1 "10",DSTCHARS)
+
+#define I5SHIFTTYPES_NOASR(TAGEND,MAJ4,MIN3,SMOD1,DSTCHARS) \
+SH_RRI5_ENC(S2_lsr_i_##TAGEND,MAJ4,MIN3,SMOD1 "01",DSTCHARS) \
+SH_RRI5_ENC(S2_asl_i_##TAGEND,MAJ4,MIN3,SMOD1 "10",DSTCHARS) \
+SH_RRI5_ENC(S6_rol_i_##TAGEND,MAJ4,MIN3,SMOD1 "11",DSTCHARS)
+
+#define I4SHIFTTYPES(TAGEND,MAJ4,MIN3,SMOD1,DSTCHARS) \
+SH_RRI4_ENC(S2_asr_i_##TAGEND,MAJ4,MIN3,SMOD1 "00",DSTCHARS) \
+SH_RRI4_ENC(S2_lsr_i_##TAGEND,MAJ4,MIN3,SMOD1 "01",DSTCHARS) \
+SH_RRI4_ENC(S2_asl_i_##TAGEND,MAJ4,MIN3,SMOD1 "10",DSTCHARS)
+
+#define I5ASHIFTTYPES(TAGEND,MAJ4,MIN3,SMOD1,DSTCHARS) \
+SH_RRI5_ENC(S2_asl_i_##TAGEND,MAJ4,MIN3,SMOD1 "10",DSTCHARS)
+
+#define I4ASHIFTTYPES(TAGEND,MAJ4,MIN3,SMOD1,DSTCHARS) \
+SH_RRI4_ENC(S2_asl_i_##TAGEND,MAJ4,MIN3,SMOD1 "10",DSTCHARS)
+
+#define I6SHIFTTYPES(TAGEND,MAJ4,MIN3,SMOD1,DSTCHARS) \
+SH_RRI6_ENC(S2_asr_i_##TAGEND,MAJ4,MIN3,SMOD1 "00",DSTCHARS) \
+SH_RRI6_ENC(S2_lsr_i_##TAGEND,MAJ4,MIN3,SMOD1 "01",DSTCHARS) \
+SH_RRI6_ENC(S2_asl_i_##TAGEND,MAJ4,MIN3,SMOD1 "10",DSTCHARS) \
+SH_RRI6_ENC(S6_rol_i_##TAGEND,MAJ4,MIN3,SMOD1 "11",DSTCHARS) \
+
+#define I6SHIFTTYPES_NOASR(TAGEND,MAJ4,MIN3,SMOD1,DSTCHARS) \
+SH_RRI6_ENC(S2_lsr_i_##TAGEND,MAJ4,MIN3,SMOD1 "01",DSTCHARS) \
+SH_RRI6_ENC(S2_asl_i_##TAGEND,MAJ4,MIN3,SMOD1 "10",DSTCHARS) \
+SH_RRI6_ENC(S6_rol_i_##TAGEND,MAJ4,MIN3,SMOD1 "11",DSTCHARS)
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op" 0000 -------- PP------ --------","[#0] Rdd=(Rss,#u6)")
+/* EJP: there is actually quite a bit of space here, look at the reserved bits */
+I6SHIFTTYPES(p,                 "0000","000","0","ddddd")
+I5SHIFTTYPES_NOROL(vw,          "0000","010","0","ddddd")
+I4SHIFTTYPES(vh,                "0000","100","0","ddddd")
+
+
+
+/* False assume an immediate */
+SH2_RR_ENC(S2_vsathub_nopack, "0000","000","-","1 00","ddddd")
+SH2_RR_ENC(S2_vsatwuh_nopack, "0000","000","-","1 01","ddddd")
+SH2_RR_ENC(S2_vsatwh_nopack,  "0000","000","-","1 10","ddddd")
+SH2_RR_ENC(S2_vsathb_nopack,  "0000","000","-","1 11","ddddd")
+
+SH_RRI4_ENC(S5_vasrhrnd,      "0000","001",    "0 00","ddddd")
+
+SH2_RR_ENC(A2_vabsh,          "0000","010","-","1 00","ddddd")
+SH2_RR_ENC(A2_vabshsat,       "0000","010","-","1 01","ddddd")
+SH2_RR_ENC(A2_vabsw,          "0000","010","-","1 10","ddddd")
+SH2_RR_ENC(A2_vabswsat,       "0000","010","-","1 11","ddddd")
+
+SH2_RR_ENC(A2_notp,           "0000","100","-","1 00","ddddd")
+SH2_RR_ENC(A2_negp,           "0000","100","-","1 01","ddddd")
+SH2_RR_ENC(A2_absp,           "0000","100","-","1 10","ddddd")
+SH2_RR_ENC(A2_vconj,          "0000","100","-","1 11","ddddd")
+
+SH2_RR_ENC(S2_deinterleave,   "0000","110","-","1 00","ddddd")
+SH2_RR_ENC(S2_interleave,     "0000","110","-","1 01","ddddd")
+SH2_RR_ENC(S2_brevp,          "0000","110","-","1 10","ddddd")
+SH_RRI6_ENC(S2_asr_i_p_rnd,   "0000","110",    "1 11","ddddd")
+
+SH2_RR_ENC(F2_conv_df2d,      "0000","111","0","0 00","ddddd")
+SH2_RR_ENC(F2_conv_df2ud,     "0000","111","0","0 01","ddddd")
+SH2_RR_ENC(F2_conv_ud2df,     "0000","111","0","0 10","ddddd")
+SH2_RR_ENC(F2_conv_d2df,      "0000","111","0","0 11","ddddd")
+#ifdef ADD_DP_OPS
+SH2_RR_ENC(F2_dffixupr,       "0000","111","0","1 00","ddddd")
+SH2_RR_ENC(F2_dfsqrtcheat,    "0000","111","0","1 01","ddddd")
+#endif
+SH2_RR_ENC(F2_conv_df2d_chop, "0000","111","0","1 10","ddddd")
+SH2_RR_ENC(F2_conv_df2ud_chop,"0000","111","0","1 11","ddddd")
+#ifdef ADD_DP_OPS
+SH2_RR_ENC(F2_dfinvsqrta,     "0000","111","1","0 ee","ddddd")
+#endif
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"    0001 -------- PP------ --------","[#1] Rdd=(Rss,#u6,#U6)")
+DEF_ENC32(S2_extractup,ICLASS_S2op" 0001 IIIsssss PPiiiiii IIIddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op" 0010 -------- PP------ --------","[#2] Rxx=(Rss,#u6)")
+I6SHIFTTYPES(p_nac,             "0010","00-","0","xxxxx")
+I6SHIFTTYPES(p_acc,             "0010","00-","1","xxxxx")
+I6SHIFTTYPES(p_and,             "0010","01-","0","xxxxx")
+I6SHIFTTYPES(p_or,              "0010","01-","1","xxxxx")
+I6SHIFTTYPES_NOASR(p_xacc,      "0010","10-","0","xxxxx")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"  0011 -------- PP------ --------","[#3] Rxx=(Rss,#u6,#U6)")
+DEF_ENC32(S2_insertp,ICLASS_S2op" 0011 IIIsssss PPiiiiii IIIxxxxx")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"  0100 -------- PP------ --------","[#4] Rdd=(Rs)")
+SH2_RR_ENC(S2_vsxtbh,            "0100","00-","-","00-","ddddd")
+SH2_RR_ENC(S2_vzxtbh,            "0100","00-","-","01-","ddddd")
+SH2_RR_ENC(S2_vsxthw,            "0100","00-","-","10-","ddddd")
+SH2_RR_ENC(S2_vzxthw,            "0100","00-","-","11-","ddddd")
+SH2_RR_ENC(A2_sxtw,              "0100","01-","-","00-","ddddd")
+SH2_RR_ENC(S2_vsplatrh,          "0100","01-","-","01-","ddddd")
+SH2_RR_ENC(S6_vsplatrbp,         "0100","01-","-","10-","ddddd")
+
+SH2_RR_ENC(F2_conv_sf2df,        "0100","1--","-","000","ddddd")
+SH2_RR_ENC(F2_conv_uw2df,        "0100","1--","-","001","ddddd")
+SH2_RR_ENC(F2_conv_w2df,         "0100","1--","-","010","ddddd")
+SH2_RR_ENC(F2_conv_sf2ud,        "0100","1--","-","011","ddddd")
+SH2_RR_ENC(F2_conv_sf2d,         "0100","1--","-","100","ddddd")
+SH2_RR_ENC(F2_conv_sf2ud_chop,   "0100","1--","-","101","ddddd")
+SH2_RR_ENC(F2_conv_sf2d_chop,    "0100","1--","-","110","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"   0101 -------- PP------ --------","[#5] Pd=(Rs,#u6)")
+DEF_ENC32(S2_tstbit_i,ICLASS_S2op" 0101 000sssss PP0iiiii ------dd")
+DEF_ENC32(C2_tfrrp,   ICLASS_S2op" 0101 010sssss PP------ ------dd")
+DEF_ENC32(C2_bitsclri,ICLASS_S2op" 0101 100sssss PPiiiiii ------dd")
+DEF_ENC32(S4_ntstbit_i,ICLASS_S2op"0101 001sssss PP0iiiii ------dd")
+DEF_ENC32(C4_nbitsclri,ICLASS_S2op"0101 101sssss PPiiiiii ------dd")
+DEF_ENC32(F2_sfclass,  ICLASS_S2op"0101 111sssss PP0iiiii ------dd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"   0110 -------- PP------ --------","[#6] Rdd=(Pt)")
+DEF_ENC32(C2_mask, ICLASS_S2op"    0110   --- -----  PP----tt --- ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"    0111 -------- PP------ --------","[#7] Rx=(Rs,#u4,#S6)")
+DEF_ENC32(S2_tableidxb,ICLASS_S2op" 0111 00isssss PPIIIIII iiixxxxx")
+DEF_ENC32(S2_tableidxh,ICLASS_S2op" 0111 01isssss PPIIIIII iiixxxxx")
+DEF_ENC32(S2_tableidxw,ICLASS_S2op" 0111 10isssss PPIIIIII iiixxxxx")
+DEF_ENC32(S2_tableidxd,ICLASS_S2op" 0111 11isssss PPIIIIII iiixxxxx")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"   1000 -------- PP------ --------","[#8] Rd=(Rss,#u6)")
+SH2_RR_ENC(S2_vsathub,            "1000","000","-","000","ddddd")
+SH2_RR_ENC(S2_vsatwh,             "1000","000","-","010","ddddd")
+SH2_RR_ENC(S2_vsatwuh,            "1000","000","-","100","ddddd")
+SH2_RR_ENC(S2_vsathb,             "1000","000","-","110","ddddd")
+SH2_RR_ENC(S2_clbp,               "1000","010","-","000","ddddd")
+SH2_RR_ENC(S2_cl0p,               "1000","010","-","010","ddddd")
+SH2_RR_ENC(S2_cl1p,               "1000","010","-","100","ddddd")
+SH2_RR_ENC(S2_ct0p,               "1000","111","-","010","ddddd")
+SH2_RR_ENC(S2_ct1p,               "1000","111","-","100","ddddd")
+SH2_RR_ENC(S2_vtrunohb,           "1000","100","-","000","ddddd")
+SH2_RR_ENC(S2_vtrunehb,           "1000","100","-","010","ddddd")
+SH2_RR_ENC(S2_vrndpackwh,         "1000","100","-","100","ddddd")
+SH2_RR_ENC(S2_vrndpackwhs,        "1000","100","-","110","ddddd")
+SH2_RR_ENC(A2_sat,                "1000","110","-","000","ddddd")
+SH2_RR_ENC(A2_roundsat,           "1000","110","-","001","ddddd")
+SH_RRI5_ENC(S2_asr_i_svw_trun,    "1000","110",    "010","ddddd")
+SH_RRI5_ENC(A4_bitspliti,         "1000","110",    "100","ddddd")
+
+SH_RRI5_ENC(A7_clip,              "1000","110",    "101","ddddd")
+SH_RRI5_ENC(A7_vclip,             "1000","110",    "110","ddddd")
+
+
+SH2_RR_ENC(S4_clbpnorm,           "1000","011","-","000","ddddd")
+SH_RRI6_ENC(S4_clbpaddi,          "1000","011",    "010","ddddd")
+SH2_RR_ENC(S5_popcountp,          "1000","011","-","011","ddddd")
+
+SH_RRI4_ENC(S5_asrhub_rnd_sat,    "1000","011",    "100","ddddd")
+SH_RRI4_ENC(S5_asrhub_sat,        "1000","011",    "101","ddddd")
+
+SH2_RR_ENC(F2_conv_df2sf,         "1000","000","-","001","ddddd")
+SH2_RR_ENC(F2_conv_ud2sf,         "1000","001","-","001","ddddd")
+SH2_RR_ENC(F2_conv_d2sf,          "1000","010","-","001","ddddd")
+SH2_RR_ENC(F2_conv_df2uw,         "1000","011","-","001","ddddd")
+SH2_RR_ENC(F2_conv_df2w,          "1000","100","-","001","ddddd")
+SH2_RR_ENC(F2_conv_df2uw_chop,    "1000","101","-","001","ddddd")
+SH2_RR_ENC(F2_conv_df2w_chop,     "1000","111","-","001","ddddd")
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"   1001 -------- PP------ --------","[#9] Rd=(Ps,Pt)")
+DEF_ENC32(C2_vitpack, ICLASS_S2op" 1001   -00 ---ss  PP----tt --- ddddd")
+DEF_ENC32(C2_tfrpr,   ICLASS_S2op" 1001   -1- ---ss  PP------ --- ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"   1010 -------- PP------ --------","[#10] Rdd=(Rss,#u6,#U6)")
+DEF_ENC32(S4_extractp,ICLASS_S2op" 1010 IIIsssss PPiiiiii IIIddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"   1011 -------- PP------ --------","[#11] Rd=(Rs)")
+SH2_RR_ENC(F2_conv_uw2sf,         "1011","001","-","000","ddddd")
+SH2_RR_ENC(F2_conv_w2sf,          "1011","010","-","000","ddddd")
+SH2_RR_ENC(F2_conv_sf2uw,         "1011","011","-","000","ddddd")
+SH2_RR_ENC(F2_conv_sf2w,          "1011","100","-","000","ddddd")
+SH2_RR_ENC(F2_conv_sf2uw_chop,    "1011","011","-","001","ddddd")
+SH2_RR_ENC(F2_conv_sf2w_chop,     "1011","100","-","001","ddddd")
+SH2_RR_ENC(F2_sffixupr,           "1011","101","-","000","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"      1100 -------- PP------ --------","[#12] Rd=(Rs,#u6)")
+I5SHIFTTYPES(r,                      "1100","000",            "0  ","ddddd")
+SH_RRI5_ENC(S2_asl_i_r_sat,          "1100","010",            "010","ddddd")
+SH_RRI5_ENC(S2_asr_i_r_rnd,          "1100","010",            "000","ddddd")
+
+SH2_RR_ENC(S2_svsathb,               "1100","10-","-",        "00-","ddddd")
+SH2_RR_ENC(S2_svsathub,              "1100","10-","-",        "01-","ddddd")
+
+SH_RRI5_ENC(A4_cround_ri,            "1100","111",            "00-","ddddd")
+SH_RRI6_ENC(A7_croundd_ri,           "1100","111",            "01-","ddddd")
+SH_RRI5_ENC(A4_round_ri,             "1100","111",            "10-","ddddd")
+SH_RRI5_ENC(A4_round_ri_sat,         "1100","111",            "11-","ddddd")
+
+DEF_ENC32(S2_setbit_i,   ICLASS_S2op" 1100   110sssss PP0iiiii 000ddddd")
+DEF_ENC32(S2_clrbit_i,   ICLASS_S2op" 1100   110sssss PP0iiiii 001ddddd")
+DEF_ENC32(S2_togglebit_i,ICLASS_S2op" 1100   110sssss PP0iiiii 010ddddd")
+
+DEF_ENC32(S4_clbaddi    ,ICLASS_S2op" 1100   001sssss PPiiiiii 000ddddd")
+
+
+
+/* False read #u6 */
+SH2_RR_ENC(S2_clb,                   "1100","000","-","1 00","ddddd")
+SH2_RR_ENC(S2_cl0,                   "1100","000","-","1 01","ddddd")
+SH2_RR_ENC(S2_cl1,                   "1100","000","-","1 10","ddddd")
+SH2_RR_ENC(S2_clbnorm,               "1100","000","-","1 11","ddddd")
+SH2_RR_ENC(S2_ct0,                   "1100","010","-","1 00","ddddd")
+SH2_RR_ENC(S2_ct1,                   "1100","010","-","1 01","ddddd")
+SH2_RR_ENC(S2_brev,                  "1100","010","-","1 10","ddddd")
+SH2_RR_ENC(S2_vsplatrb,              "1100","010","-","1 11","ddddd")
+SH2_RR_ENC(A2_abs,                   "1100","100","-","1 00","ddddd")
+SH2_RR_ENC(A2_abssat,                "1100","100","-","1 01","ddddd")
+SH2_RR_ENC(A2_negsat,                "1100","100","-","1 10","ddddd")
+SH2_RR_ENC(A2_swiz,                  "1100","100","-","1 11","ddddd")
+SH2_RR_ENC(A2_sath,                  "1100","110","-","1 00","ddddd")
+SH2_RR_ENC(A2_satuh,                 "1100","110","-","1 01","ddddd")
+SH2_RR_ENC(A2_satub,                 "1100","110","-","1 10","ddddd")
+SH2_RR_ENC(A2_satb,                  "1100","110","-","1 11","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"     1101 -------- PP------ --------","[#13] Rd=(Rs,#u6,#U6)")
+DEF_ENC32(S2_extractu,  ICLASS_S2op" 1101 0IIsssss PP0iiiii IIIddddd")
+DEF_ENC32(S4_extract,   ICLASS_S2op" 1101 1IIsssss PP0iiiii IIIddddd")
+DEF_ENC32(S2_mask,    ICLASS_S2op"   1101 0II----- PP1iiiii IIIddddd")
+
+
+
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"     1110 -------- PP------ --------","[#14] Rx=(Rs,#u6)")
+I5SHIFTTYPES(r_nac,       "1110","00-","0","xxxxx")
+I5SHIFTTYPES(r_acc,       "1110","00-","1","xxxxx")
+I5SHIFTTYPES(r_and,       "1110","01-","0","xxxxx")
+I5SHIFTTYPES(r_or,        "1110","01-","1","xxxxx")
+I5SHIFTTYPES_NOASR(r_xacc,"1110","10-","0","xxxxx")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S2op"     1111 -------- PP------ --------","[#15] Rs=(Rs,#u6,#U6)")
+DEF_ENC32(S2_insert,    ICLASS_S2op" 1111 0IIsssss PP0iiiii IIIxxxxx")
+
+
+
+
+
+/*************************/
+/* S_3_operand           */
+/*************************/
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 0000 -------- PP------ --------","[#0] Rdd=(Rss,Rtt,#u3)")
+SH_RRR_ENC(S2_valignib,         "0000","0--","-","iii","ddddd")
+SH_RRR_ENC(S2_vspliceib,        "0000","1--","-","iii","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 0001 -------- PP------ --------","[#1] Rdd=(Rss,Rtt)")
+SH_RRR_ENC(S2_extractup_rp,     "0001","00-","-","00-","ddddd")
+SH_RRR_ENC(S2_shuffeb,          "0001","00-","-","01-","ddddd")
+SH_RRR_ENC(S2_shuffob,          "0001","00-","-","10-","ddddd")
+SH_RRR_ENC(S2_shuffeh,          "0001","00-","-","11-","ddddd")
+
+SH_RRR_ENC(S2_shuffoh,          "0001","10-","-","000","ddddd")
+SH_RRR_ENC(S2_vtrunewh,         "0001","10-","-","010","ddddd")
+SH_RRR_ENC(S6_vtrunehb_ppp,     "0001","10-","-","011","ddddd")
+SH_RRR_ENC(S2_vtrunowh,         "0001","10-","-","100","ddddd")
+SH_RRR_ENC(S6_vtrunohb_ppp,     "0001","10-","-","101","ddddd")
+SH_RRR_ENC(S2_lfsp,             "0001","10-","-","110","ddddd")
+
+SH_RRR_ENC(S4_vxaddsubw,        "0001","01-","-","000","ddddd")
+SH_RRR_ENC(A5_vaddhubs,         "0001","01-","-","001","ddddd")
+SH_RRR_ENC(S4_vxsubaddw,        "0001","01-","-","010","ddddd")
+SH_RRR_ENC(S4_vxaddsubh,        "0001","01-","-","100","ddddd")
+SH_RRR_ENC(S4_vxsubaddh,        "0001","01-","-","110","ddddd")
+
+SH_RRR_ENC(S4_vxaddsubhr,       "0001","11-","-","00-","ddddd")
+SH_RRR_ENC(S4_vxsubaddhr,       "0001","11-","-","01-","ddddd")
+SH_RRR_ENC(S4_extractp_rp,      "0001","11-","-","10-","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 0010 -------- PP------ --------","[#2] Rdd=(Rss,Rtt,Pu)")
+SH_RRR_ENC(S2_valignrb,         "0010","0--","-","-uu","ddddd")
+SH_RRR_ENC(S2_vsplicerb,        "0010","100","-","-uu","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 0011 -------- PP------ --------","[#3] Rdd=(Rss,Rt)")
+RSHIFTTYPES(vw,                 "0011","00-","-","-","ddddd")
+RSHIFTTYPES(vh,                 "0011","01-","-","-","ddddd")
+RSHIFTTYPES(p,                  "0011","10-","-","-","ddddd")
+SH_RRR_ENC(S2_vcrotate,         "0011","11-","-","00-","ddddd")
+SH_RRR_ENC(S2_vcnegh,           "0011","11-","-","01-","ddddd")
+SH_RRR_ENC(S4_vrcrotate,        "0011","11-","i","11i","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 0100 -------- PP------ --------","[#4] Rd=(Rs,Rt,#u3)")
+DEF_ENC32(S2_addasl_rrri, ICLASS_S3op" 0100   000 sssss PP0ttttt iiiddddd")
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 0101 -------- PP------ --------","[#5] Rd=(Rss,Rt)")
+SH_RRR_ENC(S2_asr_r_svw_trun,   "0101","---","-","010","ddddd")
+SH_RRR_ENC(M4_cmpyi_wh,         "0101","---","-","100","ddddd")
+SH_RRR_ENC(M4_cmpyr_wh,         "0101","---","-","110","ddddd")
+SH_RRR_ENC(M4_cmpyi_whc,        "0101","---","-","101","ddddd")
+SH_RRR_ENC(M4_cmpyr_whc,        "0101","---","-","111","ddddd")
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 0110 -------- PP------ --------","[#6] Rd=(Rs,Rt)")
+SH_RRR_ENC(S2_asr_r_r_sat,      "0110","00-","-","00-","ddddd") \
+SH_RRR_ENC(S2_asl_r_r_sat,      "0110","00-","-","10-","ddddd")
+
+RSHIFTTYPES(r,                  "0110","01-","-","-","ddddd")
+
+SH_RRR_ENC(S2_setbit_r,         "0110","10-","-","00-","ddddd")
+SH_RRR_ENC(S2_clrbit_r,         "0110","10-","-","01-","ddddd")
+SH_RRR_ENC(S2_togglebit_r,      "0110","10-","-","10-","ddddd")
+SH_RRRiENC(S4_lsli,             "0110","10-","-","11i","ddddd")
+
+SH_RRR_ENC(A4_cround_rr,        "0110","11-","-","00-","ddddd")
+SH_RRR_ENC(A7_croundd_rr,       "0110","11-","-","01-","ddddd")
+SH_RRR_ENC(A4_round_rr,         "0110","11-","-","10-","ddddd")
+SH_RRR_ENC(A4_round_rr_sat,     "0110","11-","-","11-","ddddd")
+
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 0111 -------- PP------ --------","[#7] Pd=(Rs,Rt)")
+SH_RRR_ENC(S2_tstbit_r,         "0111","000","-","---","---dd")
+SH_RRR_ENC(C2_bitsset,          "0111","010","-","---","---dd")
+SH_RRR_ENC(C2_bitsclr,          "0111","100","-","---","---dd")
+SH_RRR_ENC(A4_cmpheq,           "0111","110","-","011","---dd")
+SH_RRR_ENC(A4_cmphgt,           "0111","110","-","100","---dd")
+SH_RRR_ENC(A4_cmphgtu,          "0111","110","-","101","---dd")
+SH_RRR_ENC(A4_cmpbeq,           "0111","110","-","110","---dd")
+SH_RRR_ENC(A4_cmpbgtu,          "0111","110","-","111","---dd")
+SH_RRR_ENC(A4_cmpbgt,           "0111","110","-","010","---dd")
+SH_RRR_ENC(S4_ntstbit_r,        "0111","001","-","---","---dd")
+SH_RRR_ENC(C4_nbitsset,         "0111","011","-","---","---dd")
+SH_RRR_ENC(C4_nbitsclr,         "0111","101","-","---","---dd")
+
+SH_RRR_ENC(F2_sfcmpge,          "0111","111","-","000","---dd")
+SH_RRR_ENC(F2_sfcmpuo,          "0111","111","-","001","---dd")
+SH_RRR_ENC(F2_sfcmpeq,          "0111","111","-","011","---dd")
+SH_RRR_ENC(F2_sfcmpgt,          "0111","111","-","100","---dd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 1000 -------- PP------ --------","[#8] Rx=(Rs,Rtt)")
+SH_RRR_ENC(S2_insert_rp,        "1000","---","-","---","xxxxx")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 1001 -------- PP------ --------","[#9] Rd=(Rs,Rtt)")
+SH_RRR_ENC(S2_extractu_rp,      "1001","00-","-","00-","ddddd")
+SH_RRR_ENC(S4_extract_rp,       "1001","00-","-","01-","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 1010 -------- PP------ --------","[#10] Rxx=(Rss,Rtt)")
+SH_RRR_ENC(S2_insertp_rp,       "1010","0--","0","---","xxxxx")
+SH_RRR_ENC(M4_xor_xacc,         "1010","10-","0","000","xxxxx")
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 1011 -------- PP------ --------","[#11] Rxx=(Rss,Rt)")
+RSHIFTTYPES(p_or,               "1011","000","-","-","xxxxx")
+RSHIFTTYPES(p_and,              "1011","010","-","-","xxxxx")
+RSHIFTTYPES(p_nac,              "1011","100","-","-","xxxxx")
+RSHIFTTYPES(p_acc,              "1011","110","-","-","xxxxx")
+RSHIFTTYPES(p_xor,              "1011","011","-","-","xxxxx")
+
+SH_RRR_ENCX(A4_vrmaxh,          "1011","001","0","001","uuuuu")
+SH_RRR_ENCX(A4_vrmaxuh,         "1011","001","1","001","uuuuu")
+SH_RRR_ENCX(A4_vrmaxw,          "1011","001","0","010","uuuuu")
+SH_RRR_ENCX(A4_vrmaxuw,         "1011","001","1","010","uuuuu")
+
+SH_RRR_ENCX(A4_vrminh,          "1011","001","0","101","uuuuu")
+SH_RRR_ENCX(A4_vrminuh,         "1011","001","1","101","uuuuu")
+SH_RRR_ENCX(A4_vrminw,          "1011","001","0","110","uuuuu")
+SH_RRR_ENCX(A4_vrminuw,         "1011","001","1","110","uuuuu")
+
+SH_RRR_ENC(S2_vrcnegh,          "1011","001","1","111","xxxxx")
+
+SH_RRR_ENC(S4_vrcrotate_acc,    "1011","101","i","--i","xxxxx")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 1100 -------- PP------ --------","[#12] Rx=(Rs,Rt)")
+RSHIFTTYPES(r_or,               "1100","00-","-","-","xxxxx")
+RSHIFTTYPES(r_and,              "1100","01-","-","-","xxxxx")
+RSHIFTTYPES(r_nac,              "1100","10-","-","-","xxxxx")
+RSHIFTTYPES(r_acc,              "1100","11-","-","-","xxxxx")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 1101 -------- PP------ --------","[#13] Reserved")
+DEF_FIELDROW_DESC32(ICLASS_S3op" 1110 -------- PP------ --------","[#14] Reserved")
+
+
+DEF_FIELDROW_DESC32(ICLASS_S3op" 1111 -------- PP------ --------","[#14] User Instruction")
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*******************************/
+/*                             */
+/*                             */
+/*           ALU64             */
+/*                             */
+/*                             */
+/*******************************/
+DEF_CLASS32(ICLASS_ALU64" ---- -------- PP------ --------",ALU64)
+DEF_FIELD32(ICLASS_ALU64" !!!! -------- PP------ --------",ALU64_RegType,"Register Type")
+DEF_FIELD32(ICLASS_ALU64" 0--- !!!----- PP------ --------",A_MajOp,"Major Opcode")
+DEF_FIELD32(ICLASS_ALU64" 0--- -------- PP------ !!!-----",A_MinOp,"Minor Opcode")
+DEF_FIELD32(ICLASS_ALU64" 11-- -------- PP------ ---!!!!!",A_MajOp,"Major Opcode")
+
+
+
+#define ALU64_RRR_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS)\
+DEF_ENC32(TAG, ICLASS_ALU64" "MAJ4"  "MIN3"sssss  PP"SMOD1"ttttt "VMIN3 DSTCHARS)
+
+#define LEGACY_ALU64_RRR_ENC(TAG,MAJ4,MIN3,SMOD1,VMIN3,DSTCHARS)\
+LEGACY_DEF_ENC32(TAG, ICLASS_ALU64" "MAJ4"  "MIN3"sssss  PP"SMOD1"ttttt "VMIN3 DSTCHARS)
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 0000 -------- PP------ --------","[#0] Rd=(Rss,Rtt)")
+ALU64_RRR_ENC(S2_parityp,        "0000","---","-","---","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 0001 -------- PP------ --------","[#1] Rdd=(Pu,Rss,Rtt)")
+ALU64_RRR_ENC(C2_vmux,           "0001","---","-","-uu","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 0010 -------- PP------ --------","[#2] Pd=(Rss,Rtt)")
+ALU64_RRR_ENC(A2_vcmpweq,        "0010","0--","0","000","---dd")
+ALU64_RRR_ENC(A2_vcmpwgt,        "0010","0--","0","001","---dd")
+ALU64_RRR_ENC(A2_vcmpwgtu,       "0010","0--","0","010","---dd")
+ALU64_RRR_ENC(A2_vcmpheq,        "0010","0--","0","011","---dd")
+ALU64_RRR_ENC(A2_vcmphgt,        "0010","0--","0","100","---dd")
+ALU64_RRR_ENC(A2_vcmphgtu,       "0010","0--","0","101","---dd")
+ALU64_RRR_ENC(A2_vcmpbeq,        "0010","0--","0","110","---dd")
+ALU64_RRR_ENC(A2_vcmpbgtu,       "0010","0--","0","111","---dd")
+
+ALU64_RRR_ENC(A4_vcmpbeq_any,    "0010","0--","1","000","---dd")
+ALU64_RRR_ENC(A6_vcmpbeq_notany, "0010","0--","1","001","---dd")
+ALU64_RRR_ENC(A4_vcmpbgt,        "0010","0--","1","010","---dd")
+ALU64_RRR_ENC(A4_tlbmatch,       "0010","0--","1","011","---dd")
+ALU64_RRR_ENC(A4_boundscheck_lo, "0010","0--","1","100","---dd")
+ALU64_RRR_ENC(A4_boundscheck_hi, "0010","0--","1","101","---dd")
+
+ALU64_RRR_ENC(C2_cmpeqp,         "0010","100","-","000","---dd")
+ALU64_RRR_ENC(C2_cmpgtp,         "0010","100","-","010","---dd")
+ALU64_RRR_ENC(C2_cmpgtup,        "0010","100","-","100","---dd")
+
+ALU64_RRR_ENC(F2_dfcmpeq,        "0010","111","-","000","---dd")
+ALU64_RRR_ENC(F2_dfcmpgt,        "0010","111","-","001","---dd")
+ALU64_RRR_ENC(F2_dfcmpge,        "0010","111","-","010","---dd")
+ALU64_RRR_ENC(F2_dfcmpuo,        "0010","111","-","011","---dd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 0011 -------- PP------ --------","[#3] Rdd=(Rss,Rtt)")
+ALU64_RRR_ENC(A2_vaddub,         "0011","000","-","000","ddddd")
+ALU64_RRR_ENC(A2_vaddubs,        "0011","000","-","001","ddddd")
+ALU64_RRR_ENC(A2_vaddh,          "0011","000","-","010","ddddd")
+ALU64_RRR_ENC(A2_vaddhs,         "0011","000","-","011","ddddd")
+ALU64_RRR_ENC(A2_vadduhs,        "0011","000","-","100","ddddd")
+ALU64_RRR_ENC(A2_vaddw,          "0011","000","-","101","ddddd")
+ALU64_RRR_ENC(A2_vaddws,         "0011","000","-","110","ddddd")
+ALU64_RRR_ENC(A2_addp,           "0011","000","-","111","ddddd")
+
+ALU64_RRR_ENC(A2_vsubub,         "0011","001","-","000","ddddd")
+ALU64_RRR_ENC(A2_vsububs,        "0011","001","-","001","ddddd")
+ALU64_RRR_ENC(A2_vsubh,          "0011","001","-","010","ddddd")
+ALU64_RRR_ENC(A2_vsubhs,         "0011","001","-","011","ddddd")
+ALU64_RRR_ENC(A2_vsubuhs,        "0011","001","-","100","ddddd")
+ALU64_RRR_ENC(A2_vsubw,          "0011","001","-","101","ddddd")
+ALU64_RRR_ENC(A2_vsubws,         "0011","001","-","110","ddddd")
+ALU64_RRR_ENC(A2_subp,           "0011","001","-","111","ddddd")
+
+ALU64_RRR_ENC(A2_vavgub,         "0011","010","-","000","ddddd")
+ALU64_RRR_ENC(A2_vavgubr,        "0011","010","-","001","ddddd")
+ALU64_RRR_ENC(A2_vavgh,          "0011","010","-","010","ddddd")
+ALU64_RRR_ENC(A2_vavghr,         "0011","010","-","011","ddddd")
+ALU64_RRR_ENC(A2_vavghcr,        "0011","010","-","100","ddddd")
+ALU64_RRR_ENC(A2_vavguh,         "0011","010","-","101","ddddd")
+ALU64_RRR_ENC(A2_vavguhr,        "0011","010","-","11-","ddddd")
+
+ALU64_RRR_ENC(A2_vavgw,          "0011","011","-","000","ddddd")
+ALU64_RRR_ENC(A2_vavgwr,         "0011","011","-","001","ddddd")
+ALU64_RRR_ENC(A2_vavgwcr,        "0011","011","-","010","ddddd")
+ALU64_RRR_ENC(A2_vavguw,         "0011","011","-","011","ddddd")
+ALU64_RRR_ENC(A2_vavguwr,        "0011","011","-","100","ddddd")
+ALU64_RRR_ENC(A2_addpsat,        "0011","011","-","101","ddddd")
+ALU64_RRR_ENC(A2_addspl,         "0011","011","-","110","ddddd")
+ALU64_RRR_ENC(A2_addsph,         "0011","011","-","111","ddddd")
+
+ALU64_RRR_ENC(A2_vnavgh,         "0011","100","-","000","ddddd")
+ALU64_RRR_ENC(A2_vnavghr,        "0011","100","-","001","ddddd")
+ALU64_RRR_ENC(A2_vnavghcr,       "0011","100","-","010","ddddd")
+ALU64_RRR_ENC(A2_vnavgw,         "0011","100","-","011","ddddd")
+ALU64_RRR_ENC(A2_vnavgwr,        "0011","100","-","10-","ddddd")
+ALU64_RRR_ENC(A2_vnavgwcr,       "0011","100","-","11-","ddddd")
+
+ALU64_RRR_ENC(A2_vminub,         "0011","101","-","000","ddddd")
+ALU64_RRR_ENC(A2_vminh,          "0011","101","-","001","ddddd")
+ALU64_RRR_ENC(A2_vminuh,         "0011","101","-","010","ddddd")
+ALU64_RRR_ENC(A2_vminw,          "0011","101","-","011","ddddd")
+ALU64_RRR_ENC(A2_vminuw,         "0011","101","-","100","ddddd")
+ALU64_RRR_ENC(A2_vmaxuw,         "0011","101","-","101","ddddd")
+ALU64_RRR_ENC(A2_minp,           "0011","101","-","110","ddddd")
+ALU64_RRR_ENC(A2_minup,          "0011","101","-","111","ddddd")
+
+ALU64_RRR_ENC(A2_vmaxub,         "0011","110","-","000","ddddd")
+ALU64_RRR_ENC(A2_vmaxh,          "0011","110","-","001","ddddd")
+ALU64_RRR_ENC(A2_vmaxuh,         "0011","110","-","010","ddddd")
+ALU64_RRR_ENC(A2_vmaxw,          "0011","110","-","011","ddddd")
+ALU64_RRR_ENC(A2_maxp,           "0011","110","-","100","ddddd")
+ALU64_RRR_ENC(A2_maxup,          "0011","110","-","101","ddddd")
+ALU64_RRR_ENC(A2_vmaxb,          "0011","110","-","110","ddddd")
+ALU64_RRR_ENC(A2_vminb,          "0011","110","-","111","ddddd")
+
+ALU64_RRR_ENC(A2_andp,           "0011","111","-","000","ddddd")
+ALU64_RRR_ENC(A2_orp,            "0011","111","-","010","ddddd")
+ALU64_RRR_ENC(A2_xorp,           "0011","111","-","100","ddddd")
+ALU64_RRR_ENC(A4_andnp,          "0011","111","-","001","ddddd")
+ALU64_RRR_ENC(A4_ornp,           "0011","111","-","011","ddddd")
+
+ALU64_RRR_ENC(A4_modwrapu,       "0011","111","-","111","ddddd")
+
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 0100 -------- PP------ --------","[#4] Rdd=(Rs,Rt)")
+LEGACY_ALU64_RRR_ENC(S2_packhl,  "0100","--0","-","---","ddddd")
+ALU64_RRR_ENC(A4_bitsplit,       "0100","--1","-","---","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 0101 -------- PP------ --------","[#5] Rd=(Rs,Rt)")
+ALU64_RRR_ENC(A2_addh_l16_ll,    "0101","000","-","00-","ddddd")
+ALU64_RRR_ENC(A2_addh_l16_hl,    "0101","000","-","01-","ddddd")
+ALU64_RRR_ENC(A2_addh_l16_sat_ll,"0101","000","-","10-","ddddd")
+ALU64_RRR_ENC(A2_addh_l16_sat_hl,"0101","000","-","11-","ddddd")
+
+ALU64_RRR_ENC(A2_subh_l16_ll,    "0101","001","-","00-","ddddd")
+ALU64_RRR_ENC(A2_subh_l16_hl,    "0101","001","-","01-","ddddd")
+ALU64_RRR_ENC(A2_subh_l16_sat_ll,"0101","001","-","10-","ddddd")
+ALU64_RRR_ENC(A2_subh_l16_sat_hl,"0101","001","-","11-","ddddd")
+
+ALU64_RRR_ENC(A2_addh_h16_ll,    "0101","010","-","000","ddddd")
+ALU64_RRR_ENC(A2_addh_h16_lh,    "0101","010","-","001","ddddd")
+ALU64_RRR_ENC(A2_addh_h16_hl,    "0101","010","-","010","ddddd")
+ALU64_RRR_ENC(A2_addh_h16_hh,    "0101","010","-","011","ddddd")
+ALU64_RRR_ENC(A2_addh_h16_sat_ll,"0101","010","-","100","ddddd")
+ALU64_RRR_ENC(A2_addh_h16_sat_lh,"0101","010","-","101","ddddd")
+ALU64_RRR_ENC(A2_addh_h16_sat_hl,"0101","010","-","110","ddddd")
+ALU64_RRR_ENC(A2_addh_h16_sat_hh,"0101","010","-","111","ddddd")
+
+ALU64_RRR_ENC(A2_subh_h16_ll,    "0101","011","-","000","ddddd")
+ALU64_RRR_ENC(A2_subh_h16_lh,    "0101","011","-","001","ddddd")
+ALU64_RRR_ENC(A2_subh_h16_hl,    "0101","011","-","010","ddddd")
+ALU64_RRR_ENC(A2_subh_h16_hh,    "0101","011","-","011","ddddd")
+ALU64_RRR_ENC(A2_subh_h16_sat_ll,"0101","011","-","100","ddddd")
+ALU64_RRR_ENC(A2_subh_h16_sat_lh,"0101","011","-","101","ddddd")
+ALU64_RRR_ENC(A2_subh_h16_sat_hl,"0101","011","-","110","ddddd")
+ALU64_RRR_ENC(A2_subh_h16_sat_hh,"0101","011","-","111","ddddd")
+
+LEGACY_ALU64_RRR_ENC(A2_addsat,  "0101","100","-","0--","ddddd")
+LEGACY_ALU64_RRR_ENC(A2_subsat,  "0101","100","-","1--","ddddd")
+
+ALU64_RRR_ENC(A2_min,            "0101","101","-","0--","ddddd")
+ALU64_RRR_ENC(A2_minu,           "0101","101","-","1--","ddddd")
+
+ALU64_RRR_ENC(A2_max,            "0101","110","-","0--","ddddd")
+ALU64_RRR_ENC(A2_maxu,           "0101","110","-","1--","ddddd")
+
+ALU64_RRR_ENC(S4_parity,         "0101","111","-","---","ddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 0110 -------- PP------ --------","[#6] Rd=#u10 ")
+DEF_ENC32(F2_sfimm_p,     ICLASS_ALU64" 0110   00i ----- PPiiiiii iiiddddd")
+DEF_ENC32(F2_sfimm_n,     ICLASS_ALU64" 0110   01i ----- PPiiiiii iiiddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 0111 -------- PP------ --------","[#7] Rd=(Rs,Rt,#u6)")
+DEF_ENC32(M4_mpyrr_addi,  ICLASS_ALU64" 0111   0ii sssss PPittttt iiiddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 1000 -------- PP------ --------","[#8] Rd=(Rs,#u6,#U6)")
+DEF_ENC32(M4_mpyri_addi,  ICLASS_ALU64" 1000   Iii sssss PPiddddd iiiIIIII")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 1001 -------- PP------ --------","[#9] Rdd=#u10 ")
+DEF_ENC32(F2_dfimm_p,     ICLASS_ALU64" 1001   00i ----- PPiiiiii iiiddddd")
+DEF_ENC32(F2_dfimm_n,     ICLASS_ALU64" 1001   01i ----- PPiiiiii iiiddddd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 1010 -------- PP------ --------","[#10] Rx=(Rs,Rx,#s10)")
+DEF_ENC32(S4_or_andix,    ICLASS_ALU64" 1010   01i xxxxx PPiiiiii iiiuuuuu")
+DEF_ENC32(S4_or_andi,     ICLASS_ALU64" 1010   00i sssss PPiiiiii iiixxxxx")
+DEF_ENC32(S4_or_ori,      ICLASS_ALU64" 1010   10i sssss PPiiiiii iiixxxxx")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 1011 -------- PP------ --------","[#11] Rd=(Rs,Rd,#s6)")
+DEF_ENC32(S4_addaddi,     ICLASS_ALU64" 1011   0ii sssss PPiddddd iiiuuuuu")
+DEF_ENC32(S4_subaddi,     ICLASS_ALU64" 1011   1ii sssss PPiddddd iiiuuuuu")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64"     1100 -------- PP------ --------","[#12] Pd=(Rss,#s8)")
+DEF_ENC32(A4_vcmpbeqi,   ICLASS_ALU64"1100 000sssss PP-iiiii iii00-dd")
+DEF_ENC32(A4_vcmpbgti,   ICLASS_ALU64"1100 001sssss PP-iiiii iii00-dd")
+DEF_ENC32(A4_vcmpbgtui,  ICLASS_ALU64"1100 010sssss PP-0iiii iii00-dd")
+DEF_ENC32(A4_vcmpheqi,   ICLASS_ALU64"1100 000sssss PP-iiiii iii01-dd")
+DEF_ENC32(A4_vcmphgti,   ICLASS_ALU64"1100 001sssss PP-iiiii iii01-dd")
+DEF_ENC32(A4_vcmphgtui,  ICLASS_ALU64"1100 010sssss PP-0iiii iii01-dd")
+DEF_ENC32(A4_vcmpweqi,   ICLASS_ALU64"1100 000sssss PP-iiiii iii10-dd")
+DEF_ENC32(A4_vcmpwgti,   ICLASS_ALU64"1100 001sssss PP-iiiii iii10-dd")
+DEF_ENC32(A4_vcmpwgtui,  ICLASS_ALU64"1100 010sssss PP-0iiii iii10-dd")
+
+DEF_ENC32(F2_dfclass,    ICLASS_ALU64"1100 100sssss PP-000ii iii10-dd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 1101 -------- PP------ --------","[#13] Pd=(Rs,#s8)")
+DEF_ENC32(A4_cmpbeqi,    ICLASS_ALU64"1101 -00sssss PP-iiiii iii00-dd")
+DEF_ENC32(A4_cmpbgti,    ICLASS_ALU64"1101 -01sssss PP-iiiii iii00-dd")
+DEF_ENC32(A4_cmpbgtui,   ICLASS_ALU64"1101 -10sssss PP-0iiii iii00-dd")
+DEF_ENC32(A4_cmpheqi,    ICLASS_ALU64"1101 -00sssss PP-iiiii iii01-dd")
+DEF_ENC32(A4_cmphgti,    ICLASS_ALU64"1101 -01sssss PP-iiiii iii01-dd")
+DEF_ENC32(A4_cmphgtui,   ICLASS_ALU64"1101 -10sssss PP-0iiii iii01-dd")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 1110 -------- PP------ --------","[#14] Rx=(#u9,op(Rx,#u5))")
+
+#define OP_OPI_RI(TAG,OPB)\
+DEF_ENC32(S4_andi_##TAG##_ri,ICLASS_ALU64" 1110 iiixxxxx PPiIIIII iii"OPB"i00-")\
+DEF_ENC32(S4_ori_##TAG##_ri, ICLASS_ALU64" 1110 iiixxxxx PPiIIIII iii"OPB"i01-")\
+DEF_ENC32(S4_addi_##TAG##_ri,ICLASS_ALU64" 1110 iiixxxxx PPiIIIII iii"OPB"i10-")\
+DEF_ENC32(S4_subi_##TAG##_ri,ICLASS_ALU64" 1110 iiixxxxx PPiIIIII iii"OPB"i11-")
+
+OP_OPI_RI(asl,"0")
+OP_OPI_RI(lsr,"1")
+
+
+DEF_FIELDROW_DESC32(ICLASS_ALU64" 1111 -------- PP------ --------","[#15] Rd=(Rs,Ru,#u6:2)")
+DEF_ENC32(M4_mpyri_addr_u2, ICLASS_ALU64" 1111   0ii sssss PPiddddd iiiuuuuu")
+DEF_ENC32(M4_mpyri_addr,    ICLASS_ALU64" 1111   1ii sssss PPiddddd iiiuuuuu")

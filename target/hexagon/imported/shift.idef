@@ -1,0 +1,1066 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * S-type Instructions
+ */
+
+/**********************************************/
+/* SHIFTS                                     */
+/**********************************************/
+
+/* NOTE: Rdd = Rs *right* shifts don't make sense */
+/* NOTE: Rd[d] = Rs[s] *right* shifts with saturation don't make sense */
+
+
+#define RSHIFTTYPES(TAGEND,REGD,REGS,REGSTYPE,ACC,ACCSRC,SAT,SATOPT,ATTRS) \
+Q6INSN(S2_asr_r_##TAGEND,#REGD "32" #ACC "=asr(" #REGS "32,Rt32)" #SATOPT,ATTRIBS(ATTRS), \
+    "Arithmetic Shift Right by Register", \
+    {  \
+        fHIDE(size4s_t) shamt=fSXTN(7,32,RtV);\
+        REGD##V = SAT(ACCSRC ACC fBIDIR_ASHIFTR(REGS##V,shamt,REGSTYPE));  \
+    })\
+\
+Q6INSN(S2_asl_r_##TAGEND,#REGD "32" #ACC "=asl(" #REGS "32,Rt32)" #SATOPT,ATTRIBS(ATTRS), \
+    "Arithmetic Shift Left by Register", \
+    {  \
+        fHIDE(size4s_t) shamt=fSXTN(7,32,RtV);\
+        REGD##V = SAT(ACCSRC ACC fBIDIR_ASHIFTL(REGS##V,shamt,REGSTYPE));  \
+    })\
+\
+Q6INSN(S2_lsr_r_##TAGEND,#REGD "32" #ACC "=lsr(" #REGS "32,Rt32)" #SATOPT,ATTRIBS(ATTRS), \
+    "Logical Shift Right by Register", \
+    {  \
+        fHIDE(size4s_t) shamt=fSXTN(7,32,RtV);\
+        REGD##V = SAT(ACCSRC ACC fBIDIR_LSHIFTR(REGS##V,shamt,REGSTYPE));  \
+    })\
+\
+Q6INSN(S2_lsl_r_##TAGEND,#REGD "32" #ACC "=lsl(" #REGS "32,Rt32)" #SATOPT,ATTRIBS(ATTRS), \
+    "Logical Shift Left by Register", \
+    {  \
+        fHIDE(size4s_t) shamt=fSXTN(7,32,RtV);\
+        REGD##V = SAT(ACCSRC ACC fBIDIR_LSHIFTL(REGS##V,shamt,REGSTYPE));  \
+    })
+
+RSHIFTTYPES(r,Rd,Rs,4_8,,,fECHO,,)
+RSHIFTTYPES(p,Rdd,Rss,8_8,,,fECHO,,)
+RSHIFTTYPES(r_acc,Rx,Rs,4_8,+,RxV,fECHO,,)
+RSHIFTTYPES(p_acc,Rxx,Rss,8_8,+,RxxV,fECHO,,)
+RSHIFTTYPES(r_nac,Rx,Rs,4_8,-,RxV,fECHO,,)
+RSHIFTTYPES(p_nac,Rxx,Rss,8_8,-,RxxV,fECHO,,)
+
+RSHIFTTYPES(r_and,Rx,Rs,4_8,&,RxV,fECHO,,)
+RSHIFTTYPES(r_or,Rx,Rs,4_8,|,RxV,fECHO,,)
+RSHIFTTYPES(p_and,Rxx,Rss,8_8,&,RxxV,fECHO,,)
+RSHIFTTYPES(p_or,Rxx,Rss,8_8,|,RxxV,fECHO,,)
+RSHIFTTYPES(p_xor,Rxx,Rss,8_8,^,RxxV,fECHO,,)
+
+
+#undef RSHIFTTYPES
+
+/* Register shift with saturation */
+#define RSATSHIFTTYPES(TAGEND,REGD,REGS,REGSTYPE) \
+Q6INSN(S2_asr_r_##TAGEND,#REGD "32" "=asr(" #REGS "32,Rt32):sat",ATTRIBS(), \
+    "Arithmetic Shift Right by Register", \
+    {  \
+        fHIDE(size4s_t) shamt=fSXTN(7,32,RtV);\
+        REGD##V = fBIDIR_ASHIFTR_SAT(REGS##V,shamt,REGSTYPE);  \
+    })\
+\
+Q6INSN(S2_asl_r_##TAGEND,#REGD "32" "=asl(" #REGS "32,Rt32):sat",ATTRIBS(), \
+    "Arithmetic Shift Left by Register", \
+    {  \
+        fHIDE(size4s_t) shamt=fSXTN(7,32,RtV);\
+        REGD##V = fBIDIR_ASHIFTL_SAT(REGS##V,shamt,REGSTYPE);  \
+    })
+
+RSATSHIFTTYPES(r_sat,Rd,Rs,4_8)
+
+
+
+
+
+#define ISHIFTTYPES(TAGEND,SIZE,REGD,REGS,REGSTYPE,ACC,ACCSRC,SAT,SATOPT,ATTRS) \
+Q6INSN(S2_asr_i_##TAGEND,#REGD "32" #ACC "=asr(" #REGS "32,#u" #SIZE ")" #SATOPT,ATTRIBS(ATTRS), \
+    "Arithmetic Shift Right by Immediate", \
+    { REGD##V = SAT(ACCSRC ACC fASHIFTR(REGS##V,uiV,REGSTYPE)); }) \
+\
+Q6INSN(S2_lsr_i_##TAGEND,#REGD "32" #ACC "=lsr(" #REGS "32,#u" #SIZE ")" #SATOPT,ATTRIBS(ATTRS), \
+    "Logical Shift Right by Immediate", \
+    { REGD##V = SAT(ACCSRC ACC fLSHIFTR(REGS##V,uiV,REGSTYPE)); }) \
+\
+Q6INSN(S2_asl_i_##TAGEND,#REGD "32" #ACC "=asl(" #REGS "32,#u" #SIZE ")" #SATOPT,ATTRIBS(ATTRS), \
+    "Shift Left by Immediate", \
+    { REGD##V = SAT(ACCSRC ACC fASHIFTL(REGS##V,uiV,REGSTYPE)); }) \
+Q6INSN(S6_rol_i_##TAGEND,#REGD "32" #ACC "=rol(" #REGS "32,#u" #SIZE ")" #SATOPT,ATTRIBS(ATTRS), \
+    "Rotate Left by Immediate", \
+    { REGD##V = SAT(ACCSRC ACC fROTL(REGS##V,uiV,REGSTYPE)); })
+
+
+#define ISHIFTTYPES_ONLY_ASL(TAGEND,SIZE,REGD,REGS,REGSTYPE,ACC,ACCSRC,SAT,SATOPT) \
+Q6INSN(S2_asl_i_##TAGEND,#REGD "32" #ACC "=asl(" #REGS "32,#u" #SIZE ")" #SATOPT,ATTRIBS(), \
+    "", \
+    { REGD##V = SAT(ACCSRC ACC fASHIFTL(REGS##V,uiV,REGSTYPE)); })
+
+#define ISHIFTTYPES_ONLY_ASR(TAGEND,SIZE,REGD,REGS,REGSTYPE,ACC,ACCSRC,SAT,SATOPT) \
+Q6INSN(S2_asr_i_##TAGEND,#REGD "32" #ACC "=asr(" #REGS "32,#u" #SIZE ")" #SATOPT,ATTRIBS(), \
+    "", \
+    { REGD##V = SAT(ACCSRC ACC fASHIFTR(REGS##V,uiV,REGSTYPE)); })
+
+
+#define ISHIFTTYPES_NOASR(TAGEND,SIZE,REGD,REGS,REGSTYPE,ACC,ACCSRC,SAT,SATOPT) \
+Q6INSN(S2_lsr_i_##TAGEND,#REGD "32" #ACC "=lsr(" #REGS "32,#u" #SIZE ")" #SATOPT,ATTRIBS(), \
+    "Logical Shift Right by Register", \
+    { REGD##V = SAT(ACCSRC ACC fLSHIFTR(REGS##V,uiV,REGSTYPE)); }) \
+Q6INSN(S2_asl_i_##TAGEND,#REGD "32" #ACC "=asl(" #REGS "32,#u" #SIZE ")" #SATOPT,ATTRIBS(), \
+    "Shift Left by Register", \
+    { REGD##V = SAT(ACCSRC ACC fASHIFTL(REGS##V,uiV,REGSTYPE)); }) \
+Q6INSN(S6_rol_i_##TAGEND,#REGD "32" #ACC "=rol(" #REGS "32,#u" #SIZE ")" #SATOPT,ATTRIBS(), \
+    "Rotate Left by Immediate", \
+    { REGD##V = SAT(ACCSRC ACC fROTL(REGS##V,uiV,REGSTYPE)); })
+
+
+
+ISHIFTTYPES(r,5,Rd,Rs,4_4,,,fECHO,,)
+ISHIFTTYPES(p,6,Rdd,Rss,8_8,,,fECHO,,)
+ISHIFTTYPES(r_acc,5,Rx,Rs,4_4,+,RxV,fECHO,,)
+ISHIFTTYPES(p_acc,6,Rxx,Rss,8_8,+,RxxV,fECHO,,)
+ISHIFTTYPES(r_nac,5,Rx,Rs,4_4,-,RxV,fECHO,,)
+ISHIFTTYPES(p_nac,6,Rxx,Rss,8_8,-,RxxV,fECHO,,)
+
+ISHIFTTYPES_NOASR(r_xacc,5,Rx,Rs,4_4,^, RxV,fECHO,)
+ISHIFTTYPES_NOASR(p_xacc,6,Rxx,Rss,8_8,^, RxxV,fECHO,)
+
+ISHIFTTYPES(r_and,5,Rx,Rs,4_4,&,RxV,fECHO,,)
+ISHIFTTYPES(r_or,5,Rx,Rs,4_4,|,RxV,fECHO,,)
+ISHIFTTYPES(p_and,6,Rxx,Rss,8_8,&,RxxV,fECHO,,)
+ISHIFTTYPES(p_or,6,Rxx,Rss,8_8,|,RxxV,fECHO,,)
+
+ISHIFTTYPES_ONLY_ASL(r_sat,5,Rd,Rs,4_8,,,fSAT,:sat)
+
+
+Q6INSN(S2_asr_i_r_rnd,"Rd32=asr(Rs32,#u5):rnd",ATTRIBS(),
+       "Shift right with round",
+       { RdV = fASHIFTR(((fASHIFTR(RsV,uiV,4_8))+1),1,8_8); })
+
+
+Q6INSN(S2_asr_i_p_rnd,"Rdd32=asr(Rss32,#u6):rnd",ATTRIBS(), "Shift right with round",
+{ fHIDE(size8u_t tmp;)
+  fHIDE(size8u_t rnd;)
+  tmp = fASHIFTR(RssV,uiV,8_8);
+  rnd = tmp & 1;
+  RddV = fASHIFTR(tmp,1,8_8) + rnd; })
+
+
+Q6INSN(S4_lsli,"Rd32=lsl(#s6,Rt32)",ATTRIBS(), "Shift an immediate left by register amount",
+{
+    fHIDE(size4s_t) shamt = fSXTN(7,32,RtV);
+    RdV = fBIDIR_LSHIFTL(siV,shamt,4_8);
+})
+
+
+
+
+Q6INSN(S2_addasl_rrri,"Rd32=addasl(Rt32,Rs32,#u3)",ATTRIBS(),
+    "Shift left by small amount and add",
+    { RdV = RtV + fASHIFTL(RsV,uiV,4_4); })
+
+
+
+#define SHIFTOPI(TAGEND,INNEROP,INNERSEM)\
+Q6INSN(S4_andi_##TAGEND,"Rx32=and(#u8,"INNEROP")",,"Shift-op",{RxV=fIMMEXT(uiV)&INNERSEM;})\
+Q6INSN(S4_ori_##TAGEND, "Rx32=or(#u8,"INNEROP")",,"Shift-op",{RxV=fIMMEXT(uiV)|INNERSEM;})\
+Q6INSN(S4_addi_##TAGEND,"Rx32=add(#u8,"INNEROP")",,"Shift-op",{RxV=fIMMEXT(uiV)+INNERSEM;})\
+Q6INSN(S4_subi_##TAGEND,"Rx32=sub(#u8,"INNEROP")",,"Shift-op",{RxV=fIMMEXT(uiV)-INNERSEM;})
+
+
+SHIFTOPI(asl_ri,"asl(Rx32,#U5)",(RxV<<UiV))
+SHIFTOPI(lsr_ri,"lsr(Rx32,#U5)",(((unsigned int)RxV)>>UiV))
+
+
+/**********************************************/
+/* PERMUTES                                   */
+/**********************************************/
+Q6INSN(S2_valignib,"Rdd32=valignb(Rtt32,Rss32,#u3)",
+ATTRIBS(), "Vector align bytes",
+{
+  RddV = (fLSHIFTR(RssV,uiV*8,8_8))|(fASHIFTL(RttV,((8-uiV)*8),8_8));
+})
+
+Q6INSN(S2_valignrb,"Rdd32=valignb(Rtt32,Rss32,Pu4)",
+ATTRIBS(), "Align with register",
+{ RddV = fLSHIFTR(RssV,(PuV&0x7)*8,8_8)|(fASHIFTL(RttV,(8-(PuV&0x7))*8,8_8));})
+
+Q6INSN(S2_vspliceib,"Rdd32=vspliceb(Rss32,Rtt32,#u3)",
+ATTRIBS(), "Vector splice bytes",
+{ RddV = fASHIFTL(RttV,uiV*8,8_8) | fZXTN(uiV*8,64,RssV); })
+
+Q6INSN(S2_vsplicerb,"Rdd32=vspliceb(Rss32,Rtt32,Pu4)",
+ATTRIBS(), "Splice with register",
+{ RddV = fASHIFTL(RttV,(PuV&7)*8,8_8) | fZXTN((PuV&7)*8,64,RssV); })
+
+Q6INSN(S2_vsplatrh,"Rdd32=vsplath(Rs32)",
+ATTRIBS(), "Vector splat halfwords from register",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV, fGETHALF(0,RsV));
+    }
+})
+
+
+Q6INSN(S2_vsplatrb,"Rd32=vsplatb(Rs32)",
+ATTRIBS(), "Vector splat bytes from register",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETBYTE(i,RdV, fGETBYTE(0,RsV));
+    }
+})
+
+Q6INSN(S6_vsplatrbp,"Rdd32=vsplatb(Rs32)",
+ATTRIBS(), "Vector splat bytes from register",
+{
+    fHIDE(int i;)
+    for (i=0;i<8;i++) {
+        fSETBYTE(i,RddV, fGETBYTE(0,RsV));
+    }
+})
+
+
+
+/**********************************************/
+/* Insert/Extract[u]                          */
+/**********************************************/
+
+Q6INSN(S2_insert,"Rx32=insert(Rs32,#u5,#U5)",
+ATTRIBS(), "Insert bits",
+{
+    fHIDE(int) width=uiV;
+    fHIDE(int) offset=UiV;
+    /* clear bits in Rxx where new bits go */
+    RxV &= ~(((fCONSTLL(1)<<width)-1)<<offset);
+    /* OR in new bits */
+    RxV |= ((RsV & ((fCONSTLL(1)<<width)-1)) << offset);
+})
+
+
+Q6INSN(S2_tableidxb,"Rx32=tableidxb(Rs32,#u4,#S6):raw",
+ATTRIBS(A_ARCHV2), "Extract and insert bits",
+{
+        fHIDE(int) width=uiV;
+        fHIDE(int) offset=SiV;
+        fHIDE(int) field = fEXTRACTU_BIDIR(RsV,width,offset);
+        fINSERT_BITS(RxV,width,0,field);
+})
+
+Q6INSN(S2_tableidxh,"Rx32=tableidxh(Rs32,#u4,#S6):raw",
+ATTRIBS(A_ARCHV2), "Extract and insert bits",
+{
+        fHIDE(int) width=uiV;
+        fHIDE(int) offset=SiV+1;
+        fHIDE(int) field = fEXTRACTU_BIDIR(RsV,width,offset);
+        fINSERT_BITS(RxV,width,1,field);
+})
+
+Q6INSN(S2_tableidxw,"Rx32=tableidxw(Rs32,#u4,#S6):raw",
+ATTRIBS(A_ARCHV2), "Extract and insert bits",
+{
+        fHIDE(int) width=uiV;
+        fHIDE(int) offset=SiV+2;
+        fHIDE(int) field = fEXTRACTU_BIDIR(RsV,width,offset);
+        fINSERT_BITS(RxV,width,2,field);
+})
+
+Q6INSN(S2_tableidxd,"Rx32=tableidxd(Rs32,#u4,#S6):raw",
+ATTRIBS(A_ARCHV2), "Extract and insert bits",
+{
+    fHIDE(int) width=uiV;
+    fHIDE(int) offset=SiV+3;
+    fHIDE(int) field = fEXTRACTU_BIDIR(RsV,width,offset);
+    fINSERT_BITS(RxV,width,3,field);
+})
+
+
+Q6INSN(A4_bitspliti,"Rdd32=bitsplit(Rs32,#u5)",
+ATTRIBS(), "Split a bitfield into two registers",
+{
+    fSETWORD(1,RddV,(fCAST4_4u(RsV)>>uiV));
+    fSETWORD(0,RddV,fZXTN(uiV,32,RsV));
+})
+
+Q6INSN(A4_bitsplit,"Rdd32=bitsplit(Rs32,Rt32)",
+ATTRIBS(), "Split a bitfield into two registers",
+{
+    fHIDE(size4u_t) shamt = fZXTN(5,32,RtV);
+    fSETWORD(1,RddV,(fCAST4_4u(RsV)>>shamt));
+    fSETWORD(0,RddV,fZXTN(shamt,32,RsV));
+})
+
+
+
+
+Q6INSN(S4_extract,"Rd32=extract(Rs32,#u5,#U5)",
+ATTRIBS(), "Extract signed bitfield",
+{
+    fHIDE(int) width=uiV;
+    fHIDE(int) offset=UiV;
+    RdV = fSXTN(width,32,(fCAST4_4u(RsV) >> offset));
+})
+
+
+Q6INSN(S2_extractu,"Rd32=extractu(Rs32,#u5,#U5)",
+ATTRIBS(), "Extract unsigned bitfield",
+{
+    fHIDE(int) width=uiV;
+    fHIDE(int) offset=UiV;
+    RdV = fZXTN(width,32,(fCAST4_4u(RsV) >> offset));
+})
+
+Q6INSN(S2_insertp,"Rxx32=insert(Rss32,#u6,#U6)",
+ATTRIBS(), "Insert bits",
+{
+    fHIDE(int) width=uiV;
+    fHIDE(int) offset=UiV;
+    /* clear bits in Rxx where new bits go */
+    RxxV &= ~(((fCONSTLL(1)<<width)-1)<<offset);
+    /* OR in new bits */
+    RxxV |= ((RssV & ((fCONSTLL(1)<<width)-1)) << offset);
+})
+
+
+Q6INSN(S4_extractp,"Rdd32=extract(Rss32,#u6,#U6)",
+ATTRIBS(), "Extract signed bitfield",
+{
+    fHIDE(int) width=uiV;
+    fHIDE(int) offset=UiV;
+    RddV = fSXTN(width,64,(fCAST8_8u(RssV) >> offset));
+})
+
+
+Q6INSN(S2_extractup,"Rdd32=extractu(Rss32,#u6,#U6)",
+ATTRIBS(), "Extract unsigned bitfield",
+{
+    fHIDE(int) width=uiV;
+    fHIDE(int) offset=UiV;
+    RddV = fZXTN(width,64,(fCAST8_8u(RssV) >> offset));
+})
+
+
+
+
+Q6INSN(S2_mask,"Rd32=mask(#u5,#U5)",
+ATTRIBS(), "Form mask from immediate",
+{
+    RdV = ((1<<uiV)-1) << UiV;
+})
+
+
+
+
+
+Q6INSN(S2_insert_rp,"Rx32=insert(Rs32,Rtt32)",
+ATTRIBS(), "Insert bits",
+{
+    fHIDE(int) width=fZXTN(6,32,(fGETWORD(1,RttV)));
+    fHIDE(int) offset=fSXTN(7,32,(fGETWORD(0,RttV)));
+    fHIDE(size8u_t) mask = ((fCONSTLL(1)<<width)-1);
+    if (offset < 0) {
+        RxV = 0;
+    } else {
+        /* clear bits in Rxx where new bits go */
+        RxV &= ~(mask<<offset);
+        /* OR in new bits */
+        RxV |= ((RsV & mask) << offset);
+    }
+})
+
+
+Q6INSN(S4_extract_rp,"Rd32=extract(Rs32,Rtt32)",
+ATTRIBS(), "Extract signed bitfield",
+{
+    fHIDE(int) width=fZXTN(6,32,(fGETWORD(1,RttV)));
+    fHIDE(int) offset=fSXTN(7,32,(fGETWORD(0,RttV)));
+    RdV = fSXTN(width,64,fBIDIR_LSHIFTR(fCAST4_8u(RsV),offset,4_8));
+})
+
+
+
+Q6INSN(S2_extractu_rp,"Rd32=extractu(Rs32,Rtt32)",
+ATTRIBS(), "Extract unsigned bitfield",
+{
+    fHIDE(int) width=fZXTN(6,32,(fGETWORD(1,RttV)));
+    fHIDE(int) offset=fSXTN(7,32,(fGETWORD(0,RttV)));
+    RdV = fZXTN(width,64,fBIDIR_LSHIFTR(fCAST4_8u(RsV),offset,4_8));
+})
+
+Q6INSN(S2_insertp_rp,"Rxx32=insert(Rss32,Rtt32)",
+ATTRIBS(), "Insert bits",
+{
+    fHIDE(int) width=fZXTN(6,32,(fGETWORD(1,RttV)));
+    fHIDE(int) offset=fSXTN(7,32,(fGETWORD(0,RttV)));
+    fHIDE(size8u_t) mask = ((fCONSTLL(1)<<width)-1);
+    if (offset < 0) {
+        RxxV = 0;
+    } else {
+        /* clear bits in Rxx where new bits go */
+        RxxV &= ~(mask<<offset);
+        /* OR in new bits */
+        RxxV |= ((RssV & mask) << offset);
+    }
+})
+
+
+Q6INSN(S4_extractp_rp,"Rdd32=extract(Rss32,Rtt32)",
+ATTRIBS(), "Extract signed bitfield",
+{
+    fHIDE(int) width=fZXTN(6,32,(fGETWORD(1,RttV)));
+    fHIDE(int) offset=fSXTN(7,32,(fGETWORD(0,RttV)));
+    RddV = fSXTN(width,64,fBIDIR_LSHIFTR(fCAST8_8u(RssV),offset,8_8));
+})
+
+
+Q6INSN(S2_extractup_rp,"Rdd32=extractu(Rss32,Rtt32)",
+ATTRIBS(), "Extract unsigned bitfield",
+{
+    fHIDE(int) width=fZXTN(6,32,(fGETWORD(1,RttV)));
+    fHIDE(int) offset=fSXTN(7,32,(fGETWORD(0,RttV)));
+    RddV = fZXTN(width,64,fBIDIR_LSHIFTR(fCAST8_8u(RssV),offset,8_8));
+})
+
+/**********************************************/
+/* tstbit/setbit/clrbit                       */
+/**********************************************/
+
+Q6INSN(S2_tstbit_i,"Pd4=tstbit(Rs32,#u5)",
+ATTRIBS(), "Test a bit",
+{
+    PdV = f8BITSOF((RsV & (1<<uiV)) != 0);
+})
+
+Q6INSN(S4_ntstbit_i,"Pd4=!tstbit(Rs32,#u5)",
+ATTRIBS(), "Test a bit",
+{
+    PdV = f8BITSOF((RsV & (1<<uiV)) == 0);
+})
+
+Q6INSN(S2_setbit_i,"Rd32=setbit(Rs32,#u5)",
+ATTRIBS(), "Set a bit",
+{
+    RdV = (RsV | (1<<uiV));
+})
+
+Q6INSN(S2_togglebit_i,"Rd32=togglebit(Rs32,#u5)",
+ATTRIBS(), "Toggle a bit",
+{
+    RdV = (RsV ^ (1<<uiV));
+})
+
+Q6INSN(S2_clrbit_i,"Rd32=clrbit(Rs32,#u5)",
+ATTRIBS(), "Clear a bit",
+{
+    RdV = (RsV & (~(1<<uiV)));
+})
+
+
+
+/* using a register */
+Q6INSN(S2_tstbit_r,"Pd4=tstbit(Rs32,Rt32)",
+ATTRIBS(), "Test a bit",
+{
+    PdV = f8BITSOF((fCAST4_8u(RsV) & fBIDIR_LSHIFTL(1,fSXTN(7,32,RtV),4_8)) != 0);
+})
+
+Q6INSN(S4_ntstbit_r,"Pd4=!tstbit(Rs32,Rt32)",
+ATTRIBS(), "Test a bit",
+{
+    PdV = f8BITSOF((fCAST4_8u(RsV) & fBIDIR_LSHIFTL(1,fSXTN(7,32,RtV),4_8)) == 0);
+})
+
+Q6INSN(S2_setbit_r,"Rd32=setbit(Rs32,Rt32)",
+ATTRIBS(), "Set a bit",
+{
+    RdV = (RsV | fBIDIR_LSHIFTL(1,fSXTN(7,32,RtV),4_8));
+})
+
+Q6INSN(S2_togglebit_r,"Rd32=togglebit(Rs32,Rt32)",
+ATTRIBS(), "Toggle a bit",
+{
+    RdV = (RsV ^ fBIDIR_LSHIFTL(1,fSXTN(7,32,RtV),4_8));
+})
+
+Q6INSN(S2_clrbit_r,"Rd32=clrbit(Rs32,Rt32)",
+ATTRIBS(), "Clear a bit",
+{
+    RdV = (RsV & (~(fBIDIR_LSHIFTL(1,fSXTN(7,32,RtV),4_8))));
+})
+
+
+/**********************************************/
+/* vector shifting                            */
+/**********************************************/
+
+/* Half Vector Immediate Shifts */
+
+Q6INSN(S2_asr_i_vh,"Rdd32=vasrh(Rss32,#u4)",ATTRIBS(),
+    "Vector Arithmetic Shift Right by Immediate",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV, (fGETHALF(i,RssV)>>uiV));
+    }
+})
+
+
+Q6INSN(S2_lsr_i_vh,"Rdd32=vlsrh(Rss32,#u4)",ATTRIBS(),
+    "Vector Logical Shift Right by Immediate",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV, (fGETUHALF(i,RssV)>>uiV));
+    }
+})
+
+Q6INSN(S2_asl_i_vh,"Rdd32=vaslh(Rss32,#u4)",ATTRIBS(),
+    "Vector Arithmetic Shift Left by Immediate",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV, (fGETHALF(i,RssV)<<uiV));
+    }
+})
+
+/* Half Vector Register Shifts */
+
+Q6INSN(S2_asr_r_vh,"Rdd32=vasrh(Rss32,Rt32)",ATTRIBS(),
+    "Vector Arithmetic Shift Right by Register",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV, fBIDIR_ASHIFTR(fGETHALF(i,RssV),fSXTN(7,32,RtV),2_8));
+    }
+})
+
+Q6INSN(S5_asrhub_rnd_sat,"Rd32=vasrhub(Rss32,#u4):raw",,
+    "Vector Arithmetic Shift Right by Immediate with Round, Saturate, and Pack",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETBYTE(i,RdV, fSATUB( ((fGETHALF(i,RssV) >> uiV )+1)>>1  ));
+    }
+})
+
+Q6INSN(S5_asrhub_sat,"Rd32=vasrhub(Rss32,#u4):sat",,
+    "Vector Arithmetic Shift Right by Immediate with Saturate and Pack",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETBYTE(i,RdV, fSATUB( fGETHALF(i,RssV) >> uiV ));
+    }
+})
+
+
+
+Q6INSN(S5_vasrhrnd,"Rdd32=vasrh(Rss32,#u4):raw",,
+    "Vector Arithmetic Shift Right by Immediate with Round",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV, ( ((fGETHALF(i,RssV) >> uiV)+1)>>1  ));
+    }
+})
+
+
+Q6INSN(S2_asl_r_vh,"Rdd32=vaslh(Rss32,Rt32)",ATTRIBS(),
+    "Vector Arithmetic Shift Left by Register",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV, fBIDIR_ASHIFTL(fGETHALF(i,RssV),fSXTN(7,32,RtV),2_8));
+    }
+})
+
+
+
+Q6INSN(S2_lsr_r_vh,"Rdd32=vlsrh(Rss32,Rt32)",ATTRIBS(),
+    "Vector Logical Shift Right by Register",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV, fBIDIR_LSHIFTR(fGETUHALF(i,RssV),fSXTN(7,32,RtV),2_8));
+    }
+})
+
+
+Q6INSN(S2_lsl_r_vh,"Rdd32=vlslh(Rss32,Rt32)",ATTRIBS(),
+    "Vector Logical Shift Left by Register",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV, fBIDIR_LSHIFTL(fGETUHALF(i,RssV),fSXTN(7,32,RtV),2_8));
+    }
+})
+
+
+
+
+/* Word Vector Immediate Shifts */
+
+Q6INSN(S2_asr_i_vw,"Rdd32=vasrw(Rss32,#u5)",ATTRIBS(),
+    "Vector Arithmetic Shift Right by Immediate",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETWORD(i,RddV,(fGETWORD(i,RssV)>>uiV));
+    }
+})
+
+
+
+Q6INSN(S2_asr_i_svw_trun,"Rd32=vasrw(Rss32,#u5)",ATTRIBS(A_ARCHV2),
+    "Vector Arithmetic Shift Right by Immediate with Truncate and Pack",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETHALF(i,RdV,fGETHALF(0,(fGETWORD(i,RssV)>>uiV)));
+    }
+})
+
+Q6INSN(S2_asr_r_svw_trun,"Rd32=vasrw(Rss32,Rt32)",ATTRIBS(A_ARCHV2),
+    "Vector Arithmetic Shift Right truncate and Pack",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETHALF(i,RdV,fGETHALF(0,fBIDIR_ASHIFTR(fGETWORD(i,RssV),fSXTN(7,32,RtV),4_8)));
+    }
+})
+
+
+Q6INSN(S2_lsr_i_vw,"Rdd32=vlsrw(Rss32,#u5)",ATTRIBS(),
+    "Vector Logical Shift Right by Immediate",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETWORD(i,RddV,(fGETUWORD(i,RssV)>>uiV));
+    }
+})
+
+Q6INSN(S2_asl_i_vw,"Rdd32=vaslw(Rss32,#u5)",ATTRIBS(),
+    "Vector Arithmetic Shift Left by Immediate",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETWORD(i,RddV,(fGETWORD(i,RssV)<<uiV));
+    }
+})
+
+/* Word Vector Register Shifts */
+
+Q6INSN(S2_asr_r_vw,"Rdd32=vasrw(Rss32,Rt32)",ATTRIBS(),
+    "Vector Arithmetic Shift Right by Register",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETWORD(i,RddV, fBIDIR_ASHIFTR(fGETWORD(i,RssV),fSXTN(7,32,RtV),4_8));
+    }
+})
+
+
+
+Q6INSN(S2_asl_r_vw,"Rdd32=vaslw(Rss32,Rt32)",ATTRIBS(),
+    "Vector Arithmetic Shift Left by Register",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETWORD(i,RddV, fBIDIR_ASHIFTL(fGETWORD(i,RssV),fSXTN(7,32,RtV),4_8));
+    }
+})
+
+
+Q6INSN(S2_lsr_r_vw,"Rdd32=vlsrw(Rss32,Rt32)",ATTRIBS(),
+    "Vector Logical Shift Right by Register",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETWORD(i,RddV, fBIDIR_LSHIFTR(fGETUWORD(i,RssV),fSXTN(7,32,RtV),4_8));
+    }
+})
+
+
+
+Q6INSN(S2_lsl_r_vw,"Rdd32=vlslw(Rss32,Rt32)",ATTRIBS(),
+    "Vector Logical Shift Left by Register",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETWORD(i,RddV, fBIDIR_LSHIFTL(fGETUWORD(i,RssV),fSXTN(7,32,RtV),4_8));
+    }
+})
+
+
+
+
+
+/**********************************************/
+/* Vector SXT/ZXT/SAT/TRUN/RNDPACK            */
+/**********************************************/
+
+
+Q6INSN(S2_vrndpackwh,"Rd32=vrndwh(Rss32)",ATTRIBS(),
+"Round and Pack vector of words to Halfwords",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETHALF(i,RdV,fGETHALF(1,(fGETWORD(i,RssV)+0x08000)));
+    }
+})
+
+Q6INSN(S2_vrndpackwhs,"Rd32=vrndwh(Rss32):sat",ATTRIBS(),
+"Round and Pack vector of words to Halfwords",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETHALF(i,RdV,fGETHALF(1,fSAT(fGETWORD(i,RssV)+0x08000)));
+    }
+})
+
+Q6INSN(S2_vsxtbh,"Rdd32=vsxtbh(Rs32)",ATTRIBS(A_ARCHV2),
+"Vector sign extend byte to half",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV,fGETBYTE(i,RsV));
+    }
+})
+
+Q6INSN(S2_vzxtbh,"Rdd32=vzxtbh(Rs32)",ATTRIBS(),
+"Vector zero extend byte to half",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV,fGETUBYTE(i,RsV));
+    }
+})
+
+Q6INSN(S2_vsathub,"Rd32=vsathub(Rss32)",ATTRIBS(),
+"Vector saturate half to unsigned byte",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETBYTE(i,RdV,fSATUN(8,fGETHALF(i,RssV)));
+    }
+})
+
+
+
+
+
+Q6INSN(S2_svsathub,"Rd32=vsathub(Rs32)",ATTRIBS(A_ARCHV2),
+"Vector saturate half to unsigned byte",
+{
+    fSETBYTE(0,RdV,fSATUN(8,fGETHALF(0,RsV)));
+    fSETBYTE(1,RdV,fSATUN(8,fGETHALF(1,RsV)));
+    fSETBYTE(2,RdV,0);
+    fSETBYTE(3,RdV,0);
+})
+
+Q6INSN(S2_svsathb,"Rd32=vsathb(Rs32)",ATTRIBS(A_ARCHV2),
+"Vector saturate half to signed byte",
+{
+    fSETBYTE(0,RdV,fSATN(8,fGETHALF(0,RsV)));
+    fSETBYTE(1,RdV,fSATN(8,fGETHALF(1,RsV)));
+    fSETBYTE(2,RdV,0);
+    fSETBYTE(3,RdV,0);
+})
+
+
+Q6INSN(S2_vsathb,"Rd32=vsathb(Rss32)",ATTRIBS(A_ARCHV2),
+"Vector saturate half to signed byte",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETBYTE(i,RdV,fSATN(8,fGETHALF(i,RssV)));
+    }
+})
+
+Q6INSN(S2_vtrunohb,"Rd32=vtrunohb(Rss32)",ATTRIBS(A_ARCHV2),
+"Vector truncate half to byte: take high",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETBYTE(i,RdV,fGETBYTE(i*2+1,RssV));
+    }
+})
+
+Q6INSN(S2_vtrunewh,"Rdd32=vtrunewh(Rss32,Rtt32)",ATTRIBS(A_ARCHV2),
+"Vector truncate word to half: take low",
+{
+    fSETHALF(0,RddV,fGETHALF(0,RttV));
+    fSETHALF(1,RddV,fGETHALF(2,RttV));
+    fSETHALF(2,RddV,fGETHALF(0,RssV));
+    fSETHALF(3,RddV,fGETHALF(2,RssV));
+})
+
+Q6INSN(S2_vtrunowh,"Rdd32=vtrunowh(Rss32,Rtt32)",ATTRIBS(A_ARCHV2),
+"Vector truncate word to half: take high",
+{
+    fSETHALF(0,RddV,fGETHALF(1,RttV));
+    fSETHALF(1,RddV,fGETHALF(3,RttV));
+    fSETHALF(2,RddV,fGETHALF(1,RssV));
+    fSETHALF(3,RddV,fGETHALF(3,RssV));
+})
+
+
+Q6INSN(S2_vtrunehb,"Rd32=vtrunehb(Rss32)",ATTRIBS(),
+"Vector truncate half to byte: take low",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETBYTE(i,RdV,fGETBYTE(i*2,RssV));
+    }
+})
+
+Q6INSN(S6_vtrunehb_ppp,"Rdd32=vtrunehb(Rss32,Rtt32)",ATTRIBS(),
+"Vector truncate half to byte: take low",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETBYTE(i,RddV,fGETBYTE(i*2,RttV));
+        fSETBYTE(i+4,RddV,fGETBYTE(i*2,RssV));
+    }
+})
+
+Q6INSN(S6_vtrunohb_ppp,"Rdd32=vtrunohb(Rss32,Rtt32)",ATTRIBS(),
+"Vector truncate half to byte: take high",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETBYTE(i,RddV,fGETBYTE(i*2+1,RttV));
+        fSETBYTE(i+4,RddV,fGETBYTE(i*2+1,RssV));
+    }
+})
+
+Q6INSN(S2_vsxthw,"Rdd32=vsxthw(Rs32)",ATTRIBS(),
+"Vector sign extend half to word",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETWORD(i,RddV,fGETHALF(i,RsV));
+    }
+})
+
+Q6INSN(S2_vzxthw,"Rdd32=vzxthw(Rs32)",ATTRIBS(),
+"Vector zero extend half to word",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETWORD(i,RddV,fGETUHALF(i,RsV));
+    }
+})
+
+
+Q6INSN(S2_vsatwh,"Rd32=vsatwh(Rss32)",ATTRIBS(),
+"Vector saturate word to signed half",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETHALF(i,RdV,fSATN(16,fGETWORD(i,RssV)));
+    }
+})
+
+Q6INSN(S2_vsatwuh,"Rd32=vsatwuh(Rss32)",ATTRIBS(),
+"Vector saturate word to unsigned half",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETHALF(i,RdV,fSATUN(16,fGETWORD(i,RssV)));
+    }
+})
+
+/* Other misc insns of this type */
+
+Q6INSN(S2_packhl,"Rdd32=packhl(Rs32,Rt32)",ATTRIBS(),
+"Pack high halfwords and low halfwords together",
+{
+    fSETHALF(0,RddV,fGETHALF(0,RtV));
+    fSETHALF(1,RddV,fGETHALF(0,RsV));
+    fSETHALF(2,RddV,fGETHALF(1,RtV));
+    fSETHALF(3,RddV,fGETHALF(1,RsV));
+})
+
+Q6INSN(A2_swiz,"Rd32=swiz(Rs32)",ATTRIBS(A_ARCHV2),
+"Endian swap the bytes of Rs",
+{
+    fSETBYTE(0,RdV,fGETBYTE(3,RsV));
+    fSETBYTE(1,RdV,fGETBYTE(2,RsV));
+    fSETBYTE(2,RdV,fGETBYTE(1,RsV));
+    fSETBYTE(3,RdV,fGETBYTE(0,RsV));
+})
+
+
+
+/* Vector Sat without Packing */
+Q6INSN(S2_vsathub_nopack,"Rdd32=vsathub(Rss32)",ATTRIBS(),
+"Vector saturate half to unsigned byte",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV,fSATUN(8,fGETHALF(i,RssV)));
+    }
+})
+
+Q6INSN(S2_vsathb_nopack,"Rdd32=vsathb(Rss32)",ATTRIBS(A_ARCHV2),
+"Vector saturate half to signed byte without pack",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETHALF(i,RddV,fSATN(8,fGETHALF(i,RssV)));
+    }
+})
+
+Q6INSN(S2_vsatwh_nopack,"Rdd32=vsatwh(Rss32)",ATTRIBS(),
+"Vector saturate word to signed half",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETWORD(i,RddV,fSATN(16,fGETWORD(i,RssV)));
+    }
+})
+
+Q6INSN(S2_vsatwuh_nopack,"Rdd32=vsatwuh(Rss32)",ATTRIBS(),
+"Vector saturate word to unsigned half",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETWORD(i,RddV,fSATUN(16,fGETWORD(i,RssV)));
+    }
+})
+
+
+/**********************************************/
+/* Shuffle                                    */
+/**********************************************/
+
+
+Q6INSN(S2_shuffob,"Rdd32=shuffob(Rtt32,Rss32)",ATTRIBS(),
+"Shuffle high bytes together",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETBYTE(i*2  ,RddV,fGETBYTE(i*2+1,RssV));
+        fSETBYTE(i*2+1,RddV,fGETBYTE(i*2+1,RttV));
+    }
+})
+
+Q6INSN(S2_shuffeb,"Rdd32=shuffeb(Rss32,Rtt32)",ATTRIBS(),
+"Shuffle low bytes together",
+{
+    fHIDE(int i;)
+    for (i=0;i<4;i++) {
+        fSETBYTE(i*2  ,RddV,fGETBYTE(i*2,RttV));
+        fSETBYTE(i*2+1,RddV,fGETBYTE(i*2,RssV));
+    }
+})
+
+Q6INSN(S2_shuffoh,"Rdd32=shuffoh(Rtt32,Rss32)",ATTRIBS(),
+"Shuffle high halves together",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETHALF(i*2  ,RddV,fGETHALF(i*2+1,RssV));
+        fSETHALF(i*2+1,RddV,fGETHALF(i*2+1,RttV));
+    }
+})
+
+Q6INSN(S2_shuffeh,"Rdd32=shuffeh(Rss32,Rtt32)",ATTRIBS(),
+"Shuffle low halves together",
+{
+    fHIDE(int i;)
+    for (i=0;i<2;i++) {
+        fSETHALF(i*2  ,RddV,fGETHALF(i*2,RttV));
+        fSETHALF(i*2+1,RddV,fGETHALF(i*2,RssV));
+    }
+})
+
+
+/**********************************************/
+/* Strange bit instructions                   */
+/**********************************************/
+
+Q6INSN(S5_popcountp,"Rd32=popcount(Rss32)",ATTRIBS(),
+"Population Count", { RdV = fCOUNTONES_8(RssV); })
+
+Q6INSN(S4_parity,"Rd32=parity(Rs32,Rt32)",,
+"Parity of Masked Value", { RdV = 1&fCOUNTONES_4(RsV & RtV); })
+
+Q6INSN(S2_parityp,"Rd32=parity(Rss32,Rtt32)",ATTRIBS(A_ARCHV2),
+"Parity of Masked Value", { RdV = 1&fCOUNTONES_8(RssV & RttV); })
+
+Q6INSN(S2_lfsp,"Rdd32=lfs(Rss32,Rtt32)",ATTRIBS(A_ARCHV2),
+"Parity of Masked Value", { RddV = (fCAST8u(RssV) >> 1) | (fCAST8u((1&fCOUNTONES_8(RssV & RttV)))<<63) ; })
+
+Q6INSN(S2_clbnorm,"Rd32=normamt(Rs32)",ATTRIBS(A_ARCHV2),
+"Count leading sign bits - 1", { if (RsV == 0) { RdV = 0; } else { RdV = (fMAX(fCL1_4(RsV),fCL1_4(~RsV)))-1;} })
+
+Q6INSN(S4_clbaddi,"Rd32=add(clb(Rs32),#s6)",ATTRIBS(A_ARCHV2),
+"Count leading sign bits then add signed number",
+{ RdV = (fMAX(fCL1_4(RsV),fCL1_4(~RsV)))+siV;} )
+
+Q6INSN(S4_clbpnorm,"Rd32=normamt(Rss32)",ATTRIBS(A_ARCHV2),
+"Count leading sign bits - 1", { if (RssV == 0) { RdV = 0; }
+else { RdV = (fMAX(fCL1_8(RssV),fCL1_8(~RssV)))-1;}})
+
+Q6INSN(S4_clbpaddi,"Rd32=add(clb(Rss32),#s6)",ATTRIBS(A_ARCHV2),
+"Count leading sign bits then add signed number",
+{ RdV = (fMAX(fCL1_8(RssV),fCL1_8(~RssV)))+siV;})
+
+
+Q6INSN(S2_clb,"Rd32=clb(Rs32)",ATTRIBS(),
+"Count leading bits", {RdV = fMAX(fCL1_4(RsV),fCL1_4(~RsV));})
+
+
+Q6INSN(S2_cl0,"Rd32=cl0(Rs32)",ATTRIBS(),
+"Count leading bits", {RdV = fCL1_4(~RsV);})
+
+Q6INSN(S2_cl1,"Rd32=cl1(Rs32)",ATTRIBS(),
+"Count leading bits", {RdV = fCL1_4(RsV);})
+
+Q6INSN(S2_clbp,"Rd32=clb(Rss32)",ATTRIBS(),
+"Count leading bits", {RdV = fMAX(fCL1_8(RssV),fCL1_8(~RssV));})
+
+Q6INSN(S2_cl0p,"Rd32=cl0(Rss32)",ATTRIBS(),
+"Count leading bits", {RdV = fCL1_8(~RssV);})
+
+Q6INSN(S2_cl1p,"Rd32=cl1(Rss32)",ATTRIBS(),
+"Count leading bits", {RdV = fCL1_8(RssV);})
+
+
+
+
+Q6INSN(S2_brev, "Rd32=brev(Rs32)",   ATTRIBS(A_ARCHV2), "Bit Reverse",{RdV = fBREV_4(RsV);})
+Q6INSN(S2_brevp,"Rdd32=brev(Rss32)", ATTRIBS(), "Bit Reverse",{RddV = fBREV_8(RssV);})
+Q6INSN(S2_ct0,  "Rd32=ct0(Rs32)",    ATTRIBS(A_ARCHV2), "Count Trailing",{RdV = fCL1_4(~fBREV_4(RsV));})
+Q6INSN(S2_ct1,  "Rd32=ct1(Rs32)",    ATTRIBS(A_ARCHV2), "Count Trailing",{RdV = fCL1_4(fBREV_4(RsV));})
+Q6INSN(S2_ct0p, "Rd32=ct0(Rss32)",   ATTRIBS(), "Count Trailing",{RdV = fCL1_8(~fBREV_8(RssV));})
+Q6INSN(S2_ct1p, "Rd32=ct1(Rss32)",   ATTRIBS(), "Count Trailing",{RdV = fCL1_8(fBREV_8(RssV));})
+
+
+Q6INSN(S2_interleave,"Rdd32=interleave(Rss32)",ATTRIBS(A_ARCHV2),"Interleave bits",
+{RddV = fINTERLEAVE(fGETWORD(1,RssV),fGETWORD(0,RssV));})
+
+Q6INSN(S2_deinterleave,"Rdd32=deinterleave(Rss32)",ATTRIBS(A_ARCHV2),"Interleave bits",
+{RddV = fDEINTERLEAVE(RssV);})

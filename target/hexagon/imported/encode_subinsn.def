@@ -1,0 +1,149 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+
+/* DEF_ENC_SUBINSN(TAG, CLASS, ENCSTR) */
+
+
+
+
+/*********************/
+/* Ld1-type subinsns */
+/*********************/
+DEF_ENC_SUBINSN(SL1_loadri_io,   SUBINSN_L1, "0iiiissssdddd")
+DEF_ENC_SUBINSN(SL1_loadrub_io,  SUBINSN_L1, "1iiiissssdddd")
+
+/*********************/
+/* St1-type subinsns */
+/*********************/
+DEF_ENC_SUBINSN(SS1_storew_io,  SUBINSN_S1, "0ii iisssstttt")
+DEF_ENC_SUBINSN(SS1_storeb_io,  SUBINSN_S1, "1ii iisssstttt")
+
+
+/*********************/
+/* Ld2-type subinsns */
+/*********************/
+DEF_ENC_SUBINSN(SL2_loadrh_io,   SUBINSN_L2, "00i iissssdddd")
+DEF_ENC_SUBINSN(SL2_loadruh_io,  SUBINSN_L2, "01i iissssdddd")
+DEF_ENC_SUBINSN(SL2_loadrb_io,   SUBINSN_L2, "10i iissssdddd")
+DEF_ENC_SUBINSN(SL2_loadri_sp,   SUBINSN_L2, "111 0iiiiidddd")
+DEF_ENC_SUBINSN(SL2_loadrd_sp,   SUBINSN_L2, "111 10iiiiiddd")
+
+DEF_ENC_SUBINSN(SL2_deallocframe,SUBINSN_L2, "111 1100---0--")
+
+DEF_ENC_SUBINSN(SL2_return,      SUBINSN_L2, "111 1101---0--")
+DEF_ENC_SUBINSN(SL2_return_t,    SUBINSN_L2, "111 1101---100")
+DEF_ENC_SUBINSN(SL2_return_f,    SUBINSN_L2, "111 1101---101")
+DEF_ENC_SUBINSN(SL2_return_tnew, SUBINSN_L2, "111 1101---110")
+DEF_ENC_SUBINSN(SL2_return_fnew, SUBINSN_L2, "111 1101---111")
+
+DEF_ENC_SUBINSN(SL2_jumpr31,     SUBINSN_L2, "111 1111---0--")
+DEF_ENC_SUBINSN(SL2_jumpr31_t,   SUBINSN_L2, "111 1111---100")
+DEF_ENC_SUBINSN(SL2_jumpr31_f,   SUBINSN_L2, "111 1111---101")
+DEF_ENC_SUBINSN(SL2_jumpr31_tnew,SUBINSN_L2, "111 1111---110")
+DEF_ENC_SUBINSN(SL2_jumpr31_fnew,SUBINSN_L2, "111 1111---111")
+
+
+/*********************/
+/* St2-type subinsns */
+/*********************/
+DEF_ENC_SUBINSN(SS2_storeh_io,   SUBINSN_S2, "00i iisssstttt")
+DEF_ENC_SUBINSN(SS2_storew_sp,   SUBINSN_S2, "010 0iiiiitttt")
+DEF_ENC_SUBINSN(SS2_stored_sp,   SUBINSN_S2, "010 1iiiiiittt")
+
+DEF_ENC_SUBINSN(SS2_storewi0,    SUBINSN_S2, "100 00ssssiiii")
+DEF_ENC_SUBINSN(SS2_storewi1,    SUBINSN_S2, "100 01ssssiiii")
+DEF_ENC_SUBINSN(SS2_storebi0,    SUBINSN_S2, "100 10ssssiiii")
+DEF_ENC_SUBINSN(SS2_storebi1,    SUBINSN_S2, "100 11ssssiiii")
+
+DEF_ENC_SUBINSN(SS2_allocframe,  SUBINSN_S2, "111 0iiiii----")
+
+
+
+/*******************/
+/* A-type subinsns */
+/*******************/
+DEF_ENC_SUBINSN(SA1_addi,       SUBINSN_A, "00i iiiiiixxxx")
+DEF_ENC_SUBINSN(SA1_seti,       SUBINSN_A, "010 iiiiiidddd")
+DEF_ENC_SUBINSN(SA1_addsp,      SUBINSN_A, "011 iiiiiidddd")
+
+DEF_ENC_SUBINSN(SA1_tfr,        SUBINSN_A, "100 00ssssdddd")
+DEF_ENC_SUBINSN(SA1_inc,        SUBINSN_A, "100 01ssssdddd")
+DEF_ENC_SUBINSN(SA1_and1,       SUBINSN_A, "100 10ssssdddd")
+DEF_ENC_SUBINSN(SA1_dec,        SUBINSN_A, "100 11ssssdddd")
+
+DEF_ENC_SUBINSN(SA1_sxth,       SUBINSN_A, "101 00ssssdddd")
+DEF_ENC_SUBINSN(SA1_sxtb,       SUBINSN_A, "101 01ssssdddd")
+DEF_ENC_SUBINSN(SA1_zxth,       SUBINSN_A, "101 10ssssdddd")
+DEF_ENC_SUBINSN(SA1_zxtb,       SUBINSN_A, "101 11ssssdddd")
+
+
+DEF_ENC_SUBINSN(SA1_addrx,      SUBINSN_A, "110 00ssssxxxx")
+DEF_ENC_SUBINSN(SA1_cmpeqi,     SUBINSN_A, "110 01ssss--ii")
+DEF_ENC_SUBINSN(SA1_setin1,     SUBINSN_A, "110 1--0--dddd")
+DEF_ENC_SUBINSN(SA1_clrtnew,    SUBINSN_A, "110 1--100dddd")
+DEF_ENC_SUBINSN(SA1_clrfnew,    SUBINSN_A, "110 1--101dddd")
+DEF_ENC_SUBINSN(SA1_clrt,       SUBINSN_A, "110 1--110dddd")
+DEF_ENC_SUBINSN(SA1_clrf,       SUBINSN_A, "110 1--111dddd")
+
+
+DEF_ENC_SUBINSN(SA1_combine0i,  SUBINSN_A, "111 -0-ii00ddd")
+DEF_ENC_SUBINSN(SA1_combine1i,  SUBINSN_A, "111 -0-ii01ddd")
+DEF_ENC_SUBINSN(SA1_combine2i,  SUBINSN_A, "111 -0-ii10ddd")
+DEF_ENC_SUBINSN(SA1_combine3i,  SUBINSN_A, "111 -0-ii11ddd")
+DEF_ENC_SUBINSN(SA1_combinezr,  SUBINSN_A, "111 -1ssss0ddd")
+DEF_ENC_SUBINSN(SA1_combinerz,  SUBINSN_A, "111 -1ssss1ddd")
+
+
+
+
+/* maybe R=cmpeq ? */
+
+
+/* Add a group of NCJ: if (R.new==#0) jump:hint #r9 */
+/* Add a group of NCJ: if (R.new!=#0) jump:hint #r9 */
+/* NCJ goes with LD1, LD2 */
+
+
+
+
+DEF_FIELD32("---! !!!! !!!!!!!! EE------ --------",SUBFIELD_B_SLOT1,"B: Slot1 Instruction")
+DEF_FIELD32("---- ---- -------- EE-!!!!! !!!!!!!!",SUBFIELD_A_SLOT0,"A: Slot0 Instruction")
+
+
+/* DEF_PACKED32(TAG, CLASSA, CLASSB, ENCSTR) */
+
+DEF_PACKED32(P2_PACKED_L1_L1, SUBINSN_L1, SUBINSN_L1, "000B BBBB BBBB BBBB EE0A AAAA AAAA AAAA")
+DEF_PACKED32(P2_PACKED_L1_L2, SUBINSN_L2, SUBINSN_L1, "000B BBBB BBBB BBBB EE1A AAAA AAAA AAAA")
+DEF_PACKED32(P2_PACKED_L2_L2, SUBINSN_L2, SUBINSN_L2, "001B BBBB BBBB BBBB EE0A AAAA AAAA AAAA")
+DEF_PACKED32(P2_PACKED_A_A,   SUBINSN_A,  SUBINSN_A,  "001B BBBB BBBB BBBB EE1A AAAA AAAA AAAA")
+
+DEF_PACKED32(P2_PACKED_L1_A,  SUBINSN_L1, SUBINSN_A,  "010B BBBB BBBB BBBB EE0A AAAA AAAA AAAA")
+DEF_PACKED32(P2_PACKED_L2_A,  SUBINSN_L2, SUBINSN_A,  "010B BBBB BBBB BBBB EE1A AAAA AAAA AAAA")
+DEF_PACKED32(P2_PACKED_S1_A,  SUBINSN_S1, SUBINSN_A,  "011B BBBB BBBB BBBB EE0A AAAA AAAA AAAA")
+DEF_PACKED32(P2_PACKED_S2_A,  SUBINSN_S2, SUBINSN_A,  "011B BBBB BBBB BBBB EE1A AAAA AAAA AAAA")
+
+DEF_PACKED32(P2_PACKED_S1_L1, SUBINSN_S1, SUBINSN_L1, "100B BBBB BBBB BBBB EE0A AAAA AAAA AAAA")
+DEF_PACKED32(P2_PACKED_S1_L2, SUBINSN_S1, SUBINSN_L2, "100B BBBB BBBB BBBB EE1A AAAA AAAA AAAA")
+DEF_PACKED32(P2_PACKED_S1_S1, SUBINSN_S1, SUBINSN_S1, "101B BBBB BBBB BBBB EE0A AAAA AAAA AAAA")
+DEF_PACKED32(P2_PACKED_S1_S2, SUBINSN_S2, SUBINSN_S1, "101B BBBB BBBB BBBB EE1A AAAA AAAA AAAA")
+
+DEF_PACKED32(P2_PACKED_S2_L1, SUBINSN_S2, SUBINSN_L1, "110B BBBB BBBB BBBB EE0A AAAA AAAA AAAA")
+DEF_PACKED32(P2_PACKED_S2_L2, SUBINSN_S2, SUBINSN_L2, "110B BBBB BBBB BBBB EE1A AAAA AAAA AAAA")
+DEF_PACKED32(P2_PACKED_S2_S2, SUBINSN_S2, SUBINSN_S2, "111B BBBB BBBB BBBB EE0A AAAA AAAA AAAA")
+
+DEF_PACKED32(P2_PACKED_RESERVED, SUBINSN_INVALID, SUBINSN_INVALID, "111B BBBB BBBB BBBB EE1A AAAA AAAA AAAA")

@@ -1,0 +1,68 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * System Interface Instructions
+ */
+
+
+
+/********************************************/
+/* User->OS interface                       */
+/********************************************/
+
+Q6INSN(J2_trap0,"trap0(#u8)",ATTRIBS(A_COF),
+"Trap to Operating System",
+    fTRAP(0,uiV);
+)
+
+Q6INSN(J2_pause,"pause(#u8)",ATTRIBS(A_COF),
+"Enter low-power state for #u8 cycles",{fPAUSE(uiV);})
+
+Q6INSN(Y2_icinva,"icinva(Rs32)",ATTRIBS(A_ICOP,A_ICFLUSHOP),"Instruction Cache Invalidate Address",{fEA_REG(RsV); fICINVA(EA);})
+
+Q6INSN(Y2_isync,"isync",ATTRIBS(),"Memory Synchronization",{fISYNC();})
+Q6INSN(Y2_barrier,"barrier",ATTRIBS(A_RESTRICT_SLOT0ONLY),"Memory Barrier",{fBARRIER();})
+Q6INSN(Y2_syncht,"syncht",ATTRIBS(A_RESTRICT_SLOT0ONLY),"Memory Synchronization",{fSYNCH();})
+
+
+Q6INSN(Y2_dcfetchbo,"dcfetch(Rs32+#u11:3)",ATTRIBS(A_RESTRICT_PREFERSLOT0,A_DCFETCH),"Data Cache Prefetch",{fEA_RI(RsV,uiV); fDCFETCH(EA);})
+
+
+Q6INSN(Y2_dczeroa,"dczeroa(Rs32)",ATTRIBS(A_STORE,A_RESTRICT_SLOT0ONLY,A_DCZEROA),"Zero an aligned 32-byte cacheline",{fEA_REG(RsV); fDCZEROA(EA);})
+Q6INSN(Y2_dccleana,"dccleana(Rs32)",ATTRIBS(A_RESTRICT_SLOT0ONLY,A_DCFLUSHOP),"Data Cache Clean Address",{fEA_REG(RsV); fDCCLEANA(EA);})
+Q6INSN(Y2_dccleaninva,"dccleaninva(Rs32)",ATTRIBS(A_RESTRICT_SLOT0ONLY,A_DCFLUSHOP),"Data Cache Clean and Invalidate Address",{fEA_REG(RsV); fDCCLEANINVA(EA);})
+Q6INSN(Y2_dcinva,"dcinva(Rs32)",ATTRIBS(A_RESTRICT_SLOT0ONLY,A_DCFLUSHOP),"Data Cache Invalidate Address",{fEA_REG(RsV); fDCCLEANINVA(EA);})
+
+
+Q6INSN(Y4_l2fetch,"l2fetch(Rs32,Rt32)",ATTRIBS(A_RESTRICT_SLOT0ONLY),"L2 Cache Prefetch",
+{ fL2FETCH(RsV,
+           (RtV&0xff), /*height*/
+           ((RtV>>8)&0xff), /*width*/
+           ((RtV>>16)&0xffff), /*stride*/
+           0); /*extra attrib flags*/
+})
+
+
+
+Q6INSN(Y5_l2fetch,"l2fetch(Rs32,Rtt32)",ATTRIBS(A_RESTRICT_SLOT0ONLY),"L2 Cache Prefetch",
+{ fL2FETCH(RsV,
+           fGETUHALF(0,RttV), /*height*/
+           fGETUHALF(1,RttV), /*width*/
+           fGETUHALF(2,RttV), /*stride*/
+           fGETUHALF(3,RttV)); /*flags*/
+})
