@@ -718,6 +718,8 @@ static inline int regpairs_aligned(void *cpu_env, int num)
 }
 #elif defined(TARGET_XTENSA)
 static inline int regpairs_aligned(void *cpu_env, int num) { return 1; }
+#elif defined(TARGET_HEXAGON)
+static inline int regpairs_aligned(void *cpu_env, int num) { return 1; }
 #else
 static inline int regpairs_aligned(void *cpu_env, int num) { return 0; }
 #endif
