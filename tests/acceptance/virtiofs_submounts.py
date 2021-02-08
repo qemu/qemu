@@ -83,20 +83,21 @@ class VirtiofsSubmountsTest(BootLinux):
                               command_line='info usernet')
         for line in res.split('\r\n'):
             match = \
-                re.search(r'TCP.HOST_FORWARD.*127\.0\.0\.1\s*(\d+)\s+10\.',
+                re.search(r'TCP.HOST_FORWARD.*127\.0\.0\.1\s+(\d+)\s+10\.',
                           line)
             if match is not None:
-                port = match[1]
+                port = int(match[1])
                 break
 
         self.assertIsNotNone(port)
-        self.log.debug('sshd listening on port: ' + port)
+        self.assertGreater(port, 0)
+        self.log.debug('sshd listening on port: %d', port)
         return port
 
     def ssh_connect(self, username, keyfile):
         self.ssh_logger = logging.getLogger('ssh')
         port = self.get_portfwd()
-        self.ssh_session = ssh.Session('127.0.0.1', port=int(port),
+        self.ssh_session = ssh.Session('127.0.0.1', port=port,
                                        user=username, key=keyfile)
         for i in range(10):
             try:
@@ -105,7 +106,7 @@ class VirtiofsSubmountsTest(BootLinux):
             except:
                 time.sleep(4)
                 pass
-        self.fail('sshd timeout')
+        self.fail('ssh connection timeout')
 
     def ssh_command(self, command):
         self.ssh_logger.info(command)
@@ -136,8 +137,7 @@ class VirtiofsSubmountsTest(BootLinux):
         return (stdout, stderr, ret)
 
     def set_up_shared_dir(self):
-        atwd = os.getenv('AVOCADO_TEST_WORKDIR')
-        self.shared_dir = os.path.join(atwd, 'virtiofs-shared')
+        self.shared_dir = os.path.join(self.workdir, 'virtiofs-shared')
 
         os.mkdir(self.shared_dir)
 
@@ -234,10 +234,9 @@ class VirtiofsSubmountsTest(BootLinux):
 
         self.seed = self.params.get('seed')
 
-        atwd = os.getenv('AVOCADO_TEST_WORKDIR')
-        self.ssh_key = os.path.join(atwd, 'id_ed25519')
+        self.ssh_key = os.path.join(self.workdir, 'id_ed25519')
 
-        self.run(('ssh-keygen', '-t', 'ed25519', '-f', self.ssh_key))
+        self.run(('ssh-keygen', '-N', '', '-t', 'ed25519', '-f', self.ssh_key))
 
         pubkey = open(self.ssh_key + '.pub').read()
 
@@ -249,7 +248,7 @@ class VirtiofsSubmountsTest(BootLinux):
 
         # Allow us to connect to SSH
         self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22',
-                         '-device', 'e1000,netdev=vnet')
+                         '-device', 'virtio-net,netdev=vnet')
 
         if not kvm_available(self.arch, self.qemu_bin):
             self.cancel(KVM_NOT_AVAILABLE)

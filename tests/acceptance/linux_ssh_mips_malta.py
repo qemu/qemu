@@ -91,7 +91,7 @@ class LinuxSSH(Test):
             except:
                 time.sleep(4)
                 pass
-        self.fail("sshd timeout")
+        self.fail("ssh connection timeout")
 
     def ssh_disconnect_vm(self):
         self.ssh_session.quit()
