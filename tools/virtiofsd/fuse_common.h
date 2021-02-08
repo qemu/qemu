@@ -358,6 +358,21 @@ struct fuse_file_info {
 #define FUSE_CAP_SUBMOUNTS (1 << 27)
 
 /**
+ * Indicates that the filesystem is responsible for clearing
+ * security.capability xattr and clearing setuid and setgid bits. Following
+ * are the rules.
+ * - clear "security.capability" on write, truncate and chown unconditionally
+ * - clear suid/sgid if following is true. Note, sgid is cleared only if
+ *   group executable bit is set.
+ *    o setattr has FATTR_SIZE and FATTR_KILL_SUIDGID set.
+ *    o setattr has FATTR_UID or FATTR_GID
+ *    o open has O_TRUNC and FUSE_OPEN_KILL_SUIDGID
+ *    o create has O_TRUNC and FUSE_OPEN_KILL_SUIDGID flag set.
+ *    o write has FUSE_WRITE_KILL_SUIDGID
+ */
+#define FUSE_CAP_HANDLE_KILLPRIV_V2 (1 << 28)
+
+/**
  * Ioctl flags
  *
  * FUSE_IOCTL_COMPAT: 32bit compat ioctl on 64bit machine
