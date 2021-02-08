@@ -49,6 +49,8 @@ fi
 : $(cross_cc_alpha="alpha-linux-gnu-gcc")
 : ${cross_cc_arm="arm-linux-gnueabihf-gcc"}
 : ${cross_cc_cflags_armeb="-mbig-endian"}
+: ${cross_cc_hexagon="hexagon-unknown-linux-musl-clang"}
+: ${cross_cc_cflags_hexagon="-mv67 -O2 -static"}
 : ${cross_cc_hppa="hppa-linux-gnu-gcc"}
 : ${cross_cc_i386="i386-pc-linux-gnu-gcc"}
 : ${cross_cc_cflags_i386="-m32"}
@@ -94,7 +96,7 @@ for target in $target_list; do
     xtensa|xtensaeb)
       arches=xtensa
       ;;
-    alpha|cris|hppa|i386|lm32|microblaze|microblazeel|m68k|openrisc|riscv64|s390x|sh4|sparc64)
+    alpha|cris|hexagon|hppa|i386|lm32|microblaze|microblazeel|m68k|openrisc|riscv64|s390x|sh4|sparc64)
       arches=$target
       ;;
     *)
