@@ -41,5 +41,6 @@ HEX_TESTS += preg_alias
 HEX_TESTS += dual_stores
 HEX_TESTS += mem_noshuf
 HEX_TESTS += atomics
+HEX_TESTS += fpstuff
 
 TESTS += $(HEX_TESTS)
