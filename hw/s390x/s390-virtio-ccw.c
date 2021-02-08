@@ -250,6 +250,9 @@ static void ccw_init(MachineState *machine)
     /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
 
+    /* Need CPU model to be determined before we can set up PV */
+    s390_pv_init(machine->cgs, &error_fatal);
+
     s390_flic_init();
 
     /* init the SIGP facility */

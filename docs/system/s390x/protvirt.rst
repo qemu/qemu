@@ -22,15 +22,22 @@ If those requirements are met, the capability `KVM_CAP_S390_PROTECTED`
 will indicate that KVM can support PVMs on that LPAR.
 
 
-QEMU Settings
--------------
+Running a Protected Virtual Machine
+-----------------------------------
 
-To indicate to the VM that it can transition into protected mode, the
+To run a PVM you will need to select a CPU model which includes the
 `Unpack facility` (stfle bit 161 represented by the feature
-`unpack`/`S390_FEAT_UNPACK`) needs to be part of the cpu model of
-the VM.
+`unpack`/`S390_FEAT_UNPACK`), and add these options to the command line::
 
-All I/O devices need to use the IOMMU.
+    -object s390-pv-guest,id=pv0 \
+    -machine confidential-guest-support=pv0
+
+Adding these options will:
+
+* Ensure the `unpack` facility is available
+* Enable the IOMMU by default for all I/O devices
+* Initialize the PV mechanism
+
 Passthrough (vfio) devices are currently not supported.
 
 Host huge page backings are not supported. However guests can use huge
