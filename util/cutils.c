@@ -916,7 +916,8 @@ static inline bool starts_with_prefix(const char *dir)
 static inline const char *next_component(const char *dir, int *p_len)
 {
     int len;
-    while (*dir && G_IS_DIR_SEPARATOR(*dir)) {
+    while ((*dir && G_IS_DIR_SEPARATOR(*dir)) ||
+           (*dir == '.' && (G_IS_DIR_SEPARATOR(dir[1]) || dir[1] == '\0'))) {
         dir++;
     }
     len = 0;
