@@ -256,6 +256,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
     MemoryRegion *flash_mem;
     void *flash_ptr;
     int flash_size;
+    int ret;
 
     assert(PC_MACHINE_GET_CLASS(pcms)->pci_enabled);
 
@@ -308,6 +309,13 @@ static void pc_system_flash_map(PCMachineState *pcms,
                  * search for them
                  */
                 pc_system_parse_ovmf_flash(flash_ptr, flash_size);
+
+                ret = sev_es_save_reset_vector(flash_ptr, flash_size);
+                if (ret) {
+                    error_report("failed to locate and/or save reset vector");
+                    exit(1);
+                }
+
                 sev_encrypt_flash(flash_ptr, flash_size, &error_fatal);
             }
         }
