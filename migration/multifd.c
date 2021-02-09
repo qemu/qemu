@@ -739,7 +739,16 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
     } else {
         trace_multifd_tls_outgoing_handshake_complete(ioc);
     }
-    multifd_channel_connect(p, ioc, err);
+
+    if (!multifd_channel_connect(p, ioc, err)) {
+        /*
+         * Error happen, mark multifd_send_thread status as 'quit' although it
+         * is not created, and then tell who pay attention to me.
+         */
+        p->quit = true;
+        qemu_sem_post(&multifd_send_state->channels_ready);
+        qemu_sem_post(&p->sem_sync);
+    }
 }
 
 static void *multifd_tls_handshake_thread(void *opaque)
