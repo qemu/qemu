@@ -131,8 +131,16 @@ static const struct MemoryRegionOps imx7_set_clr_tog_ops = {
     },
 };
 
+static void imx7_digprog_write(void *opaque, hwaddr addr,
+                                        uint64_t data, unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "Guest write to read-only ANALOG_DIGPROG register\n");
+}
+
 static const struct MemoryRegionOps imx7_digprog_ops = {
     .read = imx7_set_clr_tog_read,
+    .write = imx7_digprog_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 4,

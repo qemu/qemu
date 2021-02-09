@@ -18,6 +18,9 @@ config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
 enable_modules = 'CONFIG_MODULES' in config_host
 enable_static = 'CONFIG_STATIC' in config_host
 
+# Allow both shared and static libraries unless --enable-static
+static_kwargs = enable_static ? {'static': true} : {}
+
 # Temporary directory used for files created while
 # configure runs. Since it is in the build directory
 # we can safely blow away any previous version of it
@@ -224,10 +227,17 @@ tcg_arch = config_host['ARCH']
 if not get_option('tcg').disabled()
   if cpu not in supported_cpus
     if get_option('tcg_interpreter')
-      warning('Unsupported CPU @0@, will use TCG with TCI (experimental)'.format(cpu))
+      warning('Unsupported CPU @0@, will use TCG with TCI (experimental and slow)'.format(cpu))
     else
       error('Unsupported CPU @0@, try --enable-tcg-interpreter'.format(cpu))
     endif
+  elif get_option('tcg_interpreter')
+    warning('Use of the TCG interpretor is not recommended on this host')
+    warning('architecture. There is a native TCG execution backend available')
+    warning('which provides substantially better performance and reliability.')
+    warning('It is strongly recommended to remove the --enable-tcg-interpreter')
+    warning('configuration option on this architecture to use the native')
+    warning('backend.')
   endif
   if get_option('tcg_interpreter')
     tcg_arch = 'tci'
@@ -311,14 +321,14 @@ endif
 pixman = not_found
 if have_system or have_tools
   pixman = dependency('pixman-1', required: have_system, version:'>=0.21.8',
-                      method: 'pkg-config', static: enable_static)
+                      method: 'pkg-config', kwargs: static_kwargs)
 endif
 pam = not_found
 if 'CONFIG_AUTH_PAM' in config_host
   pam = cc.find_library('pam')
 endif
 libaio = cc.find_library('aio', required: false)
-zlib = dependency('zlib', required: true, static: enable_static)
+zlib = dependency('zlib', required: true, kwargs: static_kwargs)
 linux_io_uring = not_found
 if 'CONFIG_LINUX_IO_URING' in config_host
   linux_io_uring = declare_dependency(compile_args: config_host['LINUX_IO_URING_CFLAGS'].split(),
@@ -333,7 +343,7 @@ libnfs = not_found
 if not get_option('libnfs').auto() or have_block
   libnfs = dependency('libnfs', version: '>=1.9.3',
                       required: get_option('libnfs'),
-                      method: 'pkg-config', static: enable_static)
+                      method: 'pkg-config', kwargs: static_kwargs)
 endif
 
 libattr_test = '''
@@ -354,7 +364,7 @@ if not get_option('attr').disabled()
   else
     libattr = cc.find_library('attr', has_headers: ['attr/xattr.h'],
                               required: get_option('attr'),
-                              static: enable_static)
+                              kwargs: static_kwargs)
     if libattr.found() and not \
       cc.links(libattr_test, dependencies: libattr, args: '-DCONFIG_LIBATTR')
       libattr = not_found
@@ -381,14 +391,14 @@ seccomp = not_found
 if not get_option('seccomp').auto() or have_system or have_tools
   seccomp = dependency('libseccomp', version: '>=2.3.0',
                        required: get_option('seccomp'),
-                       method: 'pkg-config', static: enable_static)
+                       method: 'pkg-config', kwargs: static_kwargs)
 endif
 
 libcap_ng = not_found
 if not get_option('cap_ng').auto() or have_system or have_tools
   libcap_ng = cc.find_library('cap-ng', has_headers: ['cap-ng.h'],
                               required: get_option('cap_ng'),
-                              static: enable_static)
+                              kwargs: static_kwargs)
 endif
 if libcap_ng.found() and not cc.links('''
    #include <cap-ng.h>
@@ -409,7 +419,7 @@ if get_option('xkbcommon').auto() and not have_system and not have_tools
   xkbcommon = not_found
 else
   xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'),
-                         method: 'pkg-config', static: enable_static)
+                         method: 'pkg-config', kwargs: static_kwargs)
 endif
 vde = not_found
 if config_host.has_key('CONFIG_VDE')
@@ -445,13 +455,13 @@ libiscsi = not_found
 if not get_option('libiscsi').auto() or have_block
   libiscsi = dependency('libiscsi', version: '>=1.9.0',
                          required: get_option('libiscsi'),
-                         method: 'pkg-config', static: enable_static)
+                         method: 'pkg-config', kwargs: static_kwargs)
 endif
 zstd = not_found
 if not get_option('zstd').auto() or have_block
   zstd = dependency('libzstd', version: '>=1.4.0',
                     required: get_option('zstd'),
-                    method: 'pkg-config', static: enable_static)
+                    method: 'pkg-config', kwargs: static_kwargs)
 endif
 gbm = not_found
 if 'CONFIG_GBM' in config_host
@@ -468,14 +478,14 @@ if not get_option('curl').auto() or have_block
   curl = dependency('libcurl', version: '>=7.29.0',
                     method: 'pkg-config',
                     required: get_option('curl'),
-                    static: enable_static)
+                    kwargs: static_kwargs)
 endif
 libudev = not_found
 if targetos == 'linux' and (have_system or have_tools)
   libudev = dependency('libudev',
                        method: 'pkg-config',
                        required: get_option('libudev'),
-                       static: enable_static)
+                       kwargs: static_kwargs)
 endif
 
 mpathlibs = [libudev]
@@ -511,17 +521,17 @@ if targetos == 'linux' and have_tools and not get_option('mpath').disabled()
       }'''
   libmpathpersist = cc.find_library('mpathpersist',
                                     required: get_option('mpath'),
-                                    static: enable_static)
+                                    kwargs: static_kwargs)
   if libmpathpersist.found()
     mpathlibs += libmpathpersist
     if enable_static
       mpathlibs += cc.find_library('devmapper',
                                      required: get_option('mpath'),
-                                     static: enable_static)
+                                     kwargs: static_kwargs)
     endif
     mpathlibs += cc.find_library('multipath',
                                  required: get_option('mpath'),
-                                 static: enable_static)
+                                 kwargs: static_kwargs)
     foreach lib: mpathlibs
       if not lib.found()
         mpathlibs = []
@@ -571,7 +581,7 @@ if have_system and not get_option('curses').disabled()
       curses = dependency(curses_dep,
                           required: false,
                           method: 'pkg-config',
-                          static: enable_static)
+                          kwargs: static_kwargs)
     endif
   endforeach
   msg = get_option('curses').enabled() ? 'curses library not found' : ''
@@ -596,7 +606,7 @@ if have_system and not get_option('curses').disabled()
       foreach curses_libname : curses_libname_list
         libcurses = cc.find_library(curses_libname,
                                     required: false,
-                                    static: enable_static)
+                                    kwargs: static_kwargs)
         if libcurses.found()
           if cc.links(curses_test, args: curses_compile_args, dependencies: libcurses)
             curses = declare_dependency(compile_args: curses_compile_args,
@@ -647,7 +657,7 @@ brlapi = not_found
 if not get_option('brlapi').auto() or have_system
   brlapi = cc.find_library('brlapi', has_headers: ['brlapi.h'],
                          required: get_option('brlapi'),
-                         static: enable_static)
+                         kwargs: static_kwargs)
   if brlapi.found() and not cc.links('''
      #include <brlapi.h>
      #include <stddef.h>
@@ -663,7 +673,7 @@ endif
 
 sdl = not_found
 if not get_option('sdl').auto() or (have_system and not cocoa.found())
-  sdl = dependency('sdl2', required: get_option('sdl'), static: enable_static)
+  sdl = dependency('sdl2', required: get_option('sdl'), kwargs: static_kwargs)
   sdl_image = not_found
 endif
 if sdl.found()
@@ -671,7 +681,7 @@ if sdl.found()
   sdl = declare_dependency(compile_args: '-Wno-undef',
                            dependencies: sdl)
   sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
-                         method: 'pkg-config', static: enable_static)
+                         method: 'pkg-config', kwargs: static_kwargs)
 else
   if get_option('sdl_image').enabled()
     error('sdl-image required, but SDL was @0@'.format(
@@ -683,19 +693,25 @@ endif
 rbd = not_found
 if not get_option('rbd').auto() or have_block
   librados = cc.find_library('rados', required: get_option('rbd'),
-                             static: enable_static)
+                             kwargs: static_kwargs)
   librbd = cc.find_library('rbd', has_headers: ['rbd/librbd.h'],
                            required: get_option('rbd'),
-                           static: enable_static)
-  if librados.found() and librbd.found() and cc.links('''
-    #include <stdio.h>
-    #include <rbd/librbd.h>
-    int main(void) {
-      rados_t cluster;
-      rados_create(&cluster, NULL);
-      return 0;
-    }''', dependencies: [librbd, librados])
-    rbd = declare_dependency(dependencies: [librbd, librados])
+                           kwargs: static_kwargs)
+  if librados.found() and librbd.found()
+    if cc.links('''
+      #include <stdio.h>
+      #include <rbd/librbd.h>
+      int main(void) {
+        rados_t cluster;
+        rados_create(&cluster, NULL);
+        return 0;
+      }''', dependencies: [librbd, librados])
+      rbd = declare_dependency(dependencies: [librbd, librados])
+    elif get_option('rbd').enabled()
+      error('could not link librados')
+    else
+      warning('could not link librados, disabling')
+    endif
   endif
 endif
 
@@ -705,7 +721,7 @@ glusterfs_iocb_has_stat = false
 if not get_option('glusterfs').auto() or have_block
   glusterfs = dependency('glusterfs-api', version: '>=3',
                          required: get_option('glusterfs'),
-                         method: 'pkg-config', static: enable_static)
+                         method: 'pkg-config', kwargs: static_kwargs)
   if glusterfs.found()
     glusterfs_ftruncate_has_stat = cc.links('''
       #include <glusterfs/api/glfs.h>
@@ -744,7 +760,7 @@ libbzip2 = not_found
 if not get_option('bzip2').auto() or have_block
   libbzip2 = cc.find_library('bz2', has_headers: ['bzlib.h'],
                              required: get_option('bzip2'),
-                             static: enable_static)
+                             kwargs: static_kwargs)
   if libbzip2.found() and not cc.links('''
      #include <bzlib.h>
      int main(void) { BZ2_bzlibVersion(); return 0; }''', dependencies: libbzip2)
@@ -761,7 +777,7 @@ liblzfse = not_found
 if not get_option('lzfse').auto() or have_block
   liblzfse = cc.find_library('lzfse', has_headers: ['lzfse.h'],
                              required: get_option('lzfse'),
-                             static: enable_static)
+                             kwargs: static_kwargs)
 endif
 if liblzfse.found() and not cc.links('''
    #include <lzfse.h>
@@ -798,12 +814,12 @@ if not get_option('gtk').auto() or (have_system and not cocoa.found())
   gtk = dependency('gtk+-3.0', version: '>=3.22.0',
                    method: 'pkg-config',
                    required: get_option('gtk'),
-                   static: enable_static)
+                   kwargs: static_kwargs)
   if gtk.found()
     gtkx11 = dependency('gtk+-x11-3.0', version: '>=3.22.0',
                         method: 'pkg-config',
                         required: false,
-                        static: enable_static)
+                        kwargs: static_kwargs)
     gtk = declare_dependency(dependencies: [gtk, gtkx11])
   endif
 endif
@@ -816,7 +832,7 @@ endif
 x11 = not_found
 if gtkx11.found() or 'lm32-softmmu' in target_dirs
   x11 = dependency('x11', method: 'pkg-config', required: gtkx11.found(),
-                   static: enable_static)
+                   kwargs: static_kwargs)
 endif
 vnc = not_found
 png = not_found
@@ -825,12 +841,12 @@ sasl = not_found
 if get_option('vnc').enabled()
   vnc = declare_dependency() # dummy dependency
   png = dependency('libpng', required: get_option('vnc_png'),
-                   method: 'pkg-config', static: enable_static)
+                   method: 'pkg-config', kwargs: static_kwargs)
   jpeg = dependency('libjpeg', required: get_option('vnc_jpeg'),
-                    method: 'pkg-config', static: enable_static)
+                    method: 'pkg-config', kwargs: static_kwargs)
   sasl = cc.find_library('sasl2', has_headers: ['sasl/sasl.h'],
                          required: get_option('vnc_sasl'),
-                         static: enable_static)
+                         kwargs: static_kwargs)
   if sasl.found()
     sasl = declare_dependency(dependencies: sasl,
                               compile_args: '-DSTRUCT_IOVEC_DEFINED')
@@ -841,7 +857,7 @@ snappy = not_found
 if not get_option('snappy').auto() or have_system
   snappy = cc.find_library('snappy', has_headers: ['snappy-c.h'],
                            required: get_option('snappy'),
-                           static: enable_static)
+                           kwargs: static_kwargs)
 endif
 if snappy.found() and not cc.links('''
    #include <snappy-c.h>
@@ -858,7 +874,7 @@ lzo = not_found
 if not get_option('lzo').auto() or have_system
   lzo = cc.find_library('lzo2', has_headers: ['lzo/lzo1x.h'],
                         required: get_option('lzo'),
-                        static: enable_static)
+                        kwargs: static_kwargs)
 endif
 if lzo.found() and not cc.links('''
    #include <lzo/lzo1x.h>
@@ -893,7 +909,7 @@ u2f = not_found
 if have_system
   u2f = dependency('u2f-emu', required: get_option('u2f'),
                    method: 'pkg-config',
-                   static: enable_static)
+                   kwargs: static_kwargs)
 endif
 usbredir = not_found
 if 'CONFIG_USB_REDIR' in config_host
@@ -920,7 +936,7 @@ if 'CONFIG_TASN1' in config_host
                              link_args: config_host['TASN1_LIBS'].split())
 endif
 keyutils = dependency('libkeyutils', required: false,
-                      method: 'pkg-config', static: enable_static)
+                      method: 'pkg-config', kwargs: static_kwargs)
 
 has_gettid = cc.has_function('gettid')
 
@@ -979,7 +995,7 @@ endif
 
 fuse = dependency('fuse3', required: get_option('fuse'),
                   version: '>=3.1', method: 'pkg-config',
-                  static: enable_static)
+                  kwargs: static_kwargs)
 
 fuse_lseek = not_found
 if not get_option('fuse_lseek').disabled()
@@ -1367,7 +1383,7 @@ capstone_opt = get_option('capstone')
 if capstone_opt in ['enabled', 'auto', 'system']
   have_internal = fs.exists(meson.current_source_dir() / 'capstone/Makefile')
   capstone = dependency('capstone', version: '>=4.0',
-                        static: enable_static, method: 'pkg-config',
+                        kwargs: static_kwargs, method: 'pkg-config',
                         required: capstone_opt == 'system' or
                                   capstone_opt == 'enabled' and not have_internal)
   if capstone.found()
@@ -1477,7 +1493,7 @@ if have_system
   slirp_opt = get_option('slirp')
   if slirp_opt in ['enabled', 'auto', 'system']
     have_internal = fs.exists(meson.current_source_dir() / 'slirp/meson.build')
-    slirp = dependency('slirp', static: enable_static,
+    slirp = dependency('slirp', kwargs: static_kwargs,
                        method: 'pkg-config',
                        required: slirp_opt == 'system' or
                                  slirp_opt == 'enabled' and not have_internal)
@@ -1556,7 +1572,7 @@ fdt_opt = get_option('fdt')
 if have_system
   if fdt_opt in ['enabled', 'auto', 'system']
     have_internal = fs.exists(meson.current_source_dir() / 'dtc/libfdt/Makefile.libfdt')
-    fdt = cc.find_library('fdt', static: enable_static,
+    fdt = cc.find_library('fdt', kwargs: static_kwargs,
                           required: fdt_opt == 'system' or
                                     fdt_opt == 'enabled' and not have_internal)
     if fdt.found() and cc.links('''
@@ -1725,10 +1741,11 @@ target_softmmu_arch = {}
 # TODO: add each directory to the subdirs from its own meson.build, once
 # we have those
 trace_events_subdirs = [
-  'accel/kvm',
-  'accel/tcg',
   'crypto',
+  'qapi',
+  'qom',
   'monitor',
+  'util',
 ]
 if have_user
   trace_events_subdirs += [ 'linux-user' ]
@@ -1744,6 +1761,7 @@ if have_block
 endif
 if have_system
   trace_events_subdirs += [
+    'accel/kvm',
     'audio',
     'backends',
     'backends/tpm',
@@ -1801,21 +1819,21 @@ if have_system
     'ui',
   ]
 endif
-trace_events_subdirs += [
-  'hw/core',
-  'qapi',
-  'qom',
-  'target/arm',
-  'target/hppa',
-  'target/i386',
-  'target/i386/kvm',
-  'target/mips',
-  'target/ppc',
-  'target/riscv',
-  'target/s390x',
-  'target/sparc',
-  'util',
-]
+if have_system or have_user
+  trace_events_subdirs += [
+    'accel/tcg',
+    'hw/core',
+    'target/arm',
+    'target/hppa',
+    'target/i386',
+    'target/i386/kvm',
+    'target/mips',
+    'target/ppc',
+    'target/riscv',
+    'target/s390x',
+    'target/sparc',
+  ]
+endif
 
 vhost_user = not_found
 if 'CONFIG_VHOST_USER' in config_host
@@ -1849,41 +1867,45 @@ libqemuutil = static_library('qemuutil',
 qemuutil = declare_dependency(link_with: libqemuutil,
                               sources: genh + version_res)
 
-decodetree = generator(find_program('scripts/decodetree.py'),
-                       output: 'decode-@BASENAME@.c.inc',
-                       arguments: ['@INPUT@', '@EXTRA_ARGS@', '-o', '@OUTPUT@'])
+if have_system or have_user
+  decodetree = generator(find_program('scripts/decodetree.py'),
+                         output: 'decode-@BASENAME@.c.inc',
+                         arguments: ['@INPUT@', '@EXTRA_ARGS@', '-o', '@OUTPUT@'])
+  subdir('libdecnumber')
+  subdir('target')
+endif
 
 subdir('audio')
 subdir('io')
 subdir('chardev')
 subdir('fsdev')
-subdir('libdecnumber')
-subdir('target')
 subdir('dump')
 
-block_ss.add(files(
-  'block.c',
-  'blockjob.c',
-  'job.c',
-  'qemu-io-cmds.c',
-))
-block_ss.add(when: 'CONFIG_REPLICATION', if_true: files('replication.c'))
+if have_block
+  block_ss.add(files(
+    'block.c',
+    'blockjob.c',
+    'job.c',
+    'qemu-io-cmds.c',
+  ))
+  block_ss.add(when: 'CONFIG_REPLICATION', if_true: files('replication.c'))
 
-subdir('nbd')
-subdir('scsi')
-subdir('block')
+  subdir('nbd')
+  subdir('scsi')
+  subdir('block')
 
-blockdev_ss.add(files(
-  'blockdev.c',
-  'blockdev-nbd.c',
-  'iothread.c',
-  'job-qmp.c',
-), gnutls)
+  blockdev_ss.add(files(
+    'blockdev.c',
+    'blockdev-nbd.c',
+    'iothread.c',
+    'job-qmp.c',
+  ), gnutls)
 
-# os-posix.c contains POSIX-specific functions used by qemu-storage-daemon,
-# os-win32.c does not
-blockdev_ss.add(when: 'CONFIG_POSIX', if_true: files('os-posix.c'))
-softmmu_ss.add(when: 'CONFIG_WIN32', if_true: [files('os-win32.c')])
+  # os-posix.c contains POSIX-specific functions used by qemu-storage-daemon,
+  # os-win32.c does not
+  blockdev_ss.add(when: 'CONFIG_POSIX', if_true: files('os-posix.c'))
+  softmmu_ss.add(when: 'CONFIG_WIN32', if_true: [files('os-win32.c')])
+endif
 
 common_ss.add(files('cpus-common.c'))
 
@@ -2500,8 +2522,12 @@ if have_system
 endif
 summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
 if config_all.has_key('CONFIG_TCG')
+  if get_option('tcg_interpreter')
+    summary_info += {'TCG backend':   'TCI (TCG with bytecode interpreter, experimental and slow)'}
+  else
+    summary_info += {'TCG backend':   'native (@0@)'.format(cpu)}
+  endif
   summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
-  summary_info += {'TCG interpreter':   tcg_arch == 'tci'}
 endif
 summary_info += {'target list':       ' '.join(target_dirs)}
 if have_system

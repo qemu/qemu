@@ -81,7 +81,13 @@ void icount_handle_deadline(void)
     int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL,
                                                   QEMU_TIMER_ATTR_ALL);
 
-    if (deadline == 0) {
+    /*
+     * Instructions, interrupts, and exceptions are processed in cpu-exec.
+     * Don't interrupt cpu thread, when these events are waiting
+     * (i.e., there is no checkpoint)
+     */
+    if (deadline == 0
+        && (replay_mode != REPLAY_MODE_PLAY || replay_has_checkpoint())) {
         icount_notify_aio_contexts();
     }
 }

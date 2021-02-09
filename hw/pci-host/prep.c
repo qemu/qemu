@@ -27,6 +27,7 @@
 #include "qemu-common.h"
 #include "qemu/datadir.h"
 #include "qemu/units.h"
+#include "qemu/log.h"
 #include "qapi/error.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
@@ -121,8 +122,15 @@ static uint64_t raven_intack_read(void *opaque, hwaddr addr,
     return pic_read_irq(isa_pic);
 }
 
+static void raven_intack_write(void *opaque, hwaddr addr,
+                                        uint64_t data, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s not implemented\n", __func__);
+}
+
 static const MemoryRegionOps raven_intack_ops = {
     .read = raven_intack_read,
+    .write = raven_intack_write,
     .valid = {
         .max_access_size = 1,
     },

@@ -2541,6 +2541,7 @@ F: qapi/qom.json
 F: qapi/qdev.json
 F: scripts/coccinelle/qom-parent-type.cocci
 F: softmmu/qdev-monitor.c
+F: stubs/qdev.c
 F: qom/
 F: tests/check-qom-interface.c
 F: tests/check-qom-proplist.c

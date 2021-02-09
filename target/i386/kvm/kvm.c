@@ -113,6 +113,7 @@ static bool has_msr_vmx_vmfunc;
 static bool has_msr_ucode_rev;
 static bool has_msr_vmx_procbased_ctls2;
 static bool has_msr_perf_capabs;
+static bool has_msr_pkrs;
 
 static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
@@ -2087,6 +2088,9 @@ static int kvm_get_supported_msrs(KVMState *s)
             case MSR_IA32_VMX_PROCBASED_CTLS2:
                 has_msr_vmx_procbased_ctls2 = true;
                 break;
+            case MSR_IA32_PKRS:
+                has_msr_pkrs = true;
+                break;
             }
         }
     }
@@ -2814,6 +2818,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     if (has_msr_smi_count) {
         kvm_msr_entry_add(cpu, MSR_SMI_COUNT, env->msr_smi_count);
     }
+    if (has_msr_pkrs) {
+        kvm_msr_entry_add(cpu, MSR_IA32_PKRS, env->pkrs);
+    }
     if (has_msr_bndcfgs) {
         kvm_msr_entry_add(cpu, MSR_IA32_BNDCFGS, env->msr_bndcfgs);
     }
@@ -3205,6 +3212,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_feature_control) {
         kvm_msr_entry_add(cpu, MSR_IA32_FEATURE_CONTROL, 0);
     }
+    if (has_msr_pkrs) {
+        kvm_msr_entry_add(cpu, MSR_IA32_PKRS, 0);
+    }
     if (has_msr_bndcfgs) {
         kvm_msr_entry_add(cpu, MSR_IA32_BNDCFGS, 0);
     }
@@ -3474,6 +3484,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_IA32_UMWAIT_CONTROL:
             env->umwait = msrs[i].data;
+            break;
+        case MSR_IA32_PKRS:
+            env->pkrs = msrs[i].data;
             break;
         default:
             if (msrs[i].index >= MSR_MC0_CTL &&

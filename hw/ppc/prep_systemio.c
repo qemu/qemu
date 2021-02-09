@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
@@ -235,8 +236,15 @@ static uint64_t ppc_parity_error_readl(void *opaque, hwaddr addr,
     return val;
 }
 
+static void ppc_parity_error_writel(void *opaque, hwaddr addr,
+                                    uint64_t data, unsigned size)
+{
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid access\n", __func__);
+}
+
 static const MemoryRegionOps ppc_parity_error_ops = {
     .read = ppc_parity_error_readl,
+    .write = ppc_parity_error_writel,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
