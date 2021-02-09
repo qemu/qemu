@@ -57,7 +57,7 @@ class BootLinuxBase(Test):
             self.cancel('Failed to download/prepare boot image')
         return boot.path
 
-    def download_cloudinit(self, ssh_pubkey=None):
+    def prepare_cloudinit(self, ssh_pubkey=None):
         self.log.info('Preparing cloudinit image')
         try:
             cloudinit_iso = os.path.join(self.workdir, 'cloudinit.iso')
@@ -70,7 +70,7 @@ class BootLinuxBase(Test):
                           phone_home_port=self.phone_home_port,
                           authorized_key=ssh_pubkey)
         except Exception:
-            self.cancel('Failed to prepared cloudinit image')
+            self.cancel('Failed to prepare the cloudinit image')
         return cloudinit_iso
 
 class BootLinux(BootLinuxBase):
@@ -85,15 +85,15 @@ class BootLinux(BootLinuxBase):
         super(BootLinux, self).setUp()
         self.vm.add_args('-smp', '2')
         self.vm.add_args('-m', '1024')
-        self.prepare_boot()
-        self.prepare_cloudinit(ssh_pubkey)
+        self.set_up_boot()
+        self.set_up_cloudinit(ssh_pubkey)
 
-    def prepare_boot(self):
+    def set_up_boot(self):
         path = self.download_boot()
         self.vm.add_args('-drive', 'file=%s' % path)
 
-    def prepare_cloudinit(self, ssh_pubkey=None):
-        cloudinit_iso = self.download_cloudinit(ssh_pubkey)
+    def set_up_cloudinit(self, ssh_pubkey=None):
+        cloudinit_iso = self.prepare_cloudinit(ssh_pubkey)
         self.vm.add_args('-drive', 'file=%s,format=raw' % cloudinit_iso)
 
     def launch_and_wait(self):
