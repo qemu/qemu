@@ -387,6 +387,9 @@ static ssize_t tcp_chr_recv(Chardev *chr, char *buf, size_t len)
 static GSource *tcp_chr_add_watch(Chardev *chr, GIOCondition cond)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
+    if (!s->ioc) {
+        return NULL;
+    }
     return qio_channel_create_watch(s->ioc, cond);
 }
 
