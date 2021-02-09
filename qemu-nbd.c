@@ -328,7 +328,7 @@ static void *nbd_client_thread(void *arg)
 
 static int nbd_can_accept(void)
 {
-    return state == RUNNING && nb_fds < shared;
+    return state == RUNNING && (shared == 0 || nb_fds < shared);
 }
 
 static void nbd_update_server_watch(void);
@@ -707,7 +707,7 @@ int main(int argc, char **argv)
             break;
         case 'e':
             if (qemu_strtoi(optarg, NULL, 0, &shared) < 0 ||
-                shared < 1) {
+                shared < 0) {
                 error_report("Invalid shared device number '%s'", optarg);
                 exit(EXIT_FAILURE);
             }
@@ -966,7 +966,7 @@ int main(int argc, char **argv)
     if (socket_activation == 0) {
         int backlog;
 
-        if (persistent) {
+        if (persistent || shared == 0) {
             backlog = SOMAXCONN;
         } else {
             backlog = MIN(shared, SOMAXCONN);
