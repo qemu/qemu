@@ -194,6 +194,9 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
     if (!(env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_PKU)) {
         new_cr4 &= ~CR4_PKE_MASK;
     }
+    if (!(env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_PKS)) {
+        new_cr4 &= ~CR4_PKS_MASK;
+    }
 
     env->cr[4] = new_cr4;
     env->hflags = hflags;

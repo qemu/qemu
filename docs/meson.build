@@ -46,9 +46,11 @@ if build_docs
                           meson.source_root() / 'docs/sphinx/qmp_lexer.py',
                           qapi_gen_depends ]
 
+  have_ga = have_tools and config_host.has_key('CONFIG_GUEST_AGENT')
+
   man_pages = {
-        'qemu-ga.8': (have_tools ? 'man8' : ''),
-        'qemu-ga-ref.7': 'man7',
+        'qemu-ga.8': (have_ga ? 'man8' : ''),
+        'qemu-ga-ref.7': (have_ga ? 'man7' : ''),
         'qemu-qmp-ref.7': 'man7',
         'qemu-storage-daemon-qmp-ref.7': (have_tools ? 'man7' : ''),
         'qemu-img.1': (have_tools ? 'man1' : ''),

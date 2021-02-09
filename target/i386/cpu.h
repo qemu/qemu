@@ -247,6 +247,7 @@ typedef enum X86Seg {
 #define CR4_SMEP_MASK   (1U << 20)
 #define CR4_SMAP_MASK   (1U << 21)
 #define CR4_PKE_MASK   (1U << 22)
+#define CR4_PKS_MASK   (1U << 24)
 
 #define DR6_BD          (1 << 13)
 #define DR6_BS          (1 << 14)
@@ -357,6 +358,7 @@ typedef enum X86Seg {
 
 #define MSR_IA32_TSX_CTRL		0x122
 #define MSR_IA32_TSCDEADLINE            0x6e0
+#define MSR_IA32_PKRS                   0x6e1
 
 #define FEATURE_CONTROL_LOCKED                    (1<<0)
 #define FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX (1<<2)
@@ -670,16 +672,20 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_EXT3_PERFCORE (1U << 23)
 #define CPUID_EXT3_PERFNB  (1U << 24)
 
-#define CPUID_SVM_NPT          (1U << 0)
-#define CPUID_SVM_LBRV         (1U << 1)
-#define CPUID_SVM_SVMLOCK      (1U << 2)
-#define CPUID_SVM_NRIPSAVE     (1U << 3)
-#define CPUID_SVM_TSCSCALE     (1U << 4)
-#define CPUID_SVM_VMCBCLEAN    (1U << 5)
-#define CPUID_SVM_FLUSHASID    (1U << 6)
-#define CPUID_SVM_DECODEASSIST (1U << 7)
-#define CPUID_SVM_PAUSEFILTER  (1U << 10)
-#define CPUID_SVM_PFTHRESHOLD  (1U << 12)
+#define CPUID_SVM_NPT             (1U << 0)
+#define CPUID_SVM_LBRV            (1U << 1)
+#define CPUID_SVM_SVMLOCK         (1U << 2)
+#define CPUID_SVM_NRIPSAVE        (1U << 3)
+#define CPUID_SVM_TSCSCALE        (1U << 4)
+#define CPUID_SVM_VMCBCLEAN       (1U << 5)
+#define CPUID_SVM_FLUSHASID       (1U << 6)
+#define CPUID_SVM_DECODEASSIST    (1U << 7)
+#define CPUID_SVM_PAUSEFILTER     (1U << 10)
+#define CPUID_SVM_PFTHRESHOLD     (1U << 12)
+#define CPUID_SVM_AVIC            (1U << 13)
+#define CPUID_SVM_V_VMSAVE_VMLOAD (1U << 15)
+#define CPUID_SVM_VGIF            (1U << 16)
+#define CPUID_SVM_SVME_ADDR_CHK   (1U << 28)
 
 /* Support RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE */
 #define CPUID_7_0_EBX_FSGSBASE          (1U << 0)
@@ -768,6 +774,8 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_ECX_MOVDIRI           (1U << 27)
 /* Move 64 Bytes as Direct Store Instruction */
 #define CPUID_7_0_ECX_MOVDIR64B         (1U << 28)
+/* Protection Keys for Supervisor-mode Pages */
+#define CPUID_7_0_ECX_PKS               (1U << 31)
 
 /* AVX512 Neural Network Instructions */
 #define CPUID_7_0_EDX_AVX512_4VNNIW     (1U << 2)
@@ -965,6 +973,7 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 #define VMX_VM_EXIT_CLEAR_BNDCFGS                   0x00800000
 #define VMX_VM_EXIT_PT_CONCEAL_PIP                  0x01000000
 #define VMX_VM_EXIT_CLEAR_IA32_RTIT_CTL             0x02000000
+#define VMX_VM_EXIT_LOAD_IA32_PKRS                  0x20000000
 
 #define VMX_VM_ENTRY_LOAD_DEBUG_CONTROLS            0x00000004
 #define VMX_VM_ENTRY_IA32E_MODE                     0x00000200
@@ -976,6 +985,7 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 #define VMX_VM_ENTRY_LOAD_BNDCFGS                   0x00010000
 #define VMX_VM_ENTRY_PT_CONCEAL_PIP                 0x00020000
 #define VMX_VM_ENTRY_LOAD_IA32_RTIT_CTL             0x00040000
+#define VMX_VM_ENTRY_LOAD_IA32_PKRS                 0x00400000
 
 /* Supported Hyper-V Enlightenments */
 #define HYPERV_FEAT_RELAXED             0
@@ -1483,6 +1493,7 @@ typedef struct CPUX86State {
     uint64_t msr_smi_count;
 
     uint32_t pkru;
+    uint32_t pkrs;
     uint32_t tsx_ctrl;
 
     uint64_t spec_ctrl;

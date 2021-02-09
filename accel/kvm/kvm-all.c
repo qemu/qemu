@@ -644,15 +644,18 @@ static int kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
 
         d.dirty_bitmap = mem->dirty_bmap;
         d.slot = mem->slot | (kml->as_id << 16);
-        if (kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d) == -1) {
-            DPRINTF("ioctl failed %d\n", errno);
-            ret = -1;
+        ret = kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d);
+        if (ret == -ENOENT) {
+            /* kernel does not have dirty bitmap in this slot */
+            ret = 0;
+        } else if (ret < 0) {
+            error_report("ioctl KVM_GET_DIRTY_LOG failed: %d", errno);
             goto out;
+        } else {
+            subsection.offset_within_region += slot_offset;
+            subsection.size = int128_make64(slot_size);
+            kvm_get_dirty_pages_log_range(&subsection, d.dirty_bitmap);
         }
-
-        subsection.offset_within_region += slot_offset;
-        subsection.size = int128_make64(slot_size);
-        kvm_get_dirty_pages_log_range(&subsection, d.dirty_bitmap);
 
         slot_offset += slot_size;
         start_addr += slot_size;
@@ -750,8 +753,8 @@ static int kvm_log_clear_one_slot(KVMSlot *mem, int as_id, uint64_t start,
     d.num_pages = bmap_npages;
     d.slot = mem->slot | (as_id << 16);
 
-    if (kvm_vm_ioctl(s, KVM_CLEAR_DIRTY_LOG, &d) == -1) {
-        ret = -errno;
+    ret = kvm_vm_ioctl(s, KVM_CLEAR_DIRTY_LOG, &d);
+    if (ret < 0 && ret != -ENOENT) {
         error_report("%s: KVM_CLEAR_DIRTY_LOG failed, slot=%d, "
                      "start=0x%"PRIx64", size=0x%"PRIx32", errno=%d",
                      __func__, d.slot, (uint64_t)d.first_page,

@@ -90,14 +90,21 @@ static void cpu_throttle_timer_tick(void *opaque)
 
 void cpu_throttle_set(int new_throttle_pct)
 {
+    /*
+     * boolean to store whether throttle is already active or not,
+     * before modifying throttle_percentage
+     */
+    bool throttle_active = cpu_throttle_active();
+
     /* Ensure throttle percentage is within valid range */
     new_throttle_pct = MIN(new_throttle_pct, CPU_THROTTLE_PCT_MAX);
     new_throttle_pct = MAX(new_throttle_pct, CPU_THROTTLE_PCT_MIN);
 
     qatomic_set(&throttle_percentage, new_throttle_pct);
 
-    timer_mod(throttle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT) +
-                                       CPU_THROTTLE_TIMESLICE_NS);
+    if (!throttle_active) {
+        cpu_throttle_timer_tick(NULL);
+    }
 }
 
 void cpu_throttle_stop(void)

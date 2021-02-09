@@ -10,6 +10,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
 #include "qom/object.h"
+#include "sysemu/replay.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(RngBuiltin, RNG_BUILTIN)
 
@@ -37,7 +38,7 @@ static void rng_builtin_request_entropy(RngBackend *b, RngRequest *req)
 {
     RngBuiltin *s = RNG_BUILTIN(b);
 
-    qemu_bh_schedule(s->bh);
+    replay_bh_schedule_event(s->bh);
 }
 
 static void rng_builtin_init(Object *obj)
