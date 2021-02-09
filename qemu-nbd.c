@@ -964,8 +964,16 @@ int main(int argc, char **argv)
 
     server = qio_net_listener_new();
     if (socket_activation == 0) {
+        int backlog;
+
+        if (persistent) {
+            backlog = SOMAXCONN;
+        } else {
+            backlog = MIN(shared, SOMAXCONN);
+        }
         saddr = nbd_build_socket_address(sockpath, bindto, port);
-        if (qio_net_listener_open_sync(server, saddr, 1, &local_err) < 0) {
+        if (qio_net_listener_open_sync(server, saddr, backlog,
+                                       &local_err) < 0) {
             object_unref(OBJECT(server));
             error_report_err(local_err);
             exit(EXIT_FAILURE);

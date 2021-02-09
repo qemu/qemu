@@ -134,7 +134,12 @@ void nbd_server_start(SocketAddress *addr, const char *tls_creds,
     qio_net_listener_set_name(nbd_server->listener,
                               "nbd-listener");
 
-    if (qio_net_listener_open_sync(nbd_server->listener, addr, 1, errp) < 0) {
+    /*
+     * Because this server is persistent, a backlog of SOMAXCONN is
+     * better than trying to size it to max_connections.
+     */
+    if (qio_net_listener_open_sync(nbd_server->listener, addr, SOMAXCONN,
+                                   errp) < 0) {
         goto error;
     }
 
