@@ -162,8 +162,8 @@ uint16_t nvme_dif_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
     return NVME_SUCCESS;
 }
 
-static uint16_t nvme_dif_mangle_mdata(NvmeNamespace *ns, uint8_t *mbuf,
-                                      size_t mlen, uint64_t slba)
+uint16_t nvme_dif_mangle_mdata(NvmeNamespace *ns, uint8_t *mbuf, size_t mlen,
+                               uint64_t slba)
 {
     BlockBackend *blk = ns->blkconf.blk;
     BlockDriverState *bs = blk_bs(blk);
