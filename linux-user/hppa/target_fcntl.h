@@ -9,6 +9,7 @@
 #define HPPA_TARGET_FCNTL_H
 
 #define TARGET_O_NONBLOCK    000200000
+#define TARGET_O_NONBLOCK_MASK 000200004 /* includes old HP-UX NDELAY flag */
 #define TARGET_O_APPEND      000000010
 #define TARGET_O_CREAT       000000400 /* not fcntl */
 #define TARGET_O_EXCL        000002000 /* not fcntl */
