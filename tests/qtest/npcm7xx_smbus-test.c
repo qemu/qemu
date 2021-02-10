@@ -132,6 +132,44 @@ enum NPCM7xxSMBusBank1Register {
 #define ADDR_EN             BIT(7)
 #define ADDR_A(rv)          extract8((rv), 0, 6)
 
+/* FIF_CTL fields */
+#define FIF_CTL_FIFO_EN         BIT(4)
+
+/* FIF_CTS fields */
+#define FIF_CTS_CLR_FIFO        BIT(6)
+#define FIF_CTS_RFTE_IE         BIT(3)
+#define FIF_CTS_RXF_TXE         BIT(1)
+
+/* TXF_CTL fields */
+#define TXF_CTL_THR_TXIE        BIT(6)
+#define TXF_CTL_TX_THR(rv)      extract8((rv), 0, 5)
+
+/* TXF_STS fields */
+#define TXF_STS_TX_THST         BIT(6)
+#define TXF_STS_TX_BYTES(rv)    extract8((rv), 0, 5)
+
+/* RXF_CTL fields */
+#define RXF_CTL_THR_RXIE        BIT(6)
+#define RXF_CTL_LAST            BIT(5)
+#define RXF_CTL_RX_THR(rv)      extract8((rv), 0, 5)
+
+/* RXF_STS fields */
+#define RXF_STS_RX_THST         BIT(6)
+#define RXF_STS_RX_BYTES(rv)    extract8((rv), 0, 5)
+
+
+static void choose_bank(QTestState *qts, uint64_t base_addr, uint8_t bank)
+{
+    uint8_t ctl3 = qtest_readb(qts, base_addr + OFFSET_CTL3);
+
+    if (bank) {
+        ctl3 |= CTL3_BNK_SEL;
+    } else {
+        ctl3 &= ~CTL3_BNK_SEL;
+    }
+
+    qtest_writeb(qts, base_addr + OFFSET_CTL3, ctl3);
+}
 
 static void check_running(QTestState *qts, uint64_t base_addr)
 {
@@ -203,10 +241,33 @@ static void send_byte(QTestState *qts, uint64_t base_addr, uint8_t byte)
     qtest_writeb(qts, base_addr + OFFSET_SDA, byte);
 }
 
+static bool check_recv(QTestState *qts, uint64_t base_addr)
+{
+    uint8_t st, fif_ctl, rxf_ctl, rxf_sts;
+    bool fifo;
+
+    st = qtest_readb(qts, base_addr + OFFSET_ST);
+    choose_bank(qts, base_addr, 0);
+    fif_ctl = qtest_readb(qts, base_addr + OFFSET_FIF_CTL);
+    fifo = fif_ctl & FIF_CTL_FIFO_EN;
+    if (!fifo) {
+        return st == (ST_MODE | ST_SDAST);
+    }
+
+    choose_bank(qts, base_addr, 1);
+    rxf_ctl = qtest_readb(qts, base_addr + OFFSET_RXF_CTL);
+    rxf_sts = qtest_readb(qts, base_addr + OFFSET_RXF_STS);
+
+    if ((rxf_ctl & RXF_CTL_THR_RXIE) && RXF_STS_RX_BYTES(rxf_sts) < 16) {
+        return st == ST_MODE;
+    } else {
+        return st == (ST_MODE | ST_SDAST);
+    }
+}
+
 static uint8_t recv_byte(QTestState *qts, uint64_t base_addr)
 {
-    g_assert_cmphex(qtest_readb(qts, base_addr + OFFSET_ST), ==,
-                    ST_MODE | ST_SDAST);
+    g_assert_true(check_recv(qts, base_addr));
     return qtest_readb(qts, base_addr + OFFSET_SDA);
 }
 
@@ -229,7 +290,7 @@ static void send_address(QTestState *qts, uint64_t base_addr, uint8_t addr,
         qtest_writeb(qts, base_addr + OFFSET_ST, ST_STASTR);
         st = qtest_readb(qts, base_addr + OFFSET_ST);
         if (recv) {
-            g_assert_cmphex(st, ==, ST_MODE | ST_SDAST);
+            g_assert_true(check_recv(qts, base_addr));
         } else {
             g_assert_cmphex(st, ==, ST_MODE | ST_XMIT | ST_SDAST);
         }
@@ -249,6 +310,29 @@ static void send_nack(QTestState *qts, uint64_t base_addr)
     ctl1 &= ~(CTL1_START | CTL1_STOP);
     ctl1 |= CTL1_ACK | CTL1_INTEN;
     qtest_writeb(qts, base_addr + OFFSET_CTL1, ctl1);
+}
+
+static void start_fifo_mode(QTestState *qts, uint64_t base_addr)
+{
+    choose_bank(qts, base_addr, 0);
+    qtest_writeb(qts, base_addr + OFFSET_FIF_CTL, FIF_CTL_FIFO_EN);
+    g_assert_true(qtest_readb(qts, base_addr + OFFSET_FIF_CTL) &
+                  FIF_CTL_FIFO_EN);
+    choose_bank(qts, base_addr, 1);
+    qtest_writeb(qts, base_addr + OFFSET_FIF_CTS,
+                 FIF_CTS_CLR_FIFO | FIF_CTS_RFTE_IE);
+    g_assert_cmphex(qtest_readb(qts, base_addr + OFFSET_FIF_CTS), ==,
+                    FIF_CTS_RFTE_IE);
+    g_assert_cmphex(qtest_readb(qts, base_addr + OFFSET_TXF_STS), ==, 0);
+    g_assert_cmphex(qtest_readb(qts, base_addr + OFFSET_RXF_STS), ==, 0);
+}
+
+static void start_recv_fifo(QTestState *qts, uint64_t base_addr, uint8_t bytes)
+{
+    choose_bank(qts, base_addr, 1);
+    qtest_writeb(qts, base_addr + OFFSET_TXF_CTL, 0);
+    qtest_writeb(qts, base_addr + OFFSET_RXF_CTL,
+                 RXF_CTL_THR_RXIE | RXF_CTL_LAST | bytes);
 }
 
 /* Check the SMBus's status is set correctly when disabled. */
@@ -324,6 +408,64 @@ static void test_single_mode(gconstpointer data)
     qtest_quit(qts);
 }
 
+/* Check the SMBus can send and receive bytes in FIFO mode. */
+static void test_fifo_mode(gconstpointer data)
+{
+    intptr_t index = (intptr_t)data;
+    uint64_t base_addr = SMBUS_ADDR(index);
+    int irq = SMBUS_IRQ(index);
+    uint8_t value = 0x60;
+    QTestState *qts = qtest_init("-machine npcm750-evb");
+
+    qtest_irq_intercept_in(qts, "/machine/soc/a9mpcore/gic");
+    enable_bus(qts, base_addr);
+    start_fifo_mode(qts, base_addr);
+    g_assert_false(qtest_get_irq(qts, irq));
+
+    /* Sending */
+    start_transfer(qts, base_addr);
+    send_address(qts, base_addr, EVB_DEVICE_ADDR, false, true);
+    choose_bank(qts, base_addr, 1);
+    g_assert_true(qtest_readb(qts, base_addr + OFFSET_FIF_CTS) &
+                  FIF_CTS_RXF_TXE);
+    qtest_writeb(qts, base_addr + OFFSET_TXF_CTL, TXF_CTL_THR_TXIE);
+    send_byte(qts, base_addr, TMP105_REG_CONFIG);
+    send_byte(qts, base_addr, value);
+    g_assert_true(qtest_readb(qts, base_addr + OFFSET_FIF_CTS) &
+                  FIF_CTS_RXF_TXE);
+    g_assert_true(qtest_readb(qts, base_addr + OFFSET_TXF_STS) &
+                  TXF_STS_TX_THST);
+    g_assert_cmpuint(TXF_STS_TX_BYTES(
+                        qtest_readb(qts, base_addr + OFFSET_TXF_STS)), ==, 0);
+    g_assert_true(qtest_get_irq(qts, irq));
+    stop_transfer(qts, base_addr);
+    check_stopped(qts, base_addr);
+
+    /* Receiving */
+    start_fifo_mode(qts, base_addr);
+    start_transfer(qts, base_addr);
+    send_address(qts, base_addr, EVB_DEVICE_ADDR, false, true);
+    send_byte(qts, base_addr, TMP105_REG_CONFIG);
+    start_transfer(qts, base_addr);
+    qtest_writeb(qts, base_addr + OFFSET_FIF_CTS, FIF_CTS_RXF_TXE);
+    start_recv_fifo(qts, base_addr, 1);
+    send_address(qts, base_addr, EVB_DEVICE_ADDR, true, true);
+    g_assert_false(qtest_readb(qts, base_addr + OFFSET_FIF_CTS) &
+                   FIF_CTS_RXF_TXE);
+    g_assert_true(qtest_readb(qts, base_addr + OFFSET_RXF_STS) &
+                  RXF_STS_RX_THST);
+    g_assert_cmpuint(RXF_STS_RX_BYTES(
+                        qtest_readb(qts, base_addr + OFFSET_RXF_STS)), ==, 1);
+    send_nack(qts, base_addr);
+    stop_transfer(qts, base_addr);
+    check_running(qts, base_addr);
+    g_assert_cmphex(recv_byte(qts, base_addr), ==, value);
+    g_assert_cmpuint(RXF_STS_RX_BYTES(
+                        qtest_readb(qts, base_addr + OFFSET_RXF_STS)), ==, 0);
+    check_stopped(qts, base_addr);
+    qtest_quit(qts);
+}
+
 static void smbus_add_test(const char *name, int index, GTestDataFunc fn)
 {
     g_autofree char *full_name = g_strdup_printf(
@@ -346,6 +488,7 @@ int main(int argc, char **argv)
 
     for (i = 0; i < ARRAY_SIZE(evb_bus_list); ++i) {
         add_test(single_mode, evb_bus_list[i]);
+        add_test(fifo_mode, evb_bus_list[i]);
     }
 
     return g_test_run();

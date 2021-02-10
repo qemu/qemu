@@ -27,6 +27,9 @@
  */
 #define NPCM7XX_SMBUS_NR_ADDRS 10
 
+/* Size of the FIFO buffer. */
+#define NPCM7XX_SMBUS_FIFO_SIZE 16
+
 typedef enum NPCM7xxSMBusStatus {
     NPCM7XX_SMBUS_STATUS_IDLE,
     NPCM7XX_SMBUS_STATUS_SENDING,
@@ -53,6 +56,16 @@ typedef enum NPCM7xxSMBusStatus {
  * @addr: The SMBus module's own addresses on the I2C bus.
  * @scllt: The SCL low time register.
  * @sclht: The SCL high time register.
+ * @fif_ctl: The FIFO control register.
+ * @fif_cts: The FIFO control status register.
+ * @fair_per: The fair preriod register.
+ * @txf_ctl: The transmit FIFO control register.
+ * @t_out: The SMBus timeout register.
+ * @txf_sts: The transmit FIFO status register.
+ * @rxf_sts: The receive FIFO status register.
+ * @rxf_ctl: The receive FIFO control register.
+ * @rx_fifo: The FIFO buffer for receiving in FIFO mode.
+ * @rx_cur: The current position of rx_fifo.
  * @status: The current status of the SMBus.
  */
 typedef struct NPCM7xxSMBusState {
@@ -77,6 +90,18 @@ typedef struct NPCM7xxSMBusState {
 
     uint8_t      scllt;
     uint8_t      sclht;
+
+    uint8_t      fif_ctl;
+    uint8_t      fif_cts;
+    uint8_t      fair_per;
+    uint8_t      txf_ctl;
+    uint8_t      t_out;
+    uint8_t      txf_sts;
+    uint8_t      rxf_sts;
+    uint8_t      rxf_ctl;
+
+    uint8_t      rx_fifo[NPCM7XX_SMBUS_FIFO_SIZE];
+    uint8_t      rx_cur;
 
     NPCM7xxSMBusStatus status;
 } NPCM7xxSMBusState;
