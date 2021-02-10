@@ -18,7 +18,7 @@
 
 #include <sys/file.h>
 
-#define THREAD_POOL_SIZE 64
+#define THREAD_POOL_SIZE 0
 
 #define OFFSET_MAX 0x7fffffffffffffffLL
 
