@@ -210,4 +210,6 @@ static inline unsigned spapr_phb_windows_supported(SpaprPhbState *sphb)
     return sphb->ddw_enabled ? SPAPR_PCI_DMA_MAX_WINDOWS : 1;
 }
 
+char *spapr_pci_fw_dev_name(PCIDevice *dev);
+
 #endif /* PCI_HOST_SPAPR_H */
