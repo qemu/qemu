@@ -301,8 +301,10 @@ class TestRunner(ContextManager['TestRunner']):
         last_el = self.last_elapsed.get(test)
         start = datetime.datetime.now().strftime('%H:%M:%S')
 
-        self.test_print_one_line(test=test, starttime=start, lasttime=last_el,
-                                 end='\r', test_field_width=test_field_width)
+        if not self.makecheck:
+            self.test_print_one_line(test=test, starttime=start,
+                                     lasttime=last_el, end='\r',
+                                     test_field_width=test_field_width)
 
         res = self.do_run_test(test)
 
@@ -318,7 +320,7 @@ class TestRunner(ContextManager['TestRunner']):
 
         return res
 
-    def run_tests(self, tests: List[str]) -> None:
+    def run_tests(self, tests: List[str]) -> bool:
         n_run = 0
         failed = []
         notrun = []
@@ -363,5 +365,7 @@ class TestRunner(ContextManager['TestRunner']):
         if failed:
             print('Failures:', ' '.join(failed))
             print(f'Failed {len(failed)} of {n_run} iotests')
+            return False
         else:
             print(f'Passed all {n_run} iotests')
+            return True

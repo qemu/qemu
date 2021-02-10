@@ -122,3 +122,8 @@ virtio_mem_unplug_all_request(void) ""
 virtio_mem_resized_usable_region(uint64_t old_size, uint64_t new_size) "old_size=0x%" PRIx64 "new_size=0x%" PRIx64
 virtio_mem_state_request(uint64_t addr, uint16_t nb_blocks) "addr=0x%" PRIx64 " nb_blocks=%" PRIu16
 virtio_mem_state_response(uint16_t state) "state=%" PRIu16
+
+# virtio-pmem.c
+virtio_pmem_flush_request(void) "flush request"
+virtio_pmem_response(void) "flush response"
+virtio_pmem_flush_done(int type) "fsync return=%d"

@@ -10,7 +10,7 @@
 #define QEMU_KVM_INT_H
 
 #include "exec/memory.h"
-#include "sysemu/accel.h"
+#include "qemu/accel.h"
 #include "sysemu/kvm.h"
 
 typedef struct KVMSlot

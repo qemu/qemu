@@ -179,7 +179,8 @@ void configure_rtc(QemuOpts *opts)
         if (!strcmp(value, "slew")) {
             object_register_sugar_prop("mc146818rtc",
                                        "lost_tick_policy",
-                                       "slew");
+                                       "slew",
+                                       false);
         } else if (!strcmp(value, "none")) {
             /* discard is default */
         } else {

@@ -322,12 +322,6 @@ The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
 System emulator machines
 ------------------------
 
-``pc-1.0``, ``pc-1.1``, ``pc-1.2`` and ``pc-1.3`` (since 5.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-These machine types are very old and likely can not be used for live migration
-from old QEMU versions anymore. A newer machine type should be used instead.
-
 Raspberry Pi ``raspi2`` and ``raspi3`` machines (since 5.2)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 

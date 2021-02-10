@@ -38,7 +38,7 @@ struct PageCache {
     size_t num_items;
 };
 
-PageCache *cache_init(int64_t new_size, size_t page_size, Error **errp)
+PageCache *cache_init(uint64_t new_size, size_t page_size, Error **errp)
 {
     int64_t i;
     size_t num_pages = new_size / page_size;
@@ -60,8 +60,7 @@ PageCache *cache_init(int64_t new_size, size_t page_size, Error **errp)
     /* We prefer not to abort if there is no memory */
     cache = g_try_malloc(sizeof(*cache));
     if (!cache) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
-                   "Failed to allocate cache");
+        error_setg(errp, "Failed to allocate cache");
         return NULL;
     }
     cache->page_size = page_size;
@@ -74,8 +73,7 @@ PageCache *cache_init(int64_t new_size, size_t page_size, Error **errp)
     cache->page_cache = g_try_malloc((cache->max_num_items) *
                                      sizeof(*cache->page_cache));
     if (!cache->page_cache) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
-                   "Failed to allocate page cache");
+        error_setg(errp, "Failed to allocate page cache");
         g_free(cache);
         return NULL;
     }

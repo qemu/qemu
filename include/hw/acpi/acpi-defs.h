@@ -41,7 +41,7 @@ enum {
 };
 
 typedef struct AcpiRsdpData {
-    uint8_t oem_id[6] QEMU_NONSTRING; /* OEM identification */
+    char *oem_id;                     /* OEM identification */
     uint8_t revision;                 /* Must be 0 for 1.0, 2 for 2.0 */
 
     unsigned *rsdt_tbl_offset;

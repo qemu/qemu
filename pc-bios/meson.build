@@ -12,6 +12,7 @@ if install_edk2_blobs
 
   foreach f : fds
     custom_target(f,
+                  build_by_default: have_system,
                   output: f,
                   input: '@0@.bz2'.format(f),
                   capture: true,

@@ -37,6 +37,7 @@
  */
 #define HMAT_PROXIMITY_INITIATOR_VALID  0x1
 
-void build_hmat(GArray *table_data, BIOSLinker *linker, NumaState *numa_state);
+void build_hmat(GArray *table_data, BIOSLinker *linker, NumaState *numa_state,
+                const char *oem_id, const char *oem_table_id);
 
 #endif

@@ -2,30 +2,14 @@
 #define QEMU_CPUS_H
 
 #include "qemu/timer.h"
+#include "sysemu/accel-ops.h"
 
-/* cpus.c */
+/* register accel-specific operations */
+void cpus_register_accel(const AccelOpsClass *i);
 
-/* CPU execution threads */
+/* accel/dummy-cpus.c */
 
-typedef struct CpusAccel {
-    void (*create_vcpu_thread)(CPUState *cpu); /* MANDATORY */
-    void (*kick_vcpu_thread)(CPUState *cpu);
-
-    void (*synchronize_post_reset)(CPUState *cpu);
-    void (*synchronize_post_init)(CPUState *cpu);
-    void (*synchronize_state)(CPUState *cpu);
-    void (*synchronize_pre_loadvm)(CPUState *cpu);
-
-    void (*handle_interrupt)(CPUState *cpu, int mask);
-
-    int64_t (*get_virtual_clock)(void);
-    int64_t (*get_elapsed_ticks)(void);
-} CpusAccel;
-
-/* register accel-specific cpus interface implementation */
-void cpus_register_accel(const CpusAccel *i);
-
-/* Create a dummy vcpu for CpusAccel->create_vcpu_thread */
+/* Create a dummy vcpu for AccelOpsClass->create_vcpu_thread */
 void dummy_start_vcpu_thread(CPUState *);
 
 /* interface available for cpus accelerator threads */

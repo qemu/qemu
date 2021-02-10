@@ -133,9 +133,11 @@ to pass "id" with out-of-band commands.  Passing it with all commands
 is recommended for clients that accept capability "oob".
 
 If the client sends in-band commands faster than the server can
-execute them, the server will stop reading the requests from the QMP
-channel until the request queue length is reduced to an acceptable
-range.
+execute them, the server will stop reading requests until the request
+queue length is reduced to an acceptable range.
+
+To ensure commands to be executed out-of-band get read and executed,
+the client should have at most eight in-band commands in flight.
 
 Only a few commands support out-of-band execution.  The ones that do
 have "allow-oob": true in output of query-qmp-schema.

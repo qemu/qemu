@@ -4,18 +4,20 @@ util_ss.add(files(
   'qapi-dealloc-visitor.c',
   'qapi-util.c',
   'qapi-visit-core.c',
-  'qmp-dispatch.c',
-  'qmp-event.c',
-  'qmp-registry.c',
   'qobject-input-visitor.c',
   'qobject-output-visitor.c',
   'string-input-visitor.c',
   'string-output-visitor.c',
 ))
+if have_system or have_tools
+  util_ss.add(files(
+    'qmp-dispatch.c',
+    'qmp-event.c',
+    'qmp-registry.c',
+  ))
+endif
 
 qapi_all_modules = [
-  'acpi',
-  'audio',
   'authz',
   'block',
   'block-core',
@@ -35,20 +37,30 @@ qapi_all_modules = [
   'misc-target',
   'net',
   'pragma',
-  'qdev',
-  'pci',
   'qom',
-  'rdma',
   'replay',
-  'rocker',
   'run-state',
   'sockets',
-  'tpm',
   'trace',
   'transaction',
-  'ui',
   'yank',
 ]
+if have_system
+  qapi_all_modules += [
+    'acpi',
+    'audio',
+    'qdev',
+    'pci',
+    'rdma',
+    'rocker',
+    'tpm',
+  ]
+endif
+if have_system or have_tools
+  qapi_all_modules += [
+    'ui',
+  ]
+endif
 
 qapi_storage_daemon_modules = [
   'block-core',

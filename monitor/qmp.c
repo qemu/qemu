@@ -79,7 +79,7 @@ static void monitor_qmp_cleanup_queue_and_resume(MonitorQMP *mon)
     qemu_mutex_lock(&mon->qmp_queue_lock);
 
     /*
-     * Same condition as in monitor_qmp_bh_dispatcher(), but before
+     * Same condition as in monitor_qmp_dispatcher_co(), but before
      * removing an element from the queue (hence no `- 1`).
      * Also, the queue should not be empty either, otherwise the
      * monitor hasn't been suspended yet (or was already resumed).
@@ -113,6 +113,7 @@ void qmp_send_response(MonitorQMP *mon, const QDict *rsp)
 
     json = qobject_to_json_pretty(data, mon->pretty);
     assert(json != NULL);
+    trace_monitor_qmp_respond(mon, json->str);
 
     g_string_append_c(json, '\n');
     monitor_puts(&mon->common, json->str);
@@ -213,7 +214,7 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
 {
     QMPRequest *req_obj = NULL;
     QDict *rsp;
-    bool need_resume;
+    bool oob_enabled;
     MonitorQMP *mon;
 
     while (true) {
@@ -251,6 +252,9 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
             }
         }
 
+        trace_monitor_qmp_in_band_dequeue(req_obj,
+                                          req_obj->mon->qmp_requests->length);
+
         if (qatomic_xchg(&qmp_dispatcher_co_busy, true) == true) {
             /*
              * Someone rescheduled us (probably because a new requests
@@ -269,11 +273,32 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
         aio_co_schedule(qemu_get_aio_context(), qmp_dispatcher_co);
         qemu_coroutine_yield();
 
+        /*
+         * @req_obj has a request, we hold req_obj->mon->qmp_queue_lock
+         */
+
         mon = req_obj->mon;
-        /* qmp_oob_enabled() might change after "qmp_capabilities" */
-        need_resume = !qmp_oob_enabled(mon) ||
-            mon->qmp_requests->length == QMP_REQ_QUEUE_LEN_MAX - 1;
+
+        /*
+         * We need to resume the monitor if handle_qmp_command()
+         * suspended it.  Two cases:
+         * 1. OOB enabled: mon->qmp_requests has no more space
+         *    Resume right away, so that OOB commands can get executed while
+         *    this request is being processed.
+         * 2. OOB disabled: always
+         *    Resume only after we're done processing the request,
+         * We need to save qmp_oob_enabled() for later, because
+         * qmp_qmp_capabilities() can change it.
+         */
+        oob_enabled = qmp_oob_enabled(mon);
+        if (oob_enabled
+            && mon->qmp_requests->length == QMP_REQ_QUEUE_LEN_MAX - 1) {
+            monitor_resume(&mon->common);
+        }
+
         qemu_mutex_unlock(&mon->qmp_queue_lock);
+
+        /* Process request */
         if (req_obj->req) {
             if (trace_event_get_state(TRACE_MONITOR_QMP_CMD_IN_BAND)) {
                 QDict *qdict = qobject_to(QDict, req_obj->req);
@@ -287,16 +312,17 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
             monitor_qmp_dispatch(mon, req_obj->req);
         } else {
             assert(req_obj->err);
+            trace_monitor_qmp_err_in_band(error_get_pretty(req_obj->err));
             rsp = qmp_error_response(req_obj->err);
             req_obj->err = NULL;
             monitor_qmp_respond(mon, rsp);
             qobject_unref(rsp);
         }
 
-        if (need_resume) {
-            /* Pairs with the monitor_suspend() in handle_qmp_command() */
+        if (!oob_enabled) {
             monitor_resume(&mon->common);
         }
+
         qmp_request_free(req_obj);
 
         /*
@@ -349,7 +375,7 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
 
     /*
      * Suspend the monitor when we can't queue more requests after
-     * this one.  Dequeuing in monitor_qmp_bh_dispatcher() or
+     * this one.  Dequeuing in monitor_qmp_dispatcher_co() or
      * monitor_qmp_cleanup_queue_and_resume() will resume it.
      * Note that when OOB is disabled, we queue at most one command,
      * for backward compatibility.
@@ -364,6 +390,8 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
      * handled in time order.  Ownership for req_obj, req,
      * etc. will be delivered to the handler side.
      */
+    trace_monitor_qmp_in_band_enqueue(req_obj, mon,
+                                      mon->qmp_requests->length);
     assert(mon->qmp_requests->length < QMP_REQ_QUEUE_LEN_MAX);
     g_queue_push_tail(mon->qmp_requests, req_obj);
     qemu_mutex_unlock(&mon->qmp_queue_lock);

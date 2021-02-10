@@ -244,6 +244,7 @@ void helper_rdmsr(CPUX86State *env)
 void helper_wrmsr(CPUX86State *env)
 {
     uint64_t val;
+    CPUState *cs = env_cpu(env);
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_MSR, 1, GETPC());
 
@@ -295,6 +296,13 @@ void helper_wrmsr(CPUX86State *env)
         break;
     case MSR_PAT:
         env->pat = val;
+        break;
+    case MSR_IA32_PKRS:
+        if (val & 0xFFFFFFFF00000000ull) {
+            goto error;
+        }
+        env->pkrs = val;
+        tlb_flush(cs);
         break;
     case MSR_VM_HSAVE_PA:
         env->vm_hsave = val;
@@ -399,6 +407,9 @@ void helper_wrmsr(CPUX86State *env)
         /* XXX: exception? */
         break;
     }
+    return;
+error:
+    raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
 }
 
 void helper_rdmsr(CPUX86State *env)
@@ -429,6 +440,9 @@ void helper_rdmsr(CPUX86State *env)
         break;
     case MSR_PAT:
         val = env->pat;
+        break;
+    case MSR_IA32_PKRS:
+        val = env->pkrs;
         break;
     case MSR_VM_HSAVE_PA:
         val = env->vm_hsave;

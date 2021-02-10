@@ -110,6 +110,7 @@ def emit_suite(name, suite, prefix):
     print('ifneq ($(filter %s %s, $(MAKECMDGOALS)),)' % (target, prefix))
     print('.tests += $(.test.$(SPEED).%s)' % (target, ))
     print('endif')
+    print('all-%s-targets += %s' % (prefix, target))
 
 targets = {t['id']: [os.path.relpath(f) for f in t['filename']]
            for t in introspect['targets']}

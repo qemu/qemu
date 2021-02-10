@@ -180,7 +180,7 @@ Job failed: Could not resize image: Image size cannot be negative
 
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "qcow2", "file": "node0", "size": 9223372036854775296}}}
 {"return": {}}
-Job failed: Could not resize image: Required too big image size, it must be not greater than 9223372035781033984
+Job failed: Could not resize image: offset(9223372036854775296) exceeds maximum(9223372035781033984)
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 

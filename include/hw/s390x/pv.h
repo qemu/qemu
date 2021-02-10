@@ -12,6 +12,9 @@
 #ifndef HW_S390_PV_H
 #define HW_S390_PV_H
 
+#include "qapi/error.h"
+#include "sysemu/kvm.h"
+
 #ifdef CONFIG_KVM
 #include "cpu.h"
 #include "hw/s390x/s390-virtio-ccw.h"
@@ -54,5 +57,19 @@ static inline int s390_pv_verify(void) { return 0; }
 static inline void s390_pv_unshare(void) {}
 static inline void s390_pv_inject_reset_error(CPUState *cs) {};
 #endif /* CONFIG_KVM */
+
+int s390_pv_kvm_init(ConfidentialGuestSupport *cgs, Error **errp);
+static inline int s390_pv_init(ConfidentialGuestSupport *cgs, Error **errp)
+{
+    if (!cgs) {
+        return 0;
+    }
+    if (kvm_enabled()) {
+        return s390_pv_kvm_init(cgs, errp);
+    }
+
+    error_setg(errp, "Protected Virtualization requires KVM");
+    return -1;
+}
 
 #endif /* HW_S390_PV_H */

@@ -410,18 +410,25 @@ static inline bool tlb_hit(target_ulong tlb_addr, target_ulong addr)
 }
 
 #ifdef CONFIG_TCG
+/* accel/tcg/cpu-exec.c */
 void dump_drift_info(void);
+/* accel/tcg/translate-all.c */
 void dump_exec_info(void);
 void dump_opcount_info(void);
 #endif /* CONFIG_TCG */
 
 #endif /* !CONFIG_USER_ONLY */
 
+#ifdef CONFIG_TCG
+/* accel/tcg/cpu-exec.c */
+int cpu_exec(CPUState *cpu);
+void tcg_exec_realizefn(CPUState *cpu, Error **errp);
+void tcg_exec_unrealizefn(CPUState *cpu);
+#endif /* CONFIG_TCG */
+
 /* Returns: 0 on success, -1 on error */
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
                         void *ptr, target_ulong len, bool is_write);
-
-int cpu_exec(CPUState *cpu);
 
 /**
  * cpu_set_cpustate_pointers(cpu)

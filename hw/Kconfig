@@ -81,3 +81,4 @@ config XLNX_ZYNQMP
     bool
     select REGISTER
     select CAN_BUS
+    select PTIMER

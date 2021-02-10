@@ -100,7 +100,7 @@ In meson.build::
   # Detect dependency
   sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
                          method: 'pkg-config',
-                         static: enable_static)
+                         kwargs: static_kwargs)
 
   # Create config-host.h (if applicable)
   config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())

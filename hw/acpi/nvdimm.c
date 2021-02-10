@@ -402,7 +402,8 @@ void nvdimm_plug(NVDIMMState *state)
 }
 
 static void nvdimm_build_nfit(NVDIMMState *state, GArray *table_offsets,
-                              GArray *table_data, BIOSLinker *linker)
+                              GArray *table_data, BIOSLinker *linker,
+                              const char *oem_id, const char *oem_table_id)
 {
     NvdimmFitBuffer *fit_buf = &state->fit_buf;
     unsigned int header;
@@ -417,7 +418,8 @@ static void nvdimm_build_nfit(NVDIMMState *state, GArray *table_offsets,
 
     build_header(linker, table_data,
                  (void *)(table_data->data + header), "NFIT",
-                 sizeof(NvdimmNfitHeader) + fit_buf->fit->len, 1, NULL, NULL);
+                 sizeof(NvdimmNfitHeader) + fit_buf->fit->len, 1, oem_id,
+                 oem_table_id);
 }
 
 #define NVDIMM_DSM_MEMORY_SIZE      4096
@@ -1278,7 +1280,7 @@ static void nvdimm_build_nvdimm_devices(Aml *root_dev, uint32_t ram_slots)
 static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
                               BIOSLinker *linker,
                               NVDIMMState *nvdimm_state,
-                              uint32_t ram_slots)
+                              uint32_t ram_slots, const char *oem_id)
 {
     Aml *ssdt, *sb_scope, *dev;
     int mem_addr_offset, nvdimm_ssdt;
@@ -1331,7 +1333,7 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
         NVDIMM_DSM_MEM_FILE, 0);
     build_header(linker, table_data,
         (void *)(table_data->data + nvdimm_ssdt),
-        "SSDT", table_data->len - nvdimm_ssdt, 1, NULL, "NVDIMM");
+                 "SSDT", table_data->len - nvdimm_ssdt, 1, oem_id, "NVDIMM");
     free_aml_allocator();
 }
 
@@ -1359,7 +1361,8 @@ void nvdimm_build_srat(GArray *table_data)
 
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        BIOSLinker *linker, NVDIMMState *state,
-                       uint32_t ram_slots)
+                       uint32_t ram_slots, const char *oem_id,
+                       const char *oem_table_id)
 {
     GSList *device_list;
 
@@ -1369,7 +1372,7 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
     }
 
     nvdimm_build_ssdt(table_offsets, table_data, linker, state,
-                      ram_slots);
+                      ram_slots, oem_id);
 
     device_list = nvdimm_get_device_list();
     /* no NVDIMM device is plugged. */
@@ -1377,6 +1380,7 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
         return;
     }
 
-    nvdimm_build_nfit(state, table_offsets, table_data, linker);
+    nvdimm_build_nfit(state, table_offsets, table_data, linker,
+                      oem_id, oem_table_id);
     g_slist_free(device_list);
 }

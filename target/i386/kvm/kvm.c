@@ -42,6 +42,7 @@
 #include "hw/i386/intel_iommu.h"
 #include "hw/i386/x86-iommu.h"
 #include "hw/i386/e820_memory_layout.h"
+#include "sysemu/sev.h"
 
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
@@ -112,6 +113,7 @@ static bool has_msr_vmx_vmfunc;
 static bool has_msr_ucode_rev;
 static bool has_msr_vmx_procbased_ctls2;
 static bool has_msr_perf_capabs;
+static bool has_msr_pkrs;
 
 static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
@@ -2086,6 +2088,9 @@ static int kvm_get_supported_msrs(KVMState *s)
             case MSR_IA32_VMX_PROCBASED_CTLS2:
                 has_msr_vmx_procbased_ctls2 = true;
                 break;
+            case MSR_IA32_PKRS:
+                has_msr_pkrs = true;
+                break;
             }
         }
     }
@@ -2135,6 +2140,25 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     uint64_t shadow_mem;
     int ret;
     struct utsname utsname;
+    Error *local_err = NULL;
+
+    /*
+     * Initialize SEV context, if required
+     *
+     * If no memory encryption is requested (ms->cgs == NULL) this is
+     * a no-op.
+     *
+     * It's also a no-op if a non-SEV confidential guest support
+     * mechanism is selected.  SEV is the only mechanism available to
+     * select on x86 at present, so this doesn't arise, but if new
+     * mechanisms are supported in future (e.g. TDX), they'll need
+     * their own initialization either here or elsewhere.
+     */
+    ret = sev_kvm_init(ms->cgs, &local_err);
+    if (ret < 0) {
+        error_report_err(local_err);
+        return ret;
+    }
 
     if (!kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
         error_report("kvm: KVM_CAP_IRQ_ROUTING not supported by KVM");
@@ -2794,6 +2818,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     if (has_msr_smi_count) {
         kvm_msr_entry_add(cpu, MSR_SMI_COUNT, env->msr_smi_count);
     }
+    if (has_msr_pkrs) {
+        kvm_msr_entry_add(cpu, MSR_IA32_PKRS, env->pkrs);
+    }
     if (has_msr_bndcfgs) {
         kvm_msr_entry_add(cpu, MSR_IA32_BNDCFGS, env->msr_bndcfgs);
     }
@@ -3185,6 +3212,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_feature_control) {
         kvm_msr_entry_add(cpu, MSR_IA32_FEATURE_CONTROL, 0);
     }
+    if (has_msr_pkrs) {
+        kvm_msr_entry_add(cpu, MSR_IA32_PKRS, 0);
+    }
     if (has_msr_bndcfgs) {
         kvm_msr_entry_add(cpu, MSR_IA32_BNDCFGS, 0);
     }
@@ -3454,6 +3484,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_IA32_UMWAIT_CONTROL:
             env->umwait = msrs[i].data;
+            break;
+        case MSR_IA32_PKRS:
+            env->pkrs = msrs[i].data;
             break;
         default:
             if (msrs[i].index >= MSR_MC0_CTL &&

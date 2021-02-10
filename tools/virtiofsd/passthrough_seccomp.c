@@ -65,6 +65,7 @@ static const int syscall_whitelist[] = {
     SCMP_SYS(linkat),
     SCMP_SYS(listxattr),
     SCMP_SYS(lseek),
+    SCMP_SYS(_llseek), /* For POWER */
     SCMP_SYS(madvise),
     SCMP_SYS(mkdirat),
     SCMP_SYS(mknodat),
@@ -88,6 +89,7 @@ static const int syscall_whitelist[] = {
     SCMP_SYS(renameat),
     SCMP_SYS(renameat2),
     SCMP_SYS(removexattr),
+    SCMP_SYS(restart_syscall),
     SCMP_SYS(rt_sigaction),
     SCMP_SYS(rt_sigprocmask),
     SCMP_SYS(rt_sigreturn),

@@ -1,5 +1,6 @@
 tcg_ss = ss.source_set()
 tcg_ss.add(files(
+  'tcg-all.c',
   'cpu-exec-common.c',
   'cpu-exec.c',
   'tcg-runtime-gvec.c',
@@ -13,10 +14,9 @@ tcg_ss.add(when: 'CONFIG_PLUGIN', if_true: [files('plugin-gen.c'), libdl])
 specific_ss.add_all(when: 'CONFIG_TCG', if_true: tcg_ss)
 
 specific_ss.add(when: ['CONFIG_SOFTMMU', 'CONFIG_TCG'], if_true: files(
-  'tcg-all.c',
   'cputlb.c',
-  'tcg-cpus.c',
-  'tcg-cpus-mttcg.c',
-  'tcg-cpus-icount.c',
-  'tcg-cpus-rr.c'
+  'tcg-accel-ops.c',
+  'tcg-accel-ops-mttcg.c',
+  'tcg-accel-ops-icount.c',
+  'tcg-accel-ops-rr.c'
 ))

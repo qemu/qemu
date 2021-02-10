@@ -140,4 +140,7 @@ if __name__ == '__main__':
     else:
         with TestRunner(env, makecheck=args.makecheck,
                         color=args.color) as tr:
-            tr.run_tests([os.path.join(env.source_iotests, t) for t in tests])
+            paths = [os.path.join(env.source_iotests, t) for t in tests]
+            ok = tr.run_tests(paths)
+            if not ok:
+                sys.exit(1)
