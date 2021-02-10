@@ -370,6 +370,7 @@ config NPCM7XX
     bool
     select A9MPCORE
     select ARM_GIC
+    select AT24C  # EEPROM
     select PL310  # cache controller
     select SERIAL
     select SSI
