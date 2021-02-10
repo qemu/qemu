@@ -34,6 +34,7 @@ Contents:
    pr-manager
    targets
    security
+   multi-process
    deprecated
    removed-features
    build-platforms

@@ -18,7 +18,6 @@ include:
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   before_script:
     - JOBS=$(expr $(nproc) + 1)
-    - sed -i s,git.qemu.org/git,gitlab.com/qemu-project, .gitmodules
   script:
     - mkdir build
     - cd build
