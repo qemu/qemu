@@ -250,6 +250,9 @@ static int64_t suffix_mul(char suffix, int64_t unit)
  *   fractional portion is truncated to byte
  * - 0x7fEE - hexadecimal, unit determined by @default_suffix
  *
+ * The following cause a deprecation warning, and may be removed in the future
+ * - 0xabc{kKmMgGtTpP} - hex with scaling suffix
+ *
  * The following are intentionally not supported
  * - octal, such as 08
  * - fractional hex, such as 0x1.8
@@ -272,7 +275,7 @@ static int do_strtosz(const char *nptr, const char **end,
     int retval;
     const char *endptr, *f;
     unsigned char c;
-    bool mul_required = false;
+    bool mul_required = false, hex = false;
     uint64_t val;
     int64_t mul;
     double fraction = 0.0;
@@ -298,6 +301,7 @@ static int do_strtosz(const char *nptr, const char **end,
             retval = -EINVAL;
             goto out;
         }
+        hex = true;
     } else if (*endptr == '.') {
         /*
          * Input looks like a fraction.  Make sure even 1.k works
@@ -320,6 +324,10 @@ static int do_strtosz(const char *nptr, const char **end,
     c = *endptr;
     mul = suffix_mul(c, unit);
     if (mul > 0) {
+        if (hex) {
+            warn_report("Using a multiplier suffix on hex numbers "
+                        "is deprecated: %s", nptr);
+        }
         endptr++;
     } else {
         mul = suffix_mul(default_suffix, unit);
