@@ -89,6 +89,7 @@ typedef struct MirrorBlockJob {
 typedef struct MirrorBDSOpaque {
     MirrorBlockJob *job;
     bool stop;
+    bool is_commit;
 } MirrorBDSOpaque;
 
 struct MirrorOp {
@@ -1522,13 +1523,27 @@ static void bdrv_mirror_top_child_perm(BlockDriverState *bs, BdrvChild *c,
         return;
     }
 
-    /* Must be able to forward guest writes to the real image */
-    *nperm = 0;
-    if (perm & BLK_PERM_WRITE) {
-        *nperm |= BLK_PERM_WRITE;
-    }
+    bdrv_default_perms(bs, c, role, reopen_queue,
+                       perm, shared, nperm, nshared);
 
-    *nshared = BLK_PERM_ALL;
+    if (s->is_commit) {
+        /*
+         * For commit jobs, we cannot take CONSISTENT_READ, because
+         * that permission is unshared for everything above the base
+         * node (except for filters on the base node).
+         * We also have to force-share the WRITE permission, or
+         * otherwise we would block ourselves at the base node (if
+         * writes are blocked for a node, they are also blocked for
+         * its backing file).
+         * (We could also share RESIZE, because it may be needed for
+         * the target if its size is less than the top node's; but
+         * bdrv_default_perms_for_cow() automatically shares RESIZE
+         * for backing nodes if WRITE is shared, so there is no need
+         * to do it here.)
+         */
+        *nperm &= ~BLK_PERM_CONSISTENT_READ;
+        *nshared |= BLK_PERM_WRITE;
+    }
 }
 
 /* Dummy node that provides consistent read to its users without requiring it
@@ -1591,6 +1606,8 @@ static BlockJob *mirror_start_job(
         return NULL;
     }
 
+    target_is_backing = bdrv_chain_contains(bs, target);
+
     /* In the case of active commit, add dummy driver to provide consistent
      * reads on the top, while disabling it in the intermediate nodes, and make
      * the backing chain writable. */
@@ -1612,6 +1629,8 @@ static BlockJob *mirror_start_job(
                                           BDRV_REQ_NO_FALLBACK;
     bs_opaque = g_new0(MirrorBDSOpaque, 1);
     mirror_top_bs->opaque = bs_opaque;
+
+    bs_opaque->is_commit = target_is_backing;
 
     /* bdrv_append takes ownership of the mirror_top_bs reference, need to keep
      * it alive until block_job_create() succeeds even if bs has no parent. */
@@ -1653,7 +1672,6 @@ static BlockJob *mirror_start_job(
     target_perms = BLK_PERM_WRITE;
     target_shared_perms = BLK_PERM_WRITE_UNCHANGED;
 
-    target_is_backing = bdrv_chain_contains(bs, target);
     if (target_is_backing) {
         int64_t bs_size, target_size;
         bs_size = bdrv_getlength(bs);
