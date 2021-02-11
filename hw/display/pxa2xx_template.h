@@ -10,30 +10,11 @@
  */
 
 # define SKIP_PIXEL(to)		to += deststep
-#if BITS == 8
-# define COPY_PIXEL(to, from)  do { *to = from; SKIP_PIXEL(to); } while (0)
-#elif BITS == 15 || BITS == 16
-# define COPY_PIXEL(to, from)    \
-    do {                         \
-        *(uint16_t *) to = from; \
-        SKIP_PIXEL(to);          \
-    } while (0)
-#elif BITS == 24
-# define COPY_PIXEL(to, from)     \
-    do {                          \
-        *(uint16_t *) to = from;  \
-        *(to + 2) = (from) >> 16; \
-        SKIP_PIXEL(to);           \
-    } while (0)
-#elif BITS == 32
 # define COPY_PIXEL(to, from)    \
     do {                         \
         *(uint32_t *) to = from; \
         SKIP_PIXEL(to);          \
     } while (0)
-#else
-# error unknown bit depth
-#endif
 
 #ifdef HOST_WORDS_BIGENDIAN
 # define SWAP_WORDS	1
@@ -42,7 +23,7 @@
 #define FN_2(x)		FN(x + 1) FN(x)
 #define FN_4(x)		FN_2(x + 2) FN_2(x)
 
-static void glue(pxa2xx_draw_line2_, BITS)(void *opaque,
+static void pxa2xx_draw_line2(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t *palette = opaque;
@@ -67,7 +48,7 @@ static void glue(pxa2xx_draw_line2_, BITS)(void *opaque,
     }
 }
 
-static void glue(pxa2xx_draw_line4_, BITS)(void *opaque,
+static void pxa2xx_draw_line4(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t *palette = opaque;
@@ -92,7 +73,7 @@ static void glue(pxa2xx_draw_line4_, BITS)(void *opaque,
     }
 }
 
-static void glue(pxa2xx_draw_line8_, BITS)(void *opaque,
+static void pxa2xx_draw_line8(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t *palette = opaque;
@@ -117,7 +98,7 @@ static void glue(pxa2xx_draw_line8_, BITS)(void *opaque,
     }
 }
 
-static void glue(pxa2xx_draw_line16_, BITS)(void *opaque,
+static void pxa2xx_draw_line16(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data;
@@ -133,19 +114,19 @@ static void glue(pxa2xx_draw_line16_, BITS)(void *opaque,
         data >>= 6;
         r = (data & 0x1f) << 3;
         data >>= 5;
-        COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+        COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         b = (data & 0x1f) << 3;
         data >>= 5;
         g = (data & 0x3f) << 2;
         data >>= 6;
         r = (data & 0x1f) << 3;
-        COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+        COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         width -= 2;
         src += 4;
     }
 }
 
-static void glue(pxa2xx_draw_line16t_, BITS)(void *opaque,
+static void pxa2xx_draw_line16t(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data;
@@ -164,7 +145,7 @@ static void glue(pxa2xx_draw_line16t_, BITS)(void *opaque,
         if (data & 1)
             SKIP_PIXEL(dest);
         else
-            COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+            COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         data >>= 1;
         b = (data & 0x1f) << 3;
         data >>= 5;
@@ -175,13 +156,13 @@ static void glue(pxa2xx_draw_line16t_, BITS)(void *opaque,
         if (data & 1)
             SKIP_PIXEL(dest);
         else
-            COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+            COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         width -= 2;
         src += 4;
     }
 }
 
-static void glue(pxa2xx_draw_line18_, BITS)(void *opaque,
+static void pxa2xx_draw_line18(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data;
@@ -196,14 +177,14 @@ static void glue(pxa2xx_draw_line18_, BITS)(void *opaque,
         g = (data & 0x3f) << 2;
         data >>= 6;
         r = (data & 0x3f) << 2;
-        COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+        COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         width -= 1;
         src += 4;
     }
 }
 
 /* The wicked packed format */
-static void glue(pxa2xx_draw_line18p_, BITS)(void *opaque,
+static void pxa2xx_draw_line18p(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data[3];
@@ -226,32 +207,32 @@ static void glue(pxa2xx_draw_line18p_, BITS)(void *opaque,
         data[0] >>= 6;
         r = (data[0] & 0x3f) << 2;
         data[0] >>= 12;
-        COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+        COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         b = (data[0] & 0x3f) << 2;
         data[0] >>= 6;
         g = ((data[1] & 0xf) << 4) | (data[0] << 2);
         data[1] >>= 4;
         r = (data[1] & 0x3f) << 2;
         data[1] >>= 12;
-        COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+        COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         b = (data[1] & 0x3f) << 2;
         data[1] >>= 6;
         g = (data[1] & 0x3f) << 2;
         data[1] >>= 6;
         r = ((data[2] & 0x3) << 6) | (data[1] << 2);
         data[2] >>= 8;
-        COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+        COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         b = (data[2] & 0x3f) << 2;
         data[2] >>= 6;
         g = (data[2] & 0x3f) << 2;
         data[2] >>= 6;
         r = data[2] << 2;
-        COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+        COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         width -= 4;
     }
 }
 
-static void glue(pxa2xx_draw_line19_, BITS)(void *opaque,
+static void pxa2xx_draw_line19(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data;
@@ -270,14 +251,14 @@ static void glue(pxa2xx_draw_line19_, BITS)(void *opaque,
         if (data & 1)
             SKIP_PIXEL(dest);
         else
-            COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+            COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         width -= 1;
         src += 4;
     }
 }
 
 /* The wicked packed format */
-static void glue(pxa2xx_draw_line19p_, BITS)(void *opaque,
+static void pxa2xx_draw_line19p(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data[3];
@@ -303,7 +284,7 @@ static void glue(pxa2xx_draw_line19p_, BITS)(void *opaque,
         if (data[0] & 1)
             SKIP_PIXEL(dest);
         else
-            COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+            COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         data[0] >>= 6;
         b = (data[0] & 0x3f) << 2;
         data[0] >>= 6;
@@ -314,7 +295,7 @@ static void glue(pxa2xx_draw_line19p_, BITS)(void *opaque,
         if (data[1] & 1)
             SKIP_PIXEL(dest);
         else
-            COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+            COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         data[1] >>= 6;
         b = (data[1] & 0x3f) << 2;
         data[1] >>= 6;
@@ -325,7 +306,7 @@ static void glue(pxa2xx_draw_line19p_, BITS)(void *opaque,
         if (data[2] & 1)
             SKIP_PIXEL(dest);
         else
-            COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+            COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         data[2] >>= 6;
         b = (data[2] & 0x3f) << 2;
         data[2] >>= 6;
@@ -336,12 +317,12 @@ static void glue(pxa2xx_draw_line19p_, BITS)(void *opaque,
         if (data[2] & 1)
             SKIP_PIXEL(dest);
         else
-            COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+            COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         width -= 4;
     }
 }
 
-static void glue(pxa2xx_draw_line24_, BITS)(void *opaque,
+static void pxa2xx_draw_line24(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data;
@@ -356,13 +337,13 @@ static void glue(pxa2xx_draw_line24_, BITS)(void *opaque,
         g = data & 0xff;
         data >>= 8;
         r = data & 0xff;
-        COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+        COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         width -= 1;
         src += 4;
     }
 }
 
-static void glue(pxa2xx_draw_line24t_, BITS)(void *opaque,
+static void pxa2xx_draw_line24t(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data;
@@ -381,13 +362,13 @@ static void glue(pxa2xx_draw_line24t_, BITS)(void *opaque,
         if (data & 1)
             SKIP_PIXEL(dest);
         else
-            COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+            COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         width -= 1;
         src += 4;
     }
 }
 
-static void glue(pxa2xx_draw_line25_, BITS)(void *opaque,
+static void pxa2xx_draw_line25(void *opaque,
                 uint8_t *dest, const uint8_t *src, int width, int deststep)
 {
     uint32_t data;
@@ -406,39 +387,38 @@ static void glue(pxa2xx_draw_line25_, BITS)(void *opaque,
         if (data & 1)
             SKIP_PIXEL(dest);
         else
-            COPY_PIXEL(dest, glue(rgb_to_pixel, BITS)(r, g, b));
+            COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
         width -= 1;
         src += 4;
     }
 }
 
 /* Overlay planes disabled, no transparency */
-static drawfn glue(pxa2xx_draw_fn_, BITS)[16] =
+static drawfn pxa2xx_draw_fn_32[16] =
 {
     [0 ... 0xf]       = NULL,
-    [pxa_lcdc_2bpp]   = glue(pxa2xx_draw_line2_, BITS),
-    [pxa_lcdc_4bpp]   = glue(pxa2xx_draw_line4_, BITS),
-    [pxa_lcdc_8bpp]   = glue(pxa2xx_draw_line8_, BITS),
-    [pxa_lcdc_16bpp]  = glue(pxa2xx_draw_line16_, BITS),
-    [pxa_lcdc_18bpp]  = glue(pxa2xx_draw_line18_, BITS),
-    [pxa_lcdc_18pbpp] = glue(pxa2xx_draw_line18p_, BITS),
-    [pxa_lcdc_24bpp]  = glue(pxa2xx_draw_line24_, BITS),
+    [pxa_lcdc_2bpp]   = pxa2xx_draw_line2,
+    [pxa_lcdc_4bpp]   = pxa2xx_draw_line4,
+    [pxa_lcdc_8bpp]   = pxa2xx_draw_line8,
+    [pxa_lcdc_16bpp]  = pxa2xx_draw_line16,
+    [pxa_lcdc_18bpp]  = pxa2xx_draw_line18,
+    [pxa_lcdc_18pbpp] = pxa2xx_draw_line18p,
+    [pxa_lcdc_24bpp]  = pxa2xx_draw_line24,
 };
 
 /* Overlay planes enabled, transparency used */
-static drawfn glue(glue(pxa2xx_draw_fn_, BITS), t)[16] =
+static drawfn pxa2xx_draw_fn_32t[16] =
 {
     [0 ... 0xf]       = NULL,
-    [pxa_lcdc_4bpp]   = glue(pxa2xx_draw_line4_, BITS),
-    [pxa_lcdc_8bpp]   = glue(pxa2xx_draw_line8_, BITS),
-    [pxa_lcdc_16bpp]  = glue(pxa2xx_draw_line16t_, BITS),
-    [pxa_lcdc_19bpp]  = glue(pxa2xx_draw_line19_, BITS),
-    [pxa_lcdc_19pbpp] = glue(pxa2xx_draw_line19p_, BITS),
-    [pxa_lcdc_24bpp]  = glue(pxa2xx_draw_line24t_, BITS),
-    [pxa_lcdc_25bpp]  = glue(pxa2xx_draw_line25_, BITS),
+    [pxa_lcdc_4bpp]   = pxa2xx_draw_line4,
+    [pxa_lcdc_8bpp]   = pxa2xx_draw_line8,
+    [pxa_lcdc_16bpp]  = pxa2xx_draw_line16t,
+    [pxa_lcdc_19bpp]  = pxa2xx_draw_line19,
+    [pxa_lcdc_19pbpp] = pxa2xx_draw_line19p,
+    [pxa_lcdc_24bpp]  = pxa2xx_draw_line24t,
+    [pxa_lcdc_25bpp]  = pxa2xx_draw_line25,
 };
 
-#undef BITS
 #undef COPY_PIXEL
 #undef SKIP_PIXEL
 
