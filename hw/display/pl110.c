@@ -124,7 +124,86 @@ static const unsigned char *idregs[] = {
 };
 
 #define BITS 32
+#define COPY_PIXEL(to, from) do { *(uint32_t *)to = from; to += 4; } while (0)
+
+#undef RGB
+#define BORDER bgr
+#define ORDER 0
 #include "pl110_template.h"
+#define ORDER 1
+#include "pl110_template.h"
+#define ORDER 2
+#include "pl110_template.h"
+#undef BORDER
+#define RGB
+#define BORDER rgb
+#define ORDER 0
+#include "pl110_template.h"
+#define ORDER 1
+#include "pl110_template.h"
+#define ORDER 2
+#include "pl110_template.h"
+#undef BORDER
+
+static drawfn pl110_draw_fn_32[48] = {
+    pl110_draw_line1_lblp_bgr32,
+    pl110_draw_line2_lblp_bgr32,
+    pl110_draw_line4_lblp_bgr32,
+    pl110_draw_line8_lblp_bgr32,
+    pl110_draw_line16_555_lblp_bgr32,
+    pl110_draw_line32_lblp_bgr32,
+    pl110_draw_line16_lblp_bgr32,
+    pl110_draw_line12_lblp_bgr32,
+
+    pl110_draw_line1_bbbp_bgr32,
+    pl110_draw_line2_bbbp_bgr32,
+    pl110_draw_line4_bbbp_bgr32,
+    pl110_draw_line8_bbbp_bgr32,
+    pl110_draw_line16_555_bbbp_bgr32,
+    pl110_draw_line32_bbbp_bgr32,
+    pl110_draw_line16_bbbp_bgr32,
+    pl110_draw_line12_bbbp_bgr32,
+
+    pl110_draw_line1_lbbp_bgr32,
+    pl110_draw_line2_lbbp_bgr32,
+    pl110_draw_line4_lbbp_bgr32,
+    pl110_draw_line8_lbbp_bgr32,
+    pl110_draw_line16_555_lbbp_bgr32,
+    pl110_draw_line32_lbbp_bgr32,
+    pl110_draw_line16_lbbp_bgr32,
+    pl110_draw_line12_lbbp_bgr32,
+
+    pl110_draw_line1_lblp_rgb32,
+    pl110_draw_line2_lblp_rgb32,
+    pl110_draw_line4_lblp_rgb32,
+    pl110_draw_line8_lblp_rgb32,
+    pl110_draw_line16_555_lblp_rgb32,
+    pl110_draw_line32_lblp_rgb32,
+    pl110_draw_line16_lblp_rgb32,
+    pl110_draw_line12_lblp_rgb32,
+
+    pl110_draw_line1_bbbp_rgb32,
+    pl110_draw_line2_bbbp_rgb32,
+    pl110_draw_line4_bbbp_rgb32,
+    pl110_draw_line8_bbbp_rgb32,
+    pl110_draw_line16_555_bbbp_rgb32,
+    pl110_draw_line32_bbbp_rgb32,
+    pl110_draw_line16_bbbp_rgb32,
+    pl110_draw_line12_bbbp_rgb32,
+
+    pl110_draw_line1_lbbp_rgb32,
+    pl110_draw_line2_lbbp_rgb32,
+    pl110_draw_line4_lbbp_rgb32,
+    pl110_draw_line8_lbbp_rgb32,
+    pl110_draw_line16_555_lbbp_rgb32,
+    pl110_draw_line32_lbbp_rgb32,
+    pl110_draw_line16_lbbp_rgb32,
+    pl110_draw_line12_lbbp_rgb32,
+};
+
+#undef BITS
+#undef COPY_PIXEL
+
 
 static int pl110_enabled(PL110State *s)
 {
