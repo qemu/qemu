@@ -45,7 +45,6 @@ struct PXA2xxLCDState {
 
     int invalidated;
     QemuConsole *con;
-    drawfn *line_fn[2];
     int dest_width;
     int xres, yres;
     int pal_for;
@@ -187,6 +186,9 @@ typedef struct QEMU_PACKED {
 #define LDCMD_EOFINT	(1 << 21)
 #define LDCMD_SOFINT	(1 << 22)
 #define LDCMD_PAL	(1 << 26)
+
+#define BITS 32
+#include "pxa2xx_template.h"
 
 /* Route internal interrupt lines to the global IC */
 static void pxa2xx_lcdc_int_update(PXA2xxLCDState *s)
@@ -674,14 +676,21 @@ static void pxa2xx_palette_parse(PXA2xxLCDState *s, int ch, int bpp)
     }
 }
 
+static inline drawfn pxa2xx_drawfn(PXA2xxLCDState *s)
+{
+    if (s->transp) {
+        return pxa2xx_draw_fn_32t[s->bpp];
+    } else {
+        return pxa2xx_draw_fn_32[s->bpp];
+    }
+}
+
 static void pxa2xx_lcdc_dma0_redraw_rot0(PXA2xxLCDState *s,
                 hwaddr addr, int *miny, int *maxy)
 {
     DisplaySurface *surface = qemu_console_surface(s->con);
     int src_width, dest_width;
-    drawfn fn = NULL;
-    if (s->dest_width)
-        fn = s->line_fn[s->transp][s->bpp];
+    drawfn fn = pxa2xx_drawfn(s);
     if (!fn)
         return;
 
@@ -710,9 +719,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot90(PXA2xxLCDState *s,
 {
     DisplaySurface *surface = qemu_console_surface(s->con);
     int src_width, dest_width;
-    drawfn fn = NULL;
-    if (s->dest_width)
-        fn = s->line_fn[s->transp][s->bpp];
+    drawfn fn = pxa2xx_drawfn(s);
     if (!fn)
         return;
 
@@ -742,10 +749,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot180(PXA2xxLCDState *s,
 {
     DisplaySurface *surface = qemu_console_surface(s->con);
     int src_width, dest_width;
-    drawfn fn = NULL;
-    if (s->dest_width) {
-        fn = s->line_fn[s->transp][s->bpp];
-    }
+    drawfn fn = pxa2xx_drawfn(s);
     if (!fn) {
         return;
     }
@@ -776,10 +780,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot270(PXA2xxLCDState *s,
 {
     DisplaySurface *surface = qemu_console_surface(s->con);
     int src_width, dest_width;
-    drawfn fn = NULL;
-    if (s->dest_width) {
-        fn = s->line_fn[s->transp][s->bpp];
-    }
+    drawfn fn = pxa2xx_drawfn(s);
     if (!fn) {
         return;
     }
@@ -990,17 +991,6 @@ static const VMStateDescription vmstate_pxa2xx_lcdc = {
     }
 };
 
-#define BITS 8
-#include "pxa2xx_template.h"
-#define BITS 15
-#include "pxa2xx_template.h"
-#define BITS 16
-#include "pxa2xx_template.h"
-#define BITS 24
-#include "pxa2xx_template.h"
-#define BITS 32
-#include "pxa2xx_template.h"
-
 static const GraphicHwOps pxa2xx_ops = {
     .invalidate  = pxa2xx_invalidate_display,
     .gfx_update  = pxa2xx_update_display,
@@ -1010,7 +1000,6 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
                                  hwaddr base, qemu_irq irq)
 {
     PXA2xxLCDState *s;
-    DisplaySurface *surface;
 
     s = (PXA2xxLCDState *) g_malloc0(sizeof(PXA2xxLCDState));
     s->invalidated = 1;
@@ -1024,41 +1013,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     s->con = graphic_console_init(NULL, 0, &pxa2xx_ops, s);
-    surface = qemu_console_surface(s->con);
-
-    switch (surface_bits_per_pixel(surface)) {
-    case 0:
-        s->dest_width = 0;
-        break;
-    case 8:
-        s->line_fn[0] = pxa2xx_draw_fn_8;
-        s->line_fn[1] = pxa2xx_draw_fn_8t;
-        s->dest_width = 1;
-        break;
-    case 15:
-        s->line_fn[0] = pxa2xx_draw_fn_15;
-        s->line_fn[1] = pxa2xx_draw_fn_15t;
-        s->dest_width = 2;
-        break;
-    case 16:
-        s->line_fn[0] = pxa2xx_draw_fn_16;
-        s->line_fn[1] = pxa2xx_draw_fn_16t;
-        s->dest_width = 2;
-        break;
-    case 24:
-        s->line_fn[0] = pxa2xx_draw_fn_24;
-        s->line_fn[1] = pxa2xx_draw_fn_24t;
-        s->dest_width = 3;
-        break;
-    case 32:
-        s->line_fn[0] = pxa2xx_draw_fn_32;
-        s->line_fn[1] = pxa2xx_draw_fn_32t;
-        s->dest_width = 4;
-        break;
-    default:
-        fprintf(stderr, "%s: Bad color depth\n", __func__);
-        exit(1);
-    }
+    s->dest_width = 4;
 
     vmstate_register(NULL, 0, &vmstate_pxa2xx_lcdc, s);
 
