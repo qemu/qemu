@@ -17,20 +17,20 @@
     } while (0)
 
 #ifdef HOST_WORDS_BIGENDIAN
-# define SWAP_WORDS	1
+# define SWAP_WORDS 1
 #endif
 
-#define FN_2(x)		FN(x + 1) FN(x)
-#define FN_4(x)		FN_2(x + 2) FN_2(x)
+#define FN_2(x) FN(x + 1) FN(x)
+#define FN_4(x) FN_2(x + 2) FN_2(x)
 
-static void pxa2xx_draw_line2(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line2(void *opaque, uint8_t *dest, const uint8_t *src,
+                              int width, int deststep)
 {
     uint32_t *palette = opaque;
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *) src;
-#define FN(x)		COPY_PIXEL(dest, palette[(data >> ((x) * 2)) & 3]);
+#define FN(x) COPY_PIXEL(dest, palette[(data >> ((x) * 2)) & 3]);
 #ifdef SWAP_WORDS
         FN_4(12)
         FN_4(8)
@@ -48,14 +48,14 @@ static void pxa2xx_draw_line2(void *opaque,
     }
 }
 
-static void pxa2xx_draw_line4(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line4(void *opaque, uint8_t *dest, const uint8_t *src,
+                              int width, int deststep)
 {
     uint32_t *palette = opaque;
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *) src;
-#define FN(x)		COPY_PIXEL(dest, palette[(data >> ((x) * 4)) & 0xf]);
+#define FN(x) COPY_PIXEL(dest, palette[(data >> ((x) * 4)) & 0xf]);
 #ifdef SWAP_WORDS
         FN_2(6)
         FN_2(4)
@@ -73,14 +73,14 @@ static void pxa2xx_draw_line4(void *opaque,
     }
 }
 
-static void pxa2xx_draw_line8(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line8(void *opaque, uint8_t *dest, const uint8_t *src,
+                              int width, int deststep)
 {
     uint32_t *palette = opaque;
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *) src;
-#define FN(x)		COPY_PIXEL(dest, palette[(data >> (x)) & 0xff]);
+#define FN(x) COPY_PIXEL(dest, palette[(data >> (x)) & 0xff]);
 #ifdef SWAP_WORDS
         FN(24)
         FN(16)
@@ -98,8 +98,8 @@ static void pxa2xx_draw_line8(void *opaque,
     }
 }
 
-static void pxa2xx_draw_line16(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line16(void *opaque, uint8_t *dest, const uint8_t *src,
+                               int width, int deststep)
 {
     uint32_t data;
     unsigned int r, g, b;
@@ -126,8 +126,8 @@ static void pxa2xx_draw_line16(void *opaque,
     }
 }
 
-static void pxa2xx_draw_line16t(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line16t(void *opaque, uint8_t *dest, const uint8_t *src,
+                                int width, int deststep)
 {
     uint32_t data;
     unsigned int r, g, b;
@@ -164,8 +164,8 @@ static void pxa2xx_draw_line16t(void *opaque,
     }
 }
 
-static void pxa2xx_draw_line18(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line18(void *opaque, uint8_t *dest, const uint8_t *src,
+                               int width, int deststep)
 {
     uint32_t data;
     unsigned int r, g, b;
@@ -186,8 +186,8 @@ static void pxa2xx_draw_line18(void *opaque,
 }
 
 /* The wicked packed format */
-static void pxa2xx_draw_line18p(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line18p(void *opaque, uint8_t *dest, const uint8_t *src,
+                                int width, int deststep)
 {
     uint32_t data[3];
     unsigned int r, g, b;
@@ -234,8 +234,8 @@ static void pxa2xx_draw_line18p(void *opaque,
     }
 }
 
-static void pxa2xx_draw_line19(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line19(void *opaque, uint8_t *dest, const uint8_t *src,
+                               int width, int deststep)
 {
     uint32_t data;
     unsigned int r, g, b;
@@ -261,8 +261,8 @@ static void pxa2xx_draw_line19(void *opaque,
 }
 
 /* The wicked packed format */
-static void pxa2xx_draw_line19p(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line19p(void *opaque, uint8_t *dest, const uint8_t *src,
+                                int width, int deststep)
 {
     uint32_t data[3];
     unsigned int r, g, b;
@@ -329,8 +329,8 @@ static void pxa2xx_draw_line19p(void *opaque,
     }
 }
 
-static void pxa2xx_draw_line24(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line24(void *opaque, uint8_t *dest, const uint8_t *src,
+                               int width, int deststep)
 {
     uint32_t data;
     unsigned int r, g, b;
@@ -350,8 +350,8 @@ static void pxa2xx_draw_line24(void *opaque,
     }
 }
 
-static void pxa2xx_draw_line24t(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line24t(void *opaque, uint8_t *dest, const uint8_t *src,
+                                int width, int deststep)
 {
     uint32_t data;
     unsigned int r, g, b;
@@ -376,8 +376,8 @@ static void pxa2xx_draw_line24t(void *opaque,
     }
 }
 
-static void pxa2xx_draw_line25(void *opaque,
-                uint8_t *dest, const uint8_t *src, int width, int deststep)
+static void pxa2xx_draw_line25(void *opaque, uint8_t *dest, const uint8_t *src,
+                               int width, int deststep)
 {
     uint32_t data;
     unsigned int r, g, b;
@@ -403,8 +403,7 @@ static void pxa2xx_draw_line25(void *opaque,
 }
 
 /* Overlay planes disabled, no transparency */
-static drawfn pxa2xx_draw_fn_32[16] =
-{
+static drawfn pxa2xx_draw_fn_32[16] = {
     [0 ... 0xf]       = NULL,
     [pxa_lcdc_2bpp]   = pxa2xx_draw_line2,
     [pxa_lcdc_4bpp]   = pxa2xx_draw_line4,
@@ -416,8 +415,7 @@ static drawfn pxa2xx_draw_fn_32[16] =
 };
 
 /* Overlay planes enabled, transparency used */
-static drawfn pxa2xx_draw_fn_32t[16] =
-{
+static drawfn pxa2xx_draw_fn_32t[16] = {
     [0 ... 0xf]       = NULL,
     [pxa_lcdc_4bpp]   = pxa2xx_draw_line4,
     [pxa_lcdc_8bpp]   = pxa2xx_draw_line8,
