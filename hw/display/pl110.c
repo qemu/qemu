@@ -123,14 +123,6 @@ static const unsigned char *idregs[] = {
     pl111_id
 };
 
-#define BITS 8
-#include "pl110_template.h"
-#define BITS 15
-#include "pl110_template.h"
-#define BITS 16
-#include "pl110_template.h"
-#define BITS 24
-#include "pl110_template.h"
 #define BITS 32
 #include "pl110_template.h"
 
@@ -144,9 +136,7 @@ static void pl110_update_display(void *opaque)
     PL110State *s = (PL110State *)opaque;
     SysBusDevice *sbd;
     DisplaySurface *surface = qemu_console_surface(s->con);
-    drawfn* fntable;
     drawfn fn;
-    int dest_width;
     int src_width;
     int bpp_offset;
     int first;
@@ -158,33 +148,6 @@ static void pl110_update_display(void *opaque)
 
     sbd = SYS_BUS_DEVICE(s);
 
-    switch (surface_bits_per_pixel(surface)) {
-    case 0:
-        return;
-    case 8:
-        fntable = pl110_draw_fn_8;
-        dest_width = 1;
-        break;
-    case 15:
-        fntable = pl110_draw_fn_15;
-        dest_width = 2;
-        break;
-    case 16:
-        fntable = pl110_draw_fn_16;
-        dest_width = 2;
-        break;
-    case 24:
-        fntable = pl110_draw_fn_24;
-        dest_width = 3;
-        break;
-    case 32:
-        fntable = pl110_draw_fn_32;
-        dest_width = 4;
-        break;
-    default:
-        fprintf(stderr, "pl110: Bad color depth\n");
-        exit(1);
-    }
     if (s->cr & PL110_CR_BGR)
         bpp_offset = 0;
     else
@@ -218,12 +181,13 @@ static void pl110_update_display(void *opaque)
         }
     }
 
-    if (s->cr & PL110_CR_BEBO)
-        fn = fntable[s->bpp + 8 + bpp_offset];
-    else if (s->cr & PL110_CR_BEPO)
-        fn = fntable[s->bpp + 16 + bpp_offset];
-    else
-        fn = fntable[s->bpp + bpp_offset];
+    if (s->cr & PL110_CR_BEBO) {
+        fn = pl110_draw_fn_32[s->bpp + 8 + bpp_offset];
+    } else if (s->cr & PL110_CR_BEPO) {
+        fn = pl110_draw_fn_32[s->bpp + 16 + bpp_offset];
+    } else {
+        fn = pl110_draw_fn_32[s->bpp + bpp_offset];
+    }
 
     src_width = s->cols;
     switch (s->bpp) {
@@ -247,7 +211,6 @@ static void pl110_update_display(void *opaque)
         src_width <<= 2;
         break;
     }
-    dest_width *= s->cols;
     first = 0;
     if (s->invalidate) {
         framebuffer_update_memory_section(&s->fbsection,
@@ -258,7 +221,7 @@ static void pl110_update_display(void *opaque)
 
     framebuffer_update_display(surface, &s->fbsection,
                                s->cols, s->rows,
-                               src_width, dest_width, 0,
+                               src_width, s->cols * 4, 0,
                                s->invalidate,
                                fn, s->palette,
                                &first, &last);
