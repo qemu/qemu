@@ -14,18 +14,18 @@
 #endif
 
 #if ORDER == 0
-#define NAME glue(glue(lblp_, BORDER), BITS)
+#define NAME glue(lblp_, BORDER)
 #ifdef HOST_WORDS_BIGENDIAN
 #define SWAP_WORDS 1
 #endif
 #elif ORDER == 1
-#define NAME glue(glue(bbbp_, BORDER), BITS)
+#define NAME glue(bbbp_, BORDER)
 #ifndef HOST_WORDS_BIGENDIAN
 #define SWAP_WORDS 1
 #endif
 #else
 #define SWAP_PIXELS 1
-#define NAME glue(glue(lbbp_, BORDER), BITS)
+#define NAME glue(lbbp_, BORDER)
 #ifdef HOST_WORDS_BIGENDIAN
 #define SWAP_WORDS 1
 #endif
@@ -174,14 +174,14 @@ static void glue(pl110_draw_line16_,NAME)(void *opaque, uint8_t *d, const uint8_
         MSB = (data & 0x1f) << 3;
         data >>= 5;
 #endif
-        COPY_PIXEL(d, glue(rgb_to_pixel,BITS)(r, g, b));
+        COPY_PIXEL(d, rgb_to_pixel32(r, g, b));
         LSB = (data & 0x1f) << 3;
         data >>= 5;
         g = (data & 0x3f) << 2;
         data >>= 6;
         MSB = (data & 0x1f) << 3;
         data >>= 5;
-        COPY_PIXEL(d, glue(rgb_to_pixel,BITS)(r, g, b));
+        COPY_PIXEL(d, rgb_to_pixel32(r, g, b));
 #undef MSB
 #undef LSB
         width -= 2;
@@ -211,7 +211,7 @@ static void glue(pl110_draw_line32_,NAME)(void *opaque, uint8_t *d, const uint8_
         g = (data >> 16) & 0xff;
         MSB = (data >> 8) & 0xff;
 #endif
-        COPY_PIXEL(d, glue(rgb_to_pixel,BITS)(r, g, b));
+        COPY_PIXEL(d, rgb_to_pixel32(r, g, b));
 #undef MSB
 #undef LSB
         width--;
@@ -242,14 +242,14 @@ static void glue(pl110_draw_line16_555_,NAME)(void *opaque, uint8_t *d, const ui
         data >>= 5;
         MSB = (data & 0x1f) << 3;
         data >>= 5;
-        COPY_PIXEL(d, glue(rgb_to_pixel,BITS)(r, g, b));
+        COPY_PIXEL(d, rgb_to_pixel32(r, g, b));
         LSB = (data & 0x1f) << 3;
         data >>= 5;
         g = (data & 0x1f) << 3;
         data >>= 5;
         MSB = (data & 0x1f) << 3;
         data >>= 6;
-        COPY_PIXEL(d, glue(rgb_to_pixel,BITS)(r, g, b));
+        COPY_PIXEL(d, rgb_to_pixel32(r, g, b));
 #undef MSB
 #undef LSB
         width -= 2;
@@ -280,14 +280,14 @@ static void glue(pl110_draw_line12_,NAME)(void *opaque, uint8_t *d, const uint8_
         data >>= 4;
         MSB = (data & 0xf) << 4;
         data >>= 8;
-        COPY_PIXEL(d, glue(rgb_to_pixel,BITS)(r, g, b));
+        COPY_PIXEL(d, rgb_to_pixel32(r, g, b));
         LSB = (data & 0xf) << 4;
         data >>= 4;
         g = (data & 0xf) << 4;
         data >>= 4;
         MSB = (data & 0xf) << 4;
         data >>= 8;
-        COPY_PIXEL(d, glue(rgb_to_pixel,BITS)(r, g, b));
+        COPY_PIXEL(d, rgb_to_pixel32(r, g, b));
 #undef MSB
 #undef LSB
         width -= 2;
