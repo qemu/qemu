@@ -221,7 +221,8 @@ class Test(avocado.Test):
 
     def _new_vm(self, *args):
         self._sd = tempfile.TemporaryDirectory(prefix="avo_qemu_sock_")
-        vm = QEMUMachine(self.qemu_bin, sock_dir=self._sd.name)
+        vm = QEMUMachine(self.qemu_bin, base_temp_dir=self.workdir,
+                         sock_dir=self._sd.name)
         if args:
             vm.add_args(*args)
         return vm
