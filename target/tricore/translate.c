@@ -5777,8 +5777,8 @@ static void decode_rcpw_insert(DisasContext *ctx)
     switch (op2) {
     case OPC2_32_RCPW_IMASK:
         CHECK_REG_PAIR(r2);
-        /* if pos + width > 31 undefined result */
-        if (pos + width <= 31) {
+        /* if pos + width > 32 undefined result */
+        if (pos + width <= 32) {
             tcg_gen_movi_tl(cpu_gpr_d[r2+1], ((1u << width) - 1) << pos);
             tcg_gen_movi_tl(cpu_gpr_d[r2], (const4 << pos));
         }
@@ -6999,7 +6999,7 @@ static void decode_rrpw_extract_insert(DisasContext *ctx)
 
     switch (op2) {
     case OPC2_32_RRPW_EXTR:
-        if (pos + width <= 31) {
+        if (pos + width <= 32) {
             /* optimize special cases */
             if ((pos == 0) && (width == 8)) {
                 tcg_gen_ext8s_tl(cpu_gpr_d[r3], cpu_gpr_d[r1]);
@@ -7021,7 +7021,7 @@ static void decode_rrpw_extract_insert(DisasContext *ctx)
         break;
     case OPC2_32_RRPW_IMASK:
         CHECK_REG_PAIR(r3);
-        if (pos + width <= 31) {
+        if (pos + width <= 32) {
             tcg_gen_movi_tl(cpu_gpr_d[r3+1], ((1u << width) - 1) << pos);
             tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r2], pos);
         }
