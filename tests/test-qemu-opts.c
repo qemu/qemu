@@ -654,9 +654,9 @@ static void test_opts_parse_size(void)
     g_assert_cmpuint(opts_count(opts), ==, 1);
     g_assert_cmpuint(qemu_opt_get_size(opts, "size1", 1), ==, 0);
 
-    /* Note: precision is 53 bits since we're parsing with strtod() */
+    /* Note: full 64 bits of precision */
 
-    /* Around limit of precision: 2^53-1, 2^53, 2^54 */
+    /* Around double limit of precision: 2^53-1, 2^53, 2^53+1 */
     opts = qemu_opts_parse(&opts_list_02,
                            "size1=9007199254740991,"
                            "size2=9007199254740992,"
@@ -668,18 +668,21 @@ static void test_opts_parse_size(void)
     g_assert_cmphex(qemu_opt_get_size(opts, "size2", 1),
                      ==, 0x20000000000000);
     g_assert_cmphex(qemu_opt_get_size(opts, "size3", 1),
-                     ==, 0x20000000000000);
+                     ==, 0x20000000000001);
 
-    /* Close to signed upper limit 0x7ffffffffffffc00 (53 msbs set) */
+    /* Close to signed int limit: 2^63-1, 2^63, 2^63+1 */
     opts = qemu_opts_parse(&opts_list_02,
-                           "size1=9223372036854774784," /* 7ffffffffffffc00 */
-                           "size2=9223372036854775295", /* 7ffffffffffffdff */
+                           "size1=9223372036854775807," /* 7fffffffffffffff */
+                           "size2=9223372036854775808," /* 8000000000000000 */
+                           "size3=9223372036854775809", /* 8000000000000001 */
                            false, &error_abort);
-    g_assert_cmpuint(opts_count(opts), ==, 2);
+    g_assert_cmpuint(opts_count(opts), ==, 3);
     g_assert_cmphex(qemu_opt_get_size(opts, "size1", 1),
-                     ==, 0x7ffffffffffffc00);
+                     ==, 0x7fffffffffffffff);
     g_assert_cmphex(qemu_opt_get_size(opts, "size2", 1),
-                     ==, 0x7ffffffffffffc00);
+                     ==, 0x8000000000000000);
+    g_assert_cmphex(qemu_opt_get_size(opts, "size3", 1),
+                     ==, 0x8000000000000001);
 
     /* Close to actual upper limit 0xfffffffffffff800 (53 msbs set) */
     opts = qemu_opts_parse(&opts_list_02,
@@ -690,14 +693,22 @@ static void test_opts_parse_size(void)
     g_assert_cmphex(qemu_opt_get_size(opts, "size1", 1),
                      ==, 0xfffffffffffff800);
     g_assert_cmphex(qemu_opt_get_size(opts, "size2", 1),
-                     ==, 0xfffffffffffff800);
+                     ==, 0xfffffffffffffbff);
+
+    /* Actual limit, 2^64-1 */
+    opts = qemu_opts_parse(&opts_list_02,
+                           "size1=18446744073709551615", /* ffffffffffffffff */
+                           false, &error_abort);
+    g_assert_cmpuint(opts_count(opts), ==, 1);
+    g_assert_cmphex(qemu_opt_get_size(opts, "size1", 1),
+                     ==, 0xffffffffffffffff);
 
     /* Beyond limits */
     opts = qemu_opts_parse(&opts_list_02, "size1=-1", false, &err);
     error_free_or_abort(&err);
     g_assert(!opts);
     opts = qemu_opts_parse(&opts_list_02,
-                           "size1=18446744073709550592", /* fffffffffffffc00 */
+                           "size1=18446744073709551616", /* 2^64 */
                            false, &err);
     error_free_or_abort(&err);
     g_assert(!opts);

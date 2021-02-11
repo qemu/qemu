@@ -241,52 +241,100 @@ static int64_t suffix_mul(char suffix, int64_t unit)
 }
 
 /*
- * Convert string to bytes, allowing either B/b for bytes, K/k for KB,
- * M/m for MB, G/g for GB or T/t for TB. End pointer will be returned
- * in *end, if not NULL. Return -ERANGE on overflow, and -EINVAL on
- * other error.
+ * Convert size string to bytes.
+ *
+ * The size parsing supports the following syntaxes
+ * - 12345 - decimal, scale determined by @default_suffix and @unit
+ * - 12345{bBkKmMgGtTpPeE} - decimal, scale determined by suffix and @unit
+ * - 12345.678{kKmMgGtTpPeE} - decimal, scale determined by suffix, and
+ *   fractional portion is truncated to byte
+ * - 0x7fEE - hexadecimal, unit determined by @default_suffix
+ *
+ * The following are intentionally not supported
+ * - octal, such as 08
+ * - fractional hex, such as 0x1.8
+ * - floating point exponents, such as 1e3
+ *
+ * The end pointer will be returned in *end, if not NULL.  If there is
+ * no fraction, the input can be decimal or hexadecimal; if there is a
+ * fraction, then the input must be decimal and there must be a suffix
+ * (possibly by @default_suffix) larger than Byte, and the fractional
+ * portion may suffer from precision loss or rounding.  The input must
+ * be positive.
+ *
+ * Return -ERANGE on overflow (with *@end advanced), and -EINVAL on
+ * other error (with *@end left unchanged).
  */
 static int do_strtosz(const char *nptr, const char **end,
                       const char default_suffix, int64_t unit,
                       uint64_t *result)
 {
     int retval;
-    const char *endptr;
+    const char *endptr, *f;
     unsigned char c;
-    int mul_required = 0;
-    double val, mul, integral, fraction;
+    bool mul_required = false;
+    uint64_t val;
+    int64_t mul;
+    double fraction = 0.0;
 
-    retval = qemu_strtod_finite(nptr, &endptr, &val);
+    /* Parse integral portion as decimal. */
+    retval = qemu_strtou64(nptr, &endptr, 10, &val);
     if (retval) {
         goto out;
     }
-    fraction = modf(val, &integral);
-    if (fraction != 0) {
-        mul_required = 1;
-    }
-    c = *endptr;
-    mul = suffix_mul(c, unit);
-    if (mul >= 0) {
-        endptr++;
-    } else {
-        mul = suffix_mul(default_suffix, unit);
-        assert(mul >= 0);
-    }
-    if (mul == 1 && mul_required) {
+    if (memchr(nptr, '-', endptr - nptr) != NULL) {
+        endptr = nptr;
         retval = -EINVAL;
         goto out;
     }
-    /*
-     * Values near UINT64_MAX overflow to 2**64 when converting to double
-     * precision.  Compare against the maximum representable double precision
-     * value below 2**64, computed as "the next value after 2**64 (0x1p64) in
-     * the direction of 0".
-     */
-    if ((val * mul > nextafter(0x1p64, 0)) || val < 0) {
+    if (val == 0 && (*endptr == 'x' || *endptr == 'X')) {
+        /* Input looks like hex, reparse, and insist on no fraction. */
+        retval = qemu_strtou64(nptr, &endptr, 16, &val);
+        if (retval) {
+            goto out;
+        }
+        if (*endptr == '.') {
+            endptr = nptr;
+            retval = -EINVAL;
+            goto out;
+        }
+    } else if (*endptr == '.') {
+        /*
+         * Input looks like a fraction.  Make sure even 1.k works
+         * without fractional digits.  If we see an exponent, treat
+         * the entire input as invalid instead.
+         */
+        f = endptr;
+        retval = qemu_strtod_finite(f, &endptr, &fraction);
+        if (retval) {
+            fraction = 0.0;
+            endptr++;
+        } else if (memchr(f, 'e', endptr - f) || memchr(f, 'E', endptr - f)) {
+            endptr = nptr;
+            retval = -EINVAL;
+            goto out;
+        } else if (fraction != 0) {
+            mul_required = true;
+        }
+    }
+    c = *endptr;
+    mul = suffix_mul(c, unit);
+    if (mul > 0) {
+        endptr++;
+    } else {
+        mul = suffix_mul(default_suffix, unit);
+        assert(mul > 0);
+    }
+    if (mul == 1 && mul_required) {
+        endptr = nptr;
+        retval = -EINVAL;
+        goto out;
+    }
+    if (val > (UINT64_MAX - ((uint64_t) (fraction * mul))) / mul) {
         retval = -ERANGE;
         goto out;
     }
-    *result = val * mul;
+    *result = val * mul + (uint64_t) (fraction * mul);
     retval = 0;
 
 out:

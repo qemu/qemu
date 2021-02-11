@@ -1978,8 +1978,6 @@ static void test_qemu_strtosz_simple(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 12345);
 
-    /* Note: precision is 53 bits since we're parsing with strtod() */
-
     str = "9007199254740991"; /* 2^53-1 */
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
@@ -1992,10 +1990,10 @@ static void test_qemu_strtosz_simple(void)
     g_assert_cmpint(res, ==, 0x20000000000000);
     g_assert(endptr == str + 16);
 
-    str = "9007199254740993"; /* 2^53+1 FIXME loss of precision is a bug */
+    str = "9007199254740993"; /* 2^53+1 */
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0x20000000000000); /* rounded to 53 bits */
+    g_assert_cmpint(res, ==, 0x20000000000001);
     g_assert(endptr == str + 16);
 
     str = "18446744073709549568"; /* 0xfffffffffffff800 (53 msbs set) */
@@ -2004,16 +2002,17 @@ static void test_qemu_strtosz_simple(void)
     g_assert_cmpint(res, ==, 0xfffffffffffff800);
     g_assert(endptr == str + 20);
 
-    str = "18446744073709550591"; /* 0xfffffffffffffbff FIXME */
+    str = "18446744073709550591"; /* 0xfffffffffffffbff */
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0xfffffffffffff800); /* rounded to 53 bits */
+    g_assert_cmpint(res, ==, 0xfffffffffffffbff);
     g_assert(endptr == str + 20);
 
-    /*
-     * FIXME 0xfffffffffffffe00..0xffffffffffffffff get rounded to
-     * 2^64, thus -ERANGE; see test_qemu_strtosz_erange()
-     */
+    str = "18446744073709551615"; /* 0xffffffffffffffff */
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 0xffffffffffffffff);
+    g_assert(endptr == str + 20);
 }
 
 static void test_qemu_strtosz_hex(void)
@@ -2166,45 +2165,43 @@ static void test_qemu_strtosz_invalid(void)
     g_assert(endptr == str);
 
     /* Fractional values require scale larger than bytes */
-    /* FIXME endptr shouldn't move on -EINVAL */
     str = "1.1B";
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert(endptr == str + 4);
+    g_assert(endptr == str);
 
-    /* FIXME endptr shouldn't move on -EINVAL */
     str = "1.1";
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -EINVAL);
-    g_assert(endptr == str + 3);
+    g_assert(endptr == str);
 
-    /* FIXME we should reject floating point exponents */
+    /* No floating point exponents */
     str = "1.5e1k";
     err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 15360);
-    g_assert(endptr == str + 6);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert(endptr == str);
 
-    /* FIXME we should reject floating point exponents */
     str = "1.5E+0k";
     err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 1536);
-    g_assert(endptr == str + 7);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert(endptr == str);
 
-    /* FIXME we should reject hex fractions */
+    /* No hex fractions */
     str = "0x1.8k";
     err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 1536);
-    g_assert(endptr == str + 6);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert(endptr == str);
 
-    /* FIXME we reject all other attempts at negative, why not -0 */
+    /* No negative values */
     str = "-0";
     err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
-    g_assert(endptr == str + 2);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert(endptr == str);
+
+    str = "-1";
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert(endptr == str);
 }
 
 static void test_qemu_strtosz_trailing(void)
@@ -2263,22 +2260,7 @@ static void test_qemu_strtosz_erange(void)
     int err;
     uint64_t res = 0xbaadf00d;
 
-    str = "-1";
-    err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, -ERANGE);
-    g_assert(endptr == str + 2);
-
-    str = "18446744073709550592"; /* 0xfffffffffffffc00 FIXME accept this */
-    err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, -ERANGE);
-    g_assert(endptr == str + 20);
-
-    str = "18446744073709551615"; /* 2^64-1 FIXME accept this */
-    err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, -ERANGE);
-    g_assert(endptr == str + 20);
-
-    str = "18446744073709551616"; /* 2^64 */
+    str = "18446744073709551616"; /* 2^64; see strtosz_simple for 2^64-1 */
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, -ERANGE);
     g_assert(endptr == str + 20);
