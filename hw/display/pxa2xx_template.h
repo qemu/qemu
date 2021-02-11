@@ -9,7 +9,7 @@
  * Framebuffer format conversion routines.
  */
 
-# define SKIP_PIXEL(to)		to += deststep
+# define SKIP_PIXEL(to) do { to += deststep; } while (0)
 # define COPY_PIXEL(to, from)    \
     do {                         \
         *(uint32_t *) to = from; \
@@ -142,10 +142,11 @@ static void pxa2xx_draw_line16t(void *opaque,
         data >>= 5;
         r = (data & 0x1f) << 3;
         data >>= 5;
-        if (data & 1)
+        if (data & 1) {
             SKIP_PIXEL(dest);
-        else
+        } else {
             COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
+        }
         data >>= 1;
         b = (data & 0x1f) << 3;
         data >>= 5;
@@ -153,10 +154,11 @@ static void pxa2xx_draw_line16t(void *opaque,
         data >>= 5;
         r = (data & 0x1f) << 3;
         data >>= 5;
-        if (data & 1)
+        if (data & 1) {
             SKIP_PIXEL(dest);
-        else
+        } else {
             COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
+        }
         width -= 2;
         src += 4;
     }
@@ -248,10 +250,11 @@ static void pxa2xx_draw_line19(void *opaque,
         data >>= 6;
         r = (data & 0x3f) << 2;
         data >>= 6;
-        if (data & 1)
+        if (data & 1) {
             SKIP_PIXEL(dest);
-        else
+        } else {
             COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
+        }
         width -= 1;
         src += 4;
     }
@@ -281,10 +284,11 @@ static void pxa2xx_draw_line19p(void *opaque,
         data[0] >>= 6;
         r = (data[0] & 0x3f) << 2;
         data[0] >>= 6;
-        if (data[0] & 1)
+        if (data[0] & 1) {
             SKIP_PIXEL(dest);
-        else
+        } else {
             COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
+        }
         data[0] >>= 6;
         b = (data[0] & 0x3f) << 2;
         data[0] >>= 6;
@@ -292,10 +296,11 @@ static void pxa2xx_draw_line19p(void *opaque,
         data[1] >>= 4;
         r = (data[1] & 0x3f) << 2;
         data[1] >>= 6;
-        if (data[1] & 1)
+        if (data[1] & 1) {
             SKIP_PIXEL(dest);
-        else
+        } else {
             COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
+        }
         data[1] >>= 6;
         b = (data[1] & 0x3f) << 2;
         data[1] >>= 6;
@@ -303,10 +308,11 @@ static void pxa2xx_draw_line19p(void *opaque,
         data[1] >>= 6;
         r = ((data[2] & 0x3) << 6) | (data[1] << 2);
         data[2] >>= 2;
-        if (data[2] & 1)
+        if (data[2] & 1) {
             SKIP_PIXEL(dest);
-        else
+        } else {
             COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
+        }
         data[2] >>= 6;
         b = (data[2] & 0x3f) << 2;
         data[2] >>= 6;
@@ -314,10 +320,11 @@ static void pxa2xx_draw_line19p(void *opaque,
         data[2] >>= 6;
         r = data[2] << 2;
         data[2] >>= 6;
-        if (data[2] & 1)
+        if (data[2] & 1) {
             SKIP_PIXEL(dest);
-        else
+        } else {
             COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
+        }
         width -= 4;
     }
 }
@@ -359,10 +366,11 @@ static void pxa2xx_draw_line24t(void *opaque,
         data >>= 8;
         r = data & 0xff;
         data >>= 8;
-        if (data & 1)
+        if (data & 1) {
             SKIP_PIXEL(dest);
-        else
+        } else {
             COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
+        }
         width -= 1;
         src += 4;
     }
@@ -384,10 +392,11 @@ static void pxa2xx_draw_line25(void *opaque,
         data >>= 8;
         r = data & 0xff;
         data >>= 8;
-        if (data & 1)
+        if (data & 1) {
             SKIP_PIXEL(dest);
-        else
+        } else {
             COPY_PIXEL(dest, rgb_to_pixel32(r, g, b));
+        }
         width -= 1;
         src += 4;
     }
