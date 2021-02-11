@@ -187,6 +187,9 @@ typedef struct QEMU_PACKED {
 #define LDCMD_SOFINT	(1 << 22)
 #define LDCMD_PAL	(1 << 26)
 
+/* Size of a pixel in the QEMU UI output surface, in bytes */
+#define DEST_PIXEL_WIDTH 4
+
 #define BITS 32
 #include "pxa2xx_template.h"
 
@@ -702,14 +705,14 @@ static void pxa2xx_lcdc_dma0_redraw_rot0(PXA2xxLCDState *s,
     else if (s->bpp > pxa_lcdc_8bpp)
         src_width *= 2;
 
-    dest_width = s->xres * s->dest_width;
+    dest_width = s->xres * DEST_PIXEL_WIDTH;
     *miny = 0;
     if (s->invalidated) {
         framebuffer_update_memory_section(&s->fbsection, s->sysmem,
                                           addr, s->yres, src_width);
     }
     framebuffer_update_display(surface, &s->fbsection, s->xres, s->yres,
-                               src_width, dest_width, s->dest_width,
+                               src_width, dest_width, DEST_PIXEL_WIDTH,
                                s->invalidated,
                                fn, s->dma_ch[0].palette, miny, maxy);
 }
@@ -731,14 +734,14 @@ static void pxa2xx_lcdc_dma0_redraw_rot90(PXA2xxLCDState *s,
     else if (s->bpp > pxa_lcdc_8bpp)
         src_width *= 2;
 
-    dest_width = s->yres * s->dest_width;
+    dest_width = s->yres * DEST_PIXEL_WIDTH;
     *miny = 0;
     if (s->invalidated) {
         framebuffer_update_memory_section(&s->fbsection, s->sysmem,
                                           addr, s->yres, src_width);
     }
     framebuffer_update_display(surface, &s->fbsection, s->xres, s->yres,
-                               src_width, s->dest_width, -dest_width,
+                               src_width, DEST_PIXEL_WIDTH, -dest_width,
                                s->invalidated,
                                fn, s->dma_ch[0].palette,
                                miny, maxy);
@@ -763,14 +766,14 @@ static void pxa2xx_lcdc_dma0_redraw_rot180(PXA2xxLCDState *s,
         src_width *= 2;
     }
 
-    dest_width = s->xres * s->dest_width;
+    dest_width = s->xres * DEST_PIXEL_WIDTH;
     *miny = 0;
     if (s->invalidated) {
         framebuffer_update_memory_section(&s->fbsection, s->sysmem,
                                           addr, s->yres, src_width);
     }
     framebuffer_update_display(surface, &s->fbsection, s->xres, s->yres,
-                               src_width, -dest_width, -s->dest_width,
+                               src_width, -dest_width, -DEST_PIXEL_WIDTH,
                                s->invalidated,
                                fn, s->dma_ch[0].palette, miny, maxy);
 }
@@ -794,14 +797,14 @@ static void pxa2xx_lcdc_dma0_redraw_rot270(PXA2xxLCDState *s,
         src_width *= 2;
     }
 
-    dest_width = s->yres * s->dest_width;
+    dest_width = s->yres * DEST_PIXEL_WIDTH;
     *miny = 0;
     if (s->invalidated) {
         framebuffer_update_memory_section(&s->fbsection, s->sysmem,
                                           addr, s->yres, src_width);
     }
     framebuffer_update_display(surface, &s->fbsection, s->xres, s->yres,
-                               src_width, -s->dest_width, dest_width,
+                               src_width, -DEST_PIXEL_WIDTH, dest_width,
                                s->invalidated,
                                fn, s->dma_ch[0].palette,
                                miny, maxy);
@@ -1013,7 +1016,6 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
     memory_region_add_subregion(sysmem, base, &s->iomem);
 
     s->con = graphic_console_init(NULL, 0, &pxa2xx_ops, s);
-    s->dest_width = 4;
 
     vmstate_register(NULL, 0, &vmstate_pxa2xx_lcdc, s);
 
