@@ -403,7 +403,7 @@ build-some-softmmu:
   <<: *native_build_job_definition
   variables:
     IMAGE: debian-all-test-cross
-    CONFIGURE_ARGS: --disable-tools --enable-debug-tcg
+    CONFIGURE_ARGS: --disable-tools --enable-debug
     TARGETS: xtensa-softmmu arm-softmmu aarch64-softmmu alpha-softmmu
     MAKE_CHECK_ARGS: check-tcg
 
