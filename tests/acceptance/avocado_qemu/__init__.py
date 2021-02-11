@@ -219,10 +219,12 @@ class Test(avocado.Test):
         if self.qemu_bin is None:
             self.cancel("No QEMU binary defined or found in the build tree")
 
-    def _new_vm(self, *args):
+    def _new_vm(self, name, *args):
         self._sd = tempfile.TemporaryDirectory(prefix="avo_qemu_sock_")
         vm = QEMUMachine(self.qemu_bin, base_temp_dir=self.workdir,
                          sock_dir=self._sd.name)
+        self.log.debug('QEMUMachine "%s" created', name)
+        self.log.debug('QEMUMachine "%s" temp_dir: %s', name, vm.temp_dir)
         if args:
             vm.add_args(*args)
         return vm
@@ -235,7 +237,7 @@ class Test(avocado.Test):
         if not name:
             name = str(uuid.uuid4())
         if self._vms.get(name) is None:
-            self._vms[name] = self._new_vm(*args)
+            self._vms[name] = self._new_vm(name, *args)
             if self.machine is not None:
                 self._vms[name].set_machine(self.machine)
         return self._vms[name]
