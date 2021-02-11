@@ -52,7 +52,6 @@ addons:
       - ninja-build
       - sparse
       - uuid-dev
-      - gcovr
       # Tests dependencies
       - genisoimage
 
@@ -164,20 +163,6 @@ jobs:
                   --host-cc=clang --cxx=clang++"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-clang-default"
       compiler: clang
-
-
-    # gprof/gcov are GCC features
-    - name: "GCC gprof/gcov"
-      dist: bionic
-      addons:
-        apt:
-          packages:
-            - ninja-build
-      env:
-        - CONFIG="--enable-gprof --enable-gcov --disable-libssh
-                  --target-list=${MAIN_SOFTMMU_TARGETS}"
-      after_success:
-        - ${SRC_DIR}/scripts/travis/coverage-summary.sh
 
 
     # Using newer GCC with sanitizers
