@@ -240,6 +240,13 @@ const int mac_to_qkeycode_map[] = {
     [kVK_F14] = Q_KEY_CODE_SCROLL_LOCK,
     [kVK_F15] = Q_KEY_CODE_PAUSE,
 
+    // JIS keyboards only
+    [kVK_JIS_Yen] = Q_KEY_CODE_YEN,
+    [kVK_JIS_Underscore] = Q_KEY_CODE_RO,
+    [kVK_JIS_KeypadComma] = Q_KEY_CODE_KP_COMMA,
+    [kVK_JIS_Eisu] = Q_KEY_CODE_MUHENKAN,
+    [kVK_JIS_Kana] = Q_KEY_CODE_HENKAN,
+
     /*
      * The eject and volume keys can't be used here because they are handled at
      * a lower level than what an Application can see.
