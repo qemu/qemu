@@ -24,6 +24,7 @@
 #include "hw/ppc/xive_regs.h"
 #include "hw/qdev-properties.h"
 #include "hw/ppc/ppc.h"
+#include "trace.h"
 
 #include <libfdt.h>
 
@@ -1318,6 +1319,8 @@ static void pnv_xive_ic_hw_trigger(PnvXive *xive, hwaddr addr, uint64_t val)
 {
     uint8_t blk;
     uint32_t idx;
+
+    trace_pnv_xive_ic_hw_trigger(addr, val);
 
     if (val & XIVE_TRIGGER_END) {
         xive_error(xive, "IC: END trigger at @0x%"HWADDR_PRIx" data 0x%"PRIx64,

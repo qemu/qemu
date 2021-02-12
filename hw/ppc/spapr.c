@@ -296,15 +296,6 @@ static hwaddr spapr_node0_size(MachineState *machine)
     return machine->ram_size;
 }
 
-bool spapr_machine_using_legacy_numa(SpaprMachineState *spapr)
-{
-    MachineState *machine = MACHINE(spapr);
-    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
-
-    return smc->pre_5_2_numa_associativity ||
-           machine->numa_state->num_nodes <= 1;
-}
-
 static void add_str(GString *s, const gchar *s1)
 {
     g_string_append_len(s, s1, strlen(s1) + 1);
@@ -791,7 +782,6 @@ static void spapr_dt_cpus(void *fdt, SpaprMachineState *spapr)
     CPUState *cs;
     int n_cpus;
     int cpus_offset;
-    char *nodename;
     int i;
 
     cpus_offset = fdt_add_subnode(fdt, 0, "cpus");
@@ -819,6 +809,7 @@ static void spapr_dt_cpus(void *fdt, SpaprMachineState *spapr)
         PowerPCCPU *cpu = POWERPC_CPU(cs);
         int index = spapr_get_vcpu_id(cpu);
         DeviceClass *dc = DEVICE_GET_CLASS(cs);
+        g_autofree char *nodename = NULL;
         int offset;
 
         if (!spapr_is_thread0_in_vcore(spapr, cpu)) {
@@ -827,7 +818,6 @@ static void spapr_dt_cpus(void *fdt, SpaprMachineState *spapr)
 
         nodename = g_strdup_printf("%s@%x", dc->fw_name, index);
         offset = fdt_add_subnode(fdt, cpus_offset, nodename);
-        g_free(nodename);
         _FDT(offset);
         spapr_dt_cpu(cs, fdt, offset, spapr);
     }
@@ -2780,16 +2770,7 @@ static void spapr_machine_init(MachineState *machine)
 
     }
 
-    /*
-     * NVLink2-connected GPU RAM needs to be placed on a separate NUMA node.
-     * We assign a new numa ID per GPU in spapr_pci_collect_nvgpu() which is
-     * called from vPHB reset handler so we initialize the counter here.
-     * If no NUMA is configured from the QEMU side, we start from 1 as GPU RAM
-     * must be equally distant from any other node.
-     * The final value of spapr->gpu_numa_id is going to be written to
-     * max-associativity-domains in spapr_build_fdt().
-     */
-    spapr->gpu_numa_id = MAX(1, machine->numa_state->num_nodes);
+    spapr->gpu_numa_id = spapr_numa_initial_nvgpu_numa_id(machine);
 
     /* Init numa_assoc_array */
     spapr_numa_associativity_init(spapr, machine);
@@ -3055,6 +3036,7 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
     SCSIDevice *d = CAST(SCSIDevice,  dev, TYPE_SCSI_DEVICE);
     SpaprPhbState *phb = CAST(SpaprPhbState, dev, TYPE_SPAPR_PCI_HOST_BRIDGE);
     VHostSCSICommon *vsc = CAST(VHostSCSICommon, dev, TYPE_VHOST_SCSI_COMMON);
+    PCIDevice *pcidev = CAST(PCIDevice, dev, TYPE_PCI_DEVICE);
 
     if (d) {
         void *spapr = CAST(void, bus->parent, "spapr-vscsi");
@@ -3126,6 +3108,10 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
         /* SLOF uses "pci" instead of "pci-bridge" for PCI bridges */
         PCIDevice *pcidev = CAST(PCIDevice, dev, TYPE_PCI_DEVICE);
         return g_strdup_printf("pci@%x", PCI_SLOT(pcidev->devfn));
+    }
+
+    if (pcidev) {
+        return spapr_pci_fw_dev_name(pcidev);
     }
 
     return NULL;
@@ -3749,14 +3735,26 @@ int spapr_core_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     DeviceClass *dc = DEVICE_GET_CLASS(cs);
     int id = spapr_get_vcpu_id(cpu);
-    char *nodename;
+    g_autofree char *nodename = NULL;
     int offset;
 
     nodename = g_strdup_printf("%s@%x", dc->fw_name, id);
     offset = fdt_add_subnode(fdt, 0, nodename);
-    g_free(nodename);
 
     spapr_dt_cpu(cs, fdt, offset, spapr);
+
+    /*
+     * spapr_dt_cpu() does not fill the 'name' property in the
+     * CPU node. The function is called during boot process, before
+     * and after CAS, and overwriting the 'name' property written
+     * by SLOF is not allowed.
+     *
+     * Write it manually after spapr_dt_cpu(). This makes the hotplug
+     * CPUs more compatible with the coldplugged ones, which have
+     * the 'name' property. Linux Kernel also relies on this
+     * property to identify CPU nodes.
+     */
+    _FDT((fdt_setprop_string(fdt, offset, "name", nodename)));
 
     *fdt_start_offset = offset;
     return 0;

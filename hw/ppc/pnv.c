@@ -21,6 +21,7 @@
 #include "qemu-common.h"
 #include "qemu/datadir.h"
 #include "qemu/units.h"
+#include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "sysemu/qtest.h"
 #include "sysemu/sysemu.h"
@@ -65,9 +66,9 @@
 #define FW_MAX_SIZE             (16 * MiB)
 
 #define KERNEL_LOAD_ADDR        0x20000000
-#define KERNEL_MAX_SIZE         (256 * MiB)
-#define INITRD_LOAD_ADDR        0x60000000
-#define INITRD_MAX_SIZE         (256 * MiB)
+#define KERNEL_MAX_SIZE         (128 * MiB)
+#define INITRD_LOAD_ADDR        0x28000000
+#define INITRD_MAX_SIZE         (128 * MiB)
 
 static const char *pnv_chip_core_typename(const PnvChip *o)
 {
@@ -725,8 +726,11 @@ static void pnv_init(MachineState *machine)
     DeviceState *dev;
 
     /* allocate RAM */
-    if (machine->ram_size < (1 * GiB)) {
-        warn_report("skiboot may not work with < 1GB of RAM");
+    if (machine->ram_size < mc->default_ram_size) {
+        char *sz = size_to_str(mc->default_ram_size);
+        error_report("Invalid RAM size, should be bigger than %s", sz);
+        g_free(sz);
+        exit(EXIT_FAILURE);
     }
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
 
@@ -870,6 +874,14 @@ static void pnv_init(MachineState *machine)
         pnv->bmc = pnv_bmc_create(pnv->pnor);
         pnv_ipmi_bt_init(pnv->isa_bus, pnv->bmc, 10);
     }
+
+    /*
+     * The PNOR is mapped on the LPC FW address space by the BMC.
+     * Since we can not reach the remote BMC machine with LPC memops,
+     * map it always for now.
+     */
+    memory_region_add_subregion(pnv->chips[0]->fw_mr, PNOR_SPI_OFFSET,
+                                &pnv->pnor->mmio);
 
     /*
      * OpenPOWER systems use a IPMI SEL Event message to notify the
@@ -1150,6 +1162,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     qdev_realize(DEVICE(&chip8->lpc), NULL, &error_fatal);
     pnv_xscom_add_subregion(chip, PNV_XSCOM_LPC_BASE, &chip8->lpc.xscom_regs);
 
+    chip->fw_mr = &chip8->lpc.isa_fw;
     chip->dt_isa_nodename = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
                                             (uint64_t) PNV_XSCOM_BASE(chip),
                                             PNV_XSCOM_LPC_BASE);
@@ -1479,6 +1492,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), PNV9_LPCM_BASE(chip),
                                 &chip9->lpc.xscom_regs);
 
+    chip->fw_mr = &chip9->lpc.isa_fw;
     chip->dt_isa_nodename = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",
                                             (uint64_t) PNV9_LPCM_BASE(chip));
 
@@ -1592,6 +1606,7 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), PNV10_LPCM_BASE(chip),
                                 &chip10->lpc.xscom_regs);
 
+    chip->fw_mr = &chip10->lpc.isa_fw;
     chip->dt_isa_nodename = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",
                                             (uint64_t) PNV10_LPCM_BASE(chip));
 }
@@ -1983,7 +1998,7 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
      * RAM defaults to less than 2048 for 32-bit hosts, and large
      * enough to fit the maximum initrd size at it's load address
      */
-    mc->default_ram_size = INITRD_LOAD_ADDR + INITRD_MAX_SIZE;
+    mc->default_ram_size = 1 * GiB;
     mc->default_ram_id = "pnv.ram";
     ispc->print_info = pnv_pic_print_info;
     nc->nmi_monitor_handler = pnv_nmi;

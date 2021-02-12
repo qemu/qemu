@@ -66,7 +66,7 @@ The QEMU source code is maintained under the GIT version control system.
 
 .. code-block:: shell
 
-   git clone https://git.qemu.org/git/qemu.git
+   git clone https://gitlab.com/qemu-project/qemu.git
 
 When submitting patches, one common approach is to use 'git
 format-patch' and/or 'git send-email' to format & send the mail to the
@@ -84,7 +84,7 @@ The QEMU website is also maintained under source control.
 
 .. code-block:: shell
 
-  git clone https://git.qemu.org/git/qemu-web.git
+  git clone https://gitlab.com/qemu-project/qemu-web.git
 
 * `<https://www.qemu.org/2017/02/04/the-new-qemu-website-is-up/>`_
 

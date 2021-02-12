@@ -37,3 +37,4 @@ Contents:
    clocks
    qom
    block-coroutine-wrapper
+   multi-process
