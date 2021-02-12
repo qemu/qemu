@@ -99,7 +99,7 @@ static int validate_prot_to_pageflags(int *host_prot, int prot)
      * Pages that are executable by the guest will never be executed
      * by the host, but the host will need to be able to read them.
      */
-    *host_prot = (prot & (PROT_READ | PROT_WRITE))
+    *host_prot = (prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
                | (prot & PROT_EXEC ? PROT_READ : 0);
 
 #ifdef TARGET_AARCH64
