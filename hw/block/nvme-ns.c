@@ -36,13 +36,15 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
 {
     BlockDriverInfo bdi;
     NvmeIdNs *id_ns = &ns->id_ns;
-    int lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
     int npdg, nlbas;
+    uint8_t ds;
+    uint16_t ms;
+    int i;
 
     ns->id_ns.dlfeat = 0x1;
 
-    id_ns->lbaf[lba_index].ds = 31 - clz32(ns->blkconf.logical_block_size);
-    id_ns->lbaf[lba_index].ms = ns->params.ms;
+    ds = 31 - clz32(ns->blkconf.logical_block_size);
+    ms = ns->params.ms;
 
     if (ns->params.ms) {
         id_ns->mc = 0x3;
@@ -53,8 +55,47 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
 
         id_ns->dpc = 0x1f;
         id_ns->dps = ((ns->params.pil & 0x1) << 3) | ns->params.pi;
+
+        NvmeLBAF lbaf[16] = {
+            [0] = { .ds =  9           },
+            [1] = { .ds =  9, .ms =  8 },
+            [2] = { .ds =  9, .ms = 16 },
+            [3] = { .ds =  9, .ms = 64 },
+            [4] = { .ds = 12           },
+            [5] = { .ds = 12, .ms =  8 },
+            [6] = { .ds = 12, .ms = 16 },
+            [7] = { .ds = 12, .ms = 64 },
+        };
+
+        memcpy(&id_ns->lbaf, &lbaf, sizeof(lbaf));
+        id_ns->nlbaf = 7;
+    } else {
+        NvmeLBAF lbaf[16] = {
+            [0] = { .ds =  9 },
+            [1] = { .ds = 12 },
+        };
+
+        memcpy(&id_ns->lbaf, &lbaf, sizeof(lbaf));
+        id_ns->nlbaf = 1;
     }
 
+    for (i = 0; i <= id_ns->nlbaf; i++) {
+        NvmeLBAF *lbaf = &id_ns->lbaf[i];
+        if (lbaf->ds == ds) {
+            if (lbaf->ms == ms) {
+                id_ns->flbas |= i;
+                goto lbaf_found;
+            }
+        }
+    }
+
+    /* add non-standard lba format */
+    id_ns->nlbaf++;
+    id_ns->lbaf[id_ns->nlbaf].ds = ds;
+    id_ns->lbaf[id_ns->nlbaf].ms = ms;
+    id_ns->flbas |= id_ns->nlbaf;
+
+lbaf_found:
     nlbas = nvme_ns_nlbas(ns);
 
     id_ns->nsze = cpu_to_le64(nlbas);
@@ -244,9 +285,10 @@ static void nvme_ns_zoned_init_state(NvmeNamespace *ns)
     }
 }
 
-static void nvme_ns_init_zoned(NvmeNamespace *ns, int lba_index)
+static void nvme_ns_init_zoned(NvmeNamespace *ns)
 {
     NvmeIdNsZoned *id_ns_z;
+    int i;
 
     nvme_ns_zoned_init_state(ns);
 
@@ -258,9 +300,11 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns, int lba_index)
     id_ns_z->zoc = 0;
     id_ns_z->ozcs = ns->params.cross_zone_read ? 0x01 : 0x00;
 
-    id_ns_z->lbafe[lba_index].zsze = cpu_to_le64(ns->zone_size);
-    id_ns_z->lbafe[lba_index].zdes =
-        ns->params.zd_extension_size >> 6; /* Units of 64B */
+    for (i = 0; i <= ns->id_ns.nlbaf; i++) {
+        id_ns_z->lbafe[i].zsze = cpu_to_le64(ns->zone_size);
+        id_ns_z->lbafe[i].zdes =
+            ns->params.zd_extension_size >> 6; /* Units of 64B */
+    }
 
     ns->csi = NVME_CSI_ZONED;
     ns->id_ns.nsze = cpu_to_le64(ns->num_zones * ns->zone_size);
@@ -367,7 +411,7 @@ int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
         if (nvme_ns_zoned_check_calc_geometry(ns, errp) != 0) {
             return -1;
         }
-        nvme_ns_init_zoned(ns, 0);
+        nvme_ns_init_zoned(ns);
     }
 
     return 0;
