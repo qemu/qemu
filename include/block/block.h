@@ -849,4 +849,7 @@ int coroutine_fn bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
                                     BdrvChild *dst, int64_t dst_offset,
                                     int64_t bytes, BdrvRequestFlags read_flags,
                                     BdrvRequestFlags write_flags);
+
+void bdrv_cancel_in_flight(BlockDriverState *bs);
+
 #endif

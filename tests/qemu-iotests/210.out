@@ -182,7 +182,7 @@ Job failed: The requested file size is too large
 === Resize image with invalid sizes ===
 
 {"execute": "block_resize", "arguments": {"node-name": "node1", "size": 9223372036854775296}}
-{"error": {"class": "GenericError", "desc": "Required too big image size, it must be not greater than 9223372035781033984"}}
+{"error": {"class": "GenericError", "desc": "offset(9223372036854775296) exceeds maximum(9223372035781033984)"}}
 {"execute": "block_resize", "arguments": {"node-name": "node1", "size": 9223372036854775808}}
 {"error": {"class": "GenericError", "desc": "Invalid parameter type for 'size', expected: integer"}}
 {"execute": "block_resize", "arguments": {"node-name": "node1", "size": 18446744073709551104}}
