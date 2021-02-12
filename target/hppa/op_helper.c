@@ -63,7 +63,7 @@ static void atomic_store_3(CPUHPPAState *env, target_ulong addr, uint32_t val,
 #ifdef CONFIG_USER_ONLY
     uint32_t old, new, cmp;
 
-    uint32_t *haddr = g2h(addr - 1);
+    uint32_t *haddr = g2h(env_cpu(env), addr - 1);
     old = *haddr;
     while (1) {
         new = (old & ~mask) | (val & mask);

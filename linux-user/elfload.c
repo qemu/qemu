@@ -389,7 +389,7 @@ enum {
 
 static bool init_guest_commpage(void)
 {
-    void *want = g2h(ARM_COMMPAGE & -qemu_host_page_size);
+    void *want = g2h_untagged(ARM_COMMPAGE & -qemu_host_page_size);
     void *addr = mmap(want, qemu_host_page_size, PROT_READ | PROT_WRITE,
                       MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
 
@@ -402,7 +402,7 @@ static bool init_guest_commpage(void)
     }
 
     /* Set kernel helper versions; rest of page is 0.  */
-    __put_user(5, (uint32_t *)g2h(0xffff0ffcu));
+    __put_user(5, (uint32_t *)g2h_untagged(0xffff0ffcu));
 
     if (mprotect(addr, qemu_host_page_size, PROT_READ)) {
         perror("Protecting guest commpage");
@@ -1872,8 +1872,8 @@ static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
        here is still actually needed.  For now, continue with it,
        but merge it with the "normal" mmap that would allocate the bss.  */
 
-    host_start = (uintptr_t) g2h(elf_bss);
-    host_end = (uintptr_t) g2h(last_bss);
+    host_start = (uintptr_t) g2h_untagged(elf_bss);
+    host_end = (uintptr_t) g2h_untagged(last_bss);
     host_map_start = REAL_HOST_PAGE_ALIGN(host_start);
 
     if (host_map_start < host_end) {
@@ -2171,7 +2171,7 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
     }
 
     /* Reserve the address space for the binary, or reserved_va. */
-    test = g2h(guest_loaddr);
+    test = g2h_untagged(guest_loaddr);
     addr = mmap(test, guest_hiaddr - guest_loaddr, PROT_NONE, flags, -1, 0);
     if (test != addr) {
         pgb_fail_in_use(image_name);
@@ -2393,7 +2393,7 @@ static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
 
     /* Reserve the memory on the host. */
     assert(guest_base != 0);
-    test = g2h(0);
+    test = g2h_untagged(0);
     addr = mmap(test, reserved_va, PROT_NONE, flags, -1, 0);
     if (addr == MAP_FAILED || addr != test) {
         error_report("Unable to reserve 0x%lx bytes of virtual address "

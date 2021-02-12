@@ -542,7 +542,7 @@ uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
 
 #ifdef CONFIG_USER_ONLY
     /* ??? Enforce alignment.  */
-    uint64_t *haddr = g2h(addr);
+    uint64_t *haddr = g2h(env_cpu(env), addr);
 
     set_helper_retaddr(ra);
     o0 = ldq_le_p(haddr + 0);
@@ -612,7 +612,7 @@ uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
 
 #ifdef CONFIG_USER_ONLY
     /* ??? Enforce alignment.  */
-    uint64_t *haddr = g2h(addr);
+    uint64_t *haddr = g2h(env_cpu(env), addr);
 
     set_helper_retaddr(ra);
     o1 = ldq_be_p(haddr + 0);

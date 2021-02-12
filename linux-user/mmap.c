@@ -141,7 +141,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
             }
             end = host_end;
         }
-        ret = mprotect(g2h(host_start), qemu_host_page_size,
+        ret = mprotect(g2h_untagged(host_start), qemu_host_page_size,
                        prot1 & PAGE_BITS);
         if (ret != 0) {
             goto error;
@@ -153,7 +153,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
         for (addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
             prot1 |= page_get_flags(addr);
         }
-        ret = mprotect(g2h(host_end - qemu_host_page_size),
+        ret = mprotect(g2h_untagged(host_end - qemu_host_page_size),
                        qemu_host_page_size, prot1 & PAGE_BITS);
         if (ret != 0) {
             goto error;
@@ -163,7 +163,8 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
 
     /* handle the pages in the middle */
     if (host_start < host_end) {
-        ret = mprotect(g2h(host_start), host_end - host_start, host_prot);
+        ret = mprotect(g2h_untagged(host_start),
+                       host_end - host_start, host_prot);
         if (ret != 0) {
             goto error;
         }
@@ -186,7 +187,7 @@ static int mmap_frag(abi_ulong real_start,
     int prot1, prot_new;
 
     real_end = real_start + qemu_host_page_size;
-    host_start = g2h(real_start);
+    host_start = g2h_untagged(real_start);
 
     /* get the protection of the target pages outside the mapping */
     prot1 = 0;
@@ -218,7 +219,7 @@ static int mmap_frag(abi_ulong real_start,
             mprotect(host_start, qemu_host_page_size, prot1 | PROT_WRITE);
 
         /* read the corresponding file data */
-        if (pread(fd, g2h(start), end - start, offset) == -1)
+        if (pread(fd, g2h_untagged(start), end - start, offset) == -1)
             return -1;
 
         /* put final protection */
@@ -229,7 +230,7 @@ static int mmap_frag(abi_ulong real_start,
             mprotect(host_start, qemu_host_page_size, prot_new);
         }
         if (prot_new & PROT_WRITE) {
-            memset(g2h(start), 0, end - start);
+            memset(g2h_untagged(start), 0, end - start);
         }
     }
     return 0;
@@ -338,7 +339,7 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size, abi_ulong align)
          *  - mremap() with MREMAP_FIXED flag
          *  - shmat() with SHM_REMAP flag
          */
-        ptr = mmap(g2h(addr), size, PROT_NONE,
+        ptr = mmap(g2h_untagged(addr), size, PROT_NONE,
                    MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE, -1, 0);
 
         /* ENOMEM, if host address space has no memory */
@@ -497,7 +498,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         /* Note: we prefer to control the mapping address. It is
            especially important if qemu_host_page_size >
            qemu_real_host_page_size */
-        p = mmap(g2h(start), host_len, host_prot,
+        p = mmap(g2h_untagged(start), host_len, host_prot,
                  flags | MAP_FIXED | MAP_ANONYMOUS, -1, 0);
         if (p == MAP_FAILED) {
             goto fail;
@@ -505,10 +506,10 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         /* update start so that it points to the file position at 'offset' */
         host_start = (unsigned long)p;
         if (!(flags & MAP_ANONYMOUS)) {
-            p = mmap(g2h(start), len, host_prot,
+            p = mmap(g2h_untagged(start), len, host_prot,
                      flags | MAP_FIXED, fd, host_offset);
             if (p == MAP_FAILED) {
-                munmap(g2h(start), host_len);
+                munmap(g2h_untagged(start), host_len);
                 goto fail;
             }
             host_start += offset - host_offset;
@@ -548,7 +549,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
                                   -1, 0);
             if (retaddr == -1)
                 goto fail;
-            if (pread(fd, g2h(start), len, offset) == -1)
+            if (pread(fd, g2h_untagged(start), len, offset) == -1)
                 goto fail;
             if (!(host_prot & PROT_WRITE)) {
                 ret = target_mprotect(start, len, target_prot);
@@ -592,7 +593,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
                 offset1 = 0;
             else
                 offset1 = offset + real_start - start;
-            p = mmap(g2h(real_start), real_end - real_start,
+            p = mmap(g2h_untagged(real_start), real_end - real_start,
                      host_prot, flags, fd, offset1);
             if (p == MAP_FAILED)
                 goto fail;
@@ -652,7 +653,7 @@ static void mmap_reserve(abi_ulong start, abi_ulong size)
             real_end -= qemu_host_page_size;
     }
     if (real_start != real_end) {
-        mmap(g2h(real_start), real_end - real_start, PROT_NONE,
+        mmap(g2h_untagged(real_start), real_end - real_start, PROT_NONE,
                  MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE,
                  -1, 0);
     }
@@ -707,7 +708,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
         if (reserved_va) {
             mmap_reserve(real_start, real_end - real_start);
         } else {
-            ret = munmap(g2h(real_start), real_end - real_start);
+            ret = munmap(g2h_untagged(real_start), real_end - real_start);
         }
     }
 
@@ -738,8 +739,8 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
     mmap_lock();
 
     if (flags & MREMAP_FIXED) {
-        host_addr = mremap(g2h(old_addr), old_size, new_size,
-                           flags, g2h(new_addr));
+        host_addr = mremap(g2h_untagged(old_addr), old_size, new_size,
+                           flags, g2h_untagged(new_addr));
 
         if (reserved_va && host_addr != MAP_FAILED) {
             /* If new and old addresses overlap then the above mremap will
@@ -755,8 +756,9 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
             errno = ENOMEM;
             host_addr = MAP_FAILED;
         } else {
-            host_addr = mremap(g2h(old_addr), old_size, new_size,
-                               flags | MREMAP_FIXED, g2h(mmap_start));
+            host_addr = mremap(g2h_untagged(old_addr), old_size, new_size,
+                               flags | MREMAP_FIXED,
+                               g2h_untagged(mmap_start));
             if (reserved_va) {
                 mmap_reserve(old_addr, old_size);
             }
@@ -772,14 +774,15 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
             }
         }
         if (prot == 0) {
-            host_addr = mremap(g2h(old_addr), old_size, new_size, flags);
+            host_addr = mremap(g2h_untagged(old_addr),
+                               old_size, new_size, flags);
 
             if (host_addr != MAP_FAILED) {
                 /* Check if address fits target address space */
                 if (!guest_range_valid(h2g(host_addr), new_size)) {
                     /* Revert mremap() changes */
-                    host_addr = mremap(g2h(old_addr), new_size, old_size,
-                                       flags);
+                    host_addr = mremap(g2h_untagged(old_addr),
+                                       new_size, old_size, flags);
                     errno = ENOMEM;
                     host_addr = MAP_FAILED;
                 } else if (reserved_va && old_size > new_size) {

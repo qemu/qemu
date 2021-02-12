@@ -66,7 +66,7 @@ void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
 
 #ifdef CONFIG_USER_ONLY
     {
-        uint64_t *haddr = g2h(a0);
+        uint64_t *haddr = g2h(env_cpu(env), a0);
         cmpv = cpu_to_le64(cmpv);
         newv = cpu_to_le64(newv);
         oldv = qatomic_cmpxchg__nocheck(haddr, cmpv, newv);

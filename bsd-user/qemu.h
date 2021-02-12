@@ -356,13 +356,13 @@ static inline void *lock_user(int type, abi_ulong guest_addr, long len, int copy
         void *addr;
         addr = g_malloc(len);
         if (copy)
-            memcpy(addr, g2h(guest_addr), len);
+            memcpy(addr, g2h_untagged(guest_addr), len);
         else
             memset(addr, 0, len);
         return addr;
     }
 #else
-    return g2h(guest_addr);
+    return g2h_untagged(guest_addr);
 #endif
 }
 
@@ -376,10 +376,10 @@ static inline void unlock_user(void *host_ptr, abi_ulong guest_addr,
 #ifdef DEBUG_REMAP
     if (!host_ptr)
         return;
-    if (host_ptr == g2h(guest_addr))
+    if (host_ptr == g2h_untagged(guest_addr))
         return;
     if (len > 0)
-        memcpy(g2h(guest_addr), host_ptr, len);
+        memcpy(g2h_untagged(guest_addr), host_ptr, len);
     g_free(host_ptr);
 #endif
 }

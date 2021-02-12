@@ -23,6 +23,7 @@
 
 static abi_ulong hppa_lws(CPUHPPAState *env)
 {
+    CPUState *cs = env_cpu(env);
     uint32_t which = env->gr[20];
     abi_ulong addr = env->gr[26];
     abi_ulong old = env->gr[25];
@@ -39,7 +40,7 @@ static abi_ulong hppa_lws(CPUHPPAState *env)
         }
         old = tswap32(old);
         new = tswap32(new);
-        ret = qatomic_cmpxchg((uint32_t *)g2h(addr), old, new);
+        ret = qatomic_cmpxchg((uint32_t *)g2h(cs, addr), old, new);
         ret = tswap32(ret);
         break;
 
@@ -58,38 +59,38 @@ static abi_ulong hppa_lws(CPUHPPAState *env)
            can be host-endian as well.  */
         switch (size) {
         case 0:
-            old = *(uint8_t *)g2h(old);
-            new = *(uint8_t *)g2h(new);
-            ret = qatomic_cmpxchg((uint8_t *)g2h(addr), old, new);
+            old = *(uint8_t *)g2h(cs, old);
+            new = *(uint8_t *)g2h(cs, new);
+            ret = qatomic_cmpxchg((uint8_t *)g2h(cs, addr), old, new);
             ret = ret != old;
             break;
         case 1:
-            old = *(uint16_t *)g2h(old);
-            new = *(uint16_t *)g2h(new);
-            ret = qatomic_cmpxchg((uint16_t *)g2h(addr), old, new);
+            old = *(uint16_t *)g2h(cs, old);
+            new = *(uint16_t *)g2h(cs, new);
+            ret = qatomic_cmpxchg((uint16_t *)g2h(cs, addr), old, new);
             ret = ret != old;
             break;
         case 2:
-            old = *(uint32_t *)g2h(old);
-            new = *(uint32_t *)g2h(new);
-            ret = qatomic_cmpxchg((uint32_t *)g2h(addr), old, new);
+            old = *(uint32_t *)g2h(cs, old);
+            new = *(uint32_t *)g2h(cs, new);
+            ret = qatomic_cmpxchg((uint32_t *)g2h(cs, addr), old, new);
             ret = ret != old;
             break;
         case 3:
             {
                 uint64_t o64, n64, r64;
-                o64 = *(uint64_t *)g2h(old);
-                n64 = *(uint64_t *)g2h(new);
+                o64 = *(uint64_t *)g2h(cs, old);
+                n64 = *(uint64_t *)g2h(cs, new);
 #ifdef CONFIG_ATOMIC64
-                r64 = qatomic_cmpxchg__nocheck((uint64_t *)g2h(addr),
+                r64 = qatomic_cmpxchg__nocheck((uint64_t *)g2h(cs, addr),
                                                o64, n64);
                 ret = r64 != o64;
 #else
                 start_exclusive();
-                r64 = *(uint64_t *)g2h(addr);
+                r64 = *(uint64_t *)g2h(cs, addr);
                 ret = 1;
                 if (r64 == o64) {
-                    *(uint64_t *)g2h(addr) = n64;
+                    *(uint64_t *)g2h(cs, addr) = n64;
                     ret = 0;
                 }
                 end_exclusive();

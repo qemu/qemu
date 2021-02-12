@@ -234,7 +234,7 @@ int probe_access_flags(CPUArchState *env, target_ulong addr,
     int flags;
 
     flags = probe_access_internal(env, addr, 0, access_type, nonfault, ra);
-    *phost = flags ? NULL : g2h(addr);
+    *phost = flags ? NULL : g2h(env_cpu(env), addr);
     return flags;
 }
 
@@ -247,7 +247,7 @@ void *probe_access(CPUArchState *env, target_ulong addr, int size,
     flags = probe_access_internal(env, addr, size, access_type, false, ra);
     g_assert(flags == 0);
 
-    return size ? g2h(addr) : NULL;
+    return size ? g2h(env_cpu(env), addr) : NULL;
 }
 
 #if defined(__i386__)
@@ -842,7 +842,7 @@ uint32_t cpu_ldub_data(CPUArchState *env, abi_ptr ptr)
     uint16_t meminfo = trace_mem_get_info(MO_UB, MMU_USER_IDX, false);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = ldub_p(g2h(ptr));
+    ret = ldub_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
     return ret;
 }
@@ -853,7 +853,7 @@ int cpu_ldsb_data(CPUArchState *env, abi_ptr ptr)
     uint16_t meminfo = trace_mem_get_info(MO_SB, MMU_USER_IDX, false);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = ldsb_p(g2h(ptr));
+    ret = ldsb_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
     return ret;
 }
@@ -864,7 +864,7 @@ uint32_t cpu_lduw_be_data(CPUArchState *env, abi_ptr ptr)
     uint16_t meminfo = trace_mem_get_info(MO_BEUW, MMU_USER_IDX, false);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = lduw_be_p(g2h(ptr));
+    ret = lduw_be_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
     return ret;
 }
@@ -875,7 +875,7 @@ int cpu_ldsw_be_data(CPUArchState *env, abi_ptr ptr)
     uint16_t meminfo = trace_mem_get_info(MO_BESW, MMU_USER_IDX, false);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = ldsw_be_p(g2h(ptr));
+    ret = ldsw_be_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
     return ret;
 }
@@ -886,7 +886,7 @@ uint32_t cpu_ldl_be_data(CPUArchState *env, abi_ptr ptr)
     uint16_t meminfo = trace_mem_get_info(MO_BEUL, MMU_USER_IDX, false);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = ldl_be_p(g2h(ptr));
+    ret = ldl_be_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
     return ret;
 }
@@ -897,7 +897,7 @@ uint64_t cpu_ldq_be_data(CPUArchState *env, abi_ptr ptr)
     uint16_t meminfo = trace_mem_get_info(MO_BEQ, MMU_USER_IDX, false);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = ldq_be_p(g2h(ptr));
+    ret = ldq_be_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
     return ret;
 }
@@ -908,7 +908,7 @@ uint32_t cpu_lduw_le_data(CPUArchState *env, abi_ptr ptr)
     uint16_t meminfo = trace_mem_get_info(MO_LEUW, MMU_USER_IDX, false);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = lduw_le_p(g2h(ptr));
+    ret = lduw_le_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
     return ret;
 }
@@ -919,7 +919,7 @@ int cpu_ldsw_le_data(CPUArchState *env, abi_ptr ptr)
     uint16_t meminfo = trace_mem_get_info(MO_LESW, MMU_USER_IDX, false);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = ldsw_le_p(g2h(ptr));
+    ret = ldsw_le_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
     return ret;
 }
@@ -930,7 +930,7 @@ uint32_t cpu_ldl_le_data(CPUArchState *env, abi_ptr ptr)
     uint16_t meminfo = trace_mem_get_info(MO_LEUL, MMU_USER_IDX, false);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = ldl_le_p(g2h(ptr));
+    ret = ldl_le_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
     return ret;
 }
@@ -941,7 +941,7 @@ uint64_t cpu_ldq_le_data(CPUArchState *env, abi_ptr ptr)
     uint16_t meminfo = trace_mem_get_info(MO_LEQ, MMU_USER_IDX, false);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    ret = ldq_le_p(g2h(ptr));
+    ret = ldq_le_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
     return ret;
 }
@@ -1051,7 +1051,7 @@ void cpu_stb_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
     uint16_t meminfo = trace_mem_get_info(MO_UB, MMU_USER_IDX, true);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    stb_p(g2h(ptr), val);
+    stb_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
 }
 
@@ -1060,7 +1060,7 @@ void cpu_stw_be_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
     uint16_t meminfo = trace_mem_get_info(MO_BEUW, MMU_USER_IDX, true);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    stw_be_p(g2h(ptr), val);
+    stw_be_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
 }
 
@@ -1069,7 +1069,7 @@ void cpu_stl_be_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
     uint16_t meminfo = trace_mem_get_info(MO_BEUL, MMU_USER_IDX, true);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    stl_be_p(g2h(ptr), val);
+    stl_be_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
 }
 
@@ -1078,7 +1078,7 @@ void cpu_stq_be_data(CPUArchState *env, abi_ptr ptr, uint64_t val)
     uint16_t meminfo = trace_mem_get_info(MO_BEQ, MMU_USER_IDX, true);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    stq_be_p(g2h(ptr), val);
+    stq_be_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
 }
 
@@ -1087,7 +1087,7 @@ void cpu_stw_le_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
     uint16_t meminfo = trace_mem_get_info(MO_LEUW, MMU_USER_IDX, true);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    stw_le_p(g2h(ptr), val);
+    stw_le_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
 }
 
@@ -1096,7 +1096,7 @@ void cpu_stl_le_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
     uint16_t meminfo = trace_mem_get_info(MO_LEUL, MMU_USER_IDX, true);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    stl_le_p(g2h(ptr), val);
+    stl_le_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
 }
 
@@ -1105,7 +1105,7 @@ void cpu_stq_le_data(CPUArchState *env, abi_ptr ptr, uint64_t val)
     uint16_t meminfo = trace_mem_get_info(MO_LEQ, MMU_USER_IDX, true);
 
     trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
-    stq_le_p(g2h(ptr), val);
+    stq_le_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
 }
 
@@ -1170,7 +1170,7 @@ uint32_t cpu_ldub_code(CPUArchState *env, abi_ptr ptr)
     uint32_t ret;
 
     set_helper_retaddr(1);
-    ret = ldub_p(g2h(ptr));
+    ret = ldub_p(g2h_untagged(ptr));
     clear_helper_retaddr();
     return ret;
 }
@@ -1180,7 +1180,7 @@ uint32_t cpu_lduw_code(CPUArchState *env, abi_ptr ptr)
     uint32_t ret;
 
     set_helper_retaddr(1);
-    ret = lduw_p(g2h(ptr));
+    ret = lduw_p(g2h_untagged(ptr));
     clear_helper_retaddr();
     return ret;
 }
@@ -1190,7 +1190,7 @@ uint32_t cpu_ldl_code(CPUArchState *env, abi_ptr ptr)
     uint32_t ret;
 
     set_helper_retaddr(1);
-    ret = ldl_p(g2h(ptr));
+    ret = ldl_p(g2h_untagged(ptr));
     clear_helper_retaddr();
     return ret;
 }
@@ -1200,7 +1200,7 @@ uint64_t cpu_ldq_code(CPUArchState *env, abi_ptr ptr)
     uint64_t ret;
 
     set_helper_retaddr(1);
-    ret = ldq_p(g2h(ptr));
+    ret = ldq_p(g2h_untagged(ptr));
     clear_helper_retaddr();
     return ret;
 }
@@ -1213,7 +1213,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
     if (unlikely(addr & (size - 1))) {
         cpu_loop_exit_atomic(env_cpu(env), retaddr);
     }
-    void *ret = g2h(addr);
+    void *ret = g2h(env_cpu(env), addr);
     set_helper_retaddr(retaddr);
     return ret;
 }

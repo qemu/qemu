@@ -77,7 +77,15 @@ static inline abi_ptr cpu_untagged_addr(CPUState *cs, abi_ptr x)
 #endif
 
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
-#define g2h(x) ((void *)((uintptr_t)(abi_ptr)(x) + guest_base))
+static inline void *g2h_untagged(abi_ptr x)
+{
+    return (void *)((uintptr_t)(x) + guest_base);
+}
+
+static inline void *g2h(CPUState *cs, abi_ptr x)
+{
+    return g2h_untagged(cpu_untagged_addr(cs, x));
+}
 
 static inline bool guest_addr_valid(abi_ulong x)
 {
@@ -448,7 +456,7 @@ static inline int cpu_ldsw_code(CPUArchState *env, abi_ptr addr)
 static inline void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
                                       MMUAccessType access_type, int mmu_idx)
 {
-    return g2h(addr);
+    return g2h(env_cpu(env), addr);
 }
 #else
 void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
