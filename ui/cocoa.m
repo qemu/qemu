@@ -70,8 +70,6 @@
 typedef struct {
     int width;
     int height;
-    int bitsPerComponent;
-    int bitsPerPixel;
 } QEMUScreen;
 
 NSWindow *normalWindow, *about_window;
@@ -291,7 +289,6 @@ static void handleAnyDeviceErrors(Error * err)
     QEMUScreen screen;
     NSWindow *fullScreenWindow;
     float cx,cy,cw,ch,cdx,cdy;
-    CGDataProviderRef dataProviderRef;
     pixman_image_t *pixman_image;
     BOOL modifiers_state[256];
     BOOL isMouseGrabbed;
@@ -338,8 +335,6 @@ QemuCocoaView *cocoaView;
     self = [super initWithFrame:frameRect];
     if (self) {
 
-        screen.bitsPerComponent = 8;
-        screen.bitsPerPixel = 32;
         screen.width = frameRect.size.width;
         screen.height = frameRect.size.height;
 
@@ -351,8 +346,7 @@ QemuCocoaView *cocoaView;
 {
     COCOA_DEBUG("QemuCocoaView: dealloc\n");
 
-    if (dataProviderRef) {
-        CGDataProviderRelease(dataProviderRef);
+    if (pixman_image) {
         pixman_image_unref(pixman_image);
     }
 
@@ -431,18 +425,28 @@ QemuCocoaView *cocoaView;
     CGContextSetShouldAntialias (viewContextRef, NO);
 
     // draw screen bitmap directly to Core Graphics context
-    if (!dataProviderRef) {
+    if (!pixman_image) {
         // Draw request before any guest device has set up a framebuffer:
         // just draw an opaque black rectangle
         CGContextSetRGBFillColor(viewContextRef, 0, 0, 0, 1.0);
         CGContextFillRect(viewContextRef, NSRectToCGRect(rect));
     } else {
+        int w = pixman_image_get_width(pixman_image);
+        int h = pixman_image_get_height(pixman_image);
+        int bitsPerPixel = PIXMAN_FORMAT_BPP(pixman_image_get_format(pixman_image));
+        int bitsPerComponent = DIV_ROUND_UP(bitsPerPixel, 8) * 2;
+        CGDataProviderRef dataProviderRef = CGDataProviderCreateWithData(
+            NULL,
+            pixman_image_get_data(pixman_image),
+            w * 4 * h,
+            NULL
+        );
         CGImageRef imageRef = CGImageCreate(
-            screen.width, //width
-            screen.height, //height
-            screen.bitsPerComponent, //bitsPerComponent
-            screen.bitsPerPixel, //bitsPerPixel
-            (screen.width * (screen.bitsPerComponent/2)), //bytesPerRow
+            w, //width
+            h, //height
+            bitsPerComponent, //bitsPerComponent
+            bitsPerPixel, //bitsPerPixel
+            (w * (bitsPerComponent/2)), //bytesPerRow
 #ifdef __LITTLE_ENDIAN__
             CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB), //colorspace for OS X >= 10.4
             kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst,
@@ -465,7 +469,7 @@ QemuCocoaView *cocoaView;
         [self getRectsBeingDrawn:&rectList count:&rectCount];
         for (i = 0; i < rectCount; i++) {
             clipRect.origin.x = rectList[i].origin.x / cdx;
-            clipRect.origin.y = (float)screen.height - (rectList[i].origin.y + rectList[i].size.height) / cdy;
+            clipRect.origin.y = (float)h - (rectList[i].origin.y + rectList[i].size.height) / cdy;
             clipRect.size.width = rectList[i].size.width / cdx;
             clipRect.size.height = rectList[i].size.height / cdy;
             clipImageRef = CGImageCreateWithImageInRect(
@@ -476,6 +480,7 @@ QemuCocoaView *cocoaView;
             CGImageRelease (clipImageRef);
         }
         CGImageRelease (imageRef);
+        CGDataProviderRelease(dataProviderRef);
     }
 }
 
@@ -518,7 +523,6 @@ QemuCocoaView *cocoaView;
 
     int w = pixman_image_get_width(image);
     int h = pixman_image_get_height(image);
-    pixman_format_code_t image_format = pixman_image_get_format(image);
     /* cdx == 0 means this is our very first surface, in which case we need
      * to recalculate the content dimensions even if it happens to be the size
      * of the initial empty window.
@@ -536,17 +540,11 @@ QemuCocoaView *cocoaView;
     }
 
     // update screenBuffer
-    if (dataProviderRef) {
-        CGDataProviderRelease(dataProviderRef);
+    if (pixman_image) {
         pixman_image_unref(pixman_image);
     }
 
-    //sync host window color space with guests
-    screen.bitsPerPixel = PIXMAN_FORMAT_BPP(image_format);
-    screen.bitsPerComponent = DIV_ROUND_UP(screen.bitsPerPixel, 8) * 2;
-
     pixman_image = image;
-    dataProviderRef = CGDataProviderCreateWithData(NULL, pixman_image_get_data(image), w * 4 * h, NULL);
 
     // update windows
     if (isFullscreen) {
