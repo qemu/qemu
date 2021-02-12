@@ -464,7 +464,7 @@ class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
         self._qapidir = qapidir
 
     def visit_module(self, name):
-        if name is not None:
+        if name != "./builtin":
             qapifile = self._qapidir + '/' + name
             self._env.note_dependency(os.path.abspath(qapifile))
         super().visit_module(name)
