@@ -19,6 +19,15 @@
 /* Moved from hw/ppc/spapr_pci_nvlink2.c */
 #define SPAPR_GPU_NUMA_ID           (cpu_to_be32(1))
 
+static bool spapr_machine_using_legacy_numa(SpaprMachineState *spapr)
+{
+    MachineState *machine = MACHINE(spapr);
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
+
+    return smc->pre_5_2_numa_associativity ||
+           machine->numa_state->num_nodes <= 1;
+}
+
 static bool spapr_numa_is_symmetrical(MachineState *ms)
 {
     int src, dst;
@@ -35,6 +44,20 @@ static bool spapr_numa_is_symmetrical(MachineState *ms)
     }
 
     return true;
+}
+
+/*
+ * NVLink2-connected GPU RAM needs to be placed on a separate NUMA node.
+ * We assign a new numa ID per GPU in spapr_pci_collect_nvgpu() which is
+ * called from vPHB reset handler so we initialize the counter here.
+ * If no NUMA is configured from the QEMU side, we start from 1 as GPU RAM
+ * must be equally distant from any other node.
+ * The final value of spapr->gpu_numa_id is going to be written to
+ * max-associativity-domains in spapr_build_fdt().
+ */
+unsigned int spapr_numa_initial_nvgpu_numa_id(MachineState *machine)
+{
+    return MAX(1, machine->numa_state->num_nodes);
 }
 
 /*
@@ -288,6 +311,8 @@ void spapr_numa_write_rtas_dt(SpaprMachineState *spapr, void *fdt, int rtas)
 {
     MachineState *ms = MACHINE(spapr);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    uint32_t number_nvgpus_nodes = spapr->gpu_numa_id -
+                                   spapr_numa_initial_nvgpu_numa_id(ms);
     uint32_t refpoints[] = {
         cpu_to_be32(0x4),
         cpu_to_be32(0x3),
@@ -295,7 +320,7 @@ void spapr_numa_write_rtas_dt(SpaprMachineState *spapr, void *fdt, int rtas)
         cpu_to_be32(0x1),
     };
     uint32_t nr_refpoints = ARRAY_SIZE(refpoints);
-    uint32_t maxdomain = ms->numa_state->num_nodes + spapr->gpu_numa_id;
+    uint32_t maxdomain = ms->numa_state->num_nodes + number_nvgpus_nodes;
     uint32_t maxdomains[] = {
         cpu_to_be32(4),
         cpu_to_be32(maxdomain),

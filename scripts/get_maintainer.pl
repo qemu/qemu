@@ -1377,7 +1377,7 @@ sub vcs_exists {
 	warn("$P: No supported VCS found.  Add --nogit to options?\n");
 	warn("Using a git repository produces better results.\n");
 	warn("Try latest git repository using:\n");
-	warn("git clone https://git.qemu.org/git/qemu.git\n");
+	warn("git clone https://gitlab.com/qemu-project/qemu.git\n");
 	$printed_novcs = 1;
     }
     return 0;

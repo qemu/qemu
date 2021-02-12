@@ -216,7 +216,7 @@ static void aspeed_soc_ast2600_init(Object *obj)
 /*
  * ASPEED ast2600 has 0xf as cluster ID
  *
- * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0388e/CIHEBGFG.html
+ * https://developer.arm.com/documentation/ddi0388/e/the-system-control-coprocessors/summary-of-system-control-coprocessor-registers/multiprocessor-affinity-register
  */
 static uint64_t aspeed_calc_affinity(int cpu)
 {

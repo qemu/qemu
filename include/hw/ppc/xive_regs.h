@@ -236,6 +236,8 @@ typedef struct XiveEND {
     (be32_to_cpu((end)->w0) & END_W0_UNCOND_ESCALATE)
 #define xive_end_is_silent_escalation(end)              \
     (be32_to_cpu((end)->w0) & END_W0_SILENT_ESCALATE)
+#define xive_end_is_firmware(end)              \
+    (be32_to_cpu((end)->w0) & END_W0_FIRMWARE)
 
 static inline uint64_t xive_end_qaddr(XiveEND *end)
 {

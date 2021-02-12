@@ -208,7 +208,7 @@ of its data area are:
   28 - 31:    l1_size
               The number of entries in the L1 table of the bitmap.
 
-  variable:   l1 (64 * l1_size bytes)
+  variable:   l1_table (8 * l1_size bytes)
               L1 offset table (in bytes)
 
 A dirty bitmap is stored using a one-level structure for the mapping to host

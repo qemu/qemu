@@ -358,17 +358,12 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
     NvmeNamespace *ns = NVME_NS(dev);
     BusState *s = qdev_get_parent_bus(dev);
     NvmeCtrl *n = NVME(s->parent);
-    Error *local_err = NULL;
 
-    if (nvme_ns_setup(ns, &local_err)) {
-        error_propagate_prepend(errp, local_err,
-                                "could not setup namespace: ");
+    if (nvme_ns_setup(ns, errp)) {
         return;
     }
 
     if (nvme_register_namespace(n, ns, errp)) {
-        error_propagate_prepend(errp, local_err,
-                                "could not register namespace: ");
         return;
     }
 
