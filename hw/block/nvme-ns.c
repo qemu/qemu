@@ -32,7 +32,7 @@
 
 #define MIN_DISCARD_GRANULARITY (4 * KiB)
 
-static void nvme_ns_init_format(NvmeNamespace *ns)
+void nvme_ns_init_format(NvmeNamespace *ns)
 {
     NvmeIdNs *id_ns = &ns->id_ns;
     BlockDriverInfo bdi;
@@ -66,6 +66,7 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     int i;
 
     ns->csi = NVME_CSI_NVM;
+    ns->status = 0x0;
 
     ns->id_ns.dlfeat = 0x1;
 
