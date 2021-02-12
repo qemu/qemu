@@ -202,8 +202,7 @@ int qio_channel_readv_full_all(QIOChannel *ioc,
     int ret = qio_channel_readv_full_all_eof(ioc, iov, niov, fds, nfds, errp);
 
     if (ret == 0) {
-        error_prepend(errp,
-                      "Unexpected end-of-file before all data were read.");
+        error_setg(errp, "Unexpected end-of-file before all data were read");
         return -1;
     }
     if (ret == 1) {
