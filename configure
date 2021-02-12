@@ -257,7 +257,6 @@ if test -e "$source_path/.git"
 then
     git_submodules_action="update"
     git_submodules="ui/keycodemapdb"
-    git_submodules="$git_submodules qemuafl/asan-giovese"
     git_submodules="$git_submodules tests/fp/berkeley-testfloat-3"
     git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
 else
