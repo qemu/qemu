@@ -835,11 +835,7 @@ QemuCocoaView *cocoaView;
             mouse_event = true;
             break;
         case NSEventTypeLeftMouseDown:
-            if ([event modifierFlags] & NSEventModifierFlagCommand) {
-                buttons |= MOUSE_EVENT_RBUTTON;
-            } else {
-                buttons |= MOUSE_EVENT_LBUTTON;
-            }
+            buttons |= MOUSE_EVENT_LBUTTON;
             mouse_event = true;
             break;
         case NSEventTypeRightMouseDown:
@@ -851,11 +847,7 @@ QemuCocoaView *cocoaView;
             mouse_event = true;
             break;
         case NSEventTypeLeftMouseDragged:
-            if ([event modifierFlags] & NSEventModifierFlagCommand) {
-                buttons |= MOUSE_EVENT_RBUTTON;
-            } else {
-                buttons |= MOUSE_EVENT_LBUTTON;
-            }
+            buttons |= MOUSE_EVENT_LBUTTON;
             mouse_event = true;
             break;
         case NSEventTypeRightMouseDragged:
