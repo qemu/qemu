@@ -1180,7 +1180,6 @@ enum {
 
 enum {
     MMI_OPC_CLASS_MMI = 0x1C << 26,    /* Same as OPC_SPECIAL2 */
-    MMI_OPC_LQ        = 0x1E << 26,    /* Same as OPC_MSA */
     MMI_OPC_SQ        = 0x1F << 26,    /* Same as OPC_SPECIAL3 */
 };
 
@@ -15179,11 +15178,6 @@ static void decode_mmi(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static void gen_mmi_lq(CPUMIPSState *env, DisasContext *ctx)
-{
-    gen_reserved_instruction(ctx);    /* TODO: MMI_OPC_LQ */
-}
-
 static void gen_mmi_sq(DisasContext *ctx, int base, int rt, int offset)
 {
     gen_reserved_instruction(ctx);    /* TODO: MMI_OPC_SQ */
@@ -16082,14 +16076,8 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             gen_compute_branch(ctx, op, 4, rs, rt, offset, 4);
         }
         break;
-    case OPC_MDMX: /* MMI_OPC_LQ */
-        if (ctx->insn_flags & INSN_R5900) {
-#if defined(TARGET_MIPS64)
-            gen_mmi_lq(env, ctx);
-#endif
-        } else {
-            /* MDMX: Not implemented. */
-        }
+    case OPC_MDMX:
+        /* MDMX: Not implemented. */
         break;
     case OPC_PCREL:
         check_insn(ctx, ISA_MIPS_R6);

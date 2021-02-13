@@ -13,6 +13,8 @@
 
 &rtype           rs rt rd sa
 
+&itype           base rt offset
+
 ###########################################################################
 # Named instruction formats.  These are generally used to
 # reduce the amount of duplication between instruction patterns.
@@ -21,6 +23,8 @@
 @rt_rd          ...... ..... rt:5  rd:5  ..... ......   &rtype rs=0 sa=0
 @rs             ...... rs:5  ..... ..........  ......   &rtype rt=0 rd=0 sa=0
 @rd             ...... ..........  rd:5  ..... ......   &rtype rs=0 rt=0 sa=0
+
+@ldst            ...... base:5 rt:5 offset:16            &itype
 
 ###########################################################################
 
@@ -62,3 +66,7 @@ PCPYUD          011100 ..... ..... ..... 01110 101001   @rs_rt_rd
 POR             011100 ..... ..... ..... 10010 101001   @rs_rt_rd
 PNOR            011100 ..... ..... ..... 10011 101001   @rs_rt_rd
 PCPYH           011100 00000 ..... ..... 11011 101001   @rt_rd
+
+# SPECIAL
+
+LQ              011110 ..... ..... ................     @ldst

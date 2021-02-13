@@ -334,6 +334,41 @@ static bool trans_PCEQW(DisasContext *ctx, arg_rtype *a)
  * SQ      rt, offset(base)  Store Quadword
  */
 
+static bool trans_LQ(DisasContext *ctx, arg_itype *a)
+{
+    TCGv_i64 t0;
+    TCGv addr;
+
+    if (a->rt == 0) {
+        /* nop */
+        return true;
+    }
+
+    t0 = tcg_temp_new_i64();
+    addr = tcg_temp_new();
+
+    gen_base_offset_addr(ctx, addr, a->base, a->offset);
+    /*
+     * Clear least-significant four bits of the effective
+     * address, effectively creating an aligned address.
+     */
+    tcg_gen_andi_tl(addr, addr, ~0xf);
+
+    /* Lower half */
+    tcg_gen_qemu_ld_i64(t0, addr, ctx->mem_idx, MO_TEQ);
+    gen_store_gpr(t0, a->rt);
+
+    /* Upper half */
+    tcg_gen_addi_i64(addr, addr, 8);
+    tcg_gen_qemu_ld_i64(t0, addr, ctx->mem_idx, MO_TEQ);
+    gen_store_gpr_hi(t0, a->rt);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(addr);
+
+    return true;
+}
+
 /*
  *     Multiply and Divide (19 instructions)
  *     -------------------------------------
