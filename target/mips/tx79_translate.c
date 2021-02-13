@@ -71,3 +71,45 @@ static bool trans_PCPYH(DisasContext *s, arg_rtype *a)
 
     return true;
 }
+
+/* Parallel Copy Lower Doubleword */
+static bool trans_PCPYLD(DisasContext *s, arg_rtype *a)
+{
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+
+    if (a->rs == 0) {
+        tcg_gen_movi_i64(cpu_gpr_hi[a->rd], 0);
+    } else {
+        tcg_gen_mov_i64(cpu_gpr_hi[a->rd], cpu_gpr[a->rs]);
+    }
+
+    if (a->rt == 0) {
+        tcg_gen_movi_i64(cpu_gpr[a->rd], 0);
+    } else if (a->rd != a->rt) {
+        tcg_gen_mov_i64(cpu_gpr[a->rd], cpu_gpr[a->rt]);
+    }
+
+    return true;
+}
+
+/* Parallel Copy Upper Doubleword */
+static bool trans_PCPYUD(DisasContext *s, arg_rtype *a)
+{
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+
+    gen_load_gpr_hi(cpu_gpr[a->rd], a->rs);
+
+    if (a->rt == 0) {
+        tcg_gen_movi_i64(cpu_gpr_hi[a->rd], 0);
+    } else if (a->rd != a->rt) {
+        tcg_gen_mov_i64(cpu_gpr_hi[a->rd], cpu_gpr_hi[a->rt]);
+    }
+
+    return true;
+}
