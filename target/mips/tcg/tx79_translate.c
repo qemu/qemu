@@ -2,6 +2,7 @@
  * Toshiba TX79-specific instructions translation routines
  *
  *  Copyright (c) 2018 Fredrik Noring
+ *  Copyright (c) 2021 Philippe Mathieu-Daudé
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -114,6 +115,35 @@ static bool trans_MTLO1(DisasContext *ctx, arg_rtype *a)
  * PSUBUW  rd, rs, rt        Parallel Subtract with Unsigned saturation Word
  */
 
+static bool trans_parallel_arith(DisasContext *ctx, arg_rtype *a,
+                                 void (*gen_logic_i64)(TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 ax, bx;
+
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+
+    ax = tcg_temp_new_i64();
+    bx = tcg_temp_new_i64();
+
+    /* Lower half */
+    gen_load_gpr(ax, a->rs);
+    gen_load_gpr(bx, a->rt);
+    gen_logic_i64(cpu_gpr[a->rd], ax, bx);
+
+    /* Upper half */
+    gen_load_gpr_hi(ax, a->rs);
+    gen_load_gpr_hi(bx, a->rt);
+    gen_logic_i64(cpu_gpr_hi[a->rd], ax, bx);
+
+    tcg_temp_free(bx);
+    tcg_temp_free(ax);
+
+    return true;
+}
+
 /*
  *     Min/Max (4 instructions)
  *     ------------------------
@@ -138,6 +168,30 @@ static bool trans_MTLO1(DisasContext *ctx, arg_rtype *a)
  * PXOR    rd, rs, rt        Parallel XOR
  * PNOR    rd, rs, rt        Parallel NOR
  */
+
+/* Parallel And */
+static bool trans_PAND(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_arith(ctx, a, tcg_gen_and_i64);
+}
+
+/* Parallel Or */
+static bool trans_POR(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_arith(ctx, a, tcg_gen_or_i64);
+}
+
+/* Parallel Exclusive Or */
+static bool trans_PXOR(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_arith(ctx, a, tcg_gen_xor_i64);
+}
+
+/* Parallel Not Or */
+static bool trans_PNOR(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_arith(ctx, a, tcg_gen_nor_i64);
+}
 
 /*
  *     Shift (9 instructions)
