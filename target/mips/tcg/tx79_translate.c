@@ -237,6 +237,72 @@ static bool trans_PNOR(DisasContext *ctx, arg_rtype *a)
  * PCEQW   rd, rs, rt        Parallel Compare for Equal Word
  */
 
+static bool trans_parallel_compare(DisasContext *ctx, arg_rtype *a,
+                                   TCGCond cond, unsigned wlen)
+{
+    TCGv_i64 c0, c1, ax, bx, t0, t1, t2;
+
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+
+    c0 = tcg_const_tl(0);
+    c1 = tcg_const_tl(0xffffffff);
+    ax = tcg_temp_new_i64();
+    bx = tcg_temp_new_i64();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+
+    /* Lower half */
+    gen_load_gpr(ax, a->rs);
+    gen_load_gpr(bx, a->rt);
+    for (int i = 0; i < (64 / wlen); i++) {
+        tcg_gen_sextract_i64(t0, ax, wlen * i, wlen);
+        tcg_gen_sextract_i64(t1, bx, wlen * i, wlen);
+        tcg_gen_movcond_i64(cond, t2, t1, t0, c1, c0);
+        tcg_gen_deposit_i64(cpu_gpr[a->rd], cpu_gpr[a->rd], t2, wlen * i, wlen);
+    }
+    /* Upper half */
+    gen_load_gpr_hi(ax, a->rs);
+    gen_load_gpr_hi(bx, a->rt);
+    for (int i = 0; i < (64 / wlen); i++) {
+        tcg_gen_sextract_i64(t0, ax, wlen * i, wlen);
+        tcg_gen_sextract_i64(t1, bx, wlen * i, wlen);
+        tcg_gen_movcond_i64(cond, t2, t1, t0, c1, c0);
+        tcg_gen_deposit_i64(cpu_gpr_hi[a->rd], cpu_gpr_hi[a->rd], t2, wlen * i, wlen);
+    }
+
+    tcg_temp_free(t2);
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+    tcg_temp_free(bx);
+    tcg_temp_free(ax);
+    tcg_temp_free(c1);
+    tcg_temp_free(c0);
+
+    return true;
+}
+
+/* Parallel Compare for Equal Byte */
+static bool trans_PCEQB(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_compare(ctx, a, TCG_COND_EQ, 8);
+}
+
+/* Parallel Compare for Equal Halfword */
+static bool trans_PCEQH(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_compare(ctx, a, TCG_COND_EQ, 16);
+}
+
+/* Parallel Compare for Equal Word */
+static bool trans_PCEQW(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_compare(ctx, a, TCG_COND_EQ, 32);
+}
+
 /*
  *     LZC (1 instruction)
  *     -------------------
