@@ -285,16 +285,34 @@ static bool trans_parallel_compare(DisasContext *ctx, arg_rtype *a,
     return true;
 }
 
+/* Parallel Compare for Greater Than Byte */
+static bool trans_PCGTB(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_compare(ctx, a, TCG_COND_GE, 8);
+}
+
 /* Parallel Compare for Equal Byte */
 static bool trans_PCEQB(DisasContext *ctx, arg_rtype *a)
 {
     return trans_parallel_compare(ctx, a, TCG_COND_EQ, 8);
 }
 
+/* Parallel Compare for Greater Than Halfword */
+static bool trans_PCGTH(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_compare(ctx, a, TCG_COND_GE, 16);
+}
+
 /* Parallel Compare for Equal Halfword */
 static bool trans_PCEQH(DisasContext *ctx, arg_rtype *a)
 {
     return trans_parallel_compare(ctx, a, TCG_COND_EQ, 16);
+}
+
+/* Parallel Compare for Greater Than Word */
+static bool trans_PCGTW(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_compare(ctx, a, TCG_COND_GE, 32);
 }
 
 /* Parallel Compare for Equal Word */
