@@ -280,3 +280,37 @@ which will eventually report::
     previously @ 0x000000ffd08098/5 (809900593 insns)
     previously @ 0x000000ffd080c0/1 (809900588 insns)
 
+- contrib/plugins/hwprofile
+
+The hwprofile tool can only be used with system emulation and allows
+the user to see what hardware is accessed how often. It has a number of options:
+
+ * arg=read or arg=write
+
+ By default the plugin tracks both reads and writes. You can use one
+ of these options to limit the tracking to just one class of accesses.
+
+ * arg=source
+
+ Will include a detailed break down of what the guest PC that made the
+ access was. Not compatible with arg=pattern. Example output::
+
+   cirrus-low-memory @ 0xfffffd00000a0000
+    pc:fffffc0000005cdc, 1, 256
+    pc:fffffc0000005ce8, 1, 256
+    pc:fffffc0000005cec, 1, 256
+
+ * arg=pattern
+
+ Instead break down the accesses based on the offset into the HW
+ region. This can be useful for seeing the most used registers of a
+ device. Example output::
+
+    pci0-conf @ 0xfffffd01fe000000
+      off:00000004, 1, 1
+      off:00000010, 1, 3
+      off:00000014, 1, 3
+      off:00000018, 1, 2
+      off:0000001c, 1, 2
+      off:00000020, 1, 2
+      ...
