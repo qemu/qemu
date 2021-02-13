@@ -374,6 +374,36 @@ static bool trans_PCEQW(DisasContext *ctx, arg_rtype *a)
  * PEXTLW  rd, rs, rt        Parallel Extend Lower from Word
  */
 
+/* Parallel Pack to Word */
+static bool trans_PPACW(DisasContext *ctx, arg_rtype *a)
+{
+    TCGv_i64 a0, b0, t0;
+
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+
+    a0 = tcg_temp_new_i64();
+    b0 = tcg_temp_new_i64();
+    t0 = tcg_temp_new_i64();
+
+    gen_load_gpr(a0, a->rs);
+    gen_load_gpr(b0, a->rt);
+
+    gen_load_gpr_hi(t0, a->rt); /* b1 */
+    tcg_gen_deposit_i64(cpu_gpr[a->rd], b0, t0, 32, 32);
+
+    gen_load_gpr_hi(t0, a->rs); /* a1 */
+    tcg_gen_deposit_i64(cpu_gpr_hi[a->rd], a0, t0, 32, 32);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(b0);
+    tcg_temp_free(a0);
+
+    return true;
+}
+
 static void gen_pextw(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 a, TCGv_i64 b)
 {
     tcg_gen_deposit_i64(dl, b, a, 32, 32);
