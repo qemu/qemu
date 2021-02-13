@@ -72,7 +72,7 @@ enum {
 #define QASAN_ENABLED (0)
 #define QASAN_DISABLED (1)
 
-#if __x86_64__
+#if defined(__x86_64__) && __x86_64__
 
 // The backdoor is more performant than the fake syscall
 #define QASAN_CALL0(action) \
@@ -147,7 +147,7 @@ enum {
 
 /*
 
-#elif __i386__
+#elif defined(__i386__) && __i386__
 
 // The backdoor is more performant than the fake syscall
 #define QASAN_CALL0(action) \
