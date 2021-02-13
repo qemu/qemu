@@ -12349,7 +12349,7 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
     }
 }
 
-static void gen_rdhwr(DisasContext *ctx, int rt, int rd, int sel)
+void gen_rdhwr(DisasContext *ctx, int rt, int rd, int sel)
 {
     TCGv t0;
 
