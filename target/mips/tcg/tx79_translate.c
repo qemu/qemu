@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "tcg/tcg-op.h"
+#include "tcg/tcg-op-gvec.h"
 #include "exec/helper-gen.h"
 #include "translate.h"
 
@@ -142,6 +143,24 @@ static bool trans_parallel_arith(DisasContext *ctx, arg_rtype *a,
     tcg_temp_free(ax);
 
     return true;
+}
+
+/* Parallel Subtract Byte */
+static bool trans_PSUBB(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_arith(ctx, a, tcg_gen_vec_sub8_i64);
+}
+
+/* Parallel Subtract Halfword */
+static bool trans_PSUBH(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_arith(ctx, a, tcg_gen_vec_sub16_i64);
+}
+
+/* Parallel Subtract Word */
+static bool trans_PSUBW(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_arith(ctx, a, tcg_gen_vec_sub32_i64);
 }
 
 /*
