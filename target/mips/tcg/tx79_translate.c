@@ -593,3 +593,31 @@ static bool trans_PCPYUD(DisasContext *s, arg_rtype *a)
 
     return true;
 }
+
+/* Parallel Rotate 3 Words Left */
+static bool trans_PROT3W(DisasContext *ctx, arg_rtype *a)
+{
+    TCGv_i64 ax;
+
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+    if (a->rt == 0) {
+        tcg_gen_movi_i64(cpu_gpr[a->rd], 0);
+        tcg_gen_movi_i64(cpu_gpr_hi[a->rd], 0);
+        return true;
+    }
+
+    ax = tcg_temp_new_i64();
+
+    tcg_gen_mov_i64(ax, cpu_gpr_hi[a->rt]);
+    tcg_gen_deposit_i64(cpu_gpr_hi[a->rd], ax, cpu_gpr[a->rt], 0, 32);
+
+    tcg_gen_deposit_i64(cpu_gpr[a->rd], cpu_gpr[a->rt], ax, 0, 32);
+    tcg_gen_rotri_i64(cpu_gpr[a->rd], cpu_gpr[a->rd], 32);
+
+    tcg_temp_free(ax);
+
+    return true;
+}
