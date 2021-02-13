@@ -115,3 +115,34 @@ class PluginKernelNormal(PluginKernelBase):
             m = re.search(br"detected repeat execution @ (?P<addr>0x[0-9A-Fa-f]+)", s)
             if m is not None and "addr" in m.groupdict():
                 self.fail("detected repeated instructions")
+
+    def test_aarch64_virt_mem_icount(self):
+        """
+        :avocado: tags=accel:tcg
+        :avocado: tags=arch:aarch64
+        :avocado: tags=machine:virt
+        :avocado: tags=cpu:cortex-a57
+        """
+        kernel_path = self._grab_aarch64_kernel()
+        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
+                               'console=ttyAMA0')
+        console_pattern = 'Kernel panic - not syncing: VFS:'
+
+        plugin_log = tempfile.NamedTemporaryFile(mode="r+t", prefix="plugin",
+                                                 suffix=".log")
+
+        self.run_vm(kernel_path, kernel_command_line,
+                    "tests/plugin/libmem.so,arg=both", plugin_log.name,
+                    console_pattern,
+                    args=('-cpu', 'cortex-a53', '-icount', 'shift=1'))
+
+        with plugin_log as lf, \
+             mmap.mmap(lf.fileno(), 0, access=mmap.ACCESS_READ) as s:
+            m = re.findall(br"mem accesses: (?P<count>\d+)", s)
+            if m is None or len(m) != 2:
+                self.fail("no memory access counts found")
+            else:
+                inline = int(m[0])
+                callback = int(m[1])
+                if inline != callback:
+                    self.fail("mismatched access counts")
