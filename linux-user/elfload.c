@@ -396,8 +396,8 @@ static bool init_guest_commpage(void)
                       MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
 
     if (addr == MAP_FAILED) {
-        perror("Allocating guest commpage");
-        exit(EXIT_FAILURE);
+//        perror("Allocating guest commpage");
+//        exit(EXIT_FAILURE);
     }
     if (addr != want) {
         return false;
@@ -2429,8 +2429,8 @@ void probe_guest_base(const char *image_name, abi_ulong guest_loaddr,
          * we are trying to work with that.  Otherwise, we have selected
          * free space and init_guest_commpage must succeeded.
          */
-        assert(have_guest_base);
-        pgb_fail_in_use(image_name);
+//        assert(have_guest_base);
+//        pgb_fail_in_use(image_name);
     }
 
     assert(QEMU_IS_ALIGNED(guest_base, align));
