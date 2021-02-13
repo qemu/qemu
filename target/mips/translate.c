@@ -24063,42 +24063,6 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
  */
 
 /*
- *  PCPYH rd, rt
- *
- *    Parallel Copy Halfword
- *
- *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
- *  +-----------+---------+---------+---------+---------+-----------+
- *  |    MMI    |0 0 0 0 0|   rt    |   rd    |  PCPYH  |    MMI3   |
- *  +-----------+---------+---------+---------+---------+-----------+
- */
-static void gen_mmi_pcpyh(DisasContext *ctx)
-{
-    uint32_t pd, rt, rd;
-    uint32_t opcode;
-
-    opcode = ctx->opcode;
-
-    pd = extract32(opcode, 21, 5);
-    rt = extract32(opcode, 16, 5);
-    rd = extract32(opcode, 11, 5);
-
-    if (unlikely(pd != 0)) {
-        gen_reserved_instruction(ctx);
-    } else if (rd == 0) {
-        /* nop */
-    } else if (rt == 0) {
-        tcg_gen_movi_i64(cpu_gpr[rd], 0);
-        tcg_gen_movi_i64(cpu_gpr_hi[rd], 0);
-    } else {
-        tcg_gen_deposit_i64(cpu_gpr[rd], cpu_gpr[rt], cpu_gpr[rt], 16, 16);
-        tcg_gen_deposit_i64(cpu_gpr[rd], cpu_gpr[rd], cpu_gpr[rd], 32, 32);
-        tcg_gen_deposit_i64(cpu_gpr_hi[rd], cpu_gpr_hi[rt], cpu_gpr_hi[rt], 16, 16);
-        tcg_gen_deposit_i64(cpu_gpr_hi[rd], cpu_gpr_hi[rd], cpu_gpr_hi[rd], 32, 32);
-    }
-}
-
-/*
  *  PCPYLD rd, rs, rt
  *
  *    Parallel Copy Lower Doubleword
@@ -25015,9 +24979,6 @@ static void decode_mmi3(CPUMIPSState *env, DisasContext *ctx)
     case MMI_OPC_3_PEXCH:      /* TODO: MMI_OPC_3_PEXCH */
     case MMI_OPC_3_PEXCW:      /* TODO: MMI_OPC_3_PEXCW */
         gen_reserved_instruction(ctx); /* TODO: MMI_OPC_CLASS_MMI3 */
-        break;
-    case MMI_OPC_3_PCPYH:
-        gen_mmi_pcpyh(ctx);
         break;
     case MMI_OPC_3_PCPYUD:
         gen_mmi_pcpyud(ctx);
