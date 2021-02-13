@@ -369,6 +369,33 @@ static bool trans_LQ(DisasContext *ctx, arg_itype *a)
     return true;
 }
 
+static bool trans_SQ(DisasContext *ctx, arg_itype *a)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv addr = tcg_temp_new();
+
+    gen_base_offset_addr(ctx, addr, a->base, a->offset);
+    /*
+     * Clear least-significant four bits of the effective
+     * address, effectively creating an aligned address.
+     */
+    tcg_gen_andi_tl(addr, addr, ~0xf);
+
+    /* Lower half */
+    gen_load_gpr(t0, a->rt);
+    tcg_gen_qemu_st_i64(t0, addr, ctx->mem_idx, MO_TEQ);
+
+    /* Upper half */
+    tcg_gen_addi_i64(addr, addr, 8);
+    gen_load_gpr_hi(t0, a->rt);
+    tcg_gen_qemu_st_i64(t0, addr, ctx->mem_idx, MO_TEQ);
+
+    tcg_temp_free(addr);
+    tcg_temp_free(t0);
+
+    return true;
+}
+
 /*
  *     Multiply and Divide (19 instructions)
  *     -------------------------------------
