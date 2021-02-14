@@ -20,60 +20,102 @@
 #
 
 import time
+import os
 
 import iotests
-from iotests import qemu_img_create, file_path, qemu_nbd_popen, log
-
-iotests.script_initialize(
-    supported_fmts=['qcow2'],
-)
+from iotests import qemu_img_create, file_path, qemu_nbd_popen
 
 disk_a, disk_b, nbd_sock = file_path('disk_a', 'disk_b', 'nbd-sock')
 nbd_uri = 'nbd+unix:///?socket=' + nbd_sock
-size = 5 * 1024 * 1024
 wait_limit = 3.0
 wait_step = 0.2
 
-qemu_img_create('-f', iotests.imgfmt, disk_a, str(size))
-qemu_img_create('-f', iotests.imgfmt, disk_b, str(size))
 
-with qemu_nbd_popen('-k', nbd_sock, '-f', iotests.imgfmt, disk_b):
-    vm = iotests.VM().add_drive(disk_a)
-    vm.launch()
-    vm.hmp_qemu_io('drive0', 'write 0 {}'.format(size))
+class TestNbdReconnect(iotests.QMPTestCase):
+    def init_vm(self, disk_size):
+        qemu_img_create('-f', iotests.imgfmt, disk_a, str(disk_size))
+        qemu_img_create('-f', iotests.imgfmt, disk_b, str(disk_size))
+        self.vm = iotests.VM().add_drive(disk_a)
+        self.vm.launch()
+        self.vm.hmp_qemu_io('drive0', 'write 0 {}'.format(disk_size))
 
-    vm.qmp_log('blockdev-add', filters=[iotests.filter_qmp_testfiles],
-               **{'node_name': 'backup0',
-                  'driver': 'raw',
-                  'file': {'driver': 'nbd',
-                           'server': {'type': 'unix', 'path': nbd_sock},
-                           'reconnect-delay': 10}})
-    vm.qmp_log('blockdev-backup', device='drive0', sync='full',
-               target='backup0', speed=(1 * 1024 * 1024))
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(disk_a)
+        os.remove(disk_b)
 
-    # Wait for some progress
-    t = 0.0
-    while t < wait_limit:
-        jobs = vm.qmp('query-block-jobs')['return']
-        if jobs and jobs[0]['offset'] > 0:
-            break
-        time.sleep(wait_step)
-        t += wait_step
+    def start_job(self, job):
+        """Stat job with nbd target and kill the server"""
+        assert job in ('blockdev-backup', 'blockdev-mirror')
+        with qemu_nbd_popen('-k', nbd_sock, '-f', iotests.imgfmt, disk_b):
+            result = self.vm.qmp('blockdev-add',
+                                 **{'node_name': 'backup0',
+                                    'driver': 'raw',
+                                    'file': {'driver': 'nbd',
+                                             'server': {'type': 'unix',
+                                                        'path': nbd_sock},
+                                             'reconnect-delay': 10}})
+            self.assert_qmp(result, 'return', {})
+            result = self.vm.qmp(job, device='drive0',
+                                 sync='full', target='backup0',
+                                 speed=(1 * 1024 * 1024))
+            self.assert_qmp(result, 'return', {})
 
-    if jobs and jobs[0]['offset'] > 0:
-        log('Backup job is started')
+            # Wait for some progress
+            t = 0.0
+            while t < wait_limit:
+                jobs = self.vm.qmp('query-block-jobs')['return']
+                if jobs and jobs[0]['offset'] > 0:
+                    break
+                time.sleep(wait_step)
+                t += wait_step
 
-jobs = vm.qmp('query-block-jobs')['return']
-if jobs and jobs[0]['offset'] < jobs[0]['len']:
-    log('Backup job is still in progress')
+            self.assertTrue(jobs and jobs[0]['offset'] > 0)  # job started
 
-vm.qmp_log('block-job-set-speed', device='drive0', speed=0)
+        jobs = self.vm.qmp('query-block-jobs')['return']
+        # Check that job is still in progress
+        self.assertTrue(jobs)
+        self.assertTrue(jobs[0]['offset'] < jobs[0]['len'])
 
-# Emulate server down time for 1 second
-time.sleep(1)
+        result = self.vm.qmp('block-job-set-speed', device='drive0', speed=0)
+        self.assert_qmp(result, 'return', {})
 
-with qemu_nbd_popen('-k', nbd_sock, '-f', iotests.imgfmt, disk_b):
-    e = vm.event_wait('BLOCK_JOB_COMPLETED')
-    log('Backup completed: {}'.format(e['data']['offset']))
-    vm.qmp_log('blockdev-del', node_name='backup0')
-    vm.shutdown()
+        # Emulate server down time for 1 second
+        time.sleep(1)
+
+    def test_backup(self):
+        size = 5 * 1024 * 1024
+        self.init_vm(size)
+        self.start_job('blockdev-backup')
+
+        with qemu_nbd_popen('-k', nbd_sock, '-f', iotests.imgfmt, disk_b):
+            e = self.vm.event_wait('BLOCK_JOB_COMPLETED')
+            self.assertEqual(e['data']['offset'], size)
+            result = self.vm.qmp('blockdev-del', node_name='backup0')
+            self.assert_qmp(result, 'return', {})
+
+    def cancel_job(self):
+        result = self.vm.qmp('block-job-cancel', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        start_t = time.time()
+        self.vm.event_wait('BLOCK_JOB_CANCELLED')
+        delta_t = time.time() - start_t
+        self.assertTrue(delta_t < 2.0)
+
+    def test_mirror_cancel(self):
+        # Mirror speed limit doesn't work well enough, it seems that mirror
+        # will run many parallel requests anyway. MAX_IN_FLIGHT is 16 and
+        # MAX_IO_BYTES is 1M in mirror.c, so let's use 20M disk.
+        self.init_vm(20 * 1024 * 1024)
+        self.start_job('blockdev-mirror')
+        self.cancel_job()
+
+    def test_backup_cancel(self):
+        self.init_vm(5 * 1024 * 1024)
+        self.start_job('blockdev-backup')
+        self.cancel_job()
+
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2'])

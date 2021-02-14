@@ -296,7 +296,9 @@ def qemu_nbd_list_log(*args: str) -> str:
 @contextmanager
 def qemu_nbd_popen(*args):
     '''Context manager running qemu-nbd within the context'''
-    pid_file = file_path("pid")
+    pid_file = file_path("qemu_nbd_popen-nbd-pid-file")
+
+    assert not os.path.exists(pid_file)
 
     cmd = list(qemu_nbd_args)
     cmd.extend(('--persistent', '--pid-file', pid_file))
@@ -314,6 +316,8 @@ def qemu_nbd_popen(*args):
             time.sleep(0.01)
         yield
     finally:
+        if os.path.exists(pid_file):
+            os.remove(pid_file)
         log('Kill NBD server')
         p.kill()
         p.wait()

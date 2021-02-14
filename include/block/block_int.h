@@ -353,6 +353,15 @@ struct BlockDriver {
         int64_t *map, BlockDriverState **file);
 
     /*
+     * This informs the driver that we are no longer interested in the result
+     * of in-flight requests, so don't waste the time if possible.
+     *
+     * One example usage is to avoid waiting for an nbd target node reconnect
+     * timeout during job-cancel.
+     */
+    void (*bdrv_cancel_in_flight)(BlockDriverState *bs);
+
+    /*
      * Invalidate any cached meta-data.
      */
     void coroutine_fn (*bdrv_co_invalidate_cache)(BlockDriverState *bs,

@@ -41,6 +41,11 @@ static void m68k_set_feature(CPUM68KState *env, int feature)
     env->features |= (1u << feature);
 }
 
+static void m68k_unset_feature(CPUM68KState *env, int feature)
+{
+    env->features &= (-1u - (1u << feature));
+}
+
 static void m68k_cpu_reset(DeviceState *dev)
 {
     CPUState *s = CPU(dev);
@@ -103,6 +108,7 @@ static void m5206_cpu_initfn(Object *obj)
     m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
 }
 
+/* Base feature set, including isns. for m68k family */
 static void m68000_cpu_initfn(Object *obj)
 {
     M68kCPU *cpu = M68K_CPU(obj);
@@ -114,12 +120,36 @@ static void m68000_cpu_initfn(Object *obj)
     m68k_set_feature(env, M68K_FEATURE_MOVEP);
 }
 
-/* common features for 68020, 68030 and 68040 */
-static void m680x0_cpu_common(CPUM68KState *env)
+/*
+ * Adds BKPT, MOVE-from-SR *now priv instr, and MOVEC, MOVES, RTD
+ */
+static void m68010_cpu_initfn(Object *obj)
 {
-    m68k_set_feature(env, M68K_FEATURE_M68000);
-    m68k_set_feature(env, M68K_FEATURE_USP);
-    m68k_set_feature(env, M68K_FEATURE_WORD_INDEX);
+    M68kCPU *cpu = M68K_CPU(obj);
+    CPUM68KState *env = &cpu->env;
+
+    m68000_cpu_initfn(obj);
+    m68k_set_feature(env, M68K_FEATURE_M68010);
+    m68k_set_feature(env, M68K_FEATURE_RTD);
+    m68k_set_feature(env, M68K_FEATURE_BKPT);
+    m68k_set_feature(env, M68K_FEATURE_MOVEC);
+}
+
+/*
+ * Adds BFCHG, BFCLR, BFEXTS, BFEXTU, BFFFO, BFINS, BFSET, BFTST, CAS, CAS2,
+ *      CHK2, CMP2, DIVSL, DIVUL, EXTB, PACK, TRAPcc, UNPK.
+ *
+ * 68020/30 only:
+ *      CALLM, cpBcc, cpDBcc, cpGEN, cpRESTORE, cpSAVE, cpScc, cpTRAPcc
+ */
+static void m68020_cpu_initfn(Object *obj)
+{
+    M68kCPU *cpu = M68K_CPU(obj);
+    CPUM68KState *env = &cpu->env;
+
+    m68010_cpu_initfn(obj);
+    m68k_unset_feature(env, M68K_FEATURE_M68010);
+    m68k_set_feature(env, M68K_FEATURE_M68020);
     m68k_set_feature(env, M68K_FEATURE_QUAD_MULDIV);
     m68k_set_feature(env, M68K_FEATURE_BRAL);
     m68k_set_feature(env, M68K_FEATURE_BCCL);
@@ -129,59 +159,78 @@ static void m680x0_cpu_common(CPUM68KState *env)
     m68k_set_feature(env, M68K_FEATURE_LONG_MULDIV);
     m68k_set_feature(env, M68K_FEATURE_FPU);
     m68k_set_feature(env, M68K_FEATURE_CAS);
-    m68k_set_feature(env, M68K_FEATURE_BKPT);
-    m68k_set_feature(env, M68K_FEATURE_RTD);
     m68k_set_feature(env, M68K_FEATURE_CHK2);
-    m68k_set_feature(env, M68K_FEATURE_MOVEP);
+    m68k_set_feature(env, M68K_FEATURE_MSP);
 }
 
-static void m68020_cpu_initfn(Object *obj)
-{
-    M68kCPU *cpu = M68K_CPU(obj);
-    CPUM68KState *env = &cpu->env;
-
-    m680x0_cpu_common(env);
-    m68k_set_feature(env, M68K_FEATURE_M68020);
-}
-
+/*
+ * Adds: PFLUSH (*5)
+ * 68030 Only: PFLUSHA (*5), PLOAD (*5), PMOVE
+ * 68030/40 Only: PTEST
+ *
+ * NOTES:
+ *  5. Not valid on MC68EC030
+ */
 static void m68030_cpu_initfn(Object *obj)
 {
     M68kCPU *cpu = M68K_CPU(obj);
     CPUM68KState *env = &cpu->env;
 
-    m680x0_cpu_common(env);
+    m68020_cpu_initfn(obj);
+    m68k_unset_feature(env, M68K_FEATURE_M68020);
     m68k_set_feature(env, M68K_FEATURE_M68030);
 }
 
+/*
+ * Adds: CINV, CPUSH
+ * Adds all with Note *2: FABS, FSABS, FDABS, FADD, FSADD, FDADD, FBcc, FCMP,
+ *                        FDBcc, FDIV, FSDIV, FDDIV, FMOVE, FSMOVE, FDMOVE,
+ *                        FMOVEM, FMUL, FSMUL, FDMUL, FNEG, FSNEG, FDNEG, FNOP,
+ *                        FRESTORE, FSAVE, FScc, FSQRT, FSSQRT, FDSQRT, FSUB,
+ *                        FSSUB, FDSUB, FTRAPcc, FTST
+ *
+ * Adds with Notes *2, and *3: FACOS, FASIN, FATAN, FATANH, FCOS, FCOSH, FETOX,
+ *                             FETOXM, FGETEXP, FGETMAN, FINT, FINTRZ, FLOG10,
+ *                             FLOG2, FLOGN, FLOGNP1, FMOD, FMOVECR, FREM,
+ *                             FSCALE, FSGLDIV, FSGLMUL, FSIN, FSINCOS, FSINH,
+ *                             FTAN, FTANH, FTENTOX, FTWOTOX
+ * NOTES:
+ * 2. Not applicable to the MC68EC040, MC68LC040, MC68EC060, and MC68LC060.
+ * 3. These are software-supported instructions on the MC68040 and MC68060.
+ */
 static void m68040_cpu_initfn(Object *obj)
 {
     M68kCPU *cpu = M68K_CPU(obj);
     CPUM68KState *env = &cpu->env;
 
-    m680x0_cpu_common(env);
+    m68030_cpu_initfn(obj);
+    m68k_unset_feature(env, M68K_FEATURE_M68030);
     m68k_set_feature(env, M68K_FEATURE_M68040);
 }
 
+/*
+ * Adds: PLPA
+ * Adds all with Note *2: CAS, CAS2, MULS, MULU, CHK2, CMP2, DIVS, DIVU
+ * All Fxxxx instructions are as per m68040 with exception to; FMOVEM NOTE3
+ *
+ * Does NOT implement MOVEP
+ *
+ * NOTES:
+ * 2. Not applicable to the MC68EC040, MC68LC040, MC68EC060, and MC68LC060.
+ * 3. These are software-supported instructions on the MC68040 and MC68060.
+ */
 static void m68060_cpu_initfn(Object *obj)
 {
     M68kCPU *cpu = M68K_CPU(obj);
     CPUM68KState *env = &cpu->env;
 
-    m68k_set_feature(env, M68K_FEATURE_M68000);
-    m68k_set_feature(env, M68K_FEATURE_USP);
-    m68k_set_feature(env, M68K_FEATURE_WORD_INDEX);
-    m68k_set_feature(env, M68K_FEATURE_BRAL);
-    m68k_set_feature(env, M68K_FEATURE_BCCL);
-    m68k_set_feature(env, M68K_FEATURE_BITFIELD);
-    m68k_set_feature(env, M68K_FEATURE_EXT_FULL);
-    m68k_set_feature(env, M68K_FEATURE_SCALED_INDEX);
-    m68k_set_feature(env, M68K_FEATURE_LONG_MULDIV);
-    m68k_set_feature(env, M68K_FEATURE_FPU);
-    m68k_set_feature(env, M68K_FEATURE_CAS);
-    m68k_set_feature(env, M68K_FEATURE_BKPT);
-    m68k_set_feature(env, M68K_FEATURE_RTD);
-    m68k_set_feature(env, M68K_FEATURE_CHK2);
+    m68040_cpu_initfn(obj);
+    m68k_unset_feature(env, M68K_FEATURE_M68040);
     m68k_set_feature(env, M68K_FEATURE_M68060);
+    m68k_unset_feature(env, M68K_FEATURE_MOVEP);
+
+    /* Implemented as a software feature */
+    m68k_unset_feature(env, M68K_FEATURE_QUAD_MULDIV);
 }
 
 static void m5208_cpu_initfn(Object *obj)
@@ -533,6 +582,7 @@ static const TypeInfo m68k_cpus_type_infos[] = {
         .class_init = m68k_cpu_class_init,
     },
     DEFINE_M68K_CPU_TYPE_M68K(m68000),
+    DEFINE_M68K_CPU_TYPE_M68K(m68010),
     DEFINE_M68K_CPU_TYPE_M68K(m68020),
     DEFINE_M68K_CPU_TYPE_M68K(m68030),
     DEFINE_M68K_CPU_TYPE_M68K(m68040),
