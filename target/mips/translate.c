@@ -29289,10 +29289,12 @@ void mips_tcg_init(void)
     cpu_gpr_hi[0] = NULL;
 
     for (unsigned i = 1; i < 32; i++) {
+        g_autofree char *rname = g_strdup_printf("%s[hi]", regnames[i]);
+
         cpu_gpr_hi[i] = tcg_global_mem_new_i64(cpu_env,
                                                offsetof(CPUMIPSState,
                                                         active_tc.gpr_hi[i]),
-                                               regnames[i]);
+                                               rname);
     }
 #endif /* !TARGET_MIPS64 */
     for (i = 0; i < 32; i++) {
