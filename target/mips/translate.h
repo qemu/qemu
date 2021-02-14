@@ -131,6 +131,10 @@ void gen_move_low32(TCGv ret, TCGv_i64 arg);
 void gen_move_high32(TCGv ret, TCGv_i64 arg);
 void gen_load_gpr(TCGv t, int reg);
 void gen_store_gpr(TCGv t, int reg);
+#if defined(TARGET_MIPS64)
+void gen_load_gpr_hi(TCGv_i64 t, int reg);
+void gen_store_gpr_hi(TCGv_i64 t, int reg);
+#endif /* TARGET_MIPS64 */
 void gen_load_fpr32(DisasContext *ctx, TCGv_i32 t, int reg);
 void gen_load_fpr64(DisasContext *ctx, TCGv_i64 t, int reg);
 void gen_store_fpr32(DisasContext *ctx, TCGv_i32 t, int reg);

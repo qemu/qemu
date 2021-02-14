@@ -2291,6 +2291,24 @@ void gen_store_gpr(TCGv t, int reg)
     }
 }
 
+#if defined(TARGET_MIPS64)
+void gen_load_gpr_hi(TCGv_i64 t, int reg)
+{
+    if (reg == 0) {
+        tcg_gen_movi_i64(t, 0);
+    } else {
+        tcg_gen_mov_i64(t, cpu_gpr_hi[reg]);
+    }
+}
+
+void gen_store_gpr_hi(TCGv_i64 t, int reg)
+{
+    if (reg != 0) {
+        tcg_gen_mov_i64(cpu_gpr_hi[reg], t);
+    }
+}
+#endif /* TARGET_MIPS64 */
+
 /* Moves to/from shadow registers. */
 static inline void gen_load_srsgpr(int from, int to)
 {
