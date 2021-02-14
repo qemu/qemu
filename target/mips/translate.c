@@ -1360,8 +1360,6 @@ enum {
     MMI_OPC_PLZCW      = 0x04 | MMI_OPC_CLASS_MMI,
     MMI_OPC_CLASS_MMI0 = 0x08 | MMI_OPC_CLASS_MMI,
     MMI_OPC_CLASS_MMI2 = 0x09 | MMI_OPC_CLASS_MMI,
-    MMI_OPC_MTHI1      = 0x11 | MMI_OPC_CLASS_MMI, /* Same minor as OPC_MTHI */
-    MMI_OPC_MTLO1      = 0x13 | MMI_OPC_CLASS_MMI, /* Same minor as OPC_MTLO */
     MMI_OPC_MULT1      = 0x18 | MMI_OPC_CLASS_MMI, /* Same minor as OPC_MULT */
     MMI_OPC_MULTU1     = 0x19 | MMI_OPC_CLASS_MMI, /* Same min. as OPC_MULTU */
     MMI_OPC_DIV1       = 0x1A | MMI_OPC_CLASS_MMI, /* Same minor as OPC_DIV  */
@@ -3461,25 +3459,6 @@ static void gen_shift(DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t0);
     tcg_temp_free(t1);
 }
-
-#if defined(TARGET_MIPS64)
-/* Copy GPR to and from TX79 HI1/LO1 register. */
-static void gen_HILO1_tx79(DisasContext *ctx, uint32_t opc, int reg)
-{
-    switch (opc) {
-    case MMI_OPC_MTHI1:
-        gen_load_gpr(cpu_HI[1], reg);
-        break;
-    case MMI_OPC_MTLO1:
-        gen_load_gpr(cpu_LO[1], reg);
-        break;
-    default:
-        MIPS_INVAL("mfthilo1 TX79");
-        gen_reserved_instruction(ctx);
-        break;
-    }
-}
-#endif
 
 /* Arithmetic on HI/LO registers */
 static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
@@ -25107,10 +25086,6 @@ static void decode_mmi(CPUMIPSState *env, DisasContext *ctx)
     case MMI_OPC_DIV1:
     case MMI_OPC_DIVU1:
         gen_div1_tx79(ctx, opc, rs, rt);
-        break;
-    case MMI_OPC_MTLO1:
-    case MMI_OPC_MTHI1:
-        gen_HILO1_tx79(ctx, opc, rs);
         break;
     case MMI_OPC_PLZCW:         /* TODO: MMI_OPC_PLZCW */
     case MMI_OPC_PMFHL:         /* TODO: MMI_OPC_PMFHL */

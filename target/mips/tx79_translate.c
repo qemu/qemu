@@ -35,3 +35,17 @@ static bool trans_MFLO1(DisasContext *ctx, arg_rtype *a)
 
     return true;
 }
+
+static bool trans_MTHI1(DisasContext *ctx, arg_rtype *a)
+{
+    gen_load_gpr(cpu_HI[1], a->rs);
+
+    return true;
+}
+
+static bool trans_MTLO1(DisasContext *ctx, arg_rtype *a)
+{
+    gen_load_gpr(cpu_LO[1], a->rs);
+
+    return true;
+}
