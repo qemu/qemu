@@ -4126,31 +4126,18 @@ static void gen_shift(DisasContext *ctx, uint32_t opc,
 /* Copy GPR to and from TX79 HI1/LO1 register. */
 static void gen_HILO1_tx79(DisasContext *ctx, uint32_t opc, int reg)
 {
-    if (reg == 0 && (opc == MMI_OPC_MFHI1 || opc == MMI_OPC_MFLO1)) {
-        /* Treat as NOP. */
-        return;
-    }
-
     switch (opc) {
     case MMI_OPC_MFHI1:
-        tcg_gen_mov_tl(cpu_gpr[reg], cpu_HI[1]);
+        gen_store_gpr(cpu_HI[1], reg);
         break;
     case MMI_OPC_MFLO1:
-        tcg_gen_mov_tl(cpu_gpr[reg], cpu_LO[1]);
+        gen_store_gpr(cpu_LO[1], reg);
         break;
     case MMI_OPC_MTHI1:
-        if (reg != 0) {
-            tcg_gen_mov_tl(cpu_HI[1], cpu_gpr[reg]);
-        } else {
-            tcg_gen_movi_tl(cpu_HI[1], 0);
-        }
+        gen_load_gpr(cpu_HI[1], reg);
         break;
     case MMI_OPC_MTLO1:
-        if (reg != 0) {
-            tcg_gen_mov_tl(cpu_LO[1], cpu_gpr[reg]);
-        } else {
-            tcg_gen_movi_tl(cpu_LO[1], 0);
-        }
+        gen_load_gpr(cpu_LO[1], reg);
         break;
     default:
         MIPS_INVAL("mfthilo1 TX79");
