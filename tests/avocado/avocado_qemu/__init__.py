@@ -17,7 +17,7 @@ import time
 import uuid
 
 import avocado
-from avocado.utils import cloudinit, datadrainer, network, ssh, vmimage
+from avocado.utils import cloudinit, datadrainer, network, process, ssh, vmimage
 from avocado.utils.path import find_command
 
 #: The QEMU build root directory.  It may also be the source directory
@@ -293,6 +293,23 @@ class Test(QemuBaseTest):
             vm.shutdown()
         self._sd = None
         super().tearDown()
+
+
+class QemuUserTest(QemuBaseTest):
+    """Facilitates user-mode emulation tests."""
+
+    def setUp(self):
+        self._ldpath = []
+        super().setUp('qemu-')
+
+    def add_ldpath(self, ldpath):
+        self._ldpath.append(os.path.abspath(ldpath))
+
+    def run(self, bin_path, args=[]):
+        qemu_args = " ".join(["-L %s" % ldpath for ldpath in self._ldpath])
+        bin_args = " ".join(args)
+        return process.run("%s %s %s %s" % (self.qemu_bin, qemu_args,
+                                            bin_path, bin_args))
 
 
 class LinuxSSHMixIn:
