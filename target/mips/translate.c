@@ -2179,6 +2179,11 @@ enum {
 
 /* global register indices */
 TCGv cpu_gpr[32], cpu_PC;
+/*
+ * For CPUs using 128-bit GPR registers, we put the lower halves in cpu_gpr[])
+ * and the upper halves in cpu_gpr_hi[].
+ */
+TCGv_i64 cpu_gpr_hi[32];
 TCGv cpu_HI[MIPS_DSP_ACC], cpu_LO[MIPS_DSP_ACC];
 static TCGv cpu_dspctrl, btarget;
 TCGv bcond;
@@ -2186,11 +2191,6 @@ static TCGv cpu_lladdr, cpu_llval;
 static TCGv_i32 hflags;
 TCGv_i32 fpu_fcr0, fpu_fcr31;
 TCGv_i64 fpu_f64[32];
-
-#if defined(TARGET_MIPS64)
-/* Upper halves of R5900's 128-bit registers: MMRs (multimedia registers) */
-static TCGv_i64 cpu_mmr[32];
-#endif
 
 #if !defined(TARGET_MIPS64)
 /* MXU registers */
@@ -24784,7 +24784,7 @@ static void gen_mmi_pcpyh(DisasContext *ctx)
         /* nop */
     } else if (rt == 0) {
         tcg_gen_movi_i64(cpu_gpr[rd], 0);
-        tcg_gen_movi_i64(cpu_mmr[rd], 0);
+        tcg_gen_movi_i64(cpu_gpr_hi[rd], 0);
     } else {
         TCGv_i64 t0 = tcg_temp_new();
         TCGv_i64 t1 = tcg_temp_new();
@@ -24802,7 +24802,7 @@ static void gen_mmi_pcpyh(DisasContext *ctx)
 
         tcg_gen_mov_i64(cpu_gpr[rd], t1);
 
-        tcg_gen_andi_i64(t0, cpu_mmr[rt], mask);
+        tcg_gen_andi_i64(t0, cpu_gpr_hi[rt], mask);
         tcg_gen_movi_i64(t1, 0);
         tcg_gen_or_i64(t1, t0, t1);
         tcg_gen_shli_i64(t0, t0, 16);
@@ -24812,7 +24812,7 @@ static void gen_mmi_pcpyh(DisasContext *ctx)
         tcg_gen_shli_i64(t0, t0, 16);
         tcg_gen_or_i64(t1, t0, t1);
 
-        tcg_gen_mov_i64(cpu_mmr[rd], t1);
+        tcg_gen_mov_i64(cpu_gpr_hi[rd], t1);
 
         tcg_temp_free(t0);
         tcg_temp_free(t1);
@@ -24844,9 +24844,9 @@ static void gen_mmi_pcpyld(DisasContext *ctx)
         /* nop */
     } else {
         if (rs == 0) {
-            tcg_gen_movi_i64(cpu_mmr[rd], 0);
+            tcg_gen_movi_i64(cpu_gpr_hi[rd], 0);
         } else {
-            tcg_gen_mov_i64(cpu_mmr[rd], cpu_gpr[rs]);
+            tcg_gen_mov_i64(cpu_gpr_hi[rd], cpu_gpr[rs]);
         }
         if (rt == 0) {
             tcg_gen_movi_i64(cpu_gpr[rd], 0);
@@ -24885,13 +24885,13 @@ static void gen_mmi_pcpyud(DisasContext *ctx)
         if (rs == 0) {
             tcg_gen_movi_i64(cpu_gpr[rd], 0);
         } else {
-            tcg_gen_mov_i64(cpu_gpr[rd], cpu_mmr[rs]);
+            tcg_gen_mov_i64(cpu_gpr[rd], cpu_gpr_hi[rs]);
         }
         if (rt == 0) {
-            tcg_gen_movi_i64(cpu_mmr[rd], 0);
+            tcg_gen_movi_i64(cpu_gpr_hi[rd], 0);
         } else {
             if (rd != rt) {
-                tcg_gen_mov_i64(cpu_mmr[rd], cpu_mmr[rt]);
+                tcg_gen_mov_i64(cpu_gpr_hi[rd], cpu_gpr_hi[rt]);
             }
         }
     }
@@ -29285,6 +29285,16 @@ void mips_tcg_init(void)
                                         offsetof(CPUMIPSState,
                                                  active_tc.gpr[i]),
                                         regnames[i]);
+#if defined(TARGET_MIPS64)
+    cpu_gpr_hi[0] = NULL;
+
+    for (unsigned i = 1; i < 32; i++) {
+        cpu_gpr_hi[i] = tcg_global_mem_new_i64(cpu_env,
+                                               offsetof(CPUMIPSState,
+                                                        active_tc.gpr_hi[i]),
+                                               regnames[i]);
+    }
+#endif /* !TARGET_MIPS64 */
     for (i = 0; i < 32; i++) {
         int off = offsetof(CPUMIPSState, active_fpu.fpr[i].wr.d[0]);
 
@@ -29323,16 +29333,6 @@ void mips_tcg_init(void)
     cpu_llval = tcg_global_mem_new(cpu_env, offsetof(CPUMIPSState, llval),
                                    "llval");
 
-#if defined(TARGET_MIPS64)
-    cpu_mmr[0] = NULL;
-    for (i = 1; i < 32; i++) {
-        cpu_mmr[i] = tcg_global_mem_new_i64(cpu_env,
-                                            offsetof(CPUMIPSState,
-                                                     active_tc.mmr[i]),
-                                            regnames[i]);
-    }
-#endif
-
 #if !defined(TARGET_MIPS64)
     for (i = 0; i < NUMBER_OF_MXU_REGISTERS - 1; i++) {
         mxu_gpr[i] = tcg_global_mem_new(cpu_env,
@@ -29344,7 +29344,7 @@ void mips_tcg_init(void)
     mxu_CR = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUMIPSState, active_tc.mxu_cr),
                                 mxuregnames[NUMBER_OF_MXU_REGISTERS - 1]);
-#endif
+#endif /* !TARGET_MIPS64 */
 }
 
 void restore_state_to_opc(CPUMIPSState *env, TranslationBlock *tb,
