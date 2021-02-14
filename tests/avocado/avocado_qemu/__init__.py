@@ -169,7 +169,7 @@ def exec_command_and_wait_for_pattern(test, command,
     """
     _console_interaction(test, success_message, failure_message, command + '\r')
 
-class Test(avocado.Test):
+class QemuBaseTest(avocado.Test):
     def _get_unique_tag_val(self, tag_name):
         """
         Gets a tag value, if unique for a key
@@ -178,6 +178,46 @@ class Test(avocado.Test):
         if len(vals) == 1:
             return vals.pop()
         return None
+
+    def setUp(self):
+        self.arch = self.params.get('arch',
+                                    default=self._get_unique_tag_val('arch'))
+
+        self.cpu = self.params.get('cpu',
+                                   default=self._get_unique_tag_val('cpu'))
+
+        default_qemu_bin = pick_default_qemu_bin(arch=self.arch)
+        self.qemu_bin = self.params.get('qemu_bin',
+                                        default=default_qemu_bin)
+        if self.qemu_bin is None:
+            self.cancel("No QEMU binary defined or found in the build tree")
+
+    def fetch_asset(self, name,
+                    asset_hash=None, algorithm=None,
+                    locations=None, expire=None,
+                    find_only=False, cancel_on_missing=True):
+        return super().fetch_asset(name,
+                        asset_hash=asset_hash,
+                        algorithm=algorithm,
+                        locations=locations,
+                        expire=expire,
+                        find_only=find_only,
+                        cancel_on_missing=cancel_on_missing)
+
+
+class Test(QemuBaseTest):
+    """Facilitates system emulation tests.
+
+    TODO: Rename this class as `QemuSystemTest`.
+    """
+
+    def setUp(self):
+        self._vms = {}
+
+        super().setUp()
+
+        self.machine = self.params.get('machine',
+                                       default=self._get_unique_tag_val('machine'))
 
     def require_accelerator(self, accelerator):
         """
@@ -200,24 +240,6 @@ class Test(avocado.Test):
         if not checker(qemu_bin=self.qemu_bin):
             self.cancel("%s accelerator does not seem to be "
                         "available" % accelerator)
-
-    def setUp(self):
-        self._vms = {}
-
-        self.arch = self.params.get('arch',
-                                    default=self._get_unique_tag_val('arch'))
-
-        self.cpu = self.params.get('cpu',
-                                   default=self._get_unique_tag_val('cpu'))
-
-        self.machine = self.params.get('machine',
-                                       default=self._get_unique_tag_val('machine'))
-
-        default_qemu_bin = pick_default_qemu_bin(arch=self.arch)
-        self.qemu_bin = self.params.get('qemu_bin',
-                                        default=default_qemu_bin)
-        if self.qemu_bin is None:
-            self.cancel("No QEMU binary defined or found in the build tree")
 
     def _new_vm(self, name, *args):
         self._sd = tempfile.TemporaryDirectory(prefix="avo_qemu_sock_")
@@ -271,18 +293,6 @@ class Test(avocado.Test):
             vm.shutdown()
         self._sd = None
         super().tearDown()
-
-    def fetch_asset(self, name,
-                    asset_hash=None, algorithm=None,
-                    locations=None, expire=None,
-                    find_only=False, cancel_on_missing=True):
-        return super().fetch_asset(name,
-                        asset_hash=asset_hash,
-                        algorithm=algorithm,
-                        locations=locations,
-                        expire=expire,
-                        find_only=find_only,
-                        cancel_on_missing=cancel_on_missing)
 
 
 class LinuxSSHMixIn:
