@@ -423,6 +423,8 @@ static void mps2tz_common_init(MachineState *machine)
     MemoryRegion *system_memory = get_system_memory();
     DeviceState *iotkitdev;
     DeviceState *dev_splitter;
+    const PPCInfo *ppcs;
+    int num_ppcs;
     int i;
 
     if (strcmp(machine->cpu_type, mc->default_cpu_type) != 0) {
@@ -544,7 +546,7 @@ static void mps2tz_common_init(MachineState *machine)
      *  + wire up the PPC's control lines to the IoTKit object
      */
 
-    const PPCInfo ppcs[] = { {
+    const PPCInfo an505_ppcs[] = { {
             .name = "apb_ppcexp0",
             .ports = {
                 { "ssram-0", make_mpc, &mms->ssram_mpc[0], 0x58007000, 0x1000 },
@@ -598,7 +600,17 @@ static void mps2tz_common_init(MachineState *machine)
         },
     };
 
-    for (i = 0; i < ARRAY_SIZE(ppcs); i++) {
+    switch (mmc->fpga_type) {
+    case FPGA_AN505:
+    case FPGA_AN521:
+        ppcs = an505_ppcs;
+        num_ppcs = ARRAY_SIZE(an505_ppcs);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    for (i = 0; i < num_ppcs; i++) {
         const PPCInfo *ppcinfo = &ppcs[i];
         TZPPC *ppc = &mms->ppc[i];
         DeviceState *ppcdev;
