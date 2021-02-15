@@ -516,13 +516,18 @@ static void mps2tz_common_init(MachineState *machine)
      */
     memory_region_add_subregion(system_memory, 0x80000000, machine->ram);
 
-    /* The overflow IRQs for all UARTs are ORed together.
+    /*
+     * The overflow IRQs for all UARTs are ORed together.
      * Tx, Rx and "combined" IRQs are sent to the NVIC separately.
-     * Create the OR gate for this.
+     * Create the OR gate for this: it has one input for the TX overflow
+     * and one for the RX overflow for each UART we might have.
+     * (If the board has fewer than the maximum possible number of UARTs
+     * those inputs are never wired up and are treated as always-zero.)
      */
     object_initialize_child(OBJECT(mms), "uart-irq-orgate",
                             &mms->uart_irq_orgate, TYPE_OR_IRQ);
-    object_property_set_int(OBJECT(&mms->uart_irq_orgate), "num-lines", 10,
+    object_property_set_int(OBJECT(&mms->uart_irq_orgate), "num-lines",
+                            2 * ARRAY_SIZE(mms->uart),
                             &error_fatal);
     qdev_realize(DEVICE(&mms->uart_irq_orgate), NULL, &error_fatal);
     qdev_connect_gpio_out(DEVICE(&mms->uart_irq_orgate), 0,
