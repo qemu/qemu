@@ -61,7 +61,7 @@ static void draw_line2_32(void *opaque, uint8_t *d, const uint8_t *s,
         b = (pal[v & 3] << 4) & 0xf0;
         ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
         d += 4;
-        s ++;
+        s++;
         width -= 4;
     } while (width > 0);
 }
@@ -88,7 +88,7 @@ static void draw_line4_32(void *opaque, uint8_t *d, const uint8_t *s,
         b = (pal[v & 0xf] << 4) & 0xf0;
         ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
         d += 4;
-        s ++;
+        s++;
         width -= 2;
     } while (width > 0);
 }
@@ -108,7 +108,7 @@ static void draw_line8_32(void *opaque, uint8_t *d, const uint8_t *s,
         g = pal[v] & 0xf0;
         b = (pal[v] << 4) & 0xf0;
         ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
-        s ++;
+        s++;
         d += 4;
     } while (-- width != 0);
 }
