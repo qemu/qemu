@@ -227,6 +227,11 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
          */
         qatomic_mb_set(&qmp_dispatcher_co_busy, false);
 
+        /* On shutdown, don't take any more requests from the queue */
+        if (qmp_dispatcher_co_shutdown) {
+            return;
+        }
+
         while (!(req_obj = monitor_qmp_requests_pop_any_with_lock())) {
             /*
              * No more requests to process.  Wait to be reentered from

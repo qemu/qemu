@@ -619,16 +619,6 @@ void monitor_data_destroy(Monitor *mon)
 void monitor_cleanup(void)
 {
     /*
-     * We need to explicitly stop the I/O thread (but not destroy it),
-     * clean up the monitor resources, then destroy the I/O thread since
-     * we need to unregister from chardev below in
-     * monitor_data_destroy(), and chardev is not thread-safe yet
-     */
-    if (mon_iothread) {
-        iothread_stop(mon_iothread);
-    }
-
-    /*
      * The dispatcher needs to stop before destroying the monitor and
      * the I/O thread.
      *
@@ -637,6 +627,11 @@ void monitor_cleanup(void)
      * eventually terminates.  qemu_aio_context is automatically
      * polled by calling AIO_WAIT_WHILE on it, but we must poll
      * iohandler_ctx manually.
+     *
+     * Letting the iothread continue while shutting down the dispatcher
+     * means that new requests may still be coming in. This is okay,
+     * we'll just leave them in the queue without sending a response
+     * and monitor_data_destroy() will free them.
      */
     qmp_dispatcher_co_shutdown = true;
     if (!qatomic_xchg(&qmp_dispatcher_co_busy, true)) {
@@ -646,6 +641,16 @@ void monitor_cleanup(void)
     AIO_WAIT_WHILE(qemu_get_aio_context(),
                    (aio_poll(iohandler_get_aio_context(), false),
                     qatomic_mb_read(&qmp_dispatcher_co_busy)));
+
+    /*
+     * We need to explicitly stop the I/O thread (but not destroy it),
+     * clean up the monitor resources, then destroy the I/O thread since
+     * we need to unregister from chardev below in
+     * monitor_data_destroy(), and chardev is not thread-safe yet
+     */
+    if (mon_iothread) {
+        iothread_stop(mon_iothread);
+    }
 
     /* Flush output buffers and destroy monitors */
     qemu_mutex_lock(&monitor_lock);
