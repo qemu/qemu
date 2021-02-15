@@ -70,8 +70,6 @@ static void omap_lcd_interrupts(struct omap_lcd_panel_s *s)
     qemu_irq_lower(s->irq);
 }
 
-#define draw_line_func drawfn
-
 /*
  * 2-bit colour
  */
@@ -202,7 +200,7 @@ static void omap_update_display(void *opaque)
 {
     struct omap_lcd_panel_s *omap_lcd = (struct omap_lcd_panel_s *) opaque;
     DisplaySurface *surface;
-    draw_line_func draw_line;
+    drawfn draw_line;
     int size, height, first, last;
     int width, linesize, step, bpp, frame_offset;
     hwaddr frame_base;
