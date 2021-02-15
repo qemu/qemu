@@ -525,6 +525,20 @@ static void create_non_mpc_ram(MPS2TZMachineState *mms)
     }
 }
 
+static uint32_t boot_ram_size(MPS2TZMachineState *mms)
+{
+    /* Return the size of the RAM block at guest address zero */
+    const RAMInfo *p;
+    MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
+
+    for (p = mmc->raminfo; p->name; p++) {
+        if (p->base == 0) {
+            return p->size;
+        }
+    }
+    g_assert_not_reached();
+}
+
 static void mps2tz_common_init(MachineState *machine)
 {
     MPS2TZMachineState *mms = MPS2TZ_MACHINE(machine);
@@ -789,7 +803,8 @@ static void mps2tz_common_init(MachineState *machine)
 
     create_non_mpc_ram(mms);
 
-    armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename, 0x400000);
+    armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
+                       boot_ram_size(mms));
 }
 
 static void mps2_tz_idau_check(IDAUInterface *ii, uint32_t address,
