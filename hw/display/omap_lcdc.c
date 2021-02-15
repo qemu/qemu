@@ -72,8 +72,131 @@ static void omap_lcd_interrupts(struct omap_lcd_panel_s *s)
 
 #define draw_line_func drawfn
 
-#define DEPTH 32
-#include "omap_lcd_template.h"
+/*
+ * 2-bit colour
+ */
+static void draw_line2_32(void *opaque, uint8_t *d, const uint8_t *s,
+                          int width, int deststep)
+{
+    uint16_t *pal = opaque;
+    uint8_t v, r, g, b;
+
+    do {
+        v = ldub_p((void *) s);
+        r = (pal[v & 3] >> 4) & 0xf0;
+        g = pal[v & 3] & 0xf0;
+        b = (pal[v & 3] << 4) & 0xf0;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
+        v >>= 2;
+        r = (pal[v & 3] >> 4) & 0xf0;
+        g = pal[v & 3] & 0xf0;
+        b = (pal[v & 3] << 4) & 0xf0;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
+        v >>= 2;
+        r = (pal[v & 3] >> 4) & 0xf0;
+        g = pal[v & 3] & 0xf0;
+        b = (pal[v & 3] << 4) & 0xf0;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
+        v >>= 2;
+        r = (pal[v & 3] >> 4) & 0xf0;
+        g = pal[v & 3] & 0xf0;
+        b = (pal[v & 3] << 4) & 0xf0;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
+        s++;
+        width -= 4;
+    } while (width > 0);
+}
+
+/*
+ * 4-bit colour
+ */
+static void draw_line4_32(void *opaque, uint8_t *d, const uint8_t *s,
+                          int width, int deststep)
+{
+    uint16_t *pal = opaque;
+    uint8_t v, r, g, b;
+
+    do {
+        v = ldub_p((void *) s);
+        r = (pal[v & 0xf] >> 4) & 0xf0;
+        g = pal[v & 0xf] & 0xf0;
+        b = (pal[v & 0xf] << 4) & 0xf0;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
+        v >>= 4;
+        r = (pal[v & 0xf] >> 4) & 0xf0;
+        g = pal[v & 0xf] & 0xf0;
+        b = (pal[v & 0xf] << 4) & 0xf0;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
+        s++;
+        width -= 2;
+    } while (width > 0);
+}
+
+/*
+ * 8-bit colour
+ */
+static void draw_line8_32(void *opaque, uint8_t *d, const uint8_t *s,
+                          int width, int deststep)
+{
+    uint16_t *pal = opaque;
+    uint8_t v, r, g, b;
+
+    do {
+        v = ldub_p((void *) s);
+        r = (pal[v] >> 4) & 0xf0;
+        g = pal[v] & 0xf0;
+        b = (pal[v] << 4) & 0xf0;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        s++;
+        d += 4;
+    } while (-- width != 0);
+}
+
+/*
+ * 12-bit colour
+ */
+static void draw_line12_32(void *opaque, uint8_t *d, const uint8_t *s,
+                           int width, int deststep)
+{
+    uint16_t v;
+    uint8_t r, g, b;
+
+    do {
+        v = lduw_le_p((void *) s);
+        r = (v >> 4) & 0xf0;
+        g = v & 0xf0;
+        b = (v << 4) & 0xf0;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        s += 2;
+        d += 4;
+    } while (-- width != 0);
+}
+
+/*
+ * 16-bit colour
+ */
+static void draw_line16_32(void *opaque, uint8_t *d, const uint8_t *s,
+                           int width, int deststep)
+{
+    uint16_t v;
+    uint8_t r, g, b;
+
+    do {
+        v = lduw_le_p((void *) s);
+        r = (v >> 8) & 0xf8;
+        g = (v >> 3) & 0xfc;
+        b = (v << 3) & 0xf8;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        s += 2;
+        d += 4;
+    } while (-- width != 0);
+}
 
 static void omap_update_display(void *opaque)
 {
