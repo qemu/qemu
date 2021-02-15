@@ -19,8 +19,6 @@
 #define TYPE_MPS2_SCC "mps2-scc"
 OBJECT_DECLARE_SIMPLE_TYPE(MPS2SCC, MPS2_SCC)
 
-#define NUM_OSCCLK 3
-
 struct MPS2SCC {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -39,8 +37,9 @@ struct MPS2SCC {
     uint32_t dll;
     uint32_t aid;
     uint32_t id;
-    uint32_t oscclk[NUM_OSCCLK];
-    uint32_t oscclk_reset[NUM_OSCCLK];
+    uint32_t num_oscclk;
+    uint32_t *oscclk;
+    uint32_t *oscclk_reset;
 };
 
 #endif
