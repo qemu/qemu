@@ -35,6 +35,7 @@ REG32(CLK100HZ, 0x14)
 REG32(COUNTER, 0x18)
 REG32(PRESCALE, 0x1c)
 REG32(PSCNTR, 0x20)
+REG32(SWITCH, 0x28)
 REG32(MISC, 0x4c)
 
 static uint32_t counter_from_tickoff(int64_t now, int64_t tick_offset, int frq)
@@ -156,7 +157,15 @@ static uint64_t mps2_fpgaio_read(void *opaque, hwaddr offset, unsigned size)
         resync_counter(s);
         r = s->pscntr;
         break;
+    case A_SWITCH:
+        if (!s->has_switches) {
+            goto bad_offset;
+        }
+        /* User-togglable board switches. We don't model that, so report 0. */
+        r = 0;
+        break;
     default:
+    bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "MPS2 FPGAIO read: bad offset %x\n", (int) offset);
         r = 0;
@@ -318,6 +327,7 @@ static Property mps2_fpgaio_properties[] = {
     DEFINE_PROP_UINT32("prescale-clk", MPS2FPGAIO, prescale_clk, 20000000),
     /* Number of LEDs controlled by LED0 register */
     DEFINE_PROP_UINT32("num-leds", MPS2FPGAIO, num_leds, 2),
+    DEFINE_PROP_BOOL("has-switches", MPS2FPGAIO, has_switches, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

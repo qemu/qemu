@@ -38,6 +38,7 @@ struct MPS2FPGAIO {
     MemoryRegion iomem;
     LEDState *led[MPS2FPGAIO_MAX_LEDS];
     uint32_t num_leds;
+    bool has_switches;
 
     uint32_t led0;
     uint32_t prescale;
