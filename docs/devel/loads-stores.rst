@@ -24,16 +24,12 @@ potentially unaligned pointer values.
 
 Function names follow the pattern:
 
-load: ``ld{type}{sign}{size}_{endian}_p(ptr)``
+load: ``ld{sign}{size}_{endian}_p(ptr)``
 
-store: ``st{type}{size}_{endian}_p(ptr, val)``
-
-``type``
- - (empty) : integer access
- - ``f`` : float access
+store: ``st{size}_{endian}_p(ptr, val)``
 
 ``sign``
- - (empty) : for 32 or 64 bit sizes (including floats and doubles)
+ - (empty) : for 32 or 64 bit sizes
  - ``u`` : unsigned
  - ``s`` : signed
 
@@ -67,8 +63,8 @@ of size ``sz`` bytes.
 
 
 Regexes for git grep
- - ``\<ldf\?[us]\?[bwlq]\(_[hbl]e\)\?_p\>``
- - ``\<stf\?[bwlq]\(_[hbl]e\)\?_p\>``
+ - ``\<ld[us]\?[bwlq]\(_[hbl]e\)\?_p\>``
+ - ``\<st[bwlq]\(_[hbl]e\)\?_p\>``
  - ``\<ldn_\([hbl]e\)?_p\>``
  - ``\<stn_\([hbl]e\)?_p\>``
 
