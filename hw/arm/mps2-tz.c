@@ -92,8 +92,10 @@ typedef struct RAMInfo {
  * Flag values:
  *  IS_ALIAS: this RAM area is an alias to the upstream end of the
  *    MPC specified by its .mpc value
+ *  IS_ROM: this RAM area is read-only
  */
 #define IS_ALIAS 1
+#define IS_ROM 2
 
 struct MPS2TZMachineClass {
     MachineClass parent;
@@ -209,6 +211,7 @@ static MemoryRegion *mr_for_raminfo(MPS2TZMachineState *mms,
     if (raminfo->mrindex < 0) {
         /* Means this RAMInfo is for QEMU's "system memory" */
         MachineState *machine = MACHINE(mms);
+        assert(!(raminfo->flags & IS_ROM));
         return machine->ram;
     }
 
@@ -217,6 +220,9 @@ static MemoryRegion *mr_for_raminfo(MPS2TZMachineState *mms,
 
     memory_region_init_ram(ram, NULL, raminfo->name,
                            raminfo->size, &error_fatal);
+    if (raminfo->flags & IS_ROM) {
+        memory_region_set_readonly(ram, true);
+    }
     return ram;
 }
 
