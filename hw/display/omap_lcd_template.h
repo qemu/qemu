@@ -27,18 +27,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if DEPTH == 32
-# define BPP 4
-# define PIXEL_TYPE uint32_t
-#else
-# error unsupport depth
-#endif
-
 /*
  * 2-bit colour
  */
-static void glue(draw_line2_, DEPTH)(void *opaque,
-                uint8_t *d, const uint8_t *s, int width, int deststep)
+static void draw_line2_32(void *opaque, uint8_t *d, const uint8_t *s,
+                          int width, int deststep)
 {
     uint16_t *pal = opaque;
     uint8_t v, r, g, b;
@@ -48,26 +41,26 @@ static void glue(draw_line2_, DEPTH)(void *opaque,
         r = (pal[v & 3] >> 4) & 0xf0;
         g = pal[v & 3] & 0xf0;
         b = (pal[v & 3] << 4) & 0xf0;
-        ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, DEPTH)(r, g, b);
-        d += BPP;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
         v >>= 2;
         r = (pal[v & 3] >> 4) & 0xf0;
         g = pal[v & 3] & 0xf0;
         b = (pal[v & 3] << 4) & 0xf0;
-        ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, DEPTH)(r, g, b);
-        d += BPP;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
         v >>= 2;
         r = (pal[v & 3] >> 4) & 0xf0;
         g = pal[v & 3] & 0xf0;
         b = (pal[v & 3] << 4) & 0xf0;
-        ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, DEPTH)(r, g, b);
-        d += BPP;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
         v >>= 2;
         r = (pal[v & 3] >> 4) & 0xf0;
         g = pal[v & 3] & 0xf0;
         b = (pal[v & 3] << 4) & 0xf0;
-        ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, DEPTH)(r, g, b);
-        d += BPP;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
         s ++;
         width -= 4;
     } while (width > 0);
@@ -76,8 +69,8 @@ static void glue(draw_line2_, DEPTH)(void *opaque,
 /*
  * 4-bit colour
  */
-static void glue(draw_line4_, DEPTH)(void *opaque,
-                uint8_t *d, const uint8_t *s, int width, int deststep)
+static void draw_line4_32(void *opaque, uint8_t *d, const uint8_t *s,
+                          int width, int deststep)
 {
     uint16_t *pal = opaque;
     uint8_t v, r, g, b;
@@ -87,14 +80,14 @@ static void glue(draw_line4_, DEPTH)(void *opaque,
         r = (pal[v & 0xf] >> 4) & 0xf0;
         g = pal[v & 0xf] & 0xf0;
         b = (pal[v & 0xf] << 4) & 0xf0;
-        ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, DEPTH)(r, g, b);
-        d += BPP;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
         v >>= 4;
         r = (pal[v & 0xf] >> 4) & 0xf0;
         g = pal[v & 0xf] & 0xf0;
         b = (pal[v & 0xf] << 4) & 0xf0;
-        ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, DEPTH)(r, g, b);
-        d += BPP;
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
+        d += 4;
         s ++;
         width -= 2;
     } while (width > 0);
@@ -103,8 +96,8 @@ static void glue(draw_line4_, DEPTH)(void *opaque,
 /*
  * 8-bit colour
  */
-static void glue(draw_line8_, DEPTH)(void *opaque,
-                uint8_t *d, const uint8_t *s, int width, int deststep)
+static void draw_line8_32(void *opaque, uint8_t *d, const uint8_t *s,
+                          int width, int deststep)
 {
     uint16_t *pal = opaque;
     uint8_t v, r, g, b;
@@ -114,17 +107,17 @@ static void glue(draw_line8_, DEPTH)(void *opaque,
         r = (pal[v] >> 4) & 0xf0;
         g = pal[v] & 0xf0;
         b = (pal[v] << 4) & 0xf0;
-        ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, DEPTH)(r, g, b);
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
         s ++;
-        d += BPP;
+        d += 4;
     } while (-- width != 0);
 }
 
 /*
  * 12-bit colour
  */
-static void glue(draw_line12_, DEPTH)(void *opaque,
-                uint8_t *d, const uint8_t *s, int width, int deststep)
+static void draw_line12_32(void *opaque, uint8_t *d, const uint8_t *s,
+                           int width, int deststep)
 {
     uint16_t v;
     uint8_t r, g, b;
@@ -134,17 +127,17 @@ static void glue(draw_line12_, DEPTH)(void *opaque,
         r = (v >> 4) & 0xf0;
         g = v & 0xf0;
         b = (v << 4) & 0xf0;
-        ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, DEPTH)(r, g, b);
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
         s += 2;
-        d += BPP;
+        d += 4;
     } while (-- width != 0);
 }
 
 /*
  * 16-bit colour
  */
-static void glue(draw_line16_, DEPTH)(void *opaque,
-                uint8_t *d, const uint8_t *s, int width, int deststep)
+static void draw_line16_32(void *opaque, uint8_t *d, const uint8_t *s,
+                           int width, int deststep)
 {
 #if defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
     memcpy(d, s, width * 2);
@@ -157,13 +150,9 @@ static void glue(draw_line16_, DEPTH)(void *opaque,
         r = (v >> 8) & 0xf8;
         g = (v >> 3) & 0xfc;
         b = (v << 3) & 0xf8;
-        ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, DEPTH)(r, g, b);
+        ((uint32_t *) d)[0] = rgb_to_pixel32(r, g, b);
         s += 2;
-        d += BPP;
+        d += 4;
     } while (-- width != 0);
 #endif
 }
-
-#undef DEPTH
-#undef BPP
-#undef PIXEL_TYPE
