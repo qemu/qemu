@@ -54,4 +54,10 @@
 #define TARGET_SIG_BLOCK          0    /* for blocking signals */
 #define TARGET_SIG_UNBLOCK        1    /* for unblocking signals */
 #define TARGET_SIG_SETMASK        2    /* for setting the signal mask */
+
+/* bit-flags */
+#define TARGET_SS_AUTODISARM (1U << 31) /* disable sas during sighandling */
+/* mask for all SS_xxx flags */
+#define TARGET_SS_FLAG_BITS  TARGET_SS_AUTODISARM
+
 #endif
