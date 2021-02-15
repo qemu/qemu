@@ -1148,12 +1148,15 @@ static void qemu_spice_display_init_one(QemuConsole *con)
     qemu_spice_add_display_interface(&ssd->qxl, con);
 
 #if SPICE_SERVER_VERSION >= 0x000e02 /* release 0.14.2 */
+    Error *err = NULL;
     char device_address[256] = "";
-    if (qemu_spice_fill_device_address(con, device_address, 256)) {
+    if (qemu_console_fill_device_address(con, device_address, 256, &err)) {
         spice_qxl_set_device_info(&ssd->qxl,
                                   device_address,
                                   qemu_console_get_head(con),
                                   1);
+    } else {
+        error_report_err(err);
     }
 #endif
 

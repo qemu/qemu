@@ -184,8 +184,4 @@ void qemu_spice_display_start(void);
 void qemu_spice_display_stop(void);
 int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd);
 
-bool qemu_spice_fill_device_address(QemuConsole *con,
-                                    char *device_address,
-                                    size_t size);
-
 #endif
