@@ -208,12 +208,10 @@ static MemoryRegion *make_uart(MPS2TZMachineState *mms, void *opaque,
                                const char *name, hwaddr size,
                                const int *irqs)
 {
+    /* The irq[] array is tx, rx, combined, in that order */
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
     CMSDKAPBUART *uart = opaque;
     int i = uart - &mms->uart[0];
-    int rxirqno = i * 2 + 32;
-    int txirqno = i * 2 + 33;
-    int combirqno = i + 42;
     SysBusDevice *s;
     DeviceState *orgate_dev = DEVICE(&mms->uart_irq_orgate);
 
@@ -222,11 +220,11 @@ static MemoryRegion *make_uart(MPS2TZMachineState *mms, void *opaque,
     qdev_prop_set_uint32(DEVICE(uart), "pclk-frq", mmc->sysclk_frq);
     sysbus_realize(SYS_BUS_DEVICE(uart), &error_fatal);
     s = SYS_BUS_DEVICE(uart);
-    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, txirqno));
-    sysbus_connect_irq(s, 1, get_sse_irq_in(mms, rxirqno));
+    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
+    sysbus_connect_irq(s, 1, get_sse_irq_in(mms, irqs[1]));
     sysbus_connect_irq(s, 2, qdev_get_gpio_in(orgate_dev, i * 2));
     sysbus_connect_irq(s, 3, qdev_get_gpio_in(orgate_dev, i * 2 + 1));
-    sysbus_connect_irq(s, 4, get_sse_irq_in(mms, combirqno));
+    sysbus_connect_irq(s, 4, get_sse_irq_in(mms, irqs[2]));
     return sysbus_mmio_get_region(SYS_BUS_DEVICE(uart), 0);
 }
 
@@ -283,7 +281,7 @@ static MemoryRegion *make_eth_dev(MPS2TZMachineState *mms, void *opaque,
 
     s = SYS_BUS_DEVICE(mms->lan9118);
     sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, 48));
+    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
     return sysbus_mmio_get_region(s, 0);
 }
 
@@ -329,6 +327,7 @@ static MemoryRegion *make_dma(MPS2TZMachineState *mms, void *opaque,
                               const char *name, hwaddr size,
                               const int *irqs)
 {
+    /* The irq[] array is DMACINTR, DMACINTERR, DMACINTTC, in that order */
     PL080State *dma = opaque;
     int i = dma - &mms->dma[0];
     SysBusDevice *s;
@@ -373,9 +372,9 @@ static MemoryRegion *make_dma(MPS2TZMachineState *mms, void *opaque,
 
     s = SYS_BUS_DEVICE(dma);
     /* Wire up DMACINTR, DMACINTERR, DMACINTTC */
-    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, 58 + i * 3));
-    sysbus_connect_irq(s, 1, get_sse_irq_in(mms, 56 + i * 3));
-    sysbus_connect_irq(s, 2, get_sse_irq_in(mms, 57 + i * 3));
+    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
+    sysbus_connect_irq(s, 1, get_sse_irq_in(mms, irqs[1]));
+    sysbus_connect_irq(s, 2, get_sse_irq_in(mms, irqs[2]));
 
     g_free(mscname);
     return sysbus_mmio_get_region(s, 0);
@@ -394,13 +393,12 @@ static MemoryRegion *make_spi(MPS2TZMachineState *mms, void *opaque,
      * lines are set via the "MISC" register in the MPS2 FPGAIO device.
      */
     PL022State *spi = opaque;
-    int i = spi - &mms->spi[0];
     SysBusDevice *s;
 
     object_initialize_child(OBJECT(mms), name, spi, TYPE_PL022);
     sysbus_realize(SYS_BUS_DEVICE(spi), &error_fatal);
     s = SYS_BUS_DEVICE(spi);
-    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, 51 + i));
+    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
     return sysbus_mmio_get_region(s, 0);
 }
 
@@ -551,16 +549,16 @@ static void mps2tz_common_init(MachineState *machine)
         }, {
             .name = "apb_ppcexp1",
             .ports = {
-                { "spi0", make_spi, &mms->spi[0], 0x40205000, 0x1000 },
-                { "spi1", make_spi, &mms->spi[1], 0x40206000, 0x1000 },
-                { "spi2", make_spi, &mms->spi[2], 0x40209000, 0x1000 },
-                { "spi3", make_spi, &mms->spi[3], 0x4020a000, 0x1000 },
-                { "spi4", make_spi, &mms->spi[4], 0x4020b000, 0x1000 },
-                { "uart0", make_uart, &mms->uart[0], 0x40200000, 0x1000 },
-                { "uart1", make_uart, &mms->uart[1], 0x40201000, 0x1000 },
-                { "uart2", make_uart, &mms->uart[2], 0x40202000, 0x1000 },
-                { "uart3", make_uart, &mms->uart[3], 0x40203000, 0x1000 },
-                { "uart4", make_uart, &mms->uart[4], 0x40204000, 0x1000 },
+                { "spi0", make_spi, &mms->spi[0], 0x40205000, 0x1000, { 51 } },
+                { "spi1", make_spi, &mms->spi[1], 0x40206000, 0x1000, { 52 } },
+                { "spi2", make_spi, &mms->spi[2], 0x40209000, 0x1000, { 53 } },
+                { "spi3", make_spi, &mms->spi[3], 0x4020a000, 0x1000, { 54 } },
+                { "spi4", make_spi, &mms->spi[4], 0x4020b000, 0x1000, { 55 } },
+                { "uart0", make_uart, &mms->uart[0], 0x40200000, 0x1000, { 32, 33, 42 } },
+                { "uart1", make_uart, &mms->uart[1], 0x40201000, 0x1000, { 34, 35, 43 } },
+                { "uart2", make_uart, &mms->uart[2], 0x40202000, 0x1000, { 36, 37, 44 } },
+                { "uart3", make_uart, &mms->uart[3], 0x40203000, 0x1000, { 38, 39, 45 } },
+                { "uart4", make_uart, &mms->uart[4], 0x40204000, 0x1000, { 40, 41, 46 } },
                 { "i2c0", make_i2c, &mms->i2c[0], 0x40207000, 0x1000 },
                 { "i2c1", make_i2c, &mms->i2c[1], 0x40208000, 0x1000 },
                 { "i2c2", make_i2c, &mms->i2c[2], 0x4020c000, 0x1000 },
@@ -582,15 +580,15 @@ static void mps2tz_common_init(MachineState *machine)
                 { "gpio1", make_unimp_dev, &mms->gpio[1], 0x40101000, 0x1000 },
                 { "gpio2", make_unimp_dev, &mms->gpio[2], 0x40102000, 0x1000 },
                 { "gpio3", make_unimp_dev, &mms->gpio[3], 0x40103000, 0x1000 },
-                { "eth", make_eth_dev, NULL, 0x42000000, 0x100000 },
+                { "eth", make_eth_dev, NULL, 0x42000000, 0x100000, { 48 } },
             },
         }, {
             .name = "ahb_ppcexp1",
             .ports = {
-                { "dma0", make_dma, &mms->dma[0], 0x40110000, 0x1000 },
-                { "dma1", make_dma, &mms->dma[1], 0x40111000, 0x1000 },
-                { "dma2", make_dma, &mms->dma[2], 0x40112000, 0x1000 },
-                { "dma3", make_dma, &mms->dma[3], 0x40113000, 0x1000 },
+                { "dma0", make_dma, &mms->dma[0], 0x40110000, 0x1000, { 58, 56, 57 } },
+                { "dma1", make_dma, &mms->dma[1], 0x40111000, 0x1000, { 61, 59, 60 } },
+                { "dma2", make_dma, &mms->dma[2], 0x40112000, 0x1000, { 64, 62, 63 } },
+                { "dma3", make_dma, &mms->dma[3], 0x40113000, 0x1000, { 67, 65, 66 } },
             },
         },
     };
