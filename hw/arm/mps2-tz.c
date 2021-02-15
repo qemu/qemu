@@ -139,11 +139,21 @@ static void make_ram_alias(MemoryRegion *mr, const char *name,
 
 static qemu_irq get_sse_irq_in(MPS2TZMachineState *mms, int irqno)
 {
-    /* Return a qemu_irq which will signal IRQ n to all CPUs in the SSE. */
+    /*
+     * Return a qemu_irq which will signal IRQ n to all CPUs in the
+     * SSE.  The irqno should be as the CPU sees it, so the first
+     * external-to-the-SSE interrupt is 32.
+     */
     MachineClass *mc = MACHINE_GET_CLASS(mms);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
 
-    assert(irqno < mmc->numirq);
+    assert(irqno >= 32 && irqno < (mmc->numirq + 32));
+
+    /*
+     * Convert from "CPU irq number" (as listed in the FPGA image
+     * documentation) to the SSE external-interrupt number.
+     */
+    irqno -= 32;
 
     if (mc->max_cpus > 1) {
         return qdev_get_gpio_in(DEVICE(&mms->cpu_irq_splitter[irqno]), 0);
@@ -197,9 +207,9 @@ static MemoryRegion *make_uart(MPS2TZMachineState *mms, void *opaque,
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
     CMSDKAPBUART *uart = opaque;
     int i = uart - &mms->uart[0];
-    int rxirqno = i * 2;
-    int txirqno = i * 2 + 1;
-    int combirqno = i + 10;
+    int rxirqno = i * 2 + 32;
+    int txirqno = i * 2 + 33;
+    int combirqno = i + 42;
     SysBusDevice *s;
     DeviceState *orgate_dev = DEVICE(&mms->uart_irq_orgate);
 
@@ -266,7 +276,7 @@ static MemoryRegion *make_eth_dev(MPS2TZMachineState *mms, void *opaque,
 
     s = SYS_BUS_DEVICE(mms->lan9118);
     sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, 16));
+    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, 48));
     return sysbus_mmio_get_region(s, 0);
 }
 
@@ -507,7 +517,7 @@ static void mps2tz_common_init(MachineState *machine)
                             &error_fatal);
     qdev_realize(DEVICE(&mms->uart_irq_orgate), NULL, &error_fatal);
     qdev_connect_gpio_out(DEVICE(&mms->uart_irq_orgate), 0,
-                          get_sse_irq_in(mms, 15));
+                          get_sse_irq_in(mms, 47));
 
     /* Most of the devices in the FPGA are behind Peripheral Protection
      * Controllers. The required order for initializing things is:
