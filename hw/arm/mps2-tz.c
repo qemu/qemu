@@ -120,6 +120,8 @@ struct MPS2TZMachineState {
 
     ARMSSE iotkit;
     MemoryRegion ram[MPS2TZ_RAM_MAX];
+    MemoryRegion eth_usb_container;
+
     MPS2SCC scc;
     MPS2FPGAIO fpgaio;
     TZPPC ppc[5];
@@ -131,6 +133,7 @@ struct MPS2TZMachineState {
     UnimplementedDeviceState gfx;
     UnimplementedDeviceState cldc;
     UnimplementedDeviceState rtc;
+    UnimplementedDeviceState usb;
     PL080State dma[4];
     TZMSC msc[4];
     CMSDKAPBUART uart[6];
@@ -440,6 +443,49 @@ static MemoryRegion *make_eth_dev(MPS2TZMachineState *mms, void *opaque,
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
     return sysbus_mmio_get_region(s, 0);
+}
+
+static MemoryRegion *make_eth_usb(MPS2TZMachineState *mms, void *opaque,
+                                  const char *name, hwaddr size,
+                                  const int *irqs)
+{
+    /*
+     * The AN524 makes the ethernet and USB share a PPC port.
+     * irqs[] is the ethernet IRQ.
+     */
+    SysBusDevice *s;
+    NICInfo *nd = &nd_table[0];
+
+    memory_region_init(&mms->eth_usb_container, OBJECT(mms),
+                       "mps2-tz-eth-usb-container", 0x200000);
+
+    /*
+     * In hardware this is a LAN9220; the LAN9118 is software compatible
+     * except that it doesn't support the checksum-offload feature.
+     */
+    qemu_check_nic_model(nd, "lan9118");
+    mms->lan9118 = qdev_new(TYPE_LAN9118);
+    qdev_set_nic_properties(mms->lan9118, nd);
+
+    s = SYS_BUS_DEVICE(mms->lan9118);
+    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
+
+    memory_region_add_subregion(&mms->eth_usb_container,
+                                0, sysbus_mmio_get_region(s, 0));
+
+    /* The USB OTG controller is an ISP1763; we don't have a model of it. */
+    object_initialize_child(OBJECT(mms), "usb-otg",
+                            &mms->usb, TYPE_UNIMPLEMENTED_DEVICE);
+    qdev_prop_set_string(DEVICE(&mms->usb), "name", "usb-otg");
+    qdev_prop_set_uint64(DEVICE(&mms->usb), "size", 0x100000);
+    s = SYS_BUS_DEVICE(&mms->usb);
+    sysbus_realize(s, &error_fatal);
+
+    memory_region_add_subregion(&mms->eth_usb_container,
+                                0x100000, sysbus_mmio_get_region(s, 0));
+
+    return &mms->eth_usb_container;
 }
 
 static MemoryRegion *make_mpc(MPS2TZMachineState *mms, void *opaque,
@@ -819,7 +865,7 @@ static void mps2tz_common_init(MachineState *machine)
                 { "gpio1", make_unimp_dev, &mms->gpio[1], 0x41101000, 0x1000 },
                 { "gpio2", make_unimp_dev, &mms->gpio[2], 0x41102000, 0x1000 },
                 { "gpio3", make_unimp_dev, &mms->gpio[3], 0x41103000, 0x1000 },
-                { "eth", make_eth_dev, NULL, 0x41400000, 0x100000, { 48 } },
+                { "eth-usb", make_eth_usb, NULL, 0x41400000, 0x200000, { 48 } },
             },
         },
     };
