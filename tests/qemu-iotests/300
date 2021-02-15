@@ -22,7 +22,7 @@
 import os
 import random
 import re
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import iotests
 
@@ -30,7 +30,7 @@ import iotests
 # pylint: disable=wrong-import-order
 import qemu
 
-BlockBitmapMapping = List[Dict[str, Union[str, List[Dict[str, str]]]]]
+BlockBitmapMapping = List[Dict[str, object]]
 
 mig_sock = os.path.join(iotests.sock_dir, 'mig_sock')
 
@@ -602,7 +602,8 @@ class TestCrossAliasMigration(TestDirtyBitmapMigration):
 
 class TestAliasTransformMigration(TestDirtyBitmapMigration):
     """
-    Tests the 'transform' option which modifies bitmap persistence on migration.
+    Tests the 'transform' option which modifies bitmap persistence on
+    migration.
     """
 
     src_node_name = 'node-a'
@@ -674,7 +675,8 @@ class TestAliasTransformMigration(TestDirtyBitmapMigration):
         bitmaps = self.vm_b.query_bitmaps()
 
         for node in bitmaps:
-            bitmaps[node] = sorted(((bmap['name'], bmap['persistent']) for bmap in bitmaps[node]))
+            bitmaps[node] = sorted(((bmap['name'], bmap['persistent'])
+                                    for bmap in bitmaps[node]))
 
         self.assertEqual(bitmaps,
                          {'node-a': [('bmap-a', True), ('bmap-b', False)],
