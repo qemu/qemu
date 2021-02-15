@@ -75,6 +75,8 @@
 #include "qemu/id.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-migration.h"
+#include "qapi/qapi-visit-migration.h"
+#include "qapi/clone-visitor.h"
 #include "trace.h"
 
 #define CHUNK_SIZE     (1 << 10)
@@ -148,6 +150,7 @@ typedef struct DBMLoadState {
     BdrvDirtyBitmap *bitmap;
 
     bool before_vm_start_handled; /* set in dirty_bitmap_mig_before_vm_start */
+    BitmapMigrationBitmapAlias *bmap_inner;
 
     /*
      * cancelled
@@ -224,6 +227,7 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
         AliasMapInnerNode *amin;
         GHashTable *bitmaps_map;
         const char *node_map_from, *node_map_to;
+        GDestroyNotify gdn;
 
         if (!id_wellformed(bmna->alias)) {
             error_setg(errp, "The node alias '%s' is not well-formed",
@@ -263,8 +267,9 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
             node_map_to = bmna->node_name;
         }
 
-        bitmaps_map = g_hash_table_new_full(g_str_hash, g_str_equal,
-                                            g_free, g_free);
+        gdn = (GDestroyNotify) qapi_free_BitmapMigrationBitmapAlias;
+        bitmaps_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
+                                            gdn);
 
         amin = g_new(AliasMapInnerNode, 1);
         *amin = (AliasMapInnerNode){
@@ -276,7 +281,7 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
 
         for (bmbal = bmna->bitmaps; bmbal; bmbal = bmbal->next) {
             const BitmapMigrationBitmapAlias *bmba = bmbal->value;
-            const char *bmap_map_from, *bmap_map_to;
+            const char *bmap_map_from;
 
             if (strlen(bmba->alias) > UINT8_MAX) {
                 error_setg(errp,
@@ -293,7 +298,6 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
 
             if (name_to_alias) {
                 bmap_map_from = bmba->name;
-                bmap_map_to = bmba->alias;
 
                 if (g_hash_table_contains(bitmaps_map, bmba->name)) {
                     error_setg(errp, "The bitmap '%s'/'%s' is mapped twice",
@@ -302,7 +306,6 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
                 }
             } else {
                 bmap_map_from = bmba->alias;
-                bmap_map_to = bmba->name;
 
                 if (g_hash_table_contains(bitmaps_map, bmba->alias)) {
                     error_setg(errp, "The bitmap alias '%s'/'%s' is used twice",
@@ -311,8 +314,8 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
                 }
             }
 
-            g_hash_table_insert(bitmaps_map,
-                                g_strdup(bmap_map_from), g_strdup(bmap_map_to));
+            g_hash_table_insert(bitmaps_map, g_strdup(bmap_map_from),
+                                QAPI_CLONE(BitmapMigrationBitmapAlias, bmba));
         }
     }
 
@@ -527,6 +530,7 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
     }
 
     FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
+        BitmapMigrationBitmapAliasTransform *bitmap_transform = NULL;
         bitmap_name = bdrv_dirty_bitmap_name(bitmap);
         if (!bitmap_name) {
             continue;
@@ -538,10 +542,17 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
         }
 
         if (bitmap_aliases) {
-            bitmap_alias = g_hash_table_lookup(bitmap_aliases, bitmap_name);
-            if (!bitmap_alias) {
+            BitmapMigrationBitmapAlias *bmap_inner;
+
+            bmap_inner = g_hash_table_lookup(bitmap_aliases, bitmap_name);
+            if (!bmap_inner) {
                 /* Skip bitmaps with no alias */
                 continue;
+            }
+
+            bitmap_alias = bmap_inner->alias;
+            if (bmap_inner->has_transform) {
+                bitmap_transform = bmap_inner->transform;
             }
         } else {
             if (strlen(bitmap_name) > UINT8_MAX) {
@@ -568,8 +579,15 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
         if (bdrv_dirty_bitmap_enabled(bitmap)) {
             dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_ENABLED;
         }
-        if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
-            dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
+        if (bitmap_transform &&
+            bitmap_transform->has_persistent) {
+            if (bitmap_transform->persistent) {
+                dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
+            }
+        } else {
+            if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
+                dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
+            }
         }
 
         QSIMPLEQ_INSERT_TAIL(&s->dbms_list, dbms, entry);
@@ -777,6 +795,7 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
     uint32_t granularity = qemu_get_be32(f);
     uint8_t flags = qemu_get_byte(f);
     LoadBitmapState *b;
+    bool persistent;
 
     if (s->cancelled) {
         return 0;
@@ -801,7 +820,15 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
         return -EINVAL;
     }
 
-    if (flags & DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT) {
+    if (s->bmap_inner &&
+        s->bmap_inner->has_transform &&
+        s->bmap_inner->transform->has_persistent) {
+        persistent = s->bmap_inner->transform->persistent;
+    } else {
+        persistent = flags & DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
+    }
+
+    if (persistent) {
         bdrv_dirty_bitmap_set_persistence(s->bitmap, true);
     }
 
@@ -1074,14 +1101,19 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
 
         bitmap_name = s->bitmap_alias;
         if (!s->cancelled && bitmap_alias_map) {
-            bitmap_name = g_hash_table_lookup(bitmap_alias_map,
-                                              s->bitmap_alias);
-            if (!bitmap_name) {
+            BitmapMigrationBitmapAlias *bmap_inner;
+
+            bmap_inner = g_hash_table_lookup(bitmap_alias_map, s->bitmap_alias);
+            if (!bmap_inner) {
                 error_report("Error: Unknown bitmap alias '%s' on node "
                              "'%s' (alias '%s')", s->bitmap_alias,
                              s->bs->node_name, s->node_alias);
                 cancel_incoming_locked(s);
+            } else {
+                bitmap_name = bmap_inner->name;
             }
+
+            s->bmap_inner = bmap_inner;
         }
 
         if (!s->cancelled) {
