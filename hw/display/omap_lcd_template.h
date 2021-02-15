@@ -139,9 +139,6 @@ static void draw_line12_32(void *opaque, uint8_t *d, const uint8_t *s,
 static void draw_line16_32(void *opaque, uint8_t *d, const uint8_t *s,
                            int width, int deststep)
 {
-#if defined(HOST_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
-    memcpy(d, s, width * 2);
-#else
     uint16_t v;
     uint8_t r, g, b;
 
@@ -154,5 +151,4 @@ static void draw_line16_32(void *opaque, uint8_t *d, const uint8_t *s,
         s += 2;
         d += 4;
     } while (-- width != 0);
-#endif
 }
