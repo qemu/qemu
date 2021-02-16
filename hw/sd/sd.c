@@ -1163,8 +1163,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
     case 13:	/* CMD13:  SEND_STATUS */
         switch (sd->mode) {
         case sd_data_transfer_mode:
-            if (sd->rca != rca)
+            if (!sd->spi && sd->rca != rca) {
                 return sd_r0;
+            }
 
             return sd_r1;
 
