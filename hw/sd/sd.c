@@ -1284,6 +1284,10 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
     /* Write protection (Class 6) */
     case 28:	/* CMD28:  SET_WRITE_PROT */
+        if (sd->size > SDSC_MAX_CAPACITY) {
+            return sd_illegal;
+        }
+
         switch (sd->state) {
         case sd_transfer_state:
             if (addr >= sd->size) {
@@ -1303,6 +1307,10 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         break;
 
     case 29:	/* CMD29:  CLR_WRITE_PROT */
+        if (sd->size > SDSC_MAX_CAPACITY) {
+            return sd_illegal;
+        }
+
         switch (sd->state) {
         case sd_transfer_state:
             if (addr >= sd->size) {
@@ -1322,6 +1330,10 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         break;
 
     case 30:	/* CMD30:  SEND_WRITE_PROT */
+        if (sd->size > SDSC_MAX_CAPACITY) {
+            return sd_illegal;
+        }
+
         switch (sd->state) {
         case sd_transfer_state:
             sd->state = sd_sendingdata_state;
