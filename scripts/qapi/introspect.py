@@ -100,6 +100,15 @@ class Annotated(Generic[_ValueT]):
 def _tree_to_qlit(obj: JSONValue,
                   level: int = 0,
                   dict_value: bool = False) -> str:
+    """
+    Convert the type tree into a QLIT C string, recursively.
+
+    :param obj: The value to convert.
+                This value may not be Annotated when dict_value is True.
+    :param level: The indentation level for this particular value.
+    :param dict_value: True when the value being processed belongs to a
+                       dict key; which suppresses the output indent.
+    """
 
     def indent(level: int) -> str:
         return level * 4 * ' '
@@ -246,6 +255,17 @@ const QLitObject %(c_name)s = %(c_string)s;
     def _gen_tree(self, name: str, mtype: str, obj: Dict[str, object],
                   ifcond: Sequence[str],
                   features: Optional[List[QAPISchemaFeature]]) -> None:
+        """
+        Build and append a SchemaInfo object to self._trees.
+
+        :param name: The SchemaInfo's name.
+        :param mtype: The SchemaInfo's meta-type.
+        :param obj: Additional SchemaInfo members, as appropriate for
+                    the meta-type.
+        :param ifcond: Conditionals to apply to the SchemaInfo.
+        :param features: The SchemaInfo's features.
+                         Will be omitted from the output if empty.
+        """
         comment: Optional[str] = None
         if mtype not in ('command', 'event', 'builtin', 'array'):
             if not self._unmask:
