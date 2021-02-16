@@ -765,6 +765,7 @@ static void sd_erase(SDState *sd)
     int i;
     uint64_t erase_start = sd->erase_start;
     uint64_t erase_end = sd->erase_end;
+    bool sdsc = true;
 
     trace_sdcard_erase(sd->erase_start, sd->erase_end);
     if (sd->erase_start == INVALID_ADDRESS
@@ -779,6 +780,7 @@ static void sd_erase(SDState *sd)
         /* High capacity memory card: erase units are 512 byte blocks */
         erase_start *= 512;
         erase_end *= 512;
+        sdsc = false;
     }
 
     if (erase_start > sd->size || erase_end > sd->size) {
@@ -788,16 +790,20 @@ static void sd_erase(SDState *sd)
         return;
     }
 
-    erase_start = sd_addr_to_wpnum(erase_start);
-    erase_end = sd_addr_to_wpnum(erase_end);
     sd->erase_start = INVALID_ADDRESS;
     sd->erase_end = INVALID_ADDRESS;
     sd->csd[14] |= 0x40;
 
-    for (i = erase_start; i <= erase_end; i++) {
-        assert(i < sd->wpgrps_size);
-        if (test_bit(i, sd->wp_groups)) {
-            sd->card_status |= WP_ERASE_SKIP;
+    /* Only SDSC cards support write protect groups */
+    if (sdsc) {
+        erase_start = sd_addr_to_wpnum(erase_start);
+        erase_end = sd_addr_to_wpnum(erase_end);
+
+        for (i = erase_start; i <= erase_end; i++) {
+            assert(i < sd->wpgrps_size);
+            if (test_bit(i, sd->wp_groups)) {
+                sd->card_status |= WP_ERASE_SKIP;
+            }
         }
     }
 }
