@@ -127,6 +127,7 @@ static void do_usb_pcap_ctrl(FILE *fp, USBPacket *p, bool setup)
         .xfer_type  = usbmon_xfer_type[USB_ENDPOINT_XFER_CONTROL],
         .epnum      = in ? 0x80 : 0,
         .devnum     = dev->addr,
+        .flag_setup = setup ? 0 : '-',
         .flag_data  = '=',
         .length     = dev->setup_len,
     };
@@ -169,6 +170,7 @@ static void do_usb_pcap_data(FILE *fp, USBPacket *p, bool setup)
         .xfer_type  = usbmon_xfer_type[p->ep->type],
         .epnum      = usbmon_epnum(p),
         .devnum     = p->ep->dev->addr,
+        .flag_setup = '-',
         .flag_data  = '=',
         .length     = p->iov.size,
     };
