@@ -739,6 +739,27 @@ void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert)
     qemu_set_irq(insert, sd->blk ? blk_is_inserted(sd->blk) : 0);
 }
 
+static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
+{
+    trace_sdcard_read_block(addr, len);
+    if (!sd->blk || blk_pread(sd->blk, addr, sd->data, len) < 0) {
+        fprintf(stderr, "sd_blk_read: read error on host side\n");
+    }
+}
+
+static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
+{
+    trace_sdcard_write_block(addr, len);
+    if (!sd->blk || blk_pwrite(sd->blk, addr, sd->data, len, 0) < 0) {
+        fprintf(stderr, "sd_blk_write: write error on host side\n");
+    }
+}
+
+#define BLK_READ_BLOCK(a, len)  sd_blk_read(sd, a, len)
+#define BLK_WRITE_BLOCK(a, len) sd_blk_write(sd, a, len)
+#define APP_READ_BLOCK(a, len)  memset(sd->data, 0xec, len)
+#define APP_WRITE_BLOCK(a, len)
+
 static void sd_erase(SDState *sd)
 {
     int i;
@@ -1753,27 +1774,6 @@ send_response:
 
     return rsplen;
 }
-
-static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
-{
-    trace_sdcard_read_block(addr, len);
-    if (!sd->blk || blk_pread(sd->blk, addr, sd->data, len) < 0) {
-        fprintf(stderr, "sd_blk_read: read error on host side\n");
-    }
-}
-
-static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
-{
-    trace_sdcard_write_block(addr, len);
-    if (!sd->blk || blk_pwrite(sd->blk, addr, sd->data, len, 0) < 0) {
-        fprintf(stderr, "sd_blk_write: write error on host side\n");
-    }
-}
-
-#define BLK_READ_BLOCK(a, len)	sd_blk_read(sd, a, len)
-#define BLK_WRITE_BLOCK(a, len)	sd_blk_write(sd, a, len)
-#define APP_READ_BLOCK(a, len)	memset(sd->data, 0xec, len)
-#define APP_WRITE_BLOCK(a, len)
 
 void sd_write_byte(SDState *sd, uint8_t value)
 {
