@@ -164,11 +164,11 @@ clearly describe the usage.
 Primary(ip:3.3.3.3):
 -netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown
 -device e1000,id=e0,netdev=hn0,mac=52:a4:00:12:78:66
--chardev socket,id=mirror0,host=3.3.3.3,port=9003,server,nowait
--chardev socket,id=compare1,host=3.3.3.3,port=9004,server,nowait
--chardev socket,id=compare0,host=3.3.3.3,port=9001,server,nowait
+-chardev socket,id=mirror0,host=3.3.3.3,port=9003,server=on,wait=off
+-chardev socket,id=compare1,host=3.3.3.3,port=9004,server=on,wait=off
+-chardev socket,id=compare0,host=3.3.3.3,port=9001,server=on,wait=off
 -chardev socket,id=compare0-0,host=3.3.3.3,port=9001
--chardev socket,id=compare_out,host=3.3.3.3,port=9005,server,nowait
+-chardev socket,id=compare_out,host=3.3.3.3,port=9005,server=on,wait=off
 -chardev socket,id=compare_out0,host=3.3.3.3,port=9005
 -object iothread,id=iothread1
 -object filter-mirror,id=m0,netdev=hn0,queue=tx,outdev=mirror0
@@ -190,11 +190,11 @@ If you want to use virtio-net-pci or other driver with vnet_header:
 Primary(ip:3.3.3.3):
 -netdev tap,id=hn0,vhost=off,script=/etc/qemu-ifup,downscript=/etc/qemu-ifdown
 -device e1000,id=e0,netdev=hn0,mac=52:a4:00:12:78:66
--chardev socket,id=mirror0,host=3.3.3.3,port=9003,server,nowait
--chardev socket,id=compare1,host=3.3.3.3,port=9004,server,nowait
--chardev socket,id=compare0,host=3.3.3.3,port=9001,server,nowait
+-chardev socket,id=mirror0,host=3.3.3.3,port=9003,server=on,wait=off
+-chardev socket,id=compare1,host=3.3.3.3,port=9004,server=on,wait=off
+-chardev socket,id=compare0,host=3.3.3.3,port=9001,server=on,wait=off
 -chardev socket,id=compare0-0,host=3.3.3.3,port=9001
--chardev socket,id=compare_out,host=3.3.3.3,port=9005,server,nowait
+-chardev socket,id=compare_out,host=3.3.3.3,port=9005,server=on,wait=off
 -chardev socket,id=compare_out0,host=3.3.3.3,port=9005
 -object filter-mirror,id=m0,netdev=hn0,queue=tx,outdev=mirror0,vnet_hdr_support
 -object filter-redirector,netdev=hn0,id=redire0,queue=rx,indev=compare_out,vnet_hdr_support

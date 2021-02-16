@@ -24,7 +24,7 @@ AVR cpu
 - Continuous non interrupted execution with serial output into telnet window::
 
    qemu-system-avr -M mega2560 -bios demo.elf -nographic \
-                   -serial tcp::5678,server,nowait
+                   -serial tcp::5678,server=on,wait=off
 
   and then in another shell::
 

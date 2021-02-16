@@ -162,11 +162,11 @@ instance.
    -device piix3-usb-uhci -device usb-tablet -name primary \
    -netdev tap,id=hn0,vhost=off,helper=/usr/lib/qemu/qemu-bridge-helper \
    -device rtl8139,id=e0,netdev=hn0 \
-   -chardev socket,id=mirror0,host=0.0.0.0,port=9003,server,nowait \
-   -chardev socket,id=compare1,host=0.0.0.0,port=9004,server,wait \
-   -chardev socket,id=compare0,host=127.0.0.1,port=9001,server,nowait \
+   -chardev socket,id=mirror0,host=0.0.0.0,port=9003,server=on,wait=off \
+   -chardev socket,id=compare1,host=0.0.0.0,port=9004,server=on,wait=on \
+   -chardev socket,id=compare0,host=127.0.0.1,port=9001,server=on,wait=off \
    -chardev socket,id=compare0-0,host=127.0.0.1,port=9001 \
-   -chardev socket,id=compare_out,host=127.0.0.1,port=9005,server,nowait \
+   -chardev socket,id=compare_out,host=127.0.0.1,port=9005,server=on,wait=off \
    -chardev socket,id=compare_out0,host=127.0.0.1,port=9005 \
    -object filter-mirror,id=m0,netdev=hn0,queue=tx,outdev=mirror0 \
    -object filter-redirector,netdev=hn0,id=redire0,queue=rx,indev=compare_out \

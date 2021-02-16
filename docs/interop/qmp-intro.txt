@@ -26,7 +26,7 @@ Usage
 You can use the -qmp option to enable QMP. For example, the following
 makes QMP available on localhost port 4444:
 
-$ qemu [...] -qmp tcp:localhost:4444,server,nowait
+$ qemu [...] -qmp tcp:localhost:4444,server=on,wait=off
 
 However, for more flexibility and to make use of more options, the -mon
 command-line option should be used. For instance, the following example
@@ -34,7 +34,7 @@ creates one HMP instance (human monitor) on stdio and one QMP instance
 on localhost port 4444:
 
 $ qemu [...] -chardev stdio,id=mon0 -mon chardev=mon0,mode=readline \
-             -chardev socket,id=mon1,host=localhost,port=4444,server,nowait \
+             -chardev socket,id=mon1,host=localhost,port=4444,server=on,wait=off \
              -mon chardev=mon1,mode=control,pretty=on
 
 Please, refer to QEMU's manpage for more information.
