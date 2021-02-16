@@ -126,7 +126,9 @@ def _tree_to_qlit(obj, level=0, dict_value=False):
     elif isinstance(obj, bool):
         ret += 'QLIT_QBOOL(%s)' % ('true' if obj else 'false')
     else:
-        assert False                # not implemented
+        raise NotImplementedError(
+            f"type '{type(obj).__name__}' not implemented"
+        )
     if level > 0:
         ret += ','
     return ret
