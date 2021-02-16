@@ -30,7 +30,9 @@ def _make_tree(obj, ifcond, features, extra=None):
     if ifcond:
         extra['if'] = ifcond
     if features:
-        obj['features'] = [(f.name, {'if': f.ifcond}) for f in features]
+        obj['features'] = [
+            _make_tree(f.name, f.ifcond, None) for f in features
+        ]
     if extra:
         return (obj, extra)
     return obj
