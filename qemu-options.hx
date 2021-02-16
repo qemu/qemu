@@ -1894,16 +1894,17 @@ DEF("spice", HAS_ARG, QEMU_OPTION_spice,
     "-spice [port=port][,tls-port=secured-port][,x509-dir=<dir>]\n"
     "       [,x509-key-file=<file>][,x509-key-password=<file>]\n"
     "       [,x509-cert-file=<file>][,x509-cacert-file=<file>]\n"
-    "       [,x509-dh-key-file=<file>][,addr=addr][,ipv4|ipv6|unix]\n"
+    "       [,x509-dh-key-file=<file>][,addr=addr]\n"
+    "       [,ipv4=on|off][,ipv6=on|off][,unix=on|off]\n"
     "       [,tls-ciphers=<list>]\n"
     "       [,tls-channel=[main|display|cursor|inputs|record|playback]]\n"
     "       [,plaintext-channel=[main|display|cursor|inputs|record|playback]]\n"
-    "       [,sasl][,password=<secret>][,disable-ticketing]\n"
+    "       [,sasl=on|off][,password=<secret>][,disable-ticketing=on|off]\n"
     "       [,image-compression=[auto_glz|auto_lz|quic|glz|lz|off]]\n"
     "       [,jpeg-wan-compression=[auto|never|always]]\n"
     "       [,zlib-glz-wan-compression=[auto|never|always]]\n"
-    "       [,streaming-video=[off|all|filter]][,disable-copy-paste]\n"
-    "       [,disable-agent-file-xfer][,agent-mouse=[on|off]]\n"
+    "       [,streaming-video=[off|all|filter]][,disable-copy-paste=on|off]\n"
+    "       [,disable-agent-file-xfer=on|off][,agent-mouse=[on|off]]\n"
     "       [,playback-compression=[on|off]][,seamless-migration=[on|off]]\n"
     "       [,gl=[on|off]][,rendernode=<file>]\n"
     "   enable spice\n"
@@ -1920,13 +1921,13 @@ SRST
         Set the IP address spice is listening on. Default is any
         address.
 
-    ``ipv4``; \ ``ipv6``; \ ``unix``
+    ``ipv4=on|off``; \ ``ipv6=on|off``; \ ``unix=on|off``
         Force using the specified IP version.
 
     ``password=<secret>``
         Set the password you need to authenticate.
 
-    ``sasl``
+    ``sasl=on|off``
         Require that the client use SASL to authenticate with the spice.
         The exact choice of authentication method used is controlled
         from the system / user's SASL configuration file for the 'qemu'
@@ -1940,13 +1941,13 @@ SRST
         data encryption preventing compromise of authentication
         credentials.
 
-    ``disable-ticketing``
+    ``disable-ticketing=on|off``
         Allow client connects without authentication.
 
-    ``disable-copy-paste``
+    ``disable-copy-paste=on|off``
         Disable copy paste between the client and the guest.
 
-    ``disable-agent-file-xfer``
+    ``disable-agent-file-xfer=on|off``
         Disable spice-vdagent based file-xfer between the client and the
         guest.
 
