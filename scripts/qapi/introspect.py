@@ -34,7 +34,7 @@ def _make_tree(obj, ifcond, extra=None):
     return obj
 
 
-def _tree_to_qlit(obj, level=0, suppress_first_indent=False):
+def _tree_to_qlit(obj, level=0, dict_value=False):
 
     def indent(level):
         return level * 4 * ' '
@@ -43,6 +43,13 @@ def _tree_to_qlit(obj, level=0, suppress_first_indent=False):
         ifobj, extra = obj
         ifcond = extra.get('if')
         comment = extra.get('comment')
+
+        # NB: _tree_to_qlit is called recursively on the values of a
+        # key:value pair; those values can't be decorated with
+        # comments or conditionals.
+        msg = "dict values cannot have attached comments or if-conditionals."
+        assert not dict_value, msg
+
         ret = ''
         if comment:
             ret += indent(level) + '/* %s */\n' % comment
@@ -54,7 +61,7 @@ def _tree_to_qlit(obj, level=0, suppress_first_indent=False):
         return ret
 
     ret = ''
-    if not suppress_first_indent:
+    if not dict_value:
         ret += indent(level)
     if obj is None:
         ret += 'QLIT_QNULL'
