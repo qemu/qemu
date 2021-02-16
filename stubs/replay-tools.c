@@ -13,7 +13,7 @@ int64_t replay_save_clock(unsigned int kind, int64_t clock, int64_t raw_icount)
     return 0;
 }
 
-int64_t replay_read_clock(unsigned int kind)
+int64_t replay_read_clock(unsigned int kind, int64_t raw_icount)
 {
     abort();
     return 0;

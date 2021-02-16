@@ -247,10 +247,31 @@ void replay_advance_current_icount(uint64_t current_icount)
     /* Time can only go forward */
     assert(diff >= 0);
 
-    if (diff > 0) {
-        replay_put_event(EVENT_INSTRUCTION);
-        replay_put_dword(diff);
-        replay_state.current_icount += diff;
+    if (replay_mode == REPLAY_MODE_RECORD) {
+        if (diff > 0) {
+            replay_put_event(EVENT_INSTRUCTION);
+            replay_put_dword(diff);
+            replay_state.current_icount += diff;
+        }
+    } else if (replay_mode == REPLAY_MODE_PLAY) {
+        if (diff > 0) {
+            replay_state.instruction_count -= diff;
+            replay_state.current_icount += diff;
+            if (replay_state.instruction_count == 0) {
+                assert(replay_state.data_kind == EVENT_INSTRUCTION);
+                replay_finish_event();
+                /* Wake up iothread. This is required because
+                    timers will not expire until clock counters
+                    will be read from the log. */
+                qemu_notify_event();
+            }
+        }
+        /* Execution reached the break step */
+        if (replay_break_icount == replay_state.current_icount) {
+            /* Cannot make callback directly from the vCPU thread */
+            timer_mod_ns(replay_break_timer,
+                qemu_clock_get_ns(QEMU_CLOCK_REALTIME));
+        }
     }
 }
 
