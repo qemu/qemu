@@ -27,11 +27,10 @@ from .schema import (
 
 
 def _make_tree(obj, ifcond, comment=None):
-    extra = {}
-    if ifcond:
-        extra['if'] = ifcond
-    if comment:
-        extra['comment'] = comment
+    extra = {
+        'if': ifcond,
+        'comment': comment
+    }
     return (obj, extra)
 
 
