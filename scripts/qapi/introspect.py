@@ -242,10 +242,6 @@ const QLitObject %(c_name)s = %(c_string)s;
             obj['features'] = self._gen_features(member.features)
         return Annotated(obj, member.ifcond)
 
-    def _gen_variants(self, tag_name, variants):
-        return {'tag': tag_name,
-                'variants': [self._gen_variant(v) for v in variants]}
-
     def _gen_variant(self, variant):
         obj = {'case': variant.name, 'type': self._use_type(variant.type)}
         return Annotated(obj, variant.ifcond)
@@ -269,9 +265,8 @@ const QLitObject %(c_name)s = %(c_string)s;
                                members, variants):
         obj = {'members': [self._gen_member(m) for m in members]}
         if variants:
-            obj.update(self._gen_variants(variants.tag_member.name,
-                                          variants.variants))
-
+            obj['tag'] = variants.tag_member.name
+            obj['variants'] = [self._gen_variant(v) for v in variants.variants]
         self._gen_tree(name, 'object', obj, ifcond, features)
 
     def visit_alternate_type(self, name, info, ifcond, features, variants):
