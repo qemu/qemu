@@ -364,7 +364,7 @@ Host passthrough with feature customization:
 
 .. parsed-literal::
 
-  |qemu_system| -cpu host,-vmx,...
+  |qemu_system| -cpu host,vmx=off,...
 
 Named CPU models:
 
@@ -376,7 +376,7 @@ Named CPU models with feature customization:
 
 .. parsed-literal::
 
-  |qemu_system| -cpu Westmere,+pcid,...
+  |qemu_system| -cpu Westmere,pcid=on,...
 
 Libvirt guest XML
 ^^^^^^^^^^^^^^^^^
