@@ -235,82 +235,82 @@ int main(int argc, char **argv)
     /* If level is not large enough, it should increase automatically: */
     /* CPUID[6].EAX: */
     add_cpuid_test("x86/cpuid/auto-level/phenom/arat",
-                   "-cpu 486,+arat", "level", 6);
+                   "-cpu 486,arat=on", "level", 6);
     /* CPUID[EAX=7,ECX=0].EBX: */
     add_cpuid_test("x86/cpuid/auto-level/phenom/fsgsbase",
-                   "-cpu phenom,+fsgsbase", "level", 7);
+                   "-cpu phenom,fsgsbase=on", "level", 7);
     /* CPUID[EAX=7,ECX=0].ECX: */
     add_cpuid_test("x86/cpuid/auto-level/phenom/avx512vbmi",
-                   "-cpu phenom,+avx512vbmi", "level", 7);
+                   "-cpu phenom,avx512vbmi=on", "level", 7);
     /* CPUID[EAX=0xd,ECX=1].EAX: */
     add_cpuid_test("x86/cpuid/auto-level/phenom/xsaveopt",
-                   "-cpu phenom,+xsaveopt", "level", 0xd);
+                   "-cpu phenom,xsaveopt=on", "level", 0xd);
     /* CPUID[8000_0001].EDX: */
     add_cpuid_test("x86/cpuid/auto-xlevel/486/3dnow",
-                   "-cpu 486,+3dnow", "xlevel", 0x80000001);
+                   "-cpu 486,3dnow=on", "xlevel", 0x80000001);
     /* CPUID[8000_0001].ECX: */
     add_cpuid_test("x86/cpuid/auto-xlevel/486/sse4a",
-                   "-cpu 486,+sse4a", "xlevel", 0x80000001);
+                   "-cpu 486,sse4a=on", "xlevel", 0x80000001);
     /* CPUID[8000_0007].EDX: */
     add_cpuid_test("x86/cpuid/auto-xlevel/486/invtsc",
-                   "-cpu 486,+invtsc", "xlevel", 0x80000007);
+                   "-cpu 486,invtsc=on", "xlevel", 0x80000007);
     /* CPUID[8000_000A].EDX: */
     add_cpuid_test("x86/cpuid/auto-xlevel/486/npt",
-                   "-cpu 486,+svm,+npt", "xlevel", 0x8000000A);
+                   "-cpu 486,svm=on,npt=on", "xlevel", 0x8000000A);
     /* CPUID[C000_0001].EDX: */
     add_cpuid_test("x86/cpuid/auto-xlevel2/phenom/xstore",
-                   "-cpu phenom,+xstore", "xlevel2", 0xC0000001);
+                   "-cpu phenom,xstore=on", "xlevel2", 0xC0000001);
     /* SVM needs CPUID[0x8000000A] */
     add_cpuid_test("x86/cpuid/auto-xlevel/athlon/svm",
-                   "-cpu athlon,+svm", "xlevel", 0x8000000A);
+                   "-cpu athlon,svm=on", "xlevel", 0x8000000A);
 
 
     /* If level is already large enough, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-level/SandyBridge/multiple",
-                   "-cpu SandyBridge,+arat,+fsgsbase,+avx512vbmi",
+                   "-cpu SandyBridge,arat=on,fsgsbase=on,avx512vbmi=on",
                    "level", 0xd);
     /* If level is explicitly set, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-level/486/fixed/0xF",
-                   "-cpu 486,level=0xF,+arat,+fsgsbase,+avx512vbmi,+xsaveopt",
+                   "-cpu 486,level=0xF,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
                    "level", 0xF);
     add_cpuid_test("x86/cpuid/auto-level/486/fixed/2",
-                   "-cpu 486,level=2,+arat,+fsgsbase,+avx512vbmi,+xsaveopt",
+                   "-cpu 486,level=2,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
                    "level", 2);
     add_cpuid_test("x86/cpuid/auto-level/486/fixed/0",
-                   "-cpu 486,level=0,+arat,+fsgsbase,+avx512vbmi,+xsaveopt",
+                   "-cpu 486,level=0,arat=on,fsgsbase=on,avx512vbmi=on,xsaveopt=on",
                    "level", 0);
 
     /* if xlevel is already large enough, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-xlevel/phenom/3dnow",
-                   "-cpu phenom,+3dnow,+sse4a,+invtsc,+npt,+svm",
+                   "-cpu phenom,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
                    "xlevel", 0x8000001A);
     /* If xlevel is explicitly set, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/80000002",
-                   "-cpu 486,xlevel=0x80000002,+3dnow,+sse4a,+invtsc,+npt,+svm",
+                   "-cpu 486,xlevel=0x80000002,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
                    "xlevel", 0x80000002);
     add_cpuid_test("x86/cpuid/auto-xlevel/486/fixed/8000001A",
-                   "-cpu 486,xlevel=0x8000001A,+3dnow,+sse4a,+invtsc,+npt,+svm",
+                   "-cpu 486,xlevel=0x8000001A,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
                    "xlevel", 0x8000001A);
     add_cpuid_test("x86/cpuid/auto-xlevel/phenom/fixed/0",
-                   "-cpu 486,xlevel=0,+3dnow,+sse4a,+invtsc,+npt,+svm",
+                   "-cpu 486,xlevel=0,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
                    "xlevel", 0);
 
     /* if xlevel2 is already large enough, it shouldn't change: */
     add_cpuid_test("x86/cpuid/auto-xlevel2/486/fixed",
-                   "-cpu 486,xlevel2=0xC0000002,+xstore",
+                   "-cpu 486,xlevel2=0xC0000002,xstore=on",
                    "xlevel2", 0xC0000002);
 
     /* Check compatibility of old machine-types that didn't
      * auto-increase level/xlevel/xlevel2: */
 
     add_cpuid_test("x86/cpuid/auto-level/pc-2.7",
-                   "-machine pc-i440fx-2.7 -cpu 486,+arat,+avx512vbmi,+xsaveopt",
+                   "-machine pc-i440fx-2.7 -cpu 486,arat=on,avx512vbmi=on,xsaveopt=on",
                    "level", 1);
     add_cpuid_test("x86/cpuid/auto-xlevel/pc-2.7",
-                   "-machine pc-i440fx-2.7 -cpu 486,+3dnow,+sse4a,+invtsc,+npt,+svm",
+                   "-machine pc-i440fx-2.7 -cpu 486,3dnow=on,sse4a=on,invtsc=on,npt=on,svm=on",
                    "xlevel", 0);
     add_cpuid_test("x86/cpuid/auto-xlevel2/pc-2.7",
-                   "-machine pc-i440fx-2.7 -cpu 486,+xstore",
+                   "-machine pc-i440fx-2.7 -cpu 486,xstore=on",
                    "xlevel2", 0);
     /*
      * QEMU 1.4.0 had auto-level enabled for CPUID[7], already,
@@ -321,19 +321,19 @@ int main(int argc, char **argv)
                    "-machine pc-i440fx-1.4 -cpu Nehalem",
                    "level", 2);
     add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-1.5/on",
-                   "-machine pc-i440fx-1.4 -cpu Nehalem,+smap",
+                   "-machine pc-i440fx-1.4 -cpu Nehalem,smap=on",
                    "level", 7);
     add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/off",
                    "-machine pc-i440fx-2.3 -cpu Penryn",
                    "level", 4);
     add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.3/on",
-                   "-machine pc-i440fx-2.3 -cpu Penryn,+erms",
+                   "-machine pc-i440fx-2.3 -cpu Penryn,erms=on",
                    "level", 7);
     add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/off",
                    "-machine pc-i440fx-2.9 -cpu Conroe",
                    "level", 10);
     add_cpuid_test("x86/cpuid/auto-level7/pc-i440fx-2.9/on",
-                   "-machine pc-i440fx-2.9 -cpu Conroe,+erms",
+                   "-machine pc-i440fx-2.9 -cpu Conroe,erms=on",
                    "level", 10);
 
     /*
@@ -348,7 +348,7 @@ int main(int argc, char **argv)
                    "-machine pc-i440fx-2.4 -cpu SandyBridge,",
                    "xlevel", 0x80000008);
     add_cpuid_test("x86/cpuid/xlevel-compat/pc-i440fx-2.4/npt-on",
-                   "-machine pc-i440fx-2.4 -cpu SandyBridge,+svm,+npt",
+                   "-machine pc-i440fx-2.4 -cpu SandyBridge,svm=on,npt=on",
                    "xlevel", 0x80000008);
 
     /* Test feature parsing */
