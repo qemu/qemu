@@ -760,7 +760,7 @@ static void sd_erase(SDState *sd)
         erase_end *= 512;
     }
 
-    if (sd->erase_start > sd->size || sd->erase_end > sd->size) {
+    if (erase_start > sd->size || erase_end > sd->size) {
         sd->card_status |= OUT_OF_RANGE;
         sd->erase_start = INVALID_ADDRESS;
         sd->erase_end = INVALID_ADDRESS;
