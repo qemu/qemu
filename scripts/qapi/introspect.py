@@ -13,8 +13,12 @@ See the COPYING file in the top-level directory.
 from typing import (
     Any,
     Dict,
+    Generic,
+    Iterable,
     List,
     Optional,
+    Tuple,
+    TypeVar,
     Union,
 )
 
@@ -52,15 +56,25 @@ _Stub = Any
 _Scalar = Union[str, bool, None]
 _NonScalar = Union[Dict[str, _Stub], List[_Stub]]
 _Value = Union[_Scalar, _NonScalar]
-# JSONValue = TODO, in a forthcoming commit.
+JSONValue = Union[_Value, 'Annotated[_Value]']
 
 
-def _make_tree(obj, ifcond, comment=None):
-    extra = {
-        'if': ifcond,
-        'comment': comment
-    }
-    return (obj, extra)
+_ValueT = TypeVar('_ValueT', bound=_Value)
+
+
+class Annotated(Generic[_ValueT]):
+    """
+    Annotated generally contains a SchemaInfo-like type (as a dict),
+    But it also used to wrap comments/ifconds around scalar leaf values,
+    for the benefit of features and enums.
+    """
+    # TODO: Remove after Python 3.7 adds @dataclass:
+    # pylint: disable=too-few-public-methods
+    def __init__(self, value: _ValueT, ifcond: Iterable[str],
+                 comment: Optional[str] = None):
+        self.value = value
+        self.comment: Optional[str] = comment
+        self.ifcond: Tuple[str, ...] = tuple(ifcond)
 
 
 def _tree_to_qlit(obj, level=0, dict_value=False):
@@ -68,11 +82,7 @@ def _tree_to_qlit(obj, level=0, dict_value=False):
     def indent(level):
         return level * 4 * ' '
 
-    if isinstance(obj, tuple):
-        ifobj, extra = obj
-        ifcond = extra.get('if')
-        comment = extra.get('comment')
-
+    if isinstance(obj, Annotated):
         # NB: _tree_to_qlit is called recursively on the values of a
         # key:value pair; those values can't be decorated with
         # comments or conditionals.
@@ -80,13 +90,13 @@ def _tree_to_qlit(obj, level=0, dict_value=False):
         assert not dict_value, msg
 
         ret = ''
-        if comment:
-            ret += indent(level) + '/* %s */\n' % comment
-        if ifcond:
-            ret += gen_if(ifcond)
-        ret += _tree_to_qlit(ifobj, level)
-        if ifcond:
-            ret += '\n' + gen_endif(ifcond)
+        if obj.comment:
+            ret += indent(level) + '/* %s */\n' % obj.comment
+        if obj.ifcond:
+            ret += gen_if(obj.ifcond)
+        ret += _tree_to_qlit(obj.value, level)
+        if obj.ifcond:
+            ret += '\n' + gen_endif(obj.ifcond)
         return ret
 
     ret = ''
@@ -203,7 +213,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     @staticmethod
     def _gen_features(features):
-        return [_make_tree(f.name, f.ifcond) for f in features]
+        return [Annotated(f.name, f.ifcond) for f in features]
 
     def _gen_tree(self, name, mtype, obj, ifcond, features):
         comment: Optional[str] = None
@@ -217,7 +227,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         obj['meta-type'] = mtype
         if features:
             obj['features'] = self._gen_features(features)
-        self._trees.append(_make_tree(obj, ifcond, comment))
+        self._trees.append(Annotated(obj, ifcond, comment))
 
     def _gen_member(self, member):
         obj = {'name': member.name, 'type': self._use_type(member.type)}
@@ -225,7 +235,7 @@ const QLitObject %(c_name)s = %(c_string)s;
             obj['default'] = None
         if member.features:
             obj['features'] = self._gen_features(member.features)
-        return _make_tree(obj, member.ifcond)
+        return Annotated(obj, member.ifcond)
 
     def _gen_variants(self, tag_name, variants):
         return {'tag': tag_name,
@@ -233,16 +243,17 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def _gen_variant(self, variant):
         obj = {'case': variant.name, 'type': self._use_type(variant.type)}
-        return _make_tree(obj, variant.ifcond)
+        return Annotated(obj, variant.ifcond)
 
     def visit_builtin_type(self, name, info, json_type):
         self._gen_tree(name, 'builtin', {'json-type': json_type}, [], None)
 
     def visit_enum_type(self, name, info, ifcond, features, members, prefix):
-        self._gen_tree(name, 'enum',
-                       {'values': [_make_tree(m.name, m.ifcond, None)
-                                   for m in members]},
-                       ifcond, features)
+        self._gen_tree(
+            name, 'enum',
+            {'values': [Annotated(m.name, m.ifcond) for m in members]},
+            ifcond, features
+        )
 
     def visit_array_type(self, name, info, ifcond, element_type):
         element = self._use_type(element_type)
@@ -259,12 +270,13 @@ const QLitObject %(c_name)s = %(c_string)s;
         self._gen_tree(name, 'object', obj, ifcond, features)
 
     def visit_alternate_type(self, name, info, ifcond, features, variants):
-        self._gen_tree(name, 'alternate',
-                       {'members': [
-                           _make_tree({'type': self._use_type(m.type)},
-                                      m.ifcond, None)
-                           for m in variants.variants]},
-                       ifcond, features)
+        self._gen_tree(
+            name, 'alternate',
+            {'members': [Annotated({'type': self._use_type(m.type)},
+                                   m.ifcond)
+                         for m in variants.variants]},
+            ifcond, features
+        )
 
     def visit_command(self, name, info, ifcond, features,
                       arg_type, ret_type, gen, success_response, boxed,
