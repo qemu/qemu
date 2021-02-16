@@ -1268,8 +1268,10 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
             sd->data_offset = 0;
             sd->blk_written = 0;
 
-            if (sd_wp_addr(sd, sd->data_start)) {
-                sd->card_status |= WP_VIOLATION;
+            if (sd->size <= SDSC_MAX_CAPACITY) {
+                if (sd_wp_addr(sd, sd->data_start)) {
+                    sd->card_status |= WP_VIOLATION;
+                }
             }
             if (sd->csd[14] & 0x30) {
                 sd->card_status |= WP_VIOLATION;
@@ -1821,9 +1823,11 @@ void sd_write_byte(SDState *sd, uint8_t value)
                 sd->card_status |= ADDRESS_ERROR;
                 break;
             }
-            if (sd_wp_addr(sd, sd->data_start)) {
-                sd->card_status |= WP_VIOLATION;
-                break;
+            if (sd->size <= SDSC_MAX_CAPACITY) {
+                if (sd_wp_addr(sd, sd->data_start)) {
+                    sd->card_status |= WP_VIOLATION;
+                    break;
+                }
             }
         }
         sd->data[sd->data_offset++] = value;
