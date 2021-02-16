@@ -10,7 +10,13 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-from typing import Optional
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Union,
+)
 
 from .common import (
     c_name,
@@ -24,6 +30,29 @@ from .schema import (
     QAPISchemaBuiltinType,
     QAPISchemaType,
 )
+
+
+# This module constructs a tree data structure that is used to
+# generate the introspection information for QEMU. It is shaped
+# like a JSON value.
+#
+# A complexity over JSON is that our values may or may not be annotated.
+#
+# Un-annotated values may be:
+#     Scalar: str, bool, None.
+#     Non-scalar: List, Dict
+# _value = Union[str, bool, None, Dict[str, JSONValue], List[JSONValue]]
+#
+# With optional annotations, the type of all values is:
+# JSONValue = Union[_Value, Annotated[_Value]]
+#
+# Sadly, mypy does not support recursive types; so the _Stub alias is used to
+# mark the imprecision in the type model where we'd otherwise use JSONValue.
+_Stub = Any
+_Scalar = Union[str, bool, None]
+_NonScalar = Union[Dict[str, _Stub], List[_Stub]]
+_Value = Union[_Scalar, _NonScalar]
+# JSONValue = TODO, in a forthcoming commit.
 
 
 def _make_tree(obj, ifcond, comment=None):
