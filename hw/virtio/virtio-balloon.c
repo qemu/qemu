@@ -663,9 +663,6 @@ virtio_balloon_free_page_hint_notify(NotifierWithReturn *n, void *data)
     }
 
     switch (pnd->reason) {
-    case PRECOPY_NOTIFY_SETUP:
-        precopy_enable_free_page_optimization();
-        break;
     case PRECOPY_NOTIFY_BEFORE_BITMAP_SYNC:
         virtio_balloon_free_page_stop(dev);
         break;
@@ -685,6 +682,7 @@ virtio_balloon_free_page_hint_notify(NotifierWithReturn *n, void *data)
          */
         virtio_balloon_free_page_done(dev);
         break;
+    case PRECOPY_NOTIFY_SETUP:
     case PRECOPY_NOTIFY_COMPLETE:
         break;
     default:
