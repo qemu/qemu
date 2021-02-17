@@ -68,4 +68,10 @@ typedef struct target_sigaltstack {
 #define TARGET_SIGSTKSZ		16384
 
 #define TARGET_ARCH_HAS_SETUP_FRAME
+
+/* bit-flags */
+#define TARGET_SS_AUTODISARM (1U << 31) /* disable sas during sighandling */
+/* mask for all SS_xxx flags */
+#define TARGET_SS_FLAG_BITS  TARGET_SS_AUTODISARM
+
 #endif /* SPARC_TARGET_SIGNAL_H */

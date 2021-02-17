@@ -337,11 +337,11 @@ class QEMUMachine:
             self._qmp.close()
             self._qmp_connection = None
 
-        self._load_io_log()
-
         if self._qemu_log_file is not None:
             self._qemu_log_file.close()
             self._qemu_log_file = None
+
+        self._load_io_log()
 
         self._qemu_log_path = None
 

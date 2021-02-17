@@ -23,6 +23,7 @@
 #define TARGET_O_CLOEXEC     010000000
 #define TARGET___O_SYNC      020000000
 #define TARGET_O_PATH        040000000
+#define TARGET___O_TMPFILE  0100000000
 
 #define TARGET_F_GETLK         7
 #define TARGET_F_SETLK         8

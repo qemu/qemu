@@ -40,6 +40,8 @@
 #define TARGET_SO_SNDTIMEO     0x1005  /* send timeout */
 #define TARGET_SO_RCVTIMEO     0x1006  /* receive timeout */
 #define TARGET_SO_ACCEPTCONN   0x1009
+#define TARGET_SO_PROTOCOL     0x1028  /* protocol type */
+#define TARGET_SO_DOMAIN       0x1029  /* domain/socket family */
 
 /* linux-specific, might as well be the same as on i386 */
 #define TARGET_SO_NO_CHECK     11

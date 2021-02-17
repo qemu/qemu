@@ -102,6 +102,22 @@ enum NPCM7xxInterrupt {
     NPCM7XX_WDG2_IRQ,                   /* Timer Module 2 Watchdog */
     NPCM7XX_EHCI_IRQ            = 61,
     NPCM7XX_OHCI_IRQ            = 62,
+    NPCM7XX_SMBUS0_IRQ          = 64,
+    NPCM7XX_SMBUS1_IRQ,
+    NPCM7XX_SMBUS2_IRQ,
+    NPCM7XX_SMBUS3_IRQ,
+    NPCM7XX_SMBUS4_IRQ,
+    NPCM7XX_SMBUS5_IRQ,
+    NPCM7XX_SMBUS6_IRQ,
+    NPCM7XX_SMBUS7_IRQ,
+    NPCM7XX_SMBUS8_IRQ,
+    NPCM7XX_SMBUS9_IRQ,
+    NPCM7XX_SMBUS10_IRQ,
+    NPCM7XX_SMBUS11_IRQ,
+    NPCM7XX_SMBUS12_IRQ,
+    NPCM7XX_SMBUS13_IRQ,
+    NPCM7XX_SMBUS14_IRQ,
+    NPCM7XX_SMBUS15_IRQ,
     NPCM7XX_PWM0_IRQ            = 93,   /* PWM module 0 */
     NPCM7XX_PWM1_IRQ,                   /* PWM module 1 */
     NPCM7XX_GPIO0_IRQ           = 116,
@@ -150,6 +166,26 @@ static const hwaddr npcm7xx_fiu3_flash_addr[] = {
 static const hwaddr npcm7xx_pwm_addr[] = {
     0xf0103000,
     0xf0104000,
+};
+
+/* Direct memory-mapped access to each SMBus Module. */
+static const hwaddr npcm7xx_smbus_addr[] = {
+    0xf0080000,
+    0xf0081000,
+    0xf0082000,
+    0xf0083000,
+    0xf0084000,
+    0xf0085000,
+    0xf0086000,
+    0xf0087000,
+    0xf0088000,
+    0xf0089000,
+    0xf008a000,
+    0xf008b000,
+    0xf008c000,
+    0xf008d000,
+    0xf008e000,
+    0xf008f000,
 };
 
 static const struct {
@@ -353,6 +389,11 @@ static void npcm7xx_init(Object *obj)
         object_initialize_child(obj, "gpio[*]", &s->gpio[i], TYPE_NPCM7XX_GPIO);
     }
 
+    for (i = 0; i < ARRAY_SIZE(s->smbus); i++) {
+        object_initialize_child(obj, "smbus[*]", &s->smbus[i],
+                                TYPE_NPCM7XX_SMBUS);
+    }
+
     object_initialize_child(obj, "ehci", &s->ehci, TYPE_NPCM7XX_EHCI);
     object_initialize_child(obj, "ohci", &s->ohci, TYPE_SYSBUS_OHCI);
 
@@ -509,6 +550,17 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
                            npcm7xx_irq(s, NPCM7XX_GPIO0_IRQ + i));
     }
 
+    /* SMBus modules. Cannot fail. */
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_smbus_addr) != ARRAY_SIZE(s->smbus));
+    for (i = 0; i < ARRAY_SIZE(s->smbus); i++) {
+        Object *obj = OBJECT(&s->smbus[i]);
+
+        sysbus_realize(SYS_BUS_DEVICE(obj), &error_abort);
+        sysbus_mmio_map(SYS_BUS_DEVICE(obj), 0, npcm7xx_smbus_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(obj), 0,
+                           npcm7xx_irq(s, NPCM7XX_SMBUS0_IRQ + i));
+    }
+
     /* USB Host */
     object_property_set_bool(OBJECT(&s->ehci), "companion-enable", true,
                              &error_abort);
@@ -576,22 +628,6 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("npcm7xx.pcierc",       0xe1000000,  64 * KiB);
     create_unimplemented_device("npcm7xx.kcs",          0xf0007000,   4 * KiB);
     create_unimplemented_device("npcm7xx.gfxi",         0xf000e000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[0]",     0xf0080000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[1]",     0xf0081000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[2]",     0xf0082000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[3]",     0xf0083000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[4]",     0xf0084000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[5]",     0xf0085000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[6]",     0xf0086000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[7]",     0xf0087000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[8]",     0xf0088000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[9]",     0xf0089000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[10]",    0xf008a000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[11]",    0xf008b000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[12]",    0xf008c000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[13]",    0xf008d000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[14]",    0xf008e000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.smbus[15]",    0xf008f000,   4 * KiB);
     create_unimplemented_device("npcm7xx.espi",         0xf009f000,   4 * KiB);
     create_unimplemented_device("npcm7xx.peci",         0xf0100000,   4 * KiB);
     create_unimplemented_device("npcm7xx.siox[1]",      0xf0101000,   4 * KiB);

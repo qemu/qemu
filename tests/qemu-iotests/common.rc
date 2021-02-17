@@ -885,7 +885,9 @@ _unsupported_imgopts()
 {
     for bad_opt
     do
-        if echo "$IMGOPTS" | grep -q 2>/dev/null "$bad_opt"
+        # Add a space so tests can match for whitespace that marks the
+        # end of an option (\b or \> are not portable)
+        if echo "$IMGOPTS " | grep -q 2>/dev/null "$bad_opt"
         then
             _notrun "not suitable for image option: $bad_opt"
         fi

@@ -365,7 +365,7 @@ static void restore_user_regs(CPUPPCState *env,
         uint64_t v_addr;
         /* 64-bit needs to recover the pointer to the vectors from the frame */
         __get_user(v_addr, &frame->v_regs);
-        v_regs = g2h(v_addr);
+        v_regs = g2h(env_cpu(env), v_addr);
 #else
         v_regs = (ppc_avr_t *)frame->mc_vregs.altivec;
 #endif
@@ -552,7 +552,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     if (get_ppc64_abi(image) < 2) {
         /* ELFv1 PPC64 function pointers are pointers to OPD entries. */
         struct target_func_ptr *handler =
-            (struct target_func_ptr *)g2h(ka->_sa_handler);
+            (struct target_func_ptr *)g2h(env_cpu(env), ka->_sa_handler);
         env->nip = tswapl(handler->entry);
         env->gpr[2] = tswapl(handler->toc);
     } else {
