@@ -179,6 +179,7 @@ extern TCGv bcond;
 void msa_translate_init(void);
 
 /* MXU */
+void mxu_translate_init(void);
 bool decode_ase_mxu(DisasContext *ctx, uint32_t insn);
 
 /* decodetree generated */
