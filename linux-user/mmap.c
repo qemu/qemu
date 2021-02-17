@@ -84,17 +84,23 @@ static int validate_prot_to_pageflags(int *host_prot, int prot)
                | (prot & PROT_EXEC ? PROT_READ : 0);
 
 #ifdef TARGET_AARCH64
-    /*
-     * The PROT_BTI bit is only accepted if the cpu supports the feature.
-     * Since this is the unusual case, don't bother checking unless
-     * the bit has been requested.  If set and valid, record the bit
-     * within QEMU's page_flags.
-     */
-    if (prot & TARGET_PROT_BTI) {
+    {
         ARMCPU *cpu = ARM_CPU(thread_cpu);
-        if (cpu_isar_feature(aa64_bti, cpu)) {
+
+        /*
+         * The PROT_BTI bit is only accepted if the cpu supports the feature.
+         * Since this is the unusual case, don't bother checking unless
+         * the bit has been requested.  If set and valid, record the bit
+         * within QEMU's page_flags.
+         */
+        if ((prot & TARGET_PROT_BTI) && cpu_isar_feature(aa64_bti, cpu)) {
             valid |= TARGET_PROT_BTI;
             page_flags |= PAGE_BTI;
+        }
+        /* Similarly for the PROT_MTE bit. */
+        if ((prot & TARGET_PROT_MTE) && cpu_isar_feature(aa64_mte, cpu)) {
+            valid |= TARGET_PROT_MTE;
+            page_flags |= PAGE_MTE;
         }
     }
 #endif
@@ -119,7 +125,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
     }
     len = TARGET_PAGE_ALIGN(len);
     end = start + len;
-    if (!guest_range_valid(start, len)) {
+    if (!guest_range_valid_untagged(start, len)) {
         return -TARGET_ENOMEM;
     }
     if (len == 0) {
@@ -141,7 +147,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
             }
             end = host_end;
         }
-        ret = mprotect(g2h(host_start), qemu_host_page_size,
+        ret = mprotect(g2h_untagged(host_start), qemu_host_page_size,
                        prot1 & PAGE_BITS);
         if (ret != 0) {
             goto error;
@@ -153,7 +159,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
         for (addr = end; addr < host_end; addr += TARGET_PAGE_SIZE) {
             prot1 |= page_get_flags(addr);
         }
-        ret = mprotect(g2h(host_end - qemu_host_page_size),
+        ret = mprotect(g2h_untagged(host_end - qemu_host_page_size),
                        qemu_host_page_size, prot1 & PAGE_BITS);
         if (ret != 0) {
             goto error;
@@ -163,7 +169,8 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
 
     /* handle the pages in the middle */
     if (host_start < host_end) {
-        ret = mprotect(g2h(host_start), host_end - host_start, host_prot);
+        ret = mprotect(g2h_untagged(host_start),
+                       host_end - host_start, host_prot);
         if (ret != 0) {
             goto error;
         }
@@ -186,7 +193,7 @@ static int mmap_frag(abi_ulong real_start,
     int prot1, prot_new;
 
     real_end = real_start + qemu_host_page_size;
-    host_start = g2h(real_start);
+    host_start = g2h_untagged(real_start);
 
     /* get the protection of the target pages outside the mapping */
     prot1 = 0;
@@ -218,7 +225,7 @@ static int mmap_frag(abi_ulong real_start,
             mprotect(host_start, qemu_host_page_size, prot1 | PROT_WRITE);
 
         /* read the corresponding file data */
-        if (pread(fd, g2h(start), end - start, offset) == -1)
+        if (pread(fd, g2h_untagged(start), end - start, offset) == -1)
             return -1;
 
         /* put final protection */
@@ -229,7 +236,7 @@ static int mmap_frag(abi_ulong real_start,
             mprotect(host_start, qemu_host_page_size, prot_new);
         }
         if (prot_new & PROT_WRITE) {
-            memset(g2h(start), 0, end - start);
+            memset(g2h_untagged(start), 0, end - start);
         }
     }
     return 0;
@@ -338,7 +345,7 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size, abi_ulong align)
          *  - mremap() with MREMAP_FIXED flag
          *  - shmat() with SHM_REMAP flag
          */
-        ptr = mmap(g2h(addr), size, PROT_NONE,
+        ptr = mmap(g2h_untagged(addr), size, PROT_NONE,
                    MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE, -1, 0);
 
         /* ENOMEM, if host address space has no memory */
@@ -497,7 +504,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         /* Note: we prefer to control the mapping address. It is
            especially important if qemu_host_page_size >
            qemu_real_host_page_size */
-        p = mmap(g2h(start), host_len, host_prot,
+        p = mmap(g2h_untagged(start), host_len, host_prot,
                  flags | MAP_FIXED | MAP_ANONYMOUS, -1, 0);
         if (p == MAP_FAILED) {
             goto fail;
@@ -505,10 +512,10 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         /* update start so that it points to the file position at 'offset' */
         host_start = (unsigned long)p;
         if (!(flags & MAP_ANONYMOUS)) {
-            p = mmap(g2h(start), len, host_prot,
+            p = mmap(g2h_untagged(start), len, host_prot,
                      flags | MAP_FIXED, fd, host_offset);
             if (p == MAP_FAILED) {
-                munmap(g2h(start), host_len);
+                munmap(g2h_untagged(start), host_len);
                 goto fail;
             }
             host_start += offset - host_offset;
@@ -527,7 +534,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
          * It can fail only on 64-bit host with 32-bit target.
          * On any other target/host host mmap() handles this error correctly.
          */
-        if (end < start || !guest_range_valid(start, len)) {
+        if (end < start || !guest_range_valid_untagged(start, len)) {
             errno = ENOMEM;
             goto fail;
         }
@@ -548,7 +555,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
                                   -1, 0);
             if (retaddr == -1)
                 goto fail;
-            if (pread(fd, g2h(start), len, offset) == -1)
+            if (pread(fd, g2h_untagged(start), len, offset) == -1)
                 goto fail;
             if (!(host_prot & PROT_WRITE)) {
                 ret = target_mprotect(start, len, target_prot);
@@ -592,13 +599,17 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
                 offset1 = 0;
             else
                 offset1 = offset + real_start - start;
-            p = mmap(g2h(real_start), real_end - real_start,
+            p = mmap(g2h_untagged(real_start), real_end - real_start,
                      host_prot, flags, fd, offset1);
             if (p == MAP_FAILED)
                 goto fail;
         }
     }
  the_end1:
+    if (flags & MAP_ANONYMOUS) {
+        page_flags |= PAGE_ANON;
+    }
+    page_flags |= PAGE_RESET;
     page_set_flags(start, start + len, page_flags);
  the_end:
     trace_target_mmap_complete(start);
@@ -648,7 +659,7 @@ static void mmap_reserve(abi_ulong start, abi_ulong size)
             real_end -= qemu_host_page_size;
     }
     if (real_start != real_end) {
-        mmap(g2h(real_start), real_end - real_start, PROT_NONE,
+        mmap(g2h_untagged(real_start), real_end - real_start, PROT_NONE,
                  MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE,
                  -1, 0);
     }
@@ -664,7 +675,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
     if (start & ~TARGET_PAGE_MASK)
         return -TARGET_EINVAL;
     len = TARGET_PAGE_ALIGN(len);
-    if (len == 0 || !guest_range_valid(start, len)) {
+    if (len == 0 || !guest_range_valid_untagged(start, len)) {
         return -TARGET_EINVAL;
     }
 
@@ -703,7 +714,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
         if (reserved_va) {
             mmap_reserve(real_start, real_end - real_start);
         } else {
-            ret = munmap(g2h(real_start), real_end - real_start);
+            ret = munmap(g2h_untagged(real_start), real_end - real_start);
         }
     }
 
@@ -722,11 +733,11 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
     int prot;
     void *host_addr;
 
-    if (!guest_range_valid(old_addr, old_size) ||
+    if (!guest_range_valid_untagged(old_addr, old_size) ||
         ((flags & MREMAP_FIXED) &&
-         !guest_range_valid(new_addr, new_size)) ||
+         !guest_range_valid_untagged(new_addr, new_size)) ||
         ((flags & MREMAP_MAYMOVE) == 0 &&
-         !guest_range_valid(old_addr, new_size))) {
+         !guest_range_valid_untagged(old_addr, new_size))) {
         errno = ENOMEM;
         return -1;
     }
@@ -734,8 +745,8 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
     mmap_lock();
 
     if (flags & MREMAP_FIXED) {
-        host_addr = mremap(g2h(old_addr), old_size, new_size,
-                           flags, g2h(new_addr));
+        host_addr = mremap(g2h_untagged(old_addr), old_size, new_size,
+                           flags, g2h_untagged(new_addr));
 
         if (reserved_va && host_addr != MAP_FAILED) {
             /* If new and old addresses overlap then the above mremap will
@@ -751,8 +762,9 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
             errno = ENOMEM;
             host_addr = MAP_FAILED;
         } else {
-            host_addr = mremap(g2h(old_addr), old_size, new_size,
-                               flags | MREMAP_FIXED, g2h(mmap_start));
+            host_addr = mremap(g2h_untagged(old_addr), old_size, new_size,
+                               flags | MREMAP_FIXED,
+                               g2h_untagged(mmap_start));
             if (reserved_va) {
                 mmap_reserve(old_addr, old_size);
             }
@@ -768,14 +780,15 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
             }
         }
         if (prot == 0) {
-            host_addr = mremap(g2h(old_addr), old_size, new_size, flags);
+            host_addr = mremap(g2h_untagged(old_addr),
+                               old_size, new_size, flags);
 
             if (host_addr != MAP_FAILED) {
                 /* Check if address fits target address space */
-                if (!guest_range_valid(h2g(host_addr), new_size)) {
+                if (!guest_range_valid_untagged(h2g(host_addr), new_size)) {
                     /* Revert mremap() changes */
-                    host_addr = mremap(g2h(old_addr), new_size, old_size,
-                                       flags);
+                    host_addr = mremap(g2h_untagged(old_addr),
+                                       new_size, old_size, flags);
                     errno = ENOMEM;
                     host_addr = MAP_FAILED;
                 } else if (reserved_va && old_size > new_size) {
@@ -794,7 +807,8 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
         new_addr = h2g(host_addr);
         prot = page_get_flags(old_addr);
         page_set_flags(old_addr, old_addr + old_size, 0);
-        page_set_flags(new_addr, new_addr + new_size, prot | PAGE_VALID);
+        page_set_flags(new_addr, new_addr + new_size,
+                       prot | PAGE_VALID | PAGE_RESET);
     }
     tb_invalidate_phys_range(new_addr, new_addr + new_size);
     mmap_unlock();
