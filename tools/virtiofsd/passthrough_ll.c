@@ -168,6 +168,7 @@ struct lo_data {
 
     /* An O_PATH file descriptor to /proc/self/fd/ */
     int proc_self_fd;
+    int user_killpriv_v2, killpriv_v2;
 };
 
 static const struct fuse_opt lo_opts[] = {
@@ -198,6 +199,8 @@ static const struct fuse_opt lo_opts[] = {
     { "allow_direct_io", offsetof(struct lo_data, allow_direct_io), 1 },
     { "no_allow_direct_io", offsetof(struct lo_data, allow_direct_io), 0 },
     { "announce_submounts", offsetof(struct lo_data, announce_submounts), 1 },
+    { "killpriv_v2", offsetof(struct lo_data, user_killpriv_v2), 1 },
+    { "no_killpriv_v2", offsetof(struct lo_data, user_killpriv_v2), 0 },
     FUSE_OPT_END
 };
 static bool use_syslog = false;
@@ -630,6 +633,34 @@ static void lo_init(void *userdata, struct fuse_conn_info *conn)
                  "does not support it\n");
         lo->announce_submounts = false;
     }
+
+    if (lo->user_killpriv_v2 == 1) {
+        /*
+         * User explicitly asked for this option. Enable it unconditionally.
+         * If connection does not have this capability, it should fail
+         * in fuse_lowlevel.c
+         */
+        fuse_log(FUSE_LOG_DEBUG, "lo_init: enabling killpriv_v2\n");
+        conn->want |= FUSE_CAP_HANDLE_KILLPRIV_V2;
+        lo->killpriv_v2 = 1;
+    } else if (lo->user_killpriv_v2 == -1 &&
+               conn->capable & FUSE_CAP_HANDLE_KILLPRIV_V2) {
+        /*
+         * User did not specify a value for killpriv_v2. By default enable it
+         * if connection offers this capability
+         */
+        fuse_log(FUSE_LOG_DEBUG, "lo_init: enabling killpriv_v2\n");
+        conn->want |= FUSE_CAP_HANDLE_KILLPRIV_V2;
+        lo->killpriv_v2 = 1;
+    } else {
+        /*
+         * Either user specified to disable killpriv_v2, or connection does
+         * not offer this capability. Disable killpriv_v2 in both the cases
+         */
+        fuse_log(FUSE_LOG_DEBUG, "lo_init: disabling killpriv_v2\n");
+        conn->want &= ~FUSE_CAP_HANDLE_KILLPRIV_V2;
+        lo->killpriv_v2 = 0;
+    }
 }
 
 static void lo_getattr(fuse_req_t req, fuse_ino_t ino,
@@ -698,6 +729,7 @@ static void lo_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
             res = fchmodat(lo->proc_self_fd, procname, attr->st_mode, 0);
         }
         if (res == -1) {
+            saverr = errno;
             goto out_err;
         }
     }
@@ -707,27 +739,47 @@ static void lo_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
 
         res = fchownat(ifd, "", uid, gid, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
         if (res == -1) {
+            saverr = errno;
             goto out_err;
         }
     }
     if (valid & FUSE_SET_ATTR_SIZE) {
         int truncfd;
+        bool kill_suidgid;
+        bool cap_fsetid_dropped = false;
 
+        kill_suidgid = lo->killpriv_v2 && (valid & FUSE_SET_ATTR_KILL_SUIDGID);
         if (fi) {
             truncfd = fd;
         } else {
             truncfd = lo_inode_open(lo, inode, O_RDWR);
             if (truncfd < 0) {
-                errno = -truncfd;
+                saverr = -truncfd;
+                goto out_err;
+            }
+        }
+
+        if (kill_suidgid) {
+            res = drop_effective_cap("FSETID", &cap_fsetid_dropped);
+            if (res != 0) {
+                saverr = res;
+                if (!fi) {
+                    close(truncfd);
+                }
                 goto out_err;
             }
         }
 
         res = ftruncate(truncfd, attr->st_size);
+        saverr = res == -1 ? errno : 0;
+
+        if (cap_fsetid_dropped) {
+            if (gain_effective_cap("FSETID")) {
+                fuse_log(FUSE_LOG_ERR, "Failed to gain CAP_FSETID\n");
+            }
+        }
         if (!fi) {
-            saverr = errno;
             close(truncfd);
-            errno = saverr;
         }
         if (res == -1) {
             goto out_err;
@@ -760,6 +812,7 @@ static void lo_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
             res = utimensat(lo->proc_self_fd, procname, tv, 0);
         }
         if (res == -1) {
+            saverr = errno;
             goto out_err;
         }
     }
@@ -768,7 +821,6 @@ static void lo_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     return lo_getattr(req, ino, fi);
 
 out_err:
-    saverr = errno;
     lo_inode_put(lo, &inode);
     fuse_reply_err(req, saverr);
 }
@@ -1708,11 +1760,27 @@ static int lo_do_open(struct lo_data *lo, struct lo_inode *inode,
 {
     ssize_t fh;
     int fd = existing_fd;
+    int err;
+    bool cap_fsetid_dropped = false;
+    bool kill_suidgid = lo->killpriv_v2 && fi->kill_priv;
 
     update_open_flags(lo->writeback, lo->allow_direct_io, fi);
 
     if (fd < 0) {
+        if (kill_suidgid) {
+            err = drop_effective_cap("FSETID", &cap_fsetid_dropped);
+            if (err) {
+                return err;
+            }
+        }
+
         fd = lo_inode_open(lo, inode, fi->flags);
+
+        if (cap_fsetid_dropped) {
+            if (gain_effective_cap("FSETID")) {
+                fuse_log(FUSE_LOG_ERR, "Failed to gain CAP_FSETID\n");
+            }
+        }
         if (fd < 0) {
             return -fd;
         }
@@ -1746,8 +1814,8 @@ static void lo_create(fuse_req_t req, fuse_ino_t parent, const char *name,
     int err;
     struct lo_cred old = {};
 
-    fuse_log(FUSE_LOG_DEBUG, "lo_create(parent=%" PRIu64 ", name=%s)\n", parent,
-             name);
+    fuse_log(FUSE_LOG_DEBUG, "lo_create(parent=%" PRIu64 ", name=%s)"
+             " kill_priv=%d\n", parent, name, fi->kill_priv);
 
     if (!is_safe_path_component(name)) {
         fuse_reply_err(req, EINVAL);
@@ -1980,8 +2048,8 @@ static void lo_open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     struct lo_inode *inode = lo_inode(req, ino);
     int err;
 
-    fuse_log(FUSE_LOG_DEBUG, "lo_open(ino=%" PRIu64 ", flags=%d)\n", ino,
-             fi->flags);
+    fuse_log(FUSE_LOG_DEBUG, "lo_open(ino=%" PRIu64 ", flags=%d, kill_priv=%d)"
+             "\n", ino, fi->flags, fi->kill_priv);
 
     if (!inode) {
         fuse_reply_err(req, EBADF);
@@ -2120,12 +2188,14 @@ static void lo_write_buf(fuse_req_t req, fuse_ino_t ino,
     out_buf.buf[0].pos = off;
 
     fuse_log(FUSE_LOG_DEBUG,
-             "lo_write_buf(ino=%" PRIu64 ", size=%zd, off=%lu)\n", ino,
-             out_buf.buf[0].size, (unsigned long)off);
+             "lo_write_buf(ino=%" PRIu64 ", size=%zd, off=%lu kill_priv=%d)\n",
+             ino, out_buf.buf[0].size, (unsigned long)off, fi->kill_priv);
 
     /*
      * If kill_priv is set, drop CAP_FSETID which should lead to kernel
-     * clearing setuid/setgid on file.
+     * clearing setuid/setgid on file. Note, for WRITE, we need to do
+     * this even if killpriv_v2 is not enabled. fuse direct write path
+     * relies on this.
      */
     if (fi->kill_priv) {
         res = drop_effective_cap("FSETID", &cap_fsetid_dropped);
@@ -3204,7 +3274,7 @@ static void setup_mounts(const char *source)
 }
 
 /*
- * Only keep whitelisted capabilities that are needed for file system operation
+ * Only keep capabilities in allowlist that are needed for file system operation
  * The (possibly NULL) modcaps_in string passed in is free'd before exit.
  */
 static void setup_capabilities(char *modcaps_in)
@@ -3214,8 +3284,8 @@ static void setup_capabilities(char *modcaps_in)
     capng_restore_state(&cap.saved);
 
     /*
-     * Whitelist file system-related capabilities that are needed for a file
-     * server to act like root.  Drop everything else like networking and
+     * Add to allowlist file system-related capabilities that are needed for a
+     * file server to act like root.  Drop everything else like networking and
      * sysadmin capabilities.
      *
      * Exclusions:
@@ -3533,6 +3603,7 @@ int main(int argc, char *argv[])
         .posix_lock = 0,
         .allow_direct_io = 0,
         .proc_self_fd = -1,
+        .user_killpriv_v2 = -1,
     };
     struct lo_map_elem *root_elem;
     struct lo_map_elem *reserve_elem;
