@@ -25694,7 +25694,7 @@ static void gen_mxu_S32ALNI(DisasContext *ctx)
  * =======================
  */
 
-static void decode_opc_mxu__pool00(CPUMIPSState *env, DisasContext *ctx)
+static void decode_opc_mxu__pool00(DisasContext *ctx)
 {
     uint32_t opcode = extract32(ctx->opcode, 18, 3);
 
@@ -25718,7 +25718,7 @@ static void decode_opc_mxu__pool00(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static void decode_opc_mxu__pool04(CPUMIPSState *env, DisasContext *ctx)
+static void decode_opc_mxu__pool04(DisasContext *ctx)
 {
     uint32_t opcode = extract32(ctx->opcode, 20, 1);
 
@@ -25734,7 +25734,7 @@ static void decode_opc_mxu__pool04(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static void decode_opc_mxu__pool16(CPUMIPSState *env, DisasContext *ctx)
+static void decode_opc_mxu__pool16(DisasContext *ctx)
 {
     uint32_t opcode = extract32(ctx->opcode, 18, 3);
 
@@ -25761,7 +25761,7 @@ static void decode_opc_mxu__pool16(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static void decode_opc_mxu__pool19(CPUMIPSState *env, DisasContext *ctx)
+static void decode_opc_mxu__pool19(DisasContext *ctx)
 {
     uint32_t opcode = extract32(ctx->opcode, 22, 2);
 
@@ -25780,7 +25780,7 @@ static void decode_opc_mxu__pool19(CPUMIPSState *env, DisasContext *ctx)
 /*
  * Main MXU decoding function
  */
-static void decode_opc_mxu(CPUMIPSState *env, DisasContext *ctx)
+static void decode_opc_mxu(DisasContext *ctx)
 {
     uint32_t opcode = extract32(ctx->opcode, 0, 6);
 
@@ -25817,7 +25817,7 @@ static void decode_opc_mxu(CPUMIPSState *env, DisasContext *ctx)
 
         switch (opcode) {
         case OPC_MXU__POOL00:
-            decode_opc_mxu__pool00(env, ctx);
+            decode_opc_mxu__pool00(ctx);
             break;
         case OPC_MXU_D16MUL:
             gen_mxu_d16mul(ctx);
@@ -25826,16 +25826,16 @@ static void decode_opc_mxu(CPUMIPSState *env, DisasContext *ctx)
             gen_mxu_d16mac(ctx);
             break;
         case OPC_MXU__POOL04:
-            decode_opc_mxu__pool04(env, ctx);
+            decode_opc_mxu__pool04(ctx);
             break;
         case OPC_MXU_S8LDD:
             gen_mxu_s8ldd(ctx);
             break;
         case OPC_MXU__POOL16:
-            decode_opc_mxu__pool16(env, ctx);
+            decode_opc_mxu__pool16(ctx);
             break;
         case OPC_MXU__POOL19:
-            decode_opc_mxu__pool19(env, ctx);
+            decode_opc_mxu__pool19(ctx);
             break;
         default:
             MIPS_INVAL("decode_opc_mxu");
@@ -26995,7 +26995,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
 #endif
 #if !defined(TARGET_MIPS64)
         if (ctx->insn_flags & ASE_MXU) {
-            decode_opc_mxu(env, ctx);
+            decode_opc_mxu(ctx);
             break;
         }
 #endif
