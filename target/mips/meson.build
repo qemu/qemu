@@ -24,6 +24,10 @@ mips_tcg_ss.add(files(
   'translate.c',
   'translate_addr_const.c',
 ))
+mips_tcg_ss.add(when: 'TARGET_MIPS64', if_false: files(
+  'mxu_translate.c',
+))
+
 mips_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'))
 
 mips_softmmu_ss = ss.source_set()
