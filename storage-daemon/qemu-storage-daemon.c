@@ -38,7 +38,6 @@
 #include "qapi/qapi-visit-block-core.h"
 #include "qapi/qapi-visit-block-export.h"
 #include "qapi/qapi-visit-control.h"
-#include "qapi/qapi-visit-qom.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qobject-input-visitor.h"
@@ -271,27 +270,8 @@ static void process_options(int argc, char *argv[])
                 break;
             }
         case OPTION_OBJECT:
-            {
-                QDict *args;
-                bool help;
-                Visitor *v;
-                ObjectOptions *options;
-
-                args = keyval_parse(optarg, "qom-type", &help, &error_fatal);
-                if (help) {
-                    user_creatable_print_help_from_qdict(args);
-                    exit(EXIT_SUCCESS);
-                }
-
-                v = qobject_input_visitor_new_keyval(QOBJECT(args));
-                visit_type_ObjectOptions(v, NULL, &options, &error_fatal);
-                visit_free(v);
-                qobject_unref(args);
-
-                qmp_object_add(options, &error_fatal);
-                qapi_free_ObjectOptions(options);
-                break;
-            }
+            user_creatable_process_cmdline(optarg);
+            break;
         case OPTION_PIDFILE:
             pid_file = optarg;
             break;

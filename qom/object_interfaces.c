@@ -2,10 +2,13 @@
 
 #include "qemu/cutils.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-qom.h"
+#include "qapi/qapi-visit-qom.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qobject-input-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 #include "qom/object_interfaces.h"
 #include "qemu/help_option.h"
 #include "qemu/id.h"
@@ -111,6 +114,30 @@ out:
         return NULL;
     }
     return obj;
+}
+
+void user_creatable_add_qapi(ObjectOptions *options, Error **errp)
+{
+    Visitor *v;
+    QObject *qobj;
+    QDict *props;
+    Object *obj;
+
+    v = qobject_output_visitor_new(&qobj);
+    visit_type_ObjectOptions(v, NULL, &options, &error_abort);
+    visit_complete(v, &qobj);
+    visit_free(v);
+
+    props = qobject_to(QDict, qobj);
+    qdict_del(props, "qom-type");
+    qdict_del(props, "id");
+
+    v = qobject_input_visitor_new(QOBJECT(props));
+    obj = user_creatable_add_type(ObjectType_str(options->qom_type),
+                                  options->id, props, v, errp);
+    object_unref(obj);
+    qobject_unref(qobj);
+    visit_free(v);
 }
 
 Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
@@ -256,13 +283,35 @@ bool user_creatable_print_help(const char *type, QemuOpts *opts)
     return false;
 }
 
-void user_creatable_print_help_from_qdict(QDict *args)
+static void user_creatable_print_help_from_qdict(QDict *args)
 {
     const char *type = qdict_get_try_str(args, "qom-type");
 
     if (!type || !user_creatable_print_type_properites(type)) {
         user_creatable_print_types();
     }
+}
+
+void user_creatable_process_cmdline(const char *optarg)
+{
+    QDict *args;
+    bool help;
+    Visitor *v;
+    ObjectOptions *options;
+
+    args = keyval_parse(optarg, "qom-type", &help, &error_fatal);
+    if (help) {
+        user_creatable_print_help_from_qdict(args);
+        exit(EXIT_SUCCESS);
+    }
+
+    v = qobject_input_visitor_new_keyval(QOBJECT(args));
+    visit_type_ObjectOptions(v, NULL, &options, &error_fatal);
+    visit_free(v);
+    qobject_unref(args);
+
+    user_creatable_add_qapi(options, &error_fatal);
+    qapi_free_ObjectOptions(options);
 }
 
 bool user_creatable_del(const char *id, Error **errp)

@@ -2,6 +2,7 @@
 #define OBJECT_INTERFACES_H
 
 #include "qom/object.h"
+#include "qapi/qapi-types-qom.h"
 #include "qapi/visitor.h"
 
 #define TYPE_USER_CREATABLE "user-creatable"
@@ -87,6 +88,18 @@ Object *user_creatable_add_type(const char *type, const char *id,
                                 Visitor *v, Error **errp);
 
 /**
+ * user_creatable_add_qapi:
+ * @options: the object definition
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Create an instance of the user creatable object according to the
+ * options passed in @opts as described in the QAPI schema documentation.
+ *
+ * Returns: the newly created object or NULL on error
+ */
+void user_creatable_add_qapi(ObjectOptions *options, Error **errp);
+
+/**
  * user_creatable_add_opts:
  * @opts: the object definition
  * @errp: if an error occurs, a pointer to an area to store the error
@@ -132,6 +145,21 @@ int user_creatable_add_opts_foreach(void *opaque,
                                     QemuOpts *opts, Error **errp);
 
 /**
+ * user_creatable_process_cmdline:
+ * @optarg: the object definition string as passed on the command line
+ *
+ * Create an instance of the user creatable object by parsing optarg
+ * with a keyval parser and implicit key 'qom-type', converting the
+ * result to ObjectOptions and calling into qmp_object_add().
+ *
+ * If a help option is given, print help instead and exit.
+ *
+ * This function is only meant to be called during command line parsing.
+ * It exits the process on failure or after printing help.
+ */
+void user_creatable_process_cmdline(const char *optarg);
+
+/**
  * user_creatable_print_help:
  * @type: the QOM type to be added
  * @opts: options to create
@@ -144,19 +172,6 @@ int user_creatable_add_opts_foreach(void *opaque,
  * otherwise.
  */
 bool user_creatable_print_help(const char *type, QemuOpts *opts);
-
-/**
- * user_creatable_print_help_from_qdict:
- * @args: options to create
- *
- * Prints help considering the other options given in @args (if "qom-type" is
- * given and valid, print properties for the type, otherwise print valid types)
- *
- * In contrast to user_creatable_print_help(), this function can't return that
- * no help was requested. It should only be called if we know that help is
- * requested and it will always print some help.
- */
-void user_creatable_print_help_from_qdict(QDict *args);
 
 /**
  * user_creatable_del:

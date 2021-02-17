@@ -228,25 +228,7 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
 
 void qmp_object_add(ObjectOptions *options, Error **errp)
 {
-    Visitor *v;
-    QObject *qobj;
-    QDict *props;
-    Object *obj;
-
-    v = qobject_output_visitor_new(&qobj);
-    visit_type_ObjectOptions(v, NULL, &options, &error_abort);
-    visit_complete(v, &qobj);
-    visit_free(v);
-
-    props = qobject_to(QDict, qobj);
-    qdict_del(props, "qom-type");
-    qdict_del(props, "id");
-
-    v = qobject_input_visitor_new(QOBJECT(props));
-    obj = user_creatable_add_type(ObjectType_str(options->qom_type),
-                                  options->id, props, v, errp);
-    object_unref(obj);
-    visit_free(v);
+    user_creatable_add_qapi(options, errp);
 }
 
 void qmp_object_del(const char *id, Error **errp)
