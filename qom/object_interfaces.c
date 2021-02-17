@@ -292,26 +292,45 @@ static void user_creatable_print_help_from_qdict(QDict *args)
     }
 }
 
-void user_creatable_process_cmdline(const char *optarg)
+bool user_creatable_add_from_str(const char *optarg, Error **errp)
 {
+    ERRP_GUARD();
     QDict *args;
     bool help;
     Visitor *v;
     ObjectOptions *options;
 
-    args = keyval_parse(optarg, "qom-type", &help, &error_fatal);
+    args = keyval_parse(optarg, "qom-type", &help, errp);
+    if (*errp) {
+        return false;
+    }
     if (help) {
         user_creatable_print_help_from_qdict(args);
-        exit(EXIT_SUCCESS);
+        qobject_unref(args);
+        return false;
     }
 
     v = qobject_input_visitor_new_keyval(QOBJECT(args));
-    visit_type_ObjectOptions(v, NULL, &options, &error_fatal);
+    visit_type_ObjectOptions(v, NULL, &options, errp);
     visit_free(v);
     qobject_unref(args);
 
-    user_creatable_add_qapi(options, &error_fatal);
+    if (*errp) {
+        goto out;
+    }
+
+    user_creatable_add_qapi(options, errp);
+out:
     qapi_free_ObjectOptions(options);
+    return !*errp;
+}
+
+void user_creatable_process_cmdline(const char *optarg)
+{
+    if (!user_creatable_add_from_str(optarg, &error_fatal)) {
+        /* Help was printed */
+        exit(EXIT_SUCCESS);
+    }
 }
 
 bool user_creatable_del(const char *id, Error **errp)
