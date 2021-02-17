@@ -74,6 +74,7 @@ Standard options:
 .. option:: --export [type=]nbd,id=<id>,node-name=<node-name>[,name=<export-name>][,writable=on|off][,bitmap=<name>]
   --export [type=]vhost-user-blk,id=<id>,node-name=<node-name>,addr.type=unix,addr.path=<socket-path>[,writable=on|off][,logical-block-size=<block-size>][,num-queues=<num-queues>]
   --export [type=]vhost-user-blk,id=<id>,node-name=<node-name>,addr.type=fd,addr.str=<fd>[,writable=on|off][,logical-block-size=<block-size>][,num-queues=<num-queues>]
+  --export [type=]fuse,id=<id>,node-name=<node-name>,mountpoint=<file>[,growable=on|off][,writable=on|off]
 
   is a block export definition. ``node-name`` is the block node that should be
   exported. ``writable`` determines whether or not the export allows write
@@ -91,6 +92,16 @@ Standard options:
   ``addr.type=fd,addr.str=<fd>`` for file descriptor passing are supported.
   ``logical-block-size`` sets the logical block size in bytes (the default is
   512). ``num-queues`` sets the number of virtqueues (the default is 1).
+
+  The ``fuse`` export type takes a mount point, which must be a regular file,
+  on which to export the given block node. That file will not be changed, it
+  will just appear to have the block node's content while the export is active
+  (very much like mounting a filesystem on a directory does not change what the
+  directory contains, it only shows a different content while the filesystem is
+  mounted). Consequently, applications that have opened the given file before
+  the export became active will continue to see its original content. If
+  ``growable`` is set, writes after the end of the exported file will grow the
+  block node to fit.
 
 .. option:: --monitor MONITORDEF
 
@@ -195,6 +206,14 @@ domain socket ``vhost-user-blk.sock``::
       --blockdev driver=file,node-name=file,filename=disk.qcow2 \
       --blockdev driver=qcow2,node-name=qcow2,file=file \
       --export type=vhost-user-blk,id=export,addr.type=unix,addr.path=vhost-user-blk.sock,node-name=qcow2
+
+Export a qcow2 image file ``disk.qcow2`` via FUSE on itself, so the disk image
+file will then appear as a raw image::
+
+  $ qemu-storage-daemon \
+      --blockdev driver=file,node-name=file,filename=disk.qcow2 \
+      --blockdev driver=qcow2,node-name=qcow2,file=file \
+      --export type=fuse,id=export,node-name=qcow2,mountpoint=disk.qcow2,writable=on
 
 See also
 --------
