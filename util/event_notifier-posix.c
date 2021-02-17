@@ -66,10 +66,10 @@ int event_notifier_init(EventNotifier *e, int active)
         e->rfd = fds[0];
         e->wfd = fds[1];
     }
+    e->initialized = true;
     if (active) {
         event_notifier_set(e);
     }
-    e->initialized = true;
     return 0;
 
 fail:
