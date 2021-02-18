@@ -1,0 +1,619 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * Compare Instructions
+ */
+
+
+
+/*********************************************/
+/* Scalar compare instructions               */
+/*********************************************/
+
+Q6INSN(C2_cmpeq,"Pd4=cmp.eq(Rs32,Rt32)",ATTRIBS(),
+"Compare for Equal",
+{PdV=f8BITSOF(RsV==RtV);})
+
+Q6INSN(C2_cmpgt,"Pd4=cmp.gt(Rs32,Rt32)",ATTRIBS(),
+"Compare for signed Greater Than",
+{PdV=f8BITSOF(RsV>RtV);})
+
+Q6INSN(C2_cmpgtu,"Pd4=cmp.gtu(Rs32,Rt32)",ATTRIBS(),
+"Compare for Greater Than Unsigned",
+{PdV=f8BITSOF(fCAST4u(RsV)>fCAST4u(RtV));})
+
+Q6INSN(C2_cmpeqp,"Pd4=cmp.eq(Rss32,Rtt32)",ATTRIBS(),
+"Compare for Equal",
+{PdV=f8BITSOF(RssV==RttV);})
+
+Q6INSN(C2_cmpgtp,"Pd4=cmp.gt(Rss32,Rtt32)",ATTRIBS(),
+"Compare for signed Greater Than",
+{PdV=f8BITSOF(RssV>RttV);})
+
+Q6INSN(C2_cmpgtup,"Pd4=cmp.gtu(Rss32,Rtt32)",ATTRIBS(),
+"Compare for Greater Than Unsigned",
+{PdV=f8BITSOF(fCAST8u(RssV)>fCAST8u(RttV));})
+
+
+
+
+/*********************************************/
+/* Compare and put result in GPR             */
+/*  typically for function I/O               */
+/*********************************************/
+
+Q6INSN(A4_rcmpeqi,"Rd32=cmp.eq(Rs32,#s8)",ATTRIBS(),
+"Compare for Equal",
+{fIMMEXT(siV); RdV=(RsV==siV); })
+
+Q6INSN(A4_rcmpneqi,"Rd32=!cmp.eq(Rs32,#s8)",ATTRIBS(),
+"Compare for Equal",
+{fIMMEXT(siV); RdV=(RsV!=siV); })
+
+
+Q6INSN(A4_rcmpeq,"Rd32=cmp.eq(Rs32,Rt32)",ATTRIBS(),
+"Compare for Equal",
+{RdV=(RsV==RtV); })
+
+Q6INSN(A4_rcmpneq,"Rd32=!cmp.eq(Rs32,Rt32)",ATTRIBS(),
+"Compare for Equal",
+{RdV=(RsV!=RtV); })
+
+
+
+/*********************************************/
+/* Scalar compare instructions               */
+/*********************************************/
+
+
+Q6INSN(C2_bitsset,"Pd4=bitsset(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Compare for selected bits set",
+{PdV=f8BITSOF((RsV&RtV)==RtV);})
+
+Q6INSN(C2_bitsclr,"Pd4=bitsclr(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Compare for selected bits clear",
+{PdV=f8BITSOF((RsV&RtV)==0);})
+
+
+Q6INSN(C4_nbitsset,"Pd4=!bitsset(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Compare for selected bits set",
+{PdV=f8BITSOF((RsV&RtV)!=RtV);})
+
+Q6INSN(C4_nbitsclr,"Pd4=!bitsclr(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Compare for selected bits clear",
+{PdV=f8BITSOF((RsV&RtV)!=0);})
+
+
+
+/*********************************************/
+/* Scalar compare instructions W/ immediate  */
+/*********************************************/
+
+Q6INSN(C2_cmpeqi,"Pd4=cmp.eq(Rs32,#s10)",ATTRIBS(),
+"Compare for Equal",
+{fIMMEXT(siV); PdV=f8BITSOF(RsV==siV);})
+
+Q6INSN(C2_cmpgti,"Pd4=cmp.gt(Rs32,#s10)",ATTRIBS(),
+"Compare for signed Greater Than",
+{fIMMEXT(siV); PdV=f8BITSOF(RsV>siV);})
+
+Q6INSN(C2_cmpgtui,"Pd4=cmp.gtu(Rs32,#u9)",ATTRIBS(),
+"Compare for Greater Than Unsigned",
+{fIMMEXT(uiV); PdV=f8BITSOF(fCAST4u(RsV)>fCAST4u(uiV));})
+
+Q6INSN(C2_bitsclri,"Pd4=bitsclr(Rs32,#u6)",ATTRIBS(A_ARCHV2),
+"Compare for selected bits clear",
+{PdV=f8BITSOF((RsV&uiV)==0);})
+
+Q6INSN(C4_nbitsclri,"Pd4=!bitsclr(Rs32,#u6)",ATTRIBS(A_ARCHV2),
+"Compare for selected bits clear",
+{PdV=f8BITSOF((RsV&uiV)!=0);})
+
+
+
+
+Q6INSN(C4_cmpneqi,"Pd4=!cmp.eq(Rs32,#s10)",ATTRIBS(), "Compare for Not Equal", {fIMMEXT(siV); PdV=f8BITSOF(RsV!=siV);})
+Q6INSN(C4_cmpltei,"Pd4=!cmp.gt(Rs32,#s10)",ATTRIBS(), "Compare for Less Than or Equal", {fIMMEXT(siV); PdV=f8BITSOF(RsV<=siV);})
+Q6INSN(C4_cmplteui,"Pd4=!cmp.gtu(Rs32,#u9)",ATTRIBS(), "Compare for Less Than or Equal Unsigned", {fIMMEXT(uiV); PdV=f8BITSOF(fCAST4u(RsV)<=fCAST4u(uiV));})
+
+Q6INSN(C4_cmpneq,"Pd4=!cmp.eq(Rs32,Rt32)",ATTRIBS(), "And-Compare for Equal", {PdV=f8BITSOF(RsV!=RtV);})
+Q6INSN(C4_cmplte,"Pd4=!cmp.gt(Rs32,Rt32)",ATTRIBS(), "And-Compare for signed Greater Than", {PdV=f8BITSOF(RsV<=RtV);})
+Q6INSN(C4_cmplteu,"Pd4=!cmp.gtu(Rs32,Rt32)",ATTRIBS(), "And-Compare for Greater Than Unsigned", {PdV=f8BITSOF(fCAST4u(RsV)<=fCAST4u(RtV));})
+
+
+
+
+
+/* Predicate Logical Operations */
+
+Q6INSN(C2_and,"Pd4=and(Pt4,Ps4)",ATTRIBS(A_CRSLOT23),
+"Predicate AND",
+{PdV=PsV & PtV;})
+
+Q6INSN(C2_or,"Pd4=or(Pt4,Ps4)",ATTRIBS(A_CRSLOT23),
+"Predicate OR",
+{PdV=PsV | PtV;})
+
+Q6INSN(C2_xor,"Pd4=xor(Ps4,Pt4)",ATTRIBS(A_CRSLOT23),
+"Predicate XOR",
+{PdV=PsV ^ PtV;})
+
+Q6INSN(C2_andn,"Pd4=and(Pt4,!Ps4)",ATTRIBS(A_CRSLOT23),
+"Predicate AND NOT",
+{PdV=PtV & (~PsV);})
+
+Q6INSN(C2_not,"Pd4=not(Ps4)",ATTRIBS(A_CRSLOT23),
+"Logical NOT Predicate",
+{PdV=~PsV;})
+
+Q6INSN(C2_orn,"Pd4=or(Pt4,!Ps4)",ATTRIBS(A_ARCHV2,A_CRSLOT23),
+"Predicate OR NOT",
+{PdV=PtV | (~PsV);})
+
+
+
+
+
+Q6INSN(C4_and_and,"Pd4=and(Ps4,and(Pt4,Pu4))",ATTRIBS(A_CRSLOT23),
+"Compound And-And", { PdV = PsV & PtV & PuV; })
+
+Q6INSN(C4_and_or,"Pd4=and(Ps4,or(Pt4,Pu4))",ATTRIBS(A_CRSLOT23),
+"Compound And-Or", { PdV = PsV &  (PtV | PuV); })
+
+Q6INSN(C4_or_and,"Pd4=or(Ps4,and(Pt4,Pu4))",ATTRIBS(A_CRSLOT23),
+"Compound Or-And", { PdV = PsV | (PtV & PuV); })
+
+Q6INSN(C4_or_or,"Pd4=or(Ps4,or(Pt4,Pu4))",ATTRIBS(A_CRSLOT23),
+"Compound Or-Or", { PdV = PsV | PtV | PuV; })
+
+
+
+Q6INSN(C4_and_andn,"Pd4=and(Ps4,and(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23),
+"Compound And-And", { PdV = PsV & PtV & (~PuV); })
+
+Q6INSN(C4_and_orn,"Pd4=and(Ps4,or(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23),
+"Compound And-Or", { PdV = PsV &  (PtV | (~PuV)); })
+
+Q6INSN(C4_or_andn,"Pd4=or(Ps4,and(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23),
+"Compound Or-And", { PdV = PsV | (PtV & (~PuV)); })
+
+Q6INSN(C4_or_orn,"Pd4=or(Ps4,or(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23),
+"Compound Or-Or", { PdV = PsV | PtV | (~PuV); })
+
+
+Q6INSN(C2_any8,"Pd4=any8(Ps4)",ATTRIBS(A_CRSLOT23),
+"Logical ANY of low 8 predicate bits",
+{ PsV ? (PdV=0xff) : (PdV=0x00); })
+
+Q6INSN(C2_all8,"Pd4=all8(Ps4)",ATTRIBS(A_CRSLOT23),
+"Logical ALL of low 8 predicate bits",
+{ (PsV==0xff) ? (PdV=0xff) : (PdV=0x00); })
+
+Q6INSN(C2_vitpack,"Rd32=vitpack(Ps4,Pt4)",ATTRIBS(),
+"Pack the odd and even bits of two predicate registers",
+{ RdV = (PsV&0x55) | (PtV&0xAA); })
+
+/* Mux instructions */
+
+Q6INSN(C2_mux,"Rd32=mux(Pu4,Rs32,Rt32)",ATTRIBS(),
+"Scalar MUX",
+{ (fLSBOLD(PuV)) ? (RdV=RsV):(RdV=RtV); })
+
+
+Q6INSN(C2_cmovenewit,"if (Pu4.new) Rd32=#s12",ATTRIBS(A_ARCHV2),
+"Scalar conditional move",
+{ fIMMEXT(siV); if (fLSBNEW(PuN)) RdV=siV; else CANCEL;})
+
+Q6INSN(C2_cmovenewif,"if (!Pu4.new) Rd32=#s12",ATTRIBS(A_ARCHV2),
+"Scalar conditional move",
+{ fIMMEXT(siV); if (fLSBNEWNOT(PuN)) RdV=siV; else CANCEL;})
+
+Q6INSN(C2_cmoveit,"if (Pu4) Rd32=#s12",ATTRIBS(A_ARCHV2),
+"Scalar conditional move",
+{ fIMMEXT(siV); if (fLSBOLD(PuV)) RdV=siV; else CANCEL;})
+
+Q6INSN(C2_cmoveif,"if (!Pu4) Rd32=#s12",ATTRIBS(A_ARCHV2),
+"Scalar conditional move",
+{ fIMMEXT(siV); if (fLSBOLDNOT(PuV)) RdV=siV; else CANCEL;})
+
+
+
+Q6INSN(C2_ccombinewnewt,"if (Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Conditionally combine two words into a register pair",
+{ if (fLSBNEW(PuN)) {
+    fSETWORD(0,RddV,RtV);
+    fSETWORD(1,RddV,RsV);
+  } else {CANCEL;}
+})
+
+Q6INSN(C2_ccombinewnewf,"if (!Pu4.new) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Conditionally combine two words into a register pair",
+{ if (fLSBNEWNOT(PuN)) {
+    fSETWORD(0,RddV,RtV);
+    fSETWORD(1,RddV,RsV);
+  } else {CANCEL;}
+})
+
+Q6INSN(C2_ccombinewt,"if (Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Conditionally combine two words into a register pair",
+{ if (fLSBOLD(PuV)) {
+    fSETWORD(0,RddV,RtV);
+    fSETWORD(1,RddV,RsV);
+  } else {CANCEL;}
+})
+
+Q6INSN(C2_ccombinewf,"if (!Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Conditionally combine two words into a register pair",
+{ if (fLSBOLDNOT(PuV)) {
+    fSETWORD(0,RddV,RtV);
+    fSETWORD(1,RddV,RsV);
+  } else {CANCEL;}
+})
+
+
+
+Q6INSN(C2_muxii,"Rd32=mux(Pu4,#s8,#S8)",ATTRIBS(A_ARCHV2),
+"Scalar MUX immediates",
+{ fIMMEXT(siV); (fLSBOLD(PuV)) ? (RdV=siV):(RdV=SiV); })
+
+
+
+Q6INSN(C2_muxir,"Rd32=mux(Pu4,Rs32,#s8)",ATTRIBS(A_ARCHV2),
+"Scalar MUX register immediate",
+{ fIMMEXT(siV); (fLSBOLD(PuV)) ? (RdV=RsV):(RdV=siV); })
+
+
+Q6INSN(C2_muxri,"Rd32=mux(Pu4,#s8,Rs32)",ATTRIBS(A_ARCHV2),
+"Scalar MUX register immediate",
+{ fIMMEXT(siV); (fLSBOLD(PuV)) ? (RdV=siV):(RdV=RsV); })
+
+
+
+Q6INSN(C2_vmux,"Rdd32=vmux(Pu4,Rss32,Rtt32)",ATTRIBS(),
+"Vector MUX",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 8; i++) {
+        fSETBYTE(i,RddV,(fGETBIT(i,PuV)?(fGETBYTE(i,RssV)):(fGETBYTE(i,RttV))));
+    }
+})
+
+Q6INSN(C2_mask,"Rdd32=mask(Pt4)",ATTRIBS(),
+"Vector Mask Generation",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 8; i++) {
+        fSETBYTE(i,RddV,(fGETBIT(i,PtV)?(0xff):(0x00)));
+    }
+})
+
+/* VCMP */
+
+Q6INSN(A2_vcmpbeq,"Pd4=vcmpb.eq(Rss32,Rtt32)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 8; i++) {
+        fSETBIT(i,PdV,(fGETBYTE(i,RssV) == fGETBYTE(i,RttV)));
+    }
+})
+
+Q6INSN(A4_vcmpbeqi,"Pd4=vcmpb.eq(Rss32,#u8)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 8; i++) {
+        fSETBIT(i,PdV,(fGETUBYTE(i,RssV) == uiV));
+    }
+})
+
+Q6INSN(A4_vcmpbeq_any,"Pd4=any8(vcmpb.eq(Rss32,Rtt32))",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    PdV = 0;
+    for (i = 0; i < 8; i++) {
+        if (fGETBYTE(i,RssV) == fGETBYTE(i,RttV)) PdV = 0xff;
+    }
+})
+
+Q6INSN(A6_vcmpbeq_notany,"Pd4=!any8(vcmpb.eq(Rss32,Rtt32))",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    PdV = 0;
+    for (i = 0; i < 8; i++) {
+        if (fGETBYTE(i,RssV) == fGETBYTE(i,RttV)) PdV = 0xff;
+    }
+    PdV = ~PdV;
+})
+
+Q6INSN(A2_vcmpbgtu,"Pd4=vcmpb.gtu(Rss32,Rtt32)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 8; i++) {
+        fSETBIT(i,PdV,(fGETUBYTE(i,RssV) > fGETUBYTE(i,RttV)));
+    }
+})
+
+Q6INSN(A4_vcmpbgtui,"Pd4=vcmpb.gtu(Rss32,#u7)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 8; i++) {
+        fSETBIT(i,PdV,(fGETUBYTE(i,RssV) > uiV));
+    }
+})
+
+Q6INSN(A4_vcmpbgt,"Pd4=vcmpb.gt(Rss32,Rtt32)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 8; i++) {
+        fSETBIT(i,PdV,(fGETBYTE(i,RssV) > fGETBYTE(i,RttV)));
+    }
+})
+
+Q6INSN(A4_vcmpbgti,"Pd4=vcmpb.gt(Rss32,#s8)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 8; i++) {
+        fSETBIT(i,PdV,(fGETBYTE(i,RssV) > siV));
+    }
+})
+
+
+
+Q6INSN(A4_cmpbeq,"Pd4=cmpb.eq(Rs32,Rt32)",ATTRIBS(),
+"Compare bytes ",
+{
+    PdV=f8BITSOF(fGETBYTE(0,RsV) == fGETBYTE(0,RtV));
+})
+
+Q6INSN(A4_cmpbeqi,"Pd4=cmpb.eq(Rs32,#u8)",ATTRIBS(),
+"Compare bytes ",
+{
+    PdV=f8BITSOF(fGETUBYTE(0,RsV) == uiV);
+})
+
+Q6INSN(A4_cmpbgtu,"Pd4=cmpb.gtu(Rs32,Rt32)",ATTRIBS(),
+"Compare bytes ",
+{
+    PdV=f8BITSOF(fGETUBYTE(0,RsV) > fGETUBYTE(0,RtV));
+})
+
+Q6INSN(A4_cmpbgtui,"Pd4=cmpb.gtu(Rs32,#u7)",ATTRIBS(),
+"Compare bytes ",
+{
+    fIMMEXT(uiV);
+    PdV=f8BITSOF(fGETUBYTE(0,RsV) > fCAST4u(uiV));
+})
+
+Q6INSN(A4_cmpbgt,"Pd4=cmpb.gt(Rs32,Rt32)",ATTRIBS(),
+"Compare bytes ",
+{
+    PdV=f8BITSOF(fGETBYTE(0,RsV) > fGETBYTE(0,RtV));
+})
+
+Q6INSN(A4_cmpbgti,"Pd4=cmpb.gt(Rs32,#s8)",ATTRIBS(),
+"Compare bytes ",
+{
+    PdV=f8BITSOF(fGETBYTE(0,RsV) > siV);
+})
+
+Q6INSN(A2_vcmpheq,"Pd4=vcmph.eq(Rss32,Rtt32)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 4; i++) {
+        fSETBIT(i*2,PdV,  (fGETHALF(i,RssV) == fGETHALF(i,RttV)));
+        fSETBIT(i*2+1,PdV,(fGETHALF(i,RssV) == fGETHALF(i,RttV)));
+    }
+})
+
+Q6INSN(A2_vcmphgt,"Pd4=vcmph.gt(Rss32,Rtt32)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 4; i++) {
+        fSETBIT(i*2,  PdV,  (fGETHALF(i,RssV) > fGETHALF(i,RttV)));
+        fSETBIT(i*2+1,PdV,  (fGETHALF(i,RssV) > fGETHALF(i,RttV)));
+    }
+})
+
+Q6INSN(A2_vcmphgtu,"Pd4=vcmph.gtu(Rss32,Rtt32)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 4; i++) {
+        fSETBIT(i*2,  PdV,  (fGETUHALF(i,RssV) > fGETUHALF(i,RttV)));
+        fSETBIT(i*2+1,PdV,  (fGETUHALF(i,RssV) > fGETUHALF(i,RttV)));
+    }
+})
+
+Q6INSN(A4_vcmpheqi,"Pd4=vcmph.eq(Rss32,#s8)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 4; i++) {
+        fSETBIT(i*2,PdV,  (fGETHALF(i,RssV) == siV));
+        fSETBIT(i*2+1,PdV,(fGETHALF(i,RssV) == siV));
+    }
+})
+
+Q6INSN(A4_vcmphgti,"Pd4=vcmph.gt(Rss32,#s8)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 4; i++) {
+        fSETBIT(i*2,  PdV,  (fGETHALF(i,RssV) > siV));
+        fSETBIT(i*2+1,PdV,  (fGETHALF(i,RssV) > siV));
+    }
+})
+
+
+Q6INSN(A4_vcmphgtui,"Pd4=vcmph.gtu(Rss32,#u7)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 4; i++) {
+        fSETBIT(i*2,  PdV,  (fGETUHALF(i,RssV) > uiV));
+        fSETBIT(i*2+1,PdV,  (fGETUHALF(i,RssV) > uiV));
+    }
+})
+
+Q6INSN(A4_cmpheq,"Pd4=cmph.eq(Rs32,Rt32)",ATTRIBS(),
+"Compare halfwords ",
+{
+    PdV=f8BITSOF(fGETHALF(0,RsV) == fGETHALF(0,RtV));
+})
+
+Q6INSN(A4_cmphgt,"Pd4=cmph.gt(Rs32,Rt32)",ATTRIBS(),
+"Compare halfwords ",
+{
+    PdV=f8BITSOF(fGETHALF(0,RsV) > fGETHALF(0,RtV));
+})
+
+Q6INSN(A4_cmphgtu,"Pd4=cmph.gtu(Rs32,Rt32)",ATTRIBS(),
+"Compare halfwords ",
+{
+    PdV=f8BITSOF(fGETUHALF(0,RsV) > fGETUHALF(0,RtV));
+})
+
+Q6INSN(A4_cmpheqi,"Pd4=cmph.eq(Rs32,#s8)",ATTRIBS(),
+"Compare halfwords ",
+{
+    fIMMEXT(siV);
+    PdV=f8BITSOF(fGETHALF(0,RsV) == siV);
+})
+
+Q6INSN(A4_cmphgti,"Pd4=cmph.gt(Rs32,#s8)",ATTRIBS(),
+"Compare halfwords ",
+{
+    fIMMEXT(siV);
+    PdV=f8BITSOF(fGETHALF(0,RsV) > siV);
+})
+
+Q6INSN(A4_cmphgtui,"Pd4=cmph.gtu(Rs32,#u7)",ATTRIBS(),
+"Compare halfwords ",
+{
+    fIMMEXT(uiV);
+    PdV=f8BITSOF(fGETUHALF(0,RsV) > fCAST4u(uiV));
+})
+
+Q6INSN(A2_vcmpweq,"Pd4=vcmpw.eq(Rss32,Rtt32)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fSETBITS(3,0,PdV,(fGETWORD(0,RssV)==fGETWORD(0,RttV)));
+    fSETBITS(7,4,PdV,(fGETWORD(1,RssV)==fGETWORD(1,RttV)));
+})
+
+Q6INSN(A2_vcmpwgt,"Pd4=vcmpw.gt(Rss32,Rtt32)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fSETBITS(3,0,PdV,(fGETWORD(0,RssV)>fGETWORD(0,RttV)));
+    fSETBITS(7,4,PdV,(fGETWORD(1,RssV)>fGETWORD(1,RttV)));
+})
+
+Q6INSN(A2_vcmpwgtu,"Pd4=vcmpw.gtu(Rss32,Rtt32)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fSETBITS(3,0,PdV,(fGETUWORD(0,RssV)>fGETUWORD(0,RttV)));
+    fSETBITS(7,4,PdV,(fGETUWORD(1,RssV)>fGETUWORD(1,RttV)));
+})
+
+Q6INSN(A4_vcmpweqi,"Pd4=vcmpw.eq(Rss32,#s8)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fSETBITS(3,0,PdV,(fGETWORD(0,RssV)==siV));
+    fSETBITS(7,4,PdV,(fGETWORD(1,RssV)==siV));
+})
+
+Q6INSN(A4_vcmpwgti,"Pd4=vcmpw.gt(Rss32,#s8)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fSETBITS(3,0,PdV,(fGETWORD(0,RssV)>siV));
+    fSETBITS(7,4,PdV,(fGETWORD(1,RssV)>siV));
+})
+
+Q6INSN(A4_vcmpwgtui,"Pd4=vcmpw.gtu(Rss32,#u7)",ATTRIBS(),
+"Compare elements of two vectors ",
+{
+    fSETBITS(3,0,PdV,(fGETUWORD(0,RssV)>fCAST4u(uiV)));
+    fSETBITS(7,4,PdV,(fGETUWORD(1,RssV)>fCAST4u(uiV)));
+})
+
+Q6INSN(A4_boundscheck_hi,"Pd4=boundscheck(Rss32,Rtt32):raw:hi",ATTRIBS(),
+"Detect if a register is within bounds",
+{
+    fHIDE(size4u_t src;)
+    src = fGETUWORD(1,RssV);
+    PdV = f8BITSOF((fCAST4u(src) >= fGETUWORD(0,RttV)) && (fCAST4u(src) < fGETUWORD(1,RttV)));
+})
+
+Q6INSN(A4_boundscheck_lo,"Pd4=boundscheck(Rss32,Rtt32):raw:lo",ATTRIBS(),
+"Detect if a register is within bounds",
+{
+    fHIDE(size4u_t src;)
+    src = fGETUWORD(0,RssV);
+    PdV = f8BITSOF((fCAST4u(src) >= fGETUWORD(0,RttV)) && (fCAST4u(src) < fGETUWORD(1,RttV)));
+})
+
+Q6INSN(A4_tlbmatch,"Pd4=tlbmatch(Rss32,Rt32)",ATTRIBS(),
+"Detect if a VA/ASID matches a TLB entry",
+{
+    fHIDE(size4u_t TLBHI; size4u_t TLBLO; size4u_t MASK; size4u_t SIZE;)
+    MASK = 0x07ffffff;
+    TLBLO = fGETUWORD(0,RssV);
+    TLBHI = fGETUWORD(1,RssV);
+    SIZE = fMIN(6,fCL1_4(~fBREV_4(TLBLO)));
+    MASK &= (0xffffffff << 2*SIZE);
+    PdV = f8BITSOF(fGETBIT(31,TLBHI) && ((TLBHI & MASK) == (RtV & MASK)));
+})
+
+Q6INSN(C2_tfrpr,"Rd32=Ps4",ATTRIBS(),
+"Transfer predicate to general register", { RdV = fZXTN(8,32,PsV); })
+
+Q6INSN(C2_tfrrp,"Pd4=Rs32",ATTRIBS(),
+"Transfer general register to Predicate", { PdV = fGETUBYTE(0,RsV); })
+
+Q6INSN(C4_fastcorner9,"Pd4=fastcorner9(Ps4,Pt4)",ATTRIBS(A_CRSLOT23),
+"Determine whether the predicate sources define a corner",
+{
+    fHIDE(size4u_t tmp = 0; size4u_t i;)
+    fSETHALF(0,tmp,(PsV<<8)|PtV);
+    fSETHALF(1,tmp,(PsV<<8)|PtV);
+    for (i = 1; i < 9; i++) {
+        tmp &= tmp >> 1;
+    }
+    PdV = f8BITSOF(tmp != 0);
+})
+
+Q6INSN(C4_fastcorner9_not,"Pd4=!fastcorner9(Ps4,Pt4)",ATTRIBS(A_CRSLOT23),
+"Determine whether the predicate sources define a corner",
+{
+    fHIDE(size4u_t tmp = 0; size4u_t i;)
+    fSETHALF(0,tmp,(PsV<<8)|PtV);
+    fSETHALF(1,tmp,(PsV<<8)|PtV);
+    for (i = 1; i < 9; i++) {
+        tmp &= tmp >> 1;
+    }
+    PdV = f8BITSOF(tmp == 0);
+})

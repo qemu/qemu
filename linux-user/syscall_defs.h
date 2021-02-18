@@ -104,6 +104,14 @@
 #define TARGET_IOC_WRITE  2U
 #define TARGET_IOC_READ   1U
 
+#elif defined(TARGET_HEXAGON)
+
+#define TARGET_IOC_SIZEBITS     14
+
+#define TARGET_IOC_NONE   0U
+#define TARGET_IOC_WRITE  1U
+#define TARGET_IOC_READ          2U
+
 #else
 #error unsupported CPU
 #endif
@@ -2251,6 +2259,31 @@ struct target_stat64 {
     abi_int    target_st_ctime;
     abi_uint   target_st_ctime_nsec;
     uint64_t   st_ino;
+};
+
+#elif defined(TARGET_HEXAGON)
+
+struct target_stat {
+    unsigned long long st_dev;
+    unsigned long long st_ino;
+    unsigned int st_mode;
+    unsigned int st_nlink;
+    unsigned int st_uid;
+    unsigned int st_gid;
+    unsigned long long st_rdev;
+    target_ulong __pad1;
+    long long st_size;
+    target_long st_blksize;
+    int __pad2;
+    long long st_blocks;
+
+    target_long target_st_atime;
+    target_long target_st_atime_nsec;
+    target_long target_st_mtime;
+    target_long target_st_mtime_nsec;
+    target_long target_st_ctime;
+    target_long target_st_ctime_nsec;
+    int __unused[2];
 };
 
 #else
