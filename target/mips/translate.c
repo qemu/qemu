@@ -28276,13 +28276,16 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
 #if defined(TARGET_MIPS64)
         if ((ctx->insn_flags & INSN_R5900) && (ctx->insn_flags & ASE_MMI)) {
             decode_mmi(env, ctx);
-#else
+            break;
+        }
+#endif
+#if !defined(TARGET_MIPS64)
         if (ctx->insn_flags & ASE_MXU) {
             decode_opc_mxu(env, ctx);
-#endif
-        } else {
-            decode_opc_special2_legacy(env, ctx);
+            break;
         }
+#endif
+        decode_opc_special2_legacy(env, ctx);
         break;
     case OPC_SPECIAL3:
 #if defined(TARGET_MIPS64)
