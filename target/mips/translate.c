@@ -25779,7 +25779,7 @@ static void decode_opc_mxu__pool19(DisasContext *ctx)
 /*
  * Main MXU decoding function
  */
-static void decode_opc_mxu(DisasContext *ctx, uint32_t insn)
+static void decode_ase_mxu(DisasContext *ctx, uint32_t insn)
 {
     uint32_t opcode = extract32(insn, 0, 6);
 
@@ -26984,7 +26984,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             if (MASK_SPECIAL2(ctx->opcode) == OPC_MUL) {
                 gen_arith(ctx, OPC_MUL, rd, rs, rt);
             } else {
-                decode_opc_mxu(ctx, ctx->opcode);
+                decode_ase_mxu(ctx, ctx->opcode);
             }
             break;
         }
