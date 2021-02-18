@@ -21,6 +21,14 @@ static bool do_inline;
 
 static void vcpu_insn_exec_before(unsigned int cpu_index, void *udata)
 {
+    static uint64_t last_pc;
+    uint64_t this_pc = GPOINTER_TO_UINT(udata);
+    if (this_pc == last_pc) {
+        g_autofree gchar *out = g_strdup_printf("detected repeat execution @ 0x%"
+                                                PRIx64 "\n", this_pc);
+        qemu_plugin_outs(out);
+    }
+    last_pc = this_pc;
     insn_count++;
 }
 
@@ -36,8 +44,10 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
             qemu_plugin_register_vcpu_insn_exec_inline(
                 insn, QEMU_PLUGIN_INLINE_ADD_U64, &insn_count, 1);
         } else {
+            uint64_t vaddr = qemu_plugin_insn_vaddr(insn);
             qemu_plugin_register_vcpu_insn_exec_cb(
-                insn, vcpu_insn_exec_before, QEMU_PLUGIN_CB_NO_REGS, NULL);
+                insn, vcpu_insn_exec_before, QEMU_PLUGIN_CB_NO_REGS,
+                GUINT_TO_POINTER(vaddr));
         }
     }
 }

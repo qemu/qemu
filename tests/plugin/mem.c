@@ -16,9 +16,10 @@
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
-static uint64_t mem_count;
+static uint64_t inline_mem_count;
+static uint64_t cb_mem_count;
 static uint64_t io_count;
-static bool do_inline;
+static bool do_inline, do_callback;
 static bool do_haddr;
 static enum qemu_plugin_mem_rw rw = QEMU_PLUGIN_MEM_RW;
 
@@ -26,7 +27,12 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
     g_autoptr(GString) out = g_string_new("");
 
-    g_string_printf(out, "mem accesses: %" PRIu64 "\n", mem_count);
+    if (do_inline) {
+        g_string_printf(out, "inline mem accesses: %" PRIu64 "\n", inline_mem_count);
+    }
+    if (do_callback) {
+        g_string_append_printf(out, "callback mem accesses: %" PRIu64 "\n", cb_mem_count);
+    }
     if (do_haddr) {
         g_string_append_printf(out, "io accesses: %" PRIu64 "\n", io_count);
     }
@@ -42,10 +48,10 @@ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
         if (qemu_plugin_hwaddr_is_io(hwaddr)) {
             io_count++;
         } else {
-            mem_count++;
+            cb_mem_count++;
         }
     } else {
-        mem_count++;
+        cb_mem_count++;
     }
 }
 
@@ -60,8 +66,9 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         if (do_inline) {
             qemu_plugin_register_vcpu_mem_inline(insn, rw,
                                                  QEMU_PLUGIN_INLINE_ADD_U64,
-                                                 &mem_count, 1);
-        } else {
+                                                 &inline_mem_count, 1);
+        }
+        if (do_callback) {
             qemu_plugin_register_vcpu_mem_cb(insn, vcpu_mem,
                                              QEMU_PLUGIN_CB_NO_REGS,
                                              rw, NULL);
@@ -90,6 +97,12 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         }
         if (!strcmp(argv[0], "inline")) {
             do_inline = true;
+            do_callback = false;
+        } else if (!strcmp(argv[0], "both")) {
+            do_inline = true;
+            do_callback = true;
+        } else {
+            do_callback = true;
         }
     }
 
