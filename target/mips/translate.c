@@ -25779,18 +25779,18 @@ static void decode_opc_mxu__pool19(DisasContext *ctx)
 /*
  * Main MXU decoding function
  */
-static void decode_ase_mxu(DisasContext *ctx, uint32_t insn)
+static bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
 {
     uint32_t opcode = extract32(insn, 0, 6);
 
     if (opcode == OPC_MXU_S32M2I) {
         gen_mxu_s32m2i(ctx);
-        return;
+        return true;
     }
 
     if (opcode == OPC_MXU_S32I2M) {
         gen_mxu_s32i2m(ctx);
-        return;
+        return true;
     }
 
     {
@@ -25831,6 +25831,8 @@ static void decode_ase_mxu(DisasContext *ctx, uint32_t insn)
         gen_set_label(l_exit);
         tcg_temp_free(t_mxu_cr);
     }
+
+    return true;
 }
 
 #endif /* !defined(TARGET_MIPS64) */
