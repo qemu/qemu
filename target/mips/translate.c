@@ -25780,17 +25780,17 @@ static void decode_opc_mxu__pool19(DisasContext *ctx)
 /*
  * Main MXU decoding function
  */
-static void decode_opc_mxu(DisasContext *ctx)
+static void decode_opc_mxu(DisasContext *ctx, uint32_t insn)
 {
-    uint32_t opcode = extract32(ctx->opcode, 0, 6);
+    uint32_t opcode = extract32(insn, 0, 6);
 
     if (opcode == OPC__MXU_MUL) {
         uint32_t  rs, rt, rd, op1;
 
-        rs = extract32(ctx->opcode, 21, 5);
-        rt = extract32(ctx->opcode, 16, 5);
-        rd = extract32(ctx->opcode, 11, 5);
-        op1 = MASK_SPECIAL2(ctx->opcode);
+        rs = extract32(insn, 21, 5);
+        rt = extract32(insn, 16, 5);
+        rd = extract32(insn, 11, 5);
+        op1 = MASK_SPECIAL2(insn);
 
         gen_arith(ctx, op1, rd, rs, rt);
 
@@ -26995,7 +26995,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
 #endif
 #if !defined(TARGET_MIPS64)
         if (ctx->insn_flags & ASE_MXU) {
-            decode_opc_mxu(ctx);
+            decode_opc_mxu(ctx, ctx->opcode);
             break;
         }
 #endif
