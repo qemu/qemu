@@ -104,7 +104,7 @@ void asan_giovese_init(void) {
 
 #if UINTPTR_MAX == 0xffffffff
   fprintf(stderr, "ERROR: Cannot allocate sanitizer shadow memory on 32 bit "
-                  "platforms."):
+                  "platforms.");
   exit(1);
 #else
   assert(mmap(__ag_high_shadow, HIGH_SHADOW_SIZE, PROT_READ | PROT_WRITE,
