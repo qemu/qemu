@@ -973,6 +973,39 @@ static void test_acpi_piix4_tcg_memhp(void)
     free_test_data(&data);
 }
 
+static void test_acpi_piix4_tcg_nosmm(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_PC;
+    data.variant = ".nosmm";
+    test_acpi_one("-machine smm=off", &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_piix4_tcg_smm_compat(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_PC;
+    data.variant = ".smm-compat";
+    test_acpi_one("-global PIIX4_PM.smm-compat=on", &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_piix4_tcg_smm_compat_nosmm(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_PC;
+    data.variant = ".smm-compat-nosmm";
+    test_acpi_one("-global PIIX4_PM.smm-compat=on -machine smm=off", &data);
+    free_test_data(&data);
+}
+
 static void test_acpi_q35_tcg_numamem(void)
 {
     test_data data;
@@ -982,6 +1015,39 @@ static void test_acpi_q35_tcg_numamem(void)
     data.variant = ".numamem";
     test_acpi_one(" -object memory-backend-ram,id=ram0,size=128M"
                   " -numa node -numa node,memdev=ram0", &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_q35_tcg_nosmm(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".nosmm";
+    test_acpi_one("-machine smm=off", &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_q35_tcg_smm_compat(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".smm-compat";
+    test_acpi_one("-global ICH9-LPC.smm-compat=on", &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_q35_tcg_smm_compat_nosmm(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".smm-compat-nosmm";
+    test_acpi_one("-global ICH9-LPC.smm-compat=on -machine smm=off", &data);
     free_test_data(&data);
 }
 
@@ -1445,6 +1511,16 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/q35/memhp", test_acpi_q35_tcg_memhp);
         qtest_add_func("acpi/piix4/numamem", test_acpi_piix4_tcg_numamem);
         qtest_add_func("acpi/q35/numamem", test_acpi_q35_tcg_numamem);
+        qtest_add_func("acpi/piix4/nosmm", test_acpi_piix4_tcg_nosmm);
+        qtest_add_func("acpi/piix4/smm-compat",
+                       test_acpi_piix4_tcg_smm_compat);
+        qtest_add_func("acpi/piix4/smm-compat-nosmm",
+                       test_acpi_piix4_tcg_smm_compat_nosmm);
+        qtest_add_func("acpi/q35/nosmm", test_acpi_q35_tcg_nosmm);
+        qtest_add_func("acpi/q35/smm-compat",
+                       test_acpi_q35_tcg_smm_compat);
+        qtest_add_func("acpi/q35/smm-compat-nosmm",
+                       test_acpi_q35_tcg_smm_compat_nosmm);
         qtest_add_func("acpi/piix4/dimmpxm", test_acpi_piix4_tcg_dimm_pxm);
         qtest_add_func("acpi/q35/dimmpxm", test_acpi_q35_tcg_dimm_pxm);
         qtest_add_func("acpi/piix4/acpihmat", test_acpi_piix4_tcg_acpi_hmat);
