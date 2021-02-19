@@ -110,14 +110,14 @@ static uint64_t mps2_scc_read(void *opaque, hwaddr offset, unsigned size)
         r = s->cfg1;
         break;
     case A_CFG2:
-        if (scc_partno(s) != 0x524) {
+        if (scc_partno(s) != 0x524 && scc_partno(s) != 0x547) {
             /* CFG2 reserved on other boards */
             goto bad_offset;
         }
         r = s->cfg2;
         break;
     case A_CFG3:
-        if (scc_partno(s) == 0x524) {
+        if (scc_partno(s) == 0x524 && scc_partno(s) == 0x547) {
             /* CFG3 reserved on AN524 */
             goto bad_offset;
         }
@@ -130,7 +130,7 @@ static uint64_t mps2_scc_read(void *opaque, hwaddr offset, unsigned size)
         r = s->cfg4;
         break;
     case A_CFG5:
-        if (scc_partno(s) != 0x524) {
+        if (scc_partno(s) != 0x524 && scc_partno(s) != 0x547) {
             /* CFG5 reserved on other boards */
             goto bad_offset;
         }
@@ -185,7 +185,10 @@ static void mps2_scc_write(void *opaque, hwaddr offset, uint64_t value,
 
     switch (offset) {
     case A_CFG0:
-        /* TODO on some boards bit 0 controls RAM remapping */
+        /*
+         * TODO on some boards bit 0 controls RAM remapping;
+         * on others bit 1 is CPU_WAIT.
+         */
         s->cfg0 = value;
         break;
     case A_CFG1:
@@ -195,7 +198,7 @@ static void mps2_scc_write(void *opaque, hwaddr offset, uint64_t value,
         }
         break;
     case A_CFG2:
-        if (scc_partno(s) != 0x524) {
+        if (scc_partno(s) != 0x524 && scc_partno(s) != 0x547) {
             /* CFG2 reserved on other boards */
             goto bad_offset;
         }
@@ -203,7 +206,7 @@ static void mps2_scc_write(void *opaque, hwaddr offset, uint64_t value,
         s->cfg2 = value;
         break;
     case A_CFG5:
-        if (scc_partno(s) != 0x524) {
+        if (scc_partno(s) != 0x524 && scc_partno(s) != 0x547) {
             /* CFG5 reserved on other boards */
             goto bad_offset;
         }
