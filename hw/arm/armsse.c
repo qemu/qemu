@@ -30,6 +30,7 @@ struct ARMSSEInfo {
     int sram_banks;
     int num_cpus;
     uint32_t sys_version;
+    uint32_t iidr;
     uint32_t cpuwait_rst;
     bool has_mhus;
     bool has_ppus;
@@ -70,6 +71,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .sram_banks = 1,
         .num_cpus = 1,
         .sys_version = 0x41743,
+        .iidr = 0,
         .cpuwait_rst = 0,
         .has_mhus = false,
         .has_ppus = false,
@@ -84,6 +86,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .sram_banks = 4,
         .num_cpus = 2,
         .sys_version = 0x22041743,
+        .iidr = 0,
         .cpuwait_rst = 2,
         .has_mhus = true,
         .has_ppus = true,
@@ -950,6 +953,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
     object_property_set_int(OBJECT(&s->sysinfo), "sse-version",
                             info->sse_version, &error_abort);
+    object_property_set_int(OBJECT(&s->sysinfo), "IIDR",
+                            info->iidr, &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sysinfo), errp)) {
         return;
     }

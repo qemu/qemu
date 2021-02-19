@@ -30,6 +30,8 @@
 
 REG32(SYS_VERSION, 0x0)
 REG32(SYS_CONFIG, 0x4)
+REG32(SYS_CONFIG1, 0x8)
+REG32(IIDR, 0xfc8)
 REG32(PID4, 0xfd0)
 REG32(PID5, 0xfd4)
 REG32(PID6, 0xfd8)
@@ -70,6 +72,24 @@ static uint64_t iotkit_sysinfo_read(void *opaque, hwaddr offset,
     case A_SYS_CONFIG:
         r = s->sys_config;
         break;
+    case A_SYS_CONFIG1:
+        switch (s->sse_version) {
+        case ARMSSE_SSE300:
+            return 0;
+            break;
+        default:
+            goto bad_read;
+        }
+        break;
+    case A_IIDR:
+        switch (s->sse_version) {
+        case ARMSSE_SSE300:
+            return s->iidr;
+            break;
+        default:
+            goto bad_read;
+        }
+        break;
     case A_PID4 ... A_CID3:
         switch (s->sse_version) {
         case ARMSSE_SSE300:
@@ -81,6 +101,7 @@ static uint64_t iotkit_sysinfo_read(void *opaque, hwaddr offset,
         }
         break;
     default:
+    bad_read:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "IoTKit SysInfo read: bad offset %x\n", (int)offset);
         r = 0;
@@ -114,6 +135,7 @@ static Property iotkit_sysinfo_props[] = {
     DEFINE_PROP_UINT32("SYS_VERSION", IoTKitSysInfo, sys_version, 0),
     DEFINE_PROP_UINT32("SYS_CONFIG", IoTKitSysInfo, sys_config, 0),
     DEFINE_PROP_UINT32("sse-version", IoTKitSysInfo, sse_version, 0),
+    DEFINE_PROP_UINT32("IIDR", IoTKitSysInfo, iidr, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 
