@@ -88,6 +88,11 @@ def get_image_size(path):
     return json.loads(out)['virtual-size']
 
 
+def get_blockdev_size(obj):
+    img = obj['filename'] if 'filename' in obj else obj['file']['filename']
+    return get_image_size(img)
+
+
 # Bench backup or mirror
 def bench_block_copy(qemu_binary, cmd, cmd_options, source, target):
     """Helper to run bench_block_job() for mirror or backup"""
@@ -101,7 +106,7 @@ def bench_block_copy(qemu_binary, cmd, cmd_options, source, target):
 
         subprocess.run(['qemu-img', 'create', '-f', 'qcow2',
                         target['file']['filename'],
-                        str(get_image_size(source['filename']))],
+                        str(get_blockdev_size(source))],
                        stdout=subprocess.DEVNULL,
                        stderr=subprocess.DEVNULL, check=True)
 

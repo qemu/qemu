@@ -58,6 +58,8 @@ def bench(args):
 
         if src == 'nbd':
             source = nbd_drv
+        elif args.qcow2_sources:
+            source = drv_qcow2(drv_file(dirs[src] + '/test-source.qcow2'))
         else:
             source = drv_file(dirs[src] + '/test-source')
 
@@ -199,6 +201,9 @@ Tests, in form source-dir-label:target-dir-label''',
 Use compressed backup. It automatically means
 automatically creating qcow2 target with
 lazy_refcounts for each test run''', action='store_true')
+    p.add_argument('--qcow2-sources', help='''\
+Use test-source.qcow2 images as sources instead of
+test-source raw images''', action='store_true')
     p.add_argument('--target-cache', help='''\
 Setup cache for target nodes. Options:
    direct: default, use O_DIRECT and aio=native
