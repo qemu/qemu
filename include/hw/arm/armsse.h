@@ -104,6 +104,7 @@
 #include "hw/misc/iotkit-sysinfo.h"
 #include "hw/misc/armsse-cpuid.h"
 #include "hw/misc/armsse-mhu.h"
+#include "hw/misc/armsse-cpu-pwrctrl.h"
 #include "hw/misc/unimp.h"
 #include "hw/or-irq.h"
 #include "hw/clock.h"
@@ -178,6 +179,8 @@ struct ARMSSE {
     UnimplementedDeviceState cpusecctrl[SSE_MAX_CPUS];
 
     ARMSSECPUID cpuid[SSE_MAX_CPUS];
+
+    ARMSSECPUPwrCtrl cpu_pwrctrl[SSE_MAX_CPUS];
 
     /*
      * 'container' holds all devices seen by all CPUs.

@@ -66,6 +66,7 @@ struct ARMSSEInfo {
     bool has_cachectrl;
     bool has_cpusecctrl;
     bool has_cpuid;
+    bool has_cpu_pwrctrl;
     bool has_sse_counter;
     Property *props;
     const ARMSSEDeviceInfo *devinfo;
@@ -364,6 +365,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cachectrl = false,
         .has_cpusecctrl = false,
         .has_cpuid = false,
+        .has_cpu_pwrctrl = false,
         .has_sse_counter = false,
         .props = iotkit_properties,
         .devinfo = iotkit_devices,
@@ -381,6 +383,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cachectrl = true,
         .has_cpusecctrl = true,
         .has_cpuid = true,
+        .has_cpu_pwrctrl = false,
         .has_sse_counter = false,
         .props = armsse_properties,
         .devinfo = sse200_devices,
@@ -657,6 +660,15 @@ static void armsse_init(Object *obj)
 
             object_initialize_child(obj, name, &s->cpuid[i],
                                     TYPE_ARMSSE_CPUID);
+            g_free(name);
+        }
+    }
+    if (info->has_cpu_pwrctrl) {
+        for (i = 0; i < info->num_cpus; i++) {
+            char *name = g_strdup_printf("cpu_pwrctrl%d", i);
+
+            object_initialize_child(obj, name, &s->cpu_pwrctrl[i],
+                                    TYPE_ARMSSE_CPU_PWRCTRL);
             g_free(name);
         }
     }
@@ -1255,6 +1267,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
      *  0x50010000: L1 icache control registers
      *  0x50011000: CPUSECCTRL (CPU local security control registers)
      *  0x4001f000 and 0x5001f000: CPU_IDENTITY register block
+     * The SSE-300 has an extra:
+     *  0x40012000 and 0x50012000: CPU_PWRCTRL register block
      */
     if (info->has_cachectrl) {
         for (i = 0; i < info->num_cpus; i++) {
@@ -1299,6 +1313,18 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
             mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->cpuid[i]), 0);
             memory_region_add_subregion(&s->cpu_container[i], 0x4001F000, mr);
+        }
+    }
+    if (info->has_cpu_pwrctrl) {
+        for (i = 0; i < info->num_cpus; i++) {
+            MemoryRegion *mr;
+
+            if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpu_pwrctrl[i]), errp)) {
+                return;
+            }
+
+            mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->cpu_pwrctrl[i]), 0);
+            memory_region_add_subregion(&s->cpu_container[i], 0x40012000, mr);
         }
     }
 
