@@ -319,8 +319,6 @@
 #
 # @encrypted: true if the backing device is encrypted
 #
-# @encryption_key_missing: always false
-#
 # @detect_zeroes: detect and optimize zero writes (Since 2.1)
 #
 # @bps: total throughput limit in bytes per second is specified
@@ -385,10 +383,6 @@
 # @dirty-bitmaps: dirty bitmaps information (only present if node
 #                 has one or more dirty bitmaps) (Since 4.2)
 #
-# Features:
-# @deprecated: Member @encryption_key_missing is deprecated.  It is
-#              always false.
-#
 # Since: 0.14
 #
 ##
@@ -396,8 +390,6 @@
   'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
             'encrypted': 'bool',
-            'encryption_key_missing': { 'type': 'bool',
-                                        'features': [ 'deprecated' ] },
             'detect_zeroes': 'BlockdevDetectZeroesOptions',
             'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int',
