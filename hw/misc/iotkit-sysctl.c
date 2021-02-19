@@ -52,6 +52,9 @@ REG32(CPUWAIT, 0x118)
 REG32(NMI_ENABLE, 0x11c) /* BUSWAIT in IoTKit */
 REG32(WICCTRL, 0x120)
 REG32(EWCTRL, 0x124)
+REG32(PWRCTRL, 0x1fc)
+    FIELD(PWRCTRL, PPU_ACCESS_UNLOCK, 0, 1)
+    FIELD(PWRCTRL, PPU_ACCESS_FILTER, 1, 1)
 REG32(PDCM_PD_SYS_SENSE, 0x200)
 REG32(PDCM_PD_SRAM0_SENSE, 0x20c)
 REG32(PDCM_PD_SRAM1_SENSE, 0x210)
@@ -228,6 +231,18 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         case ARMSSE_SSE300:
             /* In SSE300 this offset is is NMI_ENABLE */
             r = s->nmi_enable;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
+    case A_PWRCTRL:
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
+        case ARMSSE_SSE200:
+            goto bad_offset;
+        case ARMSSE_SSE300:
+            r = s->pwrctrl;
             break;
         default:
             g_assert_not_reached();
@@ -508,6 +523,23 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
             g_assert_not_reached();
         }
         break;
+    case A_PWRCTRL:
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
+        case ARMSSE_SSE200:
+            goto bad_offset;
+        case ARMSSE_SSE300:
+            if (!(s->pwrctrl & R_PWRCTRL_PPU_ACCESS_UNLOCK_MASK)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "IoTKit PWRCTRL write when register locked\n");
+                break;
+            }
+            s->pwrctrl = value;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
     case A_PDCM_PD_SYS_SENSE:
         switch (s->sse_version) {
         case ARMSSE_IOTKIT:
@@ -635,6 +667,7 @@ static void iotkit_sysctl_reset(DeviceState *dev)
     s->clock_force = 0;
     s->nmi_enable = 0;
     s->ewctrl = 0;
+    s->pwrctrl = 0x3;
     s->pdcm_pd_sys_sense = 0x7f;
     s->pdcm_pd_sram0_sense = 0;
     s->pdcm_pd_sram1_sense = 0;
@@ -661,6 +694,24 @@ static void iotkit_sysctl_realize(DeviceState *dev, Error **errp)
         return;
     }
 }
+
+static bool sse300_needed(void *opaque)
+{
+    IoTKitSysCtl *s = IOTKIT_SYSCTL(opaque);
+
+    return s->sse_version == ARMSSE_SSE300;
+}
+
+static const VMStateDescription iotkit_sysctl_sse300_vmstate = {
+    .name = "iotkit-sysctl/sse-300",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = sse300_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(pwrctrl, IoTKitSysCtl),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static bool sse200_needed(void *opaque)
 {
@@ -706,6 +757,7 @@ static const VMStateDescription iotkit_sysctl_vmstate = {
     },
     .subsections = (const VMStateDescription*[]) {
         &iotkit_sysctl_sse200_vmstate,
+        &iotkit_sysctl_sse300_vmstate,
         NULL
     }
 };
