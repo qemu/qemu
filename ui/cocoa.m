@@ -1115,7 +1115,13 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaAppController: applicationWillTerminate\n");
 
     qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_UI);
-    exit(0);
+
+    /*
+     * Sleep here, because returning will cause OSX to kill us
+     * immediately; the QEMU main loop will handle the shutdown
+     * request and terminate the process.
+     */
+    [NSThread sleepForTimeInterval:INFINITY];
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)theApplication
