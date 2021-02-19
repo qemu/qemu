@@ -28,12 +28,6 @@ The 'file' driver for drives is no longer appropriate for character or host
 devices and will only accept regular files (S_IFREG). The correct driver
 for these file types is 'host_cdrom' or 'host_device' as appropriate.
 
-``-vnc acl`` (since 4.0.0)
-''''''''''''''''''''''''''
-
-The ``acl`` option to the ``-vnc`` argument has been replaced
-by the ``tls-authz`` and ``sasl-authz`` options.
-
 ``QEMU_AUDIO_`` environment variables and ``-audio-help`` (since 4.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -280,16 +274,6 @@ the 'wait' field, which is only applicable to sockets in server mode
 Use the more generic commands ``block-export-add`` and ``block-export-del``
 instead.  As part of this deprecation, where ``nbd-server-add`` used a
 single ``bitmap``, the new ``block-export-add`` uses a list of ``bitmaps``.
-
-Human Monitor Protocol (HMP) commands
--------------------------------------
-
-``acl_show``, ``acl_reset``, ``acl_policy``, ``acl_add``, ``acl_remove`` (since 4.0.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``acl_show``, ``acl_reset``, ``acl_policy``, ``acl_add``, and
-``acl_remove`` commands are deprecated with no replacement. Authorization
-for VNC should be performed using the pluggable QAuthZ objects.
 
 System emulator CPUS
 --------------------

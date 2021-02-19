@@ -3508,9 +3508,6 @@ static QemuOptsList qemu_vnc_opts = {
             .name = "sasl",
             .type = QEMU_OPT_BOOL,
         },{
-            .name = "acl",
-            .type = QEMU_OPT_BOOL,
-        },{
             .name = "tls-authz",
             .type = QEMU_OPT_STRING,
         },{
@@ -3961,7 +3958,6 @@ void vnc_display_open(const char *id, Error **errp)
     bool reverse = false;
     const char *credid;
     bool sasl = false;
-    int acl = 0;
     const char *tlsauthz;
     const char *saslauthz;
     int lock_key_sync = 1;
@@ -4053,29 +4049,13 @@ void vnc_display_open(const char *id, Error **errp)
             goto fail;
         }
     }
-    if (qemu_opt_get(opts, "acl")) {
-        error_report("The 'acl' option to -vnc is deprecated. "
-                     "Please use the 'tls-authz' and 'sasl-authz' "
-                     "options instead");
-    }
-    acl = qemu_opt_get_bool(opts, "acl", false);
     tlsauthz = qemu_opt_get(opts, "tls-authz");
-    if (acl && tlsauthz) {
-        error_setg(errp, "'acl' option is mutually exclusive with the "
-                   "'tls-authz' option");
-        goto fail;
-    }
     if (tlsauthz && !vd->tlscreds) {
         error_setg(errp, "'tls-authz' provided but TLS is not enabled");
         goto fail;
     }
 
     saslauthz = qemu_opt_get(opts, "sasl-authz");
-    if (acl && saslauthz) {
-        error_setg(errp, "'acl' option is mutually exclusive with the "
-                   "'sasl-authz' option");
-        goto fail;
-    }
     if (saslauthz && !sasl) {
         error_setg(errp, "'sasl-authz' provided but SASL auth is not enabled");
         goto fail;
@@ -4113,29 +4093,11 @@ void vnc_display_open(const char *id, Error **errp)
 
     if (tlsauthz) {
         vd->tlsauthzid = g_strdup(tlsauthz);
-    } else if (acl) {
-        if (strcmp(vd->id, "default") == 0) {
-            vd->tlsauthzid = g_strdup("vnc.x509dname");
-        } else {
-            vd->tlsauthzid = g_strdup_printf("vnc.%s.x509dname", vd->id);
-        }
-        vd->tlsauthz = QAUTHZ(qauthz_list_new(vd->tlsauthzid,
-                                              QAUTHZ_LIST_POLICY_DENY,
-                                              &error_abort));
     }
 #ifdef CONFIG_VNC_SASL
     if (sasl) {
         if (saslauthz) {
             vd->sasl.authzid = g_strdup(saslauthz);
-        } else if (acl) {
-            if (strcmp(vd->id, "default") == 0) {
-                vd->sasl.authzid = g_strdup("vnc.username");
-            } else {
-                vd->sasl.authzid = g_strdup_printf("vnc.%s.username", vd->id);
-            }
-            vd->sasl.authz = QAUTHZ(qauthz_list_new(vd->sasl.authzid,
-                                                    QAUTHZ_LIST_POLICY_DENY,
-                                                    &error_abort));
         }
     }
 #endif
