@@ -34,6 +34,13 @@
 
 #define NO_IRQ -1
 #define NO_PPC -1
+/*
+ * Special values for ARMSSEDeviceInfo::irq to indicate that this
+ * device uses one of the inputs to the OR gate that feeds into the
+ * CPU NMI input.
+ */
+#define NMI_0 10000
+#define NMI_1 10001
 
 typedef struct ARMSSEDeviceInfo {
     const char *name; /* name to use for the QOM object; NULL terminates list */
@@ -42,7 +49,8 @@ typedef struct ARMSSEDeviceInfo {
     hwaddr addr;
     int ppc; /* Index of APB PPC this device is wired up to, or NO_PPC */
     int ppc_port; /* Port number of this device on the PPC */
-    int irq; /* NO_IRQ, or 0..NUM_SSE_IRQS-1 */
+    int irq; /* NO_IRQ, or 0..NUM_SSE_IRQS-1, or NMI_0 or NMI_1 */
+    bool slowclk; /* true if device uses the slow 32KHz clock */
 } ARMSSEDeviceInfo;
 
 struct ARMSSEInfo {
@@ -113,6 +121,31 @@ static const ARMSSEDeviceInfo sse200_devices[] = {
         .ppc = 0,
         .ppc_port = 2,
         .irq = 5,
+    },
+    {
+        .name = "s32kwatchdog",
+        .type = TYPE_CMSDK_APB_WATCHDOG,
+        .index = 0,
+        .addr = 0x5002e000,
+        .ppc = NO_PPC,
+        .irq = NMI_0,
+        .slowclk = true,
+    },
+    {
+        .name = "nswatchdog",
+        .type = TYPE_CMSDK_APB_WATCHDOG,
+        .index = 1,
+        .addr = 0x40081000,
+        .ppc = NO_PPC,
+        .irq = 1,
+    },
+    {
+        .name = "swatchdog",
+        .type = TYPE_CMSDK_APB_WATCHDOG,
+        .index = 2,
+        .addr = 0x50081000,
+        .ppc = NO_PPC,
+        .irq = NMI_1,
     },
     {
         .name = NULL,
@@ -359,6 +392,11 @@ static void armsse_init(Object *obj)
             assert(devinfo->index == 0);
             object_initialize_child(obj, devinfo->name, &s->dualtimer,
                                     TYPE_CMSDK_APB_DUALTIMER);
+        } else if (!strcmp(devinfo->type, TYPE_CMSDK_APB_WATCHDOG)) {
+            assert(devinfo->index < ARRAY_SIZE(s->cmsdk_watchdog));
+            object_initialize_child(obj, devinfo->name,
+                                    &s->cmsdk_watchdog[devinfo->index],
+                                    TYPE_CMSDK_APB_WATCHDOG);
         } else {
             g_assert_not_reached();
         }
@@ -386,14 +424,9 @@ static void armsse_init(Object *obj)
         object_initialize_child(obj, name, splitter, TYPE_SPLIT_IRQ);
         g_free(name);
     }
+
     object_initialize_child(obj, "s32ktimer", &s->s32ktimer,
                             TYPE_CMSDK_APB_TIMER);
-    object_initialize_child(obj, "s32kwatchdog", &s->s32kwatchdog,
-                            TYPE_CMSDK_APB_WATCHDOG);
-    object_initialize_child(obj, "nswatchdog", &s->nswatchdog,
-                            TYPE_CMSDK_APB_WATCHDOG);
-    object_initialize_child(obj, "swatchdog", &s->swatchdog,
-                            TYPE_CMSDK_APB_WATCHDOG);
     object_initialize_child(obj, "armsse-sysctl", &s->sysctl,
                             TYPE_IOTKIT_SYSCTL);
     object_initialize_child(obj, "armsse-sysinfo", &s->sysinfo,
@@ -797,6 +830,17 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     qdev_connect_gpio_out(DEVICE(&s->mpc_irq_orgate), 0,
                           armsse_get_common_irq_in(s, 9));
 
+    /* This OR gate wires together outputs from the secure watchdogs to NMI */
+    if (!object_property_set_int(OBJECT(&s->nmi_orgate), "num-lines", 2,
+                                 errp)) {
+        return;
+    }
+    if (!qdev_realize(DEVICE(&s->nmi_orgate), NULL, errp)) {
+        return;
+    }
+    qdev_connect_gpio_out(DEVICE(&s->nmi_orgate), 0,
+                          qdev_get_gpio_in_named(DEVICE(&s->armv7m), "NMI", 0));
+
     /* Devices behind APB PPC0:
      *   0x40000000: timer0
      *   0x40001000: timer1
@@ -827,6 +871,15 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                 return;
             }
             mr = sysbus_mmio_get_region(sbd, 0);
+        } else if (!strcmp(devinfo->type, TYPE_CMSDK_APB_WATCHDOG)) {
+            sbd = SYS_BUS_DEVICE(&s->cmsdk_watchdog[devinfo->index]);
+
+            qdev_connect_clock_in(DEVICE(sbd), "WDOGCLK",
+                                  devinfo->slowclk ? s->s32kclk : s->mainclk);
+            if (!sysbus_realize(sbd, errp)) {
+                return;
+            }
+            mr = sysbus_mmio_get_region(sbd, 0);
         } else {
             g_assert_not_reached();
         }
@@ -837,6 +890,11 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             break;
         case 0 ... NUM_SSE_IRQS - 1:
             irq = armsse_get_common_irq_in(s, devinfo->irq);
+            break;
+        case NMI_0:
+        case NMI_1:
+            irq = qdev_get_gpio_in(DEVICE(&s->nmi_orgate),
+                                   devinfo->irq - NMI_0);
             break;
         default:
             g_assert_not_reached();
@@ -1107,43 +1165,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             g_free(name);
         }
     }
-
-    /* This OR gate wires together outputs from the secure watchdogs to NMI */
-    if (!object_property_set_int(OBJECT(&s->nmi_orgate), "num-lines", 2,
-                                 errp)) {
-        return;
-    }
-    if (!qdev_realize(DEVICE(&s->nmi_orgate), NULL, errp)) {
-        return;
-    }
-    qdev_connect_gpio_out(DEVICE(&s->nmi_orgate), 0,
-                          qdev_get_gpio_in_named(DEVICE(&s->armv7m), "NMI", 0));
-
-    qdev_connect_clock_in(DEVICE(&s->s32kwatchdog), "WDOGCLK", s->s32kclk);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->s32kwatchdog), errp)) {
-        return;
-    }
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->s32kwatchdog), 0,
-                       qdev_get_gpio_in(DEVICE(&s->nmi_orgate), 0));
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->s32kwatchdog), 0, 0x5002e000);
-
-    /* 0x40080000 .. 0x4008ffff : ARMSSE second Base peripheral region */
-
-    qdev_connect_clock_in(DEVICE(&s->nswatchdog), "WDOGCLK", s->mainclk);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->nswatchdog), errp)) {
-        return;
-    }
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->nswatchdog), 0,
-                       armsse_get_common_irq_in(s, 1));
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->nswatchdog), 0, 0x40081000);
-
-    qdev_connect_clock_in(DEVICE(&s->swatchdog), "WDOGCLK", s->mainclk);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->swatchdog), errp)) {
-        return;
-    }
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->swatchdog), 0,
-                       qdev_get_gpio_in(DEVICE(&s->nmi_orgate), 1));
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->swatchdog), 0, 0x50081000);
 
     for (i = 0; i < ARRAY_SIZE(s->ppc_irq_splitter); i++) {
         Object *splitter = OBJECT(&s->ppc_irq_splitter[i]);

@@ -171,9 +171,7 @@ struct ARMSSE {
 
     CMSDKAPBDualTimer dualtimer;
 
-    CMSDKAPBWatchdog s32kwatchdog;
-    CMSDKAPBWatchdog nswatchdog;
-    CMSDKAPBWatchdog swatchdog;
+    CMSDKAPBWatchdog cmsdk_watchdog[3];
 
     IoTKitSysCtl sysctl;
     IoTKitSysCtl sysinfo;
