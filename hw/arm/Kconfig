@@ -520,6 +520,7 @@ config ARMSSE
     select TZ_MSC
     select TZ_PPC
     select UNIMP
+    select SSE_COUNTER
 
 config ARMSSE_CPUID
     bool
