@@ -39,10 +39,12 @@ struct MPS2FPGAIO {
     LEDState *led[MPS2FPGAIO_MAX_LEDS];
     uint32_t num_leds;
     bool has_switches;
+    bool has_dbgctrl;
 
     uint32_t led0;
     uint32_t prescale;
     uint32_t misc;
+    uint32_t dbgctrl;
 
     /* QEMU_CLOCK_VIRTUAL time at which counter and pscntr were last synced */
     int64_t pscntr_sync_ticks;
