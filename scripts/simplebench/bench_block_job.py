@@ -70,6 +70,10 @@ def bench_block_job(cmd, cmd_args, qemu_args):
             vm.shutdown()
             return {'error': 'block-job failed: ' + str(e),
                     'vm-log': vm.get_log()}
+        if 'error' in e['data']:
+            vm.shutdown()
+            return {'error': 'block-job failed: ' + e['data']['error'],
+                    'vm-log': vm.get_log()}
         end_ms = e['timestamp']['seconds'] * 1000000 + \
             e['timestamp']['microseconds']
     finally:
