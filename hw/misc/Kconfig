@@ -8,6 +8,9 @@ config ARMSSE_CPUID
 config ARMSSE_MHU
     bool
 
+config ARMSSE_CPU_PWRCTRL
+    bool
+
 config MAX111X
     bool
 
