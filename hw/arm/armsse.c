@@ -66,6 +66,7 @@ struct ARMSSEInfo {
     bool has_cachectrl;
     bool has_cpusecctrl;
     bool has_cpuid;
+    bool has_sse_counter;
     Property *props;
     const ARMSSEDeviceInfo *devinfo;
     const bool *irq_is_common;
@@ -363,6 +364,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cachectrl = false,
         .has_cpusecctrl = false,
         .has_cpuid = false,
+        .has_sse_counter = false,
         .props = iotkit_properties,
         .devinfo = iotkit_devices,
         .irq_is_common = sse200_irq_is_common,
@@ -379,6 +381,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cachectrl = true,
         .has_cpusecctrl = true,
         .has_cpuid = true,
+        .has_sse_counter = false,
         .props = armsse_properties,
         .devinfo = sse200_devices,
         .irq_is_common = sse200_irq_is_common,
@@ -652,6 +655,11 @@ static void armsse_init(Object *obj)
             g_free(name);
         }
     }
+    if (info->has_sse_counter) {
+        object_initialize_child(obj, "sse-counter", &s->sse_counter,
+                                TYPE_SSE_COUNTER);
+    }
+
     object_initialize_child(obj, "nmi-orgate", &s->nmi_orgate, TYPE_OR_IRQ);
     object_initialize_child(obj, "ppc-irq-orgate", &s->ppc_irq_orgate,
                             TYPE_OR_IRQ);
@@ -999,6 +1007,25 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
     qdev_connect_gpio_out(DEVICE(&s->nmi_orgate), 0,
                           qdev_get_gpio_in_named(DEVICE(&s->armv7m), "NMI", 0));
+
+    /* The SSE-300 has a System Counter / System Timestamp Generator */
+    if (info->has_sse_counter) {
+        SysBusDevice *sbd = SYS_BUS_DEVICE(&s->sse_counter);
+
+        qdev_connect_clock_in(DEVICE(sbd), "CLK", s->mainclk);
+        if (!sysbus_realize(sbd, errp)) {
+            return;
+        }
+        /*
+         * The control frame is only in the Secure region;
+         * the status frame is in the NS region (and visible in the
+         * S region via the alias mapping).
+         */
+        memory_region_add_subregion(&s->container, 0x58100000,
+                                    sysbus_mmio_get_region(sbd, 0));
+        memory_region_add_subregion(&s->container, 0x48101000,
+                                    sysbus_mmio_get_region(sbd, 1));
+    }
 
     /* Devices behind APB PPC0:
      *   0x40000000: timer0

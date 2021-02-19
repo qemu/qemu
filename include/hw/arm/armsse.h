@@ -97,6 +97,7 @@
 #include "hw/misc/tz-mpc.h"
 #include "hw/timer/cmsdk-apb-timer.h"
 #include "hw/timer/cmsdk-apb-dualtimer.h"
+#include "hw/timer/sse-counter.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
 #include "hw/misc/iotkit-sysctl.h"
 #include "hw/misc/iotkit-sysinfo.h"
@@ -163,6 +164,8 @@ struct ARMSSE {
     CMSDKAPBDualTimer dualtimer;
 
     CMSDKAPBWatchdog cmsdk_watchdog[3];
+
+    SSECounter sse_counter;
 
     IoTKitSysCtl sysctl;
     IoTKitSysCtl sysinfo;
