@@ -654,6 +654,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
 
     /* Security controller */
+    object_property_set_int(OBJECT(&s->secctl), "sse-version",
+                            info->sse_version, &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->secctl), errp)) {
         return;
     }
