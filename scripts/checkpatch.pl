@@ -1499,7 +1499,7 @@ sub process {
 			$is_patch = 1;
 		}
 
-		if ($line =~ /^Author: .*via Qemu-devel.*<qemu-devel\@nongnu.org>/) {
+		if ($line =~ /^(Author|From): .* via .*<qemu-devel\@nongnu.org>/) {
 		    ERROR("Author email address is mangled by the mailing list\n" . $herecurr);
 		}
 

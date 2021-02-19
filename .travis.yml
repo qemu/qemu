@@ -86,9 +86,11 @@ git:
   submodules: false
 
 # Common first phase for all steps
+# We no longer use nproc to calculate jobs:
+# https://travis-ci.community/t/nproc-reports-32-cores-on-arm64/5851
 before_install:
   - if command -v ccache ; then ccache --zero-stats ; fi
-  - export JOBS=$(($(getconf _NPROCESSORS_ONLN) + 1))
+  - export JOBS=3
   - echo "=== Using ${JOBS} simultaneous jobs ==="
 
 # Configure step - may be overridden
