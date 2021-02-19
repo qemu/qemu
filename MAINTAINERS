@@ -757,6 +757,7 @@ F: hw/timer/sse-counter.c
 F: include/hw/timer/sse-counter.h
 F: hw/timer/sse-timer.c
 F: include/hw/timer/sse-timer.h
+F: tests/qtest/sse-timer-test.c
 F: docs/system/arm/mps2.rst
 
 Musca
