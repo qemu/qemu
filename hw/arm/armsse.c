@@ -24,12 +24,6 @@
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
 
-/* Format of the System Information block SYS_CONFIG register */
-typedef enum SysConfigFormat {
-    IoTKitFormat,
-    SSE200Format,
-} SysConfigFormat;
-
 struct ARMSSEInfo {
     const char *name;
     uint32_t sse_version;
@@ -37,7 +31,6 @@ struct ARMSSEInfo {
     int num_cpus;
     uint32_t sys_version;
     uint32_t cpuwait_rst;
-    SysConfigFormat sys_config_format;
     bool has_mhus;
     bool has_ppus;
     bool has_cachectrl;
@@ -78,7 +71,6 @@ static const ARMSSEInfo armsse_variants[] = {
         .num_cpus = 1,
         .sys_version = 0x41743,
         .cpuwait_rst = 0,
-        .sys_config_format = IoTKitFormat,
         .has_mhus = false,
         .has_ppus = false,
         .has_cachectrl = false,
@@ -93,7 +85,6 @@ static const ARMSSEInfo armsse_variants[] = {
         .num_cpus = 2,
         .sys_version = 0x22041743,
         .cpuwait_rst = 2,
-        .sys_config_format = SSE200Format,
         .has_mhus = true,
         .has_ppus = true,
         .has_cachectrl = true,
@@ -108,13 +99,13 @@ static uint32_t armsse_sys_config_value(ARMSSE *s, const ARMSSEInfo *info)
     /* Return the SYS_CONFIG value for this SSE */
     uint32_t sys_config;
 
-    switch (info->sys_config_format) {
-    case IoTKitFormat:
+    switch (info->sse_version) {
+    case ARMSSE_IOTKIT:
         sys_config = 0;
         sys_config = deposit32(sys_config, 0, 4, info->sram_banks);
         sys_config = deposit32(sys_config, 4, 4, s->sram_addr_width - 12);
         break;
-    case SSE200Format:
+    case ARMSSE_SSE200:
         sys_config = 0;
         sys_config = deposit32(sys_config, 0, 4, info->sram_banks);
         sys_config = deposit32(sys_config, 4, 5, s->sram_addr_width);
@@ -124,6 +115,12 @@ static uint32_t armsse_sys_config_value(ARMSSE *s, const ARMSSEInfo *info)
             sys_config = deposit32(sys_config, 20, 4, info->sram_banks - 1);
             sys_config = deposit32(sys_config, 28, 4, 2);
         }
+        break;
+    case ARMSSE_SSE300:
+        sys_config = 0;
+        sys_config = deposit32(sys_config, 0, 4, info->sram_banks);
+        sys_config = deposit32(sys_config, 4, 5, s->sram_addr_width);
+        sys_config = deposit32(sys_config, 16, 3, 3); /* CPU0 = Cortex-M55 */
         break;
     default:
         g_assert_not_reached();
