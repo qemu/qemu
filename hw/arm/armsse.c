@@ -578,6 +578,11 @@ static void armsse_init(Object *obj)
             assert(devinfo->index == 0);
             object_initialize_child(obj, devinfo->name, &s->dualtimer,
                                     TYPE_CMSDK_APB_DUALTIMER);
+        } else if (!strcmp(devinfo->type, TYPE_SSE_TIMER)) {
+            assert(devinfo->index < ARRAY_SIZE(s->sse_timer));
+            object_initialize_child(obj, devinfo->name,
+                                    &s->sse_timer[devinfo->index],
+                                    TYPE_SSE_TIMER);
         } else if (!strcmp(devinfo->type, TYPE_CMSDK_APB_WATCHDOG)) {
             assert(devinfo->index < ARRAY_SIZE(s->cmsdk_watchdog));
             object_initialize_child(obj, devinfo->name,
@@ -1054,6 +1059,16 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             sbd = SYS_BUS_DEVICE(&s->dualtimer);
 
             qdev_connect_clock_in(DEVICE(sbd), "TIMCLK", s->mainclk);
+            if (!sysbus_realize(sbd, errp)) {
+                return;
+            }
+            mr = sysbus_mmio_get_region(sbd, 0);
+        } else if (!strcmp(devinfo->type, TYPE_SSE_TIMER)) {
+            sbd = SYS_BUS_DEVICE(&s->sse_timer[devinfo->index]);
+
+            assert(info->has_sse_counter);
+            object_property_set_link(OBJECT(sbd), "counter",
+                                     OBJECT(&s->sse_counter), &error_abort);
             if (!sysbus_realize(sbd, errp)) {
                 return;
             }
