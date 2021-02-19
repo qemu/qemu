@@ -5,7 +5,7 @@ QA output created by 241
   size:  1024
   min block: 1
 [{ "start": 0, "length": 1000, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 1000, "length": 24, "depth": 0, "zero": true, "data": true, "offset": OFFSET}]
+{ "start": 1000, "length": 24, "depth": 0, "zero": true, "data": false, "offset": OFFSET}]
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
 
 === Exporting unaligned raw image, forced server sector alignment ===
@@ -23,6 +23,6 @@ WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed
   size:  1024
   min block: 1
 [{ "start": 0, "length": 1000, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 1000, "length": 24, "depth": 0, "zero": true, "data": true, "offset": OFFSET}]
+{ "start": 1000, "length": 24, "depth": 0, "zero": true, "data": false, "offset": OFFSET}]
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
 *** done
