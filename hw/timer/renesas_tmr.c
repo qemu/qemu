@@ -46,8 +46,8 @@ REG8(TCCR, 10)
   FIELD(TCCR, CSS,   3, 2)
   FIELD(TCCR, TMRIS, 7, 1)
 
-#define INTERNAL  0x01
-#define CASCADING 0x03
+#define CSS_INTERNAL  0x01
+#define CSS_CASCADING 0x03
 #define CCLR_A    0x01
 #define CCLR_B    0x02
 
@@ -72,7 +72,7 @@ static void update_events(RTMRState *tmr, int ch)
         /* event not happened */
         return ;
     }
-    if (FIELD_EX8(tmr->tccr[0], TCCR, CSS) == CASCADING) {
+    if (FIELD_EX8(tmr->tccr[0], TCCR, CSS) == CSS_CASCADING) {
         /* cascading mode */
         if (ch == 1) {
             tmr->next[ch] = none;
@@ -130,7 +130,7 @@ static uint16_t read_tcnt(RTMRState *tmr, unsigned size, int ch)
     if (delta > 0) {
         tmr->tick = now;
 
-        if (FIELD_EX8(tmr->tccr[1], TCCR, CSS) == INTERNAL) {
+        if (FIELD_EX8(tmr->tccr[1], TCCR, CSS) == CSS_INTERNAL) {
             /* timer1 count update */
             elapsed = elapsed_time(tmr, 1, delta);
             if (elapsed >= 0x100) {
@@ -139,11 +139,11 @@ static uint16_t read_tcnt(RTMRState *tmr, unsigned size, int ch)
             tcnt[1] = tmr->tcnt[1] + (elapsed & 0xff);
         }
         switch (FIELD_EX8(tmr->tccr[0], TCCR, CSS)) {
-        case INTERNAL:
+        case CSS_INTERNAL:
             elapsed = elapsed_time(tmr, 0, delta);
             tcnt[0] = tmr->tcnt[0] + elapsed;
             break;
-        case CASCADING:
+        case CSS_CASCADING:
             if (ovf > 0) {
                 tcnt[0] = tmr->tcnt[0] + ovf;
             }
@@ -330,7 +330,7 @@ static uint16_t issue_event(RTMRState *tmr, int ch, int sz,
                 qemu_irq_pulse(tmr->cmia[ch]);
             }
             if (sz == 8 && ch == 0 &&
-                FIELD_EX8(tmr->tccr[1], TCCR, CSS) == CASCADING) {
+                FIELD_EX8(tmr->tccr[1], TCCR, CSS) == CSS_CASCADING) {
                 tmr->tcnt[1]++;
                 timer_events(tmr, 1);
             }
@@ -362,7 +362,7 @@ static void timer_events(RTMRState *tmr, int ch)
     uint16_t tcnt;
 
     tmr->tcnt[ch] = read_tcnt(tmr, 1, ch);
-    if (FIELD_EX8(tmr->tccr[0], TCCR, CSS) != CASCADING) {
+    if (FIELD_EX8(tmr->tccr[0], TCCR, CSS) != CSS_CASCADING) {
         tmr->tcnt[ch] = issue_event(tmr, ch, 8,
                                     tmr->tcnt[ch],
                                     tmr->tcora[ch],
