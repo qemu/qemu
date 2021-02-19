@@ -166,6 +166,14 @@ static const ARMSSEDeviceInfo sse200_devices[] = {
         .irq = NO_IRQ,
     },
     {
+        .name = "armsse-sysctl",
+        .type = TYPE_IOTKIT_SYSCTL,
+        .index = 0,
+        .addr = 0x50021000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
         .name = NULL,
     }
 };
@@ -419,6 +427,10 @@ static void armsse_init(Object *obj)
             assert(devinfo->index == 0);
             object_initialize_child(obj, devinfo->name, &s->sysinfo,
                                     TYPE_IOTKIT_SYSINFO);
+        } else if (!strcmp(devinfo->type, TYPE_IOTKIT_SYSCTL)) {
+            assert(devinfo->index == 0);
+            object_initialize_child(obj, devinfo->name, &s->sysctl,
+                                    TYPE_IOTKIT_SYSCTL);
         } else {
             g_assert_not_reached();
         }
@@ -447,8 +459,6 @@ static void armsse_init(Object *obj)
         g_free(name);
     }
 
-    object_initialize_child(obj, "armsse-sysctl", &s->sysctl,
-                            TYPE_IOTKIT_SYSCTL);
     if (info->has_mhus) {
         object_initialize_child(obj, "mhu0", &s->mhu[0], TYPE_ARMSSE_MHU);
         object_initialize_child(obj, "mhu1", &s->mhu[1], TYPE_ARMSSE_MHU);
@@ -915,6 +925,22 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                 return;
             }
             mr = sysbus_mmio_get_region(sbd, 0);
+        } else if (!strcmp(devinfo->type, TYPE_IOTKIT_SYSCTL)) {
+            /* System control registers */
+            sbd = SYS_BUS_DEVICE(&s->sysctl);
+
+            object_property_set_int(OBJECT(&s->sysctl), "sse-version",
+                                    info->sse_version, &error_abort);
+            object_property_set_int(OBJECT(&s->sysctl), "CPUWAIT_RST",
+                                    info->cpuwait_rst, &error_abort);
+            object_property_set_int(OBJECT(&s->sysctl), "INITSVTOR0_RST",
+                                    s->init_svtor, &error_abort);
+            object_property_set_int(OBJECT(&s->sysctl), "INITSVTOR1_RST",
+                                    s->init_svtor, &error_abort);
+            if (!sysbus_realize(sbd, errp)) {
+                return;
+            }
+            mr = sysbus_mmio_get_region(sbd, 0);
         } else {
             g_assert_not_reached();
         }
@@ -1131,20 +1157,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         mr = sysbus_mmio_get_region(ppc_sbd, devinfo->ppc_port);
         memory_region_add_subregion(&s->container, devinfo->addr, mr);
     }
-
-    /* System control registers */
-    object_property_set_int(OBJECT(&s->sysctl), "sse-version",
-                            info->sse_version, &error_abort);
-    object_property_set_int(OBJECT(&s->sysctl), "CPUWAIT_RST",
-                            info->cpuwait_rst, &error_abort);
-    object_property_set_int(OBJECT(&s->sysctl), "INITSVTOR0_RST",
-                            s->init_svtor, &error_abort);
-    object_property_set_int(OBJECT(&s->sysctl), "INITSVTOR1_RST",
-                            s->init_svtor, &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sysctl), errp)) {
-        return;
-    }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sysctl), 0, 0x50021000);
 
     if (info->has_ppus) {
         /* CPUnCORE_PPU for each CPU */
