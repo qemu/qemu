@@ -67,10 +67,12 @@ def event_dist(e1, e2):
 def check_bitmaps(vm, count):
     result = vm.qmp('query-block')
 
+    info = result['return'][0].get('inserted', {})
+
     if count == 0:
-        assert 'dirty-bitmaps' not in result['return'][0]
+        assert 'dirty-bitmaps' not in info
     else:
-        assert len(result['return'][0]['dirty-bitmaps']) == count
+        assert len(info['dirty-bitmaps']) == count
 
 
 class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):

@@ -32,8 +32,9 @@ size = 64 * 1024 * 3
 
 def print_bitmap(msg, vm):
     result = vm.qmp('query-block')['return'][0]
-    if 'dirty-bitmaps' in result:
-        bitmap = result['dirty-bitmaps'][0]
+    info = result.get("inserted", {})
+    if 'dirty-bitmaps' in info:
+        bitmap = info['dirty-bitmaps'][0]
         log('{}: name={} dirty-clusters={}'.format(msg, bitmap['name'],
             bitmap['count'] // 64 // 1024))
     else:

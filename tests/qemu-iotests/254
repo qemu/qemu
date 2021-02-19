@@ -73,7 +73,7 @@ vm.qmp_log('transaction', indent=2, actions=[
 result = vm.qmp('query-block')['return'][0]
 log("query-block: device = {}, node-name = {}, dirty-bitmaps:".format(
     result['device'], result['inserted']['node-name']))
-log(result['dirty-bitmaps'], indent=2)
+log(result['inserted']['dirty-bitmaps'], indent=2)
 log("\nbitmaps in backing image:")
 log(result['inserted']['image']['backing-image']['format-specific'] \
     ['data']['bitmaps'], indent=2)

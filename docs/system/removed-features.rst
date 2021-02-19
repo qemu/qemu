@@ -127,6 +127,15 @@ The ``status`` field of the ``BlockDirtyInfo`` structure, returned by
 these commands is removed. Two new boolean fields, ``recording`` and
 ``busy`` effectively replace it.
 
+``query-block`` result field ``dirty-bitmaps`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``dirty-bitmaps`` field of the ``BlockInfo`` structure, returned by
+the query-block command is itself now removed. The ``dirty-bitmaps``
+field of the ``BlockDeviceInfo`` struct should be used instead, which is the
+type of the ``inserted`` field in query-block replies, as well as the
+type of array items in query-named-block-nodes.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 

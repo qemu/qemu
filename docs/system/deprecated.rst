@@ -198,19 +198,6 @@ Use arguments ``base-node`` and ``top-node`` instead.
 
 Specify the properties for the object as top-level arguments instead.
 
-``query-block`` result field ``dirty-bitmaps`` (Since 4.2)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``dirty-bitmaps`` field of the ``BlockInfo`` structure, returned by
-the query-block command is itself now deprecated. The ``dirty-bitmaps``
-field of the ``BlockDeviceInfo`` struct should be used instead, which is the
-type of the ``inserted`` field in query-block replies, as well as the
-type of array items in query-named-block-nodes.
-
-Since the ``dirty-bitmaps`` field is optionally present in both the old and
-new locations, clients must use introspection to learn where to anticipate
-the field if/when it does appear in command output.
-
 ``nbd-server-add`` and ``nbd-server-remove`` (since 5.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 

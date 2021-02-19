@@ -539,9 +539,6 @@
 # @tray_open: True if the device's tray is open
 #             (only present if it has a tray)
 #
-# @dirty-bitmaps: dirty bitmaps information (only present if the
-#                 driver has one or more dirty bitmaps) (Since 2.0)
-#
 # @io-status: @BlockDeviceIoStatus. Only present if the device
 #             supports it and the VM is configured to stop on errors
 #             (supported device models: virtio-blk, IDE, SCSI except
@@ -550,18 +547,12 @@
 # @inserted: @BlockDeviceInfo describing the device if media is
 #            present
 #
-# Features:
-# @deprecated: Member @dirty-bitmaps is deprecated.  Use @inserted
-#              member @dirty-bitmaps instead.
-#
 # Since:  0.14
 ##
 { 'struct': 'BlockInfo',
   'data': {'device': 'str', '*qdev': 'str', 'type': 'str', 'removable': 'bool',
            'locked': 'bool', '*inserted': 'BlockDeviceInfo',
-           '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus',
-           '*dirty-bitmaps': { 'type': ['BlockDirtyInfo'],
-                               'features': [ 'deprecated' ] } } }
+           '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus' } }
 
 ##
 # @BlockMeasureInfo:

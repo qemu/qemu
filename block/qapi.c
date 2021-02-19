@@ -383,11 +383,6 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
         info->io_status = blk_iostatus(blk);
     }
 
-    if (bs && !QLIST_EMPTY(&bs->dirty_bitmaps)) {
-        info->has_dirty_bitmaps = true;
-        info->dirty_bitmaps = bdrv_query_dirty_bitmaps(bs);
-    }
-
     if (bs && bs->drv) {
         info->has_inserted = true;
         info->inserted = bdrv_block_device_info(blk, bs, false, errp);
