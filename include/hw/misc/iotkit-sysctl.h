@@ -59,6 +59,9 @@ struct IoTKitSysCtl {
     uint32_t pdcm_pd_sram1_sense;
     uint32_t pdcm_pd_sram2_sense;
     uint32_t pdcm_pd_sram3_sense;
+    uint32_t pdcm_pd_cpu0_sense;
+    uint32_t pdcm_pd_vmr0_sense;
+    uint32_t pdcm_pd_vmr1_sense;
 
     /* Properties */
     uint32_t sse_version;
