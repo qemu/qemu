@@ -1,0 +1,312 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * Floating-Point Instructions
+ */
+
+/*************************************/
+/* Scalar FP                         */
+/*************************************/
+Q6INSN(F2_sfadd,"Rd32=sfadd(Rs32,Rt32)",ATTRIBS(),
+"Floating-Point Add",
+{ RdV=fUNFLOAT(fFLOAT(RsV)+fFLOAT(RtV));})
+
+Q6INSN(F2_sfsub,"Rd32=sfsub(Rs32,Rt32)",ATTRIBS(),
+"Floating-Point Subtract",
+{ RdV=fUNFLOAT(fFLOAT(RsV)-fFLOAT(RtV));})
+
+Q6INSN(F2_sfmpy,"Rd32=sfmpy(Rs32,Rt32)",ATTRIBS(),
+"Floating-Point Multiply",
+{ RdV=fUNFLOAT(fSFMPY(fFLOAT(RsV),fFLOAT(RtV)));})
+
+Q6INSN(F2_sffma,"Rx32+=sfmpy(Rs32,Rt32)",ATTRIBS(),
+"Floating-Point Fused Multiply Add",
+{ RxV=fUNFLOAT(fFMAF(fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV)));})
+
+Q6INSN(F2_sffma_sc,"Rx32+=sfmpy(Rs32,Rt32,Pu4):scale",ATTRIBS(),
+"Floating-Point Fused Multiply Add w/ Additional Scaling (2**Pu)",
+{
+    fHIDE(size4s_t tmp;)
+    fCHECKSFNAN3(RxV,RxV,RsV,RtV);
+    tmp=fUNFLOAT(fFMAFX(fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV),PuV));
+    if (!((fFLOAT(RxV) == 0.0) && fISZEROPROD(fFLOAT(RsV),fFLOAT(RtV)))) RxV = tmp;
+})
+
+Q6INSN(F2_sffms,"Rx32-=sfmpy(Rs32,Rt32)",ATTRIBS(),
+"Floating-Point Fused Multiply Add",
+{ RxV=fUNFLOAT(fFMAF(-fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV))); })
+
+Q6INSN(F2_sffma_lib,"Rx32+=sfmpy(Rs32,Rt32):lib",ATTRIBS(),
+"Floating-Point Fused Multiply Add for Library Routines",
+{ fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf; size4s_t tmp;)
+  infminusinf = ((isinf(fFLOAT(RxV))) &&
+                 (fISINFPROD(fFLOAT(RsV),fFLOAT(RtV))) &&
+                 (fGETBIT(31,RsV ^ RxV ^ RtV) != 0));
+  infinp = (isinf(fFLOAT(RxV))) || (isinf(fFLOAT(RtV))) || (isinf(fFLOAT(RsV)));
+  fCHECKSFNAN3(RxV,RxV,RsV,RtV);
+  tmp=fUNFLOAT(fFMAF(fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV)));
+  if (!((fFLOAT(RxV) == 0.0) && fISZEROPROD(fFLOAT(RsV),fFLOAT(RtV)))) RxV = tmp;
+  fFPCANCELFLAGS();
+  if (isinf(fFLOAT(RxV)) && !infinp) RxV = RxV - 1;
+  if (infminusinf) RxV = 0;
+})
+
+Q6INSN(F2_sffms_lib,"Rx32-=sfmpy(Rs32,Rt32):lib",ATTRIBS(),
+"Floating-Point Fused Multiply Add for Library Routines",
+{ fFPSETROUND_NEAREST(); fHIDE(int infinp; int infminusinf; size4s_t tmp;)
+  infminusinf = ((isinf(fFLOAT(RxV))) &&
+                 (fISINFPROD(fFLOAT(RsV),fFLOAT(RtV))) &&
+                 (fGETBIT(31,RsV ^ RxV ^ RtV) == 0));
+  infinp = (isinf(fFLOAT(RxV))) || (isinf(fFLOAT(RtV))) || (isinf(fFLOAT(RsV)));
+  fCHECKSFNAN3(RxV,RxV,RsV,RtV);
+  tmp=fUNFLOAT(fFMAF(-fFLOAT(RsV),fFLOAT(RtV),fFLOAT(RxV)));
+  if (!((fFLOAT(RxV) == 0.0) && fISZEROPROD(fFLOAT(RsV),fFLOAT(RtV)))) RxV = tmp;
+  fFPCANCELFLAGS();
+  if (isinf(fFLOAT(RxV)) && !infinp) RxV = RxV - 1;
+  if (infminusinf) RxV = 0;
+})
+
+
+Q6INSN(F2_sfcmpeq,"Pd4=sfcmp.eq(Rs32,Rt32)",ATTRIBS(),
+"Floating Point Compare for Equal",
+{PdV=f8BITSOF(fFLOAT(RsV)==fFLOAT(RtV));})
+
+Q6INSN(F2_sfcmpgt,"Pd4=sfcmp.gt(Rs32,Rt32)",ATTRIBS(),
+"Floating-Point Compare for Greater Than",
+{PdV=f8BITSOF(fFLOAT(RsV)>fFLOAT(RtV));})
+
+/* cmpge is not the same as !cmpgt(swapops) in IEEE */
+
+Q6INSN(F2_sfcmpge,"Pd4=sfcmp.ge(Rs32,Rt32)",ATTRIBS(),
+"Floating-Point Compare for Greater Than / Equal To",
+{PdV=f8BITSOF(fFLOAT(RsV)>=fFLOAT(RtV));})
+
+/* Everyone seems to have this... */
+
+Q6INSN(F2_sfcmpuo,"Pd4=sfcmp.uo(Rs32,Rt32)",ATTRIBS(),
+"Floating-Point Compare for Unordered",
+{PdV=f8BITSOF(isunordered(fFLOAT(RsV),fFLOAT(RtV)));})
+
+
+Q6INSN(F2_sfmax,"Rd32=sfmax(Rs32,Rt32)",ATTRIBS(),
+"Maximum of Floating-Point values",
+{ RdV = fUNFLOAT(fSF_MAX(fFLOAT(RsV),fFLOAT(RtV))); })
+
+Q6INSN(F2_sfmin,"Rd32=sfmin(Rs32,Rt32)",ATTRIBS(),
+"Minimum of Floating-Point values",
+{ RdV = fUNFLOAT(fSF_MIN(fFLOAT(RsV),fFLOAT(RtV))); })
+
+
+Q6INSN(F2_sfclass,"Pd4=sfclass(Rs32,#u5)",ATTRIBS(),
+"Classify Floating-Point Value",
+{
+    fHIDE(int class;)
+    PdV = 0;
+    class = fpclassify(fFLOAT(RsV));
+    /* Is the value zero? */
+    if (fGETBIT(0,uiV) && (class == FP_ZERO)) PdV = 0xff;
+    if (fGETBIT(1,uiV) && (class == FP_NORMAL)) PdV = 0xff;
+    if (fGETBIT(2,uiV) && (class == FP_SUBNORMAL)) PdV = 0xff;
+    if (fGETBIT(3,uiV) && (class == FP_INFINITE)) PdV = 0xff;
+    if (fGETBIT(4,uiV) && (class == FP_NAN)) PdV = 0xff;
+    fFPCANCELFLAGS();
+})
+
+/* Range: +/- (1.0 .. 1+(63/64)) * 2**(-6 .. +9) */
+/* More immediate bits should probably be used for more precision? */
+
+Q6INSN(F2_sfimm_p,"Rd32=sfmake(#u10):pos",ATTRIBS(),
+"Make Floating Point Value",
+{
+    RdV = (127 - 6) << 23;
+    RdV += uiV << 17;
+})
+
+Q6INSN(F2_sfimm_n,"Rd32=sfmake(#u10):neg",ATTRIBS(),
+"Make Floating Point Value",
+{
+    RdV = (127 - 6) << 23;
+    RdV += (uiV << 17);
+    RdV |= (1 << 31);
+})
+
+
+Q6INSN(F2_sffixupn,"Rd32=sffixupn(Rs32,Rt32)",ATTRIBS(),
+"Fix Up Numerator",
+{
+    fHIDE(int adjust;)
+    fSF_RECIP_COMMON(RsV,RtV,RdV,adjust);
+    RdV = RsV;
+})
+
+Q6INSN(F2_sffixupd,"Rd32=sffixupd(Rs32,Rt32)",ATTRIBS(),
+"Fix Up Denominator",
+{
+    fHIDE(int adjust;)
+    fSF_RECIP_COMMON(RsV,RtV,RdV,adjust);
+    RdV = RtV;
+})
+
+Q6INSN(F2_sffixupr,"Rd32=sffixupr(Rs32)",ATTRIBS(),
+"Fix Up Radicand",
+{
+    fHIDE(int adjust;)
+    fSF_INVSQRT_COMMON(RsV,RdV,adjust);
+    RdV = RsV;
+})
+
+/*************************************/
+/* Scalar DP                         */
+/*************************************/
+Q6INSN(F2_dfadd,"Rdd32=dfadd(Rss32,Rtt32)",ATTRIBS(),
+"Floating-Point Add",
+{ RddV=fUNDOUBLE(fDOUBLE(RssV)+fDOUBLE(RttV));})
+
+Q6INSN(F2_dfsub,"Rdd32=dfsub(Rss32,Rtt32)",ATTRIBS(),
+"Floating-Point Subtract",
+{ RddV=fUNDOUBLE(fDOUBLE(RssV)-fDOUBLE(RttV));})
+
+Q6INSN(F2_dfmax,"Rdd32=dfmax(Rss32,Rtt32)",ATTRIBS(),
+"Maximum of Floating-Point values",
+{ RddV = fUNDOUBLE(fDF_MAX(fDOUBLE(RssV),fDOUBLE(RttV))); })
+
+Q6INSN(F2_dfmin,"Rdd32=dfmin(Rss32,Rtt32)",ATTRIBS(),
+"Minimum of Floating-Point values",
+{ RddV = fUNDOUBLE(fDF_MIN(fDOUBLE(RssV),fDOUBLE(RttV))); })
+
+Q6INSN(F2_dfmpyfix,"Rdd32=dfmpyfix(Rss32,Rtt32)",ATTRIBS(),
+"Fix Up Multiplicand for Multiplication",
+{
+    if (fDF_ISDENORM(RssV) && fDF_ISBIG(RttV) && fDF_ISNORMAL(RttV)) RddV = fUNDOUBLE(fDOUBLE(RssV) * 0x1.0p52);
+    else if (fDF_ISDENORM(RttV) && fDF_ISBIG(RssV) && fDF_ISNORMAL(RssV)) RddV = fUNDOUBLE(fDOUBLE(RssV) * 0x1.0p-52);
+    else RddV = RssV;
+})
+
+Q6INSN(F2_dfmpyll,"Rdd32=dfmpyll(Rss32,Rtt32)",ATTRIBS(),
+"Multiply low*low and shift off low 32 bits into sticky (in MSB)",
+{
+    fHIDE(size8u_t prod;)
+    prod = fMPY32UU(fGETUWORD(0,RssV),fGETUWORD(0,RttV));
+    RddV = (prod >> 32) << 1;
+    if (fGETUWORD(0,prod) != 0) fSETBIT(0,RddV,1);
+})
+
+Q6INSN(F2_dfmpylh,"Rxx32+=dfmpylh(Rss32,Rtt32)",ATTRIBS(),
+"Multiply low*high and accumulate",
+{
+    RxxV += (fGETUWORD(0,RssV) * (0x00100000 | fZXTN(20,64,fGETUWORD(1,RttV)))) << 1;
+})
+
+Q6INSN(F2_dfmpyhh,"Rxx32+=dfmpyhh(Rss32,Rtt32)",ATTRIBS(),
+"Multiply high*high and accumulate with L*H value",
+{
+    RxxV = fUNDOUBLE(fDF_MPY_HH(fDOUBLE(RssV),fDOUBLE(RttV),RxxV));
+})
+
+
+
+Q6INSN(F2_dfcmpeq,"Pd4=dfcmp.eq(Rss32,Rtt32)",ATTRIBS(),
+"Floating Point Compare for Equal",
+{PdV=f8BITSOF(fDOUBLE(RssV)==fDOUBLE(RttV));})
+
+Q6INSN(F2_dfcmpgt,"Pd4=dfcmp.gt(Rss32,Rtt32)",ATTRIBS(),
+"Floating-Point Compare for Greater Than",
+{PdV=f8BITSOF(fDOUBLE(RssV)>fDOUBLE(RttV));})
+
+
+/* cmpge is not the same as !cmpgt(swapops) in IEEE */
+
+Q6INSN(F2_dfcmpge,"Pd4=dfcmp.ge(Rss32,Rtt32)",ATTRIBS(),
+"Floating-Point Compare for Greater Than / Equal To",
+{PdV=f8BITSOF(fDOUBLE(RssV)>=fDOUBLE(RttV));})
+
+/* Everyone seems to have this... */
+
+Q6INSN(F2_dfcmpuo,"Pd4=dfcmp.uo(Rss32,Rtt32)",ATTRIBS(),
+"Floating-Point Compare for Unordered",
+{PdV=f8BITSOF(isunordered(fDOUBLE(RssV),fDOUBLE(RttV)));})
+
+
+Q6INSN(F2_dfclass,"Pd4=dfclass(Rss32,#u5)",ATTRIBS(),
+"Classify Floating-Point Value",
+{
+    fHIDE(int class;)
+    PdV = 0;
+    class = fpclassify(fDOUBLE(RssV));
+    /* Is the value zero? */
+    if (fGETBIT(0,uiV) && (class == FP_ZERO)) PdV = 0xff;
+    if (fGETBIT(1,uiV) && (class == FP_NORMAL)) PdV = 0xff;
+    if (fGETBIT(2,uiV) && (class == FP_SUBNORMAL)) PdV = 0xff;
+    if (fGETBIT(3,uiV) && (class == FP_INFINITE)) PdV = 0xff;
+    if (fGETBIT(4,uiV) && (class == FP_NAN)) PdV = 0xff;
+    fFPCANCELFLAGS();
+})
+
+
+/* Range: +/- (1.0 .. 1+(63/64)) * 2**(-6 .. +9) */
+/* More immediate bits should probably be used for more precision? */
+
+Q6INSN(F2_dfimm_p,"Rdd32=dfmake(#u10):pos",ATTRIBS(),
+"Make Floating Point Value",
+{
+    RddV = (1023ULL - 6) << 52;
+    RddV += (fHIDE((size8u_t))uiV) << 46;
+})
+
+Q6INSN(F2_dfimm_n,"Rdd32=dfmake(#u10):neg",ATTRIBS(),
+"Make Floating Point Value",
+{
+    RddV = (1023ULL - 6) << 52;
+    RddV += (fHIDE((size8u_t))uiV) << 46;
+    RddV |= ((1ULL) << 63);
+})
+
+
+/* CONVERSION */
+
+#define CONVERT(TAG,DEST,DESTV,SRC,SRCV,OUTCAST,OUTTYPE,INCAST,INTYPE,MODETAG,MODESYN,MODEBEH) \
+    Q6INSN(F2_conv_##TAG##MODETAG,#DEST"=convert_"#TAG"("#SRC")"#MODESYN,ATTRIBS(), \
+    "Floating point format conversion", \
+    { MODEBEH DESTV = OUTCAST(conv_##INTYPE##_to_##OUTTYPE(INCAST(SRCV))); })
+
+CONVERT(sf2df,Rdd32,RddV,Rs32,RsV,fUNDOUBLE,df,fFLOAT,sf,,,)
+CONVERT(df2sf,Rd32,RdV,Rss32,RssV,fUNFLOAT,sf,fDOUBLE,df,,,)
+
+#define ALLINTDST(TAGSTART,SRC,SRCV,INCAST,INTYPE,MODETAG,MODESYN,MODEBEH) \
+CONVERT(TAGSTART##uw,Rd32,RdV,SRC,SRCV,fCAST4u,4u,INCAST,INTYPE,MODETAG,MODESYN,MODEBEH) \
+CONVERT(TAGSTART##w,Rd32,RdV,SRC,SRCV,fCAST4s,4s,INCAST,INTYPE,MODETAG,MODESYN,MODEBEH) \
+CONVERT(TAGSTART##ud,Rdd32,RddV,SRC,SRCV,fCAST8u,8u,INCAST,INTYPE,MODETAG,MODESYN,MODEBEH) \
+CONVERT(TAGSTART##d,Rdd32,RddV,SRC,SRCV,fCAST8s,8s,INCAST,INTYPE,MODETAG,MODESYN,MODEBEH)
+
+#define ALLFPDST(TAGSTART,SRC,SRCV,INCAST,INTYPE,MODETAG,MODESYN,MODEBEH) \
+CONVERT(TAGSTART##sf,Rd32,RdV,SRC,SRCV,fUNFLOAT,sf,INCAST,INTYPE,MODETAG,MODESYN,MODEBEH) \
+CONVERT(TAGSTART##df,Rdd32,RddV,SRC,SRCV,fUNDOUBLE,df,INCAST,INTYPE,MODETAG,MODESYN,MODEBEH)
+
+#define ALLINTSRC(GEN,MODETAG,MODESYN,MODEBEH) \
+GEN(uw##2,Rs32,RsV,fCAST4u,4u,MODETAG,MODESYN,MODEBEH) \
+GEN(w##2,Rs32,RsV,fCAST4s,4s,MODETAG,MODESYN,MODEBEH) \
+GEN(ud##2,Rss32,RssV,fCAST8u,8u,MODETAG,MODESYN,MODEBEH) \
+GEN(d##2,Rss32,RssV,fCAST8s,8s,MODETAG,MODESYN,MODEBEH)
+
+#define ALLFPSRC(GEN,MODETAG,MODESYN,MODEBEH) \
+GEN(sf##2,Rs32,RsV,fFLOAT,sf,MODETAG,MODESYN,MODEBEH) \
+GEN(df##2,Rss32,RssV,fDOUBLE,df,MODETAG,MODESYN,MODEBEH)
+
+ALLINTSRC(ALLFPDST,,,)
+ALLFPSRC(ALLINTDST,,,)
+ALLFPSRC(ALLINTDST,_chop,:chop,fFPSETROUND_CHOP();)

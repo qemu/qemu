@@ -216,7 +216,7 @@
 #
 ##
 { 'command': 'sev-inject-launch-secret',
-  'data': { 'packet-header': 'str', 'secret': 'str', 'gpa': 'uint64' },
+  'data': { 'packet-header': 'str', 'secret': 'str', '*gpa': 'uint64' },
   'if': 'defined(TARGET_I386)' }
 
 ##

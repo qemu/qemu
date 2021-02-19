@@ -56,6 +56,7 @@ struct QOSGraphNode {
     bool available;     /* set by QEMU via QMP, used during graph walk */
     bool visited;       /* used during graph walk */
     char *name;         /* used to identify the node */
+    char *qemu_name;    /* optional: see qos_node_create_driver_named() */
     char *command_line; /* used to start QEMU at test execution */
     union {
         struct {
@@ -253,5 +254,16 @@ void qos_delete_cmd_line(const char *name);
  * by @node with availability @av.
  */
 void qos_graph_node_set_availability(const char *node, bool av);
+
+/*
+ * Prepends a '#' character in front for not breaking TAP output format.
+ */
+#define qos_printf(...) printf("# " __VA_ARGS__)
+
+/*
+ * Intended for printing something literally, i.e. for appending text as is
+ * to a line already been started by qos_printf() before.
+ */
+#define qos_printf_literal printf
 
 #endif

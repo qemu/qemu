@@ -55,4 +55,7 @@
 #define TARGET_SO_ACCEPTCONN           30
 
 #define TARGET_SO_PEERSEC              31
+
+#define TARGET_SO_PROTOCOL             38
+#define TARGET_SO_DOMAIN               39
 #endif

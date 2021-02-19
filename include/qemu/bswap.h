@@ -400,36 +400,6 @@ static inline void stq_le_p(void *ptr, uint64_t v)
     stq_he_p(ptr, le_bswap(v, 64));
 }
 
-/* float access */
-
-static inline float32 ldfl_le_p(const void *ptr)
-{
-    CPU_FloatU u;
-    u.l = ldl_le_p(ptr);
-    return u.f;
-}
-
-static inline void stfl_le_p(void *ptr, float32 v)
-{
-    CPU_FloatU u;
-    u.f = v;
-    stl_le_p(ptr, u.l);
-}
-
-static inline float64 ldfq_le_p(const void *ptr)
-{
-    CPU_DoubleU u;
-    u.ll = ldq_le_p(ptr);
-    return u.d;
-}
-
-static inline void stfq_le_p(void *ptr, float64 v)
-{
-    CPU_DoubleU u;
-    u.d = v;
-    stq_le_p(ptr, u.ll);
-}
-
 static inline int lduw_be_p(const void *ptr)
 {
     return (uint16_t)be_bswap(lduw_he_p(ptr), 16);
@@ -463,36 +433,6 @@ static inline void stl_be_p(void *ptr, uint32_t v)
 static inline void stq_be_p(void *ptr, uint64_t v)
 {
     stq_he_p(ptr, be_bswap(v, 64));
-}
-
-/* float access */
-
-static inline float32 ldfl_be_p(const void *ptr)
-{
-    CPU_FloatU u;
-    u.l = ldl_be_p(ptr);
-    return u.f;
-}
-
-static inline void stfl_be_p(void *ptr, float32 v)
-{
-    CPU_FloatU u;
-    u.f = v;
-    stl_be_p(ptr, u.l);
-}
-
-static inline float64 ldfq_be_p(const void *ptr)
-{
-    CPU_DoubleU u;
-    u.ll = ldq_be_p(ptr);
-    return u.d;
-}
-
-static inline void stfq_be_p(void *ptr, float64 v)
-{
-    CPU_DoubleU u;
-    u.d = v;
-    stq_be_p(ptr, u.ll);
 }
 
 static inline unsigned long leul_to_cpu(unsigned long v)

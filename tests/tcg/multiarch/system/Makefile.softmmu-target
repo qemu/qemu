@@ -27,5 +27,9 @@ run-gdbstub-memory: memory
 		--bin $< --test $(MULTIARCH_SRC)/gdbstub/memory.py, \
 	"softmmu gdbstub support")
 
-MULTIARCH_RUNS += run-gdbstub-memory
+else
+run-gdbstub-%:
+	$(call skip-test, "gdbstub test $*", "need working gdb")
 endif
+
+MULTIARCH_RUNS += run-gdbstub-memory

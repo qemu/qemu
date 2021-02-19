@@ -15,8 +15,8 @@
  * https://developer.arm.com/products/system-design/development-boards/iot-test-chips-and-boards/musca-a-test-chip-board
  * https://developer.arm.com/products/system-design/development-boards/iot-test-chips-and-boards/musca-b-test-chip-board
  * We model the A and B1 variants of this board, as described in the TRMs:
- * http://infocenter.arm.com/help/topic/com.arm.doc.101107_0000_00_en/index.html
- * http://infocenter.arm.com/help/topic/com.arm.doc.101312_0000_00_en/index.html
+ * https://developer.arm.com/documentation/101107/latest/
+ * https://developer.arm.com/documentation/101312/latest/
  */
 
 #include "qemu/osdep.h"

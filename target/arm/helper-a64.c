@@ -542,7 +542,7 @@ uint64_t HELPER(paired_cmpxchg64_le)(CPUARMState *env, uint64_t addr,
 
 #ifdef CONFIG_USER_ONLY
     /* ??? Enforce alignment.  */
-    uint64_t *haddr = g2h(addr);
+    uint64_t *haddr = g2h(env_cpu(env), addr);
 
     set_helper_retaddr(ra);
     o0 = ldq_le_p(haddr + 0);
@@ -612,7 +612,7 @@ uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
 
 #ifdef CONFIG_USER_ONLY
     /* ??? Enforce alignment.  */
-    uint64_t *haddr = g2h(addr);
+    uint64_t *haddr = g2h(env_cpu(env), addr);
 
     set_helper_retaddr(ra);
     o1 = ldq_be_p(haddr + 0);
@@ -945,11 +945,31 @@ static int el_from_spsr(uint32_t spsr)
     }
 }
 
+static void cpsr_write_from_spsr_elx(CPUARMState *env,
+                                     uint32_t val)
+{
+    uint32_t mask;
+
+    /* Save SPSR_ELx.SS into PSTATE. */
+    env->pstate = (env->pstate & ~PSTATE_SS) | (val & PSTATE_SS);
+    val &= ~PSTATE_SS;
+
+    /* Move DIT to the correct location for CPSR */
+    if (val & PSTATE_DIT) {
+        val &= ~PSTATE_DIT;
+        val |= CPSR_DIT;
+    }
+
+    mask = aarch32_cpsr_valid_mask(env->features, \
+        &env_archcpu(env)->isar);
+    cpsr_write(env, val, mask, CPSRWriteRaw);
+}
+
 void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
 {
     int cur_el = arm_current_el(env);
     unsigned int spsr_idx = aarch64_banked_spsr_index(cur_el);
-    uint32_t mask, spsr = env->banked_spsr[spsr_idx];
+    uint32_t spsr = env->banked_spsr[spsr_idx];
     int new_el;
     bool return_to_aa64 = (spsr & PSTATE_nRW) == 0;
 
@@ -998,10 +1018,9 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
          * will sort the register banks out for us, and we've already
          * caught all the bad-mode cases in el_from_spsr().
          */
-        mask = aarch32_cpsr_valid_mask(env->features, &env_archcpu(env)->isar);
-        cpsr_write(env, spsr, mask, CPSRWriteRaw);
+        cpsr_write_from_spsr_elx(env, spsr);
         if (!arm_singlestep_active(env)) {
-            env->uncached_cpsr &= ~PSTATE_SS;
+            env->pstate &= ~PSTATE_SS;
         }
         aarch64_sync_64_to_32(env);
 

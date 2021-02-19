@@ -1,0 +1,124 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * This just includes all encoding files
+ */
+
+#ifndef DEF_FIELD32
+#define __SELF_DEF_FIELD32
+#define DEF_FIELD32(...) /* nothing */
+#endif
+
+#ifndef DEF_CLASS32
+#define __SELF_DEF_CLASS32
+#define DEF_CLASS32(...) /* nothing */
+#endif
+
+#ifndef DEF_ANTICLASS32
+#define __SELF_DEF_ANTICLASS32
+#define DEF_ANTICLASS32(...) /* nothing */
+#endif
+
+#ifndef LEGACY_DEF_ENC32
+#define __SELF_DEF_LEGACY_DEF_ENC32
+#define LEGACY_DEF_ENC32(...) /* nothing */
+#endif
+
+#ifndef DEF_FIELDROW_DESC32
+#define __SELF_DEF_FIELDROW_DESC32
+#define DEF_FIELDROW_DESC32(...) /* nothing */
+#endif
+
+#ifndef DEF_ENC32
+#define __SELF_DEF_ENC32
+#define DEF_ENC32(...) /* nothing */
+#endif
+
+#ifndef DEF_PACKED32
+#define __SELF_DEF_PACKED32
+#define DEF_PACKED32(...) /* nothing */
+#endif
+
+#ifndef DEF_ENC_SUBINSN
+#define __SELF_DEF_ENC_SUBINSN
+#define DEF_ENC_SUBINSN(...) /* nothing */
+#endif
+
+#ifndef DEF_EXT_ENC
+#define __SELF_DEF_EXT_ENC
+#define DEF_EXT_ENC(...) /* nothing */
+#endif
+
+#ifndef DEF_EXT_SPACE
+#define __SELF_DEF_EXT_SPACE
+#define DEF_EXT_SPACE(...) /* nothing */
+#endif
+
+#include "encode_pp.def"
+#include "encode_subinsn.def"
+
+#ifdef __SELF_DEF_FIELD32
+#undef __SELF_DEF_FIELD32
+#undef DEF_FIELD32
+#endif
+
+#ifdef __SELF_DEF_CLASS32
+#undef __SELF_DEF_CLASS32
+#undef DEF_CLASS32
+#endif
+
+#ifdef __SELF_DEF_ANTICLASS32
+#undef __SELF_DEF_ANTICLASS32
+#undef DEF_ANTICLASS32
+#endif
+
+#ifdef __SELF_DEF_LEGACY_DEF_ENC32
+#undef __SELF_DEF_LEGACY_DEF_ENC32
+#undef LEGACY_DEF_ENC32
+#endif
+
+#ifdef __SELF_DEF_FIELDROW_DESC32
+#undef __SELF_DEF_FIELDROW_DESC32
+#undef DEF_FIELDROW_DESC32
+#endif
+
+#ifdef __SELF_DEF_ENC32
+#undef __SELF_DEF_ENC32
+#undef DEF_ENC32
+#endif
+
+#ifdef __SELF_DEF_EXT_SPACE
+#undef __SELF_DEF_EXT_SPACE
+#undef DEF_EXT_SPACE
+#endif
+
+
+#ifdef __SELF_DEF_PACKED32
+#undef __SELF_DEF_PACKED32
+#undef DEF_PACKED32
+#endif
+
+#ifdef __SELF_DEF_ENC_SUBINSN
+#undef __SELF_DEF_ENC_SUBINSN
+#undef DEF_ENC_SUBINSN
+#endif
+
+#ifdef __SELF_DEF_EXT_ENC
+#undef __SELF_DEF_EXT_ENC
+#undef DEF_EXT_ENC
+#endif

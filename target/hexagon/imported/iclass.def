@@ -1,0 +1,51 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* DEF_*(TYPE,SLOTS,UNITS) */
+DEF_PP_ICLASS32(EXTENDER,0123,LDST|SUNIT|MUNIT) /* 0 */
+DEF_PP_ICLASS32(CJ,0123,CTRLFLOW) /* 1 */
+DEF_PP_ICLASS32(NCJ,01,LDST|CTRLFLOW) /* 2 */
+DEF_PP_ICLASS32(V4LDST,01,LDST) /* 3 */
+DEF_PP_ICLASS32(V2LDST,01,LDST) /* 4 */
+DEF_PP_ICLASS32(J,0123,CTRLFLOW)  /* 5 */
+DEF_PP_ICLASS32(CR,3,SUNIT)     /* 6 */
+DEF_PP_ICLASS32(ALU32_2op,0123,LDST|SUNIT|MUNIT) /* 7 */
+DEF_PP_ICLASS32(S_2op,23,SUNIT|MUNIT)               /* 8 */
+DEF_PP_ICLASS32(LD,01,LDST)                    /* 9 */
+DEF_PP_ICLASS32(ST,01,LDST)                        /* 10 */
+DEF_PP_ICLASS32(ALU32_ADDI,0123,LDST|SUNIT|MUNIT) /* 11 */
+DEF_PP_ICLASS32(S_3op,23,SUNIT|MUNIT)               /* 12 */
+DEF_PP_ICLASS32(ALU64,23,SUNIT|MUNIT)             /* 13 */
+DEF_PP_ICLASS32(M,23,SUNIT|MUNIT)                 /* 14 */
+DEF_PP_ICLASS32(ALU32_3op,0123,LDST|SUNIT|MUNIT) /* 15 */
+
+DEF_EE_ICLASS32(EE0,01,INVALID) /* 0 */
+DEF_EE_ICLASS32(EE1,01,INVALID) /* 1 */
+DEF_EE_ICLASS32(EE2,01,INVALID) /* 2 */
+DEF_EE_ICLASS32(EE3,01,INVALID) /* 3 */
+DEF_EE_ICLASS32(EE4,01,INVALID) /* 4 */
+DEF_EE_ICLASS32(EE5,01,INVALID) /* 5 */
+DEF_EE_ICLASS32(EE6,01,INVALID) /* 6 */
+DEF_EE_ICLASS32(EE7,01,INVALID) /* 7 */
+DEF_EE_ICLASS32(EE8,01,INVALID) /* 8 */
+DEF_EE_ICLASS32(EE9,01,INVALID) /* 9 */
+DEF_EE_ICLASS32(EEA,01,INVALID) /* 10 */
+DEF_EE_ICLASS32(EEB,01,INVALID) /* 11 */
+DEF_EE_ICLASS32(EEC,01,INVALID) /* 12 */
+DEF_EE_ICLASS32(EED,01,INVALID) /* 13 */
+DEF_EE_ICLASS32(EEE,01,INVALID) /* 14 */
+DEF_EE_ICLASS32(EEF,01,INVALID) /* 15 */

@@ -37,6 +37,8 @@
 #include "hw/char/escc.h"
 #include "hw/sysbus.h"
 #include "hw/scsi/esp.h"
+#include "standard-headers/asm-m68k/bootinfo.h"
+#include "standard-headers/asm-m68k/bootinfo-mac.h"
 #include "bootinfo.h"
 #include "hw/misc/mac_via.h"
 #include "hw/input/adb.h"
@@ -54,14 +56,6 @@
 #define MACROM_SIZE     0x00100000
 
 #define MACROM_FILENAME "MacROM.bin"
-
-#define Q800_MACHINE_ID 35
-#define Q800_CPU_ID (1 << 2)
-#define Q800_FPU_ID (1 << 2)
-#define Q800_MMU_ID (1 << 2)
-
-#define MACH_MAC        3
-#define Q800_MAC_CPU_ID 2
 
 #define IO_BASE               0x50000000
 #define IO_SLICE              0x00040000
@@ -415,11 +409,11 @@ static void q800_init(MachineState *machine)
         parameters_base = (high + 1) & ~1;
 
         BOOTINFO1(cs->as, parameters_base, BI_MACHTYPE, MACH_MAC);
-        BOOTINFO1(cs->as, parameters_base, BI_FPUTYPE, Q800_FPU_ID);
-        BOOTINFO1(cs->as, parameters_base, BI_MMUTYPE, Q800_MMU_ID);
-        BOOTINFO1(cs->as, parameters_base, BI_CPUTYPE, Q800_CPU_ID);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_CPUID, Q800_MAC_CPU_ID);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_MODEL, Q800_MACHINE_ID);
+        BOOTINFO1(cs->as, parameters_base, BI_FPUTYPE, FPU_68040);
+        BOOTINFO1(cs->as, parameters_base, BI_MMUTYPE, MMU_68040);
+        BOOTINFO1(cs->as, parameters_base, BI_CPUTYPE, CPU_68040);
+        BOOTINFO1(cs->as, parameters_base, BI_MAC_CPUID, CPUB_68040);
+        BOOTINFO1(cs->as, parameters_base, BI_MAC_MODEL, MAC_MODEL_Q800);
         BOOTINFO1(cs->as, parameters_base,
                   BI_MAC_MEMSIZE, ram_size >> 20); /* in MB */
         BOOTINFO2(cs->as, parameters_base, BI_MEMCHUNK, 0, ram_size);

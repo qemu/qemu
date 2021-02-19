@@ -43,6 +43,7 @@ Supported devices
  * GPIO controller
  * Analog to Digital Converter (ADC)
  * Pulse Width Modulation (PWM)
+ * SMBus controller (SMBF)
 
 Missing devices
 ---------------
@@ -58,7 +59,6 @@ Missing devices
 
  * Ethernet controllers (GMAC and EMC)
  * USB device (USBD)
- * SMBus controller (SMBF)
  * Peripheral SPI controller (PSPI)
  * SD/MMC host
  * PECI interface

@@ -454,23 +454,20 @@ struct TranslationBlock {
     uint32_t cflags;    /* compile flags */
 #define CF_COUNT_MASK  0x00007fff
 #define CF_LAST_IO     0x00008000 /* Last insn may be an IO access.  */
-#define CF_NOCACHE     0x00010000 /* To be freed after execution */
+#define CF_MEMI_ONLY   0x00010000 /* Only instrument memory ops */
 #define CF_USE_ICOUNT  0x00020000
 #define CF_INVALID     0x00040000 /* TB is stale. Set with @jmp_lock held */
 #define CF_PARALLEL    0x00080000 /* Generate code for a parallel context */
 #define CF_CLUSTER_MASK 0xff000000 /* Top 8 bits are cluster ID */
 #define CF_CLUSTER_SHIFT 24
-/* cflags' mask for hashing/comparison */
-#define CF_HASH_MASK   \
-    (CF_COUNT_MASK | CF_LAST_IO | CF_USE_ICOUNT | CF_PARALLEL | CF_CLUSTER_MASK)
+/* cflags' mask for hashing/comparison, basically ignore CF_INVALID */
+#define CF_HASH_MASK   (~CF_INVALID)
 
     /* Per-vCPU dynamic tracing state used to generate this TB */
     uint32_t trace_vcpu_dstate;
 
     struct tb_tc tc;
 
-    /* original tb when cflags has CF_NOCACHE */
-    struct TranslationBlock *orig_tb;
     /* first and second physical page containing code. The lower bit
        of the pointer tells the index in page_next[].
        The list is protected by the TB's page('s) lock(s) */
@@ -616,7 +613,7 @@ static inline tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env,
                                                       void **hostp)
 {
     if (hostp) {
-        *hostp = g2h(addr);
+        *hostp = g2h_untagged(addr);
     }
     return addr;
 }

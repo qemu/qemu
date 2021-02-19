@@ -153,6 +153,7 @@ static QOSGraphNode *create_node(const char *name, QOSNodeType type)
 static void destroy_node(void *val)
 {
     QOSGraphNode *node = val;
+    g_free(node->qemu_name);
     g_free(node->command_line);
     g_free(node);
 }
@@ -286,7 +287,8 @@ static void build_machine_cmd_line(QOSGraphNode *node, const char *args)
  */
 static void build_driver_cmd_line(QOSGraphNode *node)
 {
-    node->command_line = g_strconcat(" -device ", node->name, NULL);
+    const char *name = node->qemu_name ?: node->name;
+    node->command_line = g_strconcat(" -device ", name, NULL);
 }
 
 /* qos_print_cb(): callback prints all path found by the DFS algorithm. */
@@ -631,6 +633,15 @@ void qos_node_create_driver(const char *name, QOSCreateDriverFunc function)
     node->u.driver.constructor = function;
 }
 
+void qos_node_create_driver_named(const char *name, const char *qemu_name,
+                                  QOSCreateDriverFunc function)
+{
+    QOSGraphNode *node = create_node(name, QNODE_DRIVER);
+    node->qemu_name = g_strdup(qemu_name);
+    build_driver_cmd_line(node);
+    node->u.driver.constructor = function;
+}
+
 void qos_node_contains(const char *container, const char *contained,
                        QOSGraphEdgeOptions *opts, ...)
 {
@@ -663,7 +674,7 @@ void qos_node_consumes(const char *consumer, const char *interface,
     add_edge(interface, consumer, QEDGE_CONSUMED_BY, opts);
 }
 
-void qos_graph_node_set_availability(const char *node, bool av)
+static void qos_graph_node_set_availability_explicit(const char *node, bool av)
 {
     QOSGraphEdgeList *elist;
     QOSGraphNode *n = search_node(node);
@@ -678,9 +689,46 @@ void qos_graph_node_set_availability(const char *node, bool av)
     }
     QSLIST_FOREACH_SAFE(e, elist, edge_list, next) {
         if (e->type == QEDGE_CONTAINS || e->type == QEDGE_PRODUCES) {
-            qos_graph_node_set_availability(e->dest, av);
+            qos_graph_node_set_availability_explicit(e->dest, av);
         }
     }
+}
+
+/*
+ * Behaves as qos_graph_node_set_availability_explicit(), except that the
+ * former always matches by node name only, whereas this function matches both
+ * by node name and node's optional 'qemu_name' field.
+ */
+void qos_graph_node_set_availability(const char *node, bool av)
+{
+    GList *l;
+    QOSGraphEdgeList *elist;
+    QOSGraphEdge *e, *next;
+    QOSGraphNode *n;
+    GList *keys = g_hash_table_get_keys(node_table);
+
+    for (l = keys; l != NULL; l = l->next) {
+        const gchar *key = l->data;
+        n = g_hash_table_lookup(node_table, key);
+        /*
+         * node's 'qemu_name' is set if there is more than one device with
+         * the same QEMU (QMP) device name
+         */
+        const char *node_name = n->qemu_name ?: n->name;
+        if (g_strcmp0(node_name, node) == 0) {
+            n->available = av;
+            elist = get_edgelist(n->name);
+            if (elist) {
+                QSLIST_FOREACH_SAFE(e, elist, edge_list, next) {
+                    if (e->type == QEDGE_CONTAINS || e->type == QEDGE_PRODUCES)
+                    {
+                        qos_graph_node_set_availability_explicit(e->dest, av);
+                    }
+                }
+            }
+        }
+    }
+    g_list_free(keys);
 }
 
 void qos_graph_foreach_test_path(QOSTestCallback fn)
@@ -756,4 +804,49 @@ void qos_delete_cmd_line(const char *name)
         g_free(node->command_line);
         node->command_line = NULL;
     }
+}
+
+void qos_dump_graph(void)
+{
+    GList *keys;
+    GList *l;
+    QOSGraphEdgeList *list;
+    QOSGraphEdge *e, *next;
+    QOSGraphNode *dest_node, *node;
+
+    qos_printf("ALL QGRAPH EDGES: {\n");
+    keys = g_hash_table_get_keys(edge_table);
+    for (l = keys; l != NULL; l = l->next) {
+        const gchar *key = l->data;
+        qos_printf("\t src='%s'\n", key);
+        list = get_edgelist(key);
+        QSLIST_FOREACH_SAFE(e, list, edge_list, next) {
+            dest_node = g_hash_table_lookup(node_table, e->dest);
+            qos_printf("\t\t|-> dest='%s' type=%d (node=%p)",
+                       e->dest, e->type, dest_node);
+            if (!dest_node) {
+                qos_printf_literal(" <------- ERROR !");
+            }
+            qos_printf_literal("\n");
+        }
+    }
+    g_list_free(keys);
+    qos_printf("}\n");
+
+    qos_printf("ALL QGRAPH NODES: {\n");
+    keys = g_hash_table_get_keys(node_table);
+    for (l = keys; l != NULL; l = l->next) {
+        const gchar *key = l->data;
+        node = g_hash_table_lookup(node_table, key);
+        qos_printf("\t name='%s' ", key);
+        if (node->qemu_name) {
+            qos_printf_literal("qemu_name='%s' ", node->qemu_name);
+        }
+        qos_printf_literal("type=%d cmd_line='%s' [%s]\n",
+                           node->type, node->command_line,
+                           node->available ? "available" : "UNAVAILBLE"
+        );
+    }
+    g_list_free(keys);
+    qos_printf("}\n");
 }

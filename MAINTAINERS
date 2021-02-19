@@ -188,6 +188,15 @@ F: include/hw/cris/
 F: tests/tcg/cris/
 F: disas/cris.c
 
+Hexagon TCG CPUs
+M: Taylor Simpson <tsimpson@quicinc.com>
+S: Supported
+F: target/hexagon/
+F: linux-user/hexagon/
+F: tests/tcg/hexagon/
+F: disas/hexagon.c
+F: default-configs/targets/hexagon-linux-user.mak
+
 HPPA (PA-RISC) TCG CPUs
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
@@ -1107,6 +1116,8 @@ F: hw/nubus/*
 F: hw/display/macfb.c
 F: hw/block/swim.c
 F: hw/m68k/bootinfo.h
+F: include/standard-headers/asm-m68k/bootinfo.h
+F: include/standard-headers/asm-m68k/bootinfo-mac.h
 F: include/hw/misc/mac_via.h
 F: include/hw/nubus/*
 F: include/hw/display/macfb.h
@@ -2338,6 +2349,7 @@ M: Alex Bennée <alex.bennee@linaro.org>
 R: Philippe Mathieu-Daudé <philmd@redhat.com>
 S: Maintained
 F: gdbstub*
+F: include/exec/gdbstub.h
 F: gdb-xml/
 F: tests/tcg/multiarch/gdbstub/
 
@@ -2852,6 +2864,17 @@ F: pc-bios/opensbi-*
 F: .gitlab-ci.d/opensbi.yml
 F: .gitlab-ci.d/opensbi/
 
+Clock framework
+M: Luc Michel <luc@lmichel.fr>
+R: Damien Hedde <damien.hedde@greensocs.com>
+S: Maintained
+F: include/hw/clock.h
+F: include/hw/qdev-clock.h
+F: hw/core/clock.c
+F: hw/core/clock-vmstate.c
+F: hw/core/qdev-clock.c
+F: docs/devel/clocks.rst
+
 Usermode Emulation
 ------------------
 Overall usermode emulation
@@ -2889,6 +2912,7 @@ S: Maintained
 F: docs/devel/tcg-plugins.rst
 F: plugins/
 F: tests/plugin/
+F: tests/acceptance/tcg_plugins.py
 F: contrib/plugins/
 
 AArch64 TCG target
@@ -3233,13 +3257,11 @@ R: Philippe Mathieu-Daudé <philmd@redhat.com>
 S: Maintained
 F: .github/lockdown.yml
 F: .travis.yml
-F: scripts/travis/
-F: .shippable.yml
+F: scripts/ci/
 F: tests/docker/
 F: tests/vm/
 F: scripts/archive-source.sh
 W: https://travis-ci.org/qemu/qemu
-W: https://app.shippable.com/github/qemu/qemu
 W: http://patchew.org/QEMU/
 
 FreeBSD Hosted Continuous Integration

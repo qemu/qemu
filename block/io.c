@@ -3460,3 +3460,14 @@ out:
 
     return ret;
 }
+
+void bdrv_cancel_in_flight(BlockDriverState *bs)
+{
+    if (!bs || !bs->drv) {
+        return;
+    }
+
+    if (bs->drv->bdrv_cancel_in_flight) {
+        bs->drv->bdrv_cancel_in_flight(bs);
+    }
+}

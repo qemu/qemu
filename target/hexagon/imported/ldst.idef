@@ -1,0 +1,286 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * Load and Store instruction definitions
+ */
+
+/* The set of addressing modes standard to all Load instructions */
+#define STD_LD_AMODES(TAG,OPER,DESCR,ATTRIB,SHFT,SEMANTICS,SCALE)\
+Q6INSN(L2_##TAG##_io,  OPER"(Rs32+#s11:"SHFT")",          ATTRIB,DESCR,{fIMMEXT(siV); fEA_RI(RsV,siV); SEMANTICS; })\
+Q6INSN(L4_##TAG##_ur,  OPER"(Rt32<<#u2+#U6)",             ATTRIB,DESCR,{fMUST_IMMEXT(UiV); fEA_IRs(UiV,RtV,uiV); SEMANTICS;})\
+Q6INSN(L4_##TAG##_ap,  OPER"(Re32=#U6)",                  ATTRIB,DESCR,{fMUST_IMMEXT(UiV); fEA_IMM(UiV); SEMANTICS; ReV=UiV; })\
+Q6INSN(L2_##TAG##_pr,  OPER"(Rx32++Mu2)",                 ATTRIB,DESCR,{fEA_REG(RxV); fPM_M(RxV,MuV); SEMANTICS;})\
+Q6INSN(L2_##TAG##_pi,  OPER"(Rx32++#s4:"SHFT")",          ATTRIB,DESCR,{fEA_REG(RxV); fPM_I(RxV,siV); SEMANTICS;})\
+
+/* The set of 32-bit load instructions */
+STD_LD_AMODES(loadrub,"Rd32=memub","Load Unsigned Byte",ATTRIBS(A_LOAD),"0",fLOAD(1,1,u,EA,RdV),0)
+STD_LD_AMODES(loadrb, "Rd32=memb", "Load signed Byte",ATTRIBS(A_LOAD),"0",fLOAD(1,1,s,EA,RdV),0)
+STD_LD_AMODES(loadruh,"Rd32=memuh","Load unsigned Half integer",ATTRIBS(A_LOAD),"1",fLOAD(1,2,u,EA,RdV),1)
+STD_LD_AMODES(loadrh, "Rd32=memh", "Load signed Half integer",ATTRIBS(A_LOAD),"1",fLOAD(1,2,s,EA,RdV),1)
+STD_LD_AMODES(loadri, "Rd32=memw", "Load Word",ATTRIBS(A_LOAD),"2",fLOAD(1,4,u,EA,RdV),2)
+STD_LD_AMODES(loadrd, "Rdd32=memd","Load Double integer",ATTRIBS(A_LOAD),"3",fLOAD(1,8,u,EA,RddV),3)
+
+/* The set of addressing modes standard to all Store instructions */
+#define STD_ST_AMODES(TAG,DEST,OPER,DESCR,ATTRIB,SHFT,SEMANTICS,SCALE)\
+Q6INSN(S2_##TAG##_io,  OPER"(Rs32+#s11:"SHFT")="DEST,     ATTRIB,DESCR,{fIMMEXT(siV); fEA_RI(RsV,siV); SEMANTICS; })\
+Q6INSN(S2_##TAG##_pi,  OPER"(Rx32++#s4:"SHFT")="DEST,     ATTRIB,DESCR,{fEA_REG(RxV); fPM_I(RxV,siV); SEMANTICS; })\
+Q6INSN(S4_##TAG##_ap,  OPER"(Re32=#U6)="DEST,             ATTRIB,DESCR,{fMUST_IMMEXT(UiV); fEA_IMM(UiV); SEMANTICS; ReV=UiV; })\
+Q6INSN(S2_##TAG##_pr,  OPER"(Rx32++Mu2)="DEST,            ATTRIB,DESCR,{fEA_REG(RxV); fPM_M(RxV,MuV); SEMANTICS; })\
+Q6INSN(S4_##TAG##_ur,  OPER"(Ru32<<#u2+#U6)="DEST,            ATTRIB,DESCR,{fMUST_IMMEXT(UiV); fEA_IRs(UiV,RuV,uiV); SEMANTICS;})\
+
+
+/* The set of 32-bit store instructions */
+STD_ST_AMODES(storerb, "Rt32", "memb","Store Byte",ATTRIBS(A_STORE),"0",fSTORE(1,1,EA,fGETBYTE(0,RtV)),0)
+STD_ST_AMODES(storerh, "Rt32", "memh","Store Half integer",ATTRIBS(A_STORE),"1",fSTORE(1,2,EA,fGETHALF(0,RtV)),1)
+STD_ST_AMODES(storerf, "Rt.H32", "memh","Store Upper Half integer",ATTRIBS(A_STORE),"1",fSTORE(1,2,EA,fGETHALF(1,RtV)),1)
+STD_ST_AMODES(storeri, "Rt32", "memw","Store Word",ATTRIBS(A_STORE),"2",fSTORE(1,4,EA,RtV),2)
+STD_ST_AMODES(storerd, "Rtt32","memd","Store Double integer",ATTRIBS(A_STORE),"3",fSTORE(1,8,EA,RttV),3)
+STD_ST_AMODES(storerinew, "Nt8.new", "memw","Store Word",ATTRIBS(A_STORE),"2",fSTORE(1,4,EA,fNEWREG_ST(NtN)),2)
+STD_ST_AMODES(storerbnew, "Nt8.new", "memb","Store Byte",ATTRIBS(A_STORE),"0",fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))),0)
+STD_ST_AMODES(storerhnew, "Nt8.new", "memh","Store Half integer",ATTRIBS(A_STORE),"1",fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))),1)
+
+
+Q6INSN(S2_allocframe,"allocframe(Rx32,#u11:3):raw", ATTRIBS(A_STORE,A_RESTRICT_SLOT0ONLY), "Allocate stack frame",
+{ fEA_RI(RxV,-8); fSTORE(1,8,EA,fFRAME_SCRAMBLE((fCAST8_8u(fREAD_LR()) << 32) | fCAST4_4u(fREAD_FP()))); fWRITE_FP(EA); fFRAMECHECK(EA-uiV,EA); RxV = EA-uiV; })
+
+#define A_RETURN A_RESTRICT_SLOT0ONLY
+
+Q6INSN(L2_deallocframe,"Rdd32=deallocframe(Rs32):raw", ATTRIBS(A_LOAD), "Deallocate stack frame",
+{ fHIDE(size8u_t tmp;) fEA_REG(RsV);
+  fLOAD(1,8,u,EA,tmp);
+  RddV = fFRAME_UNSCRAMBLE(tmp);
+  fWRITE_SP(EA+8); })
+
+Q6INSN(L4_return,"Rdd32=dealloc_return(Rs32):raw", ATTRIBS(A_JINDIR,A_LOAD,A_RETURN), "Deallocate stack frame and return",
+{ fHIDE(size8u_t tmp;) fEA_REG(RsV);
+  fLOAD(1,8,u,EA,tmp);
+  RddV = fFRAME_UNSCRAMBLE(tmp);
+  fWRITE_SP(EA+8);
+  fJUMPR(REG_LR,fGETWORD(1,RddV),COF_TYPE_JUMPR);})
+
+#define CONDSEM(SRCREG,STALLBITS0,STALLBITS1,PREDFUNC,PREDARG,STALLSPEC,PREDCOND) \
+{ \
+    fHIDE(size8u_t tmp;) \
+    fBRANCH_SPECULATE_STALL(PREDFUNC##PREDCOND(PREDARG),,STALLSPEC,STALLBITS0,STALLBITS1); \
+    fEA_REG(SRCREG); \
+    if (PREDFUNC##PREDCOND(PREDARG)) { \
+        fLOAD(1,8,u,EA,tmp); \
+        RddV = fFRAME_UNSCRAMBLE(tmp); \
+        fWRITE_SP(EA+8); \
+        fJUMPR(REG_LR,fGETWORD(1,RddV),COF_TYPE_JUMPR); \
+    } else { \
+        LOAD_CANCEL(EA); \
+    } \
+}
+
+#define COND_RETURN_TF(TG,TG2,DOTNEW,STALLBITS0,STALLBITS1,STALLSPEC,ATTRIBS,PREDFUNC,PREDARG,T_NT) \
+    Q6INSN(TG##_t##TG2,"if (Pv4"DOTNEW") Rdd32=dealloc_return(Rs32)"T_NT":raw",ATTRIBS,"deallocate stack frame and return", \
+    CONDSEM(RsV,STALLBITS0,STALLBITS1,PREDFUNC,PREDARG,STALLSPEC,)) \
+    Q6INSN(TG##_f##TG2,"if (!Pv4"DOTNEW") Rdd32=dealloc_return(Rs32)"T_NT":raw",ATTRIBS,"deallocate stack frame and return", \
+    CONDSEM(RsV,STALLBITS0,STALLBITS1,PREDFUNC##NOT,PREDARG,STALLSPEC,))
+
+#define COND_RETURN_NEW(TG,STALLBITS0,STALLBITS1,ATTRIBS) \
+    COND_RETURN_TF(TG,new_pt,".new",12,0,SPECULATE_TAKEN,ATTRIBS,fLSBNEW,PvN,":t") \
+    COND_RETURN_TF(TG,new_pnt,".new",12,0,SPECULATE_NOT_TAKEN,ATTRIBS,fLSBNEW,PvN,":nt") \
+
+#define RETURN_ATTRIBS A_LOAD,A_RETURN
+
+COND_RETURN_TF(L4_return,,,7,0,SPECULATE_NOT_TAKEN,ATTRIBS(RETURN_ATTRIBS,A_JINDIROLD),fLSBOLD,PvV,)
+COND_RETURN_NEW(L4_return,12,0,ATTRIBS(RETURN_ATTRIBS,A_JINDIRNEW))
+
+
+
+
+Q6INSN(L2_loadw_locked,"Rd32=memw_locked(Rs32)", ATTRIBS(A_LOAD,A_RESTRICT_SLOT0ONLY), "Load word with lock",
+{ fEA_REG(RsV); fLOAD_LOCKED(1,4,u,EA,RdV) })
+
+
+Q6INSN(S2_storew_locked,"memw_locked(Rs32,Pd4)=Rt32", ATTRIBS(A_STORE,A_RESTRICT_SLOT0ONLY), "Store word with lock",
+{ fEA_REG(RsV); fSTORE_LOCKED(1,4,EA,RtV,PdV) })
+
+
+Q6INSN(L4_loadd_locked,"Rdd32=memd_locked(Rs32)", ATTRIBS(A_LOAD,A_RESTRICT_SLOT0ONLY), "Load double with lock",
+{ fEA_REG(RsV); fLOAD_LOCKED(1,8,u,EA,RddV) })
+
+Q6INSN(S4_stored_locked,"memd_locked(Rs32,Pd4)=Rtt32", ATTRIBS(A_STORE,A_RESTRICT_SLOT0ONLY), "Store word with lock",
+{ fEA_REG(RsV); fSTORE_LOCKED(1,8,EA,RttV,PdV) })
+
+
+
+
+
+/*****************************************************************/
+/*                                                               */
+/*                       Predicated LDST                         */
+/*                                                               */
+/*****************************************************************/
+
+#define STD_PLD_AMODES(TAG,OPER,DESCR,ATTRIB,SHFT,SHFTNUM,SEMANTICS)\
+Q6INSN(L4_##TAG##_rr,  OPER"(Rs32+Rt32<<#u2)",            ATTRIB,DESCR,{fEA_RRs(RsV,RtV,uiV); SEMANTICS;})\
+Q6INSN(L2_p##TAG##t_io, "if (Pt4) "OPER"(Rs32+#u6:"SHFT")",            ATTRIB,DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); if(fLSBOLD(PtV)){SEMANTICS;} else {LOAD_CANCEL(EA);}})\
+Q6INSN(L2_p##TAG##t_pi, "if (Pt4) "OPER"(Rx32++#s4:"SHFT")",           ATTRIB,DESCR,{fEA_REG(RxV); if(fLSBOLD(PtV)){ fPM_I(RxV,siV); SEMANTICS;} else {LOAD_CANCEL(EA);}})\
+Q6INSN(L2_p##TAG##f_io, "if (!Pt4) "OPER"(Rs32+#u6:"SHFT")",           ATTRIB,DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); if(fLSBOLDNOT(PtV)){ SEMANTICS; } else {LOAD_CANCEL(EA);}})\
+Q6INSN(L2_p##TAG##f_pi, "if (!Pt4) "OPER"(Rx32++#s4:"SHFT")",          ATTRIB,DESCR,{fEA_REG(RxV); if(fLSBOLDNOT(PtV)){ fPM_I(RxV,siV); SEMANTICS;} else {LOAD_CANCEL(EA);}})\
+Q6INSN(L2_p##TAG##tnew_io,"if (Pt4.new) "OPER"(Rs32+#u6:"SHFT")",ATTRIB,DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); if (fLSBNEW(PtN))  { SEMANTICS; } else {LOAD_CANCEL(EA);}})\
+Q6INSN(L2_p##TAG##fnew_io,"if (!Pt4.new) "OPER"(Rs32+#u6:"SHFT")",ATTRIB,DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); if (fLSBNEWNOT(PtN)) { SEMANTICS; } else {LOAD_CANCEL(EA);}})\
+Q6INSN(L4_p##TAG##t_rr, "if (Pv4) "OPER"(Rs32+Rt32<<#u2)",            ATTRIB,DESCR,{fEA_RRs(RsV,RtV,uiV); if(fLSBOLD(PvV)){ SEMANTICS;} else {LOAD_CANCEL(EA);}})\
+Q6INSN(L4_p##TAG##f_rr, "if (!Pv4) "OPER"(Rs32+Rt32<<#u2)",           ATTRIB,DESCR,{fEA_RRs(RsV,RtV,uiV); if(fLSBOLDNOT(PvV)){ SEMANTICS; } else {LOAD_CANCEL(EA);}})\
+Q6INSN(L4_p##TAG##tnew_rr,"if (Pv4.new) "OPER"(Rs32+Rt32<<#u2)",ATTRIB,DESCR,{fEA_RRs(RsV,RtV,uiV); if (fLSBNEW(PvN))  { SEMANTICS; } else {LOAD_CANCEL(EA);}})\
+Q6INSN(L4_p##TAG##fnew_rr,"if (!Pv4.new) "OPER"(Rs32+Rt32<<#u2)",ATTRIB,DESCR,{fEA_RRs(RsV,RtV,uiV); if (fLSBNEWNOT(PvN)) { SEMANTICS; } else {LOAD_CANCEL(EA);}})\
+Q6INSN(L2_p##TAG##tnew_pi, "if (Pt4.new) "OPER"(Rx32++#s4:"SHFT")",           ATTRIB,DESCR,{fEA_REG(RxV); if(fLSBNEW(PtN)){ fPM_I(RxV,siV); SEMANTICS;} else {LOAD_CANCEL(EA);}})\
+Q6INSN(L2_p##TAG##fnew_pi, "if (!Pt4.new) "OPER"(Rx32++#s4:"SHFT")",          ATTRIB,DESCR,{fEA_REG(RxV); if(fLSBNEWNOT(PtN)){ fPM_I(RxV,siV); SEMANTICS;} else {LOAD_CANCEL(EA);}})\
+Q6INSN(L4_p##TAG##t_abs, "if (Pt4) "OPER"(#u6)",            ATTRIB,DESCR,{fMUST_IMMEXT(uiV); fEA_IMM(uiV); if(fLSBOLD(PtV)){ SEMANTICS;} else {LOAD_CANCEL(EA);}})\
+Q6INSN(L4_p##TAG##f_abs, "if (!Pt4) "OPER"(#u6)",           ATTRIB,DESCR,{fMUST_IMMEXT(uiV); fEA_IMM(uiV); if(fLSBOLDNOT(PtV)){ SEMANTICS; } else {LOAD_CANCEL(EA);}})\
+Q6INSN(L4_p##TAG##tnew_abs,"if (Pt4.new) "OPER"(#u6)",ATTRIB,DESCR,{fMUST_IMMEXT(uiV); fEA_IMM(uiV);if (fLSBNEW(PtN))  { SEMANTICS; } else {LOAD_CANCEL(EA);}})\
+Q6INSN(L4_p##TAG##fnew_abs,"if (!Pt4.new) "OPER"(#u6)",ATTRIB,DESCR,{fMUST_IMMEXT(uiV); fEA_IMM(uiV);if (fLSBNEWNOT(PtN)) { SEMANTICS; } else {LOAD_CANCEL(EA);}})
+
+
+
+/* The set of 32-bit predicated load instructions */
+STD_PLD_AMODES(loadrub,"Rd32=memub","Load Unsigned Byte",ATTRIBS(A_ARCHV2,A_LOAD),"0",0,fLOAD(1,1,u,EA,RdV))
+STD_PLD_AMODES(loadrb, "Rd32=memb", "Load signed Byte",ATTRIBS(A_ARCHV2,A_LOAD),"0",0,fLOAD(1,1,s,EA,RdV))
+STD_PLD_AMODES(loadruh,"Rd32=memuh","Load unsigned Half integer",ATTRIBS(A_ARCHV2,A_LOAD),"1",1,fLOAD(1,2,u,EA,RdV))
+STD_PLD_AMODES(loadrh, "Rd32=memh", "Load signed Half integer",ATTRIBS(A_ARCHV2,A_LOAD),"1",1,fLOAD(1,2,s,EA,RdV))
+STD_PLD_AMODES(loadri, "Rd32=memw", "Load Word",ATTRIBS(A_ARCHV2,A_LOAD),"2",2,fLOAD(1,4,u,EA,RdV))
+STD_PLD_AMODES(loadrd, "Rdd32=memd","Load Double integer",ATTRIBS(A_ARCHV2,A_LOAD),"3",3,fLOAD(1,8,u,EA,RddV))
+
+/* The set of addressing modes standard to all predicated store instructions */
+#define STD_PST_AMODES(TAG,DEST,OPER,DESCR,ATTRIB,SHFT,SHFTNUM,SEMANTICS)\
+Q6INSN(S4_##TAG##_rr,  OPER"(Rs32+Ru32<<#u2)="DEST,            ATTRIB,DESCR,{fEA_RRs(RsV,RuV,uiV); SEMANTICS;})\
+Q6INSN(S2_p##TAG##t_io, "if (Pv4) "OPER"(Rs32+#u6:"SHFT")="DEST,     ATTRIB,DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); if (fLSBOLD(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S2_p##TAG##t_pi, "if (Pv4) "OPER"(Rx32++#s4:"SHFT")="DEST,     ATTRIB,DESCR,{fEA_REG(RxV); if (fLSBOLD(PvV)){ fPM_I(RxV,siV); SEMANTICS;} else {STORE_CANCEL(EA);}})\
+Q6INSN(S2_p##TAG##f_io, "if (!Pv4) "OPER"(Rs32+#u6:"SHFT")="DEST,     ATTRIB,DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); if (fLSBOLDNOT(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S2_p##TAG##f_pi, "if (!Pv4) "OPER"(Rx32++#s4:"SHFT")="DEST,     ATTRIB,DESCR,{fEA_REG(RxV); if (fLSBOLDNOT(PvV)){ fPM_I(RxV,siV); SEMANTICS;} else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_p##TAG##t_rr, "if (Pv4) "OPER"(Rs32+Ru32<<#u2)="DEST,     ATTRIB,DESCR,{fEA_RRs(RsV,RuV,uiV); if (fLSBOLD(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_p##TAG##f_rr, "if (!Pv4) "OPER"(Rs32+Ru32<<#u2)="DEST,     ATTRIB,DESCR,{fEA_RRs(RsV,RuV,uiV); if (fLSBOLDNOT(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_p##TAG##tnew_io,"if (Pv4.new) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); if ( fLSBNEW(PvN)) { SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_p##TAG##fnew_io,"if (!Pv4.new) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); if (fLSBNEWNOT(PvN)) { SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_p##TAG##tnew_rr,"if (Pv4.new) "OPER"(Rs32+Ru32<<#u2)="DEST,ATTRIB,DESCR,{fEA_RRs(RsV,RuV,uiV); if ( fLSBNEW(PvN)) { SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_p##TAG##fnew_rr,"if (!Pv4.new) "OPER"(Rs32+Ru32<<#u2)="DEST,ATTRIB,DESCR,{fEA_RRs(RsV,RuV,uiV); if (fLSBNEWNOT(PvN)) { SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S2_p##TAG##tnew_pi, "if (Pv4.new) "OPER"(Rx32++#s4:"SHFT")="DEST,     ATTRIB,DESCR,{fEA_REG(RxV); if (fLSBNEW(PvN)){ fPM_I(RxV,siV); SEMANTICS;} else {STORE_CANCEL(EA);}})\
+Q6INSN(S2_p##TAG##fnew_pi, "if (!Pv4.new) "OPER"(Rx32++#s4:"SHFT")="DEST,     ATTRIB,DESCR,{fEA_REG(RxV); if (fLSBNEWNOT(PvN)){ fPM_I(RxV,siV); SEMANTICS;} else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_p##TAG##t_abs, "if (Pv4) "OPER"(#u6)="DEST,     ATTRIB,DESCR,{fMUST_IMMEXT(uiV); fEA_IMM(uiV); if (fLSBOLD(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_p##TAG##f_abs, "if (!Pv4) "OPER"(#u6)="DEST,     ATTRIB,DESCR,{fMUST_IMMEXT(uiV);fEA_IMM(uiV); if (fLSBOLDNOT(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_p##TAG##tnew_abs,"if (Pv4.new) "OPER"(#u6)="DEST,ATTRIB,DESCR,{fMUST_IMMEXT(uiV);fEA_IMM(uiV); if ( fLSBNEW(PvN)) { SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_p##TAG##fnew_abs,"if (!Pv4.new) "OPER"(#u6)="DEST,ATTRIB,DESCR,{fMUST_IMMEXT(uiV);fEA_IMM(uiV); if (fLSBNEWNOT(PvN)) { SEMANTICS; } else {STORE_CANCEL(EA);}})
+
+
+
+
+/* The set of 32-bit predicated store instructions */
+STD_PST_AMODES(storerb,"Rt32","memb","Store Byte",ATTRIBS(A_ARCHV2,A_STORE),"0",0,fSTORE(1,1,EA,fGETBYTE(0,RtV)))
+STD_PST_AMODES(storerh,"Rt32","memh","Store Half integer",ATTRIBS(A_ARCHV2,A_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(0,RtV)))
+STD_PST_AMODES(storerf,"Rt.H32","memh","Store Upper Half integer",ATTRIBS(A_ARCHV2,A_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(1,RtV)))
+STD_PST_AMODES(storeri,"Rt32","memw","Store Word",ATTRIBS(A_ARCHV2,A_STORE),"2",2,fSTORE(1,4,EA,RtV))
+STD_PST_AMODES(storerd,"Rtt32","memd","Store Double integer",ATTRIBS(A_ARCHV2,A_STORE),"3",3,fSTORE(1,8,EA,RttV))
+STD_PST_AMODES(storerinew,"Nt8.new","memw","Store Word",ATTRIBS(A_ARCHV2,A_STORE),"2",2,fSTORE(1,4,EA,fNEWREG_ST(NtN)))
+STD_PST_AMODES(storerbnew,"Nt8.new","memb","Store Byte",ATTRIBS(A_ARCHV2,A_STORE),"0",0,fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))))
+STD_PST_AMODES(storerhnew,"Nt8.new","memh","Store Half integer",ATTRIBS(A_ARCHV2,A_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))))
+
+
+
+
+/*****************************************************************/
+/*                                                               */
+/*                       Mem-Ops (Load-op-Store)                 */
+/*                                                               */
+/*****************************************************************/
+
+/* The set of 32-bit non-predicated mem-ops */
+#define STD_MEMOP_AMODES(TAG,OPER,DESCR,SEMANTICS)\
+Q6INSN(L4_##TAG##w_io,  "memw(Rs32+#u6:2)"OPER,     ATTRIBS(A_RESTRICT_SLOT0ONLY),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,4,s,EA,tmp); SEMANTICS;  fSTORE(1,4,EA,tmp); })\
+Q6INSN(L4_##TAG##b_io,  "memb(Rs32+#u6:0)"OPER,     ATTRIBS(A_RESTRICT_SLOT0ONLY),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,1,s,EA,tmp); SEMANTICS;  fSTORE(1,1,EA,tmp); })\
+Q6INSN(L4_##TAG##h_io,  "memh(Rs32+#u6:1)"OPER,     ATTRIBS(A_RESTRICT_SLOT0ONLY),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,2,s,EA,tmp); SEMANTICS;  fSTORE(1,2,EA,tmp); })
+
+
+
+STD_MEMOP_AMODES(add_memop, "+=Rt32", "Add Register to Memory Word", tmp += RtV)
+STD_MEMOP_AMODES(sub_memop, "-=Rt32", "Sub Register from Memory Word", tmp -= RtV)
+STD_MEMOP_AMODES(and_memop, "&=Rt32", "Logical AND Register to Memory Word", tmp &= RtV)
+STD_MEMOP_AMODES(or_memop, "|=Rt32", "Logical OR Register to Memory Word", tmp |= RtV)
+
+
+STD_MEMOP_AMODES(iadd_memop, "+=#U5", "Add Immediate to Memory Word", tmp += UiV)
+STD_MEMOP_AMODES(isub_memop, "-=#U5", "Sub Immediate to Memory Word", tmp -= UiV)
+STD_MEMOP_AMODES(iand_memop, "=clrbit(#U5)", "Clear a bit in memory", tmp &= (~(1<<UiV)))
+STD_MEMOP_AMODES(ior_memop,  "=setbit(#U5)", "Set a bit in memory", tmp |= (1<<UiV))
+
+
+/*****************************************************************/
+/*                                                               */
+/*                  V4 store immediates                          */
+/*                                                               */
+/*****************************************************************/
+/* Predicated Store immediates */
+#define V4_PSTI_AMODES(TAG,DEST,OPER,DESCR,ATTRIB,SHFT,SEMANTICS)\
+Q6INSN(S4_##TAG##t_io,"if (Pv4) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fEA_RI(RsV,uiV); if (fLSBOLD(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_##TAG##f_io,"if (!Pv4) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fEA_RI(RsV,uiV); if (fLSBOLDNOT(PvV)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_##TAG##tnew_io,"if (Pv4.new) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fEA_RI(RsV,uiV); if (fLSBNEW(PvN)){ SEMANTICS; } else {STORE_CANCEL(EA);}})\
+Q6INSN(S4_##TAG##fnew_io,"if (!Pv4.new) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fEA_RI(RsV,uiV); if (fLSBNEWNOT(PvN)){ SEMANTICS; } else {STORE_CANCEL(EA);}})
+
+/* The set of 32-bit store immediate instructions */
+V4_PSTI_AMODES(storeirb,"#S6","memb","Store Immediate Byte",ATTRIBS(A_ARCHV2,A_STORE),"0",fIMMEXT(SiV); fSTORE(1,1,EA,SiV))
+V4_PSTI_AMODES(storeirh,"#S6","memh","Store Immediate Half integer",ATTRIBS(A_ARCHV2,A_STORE),"1",fIMMEXT(SiV); fSTORE(1,2,EA,SiV))
+V4_PSTI_AMODES(storeiri,"#S6","memw","Store Immediate Word",ATTRIBS(A_ARCHV2,A_STORE),"2",fIMMEXT(SiV); fSTORE(1,4,EA,SiV))
+
+
+/* Non-predicated store immediates */
+#define V4_STI_AMODES(TAG,DEST,OPER,DESCR,ATTRIB,SHFT,SEMANTICS)\
+Q6INSN(S4_##TAG##_io,  OPER"(Rs32+#u6:"SHFT")="DEST,  ATTRIB,DESCR,{fEA_RI(RsV,uiV); SEMANTICS; })
+
+/* The set of 32-bit store immediate instructions */
+V4_STI_AMODES(storeirb,"#S8","memb","Store Immediate Byte",ATTRIBS(A_ARCHV2,A_STORE),"0",fIMMEXT(SiV); fSTORE(1,1,EA,SiV))
+V4_STI_AMODES(storeirh,"#S8","memh","Store Immediate Half integer",ATTRIBS(A_ARCHV2,A_STORE),"1",fIMMEXT(SiV); fSTORE(1,2,EA,SiV))
+V4_STI_AMODES(storeiri,"#S8","memw","Store Immediate Word",ATTRIBS(A_ARCHV2,A_STORE),"2",fIMMEXT(SiV); fSTORE(1,4,EA,SiV))
+
+
+
+
+
+
+
+/*****************************************************************/
+/*                                                               */
+/*                  V2 GP-relative LD/ST                         */
+/*                                                               */
+/*****************************************************************/
+
+#define STD_GPLD_AMODES(TAG,OPER,DESCR,ATTRIB,SHFT,SEMANTICS)\
+Q6INSN(L2_##TAG##gp, OPER"(gp+#u16:"SHFT")",   ATTRIB,DESCR,{fIMMEXT(uiV); fEA_GPI(uiV); SEMANTICS; })
+
+/* The set of 32-bit load instructions */
+STD_GPLD_AMODES(loadrub,"Rd32=memub","Load Unsigned Byte",ATTRIBS(A_LOAD,A_ARCHV2),"0",fLOAD(1,1,u,EA,RdV))
+STD_GPLD_AMODES(loadrb, "Rd32=memb", "Load signed Byte",ATTRIBS(A_LOAD,A_ARCHV2),"0",fLOAD(1,1,s,EA,RdV))
+STD_GPLD_AMODES(loadruh,"Rd32=memuh","Load unsigned Half integer",ATTRIBS(A_LOAD,A_ARCHV2),"1",fLOAD(1,2,u,EA,RdV))
+STD_GPLD_AMODES(loadrh, "Rd32=memh", "Load signed Half integer",ATTRIBS(A_LOAD,A_ARCHV2),"1",fLOAD(1,2,s,EA,RdV))
+STD_GPLD_AMODES(loadri, "Rd32=memw", "Load Word",ATTRIBS(A_LOAD,A_ARCHV2),"2",fLOAD(1,4,u,EA,RdV))
+STD_GPLD_AMODES(loadrd, "Rdd32=memd","Load Double integer",ATTRIBS(A_LOAD,A_ARCHV2),"3",fLOAD(1,8,u,EA,RddV))
+
+
+#define STD_GPST_AMODES(TAG,DEST,OPER,DESCR,ATTRIB,SHFT,SEMANTICS)\
+Q6INSN(S2_##TAG##gp, OPER"(gp+#u16:"SHFT")="DEST, ATTRIB,DESCR,{fIMMEXT(uiV); fEA_GPI(uiV); SEMANTICS; })
+
+/* The set of 32-bit store instructions */
+STD_GPST_AMODES(storerb, "Rt32", "memb","Store Byte",ATTRIBS(A_STORE,A_ARCHV2),"0",fSTORE(1,1,EA,fGETBYTE(0,RtV)))
+STD_GPST_AMODES(storerh, "Rt32", "memh","Store Half integer",ATTRIBS(A_STORE,A_ARCHV2),"1",fSTORE(1,2,EA,fGETHALF(0,RtV)))
+STD_GPST_AMODES(storerf, "Rt.H32", "memh","Store Upper Half integer",ATTRIBS(A_STORE,A_ARCHV2),"1",fSTORE(1,2,EA,fGETHALF(1,RtV)))
+STD_GPST_AMODES(storeri, "Rt32", "memw","Store Word",ATTRIBS(A_STORE,A_ARCHV2),"2",fSTORE(1,4,EA,RtV))
+STD_GPST_AMODES(storerd, "Rtt32","memd","Store Double integer",ATTRIBS(A_STORE,A_ARCHV2),"3",fSTORE(1,8,EA,RttV))
+STD_GPST_AMODES(storerinew, "Nt8.new", "memw","Store Word",ATTRIBS(A_STORE,A_ARCHV2),"2",fSTORE(1,4,EA,fNEWREG_ST(NtN)))
+STD_GPST_AMODES(storerbnew, "Nt8.new", "memb","Store Byte",ATTRIBS(A_STORE,A_ARCHV2),"0",fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))))
+STD_GPST_AMODES(storerhnew, "Nt8.new", "memh","Store Half integer",ATTRIBS(A_STORE,A_ARCHV2),"1",fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))))

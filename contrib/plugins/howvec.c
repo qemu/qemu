@@ -68,7 +68,7 @@ static InsnClassExecCount aarch64_insn_classes[] = {
     { "Reserved",            "res",    0x1e000000, 0x00000000, COUNT_CLASS},
     /* Data Processing Immediate */
     { "  PCrel addr",        "pcrel",  0x1f000000, 0x10000000, COUNT_CLASS},
-    { "  Add/Sub (imm,tags)","asit",   0x1f800000, 0x11800000, COUNT_CLASS},
+    { "  Add/Sub (imm,tags)", "asit",   0x1f800000, 0x11800000, COUNT_CLASS},
     { "  Add/Sub (imm)",     "asi",    0x1f000000, 0x11000000, COUNT_CLASS},
     { "  Logical (imm)",     "logi",   0x1f800000, 0x12000000, COUNT_CLASS},
     { "  Move Wide (imm)",   "movwi",  0x1f800000, 0x12800000, COUNT_CLASS},
@@ -91,17 +91,17 @@ static InsnClassExecCount aarch64_insn_classes[] = {
     { "Branches",            "branch", 0x1c000000, 0x14000000, COUNT_CLASS},
     /* Loads and Stores */
     { "  AdvSimd ldstmult",  "advlsm", 0xbfbf0000, 0x0c000000, COUNT_CLASS},
-    { "  AdvSimd ldstmult++","advlsmp",0xbfb00000, 0x0c800000, COUNT_CLASS},
+    { "  AdvSimd ldstmult++", "advlsmp", 0xbfb00000, 0x0c800000, COUNT_CLASS},
     { "  AdvSimd ldst",      "advlss", 0xbf9f0000, 0x0d000000, COUNT_CLASS},
-    { "  AdvSimd ldst++",    "advlssp",0xbf800000, 0x0d800000, COUNT_CLASS},
+    { "  AdvSimd ldst++",    "advlssp", 0xbf800000, 0x0d800000, COUNT_CLASS},
     { "  ldst excl",         "ldstx",  0x3f000000, 0x08000000, COUNT_CLASS},
     { "    Prefetch",        "prfm",   0xff000000, 0xd8000000, COUNT_CLASS},
     { "  Load Reg (lit)",    "ldlit",  0x1b000000, 0x18000000, COUNT_CLASS},
-    { "  ldst noalloc pair", "ldstnap",0x3b800000, 0x28000000, COUNT_CLASS},
+    { "  ldst noalloc pair", "ldstnap", 0x3b800000, 0x28000000, COUNT_CLASS},
     { "  ldst pair",         "ldstp",  0x38000000, 0x28000000, COUNT_CLASS},
     { "  ldst reg",          "ldstr",  0x3b200000, 0x38000000, COUNT_CLASS},
     { "  Atomic ldst",       "atomic", 0x3b200c00, 0x38200000, COUNT_CLASS},
-    { "  ldst reg (reg off)","ldstro", 0x3b200b00, 0x38200800, COUNT_CLASS},
+    { "  ldst reg (reg off)", "ldstro", 0x3b200b00, 0x38200800, COUNT_CLASS},
     { "  ldst reg (pac)",    "ldstpa", 0x3b200200, 0x38200800, COUNT_CLASS},
     { "  ldst reg (imm)",    "ldsti",  0x3b000000, 0x39000000, COUNT_CLASS},
     { "Loads & Stores",      "ldst",   0x0a000000, 0x08000000, COUNT_CLASS},
@@ -145,8 +145,7 @@ typedef struct {
     int table_sz;
 } ClassSelector;
 
-static ClassSelector class_tables[] =
-{
+static ClassSelector class_tables[] = {
     { "aarch64", aarch64_insn_classes, ARRAY_SIZE(aarch64_insn_classes) },
     { "sparc",   sparc32_insn_classes, ARRAY_SIZE(sparc32_insn_classes) },
     { "sparc64", sparc64_insn_classes, ARRAY_SIZE(sparc64_insn_classes) },
@@ -202,14 +201,14 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
 
     counts = g_hash_table_get_values(insns);
     if (counts && g_list_next(counts)) {
-        g_string_append_printf(report,"Individual Instructions:\n");
+        g_string_append_printf(report, "Individual Instructions:\n");
         counts = g_list_sort(counts, cmp_exec_count);
 
         for (i = 0; i < limit && g_list_next(counts);
              i++, counts = g_list_next(counts)) {
             InsnExecCount *rec = (InsnExecCount *) counts->data;
             g_string_append_printf(report,
-                                   "Instr: %-24s\t(%ld hits)\t(op=%#08x/%s)\n",
+                                   "Instr: %-24s\t(%ld hits)\t(op=0x%08x/%s)\n",
                                    rec->insn,
                                    rec->count,
                                    rec->opcode,
@@ -235,7 +234,7 @@ static void vcpu_insn_exec_before(unsigned int cpu_index, void *udata)
     (*count)++;
 }
 
-static uint64_t * find_counter(struct qemu_plugin_insn *insn)
+static uint64_t *find_counter(struct qemu_plugin_insn *insn)
 {
     int i;
     uint64_t *cnt = NULL;

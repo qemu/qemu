@@ -1,0 +1,1258 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * ALU Instructions
+ */
+
+
+/**********************************************/
+/* Add/Sub instructions                       */
+/**********************************************/
+
+Q6INSN(A2_add,"Rd32=add(Rs32,Rt32)",ATTRIBS(),
+"Add 32-bit registers",
+{ RdV=RsV+RtV;})
+
+Q6INSN(A2_sub,"Rd32=sub(Rt32,Rs32)",ATTRIBS(),
+"Subtract 32-bit registers",
+{ RdV=RtV-RsV;})
+
+#define COND_ALU(TAG,OPER,DESCR,SEMANTICS)\
+Q6INSN(TAG##t,"if (Pu4) "OPER,ATTRIBS(A_ARCHV2),DESCR,{if(fLSBOLD(PuV)){SEMANTICS;} else {CANCEL;}})\
+Q6INSN(TAG##f,"if (!Pu4) "OPER,ATTRIBS(A_ARCHV2),DESCR,{if(fLSBOLDNOT(PuV)){SEMANTICS;} else {CANCEL;}})\
+Q6INSN(TAG##tnew,"if (Pu4.new) " OPER,ATTRIBS(A_ARCHV2),DESCR,{if(fLSBNEW(PuN)){SEMANTICS;} else {CANCEL;}})\
+Q6INSN(TAG##fnew,"if (!Pu4.new) "OPER,ATTRIBS(A_ARCHV2),DESCR,{if(fLSBNEWNOT(PuN)){SEMANTICS;} else {CANCEL;}})
+
+COND_ALU(A2_padd,"Rd32=add(Rs32,Rt32)","Conditionally Add 32-bit registers",RdV=RsV+RtV)
+COND_ALU(A2_psub,"Rd32=sub(Rt32,Rs32)","Conditionally Subtract 32-bit registers",RdV=RtV-RsV)
+COND_ALU(A2_paddi,"Rd32=add(Rs32,#s8)","Conditionally Add Register and immediate",fIMMEXT(siV); RdV=RsV+siV)
+COND_ALU(A2_pxor,"Rd32=xor(Rs32,Rt32)","Conditionally XOR registers",RdV=RsV^RtV)
+COND_ALU(A2_pand,"Rd32=and(Rs32,Rt32)","Conditionally AND registers",RdV=RsV&RtV)
+COND_ALU(A2_por,"Rd32=or(Rs32,Rt32)","Conditionally OR registers",RdV=RsV|RtV)
+
+COND_ALU(A4_psxtb,"Rd32=sxtb(Rs32)","Conditionally sign-extend byte", RdV=fSXTN(8,32,RsV))
+COND_ALU(A4_pzxtb,"Rd32=zxtb(Rs32)","Conditionally zero-extend byte", RdV=fZXTN(8,32,RsV))
+COND_ALU(A4_psxth,"Rd32=sxth(Rs32)","Conditionally sign-extend halfword", RdV=fSXTN(16,32,RsV))
+COND_ALU(A4_pzxth,"Rd32=zxth(Rs32)","Conditionally zero-extend halfword", RdV=fZXTN(16,32,RsV))
+COND_ALU(A4_paslh,"Rd32=aslh(Rs32)","Conditionally zero-extend halfword", RdV=RsV<<16)
+COND_ALU(A4_pasrh,"Rd32=asrh(Rs32)","Conditionally zero-extend halfword", RdV=RsV>>16)
+
+
+Q6INSN(A2_addsat,"Rd32=add(Rs32,Rt32):sat",ATTRIBS(),
+"Add 32-bit registers with saturation",
+{ RdV=fSAT(fSE32_64(RsV)+fSE32_64(RtV)); })
+
+Q6INSN(A2_subsat,"Rd32=sub(Rt32,Rs32):sat",ATTRIBS(),
+"Subtract 32-bit registers with saturation",
+{ RdV=fSAT(fSE32_64(RtV) - fSE32_64(RsV)); })
+
+
+Q6INSN(A2_addi,"Rd32=add(Rs32,#s16)",ATTRIBS(),
+"Add a signed immediate to a register",
+{ fIMMEXT(siV); RdV=RsV+siV;})
+
+
+Q6INSN(C4_addipc,"Rd32=add(pc,#u6)",ATTRIBS(),
+"Add immediate to PC",
+{ RdV=fREAD_PC()+fIMMEXT(uiV);})
+
+
+
+/**********************************************/
+/* Single-precision HL forms                  */
+/* These insns and the SP mpy are the ones    */
+/* that can do .HL stuff                      */
+/**********************************************/
+#define STD_HL_INSN(TAG,OPER,AOPER,ATR,SEM)\
+Q6INSN(A2_##TAG##_ll, OPER"(Rt.L32,Rs.L32)"AOPER,    ATR,"",{SEM(fGETHALF(0,RtV),fGETHALF(0,RsV));})\
+Q6INSN(A2_##TAG##_lh, OPER"(Rt.L32,Rs.H32)"AOPER,    ATR,"",{SEM(fGETHALF(0,RtV),fGETHALF(1,RsV));})\
+Q6INSN(A2_##TAG##_hl, OPER"(Rt.H32,Rs.L32)"AOPER,    ATR,"",{SEM(fGETHALF(1,RtV),fGETHALF(0,RsV));})\
+Q6INSN(A2_##TAG##_hh, OPER"(Rt.H32,Rs.H32)"AOPER,    ATR,"",{SEM(fGETHALF(1,RtV),fGETHALF(1,RsV));})
+
+#define SUBSTD_HL_INSN(TAG,OPER,AOPER,ATR,SEM)\
+Q6INSN(A2_##TAG##_ll, OPER"(Rt.L32,Rs.L32)"AOPER,    ATR,"",{SEM(fGETHALF(0,RtV),fGETHALF(0,RsV));})\
+Q6INSN(A2_##TAG##_hl, OPER"(Rt.L32,Rs.H32)"AOPER,    ATR,"",{SEM(fGETHALF(0,RtV),fGETHALF(1,RsV));})
+
+
+#undef HLSEM
+#define HLSEM(A,B) RdV=fSXTN(16,32,(A+B))
+SUBSTD_HL_INSN(addh_l16,"Rd32=add","",ATTRIBS(),HLSEM)
+
+#undef HLSEM
+#define HLSEM(A,B) RdV=fSATH(A+B)
+SUBSTD_HL_INSN(addh_l16_sat,"Rd32=add",":sat",ATTRIBS(),HLSEM)
+
+#undef HLSEM
+#define HLSEM(A,B) RdV=fSXTN(16,32,(A-B))
+SUBSTD_HL_INSN(subh_l16,"Rd32=sub","",ATTRIBS(),HLSEM)
+
+#undef HLSEM
+#define HLSEM(A,B) RdV=fSATH(A-B)
+SUBSTD_HL_INSN(subh_l16_sat,"Rd32=sub",":sat",ATTRIBS(),HLSEM)
+
+#undef HLSEM
+#define HLSEM(A,B) RdV=(A+B)<<16
+STD_HL_INSN(addh_h16,"Rd32=add",":<<16",ATTRIBS(),HLSEM)
+
+#undef HLSEM
+#define HLSEM(A,B) RdV=(fSATH(A+B))<<16
+STD_HL_INSN(addh_h16_sat,"Rd32=add",":sat:<<16",ATTRIBS(),HLSEM)
+
+#undef HLSEM
+#define HLSEM(A,B) RdV=(A-B)<<16
+STD_HL_INSN(subh_h16,"Rd32=sub",":<<16",ATTRIBS(),HLSEM)
+
+#undef HLSEM
+#define HLSEM(A,B) RdV=(fSATH(A-B))<<16
+STD_HL_INSN(subh_h16_sat,"Rd32=sub",":sat:<<16",ATTRIBS(),HLSEM)
+
+
+
+
+Q6INSN(A2_aslh,"Rd32=aslh(Rs32)",ATTRIBS(),
+"Arithmetic Shift Left by Halfword",{ RdV=RsV<<16; })
+
+Q6INSN(A2_asrh,"Rd32=asrh(Rs32)",ATTRIBS(),
+"Arithmetic Shift Right by Halfword",{ RdV=RsV>>16; })
+
+
+/* 64-bit versions */
+
+Q6INSN(A2_addp,"Rdd32=add(Rss32,Rtt32)",ATTRIBS(),
+"Add",
+{ RddV=RssV+RttV;})
+
+Q6INSN(A2_addpsat,"Rdd32=add(Rss32,Rtt32):sat",ATTRIBS(A_ARCHV3),
+"Add",
+{ fADDSAT64(RddV,RssV,RttV);})
+
+Q6INSN(A2_addspl,"Rdd32=add(Rss32,Rtt32):raw:lo",ATTRIBS(A_ARCHV3),
+"Add",
+{ RddV=RttV+fSXTN(32,64,fGETWORD(0,RssV));})
+
+Q6INSN(A2_addsph,"Rdd32=add(Rss32,Rtt32):raw:hi",ATTRIBS(A_ARCHV3),
+"Add",
+{ RddV=RttV+fSXTN(32,64,fGETWORD(1,RssV));})
+
+Q6INSN(A2_subp,"Rdd32=sub(Rtt32,Rss32)",ATTRIBS(),
+"Sub",
+{ RddV=RttV-RssV;})
+
+/* NEG and ABS */
+
+Q6INSN(A2_negsat,"Rd32=neg(Rs32):sat",ATTRIBS(),
+"Arithmetic negate register", { RdV = fSAT(-fCAST8s(RsV)); })
+
+Q6INSN(A2_abs,"Rd32=abs(Rs32)",ATTRIBS(),
+"Absolute Value register", { RdV = fABS(RsV); })
+
+Q6INSN(A2_abssat,"Rd32=abs(Rs32):sat",ATTRIBS(),
+"Arithmetic negate register", { RdV = fSAT(fABS(fCAST4_8s(RsV))); })
+
+Q6INSN(A2_vconj,"Rdd32=vconj(Rss32):sat",ATTRIBS(A_ARCHV2),
+"Vector Complex conjugate of Rss",
+{  fSETHALF(1,RddV,fSATN(16,-fGETHALF(1,RssV)));
+   fSETHALF(0,RddV,fGETHALF(0,RssV));
+   fSETHALF(3,RddV,fSATN(16,-fGETHALF(3,RssV)));
+   fSETHALF(2,RddV,fGETHALF(2,RssV));
+})
+
+
+/* 64-bit versions */
+
+Q6INSN(A2_negp,"Rdd32=neg(Rss32)",ATTRIBS(),
+"Arithmetic negate register", { RddV = -RssV; })
+
+Q6INSN(A2_absp,"Rdd32=abs(Rss32)",ATTRIBS(),
+"Absolute Value register", { RddV = fABS(RssV); })
+
+
+/* MIN and MAX  R */
+
+Q6INSN(A2_max,"Rd32=max(Rs32,Rt32)",ATTRIBS(),
+"Maximum of two registers",
+{ RdV = fMAX(RsV,RtV); })
+
+Q6INSN(A2_maxu,"Rd32=maxu(Rs32,Rt32)",ATTRIBS(),
+"Maximum of two registers (unsigned)",
+{ RdV = fMAX(fCAST4u(RsV),fCAST4u(RtV)); })
+
+Q6INSN(A2_min,"Rd32=min(Rt32,Rs32)",ATTRIBS(),
+"Minimum of two registers",
+{ RdV = fMIN(RtV,RsV); })
+
+Q6INSN(A2_minu,"Rd32=minu(Rt32,Rs32)",ATTRIBS(),
+"Minimum of two registers (unsigned)",
+{ RdV = fMIN(fCAST4u(RtV),fCAST4u(RsV)); })
+
+/* MIN and MAX Pairs */
+#if 1
+Q6INSN(A2_maxp,"Rdd32=max(Rss32,Rtt32)",ATTRIBS(A_ARCHV3),
+"Maximum of two register pairs",
+{ RddV = fMAX(RssV,RttV); })
+
+Q6INSN(A2_maxup,"Rdd32=maxu(Rss32,Rtt32)",ATTRIBS(A_ARCHV3),
+"Maximum of two register pairs (unsigned)",
+{ RddV = fMAX(fCAST8u(RssV),fCAST8u(RttV)); })
+
+Q6INSN(A2_minp,"Rdd32=min(Rtt32,Rss32)",ATTRIBS(A_ARCHV3),
+"Minimum of two register pairs",
+{ RddV = fMIN(RttV,RssV); })
+
+Q6INSN(A2_minup,"Rdd32=minu(Rtt32,Rss32)",ATTRIBS(A_ARCHV3),
+"Minimum of two register pairs (unsigned)",
+{ RddV = fMIN(fCAST8u(RttV),fCAST8u(RssV)); })
+#endif
+
+/**********************************************/
+/* Register and Immediate Transfers           */
+/**********************************************/
+
+Q6INSN(A2_nop,"nop",ATTRIBS(A_IT_NOP),
+"Nop (32-bit encoding)",
+ fHIDE( { }  ))
+
+
+Q6INSN(A4_ext,"immext(#u26:6)",ATTRIBS(A_IT_EXTENDER),
+"This instruction carries the 26 most-significant immediate bits for the next instruction",
+{ fHIDE(); })
+
+
+Q6INSN(A2_tfr,"Rd32=Rs32",ATTRIBS(),
+"tfr register",{ RdV=RsV;})
+
+Q6INSN(A2_tfrsi,"Rd32=#s16",ATTRIBS(),
+"transfer signed immediate to register",{ fIMMEXT(siV); RdV=siV;})
+
+Q6INSN(A2_sxtb,"Rd32=sxtb(Rs32)",ATTRIBS(),
+"Sign extend byte", {RdV = fSXTN(8,32,RsV);})
+
+Q6INSN(A2_zxth,"Rd32=zxth(Rs32)",ATTRIBS(),
+"Zero extend half", {RdV = fZXTN(16,32,RsV);})
+
+Q6INSN(A2_sxth,"Rd32=sxth(Rs32)",ATTRIBS(),
+"Sign extend half", {RdV = fSXTN(16,32,RsV);})
+
+Q6INSN(A2_combinew,"Rdd32=combine(Rs32,Rt32)",ATTRIBS(),
+"Combine two words into a register pair",
+{ fSETWORD(0,RddV,RtV);
+  fSETWORD(1,RddV,RsV);
+})
+
+Q6INSN(A4_combineri,"Rdd32=combine(Rs32,#s8)",ATTRIBS(),
+"Combine a word and an immediate into a register pair",
+{ fIMMEXT(siV); fSETWORD(0,RddV,siV);
+  fSETWORD(1,RddV,RsV);
+})
+
+Q6INSN(A4_combineir,"Rdd32=combine(#s8,Rs32)",ATTRIBS(),
+"Combine a word and an immediate into a register pair",
+{ fIMMEXT(siV); fSETWORD(0,RddV,RsV);
+  fSETWORD(1,RddV,siV);
+})
+
+
+
+Q6INSN(A2_combineii,"Rdd32=combine(#s8,#S8)",ATTRIBS(A_ARCHV2),
+"Set two small immediates",
+{ fIMMEXT(siV); fSETWORD(0,RddV,SiV); fSETWORD(1,RddV,siV); })
+
+Q6INSN(A4_combineii,"Rdd32=combine(#s8,#U6)",ATTRIBS(),"Set two small immediates",
+{ fIMMEXT(UiV); fSETWORD(0,RddV,UiV); fSETWORD(1,RddV,siV); })
+
+
+Q6INSN(A2_combine_hh,"Rd32=combine(Rt.H32,Rs.H32)",ATTRIBS(),
+"Combine two halfs into a register", {RdV = (fGETUHALF(1,RtV)<<16) | fGETUHALF(1,RsV);})
+
+Q6INSN(A2_combine_hl,"Rd32=combine(Rt.H32,Rs.L32)",ATTRIBS(),
+"Combine two halfs into a register", {RdV = (fGETUHALF(1,RtV)<<16) | fGETUHALF(0,RsV);})
+
+Q6INSN(A2_combine_lh,"Rd32=combine(Rt.L32,Rs.H32)",ATTRIBS(),
+"Combine two halfs into a register", {RdV = (fGETUHALF(0,RtV)<<16) | fGETUHALF(1,RsV);})
+
+Q6INSN(A2_combine_ll,"Rd32=combine(Rt.L32,Rs.L32)",ATTRIBS(),
+"Combine two halfs into a register", {RdV = (fGETUHALF(0,RtV)<<16) | fGETUHALF(0,RsV);})
+
+Q6INSN(A2_tfril,"Rx.L32=#u16",ATTRIBS(),
+"Set low 16-bits, leave upper 16 unchanged",{ fSETHALF(0,RxV,uiV);})
+
+Q6INSN(A2_tfrih,"Rx.H32=#u16",ATTRIBS(),
+"Set high 16-bits, leave low 16 unchanged",{ fSETHALF(1,RxV,uiV);})
+
+Q6INSN(A2_tfrcrr,"Rd32=Cs32",ATTRIBS(),
+"transfer control register to general register",{ RdV=CsV;})
+
+Q6INSN(A2_tfrrcr,"Cd32=Rs32",ATTRIBS(),
+"transfer general register to control register",{ CdV=RsV;})
+
+Q6INSN(A4_tfrcpp,"Rdd32=Css32",ATTRIBS(),
+"transfer control register to general register",{ RddV=CssV;})
+
+Q6INSN(A4_tfrpcp,"Cdd32=Rss32",ATTRIBS(),
+"transfer general register to control register",{ CddV=RssV;})
+
+
+/**********************************************/
+/* Logicals                                   */
+/**********************************************/
+
+Q6INSN(A2_and,"Rd32=and(Rs32,Rt32)",ATTRIBS(),
+"logical AND",{ RdV=RsV&RtV;})
+
+Q6INSN(A2_or,"Rd32=or(Rs32,Rt32)",ATTRIBS(),
+"logical OR",{ RdV=RsV|RtV;})
+
+Q6INSN(A2_xor,"Rd32=xor(Rs32,Rt32)",ATTRIBS(),
+"logical XOR",{ RdV=RsV^RtV;})
+
+Q6INSN(M2_xor_xacc,"Rx32^=xor(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"logical XOR with XOR accumulation",{ RxV^=RsV^RtV;})
+
+Q6INSN(M4_xor_xacc,"Rxx32^=xor(Rss32,Rtt32)",,
+"logical XOR with XOR accumulation",{ RxxV^=RssV^RttV;})
+
+
+
+Q6INSN(A4_andn,"Rd32=and(Rt32,~Rs32)",,
+"And-Not", { RdV = (RtV & ~RsV); })
+
+Q6INSN(A4_orn,"Rd32=or(Rt32,~Rs32)",,
+"Or-Not", { RdV = (RtV | ~RsV); })
+
+
+Q6INSN(A4_andnp,"Rdd32=and(Rtt32,~Rss32)",,
+"And-Not", { RddV = (RttV & ~RssV); })
+
+Q6INSN(A4_ornp,"Rdd32=or(Rtt32,~Rss32)",,
+"Or-Not", { RddV = (RttV | ~RssV); })
+
+
+
+
+/********************/
+/* Compound add-add */
+/********************/
+
+Q6INSN(S4_addaddi,"Rd32=add(Rs32,add(Ru32,#s6))",ATTRIBS(),
+        "3-input add",
+        { RdV = RsV + RuV + fIMMEXT(siV); })
+
+
+Q6INSN(S4_subaddi,"Rd32=add(Rs32,sub(#s6,Ru32))",ATTRIBS(),
+        "3-input sub",
+        { RdV = RsV - RuV + fIMMEXT(siV); })
+
+
+
+/****************************/
+/* Compound logical-logical */
+/****************************/
+
+Q6INSN(M4_and_and,"Rx32&=and(Rs32,Rt32)",ATTRIBS(),
+"Compound And-And", { RxV &= (RsV & RtV); })
+
+Q6INSN(M4_and_andn,"Rx32&=and(Rs32,~Rt32)",ATTRIBS(),
+"Compound And-Andn", { RxV &= (RsV & ~RtV); })
+
+Q6INSN(M4_and_or,"Rx32&=or(Rs32,Rt32)",ATTRIBS(),
+"Compound And-Or", { RxV &= (RsV | RtV); })
+
+Q6INSN(M4_and_xor,"Rx32&=xor(Rs32,Rt32)",ATTRIBS(),
+"Compound And-xor", { RxV &= (RsV ^ RtV); })
+
+
+
+Q6INSN(M4_or_and,"Rx32|=and(Rs32,Rt32)",ATTRIBS(),
+"Compound Or-And", { RxV |= (RsV & RtV); })
+
+Q6INSN(M4_or_andn,"Rx32|=and(Rs32,~Rt32)",ATTRIBS(),
+"Compound Or-AndN", { RxV |= (RsV & ~RtV); })
+
+Q6INSN(M4_or_or,"Rx32|=or(Rs32,Rt32)",ATTRIBS(),
+"Compound Or-Or", { RxV |= (RsV | RtV); })
+
+Q6INSN(M4_or_xor,"Rx32|=xor(Rs32,Rt32)",ATTRIBS(),
+"Compound Or-xor", { RxV |= (RsV ^ RtV); })
+
+
+Q6INSN(S4_or_andix,"Rx32=or(Ru32,and(Rx32,#s10))",ATTRIBS(),
+"Compound Or-And", { RxV = RuV | (RxV & fIMMEXT(siV)); })
+
+Q6INSN(S4_or_andi,"Rx32|=and(Rs32,#s10)",ATTRIBS(),
+"Compound Or-And", { RxV = RxV | (RsV & fIMMEXT(siV)); })
+
+Q6INSN(S4_or_ori,"Rx32|=or(Rs32,#s10)",ATTRIBS(),
+"Compound Or-And", { RxV = RxV | (RsV | fIMMEXT(siV)); })
+
+
+
+
+Q6INSN(M4_xor_and,"Rx32^=and(Rs32,Rt32)",ATTRIBS(),
+"Compound Xor-And", { RxV ^= (RsV & RtV); })
+
+Q6INSN(M4_xor_or,"Rx32^=or(Rs32,Rt32)",ATTRIBS(),
+"Compound Xor-Or", { RxV ^= (RsV | RtV); })
+
+Q6INSN(M4_xor_andn,"Rx32^=and(Rs32,~Rt32)",ATTRIBS(),
+"Compound Xor-And", { RxV ^= (RsV & ~RtV); })
+
+
+
+
+
+
+Q6INSN(A2_subri,"Rd32=sub(#s10,Rs32)",ATTRIBS(A_ARCHV2),
+"Subtract register from immediate",{ fIMMEXT(siV); RdV=siV-RsV;})
+
+Q6INSN(A2_andir,"Rd32=and(Rs32,#s10)",ATTRIBS(A_ARCHV2),
+"logical AND with immediate",{ fIMMEXT(siV); RdV=RsV&siV;})
+
+Q6INSN(A2_orir,"Rd32=or(Rs32,#s10)",ATTRIBS(A_ARCHV2),
+"logical OR with immediate",{ fIMMEXT(siV); RdV=RsV|siV;})
+
+
+
+
+Q6INSN(A2_andp,"Rdd32=and(Rss32,Rtt32)",ATTRIBS(),
+"logical AND pair",{ RddV=RssV&RttV;})
+
+Q6INSN(A2_orp,"Rdd32=or(Rss32,Rtt32)",ATTRIBS(),
+"logical OR pair",{ RddV=RssV|RttV;})
+
+Q6INSN(A2_xorp,"Rdd32=xor(Rss32,Rtt32)",ATTRIBS(),
+"logical eXclusive OR pair",{ RddV=RssV^RttV;})
+
+Q6INSN(A2_notp,"Rdd32=not(Rss32)",ATTRIBS(),
+"logical NOT pair",{ RddV=~RssV;})
+
+Q6INSN(A2_sxtw,"Rdd32=sxtw(Rs32)",ATTRIBS(),
+"Sign extend 32-bit word to 64-bit pair",
+{ RddV = fCAST4_8s(RsV); })
+
+Q6INSN(A2_sat,"Rd32=sat(Rss32)",ATTRIBS(),
+"Saturate to 32-bit Signed",
+{ RdV = fSAT(RssV); })
+
+Q6INSN(A2_roundsat,"Rd32=round(Rss32):sat",ATTRIBS(),
+"Round & Saturate to 32-bit Signed",
+{ fHIDE(size8s_t tmp;) fADDSAT64(tmp,RssV,0x080000000ULL); RdV = fGETWORD(1,tmp); })
+
+Q6INSN(A2_sath,"Rd32=sath(Rs32)",ATTRIBS(),
+"Saturate to 16-bit Signed",
+{ RdV = fSATH(RsV); })
+
+Q6INSN(A2_satuh,"Rd32=satuh(Rs32)",ATTRIBS(),
+"Saturate to 16-bit Unsigned",
+{ RdV = fSATUH(RsV); })
+
+Q6INSN(A2_satub,"Rd32=satub(Rs32)",ATTRIBS(),
+"Saturate to 8-bit Unsigned",
+{ RdV = fSATUB(RsV); })
+
+Q6INSN(A2_satb,"Rd32=satb(Rs32)",ATTRIBS(A_ARCHV2),
+"Saturate to 8-bit Signed",
+{ RdV = fSATB(RsV); })
+
+/**********************************************/
+/* Vector Add                                 */
+/**********************************************/
+
+Q6INSN(A2_vaddub,"Rdd32=vaddub(Rss32,Rtt32)",ATTRIBS(),
+"Add vector of bytes",
+{
+        fHIDE(int i;)
+        for (i = 0; i < 8; i++) {
+            fSETBYTE(i,RddV,(fGETUBYTE(i,RssV)+fGETUBYTE(i,RttV)));
+        }
+})
+
+Q6INSN(A2_vaddubs,"Rdd32=vaddub(Rss32,Rtt32):sat",ATTRIBS(),
+"Add vector of bytes",
+{
+        fHIDE(int i;)
+        for (i = 0; i < 8; i++) {
+            fSETBYTE(i,RddV,fSATUN(8,fGETUBYTE(i,RssV)+fGETUBYTE(i,RttV)));
+        }
+})
+
+Q6INSN(A2_vaddh,"Rdd32=vaddh(Rss32,Rtt32)",ATTRIBS(),
+"Add vector of half integers",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fGETHALF(i,RssV)+fGETHALF(i,RttV));
+        }
+})
+
+Q6INSN(A2_vaddhs,"Rdd32=vaddh(Rss32,Rtt32):sat",ATTRIBS(),
+"Add vector of half integers with saturation",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fSATN(16,fGETHALF(i,RssV)+fGETHALF(i,RttV)));
+        }
+})
+
+Q6INSN(A2_vadduhs,"Rdd32=vadduh(Rss32,Rtt32):sat",ATTRIBS(),
+"Add vector of unsigned half integers with saturation",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fSATUN(16,fGETUHALF(i,RssV)+fGETUHALF(i,RttV)));
+        }
+})
+
+Q6INSN(A5_vaddhubs,"Rd32=vaddhub(Rss32,Rtt32):sat",ATTRIBS(),
+"Add vector of half integers with saturation and pack to unsigned bytes",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETBYTE(i,RdV,fSATUB(fGETHALF(i,RssV)+fGETHALF(i,RttV)));
+        }
+})
+
+Q6INSN(A2_vaddw,"Rdd32=vaddw(Rss32,Rtt32)",ATTRIBS(),
+"Add vector of words",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,fGETWORD(i,RssV)+fGETWORD(i,RttV));
+        }
+})
+
+Q6INSN(A2_vaddws,"Rdd32=vaddw(Rss32,Rtt32):sat",ATTRIBS(),
+"Add vector of words with saturation",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,fSATN(32,fGETWORD(i,RssV)+fGETWORD(i,RttV)));
+        }
+})
+
+
+
+Q6INSN(S4_vxaddsubw,"Rdd32=vxaddsubw(Rss32,Rtt32):sat",ATTRIBS(),
+"Cross vector add-sub words with saturation",
+{
+        fSETWORD(0,RddV,fSAT(fGETWORD(0,RssV)+fGETWORD(1,RttV)));
+        fSETWORD(1,RddV,fSAT(fGETWORD(1,RssV)-fGETWORD(0,RttV)));
+})
+Q6INSN(S4_vxsubaddw,"Rdd32=vxsubaddw(Rss32,Rtt32):sat",ATTRIBS(),
+"Cross vector sub-add words with saturation",
+{
+        fSETWORD(0,RddV,fSAT(fGETWORD(0,RssV)-fGETWORD(1,RttV)));
+        fSETWORD(1,RddV,fSAT(fGETWORD(1,RssV)+fGETWORD(0,RttV)));
+})
+
+
+
+Q6INSN(S4_vxaddsubh,"Rdd32=vxaddsubh(Rss32,Rtt32):sat",ATTRIBS(),
+"Cross vector add-sub halfwords with saturation",
+{
+        fSETHALF(0,RddV,fSATH(fGETHALF(0,RssV)+fGETHALF(1,RttV)));
+        fSETHALF(1,RddV,fSATH(fGETHALF(1,RssV)-fGETHALF(0,RttV)));
+
+        fSETHALF(2,RddV,fSATH(fGETHALF(2,RssV)+fGETHALF(3,RttV)));
+        fSETHALF(3,RddV,fSATH(fGETHALF(3,RssV)-fGETHALF(2,RttV)));
+
+})
+Q6INSN(S4_vxsubaddh,"Rdd32=vxsubaddh(Rss32,Rtt32):sat",ATTRIBS(),
+"Cross vector sub-add halfwords with saturation",
+{
+        fSETHALF(0,RddV,fSATH(fGETHALF(0,RssV)-fGETHALF(1,RttV)));
+        fSETHALF(1,RddV,fSATH(fGETHALF(1,RssV)+fGETHALF(0,RttV)));
+
+        fSETHALF(2,RddV,fSATH(fGETHALF(2,RssV)-fGETHALF(3,RttV)));
+        fSETHALF(3,RddV,fSATH(fGETHALF(3,RssV)+fGETHALF(2,RttV)));
+})
+
+
+
+
+Q6INSN(S4_vxaddsubhr,"Rdd32=vxaddsubh(Rss32,Rtt32):rnd:>>1:sat",ATTRIBS(),
+"Cross vector add-sub halfwords with shift, round, and saturation",
+{
+        fSETHALF(0,RddV,fSATH((fGETHALF(0,RssV)+fGETHALF(1,RttV)+1)>>1));
+        fSETHALF(1,RddV,fSATH((fGETHALF(1,RssV)-fGETHALF(0,RttV)+1)>>1));
+
+        fSETHALF(2,RddV,fSATH((fGETHALF(2,RssV)+fGETHALF(3,RttV)+1)>>1));
+        fSETHALF(3,RddV,fSATH((fGETHALF(3,RssV)-fGETHALF(2,RttV)+1)>>1));
+
+})
+Q6INSN(S4_vxsubaddhr,"Rdd32=vxsubaddh(Rss32,Rtt32):rnd:>>1:sat",ATTRIBS(),
+"Cross vector sub-add halfwords with shift, round, and saturation",
+{
+        fSETHALF(0,RddV,fSATH((fGETHALF(0,RssV)-fGETHALF(1,RttV)+1)>>1));
+        fSETHALF(1,RddV,fSATH((fGETHALF(1,RssV)+fGETHALF(0,RttV)+1)>>1));
+
+        fSETHALF(2,RddV,fSATH((fGETHALF(2,RssV)-fGETHALF(3,RttV)+1)>>1));
+        fSETHALF(3,RddV,fSATH((fGETHALF(3,RssV)+fGETHALF(2,RttV)+1)>>1));
+})
+
+
+
+
+
+/**********************************************/
+/* 1/2 Vector operations                      */
+/**********************************************/
+
+
+Q6INSN(A2_svavgh,"Rd32=vavgh(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Avg vector of half integers",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETHALF(i,RdV,((fGETHALF(i,RsV)+fGETHALF(i,RtV))>>1));
+        }
+})
+
+Q6INSN(A2_svavghs,"Rd32=vavgh(Rs32,Rt32):rnd",ATTRIBS(A_ARCHV2),
+"Avg vector of half integers with rounding",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETHALF(i,RdV,((fGETHALF(i,RsV)+fGETHALF(i,RtV)+1)>>1));
+        }
+})
+
+
+
+Q6INSN(A2_svnavgh,"Rd32=vnavgh(Rt32,Rs32)",ATTRIBS(A_ARCHV2),
+"Avg vector of half integers",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETHALF(i,RdV,((fGETHALF(i,RtV)-fGETHALF(i,RsV))>>1));
+        }
+})
+
+
+Q6INSN(A2_svaddh,"Rd32=vaddh(Rs32,Rt32)",ATTRIBS(),
+"Add vector of half integers",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETHALF(i,RdV,fGETHALF(i,RsV)+fGETHALF(i,RtV));
+        }
+})
+
+Q6INSN(A2_svaddhs,"Rd32=vaddh(Rs32,Rt32):sat",ATTRIBS(),
+"Add vector of half integers with saturation",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETHALF(i,RdV,fSATN(16,fGETHALF(i,RsV)+fGETHALF(i,RtV)));
+        }
+})
+
+Q6INSN(A2_svadduhs,"Rd32=vadduh(Rs32,Rt32):sat",ATTRIBS(),
+"Add vector of unsigned half integers with saturation",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETHALF(i,RdV,fSATUN(16,fGETUHALF(i,RsV)+fGETUHALF(i,RtV)));
+        }
+})
+
+
+Q6INSN(A2_svsubh,"Rd32=vsubh(Rt32,Rs32)",ATTRIBS(),
+"Sub vector of half integers",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETHALF(i,RdV,fGETHALF(i,RtV)-fGETHALF(i,RsV));
+        }
+})
+
+Q6INSN(A2_svsubhs,"Rd32=vsubh(Rt32,Rs32):sat",ATTRIBS(),
+"Sub vector of half integers with saturation",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETHALF(i,RdV,fSATN(16,fGETHALF(i,RtV)-fGETHALF(i,RsV)));
+        }
+})
+
+Q6INSN(A2_svsubuhs,"Rd32=vsubuh(Rt32,Rs32):sat",ATTRIBS(),
+"Sub vector of unsigned half integers with saturation",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETHALF(i,RdV,fSATUN(16,fGETUHALF(i,RtV)-fGETUHALF(i,RsV)));
+        }
+})
+
+
+
+
+/**********************************************/
+/* Vector Reduce Add                          */
+/**********************************************/
+
+Q6INSN(A2_vraddub,"Rdd32=vraddub(Rss32,Rtt32)",ATTRIBS(),
+"Sum: two vectors of unsigned bytes",
+{
+        fHIDE(int i;)
+        RddV = 0;
+        for (i=0;i<4;i++) {
+            fSETWORD(0,RddV,(fGETWORD(0,RddV) + (fGETUBYTE(i,RssV)+fGETUBYTE(i,RttV))));
+        }
+        for (i=4;i<8;i++) {
+            fSETWORD(1,RddV,(fGETWORD(1,RddV) + (fGETUBYTE(i,RssV)+fGETUBYTE(i,RttV))));
+        }
+})
+
+Q6INSN(A2_vraddub_acc,"Rxx32+=vraddub(Rss32,Rtt32)",ATTRIBS(),
+"Sum: two vectors of unsigned bytes",
+{
+        fHIDE(int i;)
+        for (i = 0; i < 4; i++) {
+            fSETWORD(0,RxxV,(fGETWORD(0,RxxV) + (fGETUBYTE(i,RssV)+fGETUBYTE(i,RttV))));
+        }
+        for (i = 4; i < 8; i++) {
+            fSETWORD(1,RxxV,(fGETWORD(1,RxxV) + (fGETUBYTE(i,RssV)+fGETUBYTE(i,RttV))));
+        }
+})
+
+
+
+Q6INSN(M2_vraddh,"Rd32=vraddh(Rss32,Rtt32)",ATTRIBS(A_ARCHV3),
+"Sum: two vectors of halves",
+{
+        fHIDE(int i;)
+        RdV = 0;
+        for (i=0;i<4;i++) {
+            RdV += (fGETHALF(i,RssV)+fGETHALF(i,RttV));
+        }
+})
+
+Q6INSN(M2_vradduh,"Rd32=vradduh(Rss32,Rtt32)",ATTRIBS(A_ARCHV3),
+"Sum: two vectors of unsigned halves",
+{
+        fHIDE(int i;)
+        RdV = 0;
+        for (i=0;i<4;i++) {
+            RdV += (fGETUHALF(i,RssV)+fGETUHALF(i,RttV));
+        }
+})
+
+/**********************************************/
+/* Vector Sub                                 */
+/**********************************************/
+
+Q6INSN(A2_vsubub,"Rdd32=vsubub(Rtt32,Rss32)",ATTRIBS(),
+"Sub vector of bytes",
+{
+        fHIDE(int i;)
+        for (i = 0; i < 8; i++) {
+            fSETBYTE(i,RddV,(fGETUBYTE(i,RttV)-fGETUBYTE(i,RssV)));
+        }
+})
+
+Q6INSN(A2_vsububs,"Rdd32=vsubub(Rtt32,Rss32):sat",ATTRIBS(),
+"Sub vector of bytes",
+{
+        fHIDE(int i;)
+        for (i = 0; i < 8; i++) {
+            fSETBYTE(i,RddV,fSATUN(8,fGETUBYTE(i,RttV)-fGETUBYTE(i,RssV)));
+        }
+})
+
+Q6INSN(A2_vsubh,"Rdd32=vsubh(Rtt32,Rss32)",ATTRIBS(),
+"Sub vector of half integers",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fGETHALF(i,RttV)-fGETHALF(i,RssV));
+        }
+})
+
+Q6INSN(A2_vsubhs,"Rdd32=vsubh(Rtt32,Rss32):sat",ATTRIBS(),
+"Sub vector of half integers with saturation",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fSATN(16,fGETHALF(i,RttV)-fGETHALF(i,RssV)));
+        }
+})
+
+Q6INSN(A2_vsubuhs,"Rdd32=vsubuh(Rtt32,Rss32):sat",ATTRIBS(),
+"Sub vector of unsigned half integers with saturation",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fSATUN(16,fGETUHALF(i,RttV)-fGETUHALF(i,RssV)));
+        }
+})
+
+Q6INSN(A2_vsubw,"Rdd32=vsubw(Rtt32,Rss32)",ATTRIBS(),
+"Sub vector of words",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,fGETWORD(i,RttV)-fGETWORD(i,RssV));
+        }
+})
+
+Q6INSN(A2_vsubws,"Rdd32=vsubw(Rtt32,Rss32):sat",ATTRIBS(),
+"Sub vector of words with saturation",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,fSATN(32,fGETWORD(i,RttV)-fGETWORD(i,RssV)));
+        }
+})
+
+
+
+
+/**********************************************/
+/* Vector Abs                                 */
+/**********************************************/
+
+Q6INSN(A2_vabsh,"Rdd32=vabsh(Rss32)",ATTRIBS(),
+"Negate vector of half integers",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fABS(fGETHALF(i,RssV)));
+        }
+})
+
+Q6INSN(A2_vabshsat,"Rdd32=vabsh(Rss32):sat",ATTRIBS(),
+"Negate vector of half integers",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fSATH(fABS(fGETHALF(i,RssV))));
+        }
+})
+
+Q6INSN(A2_vabsw,"Rdd32=vabsw(Rss32)",ATTRIBS(),
+"Absolute Value vector of words",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,fABS(fGETWORD(i,RssV)));
+        }
+})
+
+Q6INSN(A2_vabswsat,"Rdd32=vabsw(Rss32):sat",ATTRIBS(),
+"Absolute Value vector of words",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,fSAT(fABS(fGETWORD(i,RssV))));
+        }
+})
+
+/**********************************************/
+/* Vector SAD                                 */
+/**********************************************/
+
+
+Q6INSN(M2_vabsdiffw,"Rdd32=vabsdiffw(Rtt32,Rss32)",ATTRIBS(A_ARCHV2),
+"Absolute Differences: vector of words",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,fABS(fGETWORD(i,RttV) - fGETWORD(i,RssV)));
+        }
+})
+
+Q6INSN(M2_vabsdiffh,"Rdd32=vabsdiffh(Rtt32,Rss32)",ATTRIBS(A_ARCHV2),
+"Absolute Differences: vector of halfwords",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fABS(fGETHALF(i,RttV) - fGETHALF(i,RssV)));
+        }
+})
+
+Q6INSN(M6_vabsdiffb,"Rdd32=vabsdiffb(Rtt32,Rss32)",ATTRIBS(),
+"Absolute Differences: vector of halfwords",
+{
+        fHIDE(int i;)
+        for (i=0;i<8;i++) {
+            fSETBYTE(i,RddV,fABS(fGETBYTE(i,RttV) - fGETBYTE(i,RssV)));
+        }
+})
+
+Q6INSN(M6_vabsdiffub,"Rdd32=vabsdiffub(Rtt32,Rss32)",ATTRIBS(),
+"Absolute Differences: vector of halfwords",
+{
+        fHIDE(int i;)
+        for (i=0;i<8;i++) {
+            fSETBYTE(i,RddV,fABS(fGETUBYTE(i,RttV) - fGETUBYTE(i,RssV)));
+        }
+})
+
+
+
+Q6INSN(A2_vrsadub,"Rdd32=vrsadub(Rss32,Rtt32)",ATTRIBS(),
+"Sum of Absolute Differences: vector of unsigned bytes",
+{
+        fHIDE(int i;)
+        RddV = 0;
+        for (i = 0; i < 4; i++) {
+            fSETWORD(0,RddV,(fGETWORD(0,RddV) + fABS((fGETUBYTE(i,RssV) - fGETUBYTE(i,RttV)))));
+        }
+        for (i = 4; i < 8; i++) {
+            fSETWORD(1,RddV,(fGETWORD(1,RddV) + fABS((fGETUBYTE(i,RssV) - fGETUBYTE(i,RttV)))));
+        }
+})
+
+Q6INSN(A2_vrsadub_acc,"Rxx32+=vrsadub(Rss32,Rtt32)",ATTRIBS(),
+"Sum of Absolute Differences: vector of unsigned bytes",
+{
+        fHIDE(int i;)
+        for (i = 0; i < 4; i++) {
+            fSETWORD(0,RxxV,(fGETWORD(0,RxxV) + fABS((fGETUBYTE(i,RssV) - fGETUBYTE(i,RttV)))));
+        }
+        for (i = 4; i < 8; i++) {
+            fSETWORD(1,RxxV,(fGETWORD(1,RxxV) + fABS((fGETUBYTE(i,RssV) - fGETUBYTE(i,RttV)))));
+        }
+})
+
+
+/**********************************************/
+/* Vector Average                             */
+/**********************************************/
+
+Q6INSN(A2_vavgub,"Rdd32=vavgub(Rss32,Rtt32)",ATTRIBS(),
+"Average vector of unsigned bytes",
+{
+        fHIDE(int i;)
+        for (i = 0; i < 8; i++) {
+            fSETBYTE(i,RddV,((fGETUBYTE(i,RssV) + fGETUBYTE(i,RttV))>>1));
+        }
+})
+
+Q6INSN(A2_vavguh,"Rdd32=vavguh(Rss32,Rtt32)",ATTRIBS(),
+"Average vector of unsigned halfwords",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,(fGETUHALF(i,RssV)+fGETUHALF(i,RttV))>>1);
+        }
+})
+
+Q6INSN(A2_vavgh,"Rdd32=vavgh(Rss32,Rtt32)",ATTRIBS(),
+"Average vector of halfwords",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,(fGETHALF(i,RssV)+fGETHALF(i,RttV))>>1);
+        }
+})
+
+Q6INSN(A2_vnavgh,"Rdd32=vnavgh(Rtt32,Rss32)",ATTRIBS(),
+"Negative Average vector of halfwords",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,(fGETHALF(i,RttV)-fGETHALF(i,RssV))>>1);
+        }
+})
+
+Q6INSN(A2_vavgw,"Rdd32=vavgw(Rss32,Rtt32)",ATTRIBS(),
+"Average vector of words",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,(fSXTN(32,33,fGETWORD(i,RssV))+fSXTN(32,33,fGETWORD(i,RttV)))>>1);
+        }
+})
+
+Q6INSN(A2_vnavgw,"Rdd32=vnavgw(Rtt32,Rss32)",ATTRIBS(A_ARCHV2),
+"Average vector of words",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,(fSXTN(32,33,fGETWORD(i,RttV))-fSXTN(32,33,fGETWORD(i,RssV)))>>1);
+        }
+})
+
+Q6INSN(A2_vavgwr,"Rdd32=vavgw(Rss32,Rtt32):rnd",ATTRIBS(),
+"Average vector of words",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,(fSXTN(32,33,fGETWORD(i,RssV))+fSXTN(32,33,fGETWORD(i,RttV))+1)>>1);
+        }
+})
+
+Q6INSN(A2_vnavgwr,"Rdd32=vnavgw(Rtt32,Rss32):rnd:sat",ATTRIBS(A_ARCHV2),
+"Average vector of words",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,fSAT((fSXTN(32,33,fGETWORD(i,RttV))-fSXTN(32,33,fGETWORD(i,RssV))+1)>>1));
+        }
+})
+
+Q6INSN(A2_vavgwcr,"Rdd32=vavgw(Rss32,Rtt32):crnd",ATTRIBS(A_ARCHV2),
+"Average vector of words with convergent rounding",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,(fCRND(fSXTN(32,33,fGETWORD(i,RssV))+fSXTN(32,33,fGETWORD(i,RttV)))>>1));
+        }
+})
+
+Q6INSN(A2_vnavgwcr,"Rdd32=vnavgw(Rtt32,Rss32):crnd:sat",ATTRIBS(A_ARCHV2),
+"Average negative vector of words with convergent rounding",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,fSAT(fCRND(fSXTN(32,33,fGETWORD(i,RttV))-fSXTN(32,33,fGETWORD(i,RssV)))>>1));
+        }
+})
+
+Q6INSN(A2_vavghcr,"Rdd32=vavgh(Rss32,Rtt32):crnd",ATTRIBS(A_ARCHV2),
+"Average vector of halfwords with conv rounding",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fCRND(fGETHALF(i,RssV)+fGETHALF(i,RttV))>>1);
+        }
+})
+
+Q6INSN(A2_vnavghcr,"Rdd32=vnavgh(Rtt32,Rss32):crnd:sat",ATTRIBS(A_ARCHV2),
+"Average negative vector of halfwords with conv rounding",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fSATH(fCRND(fGETHALF(i,RttV)-fGETHALF(i,RssV))>>1));
+        }
+})
+
+
+Q6INSN(A2_vavguw,"Rdd32=vavguw(Rss32,Rtt32)",ATTRIBS(),
+"Average vector of unsigned words",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,(fZXTN(32,33,fGETUWORD(i,RssV))+fZXTN(32,33,fGETUWORD(i,RttV)))>>1);
+        }
+})
+
+Q6INSN(A2_vavguwr,"Rdd32=vavguw(Rss32,Rtt32):rnd",ATTRIBS(),
+"Average vector of unsigned words",
+{
+        fHIDE(int i;)
+        for (i=0;i<2;i++) {
+            fSETWORD(i,RddV,(fZXTN(32,33,fGETUWORD(i,RssV))+fZXTN(32,33,fGETUWORD(i,RttV))+1)>>1);
+        }
+})
+
+Q6INSN(A2_vavgubr,"Rdd32=vavgub(Rss32,Rtt32):rnd",ATTRIBS(),
+"Average vector of unsigned bytes",
+{
+        fHIDE(int i;)
+        for (i = 0; i < 8; i++) {
+            fSETBYTE(i,RddV,((fGETUBYTE(i,RssV)+fGETUBYTE(i,RttV)+1)>>1));
+        }
+})
+
+Q6INSN(A2_vavguhr,"Rdd32=vavguh(Rss32,Rtt32):rnd",ATTRIBS(),
+"Average vector of unsigned halfwords with rounding",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,(fGETUHALF(i,RssV)+fGETUHALF(i,RttV)+1)>>1);
+        }
+})
+
+Q6INSN(A2_vavghr,"Rdd32=vavgh(Rss32,Rtt32):rnd",ATTRIBS(),
+"Average vector of halfwords with rounding",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,(fGETHALF(i,RssV)+fGETHALF(i,RttV)+1)>>1);
+        }
+})
+
+Q6INSN(A2_vnavghr,"Rdd32=vnavgh(Rtt32,Rss32):rnd:sat",ATTRIBS(A_ARCHV2),
+"Negative Average vector of halfwords with rounding",
+{
+        fHIDE(int i;)
+        for (i=0;i<4;i++) {
+            fSETHALF(i,RddV,fSATH((fGETHALF(i,RttV)-fGETHALF(i,RssV)+1)>>1));
+        }
+})
+
+
+/* Rounding Instruction */
+
+Q6INSN(A4_round_ri,"Rd32=round(Rs32,#u5)",ATTRIBS(),"Round", {RdV = fRNDN(RsV,uiV)>>uiV; })
+Q6INSN(A4_round_rr,"Rd32=round(Rs32,Rt32)",ATTRIBS(),"Round", {RdV = fRNDN(RsV,fZXTN(5,32,RtV))>>fZXTN(5,32,RtV); })
+Q6INSN(A4_round_ri_sat,"Rd32=round(Rs32,#u5):sat",ATTRIBS(),"Round", {RdV = (fSAT(fRNDN(RsV,uiV)))>>uiV; })
+Q6INSN(A4_round_rr_sat,"Rd32=round(Rs32,Rt32):sat",ATTRIBS(),"Round", {RdV = (fSAT(fRNDN(RsV,fZXTN(5,32,RtV))))>>fZXTN(5,32,RtV); })
+
+
+Q6INSN(A4_cround_ri,"Rd32=cround(Rs32,#u5)",ATTRIBS(),"Convergent Round", {RdV = fCRNDN(RsV,uiV); })
+Q6INSN(A4_cround_rr,"Rd32=cround(Rs32,Rt32)",ATTRIBS(),"Convergent Round", {RdV = fCRNDN(RsV,fZXTN(5,32,RtV)); })
+
+
+#define CROUND(DST,SRC,SHIFT) \
+        fHIDE(size16s_t rndbit_128;)\
+        fHIDE(size16s_t tmp128;)\
+        fHIDE(size16s_t src_128;)\
+        if (SHIFT == 0) { \
+            DST = SRC;\
+        } else if ((SRC & (size8s_t)((1LL << (SHIFT - 1)) - 1LL)) == 0) { \
+            src_128 = fCAST8S_16S(SRC);\
+            rndbit_128 = fCAST8S_16S(1LL);\
+            rndbit_128 = fSHIFTL128(rndbit_128, SHIFT);\
+            rndbit_128 = fAND128(rndbit_128, src_128);\
+            rndbit_128 = fSHIFTR128(rndbit_128, 1);\
+            tmp128 = fADD128(src_128, rndbit_128);\
+            tmp128 = fSHIFTR128(tmp128, SHIFT);\
+            DST =  fCAST16S_8S(tmp128);\
+        } else {\
+            size16s_t rndbit_128 =  fCAST8S_16S((1LL << (SHIFT - 1))); \
+            size16s_t src_128 =  fCAST8S_16S(SRC); \
+            size16s_t tmp128 = fADD128(src_128, rndbit_128);\
+            tmp128 = fSHIFTR128(tmp128, SHIFT);\
+            DST =  fCAST16S_8S(tmp128);\
+        }
+
+Q6INSN(A7_croundd_ri,"Rdd32=cround(Rss32,#u6)",ATTRIBS(),"Convergent Round",
+{
+CROUND(RddV,RssV,uiV);
+})
+
+Q6INSN(A7_croundd_rr,"Rdd32=cround(Rss32,Rt32)",ATTRIBS(),"Convergent Round",
+{
+CROUND(RddV,RssV,fZXTN(6,32,RtV));
+})
+
+
+
+
+
+
+
+
+
+Q6INSN(A7_clip,"Rd32=clip(Rs32,#u5)",ATTRIBS(),"Clip to  #s5", {   fCLIP(RdV,RsV,uiV);})
+Q6INSN(A7_vclip,"Rdd32=vclip(Rss32,#u5)",ATTRIBS(),"Clip to  #s5",
+{
+fHIDE(size4s_t tmp;)
+fCLIP(tmp, fGETWORD(0, RssV), uiV);
+fSETWORD(0, RddV, tmp);
+fCLIP(tmp,fGETWORD(1, RssV), uiV);
+fSETWORD(1, RddV, tmp);
+}
+)
+
+
+
+/**********************************************/
+/* V4: Cross Vector Min/Max                   */
+/**********************************************/
+
+
+#define VRMINORMAX(TAG,STR,OP,SHORTTYPE,SETTYPE,GETTYPE,NEL,SHIFT) \
+Q6INSN(A4_vr##TAG##SHORTTYPE,"Rxx32=vr"#TAG#SHORTTYPE"(Rss32,Ru32)",ATTRIBS(), \
+"Choose " STR " elements of a vector", \
+{ \
+        fHIDE(int i; size8s_t TAG; size4s_t addr;) \
+        TAG = fGET##GETTYPE(0,RxxV); \
+        addr = fGETWORD(1,RxxV); \
+        for (i = 0; i < NEL; i++) { \
+            if (TAG OP fGET##GETTYPE(i,RssV)) { \
+                TAG = fGET##GETTYPE(i,RssV); \
+                addr = RuV | i<<SHIFT; \
+            } \
+        } \
+        fSETWORD(0,RxxV,TAG); \
+        fSETWORD(1,RxxV,addr); \
+})
+
+#define RMINMAX(SHORTTYPE,SETTYPE,GETTYPE,NEL,SHIFT) \
+VRMINORMAX(min,"minimum",>,SHORTTYPE,SETTYPE,GETTYPE,NEL,SHIFT) \
+VRMINORMAX(max,"maximum",<,SHORTTYPE,SETTYPE,GETTYPE,NEL,SHIFT)
+
+
+RMINMAX(h,HALF,HALF,4,1)
+RMINMAX(uh,HALF,UHALF,4,1)
+RMINMAX(w,WORD,WORD,2,2)
+RMINMAX(uw,WORD,UWORD,2,2)
+
+#undef RMINMAX
+#undef VRMINORMAX
+
+/**********************************************/
+/* Vector Min/Max                             */
+/**********************************************/
+
+#define VMINORMAX(TAG,STR,FUNC,SHORTTYPE,SETTYPE,GETTYPE,NEL) \
+Q6INSN(A2_v##TAG##SHORTTYPE,"Rdd32=v"#TAG#SHORTTYPE"(Rtt32,Rss32)",ATTRIBS(), \
+"Choose " STR " elements of two vectors", \
+{ \
+        fHIDE(int i;) \
+        for (i = 0; i < NEL; i++) { \
+            fSET##SETTYPE(i,RddV,FUNC(fGET##GETTYPE(i,RttV),fGET##GETTYPE(i,RssV))); \
+        } \
+})
+
+#define VMINORMAX3(TAG,STR,FUNC,SHORTTYPE,SETTYPE,GETTYPE,NEL) \
+Q6INSN(A6_v##TAG##SHORTTYPE##3,"Rxx32=v"#TAG#SHORTTYPE"3(Rtt32,Rss32)",ATTRIBS(), \
+"Choose " STR " elements of two vectors", \
+{ \
+        fHIDE(int i;) \
+        for (i = 0; i < NEL; i++) { \
+            fSET##SETTYPE(i,RxxV,FUNC(fGET##GETTYPE(i,RxxV),FUNC(fGET##GETTYPE(i,RttV),fGET##GETTYPE(i,RssV)))); \
+        } \
+})
+
+#define MINMAX(SHORTTYPE,SETTYPE,GETTYPE,NEL) \
+VMINORMAX(min,"minimum",fMIN,SHORTTYPE,SETTYPE,GETTYPE,NEL) \
+VMINORMAX(max,"maximum",fMAX,SHORTTYPE,SETTYPE,GETTYPE,NEL)
+
+MINMAX(b,BYTE,BYTE,8)
+MINMAX(ub,BYTE,UBYTE,8)
+MINMAX(h,HALF,HALF,4)
+MINMAX(uh,HALF,UHALF,4)
+MINMAX(w,WORD,WORD,2)
+MINMAX(uw,WORD,UWORD,2)
+
+#undef MINMAX
+#undef VMINORMAX
+#undef VMINORMAX3
+
+
+/**********************************************/
+/* Vector Min/Max                             */
+/**********************************************/
+
+
+Q6INSN(A4_modwrapu,"Rd32=modwrap(Rs32,Rt32)",ATTRIBS(),
+"Wrap to an unsigned modulo buffer",
+{
+        if (RsV < 0) {
+            RdV = RsV + fCAST4u(RtV);
+        } else if (fCAST4u(RsV) >= fCAST4u(RtV)) {
+            RdV = RsV - fCAST4u(RtV);
+        } else {
+            RdV = RsV;
+        }
+})

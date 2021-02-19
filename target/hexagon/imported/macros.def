@@ -1,0 +1,1531 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+DEF_MACRO(
+    LIKELY,    /* NAME */
+    __builtin_expect((X),1), /* BEH */
+    ()    /* attribs */
+)
+
+DEF_MACRO(
+    UNLIKELY,    /* NAME */
+    __builtin_expect((X),0), /* BEH */
+    ()    /* attribs */
+)
+
+DEF_MACRO(
+    CANCEL, /* macro name */
+    {if (thread->last_pkt) thread->last_pkt->slot_cancelled |= (1<<insn->slot); return;} , /* behavior */
+    (A_CONDEXEC)
+)
+
+DEF_MACRO(
+    LOAD_CANCEL, /* macro name */
+    {mem_general_load_cancelled(thread,EA,insn);CANCEL;} , /* behavior */
+    (A_CONDEXEC)
+)
+
+DEF_MACRO(
+    STORE_CANCEL, /* macro name */
+    {mem_general_store_cancelled(thread,EA,insn);CANCEL;} , /* behavior */
+    (A_CONDEXEC)
+)
+
+DEF_MACRO(
+    fMAX, /* macro name */
+    (((A) > (B)) ? (A) : (B)), /* behavior */
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fMIN, /* macro name */
+    (((A) < (B)) ? (A) : (B)), /* behavior */
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fABS, /* macro name */
+    (((A)<0)?(-(A)):(A)), /* behavior */
+    /* optional attributes */
+)
+
+
+/* Bit insert */
+DEF_MACRO(
+    fINSERT_BITS,
+        {
+            REG = ((REG) & ~(((fCONSTLL(1)<<(WIDTH))-1)<<(OFFSET))) | (((INVAL) & ((fCONSTLL(1)<<(WIDTH))-1)) << (OFFSET));
+        },
+    /* attribs */
+)
+
+/* Bit extract */
+DEF_MACRO(
+    fEXTRACTU_BITS,
+    (fZXTN(WIDTH,32,(INREG >> OFFSET))),
+    /* attribs */
+)
+
+DEF_MACRO(
+    fEXTRACTU_BIDIR,
+    (fZXTN(WIDTH,32,fBIDIR_LSHIFTR((INREG),(OFFSET),4_8))),
+    /* attribs */
+)
+
+DEF_MACRO(
+    fEXTRACTU_RANGE,
+    (fZXTN((HIBIT-LOWBIT+1),32,(INREG >> LOWBIT))),
+    /* attribs */
+)
+
+DEF_MACRO(
+    f8BITSOF,
+    ( (VAL) ? 0xff : 0x00),
+    /* attribs */
+)
+
+DEF_MACRO(
+    fLSBOLD,
+    ((VAL) & 1),
+    ()
+)
+
+DEF_MACRO(
+    fLSBNEW,
+    predlog_read(thread,PNUM),
+    ()
+)
+
+DEF_MACRO(
+    fLSBNEW0,
+    predlog_read(thread,0),
+    ()
+)
+
+DEF_MACRO(
+    fLSBNEW1,
+    predlog_read(thread,1),
+    ()
+)
+
+DEF_MACRO(
+    fLSBOLDNOT,
+    (!fLSBOLD(VAL)),
+    ()
+)
+
+DEF_MACRO(
+    fLSBNEWNOT,
+    (!fLSBNEW(PNUM)),
+    ()
+)
+
+DEF_MACRO(
+    fLSBNEW0NOT,
+    (!fLSBNEW0),
+    ()
+)
+
+DEF_MACRO(
+    fLSBNEW1NOT,
+    (!fLSBNEW1),
+    ()
+)
+
+DEF_MACRO(
+    fNEWREG,
+    ({if (newvalue_missing(thread,RNUM) ||
+      IS_CANCELLED(insn->new_value_producer_slot)) CANCEL; reglog_read(thread,RNUM);}),
+    (A_DOTNEWVALUE,A_RESTRICT_SLOT0ONLY)
+)
+// Store new with a missing newvalue or cancelled goes out as a zero byte store in V65
+// take advantage of the fact that reglog_read returns zero for not valid rnum
+DEF_MACRO(
+    fNEWREG_ST,
+    ({if (newvalue_missing(thread,RNUM) ||
+      IS_CANCELLED(insn->new_value_producer_slot)) { STORE_ZERO; RNUM = -1; }; reglog_read(thread,RNUM);}),
+    (A_DOTNEWVALUE,A_RESTRICT_SLOT0ONLY)
+)
+
+DEF_MACRO(
+    fSATUVALN,
+    ({fSET_OVERFLOW(); ((VAL) < 0) ? 0 : ((1LL<<(N))-1);}),
+    ()
+)
+
+DEF_MACRO(
+    fSATVALN,
+    ({fSET_OVERFLOW(); ((VAL) < 0) ? (-(1LL<<((N)-1))) : ((1LL<<((N)-1))-1);}),
+    ()
+)
+
+DEF_MACRO(
+    fZXTN, /* macro name */
+    ((VAL) & ((1LL<<(N))-1)),
+    /* attribs */
+)
+
+DEF_MACRO(
+    fSXTN, /* macro name */
+    ((fZXTN(N,M,VAL) ^ (1LL<<((N)-1))) - (1LL<<((N)-1))),
+    /* attribs */
+)
+
+DEF_MACRO(
+    fSATN,
+    ((fSXTN(N,64,VAL) == (VAL)) ? (VAL) : fSATVALN(N,VAL)),
+    ()
+)
+
+DEF_MACRO(
+    fADDSAT64,
+    {
+        size8u_t __a = fCAST8u(A);
+        size8u_t __b = fCAST8u(B);
+        size8u_t __sum = __a + __b;
+        size8u_t __xor = __a ^ __b;
+        const size8u_t __mask = 0x8000000000000000ULL;
+        if (__xor & __mask) {
+            /* Opposite signs, OK */
+            DST = __sum;
+        } else if ((__a ^ __sum) & __mask) {
+            /* Signs mismatch */
+            if (__sum & __mask) {
+                /* overflowed to negative, make max pos */
+                DST=0x7FFFFFFFFFFFFFFFLL; fSET_OVERFLOW();
+            } else {
+                /* overflowed to positive, make max neg */
+                DST=0x8000000000000000LL; fSET_OVERFLOW();
+            }
+        } else {
+            /* signs did not mismatch, OK */
+            DST = __sum;
+        }
+    },
+    ()
+)
+
+DEF_MACRO(
+    fSATUN,
+    ((fZXTN(N,64,VAL) == (VAL)) ? (VAL) : fSATUVALN(N,VAL)),
+    ()
+)
+
+DEF_MACRO(
+    fSATH,
+    (fSATN(16,VAL)),
+    ()
+)
+
+
+DEF_MACRO(
+    fSATUH,
+    (fSATUN(16,VAL)),
+    ()
+)
+
+DEF_MACRO(
+    fSATUB,
+    (fSATUN(8,VAL)),
+    ()
+)
+DEF_MACRO(
+    fSATB,
+    (fSATN(8,VAL)),
+    ()
+)
+
+
+/*************************************/
+/* immediate extension               */
+/*************************************/
+
+DEF_MACRO(
+    fIMMEXT,
+    (IMM = IMM),
+    (A_EXTENDABLE)
+)
+
+DEF_MACRO(
+    fMUST_IMMEXT,
+    fIMMEXT(IMM),
+    (A_EXTENDABLE)
+)
+
+DEF_MACRO(
+    fPCALIGN,
+    IMM=(IMM & ~PCALIGN_MASK),
+    (A_EXTENDABLE)
+)
+
+/*************************************/
+/* Read and Write Implicit Regs      */
+/*************************************/
+
+DEF_MACRO(
+    fREAD_LR, /* read link register */
+    (READ_RREG(REG_LR)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fWRITE_LR, /* write lr */
+    WRITE_RREG(REG_LR,A),          /* behavior */
+    (A_IMPLICIT_WRITES_LR)
+)
+
+DEF_MACRO(
+    fWRITE_FP, /* write sp */
+    WRITE_RREG(REG_FP,A),          /* behavior */
+    (A_IMPLICIT_WRITES_FP)
+)
+
+DEF_MACRO(
+    fWRITE_SP, /* write sp */
+    WRITE_RREG(REG_SP,A),          /* behavior */
+    (A_IMPLICIT_WRITES_SP)
+)
+
+DEF_MACRO(
+    fREAD_SP, /* read stack pointer */
+    (READ_RREG(REG_SP)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_LC0, /* read loop count */
+    (READ_RREG(REG_LC0)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_LC1, /* read loop count */
+    (READ_RREG(REG_LC1)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_SA0, /* read start addr */
+    (READ_RREG(REG_SA0)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_SA1, /* read start addr */
+    (READ_RREG(REG_SA1)),          /* behavior */
+    ()
+)
+
+
+DEF_MACRO(
+    fREAD_FP, /* read frame pointer */
+    (READ_RREG(REG_FP)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_GP, /* read global pointer */
+    (insn->extension_valid ? 0 : READ_RREG(REG_GP)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_PC, /* read PC */
+    (READ_RREG(REG_PC)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_NPC, /* read next PC */
+    (thread->next_PC & (0xfffffffe)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_P0, /* read Predicate 0 */
+    (READ_PREG(0)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_P3, /* read Predicate 3 */
+    (READ_PREG(3)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fCHECK_PCALIGN,
+    if (((A) & PCALIGN_MASK)) {
+        register_error_exception(thread,PRECISE_CAUSE_PC_NOT_ALIGNED,thread->Regs[REG_BADVA0],thread->Regs[REG_BADVA1],GET_SSR_FIELD(SSR_BVS),GET_SSR_FIELD(SSR_V0),GET_SSR_FIELD(SSR_V1),0);
+    },
+    ()
+)
+
+DEF_MACRO(
+    fWRITE_NPC, /* write next PC */
+    if (!thread->branch_taken) {
+        if (A != thread->next_PC) {
+            thread->next_pkt_guess=thread->last_pkt->taken_ptr;
+        }
+        fCHECK_PCALIGN(A);
+        thread->branched = 1; thread->branch_taken = 1; thread->next_PC = A; \
+        thread->branch_offset = insn->encoding_offset; thread->branch_opcode = insn->opcode;
+    },          /* behavior */
+    (A_COF)
+)
+
+DEF_MACRO(
+    fBRANCH,
+    fWRITE_NPC(LOC); fCOF_CALLBACK(LOC,TYPE),
+    ()
+)
+
+DEF_MACRO(
+    fJUMPR,    /* A jumpr has executed */
+    {fBRANCH(TARGET,COF_TYPE_JUMPR);},
+    (A_INDIRECT)
+)
+
+DEF_MACRO(
+    fHINTJR,    /* A hintjr instruction has executed */
+    { },
+)
+
+DEF_MACRO(
+    fCALL,    /* Do a call */
+    if (!thread->branch_taken) {fBP_RAS_CALL(A); fWRITE_LR(fREAD_NPC()); fBRANCH(A,COF_TYPE_CALL);},
+    (A_COF,A_IMPLICIT_WRITES_LR,A_CALL)
+)
+
+DEF_MACRO(
+    fCALLR,    /* Do a call Register */
+    if (!thread->branch_taken) {fBP_RAS_CALL(A); fWRITE_LR(fREAD_NPC()); fBRANCH(A,COF_TYPE_CALLR);},
+    (A_COF,A_IMPLICIT_WRITES_LR,A_CALL)
+)
+
+DEF_MACRO(
+    fWRITE_LOOP_REGS0, /* write ln,sa,ea,lc */
+    {WRITE_RREG(REG_LC0,COUNT);
+     WRITE_RREG(REG_SA0,START);},
+    (A_IMPLICIT_WRITES_LC0,A_IMPLICIT_WRITES_SA0)
+)
+
+DEF_MACRO(
+    fWRITE_LOOP_REGS1, /* write ln,sa,ea,lc */
+    {WRITE_RREG(REG_LC1,COUNT);
+     WRITE_RREG(REG_SA1,START);},
+    (A_IMPLICIT_WRITES_LC1,A_IMPLICIT_WRITES_SA1)
+)
+
+DEF_MACRO(
+    fWRITE_LC0,
+    WRITE_RREG(REG_LC0,VAL),
+    (A_IMPLICIT_WRITES_LC0)
+)
+
+DEF_MACRO(
+    fWRITE_LC1,
+    WRITE_RREG(REG_LC1,VAL),
+    (A_IMPLICIT_WRITES_LC1)
+)
+
+DEF_MACRO(
+    fCARRY_FROM_ADD,
+    carry_from_add64(A,B,C),
+    /* NOTHING */
+)
+
+DEF_MACRO(
+    fSET_OVERFLOW,
+    SET_USR_FIELD(USR_OVF,1),
+    ()
+)
+
+DEF_MACRO(
+    fSET_LPCFG,
+    SET_USR_FIELD(USR_LPCFG,(VAL)),
+    ()
+)
+
+
+DEF_MACRO(
+    fGET_LPCFG,
+    (GET_USR_FIELD(USR_LPCFG)),
+    ()
+)
+
+
+
+DEF_MACRO(
+    fWRITE_P0, /* write Predicate 0 */
+    WRITE_PREG(0,VAL),          /* behavior */
+    (A_IMPLICIT_WRITES_P0)
+)
+
+DEF_MACRO(
+    fWRITE_P1, /* write Predicate 0 */
+    WRITE_PREG(1,VAL),          /* behavior */
+    (A_IMPLICIT_WRITES_P1)
+)
+
+DEF_MACRO(
+    fWRITE_P2, /* write Predicate 0 */
+    WRITE_PREG(2,VAL),          /* behavior */
+    (A_IMPLICIT_WRITES_P2)
+)
+
+DEF_MACRO(
+    fWRITE_P3, /* write Predicate 0 */
+    WRITE_PREG(3,VAL),     /* behavior */
+    (A_IMPLICIT_WRITES_P3)
+)
+
+DEF_MACRO(
+    fPART1, /* write Predicate 0 */
+    if (insn->part1) { WORK; return; },          /* behavior */
+    /* optional attributes */
+)
+
+
+/*************************************/
+/* Casting, Sign-Zero extension, etc */
+/*************************************/
+
+DEF_MACRO(
+    fCAST4u, /* macro name */
+    ((size4u_t)(A)),          /* behavior */
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCAST4s, /* macro name */
+    ((size4s_t)(A)),          /* behavior */
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCAST8u, /* macro name */
+    ((size8u_t)(A)),          /* behavior */
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCAST8s, /* macro name */
+    ((size8s_t)(A)),          /* behavior */
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCAST4_4s, /* macro name */
+    ((size4s_t)(A)),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCAST4_4u, /* macro name */
+    ((size4u_t)(A)),
+    /* optional attributes */
+)
+
+
+DEF_MACRO(
+    fCAST4_8s, /* macro name */
+    ((size8s_t)((size4s_t)(A))),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCAST4_8u, /* macro name */
+    ((size8u_t)((size4u_t)(A))),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCAST8_8s, /* macro name */
+    ((size8s_t)(A)),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCAST8_8u, /* macro name */
+    ((size8u_t)(A)),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCAST2_8s, /* macro name */
+    ((size8s_t)((size2s_t)(A))),
+    /* optional attributes */
+)
+DEF_MACRO(
+    fCAST2_8u, /* macro name */
+    ((size8u_t)((size2u_t)(A))),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fZE8_16, /* zero-extend 8 to 16 */
+    ((size2s_t)((size1u_t)(A))),
+    /* optional attributes */
+)
+DEF_MACRO(
+    fSE8_16, /* sign-extend 8 to 16 */
+    ((size2s_t)((size1s_t)(A))),
+    /* optional attributes */
+)
+
+
+DEF_MACRO(
+    fSE16_32, /* sign-extend 16 to 32 */
+    ((size4s_t)((size2s_t)(A))),          /* behavior */
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fZE16_32, /* zero-extend 16 to 32 */
+    ((size4u_t)((size2u_t)(A))),          /* behavior */
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fSE32_64,
+    ( (size8s_t)((size4s_t)(A)) ),          /* behavior */
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fZE32_64,
+    ( (size8u_t)((size4u_t)(A)) ),          /* behavior */
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fSE8_32, /* sign-extend 8 to 32 */
+    ((size4s_t)((size1s_t)(A))),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fZE8_32, /* zero-extend 8 to 32 */
+    ((size4s_t)((size1u_t)(A))),
+    /* optional attributes */
+)
+
+/*************************************/
+/* DSP arithmetic support            */
+/************************************/
+DEF_MACRO(
+    fMPY8UU, /* multiply half integer */
+    (int)(fZE8_16(A)*fZE8_16(B)),     /* behavior */
+    ()
+)
+DEF_MACRO(
+    fMPY8US, /* multiply half integer */
+    (int)(fZE8_16(A)*fSE8_16(B)),     /* behavior */
+    ()
+)
+DEF_MACRO(
+    fMPY8SU, /* multiply half integer */
+    (int)(fSE8_16(A)*fZE8_16(B)),     /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fMPY8SS, /* multiply half integer */
+    (int)((short)(A)*(short)(B)),     /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fMPY16SS, /* multiply half integer */
+    fSE32_64(fSE16_32(A)*fSE16_32(B)),     /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fMPY16UU, /* multiply unsigned half integer */
+    fZE32_64(fZE16_32(A)*fZE16_32(B)),     /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fMPY16SU, /* multiply half integer */
+    fSE32_64(fSE16_32(A)*fZE16_32(B)),     /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fMPY16US, /* multiply half integer */
+    fMPY16SU(B,A),
+    ()
+)
+
+DEF_MACRO(
+    fMPY32SS, /* multiply half integer */
+    (fSE32_64(A)*fSE32_64(B)),     /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fMPY32UU, /* multiply half integer */
+    (fZE32_64(A)*fZE32_64(B)),     /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fMPY32SU, /* multiply half integer */
+    (fSE32_64(A)*fZE32_64(B)),     /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fMPY3216SS, /* multiply mixed precision */
+    (fSE32_64(A)*fSXTN(16,64,B)),     /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fMPY3216SU, /* multiply mixed precision */
+    (fSE32_64(A)*fZXTN(16,64,B)),     /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fROUND, /* optional rounding */
+    (A+0x8000),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCLIP, /* optional rounding */
+    { size4s_t maxv = (1<<U)-1;
+      size4s_t minv = -(1<<U);
+      DST = fMIN(maxv,fMAX(SRC,minv));
+    },
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCRND, /* optional rounding */
+    ((((A)&0x3)==0x3)?((A)+1):((A))),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fRNDN, /* Rounding to a boundary */
+    ((((N)==0)?(A):(((fSE32_64(A))+(1<<((N)-1)))))),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCRNDN, /* Rounding to a boundary */
+    (conv_round(A,N)),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fADD128, /* Rounding to a boundary */
+    (add128(A, B)),
+    /* optional attributes */
+)
+DEF_MACRO(
+    fSUB128, /* Rounding to a boundary */
+    (sub128(A, B)),
+    /* optional attributes */
+)
+DEF_MACRO(
+    fSHIFTR128, /* Rounding to a boundary */
+    (shiftr128(A, B)),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fSHIFTL128, /* Rounding to a boundary */
+    (shiftl128(A, B)),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fAND128, /* Rounding to a boundary */
+    (and128(A, B)),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fCAST8S_16S, /* Rounding to a boundary */
+    (cast8s_to_16s(A)),
+    /* optional attributes */
+)
+DEF_MACRO(
+    fCAST16S_8S, /* Rounding to a boundary */
+    (cast16s_to_8s(A)),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fEA_RI, /* Calculate EA with Register + Immediate Offset */
+    do { EA=REG+IMM; fDOCHKPAGECROSS(REG,EA); } while (0),
+    ()
+)
+
+DEF_MACRO(
+    fEA_RRs, /* Calculate EA with Register + Registers scaled Offset */
+    do { EA=REG+(REG2<<SCALE); fDOCHKPAGECROSS(REG,EA); } while (0),
+    ()
+)
+
+DEF_MACRO(
+    fEA_IRs, /* Calculate EA with Immediate + Registers scaled Offset */
+    do { EA=IMM+(REG<<SCALE); fDOCHKPAGECROSS(IMM,EA); } while (0),
+    ()
+)
+
+DEF_MACRO(
+    fEA_IMM, /* Calculate EA with Immediate */
+    EA=IMM,
+    ()
+)
+
+DEF_MACRO(
+    fEA_REG, /* Calculate EA with REGISTER */
+    EA=REG,
+    ()
+)
+
+DEF_MACRO(
+    fEA_GPI, /* Calculate EA with Global Poitner + Immediate */
+    do { EA=fREAD_GP()+IMM; fGP_DOCHKPAGECROSS(fREAD_GP(),EA); } while (0),
+    ()
+)
+
+DEF_MACRO(
+    fPM_I, /* Post Modify Register by Immediate*/
+    do { REG = REG + IMM; } while (0),
+    ()
+)
+
+DEF_MACRO(
+    fPM_M, /* Post Modify Register by M register */
+    do { REG = REG + MVAL; } while (0),
+    ()
+)
+
+DEF_MACRO(
+    fSCALE, /* scale by N */
+    (((size8s_t)(A))<<N),
+    /* optional attributes */
+)
+
+DEF_MACRO(
+    fSATW, /* saturating to 32-bits*/
+    fSATN(32,((long long)A)),
+    ()
+)
+
+DEF_MACRO(
+    fSAT, /* saturating to 32-bits*/
+    fSATN(32,(A)),
+    ()
+)
+
+DEF_MACRO(
+    fSAT_ORIG_SHL, /* Saturating to 32-bits, with original value, for shift left */
+    ((((size4s_t)((fSAT(A)) ^ ((size4s_t)(ORIG_REG)))) < 0) ?
+        fSATVALN(32,((size4s_t)(ORIG_REG))) :
+        ((((ORIG_REG) > 0) && ((A) == 0)) ?
+            fSATVALN(32,(ORIG_REG)) :
+            fSAT(A))),
+    ()
+)
+
+DEF_MACRO(
+    fPASS,
+    A,
+)
+
+DEF_MACRO(
+    fRND, /* saturating to 32-bits*/
+    (((A)+1)>>1),
+)
+
+
+DEF_MACRO(
+    fBIDIR_SHIFTL,
+    (((SHAMT) < 0) ? ((fCAST##REGSTYPE(SRC) >> ((-(SHAMT))-1)) >>1) : (fCAST##REGSTYPE(SRC) << (SHAMT))),
+    ()
+)
+
+DEF_MACRO(
+    fBIDIR_ASHIFTL,
+    fBIDIR_SHIFTL(SRC,SHAMT,REGSTYPE##s),
+    ()
+)
+
+DEF_MACRO(
+    fBIDIR_LSHIFTL,
+    fBIDIR_SHIFTL(SRC,SHAMT,REGSTYPE##u),
+    ()
+)
+
+DEF_MACRO(
+    fBIDIR_ASHIFTL_SAT,
+    (((SHAMT) < 0) ? ((fCAST##REGSTYPE##s(SRC) >> ((-(SHAMT))-1)) >>1) : fSAT_ORIG_SHL(fCAST##REGSTYPE##s(SRC) << (SHAMT),(SRC))),
+    ()
+)
+
+
+DEF_MACRO(
+    fBIDIR_SHIFTR,
+    (((SHAMT) < 0) ? ((fCAST##REGSTYPE(SRC) << ((-(SHAMT))-1)) << 1) : (fCAST##REGSTYPE(SRC) >> (SHAMT))),
+    ()
+)
+
+DEF_MACRO(
+    fBIDIR_ASHIFTR,
+    fBIDIR_SHIFTR(SRC,SHAMT,REGSTYPE##s),
+    ()
+)
+
+DEF_MACRO(
+    fBIDIR_LSHIFTR,
+    fBIDIR_SHIFTR(SRC,SHAMT,REGSTYPE##u),
+    ()
+)
+
+DEF_MACRO(
+    fBIDIR_ASHIFTR_SAT,
+    (((SHAMT) < 0) ? fSAT_ORIG_SHL((fCAST##REGSTYPE##s(SRC) << ((-(SHAMT))-1)) << 1,(SRC)) : (fCAST##REGSTYPE##s(SRC) >> (SHAMT))),
+    ()
+)
+
+DEF_MACRO(
+    fASHIFTR,
+    (fCAST##REGSTYPE##s(SRC) >> (SHAMT)),
+    /* */
+)
+
+DEF_MACRO(
+    fLSHIFTR,
+    (((SHAMT) >= 64)?0:(fCAST##REGSTYPE##u(SRC) >> (SHAMT))),
+    /* */
+)
+
+DEF_MACRO(
+    fROTL,
+    (((SHAMT)==0) ? (SRC) : ((fCAST##REGSTYPE##u(SRC) << (SHAMT)) | \
+        ((fCAST##REGSTYPE##u(SRC) >> ((sizeof(SRC)*8)-(SHAMT)))))),
+    /* */
+)
+
+DEF_MACRO(
+    fROTR,
+    (((SHAMT)==0) ? (SRC) : ((fCAST##REGSTYPE##u(SRC) >> (SHAMT)) | \
+        ((fCAST##REGSTYPE##u(SRC) << ((sizeof(SRC)*8)-(SHAMT)))))),
+    /* */
+)
+
+DEF_MACRO(
+    fASHIFTL,
+    (((SHAMT) >= 64)?0:(fCAST##REGSTYPE##s(SRC) << (SHAMT))),
+    /* */
+)
+
+/*************************************/
+/* Floating-Point Support            */
+/************************************/
+
+DEF_MACRO(
+    fFLOAT, /* name */
+    ({ union { float f; size4u_t i; } _fipun; _fipun.i = (A); _fipun.f; }),     /* behavior */
+    (A_FPOP)
+)
+
+DEF_MACRO(
+    fUNFLOAT, /* multiply half integer */
+    ({ union { float f; size4u_t i; } _fipun; _fipun.f = (A); isnan(_fipun.f) ? 0xFFFFFFFFU : _fipun.i; }),     /* behavior */
+    (A_FPOP)
+)
+
+DEF_MACRO(
+    fSFNANVAL,
+    0xffffffff,
+    ()
+)
+
+DEF_MACRO(
+    fSFINFVAL,
+    (((A) & 0x80000000) | 0x7f800000),
+    ()
+)
+
+DEF_MACRO(
+    fSFONEVAL,
+    (((A) & 0x80000000) | fUNFLOAT(1.0)),
+    ()
+)
+
+DEF_MACRO(
+    fCHECKSFNAN,
+    do {
+        if (isnan(fFLOAT(A))) {
+            if ((fGETBIT(22,A)) == 0) fRAISEFLAGS(FE_INVALID);
+            DST = fSFNANVAL();
+        }
+    } while (0),
+    ()
+)
+
+DEF_MACRO(
+    fCHECKSFNAN3,
+    do {
+        fCHECKSFNAN(DST,A);
+        fCHECKSFNAN(DST,B);
+        fCHECKSFNAN(DST,C);
+    } while (0),
+    ()
+)
+
+DEF_MACRO(
+    fSF_BIAS,
+    127,
+    ()
+)
+
+DEF_MACRO(
+    fSF_MANTBITS,
+    23,
+    ()
+)
+
+DEF_MACRO(
+    fSF_MUL_POW2,
+    (fUNFLOAT(fFLOAT(A) * fFLOAT((fSF_BIAS() + (B)) << fSF_MANTBITS()))),
+    ()
+)
+
+DEF_MACRO(
+    fSF_GETEXP,
+    (((A) >> fSF_MANTBITS()) & 0xff),
+    ()
+)
+
+DEF_MACRO(
+    fSF_MAXEXP,
+    (254),
+    ()
+)
+
+DEF_MACRO(
+    fSF_RECIP_COMMON,
+    arch_sf_recip_common(&N,&D,&O,&A),
+    (A_FPOP)
+)
+
+DEF_MACRO(
+    fSF_INVSQRT_COMMON,
+    arch_sf_invsqrt_common(&N,&O,&A),
+    (A_FPOP)
+)
+
+DEF_MACRO(
+    fFMAFX,
+    internal_fmafx(A,B,C,fSXTN(8,64,ADJ)),
+    ()
+)
+
+DEF_MACRO(
+    fFMAF,
+    internal_fmafx(A,B,C,0),
+    ()
+)
+
+DEF_MACRO(
+    fSFMPY,
+    internal_mpyf(A,B),
+    ()
+)
+
+DEF_MACRO(
+    fMAKESF,
+    ((((SIGN) & 1) << 31) | (((EXP) & 0xff) << fSF_MANTBITS()) |
+        ((MANT) & ((1<<fSF_MANTBITS())-1))),
+    ()
+)
+
+
+DEF_MACRO(
+    fDOUBLE, /* multiply half integer */
+    ({ union { double f; size8u_t i; } _fipun; _fipun.i = (A); _fipun.f; }),     /* behavior */
+    (A_FPOP)
+)
+
+DEF_MACRO(
+    fUNDOUBLE, /* multiply half integer */
+    ({ union { double f; size8u_t i; } _fipun; _fipun.f = (A); isnan(_fipun.f) ? 0xFFFFFFFFFFFFFFFFULL : _fipun.i; }),     /* behavior */
+    (A_FPOP)
+)
+
+DEF_MACRO(
+    fDFNANVAL,
+    0xffffffffffffffffULL,
+    ()
+)
+
+DEF_MACRO(
+    fDF_ISNORMAL,
+    (fpclassify(fDOUBLE(X)) == FP_NORMAL),
+    ()
+)
+
+DEF_MACRO(
+    fDF_ISDENORM,
+    (fpclassify(fDOUBLE(X)) == FP_SUBNORMAL),
+    ()
+)
+
+DEF_MACRO(
+    fDF_ISBIG,
+    (fDF_GETEXP(X) >= 512),
+    ()
+)
+
+DEF_MACRO(
+    fDF_MANTBITS,
+    52,
+    ()
+)
+
+DEF_MACRO(
+    fDF_GETEXP,
+    (((A) >> fDF_MANTBITS()) & 0x7ff),
+    ()
+)
+
+DEF_MACRO(
+    fFMA,
+    internal_fma(A,B,C),
+    /* nothing */
+)
+
+DEF_MACRO(
+    fDF_MPY_HH,
+    internal_mpyhh(A,B,ACC),
+    /* nothing */
+)
+
+DEF_MACRO(
+    fFPOP_START,
+    arch_fpop_start(thread),
+    /* nothing */
+)
+
+DEF_MACRO(
+    fFPOP_END,
+    arch_fpop_end(thread),
+    /* nothing */
+)
+
+DEF_MACRO(
+    fFPSETROUND_NEAREST,
+    fesetround(FE_TONEAREST),
+    /* nothing */
+)
+
+DEF_MACRO(
+    fFPSETROUND_CHOP,
+    fesetround(FE_TOWARDZERO),
+    /* nothing */
+)
+
+DEF_MACRO(
+    fFPCANCELFLAGS,
+    feclearexcept(FE_ALL_EXCEPT),
+    /* nothing */
+)
+
+DEF_MACRO(
+    fISINFPROD,
+    ((isinf(A) && isinf(B)) ||
+     (isinf(A) && isfinite(B) && ((B) != 0.0)) ||
+     (isinf(B) && isfinite(A) && ((A) != 0.0))),
+    /* nothing */
+)
+
+DEF_MACRO(
+    fISZEROPROD,
+    ((((A) == 0.0) && isfinite(B)) || (((B) == 0.0) && isfinite(A))),
+    /* nothing */
+)
+
+DEF_MACRO(
+    fRAISEFLAGS,
+    arch_raise_fpflag(A),
+    /* NOTHING */
+)
+
+DEF_MACRO(
+    fDF_MAX,
+    (((A)==(B))
+    ? fDOUBLE(fUNDOUBLE(A) & fUNDOUBLE(B))
+    : fmax(A,B)),
+    (A_FPOP)
+)
+
+DEF_MACRO(
+    fDF_MIN,
+    (((A)==(B))
+    ? fDOUBLE(fUNDOUBLE(A) | fUNDOUBLE(B))
+    : fmin(A,B)),
+    (A_FPOP)
+)
+
+DEF_MACRO(
+    fSF_MAX,
+    (((A)==(B))
+    ? fFLOAT(fUNFLOAT(A) & fUNFLOAT(B))
+    : fmaxf(A,B)),
+    (A_FPOP)
+)
+
+DEF_MACRO(
+    fSF_MIN,
+    (((A)==(B))
+    ? fFLOAT(fUNFLOAT(A) | fUNFLOAT(B))
+    : fminf(A,B)),
+    (A_FPOP)
+)
+
+/*************************************/
+/* Load/Store support                */
+/*************************************/
+
+DEF_MACRO(fLOAD,
+    { DST = (size##SIZE##SIGN##_t)MEM_LOAD##SIZE(thread,EA,insn); },
+    (A_LOAD,A_MEMLIKE)
+)
+
+DEF_MACRO(fMEMOP,
+    { memop##SIZE##_##FNTYPE(thread,EA,VALUE); },
+    (A_LOAD,A_STORE,A_MEMLIKE)
+)
+
+DEF_MACRO(fGET_FRAMEKEY,
+    READ_RREG(REG_FRAMEKEY),
+    ()
+)
+
+DEF_MACRO(fFRAME_SCRAMBLE,
+    ((VAL) ^ (fCAST8u(fGET_FRAMEKEY()) << 32)),
+    /* ATTRIBS */
+)
+
+DEF_MACRO(fFRAME_UNSCRAMBLE,
+    fFRAME_SCRAMBLE(VAL),
+    /* ATTRIBS */
+)
+
+DEF_MACRO(fFRAMECHECK,
+    sys_check_framelimit(thread,ADDR,EA),
+    ()
+)
+
+DEF_MACRO(fLOAD_LOCKED,
+    {     DST = (size##SIZE##SIGN##_t)mem_load_locked(thread,EA,SIZE,insn); },
+    (A_LOAD,A_MEMLIKE)
+)
+
+DEF_MACRO(fSTORE,
+    { MEM_STORE##SIZE(thread,EA,SRC,insn); },
+    (A_STORE,A_MEMLIKE)
+)
+
+
+DEF_MACRO(fSTORE_LOCKED,
+    { PRED = (mem_store_conditional(thread,EA,SRC,SIZE,insn) ? 0xff : 0); },
+    (A_STORE,A_MEMLIKE)
+)
+
+/*************************************/
+/* Functions to help with bytes      */
+/*************************************/
+
+DEF_MACRO(fGETBYTE,
+    ((size1s_t)((SRC>>((N)*8))&0xff)),
+    /* nothing */
+)
+
+DEF_MACRO(fGETUBYTE,
+    ((size1u_t)((SRC>>((N)*8))&0xff)),
+    /* nothing */
+)
+
+DEF_MACRO(fSETBYTE,
+    {
+        DST = (DST & ~(0x0ffLL<<((N)*8))) | (((size8u_t)((VAL) & 0x0ffLL)) << ((N)*8));
+    },
+    /* nothing */
+)
+
+DEF_MACRO(fGETHALF,
+    ((size2s_t)((SRC>>((N)*16))&0xffff)),
+    /* nothing */
+)
+
+DEF_MACRO(fGETUHALF,
+    ((size2u_t)((SRC>>((N)*16))&0xffff)),
+    /* nothing */
+)
+
+DEF_MACRO(fSETHALF,
+    {
+        DST = (DST & ~(0x0ffffLL<<((N)*16))) | (((size8u_t)((VAL) & 0x0ffff)) << ((N)*16));
+    },
+    /* nothing */
+)
+
+
+
+DEF_MACRO(fGETWORD,
+    ((size8s_t)((size4s_t)((SRC>>((N)*32))&0x0ffffffffLL))),
+    /* nothing */
+)
+
+DEF_MACRO(fGETUWORD,
+    ((size8u_t)((size4u_t)((SRC>>((N)*32))&0x0ffffffffLL))),
+    /* nothing */
+)
+
+DEF_MACRO(fSETWORD,
+    {
+        DST = (DST & ~(0x0ffffffffLL<<((N)*32))) | (((VAL) & 0x0ffffffffLL) << ((N)*32));
+    },
+    /* nothing */
+)
+
+DEF_MACRO(fSETBIT,
+    {
+        DST = (DST & ~(1ULL<<(N))) | (((size8u_t)(VAL))<<(N));
+    },
+    /* nothing */
+)
+
+DEF_MACRO(fGETBIT,
+    (((SRC)>>N)&1),
+    /* nothing */
+)
+
+
+DEF_MACRO(fSETBITS,
+    do {
+        int j;
+        for (j=LO;j<=HI;j++) {
+          fSETBIT(j,DST,VAL);
+        }
+    } while (0),
+    /* nothing */
+)
+
+/*************************************/
+/* Used for parity, etc........      */
+/*************************************/
+DEF_MACRO(fCOUNTONES_4,
+    count_ones_4(VAL),
+    /* nothing */
+)
+
+DEF_MACRO(fCOUNTONES_8,
+    count_ones_8(VAL),
+    /* nothing */
+)
+
+DEF_MACRO(fBREV_8,
+    reverse_bits_8(VAL),
+    /* nothing */
+)
+
+DEF_MACRO(fBREV_4,
+    reverse_bits_4(VAL),
+    /* nothing */
+)
+
+DEF_MACRO(fCL1_8,
+    count_leading_ones_8(VAL),
+    /* nothing */
+)
+
+DEF_MACRO(fCL1_4,
+    count_leading_ones_4(VAL),
+    /* nothing */
+)
+
+DEF_MACRO(fINTERLEAVE,
+    interleave(ODD,EVEN),
+    /* nothing */
+)
+
+DEF_MACRO(fDEINTERLEAVE,
+    deinterleave(MIXED),
+    /* nothing */
+)
+
+DEF_MACRO(fHIDE,
+    A,
+    ()
+)
+
+DEF_MACRO(fCONSTLL,
+    A##LL,
+)
+
+/* Do the things in the parens, but don't print the parens. */
+DEF_MACRO(fECHO,
+    (A),
+    /* nothing */
+)
+
+
+/********************************************/
+/* OS interface and stop/wait               */
+/********************************************/
+
+DEF_MACRO(fPAUSE,
+    {sys_pause(thread, insn->slot, IMM);},
+    ()
+)
+
+DEF_MACRO(fTRAP,
+    warn("Trap NPC=%x ",fREAD_NPC());
+    warn("Trap exception, PCYCLE=%lld TYPE=%d NPC=%x IMM=0x%x",thread->processor_ptr->pstats[pcycles],TRAPTYPE,fREAD_NPC(),IMM);
+    register_trap_exception(thread,fREAD_NPC(),TRAPTYPE,IMM);,
+    ()
+)
+
+DEF_MACRO(fALIGN_REG_FIELD_VALUE,
+    ((VAL)<<reg_field_info[FIELD].offset),
+    /* */
+)
+
+DEF_MACRO(fGET_REG_FIELD_MASK,
+    (((1<<reg_field_info[FIELD].width)-1)<<reg_field_info[FIELD].offset),
+    /* */
+)
+
+DEF_MACRO(fREAD_REG_FIELD,
+    fEXTRACTU_BITS(thread->Regs[REG_##REG],
+        reg_field_info[FIELD].width,
+        reg_field_info[FIELD].offset),
+    /* ATTRIBS */
+)
+
+DEF_MACRO(fGET_FIELD,
+    fEXTRACTU_BITS(VAL,
+        reg_field_info[FIELD].width,
+        reg_field_info[FIELD].offset),
+    /* ATTRIBS */
+)
+
+DEF_MACRO(fSET_FIELD,
+    fINSERT_BITS(VAL,
+        reg_field_info[FIELD].width,
+        reg_field_info[FIELD].offset,
+        (NEWVAL)),
+    /* ATTRIBS */
+)
+
+/********************************************/
+/* Cache Management                         */
+/********************************************/
+
+DEF_MACRO(fBARRIER,
+    {
+        sys_barrier(thread, insn->slot);
+    },
+    ()
+)
+
+DEF_MACRO(fSYNCH,
+    {
+        sys_sync(thread, insn->slot);
+    },
+    ()
+)
+
+DEF_MACRO(fISYNC,
+    {
+        sys_isync(thread, insn->slot);
+    },
+    ()
+)
+
+
+DEF_MACRO(fDCFETCH,
+    sys_dcfetch(thread, (REG), insn->slot),
+    (A_MEMLIKE)
+)
+
+DEF_MACRO(fICINVA,
+    {
+        arch_internal_flush(thread->processor_ptr, 0, 0xffffffff);
+        sys_icinva(thread, (REG),insn->slot);
+    },
+    (A_ICINVA)
+)
+
+DEF_MACRO(fL2FETCH,
+    sys_l2fetch(thread, ADDR,HEIGHT,WIDTH,STRIDE,FLAGS, insn->slot),
+    (A_MEMLIKE,A_L2FETCH)
+)
+
+DEF_MACRO(fDCCLEANA,
+    sys_dccleana(thread, (REG)),
+    (A_MEMLIKE)
+)
+
+DEF_MACRO(fDCCLEANINVA,
+    sys_dccleaninva(thread, (REG), insn->slot),
+    (A_MEMLIKE,A_DCCLEANINVA)
+)
+
+DEF_MACRO(fDCZEROA,
+    sys_dczeroa(thread, (REG)),
+    (A_MEMLIKE)
+)
+
+DEF_MACRO(fCHECKFORPRIV,
+    {sys_check_privs(thread); if (EXCEPTION_DETECTED) return; },
+    ()
+)
+
+DEF_MACRO(fCHECKFORGUEST,
+    {sys_check_guest(thread); if (EXCEPTION_DETECTED) return; },
+    ()
+)
+
+DEF_MACRO(fBRANCH_SPECULATE_STALL,
+    {
+        sys_speculate_branch_stall(thread, insn->slot, JUMP_COND(JUMP_PRED_SET),
+            SPEC_DIR,
+            DOTNEWVAL,
+            HINTBITNUM,
+            STRBITNUM,
+            0,
+            thread->last_pkt->pkt_has_dual_jump,
+            insn->is_2nd_jump,
+            (thread->fetch_access.vaddr + insn->encoding_offset*4));
+    },
+    ()
+)

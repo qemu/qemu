@@ -85,7 +85,13 @@ typedef struct CPUM68KState {
     uint32_t pc;
     uint32_t sr;
 
-    /* SSP and USP.  The current_sp is stored in aregs[7], the other here.  */
+    /*
+     * The 68020/30/40 support two supervisor stacks, ISP and MSP.
+     * The 68000/10, Coldfire, and CPU32 only have USP/SSP.
+     *
+     * The current_sp is stored in aregs[7], the other here.
+     * The USP, SSP, and if used the additional ISP for 68020/30/40.
+     */
     int current_sp;
     uint32_t sp[3];
 
@@ -393,6 +399,10 @@ typedef enum {
 #define M68K_CR_DACR0    0x006
 #define M68K_CR_DACR1    0x007
 
+/* MC68060 */
+#define M68K_CR_BUSCR    0x008
+#define M68K_CR_PCR      0x808
+
 #define M68K_FPIAR_SHIFT  0
 #define M68K_FPIAR        (1 << M68K_FPIAR_SHIFT)
 #define M68K_FPSR_SHIFT   1
@@ -450,39 +460,51 @@ void m68k_switch_sp(CPUM68KState *env);
 void do_m68k_semihosting(CPUM68KState *env, int nr);
 
 /*
+ * The 68000 family is defined in six main CPU classes, the 680[012346]0.
+ * Generally each successive CPU adds enhanced data/stack/instructions.
+ * However, some features are only common to one, or a few classes.
+ * The features covers those subsets of instructons.
+ *
+ * CPU32/32+ are basically 680010 compatible with some 68020 class instructons,
+ * and some additional CPU32 instructions. Mostly Supervisor state differences.
+ *
+ * The ColdFire core ISA is a RISC-style reduction of the 68000 series cpu.
  * There are 4 ColdFire core ISA revisions: A, A+, B and C.
  * Each feature covers the subset of instructions common to the
  * ISA revisions mentioned.
  */
 
 enum m68k_features {
-    M68K_FEATURE_M68000,
+    M68K_FEATURE_M68000,   /* Base m68k instruction set */
+    M68K_FEATURE_M68010,
     M68K_FEATURE_M68020,
     M68K_FEATURE_M68030,
     M68K_FEATURE_M68040,
     M68K_FEATURE_M68060,
-    M68K_FEATURE_CF_ISA_A,
-    M68K_FEATURE_CF_ISA_B, /* (ISA B or C).  */
-    M68K_FEATURE_CF_ISA_APLUSC, /* BIT/BITREV, FF1, STRLDSR (ISA A+ or C).  */
-    M68K_FEATURE_BRAL, /* Long unconditional branch.  (ISA A+ or B).  */
+    M68K_FEATURE_CF_ISA_A, /* Base Coldfire set Rev A. */
+    M68K_FEATURE_CF_ISA_B, /* (ISA B or C). */
+    M68K_FEATURE_CF_ISA_APLUSC, /* BIT/BITREV, FF1, STRLDSR (ISA A+ or C). */
+    M68K_FEATURE_BRAL, /* BRA with Long branch. (680[2346]0, ISA A+ or B). */
     M68K_FEATURE_CF_FPU,
     M68K_FEATURE_CF_MAC,
     M68K_FEATURE_CF_EMAC,
-    M68K_FEATURE_CF_EMAC_B, /* Revision B EMAC (dual accumulate).  */
-    M68K_FEATURE_USP, /* User Stack Pointer.  (ISA A+, B or C).  */
-    M68K_FEATURE_EXT_FULL, /* 68020+ full extension word.  */
-    M68K_FEATURE_WORD_INDEX, /* word sized address index registers.  */
-    M68K_FEATURE_SCALED_INDEX, /* scaled address index registers.  */
-    M68K_FEATURE_LONG_MULDIV, /* 32 bit multiply/divide. */
-    M68K_FEATURE_QUAD_MULDIV, /* 64 bit multiply/divide. */
-    M68K_FEATURE_BCCL, /* Long conditional branches.  */
-    M68K_FEATURE_BITFIELD, /* Bit field insns.  */
-    M68K_FEATURE_FPU,
-    M68K_FEATURE_CAS,
-    M68K_FEATURE_BKPT,
-    M68K_FEATURE_RTD,
-    M68K_FEATURE_CHK2,
-    M68K_FEATURE_MOVEP,
+    M68K_FEATURE_CF_EMAC_B,   /* Revision B EMAC (dual accumulate). */
+    M68K_FEATURE_USP, /* User Stack Pointer. (680[012346]0, ISA A+, B or C).*/
+    M68K_FEATURE_MSP, /* Master Stack Pointer. (680[234]0) */
+    M68K_FEATURE_EXT_FULL,    /* 68020+ full extension word. */
+    M68K_FEATURE_WORD_INDEX,  /* word sized address index registers. */
+    M68K_FEATURE_SCALED_INDEX, /* scaled address index registers. */
+    M68K_FEATURE_LONG_MULDIV, /* 32 bit mul/div. (680[2346]0, and CPU32) */
+    M68K_FEATURE_QUAD_MULDIV, /* 64 bit mul/div. (680[2346]0, and CPU32) */
+    M68K_FEATURE_BCCL,  /* Bcc with Long branches. (680[2346]0, and CPU32) */
+    M68K_FEATURE_BITFIELD, /* BFxxx Bit field insns. (680[2346]0) */
+    M68K_FEATURE_FPU,   /* fpu insn. (680[46]0) */
+    M68K_FEATURE_CAS,   /* CAS/CAS2[WL] insns. (680[2346]0) */
+    M68K_FEATURE_BKPT,  /* BKPT insn. (680[12346]0, and CPU32) */
+    M68K_FEATURE_RTD,   /* RTD insn. (680[12346]0, and CPU32) */
+    M68K_FEATURE_CHK2,  /* CHK2 insn. (680[2346]0, and CPU32) */
+    M68K_FEATURE_MOVEP, /* MOVEP insn. (680[01234]0, and CPU32) */
+    M68K_FEATURE_MOVEC, /* MOVEC insn. (from 68010) */
 };
 
 static inline int m68k_feature(CPUM68KState *env, int feature)

@@ -5,13 +5,9 @@ import subprocess
 import time
 
 from avocado import skipUnless
-from avocado_qemu import Test, BUILD_DIR
+from avocado_qemu import LinuxTest, BUILD_DIR
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import ssh
-
-from qemu.accel import kvm_available
-
-from boot_linux import BootLinux
 
 
 def run_cmd(args):
@@ -71,7 +67,7 @@ def has_cmds(*cmds):
     return (True, '')
 
 
-class VirtiofsSubmountsTest(BootLinux):
+class VirtiofsSubmountsTest(LinuxTest):
     """
     :avocado: tags=arch:x86_64
     """
@@ -228,6 +224,18 @@ class VirtiofsSubmountsTest(BootLinux):
     def setUp(self):
         vmlinuz = self.params.get('vmlinuz')
         if vmlinuz is None:
+            """
+            The Linux kernel supports FUSE auto-submounts only as of 5.10.
+            boot_linux.py currently provides Fedora 31, whose kernel is too
+            old, so this test cannot pass with the on-image kernel (you are
+            welcome to try, hence the option to force such a test with
+            -p vmlinuz='').  Therefore, for now the user must provide a
+            sufficiently new custom kernel, or effectively explicitly
+            request failure with -p vmlinuz=''.
+            Once an image with a sufficiently new kernel is available
+            (probably Fedora 34), we can make -p vmlinuz='' the default, so
+            that this parameter no longer needs to be specified.
+            """
             self.cancel('vmlinuz parameter not set; you must point it to a '
                         'Linux kernel binary to test (to run this test with ' \
                         'the on-image kernel, set it to an empty string)')
@@ -250,8 +258,7 @@ class VirtiofsSubmountsTest(BootLinux):
         self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22',
                          '-device', 'virtio-net,netdev=vnet')
 
-        if not kvm_available(self.arch, self.qemu_bin):
-            self.cancel(KVM_NOT_AVAILABLE)
+        self.require_accelerator("kvm")
         self.vm.add_args('-accel', 'kvm')
 
     def tearDown(self):

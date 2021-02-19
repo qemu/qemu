@@ -280,6 +280,11 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define TARGET_NR__llseek TARGET_NR_llseek
 #endif
 
+/* some platforms need to mask more bits than just TARGET_O_NONBLOCK */
+#ifndef TARGET_O_NONBLOCK_MASK
+#define TARGET_O_NONBLOCK_MASK TARGET_O_NONBLOCK
+#endif
+
 #define __NR_sys_gettid __NR_gettid
 _syscall0(int, sys_gettid)
 
@@ -901,6 +906,8 @@ abi_long do_brk(abi_ulong new_brk)
     abi_long mapped_addr;
     abi_ulong new_alloc_size;
 
+    /* brk pointers are always untagged */
+
     DEBUGF_BRK("do_brk(" TARGET_ABI_FMT_lx ") -> ", new_brk);
 
     if (!new_brk) {
@@ -919,7 +926,7 @@ abi_long do_brk(abi_ulong new_brk)
         /* Heap contents are initialized to zero, as for anonymous
          * mapped pages.  */
         if (new_brk > target_brk) {
-            memset(g2h(target_brk), 0, new_brk - target_brk);
+            memset(g2h_untagged(target_brk), 0, new_brk - target_brk);
         }
 	target_brk = new_brk;
         DEBUGF_BRK(TARGET_ABI_FMT_lx " (new_brk <= brk_page)\n", target_brk);
@@ -945,7 +952,7 @@ abi_long do_brk(abi_ulong new_brk)
          * come from the remaining part of the previous page: it may
          * contains garbage data due to a previous heap usage (grown
          * then shrunken).  */
-        memset(g2h(target_brk), 0, brk_page - target_brk);
+        memset(g2h_untagged(target_brk), 0, brk_page - target_brk);
 
         target_brk = new_brk;
         brk_page = HOST_PAGE_ALIGN(target_brk);
@@ -2844,6 +2851,12 @@ get_timeout:
         case TARGET_SO_ACCEPTCONN:
             optname = SO_ACCEPTCONN;
             goto int_case;
+        case TARGET_SO_PROTOCOL:
+            optname = SO_PROTOCOL;
+            goto int_case;
+        case TARGET_SO_DOMAIN:
+            optname = SO_DOMAIN;
+            goto int_case;
         default:
             goto int_case;
         }
@@ -3525,8 +3538,9 @@ static abi_long do_accept4(int fd, abi_ulong target_addr,
         return -TARGET_EINVAL;
     }
 
-    if (!access_ok(VERIFY_WRITE, target_addr, addrlen))
+    if (!access_ok(thread_cpu, VERIFY_WRITE, target_addr, addrlen)) {
         return -TARGET_EFAULT;
+    }
 
     addr = alloca(addrlen);
 
@@ -3556,8 +3570,9 @@ static abi_long do_getpeername(int fd, abi_ulong target_addr,
         return -TARGET_EINVAL;
     }
 
-    if (!access_ok(VERIFY_WRITE, target_addr, addrlen))
+    if (!access_ok(thread_cpu, VERIFY_WRITE, target_addr, addrlen)) {
         return -TARGET_EFAULT;
+    }
 
     addr = alloca(addrlen);
 
@@ -3587,8 +3602,9 @@ static abi_long do_getsockname(int fd, abi_ulong target_addr,
         return -TARGET_EINVAL;
     }
 
-    if (!access_ok(VERIFY_WRITE, target_addr, addrlen))
+    if (!access_ok(thread_cpu, VERIFY_WRITE, target_addr, addrlen)) {
         return -TARGET_EFAULT;
+    }
 
     addr = alloca(addrlen);
 
@@ -4600,6 +4616,8 @@ static inline abi_ulong do_shmat(CPUArchState *cpu_env,
     int i,ret;
     abi_ulong shmlba;
 
+    /* shmat pointers are always untagged */
+
     /* find out the length of the shared memory segment */
     ret = get_errno(shmctl(shmid, IPC_STAT, &shm_info));
     if (is_error(ret)) {
@@ -4616,14 +4634,14 @@ static inline abi_ulong do_shmat(CPUArchState *cpu_env,
             return -TARGET_EINVAL;
         }
     }
-    if (!guest_range_valid(shmaddr, shm_info.shm_segsz)) {
+    if (!guest_range_valid_untagged(shmaddr, shm_info.shm_segsz)) {
         return -TARGET_EINVAL;
     }
 
     mmap_lock();
 
     if (shmaddr)
-        host_raddr = shmat(shmid, (void *)g2h(shmaddr), shmflg);
+        host_raddr = shmat(shmid, (void *)g2h_untagged(shmaddr), shmflg);
     else {
         abi_ulong mmap_start;
 
@@ -4634,7 +4652,8 @@ static inline abi_ulong do_shmat(CPUArchState *cpu_env,
             errno = ENOMEM;
             host_raddr = (void *)-1;
         } else
-            host_raddr = shmat(shmid, g2h(mmap_start), shmflg | SHM_REMAP);
+            host_raddr = shmat(shmid, g2h_untagged(mmap_start),
+                               shmflg | SHM_REMAP);
     }
 
     if (host_raddr == (void *)-1) {
@@ -4644,8 +4663,8 @@ static inline abi_ulong do_shmat(CPUArchState *cpu_env,
     raddr=h2g((unsigned long)host_raddr);
 
     page_set_flags(raddr, raddr + shm_info.shm_segsz,
-                   PAGE_VALID | PAGE_READ |
-                   ((shmflg & SHM_RDONLY)? 0 : PAGE_WRITE));
+                   PAGE_VALID | PAGE_RESET | PAGE_READ |
+                   (shmflg & SHM_RDONLY ? 0 : PAGE_WRITE));
 
     for (i = 0; i < N_SHM_REGIONS; i++) {
         if (!shm_regions[i].in_use) {
@@ -4666,6 +4685,8 @@ static inline abi_long do_shmdt(abi_ulong shmaddr)
     int i;
     abi_long rv;
 
+    /* shmdt pointers are always untagged */
+
     mmap_lock();
 
     for (i = 0; i < N_SHM_REGIONS; ++i) {
@@ -4675,7 +4696,7 @@ static inline abi_long do_shmdt(abi_ulong shmaddr)
             break;
         }
     }
-    rv = get_errno(shmdt(g2h(shmaddr)));
+    rv = get_errno(shmdt(g2h_untagged(shmaddr)));
 
     mmap_unlock();
 
@@ -4921,6 +4942,7 @@ static abi_long do_ioctl_ifconf(const IOCTLEntry *ie, uint8_t *buf_temp,
     struct ifconf *host_ifconf;
     uint32_t outbufsz;
     const argtype ifreq_arg_type[] = { MK_STRUCT(STRUCT_sockaddr_ifreq) };
+    const argtype ifreq_max_type[] = { MK_STRUCT(STRUCT_ifmap_ifreq) };
     int target_ifreq_size;
     int nb_ifreq;
     int free_buf = 0;
@@ -4944,7 +4966,7 @@ static abi_long do_ioctl_ifconf(const IOCTLEntry *ie, uint8_t *buf_temp,
 
     host_ifconf = (struct ifconf *)(unsigned long)buf_temp;
     target_ifc_buf = (abi_long)(unsigned long)host_ifconf->ifc_buf;
-    target_ifreq_size = thunk_type_size(ifreq_arg_type, 0);
+    target_ifreq_size = thunk_type_size(ifreq_max_type, 0);
 
     if (target_ifc_buf != 0) {
         target_ifc_len = host_ifconf->ifc_len;
@@ -6145,10 +6167,10 @@ static abi_long write_ldt(CPUX86State *env,
                                     MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
         if (env->ldt.base == -1)
             return -TARGET_ENOMEM;
-        memset(g2h(env->ldt.base), 0,
+        memset(g2h_untagged(env->ldt.base), 0,
                TARGET_LDT_ENTRIES * TARGET_LDT_ENTRY_SIZE);
         env->ldt.limit = 0xffff;
-        ldt_table = g2h(env->ldt.base);
+        ldt_table = g2h_untagged(env->ldt.base);
     }
 
     /* NOTE: same code as Linux kernel */
@@ -6216,7 +6238,7 @@ static abi_long do_modify_ldt(CPUX86State *env, int func, abi_ulong ptr,
 #if defined(TARGET_ABI32)
 abi_long do_set_thread_area(CPUX86State *env, abi_ulong ptr)
 {
-    uint64_t *gdt_table = g2h(env->gdt.base);
+    uint64_t *gdt_table = g2h_untagged(env->gdt.base);
     struct target_modify_ldt_ldt_s ldt_info;
     struct target_modify_ldt_ldt_s *target_ldt_info;
     int seg_32bit, contents, read_exec_only, limit_in_pages;
@@ -6302,7 +6324,7 @@ install:
 static abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
 {
     struct target_modify_ldt_ldt_s *target_ldt_info;
-    uint64_t *gdt_table = g2h(env->gdt.base);
+    uint64_t *gdt_table = g2h_untagged(env->gdt.base);
     uint32_t base_addr, limit, flags;
     int seg_32bit, contents, read_exec_only, limit_in_pages, idx;
     int seg_not_present, useable, lm;
@@ -7597,8 +7619,8 @@ static int do_safe_futex(int *uaddr, int op, int val,
    tricky.  However they're probably useless because guest atomic
    operations won't work either.  */
 #if defined(TARGET_NR_futex)
-static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
-                    target_ulong uaddr2, int val3)
+static int do_futex(CPUState *cpu, target_ulong uaddr, int op, int val,
+                    target_ulong timeout, target_ulong uaddr2, int val3)
 {
     struct timespec ts, *pts;
     int base_op;
@@ -7619,11 +7641,14 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
         } else {
             pts = NULL;
         }
-        return do_safe_futex(g2h(uaddr), op, tswap32(val), pts, NULL, val3);
+        return do_safe_futex(g2h(cpu, uaddr),
+                             op, tswap32(val), pts, NULL, val3);
     case FUTEX_WAKE:
-        return do_safe_futex(g2h(uaddr), op, val, NULL, NULL, 0);
+        return do_safe_futex(g2h(cpu, uaddr),
+                             op, val, NULL, NULL, 0);
     case FUTEX_FD:
-        return do_safe_futex(g2h(uaddr), op, val, NULL, NULL, 0);
+        return do_safe_futex(g2h(cpu, uaddr),
+                             op, val, NULL, NULL, 0);
     case FUTEX_REQUEUE:
     case FUTEX_CMP_REQUEUE:
     case FUTEX_WAKE_OP:
@@ -7633,10 +7658,9 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
            to satisfy the compiler.  We do not need to tswap TIMEOUT
            since it's not compared to guest memory.  */
         pts = (struct timespec *)(uintptr_t) timeout;
-        return do_safe_futex(g2h(uaddr), op, val, pts, g2h(uaddr2),
+        return do_safe_futex(g2h(cpu, uaddr), op, val, pts, g2h(cpu, uaddr2),
                              (base_op == FUTEX_CMP_REQUEUE
-                                      ? tswap32(val3)
-                                      : val3));
+                              ? tswap32(val3) : val3));
     default:
         return -TARGET_ENOSYS;
     }
@@ -7644,7 +7668,8 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
 #endif
 
 #if defined(TARGET_NR_futex_time64)
-static int do_futex_time64(target_ulong uaddr, int op, int val, target_ulong timeout,
+static int do_futex_time64(CPUState *cpu, target_ulong uaddr, int op,
+                           int val, target_ulong timeout,
                            target_ulong uaddr2, int val3)
 {
     struct timespec ts, *pts;
@@ -7668,11 +7693,12 @@ static int do_futex_time64(target_ulong uaddr, int op, int val, target_ulong tim
         } else {
             pts = NULL;
         }
-        return do_safe_futex(g2h(uaddr), op, tswap32(val), pts, NULL, val3);
+        return do_safe_futex(g2h(cpu, uaddr), op,
+                             tswap32(val), pts, NULL, val3);
     case FUTEX_WAKE:
-        return do_safe_futex(g2h(uaddr), op, val, NULL, NULL, 0);
+        return do_safe_futex(g2h(cpu, uaddr), op, val, NULL, NULL, 0);
     case FUTEX_FD:
-        return do_safe_futex(g2h(uaddr), op, val, NULL, NULL, 0);
+        return do_safe_futex(g2h(cpu, uaddr), op, val, NULL, NULL, 0);
     case FUTEX_REQUEUE:
     case FUTEX_CMP_REQUEUE:
     case FUTEX_WAKE_OP:
@@ -7682,10 +7708,9 @@ static int do_futex_time64(target_ulong uaddr, int op, int val, target_ulong tim
            to satisfy the compiler.  We do not need to tswap TIMEOUT
            since it's not compared to guest memory.  */
         pts = (struct timespec *)(uintptr_t) timeout;
-        return do_safe_futex(g2h(uaddr), op, val, pts, g2h(uaddr2),
+        return do_safe_futex(g2h(cpu, uaddr), op, val, pts, g2h(cpu, uaddr2),
                              (base_op == FUTEX_CMP_REQUEUE
-                                      ? tswap32(val3)
-                                      : val3));
+                              ? tswap32(val3) : val3));
     default:
         return -TARGET_ENOSYS;
     }
@@ -7789,7 +7814,7 @@ static abi_long do_signalfd4(int fd, abi_long mask, int flags)
     sigset_t host_mask;
     abi_long ret;
 
-    if (flags & ~(TARGET_O_NONBLOCK | TARGET_O_CLOEXEC)) {
+    if (flags & ~(TARGET_O_NONBLOCK_MASK | TARGET_O_CLOEXEC)) {
         return -TARGET_EINVAL;
     }
     if (!lock_user_struct(VERIFY_READ, target_mask, mask, 1)) {
@@ -7860,7 +7885,7 @@ int open_self_maps(void *cpu_env, int fd)
             const char *path;
 
             max = h2g_valid(max - 1) ?
-                max : (uintptr_t) g2h(GUEST_ADDR_MAX) + 1;
+                max : (uintptr_t) g2h_untagged(GUEST_ADDR_MAX) + 1;
 
             if (page_check_range(h2g(min), max - min, flags) == -1) {
                 continue;
@@ -8277,8 +8302,8 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 
             if (ts->child_tidptr) {
                 put_user_u32(0, ts->child_tidptr);
-                do_sys_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
-                          NULL, NULL, 0);
+                do_sys_futex(g2h(cpu, ts->child_tidptr),
+                             FUTEX_WAKE, INT_MAX, NULL, NULL, 0);
             }
             thread_cpu = NULL;
             g_free(ts);
@@ -8671,7 +8696,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             if (!arg5) {
                 ret = mount(p, p2, p3, (unsigned long)arg4, NULL);
             } else {
-                ret = mount(p, p2, p3, (unsigned long)arg4, g2h(arg5));
+                ret = mount(p, p2, p3, (unsigned long)arg4, g2h(cpu, arg5));
             }
             ret = get_errno(ret);
 
@@ -9727,6 +9752,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                                         v5, v6));
         }
 #else
+        /* mmap pointers are always untagged */
         ret = get_errno(target_mmap(arg1, arg2, arg3,
                                     target_to_host_bitmask(arg4, mmap_flags_tbl),
                                     arg5,
@@ -9745,8 +9771,10 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         return get_errno(ret);
 #endif
     case TARGET_NR_munmap:
+        arg1 = cpu_untagged_addr(cpu, arg1);
         return get_errno(target_munmap(arg1, arg2));
     case TARGET_NR_mprotect:
+        arg1 = cpu_untagged_addr(cpu, arg1);
         {
             TaskState *ts = cpu->opaque;
             /* Special hack to detect libc making the stack executable.  */
@@ -9761,20 +9789,22 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         return get_errno(target_mprotect(arg1, arg2, arg3));
 #ifdef TARGET_NR_mremap
     case TARGET_NR_mremap:
+        arg1 = cpu_untagged_addr(cpu, arg1);
+        /* mremap new_addr (arg5) is always untagged */
         return get_errno(target_mremap(arg1, arg2, arg3, arg4, arg5));
 #endif
         /* ??? msync/mlock/munlock are broken for softmmu.  */
 #ifdef TARGET_NR_msync
     case TARGET_NR_msync:
-        return get_errno(msync(g2h(arg1), arg2, arg3));
+        return get_errno(msync(g2h(cpu, arg1), arg2, arg3));
 #endif
 #ifdef TARGET_NR_mlock
     case TARGET_NR_mlock:
-        return get_errno(mlock(g2h(arg1), arg2));
+        return get_errno(mlock(g2h(cpu, arg1), arg2));
 #endif
 #ifdef TARGET_NR_munlock
     case TARGET_NR_munlock:
-        return get_errno(munlock(g2h(arg1), arg2));
+        return get_errno(munlock(g2h(cpu, arg1), arg2));
 #endif
 #ifdef TARGET_NR_mlockall
     case TARGET_NR_mlockall:
@@ -11003,6 +11033,73 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                 }
             }
             return -TARGET_EINVAL;
+        case TARGET_PR_SET_TAGGED_ADDR_CTRL:
+            {
+                abi_ulong valid_mask = TARGET_PR_TAGGED_ADDR_ENABLE;
+                CPUARMState *env = cpu_env;
+                ARMCPU *cpu = env_archcpu(env);
+
+                if (cpu_isar_feature(aa64_mte, cpu)) {
+                    valid_mask |= TARGET_PR_MTE_TCF_MASK;
+                    valid_mask |= TARGET_PR_MTE_TAG_MASK;
+                }
+
+                if ((arg2 & ~valid_mask) || arg3 || arg4 || arg5) {
+                    return -TARGET_EINVAL;
+                }
+                env->tagged_addr_enable = arg2 & TARGET_PR_TAGGED_ADDR_ENABLE;
+
+                if (cpu_isar_feature(aa64_mte, cpu)) {
+                    switch (arg2 & TARGET_PR_MTE_TCF_MASK) {
+                    case TARGET_PR_MTE_TCF_NONE:
+                    case TARGET_PR_MTE_TCF_SYNC:
+                    case TARGET_PR_MTE_TCF_ASYNC:
+                        break;
+                    default:
+                        return -EINVAL;
+                    }
+
+                    /*
+                     * Write PR_MTE_TCF to SCTLR_EL1[TCF0].
+                     * Note that the syscall values are consistent with hw.
+                     */
+                    env->cp15.sctlr_el[1] =
+                        deposit64(env->cp15.sctlr_el[1], 38, 2,
+                                  arg2 >> TARGET_PR_MTE_TCF_SHIFT);
+
+                    /*
+                     * Write PR_MTE_TAG to GCR_EL1[Exclude].
+                     * Note that the syscall uses an include mask,
+                     * and hardware uses an exclude mask -- invert.
+                     */
+                    env->cp15.gcr_el1 =
+                        deposit64(env->cp15.gcr_el1, 0, 16,
+                                  ~arg2 >> TARGET_PR_MTE_TAG_SHIFT);
+                    arm_rebuild_hflags(env);
+                }
+                return 0;
+            }
+        case TARGET_PR_GET_TAGGED_ADDR_CTRL:
+            {
+                abi_long ret = 0;
+                CPUARMState *env = cpu_env;
+                ARMCPU *cpu = env_archcpu(env);
+
+                if (arg2 || arg3 || arg4 || arg5) {
+                    return -TARGET_EINVAL;
+                }
+                if (env->tagged_addr_enable) {
+                    ret |= TARGET_PR_TAGGED_ADDR_ENABLE;
+                }
+                if (cpu_isar_feature(aa64_mte, cpu)) {
+                    /* See above. */
+                    ret |= (extract64(env->cp15.sctlr_el[1], 38, 2)
+                            << TARGET_PR_MTE_TCF_SHIFT);
+                    ret = deposit64(ret, TARGET_PR_MTE_TAG_SHIFT, 16,
+                                    ~env->cp15.gcr_el1);
+                }
+                return ret;
+            }
 #endif /* AARCH64 */
         case PR_GET_SECCOMP:
         case PR_SET_SECCOMP:
@@ -12265,7 +12362,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 
 #if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
     case TARGET_NR_set_tid_address:
-        return get_errno(set_tid_address((int *)g2h(arg1)));
+        return get_errno(set_tid_address((int *)g2h(cpu, arg1)));
 #endif
 
     case TARGET_NR_tkill:
@@ -12363,11 +12460,11 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_futex
     case TARGET_NR_futex:
-        return do_futex(arg1, arg2, arg3, arg4, arg5, arg6);
+        return do_futex(cpu, arg1, arg2, arg3, arg4, arg5, arg6);
 #endif
 #ifdef TARGET_NR_futex_time64
     case TARGET_NR_futex_time64:
-        return do_futex_time64(arg1, arg2, arg3, arg4, arg5, arg6);
+        return do_futex_time64(cpu, arg1, arg2, arg3, arg4, arg5, arg6);
 #endif
 #if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
     case TARGET_NR_inotify_init:
@@ -12617,7 +12714,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_NR_eventfd2)
     case TARGET_NR_eventfd2:
     {
-        int host_flags = arg2 & (~(TARGET_O_NONBLOCK | TARGET_O_CLOEXEC));
+        int host_flags = arg2 & (~(TARGET_O_NONBLOCK_MASK | TARGET_O_CLOEXEC));
         if (arg2 & TARGET_O_NONBLOCK) {
             host_flags |= O_NONBLOCK;
         }

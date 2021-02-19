@@ -668,7 +668,7 @@ static int load_flat_file(struct linux_binprm * bprm,
     }
 
     /* zero the BSS.  */
-    memset(g2h(datapos + data_len), 0, bss_len);
+    memset(g2h_untagged(datapos + data_len), 0, bss_len);
 
     return 0;
 }

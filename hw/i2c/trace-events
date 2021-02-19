@@ -14,3 +14,15 @@ aspeed_i2c_bus_read(uint32_t busid, uint64_t offset, unsigned size, uint64_t val
 aspeed_i2c_bus_write(uint32_t busid, uint64_t offset, unsigned size, uint64_t value) "bus[%d]: To 0x%" PRIx64 " of size %u: 0x%" PRIx64
 aspeed_i2c_bus_send(const char *mode, int i, int count, uint8_t byte) "%s send %d/%d 0x%02x"
 aspeed_i2c_bus_recv(const char *mode, int i, int count, uint8_t byte) "%s recv %d/%d 0x%02x"
+
+# npcm7xx_smbus.c
+
+npcm7xx_smbus_read(const char *id, uint64_t offset, uint64_t value, unsigned size) "%s offset: 0x%04" PRIx64 " value: 0x%02" PRIx64 " size: %u"
+npcm7xx_smbus_write(const char *id, uint64_t offset, uint64_t value, unsigned size) "%s offset: 0x%04" PRIx64 " value: 0x%02" PRIx64 " size: %u"
+npcm7xx_smbus_start(const char *id, int success) "%s starting, success: %d"
+npcm7xx_smbus_send_address(const char *id, uint8_t addr, int recv, int success) "%s sending address: 0x%02x, recv: %d, success: %d"
+npcm7xx_smbus_send_byte(const char *id, uint8_t value, int success) "%s send byte: 0x%02x, success: %d"
+npcm7xx_smbus_recv_byte(const char *id, uint8_t value) "%s recv byte: 0x%02x"
+npcm7xx_smbus_stop(const char *id) "%s stopping"
+npcm7xx_smbus_nack(const char *id) "%s nacking"
+npcm7xx_smbus_recv_fifo(const char *id, uint8_t received, uint8_t expected) "%s recv fifo: received %u, expected %u"

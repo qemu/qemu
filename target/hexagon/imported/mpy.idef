@@ -1,0 +1,1208 @@
+/*
+ *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * Multiply Instructions
+ */
+
+
+#define STD_SP_MODES(TAG,OPER,ATR,DST,ACCSEM,SEM,OSEM,SATSEM,RNDSEM)\
+Q6INSN(M2_##TAG##_hh_s0, OPER"(Rs.H32,Rt.H32)"OSEM,        ATR,"",{DST=SATSEM(RNDSEM(ACCSEM SEM(         fGETHALF(1,RsV),fGETHALF(1,RtV))));})\
+Q6INSN(M2_##TAG##_hh_s1, OPER"(Rs.H32,Rt.H32):<<1"OSEM,    ATR,"",{DST=SATSEM(RNDSEM(ACCSEM fSCALE(1,SEM(fGETHALF(1,RsV),fGETHALF(1,RtV)))));})\
+Q6INSN(M2_##TAG##_hl_s0, OPER"(Rs.H32,Rt.L32)"OSEM,        ATR,"",{DST=SATSEM(RNDSEM(ACCSEM SEM(         fGETHALF(1,RsV),fGETHALF(0,RtV))));})\
+Q6INSN(M2_##TAG##_hl_s1, OPER"(Rs.H32,Rt.L32):<<1"OSEM,    ATR,"",{DST=SATSEM(RNDSEM(ACCSEM fSCALE(1,SEM(fGETHALF(1,RsV),fGETHALF(0,RtV)))));})\
+Q6INSN(M2_##TAG##_lh_s0, OPER"(Rs.L32,Rt.H32)"OSEM,        ATR,"",{DST=SATSEM(RNDSEM(ACCSEM SEM(         fGETHALF(0,RsV),fGETHALF(1,RtV))));})\
+Q6INSN(M2_##TAG##_lh_s1, OPER"(Rs.L32,Rt.H32):<<1"OSEM,    ATR,"",{DST=SATSEM(RNDSEM(ACCSEM fSCALE(1,SEM(fGETHALF(0,RsV),fGETHALF(1,RtV)))));})\
+Q6INSN(M2_##TAG##_ll_s0, OPER"(Rs.L32,Rt.L32)"OSEM,        ATR,"",{DST=SATSEM(RNDSEM(ACCSEM SEM(         fGETHALF(0,RsV),fGETHALF(0,RtV))));})\
+Q6INSN(M2_##TAG##_ll_s1, OPER"(Rs.L32,Rt.L32):<<1"OSEM,    ATR,"",{DST=SATSEM(RNDSEM(ACCSEM fSCALE(1,SEM(fGETHALF(0,RsV),fGETHALF(0,RtV)))));})
+
+/*****************************************************/
+/* multiply 16x16->32 signed instructions            */
+/*****************************************************/
+STD_SP_MODES(mpy_acc,    "Rx32+=mpy", ,RxV,RxV+    ,fMPY16SS,          ,fPASS,fPASS)
+STD_SP_MODES(mpy_nac,    "Rx32-=mpy", ,RxV,RxV-    ,fMPY16SS,          ,fPASS,fPASS)
+STD_SP_MODES(mpy_acc_sat,"Rx32+=mpy", ,RxV,RxV+    ,fMPY16SS,":sat"    ,fSAT, fPASS)
+STD_SP_MODES(mpy_nac_sat,"Rx32-=mpy", ,RxV,RxV-    ,fMPY16SS,":sat"    ,fSAT, fPASS)
+STD_SP_MODES(mpy,        "Rd32=mpy",  ,RdV,        ,fMPY16SS,          ,fPASS,fPASS)
+STD_SP_MODES(mpy_sat,    "Rd32=mpy",  ,RdV,        ,fMPY16SS,":sat"    ,fSAT, fPASS)
+STD_SP_MODES(mpy_rnd,    "Rd32=mpy",  ,RdV,        ,fMPY16SS,":rnd"    ,fPASS,fROUND)
+STD_SP_MODES(mpy_sat_rnd,"Rd32=mpy",  ,RdV,        ,fMPY16SS,":rnd:sat",fSAT, fROUND)
+STD_SP_MODES(mpyd_acc,   "Rxx32+=mpy",,RxxV,RxxV+  ,fMPY16SS,          ,fPASS,fPASS)
+STD_SP_MODES(mpyd_nac,   "Rxx32-=mpy",,RxxV,RxxV-  ,fMPY16SS,          ,fPASS,fPASS)
+STD_SP_MODES(mpyd,       "Rdd32=mpy", ,RddV,       ,fMPY16SS,          ,fPASS,fPASS)
+STD_SP_MODES(mpyd_rnd,   "Rdd32=mpy", ,RddV,       ,fMPY16SS,":rnd"    ,fPASS,fROUND)
+
+
+/*****************************************************/
+/* multiply 16x16->32 unsigned instructions          */
+/*****************************************************/
+#define STD_USP_MODES(TAG,OPER,ATR,DST,ACCSEM,SEM,OSEM,SATSEM,RNDSEM)\
+Q6INSN(M2_##TAG##_hh_s0, OPER"(Rs.H32,Rt.H32)"OSEM,        ATR,"",{DST=SATSEM(RNDSEM(ACCSEM SEM(         fGETUHALF(1,RsV),fGETUHALF(1,RtV))));})\
+Q6INSN(M2_##TAG##_hh_s1, OPER"(Rs.H32,Rt.H32):<<1"OSEM,    ATR,"",{DST=SATSEM(RNDSEM(ACCSEM fSCALE(1,SEM(fGETUHALF(1,RsV),fGETUHALF(1,RtV)))));})\
+Q6INSN(M2_##TAG##_hl_s0, OPER"(Rs.H32,Rt.L32)"OSEM,        ATR,"",{DST=SATSEM(RNDSEM(ACCSEM SEM(         fGETUHALF(1,RsV),fGETUHALF(0,RtV))));})\
+Q6INSN(M2_##TAG##_hl_s1, OPER"(Rs.H32,Rt.L32):<<1"OSEM,    ATR,"",{DST=SATSEM(RNDSEM(ACCSEM fSCALE(1,SEM(fGETUHALF(1,RsV),fGETUHALF(0,RtV)))));})\
+Q6INSN(M2_##TAG##_lh_s0, OPER"(Rs.L32,Rt.H32)"OSEM,        ATR,"",{DST=SATSEM(RNDSEM(ACCSEM SEM(         fGETUHALF(0,RsV),fGETUHALF(1,RtV))));})\
+Q6INSN(M2_##TAG##_lh_s1, OPER"(Rs.L32,Rt.H32):<<1"OSEM,    ATR,"",{DST=SATSEM(RNDSEM(ACCSEM fSCALE(1,SEM(fGETUHALF(0,RsV),fGETUHALF(1,RtV)))));})\
+Q6INSN(M2_##TAG##_ll_s0, OPER"(Rs.L32,Rt.L32)"OSEM,        ATR,"",{DST=SATSEM(RNDSEM(ACCSEM SEM(         fGETUHALF(0,RsV),fGETUHALF(0,RtV))));})\
+Q6INSN(M2_##TAG##_ll_s1, OPER"(Rs.L32,Rt.L32):<<1"OSEM,    ATR,"",{DST=SATSEM(RNDSEM(ACCSEM fSCALE(1,SEM(fGETUHALF(0,RsV),fGETUHALF(0,RtV)))));})
+
+STD_USP_MODES(mpyu_acc,    "Rx32+=mpyu", ,RxV,RxV+  ,fMPY16UU,          ,fPASS,fPASS)
+STD_USP_MODES(mpyu_nac,    "Rx32-=mpyu", ,RxV,RxV-  ,fMPY16UU,          ,fPASS,fPASS)
+STD_USP_MODES(mpyu,        "Rd32=mpyu",  ATTRIBS() ,RdV,  ,fMPY16UU, ,fPASS,fPASS)
+STD_USP_MODES(mpyud_acc,   "Rxx32+=mpyu",,RxxV,RxxV+,fMPY16UU,          ,fPASS,fPASS)
+STD_USP_MODES(mpyud_nac,   "Rxx32-=mpyu",,RxxV,RxxV-,fMPY16UU,          ,fPASS,fPASS)
+STD_USP_MODES(mpyud,       "Rdd32=mpyu", ATTRIBS() ,RddV, ,fMPY16UU, ,fPASS,fPASS)
+
+/**********************************************/
+/* mpy 16x#s8->32                             */
+/**********************************************/
+
+Q6INSN(M2_mpysip,"Rd32=+mpyi(Rs32,#u8)",ATTRIBS(A_ARCHV2),
+"32-bit Multiply by unsigned immediate",
+{ fIMMEXT(uiV); RdV=RsV*uiV; })
+
+Q6INSN(M2_mpysin,"Rd32=-mpyi(Rs32,#u8)",ATTRIBS(A_ARCHV2),
+"32-bit Multiply by unsigned immediate, negate result",
+{ RdV=RsV*-uiV; })
+
+Q6INSN(M2_macsip,"Rx32+=mpyi(Rs32,#u8)",ATTRIBS(A_ARCHV2),
+"32-bit Multiply-Add by unsigned immediate",
+{ fIMMEXT(uiV); RxV=RxV + (RsV*uiV);})
+
+Q6INSN(M2_macsin,"Rx32-=mpyi(Rs32,#u8)",ATTRIBS(A_ARCHV2),
+"32-bit Multiply-Subtract by unsigned immediate",
+{ fIMMEXT(uiV); RxV=RxV - (RsV*uiV);})
+
+
+/**********************************************/
+/* multiply/mac  32x32->64 instructions       */
+/**********************************************/
+Q6INSN(M2_dpmpyss_s0,    "Rdd32=mpy(Rs32,Rt32)", ATTRIBS(),"Multiply 32x32",{RddV=fMPY32SS(RsV,RtV);})
+Q6INSN(M2_dpmpyss_acc_s0,"Rxx32+=mpy(Rs32,Rt32)",ATTRIBS(),"Multiply 32x32",{RxxV= RxxV + fMPY32SS(RsV,RtV);})
+Q6INSN(M2_dpmpyss_nac_s0,"Rxx32-=mpy(Rs32,Rt32)",ATTRIBS(),"Multiply 32x32",{RxxV= RxxV - fMPY32SS(RsV,RtV);})
+
+Q6INSN(M2_dpmpyuu_s0,    "Rdd32=mpyu(Rs32,Rt32)", ATTRIBS(),"Multiply 32x32",{RddV=fMPY32UU(fCAST4u(RsV),fCAST4u(RtV));})
+Q6INSN(M2_dpmpyuu_acc_s0,"Rxx32+=mpyu(Rs32,Rt32)",ATTRIBS(),"Multiply 32x32",{RxxV= RxxV + fMPY32UU(fCAST4u(RsV),fCAST4u(RtV));})
+Q6INSN(M2_dpmpyuu_nac_s0,"Rxx32-=mpyu(Rs32,Rt32)",ATTRIBS(),"Multiply 32x32",{RxxV= RxxV - fMPY32UU(fCAST4u(RsV),fCAST4u(RtV));})
+
+
+/******************************************************/
+/* multiply/mac  32x32->32 (upper) instructions       */
+/******************************************************/
+Q6INSN(M2_mpy_up,        "Rd32=mpy(Rs32,Rt32)", ATTRIBS(),"Multiply 32x32",{RdV=fMPY32SS(RsV,RtV)>>32;})
+Q6INSN(M2_mpy_up_s1,     "Rd32=mpy(Rs32,Rt32):<<1", ATTRIBS(),"Multiply 32x32",{RdV=fMPY32SS(RsV,RtV)>>31;})
+Q6INSN(M2_mpy_up_s1_sat, "Rd32=mpy(Rs32,Rt32):<<1:sat", ATTRIBS(),"Multiply 32x32",{RdV=fSAT(fMPY32SS(RsV,RtV)>>31);})
+Q6INSN(M2_mpyu_up,       "Rd32=mpyu(Rs32,Rt32)", ATTRIBS(),"Multiply 32x32",{RdV=fMPY32UU(fCAST4u(RsV),fCAST4u(RtV))>>32;})
+Q6INSN(M2_mpysu_up,      "Rd32=mpysu(Rs32,Rt32)", ATTRIBS(),"Multiply 32x32",{RdV=fMPY32SU(RsV,fCAST4u(RtV))>>32;})
+Q6INSN(M2_dpmpyss_rnd_s0,"Rd32=mpy(Rs32,Rt32):rnd", ATTRIBS(),"Multiply 32x32",{RdV=(fMPY32SS(RsV,RtV)+fCONSTLL(0x80000000))>>32;})
+
+Q6INSN(M4_mac_up_s1_sat, "Rx32+=mpy(Rs32,Rt32):<<1:sat", ATTRIBS(),"Multiply 32x32",{RxV=fSAT(  (fSE32_64(RxV)) + (fMPY32SS(RsV,RtV)>>31));})
+Q6INSN(M4_nac_up_s1_sat, "Rx32-=mpy(Rs32,Rt32):<<1:sat", ATTRIBS(),"Multiply 32x32",{RxV=fSAT(  (fSE32_64(RxV)) - (fMPY32SS(RsV,RtV)>>31));})
+
+
+/**********************************************/
+/* 32x32->32 multiply (lower)                 */
+/**********************************************/
+
+Q6INSN(M2_mpyi,"Rd32=mpyi(Rs32,Rt32)",ATTRIBS(),
+"Multiply Integer",
+{ RdV=RsV*RtV;})
+
+Q6INSN(M2_maci,"Rx32+=mpyi(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Multiply-Accumulate Integer",
+{ RxV=RxV + RsV*RtV;})
+
+Q6INSN(M2_mnaci,"Rx32-=mpyi(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Multiply-Neg-Accumulate Integer",
+{ RxV=RxV - RsV*RtV;})
+
+/****** WHY ARE THESE IN MPY.IDEF? **********/
+
+Q6INSN(M2_acci,"Rx32+=add(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Add with accumulate",
+{ RxV=RxV + RsV + RtV;})
+
+Q6INSN(M2_accii,"Rx32+=add(Rs32,#s8)",ATTRIBS(A_ARCHV2),
+"Add with accumulate",
+{ fIMMEXT(siV); RxV=RxV + RsV + siV;})
+
+Q6INSN(M2_nacci,"Rx32-=add(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
+"Add with neg accumulate",
+{ RxV=RxV - (RsV + RtV);})
+
+Q6INSN(M2_naccii,"Rx32-=add(Rs32,#s8)",ATTRIBS(A_ARCHV2),
+"Add with neg accumulate",
+{ fIMMEXT(siV); RxV=RxV - (RsV + siV);})
+
+Q6INSN(M2_subacc,"Rx32+=sub(Rt32,Rs32)",ATTRIBS(A_ARCHV2),
+"Sub with accumulate",
+{ RxV=RxV + RtV - RsV;})
+
+
+
+
+Q6INSN(M4_mpyrr_addr,"Ry32=add(Ru32,mpyi(Ry32,Rs32))",ATTRIBS(),
+"Mpy by immed and add immed",
+{ RyV = RuV + RsV*RyV;})
+
+Q6INSN(M4_mpyri_addr_u2,"Rd32=add(Ru32,mpyi(#u6:2,Rs32))",ATTRIBS(),
+"Mpy by immed and add immed",
+{ RdV = RuV + RsV*uiV;})
+
+Q6INSN(M4_mpyri_addr,"Rd32=add(Ru32,mpyi(Rs32,#u6))",ATTRIBS(),
+"Mpy by immed and add immed",
+{ fIMMEXT(uiV); RdV = RuV + RsV*uiV;})
+
+
+
+Q6INSN(M4_mpyri_addi,"Rd32=add(#u6,mpyi(Rs32,#U6))",ATTRIBS(),
+"Mpy by immed and add immed",
+{ fIMMEXT(uiV); RdV = uiV + RsV*UiV;})
+
+
+
+Q6INSN(M4_mpyrr_addi,"Rd32=add(#u6,mpyi(Rs32,Rt32))",ATTRIBS(),
+"Mpy by immed and add immed",
+{ fIMMEXT(uiV); RdV = uiV + RsV*RtV;})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**********************************************/
+/* vector mac  2x[16x16 -> 32]                */
+/**********************************************/
+
+#undef vmac_sema
+#define vmac_sema(N)\
+{ fSETWORD(0,RddV,fSAT(fSCALE(N,fMPY16SS(fGETHALF(0,RsV),fGETHALF(0,RtV)))));\
+  fSETWORD(1,RddV,fSAT(fSCALE(N,fMPY16SS(fGETHALF(1,RsV),fGETHALF(1,RtV)))));\
+}
+Q6INSN(M2_vmpy2s_s0,"Rdd32=vmpyh(Rs32,Rt32):sat",ATTRIBS(),"Vector Multiply",vmac_sema(0))
+Q6INSN(M2_vmpy2s_s1,"Rdd32=vmpyh(Rs32,Rt32):<<1:sat",ATTRIBS(),"Vector Multiply",vmac_sema(1))
+
+
+#undef vmac_sema
+#define vmac_sema(N)\
+{ fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + fSCALE(N,fMPY16SS(fGETHALF(0,RsV),fGETHALF(0,RtV)))));\
+  fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + fSCALE(N,fMPY16SS(fGETHALF(1,RsV),fGETHALF(1,RtV)))));\
+}
+Q6INSN(M2_vmac2s_s0,"Rxx32+=vmpyh(Rs32,Rt32):sat",ATTRIBS(),"Vector Multiply",vmac_sema(0))
+Q6INSN(M2_vmac2s_s1,"Rxx32+=vmpyh(Rs32,Rt32):<<1:sat",ATTRIBS(),"Vector Multiply",vmac_sema(1))
+
+#undef vmac_sema
+#define vmac_sema(N)\
+{ fSETWORD(0,RddV,fSAT(fSCALE(N,fMPY16SU(fGETHALF(0,RsV),fGETUHALF(0,RtV)))));\
+  fSETWORD(1,RddV,fSAT(fSCALE(N,fMPY16SU(fGETHALF(1,RsV),fGETUHALF(1,RtV)))));\
+}
+Q6INSN(M2_vmpy2su_s0,"Rdd32=vmpyhsu(Rs32,Rt32):sat",ATTRIBS(),"Vector Multiply",vmac_sema(0))
+Q6INSN(M2_vmpy2su_s1,"Rdd32=vmpyhsu(Rs32,Rt32):<<1:sat",ATTRIBS(),"Vector Multiply",vmac_sema(1))
+
+
+#undef vmac_sema
+#define vmac_sema(N)\
+{ fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + fSCALE(N,fMPY16SU(fGETHALF(0,RsV),fGETUHALF(0,RtV)))));\
+  fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + fSCALE(N,fMPY16SU(fGETHALF(1,RsV),fGETUHALF(1,RtV)))));\
+}
+Q6INSN(M2_vmac2su_s0,"Rxx32+=vmpyhsu(Rs32,Rt32):sat",ATTRIBS(),"Vector Multiply",vmac_sema(0))
+Q6INSN(M2_vmac2su_s1,"Rxx32+=vmpyhsu(Rs32,Rt32):<<1:sat",ATTRIBS(),"Vector Multiply",vmac_sema(1))
+
+
+
+#undef vmac_sema
+#define vmac_sema(N)\
+{ fSETHALF(1,RdV,fGETHALF(1,(fSAT(fSCALE(N,fMPY16SS(fGETHALF(1,RsV),fGETHALF(1,RtV))) + 0x8000))));\
+  fSETHALF(0,RdV,fGETHALF(1,(fSAT(fSCALE(N,fMPY16SS(fGETHALF(0,RsV),fGETHALF(0,RtV))) + 0x8000))));\
+}
+Q6INSN(M2_vmpy2s_s0pack,"Rd32=vmpyh(Rs32,Rt32):rnd:sat",ATTRIBS(A_ARCHV2),"Vector Multiply",vmac_sema(0))
+Q6INSN(M2_vmpy2s_s1pack,"Rd32=vmpyh(Rs32,Rt32):<<1:rnd:sat",ATTRIBS(A_ARCHV2),"Vector Multiply",vmac_sema(1))
+
+
+#undef vmac_sema
+#define vmac_sema(N)\
+{ fSETWORD(0,RxxV,fGETWORD(0,RxxV) + fMPY16SS(fGETHALF(0,RsV),fGETHALF(0,RtV)));\
+  fSETWORD(1,RxxV,fGETWORD(1,RxxV) + fMPY16SS(fGETHALF(1,RsV),fGETHALF(1,RtV)));\
+}
+Q6INSN(M2_vmac2,"Rxx32+=vmpyh(Rs32,Rt32)",ATTRIBS(A_ARCHV2),"Vector Multiply",vmac_sema(0))
+
+#undef vmac_sema
+#define vmac_sema(N)\
+{ fSETWORD(0,RddV,fSAT(fSCALE(N,fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV)))));\
+  fSETWORD(1,RddV,fSAT(fSCALE(N,fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV)))));\
+}
+Q6INSN(M2_vmpy2es_s0,"Rdd32=vmpyeh(Rss32,Rtt32):sat",ATTRIBS(),"Vector Multiply",vmac_sema(0))
+Q6INSN(M2_vmpy2es_s1,"Rdd32=vmpyeh(Rss32,Rtt32):<<1:sat",ATTRIBS(),"Vector Multiply",vmac_sema(1))
+
+#undef vmac_sema
+#define vmac_sema(N)\
+{ fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + fSCALE(N,fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV)))));\
+  fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + fSCALE(N,fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV)))));\
+}
+Q6INSN(M2_vmac2es_s0,"Rxx32+=vmpyeh(Rss32,Rtt32):sat",ATTRIBS(),"Vector Multiply",vmac_sema(0))
+Q6INSN(M2_vmac2es_s1,"Rxx32+=vmpyeh(Rss32,Rtt32):<<1:sat",ATTRIBS(),"Vector Multiply",vmac_sema(1))
+
+#undef vmac_sema
+#define vmac_sema(N)\
+{ fSETWORD(0,RxxV,fGETWORD(0,RxxV) + fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV)));\
+  fSETWORD(1,RxxV,fGETWORD(1,RxxV) + fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV)));\
+}
+Q6INSN(M2_vmac2es,"Rxx32+=vmpyeh(Rss32,Rtt32)",ATTRIBS(A_ARCHV2),"Vector Multiply",vmac_sema(0))
+
+
+
+
+/********************************************************/
+/* vrmpyh, aka Big Mac, aka Mac Daddy, aka Mac-ac-ac-ac */
+/* vector mac  4x[16x16] + 64 ->64                      */
+/********************************************************/
+
+
+#undef vmac_sema
+#define vmac_sema(N)\
+{ RxxV = RxxV + fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV))\
+              + fMPY16SS(fGETHALF(1,RssV),fGETHALF(1,RttV))\
+              + fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV))\
+              + fMPY16SS(fGETHALF(3,RssV),fGETHALF(3,RttV));\
+}
+Q6INSN(M2_vrmac_s0,"Rxx32+=vrmpyh(Rss32,Rtt32)",ATTRIBS(),"Vector Multiply",vmac_sema(0))
+
+#undef vmac_sema
+#define vmac_sema(N)\
+{ RddV = fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV))\
+       + fMPY16SS(fGETHALF(1,RssV),fGETHALF(1,RttV))\
+       + fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV))\
+       + fMPY16SS(fGETHALF(3,RssV),fGETHALF(3,RttV));\
+}
+Q6INSN(M2_vrmpy_s0,"Rdd32=vrmpyh(Rss32,Rtt32)",ATTRIBS(),"Vector Multiply",vmac_sema(0))
+
+
+
+/******************************************************/
+/* vector dual macs. just like complex                */
+/******************************************************/
+
+
+/* With round&pack */
+#undef dmpy_sema
+#define dmpy_sema(N)\
+{ fSETHALF(0,RdV,fGETHALF(1,(fSAT(fSCALE(N,fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV))) + \
+                                  fSCALE(N,fMPY16SS(fGETHALF(1,RssV),fGETHALF(1,RttV))) + 0x8000))));\
+  fSETHALF(1,RdV,fGETHALF(1,(fSAT(fSCALE(N,fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV))) + \
+                                  fSCALE(N,fMPY16SS(fGETHALF(3,RssV),fGETHALF(3,RttV))) + 0x8000))));\
+}
+Q6INSN(M2_vdmpyrs_s0,"Rd32=vdmpy(Rss32,Rtt32):rnd:sat",ATTRIBS(),    "vector dual mac w/ round&pack",dmpy_sema(0))
+Q6INSN(M2_vdmpyrs_s1,"Rd32=vdmpy(Rss32,Rtt32):<<1:rnd:sat",ATTRIBS(),"vector dual mac w/ round&pack",dmpy_sema(1))
+
+
+
+
+
+/******************************************************/
+/* vector byte multiplies                             */
+/******************************************************/
+
+
+Q6INSN(M5_vrmpybuu,"Rdd32=vrmpybu(Rss32,Rtt32)",ATTRIBS(),
+ "vector dual mpy bytes",
+{
+  fSETWORD(0,RddV,(fMPY16SS(fGETUBYTE(0,RssV),fGETUBYTE(0,RttV)) +
+                   fMPY16SS(fGETUBYTE(1,RssV),fGETUBYTE(1,RttV)) +
+                   fMPY16SS(fGETUBYTE(2,RssV),fGETUBYTE(2,RttV)) +
+                   fMPY16SS(fGETUBYTE(3,RssV),fGETUBYTE(3,RttV))));
+  fSETWORD(1,RddV,(fMPY16SS(fGETUBYTE(4,RssV),fGETUBYTE(4,RttV)) +
+                   fMPY16SS(fGETUBYTE(5,RssV),fGETUBYTE(5,RttV)) +
+                   fMPY16SS(fGETUBYTE(6,RssV),fGETUBYTE(6,RttV)) +
+                   fMPY16SS(fGETUBYTE(7,RssV),fGETUBYTE(7,RttV))));
+ })
+
+Q6INSN(M5_vrmacbuu,"Rxx32+=vrmpybu(Rss32,Rtt32)",ATTRIBS(),
+ "vector dual mac bytes",
+{
+  fSETWORD(0,RxxV,(fGETWORD(0,RxxV) +
+                   fMPY16SS(fGETUBYTE(0,RssV),fGETUBYTE(0,RttV)) +
+                   fMPY16SS(fGETUBYTE(1,RssV),fGETUBYTE(1,RttV)) +
+                   fMPY16SS(fGETUBYTE(2,RssV),fGETUBYTE(2,RttV)) +
+                   fMPY16SS(fGETUBYTE(3,RssV),fGETUBYTE(3,RttV))));
+  fSETWORD(1,RxxV,(fGETWORD(1,RxxV) +
+                   fMPY16SS(fGETUBYTE(4,RssV),fGETUBYTE(4,RttV)) +
+                   fMPY16SS(fGETUBYTE(5,RssV),fGETUBYTE(5,RttV)) +
+                   fMPY16SS(fGETUBYTE(6,RssV),fGETUBYTE(6,RttV)) +
+                   fMPY16SS(fGETUBYTE(7,RssV),fGETUBYTE(7,RttV))));
+ })
+
+
+Q6INSN(M5_vrmpybsu,"Rdd32=vrmpybsu(Rss32,Rtt32)",ATTRIBS(),
+ "vector dual mpy bytes",
+{
+  fSETWORD(0,RddV,(fMPY16SS(fGETBYTE(0,RssV),fGETUBYTE(0,RttV)) +
+                   fMPY16SS(fGETBYTE(1,RssV),fGETUBYTE(1,RttV)) +
+                   fMPY16SS(fGETBYTE(2,RssV),fGETUBYTE(2,RttV)) +
+                   fMPY16SS(fGETBYTE(3,RssV),fGETUBYTE(3,RttV))));
+  fSETWORD(1,RddV,(fMPY16SS(fGETBYTE(4,RssV),fGETUBYTE(4,RttV)) +
+                   fMPY16SS(fGETBYTE(5,RssV),fGETUBYTE(5,RttV)) +
+                   fMPY16SS(fGETBYTE(6,RssV),fGETUBYTE(6,RttV)) +
+                   fMPY16SS(fGETBYTE(7,RssV),fGETUBYTE(7,RttV))));
+ })
+
+Q6INSN(M5_vrmacbsu,"Rxx32+=vrmpybsu(Rss32,Rtt32)",ATTRIBS(),
+ "vector dual mac bytes",
+{
+  fSETWORD(0,RxxV,(fGETWORD(0,RxxV) +
+                   fMPY16SS(fGETBYTE(0,RssV),fGETUBYTE(0,RttV)) +
+                   fMPY16SS(fGETBYTE(1,RssV),fGETUBYTE(1,RttV)) +
+                   fMPY16SS(fGETBYTE(2,RssV),fGETUBYTE(2,RttV)) +
+                   fMPY16SS(fGETBYTE(3,RssV),fGETUBYTE(3,RttV))));
+  fSETWORD(1,RxxV,(fGETWORD(1,RxxV) +
+                   fMPY16SS(fGETBYTE(4,RssV),fGETUBYTE(4,RttV)) +
+                   fMPY16SS(fGETBYTE(5,RssV),fGETUBYTE(5,RttV)) +
+                   fMPY16SS(fGETBYTE(6,RssV),fGETUBYTE(6,RttV)) +
+                   fMPY16SS(fGETBYTE(7,RssV),fGETUBYTE(7,RttV))));
+ })
+
+
+Q6INSN(M5_vmpybuu,"Rdd32=vmpybu(Rs32,Rt32)",ATTRIBS(),
+ "vector mpy bytes",
+{
+  fSETHALF(0,RddV,(fMPY16SS(fGETUBYTE(0,RsV),fGETUBYTE(0,RtV))));
+  fSETHALF(1,RddV,(fMPY16SS(fGETUBYTE(1,RsV),fGETUBYTE(1,RtV))));
+  fSETHALF(2,RddV,(fMPY16SS(fGETUBYTE(2,RsV),fGETUBYTE(2,RtV))));
+  fSETHALF(3,RddV,(fMPY16SS(fGETUBYTE(3,RsV),fGETUBYTE(3,RtV))));
+ })
+
+Q6INSN(M5_vmpybsu,"Rdd32=vmpybsu(Rs32,Rt32)",ATTRIBS(),
+ "vector mpy bytes",
+{
+  fSETHALF(0,RddV,(fMPY16SS(fGETBYTE(0,RsV),fGETUBYTE(0,RtV))));
+  fSETHALF(1,RddV,(fMPY16SS(fGETBYTE(1,RsV),fGETUBYTE(1,RtV))));
+  fSETHALF(2,RddV,(fMPY16SS(fGETBYTE(2,RsV),fGETUBYTE(2,RtV))));
+  fSETHALF(3,RddV,(fMPY16SS(fGETBYTE(3,RsV),fGETUBYTE(3,RtV))));
+ })
+
+
+Q6INSN(M5_vmacbuu,"Rxx32+=vmpybu(Rs32,Rt32)",ATTRIBS(),
+ "vector mac bytes",
+{
+  fSETHALF(0,RxxV,(fGETHALF(0,RxxV)+fMPY16SS(fGETUBYTE(0,RsV),fGETUBYTE(0,RtV))));
+  fSETHALF(1,RxxV,(fGETHALF(1,RxxV)+fMPY16SS(fGETUBYTE(1,RsV),fGETUBYTE(1,RtV))));
+  fSETHALF(2,RxxV,(fGETHALF(2,RxxV)+fMPY16SS(fGETUBYTE(2,RsV),fGETUBYTE(2,RtV))));
+  fSETHALF(3,RxxV,(fGETHALF(3,RxxV)+fMPY16SS(fGETUBYTE(3,RsV),fGETUBYTE(3,RtV))));
+ })
+
+Q6INSN(M5_vmacbsu,"Rxx32+=vmpybsu(Rs32,Rt32)",ATTRIBS(),
+ "vector mac bytes",
+{
+  fSETHALF(0,RxxV,(fGETHALF(0,RxxV)+fMPY16SS(fGETBYTE(0,RsV),fGETUBYTE(0,RtV))));
+  fSETHALF(1,RxxV,(fGETHALF(1,RxxV)+fMPY16SS(fGETBYTE(1,RsV),fGETUBYTE(1,RtV))));
+  fSETHALF(2,RxxV,(fGETHALF(2,RxxV)+fMPY16SS(fGETBYTE(2,RsV),fGETUBYTE(2,RtV))));
+  fSETHALF(3,RxxV,(fGETHALF(3,RxxV)+fMPY16SS(fGETBYTE(3,RsV),fGETUBYTE(3,RtV))));
+ })
+
+
+
+Q6INSN(M5_vdmpybsu,"Rdd32=vdmpybsu(Rss32,Rtt32):sat",ATTRIBS(),
+ "vector quad mpy bytes",
+{
+  fSETHALF(0,RddV,fSATN(16,(fMPY16SS(fGETBYTE(0,RssV),fGETUBYTE(0,RttV)) +
+                            fMPY16SS(fGETBYTE(1,RssV),fGETUBYTE(1,RttV)))));
+  fSETHALF(1,RddV,fSATN(16,(fMPY16SS(fGETBYTE(2,RssV),fGETUBYTE(2,RttV)) +
+                            fMPY16SS(fGETBYTE(3,RssV),fGETUBYTE(3,RttV)))));
+  fSETHALF(2,RddV,fSATN(16,(fMPY16SS(fGETBYTE(4,RssV),fGETUBYTE(4,RttV)) +
+                            fMPY16SS(fGETBYTE(5,RssV),fGETUBYTE(5,RttV)))));
+  fSETHALF(3,RddV,fSATN(16,(fMPY16SS(fGETBYTE(6,RssV),fGETUBYTE(6,RttV)) +
+                            fMPY16SS(fGETBYTE(7,RssV),fGETUBYTE(7,RttV)))));
+ })
+
+
+Q6INSN(M5_vdmacbsu,"Rxx32+=vdmpybsu(Rss32,Rtt32):sat",ATTRIBS(),
+ "vector quad mac bytes",
+{
+  fSETHALF(0,RxxV,fSATN(16,(fGETHALF(0,RxxV) +
+                   fMPY16SS(fGETBYTE(0,RssV),fGETUBYTE(0,RttV)) +
+                   fMPY16SS(fGETBYTE(1,RssV),fGETUBYTE(1,RttV)))));
+  fSETHALF(1,RxxV,fSATN(16,(fGETHALF(1,RxxV) +
+                   fMPY16SS(fGETBYTE(2,RssV),fGETUBYTE(2,RttV)) +
+                   fMPY16SS(fGETBYTE(3,RssV),fGETUBYTE(3,RttV)))));
+  fSETHALF(2,RxxV,fSATN(16,(fGETHALF(2,RxxV) +
+                   fMPY16SS(fGETBYTE(4,RssV),fGETUBYTE(4,RttV)) +
+                   fMPY16SS(fGETBYTE(5,RssV),fGETUBYTE(5,RttV)))));
+  fSETHALF(3,RxxV,fSATN(16,(fGETHALF(3,RxxV) +
+                   fMPY16SS(fGETBYTE(6,RssV),fGETUBYTE(6,RttV)) +
+                   fMPY16SS(fGETBYTE(7,RssV),fGETUBYTE(7,RttV)))));
+ })
+
+
+
+/* Full version */
+#undef dmpy_sema
+#define dmpy_sema(N)\
+{ fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + fSCALE(N,fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV))) + \
+                     fSCALE(N,fMPY16SS(fGETHALF(1,RssV),fGETHALF(1,RttV)))));\
+  fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + fSCALE(N,fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV))) + \
+                     fSCALE(N,fMPY16SS(fGETHALF(3,RssV),fGETHALF(3,RttV)))));\
+}
+Q6INSN(M2_vdmacs_s0,"Rxx32+=vdmpy(Rss32,Rtt32):sat",ATTRIBS(),    "",dmpy_sema(0))
+Q6INSN(M2_vdmacs_s1,"Rxx32+=vdmpy(Rss32,Rtt32):<<1:sat",ATTRIBS(),"",dmpy_sema(1))
+
+#undef dmpy_sema
+#define dmpy_sema(N)\
+{ fSETWORD(0,RddV,fSAT(fSCALE(N,fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV))) + \
+              fSCALE(N,fMPY16SS(fGETHALF(1,RssV),fGETHALF(1,RttV)))));\
+  fSETWORD(1,RddV,fSAT(fSCALE(N,fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV))) + \
+              fSCALE(N,fMPY16SS(fGETHALF(3,RssV),fGETHALF(3,RttV)))));\
+}
+
+Q6INSN(M2_vdmpys_s0,"Rdd32=vdmpy(Rss32,Rtt32):sat",ATTRIBS(),    "",dmpy_sema(0))
+Q6INSN(M2_vdmpys_s1,"Rdd32=vdmpy(Rss32,Rtt32):<<1:sat",ATTRIBS(),"",dmpy_sema(1))
+
+
+
+/******************************************************/
+/* complex multiply/mac with                          */
+/* real&imag are packed together and always saturated */
+/* to protect against overflow.                       */
+/******************************************************/
+
+#undef cmpy_sema
+#define cmpy_sema(N,CONJMINUS,CONJPLUS)\
+{ fSETHALF(1,RdV,fGETHALF(1,(fSAT(fSCALE(N,fMPY16SS(fGETHALF(1,RsV),fGETHALF(0,RtV))) CONJMINUS \
+                                  fSCALE(N,fMPY16SS(fGETHALF(0,RsV),fGETHALF(1,RtV))) + 0x8000))));\
+  fSETHALF(0,RdV,fGETHALF(1,(fSAT(fSCALE(N,fMPY16SS(fGETHALF(0,RsV),fGETHALF(0,RtV))) CONJPLUS \
+                                  fSCALE(N,fMPY16SS(fGETHALF(1,RsV),fGETHALF(1,RtV))) + 0x8000))));\
+}
+Q6INSN(M2_cmpyrs_s0,"Rd32=cmpy(Rs32,Rt32):rnd:sat",ATTRIBS(),    "Complex Multiply",cmpy_sema(0,+,-))
+Q6INSN(M2_cmpyrs_s1,"Rd32=cmpy(Rs32,Rt32):<<1:rnd:sat",ATTRIBS(),"Complex Multiply",cmpy_sema(1,+,-))
+
+
+Q6INSN(M2_cmpyrsc_s0,"Rd32=cmpy(Rs32,Rt32*):rnd:sat",ATTRIBS(A_ARCHV2),    "Complex Multiply",cmpy_sema(0,-,+))
+Q6INSN(M2_cmpyrsc_s1,"Rd32=cmpy(Rs32,Rt32*):<<1:rnd:sat",ATTRIBS(A_ARCHV2),"Complex Multiply",cmpy_sema(1,-,+))
+
+
+#undef cmpy_sema
+#define cmpy_sema(N,CONJMINUS,CONJPLUS)\
+{ fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + fSCALE(N,fMPY16SS(fGETHALF(1,RsV),fGETHALF(0,RtV))) CONJMINUS \
+                                          fSCALE(N,fMPY16SS(fGETHALF(0,RsV),fGETHALF(1,RtV)))));\
+  fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + fSCALE(N,fMPY16SS(fGETHALF(0,RsV),fGETHALF(0,RtV))) CONJPLUS \
+                                          fSCALE(N,fMPY16SS(fGETHALF(1,RsV),fGETHALF(1,RtV)))));\
+}
+Q6INSN(M2_cmacs_s0,"Rxx32+=cmpy(Rs32,Rt32):sat",ATTRIBS(),    "Complex Multiply",cmpy_sema(0,+,-))
+Q6INSN(M2_cmacs_s1,"Rxx32+=cmpy(Rs32,Rt32):<<1:sat",ATTRIBS(),"Complex Multiply",cmpy_sema(1,+,-))
+
+/* EJP: Need mac versions w/ CONJ T? */
+Q6INSN(M2_cmacsc_s0,"Rxx32+=cmpy(Rs32,Rt32*):sat",ATTRIBS(A_ARCHV2),    "Complex Multiply",cmpy_sema(0,-,+))
+Q6INSN(M2_cmacsc_s1,"Rxx32+=cmpy(Rs32,Rt32*):<<1:sat",ATTRIBS(A_ARCHV2),"Complex Multiply",cmpy_sema(1,-,+))
+
+
+#undef cmpy_sema
+#define cmpy_sema(N,CONJMINUS,CONJPLUS)\
+{ fSETWORD(1,RddV,fSAT(fSCALE(N,fMPY16SS(fGETHALF(1,RsV),fGETHALF(0,RtV))) CONJMINUS \
+                       fSCALE(N,fMPY16SS(fGETHALF(0,RsV),fGETHALF(1,RtV)))));\
+  fSETWORD(0,RddV,fSAT(fSCALE(N,fMPY16SS(fGETHALF(0,RsV),fGETHALF(0,RtV))) CONJPLUS \
+                       fSCALE(N,fMPY16SS(fGETHALF(1,RsV),fGETHALF(1,RtV)))));\
+}
+
+Q6INSN(M2_cmpys_s0,"Rdd32=cmpy(Rs32,Rt32):sat",ATTRIBS(),    "Complex Multiply",cmpy_sema(0,+,-))
+Q6INSN(M2_cmpys_s1,"Rdd32=cmpy(Rs32,Rt32):<<1:sat",ATTRIBS(),"Complex Multiply",cmpy_sema(1,+,-))
+
+Q6INSN(M2_cmpysc_s0,"Rdd32=cmpy(Rs32,Rt32*):sat",ATTRIBS(A_ARCHV2),    "Complex Multiply",cmpy_sema(0,-,+))
+Q6INSN(M2_cmpysc_s1,"Rdd32=cmpy(Rs32,Rt32*):<<1:sat",ATTRIBS(A_ARCHV2),"Complex Multiply",cmpy_sema(1,-,+))
+
+
+
+#undef cmpy_sema
+#define cmpy_sema(N,CONJMINUS,CONJPLUS)\
+{ fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) - (fSCALE(N,fMPY16SS(fGETHALF(1,RsV),fGETHALF(0,RtV))) CONJMINUS \
+                                           fSCALE(N,fMPY16SS(fGETHALF(0,RsV),fGETHALF(1,RtV))))));\
+  fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) - (fSCALE(N,fMPY16SS(fGETHALF(0,RsV),fGETHALF(0,RtV))) CONJPLUS \
+                                           fSCALE(N,fMPY16SS(fGETHALF(1,RsV),fGETHALF(1,RtV))))));\
+}
+Q6INSN(M2_cnacs_s0,"Rxx32-=cmpy(Rs32,Rt32):sat",ATTRIBS(A_ARCHV2),    "Complex Multiply",cmpy_sema(0,+,-))
+Q6INSN(M2_cnacs_s1,"Rxx32-=cmpy(Rs32,Rt32):<<1:sat",ATTRIBS(A_ARCHV2),"Complex Multiply",cmpy_sema(1,+,-))
+
+/* EJP: need CONJ versions? */
+Q6INSN(M2_cnacsc_s0,"Rxx32-=cmpy(Rs32,Rt32*):sat",ATTRIBS(A_ARCHV2),    "Complex Multiply",cmpy_sema(0,-,+))
+Q6INSN(M2_cnacsc_s1,"Rxx32-=cmpy(Rs32,Rt32*):<<1:sat",ATTRIBS(A_ARCHV2),"Complex Multiply",cmpy_sema(1,-,+))
+
+
+/******************************************************/
+/* complex interpolation                              */
+/* Given a pair of complex values, scale by a,b, sum  */
+/* Saturate/shift1 and round/pack                     */
+/******************************************************/
+
+#undef vrcmpys_sema
+#define vrcmpys_sema(N,INWORD) \
+{ fSETWORD(1,RddV,fSAT(fSCALE(N,fMPY16SS(fGETHALF(1,RssV),fGETHALF(0,INWORD))) + \
+                       fSCALE(N,fMPY16SS(fGETHALF(3,RssV),fGETHALF(1,INWORD)))));\
+  fSETWORD(0,RddV,fSAT(fSCALE(N,fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,INWORD))) + \
+                       fSCALE(N,fMPY16SS(fGETHALF(2,RssV),fGETHALF(1,INWORD)))));\
+}
+
+
+
+Q6INSN(M2_vrcmpys_s1_h,"Rdd32=vrcmpys(Rss32,Rtt32):<<1:sat:raw:hi",ATTRIBS(A_ARCHV3), "Vector Reduce Complex Multiply by Scalar",vrcmpys_sema(1,fGETWORD(1,RttV)))
+Q6INSN(M2_vrcmpys_s1_l,"Rdd32=vrcmpys(Rss32,Rtt32):<<1:sat:raw:lo",ATTRIBS(A_ARCHV3), "Vector Reduce Complex Multiply by Scalar",vrcmpys_sema(1,fGETWORD(0,RttV)))
+
+#undef vrcmpys_sema
+#define vrcmpys_sema(N,INWORD) \
+{ fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + fSCALE(N,fMPY16SS(fGETHALF(1,RssV),fGETHALF(0,INWORD))) + \
+                       fSCALE(N,fMPY16SS(fGETHALF(3,RssV),fGETHALF(1,INWORD)))));\
+  fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + fSCALE(N,fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,INWORD))) + \
+                       fSCALE(N,fMPY16SS(fGETHALF(2,RssV),fGETHALF(1,INWORD)))));\
+}
+
+
+
+Q6INSN(M2_vrcmpys_acc_s1_h,"Rxx32+=vrcmpys(Rss32,Rtt32):<<1:sat:raw:hi",ATTRIBS(A_ARCHV3), "Vector Reduce Complex Multiply by Scalar",vrcmpys_sema(1,fGETWORD(1,RttV)))
+Q6INSN(M2_vrcmpys_acc_s1_l,"Rxx32+=vrcmpys(Rss32,Rtt32):<<1:sat:raw:lo",ATTRIBS(A_ARCHV3), "Vector Reduce Complex Multiply by Scalar",vrcmpys_sema(1,fGETWORD(0,RttV)))
+
+#undef vrcmpys_sema
+#define vrcmpys_sema(N,INWORD) \
+{ fSETHALF(1,RdV,fGETHALF(1,fSAT(fSCALE(N,fMPY16SS(fGETHALF(1,RssV),fGETHALF(0,INWORD))) + \
+                       fSCALE(N,fMPY16SS(fGETHALF(3,RssV),fGETHALF(1,INWORD))) + 0x8000)));\
+  fSETHALF(0,RdV,fGETHALF(1,fSAT(fSCALE(N,fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,INWORD))) + \
+                       fSCALE(N,fMPY16SS(fGETHALF(2,RssV),fGETHALF(1,INWORD))) + 0x8000)));\
+}
+
+Q6INSN(M2_vrcmpys_s1rp_h,"Rd32=vrcmpys(Rss32,Rtt32):<<1:rnd:sat:raw:hi",ATTRIBS(A_ARCHV3), "Vector Reduce Complex Multiply by Scalar",vrcmpys_sema(1,fGETWORD(1,RttV)))
+Q6INSN(M2_vrcmpys_s1rp_l,"Rd32=vrcmpys(Rss32,Rtt32):<<1:rnd:sat:raw:lo",ATTRIBS(A_ARCHV3), "Vector Reduce Complex Multiply by Scalar",vrcmpys_sema(1,fGETWORD(0,RttV)))
+
+/**************************************************************/
+/* mixed mode 32x16 vector dual multiplies                    */
+/*                                                            */
+/**************************************************************/
+
+/* SIGNED 32 x SIGNED 16 */
+
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + ((fSCALE(N,fMPY3216SS(fGETWORD(1,RssV),fGETHALF(2,RttV))))>>16)) ); \
+  fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + ((fSCALE(N,fMPY3216SS(fGETWORD(0,RssV),fGETHALF(0,RttV))))>>16)) ); \
+}
+Q6INSN(M2_mmacls_s0,"Rxx32+=vmpyweh(Rss32,Rtt32):sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmacls_s1,"Rxx32+=vmpyweh(Rss32,Rtt32):<<1:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + ((fSCALE(N,fMPY3216SS(fGETWORD(1,RssV),fGETHALF(3,RttV))))>>16) )); \
+  fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + ((fSCALE(N,fMPY3216SS(fGETWORD(0,RssV),fGETHALF(1,RttV))))>>16 ))); \
+}
+Q6INSN(M2_mmachs_s0,"Rxx32+=vmpywoh(Rss32,Rtt32):sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmachs_s1,"Rxx32+=vmpywoh(Rss32,Rtt32):<<1:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RddV,fSAT((fSCALE(N,fMPY3216SS(fGETWORD(1,RssV),fGETHALF(2,RttV))))>>16)); \
+  fSETWORD(0,RddV,fSAT((fSCALE(N,fMPY3216SS(fGETWORD(0,RssV),fGETHALF(0,RttV))))>>16)); \
+}
+Q6INSN(M2_mmpyl_s0,"Rdd32=vmpyweh(Rss32,Rtt32):sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmpyl_s1,"Rdd32=vmpyweh(Rss32,Rtt32):<<1:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RddV,fSAT((fSCALE(N,fMPY3216SS(fGETWORD(1,RssV),fGETHALF(3,RttV))))>>16)); \
+  fSETWORD(0,RddV,fSAT((fSCALE(N,fMPY3216SS(fGETWORD(0,RssV),fGETHALF(1,RttV))))>>16)); \
+}
+Q6INSN(M2_mmpyh_s0,"Rdd32=vmpywoh(Rss32,Rtt32):sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmpyh_s1,"Rdd32=vmpywoh(Rss32,Rtt32):<<1:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+
+/* With rounding */
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + ((fSCALE(N,fMPY3216SS(fGETWORD(1,RssV),fGETHALF(2,RttV)))+0x8000)>>16)) ); \
+  fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + ((fSCALE(N,fMPY3216SS(fGETWORD(0,RssV),fGETHALF(0,RttV)))+0x8000)>>16)) ); \
+}
+Q6INSN(M2_mmacls_rs0,"Rxx32+=vmpyweh(Rss32,Rtt32):rnd:sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmacls_rs1,"Rxx32+=vmpyweh(Rss32,Rtt32):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + ((fSCALE(N,fMPY3216SS(fGETWORD(1,RssV),fGETHALF(3,RttV)))+0x8000)>>16) )); \
+  fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + ((fSCALE(N,fMPY3216SS(fGETWORD(0,RssV),fGETHALF(1,RttV)))+0x8000)>>16 ))); \
+}
+Q6INSN(M2_mmachs_rs0,"Rxx32+=vmpywoh(Rss32,Rtt32):rnd:sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmachs_rs1,"Rxx32+=vmpywoh(Rss32,Rtt32):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RddV,fSAT((fSCALE(N,fMPY3216SS(fGETWORD(1,RssV),fGETHALF(2,RttV)))+0x8000)>>16)); \
+  fSETWORD(0,RddV,fSAT((fSCALE(N,fMPY3216SS(fGETWORD(0,RssV),fGETHALF(0,RttV)))+0x8000)>>16)); \
+}
+Q6INSN(M2_mmpyl_rs0,"Rdd32=vmpyweh(Rss32,Rtt32):rnd:sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmpyl_rs1,"Rdd32=vmpyweh(Rss32,Rtt32):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RddV,fSAT((fSCALE(N,fMPY3216SS(fGETWORD(1,RssV),fGETHALF(3,RttV)))+0x8000)>>16)); \
+  fSETWORD(0,RddV,fSAT((fSCALE(N,fMPY3216SS(fGETWORD(0,RssV),fGETHALF(1,RttV)))+0x8000)>>16)); \
+}
+Q6INSN(M2_mmpyh_rs0,"Rdd32=vmpywoh(Rss32,Rtt32):rnd:sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmpyh_rs1,"Rdd32=vmpywoh(Rss32,Rtt32):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+
+#undef mixmpy_sema
+#define mixmpy_sema(DEST,EQUALS,N)\
+{ DEST EQUALS fSCALE(N,fMPY3216SS(fGETWORD(1,RssV),fGETHALF(2,RttV))) + fSCALE(N,fMPY3216SS(fGETWORD(0,RssV),fGETHALF(0,RttV)));}
+
+Q6INSN(M4_vrmpyeh_s0,"Rdd32=vrmpyweh(Rss32,Rtt32)",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(RddV,=,0))
+Q6INSN(M4_vrmpyeh_s1,"Rdd32=vrmpyweh(Rss32,Rtt32):<<1",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(RddV,=,1))
+Q6INSN(M4_vrmpyeh_acc_s0,"Rxx32+=vrmpyweh(Rss32,Rtt32)",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(RxxV,+=,0))
+Q6INSN(M4_vrmpyeh_acc_s1,"Rxx32+=vrmpyweh(Rss32,Rtt32):<<1",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(RxxV,+=,1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(DEST,EQUALS,N)\
+{ DEST EQUALS fSCALE(N,fMPY3216SS(fGETWORD(1,RssV),fGETHALF(3,RttV))) + fSCALE(N,fMPY3216SS(fGETWORD(0,RssV),fGETHALF(1,RttV)));}
+
+Q6INSN(M4_vrmpyoh_s0,"Rdd32=vrmpywoh(Rss32,Rtt32)",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(RddV,=,0))
+Q6INSN(M4_vrmpyoh_s1,"Rdd32=vrmpywoh(Rss32,Rtt32):<<1",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(RddV,=,1))
+Q6INSN(M4_vrmpyoh_acc_s0,"Rxx32+=vrmpywoh(Rss32,Rtt32)",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(RxxV,+=,0))
+Q6INSN(M4_vrmpyoh_acc_s1,"Rxx32+=vrmpywoh(Rss32,Rtt32):<<1",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(RxxV,+=,1))
+
+
+
+
+
+
+#undef mixmpy_sema
+#define mixmpy_sema(N,H,RND)\
+{  RdV = fSAT((fSCALE(N,fMPY3216SS(RsV,fGETHALF(H,RtV)))RND)>>16); \
+}
+Q6INSN(M2_hmmpyl_rs1,"Rd32=mpy(Rs32,Rt.L32):<<1:rnd:sat",ATTRIBS(A_ARCHV2),"Mixed Precision Multiply",mixmpy_sema(1,0,+0x8000))
+Q6INSN(M2_hmmpyh_rs1,"Rd32=mpy(Rs32,Rt.H32):<<1:rnd:sat",ATTRIBS(A_ARCHV2),"Mixed Precision Multiply",mixmpy_sema(1,1,+0x8000))
+Q6INSN(M2_hmmpyl_s1,"Rd32=mpy(Rs32,Rt.L32):<<1:sat",ATTRIBS(A_ARCHV2),"Mixed Precision Multiply",mixmpy_sema(1,0,))
+Q6INSN(M2_hmmpyh_s1,"Rd32=mpy(Rs32,Rt.H32):<<1:sat",ATTRIBS(A_ARCHV2),"Mixed Precision Multiply",mixmpy_sema(1,1,))
+
+
+
+
+
+
+
+
+
+/* SIGNED 32 x UNSIGNED 16 */
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + ((fSCALE(N,fMPY3216SU(fGETWORD(1,RssV),fGETUHALF(2,RttV))))>>16)) ); \
+  fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + ((fSCALE(N,fMPY3216SU(fGETWORD(0,RssV),fGETUHALF(0,RttV))))>>16)) ); \
+}
+Q6INSN(M2_mmaculs_s0,"Rxx32+=vmpyweuh(Rss32,Rtt32):sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmaculs_s1,"Rxx32+=vmpyweuh(Rss32,Rtt32):<<1:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + ((fSCALE(N,fMPY3216SU(fGETWORD(1,RssV),fGETUHALF(3,RttV))))>>16) )); \
+  fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + ((fSCALE(N,fMPY3216SU(fGETWORD(0,RssV),fGETUHALF(1,RttV))))>>16 ))); \
+}
+Q6INSN(M2_mmacuhs_s0,"Rxx32+=vmpywouh(Rss32,Rtt32):sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmacuhs_s1,"Rxx32+=vmpywouh(Rss32,Rtt32):<<1:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RddV,fSAT((fSCALE(N,fMPY3216SU(fGETWORD(1,RssV),fGETUHALF(2,RttV))))>>16)); \
+  fSETWORD(0,RddV,fSAT((fSCALE(N,fMPY3216SU(fGETWORD(0,RssV),fGETUHALF(0,RttV))))>>16)); \
+}
+Q6INSN(M2_mmpyul_s0,"Rdd32=vmpyweuh(Rss32,Rtt32):sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmpyul_s1,"Rdd32=vmpyweuh(Rss32,Rtt32):<<1:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RddV,fSAT((fSCALE(N,fMPY3216SU(fGETWORD(1,RssV),fGETUHALF(3,RttV))))>>16)); \
+  fSETWORD(0,RddV,fSAT((fSCALE(N,fMPY3216SU(fGETWORD(0,RssV),fGETUHALF(1,RttV))))>>16)); \
+}
+Q6INSN(M2_mmpyuh_s0,"Rdd32=vmpywouh(Rss32,Rtt32):sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmpyuh_s1,"Rdd32=vmpywouh(Rss32,Rtt32):<<1:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+
+/* With rounding */
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + ((fSCALE(N,fMPY3216SU(fGETWORD(1,RssV),fGETUHALF(2,RttV)))+0x8000)>>16)) ); \
+  fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + ((fSCALE(N,fMPY3216SU(fGETWORD(0,RssV),fGETUHALF(0,RttV)))+0x8000)>>16)) ); \
+}
+Q6INSN(M2_mmaculs_rs0,"Rxx32+=vmpyweuh(Rss32,Rtt32):rnd:sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmaculs_rs1,"Rxx32+=vmpyweuh(Rss32,Rtt32):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RxxV,fSAT(fGETWORD(1,RxxV) + ((fSCALE(N,fMPY3216SU(fGETWORD(1,RssV),fGETUHALF(3,RttV)))+0x8000)>>16) )); \
+  fSETWORD(0,RxxV,fSAT(fGETWORD(0,RxxV) + ((fSCALE(N,fMPY3216SU(fGETWORD(0,RssV),fGETUHALF(1,RttV)))+0x8000)>>16 ))); \
+}
+Q6INSN(M2_mmacuhs_rs0,"Rxx32+=vmpywouh(Rss32,Rtt32):rnd:sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmacuhs_rs1,"Rxx32+=vmpywouh(Rss32,Rtt32):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RddV,fSAT((fSCALE(N,fMPY3216SU(fGETWORD(1,RssV),fGETUHALF(2,RttV)))+0x8000)>>16)); \
+  fSETWORD(0,RddV,fSAT((fSCALE(N,fMPY3216SU(fGETWORD(0,RssV),fGETUHALF(0,RttV)))+0x8000)>>16)); \
+}
+Q6INSN(M2_mmpyul_rs0,"Rdd32=vmpyweuh(Rss32,Rtt32):rnd:sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmpyul_rs1,"Rdd32=vmpyweuh(Rss32,Rtt32):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+#undef mixmpy_sema
+#define mixmpy_sema(N)\
+{ fSETWORD(1,RddV,fSAT((fSCALE(N,fMPY3216SU(fGETWORD(1,RssV),fGETUHALF(3,RttV)))+0x8000)>>16)); \
+  fSETWORD(0,RddV,fSAT((fSCALE(N,fMPY3216SU(fGETWORD(0,RssV),fGETUHALF(1,RttV)))+0x8000)>>16)); \
+}
+Q6INSN(M2_mmpyuh_rs0,"Rdd32=vmpywouh(Rss32,Rtt32):rnd:sat",ATTRIBS(),    "Mixed Precision Multiply",mixmpy_sema(0))
+Q6INSN(M2_mmpyuh_rs1,"Rdd32=vmpywouh(Rss32,Rtt32):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Multiply",mixmpy_sema(1))
+
+
+/**************************************************************/
+/* complex mac with full 64-bit accum - no sat, no shift      */
+/* either do real or accum, never both                        */
+/**************************************************************/
+
+Q6INSN(M2_vrcmaci_s0,"Rxx32+=vrcmpyi(Rss32,Rtt32)",ATTRIBS(),"Vector Complex Mac Imaginary",
+{
+RxxV = RxxV + fMPY16SS(fGETHALF(1,RssV),fGETHALF(0,RttV)) + \
+              fMPY16SS(fGETHALF(0,RssV),fGETHALF(1,RttV)) + \
+              fMPY16SS(fGETHALF(3,RssV),fGETHALF(2,RttV)) + \
+              fMPY16SS(fGETHALF(2,RssV),fGETHALF(3,RttV));\
+})
+
+Q6INSN(M2_vrcmacr_s0,"Rxx32+=vrcmpyr(Rss32,Rtt32)",ATTRIBS(),"Vector Complex Mac Real",
+{ RxxV = RxxV + fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV)) - \
+                fMPY16SS(fGETHALF(1,RssV),fGETHALF(1,RttV)) + \
+                fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV)) - \
+                fMPY16SS(fGETHALF(3,RssV),fGETHALF(3,RttV));\
+})
+
+Q6INSN(M2_vrcmaci_s0c,"Rxx32+=vrcmpyi(Rss32,Rtt32*)",ATTRIBS(A_ARCHV2),"Vector Complex Mac Imaginary",
+{
+RxxV = RxxV + fMPY16SS(fGETHALF(1,RssV),fGETHALF(0,RttV)) - \
+              fMPY16SS(fGETHALF(0,RssV),fGETHALF(1,RttV)) + \
+              fMPY16SS(fGETHALF(3,RssV),fGETHALF(2,RttV)) - \
+              fMPY16SS(fGETHALF(2,RssV),fGETHALF(3,RttV));\
+})
+
+Q6INSN(M2_vrcmacr_s0c,"Rxx32+=vrcmpyr(Rss32,Rtt32*)",ATTRIBS(A_ARCHV2),"Vector Complex Mac Real",
+{ RxxV = RxxV + fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV)) + \
+                fMPY16SS(fGETHALF(1,RssV),fGETHALF(1,RttV)) + \
+                fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV)) + \
+                fMPY16SS(fGETHALF(3,RssV),fGETHALF(3,RttV));\
+})
+
+Q6INSN(M2_cmaci_s0,"Rxx32+=cmpyi(Rs32,Rt32)",ATTRIBS(),"Vector Complex Mac Imaginary",
+{
+RxxV = RxxV + fMPY16SS(fGETHALF(1,RsV),fGETHALF(0,RtV)) + \
+              fMPY16SS(fGETHALF(0,RsV),fGETHALF(1,RtV));
+})
+
+Q6INSN(M2_cmacr_s0,"Rxx32+=cmpyr(Rs32,Rt32)",ATTRIBS(),"Vector Complex Mac Real",
+{ RxxV = RxxV + fMPY16SS(fGETHALF(0,RsV),fGETHALF(0,RtV)) - \
+                fMPY16SS(fGETHALF(1,RsV),fGETHALF(1,RtV));
+})
+
+
+Q6INSN(M2_vrcmpyi_s0,"Rdd32=vrcmpyi(Rss32,Rtt32)",ATTRIBS(),"Vector Complex Mpy Imaginary",
+{
+RddV = fMPY16SS(fGETHALF(1,RssV),fGETHALF(0,RttV)) + \
+       fMPY16SS(fGETHALF(0,RssV),fGETHALF(1,RttV)) + \
+       fMPY16SS(fGETHALF(3,RssV),fGETHALF(2,RttV)) + \
+       fMPY16SS(fGETHALF(2,RssV),fGETHALF(3,RttV));\
+})
+
+Q6INSN(M2_vrcmpyr_s0,"Rdd32=vrcmpyr(Rss32,Rtt32)",ATTRIBS(),"Vector Complex Mpy Real",
+{ RddV = fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV)) - \
+         fMPY16SS(fGETHALF(1,RssV),fGETHALF(1,RttV)) + \
+         fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV)) - \
+         fMPY16SS(fGETHALF(3,RssV),fGETHALF(3,RttV));\
+})
+
+Q6INSN(M2_vrcmpyi_s0c,"Rdd32=vrcmpyi(Rss32,Rtt32*)",ATTRIBS(A_ARCHV2),"Vector Complex Mpy Imaginary",
+{
+RddV = fMPY16SS(fGETHALF(1,RssV),fGETHALF(0,RttV)) - \
+       fMPY16SS(fGETHALF(0,RssV),fGETHALF(1,RttV)) + \
+       fMPY16SS(fGETHALF(3,RssV),fGETHALF(2,RttV)) - \
+       fMPY16SS(fGETHALF(2,RssV),fGETHALF(3,RttV));\
+})
+
+Q6INSN(M2_vrcmpyr_s0c,"Rdd32=vrcmpyr(Rss32,Rtt32*)",ATTRIBS(A_ARCHV2),"Vector Complex Mpy Real",
+{ RddV = fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV)) + \
+         fMPY16SS(fGETHALF(1,RssV),fGETHALF(1,RttV)) + \
+         fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV)) + \
+         fMPY16SS(fGETHALF(3,RssV),fGETHALF(3,RttV));\
+})
+
+Q6INSN(M2_cmpyi_s0,"Rdd32=cmpyi(Rs32,Rt32)",ATTRIBS(),"Vector Complex Mpy Imaginary",
+{
+RddV = fMPY16SS(fGETHALF(1,RsV),fGETHALF(0,RtV)) + \
+       fMPY16SS(fGETHALF(0,RsV),fGETHALF(1,RtV));
+})
+
+Q6INSN(M2_cmpyr_s0,"Rdd32=cmpyr(Rs32,Rt32)",ATTRIBS(),"Vector Complex Mpy Real",
+{ RddV = fMPY16SS(fGETHALF(0,RsV),fGETHALF(0,RtV)) - \
+         fMPY16SS(fGETHALF(1,RsV),fGETHALF(1,RtV));
+})
+
+
+/**************************************************************/
+/* Complex mpy/mac with 2x32 bit accum, sat, shift            */
+/* 32x16 real or imag                                         */
+/**************************************************************/
+
+#if 1
+
+Q6INSN(M4_cmpyi_wh,"Rd32=cmpyiwh(Rss32,Rt32):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Complex Multiply",
+{
+ RdV = fSAT(  (  fMPY3216SS(fGETWORD(0,RssV),fGETHALF(1,RtV))
+               + fMPY3216SS(fGETWORD(1,RssV),fGETHALF(0,RtV))
+               + 0x4000)>>15);
+})
+
+
+Q6INSN(M4_cmpyr_wh,"Rd32=cmpyrwh(Rss32,Rt32):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Complex Multiply",
+{
+ RdV = fSAT(  (  fMPY3216SS(fGETWORD(0,RssV),fGETHALF(0,RtV))
+               - fMPY3216SS(fGETWORD(1,RssV),fGETHALF(1,RtV))
+               + 0x4000)>>15);
+})
+
+Q6INSN(M4_cmpyi_whc,"Rd32=cmpyiwh(Rss32,Rt32*):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Complex Multiply",
+{
+ RdV = fSAT(  (  fMPY3216SS(fGETWORD(1,RssV),fGETHALF(0,RtV))
+               - fMPY3216SS(fGETWORD(0,RssV),fGETHALF(1,RtV))
+               + 0x4000)>>15);
+})
+
+
+Q6INSN(M4_cmpyr_whc,"Rd32=cmpyrwh(Rss32,Rt32*):<<1:rnd:sat",ATTRIBS(),"Mixed Precision Complex Multiply",
+{
+ RdV = fSAT(  (  fMPY3216SS(fGETWORD(0,RssV),fGETHALF(0,RtV))
+               + fMPY3216SS(fGETWORD(1,RssV),fGETHALF(1,RtV))
+               + 0x4000)>>15);
+})
+
+
+#endif
+
+/**************************************************************/
+/* Vector mpy/mac with 2x32 bit accum, sat, shift             */
+/* either do real or imag,  never both                        */
+/**************************************************************/
+
+#undef VCMPYSEMI
+#define VCMPYSEMI(DST,ACC0,ACC1,SHIFT,SAT) \
+    fSETWORD(0,DST,SAT(ACC0 fSCALE(SHIFT,fMPY16SS(fGETHALF(1,RssV),fGETHALF(0,RttV)) + \
+        fMPY16SS(fGETHALF(0,RssV),fGETHALF(1,RttV))))); \
+    fSETWORD(1,DST,SAT(ACC1 fSCALE(SHIFT,fMPY16SS(fGETHALF(3,RssV),fGETHALF(2,RttV)) + \
+        fMPY16SS(fGETHALF(2,RssV),fGETHALF(3,RttV))))); \
+
+#undef VCMPYSEMR
+#define VCMPYSEMR(DST,ACC0,ACC1,SHIFT,SAT) \
+    fSETWORD(0,DST,SAT(ACC0 fSCALE(SHIFT,fMPY16SS(fGETHALF(0,RssV),fGETHALF(0,RttV)) - \
+        fMPY16SS(fGETHALF(1,RssV),fGETHALF(1,RttV))))); \
+    fSETWORD(1,DST,SAT(ACC1 fSCALE(SHIFT,fMPY16SS(fGETHALF(2,RssV),fGETHALF(2,RttV)) - \
+        fMPY16SS(fGETHALF(3,RssV),fGETHALF(3,RttV))))); \
+
+
+#undef VCMPYIR
+#define VCMPYIR(TAGBASE,DSTSYN,DSTVAL,ACCSEM,ACCVAL0,ACCVAL1,SHIFTSYN,SHIFTVAL,SATSYN,SATVAL) \
+Q6INSN(M2_##TAGBASE##i,DSTSYN ACCSEM "vcmpyi(Rss32,Rtt32)" SHIFTSYN SATSYN,ATTRIBS(A_ARCHV2), \
+    "Vector Complex Multiply Imaginary", { VCMPYSEMI(DSTVAL,ACCVAL0,ACCVAL1,SHIFTVAL,SATVAL); }) \
+Q6INSN(M2_##TAGBASE##r,DSTSYN ACCSEM "vcmpyr(Rss32,Rtt32)" SHIFTSYN SATSYN,ATTRIBS(A_ARCHV2), \
+    "Vector Complex Multiply Imaginary", { VCMPYSEMR(DSTVAL,ACCVAL0,ACCVAL1,SHIFTVAL,SATVAL); })
+
+
+VCMPYIR(vcmpy_s0_sat_,"Rdd32",RddV,"=",,,"",0,":sat",fSAT)
+VCMPYIR(vcmpy_s1_sat_,"Rdd32",RddV,"=",,,":<<1",1,":sat",fSAT)
+VCMPYIR(vcmac_s0_sat_,"Rxx32",RxxV,"+=",fGETWORD(0,RxxV) + ,fGETWORD(1,RxxV) + ,"",0,":sat",fSAT)
+
+
+/**********************************************************************
+ *  Rotation  -- by 0, 90, 180, or 270 means mult by 1, J, -1, -J     *
+ *********************************************************************/
+
+Q6INSN(S2_vcrotate,"Rdd32=vcrotate(Rss32,Rt32)",ATTRIBS(A_ARCHV2),"Rotate complex value by multiple of PI/2",
+{
+    fHIDE(size1u_t tmp;)
+    tmp = fEXTRACTU_RANGE(RtV,1,0);
+    if (tmp == 0) { /* No rotation */
+        fSETHALF(0,RddV,fGETHALF(0,RssV));
+        fSETHALF(1,RddV,fGETHALF(1,RssV));
+    } else if (tmp == 1) { /* Multiply by -J */
+        fSETHALF(0,RddV,fGETHALF(1,RssV));
+        fSETHALF(1,RddV,fSATH(-fGETHALF(0,RssV)));
+    } else if (tmp == 2) { /* Multiply by J */
+        fSETHALF(0,RddV,fSATH(-fGETHALF(1,RssV)));
+        fSETHALF(1,RddV,fGETHALF(0,RssV));
+    } else { /* Multiply by -1 */
+        fHIDE(if (tmp != 3) fatal("C is broken");)
+        fSETHALF(0,RddV,fSATH(-fGETHALF(0,RssV)));
+        fSETHALF(1,RddV,fSATH(-fGETHALF(1,RssV)));
+    }
+    tmp = fEXTRACTU_RANGE(RtV,3,2);
+    if (tmp == 0) { /* No rotation */
+        fSETHALF(2,RddV,fGETHALF(2,RssV));
+        fSETHALF(3,RddV,fGETHALF(3,RssV));
+    } else if (tmp == 1) { /* Multiply by -J */
+        fSETHALF(2,RddV,fGETHALF(3,RssV));
+        fSETHALF(3,RddV,fSATH(-fGETHALF(2,RssV)));
+    } else if (tmp == 2) { /* Multiply by J */
+        fSETHALF(2,RddV,fSATH(-fGETHALF(3,RssV)));
+        fSETHALF(3,RddV,fGETHALF(2,RssV));
+    } else { /* Multiply by -1 */
+        fHIDE(if (tmp != 3) fatal("C is broken");)
+        fSETHALF(2,RddV,fSATH(-fGETHALF(2,RssV)));
+        fSETHALF(3,RddV,fSATH(-fGETHALF(3,RssV)));
+    }
+})
+
+
+Q6INSN(S4_vrcrotate_acc,"Rxx32+=vrcrotate(Rss32,Rt32,#u2)",ATTRIBS(),"Rotate and Reduce Bytes",
+{
+    fHIDE(int i; int tmpr; int tmpi; unsigned int control;)
+    fHIDE(int sumr; int sumi;)
+    sumr = 0;
+    sumi = 0;
+    control = fGETUBYTE(uiV,RtV);
+    for (i = 0; i < 8; i += 2) {
+        tmpr = fGETBYTE(i  ,RssV);
+        tmpi = fGETBYTE(i+1,RssV);
+        switch (control & 3) {
+        case 0: /* No Rotation */
+            sumr += tmpr;
+            sumi += tmpi;
+            break;
+        case 1: /* Multiply by -J */
+            sumr += tmpi;
+            sumi -= tmpr;
+            break;
+        case 2: /* Multiply by J */
+            sumr -= tmpi;
+            sumi += tmpr;
+            break;
+        case 3: /* Multiply by -1 */
+            sumr -= tmpr;
+            sumi -= tmpi;
+            break;
+        fHIDE(default: fatal("C is broken!");)
+        }
+        control = control >> 2;
+    }
+    fSETWORD(0,RxxV,fGETWORD(0,RxxV) + sumr);
+    fSETWORD(1,RxxV,fGETWORD(1,RxxV) + sumi);
+})
+
+Q6INSN(S4_vrcrotate,"Rdd32=vrcrotate(Rss32,Rt32,#u2)",ATTRIBS(),"Rotate and Reduce Bytes",
+{
+    fHIDE(int i; int tmpr; int tmpi; unsigned int control;)
+    fHIDE(int sumr; int sumi;)
+    sumr = 0;
+    sumi = 0;
+    control = fGETUBYTE(uiV,RtV);
+    for (i = 0; i < 8; i += 2) {
+        tmpr = fGETBYTE(i  ,RssV);
+        tmpi = fGETBYTE(i+1,RssV);
+        switch (control & 3) {
+        case 0: /* No Rotation */
+            sumr += tmpr;
+            sumi += tmpi;
+            break;
+        case 1: /* Multiply by -J */
+            sumr += tmpi;
+            sumi -= tmpr;
+            break;
+        case 2: /* Multiply by J */
+            sumr -= tmpi;
+            sumi += tmpr;
+            break;
+        case 3: /* Multiply by -1 */
+            sumr -= tmpr;
+            sumi -= tmpi;
+            break;
+        fHIDE(default: fatal("C is broken!");)
+        }
+        control = control >> 2;
+    }
+    fSETWORD(0,RddV,sumr);
+    fSETWORD(1,RddV,sumi);
+})
+
+
+Q6INSN(S2_vcnegh,"Rdd32=vcnegh(Rss32,Rt32)",ATTRIBS(),"Conditional Negate halfwords",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 4; i++) {
+        if (fGETBIT(i,RtV)) {
+            fSETHALF(i,RddV,fSATH(-fGETHALF(i,RssV)));
+        } else {
+            fSETHALF(i,RddV,fGETHALF(i,RssV));
+        }
+    }
+})
+
+Q6INSN(S2_vrcnegh,"Rxx32+=vrcnegh(Rss32,Rt32)",ATTRIBS(),"Vector Reduce Conditional Negate halfwords",
+{
+    fHIDE(int i;)
+    for (i = 0; i < 4; i++) {
+        if (fGETBIT(i,RtV)) {
+            RxxV += -fGETHALF(i,RssV);
+        } else {
+            RxxV += fGETHALF(i,RssV);
+        }
+    }
+})
+
+
+/**********************************************************************
+ *  Finite-field multiplies.  Written by David Hoyle                  *
+ *********************************************************************/
+
+Q6INSN(M4_pmpyw,"Rdd32=pmpyw(Rs32,Rt32)",ATTRIBS(),"Polynomial 32bit Multiplication with Addition in GF(2)",
+{
+        fHIDE(int i; unsigned int y;)
+        fHIDE(unsigned long long x; unsigned long long prod;)
+        x = fGETUWORD(0, RsV);
+        y = fGETUWORD(0, RtV);
+
+        prod = 0;
+        for(i=0; i < 32; i++) {
+            if((y >> i) & 1) prod ^= (x << i);
+        }
+        RddV = prod;
+})
+
+Q6INSN(M4_vpmpyh,"Rdd32=vpmpyh(Rs32,Rt32)",ATTRIBS(),"Dual Polynomial 16bit Multiplication with Addition in GF(2)",
+{
+        fHIDE(int i; unsigned int x0; unsigned int x1;)
+        fHIDE(unsigned int y0; unsigned int y1;)
+        fHIDE(unsigned int prod0; unsigned int prod1;)
+
+        x0 = fGETUHALF(0, RsV);
+        x1 = fGETUHALF(1, RsV);
+        y0 = fGETUHALF(0, RtV);
+        y1 = fGETUHALF(1, RtV);
+
+        prod0 = prod1 = 0;
+        for(i=0; i < 16; i++) {
+            if((y0 >> i) & 1) prod0 ^= (x0 << i);
+            if((y1 >> i) & 1) prod1 ^= (x1 << i);
+        }
+        fSETHALF(0,RddV,fGETUHALF(0,prod0));
+        fSETHALF(1,RddV,fGETUHALF(0,prod1));
+        fSETHALF(2,RddV,fGETUHALF(1,prod0));
+        fSETHALF(3,RddV,fGETUHALF(1,prod1));
+})
+
+Q6INSN(M4_pmpyw_acc,"Rxx32^=pmpyw(Rs32,Rt32)",ATTRIBS(),"Polynomial 32bit Multiplication with Addition in GF(2)",
+{
+        fHIDE(int i; unsigned int y;)
+        fHIDE(unsigned long long x; unsigned long long prod;)
+        x = fGETUWORD(0, RsV);
+        y = fGETUWORD(0, RtV);
+
+        prod = 0;
+        for(i=0; i < 32; i++) {
+            if((y >> i) & 1) prod ^= (x << i);
+        }
+        RxxV ^= prod;
+})
+
+Q6INSN(M4_vpmpyh_acc,"Rxx32^=vpmpyh(Rs32,Rt32)",ATTRIBS(),"Dual Polynomial 16bit Multiplication with Addition in GF(2)",
+{
+        fHIDE(int i; unsigned int x0; unsigned int x1;)
+        fHIDE(unsigned int y0; unsigned int y1;)
+        fHIDE(unsigned int prod0; unsigned int prod1;)
+
+        x0 = fGETUHALF(0, RsV);
+        x1 = fGETUHALF(1, RsV);
+        y0 = fGETUHALF(0, RtV);
+        y1 = fGETUHALF(1, RtV);
+
+        prod0 = prod1 = 0;
+        for(i=0; i < 16; i++) {
+            if((y0 >> i) & 1) prod0 ^= (x0 << i);
+            if((y1 >> i) & 1) prod1 ^= (x1 << i);
+        }
+        fSETHALF(0,RxxV,fGETUHALF(0,RxxV) ^ fGETUHALF(0,prod0));
+        fSETHALF(1,RxxV,fGETUHALF(1,RxxV) ^ fGETUHALF(0,prod1));
+        fSETHALF(2,RxxV,fGETUHALF(2,RxxV) ^ fGETUHALF(1,prod0));
+        fSETHALF(3,RxxV,fGETUHALF(3,RxxV) ^ fGETUHALF(1,prod1));
+})
+
+
+/* V70: TINY CORE */
+
+#define CMPY64(TAG,NAME,DESC,OPERAND1,OP,W0,W1,W2,W3) \
+Q6INSN(M7_##TAG,"Rdd32=" NAME "(Rss32," OPERAND1 ")",ATTRIBS(A_RESTRICT_SLOT3ONLY),"Complex Multiply 64-bit " DESC,    { RddV  = (fMPY32SS(fGETWORD(W0, RssV), fGETWORD(W1, RttV)) OP fMPY32SS(fGETWORD(W2, RssV), fGETWORD(W3, RttV)));})\
+Q6INSN(M7_##TAG##_acc,"Rxx32+=" NAME "(Rss32,"OPERAND1")",ATTRIBS(A_RESTRICT_SLOT3ONLY),"Complex Multiply-Accumulate 64-bit " DESC, { RxxV += (fMPY32SS(fGETWORD(W0, RssV), fGETWORD(W1, RttV)) OP fMPY32SS(fGETWORD(W2, RssV), fGETWORD(W3, RttV)));})
+
+CMPY64(dcmpyrw, "cmpyrw","Real","Rtt32" ,-,0,0,1,1)
+CMPY64(dcmpyrwc,"cmpyrw","Real","Rtt32*",+,0,0,1,1)
+CMPY64(dcmpyiw, "cmpyiw","Imag","Rtt32" ,+,0,1,1,0)
+CMPY64(dcmpyiwc,"cmpyiw","Imag","Rtt32*",-,1,0,0,1)
+
+#define CMPY128(TAG, NAME, OPERAND1, WORD0, WORD1, WORD2, WORD3, OP) \
+Q6INSN(M7_##TAG,"Rd32=" NAME "(Rss32,"OPERAND1"):<<1:sat",ATTRIBS(A_RESTRICT_SLOT3ONLY),"Complex Multiply 32-bit result real",  \
+{ \
+fHIDE(size16s_t acc128;)\
+fHIDE(size16s_t tmp128;)\
+fHIDE(size8s_t acc64;)\
+tmp128 = fCAST8S_16S(fMPY32SS(fGETWORD(WORD0, RssV), fGETWORD(WORD1, RttV)));\
+acc128 = fCAST8S_16S(fMPY32SS(fGETWORD(WORD2, RssV), fGETWORD(WORD3, RttV)));\
+acc128 = OP(tmp128,acc128);\
+acc128 = fSHIFTR128(acc128, 31);\
+acc64 =  fCAST16S_8S(acc128);\
+RdV = fSATW(acc64);\
+})
+
+
+CMPY128(wcmpyrw, "cmpyrw", "Rtt32", 0, 0, 1, 1, fSUB128)
+CMPY128(wcmpyrwc, "cmpyrw", "Rtt32*", 0, 0, 1, 1, fADD128)
+CMPY128(wcmpyiw, "cmpyiw", "Rtt32", 0, 1, 1, 0, fADD128)
+CMPY128(wcmpyiwc, "cmpyiw", "Rtt32*", 1, 0, 0, 1, fSUB128)
+
+
+#define CMPY128RND(TAG, NAME, OPERAND1, WORD0, WORD1, WORD2, WORD3, OP) \
+Q6INSN(M7_##TAG##_rnd,"Rd32=" NAME "(Rss32,"OPERAND1"):<<1:rnd:sat",ATTRIBS(A_RESTRICT_SLOT3ONLY),"Complex Multiply 32-bit result real",  \
+{ \
+fHIDE(size16s_t acc128;)\
+fHIDE(size16s_t tmp128;)\
+fHIDE(size16s_t const128;)\
+fHIDE(size8s_t acc64;)\
+tmp128 = fCAST8S_16S(fMPY32SS(fGETWORD(WORD0, RssV), fGETWORD(WORD1, RttV)));\
+acc128 = fCAST8S_16S(fMPY32SS(fGETWORD(WORD2, RssV), fGETWORD(WORD3, RttV)));\
+const128 = fCAST8S_16S(fCONSTLL(0x40000000));\
+acc128 = OP(tmp128,acc128);\
+acc128 = fADD128(acc128,const128);\
+acc128 = fSHIFTR128(acc128, 31);\
+acc64 =  fCAST16S_8S(acc128);\
+RdV = fSATW(acc64);\
+})
+
+CMPY128RND(wcmpyrw, "cmpyrw", "Rtt32", 0, 0, 1, 1, fSUB128)
+CMPY128RND(wcmpyrwc, "cmpyrw", "Rtt32*", 0, 0, 1, 1, fADD128)
+CMPY128RND(wcmpyiw, "cmpyiw", "Rtt32", 0, 1, 1, 0, fADD128)
+CMPY128RND(wcmpyiwc, "cmpyiw", "Rtt32*", 1, 0, 0, 1, fSUB128)

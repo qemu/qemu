@@ -3846,12 +3846,14 @@ static int coroutine_fn qcow2_co_create_opts(BlockDriver *drv,
 
     /* Create the qcow2 image (format layer) */
     ret = qcow2_co_create(create_options, errp);
+finish:
     if (ret < 0) {
-        goto finish;
+        bdrv_co_delete_file_noerr(bs);
+        bdrv_co_delete_file_noerr(data_bs);
+    } else {
+        ret = 0;
     }
 
-    ret = 0;
-finish:
     qobject_unref(qdict);
     bdrv_unref(bs);
     bdrv_unref(data_bs);
