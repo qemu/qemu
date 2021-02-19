@@ -101,28 +101,48 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         r = s->secure_debug;
         break;
     case A_SCSECCTRL:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            r = s->scsecctrl;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->scsecctrl;
         break;
     case A_FCLK_DIV:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            r = s->fclk_div;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->fclk_div;
         break;
     case A_SYSCLK_DIV:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            r = s->sysclk_div;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->sysclk_div;
         break;
     case A_CLOCK_FORCE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            r = s->clock_force;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->clock_force;
         break;
     case A_RESET_SYNDROME:
         r = s->reset_syndrome;
@@ -137,60 +157,100 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         r = s->initsvtor0;
         break;
     case A_INITSVTOR1:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            r = s->initsvtor1;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->initsvtor1;
         break;
     case A_CPUWAIT:
         r = s->cpuwait;
         break;
     case A_NMI_ENABLE:
-        /* In IoTKit this is named BUSWAIT but is marked reserved, R/O, zero */
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
+            /* In IoTKit this is named BUSWAIT but marked reserved, R/O, zero */
             r = 0;
             break;
+        case ARMSSE_SSE200:
+            r = s->nmi_enable;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->nmi_enable;
         break;
     case A_WICCTRL:
         r = s->wicctrl;
         break;
     case A_EWCTRL:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            r = s->ewctrl;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->ewctrl;
         break;
     case A_PDCM_PD_SYS_SENSE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            r = s->pdcm_pd_sys_sense;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->pdcm_pd_sys_sense;
         break;
     case A_PDCM_PD_SRAM0_SENSE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            r = s->pdcm_pd_sram0_sense;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->pdcm_pd_sram0_sense;
         break;
     case A_PDCM_PD_SRAM1_SENSE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            r = s->pdcm_pd_sram1_sense;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->pdcm_pd_sram1_sense;
         break;
     case A_PDCM_PD_SRAM2_SENSE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            r = s->pdcm_pd_sram2_sense;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->pdcm_pd_sram2_sense;
         break;
     case A_PDCM_PD_SRAM3_SENSE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            r = s->pdcm_pd_sram3_sense;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        r = s->pdcm_pd_sram3_sense;
         break;
     case A_PID4 ... A_CID3:
         r = sysctl_id[(offset - A_PID4) / 4];
@@ -284,94 +344,154 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
         }
         break;
     case A_SCSECCTRL:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl SCSECCTRL unimplemented\n");
+            s->scsecctrl = value;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl SCSECCTRL unimplemented\n");
-        s->scsecctrl = value;
         break;
     case A_FCLK_DIV:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl FCLK_DIV unimplemented\n");
+            s->fclk_div = value;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl FCLK_DIV unimplemented\n");
-        s->fclk_div = value;
         break;
     case A_SYSCLK_DIV:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl SYSCLK_DIV unimplemented\n");
+            s->sysclk_div = value;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl SYSCLK_DIV unimplemented\n");
-        s->sysclk_div = value;
         break;
     case A_CLOCK_FORCE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl CLOCK_FORCE unimplemented\n");
+            s->clock_force = value;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl CLOCK_FORCE unimplemented\n");
-        s->clock_force = value;
         break;
     case A_INITSVTOR1:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            s->initsvtor1 = value;
+            set_init_vtor(1, s->initsvtor1);
+            break;
+        default:
+            g_assert_not_reached();
         }
-        s->initsvtor1 = value;
-        set_init_vtor(1, s->initsvtor1);
         break;
     case A_EWCTRL:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl EWCTRL unimplemented\n");
+            s->ewctrl = value;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl EWCTRL unimplemented\n");
-        s->ewctrl = value;
         break;
     case A_PDCM_PD_SYS_SENSE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP,
+                          "IoTKit SysCtl PDCM_PD_SYS_SENSE unimplemented\n");
+            s->pdcm_pd_sys_sense = value;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        qemu_log_mask(LOG_UNIMP,
-                      "IoTKit SysCtl PDCM_PD_SYS_SENSE unimplemented\n");
-        s->pdcm_pd_sys_sense = value;
         break;
     case A_PDCM_PD_SRAM0_SENSE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP,
+                          "IoTKit SysCtl PDCM_PD_SRAM0_SENSE unimplemented\n");
+            s->pdcm_pd_sram0_sense = value;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        qemu_log_mask(LOG_UNIMP,
-                      "IoTKit SysCtl PDCM_PD_SRAM0_SENSE unimplemented\n");
-        s->pdcm_pd_sram0_sense = value;
         break;
     case A_PDCM_PD_SRAM1_SENSE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP,
+                          "IoTKit SysCtl PDCM_PD_SRAM1_SENSE unimplemented\n");
+            s->pdcm_pd_sram1_sense = value;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        qemu_log_mask(LOG_UNIMP,
-                      "IoTKit SysCtl PDCM_PD_SRAM1_SENSE unimplemented\n");
-        s->pdcm_pd_sram1_sense = value;
         break;
     case A_PDCM_PD_SRAM2_SENSE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP,
+                          "IoTKit SysCtl PDCM_PD_SRAM2_SENSE unimplemented\n");
+            s->pdcm_pd_sram2_sense = value;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        qemu_log_mask(LOG_UNIMP,
-                      "IoTKit SysCtl PDCM_PD_SRAM2_SENSE unimplemented\n");
-        s->pdcm_pd_sram2_sense = value;
         break;
     case A_PDCM_PD_SRAM3_SENSE:
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto bad_offset;
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP,
+                          "IoTKit SysCtl PDCM_PD_SRAM3_SENSE unimplemented\n");
+            s->pdcm_pd_sram3_sense = value;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        qemu_log_mask(LOG_UNIMP,
-                      "IoTKit SysCtl PDCM_PD_SRAM3_SENSE unimplemented\n");
-        s->pdcm_pd_sram3_sense = value;
         break;
     case A_NMI_ENABLE:
         /* In IoTKit this is BUSWAIT: reserved, R/O, zero */
-        if (!s->is_sse200) {
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
             goto ro_offset;
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl NMI_ENABLE unimplemented\n");
+            s->nmi_enable = value;
+            break;
+        default:
+            g_assert_not_reached();
         }
-        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl NMI_ENABLE unimplemented\n");
-        s->nmi_enable = value;
         break;
     case A_SECDBGSTAT:
     case A_PID4 ... A_CID3:
@@ -443,15 +563,13 @@ static void iotkit_sysctl_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "invalid sse-version value %d", s->sse_version);
         return;
     }
-
-    s->is_sse200 = s->sse_version == ARMSSE_SSE200;
 }
 
 static bool sse200_needed(void *opaque)
 {
     IoTKitSysCtl *s = IOTKIT_SYSCTL(opaque);
 
-    return s->is_sse200;
+    return s->sse_version == ARMSSE_SSE200;
 }
 
 static const VMStateDescription iotkit_sysctl_sse200_vmstate = {
