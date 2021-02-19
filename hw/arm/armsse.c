@@ -291,8 +291,12 @@ static void armsse_init(Object *obj)
     }
 
     object_initialize_child(obj, "secctl", &s->secctl, TYPE_IOTKIT_SECCTL);
-    object_initialize_child(obj, "apb-ppc0", &s->apb_ppc0, TYPE_TZ_PPC);
-    object_initialize_child(obj, "apb-ppc1", &s->apb_ppc1, TYPE_TZ_PPC);
+
+    for (i = 0; i < ARRAY_SIZE(s->apb_ppc); i++) {
+        g_autofree char *name = g_strdup_printf("apb-ppc%d", i);
+        object_initialize_child(obj, name, &s->apb_ppc[i], TYPE_TZ_PPC);
+    }
+
     for (i = 0; i < info->sram_banks; i++) {
         char *name = g_strdup_printf("mpc%d", i);
         object_initialize_child(obj, name, &s->mpc[i], TYPE_TZ_MPC);
@@ -739,7 +743,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer0), 0,
                        armsse_get_common_irq_in(s, 3));
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->timer0), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc0), "port[0]", OBJECT(mr),
+    object_property_set_link(OBJECT(&s->apb_ppc[0]), "port[0]", OBJECT(mr),
                              &error_abort);
 
     qdev_connect_clock_in(DEVICE(&s->timer1), "pclk", s->mainclk);
@@ -749,7 +753,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer1), 0,
                        armsse_get_common_irq_in(s, 4));
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->timer1), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc0), "port[1]", OBJECT(mr),
+    object_property_set_link(OBJECT(&s->apb_ppc[0]), "port[1]", OBJECT(mr),
                              &error_abort);
 
     qdev_connect_clock_in(DEVICE(&s->dualtimer), "TIMCLK", s->mainclk);
@@ -759,7 +763,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->dualtimer), 0,
                        armsse_get_common_irq_in(s, 5));
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->dualtimer), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc0), "port[2]", OBJECT(mr),
+    object_property_set_link(OBJECT(&s->apb_ppc[0]), "port[2]", OBJECT(mr),
                              &error_abort);
 
     if (info->has_mhus) {
@@ -782,7 +786,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             }
             port = g_strdup_printf("port[%d]", i + 3);
             mr = sysbus_mmio_get_region(mhu_sbd, 0);
-            object_property_set_link(OBJECT(&s->apb_ppc0), port, OBJECT(mr),
+            object_property_set_link(OBJECT(&s->apb_ppc[0]), port, OBJECT(mr),
                                      &error_abort);
             g_free(port);
 
@@ -802,12 +806,12 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc0), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc[0]), errp)) {
         return;
     }
 
-    sbd_apb_ppc0 = SYS_BUS_DEVICE(&s->apb_ppc0);
-    dev_apb_ppc0 = DEVICE(&s->apb_ppc0);
+    sbd_apb_ppc0 = SYS_BUS_DEVICE(&s->apb_ppc[0]);
+    dev_apb_ppc0 = DEVICE(&s->apb_ppc[0]);
 
     mr = sysbus_mmio_get_region(sbd_apb_ppc0, 0);
     memory_region_add_subregion(&s->container, 0x40000000, mr);
@@ -917,16 +921,16 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->s32ktimer), 0,
                        armsse_get_common_irq_in(s, 2));
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->s32ktimer), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc1), "port[0]", OBJECT(mr),
+    object_property_set_link(OBJECT(&s->apb_ppc[1]), "port[0]", OBJECT(mr),
                              &error_abort);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc1), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc[1]), errp)) {
         return;
     }
-    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->apb_ppc1), 0);
+    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->apb_ppc[1]), 0);
     memory_region_add_subregion(&s->container, 0x4002f000, mr);
 
-    dev_apb_ppc1 = DEVICE(&s->apb_ppc1);
+    dev_apb_ppc1 = DEVICE(&s->apb_ppc[1]);
     qdev_connect_gpio_out_named(dev_secctl, "apb_ppc1_nonsec", 0,
                                 qdev_get_gpio_in_named(dev_apb_ppc1,
                                                        "cfg_nonsec", 0));
@@ -1063,7 +1067,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         DeviceState *devs = DEVICE(&s->ppc_irq_splitter[i]);
         char *gpioname = g_strdup_printf("apb_ppc%d_irq_status",
                                          i - NUM_EXTERNAL_PPCS);
-        TZPPC *ppc = (i == NUM_EXTERNAL_PPCS) ? &s->apb_ppc0 : &s->apb_ppc1;
+        TZPPC *ppc = &s->apb_ppc[i - NUM_EXTERNAL_PPCS];
 
         qdev_connect_gpio_out(devs, 0,
                               qdev_get_gpio_in_named(dev_secctl, gpioname, 0));

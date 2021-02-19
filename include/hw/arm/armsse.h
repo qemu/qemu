@@ -124,8 +124,9 @@ OBJECT_DECLARE_TYPE(ARMSSE, ARMSSEClass,
 /* We have an IRQ splitter and an OR gate input for each external PPC
  * and the 2 internal PPCs
  */
+#define NUM_INTERNAL_PPCS 2
 #define NUM_EXTERNAL_PPCS (IOTS_NUM_AHB_EXP_PPC + IOTS_NUM_APB_EXP_PPC)
-#define NUM_PPCS (NUM_EXTERNAL_PPCS + 2)
+#define NUM_PPCS (NUM_EXTERNAL_PPCS + NUM_INTERNAL_PPCS)
 
 #define MAX_SRAM_BANKS 4
 #if MAX_SRAM_BANKS > IOTS_NUM_MPC
@@ -152,8 +153,7 @@ struct ARMSSE {
     ARMv7MState armv7m[SSE_MAX_CPUS];
     CPUClusterState cluster[SSE_MAX_CPUS];
     IoTKitSecCtl secctl;
-    TZPPC apb_ppc0;
-    TZPPC apb_ppc1;
+    TZPPC apb_ppc[NUM_INTERNAL_PPCS];
     TZMPC mpc[IOTS_NUM_MPC];
     CMSDKAPBTimer timer0;
     CMSDKAPBTimer timer1;
