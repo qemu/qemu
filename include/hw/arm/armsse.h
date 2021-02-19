@@ -135,7 +135,7 @@ OBJECT_DECLARE_TYPE(ARMSSE, ARMSSEClass,
 
 #define SSE_MAX_CPUS 2
 
-#define NUM_PPUS 7
+#define NUM_PPUS 8
 
 /* Number of CPU IRQs used by the SSE itself */
 #define NUM_SSE_IRQS 32

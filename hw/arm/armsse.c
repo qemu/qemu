@@ -321,6 +321,15 @@ static const ARMSSEDeviceInfo sse200_devices[] = {
         .irq = NO_IRQ,
     },
     {
+        .name = "SYS_PPU",
+        .type = TYPE_UNIMPLEMENTED_DEVICE,
+        .index = 7,
+        .addr = 0x50022000,
+        .size = 0x1000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
         .name = NULL,
     }
 };
