@@ -106,6 +106,15 @@ static const ARMSSEDeviceInfo sse200_devices[] = {
         .irq = 4,
     },
     {
+        .name = "dualtimer",
+        .type = TYPE_CMSDK_APB_DUALTIMER,
+        .index = 0,
+        .addr = 0x40002000,
+        .ppc = 0,
+        .ppc_port = 2,
+        .irq = 5,
+    },
+    {
         .name = NULL,
     }
 };
@@ -346,6 +355,10 @@ static void armsse_init(Object *obj)
             object_initialize_child(obj, devinfo->name,
                                     &s->timer[devinfo->index],
                                     TYPE_CMSDK_APB_TIMER);
+        } else if (!strcmp(devinfo->type, TYPE_CMSDK_APB_DUALTIMER)) {
+            assert(devinfo->index == 0);
+            object_initialize_child(obj, devinfo->name, &s->dualtimer,
+                                    TYPE_CMSDK_APB_DUALTIMER);
         } else {
             g_assert_not_reached();
         }
@@ -375,8 +388,6 @@ static void armsse_init(Object *obj)
     }
     object_initialize_child(obj, "s32ktimer", &s->s32ktimer,
                             TYPE_CMSDK_APB_TIMER);
-    object_initialize_child(obj, "dualtimer", &s->dualtimer,
-                            TYPE_CMSDK_APB_DUALTIMER);
     object_initialize_child(obj, "s32kwatchdog", &s->s32kwatchdog,
                             TYPE_CMSDK_APB_WATCHDOG);
     object_initialize_child(obj, "nswatchdog", &s->nswatchdog,
@@ -808,6 +819,14 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                 return;
             }
             mr = sysbus_mmio_get_region(sbd, 0);
+        } else if (!strcmp(devinfo->type, TYPE_CMSDK_APB_DUALTIMER)) {
+            sbd = SYS_BUS_DEVICE(&s->dualtimer);
+
+            qdev_connect_clock_in(DEVICE(sbd), "TIMCLK", s->mainclk);
+            if (!sysbus_realize(sbd, errp)) {
+                return;
+            }
+            mr = sysbus_mmio_get_region(sbd, 0);
         } else {
             g_assert_not_reached();
         }
@@ -843,16 +862,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             memory_region_add_subregion(&s->container, devinfo->addr, mr);
         }
     }
-
-    qdev_connect_clock_in(DEVICE(&s->dualtimer), "TIMCLK", s->mainclk);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->dualtimer), errp)) {
-        return;
-    }
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->dualtimer), 0,
-                       armsse_get_common_irq_in(s, 5));
-    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->dualtimer), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc[0]), "port[2]", OBJECT(mr),
-                             &error_abort);
 
     if (info->has_mhus) {
         /*
@@ -901,8 +910,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sbd_apb_ppc0 = SYS_BUS_DEVICE(&s->apb_ppc[0]);
     dev_apb_ppc0 = DEVICE(&s->apb_ppc[0]);
 
-    mr = sysbus_mmio_get_region(sbd_apb_ppc0, 2);
-    memory_region_add_subregion(&s->container, 0x40002000, mr);
     if (info->has_mhus) {
         mr = sysbus_mmio_get_region(sbd_apb_ppc0, 3);
         memory_region_add_subregion(&s->container, 0x40003000, mr);
