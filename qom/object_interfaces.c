@@ -293,7 +293,7 @@ static void user_creatable_print_help_from_qdict(QDict *args)
     }
 }
 
-bool user_creatable_add_from_str(const char *optarg, Error **errp)
+ObjectOptions *user_creatable_parse_str(const char *optarg, Error **errp)
 {
     ERRP_GUARD();
     QDict *args;
@@ -303,12 +303,12 @@ bool user_creatable_add_from_str(const char *optarg, Error **errp)
 
     args = keyval_parse(optarg, "qom-type", &help, errp);
     if (*errp) {
-        return false;
+        return NULL;
     }
     if (help) {
         user_creatable_print_help_from_qdict(args);
         qobject_unref(args);
-        return false;
+        return NULL;
     }
 
     v = qobject_input_visitor_new_keyval(QOBJECT(args));
@@ -316,12 +316,20 @@ bool user_creatable_add_from_str(const char *optarg, Error **errp)
     visit_free(v);
     qobject_unref(args);
 
-    if (*errp) {
-        goto out;
+    return options;
+}
+
+bool user_creatable_add_from_str(const char *optarg, Error **errp)
+{
+    ERRP_GUARD();
+    ObjectOptions *options;
+
+    options = user_creatable_parse_str(optarg, errp);
+    if (!options) {
+        return false;
     }
 
     user_creatable_add_qapi(options, errp);
-out:
     qapi_free_ObjectOptions(options);
     return !*errp;
 }

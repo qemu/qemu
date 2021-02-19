@@ -145,6 +145,21 @@ int user_creatable_add_opts_foreach(void *opaque,
                                     QemuOpts *opts, Error **errp);
 
 /**
+ * user_creatable_parse_str:
+ * @optarg: the object definition string as passed on the command line
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Parses the option for the user creatable object with a keyval parser and
+ * implicit key 'qom-type', converting the result to ObjectOptions.
+ *
+ * If a help option is given, print help instead.
+ *
+ * Returns: ObjectOptions on success, NULL when an error occurred (*errp is set
+ * then) or help was printed (*errp is not set).
+ */
+ObjectOptions *user_creatable_parse_str(const char *optarg, Error **errp);
+
+/**
  * user_creatable_add_from_str:
  * @optarg: the object definition string as passed on the command line
  * @errp: if an error occurs, a pointer to an area to store the error
