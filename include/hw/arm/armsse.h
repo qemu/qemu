@@ -145,6 +145,9 @@ OBJECT_DECLARE_TYPE(ARMSSE, ARMSSEClass,
 #define RAM3_PPU 6
 #define NUM_PPUS 7
 
+/* Number of CPU IRQs used by the SSE itself */
+#define NUM_SSE_IRQS 32
+
 struct ARMSSE {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -165,7 +168,7 @@ struct ARMSSE {
     qemu_or_irq mpc_irq_orgate;
     qemu_or_irq nmi_orgate;
 
-    SplitIRQ cpu_irq_splitter[32];
+    SplitIRQ cpu_irq_splitter[NUM_SSE_IRQS];
 
     CMSDKAPBDualTimer dualtimer;
 
