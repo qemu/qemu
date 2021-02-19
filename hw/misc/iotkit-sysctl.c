@@ -105,6 +105,7 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         case ARMSSE_IOTKIT:
             goto bad_offset;
         case ARMSSE_SSE200:
+        case ARMSSE_SSE300:
             r = s->scsecctrl;
             break;
         default:
@@ -116,6 +117,7 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         case ARMSSE_IOTKIT:
             goto bad_offset;
         case ARMSSE_SSE200:
+        case ARMSSE_SSE300:
             r = s->fclk_div;
             break;
         default:
@@ -127,6 +129,7 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         case ARMSSE_IOTKIT:
             goto bad_offset;
         case ARMSSE_SSE200:
+        case ARMSSE_SSE300:
             r = s->sysclk_div;
             break;
         default:
@@ -138,6 +141,7 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         case ARMSSE_IOTKIT:
             goto bad_offset;
         case ARMSSE_SSE200:
+        case ARMSSE_SSE300:
             r = s->clock_force;
             break;
         default:
@@ -202,6 +206,7 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         case ARMSSE_IOTKIT:
             goto bad_offset;
         case ARMSSE_SSE200:
+        case ARMSSE_SSE300:
             r = s->pdcm_pd_sys_sense;
             break;
         default:
@@ -348,6 +353,7 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
         case ARMSSE_IOTKIT:
             goto bad_offset;
         case ARMSSE_SSE200:
+        case ARMSSE_SSE300:
             qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl SCSECCTRL unimplemented\n");
             s->scsecctrl = value;
             break;
@@ -360,6 +366,7 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
         case ARMSSE_IOTKIT:
             goto bad_offset;
         case ARMSSE_SSE200:
+        case ARMSSE_SSE300:
             qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl FCLK_DIV unimplemented\n");
             s->fclk_div = value;
             break;
@@ -372,6 +379,7 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
         case ARMSSE_IOTKIT:
             goto bad_offset;
         case ARMSSE_SSE200:
+        case ARMSSE_SSE300:
             qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl SYSCLK_DIV unimplemented\n");
             s->sysclk_div = value;
             break;
@@ -384,6 +392,7 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
         case ARMSSE_IOTKIT:
             goto bad_offset;
         case ARMSSE_SSE200:
+        case ARMSSE_SSE300:
             qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl CLOCK_FORCE unimplemented\n");
             s->clock_force = value;
             break;
@@ -420,6 +429,7 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
         case ARMSSE_IOTKIT:
             goto bad_offset;
         case ARMSSE_SSE200:
+        case ARMSSE_SSE300:
             qemu_log_mask(LOG_UNIMP,
                           "IoTKit SysCtl PDCM_PD_SYS_SENSE unimplemented\n");
             s->pdcm_pd_sys_sense = value;
@@ -569,7 +579,7 @@ static bool sse200_needed(void *opaque)
 {
     IoTKitSysCtl *s = IOTKIT_SYSCTL(opaque);
 
-    return s->sse_version == ARMSSE_SSE200;
+    return s->sse_version != ARMSSE_IOTKIT;
 }
 
 static const VMStateDescription iotkit_sysctl_sse200_vmstate = {
