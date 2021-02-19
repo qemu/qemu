@@ -24,6 +24,27 @@
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
 
+/*
+ * The SSE-300 puts some devices in different places to the
+ * SSE-200 (and original IoTKit). We use an array of these structs
+ * to define how each variant lays out these devices. (Parts of the
+ * SoC that are the same for all variants aren't handled via these
+ * data structures.)
+ */
+
+#define NO_IRQ -1
+#define NO_PPC -1
+
+typedef struct ARMSSEDeviceInfo {
+    const char *name; /* name to use for the QOM object; NULL terminates list */
+    const char *type; /* QOM type name */
+    unsigned int index; /* Which of the N devices of this type is this ? */
+    hwaddr addr;
+    int ppc; /* Index of APB PPC this device is wired up to, or NO_PPC */
+    int ppc_port; /* Port number of this device on the PPC */
+    int irq; /* NO_IRQ, or 0..NUM_SSE_IRQS-1 */
+} ARMSSEDeviceInfo;
+
 struct ARMSSEInfo {
     const char *name;
     uint32_t sse_version;
@@ -38,6 +59,7 @@ struct ARMSSEInfo {
     bool has_cpusecctrl;
     bool has_cpuid;
     Property *props;
+    const ARMSSEDeviceInfo *devinfo;
 };
 
 static Property iotkit_properties[] = {
@@ -64,6 +86,30 @@ static Property armsse_properties[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
+static const ARMSSEDeviceInfo sse200_devices[] = {
+    {
+        .name = "timer0",
+        .type = TYPE_CMSDK_APB_TIMER,
+        .index = 0,
+        .addr = 0x40000000,
+        .ppc = 0,
+        .ppc_port = 0,
+        .irq = 3,
+    },
+    {
+        .name = "timer1",
+        .type = TYPE_CMSDK_APB_TIMER,
+        .index = 1,
+        .addr = 0x40001000,
+        .ppc = 0,
+        .ppc_port = 1,
+        .irq = 4,
+    },
+    {
+        .name = NULL,
+    }
+};
+
 static const ARMSSEInfo armsse_variants[] = {
     {
         .name = TYPE_IOTKIT,
@@ -79,6 +125,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpusecctrl = false,
         .has_cpuid = false,
         .props = iotkit_properties,
+        .devinfo = sse200_devices,
     },
     {
         .name = TYPE_SSE200,
@@ -94,6 +141,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpusecctrl = true,
         .has_cpuid = true,
         .props = armsse_properties,
+        .devinfo = sse200_devices,
     },
 };
 
@@ -250,6 +298,7 @@ static void armsse_init(Object *obj)
     ARMSSE *s = ARM_SSE(obj);
     ARMSSEClass *asc = ARM_SSE_GET_CLASS(obj);
     const ARMSSEInfo *info = asc->info;
+    const ARMSSEDeviceInfo *devinfo;
     int i;
 
     assert(info->sram_banks <= MAX_SRAM_BANKS);
@@ -290,6 +339,18 @@ static void armsse_init(Object *obj)
         }
     }
 
+    for (devinfo = info->devinfo; devinfo->name; devinfo++) {
+        assert(devinfo->ppc == NO_PPC || devinfo->ppc < ARRAY_SIZE(s->apb_ppc));
+        if (!strcmp(devinfo->type, TYPE_CMSDK_APB_TIMER)) {
+            assert(devinfo->index < ARRAY_SIZE(s->timer));
+            object_initialize_child(obj, devinfo->name,
+                                    &s->timer[devinfo->index],
+                                    TYPE_CMSDK_APB_TIMER);
+        } else {
+            g_assert_not_reached();
+        }
+    }
+
     object_initialize_child(obj, "secctl", &s->secctl, TYPE_IOTKIT_SECCTL);
 
     for (i = 0; i < ARRAY_SIZE(s->apb_ppc); i++) {
@@ -312,8 +373,6 @@ static void armsse_init(Object *obj)
         object_initialize_child(obj, name, splitter, TYPE_SPLIT_IRQ);
         g_free(name);
     }
-    object_initialize_child(obj, "timer0", &s->timer0, TYPE_CMSDK_APB_TIMER);
-    object_initialize_child(obj, "timer1", &s->timer1, TYPE_CMSDK_APB_TIMER);
     object_initialize_child(obj, "s32ktimer", &s->s32ktimer,
                             TYPE_CMSDK_APB_TIMER);
     object_initialize_child(obj, "dualtimer", &s->dualtimer,
@@ -453,6 +512,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     ARMSSE *s = ARM_SSE(dev);
     ARMSSEClass *asc = ARM_SSE_GET_CLASS(dev);
     const ARMSSEInfo *info = asc->info;
+    const ARMSSEDeviceInfo *devinfo;
     int i;
     MemoryRegion *mr;
     Error *err = NULL;
@@ -736,25 +796,53 @@ static void armsse_realize(DeviceState *dev, Error **errp)
      * it to the appropriate PPC port; then we can realize the PPC and
      * map its upstream ends to the right place in the container.
      */
-    qdev_connect_clock_in(DEVICE(&s->timer0), "pclk", s->mainclk);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer0), errp)) {
-        return;
-    }
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer0), 0,
-                       armsse_get_common_irq_in(s, 3));
-    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->timer0), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc[0]), "port[0]", OBJECT(mr),
-                             &error_abort);
+    for (devinfo = info->devinfo; devinfo->name; devinfo++) {
+        SysBusDevice *sbd;
+        qemu_irq irq;
 
-    qdev_connect_clock_in(DEVICE(&s->timer1), "pclk", s->mainclk);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer1), errp)) {
-        return;
+        if (!strcmp(devinfo->type, TYPE_CMSDK_APB_TIMER)) {
+            sbd = SYS_BUS_DEVICE(&s->timer[devinfo->index]);
+
+            qdev_connect_clock_in(DEVICE(sbd), "pclk", s->mainclk);
+            if (!sysbus_realize(sbd, errp)) {
+                return;
+            }
+            mr = sysbus_mmio_get_region(sbd, 0);
+        } else {
+            g_assert_not_reached();
+        }
+
+        switch (devinfo->irq) {
+        case NO_IRQ:
+            irq = NULL;
+            break;
+        case 0 ... NUM_SSE_IRQS - 1:
+            irq = armsse_get_common_irq_in(s, devinfo->irq);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+
+        if (irq) {
+            sysbus_connect_irq(sbd, 0, irq);
+        }
+
+        /*
+         * Devices connected to a PPC are connected to the port here;
+         * we will map the upstream end of that port to the right address
+         * in the container later after the PPC has been realized.
+         * Devices not connected to a PPC can be mapped immediately.
+         */
+        if (devinfo->ppc != NO_PPC) {
+            TZPPC *ppc = &s->apb_ppc[devinfo->ppc];
+            g_autofree char *portname = g_strdup_printf("port[%d]",
+                                                        devinfo->ppc_port);
+            object_property_set_link(OBJECT(ppc), portname, OBJECT(mr),
+                                     &error_abort);
+        } else {
+            memory_region_add_subregion(&s->container, devinfo->addr, mr);
+        }
     }
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer1), 0,
-                       armsse_get_common_irq_in(s, 4));
-    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->timer1), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc[0]), "port[1]", OBJECT(mr),
-                             &error_abort);
 
     qdev_connect_clock_in(DEVICE(&s->dualtimer), "TIMCLK", s->mainclk);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->dualtimer), errp)) {
@@ -813,10 +901,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     sbd_apb_ppc0 = SYS_BUS_DEVICE(&s->apb_ppc[0]);
     dev_apb_ppc0 = DEVICE(&s->apb_ppc[0]);
 
-    mr = sysbus_mmio_get_region(sbd_apb_ppc0, 0);
-    memory_region_add_subregion(&s->container, 0x40000000, mr);
-    mr = sysbus_mmio_get_region(sbd_apb_ppc0, 1);
-    memory_region_add_subregion(&s->container, 0x40001000, mr);
     mr = sysbus_mmio_get_region(sbd_apb_ppc0, 2);
     memory_region_add_subregion(&s->container, 0x40002000, mr);
     if (info->has_mhus) {
@@ -946,6 +1030,23 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     qdev_connect_gpio_out(dev_splitter, 1,
                           qdev_get_gpio_in_named(dev_apb_ppc1,
                                                  "cfg_sec_resp", 0));
+
+    /*
+     * Now both PPCs are realized we can map the upstream ends of
+     * ports which correspond to entries in the devinfo array.
+     * The ports which are connected to non-devinfo devices have
+     * already been mapped.
+     */
+    for (devinfo = info->devinfo; devinfo->name; devinfo++) {
+        SysBusDevice *ppc_sbd;
+
+        if (devinfo->ppc == NO_PPC) {
+            continue;
+        }
+        ppc_sbd = SYS_BUS_DEVICE(&s->apb_ppc[devinfo->ppc]);
+        mr = sysbus_mmio_get_region(ppc_sbd, devinfo->ppc_port);
+        memory_region_add_subregion(&s->container, devinfo->addr, mr);
+    }
 
     if (!object_property_set_int(OBJECT(&s->sysinfo), "SYS_VERSION",
                                  info->sys_version, errp)) {
