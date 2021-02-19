@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include "common.h"
 
 #ifndef ASAN_NAME_STR
 #define ASAN_NAME_STR "AddressSanitizer"

@@ -209,7 +209,7 @@ static void collect_memory_snapshot(void) {
     
     int flags = page_get_flags(h2g(min));
     
-    max = h2g_valid(max - 1) ? max : (uintptr_t)g2h(GUEST_ADDR_MAX) + 1;
+    max = h2g_valid(max - 1) ? max : (uintptr_t)AFL_G2H(GUEST_ADDR_MAX) + 1;
     if (page_check_range(h2g(min), max - min, flags) == -1)
         continue;
 
@@ -436,7 +436,7 @@ void afl_setup(void) {
         
         int flags = page_get_flags(h2g(min));
         
-        max = h2g_valid(max - 1) ? max : (uintptr_t)g2h(GUEST_ADDR_MAX) + 1;
+        max = h2g_valid(max - 1) ? max : (uintptr_t)AFL_G2H(GUEST_ADDR_MAX) + 1;
         if (page_check_range(h2g(min), max - min, flags) == -1)
             continue;
         

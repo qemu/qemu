@@ -40,6 +40,8 @@
 
 #include "api.h"
 
+#define AFL_G2H g2h_untagged
+
 #if defined(TARGET_X86_64)
 #define api_regs x86_64_regs
 #elif defined(TARGET_I386)

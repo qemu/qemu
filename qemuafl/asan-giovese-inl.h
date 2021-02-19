@@ -319,14 +319,14 @@ int asan_giovese_guest_loadN(target_ulong addr, size_t n) {
 
     if (n <= first_size) {
 
-      uintptr_t h = (uintptr_t)g2h(start);
+      uintptr_t h = (uintptr_t)AFL_G2H(start);
       int8_t*   shadow_addr = (int8_t*)(h >> 3) + SHADOW_OFFSET;
       int8_t    k = *shadow_addr;
       return k != 0 && ((intptr_t)((h & 7) + n) > k);
 
     }
 
-    uintptr_t h = (uintptr_t)g2h(start);
+    uintptr_t h = (uintptr_t)AFL_G2H(start);
     int8_t*   shadow_addr = (int8_t*)(h >> 3) + SHADOW_OFFSET;
     int8_t    k = *shadow_addr;
     if (k != 0 && ((intptr_t)((h & 7) + first_size) > k)) return 1;
@@ -337,7 +337,7 @@ int asan_giovese_guest_loadN(target_ulong addr, size_t n) {
 
   while (start < last_8) {
 
-    uintptr_t h = (uintptr_t)g2h(start);
+    uintptr_t h = (uintptr_t)AFL_G2H(start);
     int8_t*   shadow_addr = (int8_t*)(h >> 3) + SHADOW_OFFSET;
     if (*shadow_addr) return 1;
     start += 8;
@@ -346,7 +346,7 @@ int asan_giovese_guest_loadN(target_ulong addr, size_t n) {
 
   if (last_8 != end) {
 
-    uintptr_t h = (uintptr_t)g2h(start);
+    uintptr_t h = (uintptr_t)AFL_G2H(start);
     size_t    last_size = end - last_8;
     int8_t*   shadow_addr = (int8_t*)(h >> 3) + SHADOW_OFFSET;
     int8_t    k = *shadow_addr;
@@ -373,14 +373,14 @@ int asan_giovese_guest_storeN(target_ulong addr, size_t n) {
 
     if (n <= first_size) {
 
-      uintptr_t h = (uintptr_t)g2h(start);
+      uintptr_t h = (uintptr_t)AFL_G2H(start);
       int8_t*   shadow_addr = (int8_t*)(h >> 3) + SHADOW_OFFSET;
       int8_t    k = *shadow_addr;
       return k != 0 && ((intptr_t)((h & 7) + n) > k);
 
     }
 
-    uintptr_t h = (uintptr_t)g2h(start);
+    uintptr_t h = (uintptr_t)AFL_G2H(start);
     int8_t*   shadow_addr = (int8_t*)(h >> 3) + SHADOW_OFFSET;
     int8_t    k = *shadow_addr;
     if (k != 0 && ((intptr_t)((h & 7) + first_size) > k)) return 1;
@@ -391,7 +391,7 @@ int asan_giovese_guest_storeN(target_ulong addr, size_t n) {
 
   while (start < last_8) {
 
-    uintptr_t h = (uintptr_t)g2h(start);
+    uintptr_t h = (uintptr_t)AFL_G2H(start);
     int8_t*   shadow_addr = (int8_t*)(h >> 3) + SHADOW_OFFSET;
     if (*shadow_addr) return 1;
     start += 8;
@@ -400,7 +400,7 @@ int asan_giovese_guest_storeN(target_ulong addr, size_t n) {
 
   if (last_8 != end) {
 
-    uintptr_t h = (uintptr_t)g2h(start);
+    uintptr_t h = (uintptr_t)AFL_G2H(start);
     size_t    last_size = end - last_8;
     int8_t*   shadow_addr = (int8_t*)(h >> 3) + SHADOW_OFFSET;
     int8_t    k = *shadow_addr;
@@ -493,7 +493,7 @@ int asan_giovese_poison_guest_region(target_ulong addr, size_t n,
 
     if (n < first_size) return 0;
 
-    uintptr_t h = (uintptr_t)g2h(start);
+    uintptr_t h = (uintptr_t)AFL_G2H(start);
     uint8_t*  shadow_addr = (uint8_t*)(h >> 3) + SHADOW_OFFSET;
     *shadow_addr = 8 - first_size;
 
@@ -503,7 +503,7 @@ int asan_giovese_poison_guest_region(target_ulong addr, size_t n,
 
   while (start < last_8) {
 
-    uintptr_t h = (uintptr_t)g2h(start);
+    uintptr_t h = (uintptr_t)AFL_G2H(start);
     uint8_t*  shadow_addr = (uint8_t*)(h >> 3) + SHADOW_OFFSET;
     *shadow_addr = poison_byte;
     start += 8;
@@ -527,7 +527,7 @@ int asan_giovese_unpoison_guest_region(target_ulong addr, size_t n) {
 
   while (start < end) {
 
-    uintptr_t h = (uintptr_t)g2h(start);
+    uintptr_t h = (uintptr_t)AFL_G2H(start);
     uint8_t*  shadow_addr = (uint8_t*)(h >> 3) + SHADOW_OFFSET;
     *shadow_addr = 0;
     start += 8;
@@ -856,7 +856,7 @@ static int poisoned_find_error(target_ulong addr, size_t n,
 
   while (start < end) {
 
-    uintptr_t rs = (uintptr_t)g2h(start);
+    uintptr_t rs = (uintptr_t)AFL_G2H(start);
     int8_t*   shadow_addr = (int8_t*)(rs >> 3) + SHADOW_OFFSET;
     switch (*shadow_addr) {
 
@@ -892,7 +892,7 @@ static int poisoned_find_error(target_ulong addr, size_t n,
 
   if (have_partials) {
 
-    uintptr_t rs = (uintptr_t)g2h((end & ~7) + 8);
+    uintptr_t rs = (uintptr_t)AFL_G2H((end & ~7) + 8);
     uint8_t*  last_shadow_addr = (uint8_t*)(rs >> 3) + SHADOW_OFFSET;
     *err_string = poisoned_strerror(*last_shadow_addr);
     return 1;
@@ -905,7 +905,7 @@ static int poisoned_find_error(target_ulong addr, size_t n,
 
 }
 
-#define _MEM2SHADOW(x) ((uint8_t*)((uintptr_t)g2h(x) >> 3) + SHADOW_OFFSET)
+#define _MEM2SHADOW(x) ((uint8_t*)((uintptr_t)AFL_G2H(x) >> 3) + SHADOW_OFFSET)
 
 #define _MEM2SHADOWPRINT(x) shadow_color_map[*_MEM2SHADOW(x)], *_MEM2SHADOW(x)
 

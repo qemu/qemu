@@ -206,18 +206,18 @@ void HELPER(afl_cmplog_rtn)(CPUArchState *env) {
 
 #if defined(TARGET_X86_64)
 
-  void *ptr1 = g2h(env->regs[R_EDI]);
-  void *ptr2 = g2h(env->regs[R_ESI]);
+  void *ptr1 = AFL_G2H(env->regs[R_EDI]);
+  void *ptr2 = AFL_G2H(env->regs[R_ESI]);
 
 #elif defined(TARGET_I386)
 
-  target_ulong *stack = g2h(env->regs[R_ESP]);
+  target_ulong *stack = AFL_G2H(env->regs[R_ESP]);
 
   if (!area_is_mapped(stack, sizeof(target_ulong) * 2)) return;
 
   // when this hook is executed, the retaddr is not on stack yet
-  void *    ptr1 = g2h(stack[0]);
-  void *    ptr2 = g2h(stack[1]);
+  void *    ptr1 = AFL_G2H(stack[0]);
+  void *    ptr2 = AFL_G2H(stack[1]);
 
 #else
 
@@ -531,7 +531,7 @@ char* asan_giovese_printaddr(target_ulong guest_addr) {
     if (h2g_valid(min)) {
 
       int flags = page_get_flags(h2g(min));
-      max = h2g_valid(max - 1) ? max : (uintptr_t)g2h(GUEST_ADDR_MAX) + 1;
+      max = h2g_valid(max - 1) ? max : (uintptr_t)AFL_G2H(GUEST_ADDR_MAX) + 1;
       if (page_check_range(h2g(min), max - min, flags) == -1)
           continue;
       
@@ -716,27 +716,27 @@ target_long qasan_actions_dispatcher(void *cpu_env,
         }
 #else
         case QASAN_ACTION_CHECK_LOAD:
-        __asan_loadN(g2h(arg1), arg2);
+        __asan_loadN(AFL_G2H(arg1), arg2);
         break;
         
         case QASAN_ACTION_CHECK_STORE:
-        __asan_storeN(g2h(arg1), arg2);
+        __asan_storeN(AFL_G2H(arg1), arg2);
         break;
         
         case QASAN_ACTION_POISON:
-        __asan_poison_memory_region(g2h(arg1), arg2);
+        __asan_poison_memory_region(AFL_G2H(arg1), arg2);
         break;
         
         case QASAN_ACTION_USER_POISON:
-        __asan_poison_memory_region(g2h(arg1), arg2);
+        __asan_poison_memory_region(AFL_G2H(arg1), arg2);
         break;
         
         case QASAN_ACTION_UNPOISON:
-        __asan_unpoison_memory_region(g2h(arg1), arg2);
+        __asan_unpoison_memory_region(AFL_G2H(arg1), arg2);
         break;
         
         case QASAN_ACTION_IS_POISON:
-        return __asan_region_is_poisoned(g2h(arg1), arg2) != NULL;
+        return __asan_region_is_poisoned(AFL_G2H(arg1), arg2) != NULL;
         
         case QASAN_ACTION_ALLOC:
           break;
@@ -779,7 +779,7 @@ void HELPER(qasan_load1)(CPUArchState *env, target_ulong addr) {
 
   if (qasan_disabled) return;
   
-  void* ptr = (void*)g2h(addr);
+  void* ptr = (void*)AFL_G2H(addr);
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_load1(ptr)) {
@@ -795,7 +795,7 @@ void HELPER(qasan_load2)(CPUArchState *env, target_ulong addr) {
 
   if (qasan_disabled) return;
 
-  void* ptr = (void*)g2h(addr);
+  void* ptr = (void*)AFL_G2H(addr);
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_load2(ptr)) {
@@ -811,7 +811,7 @@ void HELPER(qasan_load4)(CPUArchState *env, target_ulong addr) {
 
   if (qasan_disabled) return;
   
-  void* ptr = (void*)g2h(addr);
+  void* ptr = (void*)AFL_G2H(addr);
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_load4(ptr)) {
@@ -827,7 +827,7 @@ void HELPER(qasan_load8)(CPUArchState *env, target_ulong addr) {
 
   if (qasan_disabled) return;
   
-  void* ptr = (void*)g2h(addr);
+  void* ptr = (void*)AFL_G2H(addr);
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_load8(ptr)) {
@@ -843,7 +843,7 @@ void HELPER(qasan_store1)(CPUArchState *env, target_ulong addr) {
 
   if (qasan_disabled) return;
   
-  void* ptr = (void*)g2h(addr);
+  void* ptr = (void*)AFL_G2H(addr);
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_store1(ptr)) {
@@ -859,7 +859,7 @@ void HELPER(qasan_store2)(CPUArchState *env, target_ulong addr) {
 
   if (qasan_disabled) return;
   
-  void* ptr = (void*)g2h(addr);
+  void* ptr = (void*)AFL_G2H(addr);
   
 #ifdef ASAN_GIOVESE
   if (asan_giovese_store2(ptr)) {
@@ -875,7 +875,7 @@ void HELPER(qasan_store4)(CPUArchState *env, target_ulong addr) {
 
   if (qasan_disabled) return;
   
-  void* ptr = (void*)g2h(addr);
+  void* ptr = (void*)AFL_G2H(addr);
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_store4(ptr)) {
@@ -891,7 +891,7 @@ void HELPER(qasan_store8)(CPUArchState *env, target_ulong addr) {
 
   if (qasan_disabled) return;
 
-  void* ptr = (void*)g2h(addr);
+  void* ptr = (void*)AFL_G2H(addr);
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_store8(ptr)) {
