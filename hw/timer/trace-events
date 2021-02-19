@@ -100,3 +100,8 @@ sse_counter_control_write(uint64_t offset, uint64_t data, unsigned size) "SSE sy
 sse_counter_status_read(uint64_t offset, uint64_t data, unsigned size) "SSE system counter status frame read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 sse_counter_status_write(uint64_t offset, uint64_t data, unsigned size) "SSE system counter status frame write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 sse_counter_reset(void) "SSE system counter: reset"
+
+# sse_timer.c
+sse_timer_read(uint64_t offset, uint64_t data, unsigned size) "SSE system timer read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+sse_timer_write(uint64_t offset, uint64_t data, unsigned size) "SSE system timer write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+sse_timer_reset(void) "SSE system timer: reset"

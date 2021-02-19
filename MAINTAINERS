@@ -753,6 +753,8 @@ F: hw/misc/armsse-mhu.c
 F: include/hw/misc/armsse-mhu.h
 F: hw/timer/sse-counter.c
 F: include/hw/timer/sse-counter.h
+F: hw/timer/sse-timer.c
+F: include/hw/timer/sse-timer.h
 F: docs/system/arm/mps2.rst
 
 Musca

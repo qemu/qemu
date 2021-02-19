@@ -521,6 +521,7 @@ config ARMSSE
     select TZ_PPC
     select UNIMP
     select SSE_COUNTER
+    select SSE_TIMER
 
 config ARMSSE_CPUID
     bool
