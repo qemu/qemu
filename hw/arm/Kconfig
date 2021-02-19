@@ -522,9 +522,3 @@ config ARMSSE
     select UNIMP
     select SSE_COUNTER
     select SSE_TIMER
-
-config ARMSSE_CPUID
-    bool
-
-config ARMSSE_MHU
-    bool
