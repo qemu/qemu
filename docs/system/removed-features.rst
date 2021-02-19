@@ -120,6 +120,13 @@ Removed with no replacement.
 
 Removed with no replacement.
 
+``query-named-block-nodes`` and ``query-block`` result dirty-bitmaps[i].status (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``status`` field of the ``BlockDirtyInfo`` structure, returned by
+these commands is removed. Two new boolean fields, ``recording`` and
+``busy`` effectively replace it.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 

@@ -348,7 +348,6 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
                 'name': 'bitmap0',
                 'count': 458752,
                 'granularity': 65536,
-                'status': 'active',
                 'persistent': False
             }))
 
@@ -705,7 +704,6 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
             drive0['id'], bitmap.name, {
                 'count': 458752,
                 'granularity': 65536,
-                'status': 'active',
                 'busy': False,
                 'recording': True
             }))
@@ -736,7 +734,6 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
             drive0['id'], bitmap.name, {
                 'count': 458752,
                 'granularity': 65536,
-                'status': 'frozen',
                 'busy': True,
                 'recording': True
             }))
@@ -751,7 +748,6 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
             drive0['id'], bitmap.name, {
                 'count': 0,
                 'granularity': 65536,
-                'status': 'active',
                 'busy': False,
                 'recording': True
             }))

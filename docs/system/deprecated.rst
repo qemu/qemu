@@ -198,13 +198,6 @@ Use arguments ``base-node`` and ``top-node`` instead.
 
 Specify the properties for the object as top-level arguments instead.
 
-``query-named-block-nodes`` and ``query-block`` result dirty-bitmaps[i].status (since 4.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``status`` field of the ``BlockDirtyInfo`` structure, returned by
-these commands is deprecated. Two new boolean fields, ``recording`` and
-``busy`` effectively replace it.
-
 ``query-block`` result field ``dirty-bitmaps`` (Since 4.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 

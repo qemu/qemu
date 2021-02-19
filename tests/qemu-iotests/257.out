@@ -58,8 +58,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -113,16 +112,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -130,8 +127,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -156,8 +152,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -185,8 +180,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -234,8 +228,7 @@ expecting 15 dirty sectors; have 15. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -318,8 +311,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -367,8 +359,7 @@ expecting 6 dirty sectors; have 6. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -396,8 +387,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -445,8 +435,7 @@ expecting 14 dirty sectors; have 14. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -529,8 +518,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -584,16 +572,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -601,8 +587,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -627,8 +612,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -656,8 +640,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -705,8 +688,7 @@ expecting 15 dirty sectors; have 15. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -789,8 +771,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -844,16 +825,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -861,8 +840,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -887,8 +865,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -916,8 +893,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -965,8 +941,7 @@ expecting 15 dirty sectors; have 15. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1049,8 +1024,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1098,8 +1072,7 @@ expecting 6 dirty sectors; have 6. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1127,8 +1100,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1176,8 +1148,7 @@ expecting 14 dirty sectors; have 14. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1260,8 +1231,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1315,16 +1285,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -1332,8 +1300,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -1358,8 +1325,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1387,8 +1353,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1436,8 +1401,7 @@ expecting 12 dirty sectors; have 12. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1520,8 +1484,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1575,16 +1538,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -1592,8 +1553,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -1618,8 +1578,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1647,8 +1606,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1696,8 +1654,7 @@ expecting 12 dirty sectors; have 12. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1780,8 +1737,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1829,8 +1785,7 @@ expecting 6 dirty sectors; have 6. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1858,8 +1813,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1907,8 +1861,7 @@ expecting 13 dirty sectors; have 13. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -1991,8 +1944,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2046,16 +1998,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -2063,8 +2013,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -2089,8 +2038,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2118,8 +2066,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2167,8 +2114,7 @@ expecting 12 dirty sectors; have 12. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2251,8 +2197,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2306,16 +2251,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -2323,8 +2266,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -2349,8 +2291,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2378,8 +2319,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2427,8 +2367,7 @@ expecting 15 dirty sectors; have 15. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2511,8 +2450,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2560,8 +2498,7 @@ expecting 6 dirty sectors; have 6. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2589,8 +2526,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2638,8 +2574,7 @@ expecting 14 dirty sectors; have 14. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2722,8 +2657,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2777,16 +2711,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -2794,8 +2726,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -2820,8 +2751,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2849,8 +2779,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2898,8 +2827,7 @@ expecting 12 dirty sectors; have 12. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -2982,8 +2910,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3037,16 +2964,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -3054,8 +2979,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -3080,8 +3004,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3109,8 +3032,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3158,8 +3080,7 @@ expecting 12 dirty sectors; have 12. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3242,8 +3163,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3291,8 +3211,7 @@ expecting 6 dirty sectors; have 6. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3320,8 +3239,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3369,8 +3287,7 @@ expecting 1014 dirty sectors; have 1014. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3453,8 +3370,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3508,16 +3424,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -3525,8 +3439,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -3551,8 +3464,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3580,8 +3492,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3629,8 +3540,7 @@ expecting 12 dirty sectors; have 12. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3713,8 +3623,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3768,16 +3677,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -3785,8 +3692,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -3811,8 +3717,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3840,8 +3745,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3889,8 +3793,7 @@ expecting 15 dirty sectors; have 15. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -3973,8 +3876,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4022,8 +3924,7 @@ expecting 6 dirty sectors; have 6. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4051,8 +3952,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4100,8 +4000,7 @@ expecting 14 dirty sectors; have 14. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4184,8 +4083,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4239,16 +4137,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -4256,8 +4152,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -4282,8 +4177,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4311,8 +4205,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4360,8 +4253,7 @@ expecting 12 dirty sectors; have 12. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4444,8 +4336,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4499,16 +4390,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -4516,8 +4405,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -4542,8 +4430,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4571,8 +4458,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4620,8 +4506,7 @@ expecting 12 dirty sectors; have 12. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4704,8 +4589,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4753,8 +4637,7 @@ expecting 6 dirty sectors; have 6. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4782,8 +4665,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4831,8 +4713,7 @@ expecting 14 dirty sectors; have 14. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4915,8 +4796,7 @@ write -P0x69 0x3fe0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -4970,16 +4850,14 @@ write -P0x67 0x3fe0000 0x20000
         "count": 0,
         "granularity": 65536,
         "persistent": false,
-        "recording": false,
-        "status": "disabled"
+        "recording": false
       },
       {
         "busy": false,
         "count": 458752,
         "granularity": 65536,
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       },
       {
         "busy": true,
@@ -4987,8 +4865,7 @@ write -P0x67 0x3fe0000 0x20000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "frozen"
+        "recording": true
       }
     ]
   }
@@ -5013,8 +4890,7 @@ expecting 7 dirty sectors; have 7. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -5042,8 +4918,7 @@ write -P0xdd 0x3fc0000 0x10000
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
@@ -5091,8 +4966,7 @@ expecting 12 dirty sectors; have 12. OK!
         "granularity": 65536,
         "name": "bitmap0",
         "persistent": false,
-        "recording": true,
-        "status": "active"
+        "recording": true
       }
     ]
   }
