@@ -951,6 +951,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                                  armsse_sys_config_value(s, info), errp)) {
         return;
     }
+    object_property_set_int(OBJECT(&s->sysinfo), "sse-version",
+                            info->sse_version, &error_abort);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->sysinfo), errp)) {
         return;
     }
