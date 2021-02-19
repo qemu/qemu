@@ -114,6 +114,16 @@ static const ARMSSEDeviceInfo sse200_devices[] = {
         .irq = 4,
     },
     {
+        .name = "s32ktimer",
+        .type = TYPE_CMSDK_APB_TIMER,
+        .index = 2,
+        .addr = 0x4002f000,
+        .ppc = 1,
+        .ppc_port = 0,
+        .irq = 2,
+        .slowclk = true,
+    },
+    {
         .name = "dualtimer",
         .type = TYPE_CMSDK_APB_DUALTIMER,
         .index = 0,
@@ -425,8 +435,6 @@ static void armsse_init(Object *obj)
         g_free(name);
     }
 
-    object_initialize_child(obj, "s32ktimer", &s->s32ktimer,
-                            TYPE_CMSDK_APB_TIMER);
     object_initialize_child(obj, "armsse-sysctl", &s->sysctl,
                             TYPE_IOTKIT_SYSCTL);
     object_initialize_child(obj, "armsse-sysinfo", &s->sysinfo,
@@ -858,7 +866,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         if (!strcmp(devinfo->type, TYPE_CMSDK_APB_TIMER)) {
             sbd = SYS_BUS_DEVICE(&s->timer[devinfo->index]);
 
-            qdev_connect_clock_in(DEVICE(sbd), "pclk", s->mainclk);
+            qdev_connect_clock_in(DEVICE(sbd), "pclk",
+                                  devinfo->slowclk ? s->s32kclk : s->mainclk);
             if (!sysbus_realize(sbd, errp)) {
                 return;
             }
@@ -1059,25 +1068,9 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    /* 0x40020000 .. 0x4002ffff : ARMSSE system control peripheral region */
-    /* Devices behind APB PPC1:
-     *   0x4002f000: S32K timer
-     */
-    qdev_connect_clock_in(DEVICE(&s->s32ktimer), "pclk", s->s32kclk);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->s32ktimer), errp)) {
-        return;
-    }
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->s32ktimer), 0,
-                       armsse_get_common_irq_in(s, 2));
-    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->s32ktimer), 0);
-    object_property_set_link(OBJECT(&s->apb_ppc[1]), "port[0]", OBJECT(mr),
-                             &error_abort);
-
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->apb_ppc[1]), errp)) {
         return;
     }
-    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->apb_ppc[1]), 0);
-    memory_region_add_subregion(&s->container, 0x4002f000, mr);
 
     dev_apb_ppc1 = DEVICE(&s->apb_ppc[1]);
     qdev_connect_gpio_out_named(dev_secctl, "apb_ppc1_nonsec", 0,
