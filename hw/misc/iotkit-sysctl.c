@@ -28,6 +28,7 @@
 #include "hw/registerfields.h"
 #include "hw/misc/iotkit-sysctl.h"
 #include "hw/qdev-properties.h"
+#include "hw/arm/armsse-version.h"
 #include "target/arm/arm-powerctl.h"
 #include "target/arm/cpu.h"
 
@@ -438,10 +439,12 @@ static void iotkit_sysctl_realize(DeviceState *dev, Error **errp)
 {
     IoTKitSysCtl *s = IOTKIT_SYSCTL(dev);
 
-    /* The top 4 bits of the SYS_VERSION register tell us if we're an SSE-200 */
-    if (extract32(s->sys_version, 28, 4) == 2) {
-        s->is_sse200 = true;
+    if (!armsse_version_valid(s->sse_version)) {
+        error_setg(errp, "invalid sse-version value %d", s->sse_version);
+        return;
     }
+
+    s->is_sse200 = s->sse_version == ARMSSE_SSE200;
 }
 
 static bool sse200_needed(void *opaque)
@@ -493,7 +496,7 @@ static const VMStateDescription iotkit_sysctl_vmstate = {
 };
 
 static Property iotkit_sysctl_props[] = {
-    DEFINE_PROP_UINT32("SYS_VERSION", IoTKitSysCtl, sys_version, 0),
+    DEFINE_PROP_UINT32("sse-version", IoTKitSysCtl, sse_version, 0),
     DEFINE_PROP_UINT32("CPUWAIT_RST", IoTKitSysCtl, cpuwait_rst, 0),
     DEFINE_PROP_UINT32("INITSVTOR0_RST", IoTKitSysCtl, initsvtor0_rst,
                        0x10000000),

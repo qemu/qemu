@@ -17,9 +17,8 @@
  * "system control register" blocks.
  *
  * QEMU interface:
- *  + QOM property "SYS_VERSION": value of the SYS_VERSION register of the
- *    system information block of the SSE
- *    (used to identify whether to provide SSE-200-only registers)
+ *  + QOM property "sse-version": indicates which SSE version this is part of
+ *    (used to identify whether to provide SSE-200-only registers, etc)
  *  + sysbus MMIO region 0: the system information register bank
  *  + sysbus MMIO region 1: the system control register bank
  */
@@ -61,7 +60,7 @@ struct IoTKitSysCtl {
     uint32_t pdcm_pd_sram3_sense;
 
     /* Properties */
-    uint32_t sys_version;
+    uint32_t sse_version;
     uint32_t cpuwait_rst;
     uint32_t initsvtor0_rst;
     uint32_t initsvtor1_rst;

@@ -19,6 +19,7 @@
 #include "migration/vmstate.h"
 #include "hw/registerfields.h"
 #include "hw/arm/armsse.h"
+#include "hw/arm/armsse-version.h"
 #include "hw/arm/boot.h"
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
@@ -31,6 +32,7 @@ typedef enum SysConfigFormat {
 
 struct ARMSSEInfo {
     const char *name;
+    uint32_t sse_version;
     int sram_banks;
     int num_cpus;
     uint32_t sys_version;
@@ -71,6 +73,7 @@ static Property armsse_properties[] = {
 static const ARMSSEInfo armsse_variants[] = {
     {
         .name = TYPE_IOTKIT,
+        .sse_version = ARMSSE_IOTKIT,
         .sram_banks = 1,
         .num_cpus = 1,
         .sys_version = 0x41743,
@@ -85,6 +88,7 @@ static const ARMSSEInfo armsse_variants[] = {
     },
     {
         .name = TYPE_SSE200,
+        .sse_version = ARMSSE_SSE200,
         .sram_banks = 4,
         .num_cpus = 2,
         .sys_version = 0x22041743,
@@ -951,8 +955,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     /* System information registers */
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sysinfo), 0, 0x40020000);
     /* System control registers */
-    object_property_set_int(OBJECT(&s->sysctl), "SYS_VERSION",
-                            info->sys_version, &error_abort);
+    object_property_set_int(OBJECT(&s->sysctl), "sse-version",
+                            info->sse_version, &error_abort);
     object_property_set_int(OBJECT(&s->sysctl), "CPUWAIT_RST",
                             info->cpuwait_rst, &error_abort);
     object_property_set_int(OBJECT(&s->sysctl), "INITSVTOR0_RST",
