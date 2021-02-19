@@ -158,6 +158,14 @@ static const ARMSSEDeviceInfo sse200_devices[] = {
         .irq = NMI_1,
     },
     {
+        .name = "armsse-sysinfo",
+        .type = TYPE_IOTKIT_SYSINFO,
+        .index = 0,
+        .addr = 0x40020000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
         .name = NULL,
     }
 };
@@ -407,6 +415,10 @@ static void armsse_init(Object *obj)
             object_initialize_child(obj, devinfo->name,
                                     &s->cmsdk_watchdog[devinfo->index],
                                     TYPE_CMSDK_APB_WATCHDOG);
+        } else if (!strcmp(devinfo->type, TYPE_IOTKIT_SYSINFO)) {
+            assert(devinfo->index == 0);
+            object_initialize_child(obj, devinfo->name, &s->sysinfo,
+                                    TYPE_IOTKIT_SYSINFO);
         } else {
             g_assert_not_reached();
         }
@@ -437,8 +449,6 @@ static void armsse_init(Object *obj)
 
     object_initialize_child(obj, "armsse-sysctl", &s->sysctl,
                             TYPE_IOTKIT_SYSCTL);
-    object_initialize_child(obj, "armsse-sysinfo", &s->sysinfo,
-                            TYPE_IOTKIT_SYSINFO);
     if (info->has_mhus) {
         object_initialize_child(obj, "mhu0", &s->mhu[0], TYPE_ARMSSE_MHU);
         object_initialize_child(obj, "mhu1", &s->mhu[1], TYPE_ARMSSE_MHU);
@@ -889,6 +899,22 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                 return;
             }
             mr = sysbus_mmio_get_region(sbd, 0);
+        } else if (!strcmp(devinfo->type, TYPE_IOTKIT_SYSINFO)) {
+            sbd = SYS_BUS_DEVICE(&s->sysinfo);
+
+            object_property_set_int(OBJECT(&s->sysinfo), "SYS_VERSION",
+                                    info->sys_version, &error_abort);
+            object_property_set_int(OBJECT(&s->sysinfo), "SYS_CONFIG",
+                                    armsse_sys_config_value(s, info),
+                                    &error_abort);
+            object_property_set_int(OBJECT(&s->sysinfo), "sse-version",
+                                    info->sse_version, &error_abort);
+            object_property_set_int(OBJECT(&s->sysinfo), "IIDR",
+                                    info->iidr, &error_abort);
+            if (!sysbus_realize(sbd, errp)) {
+                return;
+            }
+            mr = sysbus_mmio_get_region(sbd, 0);
         } else {
             g_assert_not_reached();
         }
@@ -1106,23 +1132,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         memory_region_add_subregion(&s->container, devinfo->addr, mr);
     }
 
-    if (!object_property_set_int(OBJECT(&s->sysinfo), "SYS_VERSION",
-                                 info->sys_version, errp)) {
-        return;
-    }
-    if (!object_property_set_int(OBJECT(&s->sysinfo), "SYS_CONFIG",
-                                 armsse_sys_config_value(s, info), errp)) {
-        return;
-    }
-    object_property_set_int(OBJECT(&s->sysinfo), "sse-version",
-                            info->sse_version, &error_abort);
-    object_property_set_int(OBJECT(&s->sysinfo), "IIDR",
-                            info->iidr, &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sysinfo), errp)) {
-        return;
-    }
-    /* System information registers */
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sysinfo), 0, 0x40020000);
     /* System control registers */
     object_property_set_int(OBJECT(&s->sysctl), "sse-version",
                             info->sse_version, &error_abort);
