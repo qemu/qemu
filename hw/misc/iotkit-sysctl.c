@@ -75,9 +75,16 @@ REG32(CID2, 0xff8)
 REG32(CID3, 0xffc)
 
 /* PID/CID values */
-static const int sysctl_id[] = {
+static const int iotkit_sysctl_id[] = {
     0x04, 0x00, 0x00, 0x00, /* PID4..PID7 */
     0x54, 0xb8, 0x0b, 0x00, /* PID0..PID3 */
+    0x0d, 0xf0, 0x05, 0xb1, /* CID0..CID3 */
+};
+
+/* Also used by the SSE300 */
+static const int sse200_sysctl_id[] = {
+    0x04, 0x00, 0x00, 0x00, /* PID4..PID7 */
+    0x54, 0xb8, 0x1b, 0x00, /* PID0..PID3 */
     0x0d, 0xf0, 0x05, 0xb1, /* CID0..CID3 */
 };
 
@@ -328,7 +335,17 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         }
         break;
     case A_PID4 ... A_CID3:
-        r = sysctl_id[(offset - A_PID4) / 4];
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
+            r = iotkit_sysctl_id[(offset - A_PID4) / 4];
+            break;
+        case ARMSSE_SSE200:
+        case ARMSSE_SSE300:
+            r = sse200_sysctl_id[(offset - A_PID4) / 4];
+            break;
+        default:
+            g_assert_not_reached();
+        }
         break;
     case A_SECDBGSET:
     case A_SECDBGCLR:
