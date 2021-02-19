@@ -46,7 +46,9 @@ REG8(TCCR, 10)
   FIELD(TCCR, CSS,   3, 2)
   FIELD(TCCR, TMRIS, 7, 1)
 
+#define CSS_EXTERNAL  0x00
 #define CSS_INTERNAL  0x01
+#define CSS_INVALID   0x02
 #define CSS_CASCADING 0x03
 #define CCLR_A    0x01
 #define CCLR_B    0x02
@@ -130,13 +132,20 @@ static uint16_t read_tcnt(RTMRState *tmr, unsigned size, int ch)
     if (delta > 0) {
         tmr->tick = now;
 
-        if (FIELD_EX8(tmr->tccr[1], TCCR, CSS) == CSS_INTERNAL) {
+        switch (FIELD_EX8(tmr->tccr[1], TCCR, CSS)) {
+        case CSS_INTERNAL:
             /* timer1 count update */
             elapsed = elapsed_time(tmr, 1, delta);
             if (elapsed >= 0x100) {
                 ovf = elapsed >> 8;
             }
             tcnt[1] = tmr->tcnt[1] + (elapsed & 0xff);
+            break;
+        case CSS_INVALID: /* guest error to have set this */
+        case CSS_EXTERNAL: /* QEMU doesn't implement these */
+        case CSS_CASCADING:
+            tcnt[1] = tmr->tcnt[1];
+            break;
         }
         switch (FIELD_EX8(tmr->tccr[0], TCCR, CSS)) {
         case CSS_INTERNAL:
@@ -144,9 +153,11 @@ static uint16_t read_tcnt(RTMRState *tmr, unsigned size, int ch)
             tcnt[0] = tmr->tcnt[0] + elapsed;
             break;
         case CSS_CASCADING:
-            if (ovf > 0) {
-                tcnt[0] = tmr->tcnt[0] + ovf;
-            }
+            tcnt[0] = tmr->tcnt[0] + ovf;
+            break;
+        case CSS_INVALID: /* guest error to have set this */
+        case CSS_EXTERNAL: /* QEMU doesn't implement this */
+            tcnt[0] = tmr->tcnt[0];
             break;
         }
     } else {
