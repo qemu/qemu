@@ -45,6 +45,8 @@ REG32(SWRESET, 0x108)
     FIELD(SWRESET, SWRESETREQ, 9, 1)
 REG32(GRETREG, 0x10c)
 REG32(INITSVTOR0, 0x110)
+    FIELD(INITSVTOR0, LOCK, 0, 1)
+    FIELD(INITSVTOR0, VTOR, 7, 25)
 REG32(INITSVTOR1, 0x114)
 REG32(CPUWAIT, 0x118)
 REG32(NMI_ENABLE, 0x11c) /* BUSWAIT in IoTKit */
@@ -167,6 +169,8 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         case ARMSSE_SSE200:
             r = s->initsvtor1;
             break;
+        case ARMSSE_SSE300:
+            goto bad_offset;
         default:
             g_assert_not_reached();
         }
@@ -358,8 +362,25 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
         s->gretreg = value;
         break;
     case A_INITSVTOR0:
-        s->initsvtor0 = value;
-        set_init_vtor(0, s->initsvtor0);
+        switch (s->sse_version) {
+        case ARMSSE_SSE300:
+            /* SSE300 has a LOCK bit which prevents further writes when set */
+            if (s->initsvtor0 & R_INITSVTOR0_LOCK_MASK) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "IoTKit INITSVTOR0 write when register locked\n");
+                break;
+            }
+            s->initsvtor0 = value;
+            set_init_vtor(0, s->initsvtor0 & R_INITSVTOR0_VTOR_MASK);
+            break;
+        case ARMSSE_IOTKIT:
+        case ARMSSE_SSE200:
+            s->initsvtor0 = value;
+            set_init_vtor(0, s->initsvtor0);
+            break;
+        default:
+            g_assert_not_reached();
+        }
         break;
     case A_CPUWAIT:
         switch (s->sse_version) {
@@ -464,6 +485,8 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
             s->initsvtor1 = value;
             set_init_vtor(1, s->initsvtor1);
             break;
+        case ARMSSE_SSE300:
+            goto bad_offset;
         default:
             g_assert_not_reached();
         }
