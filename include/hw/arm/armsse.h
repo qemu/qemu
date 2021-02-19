@@ -135,14 +135,6 @@ OBJECT_DECLARE_TYPE(ARMSSE, ARMSSEClass,
 
 #define SSE_MAX_CPUS 2
 
-/* These define what each PPU in the ppu[] index is for */
-#define CPU0CORE_PPU 0
-#define CPU1CORE_PPU 1
-#define DBG_PPU 2
-#define RAM0_PPU 3
-#define RAM1_PPU 4
-#define RAM2_PPU 5
-#define RAM3_PPU 6
 #define NUM_PPUS 7
 
 /* Number of CPU IRQs used by the SSE itself */
@@ -176,7 +168,7 @@ struct ARMSSE {
     IoTKitSysCtl sysinfo;
 
     ARMSSEMHU mhu[2];
-    UnimplementedDeviceState ppu[NUM_PPUS];
+    UnimplementedDeviceState unimp[NUM_PPUS];
     UnimplementedDeviceState cachectrl[SSE_MAX_CPUS];
     UnimplementedDeviceState cpusecctrl[SSE_MAX_CPUS];
 

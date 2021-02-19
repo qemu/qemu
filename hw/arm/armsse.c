@@ -47,6 +47,7 @@ typedef struct ARMSSEDeviceInfo {
     const char *type; /* QOM type name */
     unsigned int index; /* Which of the N devices of this type is this ? */
     hwaddr addr;
+    hwaddr size; /* only needed for TYPE_UNIMPLEMENTED_DEVICE */
     int ppc; /* Index of APB PPC this device is wired up to, or NO_PPC */
     int ppc_port; /* Port number of this device on the PPC */
     int irq; /* NO_IRQ, or 0..NUM_SSE_IRQS-1, or NMI_0 or NMI_1 */
@@ -62,7 +63,6 @@ struct ARMSSEInfo {
     uint32_t iidr;
     uint32_t cpuwait_rst;
     bool has_mhus;
-    bool has_ppus;
     bool has_cachectrl;
     bool has_cpusecctrl;
     bool has_cpuid;
@@ -94,7 +94,7 @@ static Property armsse_properties[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
-static const ARMSSEDeviceInfo sse200_devices[] = {
+static const ARMSSEDeviceInfo iotkit_devices[] = {
     {
         .name = "timer0",
         .type = TYPE_CMSDK_APB_TIMER,
@@ -178,6 +178,153 @@ static const ARMSSEDeviceInfo sse200_devices[] = {
     }
 };
 
+static const ARMSSEDeviceInfo sse200_devices[] = {
+    {
+        .name = "timer0",
+        .type = TYPE_CMSDK_APB_TIMER,
+        .index = 0,
+        .addr = 0x40000000,
+        .ppc = 0,
+        .ppc_port = 0,
+        .irq = 3,
+    },
+    {
+        .name = "timer1",
+        .type = TYPE_CMSDK_APB_TIMER,
+        .index = 1,
+        .addr = 0x40001000,
+        .ppc = 0,
+        .ppc_port = 1,
+        .irq = 4,
+    },
+    {
+        .name = "s32ktimer",
+        .type = TYPE_CMSDK_APB_TIMER,
+        .index = 2,
+        .addr = 0x4002f000,
+        .ppc = 1,
+        .ppc_port = 0,
+        .irq = 2,
+        .slowclk = true,
+    },
+    {
+        .name = "dualtimer",
+        .type = TYPE_CMSDK_APB_DUALTIMER,
+        .index = 0,
+        .addr = 0x40002000,
+        .ppc = 0,
+        .ppc_port = 2,
+        .irq = 5,
+    },
+    {
+        .name = "s32kwatchdog",
+        .type = TYPE_CMSDK_APB_WATCHDOG,
+        .index = 0,
+        .addr = 0x5002e000,
+        .ppc = NO_PPC,
+        .irq = NMI_0,
+        .slowclk = true,
+    },
+    {
+        .name = "nswatchdog",
+        .type = TYPE_CMSDK_APB_WATCHDOG,
+        .index = 1,
+        .addr = 0x40081000,
+        .ppc = NO_PPC,
+        .irq = 1,
+    },
+    {
+        .name = "swatchdog",
+        .type = TYPE_CMSDK_APB_WATCHDOG,
+        .index = 2,
+        .addr = 0x50081000,
+        .ppc = NO_PPC,
+        .irq = NMI_1,
+    },
+    {
+        .name = "armsse-sysinfo",
+        .type = TYPE_IOTKIT_SYSINFO,
+        .index = 0,
+        .addr = 0x40020000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
+        .name = "armsse-sysctl",
+        .type = TYPE_IOTKIT_SYSCTL,
+        .index = 0,
+        .addr = 0x50021000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
+        .name = "CPU0CORE_PPU",
+        .type = TYPE_UNIMPLEMENTED_DEVICE,
+        .index = 0,
+        .addr = 0x50023000,
+        .size = 0x1000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
+        .name = "CPU1CORE_PPU",
+        .type = TYPE_UNIMPLEMENTED_DEVICE,
+        .index = 1,
+        .addr = 0x50025000,
+        .size = 0x1000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
+        .name = "DBG_PPU",
+        .type = TYPE_UNIMPLEMENTED_DEVICE,
+        .index = 2,
+        .addr = 0x50029000,
+        .size = 0x1000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
+        .name = "RAM0_PPU",
+        .type = TYPE_UNIMPLEMENTED_DEVICE,
+        .index = 3,
+        .addr = 0x5002a000,
+        .size = 0x1000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
+        .name = "RAM1_PPU",
+        .type = TYPE_UNIMPLEMENTED_DEVICE,
+        .index = 4,
+        .addr = 0x5002b000,
+        .size = 0x1000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
+        .name = "RAM2_PPU",
+        .type = TYPE_UNIMPLEMENTED_DEVICE,
+        .index = 5,
+        .addr = 0x5002c000,
+        .size = 0x1000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
+        .name = "RAM3_PPU",
+        .type = TYPE_UNIMPLEMENTED_DEVICE,
+        .index = 6,
+        .addr = 0x5002d000,
+        .size = 0x1000,
+        .ppc = NO_PPC,
+        .irq = NO_IRQ,
+    },
+    {
+        .name = NULL,
+    }
+};
+
 static const ARMSSEInfo armsse_variants[] = {
     {
         .name = TYPE_IOTKIT,
@@ -188,12 +335,11 @@ static const ARMSSEInfo armsse_variants[] = {
         .iidr = 0,
         .cpuwait_rst = 0,
         .has_mhus = false,
-        .has_ppus = false,
         .has_cachectrl = false,
         .has_cpusecctrl = false,
         .has_cpuid = false,
         .props = iotkit_properties,
-        .devinfo = sse200_devices,
+        .devinfo = iotkit_devices,
     },
     {
         .name = TYPE_SSE200,
@@ -204,7 +350,6 @@ static const ARMSSEInfo armsse_variants[] = {
         .iidr = 0,
         .cpuwait_rst = 2,
         .has_mhus = true,
-        .has_ppus = true,
         .has_cachectrl = true,
         .has_cpusecctrl = true,
         .has_cpuid = true,
@@ -431,6 +576,11 @@ static void armsse_init(Object *obj)
             assert(devinfo->index == 0);
             object_initialize_child(obj, devinfo->name, &s->sysctl,
                                     TYPE_IOTKIT_SYSCTL);
+        } else if (!strcmp(devinfo->type, TYPE_UNIMPLEMENTED_DEVICE)) {
+            assert(devinfo->index < ARRAY_SIZE(s->unimp));
+            object_initialize_child(obj, devinfo->name,
+                                    &s->unimp[devinfo->index],
+                                    TYPE_UNIMPLEMENTED_DEVICE);
         } else {
             g_assert_not_reached();
         }
@@ -462,26 +612,6 @@ static void armsse_init(Object *obj)
     if (info->has_mhus) {
         object_initialize_child(obj, "mhu0", &s->mhu[0], TYPE_ARMSSE_MHU);
         object_initialize_child(obj, "mhu1", &s->mhu[1], TYPE_ARMSSE_MHU);
-    }
-    if (info->has_ppus) {
-        for (i = 0; i < info->num_cpus; i++) {
-            char *name = g_strdup_printf("CPU%dCORE_PPU", i);
-            int ppuidx = CPU0CORE_PPU + i;
-
-            object_initialize_child(obj, name, &s->ppu[ppuidx],
-                                    TYPE_UNIMPLEMENTED_DEVICE);
-            g_free(name);
-        }
-        object_initialize_child(obj, "DBG_PPU", &s->ppu[DBG_PPU],
-                                TYPE_UNIMPLEMENTED_DEVICE);
-        for (i = 0; i < info->sram_banks; i++) {
-            char *name = g_strdup_printf("RAM%d_PPU", i);
-            int ppuidx = RAM0_PPU + i;
-
-            object_initialize_child(obj, name, &s->ppu[ppuidx],
-                                    TYPE_UNIMPLEMENTED_DEVICE);
-            g_free(name);
-        }
     }
     if (info->has_cachectrl) {
         for (i = 0; i < info->num_cpus; i++) {
@@ -566,17 +696,6 @@ static qemu_irq armsse_get_common_irq_in(ARMSSE *s, int irqno)
         /* Connect to the splitter which feeds all CPUs */
         return qdev_get_gpio_in(DEVICE(&s->cpu_irq_splitter[irqno]), 0);
     }
-}
-
-static void map_ppu(ARMSSE *s, int ppuidx, const char *name, hwaddr addr)
-{
-    /* Map a PPU unimplemented device stub */
-    DeviceState *dev = DEVICE(&s->ppu[ppuidx]);
-
-    qdev_prop_set_string(dev, "name", name);
-    qdev_prop_set_uint64(dev, "size", 0x1000);
-    sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ppu[ppuidx]), 0, addr);
 }
 
 static void armsse_realize(DeviceState *dev, Error **errp)
@@ -941,6 +1060,15 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                 return;
             }
             mr = sysbus_mmio_get_region(sbd, 0);
+        } else if (!strcmp(devinfo->type, TYPE_UNIMPLEMENTED_DEVICE)) {
+            sbd = SYS_BUS_DEVICE(&s->unimp[devinfo->index]);
+
+            qdev_prop_set_string(DEVICE(sbd), "name", devinfo->name);
+            qdev_prop_set_uint64(DEVICE(sbd), "size", devinfo->size);
+            if (!sysbus_realize(sbd, errp)) {
+                return;
+            }
+            mr = sysbus_mmio_get_region(sbd, 0);
         } else {
             g_assert_not_reached();
         }
@@ -1156,28 +1284,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         ppc_sbd = SYS_BUS_DEVICE(&s->apb_ppc[devinfo->ppc]);
         mr = sysbus_mmio_get_region(ppc_sbd, devinfo->ppc_port);
         memory_region_add_subregion(&s->container, devinfo->addr, mr);
-    }
-
-    if (info->has_ppus) {
-        /* CPUnCORE_PPU for each CPU */
-        for (i = 0; i < info->num_cpus; i++) {
-            char *name = g_strdup_printf("CPU%dCORE_PPU", i);
-
-            map_ppu(s, CPU0CORE_PPU + i, name, 0x50023000 + i * 0x2000);
-            /*
-             * We don't support CPU debug so don't create the
-             * CPU0DEBUG_PPU at 0x50024000 and 0x50026000.
-             */
-            g_free(name);
-        }
-        map_ppu(s, DBG_PPU, "DBG_PPU", 0x50029000);
-
-        for (i = 0; i < info->sram_banks; i++) {
-            char *name = g_strdup_printf("RAM%d_PPU", i);
-
-            map_ppu(s, RAM0_PPU + i, name, 0x5002a000 + i * 0x1000);
-            g_free(name);
-        }
     }
 
     for (i = 0; i < ARRAY_SIZE(s->ppc_irq_splitter); i++) {
