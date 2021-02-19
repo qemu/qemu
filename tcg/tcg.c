@@ -2192,6 +2192,85 @@ static void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                                   arg_label(op->args[k])->id);
                 i++, k++;
                 break;
+            case INDEX_op_mb:
+                {
+                    TCGBar membar = op->args[k];
+                    const char *b_op, *m_op;
+
+                    switch (membar & TCG_BAR_SC) {
+                    case 0:
+                        b_op = "none";
+                        break;
+                    case TCG_BAR_LDAQ:
+                        b_op = "acq";
+                        break;
+                    case TCG_BAR_STRL:
+                        b_op = "rel";
+                        break;
+                    case TCG_BAR_SC:
+                        b_op = "seq";
+                        break;
+                    default:
+                        g_assert_not_reached();
+                    }
+
+                    switch (membar & TCG_MO_ALL) {
+                    case 0:
+                        m_op = "none";
+                        break;
+                    case TCG_MO_LD_LD:
+                        m_op = "rr";
+                        break;
+                    case TCG_MO_LD_ST:
+                        m_op = "rw";
+                        break;
+                    case TCG_MO_ST_LD:
+                        m_op = "wr";
+                        break;
+                    case TCG_MO_ST_ST:
+                        m_op = "ww";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_LD_ST:
+                        m_op = "rr+rw";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_ST_LD:
+                        m_op = "rr+wr";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_ST_ST:
+                        m_op = "rr+ww";
+                        break;
+                    case TCG_MO_LD_ST | TCG_MO_ST_LD:
+                        m_op = "rw+wr";
+                        break;
+                    case TCG_MO_LD_ST | TCG_MO_ST_ST:
+                        m_op = "rw+ww";
+                        break;
+                    case TCG_MO_ST_LD | TCG_MO_ST_ST:
+                        m_op = "wr+ww";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_MO_ST_LD:
+                        m_op = "rr+rw+wr";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_MO_ST_ST:
+                        m_op = "rr+rw+ww";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_ST_LD | TCG_MO_ST_ST:
+                        m_op = "rr+wr+ww";
+                        break;
+                    case TCG_MO_LD_ST | TCG_MO_ST_LD | TCG_MO_ST_ST:
+                        m_op = "rw+wr+ww";
+                        break;
+                    case TCG_MO_ALL:
+                        m_op = "all";
+                        break;
+                    default:
+                        g_assert_not_reached();
+                    }
+
+                    col += ne_fprintf(f, "%s%s:%s", (k ? "," : ""), b_op, m_op);
+                    i++, k++;
+                }
+                break;
             default:
                 break;
             }
