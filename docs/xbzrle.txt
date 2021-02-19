@@ -90,11 +90,6 @@ Usage
 
 3. Set the XBZRLE cache size - the cache size is in MBytes and should be a
 power of 2. The cache default value is 64MBytes. (on source only)
-    {qemu} migrate_set_cache_size 256m
-
-Commit 73af8dd8d7 "migration: Make xbzrle_cache_size a migration parameter"
-(v2.11.0) deprecated migrate-set-cache-size, therefore, the new parameter
-is recommended.
     {qemu} migrate_set_parameter xbzrle-cache-size 256m
 
 4. Start outgoing migration

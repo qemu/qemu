@@ -183,11 +183,6 @@ Use argument ``id`` instead.
 
 Use argument ``id`` instead.
 
-``migrate_set_downtime`` and ``migrate_set_speed`` (since 2.8.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Use ``migrate-set-parameters`` instead.
-
 ``query-named-block-nodes`` result ``encryption_key_missing`` (since 2.10.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -202,11 +197,6 @@ Always false.
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use argument value ``null`` instead.
-
-``migrate-set-cache-size`` and ``query-migrate-cache-size`` (since 2.11.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Use ``migrate-set-parameters`` and ``query-migrate-parameters`` instead.
 
 ``block-commit`` arguments ``base`` and ``top`` (since 3.1.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''

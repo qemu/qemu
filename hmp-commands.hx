@@ -980,51 +980,6 @@ SRST
 ERST
 
     {
-        .name       = "migrate_set_cache_size",
-        .args_type  = "value:o",
-        .params     = "value",
-        .help       = "set cache size (in bytes) for XBZRLE migrations,"
-                      "the cache size will be rounded down to the nearest "
-                      "power of 2.\n"
-                      "The cache size affects the number of cache misses."
-                      "In case of a high cache miss ratio you need to increase"
-                      " the cache size",
-        .cmd        = hmp_migrate_set_cache_size,
-    },
-
-SRST
-``migrate_set_cache_size`` *value*
-  Set cache size to *value* (in bytes) for xbzrle migrations.
-ERST
-
-    {
-        .name       = "migrate_set_speed",
-        .args_type  = "value:o",
-        .params     = "value",
-        .help       = "set maximum speed (in bytes) for migrations. "
-	"Defaults to MB if no size suffix is specified, ie. B/K/M/G/T",
-        .cmd        = hmp_migrate_set_speed,
-    },
-
-SRST
-``migrate_set_speed`` *value*
-  Set maximum speed to *value* (in bytes) for migrations.
-ERST
-
-    {
-        .name       = "migrate_set_downtime",
-        .args_type  = "value:T",
-        .params     = "value",
-        .help       = "set maximum tolerated downtime (in seconds) for migrations",
-        .cmd        = hmp_migrate_set_downtime,
-    },
-
-SRST
-``migrate_set_downtime`` *second*
-  Set maximum tolerated downtime (in seconds) for migration.
-ERST
-
-    {
         .name       = "migrate_set_capability",
         .args_type  = "capability:s,state:b",
         .params     = "capability state",

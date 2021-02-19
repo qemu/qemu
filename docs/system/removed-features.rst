@@ -83,6 +83,16 @@ Use ``blockdev-change-medium`` or ``change-vnc-password`` instead.
 The ``query-events`` command has been superseded by the more powerful
 and accurate ``query-qmp-schema`` command.
 
+``migrate_set_cache_size`` and ``query-migrate-cache-size`` (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``migrate_set_parameter`` and ``info migrate_parameters`` instead.
+
+``migrate_set_downtime`` and ``migrate_set_speed`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``migrate_set_parameter`` instead.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
@@ -110,6 +120,16 @@ commands are not affected.
 The ``acl_show``, ``acl_reset``, ``acl_policy``, ``acl_add``, and
 ``acl_remove`` commands were removed with no replacement. Authorization
 for VNC should be performed using the pluggable QAuthZ objects.
+
+``migrate-set-cache-size`` and ``info migrate-cache-size`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``migrate-set-parameters`` and ``info migrate-parameters`` instead.
+
+``migrate_set_downtime`` and ``migrate_set_speed`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``migrate-set-parameters`` instead.
 
 Guest Emulator ISAs
 -------------------

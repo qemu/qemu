@@ -658,53 +658,6 @@ static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
     cleanup("dest_serial");
 }
 
-static void deprecated_set_downtime(QTestState *who, const double value)
-{
-    QDict *rsp;
-
-    rsp = qtest_qmp(who,
-                    "{ 'execute': 'migrate_set_downtime',"
-                    " 'arguments': { 'value': %f } }", value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
-    migrate_check_parameter_int(who, "downtime-limit", value * 1000);
-}
-
-static void deprecated_set_speed(QTestState *who, long long value)
-{
-    QDict *rsp;
-
-    rsp = qtest_qmp(who, "{ 'execute': 'migrate_set_speed',"
-                          "'arguments': { 'value': %lld } }", value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
-    migrate_check_parameter_int(who, "max-bandwidth", value);
-}
-
-static void deprecated_set_cache_size(QTestState *who, long long value)
-{
-    QDict *rsp;
-
-    rsp = qtest_qmp(who, "{ 'execute': 'migrate-set-cache-size',"
-                         "'arguments': { 'value': %lld } }", value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
-    migrate_check_parameter_int(who, "xbzrle-cache-size", value);
-}
-
-static void test_deprecated(void)
-{
-    QTestState *from;
-
-    from = qtest_init("-machine none");
-
-    deprecated_set_downtime(from, 0.12345);
-    deprecated_set_speed(from, 12345);
-    deprecated_set_cache_size(from, 4096);
-
-    qtest_quit(from);
-}
-
 static int migrate_postcopy_prepare(QTestState **from_ptr,
                                     QTestState **to_ptr,
                                     MigrateStart *args)
@@ -1486,7 +1439,6 @@ int main(int argc, char **argv)
 
     qtest_add_func("/migration/postcopy/unix", test_postcopy);
     qtest_add_func("/migration/postcopy/recovery", test_postcopy_recovery);
-    qtest_add_func("/migration/deprecated", test_deprecated);
     qtest_add_func("/migration/bad_dest", test_baddest);
     qtest_add_func("/migration/precopy/unix", test_precopy_unix);
     qtest_add_func("/migration/precopy/tcp", test_precopy_tcp);

@@ -568,19 +568,6 @@ SRST
 ERST
 
     {
-        .name       = "migrate_cache_size",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show current migration xbzrle cache size",
-        .cmd        = hmp_info_migrate_cache_size,
-    },
-
-SRST
-  ``info migrate_cache_size``
-    Show current migration xbzrle cache size.
-ERST
-
-    {
         .name       = "balloon",
         .args_type  = "",
         .params     = "",
