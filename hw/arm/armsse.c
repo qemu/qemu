@@ -68,6 +68,7 @@ struct ARMSSEInfo {
     bool has_cpuid;
     Property *props;
     const ARMSSEDeviceInfo *devinfo;
+    const bool *irq_is_common;
 };
 
 static Property iotkit_properties[] = {
@@ -334,6 +335,21 @@ static const ARMSSEDeviceInfo sse200_devices[] = {
     }
 };
 
+/* Is internal IRQ n shared between CPUs in a multi-core SSE ? */
+static const bool sse200_irq_is_common[32] = {
+    [0 ... 5] = true,
+    /* 6, 7: per-CPU MHU interrupts */
+    [8 ... 12] = true,
+    /* 13: per-CPU icache interrupt */
+    /* 14: reserved */
+    [15 ... 20] = true,
+    /* 21: reserved */
+    [22 ... 26] = true,
+    /* 27: reserved */
+    /* 28, 29: per-CPU CTI interrupts */
+    /* 30, 31: reserved */
+};
+
 static const ARMSSEInfo armsse_variants[] = {
     {
         .name = TYPE_IOTKIT,
@@ -349,6 +365,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpuid = false,
         .props = iotkit_properties,
         .devinfo = iotkit_devices,
+        .irq_is_common = sse200_irq_is_common,
     },
     {
         .name = TYPE_SSE200,
@@ -364,6 +381,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpuid = true,
         .props = armsse_properties,
         .devinfo = sse200_devices,
+        .irq_is_common = sse200_irq_is_common,
     },
 };
 
@@ -403,21 +421,6 @@ static uint32_t armsse_sys_config_value(ARMSSE *s, const ARMSSEInfo *info)
 
 /* Clock frequency in HZ of the 32KHz "slow clock" */
 #define S32KCLK (32 * 1000)
-
-/* Is internal IRQ n shared between CPUs in a multi-core SSE ? */
-static bool irq_is_common[32] = {
-    [0 ... 5] = true,
-    /* 6, 7: per-CPU MHU interrupts */
-    [8 ... 12] = true,
-    /* 13: per-CPU icache interrupt */
-    /* 14: reserved */
-    [15 ... 20] = true,
-    /* 21: reserved */
-    [22 ... 26] = true,
-    /* 27: reserved */
-    /* 28, 29: per-CPU CTI interrupts */
-    /* 30, 31: reserved */
-};
 
 /*
  * Create an alias region in @container of @size bytes starting at @base
@@ -663,7 +666,7 @@ static void armsse_init(Object *obj)
     }
     if (info->num_cpus > 1) {
         for (i = 0; i < ARRAY_SIZE(s->cpu_irq_splitter); i++) {
-            if (irq_is_common[i]) {
+            if (info->irq_is_common[i]) {
                 char *name = g_strdup_printf("cpu-irq-splitter%d", i);
                 SplitIRQ *splitter = &s->cpu_irq_splitter[i];
 
@@ -696,7 +699,7 @@ static qemu_irq armsse_get_common_irq_in(ARMSSE *s, int irqno)
     ARMSSEClass *asc = ARM_SSE_GET_CLASS(s);
     const ARMSSEInfo *info = asc->info;
 
-    assert(irq_is_common[irqno]);
+    assert(info->irq_is_common[irqno]);
 
     if (info->num_cpus == 1) {
         /* Only one CPU -- just connect directly to it */
@@ -878,7 +881,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     /* Wire up the splitters that connect common IRQs to all CPUs */
     if (info->num_cpus > 1) {
         for (i = 0; i < ARRAY_SIZE(s->cpu_irq_splitter); i++) {
-            if (irq_is_common[i]) {
+            if (info->irq_is_common[i]) {
                 Object *splitter = OBJECT(&s->cpu_irq_splitter[i]);
                 DeviceState *devs = DEVICE(splitter);
                 int cpunum;
