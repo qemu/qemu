@@ -285,41 +285,21 @@ static void mps2_fpgaio_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static bool mps2_fpgaio_counters_needed(void *opaque)
-{
-    /* Currently vmstate.c insists all subsections have a 'needed' function */
-    return true;
-}
-
-static const VMStateDescription mps2_fpgaio_counters_vmstate = {
-    .name = "mps2-fpgaio/counters",
+static const VMStateDescription mps2_fpgaio_vmstate = {
+    .name = "mps2-fpgaio",
     .version_id = 2,
     .minimum_version_id = 2,
-    .needed = mps2_fpgaio_counters_needed,
     .fields = (VMStateField[]) {
+        VMSTATE_UINT32(led0, MPS2FPGAIO),
+        VMSTATE_UINT32(prescale, MPS2FPGAIO),
+        VMSTATE_UINT32(misc, MPS2FPGAIO),
         VMSTATE_INT64(clk1hz_tick_offset, MPS2FPGAIO),
         VMSTATE_INT64(clk100hz_tick_offset, MPS2FPGAIO),
         VMSTATE_UINT32(counter, MPS2FPGAIO),
         VMSTATE_UINT32(pscntr, MPS2FPGAIO),
         VMSTATE_INT64(pscntr_sync_ticks, MPS2FPGAIO),
         VMSTATE_END_OF_LIST()
-    }
-};
-
-static const VMStateDescription mps2_fpgaio_vmstate = {
-    .name = "mps2-fpgaio",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(led0, MPS2FPGAIO),
-        VMSTATE_UINT32(prescale, MPS2FPGAIO),
-        VMSTATE_UINT32(misc, MPS2FPGAIO),
-        VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
-        &mps2_fpgaio_counters_vmstate,
-        NULL
-    }
 };
 
 static Property mps2_fpgaio_properties[] = {
