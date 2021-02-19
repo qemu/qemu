@@ -22,7 +22,17 @@
 #define TYPE_CLOCK "clock"
 OBJECT_DECLARE_SIMPLE_TYPE(Clock, CLOCK)
 
-typedef void ClockCallback(void *opaque);
+/*
+ * Argument to ClockCallback functions indicating why the callback
+ * has been called. A mask of these values logically ORed together
+ * is used to specify which events are interesting when the callback
+ * is registered, so these values must all be different bit values.
+ */
+typedef enum ClockEvent {
+    ClockUpdate = 1, /* Clock period has just updated */
+} ClockEvent;
+
+typedef void ClockCallback(void *opaque, ClockEvent event);
 
 /*
  * clock store a value representing the clock's period in 2^-32ns unit.
@@ -50,6 +60,7 @@ typedef void ClockCallback(void *opaque);
  * @canonical_path: clock path string cache (used for trace purpose)
  * @callback: called when clock changes
  * @callback_opaque: argument for @callback
+ * @callback_events: mask of events when callback should be called
  * @source: source (or parent in clock tree) of the clock
  * @children: list of clocks connected to this one (it is their source)
  * @sibling: structure used to form a clock list
@@ -67,6 +78,7 @@ struct Clock {
     char *canonical_path;
     ClockCallback *callback;
     void *callback_opaque;
+    unsigned int callback_events;
 
     /* Clocks are organized in a clock tree */
     Clock *source;
@@ -114,10 +126,15 @@ Clock *clock_new(Object *parent, const char *name);
  * @clk: the clock to register the callback into
  * @cb: the callback function
  * @opaque: the argument to the callback
+ * @events: the events the callback should be called for
+ *          (logical OR of ClockEvent enum values)
  *
  * Register a callback called on every clock update.
+ * Note that a clock has only one callback: you cannot register
+ * different callback functions for different events.
  */
-void clock_set_callback(Clock *clk, ClockCallback *cb, void *opaque);
+void clock_set_callback(Clock *clk, ClockCallback *cb,
+                        void *opaque, unsigned int events);
 
 /**
  * clock_clear_callback:

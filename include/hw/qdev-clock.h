@@ -22,6 +22,8 @@
  * @name: the name of the clock (can't be NULL).
  * @callback: optional callback to be called on update or NULL.
  * @opaque: argument for the callback
+ * @events: the events the callback should be called for
+ *          (logical OR of ClockEvent enum values)
  * @returns: a pointer to the newly added clock
  *
  * Add an input clock to device @dev as a clock named @name.
@@ -29,7 +31,8 @@
  * The callback will be called with @opaque as opaque parameter.
  */
 Clock *qdev_init_clock_in(DeviceState *dev, const char *name,
-                          ClockCallback *callback, void *opaque);
+                          ClockCallback *callback, void *opaque,
+                          unsigned int events);
 
 /**
  * qdev_init_clock_out:
@@ -105,6 +108,7 @@ void qdev_finalize_clocklist(DeviceState *dev);
  * @output: indicates whether the clock is input or output
  * @callback: for inputs, optional callback to be called on clock's update
  * with device as opaque
+ * @callback_events: mask of ClockEvent values for when callback is called
  * @offset: optional offset to store the ClockIn or ClockOut pointer in device
  * state structure (0 means unused)
  */
@@ -112,6 +116,7 @@ struct ClockPortInitElem {
     const char *name;
     bool is_output;
     ClockCallback *callback;
+    unsigned int callback_events;
     size_t offset;
 };
 
@@ -119,10 +124,11 @@ struct ClockPortInitElem {
     (offsetof(devstate, field) + \
      type_check(Clock *, typeof_field(devstate, field)))
 
-#define QDEV_CLOCK(out_not_in, devstate, field, cb) { \
+#define QDEV_CLOCK(out_not_in, devstate, field, cb, cbevents) {  \
     .name = (stringify(field)), \
     .is_output = out_not_in, \
     .callback = cb, \
+    .callback_events = cbevents, \
     .offset = clock_offset_value(devstate, field), \
 }
 
@@ -133,14 +139,15 @@ struct ClockPortInitElem {
  * @field: a field in @_devstate (must be Clock*)
  * @callback: (for input only) callback (or NULL) to be called with the device
  * state as argument
+ * @cbevents: (for input only) ClockEvent mask for when callback is called
  *
  * The name of the clock will be derived from @field
  */
-#define QDEV_CLOCK_IN(devstate, field, callback) \
-    QDEV_CLOCK(false, devstate, field, callback)
+#define QDEV_CLOCK_IN(devstate, field, callback, cbevents)       \
+    QDEV_CLOCK(false, devstate, field, callback, cbevents)
 
 #define QDEV_CLOCK_OUT(devstate, field) \
-    QDEV_CLOCK(true, devstate, field, NULL)
+    QDEV_CLOCK(true, devstate, field, NULL, 0)
 
 #define QDEV_CLOCK_END { .name = NULL }
 

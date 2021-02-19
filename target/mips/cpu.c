@@ -653,7 +653,7 @@ static void mips_cpu_initfn(Object *obj)
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(obj);
 
     cpu_set_cpustate_pointers(cpu);
-    cpu->clock = qdev_init_clock_in(DEVICE(obj), "clk-in", NULL, cpu);
+    cpu->clock = qdev_init_clock_in(DEVICE(obj), "clk-in", NULL, cpu, 0);
     env->cpu_model = mcc->cpu_def;
 }
 

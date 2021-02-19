@@ -107,7 +107,7 @@ static void pll_update(CprmanPllState *pll)
     clock_update_hz(pll->out, freq);
 }
 
-static void pll_xosc_update(void *opaque)
+static void pll_xosc_update(void *opaque, ClockEvent event)
 {
     pll_update(CPRMAN_PLL(opaque));
 }
@@ -116,7 +116,8 @@ static void pll_init(Object *obj)
 {
     CprmanPllState *s = CPRMAN_PLL(obj);
 
-    s->xosc_in = qdev_init_clock_in(DEVICE(s), "xosc-in", pll_xosc_update, s);
+    s->xosc_in = qdev_init_clock_in(DEVICE(s), "xosc-in", pll_xosc_update,
+                                    s, ClockUpdate);
     s->out = qdev_init_clock_out(DEVICE(s), "out");
 }
 
@@ -209,7 +210,7 @@ static void pll_update_all_channels(BCM2835CprmanState *s,
     }
 }
 
-static void pll_channel_pll_in_update(void *opaque)
+static void pll_channel_pll_in_update(void *opaque, ClockEvent event)
 {
     pll_channel_update(CPRMAN_PLL_CHANNEL(opaque));
 }
@@ -219,7 +220,8 @@ static void pll_channel_init(Object *obj)
     CprmanPllChannelState *s = CPRMAN_PLL_CHANNEL(obj);
 
     s->pll_in = qdev_init_clock_in(DEVICE(s), "pll-in",
-                                   pll_channel_pll_in_update, s);
+                                   pll_channel_pll_in_update, s,
+                                   ClockUpdate);
     s->out = qdev_init_clock_out(DEVICE(s), "out");
 }
 
@@ -303,7 +305,7 @@ static void clock_mux_update(CprmanClockMuxState *mux)
     clock_update_hz(mux->out, freq);
 }
 
-static void clock_mux_src_update(void *opaque)
+static void clock_mux_src_update(void *opaque, ClockEvent event)
 {
     CprmanClockMuxState **backref = opaque;
     CprmanClockMuxState *s = *backref;
@@ -335,7 +337,8 @@ static void clock_mux_init(Object *obj)
         s->backref[i] = s;
         s->srcs[i] = qdev_init_clock_in(DEVICE(s), name,
                                         clock_mux_src_update,
-                                        &s->backref[i]);
+                                        &s->backref[i],
+                                        ClockUpdate);
         g_free(name);
     }
 
@@ -380,7 +383,7 @@ static void dsi0hsck_mux_update(CprmanDsi0HsckMuxState *s)
     clock_update(s->out, clock_get(src));
 }
 
-static void dsi0hsck_mux_in_update(void *opaque)
+static void dsi0hsck_mux_in_update(void *opaque, ClockEvent event)
 {
     dsi0hsck_mux_update(CPRMAN_DSI0HSCK_MUX(opaque));
 }
@@ -390,8 +393,10 @@ static void dsi0hsck_mux_init(Object *obj)
     CprmanDsi0HsckMuxState *s = CPRMAN_DSI0HSCK_MUX(obj);
     DeviceState *dev = DEVICE(obj);
 
-    s->plla_in = qdev_init_clock_in(dev, "plla-in", dsi0hsck_mux_in_update, s);
-    s->plld_in = qdev_init_clock_in(dev, "plld-in", dsi0hsck_mux_in_update, s);
+    s->plla_in = qdev_init_clock_in(dev, "plla-in", dsi0hsck_mux_in_update,
+                                    s, ClockUpdate);
+    s->plld_in = qdev_init_clock_in(dev, "plld-in", dsi0hsck_mux_in_update,
+                                    s, ClockUpdate);
     s->out = qdev_init_clock_out(DEVICE(s), "out");
 }
 

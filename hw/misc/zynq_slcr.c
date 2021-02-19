@@ -307,9 +307,10 @@ static void zynq_slcr_propagate_clocks(ZynqSLCRState *s)
     clock_propagate(s->uart1_ref_clk);
 }
 
-static void zynq_slcr_ps_clk_callback(void *opaque)
+static void zynq_slcr_ps_clk_callback(void *opaque, ClockEvent event)
 {
     ZynqSLCRState *s = (ZynqSLCRState *) opaque;
+
     zynq_slcr_compute_clocks(s);
     zynq_slcr_propagate_clocks(s);
 }
@@ -576,7 +577,7 @@ static const MemoryRegionOps slcr_ops = {
 };
 
 static const ClockPortInitArray zynq_slcr_clocks = {
-    QDEV_CLOCK_IN(ZynqSLCRState, ps_clk, zynq_slcr_ps_clk_callback),
+    QDEV_CLOCK_IN(ZynqSLCRState, ps_clk, zynq_slcr_ps_clk_callback, ClockUpdate),
     QDEV_CLOCK_OUT(ZynqSLCRState, uart0_ref_clk),
     QDEV_CLOCK_OUT(ZynqSLCRState, uart1_ref_clk),
     QDEV_CLOCK_END

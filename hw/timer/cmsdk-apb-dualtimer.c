@@ -449,7 +449,7 @@ static void cmsdk_apb_dualtimer_reset(DeviceState *dev)
     s->timeritop = 0;
 }
 
-static void cmsdk_apb_dualtimer_clk_update(void *opaque)
+static void cmsdk_apb_dualtimer_clk_update(void *opaque, ClockEvent event)
 {
     CMSDKAPBDualTimer *s = CMSDK_APB_DUALTIMER(opaque);
     int i;
@@ -478,7 +478,8 @@ static void cmsdk_apb_dualtimer_init(Object *obj)
         sysbus_init_irq(sbd, &s->timermod[i].timerint);
     }
     s->timclk = qdev_init_clock_in(DEVICE(s), "TIMCLK",
-                                   cmsdk_apb_dualtimer_clk_update, s);
+                                   cmsdk_apb_dualtimer_clk_update, s,
+                                   ClockUpdate);
 }
 
 static void cmsdk_apb_dualtimer_realize(DeviceState *dev, Error **errp)
