@@ -51,6 +51,12 @@ host controller or ``-usb`` if necessary).
 The ``acl`` option to the ``-vnc`` argument has been replaced
 by the ``tls-authz`` and ``sasl-authz`` options.
 
+``-mon ...,control=readline,pretty=on|off`` (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``pretty=on|off`` switch has no effect for HMP monitors and
+its use is rejected.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 

@@ -53,13 +53,6 @@ needs two devices (``-device intel-hda -device hda-duplex``) and
 ``pcspk`` which can be activated using ``-machine
 pcspk-audiodev=<name>``.
 
-``-mon ...,control=readline,pretty=on|off`` (since 4.1)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``pretty=on|off`` switch has no effect for HMP monitors, but is
-silently ignored. Using the switch with HMP monitors will become an
-error in the future.
-
 RISC-V ``-bios`` (since 5.1)
 ''''''''''''''''''''''''''''
 
