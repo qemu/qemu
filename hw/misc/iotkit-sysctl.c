@@ -172,7 +172,17 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         }
         break;
     case A_CPUWAIT:
-        r = s->cpuwait;
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
+        case ARMSSE_SSE200:
+            r = s->cpuwait;
+            break;
+        case ARMSSE_SSE300:
+            /* In SSE300 this is reserved (for INITSVTOR2) */
+            goto bad_offset;
+        default:
+            g_assert_not_reached();
+        }
         break;
     case A_NMI_ENABLE:
         switch (s->sse_version) {
@@ -183,12 +193,26 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         case ARMSSE_SSE200:
             r = s->nmi_enable;
             break;
+        case ARMSSE_SSE300:
+            /* In SSE300 this is reserved (for INITSVTOR3) */
+            goto bad_offset;
         default:
             g_assert_not_reached();
         }
         break;
     case A_WICCTRL:
-        r = s->wicctrl;
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
+        case ARMSSE_SSE200:
+            r = s->wicctrl;
+            break;
+        case ARMSSE_SSE300:
+            /* In SSE300 this offset is CPUWAIT */
+            r = s->cpuwait;
+            break;
+        default:
+            g_assert_not_reached();
+        }
         break;
     case A_EWCTRL:
         switch (s->sse_version) {
@@ -196,6 +220,10 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
             goto bad_offset;
         case ARMSSE_SSE200:
             r = s->ewctrl;
+            break;
+        case ARMSSE_SSE300:
+            /* In SSE300 this offset is is NMI_ENABLE */
+            r = s->nmi_enable;
             break;
         default:
             g_assert_not_reached();
@@ -279,6 +307,21 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
     return r;
 }
 
+static void cpuwait_write(IoTKitSysCtl *s, uint32_t value)
+{
+    int num_cpus = (s->sse_version == ARMSSE_SSE300) ? 1 : 2;
+    int i;
+
+    for (i = 0; i < num_cpus; i++) {
+        uint32_t mask = 1 << i;
+        if ((s->cpuwait & mask) && !(value & mask)) {
+            /* Powering up CPU 0 */
+            arm_set_cpu_on_and_reset(i);
+        }
+    }
+    s->cpuwait = value;
+}
+
 static void iotkit_sysctl_write(void *opaque, hwaddr offset,
                                  uint64_t value, unsigned size)
 {
@@ -319,19 +362,32 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
         set_init_vtor(0, s->initsvtor0);
         break;
     case A_CPUWAIT:
-        if ((s->cpuwait & 1) && !(value & 1)) {
-            /* Powering up CPU 0 */
-            arm_set_cpu_on_and_reset(0);
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
+        case ARMSSE_SSE200:
+            cpuwait_write(s, value);
+            break;
+        case ARMSSE_SSE300:
+            /* In SSE300 this is reserved (for INITSVTOR2) */
+            goto bad_offset;
+        default:
+            g_assert_not_reached();
         }
-        if ((s->cpuwait & 2) && !(value & 2)) {
-            /* Powering up CPU 1 */
-            arm_set_cpu_on_and_reset(1);
-        }
-        s->cpuwait = value;
         break;
     case A_WICCTRL:
-        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl WICCTRL unimplemented\n");
-        s->wicctrl = value;
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
+        case ARMSSE_SSE200:
+            qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl WICCTRL unimplemented\n");
+            s->wicctrl = value;
+            break;
+        case ARMSSE_SSE300:
+            /* In SSE300 this offset is CPUWAIT */
+            cpuwait_write(s, value);
+            break;
+        default:
+            g_assert_not_reached();
+        }
         break;
     case A_SECDBGSET:
         /* write-1-to-set */
@@ -420,6 +476,11 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
             qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl EWCTRL unimplemented\n");
             s->ewctrl = value;
             break;
+        case ARMSSE_SSE300:
+            /* In SSE300 this offset is is NMI_ENABLE */
+            qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl NMI_ENABLE unimplemented\n");
+            s->nmi_enable = value;
+            break;
         default:
             g_assert_not_reached();
         }
@@ -499,6 +560,9 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
             qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl NMI_ENABLE unimplemented\n");
             s->nmi_enable = value;
             break;
+        case ARMSSE_SSE300:
+            /* In SSE300 this is reserved (for INITSVTOR3) */
+            goto bad_offset;
         default:
             g_assert_not_reached();
         }
