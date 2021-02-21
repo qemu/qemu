@@ -2384,8 +2384,8 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     if (!s->sas_addr) {
         s->sas_addr = ((NAA_LOCALLY_ASSIGNED_ID << 24) |
                        IEEE_COMPANY_LOCALLY_ASSIGNED) << 36;
-        s->sas_addr |= (pci_dev_bus_num(dev) << 16);
-        s->sas_addr |= (PCI_SLOT(dev->devfn) << 8);
+        s->sas_addr |= pci_dev_bus_num(dev) << 16;
+        s->sas_addr |= PCI_SLOT(dev->devfn) << 8;
         s->sas_addr |= PCI_FUNC(dev->devfn);
     }
     if (!s->hba_serial) {

@@ -87,7 +87,7 @@ S390 general architecture support
 M: Cornelia Huck <cohuck@redhat.com>
 M: Thomas Huth <thuth@redhat.com>
 S: Supported
-F: default-configs/s390x-softmmu.mak
+F: default-configs/*/s390x-softmmu.mak
 F: gdb-xml/s390*.xml
 F: hw/char/sclp*.[hc]
 F: hw/char/terminal3270.c
@@ -239,7 +239,7 @@ R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
 S: Odd Fixes
 F: target/mips/
-F: default-configs/*mips*
+F: default-configs/*/*mips*
 F: disas/mips.c
 F: docs/system/cpu-models-mips.rst.inc
 F: hw/intc/mips_gic.c
@@ -263,7 +263,7 @@ S: Maintained
 F: target/moxie/
 F: disas/moxie.c
 F: hw/moxie/
-F: default-configs/moxie-softmmu.mak
+F: default-configs/*/moxie-softmmu.mak
 
 NiosII TCG CPUs
 M: Chris Wulff <crwulff@gmail.com>
@@ -272,7 +272,7 @@ S: Maintained
 F: target/nios2/
 F: hw/nios2/
 F: disas/nios2.c
-F: default-configs/nios2-softmmu.mak
+F: default-configs/*/nios2-softmmu.mak
 
 OpenRISC TCG CPUs
 M: Stafford Horne <shorne@gmail.com>
@@ -367,7 +367,7 @@ F: hw/xtensa/
 F: tests/tcg/xtensa/
 F: disas/xtensa.c
 F: include/hw/xtensa/xtensa-isa.h
-F: default-configs/xtensa*.mak
+F: default-configs/*/xtensa*.mak
 
 TriCore TCG CPUs
 M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>
@@ -1038,7 +1038,7 @@ AVR MCUs
 M: Michael Rolnik <mrolnik@gmail.com>
 R: Sarah Harris <S.E.Harris@kent.ac.uk>
 S: Maintained
-F: default-configs/avr-softmmu.mak
+F: default-configs/*/avr-softmmu.mak
 F: hw/avr/
 F: include/hw/char/avr_usart.h
 F: hw/char/avr_usart.c
@@ -1067,7 +1067,7 @@ HP B160L
 M: Richard Henderson <richard.henderson@linaro.org>
 R: Helge Deller <deller@gmx.de>
 S: Odd Fixes
-F: default-configs/hppa-softmmu.mak
+F: default-configs/*/hppa-softmmu.mak
 F: hw/hppa/
 F: pc-bios/hppa-firmware.img
 
@@ -1458,7 +1458,7 @@ F: hw/s390x/
 F: include/hw/s390x/
 F: hw/watchdog/wdt_diag288.c
 F: include/hw/watchdog/wdt_diag288.h
-F: default-configs/s390x-softmmu.mak
+F: default-configs/*/s390x-softmmu.mak
 F: tests/acceptance/machine_s390_ccw_virtio.py
 T: git https://gitlab.com/cohuck/qemu.git s390-next
 T: git https://github.com/borntraeger/qemu.git s390-next
@@ -1849,6 +1849,7 @@ F: fsdev/
 F: docs/interop/virtfs-proxy-helper.rst
 F: tests/qtest/virtio-9p-test.c
 T: git https://gitlab.com/gkurz/qemu.git 9p-next
+T: git https://github.com/cschoenebeck/qemu.git 9p.next
 
 virtio-blk
 M: Stefan Hajnoczi <stefanha@redhat.com>
@@ -2887,13 +2888,13 @@ F: accel/tcg/user-exec*.c
 BSD user
 S: Orphan
 F: bsd-user/
-F: default-configs/*-bsd-user.mak
+F: default-configs/targets/*-bsd-user.mak
 
 Linux user
 M: Laurent Vivier <laurent@vivier.eu>
 S: Maintained
 F: linux-user/
-F: default-configs/*-linux-user.mak
+F: default-configs/targets/*linux-user.mak
 F: scripts/qemu-binfmt-conf.sh
 F: scripts/update-syscalltbl.sh
 F: scripts/update-mips-syscall-args.sh
