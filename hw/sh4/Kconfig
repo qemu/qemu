@@ -11,6 +11,7 @@ config R2D
     select SM501
     select SH4
     select SH7750
+    select SH_PCI
 
 config SHIX
     bool
