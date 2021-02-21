@@ -1786,7 +1786,16 @@ static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
         }
     }
 
-    qemu_chr_be_write(vc->vte.chr, (uint8_t  *)text, (unsigned int)size);
+    int remaining = size;
+    uint8_t* p = (uint8_t *)text;
+    while (remaining > 0) {
+        int can_write = qemu_chr_be_can_write(vc->vte.chr);
+        int written = MIN(remaining, can_write);
+        qemu_chr_be_write(vc->vte.chr, p, written);
+
+        remaining -= written;
+        p += written;
+    }
     return TRUE;
 }
 
