@@ -794,6 +794,12 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
             if (ret == TRANSLATE_SUCCESS) {
                 ret = get_physical_address_pmp(env, &prot_pmp, &tlb_size, pa,
                                                size, access_type, mode);
+
+                qemu_log_mask(CPU_LOG_MMU,
+                              "%s PMP address=" TARGET_FMT_plx " ret %d prot"
+                              " %d tlb_size " TARGET_FMT_lu "\n",
+                              __func__, pa, ret, prot_pmp, tlb_size);
+
                 prot &= prot_pmp;
             }
 
@@ -821,6 +827,12 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         if (ret == TRANSLATE_SUCCESS) {
             ret = get_physical_address_pmp(env, &prot_pmp, &tlb_size, pa,
                                            size, access_type, mode);
+
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s PMP address=" TARGET_FMT_plx " ret %d prot"
+                          " %d tlb_size " TARGET_FMT_lu "\n",
+                          __func__, pa, ret, prot_pmp, tlb_size);
+
             prot &= prot_pmp;
         }
     }
