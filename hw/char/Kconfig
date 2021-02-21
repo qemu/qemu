@@ -50,6 +50,9 @@ config SCLPCONSOLE
 config TERMINAL3270
     bool
 
+config SH_SCI
+    bool
+
 config RENESAS_SCI
     bool
 
