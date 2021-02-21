@@ -10,6 +10,7 @@ config R2D
     select PCI
     select SM501
     select SH4
+    select SH7750
 
 config SHIX
     bool
