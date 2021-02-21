@@ -171,6 +171,8 @@ typedef struct NvmeCtrl {
     QTAILQ_HEAD(, NvmeAsyncEvent) aer_queue;
     int         aer_queued;
 
+    uint32_t    dmrsl;
+
     NvmeSubsystem   *subsys;
 
     NvmeNamespace   namespace;
