@@ -177,7 +177,7 @@ const generic_fuzz_config predefined_configs[] = {
         .name = "i82550",
         .args = "-machine q35 -nodefaults "
         "-device i82550,netdev=net0 -netdev user,id=net0",
-        .objects = "eepro*"
+        .objects = "i8255*"
     },{
         .name = "sdhci-v3",
         .args = "-nodefaults -device sdhci-pci,sd-spec-version=3 "
