@@ -16,70 +16,291 @@
 #include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
 #include "hw/isa/superio.h"
+#include "hw/intc/i8259.h"
+#include "hw/irq.h"
+#include "hw/dma/i8257.h"
+#include "hw/timer/i8254.h"
+#include "hw/rtc/mc146818rtc.h"
 #include "migration/vmstate.h"
 #include "hw/isa/apm.h"
 #include "hw/acpi/acpi.h"
 #include "hw/i2c/pm_smbus.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/range.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
 
-typedef struct SuperIOConfig {
-    uint8_t regs[0x100];
-    uint8_t index;
-    uint8_t data;
-} SuperIOConfig;
+#define TYPE_VIA_PM "via-pm"
+OBJECT_DECLARE_SIMPLE_TYPE(ViaPMState, VIA_PM)
 
-struct VT82C686BISAState {
+struct ViaPMState {
     PCIDevice dev;
-    MemoryRegion superio;
-    SuperIOConfig superio_cfg;
+    MemoryRegion io;
+    ACPIREGS ar;
+    APMState apm;
+    PMSMBus smb;
 };
 
-OBJECT_DECLARE_SIMPLE_TYPE(VT82C686BISAState, VT82C686B_ISA)
+static void pm_io_space_update(ViaPMState *s)
+{
+    uint32_t pmbase = pci_get_long(s->dev.config + 0x48) & 0xff80UL;
+
+    memory_region_transaction_begin();
+    memory_region_set_address(&s->io, pmbase);
+    memory_region_set_enabled(&s->io, s->dev.config[0x41] & BIT(7));
+    memory_region_transaction_commit();
+}
+
+static void smb_io_space_update(ViaPMState *s)
+{
+    uint32_t smbase = pci_get_long(s->dev.config + 0x90) & 0xfff0UL;
+
+    memory_region_transaction_begin();
+    memory_region_set_address(&s->smb.io, smbase);
+    memory_region_set_enabled(&s->smb.io, s->dev.config[0xd2] & BIT(0));
+    memory_region_transaction_commit();
+}
+
+static int vmstate_acpi_post_load(void *opaque, int version_id)
+{
+    ViaPMState *s = opaque;
+
+    pm_io_space_update(s);
+    smb_io_space_update(s);
+    return 0;
+}
+
+static const VMStateDescription vmstate_acpi = {
+    .name = "vt82c686b_pm",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = vmstate_acpi_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(dev, ViaPMState),
+        VMSTATE_UINT16(ar.pm1.evt.sts, ViaPMState),
+        VMSTATE_UINT16(ar.pm1.evt.en, ViaPMState),
+        VMSTATE_UINT16(ar.pm1.cnt.cnt, ViaPMState),
+        VMSTATE_STRUCT(apm, ViaPMState, 0, vmstate_apm, APMState),
+        VMSTATE_TIMER_PTR(ar.tmr.timer, ViaPMState),
+        VMSTATE_INT64(ar.tmr.overflow_time, ViaPMState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
+{
+    ViaPMState *s = VIA_PM(d);
+
+    trace_via_pm_write(addr, val, len);
+    pci_default_write_config(d, addr, val, len);
+    if (ranges_overlap(addr, len, 0x48, 4)) {
+        uint32_t v = pci_get_long(s->dev.config + 0x48);
+        pci_set_long(s->dev.config + 0x48, (v & 0xff80UL) | 1);
+    }
+    if (range_covers_byte(addr, len, 0x41)) {
+        pm_io_space_update(s);
+    }
+    if (ranges_overlap(addr, len, 0x90, 4)) {
+        uint32_t v = pci_get_long(s->dev.config + 0x90);
+        pci_set_long(s->dev.config + 0x90, (v & 0xfff0UL) | 1);
+    }
+    if (range_covers_byte(addr, len, 0xd2)) {
+        s->dev.config[0xd2] &= 0xf;
+        smb_io_space_update(s);
+    }
+}
+
+static void pm_io_write(void *op, hwaddr addr, uint64_t data, unsigned size)
+{
+    trace_via_pm_io_write(addr, data, size);
+}
+
+static uint64_t pm_io_read(void *op, hwaddr addr, unsigned size)
+{
+    trace_via_pm_io_read(addr, 0, size);
+    return 0;
+}
+
+static const MemoryRegionOps pm_io_ops = {
+    .read = pm_io_read,
+    .write = pm_io_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
+static void pm_update_sci(ViaPMState *s)
+{
+    int sci_level, pmsts;
+
+    pmsts = acpi_pm1_evt_get_sts(&s->ar);
+    sci_level = (((pmsts & s->ar.pm1.evt.en) &
+                  (ACPI_BITMASK_RT_CLOCK_ENABLE |
+                   ACPI_BITMASK_POWER_BUTTON_ENABLE |
+                   ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
+                   ACPI_BITMASK_TIMER_ENABLE)) != 0);
+    pci_set_irq(&s->dev, sci_level);
+    /* schedule a timer interruption if needed */
+    acpi_pm_tmr_update(&s->ar, (s->ar.pm1.evt.en & ACPI_BITMASK_TIMER_ENABLE) &&
+                       !(pmsts & ACPI_BITMASK_TIMER_STATUS));
+}
+
+static void pm_tmr_timer(ACPIREGS *ar)
+{
+    ViaPMState *s = container_of(ar, ViaPMState, ar);
+    pm_update_sci(s);
+}
+
+static void via_pm_reset(DeviceState *d)
+{
+    ViaPMState *s = VIA_PM(d);
+
+    memset(s->dev.config + PCI_CONFIG_HEADER_SIZE, 0,
+           PCI_CONFIG_SPACE_SIZE - PCI_CONFIG_HEADER_SIZE);
+    /* Power Management IO base */
+    pci_set_long(s->dev.config + 0x48, 1);
+    /* SMBus IO base */
+    pci_set_long(s->dev.config + 0x90, 1);
+
+    pm_io_space_update(s);
+    smb_io_space_update(s);
+}
+
+static void via_pm_realize(PCIDevice *dev, Error **errp)
+{
+    ViaPMState *s = VIA_PM(dev);
+
+    pci_set_word(dev->config + PCI_STATUS, PCI_STATUS_FAST_BACK |
+                 PCI_STATUS_DEVSEL_MEDIUM);
+
+    pm_smbus_init(DEVICE(s), &s->smb, false);
+    memory_region_add_subregion(pci_address_space_io(dev), 0, &s->smb.io);
+    memory_region_set_enabled(&s->smb.io, false);
+
+    apm_init(dev, &s->apm, NULL, s);
+
+    memory_region_init_io(&s->io, OBJECT(dev), &pm_io_ops, s, "via-pm", 128);
+    memory_region_add_subregion(pci_address_space_io(dev), 0, &s->io);
+    memory_region_set_enabled(&s->io, false);
+
+    acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
+    acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
+    acpi_pm1_cnt_init(&s->ar, &s->io, false, false, 2);
+}
+
+typedef struct via_pm_init_info {
+    uint16_t device_id;
+} ViaPMInitInfo;
+
+static void via_pm_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    ViaPMInitInfo *info = data;
+
+    k->realize = via_pm_realize;
+    k->config_write = pm_write_config;
+    k->vendor_id = PCI_VENDOR_ID_VIA;
+    k->device_id = info->device_id;
+    k->class_id = PCI_CLASS_BRIDGE_OTHER;
+    k->revision = 0x40;
+    dc->reset = via_pm_reset;
+    /* Reason: part of VIA south bridge, does not exist stand alone */
+    dc->user_creatable = false;
+    dc->vmsd = &vmstate_acpi;
+}
+
+static const TypeInfo via_pm_info = {
+    .name          = TYPE_VIA_PM,
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(ViaPMState),
+    .abstract      = true,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
+};
+
+static const ViaPMInitInfo vt82c686b_pm_init_info = {
+    .device_id = PCI_DEVICE_ID_VIA_82C686B_PM,
+};
+
+static const TypeInfo vt82c686b_pm_info = {
+    .name          = TYPE_VT82C686B_PM,
+    .parent        = TYPE_VIA_PM,
+    .class_init    = via_pm_class_init,
+    .class_data    = (void *)&vt82c686b_pm_init_info,
+};
+
+static const ViaPMInitInfo vt8231_pm_init_info = {
+    .device_id = PCI_DEVICE_ID_VIA_8231_PM,
+};
+
+static const TypeInfo vt8231_pm_info = {
+    .name          = TYPE_VT8231_PM,
+    .parent        = TYPE_VIA_PM,
+    .class_init    = via_pm_class_init,
+    .class_data    = (void *)&vt8231_pm_init_info,
+};
+
+
+typedef struct SuperIOConfig {
+    uint8_t regs[0x100];
+    MemoryRegion io;
+} SuperIOConfig;
 
 static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned size)
 {
     SuperIOConfig *sc = opaque;
+    uint8_t idx = sc->regs[0];
 
-    if (addr == 0x3f0) { /* config index register */
-        sc->index = data & 0xff;
-    } else {
-        bool can_write = true;
-        /* 0x3f1, config data register */
-        trace_via_superio_write(sc->index, data & 0xff);
-        switch (sc->index) {
-        case 0x00 ... 0xdf:
-        case 0xe4:
-        case 0xe5:
-        case 0xe9 ... 0xed:
-        case 0xf3:
-        case 0xf5:
-        case 0xf7:
-        case 0xf9 ... 0xfb:
-        case 0xfd ... 0xff:
-            can_write = false;
-            break;
-        /* case 0xe6 ... 0xe8: Should set base port of parallel and serial */
-        default:
-            break;
-
-        }
-        if (can_write) {
-            sc->regs[sc->index] = data & 0xff;
-        }
+    if (addr == 0) { /* config index register */
+        sc->regs[0] = data;
+        return;
     }
+
+    /* config data register */
+    trace_via_superio_write(idx, data);
+    switch (idx) {
+    case 0x00 ... 0xdf:
+    case 0xe4:
+    case 0xe5:
+    case 0xe9 ... 0xed:
+    case 0xf3:
+    case 0xf5:
+    case 0xf7:
+    case 0xf9 ... 0xfb:
+    case 0xfd ... 0xff:
+        /* ignore write to read only registers */
+        return;
+    /* case 0xe6 ... 0xe8: Should set base port of parallel and serial */
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "via_superio_cfg: unimplemented register 0x%x\n", idx);
+        break;
+    }
+    sc->regs[idx] = data;
 }
 
 static uint64_t superio_cfg_read(void *opaque, hwaddr addr, unsigned size)
 {
     SuperIOConfig *sc = opaque;
-    uint8_t val = sc->regs[sc->index];
+    uint8_t idx = sc->regs[0];
+    uint8_t val = sc->regs[idx];
 
-    trace_via_superio_read(sc->index, val);
+    if (addr == 0) {
+        return idx;
+    }
+    if (addr == 1 && idx == 0) {
+        val = 0; /* reading reg 0 where we store index value */
+    }
+    trace_via_superio_read(idx, val);
     return val;
 }
 
@@ -91,6 +312,44 @@ static const MemoryRegionOps superio_cfg_ops = {
         .min_access_size = 1,
         .max_access_size = 1,
     },
+};
+
+
+OBJECT_DECLARE_SIMPLE_TYPE(VT82C686BISAState, VT82C686B_ISA)
+
+struct VT82C686BISAState {
+    PCIDevice dev;
+    qemu_irq cpu_intr;
+    SuperIOConfig superio_cfg;
+};
+
+static void via_isa_request_i8259_irq(void *opaque, int irq, int level)
+{
+    VT82C686BISAState *s = opaque;
+    qemu_set_irq(s->cpu_intr, level);
+}
+
+static void vt82c686b_write_config(PCIDevice *d, uint32_t addr,
+                                   uint32_t val, int len)
+{
+    VT82C686BISAState *s = VT82C686B_ISA(d);
+
+    trace_via_isa_write(addr, val, len);
+    pci_default_write_config(d, addr, val, len);
+    if (addr == 0x85) {
+        /* BIT(1): enable or disable superio config io ports */
+        memory_region_set_enabled(&s->superio_cfg.io, val & BIT(1));
+    }
+}
+
+static const VMStateDescription vmstate_via = {
+    .name = "vt82c686b",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(dev, VT82C686BISAState),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static void vt82c686b_isa_reset(DeviceState *dev)
@@ -120,206 +379,39 @@ static void vt82c686b_isa_reset(DeviceState *dev)
     s->superio_cfg.regs[0xe8] = 0xbe; /* Serial port 2 base addr */
 }
 
-/* write config pci function0 registers. PCI-ISA bridge */
-static void vt82c686b_write_config(PCIDevice *d, uint32_t addr,
-                                   uint32_t val, int len)
-{
-    VT82C686BISAState *s = VT82C686B_ISA(d);
-
-    trace_via_isa_write(addr, val, len);
-    pci_default_write_config(d, addr, val, len);
-    if (addr == 0x85) {  /* enable or disable super IO configure */
-        memory_region_set_enabled(&s->superio, val & 0x2);
-    }
-}
-
-struct VT686PMState {
-    PCIDevice dev;
-    MemoryRegion io;
-    ACPIREGS ar;
-    APMState apm;
-    PMSMBus smb;
-    uint32_t smb_io_base;
-};
-
-OBJECT_DECLARE_SIMPLE_TYPE(VT686PMState, VT82C686B_PM)
-
-static void pm_update_sci(VT686PMState *s)
-{
-    int sci_level, pmsts;
-
-    pmsts = acpi_pm1_evt_get_sts(&s->ar);
-    sci_level = (((pmsts & s->ar.pm1.evt.en) &
-                  (ACPI_BITMASK_RT_CLOCK_ENABLE |
-                   ACPI_BITMASK_POWER_BUTTON_ENABLE |
-                   ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
-                   ACPI_BITMASK_TIMER_ENABLE)) != 0);
-    pci_set_irq(&s->dev, sci_level);
-    /* schedule a timer interruption if needed */
-    acpi_pm_tmr_update(&s->ar, (s->ar.pm1.evt.en & ACPI_BITMASK_TIMER_ENABLE) &&
-                       !(pmsts & ACPI_BITMASK_TIMER_STATUS));
-}
-
-static void pm_tmr_timer(ACPIREGS *ar)
-{
-    VT686PMState *s = container_of(ar, VT686PMState, ar);
-    pm_update_sci(s);
-}
-
-static void pm_io_space_update(VT686PMState *s)
-{
-    uint32_t pm_io_base;
-
-    pm_io_base = pci_get_long(s->dev.config + 0x40);
-    pm_io_base &= 0xffc0;
-
-    memory_region_transaction_begin();
-    memory_region_set_enabled(&s->io, s->dev.config[0x80] & 1);
-    memory_region_set_address(&s->io, pm_io_base);
-    memory_region_transaction_commit();
-}
-
-static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
-{
-    trace_via_pm_write(addr, val, len);
-    pci_default_write_config(d, addr, val, len);
-}
-
-static int vmstate_acpi_post_load(void *opaque, int version_id)
-{
-    VT686PMState *s = opaque;
-
-    pm_io_space_update(s);
-    return 0;
-}
-
-static const VMStateDescription vmstate_acpi = {
-    .name = "vt82c686b_pm",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .post_load = vmstate_acpi_post_load,
-    .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, VT686PMState),
-        VMSTATE_UINT16(ar.pm1.evt.sts, VT686PMState),
-        VMSTATE_UINT16(ar.pm1.evt.en, VT686PMState),
-        VMSTATE_UINT16(ar.pm1.cnt.cnt, VT686PMState),
-        VMSTATE_STRUCT(apm, VT686PMState, 0, vmstate_apm, APMState),
-        VMSTATE_TIMER_PTR(ar.tmr.timer, VT686PMState),
-        VMSTATE_INT64(ar.tmr.overflow_time, VT686PMState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-/* vt82c686 pm init */
-static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
-{
-    VT686PMState *s = VT82C686B_PM(dev);
-    uint8_t *pci_conf;
-
-    pci_conf = s->dev.config;
-    pci_set_word(pci_conf + PCI_COMMAND, 0);
-    pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_FAST_BACK |
-                 PCI_STATUS_DEVSEL_MEDIUM);
-
-    /* 0x48-0x4B is Power Management I/O Base */
-    pci_set_long(pci_conf + 0x48, 0x00000001);
-
-    /* SMB ports:0xeee0~0xeeef */
-    s->smb_io_base = ((s->smb_io_base & 0xfff0) + 0x0);
-    pci_conf[0x90] = s->smb_io_base | 1;
-    pci_conf[0x91] = s->smb_io_base >> 8;
-    pci_conf[0xd2] = 0x90;
-    pm_smbus_init(DEVICE(s), &s->smb, false);
-    memory_region_add_subregion(get_system_io(), s->smb_io_base, &s->smb.io);
-
-    apm_init(dev, &s->apm, NULL, s);
-
-    memory_region_init(&s->io, OBJECT(dev), "vt82c686-pm", 64);
-    memory_region_set_enabled(&s->io, false);
-    memory_region_add_subregion(get_system_io(), 0, &s->io);
-
-    acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
-    acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
-    acpi_pm1_cnt_init(&s->ar, &s->io, false, false, 2);
-}
-
-static Property via_pm_properties[] = {
-    DEFINE_PROP_UINT32("smb_io_base", VT686PMState, smb_io_base, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void via_pm_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->realize = vt82c686b_pm_realize;
-    k->config_write = pm_write_config;
-    k->vendor_id = PCI_VENDOR_ID_VIA;
-    k->device_id = PCI_DEVICE_ID_VIA_ACPI;
-    k->class_id = PCI_CLASS_BRIDGE_OTHER;
-    k->revision = 0x40;
-    dc->desc = "PM";
-    dc->vmsd = &vmstate_acpi;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    device_class_set_props(dc, via_pm_properties);
-}
-
-static const TypeInfo via_pm_info = {
-    .name          = TYPE_VT82C686B_PM,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VT686PMState),
-    .class_init    = via_pm_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
-};
-
-static const VMStateDescription vmstate_via = {
-    .name = "vt82c686b",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, VT82C686BISAState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-/* init the PCI-to-ISA bridge */
 static void vt82c686b_realize(PCIDevice *d, Error **errp)
 {
     VT82C686BISAState *s = VT82C686B_ISA(d);
-    uint8_t *pci_conf;
+    DeviceState *dev = DEVICE(d);
     ISABus *isa_bus;
-    uint8_t *wmask;
+    qemu_irq *isa_irq;
     int i;
 
-    isa_bus = isa_bus_new(DEVICE(d), get_system_memory(),
-                          pci_address_space_io(d), errp);
-    if (!isa_bus) {
-        return;
-    }
+    qdev_init_gpio_out(dev, &s->cpu_intr, 1);
+    isa_irq = qemu_allocate_irqs(via_isa_request_i8259_irq, s, 1);
+    isa_bus = isa_bus_new(dev, get_system_memory(), pci_address_space_io(d),
+                          &error_fatal);
+    isa_bus_irqs(isa_bus, i8259_init(isa_bus, *isa_irq));
+    i8254_pit_init(isa_bus, 0x40, 0, NULL);
+    i8257_dma_init(isa_bus, 0);
+    isa_create_simple(isa_bus, TYPE_VT82C686B_SUPERIO);
+    mc146818_rtc_init(isa_bus, 2000, NULL);
 
-    pci_conf = d->config;
-    pci_config_set_prog_interface(pci_conf, 0x0);
-
-    wmask = d->wmask;
-    for (i = 0x00; i < 0xff; i++) {
-        if (i <= 0x03 || (i >= 0x08 && i <= 0x3f)) {
-            wmask[i] = 0x00;
+    for (i = 0; i < PCI_CONFIG_HEADER_SIZE; i++) {
+        if (i < PCI_COMMAND || i >= PCI_REVISION_ID) {
+            d->wmask[i] = 0;
         }
     }
 
-    memory_region_init_io(&s->superio, OBJECT(d), &superio_cfg_ops,
-                          &s->superio_cfg, "superio", 2);
-    memory_region_set_enabled(&s->superio, false);
+    memory_region_init_io(&s->superio_cfg.io, OBJECT(d), &superio_cfg_ops,
+                          &s->superio_cfg, "superio_cfg", 2);
+    memory_region_set_enabled(&s->superio_cfg.io, false);
     /*
      * The floppy also uses 0x3f0 and 0x3f1.
      * But we do not emulate a floppy, so just set it here.
      */
     memory_region_add_subregion(isa_bus->address_space_io, 0x3f0,
-                                &s->superio);
+                                &s->superio_cfg.io);
 }
 
 static void via_class_init(ObjectClass *klass, void *data)
@@ -354,6 +446,7 @@ static const TypeInfo via_info = {
     },
 };
 
+
 static void vt82c686b_superio_class_init(ObjectClass *klass, void *data)
 {
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
@@ -372,11 +465,14 @@ static const TypeInfo via_superio_info = {
     .class_init    = vt82c686b_superio_class_init,
 };
 
+
 static void vt82c686b_register_types(void)
 {
     type_register_static(&via_pm_info);
-    type_register_static(&via_superio_info);
+    type_register_static(&vt82c686b_pm_info);
+    type_register_static(&vt8231_pm_info);
     type_register_static(&via_info);
+    type_register_static(&via_superio_info);
 }
 
 type_init(vt82c686b_register_types)

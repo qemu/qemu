@@ -288,13 +288,14 @@ target_ulong helper_rotx(target_ulong rs, uint32_t shift, uint32_t shiftx,
 #ifndef CONFIG_USER_ONLY
 
 static inline hwaddr do_translate_address(CPUMIPSState *env,
-                                                      target_ulong address,
-                                                      int rw, uintptr_t retaddr)
+                                          target_ulong address,
+                                          MMUAccessType access_type,
+                                          uintptr_t retaddr)
 {
     hwaddr paddr;
     CPUState *cs = env_cpu(env);
 
-    paddr = cpu_mips_translate_address(env, address, rw);
+    paddr = cpu_mips_translate_address(env, address, access_type);
 
     if (paddr == -1LL) {
         cpu_loop_exit_restore(cs, retaddr);
@@ -312,7 +313,7 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int mem_idx)  \
         }                                                                     \
         do_raise_exception(env, EXCP_AdEL, GETPC());                          \
     }                                                                         \
-    env->CP0_LLAddr = do_translate_address(env, arg, 0, GETPC());             \
+    env->CP0_LLAddr = do_translate_address(env, arg, MMU_DATA_LOAD, GETPC()); \
     env->lladdr = arg;                                                        \
     env->llval = do_cast cpu_##insn##_mmuidx_ra(env, arg, mem_idx, GETPC());  \
     return env->llval;                                                        \

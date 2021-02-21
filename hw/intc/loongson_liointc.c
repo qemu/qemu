@@ -41,7 +41,7 @@
 #define R_IEN_CLR               0x2c
 #define R_ISR_SIZE              0x8
 #define R_START                 0x40
-#define R_END                   0x64
+#define R_END                   (R_START + R_ISR_SIZE * NUM_CORES)
 
 struct loongson_liointc {
     SysBusDevice parent_obj;
@@ -125,7 +125,12 @@ liointc_read(void *opaque, hwaddr addr, unsigned int size)
     }
 
     if (addr >= R_START && addr < R_END) {
-        int core = (addr - R_START) / R_ISR_SIZE;
+        hwaddr offset = addr - R_START;
+        int core = offset / R_ISR_SIZE;
+
+        if (offset % R_ISR_SIZE) {
+            goto out;
+        }
         r = p->per_core_isr[core];
         goto out;
     }
@@ -169,7 +174,12 @@ liointc_write(void *opaque, hwaddr addr,
     }
 
     if (addr >= R_START && addr < R_END) {
-        int core = (addr - R_START) / R_ISR_SIZE;
+        hwaddr offset = addr - R_START;
+        int core = offset / R_ISR_SIZE;
+
+        if (offset % R_ISR_SIZE) {
+            goto out;
+        }
         p->per_core_isr[core] = value;
         goto out;
     }
