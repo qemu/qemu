@@ -16,6 +16,7 @@ config SHIX
     bool
     select SH7750
     select SH4
+    select TC58128
 
 config SH7750
     bool
