@@ -67,6 +67,8 @@ struct X86MachineState {
     OnOffAuto smm;
     OnOffAuto acpi;
 
+    char *oem_id;
+    char *oem_table_id;
     /*
      * Address space used by IOAPIC device. All IOAPIC interrupts
      * will be translated to MSI messages in the address space.
@@ -76,6 +78,8 @@ struct X86MachineState {
 
 #define X86_MACHINE_SMM              "smm"
 #define X86_MACHINE_ACPI             "acpi"
+#define X86_MACHINE_OEM_ID           "oem-id"
+#define X86_MACHINE_OEM_TABLE_ID     "oem-table-id"
 
 #define TYPE_X86_MACHINE   MACHINE_TYPE_NAME("x86")
 OBJECT_DECLARE_TYPE(X86MachineState, X86MachineClass, X86_MACHINE)

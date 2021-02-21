@@ -76,8 +76,6 @@
 #define MICROVM_MACHINE_ISA_SERIAL          "isa-serial"
 #define MICROVM_MACHINE_OPTION_ROMS         "x-option-roms"
 #define MICROVM_MACHINE_AUTO_KERNEL_CMDLINE "auto-kernel-cmdline"
-#define MICROVM_MACHINE_OEM_ID              "oem-id"
-#define MICROVM_MACHINE_OEM_TABLE_ID        "oem-table-id"
 
 struct MicrovmMachineClass {
     X86MachineClass parent;
@@ -106,8 +104,6 @@ struct MicrovmMachineState {
     Notifier machine_done;
     Notifier powerdown_req;
     struct GPEXConfig gpex;
-    char *oem_id;
-    char *oem_table_id;
 };
 
 #define TYPE_MICROVM_MACHINE   MACHINE_TYPE_NAME("microvm")

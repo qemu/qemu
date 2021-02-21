@@ -46,8 +46,6 @@ typedef struct PCMachineState {
     bool pit_enabled;
     bool hpet_enabled;
     uint64_t max_fw_size;
-    char *oem_id;
-    char *oem_table_id;
 
     /* NUMA information: */
     uint64_t numa_nodes;
@@ -65,8 +63,6 @@ typedef struct PCMachineState {
 #define PC_MACHINE_SATA             "sata"
 #define PC_MACHINE_PIT              "pit"
 #define PC_MACHINE_MAX_FW_SIZE      "max-fw-size"
-#define PC_MACHINE_OEM_ID           "oem-id"
-#define PC_MACHINE_OEM_TABLE_ID     "oem-table-id"
 /**
  * PCMachineClass:
  *

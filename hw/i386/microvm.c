@@ -648,51 +648,6 @@ static void microvm_powerdown_req(Notifier *notifier, void *data)
     }
 }
 
-static char *microvm_machine_get_oem_id(Object *obj, Error **errp)
-{
-    MicrovmMachineState *mms = MICROVM_MACHINE(obj);
-
-    return g_strdup(mms->oem_id);
-}
-
-static void microvm_machine_set_oem_id(Object *obj, const char *value,
-                                       Error **errp)
-{
-    MicrovmMachineState *mms = MICROVM_MACHINE(obj);
-    size_t len = strlen(value);
-
-    if (len > 6) {
-        error_setg(errp,
-          "User specified "MICROVM_MACHINE_OEM_ID" value is bigger than "
-          "6 bytes in size");
-        return;
-    }
-
-    strncpy(mms->oem_id, value, 6);
-}
-
-static char *microvm_machine_get_oem_table_id(Object *obj, Error **errp)
-{
-    MicrovmMachineState *mms = MICROVM_MACHINE(obj);
-
-    return g_strdup(mms->oem_table_id);
-}
-
-static void microvm_machine_set_oem_table_id(Object *obj, const char *value,
-                                             Error **errp)
-{
-    MicrovmMachineState *mms = MICROVM_MACHINE(obj);
-    size_t len = strlen(value);
-
-    if (len > 8) {
-        error_setg(errp,
-          "User specified "MICROVM_MACHINE_OEM_TABLE_ID" value is bigger than "
-          "8 bytes in size");
-        return;
-    }
-    strncpy(mms->oem_table_id, value, 8);
-}
-
 static void microvm_machine_initfn(Object *obj)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(obj);
@@ -714,9 +669,6 @@ static void microvm_machine_initfn(Object *obj)
     qemu_add_machine_init_done_notifier(&mms->machine_done);
     mms->powerdown_req.notify = microvm_powerdown_req;
     qemu_register_powerdown_notifier(&mms->powerdown_req);
-
-    mms->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
-    mms->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
 }
 
 static void microvm_class_init(ObjectClass *oc, void *data)
@@ -804,24 +756,6 @@ static void microvm_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc,
         MICROVM_MACHINE_AUTO_KERNEL_CMDLINE,
         "Set off to disable adding virtio-mmio devices to the kernel cmdline");
-
-    object_class_property_add_str(oc, MICROVM_MACHINE_OEM_ID,
-                                  microvm_machine_get_oem_id,
-                                  microvm_machine_set_oem_id);
-    object_class_property_set_description(oc, MICROVM_MACHINE_OEM_ID,
-                                          "Override the default value of field OEMID "
-                                          "in ACPI table header."
-                                          "The string may be up to 6 bytes in size");
-
-
-    object_class_property_add_str(oc, MICROVM_MACHINE_OEM_TABLE_ID,
-                                  microvm_machine_get_oem_table_id,
-                                  microvm_machine_set_oem_table_id);
-    object_class_property_set_description(oc, MICROVM_MACHINE_OEM_TABLE_ID,
-                                          "Override the default value of field OEM Table ID "
-                                          "in ACPI table header."
-                                          "The string may be up to 8 bytes in size");
-
 
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
 }
