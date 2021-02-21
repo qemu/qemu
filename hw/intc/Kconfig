@@ -53,6 +53,9 @@ config OMPIC
 config PPC_UIC
     bool
 
+config SH_INTC
+    bool
+
 config RX_ICU
     bool
 

@@ -19,6 +19,7 @@ config SHIX
 
 config SH7750
     bool
+    select SH_INTC
 
 config SH4
     bool
