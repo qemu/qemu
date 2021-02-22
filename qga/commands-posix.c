@@ -49,6 +49,7 @@ extern char **environ;
 #include <sys/socket.h>
 #include <net/if.h>
 #include <sys/statvfs.h>
+#include <sys/sysmacros.h>
 
 #ifdef CONFIG_LIBUDEV
 #include <libudev.h>
