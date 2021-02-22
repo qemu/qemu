@@ -228,12 +228,6 @@ Since the ``dirty-bitmaps`` field is optionally present in both the old and
 new locations, clients must use introspection to learn where to anticipate
 the field if/when it does appear in command output.
 
-``query-cpus-fast`` ``arch`` output member (since 3.0.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``arch`` output member of the ``query-cpus-fast`` command is
-replaced by the ``target`` output member.
-
 chardev client socket with ``wait`` option (since 4.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
 

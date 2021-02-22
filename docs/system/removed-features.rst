@@ -98,6 +98,12 @@ Use ``migrate_set_parameter`` instead.
 
 The ``query-cpus`` command is replaced by the ``query-cpus-fast`` command.
 
+``query-cpus-fast`` ``arch`` output member (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``arch`` output member of the ``query-cpus-fast`` command is
+replaced by the ``target`` output member.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
