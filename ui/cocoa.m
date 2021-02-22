@@ -450,19 +450,19 @@ QemuCocoaView *cocoaView;
         int w = pixman_image_get_width(pixman_image);
         int h = pixman_image_get_height(pixman_image);
         int bitsPerPixel = PIXMAN_FORMAT_BPP(pixman_image_get_format(pixman_image));
-        int bitsPerComponent = DIV_ROUND_UP(bitsPerPixel, 8) * 2;
+        int stride = pixman_image_get_stride(pixman_image);
         CGDataProviderRef dataProviderRef = CGDataProviderCreateWithData(
             NULL,
             pixman_image_get_data(pixman_image),
-            w * 4 * h,
+            stride * h,
             NULL
         );
         CGImageRef imageRef = CGImageCreate(
             w, //width
             h, //height
-            bitsPerComponent, //bitsPerComponent
+            DIV_ROUND_UP(bitsPerPixel, 8) * 2, //bitsPerComponent
             bitsPerPixel, //bitsPerPixel
-            (w * (bitsPerComponent/2)), //bytesPerRow
+            stride, //bytesPerRow
 #ifdef __LITTLE_ENDIAN__
             CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB), //colorspace for OS X >= 10.4
             kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst,
