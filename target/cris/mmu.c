@@ -129,10 +129,10 @@ static void dump_tlb(CPUCRISState *env, int mmu)
 }
 #endif
 
-/* rw 0 = read, 1 = write, 2 = exec.  */
 static int cris_mmu_translate_page(struct cris_mmu_result *res,
-				   CPUCRISState *env, uint32_t vaddr,
-				   int rw, int usermode, int debug)
+                                   CPUCRISState *env, uint32_t vaddr,
+                                   MMUAccessType access_type,
+                                   int usermode, int debug)
 {
     unsigned int vpage;
     unsigned int idx;
@@ -151,16 +151,16 @@ static int cris_mmu_translate_page(struct cris_mmu_result *res,
     r_cfg = env->sregs[SFR_RW_MM_CFG];
     pid = env->pregs[PR_PID] & 0xff;
 
-    switch (rw) {
-    case 2:
+    switch (access_type) {
+    case MMU_INST_FETCH:
         rwcause = CRIS_MMU_ERR_EXEC;
         mmu = 0;
         break;
-    case 1:
+    case MMU_DATA_STORE:
         rwcause = CRIS_MMU_ERR_WRITE;
         break;
     default:
-    case 0:
+    case MMU_DATA_LOAD:
         rwcause = CRIS_MMU_ERR_READ;
         break;
     }
@@ -219,13 +219,13 @@ static int cris_mmu_translate_page(struct cris_mmu_result *res,
                      vaddr, lo, env->pc));
             match = 0;
             res->bf_vec = vect_base + 2;
-        } else if (rw == 1 && cfg_w && !tlb_w) {
+        } else if (access_type == MMU_DATA_STORE && cfg_w && !tlb_w) {
             D(printf("tlb: write protected %x lo=%x pc=%x\n",
                      vaddr, lo, env->pc));
             match = 0;
             /* write accesses never go through the I mmu.  */
             res->bf_vec = vect_base + 3;
-        } else if (rw == 2 && cfg_x && !tlb_x) {
+        } else if (access_type == MMU_INST_FETCH && cfg_x && !tlb_x) {
             D(printf("tlb: exec protected %x lo=%x pc=%x\n",
                      vaddr, lo, env->pc));
             match = 0;
@@ -272,9 +272,9 @@ static int cris_mmu_translate_page(struct cris_mmu_result *res,
         D(printf("refill vaddr=%x pc=%x\n", vaddr, env->pc));
     }
 
-    D(printf("%s rw=%d mtch=%d pc=%x va=%x vpn=%x tlbvpn=%x pfn=%x pid=%x"
+    D(printf("%s access=%u mtch=%d pc=%x va=%x vpn=%x tlbvpn=%x pfn=%x pid=%x"
              " %x cause=%x sel=%x sp=%x %x %x\n",
-             __func__, rw, match, env->pc,
+             __func__, access_type, match, env->pc,
              vaddr, vpage,
              tlb_vpn, tlb_pfn, tlb_pid,
              pid,
@@ -319,8 +319,8 @@ void cris_mmu_flush_pid(CPUCRISState *env, uint32_t pid)
 }
 
 int cris_mmu_translate(struct cris_mmu_result *res,
-		       CPUCRISState *env, uint32_t vaddr,
-		       int rw, int mmu_idx, int debug)
+                       CPUCRISState *env, uint32_t vaddr,
+                       MMUAccessType access_type, int mmu_idx, int debug)
 {
     int seg;
     int miss = 0;
@@ -329,8 +329,7 @@ int cris_mmu_translate(struct cris_mmu_result *res,
 
     old_srs = env->pregs[PR_SRS];
 
-    /* rw == 2 means exec, map the access to the insn mmu.  */
-    env->pregs[PR_SRS] = rw == 2 ? 1 : 2;
+    env->pregs[PR_SRS] = access_type == MMU_INST_FETCH ? 1 : 2;
 
     if (!cris_mmu_enabled(env->sregs[SFR_RW_GC_CFG])) {
         res->phy = vaddr;
@@ -347,7 +346,7 @@ int cris_mmu_translate(struct cris_mmu_result *res,
         res->phy = base | (0x0fffffff & vaddr);
         res->prot = PAGE_BITS;
     } else {
-        miss = cris_mmu_translate_page(res, env, vaddr, rw,
+        miss = cris_mmu_translate_page(res, env, vaddr, access_type,
                                        is_user, debug);
     }
  done:

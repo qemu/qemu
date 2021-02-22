@@ -275,10 +275,10 @@ hwaddr cris_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     struct cris_mmu_result res;
     int miss;
 
-    miss = cris_mmu_translate(&res, &cpu->env, addr, 0, 0, 1);
+    miss = cris_mmu_translate(&res, &cpu->env, addr, MMU_DATA_LOAD, 0, 1);
     /* If D TLB misses, try I TLB.  */
     if (miss) {
-        miss = cris_mmu_translate(&res, &cpu->env, addr, 2, 0, 1);
+        miss = cris_mmu_translate(&res, &cpu->env, addr, MMU_INST_FETCH, 0, 1);
     }
 
     if (!miss) {
