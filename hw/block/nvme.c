@@ -3422,7 +3422,7 @@ static uint16_t nvme_identify(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeIdentify *c = (NvmeIdentify *)&req->cmd;
 
-    switch (le32_to_cpu(c->cns)) {
+    switch (c->cns) {
     case NVME_ID_CNS_NS:
          /* fall through */
     case NVME_ID_CNS_NS_PRESENT:
