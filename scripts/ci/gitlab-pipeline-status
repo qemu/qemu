@@ -56,7 +56,9 @@ def get_json_http_response(url):
     connection.request('GET', url=url)
     response = connection.getresponse()
     if response.code != http.HTTPStatus.OK:
-        raise CommunicationFailure("Failed to receive a successful response")
+        msg = "Received unsuccessful response: %s (%s)" % (response.code,
+                                                           response.reason)
+        raise CommunicationFailure(msg)
     return json.loads(response.read())
 
 
