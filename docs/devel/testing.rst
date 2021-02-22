@@ -289,6 +289,9 @@ an alternative container runtime. Although the many of the target
 names and scripts are prefixed with "docker" the system will
 automatically run on whichever is configured.
 
+The container images are also used to augment the generation of tests
+for testing TCG. See :ref:`checktcg-ref` for more details.
+
 Docker Prerequisites
 --------------------
 
@@ -1010,6 +1013,8 @@ And remove any package you want with::
 
 If you've used ``make check-acceptance``, the Python virtual environment where
 Avocado is installed will be cleaned up as part of ``make check-clean``.
+
+.. _checktcg-ref:
 
 Testing with "make check-tcg"
 =============================
