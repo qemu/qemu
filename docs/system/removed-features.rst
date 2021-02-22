@@ -224,6 +224,14 @@ the upstream Linux kernel in 2018, and it has also been dropped from glibc, so
 there is no new Linux development taking place with this architecture. For
 running the old binaries, you can use older versions of QEMU.
 
+System emulator devices
+-----------------------
+
+``ide-drive`` (removed in 6.0)
+''''''''''''''''''''''''''''''
+
+The 'ide-drive' device has been removed. Users should use 'ide-hd' or
+'ide-cd' as appropriate to get an IDE hard disk or CD-ROM as needed.
 
 Related binaries
 ----------------

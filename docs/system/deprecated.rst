@@ -278,12 +278,6 @@ this CPU is also deprecated.
 System emulator devices
 -----------------------
 
-``ide-drive`` (since 4.2)
-'''''''''''''''''''''''''
-
-The 'ide-drive' device is deprecated. Users should use 'ide-hd' or
-'ide-cd' as appropriate to get an IDE hard disk or CD-ROM as needed.
-
 ``scsi-disk`` (since 4.2)
 '''''''''''''''''''''''''
 

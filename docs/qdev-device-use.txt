@@ -388,7 +388,7 @@ type.
 some DEVNAMEs:
 
     default device      suppressing DEVNAMEs
-    CD-ROM              ide-cd, ide-drive, ide-hd, scsi-cd, scsi-hd
+    CD-ROM              ide-cd, ide-hd, scsi-cd, scsi-hd
     floppy              floppy, isa-fdc
     parallel            isa-parallel
     serial              isa-serial
