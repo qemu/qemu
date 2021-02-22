@@ -1255,6 +1255,7 @@ static uint16_t nvme_check_zone_state_for_read(NvmeZone *zone)
     case NVME_ZONE_STATE_READ_ONLY:
         return NVME_SUCCESS;
     case NVME_ZONE_STATE_OFFLINE:
+        trace_pci_nvme_err_zone_is_offline(zone->d.zslba);
         return NVME_ZONE_OFFLINE;
     default:
         assert(false);
