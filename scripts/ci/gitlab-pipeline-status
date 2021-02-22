@@ -74,7 +74,9 @@ def get_pipeline_status(project_id, commit_sha1):
     # project + commit. If this assumption is false, we can add further
     # filters to the url, such as username, and order_by.
     if not json_response:
-        raise NoPipelineFound("No pipeline found")
+        msg = "No pipeline found for project %s and commit %s" % (project_id,
+                                                                  commit_sha1)
+        raise NoPipelineFound(msg)
     return json_response[0]
 
 
