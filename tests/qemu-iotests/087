@@ -143,9 +143,7 @@ run_qemu <<EOF
   "arguments": {
       "qom-type": "secret",
       "id": "sec0",
-      "props": {
-          "data": "123456"
-      }
+      "data": "123456"
   }
 }
 { "execute": "blockdev-add",
@@ -176,9 +174,7 @@ run_qemu <<EOF
   "arguments": {
       "qom-type": "secret",
       "id": "sec0",
-      "props": {
-          "data": "123456"
-      }
+      "data": "123456"
   }
 }
 { "execute": "blockdev-add",
