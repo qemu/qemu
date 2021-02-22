@@ -249,12 +249,6 @@ The ``query-cpus`` command is replaced by the ``query-cpus-fast`` command.
 The ``arch`` output member of the ``query-cpus-fast`` command is
 replaced by the ``target`` output member.
 
-``query-events`` (since 4.0)
-''''''''''''''''''''''''''''
-
-The ``query-events`` command has been superseded by the more powerful
-and accurate ``query-qmp-schema`` command.
-
 chardev client socket with ``wait`` option (since 4.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
 

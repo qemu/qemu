@@ -77,6 +77,12 @@ documentation of ``query-hotpluggable-cpus`` for additional details.
 
 Use ``blockdev-change-medium`` or ``change-vnc-password`` instead.
 
+``query-events`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''
+
+The ``query-events`` command has been superseded by the more powerful
+and accurate ``query-qmp-schema`` command.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
