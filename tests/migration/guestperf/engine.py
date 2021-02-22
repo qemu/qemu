@@ -110,7 +110,7 @@ class Engine(object):
         src_vcpu_time = []
         src_pid = src.get_pid()
 
-        vcpus = src.command("query-cpus")
+        vcpus = src.command("query-cpus-fast")
         src_threads = []
         for vcpu in vcpus:
             src_threads.append(vcpu["thread_id"])

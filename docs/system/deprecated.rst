@@ -228,11 +228,6 @@ Since the ``dirty-bitmaps`` field is optionally present in both the old and
 new locations, clients must use introspection to learn where to anticipate
 the field if/when it does appear in command output.
 
-``query-cpus`` (since 2.12.0)
-'''''''''''''''''''''''''''''
-
-The ``query-cpus`` command is replaced by the ``query-cpus-fast`` command.
-
 ``query-cpus-fast`` ``arch`` output member (since 3.0.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 

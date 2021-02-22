@@ -93,6 +93,11 @@ Use ``migrate_set_parameter`` and ``info migrate_parameters`` instead.
 
 Use ``migrate_set_parameter`` instead.
 
+``query-cpus`` (removed in 6.0)
+'''''''''''''''''''''''''''''''
+
+The ``query-cpus`` command is replaced by the ``query-cpus-fast`` command.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
