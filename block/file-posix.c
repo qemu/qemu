@@ -719,15 +719,9 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
 
     if (!device) {
-        if (S_ISBLK(st.st_mode)) {
-            warn_report("Opening a block device as a file using the '%s' "
-                        "driver is deprecated", bs->drv->format_name);
-        } else if (S_ISCHR(st.st_mode)) {
-            warn_report("Opening a character device as a file using the '%s' "
-                        "driver is deprecated", bs->drv->format_name);
-        } else if (!S_ISREG(st.st_mode)) {
-            error_setg(errp, "A regular file was expected by the '%s' driver, "
-                       "but something else was given", bs->drv->format_name);
+        if (!S_ISREG(st.st_mode)) {
+            error_setg(errp, "'%s' driver requires '%s' to be a regular file",
+                       bs->drv->format_name, bs->filename);
             ret = -EINVAL;
             goto fail;
         } else {
@@ -736,8 +730,9 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         }
     } else {
         if (!(S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))) {
-            error_setg(errp, "'%s' driver expects either "
-                       "a character or block device", bs->drv->format_name);
+            error_setg(errp, "'%s' driver requires '%s' to be either "
+                       "a character or block device",
+                       bs->drv->format_name, bs->filename);
             ret = -EINVAL;
             goto fail;
         }
