@@ -409,12 +409,24 @@ void spapr_drc_unplug_request(SpaprDrc *drc)
 
     drc->unplug_requested = true;
 
+    spapr_drc_start_unplug_timeout_timer(drc);
+
     if (drc->state != drck->empty_state) {
         trace_spapr_drc_awaiting_quiesce(spapr_drc_index(drc));
         return;
     }
 
     spapr_drc_release(drc);
+}
+
+int spapr_drc_unplug_timeout_remaining_sec(SpaprDrc *drc)
+{
+    if (drc->unplug_requested && timer_pending(drc->unplug_timeout_timer)) {
+        return (qemu_timeout_ns_to_ms(drc->unplug_timeout_timer->expire_time) -
+                qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL)) / 1000;
+    }
+
+    return 0;
 }
 
 bool spapr_drc_reset(SpaprDrc *drc)
@@ -710,6 +722,7 @@ static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
     drck->drc_name_prefix = "CPU ";
     drck->release = spapr_core_release;
     drck->dt_populate = spapr_core_dt_populate;
+    drck->unplug_timeout_seconds = 15;
 }
 
 static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
