@@ -280,13 +280,17 @@ Container based tests
 Introduction
 ------------
 
-The Docker testing framework in QEMU utilizes public Docker images to build and
-test QEMU in predefined and widely accessible Linux environments.  This makes
-it possible to expand the test coverage across distros, toolchain flavors and
-library versions.
+The container testing framework in QEMU utilizes public images to
+build and test QEMU in predefined and widely accessible Linux
+environments. This makes it possible to expand the test coverage
+across distros, toolchain flavors and library versions. The support
+was originally written for Docker although we also support Podman as
+an alternative container runtime. Although the many of the target
+names and scripts are prefixed with "docker" the system will
+automatically run on whichever is configured.
 
-Prerequisites
--------------
+Docker Prerequisites
+--------------------
 
 Install "docker" with the system package manager and start the Docker service
 on your development machine, then make sure you have the privilege to run
@@ -316,26 +320,53 @@ Note that any one of above configurations makes it possible for the user to
 exploit the whole host with Docker bind mounting or other privileged
 operations.  So only do it on development machines.
 
-Quickstart
-----------
+Podman Prerequisites
+--------------------
 
-From source tree, type ``make docker`` to see the help. Testing can be started
-without configuring or building QEMU (``configure`` and ``make`` are done in
-the container, with parameters defined by the make target):
+Install "podman" with the system package manager.
 
 .. code::
 
-  make docker-test-build@min-glib
+  $ sudo dnf install podman
+  $ podman ps
 
-This will create a container instance using the ``min-glib`` image (the image
+The last command should print an empty table, to verify the system is ready.
+
+Quickstart
+----------
+
+From source tree, type ``make docker-help`` to see the help. Testing
+can be started without configuring or building QEMU (``configure`` and
+``make`` are done in the container, with parameters defined by the
+make target):
+
+.. code::
+
+  make docker-test-build@centos8
+
+This will create a container instance using the ``centos8`` image (the image
 is downloaded and initialized automatically), in which the ``test-build`` job
 is executed.
+
+Registry
+--------
+
+The QEMU project has a container registry hosted by GitLab at
+``registry.gitlab.com/qemu-project/qemu`` which will automatically be
+used to pull in pre-built layers. This avoids unnecessary strain on
+the distro archives created by multiple developers running the same
+container build steps over and over again. This can be overridden
+locally by using the ``NOCACHE`` build option:
+
+.. code::
+
+   make docker-image-debian10 NOCACHE=1
 
 Images
 ------
 
-Along with many other images, the ``min-glib`` image is defined in a Dockerfile
-in ``tests/docker/dockerfiles/``, called ``min-glib.docker``. ``make docker``
+Along with many other images, the ``centos8`` image is defined in a Dockerfile
+in ``tests/docker/dockerfiles/``, called ``centos8.docker``. ``make docker-help``
 command will list all the available images.
 
 To add a new image, simply create a new ``.docker`` file under the
@@ -355,7 +386,7 @@ QEMU.  Docker tests are the executables under ``tests/docker`` named
 library, ``tests/docker/common.rc``, which provides helpers to find the QEMU
 source and build it.
 
-The full list of tests is printed in the ``make docker`` help.
+The full list of tests is printed in the ``make docker-help`` help.
 
 Debugging a Docker test failure
 -------------------------------
