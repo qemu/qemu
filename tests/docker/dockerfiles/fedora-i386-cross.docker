@@ -1,4 +1,4 @@
-FROM fedora:31
+FROM fedora:33
 ENV PACKAGES \
     bzip2 \
     diffutils \
