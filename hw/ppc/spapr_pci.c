@@ -1723,12 +1723,12 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
                      * functions, even if their unplug weren't requested
                      * beforehand.
                      */
-                    spapr_drc_detach(func_drc);
+                    spapr_drc_unplug_request(func_drc);
                 }
             }
         }
 
-        spapr_drc_detach(drc);
+        spapr_drc_unplug_request(drc);
 
         /* if this isn't func 0, defer unplug event. otherwise signal removal
          * for all present functions

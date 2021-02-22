@@ -243,7 +243,7 @@ int spapr_dt_drc(void *fdt, int offset, Object *owner, uint32_t drc_type_mask);
  * beforehand (eg. check drc->dev at pre-plug).
  */
 void spapr_drc_attach(SpaprDrc *drc, DeviceState *d);
-void spapr_drc_detach(SpaprDrc *drc);
+void spapr_drc_unplug_request(SpaprDrc *drc);
 
 /*
  * Reset all DRCs, causing pending hot-plug/unplug requests to complete.
