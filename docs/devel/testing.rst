@@ -272,10 +272,10 @@ Note that the following group names have a special meaning:
 
 - disabled: Tests in this group are disabled and ignored by check.
 
-.. _docker-ref:
+.. _container-ref:
 
-Docker based tests
-==================
+Container based tests
+=====================
 
 Introduction
 ------------
@@ -1001,10 +1001,17 @@ for the architecture in question, for example::
 There is also a ``--cross-cc-flags-ARCH`` flag in case additional
 compiler flags are needed to build for a given target.
 
-If you have the ability to run containers as the user you can also
-take advantage of the build systems "Docker" support. It will then use
-containers to build any test case for an enabled guest where there is
-no system compiler available. See :ref:`docker-ref` for details.
+If you have the ability to run containers as the user the build system
+will automatically use them where no system compiler is available. For
+architectures where we also support building QEMU we will generally
+use the same container to build tests. However there are a number of
+additional containers defined that have a minimal cross-build
+environment that is only suitable for building test cases. Sometimes
+we may use a bleeding edge distribution for compiler features needed
+for test cases that aren't yet in the LTS distros we support for QEMU
+itself.
+
+See :ref:`container-ref` for more details.
 
 Running subset of tests
 -----------------------
