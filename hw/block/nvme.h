@@ -20,7 +20,7 @@ typedef struct NvmeParams {
     uint32_t aer_max_queued;
     uint8_t  mdts;
     bool     use_intel_id;
-    uint32_t zasl_bs;
+    uint8_t  zasl;
     bool     legacy_cmb;
 } NvmeParams;
 
@@ -170,8 +170,6 @@ typedef struct NvmeCtrl {
     NvmeRequest **aer_reqs;
     QTAILQ_HEAD(, NvmeAsyncEvent) aer_queue;
     int         aer_queued;
-
-    uint8_t     zasl;
 
     NvmeSubsystem   *subsys;
 

@@ -22,8 +22,8 @@
  *              cmb_size_mb=<cmb_size_mb[optional]>, \
  *              [pmrdev=<mem_backend_file_id>,] \
  *              max_ioqpairs=<N[optional]>, \
- *              aerl=<N[optional]>, aer_max_queued=<N[optional]>, \
- *              mdts=<N[optional]>,zoned.append_size_limit=<N[optional]>, \
+ *              aerl=<N[optional]>,aer_max_queued=<N[optional]>, \
+ *              mdts=<N[optional]>,zoned.zasl=<N[optional]>, \
  *              subsys=<subsys_id>
  *      -device nvme-ns,drive=<drive_id>,bus=<bus_name>,nsid=<nsid>,\
  *              zoned=<true|false[optional]>, \
@@ -78,13 +78,11 @@
  *   as a power of two (2^n) and is in units of the minimum memory page size
  *   (CAP.MPSMIN). The default value is 7 (i.e. 512 KiB).
  *
- * - `zoned.append_size_limit`
- *   The maximum I/O size in bytes that is allowed in Zone Append command.
- *   The default is 128KiB. Since internally this this value is maintained as
- *   ZASL = log2(<maximum append size> / <page size>), some values assigned
- *   to this property may be rounded down and result in a lower maximum ZA
- *   data size being in effect. By setting this property to 0, users can make
- *   ZASL to be equal to MDTS. This property only affects zoned namespaces.
+ * - `zoned.zasl`
+ *   Indicates the maximum data transfer size for the Zone Append command. Like
+ *   `mdts`, the value is specified as a power of two (2^n) and is in units of
+ *   the minimum memory page size (CAP.MPSMIN). The default value is 0 (i.e.
+ *   defaulting to the value of `mdts`).
  *
  * nvme namespace device parameters
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2144,10 +2142,9 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
                 goto invalid;
             }
 
-            if (nvme_l2b(ns, nlb) > (n->page_size << n->zasl)) {
-                trace_pci_nvme_err_append_too_large(slba, nlb, n->zasl);
-                status = NVME_INVALID_FIELD;
-                goto invalid;
+            if (n->params.zasl && data_size > n->page_size << n->params.zasl) {
+                trace_pci_nvme_err_zasl(data_size);
+                return NVME_INVALID_FIELD | NVME_DNR;
             }
 
             slba = zone->w_ptr;
@@ -3221,9 +3218,8 @@ static uint16_t nvme_identify_ctrl_csi(NvmeCtrl *n, NvmeRequest *req)
     if (c->csi == NVME_CSI_NVM) {
         return nvme_rpt_empty_id_struct(n, req);
     } else if (c->csi == NVME_CSI_ZONED) {
-        if (n->params.zasl_bs) {
-            id.zasl = n->zasl;
-        }
+        id.zasl = n->params.zasl;
+
         return nvme_dma(n, (uint8_t *)&id, sizeof(id),
                         DMA_DIRECTION_FROM_DEVICE, req);
     }
@@ -4097,19 +4093,6 @@ static int nvme_start_ctrl(NvmeCtrl *n)
     nvme_init_sq(&n->admin_sq, n, n->bar.asq, 0, 0,
                  NVME_AQA_ASQS(n->bar.aqa) + 1);
 
-    if (!n->params.zasl_bs) {
-        n->zasl = n->params.mdts;
-    } else {
-        if (n->params.zasl_bs < n->page_size) {
-            NVME_GUEST_ERR(pci_nvme_err_startfail_zasl_too_small,
-                           "Zone Append Size Limit (ZASL) of %d bytes is too "
-                           "small; must be at least %d bytes",
-                           n->params.zasl_bs, n->page_size);
-            return -1;
-        }
-        n->zasl = 31 - clz32(n->params.zasl_bs / n->page_size);
-    }
-
     nvme_set_timestamp(n, 0ULL);
 
     QTAILQ_INIT(&n->aer_queue);
@@ -4618,17 +4601,10 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
         host_memory_backend_set_mapped(n->pmr.dev, true);
     }
 
-    if (n->params.zasl_bs) {
-        if (!is_power_of_2(n->params.zasl_bs)) {
-            error_setg(errp, "zone append size limit has to be a power of 2");
-            return;
-        }
-
-        if (n->params.zasl_bs < 4096) {
-            error_setg(errp, "zone append size limit must be at least "
-                       "4096 bytes");
-            return;
-        }
+    if (n->params.zasl > n->params.mdts) {
+        error_setg(errp, "zoned.zasl (Zone Append Size Limit) must be less "
+                   "than or equal to mdts (Maximum Data Transfer Size)");
+        return;
     }
 }
 
@@ -4997,8 +4973,7 @@ static Property nvme_props[] = {
     DEFINE_PROP_UINT8("mdts", NvmeCtrl, params.mdts, 7),
     DEFINE_PROP_BOOL("use-intel-id", NvmeCtrl, params.use_intel_id, false),
     DEFINE_PROP_BOOL("legacy-cmb", NvmeCtrl, params.legacy_cmb, false),
-    DEFINE_PROP_SIZE32("zoned.append_size_limit", NvmeCtrl, params.zasl_bs,
-                       NVME_DEFAULT_MAX_ZA_SIZE),
+    DEFINE_PROP_UINT8("zoned.zasl", NvmeCtrl, params.zasl, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
