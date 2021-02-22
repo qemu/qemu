@@ -233,6 +233,12 @@ System emulator devices
 The 'ide-drive' device has been removed. Users should use 'ide-hd' or
 'ide-cd' as appropriate to get an IDE hard disk or CD-ROM as needed.
 
+``scsi-disk`` (removed in 6.0)
+''''''''''''''''''''''''''''''
+
+The 'scsi-disk' device has been removed. Users should use 'scsi-hd' or
+'scsi-cd' as appropriate to get a SCSI hard disk or CD-ROM as needed.
+
 Related binaries
 ----------------
 
