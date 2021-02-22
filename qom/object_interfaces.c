@@ -299,6 +299,7 @@ void user_creatable_print_help_from_qdict(QDict *args)
 
 bool user_creatable_del(const char *id, Error **errp)
 {
+    QemuOptsList *opts_list;
     Object *container;
     Object *obj;
 
@@ -318,8 +319,10 @@ bool user_creatable_del(const char *id, Error **errp)
      * if object was defined on the command-line, remove its corresponding
      * option group entry
      */
-    qemu_opts_del(qemu_opts_find(qemu_find_opts_err("object", &error_abort),
-                                 id));
+    opts_list = qemu_find_opts_err("object", NULL);
+    if (opts_list) {
+        qemu_opts_del(qemu_opts_find(opts_list, id));
+    }
 
     object_unparent(obj);
     return true;
