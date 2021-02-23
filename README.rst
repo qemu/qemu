@@ -66,7 +66,9 @@ When submitting patches, one common approach is to use 'git
 format-patch' and/or 'git send-email' to format & send the mail to the
 qemu-devel@nongnu.org mailing list. All patches submitted must contain
 a 'Signed-off-by' line from the author. Patches should follow the
-guidelines set out in the CODING_STYLE.rst file.
+guidelines set out in the `style section
+<https://www.qemu.org/docs/master/devel/style.html>` of
+the Developers Guide.
 
 Additional information on submitting patches can be found online via
 the QEMU website
