@@ -144,7 +144,7 @@ static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
             break;
         }
 
-        int64_t offset = req->sector_num * vexp->blk_size;
+        int64_t offset = req->sector_num << VIRTIO_BLK_SECTOR_BITS;
         QEMUIOVector qiov;
         if (is_write) {
             qemu_iovec_init_external(&qiov, out_iov, out_num);
