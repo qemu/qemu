@@ -196,21 +196,47 @@ static void cleanup_sigabrt_handler(void)
     sigaction(SIGABRT, &sigact_old, NULL);
 }
 
+static bool hook_list_is_empty(GHookList *hook_list)
+{
+    GHook *hook = g_hook_first_valid(hook_list, TRUE);
+
+    if (!hook) {
+        return false;
+    }
+
+    g_hook_unref(hook_list, hook);
+    return true;
+}
+
 void qtest_add_abrt_handler(GHookFunc fn, const void *data)
 {
     GHook *hook;
 
-    /* Only install SIGABRT handler once */
     if (!abrt_hooks.is_setup) {
         g_hook_list_init(&abrt_hooks, sizeof(GHook));
     }
-    setup_sigabrt_handler();
+
+    /* Only install SIGABRT handler once */
+    if (hook_list_is_empty(&abrt_hooks)) {
+        setup_sigabrt_handler();
+    }
 
     hook = g_hook_alloc(&abrt_hooks);
     hook->func = fn;
     hook->data = (void *)data;
 
     g_hook_prepend(&abrt_hooks, hook);
+}
+
+void qtest_remove_abrt_handler(void *data)
+{
+    GHook *hook = g_hook_find_data(&abrt_hooks, TRUE, data);
+    g_hook_destroy_link(&abrt_hooks, hook);
+
+    /* Uninstall SIGABRT handler on last instance */
+    if (hook_list_is_empty(&abrt_hooks)) {
+        cleanup_sigabrt_handler();
+    }
 }
 
 static const char *qtest_qemu_binary(void)
@@ -369,10 +395,7 @@ QTestState *qtest_init_with_serial(const char *extra_args, int *sock_fd)
 
 void qtest_quit(QTestState *s)
 {
-    g_hook_destroy_link(&abrt_hooks, g_hook_find_data(&abrt_hooks, TRUE, s));
-
-    /* Uninstall SIGABRT handler on last instance */
-    cleanup_sigabrt_handler();
+    qtest_remove_abrt_handler(s);
 
     qtest_kill_qemu(s);
     close(s->fd);

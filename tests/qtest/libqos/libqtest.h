@@ -649,7 +649,25 @@ void qtest_add_data_func_full(const char *str, void *data,
         g_free(path); \
     } while (0)
 
+/**
+ * qtest_add_abrt_handler:
+ * @fn: Handler function
+ * @data: Argument that is passed to the handler
+ *
+ * Add a handler function that is invoked on SIGABRT. This can be used to
+ * terminate processes and perform other cleanup. The handler can be removed
+ * with qtest_remove_abrt_handler().
+ */
 void qtest_add_abrt_handler(GHookFunc fn, const void *data);
+
+/**
+ * qtest_remove_abrt_handler:
+ * @data: Argument previously passed to qtest_add_abrt_handler()
+ *
+ * Remove an abrt handler that was previously added with
+ * qtest_add_abrt_handler().
+ */
+void qtest_remove_abrt_handler(void *data);
 
 /**
  * qtest_qmp_assert_success:
