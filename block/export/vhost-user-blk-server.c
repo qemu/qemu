@@ -356,7 +356,7 @@ vu_blk_initialize_config(BlockDriverState *bs,
     config->num_queues = cpu_to_le16(num_queues);
     config->max_discard_sectors = cpu_to_le32(32768);
     config->max_discard_seg = cpu_to_le32(1);
-    config->discard_sector_alignment = cpu_to_le32(config->blk_size >> 9);
+    config->discard_sector_alignment = cpu_to_le32(blk_size >> 9);
     config->max_write_zeroes_sectors = cpu_to_le32(32768);
     config->max_write_zeroes_seg = cpu_to_le32(1);
 }
