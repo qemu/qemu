@@ -30,6 +30,7 @@ Contents:
    guest-loader
    vnc-security
    tls
+   secrets
    gdb
    managed-startup
    cpu-hotplug
