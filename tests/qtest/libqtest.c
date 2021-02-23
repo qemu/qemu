@@ -133,7 +133,7 @@ void qtest_set_expected_status(QTestState *s, int status)
     s->expected_status = status;
 }
 
-static void kill_qemu(QTestState *s)
+void qtest_kill_qemu(QTestState *s)
 {
     pid_t pid = s->qemu_pid;
     int wstatus;
@@ -143,6 +143,7 @@ static void kill_qemu(QTestState *s)
         kill(pid, SIGTERM);
         TFR(pid = waitpid(s->qemu_pid, &s->wstatus, 0));
         assert(pid == s->qemu_pid);
+        s->qemu_pid = -1;
     }
 
     /*
@@ -169,7 +170,7 @@ static void kill_qemu(QTestState *s)
 
 static void kill_qemu_hook_func(void *s)
 {
-    kill_qemu(s);
+    qtest_kill_qemu(s);
 }
 
 static void sigabrt_handler(int signo)
@@ -373,7 +374,7 @@ void qtest_quit(QTestState *s)
     /* Uninstall SIGABRT handler on last instance */
     cleanup_sigabrt_handler();
 
-    kill_qemu(s);
+    qtest_kill_qemu(s);
     close(s->fd);
     close(s->qmp_fd);
     g_string_free(s->rx, true);
