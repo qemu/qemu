@@ -82,6 +82,7 @@ static void init_attribs(int tag, ...)
     while ((attr = va_arg(ap, int)) != 0) {
         set_bit(attr, opcode_attribs[tag]);
     }
+    va_end(ap);
 }
 
 const OpcodeEncoding opcode_encodings[] = {
