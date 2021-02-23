@@ -20,6 +20,13 @@
 #include "sysemu/block-backend.h"
 #include "util/block-helpers.h"
 
+/*
+ * Sector units are 512 bytes regardless of the
+ * virtio_blk_config->blk_size value.
+ */
+#define VIRTIO_BLK_SECTOR_BITS 9
+#define VIRTIO_BLK_SECTOR_SIZE (1ull << VIRTIO_BLK_SECTOR_BITS)
+
 enum {
     VHOST_USER_BLK_NUM_QUEUES_DEFAULT = 1,
 };
@@ -347,7 +354,8 @@ vu_blk_initialize_config(BlockDriverState *bs,
                          uint32_t blk_size,
                          uint16_t num_queues)
 {
-    config->capacity = cpu_to_le64(bdrv_getlength(bs) >> BDRV_SECTOR_BITS);
+    config->capacity =
+        cpu_to_le64(bdrv_getlength(bs) >> VIRTIO_BLK_SECTOR_BITS);
     config->blk_size = cpu_to_le32(blk_size);
     config->size_max = cpu_to_le32(0);
     config->seg_max = cpu_to_le32(128 - 2);
@@ -356,7 +364,8 @@ vu_blk_initialize_config(BlockDriverState *bs,
     config->num_queues = cpu_to_le16(num_queues);
     config->max_discard_sectors = cpu_to_le32(32768);
     config->max_discard_seg = cpu_to_le32(1);
-    config->discard_sector_alignment = cpu_to_le32(blk_size >> 9);
+    config->discard_sector_alignment =
+        cpu_to_le32(blk_size >> VIRTIO_BLK_SECTOR_BITS);
     config->max_write_zeroes_sectors = cpu_to_le32(32768);
     config->max_write_zeroes_seg = cpu_to_le32(1);
 }
@@ -383,7 +392,7 @@ static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
     if (vu_opts->has_logical_block_size) {
         logical_block_size = vu_opts->logical_block_size;
     } else {
-        logical_block_size = BDRV_SECTOR_SIZE;
+        logical_block_size = VIRTIO_BLK_SECTOR_SIZE;
     }
     check_block_size(exp->id, "logical-block-size", logical_block_size,
                      &local_err);
