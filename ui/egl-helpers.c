@@ -140,7 +140,7 @@ void egl_texture_blend(QemuGLShader *gls, egl_fb *dst, egl_fb *src, bool flip,
 
 /* ---------------------------------------------------------------------- */
 
-#ifdef CONFIG_OPENGL_DMABUF
+#ifdef CONFIG_GBM
 
 int qemu_egl_rn_fd;
 struct gbm_device *qemu_egl_rn_gbm_dev;
@@ -287,7 +287,7 @@ void egl_dmabuf_release_texture(QemuDmaBuf *dmabuf)
     dmabuf->texture = 0;
 }
 
-#endif /* CONFIG_OPENGL_DMABUF */
+#endif /* CONFIG_GBM */
 
 /* ---------------------------------------------------------------------- */
 
@@ -314,6 +314,8 @@ EGLSurface qemu_egl_init_surface_x11(EGLContext ectx, EGLNativeWindowType win)
 }
 
 /* ---------------------------------------------------------------------- */
+
+#if defined(CONFIG_X11) || defined(CONFIG_GBM)
 
 /*
  * Taken from glamor_egl.h from the Xorg xserver, which is MIT licensed
@@ -440,6 +442,8 @@ int qemu_egl_init_dpy_mesa(EGLNativeDisplayType dpy, DisplayGLMode mode)
     return qemu_egl_init_dpy(dpy, 0, mode);
 #endif
 }
+
+#endif
 
 bool qemu_egl_has_dmabuf(void)
 {
