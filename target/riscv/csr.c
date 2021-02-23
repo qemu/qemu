@@ -54,7 +54,7 @@ static int vs(CPURISCVState *env, int csrno)
     if (env->misa & RVV) {
         return 0;
     }
-    return -1;
+    return -RISCV_EXCP_ILLEGAL_INST;
 }
 
 static int ctr(CPURISCVState *env, int csrno)
