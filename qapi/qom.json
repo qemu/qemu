@@ -645,6 +645,20 @@
   'data': { 'path': 'str' } }
 
 ##
+# @RemoteObjectProperties:
+#
+# Properties for x-remote-object objects.
+#
+# @fd: file descriptor name previously passed via 'getfd' command
+#
+# @devid: the id of the device to be associated with the file descriptor
+#
+# Since: 6.0
+##
+{ 'struct': 'RemoteObjectProperties',
+  'data': { 'fd': 'str', 'devid': 'str' } }
+
+##
 # @RngProperties:
 #
 # Properties for objects of classes derived from rng.
@@ -767,7 +781,8 @@
     'tls-creds-anon',
     'tls-creds-psk',
     'tls-creds-x509',
-    'tls-cipher-suites'
+    'tls-cipher-suites',
+    'x-remote-object'
   ] }
 
 ##
@@ -822,7 +837,8 @@
       'tls-creds-anon':             'TlsCredsAnonProperties',
       'tls-creds-psk':              'TlsCredsPskProperties',
       'tls-creds-x509':             'TlsCredsX509Properties',
-      'tls-cipher-suites':          'TlsCredsProperties'
+      'tls-cipher-suites':          'TlsCredsProperties',
+      'x-remote-object':            'RemoteObjectProperties'
   } }
 
 ##
