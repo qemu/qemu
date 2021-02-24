@@ -25783,19 +25783,6 @@ static void decode_opc_mxu(DisasContext *ctx, uint32_t insn)
 {
     uint32_t opcode = extract32(insn, 0, 6);
 
-    if (MASK_SPECIAL2(insn) == OPC_MUL) {
-        uint32_t  rs, rt, rd, op1;
-
-        rs = extract32(insn, 21, 5);
-        rt = extract32(insn, 16, 5);
-        rd = extract32(insn, 11, 5);
-        op1 = MASK_SPECIAL2(insn);
-
-        gen_arith(ctx, op1, rd, rs, rt);
-
-        return;
-    }
-
     if (opcode == OPC_MXU_S32M2I) {
         gen_mxu_s32m2i(ctx);
         return;
@@ -26994,7 +26981,11 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
 #endif
 #if !defined(TARGET_MIPS64)
         if (ctx->insn_flags & ASE_MXU) {
-            decode_opc_mxu(ctx, ctx->opcode);
+            if (MASK_SPECIAL2(ctx->opcode) == OPC_MUL) {
+                gen_arith(ctx, OPC_MUL, rd, rs, rt);
+            } else {
+                decode_opc_mxu(ctx, ctx->opcode);
+            }
             break;
         }
 #endif
