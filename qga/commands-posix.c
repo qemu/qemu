@@ -2370,24 +2370,6 @@ error:
     return NULL;
 }
 
-#define SYSCONF_EXACT(name, errp) sysconf_exact((name), #name, (errp))
-
-static long sysconf_exact(int name, const char *name_str, Error **errp)
-{
-    long ret;
-
-    errno = 0;
-    ret = sysconf(name);
-    if (ret == -1) {
-        if (errno == 0) {
-            error_setg(errp, "sysconf(%s): value indefinite", name_str);
-        } else {
-            error_setg_errno(errp, errno, "sysconf(%s)", name_str);
-        }
-    }
-    return ret;
-}
-
 /* Transfer online/offline status between @vcpu and the guest system.
  *
  * On input either @errp or *@errp must be NULL.
@@ -2458,30 +2440,33 @@ static void transfer_vcpu(GuestLogicalProcessor *vcpu, bool sys2vcpu,
 
 GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
 {
-    int64_t current;
     GuestLogicalProcessorList *head, **tail;
-    long sc_max;
+    const char *cpu_dir = "/sys/devices/system/cpu";
+    const gchar *line;
+    g_autoptr(GDir) cpu_gdir = NULL;
     Error *local_err = NULL;
 
-    current = 0;
     head = NULL;
     tail = &head;
-    sc_max = SYSCONF_EXACT(_SC_NPROCESSORS_CONF, &local_err);
+    cpu_gdir = g_dir_open(cpu_dir, 0, NULL);
 
-    while (local_err == NULL && current < sc_max) {
+    if (cpu_gdir == NULL) {
+        error_setg_errno(errp, errno, "failed to list entries: %s", cpu_dir);
+        return NULL;
+    }
+
+    while (local_err == NULL && (line = g_dir_read_name(cpu_gdir)) != NULL) {
         GuestLogicalProcessor *vcpu;
-        int64_t id = current++;
-        char *path = g_strdup_printf("/sys/devices/system/cpu/cpu%" PRId64 "/",
-                                     id);
-
-        if (g_file_test(path, G_FILE_TEST_EXISTS)) {
+        int64_t id;
+        if (sscanf(line, "cpu%" PRId64, &id)) {
+            g_autofree char *path = g_strdup_printf("/sys/devices/system/cpu/"
+                                                    "cpu%" PRId64 "/", id);
             vcpu = g_malloc0(sizeof *vcpu);
             vcpu->logical_id = id;
             vcpu->has_can_offline = true; /* lolspeak ftw */
             transfer_vcpu(vcpu, true, path, &local_err);
             QAPI_LIST_APPEND(tail, vcpu);
         }
-        g_free(path);
     }
 
     if (local_err == NULL) {
