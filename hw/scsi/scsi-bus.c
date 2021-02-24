@@ -692,6 +692,7 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
     req->lun = lun;
     req->hba_private = hba_private;
     req->status = -1;
+    req->host_status = -1;
     req->ops = reqops;
     object_ref(OBJECT(d));
     object_ref(OBJECT(qbus->parent));
@@ -1455,10 +1456,38 @@ void scsi_req_print(SCSIRequest *req)
     }
 }
 
+void scsi_req_complete_failed(SCSIRequest *req, int host_status)
+{
+    SCSISense sense;
+    int status;
+
+    assert(req->status == -1 && req->host_status == -1);
+    assert(req->ops != &reqops_unit_attention);
+
+    if (!req->bus->info->fail) {
+        status = scsi_sense_from_host_status(req->host_status, &sense);
+        if (status == CHECK_CONDITION) {
+            scsi_req_build_sense(req, sense);
+        }
+        scsi_req_complete(req, status);
+        return;
+    }
+
+    req->host_status = host_status;
+    scsi_req_ref(req);
+    scsi_req_dequeue(req);
+    req->bus->info->fail(req);
+
+    /* Cancelled requests might end up being completed instead of cancelled */
+    notifier_list_notify(&req->cancel_notifiers, req);
+    scsi_req_unref(req);
+}
+
 void scsi_req_complete(SCSIRequest *req, int status)
 {
-    assert(req->status == -1);
+    assert(req->status == -1 && req->host_status == -1);
     req->status = status;
+    req->host_status = SCSI_HOST_OK;
 
     assert(req->sense_len <= sizeof(req->sense));
     if (status == GOOD) {
@@ -1646,7 +1675,7 @@ static int put_scsi_requests(QEMUFile *f, void *pv, size_t size,
 
     QTAILQ_FOREACH(req, &s->requests, next) {
         assert(!req->io_canceled);
-        assert(req->status == -1);
+        assert(req->status == -1 && req->host_status == -1);
         assert(req->enqueued);
 
         qemu_put_sbyte(f, req->retry ? 1 : 2);

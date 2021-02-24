@@ -2704,15 +2704,15 @@ static void scsi_block_sgio_complete(void *opaque, int ret)
     SCSIDiskReq *r = &req->req;
     SCSIDevice *s = r->req.dev;
     sg_io_hdr_t *io_hdr = &req->io_header;
-    SCSISense sense;
 
     if (ret == 0) {
         if (io_hdr->host_status != SCSI_HOST_OK) {
-            ret = scsi_sense_from_host_status(io_hdr->host_status, &sense);
-            if (ret == CHECK_CONDITION) {
-                scsi_req_build_sense(&r->req, sense);
-            }
-        } else if (io_hdr->driver_status & SG_ERR_DRIVER_TIMEOUT) {
+            scsi_req_complete_failed(&r->req, io_hdr->host_status);
+            scsi_req_unref(&r->req);
+            return;
+        }
+
+        if (io_hdr->driver_status & SG_ERR_DRIVER_TIMEOUT) {
             ret = BUSY;
         } else {
             ret = io_hdr->status;

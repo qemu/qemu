@@ -89,10 +89,8 @@ static void scsi_command_complete_noio(SCSIGenericReq *r, int ret)
             scsi_req_build_sense(&r->req, sense);
         }
     } else if (io_hdr->host_status != SCSI_HOST_OK) {
-        status = scsi_sense_from_host_status(io_hdr->host_status, &sense);
-        if (status == CHECK_CONDITION) {
-            scsi_req_build_sense(&r->req, sense);
-        }
+        scsi_req_complete_failed(&r->req, io_hdr->host_status);
+        goto done;
     } else if (io_hdr->driver_status & SG_ERR_DRIVER_TIMEOUT) {
         status = BUSY;
     } else {
