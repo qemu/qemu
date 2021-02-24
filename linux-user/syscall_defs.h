@@ -72,8 +72,7 @@
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4) \
     || defined(TARGET_M68K) || defined(TARGET_CRIS) \
-    || defined(TARGET_S390X) \
-    || defined(TARGET_OPENRISC) || defined(TARGET_TILEGX) \
+    || defined(TARGET_S390X) || defined(TARGET_OPENRISC) \
     || defined(TARGET_NIOS2) || defined(TARGET_RISCV) \
     || defined(TARGET_XTENSA)
 
@@ -691,10 +690,6 @@ typedef struct target_siginfo {
 #define TARGET_ILL_PRVREG	(6)	/* privileged register */
 #define TARGET_ILL_COPROC	(7)	/* coprocessor error */
 #define TARGET_ILL_BADSTK	(8)	/* internal stack error */
-#ifdef TARGET_TILEGX
-#define TARGET_ILL_DBLFLT       (9)     /* double fault */
-#define TARGET_ILL_HARDWALL     (10)    /* user networks hardwall violation */
-#endif
 
 /*
  * SIGFPE si_codes
@@ -2149,8 +2144,7 @@ struct target_stat64  {
     abi_ulong __unused5;
 };
 
-#elif defined(TARGET_OPENRISC) || defined(TARGET_TILEGX) || \
-      defined(TARGET_NIOS2) || defined(TARGET_RISCV)
+#elif defined(TARGET_OPENRISC) || defined(TARGET_NIOS2) || defined(TARGET_RISCV)
 
 /* These are the asm-generic versions of the stat and stat64 structures */
 
