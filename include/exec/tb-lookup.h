@@ -27,9 +27,6 @@ static inline TranslationBlock *tb_lookup(CPUState *cpu, target_ulong pc,
     hash = tb_jmp_cache_hash_func(pc);
     tb = qatomic_rcu_read(&cpu->tb_jmp_cache[hash]);
 
-    cf_mask &= ~CF_CLUSTER_MASK;
-    cf_mask |= cpu->cluster_index << CF_CLUSTER_SHIFT;
-
     if (likely(tb &&
                tb->pc == pc &&
                tb->cs_base == cs_base &&

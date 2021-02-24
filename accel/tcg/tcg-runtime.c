@@ -154,7 +154,7 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
 
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
 
-    tb = tb_lookup(cpu, pc, cs_base, flags, curr_cflags());
+    tb = tb_lookup(cpu, pc, cs_base, flags, curr_cflags(cpu));
     if (tb == NULL) {
         return tcg_code_gen_epilogue;
     }

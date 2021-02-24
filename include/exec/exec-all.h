@@ -519,10 +519,12 @@ static inline uint32_t tb_cflags(const TranslationBlock *tb)
 }
 
 /* current cflags for hashing/comparison */
-static inline uint32_t curr_cflags(void)
+static inline uint32_t curr_cflags(CPUState *cpu)
 {
-    return (parallel_cpus ? CF_PARALLEL : 0)
-         | (icount_enabled() ? CF_USE_ICOUNT : 0);
+    uint32_t cflags = deposit32(0, CF_CLUSTER_SHIFT, 8, cpu->cluster_index);
+    cflags |= parallel_cpus ? CF_PARALLEL : 0;
+    cflags |= icount_enabled() ? CF_USE_ICOUNT : 0;
+    return cflags;
 }
 
 /* TranslationBlock invalidate API */
