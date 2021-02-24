@@ -6,12 +6,13 @@ gen = [
 ]
 
 mips_ss = ss.source_set()
-mips_ss.add(gen)
 mips_ss.add(files(
   'cpu.c',
   'gdbstub.c',
 ))
-mips_ss.add(when: 'CONFIG_TCG', if_true: files(
+mips_tcg_ss = ss.source_set()
+mips_tcg_ss.add(gen)
+mips_tcg_ss.add(files(
   'dsp_helper.c',
   'fpu_helper.c',
   'lmmi_helper.c',
@@ -35,6 +36,8 @@ mips_softmmu_ss.add(files(
 mips_softmmu_ss.add(when: 'CONFIG_TCG', if_true: files(
   'cp0_helper.c',
 ))
+
+mips_ss.add_all(when: 'CONFIG_TCG', if_true: [mips_tcg_ss])
 
 target_arch += {'mips': mips_ss}
 target_softmmu_arch += {'mips': mips_softmmu_ss}
