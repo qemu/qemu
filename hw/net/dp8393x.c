@@ -506,7 +506,7 @@ static void dp8393x_do_transmit_packets(dp8393xState *s)
             s->regs[SONIC_TCR] |= SONIC_TCR_CRSL;
             if (nc->info->can_receive(nc)) {
                 s->loopback_packet = 1;
-                nc->info->receive(nc, s->tx_buffer, tx_len);
+                qemu_receive_packet(nc, s->tx_buffer, tx_len);
             }
         } else {
             /* Transmit packet */
