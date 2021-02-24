@@ -25779,7 +25779,7 @@ static void decode_opc_mxu__pool19(DisasContext *ctx)
 /*
  * Main MXU decoding function
  */
-static bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
+bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
 {
     uint32_t opcode = extract32(insn, 0, 6);
 
@@ -26981,8 +26981,7 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             break;
         }
 #endif
-#if !defined(TARGET_MIPS64)
-        if (ctx->insn_flags & ASE_MXU) {
+        if (TARGET_LONG_BITS == 32 && (ctx->insn_flags & ASE_MXU)) {
             if (MASK_SPECIAL2(ctx->opcode) == OPC_MUL) {
                 gen_arith(ctx, OPC_MUL, rd, rs, rt);
             } else {
@@ -26990,7 +26989,6 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             }
             break;
         }
-#endif
         decode_opc_special2_legacy(env, ctx);
         break;
     case OPC_SPECIAL3:
