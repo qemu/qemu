@@ -1,0 +1,6 @@
+Start NBD server
+dirty clusters (cluster size is 64K):
+5-6
+10-12
+30
+Kill NBD server
