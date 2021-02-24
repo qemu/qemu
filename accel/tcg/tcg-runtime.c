@@ -27,10 +27,10 @@
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 #include "exec/exec-all.h"
-#include "exec/tb-lookup.h"
 #include "disas/disas.h"
 #include "exec/log.h"
 #include "tcg/tcg.h"
+#include "exec/tb-lookup.h"
 
 /* 32-bit helpers */
 
