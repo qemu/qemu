@@ -82,7 +82,7 @@ static void cocoa_switch(DisplayChangeListener *dcl,
 
 static void cocoa_refresh(DisplayChangeListener *dcl);
 
-NSWindow *normalWindow, *about_window;
+static NSWindow *normalWindow, *about_window;
 static const DisplayChangeListenerOps dcl_ops = {
     .dpy_name          = "cocoa",
     .dpy_gfx_update = cocoa_update,
@@ -95,11 +95,11 @@ static DisplayChangeListener dcl = {
 static int last_buttons;
 static int cursor_hide = 1;
 
-int gArgc;
-char **gArgv;
-bool stretch_video;
-NSTextField *pauseLabel;
-NSArray * supportedImageFileTypes;
+static int gArgc;
+static char **gArgv;
+static bool stretch_video;
+static NSTextField *pauseLabel;
+static NSArray * supportedImageFileTypes;
 
 static QemuSemaphore display_init_sem;
 static QemuSemaphore app_started_sem;
@@ -137,7 +137,7 @@ static bool bool_with_iothread_lock(BoolCodeBlock block)
 }
 
 // Mac to QKeyCode conversion
-const int mac_to_qkeycode_map[] = {
+static const int mac_to_qkeycode_map[] = {
     [kVK_ANSI_A] = Q_KEY_CODE_A,
     [kVK_ANSI_B] = Q_KEY_CODE_B,
     [kVK_ANSI_C] = Q_KEY_CODE_C,
