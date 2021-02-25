@@ -59,6 +59,7 @@ typedef struct ICH9LPCPMRegs {
     uint8_t disable_s4;
     uint8_t s4_val;
     uint8_t smm_enabled;
+    bool smm_compat;
     bool enable_tco;
     TCOIORegs tco_regs;
 } ICH9LPCPMRegs;

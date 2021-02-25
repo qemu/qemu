@@ -139,6 +139,14 @@ const struct AcpiGenericAddress x86_nvdimm_acpi_dsmio = {
 static void init_common_fadt_data(MachineState *ms, Object *o,
                                   AcpiFadtData *data)
 {
+    X86MachineState *x86ms = X86_MACHINE(ms);
+    /*
+     * "ICH9-LPC" or "PIIX4_PM" has "smm-compat" property to keep the old
+     * behavior for compatibility irrelevant to smm_enabled, which doesn't
+     * comforms to ACPI spec.
+     */
+    bool smm_enabled = object_property_get_bool(o, "smm-compat", NULL) ?
+        true : x86_machine_is_smm_enabled(x86ms);
     uint32_t io = object_property_get_uint(o, ACPI_PM_PROP_PM_IO_BASE, NULL);
     AmlAddressSpace as = AML_AS_SYSTEM_IO;
     AcpiFadtData fadt = {
@@ -159,12 +167,16 @@ static void init_common_fadt_data(MachineState *ms, Object *o,
         .rtc_century = RTC_CENTURY,
         .plvl2_lat = 0xfff /* C2 state not supported */,
         .plvl3_lat = 0xfff /* C3 state not supported */,
-        .smi_cmd = ACPI_PORT_SMI_CMD,
+        .smi_cmd = smm_enabled ? ACPI_PORT_SMI_CMD : 0,
         .sci_int = object_property_get_uint(o, ACPI_PM_PROP_SCI_INT, NULL),
         .acpi_enable_cmd =
-            object_property_get_uint(o, ACPI_PM_PROP_ACPI_ENABLE_CMD, NULL),
+            smm_enabled ?
+            object_property_get_uint(o, ACPI_PM_PROP_ACPI_ENABLE_CMD, NULL) :
+            0,
         .acpi_disable_cmd =
-            object_property_get_uint(o, ACPI_PM_PROP_ACPI_DISABLE_CMD, NULL),
+            smm_enabled ?
+            object_property_get_uint(o, ACPI_PM_PROP_ACPI_DISABLE_CMD, NULL) :
+            0,
         .pm1a_evt = { .space_id = as, .bit_width = 4 * 8, .address = io },
         .pm1a_cnt = { .space_id = as, .bit_width = 2 * 8,
                       .address = io + 0x04 },
@@ -1060,6 +1072,46 @@ static void build_q35_pci0_int(Aml *table)
     aml_append(table, sb_scope);
 }
 
+static Aml *build_q35_dram_controller(const AcpiMcfgInfo *mcfg)
+{
+    Aml *dev;
+    Aml *resource_template;
+
+    /* DRAM controller */
+    dev = aml_device("DRAC");
+    aml_append(dev, aml_name_decl("_HID", aml_string("PNP0C01")));
+
+    resource_template = aml_resource_template();
+    if (mcfg->base + mcfg->size - 1 >= (1ULL << 32)) {
+        aml_append(resource_template,
+                   aml_qword_memory(AML_POS_DECODE,
+                                    AML_MIN_FIXED,
+                                    AML_MAX_FIXED,
+                                    AML_NON_CACHEABLE,
+                                    AML_READ_WRITE,
+                                    0x0000000000000000,
+                                    mcfg->base,
+                                    mcfg->base + mcfg->size - 1,
+                                    0x0000000000000000,
+                                    mcfg->size));
+    } else {
+        aml_append(resource_template,
+                   aml_dword_memory(AML_POS_DECODE,
+                                    AML_MIN_FIXED,
+                                    AML_MAX_FIXED,
+                                    AML_NON_CACHEABLE,
+                                    AML_READ_WRITE,
+                                    0x0000000000000000,
+                                    mcfg->base,
+                                    mcfg->base + mcfg->size - 1,
+                                    0x0000000000000000,
+                                    mcfg->size));
+    }
+    aml_append(dev, aml_name_decl("_CRS", resource_template));
+
+    return dev;
+}
+
 static void build_q35_isa_bridge(Aml *table)
 {
     Aml *dev;
@@ -1206,6 +1258,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(machine);
     X86MachineState *x86ms = X86_MACHINE(machine);
     AcpiMcfgInfo mcfg;
+    bool mcfg_valid = !!acpi_get_mcfg(&mcfg);
     uint32_t nr_mem = machine->ram_slots;
     int root_bus_limit = 0xFF;
     PCIBus *bus = NULL;
@@ -1228,7 +1281,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         aml_append(sb_scope, dev);
         aml_append(dsdt, sb_scope);
 
-        build_hpet_aml(dsdt);
+        if (misc->has_hpet) {
+            build_hpet_aml(dsdt);
+        }
         build_piix4_isa_bridge(dsdt);
         build_isa_devices_aml(dsdt);
         if (pm->pcihp_bridge_en || pm->pcihp_root_en) {
@@ -1244,6 +1299,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         aml_append(dev, aml_name_decl("_UID", aml_int(0)));
         aml_append(dev, build_q35_osc_method());
         aml_append(sb_scope, dev);
+        if (mcfg_valid) {
+            aml_append(sb_scope, build_q35_dram_controller(&mcfg));
+        }
 
         if (pm->smi_on_cpuhp) {
             /* reserve SMI block resources, IO ports 0xB2, 0xB3 */
@@ -1272,7 +1330,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
 
         aml_append(dsdt, sb_scope);
 
-        build_hpet_aml(dsdt);
+        if (misc->has_hpet) {
+            build_hpet_aml(dsdt);
+        }
         build_q35_isa_bridge(dsdt);
         build_isa_devices_aml(dsdt);
         build_q35_pci0_int(dsdt);
@@ -1374,7 +1434,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
      * the PCI0._CRS.  Add mmconfig to the set so it will be excluded
      * too.
      */
-    if (acpi_get_mcfg(&mcfg)) {
+    if (mcfg_valid) {
         crs_range_insert(crs_range_set.mem_ranges,
                          mcfg.base, mcfg.base + mcfg.size - 1);
     }
