@@ -799,7 +799,7 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
 
     if (surface == NULL) {
         if (placeholder == NULL) {
-            placeholder = qemu_create_message_surface(640, 480, placeholder_msg);
+            placeholder = qemu_create_placeholder_surface(640, 480, placeholder_msg);
         }
         surface = placeholder;
     }

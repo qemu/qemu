@@ -338,9 +338,9 @@ static void virtio_gpu_disable_scanout(VirtIOGPU *g, int scanout_id)
 
     if (scanout_id == 0) {
         /* primary head */
-        ds = qemu_create_message_surface(scanout->width  ?: 640,
-                                         scanout->height ?: 480,
-                                         "Guest disabled display.");
+        ds = qemu_create_placeholder_surface(scanout->width  ?: 640,
+                                             scanout->height ?: 480,
+                                             "Guest disabled display.");
     }
     dpy_gfx_replace_surface(scanout->con, ds);
     scanout->resource_id = 0;
