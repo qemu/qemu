@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# Fix multiline comments to match CODING_STYLE
+# Fix multiline comments to match docs/devel/style.rst
 #
 # Copyright (C) 2018 Red Hat, Inc.
 #

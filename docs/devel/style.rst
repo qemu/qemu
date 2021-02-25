@@ -641,7 +641,7 @@ trace-events style
 
 In trace-events files, use a '0x' prefix to specify hex numbers, as in:
 
-.. code-block::
+.. code-block:: c
 
     some_trace(unsigned x, uint64_t y) "x 0x%x y 0x" PRIx64
 
@@ -649,14 +649,14 @@ An exception is made for groups of numbers that are hexadecimal by
 convention and separated by the symbols '.', '/', ':', or ' ' (such as
 PCI bus id):
 
-.. code-block::
+.. code-block:: c
 
     another_trace(int cssid, int ssid, int dev_num) "bus id: %x.%x.%04x"
 
 However, you can use '0x' for such groups if you want. Anyway, be sure that
 it is obvious that numbers are in hex, ex.:
 
-.. code-block::
+.. code-block:: c
 
     data_dump(uint8_t c1, uint8_t c2, uint8_t c3) "bytes (in hex): %02x %02x %02x"
 

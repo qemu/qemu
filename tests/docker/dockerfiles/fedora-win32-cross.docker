@@ -1,4 +1,4 @@
-FROM fedora:32
+FROM fedora:33
 
 # Please keep this list sorted alphabetically
 ENV PACKAGES \

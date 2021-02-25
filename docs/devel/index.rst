@@ -14,6 +14,7 @@ Contents:
    :maxdepth: 2
 
    build-system
+   style
    kconfig
    testing
    fuzzing

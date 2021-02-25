@@ -2509,6 +2509,24 @@ endif
 summary_info += {'strip binaries':    get_option('strip')}
 summary_info += {'sparse':            sparse.found() ? sparse.full_path() : false}
 summary_info += {'mingw32 support':   targetos == 'windows'}
+
+# snarf the cross-compilation information for tests
+foreach target: target_dirs
+  tcg_mak = meson.current_build_dir() / 'tests/tcg' / 'config-' + target + '.mak'
+  if fs.exists(tcg_mak)
+    config_cross_tcg = keyval.load(tcg_mak)
+    target = config_cross_tcg['TARGET_NAME']
+    compiler = ''
+    if 'DOCKER_CROSS_CC_GUEST' in config_cross_tcg
+      summary_info += {target + ' tests': config_cross_tcg['DOCKER_CROSS_CC_GUEST'] +
+                                          ' via ' + config_cross_tcg['DOCKER_IMAGE']}
+    elif 'CROSS_CC_GUEST' in config_cross_tcg
+      summary_info += {target + ' tests'
+                                : config_cross_tcg['CROSS_CC_GUEST'] }
+    endif
+   endif
+endforeach
+
 summary(summary_info, bool_yn: true, section: 'Compilation')
 
 # Targets and accelerators
