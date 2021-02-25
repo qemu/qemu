@@ -452,7 +452,7 @@ static char *qemu_chr_socket_address(SocketChardev *s, const char *prefix)
                                qemu_chr_socket_protocol(s),
                                s->addr->u.inet.host,
                                s->addr->u.inet.port,
-                               s->is_listen ? ",server" : "");
+                               s->is_listen ? ",server=on" : "");
         break;
     case SOCKET_ADDRESS_TYPE_UNIX:
     {
@@ -470,12 +470,12 @@ static char *qemu_chr_socket_address(SocketChardev *s, const char *prefix)
 
         return g_strdup_printf("%sunix:%s%s%s%s", prefix, sa->path,
                                abstract, tight,
-                               s->is_listen ? ",server" : "");
+                               s->is_listen ? ",server=on" : "");
         break;
     }
     case SOCKET_ADDRESS_TYPE_FD:
         return g_strdup_printf("%sfd:%s%s", prefix, s->addr->u.fd.str,
-                               s->is_listen ? ",server" : "");
+                               s->is_listen ? ",server=on" : "");
         break;
     case SOCKET_ADDRESS_TYPE_VSOCK:
         return g_strdup_printf("%svsock:%s:%s", prefix,
@@ -607,7 +607,7 @@ static char *qemu_chr_compute_filename(SocketChardev *s)
     case AF_UNIX:
         return g_strdup_printf("unix:%s%s",
                                ((struct sockaddr_un *)(ss))->sun_path,
-                               s->is_listen ? ",server" : "");
+                               s->is_listen ? ",server=on" : "");
 #endif
     case AF_INET6:
         left  = "[";
@@ -621,7 +621,7 @@ static char *qemu_chr_compute_filename(SocketChardev *s)
         return g_strdup_printf("%s:%s%s%s:%s%s <-> %s%s%s:%s",
                                qemu_chr_socket_protocol(s),
                                left, shost, right, sserv,
-                               s->is_listen ? ",server" : "",
+                               s->is_listen ? ",server=on" : "",
                                left, phost, right, pserv);
 
     default:
