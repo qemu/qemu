@@ -35,7 +35,7 @@ def gen_decl_ea_tcg(f, tag):
 def gen_free_ea_tcg(f):
     f.write("    tcg_temp_free(EA);\n")
 
-def genptr_decl_pair_writeble(f, tag, regtype, regid, regno):
+def genptr_decl_pair_writable(f, tag, regtype, regid, regno):
     regN="%s%sN" % (regtype,regid)
     f.write("    TCGv_i64 %s%sV = tcg_temp_local_new_i64();\n" % \
         (regtype, regid))
@@ -54,7 +54,7 @@ def genptr_decl_pair_writeble(f, tag, regtype, regid, regno):
                              (regN, regN))
         f.write("    }\n")
 
-def genptr_decl_writeble(f, tag, regtype, regid, regno):
+def genptr_decl_writable(f, tag, regtype, regid, regno):
     regN="%s%sN" % (regtype,regid)
     f.write("    TCGv %s%sV = tcg_temp_local_new();\n" % \
         (regtype, regid))
@@ -78,12 +78,12 @@ def genptr_decl(f, tag, regtype, regid, regno):
             f.write("    const int %s = insn->regno[%d];\n" % \
                 (regN, regno))
         elif (regid in {"dd", "ee", "xx", "yy"}):
-            genptr_decl_pair_writeble(f, tag, regtype, regid, regno)
+            genptr_decl_pair_writable(f, tag, regtype, regid, regno)
         elif (regid in {"s", "t", "u", "v"}):
             f.write("    TCGv %s%sV = hex_gpr[insn->regno[%d]];\n" % \
                 (regtype, regid, regno))
         elif (regid in {"d", "e", "x", "y"}):
-            genptr_decl_writeble(f, tag, regtype, regid, regno)
+            genptr_decl_writable(f, tag, regtype, regid, regno)
         else:
             print("Bad register parse: ", regtype, regid)
     elif (regtype == "P"):
@@ -91,7 +91,7 @@ def genptr_decl(f, tag, regtype, regid, regno):
             f.write("    TCGv %s%sV = hex_pred[insn->regno[%d]];\n" % \
                 (regtype, regid, regno))
         elif (regid in {"d", "e", "x"}):
-            genptr_decl_writeble(f, tag, regtype, regid, regno)
+            genptr_decl_writable(f, tag, regtype, regid, regno)
         else:
             print("Bad register parse: ", regtype, regid)
     elif (regtype == "C"):
@@ -101,14 +101,14 @@ def genptr_decl(f, tag, regtype, regid, regno):
             f.write("    const int %s = insn->regno[%d] + HEX_REG_SA0;\n" % \
                 (regN, regno))
         elif (regid == "dd"):
-            genptr_decl_pair_writeble(f, tag, regtype, regid, regno)
+            genptr_decl_pair_writable(f, tag, regtype, regid, regno)
         elif (regid == "s"):
             f.write("    TCGv %s%sV = tcg_temp_local_new();\n" % \
                 (regtype, regid))
             f.write("    const int %s%sN = insn->regno[%d] + HEX_REG_SA0;\n" % \
                 (regtype, regid, regno))
         elif (regid == "d"):
-            genptr_decl_writeble(f, tag, regtype, regid, regno)
+            genptr_decl_writable(f, tag, regtype, regid, regno)
         else:
             print("Bad register parse: ", regtype, regid)
     elif (regtype == "M"):
