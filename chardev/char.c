@@ -868,6 +868,9 @@ QemuOptsList qemu_chardev_opts = {
             .name = "delay",
             .type = QEMU_OPT_BOOL,
         },{
+            .name = "nodelay",
+            .type = QEMU_OPT_BOOL,
+        },{
             .name = "reconnect",
             .type = QEMU_OPT_NUMBER,
         },{
