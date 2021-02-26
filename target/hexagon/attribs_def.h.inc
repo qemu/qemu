@@ -41,6 +41,27 @@ DEF_ATTRIB(STORE, "Stores to memory", "", "")
 DEF_ATTRIB(MEMLIKE, "Memory-like instruction", "", "")
 DEF_ATTRIB(MEMLIKE_PACKET_RULES, "follows Memory-like packet rules", "", "")
 
+/* V6 Vector attributes */
+DEF_ATTRIB(CVI, "Executes on the HVX extension", "", "")
+
+DEF_ATTRIB(CVI_NEW, "New value memory instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VM, "Memory instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VP, "Permute instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VP_VS, "Double vector permute/shft insn executes on HVX", "", "")
+DEF_ATTRIB(CVI_VX, "Multiply instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VX_DV, "Double vector multiply insn executes on HVX", "", "")
+DEF_ATTRIB(CVI_VS, "Shift instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VS_VX, "Permute/shift and multiply insn executes on HVX", "", "")
+DEF_ATTRIB(CVI_VA, "ALU instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_VA_DV, "Double vector alu instruction executes on HVX", "", "")
+DEF_ATTRIB(CVI_4SLOT, "Consumes all the vector execution resources", "", "")
+DEF_ATTRIB(CVI_TMP, "Transient Memory Load not written to register", "", "")
+DEF_ATTRIB(CVI_GATHER, "CVI Gather operation", "", "")
+DEF_ATTRIB(CVI_SCATTER, "CVI Scatter operation", "", "")
+DEF_ATTRIB(CVI_SCATTER_RELEASE, "CVI Store Release for scatter", "", "")
+DEF_ATTRIB(CVI_TMP_DST, "CVI instruction that doesn't write a register", "", "")
+DEF_ATTRIB(CVI_SLOT23, "Can execute in slot 2 or slot 3 (HVX)", "", "")
+
 
 /* Change-of-flow attributes */
 DEF_ATTRIB(JUMP, "Jump-type instruction", "", "")
@@ -87,6 +108,7 @@ DEF_ATTRIB(HWLOOP1_END, "Ends HW loop1", "", "")
 DEF_ATTRIB(DCZEROA, "dczeroa type", "", "")
 DEF_ATTRIB(ICFLUSHOP, "icflush op type", "", "")
 DEF_ATTRIB(DCFLUSHOP, "dcflush op type", "", "")
+DEF_ATTRIB(L2FLUSHOP, "l2flush op type", "", "")
 DEF_ATTRIB(DCFETCH, "dcfetch type", "", "")
 
 DEF_ATTRIB(L2FETCH, "Instruction is l2fetch type", "", "")
