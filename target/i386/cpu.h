@@ -303,6 +303,11 @@ typedef enum X86Seg {
 #define PG_ERROR_I_D_MASK  0x10
 #define PG_ERROR_PK_MASK   0x20
 
+#define PG_MODE_PAE      (1 << 0)
+#define PG_MODE_LMA      (1 << 1)
+#define PG_MODE_NXE      (1 << 2)
+#define PG_MODE_PSE      (1 << 3)
+
 #define MCG_CTL_P       (1ULL<<8)   /* MCG_CAP register available */
 #define MCG_SER_P       (1ULL<<24) /* MCA recovery/new status bits */
 #define MCG_LMCE_P      (1ULL<<27) /* Local Machine Check Supported */
@@ -2104,6 +2109,9 @@ static inline bool cpu_vmx_maybe_enabled(CPUX86State *env)
     return cpu_has_vmx(env) &&
            ((env->cr[4] & CR4_VMXE_MASK) || (env->hflags & HF_SMM_MASK));
 }
+
+/* excp_helper.c */
+int get_pg_mode(CPUX86State *env);
 
 /* fpu_helper.c */
 void update_fp_status(CPUX86State *env);

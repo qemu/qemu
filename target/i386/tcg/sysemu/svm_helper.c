@@ -163,18 +163,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                                                         control.nested_cr3));
         env->hflags2 |= HF2_NPT_MASK;
 
-        if (env->cr[4] & CR4_PAE_MASK) {
-            env->nested_pg_mode |= SVM_NPT_PAE;
-        }
-        if (env->cr[4] & CR4_PSE_MASK) {
-            env->nested_pg_mode |= SVM_NPT_PSE;
-        }
-        if (env->hflags & HF_LMA_MASK) {
-            env->nested_pg_mode |= SVM_NPT_LMA;
-        }
-        if (env->efer & MSR_EFER_NXE) {
-            env->nested_pg_mode |= SVM_NPT_NXE;
-        }
+        env->nested_pg_mode = get_pg_mode(env);
     }
 
     /* enable intercepts */

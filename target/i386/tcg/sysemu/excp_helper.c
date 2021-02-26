@@ -21,6 +21,24 @@
 #include "cpu.h"
 #include "tcg/helper-tcg.h"
 
+int get_pg_mode(CPUX86State *env)
+{
+    int pg_mode = 0;
+    if (env->cr[4] & CR4_PAE_MASK) {
+        pg_mode |= PG_MODE_PAE;
+    }
+    if (env->cr[4] & CR4_PSE_MASK) {
+        pg_mode |= PG_MODE_PSE;
+    }
+    if (env->hflags & HF_LMA_MASK) {
+        pg_mode |= PG_MODE_LMA;
+    }
+    if (env->efer & MSR_EFER_NXE) {
+        pg_mode |= PG_MODE_NXE;
+    }
+    return pg_mode;
+}
+
 static hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
                         int *prot)
 {
@@ -37,16 +55,16 @@ static hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
         return gphys;
     }
 
-    if (!(env->nested_pg_mode & SVM_NPT_NXE)) {
+    if (!(env->nested_pg_mode & PG_MODE_NXE)) {
         rsvd_mask |= PG_NX_MASK;
     }
 
-    if (env->nested_pg_mode & SVM_NPT_PAE) {
+    if (env->nested_pg_mode & PG_MODE_PAE) {
         uint64_t pde, pdpe;
         target_ulong pdpe_addr;
 
 #ifdef TARGET_X86_64
-        if (env->nested_pg_mode & SVM_NPT_LMA) {
+        if (env->nested_pg_mode & PG_MODE_LMA) {
             uint64_t pml5e;
             uint64_t pml4e_addr, pml4e;
 
@@ -147,7 +165,7 @@ static hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
         ptep = pde | PG_NX_MASK;
 
         /* if host cr4 PSE bit is set, then we use a 4MB page */
-        if ((pde & PG_PSE_MASK) && (env->nested_pg_mode & SVM_NPT_PSE)) {
+        if ((pde & PG_PSE_MASK) && (env->nested_pg_mode & PG_MODE_PSE)) {
             page_size = 4096 * 1024;
             pte_addr = pde_addr;
 
