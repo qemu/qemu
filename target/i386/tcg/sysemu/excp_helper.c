@@ -260,7 +260,13 @@ static hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
 
 #define PG_ERROR_OK (-1)
 
-static int mmu_translate(CPUState *cs, vaddr addr,
+typedef hwaddr (*MMUTranslateFunc)(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
+				int *prot);
+
+#define GET_HPHYS(cs, gpa, access_type, prot)  \
+	(get_hphys_func ? get_hphys_func(cs, gpa, access_type, prot) : gpa)
+
+static int mmu_translate(CPUState *cs, vaddr addr, MMUTranslateFunc get_hphys_func,
                          uint64_t cr3, int is_write1, int mmu_idx, int pg_mode,
                          vaddr *xlat, int *page_size, int *prot)
 {
@@ -296,7 +302,7 @@ static int mmu_translate(CPUState *cs, vaddr addr,
 
             /* test virtual address sign extension */
             sext = la57 ? (int64_t)addr >> 56 : (int64_t)addr >> 47;
-            if (sext != 0 && sext != -1) {
+            if (get_hphys_func && sext != 0 && sext != -1) {
                 env->error_code = 0;
                 cs->exception_index = EXCP0D_GPF;
                 return 1;
@@ -305,7 +311,7 @@ static int mmu_translate(CPUState *cs, vaddr addr,
             if (la57) {
                 pml5e_addr = ((cr3 & ~0xfff) +
                         (((addr >> 48) & 0x1ff) << 3)) & a20_mask;
-                pml5e_addr = get_hphys(cs, pml5e_addr, MMU_DATA_STORE, NULL);
+                pml5e_addr = GET_HPHYS(cs, pml5e_addr, MMU_DATA_STORE, NULL);
                 pml5e = x86_ldq_phys(cs, pml5e_addr);
                 if (!(pml5e & PG_PRESENT_MASK)) {
                     goto do_fault;
@@ -325,7 +331,7 @@ static int mmu_translate(CPUState *cs, vaddr addr,
 
             pml4e_addr = ((pml5e & PG_ADDRESS_MASK) +
                     (((addr >> 39) & 0x1ff) << 3)) & a20_mask;
-            pml4e_addr = get_hphys(cs, pml4e_addr, MMU_DATA_STORE, false);
+            pml4e_addr = GET_HPHYS(cs, pml4e_addr, MMU_DATA_STORE, NULL);
             pml4e = x86_ldq_phys(cs, pml4e_addr);
             if (!(pml4e & PG_PRESENT_MASK)) {
                 goto do_fault;
@@ -340,7 +346,7 @@ static int mmu_translate(CPUState *cs, vaddr addr,
             ptep &= pml4e ^ PG_NX_MASK;
             pdpe_addr = ((pml4e & PG_ADDRESS_MASK) + (((addr >> 30) & 0x1ff) << 3)) &
                 a20_mask;
-            pdpe_addr = get_hphys(cs, pdpe_addr, MMU_DATA_STORE, NULL);
+            pdpe_addr = GET_HPHYS(cs, pdpe_addr, MMU_DATA_STORE, NULL);
             pdpe = x86_ldq_phys(cs, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK)) {
                 goto do_fault;
@@ -366,7 +372,7 @@ static int mmu_translate(CPUState *cs, vaddr addr,
             /* XXX: load them when cr3 is loaded ? */
             pdpe_addr = ((cr3 & ~0x1f) + ((addr >> 27) & 0x18)) &
                 a20_mask;
-            pdpe_addr = get_hphys(cs, pdpe_addr, MMU_DATA_STORE, false);
+            pdpe_addr = GET_HPHYS(cs, pdpe_addr, MMU_DATA_STORE, NULL);
             pdpe = x86_ldq_phys(cs, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK)) {
                 goto do_fault;
@@ -380,7 +386,7 @@ static int mmu_translate(CPUState *cs, vaddr addr,
 
         pde_addr = ((pdpe & PG_ADDRESS_MASK) + (((addr >> 21) & 0x1ff) << 3)) &
             a20_mask;
-        pde_addr = get_hphys(cs, pde_addr, MMU_DATA_STORE, NULL);
+        pde_addr = GET_HPHYS(cs, pde_addr, MMU_DATA_STORE, NULL);
         pde = x86_ldq_phys(cs, pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -403,7 +409,7 @@ static int mmu_translate(CPUState *cs, vaddr addr,
         }
         pte_addr = ((pde & PG_ADDRESS_MASK) + (((addr >> 12) & 0x1ff) << 3)) &
             a20_mask;
-        pte_addr = get_hphys(cs, pte_addr, MMU_DATA_STORE, NULL);
+        pte_addr = GET_HPHYS(cs, pte_addr, MMU_DATA_STORE, NULL);
         pte = x86_ldq_phys(cs, pte_addr);
         if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -420,7 +426,7 @@ static int mmu_translate(CPUState *cs, vaddr addr,
         /* page directory entry */
         pde_addr = ((cr3 & ~0xfff) + ((addr >> 20) & 0xffc)) &
             a20_mask;
-        pde_addr = get_hphys(cs, pde_addr, MMU_DATA_STORE, NULL);
+        pde_addr = GET_HPHYS(cs, pde_addr, MMU_DATA_STORE, NULL);
         pde = x86_ldl_phys(cs, pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -448,7 +454,7 @@ static int mmu_translate(CPUState *cs, vaddr addr,
         /* page directory entry */
         pte_addr = ((pde & ~0xfff) + ((addr >> 10) & 0xffc)) &
             a20_mask;
-        pte_addr = get_hphys(cs, pte_addr, MMU_DATA_STORE, NULL);
+        pte_addr = GET_HPHYS(cs, pte_addr, MMU_DATA_STORE, NULL);
         pte = x86_ldl_phys(cs, pte_addr);
         if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -538,7 +544,7 @@ do_check_protect_pse36:
     /* align to page_size */
     pte &= PG_ADDRESS_MASK & ~(*page_size - 1);
     page_offset = addr & (*page_size - 1);
-    *xlat = get_hphys(cs, pte + page_offset, is_write1, prot);
+    *xlat = GET_HPHYS(cs, pte + page_offset, is_write1, prot);
     return PG_ERROR_OK;
 
  do_fault_rsvd:
@@ -588,7 +594,7 @@ static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
         page_size = 4096;
     } else {
         pg_mode = get_pg_mode(env);
-        error_code = mmu_translate(cs, addr, env->cr[3], is_write1,
+        error_code = mmu_translate(cs, addr, get_hphys, env->cr[3], is_write1,
                                    mmu_idx, pg_mode,
                                    &paddr, &page_size, &prot);
     }
