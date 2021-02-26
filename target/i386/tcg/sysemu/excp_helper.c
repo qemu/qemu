@@ -205,17 +205,17 @@ static hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
     return pte + page_offset;
 
  do_fault_rsvd:
-    exit_info_1 |= SVM_NPTEXIT_RSVD;
+    exit_info_1 |= PG_ERROR_RSVD_MASK;
  do_fault_protect:
-    exit_info_1 |= SVM_NPTEXIT_P;
+    exit_info_1 |= PG_ERROR_P_MASK;
  do_fault:
     x86_stq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2),
                  gphys);
-    exit_info_1 |= SVM_NPTEXIT_US;
+    exit_info_1 |= PG_ERROR_U_MASK;
     if (access_type == MMU_DATA_STORE) {
-        exit_info_1 |= SVM_NPTEXIT_RW;
+        exit_info_1 |= PG_ERROR_W_MASK;
     } else if (access_type == MMU_INST_FETCH) {
-        exit_info_1 |= SVM_NPTEXIT_ID;
+        exit_info_1 |= PG_ERROR_I_D_MASK;
     }
     if (prot) {
         exit_info_1 |= SVM_NPTEXIT_GPA;
