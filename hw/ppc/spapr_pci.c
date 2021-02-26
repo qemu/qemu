@@ -1743,6 +1743,10 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
                 }
             }
         }
+    } else {
+        error_setg(errp,
+                   "PCI device unplug already in progress for device %s",
+                   drc->dev->id);
     }
 }
 
