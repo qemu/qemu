@@ -22,7 +22,6 @@
 #include "hw/boards.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
-#include "sysemu/qtest.h"
 #include "sysemu/device_tree.h"
 #include "qom/object.h"
 #include "net/can_emu.h"

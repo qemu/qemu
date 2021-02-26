@@ -30,7 +30,6 @@
 #include "qemu/error-report.h"
 #include "exec/exec-all.h"
 #include "sysemu/cpus.h"
-#include "sysemu/qtest.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "qemu/seqlock.h"
