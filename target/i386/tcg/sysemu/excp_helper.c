@@ -24,11 +24,26 @@
 int get_pg_mode(CPUX86State *env)
 {
     int pg_mode = 0;
+    if (env->cr[0] & CR0_WP_MASK) {
+        pg_mode |= PG_MODE_WP;
+    }
     if (env->cr[4] & CR4_PAE_MASK) {
         pg_mode |= PG_MODE_PAE;
     }
     if (env->cr[4] & CR4_PSE_MASK) {
         pg_mode |= PG_MODE_PSE;
+    }
+    if (env->cr[4] & CR4_PKE_MASK) {
+        pg_mode |= PG_MODE_PKE;
+    }
+    if (env->cr[4] & CR4_PKS_MASK) {
+        pg_mode |= PG_MODE_PKS;
+    }
+    if (env->cr[4] & CR4_SMEP_MASK) {
+        pg_mode |= PG_MODE_SMEP;
+    }
+    if (env->cr[4] & CR4_LA57_MASK) {
+        pg_mode |= PG_MODE_LA57;
     }
     if (env->hflags & HF_LMA_MASK) {
         pg_mode |= PG_MODE_LMA;
@@ -246,7 +261,7 @@ static hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
 #define PG_ERROR_OK (-1)
 
 static int mmu_translate(CPUState *cs, vaddr addr,
-                         uint64_t cr3, int is_write1, int mmu_idx,
+                         uint64_t cr3, int is_write1, int mmu_idx, int pg_mode,
                          vaddr *xlat, int *page_size, int *prot)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -264,17 +279,17 @@ static int mmu_translate(CPUState *cs, vaddr addr,
     is_write = is_write1 & 1;
     a20_mask = x86_get_a20_mask(env);
 
-    if (!(env->efer & MSR_EFER_NXE)) {
+    if (!(pg_mode & PG_MODE_NXE)) {
         rsvd_mask |= PG_NX_MASK;
     }
 
-    if (env->cr[4] & CR4_PAE_MASK) {
+    if (pg_mode & PG_MODE_PAE) {
         uint64_t pde, pdpe;
         target_ulong pdpe_addr;
 
 #ifdef TARGET_X86_64
         if (env->hflags & HF_LMA_MASK) {
-            bool la57 = env->cr[4] & CR4_LA57_MASK;
+            bool la57 = pg_mode & PG_MODE_LA57;
             uint64_t pml5e_addr, pml5e;
             uint64_t pml4e_addr, pml4e;
             int32_t sext;
@@ -413,7 +428,7 @@ static int mmu_translate(CPUState *cs, vaddr addr,
         ptep = pde | PG_NX_MASK;
 
         /* if PSE bit is set, then we use a 4MB page */
-        if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
+        if ((pde & PG_PSE_MASK) && (pg_mode & PG_MODE_PSE)) {
             *page_size = 4096 * 1024;
             pte_addr = pde_addr;
 
@@ -460,22 +475,22 @@ do_check_protect_pse36:
     *prot = 0;
     if (mmu_idx != MMU_KSMAP_IDX || !(ptep & PG_USER_MASK)) {
         *prot |= PAGE_READ;
-        if ((ptep & PG_RW_MASK) || (!is_user && !(env->cr[0] & CR0_WP_MASK))) {
+        if ((ptep & PG_RW_MASK) || !(is_user || (pg_mode & PG_MODE_WP))) {
             *prot |= PAGE_WRITE;
         }
     }
     if (!(ptep & PG_NX_MASK) &&
         (mmu_idx == MMU_USER_IDX ||
-         !((env->cr[4] & CR4_SMEP_MASK) && (ptep & PG_USER_MASK)))) {
+         !((pg_mode & PG_MODE_SMEP) && (ptep & PG_USER_MASK)))) {
         *prot |= PAGE_EXEC;
     }
 
     if (!(env->hflags & HF_LMA_MASK)) {
         pkr = 0;
     } else if (ptep & PG_USER_MASK) {
-        pkr = env->cr[4] & CR4_PKE_MASK ? env->pkru : 0;
+        pkr = pg_mode & PG_MODE_PKE ? env->pkru : 0;
     } else {
-        pkr = env->cr[4] & CR4_PKS_MASK ? env->pkrs : 0;
+        pkr = pg_mode & PG_MODE_PKS ? env->pkrs : 0;
     }
     if (pkr) {
         uint32_t pk = (pte & PG_PKRU_MASK) >> PG_PKRU_BIT;
@@ -485,7 +500,7 @@ do_check_protect_pse36:
 
         if (pkr_ad) {
             pkr_prot &= ~(PAGE_READ | PAGE_WRITE);
-        } else if (pkr_wd && (is_user || env->cr[0] & CR0_WP_MASK)) {
+        } else if (pkr_wd && (is_user || (pg_mode & PG_MODE_WP))) {
             pkr_prot &= ~PAGE_WRITE;
         }
 
@@ -535,9 +550,8 @@ do_check_protect_pse36:
     if (is_user)
         error_code |= PG_ERROR_U_MASK;
     if (is_write1 == 2 &&
-        (((env->efer & MSR_EFER_NXE) &&
-	  (env->cr[4] & CR4_PAE_MASK)) ||
-         (env->cr[4] & CR4_SMEP_MASK)))
+        (((pg_mode & PG_MODE_NXE) && (pg_mode & PG_MODE_PAE)) ||
+         (pg_mode & PG_MODE_SMEP)))
         error_code |= PG_ERROR_I_D_MASK;
     return error_code;
 }
@@ -553,7 +567,7 @@ static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
     int error_code = PG_ERROR_OK;
-    int prot, page_size;
+    int pg_mode, prot, page_size;
     hwaddr paddr;
     target_ulong vaddr;
 
@@ -573,8 +587,9 @@ static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         page_size = 4096;
     } else {
+        pg_mode = get_pg_mode(env);
         error_code = mmu_translate(cs, addr, env->cr[3], is_write1,
-                                   mmu_idx,
+                                   mmu_idx, pg_mode,
                                    &paddr, &page_size, &prot);
     }
 
