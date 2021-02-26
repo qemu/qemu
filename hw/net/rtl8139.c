@@ -1795,7 +1795,7 @@ static void rtl8139_transfer_frame(RTL8139State *s, uint8_t *buf, int size,
         }
 
         DPRINTF("+++ transmit loopback mode\n");
-        rtl8139_do_receive(qemu_get_queue(s->nic), buf, size, do_interrupt);
+        qemu_receive_packet(qemu_get_queue(s->nic), buf, size);
 
         if (iov) {
             g_free(buf2);
