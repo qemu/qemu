@@ -183,7 +183,7 @@ static const struct SysemuCPUOps rx_sysemu_ops = {
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps rx_tcg_ops = {
+static const struct TCGCPUOps rx_tcg_ops = {
     .initialize = rx_translate_init,
     .synchronize_from_tb = rx_cpu_synchronize_from_tb,
     .cpu_exec_interrupt = rx_cpu_exec_interrupt,

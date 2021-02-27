@@ -609,7 +609,7 @@ static const struct SysemuCPUOps riscv_sysemu_ops = {
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps riscv_tcg_ops = {
+static const struct TCGCPUOps riscv_tcg_ops = {
     .initialize = riscv_translate_init,
     .synchronize_from_tb = riscv_cpu_synchronize_from_tb,
     .cpu_exec_interrupt = riscv_cpu_exec_interrupt,

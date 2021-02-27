@@ -190,7 +190,7 @@ static const struct SysemuCPUOps xtensa_sysemu_ops = {
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps xtensa_tcg_ops = {
+static const struct TCGCPUOps xtensa_tcg_ops = {
     .initialize = xtensa_translate_init,
     .cpu_exec_interrupt = xtensa_cpu_exec_interrupt,
     .tlb_fill = xtensa_cpu_tlb_fill,

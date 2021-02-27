@@ -513,7 +513,7 @@ static const struct SysemuCPUOps m68k_sysemu_ops = {
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps m68k_tcg_ops = {
+static const struct TCGCPUOps m68k_tcg_ops = {
     .initialize = m68k_tcg_init,
     .cpu_exec_interrupt = m68k_cpu_exec_interrupt,
     .tlb_fill = m68k_cpu_tlb_fill,
