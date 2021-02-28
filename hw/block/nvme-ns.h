@@ -53,6 +53,7 @@ typedef struct NvmeNamespace {
     uint8_t      csi;
 
     NvmeSubsystem   *subsys;
+    QTAILQ_ENTRY(NvmeNamespace) entry;
 
     NvmeIdNsZoned   *id_ns_zoned;
     NvmeZone        *zone_array;

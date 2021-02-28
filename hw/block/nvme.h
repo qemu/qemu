@@ -192,6 +192,10 @@ typedef struct NvmeCtrl {
 
     uint32_t    dmrsl;
 
+    /* Namespace ID is started with 1 so bitmap should be 1-based */
+#define NVME_CHANGED_NSID_SIZE  (NVME_MAX_NAMESPACES + 1)
+    DECLARE_BITMAP(changed_nsids, NVME_CHANGED_NSID_SIZE);
+
     NvmeSubsystem   *subsys;
 
     NvmeNamespace   namespace;

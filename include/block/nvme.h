@@ -760,6 +760,7 @@ typedef struct QEMU_PACKED NvmeCopySourceRange {
 enum NvmeAsyncEventRequest {
     NVME_AER_TYPE_ERROR                     = 0,
     NVME_AER_TYPE_SMART                     = 1,
+    NVME_AER_TYPE_NOTICE                    = 2,
     NVME_AER_TYPE_IO_SPECIFIC               = 6,
     NVME_AER_TYPE_VENDOR_SPECIFIC           = 7,
     NVME_AER_INFO_ERR_INVALID_DB_REGISTER   = 0,
@@ -771,6 +772,7 @@ enum NvmeAsyncEventRequest {
     NVME_AER_INFO_SMART_RELIABILITY         = 0,
     NVME_AER_INFO_SMART_TEMP_THRESH         = 1,
     NVME_AER_INFO_SMART_SPARE_THRESH        = 2,
+    NVME_AER_INFO_NOTICE_NS_ATTR_CHANGED    = 0,
 };
 
 typedef struct QEMU_PACKED NvmeAerResult {
@@ -940,6 +942,7 @@ enum NvmeLogIdentifier {
     NVME_LOG_ERROR_INFO     = 0x01,
     NVME_LOG_SMART_INFO     = 0x02,
     NVME_LOG_FW_SLOT_INFO   = 0x03,
+    NVME_LOG_CHANGED_NSLIST = 0x04,
     NVME_LOG_CMD_EFFECTS    = 0x05,
 };
 
@@ -1055,6 +1058,10 @@ typedef struct NvmeIdCtrlNvm {
     uint64_t    dmsl;
     uint8_t     rsvd16[4080];
 } NvmeIdCtrlNvm;
+
+enum NvmeIdCtrlOaes {
+    NVME_OAES_NS_ATTR   = 1 << 8,
+};
 
 enum NvmeIdCtrlOacs {
     NVME_OACS_SECURITY  = 1 << 0,
