@@ -152,6 +152,20 @@ static void init_qmp_commands(void)
                          qmp_marshal_qmp_capabilities, QCO_ALLOW_PRECONFIG);
 }
 
+static int getopt_set_loc(int argc, char **argv, const char *optstring,
+                          const struct option *longopts)
+{
+    int c, save_index;
+
+    optarg = NULL;
+    save_index = optind;
+    c = getopt_long(argc, argv, optstring, longopts, NULL);
+    if (optarg) {
+        loc_set_cmdline(argv, save_index, MAX(1, optind - save_index));
+    }
+    return c;
+}
+
 static void process_options(int argc, char *argv[])
 {
     int c;
@@ -174,7 +188,7 @@ static void process_options(int argc, char *argv[])
      * they are given on the command lines. This means that things must be
      * defined first before they can be referenced in another option.
      */
-    while ((c = getopt_long(argc, argv, "-hT:V", long_options, NULL)) != -1) {
+    while ((c = getopt_set_loc(argc, argv, "-hT:V", long_options)) != -1) {
         switch (c) {
         case '?':
             exit(EXIT_FAILURE);
@@ -276,12 +290,13 @@ static void process_options(int argc, char *argv[])
                 break;
             }
         case 1:
-            error_report("Unexpected argument: %s", optarg);
+            error_report("Unexpected argument");
             exit(EXIT_FAILURE);
         default:
             g_assert_not_reached();
         }
     }
+    loc_set_none();
 }
 
 int main(int argc, char *argv[])
