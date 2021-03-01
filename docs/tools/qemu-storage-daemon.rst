@@ -69,7 +69,7 @@ Standard options:
   a description of character device properties. A common character device
   definition configures a UNIX domain socket::
 
-  --chardev socket,id=char1,path=/tmp/qmp.sock,server=on,wait=off
+  --chardev socket,id=char1,path=/var/run/qsd-qmp.sock,server=on,wait=off
 
 .. option:: --export [type=]nbd,id=<id>,node-name=<node-name>[,name=<export-name>][,writable=on|off][,bitmap=<name>]
   --export [type=]vhost-user-blk,id=<id>,node-name=<node-name>,addr.type=unix,addr.path=<socket-path>[,writable=on|off][,logical-block-size=<block-size>][,num-queues=<num-queues>]
@@ -108,9 +108,10 @@ Standard options:
   below). TLS encryption can be configured using ``--object`` tls-creds-* and
   authz-* secrets (see below).
 
-  To configure an NBD server on UNIX domain socket path ``/tmp/nbd.sock``::
+  To configure an NBD server on UNIX domain socket path
+  ``/var/run/qsd-nbd.sock``::
 
-  --nbd-server addr.type=unix,addr.path=/tmp/nbd.sock
+  --nbd-server addr.type=unix,addr.path=/var/run/qsd-nbd.sock
 
 .. option:: --object help
   --object <type>,help
