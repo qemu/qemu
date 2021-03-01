@@ -101,10 +101,12 @@ Standard options:
 
 .. option:: --nbd-server addr.type=inet,addr.host=<host>,addr.port=<port>[,tls-creds=<id>][,tls-authz=<id>][,max-connections=<n>]
   --nbd-server addr.type=unix,addr.path=<path>[,tls-creds=<id>][,tls-authz=<id>][,max-connections=<n>]
+  --nbd-server addr.type=fd,addr.str=<fd>[,tls-creds=<id>][,tls-authz=<id>][,max-connections=<n>]
 
   is a server for NBD exports. Both TCP and UNIX domain sockets are supported.
-  TLS encryption can be configured using ``--object`` tls-creds-* and authz-*
-  secrets (see below).
+  A listen socket can be provided via file descriptor passing (see Examples
+  below). TLS encryption can be configured using ``--object`` tls-creds-* and
+  authz-* secrets (see below).
 
   To configure an NBD server on UNIX domain socket path ``/tmp/nbd.sock``::
 
@@ -140,6 +142,42 @@ QMP commands::
   $ qemu-storage-daemon \
       --chardev socket,path=qmp.sock,server=on,wait=off,id=char1 \
       --monitor chardev=char1
+
+Launch the daemon from Python with a QMP monitor socket using file descriptor
+passing so there is no need to busy wait for the QMP monitor to become
+available::
+
+  #!/usr/bin/env python3
+  import subprocess
+  import socket
+
+  sock_path = '/var/run/qmp.sock'
+
+  with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listen_sock:
+      listen_sock.bind(sock_path)
+      listen_sock.listen()
+
+      fd = listen_sock.fileno()
+
+      subprocess.Popen(
+          ['qemu-storage-daemon',
+           '--chardev', f'socket,fd={fd},server=on,id=char1',
+           '--monitor', 'chardev=char1'],
+          pass_fds=[fd],
+      )
+
+  # listen_sock was automatically closed when leaving the 'with' statement
+  # body. If the daemon process terminated early then the following connect()
+  # will fail with "Connection refused" because no process has the listen
+  # socket open anymore. Launch errors can be detected this way.
+
+  qmp_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+  qmp_sock.connect(sock_path)
+  ...QMP interaction...
+
+The same socket spawning approach also works with the ``--nbd-server
+addr.type=fd,addr.str=<fd>`` and ``--export
+type=vhost-user-blk,addr.type=fd,addr.str=<fd>`` options.
 
 Export raw image file ``disk.img`` over NBD UNIX domain socket ``nbd.sock``::
 
