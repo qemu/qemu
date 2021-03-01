@@ -174,7 +174,7 @@ static void process_options(int argc, char *argv[])
      * they are given on the command lines. This means that things must be
      * defined first before they can be referenced in another option.
      */
-    while ((c = getopt_long(argc, argv, "hT:V", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "-hT:V", long_options, NULL)) != -1) {
         switch (c) {
         case '?':
             exit(EXIT_FAILURE);
@@ -275,13 +275,12 @@ static void process_options(int argc, char *argv[])
                 qobject_unref(args);
                 break;
             }
+        case 1:
+            error_report("Unexpected argument: %s", optarg);
+            exit(EXIT_FAILURE);
         default:
             g_assert_not_reached();
         }
-    }
-    if (optind != argc) {
-        error_report("Unexpected argument: %s", argv[optind]);
-        exit(EXIT_FAILURE);
     }
 }
 
