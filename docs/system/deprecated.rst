@@ -153,6 +153,13 @@ The ``-writeconfig`` option is not able to serialize the entire contents
 of the QEMU command line.  It is thus considered a failed experiment
 and deprecated, with no current replacement.
 
+Userspace local APIC with KVM (x86, since 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''
+
+Using ``-M kernel-irqchip=off`` with x86 machine types that include a local
+APIC is deprecated.  The ``split`` setting is supported, as is using
+``-M kernel-irqchip=off`` with the ISA PC machine type.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
