@@ -421,9 +421,8 @@ void spapr_drc_unplug_request(SpaprDrc *drc)
 
 int spapr_drc_unplug_timeout_remaining_sec(SpaprDrc *drc)
 {
-    if (drc->unplug_requested && timer_pending(drc->unplug_timeout_timer)) {
-        return (qemu_timeout_ns_to_ms(drc->unplug_timeout_timer->expire_time) -
-                qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL)) / 1000;
+    if (drc->unplug_requested) {
+        return timer_deadline_ms(drc->unplug_timeout_timer) / 1000;
     }
 
     return 0;
