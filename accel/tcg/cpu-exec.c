@@ -408,6 +408,40 @@ void afl_setup(void) {
     }
   }
 
+  if (getenv("AFL_QEMU_EXCLUDE_RANGES")) {
+    char *str = getenv("AFL_QEMU_EXCLUDE_RANGES");
+    char *saveptr1, *saveptr2 = NULL;
+    char *pt1, *pt2, *pt3 = NULL;
+
+    while (1) {
+
+      pt1 = strtok_r(str, ",", &saveptr1);
+      if (pt1 == NULL) break;
+      str = NULL;
+
+      pt2 = strtok_r(pt1, "-", &saveptr2);
+      pt3 = strtok_r(NULL, "-", &saveptr2);
+
+      struct vmrange* n = calloc(1, sizeof(struct vmrange));
+      n->exclude = true; // These are "exclusion" regions.
+      n->next = afl_instr_code;
+
+      if (pt3 == NULL) { // filename
+        have_names = 1;
+        n->start = (target_ulong)-1;
+        n->end = 0;
+        n->name = strdup(pt1);
+      } else {
+        n->start = strtoull(pt2, NULL, 16);
+        n->end = strtoull(pt3, NULL, 16);
+        n->name = NULL;
+      }
+
+      afl_instr_code = n;
+
+    }
+  }
+
   if (have_names) {
     GSList *map_info = read_self_maps();
     for (GSList *s = map_info; s; s = g_slist_next(s)) {
@@ -446,9 +480,15 @@ void afl_setup(void) {
   if (getenv("AFL_DEBUG") && afl_instr_code) {
     struct vmrange* n = afl_instr_code;
     while (n) {
-      fprintf(stderr, "Instrument range: 0x%lx-0x%lx (%s)\n",
-              (unsigned long)n->start, (unsigned long)n->end,
-              n->name ? n->name : "<noname>");
+      if (n->exclude) {
+        fprintf(stderr, "Exclude range: 0x%lx-0x%lx (%s)\n",
+                (unsigned long)n->start, (unsigned long)n->end,
+                n->name ? n->name : "<noname>");
+      } else {
+        fprintf(stderr, "Instrument range: 0x%lx-0x%lx (%s)\n",
+                (unsigned long)n->start, (unsigned long)n->end,
+                n->name ? n->name : "<noname>");
+      }
       n = n->next;
     }
   }

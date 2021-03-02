@@ -76,9 +76,12 @@ typedef void (*afl_persistent_hook_fn)(struct api_regs *regs,
 
 /* Declared in afl-qemu-cpu-inl.h */
 
+// This structure is used for tracking which
+// code is to be instrumented via afl_instr_code.
 struct vmrange {
   target_ulong start, end;
   char* name;
+  bool exclude; // Exclude this region rather than include it
   struct vmrange* next;
 };
 
@@ -164,14 +167,19 @@ static inline int is_valid_addr(target_ulong addr) {
 
 static inline int afl_must_instrument(target_ulong addr) {
 
+  // Reject any exclusion regions
+  for (struct vmrange* n = afl_instr_code; n; n = n->next) {
+    if (n->exclude && addr < n->end && addr >= n->start)
+      return 0;
+  }
+
+  // Check for inclusion in instrumentation regions
   if (addr < afl_end_code && addr >= afl_start_code)
     return 1;
-  
-  struct vmrange* n = afl_instr_code;
-  while(n) {
-    if (addr < n->end && addr >= n->start)
+
+  for (struct vmrange* n = afl_instr_code; n; n = n->next) {
+    if (!n->exclude && addr < n->end && addr >= n->start)
       return 1;
-    n = n->next;
   }
 
   return 0;
