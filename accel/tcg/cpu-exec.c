@@ -35,6 +35,7 @@
 #include "exec/tb-lookup.h"
 #include "exec/log.h"
 #include "qemu/main-loop.h"
+#include "qemu/selfmap.h"
 #if defined(TARGET_I386) && !defined(CONFIG_USER_ONLY)
 #include "hw/i386/apic.h"
 #endif
@@ -408,57 +409,40 @@ void afl_setup(void) {
     }
     
     if (have_names) {
-    
-      FILE *fp;
-      char *line = NULL;
-      size_t len = 0;
-      ssize_t read;
+      GSList *map_info = read_self_maps();
+      for (GSList *s = map_info; s; s = g_slist_next(s)) {
+        MapInfo *e = (MapInfo *) s->data;
 
-      fp = fopen("/proc/self/maps", "r");
-      if (fp == NULL) {
-        fprintf(stderr, "[AFL] ERROR: cannot open /proc/self/maps\n");
-        exit(1);
-      }
-      
-      while ((read = getline(&line, &len, fp)) != -1) {
-      
-        int fields, dev_maj, dev_min, inode;
-        uint64_t min, max, offset;
-        char flag_r, flag_w, flag_x, flag_p;
-        char path[512] = "";
+        if (h2g_valid(e->start)) {
+          unsigned long min = e->start;
+          unsigned long max = e->end;
+          int flags = page_get_flags(h2g(min));
 
-        fields = sscanf(line, "%"PRIx64"-%"PRIx64" %c%c%c%c %"PRIx64" %x:%x %d"
-                        " %512s", &min, &max, &flag_r, &flag_w, &flag_x,
-                        &flag_p, &offset, &dev_maj, &dev_min, &inode, path);
+          max = h2g_valid(max - 1) ? max : (uintptr_t) AFL_G2H(GUEST_ADDR_MAX) + 1;
 
-        if ((fields < 10) || (fields > 11) || !flag_x || !h2g_valid(min))
+          if (page_check_range(h2g(min), max - min, flags) == -1) {
             continue;
-        
-        int flags = page_get_flags(h2g(min));
-        
-        max = h2g_valid(max - 1) ? max : (uintptr_t)AFL_G2H(GUEST_ADDR_MAX) + 1;
-        if (page_check_range(h2g(min), max - min, flags) == -1)
-            continue;
-        
-        target_ulong gmin = h2g(min);
-        target_ulong gmax = h2g(max);
-        
-        struct vmrange* n = afl_instr_code;
-        while (n) {
-          if (n->name && strstr(path, n->name)) {
-            if (gmin < n->start) n->start = gmin;
-            if (gmax > n->end) n->end = gmax;
-            break;
           }
-          n = n->next;
+
+          // Now that we have a valid guest address region, compare its
+          // name against the names we care about:
+          target_ulong gmin = h2g(min);
+          target_ulong gmax = h2g(max);
+
+          struct vmrange* n = afl_instr_code;
+          while (n) {
+            if (n->name && strstr(e->path, n->name)) {
+              if (gmin < n->start) n->start = gmin;
+              if (gmax > n->end) n->end = gmax;
+              break;
+            }
+            n = n->next;
+          }
         }
-      
       }
-      
-      fclose(fp);
-    
+      free_self_maps(map_info);
     }
-    
+
     if (getenv("AFL_DEBUG") && afl_instr_code) {
       struct vmrange* n = afl_instr_code;
       while (n) {
