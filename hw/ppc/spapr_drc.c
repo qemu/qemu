@@ -1231,12 +1231,11 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
 
     /*
      * This indicates that the kernel is reconfiguring a LMB due to
-     * a failed hotunplug. Clear the pending unplug state for the whole
-     * DIMM.
+     * a failed hotunplug. Rollback the DIMM unplug process.
      */
     if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_LMB &&
         drc->unplug_requested) {
-        spapr_clear_pending_dimm_unplug_state(spapr, drc->dev);
+        spapr_memory_unplug_rollback(spapr, drc->dev);
     }
 
     if (!drc->fdt) {

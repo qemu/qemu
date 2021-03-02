@@ -28,6 +28,7 @@
 #include "qemu-common.h"
 #include "qemu/datadir.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-machine.h"
 #include "qapi/visitor.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hostmem.h"
@@ -3575,14 +3576,14 @@ static SpaprDimmState *spapr_recover_pending_dimm_state(SpaprMachineState *ms,
     return spapr_pending_dimm_unplugs_add(ms, avail_lmbs, dimm);
 }
 
-void spapr_clear_pending_dimm_unplug_state(SpaprMachineState *spapr,
-                                           DeviceState *dev)
+void spapr_memory_unplug_rollback(SpaprMachineState *spapr, DeviceState *dev)
 {
     SpaprDimmState *ds;
     PCDIMMDevice *dimm;
     SpaprDrc *drc;
     uint32_t nr_lmbs;
     uint64_t size, addr_start, addr;
+    g_autofree char *qapi_error = NULL;
     int i;
 
     if (!dev) {
@@ -3616,6 +3617,14 @@ void spapr_clear_pending_dimm_unplug_state(SpaprMachineState *spapr,
         drc->unplug_requested = false;
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
+
+    /*
+     * Tell QAPI that something happened and the memory
+     * hotunplug wasn't successful.
+     */
+    qapi_error = g_strdup_printf("Memory hotunplug rejected by the guest "
+                                 "for device %s", dev->id);
+    qapi_event_send_mem_unplug_error(dev->id, qapi_error);
 }
 
 /* Callback to be called during DRC release. */
