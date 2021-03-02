@@ -463,7 +463,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         /* Read-only registers, do nothing */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gt64120: Read-only register write "
-                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      "reg:0x%03x size:%u value:0x%0*" PRIx64 "\n",
                       saddr << 2, size, size << 1, val);
         break;
 
@@ -473,7 +473,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         /* Read-only registers, do nothing */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gt64120: Read-only register write "
-                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      "reg:0x%03x size:%u value:0x%0*" PRIx64 "\n",
                       saddr << 2, size, size << 1, val);
         break;
 
@@ -515,7 +515,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         /* Not implemented */
         qemu_log_mask(LOG_UNIMP,
                       "gt64120: Unimplemented device register write "
-                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      "reg:0x%03x size:%u value:0x%0*" PRIx64 "\n",
                       saddr << 2, size, size << 1, val);
         break;
 
@@ -528,7 +528,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         /* Read-only registers, do nothing */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gt64120: Read-only register write "
-                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      "reg:0x%03x size:%u value:0x%0*" PRIx64 "\n",
                       saddr << 2, size, size << 1, val);
         break;
 
@@ -565,7 +565,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         /* Not implemented */
         qemu_log_mask(LOG_UNIMP,
                       "gt64120: Unimplemented DMA register write "
-                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      "reg:0x%03x size:%u value:0x%0*" PRIx64 "\n",
                       saddr << 2, size, size << 1, val);
         break;
 
@@ -578,7 +578,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         /* Not implemented */
         qemu_log_mask(LOG_UNIMP,
                       "gt64120: Unimplemented timer register write "
-                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      "reg:0x%03x size:%u value:0x%0*" PRIx64 "\n",
                       saddr << 2, size, size << 1, val);
         break;
 
@@ -621,8 +621,8 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     case GT_PCI1_CFGDATA:
         /* not implemented */
         qemu_log_mask(LOG_UNIMP,
-                      "gt64120: Unimplemented timer register write "
-                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      "gt64120: Unimplemented PCI register write "
+                      "reg:0x%03x size:%u value:0x%0*" PRIx64 "\n",
                       saddr << 2, size, size << 1, val);
         break;
     case GT_PCI0_CFGADDR:
@@ -682,7 +682,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gt64120: Illegal register write "
-                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      "reg:0x%03x size:%u value:0x%0*" PRIx64 "\n",
                       saddr << 2, size, size << 1, val);
         break;
     }
@@ -958,7 +958,7 @@ static uint64_t gt64120_readl(void *opaque,
         val = s->regs[saddr];
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gt64120: Illegal register read "
-                      "reg:0x03%x size:%u value:0x%0*x\n",
+                      "reg:0x%03x size:%u value:0x%0*x\n",
                       saddr << 2, size, size << 1, val);
         break;
     }
