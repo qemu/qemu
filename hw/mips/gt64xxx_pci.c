@@ -642,19 +642,19 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         /* not really implemented */
         s->regs[saddr] = ~(~(s->regs[saddr]) | ~(val & 0xfffffffe));
         s->regs[saddr] |= !!(s->regs[saddr] & 0xfffffffe);
-        trace_gt64120_write("INTRCAUSE", size, val);
+        trace_gt64120_write_intreg("INTRCAUSE", size, val);
         break;
     case GT_INTRMASK:
         s->regs[saddr] = val & 0x3c3ffffe;
-        trace_gt64120_write("INTRMASK", size, val);
+        trace_gt64120_write_intreg("INTRMASK", size, val);
         break;
     case GT_PCI0_ICMASK:
         s->regs[saddr] = val & 0x03fffffe;
-        trace_gt64120_write("ICMASK", size, val);
+        trace_gt64120_write_intreg("ICMASK", size, val);
         break;
     case GT_PCI0_SERR0MASK:
         s->regs[saddr] = val & 0x0000003f;
-        trace_gt64120_write("SERR0MASK", size, val);
+        trace_gt64120_write_intreg("SERR0MASK", size, val);
         break;
 
     /* Reserved when only PCI_0 is configured. */
@@ -929,19 +929,19 @@ static uint64_t gt64120_readl(void *opaque,
     /* Interrupts */
     case GT_INTRCAUSE:
         val = s->regs[saddr];
-        trace_gt64120_read("INTRCAUSE", size, val);
+        trace_gt64120_read_intreg("INTRCAUSE", size, val);
         break;
     case GT_INTRMASK:
         val = s->regs[saddr];
-        trace_gt64120_read("INTRMASK", size, val);
+        trace_gt64120_read_intreg("INTRMASK", size, val);
         break;
     case GT_PCI0_ICMASK:
         val = s->regs[saddr];
-        trace_gt64120_read("ICMASK", size, val);
+        trace_gt64120_read_intreg("ICMASK", size, val);
         break;
     case GT_PCI0_SERR0MASK:
         val = s->regs[saddr];
-        trace_gt64120_read("SERR0MASK", size, val);
+        trace_gt64120_read_intreg("SERR0MASK", size, val);
         break;
 
     /* Reserved when only PCI_0 is configured. */
