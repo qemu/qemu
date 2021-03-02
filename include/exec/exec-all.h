@@ -513,8 +513,6 @@ struct TranslationBlock {
     uintptr_t jmp_dest[2];
 };
 
-extern bool parallel_cpus;
-
 /* Hide the qatomic_read to make code a little easier on the eyes */
 static inline uint32_t tb_cflags(const TranslationBlock *tb)
 {
@@ -524,10 +522,7 @@ static inline uint32_t tb_cflags(const TranslationBlock *tb)
 /* current cflags for hashing/comparison */
 static inline uint32_t curr_cflags(CPUState *cpu)
 {
-    uint32_t cflags = deposit32(0, CF_CLUSTER_SHIFT, 8, cpu->cluster_index);
-    cflags |= parallel_cpus ? CF_PARALLEL : 0;
-    cflags |= icount_enabled() ? CF_USE_ICOUNT : 0;
-    return cflags;
+    return cpu->tcg_cflags;
 }
 
 /* TranslationBlock invalidate API */

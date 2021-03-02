@@ -224,7 +224,6 @@ static void *l1_map[V_L1_MAX_SIZE];
 TCGContext tcg_init_ctx;
 __thread TCGContext *tcg_ctx;
 TBContext tb_ctx;
-bool parallel_cpus;
 
 static void page_table_config_init(void)
 {
@@ -1866,9 +1865,6 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         /* Generate a one-shot TB with 1 insn in it */
         cflags = (cflags & ~CF_COUNT_MASK) | 1;
     }
-
-    cflags &= ~CF_CLUSTER_MASK;
-    cflags |= cpu->cluster_index << CF_CLUSTER_SHIFT;
 
     max_insns = cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
