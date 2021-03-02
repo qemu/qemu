@@ -64,4 +64,5 @@ config FW_CFG_MIPS
 config GT64120
     bool
     select PCI
+    select EMPTY_SLOT
     select I8259
