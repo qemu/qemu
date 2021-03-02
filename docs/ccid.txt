@@ -109,7 +109,8 @@ NSS.  Registration can be done from Firefox or the command line:
 
 on the host specify the ccid-card-passthru device with a suitable chardev:
 
-    qemu -chardev socket,server,host=0.0.0.0,port=2001,id=ccid,nowait -usb -device usb-ccid -device ccid-card-passthru,chardev=ccid
+    qemu -chardev socket,server=on,host=0.0.0.0,port=2001,id=ccid,wait=off \
+         -usb -device usb-ccid -device ccid-card-passthru,chardev=ccid
 
 on the client run vscclient, built when you built QEMU:
 
@@ -125,7 +126,8 @@ Follow instructions as per #4, except run QEMU and vscclient as follows:
 Run qemu as per #5, and run vscclient from the "fake-smartcard"
 directory as follows:
 
-    qemu -chardev socket,server,host=0.0.0.0,port=2001,id=ccid,nowait -usb -device usb-ccid -device ccid-card-passthru,chardev=ccid
+    qemu -chardev socket,server=on,host=0.0.0.0,port=2001,id=ccid,wait=off \
+         -usb -device usb-ccid -device ccid-card-passthru,chardev=ccid
     vscclient -e "db=\"sql:$PWD\" use_hw=no soft=(,Test,CAC,,id-cert,signing-cert,encryption-cert)" <qemu-host> 2001
 
 

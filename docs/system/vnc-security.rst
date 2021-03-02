@@ -44,7 +44,7 @@ the password all clients will be rejected.
 
 .. parsed-literal::
 
-   |qemu_system| [...OPTIONS...] -vnc :1,password -monitor stdio
+   |qemu_system| [...OPTIONS...] -vnc :1,password=on -monitor stdio
    (qemu) change vnc password
    Password: ********
    (qemu)
@@ -104,7 +104,7 @@ authentication to provide two layers of authentication for clients.
 
    |qemu_system| [...OPTIONS...] \
      -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=on \
-     -vnc :1,tls-creds=tls0,password -monitor stdio
+     -vnc :1,tls-creds=tls0,password=on -monitor stdio
    (qemu) change vnc password
    Password: ********
    (qemu)
@@ -128,7 +128,7 @@ can be launched with:
 
 .. parsed-literal::
 
-   |qemu_system| [...OPTIONS...] -vnc :1,sasl -monitor stdio
+   |qemu_system| [...OPTIONS...] -vnc :1,sasl=on -monitor stdio
 
 .. _vnc_005fsec_005fcertificate_005fsasl:
 
@@ -146,7 +146,7 @@ x509 options:
 
    |qemu_system| [...OPTIONS...] \
      -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=on \
-     -vnc :1,tls-creds=tls0,sasl -monitor stdio
+     -vnc :1,tls-creds=tls0,sasl=on -monitor stdio
 
 .. _vnc_005fsetup_005fsasl:
 

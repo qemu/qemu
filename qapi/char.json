@@ -47,12 +47,12 @@
 #       "return": [
 #          {
 #             "label": "charchannel0",
-#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.agent,server",
+#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.agent,server=on",
 #             "frontend-open": false
 #          },
 #          {
 #             "label": "charmonitor",
-#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.monitor,server",
+#             "filename": "unix:/var/lib/libvirt/qemu/seabios.rhel6.monitor,server=on",
 #             "frontend-open": true
 #          },
 #          {

@@ -598,17 +598,16 @@ static void usb_uas_scsi_transfer_data(SCSIRequest *r, uint32_t len)
     }
 }
 
-static void usb_uas_scsi_command_complete(SCSIRequest *r,
-                                          uint32_t status, size_t resid)
+static void usb_uas_scsi_command_complete(SCSIRequest *r, size_t resid)
 {
     UASRequest *req = r->hba_private;
 
-    trace_usb_uas_scsi_complete(req->uas->dev.addr, req->tag, status, resid);
+    trace_usb_uas_scsi_complete(req->uas->dev.addr, req->tag, r->status, resid);
     req->complete = true;
     if (req->data) {
         usb_uas_complete_data_packet(req);
     }
-    usb_uas_queue_sense(req, status);
+    usb_uas_queue_sense(req, r->status);
     scsi_req_unref(req->req);
 }
 

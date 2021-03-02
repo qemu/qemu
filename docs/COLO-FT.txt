@@ -158,15 +158,15 @@ instance.
 
 # imagefolder="/mnt/vms/colo-test-primary"
 
-# qemu-system-x86_64 -enable-kvm -cpu qemu64,+kvmclock -m 512 -smp 1 -qmp stdio \
+# qemu-system-x86_64 -enable-kvm -cpu qemu64,kvmclock=on -m 512 -smp 1 -qmp stdio \
    -device piix3-usb-uhci -device usb-tablet -name primary \
    -netdev tap,id=hn0,vhost=off,helper=/usr/lib/qemu/qemu-bridge-helper \
    -device rtl8139,id=e0,netdev=hn0 \
-   -chardev socket,id=mirror0,host=0.0.0.0,port=9003,server,nowait \
-   -chardev socket,id=compare1,host=0.0.0.0,port=9004,server,wait \
-   -chardev socket,id=compare0,host=127.0.0.1,port=9001,server,nowait \
+   -chardev socket,id=mirror0,host=0.0.0.0,port=9003,server=on,wait=off \
+   -chardev socket,id=compare1,host=0.0.0.0,port=9004,server=on,wait=on \
+   -chardev socket,id=compare0,host=127.0.0.1,port=9001,server=on,wait=off \
    -chardev socket,id=compare0-0,host=127.0.0.1,port=9001 \
-   -chardev socket,id=compare_out,host=127.0.0.1,port=9005,server,nowait \
+   -chardev socket,id=compare_out,host=127.0.0.1,port=9005,server=on,wait=off \
    -chardev socket,id=compare_out0,host=127.0.0.1,port=9005 \
    -object filter-mirror,id=m0,netdev=hn0,queue=tx,outdev=mirror0 \
    -object filter-redirector,netdev=hn0,id=redire0,queue=rx,indev=compare_out \
@@ -189,7 +189,7 @@ any IP's here, except for the $primary_ip variable.
 
 # qemu-img create -f qcow2 $imagefolder/secondary-hidden.qcow2 10G
 
-# qemu-system-x86_64 -enable-kvm -cpu qemu64,+kvmclock -m 512 -smp 1 -qmp stdio \
+# qemu-system-x86_64 -enable-kvm -cpu qemu64,kvmclock=on -m 512 -smp 1 -qmp stdio \
    -device piix3-usb-uhci -device usb-tablet -name secondary \
    -netdev tap,id=hn0,vhost=off,helper=/usr/lib/qemu/qemu-bridge-helper \
    -device rtl8139,id=e0,netdev=hn0 \

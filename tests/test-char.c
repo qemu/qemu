@@ -780,7 +780,7 @@ static void char_socket_server_test(gconstpointer opaque)
 
     g_setenv("QTEST_SILENT_ERRORS", "1", 1);
     /*
-     * We rely on config->addr containing "nowait", otherwise
+     * We rely on config->addr containing "wait=off", otherwise
      * qemu_chr_new() will block until a client connects. We
      * can't spawn our client thread though, because until
      * qemu_chr_new() returns we don't know what TCP port was
@@ -1114,7 +1114,7 @@ static void char_socket_server_two_clients_test(gconstpointer opaque)
 
     g_setenv("QTEST_SILENT_ERRORS", "1", 1);
     /*
-     * We rely on addr containing "nowait", otherwise
+     * We rely on addr containing "wait=off", otherwise
      * qemu_chr_new() will block until a client connects. We
      * can't spawn our client thread though, because until
      * qemu_chr_new() returns we don't know what TCP port was

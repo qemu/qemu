@@ -463,7 +463,7 @@ skip_meson=no
 gettext="auto"
 fuse="auto"
 fuse_lseek="auto"
-multiprocess="no"
+multiprocess="auto"
 
 malloc_trim="auto"
 
@@ -798,7 +798,6 @@ Linux)
   linux="yes"
   linux_user="yes"
   vhost_user=${default_feature:-yes}
-  multiprocess=${default_feature:-yes}
 ;;
 esac
 
@@ -1558,9 +1557,9 @@ for opt do
   ;;
   --disable-fuse-lseek) fuse_lseek="disabled"
   ;;
-  --enable-multiprocess) multiprocess="yes"
+  --enable-multiprocess) multiprocess="enabled"
   ;;
-  --disable-multiprocess) multiprocess="no"
+  --disable-multiprocess) multiprocess="disabled"
   ;;
   *)
       echo "ERROR: unknown option $opt"
@@ -1914,7 +1913,7 @@ disabled with --disable-FEATURE, default is enabled if available
   libdaxctl       libdaxctl support
   fuse            FUSE block device export
   fuse-lseek      SEEK_HOLE/SEEK_DATA support for FUSE exports
-  multiprocess    Multiprocess QEMU support
+  multiprocess    Out of process device emulation support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -6089,14 +6088,21 @@ fi
 if test "$have_mlockall" = "yes" ; then
   echo "HAVE_MLOCKALL=y" >> $config_host_mak
 fi
-if test "$multiprocess" = "yes" ; then
-  echo "CONFIG_MULTIPROCESS_ALLOWED=y" >> $config_host_mak
-fi
 if test "$fuzzing" = "yes" ; then
   # If LIB_FUZZING_ENGINE is set, assume we are running on OSS-Fuzz, and the
   # needed CFLAGS have already been provided
   if test -z "${LIB_FUZZING_ENGINE+xxx}" ; then
+    # Add CFLAGS to tell clang to add fuzzer-related instrumentation to all the
+    # compiled code.
     QEMU_CFLAGS="$QEMU_CFLAGS -fsanitize=fuzzer-no-link"
+    # To build non-fuzzer binaries with --enable-fuzzing, link everything with
+    # fsanitize=fuzzer-no-link. Otherwise, the linker will be unable to bind
+    # the fuzzer-related callbacks added by instrumentation.
+    QEMU_LDFLAGS="$QEMU_LDFLAGS -fsanitize=fuzzer-no-link"
+    # For the actual fuzzer binaries, we need to link against the libfuzzer
+    # library. Provide the flags for doing this in FUZZ_EXE_LDFLAGS. The meson
+    # rule for the fuzzer adds these to the link_args. They need to be
+    # configurable, to support OSS-Fuzz
     FUZZ_EXE_LDFLAGS="-fsanitize=fuzzer"
   else
     FUZZ_EXE_LDFLAGS="$LIB_FUZZING_ENGINE"
@@ -6424,7 +6430,7 @@ NINJA=$ninja $meson setup \
         -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
         -Dattr=$attr -Ddefault_devices=$default_devices \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
-        -Dvhost_user_blk_server=$vhost_user_blk_server \
+        -Dvhost_user_blk_server=$vhost_user_blk_server -Dmultiprocess=$multiprocess \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek -Dguest_agent_msi=$guest_agent_msi \
         $(if test "$default_features" = no; then echo "-Dauto_features=disabled"; fi) \
 	-Dtcg_interpreter=$tcg_interpreter \

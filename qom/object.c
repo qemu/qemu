@@ -695,7 +695,7 @@ static void object_finalize(void *data)
 
 /* Find the minimum alignment guaranteed by the system malloc. */
 #if __STDC_VERSION__ >= 201112L
-typddef max_align_t qemu_max_align_t;
+typedef max_align_t qemu_max_align_t;
 #else
 typedef union {
     long l;
