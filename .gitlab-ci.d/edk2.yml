@@ -25,6 +25,7 @@ docker-edk2:
 
 build-edk2:
  stage: build
+ needs: ['docker-edk2']
  rules: # Only run this job when ...
  - changes: # ... roms/edk2/ is modified (submodule updated)
    - roms/edk2/*
