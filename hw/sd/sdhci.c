@@ -1140,6 +1140,8 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
         break;
     case SDHC_BLKSIZE:
         if (!TRANSFERRING_DATA(s->prnsts)) {
+            uint16_t blksize = s->blksize;
+
             MASKED_WRITE(s->blksize, mask, extract32(value, 0, 12));
             MASKED_WRITE(s->blkcnt, mask >> 16, value >> 16);
 
@@ -1150,6 +1152,16 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
                               s->buf_maxsz);
 
                 s->blksize = deposit32(s->blksize, 0, 12, s->buf_maxsz);
+            }
+
+            /*
+             * If the block size is programmed to a different value from
+             * the previous one, reset the data pointer of s->fifo_buffer[]
+             * so that s->fifo_buffer[] can be filled in using the new block
+             * size in the next transfer.
+             */
+            if (blksize != s->blksize) {
+                s->data_count = 0;
             }
         }
 
