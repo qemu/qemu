@@ -153,7 +153,6 @@ struct VirtMachineState {
     MemMapEntry *memmap;
     char *pciehb_nodename;
     const int *irqmap;
-    void *fdt;
     int fdt_size;
     uint32_t clock_phandle;
     uint32_t gic_phandle;
