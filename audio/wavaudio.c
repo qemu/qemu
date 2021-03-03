@@ -97,6 +97,10 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
         dolog ("WAVE files can not handle 32bit formats\n");
         return -1;
 
+    case AUDIO_FORMAT_F32:
+        dolog("WAVE files can not handle float formats\n");
+        return -1;
+
     default:
         abort();
     }
