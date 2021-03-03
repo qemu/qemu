@@ -342,6 +342,7 @@ static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
     NetSocketState *s;
     SocketAddress *sa;
     SocketAddressType sa_type;
+    NetdevSocketOptions *stored;
 
     sa = socket_local_address(fd, errp);
     if (!sa) {
@@ -385,8 +386,19 @@ static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
     net_socket_rs_init(&s->rs, net_socket_rs_finalize, false);
     net_socket_read_poll(s, true);
 
+    /* Store startup parameters */
+    nc->stored_config = g_new0(NetdevInfo, 1);
+    nc->stored_config->type = NET_BACKEND_SOCKET;
+    stored = &nc->stored_config->u.socket;
+
+    stored->has_fd = true;
+    stored->fd = g_strdup_printf("%d", fd);
+
     /* mcast: save bound address as dst */
     if (is_connected && mcast != NULL) {
+        stored->has_mcast = true;
+        stored->mcast = g_strdup(mcast);
+
         s->dgram_dst = saddr;
         snprintf(nc->info_str, sizeof(nc->info_str),
                  "socket: fd=%d (cloned mcast=%s:%d)",
@@ -428,6 +440,7 @@ static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
 {
     NetClientState *nc;
     NetSocketState *s;
+    NetdevSocketOptions *stored;
 
     nc = qemu_new_net_client(&net_socket_info, peer, model, name);
 
@@ -447,6 +460,15 @@ static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
     } else {
         qemu_set_fd_handler(s->fd, NULL, net_socket_connect, s);
     }
+
+    /* Store startup parameters */
+    nc->stored_config = g_new0(NetdevInfo, 1);
+    nc->stored_config->type = NET_BACKEND_SOCKET;
+    stored = &nc->stored_config->u.socket;
+
+    stored->has_fd = true;
+    stored->fd = g_strdup_printf("%d", fd);
+
     return s;
 }
 
@@ -483,6 +505,7 @@ static void net_socket_accept(void *opaque)
     struct sockaddr_in saddr;
     socklen_t len;
     int fd;
+    NetdevSocketOptions *stored;
 
     for(;;) {
         len = sizeof(saddr);
@@ -498,6 +521,13 @@ static void net_socket_accept(void *opaque)
     s->fd = fd;
     s->nc.link_down = false;
     net_socket_connect(s);
+
+    /* Store additional startup parameters (extend net_socket_listen_init) */
+    stored = &s->nc.stored_config->u.socket;
+
+    stored->has_fd = true;
+    stored->fd = g_strdup_printf("%d", fd);
+
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
              "socket: connection from %s:%d",
              inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
@@ -513,6 +543,7 @@ static int net_socket_listen_init(NetClientState *peer,
     NetSocketState *s;
     struct sockaddr_in saddr;
     int fd, ret;
+    NetdevSocketOptions *stored;
 
     if (parse_host_port(&saddr, host_str, errp) < 0) {
         return -1;
@@ -549,6 +580,15 @@ static int net_socket_listen_init(NetClientState *peer,
     net_socket_rs_init(&s->rs, net_socket_rs_finalize, false);
 
     qemu_set_fd_handler(s->listen_fd, net_socket_accept, NULL, s);
+
+    /* Store startup parameters */
+    nc->stored_config = g_new0(NetdevInfo, 1);
+    nc->stored_config->type = NET_BACKEND_SOCKET;
+    stored = &nc->stored_config->u.socket;
+
+    stored->has_listen = true;
+    stored->listen = g_strdup(host_str);
+
     return 0;
 }
 
@@ -561,6 +601,7 @@ static int net_socket_connect_init(NetClientState *peer,
     NetSocketState *s;
     int fd, connected, ret;
     struct sockaddr_in saddr;
+    NetdevSocketOptions *stored;
 
     if (parse_host_port(&saddr, host_str, errp) < 0) {
         return -1;
@@ -598,6 +639,12 @@ static int net_socket_connect_init(NetClientState *peer,
         return -1;
     }
 
+    /* Store additional startup parameters (extend net_socket_fd_init) */
+    stored = &s->nc.stored_config->u.socket;
+
+    stored->has_connect = true;
+    stored->connect = g_strdup(host_str);
+
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
              "socket: connect to %s:%d",
              inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
@@ -615,6 +662,7 @@ static int net_socket_mcast_init(NetClientState *peer,
     int fd;
     struct sockaddr_in saddr;
     struct in_addr localaddr, *param_localaddr;
+    NetdevSocketOptions *stored;
 
     if (parse_host_port(&saddr, host_str, errp) < 0) {
         return -1;
@@ -643,6 +691,19 @@ static int net_socket_mcast_init(NetClientState *peer,
 
     s->dgram_dst = saddr;
 
+    /* Store additional startup parameters (extend net_socket_fd_init) */
+    stored = &s->nc.stored_config->u.socket;
+
+    if (!stored->has_mcast) {
+        stored->has_mcast = true;
+        stored->mcast = g_strdup(host_str);
+    }
+
+    if (localaddr_str) {
+        stored->has_localaddr = true;
+        stored->localaddr = g_strdup(localaddr_str);
+    }
+
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
              "socket: mcast=%s:%d",
              inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
@@ -660,6 +721,7 @@ static int net_socket_udp_init(NetClientState *peer,
     NetSocketState *s;
     int fd, ret;
     struct sockaddr_in laddr, raddr;
+    NetdevSocketOptions *stored;
 
     if (parse_host_port(&laddr, lhost, errp) < 0) {
         return -1;
@@ -697,6 +759,15 @@ static int net_socket_udp_init(NetClientState *peer,
     }
 
     s->dgram_dst = raddr;
+
+    /* Store additional startup parameters (extend net_socket_fd_init) */
+    stored = &s->nc.stored_config->u.socket;
+
+    stored->has_localaddr = true;
+    stored->localaddr = g_strdup(lhost);
+
+    stored->has_udp = true;
+    stored->udp = g_strdup(rhost);
 
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
              "socket: udp=%s:%d",

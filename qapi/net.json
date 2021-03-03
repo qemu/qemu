@@ -714,3 +714,83 @@
 ##
 { 'event': 'FAILOVER_NEGOTIATED',
   'data': {'device-id': 'str'} }
+
+##
+# @NetBackend:
+#
+# Available netdev backend drivers.
+#
+# Since: 6.0
+##
+{ 'enum': 'NetBackend',
+  'data': [ 'bridge', 'l2tpv3', 'netmap', 'socket', 'tap', 'user', 'vde',
+            'vhost-user', 'vhost-vdpa' ] }
+
+##
+# @NetdevInfo:
+#
+# Configuration of a network backend device (netdev).
+#
+# @id: Device identifier.
+#
+# @type: Specify the driver used for interpreting remaining arguments.
+#
+# @peer-id: The connected frontend network device name (absent if no frontend
+#           is connected).
+#
+# Since: 6.0
+##
+{ 'union': 'NetdevInfo',
+  'base': { 'id': 'str',
+            'type': 'NetBackend',
+            '*peer-id': 'str' },
+  'discriminator': 'type',
+  'data': {
+      'bridge':     'NetdevBridgeOptions',
+      'l2tpv3':     'NetdevL2TPv3Options',
+      'netmap':     'NetdevNetmapOptions',
+      'socket':     'NetdevSocketOptions',
+      'tap':        'NetdevTapOptions',
+      'user':       'NetdevUserOptions',
+      'vde':        'NetdevVdeOptions',
+      'vhost-user': 'NetdevVhostUserOptions',
+      'vhost-vdpa': 'NetdevVhostVDPAOptions' } }
+
+##
+# @query-netdev:
+#
+# Get a list of @NetdevInfo for all virtual network backend devices (netdevs).
+#
+# Returns: a list of @NetdevInfo describing each netdev.
+#
+# Since: 6.0
+#
+# Example:
+#
+# -> { "execute": "query-netdev" }
+# <- { "return": [
+#          {
+#              "ipv6": true,
+#              "ipv4": true,
+#              "host": "10.0.2.2",
+#              "ipv6-dns": "fec0::3",
+#              "ipv6-prefix": "fec0::",
+#              "net": "10.0.2.0/255.255.255.0",
+#              "ipv6-host": "fec0::2",
+#              "type": "user",
+#              "peer-id": "net0",
+#              "dns": "10.0.2.3",
+#              "hostfwd": [
+#                  {
+#                      "str": "tcp::20004-:22"
+#                  }
+#              ],
+#              "ipv6-prefixlen": 64,
+#              "id": "netdev0",
+#              "restrict": false
+#          }
+#      ]
+#    }
+#
+##
+{ 'command': 'query-netdev', 'returns': ['NetdevInfo'] }

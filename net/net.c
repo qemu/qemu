@@ -36,7 +36,6 @@
 #include "monitor/monitor.h"
 #include "qemu/help_option.h"
 #include "qapi/qapi-commands-net.h"
-#include "qapi/qapi-visit-net.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
@@ -353,6 +352,7 @@ static void qemu_free_net_client(NetClientState *nc)
     }
     g_free(nc->name);
     g_free(nc->model);
+    qapi_free_NetdevInfo(nc->stored_config);
     if (nc->destructor) {
         nc->destructor(nc);
     }
@@ -1287,6 +1287,34 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
     }
 
     return filter_list;
+}
+
+NetdevInfoList *qmp_query_netdev(Error **errp)
+{
+    NetdevInfoList *list = NULL;
+    NetClientState *nc;
+
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        /*
+         * Only look at netdevs (backend network devices), not for each queue
+         * or NIC / hubport
+         */
+        if (nc->stored_config) {
+            NetdevInfo *element = QAPI_CLONE(NetdevInfo, nc->stored_config);
+
+            g_free(element->id); /* Need to dealloc empty id after clone */
+            element->id = g_strdup(nc->name);
+
+            element->has_peer_id = nc->peer != NULL;
+            if (element->has_peer_id) {
+                element->peer_id = g_strdup(nc->peer->name);
+            }
+
+            QAPI_LIST_PREPEND(list, element);
+        }
+    }
+
+    return list;
 }
 
 void hmp_info_network(Monitor *mon, const QDict *qdict)
