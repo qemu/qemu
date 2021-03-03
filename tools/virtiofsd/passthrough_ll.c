@@ -37,6 +37,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
+#include "qemu-version.h"
+#include "qemu-common.h"
 #include "fuse_virtio.h"
 #include "fuse_log.h"
 #include "fuse_lowlevel.h"
@@ -3666,6 +3668,11 @@ static void fuse_lo_data_cleanup(struct lo_data *lo)
     free(lo->source);
 }
 
+static void qemu_version(void)
+{
+    printf("virtiofsd version " QEMU_FULL_VERSION "\n" QEMU_COPYRIGHT "\n");
+}
+
 int main(int argc, char *argv[])
 {
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
@@ -3737,6 +3744,7 @@ int main(int argc, char *argv[])
         ret = 0;
         goto err_out1;
     } else if (opts.show_version) {
+        qemu_version();
         fuse_lowlevel_version();
         ret = 0;
         goto err_out1;
