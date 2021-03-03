@@ -25,6 +25,7 @@ docker-opensbi:
 
 build-opensbi:
  stage: build
+ needs: ['docker-opensbi']
  rules: # Only run this job when ...
  - changes: # ... roms/opensbi/ is modified (submodule updated)
    - roms/opensbi/*
