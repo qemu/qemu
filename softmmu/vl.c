@@ -925,7 +925,7 @@ static const VGAInterfaceInfo vga_interfaces[VGA_TYPE_MAX] = {
     [VGA_TCX] = {
         .opt_name = "tcx",
         .name = "TCX framebuffer",
-        .class_names = { "SUNW,tcx" },
+        .class_names = { "sun-tcx" },
     },
     [VGA_CG3] = {
         .opt_name = "cg3",

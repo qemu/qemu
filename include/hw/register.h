@@ -87,7 +87,7 @@ struct RegisterInfo {
     void *opaque;
 };
 
-#define TYPE_REGISTER "qemu,register"
+#define TYPE_REGISTER "qemu-register"
 DECLARE_INSTANCE_CHECKER(RegisterInfo, REGISTER,
                          TYPE_REGISTER)
 

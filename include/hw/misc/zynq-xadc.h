@@ -23,7 +23,7 @@
 #define ZYNQ_XADC_NUM_ADC_REGS  128
 #define ZYNQ_XADC_FIFO_DEPTH    15
 
-#define TYPE_ZYNQ_XADC          "xlnx,zynq-xadc"
+#define TYPE_ZYNQ_XADC          "xlnx-zynq-xadc"
 OBJECT_DECLARE_SIMPLE_TYPE(ZynqXADCState, ZYNQ_XADC)
 
 struct ZynqXADCState {

@@ -34,7 +34,7 @@
 #include "target/arm/cpu.h"
 #include "qom/object.h"
 
-#define TYPE_FSL_IMX25 "fsl,imx25"
+#define TYPE_FSL_IMX25 "fsl-imx25"
 OBJECT_DECLARE_SIMPLE_TYPE(FslIMX25State, FSL_IMX25)
 
 #define FSL_IMX25_NUM_UARTS 5

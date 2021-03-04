@@ -38,7 +38,7 @@
 #define R_R_GURU    4
 #define R_MAX       5
 
-#define TYPE_ETRAX_FS_PIC "etraxfs,pic"
+#define TYPE_ETRAX_FS_PIC "etraxfs-pic"
 DECLARE_INSTANCE_CHECKER(struct etrax_pic, ETRAX_FS_PIC,
                          TYPE_ETRAX_FS_PIC)
 

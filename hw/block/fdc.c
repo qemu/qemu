@@ -2537,7 +2537,7 @@ void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
     DeviceState *dev;
     FDCtrlSysBus *sys;
 
-    dev = qdev_new("SUNW,fdtwo");
+    dev = qdev_new("sun-fdtwo");
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sys = SYSBUS_FDC(dev);
     sysbus_connect_irq(SYS_BUS_DEVICE(sys), 0, irq);
@@ -2933,7 +2933,7 @@ static void sun4m_fdc_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sun4m_fdc_info = {
-    .name          = "SUNW,fdtwo",
+    .name          = "sun-fdtwo",
     .parent        = TYPE_SYSBUS_FDC,
     .instance_init = sun4m_fdc_initfn,
     .class_init    = sun4m_fdc_class_init,

@@ -30,7 +30,7 @@
 #include "target/arm/cpu.h"
 #include "qom/object.h"
 
-#define TYPE_FSL_IMX31 "fsl,imx31"
+#define TYPE_FSL_IMX31 "fsl-imx31"
 OBJECT_DECLARE_SIMPLE_TYPE(FslIMX31State, FSL_IMX31)
 
 #define FSL_IMX31_NUM_UARTS 2

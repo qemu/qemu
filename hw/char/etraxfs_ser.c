@@ -50,7 +50,7 @@
 #define STAT_TR_IDLE 22
 #define STAT_TR_RDY  24
 
-#define TYPE_ETRAX_FS_SERIAL "etraxfs,serial"
+#define TYPE_ETRAX_FS_SERIAL "etraxfs-serial"
 typedef struct ETRAXSerial ETRAXSerial;
 DECLARE_INSTANCE_CHECKER(ETRAXSerial, ETRAX_SERIAL,
                          TYPE_ETRAX_FS_SERIAL)

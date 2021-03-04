@@ -41,7 +41,7 @@
 #include "cpu.h"
 #include "qom/object.h"
 
-#define TYPE_FSL_IMX7 "fsl,imx7"
+#define TYPE_FSL_IMX7 "fsl-imx7"
 OBJECT_DECLARE_SIMPLE_TYPE(FslIMX7State, FSL_IMX7)
 
 enum FslIMX7Configuration {
