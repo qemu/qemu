@@ -127,10 +127,9 @@ static uint32_t esp_get_stc(ESPState *s)
     return dmalen;
 }
 
-static void set_pdma(ESPState *s, enum pdma_origin_id origin, uint32_t len)
+static void set_pdma(ESPState *s, enum pdma_origin_id origin)
 {
     s->pdma_origin = origin;
-    s->pdma_len = len;
 }
 
 static uint8_t esp_pdma_read(ESPState *s)
@@ -138,7 +137,7 @@ static uint8_t esp_pdma_read(ESPState *s)
     uint32_t dmalen = esp_get_tc(s);
     uint8_t val;
 
-    if (dmalen == 0 || s->pdma_len == 0) {
+    if (dmalen == 0) {
         return 0;
     }
 
@@ -161,7 +160,6 @@ static uint8_t esp_pdma_read(ESPState *s)
     }
 
     s->ti_size--;
-    s->pdma_len--;
     dmalen--;
     esp_set_tc(s, dmalen);
 
@@ -172,7 +170,7 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
 {
     uint32_t dmalen = esp_get_tc(s);
 
-    if (dmalen == 0 || s->pdma_len == 0) {
+    if (dmalen == 0) {
         return;
     }
 
@@ -195,7 +193,6 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
     }
 
     s->ti_size++;
-    s->pdma_len--;
     dmalen--;
     esp_set_tc(s, dmalen);
 }
@@ -243,7 +240,7 @@ static uint32_t get_cmd(ESPState *s)
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, buf, dmalen);
         } else {
-            set_pdma(s, CMD, dmalen);
+            set_pdma(s, CMD);
             esp_raise_drq(s);
             return 0;
         }
@@ -406,7 +403,7 @@ static void write_response(ESPState *s)
             s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
             s->rregs[ESP_RSEQ] = SEQ_CD;
         } else {
-            set_pdma(s, TI, 2);
+            set_pdma(s, TI);
             s->pdma_cb = write_response_pdma_cb;
             esp_raise_drq(s);
             return;
@@ -474,7 +471,7 @@ static void esp_do_dma(ESPState *s)
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, &s->cmdbuf[s->cmdlen], len);
         } else {
-            set_pdma(s, CMD, len);
+            set_pdma(s, CMD);
             s->pdma_cb = do_dma_pdma_cb;
             esp_raise_drq(s);
             return;
@@ -497,7 +494,7 @@ static void esp_do_dma(ESPState *s)
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, s->async_buf, len);
         } else {
-            set_pdma(s, ASYNC, len);
+            set_pdma(s, ASYNC);
             s->pdma_cb = do_dma_pdma_cb;
             esp_raise_drq(s);
             return;
@@ -506,7 +503,7 @@ static void esp_do_dma(ESPState *s)
         if (s->dma_memory_write) {
             s->dma_memory_write(s->dma_opaque, s->async_buf, len);
         } else {
-            set_pdma(s, ASYNC, len);
+            set_pdma(s, ASYNC);
             s->pdma_cb = do_dma_pdma_cb;
             esp_raise_drq(s);
             return;
@@ -850,7 +847,6 @@ static const VMStateDescription vmstate_esp_pdma = {
     .needed = esp_pdma_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(pdma_origin, ESPState),
-        VMSTATE_UINT32(pdma_len, ESPState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -949,6 +945,7 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
 {
     SysBusESPState *sysbus = opaque;
     ESPState *s = ESP(&sysbus->esp);
+    uint32_t dmalen;
 
     trace_esp_pdma_write(size);
 
@@ -961,7 +958,8 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
         esp_pdma_write(s, val);
         break;
     }
-    if (s->pdma_len == 0 && s->pdma_cb) {
+    dmalen = esp_get_tc(s);
+    if (dmalen == 0 && s->pdma_cb) {
         esp_lower_drq(s);
         s->pdma_cb(s);
         s->pdma_cb = NULL;
@@ -978,7 +976,7 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
 
     trace_esp_pdma_read(size);
 
-    if (dmalen == 0 || s->pdma_len == 0) {
+    if (dmalen == 0) {
         return 0;
     }
     switch (size) {
@@ -991,7 +989,7 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
         break;
     }
     dmalen = esp_get_tc(s);
-    if (dmalen == 0 || (s->pdma_len == 0 && s->pdma_cb)) {
+    if (dmalen == 0 && s->pdma_cb) {
         esp_lower_drq(s);
         s->pdma_cb(s);
         s->pdma_cb = NULL;

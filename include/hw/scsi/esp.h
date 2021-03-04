@@ -57,7 +57,6 @@ struct ESPState {
     void *dma_opaque;
     void (*dma_cb)(ESPState *s);
     int pdma_origin;
-    uint32_t pdma_len;
     void (*pdma_cb)(ESPState *s);
 
     uint8_t mig_version_id;
