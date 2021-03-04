@@ -153,12 +153,18 @@ static uint8_t esp_pdma_read(ESPState *s)
         s->pdma_cur++;
         break;
     case ASYNC:
-        val = s->async_buf[s->pdma_cur++];
+        val = s->async_buf[0];
+        if (s->async_len > 0) {
+            s->async_len--;
+            s->async_buf++;
+        }
+        s->pdma_cur++;
         break;
     default:
         g_assert_not_reached();
     }
 
+    s->ti_size--;
     s->pdma_len--;
     dmalen--;
     esp_set_tc(s, dmalen);
@@ -183,12 +189,18 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
         s->pdma_cur++;
         break;
     case ASYNC:
-        s->async_buf[s->pdma_cur++] = val;
+        s->async_buf[0] = val;
+        if (s->async_len > 0) {
+            s->async_len--;
+            s->async_buf++;
+        }
+        s->pdma_cur++;
         break;
     default:
         g_assert_not_reached();
     }
 
+    s->ti_size++;
     s->pdma_len--;
     dmalen--;
     esp_set_tc(s, dmalen);
@@ -427,7 +439,6 @@ static void esp_dma_done(ESPState *s)
 static void do_dma_pdma_cb(ESPState *s)
 {
     int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
-    int len = s->pdma_cur;
 
     if (s->do_cmd) {
         s->ti_size = 0;
@@ -435,13 +446,6 @@ static void do_dma_pdma_cb(ESPState *s)
         s->do_cmd = 0;
         do_cmd(s);
         return;
-    }
-    s->async_buf += len;
-    s->async_len -= len;
-    if (to_device) {
-        s->ti_size += len;
-    } else {
-        s->ti_size -= len;
     }
     if (s->async_len == 0) {
         scsi_req_continue(s->current_req);
