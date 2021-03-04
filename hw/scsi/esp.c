@@ -272,13 +272,15 @@ static void do_cmd(ESPState *s)
     uint8_t *buf = s->cmdbuf;
     uint8_t busid = buf[0];
 
-    do_busid_cmd(s, &buf[1], busid);
+    /* Ignore extended messages for now */
+    do_busid_cmd(s, &buf[s->cmdbuf_cdb_offset], busid);
 }
 
 static void satn_pdma_cb(ESPState *s)
 {
     s->do_cmd = 0;
     if (s->cmdlen) {
+        s->cmdbuf_cdb_offset = 1;
         do_cmd(s);
     }
 }
@@ -295,6 +297,7 @@ static void handle_satn(ESPState *s)
     cmdlen = get_cmd(s, ESP_CMDBUF_SZ);
     if (cmdlen > 0) {
         s->cmdlen = cmdlen;
+        s->cmdbuf_cdb_offset = 1;
         do_cmd(s);
     } else if (cmdlen == 0) {
         s->cmdlen = 0;
@@ -309,6 +312,7 @@ static void s_without_satn_pdma_cb(ESPState *s)
 {
     s->do_cmd = 0;
     if (s->cmdlen) {
+        s->cmdbuf_cdb_offset = 0;
         do_busid_cmd(s, s->cmdbuf, 0);
     }
 }
@@ -325,6 +329,7 @@ static void handle_s_without_atn(ESPState *s)
     cmdlen = get_cmd(s, ESP_CMDBUF_SZ);
     if (cmdlen > 0) {
         s->cmdlen = cmdlen;
+        s->cmdbuf_cdb_offset = 0;
         do_busid_cmd(s, s->cmdbuf, 0);
     } else if (cmdlen == 0) {
         s->cmdlen = 0;
@@ -341,6 +346,7 @@ static void satn_stop_pdma_cb(ESPState *s)
     if (s->cmdlen) {
         trace_esp_handle_satn_stop(s->cmdlen);
         s->do_cmd = 1;
+        s->cmdbuf_cdb_offset = 1;
         s->rregs[ESP_RSTAT] = STAT_TC | STAT_CD;
         s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
         s->rregs[ESP_RSEQ] = SEQ_CD;
@@ -357,21 +363,22 @@ static void handle_satn_stop(ESPState *s)
         return;
     }
     s->pdma_cb = satn_stop_pdma_cb;
-    cmdlen = get_cmd(s, ESP_CMDBUF_SZ);
+    cmdlen = get_cmd(s, 1);
     if (cmdlen > 0) {
-        trace_esp_handle_satn_stop(s->cmdlen);
+        trace_esp_handle_satn_stop(cmdlen);
         s->cmdlen = cmdlen;
         s->do_cmd = 1;
-        s->rregs[ESP_RSTAT] = STAT_CD;
+        s->cmdbuf_cdb_offset = 1;
+        s->rregs[ESP_RSTAT] = STAT_MO;
         s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
-        s->rregs[ESP_RSEQ] = SEQ_CD;
+        s->rregs[ESP_RSEQ] = SEQ_MO;
         esp_raise_irq(s);
     } else if (cmdlen == 0) {
         s->cmdlen = 0;
         s->do_cmd = 1;
-        /* Target present, but no cmd yet - switch to command phase */
-        s->rregs[ESP_RSEQ] = SEQ_CD;
-        s->rregs[ESP_RSTAT] = STAT_CD;
+        /* Target present, switch to message out phase */
+        s->rregs[ESP_RSEQ] = SEQ_MO;
+        s->rregs[ESP_RSTAT] = STAT_MO;
     }
 }
 
@@ -505,9 +512,27 @@ static void esp_do_dma(ESPState *s)
         }
         trace_esp_handle_ti_cmd(s->cmdlen);
         s->ti_size = 0;
-        s->cmdlen = 0;
-        s->do_cmd = 0;
-        do_cmd(s);
+        if ((s->rregs[ESP_RSTAT] & 7) == STAT_CD) {
+            /* No command received */
+            if (s->cmdbuf_cdb_offset == s->cmdlen) {
+                return;
+            }
+
+            /* Command has been received */
+            s->cmdlen = 0;
+            s->do_cmd = 0;
+            do_cmd(s);
+        } else {
+            /*
+             * Extra message out bytes received: update cmdbuf_cdb_offset
+             * and then switch to commmand phase
+             */
+            s->cmdbuf_cdb_offset = s->cmdlen;
+            s->rregs[ESP_RSTAT] = STAT_TC | STAT_CD;
+            s->rregs[ESP_RSEQ] = SEQ_CD;
+            s->rregs[ESP_RINTR] |= INTR_BS;
+            esp_raise_irq(s);
+        }
         return;
     }
     if (s->async_len == 0) {
@@ -655,9 +680,27 @@ static void handle_ti(ESPState *s)
     } else if (s->do_cmd) {
         trace_esp_handle_ti_cmd(s->cmdlen);
         s->ti_size = 0;
-        s->cmdlen = 0;
-        s->do_cmd = 0;
-        do_cmd(s);
+        if ((s->rregs[ESP_RSTAT] & 7) == STAT_CD) {
+            /* No command received */
+            if (s->cmdbuf_cdb_offset == s->cmdlen) {
+                return;
+            }
+
+            /* Command has been received */
+            s->cmdlen = 0;
+            s->do_cmd = 0;
+            do_cmd(s);
+        } else {
+            /*
+             * Extra message out bytes received: update cmdbuf_cdb_offset
+             * and then switch to commmand phase
+             */
+            s->cmdbuf_cdb_offset = s->cmdlen;
+            s->rregs[ESP_RSTAT] = STAT_TC | STAT_CD;
+            s->rregs[ESP_RSEQ] = SEQ_CD;
+            s->rregs[ESP_RINTR] |= INTR_BS;
+            esp_raise_irq(s);
+        }
     }
 }
 
@@ -944,6 +987,7 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_UINT32(do_cmd, ESPState),
         VMSTATE_UINT32_TEST(mig_dma_left, ESPState, esp_is_before_version_5),
         VMSTATE_BOOL_TEST(data_in_ready, ESPState, esp_is_version_5),
+        VMSTATE_UINT8_TEST(cmdbuf_cdb_offset, ESPState, esp_is_version_5),
         VMSTATE_END_OF_LIST()
     },
 };

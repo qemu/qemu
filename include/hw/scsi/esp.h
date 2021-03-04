@@ -37,6 +37,7 @@ struct ESPState {
     SCSIRequest *current_req;
     uint8_t cmdbuf[ESP_CMDBUF_SZ];
     uint32_t cmdlen;
+    uint8_t cmdbuf_cdb_offset;
     uint32_t do_cmd;
 
     bool data_in_ready;
@@ -136,6 +137,7 @@ struct SysBusESPState {
 #define INTR_RST 0x80
 
 #define SEQ_0 0x0
+#define SEQ_MO 0x1
 #define SEQ_CD 0x4
 
 #define CFG1_RESREPT 0x40
