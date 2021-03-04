@@ -356,7 +356,7 @@ static void esp_dma_done(ESPState *s)
 
 static void do_dma_pdma_cb(ESPState *s)
 {
-    int to_device = (s->ti_size < 0);
+    int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
     int len = s->pdma_cur - s->pdma_start;
     if (s->do_cmd) {
         s->ti_size = 0;
@@ -392,7 +392,7 @@ static void do_dma_pdma_cb(ESPState *s)
 static void esp_do_dma(ESPState *s)
 {
     uint32_t len;
-    int to_device;
+    int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
 
     len = s->dma_left;
     if (s->do_cmd) {
@@ -425,7 +425,6 @@ static void esp_do_dma(ESPState *s)
     if (len > s->async_len) {
         len = s->async_len;
     }
-    to_device = (s->ti_size < 0);
     if (to_device) {
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, s->async_buf, len);
