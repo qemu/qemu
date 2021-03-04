@@ -12,7 +12,7 @@ typedef void (*ESPDMAMemoryReadWriteFunc)(void *opaque, uint8_t *buf, int len);
 
 #define ESP_REGS 16
 #define ESP_FIFO_SZ 16
-#define ESP_CMDBUF_SZ 32
+#define ESP_CMDFIFO_SZ 32
 
 typedef struct ESPState ESPState;
 
@@ -35,9 +35,8 @@ struct ESPState {
     SCSIBus bus;
     SCSIDevice *current_dev;
     SCSIRequest *current_req;
-    uint8_t cmdbuf[ESP_CMDBUF_SZ];
-    uint32_t cmdlen;
-    uint8_t cmdbuf_cdb_offset;
+    Fifo8 cmdfifo;
+    uint8_t cmdfifo_cdb_offset;
     uint32_t do_cmd;
 
     bool data_in_ready;
@@ -60,6 +59,8 @@ struct ESPState {
     bool mig_deferred_complete;
     uint32_t mig_ti_rptr, mig_ti_wptr;
     uint8_t mig_ti_buf[ESP_FIFO_SZ];
+    uint8_t mig_cmdbuf[ESP_CMDFIFO_SZ];
+    uint32_t mig_cmdlen;
 };
 
 #define TYPE_SYSBUS_ESP "sysbus-esp"
