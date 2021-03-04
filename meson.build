@@ -1574,6 +1574,18 @@ if have_system
   endif
 endif
 
+# For CFI, we need to compile slirp as a static library together with qemu.
+# This is because we register slirp functions as callbacks for QEMU Timers.
+# When using a system-wide shared libslirp, the type information for the
+# callback is missing and the timer call produces a false positive with CFI.
+#
+# Now that slirp_opt has been defined, check if the selected slirp is compatible
+# with control-flow integrity.
+if get_option('cfi') and slirp_opt == 'system'
+  error('Control-Flow Integrity is not compatible with system-wide slirp.' \
+         + ' Please configure with --enable-slirp=git')
+endif
+
 fdt = not_found
 fdt_opt = get_option('fdt')
 if have_system
