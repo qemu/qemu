@@ -795,10 +795,28 @@ static const VMStateDescription vmstate_esp_pdma = {
     }
 };
 
+static int esp_pre_save(void *opaque)
+{
+    ESPState *s = ESP(opaque);
+
+    s->mig_version_id = vmstate_esp.version_id;
+    return 0;
+}
+
+static int esp_post_load(void *opaque, int version_id)
+{
+    ESPState *s = ESP(opaque);
+
+    s->mig_version_id = vmstate_esp.version_id;
+    return 0;
+}
+
 const VMStateDescription vmstate_esp = {
     .name = "esp",
-    .version_id = 4,
+    .version_id = 5,
     .minimum_version_id = 3,
+    .pre_save = esp_pre_save,
+    .post_load = esp_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(rregs, ESPState),
         VMSTATE_BUFFER(wregs, ESPState),
@@ -997,9 +1015,10 @@ static void sysbus_esp_init(Object *obj)
 
 static const VMStateDescription vmstate_sysbus_esp_scsi = {
     .name = "sysbusespscsi",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
+        VMSTATE_UINT8_V(esp.mig_version_id, SysBusESPState, 2),
         VMSTATE_STRUCT(esp, SysBusESPState, 0, vmstate_esp, ESPState),
         VMSTATE_END_OF_LIST()
     }

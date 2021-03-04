@@ -68,6 +68,8 @@ struct ESPState {
     uint32_t pdma_start;
     uint32_t pdma_cur;
     void (*pdma_cb)(ESPState *s);
+
+    uint8_t mig_version_id;
 };
 
 #define TYPE_SYSBUS_ESP "sysbus-esp"
