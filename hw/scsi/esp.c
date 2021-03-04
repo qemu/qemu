@@ -143,10 +143,11 @@ static uint8_t esp_pdma_read(ESPState *s)
 
     switch (s->pdma_origin) {
     case TI:
-        val = s->ti_buf[s->ti_rptr++];
-        break;
-    case CMD:
-        val = s->cmdbuf[s->cmdlen++];
+        if (s->do_cmd) {
+            val = s->cmdbuf[s->cmdlen++];
+        } else {
+            val = s->ti_buf[s->ti_rptr++];
+        }
         break;
     case ASYNC:
         val = s->async_buf[0];
@@ -176,10 +177,11 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
 
     switch (s->pdma_origin) {
     case TI:
-        s->ti_buf[s->ti_wptr++] = val;
-        break;
-    case CMD:
-        s->cmdbuf[s->cmdlen++] = val;
+        if (s->do_cmd) {
+            s->cmdbuf[s->cmdlen++] = val;
+        } else {
+            s->ti_buf[s->ti_wptr++] = val;
+        }
         break;
     case ASYNC:
         s->async_buf[0] = val;
@@ -240,7 +242,7 @@ static uint32_t get_cmd(ESPState *s)
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, buf, dmalen);
         } else {
-            set_pdma(s, CMD);
+            set_pdma(s, TI);
             esp_raise_drq(s);
             return 0;
         }
@@ -471,7 +473,7 @@ static void esp_do_dma(ESPState *s)
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, &s->cmdbuf[s->cmdlen], len);
         } else {
-            set_pdma(s, CMD);
+            set_pdma(s, TI);
             s->pdma_cb = do_dma_pdma_cb;
             esp_raise_drq(s);
             return;

@@ -17,7 +17,6 @@ typedef struct ESPState ESPState;
 
 enum pdma_origin_id {
     TI,
-    CMD,
     ASYNC,
 };
 
