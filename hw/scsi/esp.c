@@ -116,6 +116,17 @@ static void esp_set_tc(ESPState *s, uint32_t dmalen)
     s->rregs[ESP_TCHI] = dmalen >> 16;
 }
 
+static uint32_t esp_get_stc(ESPState *s)
+{
+    uint32_t dmalen;
+
+    dmalen = s->wregs[ESP_TCLO];
+    dmalen |= s->wregs[ESP_TCMID] << 8;
+    dmalen |= s->wregs[ESP_TCHI] << 16;
+
+    return dmalen;
+}
+
 static void set_pdma(ESPState *s, enum pdma_origin_id origin,
                      uint32_t index, uint32_t len)
 {
@@ -687,9 +698,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         if (val & CMD_DMA) {
             s->dma = 1;
             /* Reload DMA counter.  */
-            s->rregs[ESP_TCLO] = s->wregs[ESP_TCLO];
-            s->rregs[ESP_TCMID] = s->wregs[ESP_TCMID];
-            s->rregs[ESP_TCHI] = s->wregs[ESP_TCHI];
+            esp_set_tc(s, esp_get_stc(s));
         } else {
             s->dma = 0;
         }
