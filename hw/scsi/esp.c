@@ -296,6 +296,7 @@ static void do_busid_cmd(ESPState *s, uint8_t busid)
     if (datalen != 0) {
         s->rregs[ESP_RSTAT] = STAT_TC;
         s->rregs[ESP_RSEQ] = SEQ_CD;
+        s->ti_cmd = 0;
         esp_set_tc(s, 0);
         if (datalen > 0) {
             /*
@@ -645,6 +646,71 @@ static void esp_do_dma(ESPState *s)
     esp_lower_drq(s);
 }
 
+static void esp_do_nodma(ESPState *s)
+{
+    int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
+    uint32_t cmdlen, n;
+    int len;
+
+    if (s->do_cmd) {
+        cmdlen = fifo8_num_used(&s->cmdfifo);
+        trace_esp_handle_ti_cmd(cmdlen);
+        s->ti_size = 0;
+        if ((s->rregs[ESP_RSTAT] & 7) == STAT_CD) {
+            /* No command received */
+            if (s->cmdfifo_cdb_offset == fifo8_num_used(&s->cmdfifo)) {
+                return;
+            }
+
+            /* Command has been received */
+            s->do_cmd = 0;
+            do_cmd(s);
+        } else {
+            /*
+             * Extra message out bytes received: update cmdfifo_cdb_offset
+             * and then switch to commmand phase
+             */
+            s->cmdfifo_cdb_offset = fifo8_num_used(&s->cmdfifo);
+            s->rregs[ESP_RSTAT] = STAT_TC | STAT_CD;
+            s->rregs[ESP_RSEQ] = SEQ_CD;
+            s->rregs[ESP_RINTR] |= INTR_BS;
+            esp_raise_irq(s);
+        }
+        return;
+    }
+
+    if (s->async_len == 0) {
+        /* Defer until data is available.  */
+        return;
+    }
+
+    if (to_device) {
+        len = MIN(fifo8_num_used(&s->fifo), ESP_FIFO_SZ);
+        memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
+        s->async_buf += len;
+        s->async_len -= len;
+        s->ti_size += len;
+    } else {
+        len = MIN(s->ti_size, s->async_len);
+        len = MIN(len, fifo8_num_free(&s->fifo));
+        fifo8_push_all(&s->fifo, s->async_buf, len);
+        s->async_buf += len;
+        s->async_len -= len;
+        s->ti_size -= len;
+    }
+
+    if (s->async_len == 0) {
+        scsi_req_continue(s->current_req);
+
+        if (to_device || s->ti_size == 0) {
+            return;
+        }
+    }
+
+    s->rregs[ESP_RINTR] |= INTR_BS;
+    esp_raise_irq(s);
+}
+
 void esp_command_complete(SCSIRequest *req, size_t resid)
 {
     ESPState *s = req->hba_private;
@@ -701,56 +767,51 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
         return;
     }
 
-    if (dmalen) {
-        esp_do_dma(s);
-    } else if (s->ti_size <= 0) {
+    if (s->ti_cmd == 0) {
         /*
-         * If this was the last part of a DMA transfer then the
-         * completion interrupt is deferred to here.
+         * Always perform the initial transfer upon reception of the next TI
+         * command to ensure the DMA/non-DMA status of the command is correct.
+         * It is not possible to use s->dma directly in the section below as
+         * some OSs send non-DMA NOP commands after a DMA transfer. Hence if the
+         * async data transfer is delayed then s->dma is set incorrectly.
          */
-        esp_dma_done(s);
-        esp_lower_drq(s);
+        return;
+    }
+
+    if (s->ti_cmd & CMD_DMA) {
+        if (dmalen) {
+            esp_do_dma(s);
+        } else if (s->ti_size <= 0) {
+            /*
+             * If this was the last part of a DMA transfer then the
+             * completion interrupt is deferred to here.
+             */
+            esp_dma_done(s);
+            esp_lower_drq(s);
+        }
+    } else {
+        esp_do_nodma(s);
     }
 }
 
 static void handle_ti(ESPState *s)
 {
-    uint32_t dmalen, cmdlen;
+    uint32_t dmalen;
 
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_ti;
         return;
     }
 
-    dmalen = esp_get_tc(s);
+    s->ti_cmd = s->rregs[ESP_CMD];
     if (s->dma) {
+        dmalen = esp_get_tc(s);
         trace_esp_handle_ti(dmalen);
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         esp_do_dma(s);
-    } else if (s->do_cmd) {
-        cmdlen = fifo8_num_used(&s->cmdfifo);
-        trace_esp_handle_ti_cmd(cmdlen);
-        s->ti_size = 0;
-        if ((s->rregs[ESP_RSTAT] & 7) == STAT_CD) {
-            /* No command received */
-            if (s->cmdfifo_cdb_offset == fifo8_num_used(&s->cmdfifo)) {
-                return;
-            }
-
-            /* Command has been received */
-            s->do_cmd = 0;
-            do_cmd(s);
-        } else {
-            /*
-             * Extra message out bytes received: update cmdfifo_cdb_offset
-             * and then switch to commmand phase
-             */
-            s->cmdfifo_cdb_offset = fifo8_num_used(&s->cmdfifo);
-            s->rregs[ESP_RSTAT] = STAT_TC | STAT_CD;
-            s->rregs[ESP_RSEQ] = SEQ_CD;
-            s->rregs[ESP_RINTR] |= INTR_BS;
-            esp_raise_irq(s);
-        }
+    } else {
+        trace_esp_handle_ti(s->ti_size);
+        esp_do_nodma(s);
     }
 }
 
@@ -789,12 +850,12 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
 
     switch (saddr) {
     case ESP_FIFO:
-        if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0) {
+        if (s->dma_memory_read && s->dma_memory_write &&
+                (s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0) {
             /* Data out.  */
             qemu_log_mask(LOG_UNIMP, "esp: PIO data read not implemented\n");
             s->rregs[ESP_FIFO] = 0;
         } else {
-            s->ti_size--;
             s->rregs[ESP_FIFO] = esp_fifo_pop(s);
         }
         val = s->rregs[ESP_FIFO];
@@ -846,7 +907,6 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         if (s->do_cmd) {
             esp_cmdfifo_push(s, val);
         } else {
-            s->ti_size++;
             esp_fifo_push(s, val);
         }
 
@@ -1047,6 +1107,7 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_UINT8_TEST(cmdfifo_cdb_offset, ESPState, esp_is_version_5),
         VMSTATE_FIFO8_TEST(fifo, ESPState, esp_is_version_5),
         VMSTATE_FIFO8_TEST(cmdfifo, ESPState, esp_is_version_5),
+        VMSTATE_UINT8_TEST(ti_cmd, ESPState, esp_is_version_5),
         VMSTATE_END_OF_LIST()
     },
 };
