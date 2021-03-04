@@ -243,6 +243,9 @@ static uint32_t get_cmd(ESPState *s)
             s->dma_memory_read(s->dma_opaque, buf, dmalen);
         } else {
             set_pdma(s, TI);
+            if (esp_select(s) < 0) {
+                return -1;
+            }
             esp_raise_drq(s);
             return 0;
         }
@@ -257,7 +260,7 @@ static uint32_t get_cmd(ESPState *s)
     trace_esp_get_cmd(dmalen, target);
 
     if (esp_select(s) < 0) {
-        return 0;
+        return -1;
     }
     return dmalen;
 }
@@ -299,9 +302,6 @@ static void do_cmd(ESPState *s)
 
 static void satn_pdma_cb(ESPState *s)
 {
-    if (esp_select(s) < 0) {
-        return;
-    }
     s->do_cmd = 0;
     if (s->cmdlen) {
         do_cmd(s);
@@ -310,24 +310,28 @@ static void satn_pdma_cb(ESPState *s)
 
 static void handle_satn(ESPState *s)
 {
+    int32_t cmdlen;
+
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_satn;
         return;
     }
     s->pdma_cb = satn_pdma_cb;
-    s->cmdlen = get_cmd(s);
-    if (s->cmdlen) {
+    cmdlen = get_cmd(s);
+    if (cmdlen > 0) {
+        s->cmdlen = cmdlen;
         do_cmd(s);
-    } else {
+    } else if (cmdlen == 0) {
+        s->cmdlen = 0;
         s->do_cmd = 1;
+        /* Target present, but no cmd yet - switch to command phase */
+        s->rregs[ESP_RSEQ] = SEQ_CD;
+        s->rregs[ESP_RSTAT] = STAT_CD;
     }
 }
 
 static void s_without_satn_pdma_cb(ESPState *s)
 {
-    if (esp_select(s) < 0) {
-        return;
-    }
     s->do_cmd = 0;
     if (s->cmdlen) {
         do_busid_cmd(s, s->cmdbuf, 0);
@@ -336,24 +340,28 @@ static void s_without_satn_pdma_cb(ESPState *s)
 
 static void handle_s_without_atn(ESPState *s)
 {
+    int32_t cmdlen;
+
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_s_without_atn;
         return;
     }
     s->pdma_cb = s_without_satn_pdma_cb;
-    s->cmdlen = get_cmd(s);
-    if (s->cmdlen) {
+    cmdlen = get_cmd(s);
+    if (cmdlen > 0) {
+        s->cmdlen = cmdlen;
         do_busid_cmd(s, s->cmdbuf, 0);
-    } else {
+    } else if (cmdlen == 0) {
+        s->cmdlen = 0;
         s->do_cmd = 1;
+        /* Target present, but no cmd yet - switch to command phase */
+        s->rregs[ESP_RSEQ] = SEQ_CD;
+        s->rregs[ESP_RSTAT] = STAT_CD;
     }
 }
 
 static void satn_stop_pdma_cb(ESPState *s)
 {
-    if (esp_select(s) < 0) {
-        return;
-    }
     s->do_cmd = 0;
     if (s->cmdlen) {
         trace_esp_handle_satn_stop(s->cmdlen);
@@ -367,21 +375,28 @@ static void satn_stop_pdma_cb(ESPState *s)
 
 static void handle_satn_stop(ESPState *s)
 {
+    int32_t cmdlen;
+
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_satn_stop;
         return;
     }
     s->pdma_cb = satn_stop_pdma_cb;
-    s->cmdlen = get_cmd(s);
-    if (s->cmdlen) {
+    cmdlen = get_cmd(s);
+    if (cmdlen > 0) {
         trace_esp_handle_satn_stop(s->cmdlen);
+        s->cmdlen = cmdlen;
         s->do_cmd = 1;
         s->rregs[ESP_RSTAT] = STAT_TC | STAT_CD;
         s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
         s->rregs[ESP_RSEQ] = SEQ_CD;
         esp_raise_irq(s);
-    } else {
+    } else if (cmdlen == 0) {
+        s->cmdlen = 0;
         s->do_cmd = 1;
+        /* Target present, but no cmd yet - switch to command phase */
+        s->rregs[ESP_RSEQ] = SEQ_CD;
+        s->rregs[ESP_RSTAT] = STAT_CD;
     }
 }
 
