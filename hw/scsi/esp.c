@@ -594,9 +594,8 @@ static void parent_esp_reset(ESPState *s, int irq, int level)
 
 uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
 {
-    uint32_t old_val;
+    uint32_t val;
 
-    trace_esp_mem_readb(saddr, s->rregs[saddr]);
     switch (saddr) {
     case ESP_FIFO:
         if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0) {
@@ -611,13 +610,14 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
             s->ti_rptr = 0;
             s->ti_wptr = 0;
         }
+        val = s->rregs[ESP_FIFO];
         break;
     case ESP_RINTR:
         /*
          * Clear sequence step, interrupt register and all status bits
          * except TC
          */
-        old_val = s->rregs[ESP_RINTR];
+        val = s->rregs[ESP_RINTR];
         s->rregs[ESP_RINTR] = 0;
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         s->rregs[ESP_RSEQ] = SEQ_CD;
@@ -626,16 +626,22 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
             esp_report_command_complete(s, s->deferred_status);
             s->deferred_complete = false;
         }
-        return old_val;
+        break;
     case ESP_TCHI:
         /* Return the unique id if the value has never been written */
         if (!s->tchi_written) {
-            return s->chip_id;
+            val = s->chip_id;
+        } else {
+            val = s->rregs[saddr];
         }
+        break;
     default:
+        val = s->rregs[saddr];
         break;
     }
-    return s->rregs[saddr];
+
+    trace_esp_mem_readb(saddr, val);
+    return val;
 }
 
 void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
