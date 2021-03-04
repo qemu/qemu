@@ -194,7 +194,7 @@ static int esp_select(ESPState *s)
     return 0;
 }
 
-static uint32_t get_cmd(ESPState *s)
+static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
 {
     uint8_t *buf = s->cmdbuf;
     uint32_t dmalen;
@@ -202,8 +202,8 @@ static uint32_t get_cmd(ESPState *s)
 
     target = s->wregs[ESP_WBUSID] & BUSID_DID;
     if (s->dma) {
-        dmalen = esp_get_tc(s);
-        if (dmalen > ESP_CMDBUF_SZ) {
+        dmalen = MIN(esp_get_tc(s), maxlen);
+        if (dmalen == 0) {
             return 0;
         }
         if (s->dma_memory_read) {
@@ -216,12 +216,14 @@ static uint32_t get_cmd(ESPState *s)
             return 0;
         }
     } else {
-        dmalen = s->ti_size;
-        if (dmalen > TI_BUFSZ) {
+        dmalen = MIN(s->ti_size, maxlen);
+        if (dmalen == 0) {
             return 0;
         }
         memcpy(buf, s->ti_buf, dmalen);
-        buf[0] = buf[2] >> 5;
+        if (dmalen >= 3) {
+            buf[0] = buf[2] >> 5;
+        }
     }
     trace_esp_get_cmd(dmalen, target);
 
@@ -290,7 +292,7 @@ static void handle_satn(ESPState *s)
         return;
     }
     s->pdma_cb = satn_pdma_cb;
-    cmdlen = get_cmd(s);
+    cmdlen = get_cmd(s, ESP_CMDBUF_SZ);
     if (cmdlen > 0) {
         s->cmdlen = cmdlen;
         do_cmd(s);
@@ -320,7 +322,7 @@ static void handle_s_without_atn(ESPState *s)
         return;
     }
     s->pdma_cb = s_without_satn_pdma_cb;
-    cmdlen = get_cmd(s);
+    cmdlen = get_cmd(s, ESP_CMDBUF_SZ);
     if (cmdlen > 0) {
         s->cmdlen = cmdlen;
         do_busid_cmd(s, s->cmdbuf, 0);
@@ -355,7 +357,7 @@ static void handle_satn_stop(ESPState *s)
         return;
     }
     s->pdma_cb = satn_stop_pdma_cb;
-    cmdlen = get_cmd(s);
+    cmdlen = get_cmd(s, ESP_CMDBUF_SZ);
     if (cmdlen > 0) {
         trace_esp_handle_satn_stop(s->cmdlen);
         s->cmdlen = cmdlen;
