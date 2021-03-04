@@ -498,11 +498,22 @@ static void do_dma_pdma_cb(ESPState *s)
 
     if (to_device) {
         /* Copy FIFO data to device */
-        len = MIN(fifo8_num_used(&s->fifo), ESP_FIFO_SZ);
+        len = MIN(s->async_len, ESP_FIFO_SZ);
+        len = MIN(len, fifo8_num_used(&s->fifo));
         memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
-        s->async_buf += len;
-        s->async_len -= len;
-        s->ti_size += len;
+        s->async_buf += n;
+        s->async_len -= n;
+        s->ti_size += n;
+
+        if (n < len) {
+            /* Unaligned accesses can cause FIFO wraparound */
+            len = len - n;
+            memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
+            s->async_buf += n;
+            s->async_len -= n;
+            s->ti_size += n;
+        }
+
         if (s->async_len == 0) {
             scsi_req_continue(s->current_req);
             return;
@@ -526,12 +537,18 @@ static void do_dma_pdma_cb(ESPState *s)
 
         if (esp_get_tc(s) != 0) {
             /* Copy device data to FIFO */
-            len = MIN(s->async_len, fifo8_num_free(&s->fifo));
+            len = MIN(s->async_len, esp_get_tc(s));
+            len = MIN(len, fifo8_num_free(&s->fifo));
             fifo8_push_all(&s->fifo, s->async_buf, len);
             s->async_buf += len;
             s->async_len -= len;
             s->ti_size -= len;
             esp_set_tc(s, esp_get_tc(s) - len);
+
+            if (esp_get_tc(s) == 0) {
+                /* Indicate transfer to FIFO is complete */
+                 s->rregs[ESP_RSTAT] |= STAT_TC;
+            }
             return;
         }
 
@@ -606,12 +623,29 @@ static void esp_do_dma(ESPState *s)
         if (s->dma_memory_write) {
             s->dma_memory_write(s->dma_opaque, s->async_buf, len);
         } else {
+            /* Adjust TC for any leftover data in the FIFO */
+            if (!fifo8_is_empty(&s->fifo)) {
+                esp_set_tc(s, esp_get_tc(s) - fifo8_num_used(&s->fifo));
+            }
+
             /* Copy device data to FIFO */
             len = MIN(len, fifo8_num_free(&s->fifo));
             fifo8_push_all(&s->fifo, s->async_buf, len);
             s->async_buf += len;
             s->async_len -= len;
             s->ti_size -= len;
+
+            /*
+             * MacOS toolbox uses a TI length of 16 bytes for all commands, so
+             * commands shorter than this must be padded accordingly
+             */
+            if (len < esp_get_tc(s) && esp_get_tc(s) <= ESP_FIFO_SZ) {
+                while (fifo8_num_used(&s->fifo) < ESP_FIFO_SZ) {
+                    esp_fifo_push(s, 0);
+                    len++;
+                }
+            }
+
             esp_set_tc(s, esp_get_tc(s) - len);
             s->pdma_cb = do_dma_pdma_cb;
             esp_raise_drq(s);
@@ -1160,7 +1194,7 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
         break;
     }
     dmalen = esp_get_tc(s);
-    if (dmalen == 0 || fifo8_is_full(&s->fifo)) {
+    if (dmalen == 0 || fifo8_num_free(&s->fifo) < 2) {
         s->pdma_cb(s);
     }
 }
@@ -1183,7 +1217,7 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
         val = (val << 8) | esp_pdma_read(s);
         break;
     }
-    if (fifo8_is_empty(&s->fifo)) {
+    if (fifo8_num_used(&s->fifo) < 2) {
         s->pdma_cb(s);
     }
     return val;
