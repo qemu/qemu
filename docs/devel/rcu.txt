@@ -54,7 +54,8 @@ Here is a picture:
 Note how thread 3 is still executing its critical section when thread 2
 starts reclaiming data.  This is possible, because the old version of the
 data structure was not accessible at the time thread 3 began executing
-that critical section.
+that critical section, even though the real reading action will happen after 
+the reclamation phase completion.
 
 
 RCU API
