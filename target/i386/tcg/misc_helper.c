@@ -222,7 +222,8 @@ void helper_rdtscp(CPUX86State *env)
 
 void helper_rdpmc(CPUX86State *env)
 {
-    if ((env->cr[4] & CR4_PCE_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
+    if (((env->cr[4] & CR4_PCE_MASK) == 0 ) &&
+        ((env->hflags & HF_CPL_MASK) != 0)) {
         raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     cpu_svm_check_intercept_param(env, SVM_EXIT_RDPMC, 0, GETPC());

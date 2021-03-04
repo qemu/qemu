@@ -24,7 +24,7 @@ Example configuration
 
 * Add a ``tn3270`` chardev and a ``x-terminal3270`` to the QEMU command line::
 
-   -chardev socket,id=ch0,host=0.0.0.0,port=2300,nowait,server,tn3270
+   -chardev socket,id=ch0,host=0.0.0.0,port=2300,wait=off,server=on,tn3270=on
    -device x-terminal3270,chardev=ch0,devno=fe.0.000a,id=terminal0
 
 * Start the guest. In the guest, use ``chccwdev -e 0.0.000a`` to enable

@@ -1852,13 +1852,12 @@ static void megasas_xfer_complete(SCSIRequest *req, uint32_t len)
     }
 }
 
-static void megasas_command_complete(SCSIRequest *req, uint32_t status,
-                                     size_t resid)
+static void megasas_command_complete(SCSIRequest *req, size_t resid)
 {
     MegasasCmd *cmd = req->hba_private;
     uint8_t cmd_status = MFI_STAT_OK;
 
-    trace_megasas_command_complete(cmd->index, status, resid);
+    trace_megasas_command_complete(cmd->index, req->status, resid);
 
     if (req->io_canceled) {
         return;
@@ -1873,7 +1872,6 @@ static void megasas_command_complete(SCSIRequest *req, uint32_t status,
             return;
         }
     } else {
-        req->status = status;
         trace_megasas_scsi_complete(cmd->index, req->status,
                                     cmd->iov_size, req->cmd.xfer);
         if (req->status != GOOD) {
@@ -2384,8 +2382,8 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     if (!s->sas_addr) {
         s->sas_addr = ((NAA_LOCALLY_ASSIGNED_ID << 24) |
                        IEEE_COMPANY_LOCALLY_ASSIGNED) << 36;
-        s->sas_addr |= (pci_dev_bus_num(dev) << 16);
-        s->sas_addr |= (PCI_SLOT(dev->devfn) << 8);
+        s->sas_addr |= pci_dev_bus_num(dev) << 16;
+        s->sas_addr |= PCI_SLOT(dev->devfn) << 8;
         s->sas_addr |= PCI_FUNC(dev->devfn);
     }
     if (!s->hba_serial) {

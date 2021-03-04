@@ -874,7 +874,6 @@ struct FDCtrl {
         FloppyDriveType type;
     } qdev_for_drives[MAX_FD];
     int reset_sensei;
-    uint32_t check_media_rate;
     FloppyDriveType fallback; /* type=auto failure fallback */
     /* Timers state */
     uint8_t timer0;
@@ -1021,18 +1020,10 @@ static const VMStateDescription vmstate_fdrive_media_changed = {
     }
 };
 
-static bool fdrive_media_rate_needed(void *opaque)
-{
-    FDrive *drive = opaque;
-
-    return drive->fdctrl->check_media_rate;
-}
-
 static const VMStateDescription vmstate_fdrive_media_rate = {
     .name = "fdrive/media_rate",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = fdrive_media_rate_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(media_rate, FDrive),
         VMSTATE_END_OF_LIST()
@@ -1689,8 +1680,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
 
     /* Check the data rate. If the programmed data rate does not match
      * the currently inserted medium, the operation has to fail. */
-    if (fdctrl->check_media_rate &&
-        (fdctrl->dsr & FD_DSR_DRATEMASK) != cur_drv->media_rate) {
+    if ((fdctrl->dsr & FD_DSR_DRATEMASK) != cur_drv->media_rate) {
         FLOPPY_DPRINTF("data rate mismatch (fdc=%d, media=%d)\n",
                        fdctrl->dsr & FD_DSR_DRATEMASK, cur_drv->media_rate);
         fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_MA, 0x00);
@@ -2489,8 +2479,7 @@ static void fdctrl_result_timer(void *opaque)
         cur_drv->sect = (cur_drv->sect % cur_drv->last_sect) + 1;
     }
     /* READ_ID can't automatically succeed! */
-    if (fdctrl->check_media_rate &&
-        (fdctrl->dsr & FD_DSR_DRATEMASK) != cur_drv->media_rate) {
+    if ((fdctrl->dsr & FD_DSR_DRATEMASK) != cur_drv->media_rate) {
         FLOPPY_DPRINTF("read id rate mismatch (fdc=%d, media=%d)\n",
                        fdctrl->dsr & FD_DSR_DRATEMASK, cur_drv->media_rate);
         fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_MA, 0x00);
@@ -2895,8 +2884,6 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_UINT32("dma", FDCtrlISABus, dma, 2),
     DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.qdev_for_drives[0].blk),
     DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.qdev_for_drives[1].blk),
-    DEFINE_PROP_BIT("check_media_rate", FDCtrlISABus, state.check_media_rate,
-                    0, true),
     DEFINE_PROP_SIGNED("fdtypeA", FDCtrlISABus, state.qdev_for_drives[0].type,
                         FLOPPY_DRIVE_TYPE_AUTO, qdev_prop_fdc_drive_type,
                         FloppyDriveType),

@@ -485,8 +485,7 @@ static void esp_report_command_complete(ESPState *s, uint32_t status)
     }
 }
 
-void esp_command_complete(SCSIRequest *req, uint32_t status,
-                          size_t resid)
+void esp_command_complete(SCSIRequest *req, size_t resid)
 {
     ESPState *s = req->hba_private;
 
@@ -495,11 +494,11 @@ void esp_command_complete(SCSIRequest *req, uint32_t status,
          * interrupt has been handled.
          */
         trace_esp_command_complete_deferred();
-        s->deferred_status = status;
+        s->deferred_status = req->status;
         s->deferred_complete = true;
         return;
     }
-    esp_report_command_complete(s, status);
+    esp_report_command_complete(s, req->status);
 }
 
 void esp_transfer_data(SCSIRequest *req, uint32_t len)

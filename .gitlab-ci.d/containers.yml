@@ -20,13 +20,6 @@
     - docker push "$TAG"
   after_script:
     - docker logout
-  rules:
-    - changes:
-      - .gitlab-ci.d/containers.yml
-      - tests/docker/*
-      - tests/docker/dockerfiles/*
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_REF_NAME == "testing/next"'
 
 amd64-alpine-container:
   <<: *container_job_definition

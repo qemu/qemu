@@ -239,11 +239,6 @@ void gtk_gl_area_init(void)
     display_opengl = 1;
 }
 
-QEMUGLContext gd_gl_area_get_current_context(DisplayChangeListener *dcl)
-{
-    return gdk_gl_context_get_current();
-}
-
 int gd_gl_area_make_current(DisplayChangeListener *dcl,
                             QEMUGLContext ctx)
 {

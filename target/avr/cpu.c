@@ -203,9 +203,7 @@ static void avr_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
     AVRCPUClass *mcc = AVR_CPU_CLASS(oc);
 
-    mcc->parent_realize = dc->realize;
-    dc->realize = avr_cpu_realizefn;
-
+    device_class_set_parent_realize(dc, avr_cpu_realizefn, &mcc->parent_realize);
     device_class_set_parent_reset(dc, avr_cpu_reset, &mcc->parent_reset);
 
     cc->class_by_name = avr_cpu_class_by_name;

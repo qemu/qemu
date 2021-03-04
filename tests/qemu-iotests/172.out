@@ -14,7 +14,6 @@ Testing:
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -44,7 +43,6 @@ Testing: -fda TEST_DIR/t.qcow2
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -84,7 +82,6 @@ Testing: -fdb TEST_DIR/t.qcow2
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -139,7 +136,6 @@ Testing: -fda TEST_DIR/t.qcow2 -fdb TEST_DIR/t.qcow2.2
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -195,7 +191,6 @@ Testing: -fdb
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -236,7 +231,6 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -276,7 +270,6 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2,index=1
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -331,7 +324,6 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=floppy,file=TEST_DIR/t
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -392,7 +384,6 @@ Use -device floppy,unit=0,drive=... instead.
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -434,7 +425,6 @@ Use -device floppy,unit=1,drive=... instead.
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -478,7 +468,6 @@ Use -device floppy,unit=1,drive=... instead.
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -537,7 +526,6 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -577,7 +565,6 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,unit=1
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -617,7 +604,6 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qco
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -678,7 +664,6 @@ Use -device floppy,unit=1,drive=... instead.
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -736,7 +721,6 @@ Use -device floppy,unit=0,drive=... instead.
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -808,7 +792,6 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -864,7 +847,6 @@ Testing: -fda TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -920,7 +902,6 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -976,7 +957,6 @@ Testing: -fdb TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.qcow2.2 -device fl
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1041,7 +1021,6 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1097,7 +1076,6 @@ Testing: -drive if=floppy,file=TEST_DIR/t.qcow2 -drive if=none,file=TEST_DIR/t.q
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1161,7 +1139,6 @@ Use -device floppy,unit=0,drive=... instead.
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1219,7 +1196,6 @@ Use -device floppy,unit=0,drive=... instead.
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1277,7 +1253,6 @@ Use -device floppy,unit=1,drive=... instead.
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1335,7 +1310,6 @@ Use -device floppy,unit=1,drive=... instead.
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1391,7 +1365,6 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -global floppy.drive=none0 -device
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1473,7 +1446,6 @@ Testing: -device floppy
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1500,7 +1472,6 @@ Testing: -device floppy,drive-type=120
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1527,7 +1498,6 @@ Testing: -device floppy,drive-type=144
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1554,7 +1524,6 @@ Testing: -device floppy,drive-type=288
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1584,7 +1553,6 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,drive-t
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1624,7 +1592,6 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,drive-t
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1667,7 +1634,6 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,logical
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"
@@ -1707,7 +1673,6 @@ Testing: -drive if=none,file=TEST_DIR/t.qcow2 -device floppy,drive=none0,physica
             dma = 2 (0x2)
             driveA = ""
             driveB = ""
-            check_media_rate = true
             fdtypeA = "auto"
             fdtypeB = "auto"
             fallback = "288"

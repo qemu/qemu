@@ -45,6 +45,8 @@ option('cfi', type: 'boolean', value: 'false',
        description: 'Control-Flow Integrity (CFI)')
 option('cfi_debug', type: 'boolean', value: 'false',
        description: 'Verbose errors in case of CFI violation')
+option('multiprocess', type: 'feature', value: 'auto',
+       description: 'Out of process device emulation support')
 
 option('attr', type : 'feature', value : 'auto',
        description: 'attr/xattr support')

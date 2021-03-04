@@ -272,21 +272,28 @@ Note that the following group names have a special meaning:
 
 - disabled: Tests in this group are disabled and ignored by check.
 
-.. _docker-ref:
+.. _container-ref:
 
-Docker based tests
-==================
+Container based tests
+=====================
 
 Introduction
 ------------
 
-The Docker testing framework in QEMU utilizes public Docker images to build and
-test QEMU in predefined and widely accessible Linux environments.  This makes
-it possible to expand the test coverage across distros, toolchain flavors and
-library versions.
+The container testing framework in QEMU utilizes public images to
+build and test QEMU in predefined and widely accessible Linux
+environments. This makes it possible to expand the test coverage
+across distros, toolchain flavors and library versions. The support
+was originally written for Docker although we also support Podman as
+an alternative container runtime. Although the many of the target
+names and scripts are prefixed with "docker" the system will
+automatically run on whichever is configured.
 
-Prerequisites
--------------
+The container images are also used to augment the generation of tests
+for testing TCG. See :ref:`checktcg-ref` for more details.
+
+Docker Prerequisites
+--------------------
 
 Install "docker" with the system package manager and start the Docker service
 on your development machine, then make sure you have the privilege to run
@@ -316,26 +323,53 @@ Note that any one of above configurations makes it possible for the user to
 exploit the whole host with Docker bind mounting or other privileged
 operations.  So only do it on development machines.
 
-Quickstart
-----------
+Podman Prerequisites
+--------------------
 
-From source tree, type ``make docker`` to see the help. Testing can be started
-without configuring or building QEMU (``configure`` and ``make`` are done in
-the container, with parameters defined by the make target):
+Install "podman" with the system package manager.
 
 .. code::
 
-  make docker-test-build@min-glib
+  $ sudo dnf install podman
+  $ podman ps
 
-This will create a container instance using the ``min-glib`` image (the image
+The last command should print an empty table, to verify the system is ready.
+
+Quickstart
+----------
+
+From source tree, type ``make docker-help`` to see the help. Testing
+can be started without configuring or building QEMU (``configure`` and
+``make`` are done in the container, with parameters defined by the
+make target):
+
+.. code::
+
+  make docker-test-build@centos8
+
+This will create a container instance using the ``centos8`` image (the image
 is downloaded and initialized automatically), in which the ``test-build`` job
 is executed.
+
+Registry
+--------
+
+The QEMU project has a container registry hosted by GitLab at
+``registry.gitlab.com/qemu-project/qemu`` which will automatically be
+used to pull in pre-built layers. This avoids unnecessary strain on
+the distro archives created by multiple developers running the same
+container build steps over and over again. This can be overridden
+locally by using the ``NOCACHE`` build option:
+
+.. code::
+
+   make docker-image-debian10 NOCACHE=1
 
 Images
 ------
 
-Along with many other images, the ``min-glib`` image is defined in a Dockerfile
-in ``tests/docker/dockerfiles/``, called ``min-glib.docker``. ``make docker``
+Along with many other images, the ``centos8`` image is defined in a Dockerfile
+in ``tests/docker/dockerfiles/``, called ``centos8.docker``. ``make docker-help``
 command will list all the available images.
 
 To add a new image, simply create a new ``.docker`` file under the
@@ -355,7 +389,7 @@ QEMU.  Docker tests are the executables under ``tests/docker`` named
 library, ``tests/docker/common.rc``, which provides helpers to find the QEMU
 source and build it.
 
-The full list of tests is printed in the ``make docker`` help.
+The full list of tests is printed in the ``make docker-help`` help.
 
 Debugging a Docker test failure
 -------------------------------
@@ -980,6 +1014,8 @@ And remove any package you want with::
 If you've used ``make check-acceptance``, the Python virtual environment where
 Avocado is installed will be cleaned up as part of ``make check-clean``.
 
+.. _checktcg-ref:
+
 Testing with "make check-tcg"
 =============================
 
@@ -1001,10 +1037,17 @@ for the architecture in question, for example::
 There is also a ``--cross-cc-flags-ARCH`` flag in case additional
 compiler flags are needed to build for a given target.
 
-If you have the ability to run containers as the user you can also
-take advantage of the build systems "Docker" support. It will then use
-containers to build any test case for an enabled guest where there is
-no system compiler available. See :ref:`docker-ref` for details.
+If you have the ability to run containers as the user the build system
+will automatically use them where no system compiler is available. For
+architectures where we also support building QEMU we will generally
+use the same container to build tests. However there are a number of
+additional containers defined that have a minimal cross-build
+environment that is only suitable for building test cases. Sometimes
+we may use a bleeding edge distribution for compiler features needed
+for test cases that aren't yet in the LTS distros we support for QEMU
+itself.
+
+See :ref:`container-ref` for more details.
 
 Running subset of tests
 -----------------------

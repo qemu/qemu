@@ -41,114 +41,158 @@
 
 cross-armel-system:
   extends: .cross_system_build_job
+  needs:
+    job: armel-debian-cross-container
   variables:
     IMAGE: debian-armel-cross
 
 cross-armel-user:
   extends: .cross_user_build_job
+  needs:
+    job: armel-debian-cross-container
   variables:
     IMAGE: debian-armel-cross
 
 cross-armhf-system:
   extends: .cross_system_build_job
+  needs:
+    job: armhf-debian-cross-container
   variables:
     IMAGE: debian-armhf-cross
 
 cross-armhf-user:
   extends: .cross_user_build_job
+  needs:
+    job: armhf-debian-cross-container
   variables:
     IMAGE: debian-armhf-cross
 
 cross-arm64-system:
   extends: .cross_system_build_job
+  needs:
+    job: arm64-debian-cross-container
   variables:
     IMAGE: debian-arm64-cross
 
 cross-arm64-user:
   extends: .cross_user_build_job
+  needs:
+    job: arm64-debian-cross-container
   variables:
     IMAGE: debian-arm64-cross
 
 cross-i386-system:
   extends: .cross_system_build_job
+  needs:
+    job: i386-fedora-cross-container
   variables:
     IMAGE: fedora-i386-cross
     MAKE_CHECK_ARGS: check-qtest
 
 cross-i386-user:
   extends: .cross_user_build_job
+  needs:
+    job: i386-fedora-cross-container
   variables:
     IMAGE: fedora-i386-cross
     MAKE_CHECK_ARGS: check
 
 cross-mips-system:
   extends: .cross_system_build_job
+  needs:
+    job: mips-debian-cross-container
   variables:
     IMAGE: debian-mips-cross
 
 cross-mips-user:
   extends: .cross_user_build_job
+  needs:
+    job: mips-debian-cross-container
   variables:
     IMAGE: debian-mips-cross
 
 cross-mipsel-system:
   extends: .cross_system_build_job
+  needs:
+    job: mipsel-debian-cross-container
   variables:
     IMAGE: debian-mipsel-cross
 
 cross-mipsel-user:
   extends: .cross_user_build_job
+  needs:
+    job: mipsel-debian-cross-container
   variables:
     IMAGE: debian-mipsel-cross
 
 cross-mips64el-system:
   extends: .cross_system_build_job
+  needs:
+    job: mips64el-debian-cross-container
   variables:
     IMAGE: debian-mips64el-cross
 
 cross-mips64el-user:
   extends: .cross_user_build_job
+  needs:
+    job: mips64el-debian-cross-container
   variables:
     IMAGE: debian-mips64el-cross
 
 cross-ppc64el-system:
   extends: .cross_system_build_job
+  needs:
+    job: ppc64el-debian-cross-container
   variables:
     IMAGE: debian-ppc64el-cross
 
 cross-ppc64el-user:
   extends: .cross_user_build_job
+  needs:
+    job: ppc64el-debian-cross-container
   variables:
     IMAGE: debian-ppc64el-cross
 
 cross-s390x-system:
   extends: .cross_system_build_job
+  needs:
+    job: s390x-debian-cross-container
   variables:
     IMAGE: debian-s390x-cross
 
 cross-s390x-user:
   extends: .cross_user_build_job
+  needs:
+    job: s390x-debian-cross-container
   variables:
     IMAGE: debian-s390x-cross
 
 cross-s390x-kvm-only:
   extends: .cross_accel_build_job
+  needs:
+    job: s390x-debian-cross-container
   variables:
     IMAGE: debian-s390x-cross
     ACCEL_CONFIGURE_OPTS: --disable-tcg
 
 cross-win32-system:
   extends: .cross_system_build_job
+  needs:
+    job: win32-fedora-cross-container
   variables:
     IMAGE: fedora-win32-cross
 
 cross-win64-system:
   extends: .cross_system_build_job
+  needs:
+    job: win64-fedora-cross-container
   variables:
     IMAGE: fedora-win64-cross
 
 cross-amd64-xen-only:
   extends: .cross_accel_build_job
+  needs:
+    job: amd64-debian-cross-container
   variables:
     IMAGE: debian-amd64-cross
     ACCEL: xen
@@ -156,6 +200,8 @@ cross-amd64-xen-only:
 
 cross-arm64-xen-only:
   extends: .cross_accel_build_job
+  needs:
+    job: arm64-debian-cross-container
   variables:
     IMAGE: debian-arm64-cross
     ACCEL: xen

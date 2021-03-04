@@ -69,7 +69,7 @@ Standard options:
   a description of character device properties. A common character device
   definition configures a UNIX domain socket::
 
-  --chardev socket,id=char1,path=/tmp/qmp.sock,server,nowait
+  --chardev socket,id=char1,path=/tmp/qmp.sock,server=on,wait=off
 
 .. option:: --export [type=]nbd,id=<id>,node-name=<node-name>[,name=<export-name>][,writable=on|off][,bitmap=<name>]
   --export [type=]vhost-user-blk,id=<id>,node-name=<node-name>,addr.type=unix,addr.path=<socket-path>[,writable=on|off][,logical-block-size=<block-size>][,num-queues=<num-queues>]
@@ -124,7 +124,7 @@ Launch the daemon with QMP monitor socket ``qmp.sock`` so clients can execute
 QMP commands::
 
   $ qemu-storage-daemon \
-      --chardev socket,path=qmp.sock,server,nowait,id=char1 \
+      --chardev socket,path=qmp.sock,server=on,wait=off,id=char1 \
       --monitor chardev=char1
 
 Export raw image file ``disk.img`` over NBD UNIX domain socket ``nbd.sock``::

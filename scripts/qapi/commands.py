@@ -17,6 +17,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Sequence,
     Set,
 )
 
@@ -297,7 +298,7 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
     def visit_command(self,
                       name: str,
                       info: Optional[QAPISourceInfo],
-                      ifcond: List[str],
+                      ifcond: Sequence[str],
                       features: List[QAPISchemaFeature],
                       arg_type: Optional[QAPISchemaObjectType],
                       ret_type: Optional[QAPISchemaType],

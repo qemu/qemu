@@ -126,6 +126,7 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
     VirtIONet *n = VIRTIO_NET(vdev);
     struct virtio_net_config netcfg;
     NetClientState *nc = qemu_get_queue(n->nic);
+    static const MACAddr zero = { .a = { 0, 0, 0, 0, 0, 0 } };
 
     int ret = 0;
     memset(&netcfg, 0 , sizeof(struct virtio_net_config));
@@ -151,6 +152,17 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
         ret = vhost_net_get_config(get_vhost_net(nc->peer), (uint8_t *)&netcfg,
                                    n->config_size);
         if (ret != -1) {
+            /*
+             * Some NIC/kernel combinations present 0 as the mac address.  As
+             * that is not a legal address, try to proceed with the
+             * address from the QEMU command line in the hope that the
+             * address has been configured correctly elsewhere - just not
+             * reported by the device.
+             */
+            if (memcmp(&netcfg.mac, &zero, sizeof(zero)) == 0) {
+                info_report("Zero hardware mac address detected. Ignoring.");
+                memcpy(netcfg.mac, n->mac, ETH_ALEN);
+            }
             memcpy(config, &netcfg, n->config_size);
         }
     }
@@ -855,19 +867,19 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
 
     id = failover_find_primary_device_id(n);
     if (!id) {
-        return;
-    }
-    opts = qemu_opts_find(qemu_find_opts("device"), id);
-    if (opts) {
-        dev = qdev_device_add(opts, &err);
-        if (err) {
-            qemu_opts_del(opts);
-        }
-    } else {
         error_setg(errp, "Primary device not found");
         error_append_hint(errp, "Virtio-net failover will not work. Make "
                           "sure primary device has parameter"
-                          " failover_pair_id=<virtio-net-id>\n");
+                          " failover_pair_id=%s\n", n->netclient_name);
+        return;
+    }
+    opts = qemu_opts_find(qemu_find_opts("device"), id);
+    g_assert(opts); /* cannot be NULL because id was found using opts list */
+    dev = qdev_device_add(opts, &err);
+    if (err) {
+        qemu_opts_del(opts);
+    } else {
+        object_unref(OBJECT(dev));
     }
     error_propagate(errp, err);
 }

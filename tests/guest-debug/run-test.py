@@ -64,10 +64,10 @@ if __name__ == '__main__':
 
     # Launch QEMU with binary
     if "system" in args.qemu:
-        cmd = "%s %s %s -gdb unix:path=%s,server" % (args.qemu,
-                                                     args.qargs,
-                                                     args.binary,
-                                                     socket_name)
+        cmd = "%s %s %s -gdb unix:path=%s,server=on" % (args.qemu,
+                                                        args.qargs,
+                                                        args.binary,
+                                                        socket_name)
     else:
         cmd = "%s %s -g %s %s" % (args.qemu, args.qargs, socket_name,
                                   args.binary)

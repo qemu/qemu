@@ -157,6 +157,11 @@ if targetos != 'linux' and get_option('mpath').enabled()
   error('Multipath is supported only on Linux')
 endif
 
+if targetos != 'linux' and get_option('multiprocess').enabled()
+  error('Multiprocess QEMU is supported only on Linux')
+endif
+multiprocess_allowed = targetos == 'linux' and not get_option('multiprocess').disabled()
+
 m = cc.find_library('m', required: false)
 util = cc.find_library('util', required: false)
 winmm = []
@@ -1228,7 +1233,7 @@ host_kconfig = \
   (have_virtfs ? ['CONFIG_VIRTFS=y'] : []) + \
   ('CONFIG_LINUX' in config_host ? ['CONFIG_LINUX=y'] : []) + \
   ('CONFIG_PVRDMA' in config_host ? ['CONFIG_PVRDMA=y'] : []) + \
-  ('CONFIG_MULTIPROCESS_ALLOWED' in config_host ? ['CONFIG_MULTIPROCESS_ALLOWED=y'] : [])
+  (multiprocess_allowed ? ['CONFIG_MULTIPROCESS_ALLOWED=y'] : [])
 
 ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_ARCH' ]
 
@@ -2224,7 +2229,7 @@ foreach target : target_dirs
     endif
 
     emulator = executable(exe_name, exe['sources'],
-               install: not exe_sign,
+               install: true,
                c_args: c_args,
                dependencies: arch_deps + deps + exe['dependencies'],
                objects: lib.extract_all_objects(recursive: true),
@@ -2235,8 +2240,6 @@ foreach target : target_dirs
 
     if exe_sign
       emulators += {exe['name'] : custom_target(exe['name'],
-                   install: true,
-                   install_dir: get_option('bindir'),
                    depends: emulator,
                    output: exe['name'],
                    command: [
@@ -2246,6 +2249,11 @@ foreach target : target_dirs
                      meson.current_source_dir() / 'accel/hvf/entitlements.plist'
                    ])
       }
+
+      meson.add_install_script('scripts/entitlement.sh', '--install',
+                               get_option('bindir') / exe_name,
+                               get_option('bindir') / exe['name'],
+                               meson.current_source_dir() / 'accel/hvf/entitlements.plist')
     else
       emulators += {exe['name']: emulator}
     endif
@@ -2509,6 +2517,24 @@ endif
 summary_info += {'strip binaries':    get_option('strip')}
 summary_info += {'sparse':            sparse.found() ? sparse.full_path() : false}
 summary_info += {'mingw32 support':   targetos == 'windows'}
+
+# snarf the cross-compilation information for tests
+foreach target: target_dirs
+  tcg_mak = meson.current_build_dir() / 'tests/tcg' / 'config-' + target + '.mak'
+  if fs.exists(tcg_mak)
+    config_cross_tcg = keyval.load(tcg_mak)
+    target = config_cross_tcg['TARGET_NAME']
+    compiler = ''
+    if 'DOCKER_CROSS_CC_GUEST' in config_cross_tcg
+      summary_info += {target + ' tests': config_cross_tcg['DOCKER_CROSS_CC_GUEST'] +
+                                          ' via ' + config_cross_tcg['DOCKER_IMAGE']}
+    elif 'CROSS_CC_GUEST' in config_cross_tcg
+      summary_info += {target + ' tests'
+                                : config_cross_tcg['CROSS_CC_GUEST'] }
+    endif
+   endif
+endforeach
+
 summary(summary_info, bool_yn: true, section: 'Compilation')
 
 # Targets and accelerators
@@ -2535,6 +2561,7 @@ endif
 summary_info += {'target list':       ' '.join(target_dirs)}
 if have_system
   summary_info += {'default devices':   get_option('default_devices')}
+  summary_info += {'out of process emulation': multiprocess_allowed}
 endif
 summary(summary_info, bool_yn: true, section: 'Targets and accelerators')
 
@@ -2655,7 +2682,6 @@ summary_info += {'libpmem support':   config_host.has_key('CONFIG_LIBPMEM')}
 summary_info += {'libdaxctl support': config_host.has_key('CONFIG_LIBDAXCTL')}
 summary_info += {'libudev':           libudev.found()}
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
-summary_info += {'Multiprocess QEMU': config_host.has_key('CONFIG_MULTIPROCESS_ALLOWED')}
 summary(summary_info, bool_yn: true, section: 'Dependencies')
 
 if not supported_cpus.contains(cpu)

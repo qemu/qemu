@@ -3,7 +3,7 @@
  * Eddie James <eajames@linux.ibm.com>
  *
  * Copyright (C) 2019 IBM Corp
- * SPDX-License-Identifer: GPL-2.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "qemu/osdep.h"

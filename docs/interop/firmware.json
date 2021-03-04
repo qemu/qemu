@@ -129,7 +129,7 @@
 #                "-machine smm=on". (On the "pc-q35-*" machine types of
 #                the @i386 emulation target, @requires-smm presents
 #                further CPU requirements; one combination known to work
-#                is "-cpu coreduo,-nx".) If the firmware is marked as
+#                is "-cpu coreduo,nx=off".) If the firmware is marked as
 #                both @secure-boot and @requires-smm, then write
 #                accesses to the pflash chip (NVRAM) that holds the UEFI
 #                variable store must be restricted to code that executes
