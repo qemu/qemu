@@ -48,8 +48,6 @@ struct ESPState {
     uint32_t cmdlen;
     uint32_t do_cmd;
 
-    /* The amount of data left in the current DMA transfer.  */
-    uint32_t dma_left;
     int dma_enabled;
 
     uint32_t async_len;
@@ -67,6 +65,9 @@ struct ESPState {
     void (*pdma_cb)(ESPState *s);
 
     uint8_t mig_version_id;
+
+    /* Legacy fields for vmstate_esp version < 5 */
+    uint32_t mig_dma_left;
 };
 
 #define TYPE_SYSBUS_ESP "sysbus-esp"
