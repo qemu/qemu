@@ -22,7 +22,12 @@ enum pdma_origin_id {
     ASYNC,
 };
 
+#define TYPE_ESP "esp"
+OBJECT_DECLARE_SIMPLE_TYPE(ESPState, ESP)
+
 struct ESPState {
+    DeviceState parent_obj;
+
     uint8_t rregs[ESP_REGS];
     uint8_t wregs[ESP_REGS];
     qemu_irq irq;

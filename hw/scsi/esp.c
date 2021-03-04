@@ -827,20 +827,22 @@ static void sysbus_esp_mem_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned int size)
 {
     SysBusESPState *sysbus = opaque;
+    ESPState *s = ESP(&sysbus->esp);
     uint32_t saddr;
 
     saddr = addr >> sysbus->it_shift;
-    esp_reg_write(&sysbus->esp, saddr, val);
+    esp_reg_write(s, saddr, val);
 }
 
 static uint64_t sysbus_esp_mem_read(void *opaque, hwaddr addr,
                                     unsigned int size)
 {
     SysBusESPState *sysbus = opaque;
+    ESPState *s = ESP(&sysbus->esp);
     uint32_t saddr;
 
     saddr = addr >> sysbus->it_shift;
-    return esp_reg_read(&sysbus->esp, saddr);
+    return esp_reg_read(s, saddr);
 }
 
 static const MemoryRegionOps sysbus_esp_mem_ops = {
@@ -854,7 +856,7 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned int size)
 {
     SysBusESPState *sysbus = opaque;
-    ESPState *s = &sysbus->esp;
+    ESPState *s = ESP(&sysbus->esp);
     uint32_t dmalen;
     uint8_t *buf = get_pdma_buf(s);
 
@@ -891,7 +893,7 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
     SysBusESPState *sysbus = opaque;
-    ESPState *s = &sysbus->esp;
+    ESPState *s = ESP(&sysbus->esp);
     uint8_t *buf = get_pdma_buf(s);
     uint64_t val = 0;
 
@@ -939,7 +941,7 @@ static const struct SCSIBusInfo esp_scsi_info = {
 static void sysbus_esp_gpio_demux(void *opaque, int irq, int level)
 {
     SysBusESPState *sysbus = SYSBUS_ESP(opaque);
-    ESPState *s = &sysbus->esp;
+    ESPState *s = ESP(&sysbus->esp);
 
     switch (irq) {
     case 0:
@@ -955,7 +957,11 @@ static void sysbus_esp_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     SysBusESPState *sysbus = SYSBUS_ESP(dev);
-    ESPState *s = &sysbus->esp;
+    ESPState *s = ESP(&sysbus->esp);
+
+    if (!qdev_realize(DEVICE(s), NULL, errp)) {
+        return;
+    }
 
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_irq(sbd, &s->irq_data);
@@ -977,7 +983,16 @@ static void sysbus_esp_realize(DeviceState *dev, Error **errp)
 static void sysbus_esp_hard_reset(DeviceState *dev)
 {
     SysBusESPState *sysbus = SYSBUS_ESP(dev);
-    esp_hard_reset(&sysbus->esp);
+    ESPState *s = ESP(&sysbus->esp);
+
+    esp_hard_reset(s);
+}
+
+static void sysbus_esp_init(Object *obj)
+{
+    SysBusESPState *sysbus = SYSBUS_ESP(obj);
+
+    object_initialize_child(obj, "esp", &sysbus->esp, TYPE_ESP);
 }
 
 static const VMStateDescription vmstate_sysbus_esp_scsi = {
@@ -1003,13 +1018,31 @@ static void sysbus_esp_class_init(ObjectClass *klass, void *data)
 static const TypeInfo sysbus_esp_info = {
     .name          = TYPE_SYSBUS_ESP,
     .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_init = sysbus_esp_init,
     .instance_size = sizeof(SysBusESPState),
     .class_init    = sysbus_esp_class_init,
+};
+
+static void esp_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    /* internal device for sysbusesp/pciespscsi, not user-creatable */
+    dc->user_creatable = false;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+}
+
+static const TypeInfo esp_info = {
+    .name = TYPE_ESP,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(ESPState),
+    .class_init = esp_class_init,
 };
 
 static void esp_register_types(void)
 {
     type_register_static(&sysbus_esp_info);
+    type_register_static(&esp_info);
 }
 
 type_init(esp_register_types)
