@@ -3,6 +3,7 @@
 
 #include "hw/scsi/scsi.h"
 #include "hw/sysbus.h"
+#include "qemu/fifo8.h"
 #include "qom/object.h"
 
 /* esp.c */
@@ -10,7 +11,7 @@
 typedef void (*ESPDMAMemoryReadWriteFunc)(void *opaque, uint8_t *buf, int len);
 
 #define ESP_REGS 16
-#define TI_BUFSZ 16
+#define ESP_FIFO_SZ 16
 #define ESP_CMDBUF_SZ 32
 
 typedef struct ESPState ESPState;
@@ -28,10 +29,9 @@ struct ESPState {
     uint8_t chip_id;
     bool tchi_written;
     int32_t ti_size;
-    uint32_t ti_rptr, ti_wptr;
     uint32_t status;
     uint32_t dma;
-    uint8_t ti_buf[TI_BUFSZ];
+    Fifo8 fifo;
     SCSIBus bus;
     SCSIDevice *current_dev;
     SCSIRequest *current_req;
@@ -58,6 +58,8 @@ struct ESPState {
     uint32_t mig_dma_left;
     uint32_t mig_deferred_status;
     bool mig_deferred_complete;
+    uint32_t mig_ti_rptr, mig_ti_wptr;
+    uint8_t mig_ti_buf[ESP_FIFO_SZ];
 };
 
 #define TYPE_SYSBUS_ESP "sysbus-esp"
