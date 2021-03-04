@@ -178,7 +178,7 @@ static int esp_select(ESPState *s)
     if (!s->current_dev) {
         /* No such drive */
         s->rregs[ESP_RSTAT] = 0;
-        s->rregs[ESP_RINTR] = INTR_DC;
+        s->rregs[ESP_RINTR] |= INTR_DC;
         s->rregs[ESP_RSEQ] = SEQ_0;
         esp_raise_irq(s);
         return -1;
@@ -245,7 +245,7 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
         }
         scsi_req_continue(s->current_req);
     }
-    s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
+    s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
     s->rregs[ESP_RSEQ] = SEQ_CD;
     esp_raise_irq(s);
     esp_lower_drq(s);
@@ -326,7 +326,7 @@ static void satn_stop_pdma_cb(ESPState *s)
         trace_esp_handle_satn_stop(s->cmdlen);
         s->do_cmd = 1;
         s->rregs[ESP_RSTAT] = STAT_TC | STAT_CD;
-        s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
+        s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
         s->rregs[ESP_RSEQ] = SEQ_CD;
         esp_raise_irq(s);
     }
@@ -346,8 +346,8 @@ static void handle_satn_stop(ESPState *s)
         trace_esp_handle_satn_stop(s->cmdlen);
         s->cmdlen = cmdlen;
         s->do_cmd = 1;
-        s->rregs[ESP_RSTAT] = STAT_TC | STAT_CD;
-        s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
+        s->rregs[ESP_RSTAT] = STAT_CD;
+        s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
         s->rregs[ESP_RSEQ] = SEQ_CD;
         esp_raise_irq(s);
     } else if (cmdlen == 0) {
@@ -362,7 +362,7 @@ static void handle_satn_stop(ESPState *s)
 static void write_response_pdma_cb(ESPState *s)
 {
     s->rregs[ESP_RSTAT] = STAT_TC | STAT_ST;
-    s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
+    s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
     s->rregs[ESP_RSEQ] = SEQ_CD;
     esp_raise_irq(s);
 }
@@ -376,7 +376,7 @@ static void write_response(ESPState *s)
         if (s->dma_memory_write) {
             s->dma_memory_write(s->dma_opaque, s->ti_buf, 2);
             s->rregs[ESP_RSTAT] = STAT_TC | STAT_ST;
-            s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
+            s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
             s->rregs[ESP_RSEQ] = SEQ_CD;
         } else {
             s->pdma_cb = write_response_pdma_cb;
@@ -395,7 +395,7 @@ static void write_response(ESPState *s)
 static void esp_dma_done(ESPState *s)
 {
     s->rregs[ESP_RSTAT] |= STAT_TC;
-    s->rregs[ESP_RINTR] = INTR_BS;
+    s->rregs[ESP_RINTR] |= INTR_BS;
     s->rregs[ESP_RSEQ] = 0;
     s->rregs[ESP_RFLAGS] = 0;
     esp_set_tc(s, 0);
@@ -700,7 +700,7 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
         val = s->rregs[ESP_RINTR];
         s->rregs[ESP_RINTR] = 0;
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
-        s->rregs[ESP_RSEQ] = SEQ_CD;
+        s->rregs[ESP_RSEQ] = SEQ_0;
         esp_lower_irq(s);
         if (s->deferred_complete) {
             esp_report_command_complete(s, s->deferred_status);
@@ -771,9 +771,6 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
             /*s->ti_size = 0;*/
             s->ti_wptr = 0;
             s->ti_rptr = 0;
-            s->rregs[ESP_RINTR] = INTR_FC;
-            s->rregs[ESP_RSEQ] = 0;
-            s->rregs[ESP_RFLAGS] = 0;
             break;
         case CMD_RESET:
             trace_esp_mem_writeb_cmd_reset(val);
@@ -781,8 +778,8 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
             break;
         case CMD_BUSRESET:
             trace_esp_mem_writeb_cmd_bus_reset(val);
-            s->rregs[ESP_RINTR] = INTR_RST;
             if (!(s->wregs[ESP_CFG1] & CFG1_RESREPT)) {
+                s->rregs[ESP_RINTR] |= INTR_RST;
                 esp_raise_irq(s);
             }
             break;
@@ -793,12 +790,12 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         case CMD_ICCS:
             trace_esp_mem_writeb_cmd_iccs(val);
             write_response(s);
-            s->rregs[ESP_RINTR] = INTR_FC;
+            s->rregs[ESP_RINTR] |= INTR_FC;
             s->rregs[ESP_RSTAT] |= STAT_MI;
             break;
         case CMD_MSGACC:
             trace_esp_mem_writeb_cmd_msgacc(val);
-            s->rregs[ESP_RINTR] = INTR_DC;
+            s->rregs[ESP_RINTR] |= INTR_DC;
             s->rregs[ESP_RSEQ] = 0;
             s->rregs[ESP_RFLAGS] = 0;
             esp_raise_irq(s);
@@ -806,7 +803,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         case CMD_PAD:
             trace_esp_mem_writeb_cmd_pad(val);
             s->rregs[ESP_RSTAT] = STAT_TC;
-            s->rregs[ESP_RINTR] = INTR_FC;
+            s->rregs[ESP_RINTR] |= INTR_FC;
             s->rregs[ESP_RSEQ] = 0;
             break;
         case CMD_SATN:
