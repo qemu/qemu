@@ -561,9 +561,6 @@ static void handle_ti(ESPState *s)
     }
 
     dmalen = esp_get_tc(s);
-    if (dmalen == 0) {
-        dmalen = 0x10000;
-    }
     s->dma_counter = dmalen;
 
     if (s->do_cmd) {
@@ -698,7 +695,11 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         if (val & CMD_DMA) {
             s->dma = 1;
             /* Reload DMA counter.  */
-            esp_set_tc(s, esp_get_stc(s));
+            if (esp_get_stc(s) == 0) {
+                esp_set_tc(s, 0x10000);
+            } else {
+                esp_set_tc(s, esp_get_stc(s));
+            }
         } else {
             s->dma = 0;
         }
