@@ -139,8 +139,6 @@ static void set_pdma(ESPState *s, enum pdma_origin_id origin,
 static uint8_t *get_pdma_buf(ESPState *s)
 {
     switch (s->pdma_origin) {
-    case PDMA:
-        return s->pdma_buf;
     case TI:
         return s->ti_buf;
     case CMD:
@@ -161,14 +159,12 @@ static uint8_t esp_pdma_read(ESPState *s)
     }
 
     switch (s->pdma_origin) {
-    case PDMA:
-        val = s->pdma_buf[s->pdma_cur++];
-        break;
     case TI:
         val = s->ti_buf[s->pdma_cur++];
         break;
     case CMD:
-        val = s->cmdbuf[s->pdma_cur++];
+        val = s->cmdbuf[s->cmdlen++];
+        s->pdma_cur++;
         break;
     case ASYNC:
         val = s->async_buf[s->pdma_cur++];
@@ -193,14 +189,12 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
     }
 
     switch (s->pdma_origin) {
-    case PDMA:
-        s->pdma_buf[s->pdma_cur++] = val;
-        break;
     case TI:
         s->ti_buf[s->pdma_cur++] = val;
         break;
     case CMD:
-        s->cmdbuf[s->pdma_cur++] = val;
+        s->cmdbuf[s->cmdlen++] = val;
+        s->pdma_cur++;
         break;
     case ASYNC:
         s->async_buf[s->pdma_cur++] = val;
@@ -256,8 +250,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf, uint8_t buflen)
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, buf, dmalen);
         } else {
-            memcpy(s->pdma_buf, buf, dmalen);
-            set_pdma(s, PDMA, 0, dmalen);
+            set_pdma(s, CMD, 0, dmalen);
             esp_raise_drq(s);
             return 0;
         }
@@ -316,24 +309,24 @@ static void satn_pdma_cb(ESPState *s)
     if (get_cmd_cb(s) < 0) {
         return;
     }
-    if (s->pdma_cur != s->pdma_start) {
-        do_cmd(s, get_pdma_buf(s) + s->pdma_start);
+    s->do_cmd = 0;
+    if (s->cmdlen) {
+        do_cmd(s, s->cmdbuf);
     }
 }
 
 static void handle_satn(ESPState *s)
 {
-    uint8_t buf[32];
-    int len;
-
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_satn;
         return;
     }
     s->pdma_cb = satn_pdma_cb;
-    len = get_cmd(s, buf, sizeof(buf));
-    if (len) {
-        do_cmd(s, buf);
+    s->cmdlen = get_cmd(s, s->cmdbuf, sizeof(s->cmdbuf));
+    if (s->cmdlen) {
+        do_cmd(s, s->cmdbuf);
+    } else {
+        s->do_cmd = 1;
     }
 }
 
@@ -342,24 +335,24 @@ static void s_without_satn_pdma_cb(ESPState *s)
     if (get_cmd_cb(s) < 0) {
         return;
     }
-    if (s->pdma_cur != s->pdma_start) {
+    s->do_cmd = 0;
+    if (s->cmdlen) {
         do_busid_cmd(s, get_pdma_buf(s) + s->pdma_start, 0);
     }
 }
 
 static void handle_s_without_atn(ESPState *s)
 {
-    uint8_t buf[32];
-    int len;
-
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_s_without_atn;
         return;
     }
     s->pdma_cb = s_without_satn_pdma_cb;
-    len = get_cmd(s, buf, sizeof(buf));
-    if (len) {
-        do_busid_cmd(s, buf, 0);
+    s->cmdlen = get_cmd(s, s->cmdbuf, sizeof(s->cmdbuf));
+    if (s->cmdlen) {
+        do_busid_cmd(s, s->cmdbuf, 0);
+    } else {
+        s->do_cmd = 1;
     }
 }
 
@@ -368,7 +361,7 @@ static void satn_stop_pdma_cb(ESPState *s)
     if (get_cmd_cb(s) < 0) {
         return;
     }
-    s->cmdlen = s->pdma_cur - s->pdma_start;
+    s->do_cmd = 0;
     if (s->cmdlen) {
         trace_esp_handle_satn_stop(s->cmdlen);
         s->do_cmd = 1;
@@ -394,6 +387,8 @@ static void handle_satn_stop(ESPState *s)
         s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
         s->rregs[ESP_RSEQ] = SEQ_CD;
         esp_raise_irq(s);
+    } else {
+        s->do_cmd = 1;
     }
 }
 
@@ -864,11 +859,10 @@ static bool esp_pdma_needed(void *opaque)
 
 static const VMStateDescription vmstate_esp_pdma = {
     .name = "esp/pdma",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .needed = esp_pdma_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_BUFFER(pdma_buf, ESPState),
         VMSTATE_INT32(pdma_origin, ESPState),
         VMSTATE_UINT32(pdma_len, ESPState),
         VMSTATE_UINT32(pdma_start, ESPState),
