@@ -697,6 +697,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
             }
             break;
         case CMD_TI:
+            trace_esp_mem_writeb_cmd_ti(val);
             handle_ti(s);
             break;
         case CMD_ICCS:
