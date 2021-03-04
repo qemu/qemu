@@ -65,8 +65,8 @@ struct ESPState {
     void (*pdma_cb)(ESPState *s);
 };
 
-#define TYPE_ESP "esp"
-OBJECT_DECLARE_SIMPLE_TYPE(SysBusESPState, ESP)
+#define TYPE_SYSBUS_ESP "sysbus-esp"
+OBJECT_DECLARE_SIMPLE_TYPE(SysBusESPState, SYSBUS_ESP)
 
 struct SysBusESPState {
     /*< private >*/

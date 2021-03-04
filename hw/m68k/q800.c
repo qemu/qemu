@@ -350,8 +350,8 @@ static void q800_init(MachineState *machine)
 
     /* SCSI */
 
-    dev = qdev_new(TYPE_ESP);
-    sysbus_esp = ESP(dev);
+    dev = qdev_new(TYPE_SYSBUS_ESP);
+    sysbus_esp = SYSBUS_ESP(dev);
     esp = &sysbus_esp->esp;
     esp->dma_memory_read = NULL;
     esp->dma_memory_write = NULL;
