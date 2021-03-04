@@ -568,18 +568,20 @@ static void esp_do_dma(ESPState *s)
     esp_lower_drq(s);
 }
 
-static void esp_report_command_complete(ESPState *s, uint32_t status)
+void esp_command_complete(SCSIRequest *req, size_t resid)
 {
+    ESPState *s = req->hba_private;
+
     trace_esp_command_complete();
     if (s->ti_size != 0) {
         trace_esp_command_complete_unexpected();
     }
     s->ti_size = 0;
     s->async_len = 0;
-    if (status) {
+    if (req->status) {
         trace_esp_command_complete_fail();
     }
-    s->status = status;
+    s->status = req->status;
     s->rregs[ESP_RSTAT] = STAT_ST;
     esp_dma_done(s);
     esp_lower_drq(s);
@@ -588,23 +590,6 @@ static void esp_report_command_complete(ESPState *s, uint32_t status)
         s->current_req = NULL;
         s->current_dev = NULL;
     }
-}
-
-void esp_command_complete(SCSIRequest *req, size_t resid)
-{
-    ESPState *s = req->hba_private;
-
-    if (s->rregs[ESP_RSTAT] & STAT_INT) {
-        /*
-         * Defer handling command complete until the previous
-         * interrupt has been handled.
-         */
-        trace_esp_command_complete_deferred();
-        s->deferred_status = req->status;
-        s->deferred_complete = true;
-        return;
-    }
-    esp_report_command_complete(s, req->status);
 }
 
 void esp_transfer_data(SCSIRequest *req, uint32_t len)
@@ -733,10 +718,6 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         s->rregs[ESP_RSEQ] = SEQ_0;
         esp_lower_irq(s);
-        if (s->deferred_complete) {
-            esp_report_command_complete(s, s->deferred_status);
-            s->deferred_complete = false;
-        }
         break;
     case ESP_TCHI:
         /* Return the unique id if the value has never been written */
@@ -944,8 +925,10 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_UINT32(ti_wptr, ESPState),
         VMSTATE_BUFFER(ti_buf, ESPState),
         VMSTATE_UINT32(status, ESPState),
-        VMSTATE_UINT32(deferred_status, ESPState),
-        VMSTATE_BOOL(deferred_complete, ESPState),
+        VMSTATE_UINT32_TEST(mig_deferred_status, ESPState,
+                            esp_is_before_version_5),
+        VMSTATE_BOOL_TEST(mig_deferred_complete, ESPState,
+                          esp_is_before_version_5),
         VMSTATE_UINT32(dma, ESPState),
         VMSTATE_PARTIAL_BUFFER(cmdbuf, ESPState, 16),
         VMSTATE_BUFFER_START_MIDDLE_V(cmdbuf, ESPState, 16, 4),

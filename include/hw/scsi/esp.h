@@ -30,8 +30,6 @@ struct ESPState {
     int32_t ti_size;
     uint32_t ti_rptr, ti_wptr;
     uint32_t status;
-    uint32_t deferred_status;
-    bool deferred_complete;
     uint32_t dma;
     uint8_t ti_buf[TI_BUFSZ];
     SCSIBus bus;
@@ -57,6 +55,8 @@ struct ESPState {
 
     /* Legacy fields for vmstate_esp version < 5 */
     uint32_t mig_dma_left;
+    uint32_t mig_deferred_status;
+    bool mig_deferred_complete;
 };
 
 #define TYPE_SYSBUS_ESP "sysbus-esp"
