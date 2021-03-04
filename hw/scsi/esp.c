@@ -127,32 +127,14 @@ static uint32_t esp_get_stc(ESPState *s)
     return dmalen;
 }
 
-static void set_pdma(ESPState *s, enum pdma_origin_id origin)
-{
-    s->pdma_origin = origin;
-}
-
 static uint8_t esp_pdma_read(ESPState *s)
 {
     uint8_t val;
 
-    switch (s->pdma_origin) {
-    case TI:
-        if (s->do_cmd) {
-            val = s->cmdbuf[s->cmdlen++];
-        } else {
-            val = s->ti_buf[s->ti_rptr++];
-        }
-        break;
-    case ASYNC:
-        val = s->async_buf[0];
-        if (s->async_len > 0) {
-            s->async_len--;
-            s->async_buf++;
-        }
-        break;
-    default:
-        g_assert_not_reached();
+    if (s->do_cmd) {
+        val = s->cmdbuf[s->cmdlen++];
+    } else {
+        val = s->ti_buf[s->ti_rptr++];
     }
 
     return val;
@@ -166,23 +148,10 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
         return;
     }
 
-    switch (s->pdma_origin) {
-    case TI:
-        if (s->do_cmd) {
-            s->cmdbuf[s->cmdlen++] = val;
-        } else {
-            s->ti_buf[s->ti_wptr++] = val;
-        }
-        break;
-    case ASYNC:
-        s->async_buf[0] = val;
-        if (s->async_len > 0) {
-            s->async_len--;
-            s->async_buf++;
-        }
-        break;
-    default:
-        g_assert_not_reached();
+    if (s->do_cmd) {
+        s->cmdbuf[s->cmdlen++] = val;
+    } else {
+        s->ti_buf[s->ti_wptr++] = val;
     }
 
     dmalen--;
@@ -232,7 +201,6 @@ static uint32_t get_cmd(ESPState *s)
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, buf, dmalen);
         } else {
-            set_pdma(s, TI);
             if (esp_select(s) < 0) {
                 return -1;
             }
@@ -411,7 +379,6 @@ static void write_response(ESPState *s)
             s->rregs[ESP_RINTR] = INTR_BS | INTR_FC;
             s->rregs[ESP_RSEQ] = SEQ_CD;
         } else {
-            set_pdma(s, TI);
             s->pdma_cb = write_response_pdma_cb;
             esp_raise_drq(s);
             return;
@@ -522,7 +489,6 @@ static void esp_do_dma(ESPState *s)
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, &s->cmdbuf[s->cmdlen], len);
         } else {
-            set_pdma(s, TI);
             s->pdma_cb = do_dma_pdma_cb;
             esp_raise_drq(s);
             return;
@@ -545,7 +511,6 @@ static void esp_do_dma(ESPState *s)
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, s->async_buf, len);
         } else {
-            set_pdma(s, TI);
             s->pdma_cb = do_dma_pdma_cb;
             esp_raise_drq(s);
             return;
@@ -562,7 +527,6 @@ static void esp_do_dma(ESPState *s)
             s->async_len -= len;
             s->ti_size -= len;
             esp_set_tc(s, esp_get_tc(s) - len);
-            set_pdma(s, TI);
             s->pdma_cb = do_dma_pdma_cb;
             esp_raise_drq(s);
 
@@ -898,24 +862,6 @@ static bool esp_mem_accepts(void *opaque, hwaddr addr,
     return (size == 1) || (is_write && size == 4);
 }
 
-static bool esp_pdma_needed(void *opaque)
-{
-    ESPState *s = opaque;
-    return s->dma_memory_read == NULL && s->dma_memory_write == NULL &&
-           s->dma_enabled;
-}
-
-static const VMStateDescription vmstate_esp_pdma = {
-    .name = "esp/pdma",
-    .version_id = 2,
-    .minimum_version_id = 2,
-    .needed = esp_pdma_needed,
-    .fields = (VMStateField[]) {
-        VMSTATE_INT32(pdma_origin, ESPState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static bool esp_is_before_version_5(void *opaque, int version_id)
 {
     ESPState *s = ESP(opaque);
@@ -970,10 +916,6 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_UINT32_TEST(mig_dma_left, ESPState, esp_is_before_version_5),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription * []) {
-        &vmstate_esp_pdma,
-        NULL
-    }
 };
 
 static void sysbus_esp_mem_write(void *opaque, hwaddr addr,
