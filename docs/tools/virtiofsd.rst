@@ -228,6 +228,10 @@ The 'map' type adds a number of separate rules to add **prepend** as a prefix
 to the matched **key** (or all attributes if **key** is empty).
 There may be at most one 'map' rule and it must be the last rule in the set.
 
+Note: When the 'security.capability' xattr is remapped, the daemon has to do
+extra work to remove it during many operations, which the host kernel normally
+does itself.
+
 xattr-mapping Examples
 ----------------------
 

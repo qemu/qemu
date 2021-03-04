@@ -148,6 +148,7 @@ struct lo_data {
     int posix_lock;
     int xattr;
     char *xattrmap;
+    char *xattr_security_capability;
     char *source;
     char *modcaps;
     double timeout;
@@ -217,6 +218,8 @@ static __thread bool cap_loaded = 0;
 
 static struct lo_inode *lo_find(struct lo_data *lo, struct stat *st,
                                 uint64_t mnt_id);
+static int xattr_map_client(const struct lo_data *lo, const char *client_name,
+                            char **out_name);
 
 static int is_dot_or_dotdot(const char *name)
 {
@@ -354,6 +357,37 @@ static int gain_effective_cap(const char *cap_name)
 
 out:
     return ret;
+}
+
+/*
+ * The host kernel normally drops security.capability xattr's on
+ * any write, however if we're remapping xattr names we need to drop
+ * whatever the clients security.capability is actually stored as.
+ */
+static int drop_security_capability(const struct lo_data *lo, int fd)
+{
+    if (!lo->xattr_security_capability) {
+        /* We didn't remap the name, let the host kernel do it */
+        return 0;
+    }
+    if (!fremovexattr(fd, lo->xattr_security_capability)) {
+        /* All good */
+        return 0;
+    }
+
+    switch (errno) {
+    case ENODATA:
+        /* Attribute didn't exist, that's fine */
+        return 0;
+
+    case ENOTSUP:
+        /* FS didn't support attribute anyway, also fine */
+        return 0;
+
+    default:
+        /* Hmm other error */
+        return errno;
+    }
 }
 
 static void lo_map_init(struct lo_map *map)
@@ -737,6 +771,11 @@ static void lo_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         uid_t uid = (valid & FUSE_SET_ATTR_UID) ? attr->st_uid : (uid_t)-1;
         gid_t gid = (valid & FUSE_SET_ATTR_GID) ? attr->st_gid : (gid_t)-1;
 
+        saverr = drop_security_capability(lo, ifd);
+        if (saverr) {
+            goto out_err;
+        }
+
         res = fchownat(ifd, "", uid, gid, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
         if (res == -1) {
             saverr = errno;
@@ -757,6 +796,14 @@ static void lo_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
                 saverr = -truncfd;
                 goto out_err;
             }
+        }
+
+        saverr = drop_security_capability(lo, truncfd);
+        if (saverr) {
+            if (!fi) {
+                close(truncfd);
+            }
+            goto out_err;
         }
 
         if (kill_suidgid) {
@@ -1784,6 +1831,13 @@ static int lo_do_open(struct lo_data *lo, struct lo_inode *inode,
         if (fd < 0) {
             return -fd;
         }
+        if (fi->flags & (O_TRUNC)) {
+            int err = drop_security_capability(lo, fd);
+            if (err) {
+                close(fd);
+                return err;
+            }
+        }
     }
 
     pthread_mutex_lock(&lo->mutex);
@@ -2191,6 +2245,12 @@ static void lo_write_buf(fuse_req_t req, fuse_ino_t ino,
              "lo_write_buf(ino=%" PRIu64 ", size=%zd, off=%lu kill_priv=%d)\n",
              ino, out_buf.buf[0].size, (unsigned long)off, fi->kill_priv);
 
+    res = drop_security_capability(lo_data(req), out_buf.buf[0].fd);
+    if (res) {
+        fuse_reply_err(req, res);
+        return;
+    }
+
     /*
      * If kill_priv is set, drop CAP_FSETID which should lead to kernel
      * clearing setuid/setgid on file. Note, for WRITE, we need to do
@@ -2432,6 +2492,7 @@ static void parse_xattrmap(struct lo_data *lo)
 {
     const char *map = lo->xattrmap;
     const char *tmp;
+    int ret;
 
     lo->xattr_map_nentries = 0;
     while (*map) {
@@ -2462,7 +2523,7 @@ static void parse_xattrmap(struct lo_data *lo)
              * the last entry.
              */
             parse_xattrmap_map(lo, map, sep);
-            return;
+            break;
         } else {
             fuse_log(FUSE_LOG_ERR,
                      "%s: Unexpected type;"
@@ -2530,6 +2591,19 @@ static void parse_xattrmap(struct lo_data *lo)
     if (!lo->xattr_map_nentries) {
         fuse_log(FUSE_LOG_ERR, "Empty xattr map\n");
         exit(1);
+    }
+
+    ret = xattr_map_client(lo, "security.capability",
+                           &lo->xattr_security_capability);
+    if (ret) {
+        fuse_log(FUSE_LOG_ERR, "Failed to map security.capability: %s\n",
+                strerror(ret));
+        exit(1);
+    }
+    if (!strcmp(lo->xattr_security_capability, "security.capability")) {
+        /* 1-1 mapping, don't need to do anything */
+        free(lo->xattr_security_capability);
+        lo->xattr_security_capability = NULL;
     }
 }
 
@@ -3588,6 +3662,7 @@ static void fuse_lo_data_cleanup(struct lo_data *lo)
 
     free(lo->xattrmap);
     free_xattrmap(lo);
+    free(lo->xattr_security_capability);
     free(lo->source);
 }
 
