@@ -29,10 +29,6 @@ mech_list: gssapi
 # client.
 #mech_list: scram-sha-256 gssapi
 
-# Some older builds of MIT kerberos on Linux ignore this option &
-# instead need KRB5_KTNAME env var.
-# For modern Linux, and other OS, this should be sufficient
-#
 # This file needs to be populated with the service principal that
 # was created on the Kerberos v5 server. If switching to a non-gssapi
 # mechanism this can be commented out.
