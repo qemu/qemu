@@ -818,6 +818,10 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
             val = s->rregs[saddr];
         }
         break;
+     case ESP_RFLAGS:
+        /* Bottom 5 bits indicate number of bytes in FIFO */
+        val = fifo8_num_used(&s->fifo);
+        break;
     default:
         val = s->rregs[saddr];
         break;
