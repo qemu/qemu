@@ -153,16 +153,38 @@ static uint8_t *get_pdma_buf(ESPState *s)
 
 static uint8_t esp_pdma_read(ESPState *s)
 {
-    uint8_t *buf = get_pdma_buf(s);
-
-    return buf[s->pdma_cur++];
+    switch (s->pdma_origin) {
+    case PDMA:
+        return s->pdma_buf[s->pdma_cur++];
+    case TI:
+        return s->ti_buf[s->pdma_cur++];
+    case CMD:
+        return s->cmdbuf[s->pdma_cur++];
+    case ASYNC:
+        return s->async_buf[s->pdma_cur++];
+    default:
+        g_assert_not_reached();
+    }
 }
 
 static void esp_pdma_write(ESPState *s, uint8_t val)
 {
-    uint8_t *buf = get_pdma_buf(s);
-
-    buf[s->pdma_cur++] = val;
+    switch (s->pdma_origin) {
+    case PDMA:
+        s->pdma_buf[s->pdma_cur++] = val;
+        break;
+    case TI:
+        s->ti_buf[s->pdma_cur++] = val;
+        break;
+    case CMD:
+        s->cmdbuf[s->pdma_cur++] = val;
+        break;
+    case ASYNC:
+        s->async_buf[s->pdma_cur++] = val;
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 static int get_cmd_cb(ESPState *s)
