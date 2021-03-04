@@ -19,11 +19,17 @@
 #
 
 import statistics
+import subprocess
 import time
 
 
+def do_drop_caches():
+    subprocess.run('sync; echo 3 > /proc/sys/vm/drop_caches', shell=True,
+                   check=True)
+
+
 def bench_one(test_func, test_env, test_case, count=5, initial_run=True,
-              slow_limit=100):
+              slow_limit=100, drop_caches=False):
     """Benchmark one test-case
 
     test_func   -- benchmarking function with prototype
@@ -40,6 +46,7 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True,
     initial_run -- do initial run of test_func, which don't get into result
     slow_limit  -- stop at slow run (that exceedes the slow_limit by seconds).
                    (initial run is not measured)
+    drop_caches -- drop caches before each run
 
     Returns dict with the following fields:
         'runs':     list of test_func results
@@ -53,6 +60,7 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True,
     """
     if initial_run:
         print('  #initial run:')
+        do_drop_caches()
         print('   ', test_func(test_env, test_case))
 
     runs = []
@@ -60,6 +68,7 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True,
         t = time.time()
 
         print('  #run {}'.format(i+1))
+        do_drop_caches()
         res = test_func(test_env, test_case)
         print('   ', res)
         runs.append(res)

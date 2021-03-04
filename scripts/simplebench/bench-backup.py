@@ -156,7 +156,8 @@ def bench(args):
             })
 
     result = simplebench.bench(bench_func, test_envs, test_cases,
-                               count=args.count, initial_run=args.initial_run)
+                               count=args.count, initial_run=args.initial_run,
+                               drop_caches=args.drop_caches)
     with open('results.json', 'w') as f:
         json.dump(result, f, indent=4)
     print(results_to_text(result))
@@ -220,5 +221,8 @@ Number of test runs per table cell''')
                    help='''\
 Do additional initial run per cell which doesn't count in result,
 default true''')
+
+    p.add_argument('--drop-caches', action='store_true', help='''\
+Do "sync; echo 3 > /proc/sys/vm/drop_caches" before each test run''')
 
     bench(p.parse_args())
