@@ -241,8 +241,9 @@ static void handle_satn(ESPState *s)
     }
     s->pdma_cb = satn_pdma_cb;
     len = get_cmd(s, buf, sizeof(buf));
-    if (len)
+    if (len) {
         do_cmd(s, buf);
+    }
 }
 
 static void s_without_satn_pdma_cb(ESPState *s)
@@ -398,8 +399,8 @@ static void esp_do_dma(ESPState *s)
          * handle_ti_cmd() with do_cmd != NULL (see the assert())
          */
         trace_esp_do_dma(s->cmdlen, len);
-        assert (s->cmdlen <= sizeof(s->cmdbuf) &&
-                len <= sizeof(s->cmdbuf) - s->cmdlen);
+        assert(s->cmdlen <= sizeof(s->cmdbuf) &&
+               len <= sizeof(s->cmdbuf) - s->cmdlen);
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, &s->cmdbuf[s->cmdlen], len);
         } else {
@@ -445,15 +446,18 @@ static void esp_do_dma(ESPState *s)
     s->dma_left -= len;
     s->async_buf += len;
     s->async_len -= len;
-    if (to_device)
+    if (to_device) {
         s->ti_size += len;
-    else
+    } else {
         s->ti_size -= len;
+    }
     if (s->async_len == 0) {
         scsi_req_continue(s->current_req);
-        /* If there is still data to be read from the device then
-           complete the DMA operation immediately.  Otherwise defer
-           until the scsi layer has completed.  */
+        /*
+         * If there is still data to be read from the device then
+         * complete the DMA operation immediately.  Otherwise defer
+         * until the scsi layer has completed.
+         */
         if (to_device || s->dma_left != 0 || s->ti_size == 0) {
             return;
         }
@@ -490,7 +494,8 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
     ESPState *s = req->hba_private;
 
     if (s->rregs[ESP_RSTAT] & STAT_INT) {
-        /* Defer handling command complete until the previous
+        /*
+         * Defer handling command complete until the previous
          * interrupt has been handled.
          */
         trace_esp_command_complete_deferred();
@@ -512,8 +517,10 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
     if (s->dma_left) {
         esp_do_dma(s);
     } else if (s->dma_counter != 0 && s->ti_size <= 0) {
-        /* If this was the last part of a DMA transfer then the
-           completion interrupt is deferred to here.  */
+        /*
+         * If this was the last part of a DMA transfer then the
+         * completion interrupt is deferred to here.
+         */
         esp_dma_done(s);
     }
 }
@@ -530,17 +537,18 @@ static void handle_ti(ESPState *s)
     dmalen = s->rregs[ESP_TCLO];
     dmalen |= s->rregs[ESP_TCMID] << 8;
     dmalen |= s->rregs[ESP_TCHI] << 16;
-    if (dmalen==0) {
-      dmalen=0x10000;
+    if (dmalen == 0) {
+        dmalen = 0x10000;
     }
     s->dma_counter = dmalen;
 
-    if (s->do_cmd)
+    if (s->do_cmd) {
         minlen = (dmalen < ESP_CMDBUF_SZ) ? dmalen : ESP_CMDBUF_SZ;
-    else if (s->ti_size < 0)
+    } else if (s->ti_size < 0) {
         minlen = (dmalen < -s->ti_size) ? dmalen : -s->ti_size;
-    else
+    } else {
         minlen = (dmalen < s->ti_size) ? dmalen : s->ti_size;
+    }
     trace_esp_handle_ti(minlen);
     if (s->dma) {
         s->dma_left = minlen;
@@ -605,8 +613,10 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
         }
         break;
     case ESP_RINTR:
-        /* Clear sequence step, interrupt register and all status bits
-           except TC */
+        /*
+         * Clear sequence step, interrupt register and all status bits
+         * except TC
+         */
         old_val = s->rregs[ESP_RINTR];
         s->rregs[ESP_RINTR] = 0;
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
@@ -664,13 +674,13 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         } else {
             s->dma = 0;
         }
-        switch(val & CMD_CMD) {
+        switch (val & CMD_CMD) {
         case CMD_NOP:
             trace_esp_mem_writeb_cmd_nop(val);
             break;
         case CMD_FLUSH:
             trace_esp_mem_writeb_cmd_flush(val);
-            //s->ti_size = 0;
+            /*s->ti_size = 0;*/
             s->rregs[ESP_RINTR] = INTR_FC;
             s->rregs[ESP_RSEQ] = 0;
             s->rregs[ESP_RFLAGS] = 0;
@@ -786,7 +796,7 @@ static const VMStateDescription vmstate_esp_pdma = {
 };
 
 const VMStateDescription vmstate_esp = {
-    .name ="esp",
+    .name = "esp",
     .version_id = 4,
     .minimum_version_id = 3,
     .fields = (VMStateField[]) {
