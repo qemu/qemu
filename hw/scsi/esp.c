@@ -297,8 +297,9 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
     esp_raise_irq(s);
 }
 
-static void do_cmd(ESPState *s, uint8_t *buf)
+static void do_cmd(ESPState *s)
 {
+    uint8_t *buf = s->cmdbuf;
     uint8_t busid = buf[0];
 
     do_busid_cmd(s, &buf[1], busid);
@@ -311,7 +312,7 @@ static void satn_pdma_cb(ESPState *s)
     }
     s->do_cmd = 0;
     if (s->cmdlen) {
-        do_cmd(s, s->cmdbuf);
+        do_cmd(s);
     }
 }
 
@@ -324,7 +325,7 @@ static void handle_satn(ESPState *s)
     s->pdma_cb = satn_pdma_cb;
     s->cmdlen = get_cmd(s, s->cmdbuf, sizeof(s->cmdbuf));
     if (s->cmdlen) {
-        do_cmd(s, s->cmdbuf);
+        do_cmd(s);
     } else {
         s->do_cmd = 1;
     }
@@ -445,7 +446,7 @@ static void do_dma_pdma_cb(ESPState *s)
         s->ti_size = 0;
         s->cmdlen = 0;
         s->do_cmd = 0;
-        do_cmd(s, s->cmdbuf);
+        do_cmd(s);
         return;
     }
     s->async_buf += len;
@@ -497,7 +498,7 @@ static void esp_do_dma(ESPState *s)
         s->ti_size = 0;
         s->cmdlen = 0;
         s->do_cmd = 0;
-        do_cmd(s, s->cmdbuf);
+        do_cmd(s);
         return;
     }
     if (s->async_len == 0) {
@@ -627,7 +628,7 @@ static void handle_ti(ESPState *s)
         s->ti_size = 0;
         s->cmdlen = 0;
         s->do_cmd = 0;
-        do_cmd(s, s->cmdbuf);
+        do_cmd(s);
     }
 }
 
