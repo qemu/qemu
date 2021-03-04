@@ -1002,7 +1002,9 @@ static const MemoryRegionOps sysbus_esp_pdma_ops = {
     .write = sysbus_esp_pdma_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid.min_access_size = 1,
-    .valid.max_access_size = 2,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 2,
 };
 
 static const struct SCSIBusInfo esp_scsi_info = {
@@ -1049,7 +1051,7 @@ static void sysbus_esp_realize(DeviceState *dev, Error **errp)
                           sysbus, "esp-regs", ESP_REGS << sysbus->it_shift);
     sysbus_init_mmio(sbd, &sysbus->iomem);
     memory_region_init_io(&sysbus->pdma, OBJECT(sysbus), &sysbus_esp_pdma_ops,
-                          sysbus, "esp-pdma", 2);
+                          sysbus, "esp-pdma", 4);
     sysbus_init_mmio(sbd, &sysbus->pdma);
 
     qdev_init_gpio_in(dev, sysbus_esp_gpio_demux, 2);
