@@ -50,9 +50,6 @@ struct ESPState {
 
     /* The amount of data left in the current DMA transfer.  */
     uint32_t dma_left;
-    /* The size of the current DMA transfer.  Zero if no transfer is in
-       progress.  */
-    uint32_t dma_counter;
     int dma_enabled;
 
     uint32_t async_len;

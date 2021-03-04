@@ -229,7 +229,6 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
     if (datalen != 0) {
         s->rregs[ESP_RSTAT] = STAT_TC;
         s->dma_left = 0;
-        s->dma_counter = 0;
         if (datalen > 0) {
             s->rregs[ESP_RSTAT] |= STAT_DI;
         } else {
@@ -542,7 +541,7 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
     s->async_buf = scsi_req_get_buf(req);
     if (s->dma_left) {
         esp_do_dma(s);
-    } else if (s->dma_counter != 0 && s->ti_size <= 0) {
+    } else if (s->ti_size <= 0) {
         /*
          * If this was the last part of a DMA transfer then the
          * completion interrupt is deferred to here.
@@ -561,7 +560,6 @@ static void handle_ti(ESPState *s)
     }
 
     dmalen = esp_get_tc(s);
-    s->dma_counter = dmalen;
 
     if (s->do_cmd) {
         minlen = (dmalen < ESP_CMDBUF_SZ) ? dmalen : ESP_CMDBUF_SZ;
