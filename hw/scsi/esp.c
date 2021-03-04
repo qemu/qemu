@@ -63,11 +63,13 @@ static void esp_lower_irq(ESPState *s)
 static void esp_raise_drq(ESPState *s)
 {
     qemu_irq_raise(s->irq_data);
+    trace_esp_raise_drq();
 }
 
 static void esp_lower_drq(ESPState *s)
 {
     qemu_irq_lower(s->irq_data);
+    trace_esp_lower_drq();
 }
 
 void esp_dma_enable(ESPState *s, int irq, int level)
@@ -885,6 +887,8 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
     uint32_t dmalen;
     uint8_t *buf = get_pdma_buf(s);
 
+    trace_esp_pdma_write(size);
+
     dmalen = s->rregs[ESP_TCLO];
     dmalen |= s->rregs[ESP_TCMID] << 8;
     dmalen |= s->rregs[ESP_TCHI] << 16;
@@ -921,6 +925,8 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
     ESPState *s = ESP(&sysbus->esp);
     uint8_t *buf = get_pdma_buf(s);
     uint64_t val = 0;
+
+    trace_esp_pdma_read(size);
 
     if (s->pdma_len == 0) {
         return 0;
