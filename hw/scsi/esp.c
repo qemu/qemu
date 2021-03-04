@@ -760,6 +760,12 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
             s->ti_size++;
             s->ti_buf[s->ti_wptr++] = val & 0xff;
         }
+
+        /* Non-DMA transfers raise an interrupt after every byte */
+        if (s->rregs[ESP_CMD] == CMD_TI) {
+            s->rregs[ESP_RINTR] |= INTR_FC | INTR_BS;
+            esp_raise_irq(s);
+        }
         break;
     case ESP_CMD:
         s->rregs[saddr] = val;
