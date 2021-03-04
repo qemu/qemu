@@ -41,6 +41,7 @@ struct ESPState {
     uint32_t cmdlen;
     uint32_t do_cmd;
 
+    bool data_in_ready;
     int dma_enabled;
 
     uint32_t async_len;
