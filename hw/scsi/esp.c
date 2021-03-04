@@ -131,22 +131,8 @@ static void set_pdma(ESPState *s, enum pdma_origin_id origin,
                      uint32_t index, uint32_t len)
 {
     s->pdma_origin = origin;
-    s->pdma_start = index;
     s->pdma_cur = index;
     s->pdma_len = len;
-}
-
-static uint8_t *get_pdma_buf(ESPState *s)
-{
-    switch (s->pdma_origin) {
-    case TI:
-        return s->ti_buf;
-    case CMD:
-        return s->cmdbuf;
-    case ASYNC:
-        return s->async_buf;
-    }
-    return NULL;
 }
 
 static uint8_t esp_pdma_read(ESPState *s)
@@ -339,7 +325,7 @@ static void s_without_satn_pdma_cb(ESPState *s)
     }
     s->do_cmd = 0;
     if (s->cmdlen) {
-        do_busid_cmd(s, get_pdma_buf(s) + s->pdma_start, 0);
+        do_busid_cmd(s, s->cmdbuf, 0);
     }
 }
 
@@ -441,7 +427,7 @@ static void esp_dma_done(ESPState *s)
 static void do_dma_pdma_cb(ESPState *s)
 {
     int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
-    int len = s->pdma_cur - s->pdma_start;
+    int len = s->pdma_cur;
 
     if (s->do_cmd) {
         s->ti_size = 0;
@@ -867,7 +853,6 @@ static const VMStateDescription vmstate_esp_pdma = {
     .fields = (VMStateField[]) {
         VMSTATE_INT32(pdma_origin, ESPState),
         VMSTATE_UINT32(pdma_len, ESPState),
-        VMSTATE_UINT32(pdma_start, ESPState),
         VMSTATE_UINT32(pdma_cur, ESPState),
         VMSTATE_END_OF_LIST()
     }
