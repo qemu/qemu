@@ -114,6 +114,10 @@ typedef struct NvmeNamespaceParams {
     uint32_t max_active_zones;
     uint32_t max_open_zones;
     uint32_t zd_extension_size;
+
+    uint32_t numzrwa;
+    uint64_t zrwas;
+    uint64_t zrwafg;
 } NvmeNamespaceParams;
 
 typedef struct NvmeNamespace {
@@ -129,6 +133,12 @@ typedef struct NvmeNamespace {
     uint8_t      csi;
     uint16_t     status;
     int          attached;
+
+    struct {
+        uint16_t zrwas;
+        uint16_t zrwafg;
+        uint32_t numzrwa;
+    } zns;
 
     QTAILQ_ENTRY(NvmeNamespace) entry;
 
