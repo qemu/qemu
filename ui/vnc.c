@@ -790,19 +790,9 @@ static bool vnc_check_pageflip(DisplaySurface *s1,
 static void vnc_dpy_switch(DisplayChangeListener *dcl,
                            DisplaySurface *surface)
 {
-    static const char placeholder_msg[] =
-        "Display output is not active.";
-    static DisplaySurface *placeholder;
     VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
     bool pageflip = vnc_check_pageflip(vd->ds, surface);
     VncState *vs;
-
-    if (surface == NULL) {
-        if (placeholder == NULL) {
-            placeholder = qemu_create_message_surface(640, 480, placeholder_msg);
-        }
-        surface = placeholder;
-    }
 
     vnc_abort_display_jobs(vd);
     vd->ds = surface;

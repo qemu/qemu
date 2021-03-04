@@ -1436,8 +1436,8 @@ DisplaySurface *qemu_create_displaysurface_pixman(pixman_image_t *image)
     return surface;
 }
 
-DisplaySurface *qemu_create_message_surface(int w, int h,
-                                            const char *msg)
+DisplaySurface *qemu_create_placeholder_surface(int w, int h,
+                                                const char *msg)
 {
     DisplaySurface *surface = qemu_create_displaysurface(w, h);
     pixman_color_t bg = color_table_rgb[0][QEMU_COLOR_BLACK];
@@ -1454,6 +1454,7 @@ DisplaySurface *qemu_create_message_surface(int w, int h,
                                  x+i, y, FONT_WIDTH, FONT_HEIGHT);
         qemu_pixman_image_unref(glyph);
     }
+    surface->flags |= QEMU_PLACEHOLDER_FLAG;
     return surface;
 }
 
@@ -1550,7 +1551,7 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
             dcl->ops->dpy_gfx_switch(dcl, con->surface);
         } else {
             if (!dummy) {
-                dummy = qemu_create_message_surface(640, 480, nodev);
+                dummy = qemu_create_placeholder_surface(640, 480, nodev);
             }
             dcl->ops->dpy_gfx_switch(dcl, dummy);
         }
@@ -1674,11 +1675,26 @@ void dpy_gfx_update_full(QemuConsole *con)
 void dpy_gfx_replace_surface(QemuConsole *con,
                              DisplaySurface *surface)
 {
+    static const char placeholder_msg[] = "Display output is not active.";
     DisplayState *s = con->ds;
     DisplaySurface *old_surface = con->surface;
     DisplayChangeListener *dcl;
+    int width;
+    int height;
 
-    assert(old_surface != surface || surface == NULL);
+    if (!surface) {
+        if (old_surface) {
+            width = surface_width(old_surface);
+            height = surface_height(old_surface);
+        } else {
+            width = 640;
+            height = 480;
+        }
+
+        surface = qemu_create_placeholder_surface(width, height, placeholder_msg);
+    }
+
+    assert(old_surface != surface);
 
     con->surface = surface;
     QLIST_FOREACH(dcl, &s->listeners, next) {
@@ -1998,7 +2014,7 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
                                  &error_abort);
     }
 
-    surface = qemu_create_message_surface(width, height, noinit);
+    surface = qemu_create_placeholder_surface(width, height, noinit);
     dpy_gfx_replace_surface(s, surface);
     return s;
 }
@@ -2027,7 +2043,7 @@ void graphic_console_close(QemuConsole *con)
     if (con->gl) {
         dpy_gl_scanout_disable(con);
     }
-    surface = qemu_create_message_surface(width, height, unplugged);
+    surface = qemu_create_placeholder_surface(width, height, unplugged);
     dpy_gfx_replace_surface(con, surface);
 }
 

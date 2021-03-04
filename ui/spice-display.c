@@ -388,7 +388,7 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
     SimpleSpiceUpdate *update;
     bool need_destroy;
 
-    if (surface && ssd->surface &&
+    if (ssd->surface &&
         surface_width(surface) == pixman_image_get_width(ssd->surface) &&
         surface_height(surface) == pixman_image_get_height(ssd->surface) &&
         surface_format(surface) == pixman_image_get_format(ssd->surface)) {
@@ -410,8 +410,8 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
 
     /* full mode switch */
     trace_qemu_spice_display_surface(ssd->qxl.id,
-                                     surface ? surface_width(surface)  : 0,
-                                     surface ? surface_height(surface) : 0,
+                                     surface_width(surface),
+                                     surface_height(surface),
                                      false);
 
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));

@@ -219,7 +219,7 @@ void gd_gl_area_scanout_flush(DisplayChangeListener *dcl,
 void gd_gl_area_scanout_dmabuf(DisplayChangeListener *dcl,
                                QemuDmaBuf *dmabuf)
 {
-#ifdef CONFIG_OPENGL_DMABUF
+#ifdef CONFIG_GBM
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
 
     gtk_gl_area_make_current(GTK_GL_AREA(vc->gfx.drawing_area));

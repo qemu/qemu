@@ -270,7 +270,7 @@ const int mac_to_qkeycode_map[] = {
 static int cocoa_keycode_to_qemu(int keycode)
 {
     if (ARRAY_SIZE(mac_to_qkeycode_map) <= keycode) {
-        fprintf(stderr, "(cocoa) warning unknown keycode 0x%x\n", keycode);
+        error_report("(cocoa) warning unknown keycode 0x%x", keycode);
         return 0;
     }
     return mac_to_qkeycode_map[keycode];
@@ -450,19 +450,19 @@ QemuCocoaView *cocoaView;
         int w = pixman_image_get_width(pixman_image);
         int h = pixman_image_get_height(pixman_image);
         int bitsPerPixel = PIXMAN_FORMAT_BPP(pixman_image_get_format(pixman_image));
-        int bitsPerComponent = DIV_ROUND_UP(bitsPerPixel, 8) * 2;
+        int stride = pixman_image_get_stride(pixman_image);
         CGDataProviderRef dataProviderRef = CGDataProviderCreateWithData(
             NULL,
             pixman_image_get_data(pixman_image),
-            w * 4 * h,
+            stride * h,
             NULL
         );
         CGImageRef imageRef = CGImageCreate(
             w, //width
             h, //height
-            bitsPerComponent, //bitsPerComponent
+            DIV_ROUND_UP(bitsPerPixel, 8) * 2, //bitsPerComponent
             bitsPerPixel, //bitsPerPixel
-            (w * (bitsPerComponent/2)), //bytesPerRow
+            stride, //bytesPerRow
 #ifdef __LITTLE_ENDIAN__
             CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB), //colorspace for OS X >= 10.4
             kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst,
@@ -585,37 +585,26 @@ QemuCocoaView *cocoaView;
         isFullscreen = FALSE;
         [self ungrabMouse];
         [self setContentDimensions];
-        if ([NSView respondsToSelector:@selector(exitFullScreenModeWithOptions:)]) { // test if "exitFullScreenModeWithOptions" is supported on host at runtime
-            [self exitFullScreenModeWithOptions:nil];
-        } else {
-            [fullScreenWindow close];
-            [normalWindow setContentView: self];
-            [normalWindow makeKeyAndOrderFront: self];
-            [NSMenu setMenuBarVisible:YES];
-        }
+        [fullScreenWindow close];
+        [normalWindow setContentView: self];
+        [normalWindow makeKeyAndOrderFront: self];
+        [NSMenu setMenuBarVisible:YES];
     } else { // switch from desktop to fullscreen
         isFullscreen = TRUE;
         [normalWindow orderOut: nil]; /* Hide the window */
         [self grabMouse];
         [self setContentDimensions];
-        if ([NSView respondsToSelector:@selector(enterFullScreenMode:withOptions:)]) { // test if "enterFullScreenMode:withOptions" is supported on host at runtime
-            [self enterFullScreenMode:[NSScreen mainScreen] withOptions:[NSDictionary dictionaryWithObjectsAndKeys:
-                [NSNumber numberWithBool:NO], NSFullScreenModeAllScreens,
-                [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithBool:NO], kCGDisplayModeIsStretched, nil], NSFullScreenModeSetting,
-                 nil]];
-        } else {
-            [NSMenu setMenuBarVisible:NO];
-            fullScreenWindow = [[NSWindow alloc] initWithContentRect:[[NSScreen mainScreen] frame]
-                styleMask:NSWindowStyleMaskBorderless
-                backing:NSBackingStoreBuffered
-                defer:NO];
-            [fullScreenWindow setAcceptsMouseMovedEvents: YES];
-            [fullScreenWindow setHasShadow:NO];
-            [fullScreenWindow setBackgroundColor: [NSColor blackColor]];
-            [self setFrame:NSMakeRect(cx, cy, cw, ch)];
-            [[fullScreenWindow contentView] addSubview: self];
-            [fullScreenWindow makeKeyAndOrderFront:self];
-        }
+        [NSMenu setMenuBarVisible:NO];
+        fullScreenWindow = [[NSWindow alloc] initWithContentRect:[[NSScreen mainScreen] frame]
+            styleMask:NSWindowStyleMaskBorderless
+            backing:NSBackingStoreBuffered
+            defer:NO];
+        [fullScreenWindow setAcceptsMouseMovedEvents: YES];
+        [fullScreenWindow setHasShadow:NO];
+        [fullScreenWindow setBackgroundColor: [NSColor blackColor]];
+        [self setFrame:NSMakeRect(cx, cy, cw, ch)];
+        [[fullScreenWindow contentView] addSubview: self];
+        [fullScreenWindow makeKeyAndOrderFront:self];
     }
 }
 
@@ -1071,7 +1060,7 @@ QemuCocoaView *cocoaView;
         // create a view and add it to the window
         cocoaView = [[QemuCocoaView alloc] initWithFrame:NSMakeRect(0.0, 0.0, 640.0, 480.0)];
         if(!cocoaView) {
-            fprintf(stderr, "(cocoa) can't create a view\n");
+            error_report("(cocoa) can't create a view");
             exit(1);
         }
 
@@ -1080,7 +1069,7 @@ QemuCocoaView *cocoaView;
             styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskClosable
             backing:NSBackingStoreBuffered defer:NO];
         if(!normalWindow) {
-            fprintf(stderr, "(cocoa) can't create window\n");
+            error_report("(cocoa) can't create window");
             exit(1);
         }
         [normalWindow setAcceptsMouseMovedEvents:YES];
