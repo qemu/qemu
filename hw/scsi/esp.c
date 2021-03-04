@@ -552,7 +552,7 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
 
 static void handle_ti(ESPState *s)
 {
-    uint32_t dmalen, minlen;
+    uint32_t dmalen;
 
     if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_ti;
@@ -560,16 +560,8 @@ static void handle_ti(ESPState *s)
     }
 
     dmalen = esp_get_tc(s);
-
-    if (s->do_cmd) {
-        minlen = (dmalen < ESP_CMDBUF_SZ) ? dmalen : ESP_CMDBUF_SZ;
-    } else if (s->ti_size < 0) {
-        minlen = (dmalen < -s->ti_size) ? dmalen : -s->ti_size;
-    } else {
-        minlen = (dmalen < s->ti_size) ? dmalen : s->ti_size;
-    }
-    trace_esp_handle_ti(minlen);
     if (s->dma) {
+        trace_esp_handle_ti(dmalen);
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         esp_do_dma(s);
     } else if (s->do_cmd) {
