@@ -151,6 +151,20 @@ static uint8_t *get_pdma_buf(ESPState *s)
     return NULL;
 }
 
+static uint8_t esp_pdma_read(ESPState *s)
+{
+    uint8_t *buf = get_pdma_buf(s);
+
+    return buf[s->pdma_cur++];
+}
+
+static void esp_pdma_write(ESPState *s, uint8_t val)
+{
+    uint8_t *buf = get_pdma_buf(s);
+
+    buf[s->pdma_cur++] = val;
+}
+
 static int get_cmd_cb(ESPState *s)
 {
     int target;
@@ -909,7 +923,6 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
     SysBusESPState *sysbus = opaque;
     ESPState *s = ESP(&sysbus->esp);
     uint32_t dmalen = esp_get_tc(s);
-    uint8_t *buf = get_pdma_buf(s);
 
     trace_esp_pdma_write(size);
 
@@ -918,13 +931,13 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
     }
     switch (size) {
     case 1:
-        buf[s->pdma_cur++] = val;
+        esp_pdma_write(s, val);
         s->pdma_len--;
         dmalen--;
         break;
     case 2:
-        buf[s->pdma_cur++] = val >> 8;
-        buf[s->pdma_cur++] = val;
+        esp_pdma_write(s, val >> 8);
+        esp_pdma_write(s, val);
         s->pdma_len -= 2;
         dmalen -= 2;
         break;
@@ -943,7 +956,6 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
     SysBusESPState *sysbus = opaque;
     ESPState *s = ESP(&sysbus->esp);
     uint32_t dmalen = esp_get_tc(s);
-    uint8_t *buf = get_pdma_buf(s);
     uint64_t val = 0;
 
     trace_esp_pdma_read(size);
@@ -953,13 +965,13 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
     }
     switch (size) {
     case 1:
-        val = buf[s->pdma_cur++];
+        val = esp_pdma_read(s);
         s->pdma_len--;
         dmalen--;
         break;
     case 2:
-        val = buf[s->pdma_cur++];
-        val = (val << 8) | buf[s->pdma_cur++];
+        val = esp_pdma_read(s);
+        val = (val << 8) | esp_pdma_read(s);
         s->pdma_len -= 2;
         dmalen -= 2;
         break;
