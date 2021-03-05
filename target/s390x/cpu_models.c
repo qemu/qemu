@@ -26,6 +26,7 @@
 #include "qapi/qmp/qdict.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/arch_init.h"
+#include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
 #endif
 #include "qapi/qapi-commands-machine-target.h"
@@ -877,6 +878,15 @@ static void check_compatibility(const S390CPUModel *max_model,
                    max_model->def->name);
         return;
     }
+
+#ifndef CONFIG_USER_ONLY
+    if (only_migratable && test_bit(S390_FEAT_UNPACK, model->features)) {
+        error_setg(errp, "The unpack facility is not compatible with "
+                   "the --only-migratable option. You must remove either "
+                   "the 'unpack' facility or the --only-migratable option");
+        return;
+    }
+#endif
 
     /* detect the missing features to properly report them */
     bitmap_andnot(missing, model->features, max_model->features, S390_FEAT_MAX);

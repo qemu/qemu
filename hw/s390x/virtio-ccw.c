@@ -327,13 +327,20 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                    ccw.cmd_code);
     check_len = !((ccw.flags & CCW_FLAG_SLI) && !(ccw.flags & CCW_FLAG_DC));
 
-    if (dev->force_revision_1 && dev->revision < 0 &&
-        ccw.cmd_code != CCW_CMD_SET_VIRTIO_REV) {
-        /*
-         * virtio-1 drivers must start with negotiating to a revision >= 1,
-         * so post a command reject for all other commands
-         */
-        return -ENOSYS;
+    if (dev->revision < 0 && ccw.cmd_code != CCW_CMD_SET_VIRTIO_REV) {
+        if (dev->force_revision_1) {
+            /*
+             * virtio-1 drivers must start with negotiating to a revision >= 1,
+             * so post a command reject for all other commands
+             */
+            return -ENOSYS;
+        } else {
+            /*
+             * If the driver issues any command that is not SET_VIRTIO_REV,
+             * we'll have to operate the device in legacy mode.
+             */
+            dev->revision = 0;
+        }
     }
 
     /* Look at the command. */

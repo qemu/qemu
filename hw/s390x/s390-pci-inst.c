@@ -284,10 +284,15 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
         stq_p(&resquery->sdma, pbdev->zpci_fn.sdma);
         stq_p(&resquery->edma, pbdev->zpci_fn.edma);
         stw_p(&resquery->pchid, pbdev->zpci_fn.pchid);
+        stw_p(&resquery->vfn, pbdev->zpci_fn.vfn);
         resquery->flags = pbdev->zpci_fn.flags;
         resquery->pfgid = pbdev->zpci_fn.pfgid;
+        resquery->pft = pbdev->zpci_fn.pft;
+        resquery->fmbl = pbdev->zpci_fn.fmbl;
         stl_p(&resquery->fid, pbdev->zpci_fn.fid);
         stl_p(&resquery->uid, pbdev->zpci_fn.uid);
+        memcpy(resquery->pfip, pbdev->zpci_fn.pfip, CLP_PFIP_NR_SEGMENTS);
+        memcpy(resquery->util_str, pbdev->zpci_fn.util_str, CLP_UTIL_STR_LEN);
 
         for (i = 0; i < PCI_BAR_COUNT; i++) {
             uint32_t data = pci_get_long(pbdev->pdev->config +
