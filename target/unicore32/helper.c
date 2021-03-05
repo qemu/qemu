@@ -14,7 +14,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
-#include "hw/semihosting/console.h"
+#include "semihosting/console.h"
 
 #undef DEBUG_UC32
 

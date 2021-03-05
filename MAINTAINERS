@@ -3250,7 +3250,7 @@ Semihosting
 M: Alex Bennée <alex.bennee@linaro.org>
 S: Maintained
 F: hw/semihosting/
-F: include/hw/semihosting/
+F: include/semihosting/
 
 Multi-process QEMU
 M: Elena Ufimtseva <elena.ufimtseva@oracle.com>
