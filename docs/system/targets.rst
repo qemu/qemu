@@ -1,3 +1,5 @@
+.. _system-targets-ref:
+
 QEMU System Emulator Targets
 ============================
 
