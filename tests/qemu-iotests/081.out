@@ -140,7 +140,7 @@ Testing:
 QMP_VERSION
 {"return": {}}
 {"error": {"class": "GenericError", "desc": "blkverify=on can only be set if there are exactly two files and vote-threshold is 2"}}
-{"error": {"class": "GenericError", "desc": "Cannot find device=drive0-quorum nor node_name=drive0-quorum"}}
+{"error": {"class": "GenericError", "desc": "Cannot find device='drive0-quorum' nor node-name='drive0-quorum'"}}
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
 

@@ -55,7 +55,7 @@ cluster_size: 268435456
 
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "this doesn't exist", "size": 33554432}}}
 {"return": {}}
-Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exist
+Job failed: Cannot find device='this doesn't exist' nor node-name='this doesn't exist'
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 

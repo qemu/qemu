@@ -189,8 +189,8 @@ class TestAliasMigration(TestDirtyBitmapMigration):
         # Check for error message on the destination
         if self.src_node_name != self.dst_node_name:
             self.verify_dest_error(f"Cannot find "
-                                   f"device={self.src_node_name} nor "
-                                   f"node_name={self.src_node_name}")
+                                   f"device='{self.src_node_name}' nor "
+                                   f"node-name='{self.src_node_name}'")
         else:
             self.verify_dest_error(None)
 

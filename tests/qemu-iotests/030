@@ -153,7 +153,7 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_device_not_found(self):
         result = self.vm.qmp('block-stream', device='nonexistent')
         self.assert_qmp(result, 'error/desc',
-            'Cannot find device=nonexistent nor node_name=nonexistent')
+            'Cannot find device=\'nonexistent\' nor node-name=\'nonexistent\'')
 
     def test_job_id_missing(self):
         result = self.vm.qmp('block-stream', device='mid')
@@ -507,7 +507,7 @@ class TestParallelOps(iotests.QMPTestCase):
         # Error: the base node does not exist
         result = self.vm.qmp('block-stream', device='node4', base_node='none', job_id='stream')
         self.assert_qmp(result, 'error/desc',
-            'Cannot find device= nor node_name=none')
+            'Cannot find device=\'\' nor node-name=\'none\'')
 
         # Error: the base node is not a backing file of the top node
         result = self.vm.qmp('block-stream', device='node4', base_node='node6', job_id='stream')

@@ -187,8 +187,8 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(opts, {'backing': backing_node_name})
 
         # We can't use a non-existing or empty (non-NULL) node as the backing image
-        self.reopen(opts, {'backing': 'not-found'}, "Cannot find device= nor node_name=not-found")
-        self.reopen(opts, {'backing': ''}, "Cannot find device= nor node_name=")
+        self.reopen(opts, {'backing': 'not-found'}, "Cannot find device=\'\' nor node-name=\'not-found\'")
+        self.reopen(opts, {'backing': ''}, "Cannot find device=\'\' nor node-name=\'\'")
 
         # We can reopen the image just fine if we specify the backing options
         opts['backing'] = {'driver': iotests.imgfmt,

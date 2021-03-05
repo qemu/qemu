@@ -18,6 +18,6 @@
 {"execute": "job-finalize", "arguments": {"id": "backup"}}
 {"return": {}}
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io backup-filter \"write 0 1M\""}}
-{"return": "Error: Cannot find device= nor node_name=backup-filter\r\n"}
+{"return": "Error: Cannot find device='' nor node-name='backup-filter'\r\n"}
 {"execute": "job-dismiss", "arguments": {"id": "backup"}}
 {"return": {}}
