@@ -1,1 +1,1 @@
-leading-comma-list.json:2:13: expected '{', '[', ']', string, boolean or 'null'
+leading-comma-list.json:2:13: expected '{', '[', ']', string, or boolean

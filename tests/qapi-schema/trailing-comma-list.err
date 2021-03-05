@@ -1,1 +1,1 @@
-trailing-comma-list.json:2:36: expected '{', '[', string, boolean or 'null'
+trailing-comma-list.json:2:36: expected '{', '[', string, or boolean
