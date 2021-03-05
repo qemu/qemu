@@ -7000,6 +7000,11 @@ static void decode_rrpw_extract_insert(DisasContext *ctx)
 
     switch (op2) {
     case OPC2_32_RRPW_EXTR:
+        if (width == 0) {
+                tcg_gen_movi_tl(cpu_gpr_d[r3], 0);
+                break;
+        }
+
         if (pos + width <= 32) {
             /* optimize special cases */
             if ((pos == 0) && (width == 8)) {
