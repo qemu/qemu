@@ -80,8 +80,9 @@ Standard options:
   requests for modifying data (the default is off).
 
   The ``nbd`` export type requires ``--nbd-server`` (see below). ``name`` is
-  the NBD export name. ``bitmap`` is the name of a dirty bitmap reachable from
-  the block node, so the NBD client can use NBD_OPT_SET_META_CONTEXT with the
+  the NBD export name (if not specified, it defaults to the given
+  ``node-name``). ``bitmap`` is the name of a dirty bitmap reachable from the
+  block node, so the NBD client can use NBD_OPT_SET_META_CONTEXT with the
   metadata context name "qemu:dirty-bitmap:BITMAP" to inspect the bitmap.
 
   The ``vhost-user-blk`` export type takes a vhost-user socket address on which
