@@ -6989,6 +6989,7 @@ static void decode_rrpw_extract_insert(DisasContext *ctx)
     uint32_t op2;
     int r1, r2, r3;
     int32_t pos, width;
+    TCGv temp;
 
     op2 = MASK_OP_RRPW_OP2(ctx->opcode);
     r1 = MASK_OP_RRPW_S1(ctx->opcode);
@@ -7021,10 +7022,15 @@ static void decode_rrpw_extract_insert(DisasContext *ctx)
         break;
     case OPC2_32_RRPW_IMASK:
         CHECK_REG_PAIR(r3);
+
         if (pos + width <= 32) {
-            tcg_gen_movi_tl(cpu_gpr_d[r3+1], ((1u << width) - 1) << pos);
+            temp = tcg_temp_new();
+            tcg_gen_movi_tl(temp, ((1u << width) - 1) << pos);
             tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r2], pos);
+            tcg_gen_mov_tl(cpu_gpr_d[r3 + 1], temp);
+            tcg_temp_free(temp);
         }
+
         break;
     case OPC2_32_RRPW_INSERT:
         if (pos + width <= 32) {
