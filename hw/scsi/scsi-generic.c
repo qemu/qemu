@@ -288,7 +288,10 @@ static void scsi_read_complete(void * opaque, int ret)
         }
     }
 
-    if (len == 0) {
+    if (r->io_header.host_status != SCSI_HOST_OK ||
+        (r->io_header.driver_status & SG_ERR_DRIVER_TIMEOUT) ||
+        r->io_header.status != GOOD ||
+        len == 0) {
         scsi_command_complete_noio(r, 0);
         goto done;
     }
