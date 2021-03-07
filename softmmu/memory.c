@@ -442,7 +442,8 @@ static MemTxResult  memory_region_read_accessor(MemoryRegion *mr,
         trace_memory_region_subpage_read(get_cpu_index(), mr, addr, tmp, size);
     } else if (trace_event_get_state_backends(TRACE_MEMORY_REGION_OPS_READ)) {
         hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
-        trace_memory_region_ops_read(get_cpu_index(), mr, abs_addr, tmp, size);
+        trace_memory_region_ops_read(get_cpu_index(), mr, abs_addr, tmp, size,
+                                     memory_region_name(mr));
     }
     memory_region_shift_read_access(value, shift, mask, tmp);
     return MEMTX_OK;
@@ -464,7 +465,8 @@ static MemTxResult memory_region_read_with_attrs_accessor(MemoryRegion *mr,
         trace_memory_region_subpage_read(get_cpu_index(), mr, addr, tmp, size);
     } else if (trace_event_get_state_backends(TRACE_MEMORY_REGION_OPS_READ)) {
         hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
-        trace_memory_region_ops_read(get_cpu_index(), mr, abs_addr, tmp, size);
+        trace_memory_region_ops_read(get_cpu_index(), mr, abs_addr, tmp, size,
+                                     memory_region_name(mr));
     }
     memory_region_shift_read_access(value, shift, mask, tmp);
     return r;
@@ -484,7 +486,8 @@ static MemTxResult memory_region_write_accessor(MemoryRegion *mr,
         trace_memory_region_subpage_write(get_cpu_index(), mr, addr, tmp, size);
     } else if (trace_event_get_state_backends(TRACE_MEMORY_REGION_OPS_WRITE)) {
         hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
-        trace_memory_region_ops_write(get_cpu_index(), mr, abs_addr, tmp, size);
+        trace_memory_region_ops_write(get_cpu_index(), mr, abs_addr, tmp, size,
+                                      memory_region_name(mr));
     }
     mr->ops->write(mr->opaque, addr, tmp, size);
     return MEMTX_OK;
@@ -504,7 +507,8 @@ static MemTxResult memory_region_write_with_attrs_accessor(MemoryRegion *mr,
         trace_memory_region_subpage_write(get_cpu_index(), mr, addr, tmp, size);
     } else if (trace_event_get_state_backends(TRACE_MEMORY_REGION_OPS_WRITE)) {
         hwaddr abs_addr = memory_region_to_absolute_addr(mr, addr);
-        trace_memory_region_ops_write(get_cpu_index(), mr, abs_addr, tmp, size);
+        trace_memory_region_ops_write(get_cpu_index(), mr, abs_addr, tmp, size,
+                                      memory_region_name(mr));
     }
     return mr->ops->write_with_attrs(mr->opaque, addr, tmp, size, attrs);
 }
