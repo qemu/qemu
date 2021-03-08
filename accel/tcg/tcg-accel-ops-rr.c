@@ -269,7 +269,7 @@ void rr_start_vcpu_thread(CPUState *cpu)
     static QemuThread *single_tcg_cpu_thread;
 
     g_assert(tcg_enabled());
-    parallel_cpus = false;
+    tcg_cpu_init_cflags(cpu, false);
 
     if (!single_tcg_cpu_thread) {
         cpu->thread = g_malloc0(sizeof(QemuThread));

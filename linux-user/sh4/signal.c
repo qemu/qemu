@@ -82,9 +82,11 @@ static abi_ulong get_sigframe(struct target_sigaction *ka,
     return (sp - frame_size) & -8ul;
 }
 
-/* Notice when we're in the middle of a gUSA region and reset.
-   Note that this will only occur for !parallel_cpus, as we will
-   translate such sequences differently in a parallel context.  */
+/*
+ * Notice when we're in the middle of a gUSA region and reset.
+ * Note that this will only occur when #CF_PARALLEL is unset, as we
+ * will translate such sequences differently in a parallel context.
+ */
 static void unwind_gusa(CPUSH4State *regs)
 {
     /* If the stack pointer is sufficiently negative, and we haven't
