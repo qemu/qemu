@@ -99,6 +99,96 @@ static void test_counter(void)
     g_assert_cmpuint(readl(COUNTER_BASE + CNTCV_HI), ==, 0);
 }
 
+static void test_timer(void)
+{
+    /* Basic timer functionality test */
+
+    reset_counter_and_timer();
+    /*
+     * The timer is behind a Peripheral Protection Controller, and
+     * qtest accesses are always non-secure (no memory attributes),
+     * so we must program the PPC to accept NS transactions.  TIMER0
+     * is on port 0 of PPC0, controlled by bit 0 of this register.
+     */
+    writel(PERIPHNSPPC0, 1);
+    /* We must enable the System Counter or the timer won't run. */
+    writel(COUNTER_BASE + CNTCR, 1);
+
+    /* Timer starts disabled and with a counter of 0 */
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 0);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTPCT_LO), ==, 0);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTPCT_HI), ==, 0);
+
+    /* Turn it on */
+    writel(TIMER_BASE + CNTP_CTL, 1);
+
+    /* Is the timer ticking? */
+    clock_step_ticks(100);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTPCT_LO), ==, 100);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTPCT_HI), ==, 0);
+
+    /* Set the CompareValue to 4000 ticks */
+    writel(TIMER_BASE + CNTP_CVAL_LO, 4000);
+    writel(TIMER_BASE + CNTP_CVAL_HI, 0);
+
+    /* Check TVAL view of the counter */
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_TVAL), ==, 3900);
+
+    /* Advance to the CompareValue mark and check ISTATUS is set */
+    clock_step_ticks(3900);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_TVAL), ==, 0);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 5);
+
+    /* Now exercise the auto-reload part of the timer */
+    writel(TIMER_BASE + CNTP_AIVAL_RELOAD, 200);
+    writel(TIMER_BASE + CNTP_AIVAL_CTL, 1);
+
+    /* Check AIVAL was reloaded and that ISTATUS is now clear */
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_AIVAL_LO), ==, 4200);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_AIVAL_HI), ==, 0);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 1);
+
+    /*
+     * Check that when we advance forward to the reload time the interrupt
+     * fires and the value reloads
+     */
+    clock_step_ticks(100);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 1);
+    clock_step_ticks(100);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 5);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_AIVAL_LO), ==, 4400);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_AIVAL_HI), ==, 0);
+
+    clock_step_ticks(100);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 5);
+    /* Check that writing 0 to CLR clears the interrupt */
+    writel(TIMER_BASE + CNTP_AIVAL_CTL, 1);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 1);
+    /* Check that when we move forward to the reload time it fires again */
+    clock_step_ticks(100);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 5);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_AIVAL_LO), ==, 4600);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_AIVAL_HI), ==, 0);
+
+    /*
+     * Step the clock far enough that we overflow the low half of the
+     * CNTPCT and AIVAL registers, and check that their high halves
+     * give the right values. We do the forward movement in
+     * non-autoinc mode because otherwise it takes forever as the
+     * timer has to emulate all the 'reload at t + N, t + 2N, etc'
+     * steps.
+     */
+    writel(TIMER_BASE + CNTP_AIVAL_CTL, 0);
+    clock_step_ticks(0x42ULL << 32);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTPCT_LO), ==, 4400);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTPCT_HI), ==, 0x42);
+
+    /* Turn on the autoinc again to check AIVAL_HI */
+    writel(TIMER_BASE + CNTP_AIVAL_CTL, 1);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_AIVAL_LO), ==, 4600);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_AIVAL_HI), ==, 0x42);
+}
+
 int main(int argc, char **argv)
 {
     int r;
@@ -108,6 +198,7 @@ int main(int argc, char **argv)
     qtest_start("-machine mps3-an547");
 
     qtest_add_func("/sse-timer/counter", test_counter);
+    qtest_add_func("/sse-timer/timer", test_timer);
 
     r = g_test_run();
 
