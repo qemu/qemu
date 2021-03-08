@@ -257,6 +257,21 @@ const struct SCSISense sense_code_LUN_COMM_FAILURE = {
     .key = ABORTED_COMMAND, .asc = 0x08, .ascq = 0x00
 };
 
+/* Command aborted, LUN does not respond to selection */
+const struct SCSISense sense_code_LUN_NOT_RESPONDING = {
+    .key = ABORTED_COMMAND, .asc = 0x05, .ascq = 0x00
+};
+
+/* Command aborted, Command Timeout during processing */
+const struct SCSISense sense_code_COMMAND_TIMEOUT = {
+    .key = ABORTED_COMMAND, .asc = 0x2e, .ascq = 0x02
+};
+
+/* Command aborted, Commands cleared by device server */
+const struct SCSISense sense_code_COMMAND_ABORTED = {
+    .key = ABORTED_COMMAND, .asc = 0x2f, .ascq = 0x02
+};
+
 /* Medium Error, Unrecovered read error */
 const struct SCSISense sense_code_READ_ERROR = {
     .key = MEDIUM_ERROR, .asc = 0x11, .ascq = 0x00
@@ -605,28 +620,41 @@ int scsi_sense_from_errno(int errno_value, SCSISense *sense)
     }
 }
 
-#ifdef CONFIG_LINUX
-int sg_io_sense_from_errno(int errno_value, struct sg_io_hdr *io_hdr,
-                           SCSISense *sense)
+int scsi_sense_from_host_status(uint8_t host_status,
+                                SCSISense *sense)
 {
-    if (errno_value != 0) {
-        return scsi_sense_from_errno(errno_value, sense);
-    } else {
-        if (io_hdr->host_status == SG_ERR_DID_NO_CONNECT ||
-            io_hdr->host_status == SG_ERR_DID_BUS_BUSY ||
-            io_hdr->host_status == SG_ERR_DID_TIME_OUT ||
-            (io_hdr->driver_status & SG_ERR_DRIVER_TIMEOUT)) {
-            return BUSY;
-        } else if (io_hdr->host_status) {
-            *sense = SENSE_CODE(I_T_NEXUS_LOSS);
-            return CHECK_CONDITION;
-        } else if (io_hdr->status) {
-            return io_hdr->status;
-        } else if (io_hdr->driver_status & SG_ERR_DRIVER_SENSE) {
-            return CHECK_CONDITION;
-        } else {
-            return GOOD;
-        }
+    switch (host_status) {
+    case SCSI_HOST_NO_LUN:
+        *sense = SENSE_CODE(LUN_NOT_RESPONDING);
+        return CHECK_CONDITION;
+    case SCSI_HOST_BUSY:
+        return BUSY;
+    case SCSI_HOST_TIME_OUT:
+        *sense = SENSE_CODE(COMMAND_TIMEOUT);
+        return CHECK_CONDITION;
+    case SCSI_HOST_BAD_RESPONSE:
+        *sense = SENSE_CODE(LUN_COMM_FAILURE);
+        return CHECK_CONDITION;
+    case SCSI_HOST_ABORTED:
+        *sense = SENSE_CODE(COMMAND_ABORTED);
+        return CHECK_CONDITION;
+    case SCSI_HOST_RESET:
+        *sense = SENSE_CODE(RESET);
+        return CHECK_CONDITION;
+    case SCSI_HOST_TRANSPORT_DISRUPTED:
+        *sense = SENSE_CODE(I_T_NEXUS_LOSS);
+        return CHECK_CONDITION;
+    case SCSI_HOST_TARGET_FAILURE:
+        *sense = SENSE_CODE(TARGET_FAILURE);
+        return CHECK_CONDITION;
+    case SCSI_HOST_RESERVATION_ERROR:
+        return RESERVATION_CONFLICT;
+    case SCSI_HOST_ALLOCATION_FAILURE:
+        *sense = SENSE_CODE(SPACE_ALLOC_FAILED);
+        return CHECK_CONDITION;
+    case SCSI_HOST_MEDIUM_ERROR:
+        *sense = SENSE_CODE(READ_ERROR);
+        return CHECK_CONDITION;
     }
+    return GOOD;
 }
-#endif

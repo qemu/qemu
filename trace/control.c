@@ -40,6 +40,7 @@ static size_t nevent_groups;
 static uint32_t next_id;
 static uint32_t next_vcpu_id;
 static bool init_trace_on_startup;
+static char *trace_opts_file;
 
 QemuOptsList qemu_trace_opts = {
     .name = "trace",
@@ -224,10 +225,8 @@ static void trace_init_events(const char *fname)
 
 void trace_init_file(void)
 {
-    QemuOpts *opts = qemu_find_opts_singleton("trace");
-    const char *file = qemu_opt_get(opts, "file");
 #ifdef CONFIG_TRACE_SIMPLE
-    st_set_trace_file(file);
+    st_set_trace_file(trace_opts_file);
     if (init_trace_on_startup) {
         st_set_trace_file_enabled(true);
     }
@@ -238,11 +237,11 @@ void trace_init_file(void)
      * backend. However we should only override -D if we actually have
      * something to override it with.
      */
-    if (file) {
-        qemu_set_log_filename(file, &error_fatal);
+    if (trace_opts_file) {
+        qemu_set_log_filename(trace_opts_file, &error_fatal);
     }
 #else
-    if (file) {
+    if (trace_opts_file) {
         fprintf(stderr, "error: --trace file=...: "
                 "option not supported by the selected tracing backends\n");
         exit(1);
@@ -303,6 +302,8 @@ void trace_opt_parse(const char *optarg)
     }
     trace_init_events(qemu_opt_get(opts, "events"));
     init_trace_on_startup = true;
+    g_free(trace_opts_file);
+    trace_opts_file = g_strdup(qemu_opt_get(opts, "file"));
     qemu_opts_del(opts);
 }
 

@@ -2062,17 +2062,19 @@ static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
-static int qemu_read_default_config_file(void)
+static void qemu_read_default_config_file(Error **errp)
 {
+    ERRP_GUARD();
     int ret;
     g_autofree char *file = get_relocated_path(CONFIG_QEMU_CONFDIR "/qemu.conf");
 
-    ret = qemu_read_config_file(file);
-    if (ret < 0 && ret != -ENOENT) {
-        return ret;
+    ret = qemu_read_config_file(file, errp);
+    if (ret < 0) {
+        if (ret == -ENOENT) {
+            error_free(*errp);
+            *errp = NULL;
+        }
     }
-
-    return 0;
 }
 
 static int qemu_set_option(const char *str)
@@ -2361,13 +2363,10 @@ static void qemu_process_early_options(void)
                       cleanup_add_fd, NULL, &error_fatal);
 #endif
 
-    if (!trace_init_backends()) {
-        exit(1);
-    }
-    trace_init_file();
-
     /* Open the logfile at this point and set the log mask if necessary.  */
-    qemu_set_log_filename(log_file, &error_fatal);
+    if (log_file) {
+        qemu_set_log_filename(log_file, &error_fatal);
+    }
     if (log_mask) {
         int mask;
         mask = qemu_str_to_log_mask(log_mask);
@@ -2638,9 +2637,7 @@ void qemu_init(int argc, char **argv, char **envp)
     }
 
     if (userconfig) {
-        if (qemu_read_default_config_file() < 0) {
-            exit(1);
-        }
+        qemu_read_default_config_file(&error_fatal);
     }
 
     /* second pass of option parsing */
@@ -3328,15 +3325,8 @@ void qemu_init(int argc, char **argv, char **envp)
                 qemu_plugin_opt_parse(optarg, &plugin_list);
                 break;
             case QEMU_OPTION_readconfig:
-                {
-                    int ret = qemu_read_config_file(optarg);
-                    if (ret < 0) {
-                        error_report("read config %s: %s", optarg,
-                                     strerror(-ret));
-                        exit(1);
-                    }
-                    break;
-                }
+                qemu_read_config_file(optarg, &error_fatal);
+                break;
             case QEMU_OPTION_spice:
                 olist = qemu_find_opts_err("spice", NULL);
                 if (!olist) {
@@ -3474,6 +3464,19 @@ void qemu_init(int argc, char **argv, char **envp)
 
     qemu_process_help_options();
     qemu_maybe_daemonize(pid_file);
+
+    /*
+     * The trace backend must be initialized after daemonizing.
+     * trace_init_backends() will call st_init(), which will create the
+     * trace thread in the parent, and also register st_flush_trace_buffer()
+     * in atexit(). This function will force the parent to wait for the
+     * writeout thread to finish, which will not occur, and the parent
+     * process will be left in the host.
+     */
+    if (!trace_init_backends()) {
+        exit(1);
+    }
+    trace_init_file();
 
     qemu_init_main_loop(&error_fatal);
     cpu_timers_init();

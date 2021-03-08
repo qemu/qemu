@@ -75,6 +75,7 @@ static void scsi_command_complete_noio(SCSIGenericReq *r, int ret)
 {
     int status;
     SCSISense sense;
+    sg_io_hdr_t *io_hdr = &r->io_header;
 
     assert(r->req.aiocb == NULL);
 
@@ -82,15 +83,22 @@ static void scsi_command_complete_noio(SCSIGenericReq *r, int ret)
         scsi_req_cancel_complete(&r->req);
         goto done;
     }
-    status = sg_io_sense_from_errno(-ret, &r->io_header, &sense);
-    if (status == CHECK_CONDITION) {
-        if (r->io_header.driver_status & SG_ERR_DRIVER_SENSE) {
-            r->req.sense_len = r->io_header.sb_len_wr;
-        } else {
+    if (ret < 0) {
+        status = scsi_sense_from_errno(-ret, &sense);
+        if (status == CHECK_CONDITION) {
             scsi_req_build_sense(&r->req, sense);
         }
+    } else if (io_hdr->host_status != SCSI_HOST_OK) {
+        scsi_req_complete_failed(&r->req, io_hdr->host_status);
+        goto done;
+    } else if (io_hdr->driver_status & SG_ERR_DRIVER_TIMEOUT) {
+        status = BUSY;
+    } else {
+        status = io_hdr->status;
+        if (io_hdr->driver_status & SG_ERR_DRIVER_SENSE) {
+            r->req.sense_len = io_hdr->sb_len_wr;
+        }
     }
-
     trace_scsi_generic_command_complete_noio(r, r->req.tag, status);
 
     scsi_req_complete(&r->req, status);
@@ -288,7 +296,10 @@ static void scsi_read_complete(void * opaque, int ret)
         }
     }
 
-    if (len == 0) {
+    if (r->io_header.host_status != SCSI_HOST_OK ||
+        (r->io_header.driver_status & SG_ERR_DRIVER_TIMEOUT) ||
+        r->io_header.status != GOOD ||
+        len == 0) {
         scsi_command_complete_noio(r, 0);
         goto done;
     }

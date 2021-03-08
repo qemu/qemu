@@ -1472,8 +1472,17 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock = backend->u.socket.data = g_new0(ChardevSocket, 1);
     qemu_chr_parse_common(opts, qapi_ChardevSocket_base(sock));
 
-    sock->has_nodelay = qemu_opt_get(opts, "delay");
-    sock->nodelay = !qemu_opt_get_bool(opts, "delay", true);
+    if (qemu_opt_get(opts, "delay") && qemu_opt_get(opts, "nodelay")) {
+        error_setg(errp, "'delay' and 'nodelay' are mutually exclusive");
+        return;
+    }
+    sock->has_nodelay =
+        qemu_opt_get(opts, "delay") ||
+        qemu_opt_get(opts, "nodelay");
+    sock->nodelay =
+        !qemu_opt_get_bool(opts, "delay", true) ||
+        qemu_opt_get_bool(opts, "nodelay", false);
+
     /*
      * We have different default to QMP for 'server', hence
      * we can't just check for existence of 'server'

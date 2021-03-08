@@ -237,6 +237,11 @@ test_env = environment()
 test_env.set('G_TEST_SRCDIR', meson.current_source_dir())
 test_env.set('G_TEST_BUILDDIR', meson.current_build_dir())
 
+slow_tests = {
+  'test-crypto-tlscredsx509': 45,
+  'test-crypto-tlssession': 45
+}
+
 foreach test_name, extra: tests
   src = [test_name + '.c']
   deps = [qemuutil]
@@ -254,6 +259,8 @@ foreach test_name, extra: tests
        env: test_env,
        args: ['--tap', '-k'],
        protocol: 'tap',
+       timeout: slow_tests.get(test_name, 30),
+       priority: slow_tests.get(test_name, 30),
        suite: ['unit'])
 endforeach
 
@@ -263,6 +270,7 @@ foreach bench_name, deps: benchs
   benchmark(bench_name, exe,
             args: ['--tap', '-k'],
             protocol: 'tap',
+            timeout: 0,
             suite: ['speed'])
 endforeach
 

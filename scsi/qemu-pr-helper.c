@@ -149,17 +149,27 @@ static int do_sgio_worker(void *opaque)
     io_hdr.dxferp = (char *)data->buf;
     io_hdr.dxfer_len = data->sz;
     ret = ioctl(data->fd, SG_IO, &io_hdr);
-    status = sg_io_sense_from_errno(ret < 0 ? errno : 0, &io_hdr,
-                                    &sense_code);
+
+    if (ret < 0) {
+        status = scsi_sense_from_errno(errno, &sense_code);
+        if (status == CHECK_CONDITION) {
+            scsi_build_sense(data->sense, sense_code);
+        }
+    } else if (io_hdr.host_status != SCSI_HOST_OK) {
+        status = scsi_sense_from_host_status(io_hdr.host_status, &sense_code);
+        if (status == CHECK_CONDITION) {
+            scsi_build_sense(data->sense, sense_code);
+        }
+    } else if (io_hdr.driver_status & SG_ERR_DRIVER_TIMEOUT) {
+        status = BUSY;
+    } else {
+        status = io_hdr.status;
+    }
+
     if (status == GOOD) {
         data->sz -= io_hdr.resid;
     } else {
         data->sz = 0;
-    }
-
-    if (status == CHECK_CONDITION &&
-        !(io_hdr.driver_status & SG_ERR_DRIVER_SENSE)) {
-        scsi_build_sense(data->sense, sense_code);
     }
 
     return status;

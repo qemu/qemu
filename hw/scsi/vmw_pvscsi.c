@@ -511,6 +511,44 @@ pvscsi_write_sense(PVSCSIRequest *r, uint8_t *sense, int len)
 }
 
 static void
+pvscsi_command_failed(SCSIRequest *req)
+{
+    PVSCSIRequest *pvscsi_req = req->hba_private;
+    PVSCSIState *s;
+
+    if (!pvscsi_req) {
+        trace_pvscsi_command_complete_not_found(req->tag);
+        return;
+    }
+    s = pvscsi_req->dev;
+
+    switch (req->host_status) {
+    case SCSI_HOST_NO_LUN:
+        pvscsi_req->cmp.hostStatus = BTSTAT_LUNMISMATCH;
+        break;
+    case SCSI_HOST_BUSY:
+        pvscsi_req->cmp.hostStatus = BTSTAT_ABORTQUEUE;
+        break;
+    case SCSI_HOST_TIME_OUT:
+    case SCSI_HOST_ABORTED:
+        pvscsi_req->cmp.hostStatus = BTSTAT_SENTRST;
+        break;
+    case SCSI_HOST_BAD_RESPONSE:
+        pvscsi_req->cmp.hostStatus = BTSTAT_SELTIMEO;
+        break;
+    case SCSI_HOST_RESET:
+        pvscsi_req->cmp.hostStatus = BTSTAT_BUSRESET;
+        break;
+    default:
+        pvscsi_req->cmp.hostStatus = BTSTAT_HASOFTWARE;
+        break;
+    }
+    pvscsi_req->cmp.scsiStatus = GOOD;
+    qemu_sglist_destroy(&pvscsi_req->sgl);
+    pvscsi_complete_request(s, pvscsi_req);
+}
+
+static void
 pvscsi_command_complete(SCSIRequest *req, size_t resid)
 {
     PVSCSIRequest *pvscsi_req = req->hba_private;
@@ -1103,6 +1141,7 @@ static const struct SCSIBusInfo pvscsi_scsi_info = {
         .get_sg_list = pvscsi_get_sg_list,
         .complete = pvscsi_command_complete,
         .cancel = pvscsi_request_cancelled,
+        .fail = pvscsi_command_failed,
 };
 
 static void

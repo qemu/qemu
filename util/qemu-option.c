@@ -785,7 +785,11 @@ static const char *get_opt_name_value(const char *params,
             }
             if (!is_help && warn_on_flag) {
                 warn_report("short-form boolean option '%s%s' deprecated", prefix, *name);
-                error_printf("Please use %s=%s instead\n", *name, *value);
+                if (g_str_equal(*name, "delay")) {
+                    error_printf("Please use nodelay=%s instead\n", prefix[0] ? "on" : "off");
+                } else {
+                    error_printf("Please use %s=%s instead\n", *name, *value);
+                }
             }
         }
     } else {

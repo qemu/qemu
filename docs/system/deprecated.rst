@@ -134,6 +134,12 @@ Boolean options such as ``share=on``/``share=off`` could be written
 in short form as ``share`` and ``noshare``.  This is now deprecated
 and will cause a warning.
 
+``delay`` option for socket character devices (since 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The replacement for the ``nodelay`` short-form boolean option is ``nodelay=on``
+rather than ``delay=off``.
+
 ``--enable-fips`` (since 6.0)
 '''''''''''''''''''''''''''''
 
@@ -152,6 +158,13 @@ supported on FIPS enabled hosts.
 The ``-writeconfig`` option is not able to serialize the entire contents
 of the QEMU command line.  It is thus considered a failed experiment
 and deprecated, with no current replacement.
+
+Userspace local APIC with KVM (x86, since 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''
+
+Using ``-M kernel-irqchip=off`` with x86 machine types that include a local
+APIC is deprecated.  The ``split`` setting is supported, as is using
+``-M kernel-irqchip=off`` with the ISA PC machine type.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------

@@ -598,9 +598,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
             nhdr = glue(get_elf_note_type, SZ)(nhdr, file_size, ph->p_align,
                                                *(uint64_t *)translate_opaque);
             if (nhdr != NULL) {
-                bool is64 =
-                    sizeof(struct elf_note) == sizeof(struct elf64_note);
-                elf_note_fn((void *)nhdr, (void *)&ph->p_align, is64);
+                elf_note_fn((void *)nhdr, (void *)&ph->p_align, SZ == 64);
             }
             data = NULL;
         }
