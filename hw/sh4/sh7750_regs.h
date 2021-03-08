@@ -10,8 +10,28 @@
  *         Victor V. Vengerov <vvv@oktet.ru>
  *
  * The license and distribution terms for this file may be
- * found in the file LICENSE in this distribution or at
- *  http://www.rtems.com/license/LICENSE.
+ * found in this file hereafter or at http://www.rtems.com/license/LICENSE.
+ *
+ *                       LICENSE INFORMATION
+ *
+ * RTEMS is free software; you can redistribute it and/or modify it under
+ * terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2, or (at your option) any
+ * later version.  RTEMS is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details. You should have received
+ * a copy of the GNU General Public License along with RTEMS; see
+ * file COPYING. If not, write to the Free Software Foundation, 675
+ * Mass Ave, Cambridge, MA 02139, USA.
+ *
+ * As a special exception, including RTEMS header files in a file,
+ * instantiating RTEMS generics or templates, or linking other files
+ * with RTEMS objects to produce an executable application, does not
+ * by itself cause the resulting executable application to be covered
+ * by the GNU General Public License. This exception does not
+ * however invalidate any other reasons why the executable file might be
+ * covered by the GNU Public License.
  *
  * @(#) sh7750_regs.h,v 1.2.4.1 2003/09/04 18:46:00 joel Exp
  */

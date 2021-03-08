@@ -271,17 +271,6 @@ typedef SuperHCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 
-/* Memory access type */
-enum {
-    /* Privilege */
-    ACCESS_PRIV = 0x01,
-    /* Direction */
-    ACCESS_WRITE = 0x02,
-    /* Type of instruction */
-    ACCESS_CODE = 0x10,
-    ACCESS_INT = 0x20
-};
-
 /* MMU control register */
 #define MMUCR    0x1F000010
 #define MMUCR_AT (1<<0)

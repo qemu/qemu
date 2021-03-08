@@ -330,22 +330,22 @@ static int find_utlb_entry(CPUSH4State * env, target_ulong address, int use_asid
    MMU_IADDR_ERROR, MMU_DADDR_ERROR_READ, MMU_DADDR_ERROR_WRITE.
 */
 static int get_mmu_address(CPUSH4State * env, target_ulong * physical,
-			   int *prot, target_ulong address,
-			   int rw, int access_type)
+                           int *prot, target_ulong address,
+                           MMUAccessType access_type)
 {
     int use_asid, n;
     tlb_t *matching = NULL;
 
     use_asid = !(env->mmucr & MMUCR_SV) || !(env->sr & (1u << SR_MD));
 
-    if (rw == 2) {
+    if (access_type == MMU_INST_FETCH) {
         n = find_itlb_entry(env, address, use_asid);
-	if (n >= 0) {
-	    matching = &env->itlb[n];
+        if (n >= 0) {
+            matching = &env->itlb[n];
             if (!(env->sr & (1u << SR_MD)) && !(matching->pr & 2)) {
-		n = MMU_ITLB_VIOLATION;
+                n = MMU_ITLB_VIOLATION;
             } else {
-		*prot = PAGE_EXEC;
+                *prot = PAGE_EXEC;
             }
         } else {
             n = find_utlb_entry(env, address, use_asid);
@@ -365,17 +365,17 @@ static int get_mmu_address(CPUSH4State * env, target_ulong * physical,
             } else if (n == MMU_DTLB_MISS) {
                 n = MMU_ITLB_MISS;
             }
-	}
+        }
     } else {
-	n = find_utlb_entry(env, address, use_asid);
-	if (n >= 0) {
-	    matching = &env->utlb[n];
+        n = find_utlb_entry(env, address, use_asid);
+        if (n >= 0) {
+            matching = &env->utlb[n];
             if (!(env->sr & (1u << SR_MD)) && !(matching->pr & 2)) {
-                n = (rw == 1) ? MMU_DTLB_VIOLATION_WRITE :
-                    MMU_DTLB_VIOLATION_READ;
-            } else if ((rw == 1) && !(matching->pr & 1)) {
+                n = (access_type == MMU_DATA_STORE)
+                    ? MMU_DTLB_VIOLATION_WRITE : MMU_DTLB_VIOLATION_READ;
+            } else if ((access_type == MMU_DATA_STORE) && !(matching->pr & 1)) {
                 n = MMU_DTLB_VIOLATION_WRITE;
-            } else if ((rw == 1) && !matching->d) {
+            } else if ((access_type == MMU_DATA_STORE) && !matching->d) {
                 n = MMU_DTLB_INITIAL_WRITE;
             } else {
                 *prot = PAGE_READ;
@@ -383,56 +383,56 @@ static int get_mmu_address(CPUSH4State * env, target_ulong * physical,
                     *prot |= PAGE_WRITE;
                 }
             }
-	} else if (n == MMU_DTLB_MISS) {
-	    n = (rw == 1) ? MMU_DTLB_MISS_WRITE :
-		MMU_DTLB_MISS_READ;
-	}
+        } else if (n == MMU_DTLB_MISS) {
+            n = (access_type == MMU_DATA_STORE)
+                ? MMU_DTLB_MISS_WRITE : MMU_DTLB_MISS_READ;
+        }
     }
     if (n >= 0) {
-	n = MMU_OK;
-	*physical = ((matching->ppn << 10) & ~(matching->size - 1)) |
-	    (address & (matching->size - 1));
+        n = MMU_OK;
+        *physical = ((matching->ppn << 10) & ~(matching->size - 1))
+                    | (address & (matching->size - 1));
     }
     return n;
 }
 
 static int get_physical_address(CPUSH4State * env, target_ulong * physical,
                                 int *prot, target_ulong address,
-                                int rw, int access_type)
+                                MMUAccessType access_type)
 {
     /* P1, P2 and P4 areas do not use translation */
-    if ((address >= 0x80000000 && address < 0xc0000000) ||
-	address >= 0xe0000000) {
+    if ((address >= 0x80000000 && address < 0xc0000000) || address >= 0xe0000000) {
         if (!(env->sr & (1u << SR_MD))
-	    && (address < 0xe0000000 || address >= 0xe4000000)) {
-	    /* Unauthorized access in user mode (only store queues are available) */
+                && (address < 0xe0000000 || address >= 0xe4000000)) {
+            /* Unauthorized access in user mode (only store queues are available) */
             qemu_log_mask(LOG_GUEST_ERROR, "Unauthorized access\n");
-	    if (rw == 0)
-		return MMU_DADDR_ERROR_READ;
-	    else if (rw == 1)
-		return MMU_DADDR_ERROR_WRITE;
-	    else
-		return MMU_IADDR_ERROR;
-	}
-	if (address >= 0x80000000 && address < 0xc0000000) {
-	    /* Mask upper 3 bits for P1 and P2 areas */
-	    *physical = address & 0x1fffffff;
-	} else {
-	    *physical = address;
-	}
-	*prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-	return MMU_OK;
+            if (access_type == MMU_DATA_LOAD) {
+                return MMU_DADDR_ERROR_READ;
+            } else if (access_type == MMU_DATA_STORE) {
+                return MMU_DADDR_ERROR_WRITE;
+            } else {
+                return MMU_IADDR_ERROR;
+            }
+        }
+        if (address >= 0x80000000 && address < 0xc0000000) {
+            /* Mask upper 3 bits for P1 and P2 areas */
+            *physical = address & 0x1fffffff;
+        } else {
+            *physical = address;
+        }
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        return MMU_OK;
     }
 
     /* If MMU is disabled, return the corresponding physical page */
     if (!(env->mmucr & MMUCR_AT)) {
-	*physical = address & 0x1FFFFFFF;
-	*prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-	return MMU_OK;
+        *physical = address & 0x1FFFFFFF;
+        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        return MMU_OK;
     }
 
     /* We need to resort to the MMU */
-    return get_mmu_address(env, physical, prot, address, rw, access_type);
+    return get_mmu_address(env, physical, prot, address, access_type);
 }
 
 hwaddr superh_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
@@ -441,7 +441,8 @@ hwaddr superh_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     target_ulong physical;
     int prot;
 
-    get_physical_address(&cpu->env, &physical, &prot, addr, 0, 0);
+    get_physical_address(&cpu->env, &physical, &prot, addr, MMU_DATA_LOAD);
+
     return physical;
 }
 
@@ -813,11 +814,9 @@ bool superh_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
            MMU_DTLB_VIOLATION_READ);
 #else
     target_ulong physical;
-    int prot, sh_access_type;
+    int prot;
 
-    sh_access_type = ACCESS_INT;
-    ret = get_physical_address(env, &physical, &prot, address,
-                               access_type, sh_access_type);
+    ret = get_physical_address(env, &physical, &prot, address, access_type);
 
     if (ret == MMU_OK) {
         address &= TARGET_PAGE_MASK;
