@@ -12,7 +12,7 @@
 /*
  * This is a model of the "system control element" which is part of the
  * Arm IoTKit and documented in
- * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ecm0601256/index.html
+ * https://developer.arm.com/documentation/ecm0601256/latest
  * Specifically, it implements the "system information block" and
  * "system control register" blocks.
  *

@@ -550,10 +550,14 @@ static void mte_check_fail(CPUARMState *env, uint32_t desc,
     reg_el = regime_el(env, arm_mmu_idx);
     sctlr = env->cp15.sctlr_el[reg_el];
 
-    el = arm_current_el(env);
-    if (el == 0) {
+    switch (arm_mmu_idx) {
+    case ARMMMUIdx_E10_0:
+    case ARMMMUIdx_E20_0:
+        el = 0;
         tcf = extract64(sctlr, 38, 2);
-    } else {
+        break;
+    default:
+        el = reg_el;
         tcf = extract64(sctlr, 40, 2);
     }
 
@@ -570,7 +574,8 @@ static void mte_check_fail(CPUARMState *env, uint32_t desc,
         env->exception.vaddress = dirty_ptr;
 
         is_write = FIELD_EX32(desc, MTEDESC, WRITE);
-        syn = syn_data_abort_no_iss(el != 0, 0, 0, 0, 0, is_write, 0x11);
+        syn = syn_data_abort_no_iss(arm_current_el(env) != 0, 0, 0, 0, 0,
+                                    is_write, 0x11);
         raise_exception(env, EXCP_DATA_ABORT, syn, exception_target_el(env));
         /* noreturn, but fall through to the assert anyway */
 

@@ -128,15 +128,10 @@ static int tcx_check_dirty(TCXState *s, DirtyBitmapSnapshot *snap,
 
 static void update_palette_entries(TCXState *s, int start, int end)
 {
-    DisplaySurface *surface = qemu_console_surface(s->con);
     int i;
 
     for (i = start; i < end; i++) {
-        if (is_surface_bgr(surface)) {
-            s->palette[i] = rgb_to_pixel32bgr(s->r[i], s->g[i], s->b[i]);
-        } else {
-            s->palette[i] = rgb_to_pixel32(s->r[i], s->g[i], s->b[i]);
-        }
+        s->palette[i] = rgb_to_pixel32(s->r[i], s->g[i], s->b[i]);
     }
     tcx_set_dirty(s, 0, memory_region_size(&s->vram_mem));
 }
@@ -181,21 +176,18 @@ static void tcx_draw_cursor32(TCXState *s1, uint8_t *d,
 }
 
 /*
-  XXX Could be much more optimal:
-  * detect if line/page/whole screen is in 24 bit mode
-  * if destination is also BGR, use memcpy
-  */
+ * XXX Could be much more optimal:
+ * detect if line/page/whole screen is in 24 bit mode
+ */
 static inline void tcx24_draw_line32(TCXState *s1, uint8_t *d,
                                      const uint8_t *s, int width,
                                      const uint32_t *cplane,
                                      const uint32_t *s24)
 {
-    DisplaySurface *surface = qemu_console_surface(s1->con);
-    int x, bgr, r, g, b;
+    int x, r, g, b;
     uint8_t val, *p8;
     uint32_t *p = (uint32_t *)d;
     uint32_t dval;
-    bgr = is_surface_bgr(surface);
     for(x = 0; x < width; x++, s++, s24++) {
         if (be32_to_cpu(*cplane) & 0x03000000) {
             /* 24-bit direct, BGR order */
@@ -204,10 +196,7 @@ static inline void tcx24_draw_line32(TCXState *s1, uint8_t *d,
             b = *p8++;
             g = *p8++;
             r = *p8;
-            if (bgr)
-                dval = rgb_to_pixel32bgr(r, g, b);
-            else
-                dval = rgb_to_pixel32(r, g, b);
+            dval = rgb_to_pixel32(r, g, b);
         } else {
             /* 8-bit pseudocolor */
             val = *s;
@@ -230,9 +219,7 @@ static void tcx_update_display(void *opaque)
     int y, y_start, dd, ds;
     uint8_t *d, *s;
 
-    if (surface_bits_per_pixel(surface) != 32) {
-        return;
-    }
+    assert(surface_bits_per_pixel(surface) == 32);
 
     page = 0;
     y_start = -1;
@@ -283,9 +270,7 @@ static void tcx24_update_display(void *opaque)
     uint8_t *d, *s;
     uint32_t *cptr, *s24;
 
-    if (surface_bits_per_pixel(surface) != 32) {
-            return;
-    }
+    assert(surface_bits_per_pixel(surface) == 32);
 
     page = 0;
     y_start = -1;

@@ -1040,7 +1040,6 @@ static void npcm7xx_smbus_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 
     s->bus = i2c_init_bus(DEVICE(s), "i2c-bus");
-    s->status = NPCM7XX_SMBUS_STATUS_IDLE;
 }
 
 static const VMStateDescription vmstate_npcm7xx_smbus = {

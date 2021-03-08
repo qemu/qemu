@@ -14,9 +14,9 @@
  * hardware, which include the IoT Kit and the SSE-050, SSE-100 and
  * SSE-200. Currently we model:
  *  - the Arm IoT Kit which is documented in
- * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ecm0601256/index.html
+ *    https://developer.arm.com/documentation/ecm0601256/latest
  *  - the SSE-200 which is documented in
- * http://infocenter.arm.com/help/topic/com.arm.doc.101104_0100_00_en/corelink_sse200_subsystem_for_embedded_technical_reference_manual_101104_0100_00_en.pdf
+ *    https://developer.arm.com/documentation/101104/latest/
  *
  * The IoTKit contains:
  *  a Cortex-M33

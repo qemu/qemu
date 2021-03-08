@@ -13,7 +13,7 @@
  * found in the FPGA images of MPS2 development boards.
  *
  * Documentation of it can be found in the MPS2 TRM:
- * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.100112_0100_03_en/index.html
+ * https://developer.arm.com/documentation/100112/latest/
  * and also in the Application Notes documenting individual FPGA images.
  */
 
@@ -31,8 +31,11 @@
 
 REG32(CFG0, 0)
 REG32(CFG1, 4)
+REG32(CFG2, 8)
 REG32(CFG3, 0xc)
 REG32(CFG4, 0x10)
+REG32(CFG5, 0x14)
+REG32(CFG6, 0x18)
 REG32(CFGDATA_RTN, 0xa0)
 REG32(CFGDATA_OUT, 0xa4)
 REG32(CFGCTRL, 0xa8)
@@ -49,6 +52,12 @@ REG32(DLL, 0x100)
 REG32(AID, 0xFF8)
 REG32(ID, 0xFFC)
 
+static int scc_partno(MPS2SCC *s)
+{
+    /* Return the partno field of the SCC_ID (0x524, 0x511, etc) */
+    return extract32(s->id, 4, 8);
+}
+
 /* Handle a write via the SYS_CFG channel to the specified function/device.
  * Return false on error (reported to guest via SYS_CFGCTRL ERROR bit).
  */
@@ -57,7 +66,7 @@ static bool scc_cfg_write(MPS2SCC *s, unsigned function,
 {
     trace_mps2_scc_cfg_write(function, device, value);
 
-    if (function != 1 || device >= NUM_OSCCLK) {
+    if (function != 1 || device >= s->num_oscclk) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "MPS2 SCC config write: bad function %d device %d\n",
                       function, device);
@@ -75,7 +84,7 @@ static bool scc_cfg_write(MPS2SCC *s, unsigned function,
 static bool scc_cfg_read(MPS2SCC *s, unsigned function,
                          unsigned device, uint32_t *value)
 {
-    if (function != 1 || device >= NUM_OSCCLK) {
+    if (function != 1 || device >= s->num_oscclk) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "MPS2 SCC config read: bad function %d device %d\n",
                       function, device);
@@ -100,7 +109,18 @@ static uint64_t mps2_scc_read(void *opaque, hwaddr offset, unsigned size)
     case A_CFG1:
         r = s->cfg1;
         break;
+    case A_CFG2:
+        if (scc_partno(s) != 0x524) {
+            /* CFG2 reserved on other boards */
+            goto bad_offset;
+        }
+        r = s->cfg2;
+        break;
     case A_CFG3:
+        if (scc_partno(s) == 0x524) {
+            /* CFG3 reserved on AN524 */
+            goto bad_offset;
+        }
         /* These are user-settable DIP switches on the board. We don't
          * model that, so just return zeroes.
          */
@@ -108,6 +128,20 @@ static uint64_t mps2_scc_read(void *opaque, hwaddr offset, unsigned size)
         break;
     case A_CFG4:
         r = s->cfg4;
+        break;
+    case A_CFG5:
+        if (scc_partno(s) != 0x524) {
+            /* CFG5 reserved on other boards */
+            goto bad_offset;
+        }
+        r = s->cfg5;
+        break;
+    case A_CFG6:
+        if (scc_partno(s) != 0x524) {
+            /* CFG6 reserved on other boards */
+            goto bad_offset;
+        }
+        r = s->cfg6;
         break;
     case A_CFGDATA_RTN:
         r = s->cfgdata_rtn;
@@ -131,6 +165,7 @@ static uint64_t mps2_scc_read(void *opaque, hwaddr offset, unsigned size)
         r = s->id;
         break;
     default:
+    bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "MPS2 SCC read: bad offset %x\n", (int) offset);
         r = 0;
@@ -158,6 +193,30 @@ static void mps2_scc_write(void *opaque, hwaddr offset, uint64_t value,
         for (size_t i = 0; i < ARRAY_SIZE(s->led); i++) {
             led_set_state(s->led[i], extract32(value, i, 1));
         }
+        break;
+    case A_CFG2:
+        if (scc_partno(s) != 0x524) {
+            /* CFG2 reserved on other boards */
+            goto bad_offset;
+        }
+        /* AN524: QSPI Select signal */
+        s->cfg2 = value;
+        break;
+    case A_CFG5:
+        if (scc_partno(s) != 0x524) {
+            /* CFG5 reserved on other boards */
+            goto bad_offset;
+        }
+        /* AN524: ACLK frequency in Hz */
+        s->cfg5 = value;
+        break;
+    case A_CFG6:
+        if (scc_partno(s) != 0x524) {
+            /* CFG6 reserved on other boards */
+            goto bad_offset;
+        }
+        /* AN524: Clock divider for BRAM */
+        s->cfg6 = value;
         break;
     case A_CFGDATA_OUT:
         s->cfgdata_out = value;
@@ -202,6 +261,7 @@ static void mps2_scc_write(void *opaque, hwaddr offset, uint64_t value,
         s->dll = deposit32(s->dll, 24, 8, extract32(value, 24, 8));
         break;
     default:
+    bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "MPS2 SCC write: bad offset 0x%x\n", (int) offset);
         break;
@@ -222,12 +282,15 @@ static void mps2_scc_reset(DeviceState *dev)
     trace_mps2_scc_reset();
     s->cfg0 = 0;
     s->cfg1 = 0;
+    s->cfg2 = 0;
+    s->cfg5 = 0;
+    s->cfg6 = 0;
     s->cfgdata_rtn = 0;
     s->cfgdata_out = 0;
     s->cfgctrl = 0x100000;
     s->cfgstat = 0;
     s->dll = 0xffff0001;
-    for (i = 0; i < NUM_OSCCLK; i++) {
+    for (i = 0; i < s->num_oscclk; i++) {
         s->oscclk[i] = s->oscclk_reset[i];
     }
     for (i = 0; i < ARRAY_SIZE(s->led); i++) {
@@ -254,21 +317,28 @@ static void mps2_scc_realize(DeviceState *dev, Error **errp)
                                       LED_COLOR_GREEN, name);
         g_free(name);
     }
+
+    s->oscclk = g_new0(uint32_t, s->num_oscclk);
 }
 
 static const VMStateDescription mps2_scc_vmstate = {
     .name = "mps2-scc",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(cfg0, MPS2SCC),
         VMSTATE_UINT32(cfg1, MPS2SCC),
+        VMSTATE_UINT32(cfg2, MPS2SCC),
+        /* cfg3, cfg4 are read-only so need not be migrated */
+        VMSTATE_UINT32(cfg5, MPS2SCC),
+        VMSTATE_UINT32(cfg6, MPS2SCC),
         VMSTATE_UINT32(cfgdata_rtn, MPS2SCC),
         VMSTATE_UINT32(cfgdata_out, MPS2SCC),
         VMSTATE_UINT32(cfgctrl, MPS2SCC),
         VMSTATE_UINT32(cfgstat, MPS2SCC),
         VMSTATE_UINT32(dll, MPS2SCC),
-        VMSTATE_UINT32_ARRAY(oscclk, MPS2SCC, NUM_OSCCLK),
+        VMSTATE_VARRAY_UINT32(oscclk, MPS2SCC, num_oscclk,
+                              0, vmstate_info_uint32, uint32_t),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -280,14 +350,13 @@ static Property mps2_scc_properties[] = {
     DEFINE_PROP_UINT32("scc-cfg4", MPS2SCC, cfg4, 0),
     DEFINE_PROP_UINT32("scc-aid", MPS2SCC, aid, 0),
     DEFINE_PROP_UINT32("scc-id", MPS2SCC, id, 0),
-    /* These are the initial settings for the source clocks on the board.
+    /*
+     * These are the initial settings for the source clocks on the board.
      * In hardware they can be configured via a config file read by the
      * motherboard configuration controller to suit the FPGA image.
-     * These default values are used by most of the standard FPGA images.
      */
-    DEFINE_PROP_UINT32("oscclk0", MPS2SCC, oscclk_reset[0], 50000000),
-    DEFINE_PROP_UINT32("oscclk1", MPS2SCC, oscclk_reset[1], 24576000),
-    DEFINE_PROP_UINT32("oscclk2", MPS2SCC, oscclk_reset[2], 25000000),
+    DEFINE_PROP_ARRAY("oscclk", MPS2SCC, num_oscclk, oscclk_reset,
+                      qdev_prop_uint32, uint32_t),
     DEFINE_PROP_END_OF_LIST(),
 };
 
