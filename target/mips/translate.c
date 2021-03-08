@@ -10460,11 +10460,7 @@ static void gen_movci(DisasContext *ctx, int rd, int rs, int cc, int tf)
     tcg_gen_andi_i32(t0, fpu_fcr31, 1 << get_fp_bit(cc));
     tcg_gen_brcondi_i32(cond, t0, 0, l1);
     tcg_temp_free_i32(t0);
-    if (rs == 0) {
-        tcg_gen_movi_tl(cpu_gpr[rd], 0);
-    } else {
-        tcg_gen_mov_tl(cpu_gpr[rd], cpu_gpr[rs]);
-    }
+    gen_load_gpr(cpu_gpr[rd], rs);
     gen_set_label(l1);
 }
 
@@ -14794,24 +14790,15 @@ static void gen_pool16c_insn(DisasContext *ctx)
 static inline void gen_movep(DisasContext *ctx, int enc_dest, int enc_rt,
                              int enc_rs)
 {
-    int rd, rs, re, rt;
+    int rd, re;
     static const int rd_enc[] = { 5, 5, 6, 4, 4, 4, 4, 4 };
     static const int re_enc[] = { 6, 7, 7, 21, 22, 5, 6, 7 };
     static const int rs_rt_enc[] = { 0, 17, 2, 3, 16, 18, 19, 20 };
+
     rd = rd_enc[enc_dest];
     re = re_enc[enc_dest];
-    rs = rs_rt_enc[enc_rs];
-    rt = rs_rt_enc[enc_rt];
-    if (rs) {
-        tcg_gen_mov_tl(cpu_gpr[rd], cpu_gpr[rs]);
-    } else {
-        tcg_gen_movi_tl(cpu_gpr[rd], 0);
-    }
-    if (rt) {
-        tcg_gen_mov_tl(cpu_gpr[re], cpu_gpr[rt]);
-    } else {
-        tcg_gen_movi_tl(cpu_gpr[re], 0);
-    }
+    gen_load_gpr(cpu_gpr[rd], rs_rt_enc[enc_rs]);
+    gen_load_gpr(cpu_gpr[re], rs_rt_enc[enc_rt]);
 }
 
 static void gen_pool16c_r6_insn(DisasContext *ctx)
@@ -24229,11 +24216,7 @@ static void gen_mmi_pcpyud(DisasContext *ctx)
     if (rd == 0) {
         /* nop */
     } else {
-        if (rs == 0) {
-            tcg_gen_movi_i64(cpu_gpr[rd], 0);
-        } else {
-            tcg_gen_mov_i64(cpu_gpr[rd], cpu_gpr_hi[rs]);
-        }
+        gen_load_gpr_hi(cpu_gpr[rd], rs);
         if (rt == 0) {
             tcg_gen_movi_i64(cpu_gpr_hi[rd], 0);
         } else {
