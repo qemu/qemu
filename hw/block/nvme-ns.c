@@ -110,11 +110,11 @@ lbaf_found:
     /* support DULBE and I/O optimization fields */
     id_ns->nsfeat |= (0x4 | 0x10);
 
-    npdg = ns->blkconf.discard_granularity / ns->blkconf.logical_block_size;
+    npdg = ns->blkconf.discard_granularity / nvme_lsize(ns);
 
     if (bdrv_get_info(blk_bs(ns->blkconf.blk), &bdi) >= 0 &&
         bdi.cluster_size > ns->blkconf.discard_granularity) {
-        npdg = bdi.cluster_size / ns->blkconf.logical_block_size;
+        npdg = bdi.cluster_size / nvme_lsize(ns);
     }
 
     id_ns->npda = id_ns->npdg = npdg - 1;
@@ -161,7 +161,7 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
 static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
 {
     uint64_t zone_size, zone_cap;
-    uint32_t lbasz = ns->blkconf.logical_block_size;
+    uint32_t lbasz = nvme_lsize(ns);
 
     /* Make sure that the values of ZNS properties are sane */
     if (ns->params.zone_size_bs) {

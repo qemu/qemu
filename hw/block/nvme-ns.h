@@ -138,7 +138,7 @@ static inline bool nvme_ns_ext(NvmeNamespace *ns)
 /* calculate the number of LBAs that the namespace can accomodate */
 static inline uint64_t nvme_ns_nlbas(NvmeNamespace *ns)
 {
-    if (ns->params.ms) {
+    if (nvme_msize(ns)) {
         return ns->size / (nvme_lsize(ns) + nvme_msize(ns));
     }
     return ns->size >> nvme_ns_lbads(ns);
