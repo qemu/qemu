@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -278,6 +279,40 @@ static void versal_create_rtc(Versal *s, qemu_irq *pic)
     sysbus_connect_irq(sbd, 1, pic[VERSAL_RTC_APB_ERR_IRQ]);
 }
 
+static void versal_create_xrams(Versal *s, qemu_irq *pic)
+{
+    int nr_xrams = ARRAY_SIZE(s->lpd.xram.ctrl);
+    DeviceState *orgate;
+    int i;
+
+    /* XRAM IRQs get ORed into a single line.  */
+    object_initialize_child(OBJECT(s), "xram-irq-orgate",
+                            &s->lpd.xram.irq_orgate, TYPE_OR_IRQ);
+    orgate = DEVICE(&s->lpd.xram.irq_orgate);
+    object_property_set_int(OBJECT(orgate),
+                            "num-lines", nr_xrams, &error_fatal);
+    qdev_realize(orgate, NULL, &error_fatal);
+    qdev_connect_gpio_out(orgate, 0, pic[VERSAL_XRAM_IRQ_0]);
+
+    for (i = 0; i < ARRAY_SIZE(s->lpd.xram.ctrl); i++) {
+        SysBusDevice *sbd;
+        MemoryRegion *mr;
+
+        object_initialize_child(OBJECT(s), "xram[*]", &s->lpd.xram.ctrl[i],
+                                TYPE_XLNX_XRAM_CTRL);
+        sbd = SYS_BUS_DEVICE(&s->lpd.xram.ctrl[i]);
+        sysbus_realize(sbd, &error_fatal);
+
+        mr = sysbus_mmio_get_region(sbd, 0);
+        memory_region_add_subregion(&s->mr_ps,
+                                    MM_XRAMC + i * MM_XRAMC_SIZE, mr);
+        mr = sysbus_mmio_get_region(sbd, 1);
+        memory_region_add_subregion(&s->mr_ps, MM_XRAM + i * MiB, mr);
+
+        sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(orgate, i));
+    }
+}
+
 /* This takes the board allocated linear DDR memory and creates aliases
  * for each split DDR range/aperture on the Versal address map.
  */
@@ -363,6 +398,7 @@ static void versal_realize(DeviceState *dev, Error **errp)
     versal_create_admas(s, pic);
     versal_create_sds(s, pic);
     versal_create_rtc(s, pic);
+    versal_create_xrams(s, pic);
     versal_map_ddr(s);
     versal_unimp(s);
 

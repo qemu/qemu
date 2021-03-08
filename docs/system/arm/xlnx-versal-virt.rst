@@ -30,6 +30,7 @@ Implemented devices:
 - 8 ADMA (Xilinx zDMA) channels
 - 2 SD Controllers
 - OCM (256KB of On Chip Memory)
+- XRAM (4MB of on chip Accelerator RAM)
 - DDR memory
 
 QEMU does not yet model any other devices, including the PL and the AI Engine.
