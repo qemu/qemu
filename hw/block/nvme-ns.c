@@ -32,16 +32,54 @@
 
 #define MIN_DISCARD_GRANULARITY (4 * KiB)
 
+static void nvme_ns_init_format(NvmeNamespace *ns)
+{
+    NvmeIdNs *id_ns = &ns->id_ns;
+    BlockDriverInfo bdi;
+    int npdg, nlbas, ret;
+
+    nlbas = nvme_ns_nlbas(ns);
+
+    id_ns->nsze = cpu_to_le64(nlbas);
+
+    /* no thin provisioning */
+    id_ns->ncap = id_ns->nsze;
+    id_ns->nuse = id_ns->ncap;
+
+    ns->mdata_offset = nvme_l2b(ns, nlbas);
+
+    npdg = ns->blkconf.discard_granularity / nvme_lsize(ns);
+
+    ret = bdrv_get_info(blk_bs(ns->blkconf.blk), &bdi);
+    if (ret >= 0 && bdi.cluster_size > ns->blkconf.discard_granularity) {
+        npdg = bdi.cluster_size / nvme_lsize(ns);
+    }
+
+    id_ns->npda = id_ns->npdg = npdg - 1;
+}
+
 static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
 {
-    BlockDriverInfo bdi;
     NvmeIdNs *id_ns = &ns->id_ns;
-    int npdg, nlbas;
     uint8_t ds;
     uint16_t ms;
     int i;
 
+    ns->csi = NVME_CSI_NVM;
+
     ns->id_ns.dlfeat = 0x1;
+
+    /* support DULBE and I/O optimization fields */
+    id_ns->nsfeat |= (0x4 | 0x10);
+
+    if (nvme_ns_shared(ns)) {
+        id_ns->nmic |= NVME_NMIC_NS_SHARED;
+    }
+
+    /* simple copy */
+    id_ns->mssrl = cpu_to_le16(ns->params.mssrl);
+    id_ns->mcl = cpu_to_le32(ns->params.mcl);
+    id_ns->msrc = ns->params.msrc;
 
     ds = 31 - clz32(ns->blkconf.logical_block_size);
     ms = ns->params.ms;
@@ -96,37 +134,7 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     id_ns->flbas |= id_ns->nlbaf;
 
 lbaf_found:
-    nlbas = nvme_ns_nlbas(ns);
-
-    id_ns->nsze = cpu_to_le64(nlbas);
-    ns->mdata_offset = nvme_l2b(ns, nlbas);
-
-    ns->csi = NVME_CSI_NVM;
-
-    /* no thin provisioning */
-    id_ns->ncap = id_ns->nsze;
-    id_ns->nuse = id_ns->ncap;
-
-    /* support DULBE and I/O optimization fields */
-    id_ns->nsfeat |= (0x4 | 0x10);
-
-    npdg = ns->blkconf.discard_granularity / nvme_lsize(ns);
-
-    if (bdrv_get_info(blk_bs(ns->blkconf.blk), &bdi) >= 0 &&
-        bdi.cluster_size > ns->blkconf.discard_granularity) {
-        npdg = bdi.cluster_size / nvme_lsize(ns);
-    }
-
-    id_ns->npda = id_ns->npdg = npdg - 1;
-
-    if (nvme_ns_shared(ns)) {
-        id_ns->nmic |= NVME_NMIC_NS_SHARED;
-    }
-
-    /* simple copy */
-    id_ns->mssrl = cpu_to_le16(ns->params.mssrl);
-    id_ns->mcl = cpu_to_le32(ns->params.mcl);
-    id_ns->msrc = ns->params.msrc;
+    nvme_ns_init_format(ns);
 
     return 0;
 }
