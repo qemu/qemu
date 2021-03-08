@@ -189,6 +189,37 @@ static void test_timer(void)
     g_assert_cmpuint(readl(TIMER_BASE + CNTP_AIVAL_HI), ==, 0x42);
 }
 
+static void test_timer_scale_change(void)
+{
+    /*
+     * Test that the timer responds correctly to counter
+     * scaling changes while it has an active timer.
+     */
+    reset_counter_and_timer();
+    /* Give ourselves access to the timer, and enable the counter and timer */
+    writel(PERIPHNSPPC0, 1);
+    writel(COUNTER_BASE + CNTCR, 1);
+    writel(TIMER_BASE + CNTP_CTL, 1);
+    /* Set the CompareValue to 4000 ticks */
+    writel(TIMER_BASE + CNTP_CVAL_LO, 4000);
+    writel(TIMER_BASE + CNTP_CVAL_HI, 0);
+    /* Advance halfway and check ISTATUS is not set */
+    clock_step_ticks(2000);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 1);
+    /* Reprogram the counter to run at 1/16th speed */
+    writel(COUNTER_BASE + CNTCR, 0);
+    writel(COUNTER_BASE + CNTSCR, 0x00100000); /* 1/16th normal speed */
+    writel(COUNTER_BASE + CNTCR, 5); /* EN, SCEN */
+    /* Advance to where the timer would have fired and check it has not */
+    clock_step_ticks(2000);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 1);
+    /* Advance to where the timer must fire at the new clock rate */
+    clock_step_ticks(29996);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 1);
+    clock_step_ticks(4);
+    g_assert_cmpuint(readl(TIMER_BASE + CNTP_CTL), ==, 5);
+}
+
 int main(int argc, char **argv)
 {
     int r;
@@ -199,6 +230,7 @@ int main(int argc, char **argv)
 
     qtest_add_func("/sse-timer/counter", test_counter);
     qtest_add_func("/sse-timer/timer", test_timer);
+    qtest_add_func("/sse-timer/timer-scale-change", test_timer_scale_change);
 
     r = g_test_run();
 
