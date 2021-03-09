@@ -132,6 +132,7 @@ enum {
     ASPEED_DEV_SDRAM,
     ASPEED_DEV_XDMA,
     ASPEED_DEV_EMMC,
+    ASPEED_DEV_KCS,
 };
 
 #endif /* ASPEED_SOC_H */

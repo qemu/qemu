@@ -104,7 +104,7 @@ static const int aspeed_soc_ast2600_irqmap[] = {
     [ASPEED_DEV_ETH2]      = 3,
     [ASPEED_DEV_ETH3]      = 32,
     [ASPEED_DEV_ETH4]      = 33,
-
+    [ASPEED_DEV_KCS]       = 138,   /* 138 -> 142 */
 };
 
 static qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int ctrl)
@@ -470,8 +470,34 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->lpc), 0, sc->memmap[ASPEED_DEV_LPC]);
+
+    /* Connect the LPC IRQ to the GIC. It is otherwise unused. */
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 0,
                        aspeed_soc_get_irq(s, ASPEED_DEV_LPC));
+
+    /*
+     * On the AST2600 LPC subdevice IRQs are connected straight to the GIC.
+     *
+     * LPC subdevice IRQ sources are offset from 1 because the LPC model caters
+     * to the AST2400 and AST2500. SoCs before the AST2600 have one LPC IRQ
+     * shared across the subdevices, and the shared IRQ output to the VIC is at
+     * offset 0.
+     */
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_1,
+                       qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+                                sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_1));
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_2,
+                       qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+                                sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_2));
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_3,
+                       qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+                                sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_3));
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->lpc), 1 + aspeed_lpc_kcs_4,
+                       qdev_get_gpio_in(DEVICE(&s->a7mpcore),
+                                sc->irqmap[ASPEED_DEV_KCS] + aspeed_lpc_kcs_4));
 }
 
 static void aspeed_soc_ast2600_class_init(ObjectClass *oc, void *data)
