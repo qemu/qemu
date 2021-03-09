@@ -2967,11 +2967,11 @@ static void do_cntp(DisasContext *s, TCGv_i64 val, int esz, int pn, int pg)
     } else {
         TCGv_ptr t_pn = tcg_temp_new_ptr();
         TCGv_ptr t_pg = tcg_temp_new_ptr();
-        unsigned desc;
+        unsigned desc = 0;
         TCGv_i32 t_desc;
 
-        desc = psz - 2;
-        desc = deposit32(desc, SIMD_DATA_SHIFT, 2, esz);
+        desc = FIELD_DP32(desc, PREDDESC, OPRSZ, psz);
+        desc = FIELD_DP32(desc, PREDDESC, ESZ, esz);
 
         tcg_gen_addi_ptr(t_pn, cpu_env, pred_full_reg_offset(s, pn));
         tcg_gen_addi_ptr(t_pg, cpu_env, pred_full_reg_offset(s, pg));
