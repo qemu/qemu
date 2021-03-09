@@ -726,6 +726,15 @@ static void tcg_region_initial_alloc__locked(TCGContext *s)
     g_assert(!err);
 }
 
+#ifndef CONFIG_USER_ONLY
+static void tcg_region_initial_alloc(TCGContext *s)
+{
+    qemu_mutex_lock(&region.lock);
+    tcg_region_initial_alloc__locked(s);
+    qemu_mutex_unlock(&region.lock);
+}
+#endif
+
 /* Call from a safe-work context */
 void tcg_region_reset_all(void)
 {
@@ -959,9 +968,7 @@ void tcg_register_thread(void)
     }
 
     tcg_ctx = s;
-    qemu_mutex_lock(&region.lock);
-    tcg_region_initial_alloc__locked(s);
-    qemu_mutex_unlock(&region.lock);
+    tcg_region_initial_alloc(s);
 }
 #endif /* !CONFIG_USER_ONLY */
 
