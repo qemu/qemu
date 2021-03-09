@@ -375,4 +375,215 @@
       </arg>
     </method>
   </interface>
+
+  <!--
+      org.qemu.Display1.Audio:
+
+      Audio backend may be available on ``/org/qemu/Display1/Audio``.
+  -->
+  <interface name="org.qemu.Display1.Audio">
+    <!--
+        RegisterOutListener:
+        @listener: a Unix socket FD, for peer-to-peer D-Bus communication.
+
+        Register an audio backend playback handler.
+
+        Multiple listeners may be registered simultaneously.
+
+        The listener is expected to implement the
+        :dbus:iface:`org.qemu.Display1.AudioOutListener` interface.
+    -->
+    <method name="RegisterOutListener">
+      <arg type="h" name="listener" direction="in"/>
+    </method>
+
+    <!--
+        RegisterInListener:
+        @listener: a Unix socket FD, for peer-to-peer D-Bus communication.
+
+        Register an audio backend record handler.
+
+        Multiple listeners may be registered simultaneously.
+
+        The listener is expected to implement the
+        :dbus:iface:`org.qemu.Display1.AudioInListener` interface.
+    -->
+    <method name="RegisterInListener">
+      <arg type="h" name="listener" direction="in"/>
+    </method>
+  </interface>
+
+  <!--
+      org.qemu.Display1.AudioOutListener:
+
+      This client-side interface must be available on
+      ``/org/qemu/Display1/AudioOutListener`` when registering the peer-to-peer
+      connection with :dbus:meth:`~org.qemu.Display1.Audio.RegisterOutListener`.
+  -->
+  <interface name="org.qemu.Display1.AudioOutListener">
+    <!--
+        Init:
+        @id: the stream ID.
+        @bits: PCM bits per sample.
+        @is_signed: whether the PCM data is signed.
+        @is_float: PCM floating point format.
+        @freq: the PCM frequency in Hz.
+        @nchannels: the number of channels.
+        @bytes_per_frame: the bytes per frame.
+        @bytes_per_second: the bytes per second.
+        @be: whether using big-endian format.
+
+        Initializes a PCM playback stream.
+    -->
+    <method name="Init">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="bits" type="y" direction="in"/>
+      <arg name="is_signed" type="b" direction="in"/>
+      <arg name="is_float" type="b" direction="in"/>
+      <arg name="freq" type="u" direction="in"/>
+      <arg name="nchannels" type="y" direction="in"/>
+      <arg name="bytes_per_frame" type="u" direction="in"/>
+      <arg name="bytes_per_second" type="u" direction="in"/>
+      <arg name="be" type="b" direction="in"/>
+    </method>
+
+    <!--
+        Fini:
+        @id: the stream ID.
+
+        Finish & close a playback stream.
+    -->
+    <method name="Fini">
+      <arg name="id" type="t" direction="in"/>
+    </method>
+
+    <!--
+        SetEnabled:
+        @id: the stream ID.
+
+        Resume or suspend the playback stream.
+    -->
+    <method name="SetEnabled">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="enabled" type="b" direction="in"/>
+    </method>
+
+    <!--
+        SetVolume:
+        @id: the stream ID.
+        @mute: whether the stream is muted.
+        @volume: the volume per-channel.
+
+        Set the stream volume and mute state (volume without unit, 0-255).
+    -->
+    <method name="SetVolume">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="mute" type="b" direction="in"/>
+      <arg name="volume" type="ay" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+
+    <!--
+        Write:
+        @id: the stream ID.
+        @data: the PCM data.
+
+        PCM stream to play.
+    -->
+    <method name="Write">
+      <arg name="id" type="t" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+  </interface>
+
+  <!--
+      org.qemu.Display1.AudioInListener:
+
+      This client-side interface must be available on
+      ``/org/qemu/Display1/AudioInListener`` when registering the peer-to-peer
+      connection with :dbus:meth:`~org.qemu.Display1.Audio.RegisterInListener`.
+  -->
+  <interface name="org.qemu.Display1.AudioInListener">
+    <!--
+        Init:
+        @id: the stream ID.
+        @bits: PCM bits per sample.
+        @is_signed: whether the PCM data is signed.
+        @is_float: PCM floating point format.
+        @freq: the PCM frequency in Hz.
+        @nchannels: the number of channels.
+        @bytes_per_frame: the bytes per frame.
+        @bytes_per_second: the bytes per second.
+        @be: whether using big-endian format.
+
+        Initializes a PCM record stream.
+    -->
+    <method name="Init">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="bits" type="y" direction="in"/>
+      <arg name="is_signed" type="b" direction="in"/>
+      <arg name="is_float" type="b" direction="in"/>
+      <arg name="freq" type="u" direction="in"/>
+      <arg name="nchannels" type="y" direction="in"/>
+      <arg name="bytes_per_frame" type="u" direction="in"/>
+      <arg name="bytes_per_second" type="u" direction="in"/>
+      <arg name="be" type="b" direction="in"/>
+    </method>
+
+    <!--
+        Fini:
+        @id: the stream ID.
+
+        Finish & close a record stream.
+    -->
+    <method name="Fini">
+      <arg name="id" type="t" direction="in"/>
+    </method>
+
+    <!--
+        SetEnabled:
+        @id: the stream ID.
+
+        Resume or suspend the record stream.
+    -->
+    <method name="SetEnabled">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="enabled" type="b" direction="in"/>
+    </method>
+
+    <!--
+        SetVolume:
+        @id: the stream ID.
+        @mute: whether the stream is muted.
+        @volume: the volume per-channel.
+
+        Set the stream volume and mute state (volume without unit, 0-255).
+    -->
+    <method name="SetVolume">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="mute" type="b" direction="in"/>
+      <arg name="volume" type="ay" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+
+    <!--
+        Read:
+        @id: the stream ID.
+        @size: the amount to read, in bytes.
+        @data: the recorded data (which may be less than requested).
+
+        Read "size" bytes from the record stream.
+    -->
+    <method name="Read">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="size" type="t" direction="in"/>
+      <arg type="ay" name="data" direction="out">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+  </interface>
 </node>

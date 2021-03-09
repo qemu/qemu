@@ -660,6 +660,9 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
 #ifdef CONFIG_SPICE
     "-audiodev spice,id=id[,prop[=value][,...]]\n"
 #endif
+#ifdef CONFIG_DBUS_DISPLAY
+    "-audiodev dbus,id=id[,prop[=value][,...]]\n"
+#endif
     "-audiodev wav,id=id[,prop[=value][,...]]\n"
     "                path= path of wav file to record\n",
     QEMU_ARCH_ALL)

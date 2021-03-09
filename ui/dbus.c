@@ -30,6 +30,8 @@
 #include "ui/dbus-module.h"
 #include "ui/egl-helpers.h"
 #include "ui/egl-context.h"
+#include "audio/audio.h"
+#include "audio/audio_int.h"
 #include "qapi/error.h"
 #include "trace.h"
 
@@ -84,6 +86,7 @@ dbus_display_finalize(Object *o)
     g_clear_object(&dd->bus);
     g_clear_object(&dd->iface);
     g_free(dd->dbus_addr);
+    g_free(dd->audiodev);
     dbus_display = NULL;
 }
 
@@ -140,6 +143,19 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
+    if (dd->audiodev && *dd->audiodev) {
+        AudioState *audio_state = audio_state_by_name(dd->audiodev);
+        if (!audio_state) {
+            error_setg(errp, "Audiodev '%s' not found", dd->audiodev);
+            return;
+        }
+        if (!g_str_equal(audio_state->drv->name, "dbus")) {
+            error_setg(errp, "Audiodev '%s' is not compatible with DBus",
+                       dd->audiodev);
+            return;
+        }
+        audio_state->drv->set_dbus_server(audio_state, dd->server);
+    }
 
     consoles = g_array_new(FALSE, FALSE, sizeof(guint32));
     for (idx = 0;; idx++) {
@@ -261,6 +277,23 @@ set_dbus_addr(Object *o, const char *str, Error **errp)
     dd->dbus_addr = g_strdup(str);
 }
 
+static char *
+get_audiodev(Object *o, Error **errp)
+{
+    DBusDisplay *dd = DBUS_DISPLAY(o);
+
+    return g_strdup(dd->audiodev);
+}
+
+static void
+set_audiodev(Object *o, const char *str, Error **errp)
+{
+    DBusDisplay *dd = DBUS_DISPLAY(o);
+
+    g_free(dd->audiodev);
+    dd->audiodev = g_strdup(str);
+}
+
 static int
 get_gl_mode(Object *o, Error **errp)
 {
@@ -285,6 +318,7 @@ dbus_display_class_init(ObjectClass *oc, void *data)
     ucc->complete = dbus_display_complete;
     object_class_property_add_bool(oc, "p2p", get_dbus_p2p, set_dbus_p2p);
     object_class_property_add_str(oc, "addr", get_dbus_addr, set_dbus_addr);
+    object_class_property_add_str(oc, "audiodev", get_audiodev, set_audiodev);
     object_class_property_add_enum(oc, "gl-mode",
                                    "DisplayGLMode", &DisplayGLMode_lookup,
                                    get_gl_mode, set_gl_mode);
@@ -321,6 +355,7 @@ dbus_init(DisplayState *ds, DisplayOptions *opts)
                           object_get_objects_root(),
                           "dbus-display", &error_fatal,
                           "addr", opts->u.dbus.addr ?: "",
+                          "audiodev", opts->u.dbus.audiodev ?: "",
                           "gl-mode", DisplayGLMode_str(mode),
                           "p2p", yes_no(opts->u.dbus.p2p),
                           NULL);

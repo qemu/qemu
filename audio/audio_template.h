@@ -327,6 +327,8 @@ AudiodevPerDirectionOptions *glue(audio_get_pdo_, TYPE)(Audiodev *dev)
     case AUDIODEV_DRIVER_COREAUDIO:
         return qapi_AudiodevCoreaudioPerDirectionOptions_base(
             dev->u.coreaudio.TYPE);
+    case AUDIODEV_DRIVER_DBUS:
+        return dev->u.dbus.TYPE;
     case AUDIODEV_DRIVER_DSOUND:
         return dev->u.dsound.TYPE;
     case AUDIODEV_DRIVER_JACK:

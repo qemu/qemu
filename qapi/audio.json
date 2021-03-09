@@ -386,7 +386,7 @@
 # Since: 4.0
 ##
 { 'enum': 'AudiodevDriver',
-  'data': [ 'none', 'alsa', 'coreaudio', 'dsound', 'jack', 'oss', 'pa',
+  'data': [ 'none', 'alsa', 'coreaudio', 'dbus', 'dsound', 'jack', 'oss', 'pa',
             'sdl', 'spice', 'wav' ] }
 
 ##
@@ -412,6 +412,7 @@
     'none':      'AudiodevGenericOptions',
     'alsa':      'AudiodevAlsaOptions',
     'coreaudio': 'AudiodevCoreaudioOptions',
+    'dbus':      'AudiodevGenericOptions',
     'dsound':    'AudiodevDsoundOptions',
     'jack':      'AudiodevJackOptions',
     'oss':       'AudiodevOssOptions',

@@ -2000,6 +2000,7 @@ void audio_create_pdos(Audiodev *dev)
         CASE(NONE, none, );
         CASE(ALSA, alsa, Alsa);
         CASE(COREAUDIO, coreaudio, Coreaudio);
+        CASE(DBUS, dbus, );
         CASE(DSOUND, dsound, );
         CASE(JACK, jack, Jack);
         CASE(OSS, oss, Oss);
