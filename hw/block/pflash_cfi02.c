@@ -467,8 +467,10 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
     switch (pfl->wcycle) {
     case 0:
         /* Set the device in I/O access mode if required */
-        if (pfl->rom_mode)
-            pflash_register_memory(pfl, 0);
+        if (pfl->rom_mode) {
+            pfl->rom_mode = false;
+            memory_region_rom_device_set_romd(&pfl->orig_mem, false);
+        }
         pfl->read_counter = 0;
         /* We're in read mode */
     check_unlock0:
