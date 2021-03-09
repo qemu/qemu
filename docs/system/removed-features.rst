@@ -113,6 +113,13 @@ becomes
     -device isa-fdc,...
     -device floppy,unit=1,drive=...
 
+``-drive`` with bogus interface type (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Drives with interface types other than ``if=none`` are for onboard
+devices.  Drives the board doesn't pick up can no longer be used with
+-device.  Use ``if=none`` instead.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
