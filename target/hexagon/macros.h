@@ -459,7 +459,7 @@ static inline void gen_logical_not(TCGv dest, TCGv src)
                    : (fCAST##REGSTYPE##s(SRC) >> (SHAMT)))
 #define fASHIFTR(SRC, SHAMT, REGSTYPE) (fCAST##REGSTYPE##s(SRC) >> (SHAMT))
 #define fLSHIFTR(SRC, SHAMT, REGSTYPE) \
-    (((SHAMT) >= 64) ? 0 : (fCAST##REGSTYPE##u(SRC) >> (SHAMT)))
+    (((SHAMT) >= (sizeof(SRC) * 8)) ? 0 : (fCAST##REGSTYPE##u(SRC) >> (SHAMT)))
 #define fROTL(SRC, SHAMT, REGSTYPE) \
     (((SHAMT) == 0) ? (SRC) : ((fCAST##REGSTYPE##u(SRC) << (SHAMT)) | \
                               ((fCAST##REGSTYPE##u(SRC) >> \
@@ -469,7 +469,7 @@ static inline void gen_logical_not(TCGv dest, TCGv src)
                               ((fCAST##REGSTYPE##u(SRC) << \
                                  ((sizeof(SRC) * 8) - (SHAMT))))))
 #define fASHIFTL(SRC, SHAMT, REGSTYPE) \
-    (((SHAMT) >= 64) ? 0 : (fCAST##REGSTYPE##s(SRC) << (SHAMT)))
+    (((SHAMT) >= (sizeof(SRC) * 8)) ? 0 : (fCAST##REGSTYPE##s(SRC) << (SHAMT)))
 
 #ifdef QEMU_GENERATE
 #define fLOAD(NUM, SIZE, SIGN, EA, DST) MEM_LOAD##SIZE##SIGN(DST, EA)
