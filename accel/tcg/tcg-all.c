@@ -32,6 +32,7 @@
 #include "qemu/error-report.h"
 #include "qemu/accel.h"
 #include "qapi/qapi-builtin-visit.h"
+#include "internal.h"
 
 struct TCGState {
     AccelState parent_obj;
@@ -109,8 +110,21 @@ static int tcg_init_machine(MachineState *ms)
 {
     TCGState *s = TCG_STATE(current_accel());
 
-    tcg_exec_init(s->tb_size * 1024 * 1024, s->splitwx_enabled);
+    tcg_allowed = true;
     mttcg_enabled = s->mttcg_enabled;
+
+    page_init();
+    tb_htable_init();
+    tcg_init(s->tb_size * 1024 * 1024, s->splitwx_enabled);
+
+#if defined(CONFIG_SOFTMMU)
+    /*
+     * There's no guest base to take into account, so go ahead and
+     * initialize the prologue now.
+     */
+    tcg_prologue_init(tcg_ctx);
+#endif
+
     return 0;
 }
 
