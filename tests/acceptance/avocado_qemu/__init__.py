@@ -97,7 +97,8 @@ def _console_interaction(test, success_message, failure_message,
             break
         if failure_message and failure_message in msg:
             console.close()
-            fail = 'Failure message found in console: %s' % failure_message
+            fail = 'Failure message found in console: "%s". Expected: "%s"' % \
+                    (failure_message, success_message)
             test.fail(fail)
 
 def interrupt_interactive_console_until_pattern(test, success_message,
