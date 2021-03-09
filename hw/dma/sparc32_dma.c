@@ -295,13 +295,13 @@ static void sparc32_espdma_device_init(Object *obj)
     memory_region_init_io(&s->iomem, OBJECT(s), &dma_mem_ops, s,
                           "espdma-mmio", DMA_SIZE);
 
-    object_initialize_child(obj, "esp", &es->esp, TYPE_ESP);
+    object_initialize_child(obj, "esp", &es->esp, TYPE_SYSBUS_ESP);
 }
 
 static void sparc32_espdma_device_realize(DeviceState *dev, Error **errp)
 {
     ESPDMADeviceState *es = SPARC32_ESPDMA_DEVICE(dev);
-    SysBusESPState *sysbus = ESP(&es->esp);
+    SysBusESPState *sysbus = SYSBUS_ESP(&es->esp);
     ESPState *esp = &sysbus->esp;
 
     esp->dma_memory_read = espdma_memory_read;
