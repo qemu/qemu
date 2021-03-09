@@ -2896,7 +2896,7 @@ static TYPE NAME##_reduce(TYPE *data, float_status *status, uintptr_t n) \
 }                                                                     \
 uint64_t HELPER(NAME)(void *vn, void *vg, void *vs, uint32_t desc)    \
 {                                                                     \
-    uintptr_t i, oprsz = simd_oprsz(desc), maxsz = simd_maxsz(desc);  \
+    uintptr_t i, oprsz = simd_oprsz(desc), maxsz = simd_data(desc);   \
     TYPE data[sizeof(ARMVectorReg) / sizeof(TYPE)];                   \
     for (i = 0; i < oprsz; ) {                                        \
         uint16_t pg = *(uint16_t *)(vg + H1_2(i >> 3));               \
