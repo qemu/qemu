@@ -30,6 +30,7 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
+    rm -f "$SOCK_DIR/nbd.sock"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -56,6 +57,25 @@ $QSD --chardev stdio,id=stdio --monitor chardev=stdio \
     --blockdev node-name=fmt0,driver=qcow2,file=file0 <<EOF | _filter_qmp
 {"execute":"qmp_capabilities"}
 {"execute": "block-commit", "arguments": {"device": "fmt0", "job-id": "job0"}}
+{"execute": "quit"}
+EOF
+
+echo
+echo "=== Streaming can't get permission on base node ==="
+echo
+
+# Just make sure that this doesn't crash
+$QSD --chardev stdio,id=stdio --monitor chardev=stdio \
+    --blockdev node-name=file_base,driver=file,filename="$TEST_IMG.base" \
+    --blockdev node-name=fmt_base,driver=qcow2,file=file_base \
+    --blockdev node-name=file_overlay,driver=file,filename="$TEST_IMG" \
+    --blockdev node-name=fmt_overlay,driver=qcow2,file=file_overlay,backing=fmt_base \
+    --nbd-server addr.type=unix,addr.path="$SOCK_DIR/nbd.sock" \
+    --export type=nbd,id=export1,node-name=fmt_base,writable=on,name=export1 \
+    <<EOF | _filter_qmp
+{"execute": "qmp_capabilities"}
+{"execute": "block-stream",
+  "arguments": {"device": "fmt_overlay", "job-id": "job0"}}
 {"execute": "quit"}
 EOF
 

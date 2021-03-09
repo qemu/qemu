@@ -206,7 +206,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
                   const char *filter_node_name,
                   Error **errp)
 {
-    StreamBlockJob *s;
+    StreamBlockJob *s = NULL;
     BlockDriverState *iter;
     bool bs_read_only;
     int basic_flags = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED;
@@ -214,6 +214,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     BlockDriverState *cor_filter_bs = NULL;
     BlockDriverState *above_base;
     QDict *opts;
+    int ret;
 
     assert(!(base && bottom));
     assert(!(backing_file_str && bottom));
@@ -303,7 +304,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
      * queried only at the job start and then cached.
      */
     if (block_job_add_bdrv(&s->common, "active node", bs, 0,
-                           basic_flags | BLK_PERM_WRITE, &error_abort)) {
+                           basic_flags | BLK_PERM_WRITE, errp)) {
         goto fail;
     }
 
@@ -320,8 +321,11 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     for (iter = bdrv_filter_or_cow_bs(bs); iter != base;
          iter = bdrv_filter_or_cow_bs(iter))
     {
-        block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
-                           basic_flags, &error_abort);
+        ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
+                                 basic_flags, errp);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     s->base_overlay = base_overlay;
@@ -337,6 +341,9 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     return;
 
 fail:
+    if (s) {
+        job_early_fail(&s->common.job);
+    }
     if (cor_filter_bs) {
         bdrv_cor_filter_drop(cor_filter_bs);
     }
