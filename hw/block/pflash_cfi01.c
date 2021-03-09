@@ -704,29 +704,10 @@ static const MemoryRegionOps pflash_cfi01_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
+static void pflash_cfi01_fill_cfi_table(PFlashCFI01 *pfl)
 {
-    ERRP_GUARD();
-    PFlashCFI01 *pfl = PFLASH_CFI01(dev);
-    uint64_t total_len;
-    int ret;
     uint64_t blocks_per_device, sector_len_per_device, device_len;
     int num_devices;
-
-    if (pfl->sector_len == 0) {
-        error_setg(errp, "attribute \"sector-length\" not specified or zero.");
-        return;
-    }
-    if (pfl->nb_blocs == 0) {
-        error_setg(errp, "attribute \"num-blocks\" not specified or zero.");
-        return;
-    }
-    if (pfl->name == NULL) {
-        error_setg(errp, "attribute \"name\" not specified.");
-        return;
-    }
-
-    total_len = pfl->sector_len * pfl->nb_blocs;
 
     /*
      * These are only used to expose the parameters of each device
@@ -742,53 +723,6 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
     device_len = sector_len_per_device * blocks_per_device;
 
-    memory_region_init_rom_device(
-        &pfl->mem, OBJECT(dev),
-        &pflash_cfi01_ops,
-        pfl,
-        pfl->name, total_len, errp);
-    if (*errp) {
-        return;
-    }
-
-    pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
-
-    if (pfl->blk) {
-        uint64_t perm;
-        pfl->ro = !blk_supports_write_perm(pfl->blk);
-        perm = BLK_PERM_CONSISTENT_READ | (pfl->ro ? 0 : BLK_PERM_WRITE);
-        ret = blk_set_perm(pfl->blk, perm, BLK_PERM_ALL, errp);
-        if (ret < 0) {
-            return;
-        }
-    } else {
-        pfl->ro = 0;
-    }
-
-    if (pfl->blk) {
-        if (!blk_check_size_and_read_all(pfl->blk, pfl->storage, total_len,
-                                         errp)) {
-            vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
-            return;
-        }
-    }
-
-    /*
-     * Default to devices being used at their maximum device width. This was
-     * assumed before the device_width support was added.
-     */
-    if (!pfl->max_device_width) {
-        pfl->max_device_width = pfl->device_width;
-    }
-
-    pfl->wcycle = 0;
-    /*
-     * The command 0x00 is not assigned by the CFI open standard,
-     * but QEMU historically uses it for the READ_ARRAY command (0xff).
-     */
-    pfl->cmd = 0x00;
-    pfl->status = 0x80; /* WSM ready */
     /* Hardcoded CFI table */
     /* Standard "QRY" string */
     pfl->cfi_table[0x10] = 'Q';
@@ -874,6 +808,78 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x3c] = 0x00;
 
     pfl->cfi_table[0x3f] = 0x01; /* Number of protection fields */
+}
+
+static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
+{
+    ERRP_GUARD();
+    PFlashCFI01 *pfl = PFLASH_CFI01(dev);
+    uint64_t total_len;
+    int ret;
+
+    if (pfl->sector_len == 0) {
+        error_setg(errp, "attribute \"sector-length\" not specified or zero.");
+        return;
+    }
+    if (pfl->nb_blocs == 0) {
+        error_setg(errp, "attribute \"num-blocks\" not specified or zero.");
+        return;
+    }
+    if (pfl->name == NULL) {
+        error_setg(errp, "attribute \"name\" not specified.");
+        return;
+    }
+
+    total_len = pfl->sector_len * pfl->nb_blocs;
+
+    memory_region_init_rom_device(
+        &pfl->mem, OBJECT(dev),
+        &pflash_cfi01_ops,
+        pfl,
+        pfl->name, total_len, errp);
+    if (*errp) {
+        return;
+    }
+
+    pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
+
+    if (pfl->blk) {
+        uint64_t perm;
+        pfl->ro = !blk_supports_write_perm(pfl->blk);
+        perm = BLK_PERM_CONSISTENT_READ | (pfl->ro ? 0 : BLK_PERM_WRITE);
+        ret = blk_set_perm(pfl->blk, perm, BLK_PERM_ALL, errp);
+        if (ret < 0) {
+            return;
+        }
+    } else {
+        pfl->ro = 0;
+    }
+
+    if (pfl->blk) {
+        if (!blk_check_size_and_read_all(pfl->blk, pfl->storage, total_len,
+                                         errp)) {
+            vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
+            return;
+        }
+    }
+
+    /*
+     * Default to devices being used at their maximum device width. This was
+     * assumed before the device_width support was added.
+     */
+    if (!pfl->max_device_width) {
+        pfl->max_device_width = pfl->device_width;
+    }
+
+    pfl->wcycle = 0;
+    /*
+     * The command 0x00 is not assigned by the CFI open standard,
+     * but QEMU historically uses it for the READ_ARRAY command (0xff).
+     */
+    pfl->cmd = 0x00;
+    pfl->status = 0x80; /* WSM ready */
+    pflash_cfi01_fill_cfi_table(pfl);
 }
 
 static void pflash_cfi01_system_reset(DeviceState *dev)
