@@ -882,10 +882,26 @@ void tcg_region_init(void)
 
     tcg_region_trees_init();
 
-    /* In user-mode we support only one ctx, so do the initial allocation now */
-#ifdef CONFIG_USER_ONLY
-    tcg_region_initial_alloc__locked(tcg_ctx);
-#endif
+    /*
+     * Leave the initial context initialized to the first region.
+     * This will be the context into which we generate the prologue.
+     * It is also the only context for CONFIG_USER_ONLY.
+     */
+    tcg_region_initial_alloc__locked(&tcg_init_ctx);
+}
+
+static void tcg_region_prologue_set(TCGContext *s)
+{
+    /* Deduct the prologue from the first region.  */
+    g_assert(region.start == s->code_gen_buffer);
+    region.start = s->code_ptr;
+
+    /* Recompute boundaries of the first region. */
+    tcg_region_assign(s, 0);
+
+    /* Register the balance of the buffer with gdb. */
+    tcg_register_jit(tcg_splitwx_to_rx(region.start),
+                     region.end - region.start);
 }
 
 #ifdef CONFIG_DEBUG_TCG
@@ -965,10 +981,10 @@ void tcg_register_thread(void)
 
     if (n > 0) {
         alloc_tcg_plugin_context(s);
+        tcg_region_initial_alloc(s);
     }
 
     tcg_ctx = s;
-    tcg_region_initial_alloc(s);
 }
 #endif /* !CONFIG_USER_ONLY */
 
@@ -1208,8 +1224,6 @@ void tcg_prologue_init(TCGContext *s)
 {
     size_t prologue_size;
 
-    /* Put the prologue at the beginning of code_gen_buffer.  */
-    tcg_region_assign(s, 0);
     s->code_ptr = s->code_gen_ptr;
     s->code_buf = s->code_gen_ptr;
     s->data_gen_ptr = NULL;
@@ -1241,14 +1255,7 @@ void tcg_prologue_init(TCGContext *s)
                         (uintptr_t)s->code_buf, prologue_size);
 #endif
 
-    /* Deduct the prologue from the first region.  */
-    region.start = s->code_ptr;
-
-    /* Recompute boundaries of the first region. */
-    tcg_region_assign(s, 0);
-
-    tcg_register_jit(tcg_splitwx_to_rx(region.start),
-                     region.end - region.start);
+    tcg_region_prologue_set(s);
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
