@@ -724,6 +724,104 @@ static const MemoryRegionOps pflash_cfi02_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void pflash_cfi02_fill_cfi_table(PFlashCFI02 *pfl, int nb_regions)
+{
+    /* Hardcoded CFI table (mostly from SG29 Spansion flash) */
+    const uint16_t pri_ofs = 0x40;
+    /* Standard "QRY" string */
+    pfl->cfi_table[0x10] = 'Q';
+    pfl->cfi_table[0x11] = 'R';
+    pfl->cfi_table[0x12] = 'Y';
+    /* Command set (AMD/Fujitsu) */
+    pfl->cfi_table[0x13] = 0x02;
+    pfl->cfi_table[0x14] = 0x00;
+    /* Primary extended table address */
+    pfl->cfi_table[0x15] = pri_ofs;
+    pfl->cfi_table[0x16] = pri_ofs >> 8;
+    /* Alternate command set (none) */
+    pfl->cfi_table[0x17] = 0x00;
+    pfl->cfi_table[0x18] = 0x00;
+    /* Alternate extended table (none) */
+    pfl->cfi_table[0x19] = 0x00;
+    pfl->cfi_table[0x1A] = 0x00;
+    /* Vcc min */
+    pfl->cfi_table[0x1B] = 0x27;
+    /* Vcc max */
+    pfl->cfi_table[0x1C] = 0x36;
+    /* Vpp min (no Vpp pin) */
+    pfl->cfi_table[0x1D] = 0x00;
+    /* Vpp max (no Vpp pin) */
+    pfl->cfi_table[0x1E] = 0x00;
+    /* Timeout per single byte/word write (128 ms) */
+    pfl->cfi_table[0x1F] = 0x07;
+    /* Timeout for min size buffer write (NA) */
+    pfl->cfi_table[0x20] = 0x00;
+    /* Typical timeout for block erase (512 ms) */
+    pfl->cfi_table[0x21] = 0x09;
+    /* Typical timeout for full chip erase (4096 ms) */
+    pfl->cfi_table[0x22] = 0x0C;
+    /* Reserved */
+    pfl->cfi_table[0x23] = 0x01;
+    /* Max timeout for buffer write (NA) */
+    pfl->cfi_table[0x24] = 0x00;
+    /* Max timeout for block erase */
+    pfl->cfi_table[0x25] = 0x0A;
+    /* Max timeout for chip erase */
+    pfl->cfi_table[0x26] = 0x0D;
+    /* Device size */
+    pfl->cfi_table[0x27] = ctz32(pfl->chip_len);
+    /* Flash device interface (8 & 16 bits) */
+    pfl->cfi_table[0x28] = 0x02;
+    pfl->cfi_table[0x29] = 0x00;
+    /* Max number of bytes in multi-bytes write */
+    /*
+     * XXX: disable buffered write as it's not supported
+     * pfl->cfi_table[0x2A] = 0x05;
+     */
+    pfl->cfi_table[0x2A] = 0x00;
+    pfl->cfi_table[0x2B] = 0x00;
+    /* Number of erase block regions */
+    pfl->cfi_table[0x2c] = nb_regions;
+    /* Erase block regions */
+    for (int i = 0; i < nb_regions; ++i) {
+        uint32_t sector_len_per_device = pfl->sector_len[i];
+        pfl->cfi_table[0x2d + 4 * i] = pfl->nb_blocs[i] - 1;
+        pfl->cfi_table[0x2e + 4 * i] = (pfl->nb_blocs[i] - 1) >> 8;
+        pfl->cfi_table[0x2f + 4 * i] = sector_len_per_device >> 8;
+        pfl->cfi_table[0x30 + 4 * i] = sector_len_per_device >> 16;
+    }
+    assert(0x2c + 4 * nb_regions < pri_ofs);
+
+    /* Extended */
+    pfl->cfi_table[0x00 + pri_ofs] = 'P';
+    pfl->cfi_table[0x01 + pri_ofs] = 'R';
+    pfl->cfi_table[0x02 + pri_ofs] = 'I';
+
+    /* Extended version 1.0 */
+    pfl->cfi_table[0x03 + pri_ofs] = '1';
+    pfl->cfi_table[0x04 + pri_ofs] = '0';
+
+    /* Address sensitive unlock required. */
+    pfl->cfi_table[0x05 + pri_ofs] = 0x00;
+    /* Erase suspend to read/write. */
+    pfl->cfi_table[0x06 + pri_ofs] = 0x02;
+    /* Sector protect not supported. */
+    pfl->cfi_table[0x07 + pri_ofs] = 0x00;
+    /* Temporary sector unprotect not supported. */
+    pfl->cfi_table[0x08 + pri_ofs] = 0x00;
+
+    /* Sector protect/unprotect scheme. */
+    pfl->cfi_table[0x09 + pri_ofs] = 0x00;
+
+    /* Simultaneous operation not supported. */
+    pfl->cfi_table[0x0a + pri_ofs] = 0x00;
+    /* Burst mode not supported. */
+    pfl->cfi_table[0x0b + pri_ofs] = 0x00;
+    /* Page mode not supported. */
+    pfl->cfi_table[0x0c + pri_ofs] = 0x00;
+    assert(0x0c + pri_ofs < ARRAY_SIZE(pfl->cfi_table));
+}
+
 static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
 {
     ERRP_GUARD();
@@ -837,100 +935,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->cmd = 0;
     pfl->status = 0;
 
-    /* Hardcoded CFI table (mostly from SG29 Spansion flash) */
-    const uint16_t pri_ofs = 0x40;
-    /* Standard "QRY" string */
-    pfl->cfi_table[0x10] = 'Q';
-    pfl->cfi_table[0x11] = 'R';
-    pfl->cfi_table[0x12] = 'Y';
-    /* Command set (AMD/Fujitsu) */
-    pfl->cfi_table[0x13] = 0x02;
-    pfl->cfi_table[0x14] = 0x00;
-    /* Primary extended table address */
-    pfl->cfi_table[0x15] = pri_ofs;
-    pfl->cfi_table[0x16] = pri_ofs >> 8;
-    /* Alternate command set (none) */
-    pfl->cfi_table[0x17] = 0x00;
-    pfl->cfi_table[0x18] = 0x00;
-    /* Alternate extended table (none) */
-    pfl->cfi_table[0x19] = 0x00;
-    pfl->cfi_table[0x1A] = 0x00;
-    /* Vcc min */
-    pfl->cfi_table[0x1B] = 0x27;
-    /* Vcc max */
-    pfl->cfi_table[0x1C] = 0x36;
-    /* Vpp min (no Vpp pin) */
-    pfl->cfi_table[0x1D] = 0x00;
-    /* Vpp max (no Vpp pin) */
-    pfl->cfi_table[0x1E] = 0x00;
-    /* Timeout per single byte/word write (128 ms) */
-    pfl->cfi_table[0x1F] = 0x07;
-    /* Timeout for min size buffer write (NA) */
-    pfl->cfi_table[0x20] = 0x00;
-    /* Typical timeout for block erase (512 ms) */
-    pfl->cfi_table[0x21] = 0x09;
-    /* Typical timeout for full chip erase (4096 ms) */
-    pfl->cfi_table[0x22] = 0x0C;
-    /* Reserved */
-    pfl->cfi_table[0x23] = 0x01;
-    /* Max timeout for buffer write (NA) */
-    pfl->cfi_table[0x24] = 0x00;
-    /* Max timeout for block erase */
-    pfl->cfi_table[0x25] = 0x0A;
-    /* Max timeout for chip erase */
-    pfl->cfi_table[0x26] = 0x0D;
-    /* Device size */
-    pfl->cfi_table[0x27] = ctz32(pfl->chip_len);
-    /* Flash device interface (8 & 16 bits) */
-    pfl->cfi_table[0x28] = 0x02;
-    pfl->cfi_table[0x29] = 0x00;
-    /* Max number of bytes in multi-bytes write */
-    /*
-     * XXX: disable buffered write as it's not supported
-     * pfl->cfi_table[0x2A] = 0x05;
-     */
-    pfl->cfi_table[0x2A] = 0x00;
-    pfl->cfi_table[0x2B] = 0x00;
-    /* Number of erase block regions */
-    pfl->cfi_table[0x2c] = nb_regions;
-    /* Erase block regions */
-    for (int i = 0; i < nb_regions; ++i) {
-        uint32_t sector_len_per_device = pfl->sector_len[i];
-        pfl->cfi_table[0x2d + 4 * i] = pfl->nb_blocs[i] - 1;
-        pfl->cfi_table[0x2e + 4 * i] = (pfl->nb_blocs[i] - 1) >> 8;
-        pfl->cfi_table[0x2f + 4 * i] = sector_len_per_device >> 8;
-        pfl->cfi_table[0x30 + 4 * i] = sector_len_per_device >> 16;
-    }
-    assert(0x2c + 4 * nb_regions < pri_ofs);
-
-    /* Extended */
-    pfl->cfi_table[0x00 + pri_ofs] = 'P';
-    pfl->cfi_table[0x01 + pri_ofs] = 'R';
-    pfl->cfi_table[0x02 + pri_ofs] = 'I';
-
-    /* Extended version 1.0 */
-    pfl->cfi_table[0x03 + pri_ofs] = '1';
-    pfl->cfi_table[0x04 + pri_ofs] = '0';
-
-    /* Address sensitive unlock required. */
-    pfl->cfi_table[0x05 + pri_ofs] = 0x00;
-    /* Erase suspend to read/write. */
-    pfl->cfi_table[0x06 + pri_ofs] = 0x02;
-    /* Sector protect not supported. */
-    pfl->cfi_table[0x07 + pri_ofs] = 0x00;
-    /* Temporary sector unprotect not supported. */
-    pfl->cfi_table[0x08 + pri_ofs] = 0x00;
-
-    /* Sector protect/unprotect scheme. */
-    pfl->cfi_table[0x09 + pri_ofs] = 0x00;
-
-    /* Simultaneous operation not supported. */
-    pfl->cfi_table[0x0a + pri_ofs] = 0x00;
-    /* Burst mode not supported. */
-    pfl->cfi_table[0x0b + pri_ofs] = 0x00;
-    /* Page mode not supported. */
-    pfl->cfi_table[0x0c + pri_ofs] = 0x00;
-    assert(0x0c + pri_ofs < ARRAY_SIZE(pfl->cfi_table));
+    pflash_cfi02_fill_cfi_table(pfl, nb_regions);
 }
 
 static Property pflash_cfi02_properties[] = {
