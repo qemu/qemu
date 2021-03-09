@@ -3097,7 +3097,8 @@ static bool trans_WHILE(DisasContext *s, arg_WHILE *a)
     TCGv_i64 op0, op1, t0, t1, tmax;
     TCGv_i32 t2, t3;
     TCGv_ptr ptr;
-    unsigned desc, vsz = vec_full_reg_size(s);
+    unsigned vsz = vec_full_reg_size(s);
+    unsigned desc = 0;
     TCGCond cond;
 
     if (!sve_access_check(s)) {
@@ -3161,8 +3162,8 @@ static bool trans_WHILE(DisasContext *s, arg_WHILE *a)
     /* Scale elements to bits.  */
     tcg_gen_shli_i32(t2, t2, a->esz);
 
-    desc = (vsz / 8) - 2;
-    desc = deposit32(desc, SIMD_DATA_SHIFT, 2, a->esz);
+    desc = FIELD_DP32(desc, PREDDESC, OPRSZ, vsz / 8);
+    desc = FIELD_DP32(desc, PREDDESC, ESZ, a->esz);
     t3 = tcg_const_i32(desc);
 
     ptr = tcg_temp_new_ptr();
