@@ -125,15 +125,6 @@ check_floppy_qtree -drive if=floppy,file="$TEST_IMG" -drive if=floppy,file="$TES
 
 echo
 echo
-echo === Using -drive if=none and -global ===
-
-check_floppy_qtree -drive if=none,file="$TEST_IMG" -global isa-fdc.driveA=none0
-check_floppy_qtree -drive if=none,file="$TEST_IMG" -global isa-fdc.driveB=none0
-check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG.2" \
-                   -global isa-fdc.driveA=none0 -global isa-fdc.driveB=none1
-
-echo
-echo
 echo === Using -drive if=none and -device ===
 
 check_floppy_qtree -drive if=none,file="$TEST_IMG" -device floppy,drive=none0
@@ -145,13 +136,6 @@ echo
 echo
 echo === Mixing -fdX and -global ===
 
-# Working
-check_floppy_qtree -fda "$TEST_IMG" -drive if=none,file="$TEST_IMG.2" -global isa-fdc.driveB=none0
-check_floppy_qtree -fdb "$TEST_IMG" -drive if=none,file="$TEST_IMG.2" -global isa-fdc.driveA=none0
-
-# Conflicting
-check_floppy_qtree -fda "$TEST_IMG" -drive if=none,file="$TEST_IMG.2" -global isa-fdc.driveA=none0
-check_floppy_qtree -fdb "$TEST_IMG" -drive if=none,file="$TEST_IMG.2" -global isa-fdc.driveB=none0
 # Conflicting, -fdX wins
 check_floppy_qtree -fda "$TEST_IMG" -drive if=none,file="$TEST_IMG.2" -global floppy.drive=none0
 
@@ -186,23 +170,10 @@ echo
 echo === Mixing -global and -device ===
 
 # Working
-check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG.2" \
-                   -global isa-fdc.driveA=none0 -device floppy,drive=none1
-check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG.2" \
-                   -global isa-fdc.driveA=none0 -device floppy,drive=none1,unit=1
-
-check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG.2" \
-                   -global isa-fdc.driveB=none0 -device floppy,drive=none1
-check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG.2" \
-                   -global isa-fdc.driveB=none0 -device floppy,drive=none1,unit=0
 check_floppy_qtree -drive if=none,file="$TEST_IMG" \
                    -global floppy.drive=none0 -device floppy,unit=0
 
 # Conflicting
-check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG.2" \
-                   -global isa-fdc.driveA=none0 -device floppy,drive=none1,unit=0
-check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG.2" \
-                   -global isa-fdc.driveB=none0 -device floppy,drive=none1,unit=1
 check_floppy_qtree -drive if=none,file="$TEST_IMG" -drive if=none,file="$TEST_IMG.2" \
                    -global floppy.drive=none0 -device floppy,drive=none1,unit=0
 
@@ -227,7 +198,7 @@ echo === Too many floppy drives ===
 check_floppy_qtree -drive if=floppy,file="$TEST_IMG" \
                    -drive if=none,file="$TEST_IMG.2" \
                    -drive if=none,file="$TEST_IMG.3" \
-                   -global isa-fdc.driveB=none0 \
+                   -device floppy,drive=none0 \
                    -device floppy,drive=none1
 
 echo
