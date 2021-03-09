@@ -245,11 +245,6 @@ static void page_table_config_init(void)
     assert(v_l2_levels >= 0);
 }
 
-static void cpu_gen_init(void)
-{
-    tcg_context_init(&tcg_init_ctx);
-}
-
 /* Encode VAL as a signed leb128 sequence at P.
    Return P incremented past the encoded value.  */
 static uint8_t *encode_sleb128(uint8_t *p, target_long val)
@@ -1331,7 +1326,7 @@ void tcg_exec_init(unsigned long tb_size, int splitwx)
     bool ok;
 
     tcg_allowed = true;
-    cpu_gen_init();
+    tcg_context_init(&tcg_init_ctx);
     page_init();
     tb_htable_init();
 
