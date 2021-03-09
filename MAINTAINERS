@@ -3132,10 +3132,13 @@ F: block/dmg.c
 parallels
 M: Stefan Hajnoczi <stefanha@redhat.com>
 M: Denis V. Lunev <den@openvz.org>
+M: Vladimir Sementsov-Ogievskiy <vsementsov@virtuozzo.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/parallels.c
+F: block/parallels-ext.c
 F: docs/interop/parallels.txt
+T: git https://src.openvz.org/scm/~vsementsov/qemu.git parallels
 
 qed
 M: Stefan Hajnoczi <stefanha@redhat.com>

@@ -318,8 +318,12 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
     info->status    = job->job.status;
     info->auto_finalize = job->job.auto_finalize;
     info->auto_dismiss  = job->job.auto_dismiss;
-    info->has_error = job->job.ret != 0;
-    info->error     = job->job.ret ? g_strdup(strerror(-job->job.ret)) : NULL;
+    if (job->job.ret) {
+        info->has_error = true;
+        info->error = job->job.err ?
+                        g_strdup(error_get_pretty(job->job.err)) :
+                        g_strdup(strerror(-job->job.ret));
+    }
     return info;
 }
 
@@ -356,7 +360,7 @@ static void block_job_event_completed(Notifier *n, void *opaque)
     }
 
     if (job->job.ret < 0) {
-        msg = strerror(-job->job.ret);
+        msg = error_get_pretty(job->job.err);
     }
 
     qapi_event_send_block_job_completed(job_type(&job->job),

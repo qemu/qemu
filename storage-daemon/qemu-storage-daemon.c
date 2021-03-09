@@ -59,6 +59,7 @@
 #include "sysemu/runstate.h"
 #include "trace/control.h"
 
+static const char *pid_file;
 static volatile bool exit_requested = false;
 
 void qemu_system_killed(int signal, pid_t pid)
@@ -115,6 +116,8 @@ static void help(void)
 "                         See the qemu(1) man page for documentation of the\n"
 "                         objects that can be added.\n"
 "\n"
+"  --pidfile <path>       write process ID to a file after startup\n"
+"\n"
 QEMU_HELP_BOTTOM "\n",
     error_get_progname());
 }
@@ -126,6 +129,7 @@ enum {
     OPTION_MONITOR,
     OPTION_NBD_SERVER,
     OPTION_OBJECT,
+    OPTION_PIDFILE,
 };
 
 extern QemuOptsList qemu_chardev_opts;
@@ -152,6 +156,20 @@ static void init_qmp_commands(void)
                          qmp_marshal_qmp_capabilities, QCO_ALLOW_PRECONFIG);
 }
 
+static int getopt_set_loc(int argc, char **argv, const char *optstring,
+                          const struct option *longopts)
+{
+    int c, save_index;
+
+    optarg = NULL;
+    save_index = optind;
+    c = getopt_long(argc, argv, optstring, longopts, NULL);
+    if (optarg) {
+        loc_set_cmdline(argv, save_index, MAX(1, optind - save_index));
+    }
+    return c;
+}
+
 static void process_options(int argc, char *argv[])
 {
     int c;
@@ -164,6 +182,7 @@ static void process_options(int argc, char *argv[])
         {"monitor", required_argument, NULL, OPTION_MONITOR},
         {"nbd-server", required_argument, NULL, OPTION_NBD_SERVER},
         {"object", required_argument, NULL, OPTION_OBJECT},
+        {"pidfile", required_argument, NULL, OPTION_PIDFILE},
         {"trace", required_argument, NULL, 'T'},
         {"version", no_argument, NULL, 'V'},
         {0, 0, 0, 0}
@@ -174,7 +193,7 @@ static void process_options(int argc, char *argv[])
      * they are given on the command lines. This means that things must be
      * defined first before they can be referenced in another option.
      */
-    while ((c = getopt_long(argc, argv, "hT:V", long_options, NULL)) != -1) {
+    while ((c = getopt_set_loc(argc, argv, "-hT:V", long_options)) != -1) {
         switch (c) {
         case '?':
             exit(EXIT_FAILURE);
@@ -275,14 +294,38 @@ static void process_options(int argc, char *argv[])
                 qobject_unref(args);
                 break;
             }
+        case OPTION_PIDFILE:
+            pid_file = optarg;
+            break;
+        case 1:
+            error_report("Unexpected argument");
+            exit(EXIT_FAILURE);
         default:
             g_assert_not_reached();
         }
     }
-    if (optind != argc) {
-        error_report("Unexpected argument: %s", argv[optind]);
+    loc_set_none();
+}
+
+static void pid_file_cleanup(void)
+{
+    unlink(pid_file);
+}
+
+static void pid_file_init(void)
+{
+    Error *err = NULL;
+
+    if (!pid_file) {
+        return;
+    }
+
+    if (!qemu_write_pidfile(pid_file, &err)) {
+        error_reportf_err(err, "cannot create PID file: ");
         exit(EXIT_FAILURE);
     }
+
+    atexit(pid_file_cleanup);
 }
 
 int main(int argc, char *argv[])
@@ -311,6 +354,13 @@ int main(int argc, char *argv[])
 
     qemu_init_main_loop(&error_fatal);
     process_options(argc, argv);
+
+    /*
+     * Write the pid file after creating chardevs, exports, and NBD servers but
+     * before accepting connections. This ordering is documented. Do not change
+     * it.
+     */
+    pid_file_init();
 
     while (!exit_requested) {
         main_loop_wait(false);

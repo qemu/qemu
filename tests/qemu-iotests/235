@@ -57,7 +57,7 @@ vm.add_args('-drive', 'id=src,file=' + disk)
 vm.launch()
 
 log(vm.qmp('object-add', qom_type='throttle-group', id='tg0',
-           props={ 'x-bps-total': size }))
+           limits={'bps-total': size}))
 
 log(vm.qmp('blockdev-add',
            **{ 'node-name': 'target',

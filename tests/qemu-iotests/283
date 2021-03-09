@@ -97,3 +97,56 @@ vm.qmp_log('blockdev-add', **{
 vm.qmp_log('blockdev-backup', sync='full', device='source', target='target')
 
 vm.shutdown()
+
+
+print('\n=== backup-top should be gone after job-finalize ===\n')
+
+# Check that the backup-top node is gone after job-finalize.
+#
+# During finalization, the node becomes inactive and can no longer
+# function.  If it is still present, new parents might be attached, and
+# there would be no meaningful way to handle their I/O requests.
+
+vm = iotests.VM()
+vm.launch()
+
+vm.qmp_log('blockdev-add', **{
+    'node-name': 'source',
+    'driver': 'null-co',
+})
+
+vm.qmp_log('blockdev-add', **{
+    'node-name': 'target',
+    'driver': 'null-co',
+})
+
+vm.qmp_log('blockdev-backup',
+           job_id='backup',
+           device='source',
+           target='target',
+           sync='full',
+           filter_node_name='backup-filter',
+           auto_finalize=False,
+           auto_dismiss=False)
+
+vm.event_wait('BLOCK_JOB_PENDING', 5.0)
+
+# The backup-top filter should still be present prior to finalization
+assert vm.node_info('backup-filter') is not None
+
+vm.qmp_log('job-finalize', id='backup')
+vm.event_wait('BLOCK_JOB_COMPLETED', 5.0)
+
+# The filter should be gone now.  Check that by trying to access it
+# with qemu-io (which will most likely crash qemu if it is still
+# there.).
+vm.qmp_log('human-monitor-command',
+           command_line='qemu-io backup-filter "write 0 1M"')
+
+# (Also, do an explicit check.)
+assert vm.node_info('backup-filter') is None
+
+vm.qmp_log('job-dismiss', id='backup')
+vm.event_wait('JOB_STATUS_CHANGE', 5.0, {'data': {'status': 'null'}})
+
+vm.shutdown()

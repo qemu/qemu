@@ -75,6 +75,17 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args);
 QTestState *qtest_init_with_serial(const char *extra_args, int *sock_fd);
 
 /**
+ * qtest_kill_qemu:
+ * @s: #QTestState instance to operate on.
+ *
+ * Kill the QEMU process and wait for it to terminate. It is safe to call this
+ * function multiple times. Normally qtest_quit() is used instead because it
+ * also frees QTestState. Use qtest_kill_qemu() when you just want to kill QEMU
+ * and qtest_quit() will be called later.
+ */
+void qtest_kill_qemu(QTestState *s);
+
+/**
  * qtest_quit:
  * @s: #QTestState instance to operate on.
  *
@@ -131,6 +142,14 @@ void qtest_qmp_send(QTestState *s, const char *fmt, ...)
  */
 void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
+
+/**
+ * qtest_socket_server:
+ * @socket_path: the UNIX domain socket path
+ *
+ * Create and return a listen socket file descriptor, or abort on failure.
+ */
+int qtest_socket_server(const char *socket_path);
 
 /**
  * qtest_vqmp_fds:
@@ -630,7 +649,25 @@ void qtest_add_data_func_full(const char *str, void *data,
         g_free(path); \
     } while (0)
 
+/**
+ * qtest_add_abrt_handler:
+ * @fn: Handler function
+ * @data: Argument that is passed to the handler
+ *
+ * Add a handler function that is invoked on SIGABRT. This can be used to
+ * terminate processes and perform other cleanup. The handler can be removed
+ * with qtest_remove_abrt_handler().
+ */
 void qtest_add_abrt_handler(GHookFunc fn, const void *data);
+
+/**
+ * qtest_remove_abrt_handler:
+ * @data: Argument previously passed to qtest_add_abrt_handler()
+ *
+ * Remove an abrt handler that was previously added with
+ * qtest_add_abrt_handler().
+ */
+void qtest_remove_abrt_handler(void *data);
 
 /**
  * qtest_qmp_assert_success:

@@ -208,21 +208,25 @@ of its data area are:
   28 - 31:    l1_size
               The number of entries in the L1 table of the bitmap.
 
-  variable:   l1_table (8 * l1_size bytes)
-              L1 offset table (in bytes)
+  variable:   L1 offset table (l1_table), size: 8 * l1_size bytes
 
-A dirty bitmap is stored using a one-level structure for the mapping to host
-clusters - an L1 table.
+The dirty bitmap described by this feature extension is stored in a set of
+clusters inside the Parallels image file. The offsets of these clusters are
+saved in the L1 offset table specified by the feature extension. Each L1 table
+entry is a 64 bit integer as described below:
 
-Given an offset in bytes into the bitmap data, the offset in bytes into the
-image file can be obtained as follows:
+Given an offset in bytes into the bitmap data, corresponding L1 entry is
 
-    offset = l1_table[offset / cluster_size] + (offset % cluster_size)
+    l1_table[offset / cluster_size]
 
-If an L1 table entry is 0, the corresponding cluster of the bitmap is assumed
-to be zero.
+If an L1 table entry is 0, all bits in the corresponding cluster of the bitmap
+are assumed to be 0.
 
-If an L1 table entry is 1, the corresponding cluster of the bitmap is assumed
-to have all bits set.
+If an L1 table entry is 1, all bits in the corresponding cluster of the bitmap
+are assumed to be 1.
 
-If an L1 table entry is not 0 or 1, it allocates a cluster from the data area.
+If an L1 table entry is not 0 or 1, it contains the corresponding cluster
+offset (in 512b sectors). Given an offset in bytes into the bitmap data the
+offset in bytes into the image file can be obtained as follows:
+
+    offset = l1_table[offset / cluster_size] * 512 + (offset % cluster_size)

@@ -103,6 +103,7 @@ static void backup_abort(Job *job)
 static void backup_clean(Job *job)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
+    block_job_remove_all_bdrv(&s->common);
     bdrv_backup_top_drop(s->backup_top);
 }
 

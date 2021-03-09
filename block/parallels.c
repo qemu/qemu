@@ -29,6 +29,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "block/block_int.h"
 #include "block/qdict.h"
@@ -421,7 +422,6 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
     int ret;
     uint32_t i;
     bool flush_bat = false;
-    int cluster_size = s->tracks << BDRV_SECTOR_BITS;
 
     size = bdrv_getlength(bs->file->bs);
     if (size < 0) {
@@ -472,7 +472,7 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
             high_off = off;
         }
 
-        if (prev_off != 0 && (prev_off + cluster_size) != off) {
+        if (prev_off != 0 && (prev_off + s->cluster_size) != off) {
             res->bfi.fragmented_clusters++;
         }
         prev_off = off;
@@ -487,10 +487,10 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
         }
     }
 
-    res->image_end_offset = high_off + cluster_size;
+    res->image_end_offset = high_off + s->cluster_size;
     if (size > res->image_end_offset) {
         int64_t count;
-        count = DIV_ROUND_UP(size - res->image_end_offset, cluster_size);
+        count = DIV_ROUND_UP(size - res->image_end_offset, s->cluster_size);
         fprintf(stderr, "%s space leaked at the end of the image %" PRId64 "\n",
                 fix & BDRV_FIX_LEAKS ? "Repairing" : "ERROR",
                 size - res->image_end_offset);
@@ -771,6 +771,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EFBIG;
         goto fail;
     }
+    s->cluster_size = s->tracks << BDRV_SECTOR_BITS;
 
     s->bat_size = le32_to_cpu(ph.bat_entries);
     if (s->bat_size > INT_MAX / sizeof(uint32_t)) {
@@ -841,6 +842,23 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         goto fail_options;
+    }
+
+    if (ph.ext_off) {
+        if (flags & BDRV_O_RDWR) {
+            /*
+             * It's unsafe to open image RW if there is an extension (as we
+             * don't support it). But parallels driver in QEMU historically
+             * ignores the extension, so print warning and don't care.
+             */
+            warn_report("Format Extension ignored in RW mode");
+        } else {
+            ret = parallels_read_format_extension(
+                    bs, le64_to_cpu(ph.ext_off) << BDRV_SECTOR_BITS, errp);
+            if (ret < 0) {
+                goto fail;
+            }
+        }
     }
 
     if ((flags & BDRV_O_RDWR) && !(flags & BDRV_O_INACTIVE)) {

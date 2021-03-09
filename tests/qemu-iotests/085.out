@@ -24,7 +24,7 @@ Formatting 'TEST_DIR/1-snapshot-v0.qcow2', fmt=qcow2 cluster_size=65536 extended
 { 'execute': 'blockdev-snapshot-sync',
                          'arguments': { 'snapshot-file':'TEST_DIR/1-snapshot-v0.IMGFMT',
                                      'format': 'IMGFMT' } }
-{"error": {"class": "GenericError", "desc": "Cannot find device= nor node_name="}}
+{"error": {"class": "GenericError", "desc": "Cannot find device='' nor node-name=''"}}
 
 === Invalid command - missing snapshot-file ===
 
@@ -222,10 +222,10 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/
 { 'execute': 'blockdev-snapshot',
                       'arguments': { 'node': 'virtio0',
                                      'overlay':'snap_14' } }
-{"error": {"class": "GenericError", "desc": "Cannot find device=snap_14 nor node_name=snap_14"}}
+{"error": {"class": "GenericError", "desc": "Cannot find device='snap_14' nor node-name='snap_14'"}}
 { 'execute': 'blockdev-snapshot',
                      'arguments': { 'node':'nodevice',
                                     'overlay':'snap_13' }
                    }
-{"error": {"class": "GenericError", "desc": "Cannot find device=nodevice nor node_name=nodevice"}}
+{"error": {"class": "GenericError", "desc": "Cannot find device='nodevice' nor node-name='nodevice'"}}
 *** done

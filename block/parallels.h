@@ -48,7 +48,8 @@ typedef struct ParallelsHeader {
     uint64_t nb_sectors;
     uint32_t inuse;
     uint32_t data_off;
-    char padding[12];
+    uint32_t flags;
+    uint64_t ext_off;
 } QEMU_PACKED ParallelsHeader;
 
 typedef enum ParallelsPreallocMode {
@@ -79,9 +80,13 @@ typedef struct BDRVParallelsState {
     ParallelsPreallocMode prealloc_mode;
 
     unsigned int tracks;
+    unsigned int cluster_size;
 
     unsigned int off_multiplier;
     Error *migration_blocker;
 } BDRVParallelsState;
+
+int parallels_read_format_extension(BlockDriverState *bs,
+                                    int64_t ext_off, Error **errp);
 
 #endif

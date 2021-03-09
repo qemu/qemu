@@ -6,3 +6,18 @@
 {"return": {}}
 {"execute": "blockdev-backup", "arguments": {"device": "source", "sync": "full", "target": "target"}}
 {"error": {"class": "GenericError", "desc": "Cannot set permissions for backup-top filter: Conflicts with use by other as 'image', which uses 'write' on base"}}
+
+=== backup-top should be gone after job-finalize ===
+
+{"execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "source"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "target"}}
+{"return": {}}
+{"execute": "blockdev-backup", "arguments": {"auto-dismiss": false, "auto-finalize": false, "device": "source", "filter-node-name": "backup-filter", "job-id": "backup", "sync": "full", "target": "target"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "backup"}}
+{"return": {}}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io backup-filter \"write 0 1M\""}}
+{"return": "Error: Cannot find device='' nor node-name='backup-filter'\r\n"}
+{"execute": "job-dismiss", "arguments": {"id": "backup"}}
+{"return": {}}

@@ -45,6 +45,12 @@ static coroutine_fn int backup_top_co_preadv(
         BlockDriverState *bs, uint64_t offset, uint64_t bytes,
         QEMUIOVector *qiov, int flags)
 {
+    BDRVBackupTopState *s = bs->opaque;
+
+    if (!s->active) {
+        return -EIO;
+    }
+
     return bdrv_co_preadv(bs->backing, offset, bytes, qiov, flags);
 }
 
@@ -53,6 +59,10 @@ static coroutine_fn int backup_top_cbw(BlockDriverState *bs, uint64_t offset,
 {
     BDRVBackupTopState *s = bs->opaque;
     uint64_t off, end;
+
+    if (!s->active) {
+        return -EIO;
+    }
 
     if (flags & BDRV_REQ_WRITE_UNCHANGED) {
         return 0;

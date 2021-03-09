@@ -20,8 +20,17 @@
 #include "sysemu/block-backend.h"
 #include "util/block-helpers.h"
 
+/*
+ * Sector units are 512 bytes regardless of the
+ * virtio_blk_config->blk_size value.
+ */
+#define VIRTIO_BLK_SECTOR_BITS 9
+#define VIRTIO_BLK_SECTOR_SIZE (1ull << VIRTIO_BLK_SECTOR_BITS)
+
 enum {
     VHOST_USER_BLK_NUM_QUEUES_DEFAULT = 1,
+    VHOST_USER_BLK_MAX_DISCARD_SECTORS = 32768,
+    VHOST_USER_BLK_MAX_WRITE_ZEROES_SECTORS = 32768,
 };
 struct virtio_blk_inhdr {
     unsigned char status;
@@ -58,30 +67,102 @@ static void vu_blk_req_complete(VuBlkReq *req)
     free(req);
 }
 
+static bool vu_blk_sect_range_ok(VuBlkExport *vexp, uint64_t sector,
+                                 size_t size)
+{
+    uint64_t nb_sectors = size >> BDRV_SECTOR_BITS;
+    uint64_t total_sectors;
+
+    if (nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
+        return false;
+    }
+    if ((sector << VIRTIO_BLK_SECTOR_BITS) % vexp->blk_size) {
+        return false;
+    }
+    blk_get_geometry(vexp->export.blk, &total_sectors);
+    if (sector > total_sectors || nb_sectors > total_sectors - sector) {
+        return false;
+    }
+    return true;
+}
+
 static int coroutine_fn
-vu_blk_discard_write_zeroes(BlockBackend *blk, struct iovec *iov,
+vu_blk_discard_write_zeroes(VuBlkExport *vexp, struct iovec *iov,
                             uint32_t iovcnt, uint32_t type)
 {
+    BlockBackend *blk = vexp->export.blk;
     struct virtio_blk_discard_write_zeroes desc;
-    ssize_t size = iov_to_buf(iov, iovcnt, 0, &desc, sizeof(desc));
+    ssize_t size;
+    uint64_t sector;
+    uint32_t num_sectors;
+    uint32_t max_sectors;
+    uint32_t flags;
+    int bytes;
+
+    /* Only one desc is currently supported */
+    if (unlikely(iov_size(iov, iovcnt) > sizeof(desc))) {
+        return VIRTIO_BLK_S_UNSUPP;
+    }
+
+    size = iov_to_buf(iov, iovcnt, 0, &desc, sizeof(desc));
     if (unlikely(size != sizeof(desc))) {
-        error_report("Invalid size %zd, expect %zu", size, sizeof(desc));
-        return -EINVAL;
+        error_report("Invalid size %zd, expected %zu", size, sizeof(desc));
+        return VIRTIO_BLK_S_IOERR;
     }
 
-    uint64_t range[2] = { le64_to_cpu(desc.sector) << 9,
-                          le32_to_cpu(desc.num_sectors) << 9 };
-    if (type == VIRTIO_BLK_T_DISCARD) {
-        if (blk_co_pdiscard(blk, range[0], range[1]) == 0) {
-            return 0;
+    sector = le64_to_cpu(desc.sector);
+    num_sectors = le32_to_cpu(desc.num_sectors);
+    flags = le32_to_cpu(desc.flags);
+    max_sectors = (type == VIRTIO_BLK_T_WRITE_ZEROES) ?
+                  VHOST_USER_BLK_MAX_WRITE_ZEROES_SECTORS :
+                  VHOST_USER_BLK_MAX_DISCARD_SECTORS;
+
+    /* This check ensures that 'bytes' fits in an int */
+    if (unlikely(num_sectors > max_sectors)) {
+        return VIRTIO_BLK_S_IOERR;
+    }
+
+    bytes = num_sectors << VIRTIO_BLK_SECTOR_BITS;
+
+    if (unlikely(!vu_blk_sect_range_ok(vexp, sector, bytes))) {
+        return VIRTIO_BLK_S_IOERR;
+    }
+
+    /*
+     * The device MUST set the status byte to VIRTIO_BLK_S_UNSUPP for discard
+     * and write zeroes commands if any unknown flag is set.
+     */
+    if (unlikely(flags & ~VIRTIO_BLK_WRITE_ZEROES_FLAG_UNMAP)) {
+        return VIRTIO_BLK_S_UNSUPP;
+    }
+
+    if (type == VIRTIO_BLK_T_WRITE_ZEROES) {
+        int blk_flags = 0;
+
+        if (flags & VIRTIO_BLK_WRITE_ZEROES_FLAG_UNMAP) {
+            blk_flags |= BDRV_REQ_MAY_UNMAP;
         }
-    } else if (type == VIRTIO_BLK_T_WRITE_ZEROES) {
-        if (blk_co_pwrite_zeroes(blk, range[0], range[1], 0) == 0) {
-            return 0;
+
+        if (blk_co_pwrite_zeroes(blk, sector << VIRTIO_BLK_SECTOR_BITS,
+                                 bytes, blk_flags) == 0) {
+            return VIRTIO_BLK_S_OK;
+        }
+    } else if (type == VIRTIO_BLK_T_DISCARD) {
+        /*
+         * The device MUST set the status byte to VIRTIO_BLK_S_UNSUPP for
+         * discard commands if the unmap flag is set.
+         */
+        if (unlikely(flags & VIRTIO_BLK_WRITE_ZEROES_FLAG_UNMAP)) {
+            return VIRTIO_BLK_S_UNSUPP;
+        }
+
+        if (blk_co_pdiscard(blk, sector << VIRTIO_BLK_SECTOR_BITS,
+                            bytes) == 0) {
+            return VIRTIO_BLK_S_OK;
         }
     }
 
-    return -EINVAL;
+    return VIRTIO_BLK_S_IOERR;
 }
 
 static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
@@ -128,6 +209,8 @@ static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
     switch (type & ~VIRTIO_BLK_T_BARRIER) {
     case VIRTIO_BLK_T_IN:
     case VIRTIO_BLK_T_OUT: {
+        QEMUIOVector qiov;
+        int64_t offset;
         ssize_t ret = 0;
         bool is_write = type & VIRTIO_BLK_T_OUT;
         req->sector_num = le64_to_cpu(req->out.sector);
@@ -137,13 +220,24 @@ static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
             break;
         }
 
-        int64_t offset = req->sector_num * vexp->blk_size;
-        QEMUIOVector qiov;
         if (is_write) {
             qemu_iovec_init_external(&qiov, out_iov, out_num);
-            ret = blk_co_pwritev(blk, offset, qiov.size, &qiov, 0);
         } else {
             qemu_iovec_init_external(&qiov, in_iov, in_num);
+        }
+
+        if (unlikely(!vu_blk_sect_range_ok(vexp,
+                                           req->sector_num,
+                                           qiov.size))) {
+            req->in->status = VIRTIO_BLK_S_IOERR;
+            break;
+        }
+
+        offset = req->sector_num << VIRTIO_BLK_SECTOR_BITS;
+
+        if (is_write) {
+            ret = blk_co_pwritev(blk, offset, qiov.size, &qiov, 0);
+        } else {
             ret = blk_co_preadv(blk, offset, qiov.size, &qiov, 0);
         }
         if (ret >= 0) {
@@ -170,19 +264,13 @@ static void coroutine_fn vu_blk_virtio_process_req(void *opaque)
     }
     case VIRTIO_BLK_T_DISCARD:
     case VIRTIO_BLK_T_WRITE_ZEROES: {
-        int rc;
-
         if (!vexp->writable) {
             req->in->status = VIRTIO_BLK_S_IOERR;
             break;
         }
 
-        rc = vu_blk_discard_write_zeroes(blk, &elem->out_sg[1], out_num, type);
-        if (rc == 0) {
-            req->in->status = VIRTIO_BLK_S_OK;
-        } else {
-            req->in->status = VIRTIO_BLK_S_IOERR;
-        }
+        req->in->status = vu_blk_discard_write_zeroes(vexp, out_iov, out_num,
+                                                      type);
         break;
     }
     default:
@@ -347,17 +435,21 @@ vu_blk_initialize_config(BlockDriverState *bs,
                          uint32_t blk_size,
                          uint16_t num_queues)
 {
-    config->capacity = cpu_to_le64(bdrv_getlength(bs) >> BDRV_SECTOR_BITS);
+    config->capacity =
+        cpu_to_le64(bdrv_getlength(bs) >> VIRTIO_BLK_SECTOR_BITS);
     config->blk_size = cpu_to_le32(blk_size);
     config->size_max = cpu_to_le32(0);
     config->seg_max = cpu_to_le32(128 - 2);
     config->min_io_size = cpu_to_le16(1);
     config->opt_io_size = cpu_to_le32(1);
     config->num_queues = cpu_to_le16(num_queues);
-    config->max_discard_sectors = cpu_to_le32(32768);
+    config->max_discard_sectors =
+        cpu_to_le32(VHOST_USER_BLK_MAX_DISCARD_SECTORS);
     config->max_discard_seg = cpu_to_le32(1);
-    config->discard_sector_alignment = cpu_to_le32(config->blk_size >> 9);
-    config->max_write_zeroes_sectors = cpu_to_le32(32768);
+    config->discard_sector_alignment =
+        cpu_to_le32(blk_size >> VIRTIO_BLK_SECTOR_BITS);
+    config->max_write_zeroes_sectors
+        = cpu_to_le32(VHOST_USER_BLK_MAX_WRITE_ZEROES_SECTORS);
     config->max_write_zeroes_seg = cpu_to_le32(1);
 }
 
@@ -383,7 +475,7 @@ static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
     if (vu_opts->has_logical_block_size) {
         logical_block_size = vu_opts->logical_block_size;
     } else {
-        logical_block_size = BDRV_SECTOR_SIZE;
+        logical_block_size = VIRTIO_BLK_SECTOR_SIZE;
     }
     check_block_size(exp->id, "logical-block-size", logical_block_size,
                      &local_err);

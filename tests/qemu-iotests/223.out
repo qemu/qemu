@@ -53,7 +53,7 @@ exports available: 0
 {"return": {}}
 {"execute":"nbd-server-add",
   "arguments":{"device":"nosuch"}}
-{"error": {"class": "GenericError", "desc": "Cannot find device=nosuch nor node_name=nosuch"}}
+{"error": {"class": "GenericError", "desc": "Cannot find device='nosuch' nor node-name='nosuch'"}}
 {"execute":"nbd-server-add",
   "arguments":{"device":"n"}}
 {"error": {"class": "GenericError", "desc": "Block export id 'n' is already in use"}}
@@ -154,7 +154,7 @@ exports available: 0
 {"return": {}}
 {"execute":"nbd-server-add",
   "arguments":{"device":"nosuch"}}
-{"error": {"class": "GenericError", "desc": "Cannot find device=nosuch nor node_name=nosuch"}}
+{"error": {"class": "GenericError", "desc": "Cannot find device='nosuch' nor node-name='nosuch'"}}
 {"execute":"nbd-server-add",
   "arguments":{"device":"n"}}
 {"error": {"class": "GenericError", "desc": "Block export id 'n' is already in use"}}

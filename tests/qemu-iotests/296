@@ -43,7 +43,7 @@ class Secret:
 
     def to_qmp_object(self):
         return { "qom_type" : "secret", "id": self.id(),
-                 "props": { "data": self.secret() } }
+                 "data": self.secret() }
 
 ################################################################################
 

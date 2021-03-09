@@ -140,8 +140,8 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(opts, {'file': 'hd0-file'})
 
         # We cannot change any of these
-        self.reopen(opts, {'node-name': 'not-found'}, "Cannot find node named 'not-found'")
-        self.reopen(opts, {'node-name': ''}, "Cannot find node named ''")
+        self.reopen(opts, {'node-name': 'not-found'}, "Failed to find node with node-name='not-found'")
+        self.reopen(opts, {'node-name': ''}, "Failed to find node with node-name=''")
         self.reopen(opts, {'node-name': None}, "Invalid parameter type for 'node-name', expected: string")
         self.reopen(opts, {'driver': 'raw'}, "Cannot change the option 'driver'")
         self.reopen(opts, {'driver': ''}, "Invalid parameter ''")
@@ -158,7 +158,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
 
         # node-name is optional in BlockdevOptions, but x-blockdev-reopen needs it
         del opts['node-name']
-        self.reopen(opts, {}, "Node name not specified")
+        self.reopen(opts, {}, "node-name not specified")
 
         # Check that nothing has changed
         self.check_node_graph(original_graph)
@@ -187,8 +187,8 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(opts, {'backing': backing_node_name})
 
         # We can't use a non-existing or empty (non-NULL) node as the backing image
-        self.reopen(opts, {'backing': 'not-found'}, "Cannot find device= nor node_name=not-found")
-        self.reopen(opts, {'backing': ''}, "Cannot find device= nor node_name=")
+        self.reopen(opts, {'backing': 'not-found'}, "Cannot find device=\'\' nor node-name=\'not-found\'")
+        self.reopen(opts, {'backing': ''}, "Cannot find device=\'\' nor node-name=\'\'")
 
         # We can reopen the image just fine if we specify the backing options
         opts['backing'] = {'driver': iotests.imgfmt,
@@ -644,12 +644,12 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         ###### throttle ######
         ######################
         opts = { 'qom-type': 'throttle-group', 'id': 'group0',
-                 'props': { 'limits': { 'iops-total': 1000 } } }
+                 'limits': { 'iops-total': 1000 } }
         result = self.vm.qmp('object-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
 
         opts = { 'qom-type': 'throttle-group', 'id': 'group1',
-                 'props': { 'limits': { 'iops-total': 2000 } } }
+                 'limits': { 'iops-total': 2000 } }
         result = self.vm.qmp('object-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
 

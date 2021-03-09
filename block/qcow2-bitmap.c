@@ -278,18 +278,6 @@ static int free_bitmap_clusters(BlockDriverState *bs, Qcow2BitmapTable *tb)
     return 0;
 }
 
-/* Return the disk size covered by a single qcow2 cluster of bitmap data. */
-static uint64_t bytes_covered_by_bitmap_cluster(const BDRVQcow2State *s,
-                                                const BdrvDirtyBitmap *bitmap)
-{
-    uint64_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
-    uint64_t limit = granularity * (s->cluster_size << 3);
-
-    assert(QEMU_IS_ALIGNED(limit,
-                           bdrv_dirty_bitmap_serialization_align(bitmap)));
-    return limit;
-}
-
 /* load_bitmap_data
  * @bitmap_table entries must satisfy specification constraints.
  * @bitmap must be cleared */
@@ -312,7 +300,7 @@ static int load_bitmap_data(BlockDriverState *bs,
     }
 
     buf = g_malloc(s->cluster_size);
-    limit = bytes_covered_by_bitmap_cluster(s, bitmap);
+    limit = bdrv_dirty_bitmap_serialization_coverage(s->cluster_size, bitmap);
     for (i = 0, offset = 0; i < tab_size; ++i, offset += limit) {
         uint64_t count = MIN(bm_size - offset, limit);
         uint64_t entry = bitmap_table[i];
@@ -1303,7 +1291,7 @@ static uint64_t *store_bitmap_data(BlockDriverState *bs,
     }
 
     buf = g_malloc(s->cluster_size);
-    limit = bytes_covered_by_bitmap_cluster(s, bitmap);
+    limit = bdrv_dirty_bitmap_serialization_coverage(s->cluster_size, bitmap);
     assert(DIV_ROUND_UP(bm_size, limit) == tb_size);
 
     offset = 0;

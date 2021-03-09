@@ -81,24 +81,8 @@ static void qtest_client_set_rx_handler(QTestState *s, QTestRecvFn recv);
 
 static int init_socket(const char *socket_path)
 {
-    struct sockaddr_un addr;
-    int sock;
-    int ret;
-
-    sock = socket(PF_UNIX, SOCK_STREAM, 0);
-    g_assert_cmpint(sock, !=, -1);
-
-    addr.sun_family = AF_UNIX;
-    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socket_path);
+    int sock = qtest_socket_server(socket_path);
     qemu_set_cloexec(sock);
-
-    do {
-        ret = bind(sock, (struct sockaddr *)&addr, sizeof(addr));
-    } while (ret == -1 && errno == EINTR);
-    g_assert_cmpint(ret, !=, -1);
-    ret = listen(sock, 1);
-    g_assert_cmpint(ret, !=, -1);
-
     return sock;
 }
 
@@ -149,7 +133,7 @@ void qtest_set_expected_status(QTestState *s, int status)
     s->expected_status = status;
 }
 
-static void kill_qemu(QTestState *s)
+void qtest_kill_qemu(QTestState *s)
 {
     pid_t pid = s->qemu_pid;
     int wstatus;
@@ -159,6 +143,7 @@ static void kill_qemu(QTestState *s)
         kill(pid, SIGTERM);
         TFR(pid = waitpid(s->qemu_pid, &s->wstatus, 0));
         assert(pid == s->qemu_pid);
+        s->qemu_pid = -1;
     }
 
     /*
@@ -185,7 +170,7 @@ static void kill_qemu(QTestState *s)
 
 static void kill_qemu_hook_func(void *s)
 {
-    kill_qemu(s);
+    qtest_kill_qemu(s);
 }
 
 static void sigabrt_handler(int signo)
@@ -211,21 +196,47 @@ static void cleanup_sigabrt_handler(void)
     sigaction(SIGABRT, &sigact_old, NULL);
 }
 
+static bool hook_list_is_empty(GHookList *hook_list)
+{
+    GHook *hook = g_hook_first_valid(hook_list, TRUE);
+
+    if (!hook) {
+        return false;
+    }
+
+    g_hook_unref(hook_list, hook);
+    return true;
+}
+
 void qtest_add_abrt_handler(GHookFunc fn, const void *data)
 {
     GHook *hook;
 
-    /* Only install SIGABRT handler once */
     if (!abrt_hooks.is_setup) {
         g_hook_list_init(&abrt_hooks, sizeof(GHook));
     }
-    setup_sigabrt_handler();
+
+    /* Only install SIGABRT handler once */
+    if (hook_list_is_empty(&abrt_hooks)) {
+        setup_sigabrt_handler();
+    }
 
     hook = g_hook_alloc(&abrt_hooks);
     hook->func = fn;
     hook->data = (void *)data;
 
     g_hook_prepend(&abrt_hooks, hook);
+}
+
+void qtest_remove_abrt_handler(void *data)
+{
+    GHook *hook = g_hook_find_data(&abrt_hooks, TRUE, data);
+    g_hook_destroy_link(&abrt_hooks, hook);
+
+    /* Uninstall SIGABRT handler on last instance */
+    if (hook_list_is_empty(&abrt_hooks)) {
+        cleanup_sigabrt_handler();
+    }
 }
 
 static const char *qtest_qemu_binary(void)
@@ -384,12 +395,9 @@ QTestState *qtest_init_with_serial(const char *extra_args, int *sock_fd)
 
 void qtest_quit(QTestState *s)
 {
-    g_hook_destroy_link(&abrt_hooks, g_hook_find_data(&abrt_hooks, TRUE, s));
+    qtest_remove_abrt_handler(s);
 
-    /* Uninstall SIGABRT handler on last instance */
-    cleanup_sigabrt_handler();
-
-    kill_qemu(s);
+    qtest_kill_qemu(s);
     close(s->fd);
     close(s->qmp_fd);
     g_string_free(s->rx, true);
@@ -636,6 +644,28 @@ QDict *qtest_qmp_receive(QTestState *s)
 QDict *qtest_qmp_receive_dict(QTestState *s)
 {
     return qmp_fd_receive(s->qmp_fd);
+}
+
+int qtest_socket_server(const char *socket_path)
+{
+    struct sockaddr_un addr;
+    int sock;
+    int ret;
+
+    sock = socket(PF_UNIX, SOCK_STREAM, 0);
+    g_assert_cmpint(sock, !=, -1);
+
+    addr.sun_family = AF_UNIX;
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socket_path);
+
+    do {
+        ret = bind(sock, (struct sockaddr *)&addr, sizeof(addr));
+    } while (ret == -1 && errno == EINTR);
+    g_assert_cmpint(ret, !=, -1);
+    ret = listen(sock, 1);
+    g_assert_cmpint(ret, !=, -1);
+
+    return sock;
 }
 
 /**

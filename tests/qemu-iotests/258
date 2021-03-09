@@ -103,9 +103,9 @@ def test_concurrent_finish(write_to_stream_node):
         vm.qmp_log('object-add',
                    qom_type='throttle-group',
                    id='tg',
-                   props={
-                       'x-iops-write': 1,
-                       'x-iops-write-max': 1
+                   limits={
+                       'iops-write': 1,
+                       'iops-write-max': 1
                    })
 
         vm.qmp_log('blockdev-add',
