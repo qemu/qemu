@@ -345,8 +345,7 @@ static uint64_t vu_blk_get_features(VuDev *dev)
 
 static uint64_t vu_blk_get_protocol_features(VuDev *dev)
 {
-    return 1ull << VHOST_USER_PROTOCOL_F_CONFIG |
-           1ull << VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD;
+    return 1ull << VHOST_USER_PROTOCOL_F_CONFIG;
 }
 
 static int
