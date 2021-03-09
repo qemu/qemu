@@ -296,4 +296,16 @@ uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg);
 void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,
                     QEMUSGList *sg, enum BlockAcctType type);
 
+/**
+ * dma_aligned_pow2_mask: Return the address bit mask of the largest
+ * power of 2 size less or equal than @end - @start + 1, aligned with @start,
+ * and bounded by 1 << @max_addr_bits bits.
+ *
+ * @start: range start address
+ * @end: range end address (greater than @start)
+ * @max_addr_bits: max address bits (<= 64)
+ */
+uint64_t dma_aligned_pow2_mask(uint64_t start, uint64_t end,
+                               int max_addr_bits);
+
 #endif

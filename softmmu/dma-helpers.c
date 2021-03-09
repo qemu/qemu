@@ -330,3 +330,29 @@ void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,
 {
     block_acct_start(blk_get_stats(blk), cookie, sg->size, type);
 }
+
+uint64_t dma_aligned_pow2_mask(uint64_t start, uint64_t end, int max_addr_bits)
+{
+    uint64_t max_mask = UINT64_MAX, addr_mask = end - start;
+    uint64_t alignment_mask, size_mask;
+
+    if (max_addr_bits != 64) {
+        max_mask = (1ULL << max_addr_bits) - 1;
+    }
+
+    alignment_mask = start ? (start & -start) - 1 : max_mask;
+    alignment_mask = MIN(alignment_mask, max_mask);
+    size_mask = MIN(addr_mask, max_mask);
+
+    if (alignment_mask <= size_mask) {
+        /* Increase the alignment of start */
+        return alignment_mask;
+    } else {
+        /* Find the largest page mask from size */
+        if (addr_mask == UINT64_MAX) {
+            return UINT64_MAX;
+        }
+        return (1ULL << (63 - clz64(addr_mask + 1))) - 1;
+    }
+}
+
