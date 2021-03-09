@@ -71,10 +71,11 @@ QEMU 5.1 has three options:
       to the user to load all the images they need.
  3. ``-bios <file>`` - Tells QEMU to load the specified file as the firmwrae.
 
-``Configuring floppies with ``-global``
-'''''''''''''''''''''''''''''''''''''''
+Floppy controllers' drive properties (since 5.1)
+''''''''''''''''''''''''''''''''''''''''''''''''
 
-Use ``-device floppy,...`` instead:
+Use ``-device floppy,...`` instead.  When configuring onboard floppy
+controllers
 ::
 
     -global isa-fdc.driveA=...
@@ -97,8 +98,30 @@ become
 
     -device floppy,unit=1,drive=...
 
-``-drive`` with bogus interface type
-''''''''''''''''''''''''''''''''''''
+When plugging in a floppy controller
+::
+
+    -device isa-fdc,...,driveA=...
+
+becomes
+::
+
+    -device isa-fdc,...
+    -device floppy,unit=0,drive=...
+
+and
+::
+
+    -device isa-fdc,...,driveB=...
+
+becomes
+::
+
+    -device isa-fdc,...
+    -device floppy,unit=1,drive=...
+
+``-drive`` with bogus interface type (since 5.1)
+''''''''''''''''''''''''''''''''''''''''''''''''
 
 Drives with interface types other than ``if=none`` are for onboard
 devices.  It is possible to use drives the board doesn't pick up with
