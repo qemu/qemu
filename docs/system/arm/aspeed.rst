@@ -48,6 +48,7 @@ Supported devices
  * UART
  * Ethernet controllers
  * Front LEDs (PCA9552 on I2C bus)
+ * LPC Peripheral Controller (a subset of subdevices are supported)
 
 
 Missing devices
@@ -56,7 +57,6 @@ Missing devices
  * Coprocessor support
  * ADC (out of tree implementation)
  * PWM and Fan Controller
- * LPC Bus Controller
  * Slave GPIO Controller
  * Super I/O Controller
  * Hash/Crypto Engine
