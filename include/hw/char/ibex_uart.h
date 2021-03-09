@@ -62,6 +62,8 @@ REG32(FIFO_CTRL, 0x1c)
     FIELD(FIFO_CTRL, RXILVL, 2, 3)
     FIELD(FIFO_CTRL, TXILVL, 5, 2)
 REG32(FIFO_STATUS, 0x20)
+    FIELD(FIFO_STATUS, TXLVL, 0, 5)
+    FIELD(FIFO_STATUS, RXLVL, 16, 5)
 REG32(OVRD, 0x24)
 REG32(VAL, 0x28)
 REG32(TIMEOUT_CTRL, 0x2c)
@@ -81,6 +83,8 @@ struct IbexUartState {
 
     uint8_t tx_fifo[IBEX_UART_TX_FIFO_SIZE];
     uint32_t tx_level;
+
+    uint32_t rx_level;
 
     QEMUTimer *fifo_trigger_handle;
     uint64_t char_tx_time;
