@@ -1398,20 +1398,21 @@ QemuCocoaView *cocoaView;
     [superView addSubview: picture_view];
 
     /* Make the name label */
-    x = 0;
-    y = y - 25;
-    int name_width = about_width, name_height = 20;
-    NSRect name_rect = NSMakeRect(x, y, name_width, name_height);
-    NSTextField *name_label = [[NSTextField alloc] initWithFrame: name_rect];
-    [name_label setEditable: NO];
-    [name_label setBezeled: NO];
-    [name_label setDrawsBackground: NO];
-    [name_label setAlignment: NSTextAlignmentCenter];
-    NSString *qemu_name = [[NSString alloc] initWithCString: gArgv[0]
-                                            encoding: NSASCIIStringEncoding];
-    qemu_name = [qemu_name lastPathComponent];
-    [name_label setStringValue: qemu_name];
-    [superView addSubview: name_label];
+    NSBundle *bundle = [NSBundle mainBundle];
+    if (bundle) {
+        x = 0;
+        y = y - 25;
+        int name_width = about_width, name_height = 20;
+        NSRect name_rect = NSMakeRect(x, y, name_width, name_height);
+        NSTextField *name_label = [[NSTextField alloc] initWithFrame: name_rect];
+        [name_label setEditable: NO];
+        [name_label setBezeled: NO];
+        [name_label setDrawsBackground: NO];
+        [name_label setAlignment: NSTextAlignmentCenter];
+        NSString *qemu_name = [[bundle executablePath] lastPathComponent];
+        [name_label setStringValue: qemu_name];
+        [superView addSubview: name_label];
+    }
 
     /* Set the version label's attributes */
     x = 0;
