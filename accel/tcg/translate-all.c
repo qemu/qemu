@@ -920,10 +920,9 @@ static void tb_htable_init(void)
 void tcg_exec_init(unsigned long tb_size, int splitwx)
 {
     tcg_allowed = true;
-    tcg_context_init(&tcg_init_ctx);
     page_init();
     tb_htable_init();
-    tcg_region_init(tb_size, splitwx);
+    tcg_init(tb_size, splitwx);
 
 #if defined(CONFIG_SOFTMMU)
     /* There's no guest base to take into account, so go ahead and
