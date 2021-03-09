@@ -39,6 +39,7 @@
 #include "qapi/qapi-commands-misc.h"
 #include "sysemu/blockdev.h"
 #include "qemu-version.h"
+#include "qemu/cutils.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include <Carbon/Carbon.h>
@@ -1385,18 +1386,13 @@ QemuCocoaView *cocoaView;
     y = about_height - picture_height - 10;
     NSRect picture_rect = NSMakeRect(x, y, picture_width, picture_height);
 
-    /* Get the path to the QEMU binary */
-    NSString *binary_name = [NSString stringWithCString: gArgv[0]
-                                      encoding: NSASCIIStringEncoding];
-    binary_name = [binary_name lastPathComponent];
-    NSString *program_path = [[NSString alloc] initWithFormat: @"%@/%@",
-    [[NSBundle mainBundle] bundlePath], binary_name];
-
     /* Make the picture of QEMU */
     NSImageView *picture_view = [[NSImageView alloc] initWithFrame:
                                                      picture_rect];
-    NSImage *qemu_image = [[NSWorkspace sharedWorkspace] iconForFile:
-                                                         program_path];
+    char *qemu_image_path_c = get_relocated_path(CONFIG_QEMU_ICONDIR "/hicolor/512x512/apps/qemu.png");
+    NSString *qemu_image_path = [NSString stringWithUTF8String:qemu_image_path_c];
+    g_free(qemu_image_path_c);
+    NSImage *qemu_image = [[NSImage alloc] initWithContentsOfFile:qemu_image_path];
     [picture_view setImage: qemu_image];
     [picture_view setImageScaling: NSImageScaleProportionallyUpOrDown];
     [superView addSubview: picture_view];
