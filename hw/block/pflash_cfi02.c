@@ -184,10 +184,13 @@ static void pflash_setup_mappings(PFlashCFI02 *pfl)
     pfl->rom_mode = true;
 }
 
-static void pflash_register_memory(PFlashCFI02 *pfl, int rom_mode)
+static void pflash_mode_read_array(PFlashCFI02 *pfl)
 {
-    memory_region_rom_device_set_romd(&pfl->orig_mem, rom_mode);
-    pfl->rom_mode = !!rom_mode;
+    trace_pflash_mode_read_array();
+    pfl->cmd = 0x00;
+    pfl->wcycle = 0;
+    pfl->rom_mode = true;
+    memory_region_rom_device_set_romd(&pfl->orig_mem, true);
 }
 
 static size_t pflash_regions_count(PFlashCFI02 *pfl)
@@ -249,11 +252,10 @@ static void pflash_timer(void *opaque)
     toggle_dq7(pfl);
     if (pfl->bypass) {
         pfl->wcycle = 2;
+        pfl->cmd = 0;
     } else {
-        pflash_register_memory(pfl, 1);
-        pfl->wcycle = 0;
+        pflash_mode_read_array(pfl);
     }
-    pfl->cmd = 0;
 }
 
 /*
@@ -315,7 +317,7 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
     /* Lazy reset to ROMD mode after a certain amount of read accesses */
     if (!pfl->rom_mode && pfl->wcycle == 0 &&
         ++pfl->read_counter > PFLASH_LAZY_ROMD_THRESHOLD) {
-        pflash_register_memory(pfl, 1);
+        pflash_mode_read_array(pfl);
     }
     offset &= pfl->chip_len - 1;
     boff = offset & 0xFF;
@@ -933,8 +935,6 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
 
     timer_init_ns(&pfl->timer, QEMU_CLOCK_VIRTUAL, pflash_timer, pfl);
-    pfl->wcycle = 0;
-    pfl->cmd = 0;
     pfl->status = 0;
 
     pflash_cfi02_fill_cfi_table(pfl, nb_regions);
