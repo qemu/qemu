@@ -184,11 +184,17 @@ static void pflash_setup_mappings(PFlashCFI02 *pfl)
     pfl->rom_mode = true;
 }
 
+static void pflash_reset_state_machine(PFlashCFI02 *pfl)
+{
+    trace_pflash_reset();
+    pfl->cmd = 0x00;
+    pfl->wcycle = 0;
+}
+
 static void pflash_mode_read_array(PFlashCFI02 *pfl)
 {
     trace_pflash_mode_read_array();
-    pfl->cmd = 0x00;
-    pfl->wcycle = 0;
+    pflash_reset_state_machine(pfl);
     pfl->rom_mode = true;
     memory_region_rom_device_set_romd(&pfl->orig_mem, true);
 }
@@ -330,8 +336,7 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
     default:
         /* This should never happen : reset state & treat it as a read*/
         DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
-        pfl->wcycle = 0;
-        pfl->cmd = 0;
+        pflash_reset_state_machine(pfl);
         /* fall through to the read code */
     case 0x80: /* Erase (unlock) */
         /* We accept reads during second unlock sequence... */
@@ -669,8 +674,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
                 }
                 reset_dq3(pfl);
                 timer_del(&pfl->timer);
-                pfl->wcycle = 0;
-                pfl->cmd = 0;
+                pflash_reset_state_machine(pfl);
                 return;
             }
             /*
@@ -710,10 +714,8 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
 
     /* Reset flash */
  reset_flash:
-    trace_pflash_reset();
     pfl->bypass = 0;
-    pfl->wcycle = 0;
-    pfl->cmd = 0;
+    pflash_reset_state_machine(pfl);
     return;
 
  do_bypass:
