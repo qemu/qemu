@@ -78,7 +78,7 @@ typedef struct CURLAIOCB {
 
 typedef struct CURLSocket {
     int fd;
-    struct CURLState *state;
+    struct BDRVCURLState *s;
     QLIST_ENTRY(CURLSocket) next;
 } CURLSocket;
 
@@ -155,7 +155,7 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
     if (!socket) {
         socket = g_new0(CURLSocket, 1);
         socket->fd = fd;
-        socket->state = state;
+        socket->s = s;
         QLIST_INSERT_HEAD(&state->sockets, socket, next);
     }
 
@@ -385,7 +385,7 @@ static void curl_multi_check_completion(BDRVCURLState *s)
 /* Called with s->mutex held.  */
 static void curl_multi_do_locked(CURLSocket *socket)
 {
-    BDRVCURLState *s = socket->state->s;
+    BDRVCURLState *s = socket->s;
     int running;
     int r;
 
@@ -401,7 +401,7 @@ static void curl_multi_do_locked(CURLSocket *socket)
 static void curl_multi_do(void *arg)
 {
     CURLSocket *socket = arg;
-    BDRVCURLState *s = socket->state->s;
+    BDRVCURLState *s = socket->s;
 
     qemu_mutex_lock(&s->mutex);
     curl_multi_do_locked(socket);
