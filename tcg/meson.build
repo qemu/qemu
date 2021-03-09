@@ -2,6 +2,7 @@ tcg_ss = ss.source_set()
 
 tcg_ss.add(files(
   'optimize.c',
+  'region.c',
   'tcg.c',
   'tcg-common.c',
   'tcg-op.c',
