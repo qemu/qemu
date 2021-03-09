@@ -909,7 +909,7 @@ check_dev_state:
         r = 0;
     }
     if (r) {
-        /* An error is occured. */
+        /* An error occurred. */
         dev->log_enabled = false;
     }
 

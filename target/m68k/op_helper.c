@@ -117,7 +117,7 @@ static const char *m68k_exception_name(int index)
     case EXCP_FORMAT:
         return "Format Error";
     case EXCP_UNINITIALIZED:
-        return "Unitialized Interruot";
+        return "Uninitialized Interrupt";
     case EXCP_SPURIOUS:
         return "Spurious Interrupt";
     case EXCP_INT_LEVEL_1:
