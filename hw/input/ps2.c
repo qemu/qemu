@@ -293,7 +293,8 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
     qcode = qemu_input_key_value_to_qcode(key->key);
 
     mod = ps2_modifier_bit(qcode);
-    trace_ps2_keyboard_event(s, qcode, key->down, mod, s->modifiers);
+    trace_ps2_keyboard_event(s, qcode, key->down, mod,
+                             s->modifiers, s->scancode_set, s->translate);
     if (key->down) {
         s->modifiers |= mod;
     } else {
