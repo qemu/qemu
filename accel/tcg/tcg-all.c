@@ -111,17 +111,6 @@ static int tcg_init(MachineState *ms)
 
     tcg_exec_init(s->tb_size * 1024 * 1024, s->splitwx_enabled);
     mttcg_enabled = s->mttcg_enabled;
-
-    /*
-     * Initialize TCG regions only for softmmu.
-     *
-     * This needs to be done later for user mode, because the prologue
-     * generation needs to be delayed so that GUEST_BASE is already set.
-     */
-#ifndef CONFIG_USER_ONLY
-    tcg_region_init();
-#endif /* !CONFIG_USER_ONLY */
-
     return 0;
 }
 
