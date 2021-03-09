@@ -368,6 +368,7 @@ int main(int argc, char *argv[])
 
     blk_exp_close_all();
     bdrv_drain_all_begin();
+    job_cancel_sync_all();
     bdrv_close_all();
 
     monitor_cleanup();
