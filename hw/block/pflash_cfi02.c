@@ -108,7 +108,7 @@ struct PFlashCFI02 {
     MemoryRegion mem;
     MemoryRegion *mem_mappings;    /* array; one per mapping */
     MemoryRegion orig_mem;
-    int rom_mode;
+    bool rom_mode;
     int read_counter; /* used for lazy switch-back to rom mode */
     int sectors_to_erase;
     uint64_t erase_time_remaining;
@@ -181,12 +181,13 @@ static void pflash_setup_mappings(PFlashCFI02 *pfl)
                                  "pflash-alias", &pfl->orig_mem, 0, size);
         memory_region_add_subregion(&pfl->mem, i * size, &pfl->mem_mappings[i]);
     }
+    pfl->rom_mode = true;
 }
 
 static void pflash_register_memory(PFlashCFI02 *pfl, int rom_mode)
 {
     memory_region_rom_device_set_romd(&pfl->orig_mem, rom_mode);
-    pfl->rom_mode = rom_mode;
+    pfl->rom_mode = !!rom_mode;
 }
 
 static size_t pflash_regions_count(PFlashCFI02 *pfl)
@@ -927,7 +928,6 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->sector_erase_map = bitmap_new(pfl->total_sectors);
 
     pflash_setup_mappings(pfl);
-    pfl->rom_mode = 1;
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
 
     timer_init_ns(&pfl->timer, QEMU_CLOCK_VIRTUAL, pflash_timer, pfl);
