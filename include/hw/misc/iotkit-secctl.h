@@ -120,6 +120,8 @@ struct IoTKitSecCtl {
     IoTKitSecCtlPPC apb[IOTS_NUM_APB_PPC];
     IoTKitSecCtlPPC apbexp[IOTS_NUM_APB_EXP_PPC];
     IoTKitSecCtlPPC ahbexp[IOTS_NUM_APB_EXP_PPC];
+
+    uint32_t sse_version;
 };
 
 #endif

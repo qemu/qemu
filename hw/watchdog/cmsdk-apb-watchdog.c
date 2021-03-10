@@ -310,7 +310,7 @@ static void cmsdk_apb_watchdog_reset(DeviceState *dev)
     ptimer_transaction_commit(s->timer);
 }
 
-static void cmsdk_apb_watchdog_clk_update(void *opaque)
+static void cmsdk_apb_watchdog_clk_update(void *opaque, ClockEvent event)
 {
     CMSDKAPBWatchdog *s = CMSDK_APB_WATCHDOG(opaque);
 
@@ -329,7 +329,8 @@ static void cmsdk_apb_watchdog_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->wdogint);
     s->wdogclk = qdev_init_clock_in(DEVICE(s), "WDOGCLK",
-                                    cmsdk_apb_watchdog_clk_update, s);
+                                    cmsdk_apb_watchdog_clk_update, s,
+                                    ClockUpdate);
 
     s->is_luminary = false;
     s->id = cmsdk_apb_watchdog_id;

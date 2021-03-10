@@ -93,3 +93,15 @@ avr_timer16_interrupt_count(uint8_t cnt) "count: %u"
 avr_timer16_interrupt_overflow(const char *reason) "overflow: %s"
 avr_timer16_next_alarm(uint64_t delay_ns) "next alarm: %" PRIu64 " ns from now"
 avr_timer16_clksrc_update(uint64_t freq_hz, uint64_t period_ns, uint64_t delay_s) "timer frequency: %" PRIu64 " Hz, period: %" PRIu64 " ns (%" PRId64 " us)"
+
+# sse_counter.c
+sse_counter_control_read(uint64_t offset, uint64_t data, unsigned size) "SSE system counter control frame read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+sse_counter_control_write(uint64_t offset, uint64_t data, unsigned size) "SSE system counter control framen write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+sse_counter_status_read(uint64_t offset, uint64_t data, unsigned size) "SSE system counter status frame read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+sse_counter_status_write(uint64_t offset, uint64_t data, unsigned size) "SSE system counter status frame write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+sse_counter_reset(void) "SSE system counter: reset"
+
+# sse_timer.c
+sse_timer_read(uint64_t offset, uint64_t data, unsigned size) "SSE system timer read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+sse_timer_write(uint64_t offset, uint64_t data, unsigned size) "SSE system timer write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
+sse_timer_reset(void) "SSE system timer: reset"

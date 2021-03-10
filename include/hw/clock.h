@@ -22,7 +22,18 @@
 #define TYPE_CLOCK "clock"
 OBJECT_DECLARE_SIMPLE_TYPE(Clock, CLOCK)
 
-typedef void ClockCallback(void *opaque);
+/*
+ * Argument to ClockCallback functions indicating why the callback
+ * has been called. A mask of these values logically ORed together
+ * is used to specify which events are interesting when the callback
+ * is registered, so these values must all be different bit values.
+ */
+typedef enum ClockEvent {
+    ClockUpdate = 1, /* Clock period has just updated */
+    ClockPreUpdate = 2, /* Clock period is about to update */
+} ClockEvent;
+
+typedef void ClockCallback(void *opaque, ClockEvent event);
 
 /*
  * clock store a value representing the clock's period in 2^-32ns unit.
@@ -50,6 +61,7 @@ typedef void ClockCallback(void *opaque);
  * @canonical_path: clock path string cache (used for trace purpose)
  * @callback: called when clock changes
  * @callback_opaque: argument for @callback
+ * @callback_events: mask of events when callback should be called
  * @source: source (or parent in clock tree) of the clock
  * @children: list of clocks connected to this one (it is their source)
  * @sibling: structure used to form a clock list
@@ -67,6 +79,7 @@ struct Clock {
     char *canonical_path;
     ClockCallback *callback;
     void *callback_opaque;
+    unsigned int callback_events;
 
     /* Clocks are organized in a clock tree */
     Clock *source;
@@ -114,10 +127,15 @@ Clock *clock_new(Object *parent, const char *name);
  * @clk: the clock to register the callback into
  * @cb: the callback function
  * @opaque: the argument to the callback
+ * @events: the events the callback should be called for
+ *          (logical OR of ClockEvent enum values)
  *
  * Register a callback called on every clock update.
+ * Note that a clock has only one callback: you cannot register
+ * different callback functions for different events.
  */
-void clock_set_callback(Clock *clk, ClockCallback *cb, void *opaque);
+void clock_set_callback(Clock *clk, ClockCallback *cb,
+                        void *opaque, unsigned int events);
 
 /**
  * clock_clear_callback:
@@ -266,6 +284,47 @@ static inline uint64_t clock_ticks_to_ns(const Clock *clk, uint64_t ticks)
         return INT64_MAX;
     }
     return ns_low >> 32 | ns_high << 32;
+}
+
+/**
+ * clock_ns_to_ticks:
+ * @clk: the clock to query
+ * @ns: duration in nanoseconds
+ *
+ * Returns the number of ticks this clock would make in the given
+ * number of nanoseconds. Because a clock can have a period which
+ * is not a whole number of nanoseconds, it is important to use this
+ * function rather than attempting to obtain a "period in nanoseconds"
+ * value and then dividing the duration by that value.
+ *
+ * If the clock is stopped (ie it has period zero), returns 0.
+ *
+ * For some inputs the result could overflow a 64-bit value (because
+ * the clock's period is short and the duration is long). In these
+ * cases we truncate the result to a 64-bit value. This is on the
+ * assumption that generally the result is going to be used to report
+ * a 32-bit or 64-bit guest register value, so wrapping either cannot
+ * happen or is the desired behaviour.
+ */
+static inline uint64_t clock_ns_to_ticks(const Clock *clk, uint64_t ns)
+{
+    /*
+     * ticks = duration_in_ns / period_in_ns
+     *       = ns / (period / 2^32)
+     *       = (ns * 2^32) / period
+     * The hi, lo inputs to divu128() are (ns << 32) as a 128 bit value.
+     */
+    uint64_t lo = ns << 32;
+    uint64_t hi = ns >> 32;
+    if (clk->period == 0) {
+        return 0;
+    }
+    /*
+     * Ignore divu128() return value as we've caught div-by-zero and don't
+     * need different behaviour for overflow.
+     */
+    divu128(&lo, &hi, clk->period);
+    return lo;
 }
 
 /**

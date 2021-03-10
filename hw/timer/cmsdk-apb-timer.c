@@ -204,7 +204,7 @@ static void cmsdk_apb_timer_reset(DeviceState *dev)
     ptimer_transaction_commit(s->timer);
 }
 
-static void cmsdk_apb_timer_clk_update(void *opaque)
+static void cmsdk_apb_timer_clk_update(void *opaque, ClockEvent event)
 {
     CMSDKAPBTimer *s = CMSDK_APB_TIMER(opaque);
 
@@ -223,7 +223,7 @@ static void cmsdk_apb_timer_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->timerint);
     s->pclk = qdev_init_clock_in(DEVICE(s), "pclk",
-                                 cmsdk_apb_timer_clk_update, s);
+                                 cmsdk_apb_timer_clk_update, s, ClockUpdate);
 }
 
 static void cmsdk_apb_timer_realize(DeviceState *dev, Error **errp)

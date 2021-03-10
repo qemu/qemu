@@ -353,6 +353,7 @@ config XLNX_ZYNQMP_ARM
     select SSI_M25P80
     select XILINX_AXI
     select XILINX_SPIPS
+    select XLNX_CSU_DMA
     select XLNX_ZYNQMP
     select XLNX_ZDMA
 
@@ -505,6 +506,7 @@ config ARM11MPCORE
 config ARMSSE
     bool
     select ARM_V7M
+    select ARMSSE_CPU_PWRCTRL
     select ARMSSE_CPUID
     select ARMSSE_MHU
     select CMSDK_APB_TIMER
@@ -520,9 +522,5 @@ config ARMSSE
     select TZ_MSC
     select TZ_PPC
     select UNIMP
-
-config ARMSSE_CPUID
-    bool
-
-config ARMSSE_MHU
-    bool
+    select SSE_COUNTER
+    select SSE_TIMER

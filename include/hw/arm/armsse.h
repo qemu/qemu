@@ -97,11 +97,14 @@
 #include "hw/misc/tz-mpc.h"
 #include "hw/timer/cmsdk-apb-timer.h"
 #include "hw/timer/cmsdk-apb-dualtimer.h"
+#include "hw/timer/sse-counter.h"
+#include "hw/timer/sse-timer.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
 #include "hw/misc/iotkit-sysctl.h"
 #include "hw/misc/iotkit-sysinfo.h"
 #include "hw/misc/armsse-cpuid.h"
 #include "hw/misc/armsse-mhu.h"
+#include "hw/misc/armsse-cpu-pwrctrl.h"
 #include "hw/misc/unimp.h"
 #include "hw/or-irq.h"
 #include "hw/clock.h"
@@ -120,12 +123,14 @@ OBJECT_DECLARE_TYPE(ARMSSE, ARMSSEClass,
  */
 #define TYPE_IOTKIT "iotkit"
 #define TYPE_SSE200 "sse-200"
+#define TYPE_SSE300 "sse-300"
 
 /* We have an IRQ splitter and an OR gate input for each external PPC
  * and the 2 internal PPCs
  */
+#define NUM_INTERNAL_PPCS 2
 #define NUM_EXTERNAL_PPCS (IOTS_NUM_AHB_EXP_PPC + IOTS_NUM_APB_EXP_PPC)
-#define NUM_PPCS (NUM_EXTERNAL_PPCS + 2)
+#define NUM_PPCS (NUM_EXTERNAL_PPCS + NUM_INTERNAL_PPCS)
 
 #define MAX_SRAM_BANKS 4
 #if MAX_SRAM_BANKS > IOTS_NUM_MPC
@@ -134,15 +139,10 @@ OBJECT_DECLARE_TYPE(ARMSSE, ARMSSEClass,
 
 #define SSE_MAX_CPUS 2
 
-/* These define what each PPU in the ppu[] index is for */
-#define CPU0CORE_PPU 0
-#define CPU1CORE_PPU 1
-#define DBG_PPU 2
-#define RAM0_PPU 3
-#define RAM1_PPU 4
-#define RAM2_PPU 5
-#define RAM3_PPU 6
-#define NUM_PPUS 7
+#define NUM_PPUS 8
+
+/* Number of CPU IRQs used by the SSE itself */
+#define NUM_SSE_IRQS 32
 
 struct ARMSSE {
     /*< private >*/
@@ -152,12 +152,9 @@ struct ARMSSE {
     ARMv7MState armv7m[SSE_MAX_CPUS];
     CPUClusterState cluster[SSE_MAX_CPUS];
     IoTKitSecCtl secctl;
-    TZPPC apb_ppc0;
-    TZPPC apb_ppc1;
+    TZPPC apb_ppc[NUM_INTERNAL_PPCS];
     TZMPC mpc[IOTS_NUM_MPC];
-    CMSDKAPBTimer timer0;
-    CMSDKAPBTimer timer1;
-    CMSDKAPBTimer s32ktimer;
+    CMSDKAPBTimer timer[3];
     qemu_or_irq ppc_irq_orgate;
     SplitIRQ sec_resp_splitter;
     SplitIRQ ppc_irq_splitter[NUM_PPCS];
@@ -165,23 +162,26 @@ struct ARMSSE {
     qemu_or_irq mpc_irq_orgate;
     qemu_or_irq nmi_orgate;
 
-    SplitIRQ cpu_irq_splitter[32];
+    SplitIRQ cpu_irq_splitter[NUM_SSE_IRQS];
 
     CMSDKAPBDualTimer dualtimer;
 
-    CMSDKAPBWatchdog s32kwatchdog;
-    CMSDKAPBWatchdog nswatchdog;
-    CMSDKAPBWatchdog swatchdog;
+    CMSDKAPBWatchdog cmsdk_watchdog[3];
+
+    SSECounter sse_counter;
+    SSETimer sse_timer[4];
 
     IoTKitSysCtl sysctl;
     IoTKitSysCtl sysinfo;
 
     ARMSSEMHU mhu[2];
-    UnimplementedDeviceState ppu[NUM_PPUS];
+    UnimplementedDeviceState unimp[NUM_PPUS];
     UnimplementedDeviceState cachectrl[SSE_MAX_CPUS];
     UnimplementedDeviceState cpusecctrl[SSE_MAX_CPUS];
 
     ARMSSECPUID cpuid[SSE_MAX_CPUS];
+
+    ARMSSECPUPwrCtrl cpu_pwrctrl[SSE_MAX_CPUS];
 
     /*
      * 'container' holds all devices seen by all CPUs.

@@ -19,6 +19,8 @@
 #include "hw/registerfields.h"
 #include "hw/irq.h"
 #include "hw/misc/iotkit-secctl.h"
+#include "hw/arm/armsse-version.h"
+#include "hw/qdev-properties.h"
 
 /* Registers in the secure privilege control block */
 REG32(SECRESPCFG, 0x10)
@@ -94,6 +96,19 @@ static const uint8_t iotkit_secctl_ns_idregs[] = {
     0x53, 0xb8, 0x0b, 0x00,
     0x0d, 0xf0, 0x05, 0xb1,
 };
+
+static const uint8_t iotkit_secctl_s_sse300_idregs[] = {
+    0x04, 0x00, 0x00, 0x00,
+    0x52, 0xb8, 0x2b, 0x00,
+    0x0d, 0xf0, 0x05, 0xb1,
+};
+
+static const uint8_t iotkit_secctl_ns_sse300_idregs[] = {
+    0x04, 0x00, 0x00, 0x00,
+    0x53, 0xb8, 0x2b, 0x00,
+    0x0d, 0xf0, 0x05, 0xb1,
+};
+
 
 /* The register sets for the various PPCs (AHB internal, APB internal,
  * AHB expansion, APB expansion) are all set up so that they are
@@ -213,7 +228,14 @@ static MemTxResult iotkit_secctl_s_read(void *opaque, hwaddr addr,
     case A_CID1:
     case A_CID2:
     case A_CID3:
-        r = iotkit_secctl_s_idregs[(offset - A_PID4) / 4];
+        switch (s->sse_version) {
+        case ARMSSE_SSE300:
+            r = iotkit_secctl_s_sse300_idregs[(offset - A_PID4) / 4];
+            break;
+        default:
+            r = iotkit_secctl_s_idregs[(offset - A_PID4) / 4];
+            break;
+        }
         break;
     case A_SECPPCINTCLR:
     case A_SECMSCINTCLR:
@@ -473,7 +495,14 @@ static MemTxResult iotkit_secctl_ns_read(void *opaque, hwaddr addr,
     case A_CID1:
     case A_CID2:
     case A_CID3:
-        r = iotkit_secctl_ns_idregs[(offset - A_PID4) / 4];
+        switch (s->sse_version) {
+        case ARMSSE_SSE300:
+            r = iotkit_secctl_ns_sse300_idregs[(offset - A_PID4) / 4];
+            break;
+        default:
+            r = iotkit_secctl_ns_idregs[(offset - A_PID4) / 4];
+            break;
+        }
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -710,6 +739,16 @@ static void iotkit_secctl_init(Object *obj)
     sysbus_init_mmio(sbd, &s->ns_regs);
 }
 
+static void iotkit_secctl_realize(DeviceState *dev, Error **errp)
+{
+    IoTKitSecCtl *s = IOTKIT_SECCTL(dev);
+
+    if (!armsse_version_valid(s->sse_version)) {
+        error_setg(errp, "invalid sse-version value %d", s->sse_version);
+        return;
+    }
+}
+
 static const VMStateDescription iotkit_secctl_ppc_vmstate = {
     .name = "iotkit-secctl-ppc",
     .version_id = 1,
@@ -775,12 +814,19 @@ static const VMStateDescription iotkit_secctl_vmstate = {
     },
 };
 
+static Property iotkit_secctl_props[] = {
+    DEFINE_PROP_UINT32("sse-version", IoTKitSecCtl, sse_version, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void iotkit_secctl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &iotkit_secctl_vmstate;
     dc->reset = iotkit_secctl_reset;
+    dc->realize = iotkit_secctl_realize;
+    device_class_set_props(dc, iotkit_secctl_props);
 }
 
 static const TypeInfo iotkit_secctl_info = {

@@ -38,6 +38,8 @@ struct IoTKitSysInfo {
     /* Properties */
     uint32_t sys_version;
     uint32_t sys_config;
+    uint32_t sse_version;
+    uint32_t iidr;
 };
 
 #endif

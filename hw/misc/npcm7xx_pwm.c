@@ -493,7 +493,7 @@ static void npcm7xx_pwm_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &npcm7xx_pwm_ops, s,
                           TYPE_NPCM7XX_PWM, 4 * KiB);
     sysbus_init_mmio(sbd, &s->iomem);
-    s->clock = qdev_init_clock_in(DEVICE(s), "clock", NULL, NULL);
+    s->clock = qdev_init_clock_in(DEVICE(s), "clock", NULL, NULL, 0);
 
     for (i = 0; i < NPCM7XX_PWM_PER_MODULE; ++i) {
         object_property_add_uint32_ptr(obj, "freq[*]",

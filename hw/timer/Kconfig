@@ -46,5 +46,11 @@ config RENESAS_TMR
 config RENESAS_CMT
     bool
 
+config SSE_COUNTER
+    bool
+
+config SSE_TIMER
+    bool
+
 config AVR_TIMER16
     bool

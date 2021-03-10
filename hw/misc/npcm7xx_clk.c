@@ -586,13 +586,24 @@ static const DividerInitInfo divider_init_info_list[] = {
     },
 };
 
+static void npcm7xx_clk_update_pll_cb(void *opaque, ClockEvent event)
+{
+    npcm7xx_clk_update_pll(opaque);
+}
+
 static void npcm7xx_clk_pll_init(Object *obj)
 {
     NPCM7xxClockPLLState *pll = NPCM7XX_CLOCK_PLL(obj);
 
     pll->clock_in = qdev_init_clock_in(DEVICE(pll), "clock-in",
-            npcm7xx_clk_update_pll, pll);
+                                       npcm7xx_clk_update_pll_cb, pll,
+                                       ClockUpdate);
     pll->clock_out = qdev_init_clock_out(DEVICE(pll), "clock-out");
+}
+
+static void npcm7xx_clk_update_sel_cb(void *opaque, ClockEvent event)
+{
+    npcm7xx_clk_update_sel(opaque);
 }
 
 static void npcm7xx_clk_sel_init(Object *obj)
@@ -603,16 +614,23 @@ static void npcm7xx_clk_sel_init(Object *obj)
     for (i = 0; i < NPCM7XX_CLK_SEL_MAX_INPUT; ++i) {
         sel->clock_in[i] = qdev_init_clock_in(DEVICE(sel),
                 g_strdup_printf("clock-in[%d]", i),
-                npcm7xx_clk_update_sel, sel);
+                npcm7xx_clk_update_sel_cb, sel, ClockUpdate);
     }
     sel->clock_out = qdev_init_clock_out(DEVICE(sel), "clock-out");
 }
+
+static void npcm7xx_clk_update_divider_cb(void *opaque, ClockEvent event)
+{
+    npcm7xx_clk_update_divider(opaque);
+}
+
 static void npcm7xx_clk_divider_init(Object *obj)
 {
     NPCM7xxClockDividerState *div = NPCM7XX_CLOCK_DIVIDER(obj);
 
     div->clock_in = qdev_init_clock_in(DEVICE(div), "clock-in",
-            npcm7xx_clk_update_divider, div);
+                                       npcm7xx_clk_update_divider_cb,
+                                       div, ClockUpdate);
     div->clock_out = qdev_init_clock_out(DEVICE(div), "clock-out");
 }
 
@@ -875,7 +893,7 @@ static void npcm7xx_clk_init_clock_hierarchy(NPCM7xxCLKState *s)
 {
     int i;
 
-    s->clkref = qdev_init_clock_in(DEVICE(s), "clkref", NULL, NULL);
+    s->clkref = qdev_init_clock_in(DEVICE(s), "clkref", NULL, NULL, 0);
 
     /* First pass: init all converter modules */
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(pll_init_info_list) != NPCM7XX_CLOCK_NR_PLLS);

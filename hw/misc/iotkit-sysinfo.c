@@ -26,9 +26,12 @@
 #include "hw/registerfields.h"
 #include "hw/misc/iotkit-sysinfo.h"
 #include "hw/qdev-properties.h"
+#include "hw/arm/armsse-version.h"
 
 REG32(SYS_VERSION, 0x0)
 REG32(SYS_CONFIG, 0x4)
+REG32(SYS_CONFIG1, 0x8)
+REG32(IIDR, 0xfc8)
 REG32(PID4, 0xfd0)
 REG32(PID5, 0xfd4)
 REG32(PID6, 0xfd8)
@@ -49,6 +52,12 @@ static const int sysinfo_id[] = {
     0x0d, 0xf0, 0x05, 0xb1, /* CID0..CID3 */
 };
 
+static const int sysinfo_sse300_id[] = {
+    0x04, 0x00, 0x00, 0x00, /* PID4..PID7 */
+    0x58, 0xb8, 0x1b, 0x00, /* PID0..PID3 */
+    0x0d, 0xf0, 0x05, 0xb1, /* CID0..CID3 */
+};
+
 static uint64_t iotkit_sysinfo_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
@@ -63,10 +72,36 @@ static uint64_t iotkit_sysinfo_read(void *opaque, hwaddr offset,
     case A_SYS_CONFIG:
         r = s->sys_config;
         break;
+    case A_SYS_CONFIG1:
+        switch (s->sse_version) {
+        case ARMSSE_SSE300:
+            return 0;
+            break;
+        default:
+            goto bad_read;
+        }
+        break;
+    case A_IIDR:
+        switch (s->sse_version) {
+        case ARMSSE_SSE300:
+            return s->iidr;
+            break;
+        default:
+            goto bad_read;
+        }
+        break;
     case A_PID4 ... A_CID3:
-        r = sysinfo_id[(offset - A_PID4) / 4];
+        switch (s->sse_version) {
+        case ARMSSE_SSE300:
+            r = sysinfo_sse300_id[(offset - A_PID4) / 4];
+            break;
+        default:
+            r = sysinfo_id[(offset - A_PID4) / 4];
+            break;
+        }
         break;
     default:
+    bad_read:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "IoTKit SysInfo read: bad offset %x\n", (int)offset);
         r = 0;
@@ -99,6 +134,8 @@ static const MemoryRegionOps iotkit_sysinfo_ops = {
 static Property iotkit_sysinfo_props[] = {
     DEFINE_PROP_UINT32("SYS_VERSION", IoTKitSysInfo, sys_version, 0),
     DEFINE_PROP_UINT32("SYS_CONFIG", IoTKitSysInfo, sys_config, 0),
+    DEFINE_PROP_UINT32("sse-version", IoTKitSysInfo, sse_version, 0),
+    DEFINE_PROP_UINT32("IIDR", IoTKitSysInfo, iidr, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -112,6 +149,16 @@ static void iotkit_sysinfo_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
+static void iotkit_sysinfo_realize(DeviceState *dev, Error **errp)
+{
+    IoTKitSysInfo *s = IOTKIT_SYSINFO(dev);
+
+    if (!armsse_version_valid(s->sse_version)) {
+        error_setg(errp, "invalid sse-version value %d", s->sse_version);
+        return;
+    }
+}
+
 static void iotkit_sysinfo_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -120,7 +167,7 @@ static void iotkit_sysinfo_class_init(ObjectClass *klass, void *data)
      * This device has no guest-modifiable state and so it
      * does not need a reset function or VMState.
      */
-
+    dc->realize = iotkit_sysinfo_realize;
     device_class_set_props(dc, iotkit_sysinfo_props);
 }
 

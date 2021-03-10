@@ -39,7 +39,7 @@ static void mips_cps_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     MIPSCPSState *s = MIPS_CPS(obj);
 
-    s->clock = qdev_init_clock_in(DEVICE(obj), "clk-in", NULL, NULL);
+    s->clock = qdev_init_clock_in(DEVICE(obj), "clk-in", NULL, NULL, 0);
     /*
      * Cover entire address space as there do not seem to be any
      * constraints for the base address of CPC and GIC.
