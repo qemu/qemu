@@ -28,7 +28,6 @@
 #include "tcg/tcg.h"
 #include "qemu/atomic.h"
 #include "qemu/compiler.h"
-#include "sysemu/qtest.h"
 #include "qemu/timer.h"
 #include "qemu/rcu.h"
 #include "exec/tb-hash.h"

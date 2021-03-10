@@ -35,7 +35,6 @@
 #include "qom/object_interfaces.h"
 #include "chardev/char-fe.h"
 #include "sysemu/hostmem.h"
-#include "sysemu/qtest.h"
 #include "qapi/visitor.h"
 
 #include "hw/misc/ivshmem.h"

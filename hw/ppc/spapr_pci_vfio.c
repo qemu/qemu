@@ -25,7 +25,6 @@
 #include "hw/pci/msix.h"
 #include "hw/vfio/vfio.h"
 #include "qemu/error-report.h"
-#include "sysemu/qtest.h"
 
 bool spapr_phb_eeh_available(SpaprPhbState *sphb)
 {

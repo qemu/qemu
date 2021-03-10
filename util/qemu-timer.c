@@ -29,7 +29,6 @@
 #include "sysemu/cpu-timers.h"
 #include "sysemu/replay.h"
 #include "sysemu/cpus.h"
-#include "sysemu/qtest.h"
 
 #ifdef CONFIG_POSIX
 #include <pthread.h>

@@ -1387,29 +1387,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #endif /* TARGET_S390X */
 
-#ifdef TARGET_TILEGX
-
-/* 42 bits real used address, a half for user mode */
-#define ELF_START_MMAP (0x00000020000000000ULL)
-
-#define elf_check_arch(x) ((x) == EM_TILEGX)
-
-#define ELF_CLASS   ELFCLASS64
-#define ELF_DATA    ELFDATA2LSB
-#define ELF_ARCH    EM_TILEGX
-
-static inline void init_thread(struct target_pt_regs *regs,
-                               struct image_info *infop)
-{
-    regs->pc = infop->entry;
-    regs->sp = infop->start_stack;
-
-}
-
-#define ELF_EXEC_PAGESIZE        65536 /* TILE-Gx page size is 64KB */
-
-#endif /* TARGET_TILEGX */
-
 #ifdef TARGET_RISCV
 
 #define ELF_START_MMAP 0x80000000

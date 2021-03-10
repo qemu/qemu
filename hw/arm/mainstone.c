@@ -22,7 +22,6 @@
 #include "hw/block/flash.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
-#include "sysemu/qtest.h"
 #include "cpu.h"
 
 /* Device addresses */

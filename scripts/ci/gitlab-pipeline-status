@@ -48,24 +48,35 @@ def get_local_branch_commit(branch):
     return result
 
 
+def get_json_http_response(url):
+    """
+    Returns the JSON content of an HTTP GET request to gitlab.com
+    """
+    connection = http.client.HTTPSConnection('gitlab.com')
+    connection.request('GET', url=url)
+    response = connection.getresponse()
+    if response.code != http.HTTPStatus.OK:
+        msg = "Received unsuccessful response: %s (%s)" % (response.code,
+                                                           response.reason)
+        raise CommunicationFailure(msg)
+    return json.loads(response.read())
+
+
 def get_pipeline_status(project_id, commit_sha1):
     """
     Returns the JSON content of the pipeline status API response
     """
     url = '/api/v4/projects/{}/pipelines?sha={}'.format(project_id,
                                                         commit_sha1)
-    connection = http.client.HTTPSConnection('gitlab.com')
-    connection.request('GET', url=url)
-    response = connection.getresponse()
-    if response.code != http.HTTPStatus.OK:
-        raise CommunicationFailure("Failed to receive a successful response")
-    json_response = json.loads(response.read())
+    json_response = get_json_http_response(url)
 
     # As far as I can tell, there should be only one pipeline for the same
     # project + commit. If this assumption is false, we can add further
     # filters to the url, such as username, and order_by.
     if not json_response:
-        raise NoPipelineFound("No pipeline found")
+        msg = "No pipeline found for project %s and commit %s" % (project_id,
+                                                                  commit_sha1)
+        raise NoPipelineFound(msg)
     return json_response[0]
 
 

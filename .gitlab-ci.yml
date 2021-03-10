@@ -76,6 +76,8 @@ include:
 
 build-system-alpine:
   <<: *native_build_job_definition
+  needs:
+    - job: amd64-alpine-container
   variables:
     IMAGE: alpine
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
@@ -497,8 +499,7 @@ build-deprecated:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-docs --disable-tools
     MAKE_CHECK_ARGS: build-tcg
-    TARGETS: ppc64abi32-linux-user tilegx-linux-user lm32-softmmu
-      unicore32-softmmu
+    TARGETS: ppc64abi32-linux-user lm32-softmmu unicore32-softmmu
   artifacts:
     expire_in: 2 days
     paths:

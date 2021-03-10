@@ -142,6 +142,20 @@ This machine has been renamed ``fuloong2e``.
 These machine types were very old and likely could not be used for live
 migration from old QEMU versions anymore. Use a newer machine type instead.
 
+
+linux-user mode CPUs
+--------------------
+
+``tilegx`` CPUs (removed in 6.0)
+''''''''''''''''''''''''''''''''
+
+The ``tilegx`` guest CPU support has been removed without replacement. It was
+only implemented in linux-user mode, but support for this CPU was removed from
+the upstream Linux kernel in 2018, and it has also been dropped from glibc, so
+there is no new Linux development taking place with this architecture. For
+running the old binaries, you can use older versions of QEMU.
+
+
 Related binaries
 ----------------
 

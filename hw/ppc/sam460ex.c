@@ -30,7 +30,6 @@
 #include "ppc405.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/qtest.h"
 #include "sysemu/reset.h"
 #include "hw/sysbus.h"
 #include "hw/char/serial.h"

@@ -45,7 +45,6 @@
 #include "hw/qdev-properties.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/kvm.h"
-#include "sysemu/qtest.h"
 #include "sysemu/reset.h"
 #include "exec/address-spaces.h"
 #include "trace.h"

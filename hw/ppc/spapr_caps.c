@@ -33,7 +33,6 @@
 #include "cpu-models.h"
 #include "kvm_ppc.h"
 #include "migration/vmstate.h"
-#include "sysemu/qtest.h"
 #include "sysemu/tcg.h"
 
 #include "hw/ppc/spapr.h"

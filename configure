@@ -1655,7 +1655,7 @@ if [ "$ARCH" = "unknown" ]; then
 fi
 
 default_target_list=""
-deprecated_targets_list=ppc64abi32-linux-user,tilegx-linux-user,lm32-softmmu,unicore32-softmmu
+deprecated_targets_list=ppc64abi32-linux-user,lm32-softmmu,unicore32-softmmu
 deprecated_features=""
 mak_wilds=""
 

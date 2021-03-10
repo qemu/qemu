@@ -2614,6 +2614,7 @@ S: Maintained
 F: softmmu/qtest.c
 F: accel/qtest/
 F: tests/qtest/
+F: docs/devel/qgraph.rst
 X: tests/qtest/bios-tables-test*
 
 Device Fuzzing
@@ -2909,9 +2910,12 @@ F: thunk.c
 F: accel/tcg/user-exec*.c
 
 BSD user
-S: Orphan
+M: Warner Losh <imp@bsdimp.com>
+R: Kyle Evans <kevans@freebsd.org>
+S: Maintained
 F: bsd-user/
 F: default-configs/targets/*-bsd-user.mak
+T: git https://github.com/qemu-bsd-user/qemu-bsd-user bsd-user-rebase-3.1
 
 Linux user
 M: Laurent Vivier <laurent@vivier.eu>
