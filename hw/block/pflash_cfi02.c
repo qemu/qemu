@@ -942,6 +942,13 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pflash_cfi02_fill_cfi_table(pfl, nb_regions);
 }
 
+static void pflash_cfi02_reset(DeviceState *dev)
+{
+    PFlashCFI02 *pfl = PFLASH_CFI02(dev);
+
+    pflash_reset_state_machine(pfl);
+}
+
 static Property pflash_cfi02_properties[] = {
     DEFINE_PROP_DRIVE("drive", PFlashCFI02, blk),
     DEFINE_PROP_UINT32("num-blocks", PFlashCFI02, uniform_nb_blocs, 0),
@@ -979,6 +986,7 @@ static void pflash_cfi02_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pflash_cfi02_realize;
+    dc->reset = pflash_cfi02_reset;
     dc->unrealize = pflash_cfi02_unrealize;
     device_class_set_props(dc, pflash_cfi02_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
