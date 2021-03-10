@@ -470,9 +470,10 @@ static inline bool cross_256mb(void *addr, size_t size)
 /*
  * We weren't able to allocate a buffer without crossing that boundary,
  * so make do with the larger portion of the buffer that doesn't cross.
- * Returns the new base of the buffer, and adjusts code_gen_buffer_size.
+ * Returns the new base and size of the buffer in *obuf and *osize.
  */
-static inline void *split_cross_256mb(void *buf1, size_t size1)
+static inline void split_cross_256mb(void **obuf, size_t *osize,
+                                     void *buf1, size_t size1)
 {
     void *buf2 = (void *)(((uintptr_t)buf1 + size1) & ~0x0ffffffful);
     size_t size2 = buf1 + size1 - buf2;
@@ -483,8 +484,8 @@ static inline void *split_cross_256mb(void *buf1, size_t size1)
         buf1 = buf2;
     }
 
-    tcg_ctx->code_gen_buffer_size = size1;
-    return buf1;
+    *obuf = buf1;
+    *osize = size1;
 }
 #endif
 
@@ -514,12 +515,10 @@ static bool alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp)
     if (size > tb_size) {
         size = QEMU_ALIGN_DOWN(tb_size, qemu_real_host_page_size);
     }
-    tcg_ctx->code_gen_buffer_size = size;
 
 #ifdef __mips__
     if (cross_256mb(buf, size)) {
-        buf = split_cross_256mb(buf, size);
-        size = tcg_ctx->code_gen_buffer_size;
+        split_cross_256mb(&buf, &size, buf, size);
     }
 #endif
 
@@ -530,6 +529,7 @@ static bool alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp)
     qemu_madvise(buf, size, QEMU_MADV_HUGEPAGE);
 
     tcg_ctx->code_gen_buffer = buf;
+    tcg_ctx->code_gen_buffer_size = size;
     return true;
 }
 #elif defined(_WIN32)
@@ -566,7 +566,6 @@ static bool alloc_code_gen_buffer_anon(size_t size, int prot,
                          "allocate %zu bytes for jit buffer", size);
         return false;
     }
-    tcg_ctx->code_gen_buffer_size = size;
 
 #ifdef __mips__
     if (cross_256mb(buf, size)) {
@@ -588,8 +587,7 @@ static bool alloc_code_gen_buffer_anon(size_t size, int prot,
             /* fallthru */
         default:
             /* Split the original buffer.  Free the smaller half.  */
-            buf2 = split_cross_256mb(buf, size);
-            size2 = tcg_ctx->code_gen_buffer_size;
+            split_cross_256mb(&buf2, &size2, buf, size);
             if (buf == buf2) {
                 munmap(buf + size2, size - size2);
             } else {
@@ -606,6 +604,7 @@ static bool alloc_code_gen_buffer_anon(size_t size, int prot,
     qemu_madvise(buf, size, QEMU_MADV_HUGEPAGE);
 
     tcg_ctx->code_gen_buffer = buf;
+    tcg_ctx->code_gen_buffer_size = size;
     return true;
 }
 
