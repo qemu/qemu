@@ -27,9 +27,6 @@
 #include "qapi/error.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg.h"
-#if !defined(CONFIG_USER_ONLY)
-#include "hw/boards.h"
-#endif
 #include "tcg-internal.h"
 
 
@@ -366,27 +363,20 @@ void tcg_region_reset_all(void)
     tcg_region_tree_reset_all();
 }
 
+static size_t tcg_n_regions(unsigned max_cpus)
+{
 #ifdef CONFIG_USER_ONLY
-static size_t tcg_n_regions(void)
-{
     return 1;
-}
 #else
-/*
- * It is likely that some vCPUs will translate more code than others, so we
- * first try to set more regions than max_cpus, with those regions being of
- * reasonable size. If that's not possible we make do by evenly dividing
- * the code_gen_buffer among the vCPUs.
- */
-static size_t tcg_n_regions(void)
-{
+    /*
+     * It is likely that some vCPUs will translate more code than others,
+     * so we first try to set more regions than max_cpus, with those regions
+     * being of reasonable size. If that's not possible we make do by evenly
+     * dividing the code_gen_buffer among the vCPUs.
+     */
     size_t i;
 
     /* Use a single region if all we have is one vCPU thread */
-#if !defined(CONFIG_USER_ONLY)
-    MachineState *ms = MACHINE(qdev_get_machine());
-    unsigned int max_cpus = ms->smp.max_cpus;
-#endif
     if (max_cpus == 1 || !qemu_tcg_mttcg_enabled()) {
         return 1;
     }
@@ -405,8 +395,8 @@ static size_t tcg_n_regions(void)
     }
     /* If we can't, then just allocate one region per vCPU thread */
     return max_cpus;
-}
 #endif
+}
 
 /*
  * Minimum size of the code gen buffer.  This number is randomly chosen,
@@ -848,7 +838,7 @@ static bool alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
  * in practice. Multi-threaded guests share most if not all of their translated
  * code, which makes parallel code generation less appealing than in softmmu.
  */
-void tcg_region_init(size_t tb_size, int splitwx)
+void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
 {
     void *buf, *aligned;
     size_t size;
@@ -865,7 +855,7 @@ void tcg_region_init(size_t tb_size, int splitwx)
     buf = tcg_init_ctx.code_gen_buffer;
     size = tcg_init_ctx.code_gen_buffer_size;
     page_size = qemu_real_host_page_size;
-    n_regions = tcg_n_regions();
+    n_regions = tcg_n_regions(max_cpus);
 
     /* The first region will be 'aligned - buf' bytes larger than the others */
     aligned = QEMU_ALIGN_PTR_UP(buf, page_size);

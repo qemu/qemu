@@ -576,7 +576,7 @@ static void process_op_defs(TCGContext *s);
 static TCGTemp *tcg_global_reg_new_internal(TCGContext *s, TCGType type,
                                             TCGReg reg, const char *name);
 
-static void tcg_context_init(void)
+static void tcg_context_init(unsigned max_cpus)
 {
     TCGContext *s = &tcg_init_ctx;
     int op, total_args, n, i;
@@ -645,8 +645,6 @@ static void tcg_context_init(void)
     tcg_ctxs = &tcg_ctx;
     n_tcg_ctxs = 1;
 #else
-    MachineState *ms = MACHINE(qdev_get_machine());
-    unsigned int max_cpus = ms->smp.max_cpus;
     tcg_ctxs = g_new(TCGContext *, max_cpus);
 #endif
 
@@ -655,10 +653,10 @@ static void tcg_context_init(void)
     cpu_env = temp_tcgv_ptr(ts);
 }
 
-void tcg_init(size_t tb_size, int splitwx)
+void tcg_init(size_t tb_size, int splitwx, unsigned max_cpus)
 {
-    tcg_context_init();
-    tcg_region_init(tb_size, splitwx);
+    tcg_context_init(max_cpus);
+    tcg_region_init(tb_size, splitwx, max_cpus);
 }
 
 /*
