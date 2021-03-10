@@ -770,12 +770,15 @@ static int alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
         error_free_or_abort(errp);
     }
 
-    prot = PROT_READ | PROT_WRITE | PROT_EXEC;
+    /*
+     * macOS 11.2 has a bug (Apple Feedback FB8994773) in which mprotect
+     * rejects a permission change from RWX -> NONE when reserving the
+     * guard pages later.  We can go the other way with the same number
+     * of syscalls, so always begin with PROT_NONE.
+     */
+    prot = PROT_NONE;
     flags = MAP_PRIVATE | MAP_ANONYMOUS;
-#ifdef CONFIG_TCG_INTERPRETER
-    /* The tcg interpreter does not need execute permission. */
-    prot = PROT_READ | PROT_WRITE;
-#elif defined(CONFIG_DARWIN)
+#ifdef CONFIG_DARWIN
     /* Applicable to both iOS and macOS (Apple Silicon). */
     if (!splitwx) {
         flags |= MAP_JIT;
@@ -906,11 +909,7 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
             }
         }
         if (have_prot != 0) {
-            /*
-             * macOS 11.2 has a bug (Apple Feedback FB8994773) in which mprotect
-             * rejects a permission change from RWX -> NONE.  Guard pages are
-             * nice for bug detection but are not essential; ignore any failure.
-             */
+            /* Guard pages are nice for bug detection but are not essential. */
             (void)qemu_mprotect_none(end, page_size);
         }
     }
