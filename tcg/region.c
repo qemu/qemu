@@ -559,7 +559,6 @@ static int alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp)
         error_setg_errno(errp, errno, "mprotect of jit buffer");
         return false;
     }
-    qemu_madvise(buf, size, QEMU_MADV_HUGEPAGE);
 
     region.start_aligned = buf;
     region.total_size = size;
@@ -635,9 +634,6 @@ static int alloc_code_gen_buffer_anon(size_t size, int prot,
     }
 #endif
 
-    /* Request large pages for the buffer.  */
-    qemu_madvise(buf, size, QEMU_MADV_HUGEPAGE);
-
     region.start_aligned = buf;
     region.total_size = size;
     return prot;
@@ -687,9 +683,6 @@ static bool alloc_code_gen_buffer_splitwx_memfd(size_t size, Error **errp)
     region.total_size = size;
     tcg_splitwx_diff = buf_rx - buf_rw;
 
-    /* Request large pages for the buffer and the splitwx.  */
-    qemu_madvise(buf_rw, size, QEMU_MADV_HUGEPAGE);
-    qemu_madvise(buf_rx, size, QEMU_MADV_HUGEPAGE);
     return PROT_READ | PROT_WRITE;
 
  fail_rx:
@@ -856,6 +849,13 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
     have_prot = alloc_code_gen_buffer(size_code_gen_buffer(tb_size),
                                       splitwx, &error_fatal);
     assert(have_prot >= 0);
+
+    /* Request large pages for the buffer and the splitwx.  */
+    qemu_madvise(region.start_aligned, region.total_size, QEMU_MADV_HUGEPAGE);
+    if (tcg_splitwx_diff) {
+        qemu_madvise(region.start_aligned + tcg_splitwx_diff,
+                     region.total_size, QEMU_MADV_HUGEPAGE);
+    }
 
     /*
      * Make region_size a multiple of page_size, using aligned as the start.
