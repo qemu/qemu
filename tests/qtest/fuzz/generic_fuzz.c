@@ -583,6 +583,21 @@ static void handle_timeout(int sig)
         fprintf(stderr, "[Timeout]\n");
         fflush(stderr);
     }
+
+    /*
+     * If there is a crash, libfuzzer/ASAN forks a child to run an
+     * "llvm-symbolizer" process for printing out a pretty stacktrace. It
+     * communicates with this child using a pipe.  If we timeout+Exit, while
+     * libfuzzer is still communicating with the llvm-symbolizer child, we will
+     * be left with an orphan llvm-symbolizer process. Sometimes, this appears
+     * to lead to a deadlock in the forkserver. Use waitpid to check if there
+     * are any waitable children. If so, exit out of the signal-handler, and
+     * let libfuzzer finish communicating with the child, and exit, on its own.
+     */
+    if (waitpid(-1, NULL, WNOHANG) == 0) {
+        return;
+    }
+
     _Exit(0);
 }
 
