@@ -535,11 +535,6 @@ static int alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp)
     }
 #endif
 
-    if (qemu_mprotect_rwx(buf, size)) {
-        error_setg_errno(errp, errno, "mprotect of jit buffer");
-        return false;
-    }
-
     region.start_aligned = buf;
     region.total_size = size;
 
@@ -823,8 +818,7 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
 {
     const size_t page_size = qemu_real_host_page_size;
     size_t region_size;
-    size_t i;
-    int have_prot;
+    int have_prot, need_prot;
 
     /* Size the buffer.  */
     if (tb_size == 0) {
@@ -884,18 +878,41 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
      * Set guard pages in the rw buffer, as that's the one into which
      * buffer overruns could occur.  Do not set guard pages in the rx
      * buffer -- let that one use hugepages throughout.
+     * Work with the page protections set up with the initial mapping.
      */
-    for (i = 0; i < region.n; i++) {
+    need_prot = PAGE_READ | PAGE_WRITE;
+#ifndef CONFIG_TCG_INTERPRETER
+    if (tcg_splitwx_diff == 0) {
+        need_prot |= PAGE_EXEC;
+    }
+#endif
+    for (size_t i = 0, n = region.n; i < n; i++) {
         void *start, *end;
 
         tcg_region_bounds(i, &start, &end);
+        if (have_prot != need_prot) {
+            int rc;
 
-        /*
-         * macOS 11.2 has a bug (Apple Feedback FB8994773) in which mprotect
-         * rejects a permission change from RWX -> NONE.  Guard pages are
-         * nice for bug detection but are not essential; ignore any failure.
-         */
-        (void)qemu_mprotect_none(end, page_size);
+            if (need_prot == (PAGE_READ | PAGE_WRITE | PAGE_EXEC)) {
+                rc = qemu_mprotect_rwx(start, end - start);
+            } else if (need_prot == (PAGE_READ | PAGE_WRITE)) {
+                rc = qemu_mprotect_rw(start, end - start);
+            } else {
+                g_assert_not_reached();
+            }
+            if (rc) {
+                error_setg_errno(&error_fatal, errno,
+                                 "mprotect of jit buffer");
+            }
+        }
+        if (have_prot != 0) {
+            /*
+             * macOS 11.2 has a bug (Apple Feedback FB8994773) in which mprotect
+             * rejects a permission change from RWX -> NONE.  Guard pages are
+             * nice for bug detection but are not essential; ignore any failure.
+             */
+            (void)qemu_mprotect_none(end, page_size);
+        }
     }
 
     tcg_region_trees_init();
