@@ -526,14 +526,14 @@ static inline void split_cross_256mb(void **obuf, size_t *osize,
 static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
     __attribute__((aligned(CODE_GEN_ALIGN)));
 
-static bool alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp)
+static int alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp)
 {
     void *buf, *end;
     size_t size;
 
     if (splitwx > 0) {
         error_setg(errp, "jit split-wx not supported");
-        return false;
+        return -1;
     }
 
     /* page-align the beginning and end of the buffer */
@@ -563,16 +563,17 @@ static bool alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp)
 
     region.start_aligned = buf;
     region.total_size = size;
-    return true;
+
+    return PROT_READ | PROT_WRITE;
 }
 #elif defined(_WIN32)
-static bool alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
+static int alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
 {
     void *buf;
 
     if (splitwx > 0) {
         error_setg(errp, "jit split-wx not supported");
-        return false;
+        return -1;
     }
 
     buf = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT,
@@ -585,11 +586,12 @@ static bool alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
 
     region.start_aligned = buf;
     region.total_size = size;
-    return true;
+
+    return PAGE_READ | PAGE_WRITE | PAGE_EXEC;
 }
 #else
-static bool alloc_code_gen_buffer_anon(size_t size, int prot,
-                                       int flags, Error **errp)
+static int alloc_code_gen_buffer_anon(size_t size, int prot,
+                                      int flags, Error **errp)
 {
     void *buf;
 
@@ -597,7 +599,7 @@ static bool alloc_code_gen_buffer_anon(size_t size, int prot,
     if (buf == MAP_FAILED) {
         error_setg_errno(errp, errno,
                          "allocate %zu bytes for jit buffer", size);
-        return false;
+        return -1;
     }
 
 #ifdef __mips__
@@ -638,7 +640,7 @@ static bool alloc_code_gen_buffer_anon(size_t size, int prot,
 
     region.start_aligned = buf;
     region.total_size = size;
-    return true;
+    return prot;
 }
 
 #ifndef CONFIG_TCG_INTERPRETER
@@ -652,9 +654,9 @@ static bool alloc_code_gen_buffer_splitwx_memfd(size_t size, Error **errp)
 
 #ifdef __mips__
     /* Find space for the RX mapping, vs the 256MiB regions. */
-    if (!alloc_code_gen_buffer_anon(size, PROT_NONE,
-                                    MAP_PRIVATE | MAP_ANONYMOUS |
-                                    MAP_NORESERVE, errp)) {
+    if (alloc_code_gen_buffer_anon(size, PROT_NONE,
+                                   MAP_PRIVATE | MAP_ANONYMOUS |
+                                   MAP_NORESERVE, errp) < 0) {
         return false;
     }
     /* The size of the mapping may have been adjusted. */
@@ -688,7 +690,7 @@ static bool alloc_code_gen_buffer_splitwx_memfd(size_t size, Error **errp)
     /* Request large pages for the buffer and the splitwx.  */
     qemu_madvise(buf_rw, size, QEMU_MADV_HUGEPAGE);
     qemu_madvise(buf_rx, size, QEMU_MADV_HUGEPAGE);
-    return true;
+    return PROT_READ | PROT_WRITE;
 
  fail_rx:
     error_setg_errno(errp, errno, "failed to map shared memory for execute");
@@ -702,7 +704,7 @@ static bool alloc_code_gen_buffer_splitwx_memfd(size_t size, Error **errp)
     if (fd >= 0) {
         close(fd);
     }
-    return false;
+    return -1;
 }
 #endif /* CONFIG_POSIX */
 
@@ -721,7 +723,7 @@ extern kern_return_t mach_vm_remap(vm_map_t target_task,
                                    vm_prot_t *max_protection,
                                    vm_inherit_t inheritance);
 
-static bool alloc_code_gen_buffer_splitwx_vmremap(size_t size, Error **errp)
+static int alloc_code_gen_buffer_splitwx_vmremap(size_t size, Error **errp)
 {
     kern_return_t ret;
     mach_vm_address_t buf_rw, buf_rx;
@@ -730,7 +732,7 @@ static bool alloc_code_gen_buffer_splitwx_vmremap(size_t size, Error **errp)
     /* Map the read-write portion via normal anon memory. */
     if (!alloc_code_gen_buffer_anon(size, PROT_READ | PROT_WRITE,
                                     MAP_PRIVATE | MAP_ANONYMOUS, errp)) {
-        return false;
+        return -1;
     }
 
     buf_rw = (mach_vm_address_t)region.start_aligned;
@@ -750,23 +752,23 @@ static bool alloc_code_gen_buffer_splitwx_vmremap(size_t size, Error **errp)
         /* TODO: Convert "ret" to a human readable error message. */
         error_setg(errp, "vm_remap for jit splitwx failed");
         munmap((void *)buf_rw, size);
-        return false;
+        return -1;
     }
 
     if (mprotect((void *)buf_rx, size, PROT_READ | PROT_EXEC) != 0) {
         error_setg_errno(errp, errno, "mprotect for jit splitwx");
         munmap((void *)buf_rx, size);
         munmap((void *)buf_rw, size);
-        return false;
+        return -1;
     }
 
     tcg_splitwx_diff = buf_rx - buf_rw;
-    return true;
+    return PROT_READ | PROT_WRITE;
 }
 #endif /* CONFIG_DARWIN */
 #endif /* CONFIG_TCG_INTERPRETER */
 
-static bool alloc_code_gen_buffer_splitwx(size_t size, Error **errp)
+static int alloc_code_gen_buffer_splitwx(size_t size, Error **errp)
 {
 #ifndef CONFIG_TCG_INTERPRETER
 # ifdef CONFIG_DARWIN
@@ -777,24 +779,25 @@ static bool alloc_code_gen_buffer_splitwx(size_t size, Error **errp)
 # endif
 #endif
     error_setg(errp, "jit split-wx not supported");
-    return false;
+    return -1;
 }
 
-static bool alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
+static int alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
 {
     ERRP_GUARD();
     int prot, flags;
 
     if (splitwx) {
-        if (alloc_code_gen_buffer_splitwx(size, errp)) {
-            return true;
+        prot = alloc_code_gen_buffer_splitwx(size, errp);
+        if (prot >= 0) {
+            return prot;
         }
         /*
          * If splitwx force-on (1), fail;
          * if splitwx default-on (-1), fall through to splitwx off.
          */
         if (splitwx > 0) {
-            return false;
+            return -1;
         }
         error_free_or_abort(errp);
     }
@@ -848,11 +851,11 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
     size_t page_size;
     size_t region_size;
     size_t i;
-    bool ok;
+    int have_prot;
 
-    ok = alloc_code_gen_buffer(size_code_gen_buffer(tb_size),
-                               splitwx, &error_fatal);
-    assert(ok);
+    have_prot = alloc_code_gen_buffer(size_code_gen_buffer(tb_size),
+                                      splitwx, &error_fatal);
+    assert(have_prot >= 0);
 
     /*
      * Make region_size a multiple of page_size, using aligned as the start.
