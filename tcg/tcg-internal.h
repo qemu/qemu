@@ -28,7 +28,8 @@
 #define TCG_HIGHWATER 1024
 
 extern TCGContext **tcg_ctxs;
-extern unsigned int n_tcg_ctxs;
+extern unsigned int tcg_cur_ctxs;
+extern unsigned int tcg_max_ctxs;
 
 void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus);
 bool tcg_region_alloc(TCGContext *s);
