@@ -30,6 +30,7 @@
 #include "qemu-common.h"
 #include "ui/console.h"
 #include "ui/input.h"
+#include "ui/kbd-state.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
 #include "sysemu/cpu-throttle.h"
@@ -190,14 +191,6 @@ const int mac_to_qkeycode_map[] = {
     [kVK_ANSI_Comma] = Q_KEY_CODE_COMMA,
     [kVK_ANSI_Period] = Q_KEY_CODE_DOT,
     [kVK_ANSI_Slash] = Q_KEY_CODE_SLASH,
-    [kVK_Shift] = Q_KEY_CODE_SHIFT,
-    [kVK_RightShift] = Q_KEY_CODE_SHIFT_R,
-    [kVK_Control] = Q_KEY_CODE_CTRL,
-    [kVK_RightControl] = Q_KEY_CODE_CTRL_R,
-    [kVK_Option] = Q_KEY_CODE_ALT,
-    [kVK_RightOption] = Q_KEY_CODE_ALT_R,
-    [kVK_Command] = Q_KEY_CODE_META_L,
-    [0x36] = Q_KEY_CODE_META_R, /* There is no kVK_RightCommand */
     [kVK_Space] = Q_KEY_CODE_SPC,
 
     [kVK_ANSI_Keypad0] = Q_KEY_CODE_KP_0,
@@ -307,7 +300,7 @@ static void handleAnyDeviceErrors(Error * err)
     NSWindow *fullScreenWindow;
     float cx,cy,cw,ch,cdx,cdy;
     pixman_image_t *pixman_image;
-    BOOL modifiers_state[256];
+    QKbdState *kbd;
     BOOL isMouseGrabbed;
     BOOL isFullscreen;
     BOOL isAbsoluteEnabled;
@@ -354,6 +347,7 @@ QemuCocoaView *cocoaView;
 
         screen.width = frameRect.size.width;
         screen.height = frameRect.size.height;
+        kbd = qkbd_state_init(dcl.con);
 
     }
     return self;
@@ -367,6 +361,7 @@ QemuCocoaView *cocoaView;
         pixman_image_unref(pixman_image);
     }
 
+    qkbd_state_free(kbd);
     [super dealloc];
 }
 
@@ -604,19 +599,8 @@ QemuCocoaView *cocoaView;
     }
 }
 
-- (void) toggleModifier: (int)keycode {
-    // Toggle the stored state.
-    modifiers_state[keycode] = !modifiers_state[keycode];
-    // Send a keyup or keydown depending on the state.
-    qemu_input_event_send_key_qcode(dcl.con, keycode, modifiers_state[keycode]);
-}
-
-- (void) toggleStatefulModifier: (int)keycode {
-    // Toggle the stored state.
-    modifiers_state[keycode] = !modifiers_state[keycode];
-    // Generate keydown and keyup.
-    qemu_input_event_send_key_qcode(dcl.con, keycode, true);
-    qemu_input_event_send_key_qcode(dcl.con, keycode, false);
+- (void) toggleKey: (int)keycode {
+    qkbd_state_key_event(kbd, keycode, !qkbd_state_key_get(kbd, keycode));
 }
 
 // Does the work of sending input to the monitor
@@ -710,57 +694,86 @@ QemuCocoaView *cocoaView;
     static bool switched_to_fullscreen = false;
     // Location of event in virtual screen coordinates
     NSPoint p = [self screenLocationOfEvent:event];
+    NSUInteger modifiers = [event modifierFlags];
+
+    // emulate caps lock keydown and keyup
+    if (!!(modifiers & NSEventModifierFlagCapsLock) !=
+        qkbd_state_modifier_get(kbd, QKBD_MOD_CAPSLOCK)) {
+        qkbd_state_key_event(kbd, Q_KEY_CODE_CAPS_LOCK, true);
+        qkbd_state_key_event(kbd, Q_KEY_CODE_CAPS_LOCK, false);
+    }
+
+    if (!(modifiers & NSEventModifierFlagShift)) {
+        qkbd_state_key_event(kbd, Q_KEY_CODE_SHIFT, false);
+        qkbd_state_key_event(kbd, Q_KEY_CODE_SHIFT_R, false);
+    }
+    if (!(modifiers & NSEventModifierFlagControl)) {
+        qkbd_state_key_event(kbd, Q_KEY_CODE_CTRL, false);
+        qkbd_state_key_event(kbd, Q_KEY_CODE_CTRL_R, false);
+    }
+    if (!(modifiers & NSEventModifierFlagOption)) {
+        qkbd_state_key_event(kbd, Q_KEY_CODE_ALT, false);
+        qkbd_state_key_event(kbd, Q_KEY_CODE_ALT_R, false);
+    }
+    if (!(modifiers & NSEventModifierFlagCommand)) {
+        qkbd_state_key_event(kbd, Q_KEY_CODE_META_L, false);
+        qkbd_state_key_event(kbd, Q_KEY_CODE_META_R, false);
+    }
 
     switch ([event type]) {
         case NSEventTypeFlagsChanged:
-            if ([event keyCode] == 0) {
-                // When the Cocoa keyCode is zero that means keys should be
-                // synthesized based on the values in in the eventModifiers
-                // bitmask.
+            switch ([event keyCode]) {
+                case kVK_Shift:
+                    if (!!(modifiers & NSEventModifierFlagShift)) {
+                        [self toggleKey:Q_KEY_CODE_SHIFT];
+                    }
+                    break;
 
-                if (qemu_console_is_graphic(NULL)) {
-                    NSUInteger modifiers = [event modifierFlags];
+                case kVK_RightShift:
+                    if (!!(modifiers & NSEventModifierFlagShift)) {
+                        [self toggleKey:Q_KEY_CODE_SHIFT_R];
+                    }
+                    break;
 
-                    if (!!(modifiers & NSEventModifierFlagCapsLock) != !!modifiers_state[Q_KEY_CODE_CAPS_LOCK]) {
-                        [self toggleStatefulModifier:Q_KEY_CODE_CAPS_LOCK];
+                case kVK_Control:
+                    if (!!(modifiers & NSEventModifierFlagControl)) {
+                        [self toggleKey:Q_KEY_CODE_CTRL];
                     }
-                    if (!!(modifiers & NSEventModifierFlagShift) != !!modifiers_state[Q_KEY_CODE_SHIFT]) {
-                        [self toggleModifier:Q_KEY_CODE_SHIFT];
+                    break;
+
+                case kVK_RightControl:
+                    if (!!(modifiers & NSEventModifierFlagControl)) {
+                        [self toggleKey:Q_KEY_CODE_CTRL_R];
                     }
-                    if (!!(modifiers & NSEventModifierFlagControl) != !!modifiers_state[Q_KEY_CODE_CTRL]) {
-                        [self toggleModifier:Q_KEY_CODE_CTRL];
+                    break;
+
+                case kVK_Option:
+                    if (!!(modifiers & NSEventModifierFlagOption)) {
+                        [self toggleKey:Q_KEY_CODE_ALT];
                     }
-                    if (!!(modifiers & NSEventModifierFlagOption) != !!modifiers_state[Q_KEY_CODE_ALT]) {
-                        [self toggleModifier:Q_KEY_CODE_ALT];
+                    break;
+
+                case kVK_RightOption:
+                    if (!!(modifiers & NSEventModifierFlagOption)) {
+                        [self toggleKey:Q_KEY_CODE_ALT_R];
                     }
-                    if (!!(modifiers & NSEventModifierFlagCommand) != !!modifiers_state[Q_KEY_CODE_META_L]) {
-                        [self toggleModifier:Q_KEY_CODE_META_L];
+                    break;
+
+                /* Don't pass command key changes to guest unless mouse is grabbed */
+                case kVK_Command:
+                    if (isMouseGrabbed &&
+                        !!(modifiers & NSEventModifierFlagCommand)) {
+                        [self toggleKey:Q_KEY_CODE_META_L];
                     }
-                }
-            } else {
-                keycode = cocoa_keycode_to_qemu([event keyCode]);
+                    break;
+
+                case kVK_RightCommand:
+                    if (isMouseGrabbed &&
+                        !!(modifiers & NSEventModifierFlagCommand)) {
+                        [self toggleKey:Q_KEY_CODE_META_R];
+                    }
+                    break;
             }
-
-            if ((keycode == Q_KEY_CODE_META_L || keycode == Q_KEY_CODE_META_R)
-               && !isMouseGrabbed) {
-              /* Don't pass command key changes to guest unless mouse is grabbed */
-              keycode = 0;
-            }
-
-            if (keycode) {
-                // emulate caps lock and num lock keydown and keyup
-                if (keycode == Q_KEY_CODE_CAPS_LOCK ||
-                    keycode == Q_KEY_CODE_NUM_LOCK) {
-                    [self toggleStatefulModifier:keycode];
-                } else if (qemu_console_is_graphic(NULL)) {
-                    if (switched_to_fullscreen) {
-                        switched_to_fullscreen = false;
-                    } else {
-                        [self toggleModifier:keycode];
-                    }
-                }
-            }
-
             break;
         case NSEventTypeKeyDown:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
@@ -800,7 +813,7 @@ QemuCocoaView *cocoaView;
             }
 
             if (qemu_console_is_graphic(NULL)) {
-                qemu_input_event_send_key_qcode(dcl.con, keycode, true);
+                qkbd_state_key_event(kbd, keycode, true);
             } else {
                 [self handleMonitorInput: event];
             }
@@ -815,7 +828,7 @@ QemuCocoaView *cocoaView;
             }
 
             if (qemu_console_is_graphic(NULL)) {
-                qemu_input_event_send_key_qcode(dcl.con, keycode, false);
+                qkbd_state_key_event(kbd, keycode, false);
             }
             break;
         case NSEventTypeMouseMoved:
@@ -999,17 +1012,8 @@ QemuCocoaView *cocoaView;
  */
 - (void) raiseAllKeys
 {
-    const int max_index = ARRAY_SIZE(modifiers_state);
-
     with_iothread_lock(^{
-        int index;
-
-        for (index = 0; index < max_index; index++) {
-            if (modifiers_state[index]) {
-                modifiers_state[index] = 0;
-                qemu_input_event_send_key_qcode(dcl.con, index, false);
-            }
-        }
+        qkbd_state_lift_all_keys(kbd);
     });
 }
 @end
