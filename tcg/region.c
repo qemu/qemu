@@ -401,36 +401,13 @@ static size_t tcg_n_regions(unsigned max_cpus)
 /*
  * Minimum size of the code gen buffer.  This number is randomly chosen,
  * but not so small that we can't have a fair number of TB's live.
+ *
+ * Maximum size, MAX_CODE_GEN_BUFFER_SIZE, is defined in tcg-target.h.
+ * Unless otherwise indicated, this is constrained by the range of
+ * direct branches on the host cpu, as used by the TCG implementation
+ * of goto_tb.
  */
 #define MIN_CODE_GEN_BUFFER_SIZE     (1 * MiB)
-
-/*
- * Maximum size of the code gen buffer we'd like to use.  Unless otherwise
- * indicated, this is constrained by the range of direct branches on the
- * host cpu, as used by the TCG implementation of goto_tb.
- */
-#if defined(__x86_64__)
-# define MAX_CODE_GEN_BUFFER_SIZE  (2 * GiB)
-#elif defined(__sparc__)
-# define MAX_CODE_GEN_BUFFER_SIZE  (2 * GiB)
-#elif defined(__powerpc64__)
-# define MAX_CODE_GEN_BUFFER_SIZE  (2 * GiB)
-#elif defined(__powerpc__)
-# define MAX_CODE_GEN_BUFFER_SIZE  (32 * MiB)
-#elif defined(__aarch64__)
-# define MAX_CODE_GEN_BUFFER_SIZE  (2 * GiB)
-#elif defined(__s390x__)
-  /* We have a +- 4GB range on the branches; leave some slop.  */
-# define MAX_CODE_GEN_BUFFER_SIZE  (3 * GiB)
-#elif defined(__mips__)
-  /*
-   * We have a 256MB branch region, but leave room to make sure the
-   * main executable is also within that region.
-   */
-# define MAX_CODE_GEN_BUFFER_SIZE  (128 * MiB)
-#else
-# define MAX_CODE_GEN_BUFFER_SIZE  ((size_t)-1)
-#endif
 
 #if TCG_TARGET_REG_BITS == 32
 #define DEFAULT_CODE_GEN_BUFFER_SIZE_1 (32 * MiB)

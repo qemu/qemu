@@ -39,6 +39,12 @@
 #define TCG_TARGET_TLB_DISPLACEMENT_BITS 16
 #define TCG_TARGET_NB_REGS 32
 
+/*
+ * We have a 256MB branch region, but leave room to make sure the
+ * main executable is also within that region.
+ */
+#define MAX_CODE_GEN_BUFFER_SIZE  (128 * MiB)
+
 typedef enum {
     TCG_REG_ZERO = 0,
     TCG_REG_AT,
