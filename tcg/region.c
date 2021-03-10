@@ -48,10 +48,10 @@ struct tcg_region_state {
     /* fields set at init time */
     void *start;
     void *start_aligned;
-    void *end;
     size_t n;
     size_t size; /* size of one region */
     size_t stride; /* .size + guard size */
+    size_t total_size; /* size of entire buffer, >= n * stride */
 
     /* fields protected by the lock */
     size_t current; /* current region index */
@@ -278,8 +278,9 @@ static void tcg_region_bounds(size_t curr_region, void **pstart, void **pend)
     if (curr_region == 0) {
         start = region.start;
     }
+    /* The final region may have a few extra pages due to earlier rounding. */
     if (curr_region == region.n - 1) {
-        end = region.end;
+        end = region.start_aligned + region.total_size;
     }
 
     *pstart = start;
@@ -817,8 +818,8 @@ static bool alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
  */
 void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
 {
-    void *buf, *aligned;
-    size_t size;
+    void *buf, *aligned, *end;
+    size_t total_size;
     size_t page_size;
     size_t region_size;
     size_t n_regions;
@@ -830,19 +831,20 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
     assert(ok);
 
     buf = tcg_init_ctx.code_gen_buffer;
-    size = tcg_init_ctx.code_gen_buffer_size;
+    total_size = tcg_init_ctx.code_gen_buffer_size;
     page_size = qemu_real_host_page_size;
     n_regions = tcg_n_regions(max_cpus);
 
     /* The first region will be 'aligned - buf' bytes larger than the others */
     aligned = QEMU_ALIGN_PTR_UP(buf, page_size);
-    g_assert(aligned < tcg_init_ctx.code_gen_buffer + size);
+    g_assert(aligned < tcg_init_ctx.code_gen_buffer + total_size);
+
     /*
      * Make region_size a multiple of page_size, using aligned as the start.
      * As a result of this we might end up with a few extra pages at the end of
      * the buffer; we will assign those to the last region.
      */
-    region_size = (size - (aligned - buf)) / n_regions;
+    region_size = (total_size - (aligned - buf)) / n_regions;
     region_size = QEMU_ALIGN_DOWN(region_size, page_size);
 
     /* A region must have at least 2 pages; one code, one guard */
@@ -856,9 +858,11 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
     region.start = buf;
     region.start_aligned = aligned;
     /* page-align the end, since its last page will be a guard page */
-    region.end = QEMU_ALIGN_PTR_DOWN(buf + size, page_size);
+    end = QEMU_ALIGN_PTR_DOWN(buf + total_size, page_size);
     /* account for that last guard page */
-    region.end -= page_size;
+    end -= page_size;
+    total_size = end - aligned;
+    region.total_size = total_size;
 
     /*
      * Set guard pages in the rw buffer, as that's the one into which
@@ -899,7 +903,7 @@ void tcg_region_prologue_set(TCGContext *s)
 
     /* Register the balance of the buffer with gdb. */
     tcg_register_jit(tcg_splitwx_to_rx(region.start),
-                     region.end - region.start);
+                     region.start_aligned + region.total_size - region.start);
 }
 
 /*
@@ -940,8 +944,10 @@ size_t tcg_code_capacity(void)
 
     /* no need for synchronization; these variables are set at init time */
     guard_size = region.stride - region.size;
-    capacity = region.end + guard_size - region.start;
-    capacity -= region.n * (guard_size + TCG_HIGHWATER);
+    capacity = region.total_size;
+    capacity -= (region.n - 1) * guard_size;
+    capacity -= region.n * TCG_HIGHWATER;
+
     return capacity;
 }
 
