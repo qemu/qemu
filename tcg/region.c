@@ -364,38 +364,33 @@ void tcg_region_reset_all(void)
     tcg_region_tree_reset_all();
 }
 
-static size_t tcg_n_regions(unsigned max_cpus)
+static size_t tcg_n_regions(size_t tb_size, unsigned max_cpus)
 {
 #ifdef CONFIG_USER_ONLY
     return 1;
 #else
+    size_t n_regions;
+
     /*
      * It is likely that some vCPUs will translate more code than others,
      * so we first try to set more regions than max_cpus, with those regions
      * being of reasonable size. If that's not possible we make do by evenly
      * dividing the code_gen_buffer among the vCPUs.
      */
-    size_t i;
-
     /* Use a single region if all we have is one vCPU thread */
     if (max_cpus == 1 || !qemu_tcg_mttcg_enabled()) {
         return 1;
     }
 
-    /* Try to have more regions than max_cpus, with each region being >= 2 MB */
-    for (i = 8; i > 0; i--) {
-        size_t regions_per_thread = i;
-        size_t region_size;
-
-        region_size = tcg_init_ctx.code_gen_buffer_size;
-        region_size /= max_cpus * regions_per_thread;
-
-        if (region_size >= 2 * 1024u * 1024) {
-            return max_cpus * regions_per_thread;
-        }
+    /*
+     * Try to have more regions than max_cpus, with each region being >= 2 MB.
+     * If we can't, then just allocate one region per vCPU thread.
+     */
+    n_regions = tb_size / (2 * MiB);
+    if (n_regions <= max_cpus) {
+        return max_cpus;
     }
-    /* If we can't, then just allocate one region per vCPU thread */
-    return max_cpus;
+    return MIN(n_regions, max_cpus * 8);
 #endif
 }
 
@@ -833,7 +828,7 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
     buf = tcg_init_ctx.code_gen_buffer;
     total_size = tcg_init_ctx.code_gen_buffer_size;
     page_size = qemu_real_host_page_size;
-    n_regions = tcg_n_regions(max_cpus);
+    n_regions = tcg_n_regions(total_size, max_cpus);
 
     /* The first region will be 'aligned - buf' bytes larger than the others */
     aligned = QEMU_ALIGN_PTR_UP(buf, page_size);
