@@ -4,7 +4,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "tests/crypto-tls-x509-helpers.h"
+#include "crypto-tls-x509-helpers.h"
 
 #ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
 
