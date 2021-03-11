@@ -579,7 +579,7 @@ static uint64_t allwinner_sun8i_emac_read(void *opaque, hwaddr offset,
     case REG_INT_STA:           /* Interrupt Status */
         value = s->int_sta;
         break;
-    case REG_INT_EN:            /* Interupt Enable */
+    case REG_INT_EN:            /* Interrupt Enable */
         value = s->int_en;
         break;
     case REG_TX_CTL_0:          /* Transmit Control 0 */

@@ -1992,7 +1992,7 @@ static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
     }
 }
 
-static void qxl_vm_change_state_handler(void *opaque, int running,
+static void qxl_vm_change_state_handler(void *opaque, bool running,
                                         RunState state)
 {
     PCIQXLDevice *qxl = opaque;

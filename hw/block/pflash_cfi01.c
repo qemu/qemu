@@ -1014,7 +1014,7 @@ void pflash_cfi01_legacy_drive(PFlashCFI01 *fl, DriveInfo *dinfo)
     loc_pop(&loc);
 }
 
-static void postload_update_cb(void *opaque, int running, RunState state)
+static void postload_update_cb(void *opaque, bool running, RunState state)
 {
     PFlashCFI01 *pfl = opaque;
 

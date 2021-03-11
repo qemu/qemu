@@ -1869,7 +1869,7 @@ S: Odd Fixes
 F: hw/9pfs/
 X: hw/9pfs/xen-9p*
 F: fsdev/
-F: docs/interop/virtfs-proxy-helper.rst
+F: docs/tools/virtfs-proxy-helper.rst
 F: tests/qtest/virtio-9p-test.c
 T: git https://gitlab.com/gkurz/qemu.git 9p-next
 T: git https://github.com/cschoenebeck/qemu.git 9p.next
@@ -1900,7 +1900,7 @@ S: Supported
 F: tools/virtiofsd/*
 F: hw/virtio/vhost-user-fs*
 F: include/hw/virtio/vhost-user-fs.h
-F: docs/interop/virtiofsd.rst
+F: docs/tools/virtiofsd.rst
 
 virtio-input
 M: Gerd Hoffmann <kraxel@redhat.com>
@@ -2214,7 +2214,7 @@ F: block/
 F: hw/block/
 F: include/block/
 F: qemu-img*
-F: docs/interop/qemu-img.rst
+F: docs/tools/qemu-img.rst
 F: qemu-io*
 F: tests/qemu-iotests/
 F: util/qemu-progress.c
@@ -2671,7 +2671,7 @@ F: qapi/trace.json
 F: scripts/tracetool.py
 F: scripts/tracetool/
 F: scripts/qemu-trace-stap*
-F: docs/interop/qemu-trace-stap.rst
+F: docs/tools/qemu-trace-stap.rst
 F: docs/devel/tracing.txt
 T: git https://github.com/stefanha/qemu.git tracing
 
@@ -3066,7 +3066,7 @@ F: include/block/nbd*
 F: qemu-nbd.*
 F: blockdev-nbd.c
 F: docs/interop/nbd.txt
-F: docs/interop/qemu-nbd.rst
+F: docs/tools/qemu-nbd.rst
 T: git https://repo.or.cz/qemu/ericb.git nbd
 T: git https://src.openvz.org/scm/~vsementsov/qemu.git nbd
 

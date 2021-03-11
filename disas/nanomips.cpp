@@ -837,7 +837,7 @@ int NMD::Disassemble(const uint16 * data, std::string & dis,
                                  * an ASE attribute and the requested version
                                  * not having that attribute
                                  */
-                                dis = "ASE attribute missmatch";
+                                dis = "ASE attribute mismatch";
                                 return -5;
                             }
                             disassembly_function dis_fn = table[i].disassembly;

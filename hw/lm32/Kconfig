@@ -1,14 +1,18 @@
-config LM32
+config LM32_DEVICES
     bool
     select PTIMER
-    select PFLASH_CFI02
 
 config MILKYMIST
     bool
     # FIXME: disabling it results in compile-time errors
     select MILKYMIST_TMU2 if OPENGL && X11
-    select PTIMER
     select PFLASH_CFI01
     select FRAMEBUFFER
     select SD
     select USB_OHCI
+    select LM32_DEVICES
+
+config LM32_EVR
+    bool
+    select LM32_DEVICES
+    select PFLASH_CFI02

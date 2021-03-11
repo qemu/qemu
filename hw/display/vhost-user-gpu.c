@@ -325,7 +325,6 @@ vhost_user_gpu_chr_read(void *opaque)
     }
 
     msg = g_malloc(VHOST_USER_GPU_HDR_SIZE + size);
-    g_return_if_fail(msg != NULL);
 
     r = qemu_chr_fe_read_all(&g->vhost_chr,
                              (uint8_t *)&msg->payload, size);

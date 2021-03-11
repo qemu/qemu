@@ -1059,7 +1059,7 @@ static void timebase_load(PPCTimebase *tb)
     }
 }
 
-void cpu_ppc_clock_vm_state_change(void *opaque, int running,
+void cpu_ppc_clock_vm_state_change(void *opaque, bool running,
                                    RunState state)
 {
     PPCTimebase *tb = opaque;

@@ -691,7 +691,7 @@ sev_launch_finish(SevGuestState *sev)
 }
 
 static void
-sev_vm_state_change(void *opaque, int running, RunState state)
+sev_vm_state_change(void *opaque, bool running, RunState state)
 {
     SevGuestState *sev = opaque;
 

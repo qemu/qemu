@@ -615,7 +615,7 @@ static int add_channel(void *opaque, const char *name, const char *value,
     return 0;
 }
 
-static void vm_change_state_handler(void *opaque, int running,
+static void vm_change_state_handler(void *opaque, bool running,
                                     RunState state)
 {
     if (running) {

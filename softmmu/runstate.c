@@ -218,7 +218,7 @@ void runstate_set(RunState new_state)
     current_run_state = new_state;
 }
 
-int runstate_is_running(void)
+bool runstate_is_running(void)
 {
     return runstate_check(RUN_STATE_RUNNING);
 }
@@ -317,7 +317,7 @@ void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
     g_free(e);
 }
 
-void vm_state_notify(int running, RunState state)
+void vm_state_notify(bool running, RunState state)
 {
     VMChangeStateEntry *e, *next;
 

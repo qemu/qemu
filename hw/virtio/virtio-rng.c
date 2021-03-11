@@ -133,7 +133,7 @@ static uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp)
     return f;
 }
 
-static void virtio_rng_vm_state_change(void *opaque, int running,
+static void virtio_rng_vm_state_change(void *opaque, bool running,
                                        RunState state)
 {
     VirtIORNG *vrng = opaque;

@@ -122,7 +122,7 @@ static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
 }
 
 
-static void xen_change_state_handler(void *opaque, int running,
+static void xen_change_state_handler(void *opaque, bool running,
                                      RunState state)
 {
     if (running) {
