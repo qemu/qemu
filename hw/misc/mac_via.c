@@ -816,33 +816,37 @@ static void adb_via_receive(MacVIAState *s, int state, uint8_t *data)
         switch (s->adb_data_in_index) {
         case 0:
             /* First EVEN byte: vADBInt indicates bus timeout */
-            trace_via1_adb_receive(state == ADB_STATE_EVEN ? "EVEN" : " ODD",
-                                   *data, (ms->b & VIA1B_vADBInt) ? "+" : "-",
-                                   adb_bus->status, s->adb_data_in_index,
-                                   s->adb_data_in_size);
-
-            *data = s->adb_data_in[s->adb_data_in_index++];
+            *data = s->adb_data_in[s->adb_data_in_index];
             if (adb_bus->status & ADB_STATUS_BUSTIMEOUT) {
                 ms->b &= ~VIA1B_vADBInt;
             } else {
                 ms->b |= VIA1B_vADBInt;
             }
-            break;
 
-        case 1:
-            /* First ODD byte: vADBInt indicates SRQ */
             trace_via1_adb_receive(state == ADB_STATE_EVEN ? "EVEN" : " ODD",
                                    *data, (ms->b & VIA1B_vADBInt) ? "+" : "-",
                                    adb_bus->status, s->adb_data_in_index,
                                    s->adb_data_in_size);
 
-            *data = s->adb_data_in[s->adb_data_in_index++];
+            s->adb_data_in_index++;
+            break;
+
+        case 1:
+            /* First ODD byte: vADBInt indicates SRQ */
+            *data = s->adb_data_in[s->adb_data_in_index];
             pending = adb_bus->pending & ~(1 << (s->adb_autopoll_cmd >> 4));
             if (pending) {
                 ms->b &= ~VIA1B_vADBInt;
             } else {
                 ms->b |= VIA1B_vADBInt;
             }
+
+            trace_via1_adb_receive(state == ADB_STATE_EVEN ? "EVEN" : " ODD",
+                                   *data, (ms->b & VIA1B_vADBInt) ? "+" : "-",
+                                   adb_bus->status, s->adb_data_in_index,
+                                   s->adb_data_in_size);
+
+            s->adb_data_in_index++;
             break;
 
         default:
@@ -852,14 +856,9 @@ static void adb_via_receive(MacVIAState *s, int state, uint8_t *data)
              * end of the poll reply, so provide these extra bytes below to
              * keep it happy
              */
-            trace_via1_adb_receive(state == ADB_STATE_EVEN ? "EVEN" : " ODD",
-                                   *data, (ms->b & VIA1B_vADBInt) ? "+" : "-",
-                                   adb_bus->status, s->adb_data_in_index,
-                                   s->adb_data_in_size);
-
             if (s->adb_data_in_index < s->adb_data_in_size) {
                 /* Next data byte */
-                *data = s->adb_data_in[s->adb_data_in_index++];
+                *data = s->adb_data_in[s->adb_data_in_index];
                 ms->b |= VIA1B_vADBInt;
             } else if (s->adb_data_in_index == s->adb_data_in_size) {
                 if (adb_bus->status & ADB_STATUS_BUSTIMEOUT) {
@@ -869,7 +868,6 @@ static void adb_via_receive(MacVIAState *s, int state, uint8_t *data)
                     /* Return 0x0 after reply */
                     *data = 0;
                 }
-                s->adb_data_in_index++;
                 ms->b &= ~VIA1B_vADBInt;
             } else {
                 /* Bus timeout (no more data) */
@@ -877,6 +875,15 @@ static void adb_via_receive(MacVIAState *s, int state, uint8_t *data)
                 ms->b &= ~VIA1B_vADBInt;
                 adb_bus->status = 0;
                 adb_autopoll_unblock(adb_bus);
+            }
+
+            trace_via1_adb_receive(state == ADB_STATE_EVEN ? "EVEN" : " ODD",
+                                   *data, (ms->b & VIA1B_vADBInt) ? "+" : "-",
+                                   adb_bus->status, s->adb_data_in_index,
+                                   s->adb_data_in_size);
+
+            if (s->adb_data_in_index <= s->adb_data_in_size) {
+                s->adb_data_in_index++;
             }
             break;
         }
