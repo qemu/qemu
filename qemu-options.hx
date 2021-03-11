@@ -1928,6 +1928,10 @@ SRST
     ``password=<string>``
         Set the password you need to authenticate.
 
+        This option is deprecated and insecure because it leaves the
+        password visible in the process listing. Use ``password-secret``
+        instead.
+
     ``password-secret=<secret-id>``
         Set the ID of the ``secret`` object containing the password
         you need to authenticate.

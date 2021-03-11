@@ -686,6 +686,8 @@ static void qemu_spice_init(void)
     } else {
         str = qemu_opt_get(opts, "password");
         if (str) {
+            warn_report("'password' option is deprecated and insecure, "
+                        "use 'password-secret' instead");
             password = g_strdup(str);
         }
     }
