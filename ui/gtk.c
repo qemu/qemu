@@ -593,7 +593,6 @@ void gd_hw_gl_flushed(void *vcon)
     close(dmabuf->fence_fd);
     dmabuf->fence_fd = -1;
     graphic_hw_gl_block(vc->gfx.dcl.con, false);
-    graphic_hw_gl_flushed(vc->gfx.dcl.con);
 }
 
 /** DisplayState Callbacks (opengl version) **/

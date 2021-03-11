@@ -119,8 +119,6 @@ void gd_egl_draw(VirtualConsole *vc)
 
         glFlush();
     }
-
-    graphic_hw_gl_flushed(vc->gfx.dcl.con);
 }
 
 void gd_egl_update(DisplayChangeListener *dcl,
