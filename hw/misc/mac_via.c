@@ -305,31 +305,18 @@ enum {
 
 static void via1_sixty_hz_update(MOS6522Q800VIA1State *v1s)
 {
-    MOS6522State *s = MOS6522(v1s);
-
     /* 60 Hz irq */
     v1s->next_sixty_hz = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                           VIA_60HZ_TIMER_PERIOD_NS) /
                           VIA_60HZ_TIMER_PERIOD_NS * VIA_60HZ_TIMER_PERIOD_NS;
-
-    if (s->ier & VIA1_IRQ_60HZ) {
-        timer_mod(v1s->sixty_hz_timer, v1s->next_sixty_hz);
-    } else {
-        timer_del(v1s->sixty_hz_timer);
-    }
+    timer_mod(v1s->sixty_hz_timer, v1s->next_sixty_hz);
 }
 
 static void via1_one_second_update(MOS6522Q800VIA1State *v1s)
 {
-    MOS6522State *s = MOS6522(v1s);
-
     v1s->next_second = (qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 1000) /
                        1000 * 1000;
-    if (s->ier & VIA1_IRQ_ONE_SECOND) {
-        timer_mod(v1s->one_second_timer, v1s->next_second);
-    } else {
-        timer_del(v1s->one_second_timer);
-    }
+    timer_mod(v1s->one_second_timer, v1s->next_second);
 }
 
 static void via1_sixty_hz(void *opaque)
@@ -900,21 +887,6 @@ static uint64_t mos6522_q800_via1_read(void *opaque, hwaddr addr, unsigned size)
 {
     MOS6522Q800VIA1State *s = MOS6522_Q800_VIA1(opaque);
     MOS6522State *ms = MOS6522(s);
-    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
-
-    /*
-     * If IRQs are disabled, timers are disabled, but we need to update
-     * VIA1_IRQ_60HZ and VIA1_IRQ_ONE_SECOND bits in the IFR
-     */
-
-    if (now >= s->next_sixty_hz) {
-        ms->ifr |= VIA1_IRQ_60HZ;
-        via1_sixty_hz_update(s);
-    }
-    if (now >= s->next_second) {
-        ms->ifr |= VIA1_IRQ_ONE_SECOND;
-        via1_one_second_update(s);
-    }
 
     addr = (addr >> 9) & 0xf;
     return mos6522_read(ms, addr, size);
@@ -938,9 +910,6 @@ static void mos6522_q800_via1_write(void *opaque, hwaddr addr, uint64_t val,
         v1s->last_b = ms->b;
         break;
     }
-
-    via1_one_second_update(v1s);
-    via1_sixty_hz_update(v1s);
 }
 
 static const MemoryRegionOps mos6522_q800_via1_ops = {
@@ -985,15 +954,9 @@ static const MemoryRegionOps mos6522_q800_via2_ops = {
 static void mac_via_reset(DeviceState *dev)
 {
     MacVIAState *m = MAC_VIA(dev);
-    MOS6522Q800VIA1State *v1s = &m->mos6522_via1;
     ADBBusState *adb_bus = &m->adb_bus;
 
     adb_set_autopoll_enabled(adb_bus, true);
-
-    timer_del(v1s->sixty_hz_timer);
-    v1s->next_sixty_hz = 0;
-    timer_del(v1s->one_second_timer);
-    v1s->next_second = 0;
 
     m->cmd = REG_EMPTY;
     m->alt = REG_EMPTY;
@@ -1033,9 +996,11 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     m->mos6522_via1.one_second_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                      via1_one_second,
                                                      &m->mos6522_via1);
+    via1_one_second_update(&m->mos6522_via1);
     m->mos6522_via1.sixty_hz_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                                   via1_sixty_hz,
                                                   &m->mos6522_via1);
+    via1_sixty_hz_update(&m->mos6522_via1);
 
     qemu_get_timedate(&tm, 0);
     m->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
