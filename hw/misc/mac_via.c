@@ -609,7 +609,6 @@ static void adb_via_poll(void *opaque)
     uint8_t obuf[9];
     uint8_t *data = &s->sr;
     int olen;
-    uint16_t pending;
 
     /*
      * Setting vADBInt below indicates that an autopoll reply has been
@@ -618,36 +617,36 @@ static void adb_via_poll(void *opaque)
      */
     adb_autopoll_block(adb_bus);
 
-    m->adb_data_in_index = 0;
-    m->adb_data_out_index = 0;
-    olen = adb_poll(adb_bus, obuf, adb_bus->autopoll_mask);
-
-    if (olen > 0) {
-        /* Autopoll response */
-        *data = obuf[0];
-        olen--;
-        memcpy(m->adb_data_in, &obuf[1], olen);
-        m->adb_data_in_size = olen;
+    if (m->adb_data_in_size > 0 && m->adb_data_in_index == 0) {
+        /*
+         * For older Linux kernels that switch to IDLE mode after sending the
+         * ADB command, detect if there is an existing response and return that
+         * as a a "fake" autopoll reply or bus timeout accordingly
+         */
+        *data = m->adb_data_out[0];
+        olen = m->adb_data_in_size;
 
         s->b &= ~VIA1B_vADBInt;
         qemu_irq_raise(m->adb_data_ready);
-    } else if (olen < 0) {
-        /* Bus timeout (device does not exist) */
-        *data = 0xff;
-        s->b |= VIA1B_vADBInt;
-        adb_autopoll_unblock(adb_bus);
     } else {
-        pending = adb_bus->pending & ~(1 << (m->adb_autopoll_cmd >> 4));
+        /*
+         * Otherwise poll as normal
+         */
+        m->adb_data_in_index = 0;
+        m->adb_data_out_index = 0;
+        olen = adb_poll(adb_bus, obuf, adb_bus->autopoll_mask);
 
-        if (pending) {
-            /*
-             * Bus timeout (device exists but another device has data). Block
-             * autopoll so the OS can read out the first EVEN and first ODD
-             * byte to determine bus timeout and SRQ status
-             */
-            *data = m->adb_autopoll_cmd;
+        if (olen > 0) {
+            /* Autopoll response */
+            *data = obuf[0];
+            olen--;
+            memcpy(m->adb_data_in, &obuf[1], olen);
+            m->adb_data_in_size = olen;
+
             s->b &= ~VIA1B_vADBInt;
-
+            qemu_irq_raise(m->adb_data_ready);
+        } else {
+            *data = m->adb_autopoll_cmd;
             obuf[0] = 0xff;
             obuf[1] = 0xff;
             olen = 2;
@@ -655,12 +654,8 @@ static void adb_via_poll(void *opaque)
             memcpy(m->adb_data_in, obuf, olen);
             m->adb_data_in_size = olen;
 
+            s->b &= ~VIA1B_vADBInt;
             qemu_irq_raise(m->adb_data_ready);
-        } else {
-            /* Bus timeout (device exists but no other device has data) */
-            *data = 0;
-            s->b |= VIA1B_vADBInt;
-            adb_autopoll_unblock(adb_bus);
         }
     }
 
@@ -783,27 +778,8 @@ static void adb_via_receive(MacVIAState *s, int state, uint8_t *data)
         return;
 
     case ADB_STATE_IDLE:
-        /*
-         * Since adb_request() will have already consumed the data from the
-         * device, we must detect this extra state change and re-inject the
-         * reponse as either a "fake" autopoll reply or bus timeout
-         * accordingly
-         */
-        if (s->adb_data_in_index == 0) {
-            if (adb_bus->status & ADB_STATUS_BUSTIMEOUT) {
-                *data = 0xff;
-                ms->b |= VIA1B_vADBInt;
-                qemu_irq_raise(s->adb_data_ready);
-            } else if (s->adb_data_in_size > 0) {
-                adb_bus->status = ADB_STATUS_POLLREPLY;
-                *data = s->adb_autopoll_cmd;
-                ms->b &= ~VIA1B_vADBInt;
-                qemu_irq_raise(s->adb_data_ready);
-            }
-        } else {
-            ms->b |= VIA1B_vADBInt;
-            adb_autopoll_unblock(adb_bus);
-        }
+        ms->b |= VIA1B_vADBInt;
+        adb_autopoll_unblock(adb_bus);
 
         trace_via1_adb_receive("IDLE", *data,
                         (ms->b & VIA1B_vADBInt) ? "+" : "-", adb_bus->status,
