@@ -32,10 +32,6 @@
 #define AUDIO_CAP "coreaudio"
 #include "audio_int.h"
 
-#ifndef MAC_OS_X_VERSION_10_6
-#define MAC_OS_X_VERSION_10_6 1060
-#endif
-
 typedef struct coreaudioVoiceOut {
     HWVoiceOut hw;
     pthread_mutex_t mutex;
@@ -44,9 +40,6 @@ typedef struct coreaudioVoiceOut {
     AudioStreamBasicDescription outputStreamBasicDescription;
     AudioDeviceIOProcID ioprocid;
 } coreaudioVoiceOut;
-
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
-/* The APIs used here only become available from 10.6 */
 
 static OSStatus coreaudio_get_voice(AudioDeviceID *id)
 {
@@ -169,102 +162,6 @@ static OSStatus coreaudio_get_isrunning(AudioDeviceID id, UInt32 *result)
                                       &size,
                                       result);
 }
-#else
-/* Legacy versions of functions using deprecated APIs */
-
-static OSStatus coreaudio_get_voice(AudioDeviceID *id)
-{
-    UInt32 size = sizeof(*id);
-
-    return AudioHardwareGetProperty(
-        kAudioHardwarePropertyDefaultOutputDevice,
-        &size,
-        id);
-}
-
-static OSStatus coreaudio_get_framesizerange(AudioDeviceID id,
-                                             AudioValueRange *framerange)
-{
-    UInt32 size = sizeof(*framerange);
-
-    return AudioDeviceGetProperty(
-        id,
-        0,
-        0,
-        kAudioDevicePropertyBufferFrameSizeRange,
-        &size,
-        framerange);
-}
-
-static OSStatus coreaudio_get_framesize(AudioDeviceID id, UInt32 *framesize)
-{
-    UInt32 size = sizeof(*framesize);
-
-    return AudioDeviceGetProperty(
-        id,
-        0,
-        false,
-        kAudioDevicePropertyBufferFrameSize,
-        &size,
-        framesize);
-}
-
-static OSStatus coreaudio_set_framesize(AudioDeviceID id, UInt32 *framesize)
-{
-    UInt32 size = sizeof(*framesize);
-
-    return AudioDeviceSetProperty(
-        id,
-        NULL,
-        0,
-        false,
-        kAudioDevicePropertyBufferFrameSize,
-        size,
-        framesize);
-}
-
-static OSStatus coreaudio_get_streamformat(AudioDeviceID id,
-                                           AudioStreamBasicDescription *d)
-{
-    UInt32 size = sizeof(*d);
-
-    return AudioDeviceGetProperty(
-        id,
-        0,
-        false,
-        kAudioDevicePropertyStreamFormat,
-        &size,
-        d);
-}
-
-static OSStatus coreaudio_set_streamformat(AudioDeviceID id,
-                                           AudioStreamBasicDescription *d)
-{
-    UInt32 size = sizeof(*d);
-
-    return AudioDeviceSetProperty(
-        id,
-        0,
-        0,
-        0,
-        kAudioDevicePropertyStreamFormat,
-        size,
-        d);
-}
-
-static OSStatus coreaudio_get_isrunning(AudioDeviceID id, UInt32 *result)
-{
-    UInt32 size = sizeof(*result);
-
-    return AudioDeviceGetProperty(
-        id,
-        0,
-        0,
-        kAudioDevicePropertyDeviceIsRunning,
-        &size,
-        result);
-}
-#endif
 
 static void coreaudio_logstatus (OSStatus status)
 {
