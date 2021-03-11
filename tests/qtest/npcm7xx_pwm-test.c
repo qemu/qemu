@@ -45,12 +45,56 @@
 #define PLL_FBDV(rv)    extract32((rv), 16, 12)
 #define PLL_OTDV1(rv)   extract32((rv), 8, 3)
 #define PLL_OTDV2(rv)   extract32((rv), 13, 3)
+#define APB4CKDIV(rv)   extract32((rv), 30, 2)
 #define APB3CKDIV(rv)   extract32((rv), 28, 2)
 #define CLK2CKDIV(rv)   extract32((rv), 0, 1)
 #define CLK4CKDIV(rv)   extract32((rv), 26, 2)
 #define CPUCKSEL(rv)    extract32((rv), 0, 2)
 
 #define MAX_DUTY        1000000
+
+/* MFT (PWM fan) related */
+#define MFT_BA(n)       (0xf0180000 + ((n) * 0x1000))
+#define MFT_IRQ(n)      (96 + (n))
+#define MFT_CNT1        0x00
+#define MFT_CRA         0x02
+#define MFT_CRB         0x04
+#define MFT_CNT2        0x06
+#define MFT_PRSC        0x08
+#define MFT_CKC         0x0a
+#define MFT_MCTRL       0x0c
+#define MFT_ICTRL       0x0e
+#define MFT_ICLR        0x10
+#define MFT_IEN         0x12
+#define MFT_CPA         0x14
+#define MFT_CPB         0x16
+#define MFT_CPCFG       0x18
+#define MFT_INASEL      0x1a
+#define MFT_INBSEL      0x1c
+
+#define MFT_MCTRL_ALL   0x64
+#define MFT_ICLR_ALL    0x3f
+#define MFT_IEN_ALL     0x3f
+#define MFT_CPCFG_EQ_MODE 0x44
+
+#define MFT_CKC_C2CSEL  BIT(3)
+#define MFT_CKC_C1CSEL  BIT(0)
+
+#define MFT_ICTRL_TFPND BIT(5)
+#define MFT_ICTRL_TEPND BIT(4)
+#define MFT_ICTRL_TDPND BIT(3)
+#define MFT_ICTRL_TCPND BIT(2)
+#define MFT_ICTRL_TBPND BIT(1)
+#define MFT_ICTRL_TAPND BIT(0)
+
+#define MFT_MAX_CNT     0xffff
+#define MFT_TIMEOUT     0x5000
+
+#define DEFAULT_RPM     19800
+#define DEFAULT_PRSC    255
+#define MFT_PULSE_PER_REVOLUTION 2
+
+#define MAX_ERROR       1
 
 typedef struct PWMModule {
     int irq;
@@ -210,19 +254,36 @@ static uint64_t pwm_get_duty(QTestState *qts, int module_index, int pwm_index)
     return pwm_qom_get(qts, path, name);
 }
 
+static void mft_qom_set(QTestState *qts, int index, const char *name,
+                        uint32_t value)
+{
+    QDict *response;
+    char *path = g_strdup_printf("/machine/soc/mft[%d]", index);
+
+    g_test_message("Setting properties %s of mft[%d] with value %u",
+                   name, index, value);
+    response = qtest_qmp(qts, "{ 'execute': 'qom-set',"
+            " 'arguments': { 'path': %s, "
+            " 'property': %s, 'value': %u}}",
+            path, name, value);
+    /* The qom set message returns successfully. */
+    g_assert_true(qdict_haskey(response, "return"));
+}
+
 static uint32_t get_pll(uint32_t con)
 {
     return REF_HZ * PLL_FBDV(con) / (PLL_INDV(con) * PLL_OTDV1(con)
             * PLL_OTDV2(con));
 }
 
-static uint64_t read_pclk(QTestState *qts)
+static uint64_t read_pclk(QTestState *qts, bool mft)
 {
     uint64_t freq = REF_HZ;
     uint32_t clksel = qtest_readl(qts, CLK_BA + CLKSEL);
     uint32_t pllcon;
     uint32_t clkdiv1 = qtest_readl(qts, CLK_BA + CLKDIV1);
     uint32_t clkdiv2 = qtest_readl(qts, CLK_BA + CLKDIV2);
+    uint32_t apbdiv = mft ? APB4CKDIV(clkdiv2) : APB3CKDIV(clkdiv2);
 
     switch (CPUCKSEL(clksel)) {
     case 0:
@@ -241,7 +302,7 @@ static uint64_t read_pclk(QTestState *qts)
         g_assert_not_reached();
     }
 
-    freq >>= (CLK2CKDIV(clkdiv1) + CLK4CKDIV(clkdiv1) + APB3CKDIV(clkdiv2));
+    freq >>= (CLK2CKDIV(clkdiv1) + CLK4CKDIV(clkdiv1) + apbdiv);
 
     return freq;
 }
@@ -267,7 +328,7 @@ static uint32_t pwm_selector(uint32_t csr)
 static uint64_t pwm_compute_freq(QTestState *qts, uint32_t ppr, uint32_t csr,
         uint32_t cnr)
 {
-    return read_pclk(qts) / ((ppr + 1) * pwm_selector(csr) * (cnr + 1));
+    return read_pclk(qts, false) / ((ppr + 1) * pwm_selector(csr) * (cnr + 1));
 }
 
 static uint64_t pwm_compute_duty(uint32_t cnr, uint32_t cmr, bool inverted)
@@ -299,6 +360,28 @@ static void pwm_write(QTestState *qts, const TestData *td, unsigned offset,
         uint32_t value)
 {
     qtest_writel(qts, td->module->base_addr + offset, value);
+}
+
+static uint8_t mft_readb(QTestState *qts, int index, unsigned offset)
+{
+    return qtest_readb(qts, MFT_BA(index) + offset);
+}
+
+static uint16_t mft_readw(QTestState *qts, int index, unsigned offset)
+{
+    return qtest_readw(qts, MFT_BA(index) + offset);
+}
+
+static void mft_writeb(QTestState *qts, int index, unsigned offset,
+                        uint8_t value)
+{
+    qtest_writeb(qts, MFT_BA(index) + offset, value);
+}
+
+static void mft_writew(QTestState *qts, int index, unsigned offset,
+                        uint16_t value)
+{
+    return qtest_writew(qts, MFT_BA(index) + offset, value);
 }
 
 static uint32_t pwm_read_ppr(QTestState *qts, const TestData *td)
@@ -351,11 +434,116 @@ static void pwm_write_cmr(QTestState *qts, const TestData *td, uint32_t value)
     pwm_write(qts, td, td->pwm->cmr_offset, value);
 }
 
+static int mft_compute_index(const TestData *td)
+{
+    int index = pwm_module_index(td->module) * ARRAY_SIZE(pwm_list) +
+                pwm_index(td->pwm);
+
+    g_assert_cmpint(index, <,
+                    ARRAY_SIZE(pwm_module_list) * ARRAY_SIZE(pwm_list));
+
+    return index;
+}
+
+static void mft_reset_counters(QTestState *qts, int index)
+{
+    mft_writew(qts, index, MFT_CNT1, MFT_MAX_CNT);
+    mft_writew(qts, index, MFT_CNT2, MFT_MAX_CNT);
+    mft_writew(qts, index, MFT_CRA, MFT_MAX_CNT);
+    mft_writew(qts, index, MFT_CRB, MFT_MAX_CNT);
+    mft_writew(qts, index, MFT_CPA, MFT_MAX_CNT - MFT_TIMEOUT);
+    mft_writew(qts, index, MFT_CPB, MFT_MAX_CNT - MFT_TIMEOUT);
+}
+
+static void mft_init(QTestState *qts, const TestData *td)
+{
+    int index = mft_compute_index(td);
+
+    /* Enable everything */
+    mft_writeb(qts, index, MFT_CKC, 0);
+    mft_writeb(qts, index, MFT_ICLR, MFT_ICLR_ALL);
+    mft_writeb(qts, index, MFT_MCTRL, MFT_MCTRL_ALL);
+    mft_writeb(qts, index, MFT_IEN, MFT_IEN_ALL);
+    mft_writeb(qts, index, MFT_INASEL, 0);
+    mft_writeb(qts, index, MFT_INBSEL, 0);
+
+    /* Set cpcfg to use EQ mode, same as kernel driver */
+    mft_writeb(qts, index, MFT_CPCFG, MFT_CPCFG_EQ_MODE);
+
+    /* Write default counters, timeout and prescaler */
+    mft_reset_counters(qts, index);
+    mft_writeb(qts, index, MFT_PRSC, DEFAULT_PRSC);
+
+    /* Write default max rpm via QMP */
+    mft_qom_set(qts, index, "max_rpm[0]", DEFAULT_RPM);
+    mft_qom_set(qts, index, "max_rpm[1]", DEFAULT_RPM);
+}
+
+static int32_t mft_compute_cnt(uint32_t rpm, uint64_t clk)
+{
+    uint64_t cnt;
+
+    if (rpm == 0) {
+        return -1;
+    }
+
+    cnt = clk * 60 / ((DEFAULT_PRSC + 1) * rpm * MFT_PULSE_PER_REVOLUTION);
+    if (cnt >= MFT_TIMEOUT) {
+        return -1;
+    }
+    return MFT_MAX_CNT - cnt;
+}
+
+static void mft_verify_rpm(QTestState *qts, const TestData *td, uint64_t duty)
+{
+    int index = mft_compute_index(td);
+    uint16_t cnt, cr;
+    uint32_t rpm = DEFAULT_RPM * duty / MAX_DUTY;
+    uint64_t clk = read_pclk(qts, true);
+    int32_t expected_cnt = mft_compute_cnt(rpm, clk);
+
+    qtest_irq_intercept_in(qts, "/machine/soc/a9mpcore/gic");
+    g_test_message(
+        "verifying rpm for mft[%d]: clk: %" PRIu64 ", duty: %" PRIu64 ", rpm: %u, cnt: %d",
+        index, clk, duty, rpm, expected_cnt);
+
+    /* Verify rpm for fan A */
+    /* Stop capture */
+    mft_writeb(qts, index, MFT_CKC, 0);
+    mft_writeb(qts, index, MFT_ICLR, MFT_ICLR_ALL);
+    mft_reset_counters(qts, index);
+    g_assert_cmphex(mft_readw(qts, index, MFT_CNT1), ==, MFT_MAX_CNT);
+    g_assert_cmphex(mft_readw(qts, index, MFT_CRA), ==, MFT_MAX_CNT);
+    g_assert_cmphex(mft_readw(qts, index, MFT_CPA), ==,
+                    MFT_MAX_CNT - MFT_TIMEOUT);
+    /* Start capture */
+    mft_writeb(qts, index, MFT_CKC, MFT_CKC_C1CSEL);
+    g_assert_true(qtest_get_irq(qts, MFT_IRQ(index)));
+    if (expected_cnt == -1) {
+        g_assert_cmphex(mft_readb(qts, index, MFT_ICTRL), ==, MFT_ICTRL_TEPND);
+    } else {
+        g_assert_cmphex(mft_readb(qts, index, MFT_ICTRL), ==, MFT_ICTRL_TAPND);
+        cnt = mft_readw(qts, index, MFT_CNT1);
+        /*
+         * Due to error in clock measurement and rounding, we might have a small
+         * error in measuring RPM.
+         */
+        g_assert_cmphex(cnt + MAX_ERROR, >=, expected_cnt);
+        g_assert_cmphex(cnt, <=, expected_cnt + MAX_ERROR);
+        cr = mft_readw(qts, index, MFT_CRA);
+        g_assert_cmphex(cnt, ==, cr);
+    }
+
+    /* Verify rpm for fan B */
+
+    qtest_irq_intercept_out(qts, "/machine/soc/a9mpcore/gic");
+}
+
 /* Check pwm registers can be reset to default value */
 static void test_init(gconstpointer test_data)
 {
     const TestData *td = test_data;
-    QTestState *qts = qtest_init("-machine quanta-gsj");
+    QTestState *qts = qtest_init("-machine npcm750-evb");
     int module = pwm_module_index(td->module);
     int pwm = pwm_index(td->pwm);
 
@@ -369,7 +557,7 @@ static void test_init(gconstpointer test_data)
 static void test_oneshot(gconstpointer test_data)
 {
     const TestData *td = test_data;
-    QTestState *qts = qtest_init("-machine quanta-gsj");
+    QTestState *qts = qtest_init("-machine npcm750-evb");
     int module = pwm_module_index(td->module);
     int pwm = pwm_index(td->pwm);
     uint32_t ppr, csr, pcr;
@@ -400,12 +588,14 @@ static void test_oneshot(gconstpointer test_data)
 static void test_toggle(gconstpointer test_data)
 {
     const TestData *td = test_data;
-    QTestState *qts = qtest_init("-machine quanta-gsj");
+    QTestState *qts = qtest_init("-machine npcm750-evb");
     int module = pwm_module_index(td->module);
     int pwm = pwm_index(td->pwm);
     uint32_t ppr, csr, pcr, cnr, cmr;
     int i, j, k, l;
     uint64_t expected_freq, expected_duty;
+
+    mft_init(qts, td);
 
     pcr = CH_EN | CH_MOD;
     for (i = 0; i < ARRAY_SIZE(ppr_list); ++i) {
@@ -439,6 +629,9 @@ static void test_toggle(gconstpointer test_data)
                         g_assert_cmpuint(pwm_get_freq(qts, module, pwm),
                                 ==, expected_freq);
                     }
+
+                    /* Test MFT's RPM is correct. */
+                    mft_verify_rpm(qts, td, expected_duty);
 
                     /* Test inverted mode */
                     expected_duty = pwm_compute_duty(cnr, cmr, true);
