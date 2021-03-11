@@ -79,7 +79,7 @@ struct QemuConsole {
     DisplaySurface *surface;
     int dcls;
     DisplayChangeListener *gl;
-    bool gl_block;
+    int gl_block;
     int window_id;
 
     /* Graphic console state.  */
@@ -237,10 +237,19 @@ void graphic_hw_gl_block(QemuConsole *con, bool block)
 {
     assert(con != NULL);
 
-    con->gl_block = block;
-    if (con->hw_ops->gl_block) {
-        con->hw_ops->gl_block(con->hw, block);
+    if (block) {
+        con->gl_block++;
+    } else {
+        con->gl_block--;
     }
+    assert(con->gl_block >= 0);
+    if (!con->hw_ops->gl_block) {
+        return;
+    }
+    if ((block && con->gl_block != 1) || (!block && con->gl_block != 0)) {
+        return;
+    }
+    con->hw_ops->gl_block(con->hw, block);
 }
 
 void graphic_hw_gl_flushed(QemuConsole *con)
