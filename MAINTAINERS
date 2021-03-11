@@ -1725,7 +1725,7 @@ F: tests/qtest/acpi-utils.[hc]
 F: tests/data/acpi/
 
 ACPI/HEST/GHES
-R: Dongjiu Geng <gengdongjiu@huawei.com>
+R: Dongjiu Geng <gengdongjiu1@gmail.com>
 R: Xiang Zheng <zhengxiang9@huawei.com>
 L: qemu-arm@nongnu.org
 S: Maintained
