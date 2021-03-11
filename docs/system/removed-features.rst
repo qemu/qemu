@@ -120,6 +120,12 @@ Drives with interface types other than ``if=none`` are for onboard
 devices.  Drives the board doesn't pick up can no longer be used with
 -device.  Use ``if=none`` instead.
 
+``-usbdevice ccid`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''
+
+This option was undocumented and not used in the field.
+Use `-device usb-ccid`` instead.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
