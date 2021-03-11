@@ -279,6 +279,12 @@
 #define VIA_TIMER_FREQ (783360)
 #define VIA_ADB_POLL_FREQ 50 /* XXX: not real */
 
+/*
+ * Guide to the Macintosh Family Hardware ch. 12 "Displays" p. 401 gives the
+ * precise 60Hz interrupt frequency as ~60.15Hz with a period of 16625.8 us
+ */
+#define VIA_60HZ_TIMER_PERIOD_NS   16625800
+
 /* VIA returns time offset from Jan 1, 1904, not 1970 */
 #define RTC_OFFSET 2082844800
 
@@ -302,8 +308,9 @@ static void via1_sixty_hz_update(MOS6522Q800VIA1State *v1s)
     MOS6522State *s = MOS6522(v1s);
 
     /* 60 Hz irq */
-    v1s->next_sixty_hz = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 16630) /
-                          16630 * 16630;
+    v1s->next_sixty_hz = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                          VIA_60HZ_TIMER_PERIOD_NS) /
+                          VIA_60HZ_TIMER_PERIOD_NS * VIA_60HZ_TIMER_PERIOD_NS;
 
     if (s->ier & VIA1_IRQ_60HZ) {
         timer_mod(v1s->sixty_hz_timer, v1s->next_sixty_hz);
