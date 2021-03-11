@@ -749,30 +749,42 @@ static int write_sstatus(CPURISCVState *env, int csrno, target_ulong val)
     return write_mstatus(env, CSR_MSTATUS, newval);
 }
 
+static int read_vsie(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    /* Shift the VS bits to their S bit location in vsie */
+    *val = (env->mie & env->hideleg & VS_MODE_INTERRUPTS) >> 1;
+    return 0;
+}
+
 static int read_sie(CPURISCVState *env, int csrno, target_ulong *val)
 {
     if (riscv_cpu_virt_enabled(env)) {
-        /* Tell the guest the VS bits, shifted to the S bit locations */
-        *val = (env->mie & env->mideleg & VS_MODE_INTERRUPTS) >> 1;
+        read_vsie(env, CSR_VSIE, val);
     } else {
         *val = env->mie & env->mideleg;
     }
     return 0;
 }
 
+static int write_vsie(CPURISCVState *env, int csrno, target_ulong val)
+{
+    /* Shift the S bits to their VS bit location in mie */
+    target_ulong newval = (env->mie & ~VS_MODE_INTERRUPTS) |
+                          ((val << 1) & env->hideleg & VS_MODE_INTERRUPTS);
+    return write_mie(env, CSR_MIE, newval);
+}
+
 static int write_sie(CPURISCVState *env, int csrno, target_ulong val)
 {
-    target_ulong newval;
-
     if (riscv_cpu_virt_enabled(env)) {
-        /* Shift the guests S bits to VS */
-        newval = (env->mie & ~VS_MODE_INTERRUPTS) |
-                 ((val << 1) & VS_MODE_INTERRUPTS);
+        write_vsie(env, CSR_VSIE, val);
     } else {
-        newval = (env->mie & ~S_MODE_INTERRUPTS) | (val & S_MODE_INTERRUPTS);
+        target_ulong newval = (env->mie & ~S_MODE_INTERRUPTS) |
+                              (val & S_MODE_INTERRUPTS);
+        write_mie(env, CSR_MIE, newval);
     }
 
-    return write_mie(env, CSR_MIE, newval);
+    return 0;
 }
 
 static int read_stvec(CPURISCVState *env, int csrno, target_ulong *val)
@@ -853,17 +865,25 @@ static int write_sbadaddr(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
+static int rmw_vsip(CPURISCVState *env, int csrno, target_ulong *ret_value,
+                    target_ulong new_value, target_ulong write_mask)
+{
+    /* Shift the S bits to their VS bit location in mip */
+    int ret = rmw_mip(env, 0, ret_value, new_value << 1,
+                      (write_mask << 1) & vsip_writable_mask & env->hideleg);
+    *ret_value &= VS_MODE_INTERRUPTS;
+    /* Shift the VS bits to their S bit location in vsip */
+    *ret_value >>= 1;
+    return ret;
+}
+
 static int rmw_sip(CPURISCVState *env, int csrno, target_ulong *ret_value,
                    target_ulong new_value, target_ulong write_mask)
 {
     int ret;
 
     if (riscv_cpu_virt_enabled(env)) {
-        /* Shift the new values to line up with the VS bits */
-        ret = rmw_mip(env, CSR_MSTATUS, ret_value, new_value << 1,
-                      (write_mask & sip_writable_mask) << 1 & env->mideleg);
-        ret &= vsip_writable_mask;
-        ret >>= 1;
+        ret = rmw_vsip(env, CSR_VSIP, ret_value, new_value, write_mask);
     } else {
         ret = rmw_mip(env, CSR_MSTATUS, ret_value, new_value,
                       write_mask & env->mideleg & sip_writable_mask);
@@ -1120,26 +1140,6 @@ static int write_vsstatus(CPURISCVState *env, int csrno, target_ulong val)
     uint64_t mask = (target_ulong)-1;
     env->vsstatus = (env->vsstatus & ~mask) | (uint64_t)val;
     return 0;
-}
-
-static int rmw_vsip(CPURISCVState *env, int csrno, target_ulong *ret_value,
-                    target_ulong new_value, target_ulong write_mask)
-{
-    int ret = rmw_mip(env, 0, ret_value, new_value,
-                      write_mask & env->mideleg & vsip_writable_mask);
-    return ret;
-}
-
-static int read_vsie(CPURISCVState *env, int csrno, target_ulong *val)
-{
-    *val = env->mie & env->mideleg & VS_MODE_INTERRUPTS;
-    return 0;
-}
-
-static int write_vsie(CPURISCVState *env, int csrno, target_ulong val)
-{
-    target_ulong newval = (env->mie & ~env->mideleg) | (val & env->mideleg & MIP_VSSIP);
-    return write_mie(env, CSR_MIE, newval);
 }
 
 static int read_vstvec(CPURISCVState *env, int csrno, target_ulong *val)
