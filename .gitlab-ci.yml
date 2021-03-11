@@ -432,6 +432,8 @@ build-user-plugins:
 
 build-user-centos7:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-centos7-container
   variables:
     IMAGE: centos7
     CONFIGURE_ARGS: --disable-system --disable-tools --disable-docs
@@ -461,6 +463,8 @@ clang-system:
 
 clang-user:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --cc=clang --cxx=clang++ --disable-system
@@ -470,6 +474,8 @@ clang-user:
 
 tsan-build:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-ubuntu2004-container
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-tsan --cc=clang-10 --cxx=clang++-10 --disable-docs
@@ -507,6 +513,8 @@ check-deprecated:
 # gprof/gcov are GCC features
 gprof-gcov:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-ubuntu2004-container
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-gprof --enable-gcov
