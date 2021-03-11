@@ -585,7 +585,7 @@ build-coroutine-sigaltstack:
 #
 # These jobs test old gcrypt and nettle from RHEL7
 # which had some API differences.
-build-crypto-old-nettle:
+crypto-old-nettle:
   <<: *native_build_job_definition
   needs:
     job: amd64-centos7-container
@@ -593,22 +593,9 @@ build-crypto-old-nettle:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
     CONFIGURE_ARGS: --disable-gcrypt --enable-nettle
-    MAKE_CHECK_ARGS: check-build
-  artifacts:
-    paths:
-      - build
-
-check-crypto-old-nettle:
-  <<: *native_test_job_definition
-  needs:
-    - job: build-crypto-old-nettle
-      artifacts: true
-  variables:
-    IMAGE: centos7
     MAKE_CHECK_ARGS: check
 
-
-build-crypto-old-gcrypt:
+crypto-old-gcrypt:
   <<: *native_build_job_definition
   needs:
     job: amd64-centos7-container
@@ -616,22 +603,9 @@ build-crypto-old-gcrypt:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
     CONFIGURE_ARGS: --disable-nettle --enable-gcrypt
-    MAKE_CHECK_ARGS: check-build
-  artifacts:
-    paths:
-      - build
-
-check-crypto-old-gcrypt:
-  <<: *native_test_job_definition
-  needs:
-    - job: build-crypto-old-gcrypt
-      artifacts: true
-  variables:
-    IMAGE: centos7
     MAKE_CHECK_ARGS: check
 
-
-build-crypto-only-gnutls:
+crypto-only-gnutls:
   <<: *native_build_job_definition
   needs:
     job: amd64-centos7-container
@@ -639,19 +613,8 @@ build-crypto-only-gnutls:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
     CONFIGURE_ARGS: --disable-nettle --disable-gcrypt --enable-gnutls
-    MAKE_CHECK_ARGS: check-build
-  artifacts:
-    paths:
-      - build
-
-check-crypto-only-gnutls:
-  <<: *native_test_job_definition
-  needs:
-    - job: build-crypto-only-gnutls
-      artifacts: true
-  variables:
-    IMAGE: centos7
     MAKE_CHECK_ARGS: check
+
 
 # We don't need to exercise every backend with every front-end
 build-trace-multi-user:
