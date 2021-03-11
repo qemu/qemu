@@ -48,6 +48,7 @@ Supported devices
  * UART
  * Ethernet controllers
  * Front LEDs (PCA9552 on I2C bus)
+ * LPC Peripheral Controller (a subset of subdevices are supported)
 
 
 Missing devices
@@ -56,7 +57,6 @@ Missing devices
  * Coprocessor support
  * ADC (out of tree implementation)
  * PWM and Fan Controller
- * LPC Bus Controller
  * Slave GPIO Controller
  * Super I/O Controller
  * Hash/Crypto Engine
@@ -72,18 +72,22 @@ Missing devices
 Boot options
 ------------
 
-The Aspeed machines can be started using the -kernel option to load a
-Linux kernel or from a firmware image which can be downloaded from the
-OpenPOWER jenkins :
+The Aspeed machines can be started using the ``-kernel`` option to
+load a Linux kernel or from a firmware. Images can be downloaded from
+the OpenBMC jenkins :
 
-   https://openpower.xyz/
+   https://jenkins.openbmc.org/job/ci-openbmc/lastSuccessfulBuild/distro=ubuntu,label=docker-builder
+
+or directly from the OpenBMC GitHub release repository :
+
+   https://github.com/openbmc/openbmc/releases
 
 The image should be attached as an MTD drive. Run :
 
 .. code-block:: bash
 
   $ qemu-system-arm -M romulus-bmc -nic user \
-	-drive file=flash-romulus,format=raw,if=mtd -nographic
+	-drive file=obmc-phosphor-image-romulus.static.mtd,format=raw,if=mtd -nographic
 
 Options specific to Aspeed machines are :
 
