@@ -41,19 +41,21 @@ typedef struct coreaudioVoiceOut {
     UInt32 audioDevicePropertyBufferFrameSize;
     AudioStreamBasicDescription outputStreamBasicDescription;
     AudioDeviceIOProcID ioprocid;
+    bool enabled;
 } coreaudioVoiceOut;
+
+static const AudioObjectPropertyAddress voice_addr = {
+    kAudioHardwarePropertyDefaultOutputDevice,
+    kAudioObjectPropertyScopeGlobal,
+    kAudioObjectPropertyElementMaster
+};
 
 static OSStatus coreaudio_get_voice(AudioDeviceID *id)
 {
     UInt32 size = sizeof(*id);
-    AudioObjectPropertyAddress addr = {
-        kAudioHardwarePropertyDefaultOutputDevice,
-        kAudioObjectPropertyScopeGlobal,
-        kAudioObjectPropertyElementMaster
-    };
 
     return AudioObjectGetPropertyData(kAudioObjectSystemObject,
-                                      &addr,
+                                      &voice_addr,
                                       0,
                                       NULL,
                                       &size,
@@ -258,18 +260,6 @@ static void GCC_FMT_ATTR (3, 4) coreaudio_logerr2 (
 #define coreaudio_playback_logerr(status, ...) \
     coreaudio_logerr2(status, "playback", __VA_ARGS__)
 
-static inline UInt32 isPlaying (AudioDeviceID outputDeviceID)
-{
-    OSStatus status;
-    UInt32 result = 0;
-    status = coreaudio_get_isrunning(outputDeviceID, &result);
-    if (status != kAudioHardwareNoError) {
-        coreaudio_logerr(status,
-                         "Could not determine whether Device is playing\n");
-    }
-    return result;
-}
-
 static int coreaudio_lock (coreaudioVoiceOut *core, const char *fn_name)
 {
     int err;
@@ -341,6 +331,11 @@ static OSStatus audioDeviceIOProc(
         return 0;
     }
 
+    if (inDevice != core->outputDeviceID) {
+        coreaudio_unlock (core, "audioDeviceIOProc(old device)");
+        return 0;
+    }
+
     frameCount = core->audioDevicePropertyBufferFrameSize;
     pending_frames = hw->pending_emul / hw->info.bytes_per_frame;
 
@@ -392,6 +387,9 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
     /* get minimum and maximum buffer frame sizes */
     status = coreaudio_get_framesizerange(core->outputDeviceID,
                                           &frameRange);
+    if (status == kAudioHardwareBadObjectError) {
+        return 0;
+    }
     if (status != kAudioHardwareNoError) {
         coreaudio_playback_logerr (status,
                                     "Could not get device buffer frame range\n");
@@ -411,6 +409,9 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
     /* set Buffer Frame Size */
     status = coreaudio_set_framesize(core->outputDeviceID,
                                      &core->audioDevicePropertyBufferFrameSize);
+    if (status == kAudioHardwareBadObjectError) {
+        return 0;
+    }
     if (status != kAudioHardwareNoError) {
         coreaudio_playback_logerr (status,
                                     "Could not set device buffer frame size %" PRIu32 "\n",
@@ -421,6 +422,9 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
     /* get Buffer Frame Size */
     status = coreaudio_get_framesize(core->outputDeviceID,
                                      &core->audioDevicePropertyBufferFrameSize);
+    if (status == kAudioHardwareBadObjectError) {
+        return 0;
+    }
     if (status != kAudioHardwareNoError) {
         coreaudio_playback_logerr (status,
                                     "Could not get device buffer frame size\n");
@@ -431,6 +435,9 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
     /* get StreamFormat */
     status = coreaudio_get_streamformat(core->outputDeviceID,
                                         &core->outputStreamBasicDescription);
+    if (status == kAudioHardwareBadObjectError) {
+        return 0;
+    }
     if (status != kAudioHardwareNoError) {
         coreaudio_playback_logerr (status,
                                     "Could not get Device Stream properties\n");
@@ -441,6 +448,9 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
     /* set Samplerate */
     status = coreaudio_set_streamformat(core->outputDeviceID,
                                         &core->outputStreamBasicDescription);
+    if (status == kAudioHardwareBadObjectError) {
+        return 0;
+    }
     if (status != kAudioHardwareNoError) {
         coreaudio_playback_logerr (status,
                                    "Could not set samplerate %lf\n",
@@ -455,6 +465,9 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
                                        audioDeviceIOProc,
                                        &core->hw,
                                        &core->ioprocid);
+    if (status == kAudioHardwareBadDeviceError) {
+        return 0;
+    }
     if (status != kAudioHardwareNoError || core->ioprocid == NULL) {
         coreaudio_playback_logerr (status, "Could not set IOProc\n");
         core->outputDeviceID = kAudioDeviceUnknown;
@@ -467,22 +480,92 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
 static void fini_out_device(coreaudioVoiceOut *core)
 {
     OSStatus status;
+    UInt32 isrunning;
 
     /* stop playback */
-    if (isPlaying(core->outputDeviceID)) {
-        status = AudioDeviceStop(core->outputDeviceID, core->ioprocid);
+    status = coreaudio_get_isrunning(core->outputDeviceID, &isrunning);
+    if (status != kAudioHardwareBadObjectError) {
         if (status != kAudioHardwareNoError) {
-            coreaudio_logerr(status, "Could not stop playback\n");
+            coreaudio_logerr(status,
+                             "Could not determine whether Device is playing\n");
+        }
+
+        if (isrunning) {
+            status = AudioDeviceStop(core->outputDeviceID, core->ioprocid);
+            if (status != kAudioHardwareBadDeviceError && status != kAudioHardwareNoError) {
+                coreaudio_logerr(status, "Could not stop playback\n");
+            }
         }
     }
 
     /* remove callback */
     status = AudioDeviceDestroyIOProcID(core->outputDeviceID,
                                         core->ioprocid);
-    if (status != kAudioHardwareNoError) {
+    if (status != kAudioHardwareBadDeviceError && status != kAudioHardwareNoError) {
         coreaudio_logerr(status, "Could not remove IOProc\n");
     }
     core->outputDeviceID = kAudioDeviceUnknown;
+}
+
+static void update_device_playback_state(coreaudioVoiceOut *core)
+{
+    OSStatus status;
+    UInt32 isrunning;
+
+    status = coreaudio_get_isrunning(core->outputDeviceID, &isrunning);
+    if (status != kAudioHardwareNoError) {
+        if (status != kAudioHardwareBadObjectError) {
+            coreaudio_logerr(status,
+                             "Could not determine whether Device is playing\n");
+        }
+
+        return;
+    }
+
+    if (core->enabled) {
+        /* start playback */
+        if (!isrunning) {
+            status = AudioDeviceStart(core->outputDeviceID, core->ioprocid);
+            if (status != kAudioHardwareBadDeviceError && status != kAudioHardwareNoError) {
+                coreaudio_logerr (status, "Could not resume playback\n");
+            }
+        }
+    } else {
+        /* stop playback */
+        if (isrunning) {
+            status = AudioDeviceStop(core->outputDeviceID,
+                                     core->ioprocid);
+            if (status != kAudioHardwareBadDeviceError && status != kAudioHardwareNoError) {
+                coreaudio_logerr(status, "Could not pause playback\n");
+            }
+        }
+    }
+}
+
+static OSStatus handle_voice_change(
+    AudioObjectID in_object_id,
+    UInt32 in_number_addresses,
+    const AudioObjectPropertyAddress *in_addresses,
+    void *in_client_data)
+{
+    OSStatus status;
+    coreaudioVoiceOut *core = in_client_data;
+
+    if (coreaudio_lock(core, __func__)) {
+        abort();
+    }
+
+    if (core->outputDeviceID) {
+        fini_out_device(core);
+    }
+
+    status = init_out_device(core);
+    if (!status) {
+        update_device_playback_state(core);
+    }
+
+    coreaudio_unlock (core, __func__);
+    return status;
 }
 
 static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
@@ -499,7 +582,11 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     err = pthread_mutex_init(&core->mutex, NULL);
     if (err) {
         dolog("Could not create mutex\nReason: %s\n", strerror (err));
-        return -1;
+        goto mutex_error;
+    }
+
+    if (coreaudio_lock(core, __func__)) {
+        goto lock_error;
     }
 
     obt_as = *as;
@@ -513,11 +600,43 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     core->bufferCount = cpdo->has_buffer_count ? cpdo->buffer_count : 4;
     core->outputStreamBasicDescription.mSampleRate = (Float64) as->freq;
 
-    if (init_out_device(core)) {
-        return -1;
+    status = AudioObjectAddPropertyListener(kAudioObjectSystemObject,
+                                            &voice_addr, handle_voice_change,
+                                            core);
+    if (status != kAudioHardwareNoError) {
+        coreaudio_playback_logerr (status,
+                                   "Could not listen to voice property change\n");
+        goto listener_error;
     }
 
+    if (init_out_device(core)) {
+        goto device_error;
+    }
+
+    coreaudio_unlock(core, __func__);
     return 0;
+
+device_error:
+    status = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
+                                               &voice_addr,
+                                               handle_voice_change,
+                                               core);
+    if (status != kAudioHardwareNoError) {
+        coreaudio_playback_logerr(status,
+                                  "Could not remove voice property change listener\n");
+    }
+
+listener_error:
+    coreaudio_unlock(core, __func__);
+
+lock_error:
+    err = pthread_mutex_destroy(&core->mutex);
+    if (err) {
+        dolog("Could not destroy mutex\nReason: %s\n", strerror (err));
+    }
+
+mutex_error:
+    return -1;
 }
 
 static void coreaudio_fini_out (HWVoiceOut *hw)
@@ -526,7 +645,21 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
     int err;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
 
+    if (coreaudio_lock(core, __func__)) {
+        abort();
+    }
+
+    status = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
+                                               &voice_addr,
+                                               handle_voice_change,
+                                               core);
+    if (status != kAudioHardwareNoError) {
+        coreaudio_logerr(status, "Could not remove voice property change listener\n");
+    }
+
     fini_out_device(core);
+
+    coreaudio_unlock(core, __func__);
 
     /* destroy mutex */
     err = pthread_mutex_destroy(&core->mutex);
@@ -537,27 +670,16 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
 
 static void coreaudio_enable_out(HWVoiceOut *hw, bool enable)
 {
-    OSStatus status;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
 
-    if (enable) {
-        /* start playback */
-        if (!isPlaying(core->outputDeviceID)) {
-            status = AudioDeviceStart(core->outputDeviceID, core->ioprocid);
-            if (status != kAudioHardwareNoError) {
-                coreaudio_logerr (status, "Could not resume playback\n");
-            }
-        }
-    } else {
-        /* stop playback */
-        if (isPlaying(core->outputDeviceID)) {
-            status = AudioDeviceStop(core->outputDeviceID,
-                                     core->ioprocid);
-            if (status != kAudioHardwareNoError) {
-                coreaudio_logerr(status, "Could not pause playback\n");
-            }
-        }
+    if (coreaudio_lock(core, __func__)) {
+        abort();
     }
+
+    core->enabled = enable;
+    update_device_playback_state(core);
+
+    coreaudio_unlock(core, __func__);
 }
 
 static void *coreaudio_audio_init(Audiodev *dev)
