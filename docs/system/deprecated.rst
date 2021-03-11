@@ -46,6 +46,12 @@ needs two devices (``-device intel-hda -device hda-duplex``) and
 ``pcspk`` which can be activated using ``-machine
 pcspk-audiodev=<name>``.
 
+``-chardev`` backend aliases ``tty`` and ``parport`` (since 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+``tty`` and ``parport`` are aliases that will be removed. Instead, the
+actual backend names ``serial`` and ``parallel`` should be used.
+
 RISC-V ``-bios`` (since 5.1)
 ''''''''''''''''''''''''''''
 

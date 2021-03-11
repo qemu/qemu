@@ -534,9 +534,10 @@ static const ChardevClass *char_get_class(const char *driver, Error **errp)
     return cc;
 }
 
-static const struct ChardevAlias {
+static struct ChardevAlias {
     const char *typename;
     const char *alias;
+    bool deprecation_warning_printed;
 } chardev_alias_table[] = {
 #ifdef HAVE_CHARDEV_PARPORT
     { "parallel", "parport" },
@@ -584,6 +585,10 @@ help_string_append(const char *name, bool is_cli_alias, void *opaque)
 {
     GString *str = opaque;
 
+    if (is_cli_alias) {
+        return;
+    }
+
     g_string_append_printf(str, "\n  %s", name);
 }
 
@@ -592,6 +597,11 @@ static const char *chardev_alias_translate(const char *name)
     int i;
     for (i = 0; i < (int)ARRAY_SIZE(chardev_alias_table); i++) {
         if (g_strcmp0(chardev_alias_table[i].alias, name) == 0) {
+            if (!chardev_alias_table[i].deprecation_warning_printed) {
+                warn_report("The alias '%s' is deprecated, use '%s' instead",
+                            name, chardev_alias_table[i].typename);
+                chardev_alias_table[i].deprecation_warning_printed = true;
+            }
             return chardev_alias_table[i].typename;
         }
     }
