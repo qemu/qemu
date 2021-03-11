@@ -59,6 +59,8 @@ vnc_client_throttle_audio(void *state, void *ioc, size_t offset) "VNC client thr
 vnc_client_unthrottle_forced(void *state, void *ioc) "VNC client unthrottle forced offset state=%p ioc=%p"
 vnc_client_unthrottle_incremental(void *state, void *ioc, size_t offset) "VNC client unthrottle incremental state=%p ioc=%p offset=%zu"
 vnc_client_output_limit(void *state, void *ioc, size_t offset, size_t threshold) "VNC client output limit state=%p ioc=%p offset=%zu threshold=%zu"
+vnc_server_dpy_pageflip(void *dpy, int w, int h, int fmt) "VNC server dpy pageflip dpy=%p size=%dx%d fmt=%d"
+vnc_server_dpy_recreate(void *dpy, int w, int h, int fmt) "VNC server dpy recreate dpy=%p size=%dx%d fmt=%d"
 vnc_job_add_rect(void *state, void *job, int x, int y, int w, int h) "VNC add rect state=%p job=%p offset=%d,%d size=%dx%d"
 vnc_job_discard_rect(void *state, void *job, int x, int y, int w, int h) "VNC job discard rect state=%p job=%p offset=%d,%d size=%dx%d"
 vnc_job_clamp_rect(void *state, void *job, int x, int y, int w, int h) "VNC job clamp rect state=%p job=%p offset=%d,%d size=%dx%d"
