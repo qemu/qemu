@@ -17,7 +17,7 @@
 
 /* VIA 1 */
 #define VIA1_IRQ_ONE_SECOND_BIT 0
-#define VIA1_IRQ_VBLANK_BIT     1
+#define VIA1_IRQ_60HZ_BIT       1
 #define VIA1_IRQ_ADB_READY_BIT  2
 #define VIA1_IRQ_ADB_DATA_BIT   3
 #define VIA1_IRQ_ADB_CLOCK_BIT  4
@@ -25,7 +25,7 @@
 #define VIA1_IRQ_NB             8
 
 #define VIA1_IRQ_ONE_SECOND (1 << VIA1_IRQ_ONE_SECOND_BIT)
-#define VIA1_IRQ_VBLANK     (1 << VIA1_IRQ_VBLANK_BIT)
+#define VIA1_IRQ_60HZ       (1 << VIA1_IRQ_60HZ_BIT)
 #define VIA1_IRQ_ADB_READY  (1 << VIA1_IRQ_ADB_READY_BIT)
 #define VIA1_IRQ_ADB_DATA   (1 << VIA1_IRQ_ADB_DATA_BIT)
 #define VIA1_IRQ_ADB_CLOCK  (1 << VIA1_IRQ_ADB_CLOCK_BIT)
@@ -45,8 +45,8 @@ struct MOS6522Q800VIA1State {
     /* external timers */
     QEMUTimer *one_second_timer;
     int64_t next_second;
-    QEMUTimer *VBL_timer;
-    int64_t next_VBL;
+    QEMUTimer *sixty_hz_timer;
+    int64_t next_sixty_hz;
 };
 
 

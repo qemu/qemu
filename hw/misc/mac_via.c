@@ -297,18 +297,18 @@ enum {
     REG_EMPTY = 0xff,
 };
 
-static void via1_VBL_update(MOS6522Q800VIA1State *v1s)
+static void via1_sixty_hz_update(MOS6522Q800VIA1State *v1s)
 {
     MOS6522State *s = MOS6522(v1s);
 
     /* 60 Hz irq */
-    v1s->next_VBL = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 16630) /
-                    16630 * 16630;
+    v1s->next_sixty_hz = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 16630) /
+                          16630 * 16630;
 
-    if (s->ier & VIA1_IRQ_VBLANK) {
-        timer_mod(v1s->VBL_timer, v1s->next_VBL);
+    if (s->ier & VIA1_IRQ_60HZ) {
+        timer_mod(v1s->sixty_hz_timer, v1s->next_sixty_hz);
     } else {
-        timer_del(v1s->VBL_timer);
+        timer_del(v1s->sixty_hz_timer);
     }
 }
 
@@ -325,16 +325,16 @@ static void via1_one_second_update(MOS6522Q800VIA1State *v1s)
     }
 }
 
-static void via1_VBL(void *opaque)
+static void via1_sixty_hz(void *opaque)
 {
     MOS6522Q800VIA1State *v1s = opaque;
     MOS6522State *s = MOS6522(v1s);
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
 
-    s->ifr |= VIA1_IRQ_VBLANK;
+    s->ifr |= VIA1_IRQ_60HZ;
     mdc->update_irq(s);
 
-    via1_VBL_update(v1s);
+    via1_sixty_hz_update(v1s);
 }
 
 static void via1_one_second(void *opaque)
@@ -897,12 +897,12 @@ static uint64_t mos6522_q800_via1_read(void *opaque, hwaddr addr, unsigned size)
 
     /*
      * If IRQs are disabled, timers are disabled, but we need to update
-     * VIA1_IRQ_VBLANK and VIA1_IRQ_ONE_SECOND bits in the IFR
+     * VIA1_IRQ_60HZ and VIA1_IRQ_ONE_SECOND bits in the IFR
      */
 
-    if (now >= s->next_VBL) {
-        ms->ifr |= VIA1_IRQ_VBLANK;
-        via1_VBL_update(s);
+    if (now >= s->next_sixty_hz) {
+        ms->ifr |= VIA1_IRQ_60HZ;
+        via1_sixty_hz_update(s);
     }
     if (now >= s->next_second) {
         ms->ifr |= VIA1_IRQ_ONE_SECOND;
@@ -933,7 +933,7 @@ static void mos6522_q800_via1_write(void *opaque, hwaddr addr, uint64_t val,
     }
 
     via1_one_second_update(v1s);
-    via1_VBL_update(v1s);
+    via1_sixty_hz_update(v1s);
 }
 
 static const MemoryRegionOps mos6522_q800_via1_ops = {
@@ -983,8 +983,8 @@ static void mac_via_reset(DeviceState *dev)
 
     adb_set_autopoll_enabled(adb_bus, true);
 
-    timer_del(v1s->VBL_timer);
-    v1s->next_VBL = 0;
+    timer_del(v1s->sixty_hz_timer);
+    v1s->next_sixty_hz = 0;
     timer_del(v1s->one_second_timer);
     v1s->next_second = 0;
 
@@ -1026,8 +1026,9 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     m->mos6522_via1.one_second_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                      via1_one_second,
                                                      &m->mos6522_via1);
-    m->mos6522_via1.VBL_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, via1_VBL,
-                                              &m->mos6522_via1);
+    m->mos6522_via1.sixty_hz_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                                  via1_sixty_hz,
+                                                  &m->mos6522_via1);
 
     qemu_get_timedate(&tm, 0);
     m->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
@@ -1116,8 +1117,8 @@ static const VMStateDescription vmstate_mac_via = {
         VMSTATE_BUFFER(mos6522_via1.PRAM, MacVIAState),
         VMSTATE_TIMER_PTR(mos6522_via1.one_second_timer, MacVIAState),
         VMSTATE_INT64(mos6522_via1.next_second, MacVIAState),
-        VMSTATE_TIMER_PTR(mos6522_via1.VBL_timer, MacVIAState),
-        VMSTATE_INT64(mos6522_via1.next_VBL, MacVIAState),
+        VMSTATE_TIMER_PTR(mos6522_via1.sixty_hz_timer, MacVIAState),
+        VMSTATE_INT64(mos6522_via1.next_sixty_hz, MacVIAState),
         VMSTATE_STRUCT(mos6522_via2.parent_obj, MacVIAState, 0, vmstate_mos6522,
                        MOS6522State),
         /* RTC */
