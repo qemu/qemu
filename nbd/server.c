@@ -2087,8 +2087,8 @@ static int blockstatus_to_extents(BlockDriverState *bs, uint64_t offset,
             return ret;
         }
 
-        flags = (ret & BDRV_BLOCK_ALLOCATED ? 0 : NBD_STATE_HOLE) |
-                (ret & BDRV_BLOCK_ZERO      ? NBD_STATE_ZERO : 0);
+        flags = (ret & BDRV_BLOCK_DATA ? 0 : NBD_STATE_HOLE) |
+                (ret & BDRV_BLOCK_ZERO ? NBD_STATE_ZERO : 0);
 
         if (nbd_extent_array_add(ea, num, flags) < 0) {
             return 0;

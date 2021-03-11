@@ -3050,6 +3050,7 @@ F: block/iscsi-opts.c
 
 Network Block Device (NBD)
 M: Eric Blake <eblake@redhat.com>
+M: Vladimir Sementsov-Ogievskiy <vsementsov@virtuozzo.com>
 L: qemu-block@nongnu.org
 S: Maintained
 F: block/nbd*
@@ -3060,6 +3061,7 @@ F: blockdev-nbd.c
 F: docs/interop/nbd.txt
 F: docs/interop/qemu-nbd.rst
 T: git https://repo.or.cz/qemu/ericb.git nbd
+T: git https://src.openvz.org/scm/~vsementsov/qemu.git nbd
 
 NFS
 M: Peter Lieven <pl@kamp.de>
