@@ -4,6 +4,11 @@
 # plugin.
 #
 # Check https://editorconfig.org for details.
+#
+# Emacs: you need https://github.com/10sr/editorconfig-custom-majormode-el
+# to automatically enable the appropriate major-mode for your files
+# that aren't already caught by your existing config.
+#
 
 root = true
 
@@ -15,17 +20,17 @@ charset = utf-8
 [*.mak]
 indent_style = tab
 indent_size = 8
-file_type_emacs = makefile
+emacs_mode = makefile
 
 [Makefile*]
 indent_style = tab
 indent_size = 8
-file_type_emacs = makefile
+emacs_mode = makefile
 
 [*.{c,h,c.inc,h.inc}]
 indent_style = space
 indent_size = 4
-file_type_emacs = c
+emacs_mode = c
 
 [*.sh]
 indent_style = space
@@ -34,11 +39,11 @@ indent_size = 4
 [*.{s,S}]
 indent_style = tab
 indent_size = 8
-file_type_emacs = asm
+emacs_mode = asm
 
 [*.{vert,frag}]
-file_type_emacs = glsl
+emacs_mode = glsl
 
 [*.json]
 indent_style = space
-file_type_emacs = python
+emacs_mode = python

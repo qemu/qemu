@@ -25,6 +25,8 @@ Contents:
    usb
    ivshmem
    linuxboot
+   generic-loader
+   guest-loader
    vnc-security
    tls
    gdb

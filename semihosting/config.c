@@ -22,7 +22,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
-#include "hw/semihosting/semihost.h"
+#include "semihosting/semihost.h"
 #include "chardev/char.h"
 #include "sysemu/sysemu.h"
 
