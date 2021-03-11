@@ -80,6 +80,7 @@ struct QemuConsole {
     int dcls;
     DisplayChangeListener *gl;
     int gl_block;
+    QEMUTimer *gl_unblock_timer;
     int window_id;
 
     /* Graphic console state.  */
@@ -233,8 +234,14 @@ void graphic_hw_update(QemuConsole *con)
     }
 }
 
+static void graphic_hw_gl_unblock_timer(void *opaque)
+{
+    warn_report("console: no gl-unblock within one second");
+}
+
 void graphic_hw_gl_block(QemuConsole *con, bool block)
 {
+    uint64_t timeout;
     assert(con != NULL);
 
     if (block) {
@@ -250,6 +257,14 @@ void graphic_hw_gl_block(QemuConsole *con, bool block)
         return;
     }
     con->hw_ops->gl_block(con->hw, block);
+
+    if (block) {
+        timeout = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        timeout += 1000; /* one sec */
+        timer_mod(con->gl_unblock_timer, timeout);
+    } else {
+        timer_del(con->gl_unblock_timer);
+    }
 }
 
 void graphic_hw_gl_flushed(QemuConsole *con)
@@ -1966,6 +1981,8 @@ QemuConsole *graphic_console_init(DeviceState *dev, uint32_t head,
 
     surface = qemu_create_placeholder_surface(width, height, noinit);
     dpy_gfx_replace_surface(s, surface);
+    s->gl_unblock_timer = timer_new_ms(QEMU_CLOCK_REALTIME,
+                                       graphic_hw_gl_unblock_timer, s);
     return s;
 }
 
