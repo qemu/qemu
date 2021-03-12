@@ -547,9 +547,7 @@ static void gd_switch(DisplayChangeListener *dcl,
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
     bool resized = true;
 
-    trace_gd_switch(vc->label,
-                    surface ? surface_width(surface)  : 0,
-                    surface ? surface_height(surface) : 0);
+    trace_gd_switch(vc->label, surface_width(surface), surface_height(surface));
 
     if (vc->gfx.surface) {
         cairo_surface_destroy(vc->gfx.surface);
@@ -560,7 +558,7 @@ static void gd_switch(DisplayChangeListener *dcl,
         vc->gfx.convert = NULL;
     }
 
-    if (vc->gfx.ds && surface &&
+    if (vc->gfx.ds &&
         surface_width(vc->gfx.ds) == surface_width(surface) &&
         surface_height(vc->gfx.ds) == surface_height(surface)) {
         resized = false;

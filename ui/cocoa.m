@@ -30,6 +30,7 @@
 #include "qemu-common.h"
 #include "ui/console.h"
 #include "ui/input.h"
+#include "ui/kbd-state.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
 #include "sysemu/cpu-throttle.h"
@@ -39,6 +40,7 @@
 #include "qapi/qapi-commands-misc.h"
 #include "sysemu/blockdev.h"
 #include "qemu-version.h"
+#include "qemu/cutils.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include <Carbon/Carbon.h>
@@ -80,7 +82,7 @@ static void cocoa_switch(DisplayChangeListener *dcl,
 
 static void cocoa_refresh(DisplayChangeListener *dcl);
 
-NSWindow *normalWindow, *about_window;
+static NSWindow *normalWindow, *about_window;
 static const DisplayChangeListenerOps dcl_ops = {
     .dpy_name          = "cocoa",
     .dpy_gfx_update = cocoa_update,
@@ -93,11 +95,11 @@ static DisplayChangeListener dcl = {
 static int last_buttons;
 static int cursor_hide = 1;
 
-int gArgc;
-char **gArgv;
-bool stretch_video;
-NSTextField *pauseLabel;
-NSArray * supportedImageFileTypes;
+static int gArgc;
+static char **gArgv;
+static bool stretch_video;
+static NSTextField *pauseLabel;
+static NSArray * supportedImageFileTypes;
 
 static QemuSemaphore display_init_sem;
 static QemuSemaphore app_started_sem;
@@ -135,7 +137,7 @@ static bool bool_with_iothread_lock(BoolCodeBlock block)
 }
 
 // Mac to QKeyCode conversion
-const int mac_to_qkeycode_map[] = {
+static const int mac_to_qkeycode_map[] = {
     [kVK_ANSI_A] = Q_KEY_CODE_A,
     [kVK_ANSI_B] = Q_KEY_CODE_B,
     [kVK_ANSI_C] = Q_KEY_CODE_C,
@@ -189,14 +191,6 @@ const int mac_to_qkeycode_map[] = {
     [kVK_ANSI_Comma] = Q_KEY_CODE_COMMA,
     [kVK_ANSI_Period] = Q_KEY_CODE_DOT,
     [kVK_ANSI_Slash] = Q_KEY_CODE_SLASH,
-    [kVK_Shift] = Q_KEY_CODE_SHIFT,
-    [kVK_RightShift] = Q_KEY_CODE_SHIFT_R,
-    [kVK_Control] = Q_KEY_CODE_CTRL,
-    [kVK_RightControl] = Q_KEY_CODE_CTRL_R,
-    [kVK_Option] = Q_KEY_CODE_ALT,
-    [kVK_RightOption] = Q_KEY_CODE_ALT_R,
-    [kVK_Command] = Q_KEY_CODE_META_L,
-    [0x36] = Q_KEY_CODE_META_R, /* There is no kVK_RightCommand */
     [kVK_Space] = Q_KEY_CODE_SPC,
 
     [kVK_ANSI_Keypad0] = Q_KEY_CODE_KP_0,
@@ -306,11 +300,10 @@ static void handleAnyDeviceErrors(Error * err)
     NSWindow *fullScreenWindow;
     float cx,cy,cw,ch,cdx,cdy;
     pixman_image_t *pixman_image;
-    BOOL modifiers_state[256];
+    QKbdState *kbd;
     BOOL isMouseGrabbed;
     BOOL isFullscreen;
     BOOL isAbsoluteEnabled;
-    BOOL isMouseDeassociated;
 }
 - (void) switchSurface:(pixman_image_t *)image;
 - (void) grabMouse;
@@ -327,14 +320,9 @@ static void handleAnyDeviceErrors(Error * err)
  * isMouseGrabbed tracks whether GUI events are directed to the guest;
  *   it controls whether special keys like Cmd get sent to the guest,
  *   and whether we capture the mouse when in non-absolute mode.
- * isMouseDeassociated tracks whether we've told MacOSX to disassociate
- *   the mouse and mouse cursor position by calling
- *   CGAssociateMouseAndMouseCursorPosition(FALSE)
- *   (which basically happens if we grab in non-absolute mode).
  */
 - (BOOL) isMouseGrabbed;
 - (BOOL) isAbsoluteEnabled;
-- (BOOL) isMouseDeassociated;
 - (float) cdx;
 - (float) cdy;
 - (QEMUScreen) gscreen;
@@ -353,6 +341,7 @@ QemuCocoaView *cocoaView;
 
         screen.width = frameRect.size.width;
         screen.height = frameRect.size.height;
+        kbd = qkbd_state_init(dcl.con);
 
     }
     return self;
@@ -366,6 +355,7 @@ QemuCocoaView *cocoaView;
         pixman_image_unref(pixman_image);
     }
 
+    qkbd_state_free(kbd);
     [super dealloc];
 }
 
@@ -463,13 +453,8 @@ QemuCocoaView *cocoaView;
             DIV_ROUND_UP(bitsPerPixel, 8) * 2, //bitsPerComponent
             bitsPerPixel, //bitsPerPixel
             stride, //bytesPerRow
-#ifdef __LITTLE_ENDIAN__
-            CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB), //colorspace for OS X >= 10.4
-            kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst,
-#else
-            CGColorSpaceCreateDeviceRGB(), //colorspace for OS X < 10.4 (actually ppc)
-            kCGImageAlphaNoneSkipFirst, //bitmapInfo
-#endif
+            CGColorSpaceCreateWithName(kCGColorSpaceSRGB), //colorspace
+            kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst, //bitmapInfo
             dataProviderRef, //provider
             NULL, //decode
             0, //interpolate
@@ -608,19 +593,8 @@ QemuCocoaView *cocoaView;
     }
 }
 
-- (void) toggleModifier: (int)keycode {
-    // Toggle the stored state.
-    modifiers_state[keycode] = !modifiers_state[keycode];
-    // Send a keyup or keydown depending on the state.
-    qemu_input_event_send_key_qcode(dcl.con, keycode, modifiers_state[keycode]);
-}
-
-- (void) toggleStatefulModifier: (int)keycode {
-    // Toggle the stored state.
-    modifiers_state[keycode] = !modifiers_state[keycode];
-    // Generate keydown and keyup.
-    qemu_input_event_send_key_qcode(dcl.con, keycode, true);
-    qemu_input_event_send_key_qcode(dcl.con, keycode, false);
+- (void) toggleKey: (int)keycode {
+    qkbd_state_key_event(kbd, keycode, !qkbd_state_key_get(kbd, keycode));
 }
 
 // Does the work of sending input to the monitor
@@ -714,57 +688,86 @@ QemuCocoaView *cocoaView;
     static bool switched_to_fullscreen = false;
     // Location of event in virtual screen coordinates
     NSPoint p = [self screenLocationOfEvent:event];
+    NSUInteger modifiers = [event modifierFlags];
+
+    // emulate caps lock keydown and keyup
+    if (!!(modifiers & NSEventModifierFlagCapsLock) !=
+        qkbd_state_modifier_get(kbd, QKBD_MOD_CAPSLOCK)) {
+        qkbd_state_key_event(kbd, Q_KEY_CODE_CAPS_LOCK, true);
+        qkbd_state_key_event(kbd, Q_KEY_CODE_CAPS_LOCK, false);
+    }
+
+    if (!(modifiers & NSEventModifierFlagShift)) {
+        qkbd_state_key_event(kbd, Q_KEY_CODE_SHIFT, false);
+        qkbd_state_key_event(kbd, Q_KEY_CODE_SHIFT_R, false);
+    }
+    if (!(modifiers & NSEventModifierFlagControl)) {
+        qkbd_state_key_event(kbd, Q_KEY_CODE_CTRL, false);
+        qkbd_state_key_event(kbd, Q_KEY_CODE_CTRL_R, false);
+    }
+    if (!(modifiers & NSEventModifierFlagOption)) {
+        qkbd_state_key_event(kbd, Q_KEY_CODE_ALT, false);
+        qkbd_state_key_event(kbd, Q_KEY_CODE_ALT_R, false);
+    }
+    if (!(modifiers & NSEventModifierFlagCommand)) {
+        qkbd_state_key_event(kbd, Q_KEY_CODE_META_L, false);
+        qkbd_state_key_event(kbd, Q_KEY_CODE_META_R, false);
+    }
 
     switch ([event type]) {
         case NSEventTypeFlagsChanged:
-            if ([event keyCode] == 0) {
-                // When the Cocoa keyCode is zero that means keys should be
-                // synthesized based on the values in in the eventModifiers
-                // bitmask.
+            switch ([event keyCode]) {
+                case kVK_Shift:
+                    if (!!(modifiers & NSEventModifierFlagShift)) {
+                        [self toggleKey:Q_KEY_CODE_SHIFT];
+                    }
+                    break;
 
-                if (qemu_console_is_graphic(NULL)) {
-                    NSUInteger modifiers = [event modifierFlags];
+                case kVK_RightShift:
+                    if (!!(modifiers & NSEventModifierFlagShift)) {
+                        [self toggleKey:Q_KEY_CODE_SHIFT_R];
+                    }
+                    break;
 
-                    if (!!(modifiers & NSEventModifierFlagCapsLock) != !!modifiers_state[Q_KEY_CODE_CAPS_LOCK]) {
-                        [self toggleStatefulModifier:Q_KEY_CODE_CAPS_LOCK];
+                case kVK_Control:
+                    if (!!(modifiers & NSEventModifierFlagControl)) {
+                        [self toggleKey:Q_KEY_CODE_CTRL];
                     }
-                    if (!!(modifiers & NSEventModifierFlagShift) != !!modifiers_state[Q_KEY_CODE_SHIFT]) {
-                        [self toggleModifier:Q_KEY_CODE_SHIFT];
+                    break;
+
+                case kVK_RightControl:
+                    if (!!(modifiers & NSEventModifierFlagControl)) {
+                        [self toggleKey:Q_KEY_CODE_CTRL_R];
                     }
-                    if (!!(modifiers & NSEventModifierFlagControl) != !!modifiers_state[Q_KEY_CODE_CTRL]) {
-                        [self toggleModifier:Q_KEY_CODE_CTRL];
+                    break;
+
+                case kVK_Option:
+                    if (!!(modifiers & NSEventModifierFlagOption)) {
+                        [self toggleKey:Q_KEY_CODE_ALT];
                     }
-                    if (!!(modifiers & NSEventModifierFlagOption) != !!modifiers_state[Q_KEY_CODE_ALT]) {
-                        [self toggleModifier:Q_KEY_CODE_ALT];
+                    break;
+
+                case kVK_RightOption:
+                    if (!!(modifiers & NSEventModifierFlagOption)) {
+                        [self toggleKey:Q_KEY_CODE_ALT_R];
                     }
-                    if (!!(modifiers & NSEventModifierFlagCommand) != !!modifiers_state[Q_KEY_CODE_META_L]) {
-                        [self toggleModifier:Q_KEY_CODE_META_L];
+                    break;
+
+                /* Don't pass command key changes to guest unless mouse is grabbed */
+                case kVK_Command:
+                    if (isMouseGrabbed &&
+                        !!(modifiers & NSEventModifierFlagCommand)) {
+                        [self toggleKey:Q_KEY_CODE_META_L];
                     }
-                }
-            } else {
-                keycode = cocoa_keycode_to_qemu([event keyCode]);
+                    break;
+
+                case kVK_RightCommand:
+                    if (isMouseGrabbed &&
+                        !!(modifiers & NSEventModifierFlagCommand)) {
+                        [self toggleKey:Q_KEY_CODE_META_R];
+                    }
+                    break;
             }
-
-            if ((keycode == Q_KEY_CODE_META_L || keycode == Q_KEY_CODE_META_R)
-               && !isMouseGrabbed) {
-              /* Don't pass command key changes to guest unless mouse is grabbed */
-              keycode = 0;
-            }
-
-            if (keycode) {
-                // emulate caps lock and num lock keydown and keyup
-                if (keycode == Q_KEY_CODE_CAPS_LOCK ||
-                    keycode == Q_KEY_CODE_NUM_LOCK) {
-                    [self toggleStatefulModifier:keycode];
-                } else if (qemu_console_is_graphic(NULL)) {
-                    if (switched_to_fullscreen) {
-                        switched_to_fullscreen = false;
-                    } else {
-                        [self toggleModifier:keycode];
-                    }
-                }
-            }
-
             break;
         case NSEventTypeKeyDown:
             keycode = cocoa_keycode_to_qemu([event keyCode]);
@@ -804,7 +807,7 @@ QemuCocoaView *cocoaView;
             }
 
             if (qemu_console_is_graphic(NULL)) {
-                qemu_input_event_send_key_qcode(dcl.con, keycode, true);
+                qkbd_state_key_event(kbd, keycode, true);
             } else {
                 [self handleMonitorInput: event];
             }
@@ -819,7 +822,7 @@ QemuCocoaView *cocoaView;
             }
 
             if (qemu_console_is_graphic(NULL)) {
-                qemu_input_event_send_key_qcode(dcl.con, keycode, false);
+                qkbd_state_key_event(kbd, keycode, false);
             }
             break;
         case NSEventTypeMouseMoved:
@@ -963,10 +966,7 @@ QemuCocoaView *cocoaView;
             [normalWindow setTitle:@"QEMU - (Press ctrl + alt + g to release Mouse)"];
     }
     [self hideCursor];
-    if (!isAbsoluteEnabled) {
-        isMouseDeassociated = TRUE;
-        CGAssociateMouseAndMouseCursorPosition(FALSE);
-    }
+    CGAssociateMouseAndMouseCursorPosition(isAbsoluteEnabled);
     isMouseGrabbed = TRUE; // while isMouseGrabbed = TRUE, QemuCocoaApp sends all events to [cocoaView handleEvent:]
 }
 
@@ -981,17 +981,18 @@ QemuCocoaView *cocoaView;
             [normalWindow setTitle:@"QEMU"];
     }
     [self unhideCursor];
-    if (isMouseDeassociated) {
-        CGAssociateMouseAndMouseCursorPosition(TRUE);
-        isMouseDeassociated = FALSE;
-    }
+    CGAssociateMouseAndMouseCursorPosition(TRUE);
     isMouseGrabbed = FALSE;
 }
 
-- (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled {isAbsoluteEnabled = tIsAbsoluteEnabled;}
+- (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled {
+    isAbsoluteEnabled = tIsAbsoluteEnabled;
+    if (isMouseGrabbed) {
+        CGAssociateMouseAndMouseCursorPosition(isAbsoluteEnabled);
+    }
+}
 - (BOOL) isMouseGrabbed {return isMouseGrabbed;}
 - (BOOL) isAbsoluteEnabled {return isAbsoluteEnabled;}
-- (BOOL) isMouseDeassociated {return isMouseDeassociated;}
 - (float) cdx {return cdx;}
 - (float) cdy {return cdy;}
 - (QEMUScreen) gscreen {return screen;}
@@ -1003,17 +1004,8 @@ QemuCocoaView *cocoaView;
  */
 - (void) raiseAllKeys
 {
-    const int max_index = ARRAY_SIZE(modifiers_state);
-
     with_iothread_lock(^{
-        int index;
-
-        for (index = 0; index < max_index; index++) {
-            if (modifiers_state[index]) {
-                modifiers_state[index] = 0;
-                qemu_input_event_send_key_qcode(dcl.con, index, false);
-            }
-        }
+        qkbd_state_lift_all_keys(kbd);
     });
 }
 @end
@@ -1390,37 +1382,33 @@ QemuCocoaView *cocoaView;
     y = about_height - picture_height - 10;
     NSRect picture_rect = NSMakeRect(x, y, picture_width, picture_height);
 
-    /* Get the path to the QEMU binary */
-    NSString *binary_name = [NSString stringWithCString: gArgv[0]
-                                      encoding: NSASCIIStringEncoding];
-    binary_name = [binary_name lastPathComponent];
-    NSString *program_path = [[NSString alloc] initWithFormat: @"%@/%@",
-    [[NSBundle mainBundle] bundlePath], binary_name];
-
     /* Make the picture of QEMU */
     NSImageView *picture_view = [[NSImageView alloc] initWithFrame:
                                                      picture_rect];
-    NSImage *qemu_image = [[NSWorkspace sharedWorkspace] iconForFile:
-                                                         program_path];
+    char *qemu_image_path_c = get_relocated_path(CONFIG_QEMU_ICONDIR "/hicolor/512x512/apps/qemu.png");
+    NSString *qemu_image_path = [NSString stringWithUTF8String:qemu_image_path_c];
+    g_free(qemu_image_path_c);
+    NSImage *qemu_image = [[NSImage alloc] initWithContentsOfFile:qemu_image_path];
     [picture_view setImage: qemu_image];
     [picture_view setImageScaling: NSImageScaleProportionallyUpOrDown];
     [superView addSubview: picture_view];
 
     /* Make the name label */
-    x = 0;
-    y = y - 25;
-    int name_width = about_width, name_height = 20;
-    NSRect name_rect = NSMakeRect(x, y, name_width, name_height);
-    NSTextField *name_label = [[NSTextField alloc] initWithFrame: name_rect];
-    [name_label setEditable: NO];
-    [name_label setBezeled: NO];
-    [name_label setDrawsBackground: NO];
-    [name_label setAlignment: NSTextAlignmentCenter];
-    NSString *qemu_name = [[NSString alloc] initWithCString: gArgv[0]
-                                            encoding: NSASCIIStringEncoding];
-    qemu_name = [qemu_name lastPathComponent];
-    [name_label setStringValue: qemu_name];
-    [superView addSubview: name_label];
+    NSBundle *bundle = [NSBundle mainBundle];
+    if (bundle) {
+        x = 0;
+        y = y - 25;
+        int name_width = about_width, name_height = 20;
+        NSRect name_rect = NSMakeRect(x, y, name_width, name_height);
+        NSTextField *name_label = [[NSTextField alloc] initWithFrame: name_rect];
+        [name_label setEditable: NO];
+        [name_label setBezeled: NO];
+        [name_label setDrawsBackground: NO];
+        [name_label setAlignment: NSTextAlignmentCenter];
+        NSString *qemu_name = [[bundle executablePath] lastPathComponent];
+        [name_label setStringValue: qemu_name];
+        [superView addSubview: name_label];
+    }
 
     /* Set the version label's attributes */
     x = 0;

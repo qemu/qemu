@@ -26,8 +26,8 @@ The ``-no-kvm`` argument was a synonym for setting ``-machine accel=tcg``.
 The ``-realtime mlock=on|off`` argument has been replaced by the
 ``-overcommit mem-lock=on|off`` argument.
 
-``-show-cursor`` option (since 5.0)
-'''''''''''''''''''''''''''''''''''
+``-show-cursor`` option (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''''
 
 Use ``-display sdl,show-cursor=on``, ``-display gtk,show-cursor=on``
 or ``-display default,show-cursor=on`` instead.
