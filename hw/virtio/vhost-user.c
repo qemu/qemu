@@ -1392,6 +1392,13 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
     return 0;
 }
 
+static void close_slave_channel(struct vhost_user *u)
+{
+    qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
+    close(u->slave_fd);
+    u->slave_fd = -1;
+}
+
 static void slave_read(void *opaque)
 {
     struct vhost_dev *dev = opaque;
@@ -1507,9 +1514,7 @@ static void slave_read(void *opaque)
     goto fdcleanup;
 
 err:
-    qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
-    close(u->slave_fd);
-    u->slave_fd = -1;
+    close_slave_channel(u);
 
 fdcleanup:
     for (i = 0; i < fdsize; i++) {
@@ -1560,9 +1565,7 @@ static int vhost_setup_slave_channel(struct vhost_dev *dev)
 out:
     close(sv[1]);
     if (ret) {
-        qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
-        close(u->slave_fd);
-        u->slave_fd = -1;
+        close_slave_channel(u);
     }
 
     return ret;
@@ -1915,9 +1918,7 @@ static int vhost_user_backend_cleanup(struct vhost_dev *dev)
         u->postcopy_fd.handler = NULL;
     }
     if (u->slave_fd >= 0) {
-        qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
-        close(u->slave_fd);
-        u->slave_fd = -1;
+        close_slave_channel(u);
     }
     g_free(u->region_rb);
     u->region_rb = NULL;
