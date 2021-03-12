@@ -327,21 +327,70 @@ void qemu_plugin_register_vcpu_insn_exec_inline(struct qemu_plugin_insn *insn,
                                                 enum qemu_plugin_op op,
                                                 void *ptr, uint64_t imm);
 
-/*
- * Helpers to query information about the instructions in a block
+/**
+ * qemu_plugin_tb_n_insns() - query helper for number of insns in TB
+ * @tb: opaque handle to TB passed to callback
+ *
+ * Returns: number of instructions in this block
  */
 size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb);
 
+/**
+ * qemu_plugin_tb_vaddr() - query helper for vaddr of TB start
+ * @tb: opaque handle to TB passed to callback
+ *
+ * Returns: virtual address of block start
+ */
 uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb);
 
+/**
+ * qemu_plugin_tb_get_insn() - retrieve handle for instruction
+ * @tb: opaque handle to TB passed to callback
+ * @idx: instruction number, 0 indexed
+ *
+ * The returned handle can be used in follow up helper queries as well
+ * as when instrumenting an instruction. It is only valid for the
+ * lifetime of the callback.
+ *
+ * Returns: opaque handle to instruction
+ */
 struct qemu_plugin_insn *
 qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx);
 
+/**
+ * qemu_plugin_insn_data() - return ptr to instruction data
+ * @insn: opaque instruction handle from qemu_plugin_tb_get_insn()
+ *
+ * Note: data is only valid for duration of callback. See
+ * qemu_plugin_insn_size() to calculate size of stream.
+ *
+ * Returns: pointer to a stream of bytes containing the value of this
+ * instructions opcode.
+ */
 const void *qemu_plugin_insn_data(const struct qemu_plugin_insn *insn);
 
+/**
+ * qemu_plugin_insn_size() - return size of instruction
+ * @insn: opaque instruction handle from qemu_plugin_tb_get_insn()
+ *
+ * Returns: size of instruction in bytes
+ */
 size_t qemu_plugin_insn_size(const struct qemu_plugin_insn *insn);
 
+/**
+ * qemu_plugin_insn_vaddr() - return vaddr of instruction
+ * @insn: opaque instruction handle from qemu_plugin_tb_get_insn()
+ *
+ * Returns: virtual address of instruction
+ */
 uint64_t qemu_plugin_insn_vaddr(const struct qemu_plugin_insn *insn);
+
+/**
+ * qemu_plugin_insn_haddr() - return hardware addr of instruction
+ * @insn: opaque instruction handle from qemu_plugin_tb_get_insn()
+ *
+ * Returns: hardware (physical) target address of instruction
+ */
 void *qemu_plugin_insn_haddr(const struct qemu_plugin_insn *insn);
 
 /*
