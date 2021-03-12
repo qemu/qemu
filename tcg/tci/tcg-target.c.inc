@@ -613,8 +613,9 @@ static inline void tcg_out_call(TCGContext *s, const tcg_insn_unit *arg)
 # define CASE_64(x)
 #endif
 
-static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
-                       const int *const_args)
+static void tcg_out_op(TCGContext *s, TCGOpcode opc,
+                       const TCGArg args[TCG_MAX_OP_ARGS],
+                       const int const_args[TCG_MAX_OP_ARGS])
 {
     switch (opc) {
     case INDEX_op_exit_tb:
