@@ -393,24 +393,48 @@ uint64_t qemu_plugin_insn_vaddr(const struct qemu_plugin_insn *insn);
  */
 void *qemu_plugin_insn_haddr(const struct qemu_plugin_insn *insn);
 
-/*
- * Memory Instrumentation
+/**
+ * typedef qemu_plugin_meminfo_t - opaque memory transaction handle
  *
- * The anonymous qemu_plugin_meminfo_t and qemu_plugin_hwaddr types
- * can be used in queries to QEMU to get more information about a
- * given memory access.
+ * This can be further queried using the qemu_plugin_mem_* query
+ * functions.
  */
 typedef uint32_t qemu_plugin_meminfo_t;
+/** struct qemu_plugin_hwaddr - opaque hw address handle */
 struct qemu_plugin_hwaddr;
 
-/* meminfo queries */
+/**
+ * qemu_plugin_mem_size_shift() - get size of access
+ * @info: opaque memory transaction handle
+ *
+ * Returns: size of access in ^2 (0=byte, 1=16bit, 2=32bit etc...)
+ */
 unsigned int qemu_plugin_mem_size_shift(qemu_plugin_meminfo_t info);
+/**
+ * qemu_plugin_mem_is_sign_extended() - was the access sign extended
+ * @info: opaque memory transaction handle
+ *
+ * Returns: true if it was, otherwise false
+ */
 bool qemu_plugin_mem_is_sign_extended(qemu_plugin_meminfo_t info);
+/**
+ * qemu_plugin_mem_is_big_endian() - was the access big endian
+ * @info: opaque memory transaction handle
+ *
+ * Returns: true if it was, otherwise false
+ */
 bool qemu_plugin_mem_is_big_endian(qemu_plugin_meminfo_t info);
+/**
+ * qemu_plugin_mem_is_store() - was the access a store
+ * @info: opaque memory transaction handle
+ *
+ * Returns: true if it was, otherwise false
+ */
 bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info);
 
 /**
  * qemu_plugin_get_hwaddr() - return handle for memory operation
+ * @info: opaque memory info structure
  * @vaddr: the virtual address of the memory operation
  *
  * For system emulation returns a qemu_plugin_hwaddr handle to query
