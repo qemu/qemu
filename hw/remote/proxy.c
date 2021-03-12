@@ -347,13 +347,12 @@ static void probe_pci_info(PCIDevice *dev, Error **errp)
                    PCI_BASE_ADDRESS_SPACE_IO : PCI_BASE_ADDRESS_SPACE_MEMORY;
 
         if (size) {
-            g_autofree char *name;
+            g_autofree char *name = g_strdup_printf("bar-region-%d", i);
             pdev->region[i].dev = pdev;
             pdev->region[i].present = true;
             if (type == PCI_BASE_ADDRESS_SPACE_MEMORY) {
                 pdev->region[i].memory = true;
             }
-            name = g_strdup_printf("bar-region-%d", i);
             memory_region_init_io(&pdev->region[i].mr, OBJECT(pdev),
                                   &proxy_mr_ops, &pdev->region[i],
                                   name, size);
