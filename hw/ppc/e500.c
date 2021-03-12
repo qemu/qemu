@@ -231,6 +231,7 @@ static int create_devtree_etsec(SysBusDevice *sbdev, PlatformDevtreeData *data)
     assert(irq2 >= 0);
 
     qemu_fdt_add_subnode(fdt, node);
+    qemu_fdt_setprop(fdt, node, "ranges", NULL, 0);
     qemu_fdt_setprop_string(fdt, node, "device_type", "network");
     qemu_fdt_setprop_string(fdt, node, "compatible", "fsl,etsec2");
     qemu_fdt_setprop_string(fdt, node, "model", "eTSEC");

@@ -187,6 +187,8 @@ typedef struct SpaprDrc {
     bool unplug_requested;
     void *fdt;
     int fdt_start_offset;
+
+    QEMUTimer *unplug_timeout_timer;
 } SpaprDrc;
 
 struct SpaprMachineState;
@@ -209,6 +211,8 @@ typedef struct SpaprDrcClass {
 
     int (*dt_populate)(SpaprDrc *drc, struct SpaprMachineState *spapr,
                        void *fdt, int *fdt_start_offset, Error **errp);
+
+    int unplug_timeout_seconds;
 } SpaprDrcClass;
 
 typedef struct SpaprDrcPhysical {
@@ -243,7 +247,8 @@ int spapr_dt_drc(void *fdt, int offset, Object *owner, uint32_t drc_type_mask);
  * beforehand (eg. check drc->dev at pre-plug).
  */
 void spapr_drc_attach(SpaprDrc *drc, DeviceState *d);
-void spapr_drc_detach(SpaprDrc *drc);
+void spapr_drc_unplug_request(SpaprDrc *drc);
+int spapr_drc_unplug_timeout_remaining_sec(SpaprDrc *drc);
 
 /*
  * Reset all DRCs, causing pending hot-plug/unplug requests to complete.

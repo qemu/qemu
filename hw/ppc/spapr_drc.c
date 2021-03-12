@@ -50,6 +50,22 @@ uint32_t spapr_drc_index(SpaprDrc *drc)
         | (drc->id & DRC_INDEX_ID_MASK);
 }
 
+static void spapr_drc_release(SpaprDrc *drc)
+{
+    SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
+    drck->release(drc->dev);
+
+    drc->unplug_requested = false;
+    timer_del(drc->unplug_timeout_timer);
+
+    g_free(drc->fdt);
+    drc->fdt = NULL;
+    drc->fdt_start_offset = 0;
+    object_property_del(OBJECT(drc), "device");
+    drc->dev = NULL;
+}
+
 static uint32_t drc_isolate_physical(SpaprDrc *drc)
 {
     switch (drc->state) {
@@ -68,7 +84,7 @@ static uint32_t drc_isolate_physical(SpaprDrc *drc)
     if (drc->unplug_requested) {
         uint32_t drc_index = spapr_drc_index(drc);
         trace_spapr_drc_set_isolation_state_finalizing(drc_index);
-        spapr_drc_detach(drc);
+        spapr_drc_release(drc);
     }
 
     return RTAS_OUT_SUCCESS;
@@ -132,19 +148,6 @@ static uint32_t drc_isolate_logical(SpaprDrc *drc)
 
     drc->state = SPAPR_DRC_STATE_LOGICAL_AVAILABLE;
 
-    /* if we're awaiting release, but still in an unconfigured state,
-     * it's likely the guest is still in the process of configuring
-     * the device and is transitioning the devices to an ISOLATED
-     * state as a part of that process. so we only complete the
-     * removal when this transition happens for a device in a
-     * configured state, as suggested by the state diagram from PAPR+
-     * 2.7, 13.4
-     */
-    if (drc->unplug_requested) {
-        uint32_t drc_index = spapr_drc_index(drc);
-        trace_spapr_drc_set_isolation_state_finalizing(drc_index);
-        spapr_drc_detach(drc);
-    }
     return RTAS_OUT_SUCCESS;
 }
 
@@ -222,7 +225,7 @@ static uint32_t drc_set_unusable(SpaprDrc *drc)
     if (drc->unplug_requested) {
         uint32_t drc_index = spapr_drc_index(drc);
         trace_spapr_drc_set_allocation_state_finalizing(drc_index);
-        spapr_drc_detach(drc);
+        spapr_drc_release(drc);
     }
 
     return RTAS_OUT_SUCCESS;
@@ -369,6 +372,17 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
     } while (fdt_depth != 0);
 }
 
+static void spapr_drc_start_unplug_timeout_timer(SpaprDrc *drc)
+{
+    SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
+    if (drck->unplug_timeout_seconds != 0) {
+        timer_mod(drc->unplug_timeout_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                  drck->unplug_timeout_seconds * 1000);
+    }
+}
+
 void spapr_drc_attach(SpaprDrc *drc, DeviceState *d)
 {
     trace_spapr_drc_attach(spapr_drc_index(drc));
@@ -385,29 +399,17 @@ void spapr_drc_attach(SpaprDrc *drc, DeviceState *d)
                              NULL, 0);
 }
 
-static void spapr_drc_release(SpaprDrc *drc)
+void spapr_drc_unplug_request(SpaprDrc *drc)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    drck->release(drc->dev);
-
-    drc->unplug_requested = false;
-    g_free(drc->fdt);
-    drc->fdt = NULL;
-    drc->fdt_start_offset = 0;
-    object_property_del(OBJECT(drc), "device");
-    drc->dev = NULL;
-}
-
-void spapr_drc_detach(SpaprDrc *drc)
-{
-    SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
-    trace_spapr_drc_detach(spapr_drc_index(drc));
+    trace_spapr_drc_unplug_request(spapr_drc_index(drc));
 
     g_assert(drc->dev);
 
     drc->unplug_requested = true;
+
+    spapr_drc_start_unplug_timeout_timer(drc);
 
     if (drc->state != drck->empty_state) {
         trace_spapr_drc_awaiting_quiesce(spapr_drc_index(drc));
@@ -415,6 +417,15 @@ void spapr_drc_detach(SpaprDrc *drc)
     }
 
     spapr_drc_release(drc);
+}
+
+int spapr_drc_unplug_timeout_remaining_sec(SpaprDrc *drc)
+{
+    if (drc->unplug_requested) {
+        return timer_deadline_ms(drc->unplug_timeout_timer) / 1000;
+    }
+
+    return 0;
 }
 
 bool spapr_drc_reset(SpaprDrc *drc)
@@ -488,11 +499,23 @@ static bool spapr_drc_needed(void *opaque)
         spapr_drc_unplug_requested(drc);
 }
 
+static int spapr_drc_post_load(void *opaque, int version_id)
+{
+    SpaprDrc *drc = opaque;
+
+    if (drc->unplug_requested) {
+        spapr_drc_start_unplug_timeout_timer(drc);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_spapr_drc = {
     .name = "spapr_drc",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = spapr_drc_needed,
+    .post_load = spapr_drc_post_load,
     .fields  = (VMStateField []) {
         VMSTATE_UINT32(state, SpaprDrc),
         VMSTATE_END_OF_LIST()
@@ -502,6 +525,15 @@ static const VMStateDescription vmstate_spapr_drc = {
         NULL
     }
 };
+
+static void drc_unplug_timeout_cb(void *opaque)
+{
+    SpaprDrc *drc = opaque;
+
+    if (drc->unplug_requested) {
+        drc->unplug_requested = false;
+    }
+}
 
 static void drc_realize(DeviceState *d, Error **errp)
 {
@@ -525,6 +557,11 @@ static void drc_realize(DeviceState *d, Error **errp)
     object_property_add_alias(root_container, link_name,
                               drc->owner, child_name);
     g_free(link_name);
+
+    drc->unplug_timeout_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                             drc_unplug_timeout_cb,
+                                             drc);
+
     vmstate_register(VMSTATE_IF(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
                      drc);
     trace_spapr_drc_realize_complete(spapr_drc_index(drc));
@@ -542,6 +579,7 @@ static void drc_unrealize(DeviceState *d)
     name = g_strdup_printf("%x", spapr_drc_index(drc));
     object_property_del(root_container, name);
     g_free(name);
+    timer_free(drc->unplug_timeout_timer);
 }
 
 SpaprDrc *spapr_dr_connector_new(Object *owner, const char *type,
@@ -683,6 +721,7 @@ static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
     drck->drc_name_prefix = "CPU ";
     drck->release = spapr_core_release;
     drck->dt_populate = spapr_core_dt_populate;
+    drck->unplug_timeout_seconds = 15;
 }
 
 static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
@@ -1189,6 +1228,15 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     }
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
+    /*
+     * This indicates that the kernel is reconfiguring a LMB due to
+     * a failed hotunplug. Rollback the DIMM unplug process.
+     */
+    if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_LMB &&
+        drc->unplug_requested) {
+        spapr_memory_unplug_rollback(spapr, drc->dev);
+    }
 
     if (!drc->fdt) {
         void *fdt;

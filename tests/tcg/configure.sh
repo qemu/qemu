@@ -251,6 +251,12 @@ for target in $target_list; do
                 echo "CROSS_CC_HAS_ARMV8_MTE=y" >> $config_target_mak
             fi
         ;;
+        ppc*)
+            if do_compiler "$target_compiler" $target_compiler_cflags \
+               -mpower8-vector -o $TMPE $TMPC; then
+                echo "CROSS_CC_HAS_POWER8_VECTOR=y" >> $config_target_mak
+            fi
+        ;;
     esac
 
     enabled_cross_compilers="$enabled_cross_compilers $target_compiler"

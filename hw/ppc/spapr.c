@@ -28,6 +28,7 @@
 #include "qemu-common.h"
 #include "qemu/datadir.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-machine.h"
 #include "qapi/visitor.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hostmem.h"
@@ -3575,6 +3576,57 @@ static SpaprDimmState *spapr_recover_pending_dimm_state(SpaprMachineState *ms,
     return spapr_pending_dimm_unplugs_add(ms, avail_lmbs, dimm);
 }
 
+void spapr_memory_unplug_rollback(SpaprMachineState *spapr, DeviceState *dev)
+{
+    SpaprDimmState *ds;
+    PCDIMMDevice *dimm;
+    SpaprDrc *drc;
+    uint32_t nr_lmbs;
+    uint64_t size, addr_start, addr;
+    g_autofree char *qapi_error = NULL;
+    int i;
+
+    if (!dev) {
+        return;
+    }
+
+    dimm = PC_DIMM(dev);
+    ds = spapr_pending_dimm_unplugs_find(spapr, dimm);
+
+    /*
+     * 'ds == NULL' would mean that the DIMM doesn't have a pending
+     * unplug state, but one of its DRC is marked as unplug_requested.
+     * This is bad and weird enough to g_assert() out.
+     */
+    g_assert(ds);
+
+    spapr_pending_dimm_unplugs_remove(spapr, ds);
+
+    size = memory_device_get_region_size(MEMORY_DEVICE(dimm), &error_abort);
+    nr_lmbs = size / SPAPR_MEMORY_BLOCK_SIZE;
+
+    addr_start = object_property_get_uint(OBJECT(dimm), PC_DIMM_ADDR_PROP,
+                                          &error_abort);
+
+    addr = addr_start;
+    for (i = 0; i < nr_lmbs; i++) {
+        drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB,
+                              addr / SPAPR_MEMORY_BLOCK_SIZE);
+        g_assert(drc);
+
+        drc->unplug_requested = false;
+        addr += SPAPR_MEMORY_BLOCK_SIZE;
+    }
+
+    /*
+     * Tell QAPI that something happened and the memory
+     * hotunplug wasn't successful.
+     */
+    qapi_error = g_strdup_printf("Memory hotunplug rejected by the guest "
+                                 "for device %s", dev->id);
+    qapi_event_send_mem_unplug_error(dev->id, qapi_error);
+}
+
 /* Callback to be called during DRC release. */
 void spapr_lmb_release(DeviceState *dev)
 {
@@ -3654,13 +3706,12 @@ static void spapr_memory_unplug_request(HotplugHandler *hotplug_dev,
                               addr / SPAPR_MEMORY_BLOCK_SIZE);
         g_assert(drc);
 
-        spapr_drc_detach(drc);
+        spapr_drc_unplug_request(drc);
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
 
     drc = spapr_drc_by_id(TYPE_SPAPR_DRC_LMB,
                           addr_start / SPAPR_MEMORY_BLOCK_SIZE);
-    g_assert(drc);
     spapr_hotplug_req_remove_by_count_indexed(SPAPR_DR_CONNECTOR_TYPE_LMB,
                                               nr_lmbs, spapr_drc_index(drc));
 }
@@ -3722,8 +3773,12 @@ void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
     g_assert(drc);
 
     if (!spapr_drc_unplug_requested(drc)) {
-        spapr_drc_detach(drc);
+        spapr_drc_unplug_request(drc);
         spapr_hotplug_req_remove_by_index(drc);
+    } else {
+        error_setg(errp, "core-id %d unplug is still pending, %d seconds "
+                   "timeout remaining",
+                   cc->core_id, spapr_drc_unplug_timeout_remaining_sec(drc));
     }
 }
 
@@ -3985,8 +4040,12 @@ static void spapr_phb_unplug_request(HotplugHandler *hotplug_dev,
     assert(drc);
 
     if (!spapr_drc_unplug_requested(drc)) {
-        spapr_drc_detach(drc);
+        spapr_drc_unplug_request(drc);
         spapr_hotplug_req_remove_by_index(drc);
+    } else {
+        error_setg(errp,
+                   "PCI Host Bridge unplug already in progress for device %s",
+                   dev->id);
     }
 }
 

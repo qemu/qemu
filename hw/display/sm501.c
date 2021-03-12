@@ -1558,86 +1558,85 @@ typedef void draw_hwc_line_func(uint8_t *d, const uint8_t *s,
                                 int width, const uint8_t *palette,
                                 int c_x, int c_y);
 
-#define DEPTH 8
-#include "sm501_template.h"
-
-#define DEPTH 15
-#include "sm501_template.h"
-
-#define BGR_FORMAT
-#define DEPTH 15
-#include "sm501_template.h"
-
-#define DEPTH 16
-#include "sm501_template.h"
-
-#define BGR_FORMAT
-#define DEPTH 16
-#include "sm501_template.h"
-
-#define DEPTH 32
-#include "sm501_template.h"
-
-#define BGR_FORMAT
-#define DEPTH 32
-#include "sm501_template.h"
-
-static draw_line_func *draw_line8_funcs[] = {
-    draw_line8_8,
-    draw_line8_15,
-    draw_line8_16,
-    draw_line8_32,
-    draw_line8_32bgr,
-    draw_line8_15bgr,
-    draw_line8_16bgr,
-};
-
-static draw_line_func *draw_line16_funcs[] = {
-    draw_line16_8,
-    draw_line16_15,
-    draw_line16_16,
-    draw_line16_32,
-    draw_line16_32bgr,
-    draw_line16_15bgr,
-    draw_line16_16bgr,
-};
-
-static draw_line_func *draw_line32_funcs[] = {
-    draw_line32_8,
-    draw_line32_15,
-    draw_line32_16,
-    draw_line32_32,
-    draw_line32_32bgr,
-    draw_line32_15bgr,
-    draw_line32_16bgr,
-};
-
-static draw_hwc_line_func *draw_hwc_line_funcs[] = {
-    draw_hwc_line_8,
-    draw_hwc_line_15,
-    draw_hwc_line_16,
-    draw_hwc_line_32,
-    draw_hwc_line_32bgr,
-    draw_hwc_line_15bgr,
-    draw_hwc_line_16bgr,
-};
-
-static inline int get_depth_index(DisplaySurface *surface)
+static void draw_line8_32(uint8_t *d, const uint8_t *s, int width,
+                          const uint32_t *pal)
 {
-    switch (surface_bits_per_pixel(surface)) {
-    default:
-    case 8:
-        return 0;
-    case 15:
-        return 1;
-    case 16:
-        return 2;
-    case 32:
-        if (is_surface_bgr(surface)) {
-            return 4;
-        } else {
-            return 3;
+    uint8_t v, r, g, b;
+    do {
+        v = ldub_p(s);
+        r = (pal[v] >> 16) & 0xff;
+        g = (pal[v] >>  8) & 0xff;
+        b = (pal[v] >>  0) & 0xff;
+        *(uint32_t *)d = rgb_to_pixel32(r, g, b);
+        s++;
+        d += 4;
+    } while (--width != 0);
+}
+
+static void draw_line16_32(uint8_t *d, const uint8_t *s, int width,
+                           const uint32_t *pal)
+{
+    uint16_t rgb565;
+    uint8_t r, g, b;
+
+    do {
+        rgb565 = lduw_le_p(s);
+        r = (rgb565 >> 8) & 0xf8;
+        g = (rgb565 >> 3) & 0xfc;
+        b = (rgb565 << 3) & 0xf8;
+        *(uint32_t *)d = rgb_to_pixel32(r, g, b);
+        s += 2;
+        d += 4;
+    } while (--width != 0);
+}
+
+static void draw_line32_32(uint8_t *d, const uint8_t *s, int width,
+                           const uint32_t *pal)
+{
+    uint8_t r, g, b;
+
+    do {
+        r = s[2];
+        g = s[1];
+        b = s[0];
+        *(uint32_t *)d = rgb_to_pixel32(r, g, b);
+        s += 4;
+        d += 4;
+    } while (--width != 0);
+}
+
+/**
+ * Draw hardware cursor image on the given line.
+ */
+static void draw_hwc_line_32(uint8_t *d, const uint8_t *s, int width,
+                             const uint8_t *palette, int c_x, int c_y)
+{
+    int i;
+    uint8_t r, g, b, v, bitset = 0;
+
+    /* get cursor position */
+    assert(0 <= c_y && c_y < SM501_HWC_HEIGHT);
+    s += SM501_HWC_WIDTH * c_y / 4;  /* 4 pixels per byte */
+    d += c_x * 4;
+
+    for (i = 0; i < SM501_HWC_WIDTH && c_x + i < width; i++) {
+        /* get pixel value */
+        if (i % 4 == 0) {
+            bitset = ldub_p(s);
+            s++;
         }
+        v = bitset & 3;
+        bitset >>= 2;
+
+        /* write pixel */
+        if (v) {
+            v--;
+            r = palette[v * 3 + 0];
+            g = palette[v * 3 + 1];
+            b = palette[v * 3 + 2];
+            *(uint32_t *)d = rgb_to_pixel32(r, g, b);
+        }
+        d += 4;
     }
 }
 
@@ -1652,7 +1651,6 @@ static void sm501_update_display(void *opaque)
     int height = get_height(s, crt);
     int src_bpp = get_bpp(s, crt);
     int dst_bpp = surface_bytes_per_pixel(surface);
-    int dst_depth_index = get_depth_index(surface);
     draw_line_func *draw_line = NULL;
     draw_hwc_line_func *draw_hwc_line = NULL;
     int full_update = 0;
@@ -1661,6 +1659,8 @@ static void sm501_update_display(void *opaque)
     uint32_t *palette;
     uint8_t hwc_palette[3 * 3];
     uint8_t *hwc_src = NULL;
+
+    assert(dst_bpp == 4); /* Output is always 32-bit RGB */
 
     if (!((crt ? s->dc_crt_control : s->dc_panel_control)
           & SM501_DC_CRT_CONTROL_ENABLE)) {
@@ -1674,13 +1674,13 @@ static void sm501_update_display(void *opaque)
     /* choose draw_line function */
     switch (src_bpp) {
     case 1:
-        draw_line = draw_line8_funcs[dst_depth_index];
+        draw_line = draw_line8_32;
         break;
     case 2:
-        draw_line = draw_line16_funcs[dst_depth_index];
+        draw_line = draw_line16_32;
         break;
     case 4:
-        draw_line = draw_line32_funcs[dst_depth_index];
+        draw_line = draw_line32_32;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "sm501: update display"
@@ -1691,7 +1691,7 @@ static void sm501_update_display(void *opaque)
     /* set up to draw hardware cursor */
     if (is_hwc_enabled(s, crt)) {
         /* choose cursor draw line function */
-        draw_hwc_line = draw_hwc_line_funcs[dst_depth_index];
+        draw_hwc_line = draw_hwc_line_32;
         hwc_src = get_hwc_address(s, crt);
         c_x = get_hwc_x(s, crt);
         c_y = get_hwc_y(s, crt);
