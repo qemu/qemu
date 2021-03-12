@@ -32,6 +32,9 @@
   #define QEMU_PLUGIN_LOCAL  __attribute__((visibility("hidden")))
 #endif
 
+/**
+ * typedef qemu_plugin_id_t - Unique plugin ID
+ */
 typedef uint64_t qemu_plugin_id_t;
 
 /*
