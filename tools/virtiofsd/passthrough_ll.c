@@ -239,6 +239,11 @@ static int is_safe_path_component(const char *path)
     return !is_dot_or_dotdot(path);
 }
 
+static bool is_empty(const char *name)
+{
+    return name[0] == '\0';
+}
+
 static struct lo_data *lo_data(fuse_req_t req)
 {
     return (struct lo_data *)fuse_req_userdata(req);
@@ -1085,6 +1090,11 @@ static void lo_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     fuse_log(FUSE_LOG_DEBUG, "lo_lookup(parent=%" PRIu64 ", name=%s)\n", parent,
              name);
 
+    if (is_empty(name)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
+
     /*
      * Don't use is_safe_path_component(), allow "." and ".." for NFS export
      * support.
@@ -1176,6 +1186,11 @@ static void lo_mknod_symlink(fuse_req_t req, fuse_ino_t parent,
     struct fuse_entry_param e;
     struct lo_cred old = {};
 
+    if (is_empty(name)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
+
     if (!is_safe_path_component(name)) {
         fuse_reply_err(req, EINVAL);
         return;
@@ -1247,6 +1262,11 @@ static void lo_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
     struct fuse_entry_param e;
     char procname[64];
     int saverr;
+
+    if (is_empty(name)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
 
     if (!is_safe_path_component(name)) {
         fuse_reply_err(req, EINVAL);
@@ -1326,6 +1346,11 @@ static void lo_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
     struct lo_inode *inode;
     struct lo_data *lo = lo_data(req);
 
+    if (is_empty(name)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
+
     if (!is_safe_path_component(name)) {
         fuse_reply_err(req, EINVAL);
         return;
@@ -1354,6 +1379,11 @@ static void lo_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
     struct lo_inode *oldinode = NULL;
     struct lo_inode *newinode = NULL;
     struct lo_data *lo = lo_data(req);
+
+    if (is_empty(name) || is_empty(newname)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
 
     if (!is_safe_path_component(name) || !is_safe_path_component(newname)) {
         fuse_reply_err(req, EINVAL);
@@ -1407,6 +1437,11 @@ static void lo_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
     int res;
     struct lo_inode *inode;
     struct lo_data *lo = lo_data(req);
+
+    if (is_empty(name)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
 
     if (!is_safe_path_component(name)) {
         fuse_reply_err(req, EINVAL);
