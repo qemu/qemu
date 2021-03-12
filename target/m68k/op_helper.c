@@ -348,7 +348,10 @@ static void m68k_interrupt_all(CPUM68KState *env, int is_hw)
     cpu_m68k_set_sr(env, sr);
     sp = env->aregs[7];
 
-    sp &= ~1;
+    if (!m68k_feature(env, M68K_FEATURE_UNALIGNED_DATA)) {
+        sp &= ~1;
+    }
+
     if (cs->exception_index == EXCP_ACCESS) {
         if (env->mmu.fault) {
             cpu_abort(cs, "DOUBLE MMU FAULT\n");
@@ -468,7 +471,17 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
 
     if (m68k_feature(env, M68K_FEATURE_M68040)) {
         env->mmu.mmusr = 0;
-        env->mmu.ssw |= M68K_ATC_040;
+
+        /*
+         * According to the MC68040 users manual the ATC bit of the SSW is
+         * used to distinguish between ATC faults and physical bus errors.
+         * In the case of a bus error e.g. during nubus read from an empty
+         * slot this bit should not be set
+         */
+        if (response != MEMTX_DECODE_ERROR) {
+            env->mmu.ssw |= M68K_ATC_040;
+        }
+
         /* FIXME: manage MMU table access error */
         env->mmu.ssw &= ~M68K_TM_040;
         if (env->sr & SR_S) { /* SUPERVISOR */
