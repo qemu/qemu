@@ -49,22 +49,30 @@ extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
 #define QEMU_PLUGIN_VERSION 1
 
-typedef struct {
-    /* string describing architecture */
+/**
+ * struct qemu_info_t - system information for plugins
+ *
+ * This structure provides for some limited information about the
+ * system to allow the plugin to make decisions on how to proceed. For
+ * example it might only be suitable for running on some guest
+ * architectures or when under full system emulation.
+ */
+typedef struct qemu_info_t {
+    /** @target_name: string describing architecture */
     const char *target_name;
+    /** @version: minimum and current plugin API level */
     struct {
         int min;
         int cur;
     } version;
-    /* is this a full system emulation? */
+    /** @system_emulation: is this a full system emulation? */
     bool system_emulation;
     union {
-        /*
-         * smp_vcpus may change if vCPUs can be hot-plugged, max_vcpus
-         * is the system-wide limit.
-         */
+        /** @system: information relevant to system emulation */
         struct {
+            /** @system.smp_vcpus: initial number of vCPUs */
             int smp_vcpus;
+            /** @system.max_vcpus: maximum possible number of vCPUs */
             int max_vcpus;
         } system;
     };
