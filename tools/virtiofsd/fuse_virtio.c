@@ -792,7 +792,13 @@ static void fv_queue_set_started(VuDev *dev, int qidx, bool started)
             assert(0);
         }
     } else {
+        /*
+         * Temporarily drop write-lock taken in virtio_loop() so that
+         * the queue thread doesn't block in virtio_send_msg().
+         */
+        vu_dispatch_unlock(vud);
         fv_queue_cleanup_thread(vud, qidx);
+        vu_dispatch_wrlock(vud);
     }
 }
 
