@@ -296,25 +296,35 @@ static void user_creatable_print_help_from_qdict(QDict *args)
 ObjectOptions *user_creatable_parse_str(const char *optarg, Error **errp)
 {
     ERRP_GUARD();
-    QDict *args;
+    QObject *obj;
     bool help;
     Visitor *v;
     ObjectOptions *options;
 
-    args = keyval_parse(optarg, "qom-type", &help, errp);
-    if (*errp) {
-        return NULL;
-    }
-    if (help) {
-        user_creatable_print_help_from_qdict(args);
-        qobject_unref(args);
-        return NULL;
+    if (optarg[0] == '{') {
+        obj = qobject_from_json(optarg, errp);
+        if (!obj) {
+            return NULL;
+        }
+        v = qobject_input_visitor_new(obj);
+    } else {
+        QDict *args = keyval_parse(optarg, "qom-type", &help, errp);
+        if (*errp) {
+            return NULL;
+        }
+        if (help) {
+            user_creatable_print_help_from_qdict(args);
+            qobject_unref(args);
+            return NULL;
+        }
+
+        obj = QOBJECT(args);
+        v = qobject_input_visitor_new_keyval(obj);
     }
 
-    v = qobject_input_visitor_new_keyval(QOBJECT(args));
     visit_type_ObjectOptions(v, NULL, &options, errp);
     visit_free(v);
-    qobject_unref(args);
+    qobject_unref(obj);
 
     return options;
 }
