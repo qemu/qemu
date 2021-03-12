@@ -49,7 +49,9 @@ bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
             cc->tcg_ops->do_interrupt(cs);
 
             env->intsrc &= env->intsrc - 1; /* clear the interrupt */
-            cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
+            if (!env->intsrc) {
+                cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
+            }
 
             ret = true;
         }
