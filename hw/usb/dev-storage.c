@@ -14,6 +14,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "hw/usb.h"
+#include "hw/usb/msd.h"
 #include "desc.h"
 #include "hw/qdev-properties.h"
 #include "hw/scsi/scsi.h"
@@ -28,43 +29,6 @@
 /* USB requests.  */
 #define MassStorageReset  0xff
 #define GetMaxLun         0xfe
-
-enum USBMSDMode {
-    USB_MSDM_CBW, /* Command Block.  */
-    USB_MSDM_DATAOUT, /* Transfer data to device.  */
-    USB_MSDM_DATAIN, /* Transfer data from device.  */
-    USB_MSDM_CSW /* Command Status.  */
-};
-
-struct usb_msd_csw {
-    uint32_t sig;
-    uint32_t tag;
-    uint32_t residue;
-    uint8_t status;
-};
-
-struct MSDState {
-    USBDevice dev;
-    enum USBMSDMode mode;
-    uint32_t scsi_off;
-    uint32_t scsi_len;
-    uint32_t data_len;
-    struct usb_msd_csw csw;
-    SCSIRequest *req;
-    SCSIBus bus;
-    /* For async completion.  */
-    USBPacket *packet;
-    /* usb-storage only */
-    BlockConf conf;
-    bool removable;
-    bool commandlog;
-    SCSIDevice *scsi_dev;
-};
-typedef struct MSDState MSDState;
-
-#define TYPE_USB_STORAGE "usb-storage-dev"
-DECLARE_INSTANCE_CHECKER(MSDState, USB_STORAGE_DEV,
-                         TYPE_USB_STORAGE)
 
 struct usb_msd_cbw {
     uint32_t sig;
@@ -259,7 +223,7 @@ static void usb_msd_packet_complete(MSDState *s)
     usb_packet_complete(&s->dev, p);
 }
 
-static void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
+void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
@@ -277,7 +241,7 @@ static void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
     }
 }
 
-static void usb_msd_command_complete(SCSIRequest *req, size_t resid)
+void usb_msd_command_complete(SCSIRequest *req, size_t resid)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
@@ -320,7 +284,7 @@ static void usb_msd_command_complete(SCSIRequest *req, size_t resid)
     s->req = NULL;
 }
 
-static void usb_msd_request_cancelled(SCSIRequest *req)
+void usb_msd_request_cancelled(SCSIRequest *req)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
 
@@ -337,7 +301,7 @@ static void usb_msd_request_cancelled(SCSIRequest *req)
     }
 }
 
-static void usb_msd_handle_reset(USBDevice *dev)
+void usb_msd_handle_reset(USBDevice *dev)
 {
     MSDState *s = (MSDState *)dev;
 
@@ -565,7 +529,7 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req)
+void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
 
