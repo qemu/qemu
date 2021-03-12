@@ -85,15 +85,15 @@ typedef struct qemu_info_t {
  * @argc: number of arguments
  * @argv: array of arguments (@argc elements)
  *
- * All plugins must export this symbol.
- *
- * Note: Calling qemu_plugin_uninstall() from this function is a bug. To raise
- * an error during install, return !0.
+ * All plugins must export this symbol which is called when the plugin
+ * is first loaded. Calling qemu_plugin_uninstall() from this function
+ * is a bug.
  *
  * Note: @info is only live during the call. Copy any information we
- * want to keep.
+ * want to keep. @argv remains valid throughout the lifetime of the
+ * loaded plugin.
  *
- * Note: @argv remains valid throughout the lifetime of the loaded plugin.
+ * Return: 0 on successful loading, !0 for an error.
  */
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                                            const qemu_info_t *info,
