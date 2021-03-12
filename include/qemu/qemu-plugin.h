@@ -103,14 +103,14 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
  * typedef qemu_plugin_simple_cb_t - simple callback
  * @id: the unique qemu_plugin_id_t
  *
- * This call-back passes no information aside from the unique @id.
+ * This callback passes no information aside from the unique @id.
  */
 typedef void (*qemu_plugin_simple_cb_t)(qemu_plugin_id_t id);
 
 /**
  * typedef qemu_plugin_udata_cb_t - callback with user data
  * @id: the unique qemu_plugin_id_t
- * @userdata: a pointer to some user data supplied when the call-back
+ * @userdata: a pointer to some user data supplied when the callback
  * was registered.
  */
 typedef void (*qemu_plugin_udata_cb_t)(qemu_plugin_id_t id, void *userdata);
@@ -126,7 +126,7 @@ typedef void (*qemu_plugin_vcpu_simple_cb_t)(qemu_plugin_id_t id,
 /**
  * typedef qemu_plugin_vcpu_udata_cb_t - vcpu callback
  * @vcpu_index: the current vcpu context
- * @userdata: a pointer to some user data supplied when the call-back
+ * @userdata: a pointer to some user data supplied when the callback
  * was registered.
  */
 typedef void (*qemu_plugin_vcpu_udata_cb_t)(unsigned int vcpu_index,
@@ -202,11 +202,9 @@ void qemu_plugin_register_vcpu_idle_cb(qemu_plugin_id_t id,
 void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id,
                                          qemu_plugin_vcpu_simple_cb_t cb);
 
-/*
- * Opaque types that the plugin is given during the translation and
- * instrumentation phase.
- */
+/** struct qemu_plugin_tb - Opaque handle for a translation block */
 struct qemu_plugin_tb;
+/** struct qemu_plugin_insn - Opaque handle for a translated instruction */
 struct qemu_plugin_insn;
 
 enum qemu_plugin_cb_flags {
@@ -222,6 +220,14 @@ enum qemu_plugin_mem_rw {
 };
 
 /**
+ * typedef qemu_plugin_vcpu_tb_trans_cb_t - translation callback
+ * @id: unique plugin id
+ * @tb: opaque handle used for querying and instrumenting a block.
+ */
+typedef void (*qemu_plugin_vcpu_tb_trans_cb_t)(qemu_plugin_id_t id,
+                                               struct qemu_plugin_tb *tb);
+
+/**
  * qemu_plugin_register_vcpu_tb_trans_cb() - register a translate cb
  * @id: plugin ID
  * @cb: callback function
@@ -233,9 +239,6 @@ enum qemu_plugin_mem_rw {
  * callbacks to be triggered when the block or individual instruction
  * executes.
  */
-typedef void (*qemu_plugin_vcpu_tb_trans_cb_t)(qemu_plugin_id_t id,
-                                               struct qemu_plugin_tb *tb);
-
 void qemu_plugin_register_vcpu_tb_trans_cb(qemu_plugin_id_t id,
                                            qemu_plugin_vcpu_tb_trans_cb_t cb);
 
