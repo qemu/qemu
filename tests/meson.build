@@ -1,18 +1,6 @@
 py3 = import('python').find_installation()
 
-qht_bench = executable('qht-bench',
-                       sources: 'qht-bench.c',
-                       dependencies: [qemuutil])
-
-executable('atomic_add-bench',
-           sources: files('atomic_add-bench.c'),
-           dependencies: [qemuutil],
-           build_by_default: false)
-
-executable('atomic64-bench',
-           sources: files('atomic64-bench.c'),
-           dependencies: [qemuutil],
-           build_by_default: false)
+subdir('bench')
 
 test_qapi_outputs = [
   'qapi-builtin-types.c',
@@ -72,26 +60,6 @@ testqapi = declare_dependency(link_with: libtestqapi, sources: [genh, test_qapi_
 test_deps = {
   'test-qht-par': qht_bench,
 }
-
-benchs = {}
-
-if have_block
-  benchs += {
-     'benchmark-crypto-hash': [crypto],
-     'benchmark-crypto-hmac': [crypto],
-     'benchmark-crypto-cipher': [crypto],
-  }
-endif
-
-foreach bench_name, deps: benchs
-  exe = executable(bench_name, bench_name + '.c',
-                   dependencies: [qemuutil] + deps)
-  benchmark(bench_name, exe,
-            args: ['--tap', '-k'],
-            protocol: 'tap',
-            timeout: 0,
-            suite: ['speed'])
-endforeach
 
 if have_tools and 'CONFIG_VHOST_USER' in config_host and 'CONFIG_LINUX' in config_host
   executable('vhost-user-bridge',
