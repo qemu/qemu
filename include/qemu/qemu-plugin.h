@@ -269,6 +269,14 @@ void qemu_plugin_register_vcpu_tb_exec_cb(struct qemu_plugin_tb *tb,
                                           enum qemu_plugin_cb_flags flags,
                                           void *userdata);
 
+/**
+ * enum qemu_plugin_op - describes an inline op
+ *
+ * @QEMU_PLUGIN_INLINE_ADD_U64: add an immediate value uint64_t
+ *
+ * Note: currently only a single inline op is supported.
+ */
+
 enum qemu_plugin_op {
     QEMU_PLUGIN_INLINE_ADD_U64,
 };
@@ -283,6 +291,9 @@ enum qemu_plugin_op {
  * Insert an inline op to every time a translated unit executes.
  * Useful if you just want to increment a single counter somewhere in
  * memory.
+ *
+ * Note: ops are not atomic so in multi-threaded/multi-smp situations
+ * you will get inexact results.
  */
 void qemu_plugin_register_vcpu_tb_exec_inline(struct qemu_plugin_tb *tb,
                                               enum qemu_plugin_op op,
@@ -305,7 +316,6 @@ void qemu_plugin_register_vcpu_insn_exec_cb(struct qemu_plugin_insn *insn,
 /**
  * qemu_plugin_register_vcpu_insn_exec_inline() - insn execution inline op
  * @insn: the opaque qemu_plugin_insn handle for an instruction
- * @cb: callback function
  * @op: the type of qemu_plugin_op (e.g. ADD_U64)
  * @ptr: the target memory location for the op
  * @imm: the op data (e.g. 1)
