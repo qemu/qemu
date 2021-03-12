@@ -223,17 +223,17 @@ static struct lo_inode *lo_find(struct lo_data *lo, struct stat *st,
 static int xattr_map_client(const struct lo_data *lo, const char *client_name,
                             char **out_name);
 
-static int is_dot_or_dotdot(const char *name)
+static bool is_dot_or_dotdot(const char *name)
 {
     return name[0] == '.' &&
            (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'));
 }
 
 /* Is `path` a single path component that is not "." or ".."? */
-static int is_safe_path_component(const char *path)
+static bool is_safe_path_component(const char *path)
 {
     if (strchr(path, '/')) {
-        return 0;
+        return false;
     }
 
     return !is_dot_or_dotdot(path);
