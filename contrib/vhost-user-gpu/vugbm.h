@@ -54,7 +54,7 @@ struct vugbm_buffer {
     uint32_t format;
 };
 
-bool vugbm_device_init(struct vugbm_device *dev, int fd);
+void vugbm_device_init(struct vugbm_device *dev, int fd);
 void vugbm_device_destroy(struct vugbm_device *dev);
 
 bool vugbm_buffer_create(struct vugbm_buffer *buffer, struct vugbm_device *dev,

@@ -1186,11 +1186,7 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    if (g.drm_rnode_fd >= 0) {
-        if (!vugbm_device_init(&g.gdev, g.drm_rnode_fd)) {
-            g_warning("Failed to init DRM device, using fallback path");
-        }
-    }
+    vugbm_device_init(&g.gdev, g.drm_rnode_fd);
 
     if ((!!opt_socket_path + (opt_fdnum != -1)) != 1) {
         g_printerr("Please specify either --fd or --socket-path\n");
