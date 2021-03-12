@@ -47,7 +47,7 @@ typedef uint64_t qemu_plugin_id_t;
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 0
+#define QEMU_PLUGIN_VERSION 1
 
 typedef struct {
     /* string describing architecture */
@@ -307,8 +307,8 @@ bool qemu_plugin_mem_is_sign_extended(qemu_plugin_meminfo_t info);
 bool qemu_plugin_mem_is_big_endian(qemu_plugin_meminfo_t info);
 bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info);
 
-/*
- * qemu_plugin_get_hwaddr():
+/**
+ * qemu_plugin_get_hwaddr() - return handle for memory operation
  * @vaddr: the virtual address of the memory operation
  *
  * For system emulation returns a qemu_plugin_hwaddr handle to query
@@ -323,12 +323,30 @@ struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
                                                   uint64_t vaddr);
 
 /*
- * The following additional queries can be run on the hwaddr structure
- * to return information about it. For non-IO accesses the device
- * offset will be into the appropriate block of RAM.
+ * The following additional queries can be run on the hwaddr structure to
+ * return information about it - namely whether it is for an IO access and the
+ * physical address associated with the access.
+ */
+
+/**
+ * qemu_plugin_hwaddr_is_io() - query whether memory operation is IO
+ * @haddr: address handle from qemu_plugin_get_hwaddr()
+ *
+ * Returns true if the handle's memory operation is to memory-mapped IO, or
+ * false if it is to RAM
  */
 bool qemu_plugin_hwaddr_is_io(const struct qemu_plugin_hwaddr *haddr);
-uint64_t qemu_plugin_hwaddr_device_offset(const struct qemu_plugin_hwaddr *haddr);
+
+/**
+ * qemu_plugin_hwaddr_phys_addr() - query physical address for memory operation
+ * @haddr: address handle from qemu_plugin_get_hwaddr()
+ *
+ * Returns the physical address associated with the memory operation
+ *
+ * Note that the returned physical address may not be unique if you are dealing
+ * with multiple address spaces.
+ */
+uint64_t qemu_plugin_hwaddr_phys_addr(const struct qemu_plugin_hwaddr *haddr);
 
 /*
  * Returns a string representing the device. The string is valid for
