@@ -31,6 +31,7 @@
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qjson.h"
 #include "qemu-version.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
@@ -1712,22 +1713,30 @@ static void object_option_parse(const char *optarg)
     const char *type;
     Visitor *v;
 
-    opts = qemu_opts_parse_noisily(qemu_find_opts("object"),
-                                   optarg, true);
-    if (!opts) {
-        exit(1);
-    }
+    if (optarg[0] == '{') {
+        QObject *obj = qobject_from_json(optarg, &error_fatal);
 
-    type = qemu_opt_get(opts, "qom-type");
-    if (!type) {
-        error_setg(&error_fatal, QERR_MISSING_PARAMETER, "qom-type");
-    }
-    if (user_creatable_print_help(type, opts)) {
-        exit(0);
+        v = qobject_input_visitor_new(obj);
+        qobject_unref(obj);
+    } else {
+        opts = qemu_opts_parse_noisily(qemu_find_opts("object"),
+                                       optarg, true);
+        if (!opts) {
+            exit(1);
+        }
+
+        type = qemu_opt_get(opts, "qom-type");
+        if (!type) {
+            error_setg(&error_fatal, QERR_MISSING_PARAMETER, "qom-type");
+        }
+        if (user_creatable_print_help(type, opts)) {
+            exit(0);
+        }
+
+        v = opts_visitor_new(opts);
     }
 
     opt = g_new0(ObjectOption, 1);
-    v = opts_visitor_new(opts);
     visit_type_ObjectOptions(v, NULL, &opt->opts, &error_fatal);
     visit_free(v);
 
