@@ -183,4 +183,7 @@ config SIFIVE_U_OTP
 config SIFIVE_U_PRCI
     bool
 
+config VIRT_CTRL
+    bool
+
 source macio/Kconfig
