@@ -1475,13 +1475,6 @@ static void slave_read(void *opaque)
         ret = -EINVAL;
     }
 
-    /* Close the remaining file descriptors. */
-    for (i = 0; i < fdsize; i++) {
-        if (fd[i] != -1) {
-            close(fd[i]);
-        }
-    }
-
     /*
      * REPLY_ACK feature handling. Other reply types has to be managed
      * directly in their request handlers.
@@ -1511,12 +1504,14 @@ static void slave_read(void *opaque)
         }
     }
 
-    return;
+    goto fdcleanup;
 
 err:
     qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
     close(u->slave_fd);
     u->slave_fd = -1;
+
+fdcleanup:
     for (i = 0; i < fdsize; i++) {
         if (fd[i] != -1) {
             close(fd[i]);
