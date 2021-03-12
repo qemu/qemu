@@ -313,6 +313,7 @@ void usb_msd_handle_reset(USBDevice *dev)
         usb_msd_packet_complete(s);
     }
 
+    memset(&s->csw, 0, sizeof(s->csw));
     s->mode = USB_MSDM_CBW;
 }
 
