@@ -23,3 +23,12 @@ config Q800
     select ESP
     select DP8393X
     select OR_IRQ
+
+config M68K_VIRT
+    bool
+    select M68K_IRQC
+    select VIRT_CTRL
+    select GOLDFISH_PIC
+    select GOLDFISH_TTY
+    select GOLDFISH_RTC
+    select VIRTIO_MMIO
