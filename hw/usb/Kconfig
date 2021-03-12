@@ -66,11 +66,22 @@ config USB_TABLET_WACOM
     default y
     depends on USB
 
+config USB_STORAGE_CORE
+    bool
+    depends on USB
+    select SCSI
+
+config USB_STORAGE_CLASSIC
+    bool
+    default y
+    depends on USB
+    select USB_STORAGE_CORE
+
 config USB_STORAGE_BOT
     bool
     default y
     depends on USB
-    select SCSI
+    select USB_STORAGE_CORE
 
 config USB_STORAGE_UAS
     bool
