@@ -27,6 +27,7 @@
 
 #define TCG_HIGHWATER 1024
 
+extern TCGContext tcg_init_ctx;
 extern TCGContext **tcg_ctxs;
 extern unsigned int tcg_cur_ctxs;
 extern unsigned int tcg_max_ctxs;
