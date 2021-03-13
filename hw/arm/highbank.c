@@ -170,7 +170,7 @@ struct HighbankRegsState {
     uint32_t regs[NUM_REGS];
 };
 
-static VMStateDescription vmstate_highbank_regs = {
+static const VMStateDescription vmstate_highbank_regs = {
     .name = "highbank-regs",
     .version_id = 0,
     .minimum_version_id = 0,

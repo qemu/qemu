@@ -162,7 +162,7 @@ static void zipit_lcd_realize(SSIPeripheral *dev, Error **errp)
     z->pos = 0;
 }
 
-static VMStateDescription vmstate_zipit_lcd_state = {
+static const VMStateDescription vmstate_zipit_lcd_state = {
     .name = "zipit-lcd",
     .version_id = 2,
     .minimum_version_id = 2,
@@ -268,7 +268,7 @@ static uint8_t aer915_recv(I2CSlave *slave)
     return retval;
 }
 
-static VMStateDescription vmstate_aer915_state = {
+static const VMStateDescription vmstate_aer915_state = {
     .name = "aer915",
     .version_id = 1,
     .minimum_version_id = 1,

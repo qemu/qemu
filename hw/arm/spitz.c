@@ -1134,7 +1134,7 @@ static bool is_version_0(void *opaque, int version_id)
     return version_id == 0;
 }
 
-static VMStateDescription vmstate_sl_nand_info = {
+static const VMStateDescription vmstate_sl_nand_info = {
     .name = "sl-nand",
     .version_id = 0,
     .minimum_version_id = 0,
@@ -1170,7 +1170,7 @@ static const TypeInfo sl_nand_info = {
     .class_init    = sl_nand_class_init,
 };
 
-static VMStateDescription vmstate_spitz_kbd = {
+static const VMStateDescription vmstate_spitz_kbd = {
     .name = "spitz-keyboard",
     .version_id = 1,
     .minimum_version_id = 0,

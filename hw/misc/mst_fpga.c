@@ -222,7 +222,7 @@ static void mst_fpga_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static VMStateDescription vmstate_mst_fpga_regs = {
+static const VMStateDescription vmstate_mst_fpga_regs = {
     .name = "mainstone_fpga",
     .version_id = 0,
     .minimum_version_id = 0,
