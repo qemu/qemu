@@ -46,8 +46,8 @@ struct tcg_region_state {
     QemuMutex lock;
 
     /* fields set at init time */
-    void *start;
     void *start_aligned;
+    void *after_prologue;
     size_t n;
     size_t size; /* size of one region */
     size_t stride; /* .size + guard size */
@@ -276,7 +276,7 @@ static void tcg_region_bounds(size_t curr_region, void **pstart, void **pend)
     end = start + region.size;
 
     if (curr_region == 0) {
-        start = region.start;
+        start = region.after_prologue;
     }
     /* The final region may have a few extra pages due to earlier rounding. */
     if (curr_region == region.n - 1) {
@@ -855,7 +855,7 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
     region.n = n_regions;
     region.size = region_size - page_size;
     region.stride = region_size;
-    region.start = buf;
+    region.after_prologue = buf;
     region.start_aligned = aligned;
     /* page-align the end, since its last page will be a guard page */
     end = QEMU_ALIGN_PTR_DOWN(buf + total_size, page_size);
@@ -895,15 +895,16 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
 void tcg_region_prologue_set(TCGContext *s)
 {
     /* Deduct the prologue from the first region.  */
-    g_assert(region.start == s->code_gen_buffer);
-    region.start = s->code_ptr;
+    g_assert(region.start_aligned == s->code_gen_buffer);
+    region.after_prologue = s->code_ptr;
 
     /* Recompute boundaries of the first region. */
     tcg_region_assign(s, 0);
 
     /* Register the balance of the buffer with gdb. */
-    tcg_register_jit(tcg_splitwx_to_rx(region.start),
-                     region.start_aligned + region.total_size - region.start);
+    tcg_register_jit(tcg_splitwx_to_rx(region.after_prologue),
+                     region.start_aligned + region.total_size -
+                     region.after_prologue);
 }
 
 /*
