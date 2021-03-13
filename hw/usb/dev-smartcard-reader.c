@@ -1365,7 +1365,7 @@ static int ccid_pre_save(void *opaque)
     return 0;
 }
 
-static VMStateDescription bulk_in_vmstate = {
+static const VMStateDescription bulk_in_vmstate = {
     .name = "CCID BulkIn state",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -1377,7 +1377,7 @@ static VMStateDescription bulk_in_vmstate = {
     }
 };
 
-static VMStateDescription answer_vmstate = {
+static const VMStateDescription answer_vmstate = {
     .name = "CCID Answer state",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -1388,7 +1388,7 @@ static VMStateDescription answer_vmstate = {
     }
 };
 
-static VMStateDescription usb_device_vmstate = {
+static const VMStateDescription usb_device_vmstate = {
     .name = "usb_device",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -1400,7 +1400,7 @@ static VMStateDescription usb_device_vmstate = {
     }
 };
 
-static VMStateDescription ccid_vmstate = {
+static const VMStateDescription ccid_vmstate = {
     .name = "usb-ccid",
     .version_id = 1,
     .minimum_version_id = 1,
