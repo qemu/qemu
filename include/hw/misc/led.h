@@ -27,6 +27,7 @@ typedef enum {          /* Coarse wavelength range */
     LED_COLOR_BLUE,     /* 475 nm */
     LED_COLOR_CYAN,     /* 500 nm */
     LED_COLOR_GREEN,    /* 535 nm */
+    LED_COLOR_YELLOW,   /* 567 nm */
     LED_COLOR_AMBER,    /* 590 nm */
     LED_COLOR_ORANGE,   /* 615 nm */
     LED_COLOR_RED,      /* 630 nm */
