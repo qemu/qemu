@@ -75,7 +75,10 @@ static void arduino_duemilanove_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
 
-    /* https://www.arduino.cc/en/Main/ArduinoBoardDuemilanove */
+    /*
+     * https://www.arduino.cc/en/Main/ArduinoBoardDuemilanove
+     * https://www.arduino.cc/en/uploads/Main/arduino-duemilanove-schematic.pdf
+     */
     mc->desc        = "Arduino Duemilanove (ATmega168)",
     mc->alias       = "2009";
     amc->mcu_type   = TYPE_ATMEGA168_MCU;
@@ -87,7 +90,10 @@ static void arduino_uno_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
 
-    /* https://store.arduino.cc/arduino-uno-rev3 */
+    /*
+     * https://store.arduino.cc/arduino-uno-rev3
+     * https://www.arduino.cc/en/uploads/Main/arduino-uno-schematic.pdf
+     */
     mc->desc        = "Arduino UNO (ATmega328P)";
     mc->alias       = "uno";
     amc->mcu_type   = TYPE_ATMEGA328_MCU;
@@ -99,7 +105,10 @@ static void arduino_mega_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
 
-    /* https://www.arduino.cc/en/Main/ArduinoBoardMega */
+    /*
+     * https://www.arduino.cc/en/Main/ArduinoBoardMega
+     * https://www.arduino.cc/en/uploads/Main/arduino-mega2560-schematic.pdf
+     */
     mc->desc        = "Arduino Mega (ATmega1280)";
     mc->alias       = "mega";
     amc->mcu_type   = TYPE_ATMEGA1280_MCU;
@@ -111,7 +120,10 @@ static void arduino_mega2560_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
 
-    /* https://store.arduino.cc/arduino-mega-2560-rev3 */
+    /*
+     * https://store.arduino.cc/arduino-mega-2560-rev3
+     * https://www.arduino.cc/en/uploads/Main/arduino-mega2560_R3-sch.pdf
+     */
     mc->desc        = "Arduino Mega 2560 (ATmega2560)";
     mc->alias       = "mega2560";
     amc->mcu_type   = TYPE_ATMEGA2560_MCU;
