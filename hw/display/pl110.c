@@ -123,16 +123,84 @@ static const unsigned char *idregs[] = {
     pl111_id
 };
 
-#define BITS 8
+#define COPY_PIXEL(to, from) do { *(uint32_t *)to = from; to += 4; } while (0)
+
+#undef RGB
+#define BORDER bgr
+#define ORDER 0
 #include "pl110_template.h"
-#define BITS 15
+#define ORDER 1
 #include "pl110_template.h"
-#define BITS 16
+#define ORDER 2
 #include "pl110_template.h"
-#define BITS 24
+#undef BORDER
+#define RGB
+#define BORDER rgb
+#define ORDER 0
 #include "pl110_template.h"
-#define BITS 32
+#define ORDER 1
 #include "pl110_template.h"
+#define ORDER 2
+#include "pl110_template.h"
+#undef BORDER
+
+#undef COPY_PIXEL
+
+static drawfn pl110_draw_fn_32[48] = {
+    pl110_draw_line1_lblp_bgr,
+    pl110_draw_line2_lblp_bgr,
+    pl110_draw_line4_lblp_bgr,
+    pl110_draw_line8_lblp_bgr,
+    pl110_draw_line16_555_lblp_bgr,
+    pl110_draw_line32_lblp_bgr,
+    pl110_draw_line16_lblp_bgr,
+    pl110_draw_line12_lblp_bgr,
+
+    pl110_draw_line1_bbbp_bgr,
+    pl110_draw_line2_bbbp_bgr,
+    pl110_draw_line4_bbbp_bgr,
+    pl110_draw_line8_bbbp_bgr,
+    pl110_draw_line16_555_bbbp_bgr,
+    pl110_draw_line32_bbbp_bgr,
+    pl110_draw_line16_bbbp_bgr,
+    pl110_draw_line12_bbbp_bgr,
+
+    pl110_draw_line1_lbbp_bgr,
+    pl110_draw_line2_lbbp_bgr,
+    pl110_draw_line4_lbbp_bgr,
+    pl110_draw_line8_lbbp_bgr,
+    pl110_draw_line16_555_lbbp_bgr,
+    pl110_draw_line32_lbbp_bgr,
+    pl110_draw_line16_lbbp_bgr,
+    pl110_draw_line12_lbbp_bgr,
+
+    pl110_draw_line1_lblp_rgb,
+    pl110_draw_line2_lblp_rgb,
+    pl110_draw_line4_lblp_rgb,
+    pl110_draw_line8_lblp_rgb,
+    pl110_draw_line16_555_lblp_rgb,
+    pl110_draw_line32_lblp_rgb,
+    pl110_draw_line16_lblp_rgb,
+    pl110_draw_line12_lblp_rgb,
+
+    pl110_draw_line1_bbbp_rgb,
+    pl110_draw_line2_bbbp_rgb,
+    pl110_draw_line4_bbbp_rgb,
+    pl110_draw_line8_bbbp_rgb,
+    pl110_draw_line16_555_bbbp_rgb,
+    pl110_draw_line32_bbbp_rgb,
+    pl110_draw_line16_bbbp_rgb,
+    pl110_draw_line12_bbbp_rgb,
+
+    pl110_draw_line1_lbbp_rgb,
+    pl110_draw_line2_lbbp_rgb,
+    pl110_draw_line4_lbbp_rgb,
+    pl110_draw_line8_lbbp_rgb,
+    pl110_draw_line16_555_lbbp_rgb,
+    pl110_draw_line32_lbbp_rgb,
+    pl110_draw_line16_lbbp_rgb,
+    pl110_draw_line12_lbbp_rgb,
+};
 
 static int pl110_enabled(PL110State *s)
 {
@@ -144,9 +212,7 @@ static void pl110_update_display(void *opaque)
     PL110State *s = (PL110State *)opaque;
     SysBusDevice *sbd;
     DisplaySurface *surface = qemu_console_surface(s->con);
-    drawfn* fntable;
     drawfn fn;
-    int dest_width;
     int src_width;
     int bpp_offset;
     int first;
@@ -158,33 +224,6 @@ static void pl110_update_display(void *opaque)
 
     sbd = SYS_BUS_DEVICE(s);
 
-    switch (surface_bits_per_pixel(surface)) {
-    case 0:
-        return;
-    case 8:
-        fntable = pl110_draw_fn_8;
-        dest_width = 1;
-        break;
-    case 15:
-        fntable = pl110_draw_fn_15;
-        dest_width = 2;
-        break;
-    case 16:
-        fntable = pl110_draw_fn_16;
-        dest_width = 2;
-        break;
-    case 24:
-        fntable = pl110_draw_fn_24;
-        dest_width = 3;
-        break;
-    case 32:
-        fntable = pl110_draw_fn_32;
-        dest_width = 4;
-        break;
-    default:
-        fprintf(stderr, "pl110: Bad color depth\n");
-        exit(1);
-    }
     if (s->cr & PL110_CR_BGR)
         bpp_offset = 0;
     else
@@ -218,12 +257,13 @@ static void pl110_update_display(void *opaque)
         }
     }
 
-    if (s->cr & PL110_CR_BEBO)
-        fn = fntable[s->bpp + 8 + bpp_offset];
-    else if (s->cr & PL110_CR_BEPO)
-        fn = fntable[s->bpp + 16 + bpp_offset];
-    else
-        fn = fntable[s->bpp + bpp_offset];
+    if (s->cr & PL110_CR_BEBO) {
+        fn = pl110_draw_fn_32[s->bpp + 8 + bpp_offset];
+    } else if (s->cr & PL110_CR_BEPO) {
+        fn = pl110_draw_fn_32[s->bpp + 16 + bpp_offset];
+    } else {
+        fn = pl110_draw_fn_32[s->bpp + bpp_offset];
+    }
 
     src_width = s->cols;
     switch (s->bpp) {
@@ -247,7 +287,6 @@ static void pl110_update_display(void *opaque)
         src_width <<= 2;
         break;
     }
-    dest_width *= s->cols;
     first = 0;
     if (s->invalidate) {
         framebuffer_update_memory_section(&s->fbsection,
@@ -258,7 +297,7 @@ static void pl110_update_display(void *opaque)
 
     framebuffer_update_display(surface, &s->fbsection,
                                s->cols, s->rows,
-                               src_width, dest_width, 0,
+                               src_width, s->cols * 4, 0,
                                s->invalidate,
                                fn, s->palette,
                                &first, &last);

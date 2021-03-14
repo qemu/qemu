@@ -415,6 +415,7 @@ static void sse_timer_realize(DeviceState *dev, Error **errp)
 
     if (!s->counter) {
         error_setg(errp, "counter property was not set");
+        return;
     }
 
     s->counter_notifier.notify = sse_timer_counter_callback;

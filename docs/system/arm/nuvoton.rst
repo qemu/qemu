@@ -45,6 +45,7 @@ Supported devices
  * Pulse Width Modulation (PWM)
  * SMBus controller (SMBF)
  * Ethernet controller (EMC)
+ * Tachometer
 
 Missing devices
 ---------------
@@ -63,7 +64,6 @@ Missing devices
  * Peripheral SPI controller (PSPI)
  * SD/MMC host
  * PECI interface
- * Tachometer
  * PCI and PCIe root complex and bridges
  * VDM and MCTP support
  * Serial I/O expansion

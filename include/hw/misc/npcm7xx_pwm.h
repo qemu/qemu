@@ -77,6 +77,7 @@ typedef struct NPCM7xxPWM {
  * @iomem: Memory region through which registers are accessed.
  * @clock: The PWM clock.
  * @pwm: The PWM channels owned by this module.
+ * @duty_gpio_out: The duty cycle of each PWM channels as a output GPIO.
  * @ppr: The prescaler register.
  * @csr: The clock selector register.
  * @pcr: The control register.
@@ -89,7 +90,8 @@ struct NPCM7xxPWMState {
     MemoryRegion iomem;
 
     Clock       *clock;
-    NPCM7xxPWM pwm[NPCM7XX_PWM_PER_MODULE];
+    NPCM7xxPWM  pwm[NPCM7XX_PWM_PER_MODULE];
+    qemu_irq    duty_gpio_out[NPCM7XX_PWM_PER_MODULE];
 
     uint32_t    ppr;
     uint32_t    csr;

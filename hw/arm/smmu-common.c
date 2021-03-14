@@ -151,22 +151,28 @@ inline void
 smmu_iotlb_inv_iova(SMMUState *s, int asid, dma_addr_t iova,
                     uint8_t tg, uint64_t num_pages, uint8_t ttl)
 {
-    if (ttl && (num_pages == 1)) {
+    /* if tg is not set we use 4KB range invalidation */
+    uint8_t granule = tg ? tg * 2 + 10 : 12;
+
+    if (ttl && (num_pages == 1) && (asid >= 0)) {
         SMMUIOTLBKey key = smmu_get_iotlb_key(asid, iova, tg, ttl);
 
-        g_hash_table_remove(s->iotlb, &key);
-    } else {
-        /* if tg is not set we use 4KB range invalidation */
-        uint8_t granule = tg ? tg * 2 + 10 : 12;
-
-        SMMUIOTLBPageInvInfo info = {
-            .asid = asid, .iova = iova,
-            .mask = (num_pages * 1 << granule) - 1};
-
-        g_hash_table_foreach_remove(s->iotlb,
-                                    smmu_hash_remove_by_asid_iova,
-                                    &info);
+        if (g_hash_table_remove(s->iotlb, &key)) {
+            return;
+        }
+        /*
+         * if the entry is not found, let's see if it does not
+         * belong to a larger IOTLB entry
+         */
     }
+
+    SMMUIOTLBPageInvInfo info = {
+        .asid = asid, .iova = iova,
+        .mask = (num_pages * 1 << granule) - 1};
+
+    g_hash_table_foreach_remove(s->iotlb,
+                                smmu_hash_remove_by_asid_iova,
+                                &info);
 }
 
 inline void smmu_iotlb_inv_asid(SMMUState *s, uint16_t asid)

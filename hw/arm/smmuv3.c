@@ -32,6 +32,7 @@
 
 #include "hw/arm/smmuv3.h"
 #include "smmuv3-internal.h"
+#include "smmu-internal.h"
 
 /**
  * smmuv3_trigger_irq - pulse @irq if enabled and update
@@ -861,7 +862,8 @@ static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
     uint16_t vmid = CMD_VMID(cmd);
     bool leaf = CMD_LEAF(cmd);
     uint8_t tg = CMD_TG(cmd);
-    hwaddr num_pages = 1;
+    uint64_t first_page = 0, last_page;
+    uint64_t num_pages = 1;
     int asid = -1;
 
     if (tg) {
@@ -874,9 +876,38 @@ static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
     if (type == SMMU_CMD_TLBI_NH_VA) {
         asid = CMD_ASID(cmd);
     }
-    trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, num_pages, ttl, leaf);
-    smmuv3_inv_notifiers_iova(s, asid, addr, tg, num_pages);
-    smmu_iotlb_inv_iova(s, asid, addr, tg, num_pages, ttl);
+
+    /* Split invalidations into ^2 range invalidations */
+    last_page = num_pages - 1;
+    while (num_pages) {
+        uint8_t granule = tg * 2 + 10;
+        uint64_t mask, count;
+
+        mask = dma_aligned_pow2_mask(first_page, last_page, 64 - granule);
+        count = mask + 1;
+
+        trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, count, ttl, leaf);
+        smmuv3_inv_notifiers_iova(s, asid, addr, tg, count);
+        smmu_iotlb_inv_iova(s, asid, addr, tg, count, ttl);
+
+        num_pages -= count;
+        first_page += count;
+        addr += count * BIT_ULL(granule);
+    }
+}
+
+static gboolean
+smmuv3_invalidate_ste(gpointer key, gpointer value, gpointer user_data)
+{
+    SMMUDevice *sdev = (SMMUDevice *)key;
+    uint32_t sid = smmu_get_sid(sdev);
+    SMMUSIDRange *sid_range = (SMMUSIDRange *)user_data;
+
+    if (sid < sid_range->start || sid > sid_range->end) {
+        return false;
+    }
+    trace_smmuv3_config_cache_inv(sid);
+    return true;
 }
 
 static int smmuv3_cmdq_consume(SMMUv3State *s)
@@ -949,27 +980,18 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
         }
         case SMMU_CMD_CFGI_STE_RANGE: /* same as SMMU_CMD_CFGI_ALL */
         {
-            uint32_t start = CMD_SID(&cmd), end, i;
+            uint32_t start = CMD_SID(&cmd);
             uint8_t range = CMD_STE_RANGE(&cmd);
+            uint64_t end = start + (1ULL << (range + 1)) - 1;
+            SMMUSIDRange sid_range = {start, end};
 
             if (CMD_SSEC(&cmd)) {
                 cmd_error = SMMU_CERROR_ILL;
                 break;
             }
-
-            end = start + (1 << (range + 1)) - 1;
             trace_smmuv3_cmdq_cfgi_ste_range(start, end);
-
-            for (i = start; i <= end; i++) {
-                IOMMUMemoryRegion *mr = smmu_iommu_mr(bs, i);
-                SMMUDevice *sdev;
-
-                if (!mr) {
-                    continue;
-                }
-                sdev = container_of(mr, SMMUDevice, iommu);
-                smmuv3_flush_config(sdev);
-            }
+            g_hash_table_foreach_remove(bs->configs, smmuv3_invalidate_ste,
+                                        &sid_range);
             break;
         }
         case SMMU_CMD_CFGI_CD:

@@ -2548,27 +2548,36 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
 static int virt_kvm_type(MachineState *ms, const char *type_str)
 {
     VirtMachineState *vms = VIRT_MACHINE(ms);
-    int max_vm_pa_size = kvm_arm_get_max_vm_ipa_size(ms);
-    int requested_pa_size;
+    int max_vm_pa_size, requested_pa_size;
+    bool fixed_ipa;
+
+    max_vm_pa_size = kvm_arm_get_max_vm_ipa_size(ms, &fixed_ipa);
 
     /* we freeze the memory map to compute the highest gpa */
     virt_set_memmap(vms);
 
     requested_pa_size = 64 - clz64(vms->highest_gpa);
 
+    /*
+     * KVM requires the IPA size to be at least 32 bits.
+     */
+    if (requested_pa_size < 32) {
+        requested_pa_size = 32;
+    }
+
     if (requested_pa_size > max_vm_pa_size) {
         error_report("-m and ,maxmem option values "
                      "require an IPA range (%d bits) larger than "
                      "the one supported by the host (%d bits)",
                      requested_pa_size, max_vm_pa_size);
-       exit(1);
+        exit(1);
     }
     /*
-     * By default we return 0 which corresponds to an implicit legacy
-     * 40b IPA setting. Otherwise we return the actual requested PA
-     * logsize
+     * We return the requested PA log size, unless KVM only supports
+     * the implicit legacy 40b IPA setting, in which case the kvm_type
+     * must be 0.
      */
-    return requested_pa_size > 40 ? requested_pa_size : 0;
+    return fixed_ipa ? 0 : requested_pa_size;
 }
 
 static void virt_machine_class_init(ObjectClass *oc, void *data)
