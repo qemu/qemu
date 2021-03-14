@@ -209,6 +209,12 @@ const generic_fuzz_config predefined_configs[] = {
         "-blockdev driver=null-co,read-zeroes=on,node-name=null0",
         .objects = "megasas*",
     },{
+        .name = "am53c974",
+        .args = "-device am53c974,id=scsi -device scsi-hd,drive=disk0 "
+                 "-drive id=disk0,if=none,file=null-co://,format=raw "
+                 "-nodefaults",
+        .objects = "*esp* *scsi* *am53c974*",
+    },{
         .name = "ac97",
         .args = "-machine q35 -nodefaults "
         "-device ac97,audiodev=snd0 -audiodev none,id=snd0 -nodefaults",
