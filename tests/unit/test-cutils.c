@@ -2128,7 +2128,7 @@ static void test_qemu_strtosz_float(void)
     str = "12.345M";
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, (uint64_t) (12.345 * MiB));
+    g_assert_cmpint(res, ==, (uint64_t) (12.345 * MiB + 0.5));
     g_assert(endptr == str + 7);
 }
 
