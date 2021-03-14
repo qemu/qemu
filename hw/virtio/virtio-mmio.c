@@ -112,15 +112,28 @@ static uint64_t virtio_mmio_read(void *opaque, hwaddr offset, unsigned size)
 
     if (offset >= VIRTIO_MMIO_CONFIG) {
         offset -= VIRTIO_MMIO_CONFIG;
-        switch (size) {
-        case 1:
-            return virtio_config_readb(vdev, offset);
-        case 2:
-            return virtio_config_readw(vdev, offset);
-        case 4:
-            return virtio_config_readl(vdev, offset);
-        default:
-            abort();
+        if (proxy->legacy) {
+            switch (size) {
+            case 1:
+                return virtio_config_readb(vdev, offset);
+            case 2:
+                return virtio_config_readw(vdev, offset);
+            case 4:
+                return virtio_config_readl(vdev, offset);
+            default:
+                abort();
+            }
+        } else {
+            switch (size) {
+            case 1:
+                return virtio_config_modern_readb(vdev, offset);
+            case 2:
+                return virtio_config_modern_readw(vdev, offset);
+            case 4:
+                return virtio_config_modern_readl(vdev, offset);
+            default:
+                abort();
+            }
         }
     }
     if (size != 4) {
@@ -245,20 +258,37 @@ static void virtio_mmio_write(void *opaque, hwaddr offset, uint64_t value,
 
     if (offset >= VIRTIO_MMIO_CONFIG) {
         offset -= VIRTIO_MMIO_CONFIG;
-        switch (size) {
-        case 1:
-            virtio_config_writeb(vdev, offset, value);
-            break;
-        case 2:
-            virtio_config_writew(vdev, offset, value);
-            break;
-        case 4:
-            virtio_config_writel(vdev, offset, value);
-            break;
-        default:
-            abort();
+        if (proxy->legacy) {
+            switch (size) {
+            case 1:
+                virtio_config_writeb(vdev, offset, value);
+                break;
+            case 2:
+                virtio_config_writew(vdev, offset, value);
+                break;
+            case 4:
+                virtio_config_writel(vdev, offset, value);
+                break;
+            default:
+                abort();
+            }
+            return;
+        } else {
+            switch (size) {
+            case 1:
+                virtio_config_modern_writeb(vdev, offset, value);
+                break;
+            case 2:
+                virtio_config_modern_writew(vdev, offset, value);
+                break;
+            case 4:
+                virtio_config_modern_writel(vdev, offset, value);
+                break;
+            default:
+                abort();
+            }
+            return;
         }
-        return;
     }
     if (size != 4) {
         qemu_log_mask(LOG_GUEST_ERROR,
