@@ -19,4 +19,7 @@ void kvm_cpu_synchronize_post_reset(CPUState *cpu);
 void kvm_cpu_synchronize_post_init(CPUState *cpu);
 void kvm_cpu_synchronize_pre_loadvm(CPUState *cpu);
 
+void *kvm_physical_memory_addr_to_host(KVMState *s, hwaddr guest_physical);
+void protect_guest_idt(CPUState *cpu);
+
 #endif /* KVM_CPUS_H */

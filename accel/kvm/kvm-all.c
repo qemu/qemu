@@ -72,6 +72,16 @@
     do { } while (0)
 #endif
 
+#define CUSTOM_DEBUG
+
+#ifdef CUSTOM_DEBUG
+#define DBG(fmt, ...) \
+    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
+#else
+#define DBG(fmt, ...) \
+    do { } while (0)
+#endif
+
 #define KVM_MSI_HASHTAB_SIZE    256
 
 struct KVMParkedVcpu {
@@ -323,6 +333,30 @@ int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
 
     return ret;
 }
+
+void *kvm_physical_memory_addr_to_host(KVMState *s, hwaddr guest_physical)
+{
+    KVMMemoryListener *kml = &s->memory_listener;
+    int i;
+    void *host_virtual = NULL;
+
+    kvm_slots_lock(kml);
+    for (i = 0; i < s->nr_slots; i++) {
+        KVMSlot *mem = &kml->slots[i];
+
+        if (guest_physical >= mem->start_addr && 
+                guest_physical < mem->start_addr + mem->memory_size){
+            
+            host_virtual = (void *)
+                (mem->ram + guest_physical - mem->start_addr);
+            break;
+        }
+    }
+    kvm_slots_unlock(kml);
+
+    return host_virtual;
+}
+
 
 static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, bool new)
 {
@@ -2430,6 +2464,26 @@ static void kvm_eat_signals(CPUState *cpu)
     } while (sigismember(&chkset, SIG_IPI));
 }
 
+void protect_guest_idt(CPUState *cpu)
+{
+    KVMState *s = kvm_state;
+    struct kvm_sregs sregs; /* system register to read IDTR */
+    struct kvm_translation translation;
+    void *hva;
+
+    memset(&sregs, 0, sizeof(sregs));
+    memset(&translation, 0, sizeof(translation));
+    kvm_vcpu_ioctl(cpu, KVM_GET_SREGS, &sregs);
+    translation.linear_address = sregs.idt.base;
+    kvm_vcpu_ioctl(cpu, KVM_TRANSLATE, &translation);
+
+    DBG("\nidtr gva: 0x%llx\n", sregs.idt.base);
+    DBG("idtr gpa: 0x%llx\n", translation.physical_address);
+    hva = kvm_physical_memory_addr_to_host(s, (hwaddr)translation.physical_address);
+    if(hva != NULL)
+        DBG("idtr hva: 0x%llx\n", (long long unsigned)hva);
+}
+
 int kvm_cpu_exec(CPUState *cpu)
 {
     struct kvm_run *run = cpu->kvm_run;
@@ -2468,6 +2522,8 @@ int kvm_cpu_exec(CPUState *cpu)
          * Matching barrier in kvm_eat_signals.
          */
         smp_rmb();
+
+        protect_guest_idt(cpu);
 
         run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
 
