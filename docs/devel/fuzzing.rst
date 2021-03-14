@@ -210,6 +210,62 @@ Build details:
 - The script responsible for building the fuzzers can be found in the
   QEMU source tree at ``scripts/oss-fuzz/build.sh``
 
+Building Crash Reproducers
+-----------------------------------------
+When we find a crash, we should try to create an independent reproducer, that
+can be used on a non-fuzzer build of QEMU. This filters out any potential
+false-positives, and improves the debugging experience for developers.
+Here are the steps for building a reproducer for a crash found by the
+generic-fuzz target.
+
+- Ensure the crash reproduces::
+
+    qemu-fuzz-i386 --fuzz-target... ./crash-...
+
+- Gather the QTest output for the crash::
+
+    QEMU_FUZZ_TIMEOUT=0 QTEST_LOG=1 FUZZ_SERIALIZE_QTEST=1 \
+    qemu-fuzz-i386 --fuzz-target... ./crash-... &> /tmp/trace
+
+- Reorder and clean-up the resulting trace::
+
+    scripts/oss-fuzz/reorder_fuzzer_qtest_trace.py /tmp/trace > /tmp/reproducer
+
+- Get the arguments needed to start qemu, and provide a path to qemu::
+
+    less /tmp/trace # The args should be logged at the top of this file
+    export QEMU_ARGS="-machine ..."
+    export QEMU_PATH="path/to/qemu-system"
+
+- Ensure the crash reproduces in qemu-system::
+
+    $QEMU_PATH $QEMU_ARGS -qtest stdio < /tmp/reproducer
+
+- From the crash output, obtain some string that identifies the crash. This
+  can be a line in the stack-trace, for example::
+
+    export CRASH_TOKEN="hw/usb/hcd-xhci.c:1865"
+
+- Minimize the reproducer::
+
+    scripts/oss-fuzz/minimize_qtest_trace.py -M1 -M2 \
+      /tmp/reproducer /tmp/reproducer-minimized
+
+- Confirm that the minimized reproducer still crashes::
+
+    $QEMU_PATH $QEMU_ARGS -qtest stdio < /tmp/reproducer-minimized
+
+- Create a one-liner reproducer that can be sent over email::
+
+    ./scripts/oss-fuzz/output_reproducer.py -bash /tmp/reproducer-minimized
+
+- Output the C source code for a test case that will reproduce the bug::
+
+    ./scripts/oss-fuzz/output_reproducer.py -owner "John Smith <john@smith.com>"\
+      -name "test_function_name" /tmp/reproducer-minimized
+
+- Report the bug and send a patch with the C reproducer upstream
+
 Implementation Details / Fuzzer Lifecycle
 -----------------------------------------
 
