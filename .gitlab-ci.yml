@@ -171,19 +171,6 @@ check-system-debian:
     IMAGE: debian-amd64
     MAKE_CHECK_ARGS: check
 
-# No targets are built here, just tools, docs, and unit tests. This
-# also feeds into the eventual documentation deployment steps later
-build-tools-and-docs-debian:
-  <<: *native_build_job_definition
-  variables:
-    IMAGE: debian-amd64
-    MAKE_CHECK_ARGS: check-unit check-softfloat ctags TAGS cscope
-    CONFIGURE_ARGS: --disable-system --disable-user --enable-docs --enable-tools
-  artifacts:
-    expire_in: 2 days
-    paths:
-      - build
-
 acceptance-system-debian:
   <<: *native_test_job_definition
   needs:
@@ -383,6 +370,8 @@ build-disabled:
 # Xen accelerator is not detected / selected. As result it build the
 # i386-softmmu and x86_64-softmmu with KVM being the single accelerator
 # available.
+# Also use a different coroutine implementation (which is only really of
+# interest to KVM users, i.e. with TCG disabled)
 build-tcg-disabled:
   <<: *native_build_job_definition
   needs:
@@ -392,7 +381,8 @@ build-tcg-disabled:
   script:
     - mkdir build
     - cd build
-    - ../configure --disable-tcg --audio-drv-list="" || { cat config.log meson-logs/meson-log.txt && exit 1; }
+    - ../configure --disable-tcg --audio-drv-list="" --with-coroutine=ucontext
+      || { cat config.log meson-logs/meson-log.txt && exit 1; }
     - make -j"$JOBS"
     - make check-unit
     - make check-qapi-schema
@@ -449,6 +439,8 @@ build-user-plugins:
 
 build-user-centos7:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-centos7-container
   variables:
     IMAGE: centos7
     CONFIGURE_ARGS: --disable-system --disable-tools --disable-docs
@@ -478,6 +470,8 @@ clang-system:
 
 clang-user:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --cc=clang --cxx=clang++ --disable-system
@@ -606,6 +600,8 @@ acceptance-cfi-x86_64:
 
 tsan-build:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-ubuntu2004-container
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-tsan --cc=clang-10 --cxx=clang++-10 --disable-docs
@@ -643,6 +639,8 @@ check-deprecated:
 # gprof/gcov are GCC features
 gprof-gcov:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-ubuntu2004-container
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-gprof --enable-gcov
@@ -697,15 +695,6 @@ build-tci:
 
 # Alternate coroutines implementations are only really of interest to KVM users
 # However we can't test against KVM on Gitlab-CI so we can only run unit tests
-build-coroutine-ucontext:
-  <<: *native_build_job_definition
-  needs:
-    job: amd64-ubuntu2004-container
-  variables:
-    IMAGE: ubuntu2004
-    CONFIGURE_ARGS: --with-coroutine=ucontext --disable-tcg
-    MAKE_CHECK_ARGS: check-unit
-
 build-coroutine-sigaltstack:
   <<: *native_build_job_definition
   needs:
@@ -719,7 +708,7 @@ build-coroutine-sigaltstack:
 #
 # These jobs test old gcrypt and nettle from RHEL7
 # which had some API differences.
-build-crypto-old-nettle:
+crypto-old-nettle:
   <<: *native_build_job_definition
   needs:
     job: amd64-centos7-container
@@ -727,22 +716,9 @@ build-crypto-old-nettle:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
     CONFIGURE_ARGS: --disable-gcrypt --enable-nettle
-    MAKE_CHECK_ARGS: check-build
-  artifacts:
-    paths:
-      - build
-
-check-crypto-old-nettle:
-  <<: *native_test_job_definition
-  needs:
-    - job: build-crypto-old-nettle
-      artifacts: true
-  variables:
-    IMAGE: centos7
     MAKE_CHECK_ARGS: check
 
-
-build-crypto-old-gcrypt:
+crypto-old-gcrypt:
   <<: *native_build_job_definition
   needs:
     job: amd64-centos7-container
@@ -750,22 +726,9 @@ build-crypto-old-gcrypt:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
     CONFIGURE_ARGS: --disable-nettle --enable-gcrypt
-    MAKE_CHECK_ARGS: check-build
-  artifacts:
-    paths:
-      - build
-
-check-crypto-old-gcrypt:
-  <<: *native_test_job_definition
-  needs:
-    - job: build-crypto-old-gcrypt
-      artifacts: true
-  variables:
-    IMAGE: centos7
     MAKE_CHECK_ARGS: check
 
-
-build-crypto-only-gnutls:
+crypto-only-gnutls:
   <<: *native_build_job_definition
   needs:
     job: amd64-centos7-container
@@ -773,19 +736,8 @@ build-crypto-only-gnutls:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
     CONFIGURE_ARGS: --disable-nettle --disable-gcrypt --enable-gnutls
-    MAKE_CHECK_ARGS: check-build
-  artifacts:
-    paths:
-      - build
-
-check-crypto-only-gnutls:
-  <<: *native_test_job_definition
-  needs:
-    - job: build-crypto-only-gnutls
-      artifacts: true
-  variables:
-    IMAGE: centos7
     MAKE_CHECK_ARGS: check
+
 
 # We don't need to exercise every backend with every front-end
 build-trace-multi-user:
@@ -868,6 +820,21 @@ build-libvhost-user:
     - cd subprojects/libvhost-user/build
     - meson
     - ninja
+
+# No targets are built here, just tools, docs, and unit tests. This
+# also feeds into the eventual documentation deployment steps later
+build-tools-and-docs-debian:
+  <<: *native_build_job_definition
+  needs:
+    job: amd64-debian-container
+  variables:
+    IMAGE: debian-amd64
+    MAKE_CHECK_ARGS: check-unit check-softfloat ctags TAGS cscope
+    CONFIGURE_ARGS: --disable-system --disable-user --enable-docs --enable-tools
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - build
 
 # Prepare for GitLab pages deployment. Anything copied into the
 # "public" directory will be deployed to $USER.gitlab.io/$PROJECT

@@ -1537,7 +1537,7 @@ F: include/hw/southbridge/piix.h
 F: hw/misc/sga.c
 F: hw/isa/apm.c
 F: include/hw/isa/apm.h
-F: tests/test-x86-cpuid.c
+F: tests/unit/test-x86-cpuid.c
 F: tests/qtest/test-x86-cpuid-compat.c
 
 PC Chipset
@@ -2219,7 +2219,7 @@ F: qemu-io*
 F: tests/qemu-iotests/
 F: util/qemu-progress.c
 F: qobject/block-qdict.c
-F: tests/check-block-qdict.c
+F: tests/unit/check-block-qdict.c
 T: git https://repo.or.cz/qemu/kevin.git block
 
 Storage daemon
@@ -2245,7 +2245,7 @@ F: migration/block*
 F: include/block/aio.h
 F: include/block/aio-wait.h
 F: scripts/qemugdb/aio.py
-F: tests/test-fdmon-epoll.c
+F: tests/unit/test-fdmon-epoll.c
 T: git https://github.com/stefanha/qemu.git block
 
 Block SCSI subsystem
@@ -2305,7 +2305,7 @@ F: block/dirty-bitmap.c
 F: block/qcow2-bitmap.c
 F: migration/block-dirty-bitmap.c
 F: util/hbitmap.c
-F: tests/test-hbitmap.c
+F: tests/unit/test-hbitmap.c
 F: docs/interop/bitmaps.rst
 T: git https://repo.or.cz/qemu/ericb.git bitmaps
 
@@ -2326,8 +2326,8 @@ Command line option argument parsing
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: include/qemu/option.h
-F: tests/test-keyval.c
-F: tests/test-qemu-opts.c
+F: tests/unit/test-keyval.c
+F: tests/unit/test-qemu-opts.c
 F: util/keyval.c
 F: util/qemu-option.c
 
@@ -2445,8 +2445,8 @@ Read, Copy, Update (RCU)
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: include/qemu/rcu*.h
-F: tests/rcutorture.c
-F: tests/test-rcu-*.c
+F: tests/unit/rcutorture.c
+F: tests/unit/test-rcu-*.c
 F: util/rcu.c
 
 Human Monitor (HMP)
@@ -2524,10 +2524,10 @@ F: include/qapi/
 X: include/qapi/qmp/
 F: include/qapi/qmp/dispatch.h
 F: tests/qapi-schema/
-F: tests/test-*-visitor.c
-F: tests/test-qapi-*.c
-F: tests/test-qmp-*.c
-F: tests/test-visitor-serialization.c
+F: tests/unit/test-*-visitor.c
+F: tests/unit/test-qapi-*.c
+F: tests/unit/test-qmp-*.c
+F: tests/unit/test-visitor-serialization.c
 F: scripts/qapi-gen.py
 F: scripts/qapi/*
 F: docs/sphinx/qapidoc.py
@@ -2548,14 +2548,14 @@ F: qobject/
 F: include/qapi/qmp/
 X: include/qapi/qmp/dispatch.h
 F: scripts/coccinelle/qobject.cocci
-F: tests/check-qdict.c
-F: tests/check-qjson.c
-F: tests/check-qlist.c
-F: tests/check-qlit.c
-F: tests/check-qnull.c
-F: tests/check-qnum.c
-F: tests/check-qobject.c
-F: tests/check-qstring.c
+F: tests/unit/check-qdict.c
+F: tests/unit/check-qjson.c
+F: tests/unit/check-qlist.c
+F: tests/unit/check-qlit.c
+F: tests/unit/check-qnull.c
+F: tests/unit/check-qnum.c
+F: tests/unit/check-qobject.c
+F: tests/unit/check-qstring.c
 F: tests/data/qobject/qdict.txt
 T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
@@ -2566,7 +2566,7 @@ F: qga/
 F: docs/interop/qemu-ga.rst
 F: docs/interop/qemu-ga-ref.rst
 F: scripts/qemu-guest-agent/
-F: tests/test-qga.c
+F: tests/unit/test-qga.c
 T: git https://github.com/mdroth/qemu.git qga
 
 QOM
@@ -2587,9 +2587,9 @@ F: scripts/coccinelle/qom-parent-type.cocci
 F: softmmu/qdev-monitor.c
 F: stubs/qdev.c
 F: qom/
-F: tests/check-qom-interface.c
-F: tests/check-qom-proplist.c
-F: tests/test-qdev-global-props.c
+F: tests/unit/check-qom-interface.c
+F: tests/unit/check-qom-proplist.c
+F: tests/unit/test-qdev-global-props.c
 
 QOM boilerplate conversion script
 M: Eduardo Habkost <ehabkost@redhat.com>
@@ -2728,10 +2728,10 @@ S: Maintained
 F: crypto/
 F: include/crypto/
 F: qapi/crypto.json
-F: tests/test-crypto-*
-F: tests/benchmark-crypto-*
-F: tests/crypto-tls-*
-F: tests/pkix_asn1_tab.c
+F: tests/unit/test-crypto-*
+F: tests/bench/benchmark-crypto-*
+F: tests/unit/crypto-tls-*
+F: tests/unit/pkix_asn1_tab.c
 F: qemu.sasl
 
 Coroutines
@@ -2740,7 +2740,7 @@ M: Kevin Wolf <kwolf@redhat.com>
 S: Maintained
 F: util/*coroutine*
 F: include/qemu/coroutine*
-F: tests/test-coroutine.c
+F: tests/unit/test-coroutine.c
 
 Buffers
 M: Daniel P. Berrange <berrange@redhat.com>
@@ -2753,7 +2753,7 @@ M: Daniel P. Berrange <berrange@redhat.com>
 S: Maintained
 F: io/
 F: include/io/
-F: tests/test-io-*
+F: tests/unit/test-io-*
 
 User authorization
 M: Daniel P. Berrange <berrange@redhat.com>
@@ -2761,7 +2761,7 @@ S: Maintained
 F: authz/
 F: qapi/authz.json
 F: include/authz/
-F: tests/test-authz-*
+F: tests/unit/test-authz-*
 
 Sockets
 M: Daniel P. Berrange <berrange@redhat.com>
@@ -2776,7 +2776,7 @@ M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
 F: util/filemonitor*.c
 F: include/qemu/filemonitor.h
-F: tests/test-util-filemonitor.c
+F: tests/unit/test-util-filemonitor.c
 
 Throttling infrastructure
 M: Alberto Garcia <berto@igalia.com>
@@ -2786,7 +2786,7 @@ F: include/block/throttle-groups.h
 F: include/qemu/throttle*.h
 F: util/throttle.c
 F: docs/throttle.txt
-F: tests/test-throttle.c
+F: tests/unit/test-throttle.c
 L: qemu-block@nongnu.org
 
 UUID
@@ -2794,7 +2794,7 @@ M: Fam Zheng <fam@euphon.net>
 S: Supported
 F: util/uuid.c
 F: include/qemu/uuid.h
-F: tests/test-uuid.c
+F: tests/unit/test-uuid.c
 
 Yank feature
 M: Lukas Straub <lukasstraub2@web.de>
@@ -3246,7 +3246,7 @@ M: Xie Changlong <xiechanglong.d@gmail.com>
 S: Supported
 F: replication*
 F: block/replication.c
-F: tests/test-replication.c
+F: tests/unit/test-replication.c
 F: docs/block-replication.txt
 
 PVRDMA
@@ -3291,19 +3291,23 @@ F: include/hw/remote/iohub.h
 
 Build and test automation
 -------------------------
-Build and test automation
+Build and test automation, general continuous integration
 M: Alex Bennée <alex.bennee@linaro.org>
-M: Fam Zheng <fam@euphon.net>
-R: Philippe Mathieu-Daudé <philmd@redhat.com>
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Thomas Huth <thuth@redhat.com>
+R: Wainer dos Santos Moschetta <wainersm@redhat.com>
+R: Willian Rampazzo <willianr@redhat.com>
 S: Maintained
 F: .github/lockdown.yml
+F: .gitlab-ci.yml
+F: .gitlab-ci.d/
 F: .travis.yml
 F: scripts/ci/
 F: tests/docker/
 F: tests/vm/
 F: scripts/archive-source.sh
+W: https://gitlab.com/qemu-project/qemu/pipelines
 W: https://travis-ci.org/qemu/qemu
-W: http://patchew.org/QEMU/
 
 FreeBSD Hosted Continuous Integration
 M: Ed Maste <emaste@freebsd.org>
@@ -3317,17 +3321,6 @@ M: Yonggang Luo <luoyonggang@gmail.com>
 S: Maintained
 F: .cirrus.yml
 W: https://cirrus-ci.com/github/qemu/qemu
-
-GitLab Continuous Integration
-M: Thomas Huth <thuth@redhat.com>
-M: Philippe Mathieu-Daudé <philmd@redhat.com>
-M: Alex Bennée <alex.bennee@linaro.org>
-R: Wainer dos Santos Moschetta <wainersm@redhat.com>
-S: Maintained
-F: .gitlab-ci.yml
-F: .gitlab-ci.d/crossbuilds.yml
-F: .gitlab-ci.d/*py
-F: scripts/ci/gitlab-pipeline-status
 
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>
