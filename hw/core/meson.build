@@ -16,6 +16,7 @@ hwcore_files = files(
 common_ss.add(files('cpu.c'))
 common_ss.add(when: 'CONFIG_FITLOADER', if_true: files('loader-fit.c'))
 common_ss.add(when: 'CONFIG_GENERIC_LOADER', if_true: files('generic-loader.c'))
+common_ss.add(when: ['CONFIG_GUEST_LOADER', fdt], if_true: files('guest-loader.c'))
 common_ss.add(when: 'CONFIG_OR_IRQ', if_true: files('or-irq.c'))
 common_ss.add(when: 'CONFIG_PLATFORM_BUS', if_true: files('platform-bus.c'))
 common_ss.add(when: 'CONFIG_PTIMER', if_true: files('ptimer.c'))
@@ -36,8 +37,6 @@ softmmu_ss.add(files(
   'vm-change-state-handler.c',
   'clock-vmstate.c',
 ))
-
-softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('guest-loader.c'))
 
 specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: files(
   'machine-qmp-cmds.c',
