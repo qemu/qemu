@@ -3513,7 +3513,12 @@ static DisasJumpType op_mvo(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_mvpg(DisasContext *s, DisasOps *o)
 {
-    gen_helper_mvpg(cc_op, cpu_env, regs[0], o->in1, o->in2);
+    TCGv_i32 t1 = tcg_const_i32(get_field(s, r1));
+    TCGv_i32 t2 = tcg_const_i32(get_field(s, r2));
+
+    gen_helper_mvpg(cc_op, cpu_env, regs[0], t1, t2);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
     set_cc_static(s);
     return DISAS_NEXT;
 }

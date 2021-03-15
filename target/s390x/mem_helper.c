@@ -915,8 +915,10 @@ uint64_t HELPER(clst)(CPUS390XState *env, uint64_t c, uint64_t s1, uint64_t s2)
 }
 
 /* move page */
-uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
+uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint32_t r1, uint32_t r2)
 {
+    const uint64_t src = get_address(env, r2) & TARGET_PAGE_MASK;
+    const uint64_t dst = get_address(env, r1) & TARGET_PAGE_MASK;
     const int mmu_idx = cpu_mmu_index(env, false);
     const bool f = extract64(r0, 11, 1);
     const bool s = extract64(r0, 10, 1);
@@ -929,34 +931,42 @@ uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
         tcg_s390_program_interrupt(env, PGM_SPECIFICATION, GETPC());
     }
 
-    r1 = wrap_address(env, r1 & TARGET_PAGE_MASK);
-    r2 = wrap_address(env, r2 & TARGET_PAGE_MASK);
-
     /*
-     * TODO:
-     * - Access key handling
-     * - Store r1/r2 register identifiers at real location 162
+     * We always manually handle exceptions such that we can properly store
+     * r1/r2 to the lowcore on page-translation exceptions.
+     *
+     * TODO: Access key handling
      */
-    exc = access_prepare_nf(&srca, env, cco, r2, TARGET_PAGE_SIZE,
+    exc = access_prepare_nf(&srca, env, true, src, TARGET_PAGE_SIZE,
                             MMU_DATA_LOAD, mmu_idx, ra);
     if (exc) {
-        return 2;
+        if (cco) {
+            return 2;
+        }
+        goto inject_exc;
     }
-    exc = access_prepare_nf(&desta, env, cco, r1, TARGET_PAGE_SIZE,
+    exc = access_prepare_nf(&desta, env, true, dst, TARGET_PAGE_SIZE,
                             MMU_DATA_STORE, mmu_idx, ra);
     if (exc) {
-        if (exc == PGM_PROTECTION) {
-#if !defined(CONFIG_USER_ONLY)
-            stq_phys(env_cpu(env)->as,
-                     env->psa + offsetof(LowCore, trans_exc_code),
-                     env->tlb_fill_tec);
-#endif
-            tcg_s390_program_interrupt(env, PGM_PROTECTION, ra);
+        if (cco && exc != PGM_PROTECTION) {
+            return 1;
         }
-        return 1;
+        goto inject_exc;
     }
     access_memmove(env, &desta, &srca, ra);
     return 0; /* data moved */
+inject_exc:
+#if !defined(CONFIG_USER_ONLY)
+    if (exc != PGM_ADDRESSING) {
+        stq_phys(env_cpu(env)->as, env->psa + offsetof(LowCore, trans_exc_code),
+                 env->tlb_fill_tec);
+    }
+    if (exc == PGM_PAGE_TRANS) {
+        stb_phys(env_cpu(env)->as, env->psa + offsetof(LowCore, op_access_id),
+                 r1 << 4 | r2);
+    }
+#endif
+    tcg_s390_program_interrupt(env, exc, ra);
 }
 
 /* string copy */
