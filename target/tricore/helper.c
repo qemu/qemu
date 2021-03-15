@@ -33,7 +33,7 @@ enum {
 #if defined(CONFIG_SOFTMMU)
 static int get_physical_address(CPUTriCoreState *env, hwaddr *physical,
                                 int *prot, target_ulong address,
-                                int rw, int access_type)
+                                MMUAccessType access_type, int mmu_idx)
 {
     int ret = TLBRET_MATCH;
 
@@ -50,7 +50,8 @@ hwaddr tricore_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     int prot;
     int mmu_idx = cpu_mmu_index(&cpu->env, false);
 
-    if (get_physical_address(&cpu->env, &phys_addr, &prot, addr, 0, mmu_idx)) {
+    if (get_physical_address(&cpu->env, &phys_addr, &prot, addr,
+                             MMU_DATA_LOAD, mmu_idx)) {
         return -1;
     }
     return phys_addr;
@@ -71,13 +72,11 @@ bool tricore_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     CPUTriCoreState *env = &cpu->env;
     hwaddr physical;
     int prot;
-    int access_type;
     int ret = 0;
 
     rw &= 1;
-    access_type = ACCESS_INT;
     ret = get_physical_address(env, &physical, &prot,
-                               address, rw, access_type);
+                               address, rw, mmu_idx);
 
     qemu_log_mask(CPU_LOG_MMU, "%s address=" TARGET_FMT_lx " ret %d physical "
                   TARGET_FMT_plx " prot %d\n",

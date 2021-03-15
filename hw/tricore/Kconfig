@@ -1,2 +1,10 @@
 config TRICORE
     bool
+
+config TRIBOARD
+    bool
+    select TRICORE
+    select TC27X_SOC
+
+config TC27X_SOC
+    bool
