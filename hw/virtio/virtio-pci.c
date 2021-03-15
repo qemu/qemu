@@ -1385,10 +1385,10 @@ static uint64_t virtio_pci_device_read(void *opaque, hwaddr addr,
 {
     VirtIOPCIProxy *proxy = opaque;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-    uint64_t val = 0;
+    uint64_t val;
 
     if (vdev == NULL) {
-        return val;
+        return 0;
     }
 
     switch (size) {
@@ -1400,6 +1400,9 @@ static uint64_t virtio_pci_device_read(void *opaque, hwaddr addr,
         break;
     case 4:
         val = virtio_config_modern_readl(vdev, addr);
+        break;
+    default:
+        val = 0;
         break;
     }
     return val;
