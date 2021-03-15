@@ -275,10 +275,9 @@ static int do_strtosz(const char *nptr, const char **end,
     int retval;
     const char *endptr, *f;
     unsigned char c;
-    bool mul_required = false, hex = false;
-    uint64_t val;
+    bool hex = false;
+    uint64_t val, valf = 0;
     int64_t mul;
-    double fraction = 0.0;
 
     /* Parse integral portion as decimal. */
     retval = qemu_strtou64(nptr, &endptr, 10, &val);
@@ -308,17 +307,19 @@ static int do_strtosz(const char *nptr, const char **end,
          * without fractional digits.  If we see an exponent, treat
          * the entire input as invalid instead.
          */
+        double fraction;
+
         f = endptr;
         retval = qemu_strtod_finite(f, &endptr, &fraction);
         if (retval) {
-            fraction = 0.0;
             endptr++;
         } else if (memchr(f, 'e', endptr - f) || memchr(f, 'E', endptr - f)) {
             endptr = nptr;
             retval = -EINVAL;
             goto out;
-        } else if (fraction != 0) {
-            mul_required = true;
+        } else {
+            /* Extract into a 64-bit fixed-point fraction. */
+            valf = (uint64_t)(fraction * 0x1p64);
         }
     }
     c = *endptr;
@@ -333,16 +334,35 @@ static int do_strtosz(const char *nptr, const char **end,
         mul = suffix_mul(default_suffix, unit);
         assert(mul > 0);
     }
-    if (mul == 1 && mul_required) {
-        endptr = nptr;
-        retval = -EINVAL;
-        goto out;
+    if (mul == 1) {
+        /* When a fraction is present, a scale is required. */
+        if (valf != 0) {
+            endptr = nptr;
+            retval = -EINVAL;
+            goto out;
+        }
+    } else {
+        uint64_t valh, tmp;
+
+        /* Compute exact result: 64.64 x 64.0 -> 128.64 fixed point */
+        mulu64(&val, &valh, val, mul);
+        mulu64(&valf, &tmp, valf, mul);
+        val += tmp;
+        valh += val < tmp;
+
+        /* Round 0.5 upward. */
+        tmp = valf >> 63;
+        val += tmp;
+        valh += val < tmp;
+
+        /* Report overflow. */
+        if (valh != 0) {
+            retval = -ERANGE;
+            goto out;
+        }
     }
-    if (val > (UINT64_MAX - ((uint64_t) (fraction * mul))) / mul) {
-        retval = -ERANGE;
-        goto out;
-    }
-    *result = val * mul + (uint64_t) (fraction * mul);
+
+    *result = val;
     retval = 0;
 
 out:
