@@ -1105,8 +1105,8 @@ struct CPUPPCState {
 #endif
 
     /* These resources are used only in QEMU core */
-    target_ulong hflags;      /* hflags is MSR & HFLAGS_MASK */
-    target_ulong hflags_nmsr; /* specific hflags, not coming from MSR */
+    target_ulong hflags;
+    target_ulong hflags_compat_nmsr; /* for migration compatibility */
     int immu_idx;     /* precomputed MMU index to speed up insn accesses */
     int dmmu_idx;     /* precomputed MMU index to speed up data accesses */
 

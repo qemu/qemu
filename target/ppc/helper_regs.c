@@ -104,8 +104,6 @@ void hreg_compute_hflags(CPUPPCState *env)
          */
         uint32_t le = extract32(env->spr[SPR_HID0], 3, 1);
         env->hflags |= le << MSR_LE;
-        /* Retain for backward compatibility with migration. */
-        env->hflags_nmsr = le << MSR_LE;
     }
 }
 

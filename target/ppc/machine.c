@@ -310,6 +310,10 @@ static int cpu_pre_save(void *opaque)
         }
     }
 
+    /* Retain migration compatibility for pre 6.0 for 601 machines. */
+    env->hflags_compat_nmsr = (env->flags & POWERPC_FLAG_HID0_LE
+                               ? env->hflags & MSR_LE : 0);
+
     return 0;
 }
 
@@ -829,9 +833,8 @@ const VMStateDescription vmstate_ppc_cpu = {
         /* Supervisor mode architected state */
         VMSTATE_UINTTL(env.msr, PowerPCCPU),
 
-        /* Internal state */
-        VMSTATE_UINTTL(env.hflags_nmsr, PowerPCCPU),
-        /* FIXME: access_type? */
+        /* Backward compatible internal state */
+        VMSTATE_UINTTL(env.hflags_compat_nmsr, PowerPCCPU),
 
         /* Sanity checking */
         VMSTATE_UINTTL_TEST(mig_msr_mask, PowerPCCPU, cpu_pre_2_8_migration),
