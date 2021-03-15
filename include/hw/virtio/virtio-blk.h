@@ -41,6 +41,7 @@ struct VirtIOBlkConf
     uint16_t num_queues;
     uint16_t queue_size;
     bool seg_max_adjust;
+    bool report_discard_granularity;
     uint32_t max_discard_sectors;
     uint32_t max_write_zeroes_sectors;
     bool x_enable_wce_if_config_wce;
