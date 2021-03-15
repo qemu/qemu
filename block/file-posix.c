@@ -2341,7 +2341,7 @@ again:
             }
         }
 #endif
-#if defined(__APPLE__) && defined(__MACH__)
+#if defined(DKIOCGETBLOCKCOUNT) && defined(DKIOCGETBLOCKSIZE)
         if (size == 0) {
             uint64_t sectors = 0;
             uint32_t sector_size = 0;
