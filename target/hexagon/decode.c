@@ -48,8 +48,8 @@ enum {
 DEF_REGMAP(R_16,  16, 0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23)
 DEF_REGMAP(R__8,  8,  0, 2, 4, 6, 16, 18, 20, 22)
 
-#define DECODE_MAPPED_REG(REGNO, NAME) \
-    insn->regno[REGNO] = DECODE_REGISTER_##NAME[insn->regno[REGNO]];
+#define DECODE_MAPPED_REG(OPNUM, NAME) \
+    insn->regno[OPNUM] = DECODE_REGISTER_##NAME[insn->regno[OPNUM]];
 
 typedef struct {
     const struct DectreeTable *table_link;
