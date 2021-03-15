@@ -194,16 +194,14 @@ void helper_store_hid0_601(CPUPPCState *env, target_ulong val)
     target_ulong hid0;
 
     hid0 = env->spr[SPR_HID0];
+    env->spr[SPR_HID0] = (uint32_t)val;
+
     if ((val ^ hid0) & 0x00000008) {
         /* Change current endianness */
-        env->hflags &= ~(1 << MSR_LE);
-        env->hflags_nmsr &= ~(1 << MSR_LE);
-        env->hflags_nmsr |= (1 << MSR_LE) & (((val >> 3) & 1) << MSR_LE);
-        env->hflags |= env->hflags_nmsr;
+        hreg_compute_hflags(env);
         qemu_log("%s: set endianness to %c => " TARGET_FMT_lx "\n", __func__,
                  val & 0x8 ? 'l' : 'b', env->hflags);
     }
-    env->spr[SPR_HID0] = (uint32_t)val;
 }
 
 void helper_store_403_pbr(CPUPPCState *env, uint32_t num, target_ulong value)

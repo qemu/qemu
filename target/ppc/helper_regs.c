@@ -96,8 +96,17 @@ void hreg_compute_hflags(CPUPPCState *env)
     hflags_mask |= (1ULL << MSR_CM) | (1ULL << MSR_SF) | MSR_HVB;
     hreg_compute_mem_idx(env);
     env->hflags = env->msr & hflags_mask;
-    /* Merge with hflags coming from other registers */
-    env->hflags |= env->hflags_nmsr;
+
+    if (env->flags & POWERPC_FLAG_HID0_LE) {
+        /*
+         * Note that MSR_LE is not set in env->msr_mask for this cpu,
+         * and so will never be set in msr or hflags at this point.
+         */
+        uint32_t le = extract32(env->spr[SPR_HID0], 3, 1);
+        env->hflags |= le << MSR_LE;
+        /* Retain for backward compatibility with migration. */
+        env->hflags_nmsr = le << MSR_LE;
+    }
 }
 
 void cpu_interrupt_exittb(CPUState *cs)
