@@ -1168,9 +1168,10 @@ static void build_piix4_pci_hotplug(Aml *table)
     aml_append(scope, field);
 
     aml_append(scope,
-        aml_operation_region("BNMR", AML_SYSTEM_IO, aml_int(0xae10), 0x04));
+        aml_operation_region("BNMR", AML_SYSTEM_IO, aml_int(0xae10), 0x08));
     field = aml_field("BNMR", AML_DWORD_ACC, AML_NOLOCK, AML_WRITE_AS_ZEROS);
     aml_append(field, aml_named_field("BNUM", 32));
+    aml_append(field, aml_named_field("PIDX", 32));
     aml_append(scope, field);
 
     aml_append(scope, aml_mutex("BLCK", 0));
@@ -1182,6 +1183,16 @@ static void build_piix4_pci_hotplug(Aml *table)
         aml_store(aml_shiftleft(aml_int(1), aml_arg(1)), aml_name("B0EJ")));
     aml_append(method, aml_release(aml_name("BLCK")));
     aml_append(method, aml_return(aml_int(0)));
+    aml_append(scope, method);
+
+    method = aml_method("AIDX", 2, AML_NOTSERIALIZED);
+    aml_append(method, aml_acquire(aml_name("BLCK"), 0xFFFF));
+    aml_append(method, aml_store(aml_arg(0), aml_name("BNUM")));
+    aml_append(method,
+        aml_store(aml_shiftleft(aml_int(1), aml_arg(1)), aml_name("PIDX")));
+    aml_append(method, aml_store(aml_name("PIDX"), aml_local(0)));
+    aml_append(method, aml_release(aml_name("BLCK")));
+    aml_append(method, aml_return(aml_local(0)));
     aml_append(scope, method);
 
     aml_append(table, scope);
