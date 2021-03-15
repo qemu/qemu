@@ -125,9 +125,6 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
     env->msr ^= env->msr_mask & ~((1ULL << MSR_TGPR) | MSR_HVB);
     ppc_store_msr(env, msr);
 
-    /* Recompute mmu indices */
-    hreg_compute_mem_idx(env);
-
     return 0;
 }
 
@@ -418,13 +415,11 @@ static int cpu_post_load(void *opaque, int version_id)
 
     /*
      * Invalidate all supported msr bits except MSR_TGPR/MSR_HVB
-     * before restoring
+     * before restoring.  Note that this recomputes hflags and mem_idx.
      */
     msr = env->msr;
     env->msr ^= env->msr_mask & ~((1ULL << MSR_TGPR) | MSR_HVB);
     ppc_store_msr(env, msr);
-
-    hreg_compute_mem_idx(env);
 
     return 0;
 }
