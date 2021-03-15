@@ -4,7 +4,7 @@
 
 #include "qemu.h"
 
-void *lock_user(int type, abi_ulong guest_addr, size_t len, bool copy)
+void *lock_user(int type, abi_ulong guest_addr, ssize_t len, bool copy)
 {
     void *host_addr;
 
@@ -24,7 +24,7 @@ void *lock_user(int type, abi_ulong guest_addr, size_t len, bool copy)
 }
 
 #ifdef DEBUG_REMAP
-void unlock_user(void *host_ptr, abi_ulong guest_addr, size_t len);
+void unlock_user(void *host_ptr, abi_ulong guest_addr, ssize_t len)
 {
     void *host_ptr_conv;
 
@@ -35,7 +35,7 @@ void unlock_user(void *host_ptr, abi_ulong guest_addr, size_t len);
     if (host_ptr == host_ptr_conv) {
         return;
     }
-    if (len != 0) {
+    if (len > 0) {
         memcpy(host_ptr_conv, host_ptr, len);
     }
     g_free(host_ptr);
@@ -48,14 +48,14 @@ void *lock_user_string(abi_ulong guest_addr)
     if (len < 0) {
         return NULL;
     }
-    return lock_user(VERIFY_READ, guest_addr, (size_t)len + 1, 1);
+    return lock_user(VERIFY_READ, guest_addr, len + 1, 1);
 }
 
 /* copy_from_user() and copy_to_user() are usually used to copy data
  * buffers between the target and host.  These internally perform
  * locking/unlocking of the memory.
  */
-int copy_from_user(void *hptr, abi_ulong gaddr, size_t len)
+int copy_from_user(void *hptr, abi_ulong gaddr, ssize_t len)
 {
     int ret = 0;
     void *ghptr = lock_user(VERIFY_READ, gaddr, len, 1);
@@ -69,7 +69,7 @@ int copy_from_user(void *hptr, abi_ulong gaddr, size_t len)
     return ret;
 }
 
-int copy_to_user(abi_ulong gaddr, void *hptr, size_t len)
+int copy_to_user(abi_ulong gaddr, void *hptr, ssize_t len)
 {
     int ret = 0;
     void *ghptr = lock_user(VERIFY_WRITE, gaddr, len, 0);
