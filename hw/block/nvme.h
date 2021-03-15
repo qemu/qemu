@@ -236,12 +236,18 @@ static inline bool nvme_ns_is_attached(NvmeCtrl *n, NvmeNamespace *ns)
 
 static inline void nvme_ns_attach(NvmeCtrl *n, NvmeNamespace *ns)
 {
-    n->namespaces[nvme_nsid(ns) - 1] = ns;
+    uint32_t nsid = nvme_nsid(ns);
+    assert(nsid && nsid <= NVME_MAX_NAMESPACES);
+
+    n->namespaces[nsid - 1] = ns;
 }
 
 static inline void nvme_ns_detach(NvmeCtrl *n, NvmeNamespace *ns)
 {
-    n->namespaces[nvme_nsid(ns) - 1] = NULL;
+    uint32_t nsid = nvme_nsid(ns);
+    assert(nsid && nsid <= NVME_MAX_NAMESPACES);
+
+    n->namespaces[nsid - 1] = NULL;
 }
 
 static inline NvmeCQueue *nvme_cq(NvmeRequest *req)

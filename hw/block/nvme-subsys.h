@@ -54,6 +54,8 @@ static inline NvmeNamespace *nvme_subsys_ns(NvmeSubsystem *subsys,
         return NULL;
     }
 
+    assert(nsid && nsid <= NVME_SUBSYS_MAX_NAMESPACES);
+
     return subsys->namespaces[nsid];
 }
 
