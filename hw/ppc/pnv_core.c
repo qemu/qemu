@@ -29,6 +29,7 @@
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/xics.h"
 #include "hw/qdev-properties.h"
+#include "helper_regs.h"
 
 static const char *pnv_core_cpu_typename(PnvCore *pc)
 {
@@ -55,8 +56,8 @@ static void pnv_core_cpu_reset(PnvCore *pc, PowerPCCPU *cpu)
     env->gpr[3] = PNV_FDT_ADDR;
     env->nip = 0x10;
     env->msr |= MSR_HVB; /* Hypervisor mode */
-
     env->spr[SPR_HRMOR] = pc->hrmor;
+    hreg_compute_hflags(env);
 
     pcc->intc_reset(pc->chip, cpu);
 }
