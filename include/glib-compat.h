@@ -100,6 +100,23 @@ g_unix_get_passwd_entry_qemu(const gchar *user_name, GError **error)
 }
 #endif /* G_OS_UNIX */
 
+static inline bool
+qemu_g_test_slow(void)
+{
+    static int cached = -1;
+    if (cached == -1) {
+        cached = g_test_slow() || getenv("G_TEST_SLOW") != NULL;
+    }
+    return cached;
+}
+
+#undef g_test_slow
+#undef g_test_thorough
+#undef g_test_quick
+#define g_test_slow() qemu_g_test_slow()
+#define g_test_thorough() qemu_g_test_slow()
+#define g_test_quick() (!qemu_g_test_slow())
+
 #pragma GCC diagnostic pop
 
 #endif
