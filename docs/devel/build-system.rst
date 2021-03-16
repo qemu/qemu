@@ -426,14 +426,6 @@ Built by configure:
   build outputs. Variables which are potentially different for each
   emulator target are defined by the next file...
 
-`$TARGET-NAME/config-target.mak`
-  TARGET-NAME is the name of a system or userspace emulator, for example,
-  x86_64-softmmu denotes the system emulator for the x86_64 architecture.
-  This file contains the variables which need to vary on a per-target
-  basis. For example, it will indicate whether KVM or Xen are enabled for
-  the target and any other potential custom libraries needed for linking
-  the target.
-
 
 Built by Meson:
 
