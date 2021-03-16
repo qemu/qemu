@@ -262,7 +262,7 @@ static int create_cq_ring(PCIDevice *pci_dev , PvrdmaRing **ring,
     r = g_malloc(sizeof(*r));
     *ring = r;
 
-    r->ring_state = (struct pvrdma_ring *)
+    r->ring_state = (PvrdmaRingState *)
         rdma_pci_dma_map(pci_dev, tbl[0], TARGET_PAGE_SIZE);
 
     if (!r->ring_state) {
@@ -398,7 +398,7 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
     *rings = sr;
 
     /* Create send ring */
-    sr->ring_state = (struct pvrdma_ring *)
+    sr->ring_state = (PvrdmaRingState *)
         rdma_pci_dma_map(pci_dev, tbl[0], TARGET_PAGE_SIZE);
     if (!sr->ring_state) {
         rdma_error_report("Failed to map to QP ring state");
@@ -639,7 +639,7 @@ static int create_srq_ring(PCIDevice *pci_dev, PvrdmaRing **ring,
     r = g_malloc(sizeof(*r));
     *ring = r;
 
-    r->ring_state = (struct pvrdma_ring *)
+    r->ring_state = (PvrdmaRingState *)
             rdma_pci_dma_map(pci_dev, tbl[0], TARGET_PAGE_SIZE);
     if (!r->ring_state) {
         rdma_error_report("Failed to map tp SRQ ring state");

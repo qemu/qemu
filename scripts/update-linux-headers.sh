@@ -215,8 +215,7 @@ sed  -e '1h;2,$H;$!d;g'  -e 's/[^};]*pvrdma[^(| ]*([^)]*);//g' \
     "$linux/drivers/infiniband/hw/vmw_pvrdma/pvrdma_verbs.h" > \
     "$tmp_pvrdma_verbs";
 
-for i in "$linux/drivers/infiniband/hw/vmw_pvrdma/pvrdma_ring.h" \
-         "$linux/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h" \
+for i in "$linux/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h" \
          "$tmp_pvrdma_verbs"; do \
     cp_portable "$i" \
          "$output/include/standard-headers/drivers/infiniband/hw/vmw_pvrdma/"

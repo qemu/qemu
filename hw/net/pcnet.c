@@ -1250,7 +1250,7 @@ txagain:
             if (BCR_SWSTYLE(s) == 1)
                 add_crc = !GET_FIELD(tmd.status, TMDS, NOFCS);
             s->looptest = add_crc ? PCNET_LOOPTEST_CRC : PCNET_LOOPTEST_NOCRC;
-            pcnet_receive(qemu_get_queue(s->nic), s->buffer, s->xmit_pos);
+            qemu_receive_packet(qemu_get_queue(s->nic), s->buffer, s->xmit_pos);
             s->looptest = 0;
         } else {
             if (s->nic) {

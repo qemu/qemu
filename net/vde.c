@@ -84,6 +84,7 @@ static int net_vde_init(NetClientState *peer, const char *model,
     VDECONN *vde;
     char *init_group = (char *)group;
     char *init_sock = (char *)sock;
+    NetdevVdeOptions *stored;
 
     struct vde_open_args args = {
         .port = port,
@@ -99,14 +100,32 @@ static int net_vde_init(NetClientState *peer, const char *model,
 
     nc = qemu_new_net_client(&net_vde_info, peer, model, name);
 
-    snprintf(nc->info_str, sizeof(nc->info_str), "sock=%s,fd=%d",
-             sock, vde_datafd(vde));
-
     s = DO_UPCAST(VDEState, nc, nc);
 
     s->vde = vde;
 
     qemu_set_fd_handler(vde_datafd(s->vde), vde_to_qemu, NULL, s);
+
+    /* Store startup parameters */
+    nc->stored_config = g_new0(NetdevInfo, 1);
+    nc->stored_config->type = NET_BACKEND_VDE;
+    stored = &nc->stored_config->u.vde;
+
+    if (sock) {
+        stored->has_sock = true;
+        stored->sock = g_strdup(sock);
+    }
+
+    stored->has_port = true;
+    stored->port = port;
+
+    if (group) {
+        stored->has_group = true;
+        stored->group = g_strdup(group);
+    }
+
+    stored->has_mode = true;
+    stored->mode = mode;
 
     return 0;
 }

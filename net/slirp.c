@@ -377,6 +377,9 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     int shift;
     char *end;
     struct slirp_config_str *config;
+    NetdevUserOptions *stored;
+    StringList **stored_hostfwd;
+    StringList **stored_guestfwd;
 
     if (!ipv4 && (vnetwork || vhost || vnameserver)) {
         error_setg(errp, "IPv4 disabled but netmask/host/dns provided");
@@ -552,9 +555,114 @@ static int net_slirp_init(NetClientState *peer, const char *model,
 
     nc = qemu_new_net_client(&net_slirp_info, peer, model, name);
 
-    snprintf(nc->info_str, sizeof(nc->info_str),
-             "net=%s,restrict=%s", inet_ntoa(net),
-             restricted ? "on" : "off");
+    /* Store startup parameters */
+    nc->stored_config = g_new0(NetdevInfo, 1);
+    nc->stored_config->type = NET_BACKEND_USER;
+    stored = &nc->stored_config->u.user;
+
+    if (vhostname) {
+        stored->has_hostname = true;
+        stored->hostname = g_strdup(vhostname);
+    }
+
+    stored->has_q_restrict = true;
+    stored->q_restrict = restricted;
+
+    stored->has_ipv4 = true;
+    stored->ipv4 = ipv4;
+
+    stored->has_ipv6 = true;
+    stored->ipv6 = ipv6;
+
+    if (ipv4) {
+        uint8_t *net_bytes = (uint8_t *)&net;
+        uint8_t *mask_bytes = (uint8_t *)&mask;
+
+        stored->has_net = true;
+        stored->net = g_strdup_printf("%d.%d.%d.%d/%d.%d.%d.%d",
+                                      net_bytes[0], net_bytes[1],
+                                      net_bytes[2], net_bytes[3],
+                                      mask_bytes[0], mask_bytes[1],
+                                      mask_bytes[2], mask_bytes[3]);
+
+        stored->has_host = true;
+        stored->host = g_strdup(inet_ntoa(host));
+    }
+
+    if (tftp_export) {
+        stored->has_tftp = true;
+        stored->tftp = g_strdup(tftp_export);
+    }
+
+    if (bootfile) {
+        stored->has_bootfile = true;
+        stored->bootfile = g_strdup(bootfile);
+    }
+
+    if (vdhcp_start) {
+        stored->has_dhcpstart = true;
+        stored->dhcpstart = g_strdup(vdhcp_start);
+    }
+
+    if (ipv4) {
+        stored->has_dns = true;
+        stored->dns = g_strdup(inet_ntoa(dns));
+    }
+
+    if (dnssearch) {
+        stored->has_dnssearch = true;
+        StringList **stored_list = &stored->dnssearch;
+
+        for (int i = 0; dnssearch[i]; i++) {
+            String *element = g_new0(String, 1);
+
+            element->str = g_strdup(dnssearch[i]);
+            QAPI_LIST_APPEND(stored_list, element);
+        }
+    }
+
+    if (vdomainname) {
+        stored->has_domainname = true;
+        stored->domainname = g_strdup(vdomainname);
+    }
+
+    if (ipv6) {
+        char addrstr[INET6_ADDRSTRLEN];
+        const char *res;
+
+        stored->has_ipv6_prefix = true;
+        stored->ipv6_prefix = g_strdup(vprefix6);
+
+        stored->has_ipv6_prefixlen = true;
+        stored->ipv6_prefixlen = vprefix6_len;
+
+        res = inet_ntop(AF_INET6, &ip6_host,
+                        addrstr, sizeof(addrstr));
+
+        stored->has_ipv6_host = true;
+        stored->ipv6_host = g_strdup(res);
+
+        res = inet_ntop(AF_INET6, &ip6_dns,
+                        addrstr, sizeof(addrstr));
+
+        stored->has_ipv6_dns = true;
+        stored->ipv6_dns = g_strdup(res);
+    }
+
+    if (smb_export) {
+        stored->has_smb = true;
+        stored->smb = g_strdup(smb_export);
+    }
+
+    if (vsmbserver) {
+        stored->has_smbserver = true;
+        stored->smbserver = g_strdup(vsmbserver);
+    }
+
+    if (tftp_server_name) {
+        stored->has_tftp_server_name = true;
+        stored->tftp_server_name = g_strdup(tftp_server_name);
+    }
 
     s = DO_UPCAST(SlirpState, nc, nc);
 
@@ -581,15 +689,25 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     s->poll_notifier.notify = net_slirp_poll_notify;
     main_loop_poll_add_notifier(&s->poll_notifier);
 
+    stored_hostfwd = &stored->hostfwd;
+    stored_guestfwd = &stored->guestfwd;
+
     for (config = slirp_configs; config; config = config->next) {
+        String *element = g_new0(String, 1);
+
+        element->str = g_strdup(config->str);
         if (config->flags & SLIRP_CFG_HOSTFWD) {
             if (slirp_hostfwd(s, config->str, errp) < 0) {
                 goto error;
             }
+            stored->has_hostfwd = true;
+            QAPI_LIST_APPEND(stored_hostfwd, element);
         } else {
             if (slirp_guestfwd(s, config->str, errp) < 0) {
                 goto error;
             }
+            stored->has_guestfwd = true;
+            QAPI_LIST_APPEND(stored_guestfwd, element);
         }
     }
 #ifndef _WIN32

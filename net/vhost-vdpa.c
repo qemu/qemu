@@ -184,9 +184,22 @@ static int net_vhost_vdpa_init(NetClientState *peer, const char *device,
     VhostVDPAState *s;
     int vdpa_device_fd = -1;
     int ret = 0;
+    NetdevVhostVDPAOptions *stored;
+
     assert(name);
     nc = qemu_new_net_client(&net_vhost_vdpa_info, peer, device, name);
-    snprintf(nc->info_str, sizeof(nc->info_str), TYPE_VHOST_VDPA);
+
+    /* Store startup parameters */
+    nc->stored_config = g_new0(NetdevInfo, 1);
+    nc->stored_config->type = NET_BACKEND_VHOST_VDPA;
+    stored = &nc->stored_config->u.vhost_vdpa;
+
+    stored->has_vhostdev = true;
+    stored->vhostdev = g_strdup(vhostdev);
+
+    stored->has_queues = true;
+    stored->queues = 1; /* TODO: change when support multiqueue */
+
     nc->queue_index = 0;
     s = DO_UPCAST(VhostVDPAState, nc, nc);
     vdpa_device_fd = qemu_open_old(vhostdev, O_RDWR);
