@@ -224,6 +224,73 @@ CPUArchState *cpu_copy(CPUArchState *env)
     return new_env;
 }
 
+/* A shorthand way to suppress the warnings that you are ignoring the return value of asprintf() */
+static inline void ignore_result(long long int unused_result)
+{
+    (void) unused_result;
+}
+
+/* Get libqasan path. */
+#ifndef AFL_PATH
+  #define AFL_PATH "/usr/local/lib/afl/"
+#endif
+static char *get_libqasan_path(char *own_loc)
+{
+    if (!unlikely(own_loc)) {
+        fprintf(stderr, "BUG: param own_loc is NULL\n");
+        exit(EXIT_FAILURE);
+    }
+
+    char *tmp, *cp = NULL, *rsl, *own_copy;
+
+    tmp = getenv("AFL_PATH");
+    if (tmp) {
+        ignore_result(asprintf(&cp, "%s/libqasan.so", tmp));
+        if (access(cp, X_OK)) {
+            fprintf(stderr, "Unable to find '%s'\n", tmp);
+            exit(EXIT_FAILURE);
+        }
+
+        return cp;
+    }
+
+    own_copy = strdup(own_loc);
+    rsl = strrchr(own_copy, '/');
+    if (rsl) {
+        *rsl = 0;
+
+        ignore_result(asprintf(&cp, "%s/libqasan.so", own_copy));
+        free(own_copy);
+
+        if (!access(cp, X_OK)) { return cp; }
+
+    } else {
+        free(own_copy);
+    }
+
+    if (!access(AFL_PATH "/libqasan.so", X_OK)) {
+        if (cp) { free(cp); }
+
+        return strdup(AFL_PATH "/libqasan.so");
+    }
+
+    /* This is an AFL error message, but since it is in QEMU it can't
+       have all the pretty formatting of AFL without importing
+       a bunch of AFL pieces. */
+    fprintf(stderr, "\n" "" "[-] " ""
+        "Oops, unable to find the 'libqasan.so' binary. The binary must be "
+        "built\n"
+        "    separately by following the instructions in "
+        "qemu_mode/libqasan/README.md. "
+        "If you\n"
+        "    already have the binary installed, you may need to specify "
+        "AFL_PATH in the\n"
+        "    environment.\n");
+
+    fprintf(stderr, "Failed to locate 'libqasan.so'.\n");
+    exit(EXIT_FAILURE);
+}
+
 static void handle_arg_help(const char *arg)
 {
     usage(EXIT_SUCCESS);
@@ -656,6 +723,45 @@ int main(int argc, char **argv, char **envp)
     /* add current environment into the list */
     for (wrk = environ; *wrk != NULL; wrk++) {
         (void) envlist_setenv(envlist, *wrk);
+    }
+
+    /* Add AFL_PRELOAD for qasan if it is enabled */
+    if(use_qasan) {
+        char *preload = getenv("AFL_PRELOAD");
+        char *libqasan = get_libqasan_path(argv[0]);
+
+        if (!preload) {
+            setenv("AFL_PRELOAD", libqasan, 0);
+        } else {
+            /* NOTE: If there is more than one in the list, LD_PRELOAD allows spaces or colons
+                     as separators (but no escaping provided), but DYLD_INSERT_LIBRARIES allows only colons.
+                     Prefer colons for maximum compatibility, but use space if the string already has any. */
+            char * afl_preload;
+            if (strchr(preload, ' ')) {
+                ignore_result(asprintf(&afl_preload, "%s %s", libqasan, preload));
+            } else {
+                ignore_result(asprintf(&afl_preload, "%s:%s", libqasan, preload));
+            }
+
+            setenv("AFL_PRELOAD", afl_preload, 1);
+            free(afl_preload);
+        }
+        free(libqasan);
+    }
+
+    /* Expand AFL_PRELOAD to append preload libraries */
+    char *afl_preload = getenv("AFL_PRELOAD");
+    if (afl_preload) {
+        /* NOTE: If there is more than one in the list, LD_PRELOAD allows spaces or colons
+                 as separators, but DYLD_INSERT_LIBRARIES allows only colons.
+                 Maybe we should attempt to normalize the list here before we assign it? */
+        char * ld_preload;
+        ignore_result(asprintf(&ld_preload, "LD_PRELOAD=%s", afl_preload));
+        envlist_setenv(envlist, ld_preload);
+
+        char * dyld_insert;
+        ignore_result(asprintf(&dyld_insert, "DYLD_INSERT_LIBRARIES=%s", afl_preload));
+        envlist_setenv(envlist, dyld_insert);
     }
 
     /* Read the stack limit from the kernel.  If it's "unlimited",
