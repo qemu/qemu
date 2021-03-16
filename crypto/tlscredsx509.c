@@ -770,6 +770,51 @@ qcrypto_tls_creds_x509_prop_get_sanity(Object *obj,
 }
 
 
+#ifdef CONFIG_GNUTLS
+
+
+static bool
+qcrypto_tls_creds_x509_reload(QCryptoTLSCreds *creds, Error **errp)
+{
+    QCryptoTLSCredsX509 *x509_creds = QCRYPTO_TLS_CREDS_X509(creds);
+    Error *local_err = NULL;
+    gnutls_certificate_credentials_t creds_data = x509_creds->data;
+    gnutls_dh_params_t creds_dh_params = x509_creds->parent_obj.dh_params;
+
+    x509_creds->data = NULL;
+    x509_creds->parent_obj.dh_params = NULL;
+    qcrypto_tls_creds_x509_load(x509_creds, &local_err);
+    if (local_err) {
+        qcrypto_tls_creds_x509_unload(x509_creds);
+        x509_creds->data = creds_data;
+        x509_creds->parent_obj.dh_params = creds_dh_params;
+        error_propagate(errp, local_err);
+        return false;
+    }
+
+    if (creds_data) {
+        gnutls_certificate_free_credentials(creds_data);
+    }
+    if (creds_dh_params) {
+        gnutls_dh_params_deinit(creds_dh_params);
+    }
+    return true;
+}
+
+
+#else /* ! CONFIG_GNUTLS */
+
+
+static bool
+qcrypto_tls_creds_x509_reload(QCryptoTLSCreds *creds, Error **errp)
+{
+    return false;
+}
+
+
+#endif /* ! CONFIG_GNUTLS */
+
+
 static void
 qcrypto_tls_creds_x509_complete(UserCreatable *uc, Error **errp)
 {
@@ -800,6 +845,9 @@ static void
 qcrypto_tls_creds_x509_class_init(ObjectClass *oc, void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
+    QCryptoTLSCredsClass *ctcc = QCRYPTO_TLS_CREDS_CLASS(oc);
+
+    ctcc->reload = qcrypto_tls_creds_x509_reload;
 
     ucc->complete = qcrypto_tls_creds_x509_complete;
 
