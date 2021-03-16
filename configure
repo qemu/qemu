@@ -6458,6 +6458,15 @@ if test "$skip_meson" = no; then
   if test "$?" -ne 0 ; then
       error_exit "meson setup failed"
   fi
+else
+  if test -f meson-private/cmd_line.txt; then
+    # Adjust old command line options whose type was changed
+    # Avoids having to use "setup --wipe" when Meson is upgraded
+    perl -i -ne '
+      s/^gettext = true$/gettext = auto/;
+      s/^gettext = false$/gettext = disabled/;
+      print;' meson-private/cmd_line.txt
+  fi
 fi
 
 if test -n "${deprecated_features}"; then
