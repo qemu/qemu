@@ -14,13 +14,11 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "hw/usb.h"
+#include "hw/usb/msd.h"
 #include "desc.h"
 #include "hw/qdev-properties.h"
 #include "hw/scsi/scsi.h"
 #include "migration/vmstate.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/block-backend.h"
-#include "qapi/visitor.h"
 #include "qemu/cutils.h"
 #include "qom/object.h"
 #include "trace.h"
@@ -28,43 +26,6 @@
 /* USB requests.  */
 #define MassStorageReset  0xff
 #define GetMaxLun         0xfe
-
-enum USBMSDMode {
-    USB_MSDM_CBW, /* Command Block.  */
-    USB_MSDM_DATAOUT, /* Transfer data to device.  */
-    USB_MSDM_DATAIN, /* Transfer data from device.  */
-    USB_MSDM_CSW /* Command Status.  */
-};
-
-struct usb_msd_csw {
-    uint32_t sig;
-    uint32_t tag;
-    uint32_t residue;
-    uint8_t status;
-};
-
-struct MSDState {
-    USBDevice dev;
-    enum USBMSDMode mode;
-    uint32_t scsi_off;
-    uint32_t scsi_len;
-    uint32_t data_len;
-    struct usb_msd_csw csw;
-    SCSIRequest *req;
-    SCSIBus bus;
-    /* For async completion.  */
-    USBPacket *packet;
-    /* usb-storage only */
-    BlockConf conf;
-    bool removable;
-    bool commandlog;
-    SCSIDevice *scsi_dev;
-};
-typedef struct MSDState MSDState;
-
-#define TYPE_USB_STORAGE "usb-storage-dev"
-DECLARE_INSTANCE_CHECKER(MSDState, USB_STORAGE_DEV,
-                         TYPE_USB_STORAGE)
 
 struct usb_msd_cbw {
     uint32_t sig;
@@ -259,7 +220,7 @@ static void usb_msd_packet_complete(MSDState *s)
     usb_packet_complete(&s->dev, p);
 }
 
-static void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
+void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
@@ -277,7 +238,7 @@ static void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
     }
 }
 
-static void usb_msd_command_complete(SCSIRequest *req, size_t resid)
+void usb_msd_command_complete(SCSIRequest *req, size_t resid)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
@@ -320,7 +281,7 @@ static void usb_msd_command_complete(SCSIRequest *req, size_t resid)
     s->req = NULL;
 }
 
-static void usb_msd_request_cancelled(SCSIRequest *req)
+void usb_msd_request_cancelled(SCSIRequest *req)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
 
@@ -337,7 +298,7 @@ static void usb_msd_request_cancelled(SCSIRequest *req)
     }
 }
 
-static void usb_msd_handle_reset(USBDevice *dev)
+void usb_msd_handle_reset(USBDevice *dev)
 {
     MSDState *s = (MSDState *)dev;
 
@@ -352,6 +313,7 @@ static void usb_msd_handle_reset(USBDevice *dev)
         usb_msd_packet_complete(s);
     }
 
+    memset(&s->csw, 0, sizeof(s->csw));
     s->mode = USB_MSDM_CBW;
 }
 
@@ -565,7 +527,7 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req)
+void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
 
@@ -574,95 +536,6 @@ static void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req)
     scsi_req_ref(req);
     s->req = req;
     return NULL;
-}
-
-static const struct SCSIBusInfo usb_msd_scsi_info_storage = {
-    .tcq = false,
-    .max_target = 0,
-    .max_lun = 0,
-
-    .transfer_data = usb_msd_transfer_data,
-    .complete = usb_msd_command_complete,
-    .cancel = usb_msd_request_cancelled,
-    .load_request = usb_msd_load_request,
-};
-
-static const struct SCSIBusInfo usb_msd_scsi_info_bot = {
-    .tcq = false,
-    .max_target = 0,
-    .max_lun = 15,
-
-    .transfer_data = usb_msd_transfer_data,
-    .complete = usb_msd_command_complete,
-    .cancel = usb_msd_request_cancelled,
-    .load_request = usb_msd_load_request,
-};
-
-static void usb_msd_storage_realize(USBDevice *dev, Error **errp)
-{
-    MSDState *s = USB_STORAGE_DEV(dev);
-    BlockBackend *blk = s->conf.blk;
-    SCSIDevice *scsi_dev;
-
-    if (!blk) {
-        error_setg(errp, "drive property not set");
-        return;
-    }
-
-    if (!blkconf_blocksizes(&s->conf, errp)) {
-        return;
-    }
-
-    if (!blkconf_apply_backend_options(&s->conf, !blk_supports_write_perm(blk),
-                                       true, errp)) {
-        return;
-    }
-
-    /*
-     * Hack alert: this pretends to be a block device, but it's really
-     * a SCSI bus that can serve only a single device, which it
-     * creates automatically.  But first it needs to detach from its
-     * blockdev, or else scsi_bus_legacy_add_drive() dies when it
-     * attaches again. We also need to take another reference so that
-     * blk_detach_dev() doesn't free blk while we still need it.
-     *
-     * The hack is probably a bad idea.
-     */
-    blk_ref(blk);
-    blk_detach_dev(blk, DEVICE(s));
-    s->conf.blk = NULL;
-
-    usb_desc_create_serial(dev);
-    usb_desc_init(dev);
-    scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
-                 &usb_msd_scsi_info_storage, NULL);
-    scsi_dev = scsi_bus_legacy_add_drive(&s->bus, blk, 0, !!s->removable,
-                                         s->conf.bootindex, s->conf.share_rw,
-                                         s->conf.rerror, s->conf.werror,
-                                         dev->serial,
-                                         errp);
-    blk_unref(blk);
-    if (!scsi_dev) {
-        return;
-    }
-    usb_msd_handle_reset(dev);
-    s->scsi_dev = scsi_dev;
-}
-
-static void usb_msd_bot_realize(USBDevice *dev, Error **errp)
-{
-    MSDState *s = USB_STORAGE_DEV(dev);
-    DeviceState *d = DEVICE(dev);
-
-    usb_desc_create_serial(dev);
-    usb_desc_init(dev);
-    if (d->hotplugged) {
-        s->dev.auto_attach = 0;
-    }
-
-    scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
-                 &usb_msd_scsi_info_bot, NULL);
-    usb_msd_handle_reset(dev);
 }
 
 static const VMStateDescription vmstate_usb_msd = {
@@ -683,14 +556,6 @@ static const VMStateDescription vmstate_usb_msd = {
     }
 };
 
-static Property msd_properties[] = {
-    DEFINE_BLOCK_PROPERTIES(MSDState, conf),
-    DEFINE_BLOCK_ERROR_PROPERTIES(MSDState, conf),
-    DEFINE_PROP_BOOL("removable", MSDState, removable, false),
-    DEFINE_PROP_BOOL("commandlog", MSDState, commandlog, false),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void usb_msd_class_initfn_common(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -708,52 +573,6 @@ static void usb_msd_class_initfn_common(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_usb_msd;
 }
 
-static void usb_msd_class_storage_initfn(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
-
-    uc->realize = usb_msd_storage_realize;
-    device_class_set_props(dc, msd_properties);
-}
-
-static void usb_msd_get_bootindex(Object *obj, Visitor *v, const char *name,
-                                  void *opaque, Error **errp)
-{
-    USBDevice *dev = USB_DEVICE(obj);
-    MSDState *s = USB_STORAGE_DEV(dev);
-
-    visit_type_int32(v, name, &s->conf.bootindex, errp);
-}
-
-static void usb_msd_set_bootindex(Object *obj, Visitor *v, const char *name,
-                                  void *opaque, Error **errp)
-{
-    USBDevice *dev = USB_DEVICE(obj);
-    MSDState *s = USB_STORAGE_DEV(dev);
-    int32_t boot_index;
-    Error *local_err = NULL;
-
-    if (!visit_type_int32(v, name, &boot_index, errp)) {
-        return;
-    }
-    /* check whether bootindex is present in fw_boot_order list  */
-    check_boot_index(boot_index, &local_err);
-    if (local_err) {
-        goto out;
-    }
-    /* change bootindex to a new one */
-    s->conf.bootindex = boot_index;
-
-    if (s->scsi_dev) {
-        object_property_set_int(OBJECT(s->scsi_dev), "bootindex", boot_index,
-                                &error_abort);
-    }
-
-out:
-    error_propagate(errp, local_err);
-}
-
 static const TypeInfo usb_storage_dev_type_info = {
     .name = TYPE_USB_STORAGE,
     .parent = TYPE_USB_DEVICE,
@@ -762,40 +581,9 @@ static const TypeInfo usb_storage_dev_type_info = {
     .class_init = usb_msd_class_initfn_common,
 };
 
-static void usb_msd_instance_init(Object *obj)
-{
-    object_property_add(obj, "bootindex", "int32",
-                        usb_msd_get_bootindex,
-                        usb_msd_set_bootindex, NULL, NULL);
-    object_property_set_int(obj, "bootindex", -1, NULL);
-}
-
-static void usb_msd_class_bot_initfn(ObjectClass *klass, void *data)
-{
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
-
-    uc->realize = usb_msd_bot_realize;
-    uc->attached_settable = true;
-}
-
-static const TypeInfo msd_info = {
-    .name          = "usb-storage",
-    .parent        = TYPE_USB_STORAGE,
-    .class_init    = usb_msd_class_storage_initfn,
-    .instance_init = usb_msd_instance_init,
-};
-
-static const TypeInfo bot_info = {
-    .name          = "usb-bot",
-    .parent        = TYPE_USB_STORAGE,
-    .class_init    = usb_msd_class_bot_initfn,
-};
-
 static void usb_msd_register_types(void)
 {
     type_register_static(&usb_storage_dev_type_info);
-    type_register_static(&msd_info);
-    type_register_static(&bot_info);
 }
 
 type_init(usb_msd_register_types)

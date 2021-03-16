@@ -40,6 +40,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "hcd-uhci.h"
 
 #define FRAME_TIMER_FREQ 1000
 
@@ -49,8 +50,6 @@
 #define QH_VALID         32
 
 #define MAX_FRAMES_PER_TICK    (QH_VALID / 2)
-
-#define NB_PORTS 2
 
 enum {
     TD_RESULT_STOP_FRAME = 10,
@@ -62,19 +61,7 @@ enum {
 
 typedef struct UHCIState UHCIState;
 typedef struct UHCIAsync UHCIAsync;
-typedef struct UHCIQueue UHCIQueue;
-typedef struct UHCIInfo UHCIInfo;
 typedef struct UHCIPCIDeviceClass UHCIPCIDeviceClass;
-
-struct UHCIInfo {
-    const char *name;
-    uint16_t   vendor_id;
-    uint16_t   device_id;
-    uint8_t    revision;
-    uint8_t    irq_pin;
-    void       (*realize)(PCIDevice *dev, Error **errp);
-    bool       unplug;
-};
 
 struct UHCIPCIDeviceClass {
     PCIDeviceClass parent_class;
@@ -107,43 +94,6 @@ struct UHCIQueue {
     int8_t    valid;
 };
 
-typedef struct UHCIPort {
-    USBPort port;
-    uint16_t ctrl;
-} UHCIPort;
-
-struct UHCIState {
-    PCIDevice dev;
-    MemoryRegion io_bar;
-    USBBus bus; /* Note unused when we're a companion controller */
-    uint16_t cmd; /* cmd register */
-    uint16_t status;
-    uint16_t intr; /* interrupt enable register */
-    uint16_t frnum; /* frame number */
-    uint32_t fl_base_addr; /* frame list base address */
-    uint8_t sof_timing;
-    uint8_t status2; /* bit 0 and 1 are used to generate UHCI_STS_USBINT */
-    int64_t expire_time;
-    QEMUTimer *frame_timer;
-    QEMUBH *bh;
-    uint32_t frame_bytes;
-    uint32_t frame_bandwidth;
-    bool completions_only;
-    UHCIPort ports[NB_PORTS];
-
-    /* Interrupts that should be raised at the end of the current frame.  */
-    uint32_t pending_int_mask;
-
-    /* Active packets */
-    QTAILQ_HEAD(, UHCIQueue) queues;
-    uint8_t num_ports_vmstate;
-
-    /* Properties */
-    char *masterbus;
-    uint32_t firstport;
-    uint32_t maxframes;
-};
-
 typedef struct UHCI_TD {
     uint32_t link;
     uint32_t ctrl; /* see TD_CTRL_xxx */
@@ -159,10 +109,6 @@ typedef struct UHCI_QH {
 static void uhci_async_cancel(UHCIAsync *async);
 static void uhci_queue_fill(UHCIQueue *q, UHCI_TD *td);
 static void uhci_resume(void *opaque);
-
-#define TYPE_UHCI "pci-uhci-usb"
-DECLARE_INSTANCE_CHECKER(UHCIState, UHCI,
-                         TYPE_UHCI)
 
 static inline int32_t uhci_queue_token(UHCI_TD *td)
 {
@@ -1213,7 +1159,7 @@ static USBPortOps uhci_port_ops = {
 static USBBusOps uhci_bus_ops = {
 };
 
-static void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
+void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
 {
     Error *err = NULL;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
@@ -1259,21 +1205,6 @@ static void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
     /* Use region 4 for consistency with real hardware.  BSD guests seem
        to rely on this.  */
     pci_register_bar(&s->dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
-}
-
-static void usb_uhci_vt82c686b_realize(PCIDevice *dev, Error **errp)
-{
-    UHCIState *s = UHCI(dev);
-    uint8_t *pci_conf = s->dev.config;
-
-    /* USB misc control 1/2 */
-    pci_set_long(pci_conf + 0x40,0x00001000);
-    /* PM capability */
-    pci_set_long(pci_conf + 0x80,0x00020001);
-    /* USB legacy support  */
-    pci_set_long(pci_conf + 0xc0,0x00002000);
-
-    usb_uhci_common_realize(dev, errp);
 }
 
 static void usb_uhci_exit(PCIDevice *dev)
@@ -1335,7 +1266,7 @@ static const TypeInfo uhci_pci_type_info = {
     },
 };
 
-static void uhci_data_class_init(ObjectClass *klass, void *data)
+void uhci_data_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1371,14 +1302,6 @@ static UHCIInfo uhci_info[] = {
         .device_id = PCI_DEVICE_ID_INTEL_82371AB_2,
         .revision  = 0x01,
         .irq_pin   = 3,
-        .unplug    = true,
-    },{
-        .name      = "vt82c686b-usb-uhci",
-        .vendor_id = PCI_VENDOR_ID_VIA,
-        .device_id = PCI_DEVICE_ID_VIA_UHCI,
-        .revision  = 0x01,
-        .irq_pin   = 3,
-        .realize   = usb_uhci_vt82c686b_realize,
         .unplug    = true,
     },{
         .name      = "ich9-usb-uhci1", /* 00:1d.0 */

@@ -346,7 +346,6 @@ static const TypeInfo u2f_key_info = {
 static void u2f_key_register_types(void)
 {
     type_register_static(&u2f_key_info);
-    usb_legacy_register(TYPE_U2F_KEY, "u2f-key", NULL);
 }
 
 type_init(u2f_key_register_types)

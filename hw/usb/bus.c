@@ -19,8 +19,6 @@ static void usb_qdev_unrealize(DeviceState *qdev);
 static Property usb_props[] = {
     DEFINE_PROP_STRING("port", USBDevice, port_path),
     DEFINE_PROP_STRING("serial", USBDevice, serial),
-    DEFINE_PROP_BIT("full-path", USBDevice, flags,
-                    USB_DEV_FLAG_FULL_PATH, true),
     DEFINE_PROP_BIT("msos-desc", USBDevice, flags,
                     USB_DEV_FLAG_MSOS_DESC_ENABLE, true),
     DEFINE_PROP_STRING("pcap", USBDevice, pcap_filename),
@@ -312,13 +310,13 @@ typedef struct LegacyUSBFactory
 {
     const char *name;
     const char *usbdevice_name;
-    USBDevice *(*usbdevice_init)(const char *params);
+    USBDevice *(*usbdevice_init)(void);
 } LegacyUSBFactory;
 
 static GSList *legacy_usb_factory;
 
 void usb_legacy_register(const char *typename, const char *usbdevice_name,
-                         USBDevice *(*usbdevice_init)(const char *params))
+                         USBDevice *(*usbdevice_init)(void))
 {
     if (usbdevice_name) {
         LegacyUSBFactory *f = g_malloc0(sizeof(*f));
@@ -596,11 +594,8 @@ static char *usb_get_dev_path(DeviceState *qdev)
 {
     USBDevice *dev = USB_DEVICE(qdev);
     DeviceState *hcd = qdev->parent_bus->parent;
-    char *id = NULL;
+    char *id = qdev_get_dev_path(hcd);
 
-    if (dev->flags & (1 << USB_DEV_FLAG_FULL_PATH)) {
-        id = qdev_get_dev_path(hcd);
-    }
     if (id) {
         char *ret = g_strdup_printf("%s/%s", id, dev->port->path);
         g_free(id);
@@ -663,27 +658,17 @@ void hmp_info_usb(Monitor *mon, const QDict *qdict)
 }
 
 /* handle legacy -usbdevice cmd line option */
-USBDevice *usbdevice_create(const char *cmdline)
+USBDevice *usbdevice_create(const char *driver)
 {
     USBBus *bus = usb_bus_find(-1 /* any */);
     LegacyUSBFactory *f = NULL;
     Error *err = NULL;
     GSList *i;
-    char driver[32];
-    const char *params;
-    int len;
     USBDevice *dev;
 
-    params = strchr(cmdline,':');
-    if (params) {
-        params++;
-        len = params - cmdline;
-        if (len > sizeof(driver))
-            len = sizeof(driver);
-        pstrcpy(driver, len, cmdline);
-    } else {
-        params = "";
-        pstrcpy(driver, sizeof(driver), cmdline);
+    if (strchr(driver, ':')) {
+        error_report("usbdevice parameters are not supported anymore");
+        return NULL;
     }
 
     for (i = legacy_usb_factory; i; i = i->next) {
@@ -707,15 +692,7 @@ USBDevice *usbdevice_create(const char *cmdline)
         return NULL;
     }
 
-    if (f->usbdevice_init) {
-        dev = f->usbdevice_init(params);
-    } else {
-        if (*params) {
-            error_report("usbdevice %s accepts no params", driver);
-            return NULL;
-        }
-        dev = usb_new(f->name);
-    }
+    dev = f->usbdevice_init ? f->usbdevice_init() : usb_new(f->name);
     if (!dev) {
         error_report("Failed to create USB device '%s'", f->name);
         return NULL;

@@ -1705,7 +1705,7 @@ ERST
 
 DEFHEADING()
 
-DEFHEADING(USB options:)
+DEFHEADING(USB convenience options:)
 
 DEF("usb", 0, QEMU_OPTION_usb,
     "-usb            enable on-board USB host controller (if not enabled by default)\n",
@@ -1723,9 +1723,31 @@ DEF("usbdevice", HAS_ARG, QEMU_OPTION_usbdevice,
     QEMU_ARCH_ALL)
 SRST
 ``-usbdevice devname``
-    Add the USB device devname. Note that this option is deprecated,
-    please use ``-device usb-...`` instead. See the chapter about
+    Add the USB device devname, and enable an on-board USB controller
+    if possible and necessary (just like it can be done via
+    ``-machine usb=on``). Note that this option is mainly intended for
+    the user's convenience only. More fine-grained control can be
+    achieved by selecting a USB host controller (if necessary) and the
+    desired USB device via the ``-device`` option instead. For example,
+    instead of using ``-usbdevice mouse`` it is possible to use
+    ``-device qemu-xhci -device usb-mouse`` to connect the USB mouse
+    to a USB 3.0 controller instead (at least on machines that support
+    PCI and do not have an USB controller enabled by default yet).
+    For more details, see the chapter about
     :ref:`Connecting USB devices` in the System Emulation Users Guide.
+    Possible devices for devname are:
+
+    ``braille``
+        Braille device. This will use BrlAPI to display the braille
+        output on a real or fake device (i.e. it also creates a
+        corresponding ``braille`` chardev automatically beside the
+        ``usb-braille`` USB device).
+
+    ``ccid``
+        Smartcard reader device
+
+    ``keyboard``
+        Standard USB keyboard. Will override the PS/2 keyboard (if present).
 
     ``mouse``
         Virtual Mouse. This will override the PS/2 mouse emulation when
@@ -1737,9 +1759,10 @@ SRST
         position without having to grab the mouse. Also overrides the
         PS/2 mouse emulation when activated.
 
-    ``braille``
-        Braille device. This will use BrlAPI to display the braille
-        output on a real or fake device.
+    ``wacom-tablet``
+        Wacom PenPartner USB tablet.
+
+
 ERST
 
 DEFHEADING()

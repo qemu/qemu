@@ -38,6 +38,14 @@ or ``-display default,show-cursor=on`` instead.
 QEMU 5.0 introduced an alternative syntax to specify the size of the translation
 block cache, ``-accel tcg,tb-size=``.
 
+``-usbdevice audio`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''
+
+This option lacked the possibility to specify an audio backend device.
+Use ``-device usb-audio`` now instead (and specify a corresponding USB
+host controller or ``-usb`` if necessary).
+
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
