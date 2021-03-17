@@ -26,6 +26,7 @@ typedef struct CPUHexagonState CPUHexagonState;
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "hex_regs.h"
+#include "mmvec/mmvec.h"
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
@@ -34,6 +35,7 @@ typedef struct CPUHexagonState CPUHexagonState;
 #define STORES_MAX 2
 #define REG_WRITES_MAX 32
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
+#define VSTORES_MAX 2
 
 #define TYPE_HEXAGON_CPU "hexagon-cpu"
 
@@ -52,6 +54,13 @@ typedef struct {
     uint64_t data64;
 } MemLog;
 
+typedef struct {
+    target_ulong va;
+    int size;
+    DECLARE_BITMAP(mask, MAX_VEC_SIZE_BYTES) QEMU_ALIGNED(16);
+    MMVector data QEMU_ALIGNED(16);
+} VStoreLog;
+
 #define EXEC_STATUS_OK          0x0000
 #define EXEC_STATUS_STOP        0x0002
 #define EXEC_STATUS_REPLAY      0x0010
@@ -63,6 +72,9 @@ typedef struct {
 #define REPLAY_DETECTED         (env->status & EXEC_STATUS_REPLAY)
 #define CLEAR_EXCEPTION         (env->status &= (~EXEC_STATUS_EXCEPTION))
 #define SET_EXCEPTION           (env->status |= EXEC_STATUS_EXCEPTION)
+
+/* Maximum number of vector temps in a packet */
+#define VECTOR_TEMPS_MAX            4
 
 struct CPUHexagonState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
@@ -97,8 +109,27 @@ struct CPUHexagonState {
     target_ulong llsc_val;
     uint64_t     llsc_val_i64;
 
-    target_ulong is_gather_store_insn;
-    target_ulong gather_issued;
+    MMVector VRegs[NUM_VREGS] QEMU_ALIGNED(16);
+    MMVector future_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
+    MMVector tmp_VRegs[VECTOR_TEMPS_MAX] QEMU_ALIGNED(16);
+
+    VRegMask VRegs_updated;
+
+    MMQReg QRegs[NUM_QREGS] QEMU_ALIGNED(16);
+    MMQReg future_QRegs[NUM_QREGS] QEMU_ALIGNED(16);
+    QRegMask QRegs_updated;
+
+    /* Temporaries used within instructions */
+    MMVectorPair VuuV QEMU_ALIGNED(16);
+    MMVectorPair VvvV QEMU_ALIGNED(16);
+    MMVectorPair VxxV QEMU_ALIGNED(16);
+    MMVector     vtmp QEMU_ALIGNED(16);
+    MMQReg       qtmp QEMU_ALIGNED(16);
+
+    VStoreLog vstore[VSTORES_MAX];
+    target_ulong vstore_pending[VSTORES_MAX];
+    bool vtcm_pending;
+    VTCMStoreLog vtcm_log;
 };
 
 #define HEXAGON_CPU_CLASS(klass) \

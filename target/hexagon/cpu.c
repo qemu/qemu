@@ -113,7 +113,66 @@ static void print_reg(FILE *f, CPUHexagonState *env, int regnum)
                  hexagon_regnames[regnum], value);
 }
 
-static void hexagon_dump(CPUHexagonState *env, FILE *f)
+static void print_vreg(FILE *f, CPUHexagonState *env, int regnum,
+                       bool skip_if_zero)
+{
+    if (skip_if_zero) {
+        bool nonzero_found = false;
+        for (int i = 0; i < MAX_VEC_SIZE_BYTES; i++) {
+            if (env->VRegs[regnum].ub[i] != 0) {
+                nonzero_found = true;
+                break;
+            }
+        }
+        if (!nonzero_found) {
+            return;
+        }
+    }
+
+    qemu_fprintf(f, "  v%d = ( ", regnum);
+    qemu_fprintf(f, "0x%02x", env->VRegs[regnum].ub[MAX_VEC_SIZE_BYTES - 1]);
+    for (int i = MAX_VEC_SIZE_BYTES - 2; i >= 0; i--) {
+        qemu_fprintf(f, ", 0x%02x", env->VRegs[regnum].ub[i]);
+    }
+    qemu_fprintf(f, " )\n");
+}
+
+void hexagon_debug_vreg(CPUHexagonState *env, int regnum)
+{
+    print_vreg(stdout, env, regnum, false);
+}
+
+static void print_qreg(FILE *f, CPUHexagonState *env, int regnum,
+                       bool skip_if_zero)
+{
+    if (skip_if_zero) {
+        bool nonzero_found = false;
+        for (int i = 0; i < MAX_VEC_SIZE_BYTES / 8; i++) {
+            if (env->QRegs[regnum].ub[i] != 0) {
+                nonzero_found = true;
+                break;
+            }
+        }
+        if (!nonzero_found) {
+            return;
+        }
+    }
+
+    qemu_fprintf(f, "  q%d = ( ", regnum);
+    qemu_fprintf(f, "0x%02x",
+                 env->QRegs[regnum].ub[MAX_VEC_SIZE_BYTES / 8 - 1]);
+    for (int i = MAX_VEC_SIZE_BYTES / 8 - 2; i >= 0; i--) {
+        qemu_fprintf(f, ", 0x%02x", env->QRegs[regnum].ub[i]);
+    }
+    qemu_fprintf(f, " )\n");
+}
+
+void hexagon_debug_qreg(CPUHexagonState *env, int regnum)
+{
+    print_qreg(stdout, env, regnum, false);
+}
+
+static void hexagon_dump(CPUHexagonState *env, FILE *f, int flags)
 {
     HexagonCPU *cpu = env_archcpu(env);
 
@@ -159,6 +218,17 @@ static void hexagon_dump(CPUHexagonState *env, FILE *f)
     print_reg(f, env, HEX_REG_CS1);
 #endif
     qemu_fprintf(f, "}\n");
+
+    if (flags & CPU_DUMP_FPU) {
+        qemu_fprintf(f, "Vector Registers = {\n");
+        for (int i = 0; i < NUM_VREGS; i++) {
+            print_vreg(f, env, i, true);
+        }
+        for (int i = 0; i < NUM_QREGS; i++) {
+            print_qreg(f, env, i, true);
+        }
+        qemu_fprintf(f, "}\n");
+    }
 }
 
 static void hexagon_dump_state(CPUState *cs, FILE *f, int flags)
@@ -166,12 +236,12 @@ static void hexagon_dump_state(CPUState *cs, FILE *f, int flags)
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
 
-    hexagon_dump(env, f);
+    hexagon_dump(env, f, flags);
 }
 
 void hexagon_debug(CPUHexagonState *env)
 {
-    hexagon_dump(env, stdout);
+    hexagon_dump(env, stdout, CPU_DUMP_FPU);
 }
 
 static void hexagon_cpu_set_pc(CPUState *cs, vaddr value)
@@ -292,7 +362,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     cc->set_pc = hexagon_cpu_set_pc;
     cc->gdb_read_register = hexagon_gdb_read_register;
     cc->gdb_write_register = hexagon_gdb_write_register;
-    cc->gdb_num_core_regs = TOTAL_PER_THREAD_REGS;
+    cc->gdb_num_core_regs = TOTAL_PER_THREAD_REGS + NUM_VREGS + NUM_QREGS;
     cc->gdb_stop_before_watchpoint = true;
     cc->disas_set_info = hexagon_cpu_disas_set_info;
     cc->tcg_ops = &hexagon_tcg_ops;

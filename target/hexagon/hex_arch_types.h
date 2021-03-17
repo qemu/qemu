@@ -19,6 +19,7 @@
 #define HEXAGON_ARCH_TYPES_H
 
 #include "qemu/osdep.h"
+#include "mmvec/mmvec.h"
 #include "qemu/int128.h"
 
 /*
@@ -34,5 +35,9 @@ typedef int32_t     size4s_t;
 typedef uint64_t    size8u_t;
 typedef int64_t     size8s_t;
 typedef Int128      size16s_t;
+
+typedef MMVector          mmvector_t;
+typedef MMVectorPair      mmvector_pair_t;
+typedef MMQReg            mmqret_t;
 
 #endif
