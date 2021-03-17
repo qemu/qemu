@@ -67,3 +67,9 @@ config SIFIVE_CLINT
 
 config SIFIVE_PLIC
     bool
+
+config GOLDFISH_PIC
+    bool
+
+config M68K_IRQC
+    bool

@@ -1130,6 +1130,19 @@ F: include/hw/nubus/*
 F: include/hw/display/macfb.h
 F: include/hw/block/swim.h
 
+virt
+M: Laurent Vivier <laurent@vivier.eu>
+S: Maintained
+F: hw/m68k/virt.c
+F: hw/char/goldfish_tty.c
+F: hw/intc/goldfish_pic.c
+F: hw/intc/m68k_irqc.c
+F: hw/misc/virt_ctrl.c
+F: include/hw/char/goldfish_tty.h
+F: include/hw/intc/goldfish_pic.h
+F: include/hw/intc/m68k_irqc.h
+F: include/hw/misc/virt_ctrl.h
+
 MicroBlaze Machines
 -------------------
 petalogix_s3adsp1800
