@@ -29,13 +29,10 @@
  */
 bool s390_pci_update_dma_avail(int fd, unsigned int *avail)
 {
-    g_autofree struct vfio_iommu_type1_info *info;
-    uint32_t argsz;
+    uint32_t argsz = sizeof(struct vfio_iommu_type1_info);
+    g_autofree struct vfio_iommu_type1_info *info = g_malloc0(argsz);
 
     assert(avail);
-
-    argsz = sizeof(struct vfio_iommu_type1_info);
-    info = g_malloc0(argsz);
 
     /*
      * If the specified argsz is not large enough to contain all capabilities
@@ -230,7 +227,7 @@ static void s390_pci_read_pfip(S390PCIBusDevice *pbdev,
  */
 void s390_pci_get_clp_info(S390PCIBusDevice *pbdev)
 {
-    g_autofree struct vfio_device_info *info;
+    g_autofree struct vfio_device_info *info = NULL;
     VFIOPCIDevice *vfio_pci;
     uint32_t argsz;
     int fd;

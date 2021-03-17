@@ -164,6 +164,9 @@ bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         tec = 0; /* unused */
     }
 
+    env->tlb_fill_exc = excp;
+    env->tlb_fill_tec = tec;
+
     if (!excp) {
         qemu_log_mask(CPU_LOG_MMU,
                       "%s: set tlb %" PRIx64 " -> %" PRIx64 " (%x)\n",

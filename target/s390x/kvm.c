@@ -161,8 +161,6 @@ static int cap_protected;
 
 static int active_cmma;
 
-static void *legacy_s390_alloc(size_t size, uint64_t *align, bool shared);
-
 static int kvm_s390_query_mem_limit(uint64_t *memory_limit)
 {
     struct kvm_device_attr attr = {
@@ -349,6 +347,11 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
                      "please use kernel 3.15 or newer");
         return -1;
     }
+    if (!kvm_check_extension(s, KVM_CAP_S390_COW)) {
+        error_report("KVM is missing capability KVM_CAP_S390_COW - "
+                     "unsupported environment");
+        return -1;
+    }
 
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
@@ -356,11 +359,6 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_s390_irq = kvm_check_extension(s, KVM_CAP_S390_INJECT_IRQ);
     cap_vcpu_resets = kvm_check_extension(s, KVM_CAP_S390_VCPU_RESETS);
     cap_protected = kvm_check_extension(s, KVM_CAP_S390_PROTECTED);
-
-    if (!kvm_check_extension(s, KVM_CAP_S390_GMAP)
-        || !kvm_check_extension(s, KVM_CAP_S390_COW)) {
-        phys_mem_set_alloc(legacy_s390_alloc);
-    }
 
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_VECTOR_REGISTERS, 0);
@@ -887,37 +885,6 @@ int kvm_s390_mem_op_pv(S390CPU *cpu, uint64_t offset, void *hostbuf,
         abort();
     }
     return ret;
-}
-
-/*
- * Legacy layout for s390:
- * Older S390 KVM requires the topmost vma of the RAM to be
- * smaller than an system defined value, which is at least 256GB.
- * Larger systems have larger values. We put the guest between
- * the end of data segment (system break) and this value. We
- * use 32GB as a base to have enough room for the system break
- * to grow. We also have to use MAP parameters that avoid
- * read-only mapping of guest pages.
- */
-static void *legacy_s390_alloc(size_t size, uint64_t *align, bool shared)
-{
-    static void *mem;
-
-    if (mem) {
-        /* we only support one allocation, which is enough for initial ram */
-        return NULL;
-    }
-
-    mem = mmap((void *) 0x800000000ULL, size,
-               PROT_EXEC|PROT_READ|PROT_WRITE,
-               MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-    if (mem == MAP_FAILED) {
-        mem = NULL;
-    }
-    if (mem && align) {
-        *align = QEMU_VMALLOC_ALIGN;
-    }
-    return mem;
 }
 
 static uint8_t const *sw_bp_inst;

@@ -1144,19 +1144,6 @@ static int subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
                             uint16_t section);
 static subpage_t *subpage_init(FlatView *fv, hwaddr base);
 
-static void *(*phys_mem_alloc)(size_t size, uint64_t *align, bool shared) =
-                               qemu_anon_ram_alloc;
-
-/*
- * Set a custom physical guest memory alloator.
- * Accelerators with unusual needs may need this.  Hopefully, we can
- * get rid of it eventually.
- */
-void phys_mem_set_alloc(void *(*alloc)(size_t, uint64_t *align, bool shared))
-{
-    phys_mem_alloc = alloc;
-}
-
 static uint16_t phys_section_add(PhysPageMap *map,
                                  MemoryRegionSection *section)
 {
@@ -1962,8 +1949,9 @@ static void ram_block_add(RAMBlock *new_block, Error **errp, bool shared)
                 return;
             }
         } else {
-            new_block->host = phys_mem_alloc(new_block->max_length,
-                                             &new_block->mr->align, shared);
+            new_block->host = qemu_anon_ram_alloc(new_block->max_length,
+                                                  &new_block->mr->align,
+                                                  shared);
             if (!new_block->host) {
                 error_setg_errno(errp, errno,
                                  "cannot set up guest memory '%s'",
@@ -2044,17 +2032,6 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
         error_setg(errp,
                    "host lacks kvm mmu notifiers, -mem-path unsupported");
-        return NULL;
-    }
-
-    if (phys_mem_alloc != qemu_anon_ram_alloc) {
-        /*
-         * file_ram_alloc() needs to allocate just like
-         * phys_mem_alloc, but we haven't bothered to provide
-         * a hook there.
-         */
-        error_setg(errp,
-                   "-mem-path not supported with this accelerator");
         return NULL;
     }
 
@@ -2247,13 +2224,6 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
                     area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
                                 flags, block->fd, offset);
                 } else {
-                    /*
-                     * Remap needs to match alloc.  Accelerators that
-                     * set phys_mem_alloc never remap.  If they did,
-                     * we'd need a remap hook here.
-                     */
-                    assert(phys_mem_alloc == qemu_anon_ram_alloc);
-
                     flags |= MAP_PRIVATE | MAP_ANONYMOUS;
                     area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
                                 flags, -1, 0);
