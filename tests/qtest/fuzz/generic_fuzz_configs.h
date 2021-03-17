@@ -177,7 +177,7 @@ const generic_fuzz_config predefined_configs[] = {
         .name = "i82550",
         .args = "-machine q35 -nodefaults "
         "-device i82550,netdev=net0 -netdev user,id=net0",
-        .objects = "eepro*"
+        .objects = "i8255*"
     },{
         .name = "sdhci-v3",
         .args = "-nodefaults -device sdhci-pci,sd-spec-version=3 "
@@ -208,6 +208,12 @@ const generic_fuzz_config predefined_configs[] = {
         .args = "-machine q35 -nodefaults -device megasas -device scsi-cd,drive=null0 "
         "-blockdev driver=null-co,read-zeroes=on,node-name=null0",
         .objects = "megasas*",
+    },{
+        .name = "am53c974",
+        .args = "-device am53c974,id=scsi -device scsi-hd,drive=disk0 "
+                 "-drive id=disk0,if=none,file=null-co://,format=raw "
+                 "-nodefaults",
+        .objects = "*esp* *scsi* *am53c974*",
     },{
         .name = "ac97",
         .args = "-machine q35 -nodefaults "

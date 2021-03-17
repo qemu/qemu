@@ -28,6 +28,7 @@
 #include "hw/pci/pci.h"
 #include "hw/boards.h"
 #include "generic_fuzz_configs.h"
+#include "hw/mem/sparse-mem.h"
 
 /*
  * SEPARATOR is used to separate "operations" in the fuzz input
@@ -63,6 +64,8 @@ typedef struct {
 static useconds_t timeout = DEFAULT_TIMEOUT_US;
 
 static bool qtest_log_enabled;
+
+MemoryRegion *sparse_mem_mr;
 
 /*
  * A pattern used to populate a DMA region or perform a memwrite. This is
@@ -191,8 +194,7 @@ void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr)
      */
     if (dma_patterns->len == 0
         || len == 0
-        || mr != current_machine->ram
-        || addr > current_machine->ram_size) {
+        || (mr != current_machine->ram && mr != sparse_mem_mr)) {
         return;
     }
 
@@ -238,7 +240,7 @@ void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr)
                                       MEMTXATTRS_UNSPECIFIED);
 
         if (!(memory_region_is_ram(mr1) ||
-              memory_region_is_romd(mr1))) {
+              memory_region_is_romd(mr1)) && mr1 != sparse_mem_mr) {
             l = memory_access_size(mr1, l, addr1);
         } else {
             /* ROM/RAM case */
@@ -583,6 +585,21 @@ static void handle_timeout(int sig)
         fprintf(stderr, "[Timeout]\n");
         fflush(stderr);
     }
+
+    /*
+     * If there is a crash, libfuzzer/ASAN forks a child to run an
+     * "llvm-symbolizer" process for printing out a pretty stacktrace. It
+     * communicates with this child using a pipe.  If we timeout+Exit, while
+     * libfuzzer is still communicating with the llvm-symbolizer child, we will
+     * be left with an orphan llvm-symbolizer process. Sometimes, this appears
+     * to lead to a deadlock in the forkserver. Use waitpid to check if there
+     * are any waitable children. If so, exit out of the signal-handler, and
+     * let libfuzzer finish communicating with the child, and exit, on its own.
+     */
+    if (waitpid(-1, NULL, WNOHANG) == 0) {
+        return;
+    }
+
     _Exit(0);
 }
 
@@ -798,6 +815,12 @@ static void generic_pre_fuzz(QTestState *s)
         timeout = g_ascii_strtoll(getenv("QEMU_FUZZ_TIMEOUT"), NULL, 0);
     }
     qts_global = s;
+
+    /*
+     * Create a special device that we can use to back DMA buffers at very
+     * high memory addresses
+     */
+    sparse_mem_mr = sparse_mem_init(0, UINT64_MAX);
 
     dma_regions = g_array_new(false, false, sizeof(address_range));
     dma_patterns = g_array_new(false, false, sizeof(pattern));

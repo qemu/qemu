@@ -589,7 +589,7 @@ int scsi_sense_from_errno(int errno_value, SCSISense *sense)
         return TASK_SET_FULL;
 #ifdef CONFIG_LINUX
         /* These errno mapping are specific to Linux.  For more information:
-         * - scsi_decide_disposition in drivers/scsi/scsi_error.c
+         * - scsi_check_sense and scsi_decide_disposition in drivers/scsi/scsi_error.c
          * - scsi_result_to_blk_status in drivers/scsi/scsi_lib.c
          * - blk_errors[] in block/blk-core.c
          */
@@ -599,7 +599,7 @@ int scsi_sense_from_errno(int errno_value, SCSISense *sense)
         *sense = SENSE_CODE(READ_ERROR);
         return CHECK_CONDITION;
     case EREMOTEIO:
-        *sense = SENSE_CODE(LUN_COMM_FAILURE);
+        *sense = SENSE_CODE(TARGET_FAILURE);
         return CHECK_CONDITION;
 #endif
     case ENOMEDIUM:

@@ -629,8 +629,10 @@ void timer_del(QEMUTimer *ts);
  */
 static inline void timer_free(QEMUTimer *ts)
 {
-    timer_del(ts);
-    g_free(ts);
+    if (ts) {
+        timer_del(ts);
+        g_free(ts);
+    }
 }
 
 /**

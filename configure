@@ -465,6 +465,7 @@ fuse_lseek="auto"
 multiprocess="auto"
 
 malloc_trim="auto"
+gio="$default_feature"
 
 # parse CC options second
 for opt do
@@ -1560,6 +1561,10 @@ for opt do
   ;;
   --disable-multiprocess) multiprocess="disabled"
   ;;
+  --enable-gio) gio=yes
+  ;;
+  --disable-gio) gio=no
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1913,6 +1918,7 @@ disabled with --disable-FEATURE, default is enabled if available
   fuse            FUSE block device export
   fuse-lseek      SEEK_HOLE/SEEK_DATA support for FUSE exports
   multiprocess    Out of process device emulation support
+  gio             libgio support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -3319,17 +3325,19 @@ if test "$static" = yes && test "$mingw32" = yes; then
     glib_cflags="-DGLIB_STATIC_COMPILATION $glib_cflags"
 fi
 
-if $pkg_config --atleast-version=$glib_req_ver gio-2.0; then
-    gio_cflags=$($pkg_config --cflags gio-2.0)
-    gio_libs=$($pkg_config --libs gio-2.0)
-    gdbus_codegen=$($pkg_config --variable=gdbus_codegen gio-2.0)
-    if [ ! -x "$gdbus_codegen" ]; then
-        gdbus_codegen=
-    fi
-    # Check that the libraries actually work -- Ubuntu 18.04 ships
-    # with pkg-config --static --libs data for gio-2.0 that is missing
-    # -lblkid and will give a link error.
-    cat > $TMPC <<EOF
+if ! test "$gio" = "no"; then
+    pass=no
+    if $pkg_config --atleast-version=$glib_req_ver gio-2.0; then
+        gio_cflags=$($pkg_config --cflags gio-2.0)
+        gio_libs=$($pkg_config --libs gio-2.0)
+        gdbus_codegen=$($pkg_config --variable=gdbus_codegen gio-2.0)
+        if [ ! -x "$gdbus_codegen" ]; then
+            gdbus_codegen=
+        fi
+        # Check that the libraries actually work -- Ubuntu 18.04 ships
+        # with pkg-config --static --libs data for gio-2.0 that is missing
+        # -lblkid and will give a link error.
+        cat > $TMPC <<EOF
 #include <gio/gio.h>
 int main(void)
 {
@@ -3337,18 +3345,28 @@ int main(void)
     return 0;
 }
 EOF
-    if compile_prog "$gio_cflags" "$gio_libs" ; then
-        gio=yes
-    else
-        gio=no
-    fi
-else
-    gio=no
-fi
+        if compile_prog "$gio_cflags" "$gio_libs" ; then
+            pass=yes
+        else
+            pass=no
+        fi
 
-if $pkg_config --atleast-version=$glib_req_ver gio-unix-2.0; then
-    gio_cflags="$gio_cflags $($pkg_config --cflags gio-unix-2.0)"
-    gio_libs="$gio_libs $($pkg_config --libs gio-unix-2.0)"
+        if test "$pass" = "yes" &&
+            $pkg_config --atleast-version=$glib_req_ver gio-unix-2.0; then
+            gio_cflags="$gio_cflags $($pkg_config --cflags gio-unix-2.0)"
+            gio_libs="$gio_libs $($pkg_config --libs gio-unix-2.0)"
+        fi
+    fi
+
+    if test "$pass" = "no"; then
+        if test "$gio" = "yes"; then
+            feature_not_found "gio" "Install libgio >= 2.0"
+        else
+            gio=no
+        fi
+    else
+        gio=yes
+    fi
 fi
 
 # Sanity check that the current size_t matches the
