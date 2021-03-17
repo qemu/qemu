@@ -548,3 +548,20 @@ bool eth_parse_ipv6_hdr(const struct iovec *pkt, int pkt_frags,
     info->l4proto = ext_hdr.ip6r_nxt;
     return true;
 }
+
+bool eth_pad_short_frame(uint8_t *padded_pkt, size_t *padded_buflen,
+                         const void *pkt, size_t pkt_size)
+{
+    assert(padded_buflen && *padded_buflen >= ETH_ZLEN);
+
+    if (pkt_size >= ETH_ZLEN) {
+        return false;
+    }
+
+    /* pad to minimum Ethernet frame length */
+    memcpy(padded_pkt, pkt, pkt_size);
+    memset(&padded_pkt[pkt_size], 0, ETH_ZLEN - pkt_size);
+    *padded_buflen = ETH_ZLEN;
+
+    return true;
+}
