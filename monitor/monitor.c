@@ -349,7 +349,7 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
     evconf = &monitor_qapi_event_conf[event];
     trace_monitor_protocol_event_queue(event, qdict, evconf->rate);
 
-    qemu_mutex_lock(&monitor_lock);
+    QEMU_LOCK_GUARD(&monitor_lock);
 
     if (!evconf->rate) {
         /* Unthrottled event */
@@ -391,8 +391,6 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
             timer_mod_ns(evstate->timer, now + evconf->rate);
         }
     }
-
-    qemu_mutex_unlock(&monitor_lock);
 }
 
 void qapi_event_emit(QAPIEvent event, QDict *qdict)
@@ -447,7 +445,7 @@ static void monitor_qapi_event_handler(void *opaque)
     MonitorQAPIEventConf *evconf = &monitor_qapi_event_conf[evstate->event];
 
     trace_monitor_protocol_event_handler(evstate->event, evstate->qdict);
-    qemu_mutex_lock(&monitor_lock);
+    QEMU_LOCK_GUARD(&monitor_lock);
 
     if (evstate->qdict) {
         int64_t now = qemu_clock_get_ns(monitor_get_event_clock());
@@ -462,8 +460,6 @@ static void monitor_qapi_event_handler(void *opaque)
         timer_free(evstate->timer);
         g_free(evstate);
     }
-
-    qemu_mutex_unlock(&monitor_lock);
 }
 
 static unsigned int qapi_event_throttle_hash(const void *key)

@@ -37,6 +37,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
+#include "qemu-version.h"
+#include "qemu-common.h"
 #include "fuse_virtio.h"
 #include "fuse_log.h"
 #include "fuse_lowlevel.h"
@@ -221,20 +223,25 @@ static struct lo_inode *lo_find(struct lo_data *lo, struct stat *st,
 static int xattr_map_client(const struct lo_data *lo, const char *client_name,
                             char **out_name);
 
-static int is_dot_or_dotdot(const char *name)
+static bool is_dot_or_dotdot(const char *name)
 {
     return name[0] == '.' &&
            (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'));
 }
 
 /* Is `path` a single path component that is not "." or ".."? */
-static int is_safe_path_component(const char *path)
+static bool is_safe_path_component(const char *path)
 {
     if (strchr(path, '/')) {
-        return 0;
+        return false;
     }
 
     return !is_dot_or_dotdot(path);
+}
+
+static bool is_empty(const char *name)
+{
+    return name[0] == '\0';
 }
 
 static struct lo_data *lo_data(fuse_req_t req)
@@ -1083,6 +1090,11 @@ static void lo_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     fuse_log(FUSE_LOG_DEBUG, "lo_lookup(parent=%" PRIu64 ", name=%s)\n", parent,
              name);
 
+    if (is_empty(name)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
+
     /*
      * Don't use is_safe_path_component(), allow "." and ".." for NFS export
      * support.
@@ -1174,6 +1186,11 @@ static void lo_mknod_symlink(fuse_req_t req, fuse_ino_t parent,
     struct fuse_entry_param e;
     struct lo_cred old = {};
 
+    if (is_empty(name)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
+
     if (!is_safe_path_component(name)) {
         fuse_reply_err(req, EINVAL);
         return;
@@ -1246,6 +1263,11 @@ static void lo_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
     char procname[64];
     int saverr;
 
+    if (is_empty(name)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
+
     if (!is_safe_path_component(name)) {
         fuse_reply_err(req, EINVAL);
         return;
@@ -1308,8 +1330,7 @@ static struct lo_inode *lookup_name(fuse_req_t req, fuse_ino_t parent,
         return NULL;
     }
 
-    res = do_statx(lo, dir->fd, name, &attr,
-                   AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW, &mnt_id);
+    res = do_statx(lo, dir->fd, name, &attr, AT_SYMLINK_NOFOLLOW, &mnt_id);
     lo_inode_put(lo, &dir);
     if (res == -1) {
         return NULL;
@@ -1323,6 +1344,11 @@ static void lo_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
     int res;
     struct lo_inode *inode;
     struct lo_data *lo = lo_data(req);
+
+    if (is_empty(name)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
 
     if (!is_safe_path_component(name)) {
         fuse_reply_err(req, EINVAL);
@@ -1352,6 +1378,11 @@ static void lo_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
     struct lo_inode *oldinode = NULL;
     struct lo_inode *newinode = NULL;
     struct lo_data *lo = lo_data(req);
+
+    if (is_empty(name) || is_empty(newname)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
 
     if (!is_safe_path_component(name) || !is_safe_path_component(newname)) {
         fuse_reply_err(req, EINVAL);
@@ -1405,6 +1436,11 @@ static void lo_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
     int res;
     struct lo_inode *inode;
     struct lo_data *lo = lo_data(req);
+
+    if (is_empty(name)) {
+        fuse_reply_err(req, ENOENT);
+        return;
+    }
 
     if (!is_safe_path_component(name)) {
         fuse_reply_err(req, EINVAL);
@@ -3666,6 +3702,11 @@ static void fuse_lo_data_cleanup(struct lo_data *lo)
     free(lo->source);
 }
 
+static void qemu_version(void)
+{
+    printf("virtiofsd version " QEMU_FULL_VERSION "\n" QEMU_COPYRIGHT "\n");
+}
+
 int main(int argc, char *argv[])
 {
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
@@ -3737,6 +3778,7 @@ int main(int argc, char *argv[])
         ret = 0;
         goto err_out1;
     } else if (opts.show_version) {
+        qemu_version();
         fuse_lowlevel_version();
         ret = 0;
         goto err_out1;

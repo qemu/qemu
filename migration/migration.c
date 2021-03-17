@@ -323,7 +323,7 @@ static int migrate_send_rp_message(MigrationIncomingState *mis,
     int ret = 0;
 
     trace_migrate_send_rp_message((int)message_type, len);
-    qemu_mutex_lock(&mis->rp_mutex);
+    QEMU_LOCK_GUARD(&mis->rp_mutex);
 
     /*
      * It's possible that the file handle got lost due to network
@@ -331,7 +331,7 @@ static int migrate_send_rp_message(MigrationIncomingState *mis,
      */
     if (!mis->to_src_file) {
         ret = -EIO;
-        goto error;
+        return ret;
     }
 
     qemu_put_be16(mis->to_src_file, (unsigned int)message_type);
@@ -342,8 +342,6 @@ static int migrate_send_rp_message(MigrationIncomingState *mis,
     /* It's possible that qemu file got error during sending */
     ret = qemu_file_get_error(mis->to_src_file);
 
-error:
-    qemu_mutex_unlock(&mis->rp_mutex);
     return ret;
 }
 
