@@ -7,7 +7,7 @@ typedef struct QEMU_PACKED NvmeBar {
     uint32_t    intms;
     uint32_t    intmc;
     uint32_t    cc;
-    uint32_t    rsvd1;
+    uint8_t     rsvd24[4];
     uint32_t    csts;
     uint32_t    nssrc;
     uint32_t    aqa;
