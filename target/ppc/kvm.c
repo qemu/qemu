@@ -1815,24 +1815,37 @@ static int read_cpuinfo(const char *field, char *value, int len)
     return ret;
 }
 
-uint32_t kvmppc_get_tbfreq(void)
+static uint32_t kvmppc_get_tbfreq_procfs(void)
 {
     char line[512];
     char *ns;
-    uint32_t retval = NANOSECONDS_PER_SECOND;
+    uint32_t tbfreq_fallback = NANOSECONDS_PER_SECOND;
+    uint32_t tbfreq_procfs;
 
     if (read_cpuinfo("timebase", line, sizeof(line))) {
-        return retval;
+        return tbfreq_fallback;
     }
 
     ns = strchr(line, ':');
     if (!ns) {
-        return retval;
+        return tbfreq_fallback;
     }
 
-    ns++;
+    tbfreq_procfs = atoi(++ns);
 
-    return atoi(ns);
+    /* 0 is certainly not acceptable by the guest, return fallback value */
+    return tbfreq_procfs ? tbfreq_procfs : tbfreq_fallback;
+}
+
+uint32_t kvmppc_get_tbfreq(void)
+{
+    static uint32_t cached_tbfreq;
+
+    if (!cached_tbfreq) {
+        cached_tbfreq = kvmppc_get_tbfreq_procfs();
+    }
+
+    return cached_tbfreq;
 }
 
 bool kvmppc_get_host_serial(char **value)
