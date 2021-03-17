@@ -164,6 +164,7 @@ struct VncDisplay
 
     struct VncSurface guest;   /* guest visible surface (aka ds->surface) */
     pixman_image_t *server;    /* vnc server surface */
+    int true_width; /* server surface width before rounding up */
 
     const char *id;
     QTAILQ_ENTRY(VncDisplay) next;

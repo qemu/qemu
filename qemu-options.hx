@@ -1922,7 +1922,8 @@ DEF("spice", HAS_ARG, QEMU_OPTION_spice,
     "       [,tls-ciphers=<list>]\n"
     "       [,tls-channel=[main|display|cursor|inputs|record|playback]]\n"
     "       [,plaintext-channel=[main|display|cursor|inputs|record|playback]]\n"
-    "       [,sasl=on|off][,password=<secret>][,disable-ticketing=on|off]\n"
+    "       [,sasl=on|off][,disable-ticketing=on|off]\n"
+    "       [,password=<string>][,password-secret=<secret-id>]\n"
     "       [,image-compression=[auto_glz|auto_lz|quic|glz|lz|off]]\n"
     "       [,jpeg-wan-compression=[auto|never|always]]\n"
     "       [,zlib-glz-wan-compression=[auto|never|always]]\n"
@@ -1947,8 +1948,16 @@ SRST
     ``ipv4=on|off``; \ ``ipv6=on|off``; \ ``unix=on|off``
         Force using the specified IP version.
 
-    ``password=<secret>``
+    ``password=<string>``
         Set the password you need to authenticate.
+
+        This option is deprecated and insecure because it leaves the
+        password visible in the process listing. Use ``password-secret``
+        instead.
+
+    ``password-secret=<secret-id>``
+        Set the ID of the ``secret`` object containing the password
+        you need to authenticate.
 
     ``sasl=on|off``
         Require that the client use SASL to authenticate with the spice.
@@ -2187,6 +2196,11 @@ SRST
         You can also use keywords "now" or "never" for the expiration
         time to allow <protocol> password to expire immediately or never
         expire.
+
+    ``password-secret=<secret-id>``
+        Require that password based authentication is used for client
+        connections, using the password provided by the ``secret``
+        object identified by ``secret-id``.
 
     ``tls-creds=ID``
         Provides the ID of a set of TLS credentials to use to secure the

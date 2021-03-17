@@ -48,6 +48,7 @@
 #include "crypto/tlscredsanon.h"
 #include "crypto/tlscredsx509.h"
 #include "crypto/random.h"
+#include "crypto/secret_common.h"
 #include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
@@ -607,6 +608,11 @@ static int vnc_width(VncDisplay *vd)
                                        VNC_DIRTY_PIXELS_PER_BIT));
 }
 
+static int vnc_true_width(VncDisplay *vd)
+{
+    return MIN(VNC_MAX_WIDTH, surface_width(vd->ds));
+}
+
 static int vnc_height(VncDisplay *vd)
 {
     return MIN(VNC_MAX_HEIGHT, surface_height(vd->ds));
@@ -658,6 +664,9 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
 
 static void vnc_desktop_resize_ext(VncState *vs, int reject_reason)
 {
+    trace_vnc_msg_server_ext_desktop_resize(
+        vs, vs->ioc, vs->client_width, vs->client_height, reject_reason);
+
     vnc_lock_output(vs);
     vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
     vnc_write_u8(vs, 0);
@@ -687,22 +696,25 @@ static void vnc_desktop_resize(VncState *vs)
                             !vnc_has_feature(vs, VNC_FEATURE_RESIZE_EXT))) {
         return;
     }
-    if (vs->client_width == pixman_image_get_width(vs->vd->server) &&
+    if (vs->client_width == vs->vd->true_width &&
         vs->client_height == pixman_image_get_height(vs->vd->server)) {
         return;
     }
 
-    assert(pixman_image_get_width(vs->vd->server) < 65536 &&
-           pixman_image_get_width(vs->vd->server) >= 0);
+    assert(vs->vd->true_width < 65536 &&
+           vs->vd->true_width >= 0);
     assert(pixman_image_get_height(vs->vd->server) < 65536 &&
            pixman_image_get_height(vs->vd->server) >= 0);
-    vs->client_width = pixman_image_get_width(vs->vd->server);
+    vs->client_width = vs->vd->true_width;
     vs->client_height = pixman_image_get_height(vs->vd->server);
 
     if (vnc_has_feature(vs, VNC_FEATURE_RESIZE_EXT)) {
         vnc_desktop_resize_ext(vs, 0);
         return;
     }
+
+    trace_vnc_msg_server_desktop_resize(
+        vs, vs->ioc, vs->client_width, vs->client_height);
 
     vnc_lock_output(vs);
     vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
@@ -767,6 +779,7 @@ static void vnc_update_server_surface(VncDisplay *vd)
 
     width = vnc_width(vd);
     height = vnc_height(vd);
+    vd->true_width = vnc_true_width(vd);
     vd->server = pixman_image_create_bits(VNC_SERVER_FB_FORMAT,
                                           width, height,
                                           NULL, 0);
@@ -802,13 +815,22 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
     vd->guest.fb = pixman_image_ref(surface->image);
     vd->guest.format = surface->format;
 
+
     if (pageflip) {
+        trace_vnc_server_dpy_pageflip(vd,
+                                      surface_width(surface),
+                                      surface_height(surface),
+                                      surface_format(surface));
         vnc_set_area_dirty(vd->guest.dirty, vd, 0, 0,
                            surface_width(surface),
                            surface_height(surface));
         return;
     }
 
+    trace_vnc_server_dpy_recreate(vd,
+                                  surface_width(surface),
+                                  surface_height(surface),
+                                  surface_format(surface));
     /* server surface */
     vnc_update_server_surface(vd);
 
@@ -1181,6 +1203,7 @@ static void audio_capture_notify(void *opaque, audcnotification_e cmd)
     assert(vs->magic == VNC_MAGIC);
     switch (cmd) {
     case AUD_CNOTIFY_DISABLE:
+        trace_vnc_msg_server_audio_end(vs, vs->ioc);
         vnc_lock_output(vs);
         vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
         vnc_write_u8(vs, VNC_MSG_SERVER_QEMU_AUDIO);
@@ -1190,6 +1213,7 @@ static void audio_capture_notify(void *opaque, audcnotification_e cmd)
         break;
 
     case AUD_CNOTIFY_ENABLE:
+        trace_vnc_msg_server_audio_begin(vs, vs->ioc);
         vnc_lock_output(vs);
         vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
         vnc_write_u8(vs, VNC_MSG_SERVER_QEMU_AUDIO);
@@ -1209,6 +1233,7 @@ static void audio_capture(void *opaque, const void *buf, int size)
     VncState *vs = opaque;
 
     assert(vs->magic == VNC_MAGIC);
+    trace_vnc_msg_server_audio_data(vs, vs->ioc, buf, size);
     vnc_lock_output(vs);
     if (vs->output.offset < vs->throttle_output_offset) {
         vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
@@ -2309,8 +2334,8 @@ static void vnc_colordepth(VncState *vs)
         vnc_write_u8(vs, 0);
         vnc_write_u16(vs, 1); /* number of rects */
         vnc_framebuffer_update(vs, 0, 0,
-                               pixman_image_get_width(vs->vd->server),
-                               pixman_image_get_height(vs->vd->server),
+                               vs->client_width,
+                               vs->client_height,
                                VNC_ENCODING_WMVi);
         pixel_format_message(vs);
         vnc_unlock_output(vs);
@@ -2453,9 +2478,11 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 
             switch (read_u16 (data, 2)) {
             case VNC_MSG_CLIENT_QEMU_AUDIO_ENABLE:
+                trace_vnc_msg_client_audio_enable(vs, vs->ioc);
                 audio_add(vs);
                 break;
             case VNC_MSG_CLIENT_QEMU_AUDIO_DISABLE:
+                trace_vnc_msg_client_audio_disable(vs, vs->ioc);
                 audio_del(vs);
                 break;
             case VNC_MSG_CLIENT_QEMU_AUDIO_SET_FORMAT:
@@ -2491,6 +2518,8 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                     break;
                 }
                 vs->as.freq = freq;
+                trace_vnc_msg_client_audio_format(
+                    vs, vs->ioc, vs->as.fmt, vs->as.nchannels, vs->as.freq);
                 break;
             default:
                 VNC_DEBUG("Invalid audio message %d\n", read_u8(data, 4));
@@ -2509,6 +2538,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
     {
         size_t size;
         uint8_t screens;
+        int w, h;
 
         if (len < 8) {
             return 8;
@@ -2519,12 +2549,15 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         if (len < size) {
             return size;
         }
+        w = read_u16(data, 2);
+        h = read_u16(data, 4);
 
+        trace_vnc_msg_client_set_desktop_size(vs, vs->ioc, w, h, screens);
         if (dpy_ui_info_supported(vs->vd->dcl.con)) {
             QemuUIInfo info;
             memset(&info, 0, sizeof(info));
-            info.width = read_u16(data, 2);
-            info.height = read_u16(data, 4);
+            info.width = w;
+            info.height = h;
             dpy_set_ui_info(vs->vd->dcl.con, &info);
             vnc_desktop_resize_ext(vs, 4 /* Request forwarded */);
         } else {
@@ -3460,6 +3493,9 @@ static QemuOptsList qemu_vnc_opts = {
             .name = "password",
             .type = QEMU_OPT_BOOL,
         },{
+            .name = "password-secret",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "reverse",
             .type = QEMU_OPT_BOOL,
         },{
@@ -3931,6 +3967,7 @@ void vnc_display_open(const char *id, Error **errp)
     int lock_key_sync = 1;
     int key_delay_ms;
     const char *audiodev;
+    const char *passwordSecret;
 
     if (!vd) {
         error_setg(errp, "VNC display not active");
@@ -3948,7 +3985,23 @@ void vnc_display_open(const char *id, Error **errp)
         goto fail;
     }
 
-    password = qemu_opt_get_bool(opts, "password", false);
+
+    passwordSecret = qemu_opt_get(opts, "password-secret");
+    if (passwordSecret) {
+        if (qemu_opt_get(opts, "password")) {
+            error_setg(errp,
+                       "'password' flag is redundant with 'password-secret'");
+            goto fail;
+        }
+        vd->password = qcrypto_secret_lookup_as_utf8(passwordSecret,
+                                                     errp);
+        if (!vd->password) {
+            goto fail;
+        }
+        password = true;
+    } else {
+        password = qemu_opt_get_bool(opts, "password", false);
+    }
     if (password) {
         if (fips_get_state()) {
             error_setg(errp,

@@ -690,7 +690,43 @@ QemuCocoaView *cocoaView;
     NSPoint p = [self screenLocationOfEvent:event];
     NSUInteger modifiers = [event modifierFlags];
 
-    // emulate caps lock keydown and keyup
+    /*
+     * Check -[NSEvent modifierFlags] here.
+     *
+     * There is a NSEventType for an event notifying the change of
+     * -[NSEvent modifierFlags], NSEventTypeFlagsChanged but these operations
+     * are performed for any events because a modifier state may change while
+     * the application is inactive (i.e. no events fire) and we don't want to
+     * wait for another modifier state change to detect such a change.
+     *
+     * NSEventModifierFlagCapsLock requires a special treatment. The other flags
+     * are handled in similar manners.
+     *
+     * NSEventModifierFlagCapsLock
+     * ---------------------------
+     *
+     * If CapsLock state is changed, "up" and "down" events will be fired in
+     * sequence, effectively updates CapsLock state on the guest.
+     *
+     * The other flags
+     * ---------------
+     *
+     * If a flag is not set, fire "up" events for all keys which correspond to
+     * the flag. Note that "down" events are not fired here because the flags
+     * checked here do not tell what exact keys are down.
+     *
+     * If one of the keys corresponding to a flag is down, we rely on
+     * -[NSEvent keyCode] of an event whose -[NSEvent type] is
+     * NSEventTypeFlagsChanged to know the exact key which is down, which has
+     * the following two downsides:
+     * - It does not work when the application is inactive as described above.
+     * - It malfactions *after* the modifier state is changed while the
+     *   application is inactive. It is because -[NSEvent keyCode] does not tell
+     *   if the key is up or down, and requires to infer the current state from
+     *   the previous state. It is still possible to fix such a malfanction by
+     *   completely leaving your hands from the keyboard, which hopefully makes
+     *   this implementation usable enough.
+     */
     if (!!(modifiers & NSEventModifierFlagCapsLock) !=
         qkbd_state_modifier_get(kbd, QKBD_MOD_CAPSLOCK)) {
         qkbd_state_key_event(kbd, Q_KEY_CODE_CAPS_LOCK, true);
@@ -1115,7 +1151,13 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaAppController: applicationWillTerminate\n");
 
     qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_UI);
-    exit(0);
+
+    /*
+     * Sleep here, because returning will cause OSX to kill us
+     * immediately; the QEMU main loop will handle the shutdown
+     * request and terminate the process.
+     */
+    [NSThread sleepForTimeInterval:INFINITY];
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)theApplication

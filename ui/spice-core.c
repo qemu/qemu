@@ -34,6 +34,7 @@
 #include "qapi/qapi-events-ui.h"
 #include "qemu/notify.h"
 #include "qemu/option.h"
+#include "crypto/secret_common.h"
 #include "migration/misc.h"
 #include "hw/pci/pci_bus.h"
 #include "ui/spice-display.h"
@@ -416,6 +417,9 @@ static QemuOptsList qemu_spice_opts = {
             .name = "password",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "password-secret",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "disable-ticketing",
             .type = QEMU_OPT_BOOL,
         },{
@@ -636,7 +640,9 @@ void qemu_spice_display_init_done(void)
 static void qemu_spice_init(void)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
-    const char *password, *str, *x509_dir, *addr,
+    char *password = NULL;
+    const char *passwordSecret;
+    const char *str, *x509_dir, *addr,
         *x509_key_password = NULL,
         *x509_dh_file = NULL,
         *tls_ciphers = NULL;
@@ -663,7 +669,28 @@ static void qemu_spice_init(void)
         error_report("spice tls-port is out of range");
         exit(1);
     }
-    password = qemu_opt_get(opts, "password");
+    passwordSecret = qemu_opt_get(opts, "password-secret");
+    if (passwordSecret) {
+        Error *local_err = NULL;
+        if (qemu_opt_get(opts, "password")) {
+            error_report("'password' option is mutually exclusive with "
+                         "'password-secret'");
+            exit(1);
+        }
+        password = qcrypto_secret_lookup_as_utf8(passwordSecret,
+                                                 &local_err);
+        if (!password) {
+            error_report_err(local_err);
+            exit(1);
+        }
+    } else {
+        str = qemu_opt_get(opts, "password");
+        if (str) {
+            warn_report("'password' option is deprecated and insecure, "
+                        "use 'password-secret' instead");
+            password = g_strdup(str);
+        }
+    }
 
     if (tls_port) {
         x509_dir = qemu_opt_get(opts, "x509-dir");
@@ -809,6 +836,7 @@ static void qemu_spice_init(void)
     g_free(x509_key_file);
     g_free(x509_cert_file);
     g_free(x509_cacert_file);
+    g_free(password);
 
 #ifdef HAVE_SPICE_GL
     if (qemu_opt_get_bool(opts, "gl", 0)) {
