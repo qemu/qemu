@@ -25,6 +25,7 @@ DECLARE_INSTANCE_CHECKER(FxState, FX,
 #define INTERRUPT_STATUS_REGISTER   0x24
 #define INTERRUPT_RAISE_REGISTER    0x60
 #define INTERRUPT_ACK_REGISTER      0x64
+#define PROTECT_IDT_CMD             0x80
 
 struct FxState {
     PCIDevice pdev;
