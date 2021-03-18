@@ -79,6 +79,7 @@ def gen_param_var(typ: QAPISchemaObjectType) -> str:
 
 def gen_event_send(name: str,
                    arg_type: Optional[QAPISchemaObjectType],
+                   features: List[QAPISchemaFeature],
                    boxed: bool,
                    event_enum_name: str,
                    event_emit: str) -> str:
@@ -106,6 +107,14 @@ def gen_event_send(name: str,
 ''')
         if not boxed:
             ret += gen_param_var(arg_type)
+
+    if 'deprecated' in [f.name for f in features]:
+        ret += mcgen('''
+
+    if (compat_policy.deprecated_output == COMPAT_POLICY_OUTPUT_HIDE) {
+        return;
+    }
+''')
 
     ret += mcgen('''
 
@@ -176,6 +185,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 #include "%(prefix)sqapi-emit-events.h"
 #include "%(events)s.h"
 #include "%(visit)s.h"
+#include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qobject-output-visitor.h"
@@ -220,7 +230,7 @@ void %(event_emit)s(%(event_enum)s event, QDict *qdict);
                     boxed: bool) -> None:
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_event_send_decl(name, arg_type, boxed))
-            self._genc.add(gen_event_send(name, arg_type, boxed,
+            self._genc.add(gen_event_send(name, arg_type, features, boxed,
                                           self._event_enum_name,
                                           self._event_emit_name))
         # Note: we generate the enum member regardless of @ifcond, to
