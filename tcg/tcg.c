@@ -1740,7 +1740,7 @@ static void tcg_dump_ops(TCGContext *s, bool have_prefs)
             }
         } else if (c == INDEX_op_call) {
             const TCGHelperInfo *info = tcg_call_info(op);
-            void *func;
+            void *func = tcg_call_func(op);
 
             /* variable number of arguments */
             nb_oargs = TCGOP_CALLO(op);
@@ -1754,7 +1754,6 @@ static void tcg_dump_ops(TCGContext *s, bool have_prefs)
              * Note that plugins have a template function for the info,
              * but the actual function pointer comes from the plugin.
              */
-            func = (void *)(uintptr_t)op->args[nb_oargs + nb_iargs];
             if (func == info->func) {
                 col += qemu_log("%s", info->name);
             } else {
@@ -3789,7 +3788,7 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     int allocate_args;
     TCGRegSet allocated_regs;
 
-    func_addr = (tcg_insn_unit *)(intptr_t)op->args[nb_oargs + nb_iargs];
+    func_addr = tcg_call_func(op);
     flags = tcg_call_flags(op);
 
     nb_regs = ARRAY_SIZE(tcg_target_call_iarg_regs);
