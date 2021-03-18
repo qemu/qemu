@@ -13,12 +13,12 @@ static char *get_cpu0_qom_path(void)
     QDict *cpu0;
     char *path;
 
-    resp = qmp("{'execute': 'query-cpus', 'arguments': {}}");
+    resp = qmp("{'execute': 'query-cpus-fast', 'arguments': {}}");
     g_assert(qdict_haskey(resp, "return"));
     ret = qdict_get_qlist(resp, "return");
 
     cpu0 = qobject_to(QDict, qlist_peek(ret));
-    path = g_strdup(qdict_get_str(cpu0, "qom_path"));
+    path = g_strdup(qdict_get_str(cpu0, "qom-path"));
     qobject_unref(resp);
     return path;
 }

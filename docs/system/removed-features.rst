@@ -45,6 +45,24 @@ This option lacked the possibility to specify an audio backend device.
 Use ``-device usb-audio`` now instead (and specify a corresponding USB
 host controller or ``-usb`` if necessary).
 
+``-vnc acl`` (removed in 6.0)
+'''''''''''''''''''''''''''''
+
+The ``acl`` option to the ``-vnc`` argument has been replaced
+by the ``tls-authz`` and ``sasl-authz`` options.
+
+``-mon ...,control=readline,pretty=on|off`` (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``pretty=on|off`` switch has no effect for HMP monitors and
+its use is rejected.
+
+``-drive file=json:{...{'driver':'file'}}`` (removed 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The 'file' driver for drives is no longer appropriate for character or host
+devices and will only accept regular files (S_IFREG). The correct driver
+for these file types is 'host_cdrom' or 'host_device' as appropriate.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
@@ -66,6 +84,65 @@ documentation of ``query-hotpluggable-cpus`` for additional details.
 
 Use ``blockdev-change-medium`` or ``change-vnc-password`` instead.
 
+``query-events`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''
+
+The ``query-events`` command has been superseded by the more powerful
+and accurate ``query-qmp-schema`` command.
+
+``migrate_set_cache_size`` and ``query-migrate-cache-size`` (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``migrate_set_parameter`` and ``info migrate_parameters`` instead.
+
+``migrate_set_downtime`` and ``migrate_set_speed`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``migrate_set_parameter`` instead.
+
+``query-cpus`` (removed in 6.0)
+'''''''''''''''''''''''''''''''
+
+The ``query-cpus`` command is replaced by the ``query-cpus-fast`` command.
+
+``query-cpus-fast`` ``arch`` output member (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``arch`` output member of the ``query-cpus-fast`` command is
+replaced by the ``target`` output member.
+
+chardev client socket with ``wait`` option (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Character devices creating sockets in client mode should not specify
+the 'wait' field, which is only applicable to sockets in server mode
+
+``query-named-block-nodes`` result ``encryption_key_missing`` (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Removed with no replacement.
+
+``query-block`` result ``inserted.encryption_key_missing`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Removed with no replacement.
+
+``query-named-block-nodes`` and ``query-block`` result dirty-bitmaps[i].status (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``status`` field of the ``BlockDirtyInfo`` structure, returned by
+these commands is removed. Two new boolean fields, ``recording`` and
+``busy`` effectively replace it.
+
+``query-block`` result field ``dirty-bitmaps`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``dirty-bitmaps`` field of the ``BlockInfo`` structure, returned by
+the query-block command is itself now removed. The ``dirty-bitmaps``
+field of the ``BlockDeviceInfo`` struct should be used instead, which is the
+type of the ``inserted`` field in query-block replies, as well as the
+type of array items in query-named-block-nodes.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
@@ -86,6 +163,23 @@ documentation of ``query-hotpluggable-cpus`` for additional details.
 
 No replacement.  The ``change vnc password`` and ``change DEVICE MEDIUM``
 commands are not affected.
+
+``acl_show``, ``acl_reset``, ``acl_policy``, ``acl_add``, ``acl_remove`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``acl_show``, ``acl_reset``, ``acl_policy``, ``acl_add``, and
+``acl_remove`` commands were removed with no replacement. Authorization
+for VNC should be performed using the pluggable QAuthZ objects.
+
+``migrate-set-cache-size`` and ``info migrate-cache-size`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``migrate-set-parameters`` and ``info migrate-parameters`` instead.
+
+``migrate_set_downtime`` and ``migrate_set_speed`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use ``migrate-set-parameters`` instead.
 
 Guest Emulator ISAs
 -------------------
@@ -163,6 +257,20 @@ the upstream Linux kernel in 2018, and it has also been dropped from glibc, so
 there is no new Linux development taking place with this architecture. For
 running the old binaries, you can use older versions of QEMU.
 
+System emulator devices
+-----------------------
+
+``ide-drive`` (removed in 6.0)
+''''''''''''''''''''''''''''''
+
+The 'ide-drive' device has been removed. Users should use 'ide-hd' or
+'ide-cd' as appropriate to get an IDE hard disk or CD-ROM as needed.
+
+``scsi-disk`` (removed in 6.0)
+''''''''''''''''''''''''''''''
+
+The 'scsi-disk' device has been removed. Users should use 'scsi-hd' or
+'scsi-cd' as appropriate to get a SCSI hard disk or CD-ROM as needed.
 
 Related binaries
 ----------------

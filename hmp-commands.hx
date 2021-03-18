@@ -980,51 +980,6 @@ SRST
 ERST
 
     {
-        .name       = "migrate_set_cache_size",
-        .args_type  = "value:o",
-        .params     = "value",
-        .help       = "set cache size (in bytes) for XBZRLE migrations,"
-                      "the cache size will be rounded down to the nearest "
-                      "power of 2.\n"
-                      "The cache size affects the number of cache misses."
-                      "In case of a high cache miss ratio you need to increase"
-                      " the cache size",
-        .cmd        = hmp_migrate_set_cache_size,
-    },
-
-SRST
-``migrate_set_cache_size`` *value*
-  Set cache size to *value* (in bytes) for xbzrle migrations.
-ERST
-
-    {
-        .name       = "migrate_set_speed",
-        .args_type  = "value:o",
-        .params     = "value",
-        .help       = "set maximum speed (in bytes) for migrations. "
-	"Defaults to MB if no size suffix is specified, ie. B/K/M/G/T",
-        .cmd        = hmp_migrate_set_speed,
-    },
-
-SRST
-``migrate_set_speed`` *value*
-  Set maximum speed to *value* (in bytes) for migrations.
-ERST
-
-    {
-        .name       = "migrate_set_downtime",
-        .args_type  = "value:T",
-        .params     = "value",
-        .help       = "set maximum tolerated downtime (in seconds) for migrations",
-        .cmd        = hmp_migrate_set_downtime,
-    },
-
-SRST
-``migrate_set_downtime`` *second*
-  Set maximum tolerated downtime (in seconds) for migration.
-ERST
-
-    {
         .name       = "migrate_set_capability",
         .args_type  = "capability:s,state:b",
         .params     = "capability state",
@@ -1431,82 +1386,6 @@ ERST
 SRST
 ``watchdog_action``
   Change watchdog action.
-ERST
-
-    {
-        .name       = "acl_show",
-        .args_type  = "aclname:s",
-        .params     = "aclname",
-        .help       = "list rules in the access control list",
-        .cmd        = hmp_acl_show,
-    },
-
-SRST
-``acl_show`` *aclname*
-  List all the matching rules in the access control list, and the default
-  policy. There are currently two named access control lists,
-  *vnc.x509dname* and *vnc.username* matching on the x509 client
-  certificate distinguished name, and SASL username respectively.
-ERST
-
-    {
-        .name       = "acl_policy",
-        .args_type  = "aclname:s,policy:s",
-        .params     = "aclname allow|deny",
-        .help       = "set default access control list policy",
-        .cmd        = hmp_acl_policy,
-    },
-
-SRST
-``acl_policy`` *aclname* ``allow|deny``
-  Set the default access control list policy, used in the event that
-  none of the explicit rules match. The default policy at startup is
-  always ``deny``.
-ERST
-
-    {
-        .name       = "acl_add",
-        .args_type  = "aclname:s,match:s,policy:s,index:i?",
-        .params     = "aclname match allow|deny [index]",
-        .help       = "add a match rule to the access control list",
-        .cmd        = hmp_acl_add,
-    },
-
-SRST
-``acl_add`` *aclname* *match* ``allow|deny`` [*index*]
-  Add a match rule to the access control list, allowing or denying access.
-  The match will normally be an exact username or x509 distinguished name,
-  but can optionally include wildcard globs. eg ``*@EXAMPLE.COM`` to
-  allow all users in the ``EXAMPLE.COM`` kerberos realm. The match will
-  normally be appended to the end of the ACL, but can be inserted
-  earlier in the list if the optional *index* parameter is supplied.
-ERST
-
-    {
-        .name       = "acl_remove",
-        .args_type  = "aclname:s,match:s",
-        .params     = "aclname match",
-        .help       = "remove a match rule from the access control list",
-        .cmd        = hmp_acl_remove,
-    },
-
-SRST
-``acl_remove`` *aclname* *match*
-  Remove the specified match rule from the access control list.
-ERST
-
-    {
-        .name       = "acl_reset",
-        .args_type  = "aclname:s",
-        .params     = "aclname",
-        .help       = "reset the access control list",
-        .cmd        = hmp_acl_reset,
-    },
-
-SRST
-``acl_reset`` *aclname*
-  Remove all matches from the access control list, and set the default
-  policy back to ``deny``.
 ERST
 
     {

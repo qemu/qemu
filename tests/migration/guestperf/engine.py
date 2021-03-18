@@ -110,7 +110,7 @@ class Engine(object):
         src_vcpu_time = []
         src_pid = src.get_pid()
 
-        vcpus = src.command("query-cpus")
+        vcpus = src.command("query-cpus-fast")
         src_threads = []
         for vcpu in vcpus:
             src_threads.append(vcpu["thread_id"])
@@ -149,11 +149,11 @@ class Engine(object):
                                      "state": True }
                                ])
 
-        resp = src.command("migrate_set_speed",
-                           value=scenario._bandwidth * 1024 * 1024)
+        resp = src.command("migrate-set-parameters",
+                           max_bandwidth=scenario._bandwidth * 1024 * 1024)
 
-        resp = src.command("migrate_set_downtime",
-                           value=scenario._downtime / 1024.0)
+        resp = src.command("migrate-set-parameters",
+                           downtime_limit=scenario._downtime / 1024.0)
 
         if scenario._compression_mt:
             resp = src.command("migrate-set-capabilities",
@@ -182,9 +182,11 @@ class Engine(object):
                                    { "capability": "xbzrle",
                                      "state": True }
                                ])
-            resp = src.command("migrate-set-cache-size",
-                               value=(hardware._mem * 1024 * 1024 * 1024 / 100 *
-                                      scenario._compression_xbzrle_cache))
+            resp = src.command("migrate-set-parameters",
+                               xbzrle_cache_size=(
+                                   hardware._mem *
+                                   1024 * 1024 * 1024 / 100 *
+                                   scenario._compression_xbzrle_cache))
 
         resp = src.command("migrate", uri=connect_uri)
 

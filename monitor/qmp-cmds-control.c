@@ -130,30 +130,6 @@ CommandInfoList *qmp_query_commands(Error **errp)
     return list;
 }
 
-EventInfoList *qmp_query_events(Error **errp)
-{
-    /*
-     * TODO This deprecated command is the only user of
-     * QAPIEvent_str() and QAPIEvent_lookup[].  When the command goes,
-     * they should go, too.
-     */
-    EventInfoList *ev_list = NULL;
-    QAPIEvent e;
-
-    for (e = 0 ; e < QAPI_EVENT__MAX ; e++) {
-        const char *event_name = QAPIEvent_str(e);
-        EventInfo *info;
-
-        assert(event_name != NULL);
-        info = g_malloc0(sizeof(*info));
-        info->name = g_strdup(event_name);
-
-        QAPI_LIST_PREPEND(ev_list, info);
-    }
-
-    return ev_list;
-}
-
 /*
  * Minor hack: generated marshalling suppressed for this command
  * ('gen': false in the schema) so we can parse the JSON string

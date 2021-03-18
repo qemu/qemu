@@ -72,7 +72,7 @@ static void test_mon_partial(const void *data)
 
 static QList *get_cpus(QTestState *qts, QDict **resp)
 {
-    *resp = qtest_qmp(qts, "{ 'execute': 'query-cpus' }");
+    *resp = qtest_qmp(qts, "{ 'execute': 'query-cpus-fast' }");
     g_assert(*resp);
     g_assert(qdict_haskey(*resp, "return"));
     return qdict_get_qlist(*resp, "return");
@@ -97,10 +97,10 @@ static void test_query_cpus(const void *data)
         int64_t cpu_idx, node;
 
         cpu = qobject_to(QDict, e);
-        g_assert(qdict_haskey(cpu, "CPU"));
+        g_assert(qdict_haskey(cpu, "cpu-index"));
         g_assert(qdict_haskey(cpu, "props"));
 
-        cpu_idx = qdict_get_int(cpu, "CPU");
+        cpu_idx = qdict_get_int(cpu, "cpu-index");
         props = qdict_get_qdict(cpu, "props");
         g_assert(qdict_haskey(props, "node-id"));
         node = qdict_get_int(props, "node-id");

@@ -641,7 +641,7 @@ time per vCPU.
 
 .. note::
   During the postcopy phase, the bandwidth limits set using
-  ``migrate_set_speed`` is ignored (to avoid delaying requested pages that
+  ``migrate_set_parameter`` is ignored (to avoid delaying requested pages that
   the destination is waiting for).
 
 Postcopy device transfer

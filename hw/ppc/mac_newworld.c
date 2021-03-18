@@ -539,8 +539,6 @@ static char *core99_fw_dev_path(FWPathProvider *p, BusState *bus,
                                 DeviceState *dev)
 {
     PCIDevice *pci;
-    IDEBus *ide_bus;
-    IDEState *ide_s;
     MACIOIDEState *macio_ide;
 
     if (!strcmp(object_get_typename(OBJECT(dev)), "macio-newworld")) {
@@ -551,17 +549,6 @@ static char *core99_fw_dev_path(FWPathProvider *p, BusState *bus,
     if (!strcmp(object_get_typename(OBJECT(dev)), "macio-ide")) {
         macio_ide = MACIO_IDE(dev);
         return g_strdup_printf("ata-3@%x", macio_ide->addr);
-    }
-
-    if (!strcmp(object_get_typename(OBJECT(dev)), "ide-drive")) {
-        ide_bus = IDE_BUS(qdev_get_parent_bus(dev));
-        ide_s = idebus_active_if(ide_bus);
-
-        if (ide_s->drive_kind == IDE_CD) {
-            return g_strdup("cdrom");
-        }
-
-        return g_strdup("disk");
     }
 
     if (!strcmp(object_get_typename(OBJECT(dev)), "ide-hd")) {

@@ -24,125 +24,6 @@
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 
-CpuInfoList *qmp_query_cpus(Error **errp)
-{
-    MachineState *ms = MACHINE(qdev_get_machine());
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
-    CpuInfoList *head = NULL, **tail = &head;
-    CPUState *cpu;
-
-    CPU_FOREACH(cpu) {
-        CpuInfo *value;
-#if defined(TARGET_I386)
-        X86CPU *x86_cpu = X86_CPU(cpu);
-        CPUX86State *env = &x86_cpu->env;
-#elif defined(TARGET_PPC)
-        PowerPCCPU *ppc_cpu = POWERPC_CPU(cpu);
-        CPUPPCState *env = &ppc_cpu->env;
-#elif defined(TARGET_SPARC)
-        SPARCCPU *sparc_cpu = SPARC_CPU(cpu);
-        CPUSPARCState *env = &sparc_cpu->env;
-#elif defined(TARGET_RISCV)
-        RISCVCPU *riscv_cpu = RISCV_CPU(cpu);
-        CPURISCVState *env = &riscv_cpu->env;
-#elif defined(TARGET_MIPS)
-        MIPSCPU *mips_cpu = MIPS_CPU(cpu);
-        CPUMIPSState *env = &mips_cpu->env;
-#elif defined(TARGET_TRICORE)
-        TriCoreCPU *tricore_cpu = TRICORE_CPU(cpu);
-        CPUTriCoreState *env = &tricore_cpu->env;
-#elif defined(TARGET_S390X)
-        S390CPU *s390_cpu = S390_CPU(cpu);
-        CPUS390XState *env = &s390_cpu->env;
-#endif
-
-        cpu_synchronize_state(cpu);
-
-        value = g_malloc0(sizeof(*value));
-        value->CPU = cpu->cpu_index;
-        value->current = (cpu == first_cpu);
-        value->halted = cpu->halted;
-        value->qom_path = object_get_canonical_path(OBJECT(cpu));
-        value->thread_id = cpu->thread_id;
-#if defined(TARGET_I386)
-        value->arch = CPU_INFO_ARCH_X86;
-        value->u.x86.pc = env->eip + env->segs[R_CS].base;
-#elif defined(TARGET_PPC)
-        value->arch = CPU_INFO_ARCH_PPC;
-        value->u.ppc.nip = env->nip;
-#elif defined(TARGET_SPARC)
-        value->arch = CPU_INFO_ARCH_SPARC;
-        value->u.q_sparc.pc = env->pc;
-        value->u.q_sparc.npc = env->npc;
-#elif defined(TARGET_MIPS)
-        value->arch = CPU_INFO_ARCH_MIPS;
-        value->u.q_mips.PC = env->active_tc.PC;
-#elif defined(TARGET_TRICORE)
-        value->arch = CPU_INFO_ARCH_TRICORE;
-        value->u.tricore.PC = env->PC;
-#elif defined(TARGET_S390X)
-        value->arch = CPU_INFO_ARCH_S390;
-        value->u.s390.cpu_state = env->cpu_state;
-#elif defined(TARGET_RISCV)
-        value->arch = CPU_INFO_ARCH_RISCV;
-        value->u.riscv.pc = env->pc;
-#else
-        value->arch = CPU_INFO_ARCH_OTHER;
-#endif
-        value->has_props = !!mc->cpu_index_to_instance_props;
-        if (value->has_props) {
-            CpuInstanceProperties *props;
-            props = g_malloc0(sizeof(*props));
-            *props = mc->cpu_index_to_instance_props(ms, cpu->cpu_index);
-            value->props = props;
-        }
-
-        QAPI_LIST_APPEND(tail, value);
-    }
-
-    return head;
-}
-
-static CpuInfoArch sysemu_target_to_cpuinfo_arch(SysEmuTarget target)
-{
-    /*
-     * The @SysEmuTarget -> @CpuInfoArch mapping below is based on the
-     * TARGET_ARCH -> TARGET_BASE_ARCH mapping in the "configure" script.
-     */
-    switch (target) {
-    case SYS_EMU_TARGET_I386:
-    case SYS_EMU_TARGET_X86_64:
-        return CPU_INFO_ARCH_X86;
-
-    case SYS_EMU_TARGET_PPC:
-    case SYS_EMU_TARGET_PPC64:
-        return CPU_INFO_ARCH_PPC;
-
-    case SYS_EMU_TARGET_SPARC:
-    case SYS_EMU_TARGET_SPARC64:
-        return CPU_INFO_ARCH_SPARC;
-
-    case SYS_EMU_TARGET_MIPS:
-    case SYS_EMU_TARGET_MIPSEL:
-    case SYS_EMU_TARGET_MIPS64:
-    case SYS_EMU_TARGET_MIPS64EL:
-        return CPU_INFO_ARCH_MIPS;
-
-    case SYS_EMU_TARGET_TRICORE:
-        return CPU_INFO_ARCH_TRICORE;
-
-    case SYS_EMU_TARGET_S390X:
-        return CPU_INFO_ARCH_S390;
-
-    case SYS_EMU_TARGET_RISCV32:
-    case SYS_EMU_TARGET_RISCV64:
-        return CPU_INFO_ARCH_RISCV;
-
-    default:
-        return CPU_INFO_ARCH_OTHER;
-    }
-}
-
 static void cpustate_to_cpuinfo_s390(CpuInfoS390 *info, const CPUState *cpu)
 {
 #ifdef TARGET_S390X
@@ -183,7 +64,6 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
             value->props = props;
         }
 
-        value->arch = sysemu_target_to_cpuinfo_arch(target);
         value->target = target;
         if (target == SYS_EMU_TARGET_S390X) {
             cpustate_to_cpuinfo_s390(&value->u.s390x, cpu);

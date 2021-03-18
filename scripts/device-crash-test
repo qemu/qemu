@@ -76,7 +76,6 @@ ERROR_RULE_LIST = [
     {'device':'ics', 'expected':True},                     # ics_base_realize: required link 'xics' not found: Property '.xics' not found
     # "-device ide-cd" does work on more recent QEMU versions, so it doesn't have expected=True
     {'device':'ide-cd'},                                 # No drive specified
-    {'device':'ide-drive', 'expected':True},               # No drive specified
     {'device':'ide-hd', 'expected':True},                  # No drive specified
     {'device':'ipmi-bmc-extern', 'expected':True},         # IPMI external bmc requires chardev attribute
     {'device':'isa-debugcon', 'expected':True},            # Can't create serial device, empty char device
@@ -94,7 +93,6 @@ ERROR_RULE_LIST = [
     {'device':'pci-bridge-seat', 'expected':True},         # Bridge chassis not specified. Each bridge is required to be assigned a unique chassis id > 0.
     {'device':'pxb', 'expected':True},                     # Bridge chassis not specified. Each bridge is required to be assigned a unique chassis id > 0.
     {'device':'scsi-block', 'expected':True},              # drive property not set
-    {'device':'scsi-disk', 'expected':True},               # drive property not set
     {'device':'scsi-generic', 'expected':True},            # drive property not set
     {'device':'scsi-hd', 'expected':True},                 # drive property not set
     {'device':'spapr-pci-host-bridge', 'expected':True},   # BUID not specified for PHB

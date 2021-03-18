@@ -39,7 +39,7 @@ overwrite = [("0xab", "0",         "64k"), # Full overwrite
 
 def query_bitmaps(vm):
     res = vm.qmp("query-block")
-    return { "bitmaps": { device['device']: device.get('dirty-bitmaps', []) for
+    return { "bitmaps": { device['device']: device.get('inserted', {}).get('dirty-bitmaps', []) for
                           device in res['return'] } }
 
 with iotests.FilePath('img') as img_path, \

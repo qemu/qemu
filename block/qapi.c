@@ -62,7 +62,6 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
     info->ro                     = bs->read_only;
     info->drv                    = g_strdup(bs->drv->format_name);
     info->encrypted              = bs->encrypted;
-    info->encryption_key_missing = false;
 
     info->cache = g_new(BlockdevCacheInfo, 1);
     *info->cache = (BlockdevCacheInfo) {
@@ -382,11 +381,6 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     if (blk_iostatus_is_enabled(blk)) {
         info->has_io_status = true;
         info->io_status = blk_iostatus(blk);
-    }
-
-    if (bs && !QLIST_EMPTY(&bs->dirty_bitmaps)) {
-        info->has_dirty_bitmaps = true;
-        info->dirty_bitmaps = bdrv_query_dirty_bitmaps(bs);
     }
 
     if (bs && bs->drv) {

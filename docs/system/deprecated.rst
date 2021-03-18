@@ -21,19 +21,6 @@ deprecated.
 System emulator command line arguments
 --------------------------------------
 
-``-drive file=json:{...{'driver':'file'}}`` (since 3.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The 'file' driver for drives is no longer appropriate for character or host
-devices and will only accept regular files (S_IFREG). The correct driver
-for these file types is 'host_cdrom' or 'host_device' as appropriate.
-
-``-vnc acl`` (since 4.0.0)
-''''''''''''''''''''''''''
-
-The ``acl`` option to the ``-vnc`` argument has been replaced
-by the ``tls-authz`` and ``sasl-authz`` options.
-
 ``QEMU_AUDIO_`` environment variables and ``-audio-help`` (since 4.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
@@ -58,13 +45,6 @@ names are the same for most devices.  The exceptions are ``hda`` which
 needs two devices (``-device intel-hda -device hda-duplex``) and
 ``pcspk`` which can be activated using ``-machine
 pcspk-audiodev=<name>``.
-
-``-mon ...,control=readline,pretty=on|off`` (since 4.1)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``pretty=on|off`` switch has no effect for HMP monitors, but is
-silently ignored. Using the switch with HMP monitors will become an
-error in the future.
 
 RISC-V ``-bios`` (since 5.1)
 ''''''''''''''''''''''''''''
@@ -196,30 +176,10 @@ Use argument ``id`` instead.
 
 Use argument ``id`` instead.
 
-``migrate_set_downtime`` and ``migrate_set_speed`` (since 2.8.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Use ``migrate-set-parameters`` instead.
-
-``query-named-block-nodes`` result ``encryption_key_missing`` (since 2.10.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Always false.
-
-``query-block`` result ``inserted.encryption_key_missing`` (since 2.10.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Always false.
-
 ``blockdev-add`` empty string argument ``backing`` (since 2.10.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use argument value ``null`` instead.
-
-``migrate-set-cache-size`` and ``query-migrate-cache-size`` (since 2.11.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Use ``migrate-set-parameters`` and ``query-migrate-parameters`` instead.
 
 ``block-commit`` arguments ``base`` and ``top`` (since 3.1.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -231,65 +191,12 @@ Use arguments ``base-node`` and ``top-node`` instead.
 
 Specify the properties for the object as top-level arguments instead.
 
-``query-named-block-nodes`` and ``query-block`` result dirty-bitmaps[i].status (since 4.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``status`` field of the ``BlockDirtyInfo`` structure, returned by
-these commands is deprecated. Two new boolean fields, ``recording`` and
-``busy`` effectively replace it.
-
-``query-block`` result field ``dirty-bitmaps`` (Since 4.2)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``dirty-bitmaps`` field of the ``BlockInfo`` structure, returned by
-the query-block command is itself now deprecated. The ``dirty-bitmaps``
-field of the ``BlockDeviceInfo`` struct should be used instead, which is the
-type of the ``inserted`` field in query-block replies, as well as the
-type of array items in query-named-block-nodes.
-
-Since the ``dirty-bitmaps`` field is optionally present in both the old and
-new locations, clients must use introspection to learn where to anticipate
-the field if/when it does appear in command output.
-
-``query-cpus`` (since 2.12.0)
-'''''''''''''''''''''''''''''
-
-The ``query-cpus`` command is replaced by the ``query-cpus-fast`` command.
-
-``query-cpus-fast`` ``arch`` output member (since 3.0.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``arch`` output member of the ``query-cpus-fast`` command is
-replaced by the ``target`` output member.
-
-``query-events`` (since 4.0)
-''''''''''''''''''''''''''''
-
-The ``query-events`` command has been superseded by the more powerful
-and accurate ``query-qmp-schema`` command.
-
-chardev client socket with ``wait`` option (since 4.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Character devices creating sockets in client mode should not specify
-the 'wait' field, which is only applicable to sockets in server mode
-
 ``nbd-server-add`` and ``nbd-server-remove`` (since 5.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use the more generic commands ``block-export-add`` and ``block-export-del``
 instead.  As part of this deprecation, where ``nbd-server-add`` used a
 single ``bitmap``, the new ``block-export-add`` uses a list of ``bitmaps``.
-
-Human Monitor Protocol (HMP) commands
--------------------------------------
-
-``acl_show``, ``acl_reset``, ``acl_policy``, ``acl_add``, ``acl_remove`` (since 4.0.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-The ``acl_show``, ``acl_reset``, ``acl_policy``, ``acl_add``, and
-``acl_remove`` commands are deprecated with no replacement. Authorization
-for VNC should be performed using the pluggable QAuthZ objects.
 
 System emulator CPUS
 --------------------
@@ -330,21 +237,6 @@ MIPS ``I7200`` CPU Model (since 5.2)
 The ``I7200`` guest CPU relies on the nanoMIPS ISA, which is deprecated
 (the ISA has never been upstreamed to a compiler toolchain). Therefore
 this CPU is also deprecated.
-
-System emulator devices
------------------------
-
-``ide-drive`` (since 4.2)
-'''''''''''''''''''''''''
-
-The 'ide-drive' device is deprecated. Users should use 'ide-hd' or
-'ide-cd' as appropriate to get an IDE hard disk or CD-ROM as needed.
-
-``scsi-disk`` (since 4.2)
-'''''''''''''''''''''''''
-
-The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
-'scsi-cd' as appropriate to get a SCSI hard disk or CD-ROM as needed.
 
 System emulator machines
 ------------------------

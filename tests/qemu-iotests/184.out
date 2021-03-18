@@ -54,8 +54,7 @@ Testing:
                 "direct": false,
                 "writeback": true
             },
-            "file": "json:{\"throttle-group\": \"group0\", \"driver\": \"throttle\", \"file\": {\"driver\": \"null-co\"}}",
-            "encryption_key_missing": false
+            "file": "json:{\"throttle-group\": \"group0\", \"driver\": \"throttle\", \"file\": {\"driver\": \"null-co\"}}"
         },
         {
             "iops_rd": 0,
@@ -82,8 +81,7 @@ Testing:
                 "direct": false,
                 "writeback": true
             },
-            "file": "null-co://",
-            "encryption_key_missing": false
+            "file": "null-co://"
         }
     ]
 }

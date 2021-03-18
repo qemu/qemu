@@ -89,7 +89,7 @@ RUNNING:
 First, set the migration speed to match your hardware's capabilities:
 
 QEMU Monitor Command:
-$ migrate_set_speed 40g # or whatever is the MAX of your RDMA device
+$ migrate_set_parameter max_bandwidth 40g # or whatever is the MAX of your RDMA device
 
 Next, on the destination machine, add the following to the QEMU command line:
 

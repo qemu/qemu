@@ -283,20 +283,6 @@ static void ide_cd_realize(IDEDevice *dev, Error **errp)
     ide_dev_initfn(dev, IDE_CD, errp);
 }
 
-static void ide_drive_realize(IDEDevice *dev, Error **errp)
-{
-    DriveInfo *dinfo = NULL;
-
-    warn_report("'ide-drive' is deprecated, "
-                "please use 'ide-hd' or 'ide-cd' instead");
-
-    if (dev->conf.blk) {
-        dinfo = blk_legacy_dinfo(dev->conf.blk);
-    }
-
-    ide_dev_initfn(dev, dinfo && dinfo->media_cd ? IDE_CD : IDE_HD, errp);
-}
-
 #define DEFINE_IDE_DEV_PROPERTIES()                     \
     DEFINE_BLOCK_PROPERTIES(IDEDrive, dev.conf),        \
     DEFINE_BLOCK_ERROR_PROPERTIES(IDEDrive, dev.conf),  \
@@ -355,29 +341,6 @@ static const TypeInfo ide_cd_info = {
     .class_init    = ide_cd_class_init,
 };
 
-static Property ide_drive_properties[] = {
-    DEFINE_IDE_DEV_PROPERTIES(),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void ide_drive_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
-
-    k->realize  = ide_drive_realize;
-    dc->fw_name = "drive";
-    dc->desc    = "virtual IDE disk or CD-ROM (legacy)";
-    device_class_set_props(dc, ide_drive_properties);
-}
-
-static const TypeInfo ide_drive_info = {
-    .name          = "ide-drive",
-    .parent        = TYPE_IDE_DEVICE,
-    .instance_size = sizeof(IDEDrive),
-    .class_init    = ide_drive_class_init,
-};
-
 static void ide_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
@@ -402,7 +365,6 @@ static void ide_register_types(void)
     type_register_static(&ide_bus_info);
     type_register_static(&ide_hd_info);
     type_register_static(&ide_cd_info);
-    type_register_static(&ide_drive_info);
     type_register_static(&ide_device_type_info);
 }
 

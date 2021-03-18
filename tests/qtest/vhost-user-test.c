@@ -756,8 +756,8 @@ static void test_migrate(void *obj, void *arg, QGuestAllocator *alloc)
 
     /* slow down migration to have time to fiddle with log */
     /* TODO: qtest could learn to break on some places */
-    rsp = qmp("{ 'execute': 'migrate_set_speed',"
-              "'arguments': { 'value': 10 } }");
+    rsp = qmp("{ 'execute': 'migrate-set-parameters',"
+              "'arguments': { 'max-bandwidth': 10 } }");
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 
@@ -776,8 +776,8 @@ static void test_migrate(void *obj, void *arg, QGuestAllocator *alloc)
     munmap(log, size);
 
     /* speed things up */
-    rsp = qmp("{ 'execute': 'migrate_set_speed',"
-              "'arguments': { 'value': 0 } }");
+    rsp = qmp("{ 'execute': 'migrate-set-parameters',"
+              "'arguments': { 'max-bandwidth': 0 } }");
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
 
