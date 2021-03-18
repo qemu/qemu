@@ -15,6 +15,7 @@
 #ifndef QOBJECT_INPUT_VISITOR_H
 #define QOBJECT_INPUT_VISITOR_H
 
+#include "qapi/qapi-types-compat.h"
 #include "qapi/visitor.h"
 
 typedef struct QObjectInputVisitor QObjectInputVisitor;
@@ -57,6 +58,9 @@ typedef struct QObjectInputVisitor QObjectInputVisitor;
  * visit_free().
  */
 Visitor *qobject_input_visitor_new(QObject *obj);
+
+void qobject_input_visitor_set_policy(Visitor *v,
+                                      CompatPolicyInput deprecated);
 
 /*
  * Create a QObject input visitor for @obj for use with keyval_parse()

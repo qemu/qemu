@@ -154,7 +154,7 @@ def gen_marshal(name: str,
 
     ret += mcgen('''
 
-    v = qobject_input_visitor_new(QOBJECT(args));
+    v = qobject_input_visitor_new_qmp(QOBJECT(args));
     if (!visit_start_struct(v, NULL, NULL, 0, errp)) {
         goto out;
     }
@@ -258,7 +258,6 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 #include "qapi/compat-policy.h"
 #include "qapi/visitor.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qobject-input-visitor.h"
 #include "qapi/dealloc-visitor.h"
 #include "qapi/error.h"
 #include "%(visit)s.h"

@@ -19,6 +19,7 @@
 #include "qapi/qmp/dispatch.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "sysemu/runstate.h"
 #include "qapi/qmp/qbool.h"
@@ -26,6 +27,14 @@
 #include "qemu/main-loop.h"
 
 CompatPolicy compat_policy;
+
+Visitor *qobject_input_visitor_new_qmp(QObject *obj)
+{
+    Visitor *v = qobject_input_visitor_new(obj);
+
+    qobject_input_visitor_set_policy(v, compat_policy.deprecated_input);
+    return v;
+}
 
 Visitor *qobject_output_visitor_new_qmp(QObject **result)
 {

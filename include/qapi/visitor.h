@@ -460,6 +460,15 @@ void visit_end_alternate(Visitor *v, void **obj);
 bool visit_optional(Visitor *v, const char *name, bool *present);
 
 /*
+ * Should we reject deprecated member @name?
+ *
+ * @name must not be NULL.  This function is only useful between
+ * visit_start_struct() and visit_end_struct(), since only objects
+ * have deprecated members.
+ */
+bool visit_deprecated_accept(Visitor *v, const char *name, Error **errp);
+
+/*
  * Should we visit deprecated member @name?
  *
  * @name must not be NULL.  This function is only useful between
