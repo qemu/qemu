@@ -210,11 +210,15 @@ out:
 
 
 def gen_register_command(name: str,
+                         features: List[QAPISchemaFeature],
                          success_response: bool,
                          allow_oob: bool,
                          allow_preconfig: bool,
                          coroutine: bool) -> str:
     options = []
+
+    if 'deprecated' in [f.name for f in features]:
+        options += ['QCO_DEPRECATED']
 
     if not success_response:
         options += ['QCO_NO_SUCCESS_RESP']
@@ -326,9 +330,9 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
             self._genc.add(gen_marshal(name, arg_type, boxed, ret_type))
         with self._temp_module('./init'):
             with ifcontext(ifcond, self._genh, self._genc):
-                self._genc.add(gen_register_command(name, success_response,
-                                                    allow_oob, allow_preconfig,
-                                                    coroutine))
+                self._genc.add(gen_register_command(
+                    name, features, success_response, allow_oob,
+                    allow_preconfig, coroutine))
 
 
 def gen_commands(schema: QAPISchema,
