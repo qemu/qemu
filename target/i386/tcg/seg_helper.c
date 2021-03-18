@@ -1305,9 +1305,9 @@ void x86_cpu_do_interrupt(CPUState *cs)
     /* successfully delivered */
     env->old_exception = -1;
 #else
-    if (cs->exception_index >= EXCP_VMEXIT) {
+    if (cs->exception_index == EXCP_VMEXIT) {
         assert(env->old_exception == -1);
-        do_vmexit(env, cs->exception_index - EXCP_VMEXIT, env->error_code);
+        do_vmexit(env);
     } else {
         do_interrupt_all(cpu, cs->exception_index,
                          env->exception_is_int,

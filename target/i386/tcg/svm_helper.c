@@ -621,15 +621,19 @@ void cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1,
                                                    control.exit_info_2)),
                   env->eip);
 
-    cs->exception_index = EXCP_VMEXIT + exit_code;
-    env->error_code = exit_info_1;
+    cs->exception_index = EXCP_VMEXIT;
+    x86_stq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, control.exit_code),
+             exit_code);
+
+    x86_stq_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
+                                             control.exit_info_1), exit_info_1),
 
     /* remove any pending exception */
     env->old_exception = -1;
     cpu_loop_exit(cs);
 }
 
-void do_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
+void do_vmexit(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
     uint32_t int_ctl;
@@ -762,11 +766,6 @@ void do_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
                           env->vm_hsave + offsetof(struct vmcb, save.dr7));
 
     /* other setups */
-    x86_stq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, control.exit_code),
-             exit_code);
-    x86_stq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, control.exit_info_1),
-             exit_info_1);
-
     x86_stl_phys(cs,
              env->vm_vmcb + offsetof(struct vmcb, control.exit_int_info),
              x86_ldl_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
