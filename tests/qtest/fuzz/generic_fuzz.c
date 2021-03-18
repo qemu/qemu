@@ -99,7 +99,10 @@ struct get_io_cb_info {
 };
 
 static bool get_io_address_cb(Int128 start, Int128 size,
-                              const MemoryRegion *mr, void *opaque) {
+                              const MemoryRegion *mr,
+                              hwaddr offset_in_region,
+                              void *opaque)
+{
     struct get_io_cb_info *info = opaque;
     if (g_hash_table_lookup(fuzzable_memoryregions, mr)) {
         if (info->index == 0) {

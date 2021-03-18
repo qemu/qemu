@@ -782,6 +782,7 @@ static inline FlatView *address_space_to_flatview(AddressSpace *as)
  * @start: start address of the range within the FlatView
  * @len: length of the range in bytes
  * @mr: MemoryRegion covering this range
+ * @offset_in_region: offset of the first byte of the range within @mr
  * @opaque: data pointer passed to flatview_for_each_range()
  *
  * Returns: true to stop the iteration, false to keep going.
@@ -789,6 +790,7 @@ static inline FlatView *address_space_to_flatview(AddressSpace *as)
 typedef bool (*flatview_cb)(Int128 start,
                             Int128 len,
                             const MemoryRegion *mr,
+                            hwaddr offset_in_region,
                             void *opaque);
 
 /**
