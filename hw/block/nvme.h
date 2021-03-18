@@ -2,6 +2,7 @@
 #define HW_NVME_H
 
 #include "block/nvme.h"
+#include "hw/pci/pci.h"
 #include "nvme-subsys.h"
 #include "nvme-ns.h"
 
@@ -25,6 +26,7 @@ typedef struct NvmeParams {
     uint8_t  aerl;
     uint32_t aer_max_queued;
     uint8_t  mdts;
+    uint8_t  vsl;
     bool     use_intel_id;
     uint8_t  zasl;
     bool     legacy_cmb;
@@ -62,6 +64,15 @@ typedef struct NvmeRequest {
     QTAILQ_ENTRY(NvmeRequest)entry;
 } NvmeRequest;
 
+typedef struct NvmeBounceContext {
+    NvmeRequest *req;
+
+    struct {
+        QEMUIOVector iov;
+        uint8_t *bounce;
+    } data, mdata;
+} NvmeBounceContext;
+
 static inline const char *nvme_adm_opc_str(uint8_t opc)
 {
     switch (opc) {
@@ -75,6 +86,7 @@ static inline const char *nvme_adm_opc_str(uint8_t opc)
     case NVME_ADM_CMD_SET_FEATURES:     return "NVME_ADM_CMD_SET_FEATURES";
     case NVME_ADM_CMD_GET_FEATURES:     return "NVME_ADM_CMD_GET_FEATURES";
     case NVME_ADM_CMD_ASYNC_EV_REQ:     return "NVME_ADM_CMD_ASYNC_EV_REQ";
+    case NVME_ADM_CMD_FORMAT_NVM:       return "NVME_ADM_CMD_FORMAT_NVM";
     default:                            return "NVME_ADM_CMD_UNKNOWN";
     }
 }
@@ -88,6 +100,7 @@ static inline const char *nvme_io_opc_str(uint8_t opc)
     case NVME_CMD_COMPARE:          return "NVME_NVM_CMD_COMPARE";
     case NVME_CMD_WRITE_ZEROES:     return "NVME_NVM_CMD_WRITE_ZEROES";
     case NVME_CMD_DSM:              return "NVME_NVM_CMD_DSM";
+    case NVME_CMD_VERIFY:           return "NVME_NVM_CMD_VERIFY";
     case NVME_CMD_COPY:             return "NVME_NVM_CMD_COPY";
     case NVME_CMD_ZONE_MGMT_SEND:   return "NVME_ZONED_CMD_MGMT_SEND";
     case NVME_CMD_ZONE_MGMT_RECV:   return "NVME_ZONED_CMD_MGMT_RECV";
@@ -236,12 +249,18 @@ static inline bool nvme_ns_is_attached(NvmeCtrl *n, NvmeNamespace *ns)
 
 static inline void nvme_ns_attach(NvmeCtrl *n, NvmeNamespace *ns)
 {
-    n->namespaces[nvme_nsid(ns) - 1] = ns;
+    uint32_t nsid = nvme_nsid(ns);
+    assert(nsid && nsid <= NVME_MAX_NAMESPACES);
+
+    n->namespaces[nsid - 1] = ns;
 }
 
 static inline void nvme_ns_detach(NvmeCtrl *n, NvmeNamespace *ns)
 {
-    n->namespaces[nvme_nsid(ns) - 1] = NULL;
+    uint32_t nsid = nvme_nsid(ns);
+    assert(nsid && nsid <= NVME_MAX_NAMESPACES);
+
+    n->namespaces[nsid - 1] = NULL;
 }
 
 static inline NvmeCQueue *nvme_cq(NvmeRequest *req)
@@ -258,6 +277,27 @@ static inline NvmeCtrl *nvme_ctrl(NvmeRequest *req)
     return sq->ctrl;
 }
 
+static inline uint16_t nvme_cid(NvmeRequest *req)
+{
+    if (!req) {
+        return 0xffff;
+    }
+
+    return le16_to_cpu(req->cqe.cid);
+}
+
+typedef enum NvmeTxDirection {
+    NVME_TX_DIRECTION_TO_DEVICE   = 0,
+    NVME_TX_DIRECTION_FROM_DEVICE = 1,
+} NvmeTxDirection;
+
 int nvme_register_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp);
+uint16_t nvme_bounce_data(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
+                          NvmeTxDirection dir, NvmeRequest *req);
+uint16_t nvme_bounce_mdata(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
+                           NvmeTxDirection dir, NvmeRequest *req);
+void nvme_rw_complete_cb(void *opaque, int ret);
+uint16_t nvme_map_dptr(NvmeCtrl *n, NvmeSg *sg, size_t len,
+                       NvmeCmd *cmd);
 
 #endif /* HW_NVME_H */

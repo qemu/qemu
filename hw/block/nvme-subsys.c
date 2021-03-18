@@ -47,15 +47,18 @@ int nvme_subsys_register_ns(NvmeNamespace *ns, Error **errp)
 {
     NvmeSubsystem *subsys = ns->subsys;
     NvmeCtrl *n;
+    uint32_t nsid = nvme_nsid(ns);
     int i;
 
-    if (subsys->namespaces[nvme_nsid(ns)]) {
+    assert(nsid && nsid <= NVME_SUBSYS_MAX_NAMESPACES);
+
+    if (subsys->namespaces[nsid]) {
         error_setg(errp, "namespace %d already registerd to subsy %s",
                    nvme_nsid(ns), subsys->parent_obj.id);
         return -1;
     }
 
-    subsys->namespaces[nvme_nsid(ns)] = ns;
+    subsys->namespaces[nsid] = ns;
 
     for (i = 0; i < ARRAY_SIZE(subsys->ctrls); i++) {
         n = subsys->ctrls[i];

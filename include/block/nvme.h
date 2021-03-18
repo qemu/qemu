@@ -580,6 +580,7 @@ enum NvmeIoCommands {
     NVME_CMD_COMPARE            = 0x05,
     NVME_CMD_WRITE_ZEROES       = 0x08,
     NVME_CMD_DSM                = 0x09,
+    NVME_CMD_VERIFY             = 0x0c,
     NVME_CMD_COPY               = 0x19,
     NVME_CMD_ZONE_MGMT_SEND     = 0x79,
     NVME_CMD_ZONE_MGMT_RECV     = 0x7a,
@@ -696,11 +697,16 @@ enum {
     NVME_RW_DSM_LATENCY_LOW     = 3 << 4,
     NVME_RW_DSM_SEQ_REQ         = 1 << 6,
     NVME_RW_DSM_COMPRESSED      = 1 << 7,
+    NVME_RW_PIREMAP             = 1 << 9,
     NVME_RW_PRINFO_PRACT        = 1 << 13,
     NVME_RW_PRINFO_PRCHK_GUARD  = 1 << 12,
     NVME_RW_PRINFO_PRCHK_APP    = 1 << 11,
     NVME_RW_PRINFO_PRCHK_REF    = 1 << 10,
+    NVME_RW_PRINFO_PRCHK_MASK   = 7 << 10,
+
 };
+
+#define NVME_RW_PRINFO(control) ((control >> 10) & 0xf)
 
 typedef struct QEMU_PACKED NvmeDsmCmd {
     uint8_t     opcode;
@@ -822,6 +828,7 @@ enum NvmeStatusCodes {
     NVME_CAP_EXCEEDED           = 0x0081,
     NVME_NS_NOT_READY           = 0x0082,
     NVME_NS_RESV_CONFLICT       = 0x0083,
+    NVME_FORMAT_IN_PROGRESS     = 0x0084,
     NVME_INVALID_CQID           = 0x0100,
     NVME_INVALID_QID            = 0x0101,
     NVME_MAX_QSIZE_EXCEEDED     = 0x0102,
@@ -1079,6 +1086,7 @@ enum NvmeIdCtrlOncs {
     NVME_ONCS_FEATURES      = 1 << 4,
     NVME_ONCS_RESRVATIONS   = 1 << 5,
     NVME_ONCS_TIMESTAMP     = 1 << 6,
+    NVME_ONCS_VERIFY        = 1 << 7,
     NVME_ONCS_COPY          = 1 << 8,
 };
 
@@ -1324,13 +1332,21 @@ typedef struct QEMU_PACKED NvmeIdNsZoned {
 #define NVME_ID_NS_DPC_TYPE_MASK            0x7
 
 enum NvmeIdNsDps {
-    DPS_TYPE_NONE   = 0,
-    DPS_TYPE_1      = 1,
-    DPS_TYPE_2      = 2,
-    DPS_TYPE_3      = 3,
-    DPS_TYPE_MASK   = 0x7,
-    DPS_FIRST_EIGHT = 8,
+    NVME_ID_NS_DPS_TYPE_NONE   = 0,
+    NVME_ID_NS_DPS_TYPE_1      = 1,
+    NVME_ID_NS_DPS_TYPE_2      = 2,
+    NVME_ID_NS_DPS_TYPE_3      = 3,
+    NVME_ID_NS_DPS_TYPE_MASK   = 0x7,
+    NVME_ID_NS_DPS_FIRST_EIGHT = 8,
 };
+
+#define NVME_ID_NS_DPS_TYPE(dps) (dps & NVME_ID_NS_DPS_TYPE_MASK)
+
+typedef struct NvmeDifTuple {
+    uint16_t guard;
+    uint16_t apptag;
+    uint32_t reftag;
+} NvmeDifTuple;
 
 enum NvmeZoneAttr {
     NVME_ZA_FINISHED_BY_CTLR         = 1 << 0,
@@ -1428,5 +1444,6 @@ static inline void _nvme_check_size(void)
     QEMU_BUILD_BUG_ON(sizeof(NvmeSglDescriptor) != 16);
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdNsDescr) != 4);
     QEMU_BUILD_BUG_ON(sizeof(NvmeZoneDescr) != 64);
+    QEMU_BUILD_BUG_ON(sizeof(NvmeDifTuple) != 8);
 }
 #endif
