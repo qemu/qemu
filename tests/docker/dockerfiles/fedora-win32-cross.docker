@@ -19,6 +19,7 @@ ENV PACKAGES \
     mingw32-gmp \
     mingw32-gnutls \
     mingw32-gtk3 \
+    mingw32-libffi \
     mingw32-libjpeg-turbo \
     mingw32-libpng \
     mingw32-libtasn1 \
