@@ -279,20 +279,20 @@ QEMU_HELP_BOTTOM "\n"
 static const char *ga_log_level_str(GLogLevelFlags level)
 {
     switch (level & G_LOG_LEVEL_MASK) {
-        case G_LOG_LEVEL_ERROR:
-            return "error";
-        case G_LOG_LEVEL_CRITICAL:
-            return "critical";
-        case G_LOG_LEVEL_WARNING:
-            return "warning";
-        case G_LOG_LEVEL_MESSAGE:
-            return "message";
-        case G_LOG_LEVEL_INFO:
-            return "info";
-        case G_LOG_LEVEL_DEBUG:
-            return "debug";
-        default:
-            return "user";
+    case G_LOG_LEVEL_ERROR:
+        return "error";
+    case G_LOG_LEVEL_CRITICAL:
+        return "critical";
+    case G_LOG_LEVEL_WARNING:
+        return "warning";
+    case G_LOG_LEVEL_MESSAGE:
+        return "message";
+    case G_LOG_LEVEL_INFO:
+        return "info";
+    case G_LOG_LEVEL_DEBUG:
+        return "debug";
+    default:
+        return "user";
     }
 }
 
@@ -375,7 +375,7 @@ static void ga_disable_non_whitelisted(const QmpCommand *cmd, void *opaque)
     }
     if (!whitelisted) {
         g_debug("disabling command: %s", name);
-        qmp_disable_command(&ga_commands, name);
+        qmp_disable_command(&ga_commands, name, "the agent is in frozen state");
     }
 }
 
@@ -586,7 +586,7 @@ end:
 static gboolean channel_event_cb(GIOCondition condition, gpointer data)
 {
     GAState *s = data;
-    gchar buf[QGA_READ_COUNT_DEFAULT+1];
+    gchar buf[QGA_READ_COUNT_DEFAULT + 1];
     gsize count;
     GIOStatus status = ga_channel_read(s->channel, buf, QGA_READ_COUNT_DEFAULT, &count);
     switch (status) {
@@ -610,7 +610,7 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
          * host-side chardev. sleep a bit to mitigate this
          */
         if (s->virtio) {
-            usleep(100*1000);
+            usleep(100 * 1000);
         }
         return true;
     default:
@@ -686,21 +686,20 @@ DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
     DWORD ret = NO_ERROR;
     GAService *service = &ga_state->service;
 
-    switch (ctrl)
-    {
-        case SERVICE_CONTROL_STOP:
-        case SERVICE_CONTROL_SHUTDOWN:
-            quit_handler(SIGTERM);
-            SetEvent(ga_state->wakeup_event);
-            service->status.dwCurrentState = SERVICE_STOP_PENDING;
-            SetServiceStatus(service->status_handle, &service->status);
-            break;
-        case SERVICE_CONTROL_DEVICEEVENT:
-            handle_serial_device_events(type, data);
-            break;
+    switch (ctrl) {
+    case SERVICE_CONTROL_STOP:
+    case SERVICE_CONTROL_SHUTDOWN:
+        quit_handler(SIGTERM);
+        SetEvent(ga_state->wakeup_event);
+        service->status.dwCurrentState = SERVICE_STOP_PENDING;
+        SetServiceStatus(service->status_handle, &service->status);
+        break;
+    case SERVICE_CONTROL_DEVICEEVENT:
+        handle_serial_device_events(type, data);
+        break;
 
-        default:
-            ret = ERROR_CALL_NOT_IMPLEMENTED;
+    default:
+        ret = ERROR_CALL_NOT_IMPLEMENTED;
     }
     return ret;
 }
@@ -1329,7 +1328,7 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
         s->blacklist = config->blacklist;
         do {
             g_debug("disabling command: %s", (char *)l->data);
-            qmp_disable_command(&ga_commands, l->data);
+            qmp_disable_command(&ga_commands, l->data, NULL);
             l = g_list_next(l);
         } while (l);
     }

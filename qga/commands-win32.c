@@ -110,15 +110,15 @@ static OpenFlags guest_file_open_modes[] = {
     {"w",   GENERIC_WRITE,                    CREATE_ALWAYS},
     {"wb",  GENERIC_WRITE,                    CREATE_ALWAYS},
     {"a",   FILE_GENERIC_APPEND,              OPEN_ALWAYS  },
-    {"r+",  GENERIC_WRITE|GENERIC_READ,       OPEN_EXISTING},
-    {"rb+", GENERIC_WRITE|GENERIC_READ,       OPEN_EXISTING},
-    {"r+b", GENERIC_WRITE|GENERIC_READ,       OPEN_EXISTING},
-    {"w+",  GENERIC_WRITE|GENERIC_READ,       CREATE_ALWAYS},
-    {"wb+", GENERIC_WRITE|GENERIC_READ,       CREATE_ALWAYS},
-    {"w+b", GENERIC_WRITE|GENERIC_READ,       CREATE_ALWAYS},
-    {"a+",  FILE_GENERIC_APPEND|GENERIC_READ, OPEN_ALWAYS  },
-    {"ab+", FILE_GENERIC_APPEND|GENERIC_READ, OPEN_ALWAYS  },
-    {"a+b", FILE_GENERIC_APPEND|GENERIC_READ, OPEN_ALWAYS  }
+    {"r+",  GENERIC_WRITE | GENERIC_READ,       OPEN_EXISTING},
+    {"rb+", GENERIC_WRITE | GENERIC_READ,       OPEN_EXISTING},
+    {"r+b", GENERIC_WRITE | GENERIC_READ,       OPEN_EXISTING},
+    {"w+",  GENERIC_WRITE | GENERIC_READ,       CREATE_ALWAYS},
+    {"wb+", GENERIC_WRITE | GENERIC_READ,       CREATE_ALWAYS},
+    {"w+b", GENERIC_WRITE | GENERIC_READ,       CREATE_ALWAYS},
+    {"a+",  FILE_GENERIC_APPEND | GENERIC_READ, OPEN_ALWAYS  },
+    {"ab+", FILE_GENERIC_APPEND | GENERIC_READ, OPEN_ALWAYS  },
+    {"a+b", FILE_GENERIC_APPEND | GENERIC_READ, OPEN_ALWAYS  }
 };
 
 #define debug_error(msg) do { \
@@ -280,7 +280,7 @@ static void acquire_privilege(const char *name, Error **errp)
     Error *local_err = NULL;
 
     if (OpenProcessToken(GetCurrentProcess(),
-        TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY, &token))
+        TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token))
     {
         if (!LookupPrivilegeValue(NULL, name, &priv.Privileges[0].Luid)) {
             error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
@@ -1116,7 +1116,7 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
 
     len = strlen(mnt_point);
     mnt_point[len] = '\\';
-    mnt_point[len+1] = 0;
+    mnt_point[len + 1] = 0;
 
     if (!GetVolumeInformationByHandleW(hLocalDiskHandle, vol_info,
                                        sizeof(vol_info), NULL, NULL, NULL,
@@ -1323,7 +1323,7 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
         DWORD char_count = 0;
         char *path, *out;
         GError *gerr = NULL;
-        gchar * argv[4];
+        gchar *argv[4];
 
         GetVolumePathNamesForVolumeNameW(guid, NULL, 0, &char_count);
 
@@ -2174,7 +2174,7 @@ static ga_win_10_0_server_t const WIN_10_0_SERVER_VERSION_MATRIX[3] = {
 
 static void ga_get_win_version(RTL_OSVERSIONINFOEXW *info, Error **errp)
 {
-    typedef NTSTATUS(WINAPI * rtl_get_version_t)(
+    typedef NTSTATUS(WINAPI *rtl_get_version_t)(
         RTL_OSVERSIONINFOEXW *os_version_info_ex);
 
     info->dwOSVersionInfoSize = sizeof(RTL_OSVERSIONINFOEXW);

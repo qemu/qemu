@@ -22,9 +22,9 @@
 #include "commands-common.h"
 
 /* Maximum captured guest-exec out_data/err_data - 16MB */
-#define GUEST_EXEC_MAX_OUTPUT (16*1024*1024)
+#define GUEST_EXEC_MAX_OUTPUT (16 * 1024 * 1024)
 /* Allocation and I/O buffer for reading guest-exec out_data/err_data - 4KB */
-#define GUEST_EXEC_IO_SIZE (4*1024)
+#define GUEST_EXEC_IO_SIZE (4 * 1024)
 /*
  * Maximum file size to read - 48MB
  *
