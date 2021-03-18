@@ -30,6 +30,7 @@ DECLARE_INSTANCE_CHECKER(FxState, FX,
 struct FxState {
     PCIDevice pdev;
     MemoryRegion mmio;
+    MemoryRegion idt;
 
     QemuThread thread;
     QemuMutex thr_mutex;
@@ -144,6 +145,8 @@ static void fx_mmio_write(void *opaque, hwaddr addr, uint64_t val,
     case INTERRUPT_ACK_REGISTER:
         fx_lower_irq(fx, val);
         break;
+    case PROTECT_IDT_CMD:
+        
     default:
         break;
     }
@@ -172,10 +175,6 @@ static void *fx_forcer_thread(void *opaque)
 
         qemu_mutex_unlock(&fx->thr_mutex);
 
-        /*
-        *   DO THE KVM STUFF HERE
-        */ 
-
     }
 
     return NULL;
@@ -200,6 +199,8 @@ static void pci_fx_realize(PCIDevice *pdev, Error **errp)
     memory_region_init_io(&fx->mmio, OBJECT(fx), &fx_mmio_ops, fx,
                     "fx-mmio", 1 * MiB);
     pci_register_bar(pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &fx->mmio);
+
+    
 }
 
 static void pci_fx_uninit(PCIDevice *pdev)

@@ -979,6 +979,7 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension)
     int ret;
 
     ret = kvm_vm_ioctl(s, KVM_CHECK_EXTENSION, extension);
+    DBG("RET INSIDE VM CHECK %d \n", ret);
     if (ret < 0) {
         /* VM wide version not implemented, use global one instead */
         ret = kvm_check_extension(s, extension);
@@ -2514,8 +2515,10 @@ static void protect_guest_idt(CPUState *cpu)
 
     hwaddr gpa; 
     void *hva; 
-    int i, ret;
+    int i;
     uint64_t total_size;
+
+    DBG("READ-ONLY memory %d\n", kvm_vm_check_extension(s, KVM_CAP_READONLY_MEM));
 
     /* Get IDT address and translate it*/
     memset(&sregs, 0, sizeof(sregs));
@@ -2554,9 +2557,10 @@ static void protect_guest_idt(CPUState *cpu)
             break;
         case 1: /* IDT case */
             new_slots[i]->ram = hva;
-            new_slots[i]->start_addr = gpa;
-            new_slots[i]->memory_size = 1UL << 12;
-            new_slots[i]->flags = KVM_MEM_READONLY; 
+            new_slots[i]->start_addr = gpa; 
+            new_slots[i]->memory_size = 1UL << 12;  
+            new_slots[i]->flags = KVM_MEM_READONLY;
+            new_slots[i]->old_flags = 0;   
             break;
         case 2:
             new_slots[i]->ram = ((char *)hva + (1UL << 12));
@@ -2576,9 +2580,8 @@ static void protect_guest_idt(CPUState *cpu)
             i,
             (long long unsigned)new_slots[i]->memory_size
         );
-        ret = kvm_set_user_memory_region(kml, new_slots[i], true);
-        if(ret)
-            abort();
+
+        kvm_set_user_memory_region(kml, new_slots[i], true);
     }
 
     assert(total_size == new_slots[0]->memory_size + new_slots[1]->memory_size + new_slots[2]->memory_size);
@@ -2586,7 +2589,6 @@ static void protect_guest_idt(CPUState *cpu)
 }
 
 static bool within(hwaddr target, hwaddr addr1, hwaddr addr2){
-    DBG("within\n");
     if(addr1 <= target && target < addr2)
         return true;
     return false;

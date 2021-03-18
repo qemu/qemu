@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "*.inc": "c"
+        "*.inc": "c",
+        "list": "c"
     }
 }
