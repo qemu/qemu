@@ -407,6 +407,13 @@ class Engine(object):
             vcpu_timings = ret[2]
             if uri[0:5] == "unix:":
                 os.remove(uri[5:])
+
+            if os.path.exists(srcmonaddr):
+                os.remove(srcmonaddr)
+
+            if self._dst_host == "localhost" and os.path.exists(dstmonaddr):
+                os.remove(dstmonaddr)
+
             if self._verbose:
                 print("Finished migration")
 

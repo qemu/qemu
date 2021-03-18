@@ -93,11 +93,12 @@ def _console_interaction(test, success_message, failure_message,
         if not msg:
             continue
         console_logger.debug(msg)
-        if success_message in msg:
+        if success_message is None or success_message in msg:
             break
         if failure_message and failure_message in msg:
             console.close()
-            fail = 'Failure message found in console: %s' % failure_message
+            fail = 'Failure message found in console: "%s". Expected: "%s"' % \
+                    (failure_message, success_message)
             test.fail(fail)
 
 def interrupt_interactive_console_until_pattern(test, success_message,
@@ -138,6 +139,18 @@ def wait_for_console_pattern(test, success_message, failure_message=None,
     :param failure_message: if this message appears, test fails
     """
     _console_interaction(test, success_message, failure_message, None, vm=vm)
+
+def exec_command(test, command):
+    """
+    Send a command to a console (appending CRLF characters), while logging
+    the content.
+
+    :param test: an Avocado test containing a VM.
+    :type test: :class:`avocado_qemu.Test`
+    :param command: the command to send
+    :type command: str
+    """
+    _console_interaction(test, None, None, command + '\r')
 
 def exec_command_and_wait_for_pattern(test, command,
                                       success_message, failure_message=None):
@@ -304,8 +317,10 @@ class LinuxTest(Test):
         try:
             cloudinit_iso = os.path.join(self.workdir, 'cloudinit.iso')
             self.phone_home_port = network.find_free_port()
-            with open(ssh_pubkey) as pubkey:
-                pubkey_content = pubkey.read()
+            pubkey_content = None
+            if ssh_pubkey:
+                with open(ssh_pubkey) as pubkey:
+                    pubkey_content = pubkey.read()
             cloudinit.iso(cloudinit_iso, self.name,
                           username='root',
                           password='password',
