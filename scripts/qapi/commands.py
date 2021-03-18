@@ -96,7 +96,7 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in,
 {
     Visitor *v;
 
-    v = qobject_output_visitor_new(ret_out);
+    v = qobject_output_visitor_new_qmp(ret_out);
     if (visit_type_%(c_name)s(v, "unused", &ret_in, errp)) {
         visit_complete(v, ret_out);
     }
@@ -251,9 +251,9 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
         visit = self._module_basename('qapi-visit', name)
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
+#include "qapi/compat-policy.h"
 #include "qapi/visitor.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qobject-output-visitor.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/dealloc-visitor.h"
 #include "qapi/error.h"

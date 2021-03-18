@@ -19,12 +19,21 @@
 #include "qapi/qmp/dispatch.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
+#include "qapi/qobject-output-visitor.h"
 #include "sysemu/runstate.h"
 #include "qapi/qmp/qbool.h"
 #include "qemu/coroutine.h"
 #include "qemu/main-loop.h"
 
 CompatPolicy compat_policy;
+
+Visitor *qobject_output_visitor_new_qmp(QObject **result)
+{
+    Visitor *v = qobject_output_visitor_new(result);
+
+    qobject_output_visitor_set_policy(v, compat_policy.deprecated_output);
+    return v;
+}
 
 static QDict *qmp_dispatch_check_obj(QDict *dict, bool allow_oob,
                                      Error **errp)
