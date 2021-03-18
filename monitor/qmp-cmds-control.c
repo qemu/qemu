@@ -26,10 +26,14 @@
 
 #include "monitor-internal.h"
 #include "qemu-version.h"
+#include "qapi/compat-policy.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-control.h"
+#include "qapi/qapi-commands-introspect.h"
 #include "qapi/qapi-emit-events.h"
 #include "qapi/qapi-introspect.h"
+#include "qapi/qapi-visit-introspect.h"
+#include "qapi/qobject-input-visitor.h"
 
 /*
  * Accept QMP capabilities in @list for @mon.
@@ -130,17 +134,18 @@ CommandInfoList *qmp_query_commands(Error **errp)
     return list;
 }
 
-/*
- * Minor hack: generated marshalling suppressed for this command
- * ('gen': false in the schema) so we can parse the JSON string
- * directly into QObject instead of first parsing it with
- * visit_type_SchemaInfoList() into a SchemaInfoList, then marshal it
- * to QObject with generated output marshallers, every time.  Instead,
- * we do it in test-qobject-input-visitor.c, just to make sure
- * qapi-gen.py's output actually conforms to the schema.
- */
-void qmp_query_qmp_schema(QDict *qdict, QObject **ret_data,
-                                 Error **errp)
+SchemaInfoList *qmp_query_qmp_schema(Error **errp)
 {
-    *ret_data = qobject_from_qlit(&qmp_schema_qlit);
+    QObject *obj = qobject_from_qlit(&qmp_schema_qlit);
+    Visitor *v = qobject_input_visitor_new(obj);
+    SchemaInfoList *schema = NULL;
+
+    /* test_visitor_in_qmp_introspect() ensures this can't fail */
+    visit_type_SchemaInfoList(v, NULL, &schema, &error_abort);
+    g_assert(schema);
+
+    qobject_unref(obj);
+    visit_free(v);
+
+    return schema;
 }
