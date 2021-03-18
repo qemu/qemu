@@ -32,6 +32,9 @@
   #define QEMU_PLUGIN_LOCAL  __attribute__((visibility("hidden")))
 #endif
 
+/**
+ * typedef qemu_plugin_id_t - Unique plugin ID
+ */
 typedef uint64_t qemu_plugin_id_t;
 
 /*
@@ -47,24 +50,32 @@ typedef uint64_t qemu_plugin_id_t;
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 0
+#define QEMU_PLUGIN_VERSION 1
 
-typedef struct {
-    /* string describing architecture */
+/**
+ * struct qemu_info_t - system information for plugins
+ *
+ * This structure provides for some limited information about the
+ * system to allow the plugin to make decisions on how to proceed. For
+ * example it might only be suitable for running on some guest
+ * architectures or when under full system emulation.
+ */
+typedef struct qemu_info_t {
+    /** @target_name: string describing architecture */
     const char *target_name;
+    /** @version: minimum and current plugin API level */
     struct {
         int min;
         int cur;
     } version;
-    /* is this a full system emulation? */
+    /** @system_emulation: is this a full system emulation? */
     bool system_emulation;
     union {
-        /*
-         * smp_vcpus may change if vCPUs can be hot-plugged, max_vcpus
-         * is the system-wide limit.
-         */
+        /** @system: information relevant to system emulation */
         struct {
+            /** @system.smp_vcpus: initial number of vCPUs */
             int smp_vcpus;
+            /** @system.max_vcpus: maximum possible number of vCPUs */
             int max_vcpus;
         } system;
     };
@@ -77,31 +88,50 @@ typedef struct {
  * @argc: number of arguments
  * @argv: array of arguments (@argc elements)
  *
- * All plugins must export this symbol.
- *
- * Note: Calling qemu_plugin_uninstall() from this function is a bug. To raise
- * an error during install, return !0.
+ * All plugins must export this symbol which is called when the plugin
+ * is first loaded. Calling qemu_plugin_uninstall() from this function
+ * is a bug.
  *
  * Note: @info is only live during the call. Copy any information we
- * want to keep.
+ * want to keep. @argv remains valid throughout the lifetime of the
+ * loaded plugin.
  *
- * Note: @argv remains valid throughout the lifetime of the loaded plugin.
+ * Return: 0 on successful loading, !0 for an error.
  */
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                                            const qemu_info_t *info,
                                            int argc, char **argv);
 
-/*
- * Prototypes for the various callback styles we will be registering
- * in the following functions.
+/**
+ * typedef qemu_plugin_simple_cb_t - simple callback
+ * @id: the unique qemu_plugin_id_t
+ *
+ * This callback passes no information aside from the unique @id.
  */
 typedef void (*qemu_plugin_simple_cb_t)(qemu_plugin_id_t id);
 
+/**
+ * typedef qemu_plugin_udata_cb_t - callback with user data
+ * @id: the unique qemu_plugin_id_t
+ * @userdata: a pointer to some user data supplied when the callback
+ * was registered.
+ */
 typedef void (*qemu_plugin_udata_cb_t)(qemu_plugin_id_t id, void *userdata);
 
+/**
+ * typedef qemu_plugin_vcpu_simple_cb_t - vcpu callback
+ * @id: the unique qemu_plugin_id_t
+ * @vcpu_index: the current vcpu context
+ */
 typedef void (*qemu_plugin_vcpu_simple_cb_t)(qemu_plugin_id_t id,
                                              unsigned int vcpu_index);
 
+/**
+ * typedef qemu_plugin_vcpu_udata_cb_t - vcpu callback
+ * @vcpu_index: the current vcpu context
+ * @userdata: a pointer to some user data supplied when the callback
+ * was registered.
+ */
 typedef void (*qemu_plugin_vcpu_udata_cb_t)(unsigned int vcpu_index,
                                             void *userdata);
 
@@ -175,17 +205,25 @@ void qemu_plugin_register_vcpu_idle_cb(qemu_plugin_id_t id,
 void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id,
                                          qemu_plugin_vcpu_simple_cb_t cb);
 
-/*
- * Opaque types that the plugin is given during the translation and
- * instrumentation phase.
- */
+/** struct qemu_plugin_tb - Opaque handle for a translation block */
 struct qemu_plugin_tb;
+/** struct qemu_plugin_insn - Opaque handle for a translated instruction */
 struct qemu_plugin_insn;
 
+/**
+ * enum qemu_plugin_cb_flags - type of callback
+ *
+ * @QEMU_PLUGIN_CB_NO_REGS: callback does not access the CPU's regs
+ * @QEMU_PLUGIN_CB_R_REGS: callback reads the CPU's regs
+ * @QEMU_PLUGIN_CB_RW_REGS: callback reads and writes the CPU's regs
+ *
+ * Note: currently unused, plugins cannot read or change system
+ * register state.
+ */
 enum qemu_plugin_cb_flags {
-    QEMU_PLUGIN_CB_NO_REGS, /* callback does not access the CPU's regs */
-    QEMU_PLUGIN_CB_R_REGS,  /* callback reads the CPU's regs */
-    QEMU_PLUGIN_CB_RW_REGS, /* callback reads and writes the CPU's regs */
+    QEMU_PLUGIN_CB_NO_REGS,
+    QEMU_PLUGIN_CB_R_REGS,
+    QEMU_PLUGIN_CB_RW_REGS,
 };
 
 enum qemu_plugin_mem_rw {
@@ -193,6 +231,14 @@ enum qemu_plugin_mem_rw {
     QEMU_PLUGIN_MEM_W,
     QEMU_PLUGIN_MEM_RW,
 };
+
+/**
+ * typedef qemu_plugin_vcpu_tb_trans_cb_t - translation callback
+ * @id: unique plugin id
+ * @tb: opaque handle used for querying and instrumenting a block.
+ */
+typedef void (*qemu_plugin_vcpu_tb_trans_cb_t)(qemu_plugin_id_t id,
+                                               struct qemu_plugin_tb *tb);
 
 /**
  * qemu_plugin_register_vcpu_tb_trans_cb() - register a translate cb
@@ -206,14 +252,11 @@ enum qemu_plugin_mem_rw {
  * callbacks to be triggered when the block or individual instruction
  * executes.
  */
-typedef void (*qemu_plugin_vcpu_tb_trans_cb_t)(qemu_plugin_id_t id,
-                                               struct qemu_plugin_tb *tb);
-
 void qemu_plugin_register_vcpu_tb_trans_cb(qemu_plugin_id_t id,
                                            qemu_plugin_vcpu_tb_trans_cb_t cb);
 
 /**
- * qemu_plugin_register_vcpu_tb_trans_exec_cb() - register execution callback
+ * qemu_plugin_register_vcpu_tb_exec_cb() - register execution callback
  * @tb: the opaque qemu_plugin_tb handle for the translation
  * @cb: callback function
  * @flags: does the plugin read or write the CPU's registers?
@@ -226,12 +269,20 @@ void qemu_plugin_register_vcpu_tb_exec_cb(struct qemu_plugin_tb *tb,
                                           enum qemu_plugin_cb_flags flags,
                                           void *userdata);
 
+/**
+ * enum qemu_plugin_op - describes an inline op
+ *
+ * @QEMU_PLUGIN_INLINE_ADD_U64: add an immediate value uint64_t
+ *
+ * Note: currently only a single inline op is supported.
+ */
+
 enum qemu_plugin_op {
     QEMU_PLUGIN_INLINE_ADD_U64,
 };
 
 /**
- * qemu_plugin_register_vcpu_tb_trans_exec_inline() - execution inline op
+ * qemu_plugin_register_vcpu_tb_exec_inline() - execution inline op
  * @tb: the opaque qemu_plugin_tb handle for the translation
  * @op: the type of qemu_plugin_op (e.g. ADD_U64)
  * @ptr: the target memory location for the op
@@ -240,6 +291,9 @@ enum qemu_plugin_op {
  * Insert an inline op to every time a translated unit executes.
  * Useful if you just want to increment a single counter somewhere in
  * memory.
+ *
+ * Note: ops are not atomic so in multi-threaded/multi-smp situations
+ * you will get inexact results.
  */
 void qemu_plugin_register_vcpu_tb_exec_inline(struct qemu_plugin_tb *tb,
                                               enum qemu_plugin_op op,
@@ -262,7 +316,6 @@ void qemu_plugin_register_vcpu_insn_exec_cb(struct qemu_plugin_insn *insn,
 /**
  * qemu_plugin_register_vcpu_insn_exec_inline() - insn execution inline op
  * @insn: the opaque qemu_plugin_insn handle for an instruction
- * @cb: callback function
  * @op: the type of qemu_plugin_op (e.g. ADD_U64)
  * @ptr: the target memory location for the op
  * @imm: the op data (e.g. 1)
@@ -274,41 +327,114 @@ void qemu_plugin_register_vcpu_insn_exec_inline(struct qemu_plugin_insn *insn,
                                                 enum qemu_plugin_op op,
                                                 void *ptr, uint64_t imm);
 
-/*
- * Helpers to query information about the instructions in a block
+/**
+ * qemu_plugin_tb_n_insns() - query helper for number of insns in TB
+ * @tb: opaque handle to TB passed to callback
+ *
+ * Returns: number of instructions in this block
  */
 size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb);
 
+/**
+ * qemu_plugin_tb_vaddr() - query helper for vaddr of TB start
+ * @tb: opaque handle to TB passed to callback
+ *
+ * Returns: virtual address of block start
+ */
 uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb);
 
+/**
+ * qemu_plugin_tb_get_insn() - retrieve handle for instruction
+ * @tb: opaque handle to TB passed to callback
+ * @idx: instruction number, 0 indexed
+ *
+ * The returned handle can be used in follow up helper queries as well
+ * as when instrumenting an instruction. It is only valid for the
+ * lifetime of the callback.
+ *
+ * Returns: opaque handle to instruction
+ */
 struct qemu_plugin_insn *
 qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx);
 
+/**
+ * qemu_plugin_insn_data() - return ptr to instruction data
+ * @insn: opaque instruction handle from qemu_plugin_tb_get_insn()
+ *
+ * Note: data is only valid for duration of callback. See
+ * qemu_plugin_insn_size() to calculate size of stream.
+ *
+ * Returns: pointer to a stream of bytes containing the value of this
+ * instructions opcode.
+ */
 const void *qemu_plugin_insn_data(const struct qemu_plugin_insn *insn);
 
+/**
+ * qemu_plugin_insn_size() - return size of instruction
+ * @insn: opaque instruction handle from qemu_plugin_tb_get_insn()
+ *
+ * Returns: size of instruction in bytes
+ */
 size_t qemu_plugin_insn_size(const struct qemu_plugin_insn *insn);
 
+/**
+ * qemu_plugin_insn_vaddr() - return vaddr of instruction
+ * @insn: opaque instruction handle from qemu_plugin_tb_get_insn()
+ *
+ * Returns: virtual address of instruction
+ */
 uint64_t qemu_plugin_insn_vaddr(const struct qemu_plugin_insn *insn);
+
+/**
+ * qemu_plugin_insn_haddr() - return hardware addr of instruction
+ * @insn: opaque instruction handle from qemu_plugin_tb_get_insn()
+ *
+ * Returns: hardware (physical) target address of instruction
+ */
 void *qemu_plugin_insn_haddr(const struct qemu_plugin_insn *insn);
 
-/*
- * Memory Instrumentation
+/**
+ * typedef qemu_plugin_meminfo_t - opaque memory transaction handle
  *
- * The anonymous qemu_plugin_meminfo_t and qemu_plugin_hwaddr types
- * can be used in queries to QEMU to get more information about a
- * given memory access.
+ * This can be further queried using the qemu_plugin_mem_* query
+ * functions.
  */
 typedef uint32_t qemu_plugin_meminfo_t;
+/** struct qemu_plugin_hwaddr - opaque hw address handle */
 struct qemu_plugin_hwaddr;
 
-/* meminfo queries */
+/**
+ * qemu_plugin_mem_size_shift() - get size of access
+ * @info: opaque memory transaction handle
+ *
+ * Returns: size of access in ^2 (0=byte, 1=16bit, 2=32bit etc...)
+ */
 unsigned int qemu_plugin_mem_size_shift(qemu_plugin_meminfo_t info);
+/**
+ * qemu_plugin_mem_is_sign_extended() - was the access sign extended
+ * @info: opaque memory transaction handle
+ *
+ * Returns: true if it was, otherwise false
+ */
 bool qemu_plugin_mem_is_sign_extended(qemu_plugin_meminfo_t info);
+/**
+ * qemu_plugin_mem_is_big_endian() - was the access big endian
+ * @info: opaque memory transaction handle
+ *
+ * Returns: true if it was, otherwise false
+ */
 bool qemu_plugin_mem_is_big_endian(qemu_plugin_meminfo_t info);
+/**
+ * qemu_plugin_mem_is_store() - was the access a store
+ * @info: opaque memory transaction handle
+ *
+ * Returns: true if it was, otherwise false
+ */
 bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info);
 
-/*
- * qemu_plugin_get_hwaddr():
+/**
+ * qemu_plugin_get_hwaddr() - return handle for memory operation
+ * @info: opaque memory info structure
  * @vaddr: the virtual address of the memory operation
  *
  * For system emulation returns a qemu_plugin_hwaddr handle to query
@@ -323,12 +449,30 @@ struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
                                                   uint64_t vaddr);
 
 /*
- * The following additional queries can be run on the hwaddr structure
- * to return information about it. For non-IO accesses the device
- * offset will be into the appropriate block of RAM.
+ * The following additional queries can be run on the hwaddr structure to
+ * return information about it - namely whether it is for an IO access and the
+ * physical address associated with the access.
+ */
+
+/**
+ * qemu_plugin_hwaddr_is_io() - query whether memory operation is IO
+ * @haddr: address handle from qemu_plugin_get_hwaddr()
+ *
+ * Returns true if the handle's memory operation is to memory-mapped IO, or
+ * false if it is to RAM
  */
 bool qemu_plugin_hwaddr_is_io(const struct qemu_plugin_hwaddr *haddr);
-uint64_t qemu_plugin_hwaddr_device_offset(const struct qemu_plugin_hwaddr *haddr);
+
+/**
+ * qemu_plugin_hwaddr_phys_addr() - query physical address for memory operation
+ * @haddr: address handle from qemu_plugin_get_hwaddr()
+ *
+ * Returns the physical address associated with the memory operation
+ *
+ * Note that the returned physical address may not be unique if you are dealing
+ * with multiple address spaces.
+ */
+uint64_t qemu_plugin_hwaddr_phys_addr(const struct qemu_plugin_hwaddr *haddr);
 
 /*
  * Returns a string representing the device. The string is valid for
