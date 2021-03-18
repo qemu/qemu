@@ -54,210 +54,6 @@ int get_pg_mode(CPUX86State *env)
     return pg_mode;
 }
 
-static hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
-                        int *prot)
-{
-    X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    uint64_t rsvd_mask = PG_ADDRESS_MASK & ~MAKE_64BIT_MASK(0, cpu->phys_bits);
-    uint64_t ptep, pte;
-    uint64_t exit_info_1 = 0;
-    target_ulong pde_addr, pte_addr;
-    uint32_t page_offset;
-    int page_size;
-
-    if (likely(!(env->hflags2 & HF2_NPT_MASK))) {
-        return gphys;
-    }
-
-    if (!(env->nested_pg_mode & PG_MODE_NXE)) {
-        rsvd_mask |= PG_NX_MASK;
-    }
-
-    if (env->nested_pg_mode & PG_MODE_PAE) {
-        uint64_t pde, pdpe;
-        target_ulong pdpe_addr;
-
-#ifdef TARGET_X86_64
-        if (env->nested_pg_mode & PG_MODE_LMA) {
-            uint64_t pml5e;
-            uint64_t pml4e_addr, pml4e;
-
-            pml5e = env->nested_cr3;
-            ptep = PG_NX_MASK | PG_USER_MASK | PG_RW_MASK;
-
-            pml4e_addr = (pml5e & PG_ADDRESS_MASK) +
-                    (((gphys >> 39) & 0x1ff) << 3);
-            pml4e = x86_ldq_phys(cs, pml4e_addr);
-            if (!(pml4e & PG_PRESENT_MASK)) {
-                goto do_fault;
-            }
-            if (pml4e & (rsvd_mask | PG_PSE_MASK)) {
-                goto do_fault_rsvd;
-            }
-            if (!(pml4e & PG_ACCESSED_MASK)) {
-                pml4e |= PG_ACCESSED_MASK;
-                x86_stl_phys_notdirty(cs, pml4e_addr, pml4e);
-            }
-            ptep &= pml4e ^ PG_NX_MASK;
-            pdpe_addr = (pml4e & PG_ADDRESS_MASK) +
-                    (((gphys >> 30) & 0x1ff) << 3);
-            pdpe = x86_ldq_phys(cs, pdpe_addr);
-            if (!(pdpe & PG_PRESENT_MASK)) {
-                goto do_fault;
-            }
-            if (pdpe & rsvd_mask) {
-                goto do_fault_rsvd;
-            }
-            ptep &= pdpe ^ PG_NX_MASK;
-            if (!(pdpe & PG_ACCESSED_MASK)) {
-                pdpe |= PG_ACCESSED_MASK;
-                x86_stl_phys_notdirty(cs, pdpe_addr, pdpe);
-            }
-            if (pdpe & PG_PSE_MASK) {
-                /* 1 GB page */
-                page_size = 1024 * 1024 * 1024;
-                pte_addr = pdpe_addr;
-                pte = pdpe;
-                goto do_check_protect;
-            }
-        } else
-#endif
-        {
-            pdpe_addr = (env->nested_cr3 & ~0x1f) + ((gphys >> 27) & 0x18);
-            pdpe = x86_ldq_phys(cs, pdpe_addr);
-            if (!(pdpe & PG_PRESENT_MASK)) {
-                goto do_fault;
-            }
-            rsvd_mask |= PG_HI_USER_MASK;
-            if (pdpe & (rsvd_mask | PG_NX_MASK)) {
-                goto do_fault_rsvd;
-            }
-            ptep = PG_NX_MASK | PG_USER_MASK | PG_RW_MASK;
-        }
-
-        pde_addr = (pdpe & PG_ADDRESS_MASK) + (((gphys >> 21) & 0x1ff) << 3);
-        pde = x86_ldq_phys(cs, pde_addr);
-        if (!(pde & PG_PRESENT_MASK)) {
-            goto do_fault;
-        }
-        if (pde & rsvd_mask) {
-            goto do_fault_rsvd;
-        }
-        ptep &= pde ^ PG_NX_MASK;
-        if (pde & PG_PSE_MASK) {
-            /* 2 MB page */
-            page_size = 2048 * 1024;
-            pte_addr = pde_addr;
-            pte = pde;
-            goto do_check_protect;
-        }
-        /* 4 KB page */
-        if (!(pde & PG_ACCESSED_MASK)) {
-            pde |= PG_ACCESSED_MASK;
-            x86_stl_phys_notdirty(cs, pde_addr, pde);
-        }
-        pte_addr = (pde & PG_ADDRESS_MASK) + (((gphys >> 12) & 0x1ff) << 3);
-        pte = x86_ldq_phys(cs, pte_addr);
-        if (!(pte & PG_PRESENT_MASK)) {
-            goto do_fault;
-        }
-        if (pte & rsvd_mask) {
-            goto do_fault_rsvd;
-        }
-        /* combine pde and pte nx, user and rw protections */
-        ptep &= pte ^ PG_NX_MASK;
-        page_size = 4096;
-    } else {
-        uint32_t pde;
-
-        /* page directory entry */
-        pde_addr = (env->nested_cr3 & ~0xfff) + ((gphys >> 20) & 0xffc);
-        pde = x86_ldl_phys(cs, pde_addr);
-        if (!(pde & PG_PRESENT_MASK)) {
-            goto do_fault;
-        }
-        ptep = pde | PG_NX_MASK;
-
-        /* if host cr4 PSE bit is set, then we use a 4MB page */
-        if ((pde & PG_PSE_MASK) && (env->nested_pg_mode & PG_MODE_PSE)) {
-            page_size = 4096 * 1024;
-            pte_addr = pde_addr;
-
-            /* Bits 20-13 provide bits 39-32 of the address, bit 21 is reserved.
-             * Leave bits 20-13 in place for setting accessed/dirty bits below.
-             */
-            pte = pde | ((pde & 0x1fe000LL) << (32 - 13));
-            rsvd_mask = 0x200000;
-            goto do_check_protect_pse36;
-        }
-
-        if (!(pde & PG_ACCESSED_MASK)) {
-            pde |= PG_ACCESSED_MASK;
-            x86_stl_phys_notdirty(cs, pde_addr, pde);
-        }
-
-        /* page directory entry */
-        pte_addr = (pde & ~0xfff) + ((gphys >> 10) & 0xffc);
-        pte = x86_ldl_phys(cs, pte_addr);
-        if (!(pte & PG_PRESENT_MASK)) {
-            goto do_fault;
-        }
-        /* combine pde and pte user and rw protections */
-        ptep &= pte | PG_NX_MASK;
-        page_size = 4096;
-        rsvd_mask = 0;
-    }
-
- do_check_protect:
-    rsvd_mask |= (page_size - 1) & PG_ADDRESS_MASK & ~PG_PSE_PAT_MASK;
- do_check_protect_pse36:
-    if (pte & rsvd_mask) {
-        goto do_fault_rsvd;
-    }
-    ptep ^= PG_NX_MASK;
-
-    if (!(ptep & PG_USER_MASK)) {
-        goto do_fault_protect;
-    }
-    if (ptep & PG_NX_MASK) {
-        if (access_type == MMU_INST_FETCH) {
-            goto do_fault_protect;
-        }
-        *prot &= ~PAGE_EXEC;
-    }
-    if (!(ptep & PG_RW_MASK)) {
-        if (access_type == MMU_DATA_STORE) {
-            goto do_fault_protect;
-        }
-        *prot &= ~PAGE_WRITE;
-    }
-
-    pte &= PG_ADDRESS_MASK & ~(page_size - 1);
-    page_offset = gphys & (page_size - 1);
-    return pte + page_offset;
-
- do_fault_rsvd:
-    exit_info_1 |= PG_ERROR_RSVD_MASK;
- do_fault_protect:
-    exit_info_1 |= PG_ERROR_P_MASK;
- do_fault:
-    x86_stq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2),
-                 gphys);
-    exit_info_1 |= PG_ERROR_U_MASK;
-    if (access_type == MMU_DATA_STORE) {
-        exit_info_1 |= PG_ERROR_W_MASK;
-    } else if (access_type == MMU_INST_FETCH) {
-        exit_info_1 |= PG_ERROR_I_D_MASK;
-    }
-    if (prot) {
-        exit_info_1 |= SVM_NPTEXIT_GPA;
-    } else { /* page table access */
-        exit_info_1 |= SVM_NPTEXIT_GPT;
-    }
-    cpu_vmexit(env, SVM_EXIT_NPF, exit_info_1, env->retaddr);
-}
-
 #define PG_ERROR_OK (-1)
 
 typedef hwaddr (*MMUTranslateFunc)(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
@@ -266,9 +62,9 @@ typedef hwaddr (*MMUTranslateFunc)(CPUState *cs, hwaddr gphys, MMUAccessType acc
 #define GET_HPHYS(cs, gpa, access_type, prot)  \
 	(get_hphys_func ? get_hphys_func(cs, gpa, access_type, prot) : gpa)
 
-static int mmu_translate(CPUState *cs, vaddr addr, MMUTranslateFunc get_hphys_func,
+static int mmu_translate(CPUState *cs, hwaddr addr, MMUTranslateFunc get_hphys_func,
                          uint64_t cr3, int is_write1, int mmu_idx, int pg_mode,
-                         vaddr *xlat, int *page_size, int *prot)
+                         hwaddr *xlat, int *page_size, int *prot)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -562,6 +358,39 @@ do_check_protect_pse36:
     return error_code;
 }
 
+static hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
+                        int *prot)
+{
+    CPUX86State *env = &X86_CPU(cs)->env;
+    uint64_t exit_info_1;
+    int page_size;
+    int next_prot;
+    hwaddr hphys;
+
+    if (likely(!(env->hflags2 & HF2_NPT_MASK))) {
+        return gphys;
+    }
+
+    exit_info_1 = mmu_translate(cs, gphys, NULL, env->nested_cr3,
+                               access_type, MMU_USER_IDX, env->nested_pg_mode,
+                               &hphys, &page_size, &next_prot);
+    if (exit_info_1 == PG_ERROR_OK) {
+        if (prot) {
+            *prot &= next_prot;
+        }
+        return hphys;
+    }
+
+    x86_stq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2),
+                 gphys);
+    if (prot) {
+        exit_info_1 |= SVM_NPTEXIT_GPA;
+    } else { /* page table access */
+        exit_info_1 |= SVM_NPTEXIT_GPT;
+    }
+    cpu_vmexit(env, SVM_EXIT_NPF, exit_info_1, env->retaddr);
+}
+
 /* return value:
  * -1 = cannot handle fault
  * 0  = nothing more to do
@@ -575,7 +404,7 @@ static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
     int error_code = PG_ERROR_OK;
     int pg_mode, prot, page_size;
     hwaddr paddr;
-    target_ulong vaddr;
+    hwaddr vaddr;
 
 #if defined(DEBUG_MMU)
     printf("MMU fault: addr=%" VADDR_PRIx " w=%d mmu=%d eip=" TARGET_FMT_lx "\n",
