@@ -37,4 +37,9 @@ bool tcg_region_alloc(TCGContext *s);
 void tcg_region_initial_alloc(TCGContext *s);
 void tcg_region_prologue_set(TCGContext *s);
 
+static inline unsigned tcg_call_flags(TCGOp *op)
+{
+    return op->args[TCGOP_CALLO(op) + TCGOP_CALLI(op) + 1];
+}
+
 #endif /* TCG_INTERNAL_H */
