@@ -690,6 +690,7 @@ static void colo_compare_packet(CompareState *s, Connection *conn,
 
         if (result) {
             colo_release_primary_pkt(s, pkt);
+            packet_destroy(result->data, NULL);
             g_queue_remove(&conn->secondary_list, result->data);
         } else {
             /*
