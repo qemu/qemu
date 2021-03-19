@@ -2727,6 +2727,7 @@ F: tests/vmstate-static-checker-data/
 F: tests/qtest/migration-test.c
 F: docs/devel/migration.rst
 F: qapi/migration.json
+F: tests/migration/
 
 D-Bus
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
