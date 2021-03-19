@@ -182,7 +182,7 @@ const generic_fuzz_config predefined_configs[] = {
         .name = "sdhci-v3",
         .args = "-nodefaults -device sdhci-pci,sd-spec-version=3 "
         "-device sd-card,drive=mydrive "
-        "-drive if=sd,index=0,file=null-co://,format=raw,id=mydrive -nographic",
+        "-drive if=none,index=0,file=null-co://,format=raw,id=mydrive -nographic",
         .objects = "sd*"
     },{
         .name = "ehci",
