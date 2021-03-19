@@ -153,21 +153,12 @@
 /* 32-bit only */
 #define CSR_MSTATUSH        0x310
 
-/* Legacy Counter Setup (priv v1.9.1) */
-/* Update to #define CSR_MCOUNTINHIBIT 0x320 for 1.11.0 */
-#define CSR_MUCOUNTEREN     0x320
-#define CSR_MSCOUNTEREN     0x321
-#define CSR_MHCOUNTEREN     0x322
-
 /* Machine Trap Handling */
 #define CSR_MSCRATCH        0x340
 #define CSR_MEPC            0x341
 #define CSR_MCAUSE          0x342
 #define CSR_MTVAL           0x343
 #define CSR_MIP             0x344
-
-/* Legacy Machine Trap Handling (priv v1.9.1) */
-#define CSR_MBADADDR        0x343
 
 /* Supervisor Trap Setup */
 #define CSR_SSTATUS         0x100
@@ -183,9 +174,6 @@
 #define CSR_SCAUSE          0x142
 #define CSR_STVAL           0x143
 #define CSR_SIP             0x144
-
-/* Legacy Supervisor Trap Handling (priv v1.9.1) */
-#define CSR_SBADADDR        0x143
 
 /* Supervisor Protection and Translation */
 #define CSR_SPTBR           0x180
@@ -354,14 +342,6 @@
 #define CSR_MHPMCOUNTER30H  0xb9e
 #define CSR_MHPMCOUNTER31H  0xb9f
 
-/* Legacy Machine Protection and Translation (priv v1.9.1) */
-#define CSR_MBASE           0x380
-#define CSR_MBOUND          0x381
-#define CSR_MIBASE          0x382
-#define CSR_MIBOUND         0x383
-#define CSR_MDBASE          0x384
-#define CSR_MDBOUND         0x385
-
 /* mstatus CSR bits */
 #define MSTATUS_UIE         0x00000001
 #define MSTATUS_SIE         0x00000002
@@ -375,10 +355,8 @@
 #define MSTATUS_FS          0x00006000
 #define MSTATUS_XS          0x00018000
 #define MSTATUS_MPRV        0x00020000
-#define MSTATUS_PUM         0x00040000 /* until: priv-1.9.1 */
 #define MSTATUS_SUM         0x00040000 /* since: priv-1.10 */
 #define MSTATUS_MXR         0x00080000
-#define MSTATUS_VM          0x1F000000 /* until: priv-1.9.1 */
 #define MSTATUS_TVM         0x00100000 /* since: priv-1.10 */
 #define MSTATUS_TW          0x00200000 /* since: priv-1.10 */
 #define MSTATUS_TSR         0x00400000 /* since: priv-1.10 */
@@ -416,7 +394,6 @@
 #define SSTATUS_SPP         0x00000100
 #define SSTATUS_FS          0x00006000
 #define SSTATUS_XS          0x00018000
-#define SSTATUS_PUM         0x00040000 /* until: priv-1.9.1 */
 #define SSTATUS_SUM         0x00040000 /* since: priv-1.10 */
 #define SSTATUS_MXR         0x00080000
 

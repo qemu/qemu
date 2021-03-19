@@ -136,8 +136,8 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env)
         env->vscause = env->scause;
         env->scause = env->scause_hs;
 
-        env->vstval = env->sbadaddr;
-        env->sbadaddr = env->stval_hs;
+        env->vstval = env->stval;
+        env->stval = env->stval_hs;
 
         env->vsatp = env->satp;
         env->satp = env->satp_hs;
@@ -159,8 +159,8 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env)
         env->scause_hs = env->scause;
         env->scause = env->vscause;
 
-        env->stval_hs = env->sbadaddr;
-        env->sbadaddr = env->vstval;
+        env->stval_hs = env->stval;
+        env->stval = env->vstval;
 
         env->satp_hs = env->satp;
         env->satp = env->vsatp;
@@ -1023,7 +1023,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->mstatus = s;
         env->scause = cause | ((target_ulong)async << (TARGET_LONG_BITS - 1));
         env->sepc = env->pc;
-        env->sbadaddr = tval;
+        env->stval = tval;
         env->htval = htval;
         env->pc = (env->stvec >> 2 << 2) +
             ((async && (env->stvec & 3) == 1) ? cause * 4 : 0);
@@ -1054,7 +1054,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->mstatus = s;
         env->mcause = cause | ~(((target_ulong)-1) >> async);
         env->mepc = env->pc;
-        env->mbadaddr = tval;
+        env->mtval = tval;
         env->mtval2 = mtval2;
         env->pc = (env->mtvec >> 2 << 2) +
             ((async && (env->mtvec & 3) == 1) ? cause * 4 : 0);
