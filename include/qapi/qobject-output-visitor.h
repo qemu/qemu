@@ -15,6 +15,7 @@
 #define QOBJECT_OUTPUT_VISITOR_H
 
 #include "qapi/visitor.h"
+#include "qapi/qapi-types-compat.h"
 
 typedef struct QObjectOutputVisitor QObjectOutputVisitor;
 
@@ -52,5 +53,8 @@ typedef struct QObjectOutputVisitor QObjectOutputVisitor;
  * visit_free().
  */
 Visitor *qobject_output_visitor_new(QObject **result);
+
+void qobject_output_visitor_set_policy(Visitor *v,
+                                       CompatPolicyOutput deprecated);
 
 #endif

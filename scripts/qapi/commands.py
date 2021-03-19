@@ -96,7 +96,7 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in,
 {
     Visitor *v;
 
-    v = qobject_output_visitor_new(ret_out);
+    v = qobject_output_visitor_new_qmp(ret_out);
     if (visit_type_%(c_name)s(v, "unused", &ret_in, errp)) {
         visit_complete(v, ret_out);
     }
@@ -154,7 +154,7 @@ def gen_marshal(name: str,
 
     ret += mcgen('''
 
-    v = qobject_input_visitor_new(QOBJECT(args));
+    v = qobject_input_visitor_new_qmp(QOBJECT(args));
     if (!visit_start_struct(v, NULL, NULL, 0, errp)) {
         goto out;
     }
@@ -210,11 +210,15 @@ out:
 
 
 def gen_register_command(name: str,
+                         features: List[QAPISchemaFeature],
                          success_response: bool,
                          allow_oob: bool,
                          allow_preconfig: bool,
                          coroutine: bool) -> str:
     options = []
+
+    if 'deprecated' in [f.name for f in features]:
+        options += ['QCO_DEPRECATED']
 
     if not success_response:
         options += ['QCO_NO_SUCCESS_RESP']
@@ -251,10 +255,9 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
         visit = self._module_basename('qapi-visit', name)
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
+#include "qapi/compat-policy.h"
 #include "qapi/visitor.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qobject-output-visitor.h"
-#include "qapi/qobject-input-visitor.h"
 #include "qapi/dealloc-visitor.h"
 #include "qapi/error.h"
 #include "%(visit)s.h"
@@ -326,9 +329,9 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
             self._genc.add(gen_marshal(name, arg_type, boxed, ret_type))
         with self._temp_module('./init'):
             with ifcontext(ifcond, self._genh, self._genc):
-                self._genc.add(gen_register_command(name, success_response,
-                                                    allow_oob, allow_preconfig,
-                                                    coroutine))
+                self._genc.add(gen_register_command(
+                    name, features, success_response, allow_oob,
+                    allow_preconfig, coroutine))
 
 
 def gen_commands(schema: QAPISchema,
