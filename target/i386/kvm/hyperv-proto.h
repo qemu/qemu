@@ -139,6 +139,7 @@
  * Reenlightenment notification MSRs
  */
 #define HV_X64_MSR_REENLIGHTENMENT_CONTROL      0x40000106
+#define HV_REENLIGHTENMENT_ENABLE_BIT           (1u << 16)
 #define HV_X64_MSR_TSC_EMULATION_CONTROL        0x40000107
 #define HV_X64_MSR_TSC_EMULATION_STATUS         0x40000108
 

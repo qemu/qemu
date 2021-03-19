@@ -176,10 +176,12 @@ static void pic_intack(PICCommonState *s, int irq)
 int pic_read_irq(DeviceState *d)
 {
     PICCommonState *s = PIC_COMMON(d);
-    int irq, irq2, intno;
+    int irq, intno;
 
     irq = pic_get_irq(s);
     if (irq >= 0) {
+        int irq2;
+
         if (irq == 2) {
             irq2 = pic_get_irq(slave_pic);
             if (irq2 >= 0) {
@@ -189,18 +191,16 @@ int pic_read_irq(DeviceState *d)
                 irq2 = 7;
             }
             intno = slave_pic->irq_base + irq2;
+            pic_intack(s, irq);
+            irq = irq2 + 8;
         } else {
             intno = s->irq_base + irq;
+            pic_intack(s, irq);
         }
-        pic_intack(s, irq);
     } else {
         /* spurious IRQ on host controller */
         irq = 7;
         intno = s->irq_base + irq;
-    }
-
-    if (irq == 2) {
-        irq = irq2 + 8;
     }
 
 #ifdef DEBUG_IRQ_LATENCY

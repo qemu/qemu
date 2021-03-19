@@ -25,17 +25,13 @@
 /* Maximum instruction code size */
 #define TARGET_MAX_INSN_SIZE 16
 
-/*
- * XXX: This value should match the one returned by CPUID
- * and in exec.c
- */
-# if defined(TARGET_X86_64)
+#if defined(TARGET_X86_64)
 # define TCG_PHYS_ADDR_BITS 40
-# else
+#else
 # define TCG_PHYS_ADDR_BITS 36
-# endif
+#endif
 
-#define PHYS_ADDR_MASK MAKE_64BIT_MASK(0, TCG_PHYS_ADDR_BITS)
+QEMU_BUILD_BUG_ON(TCG_PHYS_ADDR_BITS > TARGET_PHYS_ADDR_SPACE_BITS);
 
 /**
  * x86_cpu_do_interrupt:
@@ -84,7 +80,7 @@ void cpu_load_eflags(CPUX86State *env, int eflags, int update_mask);
 /* svm_helper.c */
 void QEMU_NORETURN cpu_vmexit(CPUX86State *nenv, uint32_t exit_code,
                               uint64_t exit_info_1, uintptr_t retaddr);
-void do_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1);
+void do_vmexit(CPUX86State *env);
 
 /* seg_helper.c */
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
