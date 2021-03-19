@@ -160,9 +160,8 @@ static void gen_empty_mem_helper(void)
     tcg_temp_free_ptr(ptr);
 }
 
-static inline
-void gen_plugin_cb_start(enum plugin_gen_from from,
-                         enum plugin_gen_cb type, unsigned wr)
+static void gen_plugin_cb_start(enum plugin_gen_from from,
+                                enum plugin_gen_cb type, unsigned wr)
 {
     TCGOp *op;
 
@@ -179,7 +178,7 @@ static void gen_wrapped(enum plugin_gen_from from,
     tcg_gen_plugin_cb_end();
 }
 
-static inline void plugin_gen_empty_callback(enum plugin_gen_from from)
+static void plugin_gen_empty_callback(enum plugin_gen_from from)
 {
     switch (from) {
     case PLUGIN_GEN_AFTER_INSN:
@@ -513,9 +512,8 @@ static bool op_rw(const TCGOp *op, const struct qemu_plugin_dyn_cb *cb)
     return !!(cb->rw & (w + 1));
 }
 
-static inline
-void inject_cb_type(const GArray *cbs, TCGOp *begin_op, inject_fn inject,
-                    op_ok_fn ok)
+static void inject_cb_type(const GArray *cbs, TCGOp *begin_op,
+                           inject_fn inject, op_ok_fn ok)
 {
     TCGOp *end_op;
     TCGOp *op;
