@@ -230,14 +230,14 @@ static void test_object_add_failure_modes(void)
     /* attempt to create 2 objects with duplicate id */
     resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
                      " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
-                     " 'props': {'size': 1048576 } } }");
+                     " 'size': 1048576 } }");
     g_assert_nonnull(resp);
     g_assert(qdict_haskey(resp, "return"));
     qobject_unref(resp);
 
     resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
                      " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
-                     " 'props': {'size': 1048576 } } }");
+                     " 'size': 1048576 } }");
     g_assert_nonnull(resp);
     qmp_expect_error_and_unref(resp, "GenericError");
 
@@ -251,14 +251,14 @@ static void test_object_add_failure_modes(void)
     /* attempt to create an object with a property of a wrong type */
     resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
                      " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
-                     " 'props': {'size': '1048576' } } }");
+                     " 'size': '1048576' } }");
     g_assert_nonnull(resp);
     /* now do it right */
     qmp_expect_error_and_unref(resp, "GenericError");
 
     resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
                      " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
-                     " 'props': {'size': 1048576 } } }");
+                     " 'size': 1048576 } }");
     g_assert_nonnull(resp);
     g_assert(qdict_haskey(resp, "return"));
     qobject_unref(resp);
@@ -273,14 +273,14 @@ static void test_object_add_failure_modes(void)
     /* attempt to create an object without the id */
     resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
                      " {'qom-type': 'memory-backend-ram',"
-                     " 'props': {'size': 1048576 } } }");
+                     " 'size': 1048576 } }");
     g_assert_nonnull(resp);
     qmp_expect_error_and_unref(resp, "GenericError");
 
     /* now do it right */
     resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
                      " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
-                     " 'props': {'size': 1048576 } } }");
+                     " 'size': 1048576 } }");
     g_assert_nonnull(resp);
     g_assert(qdict_haskey(resp, "return"));
     qobject_unref(resp);
@@ -295,14 +295,14 @@ static void test_object_add_failure_modes(void)
     /* attempt to set a non existing property */
     resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
                      " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
-                     " 'props': {'sized': 1048576 } } }");
+                     " 'sized': 1048576 } }");
     g_assert_nonnull(resp);
     qmp_expect_error_and_unref(resp, "GenericError");
 
     /* now do it right */
     resp = qtest_qmp(qts, "{'execute': 'object-add', 'arguments':"
                      " {'qom-type': 'memory-backend-ram', 'id': 'ram1',"
-                     " 'props': {'size': 1048576 } } }");
+                     " 'size': 1048576 } }");
     g_assert_nonnull(resp);
     g_assert(qdict_haskey(resp, "return"));
     qobject_unref(resp);

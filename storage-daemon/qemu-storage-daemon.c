@@ -134,22 +134,11 @@ enum {
 
 extern QemuOptsList qemu_chardev_opts;
 
-static QemuOptsList qemu_object_opts = {
-    .name = "object",
-    .implied_opt_name = "qom-type",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
-    .desc = {
-        { }
-    },
-};
-
 static void init_qmp_commands(void)
 {
     qmp_init_marshal(&qmp_commands);
     qmp_register_command(&qmp_commands, "query-qmp-schema",
                          qmp_query_qmp_schema, QCO_ALLOW_PRECONFIG);
-    qmp_register_command(&qmp_commands, "object-add", qmp_object_add,
-                         QCO_NO_OPTIONS);
 
     QTAILQ_INIT(&qmp_cap_negotiation_commands);
     qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
@@ -281,19 +270,8 @@ static void process_options(int argc, char *argv[])
                 break;
             }
         case OPTION_OBJECT:
-            {
-                QDict *args;
-                bool help;
-
-                args = keyval_parse(optarg, "qom-type", &help, &error_fatal);
-                if (help) {
-                    user_creatable_print_help_from_qdict(args);
-                    exit(EXIT_SUCCESS);
-                }
-                user_creatable_add_dict(args, true, &error_fatal);
-                qobject_unref(args);
-                break;
-            }
+            user_creatable_process_cmdline(optarg);
+            break;
         case OPTION_PIDFILE:
             pid_file = optarg;
             break;
@@ -340,7 +318,6 @@ int main(int argc, char *argv[])
 
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_TRACE);
-    qemu_add_opts(&qemu_object_opts);
     qemu_add_opts(&qemu_trace_opts);
     qcrypto_init(&error_fatal);
     bdrv_init();
@@ -368,6 +345,7 @@ int main(int argc, char *argv[])
 
     blk_exp_close_all();
     bdrv_drain_all_begin();
+    job_cancel_sync_all();
     bdrv_close_all();
 
     monitor_cleanup();

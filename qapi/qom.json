@@ -4,6 +4,11 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or later.
 # See the COPYING file in the top-level directory.
 
+{ 'include': 'authz.json' }
+{ 'include': 'block-core.json' }
+{ 'include': 'common.json' }
+{ 'include': 'crypto.json' }
+
 ##
 # = QEMU Object Model (QOM)
 ##
@@ -203,20 +208,643 @@
   'allow-preconfig': true }
 
 ##
-# @object-add:
+# @CanHostSocketcanProperties:
 #
-# Create a QOM object.
+# Properties for can-host-socketcan objects.
+#
+# @if: interface name of the host system CAN bus to connect to
+#
+# @canbus: object ID of the can-bus object to connect to the host interface
+#
+# Since: 2.12
+##
+{ 'struct': 'CanHostSocketcanProperties',
+  'data': { 'if': 'str',
+            'canbus': 'str' } }
+
+##
+# @ColoCompareProperties:
+#
+# Properties for colo-compare objects.
+#
+# @primary_in: name of the character device backend to use for the primary
+#              input (incoming packets are redirected to @outdev)
+#
+# @secondary_in: name of the character device backend to use for secondary
+#                input (incoming packets are only compared to the input on
+#                @primary_in and then dropped)
+#
+# @outdev: name of the character device backend to use for output
+#
+# @iothread: name of the iothread to run in
+#
+# @notify_dev: name of the character device backend to be used to communicate
+#              with the remote colo-frame (only for Xen COLO)
+#
+# @compare_timeout: the maximum time to hold a packet from @primary_in for
+#                   comparison with an incoming packet on @secondary_in in
+#                   milliseconds (default: 3000)
+#
+# @expired_scan_cycle: the interval at which colo-compare checks whether
+#                      packets from @primary have timed out, in milliseconds
+#                      (default: 3000)
+#
+# @max_queue_size: the maximum number of packets to keep in the queue for
+#                  comparing with incoming packets from @secondary_in.  If the
+#                  queue is full and addtional packets are received, the
+#                  addtional packets are dropped. (default: 1024)
+#
+# @vnet_hdr_support: if true, vnet header support is enabled (default: false)
+#
+# Since: 2.8
+##
+{ 'struct': 'ColoCompareProperties',
+  'data': { 'primary_in': 'str',
+            'secondary_in': 'str',
+            'outdev': 'str',
+            'iothread': 'str',
+            '*notify_dev': 'str',
+            '*compare_timeout': 'uint64',
+            '*expired_scan_cycle': 'uint32',
+            '*max_queue_size': 'uint32',
+            '*vnet_hdr_support': 'bool' } }
+
+##
+# @CryptodevBackendProperties:
+#
+# Properties for cryptodev-backend and cryptodev-backend-builtin objects.
+#
+# @queues: the number of queues for the cryptodev backend. Ignored for
+#          cryptodev-backend and must be 1 for cryptodev-backend-builtin.
+#          (default: 1)
+#
+# Since: 2.8
+##
+{ 'struct': 'CryptodevBackendProperties',
+  'data': { '*queues': 'uint32' } }
+
+##
+# @CryptodevVhostUserProperties:
+#
+# Properties for cryptodev-vhost-user objects.
+#
+# @chardev: the name of a Unix domain socket character device that connects to
+#           the vhost-user server
+#
+# Since: 2.12
+##
+{ 'struct': 'CryptodevVhostUserProperties',
+  'base': 'CryptodevBackendProperties',
+  'data': { 'chardev': 'str' } }
+
+##
+# @DBusVMStateProperties:
+#
+# Properties for dbus-vmstate objects.
+#
+# @addr: the name of the DBus bus to connect to
+#
+# @id-list: a comma separated list of DBus IDs of helpers whose data should be
+#           included in the VM state on migration
+#
+# Since: 5.0
+##
+{ 'struct': 'DBusVMStateProperties',
+  'data': { 'addr': 'str' ,
+            '*id-list': 'str' } }
+
+##
+# @NetfilterInsert:
+#
+# Indicates where to insert a netfilter relative to a given other filter.
+#
+# @before: insert before the specified filter
+#
+# @behind: insert behind the specified filter
+#
+# Since: 5.0
+##
+{ 'enum': 'NetfilterInsert',
+  'data': [ 'before', 'behind' ] }
+
+##
+# @NetfilterProperties:
+#
+# Properties for objects of classes derived from netfilter.
+#
+# @netdev: id of the network device backend to filter
+#
+# @queue: indicates which queue(s) to filter (default: all)
+#
+# @status: indicates whether the filter is enabled ("on") or disabled ("off")
+#          (default: "on")
+#
+# @position: specifies where the filter should be inserted in the filter list.
+#            "head" means the filter is inserted at the head of the filter list,
+#            before any existing filters.
+#            "tail" means the filter is inserted at the tail of the filter list,
+#            behind any existing filters (default).
+#            "id=<id>" means the filter is inserted before or behind the filter
+#            specified by <id>, depending on the @insert property.
+#            (default: "tail")
+#
+# @insert: where to insert the filter relative to the filter given in @position.
+#          Ignored if @position is "head" or "tail". (default: behind)
+#
+# Since: 2.5
+##
+{ 'struct': 'NetfilterProperties',
+  'data': { 'netdev': 'str',
+            '*queue': 'NetFilterDirection',
+            '*status': 'str',
+            '*position': 'str',
+            '*insert': 'NetfilterInsert' } }
+
+##
+# @FilterBufferProperties:
+#
+# Properties for filter-buffer objects.
+#
+# @interval: a non-zero interval in microseconds.  All packets arriving in the
+#            given interval are delayed until the end of the interval.
+#
+# Since: 2.5
+##
+{ 'struct': 'FilterBufferProperties',
+  'base': 'NetfilterProperties',
+  'data': { 'interval': 'uint32' } }
+
+##
+# @FilterDumpProperties:
+#
+# Properties for filter-dump objects.
+#
+# @file: the filename where the dumped packets should be stored
+#
+# @maxlen: maximum number of bytes in a packet that are stored (default: 65536)
+#
+# Since: 2.5
+##
+{ 'struct': 'FilterDumpProperties',
+  'base': 'NetfilterProperties',
+  'data': { 'file': 'str',
+            '*maxlen': 'uint32' } }
+
+##
+# @FilterMirrorProperties:
+#
+# Properties for filter-mirror objects.
+#
+# @outdev: the name of a character device backend to which all incoming packets
+#          are mirrored
+#
+# @vnet_hdr_support: if true, vnet header support is enabled (default: false)
+#
+# Since: 2.6
+##
+{ 'struct': 'FilterMirrorProperties',
+  'base': 'NetfilterProperties',
+  'data': { 'outdev': 'str',
+            '*vnet_hdr_support': 'bool' } }
+
+##
+# @FilterRedirectorProperties:
+#
+# Properties for filter-redirector objects.
+#
+# At least one of @indev or @outdev must be present.  If both are present, they
+# must not refer to the same character device backend.
+#
+# @indev: the name of a character device backend from which packets are
+#         received and redirected to the filtered network device
+#
+# @outdev: the name of a character device backend to which all incoming packets
+#          are redirected
+#
+# @vnet_hdr_support: if true, vnet header support is enabled (default: false)
+#
+# Since: 2.6
+##
+{ 'struct': 'FilterRedirectorProperties',
+  'base': 'NetfilterProperties',
+  'data': { '*indev': 'str',
+            '*outdev': 'str',
+            '*vnet_hdr_support': 'bool' } }
+
+##
+# @FilterRewriterProperties:
+#
+# Properties for filter-rewriter objects.
+#
+# @vnet_hdr_support: if true, vnet header support is enabled (default: false)
+#
+# Since: 2.8
+##
+{ 'struct': 'FilterRewriterProperties',
+  'base': 'NetfilterProperties',
+  'data': { '*vnet_hdr_support': 'bool' } }
+
+##
+# @InputBarrierProperties:
+#
+# Properties for input-barrier objects.
+#
+# @name: the screen name as declared in the screens section of barrier.conf
+#
+# @server: hostname of the Barrier server (default: "localhost")
+#
+# @port: TCP port of the Barrier server (default: "24800")
+#
+# @x-origin: x coordinate of the leftmost pixel on the guest screen
+#            (default: "0")
+#
+# @y-origin: y coordinate of the topmost pixel on the guest screen
+#            (default: "0")
+#
+# @width: the width of secondary screen in pixels (default: "1920")
+#
+# @height: the height of secondary screen in pixels (default: "1080")
+#
+# Since: 4.2
+##
+{ 'struct': 'InputBarrierProperties',
+  'data': { 'name': 'str',
+            '*server': 'str',
+            '*port': 'str',
+            '*x-origin': 'str',
+            '*y-origin': 'str',
+            '*width': 'str',
+            '*height': 'str' } }
+
+##
+# @InputLinuxProperties:
+#
+# Properties for input-linux objects.
+#
+# @evdev: the path of the host evdev device to use
+#
+# @grab_all: if true, grab is toggled for all devices (e.g. both keyboard and
+#            mouse) instead of just one device (default: false)
+#
+# @repeat: enables auto-repeat events (default: false)
+#
+# @grab-toggle: the key or key combination that toggles device grab
+#               (default: ctrl-ctrl)
+#
+# Since: 2.6
+##
+{ 'struct': 'InputLinuxProperties',
+  'data': { 'evdev': 'str',
+            '*grab_all': 'bool',
+            '*repeat': 'bool',
+            '*grab-toggle': 'GrabToggleKeys' } }
+
+##
+# @IothreadProperties:
+#
+# Properties for iothread objects.
+#
+# @poll-max-ns: the maximum number of nanoseconds to busy wait for events.
+#               0 means polling is disabled (default: 32768 on POSIX hosts,
+#               0 otherwise)
+#
+# @poll-grow: the multiplier used to increase the polling time when the
+#             algorithm detects it is missing events due to not polling long
+#             enough. 0 selects a default behaviour (default: 0)
+#
+# @poll-shrink: the divisor used to decrease the polling time when the
+#               algorithm detects it is spending too long polling without
+#               encountering events. 0 selects a default behaviour (default: 0)
+#
+# Since: 2.0
+##
+{ 'struct': 'IothreadProperties',
+  'data': { '*poll-max-ns': 'int',
+            '*poll-grow': 'int',
+            '*poll-shrink': 'int' } }
+
+##
+# @MemoryBackendProperties:
+#
+# Properties for objects of classes derived from memory-backend.
+#
+# @merge: if true, mark the memory as mergeable (default depends on the machine
+#         type)
+#
+# @dump: if true, include the memory in core dumps (default depends on the
+#        machine type)
+#
+# @host-nodes: the list of NUMA host nodes to bind the memory to
+#
+# @policy: the NUMA policy (default: 'default')
+#
+# @prealloc: if true, preallocate memory (default: false)
+#
+# @prealloc-threads: number of CPU threads to use for prealloc (default: 1)
+#
+# @share: if false, the memory is private to QEMU; if true, it is shared
+#         (default: false)
+#
+# @size: size of the memory region in bytes
+#
+# @x-use-canonical-path-for-ramblock-id: if true, the canoncial path is used
+#                                        for ramblock-id. Disable this for 4.0
+#                                        machine types or older to allow
+#                                        migration with newer QEMU versions.
+#                                        This option is considered stable
+#                                        despite the x- prefix. (default:
+#                                        false generally, but true for machine
+#                                        types <= 4.0)
+#
+# Since: 2.1
+##
+{ 'struct': 'MemoryBackendProperties',
+  'data': { '*dump': 'bool',
+            '*host-nodes': ['uint16'],
+            '*merge': 'bool',
+            '*policy': 'HostMemPolicy',
+            '*prealloc': 'bool',
+            '*prealloc-threads': 'uint32',
+            '*share': 'bool',
+            'size': 'size',
+            '*x-use-canonical-path-for-ramblock-id': 'bool' } }
+
+##
+# @MemoryBackendFileProperties:
+#
+# Properties for memory-backend-file objects.
+#
+# @align: the base address alignment when QEMU mmap(2)s @mem-path. Some
+#         backend stores specified by @mem-path require an alignment different
+#         than the default one used by QEMU, e.g. the device DAX /dev/dax0.0
+#         requires 2M alignment rather than 4K. In such cases, users can
+#         specify the required alignment via this option.
+#         0 selects a default alignment (currently the page size). (default: 0)
+#
+# @discard-data: if true, the file contents can be destroyed when QEMU exits,
+#                to avoid unnecessarily flushing data to the backing file. Note
+#                that ``discard-data`` is only an optimization, and QEMU might
+#                not discard file contents if it aborts unexpectedly or is
+#                terminated using SIGKILL. (default: false)
+#
+# @mem-path: the path to either a shared memory or huge page filesystem mount
+#
+# @pmem: specifies whether the backing file specified by @mem-path is in
+#        host persistent memory that can be accessed using the SNIA NVM
+#        programming model (e.g. Intel NVDIMM).
+#
+# @readonly: if true, the backing file is opened read-only; if false, it is
+#            opened read-write. (default: false)
+#
+# Since: 2.1
+##
+{ 'struct': 'MemoryBackendFileProperties',
+  'base': 'MemoryBackendProperties',
+  'data': { '*align': 'size',
+            '*discard-data': 'bool',
+            'mem-path': 'str',
+            '*pmem': { 'type': 'bool', 'if': 'defined(CONFIG_LIBPMEM)' },
+            '*readonly': 'bool' } }
+
+##
+# @MemoryBackendMemfdProperties:
+#
+# Properties for memory-backend-memfd objects.
+#
+# The @share boolean option is true by default with memfd.
+#
+# @hugetlb: if true, the file to be created resides in the hugetlbfs filesystem
+#           (default: false)
+#
+# @hugetlbsize: the hugetlb page size on systems that support multiple hugetlb
+#               page sizes (it must be a power of 2 value supported by the
+#               system). 0 selects a default page size. This option is ignored
+#               if @hugetlb is false. (default: 0)
+#
+# @seal: if true, create a sealed-file, which will block further resizing of
+#        the memory (default: true)
+#
+# Since: 2.12
+##
+{ 'struct': 'MemoryBackendMemfdProperties',
+  'base': 'MemoryBackendProperties',
+  'data': { '*hugetlb': 'bool',
+            '*hugetlbsize': 'size',
+            '*seal': 'bool' } }
+
+##
+# @PrManagerHelperProperties:
+#
+# Properties for pr-manager-helper objects.
+#
+# @path: the path to a Unix domain socket for connecting to the external helper
+#
+# Since: 2.11
+##
+{ 'struct': 'PrManagerHelperProperties',
+  'data': { 'path': 'str' } }
+
+##
+# @RemoteObjectProperties:
+#
+# Properties for x-remote-object objects.
+#
+# @fd: file descriptor name previously passed via 'getfd' command
+#
+# @devid: the id of the device to be associated with the file descriptor
+#
+# Since: 6.0
+##
+{ 'struct': 'RemoteObjectProperties',
+  'data': { 'fd': 'str', 'devid': 'str' } }
+
+##
+# @RngProperties:
+#
+# Properties for objects of classes derived from rng.
+#
+# @opened: if true, the device is opened immediately when applying this option
+#          and will probably fail when processing the next option. Don't use;
+#          only provided for compatibility. (default: false)
+#
+# Features:
+# @deprecated: Member @opened is deprecated.  Setting true doesn't make sense,
+#              and false is already the default.
+#
+# Since: 1.3
+##
+{ 'struct': 'RngProperties',
+  'data': { '*opened': { 'type': 'bool', 'features': ['deprecated'] } } }
+
+##
+# @RngEgdProperties:
+#
+# Properties for rng-egd objects.
+#
+# @chardev: the name of a character device backend that provides the connection
+#           to the RNG daemon
+#
+# Since: 1.3
+##
+{ 'struct': 'RngEgdProperties',
+  'base': 'RngProperties',
+  'data': { 'chardev': 'str' } }
+
+##
+# @RngRandomProperties:
+#
+# Properties for rng-random objects.
+#
+# @filename: the filename of the device on the host to obtain entropy from
+#            (default: "/dev/urandom")
+#
+# Since: 1.3
+##
+{ 'struct': 'RngRandomProperties',
+  'base': 'RngProperties',
+  'data': { '*filename': 'str' } }
+
+##
+# @SevGuestProperties:
+#
+# Properties for sev-guest objects.
+#
+# @sev-device: SEV device to use (default: "/dev/sev")
+#
+# @dh-cert-file: guest owners DH certificate (encoded with base64)
+#
+# @session-file: guest owners session parameters (encoded with base64)
+#
+# @policy: SEV policy value (default: 0x1)
+#
+# @handle: SEV firmware handle (default: 0)
+#
+# @cbitpos: C-bit location in page table entry (default: 0)
+#
+# @reduced-phys-bits: number of bits in physical addresses that become
+#                     unavailable when SEV is enabled
+#
+# Since: 2.12
+##
+{ 'struct': 'SevGuestProperties',
+  'data': { '*sev-device': 'str',
+            '*dh-cert-file': 'str',
+            '*session-file': 'str',
+            '*policy': 'uint32',
+            '*handle': 'uint32',
+            '*cbitpos': 'uint32',
+            'reduced-phys-bits': 'uint32' },
+  'if': 'defined(CONFIG_SEV)' }
+
+##
+# @ObjectType:
+#
+# Since: 6.0
+##
+{ 'enum': 'ObjectType',
+  'data': [
+    'authz-list',
+    'authz-listfile',
+    'authz-pam',
+    'authz-simple',
+    'can-bus',
+    'can-host-socketcan',
+    'colo-compare',
+    'cryptodev-backend',
+    'cryptodev-backend-builtin',
+    { 'name': 'cryptodev-vhost-user',
+      'if': 'defined(CONFIG_VIRTIO_CRYPTO) && defined(CONFIG_VHOST_CRYPTO)' },
+    'dbus-vmstate',
+    'filter-buffer',
+    'filter-dump',
+    'filter-mirror',
+    'filter-redirector',
+    'filter-replay',
+    'filter-rewriter',
+    'input-barrier',
+    'input-linux',
+    'iothread',
+    'memory-backend-file',
+    { 'name': 'memory-backend-memfd',
+      'if': 'defined(CONFIG_LINUX)' },
+    'memory-backend-ram',
+    {'name': 'pef-guest', 'if': 'defined(CONFIG_PSERIES)' },
+    'pr-manager-helper',
+    'rng-builtin',
+    'rng-egd',
+    'rng-random',
+    'secret',
+    'secret_keyring',
+    {'name': 'sev-guest', 'if': 'defined(CONFIG_SEV)' },
+    's390-pv-guest',
+    'throttle-group',
+    'tls-creds-anon',
+    'tls-creds-psk',
+    'tls-creds-x509',
+    'tls-cipher-suites',
+    'x-remote-object'
+  ] }
+
+##
+# @ObjectOptions:
+#
+# Describes the options of a user creatable QOM object.
 #
 # @qom-type: the class name for the object to be created
 #
 # @id: the name of the new object
 #
-# @props: a dictionary of properties to be passed to the backend. Deprecated
-#         since 5.0, specify the properties on the top level instead. It is an
-#         error to specify the same option both on the top level and in @props.
+# Since: 6.0
+##
+{ 'union': 'ObjectOptions',
+  'base': { 'qom-type': 'ObjectType',
+            'id': 'str' },
+  'discriminator': 'qom-type',
+  'data': {
+      'authz-list':                 'AuthZListProperties',
+      'authz-listfile':             'AuthZListFileProperties',
+      'authz-pam':                  'AuthZPAMProperties',
+      'authz-simple':               'AuthZSimpleProperties',
+      'can-host-socketcan':         'CanHostSocketcanProperties',
+      'colo-compare':               'ColoCompareProperties',
+      'cryptodev-backend':          'CryptodevBackendProperties',
+      'cryptodev-backend-builtin':  'CryptodevBackendProperties',
+      'cryptodev-vhost-user':       { 'type': 'CryptodevVhostUserProperties',
+                                      'if': 'defined(CONFIG_VIRTIO_CRYPTO) && defined(CONFIG_VHOST_CRYPTO)' },
+      'dbus-vmstate':               'DBusVMStateProperties',
+      'filter-buffer':              'FilterBufferProperties',
+      'filter-dump':                'FilterDumpProperties',
+      'filter-mirror':              'FilterMirrorProperties',
+      'filter-redirector':          'FilterRedirectorProperties',
+      'filter-replay':              'NetfilterProperties',
+      'filter-rewriter':            'FilterRewriterProperties',
+      'input-barrier':              'InputBarrierProperties',
+      'input-linux':                'InputLinuxProperties',
+      'iothread':                   'IothreadProperties',
+      'memory-backend-file':        'MemoryBackendFileProperties',
+      'memory-backend-memfd':       { 'type': 'MemoryBackendMemfdProperties',
+                                      'if': 'defined(CONFIG_LINUX)' },
+      'memory-backend-ram':         'MemoryBackendProperties',
+      'pr-manager-helper':          'PrManagerHelperProperties',
+      'rng-builtin':                'RngProperties',
+      'rng-egd':                    'RngEgdProperties',
+      'rng-random':                 'RngRandomProperties',
+      'secret':                     'SecretProperties',
+      'secret_keyring':             'SecretKeyringProperties',
+      'sev-guest':                  { 'type': 'SevGuestProperties',
+                                      'if': 'defined(CONFIG_SEV)' },
+      'throttle-group':             'ThrottleGroupProperties',
+      'tls-creds-anon':             'TlsCredsAnonProperties',
+      'tls-creds-psk':              'TlsCredsPskProperties',
+      'tls-creds-x509':             'TlsCredsX509Properties',
+      'tls-cipher-suites':          'TlsCredsProperties',
+      'x-remote-object':            'RemoteObjectProperties'
+  } }
+
+##
+# @object-add:
 #
-# Additional arguments depend on qom-type and are passed to the backend
-# unchanged.
+# Create a QOM object.
 #
 # Returns: Nothing on success
 #          Error if @qom-type is not a valid class name
@@ -231,9 +859,7 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'object-add',
-  'data': {'qom-type': 'str', 'id': 'str', '*props': 'any'},
-  'gen': false } # so we can get the additional arguments
+{ 'command': 'object-add', 'data': 'ObjectOptions', 'boxed': true }
 
 ##
 # @object-del:

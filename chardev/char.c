@@ -534,9 +534,10 @@ static const ChardevClass *char_get_class(const char *driver, Error **errp)
     return cc;
 }
 
-static const struct ChardevAlias {
+static struct ChardevAlias {
     const char *typename;
     const char *alias;
+    bool deprecation_warning_printed;
 } chardev_alias_table[] = {
 #ifdef HAVE_CHARDEV_PARPORT
     { "parallel", "parport" },
@@ -565,16 +566,12 @@ chardev_class_foreach(ObjectClass *klass, void *opaque)
 }
 
 static void
-chardev_name_foreach(void (*fn)(const char *name, void *opaque), void *opaque)
+chardev_name_foreach(void (*fn)(const char *name, void *opaque),
+                     void *opaque)
 {
     ChadevClassFE fe = { .fn = fn, .opaque = opaque };
-    int i;
 
     object_class_foreach(chardev_class_foreach, TYPE_CHARDEV, false, &fe);
-
-    for (i = 0; i < (int)ARRAY_SIZE(chardev_alias_table); i++) {
-        fn(chardev_alias_table[i].alias, opaque);
-    }
 }
 
 static void
@@ -590,6 +587,11 @@ static const char *chardev_alias_translate(const char *name)
     int i;
     for (i = 0; i < (int)ARRAY_SIZE(chardev_alias_table); i++) {
         if (g_strcmp0(chardev_alias_table[i].alias, name) == 0) {
+            if (!chardev_alias_table[i].deprecation_warning_printed) {
+                warn_report("The alias '%s' is deprecated, use '%s' instead",
+                            name, chardev_alias_table[i].typename);
+                chardev_alias_table[i].deprecation_warning_printed = true;
+            }
             return chardev_alias_table[i].typename;
         }
     }
@@ -801,8 +803,9 @@ static void
 qmp_prepend_backend(const char *name, void *opaque)
 {
     ChardevBackendInfoList **list = opaque;
-    ChardevBackendInfo *value = g_new0(ChardevBackendInfo, 1);
+    ChardevBackendInfo *value;
 
+    value = g_new0(ChardevBackendInfo, 1);
     value->name = g_strdup(name);
     QAPI_LIST_PREPEND(*list, value);
 }

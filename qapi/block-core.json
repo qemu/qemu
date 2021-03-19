@@ -2443,6 +2443,33 @@
             '*iops-size' : 'int' } }
 
 ##
+# @ThrottleGroupProperties:
+#
+# Properties for throttle-group objects.
+#
+# The options starting with x- are aliases for the same key without x- in
+# the @limits object. As indicated by the x- prefix, this is not a stable
+# interface and may be removed or changed incompatibly in the future. Use
+# @limits for a supported stable interface.
+#
+# @limits: limits to apply for this throttle group
+#
+# Since: 2.11
+##
+{ 'struct': 'ThrottleGroupProperties',
+  'data': { '*limits': 'ThrottleLimits',
+            '*x-iops-total' : 'int', '*x-iops-total-max' : 'int',
+            '*x-iops-total-max-length' : 'int', '*x-iops-read' : 'int',
+            '*x-iops-read-max' : 'int', '*x-iops-read-max-length' : 'int',
+            '*x-iops-write' : 'int', '*x-iops-write-max' : 'int',
+            '*x-iops-write-max-length' : 'int', '*x-bps-total' : 'int',
+            '*x-bps-total-max' : 'int', '*x-bps-total-max-length' : 'int',
+            '*x-bps-read' : 'int', '*x-bps-read-max' : 'int',
+            '*x-bps-read-max-length' : 'int', '*x-bps-write' : 'int',
+            '*x-bps-write-max' : 'int', '*x-bps-write-max-length' : 'int',
+            '*x-iops-size' : 'int' } }
+
+##
 # @block-stream:
 #
 # Copy data from a backing file into a block device.

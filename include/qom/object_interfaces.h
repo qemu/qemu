@@ -2,6 +2,7 @@
 #define OBJECT_INTERFACES_H
 
 #include "qom/object.h"
+#include "qapi/qapi-types-qom.h"
 #include "qapi/visitor.h"
 
 #define TYPE_USER_CREATABLE "user-creatable"
@@ -87,67 +88,60 @@ Object *user_creatable_add_type(const char *type, const char *id,
                                 Visitor *v, Error **errp);
 
 /**
- * user_creatable_add_dict:
- * @qdict: the object definition
- * @keyval: if true, use a keyval visitor for processing @qdict (i.e.
- *          assume that all @qdict values are strings); otherwise, use
- *          the normal QObject visitor (i.e. assume all @qdict values
- *          have the QType expected by the QOM object type)
+ * user_creatable_add_qapi:
+ * @options: the object definition
  * @errp: if an error occurs, a pointer to an area to store the error
  *
- * Create an instance of the user creatable object that is defined by
- * @qdict.  The object type is taken from the QDict key 'qom-type', its
- * ID from the key 'id'. The remaining entries in @qdict are used to
- * initialize the object properties.
- *
- * Returns: %true on success, %false on failure.
+ * Create an instance of the user creatable object according to the
+ * options passed in @opts as described in the QAPI schema documentation.
  */
-bool user_creatable_add_dict(QDict *qdict, bool keyval, Error **errp);
+void user_creatable_add_qapi(ObjectOptions *options, Error **errp);
 
 /**
- * user_creatable_add_opts:
- * @opts: the object definition
+ * user_creatable_parse_str:
+ * @optarg: the object definition string as passed on the command line
  * @errp: if an error occurs, a pointer to an area to store the error
  *
- * Create an instance of the user creatable object whose type
- * is defined in @opts by the 'qom-type' option, placing it
- * in the object composition tree with name provided by the
- * 'id' field. The remaining options in @opts are used to
- * initialize the object properties.
+ * Parses the option for the user creatable object with a keyval parser and
+ * implicit key 'qom-type', converting the result to ObjectOptions.
  *
- * Returns: the newly created object or NULL on error
- */
-Object *user_creatable_add_opts(QemuOpts *opts, Error **errp);
-
-
-/**
- * user_creatable_add_opts_predicate:
- * @type: the QOM type to be added
+ * If a help option is given, print help instead.
  *
- * A callback function to determine whether an object
- * of type @type should be created. Instances of this
- * callback should be passed to user_creatable_add_opts_foreach
+ * Returns: ObjectOptions on success, NULL when an error occurred (*errp is set
+ * then) or help was printed (*errp is not set).
  */
-typedef bool (*user_creatable_add_opts_predicate)(const char *type);
+ObjectOptions *user_creatable_parse_str(const char *optarg, Error **errp);
 
 /**
- * user_creatable_add_opts_foreach:
- * @opaque: a user_creatable_add_opts_predicate callback or NULL
- * @opts: options to create
- * @errp: unused
+ * user_creatable_add_from_str:
+ * @optarg: the object definition string as passed on the command line
+ * @errp: if an error occurs, a pointer to an area to store the error
  *
- * An iterator callback to be used in conjunction with
- * the qemu_opts_foreach() method for creating a list of
- * objects from a set of QemuOpts
+ * Create an instance of the user creatable object by parsing optarg
+ * with a keyval parser and implicit key 'qom-type', converting the
+ * result to ObjectOptions and calling into qmp_object_add().
  *
- * The @opaque parameter can be passed a user_creatable_add_opts_predicate
- * callback to filter which types of object are created during iteration.
- * When it fails, report the error.
+ * If a help option is given, print help instead.
  *
- * Returns: 0 on success, -1 when an error was reported.
+ * Returns: true when an object was successfully created, false when an error
+ * occurred (*errp is set then) or help was printed (*errp is not set).
  */
-int user_creatable_add_opts_foreach(void *opaque,
-                                    QemuOpts *opts, Error **errp);
+bool user_creatable_add_from_str(const char *optarg, Error **errp);
+
+/**
+ * user_creatable_process_cmdline:
+ * @optarg: the object definition string as passed on the command line
+ *
+ * Create an instance of the user creatable object by parsing optarg
+ * with a keyval parser and implicit key 'qom-type', converting the
+ * result to ObjectOptions and calling into qmp_object_add().
+ *
+ * If a help option is given, print help instead and exit.
+ *
+ * This function is only meant to be called during command line parsing.
+ * It exits the process on failure or after printing help.
+ */
+void user_creatable_process_cmdline(const char *optarg);
 
 /**
  * user_creatable_print_help:
@@ -162,19 +156,6 @@ int user_creatable_add_opts_foreach(void *opaque,
  * otherwise.
  */
 bool user_creatable_print_help(const char *type, QemuOpts *opts);
-
-/**
- * user_creatable_print_help_from_qdict:
- * @args: options to create
- *
- * Prints help considering the other options given in @args (if "qom-type" is
- * given and valid, print properties for the type, otherwise print valid types)
- *
- * In contrast to user_creatable_print_help(), this function can't return that
- * no help was requested. It should only be called if we know that help is
- * requested and it will always print some help.
- */
-void user_creatable_print_help_from_qdict(QDict *args);
 
 /**
  * user_creatable_del:
@@ -195,12 +176,5 @@ bool user_creatable_del(const char *id, Error **errp);
  * objects container.
  */
 void user_creatable_cleanup(void);
-
-/**
- * qmp_object_add:
- *
- * QMP command handler for object-add. See the QAPI schema for documentation.
- */
-void qmp_object_add(QDict *qdict, QObject **ret_data, Error **errp);
 
 #endif

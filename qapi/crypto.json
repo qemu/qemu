@@ -381,3 +381,162 @@
   'discriminator': 'format',
   'data': {
           'luks': 'QCryptoBlockAmendOptionsLUKS' } }
+
+##
+# @SecretCommonProperties:
+#
+# Properties for objects of classes derived from secret-common.
+#
+# @loaded: if true, the secret is loaded immediately when applying this option
+#          and will probably fail when processing the next option. Don't use;
+#          only provided for compatibility. (default: false)
+#
+# @format: the data format that the secret is provided in (default: raw)
+#
+# @keyid: the name of another secret that should be used to decrypt the
+#         provided data. If not present, the data is assumed to be unencrypted.
+#
+# @iv: the random initialization vector used for encryption of this particular
+#      secret. Should be a base64 encrypted string of the 16-byte IV. Mandatory
+#      if @keyid is given. Ignored if @keyid is absent.
+#
+# Features:
+# @deprecated: Member @loaded is deprecated.  Setting true doesn't make sense,
+#              and false is already the default.
+#
+# Since: 2.6
+##
+{ 'struct': 'SecretCommonProperties',
+  'data': { '*loaded': { 'type': 'bool', 'features': ['deprecated'] },
+            '*format': 'QCryptoSecretFormat',
+            '*keyid': 'str',
+            '*iv': 'str' } }
+
+##
+# @SecretProperties:
+#
+# Properties for secret objects.
+#
+# Either @data or @file must be provided, but not both.
+#
+# @data: the associated with the secret from
+#
+# @file: the filename to load the data associated with the secret from
+#
+# Since: 2.6
+##
+{ 'struct': 'SecretProperties',
+  'base': 'SecretCommonProperties',
+  'data': { '*data': 'str',
+            '*file': 'str' } }
+
+##
+# @SecretKeyringProperties:
+#
+# Properties for secret_keyring objects.
+#
+# @serial: serial number that identifies a key to get from the kernel
+#
+# Since: 5.1
+##
+{ 'struct': 'SecretKeyringProperties',
+  'base': 'SecretCommonProperties',
+  'data': { 'serial': 'int32' } }
+
+##
+# @TlsCredsProperties:
+#
+# Properties for objects of classes derived from tls-creds.
+#
+# @verify-peer: if true the peer credentials will be verified once the
+#               handshake is completed.  This is a no-op for anonymous
+#               credentials. (default: true)
+#
+# @dir: the path of the directory that contains the credential files
+#
+# @endpoint: whether the QEMU network backend that uses the credentials will be
+#            acting as a client or as a server (default: client)
+#
+# @priority: a gnutls priority string as described at
+#            https://gnutls.org/manual/html_node/Priority-Strings.html
+#
+# Since: 2.5
+##
+{ 'struct': 'TlsCredsProperties',
+  'data': { '*verify-peer': 'bool',
+            '*dir': 'str',
+            '*endpoint': 'QCryptoTLSCredsEndpoint',
+            '*priority': 'str' } }
+
+##
+# @TlsCredsAnonProperties:
+#
+# Properties for tls-creds-anon objects.
+#
+# @loaded: if true, the credentials are loaded immediately when applying this
+#          option and will ignore options that are processed later. Don't use;
+#          only provided for compatibility. (default: false)
+#
+# Features:
+# @deprecated: Member @loaded is deprecated.  Setting true doesn't make sense,
+#              and false is already the default.
+#
+# Since: 2.5
+##
+{ 'struct': 'TlsCredsAnonProperties',
+  'base': 'TlsCredsProperties',
+  'data': { '*loaded': { 'type': 'bool', 'features': ['deprecated'] } } }
+
+##
+# @TlsCredsPskProperties:
+#
+# Properties for tls-creds-psk objects.
+#
+# @loaded: if true, the credentials are loaded immediately when applying this
+#          option and will ignore options that are processed later. Don't use;
+#          only provided for compatibility. (default: false)
+#
+# @username: the username which will be sent to the server.  For clients only.
+#            If absent, "qemu" is sent and the property will read back as an
+#            empty string.
+#
+# Features:
+# @deprecated: Member @loaded is deprecated.  Setting true doesn't make sense,
+#              and false is already the default.
+#
+# Since: 3.0
+##
+{ 'struct': 'TlsCredsPskProperties',
+  'base': 'TlsCredsProperties',
+  'data': { '*loaded': { 'type': 'bool', 'features': ['deprecated'] },
+            '*username': 'str' } }
+
+##
+# @TlsCredsX509Properties:
+#
+# Properties for tls-creds-x509 objects.
+#
+# @loaded: if true, the credentials are loaded immediately when applying this
+#          option and will ignore options that are processed later. Don't use;
+#          only provided for compatibility. (default: false)
+#
+# @sanity-check: if true, perform some sanity checks before using the
+#                credentials (default: true)
+#
+# @passwordid: For the server-key.pem and client-key.pem files which contain
+#              sensitive private keys, it is possible to use an encrypted
+#              version by providing the @passwordid parameter.  This provides
+#              the ID of a previously created secret object containing the
+#              password for decryption.
+#
+# Features:
+# @deprecated: Member @loaded is deprecated.  Setting true doesn't make sense,
+#              and false is already the default.
+#
+# Since: 2.5
+##
+{ 'struct': 'TlsCredsX509Properties',
+  'base': 'TlsCredsProperties',
+  'data': { '*loaded': { 'type': 'bool', 'features': ['deprecated'] },
+            '*sanity-check': 'bool',
+            '*passwordid': 'str' } }

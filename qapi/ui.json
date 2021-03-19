@@ -6,6 +6,7 @@
 # = Remote desktop
 ##
 
+{ 'include': 'common.json' }
 { 'include': 'sockets.json' }
 
 ##
@@ -1020,18 +1021,6 @@
   'data': { '*device': 'str',
             '*head'  : 'int',
             'events' : [ 'InputEvent' ] } }
-
-##
-# @GrabToggleKeys:
-#
-# Keys to toggle input-linux between host and guest.
-#
-# Since: 4.0
-#
-##
-{ 'enum': 'GrabToggleKeys',
-  'data': [ 'ctrl-ctrl', 'alt-alt', 'shift-shift','meta-meta', 'scrolllock',
-            'ctrl-scrolllock' ] }
 
 ##
 # @DisplayGTK:

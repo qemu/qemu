@@ -1199,12 +1199,6 @@ static void char_serial_test(void)
     /* TODO: add more tests with a pty */
     object_unparent(OBJECT(chr));
 
-    /* test tty alias */
-    qemu_opt_set(opts, "backend", "tty", &error_abort);
-    chr = qemu_chr_new_from_opts(opts, NULL, &error_abort);
-    g_assert_nonnull(chr);
-    object_unparent(OBJECT(chr));
-
     qemu_opts_del(opts);
 }
 #endif

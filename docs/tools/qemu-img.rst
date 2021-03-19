@@ -404,7 +404,7 @@ Command description:
   The following table sumarizes all exit codes of the compare subcommand:
 
   0
-    Images are identical
+    Images are identical (or requested help was printed)
   1
     Images differ
   2
