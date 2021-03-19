@@ -36,7 +36,7 @@
 #include "cpu.h"
 #include "qom/object.h"
 
-#define TYPE_FSL_IMX6 "fsl,imx6"
+#define TYPE_FSL_IMX6 "fsl-imx6"
 OBJECT_DECLARE_SIMPLE_TYPE(FslIMX6State, FSL_IMX6)
 
 #define FSL_IMX6_NUM_CPUS 4

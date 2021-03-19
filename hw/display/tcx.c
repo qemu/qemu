@@ -56,7 +56,7 @@
 #define TCX_THC_CURSMASK 0x900
 #define TCX_THC_CURSBITS 0x980
 
-#define TYPE_TCX "SUNW,tcx"
+#define TYPE_TCX "sun-tcx"
 OBJECT_DECLARE_SIMPLE_TYPE(TCXState, TCX)
 
 struct TCXState {

@@ -15,7 +15,7 @@
 #include "target/arm/idau.h"
 #include "qom/object.h"
 
-#define TYPE_BITBAND "ARM,bitband-memory"
+#define TYPE_BITBAND "ARM-bitband-memory"
 OBJECT_DECLARE_SIMPLE_TYPE(BitBandState, BITBAND)
 
 struct BitBandState {

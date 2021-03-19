@@ -628,8 +628,8 @@
       ]
     }
   },
-  "SUNW,fdtwo": {
-    "Name": "SUNW,fdtwo",
+  "sun-fdtwo": {
+    "Name": "sun-fdtwo",
     "version_id": 2,
     "minimum_version_id": 2,
     "Description": {

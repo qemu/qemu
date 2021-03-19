@@ -41,7 +41,7 @@ static inline DeviceState *etraxfs_ser_create(hwaddr addr,
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new("etraxfs,serial");
+    dev = qdev_new("etraxfs-serial");
     s = SYS_BUS_DEVICE(dev);
     qdev_prop_set_chr(dev, "chardev", chr);
     sysbus_realize_and_unref(s, &error_fatal);

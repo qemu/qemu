@@ -496,7 +496,7 @@ static void tcx_init(hwaddr addr, qemu_irq irq, int vram_size, int width,
     DeviceState *dev;
     SysBusDevice *s;
 
-    dev = qdev_new("SUNW,tcx");
+    dev = qdev_new("sun-tcx");
     qdev_prop_set_uint32(dev, "vram_size", vram_size);
     qdev_prop_set_uint16(dev, "width", width);
     qdev_prop_set_uint16(dev, "height", height);
@@ -970,7 +970,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     }
 
     if (hwdef->sx_base) {
-        create_unimplemented_device("SUNW,sx", hwdef->sx_base, 0x2000);
+        create_unimplemented_device("sun-sx", hwdef->sx_base, 0x2000);
     }
 
     dev = qdev_new("sysbus-m48t08");
@@ -1045,23 +1045,23 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
                      slavio_irq[30], fdc_tc);
 
     if (hwdef->cs_base) {
-        sysbus_create_simple("SUNW,CS4231", hwdef->cs_base,
+        sysbus_create_simple("sun-CS4231", hwdef->cs_base,
                              slavio_irq[5]);
     }
 
     if (hwdef->dbri_base) {
         /* ISDN chip with attached CS4215 audio codec */
         /* prom space */
-        create_unimplemented_device("SUNW,DBRI.prom",
+        create_unimplemented_device("sun-DBRI.prom",
                                     hwdef->dbri_base + 0x1000, 0x30);
         /* reg space */
-        create_unimplemented_device("SUNW,DBRI",
+        create_unimplemented_device("sun-DBRI",
                                     hwdef->dbri_base + 0x10000, 0x100);
     }
 
     if (hwdef->bpp_base) {
         /* parallel port */
-        create_unimplemented_device("SUNW,bpp", hwdef->bpp_base, 0x20);
+        create_unimplemented_device("sun-bpp", hwdef->bpp_base, 0x20);
     }
 
     initrd_size = 0;

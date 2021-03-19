@@ -216,7 +216,7 @@ struct ICH9LPCState {
 
 
 /* D31:F3 SMBus controller */
-#define TYPE_ICH9_SMB_DEVICE "ICH9 SMB"
+#define TYPE_ICH9_SMB_DEVICE "ICH9-SMB"
 
 #define ICH9_A2_SMB_REVISION                    0x02
 #define ICH9_SMB_PI                             0x00

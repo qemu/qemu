@@ -48,7 +48,7 @@
 #define R_INTR        0x50
 #define R_MASKED_INTR 0x54
 
-#define TYPE_ETRAX_FS_TIMER "etraxfs,timer"
+#define TYPE_ETRAX_FS_TIMER "etraxfs-timer"
 typedef struct ETRAXTimerState ETRAXTimerState;
 DECLARE_INSTANCE_CHECKER(ETRAXTimerState, ETRAX_TIMER,
                          TYPE_ETRAX_FS_TIMER)

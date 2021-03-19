@@ -40,7 +40,7 @@
 #include "cpu.h"
 #include "qom/object.h"
 
-#define TYPE_FSL_IMX6UL "fsl,imx6ul"
+#define TYPE_FSL_IMX6UL "fsl-imx6ul"
 OBJECT_DECLARE_SIMPLE_TYPE(FslIMX6ULState, FSL_IMX6UL)
 
 enum FslIMX6ULConfiguration {

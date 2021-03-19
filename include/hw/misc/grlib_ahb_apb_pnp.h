@@ -25,10 +25,10 @@
 #define GRLIB_AHB_APB_PNP_H
 #include "qom/object.h"
 
-#define TYPE_GRLIB_AHB_PNP "grlib,ahbpnp"
+#define TYPE_GRLIB_AHB_PNP "grlib-ahbpnp"
 OBJECT_DECLARE_SIMPLE_TYPE(AHBPnp, GRLIB_AHB_PNP)
 
-#define TYPE_GRLIB_APB_PNP "grlib,apbpnp"
+#define TYPE_GRLIB_APB_PNP "grlib-apbpnp"
 OBJECT_DECLARE_SIMPLE_TYPE(APBPnp, GRLIB_APB_PNP)
 
 void grlib_ahb_pnp_add_entry(AHBPnp *dev, uint32_t address, uint32_t mask,
