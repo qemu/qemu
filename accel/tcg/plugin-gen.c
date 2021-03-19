@@ -384,7 +384,7 @@ static TCGOp *copy_st_ptr(TCGOp **begin_op, TCGOp *op)
 }
 
 static TCGOp *copy_call(TCGOp **begin_op, TCGOp *op, void *empty_func,
-                        void *func, unsigned tcg_flags, int *cb_idx)
+                        void *func, int *cb_idx)
 {
     /* copy all ops until the call */
     do {
@@ -411,7 +411,7 @@ static TCGOp *copy_call(TCGOp **begin_op, TCGOp *op, void *empty_func,
         tcg_debug_assert(i < MAX_OPC_PARAM_ARGS);
     }
     op->args[*cb_idx] = (uintptr_t)func;
-    op->args[*cb_idx + 1] = tcg_flags;
+    op->args[*cb_idx + 1] = (*begin_op)->args[*cb_idx + 1];
 
     return op;
 }
@@ -438,7 +438,7 @@ static TCGOp *append_udata_cb(const struct qemu_plugin_dyn_cb *cb,
 
     /* call */
     op = copy_call(&begin_op, op, HELPER(plugin_vcpu_udata_cb),
-                   cb->f.vcpu_udata, cb->tcg_flags, cb_idx);
+                   cb->f.vcpu_udata, cb_idx);
 
     return op;
 }
@@ -489,7 +489,7 @@ static TCGOp *append_mem_cb(const struct qemu_plugin_dyn_cb *cb,
     if (type == PLUGIN_GEN_CB_MEM) {
         /* call */
         op = copy_call(&begin_op, op, HELPER(plugin_vcpu_mem_cb),
-                       cb->f.vcpu_udata, cb->tcg_flags, cb_idx);
+                       cb->f.vcpu_udata, cb_idx);
     }
 
     return op;
