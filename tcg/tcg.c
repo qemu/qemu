@@ -864,11 +864,15 @@ void tcg_region_init(void)
      */
     for (i = 0; i < region.n; i++) {
         void *start, *end;
-        int rc;
 
         tcg_region_bounds(i, &start, &end);
-        rc = qemu_mprotect_none(end, page_size);
-        g_assert(!rc);
+
+        /*
+         * macOS 11.2 has a bug (Apple Feedback FB8994773) in which mprotect
+         * rejects a permission change from RWX -> NONE.  Guard pages are
+         * nice for bug detection but are not essential; ignore any failure.
+         */
+        (void)qemu_mprotect_none(end, page_size);
     }
 
     tcg_region_trees_init();
