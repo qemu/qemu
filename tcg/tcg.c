@@ -828,7 +828,6 @@ void tcg_region_init(void)
     size_t region_size;
     size_t n_regions;
     size_t i;
-    uintptr_t splitwx_diff;
 
     n_regions = tcg_n_regions();
 
@@ -858,8 +857,11 @@ void tcg_region_init(void)
     /* account for that last guard page */
     region.end -= page_size;
 
-    /* set guard pages */
-    splitwx_diff = tcg_splitwx_diff;
+    /*
+     * Set guard pages in the rw buffer, as that's the one into which
+     * buffer overruns could occur.  Do not set guard pages in the rx
+     * buffer -- let that one use hugepages throughout.
+     */
     for (i = 0; i < region.n; i++) {
         void *start, *end;
         int rc;
@@ -867,10 +869,6 @@ void tcg_region_init(void)
         tcg_region_bounds(i, &start, &end);
         rc = qemu_mprotect_none(end, page_size);
         g_assert(!rc);
-        if (splitwx_diff) {
-            rc = qemu_mprotect_none(end + splitwx_diff, page_size);
-            g_assert(!rc);
-        }
     }
 
     tcg_region_trees_init();
