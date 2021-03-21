@@ -2503,6 +2503,18 @@ static void kvm_free_slot(KVMSlot *slot)
     kvm_vm_ioctl(kvm_state, KVM_SET_USER_MEMORY_REGION, &mem);
 }
 
+static void kvm_set_slot(KVMSlot *slot)
+{
+    struct kvm_userspace_memory_region mem;
+    mem.slot = slot->slot;
+    mem.flags = slot->flags;
+    mem.guest_phys_addr = slot->start_addr;
+    mem.memory_size = slot->memory_size; 
+    mem.userspace_addr = (__u64)slot->ram;
+    slot->memory_size = slot->memory_size; 
+    kvm_vm_ioctl(kvm_state, KVM_SET_USER_MEMORY_REGION, &mem);
+}
+
 static void protect_guest_idt(CPUState *cpu)
 {
     KVMState *s = kvm_state;
@@ -2518,6 +2530,7 @@ static void protect_guest_idt(CPUState *cpu)
     int i;
     uint64_t total_size;
 
+    DBG("READONLY MEM ALLOWED: %d\n", kvm_readonly_mem_allowed);
     DBG("READ-ONLY memory %d\n", kvm_vm_check_extension(s, KVM_CAP_READONLY_MEM));
 
     /* Get IDT address and translate it*/
@@ -2581,7 +2594,7 @@ static void protect_guest_idt(CPUState *cpu)
             (long long unsigned)new_slots[i]->memory_size
         );
 
-        kvm_set_user_memory_region(kml, new_slots[i], true);
+        kvm_set_slot(new_slots[i]);
     }
 
     assert(total_size == new_slots[0]->memory_size + new_slots[1]->memory_size + new_slots[2]->memory_size);
@@ -2694,7 +2707,7 @@ int kvm_cpu_exec(CPUState *cpu)
             }
             if(protect_idt_done && 
                 within(run->mmio.phys_addr, idt_physical_addr, idt_physical_addr + (1UL << 12))){
-                    DBG("\nquaaaaaaaaaaaa\n");
+                    DBG("\nIDT WRITE!!!\n");
                     ret = 0;
                     break;
             }
