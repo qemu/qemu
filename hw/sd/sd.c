@@ -47,6 +47,7 @@
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu-common.h"
 #include "sdmmc-internal.h"
 #include "trace.h"
 
@@ -762,10 +763,12 @@ static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
 
 static void sd_erase(SDState *sd)
 {
-    int i;
     uint64_t erase_start = sd->erase_start;
     uint64_t erase_end = sd->erase_end;
     bool sdsc = true;
+    uint64_t wpnum;
+    uint64_t erase_addr;
+    int erase_len = 1 << HWBLOCK_SHIFT;
 
     trace_sdcard_erase(sd->erase_start, sd->erase_end);
     if (sd->erase_start == INVALID_ADDRESS
@@ -794,17 +797,19 @@ static void sd_erase(SDState *sd)
     sd->erase_end = INVALID_ADDRESS;
     sd->csd[14] |= 0x40;
 
-    /* Only SDSC cards support write protect groups */
-    if (sdsc) {
-        erase_start = sd_addr_to_wpnum(erase_start);
-        erase_end = sd_addr_to_wpnum(erase_end);
-
-        for (i = erase_start; i <= erase_end; i++) {
-            assert(i < sd->wpgrps_size);
-            if (test_bit(i, sd->wp_groups)) {
+    memset(sd->data, 0xff, erase_len);
+    for (erase_addr = erase_start; erase_addr <= erase_end;
+         erase_addr += erase_len) {
+        if (sdsc) {
+            /* Only SDSC cards support write protect groups */
+            wpnum = sd_addr_to_wpnum(erase_addr);
+            assert(wpnum < sd->wpgrps_size);
+            if (test_bit(wpnum, sd->wp_groups)) {
                 sd->card_status |= WP_ERASE_SKIP;
+                continue;
             }
         }
+        BLK_WRITE_BLOCK(erase_addr, erase_len);
     }
 }
 
