@@ -3,4 +3,5 @@ i386_softmmu_ss.add(when: ['CONFIG_TCG', 'CONFIG_SOFTMMU'], if_true: files(
   'smm_helper.c',
   'excp_helper.c',
   'bpt_helper.c',
+  'misc_helper.c',
 ))
