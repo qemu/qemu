@@ -192,6 +192,12 @@ struct CPUClass {
 
     /* when TCG is not available, this pointer is NULL */
     struct TCGCPUOps *tcg_ops;
+
+    /*
+     * if not NULL, this is called in order for the CPUClass to initialize
+     * class data that depends on the accelerator, see accel/accel-common.c.
+     */
+    void (*init_accel_cpu)(struct AccelCPUClass *accel_cpu, CPUClass *cc);
 };
 
 /*

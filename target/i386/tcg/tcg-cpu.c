@@ -69,9 +69,15 @@ static struct TCGCPUOps x86_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 
+static void tcg_cpu_init_ops(AccelCPUClass *accel_cpu, CPUClass *cc)
+{
+    /* for x86, all cpus use the same set of operations */
+    cc->tcg_ops = &x86_tcg_ops;
+}
+
 static void tcg_cpu_class_init(CPUClass *cc)
 {
-    cc->tcg_ops = &x86_tcg_ops;
+    cc->init_accel_cpu = tcg_cpu_init_ops;
 }
 
 /*
