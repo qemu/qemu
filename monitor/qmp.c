@@ -257,24 +257,6 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
         trace_monitor_qmp_in_band_dequeue(req_obj,
                                           req_obj->mon->qmp_requests->length);
 
-        if (qatomic_xchg(&qmp_dispatcher_co_busy, true) == true) {
-            /*
-             * Someone rescheduled us (probably because a new requests
-             * came in), but we didn't actually yield. Do that now,
-             * only to be immediately reentered and removed from the
-             * list of scheduled coroutines.
-             */
-            qemu_coroutine_yield();
-        }
-
-        /*
-         * Move the coroutine from iohandler_ctx to qemu_aio_context for
-         * executing the command handler so that it can make progress if it
-         * involves an AIO_WAIT_WHILE().
-         */
-        aio_co_schedule(qemu_get_aio_context(), qmp_dispatcher_co);
-        qemu_coroutine_yield();
-
         /*
          * @req_obj has a request, we hold req_obj->mon->qmp_queue_lock
          */
@@ -298,7 +280,29 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
             monitor_resume(&mon->common);
         }
 
+        /*
+         * Drop the queue mutex now, before yielding, otherwise we might
+         * deadlock if the main thread tries to lock it.
+         */
         qemu_mutex_unlock(&mon->qmp_queue_lock);
+
+        if (qatomic_xchg(&qmp_dispatcher_co_busy, true) == true) {
+            /*
+             * Someone rescheduled us (probably because a new requests
+             * came in), but we didn't actually yield. Do that now,
+             * only to be immediately reentered and removed from the
+             * list of scheduled coroutines.
+             */
+            qemu_coroutine_yield();
+        }
+
+        /*
+         * Move the coroutine from iohandler_ctx to qemu_aio_context for
+         * executing the command handler so that it can make progress if it
+         * involves an AIO_WAIT_WHILE().
+         */
+        aio_co_schedule(qemu_get_aio_context(), qmp_dispatcher_co);
+        qemu_coroutine_yield();
 
         /* Process request */
         if (req_obj->req) {
