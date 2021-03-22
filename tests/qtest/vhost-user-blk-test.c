@@ -94,6 +94,124 @@ static uint64_t virtio_blk_request(QGuestAllocator *alloc, QVirtioDevice *d,
     return addr;
 }
 
+static void test_invalid_discard_write_zeroes(QVirtioDevice *dev,
+                                              QGuestAllocator *alloc,
+                                              QTestState *qts,
+                                              QVirtQueue *vq,
+                                              uint32_t type)
+{
+    QVirtioBlkReq req;
+    struct virtio_blk_discard_write_zeroes dwz_hdr;
+    struct virtio_blk_discard_write_zeroes dwz_hdr2[2];
+    uint64_t req_addr;
+    uint32_t free_head;
+    uint8_t status;
+
+    /* More than one dwz is not supported */
+    req.type = type;
+    req.data = (char *) dwz_hdr2;
+    dwz_hdr2[0].sector = 0;
+    dwz_hdr2[0].num_sectors = 1;
+    dwz_hdr2[0].flags = 0;
+    dwz_hdr2[1].sector = 1;
+    dwz_hdr2[1].num_sectors = 1;
+    dwz_hdr2[1].flags = 0;
+
+    virtio_blk_fix_dwz_hdr(dev, &dwz_hdr2[0]);
+    virtio_blk_fix_dwz_hdr(dev, &dwz_hdr2[1]);
+
+    req_addr = virtio_blk_request(alloc, dev, &req, sizeof(dwz_hdr2));
+
+    free_head = qvirtqueue_add(qts, vq, req_addr, 16, false, true);
+    qvirtqueue_add(qts, vq, req_addr + 16, sizeof(dwz_hdr2), false, true);
+    qvirtqueue_add(qts, vq, req_addr + 16 + sizeof(dwz_hdr2), 1, true,
+                   false);
+
+    qvirtqueue_kick(qts, dev, vq, free_head);
+
+    qvirtio_wait_used_elem(qts, dev, vq, free_head, NULL,
+                           QVIRTIO_BLK_TIMEOUT_US);
+    status = readb(req_addr + 16 + sizeof(dwz_hdr2));
+    g_assert_cmpint(status, ==, VIRTIO_BLK_S_UNSUPP);
+
+    guest_free(alloc, req_addr);
+
+    /* num_sectors must be less than config->max_write_zeroes_sectors */
+    req.type = type;
+    req.data = (char *) &dwz_hdr;
+    dwz_hdr.sector = 0;
+    dwz_hdr.num_sectors = 0xffffffff;
+    dwz_hdr.flags = 0;
+
+    virtio_blk_fix_dwz_hdr(dev, &dwz_hdr);
+
+    req_addr = virtio_blk_request(alloc, dev, &req, sizeof(dwz_hdr));
+
+    free_head = qvirtqueue_add(qts, vq, req_addr, 16, false, true);
+    qvirtqueue_add(qts, vq, req_addr + 16, sizeof(dwz_hdr), false, true);
+    qvirtqueue_add(qts, vq, req_addr + 16 + sizeof(dwz_hdr), 1, true,
+                   false);
+
+    qvirtqueue_kick(qts, dev, vq, free_head);
+
+    qvirtio_wait_used_elem(qts, dev, vq, free_head, NULL,
+                           QVIRTIO_BLK_TIMEOUT_US);
+    status = readb(req_addr + 16 + sizeof(dwz_hdr));
+    g_assert_cmpint(status, ==, VIRTIO_BLK_S_IOERR);
+
+    guest_free(alloc, req_addr);
+
+    /* sector must be less than the device capacity */
+    req.type = type;
+    req.data = (char *) &dwz_hdr;
+    dwz_hdr.sector = TEST_IMAGE_SIZE / 512 + 1;
+    dwz_hdr.num_sectors = 1;
+    dwz_hdr.flags = 0;
+
+    virtio_blk_fix_dwz_hdr(dev, &dwz_hdr);
+
+    req_addr = virtio_blk_request(alloc, dev, &req, sizeof(dwz_hdr));
+
+    free_head = qvirtqueue_add(qts, vq, req_addr, 16, false, true);
+    qvirtqueue_add(qts, vq, req_addr + 16, sizeof(dwz_hdr), false, true);
+    qvirtqueue_add(qts, vq, req_addr + 16 + sizeof(dwz_hdr), 1, true,
+                   false);
+
+    qvirtqueue_kick(qts, dev, vq, free_head);
+
+    qvirtio_wait_used_elem(qts, dev, vq, free_head, NULL,
+                           QVIRTIO_BLK_TIMEOUT_US);
+    status = readb(req_addr + 16 + sizeof(dwz_hdr));
+    g_assert_cmpint(status, ==, VIRTIO_BLK_S_IOERR);
+
+    guest_free(alloc, req_addr);
+
+    /* reserved flag bits must be zero */
+    req.type = type;
+    req.data = (char *) &dwz_hdr;
+    dwz_hdr.sector = 0;
+    dwz_hdr.num_sectors = 1;
+    dwz_hdr.flags = ~VIRTIO_BLK_WRITE_ZEROES_FLAG_UNMAP;
+
+    virtio_blk_fix_dwz_hdr(dev, &dwz_hdr);
+
+    req_addr = virtio_blk_request(alloc, dev, &req, sizeof(dwz_hdr));
+
+    free_head = qvirtqueue_add(qts, vq, req_addr, 16, false, true);
+    qvirtqueue_add(qts, vq, req_addr + 16, sizeof(dwz_hdr), false, true);
+    qvirtqueue_add(qts, vq, req_addr + 16 + sizeof(dwz_hdr), 1, true,
+                   false);
+
+    qvirtqueue_kick(qts, dev, vq, free_head);
+
+    qvirtio_wait_used_elem(qts, dev, vq, free_head, NULL,
+                           QVIRTIO_BLK_TIMEOUT_US);
+    status = readb(req_addr + 16 + sizeof(dwz_hdr));
+    g_assert_cmpint(status, ==, VIRTIO_BLK_S_UNSUPP);
+
+    guest_free(alloc, req_addr);
+}
+
 /* Returns the request virtqueue so the caller can perform further tests */
 static QVirtQueue *test_basic(QVirtioDevice *dev, QGuestAllocator *alloc)
 {
@@ -235,6 +353,9 @@ static QVirtQueue *test_basic(QVirtioDevice *dev, QGuestAllocator *alloc)
         g_free(data);
 
         guest_free(alloc, req_addr);
+
+        test_invalid_discard_write_zeroes(dev, alloc, qts, vq,
+                                          VIRTIO_BLK_T_WRITE_ZEROES);
     }
 
     if (features & (1u << VIRTIO_BLK_F_DISCARD)) {
@@ -263,6 +384,9 @@ static QVirtQueue *test_basic(QVirtioDevice *dev, QGuestAllocator *alloc)
         g_assert_cmpint(status, ==, 0);
 
         guest_free(alloc, req_addr);
+
+        test_invalid_discard_write_zeroes(dev, alloc, qts, vq,
+                                          VIRTIO_BLK_T_DISCARD);
     }
 
     if (features & (1u << VIRTIO_F_ANY_LAYOUT)) {
