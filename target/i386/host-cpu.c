@@ -50,7 +50,7 @@ static void host_cpu_enable_cpu_pm(X86CPU *cpu)
     env->features[FEAT_1_ECX] |= CPUID_EXT_MONITOR;
 }
 
-static uint32_t host_cpu_adjust_phys_bits(X86CPU *cpu, Error **errp)
+static uint32_t host_cpu_adjust_phys_bits(X86CPU *cpu)
 {
     uint32_t host_phys_bits = host_cpu_phys_bits();
     uint32_t phys_bits = cpu->phys_bits;
@@ -77,14 +77,6 @@ static uint32_t host_cpu_adjust_phys_bits(X86CPU *cpu, Error **errp)
         }
     }
 
-    if (phys_bits &&
-        (phys_bits > TARGET_PHYS_ADDR_SPACE_BITS ||
-         phys_bits < 32)) {
-        error_setg(errp, "phys-bits should be between 32 and %u "
-                   " (but is %u)",
-                   TARGET_PHYS_ADDR_SPACE_BITS, phys_bits);
-    }
-
     return phys_bits;
 }
 
@@ -97,7 +89,17 @@ void host_cpu_realizefn(CPUState *cs, Error **errp)
         host_cpu_enable_cpu_pm(cpu);
     }
     if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
-        cpu->phys_bits = host_cpu_adjust_phys_bits(cpu, errp);
+        uint32_t phys_bits = host_cpu_adjust_phys_bits(cpu);
+
+        if (phys_bits &&
+            (phys_bits > TARGET_PHYS_ADDR_SPACE_BITS ||
+             phys_bits < 32)) {
+            error_setg(errp, "phys-bits should be between 32 and %u "
+                       " (but is %u)",
+                       TARGET_PHYS_ADDR_SPACE_BITS, phys_bits);
+            return;
+        }
+        cpu->phys_bits = phys_bits;
     }
 }
 
