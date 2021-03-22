@@ -122,6 +122,7 @@ static const MemMapEntry microchip_pfsoc_memmap[] = {
     [MICROCHIP_PFSOC_ENVM_DATA] =       { 0x20220000,    0x20000 },
     [MICROCHIP_PFSOC_QSPI_XIP] =        { 0x21000000,  0x1000000 },
     [MICROCHIP_PFSOC_IOSCB] =           { 0x30000000, 0x10000000 },
+    [MICROCHIP_PFSOC_EMMC_SD_MUX] =     { 0x4f000000,        0x4 },
     [MICROCHIP_PFSOC_DRAM_LO] =         { 0x80000000, 0x40000000 },
     [MICROCHIP_PFSOC_DRAM_LO_ALIAS] =   { 0xc0000000, 0x40000000 },
     [MICROCHIP_PFSOC_DRAM_HI] =       { 0x1000000000,        0x0 },
@@ -410,6 +411,11 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->ioscb), errp);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ioscb), 0,
                     memmap[MICROCHIP_PFSOC_IOSCB].base);
+
+    /* eMMC/SD mux */
+    create_unimplemented_device("microchip.pfsoc.emmc_sd_mux",
+        memmap[MICROCHIP_PFSOC_EMMC_SD_MUX].base,
+        memmap[MICROCHIP_PFSOC_EMMC_SD_MUX].size);
 
     /* QSPI Flash */
     memory_region_init_rom(qspi_xip_mem, OBJECT(dev),
