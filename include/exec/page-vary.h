@@ -26,4 +26,9 @@ typedef struct {
     uint64_t mask;
 } TargetPageBits;
 
+#ifdef IN_PAGE_VARY
+extern bool set_preferred_target_page_bits_common(int bits);
+extern void finalize_target_page_bits_common(int min);
+#endif
+
 #endif /* EXEC_PAGE_VARY_H */
