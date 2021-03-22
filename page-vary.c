@@ -1,5 +1,5 @@
 /*
- * Variable page size handling
+ * Variable page size handling -- target specific part.
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *

@@ -1933,7 +1933,6 @@ subdir('softmmu')
 
 common_ss.add(capstone)
 specific_ss.add(files('cpu.c', 'disas.c', 'gdbstub.c'), capstone)
-specific_ss.add(files('exec-vary.c'))
 specific_ss.add(when: 'CONFIG_TCG', if_true: files(
   'fpu/softfloat.c',
   'tcg/optimize.c',
@@ -1944,6 +1943,8 @@ specific_ss.add(when: 'CONFIG_TCG', if_true: files(
   'tcg/tcg.c',
 ))
 specific_ss.add(when: 'CONFIG_TCG_INTERPRETER', if_true: files('tcg/tci.c'))
+
+specific_ss.add(files('page-vary.c'))
 
 subdir('backends')
 subdir('disas')
