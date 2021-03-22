@@ -70,7 +70,11 @@ DEF_HELPER_1(clac, void, env)
 DEF_HELPER_1(stac, void, env)
 DEF_HELPER_3(boundw, void, env, tl, int)
 DEF_HELPER_3(boundl, void, env, tl, int)
+
+#ifndef CONFIG_USER_ONLY
 DEF_HELPER_1(rsm, void, env)
+#endif /* !CONFIG_USER_ONLY */
+
 DEF_HELPER_2(into, void, env, int)
 DEF_HELPER_2(cmpxchg8b_unlocked, void, env, tl)
 DEF_HELPER_2(cmpxchg8b, void, env, tl)

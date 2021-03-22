@@ -1351,7 +1351,11 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     case CPU_INTERRUPT_SMI:
         cpu_svm_check_intercept_param(env, SVM_EXIT_SMI, 0, 0);
         cs->interrupt_request &= ~CPU_INTERRUPT_SMI;
+#ifdef CONFIG_USER_ONLY
+        cpu_abort(CPU(cpu), "SMI interrupt: cannot enter SMM in user-mode");
+#else
         do_smm_enter(cpu);
+#endif /* CONFIG_USER_ONLY */
         break;
     case CPU_INTERRUPT_NMI:
         cpu_svm_check_intercept_param(env, SVM_EXIT_NMI, 0, 0);
