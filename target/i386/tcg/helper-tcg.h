@@ -88,4 +88,7 @@ void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
 /* smm_helper.c */
 void do_smm_enter(X86CPU *cpu);
 
+/* bpt_helper.c */
+bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update);
+
 #endif /* I386_HELPER_TCG_H */
