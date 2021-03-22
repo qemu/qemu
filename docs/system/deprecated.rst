@@ -186,6 +186,15 @@ Use the more generic commands ``block-export-add`` and ``block-export-del``
 instead.  As part of this deprecation, where ``nbd-server-add`` used a
 single ``bitmap``, the new ``block-export-add`` uses a list of ``bitmaps``.
 
+System accelerators
+-------------------
+
+MIPS ``Trap-and-Emul`` KVM support (since 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''
+
+The MIPS ``Trap-and-Emul`` KVM host and guest support has been removed
+from Linux upstream kernel, declare it deprecated.
+
 System emulator CPUS
 --------------------
 
