@@ -2457,17 +2457,18 @@ void helper_fldenv(CPUX86State *env, target_ulong ptr, int data32)
     do_fldenv(env, ptr, data32, GETPC());
 }
 
-void helper_fsave(CPUX86State *env, target_ulong ptr, int data32)
+static void do_fsave(CPUX86State *env, target_ulong ptr, int data32,
+                     uintptr_t retaddr)
 {
     floatx80 tmp;
     int i;
 
-    do_fstenv(env, ptr, data32, GETPC());
+    do_fstenv(env, ptr, data32, retaddr);
 
     ptr += (14 << data32);
     for (i = 0; i < 8; i++) {
         tmp = ST(i);
-        do_fstt(env, tmp, ptr, GETPC());
+        do_fstt(env, tmp, ptr, retaddr);
         ptr += 10;
     }
 
@@ -2485,30 +2486,41 @@ void helper_fsave(CPUX86State *env, target_ulong ptr, int data32)
     env->fptags[7] = 1;
 }
 
-void helper_frstor(CPUX86State *env, target_ulong ptr, int data32)
+void helper_fsave(CPUX86State *env, target_ulong ptr, int data32)
+{
+    do_fsave(env, ptr, data32, GETPC());
+}
+
+static void do_frstor(CPUX86State *env, target_ulong ptr, int data32,
+                      uintptr_t retaddr)
 {
     floatx80 tmp;
     int i;
 
-    do_fldenv(env, ptr, data32, GETPC());
+    do_fldenv(env, ptr, data32, retaddr);
     ptr += (14 << data32);
 
     for (i = 0; i < 8; i++) {
-        tmp = do_fldt(env, ptr, GETPC());
+        tmp = do_fldt(env, ptr, retaddr);
         ST(i) = tmp;
         ptr += 10;
     }
 }
 
+void helper_frstor(CPUX86State *env, target_ulong ptr, int data32)
+{
+    do_frstor(env, ptr, data32, GETPC());
+}
+
 #if defined(CONFIG_USER_ONLY)
 void cpu_x86_fsave(CPUX86State *env, target_ulong ptr, int data32)
 {
-    helper_fsave(env, ptr, data32);
+    do_fsave(env, ptr, data32, 0);
 }
 
 void cpu_x86_frstor(CPUX86State *env, target_ulong ptr, int data32)
 {
-    helper_frstor(env, ptr, data32);
+    do_frstor(env, ptr, data32, 0);
 }
 #endif
 
@@ -2593,10 +2605,8 @@ static void do_xsave_pkru(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     cpu_stq_data_ra(env, ptr, env->pkru, ra);
 }
 
-void helper_fxsave(CPUX86State *env, target_ulong ptr)
+static void do_fxsave(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
-    uintptr_t ra = GETPC();
-
     /* The operand must be 16 byte aligned */
     if (ptr & 0xf) {
         raise_exception_ra(env, EXCP0D_GPF, ra);
@@ -2613,6 +2623,11 @@ void helper_fxsave(CPUX86State *env, target_ulong ptr)
             do_xsave_sse(env, ptr, ra);
         }
     }
+}
+
+void helper_fxsave(CPUX86State *env, target_ulong ptr)
+{
+    do_fxsave(env, ptr, GETPC());
 }
 
 static uint64_t get_xinuse(CPUX86State *env)
@@ -2757,10 +2772,8 @@ static void do_xrstor_pkru(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     env->pkru = cpu_ldq_data_ra(env, ptr, ra);
 }
 
-void helper_fxrstor(CPUX86State *env, target_ulong ptr)
+static void do_fxrstor(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
-    uintptr_t ra = GETPC();
-
     /* The operand must be 16 byte aligned */
     if (ptr & 0xf) {
         raise_exception_ra(env, EXCP0D_GPF, ra);
@@ -2779,15 +2792,20 @@ void helper_fxrstor(CPUX86State *env, target_ulong ptr)
     }
 }
 
+void helper_fxrstor(CPUX86State *env, target_ulong ptr)
+{
+    do_fxrstor(env, ptr, GETPC());
+}
+
 #if defined(CONFIG_USER_ONLY)
 void cpu_x86_fxsave(CPUX86State *env, target_ulong ptr)
 {
-    helper_fxsave(env, ptr);
+    do_fxsave(env, ptr, 0);
 }
 
 void cpu_x86_fxrstor(CPUX86State *env, target_ulong ptr)
 {
-    helper_fxrstor(env, ptr);
+    do_fxrstor(env, ptr, 0);
 }
 #endif
 
