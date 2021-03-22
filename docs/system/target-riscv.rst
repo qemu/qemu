@@ -66,6 +66,7 @@ undocumented; you can get a complete list by running
 .. toctree::
    :maxdepth: 1
 
+   riscv/microchip-icicle-kit
    riscv/sifive_u
 
 RISC-V CPU features
