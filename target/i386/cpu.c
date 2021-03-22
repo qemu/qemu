@@ -22,38 +22,25 @@
 #include "qemu/cutils.h"
 #include "qemu/bitops.h"
 #include "qemu/qemu-print.h"
-
 #include "cpu.h"
-#include "tcg/tcg-cpu.h"
 #include "tcg/helper-tcg.h"
 #include "exec/exec-all.h"
 #include "sysemu/kvm.h"
 #include "sysemu/reset.h"
 #include "sysemu/hvf.h"
-#include "sysemu/cpus.h"
+#include "hw/core/accel-cpu.h"
 #include "sysemu/xen.h"
 #include "sysemu/whpx.h"
 #include "kvm/kvm_i386.h"
 #include "sev_i386.h"
-
-#include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "qemu/option.h"
-#include "qemu/config-file.h"
-#include "qapi/error.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/qapi-visit-run-state.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
-#include "qapi/visitor.h"
 #include "qom/qom-qobject.h"
-#include "sysemu/arch_init.h"
 #include "qapi/qapi-commands-machine-target.h"
-
 #include "standard-headers/asm-x86/kvm_para.h"
-
-#include "sysemu/sysemu.h"
-#include "sysemu/tcg.h"
 #include "hw/qdev-properties.h"
 #include "hw/i386/topology.h"
 #ifndef CONFIG_USER_ONLY
@@ -595,8 +582,8 @@ static CPUCacheInfo legacy_l3_cache = {
 #define INTEL_PT_CYCLE_BITMAP    0x1fff         /* Support 0,2^(0~11) */
 #define INTEL_PT_PSB_BITMAP      (0x003f << 16) /* Support 2K,4K,8K,16K,32K,64K */
 
-static void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
-                                     uint32_t vendor2, uint32_t vendor3)
+void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
+                              uint32_t vendor2, uint32_t vendor3)
 {
     int i;
     for (i = 0; i < 4; i++) {
@@ -1589,25 +1576,6 @@ void host_cpuid(uint32_t function, uint32_t count,
         *edx = vec[3];
 }
 
-void host_vendor_fms(char *vendor, int *family, int *model, int *stepping)
-{
-    uint32_t eax, ebx, ecx, edx;
-
-    host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
-    x86_cpu_vendor_words2str(vendor, ebx, edx, ecx);
-
-    host_cpuid(0x1, 0, &eax, &ebx, &ecx, &edx);
-    if (family) {
-        *family = ((eax >> 8) & 0x0F) + ((eax >> 20) & 0xFF);
-    }
-    if (model) {
-        *model = ((eax >> 4) & 0x0F) | ((eax & 0xF0000) >> 12);
-    }
-    if (stepping) {
-        *stepping = eax & 0x0F;
-    }
-}
-
 /* CPU class name definitions: */
 
 /* Return type name for a given CPU model name
@@ -1631,10 +1599,6 @@ static char *x86_cpu_class_get_model_name(X86CPUClass *cc)
     return g_strndup(class_name,
                      strlen(class_name) - strlen(X86_CPU_TYPE_SUFFIX));
 }
-
-typedef struct PropValue {
-    const char *prop, *value;
-} PropValue;
 
 typedef struct X86CPUVersionDefinition {
     X86CPUVersion version;
@@ -4249,32 +4213,6 @@ static X86CPUDefinition builtin_x86_defs[] = {
     },
 };
 
-/* KVM-specific features that are automatically added/removed
- * from all CPU models when KVM is enabled.
- */
-static PropValue kvm_default_props[] = {
-    { "kvmclock", "on" },
-    { "kvm-nopiodelay", "on" },
-    { "kvm-asyncpf", "on" },
-    { "kvm-steal-time", "on" },
-    { "kvm-pv-eoi", "on" },
-    { "kvmclock-stable-bit", "on" },
-    { "x2apic", "on" },
-    { "kvm-msi-ext-dest-id", "off" },
-    { "acpi", "off" },
-    { "monitor", "off" },
-    { "svm", "off" },
-    { NULL, NULL },
-};
-
-/* TCG-specific defaults that override all CPU models when using TCG
- */
-static PropValue tcg_default_props[] = {
-    { "vme", "off" },
-    { NULL, NULL },
-};
-
-
 /*
  * We resolve CPU model aliases using -v1 when using "-machine
  * none", but this is just for compatibility while libvirt isn't
@@ -4316,61 +4254,6 @@ static X86CPUVersion x86_cpu_model_resolve_version(const X86CPUModel *model)
     return v;
 }
 
-void x86_cpu_change_kvm_default(const char *prop, const char *value)
-{
-    PropValue *pv;
-    for (pv = kvm_default_props; pv->prop; pv++) {
-        if (!strcmp(pv->prop, prop)) {
-            pv->value = value;
-            break;
-        }
-    }
-
-    /* It is valid to call this function only for properties that
-     * are already present in the kvm_default_props table.
-     */
-    assert(pv->prop);
-}
-
-static bool lmce_supported(void)
-{
-    uint64_t mce_cap = 0;
-
-#ifdef CONFIG_KVM
-    if (kvm_ioctl(kvm_state, KVM_X86_GET_MCE_CAP_SUPPORTED, &mce_cap) < 0) {
-        return false;
-    }
-#endif
-
-    return !!(mce_cap & MCG_LMCE_P);
-}
-
-#define CPUID_MODEL_ID_SZ 48
-
-/**
- * cpu_x86_fill_model_id:
- * Get CPUID model ID string from host CPU.
- *
- * @str should have at least CPUID_MODEL_ID_SZ bytes
- *
- * The function does NOT add a null terminator to the string
- * automatically.
- */
-static int cpu_x86_fill_model_id(char *str)
-{
-    uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
-    int i;
-
-    for (i = 0; i < 3; i++) {
-        host_cpuid(0x80000002 + i, 0, &eax, &ebx, &ecx, &edx);
-        memcpy(str + i * 16 +  0, &eax, 4);
-        memcpy(str + i * 16 +  4, &ebx, 4);
-        memcpy(str + i * 16 +  8, &ecx, 4);
-        memcpy(str + i * 16 + 12, &edx, 4);
-    }
-    return 0;
-}
-
 static Property max_x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("migratable", X86CPU, migratable, true),
     DEFINE_PROP_BOOL("host-cache-info", X86CPU, cache_info_passthrough, false),
@@ -4393,62 +4276,25 @@ static void max_x86_cpu_class_init(ObjectClass *oc, void *data)
 static void max_x86_cpu_initfn(Object *obj)
 {
     X86CPU *cpu = X86_CPU(obj);
-    CPUX86State *env = &cpu->env;
-    KVMState *s = kvm_state;
 
     /* We can't fill the features array here because we don't know yet if
      * "migratable" is true or false.
      */
     cpu->max_features = true;
-
-    if (accel_uses_host_cpuid()) {
-        char vendor[CPUID_VENDOR_SZ + 1] = { 0 };
-        char model_id[CPUID_MODEL_ID_SZ + 1] = { 0 };
-        int family, model, stepping;
-
-        host_vendor_fms(vendor, &family, &model, &stepping);
-        cpu_x86_fill_model_id(model_id);
-
-        object_property_set_str(OBJECT(cpu), "vendor", vendor, &error_abort);
-        object_property_set_int(OBJECT(cpu), "family", family, &error_abort);
-        object_property_set_int(OBJECT(cpu), "model", model, &error_abort);
-        object_property_set_int(OBJECT(cpu), "stepping", stepping,
-                                &error_abort);
-        object_property_set_str(OBJECT(cpu), "model-id", model_id,
-                                &error_abort);
-
-        if (kvm_enabled()) {
-            env->cpuid_min_level =
-                kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
-            env->cpuid_min_xlevel =
-                kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
-            env->cpuid_min_xlevel2 =
-                kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
-        } else {
-            env->cpuid_min_level =
-                hvf_get_supported_cpuid(0x0, 0, R_EAX);
-            env->cpuid_min_xlevel =
-                hvf_get_supported_cpuid(0x80000000, 0, R_EAX);
-            env->cpuid_min_xlevel2 =
-                hvf_get_supported_cpuid(0xC0000000, 0, R_EAX);
-        }
-
-        if (lmce_supported()) {
-            object_property_set_bool(OBJECT(cpu), "lmce", true, &error_abort);
-        }
-        object_property_set_bool(OBJECT(cpu), "host-phys-bits", true, &error_abort);
-    } else {
-        object_property_set_str(OBJECT(cpu), "vendor", CPUID_VENDOR_AMD,
-                                &error_abort);
-        object_property_set_int(OBJECT(cpu), "family", 6, &error_abort);
-        object_property_set_int(OBJECT(cpu), "model", 6, &error_abort);
-        object_property_set_int(OBJECT(cpu), "stepping", 3, &error_abort);
-        object_property_set_str(OBJECT(cpu), "model-id",
-                                "QEMU TCG CPU version " QEMU_HW_VERSION,
-                                &error_abort);
-    }
-
     object_property_set_bool(OBJECT(cpu), "pmu", true, &error_abort);
+
+    /*
+     * these defaults are used for TCG and all other accelerators
+     * besides KVM and HVF, which overwrite these values
+     */
+    object_property_set_str(OBJECT(cpu), "vendor", CPUID_VENDOR_AMD,
+                            &error_abort);
+    object_property_set_int(OBJECT(cpu), "family", 6, &error_abort);
+    object_property_set_int(OBJECT(cpu), "model", 6, &error_abort);
+    object_property_set_int(OBJECT(cpu), "stepping", 3, &error_abort);
+    object_property_set_str(OBJECT(cpu), "model-id",
+                            "QEMU TCG CPU version " QEMU_HW_VERSION,
+                            &error_abort);
 }
 
 static const TypeInfo max_x86_cpu_type_info = {
@@ -4457,31 +4303,6 @@ static const TypeInfo max_x86_cpu_type_info = {
     .instance_init = max_x86_cpu_initfn,
     .class_init = max_x86_cpu_class_init,
 };
-
-#if defined(CONFIG_KVM) || defined(CONFIG_HVF)
-static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
-{
-    X86CPUClass *xcc = X86_CPU_CLASS(oc);
-
-    xcc->host_cpuid_required = true;
-    xcc->ordering = 8;
-
-#if defined(CONFIG_KVM)
-    xcc->model_description =
-        "KVM processor with all supported host features ";
-#elif defined(CONFIG_HVF)
-    xcc->model_description =
-        "HVF processor with all supported host features ";
-#endif
-}
-
-static const TypeInfo host_x86_cpu_type_info = {
-    .name = X86_CPU_TYPE_NAME("host"),
-    .parent = X86_CPU_TYPE_NAME("max"),
-    .class_init = host_x86_cpu_class_init,
-};
-
-#endif
 
 static char *feature_word_description(FeatureWordInfo *f, uint32_t bit)
 {
@@ -5201,7 +5022,7 @@ static uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
     return r;
 }
 
-static void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
+void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
 {
     PropValue *pv;
     for (pv = props; pv->prop; pv++) {
@@ -5248,8 +5069,6 @@ static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
 {
     X86CPUDefinition *def = model->cpudef;
     CPUX86State *env = &cpu->env;
-    const char *vendor;
-    char host_vendor[CPUID_VENDOR_SZ + 1];
     FeatureWord w;
 
     /*NOTE: any property set by this function should be returned by
@@ -5276,20 +5095,6 @@ static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
     /* legacy-cache defaults to 'off' if CPU model provides cache info */
     cpu->legacy_cache = !def->cache_info;
 
-    /* Special cases not set in the X86CPUDefinition structs: */
-    /* TODO: in-kernel irqchip for hvf */
-    if (kvm_enabled()) {
-        if (!kvm_irqchip_in_kernel()) {
-            x86_cpu_change_kvm_default("x2apic", "off");
-        } else if (kvm_irqchip_is_split() && kvm_enable_x2apic()) {
-            x86_cpu_change_kvm_default("kvm-msi-ext-dest-id", "on");
-        }
-
-        x86_cpu_apply_props(cpu, kvm_default_props);
-    } else if (tcg_enabled()) {
-        x86_cpu_apply_props(cpu, tcg_default_props);
-    }
-
     env->features[FEAT_1_ECX] |= CPUID_EXT_HYPERVISOR;
 
     /* sysenter isn't supported in compatibility mode on AMD,
@@ -5299,15 +5104,12 @@ static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
      * KVM's sysenter/syscall emulation in compatibility mode and
      * when doing cross vendor migration
      */
-    vendor = def->vendor;
-    if (accel_uses_host_cpuid()) {
-        uint32_t  ebx = 0, ecx = 0, edx = 0;
-        host_cpuid(0, 0, NULL, &ebx, &ecx, &edx);
-        x86_cpu_vendor_words2str(host_vendor, ebx, edx, ecx);
-        vendor = host_vendor;
-    }
 
-    object_property_set_str(OBJECT(cpu), "vendor", vendor, &error_abort);
+    /*
+     * vendor property is set here but then overloaded with the
+     * host cpu vendor for KVM and HVF.
+     */
+    object_property_set_str(OBJECT(cpu), "vendor", def->vendor, &error_abort);
 
     x86_cpu_apply_version_props(cpu, model);
 
@@ -6338,52 +6140,11 @@ static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
         apic_mmio_map_once = true;
      }
 }
-
-static void x86_cpu_machine_done(Notifier *n, void *unused)
-{
-    X86CPU *cpu = container_of(n, X86CPU, machine_done);
-    MemoryRegion *smram =
-        (MemoryRegion *) object_resolve_path("/machine/smram", NULL);
-
-    if (smram) {
-        cpu->smram = g_new(MemoryRegion, 1);
-        memory_region_init_alias(cpu->smram, OBJECT(cpu), "smram",
-                                 smram, 0, 4 * GiB);
-        memory_region_set_enabled(cpu->smram, true);
-        memory_region_add_subregion_overlap(cpu->cpu_as_root, 0, cpu->smram, 1);
-    }
-}
 #else
 static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
 {
 }
 #endif
-
-/* Note: Only safe for use on x86(-64) hosts */
-static uint32_t x86_host_phys_bits(void)
-{
-    uint32_t eax;
-    uint32_t host_phys_bits;
-
-    host_cpuid(0x80000000, 0, &eax, NULL, NULL, NULL);
-    if (eax >= 0x80000008) {
-        host_cpuid(0x80000008, 0, &eax, NULL, NULL, NULL);
-        /* Note: According to AMD doc 25481 rev 2.34 they have a field
-         * at 23:16 that can specify a maximum physical address bits for
-         * the guest that can override this value; but I've not seen
-         * anything with that set.
-         */
-        host_phys_bits = eax & 0xff;
-    } else {
-        /* It's an odd 64 bit machine that doesn't have the leaf for
-         * physical address bits; fall back to 36 that's most older
-         * Intel.
-         */
-        host_phys_bits = 36;
-    }
-
-    return host_phys_bits;
-}
 
 static void x86_cpu_adjust_level(X86CPU *cpu, uint32_t *min, uint32_t value)
 {
@@ -6696,33 +6457,22 @@ static void x86_cpu_hyperv_realize(X86CPU *cpu)
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
+    CPUClass *cc = CPU_GET_CLASS(cs);
     X86CPU *cpu = X86_CPU(dev);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     CPUX86State *env = &cpu->env;
     Error *local_err = NULL;
     static bool ht_warned;
 
-    if (xcc->host_cpuid_required) {
-        if (!accel_uses_host_cpuid()) {
-            g_autofree char *name = x86_cpu_class_get_model_name(xcc);
-            error_setg(&local_err, "CPU model '%s' requires KVM", name);
-            goto out;
-        }
+    /* The accelerator realizefn needs to be called first. */
+    if (cc->accel_cpu) {
+        cc->accel_cpu->cpu_realizefn(cs, errp);
     }
 
-    if (cpu->max_features && accel_uses_host_cpuid()) {
-        if (enable_cpu_pm) {
-            host_cpuid(5, 0, &cpu->mwait.eax, &cpu->mwait.ebx,
-                       &cpu->mwait.ecx, &cpu->mwait.edx);
-            env->features[FEAT_1_ECX] |= CPUID_EXT_MONITOR;
-            if (kvm_enabled() && kvm_has_waitpkg()) {
-                env->features[FEAT_7_0_ECX] |= CPUID_7_0_ECX_WAITPKG;
-            }
-        }
-        if (kvm_enabled() && cpu->ucode_rev == 0) {
-            cpu->ucode_rev = kvm_arch_get_supported_msr_feature(kvm_state,
-                                                                MSR_IA32_UCODE_REV);
-        }
+    if (xcc->host_cpuid_required && !accel_uses_host_cpuid()) {
+        g_autofree char *name = x86_cpu_class_get_model_name(xcc);
+        error_setg(&local_err, "CPU model '%s' requires KVM or HVF", name);
+        goto out;
     }
 
     if (cpu->ucode_rev == 0) {
@@ -6774,30 +6524,6 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
      * consumer AMD devices but nothing else.
      */
     if (env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM) {
-        if (accel_uses_host_cpuid()) {
-            uint32_t host_phys_bits = x86_host_phys_bits();
-            static bool warned;
-
-            /* Print a warning if the user set it to a value that's not the
-             * host value.
-             */
-            if (cpu->phys_bits != host_phys_bits && cpu->phys_bits != 0 &&
-                !warned) {
-                warn_report("Host physical bits (%u)"
-                            " does not match phys-bits property (%u)",
-                            host_phys_bits, cpu->phys_bits);
-                warned = true;
-            }
-
-            if (cpu->host_phys_bits) {
-                /* The user asked for us to use the host physical bits */
-                cpu->phys_bits = host_phys_bits;
-                if (cpu->host_phys_bits_limit &&
-                    cpu->phys_bits > cpu->host_phys_bits_limit) {
-                    cpu->phys_bits = cpu->host_phys_bits_limit;
-                }
-            }
-        }
         if (cpu->phys_bits &&
             (cpu->phys_bits > TARGET_PHYS_ADDR_SPACE_BITS ||
             cpu->phys_bits < 32)) {
@@ -6806,9 +6532,10 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
                              TARGET_PHYS_ADDR_SPACE_BITS, cpu->phys_bits);
             return;
         }
-        /* 0 means it was not explicitly set by the user (or by machine
-         * compat_props or by the host code above). In this case, the default
-         * is the value used by TCG (40).
+        /*
+         * 0 means it was not explicitly set by the user (or by machine
+         * compat_props or by the host code in host-cpu.c).
+         * In this case, the default is the value used by TCG (40).
          */
         if (cpu->phys_bits == 0) {
             cpu->phys_bits = TCG_PHYS_ADDR_BITS;
@@ -6879,33 +6606,6 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 #endif
 
     mce_init(cpu);
-
-#ifndef CONFIG_USER_ONLY
-    if (tcg_enabled()) {
-        cpu->cpu_as_mem = g_new(MemoryRegion, 1);
-        cpu->cpu_as_root = g_new(MemoryRegion, 1);
-
-        /* Outer container... */
-        memory_region_init(cpu->cpu_as_root, OBJECT(cpu), "memory", ~0ull);
-        memory_region_set_enabled(cpu->cpu_as_root, true);
-
-        /* ... with two regions inside: normal system memory with low
-         * priority, and...
-         */
-        memory_region_init_alias(cpu->cpu_as_mem, OBJECT(cpu), "memory",
-                                 get_system_memory(), 0, ~0ull);
-        memory_region_add_subregion_overlap(cpu->cpu_as_root, 0, cpu->cpu_as_mem, 0);
-        memory_region_set_enabled(cpu->cpu_as_mem, true);
-
-        cs->num_ases = 2;
-        cpu_address_space_init(cs, 0, "cpu-memory", cs->memory);
-        cpu_address_space_init(cs, 1, "cpu-smm", cpu->cpu_as_root);
-
-        /* ... SMRAM with higher priority, linked from /machine/smram.  */
-        cpu->machine_done.notify = x86_cpu_machine_done;
-        qemu_add_machine_init_done_notifier(&cpu->machine_done);
-    }
-#endif
 
     qemu_init_vcpu(cs);
 
@@ -7106,6 +6806,8 @@ static void x86_cpu_initfn(Object *obj)
 {
     X86CPU *cpu = X86_CPU(obj);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(obj);
+    CPUClass *cc = CPU_CLASS(xcc);
+
     CPUX86State *env = &cpu->env;
 
     env->nr_dies = 1;
@@ -7152,6 +6854,11 @@ static void x86_cpu_initfn(Object *obj)
 
     if (xcc->model) {
         x86_cpu_load_model(cpu, xcc->model);
+    }
+
+    /* if required, do the accelerator-specific cpu initialization */
+    if (cc->accel_cpu) {
+        cc->accel_cpu->cpu_instance_init(CPU(obj));
     }
 }
 
@@ -7410,11 +7117,6 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = x86_cpu_class_by_name;
     cc->parse_features = x86_cpu_parse_featurestr;
     cc->has_work = x86_cpu_has_work;
-
-#ifdef CONFIG_TCG
-    tcg_cpu_common_class_init(cc);
-#endif /* CONFIG_TCG */
-
     cc->dump_state = x86_cpu_dump_state;
     cc->set_pc = x86_cpu_set_pc;
     cc->gdb_read_register = x86_cpu_gdb_read_register;
@@ -7525,9 +7227,6 @@ static void x86_cpu_register_types(void)
     }
     type_register_static(&max_x86_cpu_type_info);
     type_register_static(&x86_base_cpu_type_info);
-#if defined(CONFIG_KVM) || defined(CONFIG_HVF)
-    type_register_static(&host_x86_cpu_type_info);
-#endif
 }
 
 type_init(x86_cpu_register_types)

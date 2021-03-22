@@ -61,6 +61,7 @@
 #include "hw/hyperv/vmbus-bridge.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/i386/acpi-build.h"
+#include "kvm/kvm-cpu.h"
 
 #define MAX_IDE_BUS 2
 

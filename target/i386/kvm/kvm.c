@@ -22,6 +22,7 @@
 #include "standard-headers/asm-x86/kvm_para.h"
 
 #include "cpu.h"
+#include "host-cpu.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/kvm_int.h"
@@ -288,7 +289,7 @@ static bool host_tsx_broken(void)
     int family, model, stepping;\
     char vendor[CPUID_VENDOR_SZ + 1];
 
-    host_vendor_fms(vendor, &family, &model, &stepping);
+    host_cpu_vendor_fms(vendor, &family, &model, &stepping);
 
     /* Check if we are running on a Haswell host known to have broken TSX */
     return !strcmp(vendor, CPUID_VENDOR_INTEL) &&

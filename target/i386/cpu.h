@@ -1926,13 +1926,20 @@ int cpu_x86_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
 /* cpu.c */
+void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
+                              uint32_t vendor2, uint32_t vendor3);
+typedef struct PropValue {
+    const char *prop, *value;
+} PropValue;
+void x86_cpu_apply_props(X86CPU *cpu, PropValue *props);
+
+/* cpu.c other functions (cpuid) */
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *eax, uint32_t *ebx,
                    uint32_t *ecx, uint32_t *edx);
 void cpu_clear_apic_feature(CPUX86State *env);
 void host_cpuid(uint32_t function, uint32_t count,
                 uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
-void host_vendor_fms(char *vendor, int *family, int *model, int *stepping);
 
 /* helper.c */
 void x86_cpu_set_a20(X86CPU *cpu, int a20_state);
@@ -2136,17 +2143,6 @@ void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
                                    TPRAccess access);
-
-
-/* Change the value of a KVM-specific default
- *
- * If value is NULL, no default will be set and the original
- * value from the CPU model table will be kept.
- *
- * It is valid to call this function only for properties that
- * are already present in the kvm_default_props table.
- */
-void x86_cpu_change_kvm_default(const char *prop, const char *value);
 
 /* Special values for X86CPUVersion: */
 
