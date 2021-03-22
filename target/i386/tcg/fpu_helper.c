@@ -117,8 +117,7 @@ static inline void fpop(CPUX86State *env)
     env->fpstt = (env->fpstt + 1) & 7;
 }
 
-static inline floatx80 helper_fldt(CPUX86State *env, target_ulong ptr,
-                                   uintptr_t retaddr)
+static floatx80 do_fldt(CPUX86State *env, target_ulong ptr, uintptr_t retaddr)
 {
     CPU_LDoubleU temp;
 
@@ -127,8 +126,8 @@ static inline floatx80 helper_fldt(CPUX86State *env, target_ulong ptr,
     return temp.d;
 }
 
-static inline void helper_fstt(CPUX86State *env, floatx80 f, target_ulong ptr,
-                               uintptr_t retaddr)
+static void do_fstt(CPUX86State *env, floatx80 f, target_ulong ptr,
+                    uintptr_t retaddr)
 {
     CPU_LDoubleU temp;
 
@@ -405,14 +404,14 @@ void helper_fldt_ST0(CPUX86State *env, target_ulong ptr)
     int new_fpstt;
 
     new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt].d = helper_fldt(env, ptr, GETPC());
+    env->fpregs[new_fpstt].d = do_fldt(env, ptr, GETPC());
     env->fpstt = new_fpstt;
     env->fptags[new_fpstt] = 0; /* validate stack entry */
 }
 
 void helper_fstt_ST0(CPUX86State *env, target_ulong ptr)
 {
-    helper_fstt(env, ST0, ptr, GETPC());
+    do_fstt(env, ST0, ptr, GETPC());
 }
 
 void helper_fpush(CPUX86State *env)
@@ -2468,7 +2467,7 @@ void helper_fsave(CPUX86State *env, target_ulong ptr, int data32)
     ptr += (14 << data32);
     for (i = 0; i < 8; i++) {
         tmp = ST(i);
-        helper_fstt(env, tmp, ptr, GETPC());
+        do_fstt(env, tmp, ptr, GETPC());
         ptr += 10;
     }
 
@@ -2495,7 +2494,7 @@ void helper_frstor(CPUX86State *env, target_ulong ptr, int data32)
     ptr += (14 << data32);
 
     for (i = 0; i < 8; i++) {
-        tmp = helper_fldt(env, ptr, GETPC());
+        tmp = do_fldt(env, ptr, GETPC());
         ST(i) = tmp;
         ptr += 10;
     }
@@ -2539,7 +2538,7 @@ static void do_xsave_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     addr = ptr + XO(legacy.fpregs);
     for (i = 0; i < 8; i++) {
         floatx80 tmp = ST(i);
-        helper_fstt(env, tmp, addr, ra);
+        do_fstt(env, tmp, addr, ra);
         addr += 16;
     }
 }
@@ -2703,7 +2702,7 @@ static void do_xrstor_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 
     addr = ptr + XO(legacy.fpregs);
     for (i = 0; i < 8; i++) {
-        floatx80 tmp = helper_fldt(env, addr, ra);
+        floatx80 tmp = do_fldt(env, addr, ra);
         ST(i) = tmp;
         addr += 16;
     }
