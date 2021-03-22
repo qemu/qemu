@@ -130,8 +130,9 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     cpu_list_add(cpu);
-    accel_cpu_realizefn(cpu, errp);
-
+    if (!accel_cpu_realizefn(cpu, errp)) {
+        return;
+    }
 #ifdef CONFIG_TCG
     /* NB: errp parameter is unused currently */
     if (tcg_enabled()) {

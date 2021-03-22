@@ -18,7 +18,7 @@
 #include "kvm_i386.h"
 #include "hw/core/accel-cpu.h"
 
-static void kvm_cpu_realizefn(CPUState *cs, Error **errp)
+static bool kvm_cpu_realizefn(CPUState *cs, Error **errp)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -41,7 +41,7 @@ static void kvm_cpu_realizefn(CPUState *cs, Error **errp)
                                                    MSR_IA32_UCODE_REV);
         }
     }
-    host_cpu_realizefn(cs, errp);
+    return host_cpu_realizefn(cs, errp);
 }
 
 /*

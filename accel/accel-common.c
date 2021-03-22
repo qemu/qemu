@@ -98,14 +98,14 @@ void accel_cpu_instance_init(CPUState *cpu)
     }
 }
 
-void accel_cpu_realizefn(CPUState *cpu, Error **errp)
+bool accel_cpu_realizefn(CPUState *cpu, Error **errp)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (cc->accel_cpu && cc->accel_cpu->cpu_realizefn) {
-        /* NB: errp parameter is unused currently */
-        cc->accel_cpu->cpu_realizefn(cpu, errp);
+        return cc->accel_cpu->cpu_realizefn(cpu, errp);
     }
+    return true;
 }
 
 static const TypeInfo accel_cpu_type = {

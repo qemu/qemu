@@ -96,7 +96,7 @@ static void x86_cpu_machine_done(Notifier *n, void *unused)
     }
 }
 
-static void tcg_cpu_realizefn(CPUState *cs, Error **errp)
+static bool tcg_cpu_realizefn(CPUState *cs, Error **errp)
 {
     X86CPU *cpu = X86_CPU(cs);
 
@@ -132,12 +132,14 @@ static void tcg_cpu_realizefn(CPUState *cs, Error **errp)
     /* ... SMRAM with higher priority, linked from /machine/smram.  */
     cpu->machine_done.notify = x86_cpu_machine_done;
     qemu_add_machine_init_done_notifier(&cpu->machine_done);
+    return true;
 }
 
 #else /* CONFIG_USER_ONLY */
 
-static void tcg_cpu_realizefn(CPUState *cs, Error **errp)
+static bool tcg_cpu_realizefn(CPUState *cs, Error **errp)
 {
+    return true;
 }
 
 #endif /* !CONFIG_USER_ONLY */

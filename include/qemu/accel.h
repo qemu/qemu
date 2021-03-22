@@ -89,6 +89,6 @@ void accel_cpu_instance_init(CPUState *cpu);
  * @cpu: The CPU that needs to call accel-specific cpu realization.
  * @errp: currently unused.
  */
-void accel_cpu_realizefn(CPUState *cpu, Error **errp);
+bool accel_cpu_realizefn(CPUState *cpu, Error **errp);
 
 #endif /* QEMU_ACCEL_H */

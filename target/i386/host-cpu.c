@@ -80,7 +80,7 @@ static uint32_t host_cpu_adjust_phys_bits(X86CPU *cpu)
     return phys_bits;
 }
 
-void host_cpu_realizefn(CPUState *cs, Error **errp)
+bool host_cpu_realizefn(CPUState *cs, Error **errp)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -97,10 +97,11 @@ void host_cpu_realizefn(CPUState *cs, Error **errp)
             error_setg(errp, "phys-bits should be between 32 and %u "
                        " (but is %u)",
                        TARGET_PHYS_ADDR_SPACE_BITS, phys_bits);
-            return;
+            return false;
         }
         cpu->phys_bits = phys_bits;
     }
+    return true;
 }
 
 #define CPUID_MODEL_ID_SZ 48
