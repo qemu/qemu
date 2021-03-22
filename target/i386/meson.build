@@ -18,6 +18,7 @@ i386_softmmu_ss.add(files(
   'arch_memory_mapping.c',
   'machine.c',
   'monitor.c',
+  'cpu-sysemu.c',
 ))
 i386_user_ss = ss.source_set()
 
