@@ -432,7 +432,7 @@ uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
 
     status = nvme_map_dptr(n, &req->sg, mapped_len, &req->cmd);
     if (status) {
-        return status;
+        goto err;
     }
 
     ctx->data.bounce = g_malloc(len);
