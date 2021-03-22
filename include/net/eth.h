@@ -31,6 +31,7 @@
 
 #define ETH_ALEN 6
 #define ETH_HLEN 14
+#define ETH_ZLEN 60     /* Min. octets in frame without FCS */
 
 struct eth_header {
     uint8_t  h_dest[ETH_ALEN];   /* destination eth addr */
@@ -421,5 +422,21 @@ eth_calc_ip6_pseudo_hdr_csum(struct ip6_header *iphdr,
 bool
 eth_parse_ipv6_hdr(const struct iovec *pkt, int pkt_frags,
                    size_t ip6hdr_off, eth_ip6_hdr_info *info);
+
+/**
+ * eth_pad_short_frame - pad a short frame to the minimum Ethernet frame length
+ *
+ * If the Ethernet frame size is shorter than 60 bytes, it will be padded to
+ * 60 bytes at the address @padded_pkt.
+ *
+ * @padded_pkt: buffer address to hold the padded frame
+ * @padded_buflen: pointer holding length of @padded_pkt. If the frame is
+ *                 padded, the length will be updated to the padded one.
+ * @pkt: address to hold the original Ethernet frame
+ * @pkt_size: size of the original Ethernet frame
+ * @return true if the frame is padded, otherwise false
+ */
+bool eth_pad_short_frame(uint8_t *padded_pkt, size_t *padded_buflen,
+                         const void *pkt, size_t pkt_size);
 
 #endif
