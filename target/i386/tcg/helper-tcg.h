@@ -84,6 +84,11 @@ void do_vmexit(CPUX86State *env);
 
 /* seg_helper.c */
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
+void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
+                      int error_code, target_ulong next_eip, int is_hw);
+void handle_even_inj(CPUX86State *env, int intno, int is_int,
+                     int error_code, int is_hw, int rm);
+int exception_has_error_code(int intno);
 
 /* smm_helper.c */
 void do_smm_enter(X86CPU *cpu);
