@@ -20,12 +20,16 @@ import socket
 import subprocess
 import basevm
 
+FREEBSD_CONFIG = {
+    'cpu'	: "max,sse4.2=off",
+}
+
 class FreeBSDVM(basevm.BaseVM):
     name = "freebsd"
     arch = "x86_64"
 
-    link = "https://download.freebsd.org/ftp/releases/ISO-IMAGES/12.1/FreeBSD-12.1-RELEASE-amd64-disc1.iso.xz"
-    csum = "7394c3f60a1e236e7bd3a05809cf43ae39a3b8e5d42d782004cf2f26b1cfcd88"
+    link = "https://download.freebsd.org/ftp/releases/ISO-IMAGES/12.2/FreeBSD-12.2-RELEASE-amd64-disc1.iso.xz"
+    csum = "a4530246cafbf1dd42a9bd3ea441ca9a78a6a0cd070278cbdf63f3a6f803ecae"
     size = "20G"
     pkgs = [
         # build tools
@@ -61,6 +65,8 @@ class FreeBSDVM(basevm.BaseVM):
         "zstd",
     ]
 
+    # TODO: Enable gnutls again once FreeBSD's libtasn1 got fixed
+    # See: https://gitlab.com/gnutls/libtasn1/-/merge_requests/71
     BUILD_SCRIPT = """
         set -e;
         rm -rf /home/qemu/qemu-test.*
@@ -68,7 +74,7 @@ class FreeBSDVM(basevm.BaseVM):
         mkdir src build; cd src;
         tar -xf /dev/vtbd1;
         cd ../build
-        ../src/configure --python=python3.7 {configure_opts};
+        ../src/configure --python=python3.7 --disable-gnutls {configure_opts};
         gmake --output-sync -j{jobs} {target} {verbose};
     """
 
@@ -125,7 +131,7 @@ class FreeBSDVM(basevm.BaseVM):
         self.console_wait_send("IPv6",                  "n")
         self.console_wait_send("Resolver",              "\n")
 
-        self.console_wait_send("Time Zone Selector",    "a\n")
+        self.console_wait_send("Time Zone Selector",    "0\n")
         self.console_wait_send("Confirmation",          "y")
         self.console_wait_send("Time & Date",           "\n")
         self.console_wait_send("Time & Date",           "\n")
@@ -206,4 +212,4 @@ class FreeBSDVM(basevm.BaseVM):
         self.print_step("All done")
 
 if __name__ == "__main__":
-    sys.exit(basevm.main(FreeBSDVM))
+    sys.exit(basevm.main(FreeBSDVM, config=FREEBSD_CONFIG))
