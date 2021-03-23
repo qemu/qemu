@@ -272,7 +272,7 @@ Example
    <- out
 
 
-"EVT-BOXED" (Event)
+"EVT_BOXED" (Event)
 -------------------
 
 

@@ -1494,21 +1494,6 @@ SRST
 ERST
 
     {
-        .name       = "block_passwd",
-        .args_type  = "device:B,password:s",
-        .params     = "block_passwd device password",
-        .help       = "set the password of encrypted block devices",
-        .cmd        = hmp_block_passwd,
-    },
-
-SRST
-``block_passwd`` *device* *password*
-  Set the encrypted device *device* password to *password*
-
-  This command is now obsolete and will always return an error since 2.10
-ERST
-
-    {
         .name       = "block_set_io_throttle",
         .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l",
         .params     = "device bps bps_rd bps_wr iops iops_rd iops_wr",

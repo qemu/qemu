@@ -1208,20 +1208,6 @@
 { 'command': 'query-block-jobs', 'returns': ['BlockJobInfo'] }
 
 ##
-# @block_passwd:
-#
-# This command sets the password of a block device that has not been open
-# with a password and requires one.
-#
-# This command is now obsolete and will always return an error since 2.10
-#
-##
-{ 'command': 'block_passwd',
-  'data': { '*device': 'str',
-            '*node-name': 'str',
-            'password': 'str' } }
-
-##
 # @block_resize:
 #
 # Resize a block image while a guest is running.

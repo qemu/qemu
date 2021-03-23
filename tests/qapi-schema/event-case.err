@@ -1,0 +1,2 @@
+event-case.json: In event 'oops':
+event-case.json:1: name of event must not use lowercase or '-'

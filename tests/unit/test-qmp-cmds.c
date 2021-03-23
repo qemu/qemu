@@ -13,14 +13,7 @@
 
 static QmpCommandList qmp_commands;
 
-#if defined(TEST_IF_STRUCT) && defined(TEST_IF_CMD)
-UserDefThree *qmp_TestIfCmd(TestIfStruct *foo, Error **errp)
-{
-    return NULL;
-}
-#endif
-
-UserDefThree *qmp_TestCmdReturnDefThree(Error **errp)
+UserDefThree *qmp_test_cmd_return_def_three(Error **errp)
 {
     return NULL;
 }
@@ -206,7 +199,7 @@ static void test_dispatch_cmd(void)
 
     ret = qobject_to(QDict,
                      do_qmp_dispatch(false,
-                                     "{ 'execute': 'user_def_cmd' }"));
+                                     "{ 'execute': 'user-def-cmd' }"));
     assert(ret && qdict_size(ret) == 0);
     qobject_unref(ret);
 }
@@ -227,11 +220,11 @@ static void test_dispatch_cmd_failure(void)
 {
     /* missing arguments */
     do_qmp_dispatch_error(false, ERROR_CLASS_GENERIC_ERROR,
-                          "{ 'execute': 'user_def_cmd2' }");
+                          "{ 'execute': 'user-def-cmd2' }");
 
     /* extra arguments */
     do_qmp_dispatch_error(false, ERROR_CLASS_GENERIC_ERROR,
-                          "{ 'execute': 'user_def_cmd',"
+                          "{ 'execute': 'user-def-cmd',"
                           " 'arguments': { 'a': 66 } }");
 }
 
@@ -255,7 +248,7 @@ static void test_dispatch_cmd_io(void)
     int64_t val;
 
     ret = qobject_to(QDict, do_qmp_dispatch(false,
-        "{ 'execute': 'user_def_cmd2', 'arguments': {"
+        "{ 'execute': 'user-def-cmd2', 'arguments': {"
         " 'ud1a': { 'integer': 42, 'string': 'hello' },"
         " 'ud1b': { 'integer': 422, 'string': 'hello2' } } }"));
 

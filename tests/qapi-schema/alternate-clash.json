@@ -1,8 +1,7 @@
 # Alternate branch name collision
-# Reject an alternate that would result in a collision in generated C
-# names (this would try to generate two enum values 'ALT1_KIND_A_B').
-# TODO: In the future, if alternates are simplified to not generate
-# the implicit Alt1Kind enum, we would still have a collision with the
-# resulting C union trying to have two members named 'a_b'.
+# Naming rules make collision impossible (even with the pragma).  If
+# that wasn't the case, then we'd get a collision in generated C: two
+# union members a_b.
+{ 'pragma': { 'member-name-exceptions': [ 'Alt1' ] } }
 { 'alternate': 'Alt1',
   'data': { 'a-b': 'bool', 'a_b': 'int' } }

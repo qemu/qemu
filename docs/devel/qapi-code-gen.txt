@@ -147,9 +147,11 @@ prevent incomplete include files.
 === Pragma directives ===
 
 Syntax:
-    PRAGMA = { 'pragma': { '*doc-required': BOOL,
-                           '*returns-whitelist': [ STRING, ... ],
-                           '*name-case-whitelist': [ STRING, ... ] } }
+    PRAGMA = { 'pragma': {
+                   '*doc-required': BOOL,
+                   '*command-name-exceptions': [ STRING, ... ],
+                   '*command-returns-exceptions': [ STRING, ... ],
+                   '*member-name-exceptions': [ STRING, ... ] } }
 
 The pragma directive lets you control optional generator behavior.
 
@@ -159,11 +161,15 @@ pragma to different values in parts of the schema doesn't work.
 Pragma 'doc-required' takes a boolean value.  If true, documentation
 is required.  Default is false.
 
-Pragma 'returns-whitelist' takes a list of command names that may
+Pragma 'command-name-exceptions' takes a list of commands whose names
+may contain '_' instead of '-'.  Default is none.
+
+Pragma 'command-returns-exceptions' takes a list of commands that may
 violate the rules on permitted return types.  Default is none.
 
-Pragma 'name-case-whitelist' takes a list of names that may violate
-rules on use of upper- vs. lower-case letters.  Default is none.
+Pragma 'member-name-exceptions' takes a list of types whose member
+names may contain uppercase letters, and '_' instead of '-'.  Default
+is none.
 
 
 === Enumeration types ===
@@ -490,9 +496,9 @@ are the arguments.  A union type requires 'boxed': true.
 Member 'returns' defines the command's return type.  It defaults to an
 empty struct type.  It must normally be a complex type or an array of
 a complex type.  To return anything else, the command must be listed
-in pragma 'returns-whitelist'.  If you do this, extending the command
-to return additional information will be harder.  Use of
-'returns-whitelist' for new commands is strongly discouraged.
+in pragma 'commands-returns-exceptions'.  If you do this, extending
+the command to return additional information will be harder.  Use of
+the pragma for new commands is strongly discouraged.
 
 A command's error responses are not specified in the QAPI schema.
 Error conditions should be documented in comments.
@@ -755,8 +761,8 @@ Any name (command, event, type, member, or enum value) beginning with
 "x-" is marked experimental, and may be withdrawn or changed
 incompatibly in a future release.
 
-Pragma 'name-case-whitelist' lets you violate the rules on use of
-upper and lower case.  Use for new code is strongly discouraged.
+Pragmas 'command-name-exceptions' and 'member-name-exceptions' let you
+violate naming rules.  Use for new code is strongly discouraged.
 
 
 === Downstream extensions ===

@@ -1,3 +1,4 @@
-# inline subtypes collide with our desired future use of defaults
+# command 'data' member with dict value is (longhand) argument
+# definition, not inline complex type
 { 'command': 'foo',
   'data': { 'a' : { 'string' : 'str', 'integer': 'int' }, 'b' : 'str' } }

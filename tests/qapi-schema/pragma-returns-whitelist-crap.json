@@ -1,3 +1,0 @@
-# 'returns-whitelist' must be list of strings
-
-{ 'pragma': { 'returns-whitelist': [ 'good', [ 'bad' ] ] } }

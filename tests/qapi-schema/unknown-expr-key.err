@@ -1,3 +1,3 @@
-unknown-expr-key.json: In struct 'bar':
+unknown-expr-key.json: In struct 'Bar':
 unknown-expr-key.json:2: struct has unknown keys 'bogus', 'phony'
 Valid keys are 'base', 'data', 'features', 'if', 'struct'.

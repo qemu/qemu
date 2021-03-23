@@ -1,0 +1,1 @@
+pragma-value-not-list-of-str.json:3: pragma command-returns-exceptions must be a list of strings

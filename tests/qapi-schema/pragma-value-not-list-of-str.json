@@ -1,0 +1,3 @@
+# pragma value must be list of strings
+
+{ 'pragma': { 'command-returns-exceptions': [ 'good', [ 'bad' ] ] } }

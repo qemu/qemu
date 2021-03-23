@@ -1,2 +1,2 @@
 alternate-clash.json: In alternate 'Alt1':
-alternate-clash.json:7: branch 'a_b' collides with branch 'a-b'
+alternate-clash.json:6: name of 'data' member 'a_b' must not use uppercase or '_'

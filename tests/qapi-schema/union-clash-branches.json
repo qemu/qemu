@@ -1,5 +1,7 @@
 # Union branch name collision
-# Reject a union that would result in a collision in generated C names (this
-# would try to generate two members 'a_b').
+# Naming rules make collision impossible (even with the pragma).  If
+# that wasn't the case, then we'd get collisions in generated C: two
+# union members a_b, and two enum members TEST_UNION_A_B.
+{ 'pragma': { 'member-name-exceptions': [ 'TestUnion' ] } }
 { 'union': 'TestUnion',
   'data': { 'a-b': 'int', 'a_b': 'str' } }

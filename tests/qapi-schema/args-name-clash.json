@@ -1,4 +1,0 @@
-# C member name collision
-# Reject members that clash when mapped to C names (we would have two 'a_b'
-# members).
-{ 'command': 'oops', 'data': { 'a-b': 'str', 'a_b': 'str' } }

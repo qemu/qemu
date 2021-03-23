@@ -6,8 +6,12 @@
 
 # Whitelists to permit QAPI rule violations
 { 'pragma': {
+    # Types whose member names may use '_'
+    'member-name-exceptions': [
+        'UserDefA'
+    ],
     # Commands allowed to return a non-dictionary:
-    'returns-whitelist': [
+    'command-returns-exceptions': [
         'guest-get-time',
         'guest-sync' ] } }
 
@@ -31,7 +35,7 @@
   'base': { 'type': 'EnumOne' }, 'discriminator': 'type',
   'data': { } }
 
-{ 'command': 'user_def_cmd0', 'data': 'Empty2', 'returns': 'Empty2' }
+{ 'command': 'user-def-cmd0', 'data': 'Empty2', 'returns': 'Empty2' }
 
 # for testing override of default naming heuristic
 { 'enum': 'QEnumTwo',
@@ -141,9 +145,9 @@
 { 'include': 'include/sub-module.json' }
 
 # testing commands
-{ 'command': 'user_def_cmd', 'data': {} }
-{ 'command': 'user_def_cmd1', 'data': {'ud1a': 'UserDefOne'} }
-{ 'command': 'user_def_cmd2',
+{ 'command': 'user-def-cmd', 'data': {} }
+{ 'command': 'user-def-cmd1', 'data': {'ud1a': 'UserDefOne'} }
+{ 'command': 'user-def-cmd2',
   'data': {'ud1a': {'type': 'UserDefOne'}, '*ud1b': 'UserDefOne'},
   'returns': 'UserDefTwo' }
 
@@ -227,10 +231,11 @@
 
 { 'union': 'TestIfUnion', 'data':
   { 'foo': 'TestStruct',
-    'union_bar': { 'type': 'str', 'if': 'defined(TEST_IF_UNION_BAR)'} },
+    'bar': { 'type': 'str', 'if': 'defined(TEST_IF_UNION_BAR)'} },
   'if': 'defined(TEST_IF_UNION) && defined(TEST_IF_STRUCT)' }
 
-{ 'command': 'TestIfUnionCmd', 'data': { 'union_cmd_arg': 'TestIfUnion' },
+{ 'command': 'test-if-union-cmd',
+  'data': { 'union-cmd-arg': 'TestIfUnion' },
   'if': 'defined(TEST_IF_UNION)' }
 
 { 'alternate': 'TestIfAlternate', 'data':
@@ -238,18 +243,20 @@
     'bar': { 'type': 'TestStruct', 'if': 'defined(TEST_IF_ALT_BAR)'} },
   'if': 'defined(TEST_IF_ALT) && defined(TEST_IF_STRUCT)' }
 
-{ 'command': 'TestIfAlternateCmd', 'data': { 'alt_cmd_arg': 'TestIfAlternate' },
+{ 'command': 'test-if-alternate-cmd',
+  'data': { 'alt-cmd-arg': 'TestIfAlternate' },
   'if': 'defined(TEST_IF_ALT)' }
 
-{ 'command': 'TestIfCmd', 'data':
-  { 'foo': 'TestIfStruct',
+{ 'command': 'test-if-cmd',
+  'data': {
+    'foo': 'TestIfStruct',
     'bar': { 'type': 'TestIfEnum', 'if': 'defined(TEST_IF_CMD_BAR)' } },
   'returns': 'UserDefThree',
   'if': ['defined(TEST_IF_CMD)', 'defined(TEST_IF_STRUCT)'] }
 
-{ 'command': 'TestCmdReturnDefThree', 'returns': 'UserDefThree' }
+{ 'command': 'test-cmd-return-def-three', 'returns': 'UserDefThree' }
 
-{ 'event': 'TestIfEvent', 'data':
+{ 'event': 'TEST_IF_EVENT', 'data':
   { 'foo': 'TestIfStruct',
     'bar': { 'type': ['TestIfEnum'], 'if': 'defined(TEST_IF_EVT_BAR)' } },
   'if': 'defined(TEST_IF_EVT) && defined(TEST_IF_STRUCT)' }
@@ -324,8 +331,8 @@
   'features': [ { 'name': 'feature1', 'if': [ 'defined(TEST_IF_COND_1)',
                                               'defined(TEST_IF_COND_2)'] } ] }
 
-{ 'event': 'TEST-EVENT-FEATURES0',
+{ 'event': 'TEST_EVENT_FEATURES0',
   'data': 'FeatureStruct1' }
 
-{ 'event': 'TEST-EVENT-FEATURES1',
+{ 'event': 'TEST_EVENT_FEATURES1',
   'features': [ 'deprecated' ] }

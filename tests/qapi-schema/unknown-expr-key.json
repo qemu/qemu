@@ -1,2 +1,2 @@
 # we reject an expression with unknown top-level keys
-{ 'struct': 'bar', 'data': { 'string': 'str'}, 'bogus': { }, 'phony': { } }
+{ 'struct': 'Bar', 'data': { 'string': 'str'}, 'bogus': { }, 'phony': { } }

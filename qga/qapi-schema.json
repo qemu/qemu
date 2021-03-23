@@ -19,8 +19,12 @@
 # Whitelists to permit QAPI rule violations; think twice before you
 # add to them!
 { 'pragma': {
+    # Types whose member names may use '_'
+    'member-name-exceptions': [
+        'GuestAgentInfo'
+    ],
     # Commands allowed to return a non-dictionary:
-    'returns-whitelist': [
+    'command-returns-exceptions': [
         'guest-file-open',
         'guest-fsfreeze-freeze',
         'guest-fsfreeze-freeze-list',

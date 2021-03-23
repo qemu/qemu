@@ -1,5 +1,4 @@
 # flat unions require a base
-# TODO: simple unions should be able to use an enum discriminator
 { 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
 { 'struct': 'TestTypeB',

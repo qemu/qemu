@@ -1,0 +1,2 @@
+# we reject types that clash with predefined types
+{ 'struct': 'QType', 'data': { 'myint': 'size' } }

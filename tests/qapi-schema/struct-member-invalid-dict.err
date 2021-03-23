@@ -1,2 +1,2 @@
-struct-member-invalid-dict.json: In struct 'foo':
-struct-member-invalid-dict.json:2: 'data' member '*a' misses key 'type'
+struct-member-invalid-dict.json: In struct 'Foo':
+struct-member-invalid-dict.json:3: 'data' member '*a' misses key 'type'

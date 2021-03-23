@@ -1,4 +1,4 @@
-redefined-type.json: In enum 'foo':
-redefined-type.json:3: 'foo' is already defined
-redefined-type.json: In struct 'foo':
+redefined-type.json: In enum 'Foo':
+redefined-type.json:3: 'Foo' is already defined
+redefined-type.json: In struct 'Foo':
 redefined-type.json:2: previous definition

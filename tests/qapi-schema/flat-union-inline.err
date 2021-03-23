@@ -1,2 +1,0 @@
-flat-union-inline.json: In union 'TestUnion':
-flat-union-inline.json:7: 'data' member 'value1' should be a type name

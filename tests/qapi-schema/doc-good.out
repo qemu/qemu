@@ -63,7 +63,7 @@ command cmd-boxed Object -> None
     gen=True success_response=True boxed=True oob=False preconfig=False
     feature cmd-feat1
     feature cmd-feat2
-event EVT-BOXED Object
+event EVT_BOXED Object
     boxed=True
     feature feat3
 doc freeform
@@ -211,7 +211,7 @@ another feature
 -> in
 
 <- out
-doc symbol=EVT-BOXED
+doc symbol=EVT_BOXED
     body=
 
     feature=feat3

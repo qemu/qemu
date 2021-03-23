@@ -1,2 +1,2 @@
-features-deprecated-type.json: In struct 'S':
+features-deprecated-type.json: In struct 'Foo':
 features-deprecated-type.json:2: feature 'deprecated' is not supported for types

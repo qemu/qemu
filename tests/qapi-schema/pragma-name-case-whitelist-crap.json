@@ -1,3 +1,0 @@
-# 'name-case-whitelist' must be list of strings
-
-{ 'pragma': { 'name-case-whitelist': false } }
