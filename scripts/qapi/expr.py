@@ -45,7 +45,9 @@ def check_name_str(name, info, source):
 
 def check_name_upper(name, info, source):
     stem = check_name_str(name, info, source)
-    # TODO reject '[a-z-]' in @stem
+    if re.search(r'[a-z-]', stem):
+        raise QAPISemError(
+            info, "name of %s must not use lowercase or '-'" % source)
 
 
 def check_name_lower(name, info, source,

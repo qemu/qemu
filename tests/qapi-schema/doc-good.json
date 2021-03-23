@@ -179,10 +179,10 @@
   'features': [ 'cmd-feat1', 'cmd-feat2' ] }
 
 ##
-# @EVT-BOXED:
+# @EVT_BOXED:
 # Features:
 # @feat3: a feature
 ##
-{ 'event': 'EVT-BOXED',  'boxed': true,
+{ 'event': 'EVT_BOXED',  'boxed': true,
   'features': [ 'feat3' ],
   'data': 'Object' }

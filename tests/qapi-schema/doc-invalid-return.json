@@ -1,7 +1,7 @@
 # Events can't have 'Returns' section
 
 ##
-# @foo:
+# @FOO:
 # Returns: blah
 ##
-{ 'event': 'foo' }
+{ 'event': 'FOO' }

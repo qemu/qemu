@@ -249,7 +249,7 @@
 
 { 'command': 'TestCmdReturnDefThree', 'returns': 'UserDefThree' }
 
-{ 'event': 'TestIfEvent', 'data':
+{ 'event': 'TEST_IF_EVENT', 'data':
   { 'foo': 'TestIfStruct',
     'bar': { 'type': ['TestIfEnum'], 'if': 'defined(TEST_IF_EVT_BAR)' } },
   'if': 'defined(TEST_IF_EVT) && defined(TEST_IF_STRUCT)' }
@@ -324,8 +324,8 @@
   'features': [ { 'name': 'feature1', 'if': [ 'defined(TEST_IF_COND_1)',
                                               'defined(TEST_IF_COND_2)'] } ] }
 
-{ 'event': 'TEST-EVENT-FEATURES0',
+{ 'event': 'TEST_EVENT_FEATURES0',
   'data': 'FeatureStruct1' }
 
-{ 'event': 'TEST-EVENT-FEATURES1',
+{ 'event': 'TEST_EVENT_FEATURES1',
   'features': [ 'deprecated' ] }
