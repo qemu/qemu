@@ -1,2 +1,2 @@
 union-branch-case.json: In union 'Uni':
-union-branch-case.json:2: 'data' member 'Branch' uses uppercase in name
+union-branch-case.json:2: name of 'data' member 'Branch' must not use uppercase or '_'

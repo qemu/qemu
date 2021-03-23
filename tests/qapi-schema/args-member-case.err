@@ -1,2 +1,2 @@
 args-member-case.json: In command 'no-way-this-will-get-whitelisted':
-args-member-case.json:2: 'data' member 'Arg' uses uppercase in name
+args-member-case.json:2: name of 'data' member 'Arg' must not use uppercase or '_'
