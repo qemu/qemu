@@ -51,7 +51,7 @@ def check_name_upper(name, info, source):
 def check_name_lower(name, info, source,
                      permit_upper=False):
     stem = check_name_str(name, info, source)
-    if not permit_upper and name.lower() != name:
+    if not permit_upper and re.search(r'[A-Z]', stem):
         raise QAPISemError(
             info, "%s uses uppercase in name" % source)
     # TODO reject '_' in stem
