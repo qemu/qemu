@@ -180,6 +180,7 @@ schemas = [
   'trailing-comma-list.json',
   'trailing-comma-object.json',
   'type-bypass-bad-gen.json',
+  'type-case.json',
   'unclosed-list.json',
   'unclosed-object.json',
   'unclosed-string.json',

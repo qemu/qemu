@@ -1,2 +1,2 @@
-{ 'struct': 'foo',
+{ 'struct': 'Foo',
   'data': { 'a': false } }

@@ -1,2 +1,2 @@
-# we reject types that duplicate builtin names
-{ 'struct': 'size', 'data': { 'myint': 'size' } }
+# we reject types that clash with predefined types
+{ 'struct': 'QType', 'data': { 'myint': 'size' } }

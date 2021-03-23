@@ -61,7 +61,8 @@ def check_name_lower(name, info, source,
 
 def check_name_camel(name, info, source):
     stem = check_name_str(name, info, source)
-    # TODO reject '[_-]' in stem, require CamelCase
+    if not re.match(r'[A-Z][A-Za-z0-9]*[a-z][A-Za-z0-9]*$', stem):
+        raise QAPISemError(info, "name of %s must use CamelCase" % source)
 
 
 def check_defn_name_str(name, info, meta):
