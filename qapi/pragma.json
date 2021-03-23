@@ -4,6 +4,24 @@
 # add to them!
 { 'pragma': {
     # Commands allowed to return a non-dictionary:
+    'command-name-exceptions': [
+        'add_client',
+        'block_passwd',
+        'block_resize',
+        'block_set_io_throttle',
+        'client_migrate_info',
+        'device_add',
+        'device_del',
+        'expire_password',
+        'migrate_cancel',
+        'netdev_add',
+        'netdev_del',
+        'qmp_capabilities',
+        'set_link',
+        'set_password',
+        'system_powerdown',
+        'system_reset',
+        'system_wakeup' ],
     'command-returns-exceptions': [
         'human-monitor-command',
         'qom-get',

@@ -149,6 +149,7 @@ prevent incomplete include files.
 Syntax:
     PRAGMA = { 'pragma': {
                    '*doc-required': BOOL,
+                   '*command-name-exceptions': [ STRING, ... ],
                    '*command-returns-exceptions': [ STRING, ... ],
                    '*member-name-exceptions': [ STRING, ... ] } }
 
@@ -159,6 +160,9 @@ pragma to different values in parts of the schema doesn't work.
 
 Pragma 'doc-required' takes a boolean value.  If true, documentation
 is required.  Default is false.
+
+Pragma 'command-name-exceptions' takes a list of commands whose names
+may contain '_' instead of '-'.  Default is none.
 
 Pragma 'command-returns-exceptions' takes a list of commands that may
 violate the rules on permitted return types.  Default is none.
@@ -756,8 +760,8 @@ Any name (command, event, type, member, or enum value) beginning with
 "x-" is marked experimental, and may be withdrawn or changed
 incompatibly in a future release.
 
-Pragma 'member-name-exceptions' lets you violate the rules on use of
-upper and lower case.  Use for new code is strongly discouraged.
+Pragmas 'command-name-exceptions' and 'member-name-exceptions' let you
+violate naming rules.  Use for new code is strongly discouraged.
 
 
 === Downstream extensions ===

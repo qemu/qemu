@@ -132,6 +132,9 @@ class QAPISchemaParser:
                 raise QAPISemError(info,
                                    "pragma 'doc-required' must be boolean")
             info.pragma.doc_required = value
+        elif name == 'command-name-exceptions':
+            self._check_pragma_list_of_str(name, value, info)
+            info.pragma.command_name_exceptions = value
         elif name == 'command-returns-exceptions':
             self._check_pragma_list_of_str(name, value, info)
             info.pragma.command_returns_exceptions = value

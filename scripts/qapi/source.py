@@ -21,6 +21,8 @@ class QAPISchemaPragma:
     def __init__(self) -> None:
         # Are documentation comments required?
         self.doc_required = False
+        # Commands whose names may use '_'
+        self.command_name_exceptions: List[str] = []
         # Commands allowed to return a non-dictionary
         self.command_returns_exceptions: List[str] = []
         # Types whose member names may violate case conventions

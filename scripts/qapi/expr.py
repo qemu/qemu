@@ -70,8 +70,9 @@ def check_defn_name_str(name, info, meta):
     if meta == 'event':
         check_name_upper(name, info, meta)
     elif meta == 'command':
-        check_name_lower(name, info, meta,
-                         permit_upper=True, permit_underscore=True)
+        check_name_lower(
+            name, info, meta,
+            permit_underscore=name in info.pragma.command_name_exceptions)
     else:
         check_name_camel(name, info, meta)
     if name.endswith('Kind') or name.endswith('List'):
