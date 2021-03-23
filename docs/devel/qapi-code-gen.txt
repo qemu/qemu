@@ -168,7 +168,8 @@ Pragma 'command-returns-exceptions' takes a list of commands that may
 violate the rules on permitted return types.  Default is none.
 
 Pragma 'member-name-exceptions' takes a list of types whose member
-names may contain uppercase letters.  Default is none.
+names may contain uppercase letters, and '_' instead of '-'.  Default
+is none.
 
 
 === Enumeration types ===

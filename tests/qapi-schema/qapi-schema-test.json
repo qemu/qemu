@@ -6,6 +6,10 @@
 
 # Whitelists to permit QAPI rule violations
 { 'pragma': {
+    # Types whose member names may use '_'
+    'member-name-exceptions': [
+        'UserDefA'
+    ],
     # Commands allowed to return a non-dictionary:
     'command-returns-exceptions': [
         'guest-get-time',
@@ -231,7 +235,7 @@
   'if': 'defined(TEST_IF_UNION) && defined(TEST_IF_STRUCT)' }
 
 { 'command': 'test-if-union-cmd',
-  'data': { 'union_cmd_arg': 'TestIfUnion' },
+  'data': { 'union-cmd-arg': 'TestIfUnion' },
   'if': 'defined(TEST_IF_UNION)' }
 
 { 'alternate': 'TestIfAlternate', 'data':
@@ -240,7 +244,7 @@
   'if': 'defined(TEST_IF_ALT) && defined(TEST_IF_STRUCT)' }
 
 { 'command': 'test-if-alternate-cmd',
-  'data': { 'alt_cmd_arg': 'TestIfAlternate' },
+  'data': { 'alt-cmd-arg': 'TestIfAlternate' },
   'if': 'defined(TEST_IF_ALT)' }
 
 { 'command': 'test-if-cmd',

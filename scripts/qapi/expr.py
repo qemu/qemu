@@ -184,7 +184,7 @@ def check_type(value, info, source,
         raise QAPISemError(info,
                            "%s should be an object or type name" % source)
 
-    permit_upper = allow_dict in info.pragma.member_name_exceptions
+    permissive = allow_dict in info.pragma.member_name_exceptions
 
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
@@ -192,7 +192,8 @@ def check_type(value, info, source,
         if key.startswith('*'):
             key = key[1:]
         check_name_lower(key, info, key_source,
-                         permit_upper, permit_underscore=True)
+                         permit_upper=permissive,
+                         permit_underscore=permissive)
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPISemError(info, "%s uses reserved name" % key_source)
         check_keys(arg, info, key_source, ['type'], ['if', 'features'])

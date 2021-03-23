@@ -31,10 +31,27 @@
     # Externally visible types whose member names may use uppercase
     'member-name-exceptions': [     # visible in:
         'ACPISlotType',             # query-acpi-ospm-status
+        'AcpiTableOptions',         # -acpitable
+        'BlkdebugSetStateOptions',  # blockdev-add, -blockdev
+        'BlockDeviceInfo',          # query-block
+        'BlockDeviceStats',         # query-blockstats
+        'BlockDeviceTimedStats',    # query-blockstats
+        'BlockIOThrottle',          # block_set_io_throttle
+        'BlockInfo',                # query-block
         'BlockdevVmdkAdapterType',  # blockdev-create (to match VMDK spec)
         'BlockdevVmdkSubformat',    # blockdev-create (to match VMDK spec)
+        'ColoCompareProperties',    # object_add, -object
+        'FilterMirrorProperties',   # object_add, -object
+        'FilterRedirectorProperties', # object_add, -object
+        'FilterRewriterProperties', # object_add, -object
+        'InputLinuxProperties',     # object_add, -object
+        'NetdevTapOptions',         # netdev_add, query-netdev, -netdev
+        'PciBusInfo',               # query-pci
+        'PciDeviceInfo',            # query-pci
+        'PciMemoryRegion',          # query-pci
         'QapiErrorClass',           # QMP error replies
         'UuidInfo',                 # query-uuid
+        'VncClientInfo',            # query-vnc, query-vnc-servers, ...
         'X86CPURegister32'          # qom-get of x86 CPU properties
                                     # feature-words, filtered-features
     ] } }
