@@ -21,9 +21,3 @@ void yank_unregister_function(const YankInstance *instance,
                               void *opaque)
 {
 }
-
-void yank_generic_iochannel(void *opaque)
-{
-}
-
-

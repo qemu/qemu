@@ -6,6 +6,7 @@ migration_files = files(
   'vmstate.c',
   'qemu-file-channel.c',
   'qemu-file.c',
+  'yank_functions.c',
 )
 softmmu_ss.add(migration_files)
 

@@ -20,6 +20,7 @@
 #include "io/channel-tls.h"
 #include "io/channel-socket.h"
 #include "qemu/yank.h"
+#include "yank_functions.h"
 
 /**
  * @migration_channel_process_incoming - Create new incoming migration channel
@@ -38,7 +39,8 @@ void migration_channel_process_incoming(QIOChannel *ioc)
         ioc, object_get_typename(OBJECT(ioc)));
 
     if (object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_SOCKET)) {
-        yank_register_function(MIGRATION_YANK_INSTANCE, yank_generic_iochannel,
+        yank_register_function(MIGRATION_YANK_INSTANCE,
+                               migration_yank_iochannel,
                                QIO_CHANNEL(ioc));
     }
 
@@ -76,7 +78,7 @@ void migration_channel_connect(MigrationState *s,
     if (!error) {
         if (object_dynamic_cast(OBJECT(ioc), TYPE_QIO_CHANNEL_SOCKET)) {
             yank_register_function(MIGRATION_YANK_INSTANCE,
-                                   yank_generic_iochannel,
+                                   migration_yank_iochannel,
                                    QIO_CHANNEL(ioc));
         }
 
