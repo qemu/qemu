@@ -977,5 +977,18 @@ _require_devices()
     done
 }
 
+_require_one_device_of()
+{
+    available=$($QEMU -M none -device help | \
+                grep ^name | sed -e 's/^name "//' -e 's/".*$//')
+    for device
+    do
+        if echo "$available" | grep -q "$device" ; then
+            return
+        fi
+    done
+    _notrun "$* not available"
+}
+
 # make sure this script returns success
 true

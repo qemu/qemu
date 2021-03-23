@@ -44,7 +44,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file fuse
 
-_require_devices virtio-scsi scsi-hd
+_require_devices scsi-hd
+_require_one_device_of virtio-scsi-pci virtio-scsi-ccw
 
 IMG_SIZE=64K
 
