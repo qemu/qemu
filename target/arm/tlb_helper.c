@@ -163,6 +163,7 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     } else {
         fi.type = ARMFault_Translation;
     }
+    fi.level = 3;
 
     /* now we have a real cpu fault */
     cpu_restore_state(cs, retaddr, true);

@@ -322,10 +322,18 @@ static const MemoryRegionOps pl011_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static bool pl011_clock_needed(void *opaque)
+{
+    PL011State *s = PL011(opaque);
+
+    return s->migrate_clk;
+}
+
 static const VMStateDescription vmstate_pl011_clock = {
     .name = "pl011/clock",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = pl011_clock_needed,
     .fields = (VMStateField[]) {
         VMSTATE_CLOCK(clk, PL011State),
         VMSTATE_END_OF_LIST()
@@ -363,6 +371,7 @@ static const VMStateDescription vmstate_pl011 = {
 
 static Property pl011_properties[] = {
     DEFINE_PROP_CHR("chardev", PL011State, chr),
+    DEFINE_PROP_BOOL("migrate-clk", PL011State, migrate_clk, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -290,6 +290,37 @@ void rom_transaction_end(bool commit);
 
 int rom_copy(uint8_t *dest, hwaddr addr, size_t size);
 void *rom_ptr(hwaddr addr, size_t size);
+/**
+ * rom_ptr_for_as: Return a pointer to ROM blob data for the address
+ * @as: AddressSpace to look for the ROM blob in
+ * @addr: Address within @as
+ * @size: size of data required in bytes
+ *
+ * Returns: pointer into the data which backs the matching ROM blob,
+ * or NULL if no blob covers the address range.
+ *
+ * This function looks for a ROM blob which covers the specified range
+ * of bytes of length @size starting at @addr within the address space
+ * @as. This is useful for code which runs as part of board
+ * initialization or CPU reset which wants to read data that is part
+ * of a user-supplied guest image or other guest memory contents, but
+ * which runs before the ROM loader's reset function has copied the
+ * blobs into guest memory.
+ *
+ * rom_ptr_for_as() will look not just for blobs loaded directly to
+ * the specified address, but also for blobs which were loaded to an
+ * alias of the region at a different location in the AddressSpace.
+ * In other words, if a machine model has RAM at address 0x0000_0000
+ * which is aliased to also appear at 0x1000_0000, rom_ptr_for_as()
+ * will return the correct data whether the guest image was linked and
+ * loaded at 0x0000_0000 or 0x1000_0000.  Contrast rom_ptr(), which
+ * will only return data if the image load address is an exact match
+ * with the queried address.
+ *
+ * New code should prefer to use rom_ptr_for_as() instead of
+ * rom_ptr().
+ */
+void *rom_ptr_for_as(AddressSpace *as, hwaddr addr, size_t size);
 void hmp_info_roms(Monitor *mon, const QDict *qdict);
 
 #define rom_add_file_fixed(_f, _a, _i)          \

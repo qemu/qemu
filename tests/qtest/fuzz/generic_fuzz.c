@@ -98,19 +98,22 @@ struct get_io_cb_info {
     address_range result;
 };
 
-static int get_io_address_cb(Int128 start, Int128 size,
-                          const MemoryRegion *mr, void *opaque) {
+static bool get_io_address_cb(Int128 start, Int128 size,
+                              const MemoryRegion *mr,
+                              hwaddr offset_in_region,
+                              void *opaque)
+{
     struct get_io_cb_info *info = opaque;
     if (g_hash_table_lookup(fuzzable_memoryregions, mr)) {
         if (info->index == 0) {
             info->result.addr = (ram_addr_t)start;
             info->result.size = (ram_addr_t)size;
             info->found = 1;
-            return 1;
+            return true;
         }
         info->index--;
     }
-    return 0;
+    return false;
 }
 
 /*
