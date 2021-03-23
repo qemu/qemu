@@ -1201,6 +1201,51 @@ static void x86_machine_set_acpi(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &x86ms->acpi, errp);
 }
 
+static char *x86_machine_get_oem_id(Object *obj, Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+
+    return g_strdup(x86ms->oem_id);
+}
+
+static void x86_machine_set_oem_id(Object *obj, const char *value, Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+    size_t len = strlen(value);
+
+    if (len > 6) {
+        error_setg(errp,
+                   "User specified "X86_MACHINE_OEM_ID" value is bigger than "
+                   "6 bytes in size");
+        return;
+    }
+
+    strncpy(x86ms->oem_id, value, 6);
+}
+
+static char *x86_machine_get_oem_table_id(Object *obj, Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+
+    return g_strdup(x86ms->oem_table_id);
+}
+
+static void x86_machine_set_oem_table_id(Object *obj, const char *value,
+                                         Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+    size_t len = strlen(value);
+
+    if (len > 8) {
+        error_setg(errp,
+                   "User specified "X86_MACHINE_OEM_TABLE_ID
+                   " value is bigger than "
+                   "8 bytes in size");
+        return;
+    }
+    strncpy(x86ms->oem_table_id, value, 8);
+}
+
 static void x86_machine_initfn(Object *obj)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
@@ -1209,6 +1254,8 @@ static void x86_machine_initfn(Object *obj)
     x86ms->acpi = ON_OFF_AUTO_AUTO;
     x86ms->smp_dies = 1;
     x86ms->pci_irq_mask = ACPI_BUILD_PCI_IRQS;
+    x86ms->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
+    x86ms->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
 }
 
 static void x86_machine_class_init(ObjectClass *oc, void *data)
@@ -1235,6 +1282,23 @@ static void x86_machine_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, X86_MACHINE_ACPI,
         "Enable ACPI");
+
+    object_class_property_add_str(oc, X86_MACHINE_OEM_ID,
+                                  x86_machine_get_oem_id,
+                                  x86_machine_set_oem_id);
+    object_class_property_set_description(oc, X86_MACHINE_OEM_ID,
+                                          "Override the default value of field OEMID "
+                                          "in ACPI table header."
+                                          "The string may be up to 6 bytes in size");
+
+
+    object_class_property_add_str(oc, X86_MACHINE_OEM_TABLE_ID,
+                                  x86_machine_get_oem_table_id,
+                                  x86_machine_set_oem_table_id);
+    object_class_property_set_description(oc, X86_MACHINE_OEM_TABLE_ID,
+                                          "Override the default value of field OEM Table ID "
+                                          "in ACPI table header."
+                                          "The string may be up to 8 bytes in size");
 }
 
 static const TypeInfo x86_machine_info = {
