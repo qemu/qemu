@@ -3286,6 +3286,7 @@ M: Alex Bennée <alex.bennee@linaro.org>
 S: Maintained
 F: semihosting/
 F: include/semihosting/
+F: tests/tcg/multiarch/arm-compat-semi/
 
 Multi-process QEMU
 M: Elena Ufimtseva <elena.ufimtseva@oracle.com>

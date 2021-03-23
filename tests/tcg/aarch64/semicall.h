@@ -1,5 +1,5 @@
 /*
- * Semihosting Tests - ARM Helper
+ * Semihosting Tests - AArch64 helper
  *
  * Copyright (c) 2019
  * Written by Alex Bennée <alex.bennee@linaro.org>
@@ -9,14 +9,10 @@
 
 uintptr_t __semi_call(uintptr_t type, uintptr_t arg0)
 {
-    register uintptr_t t asm("r0") = type;
-    register uintptr_t a0 asm("r1") = arg0;
-#ifdef __thumb__
-#  define SVC  "svc 0xab"
-#else
-#  define SVC  "svc 0x123456"
-#endif
-    asm(SVC : "=r" (t)
+    register uintptr_t t asm("x0") = type;
+    register uintptr_t a0 asm("x1") = arg0;
+    asm("hlt 0xf000"
+        : "=r" (t)
         : "r" (t), "r" (a0));
     return t;
 }
