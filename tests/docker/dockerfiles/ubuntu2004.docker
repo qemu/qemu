@@ -58,6 +58,7 @@ ENV PACKAGES flex bison \
     python3-pil \
     python3-pip \
     python3-sphinx \
+    python3-sphinx-rtd-theme \
     python3-venv \
     python3-yaml \
     rpm2cpio \

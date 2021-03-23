@@ -92,6 +92,7 @@ ENV PACKAGES \
     python3-pillow \
     python3-pip \
     python3-sphinx \
+    python3-sphinx_rtd_theme \
     python3-virtualenv \
     rdma-core-devel \
     SDL2-devel \
