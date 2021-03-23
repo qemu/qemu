@@ -213,7 +213,7 @@ def check_features(features, info):
         check_keys(f, info, source, ['name'], ['if'])
         check_name_is_str(f['name'], info, source)
         source = "%s '%s'" % (source, f['name'])
-        check_name_lower(f['name'], info, source, permit_underscore=True)
+        check_name_lower(f['name'], info, source)
         check_if(f, info, source)
 
 
