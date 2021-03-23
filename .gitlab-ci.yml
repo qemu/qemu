@@ -502,6 +502,7 @@ build-cfi-aarch64:
       --enable-safe-stack --enable-slirp=git
     TARGETS: aarch64-softmmu
     MAKE_CHECK_ARGS: check-build
+  timeout: 70m
   artifacts:
     expire_in: 2 days
     paths:
@@ -538,6 +539,7 @@ build-cfi-ppc64-s390x:
       --enable-safe-stack --enable-slirp=git
     TARGETS: ppc64-softmmu s390x-softmmu
     MAKE_CHECK_ARGS: check-build
+  timeout: 70m
   artifacts:
     expire_in: 2 days
     paths:
@@ -574,6 +576,7 @@ build-cfi-x86_64:
       --enable-safe-stack --enable-slirp=git
     TARGETS: x86_64-softmmu
     MAKE_CHECK_ARGS: check-build
+  timeout: 70m
   artifacts:
     expire_in: 2 days
     paths:
