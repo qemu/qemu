@@ -261,9 +261,6 @@ static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame)
             __put_user(avr->u64[PPC_VEC_HI], &vreg->u64[0]);
             __put_user(avr->u64[PPC_VEC_LO], &vreg->u64[1]);
         }
-        /* Set MSR_VR in the saved MSR value to indicate that
-           frame->mc_vregs contains valid data.  */
-        msr |= MSR_VR;
 #if defined(TARGET_PPC64)
         vrsave = (uint32_t *)&frame->mc_vregs.altivec[33];
         /* 64-bit needs to put a pointer to the vectors in the frame */
@@ -300,9 +297,6 @@ static void save_user_regs(CPUPPCState *env, struct target_mcontext *frame)
         for (i = 0; i < ARRAY_SIZE(env->gprh); i++) {
             __put_user(env->gprh[i], &frame->mc_vregs.spe[i]);
         }
-        /* Set MSR_SPE in the saved MSR value to indicate that
-           frame->mc_vregs contains valid data.  */
-        msr |= MSR_SPE;
         __put_user(env->spe_fscr, &frame->mc_vregs.spe[32]);
     }
 #endif
@@ -354,8 +348,10 @@ static void restore_user_regs(CPUPPCState *env,
     __get_user(msr, &frame->mc_gregs[TARGET_PT_MSR]);
 
     /* If doing signal return, restore the previous little-endian mode.  */
-    if (sig)
-        env->msr = (env->msr & ~(1ull << MSR_LE)) | (msr & (1ull << MSR_LE));
+    if (sig) {
+        ppc_store_msr(env, ((env->msr & ~(1ull << MSR_LE)) |
+                            (msr & (1ull << MSR_LE))));
+    }
 
     /* Restore Altivec registers if necessary.  */
     if (env->insns_flags & PPC_ALTIVEC) {
@@ -376,8 +372,6 @@ static void restore_user_regs(CPUPPCState *env,
             __get_user(avr->u64[PPC_VEC_HI], &vreg->u64[0]);
             __get_user(avr->u64[PPC_VEC_LO], &vreg->u64[1]);
         }
-        /* Set MSR_VEC in the saved MSR value to indicate that
-           frame->mc_vregs contains valid data.  */
 #if defined(TARGET_PPC64)
         vrsave = (uint32_t *)&v_regs[33];
 #else
@@ -468,7 +462,7 @@ void setup_frame(int sig, struct target_sigaction *ka,
     env->nip = (target_ulong) ka->_sa_handler;
 
     /* Signal handlers are entered in big-endian mode.  */
-    env->msr &= ~(1ull << MSR_LE);
+    ppc_store_msr(env, env->msr & ~(1ull << MSR_LE));
 
     unlock_user_struct(frame, frame_addr, 1);
     return;
@@ -563,8 +557,13 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     env->nip = (target_ulong) ka->_sa_handler;
 #endif
 
+#ifdef TARGET_WORDS_BIGENDIAN
     /* Signal handlers are entered in big-endian mode.  */
-    env->msr &= ~(1ull << MSR_LE);
+    ppc_store_msr(env, env->msr & ~(1ull << MSR_LE));
+#else
+    /* Signal handlers are entered in little-endian mode.  */
+    ppc_store_msr(env, env->msr | (1ull << MSR_LE));
+#endif
 
     unlock_user_struct(rt_sf, rt_sf_addr, 1);
     return;
