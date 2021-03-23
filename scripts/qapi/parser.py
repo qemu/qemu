@@ -119,6 +119,13 @@ class QAPISchemaParser:
 
         return QAPISchemaParser(incl_fname, previously_included, info)
 
+    def _check_pragma_list_of_str(self, name, value, info):
+        if (not isinstance(value, list)
+                or any([not isinstance(elt, str) for elt in value])):
+            raise QAPISemError(
+                info,
+                "pragma %s must be a list of strings" % name)
+
     def _pragma(self, name, value, info):
         if name == 'doc-required':
             if not isinstance(value, bool):
@@ -126,18 +133,10 @@ class QAPISchemaParser:
                                    "pragma 'doc-required' must be boolean")
             info.pragma.doc_required = value
         elif name == 'returns-whitelist':
-            if (not isinstance(value, list)
-                    or any([not isinstance(elt, str) for elt in value])):
-                raise QAPISemError(
-                    info,
-                    "pragma returns-whitelist must be a list of strings")
+            self._check_pragma_list_of_str(name, value, info)
             info.pragma.returns_whitelist = value
         elif name == 'name-case-whitelist':
-            if (not isinstance(value, list)
-                    or any([not isinstance(elt, str) for elt in value])):
-                raise QAPISemError(
-                    info,
-                    "pragma name-case-whitelist must be a list of strings")
+            self._check_pragma_list_of_str(name, value, info)
             info.pragma.name_case_whitelist = value
         else:
             raise QAPISemError(info, "unknown pragma '%s'" % name)
