@@ -34,18 +34,11 @@ def check_name_is_str(name, info, source):
 
 
 def check_name_str(name, info, source,
-                   enum_member=False,
                    permit_upper=False):
-    membername = name
-
-    # Enum members can start with a digit, because the generated C
-    # code always prefixes it with the enum name
-    if enum_member and membername[0].isdigit():
-        membername = 'D' + membername
     # Reserve the entire 'q_' namespace for c_name(), and for 'q_empty'
     # and 'q_obj_*' implicit type names.
-    if not valid_name.match(membername) or \
-       c_name(membername, False).startswith('q_'):
+    if not valid_name.match(name) or \
+       c_name(name, False).startswith('q_'):
         raise QAPISemError(info, "%s has an invalid name" % source)
     if not permit_upper and name.lower() != name:
         raise QAPISemError(
@@ -213,11 +206,15 @@ def check_enum(expr, info):
                   for m in members]
     for member in members:
         source = "'data' member"
+        member_name = member['name']
         check_keys(member, info, source, ['name'], ['if'])
-        check_name_is_str(member['name'], info, source)
-        source = "%s '%s'" % (source, member['name'])
-        check_name_str(member['name'], info, source,
-                       enum_member=True, permit_upper=permit_upper)
+        check_name_is_str(member_name, info, source)
+        source = "%s '%s'" % (source, member_name)
+        # Enum members may start with a digit
+        if member_name[0].isdigit():
+            member_name = 'd' + member_name # Hack: hide the digit
+        check_name_str(member_name, info, source,
+                       permit_upper=permit_upper)
         check_if(member, info, source)
 
 
