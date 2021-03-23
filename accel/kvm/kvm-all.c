@@ -164,6 +164,7 @@ static hwaddr kvm_max_slot_size = ~0;
 bool protect_idt_cmd = false;
 bool protect_idt_done = false;
 hwaddr idt_physical_addr;
+MemoryRegion *fx_mr = NULL;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -979,7 +980,6 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension)
     int ret;
 
     ret = kvm_vm_ioctl(s, KVM_CHECK_EXTENSION, extension);
-    DBG("RET INSIDE VM CHECK %d \n", ret);
     if (ret < 0) {
         /* VM wide version not implemented, use global one instead */
         ret = kvm_check_extension(s, extension);
@@ -2475,9 +2475,7 @@ static KVMSlot *find_slot_containing(hwaddr gpa, KVMState *s)
     KVMMemoryListener *kml = &s->memory_listener;
     KVMSlot *slot = NULL;
     int i;
-    DBG("Before lock in find slot\n");
     kvm_slots_lock(kml);
-    DBG("After lock in find slot\n");
     for (i = 0; i < s->nr_slots; i++) {
         KVMSlot *mem = &kml->slots[i];
         if (gpa >= mem->start_addr && 
@@ -2515,42 +2513,38 @@ static void kvm_set_slot(KVMSlot *slot)
     kvm_vm_ioctl(kvm_state, KVM_SET_USER_MEMORY_REGION, &mem);
 }
 
+static hwaddr kvm_translate(CPUState *cpu, unsigned long long gva)
+{
+    struct kvm_translation translation;
+    memset(&translation, 0, sizeof(translation));
+    translation.linear_address = gva;
+    kvm_vcpu_ioctl(cpu, KVM_TRANSLATE, &translation);
+    return (hwaddr)translation.physical_address;
+}
+
 static void protect_guest_idt(CPUState *cpu)
 {
     KVMState *s = kvm_state;
     KVMMemoryListener *kml = &s->memory_listener;
     KVMSlot *current_idt_slot;
     KVMSlot *new_slots[3]; /* pre IDT | IDT | post IDT */
-
     struct kvm_sregs sregs;
-    struct kvm_translation translation;
 
     hwaddr gpa; 
     void *hva; 
     int i;
     uint64_t total_size;
 
-    DBG("READONLY MEM ALLOWED: %d\n", kvm_readonly_mem_allowed);
-    DBG("READ-ONLY memory %d\n", kvm_vm_check_extension(s, KVM_CAP_READONLY_MEM));
-
     /* Get IDT address and translate it*/
     memset(&sregs, 0, sizeof(sregs));
-    memset(&translation, 0, sizeof(translation));
     kvm_vcpu_ioctl(cpu, KVM_GET_SREGS, &sregs);
-    translation.linear_address = sregs.idt.base;
-    kvm_vcpu_ioctl(cpu, KVM_TRANSLATE, &translation);
-    gpa = (hwaddr)translation.physical_address;
+    gpa = kvm_translate(cpu, sregs.idt.base);;
     idt_physical_addr = gpa;
-    DBG("gpa: 0x%llx\n", (long long unsigned)gpa);
     hva = kvm_physical_memory_addr_to_host(s, gpa);
-    if(hva != NULL)
-        DBG("idtr hva: 0x%llx\n", (long long unsigned)hva);
     
     current_idt_slot = find_slot_containing(gpa, s);
     if(current_idt_slot == NULL)
         abort();
-    DBG("current idt slot host start: %p\n", current_idt_slot->ram);
-    DBG("current idt slot guest start: %p\n", (void *)current_idt_slot->start_addr);
 
     kvm_slots_lock(kml);
 
@@ -2558,10 +2552,9 @@ static void protect_guest_idt(CPUState *cpu)
     kvm_free_slot(current_idt_slot);
 
     /* Split current idt slot, setting the IDT in its own read-only slot */
-    /* IDT size = 4K */
+    /* IDT size = 4K, one page */
     for (i = 0; i < 3; i++){
         new_slots[i] = kvm_alloc_slot(kml);
-        DBG("Slot addr %p\n", new_slots[i]);
         switch(i){
         case 0:
             new_slots[i]->ram = current_idt_slot->ram;
@@ -2581,31 +2574,46 @@ static void protect_guest_idt(CPUState *cpu)
             new_slots[i]->memory_size = total_size - (new_slots[0]->memory_size + (1UL << 12));
             break;
         }
-        DBG("SLOT %d HOST ADDRESS: %p\n",
-            i,
-            new_slots[i]->ram
-        );
-        DBG("SLOT %d GUEST ADDRESS: 0x%llx\n", 
-            i,
-            (long long unsigned)new_slots[i]->start_addr
-        );
-        DBG("SLOT %d SIZE: 0x%llx\n", 
-            i,
-            (long long unsigned)new_slots[i]->memory_size
-        );
-
         kvm_set_slot(new_slots[i]);
     }
 
-    assert(total_size == new_slots[0]->memory_size + new_slots[1]->memory_size + new_slots[2]->memory_size);
+    assert(total_size == 
+        new_slots[0]->memory_size + 
+        new_slots[1]->memory_size + 
+        new_slots[2]->memory_size
+    );
+
     kvm_slots_unlock(kml);
 }
 
-static bool within(hwaddr target, hwaddr addr1, hwaddr addr2){
+static bool within(hwaddr target, hwaddr addr1, hwaddr addr2)
+{
     if(addr1 <= target && target < addr2)
         return true;
     return false;
 }
+
+
+static void find_fx_mr(void)
+{
+    MemoryRegion *system;
+    MemoryRegion *i, *j;
+    system = get_system_memory();
+    QTAILQ_FOREACH(i, &system->subregions, subregions_link){
+        if(!strcmp(i->name, "pci")){
+            QTAILQ_FOREACH(j, &i->subregions, subregions_link){
+                if(!strcmp(j->name, "fx-mmio")){
+                    fx_mr = j;
+                    DBG("\tMemory Region %s found\n", j->name);
+                    goto exit;
+                }
+            }
+        }
+    }
+    exit:
+    return;
+}
+
 
 int kvm_cpu_exec(CPUState *cpu)
 {
@@ -2613,6 +2621,8 @@ int kvm_cpu_exec(CPUState *cpu)
     int ret, run_ret;
 
     DPRINTF("kvm_cpu_exec()\n");
+    if(fx_mr == NULL)
+        find_fx_mr();
 
     if (kvm_arch_process_async_events(cpu)) {
         qatomic_set(&cpu->exit_request, 0);
@@ -2702,8 +2712,9 @@ int kvm_cpu_exec(CPUState *cpu)
             DPRINTF("handle_mmio\n");
             /* Called outside BQL */
             //DBG("MMIO_EXIT_address: %llx\n", run->mmio.phys_addr);
-            if(run->mmio.phys_addr == 0xfea00080){
+            if(fx_mr != NULL && run->mmio.phys_addr == fx_mr->addr + 0x80){
                 protect_idt_cmd = true;
+                break;
             }
             if(protect_idt_done && 
                 within(run->mmio.phys_addr, idt_physical_addr, idt_physical_addr + (1UL << 12))){

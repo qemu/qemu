@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.inc": "c",
-        "list": "c"
+        "list": "c",
+        "irqnr.h": "c"
     }
 }
