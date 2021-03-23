@@ -10,6 +10,18 @@
 #include "kvm_ppc.h"
 #include "exec/helper-proto.h"
 
+static void post_load_update_msr(CPUPPCState *env)
+{
+    target_ulong msr = env->msr;
+
+    /*
+     * Invalidate all supported msr bits except MSR_TGPR/MSR_HVB
+     * before restoring.  Note that this recomputes hflags and mem_idx.
+     */
+    env->msr ^= env->msr_mask & ~((1ULL << MSR_TGPR) | MSR_HVB);
+    ppc_store_msr(env, msr);
+}
+
 static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
 {
     PowerPCCPU *cpu = opaque;
@@ -21,7 +33,6 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
     int32_t slb_nr;
 #endif
     target_ulong xer;
-    target_ulong msr;
 
     for (i = 0; i < 32; i++) {
         qemu_get_betls(f, &env->gpr[i]);
@@ -117,13 +128,7 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
     qemu_get_sbe32(f); /* Discard unused mmu_idx */
     qemu_get_sbe32(f); /* Discard unused power_mode */
 
-    /*
-     * Invalidate all supported msr bits except MSR_TGPR/MSR_HVB
-     * before restoring.  Note that this recomputes hflags and mem_idx.
-     */
-    msr = env->msr;
-    env->msr ^= env->msr_mask & ~((1ULL << MSR_TGPR) | MSR_HVB);
-    ppc_store_msr(env, msr);
+    post_load_update_msr(env);
 
     return 0;
 }
@@ -343,7 +348,6 @@ static int cpu_post_load(void *opaque, int version_id)
     PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
     int i;
-    target_ulong msr;
 
     /*
      * If we're operating in compat mode, we should be ok as long as
@@ -417,13 +421,7 @@ static int cpu_post_load(void *opaque, int version_id)
         ppc_store_sdr1(env, env->spr[SPR_SDR1]);
     }
 
-    /*
-     * Invalidate all supported msr bits except MSR_TGPR/MSR_HVB
-     * before restoring.  Note that this recomputes hflags and mem_idx.
-     */
-    msr = env->msr;
-    env->msr ^= env->msr_mask & ~((1ULL << MSR_TGPR) | MSR_HVB);
-    ppc_store_msr(env, msr);
+    post_load_update_msr(env);
 
     return 0;
 }
