@@ -34,32 +34,31 @@ def check_name_is_str(name, info, source):
         raise QAPISemError(info, "%s requires a string name" % source)
 
 
-def check_name_str(name, info, source,
-                   permit_upper=False):
+def check_name_str(name, info, source):
     # Reserve the entire 'q_' namespace for c_name(), and for 'q_empty'
     # and 'q_obj_*' implicit type names.
     match = valid_name.match(name)
     if not match or c_name(name, False).startswith('q_'):
         raise QAPISemError(info, "%s has an invalid name" % source)
-    if not permit_upper and name.lower() != name:
-        raise QAPISemError(
-            info, "%s uses uppercase in name" % source)
     return match.group(3)
 
 
 def check_name_upper(name, info, source):
-    stem = check_name_str(name, info, source, permit_upper=True)
+    stem = check_name_str(name, info, source)
     # TODO reject '[a-z-]' in @stem
 
 
 def check_name_lower(name, info, source,
                      permit_upper=False):
-    stem = check_name_str(name, info, source, permit_upper)
+    stem = check_name_str(name, info, source)
+    if not permit_upper and name.lower() != name:
+        raise QAPISemError(
+            info, "%s uses uppercase in name" % source)
     # TODO reject '_' in stem
 
 
 def check_name_camel(name, info, source):
-    stem = check_name_str(name, info, source, permit_upper=True)
+    stem = check_name_str(name, info, source)
     # TODO reject '[_-]' in stem, require CamelCase
 
 
