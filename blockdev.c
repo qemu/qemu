@@ -2407,14 +2407,6 @@ exit:
     job_txn_unref(block_job_txn);
 }
 
-void qmp_block_passwd(bool has_device, const char *device,
-                      bool has_node_name, const char *node_name,
-                      const char *password, Error **errp)
-{
-    error_setg(errp,
-               "Setting block passwords directly is no longer supported");
-}
-
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
                                                               const char *name,
                                                               Error **errp)

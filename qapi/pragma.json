@@ -6,7 +6,6 @@
     # Commands allowed to return a non-dictionary:
     'command-name-exceptions': [
         'add_client',
-        'block_passwd',
         'block_resize',
         'block_set_io_throttle',
         'client_migrate_info',
