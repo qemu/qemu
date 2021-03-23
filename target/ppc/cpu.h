@@ -596,6 +596,7 @@ enum {
     HFLAGS_LE = 0,   /* MSR_LE -- comes from elsewhere on 601 */
     HFLAGS_HV = 1,   /* computed from MSR_HV and other state */
     HFLAGS_64 = 2,   /* computed from MSR_CE and MSR_SF */
+    HFLAGS_GTSE = 3, /* computed from SPR_LPCR[GTSE] */
     HFLAGS_DR = 4,   /* MSR_DR */
     HFLAGS_IR = 5,   /* MSR_IR */
     HFLAGS_SPE = 6,  /* from MSR_SPE if cpu has SPE; avoid overlap w/ MSR_VR */
