@@ -111,7 +111,6 @@ schemas = [
   'flat-union-clash-member.json',
   'flat-union-discriminator-bad-name.json',
   'flat-union-empty.json',
-  'flat-union-inline.json',
   'flat-union-inline-invalid-dict.json',
   'flat-union-int-branch.json',
   'flat-union-invalid-branch-key.json',
