@@ -34,12 +34,10 @@ def check_name_is_str(name, info, source):
 
 
 def check_name_str(name, info, source,
-                   allow_optional=False, enum_member=False,
+                   enum_member=False,
                    permit_upper=False):
     membername = name
 
-    if allow_optional and name.startswith('*'):
-        membername = name[1:]
     # Enum members can start with a digit, because the generated C
     # code always prefixes it with the enum name
     if enum_member and membername[0].isdigit():
@@ -52,7 +50,6 @@ def check_name_str(name, info, source,
     if not permit_upper and name.lower() != name:
         raise QAPISemError(
             info, "%s uses uppercase in name" % source)
-    assert not membername.startswith('*')
 
 
 def check_defn_name_str(name, info, meta):
@@ -171,8 +168,10 @@ def check_type(value, info, source,
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
         key_source = "%s member '%s'" % (source, key)
+        if key.startswith('*'):
+            key = key[1:]
         check_name_str(key, info, key_source,
-                       allow_optional=True, permit_upper=permit_upper)
+                       permit_upper=permit_upper)
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPISemError(info, "%s uses reserved name" % key_source)
         check_keys(arg, info, key_source, ['type'], ['if', 'features'])
