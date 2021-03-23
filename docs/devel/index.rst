@@ -1,8 +1,8 @@
 .. This is the top level page for the 'devel' manual.
 
 
-QEMU Developer's Guide
-======================
+Developer Information
+=====================
 
 This manual documents various parts of the internals of QEMU.
 You only need to read it if you are interested in reading or
