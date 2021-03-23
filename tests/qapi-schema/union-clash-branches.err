@@ -1,2 +1,2 @@
 union-clash-branches.json: In union 'TestUnion':
-union-clash-branches.json:4: branch 'a_b' collides with branch 'a-b'
+union-clash-branches.json:6: name of 'data' member 'a_b' must not use uppercase or '_'
