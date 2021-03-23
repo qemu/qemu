@@ -1745,6 +1745,9 @@ sub dump_function($$) {
             )+
           \)\)\s+//x;
 
+    # Strip QEMU specific compiler annotations
+    $prototype =~ s/QEMU_[A-Z_]+ +//;
+
     # Yes, this truly is vile.  We are looking for:
     # 1. Return type (may be nothing if we're looking at a macro)
     # 2. Function name
