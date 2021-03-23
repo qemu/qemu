@@ -1,2 +1,2 @@
 event-member-invalid-dict.json: In event 'EVENT_A':
-event-member-invalid-dict.json:1: 'data' member 'a' misses key 'type'
+event-member-invalid-dict.json:3: 'data' member 'a' misses key 'type'

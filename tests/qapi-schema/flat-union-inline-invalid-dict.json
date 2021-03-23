@@ -1,5 +1,5 @@
-# we require branches to be a struct name
-# TODO: should we allow anonymous inline branch types?
+# union 'data' member with dict value is (longhand) branch
+# definition, not inline complex type
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
 { 'struct': 'Base',
