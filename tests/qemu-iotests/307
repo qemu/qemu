@@ -40,13 +40,11 @@ with iotests.FilePath('image') as img, \
 
     iotests.log('=== Launch VM ===')
 
-    virtio_scsi_device = iotests.get_virtio_scsi_device()
-
     vm.add_object('iothread,id=iothread0')
     vm.add_blockdev(f'file,filename={img},node-name=file')
     vm.add_blockdev(f'{iotests.imgfmt},file=file,node-name=fmt')
     vm.add_blockdev('raw,file=file,node-name=ro,read-only=on')
-    vm.add_device(f'id=scsi0,driver={virtio_scsi_device},iothread=iothread0')
+    vm.add_device(f'id=scsi0,driver=virtio-scsi,iothread=iothread0')
     vm.launch()
 
     vm.qmp_log('nbd-server-start',

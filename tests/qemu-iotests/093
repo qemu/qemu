@@ -371,8 +371,7 @@ class ThrottleTestGroupNames(iotests.QMPTestCase):
 class ThrottleTestRemovableMedia(iotests.QMPTestCase):
     def setUp(self):
         self.vm = iotests.VM()
-        self.vm.add_device("{},id=virtio-scsi".format(
-            iotests.get_virtio_scsi_device()))
+        self.vm.add_device("{},id=virtio-scsi".format('virtio-scsi'))
         self.vm.launch()
 
     def tearDown(self):

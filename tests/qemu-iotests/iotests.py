@@ -234,11 +234,6 @@ def qemu_io_silent_check(*args):
                                stderr=subprocess.STDOUT)
     return exitcode == 0
 
-def get_virtio_scsi_device():
-    if qemu_default_machine == 's390-ccw-virtio':
-        return 'virtio-scsi-ccw'
-    return 'virtio-scsi-pci'
-
 class QemuIoInteractive:
     def __init__(self, *args):
         self.args = qemu_io_args_no_fmt + list(args)
