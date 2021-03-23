@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "cpu.h"
 #include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 #include "sysemu/kvm.h"
@@ -87,24 +88,66 @@ void hreg_compute_mem_idx(CPUPPCState *env)
 
 void hreg_compute_hflags(CPUPPCState *env)
 {
-    target_ulong hflags_mask;
+    target_ulong msr = env->msr;
+    uint32_t ppc_flags = env->flags;
+    uint32_t hflags = 0;
+    uint32_t msr_mask;
 
-    /* We 'forget' FE0 & FE1: we'll never generate imprecise exceptions */
-    hflags_mask = (1 << MSR_VR) | (1 << MSR_AP) | (1 << MSR_SA) |
-        (1 << MSR_PR) | (1 << MSR_FP) | (1 << MSR_SE) | (1 << MSR_BE) |
-        (1 << MSR_LE) | (1 << MSR_VSX) | (1 << MSR_IR) | (1 << MSR_DR);
-    hflags_mask |= (1ULL << MSR_CM) | (1ULL << MSR_SF) | MSR_HVB;
-    hreg_compute_mem_idx(env);
-    env->hflags = env->msr & hflags_mask;
+    /* Some bits come straight across from MSR. */
+    QEMU_BUILD_BUG_ON(MSR_LE != HFLAGS_LE);
+    QEMU_BUILD_BUG_ON(MSR_PR != HFLAGS_PR);
+    QEMU_BUILD_BUG_ON(MSR_DR != HFLAGS_DR);
+    QEMU_BUILD_BUG_ON(MSR_IR != HFLAGS_IR);
+    QEMU_BUILD_BUG_ON(MSR_FP != HFLAGS_FP);
+    QEMU_BUILD_BUG_ON(MSR_SA != HFLAGS_SA);
+    QEMU_BUILD_BUG_ON(MSR_AP != HFLAGS_AP);
+    msr_mask = ((1 << MSR_LE) | (1 << MSR_PR) |
+                (1 << MSR_DR) | (1 << MSR_IR) |
+                (1 << MSR_FP) | (1 << MSR_SA) | (1 << MSR_AP));
 
-    if (env->flags & POWERPC_FLAG_HID0_LE) {
+    if (ppc_flags & POWERPC_FLAG_HID0_LE) {
         /*
          * Note that MSR_LE is not set in env->msr_mask for this cpu,
-         * and so will never be set in msr or hflags at this point.
+         * and so will never be set in msr.
          */
         uint32_t le = extract32(env->spr[SPR_HID0], 3, 1);
-        env->hflags |= le << MSR_LE;
+        hflags |= le << MSR_LE;
     }
+
+    if (ppc_flags & POWERPC_FLAG_BE) {
+        QEMU_BUILD_BUG_ON(MSR_BE != HFLAGS_BE);
+        msr_mask |= 1 << MSR_BE;
+    }
+    if (ppc_flags & POWERPC_FLAG_SE) {
+        QEMU_BUILD_BUG_ON(MSR_SE != HFLAGS_SE);
+        msr_mask |= 1 << MSR_SE;
+    }
+
+    if (msr_is_64bit(env, msr)) {
+        hflags |= 1 << HFLAGS_64;
+    }
+    if ((ppc_flags & POWERPC_FLAG_SPE) && (msr & (1 << MSR_SPE))) {
+        hflags |= 1 << HFLAGS_SPE;
+    }
+    if (ppc_flags & POWERPC_FLAG_VRE) {
+        QEMU_BUILD_BUG_ON(MSR_VR != HFLAGS_VR);
+        msr_mask |= 1 << MSR_VR;
+    }
+    if ((ppc_flags & POWERPC_FLAG_VSX) && (msr & (1 << MSR_VSX))) {
+        hflags |= 1 << HFLAGS_VSX;
+    }
+    if ((ppc_flags & POWERPC_FLAG_TM) && (msr & (1ull << MSR_TM))) {
+        hflags |= 1 << HFLAGS_TM;
+    }
+
+#ifndef CONFIG_USER_ONLY
+    if (!env->has_hv_mode || (msr & (1ull << MSR_HV))) {
+        hflags |= 1 << HFLAGS_HV;
+    }
+#endif
+
+    env->hflags = hflags | (msr & msr_mask);
+    hreg_compute_mem_idx(env);
 }
 
 void cpu_interrupt_exittb(CPUState *cs)

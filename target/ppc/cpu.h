@@ -585,6 +585,31 @@ enum {
     POWERPC_FLAG_HID0_LE  = 0x00400000,
 };
 
+/*
+ * Bits for env->hflags.
+ *
+ * Most of these bits overlap with corresponding bits in MSR,
+ * but some come from other sources.  Those that do come from
+ * the MSR are validated in hreg_compute_hflags.
+ */
+enum {
+    HFLAGS_LE = 0,   /* MSR_LE -- comes from elsewhere on 601 */
+    HFLAGS_HV = 1,   /* computed from MSR_HV and other state */
+    HFLAGS_64 = 2,   /* computed from MSR_CE and MSR_SF */
+    HFLAGS_DR = 4,   /* MSR_DR */
+    HFLAGS_IR = 5,   /* MSR_IR */
+    HFLAGS_SPE = 6,  /* from MSR_SPE if cpu has SPE; avoid overlap w/ MSR_VR */
+    HFLAGS_VSX = 7,  /* from MSR_VSX if cpu has VSX; avoid overlap w/ MSR_AP */
+    HFLAGS_TM = 8,   /* computed from MSR_TM */
+    HFLAGS_BE = 9,   /* MSR_BE -- from elsewhere on embedded ppc */
+    HFLAGS_SE = 10,  /* MSR_SE -- from elsewhere on embedded ppc */
+    HFLAGS_FP = 13,  /* MSR_FP */
+    HFLAGS_PR = 14,  /* MSR_PR */
+    HFLAGS_SA = 22,  /* MSR_SA */
+    HFLAGS_AP = 23,  /* MSR_AP */
+    HFLAGS_VR = 25,  /* MSR_VR if cpu has VRE */
+};
+
 /*****************************************************************************/
 /* Floating point status and control register                                */
 #define FPSCR_DRN2   34 /* Decimal Floating-Point rounding control           */
