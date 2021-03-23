@@ -362,7 +362,6 @@ static int do_strtosz(const char *nptr, const char **end,
         }
     }
 
-    *result = val;
     retval = 0;
 
 out:
@@ -370,6 +369,9 @@ out:
         *end = endptr;
     } else if (*endptr) {
         retval = -EINVAL;
+    }
+    if (retval == 0) {
+        *result = val;
     }
 
     return retval;
