@@ -42,5 +42,6 @@ int xen_available(void);
                               QEMU_ARCH_RISCV | QEMU_ARCH_SH4 | \
                               QEMU_ARCH_SPARC | QEMU_ARCH_XTENSA)
 #define QEMU_ARCH_VIRTIO_CCW (QEMU_ARCH_S390X)
+#define QEMU_ARCH_VIRTIO_MMIO (QEMU_ARCH_M68K)
 
 #endif
