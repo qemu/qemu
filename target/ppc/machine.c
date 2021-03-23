@@ -16,7 +16,7 @@ static void post_load_update_msr(CPUPPCState *env)
 
     /*
      * Invalidate all supported msr bits except MSR_TGPR/MSR_HVB
-     * before restoring.  Note that this recomputes hflags and mem_idx.
+     * before restoring.  Note that this recomputes hflags.
      */
     env->msr ^= env->msr_mask & ~((1ULL << MSR_TGPR) | MSR_HVB);
     ppc_store_msr(env, msr);
