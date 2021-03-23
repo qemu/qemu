@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "trace.h"
+#include "exec/exec-all.h"
 
 static void pmp_write_cfg(CPURISCVState *env, uint32_t addr_index,
     uint8_t val);
@@ -217,6 +218,35 @@ static int pmp_is_in_range(CPURISCVState *env, int pmp_index, target_ulong addr)
     return result;
 }
 
+/*
+ * Check if the address has required RWX privs when no PMP entry is matched.
+ */
+static bool pmp_hart_has_privs_default(CPURISCVState *env, target_ulong addr,
+    target_ulong size, pmp_priv_t privs, pmp_priv_t *allowed_privs,
+    target_ulong mode)
+{
+    bool ret;
+
+    if ((!riscv_feature(env, RISCV_FEATURE_PMP)) || (mode == PRV_M)) {
+        /*
+         * Privileged spec v1.10 states if HW doesn't implement any PMP entry
+         * or no PMP entry matches an M-Mode access, the access succeeds.
+         */
+        ret = true;
+        *allowed_privs = PMP_READ | PMP_WRITE | PMP_EXEC;
+    } else {
+        /*
+         * Other modes are not allowed to succeed if they don't * match a rule,
+         * but there are rules. We've checked for no rule earlier in this
+         * function.
+         */
+        ret = false;
+        *allowed_privs = 0;
+    }
+
+    return ret;
+}
+
 
 /*
  * Public Interface
@@ -226,18 +256,19 @@ static int pmp_is_in_range(CPURISCVState *env, int pmp_index, target_ulong addr)
  * Check if the address has required RWX privs to complete desired operation
  */
 bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
-    target_ulong size, pmp_priv_t privs, target_ulong mode)
+    target_ulong size, pmp_priv_t privs, pmp_priv_t *allowed_privs,
+    target_ulong mode)
 {
     int i = 0;
     int ret = -1;
     int pmp_size = 0;
     target_ulong s = 0;
     target_ulong e = 0;
-    pmp_priv_t allowed_privs = 0;
 
     /* Short cut if no rules */
     if (0 == pmp_get_num_rules(env)) {
-        return (env->priv == PRV_M) ? true : false;
+        return pmp_hart_has_privs_default(env, addr, size, privs,
+                                          allowed_privs, mode);
     }
 
     if (size == 0) {
@@ -277,36 +308,24 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
          * check
          */
         if (((s + e) == 2) && (PMP_AMATCH_OFF != a_field)) {
-            allowed_privs = PMP_READ | PMP_WRITE | PMP_EXEC;
+            *allowed_privs = PMP_READ | PMP_WRITE | PMP_EXEC;
             if ((mode != PRV_M) || pmp_is_locked(env, i)) {
-                allowed_privs &= env->pmp_state.pmp[i].cfg_reg;
+                *allowed_privs &= env->pmp_state.pmp[i].cfg_reg;
             }
 
-            if ((privs & allowed_privs) == privs) {
-                ret = 1;
-                break;
-            } else {
-                ret = 0;
-                break;
-            }
+            ret = ((privs & *allowed_privs) == privs);
+            break;
         }
     }
 
     /* No rule matched */
     if (ret == -1) {
-        if (mode == PRV_M) {
-            ret = 1; /* Privileged spec v1.10 states if no PMP entry matches an
-                      * M-Mode access, the access succeeds */
-        } else {
-            ret = 0; /* Other modes are not allowed to succeed if they don't
-                      * match a rule, but there are rules.  We've checked for
-                      * no rule earlier in this function. */
-        }
+        return pmp_hart_has_privs_default(env, addr, size, privs,
+                                          allowed_privs, mode);
     }
 
     return ret == 1 ? true : false;
 }
-
 
 /*
  * Handle a write to a pmpcfg CSP
@@ -329,6 +348,9 @@ void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
         cfg_val = (val >> 8 * i)  & 0xff;
         pmp_write_cfg(env, (reg_index * 4) + i, cfg_val);
     }
+
+    /* If PMP permission of any addr has been changed, flush TLB pages. */
+    tlb_flush(env_cpu(env));
 }
 
 
@@ -441,4 +463,24 @@ bool pmp_is_range_in_tlb(CPURISCVState *env, hwaddr tlb_sa,
     }
 
     return false;
+}
+
+/*
+ * Convert PMP privilege to TLB page privilege.
+ */
+int pmp_priv_to_page_prot(pmp_priv_t pmp_priv)
+{
+    int prot = 0;
+
+    if (pmp_priv & PMP_READ) {
+        prot |= PAGE_READ;
+    }
+    if (pmp_priv & PMP_WRITE) {
+        prot |= PAGE_WRITE;
+    }
+    if (pmp_priv & PMP_EXEC) {
+        prot |= PAGE_EXEC;
+    }
+
+    return prot;
 }

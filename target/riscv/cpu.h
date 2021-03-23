@@ -213,6 +213,10 @@ struct CPURISCVState {
     target_ulong satp_hs;
     uint64_t mstatus_hs;
 
+    /* Signals whether the current exception occurred with two-stage address
+       translation active. */
+    bool two_stage_lookup;
+
     target_ulong scounteren;
     target_ulong mcounteren;
 
