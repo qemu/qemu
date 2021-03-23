@@ -229,7 +229,7 @@ def check_enum(expr, info):
     if prefix is not None and not isinstance(prefix, str):
         raise QAPISemError(info, "'prefix' must be a string")
 
-    permit_upper = name in info.pragma.member_name_exceptions
+    permissive = name in info.pragma.member_name_exceptions
 
     members[:] = [m if isinstance(m, dict) else {'name': m}
                   for m in members]
@@ -243,7 +243,8 @@ def check_enum(expr, info):
         if member_name[0].isdigit():
             member_name = 'd' + member_name # Hack: hide the digit
         check_name_lower(member_name, info, source,
-                         permit_upper, permit_underscore=True)
+                         permit_upper=permissive,
+                         permit_underscore=permissive)
         check_if(member, info, source)
 
 
