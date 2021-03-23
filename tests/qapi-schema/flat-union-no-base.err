@@ -1,2 +1,2 @@
 flat-union-no-base.json: In union 'TestUnion':
-flat-union-no-base.json:9: 'discriminator' requires 'base'
+flat-union-no-base.json:8: 'discriminator' requires 'base'
