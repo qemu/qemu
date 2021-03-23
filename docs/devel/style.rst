@@ -385,17 +385,37 @@ avoided.
 Low level memory management
 ===========================
 
-Use of the malloc/free/realloc/calloc/valloc/memalign/posix_memalign
+Use of the ``malloc/free/realloc/calloc/valloc/memalign/posix_memalign``
 APIs is not allowed in the QEMU codebase. Instead of these routines,
-use the GLib memory allocation routines g_malloc/g_malloc0/g_new/
-g_new0/g_realloc/g_free or QEMU's qemu_memalign/qemu_blockalign/qemu_vfree
-APIs.
+use the GLib memory allocation routines
+``g_malloc/g_malloc0/g_new/g_new0/g_realloc/g_free``
+or QEMU's ``qemu_memalign/qemu_blockalign/qemu_vfree`` APIs.
 
-Please note that g_malloc will exit on allocation failure, so there
-is no need to test for failure (as you would have to with malloc).
-Calling g_malloc with a zero size is valid and will return NULL.
+Please note that ``g_malloc`` will exit on allocation failure, so
+there is no need to test for failure (as you would have to with
+``malloc``). Generally using ``g_malloc`` on start-up is fine as the
+result of a failure to allocate memory is going to be a fatal exit
+anyway. There may be some start-up cases where failing is unreasonable
+(for example speculatively loading a large debug symbol table).
 
-Prefer g_new(T, n) instead of g_malloc(sizeof(T) ``*`` n) for the following
+Care should be taken to avoid introducing places where the guest could
+trigger an exit by causing a large allocation. For small allocations,
+of the order of 4k, a failure to allocate is likely indicative of an
+overloaded host and allowing ``g_malloc`` to ``exit`` is a reasonable
+approach. However for larger allocations where we could realistically
+fall-back to a smaller one if need be we should use functions like
+``g_try_new`` and check the result. For example this is valid approach
+for a time/space trade-off like ``tlb_mmu_resize_locked`` in the
+SoftMMU TLB code.
+
+If the lifetime of the allocation is within the function and there are
+multiple exist paths you can also improve the readability of the code
+by using ``g_autofree`` and related annotations. See :ref:`autofree-ref`
+for more details.
+
+Calling ``g_malloc`` with a zero size is valid and will return NULL.
+
+Prefer ``g_new(T, n)`` instead of ``g_malloc(sizeof(T) * n)`` for the following
 reasons:
 
 * It catches multiplication overflowing size_t;
@@ -409,8 +429,8 @@ Declarations like
 
 are acceptable, though.
 
-Memory allocated by qemu_memalign or qemu_blockalign must be freed with
-qemu_vfree, since breaking this will cause problems on Win32.
+Memory allocated by ``qemu_memalign`` or ``qemu_blockalign`` must be freed with
+``qemu_vfree``, since breaking this will cause problems on Win32.
 
 String manipulation
 ===================
@@ -484,6 +504,8 @@ painful. These are:
 In addition, QEMU assumes that the compiler does not use the latitude
 given in C99 and C11 to treat aspects of signed '<<' as undefined, as
 documented in the GNU Compiler Collection manual starting at version 4.0.
+
+.. _autofree-ref:
 
 Automatic memory deallocation
 =============================
