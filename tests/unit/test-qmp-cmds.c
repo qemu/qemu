@@ -13,13 +13,6 @@
 
 static QmpCommandList qmp_commands;
 
-#if defined(TEST_IF_STRUCT) && defined(TEST_IF_CMD)
-UserDefThree *qmp_TestIfCmd(TestIfStruct *foo, Error **errp)
-{
-    return NULL;
-}
-#endif
-
 UserDefThree *qmp_TestCmdReturnDefThree(Error **errp)
 {
     return NULL;
