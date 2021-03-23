@@ -7,7 +7,7 @@
 # Whitelists to permit QAPI rule violations
 { 'pragma': {
     # Commands allowed to return a non-dictionary:
-    'returns-whitelist': [
+    'command-returns-exceptions': [
         'guest-get-time',
         'guest-sync' ] } }
 

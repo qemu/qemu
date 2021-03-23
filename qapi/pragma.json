@@ -4,13 +4,13 @@
 # add to them!
 { 'pragma': {
     # Commands allowed to return a non-dictionary:
-    'returns-whitelist': [
+    'command-returns-exceptions': [
         'human-monitor-command',
         'qom-get',
         'query-tpm-models',
         'query-tpm-types',
         'ringbuf-read' ],
-    'name-case-whitelist': [
+    'member-name-exceptions': [
         'ACPISlotType',             # DIMM, visible through query-acpi-ospm-status
         'BlockdevVmdkSubformat',    # all members, to match VMDK spec spellings
         'BlockdevVmdkAdapterType',  # legacyESX, to match VMDK spec spellings

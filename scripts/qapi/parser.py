@@ -132,12 +132,12 @@ class QAPISchemaParser:
                 raise QAPISemError(info,
                                    "pragma 'doc-required' must be boolean")
             info.pragma.doc_required = value
-        elif name == 'returns-whitelist':
+        elif name == 'command-returns-exceptions':
             self._check_pragma_list_of_str(name, value, info)
-            info.pragma.returns_whitelist = value
-        elif name == 'name-case-whitelist':
+            info.pragma.command_returns_exceptions = value
+        elif name == 'member-name-exceptions':
             self._check_pragma_list_of_str(name, value, info)
-            info.pragma.name_case_whitelist = value
+            info.pragma.member_name_exceptions = value
         else:
             raise QAPISemError(info, "unknown pragma '%s'" % name)
 

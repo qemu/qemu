@@ -20,7 +20,7 @@
 # add to them!
 { 'pragma': {
     # Commands allowed to return a non-dictionary:
-    'returns-whitelist': [
+    'command-returns-exceptions': [
         'guest-file-open',
         'guest-fsfreeze-freeze',
         'guest-fsfreeze-freeze-list',

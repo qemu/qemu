@@ -181,7 +181,7 @@ def check_type(value, info, source,
         raise QAPISemError(info,
                            "%s should be an object or type name" % source)
 
-    permit_upper = allow_dict in info.pragma.name_case_whitelist
+    permit_upper = allow_dict in info.pragma.member_name_exceptions
 
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
@@ -224,7 +224,7 @@ def check_enum(expr, info):
     if prefix is not None and not isinstance(prefix, str):
         raise QAPISemError(info, "'prefix' must be a string")
 
-    permit_upper = name in info.pragma.name_case_whitelist
+    permit_upper = name in info.pragma.member_name_exceptions
 
     members[:] = [m if isinstance(m, dict) else {'name': m}
                   for m in members]

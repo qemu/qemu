@@ -1,6 +1,6 @@
 # we enforce that 'returns' be a dict or array of dict unless whitelisted
 
-{ 'pragma': { 'returns-whitelist': [
+{ 'pragma': { 'command-returns-exceptions': [
     'human-monitor-command', 'query-tpm-models', 'guest-get-time' ] } }
 
 { 'command': 'human-monitor-command',
