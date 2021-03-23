@@ -144,7 +144,18 @@ static void pm_update_sci(ViaPMState *s)
                    ACPI_BITMASK_POWER_BUTTON_ENABLE |
                    ACPI_BITMASK_GLOBAL_LOCK_ENABLE |
                    ACPI_BITMASK_TIMER_ENABLE)) != 0);
-    pci_set_irq(&s->dev, sci_level);
+    if (pci_get_byte(s->dev.config + PCI_INTERRUPT_PIN)) {
+        /*
+         * FIXME:
+         * Fix device model that realizes this PM device and remove
+         * this work around.
+         * The device model should wire SCI and setup
+         * PCI_INTERRUPT_PIN properly.
+         * If PIN# = 0(interrupt pin isn't used), don't raise SCI as
+         * work around.
+         */
+        pci_set_irq(&s->dev, sci_level);
+    }
     /* schedule a timer interruption if needed */
     acpi_pm_tmr_update(&s->ar, (s->ar.pm1.evt.en & ACPI_BITMASK_TIMER_ENABLE) &&
                        !(pmsts & ACPI_BITMASK_TIMER_STATUS));
