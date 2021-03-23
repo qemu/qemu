@@ -378,6 +378,15 @@ static void test_qemu_strtoi_hex(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 0x123);
     g_assert(endptr == str + strlen(str));
+
+    str = "0x";
+    res = 999;
+    endptr = &f;
+    err = qemu_strtoi(str, &endptr, 16, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 0);
+    g_assert(endptr == str + 1);
 }
 
 static void test_qemu_strtoi_max(void)
@@ -669,6 +678,15 @@ static void test_qemu_strtoui_hex(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmphex(res, ==, 0x123);
     g_assert(endptr == str + strlen(str));
+
+    str = "0x";
+    res = 999;
+    endptr = &f;
+    err = qemu_strtoui(str, &endptr, 16, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmphex(res, ==, 0);
+    g_assert(endptr == str + 1);
 }
 
 static void test_qemu_strtoui_max(void)
@@ -955,6 +973,15 @@ static void test_qemu_strtol_hex(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 0x123);
     g_assert(endptr == str + strlen(str));
+
+    str = "0x";
+    res = 999;
+    endptr = &f;
+    err = qemu_strtol(str, &endptr, 16, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 0);
+    g_assert(endptr == str + 1);
 }
 
 static void test_qemu_strtol_max(void)
@@ -1244,6 +1271,15 @@ static void test_qemu_strtoul_hex(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmphex(res, ==, 0x123);
     g_assert(endptr == str + strlen(str));
+
+    str = "0x";
+    res = 999;
+    endptr = &f;
+    err = qemu_strtoul(str, &endptr, 16, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmphex(res, ==, 0);
+    g_assert(endptr == str + 1);
 }
 
 static void test_qemu_strtoul_max(void)
@@ -1528,6 +1564,15 @@ static void test_qemu_strtoi64_hex(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, 0x123);
     g_assert(endptr == str + strlen(str));
+
+    str = "0x";
+    endptr = &f;
+    res = 999;
+    err = qemu_strtoi64(str, &endptr, 16, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 0);
+    g_assert(endptr == str + 1);
 }
 
 static void test_qemu_strtoi64_max(void)
@@ -1815,6 +1860,15 @@ static void test_qemu_strtou64_hex(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmphex(res, ==, 0x123);
     g_assert(endptr == str + strlen(str));
+
+    str = "0x";
+    endptr = &f;
+    res = 999;
+    err = qemu_strtou64(str, &endptr, 16, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmphex(res, ==, 0);
+    g_assert(endptr == str + 1);
 }
 
 static void test_qemu_strtou64_max(void)
