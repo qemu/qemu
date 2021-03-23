@@ -87,7 +87,7 @@ build-system-alpine:
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
       moxie-softmmu microblazeel-softmmu mips64el-softmmu
     MAKE_CHECK_ARGS: check-build
-    CONFIGURE_ARGS: --enable-docs
+    CONFIGURE_ARGS: --enable-docs --enable-trace-backends=log,simple,syslog
   artifacts:
     expire_in: 2 days
     paths:
@@ -605,7 +605,7 @@ tsan-build:
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-tsan --cc=clang-10 --cxx=clang++-10 --disable-docs
-                    --enable-fdt=system --enable-slirp=system
+          --enable-trace-backends=ust --enable-fdt=system --enable-slirp=system
     TARGETS: x86_64-softmmu ppc64-softmmu riscv64-softmmu x86_64-linux-user
     MAKE_CHECK_ARGS: bench V=1
 
@@ -702,6 +702,7 @@ build-coroutine-sigaltstack:
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --with-coroutine=sigaltstack --disable-tcg
+                    --enable-trace-backends=ftrace
     MAKE_CHECK_ARGS: check-unit
 
 # Most jobs test latest gcrypt or nettle builds
@@ -738,31 +739,6 @@ crypto-only-gnutls:
     CONFIGURE_ARGS: --disable-nettle --disable-gcrypt --enable-gnutls
     MAKE_CHECK_ARGS: check
 
-
-# We don't need to exercise every backend with every front-end
-build-trace-multi-user:
-  <<: *native_build_job_definition
-  needs:
-    job: amd64-ubuntu2004-container
-  variables:
-    IMAGE: ubuntu2004
-    CONFIGURE_ARGS: --enable-trace-backends=log,simple,syslog --disable-system
-
-build-trace-ftrace-system:
-  <<: *native_build_job_definition
-  needs:
-    job: amd64-ubuntu2004-container
-  variables:
-    IMAGE: ubuntu2004
-    CONFIGURE_ARGS: --enable-trace-backends=ftrace --target-list=x86_64-softmmu
-
-build-trace-ust-system:
-  <<: *native_build_job_definition
-  needs:
-    job: amd64-ubuntu2004-container
-  variables:
-    IMAGE: ubuntu2004
-    CONFIGURE_ARGS: --enable-trace-backends=ust --target-list=x86_64-softmmu
 
 # Check our reduced build configurations
 build-without-default-devices:
