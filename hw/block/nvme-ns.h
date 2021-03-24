@@ -96,7 +96,7 @@ static inline uint32_t nvme_nsid(NvmeNamespace *ns)
         return ns->params.nsid;
     }
 
-    return -1;
+    return 0;
 }
 
 static inline bool nvme_ns_shared(NvmeNamespace *ns)
