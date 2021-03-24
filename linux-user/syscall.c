@@ -8520,7 +8520,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                         char *p, *q, *r;
                         if ((q = r = strstr(env +11, "libqasan.so")) != NULL) {
                             size_t mlen = strlen("libqasan.so");
-                            while ((r = strstr(p = r + mlen, sub)) != NULL) {
+                            while ((r = strstr(p = r + mlen, "libqasan.so")) != NULL) {
                                 while (p < r)
                                     *q++ = *p++;
                             }
