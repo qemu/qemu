@@ -163,8 +163,15 @@ static hwaddr kvm_max_slot_size = ~0;
 /* IDT Protection */
 bool protect_idt_cmd = false;
 bool protect_idt_done = false;
-hwaddr idt_physical_addr;
 MemoryRegion *fx_mr = NULL;
+static struct idt_invariants {
+    hwaddr idt_physical_addr; /* in IDTR */
+    hwaddr irq_desc_pointer; /* pointing to the array of irq_descs */
+    hwaddr irq_desc; /* pointing to my irq_desc entry */
+    hwaddr irqaction; /* pointing to my irqaction */
+    unsigned int irqaction_size;
+    unsigned int irq_desc_size;
+} idt_invariants;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -2470,6 +2477,15 @@ static void kvm_eat_signals(CPUState *cpu)
     } while (sigismember(&chkset, SIG_IPI));
 }
 
+
+static bool within(hwaddr target, hwaddr addr1, hwaddr addr2)
+{
+    if(addr1 <= target && target < addr2)
+        return true;
+    return false;
+}
+
+
 static KVMSlot *find_slot_containing(hwaddr gpa, KVMState *s)
 {
     KVMMemoryListener *kml = &s->memory_listener;
@@ -2522,56 +2538,41 @@ static hwaddr kvm_translate(CPUState *cpu, unsigned long long gva)
     return (hwaddr)translation.physical_address;
 }
 
-static void protect_guest_idt(CPUState *cpu)
+/* Ensure to pass aligned addresses */
+static void make_read_only_memory_slot(hwaddr gpa, void *hva, KVMSlot *current_slot, unsigned long pages)
 {
     KVMState *s = kvm_state;
     KVMMemoryListener *kml = &s->memory_listener;
-    KVMSlot *current_idt_slot;
-    KVMSlot *new_slots[3]; /* pre IDT | IDT | post IDT */
-    struct kvm_sregs sregs;
-
-    hwaddr gpa; 
-    void *hva; 
+    KVMSlot *new_slots[3]; /* pre slot | protected slot | post slot */
     int i;
     uint64_t total_size;
 
-    /* Get IDT address and translate it*/
-    memset(&sregs, 0, sizeof(sregs));
-    kvm_vcpu_ioctl(cpu, KVM_GET_SREGS, &sregs);
-    gpa = kvm_translate(cpu, sregs.idt.base);;
-    idt_physical_addr = gpa;
-    hva = kvm_physical_memory_addr_to_host(s, gpa);
-    
-    current_idt_slot = find_slot_containing(gpa, s);
-    if(current_idt_slot == NULL)
-        abort();
-
     kvm_slots_lock(kml);
 
-    total_size = current_idt_slot->memory_size;
-    kvm_free_slot(current_idt_slot);
+    total_size = current_slot->memory_size;
+    kvm_free_slot(current_slot);
 
-    /* Split current idt slot, setting the IDT in its own read-only slot */
-    /* IDT size = 4K, one page */
+    /* Split current slot */
     for (i = 0; i < 3; i++){
         new_slots[i] = kvm_alloc_slot(kml);
         switch(i){
         case 0:
-            new_slots[i]->ram = current_idt_slot->ram;
-            new_slots[i]->start_addr = current_idt_slot->start_addr;
+            new_slots[i]->ram = current_slot->ram;
+            new_slots[i]->start_addr = current_slot->start_addr;
             new_slots[i]->memory_size = gpa - new_slots[0]->start_addr;
             break;
-        case 1: /* IDT case */
+        case 1: /* protected slot case */
             new_slots[i]->ram = hva;
             new_slots[i]->start_addr = gpa; 
-            new_slots[i]->memory_size = 1UL << 12;  
+            new_slots[i]->memory_size = pages * (1UL << 12);  
             new_slots[i]->flags = KVM_MEM_READONLY;
             new_slots[i]->old_flags = 0;   
             break;
         case 2:
-            new_slots[i]->ram = ((char *)hva + (1UL << 12));
+            new_slots[i]->ram = ((char *)hva + (pages * (1UL << 12)));
             new_slots[i]->start_addr = gpa + (1UL << 12);
-            new_slots[i]->memory_size = total_size - (new_slots[0]->memory_size + (1UL << 12));
+            new_slots[i]->memory_size = 
+                total_size - (new_slots[0]->memory_size + (pages * (1UL << 12)));
             break;
         }
         kvm_set_slot(new_slots[i]);
@@ -2586,12 +2587,83 @@ static void protect_guest_idt(CPUState *cpu)
     kvm_slots_unlock(kml);
 }
 
-static bool within(hwaddr target, hwaddr addr1, hwaddr addr2)
+static void protect_guest_idt(CPUState *cpu)
 {
-    if(addr1 <= target && target < addr2)
-        return true;
-    return false;
+    KVMState *s = kvm_state;
+    KVMSlot *current_idt_slot, *current_gdt_slot;
+    struct kvm_sregs sregs;
+    hwaddr gpa; 
+    void *hva; 
+
+    /* Get IDT address and translate it*/
+    memset(&sregs, 0, sizeof(sregs));
+    kvm_vcpu_ioctl(cpu, KVM_GET_SREGS, &sregs);
+    gpa = kvm_translate(cpu, sregs.idt.base);
+    idt_invariants.idt_physical_addr = gpa;
+    hva = kvm_physical_memory_addr_to_host(s, gpa);
+    
+    current_idt_slot = find_slot_containing(gpa, s);
+    if(current_idt_slot == NULL)
+        abort();
+
+    /* create new read only slot */
+    make_read_only_memory_slot(gpa, hva, current_idt_slot, 1);
+
+    /* Also get GDT address and translate it */
+    gpa = kvm_translate(cpu, sregs.gdt.base);
+    hva = kvm_physical_memory_addr_to_host(s, gpa);
+    current_gdt_slot = find_slot_containing(gpa, s);
+    make_read_only_memory_slot(gpa, hva, current_gdt_slot, 1);
+    DBG("\n\nGDT address: %lx, GDT limit: %d\n\n", gpa, (int)sregs.gdt.limit);
+    DBG("GDT host virtual address %p\n\n", hva);
 }
+
+
+static void kvm_get_idt_hypercall_parameters(CPUState *cpu)
+{
+    struct kvm_regs regs;
+    memset(&regs, 0, sizeof(regs));
+    kvm_vcpu_ioctl(cpu, KVM_GET_REGS, &regs);
+    idt_invariants.irq_desc_pointer = kvm_translate(cpu, regs.r8);
+    idt_invariants.irq_desc = kvm_translate(cpu, regs.r9);
+    idt_invariants.irqaction = kvm_translate(cpu, regs.r10);
+    idt_invariants.irqaction_size = regs.r11;
+    idt_invariants.irq_desc_size = regs.r12;
+}
+
+/*
+static void protect_irqaction_list(CPUState *cpu)
+{
+    MemoryRegion *mr, *system;
+    MemoryRegion *rom1, *rom2;
+    system = get_system_memory();
+    QTAILQ_FOREACH(mr, &system->subregions, subregions_link){
+        if(within(idt_invariants.irq_desc_pointer, mr->addr, mr->addr + mr->size)){
+            DBG("\n\nregion name: %s, start addr: %lx, size: %lu, idt_desc_pointer %lx \n\n", mr->name, mr->addr, (unsigned long)mr->size, idt_invariants.irq_desc_pointer);
+            break;
+        }
+    }
+    rom1 = g_new(MemoryRegion, 1);
+    rom2 = g_new(MemoryRegion, 1);
+    DBG("%p %p\n", rom1, rom2);
+    
+    rom1->size = idt_invariants.irq_desc_size;
+    rom2->size = idt_invariants.irqaction_size;
+    memory_region_init_rom(rom1, NULL, "irq-desc-rom", idt_invariants.irq_desc_size, NULL);
+    memory_region_init_rom(rom2, NULL, "irq-action-rom", idt_invariants.irqaction_size, NULL);
+    memory_region_add_subregion_overlap(mr, idt_invariants.irq_desc, rom1, 1000);
+    memory_region_add_subregion_overlap(mr, idt_invariants.irqaction, rom2, 1000);
+    return;
+}
+*/
+/*
+static void check_idtr_irqdesc_start(CPUState *cpu)
+{
+
+}
+*/
+
+
 
 
 static void find_fx_mr(void)
@@ -2714,10 +2786,14 @@ int kvm_cpu_exec(CPUState *cpu)
             //DBG("MMIO_EXIT_address: %llx\n", run->mmio.phys_addr);
             if(fx_mr != NULL && run->mmio.phys_addr == fx_mr->addr + 0x80){
                 protect_idt_cmd = true;
+                kvm_get_idt_hypercall_parameters(cpu);
                 break;
             }
             if(protect_idt_done && 
-                within(run->mmio.phys_addr, idt_physical_addr, idt_physical_addr + (1UL << 12))){
+                within(run->mmio.phys_addr,
+                        idt_invariants.idt_physical_addr,
+                        idt_invariants.idt_physical_addr + (1UL << 12))
+            ){
                     DBG("\nIDT WRITE!!!\n");
                     ret = 0;
                     break;
