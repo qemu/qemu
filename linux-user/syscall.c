@@ -8496,6 +8496,12 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             envc = 0;
             guest_envp = arg3;
             for (gp = guest_envp; gp; gp += sizeof(abi_ulong)) {
+                if (!get_user_ual(addr, gp)) {
+                    goto execve_efault;
+                }
+                if (!addr) {
+                    break;
+                }
                 /* QASAN: remove preloaded library */
                 if (!getenv("QASAN_PRESERVE_EXECVE")) {
                     /*
@@ -8508,25 +8514,22 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                         return -TARGET_EFAULT;
                     }
                     char *env = lock_user(VERIFY_WRITE, gp, (long)(len + 1), 0);
+                    if (!env)
+                        goto execve_efault;
                     if (!strncmp("LD_PRELOAD=", env, 11)) {
-                        env += 11;
-                        char *libqasan = strstr(env, "libqasan.so");
-                        if (libqasan) {
-                            *libqasan = 0;
+                        char *p, *q, *r;
+                        if ((q = r = strstr(env +11, "libqasan.so")) != NULL) {
+                            size_t mlen = strlen("libqasan.so");
+                            while ((r = strstr(p = r + mlen, sub)) != NULL) {
+                                while (p < r)
+                                    *q++ = *p++;
+                            }
+                            while ((*q++ = *p++) != '\0')
+                                continue;
                         }
+
                     }
                     unlock_user(env, gp, (long)(len + 1));
-                } else {
-                    /*
-                     * otherwise use the original behavior to check for valid
-                     * addresses and NULL (end-of-list).
-                     */
-                    if (!get_user_ual(addr, gp)) {
-                        return -TARGET_EFAULT;
-                    }
-                    if (!addr) {
-                        break;
-                    }
                 }
                 envc++;
             }
