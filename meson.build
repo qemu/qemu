@@ -1933,7 +1933,6 @@ subdir('softmmu')
 
 common_ss.add(capstone)
 specific_ss.add(files('cpu.c', 'disas.c', 'gdbstub.c'), capstone)
-specific_ss.add(files('exec-vary.c'))
 specific_ss.add(when: 'CONFIG_TCG', if_true: files(
   'fpu/softfloat.c',
   'tcg/optimize.c',
@@ -1944,6 +1943,26 @@ specific_ss.add(when: 'CONFIG_TCG', if_true: files(
   'tcg/tcg.c',
 ))
 specific_ss.add(when: 'CONFIG_TCG_INTERPRETER', if_true: files('tcg/tci.c'))
+
+# Work around a gcc bug/misfeature wherein constant propagation looks
+# through an alias:
+#   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99696
+# to guess that a const variable is always zero.  Without lto, this is
+# impossible, as the alias is restricted to page-vary-common.c.  Indeed,
+# without lto, not even the alias is required -- we simply use different
+# declarations in different compilation units.
+pagevary = files('page-vary-common.c')
+if get_option('b_lto')
+  pagevary_flags = ['-fno-lto']
+  if get_option('cfi')
+    pagevary_flags += '-fno-sanitize=cfi-icall'
+  endif
+  pagevary = static_library('page-vary-common', sources: pagevary,
+                            c_args: pagevary_flags)
+  pagevary = declare_dependency(link_with: pagevary)
+endif
+common_ss.add(pagevary)
+specific_ss.add(files('page-vary.c'))
 
 subdir('backends')
 subdir('disas')
