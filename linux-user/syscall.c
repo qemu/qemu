@@ -8496,12 +8496,10 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             envc = 0;
             guest_envp = arg3;
             for (gp = guest_envp; gp; gp += sizeof(abi_ulong)) {
-                if (!get_user_ual(addr, gp)) {
+                if (get_user_ual(addr, gp))
                     return -TARGET_EFAULT;
-                }
-                if (!addr) {
+                if (!addr)
                     break;
-                }
                 /* QASAN: remove preloaded library */
                 if (use_qasan && !getenv("QASAN_PRESERVE_EXECVE")) {
                     /*
