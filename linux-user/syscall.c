@@ -8497,13 +8497,13 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             guest_envp = arg3;
             for (gp = guest_envp; gp; gp += sizeof(abi_ulong)) {
                 if (!get_user_ual(addr, gp)) {
-                    goto execve_efault;
+                    return -TARGET_EFAULT;
                 }
                 if (!addr) {
                     break;
                 }
                 /* QASAN: remove preloaded library */
-                if (!getenv("QASAN_PRESERVE_EXECVE")) {
+                if (use_qasan && !getenv("QASAN_PRESERVE_EXECVE")) {
                     /*
                      * If we need to clear the LD_PRELOAD list, run the memory
                      * lock and unlock methods to inspect the contents within
