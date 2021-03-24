@@ -292,7 +292,7 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
         log('--- Preparing image & VM ---\n')
         drive0 = Drive(img_path, vm=vm)
         drive0.img_create(iotests.imgfmt, SIZE)
-        vm.add_device("{},id=scsi0".format(iotests.get_virtio_scsi_device()))
+        vm.add_device("{},id=scsi0".format('virtio-scsi'))
         vm.launch()
 
         file_config = {
@@ -449,7 +449,7 @@ def test_backup_api():
         log('--- Preparing image & VM ---\n')
         drive0 = Drive(img_path, vm=vm)
         drive0.img_create(iotests.imgfmt, SIZE)
-        vm.add_device("{},id=scsi0".format(iotests.get_virtio_scsi_device()))
+        vm.add_device("{},id=scsi0".format('virtio-scsi'))
         vm.launch()
 
         file_config = {

@@ -42,7 +42,7 @@ class TestCase(iotests.QMPTestCase):
         iotests.log('==Unplug a SCSI disk and then plug it again==')
         self.vm.qmp_log('blockdev-add', driver='null-co', read_zeroes=True, node_name='hd0')
         self.vm.qmp_log('object-add', qom_type='iothread', id="iothread0")
-        self.vm.qmp_log('device_add', id='scsi0', driver=iotests.get_virtio_scsi_device(), iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
+        self.vm.qmp_log('device_add', id='scsi0', driver='virtio-scsi', iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
         self.vm.qmp_log('device_add', id='scsi-hd0', driver='scsi-hd', drive='hd0')
         self.vm.qmp_log('device_del', id='scsi-hd0')
         self.vm.event_wait('DEVICE_DELETED')
@@ -55,7 +55,7 @@ class TestCase(iotests.QMPTestCase):
         iotests.log('==Attach two SCSI disks using the same block device and the same iothread==')
         self.vm.qmp_log('blockdev-add', driver='null-co', read_zeroes=True, node_name='hd0', read_only=True)
         self.vm.qmp_log('object-add', qom_type='iothread', id="iothread0")
-        self.vm.qmp_log('device_add', id='scsi0', driver=iotests.get_virtio_scsi_device(), iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
+        self.vm.qmp_log('device_add', id='scsi0', driver='virtio-scsi', iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
 
         self.vm.qmp_log('device_add', id='scsi-hd0', driver='scsi-hd', drive='hd0')
         self.vm.qmp_log('device_add', id='scsi-hd1', driver='scsi-hd', drive='hd0')
@@ -73,8 +73,8 @@ class TestCase(iotests.QMPTestCase):
         self.vm.qmp_log('object-add', qom_type='iothread', id="iothread0")
         self.vm.qmp_log('object-add', qom_type='iothread', id="iothread1")
 
-        self.vm.qmp_log('device_add', id='scsi0', driver=iotests.get_virtio_scsi_device(), iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
-        self.vm.qmp_log('device_add', id='scsi1', driver=iotests.get_virtio_scsi_device(), iothread='iothread1', filters=[iotests.filter_qmp_virtio_scsi])
+        self.vm.qmp_log('device_add', id='scsi0', driver='virtio-scsi', iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
+        self.vm.qmp_log('device_add', id='scsi1', driver='virtio-scsi', iothread='iothread1', filters=[iotests.filter_qmp_virtio_scsi])
 
         self.vm.qmp_log('device_add', id='scsi-hd0', driver='scsi-hd', drive='hd0', bus="scsi0.0")
         self.vm.qmp_log('device_add', id='scsi-hd1', driver='scsi-hd', drive='hd0', bus="scsi1.0")
@@ -99,7 +99,7 @@ class TestCase(iotests.QMPTestCase):
         self.vm.qmp_log('nbd-server-add', device='hd0')
 
         self.vm.qmp_log('object-add', qom_type='iothread', id="iothread0")
-        self.vm.qmp_log('device_add', id='scsi0', driver=iotests.get_virtio_scsi_device(), iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
+        self.vm.qmp_log('device_add', id='scsi0', driver='virtio-scsi', iothread='iothread0', filters=[iotests.filter_qmp_virtio_scsi])
         self.vm.qmp_log('device_add', id='scsi-hd0', driver='scsi-hd', drive='hd0')
 
 if __name__ == '__main__':

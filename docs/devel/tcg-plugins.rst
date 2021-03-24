@@ -63,6 +63,11 @@ valid during the lifetime of the callback so it is important that any
 information that is needed is extracted during the callback and saved
 by the plugin.
 
+API
+===
+
+.. kernel-doc:: include/qemu/qemu-plugin.h
+
 Usage
 =====
 

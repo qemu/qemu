@@ -234,11 +234,6 @@ def qemu_io_silent_check(*args):
                                stderr=subprocess.STDOUT)
     return exitcode == 0
 
-def get_virtio_scsi_device():
-    if qemu_default_machine == 's390-ccw-virtio':
-        return 'virtio-scsi-ccw'
-    return 'virtio-scsi-pci'
-
 class QemuIoInteractive:
     def __init__(self, *args):
         self.args = qemu_io_args_no_fmt + list(args)
@@ -1150,6 +1145,11 @@ def _verify_virtio_blk() -> None:
     out = qemu_pipe('-M', 'none', '-device', 'help')
     if 'virtio-blk' not in out:
         notrun('Missing virtio-blk in QEMU binary')
+
+def _verify_virtio_scsi_pci_or_ccw() -> None:
+    out = qemu_pipe('-M', 'none', '-device', 'help')
+    if 'virtio-scsi-pci' not in out and 'virtio-scsi-ccw' not in out:
+        notrun('Missing virtio-scsi-pci or virtio-scsi-ccw in QEMU binary')
 
 
 def supports_quorum():

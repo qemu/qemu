@@ -26,14 +26,12 @@ from iotests import log
 
 iotests.script_initialize()
 
-virtio_scsi_device = iotests.get_virtio_scsi_device()
-
 vm = iotests.VM()
 vm.launch()
 
 log(vm.qmp('blockdev-add', node_name='hd0', driver='null-co', read_zeroes=True))
 log(vm.qmp('object-add', qom_type='iothread', id='iothread0'))
-log(vm.qmp('device_add', id='scsi0', driver=virtio_scsi_device, iothread='iothread0'))
+log(vm.qmp('device_add', id='scsi0', driver='virtio-scsi', iothread='iothread0'))
 log(vm.qmp('device_add', id='scsi-hd0', driver='scsi-hd', drive='hd0'))
 log(vm.qmp('block_set_io_throttle', id='scsi-hd0', bps=0, bps_rd=0, bps_wr=0,
            iops=1000, iops_rd=0, iops_wr=0, conv_keys=False))
