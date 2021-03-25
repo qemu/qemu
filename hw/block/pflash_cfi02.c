@@ -173,7 +173,6 @@ static void pflash_setup_mappings(PFlashCFI02 *pfl)
                                  "pflash-alias", &pfl->orig_mem, 0, size);
         memory_region_add_subregion(&pfl->mem, i * size, &pfl->mem_mappings[i]);
     }
-    pfl->rom_mode = true;
 }
 
 static void pflash_reset_state_machine(PFlashCFI02 *pfl)
@@ -917,6 +916,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     /* Allocate memory for a bitmap for sectors being erased. */
     pfl->sector_erase_map = bitmap_new(pfl->total_sectors);
 
+    pfl->rom_mode = true;
     pflash_setup_mappings(pfl);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
 
