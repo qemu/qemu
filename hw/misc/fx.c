@@ -171,7 +171,7 @@ static void *fx_forcer_thread(void *opaque)
             break;
         }
 
-        printf("thread read fx->addr_lsb = 0x%x\n", fx->addr_lsb);
+        //printf("thread read fx->addr_lsb = 0x%x\n", fx->addr_lsb);
 
         qemu_mutex_unlock(&fx->thr_mutex);
 
