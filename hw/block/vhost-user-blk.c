@@ -411,7 +411,7 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event,
          * other code perform its own cleanup sequence using vhost_dev data
          * (e.g. vhost_dev_set_log).
          */
-        if (realized) {
+        if (realized && !runstate_check(RUN_STATE_SHUTDOWN)) {
             /*
              * A close event may happen during a read/write, but vhost
              * code assumes the vhost_dev remains setup, so delay the
