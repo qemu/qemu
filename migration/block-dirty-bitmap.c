@@ -839,6 +839,8 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
             error_report_err(local_err);
             return -EINVAL;
         }
+    } else {
+        bdrv_dirty_bitmap_set_busy(s->bitmap, true);
     }
 
     b = g_new(LoadBitmapState, 1);
@@ -914,6 +916,8 @@ static void cancel_incoming_locked(DBMLoadState *s)
         assert(!s->before_vm_start_handled || !b->migrated);
         if (bdrv_dirty_bitmap_has_successor(b->bitmap)) {
             bdrv_reclaim_dirty_bitmap(b->bitmap, &error_abort);
+        } else {
+            bdrv_dirty_bitmap_set_busy(b->bitmap, false);
         }
         bdrv_release_dirty_bitmap(b->bitmap);
     }
@@ -951,6 +955,8 @@ static void dirty_bitmap_load_complete(QEMUFile *f, DBMLoadState *s)
 
     if (bdrv_dirty_bitmap_has_successor(s->bitmap)) {
         bdrv_reclaim_dirty_bitmap(s->bitmap, &error_abort);
+    } else {
+        bdrv_dirty_bitmap_set_busy(s->bitmap, false);
     }
 
     for (item = s->bitmaps; item; item = g_slist_next(item)) {
