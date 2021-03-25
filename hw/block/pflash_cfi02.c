@@ -917,8 +917,12 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->sector_erase_map = bitmap_new(pfl->total_sectors);
 
     pfl->rom_mode = true;
-    pflash_setup_mappings(pfl);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
+    if (pfl->mappings > 1) {
+        pflash_setup_mappings(pfl);
+        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
+    } else {
+        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->orig_mem);
+    }
 
     timer_init_ns(&pfl->timer, QEMU_CLOCK_VIRTUAL, pflash_timer, pfl);
     pfl->status = 0;
