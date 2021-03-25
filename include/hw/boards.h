@@ -36,7 +36,22 @@ void machine_set_cpu_numa_node(MachineState *machine,
                                const CpuInstanceProperties *props,
                                Error **errp);
 
+/**
+ * machine_class_allow_dynamic_sysbus_dev: Add type to list of valid devices
+ * @mc: Machine class
+ * @type: type to allow (should be a subtype of TYPE_SYS_BUS_DEVICE)
+ *
+ * Add the QOM type @type to the list of devices of which are subtypes
+ * of TYPE_SYS_BUS_DEVICE but which are still permitted to be dynamically
+ * created (eg by the user on the command line with -device).
+ * By default if the user tries to create any devices on the command line
+ * that are subtypes of TYPE_SYS_BUS_DEVICE they will get an error message;
+ * for the special cases which are permitted for this machine model, the
+ * machine model class init code must call this function to add them
+ * to the list of specifically permitted devices.
+ */
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type);
+
 /*
  * Checks that backend isn't used, preps it for exclusive usage and
  * returns migratable MemoryRegion provided by backend.
