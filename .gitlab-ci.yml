@@ -19,17 +19,21 @@ include:
   before_script:
     - JOBS=$(expr $(nproc) + 1)
   script:
+    - if test -n "$LD_JOBS";
+      then
+        scripts/git-submodule.sh update meson ;
+      fi
     - mkdir build
     - cd build
     - if test -n "$TARGETS";
       then
-        ../configure --enable-werror --disable-docs $CONFIGURE_ARGS --target-list="$TARGETS" ;
+        ../configure --enable-werror --disable-docs ${LD_JOBS:+--meson=internal} $CONFIGURE_ARGS --target-list="$TARGETS" ;
       else
-        ../configure --enable-werror --disable-docs $CONFIGURE_ARGS ;
+        ../configure --enable-werror --disable-docs ${LD_JOBS:+--meson=internal} $CONFIGURE_ARGS ;
       fi || { cat config.log meson-logs/meson-log.txt && exit 1; }
     - if test -n "$LD_JOBS";
       then
-        meson configure . -Dbackend_max_links="$LD_JOBS" ;
+        ../meson/meson.py configure . -Dbackend_max_links="$LD_JOBS" ;
       fi || exit 1;
     - make -j"$JOBS"
     - if test -n "$MAKE_CHECK_ARGS";
