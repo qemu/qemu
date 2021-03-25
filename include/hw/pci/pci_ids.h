@@ -214,6 +214,7 @@
 #define PCI_DEVICE_ID_VIA_8231_PM        0x8235
 
 #define PCI_VENDOR_ID_MARVELL            0x11ab
+#define PCI_DEVICE_ID_MARVELL_MV6436X    0x6460
 
 #define PCI_VENDOR_ID_SILICON_MOTION     0x126f
 #define PCI_DEVICE_ID_SM501              0x0501
