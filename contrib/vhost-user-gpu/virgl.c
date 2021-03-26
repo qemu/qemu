@@ -16,6 +16,8 @@
 #include <virglrenderer.h>
 #include "virgl.h"
 
+#include <epoxy/gl.h>
+
 void
 vg_virgl_update_cursor_data(VuGpu *g, uint32_t resource_id,
                             gpointer data)
@@ -372,6 +374,7 @@ virgl_cmd_resource_flush(VuGpu *g,
 
     VUGPU_FILL_CMD(rf);
 
+    glFlush();
     if (!rf.resource_id) {
         g_debug("bad resource id for flush..?");
         return;

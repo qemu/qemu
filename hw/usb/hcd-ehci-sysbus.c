@@ -74,6 +74,14 @@ static void ehci_sysbus_init(Object *obj)
     sysbus_init_mmio(d, &s->mem);
 }
 
+static void ehci_sysbus_finalize(Object *obj)
+{
+    EHCISysBusState *i = SYS_BUS_EHCI(obj);
+    EHCIState *s = &i->ehci;
+
+    usb_ehci_finalize(s);
+}
+
 static void ehci_sysbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -94,6 +102,7 @@ static const TypeInfo ehci_type_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(EHCISysBusState),
     .instance_init = ehci_sysbus_init,
+    .instance_finalize = ehci_sysbus_finalize,
     .abstract      = true,
     .class_init    = ehci_sysbus_class_init,
     .class_size    = sizeof(SysBusEHCIClass),

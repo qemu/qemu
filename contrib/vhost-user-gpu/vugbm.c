@@ -199,55 +199,51 @@ vugbm_device_destroy(struct vugbm_device *dev)
     dev->device_destroy(dev);
 }
 
-bool
+void
 vugbm_device_init(struct vugbm_device *dev, int fd)
 {
-    dev->fd = fd;
+    assert(!dev->inited);
 
 #ifdef CONFIG_GBM
-    dev->dev = gbm_create_device(fd);
-#endif
-
-    if (0) {
-        /* nothing */
+    if (fd >= 0) {
+        dev->dev = gbm_create_device(fd);
     }
-#ifdef CONFIG_GBM
-    else if (dev->dev != NULL) {
+    if (dev->dev != NULL) {
+        dev->fd = fd;
         dev->alloc_bo = alloc_bo;
         dev->free_bo = free_bo;
         dev->get_fd = get_fd;
         dev->map_bo = map_bo;
         dev->unmap_bo = unmap_bo;
         dev->device_destroy = device_destroy;
+        dev->inited = true;
     }
 #endif
 #ifdef CONFIG_MEMFD
-    else if (g_file_test("/dev/udmabuf", G_FILE_TEST_EXISTS)) {
+    if (!dev->inited && g_file_test("/dev/udmabuf", G_FILE_TEST_EXISTS)) {
         dev->fd = open("/dev/udmabuf", O_RDWR);
-        if (dev->fd < 0) {
-            return false;
+        if (dev->fd >= 0) {
+            g_debug("Using experimental udmabuf backend");
+            dev->alloc_bo = udmabuf_alloc_bo;
+            dev->free_bo = udmabuf_free_bo;
+            dev->get_fd = udmabuf_get_fd;
+            dev->map_bo = udmabuf_map_bo;
+            dev->unmap_bo = udmabuf_unmap_bo;
+            dev->device_destroy = udmabuf_device_destroy;
+            dev->inited = true;
         }
-        g_debug("Using experimental udmabuf backend");
-        dev->alloc_bo = udmabuf_alloc_bo;
-        dev->free_bo = udmabuf_free_bo;
-        dev->get_fd = udmabuf_get_fd;
-        dev->map_bo = udmabuf_map_bo;
-        dev->unmap_bo = udmabuf_unmap_bo;
-        dev->device_destroy = udmabuf_device_destroy;
     }
 #endif
-    else {
+    if (!dev->inited) {
         g_debug("Using mem fallback");
         dev->alloc_bo = mem_alloc_bo;
         dev->free_bo = mem_free_bo;
         dev->map_bo = mem_map_bo;
         dev->unmap_bo = mem_unmap_bo;
         dev->device_destroy = mem_device_destroy;
-        return false;
+        dev->inited = true;
     }
-
-    dev->inited = true;
-    return true;
+    assert(dev->inited);
 }
 
 static bool

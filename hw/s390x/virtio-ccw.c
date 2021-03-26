@@ -35,6 +35,8 @@
 
 #define NR_CLASSIC_INDICATOR_BITS 64
 
+bool have_virtio_ccw = true;
+
 static int virtio_ccw_dev_post_load(void *opaque, int version_id)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(opaque);

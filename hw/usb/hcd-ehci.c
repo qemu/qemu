@@ -2514,6 +2514,11 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)
         return;
     }
 
+    memory_region_add_subregion(&s->mem, s->capsbase, &s->mem_caps);
+    memory_region_add_subregion(&s->mem, s->opregbase, &s->mem_opreg);
+    memory_region_add_subregion(&s->mem, s->opregbase + s->portscbase,
+                                &s->mem_ports);
+
     usb_bus_new(&s->bus, sizeof(s->bus), s->companion_enable ?
                 &ehci_bus_ops_companion : &ehci_bus_ops_standalone, dev);
     for (i = 0; i < s->portnr; i++) {
@@ -2581,11 +2586,6 @@ void usb_ehci_init(EHCIState *s, DeviceState *dev)
                           "operational", s->portscbase);
     memory_region_init_io(&s->mem_ports, OBJECT(dev), &ehci_mmio_port_ops, s,
                           "ports", 4 * s->portnr);
-
-    memory_region_add_subregion(&s->mem, s->capsbase, &s->mem_caps);
-    memory_region_add_subregion(&s->mem, s->opregbase, &s->mem_opreg);
-    memory_region_add_subregion(&s->mem, s->opregbase + s->portscbase,
-                                &s->mem_ports);
 }
 
 void usb_ehci_finalize(EHCIState *s)

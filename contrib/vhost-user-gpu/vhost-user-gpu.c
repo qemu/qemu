@@ -892,11 +892,8 @@ update_cursor_data_simple(VuGpu *g, uint32_t resource_id, gpointer data)
 static void
 vg_process_cursor_cmd(VuGpu *g, struct virtio_gpu_update_cursor *cursor)
 {
-    bool move = cursor->hdr.type != VIRTIO_GPU_CMD_MOVE_CURSOR;
-
-    g_debug("%s move:%d\n", G_STRFUNC, move);
-
-    if (move) {
+    switch (cursor->hdr.type) {
+    case VIRTIO_GPU_CMD_MOVE_CURSOR: {
         VhostUserGpuMsg msg = {
             .request = cursor->resource_id ?
                 VHOST_USER_GPU_CURSOR_POS : VHOST_USER_GPU_CURSOR_POS_HIDE,
@@ -907,8 +904,11 @@ vg_process_cursor_cmd(VuGpu *g, struct virtio_gpu_update_cursor *cursor)
                 .y = cursor->pos.y,
             }
         };
+        g_debug("%s: move", G_STRFUNC);
         vg_send_msg(g, &msg, -1);
-    } else {
+        break;
+    }
+    case VIRTIO_GPU_CMD_UPDATE_CURSOR: {
         VhostUserGpuMsg msg = {
             .request = VHOST_USER_GPU_CURSOR_UPDATE,
             .size = sizeof(VhostUserGpuCursorUpdate),
@@ -922,6 +922,7 @@ vg_process_cursor_cmd(VuGpu *g, struct virtio_gpu_update_cursor *cursor)
                 .hot_y = cursor->hot_y,
             }
         };
+        g_debug("%s: update", G_STRFUNC);
         if (g->virgl) {
             vg_virgl_update_cursor_data(g, cursor->resource_id,
                                         msg.payload.cursor_update.data);
@@ -930,6 +931,11 @@ vg_process_cursor_cmd(VuGpu *g, struct virtio_gpu_update_cursor *cursor)
                                       msg.payload.cursor_update.data);
         }
         vg_send_msg(g, &msg, -1);
+        break;
+    }
+    default:
+        g_debug("%s: unknown cmd %d", G_STRFUNC, cursor->hdr.type);
+        break;
     }
 }
 
@@ -1186,11 +1192,7 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    if (g.drm_rnode_fd >= 0) {
-        if (!vugbm_device_init(&g.gdev, g.drm_rnode_fd)) {
-            g_warning("Failed to init DRM device, using fallback path");
-        }
-    }
+    vugbm_device_init(&g.gdev, g.drm_rnode_fd);
 
     if ((!!opt_socket_path + (opt_fdnum != -1)) != 1) {
         g_printerr("Please specify either --fd or --socket-path\n");

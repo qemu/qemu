@@ -63,6 +63,11 @@ typedef struct VirtioBusClass VirtioCcwBusClass;
 DECLARE_OBJ_CHECKERS(VirtioCcwBusState, VirtioCcwBusClass,
                      VIRTIO_CCW_BUS, TYPE_VIRTIO_CCW_BUS)
 
+/*
+ * modules can reference this symbol to avoid being loaded
+ * into system emulators without ccw support
+ */
+extern bool have_virtio_ccw;
 
 struct VirtIOCCWDeviceClass {
     CCWDeviceClass parent_class;
