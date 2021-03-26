@@ -38,6 +38,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter
+. ./common.qemu
 
 _supported_fmt qcow2
 _supported_proto file
@@ -266,6 +267,109 @@ case $result in
         echo "ERROR: qemu-io returned unknown exit code $result"
         ;;
 esac
+
+echo
+echo '=== Preallocation with data-file-raw ==='
+
+echo
+echo '--- Using a non-zeroed data file ---'
+
+# Using data-file-raw must enforce at least metadata preallocation so
+# that it does not matter whether one reads the raw file or the qcow2
+# file
+
+# Pre-create the data file, write some data.  Real-world use cases for
+# this are adding a qcow2 metadata file to a block device (i.e., using
+# the device as the data file) or adding qcow2 features to pre-existing
+# raw images (e.g. because the user now wants persistent dirty bitmaps).
+truncate -s 1M "$TEST_IMG.data"
+$QEMU_IO -f raw -c 'write -P 42 0 1M' "$TEST_IMG.data" | _filter_qemu_io
+
+# We cannot use qemu-img to create the qcow2 image, because it would
+# clear the data file.  Use the blockdev-create job instead, which will
+# only format the qcow2 image file.
+touch "$TEST_IMG"
+_launch_qemu \
+    -blockdev file,node-name=data,filename="$TEST_IMG.data" \
+    -blockdev file,node-name=meta,filename="$TEST_IMG"
+
+_send_qemu_cmd $QEMU_HANDLE '{ "execute": "qmp_capabilities" }' 'return'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    '{ "execute": "blockdev-create",
+       "arguments": {
+           "job-id": "create",
+           "options": {
+               "driver": "qcow2",
+               "size": '"$((1 * 1024 * 1024))"',
+               "file": "meta",
+               "data-file": "data",
+               "data-file-raw": true
+           } } }' \
+    '"status": "concluded"'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    '{ "execute": "job-dismiss", "arguments": { "id": "create" } }' \
+    'return'
+
+_cleanup_qemu
+
+echo
+echo 'Comparing pattern:'
+
+# Reading from either the qcow2 file or the data file should return
+# the same result:
+$QEMU_IO -f raw -c 'read -P 42 0 1M' "$TEST_IMG.data" | _filter_qemu_io
+$QEMU_IO -f $IMGFMT -c 'read -P 42 0 1M' "$TEST_IMG" | _filter_qemu_io
+
+# For good measure
+$QEMU_IMG compare -f raw "$TEST_IMG.data" "$TEST_IMG"
+
+echo
+echo '--- Truncation (growing) ---'
+
+# Append some new data to the raw file, then resize the qcow2 image
+# accordingly and see whether the new data is visible.  Technically
+# that is not allowed, but it is reasonable behavior, so test it.
+truncate -s 2M "$TEST_IMG.data"
+$QEMU_IO -f raw -c 'write -P 84 1M 1M' "$TEST_IMG.data" | _filter_qemu_io
+
+$QEMU_IMG resize "$TEST_IMG" 2M
+
+echo
+echo 'Comparing pattern:'
+
+$QEMU_IO -f raw -c 'read -P 42 0 1M' -c 'read -P 84 1M 1M' "$TEST_IMG.data" \
+    | _filter_qemu_io
+$QEMU_IO -f $IMGFMT -c 'read -P 42 0 1M' -c 'read -P 84 1M 1M' "$TEST_IMG" \
+    | _filter_qemu_io
+
+$QEMU_IMG compare -f raw "$TEST_IMG.data" "$TEST_IMG"
+
+echo
+echo '--- Giving a backing file at runtime ---'
+
+# qcow2 files with data-file-raw cannot have backing files given by
+# their image header, but qemu will allow you to set a backing node at
+# runtime -- it should not have any effect, though (because reading
+# from the qcow2 node should return the same data as reading from the
+# raw node).
+
+_make_test_img -o "data_file=$TEST_IMG.data,data_file_raw=on" 1M
+TEST_IMG="$TEST_IMG.base" _make_test_img 1M
+
+# Write something that is not zero into the base image
+$QEMU_IO -c 'write -P 42 0 1M' "$TEST_IMG.base" | _filter_qemu_io
+
+echo
+echo 'Comparing qcow2 image and raw data file:'
+
+# $TEST_IMG and $TEST_IMG.data must show the same data at all times;
+# that is, the qcow2 node must not fall through to the backing image
+# at any point
+$QEMU_IMG compare --image-opts \
+    "driver=raw,file.filename=$TEST_IMG.data"  \
+    "file.filename=$TEST_IMG,backing.file.filename=$TEST_IMG.base"
 
 # success, all done
 echo "*** done"
