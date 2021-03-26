@@ -26,7 +26,6 @@
 #include "qemu/datadir.h"
 #include "sysemu/sysemu.h"
 #include "cpu.h"
-#include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "hw/or-irq.h"

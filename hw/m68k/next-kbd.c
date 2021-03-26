@@ -30,7 +30,6 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
-#include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/m68k/next-cube.h"
 #include "ui/console.h"

@@ -26,7 +26,6 @@
 #define HW_STM_EXTI_H
 
 #include "hw/sysbus.h"
-#include "hw/hw.h"
 #include "qom/object.h"
 
 #define EXTI_IMR   0x00

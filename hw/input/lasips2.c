@@ -24,7 +24,6 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "hw/qdev-properties.h"
-#include "hw/hw.h"
 #include "hw/input/ps2.h"
 #include "hw/input/lasips2.h"
 #include "hw/sysbus.h"

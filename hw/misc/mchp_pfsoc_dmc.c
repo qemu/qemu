@@ -24,7 +24,6 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/misc/mchp_pfsoc_dmc.h"
 
