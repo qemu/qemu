@@ -26,7 +26,6 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
 #include "hw/sd/cadence_sdhci.h"
 #include "sdhci-internal.h"
 

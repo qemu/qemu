@@ -27,7 +27,6 @@
 #include "sysemu/sysemu.h"
 #include "cpu.h"
 #include "hw/boards.h"
-#include "hw/irq.h"
 #include "hw/or-irq.h"
 #include "elf.h"
 #include "hw/loader.h"
