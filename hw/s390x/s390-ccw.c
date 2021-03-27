@@ -15,7 +15,6 @@
 #include <libgen.h>
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "hw/sysbus.h"
 #include "hw/s390x/css.h"
 #include "hw/s390x/css-bridge.h"
 #include "hw/s390x/s390-ccw.h"

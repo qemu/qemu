@@ -26,7 +26,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/core/cpu.h"
-#include "hw/sysbus.h"
 #include "sysemu/dma.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
