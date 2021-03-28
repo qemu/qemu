@@ -22,7 +22,6 @@
 #include "hw/misc/tmp105.h"
 #include "hw/misc/led.h"
 #include "hw/qdev-properties.h"
-#include "qemu/log.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
 #include "hw/loader.h"

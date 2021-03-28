@@ -32,7 +32,6 @@
 #include "sysemu/device_tree.h"
 #include "sysemu/hw_accel.h"
 #include "target/ppc/cpu.h"
-#include "qemu/log.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv.h"

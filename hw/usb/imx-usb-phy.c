@@ -13,7 +13,6 @@
 #include "qemu/osdep.h"
 #include "hw/usb/imx-usb-phy.h"
 #include "migration/vmstate.h"
-#include "qemu/log.h"
 #include "qemu/module.h"
 
 static const VMStateDescription vmstate_imx_usbphy = {

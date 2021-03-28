@@ -39,7 +39,6 @@
 #include "sysemu/reset.h"
 #include "sysemu/block-backend.h"
 #include "hw/boards.h"
-#include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"

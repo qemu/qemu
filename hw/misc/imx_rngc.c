@@ -14,7 +14,6 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
-#include "qemu/log.h"
 #include "qemu/guest-random.h"
 #include "hw/irq.h"
 #include "hw/misc/imx_rngc.h"

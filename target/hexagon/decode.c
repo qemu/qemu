@@ -16,7 +16,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "iclass.h"
 #include "attribs.h"
 #include "genptr.h"

@@ -17,7 +17,6 @@
 
 #define QEMU_GENERATE
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "cpu.h"
 #include "internal.h"
 #include "tcg/tcg-op.h"

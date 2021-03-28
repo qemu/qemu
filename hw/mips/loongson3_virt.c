@@ -54,7 +54,6 @@
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
-#include "qemu/log.h"
 #include "qemu/error-report.h"
 
 #define PM_CNTL_MODE          0x10

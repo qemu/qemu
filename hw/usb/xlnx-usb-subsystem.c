@@ -26,7 +26,6 @@
 #include "hw/sysbus.h"
 #include "hw/register.h"
 #include "qemu/bitops.h"
-#include "qemu/log.h"
 #include "qom/object.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"

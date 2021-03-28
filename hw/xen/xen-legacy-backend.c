@@ -27,7 +27,6 @@
 #include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
-#include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "hw/xen/xen-legacy-backend.h"

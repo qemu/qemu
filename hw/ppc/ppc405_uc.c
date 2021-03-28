@@ -34,7 +34,6 @@
 #include "qemu/timer.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
-#include "qemu/log.h"
 #include "exec/address-spaces.h"
 #include "hw/intc/ppc-uic.h"
 #include "hw/qdev-properties.h"
