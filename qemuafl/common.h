@@ -114,7 +114,6 @@ extern afl_persistent_hook_fn afl_persistent_hook_ptr;
 extern __thread abi_ulong afl_prev_loc;
 
 extern struct cmp_map *__afl_cmp_map;
-extern __thread u32    __afl_cmp_counter;
 
 void afl_setup(void);
 void afl_forkserver(CPUState *cpu);

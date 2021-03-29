@@ -122,8 +122,6 @@ void HELPER(afl_cmplog_8)(target_ulong cur_loc, target_ulong arg1,
 
   u32 hits = __afl_cmp_map->headers[k].hits;
   __afl_cmp_map->headers[k].hits = hits + 1;
-  // if (!__afl_cmp_map->headers[k].cnt)
-  //  __afl_cmp_map->headers[k].cnt = __afl_cmp_counter++;
 
   __afl_cmp_map->headers[k].shape = 0;
 
@@ -142,8 +140,6 @@ void HELPER(afl_cmplog_16)(target_ulong cur_loc, target_ulong arg1,
 
   u32 hits = __afl_cmp_map->headers[k].hits;
   __afl_cmp_map->headers[k].hits = hits + 1;
-  // if (!__afl_cmp_map->headers[k].cnt)
-  //  __afl_cmp_map->headers[k].cnt = __afl_cmp_counter++;
 
   __afl_cmp_map->headers[k].shape = 1;
 

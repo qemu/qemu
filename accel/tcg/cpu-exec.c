@@ -85,7 +85,6 @@ u8 afl_compcov_level;
 __thread abi_ulong afl_prev_loc;
 
 struct cmp_map *__afl_cmp_map;
-__thread u32    __afl_cmp_counter;
 
 /* Set in the child process in forkserver mode: */
 
