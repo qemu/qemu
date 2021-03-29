@@ -5009,9 +5009,15 @@ static uint16_t nvme_format_ns(NvmeCtrl *n, NvmeNamespace *ns, uint8_t lbaf,
 
     }
 
-    (*count)--;
+    if (--(*count)) {
+        return NVME_NO_COMPLETE;
+    }
 
-    return NVME_NO_COMPLETE;
+    g_free(count);
+    ns->status = 0x0;
+    (*num_formats)--;
+
+    return NVME_SUCCESS;
 }
 
 static uint16_t nvme_format(NvmeCtrl *n, NvmeRequest *req)
