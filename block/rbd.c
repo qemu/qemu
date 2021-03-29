@@ -563,13 +563,13 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
     if (local_err) {
         error_propagate(errp, local_err);
         r = -EINVAL;
-        goto failed_opts;
+        goto out;
     }
 
     r = rados_create(cluster, opts->user);
     if (r < 0) {
         error_setg_errno(errp, -r, "error initializing");
-        goto failed_opts;
+        goto out;
     }
 
     /* try default location when conf=NULL, but ignore failure */
@@ -626,11 +626,12 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
      */
     rados_ioctx_set_namespace(*io_ctx, opts->q_namespace);
 
-    return 0;
+    r = 0;
+    goto out;
 
 failed_shutdown:
     rados_shutdown(*cluster);
-failed_opts:
+out:
     g_free(mon_host);
     return r;
 }
