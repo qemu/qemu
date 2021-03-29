@@ -180,12 +180,13 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint)
     }
 
     if (in_checkpoint) {
-        /* If we are already in checkpoint, then there is no need
-           for additional synchronization.
+        /*
            Recursion occurs when HW event modifies timers.
-           Timer modification may invoke the checkpoint and
-           proceed to recursion. */
-        return true;
+           Prevent performing icount warp in this case and
+           wait for another invocation of the checkpoint.
+        */
+        g_assert(replay_mode == REPLAY_MODE_PLAY);
+        return false;
     }
     in_checkpoint = true;
 
