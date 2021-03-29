@@ -840,9 +840,10 @@ static void cache_clean_timer_init(BlockDriverState *bs, AioContext *context)
 {
     BDRVQcow2State *s = bs->opaque;
     if (s->cache_clean_interval > 0) {
-        s->cache_clean_timer = aio_timer_new(context, QEMU_CLOCK_VIRTUAL,
-                                             SCALE_MS, cache_clean_timer_cb,
-                                             bs);
+        s->cache_clean_timer =
+            aio_timer_new_with_attrs(context, QEMU_CLOCK_VIRTUAL,
+                                     SCALE_MS, QEMU_TIMER_ATTR_EXTERNAL,
+                                     cache_clean_timer_cb, bs);
         timer_mod(s->cache_clean_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
                   (int64_t) s->cache_clean_interval * 1000);
     }
