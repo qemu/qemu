@@ -2,7 +2,7 @@ QA output created by 116
 
 == truncated header cluster ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
-qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+qemu-io: can't open device TEST_DIR/t.qed: QED table offset is invalid
 
 == invalid header magic ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
@@ -10,21 +10,21 @@ qemu-io: can't open device TEST_DIR/t.qed: Image not in QED format
 
 == invalid cluster size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
-qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+qemu-io: can't open device TEST_DIR/t.qed: QED cluster size is invalid
 
 == invalid table size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
-qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+qemu-io: can't open device TEST_DIR/t.qed: QED table size is invalid
 
 == invalid header size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
-qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+qemu-io: can't open device TEST_DIR/t.qed: QED table offset is invalid
 
 == invalid L1 table offset ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
-qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+qemu-io: can't open device TEST_DIR/t.qed: QED table offset is invalid
 
 == invalid image size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
-qemu-io: can't open device TEST_DIR/t.qed: Could not open 'TEST_DIR/t.qed': Invalid argument
+qemu-io: can't open device TEST_DIR/t.qed: QED image size is invalid
 *** done
