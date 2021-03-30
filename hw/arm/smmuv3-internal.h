@@ -595,13 +595,6 @@ static inline int pa_range(STE *ste)
 #define CD_A(x)          extract32((x)->word[1], 14, 1)
 #define CD_AARCH64(x)    extract32((x)->word[1], 9 , 1)
 
-#define CDM_VALID(x)    ((x)->word[0] & 0x1)
-
-static inline int is_cd_valid(SMMUv3State *s, STE *ste, CD *cd)
-{
-    return CD_VALID(cd);
-}
-
 /**
  * tg2granule - Decodes the CD translation granule size field according
  * to the ttbr in use

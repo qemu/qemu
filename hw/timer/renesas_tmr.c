@@ -146,6 +146,8 @@ static uint16_t read_tcnt(RTMRState *tmr, unsigned size, int ch)
         case CSS_CASCADING:
             tcnt[1] = tmr->tcnt[1];
             break;
+        default:
+            g_assert_not_reached();
         }
         switch (FIELD_EX8(tmr->tccr[0], TCCR, CSS)) {
         case CSS_INTERNAL:
@@ -159,6 +161,8 @@ static uint16_t read_tcnt(RTMRState *tmr, unsigned size, int ch)
         case CSS_EXTERNAL: /* QEMU doesn't implement this */
             tcnt[0] = tmr->tcnt[0];
             break;
+        default:
+            g_assert_not_reached();
         }
     } else {
         tcnt[0] = tmr->tcnt[0];
