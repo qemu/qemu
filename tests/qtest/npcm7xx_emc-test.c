@@ -492,9 +492,6 @@ static void enable_tx(QTestState *qts, const EMCModule *mod,
         mcmdr |= REG_MCMDR_TXON;
         emc_write(qts, mod, REG_MCMDR, mcmdr);
     }
-
-    /* Prod the device to send the packet. */
-    emc_write(qts, mod, REG_TSDR, 1);
 }
 
 static void emc_send_verify1(QTestState *qts, const EMCModule *mod, int fd,
@@ -557,6 +554,9 @@ static void emc_send_verify(QTestState *qts, const EMCModule *mod, int fd,
 
     enable_tx(qts, mod, &desc[0], NUM_TX_DESCRIPTORS, desc_addr,
               with_irq ? REG_MIEN_ENTXINTR : 0);
+
+    /* Prod the device to send the packet. */
+    emc_write(qts, mod, REG_TSDR, 1);
 
     /*
      * It's problematic to observe the interrupt for each packet.
@@ -643,13 +643,10 @@ static void enable_rx(QTestState *qts, const EMCModule *mod,
         mcmdr |= REG_MCMDR_RXON | mcmdr_flags;
         emc_write(qts, mod, REG_MCMDR, mcmdr);
     }
-
-    /* Prod the device to accept a packet. */
-    emc_write(qts, mod, REG_RSDR, 1);
 }
 
 static void emc_recv_verify(QTestState *qts, const EMCModule *mod, int fd,
-                            bool with_irq)
+                            bool with_irq, bool pump_rsdr)
 {
     NPCM7xxEMCRxDesc desc[NUM_RX_DESCRIPTORS];
     uint32_t desc_addr = DESC_ADDR;
@@ -678,6 +675,15 @@ static void emc_recv_verify(QTestState *qts, const EMCModule *mod, int fd,
     init_rx_desc(&desc[0], NUM_RX_DESCRIPTORS, desc_addr, data_addr);
     enable_rx(qts, mod, &desc[0], NUM_RX_DESCRIPTORS, desc_addr,
               with_irq ? REG_MIEN_ENRXINTR : 0, 0);
+
+    /*
+     * If requested, prod the device to accept a packet.
+     * This isn't necessary, the linux driver doesn't do this.
+     * Test doing/not-doing this for robustness.
+     */
+    if (pump_rsdr) {
+        emc_write(qts, mod, REG_RSDR, 1);
+    }
 
     /* Send test packet to device's socket. */
     ret = iov_send(fd, iov, 2, 0, sizeof(len) + sizeof(test));
@@ -826,8 +832,14 @@ static void test_rx(gconstpointer test_data)
 
     qtest_irq_intercept_in(qts, "/machine/soc/a9mpcore/gic");
 
-    emc_recv_verify(qts, td->module, test_sockets[0], /*with_irq=*/false);
-    emc_recv_verify(qts, td->module, test_sockets[0], /*with_irq=*/true);
+    emc_recv_verify(qts, td->module, test_sockets[0], /*with_irq=*/false,
+                    /*pump_rsdr=*/false);
+    emc_recv_verify(qts, td->module, test_sockets[0], /*with_irq=*/false,
+                    /*pump_rsdr=*/true);
+    emc_recv_verify(qts, td->module, test_sockets[0], /*with_irq=*/true,
+                    /*pump_rsdr=*/false);
+    emc_recv_verify(qts, td->module, test_sockets[0], /*with_irq=*/true,
+                    /*pump_rsdr=*/true);
     emc_test_ptle(qts, td->module, test_sockets[0]);
 
     qtest_quit(qts);

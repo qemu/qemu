@@ -702,7 +702,9 @@ static void npcm7xx_emc_write(void *opaque, hwaddr offset,
                    !(value & REG_MCMDR_RXON)) {
             emc->regs[REG_MGSTA] |= REG_MGSTA_RXHA;
         }
-        if (!(value & REG_MCMDR_RXON)) {
+        if (value & REG_MCMDR_RXON) {
+            emc->rx_active = true;
+        } else {
             emc_halt_rx(emc, 0);
         }
         break;
