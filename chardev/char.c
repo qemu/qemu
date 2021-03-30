@@ -967,6 +967,7 @@ static Chardev *chardev_new(const char *id, const char *typename,
     bool be_opened = true;
 
     assert(g_str_has_prefix(typename, "chardev-"));
+    assert(id);
 
     obj = object_new(typename);
     chr = CHARDEV(obj);
@@ -1095,12 +1096,11 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
         return NULL;
     }
 
-    chr_new = chardev_new(NULL, object_class_get_name(OBJECT_CLASS(cc)),
+    chr_new = chardev_new(id, object_class_get_name(OBJECT_CLASS(cc)),
                           backend, chr->gcontext, errp);
     if (!chr_new) {
         return NULL;
     }
-    chr_new->label = g_strdup(id);
 
     if (chr->be_open && !chr_new->be_open) {
         qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
