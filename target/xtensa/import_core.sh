@@ -65,6 +65,3 @@ static XtensaConfig $NAME __attribute__((unused)) = {
 
 REGISTER_CORE($NAME)
 EOF
-
-grep -q core-${NAME}.o "$BASE"/Makefile.objs || \
-    echo "obj-y += core-${NAME}.o" >> "$BASE"/Makefile.objs
