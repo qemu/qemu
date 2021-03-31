@@ -259,7 +259,7 @@ static void process_tx_bd(eTSEC         *etsec,
                 || etsec->regs[MACCFG2].value & MACCFG2_PADCRC) {
 
                 /* Padding and CRC (Padding implies CRC) */
-                tx_padding_and_crc(etsec, 64);
+                tx_padding_and_crc(etsec, 60);
 
             } else if (etsec->first_bd.flags & BD_TX_TC
                        || etsec->regs[MACCFG2].value & MACCFG2_CRC_EN) {
