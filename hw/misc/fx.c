@@ -197,7 +197,7 @@ static void pci_fx_realize(PCIDevice *pdev, Error **errp)
                        fx, QEMU_THREAD_JOINABLE);
 
     memory_region_init_io(&fx->mmio, OBJECT(fx), &fx_mmio_ops, fx,
-                    "fx-mmio", 1 * MiB);
+                    "fx-mmio", 1 * KiB);
     pci_register_bar(pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &fx->mmio);
 
     

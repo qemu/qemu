@@ -2677,11 +2677,10 @@ static void protect_agent(CPUState *cpu)
     make_read_only_memory_slot(gpa, hva, current_slot, 1);
     add_protected_memory_chunk(gpa, PAGE_SIZE, current_slot, "IDT");
 
-    /* GDT */
-    /*
-    DBG("GDT address is %p\n", (void *)sregs.gdt.base);
+    /* GDT: problem with writes to it.. */
     gpa = kvm_translate(cpu, sregs.gdt.base);
     kernel_invariants.gdt_physical_addr = gpa;
+    /*
     hva = kvm_physical_memory_addr_to_host(s, gpa);
 
     current_slot = find_slot_containing(gpa, s);
@@ -2783,6 +2782,23 @@ static void find_fx_mr(void)
     return;
 }
 
+static void check_idtr_gdtr(CPUState *cpu)
+{
+    struct kvm_sregs sregs;
+    hwaddr current_idtr, current_gdtr;
+
+    memset(&sregs, 0, sizeof(sregs));
+    kvm_vcpu_ioctl(cpu, KVM_GET_SREGS, &sregs);
+    current_idtr = kvm_translate(cpu, sregs.idt.base);
+    current_gdtr = kvm_translate(cpu, sregs.gdt.base);
+
+    if(current_idtr != kernel_invariants.idt_physical_addr ||
+        current_gdtr != kernel_invariants.gdt_physical_addr){
+        DBG("IDT or GDT attacked\n");
+        abort();
+    }
+}
+
 
 int kvm_cpu_exec(CPUState *cpu)
 {
@@ -2831,6 +2847,8 @@ int kvm_cpu_exec(CPUState *cpu)
             protect_agent(cpu);
             protect_agent_done = true;
         }
+        else if(protect_agent_done)
+            check_idtr_gdtr(cpu);
 
         run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
 
@@ -2900,7 +2918,8 @@ int kvm_cpu_exec(CPUState *cpu)
                     ret = 0;
                     break;
                 case IN_SLOT:
-                    /* finisci la write te */
+                    /* hypervisor finishes the write */
+                    assert(run->mmio.is_write);
                     hva = kvm_physical_memory_addr_to_host(
                             kvm_state,
                             run->mmio.phys_addr);
