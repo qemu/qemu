@@ -264,6 +264,165 @@ static void test_co_mutex_lockable(void)
     g_assert(QEMU_MAKE_LOCKABLE(null_pointer) == NULL);
 }
 
+static CoRwlock rwlock;
+
+/* Test that readers are properly sent back to the queue when upgrading,
+ * even if they are the sole readers.  The test scenario is as follows:
+ *
+ *
+ * | c1           | c2         |
+ * |--------------+------------+
+ * | rdlock       |            |
+ * | yield        |            |
+ * |              | wrlock     |
+ * |              | <queued>   |
+ * | upgrade      |            |
+ * | <queued>     | <dequeued> |
+ * |              | unlock     |
+ * | <dequeued>   |            |
+ * | unlock       |            |
+ */
+
+static void coroutine_fn rwlock_yield_upgrade(void *opaque)
+{
+    qemu_co_rwlock_rdlock(&rwlock);
+    qemu_coroutine_yield();
+
+    qemu_co_rwlock_upgrade(&rwlock);
+    qemu_co_rwlock_unlock(&rwlock);
+
+    *(bool *)opaque = true;
+}
+
+static void coroutine_fn rwlock_wrlock_yield(void *opaque)
+{
+    qemu_co_rwlock_wrlock(&rwlock);
+    qemu_coroutine_yield();
+
+    qemu_co_rwlock_unlock(&rwlock);
+    *(bool *)opaque = true;
+}
+
+static void test_co_rwlock_upgrade(void)
+{
+    bool c1_done = false;
+    bool c2_done = false;
+    Coroutine *c1, *c2;
+
+    qemu_co_rwlock_init(&rwlock);
+    c1 = qemu_coroutine_create(rwlock_yield_upgrade, &c1_done);
+    c2 = qemu_coroutine_create(rwlock_wrlock_yield, &c2_done);
+
+    qemu_coroutine_enter(c1);
+    qemu_coroutine_enter(c2);
+
+    /* c1 now should go to sleep.  */
+    qemu_coroutine_enter(c1);
+    g_assert(!c1_done);
+
+    qemu_coroutine_enter(c2);
+    g_assert(c1_done);
+    g_assert(c2_done);
+}
+
+static void coroutine_fn rwlock_rdlock_yield(void *opaque)
+{
+    qemu_co_rwlock_rdlock(&rwlock);
+    qemu_coroutine_yield();
+
+    qemu_co_rwlock_unlock(&rwlock);
+    qemu_coroutine_yield();
+
+    *(bool *)opaque = true;
+}
+
+static void coroutine_fn rwlock_wrlock_downgrade(void *opaque)
+{
+    qemu_co_rwlock_wrlock(&rwlock);
+
+    qemu_co_rwlock_downgrade(&rwlock);
+    qemu_co_rwlock_unlock(&rwlock);
+    *(bool *)opaque = true;
+}
+
+static void coroutine_fn rwlock_rdlock(void *opaque)
+{
+    qemu_co_rwlock_rdlock(&rwlock);
+
+    qemu_co_rwlock_unlock(&rwlock);
+    *(bool *)opaque = true;
+}
+
+static void coroutine_fn rwlock_wrlock(void *opaque)
+{
+    qemu_co_rwlock_wrlock(&rwlock);
+
+    qemu_co_rwlock_unlock(&rwlock);
+    *(bool *)opaque = true;
+}
+
+/*
+ * Check that downgrading a reader-writer lock does not cause a hang.
+ *
+ * Four coroutines are used to produce a situation where there are
+ * both reader and writer hopefuls waiting to acquire an rwlock that
+ * is held by a reader.
+ *
+ * The correct sequence of operations we aim to provoke can be
+ * represented as:
+ *
+ * | c1     | c2         | c3         | c4         |
+ * |--------+------------+------------+------------|
+ * | rdlock |            |            |            |
+ * | yield  |            |            |            |
+ * |        | wrlock     |            |            |
+ * |        | <queued>   |            |            |
+ * |        |            | rdlock     |            |
+ * |        |            | <queued>   |            |
+ * |        |            |            | wrlock     |
+ * |        |            |            | <queued>   |
+ * | unlock |            |            |            |
+ * | yield  |            |            |            |
+ * |        | <dequeued> |            |            |
+ * |        | downgrade  |            |            |
+ * |        |            | <dequeued> |            |
+ * |        |            | unlock     |            |
+ * |        | ...        |            |            |
+ * |        | unlock     |            |            |
+ * |        |            |            | <dequeued> |
+ * |        |            |            | unlock     |
+ */
+static void test_co_rwlock_downgrade(void)
+{
+    bool c1_done = false;
+    bool c2_done = false;
+    bool c3_done = false;
+    bool c4_done = false;
+    Coroutine *c1, *c2, *c3, *c4;
+
+    qemu_co_rwlock_init(&rwlock);
+
+    c1 = qemu_coroutine_create(rwlock_rdlock_yield, &c1_done);
+    c2 = qemu_coroutine_create(rwlock_wrlock_downgrade, &c2_done);
+    c3 = qemu_coroutine_create(rwlock_rdlock, &c3_done);
+    c4 = qemu_coroutine_create(rwlock_wrlock, &c4_done);
+
+    qemu_coroutine_enter(c1);
+    qemu_coroutine_enter(c2);
+    qemu_coroutine_enter(c3);
+    qemu_coroutine_enter(c4);
+
+    qemu_coroutine_enter(c1);
+
+    g_assert(c2_done);
+    g_assert(c3_done);
+    g_assert(c4_done);
+
+    qemu_coroutine_enter(c1);
+
+    g_assert(c1_done);
+}
+
 /*
  * Check that creation, enter, and return work
  */
@@ -501,6 +660,8 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/order", test_order);
     g_test_add_func("/locking/co-mutex", test_co_mutex);
     g_test_add_func("/locking/co-mutex/lockable", test_co_mutex_lockable);
+    g_test_add_func("/locking/co-rwlock/upgrade", test_co_rwlock_upgrade);
+    g_test_add_func("/locking/co-rwlock/downgrade", test_co_rwlock_downgrade);
     if (g_test_perf()) {
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
         g_test_add_func("/perf/nesting", perf_nesting);
