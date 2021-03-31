@@ -175,7 +175,7 @@ struct protected_memory_chunk *pmc_head = NULL;
 struct kernel_invariants {
     hwaddr idt_physical_addr;
     hwaddr gdt_physical_addr; /* ? */
-    hwaddr desc_ptr;
+    hwaddr module_addr;
     hwaddr irq_desc;
     hwaddr irq_desc_size;
     hwaddr irqaction;
@@ -2555,7 +2555,6 @@ static void add_protected_memory_chunk(hwaddr gpa,
 {
     struct protected_memory_chunk *pmc = 
         g_malloc0(sizeof(struct protected_memory_chunk));
-    DBG("ADD PMC\n");
     pmc->slot = slot;
     pmc->addr = gpa;
     pmc->size = size;
@@ -2574,7 +2573,7 @@ static void print_protected_memory_chunk(void)
 {
     struct protected_memory_chunk *pmc = pmc_head;
     while(pmc != NULL){    
-        DBG("pmc: addr=%lx, size=%lx\n", pmc->addr, pmc->size);
+        DBG("pmc: addr=%lx, size=%lx, name: %s\n", pmc->addr, pmc->size, pmc->name);
         pmc = pmc->next;        
     }
 }
@@ -2585,7 +2584,6 @@ static void print_protected_memory_chunk(void)
 static int check_within_pmc(hwaddr target)
 {
     struct protected_memory_chunk *pmc = pmc_head;
-    DBG("CHECK WITHIN PMC\n");
     while(pmc != NULL){
         if(within(target, pmc->addr, pmc->addr + pmc->size)){
             return IN_PMC;
@@ -2613,7 +2611,6 @@ static void make_read_only_memory_slot(hwaddr gpa,
     int i;
     uint64_t total_size;
 
-    DBG("MAKE READONLY SLOT\n");
     kvm_slots_lock(kml);
 
     total_size = current_slot->memory_size;
@@ -2624,29 +2621,23 @@ static void make_read_only_memory_slot(hwaddr gpa,
         new_slots[i] = kvm_alloc_slot(kml);
         switch(i){
         case 0:
-            DBG("MAKE READONLY SLOT -- 1\n");
             new_slots[i]->ram = current_slot->ram;
             new_slots[i]->start_addr = current_slot->start_addr;
             new_slots[i]->memory_size = gpa - new_slots[0]->start_addr;
-            DBG("MAKE READONLY SLOT -- 1\n");
             break;
         case 1: /* protected slot case */
-            DBG("MAKE READONLY SLOT -- 2\n");
             new_slots[i]->ram = hva;
             new_slots[i]->start_addr = gpa; 
             new_slots[i]->memory_size = pages * (PAGE_SIZE);  
             new_slots[i]->flags = KVM_MEM_READONLY;
             new_slots[i]->old_flags = 0;   
-            DBG("MAKE READONLY SLOT -- 2\n");
             break;
         case 2:
-            DBG("MAKE READONLY SLOT -- 3\n");
             new_slots[i]->ram = ((char *)hva + (pages * (PAGE_SIZE)));
             new_slots[i]->start_addr = gpa + (PAGE_SIZE);
             new_slots[i]->memory_size = 
                 total_size - 
                 (new_slots[0]->memory_size + (pages * (PAGE_SIZE)));
-            DBG("MAKE READONLY SLOT -- 3\n");
             break;
         }
         kvm_set_slot(new_slots[i]);
@@ -2659,7 +2650,6 @@ static void make_read_only_memory_slot(hwaddr gpa,
     );
 
     kvm_slots_unlock(kml);
-    DBG("MAKE READONLY SLOT END\n");
 }
 
 static void protect_agent(CPUState *cpu)
@@ -2684,19 +2674,31 @@ static void protect_agent(CPUState *cpu)
         abort();
 
     /* IDT address is already page-aligned */
-    DBG("PROTECT IDT\n");
     make_read_only_memory_slot(gpa, hva, current_slot, 1);
-    add_protected_memory_chunk(gpa, 1UL << 12, current_slot, "IDT");
+    add_protected_memory_chunk(gpa, PAGE_SIZE, current_slot, "IDT");
+
+    /* GDT */
+    /*
+    DBG("GDT address is %p\n", (void *)sregs.gdt.base);
+    gpa = kvm_translate(cpu, sregs.gdt.base);
+    kernel_invariants.gdt_physical_addr = gpa;
+    hva = kvm_physical_memory_addr_to_host(s, gpa);
+
+    current_slot = find_slot_containing(gpa, s);
+    if(current_slot == NULL)
+        abort();
+
+    make_read_only_memory_slot(gpa, hva, current_slot, 1);
+    add_protected_memory_chunk(gpa, 8 * (sregs.gdt.limit + 1), current_slot, "GDT");
+    */
 
     /* Aligning for irqaction */
-    DBG("PROTECT irqaction\n");
     current_slot = find_slot_containing(kernel_invariants.irqaction, s);
     hva = kvm_physical_memory_addr_to_host(s, kernel_invariants.irqaction);
     oldhva = (char *)hva;
     hva = (void *)((unsigned long)hva & ~(PAGE_SIZE - 1));
     newhva = (char *)hva;
     offset = oldhva - newhva;
-    DBG("oldhva = %p, newhva = %p\n", oldhva, newhva);
     make_read_only_memory_slot(kernel_invariants.irqaction - offset,
                                 hva, 
                                 current_slot, 
@@ -2714,15 +2716,29 @@ static void protect_agent(CPUState *cpu)
     newhva = (char *)hva;
     offset = oldhva - newhva;
 
-    DBG("PROTECT irq desc\n");
     make_read_only_memory_slot(kernel_invariants.irq_desc - offset, 
                                 hva, 
                                 current_slot, 
                                 1);
     add_protected_memory_chunk(kernel_invariants.irq_desc, 
-                                kernel_invariants.irq_desc_size, 
+                /* head of the list is a pointer, 8 bytes */
+                                (hwaddr) 8, 
                                 current_slot,
                                 "irq_desc");
+
+    /* module protection */
+    current_slot = find_slot_containing(kernel_invariants.module_addr, s);
+    hva = kvm_physical_memory_addr_to_host(s, kernel_invariants.module_addr);
+    make_read_only_memory_slot(kernel_invariants.module_addr,
+                                hva,
+                                current_slot, 
+                                1);
+    
+    add_protected_memory_chunk(kernel_invariants.module_addr, 
+                /* head of the list is a pointer, 8 bytes */
+                                PAGE_SIZE, 
+                                current_slot,
+                                "module");
 
 }
 
@@ -2738,12 +2754,13 @@ static void kvm_get_idt_hypercall_parameters(CPUState *cpu)
         abort();
     }
 
-    kernel_invariants.desc_ptr = kvm_translate(cpu, regs.r8);
-    kernel_invariants.irq_desc = kvm_translate(cpu, regs.r9);
+    kernel_invariants.module_addr = kvm_translate(cpu, regs.r8);
+    /* regs.r9 contains the address of the head of the irqaction list */
+    kernel_invariants.irq_desc = kvm_translate(cpu, regs.r9); 
+    /* regs.10 contains the address of the irqaction */
     kernel_invariants.irqaction = kvm_translate(cpu, regs.r10);
     kernel_invariants.irqaction_size = regs.r11;
     kernel_invariants.irq_desc_size = regs.r12;
-    DBG("HYPERCALL ADDRESSES: %llx %llx %llx\n", regs.r8, regs.r9, regs.r10);
 }
 
 
@@ -2757,7 +2774,6 @@ static void find_fx_mr(void)
             QTAILQ_FOREACH(j, &i->subregions, subregions_link){
                 if(!strcmp(j->name, "fx-mmio")){
                     fx_mr = j;
-                    DBG("\tMemory Region %s found\n", j->name);
                     goto exit;
                 }
             }
@@ -2876,7 +2892,6 @@ int kvm_cpu_exec(CPUState *cpu)
                 break;
             }
             if(protect_agent_done) {     
-                DBG("protected agent branch\n");
                 switch(check_within_pmc(run->mmio.phys_addr)){
                 case IN_PMC:
                     DBG("\nATTEMPTED WRITE TO PMC!!! addr = %lx\n", 
@@ -2889,7 +2904,7 @@ int kvm_cpu_exec(CPUState *cpu)
                     hva = kvm_physical_memory_addr_to_host(
                             kvm_state,
                             run->mmio.phys_addr);
-                    memcpy(hva, (void *)run->mmio.data, run->mmio.len); 
+                    memcpy(hva, (void *)run->mmio.data, run->mmio.len); /* !!!!!!!!!!!!!!!! */
                     ret = 0;
                     break;
                 case NOT_IN_SLOT:
