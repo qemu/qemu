@@ -70,9 +70,16 @@ static void vu_blk_req_complete(VuBlkReq *req)
 static bool vu_blk_sect_range_ok(VuBlkExport *vexp, uint64_t sector,
                                  size_t size)
 {
-    uint64_t nb_sectors = size >> BDRV_SECTOR_BITS;
+    uint64_t nb_sectors;
     uint64_t total_sectors;
 
+    if (size % VIRTIO_BLK_SECTOR_SIZE) {
+        return false;
+    }
+
+    nb_sectors = size >> VIRTIO_BLK_SECTOR_BITS;
+
+    QEMU_BUILD_BUG_ON(BDRV_SECTOR_SIZE != VIRTIO_BLK_SECTOR_SIZE);
     if (nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return false;
     }
