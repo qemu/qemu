@@ -27,13 +27,23 @@ run-plugin-test-i386-bmi2-%: QEMU_OPTS += -cpu max
 hello-i386: CFLAGS+=-ffreestanding
 hello-i386: LDFLAGS+=-nostdlib
 
-#
-# test-386 includes a couple of additional objects that need to be linked together
-#
+# test-386 includes a couple of additional objects that need to be
+# linked together, we also need a no-pie capable compiler due to the
+# non-pic calls into 16-bit mode
+ifneq ($(DOCKER_IMAGE)$(CROSS_CC_HAS_I386_NOPIE),)
+test-i386: CFLAGS += -fno-pie
 
 test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S test-i386.h test-i386-shift.h test-i386-muldiv.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(EXTRA_CFLAGS) -o $@ \
 	   $(<D)/test-i386.c $(<D)/test-i386-code16.S $(<D)/test-i386-vm86.S -lm
+else
+test-i386:
+	$(call skip-test, "BUILD of $@", "missing -no-pie compiler support")
+run-test-i386:
+	$(call skip-test, "RUN of test-i386", "not built")
+run-plugin-test-i386-with-%:
+	$(call skip-test, "RUN of test-i386 ($*)", "not built")
+endif
 
 ifeq ($(SPEED), slow)
 

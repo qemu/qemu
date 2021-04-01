@@ -281,6 +281,12 @@ for target in $target_list; do
                 echo "CROSS_CC_HAS_POWER8_VECTOR=y" >> $config_target_mak
             fi
         ;;
+        i386-linux-user)
+            if do_compiler "$target_compiler" $target_compiler_cflags \
+                -Werror -fno-pie -o $TMPE $TMPC; then
+                echo "CROSS_CC_HAS_I386_NOPIE=y" >> $config_target_mak
+            fi
+        ;;
     esac
 
     enabled_cross_compilers="$enabled_cross_compilers $target_compiler"
