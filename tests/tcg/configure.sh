@@ -198,6 +198,11 @@ for target in $target_list; do
       container_image=debian-sparc64-cross
       container_cross_cc=sparc64-linux-gnu-gcc
       ;;
+    x86_64-*)
+      container_hosts="aarch64 ppc64el x86_64"
+      container_image=debian-amd64-cross
+      container_cross_cc=x86_64-linux-gnu-gcc
+      ;;
     xtensa*-softmmu)
       container_hosts=x86_64
       container_image=debian-xtensa-cross
