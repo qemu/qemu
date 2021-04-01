@@ -15,7 +15,6 @@
 #include "qapi/qapi-commands-yank.h"
 #include "qapi/qapi-visit-yank.h"
 #include "qapi/clone-visitor.h"
-#include "io/channel.h"
 #include "qemu/yank.h"
 
 struct YankFuncAndParam {
@@ -149,13 +148,6 @@ void yank_unregister_function(const YankInstance *instance,
     }
 
     abort();
-}
-
-void yank_generic_iochannel(void *opaque)
-{
-    QIOChannel *ioc = QIO_CHANNEL(opaque);
-
-    qio_channel_shutdown(ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
 }
 
 void qmp_yank(YankInstanceList *instances,

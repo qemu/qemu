@@ -1,8 +1,8 @@
 .. This is the top level page for the 'user' manual.
 
 
-QEMU User Mode Emulation User's Guide
-=====================================
+User Mode Emulation
+===================
 
 This manual is the overall guide for users using QEMU
 for user-mode emulation.  In this mode, QEMU can launch

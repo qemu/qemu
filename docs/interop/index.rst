@@ -1,8 +1,8 @@
 .. This is the top level page for the 'interop' manual.
 
 
-QEMU System Emulation Management and Interoperability Guide
-===========================================================
+System Emulation Management and Interoperability
+================================================
 
 This manual contains documents and specifications that are useful
 for making QEMU interoperate with other software.

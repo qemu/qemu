@@ -27,6 +27,7 @@
 
 #include "qemu/yank.h"
 #include "io/channel-socket.h"
+#include "yank_functions.h"
 
 /* Multiple fd's */
 
@@ -989,7 +990,7 @@ int multifd_load_cleanup(Error **errp)
         if (object_dynamic_cast(OBJECT(p->c), TYPE_QIO_CHANNEL_SOCKET)
             && OBJECT(p->c)->ref == 1) {
             yank_unregister_function(MIGRATION_YANK_INSTANCE,
-                                     yank_generic_iochannel,
+                                     migration_yank_iochannel,
                                      QIO_CHANNEL(p->c));
         }
 
