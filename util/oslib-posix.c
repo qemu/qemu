@@ -273,17 +273,6 @@ int qemu_try_set_nonblock(int fd)
         return -errno;
     }
     if (fcntl(fd, F_SETFL, f | O_NONBLOCK) == -1) {
-#ifdef __OpenBSD__
-        /*
-         * Previous to OpenBSD 6.3, fcntl(F_SETFL) is not permitted on
-         * memory devices and sets errno to ENODEV.
-         * It's OK if we fail to set O_NONBLOCK on devices like /dev/null,
-         * because they will never block anyway.
-         */
-        if (errno == ENODEV) {
-            return 0;
-        }
-#endif
         return -errno;
     }
     return 0;
