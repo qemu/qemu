@@ -733,8 +733,7 @@
             '*policy': 'uint32',
             '*handle': 'uint32',
             '*cbitpos': 'uint32',
-            'reduced-phys-bits': 'uint32' },
-  'if': 'defined(CONFIG_SEV)' }
+            'reduced-phys-bits': 'uint32' } }
 
 ##
 # @ObjectType:
@@ -768,14 +767,14 @@
     { 'name': 'memory-backend-memfd',
       'if': 'defined(CONFIG_LINUX)' },
     'memory-backend-ram',
-    {'name': 'pef-guest', 'if': 'defined(CONFIG_PSERIES)' },
+    'pef-guest',
     'pr-manager-helper',
     'rng-builtin',
     'rng-egd',
     'rng-random',
     'secret',
     'secret_keyring',
-    {'name': 'sev-guest', 'if': 'defined(CONFIG_SEV)' },
+    'sev-guest',
     's390-pv-guest',
     'throttle-group',
     'tls-creds-anon',
@@ -831,8 +830,7 @@
       'rng-random':                 'RngRandomProperties',
       'secret':                     'SecretProperties',
       'secret_keyring':             'SecretKeyringProperties',
-      'sev-guest':                  { 'type': 'SevGuestProperties',
-                                      'if': 'defined(CONFIG_SEV)' },
+      'sev-guest':                  'SevGuestProperties',
       'throttle-group':             'ThrottleGroupProperties',
       'tls-creds-anon':             'TlsCredsAnonProperties',
       'tls-creds-psk':              'TlsCredsPskProperties',

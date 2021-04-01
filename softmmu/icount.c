@@ -176,9 +176,6 @@ static void icount_adjust(void)
     int64_t cur_icount;
     int64_t delta;
 
-    /* Protected by TimersState mutex.  */
-    static int64_t last_delta;
-
     /* If the VM is not running, then do nothing.  */
     if (!runstate_is_running()) {
         return;
@@ -193,20 +190,20 @@ static void icount_adjust(void)
     delta = cur_icount - cur_time;
     /* FIXME: This is a very crude algorithm, somewhat prone to oscillation.  */
     if (delta > 0
-        && last_delta + ICOUNT_WOBBLE < delta * 2
+        && timers_state.last_delta + ICOUNT_WOBBLE < delta * 2
         && timers_state.icount_time_shift > 0) {
         /* The guest is getting too far ahead.  Slow time down.  */
         qatomic_set(&timers_state.icount_time_shift,
                     timers_state.icount_time_shift - 1);
     }
     if (delta < 0
-        && last_delta - ICOUNT_WOBBLE > delta * 2
+        && timers_state.last_delta - ICOUNT_WOBBLE > delta * 2
         && timers_state.icount_time_shift < MAX_ICOUNT_SHIFT) {
         /* The guest is getting too far behind.  Speed time up.  */
         qatomic_set(&timers_state.icount_time_shift,
                     timers_state.icount_time_shift + 1);
     }
-    last_delta = delta;
+    timers_state.last_delta = delta;
     qatomic_set_i64(&timers_state.qemu_icount_bias,
                     cur_icount - (timers_state.qemu_icount
                                   << timers_state.icount_time_shift));

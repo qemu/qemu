@@ -43,6 +43,8 @@ typedef struct TimersState {
 
     /* Conversion factor from emulated instructions to virtual clock ticks.  */
     int16_t icount_time_shift;
+    /* Icount delta used for shift auto adjust. */
+    int64_t last_delta;
 
     /* Compensate for varying guest execution speed.  */
     int64_t qemu_icount_bias;

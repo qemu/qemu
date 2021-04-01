@@ -14,6 +14,8 @@ Contents:
    :maxdepth: 2
    :includehidden:
 
+   code-of-conduct
+   conflict-resolution
    build-system
    style
    kconfig
