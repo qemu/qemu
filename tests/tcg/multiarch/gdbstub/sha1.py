@@ -40,7 +40,10 @@ def run_test():
 
     check_break("SHA1Init")
 
-    # check step and inspect values
+    # Check step and inspect values. We do a double next after the
+    # breakpoint as depending on the version of gdb we may step the
+    # preamble and not the first actual line of source.
+    gdb.execute("next")
     gdb.execute("next")
     val_ctx = gdb.parse_and_eval("context->state[0]")
     exp_ctx = 0x67452301
