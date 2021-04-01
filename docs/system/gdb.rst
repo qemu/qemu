@@ -45,7 +45,11 @@ Here are some useful tips in order to use gdb on system code:
 3. Use ``set architecture i8086`` to dump 16 bit code. Then use
    ``x/10i $cs*16+$eip`` to dump the code at the PC position.
 
-Advanced debugging options:
+Advanced debugging options
+==========================
+
+Changing single-stepping behaviour
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The default single stepping behavior is step with the IRQs and timer
 service routines off. It is set this way because when gdb executes a
@@ -88,6 +92,8 @@ three commands you can query and set the single step behavior:
       sending: "qemu.sstep=0x5"
       received: "OK"
 
+Examining physical memory
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Another feature that QEMU gdbstub provides is to toggle the memory GDB
 works with, by default GDB will show the current process memory respecting
