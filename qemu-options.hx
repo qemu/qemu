@@ -2370,7 +2370,9 @@ DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,
     "                specify SMBIOS type 11 fields\n"
     "-smbios type=17[,loc_pfx=str][,bank=str][,manufacturer=str][,serial=str]\n"
     "               [,asset=str][,part=str][,speed=%d]\n"
-    "                specify SMBIOS type 17 fields\n",
+    "                specify SMBIOS type 17 fields\n"
+    "-smbios type=41[,designation=str][,kind=str][,instance=%d][,pcidev=str]\n"
+    "                specify SMBIOS type 41 fields\n",
     QEMU_ARCH_I386 | QEMU_ARCH_ARM)
 SRST
 ``-smbios file=binary``
@@ -2432,6 +2434,32 @@ SRST
 
 ``-smbios type=17[,loc_pfx=str][,bank=str][,manufacturer=str][,serial=str][,asset=str][,part=str][,speed=%d]``
     Specify SMBIOS type 17 fields
+
+``-smbios type=41[,designation=str][,kind=str][,instance=%d][,pcidev=str]``
+    Specify SMBIOS type 41 fields
+
+    This argument can be repeated multiple times.  Its main use is to allow network interfaces be created
+    as ``enoX`` on Linux, with X being the instance number, instead of the name depending on the interface
+    position on the PCI bus.
+
+    Here is an example of use:
+
+    .. parsed-literal::
+
+        -netdev user,id=internet \\
+        -device virtio-net-pci,mac=50:54:00:00:00:42,netdev=internet,id=internet-dev \\
+        -smbios type=41,designation='Onboard LAN',instance=1,kind=ethernet,pcidev=internet-dev
+
+    In the guest OS, the device should then appear as ``eno1``:
+
+    ..parsed-literal::
+
+         $ ip -brief l
+         lo               UNKNOWN        00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP>
+         eno1             UP             50:54:00:00:00:42 <BROADCAST,MULTICAST,UP,LOWER_UP>
+
+    Currently, the PCI device has to be attached to the root bus.
+
 ERST
 
 DEFHEADING()
