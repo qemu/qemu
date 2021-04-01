@@ -242,19 +242,6 @@ int64_t timerlist_deadline_ns(QEMUTimerList *timer_list)
     return delta;
 }
 
-/*
- * Returns the time remaining for the deadline, in ms.
- */
-int64_t timer_deadline_ms(QEMUTimer *timer)
-{
-    if (timer_pending(timer)) {
-        return qemu_timeout_ns_to_ms(timer->expire_time) -
-               qemu_clock_get_ms(timer->timer_list->clock->type);
-    }
-
-    return 0;
-}
-
 /* Calculate the soonest deadline across all timerlists attached
  * to the clock. This is used for the icount timeout so we
  * ignore whether or not the clock should be used in deadline
