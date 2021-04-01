@@ -158,7 +158,7 @@ char *object_property_help(const char *name, const char *type,
     }
     if (defval) {
         g_autofree char *def_json = g_string_free(qobject_to_json(defval),
-                                                  true);
+                                                  false);
         g_string_append_printf(str, " (default: %s)", def_json);
     }
 

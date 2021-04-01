@@ -10,6 +10,6 @@
    incorrectly in boldface.
 
 .. |qemu_system| replace:: qemu-system-x86_64
-.. |qemu_system_x86| replace:: qemu_system-x86_64
+.. |qemu_system_x86| replace:: qemu-system-x86_64
 .. |I2C| replace:: I\ :sup:`2`\ C
 .. |I2S| replace:: I\ :sup:`2`\ S

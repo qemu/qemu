@@ -174,7 +174,6 @@ F: include/hw/arm/smmu*
 
 AVR TCG CPUs
 M: Michael Rolnik <mrolnik@gmail.com>
-R: Sarah Harris <S.E.Harris@kent.ac.uk>
 S: Maintained
 F: docs/system/target-avr.rst
 F: gdb-xml/avr-cpu.xml
@@ -308,8 +307,8 @@ F: linux-user/host/riscv32/
 F: linux-user/host/riscv64/
 
 RENESAS RX CPUs
-M: Yoshinori Sato <ysato@users.sourceforge.jp>
-S: Odd Fixes
+R: Yoshinori Sato <ysato@users.sourceforge.jp>
+S: Orphan
 F: target/rx/
 
 S390 TCG CPUs
@@ -323,8 +322,8 @@ F: tests/tcg/s390x/
 L: qemu-s390x@nongnu.org
 
 SH4 TCG CPUs
-M: Yoshinori Sato <ysato@users.sourceforge.jp>
-S: Odd Fixes
+R: Yoshinori Sato <ysato@users.sourceforge.jp>
+S: Orphan
 F: target/sh4/
 F: hw/sh4/
 F: disas/sh4.c
@@ -1045,7 +1044,6 @@ AVR Machines
 
 AVR MCUs
 M: Michael Rolnik <mrolnik@gmail.com>
-R: Sarah Harris <S.E.Harris@kent.ac.uk>
 S: Maintained
 F: default-configs/*/avr-softmmu.mak
 F: hw/avr/
@@ -1058,7 +1056,6 @@ F: hw/misc/avr_power.c
 
 Arduino
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>
-R: Sarah Harris <S.E.Harris@kent.ac.uk>
 S: Maintained
 F: hw/avr/arduino.c
 
@@ -1408,8 +1405,8 @@ F: include/hw/*/*sifive*.h
 RX Machines
 -----------
 rx-gdbsim
-M: Yoshinori Sato <ysato@users.sourceforge.jp>
-S: Odd Fixes
+R: Yoshinori Sato <ysato@users.sourceforge.jp>
+S: Orphan
 F: docs/system/target-rx.rst
 F: hw/rx/rx-gdbsim.c
 F: tests/acceptance/machine_rx_gdbsim.py
@@ -1417,7 +1414,7 @@ F: tests/acceptance/machine_rx_gdbsim.py
 SH4 Machines
 ------------
 R2D
-M: Yoshinori Sato <ysato@users.sourceforge.jp>
+R: Yoshinori Sato <ysato@users.sourceforge.jp>
 R: Magnus Damm <magnus.damm@gmail.com>
 S: Odd Fixes
 F: hw/char/sh_serial.c
@@ -1428,7 +1425,7 @@ F: hw/timer/sh_timer.c
 F: include/hw/sh4/sh_intc.h
 
 Shix
-M: Yoshinori Sato <ysato@users.sourceforge.jp>
+R: Yoshinori Sato <ysato@users.sourceforge.jp>
 R: Magnus Damm <magnus.damm@gmail.com>
 S: Odd Fixes
 F: hw/block/tc58128.c
@@ -1516,6 +1513,7 @@ L: qemu-s390x@nongnu.org
 
 S390 PCI
 M: Matthew Rosato <mjrosato@linux.ibm.com>
+M: Eric Farman <farman@linux.ibm.com>
 S: Supported
 F: hw/s390x/s390-pci*
 F: include/hw/s390x/s390-pci*
@@ -1727,8 +1725,7 @@ F: tests/qtest/acpi-utils.[hc]
 F: tests/data/acpi/
 
 ACPI/HEST/GHES
-R: Dongjiu Geng <gengdongjiu@huawei.com>
-R: Xiang Zheng <zhengxiang9@huawei.com>
+R: Dongjiu Geng <gengdongjiu1@gmail.com>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/acpi/ghes.c
@@ -1830,6 +1827,7 @@ F: docs/igd-assign.txt
 vfio-ccw
 M: Cornelia Huck <cohuck@redhat.com>
 M: Eric Farman <farman@linux.ibm.com>
+M: Matthew Rosato <mjrosato@linux.ibm.com>
 S: Supported
 F: hw/vfio/ccw.c
 F: hw/s390x/s390-ccw.c
@@ -1839,10 +1837,9 @@ T: git https://gitlab.com/cohuck/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 vfio-ap
-M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Tony Krowiak <akrowiak@linux.ibm.com>
 M: Halil Pasic <pasic@linux.ibm.com>
-M: Pierre Morel <pmorel@linux.ibm.com>
+M: Jason Herne <jjherne@linux.ibm.com>
 S: Supported
 F: hw/s390x/ap-device.c
 F: hw/s390x/ap-bridge.c
@@ -1919,6 +1916,7 @@ F: tools/virtiofsd/*
 F: hw/virtio/vhost-user-fs*
 F: include/hw/virtio/vhost-user-fs.h
 F: docs/tools/virtiofsd.rst
+L: virtio-fs@redhat.com
 
 virtio-input
 M: Gerd Hoffmann <kraxel@redhat.com>
@@ -2183,7 +2181,7 @@ F: include/hw/*/*xive*
 F: docs/*/*xive*
 
 Renesas peripherals
-M: Yoshinori Sato <ysato@users.sourceforge.jp>
+R: Yoshinori Sato <ysato@users.sourceforge.jp>
 R: Magnus Damm <magnus.damm@gmail.com>
 S: Odd Fixes
 F: hw/char/renesas_sci.c
@@ -2195,8 +2193,8 @@ F: include/hw/sh4/sh.h
 F: include/hw/timer/renesas_*.h
 
 Renesas RX peripherals
-M: Yoshinori Sato <ysato@users.sourceforge.jp>
-S: Odd Fixes
+R: Yoshinori Sato <ysato@users.sourceforge.jp>
+S: Orphan
 F: hw/intc/rx_icu.c
 F: hw/rx/
 F: include/hw/intc/rx_icu.h
@@ -2727,6 +2725,7 @@ F: tests/vmstate-static-checker-data/
 F: tests/qtest/migration-test.c
 F: docs/devel/migration.rst
 F: qapi/migration.json
+F: tests/migration/
 
 D-Bus
 M: Marc-André Lureau <marcandre.lureau@redhat.com>

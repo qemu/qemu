@@ -175,6 +175,7 @@ ERROR_RULE_LIST = [
     {'log':r"Multiple VT220 operator consoles are not supported"},
     {'log':r"core 0 already populated"},
     {'log':r"could not find stage1 bootloader"},
+    {'log':r"No '.*' bus found for device"},
 
     # other exitcode=1 failures not listed above will just generate INFO messages:
     {'exitcode':1, 'loglevel':logging.INFO},
