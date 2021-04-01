@@ -29,6 +29,7 @@ ENV PACKAGES \
     rdma-core-devel \
     spice-glib-devel \
     spice-server \
+    systemtap-sdt-devel \
     tar \
     zlib-devel
 
