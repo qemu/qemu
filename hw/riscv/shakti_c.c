@@ -128,6 +128,13 @@ static void shakti_c_soc_state_realize(DeviceState *dev, Error **errp)
         SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE,
         SIFIVE_CLINT_TIMEBASE_FREQ, false);
 
+    qdev_prop_set_chr(DEVICE(&(sss->uart)), "chardev", serial_hd(0));
+    if (!sysbus_realize(SYS_BUS_DEVICE(&sss->uart), errp)) {
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&sss->uart), 0,
+                    shakti_c_memmap[SHAKTI_C_UART].base);
+
     /* ROM */
     memory_region_init_rom(&sss->rom, OBJECT(dev), "riscv.shakti.c.rom",
                            shakti_c_memmap[SHAKTI_C_ROM].size, &error_fatal);
@@ -146,6 +153,7 @@ static void shakti_c_soc_instance_init(Object *obj)
     ShaktiCSoCState *sss = RISCV_SHAKTI_SOC(obj);
 
     object_initialize_child(obj, "cpus", &sss->cpus, TYPE_RISCV_HART_ARRAY);
+    object_initialize_child(obj, "uart", &sss->uart, TYPE_SHAKTI_UART);
 
     /*
      * CPU type is fixed and we are not supporting passing from commandline yet.
