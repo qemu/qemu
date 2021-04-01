@@ -108,79 +108,98 @@ for target in $target_list; do
   case $target in
     aarch64-*)
       # We don't have any bigendian build tools so we only use this for AArch64
+      container_hosts="x86_64 aarch64"
       container_image=debian-arm64-test-cross
       container_cross_cc=aarch64-linux-gnu-gcc-10
       ;;
     alpha-*)
+      container_hosts=x86_64
       container_image=debian-alpha-cross
       container_cross_cc=alpha-linux-gnu-gcc
       ;;
     arm-*)
       # We don't have any bigendian build tools so we only use this for ARM
+      container_hosts="x86_64 aarch64"
       container_image=debian-armhf-cross
       container_cross_cc=arm-linux-gnueabihf-gcc
       ;;
     cris-*)
+      container_hosts=x86_64
       container_image=fedora-cris-cross
       container_cross_cc=cris-linux-gnu-gcc
       ;;
     hppa-*)
+      container_hosts=x86_64
       container_image=debian-hppa-cross
       container_cross_cc=hppa-linux-gnu-gcc
       ;;
     i386-*)
+      container_hosts=x86_64
       container_image=fedora-i386-cross
       container_cross_cc=gcc
       ;;
     m68k-*)
+      container_hosts=x86_64
       container_image=debian-m68k-cross
       container_cross_cc=m68k-linux-gnu-gcc
       ;;
     mips64el-*)
+      container_hosts=x86_64
       container_image=debian-mips64el-cross
       container_cross_cc=mips64el-linux-gnuabi64-gcc
       ;;
     mips64-*)
+      container_hosts=x86_64
       container_image=debian-mips64-cross
       container_cross_cc=mips64-linux-gnuabi64-gcc
       ;;
     mipsel-*)
+      container_hosts=x86_64
       container_image=debian-mipsel-cross
       container_cross_cc=mipsel-linux-gnu-gcc
       ;;
     mips-*)
+      container_hosts=x86_64
       container_image=debian-mips-cross
       container_cross_cc=mips-linux-gnu-gcc
       ;;
     ppc-*|ppc64abi32-*)
+      container_hosts=x86_64
       container_image=debian-powerpc-cross
       container_cross_cc=powerpc-linux-gnu-gcc
       ;;
     ppc64-*)
+      container_hosts=x86_64
       container_image=debian-ppc64-cross
       container_cross_cc=powerpc64-linux-gnu-gcc
       ;;
     ppc64le-*)
+      container_hosts=x86_64
       container_image=debian-ppc64el-cross
       container_cross_cc=powerpc64le-linux-gnu-gcc
       ;;
     riscv64-*)
+      container_hosts=x86_64
       container_image=debian-riscv64-cross
       container_cross_cc=riscv64-linux-gnu-gcc
       ;;
     s390x-*)
+      container_hosts=x86_64
       container_image=debian-s390x-cross
       container_cross_cc=s390x-linux-gnu-gcc
       ;;
     sh4-*)
+      container_hosts=x86_64
       container_image=debian-sh4-cross
       container_cross_cc=sh4-linux-gnu-gcc
       ;;
     sparc64-*)
+      container_hosts=x86_64
       container_image=debian-sparc64-cross
       container_cross_cc=sparc64-linux-gnu-gcc
       ;;
     xtensa*-softmmu)
+      container_hosts=x86_64
       container_image=debian-xtensa-cross
 
       # default to the dc232b cpu
@@ -265,7 +284,11 @@ for target in $target_list; do
   done
 
   if test $got_cross_cc = no && test "$container" != no && test -n "$container_image"; then
-    echo "DOCKER_IMAGE=$container_image" >> $config_target_mak
-    echo "DOCKER_CROSS_CC_GUEST=$container_cross_cc" >> $config_target_mak
+      for host in $container_hosts; do
+          if test "$host" = "$ARCH"; then
+              echo "DOCKER_IMAGE=$container_image" >> $config_target_mak
+              echo "DOCKER_CROSS_CC_GUEST=$container_cross_cc" >> $config_target_mak
+          fi
+      done
   fi
 done
