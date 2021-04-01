@@ -1,0 +1,6 @@
+Trying to remove persistent bitmap from r-o base node, should fail:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "bitmap0", "node": "base"}}
+{"error": {"class": "GenericError", "desc": "Bitmap 'bitmap0' is readonly and cannot be modified"}}
+Remove persistent bitmap from base node reopened to RW:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "bitmap0", "node": "base"}}
+{"return": {}}

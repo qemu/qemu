@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+#
+# Test removing persistent bitmap from backing
+#
+# Copyright (c) 2021 Virtuozzo International GmbH.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+from iotests import log, qemu_img_create, qemu_img, qemu_img_pipe
+
+iotests.script_initialize(supported_fmts=['qcow2'])
+
+top, base = iotests.file_path('top', 'base')
+size = '1M'
+
+assert qemu_img_create('-f', iotests.imgfmt, base, size) == 0
+assert qemu_img_create('-f', iotests.imgfmt, '-b', base,
+                       '-F', iotests.imgfmt, top, size) == 0
+
+assert qemu_img('bitmap', '--add', base, 'bitmap0') == 0
+# Just assert that our method of checking bitmaps in the image works.
+assert 'bitmaps' in qemu_img_pipe('info', base)
+
+vm = iotests.VM().add_drive(top, 'backing.node-name=base')
+vm.launch()
+
+log('Trying to remove persistent bitmap from r-o base node, should fail:')
+vm.qmp_log('block-dirty-bitmap-remove', node='base', name='bitmap0')
+
+new_base_opts = {
+    'node-name': 'base',
+    'driver': 'qcow2',
+    'file': {
+        'driver': 'file',
+        'filename':  base
+    },
+    'read-only': False
+}
+
+# Don't want to bother with filtering qmp_log for reopen command
+result = vm.qmp('x-blockdev-reopen', **new_base_opts)
+if result != {'return': {}}:
+    log('Failed to reopen: ' + str(result))
+
+log('Remove persistent bitmap from base node reopened to RW:')
+vm.qmp_log('block-dirty-bitmap-remove', node='base', name='bitmap0')
+
+new_base_opts['read-only'] = True
+result = vm.qmp('x-blockdev-reopen', **new_base_opts)
+if result != {'return': {}}:
+    log('Failed to reopen: ' + str(result))
+
+vm.shutdown()
+
+if 'bitmaps' in qemu_img_pipe('info', base):
+    log('ERROR: Bitmap is still in the base image')
