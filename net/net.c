@@ -55,7 +55,6 @@
 #include "sysemu/sysemu.h"
 #include "net/filter.h"
 #include "qapi/string-output-visitor.h"
-#include "qapi/hmp-output-visitor.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
@@ -1222,42 +1221,14 @@ static void netfilter_print_info(Monitor *mon, NetFilterState *nf)
     monitor_printf(mon, "\n");
 }
 
-static char *generate_info_str(NetClientState *nc)
-{
-    NetdevInfo *ni = nc->stored_config;
-    char *ret_out = NULL;
-    Visitor *v;
-
-    /* Use legacy field info_str for NIC and hubports */
-    if ((nc->info->type == NET_CLIENT_DRIVER_NIC) ||
-        (nc->info->type == NET_CLIENT_DRIVER_HUBPORT)) {
-        return g_strdup(nc->info_str ? nc->info_str : "");
-    }
-
-    if (!ni) {
-        return g_malloc0(1);
-    }
-
-    v = hmp_output_visitor_new(&ret_out);
-    if (visit_type_NetdevInfo(v, "", &ni, NULL)) {
-        visit_complete(v, &ret_out);
-    }
-    visit_free(v);
-
-    return ret_out;
-}
-
 void print_net_client(Monitor *mon, NetClientState *nc)
 {
     NetFilterState *nf;
-    char *info_str = generate_info_str(nc);
 
     monitor_printf(mon, "%s: index=%d,type=%s,%s\n", nc->name,
                    nc->queue_index,
                    NetClientDriver_str(nc->info->type),
-                   info_str);
-    g_free(info_str);
-
+                   nc->info_str ? nc->info_str : "");
     if (!QTAILQ_EMPTY(&nc->filters)) {
         monitor_printf(mon, "filters:\n");
     }
