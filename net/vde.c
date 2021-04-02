@@ -100,6 +100,8 @@ static int net_vde_init(NetClientState *peer, const char *model,
 
     nc = qemu_new_net_client(&net_vde_info, peer, model, name);
 
+    nc->info_str = g_strdup_printf("sock=%s,fd=%d", sock, vde_datafd(vde));
+
     s = DO_UPCAST(VDEState, nc, nc);
 
     s->vde = vde;
