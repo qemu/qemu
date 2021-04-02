@@ -427,13 +427,6 @@ int net_init_netmap(const Netdev *netdev,
     pstrcpy(s->ifname, sizeof(s->ifname), netmap_opts->ifname);
     netmap_read_poll(s, true); /* Initially only poll for reads. */
 
-    /* Store startup parameters */
-    nc->stored_config = g_new0(NetdevInfo, 1);
-    nc->stored_config->type = NET_BACKEND_NETMAP;
-
-    QAPI_CLONE_MEMBERS(NetdevNetmapOptions,
-                       &nc->stored_config->u.netmap, netmap_opts);
-
     return 0;
 }
 

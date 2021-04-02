@@ -311,15 +311,14 @@ static void net_vhost_user_event(void *opaque, QEMUChrEvent event)
 }
 
 static int net_vhost_user_init(NetClientState *peer, const char *device,
-                               const char *name, const char *chardev,
-                               Chardev *chr, int queues)
+                               const char *name, Chardev *chr,
+                               int queues)
 {
     Error *err = NULL;
     NetClientState *nc, *nc0 = NULL;
     NetVhostUserState *s = NULL;
     VhostUserState *user;
     int i;
-    NetdevVhostUserOptions *stored;
 
     assert(name);
     assert(queues > 0);
@@ -355,16 +354,6 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     } while (!s->started);
 
     assert(s->vhost_net);
-
-    /* Store startup parameters */
-    nc0->stored_config = g_new0(NetdevInfo, 1);
-    nc0->stored_config->type = NET_BACKEND_VHOST_USER;
-    stored = &nc0->stored_config->u.vhost_user;
-
-    stored->chardev = g_strdup(chardev);
-
-    stored->has_queues = true;
-    stored->queues = queues;
 
     return 0;
 
@@ -457,6 +446,5 @@ int net_init_vhost_user(const Netdev *netdev, const char *name,
         return -1;
     }
 
-    return net_vhost_user_init(peer, "vhost_user", name,
-                               vhost_user_opts->chardev, chr, queues);
+    return net_vhost_user_init(peer, "vhost_user", name, chr, queues);
 }
