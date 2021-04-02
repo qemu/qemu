@@ -797,7 +797,8 @@ static int tap_win32_init(NetClientState *peer, const char *model,
     stored->has_ifname = true;
     stored->ifname = g_strdup(ifname);
 
-    s->nc.info_str = g_strdup_printf("tap: ifname=%s", ifname);
+    snprintf(s->nc.info_str, sizeof(s->nc.info_str),
+             "tap: ifname=%s", ifname);
 
     s->handle = handle;
 

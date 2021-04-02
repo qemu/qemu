@@ -129,12 +129,11 @@ char *qemu_mac_strdup_printf(const uint8_t *macaddr)
 
 void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6])
 {
-    g_free(nc->info_str);
-    nc->info_str = g_strdup_printf(
-        "model=%s,macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-        nc->model,
-        macaddr[0], macaddr[1], macaddr[2],
-        macaddr[3], macaddr[4], macaddr[5]);
+    snprintf(nc->info_str, sizeof(nc->info_str),
+             "model=%s,macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
+             nc->model,
+             macaddr[0], macaddr[1], macaddr[2],
+             macaddr[3], macaddr[4], macaddr[5]);
 }
 
 static int mac_table[256] = {0};
@@ -353,7 +352,6 @@ static void qemu_free_net_client(NetClientState *nc)
     }
     g_free(nc->name);
     g_free(nc->model);
-    g_free(nc->info_str);
     qapi_free_NetdevInfo(nc->stored_config);
     if (nc->destructor) {
         nc->destructor(nc);
@@ -1228,7 +1226,7 @@ void print_net_client(Monitor *mon, NetClientState *nc)
     monitor_printf(mon, "%s: index=%d,type=%s,%s\n", nc->name,
                    nc->queue_index,
                    NetClientDriver_str(nc->info->type),
-                   nc->info_str ? nc->info_str : "");
+                   nc->info_str);
     if (!QTAILQ_EMPTY(&nc->filters)) {
         monitor_printf(mon, "filters:\n");
     }

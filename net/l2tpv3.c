@@ -730,7 +730,8 @@ int net_init_l2tpv3(const Netdev *netdev,
     QAPI_CLONE_MEMBERS(NetdevL2TPv3Options,
                        &nc->stored_config->u.l2tpv3, l2tpv3);
 
-    s->nc.info_str = g_strdup_printf("l2tpv3: connected");
+    snprintf(s->nc.info_str, sizeof(s->nc.info_str),
+             "l2tpv3: connected");
     return 0;
 outerr:
     qemu_del_net_client(nc);
