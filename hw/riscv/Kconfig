@@ -32,6 +32,7 @@ config SHAKTI_C
 config RISCV_VIRT
     bool
     imply PCI_DEVICES
+    imply VIRTIO_VGA
     imply TEST_DEVICES
     select GOLDFISH_RTC
     select MSI_NONBROKEN
