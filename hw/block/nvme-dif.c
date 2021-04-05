@@ -1,3 +1,13 @@
+/*
+ * QEMU NVM Express End-to-End Data Protection support
+ *
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ *
+ * Authors:
+ *   Klaus Jensen           <k.jensen@samsung.com>
+ *   Gollu Appalanaidu      <anaidu.gollu@samsung.com>
+ */
+
 #include "qemu/osdep.h"
 #include "hw/block/block.h"
 #include "sysemu/dma.h"
