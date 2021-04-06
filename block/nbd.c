@@ -443,6 +443,11 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
     BDRVNBDState *s = bs->opaque;
     NBDConnectThread *thr = s->connect_thread;
 
+    if (!thr) {
+        /* detached */
+        return -1;
+    }
+
     qemu_mutex_lock(&thr->mutex);
 
     switch (thr->state) {
@@ -485,6 +490,12 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
      */
     s->wait_connect = true;
     qemu_coroutine_yield();
+
+    if (!s->connect_thread) {
+        /* detached */
+        return -1;
+    }
+    assert(thr == s->connect_thread);
 
     qemu_mutex_lock(&thr->mutex);
 
