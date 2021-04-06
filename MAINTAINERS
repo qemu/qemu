@@ -688,7 +688,6 @@ F: include/hw/misc/imx25_ccm.h
 F: include/hw/watchdog/wdt_imx2.h
 
 i.MX31 (kzm)
-M: Peter Chubb <peter.chubb@nicta.com.au>
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Odd Fixes
