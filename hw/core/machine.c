@@ -530,20 +530,31 @@ void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type)
     QAPI_LIST_PREPEND(mc->allowed_dynamic_sysbus_devices, g_strdup(type));
 }
 
-static void validate_sysbus_device(SysBusDevice *sbdev, void *opaque)
+bool device_is_dynamic_sysbus(MachineClass *mc, DeviceState *dev)
 {
-    MachineState *machine = opaque;
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
     bool allowed = false;
     strList *wl;
+    Object *obj = OBJECT(dev);
+
+    if (!object_dynamic_cast(obj, TYPE_SYS_BUS_DEVICE)) {
+        return false;
+    }
 
     for (wl = mc->allowed_dynamic_sysbus_devices;
          !allowed && wl;
          wl = wl->next) {
-        allowed |= !!object_dynamic_cast(OBJECT(sbdev), wl->value);
+        allowed |= !!object_dynamic_cast(obj, wl->value);
     }
 
-    if (!allowed) {
+    return allowed;
+}
+
+static void validate_sysbus_device(SysBusDevice *sbdev, void *opaque)
+{
+    MachineState *machine = opaque;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+
+    if (!device_is_dynamic_sysbus(mc, DEVICE(sbdev))) {
         error_report("Option '-device %s' cannot be handled by this machine",
                      object_class_get_name(object_get_class(OBJECT(sbdev))));
         exit(1);
