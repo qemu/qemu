@@ -1109,6 +1109,12 @@ UNUSED static struct flags clone_flags[] = {
 #if defined(CLONE_NEWNET)
     FLAG_GENERIC(CLONE_NEWNET),
 #endif
+#if defined(CLONE_NEWCGROUP)
+    FLAG_GENERIC(CLONE_NEWCGROUP),
+#endif
+#if defined(CLONE_NEWTIME)
+    FLAG_GENERIC(CLONE_NEWTIME),
+#endif
 #if defined(CLONE_IO)
     FLAG_GENERIC(CLONE_IO),
 #endif
@@ -3463,6 +3469,18 @@ print_unlinkat(void *cpu_env, const struct syscallname *name,
     print_at_dirfd(arg0, 0);
     print_string(arg1, 0);
     print_flags(unlinkat_flags, arg2, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
+#ifdef TARGET_NR_unshare
+static void
+print_unshare(void *cpu_env, const struct syscallname *name,
+              abi_long arg0, abi_long arg1, abi_long arg2,
+              abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_flags(clone_flags, arg0, 1);
     print_syscall_epilogue(name);
 }
 #endif

@@ -1573,7 +1573,7 @@
 { TARGET_NR_unlinkat, "unlinkat" , NULL, print_unlinkat, NULL },
 #endif
 #ifdef TARGET_NR_unshare
-{ TARGET_NR_unshare, "unshare" , NULL, NULL, NULL },
+{ TARGET_NR_unshare, "unshare" , NULL, print_unshare, NULL },
 #endif
 #ifdef TARGET_NR_userfaultfd
 { TARGET_NR_userfaultfd, "userfaultfd" , NULL, NULL, NULL },
