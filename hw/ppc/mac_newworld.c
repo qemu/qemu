@@ -157,6 +157,10 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     /* allocate RAM */
+    if (machine->ram_size > 2 * GiB) {
+        error_report("RAM size more than 2 GiB is not supported");
+        exit(1);
+    }
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
 
     /* allocate and load firmware ROM */
