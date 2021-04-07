@@ -73,7 +73,7 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     /* support DULBE and I/O optimization fields */
     id_ns->nsfeat |= (0x4 | 0x10);
 
-    if (nvme_ns_shared(ns)) {
+    if (ns->params.shared) {
         id_ns->nmic |= NVME_NMIC_NS_SHARED;
     }
 
@@ -387,25 +387,46 @@ static void nvme_zoned_ns_shutdown(NvmeNamespace *ns)
     assert(ns->nr_open_zones == 0);
 }
 
-static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
+static int nvme_ns_check_constraints(NvmeCtrl *n, NvmeNamespace *ns,
+                                     Error **errp)
 {
     if (!ns->blkconf.blk) {
         error_setg(errp, "block backend not configured");
         return -1;
     }
 
-    if (ns->params.pi && !ns->params.ms) {
+    if (ns->params.pi && ns->params.ms < 8) {
         error_setg(errp, "at least 8 bytes of metadata required to enable "
                    "protection information");
         return -1;
     }
 
+    if (ns->params.nsid > NVME_MAX_NAMESPACES) {
+        error_setg(errp, "invalid namespace id (must be between 0 and %d)",
+                   NVME_MAX_NAMESPACES);
+        return -1;
+    }
+
+    if (!n->subsys) {
+        if (ns->params.detached) {
+            error_setg(errp, "detached requires that the nvme device is "
+                       "linked to an nvme-subsys device");
+            return -1;
+        }
+
+        if (ns->params.shared) {
+            error_setg(errp, "shared requires that the nvme device is "
+                       "linked to an nvme-subsys device");
+            return -1;
+        }
+    }
+
     return 0;
 }
 
-int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
+int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
 {
-    if (nvme_ns_check_constraints(ns, errp)) {
+    if (nvme_ns_check_constraints(n, ns, errp)) {
         return -1;
     }
 
@@ -453,27 +474,62 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
     NvmeNamespace *ns = NVME_NS(dev);
     BusState *s = qdev_get_parent_bus(dev);
     NvmeCtrl *n = NVME(s->parent);
+    NvmeSubsystem *subsys = n->subsys;
+    uint32_t nsid = ns->params.nsid;
+    int i;
 
-    if (nvme_ns_setup(ns, errp)) {
+    if (nvme_ns_setup(n, ns, errp)) {
         return;
     }
 
-    if (ns->subsys) {
-        if (nvme_subsys_register_ns(ns, errp)) {
+    if (!nsid) {
+        for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+            if (nvme_ns(n, i) || nvme_subsys_ns(subsys, i)) {
+                continue;
+            }
+
+            nsid = ns->params.nsid = i;
+            break;
+        }
+
+        if (!nsid) {
+            error_setg(errp, "no free namespace id");
             return;
         }
     } else {
-        if (nvme_register_namespace(n, ns, errp)) {
+        if (nvme_ns(n, nsid) || nvme_subsys_ns(subsys, nsid)) {
+            error_setg(errp, "namespace id '%d' already allocated", nsid);
             return;
         }
     }
+
+    if (subsys) {
+        subsys->namespaces[nsid] = ns;
+
+        if (ns->params.detached) {
+            return;
+        }
+
+        if (ns->params.shared) {
+            for (i = 0; i < ARRAY_SIZE(subsys->ctrls); i++) {
+                NvmeCtrl *ctrl = subsys->ctrls[i];
+
+                if (ctrl) {
+                    nvme_attach_ns(ctrl, ns);
+                }
+            }
+
+            return;
+        }
+    }
+
+    nvme_attach_ns(n, ns);
 }
 
 static Property nvme_ns_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeNamespace, blkconf),
-    DEFINE_PROP_LINK("subsys", NvmeNamespace, subsys, TYPE_NVME_SUBSYS,
-                     NvmeSubsystem *),
     DEFINE_PROP_BOOL("detached", NvmeNamespace, params.detached, false),
+    DEFINE_PROP_BOOL("shared", NvmeNamespace, params.shared, false),
     DEFINE_PROP_UINT32("nsid", NvmeNamespace, params.nsid, 0),
     DEFINE_PROP_UUID("uuid", NvmeNamespace, params.uuid),
     DEFINE_PROP_UINT16("ms", NvmeNamespace, params.ms, 0),

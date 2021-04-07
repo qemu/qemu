@@ -29,6 +29,7 @@ typedef struct NvmeZone {
 
 typedef struct NvmeNamespaceParams {
     bool     detached;
+    bool     shared;
     uint32_t nsid;
     QemuUUID uuid;
 
@@ -60,8 +61,8 @@ typedef struct NvmeNamespace {
     const uint32_t *iocs;
     uint8_t      csi;
     uint16_t     status;
+    int          attached;
 
-    NvmeSubsystem   *subsys;
     QTAILQ_ENTRY(NvmeNamespace) entry;
 
     NvmeIdNsZoned   *id_ns_zoned;
@@ -96,12 +97,7 @@ static inline uint32_t nvme_nsid(NvmeNamespace *ns)
         return ns->params.nsid;
     }
 
-    return -1;
-}
-
-static inline bool nvme_ns_shared(NvmeNamespace *ns)
-{
-    return !!ns->subsys;
+    return 0;
 }
 
 static inline NvmeLBAF *nvme_ns_lbaf(NvmeNamespace *ns)
@@ -225,7 +221,7 @@ static inline void nvme_aor_dec_active(NvmeNamespace *ns)
 }
 
 void nvme_ns_init_format(NvmeNamespace *ns);
-int nvme_ns_setup(NvmeNamespace *ns, Error **errp);
+int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp);
 void nvme_ns_drain(NvmeNamespace *ns);
 void nvme_ns_shutdown(NvmeNamespace *ns);
 void nvme_ns_cleanup(NvmeNamespace *ns);

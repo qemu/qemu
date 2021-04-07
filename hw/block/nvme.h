@@ -6,16 +6,8 @@
 #include "nvme-subsys.h"
 #include "nvme-ns.h"
 
-#define NVME_MAX_NAMESPACES 256
-
 #define NVME_DEFAULT_ZONE_SIZE   (128 * MiB)
 #define NVME_DEFAULT_MAX_ZA_SIZE (128 * KiB)
-
-/*
- * Subsystem namespace list for allocated namespaces should be larger than
- * attached namespace list in a controller.
- */
-QEMU_BUILD_BUG_ON(NVME_MAX_NAMESPACES > NVME_SUBSYS_MAX_NAMESPACES);
 
 typedef struct NvmeParams {
     char     *serial;
@@ -86,6 +78,7 @@ static inline const char *nvme_adm_opc_str(uint8_t opc)
     case NVME_ADM_CMD_SET_FEATURES:     return "NVME_ADM_CMD_SET_FEATURES";
     case NVME_ADM_CMD_GET_FEATURES:     return "NVME_ADM_CMD_GET_FEATURES";
     case NVME_ADM_CMD_ASYNC_EV_REQ:     return "NVME_ADM_CMD_ASYNC_EV_REQ";
+    case NVME_ADM_CMD_NS_ATTACHMENT:    return "NVME_ADM_CMD_NS_ATTACHMENT";
     case NVME_ADM_CMD_FORMAT_NVM:       return "NVME_ADM_CMD_FORMAT_NVM";
     default:                            return "NVME_ADM_CMD_UNKNOWN";
     }
@@ -165,7 +158,6 @@ typedef struct NvmeCtrl {
     NvmeBar      bar;
     NvmeParams   params;
     NvmeBus      bus;
-    BlockConf    conf;
 
     uint16_t    cntlid;
     bool        qs_created;
@@ -234,35 +226,6 @@ static inline NvmeNamespace *nvme_ns(NvmeCtrl *n, uint32_t nsid)
     return n->namespaces[nsid - 1];
 }
 
-static inline bool nvme_ns_is_attached(NvmeCtrl *n, NvmeNamespace *ns)
-{
-    int nsid;
-
-    for (nsid = 1; nsid <= n->num_namespaces; nsid++) {
-        if (nvme_ns(n, nsid) == ns) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static inline void nvme_ns_attach(NvmeCtrl *n, NvmeNamespace *ns)
-{
-    uint32_t nsid = nvme_nsid(ns);
-    assert(nsid && nsid <= NVME_MAX_NAMESPACES);
-
-    n->namespaces[nsid - 1] = ns;
-}
-
-static inline void nvme_ns_detach(NvmeCtrl *n, NvmeNamespace *ns)
-{
-    uint32_t nsid = nvme_nsid(ns);
-    assert(nsid && nsid <= NVME_MAX_NAMESPACES);
-
-    n->namespaces[nsid - 1] = NULL;
-}
-
 static inline NvmeCQueue *nvme_cq(NvmeRequest *req)
 {
     NvmeSQueue *sq = req->sq;
@@ -291,7 +254,7 @@ typedef enum NvmeTxDirection {
     NVME_TX_DIRECTION_FROM_DEVICE = 1,
 } NvmeTxDirection;
 
-int nvme_register_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp);
+void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns);
 uint16_t nvme_bounce_data(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
                           NvmeTxDirection dir, NvmeRequest *req);
 uint16_t nvme_bounce_mdata(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
