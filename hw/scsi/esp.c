@@ -496,6 +496,10 @@ static void do_dma_pdma_cb(ESPState *s)
         return;
     }
 
+    if (!s->current_req) {
+        return;
+    }
+
     if (to_device) {
         /* Copy FIFO data to device */
         len = MIN(s->async_len, ESP_FIFO_SZ);
@@ -527,11 +531,9 @@ static void do_dma_pdma_cb(ESPState *s)
         return;
     } else {
         if (s->async_len == 0) {
-            if (s->current_req) {
-                /* Defer until the scsi layer has completed */
-                scsi_req_continue(s->current_req);
-                s->data_in_ready = false;
-            }
+            /* Defer until the scsi layer has completed */
+            scsi_req_continue(s->current_req);
+            s->data_in_ready = false;
             return;
         }
 
@@ -602,6 +604,9 @@ static void esp_do_dma(ESPState *s)
             s->rregs[ESP_RINTR] |= INTR_BS;
             esp_raise_irq(s);
         }
+        return;
+    }
+    if (!s->current_req) {
         return;
     }
     if (s->async_len == 0) {
@@ -710,6 +715,10 @@ static void esp_do_nodma(ESPState *s)
             s->rregs[ESP_RINTR] |= INTR_BS;
             esp_raise_irq(s);
         }
+        return;
+    }
+
+    if (!s->current_req) {
         return;
     }
 
