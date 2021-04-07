@@ -198,18 +198,29 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
         goto fail_guest_notifiers;
     }
 
+    memory_region_transaction_begin();
+
     /* Set up virtqueue notify */
     for (i = 0; i < nvqs; i++) {
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, true);
         if (r != 0) {
+            int j = i;
+
             fprintf(stderr, "virtio-blk failed to set host notifier (%d)\n", r);
             while (i--) {
                 virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
+            }
+
+            memory_region_transaction_commit();
+
+            while (j--) {
                 virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
             }
             goto fail_host_notifiers;
         }
     }
+
+    memory_region_transaction_commit();
 
     s->starting = false;
     vblk->dataplane_started = true;
@@ -246,8 +257,15 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     return 0;
 
   fail_aio_context:
+    memory_region_transaction_begin();
+
     for (i = 0; i < nvqs; i++) {
         virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
+    }
+
+    memory_region_transaction_commit();
+
+    for (i = 0; i < nvqs; i++) {
         virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
     }
   fail_host_notifiers:
@@ -312,8 +330,15 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
 
     aio_context_release(s->ctx);
 
+    memory_region_transaction_begin();
+
     for (i = 0; i < nvqs; i++) {
         virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
+    }
+
+    memory_region_transaction_commit();
+
+    for (i = 0; i < nvqs; i++) {
         virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
     }
 
