@@ -117,6 +117,23 @@ static uint8_t esp_fifo_pop(Fifo8 *fifo)
     return fifo8_pop(fifo);
 }
 
+static uint32_t esp_fifo_pop_buf(Fifo8 *fifo, uint8_t *dest, int maxlen)
+{
+    const uint8_t *buf;
+    uint32_t n;
+
+    if (maxlen == 0) {
+        return 0;
+    }
+
+    buf = fifo8_pop_buf(fifo, maxlen, &n);
+    if (dest) {
+        memcpy(dest, buf, n);
+    }
+
+    return n;
+}
+
 static uint32_t esp_get_tc(ESPState *s)
 {
     uint32_t dmalen;
@@ -241,11 +258,11 @@ static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
         if (dmalen == 0) {
             return 0;
         }
-        memcpy(buf, fifo8_pop_buf(&s->fifo, dmalen, &n), dmalen);
-        if (dmalen >= 3) {
+        n = esp_fifo_pop_buf(&s->fifo, buf, dmalen);
+        if (n >= 3) {
             buf[0] = buf[2] >> 5;
         }
-        fifo8_push_all(&s->cmdfifo, buf, dmalen);
+        fifo8_push_all(&s->cmdfifo, buf, n);
     }
     trace_esp_get_cmd(dmalen, target);
 
@@ -258,16 +275,16 @@ static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
 
 static void do_busid_cmd(ESPState *s, uint8_t busid)
 {
-    uint32_t n, cmdlen;
+    uint32_t cmdlen;
     int32_t datalen;
     int lun;
     SCSIDevice *current_lun;
-    uint8_t *buf;
+    uint8_t buf[ESP_CMDFIFO_SZ];
 
     trace_esp_do_busid_cmd(busid);
     lun = busid & 7;
     cmdlen = fifo8_num_used(&s->cmdfifo);
-    buf = (uint8_t *)fifo8_pop_buf(&s->cmdfifo, cmdlen, &n);
+    esp_fifo_pop_buf(&s->cmdfifo, buf, cmdlen);
 
     current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id, lun);
     s->current_req = scsi_req_new(current_lun, 0, lun, buf, s);
@@ -300,13 +317,12 @@ static void do_busid_cmd(ESPState *s, uint8_t busid)
 static void do_cmd(ESPState *s)
 {
     uint8_t busid = fifo8_pop(&s->cmdfifo);
-    uint32_t n;
 
     s->cmdfifo_cdb_offset--;
 
     /* Ignore extended messages for now */
     if (s->cmdfifo_cdb_offset) {
-        fifo8_pop_buf(&s->cmdfifo, s->cmdfifo_cdb_offset, &n);
+        esp_fifo_pop_buf(&s->cmdfifo, NULL, s->cmdfifo_cdb_offset);
         s->cmdfifo_cdb_offset = 0;
     }
 
@@ -484,7 +500,7 @@ static void do_dma_pdma_cb(ESPState *s)
         /* Copy FIFO data to device */
         len = MIN(s->async_len, ESP_FIFO_SZ);
         len = MIN(len, fifo8_num_used(&s->fifo));
-        memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
+        n = esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
         s->async_buf += n;
         s->async_len -= n;
         s->ti_size += n;
@@ -492,7 +508,7 @@ static void do_dma_pdma_cb(ESPState *s)
         if (n < len) {
             /* Unaligned accesses can cause FIFO wraparound */
             len = len - n;
-            memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
+            n = esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
             s->async_buf += n;
             s->async_len -= n;
             s->ti_size += n;
@@ -668,7 +684,7 @@ static void esp_do_dma(ESPState *s)
 static void esp_do_nodma(ESPState *s)
 {
     int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
-    uint32_t cmdlen, n;
+    uint32_t cmdlen;
     int len;
 
     if (s->do_cmd) {
@@ -709,7 +725,7 @@ static void esp_do_nodma(ESPState *s)
 
     if (to_device) {
         len = MIN(fifo8_num_used(&s->fifo), ESP_FIFO_SZ);
-        memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
+        esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
         s->async_buf += len;
         s->async_len -= len;
         s->ti_size += len;
