@@ -152,6 +152,8 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
         goto fail_guest_notifiers;
     }
 
+    memory_region_transaction_begin();
+
     rc = virtio_scsi_set_host_notifier(s, vs->ctrl_vq, 0);
     if (rc != 0) {
         goto fail_host_notifiers;
@@ -173,6 +175,8 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
         vq_init_count++;
     }
 
+    memory_region_transaction_commit();
+
     aio_context_acquire(s->ctx);
     virtio_queue_aio_set_host_notifier_handler(vs->ctrl_vq, s->ctx,
                                             virtio_scsi_data_plane_handle_ctrl);
@@ -192,6 +196,11 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
 fail_host_notifiers:
     for (i = 0; i < vq_init_count; i++) {
         virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
+    }
+
+    memory_region_transaction_commit();
+
+    for (i = 0; i < vq_init_count; i++) {
         virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
     }
     k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, false);
@@ -229,8 +238,15 @@ void virtio_scsi_dataplane_stop(VirtIODevice *vdev)
 
     blk_drain_all(); /* ensure there are no in-flight requests */
 
+    memory_region_transaction_begin();
+
     for (i = 0; i < vs->conf.num_queues + 2; i++) {
         virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
+    }
+
+    memory_region_transaction_commit();
+
+    for (i = 0; i < vs->conf.num_queues + 2; i++) {
         virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
     }
 
