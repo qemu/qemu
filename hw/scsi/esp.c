@@ -107,22 +107,14 @@ static void esp_fifo_push(Fifo8 *fifo, uint8_t val)
 
     fifo8_push(fifo, val);
 }
-static uint8_t esp_fifo_pop(ESPState *s)
+
+static uint8_t esp_fifo_pop(Fifo8 *fifo)
 {
-    if (fifo8_is_empty(&s->fifo)) {
+    if (fifo8_is_empty(fifo)) {
         return 0;
     }
 
-    return fifo8_pop(&s->fifo);
-}
-
-static uint8_t esp_cmdfifo_pop(ESPState *s)
-{
-    if (fifo8_is_empty(&s->cmdfifo)) {
-        return 0;
-    }
-
-    return fifo8_pop(&s->cmdfifo);
+    return fifo8_pop(fifo);
 }
 
 static uint32_t esp_get_tc(ESPState *s)
@@ -159,9 +151,9 @@ static uint8_t esp_pdma_read(ESPState *s)
     uint8_t val;
 
     if (s->do_cmd) {
-        val = esp_cmdfifo_pop(s);
+        val = esp_fifo_pop(&s->cmdfifo);
     } else {
-        val = esp_fifo_pop(s);
+        val = esp_fifo_pop(&s->fifo);
     }
 
     return val;
@@ -887,7 +879,7 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
             qemu_log_mask(LOG_UNIMP, "esp: PIO data read not implemented\n");
             s->rregs[ESP_FIFO] = 0;
         } else {
-            s->rregs[ESP_FIFO] = esp_fifo_pop(s);
+            s->rregs[ESP_FIFO] = esp_fifo_pop(&s->fifo);
         }
         val = s->rregs[ESP_FIFO];
         break;
