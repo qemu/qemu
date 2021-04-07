@@ -36,7 +36,7 @@ int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp);
 static inline NvmeCtrl *nvme_subsys_ctrl(NvmeSubsystem *subsys,
         uint32_t cntlid)
 {
-    if (!subsys) {
+    if (!subsys || cntlid >= NVME_SUBSYS_MAX_CTRLS) {
         return NULL;
     }
 
