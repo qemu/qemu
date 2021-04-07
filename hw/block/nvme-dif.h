@@ -1,3 +1,13 @@
+/*
+ * QEMU NVM Express End-to-End Data Protection support
+ *
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ *
+ * Authors:
+ *   Klaus Jensen           <k.jensen@samsung.com>
+ *   Gollu Appalanaidu      <anaidu.gollu@samsung.com>
+ */
+
 #ifndef HW_NVME_DIF_H
 #define HW_NVME_DIF_H
 

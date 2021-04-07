@@ -14,7 +14,7 @@
     OBJECT_CHECK(NvmeSubsystem, (obj), TYPE_NVME_SUBSYS)
 
 #define NVME_SUBSYS_MAX_CTRLS   32
-#define NVME_SUBSYS_MAX_NAMESPACES  256
+#define NVME_MAX_NAMESPACES     256
 
 typedef struct NvmeCtrl NvmeCtrl;
 typedef struct NvmeNamespace NvmeNamespace;
@@ -24,7 +24,7 @@ typedef struct NvmeSubsystem {
 
     NvmeCtrl    *ctrls[NVME_SUBSYS_MAX_CTRLS];
     /* Allocated namespaces for this subsystem */
-    NvmeNamespace *namespaces[NVME_SUBSYS_MAX_NAMESPACES + 1];
+    NvmeNamespace *namespaces[NVME_MAX_NAMESPACES + 1];
 
     struct {
         char *nqn;
@@ -32,12 +32,11 @@ typedef struct NvmeSubsystem {
 } NvmeSubsystem;
 
 int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp);
-int nvme_subsys_register_ns(NvmeNamespace *ns, Error **errp);
 
 static inline NvmeCtrl *nvme_subsys_ctrl(NvmeSubsystem *subsys,
         uint32_t cntlid)
 {
-    if (!subsys) {
+    if (!subsys || cntlid >= NVME_SUBSYS_MAX_CTRLS) {
         return NULL;
     }
 
@@ -50,11 +49,9 @@ static inline NvmeCtrl *nvme_subsys_ctrl(NvmeSubsystem *subsys,
 static inline NvmeNamespace *nvme_subsys_ns(NvmeSubsystem *subsys,
         uint32_t nsid)
 {
-    if (!subsys) {
+    if (!subsys || !nsid || nsid > NVME_MAX_NAMESPACES) {
         return NULL;
     }
-
-    assert(nsid && nsid <= NVME_SUBSYS_MAX_NAMESPACES);
 
     return subsys->namespaces[nsid];
 }
