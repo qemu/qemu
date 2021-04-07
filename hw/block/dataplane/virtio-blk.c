@@ -207,7 +207,7 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
                 virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
                 virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
             }
-            goto fail_guest_notifiers;
+            goto fail_host_notifiers;
         }
     }
 
@@ -221,7 +221,7 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     aio_context_release(old_context);
     if (r < 0) {
         error_report_err(local_err);
-        goto fail_guest_notifiers;
+        goto fail_aio_context;
     }
 
     /* Process queued requests before the ones in vring */
@@ -245,6 +245,13 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     aio_context_release(s->ctx);
     return 0;
 
+  fail_aio_context:
+    for (i = 0; i < nvqs; i++) {
+        virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
+        virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
+    }
+  fail_host_notifiers:
+    k->set_guest_notifiers(qbus->parent, nvqs, false);
   fail_guest_notifiers:
     /*
      * If we failed to set up the guest notifiers queued requests will be
