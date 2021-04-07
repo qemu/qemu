@@ -445,18 +445,16 @@ static void write_response_pdma_cb(ESPState *s)
 
 static void write_response(ESPState *s)
 {
-    uint32_t n;
+    uint8_t buf[2];
 
     trace_esp_write_response(s->status);
 
-    fifo8_reset(&s->fifo);
-    esp_fifo_push(s, s->status);
-    esp_fifo_push(s, 0);
+    buf[0] = s->status;
+    buf[1] = 0;
 
     if (s->dma) {
         if (s->dma_memory_write) {
-            s->dma_memory_write(s->dma_opaque,
-                                (uint8_t *)fifo8_pop_buf(&s->fifo, 2, &n), 2);
+            s->dma_memory_write(s->dma_opaque, buf, 2);
             s->rregs[ESP_RSTAT] = STAT_TC | STAT_ST;
             s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
             s->rregs[ESP_RSEQ] = SEQ_CD;
@@ -466,7 +464,8 @@ static void write_response(ESPState *s)
             return;
         }
     } else {
-        s->ti_size = 2;
+        fifo8_reset(&s->fifo);
+        fifo8_push_all(&s->fifo, buf, 2);
         s->rregs[ESP_RFLAGS] = 2;
     }
     esp_raise_irq(s);
