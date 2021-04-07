@@ -1772,6 +1772,7 @@ F: include/hw/scsi/*
 F: hw/scsi/*
 F: tests/qtest/virtio-scsi-test.c
 F: tests/qtest/fuzz-virtio-scsi-test.c
+F: tests/qtest/am53c974-test.c
 T: git https://github.com/bonzini/qemu.git scsi-next
 
 SSI
