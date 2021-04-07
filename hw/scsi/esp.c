@@ -98,16 +98,15 @@ void esp_request_cancelled(SCSIRequest *req)
     }
 }
 
-static void esp_fifo_push(ESPState *s, uint8_t val)
+static void esp_fifo_push(Fifo8 *fifo, uint8_t val)
 {
-    if (fifo8_num_used(&s->fifo) == ESP_FIFO_SZ) {
+    if (fifo8_num_used(fifo) == fifo->capacity) {
         trace_esp_error_fifo_overrun();
         return;
     }
 
-    fifo8_push(&s->fifo, val);
+    fifo8_push(fifo, val);
 }
-
 static uint8_t esp_fifo_pop(ESPState *s)
 {
     if (fifo8_is_empty(&s->fifo)) {
@@ -115,16 +114,6 @@ static uint8_t esp_fifo_pop(ESPState *s)
     }
 
     return fifo8_pop(&s->fifo);
-}
-
-static void esp_cmdfifo_push(ESPState *s, uint8_t val)
-{
-    if (fifo8_num_used(&s->cmdfifo) == ESP_CMDFIFO_SZ) {
-        trace_esp_error_fifo_overrun();
-        return;
-    }
-
-    fifo8_push(&s->cmdfifo, val);
 }
 
 static uint8_t esp_cmdfifo_pop(ESPState *s)
@@ -187,9 +176,9 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
     }
 
     if (s->do_cmd) {
-        esp_cmdfifo_push(s, val);
+        esp_fifo_push(&s->cmdfifo, val);
     } else {
-        esp_fifo_push(s, val);
+        esp_fifo_push(&s->fifo, val);
     }
 
     dmalen--;
@@ -645,7 +634,7 @@ static void esp_do_dma(ESPState *s)
              */
             if (len < esp_get_tc(s) && esp_get_tc(s) <= ESP_FIFO_SZ) {
                 while (fifo8_num_used(&s->fifo) < ESP_FIFO_SZ) {
-                    esp_fifo_push(s, 0);
+                    esp_fifo_push(&s->fifo, 0);
                     len++;
                 }
             }
@@ -947,9 +936,9 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         break;
     case ESP_FIFO:
         if (s->do_cmd) {
-            esp_cmdfifo_push(s, val);
+            esp_fifo_push(&s->cmdfifo, val);
         } else {
-            esp_fifo_push(s, val);
+            esp_fifo_push(&s->fifo, val);
         }
 
         /* Non-DMA transfers raise an interrupt after every byte */
