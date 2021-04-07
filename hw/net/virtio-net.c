@@ -51,8 +51,8 @@
 #define MAX_VLAN    (1 << 12)   /* Per 802.1Q definition */
 
 /* previously fixed value */
-#define VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE 256
-#define VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE 256
+#define VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE 1024
+#define VIRTIO_NET_TX_QUEUE_DEFAULT_SIZE 1024
 
 /* for now, only allow larger queues; with virtio-1, guest can downsize */
 #define VIRTIO_NET_RX_QUEUE_MIN_SIZE VIRTIO_NET_RX_QUEUE_DEFAULT_SIZE
