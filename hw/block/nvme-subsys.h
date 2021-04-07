@@ -49,11 +49,9 @@ static inline NvmeCtrl *nvme_subsys_ctrl(NvmeSubsystem *subsys,
 static inline NvmeNamespace *nvme_subsys_ns(NvmeSubsystem *subsys,
         uint32_t nsid)
 {
-    if (!subsys) {
+    if (!subsys || !nsid || nsid > NVME_MAX_NAMESPACES) {
         return NULL;
     }
-
-    assert(nsid && nsid <= NVME_MAX_NAMESPACES);
 
     return subsys->namespaces[nsid];
 }
