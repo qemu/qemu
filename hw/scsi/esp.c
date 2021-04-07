@@ -284,6 +284,9 @@ static void do_busid_cmd(ESPState *s, uint8_t busid)
     trace_esp_do_busid_cmd(busid);
     lun = busid & 7;
     cmdlen = fifo8_num_used(&s->cmdfifo);
+    if (!cmdlen || !s->current_dev) {
+        return;
+    }
     esp_fifo_pop_buf(&s->cmdfifo, buf, cmdlen);
 
     current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id, lun);
