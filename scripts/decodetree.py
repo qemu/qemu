@@ -27,6 +27,7 @@ import sys
 import getopt
 
 insnwidth = 32
+bitop_width = 32
 insnmask = 0xffffffff
 variablewidth = False
 fields = {}
@@ -112,7 +113,9 @@ def whexC(val):
     """Return a hex string for val padded for insnwidth,
        and with the proper suffix for a C constant."""
     suffix = ''
-    if val >= 0x80000000:
+    if val >= 0x100000000:
+        suffix = 'ull'
+    elif val >= 0x80000000:
         suffix = 'u'
     return whex(val) + suffix
 
@@ -199,11 +202,9 @@ class Field:
         return str(self.pos) + ':' + s + str(self.len)
 
     def str_extract(self):
-        if self.sign:
-            extr = 'sextract32'
-        else:
-            extr = 'extract32'
-        return f'{extr}(insn, {self.pos}, {self.len})'
+        global bitop_width
+        s = 's' if self.sign else ''
+        return f'{s}extract{bitop_width}(insn, {self.pos}, {self.len})'
 
     def __eq__(self, other):
         return self.sign == other.sign and self.mask == other.mask
@@ -224,6 +225,7 @@ class MultiField:
         return str(self.subs)
 
     def str_extract(self):
+        global bitop_width
         ret = '0'
         pos = 0
         for f in reversed(self.subs):
@@ -231,7 +233,7 @@ class MultiField:
             if pos == 0:
                 ret = ext
             else:
-                ret = f'deposit32({ret}, {pos}, {32 - pos}, {ext})'
+                ret = f'deposit{bitop_width}({ret}, {pos}, {bitop_width - pos}, {ext})'
             pos += f.len
         return ret
 
@@ -1270,6 +1272,7 @@ def main():
     global insntype
     global insnmask
     global decode_function
+    global bitop_width
     global variablewidth
     global anyextern
 
@@ -1299,6 +1302,10 @@ def main():
             if insnwidth == 16:
                 insntype = 'uint16_t'
                 insnmask = 0xffff
+            elif insnwidth == 64:
+                insntype = 'uint64_t'
+                insnmask = 0xffffffffffffffff
+                bitop_width = 64
             elif insnwidth != 32:
                 error(0, 'cannot handle insns of width', insnwidth)
         else:
