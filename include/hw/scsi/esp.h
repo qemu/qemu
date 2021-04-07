@@ -157,5 +157,6 @@ void esp_hard_reset(ESPState *s);
 uint64_t esp_reg_read(ESPState *s, uint32_t saddr);
 void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val);
 extern const VMStateDescription vmstate_esp;
+int esp_pre_save(void *opaque);
 
 #endif

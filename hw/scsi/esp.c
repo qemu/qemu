@@ -1076,9 +1076,10 @@ static bool esp_is_version_5(void *opaque, int version_id)
     return version_id == 5;
 }
 
-static int esp_pre_save(void *opaque)
+int esp_pre_save(void *opaque)
 {
-    ESPState *s = ESP(opaque);
+    ESPState *s = ESP(object_resolve_path_component(
+                      OBJECT(opaque), "esp"));
 
     s->mig_version_id = vmstate_esp.version_id;
     return 0;
@@ -1114,7 +1115,6 @@ const VMStateDescription vmstate_esp = {
     .name = "esp",
     .version_id = 5,
     .minimum_version_id = 3,
-    .pre_save = esp_pre_save,
     .post_load = esp_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(rregs, ESPState),
@@ -1304,6 +1304,7 @@ static const VMStateDescription vmstate_sysbus_esp_scsi = {
     .name = "sysbusespscsi",
     .version_id = 2,
     .minimum_version_id = 1,
+    .pre_save = esp_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8_V(esp.mig_version_id, SysBusESPState, 2),
         VMSTATE_STRUCT(esp, SysBusESPState, 0, vmstate_esp, ESPState),
