@@ -2843,7 +2843,8 @@ static uint16_t nvme_compare(NvmeCtrl *n, NvmeRequest *req)
 
     block_acct_start(blk_get_stats(blk), &req->acct, data_len,
                      BLOCK_ACCT_READ);
-    blk_aio_preadv(blk, offset, &ctx->data.iov, 0, nvme_compare_data_cb, req);
+    req->aiocb = blk_aio_preadv(blk, offset, &ctx->data.iov, 0,
+                                nvme_compare_data_cb, req);
 
     return NVME_NO_COMPLETE;
 }
