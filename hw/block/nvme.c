@@ -470,6 +470,7 @@ static void nvme_req_clear(NvmeRequest *req)
 {
     req->ns = NULL;
     req->opaque = NULL;
+    req->aiocb = NULL;
     memset(&req->cqe, 0x0, sizeof(req->cqe));
     req->status = NVME_SUCCESS;
 }
@@ -3687,6 +3688,7 @@ static uint16_t nvme_del_sq(NvmeCtrl *n, NvmeRequest *req)
     NvmeSQueue *sq;
     NvmeCQueue *cq;
     uint16_t qid = le16_to_cpu(c->qid);
+    uint32_t nsid;
 
     if (unlikely(!qid || nvme_check_sqid(n, qid))) {
         trace_pci_nvme_err_invalid_del_sq(qid);
@@ -3698,9 +3700,26 @@ static uint16_t nvme_del_sq(NvmeCtrl *n, NvmeRequest *req)
     sq = n->sq[qid];
     while (!QTAILQ_EMPTY(&sq->out_req_list)) {
         r = QTAILQ_FIRST(&sq->out_req_list);
-        assert(r->aiocb);
-        blk_aio_cancel(r->aiocb);
+        if (r->aiocb) {
+            blk_aio_cancel(r->aiocb);
+        }
     }
+
+    /*
+     * Drain all namespaces if there are still outstanding requests that we
+     * could not cancel explicitly.
+     */
+    if (!QTAILQ_EMPTY(&sq->out_req_list)) {
+        for (nsid = 1; nsid <= NVME_MAX_NAMESPACES; nsid++) {
+            NvmeNamespace *ns = nvme_ns(n, nsid);
+            if (ns) {
+                nvme_ns_drain(ns);
+            }
+        }
+    }
+
+    assert(QTAILQ_EMPTY(&sq->out_req_list));
+
     if (!nvme_check_cqid(n, sq->cqid)) {
         cq = n->cq[sq->cqid];
         QTAILQ_REMOVE(&cq->sq_list, sq, entry);
