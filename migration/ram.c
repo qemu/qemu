@@ -1455,7 +1455,7 @@ static RAMBlock *poll_fault_page(RAMState *rs, ram_addr_t *offset)
 {
     struct uffd_msg uffd_msg;
     void *page_address;
-    RAMBlock *bs;
+    RAMBlock *block;
     int res;
 
     if (!migrate_background_snapshot()) {
@@ -1468,9 +1468,9 @@ static RAMBlock *poll_fault_page(RAMState *rs, ram_addr_t *offset)
     }
 
     page_address = (void *)(uintptr_t) uffd_msg.arg.pagefault.address;
-    bs = qemu_ram_block_from_host(page_address, false, offset);
-    assert(bs && (bs->flags & RAM_UF_WRITEPROTECT) != 0);
-    return bs;
+    block = qemu_ram_block_from_host(page_address, false, offset);
+    assert(block && (block->flags & RAM_UF_WRITEPROTECT) != 0);
+    return block;
 }
 
 /**
@@ -1526,7 +1526,7 @@ bool ram_write_tracking_compatible(void)
 {
     const uint64_t uffd_ioctls_mask = BIT(_UFFDIO_WRITEPROTECT);
     int uffd_fd;
-    RAMBlock *bs;
+    RAMBlock *block;
     bool ret = false;
 
     /* Open UFFD file descriptor */
@@ -1537,15 +1537,15 @@ bool ram_write_tracking_compatible(void)
 
     RCU_READ_LOCK_GUARD();
 
-    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
+    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
         uint64_t uffd_ioctls;
 
         /* Nothing to do with read-only and MMIO-writable regions */
-        if (bs->mr->readonly || bs->mr->rom_device) {
+        if (block->mr->readonly || block->mr->rom_device) {
             continue;
         }
         /* Try to register block memory via UFFD-IO to track writes */
-        if (uffd_register_memory(uffd_fd, bs->host, bs->max_length,
+        if (uffd_register_memory(uffd_fd, block->host, block->max_length,
                 UFFDIO_REGISTER_MODE_WP, &uffd_ioctls)) {
             goto out;
         }
@@ -1561,6 +1561,55 @@ out:
 }
 
 /*
+ * ram_block_populate_pages: populate memory in the RAM block by reading
+ *   an integer from the beginning of each page.
+ *
+ * Since it's solely used for userfault_fd WP feature, here we just
+ *   hardcode page size to qemu_real_host_page_size.
+ *
+ * @block: RAM block to populate
+ */
+static void ram_block_populate_pages(RAMBlock *block)
+{
+    char *ptr = (char *) block->host;
+
+    for (ram_addr_t offset = 0; offset < block->used_length;
+            offset += qemu_real_host_page_size) {
+        char tmp = *(ptr + offset);
+
+        /* Don't optimize the read out */
+        asm volatile("" : "+r" (tmp));
+    }
+}
+
+/*
+ * ram_write_tracking_prepare: prepare for UFFD-WP memory tracking
+ */
+void ram_write_tracking_prepare(void)
+{
+    RAMBlock *block;
+
+    RCU_READ_LOCK_GUARD();
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+        /* Nothing to do with read-only and MMIO-writable regions */
+        if (block->mr->readonly || block->mr->rom_device) {
+            continue;
+        }
+
+        /*
+         * Populate pages of the RAM block before enabling userfault_fd
+         * write protection.
+         *
+         * This stage is required since ioctl(UFFDIO_WRITEPROTECT) with
+         * UFFDIO_WRITEPROTECT_MODE_WP mode setting would silently skip
+         * pages with pte_none() entries in page table.
+         */
+        ram_block_populate_pages(block);
+    }
+}
+
+/*
  * ram_write_tracking_start: start UFFD-WP memory tracking
  *
  * Returns 0 for success or negative value in case of error
@@ -1569,7 +1618,7 @@ int ram_write_tracking_start(void)
 {
     int uffd_fd;
     RAMState *rs = ram_state;
-    RAMBlock *bs;
+    RAMBlock *block;
 
     /* Open UFFD file descriptor */
     uffd_fd = uffd_create_fd(UFFD_FEATURE_PAGEFAULT_FLAG_WP, true);
@@ -1580,27 +1629,27 @@ int ram_write_tracking_start(void)
 
     RCU_READ_LOCK_GUARD();
 
-    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
+    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
         /* Nothing to do with read-only and MMIO-writable regions */
-        if (bs->mr->readonly || bs->mr->rom_device) {
+        if (block->mr->readonly || block->mr->rom_device) {
             continue;
         }
 
         /* Register block memory with UFFD to track writes */
-        if (uffd_register_memory(rs->uffdio_fd, bs->host,
-                bs->max_length, UFFDIO_REGISTER_MODE_WP, NULL)) {
+        if (uffd_register_memory(rs->uffdio_fd, block->host,
+                block->max_length, UFFDIO_REGISTER_MODE_WP, NULL)) {
             goto fail;
         }
         /* Apply UFFD write protection to the block memory range */
-        if (uffd_change_protection(rs->uffdio_fd, bs->host,
-                bs->max_length, true, false)) {
+        if (uffd_change_protection(rs->uffdio_fd, block->host,
+                block->max_length, true, false)) {
             goto fail;
         }
-        bs->flags |= RAM_UF_WRITEPROTECT;
-        memory_region_ref(bs->mr);
+        block->flags |= RAM_UF_WRITEPROTECT;
+        memory_region_ref(block->mr);
 
-        trace_ram_write_tracking_ramblock_start(bs->idstr, bs->page_size,
-                bs->host, bs->max_length);
+        trace_ram_write_tracking_ramblock_start(block->idstr, block->page_size,
+                block->host, block->max_length);
     }
 
     return 0;
@@ -1608,19 +1657,20 @@ int ram_write_tracking_start(void)
 fail:
     error_report("ram_write_tracking_start() failed: restoring initial memory state");
 
-    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
-        if ((bs->flags & RAM_UF_WRITEPROTECT) == 0) {
+    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+        if ((block->flags & RAM_UF_WRITEPROTECT) == 0) {
             continue;
         }
         /*
          * In case some memory block failed to be write-protected
          * remove protection and unregister all succeeded RAM blocks
          */
-        uffd_change_protection(rs->uffdio_fd, bs->host, bs->max_length, false, false);
-        uffd_unregister_memory(rs->uffdio_fd, bs->host, bs->max_length);
+        uffd_change_protection(rs->uffdio_fd, block->host, block->max_length,
+                false, false);
+        uffd_unregister_memory(rs->uffdio_fd, block->host, block->max_length);
         /* Cleanup flags and remove reference */
-        bs->flags &= ~RAM_UF_WRITEPROTECT;
-        memory_region_unref(bs->mr);
+        block->flags &= ~RAM_UF_WRITEPROTECT;
+        memory_region_unref(block->mr);
     }
 
     uffd_close_fd(uffd_fd);
@@ -1634,24 +1684,25 @@ fail:
 void ram_write_tracking_stop(void)
 {
     RAMState *rs = ram_state;
-    RAMBlock *bs;
+    RAMBlock *block;
 
     RCU_READ_LOCK_GUARD();
 
-    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
-        if ((bs->flags & RAM_UF_WRITEPROTECT) == 0) {
+    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+        if ((block->flags & RAM_UF_WRITEPROTECT) == 0) {
             continue;
         }
         /* Remove protection and unregister all affected RAM blocks */
-        uffd_change_protection(rs->uffdio_fd, bs->host, bs->max_length, false, false);
-        uffd_unregister_memory(rs->uffdio_fd, bs->host, bs->max_length);
+        uffd_change_protection(rs->uffdio_fd, block->host, block->max_length,
+                false, false);
+        uffd_unregister_memory(rs->uffdio_fd, block->host, block->max_length);
 
-        trace_ram_write_tracking_ramblock_stop(bs->idstr, bs->page_size,
-                bs->host, bs->max_length);
+        trace_ram_write_tracking_ramblock_stop(block->idstr, block->page_size,
+                block->host, block->max_length);
 
         /* Cleanup flags and remove reference */
-        bs->flags &= ~RAM_UF_WRITEPROTECT;
-        memory_region_unref(bs->mr);
+        block->flags &= ~RAM_UF_WRITEPROTECT;
+        memory_region_unref(block->mr);
     }
 
     /* Finally close UFFD file descriptor */

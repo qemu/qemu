@@ -102,7 +102,7 @@ class Engine(object):
             info.get("downtime", 0),
             info.get("expected-downtime", 0),
             info.get("setup-time", 0),
-            info.get("x-cpu-throttle-percentage", 0),
+            info.get("cpu-throttle-percentage", 0),
         )
 
     def _migrate(self, hardware, scenario, src, dst, connect_uri):
@@ -135,7 +135,7 @@ class Engine(object):
                                      "state": True }
                                ])
             resp = src.command("migrate-set-parameters",
-                               x_cpu_throttle_increment=scenario._auto_converge_step)
+                               cpu_throttle_increment=scenario._auto_converge_step)
 
         if scenario._post_copy:
             resp = src.command("migrate-set-capabilities",

@@ -2636,7 +2636,8 @@ static void parse_xattrmap(struct lo_data *lo)
                 strerror(ret));
         exit(1);
     }
-    if (!strcmp(lo->xattr_security_capability, "security.capability")) {
+    if (!lo->xattr_security_capability ||
+        !strcmp(lo->xattr_security_capability, "security.capability")) {
         /* 1-1 mapping, don't need to do anything */
         free(lo->xattr_security_capability);
         lo->xattr_security_capability = NULL;
