@@ -45,7 +45,66 @@ Here are some useful tips in order to use gdb on system code:
 3. Use ``set architecture i8086`` to dump 16 bit code. Then use
    ``x/10i $cs*16+$eip`` to dump the code at the PC position.
 
-Advanced debugging options:
+Debugging multicore machines
+============================
+
+GDB's abstraction for debugging targets with multiple possible
+parallel flows of execution is a two layer one: it supports multiple
+"inferiors", each of which can have multiple "threads". When the QEMU
+machine has more than one CPU, QEMU exposes each CPU cluster as a
+separate "inferior", where each CPU within the cluster is a separate
+"thread". Most QEMU machine types have identical CPUs, so there is a
+single cluster which has all the CPUs in it.  A few machine types are
+heterogenous and have multiple clusters: for example the ``sifive_u``
+machine has a cluster with one E51 core and a second cluster with four
+U54 cores. Here the E51 is the only thread in the first inferior, and
+the U54 cores are all threads in the second inferior.
+
+When you connect gdb to the gdbstub, it will automatically
+connect to the first inferior; you can display the CPUs in this
+cluster using the gdb ``info thread`` command, and switch between
+them using gdb's usual thread-management commands.
+
+For multi-cluster machines, unfortunately gdb does not by default
+handle multiple inferiors, and so you have to explicitly connect
+to them. First, you must connect with the ``extended-remote``
+protocol, not ``remote``::
+
+    (gdb) target extended-remote localhost:1234
+
+Once connected, gdb will have a single inferior, for the
+first cluster. You need to create inferiors for the other
+clusters and attach to them, like this::
+
+  (gdb) add-inferior
+  Added inferior 2
+  (gdb) inferior 2
+  [Switching to inferior 2 [<null>] (<noexec>)]
+  (gdb) attach 2
+  Attaching to process 2
+  warning: No executable has been specified and target does not support
+  determining executable automatically.  Try using the "file" command.
+  0x00000000 in ?? ()
+
+Once you've done this, ``info threads`` will show CPUs in
+all the clusters you have attached to::
+
+  (gdb) info threads
+    Id   Target Id         Frame
+    1.1  Thread 1.1 (cortex-m33-arm-cpu cpu [running]) 0x00000000 in ?? ()
+  * 2.1  Thread 2.2 (cortex-m33-arm-cpu cpu [halted ]) 0x00000000 in ?? ()
+
+You probably also want to set gdb to ``schedule-multiple`` mode,
+so that when you tell gdb to ``continue`` it resumes all CPUs,
+not just those in the cluster you are currently working on::
+
+  (gdb) set schedule-multiple on
+
+Advanced debugging options
+==========================
+
+Changing single-stepping behaviour
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The default single stepping behavior is step with the IRQs and timer
 service routines off. It is set this way because when gdb executes a
@@ -88,6 +147,8 @@ three commands you can query and set the single step behavior:
       sending: "qemu.sstep=0x5"
       received: "OK"
 
+Examining physical memory
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Another feature that QEMU gdbstub provides is to toggle the memory GDB
 works with, by default GDB will show the current process memory respecting

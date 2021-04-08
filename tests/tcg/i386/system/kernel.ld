@@ -12,7 +12,7 @@ SECTIONS {
 	}
 
 	.data : {
-		*(.data)
+		*(.data*)
 		__load_en = .;
 	}
 
