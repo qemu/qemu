@@ -600,7 +600,6 @@ int net_init_bridge(const Netdev *netdev, const char *name,
     const char *helper, *br;
     TAPState *s;
     int fd, vnet_hdr;
-    NetdevBridgeOptions *stored;
 
     assert(netdev->type == NET_CLIENT_DRIVER_BRIDGE);
     bridge = &netdev->u.bridge;
@@ -620,20 +619,8 @@ int net_init_bridge(const Netdev *netdev, const char *name,
     }
     s = net_tap_fd_init(peer, "bridge", name, fd, vnet_hdr);
 
-    /* Store startup parameters */
-    s->nc.stored_config = g_new0(NetdevInfo, 1);
-    s->nc.stored_config->type = NET_BACKEND_BRIDGE;
-    stored = &s->nc.stored_config->u.bridge;
-
-    if (br) {
-        stored->has_br = true;
-        stored->br = g_strdup(br);
-    }
-
-    if (helper) {
-        stored->has_helper = true;
-        stored->helper = g_strdup(helper);
-    }
+    snprintf(s->nc.info_str, sizeof(s->nc.info_str), "helper=%s,br=%s", helper,
+             br);
 
     return 0;
 }
@@ -679,13 +666,11 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                              const char *model, const char *name,
                              const char *ifname, const char *script,
                              const char *downscript, const char *vhostfdname,
-                             int vnet_hdr, int fd, NetdevInfo **common_stored,
-                             Error **errp)
+                             int vnet_hdr, int fd, Error **errp)
 {
     Error *err = NULL;
     TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
     int vhostfd;
-    NetdevTapOptions *stored;
 
     tap_set_sndbuf(s->fd, tap, &err);
     if (err) {
@@ -693,59 +678,15 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         return;
     }
 
-    /* Store startup parameters */
-    if (!*common_stored) {
-        *common_stored = g_new0(NetdevInfo, 1);
-        (*common_stored)->type = NET_BACKEND_TAP;
-        s->nc.stored_config = *common_stored;
-    }
-    stored = &(*common_stored)->u.tap;
-
-    if (tap->has_sndbuf && !stored->has_sndbuf) {
-        stored->has_sndbuf = true;
-        stored->sndbuf = tap->sndbuf;
-    }
-
-    if (vnet_hdr && !stored->has_vnet_hdr) {
-        stored->has_vnet_hdr = true;
-        stored->vnet_hdr = true;
-    }
-
     if (tap->has_fd || tap->has_fds) {
-        if (!stored->has_fds) {
-            stored->has_fds = true;
-            stored->fds = g_strdup_printf("%d", fd);
-        } else {
-            char *tmp_s = stored->fds;
-            stored->fds = g_strdup_printf("%s:%d", stored->fds, fd);
-            g_free(tmp_s);
-        }
+        snprintf(s->nc.info_str, sizeof(s->nc.info_str), "fd=%d", fd);
     } else if (tap->has_helper) {
-        if (!stored->has_helper) {
-            stored->has_helper = true;
-            stored->helper = g_strdup(tap->helper);
-        }
-
-        if (!stored->has_br) {
-            stored->has_br = true;
-            stored->br = tap->has_br ? g_strdup(tap->br) :
-                                       g_strdup(DEFAULT_BRIDGE_INTERFACE);
-        }
+        snprintf(s->nc.info_str, sizeof(s->nc.info_str), "helper=%s",
+                 tap->helper);
     } else {
-        if (ifname && !stored->has_ifname) {
-            stored->has_ifname = true;
-            stored->ifname = g_strdup(ifname);
-        }
-
-        if (script && !stored->has_script) {
-            stored->has_script = true;
-            stored->script = g_strdup(script);
-        }
-
-        if (downscript && !stored->has_downscript) {
-            stored->has_downscript = true;
-            stored->downscript = g_strdup(downscript);
-        }
+        snprintf(s->nc.info_str, sizeof(s->nc.info_str),
+                 "ifname=%s,script=%s,downscript=%s", ifname, script,
+                 downscript);
 
         if (strcmp(downscript, "no") != 0) {
             snprintf(s->down_script, sizeof(s->down_script), "%s", downscript);
@@ -758,20 +699,9 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         vhostfdname || (tap->has_vhostforce && tap->vhostforce)) {
         VhostNetOptions options;
 
-        stored->has_vhost = true;
-        stored->vhost = true;
-
-        if (tap->has_vhostforce && tap->vhostforce) {
-            stored->has_vhostforce = true;
-            stored->vhostforce = true;
-        }
-
         options.backend_type = VHOST_BACKEND_TYPE_KERNEL;
         options.net_backend = &s->nc;
         if (tap->has_poll_us) {
-            stored->has_poll_us = true;
-            stored->poll_us = tap->poll_us;
-
             options.busyloop_timeout = tap->poll_us;
         } else {
             options.busyloop_timeout = 0;
@@ -810,15 +740,6 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
             qemu_set_nonblock(vhostfd);
         }
         options.opaque = (void *)(uintptr_t)vhostfd;
-
-        if (!stored->has_vhostfds) {
-            stored->has_vhostfds = true;
-            stored->vhostfds = g_strdup_printf("%d", vhostfd);
-        } else {
-            char *tmp_s = stored->vhostfds;
-            stored->vhostfds = g_strdup_printf("%s:%d", stored->fds, vhostfd);
-            g_free(tmp_s);
-        }
 
         s->vhost_net = vhost_net_init(&options);
         if (!s->vhost_net) {
@@ -872,7 +793,6 @@ int net_init_tap(const Netdev *netdev, const char *name,
     const char *vhostfdname;
     char ifname[128];
     int ret = 0;
-    NetdevInfo *common_stored = NULL; /* will store configuration */
 
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
     tap = &netdev->u.tap;
@@ -919,7 +839,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
         net_init_tap_one(tap, peer, "tap", name, NULL,
                          script, downscript,
-                         vhostfdname, vnet_hdr, fd, &common_stored, &err);
+                         vhostfdname, vnet_hdr, fd, &err);
         if (err) {
             error_propagate(errp, err);
             close(fd);
@@ -982,7 +902,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
             net_init_tap_one(tap, peer, "tap", name, ifname,
                              script, downscript,
                              tap->has_vhostfds ? vhost_fds[i] : NULL,
-                             vnet_hdr, fd, &common_stored, &err);
+                             vnet_hdr, fd, &err);
             if (err) {
                 error_propagate(errp, err);
                 ret = -1;
@@ -1025,7 +945,7 @@ free_fail:
 
         net_init_tap_one(tap, peer, "bridge", name, ifname,
                          script, downscript, vhostfdname,
-                         vnet_hdr, fd, &common_stored, &err);
+                         vnet_hdr, fd, &err);
         if (err) {
             error_propagate(errp, err);
             close(fd);
@@ -1071,8 +991,7 @@ free_fail:
             net_init_tap_one(tap, peer, "tap", name, ifname,
                              i >= 1 ? "no" : script,
                              i >= 1 ? "no" : downscript,
-                             vhostfdname, vnet_hdr, fd,
-                             &common_stored, &err);
+                             vhostfdname, vnet_hdr, fd, &err);
             if (err) {
                 error_propagate(errp, err);
                 close(fd);

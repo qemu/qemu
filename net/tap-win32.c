@@ -686,7 +686,7 @@ static ssize_t tap_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 static void tap_win32_send(void *opaque)
 {
     TAPState *s = opaque;
-    uint8_t *buf;
+    uint8_t *buf, *orig_buf;
     int max_size = 4096;
     int size;
     uint8_t min_pkt[ETH_ZLEN];
@@ -694,6 +694,8 @@ static void tap_win32_send(void *opaque)
 
     size = tap_win32_read(s->handle, &buf, max_size);
     if (size > 0) {
+        orig_buf = buf;
+
         if (!s->nc.peer->do_not_pad) {
             if (eth_pad_short_frame(min_pkt, &min_pktsz, buf, size)) {
                 buf = min_pkt;
@@ -702,7 +704,7 @@ static void tap_win32_send(void *opaque)
         }
 
         qemu_send_packet(&s->nc, buf, size);
-        tap_win32_free_buffer(s->handle, buf);
+        tap_win32_free_buffer(s->handle, orig_buf);
     }
 }
 
@@ -778,7 +780,6 @@ static int tap_win32_init(NetClientState *peer, const char *model,
     NetClientState *nc;
     TAPState *s;
     tap_win32_overlapped_t *handle;
-    NetdevTapOptions *stored;
 
     if (tap_win32_open(&handle, ifname) < 0) {
         printf("tap: Could not open '%s'\n", ifname);
@@ -789,13 +790,8 @@ static int tap_win32_init(NetClientState *peer, const char *model,
 
     s = DO_UPCAST(TAPState, nc, nc);
 
-    /* Store startup parameters */
-    nc->stored_config = g_new0(NetdevInfo, 1);
-    nc->stored_config->type = NET_BACKEND_TAP;
-    stored = &nc->stored_config->u.tap;
-
-    stored->has_ifname = true;
-    stored->ifname = g_strdup(ifname);
+    snprintf(s->nc.info_str, sizeof(s->nc.info_str),
+             "tap: ifname=%s", ifname);
 
     s->handle = handle;
 
