@@ -23,6 +23,7 @@ Contents:
    net
    virtio-net-failover
    usb
+   nvme
    ivshmem
    linuxboot
    generic-loader
