@@ -15,7 +15,6 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#define QEMU_GENERATE
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "cpu.h"
@@ -24,7 +23,9 @@
 #include "insn.h"
 #include "opcodes.h"
 #include "translate.h"
+#define QEMU_GENERATE       /* Used internally by macros.h */
 #include "macros.h"
+#undef QEMU_GENERATE
 #include "gen_tcg.h"
 
 static inline TCGv gen_read_preg(TCGv pred, uint8_t num)
