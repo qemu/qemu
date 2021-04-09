@@ -238,7 +238,7 @@ static const RAMInfo an524_raminfo[] = { {
         .name = "sram",
         .base = 0x20000000,
         .size = 32 * 4 * KiB,
-        .mpc = 1,
+        .mpc = -1,
         .mrindex = 1,
     }, {
         /* We don't model QSPI flash yet; for now expose it as simple ROM */
