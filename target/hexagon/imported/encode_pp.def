@@ -1642,6 +1642,7 @@ SH2_RR_ENC(F2_conv_sf2w,          "1011","100","-","000","ddddd")
 SH2_RR_ENC(F2_conv_sf2uw_chop,    "1011","011","-","001","ddddd")
 SH2_RR_ENC(F2_conv_sf2w_chop,     "1011","100","-","001","ddddd")
 SH2_RR_ENC(F2_sffixupr,           "1011","101","-","000","ddddd")
+SH2_RR_ENC(F2_sfinvsqrta,         "1011","111","-","0ee","ddddd")
 
 
 DEF_FIELDROW_DESC32(ICLASS_S2op"      1100 -------- PP------ --------","[#12] Rd=(Rs,#u6)")

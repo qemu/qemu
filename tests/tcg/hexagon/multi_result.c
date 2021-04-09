@@ -31,6 +31,20 @@ static int sfrecipa(int Rs, int Rt, int *pred_result)
   return result;
 }
 
+static int sfinvsqrta(int Rs, int *pred_result)
+{
+  int result;
+  int predval;
+
+  asm volatile("%0,p0 = sfinvsqrta(%2)\n\t"
+               "%1 = p0\n\t"
+               : "+r"(result), "=r"(predval)
+               : "r"(Rs)
+               : "p0");
+  *pred_result = predval;
+  return result;
+}
+
 int err;
 
 static void check(int val, int expect)
@@ -59,9 +73,24 @@ static void test_sfrecipa()
     check_p(pred_result, 0x00);
 }
 
+static void test_sfinvsqrta()
+{
+    int res;
+    int pred_result;
+
+    res = sfinvsqrta(0x04030201, &pred_result);
+    check(res, 0x4d330000);
+    check_p(pred_result, 0xe0);
+
+    res = sfinvsqrta(0x0, &pred_result);
+    check(res, 0x3f800000);
+    check_p(pred_result, 0x0);
+}
+
 int main()
 {
     test_sfrecipa();
+    test_sfinvsqrta();
 
     puts(err ? "FAIL" : "PASS");
     return err;

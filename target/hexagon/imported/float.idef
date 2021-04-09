@@ -178,6 +178,22 @@ Q6INSN(F2_sffixupd,"Rd32=sffixupd(Rs32,Rt32)",ATTRIBS(),
     RdV = RtV;
 })
 
+Q6INSN(F2_sfinvsqrta,"Rd32,Pe4=sfinvsqrta(Rs32)",ATTRIBS(),
+"Reciprocal Square Root Approximation",
+{
+    fHIDE(int idx;)
+    fHIDE(int adjust;)
+    fHIDE(int mant;)
+    fHIDE(int exp;)
+    if (fSF_INVSQRT_COMMON(RsV,RdV,adjust)) {
+        PeV = adjust;
+        idx = (RsV >> 17) & 0x7f;
+        mant = (fSF_INVSQRT_LOOKUP(idx) << 15);
+        exp = fSF_BIAS() - ((fSF_GETEXP(RsV) - fSF_BIAS()) >> 1) - 1;
+        RdV = fMAKESF(fGETBIT(31,RsV),exp,mant);
+    }
+})
+
 Q6INSN(F2_sffixupr,"Rd32=sffixupr(Rs32)",ATTRIBS(),
 "Fix Up Radicand",
 {

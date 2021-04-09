@@ -32,4 +32,6 @@ int arch_sf_invsqrt_common(float32 *Rs, float32 *Rd, int *adjust,
 
 extern const uint8_t recip_lookup_table[128];
 
+extern const uint8_t invsqrt_lookup_table[128];
+
 #endif

@@ -441,6 +441,20 @@ static void check_canonical_NaN(void)
     check_fpstatus(usr, 0);
 }
 
+static void check_invsqrta(void)
+{
+    int result;
+    int predval;
+
+    asm volatile("%0,p0 = sfinvsqrta(%2)\n\t"
+                 "%1 = p0\n\t"
+                 : "+r"(result), "=r"(predval)
+                 : "r"(0x7f800000)
+                 : "p0");
+    check32(result, 0xff800000);
+    check32(predval, 0x0);
+}
+
 static void check_float2int_convs()
 {
     int res32;
@@ -590,6 +604,7 @@ int main()
     check_dfminmax();
     check_recip_exception();
     check_canonical_NaN();
+    check_invsqrta();
     check_float2int_convs();
 
     puts(err ? "FAIL" : "PASS");

@@ -326,6 +326,27 @@ uint64_t HELPER(sfrecipa)(CPUHexagonState *env, float32 RsV, float32 RtV)
     return ((uint64_t)RdV << 32) | PeV;
 }
 
+uint64_t HELPER(sfinvsqrta)(CPUHexagonState *env, float32 RsV)
+{
+    int PeV = 0;
+    float32 RdV;
+    int idx;
+    int adjust;
+    int mant;
+    int exp;
+
+    arch_fpop_start(env);
+    if (arch_sf_invsqrt_common(&RsV, &RdV, &adjust, &env->fp_status)) {
+        PeV = adjust;
+        idx = (RsV >> 17) & 0x7f;
+        mant = (invsqrt_lookup_table[idx] << 15);
+        exp = SF_BIAS - ((float32_getexp(RsV) - SF_BIAS) >> 1) - 1;
+        RdV = build_float32(extract32(RsV, 31, 1), exp, mant);
+    }
+    arch_fpop_end(env);
+    return ((uint64_t)RdV << 32) | PeV;
+}
+
 /*
  * mem_noshuf
  * Section 5.5 of the Hexagon V67 Programmer's Reference Manual
