@@ -43,6 +43,7 @@ HEX_TESTS += dual_stores
 HEX_TESTS += multi_result
 HEX_TESTS += mem_noshuf
 HEX_TESTS += circ
+HEX_TESTS += brev
 HEX_TESTS += atomics
 HEX_TESTS += fpstuff
 

@@ -37,6 +37,7 @@
  *     _sp       stack pointer relative            r0 = memw(r29+#12)
  *     _ap       absolute set                      r0 = memw(r1=##variable)
  *     _pr       post increment register           r0 = memw(r1++m1)
+ *     _pbr      post increment bit reverse        r0 = memw(r1++m1:brev)
  *     _pi       post increment immediate          r0 = memb(r1++#1)
  *     _pci      post increment circular immediate r0 = memw(r1++#4:circ(m0))
  *     _pcr      post increment circular register  r0 = memw(r1++I:circ(m0))
@@ -52,6 +53,11 @@
     do { \
         fEA_REG(RxV); \
         fPM_M(RxV, MuV); \
+    } while (0)
+#define GET_EA_pbr \
+    do { \
+        gen_helper_fbrev(EA, RxV); \
+        tcg_gen_add_tl(RxV, RxV, MuV); \
     } while (0)
 #define GET_EA_pi \
     do { \
@@ -128,16 +134,22 @@
       fGEN_TCG_LOAD_pcr(3, fLOAD(1, 8, u, EA, RddV))
 
 #define fGEN_TCG_L2_loadrub_pr(SHORTCODE)      SHORTCODE
+#define fGEN_TCG_L2_loadrub_pbr(SHORTCODE)     SHORTCODE
 #define fGEN_TCG_L2_loadrub_pi(SHORTCODE)      SHORTCODE
 #define fGEN_TCG_L2_loadrb_pr(SHORTCODE)       SHORTCODE
+#define fGEN_TCG_L2_loadrb_pbr(SHORTCODE)      SHORTCODE
 #define fGEN_TCG_L2_loadrb_pi(SHORTCODE)       SHORTCODE
 #define fGEN_TCG_L2_loadruh_pr(SHORTCODE)      SHORTCODE
+#define fGEN_TCG_L2_loadruh_pbr(SHORTCODE)     SHORTCODE
 #define fGEN_TCG_L2_loadruh_pi(SHORTCODE)      SHORTCODE
 #define fGEN_TCG_L2_loadrh_pr(SHORTCODE)       SHORTCODE
+#define fGEN_TCG_L2_loadrh_pbr(SHORTCODE)      SHORTCODE
 #define fGEN_TCG_L2_loadrh_pi(SHORTCODE)       SHORTCODE
 #define fGEN_TCG_L2_loadri_pr(SHORTCODE)       SHORTCODE
+#define fGEN_TCG_L2_loadri_pbr(SHORTCODE)      SHORTCODE
 #define fGEN_TCG_L2_loadri_pi(SHORTCODE)       SHORTCODE
 #define fGEN_TCG_L2_loadrd_pr(SHORTCODE)       SHORTCODE
+#define fGEN_TCG_L2_loadrd_pbr(SHORTCODE)      SHORTCODE
 #define fGEN_TCG_L2_loadrd_pi(SHORTCODE)       SHORTCODE
 
 /*
@@ -265,41 +277,57 @@
         tcg_temp_free(BYTE); \
     } while (0)
 
+#define fGEN_TCG_S2_storerb_pbr(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerb_pci(SHORTCODE) \
     fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerb_pcr(SHORTCODE) \
     fGEN_TCG_STORE_pcr(0, fSTORE(1, 1, EA, fGETBYTE(0, RtV)))
 
+#define fGEN_TCG_S2_storerh_pbr(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerh_pci(SHORTCODE) \
     fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerh_pcr(SHORTCODE) \
     fGEN_TCG_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(0, RtV)))
 
+#define fGEN_TCG_S2_storerf_pbr(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerf_pci(SHORTCODE) \
     fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerf_pcr(SHORTCODE) \
     fGEN_TCG_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(1, RtV)))
 
+#define fGEN_TCG_S2_storeri_pbr(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storeri_pci(SHORTCODE) \
     fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storeri_pcr(SHORTCODE) \
     fGEN_TCG_STORE_pcr(2, fSTORE(1, 4, EA, RtV))
 
+#define fGEN_TCG_S2_storerd_pbr(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerd_pci(SHORTCODE) \
     fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerd_pcr(SHORTCODE) \
     fGEN_TCG_STORE_pcr(3, fSTORE(1, 8, EA, RttV))
 
+#define fGEN_TCG_S2_storerbnew_pbr(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerbnew_pci(SHORTCODE) \
     fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerbnew_pcr(SHORTCODE) \
     fGEN_TCG_STORE_pcr(0, fSTORE(1, 1, EA, fGETBYTE(0, NtN)))
 
+#define fGEN_TCG_S2_storerhnew_pbr(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerhnew_pci(SHORTCODE) \
     fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerhnew_pcr(SHORTCODE) \
     fGEN_TCG_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(0, NtN)))
 
+#define fGEN_TCG_S2_storerinew_pbr(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerinew_pci(SHORTCODE) \
     fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerinew_pcr(SHORTCODE) \

@@ -819,6 +819,12 @@ DEF_MACRO(
 )
 
 DEF_MACRO(
+    fEA_BREVR, /* Calculate EA with bit reversed bottom of REGISTER */
+    EA=fbrev(REG),
+    ()
+)
+
+DEF_MACRO(
     fEA_GPI, /* Calculate EA with Global Poitner + Immediate */
     do { EA=fREAD_GP()+IMM; fGP_DOCHKPAGECROSS(fREAD_GP(),EA); } while (0),
     ()

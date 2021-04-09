@@ -281,6 +281,14 @@ int32_t HELPER(fcircadd)(int32_t RxV, int32_t offset, int32_t M, int32_t CS)
     return new_ptr;
 }
 
+uint32_t HELPER(fbrev)(uint32_t addr)
+{
+    /*
+     *  Bit reverse the low 16 bits of the address
+     */
+    return deposit32(addr, 0, 16, revbit16(addr));
+}
+
 static float32 build_float32(uint8_t sign, uint32_t exp, uint32_t mant)
 {
     return make_float32(

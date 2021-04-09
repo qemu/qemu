@@ -301,6 +301,7 @@ DEF_CLASS32(ICLASS_LD" 101- -------- PP1----- --------",LD_ADDR_POST_IMMED_PRED_
 DEF_CLASS32(ICLASS_LD" 110- -------- PP-0---- 0-------",LD_ADDR_POST_REG)
 DEF_CLASS32(ICLASS_LD" 110- -------- PP-1---- --------",LD_ADDR_ABS_PLUS_REG_V4)
 DEF_CLASS32(ICLASS_LD" 100- -------- PP----1- --------",LD_ADDR_POST_CREG_V2)
+DEF_CLASS32(ICLASS_LD" 111- -------- PP------ 0-------",LD_ADDR_POST_BREV_REG)
 DEF_CLASS32(ICLASS_LD" 111- -------- PP------ 1-------",LD_ADDR_PRED_ABS_V4)
 
 DEF_FIELD32(ICLASS_LD" !!!- -------- PP------ --------",LD_Amode,"Amode")
@@ -315,6 +316,7 @@ DEF_ENC32(L4_load##TAG##_ap,   ICLASS_LD" 1 01 "OPC"  eeeee  PP01IIII  -IIddddd"
 DEF_ENC32(L2_load##TAG##_pr,   ICLASS_LD" 1 10 "OPC"  xxxxx  PPu0----  0--ddddd")\
 DEF_ENC32(L4_load##TAG##_ur,   ICLASS_LD" 1 10 "OPC"  ttttt  PPi1IIII  iIIddddd")\
 DEF_ENC32(L2_load##TAG##_pcr,  ICLASS_LD" 1 00 "OPC"  xxxxx  PPu0--1-  0--ddddd")\
+DEF_ENC32(L2_load##TAG##_pbr,  ICLASS_LD" 1 11 "OPC"  xxxxx  PPu0----  0--ddddd")
 
 
 #define STD_LDX_ENC(TAG,OPC) \
@@ -412,6 +414,7 @@ DEF_CLASS32(ICLASS_ST" 1111 -------- PP------ 1-------",ST_ADDR_PRED_ABS_V4)
 DEF_CLASS32(ICLASS_ST" 1101 -------- PP------ 0-------",ST_ADDR_POST_REG)
 DEF_CLASS32(ICLASS_ST" 1101 -------- PP------ 1-------",ST_ADDR_ABS_PLUS_REG_V4)
 DEF_CLASS32(ICLASS_ST" 1001 -------- PP------ ------1-",ST_ADDR_POST_CREG_V2)
+DEF_CLASS32(ICLASS_ST" 1111 -------- PP------ 0-------",ST_ADDR_POST_BREV_REG)
 DEF_CLASS32(ICLASS_ST" 0--0 1------- PP------ --------",ST_MISC_STORELIKE)
 DEF_CLASS32(ICLASS_ST" 1--0 0------- PP------ --------",ST_MISC_BUSOP)
 DEF_CLASS32(ICLASS_ST" 0--0 0------- PP------ --------",ST_MISC_CACHEOP)
@@ -425,6 +428,7 @@ DEF_ENC32(S4_store##TAG##_ap,   ICLASS_ST" 1 01 "OPC"  eeeee  PP0"SRC"  1-IIIIII
 DEF_ENC32(S2_store##TAG##_pr,   ICLASS_ST" 1 10 "OPC"  xxxxx  PPu"SRC"  0-------")\
 DEF_ENC32(S4_store##TAG##_ur,   ICLASS_ST" 1 10 "OPC"  uuuuu  PPi"SRC"  1iIIIIII")\
 DEF_ENC32(S2_store##TAG##_pcr,  ICLASS_ST" 1 00 "OPC"  xxxxx  PPu"SRC"  0-----1-")\
+DEF_ENC32(S2_store##TAG##_pbr,  ICLASS_ST" 1 11 "OPC"  xxxxx  PPu"SRC"  0-------")
 
 
 #define STD_PST_ENC(TAG,OPC,SRC) \
