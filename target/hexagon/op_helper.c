@@ -35,7 +35,7 @@ static void QEMU_NORETURN do_raise_exception_err(CPUHexagonState *env,
                                                  uint32_t exception,
                                                  uintptr_t pc)
 {
-    CPUState *cs = CPU(hexagon_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     qemu_log_mask(CPU_LOG_INT, "%s: %d\n", __func__, exception);
     cs->exception_index = exception;
     cpu_loop_exit_restore(cs, pc);
