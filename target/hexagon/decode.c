@@ -354,7 +354,7 @@ static void decode_split_cmpjump(Packet *pkt)
     }
 }
 
-static inline int decode_opcode_can_jump(int opcode)
+static int decode_opcode_can_jump(int opcode)
 {
     if ((GET_ATTRIB(opcode, A_JUMP)) ||
         (GET_ATTRIB(opcode, A_CALL)) ||
@@ -370,7 +370,7 @@ static inline int decode_opcode_can_jump(int opcode)
     return 0;
 }
 
-static inline int decode_opcode_ends_loop(int opcode)
+static int decode_opcode_ends_loop(int opcode)
 {
     return GET_ATTRIB(opcode, A_HWLOOP0_END) ||
            GET_ATTRIB(opcode, A_HWLOOP1_END);
@@ -764,7 +764,7 @@ static void decode_add_endloop_insn(Insn *insn, int loopnum)
     }
 }
 
-static inline int decode_parsebits_is_loopend(uint32_t encoding32)
+static int decode_parsebits_is_loopend(uint32_t encoding32)
 {
     uint32_t bits = parse_bits(encoding32);
     return bits == 0x2;

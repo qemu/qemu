@@ -46,8 +46,8 @@ void QEMU_NORETURN HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
     do_raise_exception_err(env, excp, 0);
 }
 
-static inline void log_reg_write(CPUHexagonState *env, int rnum,
-                                 target_ulong val, uint32_t slot)
+static void log_reg_write(CPUHexagonState *env, int rnum,
+                          target_ulong val, uint32_t slot)
 {
     HEX_DEBUG_LOG("log_reg_write[%d] = " TARGET_FMT_ld " (0x" TARGET_FMT_lx ")",
                   rnum, val, val);
@@ -63,8 +63,7 @@ static inline void log_reg_write(CPUHexagonState *env, int rnum,
 #endif
 }
 
-static inline void log_pred_write(CPUHexagonState *env, int pnum,
-                                  target_ulong val)
+static void log_pred_write(CPUHexagonState *env, int pnum, target_ulong val)
 {
     HEX_DEBUG_LOG("log_pred_write[%d] = " TARGET_FMT_ld
                   " (0x" TARGET_FMT_lx ")\n",
@@ -79,8 +78,8 @@ static inline void log_pred_write(CPUHexagonState *env, int pnum,
     }
 }
 
-static inline void log_store32(CPUHexagonState *env, target_ulong addr,
-                               target_ulong val, int width, int slot)
+static void log_store32(CPUHexagonState *env, target_ulong addr,
+                        target_ulong val, int width, int slot)
 {
     HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx
                   ", %" PRId32 " [0x08%" PRIx32 "])\n",
@@ -90,8 +89,8 @@ static inline void log_store32(CPUHexagonState *env, target_ulong addr,
     env->mem_log_stores[slot].data32 = val;
 }
 
-static inline void log_store64(CPUHexagonState *env, target_ulong addr,
-                               int64_t val, int width, int slot)
+static void log_store64(CPUHexagonState *env, target_ulong addr,
+                        int64_t val, int width, int slot)
 {
     HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx
                   ", %" PRId64 " [0x016%" PRIx64 "])\n",
@@ -101,7 +100,7 @@ static inline void log_store64(CPUHexagonState *env, target_ulong addr,
     env->mem_log_stores[slot].data64 = val;
 }
 
-static inline void write_new_pc(CPUHexagonState *env, target_ulong addr)
+static void write_new_pc(CPUHexagonState *env, target_ulong addr)
 {
     HEX_DEBUG_LOG("write_new_pc(0x" TARGET_FMT_lx ")\n", addr);
 
@@ -132,7 +131,7 @@ void HELPER(debug_start_packet)(CPUHexagonState *env)
 }
 #endif
 
-static inline int32_t new_pred_value(CPUHexagonState *env, int pnum)
+static int32_t new_pred_value(CPUHexagonState *env, int pnum)
 {
     return env->new_pred_value[pnum];
 }
@@ -332,8 +331,8 @@ static void check_noshuf(CPUHexagonState *env, uint32_t slot)
     }
 }
 
-static inline uint8_t mem_load1(CPUHexagonState *env, uint32_t slot,
-                                target_ulong vaddr)
+static uint8_t mem_load1(CPUHexagonState *env, uint32_t slot,
+                         target_ulong vaddr)
 {
     uint8_t retval;
     check_noshuf(env, slot);
@@ -341,8 +340,8 @@ static inline uint8_t mem_load1(CPUHexagonState *env, uint32_t slot,
     return retval;
 }
 
-static inline uint16_t mem_load2(CPUHexagonState *env, uint32_t slot,
-                                 target_ulong vaddr)
+static uint16_t mem_load2(CPUHexagonState *env, uint32_t slot,
+                          target_ulong vaddr)
 {
     uint16_t retval;
     check_noshuf(env, slot);
@@ -350,8 +349,8 @@ static inline uint16_t mem_load2(CPUHexagonState *env, uint32_t slot,
     return retval;
 }
 
-static inline uint32_t mem_load4(CPUHexagonState *env, uint32_t slot,
-                                 target_ulong vaddr)
+static uint32_t mem_load4(CPUHexagonState *env, uint32_t slot,
+                          target_ulong vaddr)
 {
     uint32_t retval;
     check_noshuf(env, slot);
@@ -359,8 +358,8 @@ static inline uint32_t mem_load4(CPUHexagonState *env, uint32_t slot,
     return retval;
 }
 
-static inline uint64_t mem_load8(CPUHexagonState *env, uint32_t slot,
-                                 target_ulong vaddr)
+static uint64_t mem_load8(CPUHexagonState *env, uint32_t slot,
+                          target_ulong vaddr)
 {
     uint64_t retval;
     check_noshuf(env, slot);
@@ -939,7 +938,7 @@ float32 HELPER(sffms)(CPUHexagonState *env, float32 RxV,
     return RxV;
 }
 
-static inline bool is_inf_prod(int32_t a, int32_t b)
+static bool is_inf_prod(int32_t a, int32_t b)
 {
     return (float32_is_infinity(a) && float32_is_infinity(b)) ||
            (float32_is_infinity(a) && is_finite(b) && !float32_is_zero(b)) ||
