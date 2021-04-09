@@ -237,6 +237,33 @@
         tcg_temp_free_i64(tmp); \
     } while (0)
 
+/*
+ * Compare each of the 8 unsigned bytes
+ * The minimum is placed in each byte of the destination.
+ * Each bit of the predicate is set true if the bit from the first operand
+ * is greater than the bit from the second operand.
+ * r5:4,p1 = vminub(r1:0, r3:2)
+ */
+#define fGEN_TCG_A6_vminub_RdP(SHORTCODE) \
+    do { \
+        TCGv left = tcg_temp_new(); \
+        TCGv right = tcg_temp_new(); \
+        TCGv tmp = tcg_temp_new(); \
+        tcg_gen_movi_tl(PeV, 0); \
+        tcg_gen_movi_i64(RddV, 0); \
+        for (int i = 0; i < 8; i++) { \
+            gen_get_byte_i64(left, i, RttV, false); \
+            gen_get_byte_i64(right, i, RssV, false); \
+            tcg_gen_setcond_tl(TCG_COND_GT, tmp, left, right); \
+            tcg_gen_deposit_tl(PeV, PeV, tmp, i, 1); \
+            tcg_gen_umin_tl(tmp, left, right); \
+            gen_set_byte_i64(i, RddV, tmp); \
+        } \
+        tcg_temp_free(left); \
+        tcg_temp_free(right); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
 /* Floating point */
 #define fGEN_TCG_F2_conv_sf2df(SHORTCODE) \
     gen_helper_conv_sf2df(RddV, cpu_env, RsV)

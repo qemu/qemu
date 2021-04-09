@@ -1018,6 +1018,7 @@ MPY_ENC(M7_dcmpyiwc_acc,     "1010","xxxxx","1","0","1","0","10")
 
 
 MPY_ENC(A5_ACS,              "1010","xxxxx","0","1","0","1","ee")
+MPY_ENC(A6_vminub_RdP,       "1010","ddddd","0","1","1","1","ee")
 /*
 */
 

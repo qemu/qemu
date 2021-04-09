@@ -266,6 +266,28 @@ static inline void gen_write_ctrl_reg_pair(DisasContext *ctx, int reg_num,
     }
 }
 
+static TCGv gen_get_byte_i64(TCGv result, int N, TCGv_i64 src, bool sign)
+{
+    TCGv_i64 res64 = tcg_temp_new_i64();
+    if (sign) {
+        tcg_gen_sextract_i64(res64, src, N * 8, 8);
+    } else {
+        tcg_gen_extract_i64(res64, src, N * 8, 8);
+    }
+    tcg_gen_extrl_i64_i32(result, res64);
+    tcg_temp_free_i64(res64);
+
+    return result;
+}
+
+static void gen_set_byte_i64(int N, TCGv_i64 result, TCGv src)
+{
+    TCGv_i64 src64 = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(src64, src);
+    tcg_gen_deposit_i64(result, result, src64, N * 8, 8);
+    tcg_temp_free_i64(src64);
+}
+
 static inline void gen_load_locked4u(TCGv dest, TCGv vaddr, int mem_index)
 {
     tcg_gen_qemu_ld32u(dest, vaddr, mem_index);

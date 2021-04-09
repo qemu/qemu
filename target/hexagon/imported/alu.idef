@@ -1259,6 +1259,16 @@ Q6INSN(A5_ACS,"Rxx32,Pe4=vacsh(Rss32,Rtt32)",ATTRIBS(),
         }
 })
 
+Q6INSN(A6_vminub_RdP,"Rdd32,Pe4=vminub(Rtt32,Rss32)",ATTRIBS(),
+"Vector minimum of bytes, records minimum and decision vector",
+{
+        fHIDE(int i;)
+        for (i = 0; i < 8; i++) {
+            fSETBIT(i, PeV,     (fGETUBYTE(i,RttV) > fGETUBYTE(i,RssV)));
+            fSETBYTE(i,RddV,fMIN(fGETUBYTE(i,RttV),fGETUBYTE(i,RssV)));
+        }
+})
+
 /**********************************************/
 /* Vector Min/Max                             */
 /**********************************************/
