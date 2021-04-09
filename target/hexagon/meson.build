@@ -173,7 +173,6 @@ hexagon_ss.add(files(
     'printinsn.c',
     'arch.c',
     'fma_emu.c',
-    'conv_emu.c',
 ))
 
 target_arch += {'hexagon': hexagon_ss}

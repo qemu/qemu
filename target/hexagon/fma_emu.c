@@ -19,7 +19,6 @@
 #include "qemu/int128.h"
 #include "fpu/softfloat.h"
 #include "macros.h"
-#include "conv_emu.h"
 #include "fma_emu.h"
 
 #define DF_INF_EXP     0x7ff
