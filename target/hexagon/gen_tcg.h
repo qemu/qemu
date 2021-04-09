@@ -38,6 +38,8 @@
  *     _ap       absolute set                      r0 = memw(r1=##variable)
  *     _pr       post increment register           r0 = memw(r1++m1)
  *     _pi       post increment immediate          r0 = memb(r1++#1)
+ *     _pci      post increment circular immediate r0 = memw(r1++#4:circ(m0))
+ *     _pcr      post increment circular register  r0 = memw(r1++I:circ(m0))
  */
 
 /* Macros for complex addressing modes */
@@ -56,7 +58,22 @@
         fEA_REG(RxV); \
         fPM_I(RxV, siV); \
     } while (0)
-
+#define GET_EA_pci \
+    do { \
+        TCGv tcgv_siV = tcg_const_tl(siV); \
+        tcg_gen_mov_tl(EA, RxV); \
+        gen_helper_fcircadd(RxV, RxV, tcgv_siV, MuV, \
+                            hex_gpr[HEX_REG_CS0 + MuN]); \
+        tcg_temp_free(tcgv_siV); \
+    } while (0)
+#define GET_EA_pcr(SHIFT) \
+    do { \
+        TCGv ireg = tcg_temp_new(); \
+        tcg_gen_mov_tl(EA, RxV); \
+        gen_read_ireg(ireg, MuV, (SHIFT)); \
+        gen_helper_fcircadd(RxV, RxV, ireg, MuV, hex_gpr[HEX_REG_CS0 + MuN]); \
+        tcg_temp_free(ireg); \
+    } while (0)
 
 /* Instructions with multiple definitions */
 #define fGEN_TCG_LOAD_AP(RES, SIZE, SIGN) \
@@ -79,6 +96,36 @@
     fGEN_TCG_LOAD_AP(RdV, 4, u)
 #define fGEN_TCG_L4_loadrd_ap(SHORTCODE) \
     fGEN_TCG_LOAD_AP(RddV, 8, u)
+
+#define fGEN_TCG_L2_loadrub_pci(SHORTCODE)    SHORTCODE
+#define fGEN_TCG_L2_loadrb_pci(SHORTCODE)     SHORTCODE
+#define fGEN_TCG_L2_loadruh_pci(SHORTCODE)    SHORTCODE
+#define fGEN_TCG_L2_loadrh_pci(SHORTCODE)     SHORTCODE
+#define fGEN_TCG_L2_loadri_pci(SHORTCODE)     SHORTCODE
+#define fGEN_TCG_L2_loadrd_pci(SHORTCODE)     SHORTCODE
+
+#define fGEN_TCG_LOAD_pcr(SHIFT, LOAD) \
+    do { \
+        TCGv ireg = tcg_temp_new(); \
+        tcg_gen_mov_tl(EA, RxV); \
+        gen_read_ireg(ireg, MuV, SHIFT); \
+        gen_helper_fcircadd(RxV, RxV, ireg, MuV, hex_gpr[HEX_REG_CS0 + MuN]); \
+        LOAD; \
+        tcg_temp_free(ireg); \
+    } while (0)
+
+#define fGEN_TCG_L2_loadrub_pcr(SHORTCODE) \
+      fGEN_TCG_LOAD_pcr(0, fLOAD(1, 1, u, EA, RdV))
+#define fGEN_TCG_L2_loadrb_pcr(SHORTCODE) \
+      fGEN_TCG_LOAD_pcr(0, fLOAD(1, 1, s, EA, RdV))
+#define fGEN_TCG_L2_loadruh_pcr(SHORTCODE) \
+      fGEN_TCG_LOAD_pcr(1, fLOAD(1, 2, u, EA, RdV))
+#define fGEN_TCG_L2_loadrh_pcr(SHORTCODE) \
+      fGEN_TCG_LOAD_pcr(1, fLOAD(1, 2, s, EA, RdV))
+#define fGEN_TCG_L2_loadri_pcr(SHORTCODE) \
+      fGEN_TCG_LOAD_pcr(2, fLOAD(1, 4, u, EA, RdV))
+#define fGEN_TCG_L2_loadrd_pcr(SHORTCODE) \
+      fGEN_TCG_LOAD_pcr(3, fLOAD(1, 8, u, EA, RddV))
 
 #define fGEN_TCG_L2_loadrub_pr(SHORTCODE)      SHORTCODE
 #define fGEN_TCG_L2_loadrub_pi(SHORTCODE)      SHORTCODE
@@ -194,6 +241,69 @@
     do { SHORTCODE; READ_PREG(PdV, PdN); } while (0)
 #define fGEN_TCG_S4_stored_locked(SHORTCODE) \
     do { SHORTCODE; READ_PREG(PdV, PdN); } while (0)
+
+#define fGEN_TCG_STORE(SHORTCODE) \
+    do { \
+        TCGv HALF = tcg_temp_new(); \
+        TCGv BYTE = tcg_temp_new(); \
+        SHORTCODE; \
+        tcg_temp_free(HALF); \
+        tcg_temp_free(BYTE); \
+    } while (0)
+
+#define fGEN_TCG_STORE_pcr(SHIFT, STORE) \
+    do { \
+        TCGv ireg = tcg_temp_new(); \
+        TCGv HALF = tcg_temp_new(); \
+        TCGv BYTE = tcg_temp_new(); \
+        tcg_gen_mov_tl(EA, RxV); \
+        gen_read_ireg(ireg, MuV, SHIFT); \
+        gen_helper_fcircadd(RxV, RxV, ireg, MuV, hex_gpr[HEX_REG_CS0 + MuN]); \
+        STORE; \
+        tcg_temp_free(ireg); \
+        tcg_temp_free(HALF); \
+        tcg_temp_free(BYTE); \
+    } while (0)
+
+#define fGEN_TCG_S2_storerb_pci(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
+#define fGEN_TCG_S2_storerb_pcr(SHORTCODE) \
+    fGEN_TCG_STORE_pcr(0, fSTORE(1, 1, EA, fGETBYTE(0, RtV)))
+
+#define fGEN_TCG_S2_storerh_pci(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
+#define fGEN_TCG_S2_storerh_pcr(SHORTCODE) \
+    fGEN_TCG_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(0, RtV)))
+
+#define fGEN_TCG_S2_storerf_pci(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
+#define fGEN_TCG_S2_storerf_pcr(SHORTCODE) \
+    fGEN_TCG_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(1, RtV)))
+
+#define fGEN_TCG_S2_storeri_pci(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
+#define fGEN_TCG_S2_storeri_pcr(SHORTCODE) \
+    fGEN_TCG_STORE_pcr(2, fSTORE(1, 4, EA, RtV))
+
+#define fGEN_TCG_S2_storerd_pci(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
+#define fGEN_TCG_S2_storerd_pcr(SHORTCODE) \
+    fGEN_TCG_STORE_pcr(3, fSTORE(1, 8, EA, RttV))
+
+#define fGEN_TCG_S2_storerbnew_pci(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
+#define fGEN_TCG_S2_storerbnew_pcr(SHORTCODE) \
+    fGEN_TCG_STORE_pcr(0, fSTORE(1, 1, EA, fGETBYTE(0, NtN)))
+
+#define fGEN_TCG_S2_storerhnew_pci(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
+#define fGEN_TCG_S2_storerhnew_pcr(SHORTCODE) \
+    fGEN_TCG_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(0, NtN)))
+
+#define fGEN_TCG_S2_storerinew_pci(SHORTCODE) \
+    fGEN_TCG_STORE(SHORTCODE)
+#define fGEN_TCG_S2_storerinew_pcr(SHORTCODE) \
+    fGEN_TCG_STORE_pcr(2, fSTORE(1, 4, EA, NtN))
 
 /*
  * Mathematical operations with more than one definition require

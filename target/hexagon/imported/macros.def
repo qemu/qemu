@@ -277,6 +277,12 @@ DEF_MACRO(
 /*************************************/
 
 DEF_MACRO(
+    fREAD_IREG, /* read modifier register */
+    (fSXTN(11,64,(((VAL) & 0xf0000000)>>21) | ((VAL>>17)&0x7f) )),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
     fREAD_LR, /* read link register */
     (READ_RREG(REG_LR)),          /* behavior */
     ()
@@ -303,6 +309,12 @@ DEF_MACRO(
 DEF_MACRO(
     fREAD_SP, /* read stack pointer */
     (READ_RREG(REG_SP)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_CSREG, /* read  CS register */
+    (READ_RREG(REG_CSA+N)),          /* behavior */
     ()
 )
 
@@ -823,6 +835,20 @@ DEF_MACRO(
     do { REG = REG + MVAL; } while (0),
     ()
 )
+
+DEF_MACRO(
+    fPM_CIRI, /* Post Modify Register using Circular arithmetic by Immediate */
+    do { fcirc_add(REG,siV,MuV); } while (0),
+    ()
+)
+
+DEF_MACRO(
+    fPM_CIRR, /* Post Modify Register using Circular arithmetic by register */
+    do { fcirc_add(REG,VAL,MuV); } while (0),
+    ()
+)
+
+
 
 DEF_MACRO(
     fSCALE, /* scale by N */

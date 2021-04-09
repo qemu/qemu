@@ -294,6 +294,7 @@ DEF_CLASS32(ICLASS_LD" ---- -------- PP------ --------",LD)
 
 
 DEF_CLASS32(ICLASS_LD" 0--- -------- PP------ --------",LD_ADDR_ROFFSET)
+DEF_CLASS32(ICLASS_LD" 100- -------- PP----0- --------",LD_ADDR_POST_CIRC_IMMED)
 DEF_CLASS32(ICLASS_LD" 101- -------- PP00---- --------",LD_ADDR_POST_IMMED)
 DEF_CLASS32(ICLASS_LD" 101- -------- PP01---- --------",LD_ADDR_ABS_UPDATE_V4)
 DEF_CLASS32(ICLASS_LD" 101- -------- PP1----- --------",LD_ADDR_POST_IMMED_PRED_V2)
@@ -308,18 +309,23 @@ DEF_FIELD32(ICLASS_LD" ---- --!----- PP------ --------",LD_UN,"Unsigned")
 
 #define STD_LD_ENC(TAG,OPC) \
 DEF_ENC32(L2_load##TAG##_io,   ICLASS_LD" 0 ii "OPC"  sssss  PPiiiiii  iiiddddd")\
+DEF_ENC32(L2_load##TAG##_pci,  ICLASS_LD" 1 00 "OPC"  xxxxx  PPu0--0i  iiiddddd")\
 DEF_ENC32(L2_load##TAG##_pi,   ICLASS_LD" 1 01 "OPC"  xxxxx  PP00---i  iiiddddd")\
 DEF_ENC32(L4_load##TAG##_ap,   ICLASS_LD" 1 01 "OPC"  eeeee  PP01IIII  -IIddddd")\
 DEF_ENC32(L2_load##TAG##_pr,   ICLASS_LD" 1 10 "OPC"  xxxxx  PPu0----  0--ddddd")\
 DEF_ENC32(L4_load##TAG##_ur,   ICLASS_LD" 1 10 "OPC"  ttttt  PPi1IIII  iIIddddd")\
+DEF_ENC32(L2_load##TAG##_pcr,  ICLASS_LD" 1 00 "OPC"  xxxxx  PPu0--1-  0--ddddd")\
 
 
 #define STD_LDX_ENC(TAG,OPC) \
 DEF_ENC32(L2_load##TAG##_io,   ICLASS_LD" 0 ii "OPC"  sssss  PPiiiiii  iiiyyyyy")\
+DEF_ENC32(L2_load##TAG##_pci,  ICLASS_LD" 1 00 "OPC"  xxxxx  PPu0--0i  iiiyyyyy")\
 DEF_ENC32(L2_load##TAG##_pi,   ICLASS_LD" 1 01 "OPC"  xxxxx  PP00---i  iiiyyyyy")\
 DEF_ENC32(L4_load##TAG##_ap,   ICLASS_LD" 1 01 "OPC"  eeeee  PP01IIII  -IIyyyyy")\
 DEF_ENC32(L2_load##TAG##_pr,   ICLASS_LD" 1 10 "OPC"  xxxxx  PPu0----  0--yyyyy")\
 DEF_ENC32(L4_load##TAG##_ur,   ICLASS_LD" 1 10 "OPC"  ttttt  PPi1IIII  iIIyyyyy")\
+DEF_ENC32(L2_load##TAG##_pcr,  ICLASS_LD" 1 00 "OPC"  xxxxx  PPu0--1-  0--yyyyy")\
+DEF_ENC32(L2_load##TAG##_pbr,  ICLASS_LD" 1 11 "OPC"  xxxxx  PPu0----  0--yyyyy")
 
 
 #define STD_PLD_ENC(TAG,OPC) \
@@ -351,6 +357,7 @@ STD_PLD_ENC(rd,  "1 110") /* note dest reg field LSB=0, 1 is reserved */
 
 DEF_CLASS32(    ICLASS_LD" 0--0 000----- PP------ --------",LD_MISC)
 DEF_ANTICLASS32(ICLASS_LD" 0--0 000----- PP------ --------",LD_ADDR_ROFFSET)
+DEF_ANTICLASS32(ICLASS_LD" 1000 000----- PP------ --------",LD_ADDR_POST_CIRC_IMMED)
 DEF_ANTICLASS32(ICLASS_LD" 1010 000----- PP------ --------",LD_ADDR_POST_IMMED)
 DEF_ANTICLASS32(ICLASS_LD" 1100 000----- PP------ --------",LD_ADDR_POST_REG)
 DEF_ANTICLASS32(ICLASS_LD" 1110 000----- PP------ --------",LD_ADDR_POST_REG)
@@ -397,6 +404,7 @@ DEF_FIELD32(ICLASS_ST" ---! !!------ PP------ --------",ST_Type,"Type")
 DEF_FIELD32(ICLASS_ST" ---- --!----- PP------ --------",ST_UN,"Unsigned")
 
 DEF_CLASS32(ICLASS_ST" 0--1 -------- PP------ --------",ST_ADDR_ROFFSET)
+DEF_CLASS32(ICLASS_ST" 1001 -------- PP------ ------0-",ST_ADDR_POST_CIRC_IMMED)
 DEF_CLASS32(ICLASS_ST" 1011 -------- PP0----- 0-----0-",ST_ADDR_POST_IMMED)
 DEF_CLASS32(ICLASS_ST" 1011 -------- PP0----- 1-------",ST_ADDR_ABS_UPDATE_V4)
 DEF_CLASS32(ICLASS_ST" 1011 -------- PP1----- --------",ST_ADDR_POST_IMMED_PRED_V2)
@@ -411,10 +419,12 @@ DEF_CLASS32(ICLASS_ST" 0--0 0------- PP------ --------",ST_MISC_CACHEOP)
 
 #define STD_ST_ENC(TAG,OPC,SRC) \
 DEF_ENC32(S2_store##TAG##_io,   ICLASS_ST" 0 ii "OPC"  sssss  PPi"SRC"  iiiiiiii")\
+DEF_ENC32(S2_store##TAG##_pci,  ICLASS_ST" 1 00 "OPC"  xxxxx  PPu"SRC"  0iiii-0-")\
 DEF_ENC32(S2_store##TAG##_pi,   ICLASS_ST" 1 01 "OPC"  xxxxx  PP0"SRC"  0iiii-0-")\
 DEF_ENC32(S4_store##TAG##_ap,   ICLASS_ST" 1 01 "OPC"  eeeee  PP0"SRC"  1-IIIIII")\
 DEF_ENC32(S2_store##TAG##_pr,   ICLASS_ST" 1 10 "OPC"  xxxxx  PPu"SRC"  0-------")\
 DEF_ENC32(S4_store##TAG##_ur,   ICLASS_ST" 1 10 "OPC"  uuuuu  PPi"SRC"  1iIIIIII")\
+DEF_ENC32(S2_store##TAG##_pcr,  ICLASS_ST" 1 00 "OPC"  xxxxx  PPu"SRC"  0-----1-")\
 
 
 #define STD_PST_ENC(TAG,OPC,SRC) \

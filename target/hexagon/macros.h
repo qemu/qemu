@@ -133,6 +133,38 @@
         CHECK_NOSHUF; \
         tcg_gen_qemu_ld64(DST, VA, ctx->mem_idx); \
     } while (0)
+
+#define MEM_STORE1_FUNC(X) \
+    __builtin_choose_expr(TYPE_INT(X), \
+        gen_store1i, \
+        __builtin_choose_expr(TYPE_TCGV(X), \
+            gen_store1, (void)0))
+#define MEM_STORE1(VA, DATA, SLOT) \
+    MEM_STORE1_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
+
+#define MEM_STORE2_FUNC(X) \
+    __builtin_choose_expr(TYPE_INT(X), \
+        gen_store2i, \
+        __builtin_choose_expr(TYPE_TCGV(X), \
+            gen_store2, (void)0))
+#define MEM_STORE2(VA, DATA, SLOT) \
+    MEM_STORE2_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
+
+#define MEM_STORE4_FUNC(X) \
+    __builtin_choose_expr(TYPE_INT(X), \
+        gen_store4i, \
+        __builtin_choose_expr(TYPE_TCGV(X), \
+            gen_store4, (void)0))
+#define MEM_STORE4(VA, DATA, SLOT) \
+    MEM_STORE4_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
+
+#define MEM_STORE8_FUNC(X) \
+    __builtin_choose_expr(TYPE_INT(X), \
+        gen_store8i, \
+        __builtin_choose_expr(TYPE_TCGV_I64(X), \
+            gen_store8, (void)0))
+#define MEM_STORE8(VA, DATA, SLOT) \
+    MEM_STORE8_FUNC(DATA)(cpu_env, VA, DATA, ctx, SLOT)
 #else
 #define MEM_LOAD1s(VA) ((int8_t)mem_load1(env, slot, VA))
 #define MEM_LOAD1u(VA) ((uint8_t)mem_load1(env, slot, VA))
@@ -285,6 +317,39 @@ static inline void gen_logical_not(TCGv dest, TCGv src)
 
 #define fPCALIGN(IMM) IMM = (IMM & ~PCALIGN_MASK)
 
+#ifdef QEMU_GENERATE
+static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
+{
+    /*
+     * Section 2.2.4 of the Hexagon V67 Programmer's Reference Manual
+     *
+     *  The "I" value from a modifier register is divided into two pieces
+     *      LSB         bits 23:17
+     *      MSB         bits 31:28
+     * The value is signed
+     *
+     * At the end we shift the result according to the shift argument
+     */
+    TCGv msb = tcg_temp_new();
+    TCGv lsb = tcg_temp_new();
+
+    tcg_gen_extract_tl(lsb, val, 17, 7);
+    tcg_gen_sari_tl(msb, val, 21);
+    tcg_gen_deposit_tl(result, msb, lsb, 0, 7);
+
+    tcg_gen_shli_tl(result, result, shift);
+
+    tcg_temp_free(msb);
+    tcg_temp_free(lsb);
+
+    return result;
+}
+#define fREAD_IREG(VAL, SHIFT) gen_read_ireg(ireg, (VAL), (SHIFT))
+#else
+#define fREAD_IREG(VAL) \
+    (fSXTN(11, 64, (((VAL) & 0xf0000000) >> 21) | ((VAL >> 17) & 0x7f)))
+#endif
+
 #define fREAD_LR() (READ_REG(HEX_REG_LR))
 
 #define fWRITE_LR(A) WRITE_RREG(HEX_REG_LR, A)
@@ -418,6 +483,13 @@ static inline void gen_logical_not(TCGv dest, TCGv src)
 #define fEA_REG(REG) tcg_gen_mov_tl(EA, REG)
 #define fPM_I(REG, IMM)     tcg_gen_addi_tl(REG, REG, IMM)
 #define fPM_M(REG, MVAL)    tcg_gen_add_tl(REG, REG, MVAL)
+#define fPM_CIRI(REG, IMM, MVAL) \
+    do { \
+        TCGv tcgv_siV = tcg_const_tl(siV); \
+        gen_helper_fcircadd(REG, REG, tcgv_siV, MuV, \
+                            hex_gpr[HEX_REG_CS0 + MuN]); \
+        tcg_temp_free(tcgv_siV); \
+    } while (0)
 #else
 #define fEA_IMM(IMM)        do { EA = (IMM); } while (0)
 #define fEA_REG(REG)        do { EA = (REG); } while (0)
@@ -494,23 +566,43 @@ static inline void gen_logical_not(TCGv dest, TCGv src)
     gen_load_locked##SIZE##SIGN(DST, EA, ctx->mem_idx);
 #endif
 
+#ifdef QEMU_GENERATE
+#define fSTORE(NUM, SIZE, EA, SRC) MEM_STORE##SIZE(EA, SRC, insn->slot)
+#else
 #define fSTORE(NUM, SIZE, EA, SRC) MEM_STORE##SIZE(EA, SRC, slot)
+#endif
 
 #ifdef QEMU_GENERATE
 #define fSTORE_LOCKED(NUM, SIZE, EA, SRC, PRED) \
     gen_store_conditional##SIZE(env, ctx, PdN, PRED, EA, SRC);
 #endif
 
+#ifdef QEMU_GENERATE
+#define GETBYTE_FUNC(X) \
+    __builtin_choose_expr(TYPE_TCGV(X), \
+        gen_get_byte, \
+        __builtin_choose_expr(TYPE_TCGV_I64(X), \
+            gen_get_byte_i64, (void)0))
+#define fGETBYTE(N, SRC) GETBYTE_FUNC(SRC)(BYTE, N, SRC, true)
+#define fGETUBYTE(N, SRC) GETBYTE_FUNC(SRC)(BYTE, N, SRC, false)
+#else
 #define fGETBYTE(N, SRC) ((int8_t)((SRC >> ((N) * 8)) & 0xff))
 #define fGETUBYTE(N, SRC) ((uint8_t)((SRC >> ((N) * 8)) & 0xff))
+#endif
 
 #define fSETBYTE(N, DST, VAL) \
     do { \
         DST = (DST & ~(0x0ffLL << ((N) * 8))) | \
         (((uint64_t)((VAL) & 0x0ffLL)) << ((N) * 8)); \
     } while (0)
+
+#ifdef QEMU_GENERATE
+#define fGETHALF(N, SRC)  gen_get_half(HALF, N, SRC, true)
+#define fGETUHALF(N, SRC) gen_get_half(HALF, N, SRC, false)
+#else
 #define fGETHALF(N, SRC) ((int16_t)((SRC >> ((N) * 16)) & 0xffff))
 #define fGETUHALF(N, SRC) ((uint16_t)((SRC >> ((N) * 16)) & 0xffff))
+#endif
 #define fSETHALF(N, DST, VAL) \
     do { \
         DST = (DST & ~(0x0ffffLL << ((N) * 16))) | \
