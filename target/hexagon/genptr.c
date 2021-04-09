@@ -42,17 +42,17 @@ static inline void gen_log_predicated_reg_write(int rnum, TCGv val, int slot)
     tcg_gen_andi_tl(slot_mask, hex_slot_cancelled, 1 << slot);
     tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum], slot_mask, zero,
                            val, hex_new_value[rnum]);
-#if HEX_DEBUG
-    /*
-     * Do this so HELPER(debug_commit_end) will know
-     *
-     * Note that slot_mask indicates the value is not written
-     * (i.e., slot was cancelled), so we create a true/false value before
-     * or'ing with hex_reg_written[rnum].
-     */
-    tcg_gen_setcond_tl(TCG_COND_EQ, slot_mask, slot_mask, zero);
-    tcg_gen_or_tl(hex_reg_written[rnum], hex_reg_written[rnum], slot_mask);
-#endif
+    if (HEX_DEBUG) {
+        /*
+         * Do this so HELPER(debug_commit_end) will know
+         *
+         * Note that slot_mask indicates the value is not written
+         * (i.e., slot was cancelled), so we create a true/false value before
+         * or'ing with hex_reg_written[rnum].
+         */
+        tcg_gen_setcond_tl(TCG_COND_EQ, slot_mask, slot_mask, zero);
+        tcg_gen_or_tl(hex_reg_written[rnum], hex_reg_written[rnum], slot_mask);
+    }
 
     tcg_temp_free(zero);
     tcg_temp_free(slot_mask);
@@ -61,10 +61,10 @@ static inline void gen_log_predicated_reg_write(int rnum, TCGv val, int slot)
 static inline void gen_log_reg_write(int rnum, TCGv val)
 {
     tcg_gen_mov_tl(hex_new_value[rnum], val);
-#if HEX_DEBUG
-    /* Do this so HELPER(debug_commit_end) will know */
-    tcg_gen_movi_tl(hex_reg_written[rnum], 1);
-#endif
+    if (HEX_DEBUG) {
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movi_tl(hex_reg_written[rnum], 1);
+    }
 }
 
 static void gen_log_predicated_reg_write_pair(int rnum, TCGv_i64 val, int slot)
@@ -84,19 +84,19 @@ static void gen_log_predicated_reg_write_pair(int rnum, TCGv_i64 val, int slot)
     tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum + 1],
                        slot_mask, zero,
                        val32, hex_new_value[rnum + 1]);
-#if HEX_DEBUG
-    /*
-     * Do this so HELPER(debug_commit_end) will know
-     *
-     * Note that slot_mask indicates the value is not written
-     * (i.e., slot was cancelled), so we create a true/false value before
-     * or'ing with hex_reg_written[rnum].
-     */
-    tcg_gen_setcond_tl(TCG_COND_EQ, slot_mask, slot_mask, zero);
-    tcg_gen_or_tl(hex_reg_written[rnum], hex_reg_written[rnum], slot_mask);
-    tcg_gen_or_tl(hex_reg_written[rnum + 1], hex_reg_written[rnum + 1],
-                  slot_mask);
-#endif
+    if (HEX_DEBUG) {
+        /*
+         * Do this so HELPER(debug_commit_end) will know
+         *
+         * Note that slot_mask indicates the value is not written
+         * (i.e., slot was cancelled), so we create a true/false value before
+         * or'ing with hex_reg_written[rnum].
+         */
+        tcg_gen_setcond_tl(TCG_COND_EQ, slot_mask, slot_mask, zero);
+        tcg_gen_or_tl(hex_reg_written[rnum], hex_reg_written[rnum], slot_mask);
+        tcg_gen_or_tl(hex_reg_written[rnum + 1], hex_reg_written[rnum + 1],
+                      slot_mask);
+    }
 
     tcg_temp_free(val32);
     tcg_temp_free(zero);
@@ -107,17 +107,17 @@ static void gen_log_reg_write_pair(int rnum, TCGv_i64 val)
 {
     /* Low word */
     tcg_gen_extrl_i64_i32(hex_new_value[rnum], val);
-#if HEX_DEBUG
-    /* Do this so HELPER(debug_commit_end) will know */
-    tcg_gen_movi_tl(hex_reg_written[rnum], 1);
-#endif
+    if (HEX_DEBUG) {
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movi_tl(hex_reg_written[rnum], 1);
+    }
 
     /* High word */
     tcg_gen_extrh_i64_i32(hex_new_value[rnum + 1], val);
-#if HEX_DEBUG
-    /* Do this so HELPER(debug_commit_end) will know */
-    tcg_gen_movi_tl(hex_reg_written[rnum + 1], 1);
-#endif
+    if (HEX_DEBUG) {
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movi_tl(hex_reg_written[rnum + 1], 1);
+    }
 }
 
 static inline void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)

@@ -35,9 +35,7 @@ TCGv hex_this_PC;
 TCGv hex_slot_cancelled;
 TCGv hex_branch_taken;
 TCGv hex_new_value[TOTAL_PER_THREAD_REGS];
-#if HEX_DEBUG
 TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
-#endif
 TCGv hex_new_pred_value[NUM_PREGS];
 TCGv hex_pred_written;
 TCGv hex_store_addr[STORES_MAX];
@@ -90,7 +88,6 @@ static void gen_exception_end_tb(DisasContext *ctx, int excp)
 
 }
 
-#if HEX_DEBUG
 #define PACKET_BUFFER_LEN              1028
 static void print_pkt(Packet *pkt)
 {
@@ -99,10 +96,12 @@ static void print_pkt(Packet *pkt)
     HEX_DEBUG_LOG("%s", buf->str);
     g_string_free(buf, true);
 }
-#define HEX_DEBUG_PRINT_PKT(pkt)  print_pkt(pkt)
-#else
-#define HEX_DEBUG_PRINT_PKT(pkt)  /* nothing */
-#endif
+#define HEX_DEBUG_PRINT_PKT(pkt) \
+    do { \
+        if (HEX_DEBUG) { \
+            print_pkt(pkt); \
+        } \
+    } while (0)
 
 static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
                              uint32_t words[])
@@ -179,11 +178,11 @@ static void gen_start_packet(DisasContext *ctx, Packet *pkt)
     tcg_gen_movi_tl(hex_pkt_has_store_s1, pkt->pkt_has_store_s1);
     ctx->s1_store_processed = false;
 
-#if HEX_DEBUG
-    /* Handy place to set a breakpoint before the packet executes */
-    gen_helper_debug_start_packet(cpu_env);
-    tcg_gen_movi_tl(hex_this_PC, ctx->base.pc_next);
-#endif
+    if (HEX_DEBUG) {
+        /* Handy place to set a breakpoint before the packet executes */
+        gen_helper_debug_start_packet(cpu_env);
+        tcg_gen_movi_tl(hex_this_PC, ctx->base.pc_next);
+    }
 
     /* Initialize the runtime state for packet semantics */
     if (need_pc(pkt)) {
@@ -308,10 +307,11 @@ static void gen_pred_writes(DisasContext *ctx, Packet *pkt)
         for (i = 0; i < ctx->preg_log_idx; i++) {
             int pred_num = ctx->preg_log[i];
             tcg_gen_mov_tl(hex_pred[pred_num], hex_new_pred_value[pred_num]);
-#if HEX_DEBUG
-            /* Do this so HELPER(debug_commit_end) will know */
-            tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pred_num);
-#endif
+            if (HEX_DEBUG) {
+                /* Do this so HELPER(debug_commit_end) will know */
+                tcg_gen_ori_tl(hex_pred_written, hex_pred_written,
+                               1 << pred_num);
+            }
         }
     }
 
@@ -322,13 +322,13 @@ static void gen_pred_writes(DisasContext *ctx, Packet *pkt)
 
 static void gen_check_store_width(DisasContext *ctx, int slot_num)
 {
-#if HEX_DEBUG
-    TCGv slot = tcg_const_tl(slot_num);
-    TCGv check = tcg_const_tl(ctx->store_width[slot_num]);
-    gen_helper_debug_check_store_width(cpu_env, slot, check);
-    tcg_temp_free(slot);
-    tcg_temp_free(check);
-#endif
+    if (HEX_DEBUG) {
+        TCGv slot = tcg_const_tl(slot_num);
+        TCGv check = tcg_const_tl(ctx->store_width[slot_num]);
+        gen_helper_debug_check_store_width(cpu_env, slot, check);
+        tcg_temp_free(slot);
+        tcg_temp_free(check);
+    }
 }
 
 static bool slot_is_predicated(Packet *pkt, int slot_num)
@@ -482,8 +482,7 @@ static void gen_commit_packet(DisasContext *ctx, Packet *pkt)
     process_store_log(ctx, pkt);
     process_dczeroa(ctx, pkt);
     update_exec_counters(ctx, pkt);
-#if HEX_DEBUG
-    {
+    if (HEX_DEBUG) {
         TCGv has_st0 =
             tcg_const_tl(pkt->pkt_has_store_s0 && !pkt->pkt_has_dczeroa);
         TCGv has_st1 =
@@ -495,7 +494,6 @@ static void gen_commit_packet(DisasContext *ctx, Packet *pkt)
         tcg_temp_free(has_st0);
         tcg_temp_free(has_st1);
     }
-#endif
 
     if (pkt->pkt_has_cof) {
         gen_end_tb(ctx);
@@ -655,9 +653,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 
 #define NAME_LEN               64
 static char new_value_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
-#if HEX_DEBUG
 static char reg_written_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
-#endif
 static char new_pred_value_names[NUM_PREGS][NAME_LEN];
 static char store_addr_names[STORES_MAX][NAME_LEN];
 static char store_width_names[STORES_MAX][NAME_LEN];
@@ -670,11 +666,11 @@ void hexagon_translate_init(void)
 
     opcode_init();
 
-#if HEX_DEBUG
-    if (!qemu_logfile) {
-        qemu_set_log(qemu_loglevel);
+    if (HEX_DEBUG) {
+        if (!qemu_logfile) {
+            qemu_set_log(qemu_loglevel);
+        }
     }
-#endif
 
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         hex_gpr[i] = tcg_global_mem_new(cpu_env,
@@ -686,13 +682,13 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, new_value[i]),
             new_value_names[i]);
 
-#if HEX_DEBUG
-        snprintf(reg_written_names[i], NAME_LEN, "reg_written_%s",
-                 hexagon_regnames[i]);
-        hex_reg_written[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, reg_written[i]),
-            reg_written_names[i]);
-#endif
+        if (HEX_DEBUG) {
+            snprintf(reg_written_names[i], NAME_LEN, "reg_written_%s",
+                     hexagon_regnames[i]);
+            hex_reg_written[i] = tcg_global_mem_new(cpu_env,
+                offsetof(CPUHexagonState, reg_written[i]),
+                reg_written_names[i]);
+        }
     }
     for (i = 0; i < NUM_PREGS; i++) {
         hex_pred[i] = tcg_global_mem_new(cpu_env,

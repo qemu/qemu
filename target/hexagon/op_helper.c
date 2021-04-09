@@ -56,10 +56,10 @@ static void log_reg_write(CPUHexagonState *env, int rnum,
     HEX_DEBUG_LOG("\n");
 
     env->new_value[rnum] = val;
-#if HEX_DEBUG
-    /* Do this so HELPER(debug_commit_end) will know */
-    env->reg_written[rnum] = 1;
-#endif
+    if (HEX_DEBUG) {
+        /* Do this so HELPER(debug_commit_end) will know */
+        env->reg_written[rnum] = 1;
+    }
 }
 
 static void log_pred_write(CPUHexagonState *env, int pnum, target_ulong val)
@@ -117,7 +117,6 @@ static void write_new_pc(CPUHexagonState *env, target_ulong addr)
     }
 }
 
-#if HEX_DEBUG
 /* Handy place to set a breakpoint */
 void HELPER(debug_start_packet)(CPUHexagonState *env)
 {
@@ -128,14 +127,12 @@ void HELPER(debug_start_packet)(CPUHexagonState *env)
         env->reg_written[i] = 0;
     }
 }
-#endif
 
 static int32_t new_pred_value(CPUHexagonState *env, int pnum)
 {
     return env->new_pred_value[pnum];
 }
 
-#if HEX_DEBUG
 /* Checks for bookkeeping errors between disassembly context and runtime */
 void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
 {
@@ -145,7 +142,6 @@ void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
         g_assert_not_reached();
     }
 }
-#endif
 
 void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
 {
@@ -171,7 +167,6 @@ void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
     }
 }
 
-#if HEX_DEBUG
 static void print_store(CPUHexagonState *env, int slot)
 {
     if (!(env->slot_cancelled & (1 << slot))) {
@@ -255,7 +250,6 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
                   env->gpr[HEX_REG_QEMU_INSN_CNT]);
 
 }
-#endif
 
 static int32_t fcircadd_v4(int32_t RxV, int32_t offset, int32_t M, int32_t CS)
 {
