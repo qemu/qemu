@@ -40,14 +40,15 @@ struct Instruction {
 
     uint32_t iclass:6;
     uint32_t slot:3;
-    uint32_t part1:1;        /*
+    uint32_t which_extended:1;    /* If has an extender, which immediate */
+    uint32_t new_value_producer_slot:4;
+
+    bool part1;              /*
                               * cmp-jumps are split into two insns.
                               * set for the compare and clear for the jump
                               */
-    uint32_t extension_valid:1;   /* Has a constant extender attached */
-    uint32_t which_extended:1;    /* If has an extender, which immediate */
-    uint32_t is_endloop:1;   /* This is an end of loop */
-    uint32_t new_value_producer_slot:4;
+    bool extension_valid;   /* Has a constant extender attached */
+    bool is_endloop;   /* This is an end of loop */
     int32_t immed[IMMEDS_MAX];    /* immediate field */
 };
 
@@ -58,13 +59,13 @@ struct Packet {
     uint16_t encod_pkt_size_in_bytes;
 
     /* Pre-decodes about COF */
-    uint32_t pkt_has_cof:1;          /* Has any change-of-flow */
-    uint32_t pkt_has_endloop:1;
+    bool pkt_has_cof;          /* Has any change-of-flow */
+    bool pkt_has_endloop;
 
-    uint32_t pkt_has_dczeroa:1;
+    bool pkt_has_dczeroa;
 
-    uint32_t pkt_has_store_s0:1;
-    uint32_t pkt_has_store_s1:1;
+    bool pkt_has_store_s0;
+    bool pkt_has_store_s1;
 
     Insn insn[INSTRUCTIONS_MAX];
 };

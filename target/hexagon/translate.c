@@ -177,7 +177,7 @@ static void gen_start_packet(DisasContext *ctx, Packet *pkt)
         ctx->store_width[i] = 0;
     }
     tcg_gen_movi_tl(hex_pkt_has_store_s1, pkt->pkt_has_store_s1);
-    ctx->s1_store_processed = 0;
+    ctx->s1_store_processed = false;
 
 #if HEX_DEBUG
     /* Handy place to set a breakpoint before the packet executes */
@@ -210,7 +210,7 @@ static void mark_implicit_reg_write(DisasContext *ctx, Insn *insn,
                                     int attrib, int rnum)
 {
     if (GET_ATTRIB(insn->opcode, attrib)) {
-        int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC);
+        bool is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC);
         if (is_predicated && !is_preloaded(ctx, rnum)) {
             tcg_gen_mov_tl(hex_new_value[rnum], hex_gpr[rnum]);
         }
@@ -354,7 +354,7 @@ void process_store(DisasContext *ctx, Packet *pkt, int slot_num)
     if (slot_num == 1 && ctx->s1_store_processed) {
         return;
     }
-    ctx->s1_store_processed = 1;
+    ctx->s1_store_processed = true;
 
     if (is_predicated) {
         TCGv cancelled = tcg_temp_new();

@@ -36,7 +36,7 @@ typedef struct DisasContext {
     int preg_log_idx;
     DECLARE_BITMAP(pregs_written, NUM_PREGS);
     uint8_t store_width[STORES_MAX];
-    uint8_t s1_store_processed;
+    bool s1_store_processed;
 } DisasContext;
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)

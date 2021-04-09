@@ -948,8 +948,8 @@ static bool is_inf_prod(int32_t a, int32_t b)
 float32 HELPER(sffma_lib)(CPUHexagonState *env, float32 RxV,
                           float32 RsV, float32 RtV)
 {
-    int infinp;
-    int infminusinf;
+    bool infinp;
+    bool infminusinf;
     float32 tmp;
 
     arch_fpop_start(env);
@@ -982,8 +982,8 @@ float32 HELPER(sffma_lib)(CPUHexagonState *env, float32 RxV,
 float32 HELPER(sffms_lib)(CPUHexagonState *env, float32 RxV,
                           float32 RsV, float32 RtV)
 {
-    int infinp;
-    int infminusinf;
+    bool infinp;
+    bool infminusinf;
     float32 tmp;
 
     arch_fpop_start(env);
