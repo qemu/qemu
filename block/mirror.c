@@ -1148,7 +1148,11 @@ static void mirror_complete(Job *job, Error **errp)
     }
 
     s->should_complete = true;
-    job_enter(job);
+
+    /* If the job is paused, it will be re-entered when it is resumed */
+    if (!job->paused) {
+        job_enter(job);
+    }
 }
 
 static void coroutine_fn mirror_pause(Job *job)
