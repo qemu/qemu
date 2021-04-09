@@ -16,6 +16,7 @@
 #include "block/blockjob_int.h"
 #include "sysemu/block-backend.h"
 #include "qapi/qmp/qdict.h"
+#include "iothread.h"
 
 static const BlockJobDriver test_block_job_driver = {
     .job_driver = {
@@ -375,6 +376,125 @@ static void test_cancel_concluded(void)
     cancel_common(s);
 }
 
+/* (See test_yielding_driver for the job description) */
+typedef struct YieldingJob {
+    BlockJob common;
+    bool should_complete;
+} YieldingJob;
+
+static void yielding_job_complete(Job *job, Error **errp)
+{
+    YieldingJob *s = container_of(job, YieldingJob, common.job);
+    s->should_complete = true;
+    job_enter(job);
+}
+
+static int coroutine_fn yielding_job_run(Job *job, Error **errp)
+{
+    YieldingJob *s = container_of(job, YieldingJob, common.job);
+
+    job_transition_to_ready(job);
+
+    while (!s->should_complete) {
+        job_yield(job);
+    }
+
+    return 0;
+}
+
+/*
+ * This job transitions immediately to the READY state, and then
+ * yields until it is to complete.
+ */
+static const BlockJobDriver test_yielding_driver = {
+    .job_driver = {
+        .instance_size  = sizeof(YieldingJob),
+        .free           = block_job_free,
+        .user_resume    = block_job_user_resume,
+        .run            = yielding_job_run,
+        .complete       = yielding_job_complete,
+    },
+};
+
+/*
+ * Test that job_complete() works even on jobs that are in a paused
+ * state (i.e., STANDBY).
+ *
+ * To do this, run YieldingJob in an IO thread, get it into the READY
+ * state, then have a drained section.  Before ending the section,
+ * acquire the context so the job will not be entered and will thus
+ * remain on STANDBY.
+ *
+ * job_complete() should still work without error.
+ *
+ * Note that on the QMP interface, it is impossible to lock an IO
+ * thread before a drained section ends.  In practice, the
+ * bdrv_drain_all_end() and the aio_context_acquire() will be
+ * reversed.  However, that makes for worse reproducibility here:
+ * Sometimes, the job would no longer be in STANDBY then but already
+ * be started.  We cannot prevent that, because the IO thread runs
+ * concurrently.  We can only prevent it by taking the lock before
+ * ending the drained section, so we do that.
+ *
+ * (You can reverse the order of operations and most of the time the
+ * test will pass, but sometimes the assert(status == STANDBY) will
+ * fail.)
+ */
+static void test_complete_in_standby(void)
+{
+    BlockBackend *blk;
+    IOThread *iothread;
+    AioContext *ctx;
+    Job *job;
+    BlockJob *bjob;
+
+    /* Create a test drive, move it to an IO thread */
+    blk = create_blk(NULL);
+    iothread = iothread_new();
+
+    ctx = iothread_get_aio_context(iothread);
+    blk_set_aio_context(blk, ctx, &error_abort);
+
+    /* Create our test job */
+    bjob = mk_job(blk, "job", &test_yielding_driver, true,
+                  JOB_MANUAL_FINALIZE | JOB_MANUAL_DISMISS);
+    job = &bjob->job;
+    assert(job->status == JOB_STATUS_CREATED);
+
+    /* Wait for the job to become READY */
+    job_start(job);
+    aio_context_acquire(ctx);
+    AIO_WAIT_WHILE(ctx, job->status != JOB_STATUS_READY);
+    aio_context_release(ctx);
+
+    /* Begin the drained section, pausing the job */
+    bdrv_drain_all_begin();
+    assert(job->status == JOB_STATUS_STANDBY);
+    /* Lock the IO thread to prevent the job from being run */
+    aio_context_acquire(ctx);
+    /* This will schedule the job to resume it */
+    bdrv_drain_all_end();
+
+    /* But the job cannot run, so it will remain on standby */
+    assert(job->status == JOB_STATUS_STANDBY);
+
+    /* Even though the job is on standby, this should work */
+    job_complete(job, &error_abort);
+
+    /* The test is done now, clean up. */
+    job_finish_sync(job, NULL, &error_abort);
+    assert(job->status == JOB_STATUS_PENDING);
+
+    job_finalize(job, &error_abort);
+    assert(job->status == JOB_STATUS_CONCLUDED);
+
+    job_dismiss(&job, &error_abort);
+
+    destroy_blk(blk);
+    aio_context_release(ctx);
+    iothread_join(iothread);
+}
+
 int main(int argc, char **argv)
 {
     qemu_init_main_loop(&error_abort);
@@ -389,5 +509,6 @@ int main(int argc, char **argv)
     g_test_add_func("/blockjob/cancel/standby", test_cancel_standby);
     g_test_add_func("/blockjob/cancel/pending", test_cancel_pending);
     g_test_add_func("/blockjob/cancel/concluded", test_cancel_concluded);
+    g_test_add_func("/blockjob/complete_in_standby", test_complete_in_standby);
     return g_test_run();
 }

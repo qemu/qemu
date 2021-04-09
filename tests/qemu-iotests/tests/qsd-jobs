@@ -52,9 +52,12 @@ echo "=== Job still present at shutdown ==="
 echo
 
 # Just make sure that this doesn't crash
+# (Filter job status and READY events, because their order may differ
+# between runs, particularly around when 'quit' is issued)
 $QSD --chardev stdio,id=stdio --monitor chardev=stdio \
     --blockdev node-name=file0,driver=file,filename="$TEST_IMG" \
-    --blockdev node-name=fmt0,driver=qcow2,file=file0 <<EOF | _filter_qmp
+    --blockdev node-name=fmt0,driver=qcow2,file=file0 <<EOF \
+    | _filter_qmp | grep -v JOB_STATUS_CHANGE | grep -v BLOCK_JOB_READY
 {"execute":"qmp_capabilities"}
 {"execute": "block-commit", "arguments": {"device": "fmt0", "job-id": "job0"}}
 {"execute": "quit"}
