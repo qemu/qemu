@@ -143,12 +143,6 @@ void arch_fpop_end(CPUHexagonState *env)
     }
 }
 
-static float32 float32_mul_pow2(float32 a, uint32_t p, float_status *fp_status)
-{
-    float32 b = make_float32((SF_BIAS + p) << SF_MANTBITS);
-    return float32_mul(a, b, fp_status);
-}
-
 int arch_sf_recip_common(float32 *Rs, float32 *Rt, float32 *Rd, int *adjust,
                          float_status *fp_status)
 {
@@ -217,22 +211,22 @@ int arch_sf_recip_common(float32 *Rs, float32 *Rt, float32 *Rd, int *adjust,
         if ((n_exp - d_exp + SF_BIAS) <= SF_MANTBITS) {
             /* Near quotient underflow / inexact Q */
             PeV = 0x80;
-            RtV = float32_mul_pow2(RtV, -64, fp_status);
-            RsV = float32_mul_pow2(RsV, 64, fp_status);
+            RtV = float32_scalbn(RtV, -64, fp_status);
+            RsV = float32_scalbn(RsV, 64, fp_status);
         } else if ((n_exp - d_exp + SF_BIAS) > (SF_MAXEXP - 24)) {
             /* Near quotient overflow */
             PeV = 0x40;
-            RtV = float32_mul_pow2(RtV, 32, fp_status);
-            RsV = float32_mul_pow2(RsV, -32, fp_status);
+            RtV = float32_scalbn(RtV, 32, fp_status);
+            RsV = float32_scalbn(RsV, -32, fp_status);
         } else if (n_exp <= SF_MANTBITS + 2) {
-            RtV = float32_mul_pow2(RtV, 64, fp_status);
-            RsV = float32_mul_pow2(RsV, 64, fp_status);
+            RtV = float32_scalbn(RtV, 64, fp_status);
+            RsV = float32_scalbn(RsV, 64, fp_status);
         } else if (d_exp <= 1) {
-            RtV = float32_mul_pow2(RtV, 32, fp_status);
-            RsV = float32_mul_pow2(RsV, 32, fp_status);
+            RtV = float32_scalbn(RtV, 32, fp_status);
+            RsV = float32_scalbn(RsV, 32, fp_status);
         } else if (d_exp > 252) {
-            RtV = float32_mul_pow2(RtV, -32, fp_status);
-            RsV = float32_mul_pow2(RsV, -32, fp_status);
+            RtV = float32_scalbn(RtV, -32, fp_status);
+            RsV = float32_scalbn(RsV, -32, fp_status);
         }
         RdV = 0;
         ret = 1;
@@ -274,7 +268,7 @@ int arch_sf_invsqrt_common(float32 *Rs, float32 *Rd, int *adjust,
         /* Basic checks passed */
         r_exp = float32_getexp(RsV);
         if (r_exp <= 24) {
-            RsV = float32_mul_pow2(RsV, 64, fp_status);
+            RsV = float32_scalbn(RsV, 64, fp_status);
             PeV = 0xe0;
         }
         RdV = 0;
