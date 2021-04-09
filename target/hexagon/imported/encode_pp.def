@@ -1028,6 +1028,7 @@ MPY_ENC(F2_sfmin,            "1011","ddddd","0","0","0","1","01")
 MPY_ENC(F2_sfmpy,            "1011","ddddd","0","0","1","0","00")
 MPY_ENC(F2_sffixupn,         "1011","ddddd","0","0","1","1","00")
 MPY_ENC(F2_sffixupd,         "1011","ddddd","0","0","1","1","01")
+MPY_ENC(F2_sfrecipa,         "1011","ddddd","1","1","1","1","ee")
 
 DEF_FIELDROW_DESC32(ICLASS_M" 1100 -------- PP------ --------","[#12] Rd=(Rs,Rt)")
 DEF_FIELD32(ICLASS_M"         1100 -------- PP------ --!-----",Mc_tH,"Rt is High") /*Rt high */

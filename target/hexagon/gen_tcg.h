@@ -195,6 +195,27 @@
 #define fGEN_TCG_S4_stored_locked(SHORTCODE) \
     do { SHORTCODE; READ_PREG(PdV, PdN); } while (0)
 
+/*
+ * Mathematical operations with more than one definition require
+ * special handling
+ */
+
+/*
+ * Approximate reciprocal
+ * r3,p1 = sfrecipa(r0, r1)
+ *
+ * The helper packs the 2 32-bit results into a 64-bit value,
+ * so unpack them into the proper results.
+ */
+#define fGEN_TCG_F2_sfrecipa(SHORTCODE) \
+    do { \
+        TCGv_i64 tmp = tcg_temp_new_i64(); \
+        gen_helper_sfrecipa(tmp, cpu_env, RsV, RtV);  \
+        tcg_gen_extrh_i64_i32(RdV, tmp); \
+        tcg_gen_extrl_i64_i32(PeV, tmp); \
+        tcg_temp_free_i64(tmp); \
+    } while (0)
+
 /* Floating point */
 #define fGEN_TCG_F2_conv_sf2df(SHORTCODE) \
     gen_helper_conv_sf2df(RddV, cpu_env, RsV)

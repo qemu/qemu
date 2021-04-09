@@ -146,6 +146,22 @@ Q6INSN(F2_sfimm_n,"Rd32=sfmake(#u10):neg",ATTRIBS(),
 })
 
 
+Q6INSN(F2_sfrecipa,"Rd32,Pe4=sfrecipa(Rs32,Rt32)",ATTRIBS(),
+"Reciprocal Approximation for Division",
+{
+    fHIDE(int idx;)
+    fHIDE(int adjust;)
+    fHIDE(int mant;)
+    fHIDE(int exp;)
+    if (fSF_RECIP_COMMON(RsV,RtV,RdV,adjust)) {
+        PeV = adjust;
+        idx = (RtV >> 16) & 0x7f;
+        mant = (fSF_RECIP_LOOKUP(idx) << 15) | 1;
+        exp = fSF_BIAS() - (fSF_GETEXP(RtV) - fSF_BIAS()) - 1;
+        RdV = fMAKESF(fGETBIT(31,RtV),exp,mant);
+    }
+})
+
 Q6INSN(F2_sffixupn,"Rd32=sffixupn(Rs32,Rt32)",ATTRIBS(),
 "Fix Up Numerator",
 {

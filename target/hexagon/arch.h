@@ -30,4 +30,6 @@ int arch_sf_recip_common(float32 *Rs, float32 *Rt, float32 *Rd,
 int arch_sf_invsqrt_common(float32 *Rs, float32 *Rd, int *adjust,
                           float_status *fp_status);
 
+extern const uint8_t recip_lookup_table[128];
+
 #endif

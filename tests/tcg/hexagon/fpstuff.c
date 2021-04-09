@@ -250,6 +250,87 @@ static void check_dfminmax(void)
     check_fpstatus(usr, FPINVF);
 }
 
+static void check_recip_exception(void)
+{
+    int result;
+    int usr;
+
+    /*
+     * Check that sfrecipa doesn't set status bits when
+     * a NaN with bit 22 non-zero is passed
+     */
+    asm (CLEAR_FPSTATUS
+         "%0,p0 = sfrecipa(%2, %3)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(result), "=r"(usr) : "r"(SF_NaN), "r"(SF_ANY)
+         : "r2", "p0", "usr");
+    check32(result, SF_HEX_NAN);
+    check_fpstatus(usr, 0);
+
+    asm (CLEAR_FPSTATUS
+         "%0,p0 = sfrecipa(%2, %3)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(result), "=r"(usr) : "r"(SF_ANY), "r"(SF_NaN)
+         : "r2", "p0", "usr");
+    check32(result, SF_HEX_NAN);
+    check_fpstatus(usr, 0);
+
+    asm (CLEAR_FPSTATUS
+         "%0,p0 = sfrecipa(%2, %2)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(result), "=r"(usr) : "r"(SF_NaN)
+         : "r2", "p0", "usr");
+    check32(result, SF_HEX_NAN);
+    check_fpstatus(usr, 0);
+
+    /*
+     * Check that sfrecipa doesn't set status bits when
+     * a NaN with bit 22 zero is passed
+     */
+    asm (CLEAR_FPSTATUS
+         "%0,p0 = sfrecipa(%2, %3)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(result), "=r"(usr) : "r"(SF_NaN_special), "r"(SF_ANY)
+         : "r2", "p0", "usr");
+    check32(result, SF_HEX_NAN);
+    check_fpstatus(usr, FPINVF);
+
+    asm (CLEAR_FPSTATUS
+         "%0,p0 = sfrecipa(%2, %3)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(result), "=r"(usr) : "r"(SF_ANY), "r"(SF_NaN_special)
+         : "r2", "p0", "usr");
+    check32(result, SF_HEX_NAN);
+    check_fpstatus(usr, FPINVF);
+
+    asm (CLEAR_FPSTATUS
+         "%0,p0 = sfrecipa(%2, %2)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(result), "=r"(usr) : "r"(SF_NaN_special)
+         : "r2", "p0", "usr");
+    check32(result, SF_HEX_NAN);
+    check_fpstatus(usr, FPINVF);
+
+    /*
+     * Check that sfrecipa properly sets divid-by-zero
+     */
+        asm (CLEAR_FPSTATUS
+         "%0,p0 = sfrecipa(%2, %3)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(result), "=r"(usr) : "r"(0x885dc960), "r"(0x80000000)
+         : "r2", "p0", "usr");
+    check32(result, 0x3f800000);
+    check_fpstatus(usr, FPDBZF);
+
+    asm (CLEAR_FPSTATUS
+         "%0,p0 = sfrecipa(%2, %3)\n\t"
+         "%1 = usr\n\t"
+         : "=r"(result), "=r"(usr) : "r"(0x7f800000), "r"(SF_ZERO)
+         : "r2", "p0", "usr");
+    check32(result, 0x3f800000);
+    check_fpstatus(usr, 0);
+}
+
 static void check_canonical_NaN(void)
 {
     int sf_result;
@@ -507,6 +588,7 @@ int main()
     check_compare_exception();
     check_sfminmax();
     check_dfminmax();
+    check_recip_exception();
     check_canonical_NaN();
     check_float2int_convs();
 
