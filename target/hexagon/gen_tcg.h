@@ -238,6 +238,43 @@
     } while (0)
 
 /*
+ * Add or subtract with carry.
+ * Predicate register is used as an extra input and output.
+ * r5:4 = add(r1:0, r3:2, p1):carry
+ */
+#define fGEN_TCG_A4_addp_c(SHORTCODE) \
+    do { \
+        TCGv_i64 carry = tcg_temp_new_i64(); \
+        TCGv_i64 zero = tcg_const_i64(0); \
+        tcg_gen_extu_i32_i64(carry, PxV); \
+        tcg_gen_andi_i64(carry, carry, 1); \
+        tcg_gen_add2_i64(RddV, carry, RssV, zero, carry, zero); \
+        tcg_gen_add2_i64(RddV, carry, RddV, carry, RttV, zero); \
+        tcg_gen_extrl_i64_i32(PxV, carry); \
+        gen_8bitsof(PxV, PxV); \
+        tcg_temp_free_i64(carry); \
+        tcg_temp_free_i64(zero); \
+    } while (0)
+
+/* r5:4 = sub(r1:0, r3:2, p1):carry */
+#define fGEN_TCG_A4_subp_c(SHORTCODE) \
+    do { \
+        TCGv_i64 carry = tcg_temp_new_i64(); \
+        TCGv_i64 zero = tcg_const_i64(0); \
+        TCGv_i64 not_RttV = tcg_temp_new_i64(); \
+        tcg_gen_extu_i32_i64(carry, PxV); \
+        tcg_gen_andi_i64(carry, carry, 1); \
+        tcg_gen_not_i64(not_RttV, RttV); \
+        tcg_gen_add2_i64(RddV, carry, RssV, zero, carry, zero); \
+        tcg_gen_add2_i64(RddV, carry, RddV, carry, not_RttV, zero); \
+        tcg_gen_extrl_i64_i32(PxV, carry); \
+        gen_8bitsof(PxV, PxV); \
+        tcg_temp_free_i64(carry); \
+        tcg_temp_free_i64(zero); \
+        tcg_temp_free_i64(not_RttV); \
+    } while (0)
+
+/*
  * Compare each of the 8 unsigned bytes
  * The minimum is placed in each byte of the destination.
  * Each bit of the predicate is set true if the bit from the first operand
