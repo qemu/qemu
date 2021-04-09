@@ -261,6 +261,72 @@
     fGEN_TCG_loadbXw4(GET_EA_pi, true)
 
 /*
+ * These instructions load a half word, shift the destination right by 16 bits
+ * and place the loaded value in the high half word of the destination pair.
+ * The GET_EA macro determines the addressing mode.
+ */
+#define fGEN_TCG_loadalignh(GET_EA) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
+        GET_EA;  \
+        fLOAD(1, 2, u, EA, tmp);  \
+        tcg_gen_extu_i32_i64(tmp_i64, tmp); \
+        tcg_gen_shri_i64(RyyV, RyyV, 16); \
+        tcg_gen_deposit_i64(RyyV, RyyV, tmp_i64, 48, 16); \
+        tcg_temp_free(tmp); \
+        tcg_temp_free_i64(tmp_i64); \
+    } while (0)
+
+#define fGEN_TCG_L4_loadalignh_ur(SHORTCODE) \
+    fGEN_TCG_loadalignh(fEA_IRs(UiV, RtV, uiV))
+#define fGEN_TCG_L2_loadalignh_io(SHORTCODE) \
+    fGEN_TCG_loadalignh(fEA_RI(RsV, siV))
+#define fGEN_TCG_L2_loadalignh_pci(SHORTCODE) \
+    fGEN_TCG_loadalignh(GET_EA_pci)
+#define fGEN_TCG_L2_loadalignh_pcr(SHORTCODE) \
+    fGEN_TCG_loadalignh(GET_EA_pcr(1))
+#define fGEN_TCG_L4_loadalignh_ap(SHORTCODE) \
+    fGEN_TCG_loadalignh(GET_EA_ap)
+#define fGEN_TCG_L2_loadalignh_pr(SHORTCODE) \
+    fGEN_TCG_loadalignh(GET_EA_pr)
+#define fGEN_TCG_L2_loadalignh_pbr(SHORTCODE) \
+    fGEN_TCG_loadalignh(GET_EA_pbr)
+#define fGEN_TCG_L2_loadalignh_pi(SHORTCODE) \
+    fGEN_TCG_loadalignh(GET_EA_pi)
+
+/* Same as above, but loads a byte instead of half word */
+#define fGEN_TCG_loadalignb(GET_EA) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
+        GET_EA;  \
+        fLOAD(1, 1, u, EA, tmp);  \
+        tcg_gen_extu_i32_i64(tmp_i64, tmp); \
+        tcg_gen_shri_i64(RyyV, RyyV, 8); \
+        tcg_gen_deposit_i64(RyyV, RyyV, tmp_i64, 56, 8); \
+        tcg_temp_free(tmp); \
+        tcg_temp_free_i64(tmp_i64); \
+    } while (0)
+
+#define fGEN_TCG_L2_loadalignb_io(SHORTCODE) \
+    fGEN_TCG_loadalignb(fEA_RI(RsV, siV))
+#define fGEN_TCG_L4_loadalignb_ur(SHORTCODE) \
+    fGEN_TCG_loadalignb(fEA_IRs(UiV, RtV, uiV))
+#define fGEN_TCG_L2_loadalignb_pci(SHORTCODE) \
+    fGEN_TCG_loadalignb(GET_EA_pci)
+#define fGEN_TCG_L2_loadalignb_pcr(SHORTCODE) \
+    fGEN_TCG_loadalignb(GET_EA_pcr(0))
+#define fGEN_TCG_L4_loadalignb_ap(SHORTCODE) \
+    fGEN_TCG_loadalignb(GET_EA_ap)
+#define fGEN_TCG_L2_loadalignb_pr(SHORTCODE) \
+    fGEN_TCG_loadalignb(GET_EA_pr)
+#define fGEN_TCG_L2_loadalignb_pbr(SHORTCODE) \
+    fGEN_TCG_loadalignb(GET_EA_pbr)
+#define fGEN_TCG_L2_loadalignb_pi(SHORTCODE) \
+    fGEN_TCG_loadalignb(GET_EA_pi)
+
+/*
  * Predicated loads
  * Here is a primer to understand the tag names
  *

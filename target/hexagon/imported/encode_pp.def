@@ -348,6 +348,9 @@ STD_LD_ENC(bzw2,"0 011")
 STD_LD_ENC(bsw4,"0 111")
 STD_LD_ENC(bsw2,"0 001")
 
+STD_LDX_ENC(alignh,"0 010")
+STD_LDX_ENC(alignb,"0 100")
+
 STD_LD_ENC(rb,  "1 000")
 STD_LD_ENC(rub, "1 001")
 STD_LD_ENC(rh,  "1 010")

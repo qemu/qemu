@@ -80,6 +80,25 @@ ATTRIBS(A_LOAD),"2",
 
 
 
+STD_LD_AMODES(loadalignh, "Ryy32=memh_fifo", "Load Half-word into shifted vector",
+ATTRIBS(A_LOAD),"1",
+{
+ fHIDE(size8u_t tmpV;)
+ fLOAD(1,2,u,EA,tmpV);
+ RyyV = (((size8u_t)RyyV)>>16)|(tmpV<<48);
+},1)
+
+
+STD_LD_AMODES(loadalignb, "Ryy32=memb_fifo", "Load byte into shifted vector",
+ATTRIBS(A_LOAD),"0",
+{
+ fHIDE(size8u_t tmpV;)
+ fLOAD(1,1,u,EA,tmpV);
+ RyyV = (((size8u_t)RyyV)>>8)|(tmpV<<56);
+},0)
+
+
+
 
 /* The set of addressing modes standard to all Store instructions */
 #define STD_ST_AMODES(TAG,DEST,OPER,DESCR,ATTRIB,SHFT,SEMANTICS,SCALE)\
