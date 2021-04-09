@@ -342,6 +342,12 @@ DEF_ENC32(L4_pload##TAG##fnew_abs,ICLASS_LD" 1 11 "OPC"  iiiii  PP111tti  1--ddd
 
 
 /*               0 000  misc: dealloc,loadw_locked,dcfetch      */
+STD_LD_ENC(bzw4,"0 101")
+STD_LD_ENC(bzw2,"0 011")
+
+STD_LD_ENC(bsw4,"0 111")
+STD_LD_ENC(bsw2,"0 001")
+
 STD_LD_ENC(rb,  "1 000")
 STD_LD_ENC(rub, "1 001")
 STD_LD_ENC(rh,  "1 010")

@@ -465,6 +465,21 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fCAST8S_16S(A) (int128_exts64(A))
 #define fCAST16S_8S(A) (int128_getlo(A))
 
+#ifdef QEMU_GENERATE
+#define fEA_RI(REG, IMM) tcg_gen_addi_tl(EA, REG, IMM)
+#define fEA_RRs(REG, REG2, SCALE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        tcg_gen_shli_tl(tmp, REG2, SCALE); \
+        tcg_gen_add_tl(EA, REG, tmp); \
+        tcg_temp_free(tmp); \
+    } while (0)
+#define fEA_IRs(IMM, REG, SCALE) \
+    do { \
+        tcg_gen_shli_tl(EA, REG, SCALE); \
+        tcg_gen_addi_tl(EA, EA, IMM); \
+    } while (0)
+#else
 #define fEA_RI(REG, IMM) \
     do { \
         EA = REG + IMM; \
@@ -477,6 +492,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
     do { \
         EA = IMM + (REG << SCALE); \
     } while (0)
+#endif
 
 #ifdef QEMU_GENERATE
 #define fEA_IMM(IMM) tcg_gen_movi_tl(EA, IMM)

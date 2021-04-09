@@ -153,6 +153,114 @@
 #define fGEN_TCG_L2_loadrd_pi(SHORTCODE)       SHORTCODE
 
 /*
+ * These instructions load 2 bytes and places them in
+ * two halves of the destination register.
+ * The GET_EA macro determines the addressing mode.
+ * The SIGN argument determines whether to zero-extend or
+ * sign-extend.
+ */
+#define fGEN_TCG_loadbXw2(GET_EA, SIGN) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        TCGv byte = tcg_temp_new(); \
+        GET_EA; \
+        fLOAD(1, 2, u, EA, tmp); \
+        tcg_gen_movi_tl(RdV, 0); \
+        for (int i = 0; i < 2; i++) { \
+            gen_set_half(i, RdV, gen_get_byte(byte, i, tmp, (SIGN))); \
+        } \
+        tcg_temp_free(tmp); \
+        tcg_temp_free(byte); \
+    } while (0)
+
+#define fGEN_TCG_L2_loadbzw2_io(SHORTCODE) \
+    fGEN_TCG_loadbXw2(fEA_RI(RsV, siV), false)
+#define fGEN_TCG_L4_loadbzw2_ur(SHORTCODE) \
+    fGEN_TCG_loadbXw2(fEA_IRs(UiV, RtV, uiV), false)
+#define fGEN_TCG_L2_loadbsw2_io(SHORTCODE) \
+    fGEN_TCG_loadbXw2(fEA_RI(RsV, siV), true)
+#define fGEN_TCG_L4_loadbsw2_ur(SHORTCODE) \
+    fGEN_TCG_loadbXw2(fEA_IRs(UiV, RtV, uiV), true)
+#define fGEN_TCG_L4_loadbzw2_ap(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_ap, false)
+#define fGEN_TCG_L2_loadbzw2_pr(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_pr, false)
+#define fGEN_TCG_L2_loadbzw2_pbr(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_pbr, false)
+#define fGEN_TCG_L2_loadbzw2_pi(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_pi, false)
+#define fGEN_TCG_L4_loadbsw2_ap(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_ap, true)
+#define fGEN_TCG_L2_loadbsw2_pr(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_pr, true)
+#define fGEN_TCG_L2_loadbsw2_pbr(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_pbr, true)
+#define fGEN_TCG_L2_loadbsw2_pi(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_pi, true)
+#define fGEN_TCG_L2_loadbzw2_pci(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_pci, false)
+#define fGEN_TCG_L2_loadbsw2_pci(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_pci, true)
+#define fGEN_TCG_L2_loadbzw2_pcr(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_pcr(1), false)
+#define fGEN_TCG_L2_loadbsw2_pcr(SHORTCODE) \
+    fGEN_TCG_loadbXw2(GET_EA_pcr(1), true)
+
+/*
+ * These instructions load 4 bytes and places them in
+ * four halves of the destination register pair.
+ * The GET_EA macro determines the addressing mode.
+ * The SIGN argument determines whether to zero-extend or
+ * sign-extend.
+ */
+#define fGEN_TCG_loadbXw4(GET_EA, SIGN) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        TCGv byte = tcg_temp_new(); \
+        GET_EA; \
+        fLOAD(1, 4, u, EA, tmp);  \
+        tcg_gen_movi_i64(RddV, 0); \
+        for (int i = 0; i < 4; i++) { \
+            gen_set_half_i64(i, RddV, gen_get_byte(byte, i, tmp, (SIGN)));  \
+        }  \
+        tcg_temp_free(tmp); \
+        tcg_temp_free(byte); \
+    } while (0)
+
+#define fGEN_TCG_L2_loadbzw4_io(SHORTCODE) \
+    fGEN_TCG_loadbXw4(fEA_RI(RsV, siV), false)
+#define fGEN_TCG_L4_loadbzw4_ur(SHORTCODE) \
+    fGEN_TCG_loadbXw4(fEA_IRs(UiV, RtV, uiV), false)
+#define fGEN_TCG_L2_loadbsw4_io(SHORTCODE) \
+    fGEN_TCG_loadbXw4(fEA_RI(RsV, siV), true)
+#define fGEN_TCG_L4_loadbsw4_ur(SHORTCODE) \
+    fGEN_TCG_loadbXw4(fEA_IRs(UiV, RtV, uiV), true)
+#define fGEN_TCG_L2_loadbzw4_pci(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_pci, false)
+#define fGEN_TCG_L2_loadbsw4_pci(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_pci, true)
+#define fGEN_TCG_L2_loadbzw4_pcr(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_pcr(2), false)
+#define fGEN_TCG_L2_loadbsw4_pcr(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_pcr(2), true)
+#define fGEN_TCG_L4_loadbzw4_ap(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_ap, false)
+#define fGEN_TCG_L2_loadbzw4_pr(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_pr, false)
+#define fGEN_TCG_L2_loadbzw4_pbr(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_pbr, false)
+#define fGEN_TCG_L2_loadbzw4_pi(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_pi, false)
+#define fGEN_TCG_L4_loadbsw4_ap(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_ap, true)
+#define fGEN_TCG_L2_loadbsw4_pr(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_pr, true)
+#define fGEN_TCG_L2_loadbsw4_pbr(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_pbr, true)
+#define fGEN_TCG_L2_loadbsw4_pi(SHORTCODE) \
+    fGEN_TCG_loadbXw4(GET_EA_pi, true)
+
+/*
  * Predicated loads
  * Here is a primer to understand the tag names
  *
