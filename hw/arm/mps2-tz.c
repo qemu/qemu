@@ -306,14 +306,18 @@ static const RAMInfo *find_raminfo_for_mpc(MPS2TZMachineState *mms, int mpc)
 {
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
     const RAMInfo *p;
+    const RAMInfo *found = NULL;
 
     for (p = mmc->raminfo; p->name; p++) {
         if (p->mpc == mpc && !(p->flags & IS_ALIAS)) {
-            return p;
+            /* There should only be one entry in the array for this MPC */
+            g_assert(!found);
+            found = p;
         }
     }
     /* if raminfo array doesn't have an entry for each MPC this is a bug */
-    g_assert_not_reached();
+    assert(found);
+    return found;
 }
 
 static MemoryRegion *mr_for_raminfo(MPS2TZMachineState *mms,
