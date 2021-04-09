@@ -222,6 +222,13 @@ static inline void gen_pred_cancel(TCGv pred, int slot_num)
     (((HIBIT) - (LOWBIT) + 1) ? \
         extract64((INREG), (LOWBIT), ((HIBIT) - (LOWBIT) + 1)) : \
         0LL)
+#define fINSERT_RANGE(INREG, HIBIT, LOWBIT, INVAL) \
+    do { \
+        int width = ((HIBIT) - (LOWBIT) + 1); \
+        INREG = (width >= 0 ? \
+            deposit64((INREG), (LOWBIT), width, (INVAL)) : \
+            INREG); \
+    } while (0)
 
 #define f8BITSOF(VAL) ((VAL) ? 0xff : 0x00)
 

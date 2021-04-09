@@ -1029,6 +1029,53 @@ Q6INSN(S4_clbpaddi,"Rd32=add(clb(Rss32),#s6)",ATTRIBS(A_ARCHV2),
 { RdV = (fMAX(fCL1_8(RssV),fCL1_8(~RssV)))+siV;})
 
 
+
+Q6INSN(S2_cabacdecbin,"Rdd32=decbin(Rss32,Rtt32)",ATTRIBS(A_ARCHV3),"CABAC decode bin",
+{
+    fHIDE(size4u_t state;)
+    fHIDE(size4u_t valMPS;)
+    fHIDE(size4u_t bitpos;)
+    fHIDE(size4u_t range;)
+    fHIDE(size4u_t offset;)
+    fHIDE(size4u_t rLPS;)
+    fHIDE(size4u_t rMPS;)
+
+    state =  fEXTRACTU_RANGE( fGETWORD(1,RttV) ,5,0);
+    valMPS = fEXTRACTU_RANGE( fGETWORD(1,RttV) ,8,8);
+    bitpos = fEXTRACTU_RANGE( fGETWORD(0,RttV) ,4,0);
+    range =  fGETWORD(0,RssV);
+    offset = fGETWORD(1,RssV);
+
+    /* calculate rLPS */
+    range <<= bitpos;
+    offset <<= bitpos;
+    rLPS = rLPS_table_64x4[state][ (range >>29)&3];
+    rLPS  = rLPS << 23;   /* left aligned */
+
+    /* calculate rMPS */
+    rMPS= (range&0xff800000) - rLPS;
+
+    /* most probable region */
+    if (offset < rMPS) {
+        RddV = AC_next_state_MPS_64[state];
+        fINSERT_RANGE(RddV,8,8,valMPS);
+        fINSERT_RANGE(RddV,31,23,(rMPS>>23));
+        fSETWORD(1,RddV,offset);
+        fWRITE_P0(valMPS);
+
+
+    }
+    /* least probable region */
+    else {
+        RddV = AC_next_state_LPS_64[state];
+        fINSERT_RANGE(RddV,8,8,((!state)?(1-valMPS):(valMPS)));
+        fINSERT_RANGE(RddV,31,23,(rLPS>>23));
+        fSETWORD(1,RddV,(offset-rMPS));
+        fWRITE_P0((valMPS^1));
+    }
+})
+
+
 Q6INSN(S2_clb,"Rd32=clb(Rs32)",ATTRIBS(),
 "Count leading bits", {RdV = fMAX(fCL1_4(RsV),fCL1_4(~RsV));})
 

@@ -1767,6 +1767,7 @@ SH_RRR_ENC(S4_vxsubaddh,        "0001","01-","-","110","ddddd")
 SH_RRR_ENC(S4_vxaddsubhr,       "0001","11-","-","00-","ddddd")
 SH_RRR_ENC(S4_vxsubaddhr,       "0001","11-","-","01-","ddddd")
 SH_RRR_ENC(S4_extractp_rp,      "0001","11-","-","10-","ddddd")
+SH_RRR_ENC(S2_cabacdecbin,      "0001","11-","-","11-","ddddd") /* implicit P0 write */
 
 
 DEF_FIELDROW_DESC32(ICLASS_S3op" 0010 -------- PP------ --------","[#2] Rdd=(Rss,Rtt,Pu)")

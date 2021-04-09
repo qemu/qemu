@@ -92,6 +92,21 @@ DEF_MACRO(
     /* attribs */
 )
 
+
+DEF_MACRO(
+    fINSERT_RANGE,
+        {
+            int offset=LOWBIT;
+            int width=HIBIT-LOWBIT+1;
+            /* clear bits where new bits go */
+            INREG &= ~(((fCONSTLL(1)<<width)-1)<<offset);
+            /* OR in new bits */
+            INREG |= ((INVAL & ((fCONSTLL(1)<<width)-1)) << offset);
+        },
+    /* attribs */
+)
+
+
 DEF_MACRO(
     f8BITSOF,
     ( (VAL) ? 0xff : 0x00),
