@@ -264,6 +264,22 @@ static long long creg_pair(int x, int y)
     return retval;
 }
 
+/* Check that predicates are auto-and'ed in a packet */
+static int auto_and(void)
+{
+    int retval;
+    asm ("r5 = #1\n\t"
+         "{\n\t"
+         "    p0 = cmp.eq(r1, #1)\n\t"
+         "    p0 = cmp.eq(r1, #2)\n\t"
+         "}\n\t"
+         "%0 = p0\n\t"
+         : "=r"(retval)
+         :
+         : "r5", "p0");
+    return retval;
+}
+
 int main()
 {
 
@@ -374,6 +390,9 @@ int main()
     check(res, 0);
     res = test_clrtnew(2, 7);
     check(res, 7);
+
+    res = auto_and();
+    check(res, 0);
 
     puts(err ? "FAIL" : "PASS");
     return err;

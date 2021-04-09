@@ -34,6 +34,7 @@ typedef struct DisasContext {
     DECLARE_BITMAP(regs_written, TOTAL_PER_THREAD_REGS);
     int preg_log[PRED_WRITES_MAX];
     int preg_log_idx;
+    DECLARE_BITMAP(pregs_written, NUM_PREGS);
     uint8_t store_width[STORES_MAX];
     uint8_t s1_store_processed;
 } DisasContext;
@@ -60,6 +61,7 @@ static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
 {
     ctx->preg_log[ctx->preg_log_idx] = pnum;
     ctx->preg_log_idx++;
+    set_bit(pnum, ctx->pregs_written);
 }
 
 static inline bool is_preloaded(DisasContext *ctx, int num)
