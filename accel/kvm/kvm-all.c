@@ -160,6 +160,10 @@ bool kvm_msi_use_devid;
 static bool kvm_immediate_exit;
 static hwaddr kvm_max_slot_size = ~0;
 
+/******************************************************************************
+ ****************************************************************************** 
+******************************************************************************/
+
 /* Agent Protection */
 bool protect_agent_cmd = false;
 bool protect_agent_done = false;
@@ -182,6 +186,9 @@ struct kernel_invariants {
     hwaddr irqaction_size;
 } kernel_invariants;
 
+/******************************************************************************
+ ****************************************************************************** 
+******************************************************************************/
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -357,6 +364,10 @@ int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
     return ret;
 }
 
+/******************************************************************************
+ ****************************************************************************** 
+******************************************************************************/
+
 void *kvm_physical_memory_addr_to_host(KVMState *s, hwaddr guest_physical)
 {
     KVMMemoryListener *kml = &s->memory_listener;
@@ -380,6 +391,9 @@ void *kvm_physical_memory_addr_to_host(KVMState *s, hwaddr guest_physical)
     return host_virtual;
 }
 
+/******************************************************************************
+ ****************************************************************************** 
+******************************************************************************/
 
 static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, bool new)
 {
@@ -2487,6 +2501,9 @@ static void kvm_eat_signals(CPUState *cpu)
     } while (sigismember(&chkset, SIG_IPI));
 }
 
+/******************************************************************************
+ ****************************************************************************** 
+******************************************************************************/
 
 static bool within(hwaddr target, hwaddr addr1, hwaddr addr2)
 {
@@ -2634,7 +2651,7 @@ static void make_read_only_memory_slot(hwaddr gpa,
             break;
         case 2:
             new_slots[i]->ram = ((char *)hva + (pages * (PAGE_SIZE)));
-            new_slots[i]->start_addr = gpa + (PAGE_SIZE);
+            new_slots[i]->start_addr = gpa + (pages * (PAGE_SIZE));
             new_slots[i]->memory_size = 
                 total_size - 
                 (new_slots[0]->memory_size + (pages * (PAGE_SIZE)));
@@ -2799,6 +2816,9 @@ static void check_idtr_gdtr(CPUState *cpu)
     }
 }
 
+/******************************************************************************
+ ******************************************************************************      
+******************************************************************************/
 
 int kvm_cpu_exec(CPUState *cpu)
 {
@@ -2927,25 +2947,21 @@ int kvm_cpu_exec(CPUState *cpu)
                     ret = 0;
                     break;
                 case NOT_IN_SLOT:
-                    address_space_rw(&address_space_memory,
-                                        run->mmio.phys_addr, attrs,
-                                        run->mmio.data,
-                                        run->mmio.len,
-                                        run->mmio.is_write);
-                    ret = 0;
-                    break;
+                    goto default_behaviour;
+ 
                 }
             }
             else {
+default_behaviour:
                 address_space_rw(&address_space_memory,
                     run->mmio.phys_addr, attrs,
                     run->mmio.data,
                     run->mmio.len,
                     run->mmio.is_write);
                 ret = 0;
-                break;
             }
             break;
+
         case KVM_EXIT_IRQ_WINDOW_OPEN:
             DPRINTF("irq_window_open\n");
             ret = EXCP_INTERRUPT;
