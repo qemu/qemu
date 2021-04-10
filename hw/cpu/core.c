@@ -66,10 +66,16 @@ static void core_prop_set_nr_threads(Object *obj, Visitor *v, const char *name,
 
 static void cpu_core_instance_init(Object *obj)
 {
-    MachineState *ms = MACHINE(qdev_get_machine());
     CPUCore *core = CPU_CORE(obj);
 
-    core->nr_threads = ms->smp.threads;
+    /*
+     * Only '-device something-cpu-core,help' can get us there before
+     * the machine has been created. We don't care to set nr_threads
+     * in this case since it isn't used afterwards.
+     */
+    if (current_machine) {
+        core->nr_threads = current_machine->smp.threads;
+    }
 }
 
 static void cpu_core_class_init(ObjectClass *oc, void *data)
