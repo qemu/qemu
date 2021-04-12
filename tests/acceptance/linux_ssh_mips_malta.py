@@ -18,6 +18,8 @@ from avocado.utils import process
 from avocado.utils import archive
 from avocado.utils import ssh
 
+from qemu.utils import get_info_usernet_hostfwd_port
+
 
 class LinuxSSH(Test):
 
@@ -70,18 +72,14 @@ class LinuxSSH(Test):
     def setUp(self):
         super(LinuxSSH, self).setUp()
 
-    def get_portfwd(self):
-        res = self.vm.command('human-monitor-command',
-                              command_line='info usernet')
-        line = res.split('\r\n')[2]
-        port = re.split(r'.*TCP.HOST_FORWARD.*127\.0\.0\.1 (\d+)\s+10\..*',
-                        line)[1]
-        self.log.debug("sshd listening on port:" + port)
-        return port
-
     def ssh_connect(self, username, password):
         self.ssh_logger = logging.getLogger('ssh')
-        port = self.get_portfwd()
+        res = self.vm.command('human-monitor-command',
+                              command_line='info usernet')
+        port = get_info_usernet_hostfwd_port(res)
+        if not port:
+            self.cancel("Failed to retrieve SSH port")
+        self.log.debug("sshd listening on port:" + port)
         self.ssh_session = ssh.Session(self.VM_IP, port=int(port),
                                        user=username, password=password)
         for i in range(10):

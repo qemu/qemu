@@ -9,6 +9,8 @@ from avocado_qemu import LinuxTest, BUILD_DIR
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import ssh
 
+from qemu.utils import get_info_usernet_hostfwd_port
+
 
 def run_cmd(args):
     subp = subprocess.Popen(args,
@@ -73,27 +75,14 @@ class VirtiofsSubmountsTest(LinuxTest):
     :avocado: tags=accel:kvm
     """
 
-    def get_portfwd(self):
-        port = None
-
+    def ssh_connect(self, username, keyfile):
+        self.ssh_logger = logging.getLogger('ssh')
         res = self.vm.command('human-monitor-command',
                               command_line='info usernet')
-        for line in res.split('\r\n'):
-            match = \
-                re.search(r'TCP.HOST_FORWARD.*127\.0\.0\.1\s+(\d+)\s+10\.',
-                          line)
-            if match is not None:
-                port = int(match[1])
-                break
-
+        port = get_info_usernet_hostfwd_port(res)
         self.assertIsNotNone(port)
         self.assertGreater(port, 0)
         self.log.debug('sshd listening on port: %d', port)
-        return port
-
-    def ssh_connect(self, username, keyfile):
-        self.ssh_logger = logging.getLogger('ssh')
-        port = self.get_portfwd()
         self.ssh_session = ssh.Session('127.0.0.1', port=port,
                                        user=username, key=keyfile)
         for i in range(10):
