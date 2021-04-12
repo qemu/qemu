@@ -87,6 +87,8 @@ void i2c_nack(I2CBus *bus);
 int i2c_send_recv(I2CBus *bus, uint8_t *data, bool send);
 int i2c_send(I2CBus *bus, uint8_t data);
 uint8_t i2c_recv(I2CBus *bus);
+bool i2c_scan_bus(I2CBus *bus, uint8_t address, bool broadcast,
+                  I2CNodeList *current_devs);
 
 /**
  * Create an I2C slave device on the heap.
