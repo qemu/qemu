@@ -844,7 +844,7 @@ void qos_dump_graph(void)
         }
         qos_printf_literal("type=%d cmd_line='%s' [%s]\n",
                            node->type, node->command_line,
-                           node->available ? "available" : "UNAVAILBLE"
+                           node->available ? "available" : "UNAVAILABLE"
         );
     }
     g_list_free(keys);
