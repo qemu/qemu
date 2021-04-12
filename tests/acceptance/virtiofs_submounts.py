@@ -70,6 +70,7 @@ def has_cmds(*cmds):
 class VirtiofsSubmountsTest(LinuxTest):
     """
     :avocado: tags=arch:x86_64
+    :avocado: tags=accel:kvm
     """
 
     def get_portfwd(self):
