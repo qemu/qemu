@@ -391,7 +391,7 @@ class LinuxTest(Test, LinuxSSHMixIn):
         cloudinit_iso = self.prepare_cloudinit(ssh_pubkey)
         self.vm.add_args('-drive', 'file=%s,format=raw' % cloudinit_iso)
 
-    def launch_and_wait(self):
+    def launch_and_wait(self, set_up_ssh_connection=True):
         self.vm.set_console()
         self.vm.launch()
         console_drainer = datadrainer.LineLogger(self.vm.console_socket.fileno(),
@@ -399,3 +399,6 @@ class LinuxTest(Test, LinuxSSHMixIn):
         console_drainer.start()
         self.log.info('VM launched, waiting for boot confirmation from guest')
         cloudinit.wait_for_phone_home(('0.0.0.0', self.phone_home_port), self.name)
+        if set_up_ssh_connection:
+            self.log.info('Setting up the SSH connection')
+            self.ssh_connect(self.username, self.ssh_key)

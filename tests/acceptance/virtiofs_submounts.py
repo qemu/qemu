@@ -136,7 +136,6 @@ class VirtiofsSubmountsTest(LinuxTest):
 
     def launch_vm(self):
         self.launch_and_wait()
-        self.ssh_connect('root', self.ssh_key)
 
     def set_up_nested_mounts(self):
         scratch_dir = os.path.join(self.shared_dir, 'scratch')
