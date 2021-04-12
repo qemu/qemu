@@ -907,7 +907,14 @@ const char *qtest_get_arch(void)
 
     if (!end) {
         fprintf(stderr, "Can't determine architecture from binary name.\n");
-        abort();
+        exit(1);
+    }
+
+    if (!strstr(qemu, "-system-")) {
+        fprintf(stderr, "QTEST_QEMU_BINARY must end with *-system-<arch> "
+                "where 'arch' is the target\narchitecture (x86_64, aarch64, "
+                "etc).\n");
+        exit(1);
     }
 
     return end + 1;
