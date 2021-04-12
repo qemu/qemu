@@ -195,7 +195,7 @@ class VirtiofsSubmountsTest(LinuxTest):
 
         self.run(('ssh-keygen', '-N', '', '-t', 'ed25519', '-f', self.ssh_key))
 
-        pubkey = open(self.ssh_key + '.pub').read()
+        pubkey = self.ssh_key + '.pub'
 
         super(VirtiofsSubmountsTest, self).setUp(pubkey)
 
