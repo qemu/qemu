@@ -810,6 +810,32 @@ and hypothetical example follows:
 At test "tear down", ``avocado_qemu.Test`` handles all the QEMUMachines
 shutdown.
 
+The ``avocado_qemu.LinuxTest`` base test class
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``avocado_qemu.LinuxTest`` is further specialization of the
+``avocado_qemu.Test`` class, so it contains all the characteristics of
+the later plus some extra features.
+
+First of all, this base class is intended for tests that need to
+interact with a fully booted and operational Linux guest.  At this
+time, it uses a Fedora 31 guest image.  The most basic example looks
+like this:
+
+.. code::
+
+  from avocado_qemu import LinuxTest
+
+
+  class SomeTest(LinuxTest):
+
+      def test(self):
+          self.launch_and_wait()
+          self.ssh_command('some_command_to_be_run_in_the_guest')
+
+Please refer to tests that use ``avocado_qemu.LinuxTest`` under
+``tests/acceptance`` for more examples.
+
 QEMUMachine
 ~~~~~~~~~~~
 
