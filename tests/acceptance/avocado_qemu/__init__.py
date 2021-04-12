@@ -308,6 +308,8 @@ class LinuxTest(Test, LinuxSSHMixIn):
 
     timeout = 900
     chksum = None
+    username = 'root'
+    password = 'password'
 
     def setUp(self, ssh_pubkey=None, network_device_type='virtio-net'):
         super(LinuxTest, self).setUp()
@@ -371,8 +373,8 @@ class LinuxTest(Test, LinuxSSHMixIn):
                 with open(ssh_pubkey) as pubkey:
                     pubkey_content = pubkey.read()
             cloudinit.iso(cloudinit_iso, self.name,
-                          username='root',
-                          password='password',
+                          username=self.username,
+                          password=self.password,
                           # QEMU's hard coded usermode router address
                           phone_home_host='10.0.2.2',
                           phone_home_port=self.phone_home_port,
