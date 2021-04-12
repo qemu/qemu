@@ -207,10 +207,6 @@ class VirtiofsSubmountsTest(LinuxTest):
             self.vm.add_args('-kernel', vmlinuz,
                              '-append', 'console=ttyS0 root=/dev/sda1')
 
-        # Allow us to connect to SSH
-        self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22',
-                         '-device', 'virtio-net,netdev=vnet')
-
         self.require_accelerator("kvm")
         self.vm.add_args('-accel', 'kvm')
 
