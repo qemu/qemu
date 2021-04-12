@@ -92,6 +92,64 @@ The basic framework steps are the following:
 Depending on the QEMU binary used, only some drivers/machines will be
 available and only test that are reached by them will be executed.
 
+Troubleshooting unavailable tests
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+If there is no path from an available machine to a test then that test will be
+unavailable and won't execute. This can happen if a test or driver did not set
+up its qgraph node correctly. It can also happen if the necessary machine type
+or device is missing from the QEMU binary because it was compiled out or
+otherwise.
+
+It is possible to troubleshoot unavailable tests by running::
+
+  $ QTEST_QEMU_BINARY=build/qemu-system-x86_64 build/tests/qtest/qos-test --verbose
+  # ALL QGRAPH EDGES: {
+  #   src='virtio-net'
+  #      |-> dest='virtio-net-tests/vhost-user/multiqueue' type=2 (node=0x559142109e30)
+  #      |-> dest='virtio-net-tests/vhost-user/migrate' type=2 (node=0x559142109d00)
+  #   src='virtio-net-pci'
+  #      |-> dest='virtio-net' type=1 (node=0x55914210d740)
+  #   src='pci-bus'
+  #      |-> dest='virtio-net-pci' type=2 (node=0x55914210d880)
+  #   src='pci-bus-pc'
+  #      |-> dest='pci-bus' type=1 (node=0x559142103f40)
+  #   src='i440FX-pcihost'
+  #      |-> dest='pci-bus-pc' type=0 (node=0x55914210ac70)
+  #   src='x86_64/pc'
+  #      |-> dest='i440FX-pcihost' type=0 (node=0x5591421117f0)
+  #   src=''
+  #      |-> dest='x86_64/pc' type=0 (node=0x559142111600)
+  #      |-> dest='arm/raspi2' type=0 (node=0x559142110740)
+  ...
+  # }
+  # ALL QGRAPH NODES: {
+  #   name='virtio-net-tests/announce-self' type=3 cmd_line='(null)' [available]
+  #   name='arm/raspi2' type=0 cmd_line='-M raspi2 ' [UNAVAILABLE]
+  ...
+  # }
+
+The ``virtio-net-tests/announce-self`` test is listed as "available" in the
+"ALL QGRAPH NODES" output. This means the test will execute. We can follow the
+qgraph path in the "ALL QGRAPH EDGES" output as follows: '' -> 'x86_64/pc' ->
+'i440FX-pcihost' -> 'pci-bus-pc' -> 'pci-bus' -> 'virtio-net-pci' ->
+'virtio-net'. The root of the qgraph is '' and the depth first search begins
+there.
+
+The ``arm/raspi`` machine node is listed as "UNAVAILABLE". Although it is
+reachable from the root via '' -> 'arm/raspi2' the node is unavailable because
+the QEMU binary did not list it when queried by the framework. This is expected
+because we used the ``qemu-system-x86_64`` binary which does not support ARM
+machine types.
+
+If a test is unexpectedly listed as "UNAVAILABLE", first check that the "ALL
+QGRAPH EDGES" output reports edge connectivity from the root ('') to the test.
+If there is no connectivity then the qgraph nodes were not set up correctly and
+the driver or test code is incorrect. If there is connectivity, check the
+availability of each node in the path in the "ALL QGRAPH NODES" output. The
+first unavailable node in the path is the reason why the test is unavailable.
+Typically this is because the QEMU binary lacks support for the necessary
+machine type or device.
+
 Creating a new driver and its interface
 """""""""""""""""""""""""""""""""""""""""
 
