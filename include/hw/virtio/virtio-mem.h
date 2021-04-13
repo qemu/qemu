@@ -67,6 +67,9 @@ struct VirtIOMEM {
 
     /* don't migrate unplugged memory */
     NotifierWithReturn precopy_notifier;
+
+    /* listeners to notify on plug/unplug activity. */
+    QLIST_HEAD(, RamDiscardListener) rdl_list;
 };
 
 struct VirtIOMEMClass {
