@@ -39,6 +39,19 @@
 #include "fpu_helper.h"
 #include "translate.h"
 
+/*
+ * Many sysemu-only helpers are not reachable for user-only.
+ * Define stub generators here, so that we need not either sprinkle
+ * ifdefs through the translator, nor provide the helper function.
+ */
+#define STUB_HELPER(NAME, ...) \
+    static inline void gen_helper_##NAME(__VA_ARGS__) \
+    { g_assert_not_reached(); }
+
+#ifdef CONFIG_USER_ONLY
+STUB_HELPER(cache, TCGv_env env, TCGv val, TCGv_i32 reg)
+#endif
+
 enum {
     /* indirect opcode tables */
     OPC_SPECIAL  = (0x00 << 26),

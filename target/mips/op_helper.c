@@ -788,38 +788,3 @@ void mips_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     }
 }
 #endif /* !CONFIG_USER_ONLY */
-
-void helper_cache(CPUMIPSState *env, target_ulong addr, uint32_t op)
-{
-#ifndef CONFIG_USER_ONLY
-    static const char *const type_name[] = {
-        "Primary Instruction",
-        "Primary Data or Unified Primary",
-        "Tertiary",
-        "Secondary"
-    };
-    uint32_t cache_type = extract32(op, 0, 2);
-    uint32_t cache_operation = extract32(op, 2, 3);
-    target_ulong index = addr & 0x1fffffff;
-
-    switch (cache_operation) {
-    case 0b010: /* Index Store Tag */
-        memory_region_dispatch_write(env->itc_tag, index, env->CP0_TagLo,
-                                     MO_64, MEMTXATTRS_UNSPECIFIED);
-        break;
-    case 0b001: /* Index Load Tag */
-        memory_region_dispatch_read(env->itc_tag, index, &env->CP0_TagLo,
-                                    MO_64, MEMTXATTRS_UNSPECIFIED);
-        break;
-    case 0b000: /* Index Invalidate */
-    case 0b100: /* Hit Invalidate */
-    case 0b110: /* Hit Writeback */
-        /* no-op */
-        break;
-    default:
-        qemu_log_mask(LOG_UNIMP, "cache operation:%u (type: %s cache)\n",
-                      cache_operation, type_name[cache_type]);
-        break;
-    }
-#endif
-}
