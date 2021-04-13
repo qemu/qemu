@@ -1538,7 +1538,7 @@ const QemuUIInfo *dpy_get_ui_info(const QemuConsole *con)
     return &con->ui_info;
 }
 
-int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info)
+int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info, bool delay)
 {
     if (con == NULL) {
         con = active_console;
@@ -1558,7 +1558,8 @@ int dpy_set_ui_info(QemuConsole *con, QemuUIInfo *info)
      * go notify the guest.
      */
     con->ui_info = *info;
-    timer_mod(con->ui_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1000);
+    timer_mod(con->ui_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + (delay ? 1000 : 0));
     return 0;
 }
 

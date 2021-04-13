@@ -692,7 +692,7 @@ static int interface_client_monitors_config(QXLInstance *sin,
     }
 
     trace_qemu_spice_ui_info(ssd->qxl.id, info.width, info.height);
-    dpy_set_ui_info(ssd->dcl.con, &info);
+    dpy_set_ui_info(ssd->dcl.con, &info, false);
     return 1;
 }
 

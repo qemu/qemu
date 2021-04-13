@@ -552,7 +552,7 @@ QemuCocoaView *cocoaView;
     info.width = frameSize.width;
     info.height = frameSize.height;
 
-    dpy_set_ui_info(dcl.con, &info);
+    dpy_set_ui_info(dcl.con, &info, TRUE);
 }
 
 - (void)viewDidMoveToWindow

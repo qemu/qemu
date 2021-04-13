@@ -698,7 +698,7 @@ static void gd_set_ui_info(VirtualConsole *vc, gint width, gint height)
     memset(&info, 0, sizeof(info));
     info.width = width;
     info.height = height;
-    dpy_set_ui_info(vc->gfx.dcl.con, &info);
+    dpy_set_ui_info(vc->gfx.dcl.con, &info, true);
 }
 
 #if defined(CONFIG_OPENGL)

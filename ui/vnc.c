@@ -2596,7 +2596,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
             memset(&info, 0, sizeof(info));
             info.width = w;
             info.height = h;
-            dpy_set_ui_info(vs->vd->dcl.con, &info);
+            dpy_set_ui_info(vs->vd->dcl.con, &info, false);
             vnc_desktop_resize_ext(vs, 4 /* Request forwarded */);
         } else {
             vnc_desktop_resize_ext(vs, 3 /* Invalid screen layout */);

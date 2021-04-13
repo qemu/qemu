@@ -561,7 +561,7 @@ static void handle_windowevent(SDL_Event *ev)
             memset(&info, 0, sizeof(info));
             info.width = ev->window.data1;
             info.height = ev->window.data2;
-            dpy_set_ui_info(scon->dcl.con, &info);
+            dpy_set_ui_info(scon->dcl.con, &info, true);
         }
         sdl2_redraw(scon);
         break;
