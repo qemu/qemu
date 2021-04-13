@@ -608,4 +608,4 @@ DEF_HELPER_FLAGS_2(rddsp, 0, tl, tl, env)
 #include "tcg/sysemu_helper.h.inc"
 #endif /* !CONFIG_USER_ONLY */
 
-#include "msa_helper.h.inc"
+#include "tcg/msa_helper.h.inc"
