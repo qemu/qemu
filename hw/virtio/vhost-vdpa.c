@@ -371,8 +371,8 @@ static int vhost_vdpa_set_backend_cap(struct vhost_dev *dev)
     return 0;
 }
 
-int vhost_vdpa_get_device_id(struct vhost_dev *dev,
-                                   uint32_t *device_id)
+static int vhost_vdpa_get_device_id(struct vhost_dev *dev,
+                                    uint32_t *device_id)
 {
     int ret;
     ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_DEVICE_ID, device_id);
