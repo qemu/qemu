@@ -95,45 +95,44 @@ void esp_request_cancelled(SCSIRequest *req)
         scsi_req_unref(s->current_req);
         s->current_req = NULL;
         s->current_dev = NULL;
+        s->async_len = 0;
     }
 }
 
-static void esp_fifo_push(ESPState *s, uint8_t val)
+static void esp_fifo_push(Fifo8 *fifo, uint8_t val)
 {
-    if (fifo8_num_used(&s->fifo) == ESP_FIFO_SZ) {
+    if (fifo8_num_used(fifo) == fifo->capacity) {
         trace_esp_error_fifo_overrun();
         return;
     }
 
-    fifo8_push(&s->fifo, val);
+    fifo8_push(fifo, val);
 }
 
-static uint8_t esp_fifo_pop(ESPState *s)
+static uint8_t esp_fifo_pop(Fifo8 *fifo)
 {
-    if (fifo8_is_empty(&s->fifo)) {
+    if (fifo8_is_empty(fifo)) {
         return 0;
     }
 
-    return fifo8_pop(&s->fifo);
+    return fifo8_pop(fifo);
 }
 
-static void esp_cmdfifo_push(ESPState *s, uint8_t val)
+static uint32_t esp_fifo_pop_buf(Fifo8 *fifo, uint8_t *dest, int maxlen)
 {
-    if (fifo8_num_used(&s->cmdfifo) == ESP_CMDFIFO_SZ) {
-        trace_esp_error_fifo_overrun();
-        return;
-    }
+    const uint8_t *buf;
+    uint32_t n;
 
-    fifo8_push(&s->cmdfifo, val);
-}
-
-static uint8_t esp_cmdfifo_pop(ESPState *s)
-{
-    if (fifo8_is_empty(&s->cmdfifo)) {
+    if (maxlen == 0) {
         return 0;
     }
 
-    return fifo8_pop(&s->cmdfifo);
+    buf = fifo8_pop_buf(fifo, maxlen, &n);
+    if (dest) {
+        memcpy(dest, buf, n);
+    }
+
+    return n;
 }
 
 static uint32_t esp_get_tc(ESPState *s)
@@ -170,9 +169,9 @@ static uint8_t esp_pdma_read(ESPState *s)
     uint8_t val;
 
     if (s->do_cmd) {
-        val = esp_cmdfifo_pop(s);
+        val = esp_fifo_pop(&s->cmdfifo);
     } else {
-        val = esp_fifo_pop(s);
+        val = esp_fifo_pop(&s->fifo);
     }
 
     return val;
@@ -187,9 +186,9 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
     }
 
     if (s->do_cmd) {
-        esp_cmdfifo_push(s, val);
+        esp_fifo_push(&s->cmdfifo, val);
     } else {
-        esp_fifo_push(s, val);
+        esp_fifo_push(&s->fifo, val);
     }
 
     dmalen--;
@@ -208,7 +207,6 @@ static int esp_select(ESPState *s)
     if (s->current_req) {
         /* Started a new command before the old one finished.  Cancel it.  */
         scsi_req_cancel(s->current_req);
-        s->async_len = 0;
     }
 
     s->current_dev = scsi_device_find(&s->bus, 0, target, 0);
@@ -245,6 +243,7 @@ static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
         }
         if (s->dma_memory_read) {
             s->dma_memory_read(s->dma_opaque, buf, dmalen);
+            dmalen = MIN(fifo8_num_free(&s->cmdfifo), dmalen);
             fifo8_push_all(&s->cmdfifo, buf, dmalen);
         } else {
             if (esp_select(s) < 0) {
@@ -260,11 +259,12 @@ static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
         if (dmalen == 0) {
             return 0;
         }
-        memcpy(buf, fifo8_pop_buf(&s->fifo, dmalen, &n), dmalen);
-        if (dmalen >= 3) {
+        n = esp_fifo_pop_buf(&s->fifo, buf, dmalen);
+        if (n >= 3) {
             buf[0] = buf[2] >> 5;
         }
-        fifo8_push_all(&s->cmdfifo, buf, dmalen);
+        n = MIN(fifo8_num_free(&s->cmdfifo), n);
+        fifo8_push_all(&s->cmdfifo, buf, n);
     }
     trace_esp_get_cmd(dmalen, target);
 
@@ -277,16 +277,19 @@ static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
 
 static void do_busid_cmd(ESPState *s, uint8_t busid)
 {
-    uint32_t n, cmdlen;
+    uint32_t cmdlen;
     int32_t datalen;
     int lun;
     SCSIDevice *current_lun;
-    uint8_t *buf;
+    uint8_t buf[ESP_CMDFIFO_SZ];
 
     trace_esp_do_busid_cmd(busid);
     lun = busid & 7;
     cmdlen = fifo8_num_used(&s->cmdfifo);
-    buf = (uint8_t *)fifo8_pop_buf(&s->cmdfifo, cmdlen, &n);
+    if (!cmdlen || !s->current_dev) {
+        return;
+    }
+    esp_fifo_pop_buf(&s->cmdfifo, buf, cmdlen);
 
     current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id, lun);
     s->current_req = scsi_req_new(current_lun, 0, lun, buf, s);
@@ -318,14 +321,15 @@ static void do_busid_cmd(ESPState *s, uint8_t busid)
 
 static void do_cmd(ESPState *s)
 {
-    uint8_t busid = fifo8_pop(&s->cmdfifo);
-    uint32_t n;
+    uint8_t busid = esp_fifo_pop(&s->cmdfifo);
+    int len;
 
     s->cmdfifo_cdb_offset--;
 
     /* Ignore extended messages for now */
     if (s->cmdfifo_cdb_offset) {
-        fifo8_pop_buf(&s->cmdfifo, s->cmdfifo_cdb_offset, &n);
+        len = MIN(s->cmdfifo_cdb_offset, fifo8_num_used(&s->cmdfifo));
+        esp_fifo_pop_buf(&s->cmdfifo, NULL, len);
         s->cmdfifo_cdb_offset = 0;
     }
 
@@ -353,6 +357,7 @@ static void handle_satn(ESPState *s)
     cmdlen = get_cmd(s, ESP_CMDFIFO_SZ);
     if (cmdlen > 0) {
         s->cmdfifo_cdb_offset = 1;
+        s->do_cmd = 0;
         do_cmd(s);
     } else if (cmdlen == 0) {
         s->do_cmd = 1;
@@ -386,6 +391,7 @@ static void handle_s_without_atn(ESPState *s)
     cmdlen = get_cmd(s, ESP_CMDFIFO_SZ);
     if (cmdlen > 0) {
         s->cmdfifo_cdb_offset = 0;
+        s->do_cmd = 0;
         do_busid_cmd(s, 0);
     } else if (cmdlen == 0) {
         s->do_cmd = 1;
@@ -445,18 +451,16 @@ static void write_response_pdma_cb(ESPState *s)
 
 static void write_response(ESPState *s)
 {
-    uint32_t n;
+    uint8_t buf[2];
 
     trace_esp_write_response(s->status);
 
-    fifo8_reset(&s->fifo);
-    esp_fifo_push(s, s->status);
-    esp_fifo_push(s, 0);
+    buf[0] = s->status;
+    buf[1] = 0;
 
     if (s->dma) {
         if (s->dma_memory_write) {
-            s->dma_memory_write(s->dma_opaque,
-                                (uint8_t *)fifo8_pop_buf(&s->fifo, 2, &n), 2);
+            s->dma_memory_write(s->dma_opaque, buf, 2);
             s->rregs[ESP_RSTAT] = STAT_TC | STAT_ST;
             s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
             s->rregs[ESP_RSEQ] = SEQ_CD;
@@ -466,7 +470,8 @@ static void write_response(ESPState *s)
             return;
         }
     } else {
-        s->ti_size = 2;
+        fifo8_reset(&s->fifo);
+        fifo8_push_all(&s->fifo, buf, 2);
         s->rregs[ESP_RFLAGS] = 2;
     }
     esp_raise_irq(s);
@@ -496,11 +501,15 @@ static void do_dma_pdma_cb(ESPState *s)
         return;
     }
 
+    if (!s->current_req) {
+        return;
+    }
+
     if (to_device) {
         /* Copy FIFO data to device */
         len = MIN(s->async_len, ESP_FIFO_SZ);
         len = MIN(len, fifo8_num_used(&s->fifo));
-        memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
+        n = esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
         s->async_buf += n;
         s->async_len -= n;
         s->ti_size += n;
@@ -508,7 +517,7 @@ static void do_dma_pdma_cb(ESPState *s)
         if (n < len) {
             /* Unaligned accesses can cause FIFO wraparound */
             len = len - n;
-            memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
+            n = esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
             s->async_buf += n;
             s->async_len -= n;
             s->ti_size += n;
@@ -527,11 +536,9 @@ static void do_dma_pdma_cb(ESPState *s)
         return;
     } else {
         if (s->async_len == 0) {
-            if (s->current_req) {
-                /* Defer until the scsi layer has completed */
-                scsi_req_continue(s->current_req);
-                s->data_in_ready = false;
-            }
+            /* Defer until the scsi layer has completed */
+            scsi_req_continue(s->current_req);
+            s->data_in_ready = false;
             return;
         }
 
@@ -573,6 +580,7 @@ static void esp_do_dma(ESPState *s)
         cmdlen = fifo8_num_used(&s->cmdfifo);
         trace_esp_do_dma(cmdlen, len);
         if (s->dma_memory_read) {
+            len = MIN(len, fifo8_num_free(&s->cmdfifo));
             s->dma_memory_read(s->dma_opaque, buf, len);
             fifo8_push_all(&s->cmdfifo, buf, len);
         } else {
@@ -602,6 +610,9 @@ static void esp_do_dma(ESPState *s)
             s->rregs[ESP_RINTR] |= INTR_BS;
             esp_raise_irq(s);
         }
+        return;
+    }
+    if (!s->current_req) {
         return;
     }
     if (s->async_len == 0) {
@@ -641,7 +652,7 @@ static void esp_do_dma(ESPState *s)
              */
             if (len < esp_get_tc(s) && esp_get_tc(s) <= ESP_FIFO_SZ) {
                 while (fifo8_num_used(&s->fifo) < ESP_FIFO_SZ) {
-                    esp_fifo_push(s, 0);
+                    esp_fifo_push(&s->fifo, 0);
                     len++;
                 }
             }
@@ -683,7 +694,7 @@ static void esp_do_dma(ESPState *s)
 static void esp_do_nodma(ESPState *s)
 {
     int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
-    uint32_t cmdlen, n;
+    uint32_t cmdlen;
     int len;
 
     if (s->do_cmd) {
@@ -713,6 +724,10 @@ static void esp_do_nodma(ESPState *s)
         return;
     }
 
+    if (!s->current_req) {
+        return;
+    }
+
     if (s->async_len == 0) {
         /* Defer until data is available.  */
         return;
@@ -720,7 +735,7 @@ static void esp_do_nodma(ESPState *s)
 
     if (to_device) {
         len = MIN(fifo8_num_used(&s->fifo), ESP_FIFO_SZ);
-        memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
+        esp_fifo_pop_buf(&s->fifo, s->async_buf, len);
         s->async_buf += len;
         s->async_len -= len;
         s->ti_size += len;
@@ -890,7 +905,7 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
             qemu_log_mask(LOG_UNIMP, "esp: PIO data read not implemented\n");
             s->rregs[ESP_FIFO] = 0;
         } else {
-            s->rregs[ESP_FIFO] = esp_fifo_pop(s);
+            s->rregs[ESP_FIFO] = esp_fifo_pop(&s->fifo);
         }
         val = s->rregs[ESP_FIFO];
         break;
@@ -939,9 +954,9 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         break;
     case ESP_FIFO:
         if (s->do_cmd) {
-            esp_cmdfifo_push(s, val);
+            esp_fifo_push(&s->cmdfifo, val);
         } else {
-            esp_fifo_push(s, val);
+            esp_fifo_push(&s->fifo, val);
         }
 
         /* Non-DMA transfers raise an interrupt after every byte */
@@ -1076,9 +1091,10 @@ static bool esp_is_version_5(void *opaque, int version_id)
     return version_id == 5;
 }
 
-static int esp_pre_save(void *opaque)
+int esp_pre_save(void *opaque)
 {
-    ESPState *s = ESP(opaque);
+    ESPState *s = ESP(object_resolve_path_component(
+                      OBJECT(opaque), "esp"));
 
     s->mig_version_id = vmstate_esp.version_id;
     return 0;
@@ -1114,7 +1130,6 @@ const VMStateDescription vmstate_esp = {
     .name = "esp",
     .version_id = 5,
     .minimum_version_id = 3,
-    .pre_save = esp_pre_save,
     .post_load = esp_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(rregs, ESPState),
@@ -1304,6 +1319,7 @@ static const VMStateDescription vmstate_sysbus_esp_scsi = {
     .name = "sysbusespscsi",
     .version_id = 2,
     .minimum_version_id = 1,
+    .pre_save = esp_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8_V(esp.mig_version_id, SysBusESPState, 2),
         VMSTATE_STRUCT(esp, SysBusESPState, 0, vmstate_esp, ESPState),
