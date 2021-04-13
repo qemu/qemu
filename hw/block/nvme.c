@@ -1839,7 +1839,7 @@ static void nvme_rw_cb(void *opaque, int ret)
         NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
         uint64_t slba = le64_to_cpu(rw->slba);
         uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb) + 1;
-        uint64_t offset = ns->mdata_offset + nvme_m2b(ns, slba);
+        uint64_t offset = nvme_moff(ns, slba);
 
         if (req->cmd.opcode == NVME_CMD_WRITE_ZEROES) {
             size_t mlen = nvme_m2b(ns, nlb);
@@ -2005,7 +2005,7 @@ static void nvme_verify_mdata_in_cb(void *opaque, int ret)
     uint64_t slba = le64_to_cpu(rw->slba);
     uint32_t nlb = le16_to_cpu(rw->nlb) + 1;
     size_t mlen = nvme_m2b(ns, nlb);
-    uint64_t offset = ns->mdata_offset + nvme_m2b(ns, slba);
+    uint64_t offset = nvme_moff(ns, slba);
     BlockBackend *blk = ns->blkconf.blk;
 
     trace_pci_nvme_verify_mdata_in_cb(nvme_cid(req), blk_name(blk));
@@ -2108,7 +2108,7 @@ static void nvme_aio_zone_reset_cb(void *opaque, int ret)
     }
 
     if (ns->lbaf.ms) {
-        int64_t offset = ns->mdata_offset + nvme_m2b(ns, zone->d.zslba);
+        int64_t offset = nvme_moff(ns, zone->d.zslba);
 
         blk_aio_pwrite_zeroes(ns->blkconf.blk, offset,
                               nvme_m2b(ns, ns->zone_size), BDRV_REQ_MAY_UNMAP,
@@ -2179,7 +2179,7 @@ static void nvme_copy_cb(void *opaque, int ret)
     if (ns->lbaf.ms) {
         NvmeCopyCmd *copy = (NvmeCopyCmd *)&req->cmd;
         uint64_t sdlba = le64_to_cpu(copy->sdlba);
-        int64_t offset = ns->mdata_offset + nvme_m2b(ns, sdlba);
+        int64_t offset = nvme_moff(ns, sdlba);
 
         qemu_iovec_reset(&req->sg.iov);
         qemu_iovec_add(&req->sg.iov, ctx->mbounce, nvme_m2b(ns, ctx->nlb));
@@ -2485,7 +2485,7 @@ static void nvme_compare_data_cb(void *opaque, int ret)
         uint64_t slba = le64_to_cpu(rw->slba);
         uint32_t nlb = le16_to_cpu(rw->nlb) + 1;
         size_t mlen = nvme_m2b(ns, nlb);
-        uint64_t offset = ns->mdata_offset + nvme_m2b(ns, slba);
+        uint64_t offset = nvme_moff(ns, slba);
 
         ctx->mdata.bounce = g_malloc(mlen);
 
@@ -2762,7 +2762,7 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
 
         if (ns->lbaf.ms) {
             len = nvme_m2b(ns, nlb);
-            offset = ns->mdata_offset + nvme_m2b(ns, slba);
+            offset = nvme_moff(ns, slba);
 
             in_ctx = g_new(struct nvme_copy_in_ctx, 1);
             in_ctx->req = req;

@@ -306,7 +306,7 @@ static void nvme_dif_rw_mdata_in_cb(void *opaque, int ret)
     uint64_t slba = le64_to_cpu(rw->slba);
     uint32_t nlb = le16_to_cpu(rw->nlb) + 1;
     size_t mlen = nvme_m2b(ns, nlb);
-    uint64_t offset = ns->mdata_offset + nvme_m2b(ns, slba);
+    uint64_t offset = nvme_moff(ns, slba);
     BlockBackend *blk = ns->blkconf.blk;
 
     trace_pci_nvme_dif_rw_mdata_in_cb(nvme_cid(req), blk_name(blk));
@@ -335,7 +335,7 @@ static void nvme_dif_rw_mdata_out_cb(void *opaque, int ret)
     NvmeNamespace *ns = req->ns;
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
     uint64_t slba = le64_to_cpu(rw->slba);
-    uint64_t offset = ns->mdata_offset + nvme_m2b(ns, slba);
+    uint64_t offset = nvme_moff(ns, slba);
     BlockBackend *blk = ns->blkconf.blk;
 
     trace_pci_nvme_dif_rw_mdata_out_cb(nvme_cid(req), blk_name(blk));

@@ -107,7 +107,7 @@ typedef struct NvmeNamespace {
     BlockConf    blkconf;
     int32_t      bootindex;
     int64_t      size;
-    int64_t      mdata_offset;
+    int64_t      moff;
     NvmeIdNs     id_ns;
     NvmeLBAF     lbaf;
     size_t       lbasz;
@@ -156,6 +156,11 @@ static inline size_t nvme_l2b(NvmeNamespace *ns, uint64_t lba)
 static inline size_t nvme_m2b(NvmeNamespace *ns, uint64_t lba)
 {
     return ns->lbaf.ms * lba;
+}
+
+static inline int64_t nvme_moff(NvmeNamespace *ns, uint64_t lba)
+{
+    return ns->moff + nvme_m2b(ns, lba);
 }
 
 static inline bool nvme_ns_ext(NvmeNamespace *ns)
