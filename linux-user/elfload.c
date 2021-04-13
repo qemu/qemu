@@ -3618,11 +3618,12 @@ static int fill_psinfo(struct target_elf_prpsinfo *psinfo, const TaskState *ts)
 
     (void) memset(psinfo, 0, sizeof (*psinfo));
 
-    len = ts->info->arg_end - ts->info->arg_start;
+    len = ts->info->env_strings - ts->info->arg_strings;
     if (len >= ELF_PRARGSZ)
         len = ELF_PRARGSZ - 1;
-    if (copy_from_user(&psinfo->pr_psargs, ts->info->arg_start, len))
+    if (copy_from_user(&psinfo->pr_psargs, ts->info->arg_strings, len)) {
         return -EFAULT;
+    }
     for (i = 0; i < len; i++)
         if (psinfo->pr_psargs[i] == 0)
             psinfo->pr_psargs[i] = ' ';
