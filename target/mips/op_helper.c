@@ -26,30 +26,6 @@
 #include "exec/memop.h"
 #include "fpu_helper.h"
 
-/*****************************************************************************/
-/* Exceptions processing helpers */
-
-void helper_raise_exception_err(CPUMIPSState *env, uint32_t exception,
-                                int error_code)
-{
-    do_raise_exception_err(env, exception, error_code, 0);
-}
-
-void helper_raise_exception(CPUMIPSState *env, uint32_t exception)
-{
-    do_raise_exception(env, exception, GETPC());
-}
-
-void helper_raise_exception_debug(CPUMIPSState *env)
-{
-    do_raise_exception(env, EXCP_DEBUG, 0);
-}
-
-static void raise_exception(CPUMIPSState *env, uint32_t exception)
-{
-    do_raise_exception(env, exception, 0);
-}
-
 /* 64 bits arithmetic for 32 bits hosts */
 static inline uint64_t get_HILO(CPUMIPSState *env)
 {
@@ -397,19 +373,6 @@ void helper_pmon(CPUMIPSState *env, int function)
         }
         break;
     }
-}
-
-void helper_wait(CPUMIPSState *env)
-{
-    CPUState *cs = env_cpu(env);
-
-    cs->halted = 1;
-    cpu_reset_interrupt(cs, CPU_INTERRUPT_WAKE);
-    /*
-     * Last instruction in the block, PC was updated before
-     * - no need to recover PC and icount.
-     */
-    raise_exception(env, EXCP_HLT);
 }
 
 #if !defined(CONFIG_USER_ONLY)

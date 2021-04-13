@@ -24,6 +24,7 @@ mips_tcg_ss = ss.source_set()
 mips_tcg_ss.add(gen)
 mips_tcg_ss.add(files(
   'dsp_helper.c',
+  'exception.c',
   'fpu_helper.c',
   'ldst_helper.c',
   'lmmi_helper.c',
