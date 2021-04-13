@@ -649,6 +649,110 @@ out:
     rcu_read_unlock();
 }
 
+static void vfio_ram_discard_notify_discard(RamDiscardListener *rdl,
+                                            MemoryRegionSection *section)
+{
+    VFIORamDiscardListener *vrdl = container_of(rdl, VFIORamDiscardListener,
+                                                listener);
+    const hwaddr size = int128_get64(section->size);
+    const hwaddr iova = section->offset_within_address_space;
+    int ret;
+
+    /* Unmap with a single call. */
+    ret = vfio_dma_unmap(vrdl->container, iova, size , NULL);
+    if (ret) {
+        error_report("%s: vfio_dma_unmap() failed: %s", __func__,
+                     strerror(-ret));
+    }
+}
+
+static int vfio_ram_discard_notify_populate(RamDiscardListener *rdl,
+                                            MemoryRegionSection *section)
+{
+    VFIORamDiscardListener *vrdl = container_of(rdl, VFIORamDiscardListener,
+                                                listener);
+    const hwaddr end = section->offset_within_region +
+                       int128_get64(section->size);
+    hwaddr start, next, iova;
+    void *vaddr;
+    int ret;
+
+    /*
+     * Map in (aligned within memory region) minimum granularity, so we can
+     * unmap in minimum granularity later.
+     */
+    for (start = section->offset_within_region; start < end; start = next) {
+        next = ROUND_UP(start + 1, vrdl->granularity);
+        next = MIN(next, end);
+
+        iova = start - section->offset_within_region +
+               section->offset_within_address_space;
+        vaddr = memory_region_get_ram_ptr(section->mr) + start;
+
+        ret = vfio_dma_map(vrdl->container, iova, next - start,
+                           vaddr, section->readonly);
+        if (ret) {
+            /* Rollback */
+            vfio_ram_discard_notify_discard(rdl, section);
+            return ret;
+        }
+    }
+    return 0;
+}
+
+static void vfio_register_ram_discard_listener(VFIOContainer *container,
+                                               MemoryRegionSection *section)
+{
+    RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
+    VFIORamDiscardListener *vrdl;
+
+    /* Ignore some corner cases not relevant in practice. */
+    g_assert(QEMU_IS_ALIGNED(section->offset_within_region, TARGET_PAGE_SIZE));
+    g_assert(QEMU_IS_ALIGNED(section->offset_within_address_space,
+                             TARGET_PAGE_SIZE));
+    g_assert(QEMU_IS_ALIGNED(int128_get64(section->size), TARGET_PAGE_SIZE));
+
+    vrdl = g_new0(VFIORamDiscardListener, 1);
+    vrdl->container = container;
+    vrdl->mr = section->mr;
+    vrdl->offset_within_address_space = section->offset_within_address_space;
+    vrdl->size = int128_get64(section->size);
+    vrdl->granularity = ram_discard_manager_get_min_granularity(rdm,
+                                                                section->mr);
+
+    g_assert(vrdl->granularity && is_power_of_2(vrdl->granularity));
+    g_assert(vrdl->granularity >= 1 << ctz64(container->pgsizes));
+
+    ram_discard_listener_init(&vrdl->listener,
+                              vfio_ram_discard_notify_populate,
+                              vfio_ram_discard_notify_discard, true);
+    ram_discard_manager_register_listener(rdm, &vrdl->listener, section);
+    QLIST_INSERT_HEAD(&container->vrdl_list, vrdl, next);
+}
+
+static void vfio_unregister_ram_discard_listener(VFIOContainer *container,
+                                                 MemoryRegionSection *section)
+{
+    RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
+    VFIORamDiscardListener *vrdl = NULL;
+
+    QLIST_FOREACH(vrdl, &container->vrdl_list, next) {
+        if (vrdl->mr == section->mr &&
+            vrdl->offset_within_address_space ==
+            section->offset_within_address_space) {
+            break;
+        }
+    }
+
+    if (!vrdl) {
+        hw_error("vfio: Trying to unregister missing RAM discard listener");
+    }
+
+    ram_discard_manager_unregister_listener(rdm, &vrdl->listener);
+    QLIST_REMOVE(vrdl, next);
+    g_free(vrdl);
+}
+
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
@@ -810,6 +914,16 @@ static void vfio_listener_region_add(MemoryListener *listener,
 
     /* Here we assume that memory_region_is_ram(section->mr)==true */
 
+    /*
+     * For RAM memory regions with a RamDiscardManager, we only want to map the
+     * actually populated parts - and update the mapping whenever we're notified
+     * about changes.
+     */
+    if (memory_region_has_ram_discard_manager(section->mr)) {
+        vfio_register_ram_discard_listener(container, section);
+        return;
+    }
+
     vaddr = memory_region_get_ram_ptr(section->mr) +
             section->offset_within_region +
             (iova - section->offset_within_address_space);
@@ -947,6 +1061,10 @@ static void vfio_listener_region_del(MemoryListener *listener,
 
         pgmask = (1ULL << ctz64(hostwin->iova_pgsizes)) - 1;
         try_unmap = !((iova & pgmask) || (int128_get64(llsize) & pgmask));
+    } else if (memory_region_has_ram_discard_manager(section->mr)) {
+        vfio_unregister_ram_discard_listener(container, section);
+        /* Unregistering will trigger an unmap. */
+        try_unmap = false;
     }
 
     if (try_unmap) {
@@ -1108,6 +1226,49 @@ static void vfio_iommu_map_dirty_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     rcu_read_unlock();
 }
 
+static int vfio_ram_discard_get_dirty_bitmap(MemoryRegionSection *section,
+                                             void *opaque)
+{
+    const hwaddr size = int128_get64(section->size);
+    const hwaddr iova = section->offset_within_address_space;
+    const ram_addr_t ram_addr = memory_region_get_ram_addr(section->mr) +
+                                section->offset_within_region;
+    VFIORamDiscardListener *vrdl = opaque;
+
+    /*
+     * Sync the whole mapped region (spanning multiple individual mappings)
+     * in one go.
+     */
+    return vfio_get_dirty_bitmap(vrdl->container, iova, size, ram_addr);
+}
+
+static int vfio_sync_ram_discard_listener_dirty_bitmap(VFIOContainer *container,
+                                                   MemoryRegionSection *section)
+{
+    RamDiscardManager *rdm = memory_region_get_ram_discard_manager(section->mr);
+    VFIORamDiscardListener *vrdl = NULL;
+
+    QLIST_FOREACH(vrdl, &container->vrdl_list, next) {
+        if (vrdl->mr == section->mr &&
+            vrdl->offset_within_address_space ==
+            section->offset_within_address_space) {
+            break;
+        }
+    }
+
+    if (!vrdl) {
+        hw_error("vfio: Trying to sync missing RAM discard listener");
+    }
+
+    /*
+     * We only want/can synchronize the bitmap for actually mapped parts -
+     * which correspond to populated parts. Replay all populated parts.
+     */
+    return ram_discard_manager_replay_populated(rdm, section,
+                                              vfio_ram_discard_get_dirty_bitmap,
+                                                &vrdl);
+}
+
 static int vfio_sync_dirty_bitmap(VFIOContainer *container,
                                   MemoryRegionSection *section)
 {
@@ -1139,6 +1300,8 @@ static int vfio_sync_dirty_bitmap(VFIOContainer *container,
             }
         }
         return 0;
+    } else if (memory_region_has_ram_discard_manager(section->mr)) {
+        return vfio_sync_ram_discard_listener_dirty_bitmap(container, section);
     }
 
     ram_addr = memory_region_get_ram_addr(section->mr) +
@@ -1770,6 +1933,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container->dirty_pages_supported = false;
     QLIST_INIT(&container->giommu_list);
     QLIST_INIT(&container->hostwin_list);
+    QLIST_INIT(&container->vrdl_list);
 
     ret = vfio_init_container(container, group->fd, errp);
     if (ret) {
