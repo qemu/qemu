@@ -230,6 +230,7 @@ void block_copy_state_free(BlockCopyState *s)
         return;
     }
 
+    ratelimit_destroy(&s->rate_limit);
     bdrv_release_dirty_bitmap(s->copy_bitmap);
     shres_destroy(s->mem);
     g_free(s);
@@ -289,6 +290,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         s->copy_size = MAX(s->cluster_size, BLOCK_COPY_MAX_BUFFER);
     }
 
+    ratelimit_init(&s->rate_limit);
     QLIST_INIT(&s->tasks);
     QLIST_INIT(&s->calls);
 
