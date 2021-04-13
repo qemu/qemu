@@ -3777,12 +3777,17 @@ void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     if (!spapr_drc_unplug_requested(drc)) {
         spapr_drc_unplug_request(drc);
-        spapr_hotplug_req_remove_by_index(drc);
-    } else {
-        error_setg(errp, "core-id %d unplug is still pending, %d seconds "
-                   "timeout remaining",
-                   cc->core_id, spapr_drc_unplug_timeout_remaining_sec(drc));
     }
+
+    /*
+     * spapr_hotplug_req_remove_by_index is left unguarded, out of the
+     * "!spapr_drc_unplug_requested" check, to allow for multiple IRQ
+     * pulses removing the same CPU. Otherwise, in an failed hotunplug
+     * attempt (e.g. the kernel will refuse to remove the last online
+     * CPU), we will never attempt it again because unplug_requested
+     * will still be 'true' in that case.
+     */
+    spapr_hotplug_req_remove_by_index(drc);
 }
 
 int spapr_core_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
