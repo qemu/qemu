@@ -167,6 +167,15 @@ DEF_HELPER_1(evpe, tl, env)
 DEF_HELPER_1(dvp, tl, env)
 DEF_HELPER_1(evp, tl, env)
 
+/* TLB */
+DEF_HELPER_1(tlbwi, void, env)
+DEF_HELPER_1(tlbwr, void, env)
+DEF_HELPER_1(tlbp, void, env)
+DEF_HELPER_1(tlbr, void, env)
+DEF_HELPER_1(tlbinv, void, env)
+DEF_HELPER_1(tlbinvf, void, env)
+DEF_HELPER_3(ginvt, void, env, tl, i32)
+
 /* Special */
 DEF_HELPER_1(di, tl, env)
 DEF_HELPER_1(ei, tl, env)

@@ -202,16 +202,6 @@ FOP_PROTO(sune)
 FOP_PROTO(sne)
 #undef FOP_PROTO
 
-/* Special functions */
-#ifndef CONFIG_USER_ONLY
-DEF_HELPER_1(tlbwi, void, env)
-DEF_HELPER_1(tlbwr, void, env)
-DEF_HELPER_1(tlbp, void, env)
-DEF_HELPER_1(tlbr, void, env)
-DEF_HELPER_1(tlbinv, void, env)
-DEF_HELPER_1(tlbinvf, void, env)
-DEF_HELPER_3(ginvt, void, env, tl, i32)
-#endif /* !CONFIG_USER_ONLY */
 DEF_HELPER_1(rdhwr_cpunum, tl, env)
 DEF_HELPER_1(rdhwr_synci_step, tl, env)
 DEF_HELPER_1(rdhwr_cc, tl, env)
