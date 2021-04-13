@@ -166,3 +166,10 @@ DEF_HELPER_1(evpe, tl, env)
 /* R6 Multi-threading */
 DEF_HELPER_1(dvp, tl, env)
 DEF_HELPER_1(evp, tl, env)
+
+/* Special */
+DEF_HELPER_1(di, tl, env)
+DEF_HELPER_1(ei, tl, env)
+DEF_HELPER_1(eret, void, env)
+DEF_HELPER_1(eretnc, void, env)
+DEF_HELPER_1(deret, void, env)
