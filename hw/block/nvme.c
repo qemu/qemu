@@ -4990,7 +4990,7 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
                 return NVME_NS_NOT_ATTACHED | NVME_DNR;
             }
 
-            ctrl->namespaces[nsid - 1] = NULL;
+            ctrl->namespaces[nsid] = NULL;
             ns->attached--;
 
             nvme_update_dmrsl(ctrl);
@@ -6163,7 +6163,7 @@ void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns)
     uint32_t nsid = ns->params.nsid;
     assert(nsid && nsid <= NVME_MAX_NAMESPACES);
 
-    n->namespaces[nsid - 1] = ns;
+    n->namespaces[nsid] = ns;
     ns->attached++;
 
     n->dmrsl = MIN_NON_ZERO(n->dmrsl,

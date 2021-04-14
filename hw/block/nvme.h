@@ -438,7 +438,7 @@ typedef struct NvmeCtrl {
     NvmeSubsystem   *subsys;
 
     NvmeNamespace   namespace;
-    NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES];
+    NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES + 1];
     NvmeSQueue      **sq;
     NvmeCQueue      **cq;
     NvmeSQueue      admin_sq;
@@ -460,7 +460,7 @@ static inline NvmeNamespace *nvme_ns(NvmeCtrl *n, uint32_t nsid)
         return NULL;
     }
 
-    return n->namespaces[nsid - 1];
+    return n->namespaces[nsid];
 }
 
 static inline NvmeCQueue *nvme_cq(NvmeRequest *req)
