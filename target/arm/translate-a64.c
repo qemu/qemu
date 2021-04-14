@@ -39,6 +39,8 @@
 #include "translate-a64.h"
 #include "qemu/atomic128.h"
 
+#include "hypercall.h"
+
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
 
@@ -2079,6 +2081,9 @@ static void disas_exc(DisasContext *s, uint32_t insn)
                                syn_aa64_svc(imm16), default_exception_el(s));
             break;
         case 2:                                                     /* HVC */
+
+            intercept_hypercall(s, insn, (CPUARMState *)cpu_env);
+
             if (s->current_el == 0) {
                 unallocated_encoding(s);
                 break;
