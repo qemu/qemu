@@ -1426,6 +1426,7 @@ static inline uint16_t nvme_check_bounds(NvmeNamespace *ns, uint64_t slba,
     uint64_t nsze = le64_to_cpu(ns->id_ns.nsze);
 
     if (unlikely(UINT64_MAX - slba < nlb || slba + nlb > nsze)) {
+        trace_pci_nvme_err_invalid_lba_range(slba, nlb, nsze);
         return NVME_LBA_RANGE | NVME_DNR;
     }
 
@@ -2268,7 +2269,6 @@ static void nvme_copy_in_complete(NvmeRequest *req)
 
     status = nvme_check_bounds(ns, sdlba, ctx->nlb);
     if (status) {
-        trace_pci_nvme_err_invalid_lba_range(sdlba, ctx->nlb, ns->id_ns.nsze);
         goto invalid;
     }
 
@@ -2530,8 +2530,6 @@ static uint16_t nvme_dsm(NvmeCtrl *n, NvmeRequest *req)
             uint32_t nlb = le32_to_cpu(range[i].nlb);
 
             if (nvme_check_bounds(ns, slba, nlb)) {
-                trace_pci_nvme_err_invalid_lba_range(slba, nlb,
-                                                     ns->id_ns.nsze);
                 continue;
             }
 
@@ -2604,7 +2602,6 @@ static uint16_t nvme_verify(NvmeCtrl *n, NvmeRequest *req)
 
     status = nvme_check_bounds(ns, slba, nlb);
     if (status) {
-        trace_pci_nvme_err_invalid_lba_range(slba, nlb, ns->id_ns.nsze);
         return status;
     }
 
@@ -2689,7 +2686,6 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
 
         status = nvme_check_bounds(ns, slba, _nlb);
         if (status) {
-            trace_pci_nvme_err_invalid_lba_range(slba, _nlb, ns->id_ns.nsze);
             goto out;
         }
 
@@ -2818,7 +2814,6 @@ static uint16_t nvme_compare(NvmeCtrl *n, NvmeRequest *req)
 
     status = nvme_check_bounds(ns, slba, nlb);
     if (status) {
-        trace_pci_nvme_err_invalid_lba_range(slba, nlb, ns->id_ns.nsze);
         return status;
     }
 
@@ -2938,7 +2933,6 @@ static uint16_t nvme_read(NvmeCtrl *n, NvmeRequest *req)
 
     status = nvme_check_bounds(ns, slba, nlb);
     if (status) {
-        trace_pci_nvme_err_invalid_lba_range(slba, nlb, ns->id_ns.nsze);
         goto invalid;
     }
 
@@ -3018,7 +3012,6 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
 
     status = nvme_check_bounds(ns, slba, nlb);
     if (status) {
-        trace_pci_nvme_err_invalid_lba_range(slba, nlb, ns->id_ns.nsze);
         goto invalid;
     }
 
