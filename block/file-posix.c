@@ -1147,22 +1147,27 @@ static void raw_reopen_abort(BDRVReopenState *state)
     s->reopen_state = NULL;
 }
 
-static int sg_get_max_transfer_length(int fd)
+static int hdev_get_max_hw_transfer(int fd, struct stat *st)
 {
 #ifdef BLKSECTGET
-    int max_bytes = 0;
-
-    if (ioctl(fd, BLKSECTGET, &max_bytes) == 0) {
-        return max_bytes;
+    if (S_ISBLK(st->st_mode)) {
+        unsigned short max_sectors = 0;
+        if (ioctl(fd, BLKSECTGET, &max_sectors) == 0) {
+            return max_sectors * 512;
+        }
     } else {
-        return -errno;
+        int max_bytes = 0;
+        if (ioctl(fd, BLKSECTGET, &max_bytes) == 0) {
+            return max_bytes;
+        }
     }
+    return -errno;
 #else
     return -ENOSYS;
 #endif
 }
 
-static int sg_get_max_segments(int fd)
+static int hdev_get_max_segments(int fd, struct stat *st)
 {
 #ifdef CONFIG_LINUX
     char buf[32];
@@ -1171,26 +1176,20 @@ static int sg_get_max_segments(int fd)
     int ret;
     int sysfd = -1;
     long max_segments;
-    struct stat st;
 
-    if (fstat(fd, &st)) {
-        ret = -errno;
-        goto out;
-    }
-
-    if (S_ISCHR(st.st_mode)) {
+    if (S_ISCHR(st->st_mode)) {
         if (ioctl(fd, SG_GET_SG_TABLESIZE, &ret) == 0) {
             return ret;
         }
         return -ENOTSUP;
     }
 
-    if (!S_ISBLK(st.st_mode)) {
+    if (!S_ISBLK(st->st_mode)) {
         return -ENOTSUP;
     }
 
     sysfspath = g_strdup_printf("/sys/dev/block/%u:%u/queue/max_segments",
-                                major(st.st_rdev), minor(st.st_rdev));
+                                major(st->st_rdev), minor(st->st_rdev));
     sysfd = open(sysfspath, O_RDONLY);
     if (sysfd == -1) {
         ret = -errno;
@@ -1227,23 +1226,33 @@ out:
 static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
-
-    if (bs->sg) {
-        int ret = sg_get_max_transfer_length(s->fd);
-
-        if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
-            bs->bl.max_hw_transfer = pow2floor(ret);
-        }
-
-        ret = sg_get_max_segments(s->fd);
-        if (ret > 0) {
-            bs->bl.max_iov = ret;
-        }
-    }
+    struct stat st;
 
     raw_probe_alignment(bs, s->fd, errp);
     bs->bl.min_mem_alignment = s->buf_align;
     bs->bl.opt_mem_alignment = MAX(s->buf_align, qemu_real_host_page_size);
+
+    /*
+     * Maximum transfers are best effort, so it is okay to ignore any
+     * errors.  That said, based on the man page errors in fstat would be
+     * very much unexpected; the only possible case seems to be ENOMEM.
+     */
+    if (fstat(s->fd, &st)) {
+        return;
+    }
+
+    if (bs->sg || S_ISBLK(st.st_mode)) {
+        int ret = hdev_get_max_hw_transfer(s->fd, &st);
+
+        if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
+            bs->bl.max_hw_transfer = ret;
+        }
+
+        ret = hdev_get_max_segments(s->fd, &st);
+        if (ret > 0) {
+            bs->bl.max_iov = ret;
+        }
+    }
 }
 
 static int check_for_dasd(int fd)
