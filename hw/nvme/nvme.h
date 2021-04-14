@@ -15,8 +15,8 @@
  * This code is licensed under the GNU GPL v2 or later.
  */
 
-#ifndef HW_NVME_H
-#define HW_NVME_H
+#ifndef HW_NVME_INTERNAL_H
+#define HW_NVME_INTERNAL_H
 
 #include "qemu/uuid.h"
 #include "hw/pci/pci.h"
@@ -544,4 +544,4 @@ uint16_t nvme_dif_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
 uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req);
 
 
-#endif /* HW_NVME_H */
+#endif /* HW_NVME_INTERNAL_H */
