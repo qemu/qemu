@@ -24,6 +24,8 @@
 #include "translate-a64.h"
 #include "qemu/atomic128.h"
 
+#define FUZZER_MAGIC_HVC_IMM 0x1337
+
 /*
  * intercept_hypercall
  * Intercepts a HVC call regardless of whether we came from EL0 or not.
@@ -39,6 +41,6 @@
  * Side Effects:
  *  May log to the qemu logfile (Specified with -D argument)
  */
-void intercept_hypercall(DisasContext *s, uint32_t insn, CPUARMState *cpu_env);
+void intercept_hypercall(DisasContext *s, uint32_t insn, uint32_t imm16, CPUARMState *cpu_env);
 
 #endif // HYPERCALL_H

@@ -2082,7 +2082,10 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             break;
         case 2:                                                     /* HVC */
 
-            intercept_hypercall(s, insn, (CPUARMState *)cpu_env);
+            if (FUZZER_MAGIC_HVC_IMM == imm16) {
+                intercept_hypercall(s, insn, imm16, (CPUARMState *)cpu_env);
+                break;
+            }
 
             if (s->current_el == 0) {
                 unallocated_encoding(s);
