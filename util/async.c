@@ -344,8 +344,20 @@ aio_ctx_finalize(GSource     *source)
     assert(QSIMPLEQ_EMPTY(&ctx->bh_slice_list));
 
     while ((bh = aio_bh_dequeue(&ctx->bh_list, &flags))) {
-        /* qemu_bh_delete() must have been called on BHs in this AioContext */
-        assert(flags & BH_DELETED);
+        /*
+         * qemu_bh_delete() must have been called on BHs in this AioContext. In
+         * many cases memory leaks, hangs, or inconsistent state occur when a
+         * BH is leaked because something still expects it to run.
+         *
+         * If you hit this, fix the lifecycle of the BH so that
+         * qemu_bh_delete() and any associated cleanup is called before the
+         * AioContext is finalized.
+         */
+        if (unlikely(!(flags & BH_DELETED))) {
+            fprintf(stderr, "%s: BH '%s' leaked, aborting...\n",
+                    __func__, bh->name);
+            abort();
+        }
 
         g_free(bh);
     }
