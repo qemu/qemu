@@ -3609,8 +3609,8 @@ static uint16_t nvme_zone_mgmt_recv(NvmeCtrl *n, NvmeRequest *req)
 
 static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
 {
+    NvmeNamespace *ns;
     uint32_t nsid = le32_to_cpu(req->cmd.nsid);
-    uint16_t status;
 
     trace_pci_nvme_io_cmd(nvme_cid(req), nsid, nvme_sqid(req),
                           req->cmd.opcode, nvme_io_opc_str(req->cmd.opcode));
@@ -3642,20 +3642,21 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
         return nvme_flush(n, req);
     }
 
-    req->ns = nvme_ns(n, nsid);
-    if (unlikely(!req->ns)) {
+    ns = nvme_ns(n, nsid);
+    if (unlikely(!ns)) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    if (!(req->ns->iocs[req->cmd.opcode] & NVME_CMD_EFF_CSUPP)) {
+    if (!(ns->iocs[req->cmd.opcode] & NVME_CMD_EFF_CSUPP)) {
         trace_pci_nvme_err_invalid_opc(req->cmd.opcode);
         return NVME_INVALID_OPCODE | NVME_DNR;
     }
 
-    status = nvme_ns_status(req->ns);
-    if (unlikely(status)) {
-        return status;
+    if (ns->status) {
+        return ns->status;
     }
+
+    req->ns = ns;
 
     switch (req->cmd.opcode) {
     case NVME_CMD_WRITE_ZEROES:

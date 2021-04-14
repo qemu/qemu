@@ -137,11 +137,6 @@ typedef struct NvmeNamespace {
     } features;
 } NvmeNamespace;
 
-static inline uint16_t nvme_ns_status(NvmeNamespace *ns)
-{
-    return ns->status;
-}
-
 static inline uint32_t nvme_nsid(NvmeNamespace *ns)
 {
     if (ns) {
