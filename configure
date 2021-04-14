@@ -6473,6 +6473,13 @@ if test -n "${deprecated_features}"; then
     echo "  features: ${deprecated_features}"
 fi
 
+# Create list of config switches that should be poisoned in common code...
+# but filter out CONFIG_TCG and CONFIG_USER_ONLY which are special.
+sed -n -e '/CONFIG_TCG/d' -e '/CONFIG_USER_ONLY/d' \
+    -e '/^#define / { s///; s/ .*//; s/^/#pragma GCC poison /p; }' \
+    *-config-devices.h *-config-target.h | \
+    sort -u > config-poison.h
+
 # Save the configure command line for later reuse.
 cat <<EOD >config.status
 #!/bin/sh
