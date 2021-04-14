@@ -472,7 +472,7 @@ static int poll_rest(gboolean poll_msgs, HANDLE *handles, gint nhandles,
     return 0;
 }
 
-gint g_poll(GPollFD *fds, guint nfds, gint timeout)
+gint g_poll_fixed(GPollFD *fds, guint nfds, gint timeout)
 {
     HANDLE handles[MAXIMUM_WAIT_OBJECTS];
     gboolean poll_msgs = FALSE;
