@@ -376,4 +376,6 @@ void migration_make_urgent_request(void);
 void migration_consume_urgent_request(void);
 bool migration_rate_limit(void);
 
+void populate_vfio_info(MigrationInfo *info);
+
 #endif
