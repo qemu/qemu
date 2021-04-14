@@ -312,7 +312,7 @@ class LinuxTest(Test, LinuxSSHMixIn):
     """
 
     timeout = 900
-    chksum = None
+    distro_checksum = None
     username = 'root'
     password = 'password'
 
@@ -360,7 +360,7 @@ class LinuxTest(Test, LinuxSSHMixIn):
         try:
             boot = vmimage.get(
                 'fedora', arch=image_arch, version='31',
-                checksum=self.chksum,
+                checksum=self.distro_checksum,
                 algorithm='sha256',
                 cache_dir=self.cache_dirs[0],
                 snapshot_dir=self.workdir)
