@@ -31,7 +31,10 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     BlockDriverInfo bdi;
     int npdg, nlbas, ret;
 
-    nlbas = nvme_ns_nlbas(ns);
+    ns->lbaf = id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(id_ns->flbas)];
+    ns->lbasz = 1 << ns->lbaf.ds;
+
+    nlbas = ns->size / (ns->lbasz + ns->lbaf.ms);
 
     id_ns->nsze = cpu_to_le64(nlbas);
 
@@ -39,13 +42,13 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     id_ns->ncap = id_ns->nsze;
     id_ns->nuse = id_ns->ncap;
 
-    ns->mdata_offset = nvme_l2b(ns, nlbas);
+    ns->mdata_offset = (int64_t)nlbas << ns->lbaf.ds;
 
-    npdg = ns->blkconf.discard_granularity / nvme_lsize(ns);
+    npdg = ns->blkconf.discard_granularity / ns->lbasz;
 
     ret = bdrv_get_info(blk_bs(ns->blkconf.blk), &bdi);
     if (ret >= 0 && bdi.cluster_size > ns->blkconf.discard_granularity) {
-        npdg = bdi.cluster_size / nvme_lsize(ns);
+        npdg = bdi.cluster_size / ns->lbasz;
     }
 
     id_ns->npda = id_ns->npdg = npdg - 1;
@@ -163,7 +166,6 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
 static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
 {
     uint64_t zone_size, zone_cap;
-    uint32_t lbasz = nvme_lsize(ns);
 
     /* Make sure that the values of ZNS properties are sane */
     if (ns->params.zone_size_bs) {
@@ -181,14 +183,14 @@ static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
                    "zone size %"PRIu64"B", zone_cap, zone_size);
         return -1;
     }
-    if (zone_size < lbasz) {
+    if (zone_size < ns->lbasz) {
         error_setg(errp, "zone size %"PRIu64"B too small, "
-                   "must be at least %"PRIu32"B", zone_size, lbasz);
+                   "must be at least %zuB", zone_size, ns->lbasz);
         return -1;
     }
-    if (zone_cap < lbasz) {
+    if (zone_cap < ns->lbasz) {
         error_setg(errp, "zone capacity %"PRIu64"B too small, "
-                   "must be at least %"PRIu32"B", zone_cap, lbasz);
+                   "must be at least %zuB", zone_cap, ns->lbasz);
         return -1;
     }
 
@@ -196,9 +198,9 @@ static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
      * Save the main zone geometry values to avoid
      * calculating them later again.
      */
-    ns->zone_size = zone_size / lbasz;
-    ns->zone_capacity = zone_cap / lbasz;
-    ns->num_zones = nvme_ns_nlbas(ns) / ns->zone_size;
+    ns->zone_size = zone_size / ns->lbasz;
+    ns->zone_capacity = zone_cap / ns->lbasz;
+    ns->num_zones = le64_to_cpu(ns->id_ns.nsze) / ns->zone_size;
 
     /* Do a few more sanity checks of ZNS properties */
     if (!ns->num_zones) {

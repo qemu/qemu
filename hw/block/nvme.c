@@ -517,9 +517,7 @@ static void nvme_sg_split(NvmeSg *sg, NvmeNamespace *ns, NvmeSg *data,
                           NvmeSg *mdata)
 {
     NvmeSg *dst = data;
-    size_t size = nvme_lsize(ns);
-    size_t msize = nvme_msize(ns);
-    uint32_t trans_len, count = size;
+    uint32_t trans_len, count = ns->lbasz;
     uint64_t offset = 0;
     bool dma = sg->flags & NVME_SG_DMA;
     size_t sge_len;
@@ -551,7 +549,7 @@ static void nvme_sg_split(NvmeSg *sg, NvmeNamespace *ns, NvmeSg *data,
 
         if (count == 0) {
             dst = (dst == data) ? mdata : data;
-            count = (dst == data) ? size : msize;
+            count = (dst == data) ? ns->lbasz : ns->lbaf.ms;
         }
 
         if (sge_len == offset) {
@@ -1010,7 +1008,7 @@ static uint16_t nvme_map_data(NvmeCtrl *n, uint32_t nlb, NvmeRequest *req)
     uint16_t status;
 
     if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps) &&
-        (ctrl & NVME_RW_PRINFO_PRACT && nvme_msize(ns) == 8)) {
+        (ctrl & NVME_RW_PRINFO_PRACT && ns->lbaf.ms == 8)) {
         goto out;
     }
 
@@ -1193,12 +1191,9 @@ uint16_t nvme_bounce_data(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
     uint16_t ctrl = le16_to_cpu(rw->control);
 
     if (nvme_ns_ext(ns) &&
-        !(ctrl & NVME_RW_PRINFO_PRACT && nvme_msize(ns) == 8)) {
-        size_t lsize = nvme_lsize(ns);
-        size_t msize = nvme_msize(ns);
-
-        return nvme_tx_interleaved(n, &req->sg, ptr, len, lsize, msize, 0,
-                                   dir);
+        !(ctrl & NVME_RW_PRINFO_PRACT && ns->lbaf.ms == 8)) {
+        return nvme_tx_interleaved(n, &req->sg, ptr, len, ns->lbasz,
+                                   ns->lbaf.ms, 0, dir);
     }
 
     return nvme_tx(n, &req->sg, ptr, len, dir);
@@ -1211,11 +1206,8 @@ uint16_t nvme_bounce_mdata(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
     uint16_t status;
 
     if (nvme_ns_ext(ns)) {
-        size_t lsize = nvme_lsize(ns);
-        size_t msize = nvme_msize(ns);
-
-        return nvme_tx_interleaved(n, &req->sg, ptr, len, msize, lsize, lsize,
-                                   dir);
+        return nvme_tx_interleaved(n, &req->sg, ptr, len, ns->lbaf.ms,
+                                   ns->lbasz, ns->lbasz, dir);
     }
 
     nvme_sg_unmap(&req->sg);
@@ -1843,7 +1835,7 @@ static void nvme_rw_cb(void *opaque, int ret)
         goto out;
     }
 
-    if (nvme_msize(ns)) {
+    if (ns->lbaf.ms) {
         NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
         uint64_t slba = le64_to_cpu(rw->slba);
         uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb) + 1;
@@ -2115,7 +2107,7 @@ static void nvme_aio_zone_reset_cb(void *opaque, int ret)
         goto out;
     }
 
-    if (nvme_msize(ns)) {
+    if (ns->lbaf.ms) {
         int64_t offset = ns->mdata_offset + nvme_m2b(ns, zone->d.zslba);
 
         blk_aio_pwrite_zeroes(ns->blkconf.blk, offset,
@@ -2184,7 +2176,7 @@ static void nvme_copy_cb(void *opaque, int ret)
         goto out;
     }
 
-    if (nvme_msize(ns)) {
+    if (ns->lbaf.ms) {
         NvmeCopyCmd *copy = (NvmeCopyCmd *)&req->cmd;
         uint64_t sdlba = le64_to_cpu(copy->sdlba);
         int64_t offset = ns->mdata_offset + nvme_m2b(ns, sdlba);
@@ -2406,7 +2398,6 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
         uint8_t *bufp;
         uint8_t *mbufp = ctx->mdata.bounce;
         uint8_t *end = mbufp + ctx->mdata.iov.size;
-        size_t msize = nvme_msize(ns);
         int16_t pil = 0;
 
         status = nvme_dif_check(ns, ctx->data.bounce, ctx->data.iov.size,
@@ -2422,11 +2413,11 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
          * tuple.
          */
         if (!(ns->id_ns.dps & NVME_ID_NS_DPS_FIRST_EIGHT)) {
-            pil = nvme_msize(ns) - sizeof(NvmeDifTuple);
+            pil = ns->lbaf.ms - sizeof(NvmeDifTuple);
         }
 
-        for (bufp = buf; mbufp < end; bufp += msize, mbufp += msize) {
-            if (memcmp(bufp + pil, mbufp + pil, msize - pil)) {
+        for (bufp = buf; mbufp < end; bufp += ns->lbaf.ms, mbufp += ns->lbaf.ms) {
+            if (memcmp(bufp + pil, mbufp + pil, ns->lbaf.ms - pil)) {
                 req->status = NVME_CMP_FAILURE;
                 goto out;
             }
@@ -2489,7 +2480,7 @@ static void nvme_compare_data_cb(void *opaque, int ret)
         goto out;
     }
 
-    if (nvme_msize(ns)) {
+    if (ns->lbaf.ms) {
         NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
         uint64_t slba = le64_to_cpu(rw->slba);
         uint32_t nlb = le16_to_cpu(rw->nlb) + 1;
@@ -2733,7 +2724,7 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
     }
 
     bounce = bouncep = g_malloc(nvme_l2b(ns, nlb));
-    if (nvme_msize(ns)) {
+    if (ns->lbaf.ms) {
         mbounce = mbouncep = g_malloc(nvme_m2b(ns, nlb));
     }
 
@@ -2769,7 +2760,7 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
 
         bouncep += len;
 
-        if (nvme_msize(ns)) {
+        if (ns->lbaf.ms) {
             len = nvme_m2b(ns, nlb);
             offset = ns->mdata_offset + nvme_m2b(ns, slba);
 
@@ -2939,7 +2930,7 @@ static uint16_t nvme_read(NvmeCtrl *n, NvmeRequest *req)
         if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
             bool pract = ctrl & NVME_RW_PRINFO_PRACT;
 
-            if (pract && nvme_msize(ns) == 8) {
+            if (pract && ns->lbaf.ms == 8) {
                 mapped_size = data_size;
             }
         }
@@ -3015,7 +3006,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
         if (NVME_ID_NS_DPS_TYPE(ns->id_ns.dps)) {
             bool pract = ctrl & NVME_RW_PRINFO_PRACT;
 
-            if (pract && nvme_msize(ns) == 8) {
+            if (pract && ns->lbaf.ms == 8) {
                 mapped_size -= nvme_m2b(ns, nlb);
             }
         }
