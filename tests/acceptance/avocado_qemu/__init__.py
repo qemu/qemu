@@ -345,8 +345,39 @@ class LinuxTest(Test, LinuxSSHMixIn):
     username = 'root'
     password = 'password'
 
+    def _set_distro(self):
+        distro = self.params.get(
+            'distro',
+            default=self._get_unique_tag_val('distro'))
+        if not distro:
+            distro = 'fedora'
+        self.distro = distro
+
+        distro_version = self.params.get(
+            'distro_version',
+            default=self._get_unique_tag_val('distro_version'))
+        if not distro_version:
+            distro_version = '31'
+        self.distro_version = distro_version
+
+        # The distro checksum behaves differently than distro name and
+        # version. First, it does not respect a tag with the same
+        # name, given that it's not expected to be used for filtering
+        # (distro name versions are the natural choice).  Second, the
+        # order of precedence is: parameter, attribute and then value
+        # from KNOWN_DISTROS.
+        distro_checksum = self.params.get('distro_checksum',
+                                          default=self.distro_checksum)
+        if not distro_checksum:
+            distro_checksum = get_known_distro_checksum(self.distro,
+                                                        self.distro_version,
+                                                        self.arch)
+        if distro_checksum:
+            self.distro_checksum = distro_checksum
+
     def setUp(self, ssh_pubkey=None, network_device_type='virtio-net'):
         super(LinuxTest, self).setUp()
+        self._set_distro()
         self.vm.add_args('-smp', '2')
         self.vm.add_args('-m', '1024')
         # The following network device allows for SSH connections
@@ -382,20 +413,16 @@ class LinuxTest(Test, LinuxSSHMixIn):
         vmimage.QEMU_IMG = qemu_img
 
         self.log.info('Downloading/preparing boot image')
-        distro = 'fedora'
-        distro_version = '31'
-        known_distro_checksum = get_known_distro_checksum(distro,
-                                                          distro_version,
-                                                          self.arch)
-        distro_checksum = self.distro_checksum or known_distro_checksum
         # Fedora 31 only provides ppc64le images
         image_arch = self.arch
-        if image_arch == 'ppc64':
-            image_arch = 'ppc64le'
+        if self.distro == 'fedora':
+            if image_arch == 'ppc64':
+                image_arch = 'ppc64le'
+
         try:
             boot = vmimage.get(
-                distro, arch=image_arch, version=distro_version,
-                checksum=distro_checksum,
+                self.distro, arch=image_arch, version=self.distro_version,
+                checksum=self.distro_checksum,
                 algorithm='sha256',
                 cache_dir=self.cache_dirs[0],
                 snapshot_dir=self.workdir)
