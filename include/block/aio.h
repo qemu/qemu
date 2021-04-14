@@ -292,19 +292,44 @@ void aio_context_acquire(AioContext *ctx);
 void aio_context_release(AioContext *ctx);
 
 /**
- * aio_bh_schedule_oneshot: Allocate a new bottom half structure that will run
- * only once and as soon as possible.
+ * aio_bh_schedule_oneshot_full: Allocate a new bottom half structure that will
+ * run only once and as soon as possible.
+ *
+ * @name: A human-readable identifier for debugging purposes.
  */
-void aio_bh_schedule_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque);
+void aio_bh_schedule_oneshot_full(AioContext *ctx, QEMUBHFunc *cb, void *opaque,
+                                  const char *name);
 
 /**
- * aio_bh_new: Allocate a new bottom half structure.
+ * aio_bh_schedule_oneshot: Allocate a new bottom half structure that will run
+ * only once and as soon as possible.
+ *
+ * A convenience wrapper for aio_bh_schedule_oneshot_full() that uses cb as the
+ * name string.
+ */
+#define aio_bh_schedule_oneshot(ctx, cb, opaque) \
+    aio_bh_schedule_oneshot_full((ctx), (cb), (opaque), (stringify(cb)))
+
+/**
+ * aio_bh_new_full: Allocate a new bottom half structure.
  *
  * Bottom halves are lightweight callbacks whose invocation is guaranteed
  * to be wait-free, thread-safe and signal-safe.  The #QEMUBH structure
  * is opaque and must be allocated prior to its use.
+ *
+ * @name: A human-readable identifier for debugging purposes.
  */
-QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque);
+QEMUBH *aio_bh_new_full(AioContext *ctx, QEMUBHFunc *cb, void *opaque,
+                        const char *name);
+
+/**
+ * aio_bh_new: Allocate a new bottom half structure
+ *
+ * A convenience wrapper for aio_bh_new_full() that uses the cb as the name
+ * string.
+ */
+#define aio_bh_new(ctx, cb, opaque) \
+    aio_bh_new_full((ctx), (cb), (opaque), (stringify(cb)))
 
 /**
  * aio_notify: Force processing of pending events.
