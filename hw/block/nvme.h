@@ -24,8 +24,6 @@
 
 #include "block/nvme.h"
 
-#define NVME_DEFAULT_ZONE_SIZE   (128 * MiB)
-#define NVME_DEFAULT_MAX_ZA_SIZE (128 * KiB)
 #define NVME_MAX_CONTROLLERS 32
 #define NVME_MAX_NAMESPACES  256
 

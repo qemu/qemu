@@ -168,6 +168,7 @@
 #define NVME_TEMPERATURE_WARNING 0x157
 #define NVME_TEMPERATURE_CRITICAL 0x175
 #define NVME_NUM_FW_SLOTS 1
+#define NVME_DEFAULT_MAX_ZA_SIZE (128 * KiB)
 
 #define NVME_GUEST_ERR(trace, fmt, ...) \
     do { \
