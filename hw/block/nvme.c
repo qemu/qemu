@@ -144,24 +144,20 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/units.h"
+#include "qemu/cutils.h"
 #include "qemu/error-report.h"
-#include "hw/block/block.h"
-#include "hw/pci/msix.h"
-#include "hw/pci/pci.h"
-#include "hw/qdev-properties.h"
-#include "migration/vmstate.h"
-#include "sysemu/sysemu.h"
+#include "qemu/log.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "sysemu/hostmem.h"
+#include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
-#include "exec/memory.h"
-#include "qemu/log.h"
-#include "qemu/module.h"
-#include "qemu/cutils.h"
-#include "trace.h"
+#include "sysemu/hostmem.h"
+#include "hw/pci/msix.h"
+#include "migration/vmstate.h"
+
 #include "nvme.h"
+#include "trace.h"
 
 #define NVME_MAX_IOQPAIRS 0xffff
 #define NVME_DB_SIZE  4

@@ -6,18 +6,9 @@
  * This code is licensed under the GNU GPL v2.  Refer COPYING.
  */
 
-#include "qemu/units.h"
 #include "qemu/osdep.h"
-#include "qemu/uuid.h"
-#include "qemu/iov.h"
-#include "qemu/cutils.h"
 #include "qapi/error.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-core.h"
-#include "hw/block/block.h"
-#include "block/aio.h"
-#include "block/accounting.h"
-#include "hw/pci/pci.h"
+
 #include "nvme.h"
 
 int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)

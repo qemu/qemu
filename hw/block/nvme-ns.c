@@ -14,20 +14,13 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "qemu/cutils.h"
-#include "qemu/log.h"
 #include "qemu/error-report.h"
-#include "hw/block/block.h"
-#include "hw/pci/pci.h"
+#include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
-#include "qapi/error.h"
 
-#include "hw/qdev-properties.h"
-#include "hw/qdev-core.h"
-
-#include "trace.h"
 #include "nvme.h"
+#include "trace.h"
 
 #define MIN_DISCARD_GRANULARITY (4 * KiB)
 

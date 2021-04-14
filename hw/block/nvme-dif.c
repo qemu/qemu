@@ -9,12 +9,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/block/block.h"
-#include "sysemu/dma.h"
-#include "sysemu/block-backend.h"
 #include "qapi/error.h"
-#include "trace.h"
+#include "sysemu/block-backend.h"
+
 #include "nvme.h"
+#include "trace.h"
 
 uint16_t nvme_check_prinfo(NvmeNamespace *ns, uint16_t ctrl, uint64_t slba,
                            uint32_t reftag)
