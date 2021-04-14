@@ -19,7 +19,6 @@
 #include "block/accounting.h"
 #include "hw/pci/pci.h"
 #include "nvme.h"
-#include "nvme-subsys.h"
 
 int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)
 {

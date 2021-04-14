@@ -28,7 +28,6 @@
 
 #include "trace.h"
 #include "nvme.h"
-#include "nvme-ns.h"
 
 #define MIN_DISCARD_GRANULARITY (4 * KiB)
 

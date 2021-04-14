@@ -15,7 +15,6 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "nvme.h"
-#include "nvme-dif.h"
 
 uint16_t nvme_check_prinfo(NvmeNamespace *ns, uint16_t ctrl, uint64_t slba,
                            uint32_t reftag)

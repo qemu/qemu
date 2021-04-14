@@ -162,8 +162,6 @@
 #include "qemu/cutils.h"
 #include "trace.h"
 #include "nvme.h"
-#include "nvme-ns.h"
-#include "nvme-dif.h"
 
 #define NVME_MAX_IOQPAIRS 0xffff
 #define NVME_DB_SIZE  4
