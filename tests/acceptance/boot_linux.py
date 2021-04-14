@@ -20,9 +20,6 @@ class BootLinuxX8664(LinuxTest):
     :avocado: tags=arch:x86_64
     """
 
-    distro_checksum = ('e3c1b309d9203604922d6e255c2c5d09'
-                       '8a309c2d46215d8fc026954f3c5c27a0')
-
     def test_pc_i440fx_tcg(self):
         """
         :avocado: tags=machine:pc
@@ -66,9 +63,6 @@ class BootLinuxAarch64(LinuxTest):
     :avocado: tags=machine:virt
     :avocado: tags=machine:gic-version=2
     """
-
-    distro_checksum = ('1e18d9c0cf734940c4b5d5ec592facae'
-                       'd2af0ad0329383d5639c997fdf16fe49')
 
     def add_common_args(self):
         self.vm.add_args('-bios',
@@ -121,9 +115,6 @@ class BootLinuxPPC64(LinuxTest):
     :avocado: tags=arch:ppc64
     """
 
-    distro_checksum = ('7c3528b85a3df4b2306e892199a9e1e4'
-                       '3f991c506f2cc390dc4efa2026ad2f58')
-
     def test_pseries_tcg(self):
         """
         :avocado: tags=machine:pseries
@@ -138,9 +129,6 @@ class BootLinuxS390X(LinuxTest):
     """
     :avocado: tags=arch:s390x
     """
-
-    distro_checksum = ('4caaab5a434fd4d1079149a072fdc789'
-                       '1e354f834d355069ca982fdcaf5a122d')
 
     @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_s390_ccw_virtio_tcg(self):

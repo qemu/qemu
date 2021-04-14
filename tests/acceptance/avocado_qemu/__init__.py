@@ -304,6 +304,35 @@ class LinuxSSHMixIn:
         return stdout_lines, stderr_lines
 
 
+#: A collection of known distros and their respective image checksum
+KNOWN_DISTROS = {
+    'fedora': {
+        '31': {
+            'x86_64':
+            {'checksum': ('e3c1b309d9203604922d6e255c2c5d09'
+                          '8a309c2d46215d8fc026954f3c5c27a0')},
+            'aarch64':
+            {'checksum': ('1e18d9c0cf734940c4b5d5ec592facae'
+                          'd2af0ad0329383d5639c997fdf16fe49')},
+            'ppc64':
+            {'checksum': ('7c3528b85a3df4b2306e892199a9e1e4'
+                          '3f991c506f2cc390dc4efa2026ad2f58')},
+            's390x':
+            {'checksum': ('4caaab5a434fd4d1079149a072fdc789'
+                          '1e354f834d355069ca982fdcaf5a122d')},
+            }
+        }
+    }
+
+
+def get_known_distro_checksum(distro, distro_version, arch):
+    try:
+        return KNOWN_DISTROS.get(distro).get(distro_version).\
+            get(arch).get('checksum')
+    except AttributeError:
+        return None
+
+
 class LinuxTest(Test, LinuxSSHMixIn):
     """Facilitates having a cloud-image Linux based available.
 
@@ -353,14 +382,20 @@ class LinuxTest(Test, LinuxSSHMixIn):
         vmimage.QEMU_IMG = qemu_img
 
         self.log.info('Downloading/preparing boot image')
+        distro = 'fedora'
+        distro_version = '31'
+        known_distro_checksum = get_known_distro_checksum(distro,
+                                                          distro_version,
+                                                          self.arch)
+        distro_checksum = self.distro_checksum or known_distro_checksum
         # Fedora 31 only provides ppc64le images
         image_arch = self.arch
         if image_arch == 'ppc64':
             image_arch = 'ppc64le'
         try:
             boot = vmimage.get(
-                'fedora', arch=image_arch, version='31',
-                checksum=self.distro_checksum,
+                distro, arch=image_arch, version=distro_version,
+                checksum=distro_checksum,
                 algorithm='sha256',
                 cache_dir=self.cache_dirs[0],
                 snapshot_dir=self.workdir)
