@@ -401,7 +401,6 @@ typedef struct NvmeCtrl {
     uint16_t    cqe_size;
     uint16_t    sqe_size;
     uint32_t    reg_size;
-    uint32_t    num_namespaces;
     uint32_t    max_q_ents;
     uint8_t     outstanding_aers;
     uint32_t    irq_status;
