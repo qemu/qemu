@@ -1338,6 +1338,8 @@ static int handle_aiocb_flush(void *opaque)
 
     ret = qemu_fdatasync(aiocb->aio_fildes);
     if (ret == -1) {
+        trace_file_flush_fdatasync_failed(errno);
+
         /* There is no clear definition of the semantics of a failing fsync(),
          * so we may have to assume the worst. The sad truth is that this
          * assumption is correct for Linux. Some pages are now probably marked

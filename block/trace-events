@@ -206,6 +206,7 @@ file_copy_file_range(void *bs, int src, int64_t src_off, int dst, int64_t dst_of
 file_FindEjectableOpticalMedia(const char *media) "Matching using %s"
 file_setup_cdrom(const char *partition) "Using %s as optical disc"
 file_hdev_is_sg(int type, int version) "SG device found: type=%d, version=%d"
+file_flush_fdatasync_failed(int err) "errno %d"
 
 # ssh.c
 sftp_error(const char *op, const char *ssh_err, int ssh_err_code, int sftp_err_code) "%s failed: %s (libssh error code: %d, sftp error code: %d)"
