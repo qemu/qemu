@@ -1863,7 +1863,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
     if (phys_pc == -1) {
         /* Generate a one-shot TB with 1 insn in it */
-        cflags = (cflags & ~CF_COUNT_MASK) | 1;
+        cflags = (cflags & ~CF_COUNT_MASK) | CF_LAST_IO | 1;
     }
 
     max_insns = cflags & CF_COUNT_MASK;
