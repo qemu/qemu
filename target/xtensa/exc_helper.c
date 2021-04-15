@@ -40,9 +40,6 @@ void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
     if (excp == EXCP_YIELD) {
         env->yield_needed = 0;
     }
-    if (excp == EXCP_DEBUG) {
-        env->exception_taken = 0;
-    }
     cpu_loop_exit(cs);
 }
 
@@ -197,7 +194,6 @@ static void handle_interrupt(CPUXtensaState *env)
             }
             env->sregs[PS] |= PS_EXCM;
         }
-        env->exception_taken = 1;
     }
 }
 
@@ -242,7 +238,6 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
 
             vector = env->config->exception_vector[cs->exception_index];
             env->pc = relocated_vector(env, vector);
-            env->exception_taken = 1;
         } else {
             qemu_log_mask(CPU_LOG_INT,
                           "%s(pc = %08x) bad exception_index: %d\n",

@@ -1279,12 +1279,6 @@ static void xtensa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         dc->base.is_jmp = DISAS_NORETURN;
         return;
     }
-    if (dc->base.tb->flags & XTENSA_TBFLAG_EXCEPTION) {
-        gen_exception(dc, EXCP_DEBUG);
-        dc->base.pc_next = dc->pc + 1;
-        dc->base.is_jmp = DISAS_NORETURN;
-        return;
-    }
 
     if (dc->icount) {
         TCGLabel *label = gen_new_label();
