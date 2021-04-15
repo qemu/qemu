@@ -1757,8 +1757,8 @@ static inline uint16_t nvme_zrm_open(NvmeNamespace *ns, NvmeZone *zone)
     return nvme_zrm_open_flags(ns, zone, 0);
 }
 
-static void __nvme_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
-                                   uint32_t nlb)
+static void nvme_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
+                                 uint32_t nlb)
 {
     zone->d.wp += nlb;
 
@@ -1778,7 +1778,7 @@ static void nvme_finalize_zoned_write(NvmeNamespace *ns, NvmeRequest *req)
     nlb = le16_to_cpu(rw->nlb) + 1;
     zone = nvme_get_zone_by_slba(ns, slba);
 
-    __nvme_advance_zone_wp(ns, zone, nlb);
+    nvme_advance_zone_wp(ns, zone, nlb);
 }
 
 static inline bool nvme_is_write(NvmeRequest *req)
@@ -2167,7 +2167,7 @@ out:
         uint64_t sdlba = le64_to_cpu(copy->sdlba);
         NvmeZone *zone = nvme_get_zone_by_slba(ns, sdlba);
 
-        __nvme_advance_zone_wp(ns, zone, ctx->nlb);
+        nvme_advance_zone_wp(ns, zone, ctx->nlb);
     }
 
     g_free(ctx->bounce);
