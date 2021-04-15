@@ -1178,6 +1178,17 @@ static int sg_get_max_segments(int fd)
         goto out;
     }
 
+    if (S_ISCHR(st.st_mode)) {
+        if (ioctl(fd, SG_GET_SG_TABLESIZE, &ret) == 0) {
+            return ret;
+        }
+        return -ENOTSUP;
+    }
+
+    if (!S_ISBLK(st.st_mode)) {
+        return -ENOTSUP;
+    }
+
     sysfspath = g_strdup_printf("/sys/dev/block/%u:%u/queue/max_segments",
                                 major(st.st_rdev), minor(st.st_rdev));
     sysfd = open(sysfspath, O_RDONLY);
