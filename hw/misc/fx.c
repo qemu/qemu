@@ -13,6 +13,7 @@
 #include "qemu/main-loop.h" /* iothread mutex */
 #include "qemu/module.h"
 #include "qapi/visitor.h"
+#include "qemu/intercept-interrupt.h"
 
 #define TYPE_PCI_FXPCI_DEVICE "fx"
 typedef struct FxState FxState;
@@ -34,8 +35,6 @@ struct FxState {
 
     QemuThread thread;
     QemuMutex thr_mutex;
-    /* thread must raise an interrupt and wait for 
-        the address back from guest*/
     QemuCond thr_cond; 
     bool stopping;
 
@@ -86,6 +85,12 @@ static void fx_raise_irq(FxState *fx, uint32_t val)
             pci_set_irq(&fx->pdev, 1);
         }
     }
+    qemu_mutex_lock(&interrupt_raised_mutex);
+    if(!is_module_inserted)
+        goto unlock;
+    is_interrupt_raised = true;
+unlock:
+    qemu_mutex_unlock(&interrupt_raised_mutex);
 }
 
 static void fx_lower_irq(FxState *fx, uint32_t val)
@@ -240,6 +245,12 @@ static void fx_class_init(ObjectClass *class, void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
+static void init_interrupt_interception(void)
+{
+    is_interrupt_raised = false;
+    qemu_mutex_init(&interrupt_raised_mutex);
+}
+
 static void pci_fx_register_types(void)
 {
     static InterfaceInfo interfaces[] = {
@@ -256,5 +267,6 @@ static void pci_fx_register_types(void)
     };
 
     type_register_static(&fx_info);
+    init_interrupt_interception();
 }
 type_init(pci_fx_register_types)

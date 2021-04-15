@@ -4182,6 +4182,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
     }
 
     if (!kvm_pic_in_kernel()) {
+        puts("if !kvm_pic_in_kernel entered\n");
         /* Try to inject an interrupt if the guest can accept it */
         if (run->ready_for_interrupt_injection &&
             (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -4190,6 +4191,8 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
 
             cpu->interrupt_request &= ~CPU_INTERRUPT_HARD;
             irq = cpu_get_pic_interrupt(env);
+            if(irq == 10 || irq == 11)
+                puts("Injecting FX interrupt...\n");
             if (irq >= 0) {
                 struct kvm_interrupt intr;
 
