@@ -1694,8 +1694,12 @@ static void nvme_zrm_auto_transition_zone(NvmeNamespace *ns)
     }
 }
 
-static uint16_t __nvme_zrm_open(NvmeNamespace *ns, NvmeZone *zone,
-                                bool implicit)
+enum {
+    NVME_ZRM_AUTO = 1 << 0,
+};
+
+static uint16_t nvme_zrm_open_flags(NvmeNamespace *ns, NvmeZone *zone,
+                                    int flags)
 {
     int act = 0;
     uint16_t status;
@@ -1719,7 +1723,7 @@ static uint16_t __nvme_zrm_open(NvmeNamespace *ns, NvmeZone *zone,
 
         nvme_aor_inc_open(ns);
 
-        if (implicit) {
+        if (flags & NVME_ZRM_AUTO) {
             nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_IMPLICITLY_OPEN);
             return NVME_SUCCESS;
         }
@@ -1727,7 +1731,7 @@ static uint16_t __nvme_zrm_open(NvmeNamespace *ns, NvmeZone *zone,
         /* fallthrough */
 
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
-        if (implicit) {
+        if (flags & NVME_ZRM_AUTO) {
             return NVME_SUCCESS;
         }
 
@@ -1745,12 +1749,12 @@ static uint16_t __nvme_zrm_open(NvmeNamespace *ns, NvmeZone *zone,
 
 static inline uint16_t nvme_zrm_auto(NvmeNamespace *ns, NvmeZone *zone)
 {
-    return __nvme_zrm_open(ns, zone, true);
+    return nvme_zrm_open_flags(ns, zone, NVME_ZRM_AUTO);
 }
 
 static inline uint16_t nvme_zrm_open(NvmeNamespace *ns, NvmeZone *zone)
 {
-    return __nvme_zrm_open(ns, zone, false);
+    return nvme_zrm_open_flags(ns, zone, 0);
 }
 
 static void __nvme_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
