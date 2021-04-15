@@ -3115,6 +3115,7 @@ static void migration_completion(MigrationState *s)
         if (!ret) {
             bool inactivate = !migrate_colo_enabled();
             ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+            trace_migration_completion_vm_stop(ret);
             if (ret >= 0) {
                 ret = migration_maybe_pause(s, &current_active_state,
                                             MIGRATION_STATUS_DEVICE);
