@@ -19,6 +19,9 @@ flatview_new(void *view, void *root) "%p (root %p)"
 flatview_destroy(void *view, void *root) "%p (root %p)"
 flatview_destroy_rcu(void *view, void *root) "%p (root %p)"
 
+# softmmu.c
+vm_stop_flush_all(int ret) "ret %d"
+
 # vl.c
 vm_state_notify(int running, int reason, const char *reason_str) "running %d reason %d (%s)"
 load_file(const char *name, const char *path) "name %s location %s"
