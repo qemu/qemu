@@ -9,4 +9,6 @@ void intercept_hypercall(CPUARMState *cpu_env) {
     for (int i = 0; i < 32; i++) {
         qemu_log("R%d: 0x%lX\n", i, cpu_env->xregs[i]);
     }
+
+    cpu_env->xregs[0] = 0x1337;
 }
