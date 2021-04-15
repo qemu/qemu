@@ -106,8 +106,6 @@
 #include <xfs/xfs.h>
 #endif
 
-#include "trace.h"
-
 /* OS X does not have O_DSYNC */
 #ifndef O_DSYNC
 #ifdef O_SYNC
