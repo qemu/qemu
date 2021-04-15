@@ -791,12 +791,21 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
 #endif
 
     /*
-     * AIL only works if there is no HV transition and we are running
-     * with translations enabled
+     * AIL only works if MSR[IR] and MSR[DR] are both enabled.
      */
-    if (!((msr >> MSR_IR) & 1) || !((msr >> MSR_DR) & 1) ||
-        ((new_msr & MSR_HVB) && !(msr & MSR_HVB))) {
+    if (!((msr >> MSR_IR) & 1) || !((msr >> MSR_DR) & 1)) {
         ail = 0;
+    }
+
+    /*
+     * AIL does not work if there is a MSR[HV] 0->1 transition and the
+     * partition is in HPT mode. For radix guests, such interrupts are
+     * allowed to be delivered to the hypervisor in ail mode.
+     */
+    if ((new_msr & MSR_HVB) && !(msr & MSR_HVB)) {
+        if (!(env->spr[SPR_LPCR] & LPCR_HR)) {
+            ail = 0;
+        }
     }
 
     vector = env->excp_vectors[excp];
