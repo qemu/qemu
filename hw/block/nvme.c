@@ -4928,7 +4928,25 @@ static void nvme_update_dmrsl(NvmeCtrl *n)
     }
 }
 
-static void __nvme_select_ns_iocs(NvmeCtrl *n, NvmeNamespace *ns);
+static void nvme_select_iocs_ns(NvmeCtrl *n, NvmeNamespace *ns)
+{
+    ns->iocs = nvme_cse_iocs_none;
+    switch (ns->csi) {
+    case NVME_CSI_NVM:
+        if (NVME_CC_CSS(n->bar.cc) != NVME_CC_CSS_ADMIN_ONLY) {
+            ns->iocs = nvme_cse_iocs_nvm;
+        }
+        break;
+    case NVME_CSI_ZONED:
+        if (NVME_CC_CSS(n->bar.cc) == NVME_CC_CSS_CSI) {
+            ns->iocs = nvme_cse_iocs_zoned;
+        } else if (NVME_CC_CSS(n->bar.cc) == NVME_CC_CSS_NVM) {
+            ns->iocs = nvme_cse_iocs_nvm;
+        }
+        break;
+    }
+}
+
 static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeNamespace *ns;
@@ -4979,7 +4997,7 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
             }
 
             nvme_attach_ns(ctrl, ns);
-            __nvme_select_ns_iocs(ctrl, ns);
+            nvme_select_iocs_ns(ctrl, ns);
         } else {
             if (!nvme_ns(ctrl, nsid)) {
                 return NVME_NS_NOT_ATTACHED | NVME_DNR;
@@ -5280,26 +5298,7 @@ static void nvme_ctrl_shutdown(NvmeCtrl *n)
     }
 }
 
-static void __nvme_select_ns_iocs(NvmeCtrl *n, NvmeNamespace *ns)
-{
-    ns->iocs = nvme_cse_iocs_none;
-    switch (ns->csi) {
-    case NVME_CSI_NVM:
-        if (NVME_CC_CSS(n->bar.cc) != NVME_CC_CSS_ADMIN_ONLY) {
-            ns->iocs = nvme_cse_iocs_nvm;
-        }
-        break;
-    case NVME_CSI_ZONED:
-        if (NVME_CC_CSS(n->bar.cc) == NVME_CC_CSS_CSI) {
-            ns->iocs = nvme_cse_iocs_zoned;
-        } else if (NVME_CC_CSS(n->bar.cc) == NVME_CC_CSS_NVM) {
-            ns->iocs = nvme_cse_iocs_nvm;
-        }
-        break;
-    }
-}
-
-static void nvme_select_ns_iocs(NvmeCtrl *n)
+static void nvme_select_iocs(NvmeCtrl *n)
 {
     NvmeNamespace *ns;
     int i;
@@ -5310,7 +5309,7 @@ static void nvme_select_ns_iocs(NvmeCtrl *n)
             continue;
         }
 
-        __nvme_select_ns_iocs(n, ns);
+        nvme_select_iocs_ns(n, ns);
     }
 }
 
@@ -5412,7 +5411,7 @@ static int nvme_start_ctrl(NvmeCtrl *n)
 
     QTAILQ_INIT(&n->aer_queue);
 
-    nvme_select_ns_iocs(n);
+    nvme_select_iocs(n);
 
     return 0;
 }
