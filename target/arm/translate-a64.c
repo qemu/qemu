@@ -14657,8 +14657,6 @@ static void disas_a64_insn(CPUARMState *env, DisasContext *s)
 {
     uint32_t insn;
     
-    AFL_QEMU_TARGET_ARM64_SNIPPET
-
     s->pc_curr = s->base.pc_next;
     insn = arm_ldl_code(env, s->base.pc_next, s->sctlr_b);
     s->insn = insn;
@@ -14666,6 +14664,8 @@ static void disas_a64_insn(CPUARMState *env, DisasContext *s)
 
     s->fp_access_checked = false;
     s->sve_access_checked = false;
+
+    AFL_QEMU_TARGET_ARM64_SNIPPET
 
     if (dc_isar_feature(aa64_bti, s)) {
         if (s->base.num_insns == 1) {
