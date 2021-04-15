@@ -31,8 +31,6 @@
  * Intercepts a HVC call regardless of whether we came from EL0 or not.
  *
  * Inputs:
- *  s - Current DisasContext of the processor
- *  insn - Current 32 bit instruction encoding
  *  cpu_env - Current CPU environment variable (global state to translate-a64)
  *
  * Outputs:
@@ -41,6 +39,6 @@
  * Side Effects:
  *  May log to the qemu logfile (Specified with -D argument)
  */
-void intercept_hypercall(DisasContext *s, uint32_t insn, uint32_t imm16, CPUARMState *cpu_env);
+void intercept_hypercall(CPUARMState *cpu_env);
 
 #endif // HYPERCALL_H

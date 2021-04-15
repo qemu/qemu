@@ -25,6 +25,8 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 
+#include "hypercall.h"
+
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
 
@@ -743,6 +745,11 @@ uint64_t HELPER(get_cp_reg64)(CPUARMState *env, void *rip)
     }
 
     return res;
+}
+
+void HELPER(inc_hvc)(CPUARMState *env)
+{
+    intercept_hypercall(env);
 }
 
 void HELPER(pre_hvc)(CPUARMState *env)

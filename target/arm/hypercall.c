@@ -4,6 +4,9 @@
  * intercept_hypercall
  * Intercepts a HVC instruction.
  */
-void intercept_hypercall(DisasContext *s, uint32_t insn, uint32_t imm16, CPUARMState *cpu_env) {
-    qemu_log("Intercepted a hypercall %x\n", imm16);
+void intercept_hypercall(CPUARMState *cpu_env) {
+    qemu_log("Intercepted a hypercall\n");
+    for (int i = 0; i < 32; i++) {
+        qemu_log("R%d: 0x%lX\n", i, cpu_env->xregs[i]);
+    }
 }
