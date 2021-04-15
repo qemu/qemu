@@ -19,6 +19,8 @@ from avocado.utils import archive
 from avocado.utils import ssh
 
 
+@skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
+@skipUnless(ssh.SSH_CLIENT_BINARY, 'No SSH client available')
 class LinuxSSH(Test, LinuxSSHMixIn):
 
     timeout = 150 # Not for 'configure --enable-debug --enable-debug-tcg'
@@ -64,11 +66,6 @@ class LinuxSSH(Test, LinuxSSHMixIn):
                                   'vmlinux-%s' % minfo['kernel_release'])
         kernel_hash = self.IMAGE_INFO[endianess]['kernel_hash'][wordsize]
         return kernel_url, kernel_hash
-
-    @skipUnless(ssh.SSH_CLIENT_BINARY, 'No SSH client available')
-    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
-    def setUp(self):
-        super(LinuxSSH, self).setUp()
 
     def ssh_disconnect_vm(self):
         self.ssh_session.quit()
