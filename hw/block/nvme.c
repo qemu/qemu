@@ -12,10 +12,19 @@
  * Reference Specs: http://www.nvmexpress.org, 1.4, 1.3, 1.2, 1.1, 1.0e
  *
  *  https://nvmexpress.org/developers/nvme-specification/
- */
-
-/**
- * Usage: add options:
+ *
+ *
+ * Notes on coding style
+ * ---------------------
+ * While QEMU coding style prefers lowercase hexadecimals in constants, the
+ * NVMe subsystem use thes format from the NVMe specifications in the comments
+ * (i.e. 'h' suffix instead of '0x' prefix).
+ *
+ * Usage
+ * -----
+ * See docs/system/nvme.rst for extensive documentation.
+ *
+ * Add options:
  *      -drive file=<file>,if=none,id=<drive_id>
  *      -device nvme-subsys,id=<subsys_id>,nqn=<nqn_id>
  *      -device nvme,serial=<serial>,id=<bus_name>, \
@@ -3613,18 +3622,18 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
 
     /*
      * In the base NVM command set, Flush may apply to all namespaces
-     * (indicated by NSID being set to 0xFFFFFFFF). But if that feature is used
+     * (indicated by NSID being set to FFFFFFFFh). But if that feature is used
      * along with TP 4056 (Namespace Types), it may be pretty screwed up.
      *
-     * If NSID is indeed set to 0xFFFFFFFF, we simply cannot associate the
+     * If NSID is indeed set to FFFFFFFFh, we simply cannot associate the
      * opcode with a specific command since we cannot determine a unique I/O
-     * command set. Opcode 0x0 could have any other meaning than something
+     * command set. Opcode 0h could have any other meaning than something
      * equivalent to flushing and say it DOES have completely different
-     * semantics in some other command set - does an NSID of 0xFFFFFFFF then
+     * semantics in some other command set - does an NSID of FFFFFFFFh then
      * mean "for all namespaces, apply whatever command set specific command
-     * that uses the 0x0 opcode?" Or does it mean "for all namespaces, apply
-     * whatever command that uses the 0x0 opcode if, and only if, it allows
-     * NSID to be 0xFFFFFFFF"?
+     * that uses the 0h opcode?" Or does it mean "for all namespaces, apply
+     * whatever command that uses the 0h opcode if, and only if, it allows NSID
+     * to be FFFFFFFFh"?
      *
      * Anyway (and luckily), for now, we do not care about this since the
      * device only supports namespace types that includes the NVM Flush command
@@ -3940,7 +3949,7 @@ static uint16_t nvme_changed_nslist(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
             NVME_CHANGED_NSID_SIZE) {
         /*
          * If more than 1024 namespaces, the first entry in the log page should
-         * be set to 0xffffffff and the others to 0 as spec.
+         * be set to FFFFFFFFh and the others to 0 as spec.
          */
         if (i == ARRAY_SIZE(nslist)) {
             memset(nslist, 0x0, sizeof(nslist));
@@ -4338,7 +4347,7 @@ static uint16_t nvme_identify_nslist(NvmeCtrl *n, NvmeRequest *req,
     trace_pci_nvme_identify_nslist(min_nsid);
 
     /*
-     * Both 0xffffffff (NVME_NSID_BROADCAST) and 0xfffffffe are invalid values
+     * Both FFFFFFFFh (NVME_NSID_BROADCAST) and FFFFFFFFEh are invalid values
      * since the Active Namespace ID List should return namespaces with ids
      * *higher* than the NSID specified in the command. This is also specified
      * in the spec (NVM Express v1.3d, Section 5.15.4).
@@ -4385,7 +4394,7 @@ static uint16_t nvme_identify_nslist_csi(NvmeCtrl *n, NvmeRequest *req,
     trace_pci_nvme_identify_nslist_csi(min_nsid, c->csi);
 
     /*
-     * Same as in nvme_identify_nslist(), 0xffffffff/0xfffffffe are invalid.
+     * Same as in nvme_identify_nslist(), FFFFFFFFh/FFFFFFFFEh are invalid.
      */
     if (min_nsid >= NVME_NSID_BROADCAST - 1) {
         return NVME_INVALID_NSID | NVME_DNR;
@@ -4452,7 +4461,7 @@ static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req)
 
     /*
      * Because the NGUID and EUI64 fields are 0 in the Identify Namespace data
-     * structure, a Namespace UUID (nidt = 0x3) must be reported in the
+     * structure, a Namespace UUID (nidt = 3h) must be reported in the
      * Namespace Identification Descriptor. Add the namespace UUID here.
      */
     ns_descrs->uuid.hdr.nidt = NVME_NIDT_UUID;
@@ -4601,7 +4610,7 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
             /*
              * The Reservation Notification Mask and Reservation Persistence
              * features require a status code of Invalid Field in Command when
-             * NSID is 0xFFFFFFFF. Since the device does not support those
+             * NSID is FFFFFFFFh. Since the device does not support those
              * features we can always return Invalid Namespace or Format as we
              * should do for all other features.
              */
@@ -4850,15 +4859,15 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
         }
 
         /*
-         * NVMe v1.3, Section 5.21.1.7: 0xffff is not an allowed value for NCQR
+         * NVMe v1.3, Section 5.21.1.7: FFFFh is not an allowed value for NCQR
          * and NSQR.
          */
         if ((dw11 & 0xffff) == 0xffff || ((dw11 >> 16) & 0xffff) == 0xffff) {
             return NVME_INVALID_FIELD | NVME_DNR;
         }
 
-        trace_pci_nvme_setfeat_numq((dw11 & 0xFFFF) + 1,
-                                    ((dw11 >> 16) & 0xFFFF) + 1,
+        trace_pci_nvme_setfeat_numq((dw11 & 0xffff) + 1,
+                                    ((dw11 >> 16) & 0xffff) + 1,
                                     n->params.max_ioqpairs,
                                     n->params.max_ioqpairs);
         req->cqe.result = cpu_to_le32((n->params.max_ioqpairs - 1) |
@@ -5496,7 +5505,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
             n->bar.cc = data;
         }
         break;
-    case 0x1C:  /* CSTS */
+    case 0x1c:  /* CSTS */
         if (data & (1 << 4)) {
             NVME_GUEST_ERR(pci_nvme_ub_mmiowr_ssreset_w1c_unsupported,
                            "attempted to W1C CSTS.NSSRO"
@@ -5508,7 +5517,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         }
         break;
     case 0x20:  /* NSSR */
-        if (data == 0x4E564D65) {
+        if (data == 0x4e564d65) {
             trace_pci_nvme_ub_mmiowr_ssreset_unsupported();
         } else {
             /* The spec says that writes of other values have no effect */
@@ -5578,11 +5587,11 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         n->bar.cmbmsc = (n->bar.cmbmsc & 0xffffffff) | (data << 32);
         return;
 
-    case 0xE00: /* PMRCAP */
+    case 0xe00: /* PMRCAP */
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_pmrcap_readonly,
                        "invalid write to PMRCAP register, ignored");
         return;
-    case 0xE04: /* PMRCTL */
+    case 0xe04: /* PMRCTL */
         n->bar.pmrctl = data;
         if (NVME_PMRCTL_EN(data)) {
             memory_region_set_enabled(&n->pmr.dev->mr, true);
@@ -5593,19 +5602,19 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
             n->pmr.cmse = false;
         }
         return;
-    case 0xE08: /* PMRSTS */
+    case 0xe08: /* PMRSTS */
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_pmrsts_readonly,
                        "invalid write to PMRSTS register, ignored");
         return;
-    case 0xE0C: /* PMREBS */
+    case 0xe0C: /* PMREBS */
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_pmrebs_readonly,
                        "invalid write to PMREBS register, ignored");
         return;
-    case 0xE10: /* PMRSWTP */
+    case 0xe10: /* PMRSWTP */
         NVME_GUEST_ERR(pci_nvme_ub_mmiowr_pmrswtp_readonly,
                        "invalid write to PMRSWTP register, ignored");
         return;
-    case 0xE14: /* PMRMSCL */
+    case 0xe14: /* PMRMSCL */
         if (!NVME_CAP_PMRS(n->bar.cap)) {
             return;
         }
@@ -5625,7 +5634,7 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         }
 
         return;
-    case 0xE18: /* PMRMSCU */
+    case 0xe18: /* PMRMSCU */
         if (!NVME_CAP_PMRS(n->bar.cap)) {
             return;
         }
@@ -5667,7 +5676,7 @@ static uint64_t nvme_mmio_read(void *opaque, hwaddr addr, unsigned size)
          * from PMRSTS should ensure prior writes
          * made it to persistent media
          */
-        if (addr == 0xE08 &&
+        if (addr == 0xe08 &&
             (NVME_PMRCAP_PMRWBM(n->bar.pmrcap) & 0x02)) {
             memory_region_msync(&n->pmr.dev->mr, 0, n->pmr.dev->size);
         }
