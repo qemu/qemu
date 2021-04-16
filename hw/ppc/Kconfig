@@ -85,7 +85,7 @@ config PREP
     imply PCI_DEVICES
     imply TEST_DEVICES
     select CS4231A
-    select PREP_PCI
+    select RAVEN_PCI
     select I82378
     select LSI_SCSI_PCI
     select M48T59
