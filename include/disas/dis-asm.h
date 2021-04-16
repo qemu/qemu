@@ -9,6 +9,12 @@
 #ifndef DISAS_DIS_ASM_H
 #define DISAS_DIS_ASM_H
 
+#include "qemu/bswap.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void *PTR;
 typedef uint64_t bfd_vma;
 typedef int64_t bfd_signed_vma;
@@ -479,8 +485,6 @@ bool cap_disas_plugin(disassemble_info *info, uint64_t pc, size_t size);
 
 /* from libbfd */
 
-#include "qemu/bswap.h"
-
 static inline bfd_vma bfd_getl64(const bfd_byte *addr)
 {
     return ldq_le_p(addr);
@@ -507,5 +511,9 @@ static inline bfd_vma bfd_getb16(const bfd_byte *addr)
 }
 
 typedef bool bfd_boolean;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DISAS_DIS_ASM_H */
