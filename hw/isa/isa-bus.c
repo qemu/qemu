@@ -131,12 +131,16 @@ void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start)
     isa_init_ioport(dev, start);
 }
 
-void isa_register_portio_list(ISADevice *dev,
-                              PortioList *piolist, uint16_t start,
-                              const MemoryRegionPortio *pio_start,
-                              void *opaque, const char *name)
+int isa_register_portio_list(ISADevice *dev,
+                             PortioList *piolist, uint16_t start,
+                             const MemoryRegionPortio *pio_start,
+                             void *opaque, const char *name)
 {
     assert(piolist && !piolist->owner);
+
+    if (!isabus) {
+        return -ENODEV;
+    }
 
     /* START is how we should treat DEV, regardless of the actual
        contents of the portio array.  This is how the old code
@@ -145,6 +149,8 @@ void isa_register_portio_list(ISADevice *dev,
 
     portio_list_init(piolist, OBJECT(dev), pio_start, opaque, name);
     portio_list_add(piolist, isabus->address_space_io, start);
+
+    return 0;
 }
 
 static void isa_device_init(Object *obj)

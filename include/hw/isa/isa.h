@@ -132,12 +132,15 @@ void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start);
  * @portio: the ports, sorted by offset.
  * @opaque: passed into the portio callbacks.
  * @name: passed into memory_region_init_io.
+ *
+ * Returns: 0 on success, negative error code otherwise (e.g. if the
+ *          ISA bus is not available)
  */
-void isa_register_portio_list(ISADevice *dev,
-                              PortioList *piolist,
-                              uint16_t start,
-                              const MemoryRegionPortio *portio,
-                              void *opaque, const char *name);
+int isa_register_portio_list(ISADevice *dev,
+                             PortioList *piolist,
+                             uint16_t start,
+                             const MemoryRegionPortio *portio,
+                             void *opaque, const char *name);
 
 static inline ISABus *isa_bus_from_device(ISADevice *d)
 {

@@ -50,15 +50,19 @@ static const MemoryRegionPortio ide_portio2_list[] = {
     PORTIO_END_OF_LIST(),
 };
 
-void ide_init_ioport(IDEBus *bus, ISADevice *dev, int iobase, int iobase2)
+int ide_init_ioport(IDEBus *bus, ISADevice *dev, int iobase, int iobase2)
 {
+    int ret;
+
     /* ??? Assume only ISA and PCI configurations, and that the PCI-ISA
        bridge has been setup properly to always register with ISA.  */
-    isa_register_portio_list(dev, &bus->portio_list,
-                             iobase, ide_portio_list, bus, "ide");
+    ret = isa_register_portio_list(dev, &bus->portio_list,
+                                   iobase, ide_portio_list, bus, "ide");
 
-    if (iobase2) {
-        isa_register_portio_list(dev, &bus->portio2_list,
-                                 iobase2, ide_portio2_list, bus, "ide");
+    if (ret == 0 && iobase2) {
+        ret = isa_register_portio_list(dev, &bus->portio2_list,
+                                       iobase2, ide_portio2_list, bus, "ide");
     }
+
+    return ret;
 }
