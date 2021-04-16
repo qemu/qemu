@@ -2369,9 +2369,18 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
     uint32_t reftag = le32_to_cpu(rw->reftag);
     struct nvme_compare_ctx *ctx = req->opaque;
     g_autofree uint8_t *buf = NULL;
+    BlockBackend *blk = ns->blkconf.blk;
+    BlockAcctCookie *acct = &req->acct;
+    BlockAcctStats *stats = blk_get_stats(blk);
     uint16_t status = NVME_SUCCESS;
 
     trace_pci_nvme_compare_mdata_cb(nvme_cid(req));
+
+    if (ret) {
+        block_acct_failed(stats, acct);
+        nvme_aio_err(req, ret);
+        goto out;
+    }
 
     buf = g_malloc(ctx->mdata.iov.size);
 
@@ -2420,6 +2429,8 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
         req->status = NVME_CMP_FAILURE;
         goto out;
     }
+
+    block_acct_done(stats, acct);
 
 out:
     qemu_iovec_destroy(&ctx->data.iov);
