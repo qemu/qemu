@@ -38,6 +38,10 @@
 #include <sys/sysmacros.h>
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void os_set_line_buffering(void);
 void os_set_proc_name(const char *s);
 void os_setup_signal_handling(void);
@@ -91,5 +95,9 @@ static inline void qemu_funlockfile(FILE *f)
 {
     funlockfile(f);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

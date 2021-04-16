@@ -131,16 +131,16 @@ QEMU_EXTERN_C int daemon(int, int);
  */
 #include "glib-compat.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef _WIN32
 #include "sysemu/os-win32.h"
 #endif
 
 #ifdef CONFIG_POSIX
 #include "sysemu/os-posix.h"
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #include "qemu/typedefs.h"
