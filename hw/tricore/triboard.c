@@ -24,7 +24,6 @@
 #include "hw/qdev-properties.h"
 #include "cpu.h"
 #include "net/net.h"
-#include "hw/boards.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
 #include "elf.h"

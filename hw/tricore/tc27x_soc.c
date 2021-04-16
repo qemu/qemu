@@ -21,7 +21,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
-#include "hw/boards.h"
 #include "hw/loader.h"
 #include "qemu/units.h"
 #include "hw/misc/unimp.h"

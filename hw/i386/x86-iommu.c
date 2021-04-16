@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
-#include "hw/boards.h"
 #include "hw/i386/x86-iommu.h"
 #include "hw/qdev-properties.h"
 #include "hw/i386/pc.h"

@@ -32,7 +32,6 @@
 #include "cpu.h"
 #include "elf.h"
 #include "kvm_mips.h"
-#include "hw/boards.h"
 #include "hw/char/serial.h"
 #include "hw/intc/loongson_liointc.h"
 #include "hw/mips/mips.h"
