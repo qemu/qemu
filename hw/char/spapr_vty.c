@@ -2,7 +2,6 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "migration/vmstate.h"
 #include "chardev/char-fe.h"
 #include "hw/ppc/spapr.h"

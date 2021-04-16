@@ -13,7 +13,6 @@
 #include "qemu/units.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "trace.h"
 #include "hw/irq.h"
 #include "sysemu/sysemu.h"

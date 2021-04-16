@@ -10,7 +10,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "exec/hwaddr.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"

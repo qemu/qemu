@@ -29,7 +29,6 @@
 #include "qemu/cutils.h"
 #include "qemu/datadir.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "elf.h"
 #include "kvm_mips.h"
 #include "hw/char/serial.h"

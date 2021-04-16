@@ -19,7 +19,6 @@
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "sysemu/tcg.h"
-#include "cpu.h"
 #include "elf.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"

@@ -28,7 +28,6 @@
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/sysemu.h"
-#include "cpu.h"
 #include "qom/object.h"
 
 /*

@@ -31,7 +31,6 @@
 #include "hw/arm/boot.h"
 #include "exec/address-spaces.h"
 #include "hw/arm/msf2-soc.h"
-#include "cpu.h"
 
 #define DDR_BASE_ADDRESS      0xA0000000
 #define DDR_SIZE              (64 * MiB)

@@ -24,7 +24,6 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "hw/qdev-core.h"
-#include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/char/serial.h"
 #include "hw/misc/unimp.h"

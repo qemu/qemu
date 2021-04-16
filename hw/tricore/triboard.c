@@ -22,7 +22,6 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
-#include "cpu.h"
 #include "net/net.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"

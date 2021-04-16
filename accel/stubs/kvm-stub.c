@@ -11,7 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "sysemu/kvm.h"
 
 #ifndef CONFIG_USER_ONLY

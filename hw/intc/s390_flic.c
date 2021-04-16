@@ -20,7 +20,6 @@
 #include "hw/qdev-properties.h"
 #include "hw/s390x/css.h"
 #include "trace.h"
-#include "cpu.h"
 #include "qapi/error.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 

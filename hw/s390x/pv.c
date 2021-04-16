@@ -13,7 +13,6 @@
 
 #include <linux/kvm.h>
 
-#include "cpu.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"

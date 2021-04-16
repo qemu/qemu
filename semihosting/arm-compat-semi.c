@@ -33,7 +33,6 @@
 
 #include "qemu/osdep.h"
 
-#include "cpu.h"
 #include "semihosting/semihost.h"
 #include "semihosting/console.h"
 #include "semihosting/common-semi.h"

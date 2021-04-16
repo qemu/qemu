@@ -31,7 +31,6 @@
 #include "sh7750_regnames.h"
 #include "hw/sh4/sh_intc.h"
 #include "hw/timer/tmu012.h"
-#include "cpu.h"
 #include "exec/exec-all.h"
 
 #define NB_DEVICES 4

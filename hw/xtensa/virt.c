@@ -27,7 +27,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "sysemu/reset.h"
 #include "hw/boards.h"
 #include "hw/loader.h"

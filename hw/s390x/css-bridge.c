@@ -20,7 +20,6 @@
 #include "hw/s390x/css.h"
 #include "ccw-device.h"
 #include "hw/s390x/css-bridge.h"
-#include "cpu.h"
 
 /*
  * Invoke device-specific unplug handler, disable the subchannel

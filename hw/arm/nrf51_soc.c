@@ -15,7 +15,6 @@
 #include "hw/misc/unimp.h"
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
-#include "cpu.h"
 
 #include "hw/arm/nrf51.h"
 #include "hw/arm/nrf51_soc.h"

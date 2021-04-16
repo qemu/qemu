@@ -32,7 +32,6 @@
 #include "qemu/units.h"
 #include "qemu-common.h"
 #include "qemu/datadir.h"
-#include "cpu.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"

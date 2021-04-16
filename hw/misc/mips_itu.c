@@ -22,7 +22,6 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "exec/exec-all.h"
 #include "hw/misc/mips_itu.h"
 #include "hw/qdev-properties.h"

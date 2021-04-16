@@ -26,7 +26,6 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include <libfdt.h>
 
 #include "sysemu/block-backend.h"

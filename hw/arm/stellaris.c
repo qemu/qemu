@@ -27,7 +27,6 @@
 #include "migration/vmstate.h"
 #include "hw/misc/unimp.h"
 #include "hw/qdev-clock.h"
-#include "cpu.h"
 #include "qom/object.h"
 
 #define GPIO_A 0

@@ -41,7 +41,6 @@
    CPU definitions. Currently they are used for qemu_ld/st
    instructions */
 #define NO_CPU_IO_DEFS
-#include "cpu.h"
 
 #include "exec/exec-all.h"
 

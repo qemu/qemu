@@ -4,7 +4,6 @@
 #include "elf.h"
 #include "qemu/qemu-print.h"
 
-#include "cpu.h"
 #include "disas/disas.h"
 #include "disas/capstone.h"
 
