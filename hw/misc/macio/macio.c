@@ -35,7 +35,6 @@
 #include "hw/char/escc.h"
 #include "hw/misc/macio/macio.h"
 #include "hw/intc/heathrow_pic.h"
-#include "sysemu/sysemu.h"
 #include "trace.h"
 
 /* Note: this code is strongly inspirated from the corresponding code

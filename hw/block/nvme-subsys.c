@@ -17,7 +17,6 @@
 #include "hw/block/block.h"
 #include "block/aio.h"
 #include "block/accounting.h"
-#include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
 #include "nvme.h"
 #include "nvme-subsys.h"

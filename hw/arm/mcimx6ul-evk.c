@@ -15,7 +15,6 @@
 #include "hw/arm/fsl-imx6ul.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"
 

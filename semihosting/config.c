@@ -24,7 +24,6 @@
 #include "qemu/error-report.h"
 #include "semihosting/semihost.h"
 #include "chardev/char.h"
-#include "sysemu/sysemu.h"
 
 QemuOptsList qemu_semihosting_config_opts = {
     .name = "semihosting-config",

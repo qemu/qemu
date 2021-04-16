@@ -26,7 +26,6 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "cpu.h"
-#include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/arm/boot.h"

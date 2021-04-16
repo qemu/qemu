@@ -22,7 +22,6 @@
 #include "qemu-common.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
-#include "sysemu/sysemu.h"
 #include "qemu/main-loop.h"
 
 #include "tests/qtest/libqos/libqtest.h"

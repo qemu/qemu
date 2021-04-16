@@ -27,7 +27,6 @@
 #include "hw/input/ps2.h"
 #include "hw/input/lasips2.h"
 #include "exec/hwaddr.h"
-#include "sysemu/sysemu.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
 #include "migration/vmstate.h"

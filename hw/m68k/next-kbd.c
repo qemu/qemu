@@ -33,7 +33,6 @@
 #include "hw/sysbus.h"
 #include "hw/m68k/next-cube.h"
 #include "ui/console.h"
-#include "sysemu/sysemu.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
 

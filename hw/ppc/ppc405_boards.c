@@ -34,7 +34,6 @@
 #include "ppc405.h"
 #include "hw/rtc/m48t59.h"
 #include "hw/block/flash.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
 #include "sysemu/block-backend.h"

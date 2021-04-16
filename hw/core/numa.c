@@ -26,7 +26,6 @@
 #include "qemu/units.h"
 #include "sysemu/hostmem.h"
 #include "sysemu/numa.h"
-#include "sysemu/sysemu.h"
 #include "exec/cpu-common.h"
 #include "exec/ramlist.h"
 #include "qemu/bitmap.h"

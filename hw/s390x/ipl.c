@@ -18,7 +18,6 @@
 #include "qapi/error.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "cpu.h"
 #include "elf.h"

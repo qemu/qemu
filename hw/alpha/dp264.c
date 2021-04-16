@@ -13,7 +13,6 @@
 #include "hw/loader.h"
 #include "alpha_sys.h"
 #include "qemu/error-report.h"
-#include "sysemu/sysemu.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/ide/pci.h"
 #include "hw/timer/i8254.h"

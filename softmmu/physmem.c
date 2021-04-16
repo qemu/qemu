@@ -36,7 +36,6 @@
 #include "hw/boards.h"
 #include "hw/xen/xen.h"
 #include "sysemu/kvm.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "sysemu/qtest.h"
 #include "qemu/timer.h"

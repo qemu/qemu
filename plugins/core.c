@@ -26,7 +26,6 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
-#include "sysemu/sysemu.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
 #include "trace/mem-internal.h" /* mem_info macros */

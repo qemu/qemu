@@ -24,7 +24,6 @@
 #include "cpu.h"
 #include "hw/loader.h"
 #include "hw/rx/rx62n.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
 #include "sysemu/device_tree.h"
 #include "hw/boards.h"

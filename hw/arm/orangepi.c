@@ -25,7 +25,6 @@
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/allwinner-h3.h"
-#include "sysemu/sysemu.h"
 
 static struct arm_boot_info orangepi_binfo = {
     .nb_cpus = AW_H3_NUM_CPUS,

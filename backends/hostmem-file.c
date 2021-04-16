@@ -15,7 +15,6 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "sysemu/hostmem.h"
-#include "sysemu/sysemu.h"
 #include "qom/object_interfaces.h"
 #include "qom/object.h"
 
