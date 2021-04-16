@@ -41,4 +41,23 @@
  */
 void intercept_hypercall(CPUARMState *cpu_env);
 
+/*
+ * hypervisor_read_from_virt_mem
+ * Translates a virtual address to physical address using user ARM MMU, and reads from that address
+ * into the specified buffer. Returns the number of bytes read.
+ *
+ * Inputs:
+ *  - cpu_env: The CPU state
+ *  - virt_addr: Virtual address to read from
+ *  - buf: Buffer (hypervisor side) to read into
+ *  - len: Number of bytes to read from guest ram
+ *
+ * Return Value:
+ *  - 0 on success, negative error code on error.
+ *
+ * Side Effects:
+ *  - Causes page table walk in Qemu internals, reads from guest physical memory.
+ */
+ssize_t hypervisor_read_from_virt_mem (CPUARMState *cpu_env, uint64_t virt_addr, void *buf, size_t len);
+
 #endif // HYPERCALL_H

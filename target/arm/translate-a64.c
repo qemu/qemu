@@ -2083,6 +2083,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
         case 2:                                                     /* HVC */
 
             if (FUZZER_MAGIC_HVC_IMM == imm16) {
+                // hypercall_mmu_idx = get_a64_user_mem_index(s);
                 gen_helper_inc_hvc(cpu_env);
                 break;
             }
