@@ -12,7 +12,6 @@
 #include "qemu-common.h"
 
 #include "hw/remote/memory.h"
-#include "exec/address-spaces.h"
 #include "exec/ram_addr.h"
 #include "qapi/error.h"
 

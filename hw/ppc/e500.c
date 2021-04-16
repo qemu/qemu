@@ -38,7 +38,6 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/sysbus.h"
-#include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
 #include "qemu/option.h"
 #include "hw/pci-host/ppce500.h"

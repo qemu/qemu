@@ -64,7 +64,6 @@
 #include "hw/xen/xen-legacy-backend.h"
 #include "xen_pt.h"
 #include "qemu/range.h"
-#include "exec/address-spaces.h"
 
 static bool has_igd_gfx_passthru;
 

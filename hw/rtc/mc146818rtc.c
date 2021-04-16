@@ -42,7 +42,6 @@
 #include "qapi/error.h"
 #include "qapi/qapi-events-misc-target.h"
 #include "qapi/visitor.h"
-#include "exec/address-spaces.h"
 #include "hw/rtc/mc146818rtc_regs.h"
 
 #ifdef TARGET_I386

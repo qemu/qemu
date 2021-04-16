@@ -21,7 +21,6 @@
 #include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/irq.h"
 #include "hw/boards.h"
-#include "exec/address-spaces.h"
 #include "hw/block/flash.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"

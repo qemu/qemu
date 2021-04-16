@@ -16,7 +16,6 @@
 
 #include "qemu/osdep.h"
 
-#include "exec/address-spaces.h"
 #include "hw/arm/npcm7xx.h"
 #include "hw/core/cpu.h"
 #include "hw/i2c/smbus_eeprom.h"

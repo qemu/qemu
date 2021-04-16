@@ -29,7 +29,6 @@
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"
 #include "hw/ide/ahci.h"

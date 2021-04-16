@@ -40,7 +40,6 @@
 #include "hw/boards.h"
 #include "qemu/error-report.h"
 #include "hw/loader.h"
-#include "exec/address-spaces.h"
 #include "qemu/cutils.h"
 
 #define BIOS_FILENAME "ppc405_rom.bin"

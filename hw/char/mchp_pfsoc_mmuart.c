@@ -23,7 +23,6 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "chardev/char.h"
-#include "exec/address-spaces.h"
 #include "hw/char/mchp_pfsoc_mmuart.h"
 
 static uint64_t mchp_pfsoc_mmuart_read(void *opaque, hwaddr addr, unsigned size)

@@ -43,7 +43,6 @@
 #include "sysemu/arch_init.h"
 #include "sysemu/kvm.h"
 #include "sysemu/reset.h"
-#include "exec/address-spaces.h"
 #include "trace.h"
 #include "elf.h"
 #include "qemu/units.h"

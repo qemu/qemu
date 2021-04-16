@@ -35,7 +35,6 @@
 #include "sysemu/runstate.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/tco.h"
-#include "exec/address-spaces.h"
 
 #include "hw/i386/ich9.h"
 #include "hw/mem/pc-dimm.h"

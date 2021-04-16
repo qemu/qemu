@@ -24,7 +24,6 @@
 #include "hw/loader.h"
 #include "qemu/units.h"
 #include "hw/misc/unimp.h"
-#include "exec/address-spaces.h"
 
 #include "hw/tricore/tc27x_soc.h"
 #include "hw/tricore/triboard.h"

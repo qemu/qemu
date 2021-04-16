@@ -13,7 +13,6 @@
 #include "hw/arm/boot.h"
 #include "hw/sysbus.h"
 #include "hw/misc/unimp.h"
-#include "exec/address-spaces.h"
 #include "qemu/log.h"
 
 #include "hw/arm/nrf51.h"

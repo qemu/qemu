@@ -24,7 +24,6 @@
 #include "hw/qdev-properties.h"
 #include "net/net.h"
 #include "hw/loader.h"
-#include "exec/address-spaces.h"
 #include "elf.h"
 #include "hw/tricore/tricore.h"
 #include "qemu/error-report.h"

@@ -11,7 +11,6 @@
 
 #include "qemu/osdep.h"
 #include "exec/hwaddr.h"
-#include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
 #include "hw/irq.h"

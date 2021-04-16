@@ -31,7 +31,6 @@
 #include "hw/loader.h"
 #include "hw/sparc/sparc64.h"
 #include "hw/rtc/sun4v-rtc.h"
-#include "exec/address-spaces.h"
 #include "sysemu/block-backend.h"
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"

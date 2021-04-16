@@ -17,7 +17,6 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "exec/memory.h"
-#include "exec/address-spaces.h"
 #include "qapi/visitor.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"

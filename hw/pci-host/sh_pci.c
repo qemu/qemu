@@ -30,7 +30,6 @@
 #include "hw/pci/pci_host.h"
 #include "qemu/bswap.h"
 #include "qemu/module.h"
-#include "exec/address-spaces.h"
 #include "qom/object.h"
 
 #define TYPE_SH_PCI_HOST_BRIDGE "sh_pci"

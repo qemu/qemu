@@ -28,7 +28,6 @@
 #include "qemu-common.h"
 #include "qemu/datadir.h"
 #include "hw/boards.h"
-#include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 #include "hw/arm/digic.h"
 #include "hw/block/flash.h"

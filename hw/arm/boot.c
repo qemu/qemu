@@ -25,7 +25,6 @@
 #include "sysemu/device_tree.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
-#include "exec/address-spaces.h"
 #include "qemu/units.h"
 
 /* Kernel boot protocol is specified in the kernel docs

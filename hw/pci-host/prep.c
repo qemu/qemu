@@ -38,7 +38,6 @@
 #include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/or-irq.h"
-#include "exec/address-spaces.h"
 #include "elf.h"
 #include "qom/object.h"
 

@@ -21,7 +21,6 @@
 #include "qemu/error-report.h"
 #include "qemu/memfd.h"
 #include "standard-headers/linux/vhost_types.h"
-#include "exec/address-spaces.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 #include "migration/blocker.h"

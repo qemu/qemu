@@ -13,7 +13,6 @@
 #include "cpu.h"
 #include "hw/irq.h"
 #include "alpha_sys.h"
-#include "exec/address-spaces.h"
 #include "qom/object.h"
 
 

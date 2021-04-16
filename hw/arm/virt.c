@@ -50,7 +50,6 @@
 #include "sysemu/tpm.h"
 #include "sysemu/kvm.h"
 #include "hw/loader.h"
-#include "exec/address-spaces.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"

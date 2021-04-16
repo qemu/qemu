@@ -34,7 +34,6 @@
 #include "net/net.h"
 #include "elf.h"
 #include "exec/memory.h"
-#include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 #include "xtensa_memory.h"
 #include "xtensa_sim.h"

@@ -23,7 +23,6 @@
 #include "migration/vmstate.h"
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
-#include "exec/address-spaces.h"
 #include "cpu.h"
 #include "trace.h"
 #include "qemu/log.h"

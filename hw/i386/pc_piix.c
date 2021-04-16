@@ -47,7 +47,6 @@
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/xen/xen-x86.h"
 #include "exec/memory.h"
-#include "exec/address-spaces.h"
 #include "hw/acpi/acpi.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

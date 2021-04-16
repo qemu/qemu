@@ -31,7 +31,6 @@
 #include "elf.h"
 #include "hw/loader.h"
 #include "ui/console.h"
-#include "exec/address-spaces.h"
 #include "hw/char/escc.h"
 #include "hw/sysbus.h"
 #include "hw/scsi/esp.h"

@@ -33,7 +33,6 @@
 #include "migration/vmstate.h"
 #include "hw/intc/i8259.h"
 #include "hw/irq.h"
-#include "exec/address-spaces.h"
 #include "trace.h"
 #include "qom/object.h"
 

@@ -45,7 +45,6 @@
 #include "trace.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
-#include "exec/address-spaces.h"
 #include "hw/hotplug.h"
 #include "hw/boards.h"
 #include "qapi/error.h"

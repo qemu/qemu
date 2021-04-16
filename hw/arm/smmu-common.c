@@ -17,7 +17,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/address-spaces.h"
 #include "trace.h"
 #include "exec/target_page.h"
 #include "hw/core/cpu.h"

@@ -22,7 +22,6 @@
 #include "hw/char/parallel.h"
 #include "hw/char/serial.h"
 #include "hw/input/lasips2.h"
-#include "exec/address-spaces.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
 

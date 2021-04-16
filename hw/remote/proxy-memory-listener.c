@@ -15,7 +15,6 @@
 #include "exec/memory.h"
 #include "exec/cpu-common.h"
 #include "exec/ram_addr.h"
-#include "exec/address-spaces.h"
 #include "qapi/error.h"
 #include "hw/remote/mpqemu-link.h"
 #include "hw/remote/proxy-memory-listener.h"

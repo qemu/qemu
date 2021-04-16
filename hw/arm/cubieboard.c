@@ -16,7 +16,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/address-spaces.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"

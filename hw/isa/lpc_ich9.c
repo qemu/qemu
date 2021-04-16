@@ -44,7 +44,6 @@
 #include "hw/acpi/ich9.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/qdev-properties.h"
-#include "exec/address-spaces.h"
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/core/cpu.h"

@@ -29,7 +29,6 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "exec/address-spaces.h"
 #include "qemu/units.h"
 #include "trace.h"
 

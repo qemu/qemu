@@ -26,7 +26,6 @@
 #include "qapi/error.h"
 #include "monitor/monitor.h"
 
-#include "exec/address-spaces.h"
 
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/pnv.h"

@@ -24,7 +24,6 @@
 #include "hw/boards.h"
 #include "hw/misc/unimp.h"
 #include "hw/riscv/boot.h"
-#include "exec/address-spaces.h"
 #include "qemu/units.h"
 #include "sysemu/sysemu.h"
 

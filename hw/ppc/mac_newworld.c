@@ -70,7 +70,6 @@
 #include "sysemu/reset.h"
 #include "kvm_ppc.h"
 #include "hw/usb.h"
-#include "exec/address-spaces.h"
 #include "hw/sysbus.h"
 #include "trace.h"
 

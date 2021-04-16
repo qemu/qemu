@@ -47,7 +47,6 @@
 #include "hw/pci-host/gpex.h"
 #include "hw/usb.h"
 #include "net/net.h"
-#include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"

@@ -42,7 +42,6 @@
 #include "elf.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
-#include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"

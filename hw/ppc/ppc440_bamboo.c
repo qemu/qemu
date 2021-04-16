@@ -25,7 +25,6 @@
 #include "sysemu/device_tree.h"
 #include "hw/loader.h"
 #include "elf.h"
-#include "exec/address-spaces.h"
 #include "hw/char/serial.h"
 #include "hw/ppc/ppc.h"
 #include "ppc405.h"

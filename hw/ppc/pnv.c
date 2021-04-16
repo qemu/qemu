@@ -38,7 +38,6 @@
 #include "hw/ppc/pnv_core.h"
 #include "hw/loader.h"
 #include "hw/nmi.h"
-#include "exec/address-spaces.h"
 #include "qapi/visitor.h"
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"

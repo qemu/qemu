@@ -32,7 +32,6 @@
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
-#include "exec/address-spaces.h"
 #include "qapi/error.h"
 #include "qemu/bcd.h"
 #include "qemu/module.h"

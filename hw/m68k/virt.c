@@ -17,7 +17,6 @@
 #include "elf.h"
 #include "hw/loader.h"
 #include "ui/console.h"
-#include "exec/address-spaces.h"
 #include "hw/sysbus.h"
 #include "standard-headers/asm-m68k/bootinfo.h"
 #include "standard-headers/asm-m68k/bootinfo-virt.h"

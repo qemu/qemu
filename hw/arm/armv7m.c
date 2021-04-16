@@ -18,7 +18,6 @@
 #include "sysemu/reset.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "exec/address-spaces.h"
 #include "target/arm/idau.h"
 
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
