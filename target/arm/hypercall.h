@@ -44,7 +44,7 @@ void intercept_hypercall(CPUARMState *cpu_env);
 /*
  * hypervisor_read_from_virt_mem
  * Translates a virtual address to physical address using user ARM MMU, and reads from that address
- * into the specified buffer. Returns the number of bytes read.
+ * into the specified buffer. Returns 0 on success, negative error code on failure.
  *
  * Inputs:
  *  - cpu_env: The CPU state
@@ -59,5 +59,32 @@ void intercept_hypercall(CPUARMState *cpu_env);
  *  - Causes page table walk in Qemu internals, reads from guest physical memory.
  */
 ssize_t hypervisor_read_from_virt_mem (CPUARMState *cpu_env, uint64_t virt_addr, void *buf, size_t len);
+
+/*
+ * hypervisor_write_to_virt_mem
+ * Translates a virtual address to physical address using user ARM MMU, and writes to that address
+ * from the specified buffer. Returns 0 on success, negative error code on failure.
+ *
+ * Inputs:
+ *  - cpu_env: The CPU state
+ *  - virt_addr: Virtual address to read from
+ *  - buf: Buffer (hypervisor side) to read into
+ *  - len: Number of bytes to read from guest ram
+ *
+ * Return Value:
+ *  - 0 on success, negative error code on error.
+ *
+ * Side Effects:
+ *  - Causes page table walk in Qemu internals, writes to guest physical memory.
+ */
+ssize_t hypervisor_write_to_virt_mem (CPUARMState *cpu_env, uint64_t virt_addr, void *buf, size_t len);
+
+/*
+ * hypervisor_virt_mem_rw
+ * Read or write to guest memory using a virtual address. Returns 0 on success and negative
+ * error code on failure. Used as a helper method by hypervisor_read_from_virt_mem and
+ * hypervisor_write_to_virt-mem.
+ */
+ssize_t hypervisor_virt_mem_rw (CPUARMState *cpu_env, uint64_t virt_addr, void *buf, size_t len, bool is_write);
 
 #endif // HYPERCALL_H
