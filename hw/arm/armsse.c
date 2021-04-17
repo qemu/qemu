@@ -56,6 +56,7 @@ typedef struct ARMSSEDeviceInfo {
 
 struct ARMSSEInfo {
     const char *name;
+    const char *cpu_type;
     uint32_t sse_version;
     int sram_banks;
     int num_cpus;
@@ -84,7 +85,7 @@ static Property iotkit_properties[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
-static Property armsse_properties[] = {
+static Property sse200_properties[] = {
     DEFINE_PROP_LINK("memory", ARMSSE, board_memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_UINT32("EXP_NUMIRQ", ARMSSE, exp_numirq, 64),
@@ -94,6 +95,17 @@ static Property armsse_properties[] = {
     DEFINE_PROP_BOOL("CPU0_DSP", ARMSSE, cpu_dsp[0], false),
     DEFINE_PROP_BOOL("CPU1_FPU", ARMSSE, cpu_fpu[1], true),
     DEFINE_PROP_BOOL("CPU1_DSP", ARMSSE, cpu_dsp[1], true),
+    DEFINE_PROP_END_OF_LIST()
+};
+
+static Property sse300_properties[] = {
+    DEFINE_PROP_LINK("memory", ARMSSE, board_memory, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+    DEFINE_PROP_UINT32("EXP_NUMIRQ", ARMSSE, exp_numirq, 64),
+    DEFINE_PROP_UINT32("SRAM_ADDR_WIDTH", ARMSSE, sram_addr_width, 15),
+    DEFINE_PROP_UINT32("init-svtor", ARMSSE, init_svtor, 0x10000000),
+    DEFINE_PROP_BOOL("CPU0_FPU", ARMSSE, cpu_fpu[0], true),
+    DEFINE_PROP_BOOL("CPU0_DSP", ARMSSE, cpu_dsp[0], true),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -490,6 +502,7 @@ static const ARMSSEInfo armsse_variants[] = {
     {
         .name = TYPE_IOTKIT,
         .sse_version = ARMSSE_IOTKIT,
+        .cpu_type = ARM_CPU_TYPE_NAME("cortex-m33"),
         .sram_banks = 1,
         .num_cpus = 1,
         .sys_version = 0x41743,
@@ -508,6 +521,7 @@ static const ARMSSEInfo armsse_variants[] = {
     {
         .name = TYPE_SSE200,
         .sse_version = ARMSSE_SSE200,
+        .cpu_type = ARM_CPU_TYPE_NAME("cortex-m33"),
         .sram_banks = 4,
         .num_cpus = 2,
         .sys_version = 0x22041743,
@@ -519,13 +533,14 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpuid = true,
         .has_cpu_pwrctrl = false,
         .has_sse_counter = false,
-        .props = armsse_properties,
+        .props = sse200_properties,
         .devinfo = sse200_devices,
         .irq_is_common = sse200_irq_is_common,
     },
     {
         .name = TYPE_SSE300,
         .sse_version = ARMSSE_SSE300,
+        .cpu_type = ARM_CPU_TYPE_NAME("cortex-m55"),
         .sram_banks = 2,
         .num_cpus = 1,
         .sys_version = 0x7e00043b,
@@ -537,7 +552,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpuid = true,
         .has_cpu_pwrctrl = true,
         .has_sse_counter = true,
-        .props = armsse_properties,
+        .props = sse300_properties,
         .devinfo = sse300_devices,
         .irq_is_common = sse300_irq_is_common,
     },
@@ -708,8 +723,7 @@ static void armsse_init(Object *obj)
         name = g_strdup_printf("armv7m%d", i);
         object_initialize_child(OBJECT(&s->cluster[i]), name, &s->armv7m[i],
                                 TYPE_ARMV7M);
-        qdev_prop_set_string(DEVICE(&s->armv7m[i]), "cpu-type",
-                             ARM_CPU_TYPE_NAME("cortex-m33"));
+        qdev_prop_set_string(DEVICE(&s->armv7m[i]), "cpu-type", info->cpu_type);
         g_free(name);
         name = g_strdup_printf("arm-sse-cpu-container%d", i);
         memory_region_init(&s->cpu_container[i], obj, name, UINT64_MAX);

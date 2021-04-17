@@ -57,7 +57,7 @@
 #define daemon qemu_fake_daemon_function
 #include <stdlib.h>
 #undef daemon
-extern int daemon(int, int);
+QEMU_EXTERN_C int daemon(int, int);
 #endif
 
 #ifdef _WIN32
@@ -104,11 +104,35 @@ extern int daemon(int, int);
 #include <setjmp.h>
 #include <signal.h>
 
+#ifdef CONFIG_IOVEC
+#include <sys/uio.h>
+#endif
+
+#if defined(__linux__) && defined(__sparc__)
+/* The SPARC definition of QEMU_VMALLOC_ALIGN needs SHMLBA */
+#include <sys/shm.h>
+#endif
+
 #ifndef _WIN32
 #include <sys/wait.h>
 #else
 #define WIFEXITED(x)   1
 #define WEXITSTATUS(x) (x)
+#endif
+
+#ifdef __APPLE__
+#include <AvailabilityMacros.h>
+#endif
+
+/*
+ * This is somewhat like a system header; it must be outside any extern "C"
+ * block because it includes system headers itself, including glib.h,
+ * which will not compile if inside an extern "C" block.
+ */
+#include "glib-compat.h"
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #ifdef _WIN32
@@ -119,11 +143,6 @@ extern int daemon(int, int);
 #include "sysemu/os-posix.h"
 #endif
 
-#ifdef __APPLE__
-#include <AvailabilityMacros.h>
-#endif
-
-#include "glib-compat.h"
 #include "qemu/typedefs.h"
 
 /*
@@ -459,7 +478,6 @@ void qemu_anon_ram_free(void *ptr, size_t size);
    /* Use 1 MiB (segment size) alignment so gmap can be used by KVM. */
 #  define QEMU_VMALLOC_ALIGN (256 * 4096)
 #elif defined(__linux__) && defined(__sparc__)
-#include <sys/shm.h>
 #  define QEMU_VMALLOC_ALIGN MAX(qemu_real_host_page_size, SHMLBA)
 #else
 #  define QEMU_VMALLOC_ALIGN qemu_real_host_page_size
@@ -539,8 +557,6 @@ struct iovec {
 
 ssize_t readv(int fd, const struct iovec *iov, int iov_cnt);
 ssize_t writev(int fd, const struct iovec *iov, int iov_cnt);
-#else
-#include <sys/uio.h>
 #endif
 
 #ifdef _WIN32
@@ -721,5 +737,9 @@ static inline int platform_does_not_support_system(const char *command)
     return -1;
 }
 #endif /* !HAVE_SYSTEM_FUNCTION */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
