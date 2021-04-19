@@ -26,6 +26,11 @@
 
 #define FUZZER_MAGIC_HVC_IMM 0x1337
 
+enum HYPERCALL_ID {
+    HYPERCALL_SUBMIT_PANIC,
+    HYPERCALL_PANIC
+};
+
 /*
  * intercept_hypercall
  * Intercepts a HVC call regardless of whether we came from EL0 or not.
@@ -86,5 +91,18 @@ ssize_t hypervisor_write_to_virt_mem (CPUARMState *cpu_env, uint64_t virt_addr, 
  * hypervisor_write_to_virt-mem.
  */
 ssize_t hypervisor_virt_mem_rw (CPUARMState *cpu_env, uint64_t virt_addr, void *buf, size_t len, bool is_write);
+
+/*
+ * hypervisor_patch_panic
+ * Patches guest panic handler to submit panic hypercall.
+ * 
+ * Inputs:
+ *  - cpu_env: The CPU state
+ *  - virt_panic_handler_addr: Virtual address of panic handler
+ *
+ * Side Effects:
+ *  - Permanently disables normal functionality of panic handler 
+*/
+void hypervisor_patch_panic(CPUARMState *cpu_env, uint64_t virt_panic_handler_addr);
 
 #endif // HYPERCALL_H
