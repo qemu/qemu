@@ -148,7 +148,7 @@ void mips_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
                                     int mmu_idx, MemTxAttrs attrs,
                                     MemTxResult response, uintptr_t retaddr);
 hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address,
-                                  MMUAccessType access_type);
+                                  MMUAccessType access_type, uintptr_t retaddr);
 #endif
 
 #define cpu_signal_handler cpu_mips_signal_handler

@@ -904,21 +904,22 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
 #ifndef CONFIG_USER_ONLY
 hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address,
-                                  MMUAccessType access_type)
+                                  MMUAccessType access_type, uintptr_t retaddr)
 {
     hwaddr physical;
     int prot;
     int ret = 0;
+    CPUState *cs = env_cpu(env);
 
     /* data access */
     ret = get_physical_address(env, &physical, &prot, address, access_type,
                                cpu_mmu_index(env, false));
-    if (ret != TLBRET_MATCH) {
-        raise_mmu_exception(env, address, access_type, ret);
-        return -1LL;
-    } else {
+    if (ret == TLBRET_MATCH) {
         return physical;
     }
+
+    raise_mmu_exception(env, address, access_type, ret);
+    cpu_loop_exit_restore(cs, retaddr);
 }
 
 static void set_hflags_for_handler(CPUMIPSState *env)
