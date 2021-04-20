@@ -1572,11 +1572,13 @@ void gen_move_high32(TCGv ret, TCGv_i64 arg)
 #endif
 }
 
-void check_cp0_enabled(DisasContext *ctx)
+bool check_cp0_enabled(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_CP0))) {
         generate_exception_end(ctx, EXCP_CpU);
+        return false;
     }
+    return true;
 }
 
 void check_cp1_enabled(DisasContext *ctx)
