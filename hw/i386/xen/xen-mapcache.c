@@ -171,7 +171,20 @@ static void xen_remap_bucket(MapCacheEntry *entry,
         if (!(entry->flags & XEN_MAPCACHE_ENTRY_DUMMY)) {
             ram_block_notify_remove(entry->vaddr_base, entry->size);
         }
-        if (munmap(entry->vaddr_base, entry->size) != 0) {
+
+        /*
+         * If an entry is being replaced by another mapping and we're using
+         * MAP_FIXED flag for it - there is possibility of a race for vaddr
+         * address with another thread doing an mmap call itself
+         * (see man 2 mmap). To avoid that we skip explicit unmapping here
+         * and allow the kernel to destroy the previous mappings by replacing
+         * them in mmap call later.
+         *
+         * Non-identical replacements are not allowed therefore.
+         */
+        assert(!vaddr || (entry->vaddr_base == vaddr && entry->size == size));
+
+        if (!vaddr && munmap(entry->vaddr_base, entry->size) != 0) {
             perror("unmap fails");
             exit(-1);
         }
