@@ -85,9 +85,6 @@
 
 #define KVM_MSI_HASHTAB_SIZE    256
 
-extern bool is_module_inserted;
-extern bool is_interrupt_raised;
-extern QemuMutex interrupt_raised_mutex;
 
 struct KVMParkedVcpu {
     unsigned long vcpu_id;
@@ -169,10 +166,12 @@ static hwaddr kvm_max_slot_size = ~0;
  ****************************************************************************** 
 ******************************************************************************/
 
-/* Agent Protection */
-bool protect_agent_cmd = false;
-bool protect_agent_done = false;
+static void reload_saved_memory_chunks(void);
+
 MemoryRegion *fx_mr = NULL;
+int fx_irq_line = -1;
+bool start_monitor = false;
+
 struct protected_memory_chunk {
     KVMSlot *slot; /* if write is outside chunk, hypervisor will complete it */
     struct protected_memory_chunk *next;
@@ -1469,6 +1468,9 @@ int kvm_set_irq(KVMState *s, int irq, int level)
         abort();
     }
 
+    if(irq == fx_irq_line && level == 1)
+        reload_saved_memory_chunks();
+
     return (s->irq_set_ioctl == KVM_IRQ_LINE) ? 1 : event.status;
 }
 
@@ -2654,6 +2656,30 @@ static void add_saved_memory_chunk(void *hva,
     }
 }
 
+/*
+*   reload saved memory chunks marked with 
+*   inject before interrupt at true
+*/
+static void reload_saved_memory_chunks(void)
+{
+    struct saved_memory_chunk *smc = smc_head;
+    while(smc != NULL){
+        if(smc->inject_before_interrupt)
+            memcpy(smc->hva, smc->saved, smc->size);
+        smc = smc->next;
+    }
+}
+
+static void print_saved_memory_chunk(void)
+{
+    struct saved_memory_chunk *smc = smc_head;
+
+    while(smc != NULL){
+        DBG("Saved memory chunk: addr=%p size=0x%lx\n", smc->hva, smc->size);
+        smc = smc->next;
+    }
+}
+
 static struct saved_memory_chunk *find_saved_memory_chunk(void *hva,
                                                             hwaddr size)
                                             
@@ -2721,114 +2747,6 @@ static KVMSlot *make_read_only_memory_slot(hwaddr gpa,
     return new_slots[1];
 }
 
-static void protect_agent(CPUState *cpu)
-{
-    KVMState *s = kvm_state;
-    KVMSlot *current_slot;
-    struct kvm_sregs sregs;
-    hwaddr gpa; 
-    void *hva; 
-    char *oldhva, *newhva;
-    int offset;
-
-    /* Get IDT address and translate it*/
-    memset(&sregs, 0, sizeof(sregs));
-    kvm_vcpu_ioctl(cpu, KVM_GET_SREGS, &sregs);
-    gpa = kvm_translate(cpu, sregs.idt.base);
-    kernel_invariants.idt_physical_addr = gpa;
-    hva = kvm_physical_memory_addr_to_host(s, gpa);
-    
-    current_slot = find_slot_containing(gpa, s);
-    if(current_slot == NULL)
-        abort();
-
-    /* IDT address is already page-aligned */
-    current_slot = make_read_only_memory_slot(gpa, hva, current_slot, 1);
-    add_protected_memory_chunk(gpa, PAGE_SIZE, current_slot, "IDT");
-
-    /* GDT: problem with writes to it.. */
-    gpa = kvm_translate(cpu, sregs.gdt.base);
-    kernel_invariants.gdt_physical_addr = gpa;
-    /*
-    hva = kvm_physical_memory_addr_to_host(s, gpa);
-
-    current_slot = find_slot_containing(gpa, s);
-    if(current_slot == NULL)
-        abort();
-
-    make_read_only_memory_slot(gpa, hva, current_slot, 1);
-    add_protected_memory_chunk(gpa, 8 * (sregs.gdt.limit + 1), current_slot, "GDT");
-    */
-
-    /* Aligning for irqaction */
-    current_slot = find_slot_containing(kernel_invariants.irqaction, s);
-    hva = kvm_physical_memory_addr_to_host(s, kernel_invariants.irqaction);
-    oldhva = (char *)hva;
-    hva = (void *)((unsigned long)hva & ~(PAGE_SIZE - 1));
-    newhva = (char *)hva;
-    offset = oldhva - newhva;
-    current_slot = make_read_only_memory_slot(kernel_invariants.irqaction - offset,
-                                hva, 
-                                current_slot, 
-                                1);
-    add_protected_memory_chunk(kernel_invariants.irqaction, 
-                                kernel_invariants.irqaction_size,
-                                current_slot,
-                                "irqaction");
-
-    /* Aligning for irqdesc */
-    current_slot = find_slot_containing(kernel_invariants.irq_desc, s);
-    hva = kvm_physical_memory_addr_to_host(s, kernel_invariants.irq_desc);
-    oldhva = (char *)hva;
-    hva = (void *)((unsigned long)hva & ~(PAGE_SIZE - 1));
-    newhva = (char *)hva;
-    offset = oldhva - newhva;
-
-    current_slot = make_read_only_memory_slot(kernel_invariants.irq_desc - offset, 
-                                hva, 
-                                current_slot, 
-                                1);
-    add_protected_memory_chunk(kernel_invariants.irq_desc, 
-                                (hwaddr) 8, 
-                                current_slot,
-                                "irq_desc");
-
-    /* module protection */
-    current_slot = find_slot_containing(kernel_invariants.module_addr, s);
-    hva = kvm_physical_memory_addr_to_host(s, kernel_invariants.module_addr);
-    current_slot = make_read_only_memory_slot(kernel_invariants.module_addr,
-                                hva,
-                                current_slot, 
-                                1);
-    
-    add_protected_memory_chunk(kernel_invariants.module_addr, 
-                                PAGE_SIZE, 
-                                current_slot,
-                                "module");
-
-}
-
-static void kvm_get_agent_hypercall_parameters(CPUState *cpu)
-{
-    struct kvm_regs regs;
-
-    memset(&regs, 0, sizeof(regs));
-    kvm_vcpu_ioctl(cpu, KVM_GET_REGS, &regs);
-
-    if(regs.r8 == 0 || regs.r9 == 0 ||regs.r10 == 0){
-        DBG("Error in agent hypercall params\n");
-        abort();
-    }
-
-    kernel_invariants.module_addr = kvm_translate(cpu, regs.r8);
-    /* regs.r9 contains the address of the head of the irqaction list */
-    kernel_invariants.irq_desc = kvm_translate(cpu, regs.r9); 
-    /* regs.10 contains the address of the irqaction */
-    kernel_invariants.irqaction = kvm_translate(cpu, regs.r10);
-    kernel_invariants.irqaction_size = regs.r11;
-    kernel_invariants.irq_desc_size = regs.r12;
-}
-
 static void do_protect_memory_hypercall(CPUState *cpu, struct kvm_regs *regs)
 {
     KVMState *s = kvm_state;
@@ -2867,12 +2785,15 @@ static void do_save_memory_hypercall(CPUState *cpu, struct kvm_regs *regs)
     KVMState *s = kvm_state;
     void *hva;
     unsigned int size;
+    bool automatic_injection;
 
-    DBG("\n\ndo_save_memory_hypercall\n\n");
+    DBG("do_save_memory_hypercall\n");
     hva = kvm_physical_memory_addr_to_host(s, kvm_translate(cpu, regs->r8));
     size = (unsigned int)regs->r9;
+    automatic_injection = (regs->r12 != 0) ? true : false;
     DBG("addr: %p, size %x\n", (void *)regs->r8, size);
-    add_saved_memory_chunk(hva, size, true); 
+    DBG("Automatic injection: %d\n", (automatic_injection ? 1:0));
+    add_saved_memory_chunk(hva, size, automatic_injection); 
 }
 
 static int do_compare_memory_hypercall(CPUState *cpu, struct kvm_regs *regs)
@@ -2887,16 +2808,34 @@ static int do_compare_memory_hypercall(CPUState *cpu, struct kvm_regs *regs)
     smc = find_saved_memory_chunk(hva, size);
     if(smc == NULL)
         return -1;
-    if(!memcmp(hva, smc->hva, size))
+    if(!memcmp(hva, smc->saved, size)){
+        DBG("Comparison OK\n");
         return 0;
-    else return 1;
+    }
+    else {
+        DBG("Comparison NOT OK\n");
+        return 1;
+    }
 }
 
-#define MODULE_INSERTED_HYPERCALL   0    
+static void do_start_monitor_hypercall(CPUState *cpu)
+{
+    struct kvm_sregs sregs;
+
+    DBG("Start monitor hypercall\n");
+    memset(&sregs, 0, sizeof(sregs));
+    kvm_vcpu_ioctl(cpu, KVM_GET_SREGS, &sregs);
+    kernel_invariants.gdt_physical_addr = kvm_translate(cpu, sregs.gdt.base);
+    kernel_invariants.idt_physical_addr = kvm_translate(cpu, sregs.idt.base);
+    start_monitor = true;
+}
+ 
 #define AGENT_HYPERCALL             1   /* To be deprecated? Maybe it can be used the generic one */
 #define PROTECT_MEMORY_HYPERCALL    2
 #define SAVE_MEMORY_HYPERCALL       3
 #define COMPARE_MEMORY_HYPERCALL    4
+#define SET_IRQ_LINE_HYPERCALL      5
+#define START_MONITOR_HYPERCALL     6
 
 /* function for generic hypercall. It acts as a dispatcher by looking
     at the type of hypercall */
@@ -2907,23 +2846,20 @@ static void execute_hypercall(CPUState *cpu)
 
     memset(&regs, 0, sizeof(regs));
     kvm_vcpu_ioctl(cpu, KVM_GET_REGS, &regs);
-    DBG("\n\nRAX: %llx "
-            "\tR8: %llx "
-            "\tR9: %llx\n\n", regs.rax, regs.r8, regs.r9);
-    type = (unsigned int)regs.rax;
-    DBG("\n\nHypercall type: %d\n\n", type);
-
+    DBG("Hypercall type: %llx"
+            "\taddress: %llx "
+            "\tsize: %llx"
+            "\tflag: %llx\n", regs.r10, regs.r8, regs.r9, regs.r12);
+    type = regs.r10;
     switch(type){
-    case MODULE_INSERTED_HYPERCALL:
-        qemu_mutex_lock(&interrupt_raised_mutex);
-        is_module_inserted = true;
-        qemu_mutex_unlock(&interrupt_raised_mutex);
+    case AGENT_HYPERCALL:
         break;
     case PROTECT_MEMORY_HYPERCALL:
         do_protect_memory_hypercall(cpu, &regs);
         break;
     case SAVE_MEMORY_HYPERCALL:
         do_save_memory_hypercall(cpu, &regs);
+        print_saved_memory_chunk();
         break;
     case COMPARE_MEMORY_HYPERCALL:
         do_compare_memory_hypercall(cpu, &regs);
@@ -2931,6 +2867,16 @@ static void execute_hypercall(CPUState *cpu)
             to let the guest check if everything is ok */
         /* otherwise, maybe you can directly restore the 
             memory if the comparison fails. */
+        break;
+    case SET_IRQ_LINE_HYPERCALL:
+        DBG("IRQ LINE = %d\n", (int)regs.r8);
+        fx_irq_line = (int)regs.r8;
+        break;
+    case START_MONITOR_HYPERCALL:
+        do_start_monitor_hypercall(cpu);
+        break;
+    default:
+        DBG("Hypercall not recognized\n");
         break;
     }
 }
@@ -2953,23 +2899,6 @@ static void find_fx_mr(void)
     }
     exit:
     return;
-}
-
-/* check whether FX device raised the interrupt. 
-In this case, all the saved memory chunks must be reloaded */
-static bool check_fx_interrupt(void)
-{
-    bool ret = false;
-    if(fx_mr != NULL){
-        qemu_mutex_lock(&interrupt_raised_mutex);
-        if(is_interrupt_raised){
-            DBG("Interrupt is raised\n");
-            ret = true;
-            is_interrupt_raised = false;
-        }
-        qemu_mutex_unlock(&interrupt_raised_mutex);
-    }
-    return ret;
 }
 
 /* Monitoring the IDTR and GDTR registers */
@@ -3036,15 +2965,8 @@ int kvm_cpu_exec(CPUState *cpu)
          */
         smp_rmb();
 
-        if(!protect_agent_done && protect_agent_cmd){
-            kvm_get_agent_hypercall_parameters(cpu);
-            protect_agent(cpu);
-            protect_agent_done = true;
-        }
-        else if(protect_agent_done)
+        if(start_monitor)
             check_idtr_gdtr(cpu);
-
-        check_fx_interrupt();
 
         run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
 
@@ -3096,50 +3018,35 @@ int kvm_cpu_exec(CPUState *cpu)
         case KVM_EXIT_MMIO:
             DPRINTF("handle_mmio\n");
             /* Called outside BQL */
-            if(fx_mr != NULL && 
-                run->mmio.phys_addr == fx_mr->addr + 0x80 &&
-                protect_agent_cmd == false 
-            ){
-                DBG("\n Protect Agent command \n");
-                protect_agent_cmd = true;
-                ret = 0;
-                break;
-            }
-            else if(protect_agent_done && protect_agent_cmd) {
-                if(run->mmio.phys_addr == fx_mr->addr + 0x80){
-                    execute_hypercall(cpu);
-                }    
-                else {
-                    switch(check_within_pmc(run->mmio.phys_addr)){
-                    case IN_PMC:
-                        DBG("\nATTEMPTED WRITE TO PMC!!! addr = %lx\n", 
-                            (unsigned long)run->mmio.phys_addr);
-                        print_protected_memory_chunk();
-                        ret = 0;
-                        break;
-                    case IN_SLOT:
-                        /* hypervisor finishes the write */
-                        assert(run->mmio.is_write);
-                        hva = kvm_physical_memory_addr_to_host(
-                                kvm_state,
-                                run->mmio.phys_addr);
-                        memcpy(hva, (void *)run->mmio.data, run->mmio.len); /* !!!!!!!!!!!!!!!! */
-                        ret = 0;
-                        break;
-                    case NOT_IN_SLOT:
-                        goto default_behaviour;
-    
-                    }
-                }
-            }
+            if(fx_mr != NULL && run->mmio.phys_addr == fx_mr->addr + 0x80){
+                execute_hypercall(cpu);
+            }    
             else {
-default_behaviour:
-                address_space_rw(&address_space_memory,
-                    run->mmio.phys_addr, attrs,
-                    run->mmio.data,
-                    run->mmio.len,
-                    run->mmio.is_write);
-                ret = 0;
+                switch(check_within_pmc(run->mmio.phys_addr)){
+                case IN_PMC:
+                    DBG("\nATTEMPTED WRITE TO PMC!!! addr = %lx\n", 
+                        (unsigned long)run->mmio.phys_addr);
+                    print_protected_memory_chunk();
+                    ret = 0;
+                    break;
+                case IN_SLOT:
+                    /* hypervisor finishes the write */
+                    assert(run->mmio.is_write);
+                    hva = kvm_physical_memory_addr_to_host(
+                            kvm_state,
+                            run->mmio.phys_addr);
+                    memcpy(hva, (void *)run->mmio.data, run->mmio.len); /* !!!!!!!!!!!!!!!! */
+                    ret = 0;
+                    break;
+                case NOT_IN_SLOT:
+                    address_space_rw(&address_space_memory,
+                        run->mmio.phys_addr, attrs,
+                        run->mmio.data,
+                        run->mmio.len,
+                        run->mmio.is_write);
+                    ret = 0;
+                    break;
+                }
             }
             break;
         case KVM_EXIT_IRQ_WINDOW_OPEN:
