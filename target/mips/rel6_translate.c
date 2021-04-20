@@ -1,12 +1,11 @@
 /*
- *  MIPS emulation for QEMU - # Release 6 translation routines
+ *  MIPS emulation for QEMU - Release 6 translation routines
  *
- *  Copyright (c) 2004-2005 Jocelyn Mayer
- *  Copyright (c) 2006 Marius Groeger (FPU operations)
- *  Copyright (c) 2006 Thiemo Seufer (MIPS32R2 support)
  *  Copyright (c) 2020 Philippe Mathieu-Daudé
  *
- * This code is licensed under the GNU GPLv2 and later.
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
+ * This code is licensed under the LGPL v2.1 or later.
  */
 
 #include "qemu/osdep.h"
