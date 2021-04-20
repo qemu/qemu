@@ -576,7 +576,7 @@ static uint16_t nvme_map_addr_cmb(NvmeCtrl *n, QEMUIOVector *iov, hwaddr addr,
 }
 
 static uint16_t nvme_map_addr_pmr(NvmeCtrl *n, QEMUIOVector *iov, hwaddr addr,
-    size_t len)
+                                  size_t len)
 {
     if (!len) {
         return NVME_SUCCESS;
