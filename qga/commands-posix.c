@@ -1376,6 +1376,7 @@ static GuestDiskInfoList *get_disk_partitions(
         partition = g_new0(GuestDiskInfo, 1);
         partition->name = dev_name;
         partition->partition = true;
+        partition->has_dependencies = true;
         /* Add parent disk as dependent for easier tracking of hierarchy */
         QAPI_LIST_PREPEND(partition->dependencies, g_strdup(disk_dev));
 
