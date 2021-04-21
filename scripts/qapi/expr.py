@@ -15,7 +15,7 @@
 # See the COPYING file in the top-level directory.
 
 import re
-from typing import Dict, Optional
+from typing import Dict, Optional, cast
 
 from .common import c_name
 from .error import QAPISemError
@@ -261,7 +261,7 @@ def check_enum(expr, info):
 
 
 def check_struct(expr, info):
-    name = expr['struct']
+    name = cast(str, expr['struct'])  # Checked in check_exprs
     members = expr['data']
 
     check_type(members, info, "'data'", allow_dict=name)
@@ -269,7 +269,7 @@ def check_struct(expr, info):
 
 
 def check_union(expr, info):
-    name = expr['union']
+    name = cast(str, expr['union'])  # Checked in check_exprs
     base = expr.get('base')
     discriminator = expr.get('discriminator')
     members = expr['data']
@@ -368,8 +368,8 @@ def check_exprs(exprs):
         else:
             raise QAPISemError(info, "expression is missing metatype")
 
-        name = expr[meta]
-        check_name_is_str(name, info, "'%s'" % meta)
+        check_name_is_str(expr[meta], info, "'%s'" % meta)
+        name = cast(str, expr[meta])
         info.set_defn(meta, name)
         check_defn_name_str(name, info, meta)
 
