@@ -19,7 +19,7 @@ class QAPIError(Exception):
 class QAPISourceError(QAPIError):
     """Error class for all exceptions identifying a source location."""
     def __init__(self, info, col, msg):
-        Exception.__init__(self)
+        super().__init__()
         self.info = info
         self.col = col
         self.msg = msg
