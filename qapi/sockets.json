@@ -57,6 +57,8 @@
 # @keep-alive: enable keep-alive when connecting to this socket. Not supported
 #              for passive sockets. (Since 4.2)
 #
+# @mptcp: enable multi-path TCP. (Since 6.1)
+#
 # Since: 1.3
 ##
 { 'struct': 'InetSocketAddress',
@@ -66,7 +68,8 @@
     '*to': 'uint16',
     '*ipv4': 'bool',
     '*ipv6': 'bool',
-    '*keep-alive': 'bool' } }
+    '*keep-alive': 'bool',
+    '*mptcp': { 'type': 'bool', 'if': 'defined(IPPROTO_MPTCP)' } } }
 
 ##
 # @UnixSocketAddress:
