@@ -122,7 +122,7 @@ def check_flags(expr, info):
 
 def check_if(expr, info, source):
 
-    def check_if_str(ifcond, info):
+    def check_if_str(ifcond):
         if not isinstance(ifcond, str):
             raise QAPISemError(
                 info,
@@ -142,9 +142,9 @@ def check_if(expr, info, source):
             raise QAPISemError(
                 info, "'if' condition [] of %s is useless" % source)
         for elt in ifcond:
-            check_if_str(elt, info)
+            check_if_str(elt)
     else:
-        check_if_str(ifcond, info)
+        check_if_str(ifcond)
         expr['if'] = [ifcond]
 
 
