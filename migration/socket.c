@@ -126,22 +126,31 @@ static void socket_accept_incoming_migration(QIONetListener *listener,
 {
     trace_migration_socket_incoming_accepted();
 
+    if (migration_has_all_channels()) {
+        error_report("%s: Extra incoming migration connection; ignoring",
+                     __func__);
+        return;
+    }
+
     qio_channel_set_name(QIO_CHANNEL(cioc), "migration-socket-incoming");
     migration_channel_process_incoming(QIO_CHANNEL(cioc));
-
-    if (migration_has_all_channels()) {
-        /* Close listening socket as its no longer needed */
-        qio_net_listener_disconnect(listener);
-        object_unref(OBJECT(listener));
-    }
 }
 
+static void
+socket_incoming_migration_end(void *opaque)
+{
+    QIONetListener *listener = opaque;
+
+    qio_net_listener_disconnect(listener);
+    object_unref(OBJECT(listener));
+}
 
 static void
 socket_start_incoming_migration_internal(SocketAddress *saddr,
                                          Error **errp)
 {
     QIONetListener *listener = qio_net_listener_new();
+    MigrationIncomingState *mis = migration_incoming_get_current();
     size_t i;
     int num = 1;
 
@@ -155,6 +164,9 @@ socket_start_incoming_migration_internal(SocketAddress *saddr,
         object_unref(OBJECT(listener));
         return;
     }
+
+    mis->transport_data = listener;
+    mis->transport_cleanup = socket_incoming_migration_end;
 
     qio_net_listener_set_client_func_full(listener,
                                           socket_accept_incoming_migration,

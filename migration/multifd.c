@@ -1166,6 +1166,11 @@ bool multifd_recv_all_channels_created(void)
         return true;
     }
 
+    if (!multifd_recv_state) {
+        /* Called before any connections created */
+        return false;
+    }
+
     return thread_count == qatomic_read(&multifd_recv_state->count);
 }
 
