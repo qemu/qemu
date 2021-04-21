@@ -17,6 +17,10 @@ be defined in other modules.  At present, `QAPIParseError` is defined in
 parser.py.
 """
 
+from typing import Optional
+
+from .source import QAPISourceInfo
+
 
 class QAPIError(Exception):
     """Base class for all exceptions from the QAPI package."""
@@ -24,13 +28,16 @@ class QAPIError(Exception):
 
 class QAPISourceError(QAPIError):
     """Error class for all exceptions identifying a source location."""
-    def __init__(self, info, msg, col=None):
+    def __init__(self,
+                 info: Optional[QAPISourceInfo],
+                 msg: str,
+                 col: Optional[int] = None):
         super().__init__()
         self.info = info
         self.msg = msg
         self.col = col
 
-    def __str__(self):
+    def __str__(self) -> str:
         assert self.info is not None
         loc = str(self.info)
         if self.col is not None:
