@@ -194,7 +194,9 @@ def check_type(value, info, source,
         raise QAPISemError(info,
                            "%s should be an object or type name" % source)
 
-    permissive = allow_dict in info.pragma.member_name_exceptions
+    permissive = False
+    if isinstance(allow_dict, str):
+        permissive = allow_dict in info.pragma.member_name_exceptions
 
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
