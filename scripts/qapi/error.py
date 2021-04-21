@@ -25,6 +25,7 @@ class QAPISourceError(QAPIError):
         self.col = col
 
     def __str__(self):
+        assert self.info is not None
         loc = str(self.info)
         if self.col is not None:
             assert self.info.line is not None
