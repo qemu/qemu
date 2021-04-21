@@ -18969,9 +18969,11 @@ static void gen_pool32axf_nanomips_insn(CPUMIPSState *env, DisasContext *ctx)
             }
             break;
         case NM_RDPGPR:
+            check_cp0_enabled(ctx);
             gen_load_srsgpr(rs, rt);
             break;
         case NM_WRPGPR:
+            check_cp0_enabled(ctx);
             gen_store_srsgpr(rs, rt);
             break;
         case NM_WAIT:
