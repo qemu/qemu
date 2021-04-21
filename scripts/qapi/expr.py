@@ -241,7 +241,7 @@ def check_enum(expr, info):
         source = "%s '%s'" % (source, member_name)
         # Enum members may start with a digit
         if member_name[0].isdigit():
-            member_name = 'd' + member_name # Hack: hide the digit
+            member_name = 'd' + member_name  # Hack: hide the digit
         check_name_lower(member_name, info, source,
                          permit_upper=permissive,
                          permit_underscore=permissive)
