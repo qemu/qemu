@@ -18,11 +18,11 @@ class QAPIError(Exception):
 
 class QAPISourceError(QAPIError):
     """Error class for all exceptions identifying a source location."""
-    def __init__(self, info, col, msg):
+    def __init__(self, info, msg, col=None):
         super().__init__()
         self.info = info
-        self.col = col
         self.msg = msg
+        self.col = col
 
     def __str__(self):
         loc = str(self.info)
@@ -41,10 +41,8 @@ class QAPIParseError(QAPISourceError):
                 col = (col + 7) % 8 + 1
             else:
                 col += 1
-        super().__init__(parser.info, col, msg)
+        super().__init__(parser.info, msg, col)
 
 
 class QAPISemError(QAPISourceError):
     """Error class for semantic QAPI errors."""
-    def __init__(self, info, msg):
-        super().__init__(info, None, msg)

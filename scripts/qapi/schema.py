@@ -875,8 +875,7 @@ class QAPISchema:
         other_ent = self._entity_dict.get(ent.name)
         if other_ent:
             if other_ent.info:
-                where = QAPISourceError(other_ent.info, None,
-                                        "previous definition")
+                where = QAPISourceError(other_ent.info, "previous definition")
                 raise QAPISemError(
                     ent.info,
                     "'%s' is already defined\n%s" % (ent.name, where))
