@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright IBM, Corp. 2011
-# Copyright (c) 2013-2019 Red Hat Inc.
+# Copyright (c) 2013-2021 Red Hat Inc.
 #
 # Authors:
 #  Anthony Liguori <aliguori@us.ibm.com>
 #  Markus Armbruster <armbru@redhat.com>
 #  Eric Blake <eblake@redhat.com>
 #  Marc-André Lureau <marcandre.lureau@redhat.com>
+#  John Snow <jsnow@redhat.com>
 #
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
