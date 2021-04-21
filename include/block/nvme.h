@@ -1341,6 +1341,15 @@ enum NvmeIdNsDps {
     NVME_ID_NS_DPS_FIRST_EIGHT = 8,
 };
 
+enum NvmeIdNsFlbas {
+    NVME_ID_NS_FLBAS_EXTENDED = 1 << 4,
+};
+
+enum NvmeIdNsMc {
+    NVME_ID_NS_MC_EXTENDED = 1 << 0,
+    NVME_ID_NS_MC_SEPARATE = 1 << 1,
+};
+
 #define NVME_ID_NS_DPS_TYPE(dps) (dps & NVME_ID_NS_DPS_TYPE_MASK)
 
 typedef struct NvmeDifTuple {

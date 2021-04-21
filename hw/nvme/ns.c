@@ -82,10 +82,10 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     ms = ns->params.ms;
 
     if (ns->params.ms) {
-        id_ns->mc = 0x3;
+        id_ns->mc = NVME_ID_NS_MC_EXTENDED | NVME_ID_NS_MC_SEPARATE;
 
         if (ns->params.mset) {
-            id_ns->flbas |= 0x10;
+            id_ns->flbas |= NVME_ID_NS_FLBAS_EXTENDED;
         }
 
         id_ns->dpc = 0x1f;
