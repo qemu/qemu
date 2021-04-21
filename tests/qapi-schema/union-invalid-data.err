@@ -1,0 +1,2 @@
+union-invalid-data.json: In union 'TestUnion':
+union-invalid-data.json:2: 'data' must be an object
