@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 #
-# QAPI error classes
-#
 # Copyright (c) 2017-2019 Red Hat Inc.
 #
 # Authors:
@@ -10,6 +8,14 @@
 #
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
+
+"""
+QAPI error classes
+
+Common error classes used throughout the package.  Additional errors may
+be defined in other modules.  At present, `QAPIParseError` is defined in
+parser.py.
+"""
 
 
 class QAPIError(Exception):
@@ -31,18 +37,6 @@ class QAPISourceError(QAPIError):
             assert self.info.line is not None
             loc += ':%s' % self.col
         return loc + ': ' + self.msg
-
-
-class QAPIParseError(QAPISourceError):
-    """Error class for all QAPI schema parsing errors."""
-    def __init__(self, parser, msg):
-        col = 1
-        for ch in parser.src[parser.line_pos:parser.pos]:
-            if ch == '\t':
-                col = (col + 7) % 8 + 1
-            else:
-                col += 1
-        super().__init__(parser.info, msg, col)
 
 
 class QAPISemError(QAPISourceError):

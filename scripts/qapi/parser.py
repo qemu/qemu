@@ -18,8 +18,20 @@ from collections import OrderedDict
 import os
 import re
 
-from .error import QAPIParseError, QAPISemError
+from .error import QAPISemError, QAPISourceError
 from .source import QAPISourceInfo
+
+
+class QAPIParseError(QAPISourceError):
+    """Error class for all QAPI schema parsing errors."""
+    def __init__(self, parser, msg):
+        col = 1
+        for ch in parser.src[parser.line_pos:parser.pos]:
+            if ch == '\t':
+                col = (col + 7) % 8 + 1
+            else:
+                col += 1
+        super().__init__(parser.info, msg, col)
 
 
 class QAPISchemaParser:
