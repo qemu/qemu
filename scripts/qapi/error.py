@@ -13,6 +13,11 @@
 
 
 class QAPIError(Exception):
+    """Base class for all exceptions from the QAPI package."""
+
+
+class QAPISourceError(QAPIError):
+    """Error class for all exceptions identifying a source location."""
     def __init__(self, info, col, msg):
         Exception.__init__(self)
         self.info = info
@@ -27,7 +32,8 @@ class QAPIError(Exception):
         return loc + ': ' + self.msg
 
 
-class QAPIParseError(QAPIError):
+class QAPIParseError(QAPISourceError):
+    """Error class for all QAPI schema parsing errors."""
     def __init__(self, parser, msg):
         col = 1
         for ch in parser.src[parser.line_pos:parser.pos]:
@@ -38,6 +44,7 @@ class QAPIParseError(QAPIError):
         super().__init__(parser.info, col, msg)
 
 
-class QAPISemError(QAPIError):
+class QAPISemError(QAPISourceError):
+    """Error class for semantic QAPI errors."""
     def __init__(self, info, msg):
         super().__init__(info, None, msg)
