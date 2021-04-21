@@ -357,7 +357,7 @@ struct BlockDriver {
      * of in-flight requests, so don't waste the time if possible.
      *
      * One example usage is to avoid waiting for an nbd target node reconnect
-     * timeout during job-cancel.
+     * timeout during job-cancel with force=true.
      */
     void (*bdrv_cancel_in_flight)(BlockDriverState *bs);
 

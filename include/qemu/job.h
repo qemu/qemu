@@ -254,7 +254,7 @@ struct JobDriver {
     /**
      * If the callback is not NULL, it will be invoked in job_cancel_async
      */
-    void (*cancel)(Job *job);
+    void (*cancel)(Job *job, bool force);
 
 
     /** Called when the job is freed */

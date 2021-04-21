@@ -95,7 +95,7 @@ class TestNbdReconnect(iotests.QMPTestCase):
             self.assert_qmp(result, 'return', {})
 
     def cancel_job(self):
-        result = self.vm.qmp('block-job-cancel', device='drive0')
+        result = self.vm.qmp('block-job-cancel', device='drive0', force=True)
         self.assert_qmp(result, 'return', {})
 
         start_t = time.time()
