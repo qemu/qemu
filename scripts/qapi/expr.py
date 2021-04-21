@@ -15,9 +15,20 @@
 # See the COPYING file in the top-level directory.
 
 import re
+from typing import Dict, Optional
 
 from .common import c_name
 from .error import QAPISemError
+from .parser import QAPIDoc
+from .source import QAPISourceInfo
+
+
+# Deserialized JSON objects as returned by the parser.
+# The values of this mapping are not necessary to exhaustively type
+# here (and also not practical as long as mypy lacks recursive
+# types), because the purpose of this module is to interrogate that
+# type.
+_JSONObject = Dict[str, object]
 
 
 # Names consist of letters, digits, -, and _, starting with a letter.
@@ -315,9 +326,20 @@ def check_event(expr, info):
 
 def check_exprs(exprs):
     for expr_elem in exprs:
-        expr = expr_elem['expr']
-        info = expr_elem['info']
-        doc = expr_elem.get('doc')
+        # Expression
+        assert isinstance(expr_elem['expr'], dict)
+        for key in expr_elem['expr'].keys():
+            assert isinstance(key, str)
+        expr: _JSONObject = expr_elem['expr']
+
+        # QAPISourceInfo
+        assert isinstance(expr_elem['info'], QAPISourceInfo)
+        info: QAPISourceInfo = expr_elem['info']
+
+        # Optional[QAPIDoc]
+        tmp = expr_elem.get('doc')
+        assert tmp is None or isinstance(tmp, QAPIDoc)
+        doc: Optional[QAPIDoc] = tmp
 
         if 'include' in expr:
             continue
