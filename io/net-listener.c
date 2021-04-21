@@ -292,6 +292,9 @@ static void qio_net_listener_finalize(Object *obj)
     QIONetListener *listener = QIO_NET_LISTENER(obj);
     size_t i;
 
+    if (listener->io_notify) {
+        listener->io_notify(listener->io_data);
+    }
     qio_net_listener_disconnect(listener);
 
     for (i = 0; i < listener->nsioc; i++) {
