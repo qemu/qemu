@@ -49,6 +49,10 @@ struct PostcopyBlocktimeContext;
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
 
+    /* A hook to allow cleanup at the end of incoming migration */
+    void *transport_data;
+    void (*transport_cleanup)(void *data);
+
     /*
      * Free at the start of the main state load, set as the main thread finishes
      * loading state.
