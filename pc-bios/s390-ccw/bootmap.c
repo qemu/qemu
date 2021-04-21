@@ -299,7 +299,7 @@ static void ipl_eckd_cdl(void)
         sclp_print("Bad block size in zIPL section of IPL2 record.\n");
         return;
     }
-    if (!mbr->dev_type == DEV_TYPE_ECKD) {
+    if (mbr->dev_type != DEV_TYPE_ECKD) {
         sclp_print("Non-ECKD device type in zIPL section of IPL2 record.\n");
         return;
     }
