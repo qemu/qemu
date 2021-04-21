@@ -95,9 +95,9 @@ def check_defn_name_str(name: str, info: QAPISourceInfo, meta: str) -> None:
             permit_underscore=name in info.pragma.command_name_exceptions)
     else:
         check_name_camel(name, info, meta)
-    if name.endswith('Kind') or name.endswith('List'):
-        raise QAPISemError(
-            info, "%s name should not end in '%s'" % (meta, name[-4:]))
+        if name.endswith('Kind') or name.endswith('List'):
+            raise QAPISemError(
+                info, "%s name should not end in '%s'" % (meta, name[-4:]))
 
 
 def check_keys(value: _JSONObject,
