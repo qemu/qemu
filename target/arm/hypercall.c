@@ -63,9 +63,17 @@ ssize_t hypervisor_virt_mem_rw (CPUARMState *cpu_env, uint64_t virt_addr, void *
     ARMMMUFaultInfo fi = {};
     ARMCacheAttrs cacheattrs = {};
 
-    if (get_phys_addr(cpu_env, virt_addr, MMU_DATA_LOAD, ARMMMUIdx_MPriv, &physaddr,
+    if (get_phys_addr(cpu_env, virt_addr, MMU_DATA_LOAD, ARMMMUIdx_Stage2, &physaddr,
                       &attrs, &prot, &page_size, &fi, &cacheattrs)) {
-        qemu_log("Physical Address Lookup failed");
+        qemu_log("Physical Address Lookup failed\n");
+        qemu_log("\tfi.type = %d\n", fi.type);
+        qemu_log("\tfi.s2addr = %lx\n", fi.s2addr);
+        qemu_log("\tfi.level = %d\n", fi.level);
+        qemu_log("\tfi.domain = %d\n", fi.domain);
+        qemu_log("\tfi.stage2 = %d\n", fi.stage2);
+        qemu_log("\tfi.s1ptw = %d\n", fi.s1ptw);
+        qemu_log("\tfi.s1ns = %d\n", fi.s1ns);
+        qemu_log("\tfi.ea = %d\n", fi.ea);
         return -1;
     }
     else {
