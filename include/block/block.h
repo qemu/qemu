@@ -102,6 +102,7 @@ typedef struct HDGeometry {
     uint32_t cylinders;
 } HDGeometry;
 
+#define BDRV_O_NO_SHARE    0x0001 /* don't share permissions */
 #define BDRV_O_RDWR        0x0002
 #define BDRV_O_RESIZE      0x0004 /* request permission for resizing the node */
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */

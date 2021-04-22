@@ -407,15 +407,19 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
     BlockBackend *blk;
     BlockDriverState *bs;
     uint64_t perm = 0;
+    uint64_t shared = BLK_PERM_ALL;
 
-    /* blk_new_open() is mainly used in .bdrv_create implementations and the
-     * tools where sharing isn't a concern because the BDS stays private, so we
-     * just request permission according to the flags.
+    /*
+     * blk_new_open() is mainly used in .bdrv_create implementations and the
+     * tools where sharing isn't a major concern because the BDS stays private
+     * and the file is generally not supposed to be used by a second process,
+     * so we just request permission according to the flags.
      *
      * The exceptions are xen_disk and blockdev_init(); in these cases, the
      * caller of blk_new_open() doesn't make use of the permissions, but they
      * shouldn't hurt either. We can still share everything here because the
-     * guest devices will add their own blockers if they can't share. */
+     * guest devices will add their own blockers if they can't share.
+     */
     if ((flags & BDRV_O_NO_IO) == 0) {
         perm |= BLK_PERM_CONSISTENT_READ;
         if (flags & BDRV_O_RDWR) {
@@ -425,8 +429,11 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
     if (flags & BDRV_O_RESIZE) {
         perm |= BLK_PERM_RESIZE;
     }
+    if (flags & BDRV_O_NO_SHARE) {
+        shared = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED;
+    }
 
-    blk = blk_new(qemu_get_aio_context(), perm, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), perm, shared);
     bs = bdrv_open(filename, reference, options, flags, errp);
     if (!bs) {
         blk_unref(blk);
@@ -435,7 +442,7 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
 
     blk->root = bdrv_root_attach_child(bs, "root", &child_root,
                                        BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
-                                       perm, BLK_PERM_ALL, blk, errp);
+                                       perm, shared, blk, errp);
     if (!blk->root) {
         blk_unref(blk);
         return NULL;
