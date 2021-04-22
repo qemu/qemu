@@ -200,7 +200,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
                    &frame->retcode[1]);
         __put_user(INSN_CALLSYS, &frame->retcode[2]);
         /* imb(); */
-        r26 = frame_addr + offsetof(struct target_sigframe, retcode);
+        r26 = frame_addr + offsetof(struct target_rt_sigframe, retcode);
     }
 
     if (err) {
