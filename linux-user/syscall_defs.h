@@ -507,12 +507,6 @@ struct target_old_sigaction {
     int32_t sa_flags;
 };
 
-struct target_rt_sigaction {
-    abi_ulong _sa_handler;
-    abi_ulong sa_flags;
-    target_sigset_t sa_mask;
-};
-
 /* This is the struct used inside the kernel.  The ka_restorer
    field comes from the 5th argument to sys_rt_sigaction.  */
 struct target_sigaction {
