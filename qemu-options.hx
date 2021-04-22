@@ -4508,11 +4508,11 @@ SRST
         the guest RAM with huge pages.
 
         The ``id`` parameter is a unique ID that will be used to
-        reference this memory region when configuring the ``-numa``
-        argument.
+        reference this memory region in other parameters, e.g. ``-numa``,
+        ``-device nvdimm``, etc.
 
         The ``size`` option provides the size of the memory region, and
-        accepts common suffixes, eg ``500M``.
+        accepts common suffixes, e.g. ``500M``.
 
         The ``mem-path`` provides the path to either a shared memory or
         huge page filesystem mount.
