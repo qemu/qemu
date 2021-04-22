@@ -5945,6 +5945,7 @@ static void gen_mthc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         goto cp0_unimplemented;
     }
     trace_mips_translate_c0("mthc0", register_name, reg, sel);
+    return;
 
 cp0_unimplemented:
     qemu_log_mask(LOG_UNIMP, "mthc0 %s (reg %d sel %d)\n",
