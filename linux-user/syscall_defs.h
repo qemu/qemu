@@ -519,7 +519,7 @@ struct target_sigaction {
     abi_ulong _sa_handler;
     abi_ulong sa_flags;
     target_sigset_t sa_mask;
-    abi_ulong sa_restorer;
+    abi_ulong ka_restorer;
 };
 #elif defined(TARGET_MIPS)
 struct target_sigaction {

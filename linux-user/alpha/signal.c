@@ -138,8 +138,8 @@ void setup_frame(int sig, struct target_sigaction *ka,
 
     setup_sigcontext(&frame->sc, env, frame_addr, set);
 
-    if (ka->sa_restorer) {
-        r26 = ka->sa_restorer;
+    if (ka->ka_restorer) {
+        r26 = ka->ka_restorer;
     } else {
         __put_user(INSN_MOV_R30_R16, &frame->retcode[0]);
         __put_user(INSN_LDI_R0 + TARGET_NR_sigreturn,
@@ -192,8 +192,8 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
         __put_user(set->sig[i], &frame->uc.tuc_sigmask.sig[i]);
     }
 
-    if (ka->sa_restorer) {
-        r26 = ka->sa_restorer;
+    if (ka->ka_restorer) {
+        r26 = ka->ka_restorer;
     } else {
         __put_user(INSN_MOV_R30_R16, &frame->retcode[0]);
         __put_user(INSN_LDI_R0 + TARGET_NR_rt_sigreturn,
