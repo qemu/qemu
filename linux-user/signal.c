@@ -842,7 +842,7 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr,
 
 /* do_sigaction() return target values and host errnos */
 int do_sigaction(int sig, const struct target_sigaction *act,
-                 struct target_sigaction *oact)
+                 struct target_sigaction *oact, abi_ulong ka_restorer)
 {
     struct target_sigaction *k;
     struct sigaction act1;
@@ -875,6 +875,9 @@ int do_sigaction(int sig, const struct target_sigaction *act,
         __get_user(k->sa_flags, &act->sa_flags);
 #ifdef TARGET_ARCH_HAS_SA_RESTORER
         __get_user(k->sa_restorer, &act->sa_restorer);
+#endif
+#ifdef TARGET_ARCH_HAS_KA_RESTORER
+        k->ka_restorer = ka_restorer;
 #endif
         /* To be swapped in target_to_host_sigset.  */
         k->sa_mask = act->sa_mask;
