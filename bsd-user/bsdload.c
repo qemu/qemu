@@ -13,8 +13,9 @@ abi_long memcpy_to_target(abi_ulong dest, const void *src,
     void *host_ptr;
 
     host_ptr = lock_user(VERIFY_WRITE, dest, len, 0);
-    if (!host_ptr)
+    if (!host_ptr) {
         return -TARGET_EFAULT;
+    }
     memcpy(host_ptr, src, len);
     unlock_user(host_ptr, dest, 1);
     return 0;
@@ -75,8 +76,7 @@ static int prepare_binprm(struct linux_binprm *bprm)
     if (retval < 0) {
         perror("prepare_binprm");
         exit(-1);
-    }
-    else {
+    } else {
         return retval;
     }
 }
@@ -132,11 +132,13 @@ int loader_exec(const char *filename, char **argv, char **envp,
     int i;
 
     bprm.p = TARGET_PAGE_SIZE * MAX_ARG_PAGES - sizeof(unsigned int);
-    for (i = 0 ; i < MAX_ARG_PAGES ; i++)       /* clear page-table */
+    for (i = 0 ; i < MAX_ARG_PAGES ; i++) {     /* clear page-table */
             bprm.page[i] = NULL;
+    }
     retval = open(filename, O_RDONLY);
-    if (retval < 0)
+    if (retval < 0) {
         return retval;
+    }
     bprm.fd = retval;
     bprm.filename = (char *)filename;
     bprm.argc = count(argv);
