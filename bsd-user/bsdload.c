@@ -28,7 +28,7 @@ static int count(char **vec)
         vec++;
     }
 
-    return(i);
+    return i;
 }
 
 static int prepare_binprm(struct linux_binprm *bprm)
@@ -38,15 +38,15 @@ static int prepare_binprm(struct linux_binprm *bprm)
     int retval;
 
     if (fstat(bprm->fd, &st) < 0) {
-        return(-errno);
+        return -errno;
     }
 
     mode = st.st_mode;
     if (!S_ISREG(mode)) {        /* Must be regular file */
-        return(-EACCES);
+        return -EACCES;
     }
     if (!(mode & 0111)) {        /* Must have at least one execute bit set */
-        return(-EACCES);
+        return -EACCES;
     }
 
     bprm->e_uid = geteuid();
@@ -75,10 +75,9 @@ static int prepare_binprm(struct linux_binprm *bprm)
     if (retval < 0) {
         perror("prepare_binprm");
         exit(-1);
-        /* return(-errno); */
     }
     else {
-        return(retval);
+        return retval;
     }
 }
 
@@ -169,5 +168,5 @@ int loader_exec(const char *filename, char **argv, char **envp,
     for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
         g_free(bprm.page[i]);
     }
-    return(retval);
+    return retval;
 }
