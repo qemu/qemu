@@ -696,7 +696,7 @@ static void tap_win32_send(void *opaque)
     if (size > 0) {
         orig_buf = buf;
 
-        if (!s->nc.peer->do_not_pad) {
+        if (net_peer_needs_padding(&s->nc)) {
             if (eth_pad_short_frame(min_pkt, &min_pktsz, buf, size)) {
                 buf = min_pkt;
                 size = min_pktsz;

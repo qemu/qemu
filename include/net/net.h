@@ -241,4 +241,9 @@ uint32_t net_crc32_le(const uint8_t *p, int len);
     .offset     = vmstate_offset_macaddr(_state, _field),            \
 }
 
+static inline bool net_peer_needs_padding(NetClientState *nc)
+{
+  return nc->peer && !nc->peer->do_not_pad;
+}
+
 #endif
