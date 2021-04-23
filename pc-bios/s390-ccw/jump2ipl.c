@@ -82,8 +82,8 @@ void jump_to_low_kernel(void)
         jump_to_IPL_code(KERN_IMAGE_START);
     }
 
-    /* Trying to get PSW at zero address */
-    if (*((uint64_t *)0) & RESET_PSW_MASK) {
+    /* Trying to get PSW at zero address (pointed to by reset_psw) */
+    if (*reset_psw & RESET_PSW_MASK) {
         /*
          * Surely nobody will try running directly from lowcore, so
          * let's use 0 as an indication that we want to load the reset
