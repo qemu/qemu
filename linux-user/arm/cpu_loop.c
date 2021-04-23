@@ -228,6 +228,7 @@ static bool emulate_arm_fpa11(CPUARMState *env, uint32_t opcode)
 {
     TaskState *ts = env_cpu(env)->opaque;
     int rc = EmulateAll(opcode, &ts->fpa, env);
+    int raise, enabled;
 
     if (rc == 0) {
         /* Illegal instruction */
@@ -240,28 +241,31 @@ static bool emulate_arm_fpa11(CPUARMState *env, uint32_t opcode)
     }
 
     /* FP exception */
-    int arm_fpe = 0;
+    rc = -rc;
+    raise = 0;
 
     /* Translate softfloat flags to FPSR flags */
-    if (-rc & float_flag_invalid) {
-        arm_fpe |= BIT_IOC;
+    if (rc & float_flag_invalid) {
+        raise |= BIT_IOC;
     }
-    if (-rc & float_flag_divbyzero) {
-        arm_fpe |= BIT_DZC;
+    if (rc & float_flag_divbyzero) {
+        raise |= BIT_DZC;
     }
-    if (-rc & float_flag_overflow) {
-        arm_fpe |= BIT_OFC;
+    if (rc & float_flag_overflow) {
+        raise |= BIT_OFC;
     }
-    if (-rc & float_flag_underflow) {
-        arm_fpe |= BIT_UFC;
+    if (rc & float_flag_underflow) {
+        raise |= BIT_UFC;
     }
-    if (-rc & float_flag_inexact) {
-        arm_fpe |= BIT_IXC;
+    if (rc & float_flag_inexact) {
+        raise |= BIT_IXC;
     }
 
-    /* Exception enabled? */
-    FPSR fpsr = ts->fpa.fpsr;
-    if (fpsr & (arm_fpe << 16)) {
+    /* Accumulate unenabled exceptions */
+    enabled = ts->fpa.fpsr >> 16;
+    ts->fpa.fpsr |= raise & ~enabled;
+
+    if (raise & enabled) {
         target_siginfo_t info = { };
 
         /*
@@ -275,24 +279,6 @@ static bool emulate_arm_fpa11(CPUARMState *env, uint32_t opcode)
     } else {
         env->regs[15] += 4;
     }
-
-    /* Accumulate unenabled exceptions */
-    if ((!(fpsr & BIT_IXE)) && (arm_fpe & BIT_IXC)) {
-        fpsr |= BIT_IXC;
-    }
-    if ((!(fpsr & BIT_UFE)) && (arm_fpe & BIT_UFC)) {
-        fpsr |= BIT_UFC;
-    }
-    if ((!(fpsr & BIT_OFE)) && (arm_fpe & BIT_OFC)) {
-        fpsr |= BIT_OFC;
-    }
-    if ((!(fpsr & BIT_DZE)) && (arm_fpe & BIT_DZC)) {
-        fpsr |= BIT_DZC;
-    }
-    if ((!(fpsr & BIT_IOE)) && (arm_fpe & BIT_IOC)) {
-        fpsr |= BIT_IOC;
-    }
-    ts->fpa.fpsr = fpsr;
     return true;
 }
 
