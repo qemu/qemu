@@ -224,6 +224,92 @@ static bool insn_is_linux_bkpt(uint32_t opcode, bool is_thumb)
     }
 }
 
+static bool emulate_arm_fpa11(CPUARMState *env, uint32_t opcode)
+{
+    TaskState *ts = env_cpu(env)->opaque;
+    int rc = EmulateAll(opcode, &ts->fpa, env);
+
+    if (rc == 0) {
+        /* Illegal instruction */
+        return false;
+    }
+    if (rc > 0) {
+        /* Everything ok. */
+        env->regs[15] += 4;
+        return true;
+    }
+
+    /* FP exception */
+    int arm_fpe = 0;
+
+    /* Translate softfloat flags to FPSR flags */
+    if (-rc & float_flag_invalid) {
+        arm_fpe |= BIT_IOC;
+    }
+    if (-rc & float_flag_divbyzero) {
+        arm_fpe |= BIT_DZC;
+    }
+    if (-rc & float_flag_overflow) {
+        arm_fpe |= BIT_OFC;
+    }
+    if (-rc & float_flag_underflow) {
+        arm_fpe |= BIT_UFC;
+    }
+    if (-rc & float_flag_inexact) {
+        arm_fpe |= BIT_IXC;
+    }
+
+    /* Exception enabled? */
+    FPSR fpsr = ts->fpa.fpsr;
+    if (fpsr & (arm_fpe << 16)) {
+        target_siginfo_t info;
+
+        info.si_signo = TARGET_SIGFPE;
+        info.si_errno = 0;
+
+        /* ordered by priority, least first */
+        if (arm_fpe & BIT_IXC) {
+            info.si_code = TARGET_FPE_FLTRES;
+        }
+        if (arm_fpe & BIT_UFC) {
+            info.si_code = TARGET_FPE_FLTUND;
+        }
+        if (arm_fpe & BIT_OFC) {
+            info.si_code = TARGET_FPE_FLTOVF;
+        }
+        if (arm_fpe & BIT_DZC) {
+            info.si_code = TARGET_FPE_FLTDIV;
+        }
+        if (arm_fpe & BIT_IOC) {
+            info.si_code = TARGET_FPE_FLTINV;
+        }
+
+        info._sifields._sigfault._addr = env->regs[15];
+        queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
+    } else {
+        env->regs[15] += 4;
+    }
+
+    /* Accumulate unenabled exceptions */
+    if ((!(fpsr & BIT_IXE)) && (arm_fpe & BIT_IXC)) {
+        fpsr |= BIT_IXC;
+    }
+    if ((!(fpsr & BIT_UFE)) && (arm_fpe & BIT_UFC)) {
+        fpsr |= BIT_UFC;
+    }
+    if ((!(fpsr & BIT_OFE)) && (arm_fpe & BIT_OFC)) {
+        fpsr |= BIT_OFC;
+    }
+    if ((!(fpsr & BIT_DZE)) && (arm_fpe & BIT_DZC)) {
+        fpsr |= BIT_DZC;
+    }
+    if ((!(fpsr & BIT_IOE)) && (arm_fpe & BIT_IOC)) {
+        fpsr |= BIT_IOC;
+    }
+    ts->fpa.fpsr = fpsr;
+    return true;
+}
+
 void cpu_loop(CPUARMState *env)
 {
     CPUState *cs = env_cpu(env);
@@ -244,9 +330,7 @@ void cpu_loop(CPUARMState *env)
         case EXCP_NOCP:
         case EXCP_INVSTATE:
             {
-                TaskState *ts = cs->opaque;
                 uint32_t opcode;
-                int rc;
 
                 /* we handle the FPU emulation here, as Linux */
                 /* we get the opcode */
@@ -263,64 +347,15 @@ void cpu_loop(CPUARMState *env)
                     goto excp_debug;
                 }
 
-                rc = EmulateAll(opcode, &ts->fpa, env);
-                if (rc == 0) { /* illegal instruction */
-                    info.si_signo = TARGET_SIGILL;
-                    info.si_errno = 0;
-                    info.si_code = TARGET_ILL_ILLOPN;
-                    info._sifields._sigfault._addr = env->regs[15];
-                    queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-                } else if (rc < 0) { /* FP exception */
-                    int arm_fpe=0;
-
-                    /* translate softfloat flags to FPSR flags */
-                    if (-rc & float_flag_invalid)
-                      arm_fpe |= BIT_IOC;
-                    if (-rc & float_flag_divbyzero)
-                      arm_fpe |= BIT_DZC;
-                    if (-rc & float_flag_overflow)
-                      arm_fpe |= BIT_OFC;
-                    if (-rc & float_flag_underflow)
-                      arm_fpe |= BIT_UFC;
-                    if (-rc & float_flag_inexact)
-                      arm_fpe |= BIT_IXC;
-
-                    FPSR fpsr = ts->fpa.fpsr;
-                    //printf("fpsr 0x%x, arm_fpe 0x%x\n",fpsr,arm_fpe);
-
-                    if (fpsr & (arm_fpe << 16)) { /* exception enabled? */
-                      info.si_signo = TARGET_SIGFPE;
-                      info.si_errno = 0;
-
-                      /* ordered by priority, least first */
-                      if (arm_fpe & BIT_IXC) info.si_code = TARGET_FPE_FLTRES;
-                      if (arm_fpe & BIT_UFC) info.si_code = TARGET_FPE_FLTUND;
-                      if (arm_fpe & BIT_OFC) info.si_code = TARGET_FPE_FLTOVF;
-                      if (arm_fpe & BIT_DZC) info.si_code = TARGET_FPE_FLTDIV;
-                      if (arm_fpe & BIT_IOC) info.si_code = TARGET_FPE_FLTINV;
-
-                      info._sifields._sigfault._addr = env->regs[15];
-                      queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
-                    } else {
-                      env->regs[15] += 4;
-                    }
-
-                    /* accumulate unenabled exceptions */
-                    if ((!(fpsr & BIT_IXE)) && (arm_fpe & BIT_IXC))
-                      fpsr |= BIT_IXC;
-                    if ((!(fpsr & BIT_UFE)) && (arm_fpe & BIT_UFC))
-                      fpsr |= BIT_UFC;
-                    if ((!(fpsr & BIT_OFE)) && (arm_fpe & BIT_OFC))
-                      fpsr |= BIT_OFC;
-                    if ((!(fpsr & BIT_DZE)) && (arm_fpe & BIT_DZC))
-                      fpsr |= BIT_DZC;
-                    if ((!(fpsr & BIT_IOE)) && (arm_fpe & BIT_IOC))
-                      fpsr |= BIT_IOC;
-                    ts->fpa.fpsr=fpsr;
-                } else { /* everything OK */
-                    /* increment PC */
-                    env->regs[15] += 4;
+                if (emulate_arm_fpa11(env, opcode)) {
+                    break;
                 }
+
+                info.si_signo = TARGET_SIGILL;
+                info.si_errno = 0;
+                info.si_code = TARGET_ILL_ILLOPN;
+                info._sifields._sigfault._addr = env->regs[15];
+                queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             }
             break;
         case EXCP_SWI:
