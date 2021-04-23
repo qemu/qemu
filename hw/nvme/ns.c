@@ -441,6 +441,15 @@ void nvme_ns_cleanup(NvmeNamespace *ns)
     }
 }
 
+static void nvme_ns_unrealize(DeviceState *dev)
+{
+    NvmeNamespace *ns = NVME_NS(dev);
+
+    nvme_ns_drain(ns);
+    nvme_ns_shutdown(ns);
+    nvme_ns_cleanup(ns);
+}
+
 static void nvme_ns_realize(DeviceState *dev, Error **errp)
 {
     NvmeNamespace *ns = NVME_NS(dev);
@@ -460,6 +469,14 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
         if (ns->params.shared) {
             error_setg(errp, "shared requires that the nvme device is "
                        "linked to an nvme-subsys device");
+            return;
+        }
+    } else {
+        /*
+         * If this namespace belongs to a subsystem (through a link on the
+         * controller device), reparent the device.
+         */
+        if (!qdev_set_parent_bus(dev, &subsys->bus.parent_bus, errp)) {
             return;
         }
     }
@@ -552,6 +569,7 @@ static void nvme_ns_class_init(ObjectClass *oc, void *data)
 
     dc->bus_type = TYPE_NVME_BUS;
     dc->realize = nvme_ns_realize;
+    dc->unrealize = nvme_ns_unrealize;
     device_class_set_props(dc, nvme_ns_props);
     dc->desc = "Virtual NVMe namespace";
 }

@@ -50,6 +50,9 @@ static void nvme_subsys_realize(DeviceState *dev, Error **errp)
 {
     NvmeSubsystem *subsys = NVME_SUBSYS(dev);
 
+    qbus_create_inplace(&subsys->bus, sizeof(NvmeBus), TYPE_NVME_BUS, dev,
+                        dev->id);
+
     nvme_subsys_setup(subsys);
 }
 
