@@ -6,7 +6,7 @@ NETOBJS := start.o sclp.o cio.o virtio.o virtio-net.o jump2ipl.o netmain.o
 LIBC_INC := -nostdinc -I$(SLOF_DIR)/lib/libc/include
 LIBNET_INC := -I$(SLOF_DIR)/lib/libnet
 
-NETLDFLAGS := $(LDFLAGS) -Ttext=0x7800000
+NETLDFLAGS := $(LDFLAGS) -Wl,-Ttext=0x7800000
 
 $(NETOBJS): QEMU_CFLAGS += $(LIBC_INC) $(LIBNET_INC)
 
