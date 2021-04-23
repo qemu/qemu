@@ -27,6 +27,8 @@
 
 #include "exec/user/abitypes.h"
 
+extern char **environ;
+
 enum BSDType {
     target_freebsd,
     target_netbsd,
