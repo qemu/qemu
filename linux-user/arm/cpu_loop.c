@@ -347,7 +347,7 @@ void cpu_loop(CPUARMState *env)
                     goto excp_debug;
                 }
 
-                if (emulate_arm_fpa11(env, opcode)) {
+                if (!env->thumb && emulate_arm_fpa11(env, opcode)) {
                     break;
                 }
 
