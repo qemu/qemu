@@ -147,7 +147,7 @@ void cpu_loop(CPUX86State *env)
     CPUState *cs = env_cpu(env);
     int trapnr;
     abi_ulong pc;
-    //target_siginfo_t info;
+    /* target_siginfo_t info; */
 
     for (;;) {
         cpu_exec_start(cs);
@@ -196,7 +196,7 @@ void cpu_loop(CPUX86State *env)
                                                       arg6,
                                                       arg7,
                                                       arg8);
-            } else { //if (bsd_type == target_openbsd)
+            } else { /* if (bsd_type == target_openbsd) */
                 env->regs[R_EAX] = do_openbsd_syscall(env,
                                                       env->regs[R_EAX],
                                                       env->regs[R_EBX],
@@ -225,7 +225,7 @@ void cpu_loop(CPUX86State *env)
                                                       env->regs[R_ECX],
                                                       env->regs[8],
                                                       env->regs[9], 0, 0);
-            else { //if (bsd_type == target_openbsd)
+            else { /* if (bsd_type == target_openbsd) */
                 env->regs[R_EAX] = do_openbsd_syscall(env,
                                                       env->regs[R_EAX],
                                                       env->regs[R_EDI],
@@ -369,7 +369,7 @@ void cpu_loop(CPUX86State *env)
 #ifdef TARGET_SPARC
 #define SPARC64_STACK_BIAS 2047
 
-//#define DEBUG_WIN
+/* #define DEBUG_WIN */
 /* WARNING: dealing with register windows _is_ complicated. More info
    can be found at http://www.sics.se/~psm/sparcstack.html */
 static inline int get_reg_index(CPUSPARCState *env, int cwp, int index)
@@ -496,7 +496,7 @@ void cpu_loop(CPUSPARCState *env)
 {
     CPUState *cs = env_cpu(env);
     int trapnr, ret, syscall_nr;
-    //target_siginfo_t info;
+    /* target_siginfo_t info; */
 
     while (1) {
         cpu_exec_start(cs);
@@ -526,7 +526,7 @@ void cpu_loop(CPUSPARCState *env)
                                         env->regwptr[0], env->regwptr[1],
                                         env->regwptr[2], env->regwptr[3],
                                         env->regwptr[4], env->regwptr[5]);
-            else { //if (bsd_type == target_openbsd)
+            else { /* if (bsd_type == target_openbsd) */
 #if defined(TARGET_SPARC64)
                 syscall_nr &= ~(TARGET_OPENBSD_SYSCALL_G7RFLAG |
                                 TARGET_OPENBSD_SYSCALL_G2RFLAG);
@@ -618,7 +618,7 @@ void cpu_loop(CPUSPARCState *env)
                     info._sifields._sigfault._addr = env->dmmuregs[4];
                 else
                     info._sifields._sigfault._addr = env->tsptr->tpc;
-                //queue_signal(env, info.si_signo, &info);
+                /* queue_signal(env, info.si_signo, &info); */
             }
 #endif
             break;
@@ -638,7 +638,7 @@ void cpu_loop(CPUSPARCState *env)
                     info.si_signo = sig;
                     info.si_errno = 0;
                     info.si_code = TARGET_TRAP_BRKPT;
-                    //queue_signal(env, info.si_signo, &info);
+                    /* queue_signal(env, info.si_signo, &info); */
                   }
 #endif
             }
