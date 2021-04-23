@@ -36,6 +36,7 @@
 #include "tcg/tcg.h"
 #include "qemu/timer.h"
 #include "qemu/envlist.h"
+#include "qemu/cutils.h"
 #include "exec/log.h"
 #include "trace/control.h"
 
@@ -612,7 +613,7 @@ int main(int argc, char **argv)
     TaskState ts1, *ts = &ts1;
     CPUArchState *env;
     CPUState *cpu;
-    int optind;
+    int optind, rv;
     const char *r;
     const char *gdbstub = NULL;
     char **target_environ, **wrk;
@@ -677,8 +678,8 @@ int main(int argc, char **argv)
             }
         } else if (!strcmp(r, "s")) {
             r = argv[optind++];
-            x86_stack_size = strtol(r, (char **)&r, 0);
-            if (x86_stack_size <= 0) {
+            rv = qemu_strtoul(r, &r, 0, &x86_stack_size);
+            if (rv < 0 || x86_stack_size <= 0) {
                 usage();
             }
             if (*r == 'M') {
@@ -709,7 +710,10 @@ int main(int argc, char **argv)
                 exit(1);
             }
         } else if (!strcmp(r, "B")) {
-            guest_base = strtol(argv[optind++], NULL, 0);
+            rv = qemu_strtoul(argv[optind++], NULL, 0, &guest_base);
+            if (rv < 0) {
+                usage();
+            }
             have_guest_base = true;
         } else if (!strcmp(r, "drop-ld-preload")) {
             (void) envlist_unsetenv(envlist, "LD_PRELOAD");
