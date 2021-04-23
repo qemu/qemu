@@ -50,9 +50,11 @@ const char *qemu_uname_release;
 extern char **environ;
 enum BSDType bsd_type;
 
-/* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
-   we allocate a bigger stack. Need a better solution, for example
-   by remapping the process stack directly at the right place */
+/*
+ * XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
+ * we allocate a bigger stack. Need a better solution, for example
+ * by remapping the process stack directly at the right place
+ */
 unsigned long x86_stack_size = 512 * 1024;
 
 void gemu_log(const char *fmt, ...)
@@ -262,13 +264,17 @@ void cpu_loop(CPUX86State *env)
 #define SPARC64_STACK_BIAS 2047
 
 /* #define DEBUG_WIN */
-/* WARNING: dealing with register windows _is_ complicated. More info
-   can be found at http://www.sics.se/~psm/sparcstack.html */
+/*
+ * WARNING: dealing with register windows _is_ complicated. More info
+ * can be found at http://www.sics.se/~psm/sparcstack.html
+ */
 static inline int get_reg_index(CPUSPARCState *env, int cwp, int index)
 {
     index = (index + cwp * 16) % (16 * env->nwindows);
-    /* wrap handling : if cwp is on the last window, then we use the
-       registers 'after' the end */
+    /*
+     * wrap handling : if cwp is on the last window, then we use the
+     * registers 'after' the end
+     */
     if (index < 8 && env->cwp == env->nwindows - 1)
         index += 16 * env->nwindows;
     return index;
@@ -846,9 +852,11 @@ int main(int argc, char **argv)
     syscall_init();
     signal_init();
 
-    /* Now that we've loaded the binary, GUEST_BASE is fixed.  Delay
-       generating the prologue until now so that the prologue can take
-       the real value of GUEST_BASE into account.  */
+    /*
+     * Now that we've loaded the binary, GUEST_BASE is fixed.  Delay
+     * generating the prologue until now so that the prologue can take
+     * the real value of GUEST_BASE into account.
+     */
     tcg_prologue_init(tcg_ctx);
     tcg_region_init();
 
