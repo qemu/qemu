@@ -115,6 +115,12 @@
 #           this feature are documented in
 #           "docs/amd-memory-encryption.txt".
 #
+# @amd-sev-es: The firmware supports running under AMD Secure Encrypted
+#              Virtualization - Encrypted State, as specified in the AMD64
+#              Architecture Programmer's Manual. QEMU command line options
+#              related to this feature are documented in
+#              "docs/amd-memory-encryption.txt".
+#
 # @enrolled-keys: The variable store (NVRAM) template associated with
 #                 the firmware binary has the UEFI Secure Boot
 #                 operational mode turned on, with certificates
@@ -179,7 +185,7 @@
 # Since: 3.0
 ##
 { 'enum' : 'FirmwareFeature',
-  'data' : [ 'acpi-s3', 'acpi-s4', 'amd-sev', 'enrolled-keys',
+  'data' : [ 'acpi-s3', 'acpi-s4', 'amd-sev', 'amd-sev-es', 'enrolled-keys',
              'requires-smm', 'secure-boot', 'verbose-dynamic',
              'verbose-static' ] }
 
@@ -499,6 +505,45 @@
 #         "-b DEBUG",
 #         "-D SMM_REQUIRE",
 #         "-D SECURE_BOOT_ENABLE",
+#         "-D FD_SIZE_4MB"
+#     ]
+# }
+#
+# {
+#     "description": "OVMF with SEV-ES support",
+#     "interface-types": [
+#         "uefi"
+#     ],
+#     "mapping": {
+#         "device": "flash",
+#         "executable": {
+#             "filename": "/usr/share/OVMF/OVMF_CODE.fd",
+#             "format": "raw"
+#         },
+#         "nvram-template": {
+#             "filename": "/usr/share/OVMF/OVMF_VARS.fd",
+#             "format": "raw"
+#         }
+#     },
+#     "targets": [
+#         {
+#             "architecture": "x86_64",
+#             "machines": [
+#                 "pc-q35-*"
+#             ]
+#         }
+#     ],
+#     "features": [
+#         "acpi-s3",
+#         "amd-sev",
+#         "amd-sev-es",
+#         "verbose-dynamic"
+#     ],
+#     "tags": [
+#         "-a X64",
+#         "-p OvmfPkg/OvmfPkgX64.dsc",
+#         "-t GCC48",
+#         "-b DEBUG",
 #         "-D FD_SIZE_4MB"
 #     ]
 # }
