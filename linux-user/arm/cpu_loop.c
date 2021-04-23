@@ -262,29 +262,15 @@ static bool emulate_arm_fpa11(CPUARMState *env, uint32_t opcode)
     /* Exception enabled? */
     FPSR fpsr = ts->fpa.fpsr;
     if (fpsr & (arm_fpe << 16)) {
-        target_siginfo_t info;
+        target_siginfo_t info = { };
 
+        /*
+         * The kernel's nwfpe emulator does not pass a real si_code.
+         * It merely uses send_sig(SIGFPE, current, 1).
+         */
         info.si_signo = TARGET_SIGFPE;
-        info.si_errno = 0;
+        info.si_code = TARGET_SI_KERNEL;
 
-        /* ordered by priority, least first */
-        if (arm_fpe & BIT_IXC) {
-            info.si_code = TARGET_FPE_FLTRES;
-        }
-        if (arm_fpe & BIT_UFC) {
-            info.si_code = TARGET_FPE_FLTUND;
-        }
-        if (arm_fpe & BIT_OFC) {
-            info.si_code = TARGET_FPE_FLTOVF;
-        }
-        if (arm_fpe & BIT_DZC) {
-            info.si_code = TARGET_FPE_FLTDIV;
-        }
-        if (arm_fpe & BIT_IOC) {
-            info.si_code = TARGET_FPE_FLTINV;
-        }
-
-        info._sifields._sigfault._addr = env->regs[15];
         queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
     } else {
         env->regs[15] += 4;
