@@ -6235,7 +6235,8 @@ static void nvme_exit(PCIDevice *pci_dev)
     if (n->pmr.dev) {
         host_memory_backend_set_mapped(n->pmr.dev, false);
     }
-    msix_uninit_exclusive_bar(pci_dev);
+    msix_uninit(pci_dev, &n->bar0, &n->bar0);
+    memory_region_del_subregion(&n->bar0, &n->iomem);
 }
 
 static Property nvme_props[] = {
