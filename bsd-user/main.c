@@ -217,7 +217,7 @@ void cpu_loop(CPUX86State *env)
 #ifndef TARGET_ABI32
         case EXCP_SYSCALL:
             /* syscall from syscall instruction */
-            if (bsd_type == target_freebsd)
+            if (bsd_type == target_freebsd) {
                 env->regs[R_EAX] = do_freebsd_syscall(env,
                                                       env->regs[R_EAX],
                                                       env->regs[R_EDI],
@@ -226,7 +226,7 @@ void cpu_loop(CPUX86State *env)
                                                       env->regs[R_ECX],
                                                       env->regs[8],
                                                       env->regs[9], 0, 0);
-            else { /* if (bsd_type == target_openbsd) */
+            } else { /* if (bsd_type == target_openbsd) */
                 env->regs[R_EAX] = do_openbsd_syscall(env,
                                                       env->regs[R_EAX],
                                                       env->regs[R_EDI],
@@ -250,7 +250,8 @@ void cpu_loop(CPUX86State *env)
             break;
         default:
             pc = env->segs[R_CS].base + env->eip;
-            fprintf(stderr, "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n",
+            fprintf(stderr,
+                    "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n",
                     (long)pc, trapnr);
             abort();
         }
@@ -274,8 +275,9 @@ static inline int get_reg_index(CPUSPARCState *env, int cwp, int index)
      * wrap handling : if cwp is on the last window, then we use the
      * registers 'after' the end
      */
-    if (index < 8 && env->cwp == env->nwindows - 1)
+    if (index < 8 && env->cwp == env->nwindows - 1) {
         index += 16 * env->nwindows;
+    }
     return index;
 }
 
@@ -287,8 +289,9 @@ static inline void save_window_offset(CPUSPARCState *env, int cwp1)
 
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #ifdef TARGET_SPARC64
-    if (sp_ptr & 3)
+    if (sp_ptr & 3) {
         sp_ptr += SPARC64_STACK_BIAS;
+    }
 #endif
 #if defined(DEBUG_WIN)
     printf("win_overflow: sp_ptr=0x" TARGET_ABI_FMT_lx " save_cwp=%d\n",
@@ -337,8 +340,9 @@ static void restore_window(CPUSPARCState *env)
     cwp1 = cpu_cwp_inc(env, env->cwp + 1);
     sp_ptr = env->regbase[get_reg_index(env, cwp1, 6)];
 #ifdef TARGET_SPARC64
-    if (sp_ptr & 3)
+    if (sp_ptr & 3) {
         sp_ptr += SPARC64_STACK_BIAS;
+    }
 #endif
 #if defined(DEBUG_WIN)
     printf("win_underflow: sp_ptr=0x" TARGET_ABI_FMT_lx " load_cwp=%d\n",
@@ -351,8 +355,9 @@ static void restore_window(CPUSPARCState *env)
     }
 #ifdef TARGET_SPARC64
     env->canrestore++;
-    if (env->cleanwin < env->nwindows - 1)
+    if (env->cleanwin < env->nwindows - 1) {
         env->cleanwin++;
+    }
     env->cansave--;
 #else
     env->wim = new_wim;
@@ -368,11 +373,13 @@ static void flush_windows(CPUSPARCState *env)
         /* if restore would invoke restore_window(), then we can stop */
         cwp1 = cpu_cwp_inc(env, env->cwp + offset);
 #ifndef TARGET_SPARC64
-        if (env->wim & (1 << cwp1))
+        if (env->wim & (1 << cwp1)) {
             break;
+        }
 #else
-        if (env->canrestore == 0)
+        if (env->canrestore == 0) {
             break;
+        }
         env->cansave++;
         env->canrestore--;
 #endif
@@ -407,8 +414,9 @@ void cpu_loop(CPUSPARCState *env)
 #else
         /* FreeBSD uses 0x141 for syscalls too */
         case 0x141:
-            if (bsd_type != target_freebsd)
+            if (bsd_type != target_freebsd) {
                 goto badtrap;
+            }
             /* fallthrough */
         case 0x100:
 #endif
@@ -417,7 +425,8 @@ void cpu_loop(CPUSPARCState *env)
                 ret = do_freebsd_syscall(env, syscall_nr,
                                          env->regwptr[0], env->regwptr[1],
                                          env->regwptr[2], env->regwptr[3],
-                                         env->regwptr[4], env->regwptr[5], 0, 0);
+                                         env->regwptr[4], env->regwptr[5],
+                                         0, 0);
             else if (bsd_type == target_netbsd)
                 ret = do_netbsd_syscall(env, syscall_nr,
                                         env->regwptr[0], env->regwptr[1],
@@ -610,8 +619,9 @@ int main(int argc, char **argv)
     envlist_t *envlist = NULL;
     bsd_type = target_openbsd;
 
-    if (argc <= 1)
+    if (argc <= 1) {
         usage();
+    }
 
     error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
@@ -631,11 +641,13 @@ int main(int argc, char **argv)
 
     optind = 1;
     for (;;) {
-        if (optind >= argc)
+        if (optind >= argc) {
             break;
+        }
         r = argv[optind];
-        if (r[0] != '-')
+        if (r[0] != '-') {
             break;
+        }
         optind++;
         r++;
         if (!strcmp(r, "-")) {
@@ -652,24 +664,28 @@ int main(int argc, char **argv)
             log_file = argv[optind++];
         } else if (!strcmp(r, "E")) {
             r = argv[optind++];
-            if (envlist_setenv(envlist, r) != 0)
+            if (envlist_setenv(envlist, r) != 0) {
                 usage();
+            }
         } else if (!strcmp(r, "ignore-environment")) {
             envlist_free(envlist);
             envlist = envlist_create();
         } else if (!strcmp(r, "U")) {
             r = argv[optind++];
-            if (envlist_unsetenv(envlist, r) != 0)
+            if (envlist_unsetenv(envlist, r) != 0) {
                 usage();
+            }
         } else if (!strcmp(r, "s")) {
             r = argv[optind++];
             x86_stack_size = strtol(r, (char **)&r, 0);
-            if (x86_stack_size <= 0)
+            if (x86_stack_size <= 0) {
                 usage();
-            if (*r == 'M')
+            }
+            if (*r == 'M') {
                 x86_stack_size *= MiB;
-            else if (*r == 'k' || *r == 'K')
+            } else if (*r == 'k' || *r == 'K') {
                 x86_stack_size *= KiB;
+            }
         } else if (!strcmp(r, "L")) {
             interp_prefix = argv[optind++];
         } else if (!strcmp(r, "p")) {
@@ -809,11 +825,13 @@ int main(int argc, char **argv)
     if (!have_guest_base) {
         FILE *fp;
 
-        if ((fp = fopen("/proc/sys/vm/mmap_min_addr", "r")) != NULL) {
+        fp = fopen("/proc/sys/vm/mmap_min_addr", "r");
+        if (fp != NULL) {
             unsigned long tmp;
             if (fscanf(fp, "%lu", &tmp) == 1) {
                 mmap_min_addr = tmp;
-                qemu_log_mask(CPU_LOG_PAGE, "host mmap_min_addr=0x%lx\n", mmap_min_addr);
+                qemu_log_mask(CPU_LOG_PAGE, "host mmap_min_addr=0x%lx\n",
+                              mmap_min_addr);
             }
             fclose(fp);
         }
@@ -986,10 +1004,12 @@ int main(int argc, char **argv)
         env->pc = regs->pc;
         env->npc = regs->npc;
         env->y = regs->y;
-        for (i = 0; i < 8; i++)
+        for (i = 0; i < 8; i++) {
             env->gregs[i] = regs->u_regs[i];
-        for (i = 0; i < 8; i++)
+        }
+        for (i = 0; i < 8; i++) {
             env->regwptr[i] = regs->u_regs[i + 8];
+        }
     }
 #else
 #error unsupported target CPU
