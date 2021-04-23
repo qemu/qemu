@@ -20,11 +20,11 @@ abi_long memcpy_to_target(abi_ulong dest, const void *src,
     return 0;
 }
 
-static int count(char ** vec)
+static int count(char **vec)
 {
     int         i;
 
-    for(i = 0; *vec; i++) {
+    for (i = 0; *vec; i++) {
         vec++;
     }
 
@@ -37,15 +37,15 @@ static int prepare_binprm(struct linux_binprm *bprm)
     int mode;
     int retval;
 
-    if(fstat(bprm->fd, &st) < 0) {
+    if (fstat(bprm->fd, &st) < 0) {
         return(-errno);
     }
 
     mode = st.st_mode;
-    if(!S_ISREG(mode)) {        /* Must be regular file */
+    if (!S_ISREG(mode)) {        /* Must be regular file */
         return(-EACCES);
     }
-    if(!(mode & 0111)) {        /* Must have at least one execute bit set */
+    if (!(mode & 0111)) {        /* Must have at least one execute bit set */
         return(-EACCES);
     }
 
@@ -53,7 +53,7 @@ static int prepare_binprm(struct linux_binprm *bprm)
     bprm->e_gid = getegid();
 
     /* Set-uid? */
-    if(mode & S_ISUID) {
+    if (mode & S_ISUID) {
         bprm->e_uid = st.st_uid;
     }
 
@@ -69,10 +69,10 @@ static int prepare_binprm(struct linux_binprm *bprm)
 
     memset(bprm->buf, 0, sizeof(bprm->buf));
     retval = lseek(bprm->fd, 0L, SEEK_SET);
-    if(retval >= 0) {
+    if (retval >= 0) {
         retval = read(bprm->fd, bprm->buf, 128);
     }
-    if(retval < 0) {
+    if (retval < 0) {
         perror("prepare_binprm");
         exit(-1);
         /* return(-errno); */
@@ -125,15 +125,15 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
     return sp;
 }
 
-int loader_exec(const char * filename, char ** argv, char ** envp,
-             struct target_pt_regs * regs, struct image_info *infop)
+int loader_exec(const char *filename, char **argv, char **envp,
+             struct target_pt_regs *regs, struct image_info *infop)
 {
     struct linux_binprm bprm;
     int retval;
     int i;
 
-    bprm.p = TARGET_PAGE_SIZE*MAX_ARG_PAGES-sizeof(unsigned int);
-    for (i=0 ; i<MAX_ARG_PAGES ; i++)       /* clear page-table */
+    bprm.p = TARGET_PAGE_SIZE * MAX_ARG_PAGES - sizeof(unsigned int);
+    for (i = 0 ; i < MAX_ARG_PAGES ; i++)       /* clear page-table */
             bprm.page[i] = NULL;
     retval = open(filename, O_RDONLY);
     if (retval < 0)
@@ -147,26 +147,26 @@ int loader_exec(const char * filename, char ** argv, char ** envp,
 
     retval = prepare_binprm(&bprm);
 
-    if(retval>=0) {
+    if (retval >= 0) {
         if (bprm.buf[0] == 0x7f
                 && bprm.buf[1] == 'E'
                 && bprm.buf[2] == 'L'
                 && bprm.buf[3] == 'F') {
-            retval = load_elf_binary(&bprm,regs,infop);
+            retval = load_elf_binary(&bprm, regs, infop);
         } else {
             fprintf(stderr, "Unknown binary format\n");
             return -1;
         }
     }
 
-    if(retval>=0) {
+    if (retval >= 0) {
         /* success.  Initialize important registers */
         do_init_thread(regs, infop);
         return retval;
     }
 
     /* Something went wrong, return the inode and free the argument pages*/
-    for (i=0 ; i<MAX_ARG_PAGES ; i++) {
+    for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
         g_free(bprm.page[i]);
     }
     return(retval);
