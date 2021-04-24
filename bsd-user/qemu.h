@@ -124,19 +124,19 @@ struct linux_binprm {
         int argc, envc;
         char **argv;
         char **envp;
-        char * filename;        /* Name of binary */
+        char *filename;         /* Name of binary */
 };
 
 void do_init_thread(struct target_pt_regs *regs, struct image_info *infop);
 abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
                               abi_ulong stringp, int push_ptr);
-int loader_exec(const char * filename, char ** argv, char ** envp,
-             struct target_pt_regs * regs, struct image_info *infop);
+int loader_exec(const char *filename, char **argv, char **envp,
+             struct target_pt_regs *regs, struct image_info *infop);
 
-int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
-                    struct image_info * info);
-int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
-                    struct image_info * info);
+int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
+                    struct image_info *info);
+int load_flt_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
+                    struct image_info *info);
 
 abi_long memcpy_to_target(abi_ulong dest, const void *src,
                           unsigned long len);
@@ -246,7 +246,7 @@ static inline bool access_ok(int type, abi_ulong addr, abi_ulong size)
         break;\
     default:\
         abort();\
-    }\
+    } \
     0;\
 })
 
@@ -270,7 +270,7 @@ static inline bool access_ok(int type, abi_ulong addr, abi_ulong size)
         /* avoid warning */\
         x = 0;\
         abort();\
-    }\
+    } \
     0;\
 })
 
