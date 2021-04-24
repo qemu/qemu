@@ -358,16 +358,18 @@ abi_long copy_to_user(abi_ulong gaddr, void *hptr, size_t len);
 static inline void *lock_user(int type, abi_ulong guest_addr, long len,
                               int copy)
 {
-    if (!access_ok(type, guest_addr, len))
+    if (!access_ok(type, guest_addr, len)) {
         return NULL;
+    }
 #ifdef DEBUG_REMAP
     {
         void *addr;
         addr = g_malloc(len);
-        if (copy)
+        if (copy) {
             memcpy(addr, g2h_untagged(guest_addr), len);
-        else
+        } else {
             memset(addr, 0, len);
+        }
         return addr;
     }
 #else
@@ -384,12 +386,15 @@ static inline void unlock_user(void *host_ptr, abi_ulong guest_addr,
 {
 
 #ifdef DEBUG_REMAP
-    if (!host_ptr)
+    if (!host_ptr) {
         return;
-    if (host_ptr == g2h_untagged(guest_addr))
+    }
+    if (host_ptr == g2h_untagged(guest_addr)) {
         return;
-    if (len > 0)
+    }
+    if (len > 0) {
         memcpy(g2h_untagged(guest_addr), host_ptr, len);
+    }
     g_free(host_ptr);
 #endif
 }
@@ -405,8 +410,9 @@ static inline void *lock_user_string(abi_ulong guest_addr)
 {
     abi_long len;
     len = target_strlen(guest_addr);
-    if (len < 0)
+    if (len < 0) {
         return NULL;
+    }
     return lock_user(VERIFY_READ, guest_addr, (long)(len + 1), 1);
 }
 
