@@ -142,6 +142,7 @@ config PXA2XX
     select SD
     select SSI
     select USB_OHCI
+    select PCMCIA
 
 config GUMSTIX
     bool
