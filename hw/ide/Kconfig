@@ -41,6 +41,7 @@ config IDE_VIA
 config MICRODRIVE
     bool
     select IDE_QDEV
+    depends on PCMCIA
 
 config AHCI
     bool
