@@ -199,6 +199,7 @@ static int sysctl_oldcvt(void *holdp, size_t holdlen, uint32_t kind)
 #else
     case CTLTYPE_LONG:
         *(uint64_t *)holdp = tswap64(*(long *)holdp);
+        break;
     case CTLTYPE_ULONG:
         *(uint64_t *)holdp = tswap64(*(unsigned long *)holdp);
         break;
