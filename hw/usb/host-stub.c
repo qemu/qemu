@@ -31,7 +31,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "ui/console.h"
 #include "hw/usb.h"
 #include "monitor/monitor.h"
 
