@@ -1,17 +1,14 @@
 hw_usb_modules = {}
 
 # usb subsystem core
-softmmu_ss.add(files(
+softmmu_ss.add(when: 'CONFIG_USB', if_true: files(
   'bus.c',
   'combined-packet.c',
   'core.c',
-  'pcap.c',
-  'libhw.c'
-))
-
-softmmu_ss.add(when: 'CONFIG_USB', if_true: files(
   'desc.c',
   'desc-msos.c',
+  'libhw.c',
+  'pcap.c',
 ))
 
 # usb host adapters

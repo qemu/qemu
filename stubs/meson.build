@@ -50,6 +50,7 @@ if have_block
 endif
 if have_system
   stub_ss.add(files('semihost.c'))
+  stub_ss.add(files('usb-dev-stub.c'))
   stub_ss.add(files('xen-hw-stub.c'))
 else
   stub_ss.add(files('qdev.c'))
