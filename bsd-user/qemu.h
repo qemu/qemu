@@ -288,7 +288,8 @@ static inline bool access_ok(int type, abi_ulong addr, abi_ulong size)
     abi_ulong __gaddr = (gaddr);                                        \
     target_type *__hptr;                                                \
     abi_long __ret;                                                     \
-    if ((__hptr = lock_user(VERIFY_WRITE, __gaddr, sizeof(target_type), 0))) { \
+    __hptr = lock_user(VERIFY_WRITE, __gaddr, sizeof(target_type), 0);  \
+    if (__hptr) {                                                       \
         __ret = __put_user((x), __hptr);                                \
         unlock_user(__hptr, __gaddr, sizeof(target_type));              \
     } else                                                              \
@@ -301,7 +302,8 @@ static inline bool access_ok(int type, abi_ulong addr, abi_ulong size)
     abi_ulong __gaddr = (gaddr);                                        \
     target_type *__hptr;                                                \
     abi_long __ret;                                                     \
-    if ((__hptr = lock_user(VERIFY_READ, __gaddr, sizeof(target_type), 1))) { \
+    __hptr = lock_user(VERIFY_READ, __gaddr, sizeof(target_type), 1);   \
+    if (__hptr) {                                                       \
         __ret = __get_user((x), __hptr);                                \
         unlock_user(__hptr, __gaddr, 0);                                \
     } else {                                                            \
