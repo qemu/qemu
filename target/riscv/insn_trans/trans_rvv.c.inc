@@ -705,7 +705,6 @@ static bool amo_op(DisasContext *s, arg_rwdvm *a, uint8_t seq)
         gen_helper_vamominuw_v_w,
         gen_helper_vamomaxuw_v_w
     };
-#ifdef TARGET_RISCV64
     static gen_helper_amo *const fnsd[18] = {
         gen_helper_vamoswapw_v_d,
         gen_helper_vamoaddw_v_d,
@@ -726,7 +725,6 @@ static bool amo_op(DisasContext *s, arg_rwdvm *a, uint8_t seq)
         gen_helper_vamominud_v_d,
         gen_helper_vamomaxud_v_d
     };
-#endif
 
     if (tb_cflags(s->base.tb) & CF_PARALLEL) {
         gen_helper_exit_atomic(cpu_env);
@@ -734,12 +732,12 @@ static bool amo_op(DisasContext *s, arg_rwdvm *a, uint8_t seq)
         return true;
     } else {
         if (s->sew == 3) {
-#ifdef TARGET_RISCV64
-            fn = fnsd[seq];
-#else
-            /* Check done in amo_check(). */
-            g_assert_not_reached();
-#endif
+            if (!is_32bit(s)) {
+                fn = fnsd[seq];
+            } else {
+                /* Check done in amo_check(). */
+                g_assert_not_reached();
+            }
         } else {
             assert(seq < ARRAY_SIZE(fnsw));
             fn = fnsw[seq];
@@ -769,6 +767,11 @@ static bool amo_check(DisasContext *s, arg_rwdvm* a)
             ((1 << s->sew) >= 4));
 }
 
+static bool amo_check64(DisasContext *s, arg_rwdvm* a)
+{
+    return !is_32bit(s) && amo_check(s, a);
+}
+
 GEN_VEXT_TRANS(vamoswapw_v, 0, rwdvm, amo_op, amo_check)
 GEN_VEXT_TRANS(vamoaddw_v, 1, rwdvm, amo_op, amo_check)
 GEN_VEXT_TRANS(vamoxorw_v, 2, rwdvm, amo_op, amo_check)
@@ -778,17 +781,15 @@ GEN_VEXT_TRANS(vamominw_v, 5, rwdvm, amo_op, amo_check)
 GEN_VEXT_TRANS(vamomaxw_v, 6, rwdvm, amo_op, amo_check)
 GEN_VEXT_TRANS(vamominuw_v, 7, rwdvm, amo_op, amo_check)
 GEN_VEXT_TRANS(vamomaxuw_v, 8, rwdvm, amo_op, amo_check)
-#ifdef TARGET_RISCV64
-GEN_VEXT_TRANS(vamoswapd_v, 9, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoaddd_v, 10, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoxord_v, 11, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoandd_v, 12, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoord_v, 13, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamomind_v, 14, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamomaxd_v, 15, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamominud_v, 16, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamomaxud_v, 17, rwdvm, amo_op, amo_check)
-#endif
+GEN_VEXT_TRANS(vamoswapd_v, 9, rwdvm, amo_op, amo_check64)
+GEN_VEXT_TRANS(vamoaddd_v, 10, rwdvm, amo_op, amo_check64)
+GEN_VEXT_TRANS(vamoxord_v, 11, rwdvm, amo_op, amo_check64)
+GEN_VEXT_TRANS(vamoandd_v, 12, rwdvm, amo_op, amo_check64)
+GEN_VEXT_TRANS(vamoord_v, 13, rwdvm, amo_op, amo_check64)
+GEN_VEXT_TRANS(vamomind_v, 14, rwdvm, amo_op, amo_check64)
+GEN_VEXT_TRANS(vamomaxd_v, 15, rwdvm, amo_op, amo_check64)
+GEN_VEXT_TRANS(vamominud_v, 16, rwdvm, amo_op, amo_check64)
+GEN_VEXT_TRANS(vamomaxud_v, 17, rwdvm, amo_op, amo_check64)
 
 /*
  *** Vector Integer Arithmetic Instructions
