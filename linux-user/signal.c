@@ -800,21 +800,18 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
 
 /* do_sigaltstack() returns target values and errnos. */
 /* compare linux/kernel/signal.c:do_sigaltstack() */
-abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
+abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr,
+                        CPUArchState *env)
 {
     target_stack_t oss, *uoss = NULL;
     abi_long ret = -TARGET_EFAULT;
 
     if (uoss_addr) {
-        TaskState *ts = (TaskState *)thread_cpu->opaque;
-
         /* Verify writability now, but do not alter user memory yet. */
         if (!lock_user_struct(VERIFY_WRITE, uoss, uoss_addr, 0)) {
             goto out;
         }
-        __put_user(ts->sigaltstack_used.ss_sp, &oss.ss_sp);
-        __put_user(ts->sigaltstack_used.ss_size, &oss.ss_size);
-        __put_user(sas_ss_flags(sp), &oss.ss_flags);
+        target_save_altstack(&oss, env);
     }
 
     if (uss_addr) {
@@ -823,7 +820,7 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
         if (!lock_user_struct(VERIFY_READ, uss, uss_addr, 1)) {
             goto out;
         }
-        ret = target_restore_altstack(uss, sp);
+        ret = target_restore_altstack(uss, get_sp_from_cpustate(env));
         if (ret) {
             goto out;
         }
