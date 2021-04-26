@@ -192,14 +192,13 @@ void setup_frame(int sig, struct target_sigaction *ka,
     size_t sf_size = sizeof(*sf) + sizeof(struct target_siginfo_fpu);
     int i;
 
-    /* 1. Make sure everything is clean */
-
     sf_addr = get_sigframe(ka, env, sf_size);
     trace_user_setup_frame(env, sf_addr);
 
     sf = lock_user(VERIFY_WRITE, sf_addr, sf_size, 0);
     if (!sf) {
-        goto sigsegv;
+        force_sigsegv(sig);
+        return;
     }
 
     /* 2. Save the current process state */
@@ -228,33 +227,21 @@ void setup_frame(int sig, struct target_sigaction *ka,
 
     /* 4. signal handler */
     env->pc = ka->_sa_handler;
-    env->npc = (env->pc + 4);
+    env->npc = env->pc + 4;
+
     /* 5. return to kernel instructions */
     if (ka->ka_restorer) {
         env->regwptr[WREG_O7] = ka->ka_restorer;
     } else {
-        uint32_t val32;
-
         env->regwptr[WREG_O7] = sf_addr +
                 offsetof(struct target_signal_frame, insns) - 2 * 4;
 
         /* mov __NR_sigreturn, %g1 */
-        val32 = 0x821020d8;
-        __put_user(val32, &sf->insns[0]);
-
+        __put_user(0x821020d8u, &sf->insns[0]);
         /* t 0x10 */
-        val32 = 0x91d02010;
-        __put_user(val32, &sf->insns[1]);
+        __put_user(0x91d02010u, &sf->insns[1]);
     }
     unlock_user(sf, sf_addr, sf_size);
-    return;
-#if 0
-sigill_and_return:
-    force_sig(TARGET_SIGILL);
-#endif
-sigsegv:
-    unlock_user(sf, sf_addr, sizeof(struct target_signal_frame));
-    force_sigsegv(sig);
 }
 
 void setup_rt_frame(int sig, struct target_sigaction *ka,
