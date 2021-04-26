@@ -215,4 +215,9 @@ void helper_compute_fprf_float128(CPUPPCState *env, float128 arg);
 void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                  MMUAccessType access_type,
                                  int mmu_idx, uintptr_t retaddr);
+
+/* gdbstub.c */
+void ppc_gdb_init(CPUState *cs, PowerPCCPUClass *ppc);
+gchar *ppc_gdb_arch_name(CPUState *cs);
+
 #endif /* PPC_INTERNAL_H */
