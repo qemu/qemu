@@ -21,34 +21,6 @@
 #include "signal-common.h"
 #include "linux-user/trace.h"
 
-#define __SUNOS_MAXWIN   31
-
-/* This is what SunOS does, so shall I. */
-struct target_sigcontext {
-    abi_ulong sigc_onstack;      /* state to restore */
-
-    abi_ulong sigc_mask;         /* sigmask to restore */
-    abi_ulong sigc_sp;           /* stack pointer */
-    abi_ulong sigc_pc;           /* program counter */
-    abi_ulong sigc_npc;          /* next program counter */
-    abi_ulong sigc_psr;          /* for condition codes etc */
-    abi_ulong sigc_g1;           /* User uses these two registers */
-    abi_ulong sigc_o0;           /* within the trampoline code. */
-
-    /* Now comes information regarding the users window set
-         * at the time of the signal.
-         */
-    abi_ulong sigc_oswins;       /* outstanding windows */
-
-    /* stack ptrs for each regwin buf */
-    char *sigc_spbuf[__SUNOS_MAXWIN];
-
-    /* Windows to restore after signal */
-    struct {
-        abi_ulong locals[8];
-        abi_ulong ins[8];
-    } sigc_wbuf[__SUNOS_MAXWIN];
-};
 /* A Sparc stack frame */
 struct sparc_stackf {
     abi_ulong locals[8];
