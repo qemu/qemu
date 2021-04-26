@@ -1,11 +1,6 @@
 # -*- Mode: makefile -*-
 #
-# sparc specific tweaks and masking out broken tests
-
-# different from the other hangs:
-# tests/tcg/multiarch/linux-test.c:264: Value too large for defined data type (ret=-1, errno=92/Value too large for defined data type)
-run-linux-test: linux-test
-	$(call skip-test, $<, "BROKEN")
+# sparc specific tweaks
 
 # On Sparc64 Linux support 8k pages
 EXTRA_RUNS+=run-test-mmap-8192
