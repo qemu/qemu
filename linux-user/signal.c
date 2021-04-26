@@ -297,6 +297,50 @@ void target_save_altstack(target_stack_t *uss, CPUArchState *env)
     __put_user(ts->sigaltstack_used.ss_size, &uss->ss_size);
 }
 
+abi_long target_restore_altstack(target_stack_t *uss, abi_ulong sp)
+{
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    size_t minstacksize = TARGET_MINSIGSTKSZ;
+    target_stack_t ss;
+
+#if defined(TARGET_PPC64)
+    /* ELF V2 for PPC64 has a 4K minimum stack size for signal handlers */
+    struct image_info *image = ts->info;
+    if (get_ppc64_abi(image) > 1) {
+        minstacksize = 4096;
+    }
+#endif
+
+    __get_user(ss.ss_sp, &uss->ss_sp);
+    __get_user(ss.ss_size, &uss->ss_size);
+    __get_user(ss.ss_flags, &uss->ss_flags);
+
+    if (on_sig_stack(sp)) {
+        return -TARGET_EPERM;
+    }
+
+    switch (ss.ss_flags) {
+    default:
+        return -TARGET_EINVAL;
+
+    case TARGET_SS_DISABLE:
+        ss.ss_size = 0;
+        ss.ss_sp = 0;
+        break;
+
+    case TARGET_SS_ONSTACK:
+    case 0:
+        if (ss.ss_size < minstacksize) {
+            return -TARGET_ENOMEM;
+        }
+        break;
+    }
+
+    ts->sigaltstack_used.ss_sp = ss.ss_sp;
+    ts->sigaltstack_used.ss_size = ss.ss_size;
+    return 0;
+}
+
 /* siginfo conversion */
 
 static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
@@ -758,73 +802,44 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
 /* compare linux/kernel/signal.c:do_sigaltstack() */
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
 {
-    int ret;
-    struct target_sigaltstack oss;
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    target_stack_t oss, *uoss = NULL;
+    abi_long ret = -TARGET_EFAULT;
 
-    /* XXX: test errors */
-    if(uoss_addr)
-    {
+    if (uoss_addr) {
+        TaskState *ts = (TaskState *)thread_cpu->opaque;
+
+        /* Verify writability now, but do not alter user memory yet. */
+        if (!lock_user_struct(VERIFY_WRITE, uoss, uoss_addr, 0)) {
+            goto out;
+        }
         __put_user(ts->sigaltstack_used.ss_sp, &oss.ss_sp);
         __put_user(ts->sigaltstack_used.ss_size, &oss.ss_size);
         __put_user(sas_ss_flags(sp), &oss.ss_flags);
     }
 
-    if(uss_addr)
-    {
-        struct target_sigaltstack *uss;
-        struct target_sigaltstack ss;
-        size_t minstacksize = TARGET_MINSIGSTKSZ;
+    if (uss_addr) {
+        target_stack_t *uss;
 
-#if defined(TARGET_PPC64)
-        /* ELF V2 for PPC64 has a 4K minimum stack size for signal handlers */
-        struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
-        if (get_ppc64_abi(image) > 1) {
-            minstacksize = 4096;
-        }
-#endif
-
-        ret = -TARGET_EFAULT;
         if (!lock_user_struct(VERIFY_READ, uss, uss_addr, 1)) {
             goto out;
         }
-        __get_user(ss.ss_sp, &uss->ss_sp);
-        __get_user(ss.ss_size, &uss->ss_size);
-        __get_user(ss.ss_flags, &uss->ss_flags);
-        unlock_user_struct(uss, uss_addr, 0);
-
-        ret = -TARGET_EPERM;
-        if (on_sig_stack(sp))
+        ret = target_restore_altstack(uss, sp);
+        if (ret) {
             goto out;
-
-        ret = -TARGET_EINVAL;
-        if (ss.ss_flags != TARGET_SS_DISABLE
-            && ss.ss_flags != TARGET_SS_ONSTACK
-            && ss.ss_flags != 0)
-            goto out;
-
-        if (ss.ss_flags == TARGET_SS_DISABLE) {
-            ss.ss_size = 0;
-            ss.ss_sp = 0;
-        } else {
-            ret = -TARGET_ENOMEM;
-            if (ss.ss_size < minstacksize) {
-                goto out;
-            }
         }
-
-        ts->sigaltstack_used.ss_sp = ss.ss_sp;
-        ts->sigaltstack_used.ss_size = ss.ss_size;
     }
 
     if (uoss_addr) {
-        ret = -TARGET_EFAULT;
-        if (copy_to_user(uoss_addr, &oss, sizeof(oss)))
-            goto out;
+        memcpy(uoss, &oss, sizeof(oss));
+        unlock_user_struct(uoss, uoss_addr, 1);
+        uoss = NULL;
     }
-
     ret = 0;
-out:
+
+ out:
+    if (uoss) {
+        unlock_user_struct(uoss, uoss_addr, 0);
+    }
     return ret;
 }
 
