@@ -21,16 +21,26 @@
 #include "signal-common.h"
 #include "linux-user/trace.h"
 
-/* A Sparc stack frame */
-struct sparc_stackf {
+/* A Sparc register window */
+struct target_reg_window {
     abi_ulong locals[8];
     abi_ulong ins[8];
-    /* It's simpler to treat fp and callers_pc as elements of ins[]
-         * since we never need to access them ourselves.
-         */
-    char *structptr;
-    abi_ulong xargs[6];
-    abi_ulong xxargs[1];
+};
+
+/* A Sparc stack frame. */
+struct target_stackf {
+    /*
+     * Since qemu does not reference fp or callers_pc directly,
+     * it's simpler to treat fp and callers_pc as elements of ins[],
+     * and then bundle locals[] and ins[] into reg_window.
+     */
+    struct target_reg_window win;
+    /*
+     * Similarly, bundle structptr and xxargs into xargs[].
+     * This portion of the struct is part of the function call abi,
+     * and belongs to the callee for spilling argument registers.
+     */
+    abi_ulong xargs[8];
 };
 
 typedef struct {
@@ -56,7 +66,7 @@ typedef struct {
 
 
 struct target_signal_frame {
-    struct sparc_stackf ss;
+    struct target_stackf ss;
     __siginfo_t         info;
     abi_ulong           fpu_save;
     uint32_t            insns[2] QEMU_ALIGNED(8);
@@ -150,10 +160,10 @@ void setup_frame(int sig, struct target_sigaction *ka,
     }
 
     for (i = 0; i < 8; i++) {
-        __put_user(env->regwptr[i + WREG_L0], &sf->ss.locals[i]);
+        __put_user(env->regwptr[i + WREG_L0], &sf->ss.win.locals[i]);
     }
     for (i = 0; i < 8; i++) {
-        __put_user(env->regwptr[i + WREG_I0], &sf->ss.ins[i]);
+        __put_user(env->regwptr[i + WREG_I0], &sf->ss.win.ins[i]);
     }
     if (err)
         goto sigsegv;
@@ -347,12 +357,6 @@ struct target_ucontext {
     abi_ulong tuc_flags;
     target_sigset_t tuc_sigmask;
     target_mcontext_t tuc_mcontext;
-};
-
-/* A V9 register window */
-struct target_reg_window {
-    abi_ulong locals[8];
-    abi_ulong ins[8];
 };
 
 /* {set, get}context() needed for 64-bit SparcLinux userland. */
