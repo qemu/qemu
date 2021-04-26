@@ -254,7 +254,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 long do_sigreturn(CPUSPARCState *env)
 {
     abi_ulong sf_addr;
-    struct target_signal_frame *sf;
+    struct target_signal_frame *sf = NULL;
     abi_ulong pc, npc, ptr;
     target_sigset_t set;
     sigset_t host_set;
@@ -262,18 +262,21 @@ long do_sigreturn(CPUSPARCState *env)
 
     sf_addr = env->regwptr[WREG_SP];
     trace_user_do_sigreturn(env, sf_addr);
-    if (!lock_user_struct(VERIFY_READ, sf, sf_addr, 1)) {
+
+    /* 1. Make sure we are not getting garbage from the user */
+    if ((sf_addr & 15) || !lock_user_struct(VERIFY_READ, sf, sf_addr, 1)) {
         goto segv_and_exit;
     }
 
-    /* 1. Make sure we are not getting garbage from the user */
-
-    if (sf_addr & 3)
+    /* Make sure stack pointer is aligned.  */
+    __get_user(ptr, &sf->regs.u_regs[14]);
+    if (ptr & 7) {
         goto segv_and_exit;
+    }
 
-    __get_user(pc,  &sf->regs.pc);
+    /* Make sure instruction pointers are aligned.  */
+    __get_user(pc, &sf->regs.pc);
     __get_user(npc, &sf->regs.npc);
-
     if ((pc | npc) & 3) {
         goto segv_and_exit;
     }
@@ -309,7 +312,7 @@ long do_sigreturn(CPUSPARCState *env)
     unlock_user_struct(sf, sf_addr, 0);
     return -TARGET_QEMU_ESIGRETURN;
 
-segv_and_exit:
+ segv_and_exit:
     unlock_user_struct(sf, sf_addr, 0);
     force_sig(TARGET_SIGSEGV);
     return -TARGET_QEMU_ESIGRETURN;
