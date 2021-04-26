@@ -26,13 +26,10 @@ struct target_ipc_perm {
     abi_uint cuid;                      /* Creator's user ID.  */
     abi_uint cgid;                      /* Creator's group ID.  */
 #if TARGET_ABI_BITS == 32
-    abi_ushort __pad1;
-    abi_ushort mode;                    /* Read/write permission.  */
-    abi_ushort __pad2;
-#else
-    abi_ushort mode;
-    abi_ushort __pad1;
+    abi_ushort __pad0;
 #endif
+    abi_ushort mode;                    /* Read/write permission.  */
+    abi_ushort __pad1;
     abi_ushort __seq;                   /* Sequence number.  */
     uint64_t __unused1;
     uint64_t __unused2;
@@ -40,22 +37,17 @@ struct target_ipc_perm {
 
 struct target_shmid_ds {
     struct target_ipc_perm shm_perm;    /* operation permission struct */
-#if TARGET_ABI_BITS == 32
-    abi_uint __pad1;
-#endif
-    abi_ulong shm_atime;                /* time of last shmat() */
-#if TARGET_ABI_BITS == 32
-    abi_uint __pad2;
-#endif
-    abi_ulong shm_dtime;                /* time of last shmdt() */
-#if TARGET_ABI_BITS == 32
-    abi_uint __pad3;
-#endif
-    abi_ulong shm_ctime;                /* time of last change by shmctl() */
-    abi_long shm_segsz;                 /* size of segment in bytes */
-    abi_ulong shm_cpid;                 /* pid of creator */
-    abi_ulong shm_lpid;                 /* pid of last shmop */
-    abi_long shm_nattch;                /* number of current attaches */
+    /*
+     * Note that sparc32 splits these into hi/lo parts.
+     * For simplicity in qemu, always use a 64-bit type.
+     */
+    int64_t  shm_atime;                 /* last attach time */
+    int64_t  shm_dtime;                 /* last detach time */
+    int64_t  shm_ctime;                 /* last change time */
+    abi_ulong shm_segsz;                /* size of segment in bytes */
+    abi_int shm_cpid;                   /* pid of creator */
+    abi_int shm_lpid;                   /* pid of last shmop */
+    abi_ulong shm_nattch;               /* number of current attaches */
     abi_ulong __unused1;
     abi_ulong __unused2;
 };
