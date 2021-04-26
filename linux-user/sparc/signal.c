@@ -61,6 +61,7 @@ struct target_siginfo_fpu {
 #endif
 };
 
+#ifdef TARGET_ARCH_HAS_SETUP_FRAME
 struct target_signal_frame {
     struct target_stackf ss;
     struct target_pt_regs regs;
@@ -71,16 +72,23 @@ struct target_signal_frame {
     abi_ulong extra_size; /* Should be 0 */
     abi_ulong rwin_save;
 };
+#endif
 
 struct target_rt_signal_frame {
     struct target_stackf ss;
     target_siginfo_t info;
     struct target_pt_regs regs;
+#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
+    abi_ulong fpu_save;
+    target_stack_t stack;
+    target_sigset_t mask;
+#else
     target_sigset_t mask;
     abi_ulong fpu_save;
     uint32_t insns[2];
     target_stack_t stack;
     abi_ulong extra_size; /* Should be 0 */
+#endif
     abi_ulong rwin_save;
 };
 
@@ -232,6 +240,7 @@ static void restore_fpu(struct target_siginfo_fpu *fpu, CPUSPARCState *env)
 #endif
 }
 
+#ifdef TARGET_ARCH_HAS_SETUP_FRAME
 void setup_frame(int sig, struct target_sigaction *ka,
                  target_sigset_t *set, CPUSPARCState *env)
 {
@@ -291,6 +300,7 @@ void setup_frame(int sig, struct target_sigaction *ka,
     }
     unlock_user(sf, sf_addr, sf_size);
 }
+#endif /* TARGET_ARCH_HAS_SETUP_FRAME */
 
 void setup_rt_frame(int sig, struct target_sigaction *ka,
                     target_siginfo_t *info,
@@ -322,21 +332,28 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     tswap_sigset(&sf->mask, set);
     target_save_altstack(&sf->stack, env);
 
+#ifdef TARGET_ABI32
     __put_user(0, &sf->extra_size);
+#endif
 
     /* 3. signal handler back-trampoline and parameters */
-    env->regwptr[WREG_SP] = sf_addr;
+    env->regwptr[WREG_SP] = sf_addr - TARGET_STACK_BIAS;
     env->regwptr[WREG_O0] = sig;
     env->regwptr[WREG_O1] =
         sf_addr + offsetof(struct target_rt_signal_frame, info);
+#ifdef TARGET_ABI32
     env->regwptr[WREG_O2] =
         sf_addr + offsetof(struct target_rt_signal_frame, regs);
+#else
+    env->regwptr[WREG_O2] = env->regwptr[WREG_O1];
+#endif
 
     /* 4. signal handler */
     env->pc = ka->_sa_handler;
     env->npc = env->pc + 4;
 
     /* 5. return to kernel instructions */
+#ifdef TARGET_ABI32
     if (ka->ka_restorer) {
         env->regwptr[WREG_O7] = ka->ka_restorer;
     } else {
@@ -348,11 +365,16 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
         /* t 0x10 */
         __put_user(0x91d02010u, &sf->insns[1]);
     }
+#else
+    env->regwptr[WREG_O7] = ka->ka_restorer;
+#endif
+
     unlock_user(sf, sf_addr, sf_size);
 }
 
 long do_sigreturn(CPUSPARCState *env)
 {
+#ifdef TARGET_ARCH_HAS_SETUP_FRAME
     abi_ulong sf_addr;
     struct target_signal_frame *sf = NULL;
     abi_ulong pc, npc, ptr;
@@ -416,6 +438,9 @@ long do_sigreturn(CPUSPARCState *env)
     unlock_user_struct(sf, sf_addr, 0);
     force_sig(TARGET_SIGSEGV);
     return -TARGET_QEMU_ESIGRETURN;
+#else
+    return -TARGET_ENOSYS;
+#endif
 }
 
 long do_rt_sigreturn(CPUSPARCState *env)
