@@ -150,6 +150,18 @@ static void restore_pt_regs(struct target_pt_regs *regs, CPUSPARCState *env)
     }
 }
 
+static void save_reg_win(struct target_reg_window *win, CPUSPARCState *env)
+{
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        __put_user(env->regwptr[i + WREG_L0], &win->locals[i]);
+    }
+    for (i = 0; i < 8; i++) {
+        __put_user(env->regwptr[i + WREG_I0], &win->ins[i]);
+    }
+}
+
 #define NF_ALIGNEDSZ  (((sizeof(struct target_signal_frame) + 7) & (~7)))
 
 void setup_frame(int sig, struct target_sigaction *ka,
@@ -183,12 +195,7 @@ void setup_frame(int sig, struct target_sigaction *ka,
         __put_user(set->sig[i + 1], &sf->extramask[i]);
     }
 
-    for (i = 0; i < 8; i++) {
-        __put_user(env->regwptr[i + WREG_L0], &sf->ss.win.locals[i]);
-    }
-    for (i = 0; i < 8; i++) {
-        __put_user(env->regwptr[i + WREG_I0], &sf->ss.win.ins[i]);
-    }
+    save_reg_win(&sf->ss.win, env);
 
     /* 3. signal handler back-trampoline and parameters */
     env->regwptr[WREG_SP] = sf_addr;
