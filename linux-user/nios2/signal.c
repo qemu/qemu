@@ -128,7 +128,7 @@ static int rt_restore_ucontext(CPUNios2State *env, struct target_ucontext *uc,
     __get_user(env->regs[R_RA], &gregs[23]);
     __get_user(env->regs[R_SP], &gregs[28]);
 
-    target_restore_altstack(&uc->tuc_stack, get_sp_from_cpustate(env));
+    target_restore_altstack(&uc->tuc_stack, env);
 
     *pr2 = env->regs[2];
     return 0;

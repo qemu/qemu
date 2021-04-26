@@ -323,7 +323,7 @@ long do_rt_sigreturn(CPUSH4State *regs)
     set_sigmask(&blocked);
 
     restore_sigcontext(regs, &frame->uc.tuc_mcontext);
-    target_restore_altstack(&frame->uc.tuc_stack, get_sp_from_cpustate(regs));
+    target_restore_altstack(&frame->uc.tuc_stack, regs);
 
     unlock_user_struct(frame, frame_addr, 0);
     return -TARGET_QEMU_ESIGRETURN;

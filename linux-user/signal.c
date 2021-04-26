@@ -297,7 +297,7 @@ void target_save_altstack(target_stack_t *uss, CPUArchState *env)
     __put_user(ts->sigaltstack_used.ss_size, &uss->ss_size);
 }
 
-abi_long target_restore_altstack(target_stack_t *uss, abi_ulong sp)
+abi_long target_restore_altstack(target_stack_t *uss, CPUArchState *env)
 {
     TaskState *ts = (TaskState *)thread_cpu->opaque;
     size_t minstacksize = TARGET_MINSIGSTKSZ;
@@ -315,7 +315,7 @@ abi_long target_restore_altstack(target_stack_t *uss, abi_ulong sp)
     __get_user(ss.ss_size, &uss->ss_size);
     __get_user(ss.ss_flags, &uss->ss_flags);
 
-    if (on_sig_stack(sp)) {
+    if (on_sig_stack(get_sp_from_cpustate(env))) {
         return -TARGET_EPERM;
     }
 
@@ -820,7 +820,7 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr,
         if (!lock_user_struct(VERIFY_READ, uss, uss_addr, 1)) {
             goto out;
         }
-        ret = target_restore_altstack(uss, get_sp_from_cpustate(env));
+        ret = target_restore_altstack(uss, env);
         if (ret) {
             goto out;
         }

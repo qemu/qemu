@@ -685,7 +685,7 @@ static int do_sigframe_return_v2(CPUARMState *env,
         }
     }
 
-    target_restore_altstack(&uc->tuc_stack, get_sp_from_cpustate(env));
+    target_restore_altstack(&uc->tuc_stack, env);
 
 #if 0
     /* Send SIGTRAP if we're single-stepping */
@@ -769,7 +769,7 @@ static long do_rt_sigreturn_v1(CPUARMState *env)
         goto badframe;
     }
 
-    target_restore_altstack(&frame->uc.tuc_stack, get_sp_from_cpustate(env));
+    target_restore_altstack(&frame->uc.tuc_stack, env);
 
 #if 0
     /* Send SIGTRAP if we're single-stepping */
