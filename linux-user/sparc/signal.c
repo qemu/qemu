@@ -72,6 +72,18 @@ struct target_signal_frame {
     abi_ulong rwin_save;
 };
 
+struct target_rt_signal_frame {
+    struct target_stackf ss;
+    target_siginfo_t info;
+    struct target_pt_regs regs;
+    target_sigset_t mask;
+    abi_ulong fpu_save;
+    uint32_t insns[2];
+    target_stack_t stack;
+    abi_ulong extra_size; /* Should be 0 */
+    abi_ulong rwin_save;
+};
+
 static abi_ulong get_sigframe(struct target_sigaction *sa,
                               CPUSPARCState *env,
                               size_t framesize)
@@ -284,7 +296,59 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
                     target_siginfo_t *info,
                     target_sigset_t *set, CPUSPARCState *env)
 {
-    qemu_log_mask(LOG_UNIMP, "setup_rt_frame: not implemented\n");
+    abi_ulong sf_addr;
+    struct target_rt_signal_frame *sf;
+    size_t sf_size = sizeof(*sf) + sizeof(struct target_siginfo_fpu);
+
+    sf_addr = get_sigframe(ka, env, sf_size);
+    trace_user_setup_rt_frame(env, sf_addr);
+
+    sf = lock_user(VERIFY_WRITE, sf_addr, sf_size, 0);
+    if (!sf) {
+        force_sigsegv(sig);
+        return;
+    }
+
+    /* 2. Save the current process state */
+    save_reg_win(&sf->ss.win, env);
+    save_pt_regs(&sf->regs, env);
+
+    save_fpu((struct target_siginfo_fpu *)(sf + 1), env);
+    __put_user(sf_addr + sizeof(*sf), &sf->fpu_save);
+
+    __put_user(0, &sf->rwin_save);  /* TODO: save_rwin_state */
+
+    tswap_siginfo(&sf->info, info);
+    tswap_sigset(&sf->mask, set);
+    target_save_altstack(&sf->stack, env);
+
+    __put_user(0, &sf->extra_size);
+
+    /* 3. signal handler back-trampoline and parameters */
+    env->regwptr[WREG_SP] = sf_addr;
+    env->regwptr[WREG_O0] = sig;
+    env->regwptr[WREG_O1] =
+        sf_addr + offsetof(struct target_rt_signal_frame, info);
+    env->regwptr[WREG_O2] =
+        sf_addr + offsetof(struct target_rt_signal_frame, regs);
+
+    /* 4. signal handler */
+    env->pc = ka->_sa_handler;
+    env->npc = env->pc + 4;
+
+    /* 5. return to kernel instructions */
+    if (ka->ka_restorer) {
+        env->regwptr[WREG_O7] = ka->ka_restorer;
+    } else {
+        env->regwptr[WREG_O7] =
+            sf_addr + offsetof(struct target_rt_signal_frame, insns) - 2 * 4;
+
+        /* mov __NR_rt_sigreturn, %g1 */
+        __put_user(0x82102065u, &sf->insns[0]);
+        /* t 0x10 */
+        __put_user(0x91d02010u, &sf->insns[1]);
+    }
+    unlock_user(sf, sf_addr, sf_size);
 }
 
 long do_sigreturn(CPUSPARCState *env)
@@ -356,9 +420,63 @@ long do_sigreturn(CPUSPARCState *env)
 
 long do_rt_sigreturn(CPUSPARCState *env)
 {
-    trace_user_do_rt_sigreturn(env, 0);
-    qemu_log_mask(LOG_UNIMP, "do_rt_sigreturn: not implemented\n");
-    return -TARGET_ENOSYS;
+    abi_ulong sf_addr, tpc, tnpc, ptr;
+    struct target_rt_signal_frame *sf = NULL;
+    sigset_t set;
+
+    sf_addr = get_sp_from_cpustate(env);
+    trace_user_do_rt_sigreturn(env, sf_addr);
+
+    /* 1. Make sure we are not getting garbage from the user */
+    if ((sf_addr & 15) || !lock_user_struct(VERIFY_READ, sf, sf_addr, 1)) {
+        goto segv_and_exit;
+    }
+
+    /* Validate SP alignment.  */
+    __get_user(ptr, &sf->regs.u_regs[8 + WREG_SP]);
+    if ((ptr + TARGET_STACK_BIAS) & 7) {
+        goto segv_and_exit;
+    }
+
+    /* Validate PC and NPC alignment.  */
+    __get_user(tpc, &sf->regs.pc);
+    __get_user(tnpc, &sf->regs.npc);
+    if ((tpc | tnpc) & 3) {
+        goto segv_and_exit;
+    }
+
+    /* 2. Restore the state */
+    restore_pt_regs(&sf->regs, env);
+
+    __get_user(ptr, &sf->fpu_save);
+    if (ptr) {
+        struct target_siginfo_fpu *fpu;
+        if ((ptr & 7) || !lock_user_struct(VERIFY_READ, fpu, ptr, 1)) {
+            goto segv_and_exit;
+        }
+        restore_fpu(fpu, env);
+        unlock_user_struct(fpu, ptr, 0);
+    }
+
+    __get_user(ptr, &sf->rwin_save);
+    if (ptr) {
+        goto segv_and_exit;  /* TODO: restore_rwin_state */
+    }
+
+    target_restore_altstack(&sf->stack, env);
+    target_to_host_sigset(&set, &sf->mask);
+    set_sigmask(&set);
+
+    env->pc = tpc;
+    env->npc = tnpc;
+
+    unlock_user_struct(sf, sf_addr, 0);
+    return -TARGET_QEMU_ESIGRETURN;
+
+ segv_and_exit:
+    unlock_user_struct(sf, sf_addr, 0);
+    force_sig(TARGET_SIGSEGV);
+    return -TARGET_QEMU_ESIGRETURN;
 }
 
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
