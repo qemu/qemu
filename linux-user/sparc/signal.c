@@ -65,24 +65,25 @@ struct target_signal_frame {
     qemu_siginfo_fpu_t fpu_state;
 };
 
-static inline abi_ulong get_sigframe(struct target_sigaction *sa, 
-                                     CPUSPARCState *env,
-                                     unsigned long framesize)
+static abi_ulong get_sigframe(struct target_sigaction *sa,
+                              CPUSPARCState *env,
+                              size_t framesize)
 {
     abi_ulong sp = get_sp_from_cpustate(env);
 
     /*
      * If we are on the alternate signal stack and would overflow it, don't.
      * Return an always-bogus address instead so we will die with SIGSEGV.
-         */
+     */
     if (on_sig_stack(sp) && !likely(on_sig_stack(sp - framesize))) {
-            return -1;
+        return -1;
     }
 
     /* This is the X/Open sanctioned signal stack switching.  */
     sp = target_sigsp(sp, sa) - framesize;
 
-    /* Always align the stack frame.  This handles two cases.  First,
+    /*
+     * Always align the stack frame.  This handles two cases.  First,
      * sigaltstack need not be mindful of platform specific stack
      * alignment.  Second, if we took this signal because the stack
      * is not aligned properly, we'd like to take the signal cleanly
