@@ -43,26 +43,25 @@ struct target_stackf {
     abi_ulong xargs[8];
 };
 
-typedef struct {
-    abi_ulong  si_float_regs[32];
-    unsigned   long si_fsr;
-    unsigned   long si_fpqdepth;
+struct target_siginfo_fpu {
+    /* It is more convenient for qemu to move doubles, not singles. */
+    uint64_t si_double_regs[16];
+    uint32_t si_fsr;
+    uint32_t si_fpqdepth;
     struct {
-        unsigned long *insn_addr;
-        unsigned long insn;
+        uint32_t insn_addr;
+        uint32_t insn;
     } si_fpqueue [16];
-} qemu_siginfo_fpu_t;
-
+};
 
 struct target_signal_frame {
     struct target_stackf ss;
     struct target_pt_regs regs;
-    uint32_t            si_mask;
-    abi_ulong           fpu_save;
-    uint32_t            insns[2] QEMU_ALIGNED(8);
-    abi_ulong           extramask[TARGET_NSIG_WORDS - 1];
-    abi_ulong           extra_size; /* Should be 0 */
-    qemu_siginfo_fpu_t fpu_state;
+    uint32_t si_mask;
+    abi_ulong fpu_save;
+    uint32_t insns[2] QEMU_ALIGNED(8);
+    abi_ulong extramask[TARGET_NSIG_WORDS - 1];
+    abi_ulong extra_size; /* Should be 0 */
 };
 
 static abi_ulong get_sigframe(struct target_sigaction *sa,
@@ -163,33 +162,51 @@ static void save_reg_win(struct target_reg_window *win, CPUSPARCState *env)
     }
 }
 
-#define NF_ALIGNEDSZ  (((sizeof(struct target_signal_frame) + 7) & (~7)))
+static void save_fpu(struct target_siginfo_fpu *fpu, CPUSPARCState *env)
+{
+    int i;
+
+    for (i = 0; i < 16; ++i) {
+        __put_user(env->fpr[i].ll, &fpu->si_double_regs[i]);
+    }
+    __put_user(env->fsr, &fpu->si_fsr);
+    __put_user(0, &fpu->si_fpqdepth);
+}
+
+static void restore_fpu(struct target_siginfo_fpu *fpu, CPUSPARCState *env)
+{
+    int i;
+
+    for (i = 0; i < 16; ++i) {
+        __get_user(env->fpr[i].ll, &fpu->si_double_regs[i]);
+    }
+    __get_user(env->fsr, &fpu->si_fsr);
+}
 
 void setup_frame(int sig, struct target_sigaction *ka,
                  target_sigset_t *set, CPUSPARCState *env)
 {
     abi_ulong sf_addr;
     struct target_signal_frame *sf;
-    int sigframe_size, i;
+    size_t sf_size = sizeof(*sf) + sizeof(struct target_siginfo_fpu);
+    int i;
 
     /* 1. Make sure everything is clean */
-    //synchronize_user_stack();
 
-    sigframe_size = NF_ALIGNEDSZ;
-    sf_addr = get_sigframe(ka, env, sigframe_size);
+    sf_addr = get_sigframe(ka, env, sf_size);
     trace_user_setup_frame(env, sf_addr);
 
-    sf = lock_user(VERIFY_WRITE, sf_addr,
-                   sizeof(struct target_signal_frame), 0);
+    sf = lock_user(VERIFY_WRITE, sf_addr, sf_size, 0);
     if (!sf) {
         goto sigsegv;
     }
+
     /* 2. Save the current process state */
     save_pt_regs(&sf->regs, env);
     __put_user(0, &sf->extra_size);
 
-    //save_fpu_state(regs, &sf->fpu_state);
-    //__put_user(&sf->fpu_state, &sf->fpu_save);
+    save_fpu((struct target_siginfo_fpu *)(sf + 1), env);
+    __put_user(sf_addr + sizeof(*sf), &sf->fpu_save);
 
     __put_user(set->sig[0], &sf->si_mask);
     for (i = 0; i < TARGET_NSIG_WORDS - 1; i++) {
@@ -226,7 +243,7 @@ void setup_frame(int sig, struct target_sigaction *ka,
         val32 = 0x91d02010;
         __put_user(val32, &sf->insns[1]);
     }
-    unlock_user(sf, sf_addr, sizeof(struct target_signal_frame));
+    unlock_user(sf, sf_addr, sf_size);
     return;
 #if 0
 sigill_and_return:
@@ -248,7 +265,7 @@ long do_sigreturn(CPUSPARCState *env)
 {
     abi_ulong sf_addr;
     struct target_signal_frame *sf;
-    abi_ulong pc, npc;
+    abi_ulong pc, npc, ptr;
     target_sigset_t set;
     sigset_t host_set;
     int i;
@@ -276,14 +293,15 @@ long do_sigreturn(CPUSPARCState *env)
     env->pc = pc;
     env->npc = npc;
 
-    /* FIXME: implement FPU save/restore:
-     * __get_user(fpu_save, &sf->fpu_save);
-     * if (fpu_save) {
-     *     if (restore_fpu_state(env, fpu_save)) {
-     *         goto segv_and_exit;
-     *     }
-     * }
-     */
+    __get_user(ptr, &sf->fpu_save);
+    if (ptr) {
+        struct target_siginfo_fpu *fpu;
+        if ((ptr & 3) || !lock_user_struct(VERIFY_READ, fpu, ptr, 1)) {
+            goto segv_and_exit;
+        }
+        restore_fpu(fpu, env);
+        unlock_user_struct(fpu, ptr, 0);
+    }
 
     __get_user(set.sig[0], &sf->si_mask);
     for (i = 1; i < TARGET_NSIG_WORDS; i++) {
