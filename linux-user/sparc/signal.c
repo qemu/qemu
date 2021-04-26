@@ -64,17 +64,6 @@ struct target_signal_frame {
     abi_ulong           extra_size; /* Should be 0 */
     qemu_siginfo_fpu_t fpu_state;
 };
-struct target_rt_signal_frame {
-    struct sparc_stackf ss;
-    siginfo_t           info;
-    abi_ulong           regs[20];
-    sigset_t            mask;
-    abi_ulong           fpu_save;
-    uint32_t            insns[2];
-    stack_t             stack;
-    unsigned int        extra_size; /* Should be 0 */
-    qemu_siginfo_fpu_t  fpu_state;
-};
 
 static inline abi_ulong get_sigframe(struct target_sigaction *sa, 
                                      CPUSPARCState *env,
