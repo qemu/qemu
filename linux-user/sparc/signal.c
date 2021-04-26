@@ -62,6 +62,7 @@ struct target_signal_frame {
     uint32_t insns[2] QEMU_ALIGNED(8);
     abi_ulong extramask[TARGET_NSIG_WORDS - 1];
     abi_ulong extra_size; /* Should be 0 */
+    abi_ulong rwin_save;
 };
 
 static abi_ulong get_sigframe(struct target_sigaction *sa,
@@ -208,6 +209,8 @@ void setup_frame(int sig, struct target_sigaction *ka,
     save_fpu((struct target_siginfo_fpu *)(sf + 1), env);
     __put_user(sf_addr + sizeof(*sf), &sf->fpu_save);
 
+    __put_user(0, &sf->rwin_save);  /* TODO: save_rwin_state */
+
     __put_user(set->sig[0], &sf->si_mask);
     for (i = 0; i < TARGET_NSIG_WORDS - 1; i++) {
         __put_user(set->sig[i + 1], &sf->extramask[i]);
@@ -301,6 +304,11 @@ long do_sigreturn(CPUSPARCState *env)
         }
         restore_fpu(fpu, env);
         unlock_user_struct(fpu, ptr, 0);
+    }
+
+    __get_user(ptr, &sf->rwin_save);
+    if (ptr) {
+        goto segv_and_exit;  /* TODO: restore_rwin */
     }
 
     __get_user(set.sig[0], &sf->si_mask);
