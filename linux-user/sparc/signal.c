@@ -394,8 +394,6 @@ struct target_reg_window {
     abi_ulong ins[8];
 };
 
-#define TARGET_STACK_BIAS 2047
-
 /* {set, get}context() needed for 64-bit SparcLinux userland. */
 void sparc64_set_context(CPUSPARCState *env)
 {
