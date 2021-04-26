@@ -44,6 +44,12 @@ struct target_stackf {
 };
 
 struct target_siginfo_fpu {
+#ifdef TARGET_SPARC64
+    uint64_t si_double_regs[32];
+    uint64_t si_fsr;
+    uint64_t si_gsr;
+    uint64_t si_fprs;
+#else
     /* It is more convenient for qemu to move doubles, not singles. */
     uint64_t si_double_regs[16];
     uint32_t si_fsr;
@@ -52,6 +58,7 @@ struct target_siginfo_fpu {
         uint32_t insn_addr;
         uint32_t insn;
     } si_fpqueue [16];
+#endif
 };
 
 struct target_signal_frame {
@@ -167,21 +174,50 @@ static void save_fpu(struct target_siginfo_fpu *fpu, CPUSPARCState *env)
 {
     int i;
 
+#ifdef TARGET_SPARC64
+    for (i = 0; i < 32; ++i) {
+        __put_user(env->fpr[i].ll, &fpu->si_double_regs[i]);
+    }
+    __put_user(env->fsr, &fpu->si_fsr);
+    __put_user(env->gsr, &fpu->si_gsr);
+    __put_user(env->fprs, &fpu->si_fprs);
+#else
     for (i = 0; i < 16; ++i) {
         __put_user(env->fpr[i].ll, &fpu->si_double_regs[i]);
     }
     __put_user(env->fsr, &fpu->si_fsr);
     __put_user(0, &fpu->si_fpqdepth);
+#endif
 }
 
 static void restore_fpu(struct target_siginfo_fpu *fpu, CPUSPARCState *env)
 {
     int i;
 
+#ifdef TARGET_SPARC64
+    uint64_t fprs;
+    __get_user(fprs, &fpu->si_fprs);
+
+    /* In case the user mucks about with FPRS, restore as directed. */
+    if (fprs & FPRS_DL) {
+        for (i = 0; i < 16; ++i) {
+            __get_user(env->fpr[i].ll, &fpu->si_double_regs[i]);
+        }
+    }
+    if (fprs & FPRS_DU) {
+        for (i = 16; i < 32; ++i) {
+            __get_user(env->fpr[i].ll, &fpu->si_double_regs[i]);
+        }
+    }
+    __get_user(env->fsr, &fpu->si_fsr);
+    __get_user(env->gsr, &fpu->si_gsr);
+    env->fprs |= fprs;
+#else
     for (i = 0; i < 16; ++i) {
         __get_user(env->fpr[i].ll, &fpu->si_double_regs[i]);
     }
     __get_user(env->fsr, &fpu->si_fsr);
+#endif
 }
 
 void setup_frame(int sig, struct target_sigaction *ka,
