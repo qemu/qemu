@@ -144,6 +144,17 @@ static void edid_checksum(uint8_t *edid)
     }
 }
 
+static uint8_t *edid_desc_next(uint8_t *edid, uint8_t *dta, uint8_t *desc)
+{
+    if (desc == NULL) {
+        return NULL;
+    }
+    if (desc + 18 + 18 < edid + 127) {
+        return desc + 18;
+    }
+    return NULL;
+}
+
 static void edid_desc_type(uint8_t *desc, uint8_t type)
 {
     desc[0] = 0;
@@ -300,7 +311,7 @@ uint32_t qemu_edid_dpi_to_mm(uint32_t dpi, uint32_t res)
 void qemu_edid_generate(uint8_t *edid, size_t size,
                         qemu_edid_info *info)
 {
-    uint32_t desc = 54;
+    uint8_t *desc = edid + 54;
     uint8_t *xtra3 = NULL;
     uint8_t *dta = NULL;
     uint32_t width_mm, height_mm;
@@ -401,32 +412,32 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
 
     /* =============== descriptor blocks =============== */
 
-    edid_desc_timing(edid + desc, info->prefx, info->prefy,
+    edid_desc_timing(desc, info->prefx, info->prefy,
                      width_mm, height_mm);
-    desc += 18;
+    desc = edid_desc_next(edid, dta, desc);
 
-    edid_desc_ranges(edid + desc);
-    desc += 18;
+    edid_desc_ranges(desc);
+    desc = edid_desc_next(edid, dta, desc);
 
     if (info->name) {
-        edid_desc_text(edid + desc, 0xfc, info->name);
-        desc += 18;
+        edid_desc_text(desc, 0xfc, info->name);
+        desc = edid_desc_next(edid, dta, desc);
     }
 
     if (info->serial) {
-        edid_desc_text(edid + desc, 0xff, info->serial);
-        desc += 18;
+        edid_desc_text(desc, 0xff, info->serial);
+        desc = edid_desc_next(edid, dta, desc);
     }
 
-    if (desc < 126) {
-        xtra3 = edid + desc;
+    if (desc) {
+        xtra3 = desc;
         edid_desc_xtra3_std(xtra3);
-        desc += 18;
+        desc = edid_desc_next(edid, dta, desc);
     }
 
-    while (desc < 126) {
-        edid_desc_dummy(edid + desc);
-        desc += 18;
+    while (desc) {
+        edid_desc_dummy(desc);
+        desc = edid_desc_next(edid, dta, desc);
     }
 
     /* =============== finish up =============== */
