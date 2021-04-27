@@ -229,8 +229,8 @@ static void edid_desc_ranges(uint8_t *desc)
     desc[7] =  30;
     desc[8] = 160;
 
-    /* max dot clock (1200 MHz) */
-    desc[9] = 1200 / 10;
+    /* max dot clock (2550 MHz) */
+    desc[9] = 2550 / 10;
 
     /* no extended timing information */
     desc[10] = 0x01;
@@ -336,15 +336,61 @@ uint32_t qemu_edid_dpi_to_mm(uint32_t dpi, uint32_t res)
     return res * 254 / 10 / dpi;
 }
 
+static void init_displayid(uint8_t *did)
+{
+    did[0] = 0x70; /* display id extension */
+    did[1] = 0x13; /* version 1.3 */
+    did[2] = 4;    /* length */
+    did[3] = 0x03; /* product type (0x03 == standalone display device) */
+    edid_checksum(did + 1, did[2] + 4);
+}
+
+static void qemu_displayid_generate(uint8_t *did, uint32_t refresh_rate,
+                                    uint32_t xres, uint32_t yres,
+                                    uint32_t xmm, uint32_t ymm)
+{
+    Timings timings;
+    generate_timings(&timings, refresh_rate, xres, yres);
+
+    did[0] = 0x70; /* display id extension */
+    did[1] = 0x13; /* version 1.3 */
+    did[2] = 23;   /* length */
+    did[3] = 0x03; /* product type (0x03 == standalone display device) */
+
+    did[5] = 0x03; /* Detailed Timings Data Block */
+    did[6] = 0x00; /* revision */
+    did[7] = 0x14; /* block length */
+
+    did[8]  = timings.clock  & 0xff;
+    did[9]  = (timings.clock & 0xff00) >> 8;
+    did[10] = (timings.clock & 0xff0000) >> 16;
+
+    did[11] = 0x88; /* leave aspect ratio undefined */
+
+    stw_le_p(did + 12, 0xffff & (xres - 1));
+    stw_le_p(did + 14, 0xffff & (timings.xblank - 1));
+    stw_le_p(did + 16, 0xffff & (timings.xfront - 1));
+    stw_le_p(did + 18, 0xffff & (timings.xsync - 1));
+
+    stw_le_p(did + 20, 0xffff & (yres - 1));
+    stw_le_p(did + 22, 0xffff & (timings.yblank - 1));
+    stw_le_p(did + 24, 0xffff & (timings.yfront - 1));
+    stw_le_p(did + 26, 0xffff & (timings.ysync - 1));
+
+    edid_checksum(did + 1, did[2] + 4);
+}
+
 void qemu_edid_generate(uint8_t *edid, size_t size,
                         qemu_edid_info *info)
 {
     uint8_t *desc = edid + 54;
     uint8_t *xtra3 = NULL;
     uint8_t *dta = NULL;
+    uint8_t *did = NULL;
     uint32_t width_mm, height_mm;
     uint32_t refresh_rate = info->refresh_rate ? info->refresh_rate : 75000;
     uint32_t dpi = 100; /* if no width_mm/height_mm */
+    uint32_t large_screen = 0;
 
     /* =============== set defaults  =============== */
 
@@ -359,6 +405,9 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
     }
     if (!info->prefy) {
         info->prefy = 768;
+    }
+    if (info->prefx >= 4096 || info->prefy >= 4096) {
+        large_screen = 1;
     }
     if (info->width_mm && info->height_mm) {
         width_mm = info->width_mm;
@@ -375,6 +424,12 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
         dta = edid + 128;
         edid[126]++;
         edid_ext_dta(dta);
+    }
+
+    if (size >= 384 && large_screen) {
+        did = edid + 256;
+        edid[126]++;
+        init_displayid(did);
     }
 
     /* =============== header information =============== */
@@ -441,9 +496,12 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
 
     /* =============== descriptor blocks =============== */
 
-    edid_desc_timing(desc, refresh_rate, info->prefx, info->prefy,
-                     width_mm, height_mm);
-    desc = edid_desc_next(edid, dta, desc);
+    if (!large_screen) {
+        /* The DTD section has only 12 bits to store the resolution */
+        edid_desc_timing(desc, refresh_rate, info->prefx, info->prefy,
+                         width_mm, height_mm);
+        desc = edid_desc_next(edid, dta, desc);
+    }
 
     xtra3 = desc;
     edid_desc_xtra3_std(xtra3);
@@ -472,11 +530,21 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
         desc = edid_desc_next(edid, dta, desc);
     }
 
+    /* =============== display id extensions =============== */
+
+    if (did && large_screen) {
+        qemu_displayid_generate(did, refresh_rate, info->prefx, info->prefy,
+                                width_mm, height_mm);
+    }
+
     /* =============== finish up =============== */
 
     edid_checksum(edid, 127);
     if (dta) {
         edid_checksum(dta, 127);
+    }
+    if (did) {
+        edid_checksum(did, 127);
     }
 }
 
