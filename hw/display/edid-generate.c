@@ -152,6 +152,14 @@ static uint8_t *edid_desc_next(uint8_t *edid, uint8_t *dta, uint8_t *desc)
     if (desc + 18 + 18 < edid + 127) {
         return desc + 18;
     }
+    if (dta) {
+        if (desc < edid + 127) {
+            return dta + dta[2];
+        }
+        if (desc + 18 + 18 < dta + 127) {
+            return desc + 18;
+        }
+    }
     return NULL;
 }
 
