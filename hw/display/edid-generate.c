@@ -223,7 +223,7 @@ static void edid_desc_dummy(uint8_t *desc)
     edid_desc_type(desc, 0x10);
 }
 
-static void edid_desc_timing(uint8_t *desc,
+static void edid_desc_timing(uint8_t *desc, uint32_t refresh_rate,
                              uint32_t xres, uint32_t yres,
                              uint32_t xmm, uint32_t ymm)
 {
@@ -236,9 +236,9 @@ static void edid_desc_timing(uint8_t *desc,
     uint32_t ysync  = yres *  5 / 1000;
     uint32_t yblank = yres * 35 / 1000;
 
-    uint32_t clock  = 75 * (xres + xblank) * (yres + yblank);
+    uint64_t clock  = (uint64_t)refresh_rate * (xres + xblank) * (yres + yblank);
 
-    stl_le_p(desc, clock / 10000);
+    stl_le_p(desc, clock / 10000000);
 
     desc[2] = xres   & 0xff;
     desc[3] = xblank & 0xff;
@@ -323,6 +323,7 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
     uint8_t *xtra3 = NULL;
     uint8_t *dta = NULL;
     uint32_t width_mm, height_mm;
+    uint32_t refresh_rate = info->refresh_rate ? info->refresh_rate : 75000;
     uint32_t dpi = 100; /* if no width_mm/height_mm */
 
     /* =============== set defaults  =============== */
@@ -420,7 +421,7 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
 
     /* =============== descriptor blocks =============== */
 
-    edid_desc_timing(desc, info->prefx, info->prefy,
+    edid_desc_timing(desc, refresh_rate, info->prefx, info->prefy,
                      width_mm, height_mm);
     desc = edid_desc_next(edid, dta, desc);
 
