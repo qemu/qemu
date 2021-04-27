@@ -416,22 +416,25 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
                      width_mm, height_mm);
     desc = edid_desc_next(edid, dta, desc);
 
+    xtra3 = desc;
+    edid_desc_xtra3_std(xtra3);
+    desc = edid_desc_next(edid, dta, desc);
+    edid_fill_modes(edid, xtra3, dta, info->maxx, info->maxy);
+    /*
+     * dta video data block is finished at thus point,
+     * so dta descriptor offsets don't move any more.
+     */
+
     edid_desc_ranges(desc);
     desc = edid_desc_next(edid, dta, desc);
 
-    if (info->name) {
+    if (desc && info->name) {
         edid_desc_text(desc, 0xfc, info->name);
         desc = edid_desc_next(edid, dta, desc);
     }
 
-    if (info->serial) {
+    if (desc && info->serial) {
         edid_desc_text(desc, 0xff, info->serial);
-        desc = edid_desc_next(edid, dta, desc);
-    }
-
-    if (desc) {
-        xtra3 = desc;
-        edid_desc_xtra3_std(xtra3);
         desc = edid_desc_next(edid, dta, desc);
     }
 
@@ -442,7 +445,6 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
 
     /* =============== finish up =============== */
 
-    edid_fill_modes(edid, xtra3, dta, info->maxx, info->maxy);
     edid_checksum(edid);
     if (dta) {
         edid_checksum(dta);
