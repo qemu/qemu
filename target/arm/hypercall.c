@@ -17,13 +17,7 @@ void intercept_hypercall(CPUARMState *cpu_env) {
             hypervisor_patch_panic(cpu_env, cpu_env->xregs[1]);
             break;
         case HYPERCALL_PANIC:
-            qemu_log("Panic received\n");
-            break;
-        case HYPERCALL_TEST:
-            hypervisor_test(cpu_env);
-            break;
-        case HYPERCALL_TEST_2:
-            hypervisor_test_2(cpu_env);
+            hypervisor_handle_panic(cpu_env);
             break;
         default:
             qemu_log("Undefined hypercall\n");
@@ -88,16 +82,21 @@ ssize_t hypervisor_virt_mem_rw (CPUARMState *cpu_env, uint64_t virt_addr, void *
         return -1;
     }
     else {
-        address_space_rw(space, physaddr, MEMTXATTRS_UNSPECIFIED, buf, len, is_write);
+        MemTxResult res = address_space_rw(space, physaddr, MEMTXATTRS_UNSPECIFIED, buf, len, is_write);
+        if (res == MEMTX_OK) {
+            return 0;
+        }
+        else {
+            return -1;
+        }
     }
-
-    return 0;
 }
 
 void hypervisor_patch_panic(CPUARMState *cpu_env, uint64_t virt_panic_handler_addr) {
     qemu_log("Submitted panic handler at addr: 0x%lX\n", virt_panic_handler_addr);
     if (!virt_panic_handler_addr) {
         qemu_log("Panic handler is null. Did you forget sudo?\n");
+        cpu_env->xregs[0] = 1;
         return;
     }
 
@@ -106,35 +105,17 @@ void hypervisor_patch_panic(CPUARMState *cpu_env, uint64_t virt_panic_handler_ad
     hvc #0x1337
     */
     uint8_t patch_bytes[] = { 0x20, 0x00, 0x80, 0xd2, 0xe2, 0x66, 0x02, 0xd4 };
-    hypervisor_write_to_virt_mem(cpu_env, virt_panic_handler_addr, patch_bytes, sizeof(patch_bytes));
-    qemu_log("Panic handler patched\n");
-}
-
-void hypervisor_test(CPUARMState *cpu_env) {
-    uint64_t function_addr = cpu_env->xregs[1];
-    qemu_log("Submitted test at addr: 0x%lX\n", function_addr);
-    if (!function_addr) {
-        qemu_log("Test address is null. Did you forget sudo?\n");
-        return;
+    if(hypervisor_write_to_virt_mem(cpu_env, virt_panic_handler_addr, patch_bytes, sizeof(patch_bytes))) {
+        qemu_log("Failed to patch panic handler\n");
+        cpu_env->xregs[0] = 1;
     }
-
-    uint8_t pre_patch_bytes[8];
-    hypervisor_read_from_virt_mem(cpu_env, function_addr, pre_patch_bytes, sizeof(pre_patch_bytes));
-    qemu_log("Pre patch bytes: 0x%X%X\n", *(uint32_t*)pre_patch_bytes, *(uint32_t*)&pre_patch_bytes[4]);
-
-    /*
-    mov x0, #3
-    hvc #0x1337
-    */
-    uint8_t patch_bytes[] = { 0x60, 0x00, 0x80, 0xd2, 0xe2, 0x66, 0x02, 0xd4 };
-    hypervisor_write_to_virt_mem(cpu_env, function_addr, patch_bytes, sizeof(patch_bytes));
-    qemu_log("Test patched\n");
-
-    uint8_t post_patch_bytes[8];
-    hypervisor_read_from_virt_mem(cpu_env, function_addr, post_patch_bytes, sizeof(post_patch_bytes));
-    qemu_log("Post patch bytes: 0x%X%X\n", *(uint32_t*)post_patch_bytes, *(uint32_t*)&post_patch_bytes[4]);
+    else {
+        qemu_log("Panic handler patched\n");
+        cpu_env->xregs[0] = 0;
+    }
 }
 
-void hypervisor_test_2(CPUARMState *cpu_env) {
-    qemu_log("Test intercepted!\n");
+void hypervisor_handle_panic(CPUARMState *cpu_env) {
+    qemu_log("Panic received\n");
+    // TODO: Recover operating system and log crash
 }

@@ -29,8 +29,6 @@
 enum HYPERCALL_ID {
     HYPERCALL_SUBMIT_PANIC,
     HYPERCALL_PANIC,
-    HYPERCALL_TEST,
-    HYPERCALL_TEST_2,
 };
 
 /*
@@ -107,7 +105,16 @@ ssize_t hypervisor_virt_mem_rw (CPUARMState *cpu_env, uint64_t virt_addr, void *
 */
 void hypervisor_patch_panic(CPUARMState *cpu_env, uint64_t virt_panic_handler_addr);
 
-void hypervisor_test(CPUARMState *cpu_env);
-void hypervisor_test_2(CPUARMState *cpu_env);
+/*
+ * hypervisor_handle_panic
+ * Handle guest panic hypercall.
+ * 
+ * Inputs:
+ *  - cpu_env: The CPU state
+ *
+ * Side Effects:
+ *  - TODO
+*/
+void hypervisor_handle_panic(CPUARMState *cpu_env);
 
 #endif // HYPERCALL_H
