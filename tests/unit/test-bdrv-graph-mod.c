@@ -138,6 +138,7 @@ static void test_update_perm_tree(void)
     ret = bdrv_append(filter, bs, NULL);
     g_assert_cmpint(ret, <, 0);
 
+    bdrv_unref(filter);
     blk_unref(root);
 }
 
@@ -202,6 +203,7 @@ static void test_should_update_child(void)
     bdrv_append(filter, bs, &error_abort);
     g_assert(target->backing->bs == bs);
 
+    bdrv_unref(filter);
     bdrv_unref(bs);
     blk_unref(root);
 }
@@ -380,6 +382,7 @@ static void test_append_greedy_filter(void)
                       &error_abort);
 
     bdrv_append(fl, base, &error_abort);
+    bdrv_unref(fl);
     bdrv_unref(top);
 }
 

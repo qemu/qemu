@@ -234,7 +234,6 @@ BlockDriverState *bdrv_backup_top_append(BlockDriverState *source,
 
     bdrv_drained_begin(source);
 
-    bdrv_ref(top);
     ret = bdrv_append(top, source, errp);
     if (ret < 0) {
         error_prepend(errp, "Cannot append backup-top filter: ");

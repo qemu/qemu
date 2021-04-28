@@ -3213,11 +3213,6 @@ static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
         goto out;
     }
 
-    /* bdrv_append() consumes a strong reference to bs_snapshot
-     * (i.e. it will call bdrv_unref() on it) even on error, so in
-     * order to be able to return one, we have to increase
-     * bs_snapshot's refcount here */
-    bdrv_ref(bs_snapshot);
     ret = bdrv_append(bs_snapshot, bs, errp);
     if (ret < 0) {
         bs_snapshot = NULL;
@@ -4679,36 +4674,22 @@ int bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
  * bs_new must not be attached to a BlockBackend.
  *
  * This function does not create any image files.
- *
- * bdrv_append() takes ownership of a bs_new reference and unrefs it because
- * that's what the callers commonly need. bs_new will be referenced by the old
- * parents of bs_top after bdrv_append() returns. If the caller needs to keep a
- * reference of its own, it must call bdrv_ref().
  */
 int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
                 Error **errp)
 {
     int ret = bdrv_set_backing_hd(bs_new, bs_top, errp);
     if (ret < 0) {
-        goto out;
+        return ret;
     }
 
     ret = bdrv_replace_node(bs_top, bs_new, errp);
     if (ret < 0) {
         bdrv_set_backing_hd(bs_new, NULL, &error_abort);
-        goto out;
+        return ret;
     }
 
-    ret = 0;
-
-out:
-    /*
-     * bs_new is now referenced by its new parents, we don't need the
-     * additional reference any more.
-     */
-    bdrv_unref(bs_new);
-
-    return ret;
+    return 0;
 }
 
 static void bdrv_delete(BlockDriverState *bs)
