@@ -2700,13 +2700,13 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildClass *child_class,
                                   BdrvChildRole child_role,
-                                  AioContext *ctx,
                                   uint64_t perm, uint64_t shared_perm,
                                   void *opaque, Error **errp)
 {
     BdrvChild *child;
     Error *local_err = NULL;
     int ret;
+    AioContext *ctx;
 
     ret = bdrv_check_update_perm(child_bs, NULL, perm, shared_perm, NULL, errp);
     if (ret < 0) {
@@ -2725,6 +2725,8 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
         .shared_perm    = shared_perm,
         .opaque         = opaque,
     };
+
+    ctx = bdrv_child_get_parent_aio_context(child);
 
     /* If the AioContexts don't match, first try to move the subtree of
      * child_bs into the AioContext of the new parent. If this doesn't work,
@@ -2786,8 +2788,8 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                     perm, shared_perm, &perm, &shared_perm);
 
     child = bdrv_root_attach_child(child_bs, child_name, child_class,
-                                   child_role, bdrv_get_aio_context(parent_bs),
-                                   perm, shared_perm, parent_bs, errp);
+                                   child_role, perm, shared_perm, parent_bs,
+                                   errp);
     if (child == NULL) {
         return NULL;
     }

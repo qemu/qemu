@@ -229,8 +229,7 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
     if (need_context_ops && job->job.aio_context != qemu_get_aio_context()) {
         aio_context_release(job->job.aio_context);
     }
-    c = bdrv_root_attach_child(bs, name, &child_job, 0,
-                               job->job.aio_context, perm, shared_perm, job,
+    c = bdrv_root_attach_child(bs, name, &child_job, 0, perm, shared_perm, job,
                                errp);
     if (need_context_ops && job->job.aio_context != qemu_get_aio_context()) {
         aio_context_acquire(job->job.aio_context);
