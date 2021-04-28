@@ -104,23 +104,25 @@ get_sigframe(struct target_sigaction *ka, CPUS390XState *env, size_t frame_size)
 static void save_sigregs(CPUS390XState *env, target_sigregs *sregs)
 {
     int i;
-    //save_access_regs(current->thread.acrs); FIXME
 
-    /* Copy a 'clean' PSW mask to the user to avoid leaking
-       information about whether PER is currently on.  */
+    /*
+     * Copy a 'clean' PSW mask to the user to avoid leaking
+     * information about whether PER is currently on.
+     */
     __put_user(env->psw.mask, &sregs->regs.psw.mask);
     __put_user(env->psw.addr, &sregs->regs.psw.addr);
+
     for (i = 0; i < 16; i++) {
         __put_user(env->regs[i], &sregs->regs.gprs[i]);
     }
     for (i = 0; i < 16; i++) {
         __put_user(env->aregs[i], &sregs->regs.acrs[i]);
     }
+
     /*
      * We have to store the fp registers to current->thread.fp_regs
      * to merge them with the emulated registers.
      */
-    //save_fp_regs(&current->thread.fp_regs); FIXME
     for (i = 0; i < 16; i++) {
         __put_user(*get_freg(env, i), &sregs->fpregs.fprs[i]);
     }
