@@ -31,7 +31,6 @@
 #define _SIGCONTEXT_NSIG_BPW    64 /* FIXME: 31-bit mode -> 32 */
 #define _SIGCONTEXT_NSIG_WORDS  (_SIGCONTEXT_NSIG / _SIGCONTEXT_NSIG_BPW)
 #define _SIGMASK_COPY_SIZE    (sizeof(unsigned long)*_SIGCONTEXT_NSIG_WORDS)
-#define PSW_ADDR_AMODE            0x0000000000000000UL /* 0x80000000UL for 31-bit */
 #define S390_SYSCALL_OPCODE ((uint16_t)0x0a00)
 
 typedef struct {
@@ -148,11 +147,9 @@ void setup_frame(int sig, struct target_sigaction *ka,
     /* Set up to return from userspace.  If provided, use a stub
        already in userspace.  */
     if (ka->sa_flags & TARGET_SA_RESTORER) {
-        env->regs[14] = (unsigned long)
-                ka->sa_restorer | PSW_ADDR_AMODE;
+        env->regs[14] = ka->sa_restorer;
     } else {
-        env->regs[14] = (frame_addr + offsetof(sigframe, retcode))
-                        | PSW_ADDR_AMODE;
+        env->regs[14] = frame_addr + offsetof(sigframe, retcode);
         __put_user(S390_SYSCALL_OPCODE | TARGET_NR_sigreturn,
                    &frame->retcode);
     }
@@ -162,7 +159,7 @@ void setup_frame(int sig, struct target_sigaction *ka,
 
     /* Set up registers for signal handler */
     env->regs[15] = frame_addr;
-    env->psw.addr = (target_ulong) ka->_sa_handler | PSW_ADDR_AMODE;
+    env->psw.addr = ka->_sa_handler;
 
     env->regs[2] = sig; //map_signal(sig);
     env->regs[3] = frame_addr += offsetof(typeof(*frame), sc);
@@ -210,10 +207,9 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     /* Set up to return from userspace.  If provided, use a stub
        already in userspace.  */
     if (ka->sa_flags & TARGET_SA_RESTORER) {
-        env->regs[14] = ka->sa_restorer | PSW_ADDR_AMODE;
+        env->regs[14] = ka->sa_restorer;
     } else {
-        env->regs[14] = (frame_addr + offsetof(typeof(*frame), retcode))
-                        | PSW_ADDR_AMODE;
+        env->regs[14] = frame_addr + offsetof(typeof(*frame), retcode);
         __put_user(S390_SYSCALL_OPCODE | TARGET_NR_rt_sigreturn,
                    &frame->retcode);
     }
@@ -223,7 +219,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     /* Set up registers for signal handler */
     env->regs[15] = frame_addr;
-    env->psw.addr = (target_ulong) ka->_sa_handler | PSW_ADDR_AMODE;
+    env->psw.addr = ka->_sa_handler;
 
     env->regs[2] = sig; //map_signal(sig);
     env->regs[3] = frame_addr + offsetof(typeof(*frame), info);
@@ -248,7 +244,6 @@ restore_sigregs(CPUS390XState *env, target_sigregs *sc)
     trace_user_s390x_restore_sigregs(env, (unsigned long long)sc->regs.psw.addr,
                                      (unsigned long long)env->psw.addr);
     __get_user(env->psw.addr, &sc->regs.psw.addr);
-    /* FIXME: 31-bit -> | PSW_ADDR_AMODE */
 
     for (i = 0; i < 16; i++) {
         __get_user(env->aregs[i], &sc->regs.acrs[i]);
