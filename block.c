@@ -2963,12 +2963,19 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
     }
 }
 
+static void bdrv_child_free(void *opaque)
+{
+    BdrvChild *c = opaque;
+
+    g_free(c->name);
+    g_free(c);
+}
+
 static void bdrv_remove_empty_child(BdrvChild *child)
 {
     assert(!child->bs);
     QLIST_SAFE_REMOVE(child, next);
-    g_free(child->name);
-    g_free(child);
+    bdrv_child_free(child);
 }
 
 typedef struct BdrvAttachChildCommonState {
@@ -4989,6 +4996,79 @@ static bool should_update_child(BdrvChild *c, BlockDriverState *to)
     g_hash_table_destroy(found);
 
     return ret;
+}
+
+typedef struct BdrvRemoveFilterOrCowChild {
+    BdrvChild *child;
+    bool is_backing;
+} BdrvRemoveFilterOrCowChild;
+
+static void bdrv_remove_filter_or_cow_child_abort(void *opaque)
+{
+    BdrvRemoveFilterOrCowChild *s = opaque;
+    BlockDriverState *parent_bs = s->child->opaque;
+
+    QLIST_INSERT_HEAD(&parent_bs->children, s->child, next);
+    if (s->is_backing) {
+        parent_bs->backing = s->child;
+    } else {
+        parent_bs->file = s->child;
+    }
+
+    /*
+     * We don't have to restore child->bs here to undo bdrv_replace_child()
+     * because that function is transactionable and it registered own completion
+     * entries in @tran, so .abort() for bdrv_replace_child_safe() will be
+     * called automatically.
+     */
+}
+
+static void bdrv_remove_filter_or_cow_child_commit(void *opaque)
+{
+    BdrvRemoveFilterOrCowChild *s = opaque;
+
+    bdrv_child_free(s->child);
+}
+
+static TransactionActionDrv bdrv_remove_filter_or_cow_child_drv = {
+    .abort = bdrv_remove_filter_or_cow_child_abort,
+    .commit = bdrv_remove_filter_or_cow_child_commit,
+    .clean = g_free,
+};
+
+/*
+ * A function to remove backing-chain child of @bs if exists: cow child for
+ * format nodes (always .backing) and filter child for filters (may be .file or
+ * .backing)
+ */
+__attribute__((unused))
+static void bdrv_remove_filter_or_cow_child(BlockDriverState *bs,
+                                            Transaction *tran)
+{
+    BdrvRemoveFilterOrCowChild *s;
+    BdrvChild *child = bdrv_filter_or_cow_child(bs);
+
+    if (!child) {
+        return;
+    }
+
+    if (child->bs) {
+        bdrv_replace_child_safe(child, NULL, tran);
+    }
+
+    s = g_new(BdrvRemoveFilterOrCowChild, 1);
+    *s = (BdrvRemoveFilterOrCowChild) {
+        .child = child,
+        .is_backing = (child == bs->backing),
+    };
+    tran_add(tran, &bdrv_remove_filter_or_cow_child_drv, s);
+
+    QLIST_SAFE_REMOVE(child, next);
+    if (s->is_backing) {
+        bs->backing = NULL;
+    } else {
+        bs->file = NULL;
+    }
 }
 
 static int bdrv_replace_node_noperm(BlockDriverState *from,
