@@ -59,9 +59,9 @@ def error_with_file(file, lineno, *args):
 
     prefix = ''
     if file:
-        prefix += '{0}:'.format(file)
+        prefix += f'{file}:'
     if lineno:
-        prefix += '{0}:'.format(lineno)
+        prefix += f'{lineno}:'
     if prefix:
         prefix += ' '
     print(prefix, end='error: ', file=sys.stderr)
@@ -203,7 +203,7 @@ class Field:
             extr = 'sextract32'
         else:
             extr = 'extract32'
-        return '{0}(insn, {1}, {2})'.format(extr, self.pos, self.len)
+        return f'{extr}(insn, {self.pos}, {self.len})'
 
     def __eq__(self, other):
         return self.sign == other.sign and self.mask == other.mask
@@ -227,11 +227,11 @@ class MultiField:
         ret = '0'
         pos = 0
         for f in reversed(self.subs):
+            ext = f.str_extract()
             if pos == 0:
-                ret = f.str_extract()
+                ret = ext
             else:
-                ret = 'deposit32({0}, {1}, {2}, {3})' \
-                      .format(ret, pos, 32 - pos, f.str_extract())
+                ret = f'deposit32({ret}, {pos}, {32 - pos}, {ext})'
             pos += f.len
         return ret
 
@@ -675,11 +675,11 @@ def parse_field(lineno, name, toks):
             subtoks = t.split(':')
             sign = False
         else:
-            error(lineno, 'invalid field token "{0}"'.format(t))
+            error(lineno, f'invalid field token "{t}"')
         po = int(subtoks[0])
         le = int(subtoks[1])
         if po + le > insnwidth:
-            error(lineno, 'field {0} too large'.format(t))
+            error(lineno, f'field {t} too large')
         f = Field(sign, po, le)
         subs.append(f)
         width += le
@@ -724,9 +724,9 @@ def parse_arguments(lineno, name, toks):
             anyextern = True
             continue
         if not re.fullmatch(re_C_ident, t):
-            error(lineno, 'invalid argument set token "{0}"'.format(t))
+            error(lineno, f'invalid argument set token "{t}"')
         if t in flds:
-            error(lineno, 'duplicate argument "{0}"'.format(t))
+            error(lineno, f'duplicate argument "{t}"')
         flds.append(t)
 
     if name in arguments:
@@ -895,14 +895,14 @@ def parse_generic(lineno, parent_pat, name, toks):
                 flen = flen[1:]
             shift = int(flen, 10)
             if shift + width > insnwidth:
-                error(lineno, 'field {0} exceeds insnwidth'.format(fname))
+                error(lineno, f'field {fname} exceeds insnwidth')
             f = Field(sign, insnwidth - width - shift, shift)
             flds = add_field(lineno, flds, fname, f)
             fixedbits <<= shift
             fixedmask <<= shift
             undefmask <<= shift
         else:
-            error(lineno, 'invalid token "{0}"'.format(t))
+            error(lineno, f'invalid token "{t}"')
         width += shift
 
     if variablewidth and width < insnwidth and width % 8 == 0:
@@ -914,7 +914,7 @@ def parse_generic(lineno, parent_pat, name, toks):
 
     # We should have filled in all of the bits of the instruction.
     elif not (is_format and width == 0) and width != insnwidth:
-        error(lineno, 'definition has {0} bits'.format(width))
+        error(lineno, f'definition has {width} bits')
 
     # Do not check for fields overlapping fields; one valid usage
     # is to be able to duplicate fields via import.
@@ -932,8 +932,7 @@ def parse_generic(lineno, parent_pat, name, toks):
         if arg:
             for f in flds.keys():
                 if f not in arg.fields:
-                    error(lineno, 'field {0} not in argument set {1}'
-                                  .format(f, arg.name))
+                    error(lineno, f'field {f} not in argument set {arg.name}')
         else:
             arg = infer_argument_set(flds)
         if name in formats:
@@ -960,13 +959,12 @@ def parse_generic(lineno, parent_pat, name, toks):
         arg = fmt.base
         for f in flds.keys():
             if f not in arg.fields:
-                error(lineno, 'field {0} not in argument set {1}'
-                              .format(f, arg.name))
+                error(lineno, f'field {f} not in argument set {arg.name}')
             if f in fmt.fields.keys():
-                error(lineno, 'field {0} set by format and pattern'.format(f))
+                error(lineno, f'field {f} set by format and pattern')
         for f in arg.fields:
             if f not in flds.keys() and f not in fmt.fields.keys():
-                error(lineno, 'field {0} not initialized'.format(f))
+                error(lineno, f'field {f} not initialized')
         pat = Pattern(name, lineno, fmt, fixedbits, fixedmask,
                       undefmask, fieldmask, flds, width)
         parent_pat.pats.append(pat)
@@ -1097,7 +1095,7 @@ def parse_file(f, parent_pat):
         elif re.fullmatch(re_pat_ident, name):
             parse_generic(start_lineno, parent_pat, name, toks)
         else:
-            error(lineno, 'invalid token "{0}"'.format(name))
+            error(lineno, f'invalid token "{name}"')
         toks = []
 
     if nesting != 0:
@@ -1131,9 +1129,8 @@ class SizeTree:
 
         # If we need to load more bytes to test, do so now.
         if extracted < self.width:
-            output(ind, 'insn = ', decode_function,
-                   '_load_bytes(ctx, insn, {0}, {1});\n'
-                   .format(extracted // 8, self.width // 8));
+            output(ind, f'insn = {decode_function}_load_bytes',
+                   f'(ctx, insn, {extracted // 8}, {self.width // 8});\n')
             extracted = self.width
 
         # Attempt to aid the compiler in producing compact switch statements.
@@ -1184,9 +1181,8 @@ class SizeLeaf:
 
         # If we need to load more bytes, do so now.
         if extracted < self.width:
-            output(ind, 'insn = ', decode_function,
-                   '_load_bytes(ctx, insn, {0}, {1});\n'
-                   .format(extracted // 8, self.width // 8));
+            output(ind, f'insn = {decode_function}_load_bytes',
+                   f'(ctx, insn, {extracted // 8}, {self.width // 8});\n')
             extracted = self.width
         output(ind, 'return insn;\n')
 # end SizeLeaf
@@ -1220,7 +1216,7 @@ def build_size_tree(pats, width, outerbits, outermask):
         for p in pats:
             pnames.append(p.name + ':' + p.file + ':' + str(p.lineno))
         error_with_file(pats[0].file, pats[0].lineno,
-                        'overlapping patterns size {0}:'.format(width), pnames)
+                        f'overlapping patterns size {width}:', pnames)
 
     bins = {}
     for i in pats:
