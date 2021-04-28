@@ -2135,59 +2135,40 @@ static GSList *bdrv_topological_dfs(GSList *list, GHashTable *found,
     return g_slist_prepend(list, bs);
 }
 
-static void bdrv_child_set_perm_commit(void *opaque)
-{
-    BdrvChild *c = opaque;
-
-    c->has_backup_perm = false;
-}
+typedef struct BdrvChildSetPermState {
+    BdrvChild *child;
+    uint64_t old_perm;
+    uint64_t old_shared_perm;
+} BdrvChildSetPermState;
 
 static void bdrv_child_set_perm_abort(void *opaque)
 {
-    BdrvChild *c = opaque;
-    /*
-     * We may have child->has_backup_perm unset at this point, as in case of
-     * _check_ stage of permission update failure we may _check_ not the whole
-     * subtree.  Still, _abort_ is called on the whole subtree anyway.
-     */
-    if (c->has_backup_perm) {
-        c->perm = c->backup_perm;
-        c->shared_perm = c->backup_shared_perm;
-        c->has_backup_perm = false;
-    }
+    BdrvChildSetPermState *s = opaque;
+
+    s->child->perm = s->old_perm;
+    s->child->shared_perm = s->old_shared_perm;
 }
 
 static TransactionActionDrv bdrv_child_set_pem_drv = {
     .abort = bdrv_child_set_perm_abort,
-    .commit = bdrv_child_set_perm_commit,
+    .clean = g_free,
 };
 
-/*
- * With tran=NULL needs to be followed by direct call to either
- * bdrv_child_set_perm_commit() or bdrv_child_set_perm_abort().
- *
- * With non-NULL tran needs to be followed by tran_abort() or tran_commit()
- * instead.
- */
-static void bdrv_child_set_perm_safe(BdrvChild *c, uint64_t perm,
-                                     uint64_t shared, Transaction *tran)
+static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm,
+                                uint64_t shared, Transaction *tran)
 {
-    if (!c->has_backup_perm) {
-        c->has_backup_perm = true;
-        c->backup_perm = c->perm;
-        c->backup_shared_perm = c->shared_perm;
-    }
-    /*
-     * Note: it's OK if c->has_backup_perm was already set, as we can find the
-     * same c twice during check_perm procedure
-     */
+    BdrvChildSetPermState *s = g_new(BdrvChildSetPermState, 1);
+
+    *s = (BdrvChildSetPermState) {
+        .child = c,
+        .old_perm = c->perm,
+        .old_shared_perm = c->shared_perm,
+    };
 
     c->perm = perm;
     c->shared_perm = shared;
 
-    if (tran) {
-        tran_add(tran, &bdrv_child_set_pem_drv, c);
-    }
+    tran_add(tran, &bdrv_child_set_pem_drv, s);
 }
 
 static void bdrv_drv_set_perm_commit(void *opaque)
@@ -2367,7 +2348,7 @@ static int bdrv_node_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
         bdrv_child_perm(bs, c->bs, c, c->role, q,
                         cumulative_perms, cumulative_shared_perms,
                         &cur_perm, &cur_shared);
-        bdrv_child_set_perm_safe(c, cur_perm, cur_shared, tran);
+        bdrv_child_set_perm(c, cur_perm, cur_shared, tran);
     }
 
     return 0;
@@ -2466,7 +2447,7 @@ int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
     Transaction *tran = tran_new();
     int ret;
 
-    bdrv_child_set_perm_safe(c, perm, shared, tran);
+    bdrv_child_set_perm(c, perm, shared, tran);
 
     ret = bdrv_refresh_perms(c->bs, &local_err);
 
