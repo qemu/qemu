@@ -49,7 +49,6 @@
 #include "qemu/timer.h"
 #include "qemu/cutils.h"
 #include "qemu/id.h"
-#include "qemu/transactions.h"
 #include "block/coroutines.h"
 
 #ifdef CONFIG_BSD
@@ -1577,7 +1576,7 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
         return ret;
     }
 
-    bdrv_refresh_limits(bs, &local_err);
+    bdrv_refresh_limits(bs, NULL, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return -EINVAL;
@@ -3363,7 +3362,7 @@ int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
     }
 
 out:
-    bdrv_refresh_limits(bs, NULL);
+    bdrv_refresh_limits(bs, NULL, NULL);
 
     return ret;
 }
@@ -4847,7 +4846,7 @@ static void bdrv_reopen_commit(BDRVReopenState *reopen_state)
         bdrv_set_backing_hd(bs, reopen_state->new_backing_bs, &error_abort);
     }
 
-    bdrv_refresh_limits(bs, NULL);
+    bdrv_refresh_limits(bs, NULL, NULL);
 }
 
 /*
@@ -5244,7 +5243,7 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
 out:
     tran_finalize(tran, ret);
 
-    bdrv_refresh_limits(bs_top, NULL);
+    bdrv_refresh_limits(bs_top, NULL, NULL);
 
     return ret;
 }
