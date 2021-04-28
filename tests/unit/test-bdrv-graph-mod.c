@@ -352,6 +352,37 @@ static void test_parallel_perm_update(void)
     bdrv_unref(top);
 }
 
+/*
+ * It's possible that filter required permissions allows to insert it to backing
+ * chain, like:
+ *
+ *  1.  [top] -> [filter] -> [base]
+ *
+ * but doesn't allow to add it as a branch:
+ *
+ *  2.  [filter] --\
+ *                 v
+ *      [top] -> [base]
+ *
+ * So, inserting such filter should do all graph modifications and only then
+ * update permissions. If we try to go through intermediate state [2] and update
+ * permissions on it we'll fail.
+ *
+ * Let's check that bdrv_append() can append such a filter.
+ */
+static void test_append_greedy_filter(void)
+{
+    BlockDriverState *top = exclusive_writer_node("top");
+    BlockDriverState *base = no_perm_node("base");
+    BlockDriverState *fl = exclusive_writer_node("fl1");
+
+    bdrv_attach_child(top, base, "backing", &child_of_bds, BDRV_CHILD_COW,
+                      &error_abort);
+
+    bdrv_append(fl, base, &error_abort);
+    bdrv_unref(top);
+}
+
 int main(int argc, char *argv[])
 {
     int i;
@@ -378,6 +409,8 @@ int main(int argc, char *argv[])
                         test_parallel_exclusive_write);
         g_test_add_func("/bdrv-graph-mod/parallel-perm-update",
                         test_parallel_perm_update);
+        g_test_add_func("/bdrv-graph-mod/append-greedy-filter",
+                        test_append_greedy_filter);
     }
 
     return g_test_run();
