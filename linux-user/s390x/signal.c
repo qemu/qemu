@@ -51,6 +51,12 @@ typedef struct {
 } target_sigregs;
 
 typedef struct {
+    uint64_t vxrs_low[16];
+    uint64_t vxrs_high[16][2];
+    uint8_t reserved[128];
+} target_sigregs_ext;
+
+typedef struct {
     abi_ulong oldmask[_SIGCONTEXT_NSIG_WORDS];
     abi_ulong sregs;
 } target_sigcontext;
@@ -60,15 +66,20 @@ typedef struct {
     target_sigcontext sc;
     target_sigregs sregs;
     int signo;
+    target_sigregs_ext sregs_ext;
     uint16_t retcode;
 } sigframe;
+
+#define TARGET_UC_VXRS 2
 
 struct target_ucontext {
     abi_ulong tuc_flags;
     abi_ulong tuc_link;
     target_stack_t tuc_stack;
     target_sigregs tuc_mcontext;
-    target_sigset_t tuc_sigmask;   /* mask last for extensibility */
+    target_sigset_t tuc_sigmask;
+    uint8_t reserved[128 - sizeof(target_sigset_t)];
+    target_sigregs_ext tuc_mcontext_ext;
 };
 
 typedef struct {
@@ -128,6 +139,24 @@ static void save_sigregs(CPUS390XState *env, target_sigregs *sregs)
     }
 }
 
+static void save_sigregs_ext(CPUS390XState *env, target_sigregs_ext *ext)
+{
+    int i;
+
+    /*
+     * if (MACHINE_HAS_VX) ...
+     * That said, we always allocate the stack storage and the
+     * space is always available in env.
+     */
+    for (i = 0; i < 16; ++i) {
+        __put_user(env->vregs[i][1], &ext->vxrs_low[i]);
+    }
+    for (i = 0; i < 16; ++i) {
+        __put_user(env->vregs[i + 16][0], &ext->vxrs_high[i][0]);
+        __put_user(env->vregs[i + 16][1], &ext->vxrs_high[i][1]);
+    }
+}
+
 void setup_frame(int sig, struct target_sigaction *ka,
                  target_sigset_t *set, CPUS390XState *env)
 {
@@ -160,6 +189,9 @@ void setup_frame(int sig, struct target_sigaction *ka,
      * done by the r15 copy above.
      */
     __put_user(sig, &frame->signo);
+
+    /* Create sigregs_ext on the signal stack. */
+    save_sigregs_ext(env, &frame->sregs_ext);
 
     /*
      * Set up to return from userspace.
@@ -202,6 +234,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     rt_sigframe *frame;
     abi_ulong frame_addr;
     abi_ulong restorer;
+    abi_ulong uc_flags;
 
     frame_addr = get_sigframe(ka, env, sizeof *frame);
     trace_user_setup_rt_frame(env, frame_addr);
@@ -229,10 +262,15 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     tswap_siginfo(&frame->info, info);
 
     /* Create ucontext on the signal stack. */
-    __put_user(0, &frame->uc.tuc_flags);
+    uc_flags = 0;
+    if (s390_has_feat(S390_FEAT_VECTOR)) {
+        uc_flags |= TARGET_UC_VXRS;
+    }
+    __put_user(uc_flags, &frame->uc.tuc_flags);
     __put_user(0, &frame->uc.tuc_link);
     target_save_altstack(&frame->uc.tuc_stack, env);
     save_sigregs(env, &frame->uc.tuc_mcontext);
+    save_sigregs_ext(env, &frame->uc.tuc_mcontext_ext);
     tswap_sigset(&frame->uc.tuc_sigmask, set);
 
     /* Set up registers for signal handler */
@@ -271,6 +309,24 @@ static void restore_sigregs(CPUS390XState *env, target_sigregs *sc)
     }
 }
 
+static void restore_sigregs_ext(CPUS390XState *env, target_sigregs_ext *ext)
+{
+    int i;
+
+    /*
+     * if (MACHINE_HAS_VX) ...
+     * That said, we always allocate the stack storage and the
+     * space is always available in env.
+     */
+    for (i = 0; i < 16; ++i) {
+        __get_user(env->vregs[i][1], &ext->vxrs_low[i]);
+    }
+    for (i = 0; i < 16; ++i) {
+        __get_user(env->vregs[i + 16][0], &ext->vxrs_high[i][0]);
+        __get_user(env->vregs[i + 16][1], &ext->vxrs_high[i][1]);
+    }
+}
+
 long do_sigreturn(CPUS390XState *env)
 {
     sigframe *frame;
@@ -292,6 +348,7 @@ long do_sigreturn(CPUS390XState *env)
     set_sigmask(&set); /* ~_BLOCKABLE? */
 
     restore_sigregs(env, &frame->sregs);
+    restore_sigregs_ext(env, &frame->sregs_ext);
 
     unlock_user_struct(frame, frame_addr, 0);
     return -TARGET_QEMU_ESIGRETURN;
@@ -313,6 +370,7 @@ long do_rt_sigreturn(CPUS390XState *env)
     set_sigmask(&set); /* ~_BLOCKABLE? */
 
     restore_sigregs(env, &frame->uc.tuc_mcontext);
+    restore_sigregs_ext(env, &frame->uc.tuc_mcontext_ext);
 
     target_restore_altstack(&frame->uc.tuc_stack, env);
 
