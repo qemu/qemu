@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "trace.h"
 #include "exec/log.h"
@@ -62,6 +63,38 @@ static const char *excp_name_str(int32_t exception_index)
         return "Unknown";
     }
     return excp_names[exception_index];
+}
+
+void cpu_check_irqs(CPUSPARCState *env)
+{
+    CPUState *cs;
+
+    /* We should be holding the BQL before we mess with IRQs */
+    g_assert(qemu_mutex_iothread_locked());
+
+    if (env->pil_in && (env->interrupt_index == 0 ||
+                        (env->interrupt_index & ~15) == TT_EXTINT)) {
+        unsigned int i;
+
+        for (i = 15; i > 0; i--) {
+            if (env->pil_in & (1 << i)) {
+                int old_interrupt = env->interrupt_index;
+
+                env->interrupt_index = TT_EXTINT | i;
+                if (old_interrupt != env->interrupt_index) {
+                    cs = env_cpu(env);
+                    trace_sun4m_cpu_interrupt(i);
+                    cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+                }
+                break;
+            }
+        }
+    } else if (!env->pil_in && (env->interrupt_index & ~15) == TT_EXTINT) {
+        cs = env_cpu(env);
+        trace_sun4m_cpu_reset_interrupt(env->interrupt_index & 15);
+        env->interrupt_index = 0;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+    }
 }
 
 void sparc_cpu_do_interrupt(CPUState *cs)

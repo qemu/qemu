@@ -9,10 +9,6 @@ sun4u_iommu_mem_write(uint64_t addr, uint64_t val, int size) "addr: 0x%"PRIx64" 
 sun4u_iommu_translate(uint64_t addr, uint64_t trans_addr, uint64_t tte) "xlate 0x%"PRIx64" => pa 0x%"PRIx64" tte: 0x%"PRIx64
 
 # sparc64.c
-sparc64_cpu_check_irqs_reset_irq(int intno) "Reset CPU IRQ (current interrupt 0x%x)"
-sparc64_cpu_check_irqs_noset_irq(uint32_t tl, uint32_t tt, int intno) "Not setting CPU IRQ: TL=%d current 0x%x >= pending 0x%x"
-sparc64_cpu_check_irqs_set_irq(unsigned int i, int old, int new) "Set CPU IRQ %d old=0x%x new=0x%x"
-sparc64_cpu_check_irqs_disabled(uint32_t pil, uint32_t pil_in, uint32_t softint, int intno) "Interrupts disabled, pil=0x%08x pil_in=0x%08x softint=0x%08x current interrupt 0x%x"
 sparc64_cpu_ivec_raise_irq(int irq) "Raise IVEC IRQ %d"
 sparc64_cpu_ivec_lower_irq(int irq) "Lower IVEC IRQ %d"
 sparc64_cpu_tick_irq_disabled(void) "tick_irq: softint disabled"

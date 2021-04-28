@@ -10,10 +10,18 @@ mmu_helper_get_phys_addr_code(uint32_t tl, int mmu_idx, uint64_t prim_context, u
 mmu_helper_get_phys_addr_data(uint32_t tl, int mmu_idx, uint64_t prim_context, uint64_t sec_context, uint64_t address) "tl=%d mmu_idx=%d primary context=0x%"PRIx64" secondary context=0x%"PRIx64" address=0x%"PRIx64
 mmu_helper_mmu_fault(uint64_t address, uint64_t paddr, int mmu_idx, uint32_t tl, uint64_t prim_context, uint64_t sec_context) "Translate at 0x%"PRIx64" -> 0x%"PRIx64", mmu_idx=%d tl=%d primary context=0x%"PRIx64" secondary context=0x%"PRIx64
 
+# int32_helper.c
+sun4m_cpu_interrupt(unsigned int level) "Set CPU IRQ %d"
+sun4m_cpu_reset_interrupt(unsigned int level) "Reset CPU IRQ %d"
+
 # int64_helper.c
 int_helper_set_softint(uint32_t softint) "new 0x%08x"
 int_helper_clear_softint(uint32_t softint) "new 0x%08x"
 int_helper_write_softint(uint32_t softint) "new 0x%08x"
+sparc64_cpu_check_irqs_reset_irq(int intno) "Reset CPU IRQ (current interrupt 0x%x)"
+sparc64_cpu_check_irqs_noset_irq(uint32_t tl, uint32_t tt, int intno) "Not setting CPU IRQ: TL=%d current 0x%x >= pending 0x%x"
+sparc64_cpu_check_irqs_set_irq(unsigned int i, int old, int new) "Set CPU IRQ %d old=0x%x new=0x%x"
+sparc64_cpu_check_irqs_disabled(uint32_t pil, uint32_t pil_in, uint32_t softint, int intno) "Interrupts disabled, pil=0x%08x pil_in=0x%08x softint=0x%08x current interrupt 0x%x"
 
 # win_helper.c
 win_helper_gregset_error(uint32_t pstate) "ERROR in get_gregset: active pstate bits=0x%x"

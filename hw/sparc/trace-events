@@ -1,8 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
 # sun4m.c
-sun4m_cpu_interrupt(unsigned int level) "Set CPU IRQ %d"
-sun4m_cpu_reset_interrupt(unsigned int level) "Reset CPU IRQ %d"
 sun4m_cpu_set_irq_raise(int level) "Raise CPU IRQ %d"
 sun4m_cpu_set_irq_lower(int level) "Lower CPU IRQ %d"
 

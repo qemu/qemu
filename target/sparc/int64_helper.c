@@ -62,6 +62,72 @@ static const char * const excp_names[0x80] = {
 };
 #endif
 
+void cpu_check_irqs(CPUSPARCState *env)
+{
+    CPUState *cs;
+    uint32_t pil = env->pil_in |
+                  (env->softint & ~(SOFTINT_TIMER | SOFTINT_STIMER));
+
+    /* We should be holding the BQL before we mess with IRQs */
+    g_assert(qemu_mutex_iothread_locked());
+
+    /* TT_IVEC has a higher priority (16) than TT_EXTINT (31..17) */
+    if (env->ivec_status & 0x20) {
+        return;
+    }
+    cs = env_cpu(env);
+    /*
+     * check if TM or SM in SOFTINT are set
+     * setting these also causes interrupt 14
+     */
+    if (env->softint & (SOFTINT_TIMER | SOFTINT_STIMER)) {
+        pil |= 1 << 14;
+    }
+
+    /*
+     * The bit corresponding to psrpil is (1<< psrpil),
+     * the next bit is (2 << psrpil).
+     */
+    if (pil < (2 << env->psrpil)) {
+        if (cs->interrupt_request & CPU_INTERRUPT_HARD) {
+            trace_sparc64_cpu_check_irqs_reset_irq(env->interrupt_index);
+            env->interrupt_index = 0;
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
+        return;
+    }
+
+    if (cpu_interrupts_enabled(env)) {
+
+        unsigned int i;
+
+        for (i = 15; i > env->psrpil; i--) {
+            if (pil & (1 << i)) {
+                int old_interrupt = env->interrupt_index;
+                int new_interrupt = TT_EXTINT | i;
+
+                if (unlikely(env->tl > 0 && cpu_tsptr(env)->tt > new_interrupt
+                  && ((cpu_tsptr(env)->tt & 0x1f0) == TT_EXTINT))) {
+                    trace_sparc64_cpu_check_irqs_noset_irq(env->tl,
+                                                      cpu_tsptr(env)->tt,
+                                                      new_interrupt);
+                } else if (old_interrupt != new_interrupt) {
+                    env->interrupt_index = new_interrupt;
+                    trace_sparc64_cpu_check_irqs_set_irq(i, old_interrupt,
+                                                         new_interrupt);
+                    cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+                }
+                break;
+            }
+        }
+    } else if (cs->interrupt_request & CPU_INTERRUPT_HARD) {
+        trace_sparc64_cpu_check_irqs_disabled(pil, env->pil_in, env->softint,
+                                              env->interrupt_index);
+        env->interrupt_index = 0;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+    }
+}
+
 void sparc_cpu_do_interrupt(CPUState *cs)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
