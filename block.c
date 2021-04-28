@@ -1988,7 +1988,6 @@ static int bdrv_fill_options(QDict **options, const char *filename,
 static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
                                   uint64_t new_used_perm,
                                   uint64_t new_shared_perm,
-                                  GSList *ignore_children,
                                   Error **errp);
 
 typedef struct BlockReopenQueueEntry {
@@ -2065,9 +2064,7 @@ static bool bdrv_a_allow_b(BdrvChild *a, BdrvChild *b, Error **errp)
     return false;
 }
 
-static bool bdrv_parent_perms_conflict(BlockDriverState *bs,
-                                       GSList *ignore_children,
-                                       Error **errp)
+static bool bdrv_parent_perms_conflict(BlockDriverState *bs, Error **errp)
 {
     BdrvChild *a, *b;
 
@@ -2077,12 +2074,8 @@ static bool bdrv_parent_perms_conflict(BlockDriverState *bs,
      * directions.
      */
     QLIST_FOREACH(a, &bs->parents, next_parent) {
-        if (g_slist_find(ignore_children, a)) {
-            continue;
-        }
-
         QLIST_FOREACH(b, &bs->parents, next_parent) {
-            if (a == b || g_slist_find(ignore_children, b)) {
+            if (a == b) {
                 continue;
             }
 
@@ -2310,7 +2303,6 @@ static void bdrv_replace_child_safe(BdrvChild *child, BlockDriverState *new_bs,
 static int bdrv_node_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
                                 uint64_t cumulative_perms,
                                 uint64_t cumulative_shared_perms,
-                                GSList *ignore_children,
                                 Transaction *tran, Error **errp)
 {
     BlockDriver *drv = bs->drv;
@@ -2393,7 +2385,6 @@ static int bdrv_check_perm_common(GSList *list, BlockReopenQueue *q,
                                   bool use_cumulative_perms,
                                   uint64_t cumulative_perms,
                                   uint64_t cumulative_shared_perms,
-                                  GSList *ignore_children,
                                   Transaction *tran, Error **errp)
 {
     int ret;
@@ -2404,7 +2395,7 @@ static int bdrv_check_perm_common(GSList *list, BlockReopenQueue *q,
 
         ret = bdrv_node_check_perm(bs, q, cumulative_perms,
                                    cumulative_shared_perms,
-                                   ignore_children, tran, errp);
+                                   tran, errp);
         if (ret < 0) {
             return ret;
         }
@@ -2415,7 +2406,7 @@ static int bdrv_check_perm_common(GSList *list, BlockReopenQueue *q,
     for ( ; list; list = list->next) {
         bs = list->data;
 
-        if (bdrv_parent_perms_conflict(bs, ignore_children, errp)) {
+        if (bdrv_parent_perms_conflict(bs, errp)) {
             return -EINVAL;
         }
 
@@ -2424,7 +2415,7 @@ static int bdrv_check_perm_common(GSList *list, BlockReopenQueue *q,
 
         ret = bdrv_node_check_perm(bs, q, cumulative_perms,
                                    cumulative_shared_perms,
-                                   ignore_children, tran, errp);
+                                   tran, errp);
         if (ret < 0) {
             return ret;
         }
@@ -2435,19 +2426,17 @@ static int bdrv_check_perm_common(GSList *list, BlockReopenQueue *q,
 
 static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
                            uint64_t cumulative_perms,
-                           uint64_t cumulative_shared_perms,
-                           GSList *ignore_children, Error **errp)
+                           uint64_t cumulative_shared_perms, Error **errp)
 {
     g_autoptr(GSList) list = bdrv_topological_dfs(NULL, NULL, bs);
     return bdrv_check_perm_common(list, q, true, cumulative_perms,
-                                  cumulative_shared_perms, ignore_children,
-                                  NULL, errp);
+                                  cumulative_shared_perms, NULL, errp);
 }
 
 static int bdrv_list_refresh_perms(GSList *list, BlockReopenQueue *q,
                                    Transaction *tran, Error **errp)
 {
-    return bdrv_check_perm_common(list, q, false, 0, 0, NULL, tran, errp);
+    return bdrv_check_perm_common(list, q, false, 0, 0, tran, errp);
 }
 
 /*
@@ -2576,7 +2565,6 @@ char *bdrv_perm_names(uint64_t perm)
 static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
                                   uint64_t new_used_perm,
                                   uint64_t new_shared_perm,
-                                  GSList *ignore_children,
                                   Error **errp)
 {
     BdrvChild *c;
@@ -2588,10 +2576,6 @@ static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
     assert(new_shared_perm & BLK_PERM_WRITE_UNCHANGED);
 
     QLIST_FOREACH(c, &bs->parents, next_parent) {
-        if (g_slist_find(ignore_children, c)) {
-            continue;
-        }
-
         if ((new_used_perm & c->shared_perm) != new_used_perm) {
             char *user = bdrv_child_user_desc(c);
             char *perm_names = bdrv_perm_names(new_used_perm & ~c->shared_perm);
@@ -2621,7 +2605,7 @@ static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
     }
 
     return bdrv_check_perm(bs, q, cumulative_perms, cumulative_shared_perms,
-                           ignore_children, errp);
+                           errp);
 }
 
 static int bdrv_refresh_perms(BlockDriverState *bs, Error **errp)
@@ -4244,7 +4228,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
     QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
         BDRVReopenState *state = &bs_entry->state;
         ret = bdrv_check_perm(state->bs, bs_queue, state->perm,
-                              state->shared_perm, NULL, errp);
+                              state->shared_perm, errp);
         if (ret < 0) {
             goto cleanup_perm;
         }
@@ -4256,7 +4240,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
                             bs_queue, state->perm, state->shared_perm,
                             &nperm, &nshared);
             ret = bdrv_check_update_perm(state->new_backing_bs, NULL,
-                                         nperm, nshared, NULL, errp);
+                                         nperm, nshared, errp);
             if (ret < 0) {
                 goto cleanup_perm;
             }
