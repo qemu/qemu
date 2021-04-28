@@ -48,14 +48,18 @@ void cpu_check_irqs(CPUSPARCState *env)
         return;
     }
     cs = env_cpu(env);
-    /* check if TM or SM in SOFTINT are set
-       setting these also causes interrupt 14 */
+    /*
+     * check if TM or SM in SOFTINT are set
+     * setting these also causes interrupt 14
+     */
     if (env->softint & (SOFTINT_TIMER | SOFTINT_STIMER)) {
         pil |= 1 << 14;
     }
 
-    /* The bit corresponding to psrpil is (1<< psrpil), the next bit
-       is (2 << psrpil). */
+    /*
+     * The bit corresponding to psrpil is (1<< psrpil),
+     * the next bit is (2 << psrpil).
+     */
     if (pil < (2 << env->psrpil)) {
         if (cs->interrupt_request & CPU_INTERRUPT_HARD) {
             trace_sparc64_cpu_check_irqs_reset_irq(env->interrupt_index);
