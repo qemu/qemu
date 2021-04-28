@@ -102,6 +102,21 @@ def str_fields(fields):
     return r[1:]
 
 
+def whex(val):
+    """Return a hex string for val padded for insnwidth"""
+    global insnwidth
+    return f'0x{val:0{insnwidth // 4}x}'
+
+
+def whexC(val):
+    """Return a hex string for val padded for insnwidth,
+       and with the proper suffix for a C constant."""
+    suffix = ''
+    if val >= 0x80000000:
+        suffix = 'u'
+    return whex(val) + suffix
+
+
 def str_match_bits(bits, mask):
     """Return a string pretty-printing BITS/MASK"""
     global insnwidth
@@ -477,11 +492,8 @@ class IncMultiPattern(MultiPattern):
             if outermask != p.fixedmask:
                 innermask = p.fixedmask & ~outermask
                 innerbits = p.fixedbits & ~outermask
-                output(ind, 'if ((insn & ',
-                       '0x{0:08x}) == 0x{1:08x}'.format(innermask, innerbits),
-                       ') {\n')
-                output(ind, '    /* ',
-                       str_match_bits(p.fixedbits, p.fixedmask), ' */\n')
+                output(ind, f'if ((insn & {whexC(innermask)}) == {whexC(innerbits)}) {{\n')
+                output(ind, f'    /* {str_match_bits(p.fixedbits, p.fixedmask)} */\n')
                 p.output_code(i + 4, extracted, p.fixedbits, p.fixedmask)
                 output(ind, '}\n')
             else:
@@ -500,12 +512,12 @@ class Tree:
 
     def str1(self, i):
         ind = str_indent(i)
-        r = '{0}{1:08x}'.format(ind, self.fixedmask)
+        r = ind + whex(self.fixedmask)
         if self.format:
             r += ' ' + self.format.name
         r += ' [\n'
         for (b, s) in self.subs:
-            r += '{0}  {1:08x}:\n'.format(ind, b)
+            r += ind + f'  {whex(b)}:\n'
             r += s.str1(i + 4) + '\n'
         r += ind + ']'
         return r
@@ -529,16 +541,16 @@ class Tree:
         if sh > 0:
             # Propagate SH down into the local functions.
             def str_switch(b, sh=sh):
-                return '(insn >> {0}) & 0x{1:x}'.format(sh, b >> sh)
+                return f'(insn >> {sh}) & {b >> sh:#x}'
 
             def str_case(b, sh=sh):
-                return '0x{0:x}'.format(b >> sh)
+                return hex(b >> sh)
         else:
             def str_switch(b):
-                return 'insn & 0x{0:08x}'.format(b)
+                return f'insn & {whexC(b)}'
 
             def str_case(b):
-                return '0x{0:08x}'.format(b)
+                return whexC(b)
 
         output(ind, 'switch (', str_switch(self.thismask), ') {\n')
         for b, s in sorted(self.subs):
@@ -962,19 +974,19 @@ def parse_generic(lineno, parent_pat, name, toks):
 
     # Validate the masks that we have assembled.
     if fieldmask & fixedmask:
-        error(lineno, 'fieldmask overlaps fixedmask (0x{0:08x} & 0x{1:08x})'
-                      .format(fieldmask, fixedmask))
+        error(lineno, 'fieldmask overlaps fixedmask ',
+              f'({whex(fieldmask)} & {whex(fixedmask)})')
     if fieldmask & undefmask:
-        error(lineno, 'fieldmask overlaps undefmask (0x{0:08x} & 0x{1:08x})'
-                      .format(fieldmask, undefmask))
+        error(lineno, 'fieldmask overlaps undefmask ',
+              f'({whex(fieldmask)} & {whex(undefmask)})')
     if fixedmask & undefmask:
-        error(lineno, 'fixedmask overlaps undefmask (0x{0:08x} & 0x{1:08x})'
-                      .format(fixedmask, undefmask))
+        error(lineno, 'fixedmask overlaps undefmask ',
+              f'({whex(fixedmask)} & {whex(undefmask)})')
     if not is_format:
         allbits = fieldmask | fixedmask | undefmask
         if allbits != insnmask:
-            error(lineno, 'bits left unspecified (0x{0:08x})'
-                          .format(allbits ^ insnmask))
+            error(lineno, 'bits left unspecified ',
+                  f'({whex(allbits ^ insnmask)})')
 # end parse_general
 
 
@@ -1104,10 +1116,9 @@ class SizeTree:
 
     def str1(self, i):
         ind = str_indent(i)
-        r = '{0}{1:08x}'.format(ind, self.mask)
-        r += ' [\n'
+        r = ind + whex(self.mask) + ' [\n'
         for (b, s) in self.subs:
-            r += '{0}  {1:08x}:\n'.format(ind, b)
+            r += ind + f'  {whex(b)}:\n'
             r += s.str1(i + 4) + '\n'
         r += ind + ']'
         return r
@@ -1131,16 +1142,16 @@ class SizeTree:
         if sh > 0:
             # Propagate SH down into the local functions.
             def str_switch(b, sh=sh):
-                return '(insn >> {0}) & 0x{1:x}'.format(sh, b >> sh)
+                return f'(insn >> {sh}) & {b >> sh:#x}'
 
             def str_case(b, sh=sh):
-                return '0x{0:x}'.format(b >> sh)
+                return hex(b >> sh)
         else:
             def str_switch(b):
-                return 'insn & 0x{0:08x}'.format(b)
+                return f'insn & {whexC(b)}'
 
             def str_case(b):
-                return '0x{0:08x}'.format(b)
+                return whexC(b)
 
         output(ind, 'switch (', str_switch(self.mask), ') {\n')
         for b, s in sorted(self.subs):
@@ -1162,8 +1173,7 @@ class SizeLeaf:
         self.width = w
 
     def str1(self, i):
-        ind = str_indent(i)
-        return '{0}{1:08x}'.format(ind, self.mask)
+        return str_indent(i) + whex(self.mask)
 
     def __str__(self):
         return self.str1(0)
