@@ -4275,6 +4275,14 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
     assert(bs_queue != NULL);
 
     QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
+        ret = bdrv_flush(bs_entry->state.bs);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Error flushing drive");
+            goto cleanup;
+        }
+    }
+
+    QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
         assert(bs_entry->state.bs->quiesce_counter > 0);
         if (bdrv_reopen_prepare(&bs_entry->state, bs_queue, errp)) {
             goto cleanup;
@@ -4668,12 +4676,6 @@ static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
     /* Calculate required permissions after reopening */
     bdrv_reopen_perm(queue, reopen_state->bs,
                      &reopen_state->perm, &reopen_state->shared_perm);
-
-    ret = bdrv_flush(reopen_state->bs);
-    if (ret) {
-        error_setg_errno(errp, -ret, "Error flushing drive");
-        goto error;
-    }
 
     if (drv->bdrv_reopen_prepare) {
         /*
