@@ -469,7 +469,7 @@ static void vfio_ccw_unregister_irq_notifier(VFIOCCWDevice *vcdev,
 
     if (vfio_set_irq_signaling(&vcdev->vdev, irq, 0,
                                VFIO_IRQ_SET_ACTION_TRIGGER, -1, &err)) {
-        error_reportf_err(err, VFIO_MSG_PREFIX, vcdev->vdev.name);
+        warn_reportf_err(err, VFIO_MSG_PREFIX, vcdev->vdev.name);
     }
 
     qemu_set_fd_handler(event_notifier_get_fd(notifier),
@@ -689,7 +689,7 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
     if (vcdev->crw_region) {
         vfio_ccw_register_irq_notifier(vcdev, VFIO_CCW_CRW_IRQ_INDEX, &err);
         if (err) {
-            goto out_crw_notifier_err;
+            goto out_irq_notifier_err;
         }
     }
 
@@ -704,7 +704,9 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
 
     return;
 
-out_crw_notifier_err:
+out_irq_notifier_err:
+    vfio_ccw_unregister_irq_notifier(vcdev, VFIO_CCW_REQ_IRQ_INDEX);
+    vfio_ccw_unregister_irq_notifier(vcdev, VFIO_CCW_CRW_IRQ_INDEX);
     vfio_ccw_unregister_irq_notifier(vcdev, VFIO_CCW_IO_IRQ_INDEX);
 out_io_notifier_err:
     vfio_ccw_put_region(vcdev);
