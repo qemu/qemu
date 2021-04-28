@@ -37,13 +37,14 @@
 
 typedef struct {
     target_psw_t psw;
-    target_ulong gprs[__NUM_GPRS];
-    unsigned int acrs[__NUM_ACRS];
+    abi_ulong gprs[__NUM_GPRS];
+    abi_uint acrs[__NUM_ACRS];
 } target_s390_regs_common;
 
 typedef struct {
-    unsigned int fpc;
-    double   fprs[__NUM_FPRS];
+    uint32_t fpc;
+    uint32_t pad;
+    uint64_t fprs[__NUM_FPRS];
 } target_s390_fp_regs;
 
 typedef struct {
@@ -51,22 +52,22 @@ typedef struct {
     target_s390_fp_regs     fpregs;
 } target_sigregs;
 
-struct target_sigcontext {
-    target_ulong   oldmask[_SIGCONTEXT_NSIG_WORDS];
-    target_sigregs *sregs;
-};
+typedef struct {
+    abi_ulong oldmask[_SIGCONTEXT_NSIG_WORDS];
+    abi_ulong sregs;
+} target_sigcontext;
 
 typedef struct {
     uint8_t callee_used_stack[__SIGNAL_FRAMESIZE];
-    struct target_sigcontext sc;
+    target_sigcontext sc;
     target_sigregs sregs;
     int signo;
     uint8_t retcode[S390_SYSCALL_SIZE];
 } sigframe;
 
 struct target_ucontext {
-    target_ulong tuc_flags;
-    struct target_ucontext *tuc_link;
+    abi_ulong tuc_flags;
+    abi_ulong tuc_link;
     target_stack_t tuc_stack;
     target_sigregs tuc_mcontext;
     target_sigset_t tuc_sigmask;   /* mask last for extensibility */
@@ -143,8 +144,7 @@ void setup_frame(int sig, struct target_sigaction *ka,
 
     save_sigregs(env, &frame->sregs);
 
-    __put_user((abi_ulong)(unsigned long)&frame->sregs,
-               (abi_ulong *)&frame->sc.sregs);
+    __put_user((abi_ulong)(unsigned long)&frame->sregs, &frame->sc.sregs);
 
     /* Set up to return from userspace.  If provided, use a stub
        already in userspace.  */
