@@ -2373,32 +2373,12 @@ static int bdrv_node_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
     return 0;
 }
 
-/*
- * If use_cumulative_perms is true, use cumulative_perms and
- * cumulative_shared_perms for first element of the list. Otherwise just refresh
- * all permissions.
- */
-static int bdrv_check_perm_common(GSList *list, BlockReopenQueue *q,
-                                  bool use_cumulative_perms,
-                                  uint64_t cumulative_perms,
-                                  uint64_t cumulative_shared_perms,
-                                  Transaction *tran, Error **errp)
+static int bdrv_list_refresh_perms(GSList *list, BlockReopenQueue *q,
+                                   Transaction *tran, Error **errp)
 {
     int ret;
+    uint64_t cumulative_perms, cumulative_shared_perms;
     BlockDriverState *bs;
-
-    if (use_cumulative_perms) {
-        bs = list->data;
-
-        ret = bdrv_node_check_perm(bs, q, cumulative_perms,
-                                   cumulative_shared_perms,
-                                   tran, errp);
-        if (ret < 0) {
-            return ret;
-        }
-
-        list = list->next;
-    }
 
     for ( ; list; list = list->next) {
         bs = list->data;
@@ -2419,12 +2399,6 @@ static int bdrv_check_perm_common(GSList *list, BlockReopenQueue *q,
     }
 
     return 0;
-}
-
-static int bdrv_list_refresh_perms(GSList *list, BlockReopenQueue *q,
-                                   Transaction *tran, Error **errp)
-{
-    return bdrv_check_perm_common(list, q, false, 0, 0, tran, errp);
 }
 
 static void bdrv_node_set_perm(BlockDriverState *bs)
