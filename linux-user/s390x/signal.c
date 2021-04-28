@@ -230,10 +230,8 @@ give_sigsegv:
     force_sigsegv(sig);
 }
 
-static int
-restore_sigregs(CPUS390XState *env, target_sigregs *sc)
+static void restore_sigregs(CPUS390XState *env, target_sigregs *sc)
 {
-    int err = 0;
     int i;
 
     for (i = 0; i < 16; i++) {
@@ -251,8 +249,6 @@ restore_sigregs(CPUS390XState *env, target_sigregs *sc)
     for (i = 0; i < 16; i++) {
         __get_user(*get_freg(env, i), &sc->fpregs.fprs[i]);
     }
-
-    return err;
 }
 
 long do_sigreturn(CPUS390XState *env)
@@ -271,9 +267,7 @@ long do_sigreturn(CPUS390XState *env)
     target_to_host_sigset_internal(&set, &target_set);
     set_sigmask(&set); /* ~_BLOCKABLE? */
 
-    if (restore_sigregs(env, &frame->sregs)) {
-        goto badframe;
-    }
+    restore_sigregs(env, &frame->sregs);
 
     unlock_user_struct(frame, frame_addr, 0);
     return -TARGET_QEMU_ESIGRETURN;
@@ -297,9 +291,7 @@ long do_rt_sigreturn(CPUS390XState *env)
 
     set_sigmask(&set); /* ~_BLOCKABLE? */
 
-    if (restore_sigregs(env, &frame->uc.tuc_mcontext)) {
-        goto badframe;
-    }
+    restore_sigregs(env, &frame->uc.tuc_mcontext);
 
     target_restore_altstack(&frame->uc.tuc_stack, env);
 
