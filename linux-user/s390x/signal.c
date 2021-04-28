@@ -133,6 +133,7 @@ void setup_frame(int sig, struct target_sigaction *ka,
 {
     sigframe *frame;
     abi_ulong frame_addr;
+    abi_ulong restorer;
 
     frame_addr = get_sigframe(ka, env, sizeof(*frame));
     trace_user_setup_frame(env, frame_addr);
@@ -141,28 +142,39 @@ void setup_frame(int sig, struct target_sigaction *ka,
         return;
     }
 
+    /* Set up backchain. */
+    __put_user(env->regs[15], (abi_ulong *) frame);
+
+    /* Create struct sigcontext on the signal stack. */
     /* Make sure that we're initializing all of oldmask. */
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(frame->sc.oldmask) != 1);
     __put_user(set->sig[0], &frame->sc.oldmask[0]);
-
-    save_sigregs(env, &frame->sregs);
-
     __put_user(frame_addr + offsetof(sigframe, sregs), &frame->sc.sregs);
 
-    /* Set up to return from userspace.  If provided, use a stub
-       already in userspace.  */
+    /* Create _sigregs on the signal stack */
+    save_sigregs(env, &frame->sregs);
+
+    /*
+     * ??? The kernel uses regs->gprs[2] here, which is not yet the signo.
+     * Moreover the comment talks about allowing backtrace, which is really
+     * done by the r15 copy above.
+     */
+    __put_user(sig, &frame->signo);
+
+    /*
+     * Set up to return from userspace.
+     * If provided, use a stub already in userspace.
+     */
     if (ka->sa_flags & TARGET_SA_RESTORER) {
-        env->regs[14] = ka->sa_restorer;
+        restorer = ka->sa_restorer;
     } else {
-        env->regs[14] = frame_addr + offsetof(sigframe, retcode);
+        restorer = frame_addr + offsetof(sigframe, retcode);
         __put_user(S390_SYSCALL_OPCODE | TARGET_NR_sigreturn,
                    &frame->retcode);
     }
 
-    /* Set up backchain. */
-    __put_user(env->regs[15], (abi_ulong *) frame);
-
     /* Set up registers for signal handler */
+    env->regs[14] = restorer;
     env->regs[15] = frame_addr;
     /* Force default amode and default user address space control. */
     env->psw.mask = PSW_MASK_64 | PSW_MASK_32 | PSW_ASC_PRIMARY
@@ -180,8 +192,6 @@ void setup_frame(int sig, struct target_sigaction *ka,
     env->regs[5] = 0; /* FIXME: regs->int_parm_long */
     env->regs[6] = 0; /* FIXME: current->thread.last_break */
 
-    /* Place signal number on stack to allow backtrace from handler.  */
-    __put_user(env->regs[2], &frame->signo);
     unlock_user_struct(frame, frame_addr, 1);
 }
 
@@ -191,6 +201,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 {
     rt_sigframe *frame;
     abi_ulong frame_addr;
+    abi_ulong restorer;
 
     frame_addr = get_sigframe(ka, env, sizeof *frame);
     trace_user_setup_rt_frame(env, frame_addr);
@@ -199,29 +210,33 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
         return;
     }
 
-    tswap_siginfo(&frame->info, info);
+    /* Set up backchain. */
+    __put_user(env->regs[15], (abi_ulong *) frame);
 
-    /* Create the ucontext.  */
-    __put_user(0, &frame->uc.tuc_flags);
-    __put_user((abi_ulong)0, (abi_ulong *)&frame->uc.tuc_link);
-    target_save_altstack(&frame->uc.tuc_stack, env);
-    save_sigregs(env, &frame->uc.tuc_mcontext);
-    tswap_sigset(&frame->uc.tuc_sigmask, set);
-
-    /* Set up to return from userspace.  If provided, use a stub
-       already in userspace.  */
+    /*
+     * Set up to return from userspace.
+     * If provided, use a stub already in userspace.
+     */
     if (ka->sa_flags & TARGET_SA_RESTORER) {
-        env->regs[14] = ka->sa_restorer;
+        restorer = ka->sa_restorer;
     } else {
-        env->regs[14] = frame_addr + offsetof(typeof(*frame), retcode);
+        restorer = frame_addr + offsetof(typeof(*frame), retcode);
         __put_user(S390_SYSCALL_OPCODE | TARGET_NR_rt_sigreturn,
                    &frame->retcode);
     }
 
-    /* Set up backchain. */
-    __put_user(env->regs[15], (abi_ulong *) frame);
+    /* Create siginfo on the signal stack. */
+    tswap_siginfo(&frame->info, info);
+
+    /* Create ucontext on the signal stack. */
+    __put_user(0, &frame->uc.tuc_flags);
+    __put_user(0, &frame->uc.tuc_link);
+    target_save_altstack(&frame->uc.tuc_stack, env);
+    save_sigregs(env, &frame->uc.tuc_mcontext);
+    tswap_sigset(&frame->uc.tuc_sigmask, set);
 
     /* Set up registers for signal handler */
+    env->regs[14] = restorer;
     env->regs[15] = frame_addr;
     /* Force default amode and default user address space control. */
     env->psw.mask = PSW_MASK_64 | PSW_MASK_32 | PSW_ASC_PRIMARY
