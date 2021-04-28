@@ -141,6 +141,8 @@ void setup_frame(int sig, struct target_sigaction *ka,
         return;
     }
 
+    /* Make sure that we're initializing all of oldmask. */
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(frame->sc.oldmask) != 1);
     __put_user(set->sig[0], &frame->sc.oldmask[0]);
 
     save_sigregs(env, &frame->sregs);
@@ -266,6 +268,9 @@ long do_sigreturn(CPUS390XState *env)
         force_sig(TARGET_SIGSEGV);
         return -TARGET_QEMU_ESIGRETURN;
     }
+
+    /* Make sure that we're initializing all of target_set. */
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(target_set.sig) != 1);
     __get_user(target_set.sig[0], &frame->sc.oldmask[0]);
 
     target_to_host_sigset_internal(&set, &target_set);
