@@ -25,7 +25,6 @@
 #define __NUM_FPRS 16
 #define __NUM_ACRS 16
 
-#define S390_SYSCALL_SIZE   2
 #define __SIGNAL_FRAMESIZE      160 /* FIXME: 31-bit mode -> 96 */
 
 #define _SIGCONTEXT_NSIG        64
@@ -62,7 +61,7 @@ typedef struct {
     target_sigcontext sc;
     target_sigregs sregs;
     int signo;
-    uint8_t retcode[S390_SYSCALL_SIZE];
+    uint16_t retcode;
 } sigframe;
 
 struct target_ucontext {
@@ -75,7 +74,7 @@ struct target_ucontext {
 
 typedef struct {
     uint8_t callee_used_stack[__SIGNAL_FRAMESIZE];
-    uint8_t retcode[S390_SYSCALL_SIZE];
+    uint16_t retcode;
     struct target_siginfo info;
     struct target_ucontext uc;
 } rt_sigframe;
@@ -155,7 +154,7 @@ void setup_frame(int sig, struct target_sigaction *ka,
         env->regs[14] = (frame_addr + offsetof(sigframe, retcode))
                         | PSW_ADDR_AMODE;
         __put_user(S390_SYSCALL_OPCODE | TARGET_NR_sigreturn,
-                   (uint16_t *)(frame->retcode));
+                   &frame->retcode);
     }
 
     /* Set up backchain. */
@@ -216,7 +215,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
         env->regs[14] = (frame_addr + offsetof(typeof(*frame), retcode))
                         | PSW_ADDR_AMODE;
         __put_user(S390_SYSCALL_OPCODE | TARGET_NR_rt_sigreturn,
-                   (uint16_t *)(frame->retcode));
+                   &frame->retcode);
     }
 
     /* Set up backchain. */
