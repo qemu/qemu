@@ -137,7 +137,8 @@ void setup_frame(int sig, struct target_sigaction *ka,
     frame_addr = get_sigframe(ka, env, sizeof(*frame));
     trace_user_setup_frame(env, frame_addr);
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
-        goto give_sigsegv;
+        force_sigsegv(sig);
+        return;
     }
 
     __put_user(set->sig[0], &frame->sc.oldmask[0]);
@@ -174,10 +175,6 @@ void setup_frame(int sig, struct target_sigaction *ka,
     /* Place signal number on stack to allow backtrace from handler.  */
     __put_user(env->regs[2], &frame->signo);
     unlock_user_struct(frame, frame_addr, 1);
-    return;
-
-give_sigsegv:
-    force_sigsegv(sig);
 }
 
 void setup_rt_frame(int sig, struct target_sigaction *ka,
@@ -190,7 +187,8 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     frame_addr = get_sigframe(ka, env, sizeof *frame);
     trace_user_setup_rt_frame(env, frame_addr);
     if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
-        goto give_sigsegv;
+        force_sigsegv(sig);
+        return;
     }
 
     tswap_siginfo(&frame->info, info);
@@ -222,10 +220,6 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     env->regs[2] = sig; //map_signal(sig);
     env->regs[3] = frame_addr + offsetof(typeof(*frame), info);
     env->regs[4] = frame_addr + offsetof(typeof(*frame), uc);
-    return;
-
-give_sigsegv:
-    force_sigsegv(sig);
 }
 
 static void restore_sigregs(CPUS390XState *env, target_sigregs *sc)
@@ -259,7 +253,8 @@ long do_sigreturn(CPUS390XState *env)
 
     trace_user_do_sigreturn(env, frame_addr);
     if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1)) {
-        goto badframe;
+        force_sig(TARGET_SIGSEGV);
+        return -TARGET_QEMU_ESIGRETURN;
     }
     __get_user(target_set.sig[0], &frame->sc.oldmask[0]);
 
@@ -269,10 +264,6 @@ long do_sigreturn(CPUS390XState *env)
     restore_sigregs(env, &frame->sregs);
 
     unlock_user_struct(frame, frame_addr, 0);
-    return -TARGET_QEMU_ESIGRETURN;
-
-badframe:
-    force_sig(TARGET_SIGSEGV);
     return -TARGET_QEMU_ESIGRETURN;
 }
 
@@ -284,7 +275,8 @@ long do_rt_sigreturn(CPUS390XState *env)
 
     trace_user_do_rt_sigreturn(env, frame_addr);
     if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1)) {
-        goto badframe;
+        force_sig(TARGET_SIGSEGV);
+        return -TARGET_QEMU_ESIGRETURN;
     }
     target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
 
@@ -295,10 +287,5 @@ long do_rt_sigreturn(CPUS390XState *env)
     target_restore_altstack(&frame->uc.tuc_stack, env);
 
     unlock_user_struct(frame, frame_addr, 0);
-    return -TARGET_QEMU_ESIGRETURN;
-
-badframe:
-    unlock_user_struct(frame, frame_addr, 0);
-    force_sig(TARGET_SIGSEGV);
     return -TARGET_QEMU_ESIGRETURN;
 }
