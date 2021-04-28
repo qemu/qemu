@@ -905,7 +905,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         # We can't reopen hd1 to read-only, as block-stream requires it to be
         # read-write
         self.reopen(opts['backing'], {'read-only': True},
-                    "Cannot make block node read-only, there is a writer on it")
+                    "Read-only block node 'hd1' cannot support read-write users")
 
         # We can't remove hd2 while the stream job is ongoing
         opts['backing']['backing'] = None
