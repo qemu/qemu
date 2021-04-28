@@ -5088,25 +5088,38 @@ int bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
  * This will modify the BlockDriverState fields, and swap contents
  * between bs_new and bs_top. Both bs_new and bs_top are modified.
  *
- * bs_new must not be attached to a BlockBackend.
+ * bs_new must not be attached to a BlockBackend and must not have backing
+ * child.
  *
  * This function does not create any image files.
  */
 int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
                 Error **errp)
 {
-    int ret = bdrv_set_backing_hd(bs_new, bs_top, errp);
+    int ret;
+    Transaction *tran = tran_new();
+
+    assert(!bs_new->backing);
+
+    ret = bdrv_attach_child_noperm(bs_new, bs_top, "backing",
+                                   &child_of_bds, bdrv_backing_role(bs_new),
+                                   &bs_new->backing, tran, errp);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
 
-    ret = bdrv_replace_node(bs_top, bs_new, errp);
+    ret = bdrv_replace_node_noperm(bs_top, bs_new, true, tran, errp);
     if (ret < 0) {
-        bdrv_set_backing_hd(bs_new, NULL, &error_abort);
-        return ret;
+        goto out;
     }
 
-    return 0;
+    ret = bdrv_refresh_perms(bs_new, errp);
+out:
+    tran_finalize(tran, ret);
+
+    bdrv_refresh_limits(bs_top, NULL);
+
+    return ret;
 }
 
 static void bdrv_delete(BlockDriverState *bs)

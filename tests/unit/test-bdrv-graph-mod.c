@@ -388,16 +388,6 @@ static void test_append_greedy_filter(void)
 
 int main(int argc, char *argv[])
 {
-    int i;
-    bool debug = false;
-
-    for (i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "-d")) {
-            debug = true;
-            break;
-        }
-    }
-
     bdrv_init();
     qemu_init_main_loop(&error_abort);
 
@@ -410,11 +400,8 @@ int main(int argc, char *argv[])
                     test_parallel_perm_update);
     g_test_add_func("/bdrv-graph-mod/parallel-exclusive-write",
                     test_parallel_exclusive_write);
-
-    if (debug) {
-        g_test_add_func("/bdrv-graph-mod/append-greedy-filter",
-                        test_append_greedy_filter);
-    }
+    g_test_add_func("/bdrv-graph-mod/append-greedy-filter",
+                    test_append_greedy_filter);
 
     return g_test_run();
 }
