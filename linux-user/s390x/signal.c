@@ -167,13 +167,16 @@ void setup_frame(int sig, struct target_sigaction *ka,
                   | (env->psw.mask & ~PSW_MASK_ASC);
     env->psw.addr = ka->_sa_handler;
 
-    env->regs[2] = sig; //map_signal(sig);
+    env->regs[2] = sig;
     env->regs[3] = frame_addr += offsetof(typeof(*frame), sc);
 
-    /* We forgot to include these in the sigcontext.
-       To avoid breaking binary compatibility, they are passed as args. */
-    env->regs[4] = 0; // FIXME: no clue... current->thread.trap_no;
-    env->regs[5] = 0; // FIXME: no clue... current->thread.prot_addr;
+    /*
+     * We forgot to include these in the sigcontext.
+     * To avoid breaking binary compatibility, they are passed as args.
+     */
+    env->regs[4] = 0; /* FIXME: regs->int_code & 127 */
+    env->regs[5] = 0; /* FIXME: regs->int_parm_long */
+    env->regs[6] = 0; /* FIXME: current->thread.last_break */
 
     /* Place signal number on stack to allow backtrace from handler.  */
     __put_user(env->regs[2], &frame->signo);
@@ -223,9 +226,10 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
                   | (env->psw.mask & ~PSW_MASK_ASC);
     env->psw.addr = ka->_sa_handler;
 
-    env->regs[2] = sig; //map_signal(sig);
+    env->regs[2] = sig;
     env->regs[3] = frame_addr + offsetof(typeof(*frame), info);
     env->regs[4] = frame_addr + offsetof(typeof(*frame), uc);
+    env->regs[5] = 0; /* FIXME: current->thread.last_break */
 }
 
 static void restore_sigregs(CPUS390XState *env, target_sigregs *sc)
