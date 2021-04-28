@@ -298,6 +298,13 @@ static void blk_root_detach(BdrvChild *child)
     }
 }
 
+static AioContext *blk_root_get_parent_aio_context(BdrvChild *c)
+{
+    BlockBackend *blk = c->opaque;
+
+    return blk_get_aio_context(blk);
+}
+
 static const BdrvChildClass child_root = {
     .inherit_options    = blk_root_inherit_options,
 
@@ -318,6 +325,8 @@ static const BdrvChildClass child_root = {
 
     .can_set_aio_ctx    = blk_root_can_set_aio_ctx,
     .set_aio_ctx        = blk_root_set_aio_ctx,
+
+    .get_parent_aio_context = blk_root_get_parent_aio_context,
 };
 
 /*
