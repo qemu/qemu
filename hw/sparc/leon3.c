@@ -137,7 +137,36 @@ static void main_cpu_reset(void *opaque)
     env->regbase[6] = s->sp;
 }
 
-void leon3_irq_ack(void *irq_manager, int intno)
+static void leon3_cache_control_int(CPUSPARCState *env)
+{
+    uint32_t state = 0;
+
+    if (env->cache_control & CACHE_CTRL_IF) {
+        /* Instruction cache state */
+        state = env->cache_control & CACHE_STATE_MASK;
+        if (state == CACHE_ENABLED) {
+            state = CACHE_FROZEN;
+            trace_int_helper_icache_freeze();
+        }
+
+        env->cache_control &= ~CACHE_STATE_MASK;
+        env->cache_control |= state;
+    }
+
+    if (env->cache_control & CACHE_CTRL_DF) {
+        /* Data cache state */
+        state = (env->cache_control >> 2) & CACHE_STATE_MASK;
+        if (state == CACHE_ENABLED) {
+            state = CACHE_FROZEN;
+            trace_int_helper_dcache_freeze();
+        }
+
+        env->cache_control &= ~(CACHE_STATE_MASK << 2);
+        env->cache_control |= (state << 2);
+    }
+}
+
+static void leon3_irq_ack(void *irq_manager, int intno)
 {
     grlib_irqmp_ack((DeviceState *)irq_manager, intno);
 }
@@ -179,6 +208,12 @@ static void leon3_set_pil_in(void *opaque, int n, int level)
         env->interrupt_index = 0;
         cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }
+}
+
+static void leon3_irq_manager(CPUSPARCState *env, void *irq_manager, int intno)
+{
+    leon3_irq_ack(irq_manager, intno);
+    leon3_cache_control_int(env);
 }
 
 static void leon3_generic_hw_init(MachineState *machine)
