@@ -182,7 +182,6 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
                     target_siginfo_t *info,
                     target_sigset_t *set, CPUS390XState *env)
 {
-    int i;
     rt_sigframe *frame;
     abi_ulong frame_addr;
 
@@ -199,10 +198,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     __put_user((abi_ulong)0, (abi_ulong *)&frame->uc.tuc_link);
     target_save_altstack(&frame->uc.tuc_stack, env);
     save_sigregs(env, &frame->uc.tuc_mcontext);
-    for (i = 0; i < TARGET_NSIG_WORDS; i++) {
-        __put_user((abi_ulong)set->sig[i],
-                   (abi_ulong *)&frame->uc.tuc_sigmask.sig[i]);
-    }
+    tswap_sigset(&frame->uc.tuc_sigmask, set);
 
     /* Set up to return from userspace.  If provided, use a stub
        already in userspace.  */
