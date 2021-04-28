@@ -2248,12 +2248,12 @@ static TransactionActionDrv bdrv_replace_child_drv = {
 };
 
 /*
- * bdrv_replace_child_safe
+ * bdrv_replace_child
  *
  * Note: real unref of old_bs is done only on commit.
  */
-static void bdrv_replace_child_safe(BdrvChild *child, BlockDriverState *new_bs,
-                                    Transaction *tran)
+static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs,
+                               Transaction *tran)
 {
     BdrvReplaceChildState *s = g_new(BdrvReplaceChildState, 1);
     *s = (BdrvReplaceChildState) {
@@ -4803,7 +4803,7 @@ static void bdrv_remove_filter_or_cow_child(BlockDriverState *bs,
     }
 
     if (child->bs) {
-        bdrv_replace_child_safe(child, NULL, tran);
+        bdrv_replace_child(child, NULL, tran);
     }
 
     s = g_new(BdrvRemoveFilterOrCowChild, 1);
@@ -4843,7 +4843,7 @@ static int bdrv_replace_node_noperm(BlockDriverState *from,
                        c->name, from->node_name);
             return -EPERM;
         }
-        bdrv_replace_child_safe(c, to, tran);
+        bdrv_replace_child(c, to, tran);
     }
 
     return 0;
