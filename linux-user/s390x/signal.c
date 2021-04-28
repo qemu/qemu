@@ -232,16 +232,17 @@ give_sigsegv:
 
 static void restore_sigregs(CPUS390XState *env, target_sigregs *sc)
 {
+    target_ulong prev_addr;
     int i;
 
     for (i = 0; i < 16; i++) {
         __get_user(env->regs[i], &sc->regs.gprs[i]);
     }
 
+    prev_addr = env->psw.addr;
     __get_user(env->psw.mask, &sc->regs.psw.mask);
-    trace_user_s390x_restore_sigregs(env, (unsigned long long)sc->regs.psw.addr,
-                                     (unsigned long long)env->psw.addr);
     __get_user(env->psw.addr, &sc->regs.psw.addr);
+    trace_user_s390x_restore_sigregs(env, env->psw.addr, prev_addr);
 
     for (i = 0; i < 16; i++) {
         __get_user(env->aregs[i], &sc->regs.acrs[i]);
