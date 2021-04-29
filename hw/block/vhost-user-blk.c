@@ -311,7 +311,7 @@ static void vhost_user_blk_reset(VirtIODevice *vdev)
     vhost_dev_free_inflight(s->inflight);
 }
 
-static int vhost_user_blk_connect(DeviceState *dev)
+static int vhost_user_blk_connect(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
@@ -331,8 +331,7 @@ static int vhost_user_blk_connect(DeviceState *dev)
 
     ret = vhost_dev_init(&s->dev, &s->vhost_user, VHOST_BACKEND_TYPE_USER, 0);
     if (ret < 0) {
-        error_report("vhost-user-blk: vhost initialization failed: %s",
-                     strerror(-ret));
+        error_setg_errno(errp, -ret, "vhost initialization failed");
         return ret;
     }
 
@@ -340,8 +339,7 @@ static int vhost_user_blk_connect(DeviceState *dev)
     if (virtio_device_started(vdev, vdev->status)) {
         ret = vhost_user_blk_start(vdev);
         if (ret < 0) {
-            error_report("vhost-user-blk: vhost start failed: %s",
-                         strerror(-ret));
+            error_setg_errno(errp, -ret, "vhost start failed");
             return ret;
         }
     }
@@ -380,10 +378,12 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
     DeviceState *dev = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
+    Error *local_err = NULL;
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        if (vhost_user_blk_connect(dev) < 0) {
+        if (vhost_user_blk_connect(dev, &local_err) < 0) {
+            error_report_err(local_err);
             qemu_chr_fe_disconnect(&s->chardev);
             return;
         }
@@ -426,7 +426,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     int i, ret;
 
     if (!s->chardev.chr) {
-        error_setg(errp, "vhost-user-blk: chardev is mandatory");
+        error_setg(errp, "chardev is mandatory");
         return;
     }
 
@@ -434,16 +434,16 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
         s->num_queues = 1;
     }
     if (!s->num_queues || s->num_queues > VIRTIO_QUEUE_MAX) {
-        error_setg(errp, "vhost-user-blk: invalid number of IO queues");
+        error_setg(errp, "invalid number of IO queues");
         return;
     }
 
     if (!s->queue_size) {
-        error_setg(errp, "vhost-user-blk: queue size must be non-zero");
+        error_setg(errp, "queue size must be non-zero");
         return;
     }
     if (s->queue_size > VIRTQUEUE_MAX_SIZE) {
-        error_setg(errp, "vhost-user-blk: queue size must not exceed %d",
+        error_setg(errp, "queue size must not exceed %d",
                    VIRTQUEUE_MAX_SIZE);
         return;
     }
@@ -469,8 +469,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
         goto virtio_err;
     }
 
-    if (vhost_user_blk_connect(dev) < 0) {
-        error_setg(errp, "vhost-user-blk: could not connect");
+    if (vhost_user_blk_connect(dev, errp) < 0) {
         qemu_chr_fe_disconnect(&s->chardev);
         goto virtio_err;
     }
