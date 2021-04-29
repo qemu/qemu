@@ -248,6 +248,11 @@ static const struct QemuSeccompSyscall denylist[] = {
     { SCMP_SYS(clone3),                 QEMU_SECCOMP_SET_SPAWN,
       0, NULL, SCMP_ACT_ERRNO(ENOSYS) },
 #endif
+#ifdef __SNR_execveat
+    { SCMP_SYS(execveat),               QEMU_SECCOMP_SET_SPAWN },
+#endif
+    { SCMP_SYS(setns),                  QEMU_SECCOMP_SET_SPAWN },
+    { SCMP_SYS(unshare),                QEMU_SECCOMP_SET_SPAWN },
     /* resource control */
     { SCMP_SYS(setpriority),            QEMU_SECCOMP_SET_RESOURCECTL,
       0, NULL, SCMP_ACT_ERRNO(EPERM) },
