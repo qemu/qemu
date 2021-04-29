@@ -1073,27 +1073,24 @@ static void populate_vfio_info(MigrationInfo *info)
 static void fill_source_migration_info(MigrationInfo *info)
 {
     MigrationState *s = migrate_get_current();
+    GSList *cur_blocker = migration_blockers;
 
-    info->blocked = migration_is_blocked(NULL);
-    info->has_blocked_reasons = info->blocked;
     info->blocked_reasons = NULL;
-    if (info->blocked) {
-        GSList *cur_blocker = migration_blockers;
 
-        /*
-         * There are two types of reasons a migration might be blocked;
-         * a) devices marked in VMState as non-migratable, and
-         * b) Explicit migration blockers
-         * We need to add both of them here.
-         */
-        qemu_savevm_non_migratable_list(&info->blocked_reasons);
+    /*
+     * There are two types of reasons a migration might be blocked;
+     * a) devices marked in VMState as non-migratable, and
+     * b) Explicit migration blockers
+     * We need to add both of them here.
+     */
+    qemu_savevm_non_migratable_list(&info->blocked_reasons);
 
-        while (cur_blocker) {
-            QAPI_LIST_PREPEND(info->blocked_reasons,
-                              g_strdup(error_get_pretty(cur_blocker->data)));
-            cur_blocker = g_slist_next(cur_blocker);
-        }
+    while (cur_blocker) {
+        QAPI_LIST_PREPEND(info->blocked_reasons,
+                          g_strdup(error_get_pretty(cur_blocker->data)));
+        cur_blocker = g_slist_next(cur_blocker);
     }
+    info->has_blocked_reasons = info->blocked_reasons != NULL;
 
     switch (s->state) {
     case MIGRATION_STATUS_NONE:

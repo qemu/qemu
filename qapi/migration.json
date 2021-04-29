@@ -228,11 +228,6 @@
 #                   Present and non-empty when migration is blocked.
 #                   (since 6.0)
 #
-# @blocked: True if outgoing migration is blocked (since 6.0)
-#
-# Features:
-# @deprecated: Member @blocked is deprecated.  Use @blocked-reasons instead.
-#
 # Since: 0.14
 ##
 { 'struct': 'MigrationInfo',
@@ -246,7 +241,6 @@
            '*setup-time': 'int',
            '*cpu-throttle-percentage': 'int',
            '*error-desc': 'str',
-           'blocked': { 'type': 'bool', 'features': [ 'deprecated' ] },
            '*blocked-reasons': ['str'],
            '*postcopy-blocktime' : 'uint32',
            '*postcopy-vcpu-blocktime': ['uint32'],
