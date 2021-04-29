@@ -2145,6 +2145,7 @@ common_all = common_ss.apply(config_all, strict: false)
 common_all = static_library('common',
                             build_by_default: false,
                             sources: common_all.sources() + genh,
+                            implicit_include_directories: false,
                             dependencies: common_all.dependencies(),
                             name_suffix: 'fa')
 
