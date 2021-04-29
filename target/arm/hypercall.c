@@ -8,10 +8,6 @@ bool hypervisor_log_enabled = false;
  * Intercepts a HVC instruction.
  */
 void intercept_hypercall(CPUARMState *cpu_env) {
-    qemu_log("Intercepted a hypercall.\n");
-    // for (int i = 0; i < 32; i++) {
-    //     qemu_log("X%d: 0x%lX\n", i, cpu_env->xregs[i]);
-    // }
 
     switch (cpu_env->xregs[0]) {
         case HYPERCALL_SUBMIT_PANIC:
@@ -27,6 +23,14 @@ void intercept_hypercall(CPUARMState *cpu_env) {
 
         case HYPERCALL_STOP_TRACE:
             stop_hypertrace();
+        break;
+
+        case HYPERCALL_REQUEST_TEST_CASE:
+            hypervisor_write_to_virt_mem(cpu_env, cpu_env->xregs[1], next_testcase, sizeof(next_testcase));
+        break;
+
+        case HYPERCALL_COMPLETE_TEST_CASE:
+            complete_testcase();
         break;
 
         default:
@@ -127,5 +131,6 @@ void hypervisor_patch_panic(CPUARMState *cpu_env, uint64_t virt_panic_handler_ad
 
 void hypervisor_handle_panic(CPUARMState *cpu_env) {
     qemu_log("Panic received\n");
-    // TODO: Recover operating system and log crash
+    test_crash();
+    exit(1337);
 }
