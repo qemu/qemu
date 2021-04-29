@@ -1798,8 +1798,9 @@ static int memory_try_enable_merging(void *addr, size_t len)
     return qemu_madvise(addr, len, QEMU_MADV_MERGEABLE);
 }
 
-/* Only legal before guest might have detected the memory size: e.g. on
- * incoming migration, or right after reset.
+/*
+ * Resizing RAM while migrating can result in the migration being canceled.
+ * Care has to be taken if the guest might have already detected the memory.
  *
  * As memory core doesn't know how is memory accessed, it is up to
  * resize callback to update device state and/or add assertions to detect
