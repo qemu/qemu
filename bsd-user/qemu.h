@@ -115,7 +115,7 @@ extern unsigned long mmap_min_addr;
  * This structure is used to hold the arguments that are
  * used when loading binaries.
  */
-struct linux_binprm {
+struct bsd_binprm {
         char buf[128];
         void *page[MAX_ARG_PAGES];
         abi_ulong p;
@@ -133,9 +133,9 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
 int loader_exec(const char *filename, char **argv, char **envp,
              struct target_pt_regs *regs, struct image_info *infop);
 
-int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
+int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
                     struct image_info *info);
-int load_flt_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
+int load_flt_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
                     struct image_info *info);
 
 abi_long memcpy_to_target(abi_ulong dest, const void *src,

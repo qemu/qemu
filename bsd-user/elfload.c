@@ -662,7 +662,7 @@ static abi_ulong copy_elf_strings(int argc, char **argv, void **page,
     return p;
 }
 
-static abi_ulong setup_arg_pages(abi_ulong p, struct linux_binprm *bprm,
+static abi_ulong setup_arg_pages(abi_ulong p, struct bsd_binprm *bprm,
                                  struct image_info *info)
 {
     abi_ulong stack_base, size, error;
@@ -1143,7 +1143,7 @@ static void load_symbols(struct elfhdr *hdr, int fd)
     syminfos = s;
 }
 
-int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
+int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
                     struct image_info *info)
 {
     struct elfhdr elf_ex;
