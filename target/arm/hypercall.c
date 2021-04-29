@@ -1,4 +1,5 @@
 #include "hypercall.h"
+#include "hypertrace.h"
 
 bool hypervisor_log_enabled = false;
 
@@ -19,6 +20,15 @@ void intercept_hypercall(CPUARMState *cpu_env) {
         case HYPERCALL_PANIC:
             hypervisor_handle_panic(cpu_env);
             break;
+
+        case HYPERCALL_START_TRACE:
+            start_hypertrace();
+        break;
+
+        case HYPERCALL_STOP_TRACE:
+            stop_hypertrace();
+        break;
+
         default:
             qemu_log("Undefined hypercall\n");
             break;

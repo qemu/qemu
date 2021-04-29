@@ -44,6 +44,7 @@ arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
   'translate-a64.c',
   'translate-sve.c',
   'hypercall.c',
+  'hypertrace.c',
 ))
 
 arm_softmmu_ss = ss.source_set()

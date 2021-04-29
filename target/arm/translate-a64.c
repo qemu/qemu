@@ -40,6 +40,7 @@
 #include "qemu/atomic128.h"
 
 #include "hypercall.h"
+#include "hypertrace.h"
 
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
@@ -14767,6 +14768,9 @@ static void aarch64_tr_tb_start(DisasContextBase *db, CPUState *cpu)
 static void aarch64_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
+
+    // Submit PC to hypertrace
+    submit_pc(dc->base.pc_next);
 
     tcg_gen_insn_start(dc->base.pc_next, 0, 0);
     dc->insn_start = tcg_last_op();
