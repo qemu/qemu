@@ -19,7 +19,6 @@
 #include "qemu/osdep.h"
 
 #include "qemu.h"
-#include "target_signal.h"
 
 void signal_init(void)
 {
