@@ -40,9 +40,6 @@ and returns an integral value extracted from there.
 
 A field with no ``unnamed_fields`` and no ``!function`` is in error.
 
-FIXME: the fields of the structure into which this result will be stored
-is restricted to ``int``.  Which means that we cannot expand 64-bit items.
-
 Field examples:
 
 +---------------------------+---------------------------------------------+
@@ -66,9 +63,14 @@ Argument Sets
 Syntax::
 
   args_def    := '&' identifier ( args_elt )+ ( !extern )?
-  args_elt    := identifier
+  args_elt    := identifier (':' identifier)?
 
 Each *args_elt* defines an argument within the argument set.
+If the form of the *args_elt* contains a colon, the first
+identifier is the argument name and the second identifier is
+the argument type.  If the colon is missing, the argument
+type will be ``int``.
+
 Each argument set will be rendered as a C structure "arg_$name"
 with each of the fields being one of the member arguments.
 
@@ -86,6 +88,7 @@ Argument set examples::
 
   &reg3       ra rb rc
   &loadstore  reg base offset
+  &longldst   reg base offset:int64_t
 
 
 Formats
