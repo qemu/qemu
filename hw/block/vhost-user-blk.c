@@ -50,6 +50,8 @@ static const int user_feature_bits[] = {
     VHOST_INVALID_FEATURE_BIT
 };
 
+static void vhost_user_blk_event(void *opaque, QEMUChrEvent event);
+
 static void vhost_user_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 {
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
@@ -362,19 +364,6 @@ static void vhost_user_blk_disconnect(DeviceState *dev)
     vhost_dev_cleanup(&s->dev);
 }
 
-static void vhost_user_blk_event(void *opaque, QEMUChrEvent event,
-                                 bool realized);
-
-static void vhost_user_blk_event_realize(void *opaque, QEMUChrEvent event)
-{
-    vhost_user_blk_event(opaque, event, false);
-}
-
-static void vhost_user_blk_event_oper(void *opaque, QEMUChrEvent event)
-{
-    vhost_user_blk_event(opaque, event, true);
-}
-
 static void vhost_user_blk_chr_closed_bh(void *opaque)
 {
     DeviceState *dev = opaque;
@@ -382,12 +371,11 @@ static void vhost_user_blk_chr_closed_bh(void *opaque)
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
 
     vhost_user_blk_disconnect(dev);
-    qemu_chr_fe_set_handlers(&s->chardev, NULL, NULL,
-            vhost_user_blk_event_oper, NULL, opaque, NULL, true);
+    qemu_chr_fe_set_handlers(&s->chardev, NULL, NULL, vhost_user_blk_event,
+                             NULL, opaque, NULL, true);
 }
 
-static void vhost_user_blk_event(void *opaque, QEMUChrEvent event,
-                                 bool realized)
+static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
 {
     DeviceState *dev = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -401,17 +389,7 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event,
         }
         break;
     case CHR_EVENT_CLOSED:
-        /*
-         * Closing the connection should happen differently on device
-         * initialization and operation stages.
-         * On initalization, we want to re-start vhost_dev initialization
-         * from the very beginning right away when the connection is closed,
-         * so we clean up vhost_dev on each connection closing.
-         * On operation, we want to postpone vhost_dev cleanup to let the
-         * other code perform its own cleanup sequence using vhost_dev data
-         * (e.g. vhost_dev_set_log).
-         */
-        if (realized && !runstate_check(RUN_STATE_SHUTDOWN)) {
+        if (!runstate_check(RUN_STATE_SHUTDOWN)) {
             /*
              * A close event may happen during a read/write, but vhost
              * code assumes the vhost_dev remains setup, so delay the
@@ -431,8 +409,6 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event,
              * knowing its type (in this case vhost-user).
              */
             s->dev.started = false;
-        } else {
-            vhost_user_blk_disconnect(dev);
         }
         break;
     case CHR_EVENT_BREAK:
@@ -489,33 +465,32 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     s->vhost_vqs = g_new0(struct vhost_virtqueue, s->num_queues);
     s->connected = false;
 
-    qemu_chr_fe_set_handlers(&s->chardev,  NULL, NULL,
-                             vhost_user_blk_event_realize, NULL, (void *)dev,
-                             NULL, true);
-
-reconnect:
     if (qemu_chr_fe_wait_connected(&s->chardev, errp) < 0) {
         goto virtio_err;
     }
 
-    /* check whether vhost_user_blk_connect() failed or not */
-    if (!s->connected) {
-        goto reconnect;
+    if (vhost_user_blk_connect(dev) < 0) {
+        error_setg(errp, "vhost-user-blk: could not connect");
+        qemu_chr_fe_disconnect(&s->chardev);
+        goto virtio_err;
     }
+    assert(s->connected);
 
     ret = vhost_dev_get_config(&s->dev, (uint8_t *)&s->blkcfg,
                                sizeof(struct virtio_blk_config));
     if (ret < 0) {
-        error_report("vhost-user-blk: get block config failed");
-        goto reconnect;
+        error_setg(errp, "vhost-user-blk: get block config failed");
+        goto vhost_err;
     }
 
-    /* we're fully initialized, now we can operate, so change the handler */
+    /* we're fully initialized, now we can operate, so add the handler */
     qemu_chr_fe_set_handlers(&s->chardev,  NULL, NULL,
-                             vhost_user_blk_event_oper, NULL, (void *)dev,
+                             vhost_user_blk_event, NULL, (void *)dev,
                              NULL, true);
     return;
 
+vhost_err:
+    vhost_dev_cleanup(&s->dev);
 virtio_err:
     g_free(s->vhost_vqs);
     s->vhost_vqs = NULL;
