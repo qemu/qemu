@@ -74,6 +74,8 @@ struct vhost_dev {
     int nvqs;
     /* the first virtqueue which would be used by this vhost dev */
     int vq_index;
+    /* if non-zero, minimum required value for max_queues */
+    int num_queues;
     uint64_t features;
     uint64_t acked_features;
     uint64_t backend_features;

@@ -324,6 +324,7 @@ static int vhost_user_blk_connect(DeviceState *dev, Error **errp)
     }
     s->connected = true;
 
+    s->dev.num_queues = s->num_queues;
     s->dev.nvqs = s->num_queues;
     s->dev.vqs = s->vhost_vqs;
     s->dev.vq_index = 0;
