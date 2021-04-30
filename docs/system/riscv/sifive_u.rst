@@ -36,12 +36,21 @@ Hardware configuration information
 ----------------------------------
 
 The ``sifive_u`` machine automatically generates a device tree blob ("dtb")
-which it passes to the guest. This provides information about the addresses,
-interrupt lines and other configuration of the various devices in the system.
-Guest software should discover the devices that are present in the generated
-DTB instead of using a DTB for the real hardware, as some of the devices are
-not modeled by QEMU and trying to access these devices may cause unexpected
-behavior.
+which it passes to the guest, if there is no ``-dtb`` option. This provides
+information about the addresses, interrupt lines and other configuration of
+the various devices in the system. Guest software should discover the devices
+that are present in the generated DTB instead of using a DTB for the real
+hardware, as some of the devices are not modeled by QEMU and trying to access
+these devices may cause unexpected behavior.
+
+If users want to provide their own DTB, they can use the ``-dtb`` option.
+These DTBs should have the following requirements:
+
+* The /cpus node should contain at least one subnode for E51 and the number
+  of subnodes should match QEMU's ``-smp`` option
+* The /memory reg size should match QEMU’s selected ram_size via ``-m``
+* Should contain a node for the CLINT device with a compatible string
+  "riscv,clint0" if using with OpenSBI BIOS images
 
 Boot options
 ------------
@@ -119,6 +128,32 @@ To boot the newly built Linux kernel in QEMU with the ``sifive_u`` machine:
   $ qemu-system-riscv64 -M sifive_u -smp 5 -m 2G \
       -display none -serial stdio \
       -kernel arch/riscv/boot/Image \
+      -initrd /path/to/rootfs.ext4 \
+      -append "root=/dev/ram"
+
+Alternatively, we can use a custom DTB to boot the machine by inserting a CLINT
+node in fu540-c000.dtsi in the Linux kernel,
+
+.. code-block:: none
+
+    clint: clint@2000000 {
+        compatible = "riscv,clint0";
+        interrupts-extended = <&cpu0_intc 3 &cpu0_intc 7
+                               &cpu1_intc 3 &cpu1_intc 7
+                               &cpu2_intc 3 &cpu2_intc 7
+                               &cpu3_intc 3 &cpu3_intc 7
+                               &cpu4_intc 3 &cpu4_intc 7>;
+        reg = <0x00 0x2000000 0x00 0x10000>;
+    };
+
+with the following command line options:
+
+.. code-block:: bash
+
+  $ qemu-system-riscv64 -M sifive_u -smp 5 -m 8G \
+      -display none -serial stdio \
+      -kernel arch/riscv/boot/Image \
+      -dtb arch/riscv/boot/dts/sifive/hifive-unleashed-a00.dtb \
       -initrd /path/to/rootfs.ext4 \
       -append "root=/dev/ram"
 
