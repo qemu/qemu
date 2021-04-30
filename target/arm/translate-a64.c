@@ -359,14 +359,6 @@ static void gen_exception_internal_insn(DisasContext *s, uint64_t pc, int excp)
     s->base.is_jmp = DISAS_NORETURN;
 }
 
-static void gen_exception_insn(DisasContext *s, uint64_t pc, int excp,
-                               uint32_t syndrome, uint32_t target_el)
-{
-    gen_a64_set_pc_im(pc);
-    gen_exception(excp, syndrome, target_el);
-    s->base.is_jmp = DISAS_NORETURN;
-}
-
 static void gen_exception_bkpt_insn(DisasContext *s, uint32_t syndrome)
 {
     TCGv_i32 tcg_syn;
@@ -435,13 +427,6 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint64_t dest)
             s->base.is_jmp = DISAS_NORETURN;
         }
     }
-}
-
-void unallocated_encoding(DisasContext *s)
-{
-    /* Unallocated and reserved encodings are uncategorized */
-    gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn_uncategorized(),
-                       default_exception_el(s));
 }
 
 static void init_tmp_a64_array(DisasContext *s)
