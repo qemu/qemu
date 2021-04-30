@@ -19,8 +19,6 @@
 
 #include "qemu.h"
 
-#define TARGET_NGROUPS 32
-
 /* ??? This should really be somewhere else.  */
 abi_long memcpy_to_target(abi_ulong dest, const void *src,
                           unsigned long len)
