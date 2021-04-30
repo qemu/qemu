@@ -681,12 +681,10 @@ static void virt_machine_init(MachineState *machine)
 
     if (riscv_is_32bit(&s->soc[0])) {
         firmware_end_addr = riscv_find_and_load_firmware(machine,
-                                    "opensbi-riscv32-generic-fw_dynamic.bin",
-                                    start_addr, NULL);
+                                    RISCV32_BIOS_BIN, start_addr, NULL);
     } else {
         firmware_end_addr = riscv_find_and_load_firmware(machine,
-                                    "opensbi-riscv64-generic-fw_dynamic.bin",
-                                    start_addr, NULL);
+                                    RISCV64_BIOS_BIN, start_addr, NULL);
     }
 
     if (machine->kernel_filename) {

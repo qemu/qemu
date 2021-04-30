@@ -258,13 +258,11 @@ static void spike_board_init(MachineState *machine)
      */
     if (riscv_is_32bit(&s->soc[0])) {
         firmware_end_addr = riscv_find_and_load_firmware(machine,
-                                    "opensbi-riscv32-generic-fw_dynamic.elf",
-                                    memmap[SPIKE_DRAM].base,
+                                    RISCV32_BIOS_ELF, memmap[SPIKE_DRAM].base,
                                     htif_symbol_callback);
     } else {
         firmware_end_addr = riscv_find_and_load_firmware(machine,
-                                    "opensbi-riscv64-generic-fw_dynamic.elf",
-                                    memmap[SPIKE_DRAM].base,
+                                    RISCV64_BIOS_ELF, memmap[SPIKE_DRAM].base,
                                     htif_symbol_callback);
     }
 
