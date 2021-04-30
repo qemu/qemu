@@ -316,6 +316,11 @@ class QEMUMachine:
                 args.extend(['-device', device])
         return args
 
+    @property
+    def args(self) -> List[str]:
+        """Returns the list of arguments given to the QEMU binary."""
+        return self._args
+
     def _pre_launch(self) -> None:
         if self._console_set:
             self._remove_files.append(self._console_address)
