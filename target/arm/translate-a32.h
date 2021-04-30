@@ -30,6 +30,13 @@ void read_neon_element32(TCGv_i32 dest, int reg, int ele, MemOp memop);
 void read_neon_element64(TCGv_i64 dest, int reg, int ele, MemOp memop);
 void write_neon_element32(TCGv_i32 src, int reg, int ele, MemOp memop);
 void write_neon_element64(TCGv_i64 src, int reg, int ele, MemOp memop);
+TCGv_i32 add_reg_for_lit(DisasContext *s, int reg, int ofs);
+void gen_set_cpsr(TCGv_i32 var, uint32_t mask);
+void gen_set_condexec(DisasContext *s);
+void gen_set_pc_im(DisasContext *s, target_ulong val);
+void gen_lookup_tb(DisasContext *s);
+long vfp_reg_offset(bool dp, unsigned reg);
+long neon_full_reg_offset(unsigned reg);
 
 static inline TCGv_i32 load_cpu_offset(int offset)
 {
@@ -56,6 +63,8 @@ static inline TCGv_i32 load_reg(DisasContext *s, int reg)
     load_reg_var(s, tmp, reg);
     return tmp;
 }
+
+void store_reg(DisasContext *s, int reg, TCGv_i32 var);
 
 void gen_aa32_ld_internal_i32(DisasContext *s, TCGv_i32 val,
                               TCGv_i32 a32, int index, MemOp opc);
@@ -109,5 +118,14 @@ DO_GEN_ST(32, MO_UL)
 
 #undef DO_GEN_LD
 #undef DO_GEN_ST
+
+#if defined(CONFIG_USER_ONLY)
+#define IS_USER(s) 1
+#else
+#define IS_USER(s) (s->user)
+#endif
+
+/* Set NZCV flags from the high 4 bits of var.  */
+#define gen_set_nzcv(var) gen_set_cpsr(var, CPSR_NZCV)
 
 #endif
