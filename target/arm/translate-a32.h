@@ -24,6 +24,9 @@
 bool disas_m_nocp(DisasContext *dc, uint32_t insn);
 bool disas_vfp(DisasContext *s, uint32_t insn);
 bool disas_vfp_uncond(DisasContext *s, uint32_t insn);
+bool disas_neon_dp(DisasContext *s, uint32_t insn);
+bool disas_neon_ls(DisasContext *s, uint32_t insn);
+bool disas_neon_shared(DisasContext *s, uint32_t insn);
 
 void load_reg_var(DisasContext *s, TCGv_i32 var, int reg);
 void arm_gen_condlabel(DisasContext *s);

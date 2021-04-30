@@ -1206,9 +1206,6 @@ void write_neon_element64(TCGv_i64 src, int reg, int ele, MemOp memop)
 
 #define ARM_CP_RW_BIT   (1 << 20)
 
-/* Include the Neon decoder */
-#include "translate-neon.c.inc"
-
 static inline void iwmmxt_load_reg(TCGv_i64 var, int reg)
 {
     tcg_gen_ld_i64(var, cpu_env, offsetof(CPUARMState, iwmmxt.regs[reg]));
