@@ -66,9 +66,6 @@ static const char * const regnames[] =
     { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
       "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc" };
 
-/* Function prototypes for gen_ functions calling Neon helpers.  */
-typedef void NeonGenThreeOpEnvFn(TCGv_i32, TCGv_env, TCGv_i32,
-                                 TCGv_i32, TCGv_i32);
 
 /* initialize TCG globals.  */
 void arm_translate_init(void)
