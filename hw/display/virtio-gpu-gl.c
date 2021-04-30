@@ -23,6 +23,16 @@
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "hw/qdev-properties.h"
 
+static void virtio_gpu_gl_process_cmd(VirtIOGPU *g,
+                                      struct virtio_gpu_ctrl_command *cmd)
+{
+    if (g->parent_obj.use_virgl_renderer) {
+        virtio_gpu_virgl_process_cmd(g, cmd);
+        return;
+    }
+    virtio_gpu_simple_process_cmd(g, cmd);
+}
+
 static void virtio_gpu_gl_flushed(VirtIOGPUBase *b)
 {
     VirtIOGPU *g = VIRTIO_GPU(b);
@@ -116,6 +126,7 @@ static void virtio_gpu_gl_class_init(ObjectClass *klass, void *data)
 
     vbc->gl_flushed = virtio_gpu_gl_flushed;
     vgc->handle_ctrl = virtio_gpu_gl_handle_ctrl;
+    vgc->process_cmd = virtio_gpu_gl_process_cmd;
 
     vdc->realize = virtio_gpu_gl_device_realize;
     vdc->reset = virtio_gpu_gl_reset;
