@@ -663,10 +663,8 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
 
 void bdrv_snapshot_dump(QEMUSnapshotInfo *sn)
 {
-    char date_buf[128], clock_buf[128];
+    char clock_buf[128];
     char icount_buf[128] = {0};
-    struct tm tm;
-    time_t ti;
     int64_t secs;
     char *sizing = NULL;
 
@@ -674,10 +672,9 @@ void bdrv_snapshot_dump(QEMUSnapshotInfo *sn)
         qemu_printf("%-10s%-17s%8s%20s%13s%11s",
                     "ID", "TAG", "VM SIZE", "DATE", "VM CLOCK", "ICOUNT");
     } else {
-        ti = sn->date_sec;
-        localtime_r(&ti, &tm);
-        strftime(date_buf, sizeof(date_buf),
-                 "%Y-%m-%d %H:%M:%S", &tm);
+        g_autoptr(GDateTime) date = g_date_time_new_from_unix_local(sn->date_sec);
+        g_autofree char *date_buf = g_date_time_format(date, "%Y-%m-%d %H:%M:%S");
+
         secs = sn->vm_clock_nsec / 1000000000;
         snprintf(clock_buf, sizeof(clock_buf),
                  "%02d:%02d:%02d.%03d",
