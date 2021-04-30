@@ -1,7 +1,7 @@
 /*
  * Block node graph modifications tests
  *
- * Copyright (c) 2019 Virtuozzo International GmbH. All rights reserved.
+ * Copyright (c) 2019-2021 Virtuozzo International GmbH. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,6 +44,21 @@ static BlockDriver bdrv_no_perm = {
     .bdrv_child_perm = no_perm_default_perms,
 };
 
+static void exclusive_write_perms(BlockDriverState *bs, BdrvChild *c,
+                                  BdrvChildRole role,
+                                  BlockReopenQueue *reopen_queue,
+                                  uint64_t perm, uint64_t shared,
+                                  uint64_t *nperm, uint64_t *nshared)
+{
+    *nperm = BLK_PERM_WRITE;
+    *nshared = BLK_PERM_ALL & ~BLK_PERM_WRITE;
+}
+
+static BlockDriver bdrv_exclusive_writer = {
+    .format_name = "exclusive-writer",
+    .bdrv_child_perm = exclusive_write_perms,
+};
+
 static BlockDriverState *no_perm_node(const char *name)
 {
     return bdrv_new_open_driver(&bdrv_no_perm, name, BDRV_O_RDWR, &error_abort);
@@ -52,6 +67,12 @@ static BlockDriverState *no_perm_node(const char *name)
 static BlockDriverState *pass_through_node(const char *name)
 {
     return bdrv_new_open_driver(&bdrv_pass_through, name,
+                                BDRV_O_RDWR, &error_abort);
+}
+
+static BlockDriverState *exclusive_writer_node(const char *name)
+{
+    return bdrv_new_open_driver(&bdrv_exclusive_writer, name,
                                 BDRV_O_RDWR, &error_abort);
 }
 
@@ -117,6 +138,7 @@ static void test_update_perm_tree(void)
     ret = bdrv_append(filter, bs, NULL);
     g_assert_cmpint(ret, <, 0);
 
+    bdrv_unref(filter);
     blk_unref(root);
 }
 
@@ -181,8 +203,187 @@ static void test_should_update_child(void)
     bdrv_append(filter, bs, &error_abort);
     g_assert(target->backing->bs == bs);
 
+    bdrv_unref(filter);
     bdrv_unref(bs);
     blk_unref(root);
+}
+
+/*
+ * test_parallel_exclusive_write
+ *
+ * Check that when we replace node, old permissions of the node being removed
+ * doesn't break the replacement.
+ */
+static void test_parallel_exclusive_write(void)
+{
+    BlockDriverState *top = exclusive_writer_node("top");
+    BlockDriverState *base = no_perm_node("base");
+    BlockDriverState *fl1 = pass_through_node("fl1");
+    BlockDriverState *fl2 = pass_through_node("fl2");
+
+    /*
+     * bdrv_attach_child() eats child bs reference, so we need two @base
+     * references for two filters:
+     */
+    bdrv_ref(base);
+
+    bdrv_attach_child(top, fl1, "backing", &child_of_bds, BDRV_CHILD_DATA,
+                      &error_abort);
+    bdrv_attach_child(fl1, base, "backing", &child_of_bds, BDRV_CHILD_FILTERED,
+                      &error_abort);
+    bdrv_attach_child(fl2, base, "backing", &child_of_bds, BDRV_CHILD_FILTERED,
+                      &error_abort);
+
+    bdrv_replace_node(fl1, fl2, &error_abort);
+
+    bdrv_unref(fl2);
+    bdrv_unref(top);
+}
+
+static void write_to_file_perms(BlockDriverState *bs, BdrvChild *c,
+                                     BdrvChildRole role,
+                                     BlockReopenQueue *reopen_queue,
+                                     uint64_t perm, uint64_t shared,
+                                     uint64_t *nperm, uint64_t *nshared)
+{
+    if (bs->file && c == bs->file) {
+        *nperm = BLK_PERM_WRITE;
+        *nshared = BLK_PERM_ALL & ~BLK_PERM_WRITE;
+    } else {
+        *nperm = 0;
+        *nshared = BLK_PERM_ALL;
+    }
+}
+
+static BlockDriver bdrv_write_to_file = {
+    .format_name = "tricky-perm",
+    .bdrv_child_perm = write_to_file_perms,
+};
+
+
+/*
+ * The following test shows that topological-sort order is required for
+ * permission update, simple DFS is not enough.
+ *
+ * Consider the block driver which has two filter children: one active
+ * with exclusive write access and one inactive with no specific
+ * permissions.
+ *
+ * And, these two children has a common base child, like this:
+ *
+ * ┌─────┐     ┌──────┐
+ * │ fl2 │ ◀── │ top  │
+ * └─────┘     └──────┘
+ *   │           │
+ *   │           │ w
+ *   │           ▼
+ *   │         ┌──────┐
+ *   │         │ fl1  │
+ *   │         └──────┘
+ *   │           │
+ *   │           │ w
+ *   │           ▼
+ *   │         ┌──────┐
+ *   └───────▶ │ base │
+ *             └──────┘
+ *
+ * So, exclusive write is propagated.
+ *
+ * Assume, we want to make fl2 active instead of fl1.
+ * So, we set some option for top driver and do permission update.
+ *
+ * With simple DFS, if permission update goes first through
+ * top->fl1->base branch it will succeed: it firstly drop exclusive write
+ * permissions and than apply them for another BdrvChildren.
+ * But if permission update goes first through top->fl2->base branch it
+ * will fail, as when we try to update fl2->base child, old not yet
+ * updated fl1->base child will be in conflict.
+ *
+ * With topological-sort order we always update parents before children, so fl1
+ * and fl2 are both updated when we update base and there is no conflict.
+ */
+static void test_parallel_perm_update(void)
+{
+    BlockDriverState *top = no_perm_node("top");
+    BlockDriverState *tricky =
+            bdrv_new_open_driver(&bdrv_write_to_file, "tricky", BDRV_O_RDWR,
+                                 &error_abort);
+    BlockDriverState *base = no_perm_node("base");
+    BlockDriverState *fl1 = pass_through_node("fl1");
+    BlockDriverState *fl2 = pass_through_node("fl2");
+    BdrvChild *c_fl1, *c_fl2;
+
+    /*
+     * bdrv_attach_child() eats child bs reference, so we need two @base
+     * references for two filters:
+     */
+    bdrv_ref(base);
+
+    bdrv_attach_child(top, tricky, "file", &child_of_bds, BDRV_CHILD_DATA,
+                      &error_abort);
+    c_fl1 = bdrv_attach_child(tricky, fl1, "first", &child_of_bds,
+                              BDRV_CHILD_FILTERED, &error_abort);
+    c_fl2 = bdrv_attach_child(tricky, fl2, "second", &child_of_bds,
+                              BDRV_CHILD_FILTERED, &error_abort);
+    bdrv_attach_child(fl1, base, "backing", &child_of_bds, BDRV_CHILD_FILTERED,
+                      &error_abort);
+    bdrv_attach_child(fl2, base, "backing", &child_of_bds, BDRV_CHILD_FILTERED,
+                      &error_abort);
+
+    /* Select fl1 as first child to be active */
+    tricky->file = c_fl1;
+    bdrv_child_refresh_perms(top, top->children.lh_first, &error_abort);
+
+    assert(c_fl1->perm & BLK_PERM_WRITE);
+    assert(!(c_fl2->perm & BLK_PERM_WRITE));
+
+    /* Now, try to switch active child and update permissions */
+    tricky->file = c_fl2;
+    bdrv_child_refresh_perms(top, top->children.lh_first, &error_abort);
+
+    assert(c_fl2->perm & BLK_PERM_WRITE);
+    assert(!(c_fl1->perm & BLK_PERM_WRITE));
+
+    /* Switch once more, to not care about real child order in the list */
+    tricky->file = c_fl1;
+    bdrv_child_refresh_perms(top, top->children.lh_first, &error_abort);
+
+    assert(c_fl1->perm & BLK_PERM_WRITE);
+    assert(!(c_fl2->perm & BLK_PERM_WRITE));
+
+    bdrv_unref(top);
+}
+
+/*
+ * It's possible that filter required permissions allows to insert it to backing
+ * chain, like:
+ *
+ *  1.  [top] -> [filter] -> [base]
+ *
+ * but doesn't allow to add it as a branch:
+ *
+ *  2.  [filter] --\
+ *                 v
+ *      [top] -> [base]
+ *
+ * So, inserting such filter should do all graph modifications and only then
+ * update permissions. If we try to go through intermediate state [2] and update
+ * permissions on it we'll fail.
+ *
+ * Let's check that bdrv_append() can append such a filter.
+ */
+static void test_append_greedy_filter(void)
+{
+    BlockDriverState *top = exclusive_writer_node("top");
+    BlockDriverState *base = no_perm_node("base");
+    BlockDriverState *fl = exclusive_writer_node("fl1");
+
+    bdrv_attach_child(top, base, "backing", &child_of_bds, BDRV_CHILD_COW,
+                      &error_abort);
+
+    bdrv_append(fl, base, &error_abort);
+    bdrv_unref(fl);
+    bdrv_unref(top);
 }
 
 int main(int argc, char *argv[])
@@ -195,6 +396,12 @@ int main(int argc, char *argv[])
     g_test_add_func("/bdrv-graph-mod/update-perm-tree", test_update_perm_tree);
     g_test_add_func("/bdrv-graph-mod/should-update-child",
                     test_should_update_child);
+    g_test_add_func("/bdrv-graph-mod/parallel-perm-update",
+                    test_parallel_perm_update);
+    g_test_add_func("/bdrv-graph-mod/parallel-exclusive-write",
+                    test_parallel_exclusive_write);
+    g_test_add_func("/bdrv-graph-mod/append-greedy-filter",
+                    test_append_greedy_filter);
 
     return g_test_run();
 }

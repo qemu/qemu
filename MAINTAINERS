@@ -2532,6 +2532,12 @@ M: Vladimir Sementsov-Ogievskiy <vsementsov@virtuozzo.com>
 S: Maintained
 F: scripts/simplebench/
 
+Transactions helper
+M: Vladimir Sementsov-Ogievskiy <vsementsov@virtuozzo.com>
+S: Maintained
+F: include/qemu/transactions.h
+F: util/transactions.c
+
 QAPI
 M: Markus Armbruster <armbru@redhat.com>
 M: Michael Roth <michael.roth@amd.com>

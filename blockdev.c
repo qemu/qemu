@@ -1576,10 +1576,6 @@ static void external_snapshot_prepare(BlkActionState *common,
         goto out;
     }
 
-    /* This removes our old bs and adds the new bs. This is an operation that
-     * can fail, so we need to do it in .prepare; undoing it for abort is
-     * always possible. */
-    bdrv_ref(state->new_bs);
     ret = bdrv_append(state->new_bs, state->old_bs, errp);
     if (ret < 0) {
         goto out;

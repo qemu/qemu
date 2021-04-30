@@ -467,6 +467,11 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "vhost-user-blk: queue size must be non-zero");
         return;
     }
+    if (s->queue_size > VIRTQUEUE_MAX_SIZE) {
+        error_setg(errp, "vhost-user-blk: queue size must not exceed %d",
+                   VIRTQUEUE_MAX_SIZE);
+        return;
+    }
 
     if (!vhost_user_init(&s->vhost_user, &s->chardev, errp)) {
         return;
