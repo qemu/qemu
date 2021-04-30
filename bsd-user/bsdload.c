@@ -98,7 +98,7 @@ static int prepare_binprm(struct bsd_binprm *bprm)
 
 /* Construct the envp and argv tables on the target stack.  */
 abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
-                              abi_ulong stringp, int push_ptr)
+                              abi_ulong stringp)
 {
     int n = sizeof(abi_ulong);
     abi_ulong envp;
@@ -108,13 +108,6 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
     envp = sp;
     sp -= (argc + 1) * n;
     argv = sp;
-    if (push_ptr) {
-        /* FIXME - handle put_user() failures */
-        sp -= n;
-        put_user_ual(envp, sp);
-        sp -= n;
-        put_user_ual(argv, sp);
-    }
     sp -= n;
     /* FIXME - handle put_user() failures */
     put_user_ual(argc, sp);
