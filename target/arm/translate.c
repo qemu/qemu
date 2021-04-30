@@ -1273,7 +1273,6 @@ static TCGv_ptr vfp_reg_ptr(bool dp, int reg)
 #define ARM_CP_RW_BIT   (1 << 20)
 
 /* Include the VFP and Neon decoders */
-#include "decode-m-nocp.c.inc"
 #include "translate-vfp.c.inc"
 #include "translate-neon.c.inc"
 
