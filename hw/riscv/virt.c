@@ -394,8 +394,11 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
         (long)memmap[VIRT_TEST].base);
     qemu_fdt_add_subnode(fdt, name);
     {
-        const char compat[] = "sifive,test1\0sifive,test0\0syscon";
-        qemu_fdt_setprop(fdt, name, "compatible", compat, sizeof(compat));
+        static const char * const compat[3] = {
+            "sifive,test1", "sifive,test0", "syscon"
+        };
+        qemu_fdt_setprop_string_array(fdt, name, "compatible", (char **)&compat,
+                                      ARRAY_SIZE(compat));
     }
     qemu_fdt_setprop_cells(fdt, name, "reg",
         0x0, memmap[VIRT_TEST].base,
