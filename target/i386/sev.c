@@ -110,6 +110,8 @@ static const char *const sev_fw_errlist[] = {
     [SEV_RET_HWSEV_RET_UNSAFE]       = "Hardware unsafe",
     [SEV_RET_UNSUPPORTED]            = "Feature not supported",
     [SEV_RET_INVALID_PARAM]          = "Invalid parameter",
+    [SEV_RET_RESOURCE_LIMIT]         = "Required firmware resource depleted",
+    [SEV_RET_SECURE_DATA_INVALID]    = "Part-specific integrity check failure",
 };
 
 #define SEV_FW_MAX_ERROR      ARRAY_SIZE(sev_fw_errlist)
