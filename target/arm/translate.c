@@ -1224,8 +1224,7 @@ static TCGv_ptr vfp_reg_ptr(bool dp, int reg)
 
 #define ARM_CP_RW_BIT   (1 << 20)
 
-/* Include the VFP and Neon decoders */
-#include "translate-vfp.c.inc"
+/* Include the Neon decoder */
 #include "translate-neon.c.inc"
 
 static inline void iwmmxt_load_reg(TCGv_i64 var, int reg)
