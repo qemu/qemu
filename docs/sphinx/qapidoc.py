@@ -34,7 +34,8 @@ from sphinx.errors import ExtensionError
 from sphinx.util.nodes import nested_parse_with_titles
 import sphinx
 from qapi.gen import QAPISchemaVisitor
-from qapi.schema import QAPIError, QAPISemError, QAPISchema
+from qapi.error import QAPIError, QAPISemError
+from qapi.schema import QAPISchema
 
 
 # Sphinx up to 1.6 uses AutodocReporter; 1.7 and later

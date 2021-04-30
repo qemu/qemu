@@ -20,7 +20,7 @@ import re
 from typing import Optional
 
 from .common import POINTER_SUFFIX, c_name
-from .error import QAPIError, QAPISemError
+from .error import QAPISemError, QAPISourceError
 from .expr import check_exprs
 from .parser import QAPISchemaParser
 
@@ -875,7 +875,7 @@ class QAPISchema:
         other_ent = self._entity_dict.get(ent.name)
         if other_ent:
             if other_ent.info:
-                where = QAPIError(other_ent.info, None, "previous definition")
+                where = QAPISourceError(other_ent.info, "previous definition")
                 raise QAPISemError(
                     ent.info,
                     "'%s' is already defined\n%s" % (ent.name, where))

@@ -1,0 +1,4 @@
+# Alternate type requires an object for 'data'
+{ 'alternate': 'Alt',
+  'data': ['rubbish', 'nonsense']
+}

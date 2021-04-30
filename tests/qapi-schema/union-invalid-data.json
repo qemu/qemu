@@ -1,0 +1,6 @@
+# the union data type must be an object.
+{ 'union': 'TestUnion',
+  'base': 'int',
+  'discriminator': 'int',
+  'data': ['rubbish', 'nonsense']
+}
