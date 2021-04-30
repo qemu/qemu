@@ -23,6 +23,35 @@
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "hw/qdev-properties.h"
 
+#include <virglrenderer.h>
+
+static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
+                                             struct virtio_gpu_scanout *s,
+                                             uint32_t resource_id)
+{
+    uint32_t width, height;
+    uint32_t pixels, *data;
+
+    if (g->parent_obj.use_virgl_renderer) {
+        data = virgl_renderer_get_cursor_data(resource_id, &width, &height);
+        if (!data) {
+            return;
+        }
+
+        if (width != s->current_cursor->width ||
+            height != s->current_cursor->height) {
+            free(data);
+            return;
+        }
+
+        pixels = s->current_cursor->width * s->current_cursor->height;
+        memcpy(s->current_cursor->data, data, pixels * sizeof(uint32_t));
+        free(data);
+        return;
+    }
+    virtio_gpu_update_cursor_data(g, s, resource_id);
+}
+
 static void virtio_gpu_gl_process_cmd(VirtIOGPU *g,
                                       struct virtio_gpu_ctrl_command *cmd)
 {
@@ -127,6 +156,7 @@ static void virtio_gpu_gl_class_init(ObjectClass *klass, void *data)
     vbc->gl_flushed = virtio_gpu_gl_flushed;
     vgc->handle_ctrl = virtio_gpu_gl_handle_ctrl;
     vgc->process_cmd = virtio_gpu_gl_process_cmd;
+    vgc->update_cursor_data = virtio_gpu_gl_update_cursor_data;
 
     vdc->realize = virtio_gpu_gl_device_realize;
     vdc->reset = virtio_gpu_gl_reset;
