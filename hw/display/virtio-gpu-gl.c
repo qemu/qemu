@@ -32,34 +32,20 @@ static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
     uint32_t width, height;
     uint32_t pixels, *data;
 
-    if (g->parent_obj.use_virgl_renderer) {
-        data = virgl_renderer_get_cursor_data(resource_id, &width, &height);
-        if (!data) {
-            return;
-        }
+    data = virgl_renderer_get_cursor_data(resource_id, &width, &height);
+    if (!data) {
+        return;
+    }
 
-        if (width != s->current_cursor->width ||
-            height != s->current_cursor->height) {
-            free(data);
-            return;
-        }
-
-        pixels = s->current_cursor->width * s->current_cursor->height;
-        memcpy(s->current_cursor->data, data, pixels * sizeof(uint32_t));
+    if (width != s->current_cursor->width ||
+        height != s->current_cursor->height) {
         free(data);
         return;
     }
-    virtio_gpu_update_cursor_data(g, s, resource_id);
-}
 
-static void virtio_gpu_gl_process_cmd(VirtIOGPU *g,
-                                      struct virtio_gpu_ctrl_command *cmd)
-{
-    if (g->parent_obj.use_virgl_renderer) {
-        virtio_gpu_virgl_process_cmd(g, cmd);
-        return;
-    }
-    virtio_gpu_simple_process_cmd(g, cmd);
+    pixels = s->current_cursor->width * s->current_cursor->height;
+    memcpy(s->current_cursor->data, data, pixels * sizeof(uint32_t));
+    free(data);
 }
 
 static void virtio_gpu_gl_flushed(VirtIOGPUBase *b)
@@ -82,7 +68,7 @@ static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         return;
     }
 
-    if (!g->renderer_inited && g->parent_obj.use_virgl_renderer) {
+    if (!g->renderer_inited) {
         virtio_gpu_virgl_init(g);
         g->renderer_inited = true;
     }
@@ -97,10 +83,7 @@ static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     }
 
     virtio_gpu_process_cmdq(g);
-
-    if (g->parent_obj.use_virgl_renderer) {
-        virtio_gpu_virgl_fence_poll(g);
-    }
+    virtio_gpu_virgl_fence_poll(g);
 }
 
 static void virtio_gpu_gl_reset(VirtIODevice *vdev)
@@ -109,13 +92,12 @@ static void virtio_gpu_gl_reset(VirtIODevice *vdev)
 
     virtio_gpu_reset(vdev);
 
-    if (g->parent_obj.use_virgl_renderer) {
+    if (g->renderer_inited) {
         if (g->parent_obj.renderer_blocked) {
             g->renderer_reset = true;
         } else {
             virtio_gpu_virgl_reset(g);
         }
-        g->parent_obj.use_virgl_renderer = false;
     }
 }
 
@@ -155,7 +137,7 @@ static void virtio_gpu_gl_class_init(ObjectClass *klass, void *data)
 
     vbc->gl_flushed = virtio_gpu_gl_flushed;
     vgc->handle_ctrl = virtio_gpu_gl_handle_ctrl;
-    vgc->process_cmd = virtio_gpu_gl_process_cmd;
+    vgc->process_cmd = virtio_gpu_virgl_process_cmd;
     vgc->update_cursor_data = virtio_gpu_gl_update_cursor_data;
 
     vdc->realize = virtio_gpu_gl_device_realize;
