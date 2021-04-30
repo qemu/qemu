@@ -140,7 +140,7 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
 }
 
 int loader_exec(const char *filename, char **argv, char **envp,
-             struct target_pt_regs *regs, struct image_info *infop)
+                struct target_pt_regs *regs, struct image_info *infop)
 {
     struct bsd_binprm bprm;
     int retval;
@@ -148,7 +148,7 @@ int loader_exec(const char *filename, char **argv, char **envp,
 
     bprm.p = TARGET_PAGE_SIZE * MAX_ARG_PAGES - sizeof(unsigned int);
     for (i = 0 ; i < MAX_ARG_PAGES ; i++) {     /* clear page-table */
-            bprm.page[i] = NULL;
+        bprm.page[i] = NULL;
     }
     retval = open(filename, O_RDONLY);
     if (retval < 0) {
