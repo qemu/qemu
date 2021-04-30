@@ -139,21 +139,55 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
     return sp;
 }
 
+static bool is_there(const char *candidate)
+{
+    struct stat fin;
+
+    /* XXX work around access(2) false positives for superuser */
+    if (access(candidate, X_OK) == 0 && stat(candidate, &fin) == 0 &&
+            S_ISREG(fin.st_mode) && (getuid() != 0 ||
+                (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0)) {
+        return true;
+    }
+
+    return false;
+}
+
 int loader_exec(const char *filename, char **argv, char **envp,
                 struct target_pt_regs *regs, struct image_info *infop,
                 struct bsd_binprm *bprm)
 {
+    char *path, fullpath[PATH_MAX];
     int retval, i;
 
     bprm->p = TARGET_PAGE_SIZE * MAX_ARG_PAGES;
     for (i = 0; i < MAX_ARG_PAGES; i++) {       /* clear page-table */
         bprm->page[i] = NULL;
     }
-    retval = open(filename, O_RDONLY);
+
+    if (strchr(filename, '/') != NULL) {
+        path = realpath(filename, fullpath);
+        if (path == NULL) {
+            /* Failed to resolve. */
+            return -1;
+        }
+        if (!is_there(path)) {
+            return -1;
+        }
+    } else {
+        path = g_find_program_in_path(filename);
+        if (path == NULL) {
+            return -1;
+        }
+    }
+
+    retval = open(path, O_RDONLY);
     if (retval < 0) {
+        g_free(path);
         return retval;
     }
 
+    bprm->fullpath = path;
     bprm->fd = retval;
     bprm->filename = (char *)filename;
     bprm->argc = count(argv);

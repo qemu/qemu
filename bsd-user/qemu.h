@@ -124,7 +124,8 @@ struct bsd_binprm {
         int argc, envc;
         char **argv;
         char **envp;
-        char *filename;         /* Name of binary */
+        char *filename;         /* (Given) Name of binary */
+        char *fullpath;         /* Full path of binary */
 };
 
 void do_init_thread(struct target_pt_regs *regs, struct image_info *infop);
