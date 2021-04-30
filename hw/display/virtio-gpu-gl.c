@@ -51,9 +51,10 @@ static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
 static void virtio_gpu_gl_flushed(VirtIOGPUBase *b)
 {
     VirtIOGPU *g = VIRTIO_GPU(b);
+    VirtIOGPUGL *gl = VIRTIO_GPU_GL(b);
 
-    if (g->renderer_reset) {
-        g->renderer_reset = false;
+    if (gl->renderer_reset) {
+        gl->renderer_reset = false;
         virtio_gpu_virgl_reset(g);
     }
     virtio_gpu_process_cmdq(g);
@@ -62,15 +63,16 @@ static void virtio_gpu_gl_flushed(VirtIOGPUBase *b)
 static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIOGPUGL *gl = VIRTIO_GPU_GL(vdev);
     struct virtio_gpu_ctrl_command *cmd;
 
     if (!virtio_queue_ready(vq)) {
         return;
     }
 
-    if (!g->renderer_inited) {
+    if (!gl->renderer_inited) {
         virtio_gpu_virgl_init(g);
-        g->renderer_inited = true;
+        gl->renderer_inited = true;
     }
 
     cmd = virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command));
@@ -89,12 +91,13 @@ static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 static void virtio_gpu_gl_reset(VirtIODevice *vdev)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIOGPUGL *gl = VIRTIO_GPU_GL(vdev);
 
     virtio_gpu_reset(vdev);
 
-    if (g->renderer_inited) {
+    if (gl->renderer_inited) {
         if (g->parent_obj.renderer_blocked) {
-            g->renderer_reset = true;
+            gl->renderer_reset = true;
         } else {
             virtio_gpu_virgl_reset(g);
         }
