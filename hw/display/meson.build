@@ -87,6 +87,11 @@ if config_all_devices.has_key('CONFIG_VIRTIO_VGA')
   virtio_vga_ss.add(when: 'CONFIG_VHOST_USER_VGA',
                     if_true: files('vhost-user-vga.c'))
   hw_display_modules += {'virtio-vga': virtio_vga_ss}
+
+  virtio_vga_gl_ss = ss.source_set()
+  virtio_vga_gl_ss.add(when: ['CONFIG_VIRTIO_VGA', 'CONFIG_VIRGL', opengl],
+                       if_true: [files('virtio-vga-gl.c'), pixman])
+  hw_display_modules += {'virtio-vga-gl': virtio_vga_gl_ss}
 endif
 
 specific_ss.add(when: [x11, opengl, 'CONFIG_MILKYMIST_TMU2'], if_true: files('milkymist-tmu2.c'))

@@ -184,6 +184,7 @@ static const struct {
 
     { "hw-display-virtio-gpu-gl", "hw-display-virtio-gpu" },
     { "hw-display-virtio-gpu-pci-gl", "hw-display-virtio-gpu-pci" },
+    { "hw-display-virtio-vga-gl", "hw-display-virtio-vga" },
 
 #ifdef CONFIG_OPENGL
     { "ui-egl-headless", "ui-opengl"    },
@@ -313,6 +314,7 @@ static struct {
     { "virtio-gpu-ccw",        "hw-", "s390x-virtio-gpu-ccw"   },
     { "virtio-vga-base",       "hw-", "display-virtio-vga"    },
     { "virtio-vga",            "hw-", "display-virtio-vga"    },
+    { "virtio-vga-gl",         "hw-", "display-virtio-vga-gl" },
     { "vhost-user-vga",        "hw-", "display-virtio-vga"    },
     { "chardev-braille",       "chardev-", "baum"             },
     { "chardev-spicevmc",      "chardev-", "spice"            },
