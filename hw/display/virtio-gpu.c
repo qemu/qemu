@@ -1142,17 +1142,11 @@ void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     QTAILQ_INIT(&g->fenceq);
 }
 
-static void virtio_gpu_reset(VirtIODevice *vdev)
+void virtio_gpu_reset(VirtIODevice *vdev)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
     struct virtio_gpu_simple_resource *res, *tmp;
     struct virtio_gpu_ctrl_command *cmd;
-
-#ifdef CONFIG_VIRGL
-    if (g->parent_obj.use_virgl_renderer) {
-        virtio_gpu_virgl_reset(g);
-    }
-#endif
 
     QTAILQ_FOREACH_SAFE(res, &g->reslist, next, tmp) {
         virtio_gpu_resource_destroy(g, res);
@@ -1170,17 +1164,6 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
         g->inflight--;
         g_free(cmd);
     }
-
-#ifdef CONFIG_VIRGL
-    if (g->parent_obj.use_virgl_renderer) {
-        if (g->parent_obj.renderer_blocked) {
-            g->renderer_reset = true;
-        } else {
-            virtio_gpu_virgl_reset(g);
-        }
-        g->parent_obj.use_virgl_renderer = false;
-    }
-#endif
 
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
 }
