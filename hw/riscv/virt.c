@@ -197,6 +197,9 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
     static const char * const clint_compat[2] = {
         "sifive,clint0", "riscv,clint0"
     };
+    static const char * const plic_compat[2] = {
+        "sifive,plic-1.0.0", "riscv,plic0"
+    };
 
     if (mc->dtb) {
         fdt = mc->fdt = load_device_tree(mc->dtb, &s->fdt_size);
@@ -319,7 +322,8 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
             "#address-cells", FDT_PLIC_ADDR_CELLS);
         qemu_fdt_setprop_cell(fdt, plic_name,
             "#interrupt-cells", FDT_PLIC_INT_CELLS);
-        qemu_fdt_setprop_string(fdt, plic_name, "compatible", "riscv,plic0");
+        qemu_fdt_setprop_string_array(fdt, plic_name, "compatible",
+            (char **)&plic_compat, ARRAY_SIZE(plic_compat));
         qemu_fdt_setprop(fdt, plic_name, "interrupt-controller", NULL, 0);
         qemu_fdt_setprop(fdt, plic_name, "interrupts-extended",
             plic_cells, s->soc[socket].num_harts * sizeof(uint32_t) * 4);
