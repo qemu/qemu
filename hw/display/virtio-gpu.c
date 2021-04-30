@@ -881,13 +881,6 @@ static void virtio_gpu_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         return;
     }
 
-#ifdef CONFIG_VIRGL
-    if (!g->renderer_inited && g->parent_obj.use_virgl_renderer) {
-        virtio_gpu_virgl_init(g);
-        g->renderer_inited = true;
-    }
-#endif
-
     cmd = virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command));
     while (cmd) {
         cmd->vq = vq;
@@ -898,12 +891,6 @@ static void virtio_gpu_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
     }
 
     virtio_gpu_process_cmdq(g);
-
-#ifdef CONFIG_VIRGL
-    if (g->parent_obj.use_virgl_renderer) {
-        virtio_gpu_virgl_fence_poll(g);
-    }
-#endif
 }
 
 static void virtio_gpu_ctrl_bh(void *opaque)
