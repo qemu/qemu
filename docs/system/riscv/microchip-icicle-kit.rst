@@ -15,16 +15,16 @@ Supported devices
 
 The ``microchip-icicle-kit`` machine supports the following devices:
 
- * 1 E51 core
- * 4 U54 cores
- * Core Level Interruptor (CLINT)
- * Platform-Level Interrupt Controller (PLIC)
- * L2 Loosely Integrated Memory (L2-LIM)
- * DDR memory controller
- * 5 MMUARTs
- * 1 DMA controller
- * 2 GEM Ethernet controllers
- * 1 SDHC storage controller
+* 1 E51 core
+* 4 U54 cores
+* Core Level Interruptor (CLINT)
+* Platform-Level Interrupt Controller (PLIC)
+* L2 Loosely Integrated Memory (L2-LIM)
+* DDR memory controller
+* 5 MMUARTs
+* 1 DMA controller
+* 2 GEM Ethernet controllers
+* 1 SDHC storage controller
 
 Boot options
 ------------

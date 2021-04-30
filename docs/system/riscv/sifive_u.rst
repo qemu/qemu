@@ -9,21 +9,21 @@ Supported devices
 
 The ``sifive_u`` machine supports the following devices:
 
- * 1 E51 / E31 core
- * Up to 4 U54 / U34 cores
- * Core Level Interruptor (CLINT)
- * Platform-Level Interrupt Controller (PLIC)
- * Power, Reset, Clock, Interrupt (PRCI)
- * L2 Loosely Integrated Memory (L2-LIM)
- * DDR memory controller
- * 2 UARTs
- * 1 GEM Ethernet controller
- * 1 GPIO controller
- * 1 One-Time Programmable (OTP) memory with stored serial number
- * 1 DMA controller
- * 2 QSPI controllers
- * 1 ISSI 25WP256 flash
- * 1 SD card in SPI mode
+* 1 E51 / E31 core
+* Up to 4 U54 / U34 cores
+* Core Level Interruptor (CLINT)
+* Platform-Level Interrupt Controller (PLIC)
+* Power, Reset, Clock, Interrupt (PRCI)
+* L2 Loosely Integrated Memory (L2-LIM)
+* DDR memory controller
+* 2 UARTs
+* 1 GEM Ethernet controller
+* 1 GPIO controller
+* 1 One-Time Programmable (OTP) memory with stored serial number
+* 1 DMA controller
+* 2 QSPI controllers
+* 1 ISSI 25WP256 flash
+* 1 SD card in SPI mode
 
 Please note the real world HiFive Unleashed board has a fixed configuration of
 1 E51 core and 4 U54 core combination and the RISC-V core boots in 64-bit mode.
