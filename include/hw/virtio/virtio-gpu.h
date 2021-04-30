@@ -29,7 +29,7 @@ OBJECT_DECLARE_TYPE(VirtIOGPUBase, VirtIOGPUBaseClass,
                     VIRTIO_GPU_BASE)
 
 #define TYPE_VIRTIO_GPU "virtio-gpu-device"
-OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPU, VIRTIO_GPU)
+OBJECT_DECLARE_TYPE(VirtIOGPU, VirtIOGPUClass, VIRTIO_GPU)
 
 #define TYPE_VIRTIO_GPU_GL "virtio-gpu-gl-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPUGL, VIRTIO_GPU_GL)
@@ -164,6 +164,12 @@ struct VirtIOGPU {
         uint32_t req_3d;
         uint32_t bytes_3d;
     } stats;
+};
+
+struct VirtIOGPUClass {
+    VirtIOGPUBaseClass parent;
+
+    void (*handle_ctrl)(VirtIODevice *vdev, VirtQueue *vq);
 };
 
 struct VirtIOGPUGL {

@@ -909,7 +909,9 @@ static void virtio_gpu_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 static void virtio_gpu_ctrl_bh(void *opaque)
 {
     VirtIOGPU *g = opaque;
-    virtio_gpu_handle_ctrl(&g->parent_obj.parent_obj, g->ctrl_vq);
+    VirtIOGPUClass *vgc = VIRTIO_GPU_GET_CLASS(g);
+
+    vgc->handle_ctrl(&g->parent_obj.parent_obj, g->ctrl_vq);
 }
 
 static void virtio_gpu_handle_cursor(VirtIODevice *vdev, VirtQueue *vq)
@@ -1226,9 +1228,12 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    VirtIOGPUBaseClass *vgc = VIRTIO_GPU_BASE_CLASS(klass);
+    VirtIOGPUBaseClass *vbc = VIRTIO_GPU_BASE_CLASS(klass);
+    VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
 
-    vgc->gl_flushed = virtio_gpu_gl_flushed;
+    vbc->gl_flushed = virtio_gpu_gl_flushed;
+    vgc->handle_ctrl = virtio_gpu_handle_ctrl;
+
     vdc->realize = virtio_gpu_device_realize;
     vdc->reset = virtio_gpu_reset;
     vdc->get_config = virtio_gpu_get_config;
@@ -1242,6 +1247,7 @@ static const TypeInfo virtio_gpu_info = {
     .name = TYPE_VIRTIO_GPU,
     .parent = TYPE_VIRTIO_GPU_BASE,
     .instance_size = sizeof(VirtIOGPU),
+    .class_size = sizeof(VirtIOGPUClass),
     .class_init = virtio_gpu_class_init,
 };
 
