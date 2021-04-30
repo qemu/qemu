@@ -198,14 +198,6 @@ from Linux upstream kernel, declare it deprecated.
 System emulator CPUS
 --------------------
 
-``moxie`` CPU (since 5.2.0)
-'''''''''''''''''''''''''''
-
-The ``moxie`` guest CPU support is deprecated and will be removed in
-a future version of QEMU. It's unclear whether anybody is still using
-CPU emulation in QEMU, and there are no test images available to make
-sure that the code is still working.
-
 ``lm32`` CPUs (since 5.2.0)
 '''''''''''''''''''''''''''
 

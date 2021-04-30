@@ -51,7 +51,6 @@ source lm32/Kconfig
 source m68k/Kconfig
 source microblaze/Kconfig
 source mips/Kconfig
-source moxie/Kconfig
 source nios2/Kconfig
 source openrisc/Kconfig
 source ppc/Kconfig

@@ -206,9 +206,6 @@ typedef struct mips_elf_abiflags_v0 {
 
 #define EM_AARCH64  183
 
-#define EM_MOXIE           223     /* Moxie processor family */
-#define EM_MOXIE_OLD       0xFEED
-
 #define EF_AVR_MACH     0x7F       /* Mask for AVR e_flags to get core type */
 
 /* This is the info that is needed to parse the dynamic section of the file */

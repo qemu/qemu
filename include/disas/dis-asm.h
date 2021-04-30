@@ -443,7 +443,6 @@ int print_insn_m32r             (bfd_vma, disassemble_info*);
 int print_insn_m88k             (bfd_vma, disassemble_info*);
 int print_insn_mn10200          (bfd_vma, disassemble_info*);
 int print_insn_mn10300          (bfd_vma, disassemble_info*);
-int print_insn_moxie            (bfd_vma, disassemble_info*);
 int print_insn_ns32k            (bfd_vma, disassemble_info*);
 int print_insn_big_powerpc      (bfd_vma, disassemble_info*);
 int print_insn_little_powerpc   (bfd_vma, disassemble_info*);

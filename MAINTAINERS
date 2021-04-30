@@ -258,14 +258,6 @@ MIPS TCG CPUs (nanoMIPS ISA)
 S: Orphan
 F: disas/nanomips.*
 
-Moxie TCG CPUs
-M: Anthony Green <green@moxielogic.com>
-S: Maintained
-F: target/moxie/
-F: disas/moxie.c
-F: hw/moxie/
-F: default-configs/*/moxie-softmmu.mak
-
 NiosII TCG CPUs
 M: Chris Wulff <crwulff@gmail.com>
 M: Marek Vasut <marex@denx.de>

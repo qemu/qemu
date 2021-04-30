@@ -291,6 +291,13 @@ via the CPU ``mmu`` option when using the ``rv32`` or ``rv64`` CPUs.
 The ``max-cpu-compat`` property of the ``pseries`` machine type should be used
 instead.
 
+``moxie`` CPU (removed in 6.1)
+''''''''''''''''''''''''''''''
+
+Nobody was using this CPU emulation in QEMU, and there were no test images
+available to make sure that the code is still working, so it has been removed
+without replacement.
+
 System emulator machines
 ------------------------
 

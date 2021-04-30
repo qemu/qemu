@@ -368,14 +368,6 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                 }
             }
             break;
-        case EM_MOXIE:
-            if (ehdr.e_machine != EM_MOXIE) {
-                if (ehdr.e_machine != EM_MOXIE_OLD) {
-                    ret = ELF_LOAD_WRONG_ARCH;
-                    goto fail;
-                }
-            }
-            break;
         case EM_MIPS:
         case EM_NANOMIPS:
             if ((ehdr.e_machine != EM_MIPS) &&
