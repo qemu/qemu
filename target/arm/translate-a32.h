@@ -57,4 +57,57 @@ static inline TCGv_i32 load_reg(DisasContext *s, int reg)
     return tmp;
 }
 
+void gen_aa32_ld_internal_i32(DisasContext *s, TCGv_i32 val,
+                              TCGv_i32 a32, int index, MemOp opc);
+void gen_aa32_st_internal_i32(DisasContext *s, TCGv_i32 val,
+                              TCGv_i32 a32, int index, MemOp opc);
+void gen_aa32_ld_internal_i64(DisasContext *s, TCGv_i64 val,
+                              TCGv_i32 a32, int index, MemOp opc);
+void gen_aa32_st_internal_i64(DisasContext *s, TCGv_i64 val,
+                              TCGv_i32 a32, int index, MemOp opc);
+void gen_aa32_ld_i32(DisasContext *s, TCGv_i32 val, TCGv_i32 a32,
+                     int index, MemOp opc);
+void gen_aa32_st_i32(DisasContext *s, TCGv_i32 val, TCGv_i32 a32,
+                     int index, MemOp opc);
+void gen_aa32_ld_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
+                     int index, MemOp opc);
+void gen_aa32_st_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
+                     int index, MemOp opc);
+
+#define DO_GEN_LD(SUFF, OPC)                                            \
+    static inline void gen_aa32_ld##SUFF(DisasContext *s, TCGv_i32 val, \
+                                         TCGv_i32 a32, int index)       \
+    {                                                                   \
+        gen_aa32_ld_i32(s, val, a32, index, OPC);                       \
+    }
+
+#define DO_GEN_ST(SUFF, OPC)                                            \
+    static inline void gen_aa32_st##SUFF(DisasContext *s, TCGv_i32 val, \
+                                         TCGv_i32 a32, int index)       \
+    {                                                                   \
+        gen_aa32_st_i32(s, val, a32, index, OPC);                       \
+    }
+
+static inline void gen_aa32_ld64(DisasContext *s, TCGv_i64 val,
+                                 TCGv_i32 a32, int index)
+{
+    gen_aa32_ld_i64(s, val, a32, index, MO_Q);
+}
+
+static inline void gen_aa32_st64(DisasContext *s, TCGv_i64 val,
+                                 TCGv_i32 a32, int index)
+{
+    gen_aa32_st_i64(s, val, a32, index, MO_Q);
+}
+
+DO_GEN_LD(8u, MO_UB)
+DO_GEN_LD(16u, MO_UW)
+DO_GEN_LD(32u, MO_UL)
+DO_GEN_ST(8, MO_UB)
+DO_GEN_ST(16, MO_UW)
+DO_GEN_ST(32, MO_UL)
+
+#undef DO_GEN_LD
+#undef DO_GEN_ST
+
 #endif

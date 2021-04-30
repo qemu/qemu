@@ -899,24 +899,24 @@ static TCGv gen_aa32_addr(DisasContext *s, TCGv_i32 a32, MemOp op)
  * Internal routines are used for NEON cases where the endianness
  * and/or alignment has already been taken into account and manipulated.
  */
-static void gen_aa32_ld_internal_i32(DisasContext *s, TCGv_i32 val,
-                                     TCGv_i32 a32, int index, MemOp opc)
+void gen_aa32_ld_internal_i32(DisasContext *s, TCGv_i32 val,
+                              TCGv_i32 a32, int index, MemOp opc)
 {
     TCGv addr = gen_aa32_addr(s, a32, opc);
     tcg_gen_qemu_ld_i32(val, addr, index, opc);
     tcg_temp_free(addr);
 }
 
-static void gen_aa32_st_internal_i32(DisasContext *s, TCGv_i32 val,
-                                     TCGv_i32 a32, int index, MemOp opc)
+void gen_aa32_st_internal_i32(DisasContext *s, TCGv_i32 val,
+                              TCGv_i32 a32, int index, MemOp opc)
 {
     TCGv addr = gen_aa32_addr(s, a32, opc);
     tcg_gen_qemu_st_i32(val, addr, index, opc);
     tcg_temp_free(addr);
 }
 
-static void gen_aa32_ld_internal_i64(DisasContext *s, TCGv_i64 val,
-                                     TCGv_i32 a32, int index, MemOp opc)
+void gen_aa32_ld_internal_i64(DisasContext *s, TCGv_i64 val,
+                              TCGv_i32 a32, int index, MemOp opc)
 {
     TCGv addr = gen_aa32_addr(s, a32, opc);
 
@@ -929,8 +929,8 @@ static void gen_aa32_ld_internal_i64(DisasContext *s, TCGv_i64 val,
     tcg_temp_free(addr);
 }
 
-static void gen_aa32_st_internal_i64(DisasContext *s, TCGv_i64 val,
-                                     TCGv_i32 a32, int index, MemOp opc)
+void gen_aa32_st_internal_i64(DisasContext *s, TCGv_i64 val,
+                              TCGv_i32 a32, int index, MemOp opc)
 {
     TCGv addr = gen_aa32_addr(s, a32, opc);
 
@@ -946,26 +946,26 @@ static void gen_aa32_st_internal_i64(DisasContext *s, TCGv_i64 val,
     tcg_temp_free(addr);
 }
 
-static void gen_aa32_ld_i32(DisasContext *s, TCGv_i32 val, TCGv_i32 a32,
-                            int index, MemOp opc)
+void gen_aa32_ld_i32(DisasContext *s, TCGv_i32 val, TCGv_i32 a32,
+                     int index, MemOp opc)
 {
     gen_aa32_ld_internal_i32(s, val, a32, index, finalize_memop(s, opc));
 }
 
-static void gen_aa32_st_i32(DisasContext *s, TCGv_i32 val, TCGv_i32 a32,
-                            int index, MemOp opc)
+void gen_aa32_st_i32(DisasContext *s, TCGv_i32 val, TCGv_i32 a32,
+                     int index, MemOp opc)
 {
     gen_aa32_st_internal_i32(s, val, a32, index, finalize_memop(s, opc));
 }
 
-static void gen_aa32_ld_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
-                            int index, MemOp opc)
+void gen_aa32_ld_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
+                     int index, MemOp opc)
 {
     gen_aa32_ld_internal_i64(s, val, a32, index, finalize_memop(s, opc));
 }
 
-static void gen_aa32_st_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
-                            int index, MemOp opc)
+void gen_aa32_st_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
+                     int index, MemOp opc)
 {
     gen_aa32_st_internal_i64(s, val, a32, index, finalize_memop(s, opc));
 }
@@ -983,25 +983,6 @@ static void gen_aa32_st_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
     {                                                                   \
         gen_aa32_st_i32(s, val, a32, index, OPC);                       \
     }
-
-static inline void gen_aa32_ld64(DisasContext *s, TCGv_i64 val,
-                                 TCGv_i32 a32, int index)
-{
-    gen_aa32_ld_i64(s, val, a32, index, MO_Q);
-}
-
-static inline void gen_aa32_st64(DisasContext *s, TCGv_i64 val,
-                                 TCGv_i32 a32, int index)
-{
-    gen_aa32_st_i64(s, val, a32, index, MO_Q);
-}
-
-DO_GEN_LD(8u, MO_UB)
-DO_GEN_LD(16u, MO_UW)
-DO_GEN_LD(32u, MO_UL)
-DO_GEN_ST(8, MO_UB)
-DO_GEN_ST(16, MO_UW)
-DO_GEN_ST(32, MO_UL)
 
 static inline void gen_hvc(DisasContext *s, int imm16)
 {
