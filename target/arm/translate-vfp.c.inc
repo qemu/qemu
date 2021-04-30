@@ -30,6 +30,26 @@
 #include "decode-vfp.c.inc"
 #include "decode-vfp-uncond.c.inc"
 
+static inline void vfp_load_reg64(TCGv_i64 var, int reg)
+{
+    tcg_gen_ld_i64(var, cpu_env, vfp_reg_offset(true, reg));
+}
+
+static inline void vfp_store_reg64(TCGv_i64 var, int reg)
+{
+    tcg_gen_st_i64(var, cpu_env, vfp_reg_offset(true, reg));
+}
+
+static inline void vfp_load_reg32(TCGv_i32 var, int reg)
+{
+    tcg_gen_ld_i32(var, cpu_env, vfp_reg_offset(false, reg));
+}
+
+static inline void vfp_store_reg32(TCGv_i32 var, int reg)
+{
+    tcg_gen_st_i32(var, cpu_env, vfp_reg_offset(false, reg));
+}
+
 /*
  * The imm8 encodes the sign bit, enough bits to represent an exponent in
  * the range 01....1xx to 10....0xx, and the most significant 4 bits of

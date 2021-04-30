@@ -1144,26 +1144,6 @@ static long vfp_reg_offset(bool dp, unsigned reg)
     }
 }
 
-static inline void vfp_load_reg64(TCGv_i64 var, int reg)
-{
-    tcg_gen_ld_i64(var, cpu_env, vfp_reg_offset(true, reg));
-}
-
-static inline void vfp_store_reg64(TCGv_i64 var, int reg)
-{
-    tcg_gen_st_i64(var, cpu_env, vfp_reg_offset(true, reg));
-}
-
-static inline void vfp_load_reg32(TCGv_i32 var, int reg)
-{
-    tcg_gen_ld_i32(var, cpu_env, vfp_reg_offset(false, reg));
-}
-
-static inline void vfp_store_reg32(TCGv_i32 var, int reg)
-{
-    tcg_gen_st_i32(var, cpu_env, vfp_reg_offset(false, reg));
-}
-
 void read_neon_element32(TCGv_i32 dest, int reg, int ele, MemOp memop)
 {
     long off = neon_element_offset(reg, ele, memop);
