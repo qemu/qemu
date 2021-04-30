@@ -60,6 +60,7 @@ class VirtioGPUx86(Test):
         """
         :avocado: tags=arch:x86_64
         :avocado: tags=device:virtio-vga
+        :avocado: tags=cpu:host
         """
         kernel_command_line = (
             self.KERNEL_COMMON_COMMAND_LINE + "console=ttyS0 rdinit=/bin/bash"
@@ -72,7 +73,6 @@ class VirtioGPUx86(Test):
         initrd_path = self.fetch_asset(self.INITRD_URL)
 
         self.vm.set_console()
-        self.vm.add_args("-cpu", "host")
         self.vm.add_args("-m", "2G")
         self.vm.add_args("-machine", "pc,accel=kvm")
         self.vm.add_args("-device", "virtio-vga,virgl=on")
@@ -101,6 +101,7 @@ class VirtioGPUx86(Test):
         """
         :avocado: tags=arch:x86_64
         :avocado: tags=device:vhost-user-vga
+        :avocado: tags=cpu:host
         """
         kernel_command_line = (
             self.KERNEL_COMMON_COMMAND_LINE + "console=ttyS0 rdinit=/bin/bash"
@@ -140,7 +141,6 @@ class VirtioGPUx86(Test):
         )
 
         self.vm.set_console()
-        self.vm.add_args("-cpu", "host")
         self.vm.add_args("-m", "2G")
         self.vm.add_args("-object", "memory-backend-memfd,id=mem,size=2G")
         self.vm.add_args("-machine", "pc,memory-backend=mem,accel=kvm")
