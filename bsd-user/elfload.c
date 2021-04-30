@@ -25,66 +25,6 @@
 
 #include "target_arch_elf.h"
 
-/* from personality.h */
-
-/*
- * Flags for bug emulation.
- *
- * These occupy the top three bytes.
- */
-enum {
-        ADDR_NO_RANDOMIZE =     0x0040000,      /* disable randomization of VA space */
-        FDPIC_FUNCPTRS =        0x0080000,      /* userspace function ptrs point to descriptors
-                                                 * (signal handling)
-                                                 */
-        MMAP_PAGE_ZERO =        0x0100000,
-        ADDR_COMPAT_LAYOUT =    0x0200000,
-        READ_IMPLIES_EXEC =     0x0400000,
-        ADDR_LIMIT_32BIT =      0x0800000,
-        SHORT_INODE =           0x1000000,
-        WHOLE_SECONDS =         0x2000000,
-        STICKY_TIMEOUTS =       0x4000000,
-        ADDR_LIMIT_3GB =        0x8000000,
-};
-
-/*
- * Personality types.
- *
- * These go in the low byte.  Avoid using the top bit, it will
- * conflict with error returns.
- */
-enum {
-        PER_LINUX =             0x0000,
-        PER_LINUX_32BIT =       0x0000 | ADDR_LIMIT_32BIT,
-        PER_LINUX_FDPIC =       0x0000 | FDPIC_FUNCPTRS,
-        PER_SVR4 =              0x0001 | STICKY_TIMEOUTS | MMAP_PAGE_ZERO,
-        PER_SVR3 =              0x0002 | STICKY_TIMEOUTS | SHORT_INODE,
-        PER_SCOSVR3 =           0x0003 | STICKY_TIMEOUTS |
-                                         WHOLE_SECONDS | SHORT_INODE,
-        PER_OSR5 =              0x0003 | STICKY_TIMEOUTS | WHOLE_SECONDS,
-        PER_WYSEV386 =          0x0004 | STICKY_TIMEOUTS | SHORT_INODE,
-        PER_ISCR4 =             0x0005 | STICKY_TIMEOUTS,
-        PER_BSD =               0x0006,
-        PER_SUNOS =             0x0006 | STICKY_TIMEOUTS,
-        PER_XENIX =             0x0007 | STICKY_TIMEOUTS | SHORT_INODE,
-        PER_LINUX32 =           0x0008,
-        PER_LINUX32_3GB =       0x0008 | ADDR_LIMIT_3GB,
-        PER_IRIX32 =            0x0009 | STICKY_TIMEOUTS,/* IRIX5 32-bit */
-        PER_IRIXN32 =           0x000a | STICKY_TIMEOUTS,/* IRIX6 new 32-bit */
-        PER_IRIX64 =            0x000b | STICKY_TIMEOUTS,/* IRIX6 64-bit */
-        PER_RISCOS =            0x000c,
-        PER_SOLARIS =           0x000d | STICKY_TIMEOUTS,
-        PER_UW7 =               0x000e | STICKY_TIMEOUTS | MMAP_PAGE_ZERO,
-        PER_OSF4 =              0x000f,                  /* OSF/1 v4 */
-        PER_HPUX =              0x0010,
-        PER_MASK =              0x00ff,
-};
-
-/*
- * Return the base personality without flags.
- */
-#define personality(pers)       (pers & PER_MASK)
-
 /* this flag is uneffective under linux too, should be deleted */
 #ifndef MAP_DENYWRITE
 #define MAP_DENYWRITE 0
@@ -750,7 +690,6 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
     abi_ulong load_addr, load_bias;
     int load_addr_set = 0;
     unsigned int interpreter_type = INTERPRETER_NONE;
-    unsigned char ibcs2_interpreter;
     int i;
     struct elf_phdr * elf_ppnt;
     struct elf_phdr *elf_phdata;
@@ -765,7 +704,6 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
 #endif
     char passed_fileno[6];
 
-    ibcs2_interpreter = 0;
     load_addr = 0;
     load_bias = 0;
     elf_ex = *((struct elfhdr *) bprm->buf);          /* exec-header */
@@ -856,20 +794,6 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
                 exit(-1);
             }
 
-            /* If the program interpreter is one of these two,
-               then assume an iBCS2 image. Otherwise assume
-               a native linux image. */
-
-            /* JRP - Need to add X86 lib dir stuff here... */
-
-            if (strcmp(elf_interpreter, "/usr/lib/libc.so.1") == 0 ||
-                strcmp(elf_interpreter, "/usr/lib/ld.so.1") == 0) {
-              ibcs2_interpreter = 1;
-            }
-
-#if 0
-            printf("Using ELF interpreter %s\n", path(elf_interpreter));
-#endif
             if (retval >= 0) {
                 retval = open(path(elf_interpreter), O_RDONLY);
                 if (retval >= 0) {
@@ -1099,7 +1023,6 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
         load_symbols(&elf_ex, bprm->fd);
 
     if (interpreter_type != INTERPRETER_AOUT) close(bprm->fd);
-    info->personality = (ibcs2_interpreter ? PER_SVR4 : PER_LINUX);
 
 #ifdef LOW_ELF_STACK
     info->start_stack = bprm->p = elf_stack - 4;
@@ -1134,16 +1057,6 @@ int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
     printf("(start_stack) %x\n" , info->start_stack);
     printf("(brk) %x\n" , info->brk);
 #endif
-
-    if (info->personality == PER_SVR4)
-    {
-            /* Why this, you ask???  Well SVr4 maps page 0 as read-only,
-               and some applications "depend" upon this behavior.
-               Since we do not have the power to recompile these, we
-               emulate the SVr4 behavior.  Sigh.  */
-            target_mmap(0, qemu_host_page_size, PROT_READ | PROT_EXEC,
-                                      MAP_FIXED | MAP_PRIVATE, -1, 0);
-    }
 
     info->entry = elf_entry;
 

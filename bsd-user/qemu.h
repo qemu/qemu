@@ -66,7 +66,6 @@ struct image_info {
     abi_ulong entry;
     abi_ulong code_offset;
     abi_ulong data_offset;
-    int       personality;
 };
 
 #define MAX_SIGQUEUE_SIZE 1024
