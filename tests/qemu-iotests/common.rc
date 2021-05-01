@@ -641,10 +641,6 @@ _cleanup_test_img()
             rbd --no-progress rm "$TEST_DIR/t.$IMGFMT" > /dev/null
             ;;
 
-        sheepdog)
-            collie vdi delete "$TEST_DIR/t.$IMGFMT"
-            ;;
-
     esac
 }
 

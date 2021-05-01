@@ -65,8 +65,7 @@ def make_argparser() -> argparse.ArgumentParser:
         mg.add_argument('-' + fmt, dest='imgfmt', action='store_const',
                         const=fmt, help=f'test {fmt}')
 
-    protocol_list = ['file', 'rbd', 'sheepdog', 'nbd', 'ssh', 'nfs',
-                     'fuse']
+    protocol_list = ['file', 'rbd', 'nbd', 'ssh', 'nfs', 'fuse']
     g_prt = p.add_argument_group(
         '  image protocol options',
         'The following options set the IMGPROTO environment variable. '

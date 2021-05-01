@@ -474,3 +474,10 @@ VXHS backend (removed in 5.1)
 '''''''''''''''''''''''''''''
 
 The VXHS code did not compile since v2.12.0. It was removed in 5.1.
+
+``sheepdog`` driver (removed in 6.0)
+''''''''''''''''''''''''''''''''''''
+
+The corresponding upstream server project is no longer maintained.
+Users are recommended to switch to an alternative distributed block
+device driver such as RBD.

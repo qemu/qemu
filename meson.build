@@ -2634,7 +2634,6 @@ if have_block
   summary_info += {'vvfat support':     config_host.has_key('CONFIG_VVFAT')}
   summary_info += {'qed support':       config_host.has_key('CONFIG_QED')}
   summary_info += {'parallels support': config_host.has_key('CONFIG_PARALLELS')}
-  summary_info += {'sheepdog support':  config_host.has_key('CONFIG_SHEEPDOG')}
   summary_info += {'FUSE exports':      fuse.found()}
 endif
 summary(summary_info, bool_yn: true, section: 'Block layer support')

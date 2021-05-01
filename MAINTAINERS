@@ -3072,12 +3072,6 @@ L: qemu-block@nongnu.org
 S: Supported
 F: block/rbd.c
 
-Sheepdog
-M: Liu Yuan <namei.unix@gmail.com>
-L: qemu-block@nongnu.org
-S: Odd Fixes
-F: block/sheepdog.c
-
 VHDX
 M: Jeff Cody <codyprime@gmail.com>
 L: qemu-block@nongnu.org

@@ -285,15 +285,6 @@ The above, converted to the current supported format::
 
   json:{"file.driver":"rbd", "file.pool":"rbd", "file.image":"name"}
 
-``sheepdog`` driver (since 5.2.0)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The ``sheepdog`` block device driver is deprecated. The corresponding upstream
-server project is no longer actively maintained. Users are recommended to switch
-to an alternative distributed block device driver such as RBD. The
-``qemu-img convert`` command can be used to liberate existing data by moving
-it out of sheepdog volumes into an alternative storage backend.
-
 linux-user mode CPUs
 --------------------
 

@@ -342,7 +342,6 @@ build-disabled:
       --disable-replication
       --disable-sdl
       --disable-seccomp
-      --disable-sheepdog
       --disable-slirp
       --disable-smartcard
       --disable-snappy
