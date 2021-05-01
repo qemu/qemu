@@ -199,7 +199,8 @@ static void aspeed_soc_init(Object *obj)
                                 TYPE_FTGMAC100);
     }
 
-    object_initialize_child(obj, "xdma", &s->xdma, TYPE_ASPEED_XDMA);
+    snprintf(typename, sizeof(typename), TYPE_ASPEED_XDMA "-%s", socname);
+    object_initialize_child(obj, "xdma", &s->xdma, typename);
 
     snprintf(typename, sizeof(typename), "aspeed.gpio-%s", socname);
     object_initialize_child(obj, "gpio", &s->gpio, typename);
