@@ -257,6 +257,12 @@ static uint32_t aspeed_2600_smc_segment_to_reg(const AspeedSMCState *s,
                                                const AspeedSegments *seg);
 static void aspeed_2600_smc_reg_to_segment(const AspeedSMCState *s,
                                            uint32_t reg, AspeedSegments *seg);
+#define ASPEED_SMC_FEATURE_DMA       0x1
+
+static inline bool aspeed_smc_has_dma(const AspeedSMCState *s)
+{
+    return !!(s->ctrl->features & ASPEED_SMC_FEATURE_DMA);
+}
 
 static const AspeedSMCController controllers[] = {
     {
@@ -271,7 +277,7 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_legacy,
         .flash_window_base = ASPEED_SOC_SMC_FLASH_BASE,
         .flash_window_size = 0x6000000,
-        .has_dma           = false,
+        .features          = 0x0,
         .nregs             = ASPEED_SMC_R_SMC_MAX,
         .segment_to_reg    = aspeed_smc_segment_to_reg,
         .reg_to_segment    = aspeed_smc_reg_to_segment,
@@ -287,7 +293,7 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_fmc,
         .flash_window_base = ASPEED_SOC_FMC_FLASH_BASE,
         .flash_window_size = 0x10000000,
-        .has_dma           = true,
+        .features          = ASPEED_SMC_FEATURE_DMA,
         .dma_flash_mask    = 0x0FFFFFFC,
         .dma_dram_mask     = 0x1FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
@@ -305,7 +311,7 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_spi,
         .flash_window_base = ASPEED_SOC_SPI_FLASH_BASE,
         .flash_window_size = 0x10000000,
-        .has_dma           = false,
+        .features          = 0x0,
         .nregs             = ASPEED_SMC_R_SPI_MAX,
         .segment_to_reg    = aspeed_smc_segment_to_reg,
         .reg_to_segment    = aspeed_smc_reg_to_segment,
@@ -321,7 +327,7 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_ast2500_fmc,
         .flash_window_base = ASPEED_SOC_FMC_FLASH_BASE,
         .flash_window_size = 0x10000000,
-        .has_dma           = true,
+        .features          = ASPEED_SMC_FEATURE_DMA,
         .dma_flash_mask    = 0x0FFFFFFC,
         .dma_dram_mask     = 0x3FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
@@ -339,7 +345,7 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_ast2500_spi1,
         .flash_window_base = ASPEED_SOC_SPI_FLASH_BASE,
         .flash_window_size = 0x8000000,
-        .has_dma           = false,
+        .features          = 0x0,
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_smc_segment_to_reg,
         .reg_to_segment    = aspeed_smc_reg_to_segment,
@@ -355,7 +361,7 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_ast2500_spi2,
         .flash_window_base = ASPEED_SOC_SPI2_FLASH_BASE,
         .flash_window_size = 0x8000000,
-        .has_dma           = false,
+        .features          = 0x0,
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_smc_segment_to_reg,
         .reg_to_segment    = aspeed_smc_reg_to_segment,
@@ -371,7 +377,7 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_ast2600_fmc,
         .flash_window_base = ASPEED26_SOC_FMC_FLASH_BASE,
         .flash_window_size = 0x10000000,
-        .has_dma           = true,
+        .features          = ASPEED_SMC_FEATURE_DMA,
         .dma_flash_mask    = 0x0FFFFFFC,
         .dma_dram_mask     = 0x3FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
@@ -389,7 +395,7 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_ast2600_spi1,
         .flash_window_base = ASPEED26_SOC_SPI_FLASH_BASE,
         .flash_window_size = 0x10000000,
-        .has_dma           = true,
+        .features          = ASPEED_SMC_FEATURE_DMA,
         .dma_flash_mask    = 0x0FFFFFFC,
         .dma_dram_mask     = 0x3FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
@@ -407,7 +413,7 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_ast2600_spi2,
         .flash_window_base = ASPEED26_SOC_SPI2_FLASH_BASE,
         .flash_window_size = 0x10000000,
-        .has_dma           = true,
+        .features          = ASPEED_SMC_FEATURE_DMA,
         .dma_flash_mask    = 0x0FFFFFFC,
         .dma_dram_mask     = 0x3FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
@@ -997,11 +1003,11 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         addr == R_CE_CMD_CTRL ||
         addr == R_INTR_CTRL ||
         addr == R_DUMMY_DATA ||
-        (s->ctrl->has_dma && addr == R_DMA_CTRL) ||
-        (s->ctrl->has_dma && addr == R_DMA_FLASH_ADDR) ||
-        (s->ctrl->has_dma && addr == R_DMA_DRAM_ADDR) ||
-        (s->ctrl->has_dma && addr == R_DMA_LEN) ||
-        (s->ctrl->has_dma && addr == R_DMA_CHECKSUM) ||
+        (aspeed_smc_has_dma(s) && addr == R_DMA_CTRL) ||
+        (aspeed_smc_has_dma(s) && addr == R_DMA_FLASH_ADDR) ||
+        (aspeed_smc_has_dma(s) && addr == R_DMA_DRAM_ADDR) ||
+        (aspeed_smc_has_dma(s) && addr == R_DMA_LEN) ||
+        (aspeed_smc_has_dma(s) && addr == R_DMA_CHECKSUM) ||
         (addr >= R_SEG_ADDR0 &&
          addr < R_SEG_ADDR0 + s->ctrl->max_peripherals) ||
         (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->ctrl->max_peripherals)) {
@@ -1290,13 +1296,13 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
         s->regs[addr] = value & 0xff;
     } else if (addr == R_INTR_CTRL) {
         s->regs[addr] = value;
-    } else if (s->ctrl->has_dma && addr == R_DMA_CTRL) {
+    } else if (aspeed_smc_has_dma(s) && addr == R_DMA_CTRL) {
         aspeed_smc_dma_ctrl(s, value);
-    } else if (s->ctrl->has_dma && addr == R_DMA_DRAM_ADDR) {
+    } else if (aspeed_smc_has_dma(s) && addr == R_DMA_DRAM_ADDR) {
         s->regs[addr] = DMA_DRAM_ADDR(s, value);
-    } else if (s->ctrl->has_dma && addr == R_DMA_FLASH_ADDR) {
+    } else if (aspeed_smc_has_dma(s) && addr == R_DMA_FLASH_ADDR) {
         s->regs[addr] = DMA_FLASH_ADDR(s, value);
-    } else if (s->ctrl->has_dma && addr == R_DMA_LEN) {
+    } else if (aspeed_smc_has_dma(s) && addr == R_DMA_LEN) {
         s->regs[addr] = DMA_LENGTH(value);
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
@@ -1412,7 +1418,7 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
     }
 
     /* DMA support */
-    if (s->ctrl->has_dma) {
+    if (aspeed_smc_has_dma(s)) {
         aspeed_smc_dma_setup(s, errp);
     }
 }

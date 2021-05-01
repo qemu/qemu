@@ -47,7 +47,7 @@ typedef struct AspeedSMCController {
     const AspeedSegments *segments;
     hwaddr flash_window_base;
     uint32_t flash_window_size;
-    bool has_dma;
+    uint32_t features;
     hwaddr dma_flash_mask;
     hwaddr dma_dram_mask;
     uint32_t nregs;
