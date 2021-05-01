@@ -601,7 +601,7 @@ static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
             break;
         }
 
-        bus->dma_addr = value & 0xfffffffc;
+        bus->dma_addr = value & 0x3ffffffc;
         break;
 
     case I2CD_DMA_LEN:
