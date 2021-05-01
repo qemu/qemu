@@ -720,103 +720,97 @@ static inline void vscr_init(CPUPPCState *env, uint32_t val)
     helper_mtvscr(env, val);
 }
 
-#ifdef CONFIG_USER_ONLY
-#define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
-                         oea_read, oea_write, one_reg_id, initial_value)       \
-    _spr_register(env, num, name, uea_read, uea_write, initial_value)
-#define spr_register_kvm_hv(env, num, name, uea_read, uea_write,               \
-                            oea_read, oea_write, hea_read, hea_write,          \
-                            one_reg_id, initial_value)                         \
-    _spr_register(env, num, name, uea_read, uea_write, initial_value)
+/**
+ * _spr_register
+ *
+ * Register an SPR with all the callbacks required for tcg,
+ * and the ID number for KVM.
+ *
+ * The reason for the conditional compilation is that the tcg functions
+ * may be compiled out, and the system kvm header may not be available
+ * for supplying the ID numbers.  This is ugly, but the best we can do.
+ */
+
+#ifdef CONFIG_TCG
+# define USR_ARG(X)    X,
+# ifdef CONFIG_USER_ONLY
+#  define SYS_ARG(X)
+# else
+#  define SYS_ARG(X)   X,
+# endif
 #else
-#if !defined(CONFIG_KVM)
-#define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
-                         oea_read, oea_write, one_reg_id, initial_value)       \
-    _spr_register(env, num, name, uea_read, uea_write,                         \
-                  oea_read, oea_write, oea_read, oea_write, initial_value)
-#define spr_register_kvm_hv(env, num, name, uea_read, uea_write,               \
-                            oea_read, oea_write, hea_read, hea_write,          \
-                            one_reg_id, initial_value)                         \
-    _spr_register(env, num, name, uea_read, uea_write,                         \
-                  oea_read, oea_write, hea_read, hea_write, initial_value)
+# define USR_ARG(X)
+# define SYS_ARG(X)
+#endif
+#ifdef CONFIG_KVM
+# define KVM_ARG(X)    X,
 #else
-#define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
-                         oea_read, oea_write, one_reg_id, initial_value)       \
-    _spr_register(env, num, name, uea_read, uea_write,                         \
-                  oea_read, oea_write, oea_read, oea_write,                    \
-                  one_reg_id, initial_value)
-#define spr_register_kvm_hv(env, num, name, uea_read, uea_write,               \
-                            oea_read, oea_write, hea_read, hea_write,          \
-                            one_reg_id, initial_value)                         \
-    _spr_register(env, num, name, uea_read, uea_write,                         \
-                  oea_read, oea_write, hea_read, hea_write,                    \
-                  one_reg_id, initial_value)
-#endif
+# define KVM_ARG(X)
 #endif
 
-#define spr_register(env, num, name, uea_read, uea_write,                      \
-                     oea_read, oea_write, initial_value)                       \
-    spr_register_kvm(env, num, name, uea_read, uea_write,                      \
-                     oea_read, oea_write, 0, initial_value)
+typedef void spr_callback(DisasContext *, int, int);
 
-#define spr_register_hv(env, num, name, uea_read, uea_write,                   \
-                        oea_read, oea_write, hea_read, hea_write,              \
-                        initial_value)                                         \
-    spr_register_kvm_hv(env, num, name, uea_read, uea_write,                   \
-                        oea_read, oea_write, hea_read, hea_write,              \
-                        0, initial_value)
-
-static inline void _spr_register(CPUPPCState *env, int num,
-                                 const char *name,
-                                 void (*uea_read)(DisasContext *ctx,
-                                                  int gprn, int sprn),
-                                 void (*uea_write)(DisasContext *ctx,
-                                                   int sprn, int gprn),
-#if !defined(CONFIG_USER_ONLY)
-
-                                 void (*oea_read)(DisasContext *ctx,
-                                                  int gprn, int sprn),
-                                 void (*oea_write)(DisasContext *ctx,
-                                                   int sprn, int gprn),
-                                 void (*hea_read)(DisasContext *opaque,
-                                                  int gprn, int sprn),
-                                 void (*hea_write)(DisasContext *opaque,
-                                                   int sprn, int gprn),
-#endif
-#if defined(CONFIG_KVM)
-                                 uint64_t one_reg_id,
-#endif
-                                 target_ulong initial_value)
+static void _spr_register(CPUPPCState *env, int num, const char *name,
+                          USR_ARG(spr_callback *uea_read)
+                          USR_ARG(spr_callback *uea_write)
+                          SYS_ARG(spr_callback *oea_read)
+                          SYS_ARG(spr_callback *oea_write)
+                          SYS_ARG(spr_callback *hea_read)
+                          SYS_ARG(spr_callback *hea_write)
+                          KVM_ARG(uint64_t one_reg_id)
+                          target_ulong initial_value)
 {
-    ppc_spr_t *spr;
+    ppc_spr_t *spr = &env->spr_cb[num];
 
-    spr = &env->spr_cb[num];
-    if (spr->name != NULL || env->spr[num] != 0x00000000 ||
-#if !defined(CONFIG_USER_ONLY)
-        spr->oea_read != NULL || spr->oea_write != NULL ||
-#endif
-        spr->uea_read != NULL || spr->uea_write != NULL) {
-        printf("Error: Trying to register SPR %d (%03x) twice !\n", num, num);
-        exit(1);
-    }
-#if defined(PPC_DEBUG_SPR)
-    printf("*** register spr %d (%03x) %s val " TARGET_FMT_lx "\n", num, num,
-           name, initial_value);
-#endif
+    /* No SPR should be registered twice. */
+    assert(spr->name == NULL);
+    assert(name != NULL);
+
     spr->name = name;
+    spr->default_value = initial_value;
+    env->spr[num] = initial_value;
+
+#ifdef CONFIG_TCG
     spr->uea_read = uea_read;
     spr->uea_write = uea_write;
-#if !defined(CONFIG_USER_ONLY)
+# ifndef CONFIG_USER_ONLY
     spr->oea_read = oea_read;
     spr->oea_write = oea_write;
     spr->hea_read = hea_read;
     spr->hea_write = hea_write;
+# endif
 #endif
-#if defined(CONFIG_KVM)
-    spr->one_reg_id = one_reg_id,
+#ifdef CONFIG_KVM
+    spr->one_reg_id = one_reg_id;
 #endif
-    env->spr[num] = spr->default_value = initial_value;
 }
+
+/* spr_register_kvm_hv passes all required arguments. */
+#define spr_register_kvm_hv(env, num, name, uea_read, uea_write,             \
+                            oea_read, oea_write, hea_read, hea_write,        \
+                            one_reg_id, initial_value)                       \
+    _spr_register(env, num, name,                                            \
+                  USR_ARG(uea_read) USR_ARG(uea_write)                       \
+                  SYS_ARG(oea_read) SYS_ARG(oea_write)                       \
+                  SYS_ARG(hea_read) SYS_ARG(hea_write)                       \
+                  KVM_ARG(one_reg_id) initial_value)
+
+/* spr_register_kvm duplicates the oea callbacks to the hea callbacks. */
+#define spr_register_kvm(env, num, name, uea_read, uea_write,                \
+                         oea_read, oea_write, one_reg_id, ival)              \
+    spr_register_kvm_hv(env, num, name, uea_read, uea_write, oea_read,       \
+                        oea_write, oea_read, oea_write, one_reg_id, ival)
+
+/* spr_register_hv and spr_register are similar, except there is no kvm id. */
+#define spr_register_hv(env, num, name, uea_read, uea_write,                 \
+                        oea_read, oea_write, hea_read, hea_write, ival)      \
+    spr_register_kvm_hv(env, num, name, uea_read, uea_write, oea_read,       \
+                        oea_write, hea_read, hea_write, 0, ival)
+
+#define spr_register(env, num, name, uea_read, uea_write,                    \
+                     oea_read, oea_write, ival)                              \
+    spr_register_kvm(env, num, name, uea_read, uea_write,                    \
+                     oea_read, oea_write, 0, ival)
 
 /* Generic PowerPC SPRs */
 static void gen_spr_generic(CPUPPCState *env)
