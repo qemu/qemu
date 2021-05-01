@@ -245,6 +245,13 @@ The Raspberry Pi machines come in various models (A, A+, B, B+). To be able
 to distinguish which model QEMU is implementing, the ``raspi2`` and ``raspi3``
 machines have been renamed ``raspi2b`` and ``raspi3b``.
 
+Aspeed ``swift-bmc`` machine (since 6.1)
+''''''''''''''''''''''''''''''''''''''''
+
+This machine is deprecated because we have enough AST2500 based OpenPOWER
+machines. It can be easily replaced by the ``witherspoon-bmc`` or the
+``romulus-bmc`` machines.
+
 Device options
 --------------
 
