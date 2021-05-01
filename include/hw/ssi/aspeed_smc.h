@@ -55,6 +55,7 @@ typedef struct AspeedSMCController {
                                const AspeedSegments *seg);
     void (*reg_to_segment)(const struct AspeedSMCState *s, uint32_t reg,
                            AspeedSegments *seg);
+    void (*dma_ctrl)(struct AspeedSMCState *s, uint32_t value);
 } AspeedSMCController;
 
 typedef struct AspeedSMCFlash {

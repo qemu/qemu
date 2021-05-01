@@ -127,6 +127,8 @@
 
 /* DMA Control/Status Register */
 #define R_DMA_CTRL        (0x80 / 4)
+#define   DMA_CTRL_REQUEST      (1 << 31)
+#define   DMA_CTRL_GRANT        (1 << 30)
 #define   DMA_CTRL_DELAY_MASK   0xf
 #define   DMA_CTRL_DELAY_SHIFT  8
 #define   DMA_CTRL_FREQ_MASK    0xf
@@ -228,6 +230,7 @@ static uint32_t aspeed_smc_segment_to_reg(const AspeedSMCState *s,
                                           const AspeedSegments *seg);
 static void aspeed_smc_reg_to_segment(const AspeedSMCState *s, uint32_t reg,
                                       AspeedSegments *seg);
+static void aspeed_smc_dma_ctrl(AspeedSMCState *s, uint32_t value);
 
 /*
  * AST2600 definitions
@@ -257,7 +260,10 @@ static uint32_t aspeed_2600_smc_segment_to_reg(const AspeedSMCState *s,
                                                const AspeedSegments *seg);
 static void aspeed_2600_smc_reg_to_segment(const AspeedSMCState *s,
                                            uint32_t reg, AspeedSegments *seg);
+static void aspeed_2600_smc_dma_ctrl(AspeedSMCState *s, uint32_t value);
+
 #define ASPEED_SMC_FEATURE_DMA       0x1
+#define ASPEED_SMC_FEATURE_DMA_GRANT 0x2
 
 static inline bool aspeed_smc_has_dma(const AspeedSMCState *s)
 {
@@ -281,6 +287,7 @@ static const AspeedSMCController controllers[] = {
         .nregs             = ASPEED_SMC_R_SMC_MAX,
         .segment_to_reg    = aspeed_smc_segment_to_reg,
         .reg_to_segment    = aspeed_smc_reg_to_segment,
+        .dma_ctrl          = aspeed_smc_dma_ctrl,
     }, {
         .name              = "aspeed.fmc-ast2400",
         .r_conf            = R_CONF,
@@ -299,6 +306,7 @@ static const AspeedSMCController controllers[] = {
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_smc_segment_to_reg,
         .reg_to_segment    = aspeed_smc_reg_to_segment,
+        .dma_ctrl          = aspeed_smc_dma_ctrl,
     }, {
         .name              = "aspeed.spi1-ast2400",
         .r_conf            = R_SPI_CONF,
@@ -315,6 +323,7 @@ static const AspeedSMCController controllers[] = {
         .nregs             = ASPEED_SMC_R_SPI_MAX,
         .segment_to_reg    = aspeed_smc_segment_to_reg,
         .reg_to_segment    = aspeed_smc_reg_to_segment,
+        .dma_ctrl          = aspeed_smc_dma_ctrl,
     }, {
         .name              = "aspeed.fmc-ast2500",
         .r_conf            = R_CONF,
@@ -333,6 +342,7 @@ static const AspeedSMCController controllers[] = {
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_smc_segment_to_reg,
         .reg_to_segment    = aspeed_smc_reg_to_segment,
+        .dma_ctrl          = aspeed_smc_dma_ctrl,
     }, {
         .name              = "aspeed.spi1-ast2500",
         .r_conf            = R_CONF,
@@ -349,6 +359,7 @@ static const AspeedSMCController controllers[] = {
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_smc_segment_to_reg,
         .reg_to_segment    = aspeed_smc_reg_to_segment,
+        .dma_ctrl          = aspeed_smc_dma_ctrl,
     }, {
         .name              = "aspeed.spi2-ast2500",
         .r_conf            = R_CONF,
@@ -365,6 +376,7 @@ static const AspeedSMCController controllers[] = {
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_smc_segment_to_reg,
         .reg_to_segment    = aspeed_smc_reg_to_segment,
+        .dma_ctrl          = aspeed_smc_dma_ctrl,
     }, {
         .name              = "aspeed.fmc-ast2600",
         .r_conf            = R_CONF,
@@ -383,6 +395,7 @@ static const AspeedSMCController controllers[] = {
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
         .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
+        .dma_ctrl          = aspeed_2600_smc_dma_ctrl,
     }, {
         .name              = "aspeed.spi1-ast2600",
         .r_conf            = R_CONF,
@@ -395,12 +408,14 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_ast2600_spi1,
         .flash_window_base = ASPEED26_SOC_SPI_FLASH_BASE,
         .flash_window_size = 0x10000000,
-        .features          = ASPEED_SMC_FEATURE_DMA,
+        .features          = ASPEED_SMC_FEATURE_DMA |
+                             ASPEED_SMC_FEATURE_DMA_GRANT,
         .dma_flash_mask    = 0x0FFFFFFC,
         .dma_dram_mask     = 0x3FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
         .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
+        .dma_ctrl          = aspeed_2600_smc_dma_ctrl,
     }, {
         .name              = "aspeed.spi2-ast2600",
         .r_conf            = R_CONF,
@@ -413,12 +428,14 @@ static const AspeedSMCController controllers[] = {
         .segments          = aspeed_segments_ast2600_spi2,
         .flash_window_base = ASPEED26_SOC_SPI2_FLASH_BASE,
         .flash_window_size = 0x10000000,
-        .features          = ASPEED_SMC_FEATURE_DMA,
+        .features          = ASPEED_SMC_FEATURE_DMA |
+                             ASPEED_SMC_FEATURE_DMA_GRANT,
         .dma_flash_mask    = 0x0FFFFFFC,
         .dma_dram_mask     = 0x3FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
         .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
+        .dma_ctrl          = aspeed_2600_smc_dma_ctrl,
     },
 };
 
@@ -1240,7 +1257,7 @@ static void aspeed_smc_dma_done(AspeedSMCState *s)
     }
 }
 
-static void aspeed_smc_dma_ctrl(AspeedSMCState *s, uint64_t dma_ctrl)
+static void aspeed_smc_dma_ctrl(AspeedSMCState *s, uint32_t dma_ctrl)
 {
     if (!(dma_ctrl & DMA_CTRL_ENABLE)) {
         s->regs[R_DMA_CTRL] = dma_ctrl;
@@ -1263,6 +1280,46 @@ static void aspeed_smc_dma_ctrl(AspeedSMCState *s, uint64_t dma_ctrl)
     }
 
     aspeed_smc_dma_done(s);
+}
+
+static inline bool aspeed_smc_dma_granted(AspeedSMCState *s)
+{
+    if (!(s->ctrl->features & ASPEED_SMC_FEATURE_DMA_GRANT)) {
+        return true;
+    }
+
+    if (!(s->regs[R_DMA_CTRL] & DMA_CTRL_GRANT)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA not granted\n",  __func__);
+        return false;
+    }
+
+    return true;
+}
+
+static void aspeed_2600_smc_dma_ctrl(AspeedSMCState *s, uint32_t dma_ctrl)
+{
+    /* Preserve DMA bits  */
+    dma_ctrl |= s->regs[R_DMA_CTRL] & (DMA_CTRL_REQUEST | DMA_CTRL_GRANT);
+
+    if (dma_ctrl == 0xAEED0000) {
+        /* automatically grant request */
+        s->regs[R_DMA_CTRL] |= (DMA_CTRL_REQUEST | DMA_CTRL_GRANT);
+        return;
+    }
+
+    /* clear request */
+    if (dma_ctrl == 0xDEEA0000) {
+        s->regs[R_DMA_CTRL] &= ~(DMA_CTRL_REQUEST | DMA_CTRL_GRANT);
+        return;
+    }
+
+    if (!aspeed_smc_dma_granted(s)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA not granted\n",  __func__);
+        return;
+    }
+
+    aspeed_smc_dma_ctrl(s, dma_ctrl);
+    s->regs[R_DMA_CTRL] &= ~(DMA_CTRL_REQUEST | DMA_CTRL_GRANT);
 }
 
 static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
@@ -1297,12 +1354,15 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
     } else if (addr == R_INTR_CTRL) {
         s->regs[addr] = value;
     } else if (aspeed_smc_has_dma(s) && addr == R_DMA_CTRL) {
-        aspeed_smc_dma_ctrl(s, value);
-    } else if (aspeed_smc_has_dma(s) && addr == R_DMA_DRAM_ADDR) {
+        s->ctrl->dma_ctrl(s, value);
+    } else if (aspeed_smc_has_dma(s) && addr == R_DMA_DRAM_ADDR &&
+               aspeed_smc_dma_granted(s)) {
         s->regs[addr] = DMA_DRAM_ADDR(s, value);
-    } else if (aspeed_smc_has_dma(s) && addr == R_DMA_FLASH_ADDR) {
+    } else if (aspeed_smc_has_dma(s) && addr == R_DMA_FLASH_ADDR &&
+               aspeed_smc_dma_granted(s)) {
         s->regs[addr] = DMA_FLASH_ADDR(s, value);
-    } else if (aspeed_smc_has_dma(s) && addr == R_DMA_LEN) {
+    } else if (aspeed_smc_has_dma(s) && addr == R_DMA_LEN &&
+               aspeed_smc_dma_granted(s)) {
         s->regs[addr] = DMA_LENGTH(value);
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
