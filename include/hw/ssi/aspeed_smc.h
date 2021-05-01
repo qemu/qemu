@@ -84,6 +84,7 @@ struct AspeedSMCState {
 
     MemoryRegion mmio;
     MemoryRegion mmio_flash;
+    MemoryRegion mmio_flash_alias;
 
     qemu_irq irq;
     int irqline;

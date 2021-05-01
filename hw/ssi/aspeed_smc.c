@@ -179,8 +179,7 @@
  *   0x7FFFFF: 32M bytes
  */
 #define DMA_DRAM_ADDR(s, val)   ((val) & (s)->ctrl->dma_dram_mask)
-#define DMA_FLASH_ADDR(s, val)  ((s)->ctrl->flash_window_base | \
-                                ((val) & (s)->ctrl->dma_flash_mask))
+#define DMA_FLASH_ADDR(s, val)  ((val) & (s)->ctrl->dma_flash_mask)
 #define DMA_LENGTH(val)         ((val) & 0x01FFFFFC)
 
 /* Flash opcodes. */
@@ -1385,7 +1384,9 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->mmio_flash, OBJECT(s),
                           &aspeed_smc_flash_default_ops, s, name,
                           s->ctrl->flash_window_size);
-    sysbus_init_mmio(sbd, &s->mmio_flash);
+    memory_region_init_alias(&s->mmio_flash_alias, OBJECT(s), name,
+                             &s->mmio_flash, 0, s->ctrl->flash_window_size);
+    sysbus_init_mmio(sbd, &s->mmio_flash_alias);
 
     s->flashes = g_new0(AspeedSMCFlash, s->ctrl->max_peripherals);
 
