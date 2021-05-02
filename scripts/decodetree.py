@@ -27,6 +27,7 @@ import sys
 import getopt
 
 insnwidth = 32
+bitop_width = 32
 insnmask = 0xffffffff
 variablewidth = False
 fields = {}
@@ -59,9 +60,9 @@ def error_with_file(file, lineno, *args):
 
     prefix = ''
     if file:
-        prefix += '{0}:'.format(file)
+        prefix += f'{file}:'
     if lineno:
-        prefix += '{0}:'.format(lineno)
+        prefix += f'{lineno}:'
     if prefix:
         prefix += ' '
     print(prefix, end='error: ', file=sys.stderr)
@@ -100,6 +101,23 @@ def str_fields(fields):
     for n in sorted(fields.keys()):
         r += '_' + n
     return r[1:]
+
+
+def whex(val):
+    """Return a hex string for val padded for insnwidth"""
+    global insnwidth
+    return f'0x{val:0{insnwidth // 4}x}'
+
+
+def whexC(val):
+    """Return a hex string for val padded for insnwidth,
+       and with the proper suffix for a C constant."""
+    suffix = ''
+    if val >= 0x100000000:
+        suffix = 'ull'
+    elif val >= 0x80000000:
+        suffix = 'u'
+    return whex(val) + suffix
 
 
 def str_match_bits(bits, mask):
@@ -147,11 +165,15 @@ def is_contiguous(bits):
         return -1
 
 
-def eq_fields_for_args(flds_a, flds_b):
-    if len(flds_a) != len(flds_b):
+def eq_fields_for_args(flds_a, arg):
+    if len(flds_a) != len(arg.fields):
         return False
+    # Only allow inference on default types
+    for t in arg.types:
+        if t != 'int':
+            return False
     for k, a in flds_a.items():
-        if k not in flds_b:
+        if k not in arg.fields:
             return False
     return True
 
@@ -184,11 +206,9 @@ class Field:
         return str(self.pos) + ':' + s + str(self.len)
 
     def str_extract(self):
-        if self.sign:
-            extr = 'sextract32'
-        else:
-            extr = 'extract32'
-        return '{0}(insn, {1}, {2})'.format(extr, self.pos, self.len)
+        global bitop_width
+        s = 's' if self.sign else ''
+        return f'{s}extract{bitop_width}(insn, {self.pos}, {self.len})'
 
     def __eq__(self, other):
         return self.sign == other.sign and self.mask == other.mask
@@ -209,14 +229,15 @@ class MultiField:
         return str(self.subs)
 
     def str_extract(self):
+        global bitop_width
         ret = '0'
         pos = 0
         for f in reversed(self.subs):
+            ext = f.str_extract()
             if pos == 0:
-                ret = f.str_extract()
+                ret = ext
             else:
-                ret = 'deposit32({0}, {1}, {2}, {3})' \
-                      .format(ret, pos, 32 - pos, f.str_extract())
+                ret = f'deposit{bitop_width}({ret}, {pos}, {bitop_width - pos}, {ext})'
             pos += f.len
         return ret
 
@@ -296,10 +317,11 @@ class ParameterField:
 
 class Arguments:
     """Class representing the extracted fields of a format"""
-    def __init__(self, nm, flds, extern):
+    def __init__(self, nm, flds, types, extern):
         self.name = nm
         self.extern = extern
-        self.fields = sorted(flds)
+        self.fields = flds
+        self.types = types
 
     def __str__(self):
         return self.name + ' ' + str(self.fields)
@@ -310,8 +332,8 @@ class Arguments:
     def output_def(self):
         if not self.extern:
             output('typedef struct {\n')
-            for n in self.fields:
-                output('    int ', n, ';\n')
+            for (n, t) in zip(self.fields, self.types):
+                output(f'    {t} {n};\n')
             output('} ', self.struct_name(), ';\n\n')
 # end Arguments
 
@@ -477,11 +499,8 @@ class IncMultiPattern(MultiPattern):
             if outermask != p.fixedmask:
                 innermask = p.fixedmask & ~outermask
                 innerbits = p.fixedbits & ~outermask
-                output(ind, 'if ((insn & ',
-                       '0x{0:08x}) == 0x{1:08x}'.format(innermask, innerbits),
-                       ') {\n')
-                output(ind, '    /* ',
-                       str_match_bits(p.fixedbits, p.fixedmask), ' */\n')
+                output(ind, f'if ((insn & {whexC(innermask)}) == {whexC(innerbits)}) {{\n')
+                output(ind, f'    /* {str_match_bits(p.fixedbits, p.fixedmask)} */\n')
                 p.output_code(i + 4, extracted, p.fixedbits, p.fixedmask)
                 output(ind, '}\n')
             else:
@@ -500,12 +519,12 @@ class Tree:
 
     def str1(self, i):
         ind = str_indent(i)
-        r = '{0}{1:08x}'.format(ind, self.fixedmask)
+        r = ind + whex(self.fixedmask)
         if self.format:
             r += ' ' + self.format.name
         r += ' [\n'
         for (b, s) in self.subs:
-            r += '{0}  {1:08x}:\n'.format(ind, b)
+            r += ind + f'  {whex(b)}:\n'
             r += s.str1(i + 4) + '\n'
         r += ind + ']'
         return r
@@ -529,16 +548,16 @@ class Tree:
         if sh > 0:
             # Propagate SH down into the local functions.
             def str_switch(b, sh=sh):
-                return '(insn >> {0}) & 0x{1:x}'.format(sh, b >> sh)
+                return f'(insn >> {sh}) & {b >> sh:#x}'
 
             def str_case(b, sh=sh):
-                return '0x{0:x}'.format(b >> sh)
+                return hex(b >> sh)
         else:
             def str_switch(b):
-                return 'insn & 0x{0:08x}'.format(b)
+                return f'insn & {whexC(b)}'
 
             def str_case(b):
-                return '0x{0:08x}'.format(b)
+                return whexC(b)
 
         output(ind, 'switch (', str_switch(self.thismask), ') {\n')
         for b, s in sorted(self.subs):
@@ -663,11 +682,11 @@ def parse_field(lineno, name, toks):
             subtoks = t.split(':')
             sign = False
         else:
-            error(lineno, 'invalid field token "{0}"'.format(t))
+            error(lineno, f'invalid field token "{t}"')
         po = int(subtoks[0])
         le = int(subtoks[1])
         if po + le > insnwidth:
-            error(lineno, 'field {0} too large'.format(t))
+            error(lineno, f'field {t} too large')
         f = Field(sign, po, le)
         subs.append(f)
         width += le
@@ -705,21 +724,27 @@ def parse_arguments(lineno, name, toks):
     global anyextern
 
     flds = []
+    types = []
     extern = False
-    for t in toks:
-        if re.fullmatch('!extern', t):
+    for n in toks:
+        if re.fullmatch('!extern', n):
             extern = True
             anyextern = True
             continue
-        if not re.fullmatch(re_C_ident, t):
-            error(lineno, 'invalid argument set token "{0}"'.format(t))
-        if t in flds:
-            error(lineno, 'duplicate argument "{0}"'.format(t))
-        flds.append(t)
+        if re.fullmatch(re_C_ident + ':' + re_C_ident, n):
+            (n, t) = n.split(':')
+        elif re.fullmatch(re_C_ident, n):
+            t = 'int'
+        else:
+            error(lineno, f'invalid argument set token "{n}"')
+        if n in flds:
+            error(lineno, f'duplicate argument "{n}"')
+        flds.append(n)
+        types.append(t)
 
     if name in arguments:
         error(lineno, 'duplicate argument set', name)
-    arguments[name] = Arguments(name, flds, extern)
+    arguments[name] = Arguments(name, flds, types, extern)
 # end parse_arguments
 
 
@@ -746,11 +771,11 @@ def infer_argument_set(flds):
     global decode_function
 
     for arg in arguments.values():
-        if eq_fields_for_args(flds, arg.fields):
+        if eq_fields_for_args(flds, arg):
             return arg
 
     name = decode_function + str(len(arguments))
-    arg = Arguments(name, flds.keys(), False)
+    arg = Arguments(name, flds.keys(), ['int'] * len(flds), False)
     arguments[name] = arg
     return arg
 
@@ -883,14 +908,14 @@ def parse_generic(lineno, parent_pat, name, toks):
                 flen = flen[1:]
             shift = int(flen, 10)
             if shift + width > insnwidth:
-                error(lineno, 'field {0} exceeds insnwidth'.format(fname))
+                error(lineno, f'field {fname} exceeds insnwidth')
             f = Field(sign, insnwidth - width - shift, shift)
             flds = add_field(lineno, flds, fname, f)
             fixedbits <<= shift
             fixedmask <<= shift
             undefmask <<= shift
         else:
-            error(lineno, 'invalid token "{0}"'.format(t))
+            error(lineno, f'invalid token "{t}"')
         width += shift
 
     if variablewidth and width < insnwidth and width % 8 == 0:
@@ -902,7 +927,7 @@ def parse_generic(lineno, parent_pat, name, toks):
 
     # We should have filled in all of the bits of the instruction.
     elif not (is_format and width == 0) and width != insnwidth:
-        error(lineno, 'definition has {0} bits'.format(width))
+        error(lineno, f'definition has {width} bits')
 
     # Do not check for fields overlapping fields; one valid usage
     # is to be able to duplicate fields via import.
@@ -920,8 +945,7 @@ def parse_generic(lineno, parent_pat, name, toks):
         if arg:
             for f in flds.keys():
                 if f not in arg.fields:
-                    error(lineno, 'field {0} not in argument set {1}'
-                                  .format(f, arg.name))
+                    error(lineno, f'field {f} not in argument set {arg.name}')
         else:
             arg = infer_argument_set(flds)
         if name in formats:
@@ -948,13 +972,12 @@ def parse_generic(lineno, parent_pat, name, toks):
         arg = fmt.base
         for f in flds.keys():
             if f not in arg.fields:
-                error(lineno, 'field {0} not in argument set {1}'
-                              .format(f, arg.name))
+                error(lineno, f'field {f} not in argument set {arg.name}')
             if f in fmt.fields.keys():
-                error(lineno, 'field {0} set by format and pattern'.format(f))
+                error(lineno, f'field {f} set by format and pattern')
         for f in arg.fields:
             if f not in flds.keys() and f not in fmt.fields.keys():
-                error(lineno, 'field {0} not initialized'.format(f))
+                error(lineno, f'field {f} not initialized')
         pat = Pattern(name, lineno, fmt, fixedbits, fixedmask,
                       undefmask, fieldmask, flds, width)
         parent_pat.pats.append(pat)
@@ -962,19 +985,19 @@ def parse_generic(lineno, parent_pat, name, toks):
 
     # Validate the masks that we have assembled.
     if fieldmask & fixedmask:
-        error(lineno, 'fieldmask overlaps fixedmask (0x{0:08x} & 0x{1:08x})'
-                      .format(fieldmask, fixedmask))
+        error(lineno, 'fieldmask overlaps fixedmask ',
+              f'({whex(fieldmask)} & {whex(fixedmask)})')
     if fieldmask & undefmask:
-        error(lineno, 'fieldmask overlaps undefmask (0x{0:08x} & 0x{1:08x})'
-                      .format(fieldmask, undefmask))
+        error(lineno, 'fieldmask overlaps undefmask ',
+              f'({whex(fieldmask)} & {whex(undefmask)})')
     if fixedmask & undefmask:
-        error(lineno, 'fixedmask overlaps undefmask (0x{0:08x} & 0x{1:08x})'
-                      .format(fixedmask, undefmask))
+        error(lineno, 'fixedmask overlaps undefmask ',
+              f'({whex(fixedmask)} & {whex(undefmask)})')
     if not is_format:
         allbits = fieldmask | fixedmask | undefmask
         if allbits != insnmask:
-            error(lineno, 'bits left unspecified (0x{0:08x})'
-                          .format(allbits ^ insnmask))
+            error(lineno, 'bits left unspecified ',
+                  f'({whex(allbits ^ insnmask)})')
 # end parse_general
 
 
@@ -1085,7 +1108,7 @@ def parse_file(f, parent_pat):
         elif re.fullmatch(re_pat_ident, name):
             parse_generic(start_lineno, parent_pat, name, toks)
         else:
-            error(lineno, 'invalid token "{0}"'.format(name))
+            error(lineno, f'invalid token "{name}"')
         toks = []
 
     if nesting != 0:
@@ -1104,10 +1127,9 @@ class SizeTree:
 
     def str1(self, i):
         ind = str_indent(i)
-        r = '{0}{1:08x}'.format(ind, self.mask)
-        r += ' [\n'
+        r = ind + whex(self.mask) + ' [\n'
         for (b, s) in self.subs:
-            r += '{0}  {1:08x}:\n'.format(ind, b)
+            r += ind + f'  {whex(b)}:\n'
             r += s.str1(i + 4) + '\n'
         r += ind + ']'
         return r
@@ -1120,9 +1142,8 @@ class SizeTree:
 
         # If we need to load more bytes to test, do so now.
         if extracted < self.width:
-            output(ind, 'insn = ', decode_function,
-                   '_load_bytes(ctx, insn, {0}, {1});\n'
-                   .format(extracted // 8, self.width // 8));
+            output(ind, f'insn = {decode_function}_load_bytes',
+                   f'(ctx, insn, {extracted // 8}, {self.width // 8});\n')
             extracted = self.width
 
         # Attempt to aid the compiler in producing compact switch statements.
@@ -1131,16 +1152,16 @@ class SizeTree:
         if sh > 0:
             # Propagate SH down into the local functions.
             def str_switch(b, sh=sh):
-                return '(insn >> {0}) & 0x{1:x}'.format(sh, b >> sh)
+                return f'(insn >> {sh}) & {b >> sh:#x}'
 
             def str_case(b, sh=sh):
-                return '0x{0:x}'.format(b >> sh)
+                return hex(b >> sh)
         else:
             def str_switch(b):
-                return 'insn & 0x{0:08x}'.format(b)
+                return f'insn & {whexC(b)}'
 
             def str_case(b):
-                return '0x{0:08x}'.format(b)
+                return whexC(b)
 
         output(ind, 'switch (', str_switch(self.mask), ') {\n')
         for b, s in sorted(self.subs):
@@ -1162,8 +1183,7 @@ class SizeLeaf:
         self.width = w
 
     def str1(self, i):
-        ind = str_indent(i)
-        return '{0}{1:08x}'.format(ind, self.mask)
+        return str_indent(i) + whex(self.mask)
 
     def __str__(self):
         return self.str1(0)
@@ -1174,9 +1194,8 @@ class SizeLeaf:
 
         # If we need to load more bytes, do so now.
         if extracted < self.width:
-            output(ind, 'insn = ', decode_function,
-                   '_load_bytes(ctx, insn, {0}, {1});\n'
-                   .format(extracted // 8, self.width // 8));
+            output(ind, f'insn = {decode_function}_load_bytes',
+                   f'(ctx, insn, {extracted // 8}, {self.width // 8});\n')
             extracted = self.width
         output(ind, 'return insn;\n')
 # end SizeLeaf
@@ -1210,7 +1229,7 @@ def build_size_tree(pats, width, outerbits, outermask):
         for p in pats:
             pnames.append(p.name + ':' + p.file + ':' + str(p.lineno))
         error_with_file(pats[0].file, pats[0].lineno,
-                        'overlapping patterns size {0}:'.format(width), pnames)
+                        f'overlapping patterns size {width}:', pnames)
 
     bins = {}
     for i in pats:
@@ -1264,6 +1283,7 @@ def main():
     global insntype
     global insnmask
     global decode_function
+    global bitop_width
     global variablewidth
     global anyextern
 
@@ -1293,6 +1313,10 @@ def main():
             if insnwidth == 16:
                 insntype = 'uint16_t'
                 insnmask = 0xffff
+            elif insnwidth == 64:
+                insntype = 'uint64_t'
+                insnmask = 0xffffffffffffffff
+                bitop_width = 64
             elif insnwidth != 32:
                 error(0, 'cannot handle insns of width', insnwidth)
         else:

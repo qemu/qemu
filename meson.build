@@ -258,7 +258,6 @@ if not get_option('tcg').disabled()
     tcg_arch = 'riscv'
   endif
   add_project_arguments('-iquote', meson.current_source_dir() / 'tcg' / tcg_arch,
-                        '-iquote', meson.current_source_dir() / 'accel/tcg',
                         language: ['c', 'cpp', 'objc'])
 
   accelerators += 'CONFIG_TCG'
