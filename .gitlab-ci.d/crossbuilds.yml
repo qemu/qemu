@@ -16,7 +16,7 @@
 #
 # Set the $ACCEL variable to select the specific accelerator (default to
 # KVM), and set extra options (such disabling other accelerators) via the
-# $ACCEL_CONFIGURE_OPTS variable.
+# $EXTRA_CONFIGURE_OPTS variable.
 .cross_accel_build_job:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
@@ -26,7 +26,7 @@
     - cd build
     - PKG_CONFIG_PATH=$PKG_CONFIG_PATH
       ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
-        --disable-tools --enable-${ACCEL:-kvm} $ACCEL_CONFIGURE_OPTS
+        --disable-tools --enable-${ACCEL:-kvm} $EXTRA_CONFIGURE_OPTS
     - make -j$(expr $(nproc) + 1) all check-build
 
 .cross_user_build_job:
@@ -174,7 +174,7 @@ cross-s390x-kvm-only:
     job: s390x-debian-cross-container
   variables:
     IMAGE: debian-s390x-cross
-    ACCEL_CONFIGURE_OPTS: --disable-tcg
+    EXTRA_CONFIGURE_OPTS: --disable-tcg
 
 cross-mips64el-kvm-only:
   extends: .cross_accel_build_job
@@ -182,7 +182,7 @@ cross-mips64el-kvm-only:
     job: mips64el-debian-cross-container
   variables:
     IMAGE: debian-mips64el-cross
-    ACCEL_CONFIGURE_OPTS: --disable-tcg --target-list=mips64el-softmmu
+    EXTRA_CONFIGURE_OPTS: --disable-tcg --target-list=mips64el-softmmu
 
 cross-win32-system:
   extends: .cross_system_build_job
@@ -205,7 +205,7 @@ cross-amd64-xen-only:
   variables:
     IMAGE: debian-amd64-cross
     ACCEL: xen
-    ACCEL_CONFIGURE_OPTS: --disable-tcg --disable-kvm
+    EXTRA_CONFIGURE_OPTS: --disable-tcg --disable-kvm
 
 cross-arm64-xen-only:
   extends: .cross_accel_build_job
@@ -214,4 +214,4 @@ cross-arm64-xen-only:
   variables:
     IMAGE: debian-arm64-cross
     ACCEL: xen
-    ACCEL_CONFIGURE_OPTS: --disable-tcg --disable-kvm
+    EXTRA_CONFIGURE_OPTS: --disable-tcg --disable-kvm
