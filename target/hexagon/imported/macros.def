@@ -92,6 +92,21 @@ DEF_MACRO(
     /* attribs */
 )
 
+
+DEF_MACRO(
+    fINSERT_RANGE,
+        {
+            int offset=LOWBIT;
+            int width=HIBIT-LOWBIT+1;
+            /* clear bits where new bits go */
+            INREG &= ~(((fCONSTLL(1)<<width)-1)<<offset);
+            /* OR in new bits */
+            INREG |= ((INVAL & ((fCONSTLL(1)<<width)-1)) << offset);
+        },
+    /* attribs */
+)
+
+
 DEF_MACRO(
     f8BITSOF,
     ( (VAL) ? 0xff : 0x00),
@@ -277,6 +292,12 @@ DEF_MACRO(
 /*************************************/
 
 DEF_MACRO(
+    fREAD_IREG, /* read modifier register */
+    (fSXTN(11,64,(((VAL) & 0xf0000000)>>21) | ((VAL>>17)&0x7f) )),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
     fREAD_LR, /* read link register */
     (READ_RREG(REG_LR)),          /* behavior */
     ()
@@ -303,6 +324,12 @@ DEF_MACRO(
 DEF_MACRO(
     fREAD_SP, /* read stack pointer */
     (READ_RREG(REG_SP)),          /* behavior */
+    ()
+)
+
+DEF_MACRO(
+    fREAD_CSREG, /* read  CS register */
+    (READ_RREG(REG_CSA+N)),          /* behavior */
     ()
 )
 
@@ -807,6 +834,12 @@ DEF_MACRO(
 )
 
 DEF_MACRO(
+    fEA_BREVR, /* Calculate EA with bit reversed bottom of REGISTER */
+    EA=fbrev(REG),
+    ()
+)
+
+DEF_MACRO(
     fEA_GPI, /* Calculate EA with Global Poitner + Immediate */
     do { EA=fREAD_GP()+IMM; fGP_DOCHKPAGECROSS(fREAD_GP(),EA); } while (0),
     ()
@@ -823,6 +856,20 @@ DEF_MACRO(
     do { REG = REG + MVAL; } while (0),
     ()
 )
+
+DEF_MACRO(
+    fPM_CIRI, /* Post Modify Register using Circular arithmetic by Immediate */
+    do { fcirc_add(REG,siV,MuV); } while (0),
+    ()
+)
+
+DEF_MACRO(
+    fPM_CIRR, /* Post Modify Register using Circular arithmetic by register */
+    do { fcirc_add(REG,VAL,MuV); } while (0),
+    ()
+)
+
+
 
 DEF_MACRO(
     fSCALE, /* scale by N */

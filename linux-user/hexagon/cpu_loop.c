@@ -25,7 +25,7 @@
 
 void cpu_loop(CPUHexagonState *env)
 {
-    CPUState *cs = CPU(hexagon_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int trapnr, signum, sigcode;
     target_ulong sigaddr;
     target_ulong syscallnum;

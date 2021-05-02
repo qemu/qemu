@@ -198,11 +198,11 @@ Q6INSN(C4_or_orn,"Pd4=or(Ps4,or(Pt4,!Pu4))",ATTRIBS(A_CRSLOT23),
 
 Q6INSN(C2_any8,"Pd4=any8(Ps4)",ATTRIBS(A_CRSLOT23),
 "Logical ANY of low 8 predicate bits",
-{ PsV ? (PdV=0xff) : (PdV=0x00); })
+{ PdV = (PsV ? 0xff : 0x00); })
 
 Q6INSN(C2_all8,"Pd4=all8(Ps4)",ATTRIBS(A_CRSLOT23),
 "Logical ALL of low 8 predicate bits",
-{ (PsV==0xff) ? (PdV=0xff) : (PdV=0x00); })
+{ PdV = (PsV == 0xff ? 0xff : 0x00); })
 
 Q6INSN(C2_vitpack,"Rd32=vitpack(Ps4,Pt4)",ATTRIBS(),
 "Pack the odd and even bits of two predicate registers",
@@ -212,7 +212,7 @@ Q6INSN(C2_vitpack,"Rd32=vitpack(Ps4,Pt4)",ATTRIBS(),
 
 Q6INSN(C2_mux,"Rd32=mux(Pu4,Rs32,Rt32)",ATTRIBS(),
 "Scalar MUX",
-{ (fLSBOLD(PuV)) ? (RdV=RsV):(RdV=RtV); })
+{ RdV = (fLSBOLD(PuV) ? RsV : RtV); })
 
 
 Q6INSN(C2_cmovenewit,"if (Pu4.new) Rd32=#s12",ATTRIBS(A_ARCHV2),
@@ -269,18 +269,18 @@ Q6INSN(C2_ccombinewf,"if (!Pu4) Rdd32=combine(Rs32,Rt32)",ATTRIBS(A_ARCHV2),
 
 Q6INSN(C2_muxii,"Rd32=mux(Pu4,#s8,#S8)",ATTRIBS(A_ARCHV2),
 "Scalar MUX immediates",
-{ fIMMEXT(siV); (fLSBOLD(PuV)) ? (RdV=siV):(RdV=SiV); })
+{ fIMMEXT(siV); RdV = (fLSBOLD(PuV) ? siV : SiV); })
 
 
 
 Q6INSN(C2_muxir,"Rd32=mux(Pu4,Rs32,#s8)",ATTRIBS(A_ARCHV2),
 "Scalar MUX register immediate",
-{ fIMMEXT(siV); (fLSBOLD(PuV)) ? (RdV=RsV):(RdV=siV); })
+{ fIMMEXT(siV); RdV = (fLSBOLD(PuV) ? RsV : siV); })
 
 
 Q6INSN(C2_muxri,"Rd32=mux(Pu4,#s8,Rs32)",ATTRIBS(A_ARCHV2),
 "Scalar MUX register immediate",
-{ fIMMEXT(siV); (fLSBOLD(PuV)) ? (RdV=siV):(RdV=RsV); })
+{ fIMMEXT(siV); RdV = (fLSBOLD(PuV) ? siV : RsV); })
 
 
 

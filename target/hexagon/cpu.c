@@ -23,6 +23,7 @@
 #include "exec/exec-all.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
+#include "fpu/softfloat-helpers.h"
 
 static void hexagon_v67_cpu_init(Object *obj)
 {
@@ -69,10 +70,9 @@ const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
  * stacks at different locations.  This is used to compensate so the diff is
  * cleaner.
  */
-static inline target_ulong adjust_stack_ptrs(CPUHexagonState *env,
-                                             target_ulong addr)
+static target_ulong adjust_stack_ptrs(CPUHexagonState *env, target_ulong addr)
 {
-    HexagonCPU *cpu = container_of(env, HexagonCPU, env);
+    HexagonCPU *cpu = env_archcpu(env);
     target_ulong stack_adjust = cpu->lldb_stack_adjust;
     target_ulong stack_start = env->stack_start;
     target_ulong stack_size = 0x10000;
@@ -88,7 +88,7 @@ static inline target_ulong adjust_stack_ptrs(CPUHexagonState *env,
 }
 
 /* HEX_REG_P3_0 (aka C4) is an alias for the predicate registers */
-static inline target_ulong read_p3_0(CPUHexagonState *env)
+static target_ulong read_p3_0(CPUHexagonState *env)
 {
     int32_t control_reg = 0;
     int i;
@@ -116,7 +116,7 @@ static void print_reg(FILE *f, CPUHexagonState *env, int regnum)
 
 static void hexagon_dump(CPUHexagonState *env, FILE *f)
 {
-    HexagonCPU *cpu = container_of(env, HexagonCPU, env);
+    HexagonCPU *cpu = env_archcpu(env);
 
     if (cpu->lldb_compat) {
         /*
@@ -206,8 +206,12 @@ static void hexagon_cpu_reset(DeviceState *dev)
     CPUState *cs = CPU(dev);
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(cpu);
+    CPUHexagonState *env = &cpu->env;
 
     mcc->parent_reset(dev);
+
+    set_default_nan_mode(1, &env->fp_status);
+    set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);
 }
 
 static void hexagon_cpu_disas_set_info(CPUState *s, disassemble_info *info)

@@ -231,6 +231,14 @@ static void check(int val, int expect)
     }
 }
 
+static void check64(long long val, long long expect)
+{
+    if (val != expect) {
+        printf("ERROR: 0x%016llx != 0x%016llx\n", val, expect);
+        err++;
+    }
+}
+
 uint32_t init[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 uint32_t array[10];
 
@@ -264,8 +272,36 @@ static long long creg_pair(int x, int y)
     return retval;
 }
 
+static long long decbin(long long x, long long y, int *pred)
+{
+    long long retval;
+    asm ("%0 = decbin(%2, %3)\n\t"
+         "%1 = p0\n\t"
+         : "=r"(retval), "=r"(*pred)
+         : "r"(x), "r"(y));
+    return retval;
+}
+
+/* Check that predicates are auto-and'ed in a packet */
+static int auto_and(void)
+{
+    int retval;
+    asm ("r5 = #1\n\t"
+         "{\n\t"
+         "    p0 = cmp.eq(r1, #1)\n\t"
+         "    p0 = cmp.eq(r1, #2)\n\t"
+         "}\n\t"
+         "%0 = p0\n\t"
+         : "=r"(retval)
+         :
+         : "r5", "p0");
+    return retval;
+}
+
 int main()
 {
+    long long res64;
+    int pred;
 
     memcpy(array, init, sizeof(array));
     S4_storerhnew_rr(array, 4, 0xffff);
@@ -374,6 +410,17 @@ int main()
     check(res, 0);
     res = test_clrtnew(2, 7);
     check(res, 7);
+
+    res64 = decbin(0xf0f1f2f3f4f5f6f7LL, 0x7f6f5f4f3f2f1f0fLL, &pred);
+    check64(res64, 0x357980003700010cLL);
+    check(pred, 0);
+
+    res64 = decbin(0xfLL, 0x1bLL, &pred);
+    check64(res64, 0x78000100LL);
+    check(pred, 1);
+
+    res = auto_and();
+    check(res, 0);
 
     puts(err ? "FAIL" : "PASS");
     return err;

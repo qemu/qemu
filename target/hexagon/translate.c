@@ -35,9 +35,7 @@ TCGv hex_this_PC;
 TCGv hex_slot_cancelled;
 TCGv hex_branch_taken;
 TCGv hex_new_value[TOTAL_PER_THREAD_REGS];
-#if HEX_DEBUG
 TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
-#endif
 TCGv hex_new_pred_value[NUM_PREGS];
 TCGv hex_pred_written;
 TCGv hex_store_addr[STORES_MAX];
@@ -54,19 +52,42 @@ static const char * const hexagon_prednames[] = {
   "p0", "p1", "p2", "p3"
 };
 
-void gen_exception(int excp)
+static void gen_exception_raw(int excp)
 {
     TCGv_i32 helper_tmp = tcg_const_i32(excp);
     gen_helper_raise_exception(cpu_env, helper_tmp);
     tcg_temp_free_i32(helper_tmp);
 }
 
-void gen_exception_debug(void)
+static void gen_exec_counters(DisasContext *ctx)
 {
-    gen_exception(EXCP_DEBUG);
+    tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_PKT_CNT],
+                    hex_gpr[HEX_REG_QEMU_PKT_CNT], ctx->num_packets);
+    tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_INSN_CNT],
+                    hex_gpr[HEX_REG_QEMU_INSN_CNT], ctx->num_insns);
 }
 
-#if HEX_DEBUG
+static void gen_end_tb(DisasContext *ctx)
+{
+    gen_exec_counters(ctx);
+    tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
+    if (ctx->base.singlestep_enabled) {
+        gen_exception_raw(EXCP_DEBUG);
+    } else {
+        tcg_gen_exit_tb(NULL, 0);
+    }
+    ctx->base.is_jmp = DISAS_NORETURN;
+}
+
+static void gen_exception_end_tb(DisasContext *ctx, int excp)
+{
+    gen_exec_counters(ctx);
+    tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
+    gen_exception_raw(excp);
+    ctx->base.is_jmp = DISAS_NORETURN;
+
+}
+
 #define PACKET_BUFFER_LEN              1028
 static void print_pkt(Packet *pkt)
 {
@@ -75,10 +96,12 @@ static void print_pkt(Packet *pkt)
     HEX_DEBUG_LOG("%s", buf->str);
     g_string_free(buf, true);
 }
-#define HEX_DEBUG_PRINT_PKT(pkt)  print_pkt(pkt)
-#else
-#define HEX_DEBUG_PRINT_PKT(pkt)  /* nothing */
-#endif
+#define HEX_DEBUG_PRINT_PKT(pkt) \
+    do { \
+        if (HEX_DEBUG) { \
+            print_pkt(pkt); \
+        } \
+    } while (0)
 
 static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
                              uint32_t words[])
@@ -88,8 +111,8 @@ static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
 
     memset(words, 0, PACKET_WORDS_MAX * sizeof(uint32_t));
     for (nwords = 0; !found_end && nwords < PACKET_WORDS_MAX; nwords++) {
-        words[nwords] = cpu_ldl_code(env,
-                                ctx->base.pc_next + nwords * sizeof(uint32_t));
+        words[nwords] =
+            translator_ldl(env, ctx->base.pc_next + nwords * sizeof(uint32_t));
         found_end = is_packet_end(words[nwords]);
     }
     if (!found_end) {
@@ -148,17 +171,18 @@ static void gen_start_packet(DisasContext *ctx, Packet *pkt)
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
     ctx->preg_log_idx = 0;
+    bitmap_zero(ctx->pregs_written, NUM_PREGS);
     for (i = 0; i < STORES_MAX; i++) {
         ctx->store_width[i] = 0;
     }
     tcg_gen_movi_tl(hex_pkt_has_store_s1, pkt->pkt_has_store_s1);
-    ctx->s1_store_processed = 0;
+    ctx->s1_store_processed = false;
 
-#if HEX_DEBUG
-    /* Handy place to set a breakpoint before the packet executes */
-    gen_helper_debug_start_packet(cpu_env);
-    tcg_gen_movi_tl(hex_this_PC, ctx->base.pc_next);
-#endif
+    if (HEX_DEBUG) {
+        /* Handy place to set a breakpoint before the packet executes */
+        gen_helper_debug_start_packet(cpu_env);
+        tcg_gen_movi_tl(hex_this_PC, ctx->base.pc_next);
+    }
 
     /* Initialize the runtime state for packet semantics */
     if (need_pc(pkt)) {
@@ -185,7 +209,7 @@ static void mark_implicit_reg_write(DisasContext *ctx, Insn *insn,
                                     int attrib, int rnum)
 {
     if (GET_ATTRIB(insn->opcode, attrib)) {
-        int is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC);
+        bool is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC);
         if (is_predicated && !is_preloaded(ctx, rnum)) {
             tcg_gen_mov_tl(hex_new_value[rnum], hex_gpr[rnum]);
         }
@@ -202,7 +226,7 @@ static void mark_implicit_pred_write(DisasContext *ctx, Insn *insn,
     }
 }
 
-static void mark_implicit_writes(DisasContext *ctx, Insn *insn)
+static void mark_implicit_reg_writes(DisasContext *ctx, Insn *insn)
 {
     mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_FP,  HEX_REG_FP);
     mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_SP,  HEX_REG_SP);
@@ -211,7 +235,10 @@ static void mark_implicit_writes(DisasContext *ctx, Insn *insn)
     mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_SA0, HEX_REG_SA0);
     mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_LC1, HEX_REG_LC1);
     mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
+}
 
+static void mark_implicit_pred_writes(DisasContext *ctx, Insn *insn)
+{
     mark_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P0, 0);
     mark_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P1, 1);
     mark_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P2, 2);
@@ -222,11 +249,11 @@ static void gen_insn(CPUHexagonState *env, DisasContext *ctx,
                      Insn *insn, Packet *pkt)
 {
     if (insn->generate) {
-        mark_implicit_writes(ctx, insn);
+        mark_implicit_reg_writes(ctx, insn);
         insn->generate(env, ctx, insn, pkt);
+        mark_implicit_pred_writes(ctx, insn);
     } else {
-        gen_exception(HEX_EXCP_INVALID_OPCODE);
-        ctx->base.is_jmp = DISAS_NORETURN;
+        gen_exception_end_tb(ctx, HEX_EXCP_INVALID_OPCODE);
     }
 }
 
@@ -280,10 +307,11 @@ static void gen_pred_writes(DisasContext *ctx, Packet *pkt)
         for (i = 0; i < ctx->preg_log_idx; i++) {
             int pred_num = ctx->preg_log[i];
             tcg_gen_mov_tl(hex_pred[pred_num], hex_new_pred_value[pred_num]);
-#if HEX_DEBUG
-            /* Do this so HELPER(debug_commit_end) will know */
-            tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pred_num);
-#endif
+            if (HEX_DEBUG) {
+                /* Do this so HELPER(debug_commit_end) will know */
+                tcg_gen_ori_tl(hex_pred_written, hex_pred_written,
+                               1 << pred_num);
+            }
         }
     }
 
@@ -292,20 +320,16 @@ static void gen_pred_writes(DisasContext *ctx, Packet *pkt)
     tcg_temp_free(pval);
 }
 
-#if HEX_DEBUG
-static inline void gen_check_store_width(DisasContext *ctx, int slot_num)
+static void gen_check_store_width(DisasContext *ctx, int slot_num)
 {
-    TCGv slot = tcg_const_tl(slot_num);
-    TCGv check = tcg_const_tl(ctx->store_width[slot_num]);
-    gen_helper_debug_check_store_width(cpu_env, slot, check);
-    tcg_temp_free(slot);
-    tcg_temp_free(check);
+    if (HEX_DEBUG) {
+        TCGv slot = tcg_const_tl(slot_num);
+        TCGv check = tcg_const_tl(ctx->store_width[slot_num]);
+        gen_helper_debug_check_store_width(cpu_env, slot, check);
+        tcg_temp_free(slot);
+        tcg_temp_free(check);
+    }
 }
-#define HEX_DEBUG_GEN_CHECK_STORE_WIDTH(ctx, slot_num) \
-    gen_check_store_width(ctx, slot_num)
-#else
-#define HEX_DEBUG_GEN_CHECK_STORE_WIDTH(ctx, slot_num)  /* nothing */
-#endif
 
 static bool slot_is_predicated(Packet *pkt, int slot_num)
 {
@@ -330,7 +354,7 @@ void process_store(DisasContext *ctx, Packet *pkt, int slot_num)
     if (slot_num == 1 && ctx->s1_store_processed) {
         return;
     }
-    ctx->s1_store_processed = 1;
+    ctx->s1_store_processed = true;
 
     if (is_predicated) {
         TCGv cancelled = tcg_temp_new();
@@ -355,25 +379,25 @@ void process_store(DisasContext *ctx, Packet *pkt, int slot_num)
          */
         switch (ctx->store_width[slot_num]) {
         case 1:
-            HEX_DEBUG_GEN_CHECK_STORE_WIDTH(ctx, slot_num);
+            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st8(hex_store_val32[slot_num],
                              hex_store_addr[slot_num],
                              ctx->mem_idx);
             break;
         case 2:
-            HEX_DEBUG_GEN_CHECK_STORE_WIDTH(ctx, slot_num);
+            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st16(hex_store_val32[slot_num],
                               hex_store_addr[slot_num],
                               ctx->mem_idx);
             break;
         case 4:
-            HEX_DEBUG_GEN_CHECK_STORE_WIDTH(ctx, slot_num);
+            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st32(hex_store_val32[slot_num],
                               hex_store_addr[slot_num],
                               ctx->mem_idx);
             break;
         case 8:
-            HEX_DEBUG_GEN_CHECK_STORE_WIDTH(ctx, slot_num);
+            gen_check_store_width(ctx, slot_num);
             tcg_gen_qemu_st64(hex_store_val64[slot_num],
                               hex_store_addr[slot_num],
                               ctx->mem_idx);
@@ -451,14 +475,6 @@ static void update_exec_counters(DisasContext *ctx, Packet *pkt)
     ctx->num_insns += num_real_insns;
 }
 
-static void gen_exec_counters(DisasContext *ctx)
-{
-    tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_PKT_CNT],
-                    hex_gpr[HEX_REG_QEMU_PKT_CNT], ctx->num_packets);
-    tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_INSN_CNT],
-                    hex_gpr[HEX_REG_QEMU_INSN_CNT], ctx->num_insns);
-}
-
 static void gen_commit_packet(DisasContext *ctx, Packet *pkt)
 {
     gen_reg_writes(ctx);
@@ -466,8 +482,7 @@ static void gen_commit_packet(DisasContext *ctx, Packet *pkt)
     process_store_log(ctx, pkt);
     process_dczeroa(ctx, pkt);
     update_exec_counters(ctx, pkt);
-#if HEX_DEBUG
-    {
+    if (HEX_DEBUG) {
         TCGv has_st0 =
             tcg_const_tl(pkt->pkt_has_store_s0 && !pkt->pkt_has_dczeroa);
         TCGv has_st1 =
@@ -479,10 +494,9 @@ static void gen_commit_packet(DisasContext *ctx, Packet *pkt)
         tcg_temp_free(has_st0);
         tcg_temp_free(has_st1);
     }
-#endif
 
     if (pkt->pkt_has_cof) {
-        ctx->base.is_jmp = DISAS_NORETURN;
+        gen_end_tb(ctx);
     }
 }
 
@@ -495,8 +509,7 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
 
     nwords = read_packet_words(env, ctx, words);
     if (!nwords) {
-        gen_exception(HEX_EXCP_INVALID_PACKET);
-        ctx->base.is_jmp = DISAS_NORETURN;
+        gen_exception_end_tb(ctx, HEX_EXCP_INVALID_PACKET);
         return;
     }
 
@@ -509,8 +522,7 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
         gen_commit_packet(ctx, &pkt);
         ctx->base.pc_next += pkt.encod_pkt_size_in_bytes;
     } else {
-        gen_exception(HEX_EXCP_INVALID_PACKET);
-        ctx->base.is_jmp = DISAS_NORETURN;
+        gen_exception_end_tb(ctx, HEX_EXCP_INVALID_PACKET);
     }
 }
 
@@ -540,9 +552,7 @@ static bool hexagon_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
-    ctx->base.is_jmp = DISAS_NORETURN;
-    gen_exception_debug();
+    gen_exception_end_tb(ctx, EXCP_DEBUG);
     /*
      * The address covered by the breakpoint must be included in
      * [tb->pc, tb->pc + tb->size) in order to for it to be
@@ -589,14 +599,10 @@ static void hexagon_tr_translate_packet(DisasContextBase *dcbase, CPUState *cpu)
          * The CPU log is used to compare against LLDB single stepping,
          * so end the TLB after every packet.
          */
-        HexagonCPU *hex_cpu = container_of(env, HexagonCPU, env);
+        HexagonCPU *hex_cpu = env_archcpu(env);
         if (hex_cpu->lldb_compat && qemu_loglevel_mask(CPU_LOG_TB_CPU)) {
             ctx->base.is_jmp = DISAS_TOO_MANY;
         }
-#if HEX_DEBUG
-        /* When debugging, only put one packet per TB */
-        ctx->base.is_jmp = DISAS_TOO_MANY;
-#endif
     }
 }
 
@@ -609,19 +615,12 @@ static void hexagon_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         gen_exec_counters(ctx);
         tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
         if (ctx->base.singlestep_enabled) {
-            gen_exception_debug();
+            gen_exception_raw(EXCP_DEBUG);
         } else {
             tcg_gen_exit_tb(NULL, 0);
         }
         break;
     case DISAS_NORETURN:
-        gen_exec_counters(ctx);
-        tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
-        if (ctx->base.singlestep_enabled) {
-            gen_exception_debug();
-        } else {
-            tcg_gen_exit_tb(NULL, 0);
-        }
         break;
     default:
         g_assert_not_reached();
@@ -654,9 +653,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 
 #define NAME_LEN               64
 static char new_value_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
-#if HEX_DEBUG
 static char reg_written_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
-#endif
 static char new_pred_value_names[NUM_PREGS][NAME_LEN];
 static char store_addr_names[STORES_MAX][NAME_LEN];
 static char store_width_names[STORES_MAX][NAME_LEN];
@@ -669,11 +666,11 @@ void hexagon_translate_init(void)
 
     opcode_init();
 
-#if HEX_DEBUG
-    if (!qemu_logfile) {
-        qemu_set_log(qemu_loglevel);
+    if (HEX_DEBUG) {
+        if (!qemu_logfile) {
+            qemu_set_log(qemu_loglevel);
+        }
     }
-#endif
 
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         hex_gpr[i] = tcg_global_mem_new(cpu_env,
@@ -685,13 +682,13 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, new_value[i]),
             new_value_names[i]);
 
-#if HEX_DEBUG
-        snprintf(reg_written_names[i], NAME_LEN, "reg_written_%s",
-                 hexagon_regnames[i]);
-        hex_reg_written[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, reg_written[i]),
-            reg_written_names[i]);
-#endif
+        if (HEX_DEBUG) {
+            snprintf(reg_written_names[i], NAME_LEN, "reg_written_%s",
+                     hexagon_regnames[i]);
+            hex_reg_written[i] = tcg_global_mem_new(cpu_env,
+                offsetof(CPUHexagonState, reg_written[i]),
+                reg_written_names[i]);
+        }
     }
     for (i = 0; i < NUM_PREGS; i++) {
         hex_pred[i] = tcg_global_mem_new(cpu_env,

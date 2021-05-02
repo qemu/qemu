@@ -34,17 +34,16 @@ typedef struct DisasContext {
     DECLARE_BITMAP(regs_written, TOTAL_PER_THREAD_REGS);
     int preg_log[PRED_WRITES_MAX];
     int preg_log_idx;
+    DECLARE_BITMAP(pregs_written, NUM_PREGS);
     uint8_t store_width[STORES_MAX];
-    uint8_t s1_store_processed;
+    bool s1_store_processed;
 } DisasContext;
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)
 {
-#if HEX_DEBUG
     if (test_bit(rnum, ctx->regs_written)) {
         HEX_DEBUG_LOG("WARNING: Multiple writes to r%d\n", rnum);
     }
-#endif
     ctx->reg_log[ctx->reg_log_idx] = rnum;
     ctx->reg_log_idx++;
     set_bit(rnum, ctx->regs_written);
@@ -60,6 +59,7 @@ static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
 {
     ctx->preg_log[ctx->preg_log_idx] = pnum;
     ctx->preg_log_idx++;
+    set_bit(pnum, ctx->pregs_written);
 }
 
 static inline bool is_preloaded(DisasContext *ctx, int num)
@@ -85,9 +85,6 @@ extern TCGv hex_dczero_addr;
 extern TCGv hex_llsc_addr;
 extern TCGv hex_llsc_val;
 extern TCGv_i64 hex_llsc_val_i64;
-
-void gen_exception(int excp);
-void gen_exception_debug(void);
 
 void process_store(DisasContext *ctx, Packet *pkt, int slot_num);
 #endif

@@ -19,7 +19,6 @@
 #include "qemu/int128.h"
 #include "fpu/softfloat.h"
 #include "macros.h"
-#include "conv_emu.h"
 #include "fma_emu.h"
 
 #define DF_INF_EXP     0x7ff
@@ -64,7 +63,7 @@ typedef union {
     };
 } Float;
 
-static inline uint64_t float64_getmant(float64 f64)
+static uint64_t float64_getmant(float64 f64)
 {
     Double a = { .i = f64 };
     if (float64_is_normal(f64)) {
@@ -91,7 +90,7 @@ int32_t float64_getexp(float64 f64)
     return -1;
 }
 
-static inline uint64_t float32_getmant(float32 f32)
+static uint64_t float32_getmant(float32 f32)
 {
     Float a = { .i = f32 };
     if (float32_is_normal(f32)) {
@@ -118,17 +117,17 @@ int32_t float32_getexp(float32 f32)
     return -1;
 }
 
-static inline uint32_t int128_getw0(Int128 x)
+static uint32_t int128_getw0(Int128 x)
 {
     return int128_getlo(x);
 }
 
-static inline uint32_t int128_getw1(Int128 x)
+static uint32_t int128_getw1(Int128 x)
 {
     return int128_getlo(x) >> 32;
 }
 
-static inline Int128 int128_mul_6464(uint64_t ai, uint64_t bi)
+static Int128 int128_mul_6464(uint64_t ai, uint64_t bi)
 {
     Int128 a, b;
     uint64_t pp0, pp1a, pp1b, pp1s, pp2;
@@ -152,7 +151,7 @@ static inline Int128 int128_mul_6464(uint64_t ai, uint64_t bi)
     return int128_make128(ret_low, pp2 + (pp1s >> 32));
 }
 
-static inline Int128 int128_sub_borrow(Int128 a, Int128 b, int borrow)
+static Int128 int128_sub_borrow(Int128 a, Int128 b, int borrow)
 {
     Int128 ret = int128_sub(a, b);
     if (borrow != 0) {
@@ -170,7 +169,7 @@ typedef struct {
     uint8_t sticky;
 } Accum;
 
-static inline void accum_init(Accum *p)
+static void accum_init(Accum *p)
 {
     p->mant = int128_zero();
     p->exp = 0;
@@ -180,7 +179,7 @@ static inline void accum_init(Accum *p)
     p->sticky = 0;
 }
 
-static inline Accum accum_norm_left(Accum a)
+static Accum accum_norm_left(Accum a)
 {
     a.exp--;
     a.mant = int128_lshift(a.mant, 1);
@@ -190,6 +189,7 @@ static inline Accum accum_norm_left(Accum a)
     return a;
 }
 
+/* This function is marked inline for performance reasons */
 static inline Accum accum_norm_right(Accum a, int amt)
 {
     if (amt > 130) {
@@ -226,7 +226,7 @@ static inline Accum accum_norm_right(Accum a, int amt)
  */
 static Accum accum_add(Accum a, Accum b);
 
-static inline Accum accum_sub(Accum a, Accum b, int negate)
+static Accum accum_sub(Accum a, Accum b, int negate)
 {
     Accum ret;
     accum_init(&ret);
@@ -329,7 +329,7 @@ static Accum accum_add(Accum a, Accum b)
 }
 
 /* Return an infinity with requested sign */
-static inline float64 infinite_float64(uint8_t sign)
+static float64 infinite_float64(uint8_t sign)
 {
     if (sign) {
         return make_float64(DF_MINUS_INF);
@@ -339,7 +339,7 @@ static inline float64 infinite_float64(uint8_t sign)
 }
 
 /* Return a maximum finite value with requested sign */
-static inline float64 maxfinite_float64(uint8_t sign)
+static float64 maxfinite_float64(uint8_t sign)
 {
     if (sign) {
         return make_float64(DF_MINUS_MAXF);
@@ -349,7 +349,7 @@ static inline float64 maxfinite_float64(uint8_t sign)
 }
 
 /* Return a zero value with requested sign */
-static inline float64 zero_float64(uint8_t sign)
+static float64 zero_float64(uint8_t sign)
 {
     if (sign) {
         return make_float64(0x8000000000000000);
@@ -369,7 +369,7 @@ float32 infinite_float32(uint8_t sign)
 }
 
 /* Return a maximum finite value with the requested sign */
-static inline float32 maxfinite_float32(uint8_t sign)
+static float32 maxfinite_float32(uint8_t sign)
 {
     if (sign) {
         return make_float32(SF_MINUS_MAXF);
@@ -379,7 +379,7 @@ static inline float32 maxfinite_float32(uint8_t sign)
 }
 
 /* Return a zero value with requested sign */
-static inline float32 zero_float32(uint8_t sign)
+static float32 zero_float32(uint8_t sign)
 {
     if (sign) {
         return make_float32(0x80000000);
@@ -389,7 +389,7 @@ static inline float32 zero_float32(uint8_t sign)
 }
 
 #define GEN_XF_ROUND(SUFFIX, MANTBITS, INF_EXP, INTERNAL_TYPE) \
-static inline SUFFIX accum_round_##SUFFIX(Accum a, float_status * fp_status) \
+static SUFFIX accum_round_##SUFFIX(Accum a, float_status * fp_status) \
 { \
     if ((int128_gethi(a.mant) == 0) && (int128_getlo(a.mant) == 0) \
         && ((a.guard | a.round | a.sticky) == 0)) { \
@@ -526,8 +526,8 @@ static bool is_inf_prod(float64 a, float64 b)
             (float64_is_infinity(b) && is_finite(a) && (!float64_is_zero(a))));
 }
 
-static inline float64 special_fma(float64 a, float64 b, float64 c,
-                                  float_status *fp_status)
+static float64 special_fma(float64 a, float64 b, float64 c,
+                           float_status *fp_status)
 {
     float64 ret = make_float64(0);
 
@@ -586,8 +586,8 @@ static inline float64 special_fma(float64 a, float64 b, float64 c,
     g_assert_not_reached();
 }
 
-static inline float32 special_fmaf(float32 a, float32 b, float32 c,
-                                 float_status *fp_status)
+static float32 special_fmaf(float32 a, float32 b, float32 c,
+                            float_status *fp_status)
 {
     float64 aa, bb, cc;
     aa = float32_to_float64(a, fp_status);

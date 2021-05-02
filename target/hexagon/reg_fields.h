@@ -23,8 +23,6 @@ typedef struct {
     int width;
 } RegField;
 
-extern const RegField reg_field_info[];
-
 enum {
 #define DEF_REG_FIELD(TAG, START, WIDTH) \
     TAG,
@@ -32,5 +30,7 @@ enum {
     NUM_REG_FIELDS
 #undef DEF_REG_FIELD
 };
+
+extern const RegField reg_field_info[NUM_REG_FIELDS];
 
 #endif

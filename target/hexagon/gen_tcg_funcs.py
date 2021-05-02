@@ -316,7 +316,7 @@ def genptr_dst_write(f, tag, regtype, regid):
             print("Bad register parse: ", regtype, regid)
     elif (regtype == "P"):
         if (regid in {"d", "e", "x"}):
-            f.write("    gen_log_pred_write(%s%sN, %s%sV);\n" % \
+            f.write("    gen_log_pred_write(ctx, %s%sN, %s%sV);\n" % \
                 (regtype, regid, regtype, regid))
             f.write("    ctx_log_pred_write(ctx, %s%sN);\n" % \
                 (regtype, regid))

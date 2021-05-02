@@ -15,7 +15,6 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#define QEMU_GENERATE
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "cpu.h"
@@ -24,7 +23,9 @@
 #include "insn.h"
 #include "opcodes.h"
 #include "translate.h"
+#define QEMU_GENERATE       /* Used internally by macros.h */
 #include "macros.h"
+#undef QEMU_GENERATE
 #include "gen_tcg.h"
 
 static inline TCGv gen_read_preg(TCGv pred, uint8_t num)
@@ -35,20 +36,24 @@ static inline TCGv gen_read_preg(TCGv pred, uint8_t num)
 
 static inline void gen_log_predicated_reg_write(int rnum, TCGv val, int slot)
 {
-    TCGv one = tcg_const_tl(1);
     TCGv zero = tcg_const_tl(0);
     TCGv slot_mask = tcg_temp_new();
 
     tcg_gen_andi_tl(slot_mask, hex_slot_cancelled, 1 << slot);
     tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum], slot_mask, zero,
                            val, hex_new_value[rnum]);
-#if HEX_DEBUG
-    /* Do this so HELPER(debug_commit_end) will know */
-    tcg_gen_movcond_tl(TCG_COND_EQ, hex_reg_written[rnum], slot_mask, zero,
-                       one, hex_reg_written[rnum]);
-#endif
+    if (HEX_DEBUG) {
+        /*
+         * Do this so HELPER(debug_commit_end) will know
+         *
+         * Note that slot_mask indicates the value is not written
+         * (i.e., slot was cancelled), so we create a true/false value before
+         * or'ing with hex_reg_written[rnum].
+         */
+        tcg_gen_setcond_tl(TCG_COND_EQ, slot_mask, slot_mask, zero);
+        tcg_gen_or_tl(hex_reg_written[rnum], hex_reg_written[rnum], slot_mask);
+    }
 
-    tcg_temp_free(one);
     tcg_temp_free(zero);
     tcg_temp_free(slot_mask);
 }
@@ -56,45 +61,44 @@ static inline void gen_log_predicated_reg_write(int rnum, TCGv val, int slot)
 static inline void gen_log_reg_write(int rnum, TCGv val)
 {
     tcg_gen_mov_tl(hex_new_value[rnum], val);
-#if HEX_DEBUG
-    /* Do this so HELPER(debug_commit_end) will know */
-    tcg_gen_movi_tl(hex_reg_written[rnum], 1);
-#endif
+    if (HEX_DEBUG) {
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movi_tl(hex_reg_written[rnum], 1);
+    }
 }
 
 static void gen_log_predicated_reg_write_pair(int rnum, TCGv_i64 val, int slot)
 {
     TCGv val32 = tcg_temp_new();
-    TCGv one = tcg_const_tl(1);
     TCGv zero = tcg_const_tl(0);
     TCGv slot_mask = tcg_temp_new();
 
     tcg_gen_andi_tl(slot_mask, hex_slot_cancelled, 1 << slot);
     /* Low word */
     tcg_gen_extrl_i64_i32(val32, val);
-    tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum], slot_mask, zero,
-                       val32, hex_new_value[rnum]);
-#if HEX_DEBUG
-    /* Do this so HELPER(debug_commit_end) will know */
-    tcg_gen_movcond_tl(TCG_COND_EQ, hex_reg_written[rnum],
+    tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum],
                        slot_mask, zero,
-                       one, hex_reg_written[rnum]);
-#endif
-
+                       val32, hex_new_value[rnum]);
     /* High word */
     tcg_gen_extrh_i64_i32(val32, val);
     tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum + 1],
                        slot_mask, zero,
                        val32, hex_new_value[rnum + 1]);
-#if HEX_DEBUG
-    /* Do this so HELPER(debug_commit_end) will know */
-    tcg_gen_movcond_tl(TCG_COND_EQ, hex_reg_written[rnum + 1],
-                       slot_mask, zero,
-                       one, hex_reg_written[rnum + 1]);
-#endif
+    if (HEX_DEBUG) {
+        /*
+         * Do this so HELPER(debug_commit_end) will know
+         *
+         * Note that slot_mask indicates the value is not written
+         * (i.e., slot was cancelled), so we create a true/false value before
+         * or'ing with hex_reg_written[rnum].
+         */
+        tcg_gen_setcond_tl(TCG_COND_EQ, slot_mask, slot_mask, zero);
+        tcg_gen_or_tl(hex_reg_written[rnum], hex_reg_written[rnum], slot_mask);
+        tcg_gen_or_tl(hex_reg_written[rnum + 1], hex_reg_written[rnum + 1],
+                      slot_mask);
+    }
 
     tcg_temp_free(val32);
-    tcg_temp_free(one);
     tcg_temp_free(zero);
     tcg_temp_free(slot_mask);
 }
@@ -103,33 +107,41 @@ static void gen_log_reg_write_pair(int rnum, TCGv_i64 val)
 {
     /* Low word */
     tcg_gen_extrl_i64_i32(hex_new_value[rnum], val);
-#if HEX_DEBUG
-    /* Do this so HELPER(debug_commit_end) will know */
-    tcg_gen_movi_tl(hex_reg_written[rnum], 1);
-#endif
+    if (HEX_DEBUG) {
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movi_tl(hex_reg_written[rnum], 1);
+    }
 
     /* High word */
     tcg_gen_extrh_i64_i32(hex_new_value[rnum + 1], val);
-#if HEX_DEBUG
-    /* Do this so HELPER(debug_commit_end) will know */
-    tcg_gen_movi_tl(hex_reg_written[rnum + 1], 1);
-#endif
+    if (HEX_DEBUG) {
+        /* Do this so HELPER(debug_commit_end) will know */
+        tcg_gen_movi_tl(hex_reg_written[rnum + 1], 1);
+    }
 }
 
-static inline void gen_log_pred_write(int pnum, TCGv val)
+static inline void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
 {
     TCGv zero = tcg_const_tl(0);
     TCGv base_val = tcg_temp_new();
     TCGv and_val = tcg_temp_new();
     TCGv pred_written = tcg_temp_new();
 
-    /* Multiple writes to the same preg are and'ed together */
     tcg_gen_andi_tl(base_val, val, 0xff);
-    tcg_gen_and_tl(and_val, base_val, hex_new_pred_value[pnum]);
-    tcg_gen_andi_tl(pred_written, hex_pred_written, 1 << pnum);
-    tcg_gen_movcond_tl(TCG_COND_NE, hex_new_pred_value[pnum],
-                       pred_written, zero,
-                       and_val, base_val);
+
+    /*
+     * Section 6.1.3 of the Hexagon V67 Programmer's Reference Manual
+     *
+     * Multiple writes to the same preg are and'ed together
+     * If this is the first predicate write in the packet, do a
+     * straight assignment.  Otherwise, do an and.
+     */
+    if (!test_bit(pnum, ctx->pregs_written)) {
+        tcg_gen_mov_tl(hex_new_pred_value[pnum], base_val);
+    } else {
+        tcg_gen_and_tl(hex_new_pred_value[pnum],
+                       hex_new_pred_value[pnum], base_val);
+    }
     tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pnum);
 
     tcg_temp_free(zero);
@@ -254,6 +266,61 @@ static inline void gen_write_ctrl_reg_pair(DisasContext *ctx, int reg_num,
     }
 }
 
+static TCGv gen_get_byte(TCGv result, int N, TCGv src, bool sign)
+{
+    if (sign) {
+        tcg_gen_sextract_tl(result, src, N * 8, 8);
+    } else {
+        tcg_gen_extract_tl(result, src, N * 8, 8);
+    }
+    return result;
+}
+
+static TCGv gen_get_byte_i64(TCGv result, int N, TCGv_i64 src, bool sign)
+{
+    TCGv_i64 res64 = tcg_temp_new_i64();
+    if (sign) {
+        tcg_gen_sextract_i64(res64, src, N * 8, 8);
+    } else {
+        tcg_gen_extract_i64(res64, src, N * 8, 8);
+    }
+    tcg_gen_extrl_i64_i32(result, res64);
+    tcg_temp_free_i64(res64);
+
+    return result;
+}
+
+static inline TCGv gen_get_half(TCGv result, int N, TCGv src, bool sign)
+{
+    if (sign) {
+        tcg_gen_sextract_tl(result, src, N * 16, 16);
+    } else {
+        tcg_gen_extract_tl(result, src, N * 16, 16);
+    }
+    return result;
+}
+
+static inline void gen_set_half(int N, TCGv result, TCGv src)
+{
+    tcg_gen_deposit_tl(result, result, src, N * 16, 16);
+}
+
+static inline void gen_set_half_i64(int N, TCGv_i64 result, TCGv src)
+{
+    TCGv_i64 src64 = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(src64, src);
+    tcg_gen_deposit_i64(result, result, src64, N * 16, 16);
+    tcg_temp_free_i64(src64);
+}
+
+static void gen_set_byte_i64(int N, TCGv_i64 result, TCGv src)
+{
+    TCGv_i64 src64 = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(src64, src);
+    tcg_gen_deposit_i64(result, result, src64, N * 8, 8);
+    tcg_temp_free_i64(src64);
+}
+
 static inline void gen_load_locked4u(TCGv dest, TCGv vaddr, int mem_index)
 {
     tcg_gen_qemu_ld32u(dest, vaddr, mem_index);
@@ -325,6 +392,86 @@ static inline void gen_store_conditional8(CPUHexagonState *env,
 
     gen_set_label(done);
     tcg_gen_movi_tl(hex_llsc_addr, ~0);
+}
+
+static inline void gen_store32(TCGv vaddr, TCGv src, int width, int slot)
+{
+    tcg_gen_mov_tl(hex_store_addr[slot], vaddr);
+    tcg_gen_movi_tl(hex_store_width[slot], width);
+    tcg_gen_mov_tl(hex_store_val32[slot], src);
+}
+
+static inline void gen_store1(TCGv_env cpu_env, TCGv vaddr, TCGv src,
+                              DisasContext *ctx, int slot)
+{
+    gen_store32(vaddr, src, 1, slot);
+    ctx->store_width[slot] = 1;
+}
+
+static inline void gen_store1i(TCGv_env cpu_env, TCGv vaddr, int32_t src,
+                               DisasContext *ctx, int slot)
+{
+    TCGv tmp = tcg_const_tl(src);
+    gen_store1(cpu_env, vaddr, tmp, ctx, slot);
+    tcg_temp_free(tmp);
+}
+
+static inline void gen_store2(TCGv_env cpu_env, TCGv vaddr, TCGv src,
+                              DisasContext *ctx, int slot)
+{
+    gen_store32(vaddr, src, 2, slot);
+    ctx->store_width[slot] = 2;
+}
+
+static inline void gen_store2i(TCGv_env cpu_env, TCGv vaddr, int32_t src,
+                               DisasContext *ctx, int slot)
+{
+    TCGv tmp = tcg_const_tl(src);
+    gen_store2(cpu_env, vaddr, tmp, ctx, slot);
+    tcg_temp_free(tmp);
+}
+
+static inline void gen_store4(TCGv_env cpu_env, TCGv vaddr, TCGv src,
+                              DisasContext *ctx, int slot)
+{
+    gen_store32(vaddr, src, 4, slot);
+    ctx->store_width[slot] = 4;
+}
+
+static inline void gen_store4i(TCGv_env cpu_env, TCGv vaddr, int32_t src,
+                               DisasContext *ctx, int slot)
+{
+    TCGv tmp = tcg_const_tl(src);
+    gen_store4(cpu_env, vaddr, tmp, ctx, slot);
+    tcg_temp_free(tmp);
+}
+
+static inline void gen_store8(TCGv_env cpu_env, TCGv vaddr, TCGv_i64 src,
+                              DisasContext *ctx, int slot)
+{
+    tcg_gen_mov_tl(hex_store_addr[slot], vaddr);
+    tcg_gen_movi_tl(hex_store_width[slot], 8);
+    tcg_gen_mov_i64(hex_store_val64[slot], src);
+    ctx->store_width[slot] = 8;
+}
+
+static inline void gen_store8i(TCGv_env cpu_env, TCGv vaddr, int64_t src,
+                               DisasContext *ctx, int slot)
+{
+    TCGv_i64 tmp = tcg_const_i64(src);
+    gen_store8(cpu_env, vaddr, tmp, ctx, slot);
+    tcg_temp_free_i64(tmp);
+}
+
+static TCGv gen_8bitsof(TCGv result, TCGv value)
+{
+    TCGv zero = tcg_const_tl(0);
+    TCGv ones = tcg_const_tl(0xff);
+    tcg_gen_movcond_tl(TCG_COND_NE, result, value, zero, ones, zero);
+    tcg_temp_free(zero);
+    tcg_temp_free(ones);
+
+    return result;
 }
 
 #include "tcg_funcs_generated.c.inc"

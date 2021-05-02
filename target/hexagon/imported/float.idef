@@ -146,6 +146,22 @@ Q6INSN(F2_sfimm_n,"Rd32=sfmake(#u10):neg",ATTRIBS(),
 })
 
 
+Q6INSN(F2_sfrecipa,"Rd32,Pe4=sfrecipa(Rs32,Rt32)",ATTRIBS(),
+"Reciprocal Approximation for Division",
+{
+    fHIDE(int idx;)
+    fHIDE(int adjust;)
+    fHIDE(int mant;)
+    fHIDE(int exp;)
+    if (fSF_RECIP_COMMON(RsV,RtV,RdV,adjust)) {
+        PeV = adjust;
+        idx = (RtV >> 16) & 0x7f;
+        mant = (fSF_RECIP_LOOKUP(idx) << 15) | 1;
+        exp = fSF_BIAS() - (fSF_GETEXP(RtV) - fSF_BIAS()) - 1;
+        RdV = fMAKESF(fGETBIT(31,RtV),exp,mant);
+    }
+})
+
 Q6INSN(F2_sffixupn,"Rd32=sffixupn(Rs32,Rt32)",ATTRIBS(),
 "Fix Up Numerator",
 {
@@ -160,6 +176,22 @@ Q6INSN(F2_sffixupd,"Rd32=sffixupd(Rs32,Rt32)",ATTRIBS(),
     fHIDE(int adjust;)
     fSF_RECIP_COMMON(RsV,RtV,RdV,adjust);
     RdV = RtV;
+})
+
+Q6INSN(F2_sfinvsqrta,"Rd32,Pe4=sfinvsqrta(Rs32)",ATTRIBS(),
+"Reciprocal Square Root Approximation",
+{
+    fHIDE(int idx;)
+    fHIDE(int adjust;)
+    fHIDE(int mant;)
+    fHIDE(int exp;)
+    if (fSF_INVSQRT_COMMON(RsV,RdV,adjust)) {
+        PeV = adjust;
+        idx = (RsV >> 17) & 0x7f;
+        mant = (fSF_INVSQRT_LOOKUP(idx) << 15);
+        exp = fSF_BIAS() - ((fSF_GETEXP(RsV) - fSF_BIAS()) >> 1) - 1;
+        RdV = fMAKESF(fGETBIT(31,RsV),exp,mant);
+    }
 })
 
 Q6INSN(F2_sffixupr,"Rd32=sffixupr(Rs32)",ATTRIBS(),
