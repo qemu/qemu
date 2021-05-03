@@ -39,6 +39,19 @@
 #include "fpu_helper.h"
 #include "translate.h"
 
+/*
+ * Many sysemu-only helpers are not reachable for user-only.
+ * Define stub generators here, so that we need not either sprinkle
+ * ifdefs through the translator, nor provide the helper function.
+ */
+#define STUB_HELPER(NAME, ...) \
+    static inline void gen_helper_##NAME(__VA_ARGS__) \
+    { g_assert_not_reached(); }
+
+#ifdef CONFIG_USER_ONLY
+STUB_HELPER(cache, TCGv_env env, TCGv val, TCGv_i32 reg)
+#endif
+
 enum {
     /* indirect opcode tables */
     OPC_SPECIAL  = (0x00 << 26),
@@ -1267,26 +1280,12 @@ TCGv_i64 fpu_f64[32];
 #define DISAS_STOP       DISAS_TARGET_0
 #define DISAS_EXIT       DISAS_TARGET_1
 
-static const char * const regnames[] = {
-    "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
-    "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
-    "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
-    "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra",
-};
-
 static const char * const regnames_HI[] = {
     "HI0", "HI1", "HI2", "HI3",
 };
 
 static const char * const regnames_LO[] = {
     "LO0", "LO1", "LO2", "LO3",
-};
-
-static const char * const fregnames[] = {
-    "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
-    "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
-    "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
-    "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",
 };
 
 /* General purpose registers moves. */
@@ -1572,11 +1571,13 @@ void gen_move_high32(TCGv ret, TCGv_i64 arg)
 #endif
 }
 
-void check_cp0_enabled(DisasContext *ctx)
+bool check_cp0_enabled(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_CP0))) {
         generate_exception_end(ctx, EXCP_CpU);
+        return false;
     }
+    return true;
 }
 
 void check_cp1_enabled(DisasContext *ctx)
@@ -5945,6 +5946,7 @@ static void gen_mthc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         goto cp0_unimplemented;
     }
     trace_mips_translate_c0("mthc0", register_name, reg, sel);
+    return;
 
 cp0_unimplemented:
     qemu_log_mask(LOG_UNIMP, "mthc0 %s (reg %d sel %d)\n",
@@ -18969,9 +18971,11 @@ static void gen_pool32axf_nanomips_insn(CPUMIPSState *env, DisasContext *ctx)
             }
             break;
         case NM_RDPGPR:
+            check_cp0_enabled(ctx);
             gen_load_srsgpr(rs, rt);
             break;
         case NM_WRPGPR:
+            check_cp0_enabled(ctx);
             gen_store_srsgpr(rs, rt);
             break;
         case NM_WAIT:
@@ -20957,6 +20961,8 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     gen_ld(ctx, OPC_LHUE, rt, rs, s);
                     break;
                 case NM_CACHEE:
+                    check_eva(ctx);
+                    check_cp0_enabled(ctx);
                     check_nms_dl_il_sl_tl_l2c(ctx);
                     gen_cache_operation(ctx, rt, rs, s);
                     break;
@@ -24530,11 +24536,11 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
             gen_st_cond(ctx, rt, rs, imm, MO_TESL, true);
             return;
         case OPC_CACHEE:
+            check_eva(ctx);
             check_cp0_enabled(ctx);
             if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
                 gen_cache_operation(ctx, rt, rs, imm);
             }
-            /* Treat as NOP. */
             return;
         case OPC_PREFE:
             check_cp0_enabled(ctx);
@@ -25591,83 +25597,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     DisasContext ctx;
 
     translator_loop(&mips_tr_ops, &ctx.base, cs, tb, max_insns);
-}
-
-static void fpu_dump_state(CPUMIPSState *env, FILE * f, int flags)
-{
-    int i;
-    int is_fpu64 = !!(env->hflags & MIPS_HFLAG_F64);
-
-#define printfpr(fp)                                                    \
-    do {                                                                \
-        if (is_fpu64)                                                   \
-            qemu_fprintf(f, "w:%08x d:%016" PRIx64                      \
-                         " fd:%13g fs:%13g psu: %13g\n",                \
-                         (fp)->w[FP_ENDIAN_IDX], (fp)->d,               \
-                         (double)(fp)->fd,                              \
-                         (double)(fp)->fs[FP_ENDIAN_IDX],               \
-                         (double)(fp)->fs[!FP_ENDIAN_IDX]);             \
-        else {                                                          \
-            fpr_t tmp;                                                  \
-            tmp.w[FP_ENDIAN_IDX] = (fp)->w[FP_ENDIAN_IDX];              \
-            tmp.w[!FP_ENDIAN_IDX] = ((fp) + 1)->w[FP_ENDIAN_IDX];       \
-            qemu_fprintf(f, "w:%08x d:%016" PRIx64                      \
-                         " fd:%13g fs:%13g psu:%13g\n",                 \
-                         tmp.w[FP_ENDIAN_IDX], tmp.d,                   \
-                         (double)tmp.fd,                                \
-                         (double)tmp.fs[FP_ENDIAN_IDX],                 \
-                         (double)tmp.fs[!FP_ENDIAN_IDX]);               \
-        }                                                               \
-    } while (0)
-
-
-    qemu_fprintf(f,
-                 "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d  fp_status 0x%02x\n",
-                 env->active_fpu.fcr0, env->active_fpu.fcr31, is_fpu64,
-                 get_float_exception_flags(&env->active_fpu.fp_status));
-    for (i = 0; i < 32; (is_fpu64) ? i++ : (i += 2)) {
-        qemu_fprintf(f, "%3s: ", fregnames[i]);
-        printfpr(&env->active_fpu.fpr[i]);
-    }
-
-#undef printfpr
-}
-
-void mips_cpu_dump_state(CPUState *cs, FILE *f, int flags)
-{
-    MIPSCPU *cpu = MIPS_CPU(cs);
-    CPUMIPSState *env = &cpu->env;
-    int i;
-
-    qemu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx
-                 " LO=0x" TARGET_FMT_lx " ds %04x "
-                 TARGET_FMT_lx " " TARGET_FMT_ld "\n",
-                 env->active_tc.PC, env->active_tc.HI[0], env->active_tc.LO[0],
-                 env->hflags, env->btarget, env->bcond);
-    for (i = 0; i < 32; i++) {
-        if ((i & 3) == 0) {
-            qemu_fprintf(f, "GPR%02d:", i);
-        }
-        qemu_fprintf(f, " %s " TARGET_FMT_lx,
-                     regnames[i], env->active_tc.gpr[i]);
-        if ((i & 3) == 3) {
-            qemu_fprintf(f, "\n");
-        }
-    }
-
-    qemu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x"
-                 TARGET_FMT_lx "\n",
-                 env->CP0_Status, env->CP0_Cause, env->CP0_EPC);
-    qemu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x%016"
-                 PRIx64 "\n",
-                 env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
-    qemu_fprintf(f, "    Config2 0x%08x Config3 0x%08x\n",
-                 env->CP0_Config2, env->CP0_Config3);
-    qemu_fprintf(f, "    Config4 0x%08x Config5 0x%08x\n",
-                 env->CP0_Config4, env->CP0_Config5);
-    if ((flags & CPU_DUMP_FPU) && (env->hflags & MIPS_HFLAG_FPU)) {
-        fpu_dump_state(env, f, flags);
-    }
 }
 
 void mips_tcg_init(void)
