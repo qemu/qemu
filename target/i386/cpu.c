@@ -1589,7 +1589,7 @@ typedef struct X86CPUDefinition {
 /* Reference to a specific CPU model version */
 struct X86CPUModel {
     /* Base CPU definition */
-    X86CPUDefinition *cpudef;
+    const X86CPUDefinition *cpudef;
     /* CPU model version */
     X86CPUVersion version;
     const char *note;
@@ -1601,14 +1601,15 @@ struct X86CPUModel {
 };
 
 /* Get full model name for CPU version */
-static char *x86_cpu_versioned_model_name(X86CPUDefinition *cpudef,
+static char *x86_cpu_versioned_model_name(const X86CPUDefinition *cpudef,
                                           X86CPUVersion version)
 {
     assert(version > 0);
     return g_strdup_printf("%s-v%d", cpudef->name, (int)version);
 }
 
-static const X86CPUVersionDefinition *x86_cpu_def_get_versions(X86CPUDefinition *def)
+static const X86CPUVersionDefinition *
+x86_cpu_def_get_versions(const X86CPUDefinition *def)
 {
     /* When X86CPUDefinition::versions is NULL, we register only v1 */
     static const X86CPUVersionDefinition default_version_list[] = {
@@ -1797,7 +1798,7 @@ static const CPUCaches epyc_milan_cache_info = {
  *  PT in VMX operation
  */
 
-static X86CPUDefinition builtin_x86_defs[] = {
+static const X86CPUDefinition builtin_x86_defs[] = {
     {
         .name = "qemu64",
         .level = 0xd,
@@ -5061,7 +5062,7 @@ static void x86_cpu_apply_version_props(X86CPU *cpu, X86CPUModel *model)
  */
 static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model)
 {
-    X86CPUDefinition *def = model->cpudef;
+    const X86CPUDefinition *def = model->cpudef;
     CPUX86State *env = &cpu->env;
     FeatureWord w;
 
@@ -5148,7 +5149,7 @@ static void x86_register_cpu_model_type(const char *name, X86CPUModel *model)
     type_register(&ti);
 }
 
-static void x86_register_cpudef_types(X86CPUDefinition *def)
+static void x86_register_cpudef_types(const X86CPUDefinition *def)
 {
     X86CPUModel *m;
     const X86CPUVersionDefinition *vdef;
