@@ -172,6 +172,9 @@ typedef enum {
     INSN_NOP_v6k   = 0xe320f000,
     /* Otherwise the assembler uses mov r0,r0 */
     INSN_NOP_v4    = (COND_AL << 28) | ARITH_MOV,
+
+    INSN_VLD1      = 0xf4200000,  /* VLD1 (multiple single elements) */
+    INSN_VST1      = 0xf4000000,  /* VST1 (multiple single elements) */
 } ARMInsn;
 
 #define INSN_NOP   (use_armv7_instructions ? INSN_NOP_v6k : INSN_NOP_v4)
@@ -1091,6 +1094,33 @@ static TCGCond tcg_out_cmp2(TCGContext *s, const TCGArg *args,
     default:
         g_assert_not_reached();
     }
+}
+
+/*
+ * Note that TCGReg references Q-registers.
+ * Q-regno = 2 * D-regno, so shift left by 1 whlie inserting.
+ */
+static uint32_t encode_vd(TCGReg rd)
+{
+    tcg_debug_assert(rd >= TCG_REG_Q0);
+    return (extract32(rd, 3, 1) << 22) | (extract32(rd, 0, 3) << 13);
+}
+
+static void tcg_out_vldst(TCGContext *s, ARMInsn insn,
+                          TCGReg rd, TCGReg rn, int offset)
+{
+    if (offset != 0) {
+        if (check_fit_imm(offset) || check_fit_imm(-offset)) {
+            tcg_out_dat_rIN(s, COND_AL, ARITH_ADD, ARITH_SUB,
+                            TCG_REG_TMP, rn, offset, true);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP, offset);
+            tcg_out_dat_reg(s, COND_AL, ARITH_ADD,
+                            TCG_REG_TMP, TCG_REG_TMP, rn, 0);
+        }
+        rn = TCG_REG_TMP;
+    }
+    tcg_out32(s, insn | (rn << 16) | encode_vd(rd) | 0xf);
 }
 
 #ifdef CONFIG_SOFTMMU
@@ -2200,16 +2230,44 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_VEC_TMP);
 }
 
-static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, intptr_t arg2)
+static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
+                       TCGReg arg1, intptr_t arg2)
 {
-    tcg_out_ld32u(s, COND_AL, arg, arg1, arg2);
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_out_ld32u(s, COND_AL, arg, arg1, arg2);
+        return;
+    case TCG_TYPE_V64:
+        /* regs 1; size 8; align 8 */
+        tcg_out_vldst(s, INSN_VLD1 | 0x7d0, arg, arg1, arg2);
+        return;
+    case TCG_TYPE_V128:
+        /* regs 2; size 8; align 16 */
+        tcg_out_vldst(s, INSN_VLD1 | 0xae0, arg, arg1, arg2);
+        return;
+    default:
+        g_assert_not_reached();
+    }
 }
 
-static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, intptr_t arg2)
+static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
+                       TCGReg arg1, intptr_t arg2)
 {
-    tcg_out_st32(s, COND_AL, arg, arg1, arg2);
+    switch (type) {
+    case TCG_TYPE_I32:
+        tcg_out_st32(s, COND_AL, arg, arg1, arg2);
+        return;
+    case TCG_TYPE_V64:
+        /* regs 1; size 8; align 8 */
+        tcg_out_vldst(s, INSN_VST1 | 0x7d0, arg, arg1, arg2);
+        return;
+    case TCG_TYPE_V128:
+        /* regs 2; size 8; align 16 */
+        tcg_out_vldst(s, INSN_VST1 | 0xae0, arg, arg1, arg2);
+        return;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
