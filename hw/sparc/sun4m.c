@@ -107,6 +107,8 @@ struct sun4m_hwdef {
     uint8_t nvram_machine_id;
 };
 
+#define TYPE_SUN4M_MACHINE MACHINE_TYPE_NAME("sun4m-common")
+
 const char *fw_cfg_arch_key_name(uint16_t key)
 {
     static const struct {
@@ -1433,7 +1435,7 @@ static void ss5_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo ss5_type = {
     .name = MACHINE_TYPE_NAME("SS-5"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SUN4M_MACHINE,
     .class_init = ss5_class_init,
 };
 
@@ -1453,7 +1455,7 @@ static void ss10_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo ss10_type = {
     .name = MACHINE_TYPE_NAME("SS-10"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SUN4M_MACHINE,
     .class_init = ss10_class_init,
 };
 
@@ -1473,7 +1475,7 @@ static void ss600mp_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo ss600mp_type = {
     .name = MACHINE_TYPE_NAME("SS-600MP"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SUN4M_MACHINE,
     .class_init = ss600mp_class_init,
 };
 
@@ -1493,7 +1495,7 @@ static void ss20_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo ss20_type = {
     .name = MACHINE_TYPE_NAME("SS-20"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SUN4M_MACHINE,
     .class_init = ss20_class_init,
 };
 
@@ -1512,7 +1514,7 @@ static void voyager_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo voyager_type = {
     .name = MACHINE_TYPE_NAME("Voyager"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SUN4M_MACHINE,
     .class_init = voyager_class_init,
 };
 
@@ -1531,7 +1533,7 @@ static void ss_lx_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo ss_lx_type = {
     .name = MACHINE_TYPE_NAME("LX"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SUN4M_MACHINE,
     .class_init = ss_lx_class_init,
 };
 
@@ -1550,7 +1552,7 @@ static void ss4_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo ss4_type = {
     .name = MACHINE_TYPE_NAME("SS-4"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SUN4M_MACHINE,
     .class_init = ss4_class_init,
 };
 
@@ -1569,7 +1571,7 @@ static void scls_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo scls_type = {
     .name = MACHINE_TYPE_NAME("SPARCClassic"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SUN4M_MACHINE,
     .class_init = scls_class_init,
 };
 
@@ -1588,9 +1590,19 @@ static void sbook_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo sbook_type = {
     .name = MACHINE_TYPE_NAME("SPARCbook"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_SUN4M_MACHINE,
     .class_init = sbook_class_init,
 };
+
+static const TypeInfo sun4m_machine_types[] = {
+    {
+        .name           = TYPE_SUN4M_MACHINE,
+        .parent         = TYPE_MACHINE,
+        .abstract       = true,
+    }
+};
+
+DEFINE_TYPES(sun4m_machine_types)
 
 static void sun4m_register_types(void)
 {
