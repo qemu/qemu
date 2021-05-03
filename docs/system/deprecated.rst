@@ -282,18 +282,6 @@ this CPU is also deprecated.
 Related binaries
 ----------------
 
-qemu-img amend to adjust backing file (since 5.1)
-'''''''''''''''''''''''''''''''''''''''''''''''''
-
-The use of ``qemu-img amend`` to modify the name or format of a qcow2
-backing image is deprecated; this functionality was never fully
-documented or tested, and interferes with other amend operations that
-need access to the original backing image (such as deciding whether a
-v3 zero cluster may be left unallocated when converting to a v2
-image).  Rather, any changes to the backing chain should be performed
-with ``qemu-img rebase -u`` either before or after the remaining
-changes being performed by amend, as appropriate.
-
 qemu-img backing file without format (since 5.1)
 ''''''''''''''''''''''''''''''''''''''''''''''''
 

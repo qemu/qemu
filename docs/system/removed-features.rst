@@ -491,6 +491,18 @@ topologies described with -smp include all possible cpus, i.e.
 The ``enforce-config-section`` property was replaced by the
 ``-global migration.send-configuration={on|off}`` option.
 
+qemu-img amend to adjust backing file (removed in 6.1)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The use of ``qemu-img amend`` to modify the name or format of a qcow2
+backing image was never fully documented or tested, and interferes
+with other amend operations that need access to the original backing
+image (such as deciding whether a v3 zero cluster may be left
+unallocated when converting to a v2 image).  Any changes to the
+backing chain should be performed with ``qemu-img rebase -u`` either
+before or after the remaining changes being performed by amend, as
+appropriate.
+
 Block devices
 -------------
 
