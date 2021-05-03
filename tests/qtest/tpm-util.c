@@ -289,6 +289,6 @@ void tpm_util_migration_start_qemu(QTestState **src_qemu,
 
     *dst_qemu = qtest_init(dst_qemu_args);
 
-    free(src_qemu_args);
-    free(dst_qemu_args);
+    g_free(src_qemu_args);
+    g_free(dst_qemu_args);
 }
