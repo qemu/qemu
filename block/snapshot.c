@@ -275,13 +275,16 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
         qobject_unref(file_options);
         g_free(subqdict_prefix);
 
+        /* Force .bdrv_open() below to re-attach fallback_bs on *fallback_ptr */
         qdict_put_str(options, (*fallback_ptr)->name,
                       bdrv_get_node_name(fallback_bs));
 
+        /* Now close bs, apply the snapshot on fallback_bs, and re-open bs */
         if (drv->bdrv_close) {
             drv->bdrv_close(bs);
         }
 
+        /* .bdrv_open() will re-attach it */
         bdrv_unref_child(bs, *fallback_ptr);
         *fallback_ptr = NULL;
 
@@ -296,7 +299,16 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
             return ret < 0 ? ret : open_ret;
         }
 
-        assert(fallback_bs == (*fallback_ptr)->bs);
+        /*
+         * fallback_ptr is &bs->file or &bs->backing.  *fallback_ptr
+         * was closed above and set to NULL, but the .bdrv_open() call
+         * has opened it again, because we set the respective option
+         * (with the qdict_put_str() call above).
+         * Assert that .bdrv_open() has attached some child on
+         * *fallback_ptr, and that it has attached the one we wanted
+         * it to (i.e., fallback_bs).
+         */
+        assert(*fallback_ptr && fallback_bs == (*fallback_ptr)->bs);
         bdrv_unref(fallback_bs);
         return ret;
     }
