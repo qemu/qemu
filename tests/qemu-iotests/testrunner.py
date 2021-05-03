@@ -316,7 +316,6 @@ class TestRunner(ContextManager['TestRunner']):
 
         if not self.makecheck:
             self.env.print_env()
-            print()
 
         test_field_width = max(len(os.path.basename(t)) for t in tests) + 2
 
