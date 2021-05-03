@@ -305,6 +305,13 @@ The only public user of this architecture was the milkymist project,
 which has been dead for years; there was never an upstream Linux
 port.  Removed without replacement.
 
+``unicore32`` CPUs (since 6.1.0)
+''''''''''''''''''''''''''''''''
+
+Support for this CPU was removed from the upstream Linux kernel, and
+there is no available upstream toolchain to build binaries for it.
+Removed without replacement.
+
 System emulator machines
 ------------------------
 

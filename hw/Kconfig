@@ -60,7 +60,6 @@ source sh4/Kconfig
 source sparc/Kconfig
 source sparc64/Kconfig
 source tricore/Kconfig
-source unicore32/Kconfig
 source xtensa/Kconfig
 
 # Symbols used by multiple targets

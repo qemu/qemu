@@ -318,13 +318,6 @@ F: hw/sparc64/
 F: include/hw/sparc/sparc64.h
 F: disas/sparc.c
 
-UniCore32 TCG CPUs
-M: Guan Xuetao <gxt@mprc.pku.edu.cn>
-S: Maintained
-F: target/unicore32/
-F: hw/unicore32/
-F: include/hw/unicore32/
-
 X86 TCG CPUs
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Richard Henderson <richard.henderson@linaro.org>
@@ -1507,14 +1500,6 @@ S: Supported
 F: hw/s390x/s390-pci*
 F: include/hw/s390x/s390-pci*
 L: qemu-s390x@nongnu.org
-
-UniCore32 Machines
-------------------
-PKUnity-3 SoC initramfs-with-busybox
-M: Guan Xuetao <gxt@mprc.pku.edu.cn>
-S: Maintained
-F: hw/*/puv3*
-F: hw/unicore32/
 
 X86 Machines
 ------------
