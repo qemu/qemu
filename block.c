@@ -4050,7 +4050,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
         ret = bdrv_flush(bs_entry->state.bs);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Error flushing drive");
-            goto cleanup;
+            goto abort;
         }
     }
 
