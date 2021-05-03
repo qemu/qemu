@@ -15,7 +15,7 @@
 {"return": {}}
 {"execute": "blockdev-del", "arguments": {"node-name": "hd0"}}
 {"return": {}}
-==Attach two SCSI disks using the same block device and the same iothread==
+.==Attach two SCSI disks using the same block device and the same iothread==
 {"execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "hd0", "read-only": true, "read-zeroes": true}}
 {"return": {}}
 {"execute": "object-add", "arguments": {"id": "iothread0", "qom-type": "iothread"}}
@@ -32,7 +32,7 @@
 {"return": {}}
 {"execute": "blockdev-del", "arguments": {"node-name": "hd0"}}
 {"return": {}}
-==Attach two SCSI disks using the same block device but different iothreads==
+.==Attach two SCSI disks using the same block device but different iothreads==
 {"execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "hd0", "read-only": true, "read-zeroes": true}}
 {"return": {}}
 {"execute": "object-add", "arguments": {"id": "iothread0", "qom-type": "iothread"}}
@@ -55,7 +55,7 @@
 {"return": {}}
 {"execute": "blockdev-del", "arguments": {"node-name": "hd0"}}
 {"return": {}}
-==Attach a SCSI disks using the same block device as a NBD server==
+.==Attach a SCSI disks using the same block device as a NBD server==
 {"execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "hd0", "read-only": true, "read-zeroes": true}}
 {"return": {}}
 {"execute": "nbd-server-start", "arguments": {"addr": {"data": {"path": "SOCK_DIR/PID-nbd.sock"}, "type": "unix"}}}
@@ -68,7 +68,7 @@
 {"return": {}}
 {"execute": "device_add", "arguments": {"drive": "hd0", "driver": "scsi-hd", "id": "scsi-hd0"}}
 {"return": {}}
-....
+.
 ----------------------------------------------------------------------
 Ran 4 tests
 
