@@ -173,6 +173,8 @@ typedef enum {
     /* Otherwise the assembler uses mov r0,r0 */
     INSN_NOP_v4    = (COND_AL << 28) | ARITH_MOV,
 
+    INSN_VORR      = 0xf2200110,
+
     INSN_VLD1      = 0xf4200000,  /* VLD1 (multiple single elements) */
     INSN_VST1      = 0xf4000000,  /* VST1 (multiple single elements) */
 } ARMInsn;
@@ -1104,6 +1106,25 @@ static uint32_t encode_vd(TCGReg rd)
 {
     tcg_debug_assert(rd >= TCG_REG_Q0);
     return (extract32(rd, 3, 1) << 22) | (extract32(rd, 0, 3) << 13);
+}
+
+static uint32_t encode_vn(TCGReg rn)
+{
+    tcg_debug_assert(rn >= TCG_REG_Q0);
+    return (extract32(rn, 3, 1) << 7) | (extract32(rn, 0, 3) << 17);
+}
+
+static uint32_t encode_vm(TCGReg rm)
+{
+    tcg_debug_assert(rm >= TCG_REG_Q0);
+    return (extract32(rm, 3, 1) << 5) | (extract32(rm, 0, 3) << 1);
+}
+
+static void tcg_out_vreg3(TCGContext *s, ARMInsn insn, int q, int vece,
+                          TCGReg d, TCGReg n, TCGReg m)
+{
+    tcg_out32(s, insn | (vece << 20) | (q << 6) |
+              encode_vd(d) | encode_vn(n) | encode_vm(m));
 }
 
 static void tcg_out_vldst(TCGContext *s, ARMInsn insn,
@@ -2276,16 +2297,35 @@ static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
     return false;
 }
 
-static inline bool tcg_out_mov(TCGContext *s, TCGType type,
-                               TCGReg ret, TCGReg arg)
+static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
-    tcg_out_mov_reg(s, COND_AL, ret, arg);
-    return true;
+    if (ret == arg) {
+        return true;
+    }
+    switch (type) {
+    case TCG_TYPE_I32:
+        if (ret < TCG_REG_Q0 && arg < TCG_REG_Q0) {
+            tcg_out_mov_reg(s, COND_AL, ret, arg);
+            return true;
+        }
+        return false;
+
+    case TCG_TYPE_V64:
+    case TCG_TYPE_V128:
+        /* "VMOV D,N" is an alias for "VORR D,N,N". */
+        tcg_out_vreg3(s, INSN_VORR, type - TCG_TYPE_V64, 0, ret, arg, arg);
+        return true;
+
+    default:
+        g_assert_not_reached();
+    }
 }
 
-static inline void tcg_out_movi(TCGContext *s, TCGType type,
-                                TCGReg ret, tcg_target_long arg)
+static void tcg_out_movi(TCGContext *s, TCGType type,
+                         TCGReg ret, tcg_target_long arg)
 {
+    tcg_debug_assert(type == TCG_TYPE_I32);
+    tcg_debug_assert(ret < TCG_REG_Q0);
     tcg_out_movi32(s, COND_AL, ret, arg);
 }
 
