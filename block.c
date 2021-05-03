@@ -2916,13 +2916,14 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                    child_role, perm, shared_perm, opaque,
                                    &child, tran, errp);
     if (ret < 0) {
-        bdrv_unref(child_bs);
-        return NULL;
+        assert(child == NULL);
+        goto out;
     }
 
     ret = bdrv_refresh_perms(child_bs, errp);
-    tran_finalize(tran, ret);
 
+out:
+    tran_finalize(tran, ret);
     bdrv_unref(child_bs);
     return child;
 }
