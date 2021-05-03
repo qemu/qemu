@@ -1295,8 +1295,10 @@ class TestReplaces(iotests.QMPTestCase):
 class TestFilters(iotests.QMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, backing_img, '1M')
-        qemu_img('create', '-f', iotests.imgfmt, '-b', backing_img, test_img)
-        qemu_img('create', '-f', iotests.imgfmt, '-b', backing_img, target_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', backing_img,
+                 '-F', iotests.imgfmt, test_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-b', backing_img,
+                 '-F', iotests.imgfmt, target_img)
 
         qemu_io('-c', 'write -P 1 0 512k', backing_img)
         qemu_io('-c', 'write -P 2 512k 512k', test_img)

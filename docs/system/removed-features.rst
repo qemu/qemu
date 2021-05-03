@@ -503,6 +503,25 @@ backing chain should be performed with ``qemu-img rebase -u`` either
 before or after the remaining changes being performed by amend, as
 appropriate.
 
+qemu-img backing file without format (removed in 6.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The use of ``qemu-img create``, ``qemu-img rebase``, or ``qemu-img
+convert`` to create or modify an image that depends on a backing file
+now requires that an explicit backing format be provided.  This is
+for safety: if QEMU probes a different format than what you thought,
+the data presented to the guest will be corrupt; similarly, presenting
+a raw image to a guest allows a potential security exploit if a future
+probe sees a non-raw image based on guest writes.
+
+To avoid creating unsafe backing chains, you must pass ``-o
+backing_fmt=`` (or the shorthand ``-F`` during create) to specify the
+intended backing format.  You may use ``qemu-img rebase -u`` to
+retroactively add a backing format to an existing image.  However, be
+aware that there are already potential security risks to blindly using
+``qemu-img info`` to probe the format of an untrusted backing image,
+when deciding what format to add into an existing image.
+
 Block devices
 -------------
 

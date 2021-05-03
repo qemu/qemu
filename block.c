@@ -5074,7 +5074,7 @@ int coroutine_fn bdrv_co_check(BlockDriverState *bs,
  * -ENOTSUP - format driver doesn't support changing the backing file
  */
 int bdrv_change_backing_file(BlockDriverState *bs, const char *backing_file,
-                             const char *backing_fmt, bool warn)
+                             const char *backing_fmt, bool require)
 {
     BlockDriver *drv = bs->drv;
     int ret;
@@ -5088,10 +5088,8 @@ int bdrv_change_backing_file(BlockDriverState *bs, const char *backing_file,
         return -EINVAL;
     }
 
-    if (warn && backing_file && !backing_fmt) {
-        warn_report("Deprecated use of backing file without explicit "
-                    "backing format, use of this image requires "
-                    "potentially unsafe format probing");
+    if (require && backing_file && !backing_fmt) {
+        return -EINVAL;
     }
 
     if (drv->bdrv_change_backing_file != NULL) {
@@ -6601,24 +6599,11 @@ void bdrv_img_create(const char *filename, const char *fmt,
             goto out;
         } else {
             if (!backing_fmt) {
-                warn_report("Deprecated use of backing file without explicit "
-                            "backing format (detected format of %s)",
-                            bs->drv->format_name);
-                if (bs->drv != &bdrv_raw) {
-                    /*
-                     * A probe of raw deserves the most attention:
-                     * leaving the backing format out of the image
-                     * will ensure bs->probed is set (ensuring we
-                     * don't accidentally commit into the backing
-                     * file), and allow more spots to warn the users
-                     * to fix their toolchain when opening this image
-                     * later.  For other images, we can safely record
-                     * the format that we probed.
-                     */
-                    backing_fmt = bs->drv->format_name;
-                    qemu_opt_set(opts, BLOCK_OPT_BACKING_FMT, backing_fmt,
-                                 NULL);
-                }
+                error_setg(&local_err,
+                           "Backing file specified without backing format");
+                error_append_hint(&local_err, "Detected format of %s.",
+                                  bs->drv->format_name);
+                goto out;
             }
             if (size == -1) {
                 /* Opened BS, have no size */
@@ -6635,9 +6620,9 @@ void bdrv_img_create(const char *filename, const char *fmt,
         }
         /* (backing_file && !(flags & BDRV_O_NO_BACKING)) */
     } else if (backing_file && !backing_fmt) {
-        warn_report("Deprecated use of unopened backing file without "
-                    "explicit backing format, use of this image requires "
-                    "potentially unsafe format probing");
+        error_setg(&local_err,
+                   "Backing file specified without backing format");
+        goto out;
     }
 
     if (size == -1) {
