@@ -152,7 +152,7 @@ static FloatParts parts_default_nan(float_status *status)
     /* This case is true for Alpha, ARM, MIPS, OpenRISC, PPC, RISC-V,
      * S390, SH4, TriCore, and Xtensa.  I cannot find documentation
      * for Unicore32; the choice from the original commit is unchanged.
-     * Our other supported targets, CRIS, LM32, and Nios2,
+     * Our other supported targets, CRIS, Nios2, and Tile,
      * do not have floating-point.
      */
     if (snan_bit_is_one(status)) {

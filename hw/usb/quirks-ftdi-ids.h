@@ -1222,12 +1222,6 @@
 #define FTDI_SCIENCESCOPE_HS_LOGBOOK_PID	0xFF1D
 
 /*
- * Milkymist One JTAG/Serial
- */
-#define QIHARDWARE_VID			0x20B7
-#define MILKYMISTONE_JTAGSERIAL_PID	0x0713
-
-/*
  * CTI GmbH RS485 Converter http://www.cti-lean.com/
  */
 /* USB-485-Mini*/

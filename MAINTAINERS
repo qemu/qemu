@@ -207,19 +207,6 @@ F: disas/hppa.c
 F: hw/net/*i82596*
 F: include/hw/net/lasi_82596.h
 
-LM32 TCG CPUs
-R: Michael Walle <michael@walle.cc>
-S: Orphan
-F: target/lm32/
-F: disas/lm32.c
-F: hw/lm32/
-F: hw/*/lm32_*
-F: hw/*/milkymist-*
-F: include/hw/display/milkymist_tmu2.h
-F: include/hw/char/lm32_juart.h
-F: include/hw/lm32/
-F: tests/tcg/lm32/
-
 M68K TCG CPUs
 M: Laurent Vivier <laurent@vivier.eu>
 S: Maintained
@@ -1080,18 +1067,6 @@ S: Odd Fixes
 F: default-configs/*/hppa-softmmu.mak
 F: hw/hppa/
 F: pc-bios/hppa-firmware.img
-
-LM32 Machines
--------------
-EVR32 and uclinux BSP
-R: Michael Walle <michael@walle.cc>
-S: Orphan
-F: hw/lm32/lm32_boards.c
-
-milkymist
-R: Michael Walle <michael@walle.cc>
-S: Orphan
-F: hw/lm32/milkymist.c
 
 M68K Machines
 -------------

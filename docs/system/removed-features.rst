@@ -298,6 +298,13 @@ Nobody was using this CPU emulation in QEMU, and there were no test images
 available to make sure that the code is still working, so it has been removed
 without replacement.
 
+``lm32`` CPUs (removed in 6.1.0)
+''''''''''''''''''''''''''''''''
+
+The only public user of this architecture was the milkymist project,
+which has been dead for years; there was never an upstream Linux
+port.  Removed without replacement.
+
 System emulator machines
 ------------------------
 

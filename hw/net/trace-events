@@ -19,18 +19,6 @@ mdio_bitbang(bool mdc, bool mdio, int state, uint16_t cnt, unsigned int drive) "
 lance_mem_readw(uint64_t addr, uint32_t ret) "addr=0x%"PRIx64"val=0x%04x"
 lance_mem_writew(uint64_t addr, uint32_t val) "addr=0x%"PRIx64"val=0x%04x"
 
-# milkymist-minimac2.c
-milkymist_minimac2_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-milkymist_minimac2_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-milkymist_minimac2_mdio_write(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr 0x%02x addr 0x%02x value 0x%04x"
-milkymist_minimac2_mdio_read(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr 0x%02x addr 0x%02x value 0x%04x"
-milkymist_minimac2_tx_frame(uint32_t length) "length %u"
-milkymist_minimac2_rx_frame(const void *buf, uint32_t length) "buf %p length %u"
-milkymist_minimac2_rx_transfer(const void *buf, uint32_t length) "buf %p length %d"
-milkymist_minimac2_raise_irq_rx(void) "Raise IRQ RX"
-milkymist_minimac2_lower_irq_rx(void) "Lower IRQ RX"
-milkymist_minimac2_pulse_irq_tx(void) "Pulse IRQ TX"
-
 # mipsnet.c
 mipsnet_send(uint32_t size) "sending len=%u"
 mipsnet_receive(uint32_t size) "receiving len=%u"

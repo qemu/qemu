@@ -624,7 +624,7 @@ build-deprecated:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools
     MAKE_CHECK_ARGS: build-tcg
-    TARGETS: ppc64abi32-linux-user lm32-softmmu unicore32-softmmu
+    TARGETS: ppc64abi32-linux-user unicore32-softmmu
   artifacts:
     expire_in: 2 days
     paths:
