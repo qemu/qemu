@@ -1396,12 +1396,6 @@ static void ss5_class_init(ObjectClass *oc, void *data)
     smc->hwdef = &sun4m_hwdefs[0];
 }
 
-static const TypeInfo ss5_type = {
-    .name = MACHINE_TYPE_NAME("SS-5"),
-    .parent = TYPE_SUN4M_MACHINE,
-    .class_init = ss5_class_init,
-};
-
 static void ss10_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1412,12 +1406,6 @@ static void ss10_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
     smc->hwdef = &sun4m_hwdefs[1];
 }
-
-static const TypeInfo ss10_type = {
-    .name = MACHINE_TYPE_NAME("SS-10"),
-    .parent = TYPE_SUN4M_MACHINE,
-    .class_init = ss10_class_init,
-};
 
 static void ss600mp_class_init(ObjectClass *oc, void *data)
 {
@@ -1430,12 +1418,6 @@ static void ss600mp_class_init(ObjectClass *oc, void *data)
     smc->hwdef = &sun4m_hwdefs[2];
 }
 
-static const TypeInfo ss600mp_type = {
-    .name = MACHINE_TYPE_NAME("SS-600MP"),
-    .parent = TYPE_SUN4M_MACHINE,
-    .class_init = ss600mp_class_init,
-};
-
 static void ss20_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1447,12 +1429,6 @@ static void ss20_class_init(ObjectClass *oc, void *data)
     smc->hwdef = &sun4m_hwdefs[3];
 }
 
-static const TypeInfo ss20_type = {
-    .name = MACHINE_TYPE_NAME("SS-20"),
-    .parent = TYPE_SUN4M_MACHINE,
-    .class_init = ss20_class_init,
-};
-
 static void voyager_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1462,12 +1438,6 @@ static void voyager_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
     smc->hwdef = &sun4m_hwdefs[4];
 }
-
-static const TypeInfo voyager_type = {
-    .name = MACHINE_TYPE_NAME("Voyager"),
-    .parent = TYPE_SUN4M_MACHINE,
-    .class_init = voyager_class_init,
-};
 
 static void ss_lx_class_init(ObjectClass *oc, void *data)
 {
@@ -1479,12 +1449,6 @@ static void ss_lx_class_init(ObjectClass *oc, void *data)
     smc->hwdef = &sun4m_hwdefs[5];
 }
 
-static const TypeInfo ss_lx_type = {
-    .name = MACHINE_TYPE_NAME("LX"),
-    .parent = TYPE_SUN4M_MACHINE,
-    .class_init = ss_lx_class_init,
-};
-
 static void ss4_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1494,12 +1458,6 @@ static void ss4_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
     smc->hwdef = &sun4m_hwdefs[6];
 }
-
-static const TypeInfo ss4_type = {
-    .name = MACHINE_TYPE_NAME("SS-4"),
-    .parent = TYPE_SUN4M_MACHINE,
-    .class_init = ss4_class_init,
-};
 
 static void scls_class_init(ObjectClass *oc, void *data)
 {
@@ -1511,12 +1469,6 @@ static void scls_class_init(ObjectClass *oc, void *data)
     smc->hwdef = &sun4m_hwdefs[7];
 }
 
-static const TypeInfo scls_type = {
-    .name = MACHINE_TYPE_NAME("SPARCClassic"),
-    .parent = TYPE_SUN4M_MACHINE,
-    .class_init = scls_class_init,
-};
-
 static void sbook_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1527,14 +1479,44 @@ static void sbook_class_init(ObjectClass *oc, void *data)
     smc->hwdef = &sun4m_hwdefs[8];
 }
 
-static const TypeInfo sbook_type = {
-    .name = MACHINE_TYPE_NAME("SPARCbook"),
-    .parent = TYPE_SUN4M_MACHINE,
-    .class_init = sbook_class_init,
-};
-
 static const TypeInfo sun4m_machine_types[] = {
     {
+        .name           = MACHINE_TYPE_NAME("SS-5"),
+        .parent         = TYPE_SUN4M_MACHINE,
+        .class_init     = ss5_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("SS-10"),
+        .parent         = TYPE_SUN4M_MACHINE,
+        .class_init     = ss10_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("SS-600MP"),
+        .parent         = TYPE_SUN4M_MACHINE,
+        .class_init     = ss600mp_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("SS-20"),
+        .parent         = TYPE_SUN4M_MACHINE,
+        .class_init     = ss20_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("Voyager"),
+        .parent         = TYPE_SUN4M_MACHINE,
+        .class_init     = voyager_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("LX"),
+        .parent         = TYPE_SUN4M_MACHINE,
+        .class_init     = ss_lx_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("SS-4"),
+        .parent         = TYPE_SUN4M_MACHINE,
+        .class_init     = ss4_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("SPARCClassic"),
+        .parent         = TYPE_SUN4M_MACHINE,
+        .class_init     = scls_class_init,
+    }, {
+        .name           = MACHINE_TYPE_NAME("SPARCbook"),
+        .parent         = TYPE_SUN4M_MACHINE,
+        .class_init     = sbook_class_init,
+    }, {
         .name           = TYPE_SUN4M_MACHINE,
         .parent         = TYPE_MACHINE,
         .class_size     = sizeof(Sun4mMachineClass),
@@ -1551,16 +1533,6 @@ static void sun4m_register_types(void)
     type_register_static(&afx_info);
     type_register_static(&prom_info);
     type_register_static(&ram_info);
-
-    type_register_static(&ss5_type);
-    type_register_static(&ss10_type);
-    type_register_static(&ss600mp_type);
-    type_register_static(&ss20_type);
-    type_register_static(&voyager_type);
-    type_register_static(&ss_lx_type);
-    type_register_static(&ss4_type);
-    type_register_static(&scls_type);
-    type_register_static(&sbook_type);
 }
 
 type_init(sun4m_register_types)
