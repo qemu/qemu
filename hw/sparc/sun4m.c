@@ -1374,58 +1374,15 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
     },
 };
 
-/* SPARCstation 5 hardware initialisation */
-static void ss5_init(MachineState *machine)
+static void sun4m_machine_class_init(ObjectClass *oc, void *data)
 {
-    sun4m_hw_init(machine);
-}
+    MachineClass *mc = MACHINE_CLASS(oc);
 
-/* SPARCstation 10 hardware initialisation */
-static void ss10_init(MachineState *machine)
-{
-    sun4m_hw_init(machine);
-}
-
-/* SPARCserver 600MP hardware initialisation */
-static void ss600mp_init(MachineState *machine)
-{
-    sun4m_hw_init(machine);
-}
-
-/* SPARCstation 20 hardware initialisation */
-static void ss20_init(MachineState *machine)
-{
-    sun4m_hw_init(machine);
-}
-
-/* SPARCstation Voyager hardware initialisation */
-static void vger_init(MachineState *machine)
-{
-    sun4m_hw_init(machine);
-}
-
-/* SPARCstation LX hardware initialisation */
-static void ss_lx_init(MachineState *machine)
-{
-    sun4m_hw_init(machine);
-}
-
-/* SPARCstation 4 hardware initialisation */
-static void ss4_init(MachineState *machine)
-{
-    sun4m_hw_init(machine);
-}
-
-/* SPARCClassic hardware initialisation */
-static void scls_init(MachineState *machine)
-{
-    sun4m_hw_init(machine);
-}
-
-/* SPARCbook hardware initialisation */
-static void sbook_init(MachineState *machine)
-{
-    sun4m_hw_init(machine);
+    mc->init = sun4m_hw_init;
+    mc->block_default_type = IF_SCSI;
+    mc->default_boot_order = "c";
+    mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
 }
 
 static void ss5_class_init(ObjectClass *oc, void *data)
@@ -1434,13 +1391,8 @@ static void ss5_class_init(ObjectClass *oc, void *data)
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
 
     mc->desc = "Sun4m platform, SPARCstation 5";
-    mc->init = ss5_init;
-    mc->block_default_type = IF_SCSI;
     mc->is_default = true;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
     smc->hwdef = &sun4m_hwdefs[0];
 }
 
@@ -1456,13 +1408,8 @@ static void ss10_class_init(ObjectClass *oc, void *data)
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
 
     mc->desc = "Sun4m platform, SPARCstation 10";
-    mc->init = ss10_init;
-    mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
     smc->hwdef = &sun4m_hwdefs[1];
 }
 
@@ -1478,13 +1425,8 @@ static void ss600mp_class_init(ObjectClass *oc, void *data)
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
 
     mc->desc = "Sun4m platform, SPARCserver 600MP";
-    mc->init = ss600mp_init;
-    mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
     smc->hwdef = &sun4m_hwdefs[2];
 }
 
@@ -1500,13 +1442,8 @@ static void ss20_class_init(ObjectClass *oc, void *data)
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
 
     mc->desc = "Sun4m platform, SPARCstation 20";
-    mc->init = ss20_init;
-    mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
     smc->hwdef = &sun4m_hwdefs[3];
 }
 
@@ -1522,12 +1459,7 @@ static void voyager_class_init(ObjectClass *oc, void *data)
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
 
     mc->desc = "Sun4m platform, SPARCstation Voyager";
-    mc->init = vger_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
     smc->hwdef = &sun4m_hwdefs[4];
 }
 
@@ -1543,12 +1475,7 @@ static void ss_lx_class_init(ObjectClass *oc, void *data)
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
 
     mc->desc = "Sun4m platform, SPARCstation LX";
-    mc->init = ss_lx_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
     smc->hwdef = &sun4m_hwdefs[5];
 }
 
@@ -1564,12 +1491,7 @@ static void ss4_class_init(ObjectClass *oc, void *data)
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
 
     mc->desc = "Sun4m platform, SPARCstation 4";
-    mc->init = ss4_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
     smc->hwdef = &sun4m_hwdefs[6];
 }
 
@@ -1585,12 +1507,7 @@ static void scls_class_init(ObjectClass *oc, void *data)
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
 
     mc->desc = "Sun4m platform, SPARCClassic";
-    mc->init = scls_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
     smc->hwdef = &sun4m_hwdefs[7];
 }
 
@@ -1606,12 +1523,7 @@ static void sbook_class_init(ObjectClass *oc, void *data)
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
 
     mc->desc = "Sun4m platform, SPARCbook";
-    mc->init = sbook_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
     smc->hwdef = &sun4m_hwdefs[8];
 }
 
@@ -1626,6 +1538,7 @@ static const TypeInfo sun4m_machine_types[] = {
         .name           = TYPE_SUN4M_MACHINE,
         .parent         = TYPE_MACHINE,
         .class_size     = sizeof(Sun4mMachineClass),
+        .class_init     = sun4m_machine_class_init,
         .abstract       = true,
     }
 };
