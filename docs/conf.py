@@ -279,6 +279,7 @@ man_pages = [
      ['Stefan Hajnoczi <stefanha@redhat.com>',
       'Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>'], 1),
 ]
+man_make_section_directory = False
 
 # -- Options for Texinfo output -------------------------------------------
 
