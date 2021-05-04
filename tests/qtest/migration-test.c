@@ -898,8 +898,8 @@ static void test_xbzrle(const char *uri)
 
     migrate_set_parameter_int(from, "xbzrle-cache-size", 33554432);
 
-    migrate_set_capability(from, "xbzrle", "true");
-    migrate_set_capability(to, "xbzrle", "true");
+    migrate_set_capability(from, "xbzrle", true);
+    migrate_set_capability(to, "xbzrle", true);
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
 
@@ -1246,8 +1246,8 @@ static void test_multifd_tcp(const char *method)
     migrate_set_parameter_str(from, "multifd-compression", method);
     migrate_set_parameter_str(to, "multifd-compression", method);
 
-    migrate_set_capability(from, "multifd", "true");
-    migrate_set_capability(to, "multifd", "true");
+    migrate_set_capability(from, "multifd", true);
+    migrate_set_capability(to, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
     rsp = wait_command(to, "{ 'execute': 'migrate-incoming',"
@@ -1330,8 +1330,8 @@ static void test_multifd_tcp_cancel(void)
     migrate_set_parameter_int(from, "multifd-channels", 16);
     migrate_set_parameter_int(to, "multifd-channels", 16);
 
-    migrate_set_capability(from, "multifd", "true");
-    migrate_set_capability(to, "multifd", "true");
+    migrate_set_capability(from, "multifd", true);
+    migrate_set_capability(to, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
     rsp = wait_command(to, "{ 'execute': 'migrate-incoming',"
@@ -1358,7 +1358,7 @@ static void test_multifd_tcp_cancel(void)
 
     migrate_set_parameter_int(to2, "multifd-channels", 16);
 
-    migrate_set_capability(to2, "multifd", "true");
+    migrate_set_capability(to2, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
     rsp = wait_command(to2, "{ 'execute': 'migrate-incoming',"
