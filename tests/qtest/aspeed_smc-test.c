@@ -367,12 +367,12 @@ int main(int argc, char **argv)
                                "-drive file=%s,format=raw,if=mtd",
                                tmp_path);
 
-    qtest_add_func("/m25p80/read_jedec", test_read_jedec);
-    qtest_add_func("/m25p80/erase_sector", test_erase_sector);
-    qtest_add_func("/m25p80/erase_all",  test_erase_all);
-    qtest_add_func("/m25p80/write_page", test_write_page);
-    qtest_add_func("/m25p80/read_page_mem", test_read_page_mem);
-    qtest_add_func("/m25p80/write_page_mem", test_write_page_mem);
+    qtest_add_func("/ast2400/smc/read_jedec", test_read_jedec);
+    qtest_add_func("/ast2400/smc/erase_sector", test_erase_sector);
+    qtest_add_func("/ast2400/smc/erase_all",  test_erase_all);
+    qtest_add_func("/ast2400/smc/write_page", test_write_page);
+    qtest_add_func("/ast2400/smc/read_page_mem", test_read_page_mem);
+    qtest_add_func("/ast2400/smc/write_page_mem", test_write_page_mem);
 
     ret = g_test_run();
 

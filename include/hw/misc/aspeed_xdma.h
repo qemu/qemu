@@ -13,7 +13,10 @@
 #include "qom/object.h"
 
 #define TYPE_ASPEED_XDMA "aspeed.xdma"
-OBJECT_DECLARE_SIMPLE_TYPE(AspeedXDMAState, ASPEED_XDMA)
+#define TYPE_ASPEED_2400_XDMA TYPE_ASPEED_XDMA "-ast2400"
+#define TYPE_ASPEED_2500_XDMA TYPE_ASPEED_XDMA "-ast2500"
+#define TYPE_ASPEED_2600_XDMA TYPE_ASPEED_XDMA "-ast2600"
+OBJECT_DECLARE_TYPE(AspeedXDMAState, AspeedXDMAClass, ASPEED_XDMA)
 
 #define ASPEED_XDMA_NUM_REGS (ASPEED_XDMA_REG_SIZE / sizeof(uint32_t))
 #define ASPEED_XDMA_REG_SIZE 0x7C
@@ -26,6 +29,18 @@ struct AspeedXDMAState {
 
     char bmc_cmdq_readp_set;
     uint32_t regs[ASPEED_XDMA_NUM_REGS];
+};
+
+struct AspeedXDMAClass {
+    SysBusDeviceClass parent_class;
+
+    uint8_t cmdq_endp;
+    uint8_t cmdq_wrp;
+    uint8_t cmdq_rdp;
+    uint8_t intr_ctrl;
+    uint32_t intr_ctrl_mask;
+    uint8_t intr_status;
+    uint32_t intr_complete;
 };
 
 #endif /* ASPEED_XDMA_H */
