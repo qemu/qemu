@@ -40,7 +40,7 @@
 
 #endif
 
-#include "qemu/atomic.h"
+#include "include/atomic.h"
 
 #include "libvhost-user.h"
 
