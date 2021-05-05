@@ -979,6 +979,7 @@ static void spapr_dt_ov5_platform_support(SpaprMachineState *spapr, void *fdt,
          */
         val[1] = SPAPR_OV5_XIVE_LEGACY; /* XICS */
         val[3] = 0x00; /* Hash */
+        spapr_check_mmu_mode(false);
     } else if (kvm_enabled()) {
         if (kvmppc_has_cap_mmu_radix() && kvmppc_has_cap_mmu_hash_v3()) {
             val[3] = 0x80; /* OV5_MMU_BOTH */
