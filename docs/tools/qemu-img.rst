@@ -866,6 +866,37 @@ Supported image file formats:
     issue ``lsattr filename`` to check if the NOCOW flag is set or not
     (Capital 'C' is NOCOW flag).
 
+  ``data_file``
+    Filename where all guest data will be stored. If this option is used,
+    the qcow2 file will only contain the image's metadata.
+
+    Note: Data loss will occur if the given filename already exists when
+    using this option with ``qemu-img create`` since ``qemu-img`` will create
+    the data file anew, overwriting the file's original contents. To simply
+    update the reference to point to the given pre-existing file, use
+    ``qemu-img amend``.
+
+  ``data_file_raw``
+    If this option is set to ``on``, QEMU will always keep the external data
+    file consistent as a standalone read-only raw image.
+
+    It does this by forwarding all write accesses to the qcow2 file through to
+    the raw data file, including their offsets. Therefore, data that is visible
+    on the qcow2 node (i.e., to the guest) at some offset is visible at the same
+    offset in the raw data file. This results in a read-only raw image. Writes
+    that bypass the qcow2 metadata may corrupt the qcow2 metadata because the
+    out-of-band writes may result in the metadata falling out of sync with the
+    raw image.
+
+    If this option is ``off``, QEMU will use the data file to store data in an
+    arbitrary manner. The file’s content will not make sense without the
+    accompanying qcow2 metadata. Where data is written will have no relation to
+    its offset as seen by the guest, and some writes (specifically zero writes)
+    may not be forwarded to the data file at all, but will only be handled by
+    modifying qcow2 metadata.
+
+    This option can only be enabled if ``data_file`` is set.
+
 ``Other``
 
   QEMU also supports various other image file formats for
