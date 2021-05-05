@@ -3376,7 +3376,6 @@ static size_t note_size(const struct memelfnote *);
 static void free_note_info(struct elf_note_info *);
 static int fill_note_info(struct elf_note_info *, long, const CPUArchState *);
 static void fill_thread_info(struct elf_note_info *, const CPUArchState *);
-static int core_dump_filename(const TaskState *, char *, size_t);
 
 static int dump_write(int, const void *, size_t);
 static int write_note(struct memelfnote *, int);
@@ -3675,32 +3674,16 @@ static void fill_auxv_note(struct memelfnote *note, const TaskState *ts)
  * for the name:
  *     qemu_<basename-of-target-binary>_<date>-<time>_<pid>.core
  *
- * Returns 0 in case of success, -1 otherwise (errno is set).
+ * Returns the filename
  */
-static int core_dump_filename(const TaskState *ts, char *buf,
-                              size_t bufsize)
+static char *core_dump_filename(const TaskState *ts)
 {
-    char timestamp[64];
-    char *base_filename = NULL;
-    struct timeval tv;
-    struct tm tm;
+    g_autoptr(GDateTime) now = g_date_time_new_now_local();
+    g_autofree char *nowstr = g_date_time_format(now, "%Y%m%d-%H%M%S");
+    g_autofree char *base_filename = g_path_get_basename(ts->bprm->filename);
 
-    assert(bufsize >= PATH_MAX);
-
-    if (gettimeofday(&tv, NULL) < 0) {
-        (void) fprintf(stderr, "unable to get current timestamp: %s",
-                       strerror(errno));
-        return (-1);
-    }
-
-    base_filename = g_path_get_basename(ts->bprm->filename);
-    (void) strftime(timestamp, sizeof (timestamp), "%Y%m%d-%H%M%S",
-                    localtime_r(&tv.tv_sec, &tm));
-    (void) snprintf(buf, bufsize, "qemu_%s_%s_%d.core",
-                    base_filename, timestamp, (int)getpid());
-    g_free(base_filename);
-
-    return (0);
+    return g_strdup_printf("qemu_%s_%s_%d.core",
+                           base_filename, nowstr, (int)getpid());
 }
 
 static int dump_write(int fd, const void *ptr, size_t size)
@@ -3928,7 +3911,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     const CPUState *cpu = env_cpu((CPUArchState *)env);
     const TaskState *ts = (const TaskState *)cpu->opaque;
     struct vm_area_struct *vma = NULL;
-    char corefile[PATH_MAX];
+    g_autofree char *corefile = NULL;
     struct elf_note_info info;
     struct elfhdr elf;
     struct elf_phdr phdr;
@@ -3945,8 +3928,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     if (dumpsize.rlim_cur == 0)
         return 0;
 
-    if (core_dump_filename(ts, corefile, sizeof (corefile)) < 0)
-        return (-errno);
+    corefile = core_dump_filename(ts);
 
     if ((fd = open(corefile, O_WRONLY | O_CREAT,
                    S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0)
