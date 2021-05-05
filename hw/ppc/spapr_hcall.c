@@ -1760,18 +1760,8 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
     spapr_ovec_intersect(spapr->ov5_cas, spapr->ov5, ov5_guest);
     spapr_ovec_cleanup(ov5_guest);
 
-    if (guest_radix) {
-        if (kvm_enabled() && !kvmppc_has_cap_mmu_radix()) {
-            error_report("Guest requested unavailable MMU mode (radix).");
-            exit(EXIT_FAILURE);
-        }
-    } else {
-        if (kvm_enabled() && kvmppc_has_cap_mmu_radix()
-            && !kvmppc_has_cap_mmu_hash_v3()) {
-            error_report("Guest requested unavailable MMU mode (hash).");
-            exit(EXIT_FAILURE);
-        }
-    }
+    spapr_check_mmu_mode(guest_radix);
+
     spapr->cas_pre_isa3_guest = !spapr_ovec_test(ov1_guest, OV1_PPC_3_00);
     spapr_ovec_cleanup(ov1_guest);
 
