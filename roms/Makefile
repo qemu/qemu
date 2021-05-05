@@ -154,10 +154,10 @@ slof:
 	cp SLOF/boot_rom.bin ../pc-bios/slof.bin
 
 u-boot.e500:
-	$(MAKE) -C u-boot O=build.e500 qemu-ppce500_config
+	$(MAKE) -C u-boot O=build-e500 qemu-ppce500_config
 	$(MAKE) -C u-boot CROSS_COMPILE=$(powerpc_cross_prefix) \
-		O=build.e500
-	$(powerpc_cross_prefix)strip u-boot/build.e500/u-boot -o \
+		O=build-e500
+	$(powerpc_cross_prefix)strip u-boot/build-e500/u-boot -o \
 		../pc-bios/u-boot.e500
 
 u-boot.sam460:
@@ -205,7 +205,7 @@ clean:
 	$(MAKE) -C ipxe/src veryclean
 	$(MAKE) -C edk2/BaseTools clean
 	$(MAKE) -C SLOF clean
-	rm -rf u-boot/build.e500
+	rm -rf u-boot/build-e500
 	$(MAKE) -C u-boot-sam460ex distclean
 	$(MAKE) -C skiboot clean
 	$(MAKE) -f Makefile.edk2 clean

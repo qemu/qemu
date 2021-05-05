@@ -173,7 +173,6 @@ struct DisasContext {
     bool vsx_enabled;
     bool spe_enabled;
     bool tm_enabled;
-    bool scv_enabled;
     bool gtse;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
@@ -4081,15 +4080,16 @@ static void gen_sc(DisasContext *ctx)
 #if !defined(CONFIG_USER_ONLY)
 static void gen_scv(DisasContext *ctx)
 {
-    uint32_t lev;
+    uint32_t lev = (ctx->opcode >> 5) & 0x7F;
 
-    if (unlikely(!ctx->scv_enabled)) {
-        gen_exception_err(ctx, POWERPC_EXCP_FU, FSCR_IC_SCV);
-        return;
+    /* Set the PC back to the faulting instruction. */
+    if (ctx->exception == POWERPC_EXCP_NONE) {
+        gen_update_nip(ctx, ctx->base.pc_next - 4);
     }
+    gen_helper_scv(cpu_env, tcg_constant_i32(lev));
 
-    lev = (ctx->opcode >> 5) & 0x7F;
-    gen_exception_err(ctx, POWERPC_SYSCALL_VECTORED, lev);
+    /* This need not be exact, just not POWERPC_EXCP_NONE */
+    ctx->exception = POWERPC_SYSCALL_VECTORED;
 }
 #endif
 #endif
@@ -7657,9 +7657,9 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                  env->nip, env->lr, env->ctr, cpu_read_xer(env),
                  cs->cpu_index);
     qemu_fprintf(f, "MSR " TARGET_FMT_lx " HID0 " TARGET_FMT_lx "  HF "
-                 TARGET_FMT_lx " iidx %d didx %d\n",
-                 env->msr, env->spr[SPR_HID0],
-                 env->hflags, env->immu_idx, env->dmmu_idx);
+                 "%08x iidx %d didx %d\n",
+                 env->msr, env->spr[SPR_HID0], env->hflags,
+                 cpu_mmu_index(env, true), cpu_mmu_index(env, false));
 #if !defined(NO_TIMER_DUMP)
     qemu_fprintf(f, "TB %08" PRIu32 " %08" PRIu64
 #if !defined(CONFIG_USER_ONLY)
@@ -7731,7 +7731,8 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 #if defined(TARGET_PPC64)
     if (env->excp_model == POWERPC_EXCP_POWER7 ||
         env->excp_model == POWERPC_EXCP_POWER8 ||
-        env->excp_model == POWERPC_EXCP_POWER9)  {
+        env->excp_model == POWERPC_EXCP_POWER9 ||
+        env->excp_model == POWERPC_EXCP_POWER10)  {
         qemu_fprintf(f, "HSRR0 " TARGET_FMT_lx " HSRR1 " TARGET_FMT_lx "\n",
                      env->spr[SPR_HSRR0], env->spr[SPR_HSRR1]);
     }
@@ -7825,6 +7826,400 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 #undef RFPL
 }
 
+/*****************************************************************************/
+/* Opcode types */
+enum {
+    PPC_DIRECT   = 0, /* Opcode routine        */
+    PPC_INDIRECT = 1, /* Indirect opcode table */
+};
+
+#define PPC_OPCODE_MASK 0x3
+
+static inline int is_indirect_opcode(void *handler)
+{
+    return ((uintptr_t)handler & PPC_OPCODE_MASK) == PPC_INDIRECT;
+}
+
+static inline opc_handler_t **ind_table(void *handler)
+{
+    return (opc_handler_t **)((uintptr_t)handler & ~PPC_OPCODE_MASK);
+}
+
+/* Instruction table creation */
+/* Opcodes tables creation */
+static void fill_new_table(opc_handler_t **table, int len)
+{
+    int i;
+
+    for (i = 0; i < len; i++) {
+        table[i] = &invalid_handler;
+    }
+}
+
+static int create_new_table(opc_handler_t **table, unsigned char idx)
+{
+    opc_handler_t **tmp;
+
+    tmp = g_new(opc_handler_t *, PPC_CPU_INDIRECT_OPCODES_LEN);
+    fill_new_table(tmp, PPC_CPU_INDIRECT_OPCODES_LEN);
+    table[idx] = (opc_handler_t *)((uintptr_t)tmp | PPC_INDIRECT);
+
+    return 0;
+}
+
+static int insert_in_table(opc_handler_t **table, unsigned char idx,
+                            opc_handler_t *handler)
+{
+    if (table[idx] != &invalid_handler) {
+        return -1;
+    }
+    table[idx] = handler;
+
+    return 0;
+}
+
+static int register_direct_insn(opc_handler_t **ppc_opcodes,
+                                unsigned char idx, opc_handler_t *handler)
+{
+    if (insert_in_table(ppc_opcodes, idx, handler) < 0) {
+        printf("*** ERROR: opcode %02x already assigned in main "
+               "opcode table\n", idx);
+#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
+        printf("           Registered handler '%s' - new handler '%s'\n",
+               ppc_opcodes[idx]->oname, handler->oname);
+#endif
+        return -1;
+    }
+
+    return 0;
+}
+
+static int register_ind_in_table(opc_handler_t **table,
+                                 unsigned char idx1, unsigned char idx2,
+                                 opc_handler_t *handler)
+{
+    if (table[idx1] == &invalid_handler) {
+        if (create_new_table(table, idx1) < 0) {
+            printf("*** ERROR: unable to create indirect table "
+                   "idx=%02x\n", idx1);
+            return -1;
+        }
+    } else {
+        if (!is_indirect_opcode(table[idx1])) {
+            printf("*** ERROR: idx %02x already assigned to a direct "
+                   "opcode\n", idx1);
+#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
+            printf("           Registered handler '%s' - new handler '%s'\n",
+                   ind_table(table[idx1])[idx2]->oname, handler->oname);
+#endif
+            return -1;
+        }
+    }
+    if (handler != NULL &&
+        insert_in_table(ind_table(table[idx1]), idx2, handler) < 0) {
+        printf("*** ERROR: opcode %02x already assigned in "
+               "opcode table %02x\n", idx2, idx1);
+#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
+        printf("           Registered handler '%s' - new handler '%s'\n",
+               ind_table(table[idx1])[idx2]->oname, handler->oname);
+#endif
+        return -1;
+    }
+
+    return 0;
+}
+
+static int register_ind_insn(opc_handler_t **ppc_opcodes,
+                             unsigned char idx1, unsigned char idx2,
+                             opc_handler_t *handler)
+{
+    return register_ind_in_table(ppc_opcodes, idx1, idx2, handler);
+}
+
+static int register_dblind_insn(opc_handler_t **ppc_opcodes,
+                                unsigned char idx1, unsigned char idx2,
+                                unsigned char idx3, opc_handler_t *handler)
+{
+    if (register_ind_in_table(ppc_opcodes, idx1, idx2, NULL) < 0) {
+        printf("*** ERROR: unable to join indirect table idx "
+               "[%02x-%02x]\n", idx1, idx2);
+        return -1;
+    }
+    if (register_ind_in_table(ind_table(ppc_opcodes[idx1]), idx2, idx3,
+                              handler) < 0) {
+        printf("*** ERROR: unable to insert opcode "
+               "[%02x-%02x-%02x]\n", idx1, idx2, idx3);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int register_trplind_insn(opc_handler_t **ppc_opcodes,
+                                 unsigned char idx1, unsigned char idx2,
+                                 unsigned char idx3, unsigned char idx4,
+                                 opc_handler_t *handler)
+{
+    opc_handler_t **table;
+
+    if (register_ind_in_table(ppc_opcodes, idx1, idx2, NULL) < 0) {
+        printf("*** ERROR: unable to join indirect table idx "
+               "[%02x-%02x]\n", idx1, idx2);
+        return -1;
+    }
+    table = ind_table(ppc_opcodes[idx1]);
+    if (register_ind_in_table(table, idx2, idx3, NULL) < 0) {
+        printf("*** ERROR: unable to join 2nd-level indirect table idx "
+               "[%02x-%02x-%02x]\n", idx1, idx2, idx3);
+        return -1;
+    }
+    table = ind_table(table[idx2]);
+    if (register_ind_in_table(table, idx3, idx4, handler) < 0) {
+        printf("*** ERROR: unable to insert opcode "
+               "[%02x-%02x-%02x-%02x]\n", idx1, idx2, idx3, idx4);
+        return -1;
+    }
+    return 0;
+}
+static int register_insn(opc_handler_t **ppc_opcodes, opcode_t *insn)
+{
+    if (insn->opc2 != 0xFF) {
+        if (insn->opc3 != 0xFF) {
+            if (insn->opc4 != 0xFF) {
+                if (register_trplind_insn(ppc_opcodes, insn->opc1, insn->opc2,
+                                          insn->opc3, insn->opc4,
+                                          &insn->handler) < 0) {
+                    return -1;
+                }
+            } else {
+                if (register_dblind_insn(ppc_opcodes, insn->opc1, insn->opc2,
+                                         insn->opc3, &insn->handler) < 0) {
+                    return -1;
+                }
+            }
+        } else {
+            if (register_ind_insn(ppc_opcodes, insn->opc1,
+                                  insn->opc2, &insn->handler) < 0) {
+                return -1;
+            }
+        }
+    } else {
+        if (register_direct_insn(ppc_opcodes, insn->opc1, &insn->handler) < 0) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_opcode_table(opc_handler_t **table, int len)
+{
+    int i, count, tmp;
+
+    for (i = 0, count = 0; i < len; i++) {
+        /* Consistency fixup */
+        if (table[i] == NULL) {
+            table[i] = &invalid_handler;
+        }
+        if (table[i] != &invalid_handler) {
+            if (is_indirect_opcode(table[i])) {
+                tmp = test_opcode_table(ind_table(table[i]),
+                    PPC_CPU_INDIRECT_OPCODES_LEN);
+                if (tmp == 0) {
+                    free(table[i]);
+                    table[i] = &invalid_handler;
+                } else {
+                    count++;
+                }
+            } else {
+                count++;
+            }
+        }
+    }
+
+    return count;
+}
+
+static void fix_opcode_tables(opc_handler_t **ppc_opcodes)
+{
+    if (test_opcode_table(ppc_opcodes, PPC_CPU_OPCODES_LEN) == 0) {
+        printf("*** WARNING: no opcode defined !\n");
+    }
+}
+
+/*****************************************************************************/
+void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    opcode_t *opc;
+
+    fill_new_table(cpu->opcodes, PPC_CPU_OPCODES_LEN);
+    for (opc = opcodes; opc < &opcodes[ARRAY_SIZE(opcodes)]; opc++) {
+        if (((opc->handler.type & pcc->insns_flags) != 0) ||
+            ((opc->handler.type2 & pcc->insns_flags2) != 0)) {
+            if (register_insn(cpu->opcodes, opc) < 0) {
+                error_setg(errp, "ERROR initializing PowerPC instruction "
+                           "0x%02x 0x%02x 0x%02x", opc->opc1, opc->opc2,
+                           opc->opc3);
+                return;
+            }
+        }
+    }
+    fix_opcode_tables(cpu->opcodes);
+    fflush(stdout);
+    fflush(stderr);
+}
+
+void destroy_ppc_opcodes(PowerPCCPU *cpu)
+{
+    opc_handler_t **table, **table_2;
+    int i, j, k;
+
+    for (i = 0; i < PPC_CPU_OPCODES_LEN; i++) {
+        if (cpu->opcodes[i] == &invalid_handler) {
+            continue;
+        }
+        if (is_indirect_opcode(cpu->opcodes[i])) {
+            table = ind_table(cpu->opcodes[i]);
+            for (j = 0; j < PPC_CPU_INDIRECT_OPCODES_LEN; j++) {
+                if (table[j] == &invalid_handler) {
+                    continue;
+                }
+                if (is_indirect_opcode(table[j])) {
+                    table_2 = ind_table(table[j]);
+                    for (k = 0; k < PPC_CPU_INDIRECT_OPCODES_LEN; k++) {
+                        if (table_2[k] != &invalid_handler &&
+                            is_indirect_opcode(table_2[k])) {
+                            g_free((opc_handler_t *)((uintptr_t)table_2[k] &
+                                                     ~PPC_INDIRECT));
+                        }
+                    }
+                    g_free((opc_handler_t *)((uintptr_t)table[j] &
+                                             ~PPC_INDIRECT));
+                }
+            }
+            g_free((opc_handler_t *)((uintptr_t)cpu->opcodes[i] &
+                ~PPC_INDIRECT));
+        }
+    }
+}
+
+#if defined(PPC_DUMP_CPU)
+static void dump_ppc_insns(CPUPPCState *env)
+{
+    opc_handler_t **table, *handler;
+    const char *p, *q;
+    uint8_t opc1, opc2, opc3, opc4;
+
+    printf("Instructions set:\n");
+    /* opc1 is 6 bits long */
+    for (opc1 = 0x00; opc1 < PPC_CPU_OPCODES_LEN; opc1++) {
+        table = env->opcodes;
+        handler = table[opc1];
+        if (is_indirect_opcode(handler)) {
+            /* opc2 is 5 bits long */
+            for (opc2 = 0; opc2 < PPC_CPU_INDIRECT_OPCODES_LEN; opc2++) {
+                table = env->opcodes;
+                handler = env->opcodes[opc1];
+                table = ind_table(handler);
+                handler = table[opc2];
+                if (is_indirect_opcode(handler)) {
+                    table = ind_table(handler);
+                    /* opc3 is 5 bits long */
+                    for (opc3 = 0; opc3 < PPC_CPU_INDIRECT_OPCODES_LEN;
+                            opc3++) {
+                        handler = table[opc3];
+                        if (is_indirect_opcode(handler)) {
+                            table = ind_table(handler);
+                            /* opc4 is 5 bits long */
+                            for (opc4 = 0; opc4 < PPC_CPU_INDIRECT_OPCODES_LEN;
+                                 opc4++) {
+                                handler = table[opc4];
+                                if (handler->handler != &gen_invalid) {
+                                    printf("INSN: %02x %02x %02x %02x -- "
+                                           "(%02d %04d %02d) : %s\n",
+                                           opc1, opc2, opc3, opc4,
+                                           opc1, (opc3 << 5) | opc2, opc4,
+                                           handler->oname);
+                                }
+                            }
+                        } else {
+                            if (handler->handler != &gen_invalid) {
+                                /* Special hack to properly dump SPE insns */
+                                p = strchr(handler->oname, '_');
+                                if (p == NULL) {
+                                    printf("INSN: %02x %02x %02x (%02d %04d) : "
+                                           "%s\n",
+                                           opc1, opc2, opc3, opc1,
+                                           (opc3 << 5) | opc2,
+                                           handler->oname);
+                                } else {
+                                    q = "speundef";
+                                    if ((p - handler->oname) != strlen(q)
+                                        || (memcmp(handler->oname, q, strlen(q))
+                                            != 0)) {
+                                        /* First instruction */
+                                        printf("INSN: %02x %02x %02x"
+                                               "(%02d %04d) : %.*s\n",
+                                               opc1, opc2 << 1, opc3, opc1,
+                                               (opc3 << 6) | (opc2 << 1),
+                                               (int)(p - handler->oname),
+                                               handler->oname);
+                                    }
+                                    if (strcmp(p + 1, q) != 0) {
+                                        /* Second instruction */
+                                        printf("INSN: %02x %02x %02x "
+                                               "(%02d %04d) : %s\n", opc1,
+                                               (opc2 << 1) | 1, opc3, opc1,
+                                               (opc3 << 6) | (opc2 << 1) | 1,
+                                               p + 1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    if (handler->handler != &gen_invalid) {
+                        printf("INSN: %02x %02x -- (%02d %04d) : %s\n",
+                               opc1, opc2, opc1, opc2, handler->oname);
+                    }
+                }
+            }
+        } else {
+            if (handler->handler != &gen_invalid) {
+                printf("INSN: %02x -- -- (%02d ----) : %s\n",
+                       opc1, opc1, handler->oname);
+            }
+        }
+    }
+}
+#endif
+int ppc_fixup_cpu(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+
+    /*
+     * TCG doesn't (yet) emulate some groups of instructions that are
+     * implemented on some otherwise supported CPUs (e.g. VSX and
+     * decimal floating point instructions on POWER7).  We remove
+     * unsupported instruction groups from the cpu state's instruction
+     * masks and hope the guest can cope.  For at least the pseries
+     * machine, the unavailability of these instructions can be
+     * advertised to the guest via the device tree.
+     */
+    if ((env->insns_flags & ~PPC_TCG_INSNS)
+        || (env->insns_flags2 & ~PPC_TCG_INSNS2)) {
+        warn_report("Disabling some instructions which are not "
+                    "emulated by TCG (0x%" PRIx64 ", 0x%" PRIx64 ")",
+                    env->insns_flags & ~PPC_TCG_INSNS,
+                    env->insns_flags2 & ~PPC_TCG_INSNS2);
+    }
+    env->insns_flags &= PPC_TCG_INSNS;
+    env->insns_flags2 &= PPC_TCG_INSNS2;
+    return 0;
+}
+
+
 void ppc_cpu_dump_statistics(CPUState *cs, int flags)
 {
 #if defined(DO_PPC_STATISTICS)
@@ -7879,87 +8274,47 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPUPPCState *env = cs->env_ptr;
+    uint32_t hflags = ctx->base.tb->flags;
     int bound;
 
     ctx->exception = POWERPC_EXCP_NONE;
     ctx->spr_cb = env->spr_cb;
-    ctx->pr = msr_pr;
-    ctx->mem_idx = env->dmmu_idx;
-    ctx->dr = msr_dr;
-#if !defined(CONFIG_USER_ONLY)
-    ctx->hv = msr_hv || !env->has_hv_mode;
-#endif
+    ctx->pr = (hflags >> HFLAGS_PR) & 1;
+    ctx->mem_idx = (hflags >> HFLAGS_DMMU_IDX) & 7;
+    ctx->dr = (hflags >> HFLAGS_DR) & 1;
+    ctx->hv = (hflags >> HFLAGS_HV) & 1;
     ctx->insns_flags = env->insns_flags;
     ctx->insns_flags2 = env->insns_flags2;
     ctx->access_type = -1;
     ctx->need_access_type = !mmu_is_64bit(env->mmu_model);
-    ctx->le_mode = !!(env->hflags & (1 << MSR_LE));
+    ctx->le_mode = (hflags >> HFLAGS_LE) & 1;
     ctx->default_tcg_memop_mask = ctx->le_mode ? MO_LE : MO_BE;
     ctx->flags = env->flags;
 #if defined(TARGET_PPC64)
-    ctx->sf_mode = msr_is_64bit(env, env->msr);
+    ctx->sf_mode = (hflags >> HFLAGS_64) & 1;
     ctx->has_cfar = !!(env->flags & POWERPC_FLAG_CFAR);
 #endif
     ctx->lazy_tlb_flush = env->mmu_model == POWERPC_MMU_32B
         || env->mmu_model == POWERPC_MMU_601
         || env->mmu_model & POWERPC_MMU_64;
 
-    ctx->fpu_enabled = !!msr_fp;
-    if ((env->flags & POWERPC_FLAG_SPE) && msr_spe) {
-        ctx->spe_enabled = !!msr_spe;
-    } else {
-        ctx->spe_enabled = false;
-    }
-    if ((env->flags & POWERPC_FLAG_VRE) && msr_vr) {
-        ctx->altivec_enabled = !!msr_vr;
-    } else {
-        ctx->altivec_enabled = false;
-    }
-    if ((env->flags & POWERPC_FLAG_VSX) && msr_vsx) {
-        ctx->vsx_enabled = !!msr_vsx;
-    } else {
-        ctx->vsx_enabled = false;
-    }
-    if ((env->flags & POWERPC_FLAG_SCV)
-        && (env->spr[SPR_FSCR] & (1ull << FSCR_SCV))) {
-        ctx->scv_enabled = true;
-    } else {
-        ctx->scv_enabled = false;
-    }
-#if defined(TARGET_PPC64)
-    if ((env->flags & POWERPC_FLAG_TM) && msr_tm) {
-        ctx->tm_enabled = !!msr_tm;
-    } else {
-        ctx->tm_enabled = false;
-    }
-#endif
-    ctx->gtse = !!(env->spr[SPR_LPCR] & LPCR_GTSE);
-    if ((env->flags & POWERPC_FLAG_SE) && msr_se) {
-        ctx->singlestep_enabled = CPU_SINGLE_STEP;
-    } else {
-        ctx->singlestep_enabled = 0;
-    }
-    if ((env->flags & POWERPC_FLAG_BE) && msr_be) {
-        ctx->singlestep_enabled |= CPU_BRANCH_STEP;
-    }
-    if ((env->flags & POWERPC_FLAG_DE) && msr_de) {
-        ctx->singlestep_enabled = 0;
-        target_ulong dbcr0 = env->spr[SPR_BOOKE_DBCR0];
-        if (dbcr0 & DBCR0_ICMP) {
-            ctx->singlestep_enabled |= CPU_SINGLE_STEP;
-        }
-        if (dbcr0 & DBCR0_BRT) {
-            ctx->singlestep_enabled |= CPU_BRANCH_STEP;
-        }
+    ctx->fpu_enabled = (hflags >> HFLAGS_FP) & 1;
+    ctx->spe_enabled = (hflags >> HFLAGS_SPE) & 1;
+    ctx->altivec_enabled = (hflags >> HFLAGS_VR) & 1;
+    ctx->vsx_enabled = (hflags >> HFLAGS_VSX) & 1;
+    ctx->tm_enabled = (hflags >> HFLAGS_TM) & 1;
+    ctx->gtse = (hflags >> HFLAGS_GTSE) & 1;
 
+    ctx->singlestep_enabled = 0;
+    if ((hflags >> HFLAGS_SE) & 1) {
+        ctx->singlestep_enabled |= CPU_SINGLE_STEP;
+    }
+    if ((hflags >> HFLAGS_BE) & 1) {
+        ctx->singlestep_enabled |= CPU_BRANCH_STEP;
     }
     if (unlikely(ctx->base.singlestep_enabled)) {
         ctx->singlestep_enabled |= GDBSTUB_SINGLE_STEP;
     }
-#if defined(DO_SINGLE_STEP) && 0
-    /* Single step trace mode */
-    msr_se = 1;
-#endif
 
     bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
     ctx->base.max_insns = MIN(ctx->base.max_insns, bound);

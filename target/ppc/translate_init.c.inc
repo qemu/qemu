@@ -42,7 +42,6 @@
 #include "fpu/softfloat.h"
 #include "qapi/qapi-commands-machine-target.h"
 
-/* #define PPC_DUMP_CPU */
 /* #define PPC_DEBUG_SPR */
 /* #define PPC_DUMP_SPR_ACCESSES */
 /* #define USE_APPLE_GDB */
@@ -721,103 +720,97 @@ static inline void vscr_init(CPUPPCState *env, uint32_t val)
     helper_mtvscr(env, val);
 }
 
-#ifdef CONFIG_USER_ONLY
-#define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
-                         oea_read, oea_write, one_reg_id, initial_value)       \
-    _spr_register(env, num, name, uea_read, uea_write, initial_value)
-#define spr_register_kvm_hv(env, num, name, uea_read, uea_write,               \
-                            oea_read, oea_write, hea_read, hea_write,          \
-                            one_reg_id, initial_value)                         \
-    _spr_register(env, num, name, uea_read, uea_write, initial_value)
+/**
+ * _spr_register
+ *
+ * Register an SPR with all the callbacks required for tcg,
+ * and the ID number for KVM.
+ *
+ * The reason for the conditional compilation is that the tcg functions
+ * may be compiled out, and the system kvm header may not be available
+ * for supplying the ID numbers.  This is ugly, but the best we can do.
+ */
+
+#ifdef CONFIG_TCG
+# define USR_ARG(X)    X,
+# ifdef CONFIG_USER_ONLY
+#  define SYS_ARG(X)
+# else
+#  define SYS_ARG(X)   X,
+# endif
 #else
-#if !defined(CONFIG_KVM)
-#define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
-                         oea_read, oea_write, one_reg_id, initial_value)       \
-    _spr_register(env, num, name, uea_read, uea_write,                         \
-                  oea_read, oea_write, oea_read, oea_write, initial_value)
-#define spr_register_kvm_hv(env, num, name, uea_read, uea_write,               \
-                            oea_read, oea_write, hea_read, hea_write,          \
-                            one_reg_id, initial_value)                         \
-    _spr_register(env, num, name, uea_read, uea_write,                         \
-                  oea_read, oea_write, hea_read, hea_write, initial_value)
+# define USR_ARG(X)
+# define SYS_ARG(X)
+#endif
+#ifdef CONFIG_KVM
+# define KVM_ARG(X)    X,
 #else
-#define spr_register_kvm(env, num, name, uea_read, uea_write,                  \
-                         oea_read, oea_write, one_reg_id, initial_value)       \
-    _spr_register(env, num, name, uea_read, uea_write,                         \
-                  oea_read, oea_write, oea_read, oea_write,                    \
-                  one_reg_id, initial_value)
-#define spr_register_kvm_hv(env, num, name, uea_read, uea_write,               \
-                            oea_read, oea_write, hea_read, hea_write,          \
-                            one_reg_id, initial_value)                         \
-    _spr_register(env, num, name, uea_read, uea_write,                         \
-                  oea_read, oea_write, hea_read, hea_write,                    \
-                  one_reg_id, initial_value)
-#endif
+# define KVM_ARG(X)
 #endif
 
-#define spr_register(env, num, name, uea_read, uea_write,                      \
-                     oea_read, oea_write, initial_value)                       \
-    spr_register_kvm(env, num, name, uea_read, uea_write,                      \
-                     oea_read, oea_write, 0, initial_value)
+typedef void spr_callback(DisasContext *, int, int);
 
-#define spr_register_hv(env, num, name, uea_read, uea_write,                   \
-                        oea_read, oea_write, hea_read, hea_write,              \
-                        initial_value)                                         \
-    spr_register_kvm_hv(env, num, name, uea_read, uea_write,                   \
-                        oea_read, oea_write, hea_read, hea_write,              \
-                        0, initial_value)
-
-static inline void _spr_register(CPUPPCState *env, int num,
-                                 const char *name,
-                                 void (*uea_read)(DisasContext *ctx,
-                                                  int gprn, int sprn),
-                                 void (*uea_write)(DisasContext *ctx,
-                                                   int sprn, int gprn),
-#if !defined(CONFIG_USER_ONLY)
-
-                                 void (*oea_read)(DisasContext *ctx,
-                                                  int gprn, int sprn),
-                                 void (*oea_write)(DisasContext *ctx,
-                                                   int sprn, int gprn),
-                                 void (*hea_read)(DisasContext *opaque,
-                                                  int gprn, int sprn),
-                                 void (*hea_write)(DisasContext *opaque,
-                                                   int sprn, int gprn),
-#endif
-#if defined(CONFIG_KVM)
-                                 uint64_t one_reg_id,
-#endif
-                                 target_ulong initial_value)
+static void _spr_register(CPUPPCState *env, int num, const char *name,
+                          USR_ARG(spr_callback *uea_read)
+                          USR_ARG(spr_callback *uea_write)
+                          SYS_ARG(spr_callback *oea_read)
+                          SYS_ARG(spr_callback *oea_write)
+                          SYS_ARG(spr_callback *hea_read)
+                          SYS_ARG(spr_callback *hea_write)
+                          KVM_ARG(uint64_t one_reg_id)
+                          target_ulong initial_value)
 {
-    ppc_spr_t *spr;
+    ppc_spr_t *spr = &env->spr_cb[num];
 
-    spr = &env->spr_cb[num];
-    if (spr->name != NULL || env->spr[num] != 0x00000000 ||
-#if !defined(CONFIG_USER_ONLY)
-        spr->oea_read != NULL || spr->oea_write != NULL ||
-#endif
-        spr->uea_read != NULL || spr->uea_write != NULL) {
-        printf("Error: Trying to register SPR %d (%03x) twice !\n", num, num);
-        exit(1);
-    }
-#if defined(PPC_DEBUG_SPR)
-    printf("*** register spr %d (%03x) %s val " TARGET_FMT_lx "\n", num, num,
-           name, initial_value);
-#endif
+    /* No SPR should be registered twice. */
+    assert(spr->name == NULL);
+    assert(name != NULL);
+
     spr->name = name;
+    spr->default_value = initial_value;
+    env->spr[num] = initial_value;
+
+#ifdef CONFIG_TCG
     spr->uea_read = uea_read;
     spr->uea_write = uea_write;
-#if !defined(CONFIG_USER_ONLY)
+# ifndef CONFIG_USER_ONLY
     spr->oea_read = oea_read;
     spr->oea_write = oea_write;
     spr->hea_read = hea_read;
     spr->hea_write = hea_write;
+# endif
 #endif
-#if defined(CONFIG_KVM)
-    spr->one_reg_id = one_reg_id,
+#ifdef CONFIG_KVM
+    spr->one_reg_id = one_reg_id;
 #endif
-    env->spr[num] = spr->default_value = initial_value;
 }
+
+/* spr_register_kvm_hv passes all required arguments. */
+#define spr_register_kvm_hv(env, num, name, uea_read, uea_write,             \
+                            oea_read, oea_write, hea_read, hea_write,        \
+                            one_reg_id, initial_value)                       \
+    _spr_register(env, num, name,                                            \
+                  USR_ARG(uea_read) USR_ARG(uea_write)                       \
+                  SYS_ARG(oea_read) SYS_ARG(oea_write)                       \
+                  SYS_ARG(hea_read) SYS_ARG(hea_write)                       \
+                  KVM_ARG(one_reg_id) initial_value)
+
+/* spr_register_kvm duplicates the oea callbacks to the hea callbacks. */
+#define spr_register_kvm(env, num, name, uea_read, uea_write,                \
+                         oea_read, oea_write, one_reg_id, ival)              \
+    spr_register_kvm_hv(env, num, name, uea_read, uea_write, oea_read,       \
+                        oea_write, oea_read, oea_write, one_reg_id, ival)
+
+/* spr_register_hv and spr_register are similar, except there is no kvm id. */
+#define spr_register_hv(env, num, name, uea_read, uea_write,                 \
+                        oea_read, oea_write, hea_read, hea_write, ival)      \
+    spr_register_kvm_hv(env, num, name, uea_read, uea_write, oea_read,       \
+                        oea_write, hea_read, hea_write, 0, ival)
+
+#define spr_register(env, num, name, uea_read, uea_write,                    \
+                     oea_read, oea_write, ival)                              \
+    spr_register_kvm(env, num, name, uea_read, uea_write,                    \
+                     oea_read, oea_write, 0, ival)
 
 /* Generic PowerPC SPRs */
 static void gen_spr_generic(CPUPPCState *env)
@@ -1700,8 +1693,6 @@ static void gen_spr_74xx(CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, spr_access_nop,
                  0x00000000);
-    /* Not strictly an SPR */
-    vscr_init(env, 0x00010000);
 }
 
 static void gen_l3_ctrl(CPUPPCState *env)
@@ -3457,7 +3448,7 @@ static void init_excp_POWER9(CPUPPCState *env)
 
 #if !defined(CONFIG_USER_ONLY)
     env->excp_vectors[POWERPC_EXCP_HVIRT]    = 0x00000EA0;
-    env->excp_vectors[POWERPC_EXCP_SYSCALL_VECTORED] = 0x00000000;
+    env->excp_vectors[POWERPC_EXCP_SYSCALL_VECTORED] = 0x00017000;
 #endif
 }
 
@@ -5441,7 +5432,7 @@ POWERPC_FAMILY(601)(ObjectClass *oc, void *data)
     pcc->excp_model = POWERPC_EXCP_601;
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_601;
-    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK | POWERPC_FLAG_HID0_LE;
 }
 
 #define POWERPC_MSRR_601v    (0x0000000000001040ULL)
@@ -5485,7 +5476,7 @@ POWERPC_FAMILY(601v)(ObjectClass *oc, void *data)
 #endif
     pcc->bus_model = PPC_FLAGS_INPUT_6xx;
     pcc->bfd_mach = bfd_mach_ppc_601;
-    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK;
+    pcc->flags = POWERPC_FLAG_SE | POWERPC_FLAG_RTC_CLK | POWERPC_FLAG_HID0_LE;
 }
 
 static void init_proc_602(CPUPPCState *env)
@@ -6625,6 +6616,7 @@ static void init_proc_7400(CPUPPCState *env)
     gen_tbl(env);
     /* 74xx specific SPR */
     gen_spr_74xx(env);
+    vscr_init(env, 0x00010000);
     /* XXX : not implemented */
     spr_register(env, SPR_UBAMR, "UBAMR",
                  &spr_read_ureg, SPR_NOACCESS,
@@ -6704,6 +6696,7 @@ static void init_proc_7410(CPUPPCState *env)
     gen_tbl(env);
     /* 74xx specific SPR */
     gen_spr_74xx(env);
+    vscr_init(env, 0x00010000);
     /* XXX : not implemented */
     spr_register(env, SPR_UBAMR, "UBAMR",
                  &spr_read_ureg, SPR_NOACCESS,
@@ -6789,6 +6782,7 @@ static void init_proc_7440(CPUPPCState *env)
     gen_tbl(env);
     /* 74xx specific SPR */
     gen_spr_74xx(env);
+    vscr_init(env, 0x00010000);
     /* XXX : not implemented */
     spr_register(env, SPR_UBAMR, "UBAMR",
                  &spr_read_ureg, SPR_NOACCESS,
@@ -6897,6 +6891,7 @@ static void init_proc_7450(CPUPPCState *env)
     gen_tbl(env);
     /* 74xx specific SPR */
     gen_spr_74xx(env);
+    vscr_init(env, 0x00010000);
     /* Level 3 cache control */
     gen_l3_ctrl(env);
     /* L3ITCR1 */
@@ -7031,6 +7026,7 @@ static void init_proc_7445(CPUPPCState *env)
     gen_tbl(env);
     /* 74xx specific SPR */
     gen_spr_74xx(env);
+    vscr_init(env, 0x00010000);
     /* LDSTCR */
     /* XXX : not implemented */
     spr_register(env, SPR_LDSTCR, "LDSTCR",
@@ -7168,6 +7164,7 @@ static void init_proc_7455(CPUPPCState *env)
     gen_tbl(env);
     /* 74xx specific SPR */
     gen_spr_74xx(env);
+    vscr_init(env, 0x00010000);
     /* Level 3 cache control */
     gen_l3_ctrl(env);
     /* LDSTCR */
@@ -7307,6 +7304,7 @@ static void init_proc_7457(CPUPPCState *env)
     gen_tbl(env);
     /* 74xx specific SPR */
     gen_spr_74xx(env);
+    vscr_init(env, 0x00010000);
     /* Level 3 cache control */
     gen_l3_ctrl(env);
     /* L3ITCR1 */
@@ -7470,6 +7468,7 @@ static void init_proc_e600(CPUPPCState *env)
     gen_tbl(env);
     /* 74xx specific SPR */
     gen_spr_74xx(env);
+    vscr_init(env, 0x00010000);
     /* XXX : not implemented */
     spr_register(env, SPR_UBAMR, "UBAMR",
                  &spr_read_ureg, SPR_NOACCESS,
@@ -7720,11 +7719,6 @@ static void gen_spr_book3s_altivec(CPUPPCState *env)
                      &spr_read_generic, &spr_write_generic,
                      KVM_REG_PPC_VRSAVE, 0x00000000);
 
-    /*
-     * Can't find information on what this should be on reset.  This
-     * value is the one used by 74xx processors.
-     */
-    vscr_init(env, 0x00010000);
 }
 
 static void gen_spr_book3s_dbg(CPUPPCState *env)
@@ -7748,12 +7742,12 @@ static void gen_spr_book3s_dbg(CPUPPCState *env)
 
 static void gen_spr_book3s_207_dbg(CPUPPCState *env)
 {
-    spr_register_kvm_hv(env, SPR_DAWR, "DAWR",
+    spr_register_kvm_hv(env, SPR_DAWR0, "DAWR0",
                         SPR_NOACCESS, SPR_NOACCESS,
                         SPR_NOACCESS, SPR_NOACCESS,
                         &spr_read_generic, &spr_write_generic,
                         KVM_REG_PPC_DAWR, 0x00000000);
-    spr_register_kvm_hv(env, SPR_DAWRX, "DAWRX",
+    spr_register_kvm_hv(env, SPR_DAWRX0, "DAWRX0",
                         SPR_NOACCESS, SPR_NOACCESS,
                         SPR_NOACCESS, SPR_NOACCESS,
                         &spr_read_generic, &spr_write_generic,
@@ -8422,6 +8416,11 @@ static void init_proc_book3s_common(CPUPPCState *env)
     gen_spr_book3s_pmu_sup(env);
     gen_spr_book3s_pmu_user(env);
     gen_spr_book3s_ctrl(env);
+    /*
+     * Can't find information on what this should be on reset.  This
+     * value is the one used by 74xx processors.
+     */
+    vscr_init(env, 0x00010000);
 }
 
 static void init_proc_970(CPUPPCState *env)
@@ -9317,13 +9316,13 @@ POWERPC_FAMILY(POWER10)(ObjectClass *oc, void *data)
     pcc->radix_page_info = &POWER10_radix_page_info;
     pcc->lrg_decr_bits = 56;
 #endif
-    pcc->excp_model = POWERPC_EXCP_POWER9;
+    pcc->excp_model = POWERPC_EXCP_POWER10;
     pcc->bus_model = PPC_FLAGS_INPUT_POWER9;
     pcc->bfd_mach = bfd_mach_ppc64;
     pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
                  POWERPC_FLAG_BE | POWERPC_FLAG_PMM |
                  POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR |
-                 POWERPC_FLAG_VSX | POWERPC_FLAG_TM;
+                 POWERPC_FLAG_VSX | POWERPC_FLAG_TM | POWERPC_FLAG_SCV;
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
@@ -9560,590 +9559,6 @@ static void dump_ppc_sprs(CPUPPCState *env)
 }
 #endif
 
-/*****************************************************************************/
-
-/* Opcode types */
-enum {
-    PPC_DIRECT   = 0, /* Opcode routine        */
-    PPC_INDIRECT = 1, /* Indirect opcode table */
-};
-
-#define PPC_OPCODE_MASK 0x3
-
-static inline int is_indirect_opcode(void *handler)
-{
-    return ((uintptr_t)handler & PPC_OPCODE_MASK) == PPC_INDIRECT;
-}
-
-static inline opc_handler_t **ind_table(void *handler)
-{
-    return (opc_handler_t **)((uintptr_t)handler & ~PPC_OPCODE_MASK);
-}
-
-/* Instruction table creation */
-/* Opcodes tables creation */
-static void fill_new_table(opc_handler_t **table, int len)
-{
-    int i;
-
-    for (i = 0; i < len; i++) {
-        table[i] = &invalid_handler;
-    }
-}
-
-static int create_new_table(opc_handler_t **table, unsigned char idx)
-{
-    opc_handler_t **tmp;
-
-    tmp = g_new(opc_handler_t *, PPC_CPU_INDIRECT_OPCODES_LEN);
-    fill_new_table(tmp, PPC_CPU_INDIRECT_OPCODES_LEN);
-    table[idx] = (opc_handler_t *)((uintptr_t)tmp | PPC_INDIRECT);
-
-    return 0;
-}
-
-static int insert_in_table(opc_handler_t **table, unsigned char idx,
-                            opc_handler_t *handler)
-{
-    if (table[idx] != &invalid_handler) {
-        return -1;
-    }
-    table[idx] = handler;
-
-    return 0;
-}
-
-static int register_direct_insn(opc_handler_t **ppc_opcodes,
-                                unsigned char idx, opc_handler_t *handler)
-{
-    if (insert_in_table(ppc_opcodes, idx, handler) < 0) {
-        printf("*** ERROR: opcode %02x already assigned in main "
-               "opcode table\n", idx);
-#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
-        printf("           Registered handler '%s' - new handler '%s'\n",
-               ppc_opcodes[idx]->oname, handler->oname);
-#endif
-        return -1;
-    }
-
-    return 0;
-}
-
-static int register_ind_in_table(opc_handler_t **table,
-                                 unsigned char idx1, unsigned char idx2,
-                                 opc_handler_t *handler)
-{
-    if (table[idx1] == &invalid_handler) {
-        if (create_new_table(table, idx1) < 0) {
-            printf("*** ERROR: unable to create indirect table "
-                   "idx=%02x\n", idx1);
-            return -1;
-        }
-    } else {
-        if (!is_indirect_opcode(table[idx1])) {
-            printf("*** ERROR: idx %02x already assigned to a direct "
-                   "opcode\n", idx1);
-#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
-            printf("           Registered handler '%s' - new handler '%s'\n",
-                   ind_table(table[idx1])[idx2]->oname, handler->oname);
-#endif
-            return -1;
-        }
-    }
-    if (handler != NULL &&
-        insert_in_table(ind_table(table[idx1]), idx2, handler) < 0) {
-        printf("*** ERROR: opcode %02x already assigned in "
-               "opcode table %02x\n", idx2, idx1);
-#if defined(DO_PPC_STATISTICS) || defined(PPC_DUMP_CPU)
-        printf("           Registered handler '%s' - new handler '%s'\n",
-               ind_table(table[idx1])[idx2]->oname, handler->oname);
-#endif
-        return -1;
-    }
-
-    return 0;
-}
-
-static int register_ind_insn(opc_handler_t **ppc_opcodes,
-                             unsigned char idx1, unsigned char idx2,
-                             opc_handler_t *handler)
-{
-    return register_ind_in_table(ppc_opcodes, idx1, idx2, handler);
-}
-
-static int register_dblind_insn(opc_handler_t **ppc_opcodes,
-                                unsigned char idx1, unsigned char idx2,
-                                unsigned char idx3, opc_handler_t *handler)
-{
-    if (register_ind_in_table(ppc_opcodes, idx1, idx2, NULL) < 0) {
-        printf("*** ERROR: unable to join indirect table idx "
-               "[%02x-%02x]\n", idx1, idx2);
-        return -1;
-    }
-    if (register_ind_in_table(ind_table(ppc_opcodes[idx1]), idx2, idx3,
-                              handler) < 0) {
-        printf("*** ERROR: unable to insert opcode "
-               "[%02x-%02x-%02x]\n", idx1, idx2, idx3);
-        return -1;
-    }
-
-    return 0;
-}
-
-static int register_trplind_insn(opc_handler_t **ppc_opcodes,
-                                 unsigned char idx1, unsigned char idx2,
-                                 unsigned char idx3, unsigned char idx4,
-                                 opc_handler_t *handler)
-{
-    opc_handler_t **table;
-
-    if (register_ind_in_table(ppc_opcodes, idx1, idx2, NULL) < 0) {
-        printf("*** ERROR: unable to join indirect table idx "
-               "[%02x-%02x]\n", idx1, idx2);
-        return -1;
-    }
-    table = ind_table(ppc_opcodes[idx1]);
-    if (register_ind_in_table(table, idx2, idx3, NULL) < 0) {
-        printf("*** ERROR: unable to join 2nd-level indirect table idx "
-               "[%02x-%02x-%02x]\n", idx1, idx2, idx3);
-        return -1;
-    }
-    table = ind_table(table[idx2]);
-    if (register_ind_in_table(table, idx3, idx4, handler) < 0) {
-        printf("*** ERROR: unable to insert opcode "
-               "[%02x-%02x-%02x-%02x]\n", idx1, idx2, idx3, idx4);
-        return -1;
-    }
-    return 0;
-}
-static int register_insn(opc_handler_t **ppc_opcodes, opcode_t *insn)
-{
-    if (insn->opc2 != 0xFF) {
-        if (insn->opc3 != 0xFF) {
-            if (insn->opc4 != 0xFF) {
-                if (register_trplind_insn(ppc_opcodes, insn->opc1, insn->opc2,
-                                          insn->opc3, insn->opc4,
-                                          &insn->handler) < 0) {
-                    return -1;
-                }
-            } else {
-                if (register_dblind_insn(ppc_opcodes, insn->opc1, insn->opc2,
-                                         insn->opc3, &insn->handler) < 0) {
-                    return -1;
-                }
-            }
-        } else {
-            if (register_ind_insn(ppc_opcodes, insn->opc1,
-                                  insn->opc2, &insn->handler) < 0) {
-                return -1;
-            }
-        }
-    } else {
-        if (register_direct_insn(ppc_opcodes, insn->opc1, &insn->handler) < 0) {
-            return -1;
-        }
-    }
-
-    return 0;
-}
-
-static int test_opcode_table(opc_handler_t **table, int len)
-{
-    int i, count, tmp;
-
-    for (i = 0, count = 0; i < len; i++) {
-        /* Consistency fixup */
-        if (table[i] == NULL) {
-            table[i] = &invalid_handler;
-        }
-        if (table[i] != &invalid_handler) {
-            if (is_indirect_opcode(table[i])) {
-                tmp = test_opcode_table(ind_table(table[i]),
-                    PPC_CPU_INDIRECT_OPCODES_LEN);
-                if (tmp == 0) {
-                    free(table[i]);
-                    table[i] = &invalid_handler;
-                } else {
-                    count++;
-                }
-            } else {
-                count++;
-            }
-        }
-    }
-
-    return count;
-}
-
-static void fix_opcode_tables(opc_handler_t **ppc_opcodes)
-{
-    if (test_opcode_table(ppc_opcodes, PPC_CPU_OPCODES_LEN) == 0) {
-        printf("*** WARNING: no opcode defined !\n");
-    }
-}
-
-/*****************************************************************************/
-static void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp)
-{
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    opcode_t *opc;
-
-    fill_new_table(cpu->opcodes, PPC_CPU_OPCODES_LEN);
-    for (opc = opcodes; opc < &opcodes[ARRAY_SIZE(opcodes)]; opc++) {
-        if (((opc->handler.type & pcc->insns_flags) != 0) ||
-            ((opc->handler.type2 & pcc->insns_flags2) != 0)) {
-            if (register_insn(cpu->opcodes, opc) < 0) {
-                error_setg(errp, "ERROR initializing PowerPC instruction "
-                           "0x%02x 0x%02x 0x%02x", opc->opc1, opc->opc2,
-                           opc->opc3);
-                return;
-            }
-        }
-    }
-    fix_opcode_tables(cpu->opcodes);
-    fflush(stdout);
-    fflush(stderr);
-}
-
-#if defined(PPC_DUMP_CPU)
-static void dump_ppc_insns(CPUPPCState *env)
-{
-    opc_handler_t **table, *handler;
-    const char *p, *q;
-    uint8_t opc1, opc2, opc3, opc4;
-
-    printf("Instructions set:\n");
-    /* opc1 is 6 bits long */
-    for (opc1 = 0x00; opc1 < PPC_CPU_OPCODES_LEN; opc1++) {
-        table = env->opcodes;
-        handler = table[opc1];
-        if (is_indirect_opcode(handler)) {
-            /* opc2 is 5 bits long */
-            for (opc2 = 0; opc2 < PPC_CPU_INDIRECT_OPCODES_LEN; opc2++) {
-                table = env->opcodes;
-                handler = env->opcodes[opc1];
-                table = ind_table(handler);
-                handler = table[opc2];
-                if (is_indirect_opcode(handler)) {
-                    table = ind_table(handler);
-                    /* opc3 is 5 bits long */
-                    for (opc3 = 0; opc3 < PPC_CPU_INDIRECT_OPCODES_LEN;
-                            opc3++) {
-                        handler = table[opc3];
-                        if (is_indirect_opcode(handler)) {
-                            table = ind_table(handler);
-                            /* opc4 is 5 bits long */
-                            for (opc4 = 0; opc4 < PPC_CPU_INDIRECT_OPCODES_LEN;
-                                 opc4++) {
-                                handler = table[opc4];
-                                if (handler->handler != &gen_invalid) {
-                                    printf("INSN: %02x %02x %02x %02x -- "
-                                           "(%02d %04d %02d) : %s\n",
-                                           opc1, opc2, opc3, opc4,
-                                           opc1, (opc3 << 5) | opc2, opc4,
-                                           handler->oname);
-                                }
-                            }
-                        } else {
-                            if (handler->handler != &gen_invalid) {
-                                /* Special hack to properly dump SPE insns */
-                                p = strchr(handler->oname, '_');
-                                if (p == NULL) {
-                                    printf("INSN: %02x %02x %02x (%02d %04d) : "
-                                           "%s\n",
-                                           opc1, opc2, opc3, opc1,
-                                           (opc3 << 5) | opc2,
-                                           handler->oname);
-                                } else {
-                                    q = "speundef";
-                                    if ((p - handler->oname) != strlen(q)
-                                        || (memcmp(handler->oname, q, strlen(q))
-                                            != 0)) {
-                                        /* First instruction */
-                                        printf("INSN: %02x %02x %02x"
-                                               "(%02d %04d) : %.*s\n",
-                                               opc1, opc2 << 1, opc3, opc1,
-                                               (opc3 << 6) | (opc2 << 1),
-                                               (int)(p - handler->oname),
-                                               handler->oname);
-                                    }
-                                    if (strcmp(p + 1, q) != 0) {
-                                        /* Second instruction */
-                                        printf("INSN: %02x %02x %02x "
-                                               "(%02d %04d) : %s\n", opc1,
-                                               (opc2 << 1) | 1, opc3, opc1,
-                                               (opc3 << 6) | (opc2 << 1) | 1,
-                                               p + 1);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    if (handler->handler != &gen_invalid) {
-                        printf("INSN: %02x %02x -- (%02d %04d) : %s\n",
-                               opc1, opc2, opc1, opc2, handler->oname);
-                    }
-                }
-            }
-        } else {
-            if (handler->handler != &gen_invalid) {
-                printf("INSN: %02x -- -- (%02d ----) : %s\n",
-                       opc1, opc1, handler->oname);
-            }
-        }
-    }
-}
-#endif
-
-static bool avr_need_swap(CPUPPCState *env)
-{
-#ifdef HOST_WORDS_BIGENDIAN
-    return msr_le;
-#else
-    return !msr_le;
-#endif
-}
-
-#if !defined(CONFIG_USER_ONLY)
-static int gdb_find_spr_idx(CPUPPCState *env, int n)
-{
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(env->spr_cb); i++) {
-        ppc_spr_t *spr = &env->spr_cb[i];
-
-        if (spr->name && spr->gdb_id == n) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-static int gdb_get_spr_reg(CPUPPCState *env, GByteArray *buf, int n)
-{
-    int reg;
-    int len;
-
-    reg = gdb_find_spr_idx(env, n);
-    if (reg < 0) {
-        return 0;
-    }
-
-    len = TARGET_LONG_SIZE;
-    gdb_get_regl(buf, env->spr[reg]);
-    ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, len), len);
-    return len;
-}
-
-static int gdb_set_spr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
-{
-    int reg;
-    int len;
-
-    reg = gdb_find_spr_idx(env, n);
-    if (reg < 0) {
-        return 0;
-    }
-
-    len = TARGET_LONG_SIZE;
-    ppc_maybe_bswap_register(env, mem_buf, len);
-    env->spr[reg] = ldn_p(mem_buf, len);
-
-    return len;
-}
-#endif
-
-static int gdb_get_float_reg(CPUPPCState *env, GByteArray *buf, int n)
-{
-    uint8_t *mem_buf;
-    if (n < 32) {
-        gdb_get_reg64(buf, *cpu_fpr_ptr(env, n));
-        mem_buf = gdb_get_reg_ptr(buf, 8);
-        ppc_maybe_bswap_register(env, mem_buf, 8);
-        return 8;
-    }
-    if (n == 32) {
-        gdb_get_reg32(buf, env->fpscr);
-        mem_buf = gdb_get_reg_ptr(buf, 4);
-        ppc_maybe_bswap_register(env, mem_buf, 4);
-        return 4;
-    }
-    return 0;
-}
-
-static int gdb_set_float_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
-{
-    if (n < 32) {
-        ppc_maybe_bswap_register(env, mem_buf, 8);
-        *cpu_fpr_ptr(env, n) = ldq_p(mem_buf);
-        return 8;
-    }
-    if (n == 32) {
-        ppc_maybe_bswap_register(env, mem_buf, 4);
-        helper_store_fpscr(env, ldl_p(mem_buf), 0xffffffff);
-        return 4;
-    }
-    return 0;
-}
-
-static int gdb_get_avr_reg(CPUPPCState *env, GByteArray *buf, int n)
-{
-    uint8_t *mem_buf;
-
-    if (n < 32) {
-        ppc_avr_t *avr = cpu_avr_ptr(env, n);
-        if (!avr_need_swap(env)) {
-            gdb_get_reg128(buf, avr->u64[0] , avr->u64[1]);
-        } else {
-            gdb_get_reg128(buf, avr->u64[1] , avr->u64[0]);
-        }
-        mem_buf = gdb_get_reg_ptr(buf, 16);
-        ppc_maybe_bswap_register(env, mem_buf, 8);
-        ppc_maybe_bswap_register(env, mem_buf + 8, 8);
-        return 16;
-    }
-    if (n == 32) {
-        gdb_get_reg32(buf, helper_mfvscr(env));
-        mem_buf = gdb_get_reg_ptr(buf, 4);
-        ppc_maybe_bswap_register(env, mem_buf, 4);
-        return 4;
-    }
-    if (n == 33) {
-        gdb_get_reg32(buf, (uint32_t)env->spr[SPR_VRSAVE]);
-        mem_buf = gdb_get_reg_ptr(buf, 4);
-        ppc_maybe_bswap_register(env, mem_buf, 4);
-        return 4;
-    }
-    return 0;
-}
-
-static int gdb_set_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
-{
-    if (n < 32) {
-        ppc_avr_t *avr = cpu_avr_ptr(env, n);
-        ppc_maybe_bswap_register(env, mem_buf, 8);
-        ppc_maybe_bswap_register(env, mem_buf + 8, 8);
-        if (!avr_need_swap(env)) {
-            avr->u64[0] = ldq_p(mem_buf);
-            avr->u64[1] = ldq_p(mem_buf + 8);
-        } else {
-            avr->u64[1] = ldq_p(mem_buf);
-            avr->u64[0] = ldq_p(mem_buf + 8);
-        }
-        return 16;
-    }
-    if (n == 32) {
-        ppc_maybe_bswap_register(env, mem_buf, 4);
-        helper_mtvscr(env, ldl_p(mem_buf));
-        return 4;
-    }
-    if (n == 33) {
-        ppc_maybe_bswap_register(env, mem_buf, 4);
-        env->spr[SPR_VRSAVE] = (target_ulong)ldl_p(mem_buf);
-        return 4;
-    }
-    return 0;
-}
-
-static int gdb_get_spe_reg(CPUPPCState *env, GByteArray *buf, int n)
-{
-    if (n < 32) {
-#if defined(TARGET_PPC64)
-        gdb_get_reg32(buf, env->gpr[n] >> 32);
-        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 4), 4);
-#else
-        gdb_get_reg32(buf, env->gprh[n]);
-#endif
-        return 4;
-    }
-    if (n == 32) {
-        gdb_get_reg64(buf, env->spe_acc);
-        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 8), 8);
-        return 8;
-    }
-    if (n == 33) {
-        gdb_get_reg32(buf, env->spe_fscr);
-        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 4), 4);
-        return 4;
-    }
-    return 0;
-}
-
-static int gdb_set_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
-{
-    if (n < 32) {
-#if defined(TARGET_PPC64)
-        target_ulong lo = (uint32_t)env->gpr[n];
-        target_ulong hi;
-
-        ppc_maybe_bswap_register(env, mem_buf, 4);
-
-        hi = (target_ulong)ldl_p(mem_buf) << 32;
-        env->gpr[n] = lo | hi;
-#else
-        env->gprh[n] = ldl_p(mem_buf);
-#endif
-        return 4;
-    }
-    if (n == 32) {
-        ppc_maybe_bswap_register(env, mem_buf, 8);
-        env->spe_acc = ldq_p(mem_buf);
-        return 8;
-    }
-    if (n == 33) {
-        ppc_maybe_bswap_register(env, mem_buf, 4);
-        env->spe_fscr = ldl_p(mem_buf);
-        return 4;
-    }
-    return 0;
-}
-
-static int gdb_get_vsx_reg(CPUPPCState *env, GByteArray *buf, int n)
-{
-    if (n < 32) {
-        gdb_get_reg64(buf, *cpu_vsrl_ptr(env, n));
-        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 8), 8);
-        return 8;
-    }
-    return 0;
-}
-
-static int gdb_set_vsx_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
-{
-    if (n < 32) {
-        ppc_maybe_bswap_register(env, mem_buf, 8);
-        *cpu_vsrl_ptr(env, n) = ldq_p(mem_buf);
-        return 8;
-    }
-    return 0;
-}
-
-static int ppc_fixup_cpu(PowerPCCPU *cpu)
-{
-    CPUPPCState *env = &cpu->env;
-
-    /*
-     * TCG doesn't (yet) emulate some groups of instructions that are
-     * implemented on some otherwise supported CPUs (e.g. VSX and
-     * decimal floating point instructions on POWER7).  We remove
-     * unsupported instruction groups from the cpu state's instruction
-     * masks and hope the guest can cope.  For at least the pseries
-     * machine, the unavailability of these instructions can be
-     * advertised to the guest via the device tree.
-     */
-    if ((env->insns_flags & ~PPC_TCG_INSNS)
-        || (env->insns_flags2 & ~PPC_TCG_INSNS2)) {
-        warn_report("Disabling some instructions which are not "
-                    "emulated by TCG (0x%" PRIx64 ", 0x%" PRIx64 ")",
-                    env->insns_flags & ~PPC_TCG_INSNS,
-                    env->insns_flags2 & ~PPC_TCG_INSNS2);
-    }
-    env->insns_flags &= PPC_TCG_INSNS;
-    env->insns_flags2 &= PPC_TCG_INSNS2;
-    return 0;
-}
-
 static void ppc_cpu_realize(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -10174,26 +9589,7 @@ static void ppc_cpu_realize(DeviceState *dev, Error **errp)
     }
     init_ppc_proc(cpu);
 
-    if (pcc->insns_flags & PPC_FLOAT) {
-        gdb_register_coprocessor(cs, gdb_get_float_reg, gdb_set_float_reg,
-                                 33, "power-fpu.xml", 0);
-    }
-    if (pcc->insns_flags & PPC_ALTIVEC) {
-        gdb_register_coprocessor(cs, gdb_get_avr_reg, gdb_set_avr_reg,
-                                 34, "power-altivec.xml", 0);
-    }
-    if (pcc->insns_flags & PPC_SPE) {
-        gdb_register_coprocessor(cs, gdb_get_spe_reg, gdb_set_spe_reg,
-                                 34, "power-spe.xml", 0);
-    }
-    if (pcc->insns_flags2 & PPC2_VSX) {
-        gdb_register_coprocessor(cs, gdb_get_vsx_reg, gdb_set_vsx_reg,
-                                 32, "power-vsx.xml", 0);
-    }
-#ifndef CONFIG_USER_ONLY
-    gdb_register_coprocessor(cs, gdb_get_spr_reg, gdb_set_spr_reg,
-                             pcc->gdb_num_sprs, "power-spr.xml", 0);
-#endif
+    ppc_gdb_init(cs, pcc);
     qemu_init_vcpu(cs);
 
     pcc->parent_realize(dev, errp);
@@ -10374,40 +9770,12 @@ static void ppc_cpu_unrealize(DeviceState *dev)
 {
     PowerPCCPU *cpu = POWERPC_CPU(dev);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    opc_handler_t **table, **table_2;
-    int i, j, k;
 
     pcc->parent_unrealize(dev);
 
     cpu_remove_sync(CPU(cpu));
 
-    for (i = 0; i < PPC_CPU_OPCODES_LEN; i++) {
-        if (cpu->opcodes[i] == &invalid_handler) {
-            continue;
-        }
-        if (is_indirect_opcode(cpu->opcodes[i])) {
-            table = ind_table(cpu->opcodes[i]);
-            for (j = 0; j < PPC_CPU_INDIRECT_OPCODES_LEN; j++) {
-                if (table[j] == &invalid_handler) {
-                    continue;
-                }
-                if (is_indirect_opcode(table[j])) {
-                    table_2 = ind_table(table[j]);
-                    for (k = 0; k < PPC_CPU_INDIRECT_OPCODES_LEN; k++) {
-                        if (table_2[k] != &invalid_handler &&
-                            is_indirect_opcode(table_2[k])) {
-                            g_free((opc_handler_t *)((uintptr_t)table_2[k] &
-                                                     ~PPC_INDIRECT));
-                        }
-                    }
-                    g_free((opc_handler_t *)((uintptr_t)table[j] &
-                                             ~PPC_INDIRECT));
-                }
-            }
-            g_free((opc_handler_t *)((uintptr_t)cpu->opcodes[i] &
-                ~PPC_INDIRECT));
-        }
-    }
+    destroy_ppc_opcodes(cpu);
 }
 
 static gint ppc_cpu_compare_class_pvr(gconstpointer a, gconstpointer b)
@@ -10833,15 +10201,6 @@ static void ppc_cpu_instance_finalize(Object *obj)
 static bool ppc_pvr_match_default(PowerPCCPUClass *pcc, uint32_t pvr)
 {
     return pcc->pvr == pvr;
-}
-
-static gchar *ppc_gdb_arch_name(CPUState *cs)
-{
-#if defined(TARGET_PPC64)
-    return g_strdup("powerpc:common64");
-#else
-    return g_strdup("powerpc:common");
-#endif
 }
 
 static void ppc_disas_set_info(CPUState *cs, disassemble_info *info)

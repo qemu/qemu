@@ -1798,7 +1798,7 @@ static target_ulong h_int_reset(PowerPCCPU *cpu,
         return H_PARAMETER;
     }
 
-    device_legacy_reset(DEVICE(xive));
+    device_cold_reset(DEVICE(xive));
 
     if (spapr_xive_in_kernel(xive)) {
         Error *local_err = NULL;

@@ -20,6 +20,8 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/gdbstub.h"
+#include "exec/helper-proto.h"
+#include "internal.h"
 
 static int ppc_gdb_register_len_apple(int n)
 {
@@ -387,3 +389,259 @@ const char *ppc_gdb_get_dynamic_xml(CPUState *cs, const char *xml_name)
     return NULL;
 }
 #endif
+
+static bool avr_need_swap(CPUPPCState *env)
+{
+#ifdef HOST_WORDS_BIGENDIAN
+    return msr_le;
+#else
+    return !msr_le;
+#endif
+}
+
+#if !defined(CONFIG_USER_ONLY)
+static int gdb_find_spr_idx(CPUPPCState *env, int n)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(env->spr_cb); i++) {
+        ppc_spr_t *spr = &env->spr_cb[i];
+
+        if (spr->name && spr->gdb_id == n) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static int gdb_get_spr_reg(CPUPPCState *env, GByteArray *buf, int n)
+{
+    int reg;
+    int len;
+
+    reg = gdb_find_spr_idx(env, n);
+    if (reg < 0) {
+        return 0;
+    }
+
+    len = TARGET_LONG_SIZE;
+    gdb_get_regl(buf, env->spr[reg]);
+    ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, len), len);
+    return len;
+}
+
+static int gdb_set_spr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
+{
+    int reg;
+    int len;
+
+    reg = gdb_find_spr_idx(env, n);
+    if (reg < 0) {
+        return 0;
+    }
+
+    len = TARGET_LONG_SIZE;
+    ppc_maybe_bswap_register(env, mem_buf, len);
+    env->spr[reg] = ldn_p(mem_buf, len);
+
+    return len;
+}
+#endif
+
+static int gdb_get_float_reg(CPUPPCState *env, GByteArray *buf, int n)
+{
+    uint8_t *mem_buf;
+    if (n < 32) {
+        gdb_get_reg64(buf, *cpu_fpr_ptr(env, n));
+        mem_buf = gdb_get_reg_ptr(buf, 8);
+        ppc_maybe_bswap_register(env, mem_buf, 8);
+        return 8;
+    }
+    if (n == 32) {
+        gdb_get_reg32(buf, env->fpscr);
+        mem_buf = gdb_get_reg_ptr(buf, 4);
+        ppc_maybe_bswap_register(env, mem_buf, 4);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_set_float_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+        ppc_maybe_bswap_register(env, mem_buf, 8);
+        *cpu_fpr_ptr(env, n) = ldq_p(mem_buf);
+        return 8;
+    }
+    if (n == 32) {
+        ppc_maybe_bswap_register(env, mem_buf, 4);
+        store_fpscr(env, ldl_p(mem_buf), 0xffffffff);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_get_avr_reg(CPUPPCState *env, GByteArray *buf, int n)
+{
+    uint8_t *mem_buf;
+
+    if (n < 32) {
+        ppc_avr_t *avr = cpu_avr_ptr(env, n);
+        if (!avr_need_swap(env)) {
+            gdb_get_reg128(buf, avr->u64[0] , avr->u64[1]);
+        } else {
+            gdb_get_reg128(buf, avr->u64[1] , avr->u64[0]);
+        }
+        mem_buf = gdb_get_reg_ptr(buf, 16);
+        ppc_maybe_bswap_register(env, mem_buf, 8);
+        ppc_maybe_bswap_register(env, mem_buf + 8, 8);
+        return 16;
+    }
+    if (n == 32) {
+        gdb_get_reg32(buf, helper_mfvscr(env));
+        mem_buf = gdb_get_reg_ptr(buf, 4);
+        ppc_maybe_bswap_register(env, mem_buf, 4);
+        return 4;
+    }
+    if (n == 33) {
+        gdb_get_reg32(buf, (uint32_t)env->spr[SPR_VRSAVE]);
+        mem_buf = gdb_get_reg_ptr(buf, 4);
+        ppc_maybe_bswap_register(env, mem_buf, 4);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_set_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+        ppc_avr_t *avr = cpu_avr_ptr(env, n);
+        ppc_maybe_bswap_register(env, mem_buf, 8);
+        ppc_maybe_bswap_register(env, mem_buf + 8, 8);
+        if (!avr_need_swap(env)) {
+            avr->u64[0] = ldq_p(mem_buf);
+            avr->u64[1] = ldq_p(mem_buf + 8);
+        } else {
+            avr->u64[1] = ldq_p(mem_buf);
+            avr->u64[0] = ldq_p(mem_buf + 8);
+        }
+        return 16;
+    }
+    if (n == 32) {
+        ppc_maybe_bswap_register(env, mem_buf, 4);
+        helper_mtvscr(env, ldl_p(mem_buf));
+        return 4;
+    }
+    if (n == 33) {
+        ppc_maybe_bswap_register(env, mem_buf, 4);
+        env->spr[SPR_VRSAVE] = (target_ulong)ldl_p(mem_buf);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_get_spe_reg(CPUPPCState *env, GByteArray *buf, int n)
+{
+    if (n < 32) {
+#if defined(TARGET_PPC64)
+        gdb_get_reg32(buf, env->gpr[n] >> 32);
+        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 4), 4);
+#else
+        gdb_get_reg32(buf, env->gprh[n]);
+#endif
+        return 4;
+    }
+    if (n == 32) {
+        gdb_get_reg64(buf, env->spe_acc);
+        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 8), 8);
+        return 8;
+    }
+    if (n == 33) {
+        gdb_get_reg32(buf, env->spe_fscr);
+        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 4), 4);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_set_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+#if defined(TARGET_PPC64)
+        target_ulong lo = (uint32_t)env->gpr[n];
+        target_ulong hi;
+
+        ppc_maybe_bswap_register(env, mem_buf, 4);
+
+        hi = (target_ulong)ldl_p(mem_buf) << 32;
+        env->gpr[n] = lo | hi;
+#else
+        env->gprh[n] = ldl_p(mem_buf);
+#endif
+        return 4;
+    }
+    if (n == 32) {
+        ppc_maybe_bswap_register(env, mem_buf, 8);
+        env->spe_acc = ldq_p(mem_buf);
+        return 8;
+    }
+    if (n == 33) {
+        ppc_maybe_bswap_register(env, mem_buf, 4);
+        env->spe_fscr = ldl_p(mem_buf);
+        return 4;
+    }
+    return 0;
+}
+
+static int gdb_get_vsx_reg(CPUPPCState *env, GByteArray *buf, int n)
+{
+    if (n < 32) {
+        gdb_get_reg64(buf, *cpu_vsrl_ptr(env, n));
+        ppc_maybe_bswap_register(env, gdb_get_reg_ptr(buf, 8), 8);
+        return 8;
+    }
+    return 0;
+}
+
+static int gdb_set_vsx_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+        ppc_maybe_bswap_register(env, mem_buf, 8);
+        *cpu_vsrl_ptr(env, n) = ldq_p(mem_buf);
+        return 8;
+    }
+    return 0;
+}
+
+gchar *ppc_gdb_arch_name(CPUState *cs)
+{
+#if defined(TARGET_PPC64)
+    return g_strdup("powerpc:common64");
+#else
+    return g_strdup("powerpc:common");
+#endif
+}
+
+void ppc_gdb_init(CPUState *cs, PowerPCCPUClass *pcc)
+{
+    if (pcc->insns_flags & PPC_FLOAT) {
+        gdb_register_coprocessor(cs, gdb_get_float_reg, gdb_set_float_reg,
+                                 33, "power-fpu.xml", 0);
+    }
+    if (pcc->insns_flags & PPC_ALTIVEC) {
+        gdb_register_coprocessor(cs, gdb_get_avr_reg, gdb_set_avr_reg,
+                                 34, "power-altivec.xml", 0);
+    }
+    if (pcc->insns_flags & PPC_SPE) {
+        gdb_register_coprocessor(cs, gdb_get_spe_reg, gdb_set_spe_reg,
+                                 34, "power-spe.xml", 0);
+    }
+    if (pcc->insns_flags2 & PPC2_VSX) {
+        gdb_register_coprocessor(cs, gdb_get_vsx_reg, gdb_set_vsx_reg,
+                                 32, "power-vsx.xml", 0);
+    }
+#ifndef CONFIG_USER_ONLY
+    gdb_register_coprocessor(cs, gdb_get_spr_reg, gdb_set_spr_reg,
+                             pcc->gdb_num_sprs, "power-spr.xml", 0);
+#endif
+}

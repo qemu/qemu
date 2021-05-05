@@ -72,3 +72,7 @@ config REMOTE_PCIHOST
 config SH_PCI
     bool
     select PCI
+
+config MV64361
+    bool
+    select PCI

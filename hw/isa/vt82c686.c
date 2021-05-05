@@ -8,6 +8,9 @@
  *
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
+ *
+ * VT8231 south bridge support and general clean up to allow it
+ * Copyright (c) 2018-2020 BALATON Zoltan
  */
 
 #include "qemu/osdep.h"
@@ -264,15 +267,80 @@ static const TypeInfo vt8231_pm_info = {
 };
 
 
-typedef struct SuperIOConfig {
-    uint8_t regs[0x100];
-    MemoryRegion io;
-} SuperIOConfig;
+#define TYPE_VIA_SUPERIO "via-superio"
+OBJECT_DECLARE_SIMPLE_TYPE(ViaSuperIOState, VIA_SUPERIO)
 
-static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
-                              unsigned size)
+struct ViaSuperIOState {
+    ISASuperIODevice superio;
+    uint8_t regs[0x100];
+    const MemoryRegionOps *io_ops;
+    MemoryRegion io;
+};
+
+static inline void via_superio_io_enable(ViaSuperIOState *s, bool enable)
 {
-    SuperIOConfig *sc = opaque;
+    memory_region_set_enabled(&s->io, enable);
+}
+
+static void via_superio_realize(DeviceState *d, Error **errp)
+{
+    ViaSuperIOState *s = VIA_SUPERIO(d);
+    ISASuperIOClass *ic = ISA_SUPERIO_GET_CLASS(s);
+    Error *local_err = NULL;
+
+    assert(s->io_ops);
+    ic->parent_realize(d, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    memory_region_init_io(&s->io, OBJECT(d), s->io_ops, s, "via-superio", 2);
+    memory_region_set_enabled(&s->io, false);
+    /* The floppy also uses 0x3f0 and 0x3f1 but this seems to work anyway */
+    memory_region_add_subregion(isa_address_space_io(ISA_DEVICE(s)), 0x3f0,
+                                &s->io);
+}
+
+static uint64_t via_superio_cfg_read(void *opaque, hwaddr addr, unsigned size)
+{
+    ViaSuperIOState *sc = opaque;
+    uint8_t idx = sc->regs[0];
+    uint8_t val = sc->regs[idx];
+
+    if (addr == 0) {
+        return idx;
+    }
+    if (addr == 1 && idx == 0) {
+        val = 0; /* reading reg 0 where we store index value */
+    }
+    trace_via_superio_read(idx, val);
+    return val;
+}
+
+static void via_superio_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
+
+    sc->parent_realize = dc->realize;
+    dc->realize = via_superio_realize;
+}
+
+static const TypeInfo via_superio_info = {
+    .name          = TYPE_VIA_SUPERIO,
+    .parent        = TYPE_ISA_SUPERIO,
+    .instance_size = sizeof(ViaSuperIOState),
+    .class_size    = sizeof(ISASuperIOClass),
+    .class_init    = via_superio_class_init,
+    .abstract      = true,
+};
+
+#define TYPE_VT82C686B_SUPERIO "vt82c686b-superio"
+
+static void vt82c686b_superio_cfg_write(void *opaque, hwaddr addr,
+                                        uint64_t data, unsigned size)
+{
+    ViaSuperIOState *sc = opaque;
     uint8_t idx = sc->regs[0];
 
     if (addr == 0) { /* config index register */
@@ -303,25 +371,9 @@ static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
     sc->regs[idx] = data;
 }
 
-static uint64_t superio_cfg_read(void *opaque, hwaddr addr, unsigned size)
-{
-    SuperIOConfig *sc = opaque;
-    uint8_t idx = sc->regs[0];
-    uint8_t val = sc->regs[idx];
-
-    if (addr == 0) {
-        return idx;
-    }
-    if (addr == 1 && idx == 0) {
-        val = 0; /* reading reg 0 where we store index value */
-    }
-    trace_via_superio_read(idx, val);
-    return val;
-}
-
-static const MemoryRegionOps superio_cfg_ops = {
-    .read = superio_cfg_read,
-    .write = superio_cfg_write,
+static const MemoryRegionOps vt82c686b_superio_cfg_ops = {
+    .read = via_superio_cfg_read,
+    .write = vt82c686b_superio_cfg_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -329,47 +381,215 @@ static const MemoryRegionOps superio_cfg_ops = {
     },
 };
 
+static void vt82c686b_superio_reset(DeviceState *dev)
+{
+    ViaSuperIOState *s = VIA_SUPERIO(dev);
 
-OBJECT_DECLARE_SIMPLE_TYPE(VT82C686BISAState, VT82C686B_ISA)
+    memset(s->regs, 0, sizeof(s->regs));
+    /* Device ID */
+    vt82c686b_superio_cfg_write(s, 0, 0xe0, 1);
+    vt82c686b_superio_cfg_write(s, 1, 0x3c, 1);
+    /* Function select - all disabled */
+    vt82c686b_superio_cfg_write(s, 0, 0xe2, 1);
+    vt82c686b_superio_cfg_write(s, 1, 0x03, 1);
+    /* Floppy ctrl base addr 0x3f0-7 */
+    vt82c686b_superio_cfg_write(s, 0, 0xe3, 1);
+    vt82c686b_superio_cfg_write(s, 1, 0xfc, 1);
+    /* Parallel port base addr 0x378-f */
+    vt82c686b_superio_cfg_write(s, 0, 0xe6, 1);
+    vt82c686b_superio_cfg_write(s, 1, 0xde, 1);
+    /* Serial port 1 base addr 0x3f8-f */
+    vt82c686b_superio_cfg_write(s, 0, 0xe7, 1);
+    vt82c686b_superio_cfg_write(s, 1, 0xfe, 1);
+    /* Serial port 2 base addr 0x2f8-f */
+    vt82c686b_superio_cfg_write(s, 0, 0xe8, 1);
+    vt82c686b_superio_cfg_write(s, 1, 0xbe, 1);
 
-struct VT82C686BISAState {
+    vt82c686b_superio_cfg_write(s, 0, 0, 1);
+}
+
+static void vt82c686b_superio_init(Object *obj)
+{
+    VIA_SUPERIO(obj)->io_ops = &vt82c686b_superio_cfg_ops;
+}
+
+static void vt82c686b_superio_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
+
+    dc->reset = vt82c686b_superio_reset;
+    sc->serial.count = 2;
+    sc->parallel.count = 1;
+    sc->ide.count = 0; /* emulated by via-ide */
+    sc->floppy.count = 1;
+}
+
+static const TypeInfo vt82c686b_superio_info = {
+    .name          = TYPE_VT82C686B_SUPERIO,
+    .parent        = TYPE_VIA_SUPERIO,
+    .instance_size = sizeof(ViaSuperIOState),
+    .instance_init = vt82c686b_superio_init,
+    .class_size    = sizeof(ISASuperIOClass),
+    .class_init    = vt82c686b_superio_class_init,
+};
+
+
+#define TYPE_VT8231_SUPERIO "vt8231-superio"
+
+static void vt8231_superio_cfg_write(void *opaque, hwaddr addr,
+                                     uint64_t data, unsigned size)
+{
+    ViaSuperIOState *sc = opaque;
+    uint8_t idx = sc->regs[0];
+
+    if (addr == 0) { /* config index register */
+        sc->regs[0] = data;
+        return;
+    }
+
+    /* config data register */
+    trace_via_superio_write(idx, data);
+    switch (idx) {
+    case 0x00 ... 0xdf:
+    case 0xe7 ... 0xef:
+    case 0xf0 ... 0xf1:
+    case 0xf5:
+    case 0xf8:
+    case 0xfd:
+        /* ignore write to read only registers */
+        return;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "via_superio_cfg: unimplemented register 0x%x\n", idx);
+        break;
+    }
+    sc->regs[idx] = data;
+}
+
+static const MemoryRegionOps vt8231_superio_cfg_ops = {
+    .read = via_superio_cfg_read,
+    .write = vt8231_superio_cfg_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
+static void vt8231_superio_reset(DeviceState *dev)
+{
+    ViaSuperIOState *s = VIA_SUPERIO(dev);
+
+    memset(s->regs, 0, sizeof(s->regs));
+    /* Device ID */
+    s->regs[0xf0] = 0x3c;
+    /* Device revision */
+    s->regs[0xf1] = 0x01;
+    /* Function select - all disabled */
+    vt8231_superio_cfg_write(s, 0, 0xf2, 1);
+    vt8231_superio_cfg_write(s, 1, 0x03, 1);
+    /* Serial port base addr */
+    vt8231_superio_cfg_write(s, 0, 0xf4, 1);
+    vt8231_superio_cfg_write(s, 1, 0xfe, 1);
+    /* Parallel port base addr */
+    vt8231_superio_cfg_write(s, 0, 0xf6, 1);
+    vt8231_superio_cfg_write(s, 1, 0xde, 1);
+    /* Floppy ctrl base addr */
+    vt8231_superio_cfg_write(s, 0, 0xf7, 1);
+    vt8231_superio_cfg_write(s, 1, 0xfc, 1);
+
+    vt8231_superio_cfg_write(s, 0, 0, 1);
+}
+
+static void vt8231_superio_init(Object *obj)
+{
+    VIA_SUPERIO(obj)->io_ops = &vt8231_superio_cfg_ops;
+}
+
+static uint16_t vt8231_superio_serial_iobase(ISASuperIODevice *sio,
+                                             uint8_t index)
+{
+        return 0x2f8; /* FIXME: This should be settable via registers f2-f4 */
+}
+
+static void vt8231_superio_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
+
+    dc->reset = vt8231_superio_reset;
+    sc->serial.count = 1;
+    sc->serial.get_iobase = vt8231_superio_serial_iobase;
+    sc->parallel.count = 1;
+    sc->ide.count = 0; /* emulated by via-ide */
+    sc->floppy.count = 1;
+}
+
+static const TypeInfo vt8231_superio_info = {
+    .name          = TYPE_VT8231_SUPERIO,
+    .parent        = TYPE_VIA_SUPERIO,
+    .instance_size = sizeof(ViaSuperIOState),
+    .instance_init = vt8231_superio_init,
+    .class_size    = sizeof(ISASuperIOClass),
+    .class_init    = vt8231_superio_class_init,
+};
+
+
+#define TYPE_VIA_ISA "via-isa"
+OBJECT_DECLARE_SIMPLE_TYPE(ViaISAState, VIA_ISA)
+
+struct ViaISAState {
     PCIDevice dev;
     qemu_irq cpu_intr;
-    SuperIOConfig superio_cfg;
+    ViaSuperIOState *via_sio;
+};
+
+static const VMStateDescription vmstate_via = {
+    .name = "via-isa",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(dev, ViaISAState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const TypeInfo via_isa_info = {
+    .name          = TYPE_VIA_ISA,
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(ViaISAState),
+    .abstract      = true,
+    .interfaces    = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
 };
 
 static void via_isa_request_i8259_irq(void *opaque, int irq, int level)
 {
-    VT82C686BISAState *s = opaque;
+    ViaISAState *s = opaque;
     qemu_set_irq(s->cpu_intr, level);
 }
+
+/* TYPE_VT82C686B_ISA */
 
 static void vt82c686b_write_config(PCIDevice *d, uint32_t addr,
                                    uint32_t val, int len)
 {
-    VT82C686BISAState *s = VT82C686B_ISA(d);
+    ViaISAState *s = VIA_ISA(d);
 
     trace_via_isa_write(addr, val, len);
     pci_default_write_config(d, addr, val, len);
     if (addr == 0x85) {
         /* BIT(1): enable or disable superio config io ports */
-        memory_region_set_enabled(&s->superio_cfg.io, val & BIT(1));
+        via_superio_io_enable(s->via_sio, val & BIT(1));
     }
 }
 
-static const VMStateDescription vmstate_via = {
-    .name = "vt82c686b",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, VT82C686BISAState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static void vt82c686b_isa_reset(DeviceState *dev)
 {
-    VT82C686BISAState *s = VT82C686B_ISA(dev);
+    ViaISAState *s = VIA_ISA(dev);
     uint8_t *pci_conf = s->dev.config;
 
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
@@ -385,18 +605,11 @@ static void vt82c686b_isa_reset(DeviceState *dev)
     pci_conf[0x5a] = 0x04; /* KBC/RTC Control*/
     pci_conf[0x5f] = 0x04;
     pci_conf[0x77] = 0x10; /* GPIO Control 1/2/3/4 */
-
-    s->superio_cfg.regs[0xe0] = 0x3c; /* Device ID */
-    s->superio_cfg.regs[0xe2] = 0x03; /* Function select */
-    s->superio_cfg.regs[0xe3] = 0xfc; /* Floppy ctrl base addr */
-    s->superio_cfg.regs[0xe6] = 0xde; /* Parallel port base addr */
-    s->superio_cfg.regs[0xe7] = 0xfe; /* Serial port 1 base addr */
-    s->superio_cfg.regs[0xe8] = 0xbe; /* Serial port 2 base addr */
 }
 
 static void vt82c686b_realize(PCIDevice *d, Error **errp)
 {
-    VT82C686BISAState *s = VT82C686B_ISA(d);
+    ViaISAState *s = VIA_ISA(d);
     DeviceState *dev = DEVICE(d);
     ISABus *isa_bus;
     qemu_irq *isa_irq;
@@ -409,7 +622,8 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
     isa_bus_irqs(isa_bus, i8259_init(isa_bus, *isa_irq));
     i8254_pit_init(isa_bus, 0x40, 0, NULL);
     i8257_dma_init(isa_bus, 0);
-    isa_create_simple(isa_bus, TYPE_VT82C686B_SUPERIO);
+    s->via_sio = VIA_SUPERIO(isa_create_simple(isa_bus,
+                                               TYPE_VT82C686B_SUPERIO));
     mc146818_rtc_init(isa_bus, 2000, NULL);
 
     for (i = 0; i < PCI_CONFIG_HEADER_SIZE; i++) {
@@ -417,19 +631,9 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
             d->wmask[i] = 0;
         }
     }
-
-    memory_region_init_io(&s->superio_cfg.io, OBJECT(d), &superio_cfg_ops,
-                          &s->superio_cfg, "superio_cfg", 2);
-    memory_region_set_enabled(&s->superio_cfg.io, false);
-    /*
-     * The floppy also uses 0x3f0 and 0x3f1.
-     * But we do not emulate a floppy, so just set it here.
-     */
-    memory_region_add_subregion(isa_bus->address_space_io, 0x3f0,
-                                &s->superio_cfg.io);
 }
 
-static void via_class_init(ObjectClass *klass, void *data)
+static void vt82c686b_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -437,47 +641,101 @@ static void via_class_init(ObjectClass *klass, void *data)
     k->realize = vt82c686b_realize;
     k->config_write = vt82c686b_write_config;
     k->vendor_id = PCI_VENDOR_ID_VIA;
-    k->device_id = PCI_DEVICE_ID_VIA_ISA_BRIDGE;
+    k->device_id = PCI_DEVICE_ID_VIA_82C686B_ISA;
     k->class_id = PCI_CLASS_BRIDGE_ISA;
     k->revision = 0x40;
     dc->reset = vt82c686b_isa_reset;
     dc->desc = "ISA bridge";
     dc->vmsd = &vmstate_via;
-    /*
-     * Reason: part of VIA VT82C686 southbridge, needs to be wired up,
-     * e.g. by mips_fuloong2e_init()
-     */
+    /* Reason: part of VIA VT82C686 southbridge, needs to be wired up */
     dc->user_creatable = false;
 }
 
-static const TypeInfo via_info = {
+static const TypeInfo vt82c686b_isa_info = {
     .name          = TYPE_VT82C686B_ISA,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(VT82C686BISAState),
-    .class_init    = via_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .parent        = TYPE_VIA_ISA,
+    .instance_size = sizeof(ViaISAState),
+    .class_init    = vt82c686b_class_init,
 };
 
+/* TYPE_VT8231_ISA */
 
-static void vt82c686b_superio_class_init(ObjectClass *klass, void *data)
+static void vt8231_write_config(PCIDevice *d, uint32_t addr,
+                                uint32_t val, int len)
 {
-    ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
+    ViaISAState *s = VIA_ISA(d);
 
-    sc->serial.count = 2;
-    sc->parallel.count = 1;
-    sc->ide.count = 0;
-    sc->floppy.count = 1;
+    trace_via_isa_write(addr, val, len);
+    pci_default_write_config(d, addr, val, len);
+    if (addr == 0x50) {
+        /* BIT(2): enable or disable superio config io ports */
+        via_superio_io_enable(s->via_sio, val & BIT(2));
+    }
 }
 
-static const TypeInfo via_superio_info = {
-    .name          = TYPE_VT82C686B_SUPERIO,
-    .parent        = TYPE_ISA_SUPERIO,
-    .instance_size = sizeof(ISASuperIODevice),
-    .class_size    = sizeof(ISASuperIOClass),
-    .class_init    = vt82c686b_superio_class_init,
+static void vt8231_isa_reset(DeviceState *dev)
+{
+    ViaISAState *s = VIA_ISA(dev);
+    uint8_t *pci_conf = s->dev.config;
+
+    pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
+    pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
+                 PCI_COMMAND_MASTER | PCI_COMMAND_SPECIAL);
+    pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM);
+
+    pci_conf[0x58] = 0x40; /* Miscellaneous Control 0 */
+    pci_conf[0x67] = 0x08; /* Fast IR Config */
+    pci_conf[0x6b] = 0x01; /* Fast IR I/O Base */
+}
+
+static void vt8231_realize(PCIDevice *d, Error **errp)
+{
+    ViaISAState *s = VIA_ISA(d);
+    DeviceState *dev = DEVICE(d);
+    ISABus *isa_bus;
+    qemu_irq *isa_irq;
+    int i;
+
+    qdev_init_gpio_out(dev, &s->cpu_intr, 1);
+    isa_irq = qemu_allocate_irqs(via_isa_request_i8259_irq, s, 1);
+    isa_bus = isa_bus_new(dev, get_system_memory(), pci_address_space_io(d),
+                          &error_fatal);
+    isa_bus_irqs(isa_bus, i8259_init(isa_bus, *isa_irq));
+    i8254_pit_init(isa_bus, 0x40, 0, NULL);
+    i8257_dma_init(isa_bus, 0);
+    s->via_sio = VIA_SUPERIO(isa_create_simple(isa_bus, TYPE_VT8231_SUPERIO));
+    mc146818_rtc_init(isa_bus, 2000, NULL);
+
+    for (i = 0; i < PCI_CONFIG_HEADER_SIZE; i++) {
+        if (i < PCI_COMMAND || i >= PCI_REVISION_ID) {
+            d->wmask[i] = 0;
+        }
+    }
+}
+
+static void vt8231_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->realize = vt8231_realize;
+    k->config_write = vt8231_write_config;
+    k->vendor_id = PCI_VENDOR_ID_VIA;
+    k->device_id = PCI_DEVICE_ID_VIA_8231_ISA;
+    k->class_id = PCI_CLASS_BRIDGE_ISA;
+    k->revision = 0x10;
+    dc->reset = vt8231_isa_reset;
+    dc->desc = "ISA bridge";
+    dc->vmsd = &vmstate_via;
+    /* Reason: part of VIA VT8231 southbridge, needs to be wired up */
+    dc->user_creatable = false;
+}
+
+static const TypeInfo vt8231_isa_info = {
+    .name          = TYPE_VT8231_ISA,
+    .parent        = TYPE_VIA_ISA,
+    .instance_size = sizeof(ViaISAState),
+    .class_init    = vt8231_class_init,
 };
 
 
@@ -486,8 +744,12 @@ static void vt82c686b_register_types(void)
     type_register_static(&via_pm_info);
     type_register_static(&vt82c686b_pm_info);
     type_register_static(&vt8231_pm_info);
-    type_register_static(&via_info);
     type_register_static(&via_superio_info);
+    type_register_static(&vt82c686b_superio_info);
+    type_register_static(&vt8231_superio_info);
+    type_register_static(&via_isa_info);
+    type_register_static(&vt82c686b_isa_info);
+    type_register_static(&vt8231_isa_info);
 }
 
 type_init(vt82c686b_register_types)

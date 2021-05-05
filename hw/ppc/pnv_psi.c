@@ -465,7 +465,7 @@ static void pnv_psi_reset(DeviceState *dev)
 
 static void pnv_psi_reset_handler(void *dev)
 {
-    device_legacy_reset(DEVICE(dev));
+    device_cold_reset(DEVICE(dev));
 }
 
 static void pnv_psi_realize(DeviceState *dev, Error **errp)
@@ -709,7 +709,7 @@ static void pnv_psi_p9_mmio_write(void *opaque, hwaddr addr,
         break;
     case PSIHB9_INTERRUPT_CONTROL:
         if (val & PSIHB9_IRQ_RESET) {
-            device_legacy_reset(DEVICE(&psi9->source));
+            device_cold_reset(DEVICE(&psi9->source));
         }
         psi->regs[reg] = val;
         break;

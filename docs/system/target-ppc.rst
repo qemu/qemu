@@ -20,5 +20,6 @@ help``.
    ppc/embedded
    ppc/powermac
    ppc/powernv
+   ppc/ppce500
    ppc/prep
    ppc/pseries

@@ -98,7 +98,7 @@
  *
  * We load our kernel at 4M, leaving space for SLOF initial image
  */
-#define RTAS_MAX_ADDR           0x80000000 /* RTAS must stay below that */
+#define FDT_MAX_ADDR            0x80000000 /* FDT must stay below that */
 #define FW_MAX_SIZE             0x400000
 #define FW_FILE_NAME            "slof.bin"
 #define FW_OVERHEAD             0x2800000
@@ -1615,11 +1615,11 @@ static void spapr_machine_reset(MachineState *machine)
     spapr_clear_pending_events(spapr);
 
     /*
-     * We place the device tree and RTAS just below either the top of the RMA,
+     * We place the device tree just below either the top of the RMA,
      * or just below 2GB, whichever is lower, so that it can be
      * processed with 32-bit real mode code if necessary
      */
-    fdt_addr = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FDT_MAX_SIZE;
+    fdt_addr = MIN(spapr->rma_size, FDT_MAX_ADDR) - FDT_MAX_SIZE;
 
     fdt = spapr_build_fdt(spapr, true, FDT_MAX_SIZE);
 
@@ -2692,7 +2692,7 @@ static void spapr_machine_init(MachineState *machine)
     spapr->rma_size = spapr_rma_size(spapr, &error_fatal);
 
     /* Setup a load limit for the ramdisk leaving room for SLOF and FDT */
-    load_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FW_OVERHEAD;
+    load_limit = MIN(spapr->rma_size, FDT_MAX_ADDR) - FW_OVERHEAD;
 
     /*
      * VSMT must be set in order to be able to compute VCPU ids, ie to
@@ -4485,7 +4485,16 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->init = spapr_machine_init;
     mc->reset = spapr_machine_reset;
     mc->block_default_type = IF_SCSI;
-    mc->max_cpus = 1024;
+
+    /*
+     * Setting max_cpus to INT32_MAX. Both KVM and TCG max_cpus values
+     * should be limited by the host capability instead of hardcoded.
+     * max_cpus for KVM guests will be checked in kvm_init(), and TCG
+     * guests are welcome to have as many CPUs as the host are capable
+     * of emulate.
+     */
+    mc->max_cpus = INT32_MAX;
+
     mc->no_parallel = 1;
     mc->default_boot_order = "";
     mc->default_ram_size = 512 * MiB;

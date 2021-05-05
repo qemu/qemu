@@ -19,6 +19,8 @@ pci_ss.add(when: 'CONFIG_GRACKLE_PCI', if_true: files('grackle.c'))
 pci_ss.add(when: 'CONFIG_UNIN_PCI', if_true: files('uninorth.c'))
 # PowerPC E500 boards
 pci_ss.add(when: 'CONFIG_PPCE500_PCI', if_true: files('ppce500.c'))
+# Pegasos2
+pci_ss.add(when: 'CONFIG_MV64361', if_true: files('mv64361.c'))
 
 # ARM devices
 pci_ss.add(when: 'CONFIG_VERSATILE_PCI', if_true: files('versatile.c'))

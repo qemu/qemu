@@ -6,6 +6,7 @@ ppc_ss.add(files(
   'excp_helper.c',
   'fpu_helper.c',
   'gdbstub.c',
+  'helper_regs.c',
   'int_helper.c',
   'mem_helper.c',
   'misc_helper.c',
