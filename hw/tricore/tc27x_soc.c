@@ -21,13 +21,9 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
-#include "hw/boards.h"
 #include "hw/loader.h"
 #include "qemu/units.h"
 #include "hw/misc/unimp.h"
-#include "exec/address-spaces.h"
-#include "qemu/log.h"
-#include "cpu.h"
 
 #include "hw/tricore/tc27x_soc.h"
 #include "hw/tricore/triboard.h"

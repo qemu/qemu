@@ -37,7 +37,6 @@
 #include "hw/display/milkymist_tmu2.h"
 #include "hw/sd/sd.h"
 #include "lm32.h"
-#include "exec/address-spaces.h"
 #include "qemu/cutils.h"
 
 #define BIOS_FILENAME    "mmone-bios.bin"

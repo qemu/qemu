@@ -12,7 +12,6 @@
 #include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "elf.h"
-#include "cpu.h"
 #include "exec/hwaddr.h"
 #include "monitor/monitor.h"
 #include "sysemu/kvm.h"

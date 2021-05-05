@@ -32,7 +32,6 @@
 #include "qemu/host-utils.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
-#include "exec/address-spaces.h"
 #include "qemu/timer.h"
 
 #ifndef CONFIG_USER_ONLY

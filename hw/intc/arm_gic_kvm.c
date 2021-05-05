@@ -22,8 +22,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "cpu.h"
-#include "hw/sysbus.h"
 #include "migration/blocker.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"

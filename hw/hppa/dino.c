@@ -14,13 +14,11 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "hw/irq.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "migration/vmstate.h"
 #include "hppa_sys.h"
-#include "exec/address-spaces.h"
 #include "trace.h"
 #include "qom/object.h"
 

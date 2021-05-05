@@ -16,10 +16,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/address-spaces.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/arm/allwinner-a10.h"
 #include "hw/misc/unimp.h"

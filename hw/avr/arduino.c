@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/boards.h"
 #include "atmega.h"
 #include "boot.h"
 #include "qom/object.h"

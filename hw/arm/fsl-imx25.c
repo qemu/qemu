@@ -24,10 +24,8 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "hw/arm/fsl-imx25.h"
 #include "sysemu/sysemu.h"
-#include "exec/address-spaces.h"
 #include "hw/qdev-properties.h"
 #include "chardev/char.h"
 

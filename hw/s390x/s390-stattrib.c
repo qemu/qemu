@@ -11,7 +11,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "cpu.h"
 #include "migration/qemu-file.h"
 #include "migration/register.h"
 #include "hw/s390x/storage-attributes.h"

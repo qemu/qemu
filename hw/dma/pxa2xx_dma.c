@@ -525,7 +525,7 @@ static bool is_version_0(void *opaque, int version_id)
     return version_id == 0;
 }
 
-static VMStateDescription vmstate_pxa2xx_dma_chan = {
+static const VMStateDescription vmstate_pxa2xx_dma_chan = {
     .name = "pxa2xx_dma_chan",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -540,7 +540,7 @@ static VMStateDescription vmstate_pxa2xx_dma_chan = {
     },
 };
 
-static VMStateDescription vmstate_pxa2xx_dma = {
+static const VMStateDescription vmstate_pxa2xx_dma = {
     .name = "pxa2xx_dma",
     .version_id = 1,
     .minimum_version_id = 0,

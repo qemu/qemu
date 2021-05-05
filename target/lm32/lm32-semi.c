@@ -13,7 +13,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
-#include "qemu/log.h"
 #include "exec/softmmu-semi.h"
 
 enum {

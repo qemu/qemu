@@ -12,7 +12,6 @@
 #include "qemu/timer.h"
 #include "net/net.h"
 #include "net/eth.h"
-#include "sysemu/sysemu.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"

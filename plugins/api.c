@@ -36,8 +36,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/plugin.h"
-#include "cpu.h"
-#include "sysemu/sysemu.h"
 #include "tcg/tcg.h"
 #include "exec/exec-all.h"
 #include "exec/ram_addr.h"

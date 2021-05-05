@@ -34,7 +34,6 @@
 #include "hw/irq.h"
 #include "hw/pci-bridge/simba.h"
 #include "hw/pci-host/sabre.h"
-#include "exec/address-spaces.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

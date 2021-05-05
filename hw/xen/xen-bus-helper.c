@@ -6,7 +6,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
 #include "hw/xen/xen.h"
 #include "hw/xen/xen-bus.h"
 #include "hw/xen/xen-bus-helper.h"

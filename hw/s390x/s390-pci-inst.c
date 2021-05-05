@@ -12,7 +12,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "exec/memop.h"
 #include "exec/memory-internal.h"
 #include "qemu/error-report.h"

@@ -54,7 +54,6 @@
 #include "cpu-models.h"
 #include "hw/core/cpu.h"
 
-#include "hw/boards.h"
 #include "hw/ppc/ppc.h"
 #include "hw/loader.h"
 
@@ -70,7 +69,6 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/vhost-scsi-common.h"
 
-#include "exec/address-spaces.h"
 #include "exec/ram_addr.h"
 #include "hw/usb.h"
 #include "qemu/config-file.h"

@@ -25,12 +25,10 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/fsl-imx25.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"
-#include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 #include "hw/i2c/i2c.h"
 #include "qemu/cutils.h"

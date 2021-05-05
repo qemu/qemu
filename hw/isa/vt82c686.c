@@ -30,7 +30,6 @@
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "qemu/timer.h"
-#include "exec/address-spaces.h"
 #include "trace.h"
 
 #define TYPE_VIA_PM "via-pm"

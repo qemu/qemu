@@ -36,12 +36,10 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "qemu/log.h"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
-#include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "chardev/char.h"

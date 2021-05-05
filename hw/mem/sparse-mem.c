@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 
-#include "exec/address-spaces.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "qapi/error.h"

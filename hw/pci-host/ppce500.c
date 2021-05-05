@@ -415,7 +415,6 @@ static const VMStateDescription vmstate_ppce500_pci = {
     }
 };
 
-#include "exec/address-spaces.h"
 
 static void e500_pcihost_bridge_realize(PCIDevice *d, Error **errp)
 {

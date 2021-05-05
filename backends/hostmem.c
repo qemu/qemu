@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/hostmem.h"
-#include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"

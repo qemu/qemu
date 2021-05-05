@@ -41,7 +41,6 @@
    CPU definitions. Currently they are used for qemu_ld/st
    instructions */
 #define NO_CPU_IO_DEFS
-#include "cpu.h"
 
 #include "exec/exec-all.h"
 
@@ -64,7 +63,6 @@
 
 #include "elf.h"
 #include "exec/log.h"
-#include "sysemu/sysemu.h"
 
 /* Forward declarations for functions declared in tcg-target.c.inc and
    used here. */

@@ -1786,7 +1786,7 @@ struct X86CPU {
 
 
 #ifndef CONFIG_USER_ONLY
-extern VMStateDescription vmstate_x86_cpu;
+extern const VMStateDescription vmstate_x86_cpu;
 #endif
 
 int x86_cpu_pending_interrupt(CPUState *cs, int interrupt_request);

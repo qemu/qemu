@@ -15,7 +15,6 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_bus.h"
 #include "qemu/thread.h"
-#include "hw/boards.h"
 #include "hw/remote/machine.h"
 #include "hw/remote/iohub.h"
 #include "qemu/main-loop.h"

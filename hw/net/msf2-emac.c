@@ -32,7 +32,6 @@
 #include "qemu-common.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
-#include "exec/address-spaces.h"
 #include "hw/registerfields.h"
 #include "hw/net/msf2-emac.h"
 #include "hw/net/mii.h"

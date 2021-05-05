@@ -374,7 +374,7 @@ static void passthru_realize(CCIDCardState *base, Error **errp)
     card->atr_length = sizeof(DEFAULT_ATR);
 }
 
-static VMStateDescription passthru_vmstate = {
+static const VMStateDescription passthru_vmstate = {
     .name = "ccid-card-passthru",
     .version_id = 1,
     .minimum_version_id = 1,

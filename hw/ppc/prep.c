@@ -24,12 +24,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "hw/rtc/m48t59.h"
 #include "hw/char/serial.h"
 #include "hw/block/fdc.h"
 #include "net/net.h"
-#include "sysemu/sysemu.h"
 #include "hw/isa/isa.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
@@ -38,7 +36,6 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
-#include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/isa/pc87312.h"
@@ -46,7 +43,6 @@
 #include "sysemu/arch_init.h"
 #include "sysemu/kvm.h"
 #include "sysemu/reset.h"
-#include "exec/address-spaces.h"
 #include "trace.h"
 #include "elf.h"
 #include "qemu/units.h"

@@ -10,11 +10,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "sysemu/device_tree.h"
-#include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "hw/arm/sysbus-fdt.h"

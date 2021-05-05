@@ -57,7 +57,6 @@
 #include "hw/loader.h"
 #include "hw/nvram/fw_cfg.h"
 #include "exec/memory.h"
-#include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "qemu/cutils.h"
 #include "sysemu/runstate.h"

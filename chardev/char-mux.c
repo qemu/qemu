@@ -28,7 +28,6 @@
 #include "qemu/option.h"
 #include "chardev/char.h"
 #include "sysemu/block-backend.h"
-#include "sysemu/sysemu.h"
 #include "chardev-internal.h"
 
 /* MUX driver for serial I/O splitting */

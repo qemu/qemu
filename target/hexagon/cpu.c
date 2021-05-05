@@ -16,7 +16,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "internal.h"

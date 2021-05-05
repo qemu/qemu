@@ -29,7 +29,6 @@
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "exec/address-spaces.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"
 #include "hw/ide/ahci.h"
@@ -170,7 +169,7 @@ struct HighbankRegsState {
     uint32_t regs[NUM_REGS];
 };
 
-static VMStateDescription vmstate_highbank_regs = {
+static const VMStateDescription vmstate_highbank_regs = {
     .name = "highbank-regs",
     .version_id = 0,
     .minimum_version_id = 0,

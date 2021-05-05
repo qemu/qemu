@@ -29,10 +29,8 @@
 #include "qemu/cutils.h"
 #include "qemu/datadir.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "elf.h"
 #include "kvm_mips.h"
-#include "hw/boards.h"
 #include "hw/char/serial.h"
 #include "hw/intc/loongson_liointc.h"
 #include "hw/mips/mips.h"
@@ -49,12 +47,10 @@
 #include "hw/pci-host/gpex.h"
 #include "hw/usb.h"
 #include "net/net.h"
-#include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
-#include "qemu/log.h"
 #include "qemu/error-report.h"
 
 #define PM_CNTL_MODE          0x10

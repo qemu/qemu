@@ -29,14 +29,12 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "hw/sysbus.h"
 #include "net/net.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/char/serial.h"
-#include "exec/address-spaces.h"
 #include "elf.h"
 
 #define PHYS_MEM_BASE 0x80000000

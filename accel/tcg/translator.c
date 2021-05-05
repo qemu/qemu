@@ -9,7 +9,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "cpu.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
 #include "exec/exec-all.h"

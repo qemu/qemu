@@ -30,7 +30,6 @@
 #include "trace.h"
 #include "migration/blocker.h"
 #include "qom/object.h"
-#include "exec/address-spaces.h"
 #include "monitor/monitor.h"
 #include "exec/confidential-guest-support.h"
 #include "hw/i386/pc.h"

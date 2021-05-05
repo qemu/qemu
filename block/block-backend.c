@@ -18,7 +18,6 @@
 #include "hw/qdev-core.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/replay.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-block.h"

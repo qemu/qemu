@@ -21,12 +21,8 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
-#include "cpu.h"
-#include "hw/hw.h"
-#include "hw/sysbus.h"
 #include "hw/loader.h"
 #include "hw/rx/rx62n.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
 #include "sysemu/device_tree.h"
 #include "hw/boards.h"
@@ -93,6 +89,7 @@ static void rx_gdbsim_init(MachineState *machine)
         char *sz = size_to_str(mc->default_ram_size);
         error_report("Invalid RAM size, should be more than %s", sz);
         g_free(sz);
+        exit(1);
     }
 
     /* Allocate memory space */

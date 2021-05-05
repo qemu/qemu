@@ -29,7 +29,6 @@
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "qemu/log.h"
 #include "qemu/module.h"
 #include "net/net.h"
 #include "qom/object.h"

@@ -17,7 +17,6 @@
 #include "qemu-common.h"
 
 #include "hw/remote/machine.h"
-#include "exec/address-spaces.h"
 #include "exec/memory.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_host.h"

@@ -23,7 +23,6 @@
 
 #include "qemu/cutils.h"
 #include "qemu/cacheflush.h"
-#include "cpu.h"
 
 #ifdef CONFIG_TCG
 #include "hw/core/tcg-cpu-ops.h"
@@ -36,7 +35,6 @@
 #include "hw/boards.h"
 #include "hw/xen/xen.h"
 #include "sysemu/kvm.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "sysemu/qtest.h"
 #include "qemu/timer.h"
@@ -48,7 +46,6 @@
 #include "sysemu/dma.h"
 #include "sysemu/hostmem.h"
 #include "sysemu/hw_accel.h"
-#include "exec/address-spaces.h"
 #include "sysemu/xen-mapcache.h"
 #include "trace/trace-root.h"
 

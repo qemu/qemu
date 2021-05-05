@@ -24,7 +24,6 @@
 #include "x86_mmu.h"
 #include "vmcs.h"
 #include "vmx.h"
-#include "exec/address-spaces.h"
 
 #define pte_present(pte) (pte & PT_PRESENT)
 #define pte_write_access(pte) (pte & PT_WRITE)

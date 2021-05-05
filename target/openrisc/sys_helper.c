@@ -23,7 +23,6 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "exception.h"
-#include "sysemu/sysemu.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/boards.h"
 #endif

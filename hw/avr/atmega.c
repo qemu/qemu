@@ -18,7 +18,6 @@
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
-#include "hw/boards.h" /* FIXME memory_region_allocate_system_memory for sram */
 #include "hw/misc/unimp.h"
 #include "atmega.h"
 

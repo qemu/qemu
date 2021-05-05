@@ -15,7 +15,6 @@
 
 #include "sysemu/runstate.h"
 #include "hw/vfio/vfio-common.h"
-#include "cpu.h"
 #include "migration/migration.h"
 #include "migration/vmstate.h"
 #include "migration/qemu-file.h"

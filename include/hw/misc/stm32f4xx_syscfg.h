@@ -26,7 +26,6 @@
 #define HW_STM_SYSCFG_H
 
 #include "hw/sysbus.h"
-#include "hw/hw.h"
 #include "qom/object.h"
 
 #define SYSCFG_MEMRMP  0x00

@@ -30,11 +30,9 @@
 #include "sysemu/kvm_int.h"
 #include "sysemu/runstate.h"
 #include "sysemu/cpus.h"
-#include "sysemu/sysemu.h"
 #include "qemu/bswap.h"
 #include "exec/memory.h"
 #include "exec/ram_addr.h"
-#include "exec/address-spaces.h"
 #include "qemu/event_notifier.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
@@ -2269,7 +2267,7 @@ static int kvm_handle_internal_error(CPUState *cpu, struct kvm_run *run)
         int i;
 
         for (i = 0; i < run->internal.ndata; ++i) {
-            fprintf(stderr, "extra data[%d]: %"PRIx64"\n",
+            fprintf(stderr, "extra data[%d]: 0x%016"PRIx64"\n",
                     i, (uint64_t)run->internal.data[i]);
         }
     }

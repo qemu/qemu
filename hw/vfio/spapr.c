@@ -9,7 +9,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 

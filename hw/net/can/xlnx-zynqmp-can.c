@@ -37,7 +37,6 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/cutils.h"
-#include "sysemu/sysemu.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "net/can_emu.h"

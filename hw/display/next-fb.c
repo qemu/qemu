@@ -24,8 +24,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "ui/console.h"
-#include "hw/hw.h"
-#include "hw/boards.h"
 #include "hw/loader.h"
 #include "framebuffer.h"
 #include "ui/pixel_ops.h"

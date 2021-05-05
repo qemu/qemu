@@ -56,6 +56,7 @@ const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen)
 {
     XkbDescPtr desc;
     const gchar *keycodes = NULL;
+    const guint16 *map;
 
     /* There is no easy way to determine what X11 server
      * and platform & keyboard driver is in use. Thus we
@@ -83,21 +84,21 @@ const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen)
     if (check_for_xwin(dpy)) {
         trace_xkeymap_keymap("xwin");
         *maplen = qemu_input_map_xorgxwin_to_qcode_len;
-        return qemu_input_map_xorgxwin_to_qcode;
+        map = qemu_input_map_xorgxwin_to_qcode;
     } else if (check_for_xquartz(dpy)) {
         trace_xkeymap_keymap("xquartz");
         *maplen = qemu_input_map_xorgxquartz_to_qcode_len;
-        return qemu_input_map_xorgxquartz_to_qcode;
+        map = qemu_input_map_xorgxquartz_to_qcode;
     } else if ((keycodes && g_str_has_prefix(keycodes, "evdev")) ||
                (XKeysymToKeycode(dpy, XK_Page_Up) == 0x70)) {
         trace_xkeymap_keymap("evdev");
         *maplen = qemu_input_map_xorgevdev_to_qcode_len;
-        return qemu_input_map_xorgevdev_to_qcode;
+        map = qemu_input_map_xorgevdev_to_qcode;
     } else if ((keycodes && g_str_has_prefix(keycodes, "xfree86")) ||
                (XKeysymToKeycode(dpy, XK_Page_Up) == 0x63)) {
         trace_xkeymap_keymap("kbd");
         *maplen = qemu_input_map_xorgkbd_to_qcode_len;
-        return qemu_input_map_xorgkbd_to_qcode;
+        map = qemu_input_map_xorgkbd_to_qcode;
     } else {
         trace_xkeymap_keymap("NULL");
         g_warning("Unknown X11 keycode mapping '%s'.\n"
@@ -109,6 +110,10 @@ const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen)
                   "  - xprop -root\n"
                   "  - xdpyinfo\n",
                   keycodes ? keycodes : "<null>");
-        return NULL;
+        map = NULL;
     }
+    if (keycodes) {
+        XFree((void *)keycodes);
+    }
+    return map;
 }

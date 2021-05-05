@@ -27,7 +27,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "exec/memory.h"
 #include "qemu/error-report.h"
 #include "xtensa_memory.h"

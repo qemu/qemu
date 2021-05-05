@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "cpu.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/pci/msi.h"
 #include "sysemu/hw_accel.h"

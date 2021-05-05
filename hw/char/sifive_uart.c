@@ -19,10 +19,8 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
-#include "hw/sysbus.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/char/sifive_uart.h"
 

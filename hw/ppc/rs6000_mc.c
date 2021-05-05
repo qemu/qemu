@@ -23,7 +23,6 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "exec/address-spaces.h"
-#include "hw/boards.h"
 #include "qapi/error.h"
 #include "trace.h"
 #include "qom/object.h"

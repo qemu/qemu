@@ -21,7 +21,6 @@
 #include "cpu.h"
 #include "exec/log.h"
 #include "exec/cpu_ldst.h"
-#include "sysemu/sysemu.h"
 #include "hw/irq.h"
 
 void rx_cpu_unpack_psw(CPURXState *env, uint32_t psw, int rte)

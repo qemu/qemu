@@ -16,7 +16,6 @@
 
 #include "qemu/osdep.h"
 
-#include "exec/address-spaces.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/npcm7xx.h"
 #include "hw/char/serial.h"

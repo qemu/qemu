@@ -38,9 +38,7 @@
 #include "elf.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "qemu/log.h"
 #include "qemu/option.h"
-#include "exec/address-spaces.h"
 
 #include "hw/intc/ppc-uic.h"
 #include "hw/ppc/ppc.h"

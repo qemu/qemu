@@ -40,7 +40,6 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "trace.h"
-#include "exec/address-spaces.h"
 
 #include "hw/sparc/grlib.h"
 #include "hw/misc/grlib_ahb_apb_pnp.h"

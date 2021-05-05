@@ -32,7 +32,6 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "sysemu/qtest.h"
-#include "sysemu/sysemu.h"
 #include "trace.h"
 
 /*

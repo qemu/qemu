@@ -32,7 +32,6 @@
 #include "hw/irq.h"
 #include "hw/register.h"
 #include "qemu/bitops.h"
-#include "qemu/log.h"
 #include "qom/object.h"
 #include "migration/vmstate.h"
 #include "hw/usb/xlnx-versal-usb2-ctrl-regs.h"

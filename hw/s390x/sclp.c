@@ -15,8 +15,6 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "cpu.h"
-#include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/event-facility.h"

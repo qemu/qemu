@@ -51,9 +51,7 @@
 #include "qemu/option.h"
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
-#include "sysemu/sysemu.h"
 #include "net/filter.h"
 #include "qapi/string-output-visitor.h"
 

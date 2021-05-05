@@ -29,7 +29,6 @@
 #include "hw/input/tsc2xxx.h"
 #include "hw/irq.h"
 #include "hw/loader.h"
-#include "exec/address-spaces.h"
 #include "cpu.h"
 #include "qemu/cutils.h"
 #include "qom/object.h"

@@ -28,7 +28,6 @@
 #include "qemu/timer.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
-#include "qemu/log.h"
 #include "hw/loader.h"
 #include "kvm_ppc.h"
 

@@ -27,7 +27,6 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
-#include "cpu.h"
 
 #include "hw/qdev-properties.h"
 #include "hw/sparc/grlib.h"

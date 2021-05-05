@@ -34,7 +34,6 @@
 #include <windows.h>
 #include "qemu-common.h"
 #include "qapi/error.h"
-#include "sysemu/sysemu.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
 #include "qemu/sockets.h"
