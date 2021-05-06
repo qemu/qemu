@@ -283,22 +283,23 @@ static void virgl_resource_attach_backing(VirtIOGPU *g,
 {
     struct virtio_gpu_resource_attach_backing att_rb;
     struct iovec *res_iovs;
+    uint32_t res_niov;
     int ret;
 
     VIRTIO_GPU_FILL_CMD(att_rb);
     trace_virtio_gpu_cmd_res_back_attach(att_rb.resource_id);
 
-    ret = virtio_gpu_create_mapping_iov(g, &att_rb, cmd, NULL, &res_iovs);
+    ret = virtio_gpu_create_mapping_iov(g, &att_rb, cmd, NULL, &res_iovs, &res_niov);
     if (ret != 0) {
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         return;
     }
 
     ret = virgl_renderer_resource_attach_iov(att_rb.resource_id,
-                                             res_iovs, att_rb.nr_entries);
+                                             res_iovs, res_niov);
 
     if (ret != 0)
-        virtio_gpu_cleanup_mapping_iov(g, res_iovs, att_rb.nr_entries);
+        virtio_gpu_cleanup_mapping_iov(g, res_iovs, res_niov);
 }
 
 static void virgl_resource_detach_backing(VirtIOGPU *g,
