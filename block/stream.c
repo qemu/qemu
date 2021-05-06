@@ -33,6 +33,7 @@ enum {
 
 typedef struct StreamBlockJob {
     BlockJob common;
+    BlockBackend *blk;
     BlockDriverState *base_overlay; /* COW overlay (stream from this) */
     BlockDriverState *above_base;   /* Node directly above the base */
     BlockDriverState *cor_filter_bs;
@@ -88,17 +89,18 @@ static int stream_prepare(Job *job)
 static void stream_clean(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
-    BlockJob *bjob = &s->common;
 
     if (s->cor_filter_bs) {
         bdrv_cor_filter_drop(s->cor_filter_bs);
         s->cor_filter_bs = NULL;
     }
 
+    blk_unref(s->blk);
+    s->blk = NULL;
+
     /* Reopen the image back in read-only mode if necessary */
     if (s->bs_read_only) {
         /* Give up write permissions before making it read-only */
-        blk_set_perm(bjob->blk, 0, BLK_PERM_ALL, &error_abort);
         bdrv_reopen_set_read_only(s->target_bs, true, NULL);
     }
 
@@ -108,7 +110,6 @@ static void stream_clean(Job *job)
 static int coroutine_fn stream_run(Job *job, Error **errp)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
-    BlockBackend *blk = s->common.blk;
     BlockDriverState *unfiltered_bs = bdrv_skip_filters(s->target_bs);
     int64_t len;
     int64_t offset = 0;
@@ -159,7 +160,7 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         }
         trace_stream_one_iteration(s, offset, n, ret);
         if (copy) {
-            ret = stream_populate(blk, offset, n);
+            ret = stream_populate(s->blk, offset, n);
         }
         if (ret < 0) {
             BlockErrorAction action =
@@ -294,12 +295,23 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     }
 
     s = block_job_create(job_id, &stream_job_driver, NULL, cor_filter_bs,
-                         BLK_PERM_CONSISTENT_READ,
-                         basic_flags | BLK_PERM_WRITE,
+                         0, BLK_PERM_ALL,
                          speed, creation_flags, NULL, NULL, errp);
     if (!s) {
         goto fail;
     }
+
+    s->blk = blk_new_with_bs(cor_filter_bs, BLK_PERM_CONSISTENT_READ,
+                             basic_flags | BLK_PERM_WRITE, errp);
+    if (!s->blk) {
+        goto fail;
+    }
+    /*
+     * Disable request queuing in the BlockBackend to avoid deadlocks on drain:
+     * The job reports that it's busy until it reaches a pause point.
+     */
+    blk_set_disable_request_queuing(s->blk, true);
+    blk_set_allow_aio_context_change(s->blk, true);
 
     /*
      * Prevent concurrent jobs trying to modify the graph structure here, we
