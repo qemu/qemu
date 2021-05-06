@@ -37,26 +37,12 @@ static void test_threshold_trigger(void)
     g_assert_cmpuint(bdrv_write_threshold_get(&bs), ==, 0);
 }
 
-typedef struct TestStruct {
-    const char *name;
-    void (*func)(void);
-} TestStruct;
-
 
 int main(int argc, char **argv)
 {
-    size_t i;
-    TestStruct tests[] = {
-        { "/write-threshold/not-trigger",
-          test_threshold_not_trigger },
-        { "/write-threshold/trigger",
-          test_threshold_trigger },
-        { NULL, NULL }
-    };
-
     g_test_init(&argc, &argv, NULL);
-    for (i = 0; tests[i].name != NULL; i++) {
-        g_test_add_func(tests[i].name, tests[i].func);
-    }
+    g_test_add_func("/write-threshold/not-trigger", test_threshold_not_trigger);
+    g_test_add_func("/write-threshold/trigger", test_threshold_trigger);
+
     return g_test_run();
 }
