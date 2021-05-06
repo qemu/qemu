@@ -547,3 +547,8 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
     }
     return action;
 }
+
+AioContext *block_job_get_aio_context(BlockJob *job)
+{
+    return job->job.aio_context;
+}
