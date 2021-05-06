@@ -25,14 +25,6 @@ typedef struct {
     int *result;
 } TestBlockJob;
 
-static void test_block_job_clean(Job *job)
-{
-    BlockJob *bjob = container_of(job, BlockJob, job);
-    BlockDriverState *bs = blk_bs(bjob->blk);
-
-    bdrv_unref(bs);
-}
-
 static int coroutine_fn test_block_job_run(Job *job, Error **errp)
 {
     TestBlockJob *s = container_of(job, TestBlockJob, common.job);
@@ -73,7 +65,6 @@ static const BlockJobDriver test_block_job_driver = {
         .free          = block_job_free,
         .user_resume   = block_job_user_resume,
         .run           = test_block_job_run,
-        .clean         = test_block_job_clean,
     },
 };
 
@@ -105,6 +96,7 @@ static BlockJob *test_block_job_start(unsigned int iterations,
     s = block_job_create(job_id, &test_block_job_driver, txn, bs,
                          0, BLK_PERM_ALL, 0, JOB_DEFAULT,
                          test_block_job_cb, data, &error_abort);
+    bdrv_unref(bs); /* referenced by job now */
     s->iterations = iterations;
     s->use_timer = use_timer;
     s->rc = rc;
