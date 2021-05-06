@@ -93,7 +93,8 @@ vm.qmp_log('blockdev-add', **{
     'take-child-perms': ['write']
 })
 
-vm.qmp_log('blockdev-backup', sync='full', device='source', target='target')
+vm.qmp_log('blockdev-backup', sync='full', device='source', target='target',
+           job_id="backup0")
 
 vm.shutdown()
 
