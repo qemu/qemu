@@ -18,8 +18,6 @@ static void test_threshold_not_set_on_init(void)
     BlockDriverState bs;
     memset(&bs, 0, sizeof(bs));
 
-    g_assert(!bdrv_write_threshold_is_set(&bs));
-
     res = bdrv_write_threshold_get(&bs);
     g_assert_cmpint(res, ==, 0);
 }
@@ -32,8 +30,6 @@ static void test_threshold_set_get(void)
     memset(&bs, 0, sizeof(bs));
 
     bdrv_write_threshold_set(&bs, threshold);
-
-    g_assert(bdrv_write_threshold_is_set(&bs));
 
     res = bdrv_write_threshold_get(&bs);
     g_assert_cmpint(res, ==, threshold);

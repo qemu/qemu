@@ -24,25 +24,6 @@ uint64_t bdrv_write_threshold_get(const BlockDriverState *bs)
     return bs->write_threshold_offset;
 }
 
-bool bdrv_write_threshold_is_set(const BlockDriverState *bs)
-{
-    return bs->write_threshold_offset > 0;
-}
-
-uint64_t bdrv_write_threshold_exceeded(const BlockDriverState *bs,
-                                       const BdrvTrackedRequest *req)
-{
-    if (bdrv_write_threshold_is_set(bs)) {
-        if (req->offset > bs->write_threshold_offset) {
-            return (req->offset - bs->write_threshold_offset) + req->bytes;
-        }
-        if ((req->offset + req->bytes) > bs->write_threshold_offset) {
-            return (req->offset + req->bytes) - bs->write_threshold_offset;
-        }
-    }
-    return 0;
-}
-
 void bdrv_write_threshold_set(BlockDriverState *bs, uint64_t threshold_bytes)
 {
     bs->write_threshold_offset = threshold_bytes;
