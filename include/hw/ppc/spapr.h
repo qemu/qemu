@@ -582,6 +582,12 @@ typedef target_ulong (*spapr_hcall_fn)(PowerPCCPU *cpu, SpaprMachineState *sm,
 void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn);
 target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
                              target_ulong *args);
+target_ulong softmmu_resize_hpt_prepare(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                                         target_ulong shift);
+target_ulong softmmu_resize_hpt_commit(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                                        target_ulong flags, target_ulong shift);
+bool is_ram_address(SpaprMachineState *spapr, hwaddr addr);
+void push_sregs_to_kvm_pr(SpaprMachineState *spapr);
 
 /* Virtual Processor Area structure constants */
 #define VPA_MIN_SIZE           640
