@@ -19,6 +19,7 @@ i386_softmmu_ss.add(files(
 subdir('kvm')
 subdir('hax')
 subdir('whpx')
+subdir('nvmm')
 subdir('hvf')
 subdir('tcg')
 

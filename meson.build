@@ -87,6 +87,7 @@ if cpu in ['x86', 'x86_64']
   accelerator_targets += {
     'CONFIG_HAX': ['i386-softmmu', 'x86_64-softmmu'],
     'CONFIG_HVF': ['x86_64-softmmu'],
+    'CONFIG_NVMM': ['i386-softmmu', 'x86_64-softmmu'],
     'CONFIG_WHPX': ['i386-softmmu', 'x86_64-softmmu'],
   }
 endif
@@ -170,6 +171,7 @@ version_res = []
 coref = []
 iokit = []
 emulator_link_args = []
+nvmm =not_found
 hvf = not_found
 if targetos == 'windows'
   socket = cc.find_library('ws2_32')
@@ -227,6 +229,14 @@ if not get_option('hax').disabled()
     accelerators += 'CONFIG_HAX'
   endif
 endif
+if targetos == 'netbsd'
+  if cc.has_header_symbol('nvmm.h', 'nvmm_cpu_stop', required: get_option('nvmm'))
+    nvmm = cc.find_library('nvmm', required: get_option('nvmm'))
+  endif
+  if nvmm.found()
+    accelerators += 'CONFIG_NVMM'
+  endif
+endif
 
 tcg_arch = config_host['ARCH']
 if not get_option('tcg').disabled()
@@ -269,6 +279,9 @@ if 'CONFIG_KVM' not in accelerators and get_option('kvm').enabled()
 endif
 if 'CONFIG_HVF' not in accelerators and get_option('hvf').enabled()
   error('HVF not available on this platform')
+endif
+if 'CONFIG_NVMM' not in accelerators and get_option('nvmm').enabled()
+  error('NVMM not available on this platform')
 endif
 if 'CONFIG_WHPX' not in accelerators and get_option('whpx').enabled()
   error('WHPX not available on this platform')
@@ -2456,7 +2469,7 @@ summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
 if targetos == 'windows' and config_host.has_key('CONFIG_GUEST_AGENT')
   summary_info += {'wixl':            wixl.found() ? wixl.full_path() : false}
 endif
-if slirp_opt != 'disabled'
+if slirp_opt != 'disabled' and 'CONFIG_SLIRP_SMBD' in config_host
   summary_info += {'smbd':            config_host['CONFIG_SMBD_COMMAND']}
 endif
 summary(summary_info, bool_yn: true, section: 'Host binaries')
@@ -2581,6 +2594,7 @@ if have_system
   summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
   summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
   summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
+  summary_info += {'NVMM support':      config_all.has_key('CONFIG_NVMM')}
   summary_info += {'Xen support':       config_host.has_key('CONFIG_XEN_BACKEND')}
   if config_host.has_key('CONFIG_XEN_BACKEND')
     summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}

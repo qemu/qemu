@@ -87,6 +87,7 @@ void block_job_free(Job *job)
 
     block_job_remove_all_bdrv(bjob);
     blk_unref(bjob->blk);
+    ratelimit_destroy(&bjob->limit);
     error_free(bjob->blocker);
 }
 
@@ -441,6 +442,8 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     assert(is_block_job(&job->job));
     assert(job->job.driver->free == &block_job_free);
     assert(job->job.driver->user_resume == &block_job_user_resume);
+
+    ratelimit_init(&job->limit);
 
     job->blk = blk;
 
