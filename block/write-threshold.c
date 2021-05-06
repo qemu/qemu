@@ -12,9 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "block/block_int.h"
-#include "qemu/coroutine.h"
 #include "block/write-threshold.h"
-#include "qemu/notify.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-block-core.h"
 #include "qapi/qapi-events-block-core.h"
