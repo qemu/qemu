@@ -7,6 +7,11 @@
  * See the COPYING file in the top-level directory.
  */
 
+/*
+ * Not so fast! You might want to read the 9p developer docs first:
+ * https://wiki.qemu.org/Documentation/9p
+ */
+
 #include "qemu/osdep.h"
 #include "libqtest-single.h"
 #include "qemu/module.h"
