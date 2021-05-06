@@ -55,41 +55,27 @@ static void test_threshold_multi_set_get(void)
 
 static void test_threshold_not_trigger(void)
 {
-    uint64_t amount = 0;
     uint64_t threshold = 4 * 1024 * 1024;
     BlockDriverState bs;
-    BdrvTrackedRequest req;
 
     memset(&bs, 0, sizeof(bs));
-    memset(&req, 0, sizeof(req));
-    req.offset = 1024;
-    req.bytes = 1024;
-
-    bdrv_check_request(req.offset, req.bytes, &error_abort);
 
     bdrv_write_threshold_set(&bs, threshold);
-    amount = bdrv_write_threshold_exceeded(&bs, &req);
-    g_assert_cmpuint(amount, ==, 0);
+    bdrv_write_threshold_check_write(&bs, 1024, 1024);
+    g_assert_cmpuint(bdrv_write_threshold_get(&bs), ==, threshold);
 }
 
 
 static void test_threshold_trigger(void)
 {
-    uint64_t amount = 0;
     uint64_t threshold = 4 * 1024 * 1024;
     BlockDriverState bs;
-    BdrvTrackedRequest req;
 
     memset(&bs, 0, sizeof(bs));
-    memset(&req, 0, sizeof(req));
-    req.offset = (4 * 1024 * 1024) - 1024;
-    req.bytes = 2 * 1024;
-
-    bdrv_check_request(req.offset, req.bytes, &error_abort);
 
     bdrv_write_threshold_set(&bs, threshold);
-    amount = bdrv_write_threshold_exceeded(&bs, &req);
-    g_assert_cmpuint(amount, >=, 1024);
+    bdrv_write_threshold_check_write(&bs, threshold - 1024, 2 * 1024);
+    g_assert_cmpuint(bdrv_write_threshold_get(&bs), ==, 0);
 }
 
 typedef struct TestStruct {
