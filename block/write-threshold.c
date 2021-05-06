@@ -29,14 +29,6 @@ bool bdrv_write_threshold_is_set(const BlockDriverState *bs)
     return bs->write_threshold_offset > 0;
 }
 
-static void write_threshold_disable(BlockDriverState *bs)
-{
-    if (bdrv_write_threshold_is_set(bs)) {
-        notifier_with_return_remove(&bs->write_threshold_notifier);
-        bs->write_threshold_offset = 0;
-    }
-}
-
 uint64_t bdrv_write_threshold_exceeded(const BlockDriverState *bs,
                                        const BdrvTrackedRequest *req)
 {
@@ -51,55 +43,9 @@ uint64_t bdrv_write_threshold_exceeded(const BlockDriverState *bs,
     return 0;
 }
 
-static int coroutine_fn before_write_notify(NotifierWithReturn *notifier,
-                                            void *opaque)
-{
-    BdrvTrackedRequest *req = opaque;
-    BlockDriverState *bs = req->bs;
-    uint64_t amount = 0;
-
-    amount = bdrv_write_threshold_exceeded(bs, req);
-    if (amount > 0) {
-        qapi_event_send_block_write_threshold(
-            bs->node_name,
-            amount,
-            bs->write_threshold_offset);
-
-        /* autodisable to avoid flooding the monitor */
-        write_threshold_disable(bs);
-    }
-
-    return 0; /* should always let other notifiers run */
-}
-
-static void write_threshold_register_notifier(BlockDriverState *bs)
-{
-    bs->write_threshold_notifier.notify = before_write_notify;
-    bdrv_add_before_write_notifier(bs, &bs->write_threshold_notifier);
-}
-
-static void write_threshold_update(BlockDriverState *bs,
-                                   int64_t threshold_bytes)
-{
-    bs->write_threshold_offset = threshold_bytes;
-}
-
 void bdrv_write_threshold_set(BlockDriverState *bs, uint64_t threshold_bytes)
 {
-    if (bdrv_write_threshold_is_set(bs)) {
-        if (threshold_bytes > 0) {
-            write_threshold_update(bs, threshold_bytes);
-        } else {
-            write_threshold_disable(bs);
-        }
-    } else {
-        if (threshold_bytes > 0) {
-            /* avoid multiple registration */
-            write_threshold_register_notifier(bs);
-            write_threshold_update(bs, threshold_bytes);
-        }
-        /* discard bogus disable request */
-    }
+    bs->write_threshold_offset = threshold_bytes;
 }
 
 void qmp_block_set_write_threshold(const char *node_name,
@@ -121,4 +67,18 @@ void qmp_block_set_write_threshold(const char *node_name,
     bdrv_write_threshold_set(bs, threshold_bytes);
 
     aio_context_release(aio_context);
+}
+
+void bdrv_write_threshold_check_write(BlockDriverState *bs, int64_t offset,
+                                      int64_t bytes)
+{
+    int64_t end = offset + bytes;
+    uint64_t wtr = bs->write_threshold_offset;
+
+    if (wtr > 0 && end > wtr) {
+        qapi_event_send_block_write_threshold(bs->node_name, end - wtr, wtr);
+
+        /* autodisable to avoid flooding the monitor */
+        bdrv_write_threshold_set(bs, 0);
+    }
 }
