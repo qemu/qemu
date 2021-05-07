@@ -20,12 +20,6 @@
 #include "mmu-book3s-v3.h"
 #include "hw/mem/memory-device.h"
 
-static bool has_spr(PowerPCCPU *cpu, int spr)
-{
-    /* We can test whether the SPR is defined by checking for a valid name */
-    return cpu->env.spr_cb[spr].name != NULL;
-}
-
 bool is_ram_address(SpaprMachineState *spapr, hwaddr addr)
 {
     MachineState *machine = MACHINE(spapr);
@@ -212,12 +206,12 @@ static target_ulong h_set_sprg0(PowerPCCPU *cpu, SpaprMachineState *spapr,
 static target_ulong h_set_dabr(PowerPCCPU *cpu, SpaprMachineState *spapr,
                                target_ulong opcode, target_ulong *args)
 {
-    if (!has_spr(cpu, SPR_DABR)) {
+    if (!ppc_has_spr(cpu, SPR_DABR)) {
         return H_HARDWARE;              /* DABR register not available */
     }
     cpu_synchronize_state(CPU(cpu));
 
-    if (has_spr(cpu, SPR_DABRX)) {
+    if (ppc_has_spr(cpu, SPR_DABRX)) {
         cpu->env.spr[SPR_DABRX] = 0x3;  /* Use Problem and Privileged state */
     } else if (!(args[0] & 0x4)) {      /* Breakpoint Translation set? */
         return H_RESERVED_DABR;
@@ -232,7 +226,7 @@ static target_ulong h_set_xdabr(PowerPCCPU *cpu, SpaprMachineState *spapr,
 {
     target_ulong dabrx = args[1];
 
-    if (!has_spr(cpu, SPR_DABR) || !has_spr(cpu, SPR_DABRX)) {
+    if (!ppc_has_spr(cpu, SPR_DABR) || !ppc_has_spr(cpu, SPR_DABRX)) {
         return H_HARDWARE;
     }
 

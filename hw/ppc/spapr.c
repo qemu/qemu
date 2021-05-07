@@ -703,10 +703,10 @@ static void spapr_dt_cpu(CPUState *cs, void *fdt, int offset,
     _FDT((fdt_setprop_string(fdt, offset, "status", "okay")));
     _FDT((fdt_setprop(fdt, offset, "64-bit", NULL, 0)));
 
-    if (env->spr_cb[SPR_PURR].oea_read) {
+    if (ppc_has_spr(cpu, SPR_PURR)) {
         _FDT((fdt_setprop_cell(fdt, offset, "ibm,purr", 1)));
     }
-    if (env->spr_cb[SPR_SPURR].oea_read) {
+    if (ppc_has_spr(cpu, SPR_PURR)) {
         _FDT((fdt_setprop_cell(fdt, offset, "ibm,spurr", 1)));
     }
 
