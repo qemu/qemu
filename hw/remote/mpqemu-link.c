@@ -218,7 +218,7 @@ uint64_t mpqemu_msg_send_and_await_reply(MPQemuMsg *msg, PCIProxyDev *pdev,
 
 bool mpqemu_msg_valid(MPQemuMsg *msg)
 {
-    if (msg->cmd >= MPQEMU_CMD_MAX && msg->cmd < 0) {
+    if (msg->cmd >= MPQEMU_CMD_MAX || msg->cmd < 0) {
         return false;
     }
 
