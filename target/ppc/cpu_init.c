@@ -18,6 +18,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/osdep.h"
 #include "disas/dis-asm.h"
 #include "exec/gdbstub.h"
 #include "kvm_ppc.h"
@@ -41,6 +42,11 @@
 #include "disas/capstone.h"
 #include "fpu/softfloat.h"
 #include "qapi/qapi-commands-machine-target.h"
+
+#include "exec/helper-proto.h"
+#include "helper_regs.h"
+#include "internal.h"
+#include "spr_tcg.h"
 
 /* #define PPC_DEBUG_SPR */
 /* #define USE_APPLE_GDB */
@@ -1171,6 +1177,7 @@ static void register_BookE_sprs(CPUPPCState *env, uint64_t ivor_mask)
                  0x00000000);
 }
 
+#if !defined(CONFIG_USER_ONLY)
 static inline uint32_t register_tlbncfg(uint32_t assoc, uint32_t minsize,
                                    uint32_t maxsize, uint32_t flags,
                                    uint32_t nentries)
@@ -1180,6 +1187,7 @@ static inline uint32_t register_tlbncfg(uint32_t assoc, uint32_t minsize,
            (maxsize << TLBnCFG_MAXSIZE_SHIFT) |
            flags | nentries;
 }
+#endif /* !CONFIG_USER_ONLY */
 
 /* BookE 2.06 storage control registers */
 static void register_BookE206_sprs(CPUPPCState *env, uint32_t mas_mask,

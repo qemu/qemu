@@ -19,6 +19,8 @@
 #ifndef SPR_TCG_H
 #define SPR_TCG_H
 
+#define SPR_NOACCESS (&spr_noaccess)
+
 /* prototypes for readers and writers for SPRs */
 void spr_noaccess(DisasContext *ctx, int gprn, int sprn);
 void spr_read_generic(DisasContext *ctx, int gprn, int sprn);

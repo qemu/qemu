@@ -38,6 +38,8 @@
 #include "qemu/atomic128.h"
 #include "spr_tcg.h"
 
+#include "qemu/qemu-print.h"
+#include "qapi/error.h"
 
 #define CPU_SINGLE_STEP 0x1
 #define CPU_BRANCH_STEP 0x2
@@ -380,7 +382,6 @@ void spr_noaccess(DisasContext *ctx, int gprn, int sprn)
     printf("ERROR: try to access SPR %d !\n", sprn);
 #endif
 }
-#define SPR_NOACCESS (&spr_noaccess)
 
 /* #define PPC_DUMP_SPR_ACCESSES */
 
@@ -8617,7 +8618,6 @@ GEN_HANDLER2_E(trechkpt, "trechkpt", 0x1F, 0x0E, 0x1F, 0x03FFF800, \
 };
 
 #include "helper_regs.h"
-#include "translate_init.c.inc"
 
 /*****************************************************************************/
 /* Misc PowerPC helpers */
