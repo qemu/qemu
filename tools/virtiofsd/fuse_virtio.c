@@ -1024,9 +1024,9 @@ static int fv_create_listen_socket(struct fuse_session *se)
     if (se->vu_socket_group) {
         struct group *g = getgrnam(se->vu_socket_group);
         if (g) {
-            if (!chown(se->vu_socket_path, -1, g->gr_gid)) {
+            if (chown(se->vu_socket_path, -1, g->gr_gid) == -1) {
                 fuse_log(FUSE_LOG_WARNING,
-                         "vhost socket failed to set group to %s (%d)\n",
+                         "vhost socket failed to set group to %s (%d): %m\n",
                          se->vu_socket_group, g->gr_gid);
             }
         }
