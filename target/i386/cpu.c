@@ -4285,9 +4285,15 @@ static void max_x86_cpu_initfn(Object *obj)
      */
     object_property_set_str(OBJECT(cpu), "vendor", CPUID_VENDOR_AMD,
                             &error_abort);
+#ifdef TARGET_X86_64
+    object_property_set_int(OBJECT(cpu), "family", 15, &error_abort);
+    object_property_set_int(OBJECT(cpu), "model", 107, &error_abort);
+    object_property_set_int(OBJECT(cpu), "stepping", 1, &error_abort);
+#else
     object_property_set_int(OBJECT(cpu), "family", 6, &error_abort);
     object_property_set_int(OBJECT(cpu), "model", 6, &error_abort);
     object_property_set_int(OBJECT(cpu), "stepping", 3, &error_abort);
+#endif
     object_property_set_str(OBJECT(cpu), "model-id",
                             "QEMU TCG CPU version " QEMU_HW_VERSION,
                             &error_abort);
