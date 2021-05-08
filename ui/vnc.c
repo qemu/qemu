@@ -596,7 +596,7 @@ bool vnc_display_reload_certs(const char *id, Error **errp)
     }
 
     if (!vd->tlscreds) {
-        error_setg(errp, "vnc tls is not enable");
+        error_setg(errp, "vnc tls is not enabled");
         return false;
     }
 
