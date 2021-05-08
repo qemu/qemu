@@ -251,8 +251,8 @@
 #
 # @max_queue_size: the maximum number of packets to keep in the queue for
 #                  comparing with incoming packets from @secondary_in.  If the
-#                  queue is full and addtional packets are received, the
-#                  addtional packets are dropped. (default: 1024)
+#                  queue is full and additional packets are received, the
+#                  additional packets are dropped. (default: 1024)
 #
 # @vnet_hdr_support: if true, vnet header support is enabled (default: false)
 #
