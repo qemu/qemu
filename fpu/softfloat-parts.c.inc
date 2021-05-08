@@ -627,6 +627,40 @@ static FloatPartsN *partsN(div)(FloatPartsN *a, FloatPartsN *b,
 }
 
 /*
+ * Floating point remainder, per IEC/IEEE, or modulus.
+ */
+static FloatPartsN *partsN(modrem)(FloatPartsN *a, FloatPartsN *b,
+                                   uint64_t *mod_quot, float_status *s)
+{
+    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+
+    if (likely(ab_mask == float_cmask_normal)) {
+        frac_modrem(a, b, mod_quot);
+        return a;
+    }
+
+    if (mod_quot) {
+        *mod_quot = 0;
+    }
+
+    /* All the NaN cases */
+    if (unlikely(ab_mask & float_cmask_anynan)) {
+        return parts_pick_nan(a, b, s);
+    }
+
+    /* Inf % N; N % 0 */
+    if (a->cls == float_class_inf || b->cls == float_class_zero) {
+        float_raise(float_flag_invalid, s);
+        parts_default_nan(a, s);
+        return a;
+    }
+
+    /* N % Inf; 0 % N */
+    g_assert(b->cls == float_class_inf || a->cls == float_class_zero);
+    return a;
+}
+
+/*
  * Square Root
  *
  * The base algorithm is lifted from
