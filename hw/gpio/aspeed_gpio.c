@@ -170,7 +170,7 @@
 /* AST2600 only - 1.8V gpios */
 /*
  * The AST2600 has same 3.6V gpios as the AST2400 (memory offsets 0x0-0x198)
- * and addtional 1.8V gpios (memory offsets 0x800-0x9D4).
+ * and additional 1.8V gpios (memory offsets 0x800-0x9D4).
  */
 #define GPIO_1_8V_REG_OFFSET          0x800
 #define GPIO_1_8V_ABCD_DATA_VALUE     ((0x800 - GPIO_1_8V_REG_OFFSET) >> 2)
