@@ -276,6 +276,12 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus_synced
 void tlb_flush_range_by_mmuidx(CPUState *cpu, target_ulong addr,
                                target_ulong len, uint16_t idxmap,
                                unsigned bits);
+
+/* Similarly, with broadcast and syncing. */
+void tlb_flush_range_by_mmuidx_all_cpus(CPUState *cpu, target_ulong addr,
+                                        target_ulong len, uint16_t idxmap,
+                                        unsigned bits);
+
 /**
  * tlb_set_page_with_attrs:
  * @cpu: CPU to add this TLB entry for
@@ -382,6 +388,13 @@ tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *cpu, target_ulong addr,
 static inline void tlb_flush_range_by_mmuidx(CPUState *cpu, target_ulong addr,
                                              target_ulong len, uint16_t idxmap,
                                              unsigned bits)
+{
+}
+static inline void tlb_flush_range_by_mmuidx_all_cpus(CPUState *cpu,
+                                                      target_ulong addr,
+                                                      target_ulong len,
+                                                      uint16_t idxmap,
+                                                      unsigned bits)
 {
 }
 #endif
