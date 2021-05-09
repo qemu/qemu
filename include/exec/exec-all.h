@@ -281,6 +281,11 @@ void tlb_flush_range_by_mmuidx(CPUState *cpu, target_ulong addr,
 void tlb_flush_range_by_mmuidx_all_cpus(CPUState *cpu, target_ulong addr,
                                         target_ulong len, uint16_t idxmap,
                                         unsigned bits);
+void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
+                                               target_ulong addr,
+                                               target_ulong len,
+                                               uint16_t idxmap,
+                                               unsigned bits);
 
 /**
  * tlb_set_page_with_attrs:
@@ -395,6 +400,13 @@ static inline void tlb_flush_range_by_mmuidx_all_cpus(CPUState *cpu,
                                                       target_ulong len,
                                                       uint16_t idxmap,
                                                       unsigned bits)
+{
+}
+static inline void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
+                                                             target_ulong addr,
+                                                             target_long len,
+                                                             uint16_t idxmap,
+                                                             unsigned bits)
 {
 }
 #endif
