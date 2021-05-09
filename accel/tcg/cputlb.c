@@ -762,11 +762,11 @@ typedef struct {
     target_ulong len;
     uint16_t idxmap;
     uint16_t bits;
-} TLBFlushPageBitsByMMUIdxData;
+} TLBFlushRangeData;
 
 static void
 tlb_flush_page_bits_by_mmuidx_async_0(CPUState *cpu,
-                                      TLBFlushPageBitsByMMUIdxData d)
+                                      TLBFlushRangeData d)
 {
     CPUArchState *env = cpu->env_ptr;
     int mmu_idx;
@@ -790,7 +790,7 @@ tlb_flush_page_bits_by_mmuidx_async_0(CPUState *cpu,
 }
 
 static bool encode_pbm_to_runon(run_on_cpu_data *out,
-                                TLBFlushPageBitsByMMUIdxData d)
+                                TLBFlushRangeData d)
 {
     /* We need 6 bits to hold to hold @bits up to 63. */
     if (d.idxmap <= MAKE_64BIT_MASK(0, TARGET_PAGE_BITS - 6)) {
@@ -800,11 +800,11 @@ static bool encode_pbm_to_runon(run_on_cpu_data *out,
     return false;
 }
 
-static TLBFlushPageBitsByMMUIdxData
+static TLBFlushRangeData
 decode_runon_to_pbm(run_on_cpu_data data)
 {
     target_ulong addr_map_bits = (target_ulong) data.target_ptr;
-    return (TLBFlushPageBitsByMMUIdxData){
+    return (TLBFlushRangeData){
         .addr = addr_map_bits & TARGET_PAGE_MASK,
         .idxmap = (addr_map_bits & ~TARGET_PAGE_MASK) >> 6,
         .bits = addr_map_bits & 0x3f
@@ -820,7 +820,7 @@ static void tlb_flush_page_bits_by_mmuidx_async_1(CPUState *cpu,
 static void tlb_flush_page_bits_by_mmuidx_async_2(CPUState *cpu,
                                                   run_on_cpu_data data)
 {
-    TLBFlushPageBitsByMMUIdxData *d = data.host_ptr;
+    TLBFlushRangeData *d = data.host_ptr;
     tlb_flush_page_bits_by_mmuidx_async_0(cpu, *d);
     g_free(d);
 }
@@ -828,7 +828,7 @@ static void tlb_flush_page_bits_by_mmuidx_async_2(CPUState *cpu,
 void tlb_flush_page_bits_by_mmuidx(CPUState *cpu, target_ulong addr,
                                    uint16_t idxmap, unsigned bits)
 {
-    TLBFlushPageBitsByMMUIdxData d;
+    TLBFlushRangeData d;
     run_on_cpu_data runon;
 
     /* If all bits are significant, this devolves to tlb_flush_page. */
@@ -854,7 +854,7 @@ void tlb_flush_page_bits_by_mmuidx(CPUState *cpu, target_ulong addr,
         async_run_on_cpu(cpu, tlb_flush_page_bits_by_mmuidx_async_1, runon);
     } else {
         /* Otherwise allocate a structure, freed by the worker.  */
-        TLBFlushPageBitsByMMUIdxData *p = g_memdup(&d, sizeof(d));
+        TLBFlushRangeData *p = g_memdup(&d, sizeof(d));
         async_run_on_cpu(cpu, tlb_flush_page_bits_by_mmuidx_async_2,
                          RUN_ON_CPU_HOST_PTR(p));
     }
@@ -865,7 +865,7 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus(CPUState *src_cpu,
                                             uint16_t idxmap,
                                             unsigned bits)
 {
-    TLBFlushPageBitsByMMUIdxData d;
+    TLBFlushRangeData d;
     run_on_cpu_data runon;
 
     /* If all bits are significant, this devolves to tlb_flush_page. */
@@ -893,7 +893,7 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus(CPUState *src_cpu,
         /* Allocate a separate data block for each destination cpu.  */
         CPU_FOREACH(dst_cpu) {
             if (dst_cpu != src_cpu) {
-                TLBFlushPageBitsByMMUIdxData *p = g_memdup(&d, sizeof(d));
+                TLBFlushRangeData *p = g_memdup(&d, sizeof(d));
                 async_run_on_cpu(dst_cpu,
                                  tlb_flush_page_bits_by_mmuidx_async_2,
                                  RUN_ON_CPU_HOST_PTR(p));
@@ -909,7 +909,7 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
                                                    uint16_t idxmap,
                                                    unsigned bits)
 {
-    TLBFlushPageBitsByMMUIdxData d;
+    TLBFlushRangeData d;
     run_on_cpu_data runon;
 
     /* If all bits are significant, this devolves to tlb_flush_page. */
@@ -935,7 +935,7 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
                               runon);
     } else {
         CPUState *dst_cpu;
-        TLBFlushPageBitsByMMUIdxData *p;
+        TLBFlushRangeData *p;
 
         /* Allocate a separate data block for each destination cpu.  */
         CPU_FOREACH(dst_cpu) {
