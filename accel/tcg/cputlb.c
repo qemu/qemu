@@ -789,34 +789,6 @@ tlb_flush_page_bits_by_mmuidx_async_0(CPUState *cpu,
     }
 }
 
-static bool encode_pbm_to_runon(run_on_cpu_data *out,
-                                TLBFlushRangeData d)
-{
-    /* We need 6 bits to hold to hold @bits up to 63. */
-    if (d.idxmap <= MAKE_64BIT_MASK(0, TARGET_PAGE_BITS - 6)) {
-        *out = RUN_ON_CPU_TARGET_PTR(d.addr | (d.idxmap << 6) | d.bits);
-        return true;
-    }
-    return false;
-}
-
-static TLBFlushRangeData
-decode_runon_to_pbm(run_on_cpu_data data)
-{
-    target_ulong addr_map_bits = (target_ulong) data.target_ptr;
-    return (TLBFlushRangeData){
-        .addr = addr_map_bits & TARGET_PAGE_MASK,
-        .idxmap = (addr_map_bits & ~TARGET_PAGE_MASK) >> 6,
-        .bits = addr_map_bits & 0x3f
-    };
-}
-
-static void tlb_flush_page_bits_by_mmuidx_async_1(CPUState *cpu,
-                                                  run_on_cpu_data runon)
-{
-    tlb_flush_page_bits_by_mmuidx_async_0(cpu, decode_runon_to_pbm(runon));
-}
-
 static void tlb_flush_page_bits_by_mmuidx_async_2(CPUState *cpu,
                                                   run_on_cpu_data data)
 {
@@ -829,7 +801,6 @@ void tlb_flush_page_bits_by_mmuidx(CPUState *cpu, target_ulong addr,
                                    uint16_t idxmap, unsigned bits)
 {
     TLBFlushRangeData d;
-    run_on_cpu_data runon;
 
     /* If all bits are significant, this devolves to tlb_flush_page. */
     if (bits >= TARGET_LONG_BITS) {
@@ -850,8 +821,6 @@ void tlb_flush_page_bits_by_mmuidx(CPUState *cpu, target_ulong addr,
 
     if (qemu_cpu_is_self(cpu)) {
         tlb_flush_page_bits_by_mmuidx_async_0(cpu, d);
-    } else if (encode_pbm_to_runon(&runon, d)) {
-        async_run_on_cpu(cpu, tlb_flush_page_bits_by_mmuidx_async_1, runon);
     } else {
         /* Otherwise allocate a structure, freed by the worker.  */
         TLBFlushRangeData *p = g_memdup(&d, sizeof(d));
@@ -866,7 +835,7 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus(CPUState *src_cpu,
                                             unsigned bits)
 {
     TLBFlushRangeData d;
-    run_on_cpu_data runon;
+    CPUState *dst_cpu;
 
     /* If all bits are significant, this devolves to tlb_flush_page. */
     if (bits >= TARGET_LONG_BITS) {
@@ -885,19 +854,13 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus(CPUState *src_cpu,
     d.idxmap = idxmap;
     d.bits = bits;
 
-    if (encode_pbm_to_runon(&runon, d)) {
-        flush_all_helper(src_cpu, tlb_flush_page_bits_by_mmuidx_async_1, runon);
-    } else {
-        CPUState *dst_cpu;
-
-        /* Allocate a separate data block for each destination cpu.  */
-        CPU_FOREACH(dst_cpu) {
-            if (dst_cpu != src_cpu) {
-                TLBFlushRangeData *p = g_memdup(&d, sizeof(d));
-                async_run_on_cpu(dst_cpu,
-                                 tlb_flush_page_bits_by_mmuidx_async_2,
-                                 RUN_ON_CPU_HOST_PTR(p));
-            }
+    /* Allocate a separate data block for each destination cpu.  */
+    CPU_FOREACH(dst_cpu) {
+        if (dst_cpu != src_cpu) {
+            TLBFlushRangeData *p = g_memdup(&d, sizeof(d));
+            async_run_on_cpu(dst_cpu,
+                             tlb_flush_page_bits_by_mmuidx_async_2,
+                             RUN_ON_CPU_HOST_PTR(p));
         }
     }
 
@@ -909,8 +872,8 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
                                                    uint16_t idxmap,
                                                    unsigned bits)
 {
-    TLBFlushRangeData d;
-    run_on_cpu_data runon;
+    TLBFlushRangeData d, *p;
+    CPUState *dst_cpu;
 
     /* If all bits are significant, this devolves to tlb_flush_page. */
     if (bits >= TARGET_LONG_BITS) {
@@ -929,27 +892,18 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
     d.idxmap = idxmap;
     d.bits = bits;
 
-    if (encode_pbm_to_runon(&runon, d)) {
-        flush_all_helper(src_cpu, tlb_flush_page_bits_by_mmuidx_async_1, runon);
-        async_safe_run_on_cpu(src_cpu, tlb_flush_page_bits_by_mmuidx_async_1,
-                              runon);
-    } else {
-        CPUState *dst_cpu;
-        TLBFlushRangeData *p;
-
-        /* Allocate a separate data block for each destination cpu.  */
-        CPU_FOREACH(dst_cpu) {
-            if (dst_cpu != src_cpu) {
-                p = g_memdup(&d, sizeof(d));
-                async_run_on_cpu(dst_cpu, tlb_flush_page_bits_by_mmuidx_async_2,
-                                 RUN_ON_CPU_HOST_PTR(p));
-            }
+    /* Allocate a separate data block for each destination cpu.  */
+    CPU_FOREACH(dst_cpu) {
+        if (dst_cpu != src_cpu) {
+            p = g_memdup(&d, sizeof(d));
+            async_run_on_cpu(dst_cpu, tlb_flush_page_bits_by_mmuidx_async_2,
+                             RUN_ON_CPU_HOST_PTR(p));
         }
-
-        p = g_memdup(&d, sizeof(d));
-        async_safe_run_on_cpu(src_cpu, tlb_flush_page_bits_by_mmuidx_async_2,
-                              RUN_ON_CPU_HOST_PTR(p));
     }
+
+    p = g_memdup(&d, sizeof(d));
+    async_safe_run_on_cpu(src_cpu, tlb_flush_page_bits_by_mmuidx_async_2,
+                          RUN_ON_CPU_HOST_PTR(p));
 }
 
 /* update the TLBs so that writes to code in the virtual page 'addr'
