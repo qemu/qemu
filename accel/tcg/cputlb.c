@@ -837,11 +837,8 @@ void tlb_flush_page_bits_by_mmuidx(CPUState *cpu, target_ulong addr,
     } else if (encode_pbm_to_runon(&runon, d)) {
         async_run_on_cpu(cpu, tlb_flush_page_bits_by_mmuidx_async_1, runon);
     } else {
-        TLBFlushPageBitsByMMUIdxData *p
-            = g_new(TLBFlushPageBitsByMMUIdxData, 1);
-
         /* Otherwise allocate a structure, freed by the worker.  */
-        *p = d;
+        TLBFlushPageBitsByMMUIdxData *p = g_memdup(&d, sizeof(d));
         async_run_on_cpu(cpu, tlb_flush_page_bits_by_mmuidx_async_2,
                          RUN_ON_CPU_HOST_PTR(p));
     }
@@ -875,13 +872,11 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus(CPUState *src_cpu,
         flush_all_helper(src_cpu, tlb_flush_page_bits_by_mmuidx_async_1, runon);
     } else {
         CPUState *dst_cpu;
-        TLBFlushPageBitsByMMUIdxData *p;
 
         /* Allocate a separate data block for each destination cpu.  */
         CPU_FOREACH(dst_cpu) {
             if (dst_cpu != src_cpu) {
-                p = g_new(TLBFlushPageBitsByMMUIdxData, 1);
-                *p = d;
+                TLBFlushPageBitsByMMUIdxData *p = g_memdup(&d, sizeof(d));
                 async_run_on_cpu(dst_cpu,
                                  tlb_flush_page_bits_by_mmuidx_async_2,
                                  RUN_ON_CPU_HOST_PTR(p));
@@ -927,15 +922,13 @@ void tlb_flush_page_bits_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
         /* Allocate a separate data block for each destination cpu.  */
         CPU_FOREACH(dst_cpu) {
             if (dst_cpu != src_cpu) {
-                p = g_new(TLBFlushPageBitsByMMUIdxData, 1);
-                *p = d;
+                p = g_memdup(&d, sizeof(d));
                 async_run_on_cpu(dst_cpu, tlb_flush_page_bits_by_mmuidx_async_2,
                                  RUN_ON_CPU_HOST_PTR(p));
             }
         }
 
-        p = g_new(TLBFlushPageBitsByMMUIdxData, 1);
-        *p = d;
+        p = g_memdup(&d, sizeof(d));
         async_safe_run_on_cpu(src_cpu, tlb_flush_page_bits_by_mmuidx_async_2,
                               RUN_ON_CPU_HOST_PTR(p));
     }
