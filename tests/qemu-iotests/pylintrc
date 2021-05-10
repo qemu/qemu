@@ -19,6 +19,9 @@ disable=invalid-name,
         too-many-public-methods,
         # pylint warns about Optional[] etc. as unsubscriptable in 3.9
         unsubscriptable-object,
+        # Sometimes we need to disable a newly introduced pylint warning.
+        # Doing so should not produce a warning in older versions of pylint.
+        bad-option-value,
         # These are temporary, and should be removed:
         missing-docstring,
         too-many-return-statements,

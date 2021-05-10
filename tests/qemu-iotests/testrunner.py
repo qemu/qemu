@@ -246,17 +246,17 @@ class TestRunner(ContextManager['TestRunner']):
 
         t0 = time.time()
         with f_bad.open('w', encoding="utf-8") as f:
-            proc = subprocess.Popen(args, cwd=str(f_test.parent), env=env,
-                                    stdout=f, stderr=subprocess.STDOUT)
-            try:
-                proc.wait()
-            except KeyboardInterrupt:
-                proc.terminate()
-                proc.wait()
-                return TestResult(status='not run',
-                                  description='Interrupted by user',
-                                  interrupted=True)
-            ret = proc.returncode
+            with subprocess.Popen(args, cwd=str(f_test.parent), env=env,
+                                  stdout=f, stderr=subprocess.STDOUT) as proc:
+                try:
+                    proc.wait()
+                except KeyboardInterrupt:
+                    proc.terminate()
+                    proc.wait()
+                    return TestResult(status='not run',
+                                      description='Interrupted by user',
+                                      interrupted=True)
+                ret = proc.returncode
 
         elapsed = round(time.time() - t0, 1)
 
