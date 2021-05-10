@@ -1,8 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
 # sun4m.c
-sun4m_cpu_interrupt(unsigned int level) "Set CPU IRQ %d"
-sun4m_cpu_reset_interrupt(unsigned int level) "Reset CPU IRQ %d"
 sun4m_cpu_set_irq_raise(int level) "Raise CPU IRQ %d"
 sun4m_cpu_set_irq_lower(int level) "Lower CPU IRQ %d"
 
@@ -19,3 +17,5 @@ sun4m_iommu_bad_addr(uint64_t addr) "bad addr 0x%"PRIx64
 # leon3.c
 leon3_set_irq(int intno) "Set CPU IRQ %d"
 leon3_reset_irq(int intno) "Reset CPU IRQ %d"
+int_helper_icache_freeze(void) "Instruction cache: freeze"
+int_helper_dcache_freeze(void) "Data cache: freeze"
