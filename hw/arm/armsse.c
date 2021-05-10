@@ -913,7 +913,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     const ARMSSEDeviceInfo *devinfo;
     int i;
     MemoryRegion *mr;
-    Error *err = NULL;
     SysBusDevice *sbd_apb_ppc0;
     SysBusDevice *sbd_secctl;
     DeviceState *dev_apb_ppc0;
@@ -921,6 +920,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     DeviceState *dev_secctl;
     DeviceState *dev_splitter;
     uint32_t addr_width_max;
+
+    ERRP_GUARD();
 
     if (!s->board_memory) {
         error_setg(errp, "memory property was not set");
@@ -1151,10 +1152,9 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         uint32_t sram_bank_size = 1 << s->sram_addr_width;
 
         memory_region_init_ram(&s->sram[i], NULL, ramname,
-                               sram_bank_size, &err);
+                               sram_bank_size, errp);
         g_free(ramname);
-        if (err) {
-            error_propagate(errp, err);
+        if (*errp) {
             return;
         }
         object_property_set_link(OBJECT(&s->mpc[i]), "downstream",
