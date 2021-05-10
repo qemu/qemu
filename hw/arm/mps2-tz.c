@@ -126,6 +126,7 @@ struct MPS2TZMachineClass {
     uint32_t sram_addr_width; /* SRAM_ADDR_WIDTH setting for SSE */
     const RAMInfo *raminfo;
     const char *armsse_type;
+    uint32_t boot_ram_size; /* size of ram at address 0; 0 == find in raminfo */
 };
 
 struct MPS2TZMachineState {
@@ -761,6 +762,14 @@ static uint32_t boot_ram_size(MPS2TZMachineState *mms)
     const RAMInfo *p;
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
 
+    /*
+     * Use a per-board specification (for when the boot RAM is in
+     * the SSE and so doesn't have a RAMInfo list entry)
+     */
+    if (mmc->boot_ram_size) {
+        return mmc->boot_ram_size;
+    }
+
     for (p = mmc->raminfo; p->name; p++) {
         if (p->base == boot_mem_base(mms)) {
             return p->size;
@@ -1268,6 +1277,7 @@ static void mps2tz_an505_class_init(ObjectClass *oc, void *data)
     mmc->sram_addr_width = 15;
     mmc->raminfo = an505_raminfo;
     mmc->armsse_type = TYPE_IOTKIT;
+    mmc->boot_ram_size = 0;
     mps2tz_set_default_ram_info(mmc);
 }
 
@@ -1296,6 +1306,7 @@ static void mps2tz_an521_class_init(ObjectClass *oc, void *data)
     mmc->sram_addr_width = 15;
     mmc->raminfo = an505_raminfo; /* AN521 is the same as AN505 here */
     mmc->armsse_type = TYPE_SSE200;
+    mmc->boot_ram_size = 0;
     mps2tz_set_default_ram_info(mmc);
 }
 
@@ -1324,6 +1335,7 @@ static void mps3tz_an524_class_init(ObjectClass *oc, void *data)
     mmc->sram_addr_width = 15;
     mmc->raminfo = an524_raminfo;
     mmc->armsse_type = TYPE_SSE200;
+    mmc->boot_ram_size = 0;
     mps2tz_set_default_ram_info(mmc);
 
     object_class_property_add_str(oc, "remap", mps2_get_remap, mps2_set_remap);
@@ -1357,6 +1369,7 @@ static void mps3tz_an547_class_init(ObjectClass *oc, void *data)
     mmc->sram_addr_width = 21;
     mmc->raminfo = an547_raminfo;
     mmc->armsse_type = TYPE_SSE300;
+    mmc->boot_ram_size = 512 * KiB;
     mps2tz_set_default_ram_info(mmc);
 }
 
