@@ -50,12 +50,7 @@
 #define ENABLE_ARCH_8     arm_dc_feature(s, ARM_FEATURE_V8)
 
 #include "translate.h"
-
-#if defined(CONFIG_USER_ONLY)
-#define IS_USER(s) 1
-#else
-#define IS_USER(s) (s->user)
-#endif
+#include "translate-a32.h"
 
 /* These are TCG temporaries used only by the legacy iwMMXt decoder */
 static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
@@ -71,11 +66,6 @@ static const char * const regnames[] =
     { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
       "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc" };
 
-/* Function prototypes for gen_ functions calling Neon helpers.  */
-typedef void NeonGenThreeOpEnvFn(TCGv_i32, TCGv_env, TCGv_i32,
-                                 TCGv_i32, TCGv_i32);
-/* Function prototypes for gen_ functions for fix point conversions */
-typedef void VFPGenFixPointFn(TCGv_i32, TCGv_i32, TCGv_i32, TCGv_ptr);
 
 /* initialize TCG globals.  */
 void arm_translate_init(void)
@@ -101,36 +91,12 @@ void arm_translate_init(void)
 }
 
 /* Generate a label used for skipping this instruction */
-static void arm_gen_condlabel(DisasContext *s)
+void arm_gen_condlabel(DisasContext *s)
 {
     if (!s->condjmp) {
         s->condlabel = gen_new_label();
         s->condjmp = 1;
     }
-}
-
-/*
- * Constant expanders for the decoders.
- */
-
-static int negate(DisasContext *s, int x)
-{
-    return -x;
-}
-
-static int plus_2(DisasContext *s, int x)
-{
-    return x + 2;
-}
-
-static int times_2(DisasContext *s, int x)
-{
-    return x * 2;
-}
-
-static int times_4(DisasContext *s, int x)
-{
-    return x * 4;
 }
 
 /* Flags for the disas_set_da_iss info argument:
@@ -211,24 +177,6 @@ static inline int get_a32_user_mem_index(DisasContext *s)
     }
 }
 
-static inline TCGv_i32 load_cpu_offset(int offset)
-{
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_ld_i32(tmp, cpu_env, offset);
-    return tmp;
-}
-
-#define load_cpu_field(name) load_cpu_offset(offsetof(CPUARMState, name))
-
-static inline void store_cpu_offset(TCGv_i32 var, int offset)
-{
-    tcg_gen_st_i32(var, cpu_env, offset);
-    tcg_temp_free_i32(var);
-}
-
-#define store_cpu_field(var, name) \
-    store_cpu_offset(var, offsetof(CPUARMState, name))
-
 /* The architectural value of PC.  */
 static uint32_t read_pc(DisasContext *s)
 {
@@ -236,7 +184,7 @@ static uint32_t read_pc(DisasContext *s)
 }
 
 /* Set a variable to the value of a CPU register.  */
-static void load_reg_var(DisasContext *s, TCGv_i32 var, int reg)
+void load_reg_var(DisasContext *s, TCGv_i32 var, int reg)
 {
     if (reg == 15) {
         tcg_gen_movi_i32(var, read_pc(s));
@@ -245,20 +193,12 @@ static void load_reg_var(DisasContext *s, TCGv_i32 var, int reg)
     }
 }
 
-/* Create a new temporary and set it to the value of a CPU register.  */
-static inline TCGv_i32 load_reg(DisasContext *s, int reg)
-{
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    load_reg_var(s, tmp, reg);
-    return tmp;
-}
-
 /*
  * Create a new temp, REG + OFS, except PC is ALIGN(PC, 4).
  * This is used for load/store for which use of PC implies (literal),
  * or ADD that implies ADR.
  */
-static TCGv_i32 add_reg_for_lit(DisasContext *s, int reg, int ofs)
+TCGv_i32 add_reg_for_lit(DisasContext *s, int reg, int ofs)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
 
@@ -272,7 +212,7 @@ static TCGv_i32 add_reg_for_lit(DisasContext *s, int reg, int ofs)
 
 /* Set a CPU register.  The source must be a temporary and will be
    marked as dead.  */
-static void store_reg(DisasContext *s, int reg, TCGv_i32 var)
+void store_reg(DisasContext *s, int reg, TCGv_i32 var)
 {
     if (reg == 15) {
         /* In Thumb mode, we must ignore bit 0.
@@ -313,15 +253,12 @@ static void store_sp_checked(DisasContext *s, TCGv_i32 var)
 #define gen_sxtb16(var) gen_helper_sxtb16(var, var)
 #define gen_uxtb16(var) gen_helper_uxtb16(var, var)
 
-
-static inline void gen_set_cpsr(TCGv_i32 var, uint32_t mask)
+void gen_set_cpsr(TCGv_i32 var, uint32_t mask)
 {
     TCGv_i32 tmp_mask = tcg_const_i32(mask);
     gen_helper_cpsr_write(cpu_env, var, tmp_mask);
     tcg_temp_free_i32(tmp_mask);
 }
-/* Set NZCV flags from the high 4 bits of var.  */
-#define gen_set_nzcv(var) gen_set_cpsr(var, CPSR_NZCV)
 
 static void gen_exception_internal(int excp)
 {
@@ -388,7 +325,7 @@ static void gen_smul_dual(TCGv_i32 a, TCGv_i32 b)
 }
 
 /* Byteswap each halfword.  */
-static void gen_rev16(TCGv_i32 dest, TCGv_i32 var)
+void gen_rev16(TCGv_i32 dest, TCGv_i32 var)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
     TCGv_i32 mask = tcg_const_i32(0x00ff00ff);
@@ -407,12 +344,6 @@ static void gen_revsh(TCGv_i32 dest, TCGv_i32 var)
     tcg_gen_ext16u_i32(var, var);
     tcg_gen_bswap16_i32(var, var);
     tcg_gen_ext16s_i32(dest, var);
-}
-
-/* Swap low and high halfwords.  */
-static void gen_swap_half(TCGv_i32 dest, TCGv_i32 var)
-{
-    tcg_gen_rotri_i32(dest, var, 16);
 }
 
 /* Dual 16-bit add.  Result placed in t0 and t1 is marked as dead.
@@ -746,7 +677,7 @@ void arm_gen_test_cc(int cc, TCGLabel *label)
     arm_free_cc(&cmp);
 }
 
-static inline void gen_set_condexec(DisasContext *s)
+void gen_set_condexec(DisasContext *s)
 {
     if (s->condexec_mask) {
         uint32_t val = (s->condexec_cond << 4) | (s->condexec_mask >> 1);
@@ -756,7 +687,7 @@ static inline void gen_set_condexec(DisasContext *s)
     }
 }
 
-static inline void gen_set_pc_im(DisasContext *s, target_ulong val)
+void gen_set_pc_im(DisasContext *s, target_ulong val)
 {
     tcg_gen_movi_i32(cpu_R[15], val);
 }
@@ -948,24 +879,24 @@ static TCGv gen_aa32_addr(DisasContext *s, TCGv_i32 a32, MemOp op)
  * Internal routines are used for NEON cases where the endianness
  * and/or alignment has already been taken into account and manipulated.
  */
-static void gen_aa32_ld_internal_i32(DisasContext *s, TCGv_i32 val,
-                                     TCGv_i32 a32, int index, MemOp opc)
+void gen_aa32_ld_internal_i32(DisasContext *s, TCGv_i32 val,
+                              TCGv_i32 a32, int index, MemOp opc)
 {
     TCGv addr = gen_aa32_addr(s, a32, opc);
     tcg_gen_qemu_ld_i32(val, addr, index, opc);
     tcg_temp_free(addr);
 }
 
-static void gen_aa32_st_internal_i32(DisasContext *s, TCGv_i32 val,
-                                     TCGv_i32 a32, int index, MemOp opc)
+void gen_aa32_st_internal_i32(DisasContext *s, TCGv_i32 val,
+                              TCGv_i32 a32, int index, MemOp opc)
 {
     TCGv addr = gen_aa32_addr(s, a32, opc);
     tcg_gen_qemu_st_i32(val, addr, index, opc);
     tcg_temp_free(addr);
 }
 
-static void gen_aa32_ld_internal_i64(DisasContext *s, TCGv_i64 val,
-                                     TCGv_i32 a32, int index, MemOp opc)
+void gen_aa32_ld_internal_i64(DisasContext *s, TCGv_i64 val,
+                              TCGv_i32 a32, int index, MemOp opc)
 {
     TCGv addr = gen_aa32_addr(s, a32, opc);
 
@@ -978,8 +909,8 @@ static void gen_aa32_ld_internal_i64(DisasContext *s, TCGv_i64 val,
     tcg_temp_free(addr);
 }
 
-static void gen_aa32_st_internal_i64(DisasContext *s, TCGv_i64 val,
-                                     TCGv_i32 a32, int index, MemOp opc)
+void gen_aa32_st_internal_i64(DisasContext *s, TCGv_i64 val,
+                              TCGv_i32 a32, int index, MemOp opc)
 {
     TCGv addr = gen_aa32_addr(s, a32, opc);
 
@@ -995,26 +926,26 @@ static void gen_aa32_st_internal_i64(DisasContext *s, TCGv_i64 val,
     tcg_temp_free(addr);
 }
 
-static void gen_aa32_ld_i32(DisasContext *s, TCGv_i32 val, TCGv_i32 a32,
-                            int index, MemOp opc)
+void gen_aa32_ld_i32(DisasContext *s, TCGv_i32 val, TCGv_i32 a32,
+                     int index, MemOp opc)
 {
     gen_aa32_ld_internal_i32(s, val, a32, index, finalize_memop(s, opc));
 }
 
-static void gen_aa32_st_i32(DisasContext *s, TCGv_i32 val, TCGv_i32 a32,
-                            int index, MemOp opc)
+void gen_aa32_st_i32(DisasContext *s, TCGv_i32 val, TCGv_i32 a32,
+                     int index, MemOp opc)
 {
     gen_aa32_st_internal_i32(s, val, a32, index, finalize_memop(s, opc));
 }
 
-static void gen_aa32_ld_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
-                            int index, MemOp opc)
+void gen_aa32_ld_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
+                     int index, MemOp opc)
 {
     gen_aa32_ld_internal_i64(s, val, a32, index, finalize_memop(s, opc));
 }
 
-static void gen_aa32_st_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
-                            int index, MemOp opc)
+void gen_aa32_st_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
+                     int index, MemOp opc)
 {
     gen_aa32_st_internal_i64(s, val, a32, index, finalize_memop(s, opc));
 }
@@ -1032,25 +963,6 @@ static void gen_aa32_st_i64(DisasContext *s, TCGv_i64 val, TCGv_i32 a32,
     {                                                                   \
         gen_aa32_st_i32(s, val, a32, index, OPC);                       \
     }
-
-static inline void gen_aa32_ld64(DisasContext *s, TCGv_i64 val,
-                                 TCGv_i32 a32, int index)
-{
-    gen_aa32_ld_i64(s, val, a32, index, MO_Q);
-}
-
-static inline void gen_aa32_st64(DisasContext *s, TCGv_i64 val,
-                                 TCGv_i32 a32, int index)
-{
-    gen_aa32_st_i64(s, val, a32, index, MO_Q);
-}
-
-DO_GEN_LD(8u, MO_UB)
-DO_GEN_LD(16u, MO_UW)
-DO_GEN_LD(32u, MO_UL)
-DO_GEN_ST(8, MO_UB)
-DO_GEN_ST(16, MO_UW)
-DO_GEN_ST(32, MO_UL)
 
 static inline void gen_hvc(DisasContext *s, int imm16)
 {
@@ -1093,11 +1005,15 @@ static void gen_exception_internal_insn(DisasContext *s, uint32_t pc, int excp)
     s->base.is_jmp = DISAS_NORETURN;
 }
 
-static void gen_exception_insn(DisasContext *s, uint32_t pc, int excp,
-                               int syn, uint32_t target_el)
+void gen_exception_insn(DisasContext *s, uint64_t pc, int excp,
+                        uint32_t syn, uint32_t target_el)
 {
-    gen_set_condexec(s);
-    gen_set_pc_im(s, pc);
+    if (s->aarch64) {
+        gen_a64_set_pc_im(pc);
+    } else {
+        gen_set_condexec(s);
+        gen_set_pc_im(s, pc);
+    }
     gen_exception(excp, syn, target_el);
     s->base.is_jmp = DISAS_NORETURN;
 }
@@ -1114,7 +1030,7 @@ static void gen_exception_bkpt_insn(DisasContext *s, uint32_t syn)
     s->base.is_jmp = DISAS_NORETURN;
 }
 
-static void unallocated_encoding(DisasContext *s)
+void unallocated_encoding(DisasContext *s)
 {
     /* Unallocated and reserved encodings are uncategorized */
     gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn_uncategorized(),
@@ -1138,7 +1054,7 @@ static void gen_exception_el(DisasContext *s, int excp, uint32_t syn,
 }
 
 /* Force a TB lookup after an instruction that changes the CPU state.  */
-static inline void gen_lookup_tb(DisasContext *s)
+void gen_lookup_tb(DisasContext *s)
 {
     tcg_gen_movi_i32(cpu_R[15], s->base.pc_next);
     s->base.is_jmp = DISAS_EXIT;
@@ -1173,7 +1089,7 @@ static inline void gen_hlt(DisasContext *s, int imm)
 /*
  * Return the offset of a "full" NEON Dreg.
  */
-static long neon_full_reg_offset(unsigned reg)
+long neon_full_reg_offset(unsigned reg)
 {
     return offsetof(CPUARMState, vfp.zregs[reg >> 1].d[reg & 1]);
 }
@@ -1182,7 +1098,7 @@ static long neon_full_reg_offset(unsigned reg)
  * Return the offset of a 2**SIZE piece of a NEON register, at index ELE,
  * where 0 is the least significant end of the register.
  */
-static long neon_element_offset(int reg, int element, MemOp memop)
+long neon_element_offset(int reg, int element, MemOp memop)
 {
     int element_size = 1 << (memop & MO_SIZE);
     int ofs = element * element_size;
@@ -1199,7 +1115,7 @@ static long neon_element_offset(int reg, int element, MemOp memop)
 }
 
 /* Return the offset of a VFP Dreg (dp = true) or VFP Sreg (dp = false). */
-static long vfp_reg_offset(bool dp, unsigned reg)
+long vfp_reg_offset(bool dp, unsigned reg)
 {
     if (dp) {
         return neon_element_offset(reg, 0, MO_64);
@@ -1208,27 +1124,7 @@ static long vfp_reg_offset(bool dp, unsigned reg)
     }
 }
 
-static inline void vfp_load_reg64(TCGv_i64 var, int reg)
-{
-    tcg_gen_ld_i64(var, cpu_env, vfp_reg_offset(true, reg));
-}
-
-static inline void vfp_store_reg64(TCGv_i64 var, int reg)
-{
-    tcg_gen_st_i64(var, cpu_env, vfp_reg_offset(true, reg));
-}
-
-static inline void vfp_load_reg32(TCGv_i32 var, int reg)
-{
-    tcg_gen_ld_i32(var, cpu_env, vfp_reg_offset(false, reg));
-}
-
-static inline void vfp_store_reg32(TCGv_i32 var, int reg)
-{
-    tcg_gen_st_i32(var, cpu_env, vfp_reg_offset(false, reg));
-}
-
-static void read_neon_element32(TCGv_i32 dest, int reg, int ele, MemOp memop)
+void read_neon_element32(TCGv_i32 dest, int reg, int ele, MemOp memop)
 {
     long off = neon_element_offset(reg, ele, memop);
 
@@ -1254,7 +1150,7 @@ static void read_neon_element32(TCGv_i32 dest, int reg, int ele, MemOp memop)
     }
 }
 
-static void read_neon_element64(TCGv_i64 dest, int reg, int ele, MemOp memop)
+void read_neon_element64(TCGv_i64 dest, int reg, int ele, MemOp memop)
 {
     long off = neon_element_offset(reg, ele, memop);
 
@@ -1273,7 +1169,7 @@ static void read_neon_element64(TCGv_i64 dest, int reg, int ele, MemOp memop)
     }
 }
 
-static void write_neon_element32(TCGv_i32 src, int reg, int ele, MemOp memop)
+void write_neon_element32(TCGv_i32 src, int reg, int ele, MemOp memop)
 {
     long off = neon_element_offset(reg, ele, memop);
 
@@ -1292,7 +1188,7 @@ static void write_neon_element32(TCGv_i32 src, int reg, int ele, MemOp memop)
     }
 }
 
-static void write_neon_element64(TCGv_i64 src, int reg, int ele, MemOp memop)
+void write_neon_element64(TCGv_i64 src, int reg, int ele, MemOp memop)
 {
     long off = neon_element_offset(reg, ele, memop);
 
@@ -1308,19 +1204,7 @@ static void write_neon_element64(TCGv_i64 src, int reg, int ele, MemOp memop)
     }
 }
 
-static TCGv_ptr vfp_reg_ptr(bool dp, int reg)
-{
-    TCGv_ptr ret = tcg_temp_new_ptr();
-    tcg_gen_addi_ptr(ret, cpu_env, vfp_reg_offset(dp, reg));
-    return ret;
-}
-
 #define ARM_CP_RW_BIT   (1 << 20)
-
-/* Include the VFP and Neon decoders */
-#include "decode-m-nocp.c.inc"
-#include "translate-vfp.c.inc"
-#include "translate-neon.c.inc"
 
 static inline void iwmmxt_load_reg(TCGv_i64 var, int reg)
 {

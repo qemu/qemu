@@ -45,3 +45,13 @@ Differences between QEMU and real hardware:
   flash, but only as simple ROM, so attempting to rewrite the flash
   from the guest will fail
 - QEMU does not model the USB controller in MPS3 boards
+
+Machine-specific options
+""""""""""""""""""""""""
+
+The following machine-specific options are supported:
+
+remap
+  Supported for ``mps3-an524`` only.
+  Set ``BRAM``/``QSPI`` to select the initial memory mapping. The
+  default is ``BRAM``.

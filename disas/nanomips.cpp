@@ -28,9 +28,7 @@
  */
 
 #include "qemu/osdep.h"
-extern "C" {
 #include "disas/dis-asm.h"
-}
 
 #include <cstring>
 #include <stdexcept>

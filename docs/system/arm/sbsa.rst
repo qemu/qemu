@@ -4,7 +4,7 @@ Arm Server Base System Architecture Reference board (``sbsa-ref``)
 While the `virt` board is a generic board platform that doesn't match
 any real hardware the `sbsa-ref` board intends to look like real
 hardware. The `Server Base System Architecture
-<https://developer.arm.com/documentation/den0029/latest>` defines a
+<https://developer.arm.com/documentation/den0029/latest>`_ defines a
 minimum base line of hardware support and importantly how the firmware
 reports that to any operating system. It is a static system that
 reports a very minimal DT to the firmware for non-discoverable

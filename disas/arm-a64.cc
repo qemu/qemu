@@ -18,9 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-extern "C" {
 #include "disas/dis-asm.h"
-}
 
 #include "vixl/a64/disasm-a64.h"
 

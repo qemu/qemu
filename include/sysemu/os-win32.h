@@ -30,6 +30,10 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(_WIN64)
 /* On w64, setjmp is implemented by _setjmp which needs a second parameter.
  * If this parameter is NULL, longjump does no stack unwinding.
@@ -193,5 +197,9 @@ ssize_t qemu_recv_wrap(int sockfd, void *buf, size_t len, int flags);
 #define recvfrom qemu_recvfrom_wrap
 ssize_t qemu_recvfrom_wrap(int sockfd, void *buf, size_t len, int flags,
                            struct sockaddr *addr, socklen_t *addrlen);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
