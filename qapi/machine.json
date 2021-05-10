@@ -790,11 +790,11 @@
 #
 # @size: memory backend size
 #
-# @merge: enables or disables memory merge support
+# @merge: whether memory merge support is enabled
 #
-# @dump: includes memory backend's memory in a core dump or not
+# @dump: whether memory backend's memory is included in a core dump
 #
-# @prealloc: enables or disables memory preallocation
+# @prealloc: whether memory was preallocated
 #
 # @host-nodes: host nodes for its memory policy
 #
