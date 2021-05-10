@@ -59,6 +59,7 @@ struct ARMSSEInfo {
     const char *cpu_type;
     uint32_t sse_version;
     int sram_banks;
+    uint32_t sram_bank_base;
     int num_cpus;
     uint32_t sys_version;
     uint32_t iidr;
@@ -102,7 +103,7 @@ static Property sse300_properties[] = {
     DEFINE_PROP_LINK("memory", ARMSSE, board_memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_UINT32("EXP_NUMIRQ", ARMSSE, exp_numirq, 64),
-    DEFINE_PROP_UINT32("SRAM_ADDR_WIDTH", ARMSSE, sram_addr_width, 15),
+    DEFINE_PROP_UINT32("SRAM_ADDR_WIDTH", ARMSSE, sram_addr_width, 18),
     DEFINE_PROP_UINT32("init-svtor", ARMSSE, init_svtor, 0x10000000),
     DEFINE_PROP_BOOL("CPU0_FPU", ARMSSE, cpu_fpu[0], true),
     DEFINE_PROP_BOOL("CPU0_DSP", ARMSSE, cpu_dsp[0], true),
@@ -504,6 +505,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .sse_version = ARMSSE_IOTKIT,
         .cpu_type = ARM_CPU_TYPE_NAME("cortex-m33"),
         .sram_banks = 1,
+        .sram_bank_base = 0x20000000,
         .num_cpus = 1,
         .sys_version = 0x41743,
         .iidr = 0,
@@ -523,6 +525,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .sse_version = ARMSSE_SSE200,
         .cpu_type = ARM_CPU_TYPE_NAME("cortex-m33"),
         .sram_banks = 4,
+        .sram_bank_base = 0x20000000,
         .num_cpus = 2,
         .sys_version = 0x22041743,
         .iidr = 0,
@@ -542,6 +545,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .sse_version = ARMSSE_SSE300,
         .cpu_type = ARM_CPU_TYPE_NAME("cortex-m55"),
         .sram_banks = 2,
+        .sram_bank_base = 0x21000000,
         .num_cpus = 1,
         .sys_version = 0x7e00043b,
         .iidr = 0x74a0043b,
@@ -1161,7 +1165,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         /* Map the upstream end of the MPC into the right place... */
         sbd_mpc = SYS_BUS_DEVICE(&s->mpc[i]);
         memory_region_add_subregion(&s->container,
-                                    0x20000000 + i * sram_bank_size,
+                                    info->sram_bank_base + i * sram_bank_size,
                                     sysbus_mmio_get_region(sbd_mpc, 1));
         /* ...and its register interface */
         memory_region_add_subregion(&s->container, 0x50083000 + i * 0x1000,
