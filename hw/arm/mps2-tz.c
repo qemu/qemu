@@ -244,18 +244,12 @@ static const RAMInfo an524_raminfo[] = { {
         .mpc = 0,
         .mrindex = 0,
     }, {
-        .name = "sram",
-        .base = 0x20000000,
-        .size = 32 * 4 * KiB,
-        .mpc = -1,
-        .mrindex = 1,
-    }, {
         /* We don't model QSPI flash yet; for now expose it as simple ROM */
         .name = "QSPI",
         .base = 0x28000000,
         .size = 8 * MiB,
         .mpc = 1,
-        .mrindex = 2,
+        .mrindex = 1,
         .flags = IS_ROM,
     }, {
         .name = "DDR",
