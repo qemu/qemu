@@ -265,23 +265,11 @@ static const RAMInfo an524_raminfo[] = { {
 };
 
 static const RAMInfo an547_raminfo[] = { {
-        .name = "itcm",
-        .base = 0x00000000,
-        .size = 512 * KiB,
-        .mpc = -1,
-        .mrindex = 0,
-    }, {
         .name = "sram",
         .base = 0x01000000,
         .size = 2 * MiB,
         .mpc = 0,
         .mrindex = 1,
-    }, {
-        .name = "dtcm",
-        .base = 0x20000000,
-        .size = 4 * 128 * KiB,
-        .mpc = -1,
-        .mrindex = 2,
     }, {
         .name = "sram 2",
         .base = 0x21000000,

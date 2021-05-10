@@ -198,6 +198,8 @@ struct ARMSSE {
     MemoryRegion alias2;
     MemoryRegion alias3[SSE_MAX_CPUS];
     MemoryRegion sram[MAX_SRAM_BANKS];
+    MemoryRegion itcm;
+    MemoryRegion dtcm;
 
     qemu_irq *exp_irqs[SSE_MAX_CPUS];
     qemu_irq ppc0_irq;

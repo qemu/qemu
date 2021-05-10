@@ -13,6 +13,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/bitops.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/sysbus.h"
@@ -70,6 +71,7 @@ struct ARMSSEInfo {
     bool has_cpuid;
     bool has_cpu_pwrctrl;
     bool has_sse_counter;
+    bool has_tcms;
     Property *props;
     const ARMSSEDeviceInfo *devinfo;
     const bool *irq_is_common;
@@ -516,6 +518,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpuid = false,
         .has_cpu_pwrctrl = false,
         .has_sse_counter = false,
+        .has_tcms = false,
         .props = iotkit_properties,
         .devinfo = iotkit_devices,
         .irq_is_common = sse200_irq_is_common,
@@ -536,6 +539,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpuid = true,
         .has_cpu_pwrctrl = false,
         .has_sse_counter = false,
+        .has_tcms = false,
         .props = sse200_properties,
         .devinfo = sse200_devices,
         .irq_is_common = sse200_irq_is_common,
@@ -556,6 +560,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpuid = true,
         .has_cpu_pwrctrl = true,
         .has_sse_counter = true,
+        .has_tcms = true,
         .props = sse300_properties,
         .devinfo = sse300_devices,
         .irq_is_common = sse300_irq_is_common,
@@ -1212,6 +1217,20 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                                     sysbus_mmio_get_region(sbd, 0));
         memory_region_add_subregion(&s->container, 0x48101000,
                                     sysbus_mmio_get_region(sbd, 1));
+    }
+
+    if (info->has_tcms) {
+        /* The SSE-300 has an ITCM at 0x0000_0000 and a DTCM at 0x2000_0000 */
+        memory_region_init_ram(&s->itcm, NULL, "sse300-itcm", 512 * KiB, errp);
+        if (*errp) {
+            return;
+        }
+        memory_region_init_ram(&s->dtcm, NULL, "sse300-dtcm", 512 * KiB, errp);
+        if (*errp) {
+            return;
+        }
+        memory_region_add_subregion(&s->container, 0x00000000, &s->itcm);
+        memory_region_add_subregion(&s->container, 0x20000000, &s->dtcm);
     }
 
     /* Devices behind APB PPC0:
