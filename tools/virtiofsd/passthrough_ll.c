@@ -406,7 +406,7 @@ static void lo_map_init(struct lo_map *map)
 
 static void lo_map_destroy(struct lo_map *map)
 {
-    free(map->elems);
+    g_free(map->elems);
 }
 
 static int lo_map_grow(struct lo_map *map, size_t new_nelems)
@@ -418,7 +418,7 @@ static int lo_map_grow(struct lo_map *map, size_t new_nelems)
         return 1;
     }
 
-    new_elems = realloc(map->elems, sizeof(map->elems[0]) * new_nelems);
+    new_elems = g_try_realloc_n(map->elems, new_nelems, sizeof(map->elems[0]));
     if (!new_elems) {
         return 0;
     }
@@ -1653,7 +1653,7 @@ static void lo_do_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
     struct lo_data *lo = lo_data(req);
     struct lo_dirp *d = NULL;
     struct lo_inode *dinode;
-    char *buf = NULL;
+    g_autofree char *buf = NULL;
     char *p;
     size_t rem = size;
     int err = EBADF;
@@ -1669,7 +1669,7 @@ static void lo_do_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
     }
 
     err = ENOMEM;
-    buf = calloc(1, size);
+    buf = g_try_malloc0(size);
     if (!buf) {
         goto error;
     }
@@ -1755,7 +1755,6 @@ error:
     } else {
         fuse_reply_buf(req, buf, size - rem);
     }
-    free(buf);
 }
 
 static void lo_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
@@ -2011,10 +2010,10 @@ static void lo_getlk(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
 
     fuse_log(FUSE_LOG_DEBUG,
              "lo_getlk(ino=%" PRIu64 ", flags=%d)"
-             " owner=0x%lx, l_type=%d l_start=0x%lx"
-             " l_len=0x%lx\n",
-             ino, fi->flags, fi->lock_owner, lock->l_type, lock->l_start,
-             lock->l_len);
+             " owner=0x%" PRIx64 ", l_type=%d l_start=0x%" PRIx64
+             " l_len=0x%" PRIx64 "\n",
+             ino, fi->flags, fi->lock_owner, lock->l_type,
+             (uint64_t)lock->l_start, (uint64_t)lock->l_len);
 
     if (!lo->posix_lock) {
         fuse_reply_err(req, ENOSYS);
@@ -2061,10 +2060,10 @@ static void lo_setlk(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
 
     fuse_log(FUSE_LOG_DEBUG,
              "lo_setlk(ino=%" PRIu64 ", flags=%d)"
-             " cmd=%d pid=%d owner=0x%lx sleep=%d l_whence=%d"
-             " l_start=0x%lx l_len=0x%lx\n",
+             " cmd=%d pid=%d owner=0x%" PRIx64 " sleep=%d l_whence=%d"
+             " l_start=0x%" PRIx64 " l_len=0x%" PRIx64 "\n",
              ino, fi->flags, lock->l_type, lock->l_pid, fi->lock_owner, sleep,
-             lock->l_whence, lock->l_start, lock->l_len);
+             lock->l_whence, (uint64_t)lock->l_start, (uint64_t)lock->l_len);
 
     if (!lo->posix_lock) {
         fuse_reply_err(req, ENOSYS);
@@ -2723,11 +2722,16 @@ static int xattr_map_server(const struct lo_data *lo, const char *server_name,
     return -ENODATA;
 }
 
+#define FCHDIR_NOFAIL(fd) do {                         \
+        int fchdir_res = fchdir(fd);                   \
+        assert(fchdir_res == 0);                       \
+    } while (0)
+
 static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
                         size_t size)
 {
     struct lo_data *lo = lo_data(req);
-    char *value = NULL;
+    g_autofree char *value = NULL;
     char procname[64];
     const char *name;
     char *mapped_name;
@@ -2768,7 +2772,7 @@ static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
              ino, name, size);
 
     if (size) {
-        value = malloc(size);
+        value = g_try_malloc(size);
         if (!value) {
             goto out_err;
         }
@@ -2789,9 +2793,9 @@ static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
         ret = fgetxattr(fd, name, value, size);
     } else {
         /* fchdir should not fail here */
-        assert(fchdir(lo->proc_self_fd) == 0);
+        FCHDIR_NOFAIL(lo->proc_self_fd);
         ret = getxattr(procname, name, value, size);
-        assert(fchdir(lo->root.fd) == 0);
+        FCHDIR_NOFAIL(lo->root.fd);
     }
 
     if (ret == -1) {
@@ -2807,8 +2811,6 @@ static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
         fuse_reply_xattr(req, ret);
     }
 out_free:
-    free(value);
-
     if (fd >= 0) {
         close(fd);
     }
@@ -2827,7 +2829,7 @@ out:
 static void lo_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
 {
     struct lo_data *lo = lo_data(req);
-    char *value = NULL;
+    g_autofree char *value = NULL;
     char procname[64];
     struct lo_inode *inode;
     ssize_t ret;
@@ -2849,7 +2851,7 @@ static void lo_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
              size);
 
     if (size) {
-        value = malloc(size);
+        value = g_try_malloc(size);
         if (!value) {
             goto out_err;
         }
@@ -2864,9 +2866,9 @@ static void lo_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
         ret = flistxattr(fd, value, size);
     } else {
         /* fchdir should not fail here */
-        assert(fchdir(lo->proc_self_fd) == 0);
+        FCHDIR_NOFAIL(lo->proc_self_fd);
         ret = listxattr(procname, value, size);
-        assert(fchdir(lo->root.fd) == 0);
+        FCHDIR_NOFAIL(lo->root.fd);
     }
 
     if (ret == -1) {
@@ -2934,8 +2936,6 @@ static void lo_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
         fuse_reply_xattr(req, ret);
     }
 out_free:
-    free(value);
-
     if (fd >= 0) {
         close(fd);
     }
@@ -3000,9 +3000,9 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
         ret = fsetxattr(fd, name, value, size, flags);
     } else {
         /* fchdir should not fail here */
-        assert(fchdir(lo->proc_self_fd) == 0);
+        FCHDIR_NOFAIL(lo->proc_self_fd);
         ret = setxattr(procname, name, value, size, flags);
-        assert(fchdir(lo->root.fd) == 0);
+        FCHDIR_NOFAIL(lo->root.fd);
     }
 
     saverr = ret == -1 ? errno : 0;
@@ -3066,9 +3066,9 @@ static void lo_removexattr(fuse_req_t req, fuse_ino_t ino, const char *in_name)
         ret = fremovexattr(fd, name);
     } else {
         /* fchdir should not fail here */
-        assert(fchdir(lo->proc_self_fd) == 0);
+        FCHDIR_NOFAIL(lo->proc_self_fd);
         ret = removexattr(procname, name);
-        assert(fchdir(lo->root.fd) == 0);
+        FCHDIR_NOFAIL(lo->root.fd);
     }
 
     saverr = ret == -1 ? errno : 0;
@@ -3097,9 +3097,10 @@ static void lo_copy_file_range(fuse_req_t req, fuse_ino_t ino_in, off_t off_in,
 
     fuse_log(FUSE_LOG_DEBUG,
              "lo_copy_file_range(ino=%" PRIu64 "/fd=%d, "
-             "off=%lu, ino=%" PRIu64 "/fd=%d, "
-             "off=%lu, size=%zd, flags=0x%x)\n",
-             ino_in, in_fd, off_in, ino_out, out_fd, off_out, len, flags);
+             "off=%ju, ino=%" PRIu64 "/fd=%d, "
+             "off=%ju, size=%zd, flags=0x%x)\n",
+             ino_in, in_fd, (intmax_t)off_in,
+             ino_out, out_fd, (intmax_t)off_out, len, flags);
 
     res = copy_file_range(in_fd, &off_in, out_fd, &off_out, len, flags);
     if (res < 0) {
@@ -3826,6 +3827,7 @@ int main(int argc, char *argv[])
     }
 
     if (lo.xattrmap) {
+        lo.xattr = 1;
         parse_xattrmap(&lo);
     }
 
