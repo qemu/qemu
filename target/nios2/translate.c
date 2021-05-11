@@ -829,7 +829,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     /* Set up instruction counts */
     num_insns = 0;
     if (max_insns > 1) {
-        int page_insns = (TARGET_PAGE_SIZE - (tb->pc & TARGET_PAGE_MASK)) / 4;
+        int page_insns = (TARGET_PAGE_SIZE - (tb->pc & ~TARGET_PAGE_MASK)) / 4;
         if (max_insns > page_insns) {
             max_insns = page_insns;
         }
