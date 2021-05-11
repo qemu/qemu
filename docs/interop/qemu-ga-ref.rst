@@ -10,4 +10,7 @@ QEMU Guest Agent Protocol Reference
    TODO: display the QEMU version, both here and in our Sphinx manuals
    more generally.
 
+.. contents::
+   :depth: 3
+
 .. qapi-doc:: qga/qapi-schema.json

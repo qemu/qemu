@@ -10,4 +10,7 @@ QEMU Storage Daemon QMP Reference Manual
    TODO: display the QEMU version, both here and in our Sphinx manuals
    more generally.
 
+.. contents::
+   :depth: 3
+
 .. qapi-doc:: storage-daemon/qapi/qapi-schema.json
