@@ -75,7 +75,7 @@ enum UHIOpenFlags {
 };
 
 /* Errno values taken from asm-mips/errno.h */
-static uint16_t host_to_mips_errno[] = {
+static const uint16_t host_to_mips_errno[] = {
     [ENAMETOOLONG] = 78,
 #ifdef EOVERFLOW
     [EOVERFLOW]    = 79,
