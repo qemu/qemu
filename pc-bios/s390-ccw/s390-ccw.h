@@ -89,6 +89,7 @@ bool menu_is_enabled_enum(void);
 
 #define MAX_BOOT_ENTRIES  31
 
+__attribute__ ((__noreturn__))
 static inline void panic(const char *string)
 {
     sclp_print(string);

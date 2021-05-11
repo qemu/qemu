@@ -213,7 +213,7 @@ static int eckd_get_boot_menu_index(block_number_t s1b_block_nr)
                 next_block_nr = eckd_block_num(&s1b->seek[i + 1].chs);
             }
 
-            if (next_block_nr) {
+            if (next_block_nr && !is_null_block_number(next_block_nr)) {
                 read_block(next_block_nr, s2_next_blk,
                            "Cannot read stage2 boot loader");
             }
@@ -299,7 +299,7 @@ static void ipl_eckd_cdl(void)
         sclp_print("Bad block size in zIPL section of IPL2 record.\n");
         return;
     }
-    if (!mbr->dev_type == DEV_TYPE_ECKD) {
+    if (mbr->dev_type != DEV_TYPE_ECKD) {
         sclp_print("Non-ECKD device type in zIPL section of IPL2 record.\n");
         return;
     }
