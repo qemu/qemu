@@ -905,6 +905,16 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
             && (wp->flags & flags)) {
             if (replay_running_debug()) {
                 /*
+                 * replay_breakpoint reads icount.
+                 * Force recompile to succeed, because icount may
+                 * be read only at the end of the block.
+                 */
+                if (!cpu->can_do_io) {
+                    /* Force execution of one insn next time.  */
+                    cpu->cflags_next_tb = 1 | CF_LAST_IO | curr_cflags(cpu);
+                    cpu_loop_exit_restore(cpu, ra);
+                }
+                /*
                  * Don't process the watchpoints when we are
                  * in a reverse debugging operation.
                  */
