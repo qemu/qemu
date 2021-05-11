@@ -55,7 +55,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'netdev_add', 'data': 'Netdev', 'boxed': true }
+{ 'command': 'netdev_add', 'data': 'Netdev', 'boxed': true,
+  'allow-preconfig': true }
 
 ##
 # @netdev_del:
@@ -75,7 +76,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'netdev_del', 'data': {'id': 'str'} }
+{ 'command': 'netdev_del', 'data': {'id': 'str'},
+  'allow-preconfig': true }
 
 ##
 # @NetLegacyNicOptions:
