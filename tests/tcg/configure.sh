@@ -75,7 +75,13 @@ fi
 for target in $target_list; do
   arch=${target%%-*}
 
+  # reset all container fields
   container_image=
+  container_hosts=
+  container_cross_cc=
+  container_cross_as=
+  container_cross_ld=
+
   case $target in
     aarch64-*)
       # We don't have any bigendian build tools so we only use this for AArch64
@@ -273,7 +279,16 @@ for target in $target_list; do
       for host in $container_hosts; do
           if test "$host" = "$ARCH"; then
               echo "DOCKER_IMAGE=$container_image" >> $config_target_mak
-              echo "DOCKER_CROSS_CC_GUEST=$container_cross_cc" >> $config_target_mak
+              echo "DOCKER_CROSS_CC_GUEST=$container_cross_cc" >> \
+                   $config_target_mak
+              if test -n "$container_cross_as"; then
+                  echo "DOCKER_CROSS_AS_GUEST=$container_cross_as" >> \
+                      $config_target_mak
+              fi
+              if test -n "$container_cross_ld"; then
+                  echo "DOCKER_CROSS_LD_GUEST=$container_cross_ld" >> \
+                      $config_target_mak
+              fi
           fi
       done
   fi
