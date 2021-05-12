@@ -185,6 +185,11 @@ struct DisasContext {
     uint64_t insns_flags2;
 };
 
+#define DISAS_EXIT         DISAS_TARGET_0  /* exit to main loop, pc updated */
+#define DISAS_EXIT_UPDATE  DISAS_TARGET_1  /* exit to main loop, pc stale */
+#define DISAS_CHAIN        DISAS_TARGET_2  /* lookup next tb, pc updated */
+#define DISAS_CHAIN_UPDATE DISAS_TARGET_3  /* lookup next tb, pc stale */
+
 /* Return true iff byteswap is needed in a scalar memop */
 static inline bool need_byteswap(const DisasContext *ctx)
 {
@@ -9226,28 +9231,78 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                  opc3(ctx->opcode), opc4(ctx->opcode), ctx->opcode);
     }
 
-    if (ctx->base.is_jmp == DISAS_NEXT
-        && ctx->exception != POWERPC_EXCP_NONE) {
-        ctx->base.is_jmp = DISAS_TOO_MANY;
+    if (ctx->base.is_jmp == DISAS_NEXT) {
+        switch (ctx->exception) {
+        case POWERPC_EXCP_NONE:
+            break;
+        case POWERPC_EXCP_BRANCH:
+            ctx->base.is_jmp = DISAS_NORETURN;
+            break;
+        case POWERPC_EXCP_SYNC:
+        case POWERPC_EXCP_STOP:
+            ctx->base.is_jmp = DISAS_EXIT;
+            break;
+        default:
+            /* Every other ctx->exception should have set NORETURN. */
+            g_assert_not_reached();
+        }
     }
 }
 
 static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    DisasJumpType is_jmp = ctx->base.is_jmp;
+    target_ulong nip = ctx->base.pc_next;
 
-    if (ctx->base.is_jmp == DISAS_NORETURN) {
+    if (is_jmp == DISAS_NORETURN) {
+        /* We have already exited the TB. */
         return;
     }
 
-    if (ctx->exception == POWERPC_EXCP_NONE) {
-        gen_goto_tb(ctx, 0, ctx->base.pc_next);
-    } else if (ctx->exception != POWERPC_EXCP_BRANCH) {
-        if (unlikely(ctx->base.singlestep_enabled)) {
-            gen_debug_exception(ctx);
+    /* Honor single stepping. */
+    if (unlikely(ctx->base.singlestep_enabled)) {
+        switch (is_jmp) {
+        case DISAS_TOO_MANY:
+        case DISAS_EXIT_UPDATE:
+        case DISAS_CHAIN_UPDATE:
+            gen_update_nip(ctx, nip);
+            break;
+        case DISAS_EXIT:
+        case DISAS_CHAIN:
+            break;
+        default:
+            g_assert_not_reached();
         }
-        /* Generate the return instruction */
+        gen_debug_exception(ctx);
+        return;
+    }
+
+    switch (is_jmp) {
+    case DISAS_TOO_MANY:
+        if (use_goto_tb(ctx, nip)) {
+            tcg_gen_goto_tb(0);
+            gen_update_nip(ctx, nip);
+            tcg_gen_exit_tb(ctx->base.tb, 0);
+            break;
+        }
+        /* fall through */
+    case DISAS_CHAIN_UPDATE:
+        gen_update_nip(ctx, nip);
+        /* fall through */
+    case DISAS_CHAIN:
+        tcg_gen_lookup_and_goto_ptr();
+        break;
+
+    case DISAS_EXIT_UPDATE:
+        gen_update_nip(ctx, nip);
+        /* fall through */
+    case DISAS_EXIT:
         tcg_gen_exit_tb(NULL, 0);
+        break;
+
+    default:
+        g_assert_not_reached();
     }
 }
 
