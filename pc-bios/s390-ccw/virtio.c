@@ -54,7 +54,7 @@ static long kvm_hypercall(unsigned long nr, unsigned long param1,
     register ulong r_param3 asm("4") = param3;
     register long retval asm("2");
 
-    asm volatile ("diag 2,4,0x500"
+    asm volatile ("diag %%r2,%%r4,0x500"
                   : "=d" (retval)
                   : "d" (r_nr), "0" (r_param1), "r"(r_param2), "d"(r_param3)
                   : "memory", "cc");

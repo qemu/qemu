@@ -64,8 +64,8 @@ void jump_to_IPL_code(uint64_t address)
      * We use the load normal reset to keep r15 unchanged. jump_to_IPL_2
      * can then use r15 as its stack pointer.
      */
-    asm volatile("lghi 1,1\n\t"
-                 "diag 1,1,0x308\n\t"
+    asm volatile("lghi %%r1,1\n\t"
+                 "diag %%r1,%%r1,0x308\n\t"
                  : : : "1", "memory");
     panic("\n! IPL returns !\n");
 }
