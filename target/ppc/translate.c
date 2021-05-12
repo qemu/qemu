@@ -264,7 +264,8 @@ static void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
     gen_helper_raise_exception_err(cpu_env, t0, t1);
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(t1);
-    ctx->exception = (excp);
+    ctx->exception = excp;
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_exception(DisasContext *ctx, uint32_t excp)
@@ -281,7 +282,8 @@ static void gen_exception(DisasContext *ctx, uint32_t excp)
     t0 = tcg_const_i32(excp);
     gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
-    ctx->exception = (excp);
+    ctx->exception = excp;
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
@@ -293,7 +295,8 @@ static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
     t0 = tcg_const_i32(excp);
     gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
-    ctx->exception = (excp);
+    ctx->exception = excp;
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 /*
@@ -339,6 +342,7 @@ static void gen_debug_exception(DisasContext *ctx)
     t0 = tcg_const_i32(EXCP_DEBUG);
     gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 static inline void gen_inval_exception(DisasContext *ctx, uint32_t error)
@@ -9183,7 +9187,6 @@ static bool ppc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     gen_debug_exception(ctx);
-    dcbase->is_jmp = DISAS_NORETURN;
     /*
      * The address covered by the breakpoint must be included in
      * [tb->pc, tb->pc + tb->size) in order to for it to be properly
@@ -9213,18 +9216,19 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     ok = decode_legacy(cpu, ctx, insn);
     if (!ok) {
         gen_invalid(ctx);
-        ctx->base.is_jmp = DISAS_NORETURN;
     }
 
 #if defined(DO_PPC_STATISTICS)
     handler->count++;
 #endif
+
     /* Check trace mode exceptions */
     if (unlikely(ctx->singlestep_enabled & CPU_SINGLE_STEP &&
                  (ctx->base.pc_next <= 0x100 || ctx->base.pc_next > 0xF00) &&
                  ctx->exception != POWERPC_SYSCALL &&
                  ctx->exception != POWERPC_EXCP_TRAP &&
-                 ctx->exception != POWERPC_EXCP_BRANCH)) {
+                 ctx->exception != POWERPC_EXCP_BRANCH &&
+                 ctx->base.is_jmp != DISAS_NORETURN)) {
         uint32_t excp = gen_prep_dbgex(ctx);
         gen_exception_nip(ctx, excp, ctx->base.pc_next);
     }
@@ -9235,13 +9239,19 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                  opc3(ctx->opcode), opc4(ctx->opcode), ctx->opcode);
     }
 
-    ctx->base.is_jmp = ctx->exception == POWERPC_EXCP_NONE ?
-        DISAS_NEXT : DISAS_NORETURN;
+    if (ctx->base.is_jmp == DISAS_NEXT
+        && ctx->exception != POWERPC_EXCP_NONE) {
+        ctx->base.is_jmp = DISAS_TOO_MANY;
+    }
 }
 
 static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+
+    if (ctx->base.is_jmp == DISAS_NORETURN) {
+        return;
+    }
 
     if (ctx->exception == POWERPC_EXCP_NONE) {
         gen_goto_tb(ctx, 0, ctx->base.pc_next);
