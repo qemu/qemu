@@ -144,19 +144,12 @@ mipsel-debian-cross-container:
   variables:
     NAME: debian-mipsel-cross
 
-powerpc-debian-cross-container:
+powerpc-test-cross-container:
   extends: .container_job_template
   stage: containers-layer2
-  needs: ['amd64-debian10-container']
+  needs: ['amd64-debian11-container']
   variables:
-    NAME: debian-powerpc-cross
-
-ppc64-debian-cross-container:
-  extends: .container_job_template
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-ppc64-cross
+    NAME: debian-powerpc-test-cross
 
 ppc64el-debian-cross-container:
   extends: .container_job_template

@@ -147,18 +147,14 @@ for target in $target_list; do
       ;;
     ppc-*|ppc64abi32-*)
       container_hosts=x86_64
-      container_image=debian-powerpc-cross
-      container_cross_cc=powerpc-linux-gnu-gcc
+      container_image=debian-powerpc-test-cross
+      container_cross_cc=powerpc-linux-gnu-gcc-10
       ;;
-    ppc64-*)
+    ppc64-*|ppc64le-*)
       container_hosts=x86_64
-      container_image=debian-ppc64-cross
-      container_cross_cc=powerpc64-linux-gnu-gcc
-      ;;
-    ppc64le-*)
-      container_hosts=x86_64
-      container_image=debian-ppc64el-cross
-      container_cross_cc=powerpc64le-linux-gnu-gcc
+      container_image=debian-powerpc-test-cross
+      container_cross_cc=${target%%-*}-linux-gnu-gcc-10
+      container_cross_cc=powerpc${container_cross_cc#ppc}
       ;;
     riscv64-*)
       container_hosts=x86_64
@@ -271,6 +267,10 @@ for target in $target_list; do
               if do_compiler "$target_compiler" $target_compiler_cflags \
                              -mpower8-vector -o $TMPE $TMPC; then
                   echo "CROSS_CC_HAS_POWER8_VECTOR=y" >> $config_target_mak
+              fi
+              if do_compiler "$target_compiler" $target_compiler_cflags \
+                             -mpower10 -o $TMPE $TMPC; then
+                  echo "CROSS_CC_HAS_POWER10=y" >> $config_target_mak
               fi
               ;;
           i386-linux-user)
