@@ -67,6 +67,7 @@ undocumented; you can get a complete list by running
    :maxdepth: 1
 
    riscv/microchip-icicle-kit
+   riscv/shakti-c
    riscv/sifive_u
 
 RISC-V CPU features
