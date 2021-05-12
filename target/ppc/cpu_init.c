@@ -55,7 +55,7 @@ static inline void vscr_init(CPUPPCState *env, uint32_t val)
 {
     /* Altivec always uses round-to-nearest */
     set_float_rounding_mode(float_round_nearest_even, &env->vec_status);
-    helper_mtvscr(env, val);
+    ppc_store_vscr(env, val);
 }
 
 /**

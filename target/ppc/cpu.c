@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "cpu-models.h"
+#include "fpu/softfloat-helpers.h"
 
 target_ulong cpu_read_xer(CPUPPCState *env)
 {
@@ -44,4 +45,19 @@ void cpu_write_xer(CPUPPCState *env, target_ulong xer)
     env->xer = xer & ~((1ul << XER_SO) |
                        (1ul << XER_OV) | (1ul << XER_CA) |
                        (1ul << XER_OV32) | (1ul << XER_CA32));
+}
+
+void ppc_store_vscr(CPUPPCState *env, uint32_t vscr)
+{
+    env->vscr = vscr & ~(1u << VSCR_SAT);
+    /* Which bit we set is completely arbitrary, but clear the rest.  */
+    env->vscr_sat.u64[0] = vscr & (1u << VSCR_SAT);
+    env->vscr_sat.u64[1] = 0;
+    set_flush_to_zero((vscr >> VSCR_NJ) & 1, &env->vec_status);
+}
+
+uint32_t ppc_get_vscr(CPUPPCState *env)
+{
+    uint32_t sat = (env->vscr_sat.u64[0] | env->vscr_sat.u64[1]) != 0;
+    return env->vscr | (sat << VSCR_SAT);
 }

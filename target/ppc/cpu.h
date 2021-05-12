@@ -2651,4 +2651,6 @@ static inline bool ppc_has_spr(PowerPCCPU *cpu, int spr)
 void dump_mmu(CPUPPCState *env);
 
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len);
+void ppc_store_vscr(CPUPPCState *env, uint32_t vscr);
+uint32_t ppc_get_vscr(CPUPPCState *env);
 #endif /* PPC_CPU_H */
