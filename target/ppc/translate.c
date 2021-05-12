@@ -570,7 +570,6 @@ void spr_read_tbl(DisasContext *ctx, int gprn, int sprn)
     }
     gen_helper_load_tbl(cpu_gpr[gprn], cpu_env);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_end();
         gen_stop_exception(ctx);
     }
 }
@@ -582,7 +581,6 @@ void spr_read_tbu(DisasContext *ctx, int gprn, int sprn)
     }
     gen_helper_load_tbu(cpu_gpr[gprn], cpu_env);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_end();
         gen_stop_exception(ctx);
     }
 }
@@ -605,7 +603,6 @@ void spr_write_tbl(DisasContext *ctx, int sprn, int gprn)
     }
     gen_helper_store_tbl(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_end();
         gen_stop_exception(ctx);
     }
 }
@@ -617,7 +614,6 @@ void spr_write_tbu(DisasContext *ctx, int sprn, int gprn)
     }
     gen_helper_store_tbu(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_end();
         gen_stop_exception(ctx);
     }
 }
@@ -663,7 +659,6 @@ void spr_read_hdecr(DisasContext *ctx, int gprn, int sprn)
     }
     gen_helper_load_hdecr(cpu_gpr[gprn], cpu_env);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_end();
         gen_stop_exception(ctx);
     }
 }
@@ -675,7 +670,6 @@ void spr_write_hdecr(DisasContext *ctx, int sprn, int gprn)
     }
     gen_helper_store_hdecr(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_end();
         gen_stop_exception(ctx);
     }
 }
