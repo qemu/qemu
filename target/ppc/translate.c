@@ -329,19 +329,7 @@ static uint32_t gen_prep_dbgex(DisasContext *ctx)
 
 static void gen_debug_exception(DisasContext *ctx)
 {
-    TCGv_i32 t0;
-
-    /*
-     * These are all synchronous exceptions, we set the PC back to the
-     * faulting instruction
-     */
-    if ((ctx->exception != POWERPC_EXCP_BRANCH) &&
-        (ctx->exception != POWERPC_EXCP_SYNC)) {
-        gen_update_nip(ctx, ctx->base.pc_next);
-    }
-    t0 = tcg_const_i32(EXCP_DEBUG);
-    gen_helper_raise_exception(cpu_env, t0);
-    tcg_temp_free_i32(t0);
+    gen_helper_raise_exception(cpu_env, tcg_constant_i32(EXCP_DEBUG));
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -9186,6 +9174,7 @@ static bool ppc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
+    gen_update_nip(ctx, ctx->base.pc_next);
     gen_debug_exception(ctx);
     /*
      * The address covered by the breakpoint must be included in
