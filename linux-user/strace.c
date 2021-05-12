@@ -2341,7 +2341,7 @@ print_linkat(void *cpu_env, const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR__llseek
+#if defined(TARGET_NR__llseek) || defined(TARGET_NR_llseek)
 static void
 print__llseek(void *cpu_env, const struct syscallname *name,
               abi_long arg0, abi_long arg1, abi_long arg2,
@@ -2361,6 +2361,7 @@ print__llseek(void *cpu_env, const struct syscallname *name,
     qemu_log("%s", whence);
     print_syscall_epilogue(name);
 }
+#define print_llseek print__llseek
 #endif
 
 #ifdef TARGET_NR_lseek
