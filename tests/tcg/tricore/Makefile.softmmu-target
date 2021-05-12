@@ -12,6 +12,7 @@ TESTS += test_fmul.tst
 TESTS += test_ftoi.tst
 TESTS += test_madd.tst
 TESTS += test_msub.tst
+TESTS += test_muls.tst
 
 QEMU_OPTS += -M tricore_testboard -nographic -kernel
 
