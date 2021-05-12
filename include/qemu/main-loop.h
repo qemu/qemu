@@ -234,24 +234,6 @@ void event_notifier_set_handler(EventNotifier *e,
 
 GSource *iohandler_get_g_source(void);
 AioContext *iohandler_get_aio_context(void);
-#ifdef CONFIG_POSIX
-/**
- * qemu_add_child_watch: Register a child process for reaping.
- *
- * Under POSIX systems, a parent process must read the exit status of
- * its child processes using waitpid, or the operating system will not
- * free some of the resources attached to that process.
- *
- * This function directs the QEMU main loop to observe a child process
- * and call waitpid as soon as it exits; the watch is then removed
- * automatically.  It is useful whenever QEMU forks a child process
- * but will find out about its termination by other means such as a
- * "broken pipe".
- *
- * @pid: The pid that QEMU should observe.
- */
-int qemu_add_child_watch(pid_t pid);
-#endif
 
 /**
  * qemu_mutex_iothread_locked: Return lock status of the main loop mutex.

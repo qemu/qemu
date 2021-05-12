@@ -1,5 +1,5 @@
 /*
- * i386 TCG cpu class initialization functions
+ * i386 KVM CPU type and functions
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *
@@ -16,9 +16,26 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef TCG_CPU_H
-#define TCG_CPU_H
 
-bool tcg_cpu_realizefn(CPUState *cs, Error **errp);
+#ifndef KVM_CPU_H
+#define KVM_CPU_H
 
-#endif /* TCG_CPU_H */
+#ifdef CONFIG_KVM
+/*
+ * Change the value of a KVM-specific default
+ *
+ * If value is NULL, no default will be set and the original
+ * value from the CPU model table will be kept.
+ *
+ * It is valid to call this function only for properties that
+ * are already present in the kvm_default_props table.
+ */
+void x86_cpu_change_kvm_default(const char *prop, const char *value);
+
+#else /* !CONFIG_KVM */
+
+#define x86_cpu_change_kvm_default(a, b)
+
+#endif /* CONFIG_KVM */
+
+#endif /* KVM_CPU_H */

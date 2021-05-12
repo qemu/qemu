@@ -19,14 +19,11 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "tcg-cpu.h"
-#include "exec/exec-all.h"
-#include "sysemu/runstate.h"
 #include "helper-tcg.h"
+#include "qemu/accel.h"
+#include "hw/core/accel-cpu.h"
 
-#if !defined(CONFIG_USER_ONLY)
-#include "hw/i386/apic.h"
-#endif
+#include "tcg-cpu.h"
 
 /* Frob eflags into and out of the CPU temporary format.  */
 
@@ -72,7 +69,52 @@ static struct TCGCPUOps x86_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 
-void tcg_cpu_common_class_init(CPUClass *cc)
+static void tcg_cpu_init_ops(AccelCPUClass *accel_cpu, CPUClass *cc)
 {
+    /* for x86, all cpus use the same set of operations */
     cc->tcg_ops = &x86_tcg_ops;
 }
+
+static void tcg_cpu_class_init(CPUClass *cc)
+{
+    cc->init_accel_cpu = tcg_cpu_init_ops;
+}
+
+/*
+ * TCG-specific defaults that override all CPU models when using TCG
+ */
+static PropValue tcg_default_props[] = {
+    { "vme", "off" },
+    { NULL, NULL },
+};
+
+static void tcg_cpu_instance_init(CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    /* Special cases not set in the X86CPUDefinition structs: */
+    x86_cpu_apply_props(cpu, tcg_default_props);
+}
+
+static void tcg_cpu_accel_class_init(ObjectClass *oc, void *data)
+{
+    AccelCPUClass *acc = ACCEL_CPU_CLASS(oc);
+
+#ifndef CONFIG_USER_ONLY
+    acc->cpu_realizefn = tcg_cpu_realizefn;
+#endif /* CONFIG_USER_ONLY */
+
+    acc->cpu_class_init = tcg_cpu_class_init;
+    acc->cpu_instance_init = tcg_cpu_instance_init;
+}
+static const TypeInfo tcg_cpu_accel_type_info = {
+    .name = ACCEL_CPU_NAME("tcg"),
+
+    .parent = TYPE_ACCEL_CPU,
+    .class_init = tcg_cpu_accel_class_init,
+    .abstract = true,
+};
+static void tcg_cpu_accel_register_types(void)
+{
+    type_register_static(&tcg_cpu_accel_type_info);
+}
+type_init(tcg_cpu_accel_register_types);

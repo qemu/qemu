@@ -1117,15 +1117,19 @@ static inline void gen_cmps(DisasContext *s, MemOp ot)
 static void gen_bpt_io(DisasContext *s, TCGv_i32 t_port, int ot)
 {
     if (s->flags & HF_IOBPT_MASK) {
+#ifdef CONFIG_USER_ONLY
+        /* user-mode cpu should not be in IOBPT mode */
+        g_assert_not_reached();
+#else
         TCGv_i32 t_size = tcg_const_i32(1 << ot);
         TCGv t_next = tcg_const_tl(s->pc - s->cs_base);
 
         gen_helper_bpt_io(cpu_env, t_port, t_size, t_next);
         tcg_temp_free_i32(t_size);
         tcg_temp_free(t_next);
+#endif /* CONFIG_USER_ONLY */
     }
 }
-
 
 static inline void gen_ins(DisasContext *s, MemOp ot)
 {
@@ -8061,6 +8065,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         if (s->cpl != 0) {
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
+#ifndef CONFIG_USER_ONLY
             modrm = x86_ldub_code(env, s);
             /* Ignore the mod bits (assume (modrm&0xc0)==0xc0).
              * AMD documentation (24594.pdf) and testing of
@@ -8089,6 +8094,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 gen_helper_get_dr(s->T0, cpu_env, s->tmp2_i32);
                 gen_op_mov_reg_v(s, ot, rm, s->T0);
             }
+#endif /* !CONFIG_USER_ONLY */
         }
         break;
     case 0x106: /* clts */
@@ -8325,9 +8331,14 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         gen_svm_check_intercept(s, pc_start, SVM_EXIT_RSM);
         if (!(s->flags & HF_SMM_MASK))
             goto illegal_op;
+#ifdef CONFIG_USER_ONLY
+        /* we should not be in SMM mode */
+        g_assert_not_reached();
+#else
         gen_update_cc_op(s);
         gen_jmp_im(s, s->pc - s->cs_base);
         gen_helper_rsm(cpu_env);
+#endif /* CONFIG_USER_ONLY */
         gen_eob(s);
         break;
     case 0x1b8: /* SSE4.2 popcnt */

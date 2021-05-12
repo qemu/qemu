@@ -10,4 +10,5 @@ i386_softmmu_ss.add(when: [hvf, 'CONFIG_HVF'], if_true: files(
   'x86_mmu.c',
   'x86_task.c',
   'x86hvf.c',
+  'hvf-cpu.c',
 ))

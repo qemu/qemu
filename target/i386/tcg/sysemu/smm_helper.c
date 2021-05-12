@@ -1,5 +1,5 @@
 /*
- *  x86 SMM helpers
+ *  x86 SMM helpers (sysemu-only)
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *
@@ -18,26 +18,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/main-loop.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/log.h"
-#include "helper-tcg.h"
+#include "tcg/helper-tcg.h"
 
 
 /* SMM support */
-
-#if defined(CONFIG_USER_ONLY)
-
-void do_smm_enter(X86CPU *cpu)
-{
-}
-
-void helper_rsm(CPUX86State *env)
-{
-}
-
-#else
 
 #ifdef TARGET_X86_64
 #define SMM_REVISION_ID 0x00020064
@@ -330,5 +317,3 @@ void helper_rsm(CPUX86State *env)
     qemu_log_mask(CPU_LOG_INT, "SMM: after RSM\n");
     log_cpu_state_mask(CPU_LOG_INT, CPU(cpu), CPU_DUMP_CCOP);
 }
-
-#endif /* !CONFIG_USER_ONLY */

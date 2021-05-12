@@ -1,5 +1,5 @@
 /*
- *  x86 SVM helpers
+ *  x86 SVM helpers (sysemu only)
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *
@@ -22,65 +22,9 @@
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
-#include "helper-tcg.h"
+#include "tcg/helper-tcg.h"
 
 /* Secure Virtual Machine helpers */
-
-#if defined(CONFIG_USER_ONLY)
-
-void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
-{
-}
-
-void helper_vmmcall(CPUX86State *env)
-{
-}
-
-void helper_vmload(CPUX86State *env, int aflag)
-{
-}
-
-void helper_vmsave(CPUX86State *env, int aflag)
-{
-}
-
-void helper_stgi(CPUX86State *env)
-{
-}
-
-void helper_clgi(CPUX86State *env)
-{
-}
-
-void helper_skinit(CPUX86State *env)
-{
-}
-
-void helper_invlpga(CPUX86State *env, int aflag)
-{
-}
-
-void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1,
-                uintptr_t retaddr)
-{
-    assert(0);
-}
-
-void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
-                                      uint64_t param)
-{
-}
-
-void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
-                                   uint64_t param, uintptr_t retaddr)
-{
-}
-
-void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
-                         uint32_t next_eip_addend)
-{
-}
-#else
 
 static inline void svm_save_seg(CPUX86State *env, hwaddr addr,
                                 const SegmentCache *sc)
@@ -219,18 +163,7 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                                                         control.nested_cr3));
         env->hflags2 |= HF2_NPT_MASK;
 
-        if (env->cr[4] & CR4_PAE_MASK) {
-            env->nested_pg_mode |= SVM_NPT_PAE;
-        }
-        if (env->cr[4] & CR4_PSE_MASK) {
-            env->nested_pg_mode |= SVM_NPT_PSE;
-        }
-        if (env->hflags & HF_LMA_MASK) {
-            env->nested_pg_mode |= SVM_NPT_LMA;
-        }
-        if (env->efer & MSR_EFER_NXE) {
-            env->nested_pg_mode |= SVM_NPT_NXE;
-        }
+        env->nested_pg_mode = get_pg_mode(env) & PG_MODE_SVM_MASK;
     }
 
     /* enable intercepts */
@@ -796,5 +729,3 @@ void do_vmexit(CPUX86State *env)
        host's code segment or non-canonical (in the case of long mode), a
        #GP fault is delivered inside the host. */
 }
-
-#endif
