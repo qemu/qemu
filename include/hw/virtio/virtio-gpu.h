@@ -29,7 +29,10 @@ OBJECT_DECLARE_TYPE(VirtIOGPUBase, VirtIOGPUBaseClass,
                     VIRTIO_GPU_BASE)
 
 #define TYPE_VIRTIO_GPU "virtio-gpu-device"
-OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPU, VIRTIO_GPU)
+OBJECT_DECLARE_TYPE(VirtIOGPU, VirtIOGPUClass, VIRTIO_GPU)
+
+#define TYPE_VIRTIO_GPU_GL "virtio-gpu-gl-device"
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOGPUGL, VIRTIO_GPU_GL)
 
 #define TYPE_VHOST_USER_GPU "vhost-user-gpu"
 OBJECT_DECLARE_SIMPLE_TYPE(VhostUserGPU, VHOST_USER_GPU)
@@ -108,7 +111,6 @@ struct VirtIOGPUBase {
     struct virtio_gpu_config virtio_config;
     const GraphicHwOps *hw_ops;
 
-    bool use_virgl_renderer;
     int renderer_blocked;
     int enable;
 
@@ -149,8 +151,6 @@ struct VirtIOGPU {
     uint64_t hostmem;
 
     bool processing_cmdq;
-    bool renderer_inited;
-    bool renderer_reset;
     QEMUTimer *fence_poll;
     QEMUTimer *print_stats;
 
@@ -161,6 +161,23 @@ struct VirtIOGPU {
         uint32_t req_3d;
         uint32_t bytes_3d;
     } stats;
+};
+
+struct VirtIOGPUClass {
+    VirtIOGPUBaseClass parent;
+
+    void (*handle_ctrl)(VirtIODevice *vdev, VirtQueue *vq);
+    void (*process_cmd)(VirtIOGPU *g, struct virtio_gpu_ctrl_command *cmd);
+    void (*update_cursor_data)(VirtIOGPU *g,
+                               struct virtio_gpu_scanout *s,
+                               uint32_t resource_id);
+};
+
+struct VirtIOGPUGL {
+    struct VirtIOGPU parent_obj;
+
+    bool renderer_inited;
+    bool renderer_reset;
 };
 
 struct VhostUserGPU {
@@ -209,10 +226,17 @@ void virtio_gpu_get_edid(VirtIOGPU *g,
 int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
                                   struct virtio_gpu_resource_attach_backing *ab,
                                   struct virtio_gpu_ctrl_command *cmd,
-                                  uint64_t **addr, struct iovec **iov);
+                                  uint64_t **addr, struct iovec **iov,
+                                  uint32_t *niov);
 void virtio_gpu_cleanup_mapping_iov(VirtIOGPU *g,
                                     struct iovec *iov, uint32_t count);
 void virtio_gpu_process_cmdq(VirtIOGPU *g);
+void virtio_gpu_device_realize(DeviceState *qdev, Error **errp);
+void virtio_gpu_reset(VirtIODevice *vdev);
+void virtio_gpu_simple_process_cmd(VirtIOGPU *g, struct virtio_gpu_ctrl_command *cmd);
+void virtio_gpu_update_cursor_data(VirtIOGPU *g,
+                                   struct virtio_gpu_scanout *s,
+                                   uint32_t resource_id);
 
 /* virtio-gpu-3d.c */
 void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,

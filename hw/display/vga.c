@@ -39,6 +39,8 @@
 //#define DEBUG_VGA_MEM
 //#define DEBUG_VGA_REG
 
+bool have_vga = true;
+
 /* 16 state changes per vertical frame @60 Hz */
 #define VGA_TEXT_CURSOR_PERIOD_MS       (1000 * 2 * 16 / 60)
 

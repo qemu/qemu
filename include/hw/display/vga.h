@@ -11,6 +11,12 @@
 
 #include "exec/hwaddr.h"
 
+/*
+ * modules can reference this symbol to avoid being loaded
+ * into system emulators without vga support
+ */
+extern bool have_vga;
+
 enum vga_retrace_method {
     VGA_RETRACE_DUMB,
     VGA_RETRACE_PRECISE

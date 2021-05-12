@@ -182,6 +182,10 @@ static const struct {
     { "ui-spice-app",   "ui-spice-core" },
     { "ui-spice-app",   "chardev-spice" },
 
+    { "hw-display-virtio-gpu-gl", "hw-display-virtio-gpu" },
+    { "hw-display-virtio-gpu-pci-gl", "hw-display-virtio-gpu-pci" },
+    { "hw-display-virtio-vga-gl", "hw-display-virtio-vga" },
+
 #ifdef CONFIG_OPENGL
     { "ui-egl-headless", "ui-opengl"    },
     { "ui-gtk",          "ui-opengl"    },
@@ -301,13 +305,16 @@ static struct {
     { "qxl-vga",               "hw-", "display-qxl"           },
     { "qxl",                   "hw-", "display-qxl"           },
     { "virtio-gpu-device",     "hw-", "display-virtio-gpu"    },
+    { "virtio-gpu-gl-device",  "hw-", "display-virtio-gpu-gl" },
     { "vhost-user-gpu",        "hw-", "display-virtio-gpu"    },
     { "virtio-gpu-pci-base",   "hw-", "display-virtio-gpu-pci" },
     { "virtio-gpu-pci",        "hw-", "display-virtio-gpu-pci" },
+    { "virtio-gpu-gl-pci",     "hw-", "display-virtio-gpu-pci-gl" },
     { "vhost-user-gpu-pci",    "hw-", "display-virtio-gpu-pci" },
     { "virtio-gpu-ccw",        "hw-", "s390x-virtio-gpu-ccw"   },
     { "virtio-vga-base",       "hw-", "display-virtio-vga"    },
     { "virtio-vga",            "hw-", "display-virtio-vga"    },
+    { "virtio-vga-gl",         "hw-", "display-virtio-vga-gl" },
     { "vhost-user-vga",        "hw-", "display-virtio-vga"    },
     { "chardev-braille",       "chardev-", "baum"             },
     { "chardev-spicevmc",      "chardev-", "spice"            },

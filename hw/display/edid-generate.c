@@ -45,6 +45,35 @@ static const struct edid_mode {
     { .xres =  640,   .yres =  480,   .byte  = 35,   .bit = 5 },
 };
 
+typedef struct Timings {
+    uint32_t xfront;
+    uint32_t xsync;
+    uint32_t xblank;
+
+    uint32_t yfront;
+    uint32_t ysync;
+    uint32_t yblank;
+
+    uint64_t clock;
+} Timings;
+
+static void generate_timings(Timings *timings, uint32_t refresh_rate,
+                             uint32_t xres, uint32_t yres)
+{
+    /* pull some realistic looking timings out of thin air */
+    timings->xfront = xres * 25 / 100;
+    timings->xsync  = xres *  3 / 100;
+    timings->xblank = xres * 35 / 100;
+
+    timings->yfront = yres *  5 / 1000;
+    timings->ysync  = yres *  5 / 1000;
+    timings->yblank = yres * 35 / 1000;
+
+    timings->clock  = ((uint64_t)refresh_rate *
+                       (xres + timings->xblank) *
+                       (yres + timings->yblank)) / 10000000;
+}
+
 static void edid_ext_dta(uint8_t *dta)
 {
     dta[0] = 0x02;
@@ -130,18 +159,37 @@ static void edid_fill_modes(uint8_t *edid, uint8_t *xtra3, uint8_t *dta,
     }
 }
 
-static void edid_checksum(uint8_t *edid)
+static void edid_checksum(uint8_t *edid, size_t len)
 {
     uint32_t sum = 0;
     int i;
 
-    for (i = 0; i < 127; i++) {
+    for (i = 0; i < len; i++) {
         sum += edid[i];
     }
     sum &= 0xff;
     if (sum) {
-        edid[127] = 0x100 - sum;
+        edid[len] = 0x100 - sum;
     }
+}
+
+static uint8_t *edid_desc_next(uint8_t *edid, uint8_t *dta, uint8_t *desc)
+{
+    if (desc == NULL) {
+        return NULL;
+    }
+    if (desc + 18 + 18 < edid + 127) {
+        return desc + 18;
+    }
+    if (dta) {
+        if (desc < edid + 127) {
+            return dta + dta[2];
+        }
+        if (desc + 18 + 18 < dta + 127) {
+            return desc + 18;
+        }
+    }
+    return NULL;
 }
 
 static void edid_desc_type(uint8_t *desc, uint8_t type)
@@ -181,8 +229,8 @@ static void edid_desc_ranges(uint8_t *desc)
     desc[7] =  30;
     desc[8] = 160;
 
-    /* max dot clock (1200 MHz) */
-    desc[9] = 1200 / 10;
+    /* max dot clock (2550 MHz) */
+    desc[9] = 2550 / 10;
 
     /* no extended timing information */
     desc[10] = 0x01;
@@ -204,42 +252,33 @@ static void edid_desc_dummy(uint8_t *desc)
     edid_desc_type(desc, 0x10);
 }
 
-static void edid_desc_timing(uint8_t *desc,
+static void edid_desc_timing(uint8_t *desc, uint32_t refresh_rate,
                              uint32_t xres, uint32_t yres,
                              uint32_t xmm, uint32_t ymm)
 {
-    /* pull some realistic looking timings out of thin air */
-    uint32_t xfront = xres * 25 / 100;
-    uint32_t xsync  = xres *  3 / 100;
-    uint32_t xblank = xres * 35 / 100;
-
-    uint32_t yfront = yres *  5 / 1000;
-    uint32_t ysync  = yres *  5 / 1000;
-    uint32_t yblank = yres * 35 / 1000;
-
-    uint32_t clock  = 75 * (xres + xblank) * (yres + yblank);
-
-    stl_le_p(desc, clock / 10000);
+    Timings timings;
+    generate_timings(&timings, refresh_rate, xres, yres);
+    stl_le_p(desc, timings.clock);
 
     desc[2] = xres   & 0xff;
-    desc[3] = xblank & 0xff;
+    desc[3] = timings.xblank & 0xff;
     desc[4] = (((xres   & 0xf00) >> 4) |
-               ((xblank & 0xf00) >> 8));
+               ((timings.xblank & 0xf00) >> 8));
 
     desc[5] = yres   & 0xff;
-    desc[6] = yblank & 0xff;
+    desc[6] = timings.yblank & 0xff;
     desc[7] = (((yres   & 0xf00) >> 4) |
-               ((yblank & 0xf00) >> 8));
+               ((timings.yblank & 0xf00) >> 8));
 
-    desc[8] = xfront & 0xff;
-    desc[9] = xsync  & 0xff;
+    desc[8] = timings.xfront & 0xff;
+    desc[9] = timings.xsync  & 0xff;
 
-    desc[10] = (((yfront & 0x00f) << 4) |
-                ((ysync  & 0x00f) << 0));
-    desc[11] = (((xfront & 0x300) >> 2) |
-                ((xsync  & 0x300) >> 4) |
-                ((yfront & 0x030) >> 2) |
-                ((ysync  & 0x030) >> 4));
+    desc[10] = (((timings.yfront & 0x00f) << 4) |
+                ((timings.ysync  & 0x00f) << 0));
+    desc[11] = (((timings.xfront & 0x300) >> 2) |
+                ((timings.xsync  & 0x300) >> 4) |
+                ((timings.yfront & 0x030) >> 2) |
+                ((timings.ysync  & 0x030) >> 4));
 
     desc[12] = xmm & 0xff;
     desc[13] = ymm & 0xff;
@@ -297,14 +336,61 @@ uint32_t qemu_edid_dpi_to_mm(uint32_t dpi, uint32_t res)
     return res * 254 / 10 / dpi;
 }
 
+static void init_displayid(uint8_t *did)
+{
+    did[0] = 0x70; /* display id extension */
+    did[1] = 0x13; /* version 1.3 */
+    did[2] = 4;    /* length */
+    did[3] = 0x03; /* product type (0x03 == standalone display device) */
+    edid_checksum(did + 1, did[2] + 4);
+}
+
+static void qemu_displayid_generate(uint8_t *did, uint32_t refresh_rate,
+                                    uint32_t xres, uint32_t yres,
+                                    uint32_t xmm, uint32_t ymm)
+{
+    Timings timings;
+    generate_timings(&timings, refresh_rate, xres, yres);
+
+    did[0] = 0x70; /* display id extension */
+    did[1] = 0x13; /* version 1.3 */
+    did[2] = 23;   /* length */
+    did[3] = 0x03; /* product type (0x03 == standalone display device) */
+
+    did[5] = 0x03; /* Detailed Timings Data Block */
+    did[6] = 0x00; /* revision */
+    did[7] = 0x14; /* block length */
+
+    did[8]  = timings.clock  & 0xff;
+    did[9]  = (timings.clock & 0xff00) >> 8;
+    did[10] = (timings.clock & 0xff0000) >> 16;
+
+    did[11] = 0x88; /* leave aspect ratio undefined */
+
+    stw_le_p(did + 12, 0xffff & (xres - 1));
+    stw_le_p(did + 14, 0xffff & (timings.xblank - 1));
+    stw_le_p(did + 16, 0xffff & (timings.xfront - 1));
+    stw_le_p(did + 18, 0xffff & (timings.xsync - 1));
+
+    stw_le_p(did + 20, 0xffff & (yres - 1));
+    stw_le_p(did + 22, 0xffff & (timings.yblank - 1));
+    stw_le_p(did + 24, 0xffff & (timings.yfront - 1));
+    stw_le_p(did + 26, 0xffff & (timings.ysync - 1));
+
+    edid_checksum(did + 1, did[2] + 4);
+}
+
 void qemu_edid_generate(uint8_t *edid, size_t size,
                         qemu_edid_info *info)
 {
-    uint32_t desc = 54;
+    uint8_t *desc = edid + 54;
     uint8_t *xtra3 = NULL;
     uint8_t *dta = NULL;
+    uint8_t *did = NULL;
     uint32_t width_mm, height_mm;
+    uint32_t refresh_rate = info->refresh_rate ? info->refresh_rate : 75000;
     uint32_t dpi = 100; /* if no width_mm/height_mm */
+    uint32_t large_screen = 0;
 
     /* =============== set defaults  =============== */
 
@@ -319,6 +405,9 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
     }
     if (!info->prefy) {
         info->prefy = 768;
+    }
+    if (info->prefx >= 4096 || info->prefy >= 4096) {
+        large_screen = 1;
     }
     if (info->width_mm && info->height_mm) {
         width_mm = info->width_mm;
@@ -335,6 +424,12 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
         dta = edid + 128;
         edid[126]++;
         edid_ext_dta(dta);
+    }
+
+    if (size >= 384 && large_screen) {
+        did = edid + 256;
+        edid[126]++;
+        init_displayid(did);
     }
 
     /* =============== header information =============== */
@@ -401,40 +496,55 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
 
     /* =============== descriptor blocks =============== */
 
-    edid_desc_timing(edid + desc, info->prefx, info->prefy,
-                     width_mm, height_mm);
-    desc += 18;
-
-    edid_desc_ranges(edid + desc);
-    desc += 18;
-
-    if (info->name) {
-        edid_desc_text(edid + desc, 0xfc, info->name);
-        desc += 18;
+    if (!large_screen) {
+        /* The DTD section has only 12 bits to store the resolution */
+        edid_desc_timing(desc, refresh_rate, info->prefx, info->prefy,
+                         width_mm, height_mm);
+        desc = edid_desc_next(edid, dta, desc);
     }
 
-    if (info->serial) {
-        edid_desc_text(edid + desc, 0xff, info->serial);
-        desc += 18;
+    xtra3 = desc;
+    edid_desc_xtra3_std(xtra3);
+    desc = edid_desc_next(edid, dta, desc);
+    edid_fill_modes(edid, xtra3, dta, info->maxx, info->maxy);
+    /*
+     * dta video data block is finished at thus point,
+     * so dta descriptor offsets don't move any more.
+     */
+
+    edid_desc_ranges(desc);
+    desc = edid_desc_next(edid, dta, desc);
+
+    if (desc && info->name) {
+        edid_desc_text(desc, 0xfc, info->name);
+        desc = edid_desc_next(edid, dta, desc);
     }
 
-    if (desc < 126) {
-        xtra3 = edid + desc;
-        edid_desc_xtra3_std(xtra3);
-        desc += 18;
+    if (desc && info->serial) {
+        edid_desc_text(desc, 0xff, info->serial);
+        desc = edid_desc_next(edid, dta, desc);
     }
 
-    while (desc < 126) {
-        edid_desc_dummy(edid + desc);
-        desc += 18;
+    while (desc) {
+        edid_desc_dummy(desc);
+        desc = edid_desc_next(edid, dta, desc);
+    }
+
+    /* =============== display id extensions =============== */
+
+    if (did && large_screen) {
+        qemu_displayid_generate(did, refresh_rate, info->prefx, info->prefy,
+                                width_mm, height_mm);
     }
 
     /* =============== finish up =============== */
 
-    edid_fill_modes(edid, xtra3, dta, info->maxx, info->maxy);
-    edid_checksum(edid);
+    edid_checksum(edid, 127);
     if (dta) {
-        edid_checksum(dta);
+        edid_checksum(dta, 127);
+    }
+    if (did) {
+        edid_checksum(did, 127);
     }
 }
 
