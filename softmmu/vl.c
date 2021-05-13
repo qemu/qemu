@@ -1531,6 +1531,25 @@ static void machine_help_func(const QDict *qdict)
     }
 }
 
+static void
+machine_parse_property_opt(QemuOptsList *opts_list, const char *propname,
+                           const char *arg, Error **errp)
+{
+    QDict *opts, *prop;
+    bool help = false;
+    ERRP_GUARD();
+
+    prop = keyval_parse(arg, opts_list->implied_opt_name, &help, errp);
+    if (help) {
+        qemu_opts_print_help(opts_list, true);
+        return;
+    }
+    opts = qdict_new();
+    qdict_put(opts, propname, prop);
+    keyval_merge(machine_opts_dict, opts, errp);
+    qobject_unref(opts);
+}
+
 static const char *pid_file;
 static Notifier qemu_unlink_pidfile_notifier;
 
@@ -1841,6 +1860,12 @@ static void qemu_apply_machine_options(QDict *qdict)
         /* fall back to the -kernel/-append */
         semihosting_arg_fallback(current_machine->kernel_filename, current_machine->kernel_cmdline);
     }
+
+    if (current_machine->smp.cpus > 1) {
+        Error *blocker = NULL;
+        error_setg(&blocker, QERR_REPLAY_NOT_SUPPORTED, "smp");
+        replay_add_blocker(blocker);
+    }
 }
 
 static void qemu_create_early_backends(void)
@@ -2090,9 +2115,6 @@ static void qemu_create_machine(QDict *qdict)
     if (machine_class->hw_version) {
         qemu_set_hw_version(machine_class->hw_version);
     }
-
-    machine_smp_parse(current_machine,
-        qemu_opts_find(qemu_find_opts("smp-opts"), NULL), &error_fatal);
 
     /*
      * Get the default machine options from the machine if it is not already
@@ -3310,10 +3332,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_smp:
-                if (!qemu_opts_parse_noisily(qemu_find_opts("smp-opts"),
-                                             optarg, true)) {
-                    exit(1);
-                }
+                machine_parse_property_opt(qemu_find_opts("smp-opts"), "smp", optarg, &error_fatal);
                 break;
             case QEMU_OPTION_vnc:
                 vnc_parse(optarg);
