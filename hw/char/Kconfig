@@ -61,6 +61,7 @@ config AVR_USART
 
 config MCHP_PFSOC_MMUART
     bool
+    select SERIAL
 
 config SIFIVE_UART
     bool
