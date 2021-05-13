@@ -847,7 +847,7 @@ if 'CONFIG_VTE' in config_host
                            link_args: config_host['VTE_LIBS'].split())
 endif
 x11 = not_found
-if gtkx11.found() or 'lm32-softmmu' in target_dirs
+if gtkx11.found()
   x11 = dependency('x11', method: 'pkg-config', required: gtkx11.found(),
                    kwargs: static_kwargs)
 endif
@@ -1210,11 +1210,9 @@ disassemblers = {
   'i386' : ['CONFIG_I386_DIS'],
   'x86_64' : ['CONFIG_I386_DIS'],
   'x32' : ['CONFIG_I386_DIS'],
-  'lm32' : ['CONFIG_LM32_DIS'],
   'm68k' : ['CONFIG_M68K_DIS'],
   'microblaze' : ['CONFIG_MICROBLAZE_DIS'],
   'mips' : ['CONFIG_MIPS_DIS'],
-  'moxie' : ['CONFIG_MOXIE_DIS'],
   'nios2' : ['CONFIG_NIOS2_DIS'],
   'or1k' : ['CONFIG_OPENRISC_DIS'],
   'ppc' : ['CONFIG_PPC_DIS'],
@@ -2635,7 +2633,6 @@ if have_block
   summary_info += {'vvfat support':     config_host.has_key('CONFIG_VVFAT')}
   summary_info += {'qed support':       config_host.has_key('CONFIG_QED')}
   summary_info += {'parallels support': config_host.has_key('CONFIG_PARALLELS')}
-  summary_info += {'sheepdog support':  config_host.has_key('CONFIG_SHEEPDOG')}
   summary_info += {'FUSE exports':      fuse.found()}
 endif
 summary(summary_info, bool_yn: true, section: 'Block layer support')

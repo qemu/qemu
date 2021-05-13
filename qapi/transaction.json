@@ -112,10 +112,10 @@
 #
 # On failure, the original disks pre-snapshot attempt will be used.
 #
-# For internal snapshots, the dictionary contains the device and the snapshot's
-# name.  If an internal snapshot matching name already exists, the request will
-# be rejected.  Only some image formats support it, for example, qcow2, rbd,
-# and sheepdog.
+# For internal snapshots, the dictionary contains the device and the
+# snapshot's name.  If an internal snapshot matching name already exists,
+# the request will be rejected.  Only some image formats support it, for
+# example, qcow2, and rbd,
 #
 # On failure, qemu will try delete the newly created internal snapshot in the
 # transaction.  When an I/O error occurs during deletion, the user needs to fix

@@ -56,16 +56,12 @@ int graphic_depth = 32;
 #define QEMU_ARCH QEMU_ARCH_HPPA
 #elif defined(TARGET_I386)
 #define QEMU_ARCH QEMU_ARCH_I386
-#elif defined(TARGET_LM32)
-#define QEMU_ARCH QEMU_ARCH_LM32
 #elif defined(TARGET_M68K)
 #define QEMU_ARCH QEMU_ARCH_M68K
 #elif defined(TARGET_MICROBLAZE)
 #define QEMU_ARCH QEMU_ARCH_MICROBLAZE
 #elif defined(TARGET_MIPS)
 #define QEMU_ARCH QEMU_ARCH_MIPS
-#elif defined(TARGET_MOXIE)
-#define QEMU_ARCH QEMU_ARCH_MOXIE
 #elif defined(TARGET_NIOS2)
 #define QEMU_ARCH QEMU_ARCH_NIOS2
 #elif defined(TARGET_OPENRISC)
@@ -84,8 +80,6 @@ int graphic_depth = 32;
 #define QEMU_ARCH QEMU_ARCH_SPARC
 #elif defined(TARGET_TRICORE)
 #define QEMU_ARCH QEMU_ARCH_TRICORE
-#elif defined(TARGET_UNICORE32)
-#define QEMU_ARCH QEMU_ARCH_UNICORE32
 #elif defined(TARGET_XTENSA)
 #define QEMU_ARCH QEMU_ARCH_XTENSA
 #elif defined(TARGET_AVR)

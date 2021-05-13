@@ -207,19 +207,6 @@ F: disas/hppa.c
 F: hw/net/*i82596*
 F: include/hw/net/lasi_82596.h
 
-LM32 TCG CPUs
-R: Michael Walle <michael@walle.cc>
-S: Orphan
-F: target/lm32/
-F: disas/lm32.c
-F: hw/lm32/
-F: hw/*/lm32_*
-F: hw/*/milkymist-*
-F: include/hw/display/milkymist_tmu2.h
-F: include/hw/char/lm32_juart.h
-F: include/hw/lm32/
-F: tests/tcg/lm32/
-
 M68K TCG CPUs
 M: Laurent Vivier <laurent@vivier.eu>
 S: Maintained
@@ -257,14 +244,6 @@ K: ^Subject:.*(?i)mips
 MIPS TCG CPUs (nanoMIPS ISA)
 S: Orphan
 F: disas/nanomips.*
-
-Moxie TCG CPUs
-M: Anthony Green <green@moxielogic.com>
-S: Maintained
-F: target/moxie/
-F: disas/moxie.c
-F: hw/moxie/
-F: default-configs/*/moxie-softmmu.mak
 
 NiosII TCG CPUs
 M: Chris Wulff <crwulff@gmail.com>
@@ -337,13 +316,6 @@ F: hw/sparc/
 F: hw/sparc64/
 F: include/hw/sparc/sparc64.h
 F: disas/sparc.c
-
-UniCore32 TCG CPUs
-M: Guan Xuetao <gxt@mprc.pku.edu.cn>
-S: Maintained
-F: target/unicore32/
-F: hw/unicore32/
-F: include/hw/unicore32/
 
 X86 TCG CPUs
 M: Paolo Bonzini <pbonzini@redhat.com>
@@ -1088,18 +1060,6 @@ F: default-configs/*/hppa-softmmu.mak
 F: hw/hppa/
 F: pc-bios/hppa-firmware.img
 
-LM32 Machines
--------------
-EVR32 and uclinux BSP
-R: Michael Walle <michael@walle.cc>
-S: Orphan
-F: hw/lm32/lm32_boards.c
-
-milkymist
-R: Michael Walle <michael@walle.cc>
-S: Orphan
-F: hw/lm32/milkymist.c
-
 M68K Machines
 -------------
 an5206
@@ -1548,14 +1508,6 @@ S: Supported
 F: hw/s390x/s390-pci*
 F: include/hw/s390x/s390-pci*
 L: qemu-s390x@nongnu.org
-
-UniCore32 Machines
-------------------
-PKUnity-3 SoC initramfs-with-busybox
-M: Guan Xuetao <gxt@mprc.pku.edu.cn>
-S: Maintained
-F: hw/*/puv3*
-F: hw/unicore32/
 
 X86 Machines
 ------------
@@ -3087,12 +3039,6 @@ M: Jason Dillaman <dillaman@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/rbd.c
-
-Sheepdog
-M: Liu Yuan <namei.unix@gmail.com>
-L: qemu-block@nongnu.org
-S: Odd Fixes
-F: block/sheepdog.c
 
 VHDX
 M: Jeff Cody <codyprime@gmail.com>

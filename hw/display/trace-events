@@ -13,16 +13,6 @@ xenfb_input_connected(void *xendev, int abs_pointer_wanted) "%p abs %d"
 g364fb_read(uint64_t addr, uint32_t val) "read addr=0x%"PRIx64": 0x%x"
 g364fb_write(uint64_t addr, uint32_t new) "write addr=0x%"PRIx64": 0x%x"
 
-# milkymist-tmu2.c
-milkymist_tmu2_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-milkymist_tmu2_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-milkymist_tmu2_start(void) "Start TMU"
-milkymist_tmu2_pulse_irq(void) "Pulse IRQ"
-
-# milkymist-vgafb.c
-milkymist_vgafb_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-milkymist_vgafb_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-
 # vmware_vga.c
 vmware_value_read(uint32_t index, uint32_t value) "index %d, value 0x%x"
 vmware_value_write(uint32_t index, uint32_t value) "index %d, value 0x%x"

@@ -89,7 +89,7 @@ build-system-alpine:
   variables:
     IMAGE: alpine
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
-      moxie-softmmu microblazeel-softmmu mips64el-softmmu
+      microblazeel-softmmu mips64el-softmmu
     MAKE_CHECK_ARGS: check-build
     CONFIGURE_ARGS: --enable-docs --enable-trace-backends=log,simple,syslog
   artifacts:
@@ -125,7 +125,7 @@ build-system-ubuntu:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-docs --enable-fdt=system --enable-slirp=system
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
-      moxie-softmmu microblazeel-softmmu mips64el-softmmu
+      microblazeel-softmmu mips64el-softmmu
     MAKE_CHECK_ARGS: check-build
   artifacts:
     expire_in: 2 days
@@ -342,7 +342,6 @@ build-disabled:
       --disable-replication
       --disable-sdl
       --disable-seccomp
-      --disable-sheepdog
       --disable-slirp
       --disable-smartcard
       --disable-snappy
@@ -625,7 +624,7 @@ build-deprecated:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools
     MAKE_CHECK_ARGS: build-tcg
-    TARGETS: ppc64abi32-linux-user lm32-softmmu unicore32-softmmu
+    TARGETS: ppc64abi32-linux-user
   artifacts:
     expire_in: 2 days
     paths:
@@ -684,7 +683,7 @@ build-tci:
   variables:
     IMAGE: debian-all-test-cross
   script:
-    - TARGETS="aarch64 alpha arm hppa m68k microblaze moxie ppc64 s390x x86_64"
+    - TARGETS="aarch64 alpha arm hppa m68k microblaze ppc64 s390x x86_64"
     - mkdir build
     - cd build
     - ../configure --enable-tcg-interpreter

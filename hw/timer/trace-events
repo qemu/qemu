@@ -24,23 +24,6 @@ grlib_gptimer_hit(int id) "timer:%d HIT"
 grlib_gptimer_readl(int id, uint64_t addr, uint32_t val) "timer:%d addr 0x%"PRIx64" 0x%x"
 grlib_gptimer_writel(int id, uint64_t addr, uint32_t val) "timer:%d addr 0x%"PRIx64" 0x%x"
 
-# lm32_timer.c
-lm32_timer_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-lm32_timer_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-lm32_timer_hit(void) "timer hit"
-lm32_timer_irq_state(int level) "irq state %d"
-
-# milkymist-sysctl.c
-milkymist_sysctl_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-milkymist_sysctl_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-milkymist_sysctl_icap_write(uint32_t value) "value 0x%08x"
-milkymist_sysctl_start_timer0(void) "Start timer0"
-milkymist_sysctl_stop_timer0(void) "Stop timer0"
-milkymist_sysctl_start_timer1(void) "Start timer1"
-milkymist_sysctl_stop_timer1(void) "Stop timer1"
-milkymist_sysctl_pulse_irq_timer0(void) "Pulse IRQ Timer0"
-milkymist_sysctl_pulse_irq_timer1(void) "Pulse IRQ Timer1"
-
 # aspeed_timer.c
 aspeed_timer_ctrl_enable(uint8_t i, bool enable) "Timer %" PRIu8 ": %d"
 aspeed_timer_ctrl_external_clock(uint8_t i, bool enable) "Timer %" PRIu8 ": %d"

@@ -85,24 +85,6 @@ These are specified using a special URL syntax.
    Currently authentication must be done using ssh-agent. Other
    authentication methods may be supported in future.
 
-``Sheepdog``
-   Sheepdog is a distributed storage system for QEMU. QEMU supports
-   using either local sheepdog devices or remote networked devices.
-
-   Syntax for specifying a sheepdog device
-
-   ::
-
-      sheepdog[+tcp|+unix]://[host:port]/vdiname[?socket=path][#snapid|#tag]
-
-   Example
-
-   .. parsed-literal::
-
-      |qemu_system| --drive file=sheepdog://192.0.2.1:30000/MyVirtualMachine
-
-   See also https://sheepdog.github.io/sheepdog/.
-
 ``GlusterFS``
    GlusterFS is a user space distributed file system. QEMU supports the
    use of GlusterFS volumes for hosting VM disk images using TCP, Unix

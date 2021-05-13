@@ -51,15 +51,6 @@ grlib_irqmp_set_irq(int irq) "Raise CPU IRQ %d"
 grlib_irqmp_readl_unknown(uint64_t addr) "addr 0x%"PRIx64
 grlib_irqmp_writel_unknown(uint64_t addr, uint32_t value) "addr 0x%"PRIx64" value 0x%x"
 
-# lm32_pic.c
-lm32_pic_raise_irq(void) "Raise CPU interrupt"
-lm32_pic_lower_irq(void) "Lower CPU interrupt"
-lm32_pic_interrupt(int irq, int level) "Set IRQ%d %d"
-lm32_pic_set_im(uint32_t im) "im 0x%08x"
-lm32_pic_set_ip(uint32_t ip) "ip 0x%08x"
-lm32_pic_get_im(uint32_t im) "im 0x%08x"
-lm32_pic_get_ip(uint32_t ip) "ip 0x%08x"
-
 # xics.c
 xics_icp_check_ipi(int server, uint8_t mfrr) "CPU %d can take IPI mfrr=0x%x"
 xics_icp_accept(uint32_t old_xirr, uint32_t new_xirr) "icp_accept: XIRR 0x%"PRIx32"->0x%"PRIx32

@@ -198,30 +198,6 @@ from Linux upstream kernel, declare it deprecated.
 System emulator CPUS
 --------------------
 
-``moxie`` CPU (since 5.2.0)
-'''''''''''''''''''''''''''
-
-The ``moxie`` guest CPU support is deprecated and will be removed in
-a future version of QEMU. It's unclear whether anybody is still using
-CPU emulation in QEMU, and there are no test images available to make
-sure that the code is still working.
-
-``lm32`` CPUs (since 5.2.0)
-'''''''''''''''''''''''''''
-
-The ``lm32`` guest CPU support is deprecated and will be removed in
-a future version of QEMU. The only public user of this architecture
-was the milkymist project, which has been dead for years; there was
-never an upstream Linux port.
-
-``unicore32`` CPUs (since 5.2.0)
-''''''''''''''''''''''''''''''''
-
-The ``unicore32`` guest CPU support is deprecated and will be removed in
-a future version of QEMU. Support for this CPU was removed from the
-upstream Linux kernel, and there is no available upstream toolchain
-to build binaries for it.
-
 ``Icelake-Client`` CPU Model (since 5.2.0)
 ''''''''''''''''''''''''''''''''''''''''''
 
@@ -292,15 +268,6 @@ Example of legacy encoding::
 The above, converted to the current supported format::
 
   json:{"file.driver":"rbd", "file.pool":"rbd", "file.image":"name"}
-
-``sheepdog`` driver (since 5.2.0)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The ``sheepdog`` block device driver is deprecated. The corresponding upstream
-server project is no longer actively maintained. Users are recommended to switch
-to an alternative distributed block device driver such as RBD. The
-``qemu-img convert`` command can be used to liberate existing data by moving
-it out of sheepdog volumes into an alternative storage backend.
 
 linux-user mode CPUs
 --------------------

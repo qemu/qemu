@@ -2818,7 +2818,6 @@
             'luks', 'nbd', 'nfs', 'null-aio', 'null-co', 'nvme', 'parallels',
             'preallocate', 'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'rbd',
             { 'name': 'replication', 'if': 'defined(CONFIG_REPLICATION)' },
-            'sheepdog',
             'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
 
 ##
@@ -3652,26 +3651,6 @@
             '*server': ['InetSocketAddressBase'] } }
 
 ##
-# @BlockdevOptionsSheepdog:
-#
-# Driver specific block device options for sheepdog
-#
-# @vdi: Virtual disk image name
-# @server: The Sheepdog server to connect to
-# @snap-id: Snapshot ID
-# @tag: Snapshot tag name
-#
-# Only one of @snap-id and @tag may be present.
-#
-# Since: 2.9
-##
-{ 'struct': 'BlockdevOptionsSheepdog',
-  'data': { 'server': 'SocketAddress',
-            'vdi': 'str',
-            '*snap-id': 'uint32',
-            '*tag': 'str' } }
-
-##
 # @ReplicationMode:
 #
 # An enumeration of replication modes.
@@ -4037,7 +4016,6 @@
       'rbd':        'BlockdevOptionsRbd',
       'replication': { 'type': 'BlockdevOptionsReplication',
                        'if': 'defined(CONFIG_REPLICATION)' },
-      'sheepdog':   'BlockdevOptionsSheepdog',
       'ssh':        'BlockdevOptionsSsh',
       'throttle':   'BlockdevOptionsThrottle',
       'vdi':        'BlockdevOptionsGenericFormat',
@@ -4497,74 +4475,6 @@
 
 
 ##
-# @SheepdogRedundancyType:
-#
-# @full: Create a fully replicated vdi with x copies
-# @erasure-coded: Create an erasure coded vdi with x data strips and
-#                 y parity strips
-#
-# Since: 2.12
-##
-{ 'enum': 'SheepdogRedundancyType',
-  'data': [ 'full', 'erasure-coded' ] }
-
-##
-# @SheepdogRedundancyFull:
-#
-# @copies: Number of copies to use (between 1 and 31)
-#
-# Since: 2.12
-##
-{ 'struct': 'SheepdogRedundancyFull',
-  'data': { 'copies': 'int' }}
-
-##
-# @SheepdogRedundancyErasureCoded:
-#
-# @data-strips: Number of data strips to use (one of {2,4,8,16})
-# @parity-strips: Number of parity strips to use (between 1 and 15)
-#
-# Since: 2.12
-##
-{ 'struct': 'SheepdogRedundancyErasureCoded',
-  'data': { 'data-strips': 'int',
-            'parity-strips': 'int' }}
-
-##
-# @SheepdogRedundancy:
-#
-# Since: 2.12
-##
-{ 'union': 'SheepdogRedundancy',
-  'base': { 'type': 'SheepdogRedundancyType' },
-  'discriminator': 'type',
-  'data': { 'full': 'SheepdogRedundancyFull',
-            'erasure-coded': 'SheepdogRedundancyErasureCoded' } }
-
-##
-# @BlockdevCreateOptionsSheepdog:
-#
-# Driver specific image creation options for Sheepdog.
-#
-# @location: Where to store the new image file
-# @size: Size of the virtual disk in bytes
-# @backing-file: File name of a base image
-# @preallocation: Preallocation mode for the new image (default: off;
-#                 allowed values: off, full)
-# @redundancy: Redundancy of the image
-# @object-size: Object size of the image
-#
-# Since: 2.12
-##
-{ 'struct': 'BlockdevCreateOptionsSheepdog',
-  'data': { 'location':         'BlockdevOptionsSheepdog',
-            'size':             'size',
-            '*backing-file':    'str',
-            '*preallocation':   'PreallocMode',
-            '*redundancy':      'SheepdogRedundancy',
-            '*object-size':     'size' } }
-
-##
 # @BlockdevCreateOptionsSsh:
 #
 # Driver specific image creation options for SSH.
@@ -4687,7 +4597,6 @@
       'qcow2':          'BlockdevCreateOptionsQcow2',
       'qed':            'BlockdevCreateOptionsQed',
       'rbd':            'BlockdevCreateOptionsRbd',
-      'sheepdog':       'BlockdevCreateOptionsSheepdog',
       'ssh':            'BlockdevCreateOptionsSsh',
       'vdi':            'BlockdevCreateOptionsVdi',
       'vhdx':           'BlockdevCreateOptionsVhdx',
@@ -5322,7 +5231,7 @@
 #
 # Notes: In transaction, if @name is empty, or any snapshot matching @name
 #        exists, the operation will fail. Only some image formats support it,
-#        for example, qcow2, rbd, and sheepdog.
+#        for example, qcow2, and rbd.
 #
 # Since: 1.7
 ##

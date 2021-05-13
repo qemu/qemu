@@ -52,11 +52,6 @@ if [ "$IMGFMT" = "vpc" ]; then
     _notrun "image format $IMGFMT does not support large image sizes"
 fi
 
-# sheepdog image is limited to 4TB, so we can't test it here
-if [ "$IMGPROTO" = "sheepdog" ]; then
-    _notrun "image protocol $IMGPROTO does not support large image sizes"
-fi
-
 # Sanity check: For raw, we require a file system that permits the creation
 # of a HUGE (but very sparse) file. Check we can create it before continuing.
 if [ "$IMGFMT" = "raw" ]; then
