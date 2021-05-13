@@ -217,7 +217,7 @@ void ps2_queue(PS2State *s, int b)
     }
 
     ps2_queue_noirq(s, b);
-    s->update_irq(s->update_arg, 1);
+    ps2_raise_irq(s);
 }
 
 void ps2_queue_2(PS2State *s, int b1, int b2)
@@ -228,7 +228,7 @@ void ps2_queue_2(PS2State *s, int b1, int b2)
 
     ps2_queue_noirq(s, b1);
     ps2_queue_noirq(s, b2);
-    s->update_irq(s->update_arg, 1);
+    ps2_raise_irq(s);
 }
 
 void ps2_queue_3(PS2State *s, int b1, int b2, int b3)
@@ -240,7 +240,7 @@ void ps2_queue_3(PS2State *s, int b1, int b2, int b3)
     ps2_queue_noirq(s, b1);
     ps2_queue_noirq(s, b2);
     ps2_queue_noirq(s, b3);
-    s->update_irq(s->update_arg, 1);
+    ps2_raise_irq(s);
 }
 
 void ps2_queue_4(PS2State *s, int b1, int b2, int b3, int b4)
@@ -253,7 +253,7 @@ void ps2_queue_4(PS2State *s, int b1, int b2, int b3, int b4)
     ps2_queue_noirq(s, b2);
     ps2_queue_noirq(s, b3);
     ps2_queue_noirq(s, b4);
-    s->update_irq(s->update_arg, 1);
+    ps2_raise_irq(s);
 }
 
 /* keycode is the untranslated scancode in the current scancode set. */
