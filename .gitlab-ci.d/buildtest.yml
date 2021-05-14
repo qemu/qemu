@@ -626,21 +626,6 @@ build-coroutine-sigaltstack:
                     --enable-trace-backends=ftrace
     MAKE_CHECK_ARGS: check-unit
 
-# Most jobs test latest gcrypt or nettle builds
-#
-# These jobs test old gcrypt and nettle from RHEL7
-# which had some API differences.
-crypto-only-gnutls:
-  extends: .native_build_job_template
-  needs:
-    job: amd64-centos7-container
-  variables:
-    IMAGE: centos7
-    TARGETS: x86_64-softmmu x86_64-linux-user
-    CONFIGURE_ARGS: --disable-nettle --disable-gcrypt --enable-gnutls
-    MAKE_CHECK_ARGS: check
-
-
 # Check our reduced build configurations
 build-without-default-devices:
   extends: .native_build_job_template

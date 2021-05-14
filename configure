@@ -2801,7 +2801,7 @@ fi
 
 if test "$gnutls" != "no"; then
     pass="no"
-    if $pkg_config --exists "gnutls >= 3.1.18"; then
+    if $pkg_config --exists "gnutls >= 3.5.18"; then
         gnutls_cflags=$($pkg_config --cflags gnutls)
         gnutls_libs=$($pkg_config --libs gnutls)
         # Packaging for the static libraries is not always correct.
