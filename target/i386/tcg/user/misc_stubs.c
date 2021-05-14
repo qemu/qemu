@@ -53,23 +53,3 @@ target_ulong helper_inl(CPUX86State *env, uint32_t port)
     g_assert_not_reached();
     return 0;
 }
-
-target_ulong helper_read_crN(CPUX86State *env, int reg)
-{
-    g_assert_not_reached();
-}
-
-void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
-{
-    g_assert_not_reached();
-}
-
-void helper_wrmsr(CPUX86State *env)
-{
-    g_assert_not_reached();
-}
-
-void helper_rdmsr(CPUX86State *env)
-{
-    g_assert_not_reached();
-}
