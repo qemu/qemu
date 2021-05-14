@@ -18,18 +18,16 @@
 #include "hmacpriv.h"
 #include <nettle/hmac.h>
 
-typedef size_t hmac_length_t;
-
 typedef void (*qcrypto_nettle_hmac_setkey)(void *ctx,
-                                           hmac_length_t key_length,
+                                           size_t key_length,
                                            const uint8_t *key);
 
 typedef void (*qcrypto_nettle_hmac_update)(void *ctx,
-                                           hmac_length_t length,
+                                           size_t length,
                                            const uint8_t *data);
 
 typedef void (*qcrypto_nettle_hmac_digest)(void *ctx,
-                                           hmac_length_t length,
+                                           size_t length,
                                            uint8_t *digest);
 
 typedef struct QCryptoHmacNettle QCryptoHmacNettle;
