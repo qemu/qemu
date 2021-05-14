@@ -31,6 +31,7 @@ Contents:
    vnc-security
    tls
    secrets
+   authz
    gdb
    managed-startup
    cpu-hotplug
