@@ -105,7 +105,7 @@ typedef struct DisasContext {
     int jmp_opt; /* use direct block chaining for direct jumps */
     int repz_opt; /* optimize jumps within repz instructions */
     int mem_index; /* select memory access functions */
-    uint64_t flags; /* all execution flags */
+    uint32_t flags; /* all execution flags */
     int popl_esp_hack; /* for correct popl with esp base handling */
     int rip_offset; /* only used in x86_64, but left for simplicity */
     int cpuid_features;
