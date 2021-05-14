@@ -1292,6 +1292,16 @@ static bool check_cpl0(DisasContext *s)
     return false;
 }
 
+/* If vm86, check for iopl == 3; if not, raise #GP and return false. */
+static bool check_vm86_iopl(DisasContext *s)
+{
+    if (!s->vm86 || s->iopl == 3) {
+        return true;
+    }
+    gen_exception_gpf(s);
+    return false;
+}
+
 /* if d == OR_TMP0, it means memory operand (address in A0) */
 static void gen_op(DisasContext *s1, int op, MemOp ot, int d)
 {
@@ -6579,8 +6589,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         gen_svm_check_intercept(s, pc_start, SVM_EXIT_IRET);
         if (!s->pe || s->vm86) {
             /* real mode or vm86 mode */
-            if (s->vm86 && s->iopl != 3) {
-                gen_exception_gpf(s);
+            if (!check_vm86_iopl(s)) {
                 break;
             }
             gen_helper_iret_real(cpu_env, tcg_const_i32(dflag - 1));
@@ -6700,9 +6709,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         /* flags */
     case 0x9c: /* pushf */
         gen_svm_check_intercept(s, pc_start, SVM_EXIT_PUSHF);
-        if (s->vm86 && s->iopl != 3) {
-            gen_exception_gpf(s);
-        } else {
+        if (check_vm86_iopl(s)) {
             gen_update_cc_op(s);
             gen_helper_read_eflags(s->T0, cpu_env);
             gen_push_v(s, s->T0);
@@ -6710,9 +6717,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         break;
     case 0x9d: /* popf */
         gen_svm_check_intercept(s, pc_start, SVM_EXIT_POPF);
-        if (s->vm86 && s->iopl != 3) {
-            gen_exception_gpf(s);
-        } else {
+        if (check_vm86_iopl(s)) {
             ot = gen_pop_T0(s);
             if (s->cpl == 0) {
                 if (dflag != MO_16) {
@@ -7072,9 +7077,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         break;
     case 0xcd: /* int N */
         val = x86_ldub_code(env, s);
-        if (s->vm86 && s->iopl != 3) {
-            gen_exception_gpf(s);
-        } else {
+        if (check_vm86_iopl(s)) {
             gen_interrupt(s, val, pc_start - s->cs_base, s->pc - s->cs_base);
         }
         break;
