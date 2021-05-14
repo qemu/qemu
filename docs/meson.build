@@ -27,10 +27,9 @@ if sphinx_build.found()
   build_docs = (sphinx_build_test_out.returncode() == 0)
 
   if not build_docs
-    warning('@0@ is either too old or uses too old a Python version'
-            .format(sphinx_build.full_path()))
+    warning('@0@: @1@'.format(sphinx_build.full_path(), sphinx_build_test_out.stderr()))
     if get_option('docs').enabled()
-      error('Install a Python 3 version of python-sphinx')
+      error('Install a Python 3 version of python-sphinx and the readthedoc theme')
     endif
   endif
 endif

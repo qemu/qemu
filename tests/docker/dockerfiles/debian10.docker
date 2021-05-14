@@ -32,6 +32,7 @@ RUN apt update && \
         psmisc \
         python3 \
         python3-sphinx \
+        python3-sphinx-rtd-theme \
         $(apt-get -s build-dep --arch-only qemu | egrep ^Inst | fgrep '[all]' | cut -d\  -f2)
 
 ENV FEATURES docs

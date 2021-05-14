@@ -39,6 +39,7 @@ ENV PACKAGES \
 	pulseaudio-dev \
 	python3 \
 	py3-sphinx \
+	py3-sphinx_rtd_theme \
 	shadow \
 	snappy-dev \
 	spice-dev \

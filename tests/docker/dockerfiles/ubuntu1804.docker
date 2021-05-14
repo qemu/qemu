@@ -48,6 +48,7 @@ ENV PACKAGES \
     make \
     python3-yaml \
     python3-sphinx \
+    python3-sphinx-rtd-theme \
     ninja-build \
     sparse \
     xfslibs-dev

@@ -63,6 +63,7 @@ ENV PACKAGES \
     ninja-build \
     python3-yaml \
     python3-sphinx \
+    python3-sphinx-rtd-theme \
     sparse \
     xfslibs-dev
 RUN apt-get update && \
