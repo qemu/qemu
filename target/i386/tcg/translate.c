@@ -94,6 +94,11 @@ typedef struct DisasContext {
     target_ulong pc; /* pc = eip + cs_base */
     /* current block context */
     target_ulong cs_base; /* base of CS segment */
+
+#ifndef CONFIG_USER_ONLY
+    uint8_t cpl;   /* code priv level */
+#endif
+
     int code32; /* 32 bit code segment */
 #ifdef TARGET_X86_64
     int lma;    /* long mode active */
@@ -111,7 +116,6 @@ typedef struct DisasContext {
     int addseg; /* non zero if either DS/ES/SS have a non zero base */
     int f_st;   /* currently unused */
     int vm86;   /* vm86 mode */
-    int cpl;
     int iopl;
     int tf;     /* TF cpu flag */
     int jmp_opt; /* use direct block chaining for direct jumps */
@@ -148,8 +152,10 @@ typedef struct DisasContext {
 /* The environment in which user-only runs is constrained. */
 #ifdef CONFIG_USER_ONLY
 #define PE(S)     true
+#define CPL(S)    3
 #else
 #define PE(S)     (((S)->flags & HF_PE_MASK) != 0)
+#define CPL(S)    ((S)->cpl)
 #endif
 
 static void gen_eob(DisasContext *s);
@@ -623,7 +629,7 @@ static void gen_check_io(DisasContext *s, MemOp ot, target_ulong cur_eip,
 {
     target_ulong next_eip;
 
-    if (PE(s) && (s->cpl > s->iopl || s->vm86)) {
+    if (PE(s) && (CPL(s) > s->iopl || s->vm86)) {
         tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
         switch (ot) {
         case MO_8:
@@ -1291,7 +1297,7 @@ static void gen_exception_gpf(DisasContext *s)
 /* Check for cpl == 0; if not, raise #GP and return false. */
 static bool check_cpl0(DisasContext *s)
 {
-    if (s->cpl == 0) {
+    if (CPL(s) == 0) {
         return true;
     }
     gen_exception_gpf(s);
@@ -1311,7 +1317,7 @@ static bool check_vm86_iopl(DisasContext *s)
 /* Check for iopl allowing access; if not, raise #GP and return false. */
 static bool check_iopl(DisasContext *s)
 {
-    if (s->vm86 ? s->iopl == 3 : s->cpl <= s->iopl) {
+    if (s->vm86 ? s->iopl == 3 : CPL(s) <= s->iopl) {
         return true;
     }
     gen_exception_gpf(s);
@@ -6735,7 +6741,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         gen_svm_check_intercept(s, pc_start, SVM_EXIT_POPF);
         if (check_vm86_iopl(s)) {
             ot = gen_pop_T0(s);
-            if (s->cpl == 0) {
+            if (CPL(s) == 0) {
                 if (dflag != MO_16) {
                     gen_helper_write_eflags(cpu_env, s->T0,
                                             tcg_const_i32((TF_MASK | AC_MASK |
@@ -6750,7 +6756,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                                                           & 0xffff));
                 }
             } else {
-                if (s->cpl <= s->iopl) {
+                if (CPL(s) <= s->iopl) {
                     if (dflag != MO_16) {
                         gen_helper_write_eflags(cpu_env, s->T0,
                                                 tcg_const_i32((TF_MASK |
@@ -7380,7 +7386,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             break;
 
         case 0xc8: /* monitor */
-            if (!(s->cpuid_ext_features & CPUID_EXT_MONITOR) || s->cpl != 0) {
+            if (!(s->cpuid_ext_features & CPUID_EXT_MONITOR) || CPL(s) != 0) {
                 goto illegal_op;
             }
             gen_update_cc_op(s);
@@ -7392,7 +7398,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             break;
 
         case 0xc9: /* mwait */
-            if (!(s->cpuid_ext_features & CPUID_EXT_MONITOR) || s->cpl != 0) {
+            if (!(s->cpuid_ext_features & CPUID_EXT_MONITOR) || CPL(s) != 0) {
                 goto illegal_op;
             }
             gen_update_cc_op(s);
@@ -7403,7 +7409,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
 
         case 0xca: /* clac */
             if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_SMAP)
-                || s->cpl != 0) {
+                || CPL(s) != 0) {
                 goto illegal_op;
             }
             gen_helper_clac(cpu_env);
@@ -7413,7 +7419,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
 
         case 0xcb: /* stac */
             if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_SMAP)
-                || s->cpl != 0) {
+                || CPL(s) != 0) {
                 goto illegal_op;
             }
             gen_helper_stac(cpu_env);
@@ -8467,19 +8473,23 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUX86State *env = cpu->env_ptr;
     uint32_t flags = dc->base.tb->flags;
+    int cpl = (flags >> HF_CPL_SHIFT) & 3;
 
     dc->cs_base = dc->base.tb->cs_base;
     dc->flags = flags;
+#ifndef CONFIG_USER_ONLY
+    dc->cpl = cpl;
+#endif
 
     /* We make some simplifying assumptions; validate they're correct. */
     g_assert(PE(dc) == ((flags & HF_PE_MASK) != 0));
+    g_assert(CPL(dc) == cpl);
 
     dc->code32 = (flags >> HF_CS32_SHIFT) & 1;
     dc->ss32 = (flags >> HF_SS32_SHIFT) & 1;
     dc->addseg = (flags >> HF_ADDSEG_SHIFT) & 1;
     dc->f_st = 0;
     dc->vm86 = (flags >> VM_SHIFT) & 1;
-    dc->cpl = (flags >> HF_CPL_SHIFT) & 3;
     dc->iopl = (flags >> IOPL_SHIFT) & 3;
     dc->tf = (flags >> TF_SHIFT) & 1;
     dc->cc_op = CC_OP_DYNAMIC;
