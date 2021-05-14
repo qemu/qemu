@@ -96,7 +96,7 @@ void helper_rdtscp(CPUX86State *env)
     env->regs[R_ECX] = (uint32_t)(env->tsc_aux);
 }
 
-void helper_rdpmc(CPUX86State *env)
+void QEMU_NORETURN helper_rdpmc(CPUX86State *env)
 {
     if (((env->cr[4] & CR4_PCE_MASK) == 0 ) &&
         ((env->hflags & HF_CPL_MASK) != 0)) {
@@ -109,7 +109,7 @@ void helper_rdpmc(CPUX86State *env)
     raise_exception_err(env, EXCP06_ILLOP, 0);
 }
 
-static void do_pause(X86CPU *cpu)
+static QEMU_NORETURN void do_pause(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
 
@@ -118,7 +118,7 @@ static void do_pause(X86CPU *cpu)
     cpu_loop_exit(cs);
 }
 
-static void do_hlt(X86CPU *cpu)
+static QEMU_NORETURN void do_hlt(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
@@ -129,7 +129,7 @@ static void do_hlt(X86CPU *cpu)
     cpu_loop_exit(cs);
 }
 
-void helper_hlt(CPUX86State *env, int next_eip_addend)
+void QEMU_NORETURN helper_hlt(CPUX86State *env, int next_eip_addend)
 {
     X86CPU *cpu = env_archcpu(env);
 
@@ -148,7 +148,7 @@ void helper_monitor(CPUX86State *env, target_ulong ptr)
     cpu_svm_check_intercept_param(env, SVM_EXIT_MONITOR, 0, GETPC());
 }
 
-void helper_mwait(CPUX86State *env, int next_eip_addend)
+void QEMU_NORETURN helper_mwait(CPUX86State *env, int next_eip_addend)
 {
     CPUState *cs = env_cpu(env);
     X86CPU *cpu = env_archcpu(env);
@@ -167,7 +167,7 @@ void helper_mwait(CPUX86State *env, int next_eip_addend)
     }
 }
 
-void helper_pause(CPUX86State *env, int next_eip_addend)
+void QEMU_NORETURN helper_pause(CPUX86State *env, int next_eip_addend)
 {
     X86CPU *cpu = env_archcpu(env);
 
@@ -177,7 +177,7 @@ void helper_pause(CPUX86State *env, int next_eip_addend)
     do_pause(cpu);
 }
 
-void helper_debug(CPUX86State *env)
+void QEMU_NORETURN helper_debug(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
 
