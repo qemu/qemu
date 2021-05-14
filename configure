@@ -407,7 +407,6 @@ gnutls="$default_feature"
 nettle="$default_feature"
 nettle_xts="no"
 gcrypt="$default_feature"
-gcrypt_hmac="no"
 gcrypt_xts="no"
 qemu_private_xts="yes"
 auth_pam="$default_feature"
@@ -2860,7 +2859,7 @@ has_libgcrypt() {
     maj=`libgcrypt-config --version | awk -F . '{print $1}'`
     min=`libgcrypt-config --version | awk -F . '{print $2}'`
 
-    if test $maj != 1 || test $min -lt 5
+    if test $maj != 1 || test $min -lt 8
     then
        return 1
     fi
@@ -2924,18 +2923,6 @@ if test "$gcrypt" != "no"; then
     fi
     if test "$pass" = "yes"; then
         gcrypt="yes"
-        cat > $TMPC << EOF
-#include <gcrypt.h>
-int main(void) {
-  gcry_mac_hd_t handle;
-  gcry_mac_open(&handle, GCRY_MAC_HMAC_MD5,
-                GCRY_MAC_FLAG_SECURE, NULL);
-  return 0;
-}
-EOF
-        if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
-            gcrypt_hmac=yes
-        fi
         cat > $TMPC << EOF
 #include <gcrypt.h>
 int main(void) {
@@ -5721,9 +5708,6 @@ if test "$gnutls" = "yes" ; then
 fi
 if test "$gcrypt" = "yes" ; then
   echo "CONFIG_GCRYPT=y" >> $config_host_mak
-  if test "$gcrypt_hmac" = "yes" ; then
-    echo "CONFIG_GCRYPT_HMAC=y" >> $config_host_mak
-  fi
   echo "GCRYPT_CFLAGS=$gcrypt_cflags" >> $config_host_mak
   echo "GCRYPT_LIBS=$gcrypt_libs" >> $config_host_mak
 fi

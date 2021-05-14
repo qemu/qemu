@@ -26,11 +26,7 @@ if 'CONFIG_NETTLE' in config_host
   crypto_ss.add(files('hash-nettle.c', 'hmac-nettle.c', 'pbkdf-nettle.c'))
 elif 'CONFIG_GCRYPT' in config_host
   crypto_ss.add(files('hash-gcrypt.c', 'pbkdf-gcrypt.c'))
-  if 'CONFIG_GCRYPT_HMAC' in config_host
-    crypto_ss.add(files('hmac-gcrypt.c'))
-  else
-    crypto_ss.add(files('hmac-glib.c'))
-  endif
+  crypto_ss.add(files('hmac-gcrypt.c'))
 else
   crypto_ss.add(files('hash-glib.c', 'hmac-glib.c', 'pbkdf-stub.c'))
 endif
