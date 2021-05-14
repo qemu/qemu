@@ -6577,22 +6577,18 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         goto do_lret;
     case 0xcf: /* iret */
         gen_svm_check_intercept(s, pc_start, SVM_EXIT_IRET);
-        if (!s->pe) {
-            /* real mode */
-            gen_helper_iret_real(cpu_env, tcg_const_i32(dflag - 1));
-            set_cc_op(s, CC_OP_EFLAGS);
-        } else if (s->vm86) {
-            if (s->iopl != 3) {
+        if (!s->pe || s->vm86) {
+            /* real mode or vm86 mode */
+            if (s->vm86 && s->iopl != 3) {
                 gen_exception_gpf(s);
-            } else {
-                gen_helper_iret_real(cpu_env, tcg_const_i32(dflag - 1));
-                set_cc_op(s, CC_OP_EFLAGS);
+                break;
             }
+            gen_helper_iret_real(cpu_env, tcg_const_i32(dflag - 1));
         } else {
             gen_helper_iret_protected(cpu_env, tcg_const_i32(dflag - 1),
                                       tcg_const_i32(s->pc - s->cs_base));
-            set_cc_op(s, CC_OP_EFLAGS);
         }
+        set_cc_op(s, CC_OP_EFLAGS);
         gen_eob(s);
         break;
     case 0xe8: /* call im */
