@@ -79,6 +79,7 @@ config PEGASOS2
     select VOF
 # This should come with VT82C686
     select ACPI_X86
+    imply ATI_VGA
 
 config PREP
     bool
