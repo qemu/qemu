@@ -2871,10 +2871,9 @@ has_libgcrypt() {
 
 if test "$nettle" != "no"; then
     pass="no"
-    if $pkg_config --exists "nettle >= 2.7.1"; then
+    if $pkg_config --exists "nettle >= 3.4"; then
         nettle_cflags=$($pkg_config --cflags nettle)
         nettle_libs=$($pkg_config --libs nettle)
-        nettle_version=$($pkg_config --modversion nettle)
         # Link test to make sure the given libraries work (e.g for static).
         write_c_skeleton
         if compile_prog "" "$nettle_libs" ; then
@@ -5730,7 +5729,6 @@ if test "$gcrypt" = "yes" ; then
 fi
 if test "$nettle" = "yes" ; then
   echo "CONFIG_NETTLE=y" >> $config_host_mak
-  echo "CONFIG_NETTLE_VERSION_MAJOR=${nettle_version%%.*}" >> $config_host_mak
   echo "NETTLE_CFLAGS=$nettle_cflags" >> $config_host_mak
   echo "NETTLE_LIBS=$nettle_libs" >> $config_host_mak
 fi

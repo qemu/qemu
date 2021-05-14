@@ -26,11 +26,7 @@
 #include <nettle/sha.h>
 #include <nettle/ripemd160.h>
 
-#if CONFIG_NETTLE_VERSION_MAJOR < 3
-typedef unsigned int     hash_length_t;
-#else
 typedef size_t       hash_length_t;
-#endif
 
 typedef void (*qcrypto_nettle_init)(void *ctx);
 typedef void (*qcrypto_nettle_write)(void *ctx,

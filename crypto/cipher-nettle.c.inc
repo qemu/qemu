@@ -39,41 +39,10 @@ typedef void (*QCryptoCipherNettleFuncWrapper)(const void *ctx,
                                                uint8_t *dst,
                                                const uint8_t *src);
 
-#if CONFIG_NETTLE_VERSION_MAJOR < 3
-typedef nettle_crypt_func * QCryptoCipherNettleFuncNative;
-typedef void *       cipher_ctx_t;
-typedef unsigned     cipher_length_t;
-#define CONST_CTX
-
-#define cast5_set_key cast128_set_key
-
-#define aes128_ctx aes_ctx
-#define aes192_ctx aes_ctx
-#define aes256_ctx aes_ctx
-#define aes128_set_encrypt_key(c, k) \
-    aes_set_encrypt_key(c, 16, k)
-#define aes192_set_encrypt_key(c, k) \
-    aes_set_encrypt_key(c, 24, k)
-#define aes256_set_encrypt_key(c, k) \
-    aes_set_encrypt_key(c, 32, k)
-#define aes128_set_decrypt_key(c, k) \
-    aes_set_decrypt_key(c, 16, k)
-#define aes192_set_decrypt_key(c, k) \
-    aes_set_decrypt_key(c, 24, k)
-#define aes256_set_decrypt_key(c, k) \
-    aes_set_decrypt_key(c, 32, k)
-#define aes128_encrypt aes_encrypt
-#define aes192_encrypt aes_encrypt
-#define aes256_encrypt aes_encrypt
-#define aes128_decrypt aes_decrypt
-#define aes192_decrypt aes_decrypt
-#define aes256_decrypt aes_decrypt
-#else
 typedef nettle_cipher_func * QCryptoCipherNettleFuncNative;
 typedef const void * cipher_ctx_t;
 typedef size_t       cipher_length_t;
 #define CONST_CTX    const
-#endif
 
 static inline bool qcrypto_length_check(size_t len, size_t blocksize,
                                         Error **errp)

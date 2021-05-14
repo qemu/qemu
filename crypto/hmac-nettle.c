@@ -18,11 +18,7 @@
 #include "hmacpriv.h"
 #include <nettle/hmac.h>
 
-#if CONFIG_NETTLE_VERSION_MAJOR < 3
-typedef unsigned int hmac_length_t;
-#else
 typedef size_t hmac_length_t;
-#endif
 
 typedef void (*qcrypto_nettle_hmac_setkey)(void *ctx,
                                            hmac_length_t key_length,
