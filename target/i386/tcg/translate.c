@@ -41,11 +41,9 @@
 #define PREFIX_VEX    0x20
 
 #ifdef TARGET_X86_64
-#define CODE64(s) ((s)->code64)
 #define REX_X(s) ((s)->rex_x)
 #define REX_B(s) ((s)->rex_b)
 #else
-#define CODE64(s) 0
 #define REX_X(s) 0
 #define REX_B(s) 0
 #endif
@@ -102,7 +100,6 @@ typedef struct DisasContext {
 
 #ifdef TARGET_X86_64
     int lma;    /* long mode active */
-    int code64; /* 64 bit code segment */
     int rex_x, rex_b;
 #endif
     int vex_l;  /* vex vector length */
@@ -164,6 +161,13 @@ typedef struct DisasContext {
 #define VM86(S)   (((S)->flags & HF_VM_MASK) != 0)
 #define CODE32(S) (((S)->flags & HF_CS32_MASK) != 0)
 #define SS32(S)   (((S)->flags & HF_SS32_MASK) != 0)
+#endif
+#if !defined(TARGET_X86_64)
+#define CODE64(S) false
+#elif defined(CONFIG_USER_ONLY)
+#define CODE64(S) true
+#else
+#define CODE64(S) (((S)->flags & HF_CS64_MASK) != 0)
 #endif
 
 static void gen_eob(DisasContext *s);
@@ -8497,6 +8501,7 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     g_assert(IOPL(dc) == iopl);
     g_assert(VM86(dc) == ((flags & HF_VM_MASK) != 0));
     g_assert(CODE32(dc) == ((flags & HF_CS32_MASK) != 0));
+    g_assert(CODE64(dc) == ((flags & HF_CS64_MASK) != 0));
     g_assert(SS32(dc) == ((flags & HF_SS32_MASK) != 0));
 
     dc->addseg = (flags >> HF_ADDSEG_SHIFT) & 1;
@@ -8518,7 +8523,6 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     dc->cpuid_xsave_features = env->features[FEAT_XSAVE];
 #ifdef TARGET_X86_64
     dc->lma = (flags >> HF_LMA_SHIFT) & 1;
-    dc->code64 = (flags >> HF_CS64_SHIFT) & 1;
 #endif
     dc->jmp_opt = !(dc->tf || dc->base.singlestep_enabled ||
                     (flags & HF_INHIBIT_IRQ_MASK));
