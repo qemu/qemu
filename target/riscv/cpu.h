@@ -320,8 +320,6 @@ static inline bool riscv_feature(CPURISCVState *env, int feature)
 
 extern const char * const riscv_int_regnames[];
 extern const char * const riscv_fpr_regnames[];
-extern const char * const riscv_excp_names[];
-extern const char * const riscv_intr_names[];
 
 const char *riscv_cpu_get_trap_name(target_ulong cause, bool async);
 void riscv_cpu_do_interrupt(CPUState *cpu);

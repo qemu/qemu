@@ -51,7 +51,7 @@ const char * const riscv_fpr_regnames[] = {
   "f30/ft10", "f31/ft11"
 };
 
-const char * const riscv_excp_names[] = {
+static const char * const riscv_excp_names[] = {
     "misaligned_fetch",
     "fault_fetch",
     "illegal_instruction",
@@ -78,7 +78,7 @@ const char * const riscv_excp_names[] = {
     "guest_store_page_fault",
 };
 
-const char * const riscv_intr_names[] = {
+static const char * const riscv_intr_names[] = {
     "u_software",
     "s_software",
     "vs_software",
