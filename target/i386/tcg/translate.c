@@ -76,20 +76,24 @@ static TCGv_i64 cpu_bndu[4];
 typedef struct DisasContext {
     DisasContextBase base;
 
-    /* current insn context */
-    int8_t override; /* -1 if no override, else R_CS, R_DS, etc */
-    uint8_t prefix;
+    target_ulong pc;       /* pc = eip + cs_base */
+    target_ulong pc_start; /* pc at TB entry */
+    target_ulong cs_base;  /* base of CS segment */
+
     MemOp aflag;
     MemOp dflag;
-    target_ulong pc_start;
-    target_ulong pc; /* pc = eip + cs_base */
-    /* current block context */
-    target_ulong cs_base; /* base of CS segment */
+
+    int8_t override; /* -1 if no override, else R_CS, R_DS, etc */
+    uint8_t prefix;
 
 #ifndef CONFIG_USER_ONLY
     uint8_t cpl;   /* code priv level */
     uint8_t iopl;  /* i/o priv level */
 #endif
+    uint8_t vex_l;  /* vex vector length */
+    uint8_t vex_v;  /* vex vvvv register, without 1's complement.  */
+    uint8_t popl_esp_hack; /* for correct popl with esp base handling */
+    uint8_t rip_offset; /* only used in x86_64, but left for simplicity */
 
 #ifdef TARGET_X86_64
     uint8_t rex_r;
@@ -97,16 +101,13 @@ typedef struct DisasContext {
     uint8_t rex_b;
     bool rex_w;
 #endif
-    uint8_t vex_l;  /* vex vector length */
-    uint8_t vex_v;  /* vex vvvv register, without 1's complement.  */
-    CCOp cc_op;  /* current CC operation */
-    bool cc_op_dirty;
     bool jmp_opt; /* use direct block chaining for direct jumps */
     bool repz_opt; /* optimize jumps within repz instructions */
+    bool cc_op_dirty;
+
+    CCOp cc_op;  /* current CC operation */
     int mem_index; /* select memory access functions */
     uint32_t flags; /* all execution flags */
-    uint8_t popl_esp_hack; /* for correct popl with esp base handling */
-    uint8_t rip_offset; /* only used in x86_64, but left for simplicity */
     int cpuid_features;
     int cpuid_ext_features;
     int cpuid_ext2_features;
