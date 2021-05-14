@@ -36,9 +36,9 @@ static inline void enable_clock_int(void)
     uint64_t tmp = 0;
 
     asm volatile(
-        "stctg      0,0,%0\n"
+        "stctg      %%c0,%%c0,%0\n"
         "oi         6+%0, 0x8\n"
-        "lctlg      0,0,%0"
+        "lctlg      %%c0,%%c0,%0"
         : : "Q" (tmp) : "memory"
     );
 }
@@ -48,9 +48,9 @@ static inline void disable_clock_int(void)
     uint64_t tmp = 0;
 
     asm volatile(
-        "stctg      0,0,%0\n"
+        "stctg      %%c0,%%c0,%0\n"
         "ni         6+%0, 0xf7\n"
-        "lctlg      0,0,%0"
+        "lctlg      %%c0,%%c0,%0"
         : : "Q" (tmp) : "memory"
     );
 }

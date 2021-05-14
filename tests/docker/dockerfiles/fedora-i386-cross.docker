@@ -1,6 +1,7 @@
 FROM fedora:33
 ENV PACKAGES \
     bzip2 \
+    ccache \
     diffutils \
     findutils \
     gcc \

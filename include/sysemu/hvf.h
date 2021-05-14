@@ -16,6 +16,8 @@
 #include "qemu/accel.h"
 #include "qom/object.h"
 
+#ifdef NEED_CPU_H
+
 #ifdef CONFIG_HVF
 uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
                                  int reg);
@@ -25,6 +27,8 @@ extern bool hvf_allowed;
 #define hvf_enabled() 0
 #define hvf_get_supported_cpuid(func, idx, reg) 0
 #endif /* !CONFIG_HVF */
+
+#endif /* NEED_CPU_H */
 
 #define TYPE_HVF_ACCEL ACCEL_CLASS_NAME("hvf")
 

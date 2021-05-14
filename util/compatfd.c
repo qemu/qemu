@@ -72,14 +72,10 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     QemuThread thread;
     int fds[2];
 
-    info = malloc(sizeof(*info));
-    if (info == NULL) {
-        errno = ENOMEM;
-        return -1;
-    }
+    info = g_malloc(sizeof(*info));
 
     if (pipe(fds) == -1) {
-        free(info);
+        g_free(info);
         return -1;
     }
 

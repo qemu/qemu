@@ -31,7 +31,7 @@ static inline void *u32toptr(uint32_t n)
 
 static inline void yield(void)
 {
-    asm volatile ("diag 0,0,0x44"
+    asm volatile ("diag %%r0,%%r0,0x44"
                   : :
                   : "memory", "cc");
 }

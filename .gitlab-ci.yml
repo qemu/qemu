@@ -13,7 +13,7 @@ include:
   - local: '/.gitlab-ci.d/containers.yml'
   - local: '/.gitlab-ci.d/crossbuilds.yml'
 
-.native_build_job_template: &native_build_job_definition
+.native_build_job_template:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   before_script:
@@ -41,7 +41,7 @@ include:
         make -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
 
-.native_test_job_template: &native_test_job_definition
+.native_test_job_template:
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   script:
@@ -83,7 +83,7 @@ include:
     - du -chs ${CI_PROJECT_DIR}/avocado-cache
 
 build-system-alpine:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     - job: amd64-alpine-container
   variables:
@@ -99,7 +99,7 @@ build-system-alpine:
       - build
 
 check-system-alpine:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-alpine
       artifacts: true
@@ -108,7 +108,7 @@ check-system-alpine:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-alpine:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-alpine
       artifacts: true
@@ -118,7 +118,7 @@ acceptance-system-alpine:
   <<: *acceptance_definition
 
 build-system-ubuntu:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-ubuntu2004-container
   variables:
@@ -133,7 +133,7 @@ build-system-ubuntu:
       - build
 
 check-system-ubuntu:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-ubuntu
       artifacts: true
@@ -142,7 +142,7 @@ check-system-ubuntu:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-ubuntu:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-ubuntu
       artifacts: true
@@ -152,7 +152,7 @@ acceptance-system-ubuntu:
   <<: *acceptance_definition
 
 build-system-debian:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-debian-container
   variables:
@@ -167,7 +167,7 @@ build-system-debian:
       - build
 
 check-system-debian:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-debian
       artifacts: true
@@ -176,7 +176,7 @@ check-system-debian:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-debian:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-debian
       artifacts: true
@@ -186,7 +186,7 @@ acceptance-system-debian:
   <<: *acceptance_definition
 
 build-system-fedora:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-fedora-container
   variables:
@@ -202,7 +202,7 @@ build-system-fedora:
       - build
 
 check-system-fedora:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-fedora
       artifacts: true
@@ -211,7 +211,7 @@ check-system-fedora:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-fedora:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-fedora
       artifacts: true
@@ -221,7 +221,7 @@ acceptance-system-fedora:
   <<: *acceptance_definition
 
 build-system-centos:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-centos8-container
   variables:
@@ -237,7 +237,7 @@ build-system-centos:
       - build
 
 check-system-centos:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-centos
       artifacts: true
@@ -246,7 +246,7 @@ check-system-centos:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-centos:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-centos
       artifacts: true
@@ -256,7 +256,7 @@ acceptance-system-centos:
   <<: *acceptance_definition
 
 build-system-opensuse:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-opensuse-leap-container
   variables:
@@ -270,7 +270,7 @@ build-system-opensuse:
       - build
 
 check-system-opensuse:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-opensuse
       artifacts: true
@@ -279,7 +279,7 @@ check-system-opensuse:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-opensuse:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-opensuse
       artifacts: true
@@ -290,7 +290,7 @@ acceptance-system-opensuse:
 
 
 build-disabled:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-fedora-container
   variables:
@@ -376,7 +376,7 @@ build-disabled:
 # Also use a different coroutine implementation (which is only really of
 # interest to KVM users, i.e. with TCG disabled)
 build-tcg-disabled:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-centos8-container
   variables:
@@ -399,7 +399,7 @@ build-tcg-disabled:
             260 261 262 263 264 270 272 273 277 279
 
 build-user:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-debian-user-cross-container
   variables:
@@ -408,7 +408,7 @@ build-user:
     MAKE_CHECK_ARGS: check-tcg
 
 build-user-static:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-debian-user-cross-container
   variables:
@@ -418,7 +418,7 @@ build-user-static:
 
 # Only build the softmmu targets we have check-tcg tests for
 build-some-softmmu:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-debian-user-cross-container
   variables:
@@ -431,7 +431,7 @@ build-some-softmmu:
 # we skip sparc64-linux-user until it has been fixed somewhat
 # we skip cris-linux-user as it doesn't use the common run loop
 build-user-plugins:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-debian-user-cross-container
   variables:
@@ -441,7 +441,7 @@ build-user-plugins:
   timeout: 1h 30m
 
 build-user-centos7:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-centos7-container
   variables:
@@ -450,7 +450,7 @@ build-user-centos7:
     MAKE_CHECK_ARGS: check-tcg
 
 build-some-softmmu-plugins:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-debian-user-cross-container
   variables:
@@ -460,7 +460,7 @@ build-some-softmmu-plugins:
     MAKE_CHECK_ARGS: check-tcg
 
 clang-system:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-fedora-container
   variables:
@@ -472,7 +472,7 @@ clang-system:
     MAKE_CHECK_ARGS: check-qtest check-tcg
 
 clang-user:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-debian-user-cross-container
   variables:
@@ -494,7 +494,7 @@ clang-user:
 # Split in three sets of build/check/acceptance to limit the execution time of each
 # job
 build-cfi-aarch64:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
   - job: amd64-fedora-container
   variables:
@@ -512,7 +512,7 @@ build-cfi-aarch64:
       - build
 
 check-cfi-aarch64:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-aarch64
       artifacts: true
@@ -521,7 +521,7 @@ check-cfi-aarch64:
     MAKE_CHECK_ARGS: check
 
 acceptance-cfi-aarch64:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-aarch64
       artifacts: true
@@ -531,7 +531,7 @@ acceptance-cfi-aarch64:
   <<: *acceptance_definition
 
 build-cfi-ppc64-s390x:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
   - job: amd64-fedora-container
   variables:
@@ -549,7 +549,7 @@ build-cfi-ppc64-s390x:
       - build
 
 check-cfi-ppc64-s390x:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-ppc64-s390x
       artifacts: true
@@ -558,7 +558,7 @@ check-cfi-ppc64-s390x:
     MAKE_CHECK_ARGS: check
 
 acceptance-cfi-ppc64-s390x:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-ppc64-s390x
       artifacts: true
@@ -568,7 +568,7 @@ acceptance-cfi-ppc64-s390x:
   <<: *acceptance_definition
 
 build-cfi-x86_64:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
   - job: amd64-fedora-container
   variables:
@@ -586,7 +586,7 @@ build-cfi-x86_64:
       - build
 
 check-cfi-x86_64:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-x86_64
       artifacts: true
@@ -595,7 +595,7 @@ check-cfi-x86_64:
     MAKE_CHECK_ARGS: check
 
 acceptance-cfi-x86_64:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-x86_64
       artifacts: true
@@ -605,7 +605,7 @@ acceptance-cfi-x86_64:
   <<: *acceptance_definition
 
 tsan-build:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-ubuntu2004-container
   variables:
@@ -617,7 +617,7 @@ tsan-build:
 
 # These targets are on the way out
 build-deprecated:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-debian-user-cross-container
   variables:
@@ -633,7 +633,7 @@ build-deprecated:
 # We split the check-tcg step as test failures are expected but we still
 # want to catch the build breaking.
 check-deprecated:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-deprecated
       artifacts: true
@@ -644,7 +644,7 @@ check-deprecated:
 
 # gprof/gcov are GCC features
 gprof-gcov:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-ubuntu2004-container
   variables:
@@ -657,7 +657,7 @@ gprof-gcov:
     - ${CI_PROJECT_DIR}/scripts/ci/coverage-summary.sh
 
 build-oss-fuzz:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-fedora-container
   variables:
@@ -677,7 +677,7 @@ build-oss-fuzz:
     - cd build-oss-fuzz && make check-qtest-i386 check-unit
 
 build-tci:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-debian-user-cross-container
   variables:
@@ -702,7 +702,7 @@ build-tci:
 # Alternate coroutines implementations are only really of interest to KVM users
 # However we can't test against KVM on Gitlab-CI so we can only run unit tests
 build-coroutine-sigaltstack:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-ubuntu2004-container
   variables:
@@ -716,7 +716,7 @@ build-coroutine-sigaltstack:
 # These jobs test old gcrypt and nettle from RHEL7
 # which had some API differences.
 crypto-old-nettle:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-centos7-container
   variables:
@@ -726,7 +726,7 @@ crypto-old-nettle:
     MAKE_CHECK_ARGS: check
 
 crypto-old-gcrypt:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-centos7-container
   variables:
@@ -736,7 +736,7 @@ crypto-old-gcrypt:
     MAKE_CHECK_ARGS: check
 
 crypto-only-gnutls:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-centos7-container
   variables:
@@ -748,7 +748,7 @@ crypto-only-gnutls:
 
 # Check our reduced build configurations
 build-without-default-devices:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-centos8-container
   variables:
@@ -756,7 +756,7 @@ build-without-default-devices:
     CONFIGURE_ARGS: --without-default-devices --disable-user
 
 build-without-default-features:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-debian-container
   variables:
@@ -806,7 +806,7 @@ build-libvhost-user:
 # No targets are built here, just tools, docs, and unit tests. This
 # also feeds into the eventual documentation deployment steps later
 build-tools-and-docs-debian:
-  <<: *native_build_job_definition
+  extends: .native_build_job_template
   needs:
     job: amd64-debian-container
   variables:

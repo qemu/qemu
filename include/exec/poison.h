@@ -4,6 +4,8 @@
 #ifndef HW_POISON_H
 #define HW_POISON_H
 
+#include "config-poison.h"
+
 #pragma GCC poison TARGET_I386
 #pragma GCC poison TARGET_X86_64
 #pragma GCC poison TARGET_AARCH64
@@ -83,8 +85,12 @@
 #pragma GCC poison CONFIG_SPARC_DIS
 #pragma GCC poison CONFIG_XTENSA_DIS
 
+#pragma GCC poison CONFIG_HAX
+#pragma GCC poison CONFIG_HVF
 #pragma GCC poison CONFIG_LINUX_USER
 #pragma GCC poison CONFIG_KVM
 #pragma GCC poison CONFIG_SOFTMMU
+#pragma GCC poison CONFIG_WHPX
+#pragma GCC poison CONFIG_XEN
 
 #endif

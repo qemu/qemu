@@ -5,6 +5,7 @@ ENV PACKAGES \
     bc \
     brlapi-devel \
     bzip2 \
+    ccache \
     cyrus-sasl-devel \
     gcc \
     gcc-c++ \

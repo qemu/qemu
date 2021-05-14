@@ -9,6 +9,7 @@ ENV PACKAGES \
 	alsa-lib-dev \
 	bash \
 	binutils \
+	ccache \
 	coreutils \
 	curl-dev \
 	g++ \

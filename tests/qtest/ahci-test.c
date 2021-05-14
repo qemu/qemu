@@ -1491,14 +1491,14 @@ static void ahci_test_cdrom(int nsectors, bool dma, uint8_t cmd,
     char *iso;
     int fd;
     AHCIOpts opts = {
-        .size = (ATAPI_SECTOR_SIZE * nsectors),
+        .size = ((uint64_t)ATAPI_SECTOR_SIZE * nsectors),
         .atapi = true,
         .atapi_dma = dma,
         .post_cb = ahci_cb_cmp_buff,
         .set_bcl = override_bcl,
         .bcl = bcl,
     };
-    uint64_t iso_size = ATAPI_SECTOR_SIZE * (nsectors + 1);
+    uint64_t iso_size = (uint64_t)ATAPI_SECTOR_SIZE * (nsectors + 1);
 
     /* Prepare ISO and fill 'tx' buffer */
     fd = prepare_iso(iso_size, &tx, &iso);

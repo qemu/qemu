@@ -201,7 +201,7 @@ static int pwm_module_index(const PWMModule *module)
 {
     ptrdiff_t diff = module - pwm_module_list;
 
-    g_assert_true(diff >= 0 && diff < ARRAY_SIZE(pwm_module_list));
+    g_assert(diff >= 0 && diff < ARRAY_SIZE(pwm_module_list));
 
     return diff;
 }
@@ -211,7 +211,7 @@ static int pwm_index(const PWM *pwm)
 {
     ptrdiff_t diff = pwm - pwm_list;
 
-    g_assert_true(diff >= 0 && diff < ARRAY_SIZE(pwm_list));
+    g_assert(diff >= 0 && diff < ARRAY_SIZE(pwm_list));
 
     return diff;
 }
