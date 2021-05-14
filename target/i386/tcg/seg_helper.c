@@ -2418,10 +2418,10 @@ void helper_verw(CPUX86State *env, target_ulong selector1)
 }
 
 /* check if Port I/O is allowed in TSS */
-static inline void check_io(CPUX86State *env, int addr, int size,
-                            uintptr_t retaddr)
+void helper_check_io(CPUX86State *env, uint32_t addr, uint32_t size)
 {
-    int io_offset, val, mask;
+    uintptr_t retaddr = GETPC();
+    uint32_t io_offset, val, mask;
 
     /* TSS must be a valid 32 bit one */
     if (!(env->tr.flags & DESC_P_MASK) ||
@@ -2443,19 +2443,4 @@ static inline void check_io(CPUX86State *env, int addr, int size,
     fail:
         raise_exception_err_ra(env, EXCP0D_GPF, 0, retaddr);
     }
-}
-
-void helper_check_iob(CPUX86State *env, uint32_t t0)
-{
-    check_io(env, t0, 1, GETPC());
-}
-
-void helper_check_iow(CPUX86State *env, uint32_t t0)
-{
-    check_io(env, t0, 2, GETPC());
-}
-
-void helper_check_iol(CPUX86State *env, uint32_t t0)
-{
-    check_io(env, t0, 4, GETPC());
 }

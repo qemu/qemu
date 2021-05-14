@@ -682,19 +682,7 @@ static bool gen_check_io(DisasContext *s, MemOp ot, TCGv_i32 port,
                          uint32_t svm_flags)
 {
     if (PE(s) && (CPL(s) > IOPL(s) || VM86(s))) {
-        switch (ot) {
-        case MO_8:
-            gen_helper_check_iob(cpu_env, port);
-            break;
-        case MO_16:
-            gen_helper_check_iow(cpu_env, port);
-            break;
-        case MO_32:
-            gen_helper_check_iol(cpu_env, port);
-            break;
-        default:
-            tcg_abort();
-        }
+        gen_helper_check_io(cpu_env, port, tcg_constant_i32(1 << ot));
     }
     if (GUEST(s)) {
         target_ulong cur_eip = s->base.pc_next - s->cs_base;
