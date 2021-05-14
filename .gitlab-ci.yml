@@ -373,15 +373,6 @@ build-user-plugins:
     MAKE_CHECK_ARGS: check-tcg
   timeout: 1h 30m
 
-build-user-centos7:
-  extends: .native_build_job_template
-  needs:
-    job: amd64-centos7-container
-  variables:
-    IMAGE: centos7
-    CONFIGURE_ARGS: --disable-system --disable-tools --disable-docs
-    MAKE_CHECK_ARGS: check-tcg
-
 build-some-softmmu-plugins:
   extends: .native_build_job_template
   needs:
