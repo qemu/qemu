@@ -50,6 +50,9 @@ config VT82C686
     select FDC_ISA
     select USB_UHCI
     select APM
+    select I8257
+    select I8259
+    select MC146818RTC
 
 config SMC37C669
     bool
