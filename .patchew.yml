@@ -88,7 +88,7 @@ email:
         more information:
 
         {{ logtext }}
-        {% elif test == "docker-mingw@fedora" or test == "docker-quick@centos7" or test == "asan" %}
+        {% elif test == "docker-mingw@fedora" or test == "docker-quick@centos8" or test == "asan" %}
         Hi,
 
         This series failed the {{ test }} build test. Please find the testing commands and
@@ -124,13 +124,13 @@ testing:
       script: |
         #!/bin/bash
         time make docker-test-debug@fedora TARGET_LIST=x86_64-softmmu J=14 NETWORK=1
-    docker-quick@centos7:
+    docker-quick@centos8:
       enabled: false
       requirements: docker,x86_64
       timeout: 3600
       script: |
         #!/bin/bash
-        time make docker-test-quick@centos7 SHOW_ENV=1 J=14 NETWORK=1
+        time make docker-test-quick@centos8 SHOW_ENV=1 J=14 NETWORK=1
     checkpatch:
       enabled: true
       requirements: ''
