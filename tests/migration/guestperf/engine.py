@@ -188,6 +188,22 @@ class Engine(object):
                                    1024 * 1024 * 1024 / 100 *
                                    scenario._compression_xbzrle_cache))
 
+        if scenario._multifd:
+            resp = src.command("migrate-set-capabilities",
+                               capabilities = [
+                                   { "capability": "multifd",
+                                     "state": True }
+                               ])
+            resp = src.command("migrate-set-parameters",
+                               multifd_channels=scenario._multifd_channels)
+            resp = dst.command("migrate-set-capabilities",
+                               capabilities = [
+                                   { "capability": "multifd",
+                                     "state": True }
+                               ])
+            resp = dst.command("migrate-set-parameters",
+                               multifd_channels=scenario._multifd_channels)
+
         resp = src.command("migrate", uri=connect_uri)
 
         post_copy = False

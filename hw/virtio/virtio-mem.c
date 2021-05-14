@@ -902,9 +902,6 @@ static int virtio_mem_precopy_notify(NotifierWithReturn *n, void *data)
     PrecopyNotifyData *pnd = data;
 
     switch (pnd->reason) {
-    case PRECOPY_NOTIFY_SETUP:
-        precopy_enable_free_page_optimization();
-        break;
     case PRECOPY_NOTIFY_AFTER_BITMAP_SYNC:
         virtio_mem_precopy_exclude_unplugged(vmem);
         break;
