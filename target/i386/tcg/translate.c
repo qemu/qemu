@@ -1302,6 +1302,16 @@ static bool check_vm86_iopl(DisasContext *s)
     return false;
 }
 
+/* Check for iopl allowing access; if not, raise #GP and return false. */
+static bool check_iopl(DisasContext *s)
+{
+    if (s->vm86 ? s->iopl == 3 : s->cpl <= s->iopl) {
+        return true;
+    }
+    gen_exception_gpf(s);
+    return false;
+}
+
 /* if d == OR_TMP0, it means memory operand (address in A0) */
 static void gen_op(DisasContext *s1, int op, MemOp ot, int d)
 {
@@ -7095,28 +7105,16 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         break;
 #endif
     case 0xfa: /* cli */
-        if (!s->vm86) {
-            if (s->cpl <= s->iopl) {
-                gen_helper_cli(cpu_env);
-            } else {
-                gen_exception_gpf(s);
-            }
-        } else {
-            if (s->iopl == 3) {
-                gen_helper_cli(cpu_env);
-            } else {
-                gen_exception_gpf(s);
-            }
+        if (check_iopl(s)) {
+            gen_helper_cli(cpu_env);
         }
         break;
     case 0xfb: /* sti */
-        if (s->vm86 ? s->iopl == 3 : s->cpl <= s->iopl) {
+        if (check_iopl(s)) {
             gen_helper_sti(cpu_env);
             /* interruptions are enabled only the first insn after sti */
             gen_jmp_im(s, s->pc - s->cs_base);
             gen_eob_inhibit_irq(s, true);
-        } else {
-            gen_exception_gpf(s);
         }
         break;
     case 0x62: /* bound */
