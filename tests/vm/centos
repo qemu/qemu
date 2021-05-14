@@ -26,24 +26,23 @@ class CentosVM(basevm.BaseVM):
         export SRC_ARCHIVE=/dev/vdb;
         sudo chmod a+r $SRC_ARCHIVE;
         tar -xf $SRC_ARCHIVE;
-        make docker-test-block@centos7 {verbose} J={jobs} NETWORK=1;
-        make docker-test-quick@centos7 {verbose} J={jobs} NETWORK=1;
+        make docker-test-block@centos8 {verbose} J={jobs} NETWORK=1;
+        make docker-test-quick@centos8 {verbose} J={jobs} NETWORK=1;
         make docker-test-mingw@fedora  {verbose} J={jobs} NETWORK=1;
     """
 
     def build_image(self, img):
-        cimg = self._download_with_cache("https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1802.qcow2.xz")
+        cimg = self._download_with_cache("https://cloud.centos.org/centos/8/x86_64/images/CentOS-8-GenericCloud-8.3.2011-20201204.2.x86_64.qcow2")
         img_tmp = img + ".tmp"
-        sys.stderr.write("Extracting the image...\n")
-        subprocess.check_call(["ln", "-f", cimg, img_tmp + ".xz"])
-        subprocess.check_call(["xz", "--keep", "-dvf", img_tmp + ".xz"])
+        subprocess.check_call(["ln", "-f", cimg, img_tmp])
         self.exec_qemu_img("resize", img_tmp, "50G")
         self.boot(img_tmp, extra_args = ["-cdrom", self.gen_cloud_init_iso()])
         self.wait_ssh()
         self.ssh_root_check("touch /etc/cloud/cloud-init.disabled")
-        self.ssh_root_check("yum update -y")
-        self.ssh_root_check("yum install -y docker make ninja-build git python3")
-        self.ssh_root_check("systemctl enable docker")
+        self.ssh_root_check("dnf update -y")
+        self.ssh_root_check("dnf install -y dnf-plugins-core")
+        self.ssh_root_check("dnf config-manager --set-enabled powertools")
+        self.ssh_root_check("dnf install -y podman make ninja-build git python3")
         self.ssh_root("poweroff")
         self.wait()
         os.rename(img_tmp, img)
