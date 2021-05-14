@@ -78,7 +78,7 @@ typedef struct DisasContext {
 
     /* current insn context */
     int8_t override; /* -1 if no override, else R_CS, R_DS, etc */
-    int prefix;
+    uint8_t prefix;
     MemOp aflag;
     MemOp dflag;
     target_ulong pc_start;
