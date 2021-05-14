@@ -506,10 +506,9 @@ void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
     }
 }
 
-void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
-                                      uint64_t param)
+void helper_svm_check_intercept(CPUX86State *env, uint32_t type)
 {
-    cpu_svm_check_intercept_param(env, type, param, GETPC());
+    cpu_svm_check_intercept_param(env, type, 0, GETPC());
 }
 
 void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
