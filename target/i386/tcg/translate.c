@@ -97,8 +97,8 @@ typedef struct DisasContext {
     uint8_t rex_b;
     bool rex_w;
 #endif
-    int vex_l;  /* vex vector length */
-    int vex_v;  /* vex vvvv register, without 1's complement.  */
+    uint8_t vex_l;  /* vex vector length */
+    uint8_t vex_v;  /* vex vvvv register, without 1's complement.  */
     CCOp cc_op;  /* current CC operation */
     bool cc_op_dirty;
     int tf;     /* TF cpu flag */
