@@ -2024,6 +2024,12 @@ S: Maintained
 F: hw/net/tulip.c
 F: hw/net/tulip.h
 
+pca954x
+M: Patrick Venture <venture@google.com>
+S: Maintained
+F: hw/i2c/i2c_mux_pca954x.c
+F: include/hw/i2c/i2c_mux_pca954x.h
+
 Generic Loader
 M: Alistair Francis <alistair@alistair23.me>
 S: Maintained
