@@ -97,6 +97,7 @@ typedef struct DisasContext {
 
 #ifndef CONFIG_USER_ONLY
     uint8_t cpl;   /* code priv level */
+    uint8_t iopl;  /* i/o priv level */
 #endif
 
     int code32; /* 32 bit code segment */
@@ -116,7 +117,6 @@ typedef struct DisasContext {
     int addseg; /* non zero if either DS/ES/SS have a non zero base */
     int f_st;   /* currently unused */
     int vm86;   /* vm86 mode */
-    int iopl;
     int tf;     /* TF cpu flag */
     int jmp_opt; /* use direct block chaining for direct jumps */
     int repz_opt; /* optimize jumps within repz instructions */
@@ -153,9 +153,11 @@ typedef struct DisasContext {
 #ifdef CONFIG_USER_ONLY
 #define PE(S)     true
 #define CPL(S)    3
+#define IOPL(S)   0
 #else
 #define PE(S)     (((S)->flags & HF_PE_MASK) != 0)
 #define CPL(S)    ((S)->cpl)
+#define IOPL(S)   ((S)->iopl)
 #endif
 
 static void gen_eob(DisasContext *s);
@@ -629,7 +631,7 @@ static void gen_check_io(DisasContext *s, MemOp ot, target_ulong cur_eip,
 {
     target_ulong next_eip;
 
-    if (PE(s) && (CPL(s) > s->iopl || s->vm86)) {
+    if (PE(s) && (CPL(s) > IOPL(s) || s->vm86)) {
         tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
         switch (ot) {
         case MO_8:
@@ -1307,7 +1309,7 @@ static bool check_cpl0(DisasContext *s)
 /* If vm86, check for iopl == 3; if not, raise #GP and return false. */
 static bool check_vm86_iopl(DisasContext *s)
 {
-    if (!s->vm86 || s->iopl == 3) {
+    if (!s->vm86 || IOPL(s) == 3) {
         return true;
     }
     gen_exception_gpf(s);
@@ -1317,7 +1319,7 @@ static bool check_vm86_iopl(DisasContext *s)
 /* Check for iopl allowing access; if not, raise #GP and return false. */
 static bool check_iopl(DisasContext *s)
 {
-    if (s->vm86 ? s->iopl == 3 : CPL(s) <= s->iopl) {
+    if (s->vm86 ? IOPL(s) == 3 : CPL(s) <= IOPL(s)) {
         return true;
     }
     gen_exception_gpf(s);
@@ -6756,7 +6758,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                                                           & 0xffff));
                 }
             } else {
-                if (CPL(s) <= s->iopl) {
+                if (CPL(s) <= IOPL(s)) {
                     if (dflag != MO_16) {
                         gen_helper_write_eflags(cpu_env, s->T0,
                                                 tcg_const_i32((TF_MASK |
@@ -8474,23 +8476,25 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     CPUX86State *env = cpu->env_ptr;
     uint32_t flags = dc->base.tb->flags;
     int cpl = (flags >> HF_CPL_SHIFT) & 3;
+    int iopl = (flags >> IOPL_SHIFT) & 3;
 
     dc->cs_base = dc->base.tb->cs_base;
     dc->flags = flags;
 #ifndef CONFIG_USER_ONLY
     dc->cpl = cpl;
+    dc->iopl = iopl;
 #endif
 
     /* We make some simplifying assumptions; validate they're correct. */
     g_assert(PE(dc) == ((flags & HF_PE_MASK) != 0));
     g_assert(CPL(dc) == cpl);
+    g_assert(IOPL(dc) == iopl);
 
     dc->code32 = (flags >> HF_CS32_SHIFT) & 1;
     dc->ss32 = (flags >> HF_SS32_SHIFT) & 1;
     dc->addseg = (flags >> HF_ADDSEG_SHIFT) & 1;
     dc->f_st = 0;
     dc->vm86 = (flags >> VM_SHIFT) & 1;
-    dc->iopl = (flags >> IOPL_SHIFT) & 3;
     dc->tf = (flags >> TF_SHIFT) & 1;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cc_op_dirty = false;
