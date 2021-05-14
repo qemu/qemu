@@ -42,14 +42,6 @@
 #define PREFIX_REX    0x40
 
 #ifdef TARGET_X86_64
-#define REX_X(s) ((s)->rex_x)
-#define REX_B(s) ((s)->rex_b)
-#else
-#define REX_X(s) 0
-#define REX_B(s) 0
-#endif
-
-#ifdef TARGET_X86_64
 # define ctztl  ctz64
 # define clztl  clz64
 #else
@@ -100,7 +92,8 @@ typedef struct DisasContext {
 #endif
 
 #ifdef TARGET_X86_64
-    int rex_x, rex_b;
+    uint8_t rex_x;
+    uint8_t rex_b;
 #endif
     int vex_l;  /* vex vector length */
     int vex_v;  /* vex vvvv register, without 1's complement.  */
@@ -173,8 +166,12 @@ typedef struct DisasContext {
 
 #ifdef TARGET_X86_64
 #define REX_PREFIX(S)  (((S)->prefix & PREFIX_REX) != 0)
+#define REX_X(S)       ((S)->rex_x + 0)
+#define REX_B(S)       ((S)->rex_b + 0)
 #else
 #define REX_PREFIX(S)  false
+#define REX_X(S)       0
+#define REX_B(S)       0
 #endif
 
 static void gen_eob(DisasContext *s);
@@ -4617,7 +4614,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             rex_w = (b >> 3) & 1;
             rex_r = (b & 0x4) << 1;
             s->rex_x = (b & 0x2) << 2;
-            REX_B(s) = (b & 0x1) << 3;
+            s->rex_b = (b & 0x1) << 3;
             goto next_byte;
         }
         break;
