@@ -7,11 +7,6 @@ amd64-alpine-container:
   variables:
     NAME: alpine
 
-amd64-centos7-container:
-  extends: .container_job_template
-  variables:
-    NAME: centos7
-
 amd64-debian11-container:
   extends: .container_job_template
   variables:
