@@ -101,7 +101,6 @@ typedef struct DisasContext {
     uint8_t vex_v;  /* vex vvvv register, without 1's complement.  */
     CCOp cc_op;  /* current CC operation */
     bool cc_op_dirty;
-    int tf;     /* TF cpu flag */
     int jmp_opt; /* use direct block chaining for direct jumps */
     int repz_opt; /* optimize jumps within repz instructions */
     int mem_index; /* select memory access functions */
@@ -2656,7 +2655,7 @@ do_gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
     } else if (recheck_tf) {
         gen_helper_rechecking_single_step(cpu_env);
         tcg_gen_exit_tb(NULL, 0);
-    } else if (s->tf) {
+    } else if (s->flags & HF_TF_MASK) {
         gen_helper_single_step(cpu_env);
     } else if (jr) {
         tcg_gen_lookup_and_goto_ptr();
@@ -5540,7 +5539,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         if (s->base.is_jmp) {
             gen_jmp_im(s, s->pc - s->cs_base);
             if (reg == R_SS) {
-                s->tf = 0;
+                s->flags &= ~HF_TF_MASK;
                 gen_eob_inhibit_irq(s, true);
             } else {
                 gen_eob(s);
@@ -5606,7 +5605,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         if (s->base.is_jmp) {
             gen_jmp_im(s, s->pc - s->cs_base);
             if (reg == R_SS) {
-                s->tf = 0;
+                s->flags &= ~HF_TF_MASK;
                 gen_eob_inhibit_irq(s, true);
             } else {
                 gen_eob(s);
@@ -8506,7 +8505,6 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     g_assert(LMA(dc) == ((flags & HF_LMA_MASK) != 0));
     g_assert(ADDSEG(dc) == ((flags & HF_ADDSEG_MASK) != 0));
 
-    dc->tf = (flags >> TF_SHIFT) & 1;
     dc->cc_op = CC_OP_DYNAMIC;
     dc->cc_op_dirty = false;
     dc->popl_esp_hack = 0;
@@ -8521,8 +8519,8 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
     dc->cpuid_ext3_features = env->features[FEAT_8000_0001_ECX];
     dc->cpuid_7_0_ebx_features = env->features[FEAT_7_0_EBX];
     dc->cpuid_xsave_features = env->features[FEAT_XSAVE];
-    dc->jmp_opt = !(dc->tf || dc->base.singlestep_enabled ||
-                    (flags & HF_INHIBIT_IRQ_MASK));
+    dc->jmp_opt = !(dc->base.singlestep_enabled ||
+                    (flags & (HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
     /* Do not optimize repz jumps at all in icount mode, because
        rep movsS instructions are execured with different paths
        in !repz_opt and repz_opt modes. The first one was used
@@ -8597,7 +8595,7 @@ static void i386_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 
     pc_next = disas_insn(dc, cpu);
 
-    if (dc->tf || (dc->base.tb->flags & HF_INHIBIT_IRQ_MASK)) {
+    if (dc->flags & (HF_TF_MASK | HF_INHIBIT_IRQ_MASK)) {
         /* if single step mode, we generate only one instruction and
            generate an exception */
         /* if irq were inhibited with HF_INHIBIT_IRQ_MASK, we clear
