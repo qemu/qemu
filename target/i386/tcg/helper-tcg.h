@@ -76,6 +76,7 @@ extern const uint8_t parity_table[256];
 
 /* misc_helper.c */
 void cpu_load_eflags(CPUX86State *env, int eflags, int update_mask);
+void do_pause(CPUX86State *env) QEMU_NORETURN;
 
 /* sysemu/svm_helper.c */
 #ifndef CONFIG_USER_ONLY
