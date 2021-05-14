@@ -60,14 +60,6 @@ void helper_cpuid(CPUX86State *env)
     env->regs[R_EDX] = edx;
 }
 
-void helper_lmsw(CPUX86State *env, target_ulong t0)
-{
-    /* only 4 lower bits of CR0 are modified. PE cannot be set to zero
-       if already set to one. */
-    t0 = (env->cr[0] & ~0xe) | (t0 & 0xf);
-    helper_write_crN(env, 0, t0);
-}
-
 void helper_invlpg(CPUX86State *env, target_ulong addr)
 {
     X86CPU *cpu = env_archcpu(env);
