@@ -76,3 +76,4 @@ config SH_PCI
 config MV64361
     bool
     select PCI
+    select I8259
