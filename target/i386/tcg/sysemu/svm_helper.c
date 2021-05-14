@@ -412,24 +412,6 @@ void helper_clgi(CPUX86State *env)
     env->hflags2 &= ~HF2_GIF_MASK;
 }
 
-void helper_invlpga(CPUX86State *env, int aflag)
-{
-    X86CPU *cpu = env_archcpu(env);
-    target_ulong addr;
-
-    cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPGA, 0, GETPC());
-
-    if (aflag == 2) {
-        addr = env->regs[R_EAX];
-    } else {
-        addr = (uint32_t)env->regs[R_EAX];
-    }
-
-    /* XXX: could use the ASID to see if it is needed to do the
-       flush */
-    tlb_flush_page(CPU(cpu), addr);
-}
-
 void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
                                    uint64_t param, uintptr_t retaddr)
 {

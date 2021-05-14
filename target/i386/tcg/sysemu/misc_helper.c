@@ -439,12 +439,9 @@ void helper_rdmsr(CPUX86State *env)
     env->regs[R_EDX] = (uint32_t)(val >> 32);
 }
 
-void helper_invlpg(CPUX86State *env, target_ulong addr)
+void helper_flush_page(CPUX86State *env, target_ulong addr)
 {
-    X86CPU *cpu = env_archcpu(env);
-
-    cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPG, 0, GETPC());
-    tlb_flush_page(CPU(cpu), addr);
+    tlb_flush_page(env_cpu(env), addr);
 }
 
 static void QEMU_NORETURN do_hlt(CPUX86State *env)
