@@ -46,10 +46,6 @@ void helper_clgi(CPUX86State *env)
 {
 }
 
-void helper_skinit(CPUX86State *env)
-{
-}
-
 void helper_invlpga(CPUX86State *env, int aflag)
 {
 }

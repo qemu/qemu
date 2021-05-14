@@ -412,13 +412,6 @@ void helper_clgi(CPUX86State *env)
     env->hflags2 &= ~HF2_GIF_MASK;
 }
 
-void helper_skinit(CPUX86State *env)
-{
-    cpu_svm_check_intercept_param(env, SVM_EXIT_SKINIT, 0, GETPC());
-    /* XXX: not implemented */
-    raise_exception(env, EXCP06_ILLOP);
-}
-
 void helper_invlpga(CPUX86State *env, int aflag)
 {
     X86CPU *cpu = env_archcpu(env);

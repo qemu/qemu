@@ -117,7 +117,6 @@ DEF_HELPER_2(vmload, void, env, int)
 DEF_HELPER_2(vmsave, void, env, int)
 DEF_HELPER_1(stgi, void, env)
 DEF_HELPER_1(clgi, void, env)
-DEF_HELPER_1(skinit, void, env)
 DEF_HELPER_2(invlpga, void, env, int)
 
 /* x86 FPU */
