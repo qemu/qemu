@@ -49,6 +49,8 @@ static char *opt_render_node;
 static gboolean opt_virgl;
 
 static void vg_handle_ctrl(VuDev *dev, int qidx);
+static void vg_cleanup_mapping(VuGpu *g,
+                               struct virtio_gpu_simple_resource *res);
 
 static const char *
 vg_cmd_to_string(int cmd)
@@ -400,7 +402,7 @@ vg_resource_destroy(VuGpu *g,
     }
 
     vugbm_buffer_destroy(&res->buffer);
-    g_free(res->iov);
+    vg_cleanup_mapping(g, res);
     pixman_image_unref(res->image);
     QTAILQ_REMOVE(&g->reslist, res, next);
     g_free(res);
@@ -504,6 +506,22 @@ vg_resource_attach_backing(VuGpu *g,
     res->iov_cnt = ab.nr_entries;
 }
 
+/* Though currently only free iov, maybe later will do more work. */
+void vg_cleanup_mapping_iov(VuGpu *g,
+                            struct iovec *iov, uint32_t count)
+{
+    g_free(iov);
+}
+
+static void
+vg_cleanup_mapping(VuGpu *g,
+                   struct virtio_gpu_simple_resource *res)
+{
+    vg_cleanup_mapping_iov(g, res->iov, res->iov_cnt);
+    res->iov = NULL;
+    res->iov_cnt = 0;
+}
+
 static void
 vg_resource_detach_backing(VuGpu *g,
                            struct virtio_gpu_ctrl_command *cmd)
@@ -522,9 +540,7 @@ vg_resource_detach_backing(VuGpu *g,
         return;
     }
 
-    g_free(res->iov);
-    res->iov = NULL;
-    res->iov_cnt = 0;
+    vg_cleanup_mapping(g, res);
 }
 
 static void

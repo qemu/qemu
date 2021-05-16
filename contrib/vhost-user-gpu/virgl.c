@@ -116,8 +116,9 @@ virgl_cmd_resource_unref(VuGpu *g,
     virgl_renderer_resource_detach_iov(unref.resource_id,
                                        &res_iovs,
                                        &num_iovs);
-    g_free(res_iovs);
-
+    if (res_iovs != NULL && num_iovs != 0) {
+        vg_cleanup_mapping_iov(g, res_iovs, num_iovs);
+    }
     virgl_renderer_resource_unref(unref.resource_id);
 }
 
@@ -294,7 +295,7 @@ virgl_resource_attach_backing(VuGpu *g,
     ret = virgl_renderer_resource_attach_iov(att_rb.resource_id,
                                        res_iovs, att_rb.nr_entries);
     if (ret != 0) {
-        g_free(res_iovs);
+        vg_cleanup_mapping_iov(g, res_iovs, att_rb.nr_entries);
     }
 }
 
@@ -314,7 +315,7 @@ virgl_resource_detach_backing(VuGpu *g,
     if (res_iovs == NULL || num_iovs == 0) {
         return;
     }
-    g_free(res_iovs);
+    vg_cleanup_mapping_iov(g, res_iovs, num_iovs);
 }
 
 static void

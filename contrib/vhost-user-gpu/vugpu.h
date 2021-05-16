@@ -169,7 +169,7 @@ int     vg_create_mapping_iov(VuGpu *g,
                               struct virtio_gpu_resource_attach_backing *ab,
                               struct virtio_gpu_ctrl_command *cmd,
                               struct iovec **iov);
-
+void    vg_cleanup_mapping_iov(VuGpu *g, struct iovec *iov, uint32_t count);
 void    vg_get_display_info(VuGpu *vg, struct virtio_gpu_ctrl_command *cmd);
 
 void    vg_wait_ok(VuGpu *g);
