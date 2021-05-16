@@ -287,8 +287,11 @@ virgl_resource_attach_backing(VuGpu *g,
         return;
     }
 
-    virgl_renderer_resource_attach_iov(att_rb.resource_id,
+    ret = virgl_renderer_resource_attach_iov(att_rb.resource_id,
                                        res_iovs, att_rb.nr_entries);
+    if (ret != 0) {
+        g_free(res_iovs);
+    }
 }
 
 static void
