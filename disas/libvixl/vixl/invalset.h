@@ -27,7 +27,7 @@
 #ifndef VIXL_INVALSET_H_
 #define VIXL_INVALSET_H_
 
-#include <string.h>
+#include <cstring>
 
 #include <algorithm>
 #include <vector>

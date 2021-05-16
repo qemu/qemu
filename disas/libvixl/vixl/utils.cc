@@ -25,7 +25,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vixl/utils.h"
-#include <stdio.h>
+#include <cstdio>
 
 namespace vixl {
 
