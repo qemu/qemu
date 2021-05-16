@@ -99,7 +99,7 @@ static uint64_t amdvi_readq(AMDVIState *s, hwaddr addr)
 }
 
 /* internal write */
-static void amdvi_writeq_raw(AMDVIState *s, uint64_t val, hwaddr addr)
+static void amdvi_writeq_raw(AMDVIState *s, hwaddr addr, uint64_t val)
 {
     stq_le_p(&s->mmior[addr], val);
 }
@@ -382,7 +382,7 @@ static void amdvi_completion_wait(AMDVIState *s, uint64_t *cmd)
     }
     /* set completion interrupt */
     if (extract64(cmd[0], 1, 1)) {
-        amdvi_test_mask(s, AMDVI_MMIO_STATUS, AMDVI_MMIO_STATUS_COMP_INT);
+        amdvi_assign_orq(s, AMDVI_MMIO_STATUS, AMDVI_MMIO_STATUS_COMP_INT);
         /* generate interrupt */
         amdvi_generate_msi_interrupt(s);
     }
@@ -553,7 +553,7 @@ static void amdvi_cmdbuf_run(AMDVIState *s)
         trace_amdvi_command_exec(s->cmdbuf_head, s->cmdbuf_tail, s->cmdbuf);
         amdvi_cmdbuf_exec(s);
         s->cmdbuf_head += AMDVI_COMMAND_SIZE;
-        amdvi_writeq_raw(s, s->cmdbuf_head, AMDVI_MMIO_COMMAND_HEAD);
+        amdvi_writeq_raw(s, AMDVI_MMIO_COMMAND_HEAD, s->cmdbuf_head);
 
         /* wrap head pointer */
         if (s->cmdbuf_head >= s->cmdbuf_len * AMDVI_COMMAND_SIZE) {
@@ -860,8 +860,8 @@ static inline uint8_t get_pte_translation_mode(uint64_t pte)
 
 static inline uint64_t pte_override_page_mask(uint64_t pte)
 {
-    uint8_t page_mask = 12;
-    uint64_t addr = (pte & AMDVI_DEV_PT_ROOT_MASK) ^ AMDVI_DEV_PT_ROOT_MASK;
+    uint8_t page_mask = 13;
+    uint64_t addr = (pte & AMDVI_DEV_PT_ROOT_MASK) >> 12;
     /* find the first zero bit */
     while (addr & 1) {
         page_mask++;
