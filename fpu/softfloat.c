@@ -3559,6 +3559,13 @@ float32 int64_to_float32_scalbn(int64_t a, int scale, float_status *status)
 {
     FloatParts64 p;
 
+    /* Without scaling, there are no overflow concerns. */
+    if (likely(scale == 0) && can_use_fpu(status)) {
+        union_float32 ur;
+        ur.h = a;
+        return ur.s;
+    }
+
     parts64_sint_to_float(&p, a, scale, status);
     return float32_round_pack_canonical(&p, status);
 }
@@ -3591,6 +3598,13 @@ float32 int16_to_float32(int16_t a, float_status *status)
 float64 int64_to_float64_scalbn(int64_t a, int scale, float_status *status)
 {
     FloatParts64 p;
+
+    /* Without scaling, there are no overflow concerns. */
+    if (likely(scale == 0) && can_use_fpu(status)) {
+        union_float64 ur;
+        ur.h = a;
+        return ur.s;
+    }
 
     parts_sint_to_float(&p, a, scale, status);
     return float64_round_pack_canonical(&p, status);
@@ -3726,6 +3740,13 @@ float32 uint64_to_float32_scalbn(uint64_t a, int scale, float_status *status)
 {
     FloatParts64 p;
 
+    /* Without scaling, there are no overflow concerns. */
+    if (likely(scale == 0) && can_use_fpu(status)) {
+        union_float32 ur;
+        ur.h = a;
+        return ur.s;
+    }
+
     parts_uint_to_float(&p, a, scale, status);
     return float32_round_pack_canonical(&p, status);
 }
@@ -3758,6 +3779,13 @@ float32 uint16_to_float32(uint16_t a, float_status *status)
 float64 uint64_to_float64_scalbn(uint64_t a, int scale, float_status *status)
 {
     FloatParts64 p;
+
+    /* Without scaling, there are no overflow concerns. */
+    if (likely(scale == 0) && can_use_fpu(status)) {
+        union_float64 ur;
+        ur.h = a;
+        return ur.s;
+    }
 
     parts_uint_to_float(&p, a, scale, status);
     return float64_round_pack_canonical(&p, status);
