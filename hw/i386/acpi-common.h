@@ -1,9 +1,9 @@
 #ifndef HW_I386_ACPI_COMMON_H
 #define HW_I386_ACPI_COMMON_H
-#include "include/hw/acpi/acpi_dev_interface.h"
 
-#include "include/hw/acpi/bios-linker-loader.h"
-#include "include/hw/i386/x86.h"
+#include "hw/acpi/acpi_dev_interface.h"
+#include "hw/acpi/bios-linker-loader.h"
+#include "hw/i386/x86.h"
 
 /* Default IOAPIC ID */
 #define ACPI_BUILD_IOAPIC_ID 0x0

@@ -10,7 +10,7 @@
 #include "qemu/host-utils.h"
 #include "qemu/log.h"
 #include "hw/gpio/aspeed_gpio.h"
-#include "include/hw/misc/aspeed_scu.h"
+#include "hw/misc/aspeed_scu.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/irq.h"

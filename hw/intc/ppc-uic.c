@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "include/hw/intc/ppc-uic.h"
+#include "hw/intc/ppc-uic.h"
 #include "hw/irq.h"
 #include "cpu.h"
 #include "hw/ppc/ppc.h"
