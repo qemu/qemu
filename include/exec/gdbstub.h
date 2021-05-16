@@ -45,17 +45,6 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...);
  */
 void gdb_do_syscallv(gdb_syscall_complete_cb cb, const char *fmt, va_list va);
 int use_gdb_syscalls(void);
-void gdb_set_stop_cpu(CPUState *cpu);
-
-/**
- * gdb_exit: exit gdb session, reporting inferior status
- * @code: exit code reported
- *
- * This closes the session and sends a final packet to GDB reporting
- * the exit status of the program. It also cleans up any connections
- * detritus before returning.
- */
-void gdb_exit(int code);
 
 #ifdef CONFIG_USER_ONLY
 /**
@@ -165,7 +154,7 @@ static inline uint8_t * gdb_get_reg_ptr(GByteArray *buf, int len)
 #define ldtul_p(addr) ldl_p(addr)
 #endif
 
-#endif
+#endif /* NEED_CPU_H */
 
 /**
  * gdbserver_start: start the gdb server
@@ -176,6 +165,18 @@ static inline uint8_t * gdb_get_reg_ptr(GByteArray *buf, int len)
  * port.
  */
 int gdbserver_start(const char *port_or_device);
+
+/**
+ * gdb_exit: exit gdb session, reporting inferior status
+ * @code: exit code reported
+ *
+ * This closes the session and sends a final packet to GDB reporting
+ * the exit status of the program. It also cleans up any connections
+ * detritus before returning.
+ */
+void gdb_exit(int code);
+
+void gdb_set_stop_cpu(CPUState *cpu);
 
 /**
  * gdb_has_xml:
