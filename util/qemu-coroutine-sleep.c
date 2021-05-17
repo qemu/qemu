@@ -27,19 +27,22 @@ struct QemuCoSleepState {
 
 void qemu_co_sleep_wake(QemuCoSleepState *sleep_state)
 {
-    /* Write of schedule protected by barrier write in aio_co_schedule */
-    const char *scheduled = qatomic_cmpxchg(&sleep_state->co->scheduled,
-                                           qemu_co_sleep_ns__scheduled, NULL);
+    if (sleep_state) {
+        /* Write of schedule protected by barrier write in aio_co_schedule */
+        const char *scheduled = qatomic_cmpxchg(&sleep_state->co->scheduled,
+                                                qemu_co_sleep_ns__scheduled, NULL);
 
-    assert(scheduled == qemu_co_sleep_ns__scheduled);
-    *sleep_state->user_state_pointer = NULL;
-    timer_del(&sleep_state->ts);
-    aio_co_wake(sleep_state->co);
+        assert(scheduled == qemu_co_sleep_ns__scheduled);
+        *sleep_state->user_state_pointer = NULL;
+        timer_del(&sleep_state->ts);
+        aio_co_wake(sleep_state->co);
+    }
 }
 
 static void co_sleep_cb(void *opaque)
 {
-    qemu_co_sleep_wake(opaque);
+    QemuCoSleepState **sleep_state = opaque;
+    qemu_co_sleep_wake(*sleep_state);
 }
 
 void coroutine_fn qemu_co_sleep_ns_wakeable(QEMUClockType type, int64_t ns,
@@ -60,7 +63,7 @@ void coroutine_fn qemu_co_sleep_ns_wakeable(QEMUClockType type, int64_t ns,
         abort();
     }
 
-    aio_timer_init(ctx, &state.ts, type, SCALE_NS, co_sleep_cb, &state);
+    aio_timer_init(ctx, &state.ts, type, SCALE_NS, co_sleep_cb, sleep_state);
     *sleep_state = &state;
     timer_mod(&state.ts, qemu_clock_get_ns(type) + ns);
     qemu_coroutine_yield();

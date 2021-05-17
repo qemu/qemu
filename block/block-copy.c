@@ -674,9 +674,7 @@ out:
 
 void block_copy_kick(BlockCopyCallState *call_state)
 {
-    if (call_state->sleep_state) {
-        qemu_co_sleep_wake(call_state->sleep_state);
-    }
+    qemu_co_sleep_wake(call_state->sleep_state);
 }
 
 /*
