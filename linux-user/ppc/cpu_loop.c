@@ -423,9 +423,6 @@ void cpu_loop(CPUPPCState *env)
             cpu_abort(cs, "Maintenance exception while in user mode. "
                       "Aborting\n");
             break;
-        case POWERPC_EXCP_BRANCH:   /* branch instruction:                   */
-            /* We just stopped because of a branch. Go on */
-            break;
         case POWERPC_EXCP_SYSCALL_USER:
             /* system call in user-mode emulation */
             /* WARNING:
