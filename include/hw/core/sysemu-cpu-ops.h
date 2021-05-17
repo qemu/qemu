@@ -22,6 +22,10 @@ typedef struct SysemuCPUOps {
     void (*get_memory_mapping)(CPUState *cpu, MemoryMappingList *list,
                                Error **errp);
     /**
+     * @get_paging_enabled: Callback for inquiring whether paging is enabled.
+     */
+    bool (*get_paging_enabled)(const CPUState *cpu);
+    /**
      * @get_phys_page_debug: Callback for obtaining a physical address.
      */
     hwaddr (*get_phys_page_debug)(CPUState *cpu, vaddr addr);
