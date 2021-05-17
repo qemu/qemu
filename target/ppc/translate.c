@@ -4648,8 +4648,9 @@ static void gen_lookup_and_goto_ptr(DisasContext *ctx)
         } else if (sse & (CPU_SINGLE_STEP | CPU_BRANCH_STEP)) {
             uint32_t excp = gen_prep_dbgex(ctx);
             gen_exception(ctx, excp);
+        } else {
+            tcg_gen_exit_tb(NULL, 0);
         }
-        tcg_gen_exit_tb(NULL, 0);
     } else {
         tcg_gen_lookup_and_goto_ptr();
     }
