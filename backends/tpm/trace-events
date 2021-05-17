@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # tpm_passthrough.c
 tpm_passthrough_handle_request(void *cmd) "processing command %p"

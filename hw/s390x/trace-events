@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # css.c
 css_enable_facility(const char *facility) "CSS: enable %s"

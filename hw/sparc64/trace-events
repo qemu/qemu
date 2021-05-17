@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # sun4u.c
 ebus_isa_irq_handler(int n, int level) "Set ISA IRQ %d level %d"

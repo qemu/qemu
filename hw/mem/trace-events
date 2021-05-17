@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # pc-dimm.c
 mhp_pc_dimm_assigned_slot(int slot) "%d"

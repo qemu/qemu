@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # virtio-blk.c
 virtio_blk_data_plane_start(void *s) "dataplane %p"

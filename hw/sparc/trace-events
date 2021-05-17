@@ -1,4 +1,4 @@
-# See docs/devel/tracing.txt for syntax documentation.
+# See docs/devel/tracing.rst for syntax documentation.
 
 # sun4m.c
 sun4m_cpu_set_irq_raise(int level) "Raise CPU IRQ %d"
