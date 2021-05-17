@@ -208,7 +208,7 @@ schemas += [meson.current_source_dir() / 'missing-schema.json']
 
 # Because people may want to use test-qapi.py from the command line, we
 # are not using the "#! /usr/bin/env python3" trick here.  See
-# docs/devel/build-system.txt
+# docs/devel/build-system.rst
 test('QAPI schema regression tests', python,
      args: files('test-qapi.py') + schemas,
      env: test_env, suite: ['qapi-schema', 'qapi-frontend'])

@@ -3361,7 +3361,7 @@ Documentation
 Build system architecture
 M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
-F: docs/devel/build-system.txt
+F: docs/devel/build-system.rst
 
 GIT Data Mining Config
 M: Alex Bennée <alex.bennee@linaro.org>
