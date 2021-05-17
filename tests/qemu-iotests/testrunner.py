@@ -129,7 +129,6 @@ class TestRunner(ContextManager['TestRunner']):
     def __init__(self, env: TestEnv, makecheck: bool = False,
                  color: str = 'auto') -> None:
         self.env = env
-        self.test_run_env = self.env.get_env()
         self.makecheck = makecheck
         self.last_elapsed = LastElapsedTime('.last-elapsed-cache', env)
 
@@ -243,32 +242,21 @@ class TestRunner(ContextManager['TestRunner']):
             silent_unlink(p)
 
         args = [str(f_test.resolve())]
-        if self.env.debug:
-            args.append('-d')
-
-        with f_test.open(encoding="utf-8") as f:
-            try:
-                if f.readline().rstrip() == '#!/usr/bin/env python3':
-                    args.insert(0, self.env.python)
-            except UnicodeDecodeError:  # binary test? for future.
-                pass
-
-        env = os.environ.copy()
-        env.update(self.test_run_env)
+        env = self.env.prepare_subprocess(args)
 
         t0 = time.time()
         with f_bad.open('w', encoding="utf-8") as f:
-            proc = subprocess.Popen(args, cwd=str(f_test.parent), env=env,
-                                    stdout=f, stderr=subprocess.STDOUT)
-            try:
-                proc.wait()
-            except KeyboardInterrupt:
-                proc.terminate()
-                proc.wait()
-                return TestResult(status='not run',
-                                  description='Interrupted by user',
-                                  interrupted=True)
-            ret = proc.returncode
+            with subprocess.Popen(args, cwd=str(f_test.parent), env=env,
+                                  stdout=f, stderr=subprocess.STDOUT) as proc:
+                try:
+                    proc.wait()
+                except KeyboardInterrupt:
+                    proc.terminate()
+                    proc.wait()
+                    return TestResult(status='not run',
+                                      description='Interrupted by user',
+                                      interrupted=True)
+                ret = proc.returncode
 
         elapsed = round(time.time() - t0, 1)
 
@@ -328,7 +316,6 @@ class TestRunner(ContextManager['TestRunner']):
 
         if not self.makecheck:
             self.env.print_env()
-            print()
 
         test_field_width = max(len(os.path.basename(t)) for t in tests) + 2
 

@@ -19,6 +19,9 @@
 import os
 import sys
 import argparse
+import shutil
+from pathlib import Path
+
 from findtests import TestFinder
 from testenv import TestEnv
 from testrunner import TestRunner
@@ -100,7 +103,7 @@ def make_argparser() -> argparse.ArgumentParser:
                        'rerun failed ./check command, starting from the '
                        'middle of the process.')
     g_sel.add_argument('tests', metavar='TEST_FILES', nargs='*',
-                       help='tests to run')
+                       help='tests to run, or "--" followed by a command')
 
     return p
 
@@ -112,6 +115,20 @@ if __name__ == '__main__':
                   aiomode=args.aiomode, cachemode=args.cachemode,
                   imgopts=args.imgopts, misalign=args.misalign,
                   debug=args.debug, valgrind=args.valgrind)
+
+    if len(sys.argv) > 1 and sys.argv[-len(args.tests)-1] == '--':
+        if not args.tests:
+            sys.exit("missing command after '--'")
+        cmd = args.tests
+        env.print_env()
+        exec_pathstr = shutil.which(cmd[0])
+        if exec_pathstr is None:
+            sys.exit('command not found: ' + cmd[0])
+        exec_path = Path(exec_pathstr).resolve()
+        cmd[0] = str(exec_path)
+        full_env = env.prepare_subprocess(cmd)
+        os.chdir(exec_path.parent)
+        os.execve(cmd[0], cmd, full_env)
 
     testfinder = TestFinder(test_dir=env.source_iotests)
 

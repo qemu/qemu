@@ -29,7 +29,6 @@
 
 
 typedef struct BDRVStateCOR {
-    bool active;
     BlockDriverState *bottom_bs;
     bool chain_frozen;
 } BDRVStateCOR;
@@ -89,7 +88,6 @@ static int cor_open(BlockDriverState *bs, QDict *options, int flags,
          */
         bdrv_ref(bottom_bs);
     }
-    state->active = true;
     state->bottom_bs = bottom_bs;
 
     /*
@@ -112,17 +110,6 @@ static void cor_child_perm(BlockDriverState *bs, BdrvChild *c,
                            uint64_t perm, uint64_t shared,
                            uint64_t *nperm, uint64_t *nshared)
 {
-    BDRVStateCOR *s = bs->opaque;
-
-    if (!s->active) {
-        /*
-         * While the filter is being removed
-         */
-        *nperm = 0;
-        *nshared = BLK_PERM_ALL;
-        return;
-    }
-
     *nperm = perm & PERM_PASSTHROUGH;
     *nshared = (shared & PERM_PASSTHROUGH) | PERM_UNCHANGED;
 
@@ -280,32 +267,14 @@ static BlockDriver bdrv_copy_on_read = {
 
 void bdrv_cor_filter_drop(BlockDriverState *cor_filter_bs)
 {
-    BdrvChild *child;
-    BlockDriverState *bs;
     BDRVStateCOR *s = cor_filter_bs->opaque;
 
-    child = bdrv_filter_child(cor_filter_bs);
-    if (!child) {
-        return;
-    }
-    bs = child->bs;
-
-    /* Retain the BDS until we complete the graph change. */
-    bdrv_ref(bs);
-    /* Hold a guest back from writing while permissions are being reset. */
-    bdrv_drained_begin(bs);
-    /* Drop permissions before the graph change. */
-    s->active = false;
     /* unfreeze, as otherwise bdrv_replace_node() will fail */
     if (s->chain_frozen) {
         s->chain_frozen = false;
         bdrv_unfreeze_backing_chain(cor_filter_bs, s->bottom_bs);
     }
-    bdrv_child_refresh_perms(cor_filter_bs, child, &error_abort);
-    bdrv_replace_node(cor_filter_bs, bs, &error_abort);
-
-    bdrv_drained_end(bs);
-    bdrv_unref(bs);
+    bdrv_drop_filter(cor_filter_bs, &error_abort);
     bdrv_unref(cor_filter_bs);
 }
 

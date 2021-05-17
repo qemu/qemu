@@ -557,8 +557,10 @@ void hmp_eject(Monitor *mon, const QDict *qdict)
 
 void hmp_qemu_io(Monitor *mon, const QDict *qdict)
 {
-    BlockBackend *blk;
+    BlockBackend *blk = NULL;
+    BlockDriverState *bs = NULL;
     BlockBackend *local_blk = NULL;
+    AioContext *ctx = NULL;
     bool qdev = qdict_get_try_bool(qdict, "qdev", false);
     const char *device = qdict_get_str(qdict, "device");
     const char *command = qdict_get_str(qdict, "command");
@@ -573,17 +575,21 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
     } else {
         blk = blk_by_name(device);
         if (!blk) {
-            BlockDriverState *bs = bdrv_lookup_bs(NULL, device, &err);
-            if (bs) {
-                blk = local_blk = blk_new(bdrv_get_aio_context(bs),
-                                          0, BLK_PERM_ALL);
-                ret = blk_insert_bs(blk, bs, &err);
-                if (ret < 0) {
-                    goto fail;
-                }
-            } else {
+            bs = bdrv_lookup_bs(NULL, device, &err);
+            if (!bs) {
                 goto fail;
             }
+        }
+    }
+
+    ctx = blk ? blk_get_aio_context(blk) : bdrv_get_aio_context(bs);
+    aio_context_acquire(ctx);
+
+    if (bs) {
+        blk = local_blk = blk_new(bdrv_get_aio_context(bs), 0, BLK_PERM_ALL);
+        ret = blk_insert_bs(blk, bs, &err);
+        if (ret < 0) {
+            goto fail;
         }
     }
 
@@ -616,6 +622,11 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
 
 fail:
     blk_unref(local_blk);
+
+    if (ctx) {
+        aio_context_release(ctx);
+    }
+
     hmp_handle_error(mon, err);
 }
 
