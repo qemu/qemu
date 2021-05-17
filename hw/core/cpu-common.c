@@ -190,23 +190,6 @@ static bool cpu_common_virtio_is_big_endian(CPUState *cpu)
     return target_words_bigendian();
 }
 
-/*
- * XXX the following #if is always true because this is a common_ss
- * module, so target CONFIG_* is never defined.
- */
-#if !defined(CONFIG_USER_ONLY)
-GuestPanicInformation *cpu_get_crash_info(CPUState *cpu)
-{
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-    GuestPanicInformation *res = NULL;
-
-    if (cc->get_crash_info) {
-        res = cc->get_crash_info(cpu);
-    }
-    return res;
-}
-#endif
-
 void cpu_dump_state(CPUState *cpu, FILE *f, int flags)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
