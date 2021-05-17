@@ -3324,6 +3324,18 @@ static float64 float64_minmax(float64 a, float64 b, float_status *s, int flags)
     return float64_round_pack_canonical(pr, s);
 }
 
+static float128 float128_minmax(float128 a, float128 b,
+                                float_status *s, int flags)
+{
+    FloatParts128 pa, pb, *pr;
+
+    float128_unpack_canonical(&pa, a, s);
+    float128_unpack_canonical(&pb, b, s);
+    pr = parts_minmax(&pa, &pb, s, flags);
+
+    return float128_round_pack_canonical(pr, s);
+}
+
 #define MINMAX_1(type, name, flags) \
     type type##_##name(type a, type b, float_status *s) \
     { return type##_minmax(a, b, s, flags); }
@@ -3340,6 +3352,7 @@ MINMAX_2(float16)
 MINMAX_2(bfloat16)
 MINMAX_2(float32)
 MINMAX_2(float64)
+MINMAX_2(float128)
 
 #undef MINMAX_1
 #undef MINMAX_2
