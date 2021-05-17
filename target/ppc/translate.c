@@ -159,7 +159,6 @@ struct DisasContext {
     DisasContextBase base;
     target_ulong cia;  /* current instruction address */
     uint32_t opcode;
-    uint32_t exception;
     /* Routine used to access memory */
     bool pr, hv, dr, le_mode;
     bool lazy_tlb_flush;
@@ -261,15 +260,12 @@ static void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
      * These are all synchronous exceptions, we set the PC back to the
      * faulting instruction
      */
-    if (ctx->exception == POWERPC_EXCP_NONE) {
-        gen_update_nip(ctx, ctx->cia);
-    }
+    gen_update_nip(ctx, ctx->cia);
     t0 = tcg_const_i32(excp);
     t1 = tcg_const_i32(error);
     gen_helper_raise_exception_err(cpu_env, t0, t1);
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(t1);
-    ctx->exception = excp;
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -281,13 +277,10 @@ static void gen_exception(DisasContext *ctx, uint32_t excp)
      * These are all synchronous exceptions, we set the PC back to the
      * faulting instruction
      */
-    if (ctx->exception == POWERPC_EXCP_NONE) {
-        gen_update_nip(ctx, ctx->cia);
-    }
+    gen_update_nip(ctx, ctx->cia);
     t0 = tcg_const_i32(excp);
     gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
-    ctx->exception = excp;
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -300,7 +293,6 @@ static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
     t0 = tcg_const_i32(excp);
     gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
-    ctx->exception = excp;
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -4993,13 +4985,10 @@ static void gen_scv(DisasContext *ctx)
     uint32_t lev = (ctx->opcode >> 5) & 0x7F;
 
     /* Set the PC back to the faulting instruction. */
-    if (ctx->exception == POWERPC_EXCP_NONE) {
-        gen_update_nip(ctx, ctx->cia);
-    }
+    gen_update_nip(ctx, ctx->cia);
     gen_helper_scv(cpu_env, tcg_constant_i32(lev));
 
-    /* This need not be exact, just not POWERPC_EXCP_NONE */
-    ctx->exception = POWERPC_SYSCALL_VECTORED;
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 #endif
 #endif
@@ -9005,7 +8994,6 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     uint32_t hflags = ctx->base.tb->flags;
     int bound;
 
-    ctx->exception = POWERPC_EXCP_NONE;
     ctx->spr_cb = env->spr_cb;
     ctx->pr = (hflags >> HFLAGS_PR) & 1;
     ctx->mem_idx = (hflags >> HFLAGS_DMMU_IDX) & 7;
@@ -9111,16 +9099,6 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         qemu_log("Opcode %02x %02x %02x %02x (%08x) leaked "
                  "temporaries\n", opc1(ctx->opcode), opc2(ctx->opcode),
                  opc3(ctx->opcode), opc4(ctx->opcode), ctx->opcode);
-    }
-
-    if (ctx->base.is_jmp == DISAS_NEXT) {
-        switch (ctx->exception) {
-        case POWERPC_EXCP_NONE:
-            break;
-        default:
-            /* Every other ctx->exception should have set NORETURN. */
-            g_assert_not_reached();
-        }
     }
 }
 
