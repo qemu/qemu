@@ -22,6 +22,17 @@
 #include "qapi/error.h"
 #include "hw/core/cpu.h"
 
+bool cpu_paging_enabled(const CPUState *cpu)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->get_paging_enabled) {
+        return cc->get_paging_enabled(cpu);
+    }
+
+    return false;
+}
+
 hwaddr cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                      MemTxAttrs *attrs)
 {

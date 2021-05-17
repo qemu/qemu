@@ -66,18 +66,6 @@ CPUState *cpu_create(const char *typename)
     return cpu;
 }
 
-bool cpu_paging_enabled(const CPUState *cpu)
-{
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-
-    return cc->get_paging_enabled(cpu);
-}
-
-static bool cpu_common_get_paging_enabled(const CPUState *cpu)
-{
-    return false;
-}
-
 void cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
                             Error **errp)
 {
@@ -316,7 +304,6 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     k->parse_features = cpu_common_parse_features;
     k->get_arch_id = cpu_common_get_arch_id;
     k->has_work = cpu_common_has_work;
-    k->get_paging_enabled = cpu_common_get_paging_enabled;
     k->get_memory_mapping = cpu_common_get_memory_mapping;
     k->gdb_read_register = cpu_common_gdb_read_register;
     k->gdb_write_register = cpu_common_gdb_write_register;
