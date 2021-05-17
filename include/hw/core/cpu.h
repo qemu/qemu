@@ -80,6 +80,9 @@ struct TCGCPUOps;
 /* see accel-cpu.h */
 struct AccelCPUClass;
 
+/* see sysemu-cpu-ops.h */
+struct SysemuCPUOps;
+
 /**
  * CPUClass:
  * @class_by_name: Callback to map -cpu command line model name to an
@@ -190,6 +193,9 @@ struct CPUClass {
     int gdb_num_core_regs;
     bool gdb_stop_before_watchpoint;
     struct AccelCPUClass *accel_cpu;
+
+    /* when system emulation is not available, this pointer is NULL */
+    const struct SysemuCPUOps *sysemu_ops;
 
     /* when TCG is not available, this pointer is NULL */
     struct TCGCPUOps *tcg_ops;
