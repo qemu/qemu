@@ -14,7 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "replication.h"
+#include "block/replication.h"
 
 static QLIST_HEAD(, ReplicationState) replication_states;
 
