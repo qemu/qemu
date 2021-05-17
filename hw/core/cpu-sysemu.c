@@ -54,6 +54,50 @@ int cpu_asidx_from_attrs(CPUState *cpu, MemTxAttrs attrs)
     return ret;
 }
 
+int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                             void *opaque)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (!cc->write_elf32_qemunote) {
+        return 0;
+    }
+    return (*cc->write_elf32_qemunote)(f, cpu, opaque);
+}
+
+int cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cpu,
+                         int cpuid, void *opaque)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (!cc->write_elf32_note) {
+        return -1;
+    }
+    return (*cc->write_elf32_note)(f, cpu, cpuid, opaque);
+}
+
+int cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
+                             void *opaque)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (!cc->write_elf64_qemunote) {
+        return 0;
+    }
+    return (*cc->write_elf64_qemunote)(f, cpu, opaque);
+}
+
+int cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
+                         int cpuid, void *opaque)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (!cc->write_elf64_note) {
+        return -1;
+    }
+    return (*cc->write_elf64_note)(f, cpu, cpuid, opaque);
+}
+
 bool cpu_virtio_is_big_endian(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
