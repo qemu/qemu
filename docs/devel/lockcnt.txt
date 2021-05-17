@@ -145,7 +145,7 @@ can also be more efficient in two ways:
 - on some platforms, one can implement QemuLockCnt to hold the lock
   and the mutex in a single word, making the fast path no more expensive
   than simply managing a counter using atomic operations (see
-  docs/devel/atomics.txt).  This can be very helpful if concurrent access to
+  docs/devel/atomics.rst).  This can be very helpful if concurrent access to
   the data structure is expected to be rare.
 
 
