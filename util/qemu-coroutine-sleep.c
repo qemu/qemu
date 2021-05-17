@@ -41,12 +41,9 @@ static void co_sleep_cb(void *opaque)
     qemu_co_sleep_wake(w);
 }
 
-void coroutine_fn qemu_co_sleep_ns_wakeable(QemuCoSleep *w,
-                                            QEMUClockType type, int64_t ns)
+void coroutine_fn qemu_co_sleep(QemuCoSleep *w)
 {
     Coroutine *co = qemu_coroutine_self();
-    AioContext *ctx = qemu_get_current_aio_context();
-    QEMUTimer ts;
 
     const char *scheduled = qatomic_cmpxchg(&co->scheduled, NULL,
                                             qemu_co_sleep_ns__scheduled);
@@ -58,11 +55,26 @@ void coroutine_fn qemu_co_sleep_ns_wakeable(QemuCoSleep *w,
     }
 
     w->to_wake = co;
-    aio_timer_init(ctx, &ts, type, SCALE_NS, co_sleep_cb, w),
-    timer_mod(&ts, qemu_clock_get_ns(type) + ns);
     qemu_coroutine_yield();
-    timer_del(&ts);
 
     /* w->to_wake is cleared before resuming this coroutine.  */
     assert(w->to_wake == NULL);
+}
+
+void coroutine_fn qemu_co_sleep_ns_wakeable(QemuCoSleep *w,
+                                            QEMUClockType type, int64_t ns)
+{
+    AioContext *ctx = qemu_get_current_aio_context();
+    QEMUTimer ts;
+
+    aio_timer_init(ctx, &ts, type, SCALE_NS, co_sleep_cb, w);
+    timer_mod(&ts, qemu_clock_get_ns(type) + ns);
+
+    /*
+     * The timer will fire in the current AiOContext, so the callback
+     * must happen after qemu_co_sleep yields and there is no race
+     * between timer_mod and qemu_co_sleep.
+     */
+    qemu_co_sleep(w);
+    timer_del(&ts);
 }

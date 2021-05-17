@@ -303,6 +303,11 @@ typedef struct QemuCoSleep {
 void coroutine_fn qemu_co_sleep_ns_wakeable(QemuCoSleep *w,
                                             QEMUClockType type, int64_t ns);
 
+/**
+ * Yield the coroutine until the next call to qemu_co_sleep_wake.
+ */
+void coroutine_fn qemu_co_sleep(QemuCoSleep *w);
+
 static inline void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns)
 {
     QemuCoSleep w = { 0 };
