@@ -132,7 +132,6 @@ enum {
     /* EOL                                                                   */
     POWERPC_EXCP_NB       = 103,
     /* QEMU exceptions: used internally during code translation              */
-    POWERPC_EXCP_STOP         = 0x200, /* stop translation                   */
     POWERPC_EXCP_BRANCH       = 0x201, /* branch instruction                 */
     /* QEMU exceptions: special cases we want to stop translation            */
     POWERPC_EXCP_SYSCALL_USER = 0x203, /* System call in user mode only      */
