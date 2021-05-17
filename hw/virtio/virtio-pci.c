@@ -37,6 +37,7 @@
 #include "qemu/range.h"
 #include "hw/virtio/virtio-bus.h"
 #include "qapi/visitor.h"
+#include "sysemu/replay.h"
 
 #define VIRTIO_PCI_REGION_SIZE(dev)     VIRTIO_PCI_CONFIG_OFF(msix_present(dev))
 
@@ -1757,6 +1758,11 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
                      !pci_bus_is_root(pci_get_bus(pci_dev));
 
     if (kvm_enabled() && !kvm_has_many_ioeventfds()) {
+        proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
+    }
+
+    /* fd-based ioevents can't be synchronized in record/replay */
+    if (replay_mode != REPLAY_MODE_NONE) {
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
     }
 
