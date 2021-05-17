@@ -17,6 +17,11 @@
  */
 typedef struct SysemuCPUOps {
     /**
+     * @get_memory_mapping: Callback for obtaining the memory mappings.
+     */
+    void (*get_memory_mapping)(CPUState *cpu, MemoryMappingList *list,
+                               Error **errp);
+    /**
      * @get_phys_page_debug: Callback for obtaining a physical address.
      */
     hwaddr (*get_phys_page_debug)(CPUState *cpu, vaddr addr);
