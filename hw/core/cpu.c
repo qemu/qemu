@@ -34,7 +34,6 @@
 #include "hw/qdev-properties.h"
 #include "trace/trace-root.h"
 #include "qemu/plugin.h"
-#include "sysemu/hw_accel.h"
 
 CPUState *cpu_by_arch_id(int64_t id)
 {
