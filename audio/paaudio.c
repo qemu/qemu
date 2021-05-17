@@ -463,10 +463,7 @@ static pa_stream *qpa_simple_new (
 
     pa_stream_set_state_callback(stream, stream_state_cb, c);
 
-    flags =
-        PA_STREAM_INTERPOLATE_TIMING
-        | PA_STREAM_AUTO_TIMING_UPDATE
-        | PA_STREAM_EARLY_REQUESTS;
+    flags = PA_STREAM_EARLY_REQUESTS;
 
     if (dev) {
         /* don't move the stream if the user specified a sink/source */
