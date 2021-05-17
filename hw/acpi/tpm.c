@@ -57,7 +57,7 @@ void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev)
                aml_operation_region(
                    "TPP3", AML_SYSTEM_MEMORY,
                    aml_int(TPM_PPI_ADDR_BASE +
-                           0x15a /* movv, docs/specs/tpm.txt */),
+                           0x15a /* movv, docs/specs/tpm.rst */),
                            0x1));
     field = aml_field("TPP3", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("MOVV", 8));
