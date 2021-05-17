@@ -243,6 +243,8 @@ void *audio_calloc (const char *funcname, int nmemb, size_t size);
 
 void audio_run(AudioState *s, const char *msg);
 
+const char *audio_application_name(void);
+
 typedef struct RateCtl {
     int64_t start_ticks;
     int64_t bytes_sent;

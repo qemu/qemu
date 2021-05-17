@@ -32,6 +32,7 @@
 #include "qapi/qapi-visit-audio.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
+#include "qemu-common.h"
 #include "sysemu/replay.h"
 #include "sysemu/runstate.h"
 #include "ui/qemu-spice.h"
@@ -2170,6 +2171,14 @@ const char *audio_get_id(QEMUSoundCard *card)
     } else {
         return "";
     }
+}
+
+const char *audio_application_name(void)
+{
+    const char *vm_name;
+
+    vm_name = qemu_get_vm_name();
+    return vm_name ? vm_name : "qemu";
 }
 
 void audio_rate_start(RateCtl *rate)
