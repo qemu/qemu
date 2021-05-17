@@ -295,7 +295,7 @@ typedef struct QemuCoSleepState QemuCoSleepState;
 
 /**
  * Yield the coroutine for a given duration. During this yield, @sleep_state
- * (if not NULL) is set to an opaque pointer, which may be used for
+ * is set to an opaque pointer, which may be used for
  * qemu_co_sleep_wake(). Be careful, the pointer is set back to zero when the
  * timer fires. Don't save the obtained value to other variables and don't call
  * qemu_co_sleep_wake from another aio context.
@@ -304,7 +304,8 @@ void coroutine_fn qemu_co_sleep_ns_wakeable(QEMUClockType type, int64_t ns,
                                             QemuCoSleepState **sleep_state);
 static inline void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns)
 {
-    qemu_co_sleep_ns_wakeable(type, ns, NULL);
+    QemuCoSleepState *unused = NULL;
+    qemu_co_sleep_ns_wakeable(type, ns, &unused);
 }
 
 /**

@@ -32,9 +32,7 @@ void qemu_co_sleep_wake(QemuCoSleepState *sleep_state)
                                            qemu_co_sleep_ns__scheduled, NULL);
 
     assert(scheduled == qemu_co_sleep_ns__scheduled);
-    if (sleep_state->user_state_pointer) {
-        *sleep_state->user_state_pointer = NULL;
-    }
+    *sleep_state->user_state_pointer = NULL;
     timer_del(&sleep_state->ts);
     aio_co_wake(sleep_state->co);
 }
@@ -63,16 +61,10 @@ void coroutine_fn qemu_co_sleep_ns_wakeable(QEMUClockType type, int64_t ns,
     }
 
     aio_timer_init(ctx, &state.ts, type, SCALE_NS, co_sleep_cb, &state);
-    if (sleep_state) {
-        *sleep_state = &state;
-    }
+    *sleep_state = &state;
     timer_mod(&state.ts, qemu_clock_get_ns(type) + ns);
     qemu_coroutine_yield();
-    if (sleep_state) {
-        /*
-         * Note that *sleep_state is cleared during qemu_co_sleep_wake
-         * before resuming this coroutine.
-         */
-        assert(*sleep_state == NULL);
-    }
+
+    /* qemu_co_sleep_wake clears *sleep_state before resuming this coroutine.  */
+    assert(*sleep_state == NULL);
 }
