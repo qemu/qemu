@@ -50,7 +50,7 @@ typedef struct BlockCopyCallState {
     /* State */
     int ret;
     bool finished;
-    QemuCoSleepState *sleep_state;
+    QemuCoSleep sleep;
     bool cancelled;
 
     /* OUT parameters */
@@ -625,8 +625,8 @@ block_copy_dirty_clusters(BlockCopyCallState *call_state)
                 if (ns > 0) {
                     block_copy_task_end(task, -EAGAIN);
                     g_free(task);
-                    qemu_co_sleep_ns_wakeable(QEMU_CLOCK_REALTIME, ns,
-                                              &call_state->sleep_state);
+                    qemu_co_sleep_ns_wakeable(&call_state->sleep,
+                                              QEMU_CLOCK_REALTIME, ns);
                     continue;
                 }
             }
@@ -674,7 +674,7 @@ out:
 
 void block_copy_kick(BlockCopyCallState *call_state)
 {
-    qemu_co_sleep_wake(call_state->sleep_state);
+    qemu_co_sleep_wake(&call_state->sleep);
 }
 
 /*

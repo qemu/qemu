@@ -116,7 +116,7 @@ typedef struct BDRVNBDState {
     CoQueue free_sema;
     Coroutine *connection_co;
     Coroutine *teardown_co;
-    QemuCoSleepState *connection_co_sleep_ns_state;
+    QemuCoSleep reconnect_sleep;
     bool drained;
     bool wait_drained_end;
     int in_flight;
@@ -289,7 +289,7 @@ static void coroutine_fn nbd_client_co_drain_begin(BlockDriverState *bs)
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
     s->drained = true;
-    qemu_co_sleep_wake(s->connection_co_sleep_ns_state);
+    qemu_co_sleep_wake(&s->reconnect_sleep);
 
     nbd_co_establish_connection_cancel(bs, false);
 
@@ -328,7 +328,7 @@ static void nbd_teardown_connection(BlockDriverState *bs)
 
     s->state = NBD_CLIENT_QUIT;
     if (s->connection_co) {
-        qemu_co_sleep_wake(s->connection_co_sleep_ns_state);
+        qemu_co_sleep_wake(&s->reconnect_sleep);
         nbd_co_establish_connection_cancel(bs, true);
     }
     if (qemu_in_coroutine()) {
@@ -685,8 +685,8 @@ static coroutine_fn void nbd_co_reconnect_loop(BDRVNBDState *s)
             }
             bdrv_inc_in_flight(s->bs);
         } else {
-            qemu_co_sleep_ns_wakeable(QEMU_CLOCK_REALTIME, timeout,
-                                      &s->connection_co_sleep_ns_state);
+            qemu_co_sleep_ns_wakeable(&s->reconnect_sleep,
+                                      QEMU_CLOCK_REALTIME, timeout);
             if (s->drained) {
                 continue;
             }
