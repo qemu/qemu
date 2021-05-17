@@ -26,6 +26,7 @@
 #ifndef HOST_UTILS_H
 #define HOST_UTILS_H
 
+#include "qemu/compiler.h"
 #include "qemu/bswap.h"
 
 #ifdef CONFIG_INT128
@@ -272,6 +273,9 @@ static inline int ctpop64(uint64_t val)
  */
 static inline uint8_t revbit8(uint8_t x)
 {
+#if __has_builtin(__builtin_bitreverse8)
+    return __builtin_bitreverse8(x);
+#else
     /* Assign the correct nibble position.  */
     x = ((x & 0xf0) >> 4)
       | ((x & 0x0f) << 4);
@@ -281,6 +285,7 @@ static inline uint8_t revbit8(uint8_t x)
       | ((x & 0x22) << 1)
       | ((x & 0x11) << 3);
     return x;
+#endif
 }
 
 /**
@@ -289,6 +294,9 @@ static inline uint8_t revbit8(uint8_t x)
  */
 static inline uint16_t revbit16(uint16_t x)
 {
+#if __has_builtin(__builtin_bitreverse16)
+    return __builtin_bitreverse16(x);
+#else
     /* Assign the correct byte position.  */
     x = bswap16(x);
     /* Assign the correct nibble position.  */
@@ -300,6 +308,7 @@ static inline uint16_t revbit16(uint16_t x)
       | ((x & 0x2222) << 1)
       | ((x & 0x1111) << 3);
     return x;
+#endif
 }
 
 /**
@@ -308,6 +317,9 @@ static inline uint16_t revbit16(uint16_t x)
  */
 static inline uint32_t revbit32(uint32_t x)
 {
+#if __has_builtin(__builtin_bitreverse32)
+    return __builtin_bitreverse32(x);
+#else
     /* Assign the correct byte position.  */
     x = bswap32(x);
     /* Assign the correct nibble position.  */
@@ -319,6 +331,7 @@ static inline uint32_t revbit32(uint32_t x)
       | ((x & 0x22222222u) << 1)
       | ((x & 0x11111111u) << 3);
     return x;
+#endif
 }
 
 /**
@@ -327,6 +340,9 @@ static inline uint32_t revbit32(uint32_t x)
  */
 static inline uint64_t revbit64(uint64_t x)
 {
+#if __has_builtin(__builtin_bitreverse64)
+    return __builtin_bitreverse64(x);
+#else
     /* Assign the correct byte position.  */
     x = bswap64(x);
     /* Assign the correct nibble position.  */
@@ -338,6 +354,281 @@ static inline uint64_t revbit64(uint64_t x)
       | ((x & 0x2222222222222222ull) << 1)
       | ((x & 0x1111111111111111ull) << 3);
     return x;
+#endif
+}
+
+/**
+ * sadd32_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool sadd32_overflow(int32_t x, int32_t y, int32_t *ret)
+{
+#if __has_builtin(__builtin_add_overflow) || __GNUC__ >= 5
+    return __builtin_add_overflow(x, y, ret);
+#else
+    *ret = x + y;
+    return ((*ret ^ x) & ~(x ^ y)) < 0;
+#endif
+}
+
+/**
+ * sadd64_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool sadd64_overflow(int64_t x, int64_t y, int64_t *ret)
+{
+#if __has_builtin(__builtin_add_overflow) || __GNUC__ >= 5
+    return __builtin_add_overflow(x, y, ret);
+#else
+    *ret = x + y;
+    return ((*ret ^ x) & ~(x ^ y)) < 0;
+#endif
+}
+
+/**
+ * uadd32_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool uadd32_overflow(uint32_t x, uint32_t y, uint32_t *ret)
+{
+#if __has_builtin(__builtin_add_overflow) || __GNUC__ >= 5
+    return __builtin_add_overflow(x, y, ret);
+#else
+    *ret = x + y;
+    return *ret < x;
+#endif
+}
+
+/**
+ * uadd64_overflow - addition with overflow indication
+ * @x, @y: addends
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x + @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool uadd64_overflow(uint64_t x, uint64_t y, uint64_t *ret)
+{
+#if __has_builtin(__builtin_add_overflow) || __GNUC__ >= 5
+    return __builtin_add_overflow(x, y, ret);
+#else
+    *ret = x + y;
+    return *ret < x;
+#endif
+}
+
+/**
+ * ssub32_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for difference
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool ssub32_overflow(int32_t x, int32_t y, int32_t *ret)
+{
+#if __has_builtin(__builtin_sub_overflow) || __GNUC__ >= 5
+    return __builtin_sub_overflow(x, y, ret);
+#else
+    *ret = x - y;
+    return ((*ret ^ x) & (x ^ y)) < 0;
+#endif
+}
+
+/**
+ * ssub64_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool ssub64_overflow(int64_t x, int64_t y, int64_t *ret)
+{
+#if __has_builtin(__builtin_sub_overflow) || __GNUC__ >= 5
+    return __builtin_sub_overflow(x, y, ret);
+#else
+    *ret = x - y;
+    return ((*ret ^ x) & (x ^ y)) < 0;
+#endif
+}
+
+/**
+ * usub32_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool usub32_overflow(uint32_t x, uint32_t y, uint32_t *ret)
+{
+#if __has_builtin(__builtin_sub_overflow) || __GNUC__ >= 5
+    return __builtin_sub_overflow(x, y, ret);
+#else
+    *ret = x - y;
+    return x < y;
+#endif
+}
+
+/**
+ * usub64_overflow - subtraction with overflow indication
+ * @x: Minuend
+ * @y: Subtrahend
+ * @ret: Output for sum
+ *
+ * Computes *@ret = @x - @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool usub64_overflow(uint64_t x, uint64_t y, uint64_t *ret)
+{
+#if __has_builtin(__builtin_sub_overflow) || __GNUC__ >= 5
+    return __builtin_sub_overflow(x, y, ret);
+#else
+    *ret = x - y;
+    return x < y;
+#endif
+}
+
+/**
+ * smul32_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool smul32_overflow(int32_t x, int32_t y, int32_t *ret)
+{
+#if __has_builtin(__builtin_mul_overflow) || __GNUC__ >= 5
+    return __builtin_mul_overflow(x, y, ret);
+#else
+    int64_t z = (int64_t)x * y;
+    *ret = z;
+    return *ret != z;
+#endif
+}
+
+/**
+ * smul64_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool smul64_overflow(int64_t x, int64_t y, int64_t *ret)
+{
+#if __has_builtin(__builtin_mul_overflow) || __GNUC__ >= 5
+    return __builtin_mul_overflow(x, y, ret);
+#else
+    uint64_t hi, lo;
+    muls64(&lo, &hi, x, y);
+    *ret = lo;
+    return hi != ((int64_t)lo >> 63);
+#endif
+}
+
+/**
+ * umul32_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool umul32_overflow(uint32_t x, uint32_t y, uint32_t *ret)
+{
+#if __has_builtin(__builtin_mul_overflow) || __GNUC__ >= 5
+    return __builtin_mul_overflow(x, y, ret);
+#else
+    uint64_t z = (uint64_t)x * y;
+    *ret = z;
+    return z > UINT32_MAX;
+#endif
+}
+
+/**
+ * umul64_overflow - multiplication with overflow indication
+ * @x, @y: Input multipliers
+ * @ret: Output for product
+ *
+ * Computes *@ret = @x * @y, and returns true if and only if that
+ * value has been truncated.
+ */
+static inline bool umul64_overflow(uint64_t x, uint64_t y, uint64_t *ret)
+{
+#if __has_builtin(__builtin_mul_overflow) || __GNUC__ >= 5
+    return __builtin_mul_overflow(x, y, ret);
+#else
+    uint64_t hi;
+    mulu64(ret, &hi, x, y);
+    return hi != 0;
+#endif
+}
+
+/**
+ * uadd64_carry - addition with carry-in and carry-out
+ * @x, @y: addends
+ * @pcarry: in-out carry value
+ *
+ * Computes @x + @y + *@pcarry, placing the carry-out back
+ * into *@pcarry and returning the 64-bit sum.
+ */
+static inline uint64_t uadd64_carry(uint64_t x, uint64_t y, bool *pcarry)
+{
+#if __has_builtin(__builtin_addcll)
+    unsigned long long c = *pcarry;
+    x = __builtin_addcll(x, y, c, &c);
+    *pcarry = c & 1;
+    return x;
+#else
+    bool c = *pcarry;
+    /* This is clang's internal expansion of __builtin_addc. */
+    c = uadd64_overflow(x, c, &x);
+    c |= uadd64_overflow(x, y, &x);
+    *pcarry = c;
+    return x;
+#endif
+}
+
+/**
+ * usub64_borrow - subtraction with borrow-in and borrow-out
+ * @x, @y: addends
+ * @pborrow: in-out borrow value
+ *
+ * Computes @x - @y - *@pborrow, placing the borrow-out back
+ * into *@pborrow and returning the 64-bit sum.
+ */
+static inline uint64_t usub64_borrow(uint64_t x, uint64_t y, bool *pborrow)
+{
+#if __has_builtin(__builtin_subcll)
+    unsigned long long b = *pborrow;
+    x = __builtin_subcll(x, y, b, &b);
+    *pborrow = b & 1;
+    return x;
+#else
+    bool b = *pborrow;
+    b = usub64_overflow(x, b, &x);
+    b |= usub64_overflow(x, y, &x);
+    *pborrow = b;
+    return x;
+#endif
 }
 
 /* Host type specific sizes of these routines.  */

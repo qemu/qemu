@@ -14,6 +14,7 @@
 #include <math.h>
 #include <fenv.h>
 #include "qemu/timer.h"
+#include "qemu/int128.h"
 #include "fpu/softfloat.h"
 
 /* amortize the computation of random inputs */
@@ -50,8 +51,10 @@ static const char * const op_names[] = {
 enum precision {
     PREC_SINGLE,
     PREC_DOUBLE,
+    PREC_QUAD,
     PREC_FLOAT32,
     PREC_FLOAT64,
+    PREC_FLOAT128,
     PREC_MAX_NR,
 };
 
@@ -89,6 +92,7 @@ union fp {
     double d;
     float32 f32;
     float64 f64;
+    float128 f128;
     uint64_t u64;
 };
 
@@ -112,6 +116,10 @@ struct op_desc {
 
 static uint64_t random_ops[MAX_OPERANDS] = {
     SEED_A, SEED_B, SEED_C,
+};
+
+static float128 random_quad_ops[MAX_OPERANDS] = {
+    {SEED_A, SEED_B}, {SEED_B, SEED_C}, {SEED_C, SEED_A},
 };
 static float_status soft_status;
 static enum precision precision;
@@ -141,25 +149,45 @@ static void update_random_ops(int n_ops, enum precision prec)
     int i;
 
     for (i = 0; i < n_ops; i++) {
-        uint64_t r = random_ops[i];
 
         switch (prec) {
         case PREC_SINGLE:
         case PREC_FLOAT32:
+        {
+            uint64_t r = random_ops[i];
             do {
                 r = xorshift64star(r);
             } while (!float32_is_normal(r));
+            random_ops[i] = r;
             break;
+        }
         case PREC_DOUBLE:
         case PREC_FLOAT64:
+        {
+            uint64_t r = random_ops[i];
             do {
                 r = xorshift64star(r);
             } while (!float64_is_normal(r));
+            random_ops[i] = r;
             break;
+        }
+        case PREC_QUAD:
+        case PREC_FLOAT128:
+        {
+            float128 r = random_quad_ops[i];
+            uint64_t hi = r.high;
+            uint64_t lo = r.low;
+            do {
+                hi = xorshift64star(hi);
+                lo = xorshift64star(lo);
+                r = make_float128(hi, lo);
+            } while (!float128_is_normal(r));
+            random_quad_ops[i] = r;
+            break;
+        }
         default:
             g_assert_not_reached();
         }
-        random_ops[i] = r;
     }
 }
 
@@ -182,6 +210,13 @@ static void fill_random(union fp *ops, int n_ops, enum precision prec,
             ops[i].f64 = make_float64(random_ops[i]);
             if (no_neg && float64_is_neg(ops[i].f64)) {
                 ops[i].f64 = float64_chs(ops[i].f64);
+            }
+            break;
+        case PREC_QUAD:
+        case PREC_FLOAT128:
+            ops[i].f128 = random_quad_ops[i];
+            if (no_neg && float128_is_neg(ops[i].f128)) {
+                ops[i].f128 = float128_chs(ops[i].f128);
             }
             break;
         default:
@@ -345,6 +380,41 @@ static void bench(enum precision prec, enum op op, int n_ops, bool no_neg)
                 }
             }
             break;
+        case PREC_FLOAT128:
+            fill_random(ops, n_ops, prec, no_neg);
+            t0 = get_clock();
+            for (i = 0; i < OPS_PER_ITER; i++) {
+                float128 a = ops[0].f128;
+                float128 b = ops[1].f128;
+                float128 c = ops[2].f128;
+
+                switch (op) {
+                case OP_ADD:
+                    res.f128 = float128_add(a, b, &soft_status);
+                    break;
+                case OP_SUB:
+                    res.f128 = float128_sub(a, b, &soft_status);
+                    break;
+                case OP_MUL:
+                    res.f128 = float128_mul(a, b, &soft_status);
+                    break;
+                case OP_DIV:
+                    res.f128 = float128_div(a, b, &soft_status);
+                    break;
+                case OP_FMA:
+                    res.f128 = float128_muladd(a, b, c, 0, &soft_status);
+                    break;
+                case OP_SQRT:
+                    res.f128 = float128_sqrt(a, &soft_status);
+                    break;
+                case OP_CMP:
+                    res.u64 = float128_compare_quiet(a, b, &soft_status);
+                    break;
+                default:
+                    g_assert_not_reached();
+                }
+            }
+            break;
         default:
             g_assert_not_reached();
         }
@@ -369,7 +439,8 @@ static void bench(enum precision prec, enum op op, int n_ops, bool no_neg)
     GEN_BENCH(bench_ ## opname ## _float, float, PREC_SINGLE, op, n_ops) \
     GEN_BENCH(bench_ ## opname ## _double, double, PREC_DOUBLE, op, n_ops) \
     GEN_BENCH(bench_ ## opname ## _float32, float32, PREC_FLOAT32, op, n_ops) \
-    GEN_BENCH(bench_ ## opname ## _float64, float64, PREC_FLOAT64, op, n_ops)
+    GEN_BENCH(bench_ ## opname ## _float64, float64, PREC_FLOAT64, op, n_ops) \
+    GEN_BENCH(bench_ ## opname ## _float128, float128, PREC_FLOAT128, op, n_ops)
 
 GEN_BENCH_ALL_TYPES(add, OP_ADD, 2)
 GEN_BENCH_ALL_TYPES(sub, OP_SUB, 2)
@@ -383,7 +454,8 @@ GEN_BENCH_ALL_TYPES(cmp, OP_CMP, 2)
     GEN_BENCH_NO_NEG(bench_ ## name ## _float, float, PREC_SINGLE, op, n) \
     GEN_BENCH_NO_NEG(bench_ ## name ## _double, double, PREC_DOUBLE, op, n) \
     GEN_BENCH_NO_NEG(bench_ ## name ## _float32, float32, PREC_FLOAT32, op, n) \
-    GEN_BENCH_NO_NEG(bench_ ## name ## _float64, float64, PREC_FLOAT64, op, n)
+    GEN_BENCH_NO_NEG(bench_ ## name ## _float64, float64, PREC_FLOAT64, op, n) \
+    GEN_BENCH_NO_NEG(bench_ ## name ## _float128, float128, PREC_FLOAT128, op, n)
 
 GEN_BENCH_ALL_TYPES_NO_NEG(sqrt, OP_SQRT, 1)
 #undef GEN_BENCH_ALL_TYPES_NO_NEG
@@ -397,6 +469,7 @@ GEN_BENCH_ALL_TYPES_NO_NEG(sqrt, OP_SQRT, 1)
         [PREC_DOUBLE]    = bench_ ## opname ## _double,         \
         [PREC_FLOAT32]   = bench_ ## opname ## _float32,        \
         [PREC_FLOAT64]   = bench_ ## opname ## _float64,        \
+        [PREC_FLOAT128]   = bench_ ## opname ## _float128,      \
     }
 
 static const bench_func_t bench_funcs[OP_MAX_NR][PREC_MAX_NR] = {
@@ -445,7 +518,7 @@ static void usage_complete(int argc, char *argv[])
     fprintf(stderr, " -h = show this help message.\n");
     fprintf(stderr, " -o = floating point operation (%s). Default: %s\n",
             op_list, op_names[0]);
-    fprintf(stderr, " -p = floating point precision (single, double). "
+    fprintf(stderr, " -p = floating point precision (single, double, quad[soft only]). "
             "Default: single\n");
     fprintf(stderr, " -r = rounding mode (even, zero, down, up, tieaway). "
             "Default: even\n");
@@ -565,6 +638,8 @@ static void parse_args(int argc, char *argv[])
                 precision = PREC_SINGLE;
             } else if (!strcmp(optarg, "double")) {
                 precision = PREC_DOUBLE;
+            } else if (!strcmp(optarg, "quad")) {
+                precision = PREC_QUAD;
             } else {
                 fprintf(stderr, "Unsupported precision '%s'\n", optarg);
                 exit(EXIT_FAILURE);
@@ -607,6 +682,9 @@ static void parse_args(int argc, char *argv[])
             break;
         case PREC_DOUBLE:
             precision = PREC_FLOAT64;
+            break;
+        case PREC_QUAD:
+            precision = PREC_FLOAT128;
             break;
         default:
             g_assert_not_reached();
