@@ -441,9 +441,12 @@ hwaddr superh_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     target_ulong physical;
     int prot;
 
-    get_physical_address(&cpu->env, &physical, &prot, addr, MMU_DATA_LOAD);
+    if (get_physical_address(&cpu->env, &physical, &prot, addr, MMU_DATA_LOAD)
+            == MMU_OK) {
+        return physical;
+    }
 
-    return physical;
+    return -1;
 }
 
 void cpu_load_tlb(CPUSH4State * env)
