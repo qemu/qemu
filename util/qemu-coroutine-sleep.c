@@ -21,7 +21,7 @@ static const char *qemu_co_sleep_ns__scheduled = "qemu_co_sleep_ns";
 
 struct QemuCoSleepState {
     Coroutine *co;
-    QEMUTimer *ts;
+    QEMUTimer ts;
     QemuCoSleepState **user_state_pointer;
 };
 
@@ -35,7 +35,7 @@ void qemu_co_sleep_wake(QemuCoSleepState *sleep_state)
     if (sleep_state->user_state_pointer) {
         *sleep_state->user_state_pointer = NULL;
     }
-    timer_del(sleep_state->ts);
+    timer_del(&sleep_state->ts);
     aio_co_wake(sleep_state->co);
 }
 
@@ -50,7 +50,6 @@ void coroutine_fn qemu_co_sleep_ns_wakeable(QEMUClockType type, int64_t ns,
     AioContext *ctx = qemu_get_current_aio_context();
     QemuCoSleepState state = {
         .co = qemu_coroutine_self(),
-        .ts = aio_timer_new(ctx, type, SCALE_NS, co_sleep_cb, &state),
         .user_state_pointer = sleep_state,
     };
 
@@ -63,10 +62,11 @@ void coroutine_fn qemu_co_sleep_ns_wakeable(QEMUClockType type, int64_t ns,
         abort();
     }
 
+    aio_timer_init(ctx, &state.ts, type, SCALE_NS, co_sleep_cb, &state);
     if (sleep_state) {
         *sleep_state = &state;
     }
-    timer_mod(state.ts, qemu_clock_get_ns(type) + ns);
+    timer_mod(&state.ts, qemu_clock_get_ns(type) + ns);
     qemu_coroutine_yield();
     if (sleep_state) {
         /*
@@ -75,5 +75,4 @@ void coroutine_fn qemu_co_sleep_ns_wakeable(QEMUClockType type, int64_t ns,
          */
         assert(*sleep_state == NULL);
     }
-    timer_free(state.ts);
 }
