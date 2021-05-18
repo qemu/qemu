@@ -134,7 +134,7 @@ static int check_prot(int prot, MMUAccessType access_type)
 
 static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
                                 target_ulong pte1, int h,
-                                MMUAccessType access_type, int type)
+                                MMUAccessType access_type)
 {
     target_ulong ptem, mmask;
     int access, ret, pteh, ptev, pp;
@@ -316,7 +316,7 @@ static int ppc6xx_tlb_check(CPUPPCState *env, mmu_ctx_t *ctx,
                   access_type == MMU_DATA_STORE ? 'S' : 'L',
                   type == ACCESS_CODE ? 'I' : 'D');
         switch (ppc6xx_tlb_pte_check(ctx, tlb->pte0, tlb->pte1,
-                                     0, access_type, type)) {
+                                     0, access_type)) {
         case -3:
             /* TLB inconsistency */
             return -1;
