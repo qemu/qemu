@@ -15,7 +15,7 @@
 #define QEMU_TMP105_H
 
 #include "hw/i2c/i2c.h"
-#include "hw/misc/tmp105_regs.h"
+#include "hw/sensor/tmp105_regs.h"
 #include "qom/object.h"
 
 #define TYPE_TMP105 "tmp105"

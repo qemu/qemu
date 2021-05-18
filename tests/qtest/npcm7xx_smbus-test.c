@@ -18,7 +18,7 @@
 #include "qemu/bitops.h"
 #include "libqos/i2c.h"
 #include "libqos/libqtest.h"
-#include "hw/misc/tmp105_regs.h"
+#include "hw/sensor/tmp105_regs.h"
 
 #define NR_SMBUS_DEVICES    16
 #define SMBUS_ADDR(x)       (0xf0080000 + 0x1000 * (x))

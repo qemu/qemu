@@ -36,7 +36,7 @@
 #include "hw/display/blizzard.h"
 #include "hw/input/tsc2xxx.h"
 #include "hw/misc/cbus.h"
-#include "hw/misc/tmp105.h"
+#include "hw/sensor/tmp105.h"
 #include "hw/qdev-properties.h"
 #include "hw/block/flash.h"
 #include "hw/hw.h"
