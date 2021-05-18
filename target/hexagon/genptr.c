@@ -26,6 +26,7 @@
 #include "macros.h"
 #undef QEMU_GENERATE
 #include "gen_tcg.h"
+#include "gen_tcg_hvx.h"
 
 static inline void gen_log_predicated_reg_write(int rnum, TCGv val, int slot)
 {
