@@ -662,8 +662,7 @@ static inline void ppc4xx_tlb_invalidate_all(CPUPPCState *env)
 
 static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
                                        target_ulong address,
-                                       MMUAccessType access_type,
-                                       int type)
+                                       MMUAccessType access_type)
 {
     ppcemb_tlb_t *tlb;
     hwaddr raddr;
@@ -1426,8 +1425,7 @@ static int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
         if (real_mode) {
             ret = check_physical(env, ctx, eaddr, access_type);
         } else {
-            ret = mmu40x_get_physical_address(env, ctx, eaddr,
-                                              access_type, type);
+            ret = mmu40x_get_physical_address(env, ctx, eaddr, access_type);
         }
         break;
     case POWERPC_MMU_BOOKE:
