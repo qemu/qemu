@@ -366,14 +366,12 @@ int virtio_send_data_iov(struct fuse_session *se, struct fuse_chan *ch,
     if (in_len < sizeof(struct fuse_out_header)) {
         fuse_log(FUSE_LOG_ERR, "%s: elem %d too short for out_header\n",
                  __func__, elem->index);
-        ret = E2BIG;
-        goto err;
+        return E2BIG;
     }
     if (in_len < tosend_len) {
         fuse_log(FUSE_LOG_ERR, "%s: elem %d too small for data len %zd\n",
                  __func__, elem->index, tosend_len);
-        ret = E2BIG;
-        goto err;
+        return E2BIG;
     }
 
     /* TODO: Limit to 'len' */
@@ -408,7 +406,7 @@ int virtio_send_data_iov(struct fuse_session *se, struct fuse_chan *ch,
             }
             fuse_log(FUSE_LOG_DEBUG, "%s: preadv failed (%m) len=%zd\n",
                      __func__, len);
-            goto err;
+            return ret;
         }
 
         if (!ret) {
@@ -438,21 +436,14 @@ int virtio_send_data_iov(struct fuse_session *se, struct fuse_chan *ch,
         out_sg->len = tosend_len;
     }
 
-    ret = 0;
-
     vu_dispatch_rdlock(qi->virtio_dev);
     pthread_mutex_lock(&qi->vq_lock);
     vu_queue_push(dev, q, elem, tosend_len);
     vu_queue_notify(dev, q);
     pthread_mutex_unlock(&qi->vq_lock);
     vu_dispatch_unlock(qi->virtio_dev);
-
-err:
-    if (ret == 0) {
-        req->reply_sent = true;
-    }
-
-    return ret;
+    req->reply_sent = true;
+    return 0;
 }
 
 static __thread bool clone_fs_called;
