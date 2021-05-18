@@ -1026,7 +1026,7 @@ found_tlb:
 static int mmubooke206_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
                                             target_ulong address,
                                             MMUAccessType access_type,
-                                            int type, int mmu_idx)
+                                            int mmu_idx)
 {
     ppcmas_tlb_t *tlb;
     hwaddr raddr;
@@ -1398,7 +1398,7 @@ static int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
         break;
     case POWERPC_MMU_BOOKE206:
         ret = mmubooke206_get_physical_address(env, ctx, eaddr, access_type,
-                                               type, mmu_idx);
+                                               mmu_idx);
         break;
     case POWERPC_MMU_MPC8xx:
         /* XXX: TODO */
