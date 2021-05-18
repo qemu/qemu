@@ -25,11 +25,6 @@ config ONENAND
 config TC58128
     bool
 
-config NVME_PCI
-    bool
-    default y if PCI_DEVICES
-    depends on PCI
-
 config VIRTIO_BLK
     bool
     default y

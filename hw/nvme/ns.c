@@ -14,23 +14,16 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "qemu/cutils.h"
-#include "qemu/log.h"
 #include "qemu/error-report.h"
-#include "hw/block/block.h"
-#include "hw/pci/pci.h"
+#include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
-#include "qapi/error.h"
 
-#include "hw/qdev-properties.h"
-#include "hw/qdev-core.h"
-
-#include "trace.h"
 #include "nvme.h"
-#include "nvme-ns.h"
+#include "trace.h"
 
 #define MIN_DISCARD_GRANULARITY (4 * KiB)
+#define NVME_DEFAULT_ZONE_SIZE   (128 * MiB)
 
 void nvme_ns_init_format(NvmeNamespace *ns)
 {
@@ -38,7 +31,10 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     BlockDriverInfo bdi;
     int npdg, nlbas, ret;
 
-    nlbas = nvme_ns_nlbas(ns);
+    ns->lbaf = id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(id_ns->flbas)];
+    ns->lbasz = 1 << ns->lbaf.ds;
+
+    nlbas = ns->size / (ns->lbasz + ns->lbaf.ms);
 
     id_ns->nsze = cpu_to_le64(nlbas);
 
@@ -46,13 +42,13 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     id_ns->ncap = id_ns->nsze;
     id_ns->nuse = id_ns->ncap;
 
-    ns->mdata_offset = nvme_l2b(ns, nlbas);
+    ns->moff = (int64_t)nlbas << ns->lbaf.ds;
 
-    npdg = ns->blkconf.discard_granularity / nvme_lsize(ns);
+    npdg = ns->blkconf.discard_granularity / ns->lbasz;
 
     ret = bdrv_get_info(blk_bs(ns->blkconf.blk), &bdi);
     if (ret >= 0 && bdi.cluster_size > ns->blkconf.discard_granularity) {
-        npdg = bdi.cluster_size / nvme_lsize(ns);
+        npdg = bdi.cluster_size / ns->lbasz;
     }
 
     id_ns->npda = id_ns->npdg = npdg - 1;
@@ -170,7 +166,6 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
 static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
 {
     uint64_t zone_size, zone_cap;
-    uint32_t lbasz = nvme_lsize(ns);
 
     /* Make sure that the values of ZNS properties are sane */
     if (ns->params.zone_size_bs) {
@@ -188,14 +183,14 @@ static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
                    "zone size %"PRIu64"B", zone_cap, zone_size);
         return -1;
     }
-    if (zone_size < lbasz) {
+    if (zone_size < ns->lbasz) {
         error_setg(errp, "zone size %"PRIu64"B too small, "
-                   "must be at least %"PRIu32"B", zone_size, lbasz);
+                   "must be at least %zuB", zone_size, ns->lbasz);
         return -1;
     }
-    if (zone_cap < lbasz) {
+    if (zone_cap < ns->lbasz) {
         error_setg(errp, "zone capacity %"PRIu64"B too small, "
-                   "must be at least %"PRIu32"B", zone_cap, lbasz);
+                   "must be at least %zuB", zone_cap, ns->lbasz);
         return -1;
     }
 
@@ -203,9 +198,9 @@ static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
      * Save the main zone geometry values to avoid
      * calculating them later again.
      */
-    ns->zone_size = zone_size / lbasz;
-    ns->zone_capacity = zone_cap / lbasz;
-    ns->num_zones = nvme_ns_nlbas(ns) / ns->zone_size;
+    ns->zone_size = zone_size / ns->lbasz;
+    ns->zone_capacity = zone_cap / ns->lbasz;
+    ns->num_zones = le64_to_cpu(ns->id_ns.nsze) / ns->zone_size;
 
     /* Do a few more sanity checks of ZNS properties */
     if (!ns->num_zones) {
@@ -213,43 +208,6 @@ static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
                    "insufficient drive capacity, must be at least the size "
                    "of one zone (%"PRIu64"B)", zone_size);
         return -1;
-    }
-
-    if (ns->params.max_open_zones > ns->num_zones) {
-        error_setg(errp,
-                   "max_open_zones value %u exceeds the number of zones %u",
-                   ns->params.max_open_zones, ns->num_zones);
-        return -1;
-    }
-    if (ns->params.max_active_zones > ns->num_zones) {
-        error_setg(errp,
-                   "max_active_zones value %u exceeds the number of zones %u",
-                   ns->params.max_active_zones, ns->num_zones);
-        return -1;
-    }
-
-    if (ns->params.max_active_zones) {
-        if (ns->params.max_open_zones > ns->params.max_active_zones) {
-            error_setg(errp, "max_open_zones (%u) exceeds max_active_zones (%u)",
-                       ns->params.max_open_zones, ns->params.max_active_zones);
-            return -1;
-        }
-
-        if (!ns->params.max_open_zones) {
-            ns->params.max_open_zones = ns->params.max_active_zones;
-        }
-    }
-
-    if (ns->params.zd_extension_size) {
-        if (ns->params.zd_extension_size & 0x3f) {
-            error_setg(errp,
-                "zone descriptor extension size must be a multiple of 64B");
-            return -1;
-        }
-        if ((ns->params.zd_extension_size >> 6) > 0xff) {
-            error_setg(errp, "zone descriptor extension size is too large");
-            return -1;
-        }
     }
 
     return 0;
@@ -303,7 +261,7 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
 
     id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
 
-    /* MAR/MOR are zeroes-based, 0xffffffff means no limit */
+    /* MAR/MOR are zeroes-based, FFFFFFFFFh means no limit */
     id_ns_z->mar = cpu_to_le32(ns->params.max_active_zones - 1);
     id_ns_z->mor = cpu_to_le32(ns->params.max_open_zones - 1);
     id_ns_z->zoc = 0;
@@ -418,6 +376,34 @@ static int nvme_ns_check_constraints(NvmeCtrl *n, NvmeNamespace *ns,
             error_setg(errp, "shared requires that the nvme device is "
                        "linked to an nvme-subsys device");
             return -1;
+        }
+    }
+
+    if (ns->params.zoned) {
+        if (ns->params.max_active_zones) {
+            if (ns->params.max_open_zones > ns->params.max_active_zones) {
+                error_setg(errp, "max_open_zones (%u) exceeds "
+                           "max_active_zones (%u)", ns->params.max_open_zones,
+                           ns->params.max_active_zones);
+                return -1;
+            }
+
+            if (!ns->params.max_open_zones) {
+                ns->params.max_open_zones = ns->params.max_active_zones;
+            }
+        }
+
+        if (ns->params.zd_extension_size) {
+            if (ns->params.zd_extension_size & 0x3f) {
+                error_setg(errp, "zone descriptor extension size must be a "
+                           "multiple of 64B");
+                return -1;
+            }
+            if ((ns->params.zd_extension_size >> 6) > 0xff) {
+                error_setg(errp,
+                           "zone descriptor extension size is too large");
+                return -1;
+            }
         }
     }
 

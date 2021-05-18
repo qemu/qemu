@@ -9,13 +9,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/block/block.h"
-#include "sysemu/dma.h"
-#include "sysemu/block-backend.h"
 #include "qapi/error.h"
-#include "trace.h"
+#include "sysemu/block-backend.h"
+
 #include "nvme.h"
-#include "nvme-dif.h"
+#include "trace.h"
 
 uint16_t nvme_check_prinfo(NvmeNamespace *ns, uint16_t ctrl, uint64_t slba,
                            uint32_t reftag)
@@ -46,20 +44,18 @@ void nvme_dif_pract_generate_dif(NvmeNamespace *ns, uint8_t *buf, size_t len,
                                  uint32_t reftag)
 {
     uint8_t *end = buf + len;
-    size_t lsize = nvme_lsize(ns);
-    size_t msize = nvme_msize(ns);
     int16_t pil = 0;
 
     if (!(ns->id_ns.dps & NVME_ID_NS_DPS_FIRST_EIGHT)) {
-        pil = nvme_msize(ns) - sizeof(NvmeDifTuple);
+        pil = ns->lbaf.ms - sizeof(NvmeDifTuple);
     }
 
-    trace_pci_nvme_dif_pract_generate_dif(len, lsize, lsize + pil, apptag,
-                                          reftag);
+    trace_pci_nvme_dif_pract_generate_dif(len, ns->lbasz, ns->lbasz + pil,
+                                          apptag, reftag);
 
-    for (; buf < end; buf += lsize, mbuf += msize) {
+    for (; buf < end; buf += ns->lbasz, mbuf += ns->lbaf.ms) {
         NvmeDifTuple *dif = (NvmeDifTuple *)(mbuf + pil);
-        uint16_t crc = crc_t10dif(0x0, buf, lsize);
+        uint16_t crc = crc_t10dif(0x0, buf, ns->lbasz);
 
         if (pil) {
             crc = crc_t10dif(crc, mbuf, pil);
@@ -100,7 +96,7 @@ static uint16_t nvme_dif_prchk(NvmeNamespace *ns, NvmeDifTuple *dif,
     }
 
     if (ctrl & NVME_RW_PRINFO_PRCHK_GUARD) {
-        uint16_t crc = crc_t10dif(0x0, buf, nvme_lsize(ns));
+        uint16_t crc = crc_t10dif(0x0, buf, ns->lbasz);
 
         if (pil) {
             crc = crc_t10dif(crc, mbuf, pil);
@@ -139,8 +135,6 @@ uint16_t nvme_dif_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
                         uint16_t appmask, uint32_t reftag)
 {
     uint8_t *end = buf + len;
-    size_t lsize = nvme_lsize(ns);
-    size_t msize = nvme_msize(ns);
     int16_t pil = 0;
     uint16_t status;
 
@@ -150,12 +144,12 @@ uint16_t nvme_dif_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
     }
 
     if (!(ns->id_ns.dps & NVME_ID_NS_DPS_FIRST_EIGHT)) {
-        pil = nvme_msize(ns) - sizeof(NvmeDifTuple);
+        pil = ns->lbaf.ms - sizeof(NvmeDifTuple);
     }
 
-    trace_pci_nvme_dif_check(NVME_RW_PRINFO(ctrl), lsize + pil);
+    trace_pci_nvme_dif_check(NVME_RW_PRINFO(ctrl), ns->lbasz + pil);
 
-    for (; buf < end; buf += lsize, mbuf += msize) {
+    for (; buf < end; buf += ns->lbasz, mbuf += ns->lbaf.ms) {
         NvmeDifTuple *dif = (NvmeDifTuple *)(mbuf + pil);
 
         status = nvme_dif_prchk(ns, dif, buf, mbuf, pil, ctrl, apptag,
@@ -178,20 +172,18 @@ uint16_t nvme_dif_mangle_mdata(NvmeNamespace *ns, uint8_t *mbuf, size_t mlen,
     BlockBackend *blk = ns->blkconf.blk;
     BlockDriverState *bs = blk_bs(blk);
 
-    size_t msize = nvme_msize(ns);
-    size_t lsize = nvme_lsize(ns);
     int64_t moffset = 0, offset = nvme_l2b(ns, slba);
     uint8_t *mbufp, *end;
     bool zeroed;
     int16_t pil = 0;
-    int64_t bytes = (mlen / msize) * lsize;
+    int64_t bytes = (mlen / ns->lbaf.ms) << ns->lbaf.ds;
     int64_t pnum = 0;
 
     Error *err = NULL;
 
 
     if (!(ns->id_ns.dps & NVME_ID_NS_DPS_FIRST_EIGHT)) {
-        pil = nvme_msize(ns) - sizeof(NvmeDifTuple);
+        pil = ns->lbaf.ms - sizeof(NvmeDifTuple);
     }
 
     do {
@@ -213,15 +205,15 @@ uint16_t nvme_dif_mangle_mdata(NvmeNamespace *ns, uint8_t *mbuf, size_t mlen,
 
         if (zeroed) {
             mbufp = mbuf + moffset;
-            mlen = (pnum / lsize) * msize;
+            mlen = (pnum >> ns->lbaf.ds) * ns->lbaf.ms;
             end = mbufp + mlen;
 
-            for (; mbufp < end; mbufp += msize) {
+            for (; mbufp < end; mbufp += ns->lbaf.ms) {
                 memset(mbufp + pil, 0xff, sizeof(NvmeDifTuple));
             }
         }
 
-        moffset += (pnum / lsize) * msize;
+        moffset += (pnum >> ns->lbaf.ds) * ns->lbaf.ms;
         offset += pnum;
     } while (pnum != bytes);
 
@@ -291,7 +283,7 @@ static void nvme_dif_rw_check_cb(void *opaque, int ret)
         goto out;
     }
 
-    if (ctrl & NVME_RW_PRINFO_PRACT && nvme_msize(ns) == 8) {
+    if (ctrl & NVME_RW_PRINFO_PRACT && ns->lbaf.ms == 8) {
         goto out;
     }
 
@@ -314,7 +306,7 @@ static void nvme_dif_rw_mdata_in_cb(void *opaque, int ret)
     uint64_t slba = le64_to_cpu(rw->slba);
     uint32_t nlb = le16_to_cpu(rw->nlb) + 1;
     size_t mlen = nvme_m2b(ns, nlb);
-    uint64_t offset = ns->mdata_offset + nvme_m2b(ns, slba);
+    uint64_t offset = nvme_moff(ns, slba);
     BlockBackend *blk = ns->blkconf.blk;
 
     trace_pci_nvme_dif_rw_mdata_in_cb(nvme_cid(req), blk_name(blk));
@@ -343,7 +335,7 @@ static void nvme_dif_rw_mdata_out_cb(void *opaque, int ret)
     NvmeNamespace *ns = req->ns;
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
     uint64_t slba = le64_to_cpu(rw->slba);
-    uint64_t offset = ns->mdata_offset + nvme_m2b(ns, slba);
+    uint64_t offset = nvme_moff(ns, slba);
     BlockBackend *blk = ns->blkconf.blk;
 
     trace_pci_nvme_dif_rw_mdata_out_cb(nvme_cid(req), blk_name(blk));
@@ -395,8 +387,7 @@ uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
 
         if (pract) {
             uint8_t *mbuf, *end;
-            size_t msize = nvme_msize(ns);
-            int16_t pil = msize - sizeof(NvmeDifTuple);
+            int16_t pil = ns->lbaf.ms - sizeof(NvmeDifTuple);
 
             status = nvme_check_prinfo(ns, ctrl, slba, reftag);
             if (status) {
@@ -417,7 +408,7 @@ uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
                 pil = 0;
             }
 
-            for (; mbuf < end; mbuf += msize) {
+            for (; mbuf < end; mbuf += ns->lbaf.ms) {
                 NvmeDifTuple *dif = (NvmeDifTuple *)(mbuf + pil);
 
                 dif->apptag = cpu_to_be16(apptag);
@@ -436,7 +427,7 @@ uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
         return NVME_NO_COMPLETE;
     }
 
-    if (nvme_ns_ext(ns) && !(pract && nvme_msize(ns) == 8)) {
+    if (nvme_ns_ext(ns) && !(pract && ns->lbaf.ms == 8)) {
         mapped_len += mlen;
     }
 
@@ -470,7 +461,7 @@ uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
     qemu_iovec_init(&ctx->mdata.iov, 1);
     qemu_iovec_add(&ctx->mdata.iov, ctx->mdata.bounce, mlen);
 
-    if (!(pract && nvme_msize(ns) == 8)) {
+    if (!(pract && ns->lbaf.ms == 8)) {
         status = nvme_bounce_mdata(n, ctx->mdata.bounce, ctx->mdata.iov.size,
                                    NVME_TX_DIRECTION_TO_DEVICE, req);
         if (status) {
