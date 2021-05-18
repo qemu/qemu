@@ -2042,8 +2042,15 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
             int i;
             qemu_log("  data: [size=%d]\n", data_size);
             for (i = 0; i < data_size / sizeof(tcg_target_ulong); i++) {
-                qemu_log("0x%08" PRIxPTR ":  .quad  0x%" TCG_PRIlx "\n",
-                         (uintptr_t)&rx_data_gen_ptr[i], rx_data_gen_ptr[i]);
+                if (sizeof(tcg_target_ulong) == 8) {
+                    qemu_log("0x%08" PRIxPTR ":  .quad  0x%016" TCG_PRIlx "\n",
+                             (uintptr_t)&rx_data_gen_ptr[i], rx_data_gen_ptr[i]);
+                } else if (sizeof(tcg_target_ulong) == 4) {
+                    qemu_log("0x%08" PRIxPTR ":  .long  0x%08" TCG_PRIlx "\n",
+                             (uintptr_t)&rx_data_gen_ptr[i], rx_data_gen_ptr[i]);
+                } else {
+                    qemu_build_not_reached();
+                }
             }
         }
         qemu_log("\n");

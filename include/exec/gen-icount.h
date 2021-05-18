@@ -1,6 +1,7 @@
 #ifndef GEN_ICOUNT_H
 #define GEN_ICOUNT_H
 
+#include "exec/exec-all.h"
 #include "qemu/timer.h"
 
 /* Helpers for instruction counting code generation.  */
