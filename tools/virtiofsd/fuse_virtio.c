@@ -446,11 +446,6 @@ int virtio_send_data_iov(struct fuse_session *se, struct fuse_chan *ch,
                      in_sg_left);
             break;
         }
-        if (ret != len) {
-            fuse_log(FUSE_LOG_DEBUG, "%s: ret!=len\n", __func__);
-            ret = EIO;
-            goto err;
-        }
         in_sg_left -= ret;
         len -= ret;
     } while (in_sg_left);
