@@ -228,4 +228,23 @@ void destroy_ppc_opcodes(PowerPCCPU *cpu);
 void ppc_gdb_init(CPUState *cs, PowerPCCPUClass *ppc);
 gchar *ppc_gdb_arch_name(CPUState *cs);
 
+/**
+ * prot_for_access_type:
+ * @access_type: Access type
+ *
+ * Return the protection bit required for the given access type.
+ */
+static inline int prot_for_access_type(MMUAccessType access_type)
+{
+    switch (access_type) {
+    case MMU_INST_FETCH:
+        return PAGE_EXEC;
+    case MMU_DATA_LOAD:
+        return PAGE_READ;
+    case MMU_DATA_STORE:
+        return PAGE_WRITE;
+    }
+    g_assert_not_reached();
+}
+
 #endif /* PPC_INTERNAL_H */

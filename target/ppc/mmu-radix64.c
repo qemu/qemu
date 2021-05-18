@@ -25,6 +25,7 @@
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "exec/log.h"
+#include "internal.h"
 #include "mmu-radix64.h"
 #include "mmu-book3s-v3.h"
 
@@ -135,7 +136,7 @@ static bool ppc_radix64_check_prot(PowerPCCPU *cpu, int rwx, uint64_t pte,
                                    bool partition_scoped)
 {
     CPUPPCState *env = &cpu->env;
-    const int need_prot[] = { PAGE_READ, PAGE_WRITE, PAGE_EXEC };
+    int need_prot;
 
     /* Check Page Attributes (pte58:59) */
     if (((pte & R_PTE_ATT) == R_PTE_ATT_NI_IO) && (rwx == 2)) {
@@ -158,7 +159,8 @@ static bool ppc_radix64_check_prot(PowerPCCPU *cpu, int rwx, uint64_t pte,
     }
 
     /* Check if requested access type is allowed */
-    if (need_prot[rwx] & ~(*prot)) { /* Page Protected for that Access */
+    need_prot = prot_for_access_type(rwx);
+    if (need_prot & ~*prot) { /* Page Protected for that Access */
         *fault_cause |= DSISR_PROTFAULT;
         return true;
     }

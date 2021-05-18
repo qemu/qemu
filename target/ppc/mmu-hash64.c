@@ -29,6 +29,7 @@
 #include "mmu-hash64.h"
 #include "exec/log.h"
 #include "hw/hw.h"
+#include "internal.h"
 #include "mmu-book3s-v3.h"
 #include "helper_regs.h"
 
@@ -876,7 +877,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     hwaddr ptex;
     ppc_hash_pte64_t pte;
     int exec_prot, pp_prot, amr_prot, prot;
-    const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
+    int need_prot;
     hwaddr raddr;
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
@@ -996,7 +997,8 @@ skip_slb_search:
     amr_prot = ppc_hash64_amr_prot(cpu, pte);
     prot = exec_prot & pp_prot & amr_prot;
 
-    if ((need_prot[rwx] & ~prot) != 0) {
+    need_prot = prot_for_access_type(rwx);
+    if (need_prot & ~prot) {
         /* Access right violation */
         qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
         if (rwx == 2) {
@@ -1012,13 +1014,13 @@ skip_slb_search:
             ppc_hash64_set_isi(cs, srr1);
         } else {
             int dsisr = 0;
-            if (need_prot[rwx] & ~pp_prot) {
+            if (need_prot & ~pp_prot) {
                 dsisr |= DSISR_PROTFAULT;
             }
             if (rwx == 1) {
                 dsisr |= DSISR_ISSTORE;
             }
-            if (need_prot[rwx] & ~amr_prot) {
+            if (need_prot & ~amr_prot) {
                 dsisr |= DSISR_AMR;
             }
             ppc_hash64_set_dsi(cs, eaddr, dsisr);

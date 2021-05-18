@@ -24,6 +24,7 @@
 #include "exec/helper-proto.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
+#include "internal.h"
 #include "mmu-hash32.h"
 #include "exec/log.h"
 
@@ -421,10 +422,11 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     hwaddr pte_offset;
     ppc_hash_pte32_t pte;
     int prot;
-    const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
+    int need_prot;
     hwaddr raddr;
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
+    need_prot = prot_for_access_type(rwx);
 
     /* 1. Handle real mode accesses */
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
@@ -440,7 +442,7 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     if (env->nb_BATs != 0) {
         raddr = ppc_hash32_bat_lookup(cpu, eaddr, rwx, &prot);
         if (raddr != -1) {
-            if (need_prot[rwx] & ~prot) {
+            if (need_prot & ~prot) {
                 if (rwx == 2) {
                     cs->exception_index = POWERPC_EXCP_ISI;
                     env->error_code = 0x08000000;
@@ -513,7 +515,7 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
 
     prot = ppc_hash32_pte_prot(cpu, sr, pte);
 
-    if (need_prot[rwx] & ~prot) {
+    if (need_prot & ~prot) {
         /* Access right violation */
         qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
         if (rwx == 2) {
