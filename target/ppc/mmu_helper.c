@@ -32,6 +32,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/qemu-print.h"
+#include "internal.h"
 #include "mmu-book3s-v3.h"
 #include "mmu-radix64.h"
 
@@ -126,31 +127,9 @@ static int pp_check(int key, int pp, int nx)
     return access;
 }
 
-static int check_prot(int prot, MMUAccessType access_type, int type)
+static int check_prot(int prot, MMUAccessType access_type)
 {
-    int ret;
-
-    if (type == ACCESS_CODE) {
-        if (prot & PAGE_EXEC) {
-            ret = 0;
-        } else {
-            ret = -2;
-        }
-    } else if (access_type == MMU_DATA_STORE) {
-        if (prot & PAGE_WRITE) {
-            ret = 0;
-        } else {
-            ret = -2;
-        }
-    } else {
-        if (prot & PAGE_READ) {
-            ret = 0;
-        } else {
-            ret = -2;
-        }
-    }
-
-    return ret;
+    return prot & prot_for_access_type(access_type) ? 0 : -2;
 }
 
 static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
@@ -182,7 +161,7 @@ static int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
             /* Keep the matching PTE information */
             ctx->raddr = pte1;
             ctx->prot = access;
-            ret = check_prot(ctx->prot, access_type, type);
+            ret = check_prot(ctx->prot, access_type);
             if (ret == 0) {
                 /* Access granted */
                 qemu_log_mask(CPU_LOG_MMU, "PTE access granted !\n");
@@ -441,7 +420,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                     (virtual & 0x0001F000);
                 /* Compute access rights */
                 ctx->prot = prot;
-                ret = check_prot(ctx->prot, access_type, type);
+                ret = check_prot(ctx->prot, access_type);
                 if (ret == 0) {
                     LOG_BATS("BAT %d match: r " TARGET_FMT_plx " prot=%c%c\n",
                              i, ctx->raddr, ctx->prot & PAGE_READ ? 'R' : '-',
@@ -733,7 +712,7 @@ static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
         check_perms:
             /* Check from TLB entry */
             ctx->prot = tlb->prot;
-            ret = check_prot(ctx->prot, access_type, type);
+            ret = check_prot(ctx->prot, access_type);
             if (ret == -2) {
                 env->spr[SPR_40x_ESR] = 0;
             }
