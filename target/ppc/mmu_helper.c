@@ -738,9 +738,9 @@ void store_40x_sler(CPUPPCState *env, uint32_t val)
 
 static int mmubooke_check_tlb(CPUPPCState *env, ppcemb_tlb_t *tlb,
                               hwaddr *raddr, int *prot, target_ulong address,
-                              MMUAccessType access_type, int type, int i)
+                              MMUAccessType access_type, int i)
 {
-    int ret, prot2;
+    int prot2;
 
     if (ppcemb_tlb_check(env, tlb, raddr, address,
                          env->spr[SPR_BOOKE_PID],
@@ -772,37 +772,19 @@ found_tlb:
     }
 
     /* Check the address space */
-    if (type == ACCESS_CODE) {
-        if (msr_ir != (tlb->attr & 1)) {
-            LOG_SWTLB("%s: AS doesn't match\n", __func__);
-            return -1;
-        }
-
-        *prot = prot2;
-        if (prot2 & PAGE_EXEC) {
-            LOG_SWTLB("%s: good TLB!\n", __func__);
-            return 0;
-        }
-
-        LOG_SWTLB("%s: no PAGE_EXEC: %x\n", __func__, prot2);
-        ret = -3;
-    } else {
-        if (msr_dr != (tlb->attr & 1)) {
-            LOG_SWTLB("%s: AS doesn't match\n", __func__);
-            return -1;
-        }
-
-        *prot = prot2;
-        if (prot2 & (access_type == MMU_DATA_LOAD ? PAGE_READ : PAGE_WRITE)) {
-            LOG_SWTLB("%s: found TLB!\n", __func__);
-            return 0;
-        }
-
-        LOG_SWTLB("%s: PAGE_READ/WRITE doesn't match: %x\n", __func__, prot2);
-        ret = -2;
+    if ((access_type == MMU_INST_FETCH ? msr_ir : msr_dr) != (tlb->attr & 1)) {
+        LOG_SWTLB("%s: AS doesn't match\n", __func__);
+        return -1;
     }
 
-    return ret;
+    *prot = prot2;
+    if (prot2 & prot_for_access_type(access_type)) {
+        LOG_SWTLB("%s: good TLB!\n", __func__);
+        return 0;
+    }
+
+    LOG_SWTLB("%s: no prot match: %x\n", __func__, prot2);
+    return access_type == MMU_INST_FETCH ? -3 : -2;
 }
 
 static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
@@ -819,7 +801,7 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb.tlbe[i];
         ret = mmubooke_check_tlb(env, tlb, &raddr, &ctx->prot, address,
-                                 access_type, type, i);
+                                 access_type, i);
         if (ret != -1) {
             break;
         }
