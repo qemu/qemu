@@ -379,25 +379,22 @@ static inline void bat_size_prot(CPUPPCState *env, target_ulong *blp,
 }
 
 static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
-                           target_ulong virtual, MMUAccessType access_type,
-                           int type)
+                           target_ulong virtual, MMUAccessType access_type)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
     target_ulong BEPIl, BEPIu, bl;
     int i, valid, prot;
     int ret = -1;
+    bool ifetch = access_type == MMU_INST_FETCH;
 
     LOG_BATS("%s: %cBAT v " TARGET_FMT_lx "\n", __func__,
-             type == ACCESS_CODE ? 'I' : 'D', virtual);
-    switch (type) {
-    case ACCESS_CODE:
+             ifetch ? 'I' : 'D', virtual);
+    if (ifetch) {
         BATlt = env->IBAT[1];
         BATut = env->IBAT[0];
-        break;
-    default:
+    } else {
         BATlt = env->DBAT[1];
         BATut = env->DBAT[0];
-        break;
     }
     for (i = 0; i < env->nb_BATs; i++) {
         BATu = &BATut[i];
@@ -407,7 +404,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
         bat_size_prot(env, &bl, &valid, &prot, BATu, BATl);
         LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
                  " BATl " TARGET_FMT_lx "\n", __func__,
-                 type == ACCESS_CODE ? 'I' : 'D', i, virtual, *BATu, *BATl);
+                 ifetch ? 'I' : 'D', i, virtual, *BATu, *BATl);
         if ((virtual & 0xF0000000) == BEPIu &&
             ((virtual & 0x0FFE0000) & ~bl) == BEPIl) {
             /* BAT matches */
@@ -441,7 +438,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                 LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
                          " BATl " TARGET_FMT_lx "\n\t" TARGET_FMT_lx " "
                          TARGET_FMT_lx " " TARGET_FMT_lx "\n",
-                         __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
+                         __func__, ifetch ? 'I' : 'D', i, virtual,
                          *BATu, *BATl, BEPIu, BEPIl, bl);
             }
         }
@@ -1415,7 +1412,7 @@ static int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
         } else {
             /* Try to find a BAT */
             if (env->nb_BATs != 0) {
-                ret = get_bat_6xx_tlb(env, ctx, eaddr, access_type, type);
+                ret = get_bat_6xx_tlb(env, ctx, eaddr, access_type);
             }
             if (ret < 0) {
                 /* We didn't match any BAT entry or don't have BATs */
