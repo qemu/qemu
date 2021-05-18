@@ -1,7 +1,7 @@
 xtensa_ss = ss.source_set()
 
-xtensa_cores = run_command('sh', '-c', 'cd $MESON_SOURCE_ROOT/$MESON_SUBDIR ; ls -1 core-*.c')
-xtensa_ss.add(files(xtensa_cores.stdout().strip().split('\n')))
+xtensa_cores = fs.read('cores.list')
+xtensa_ss.add(files(xtensa_cores.strip().split('\n')))
 
 xtensa_ss.add(files(
   'cpu.c',
