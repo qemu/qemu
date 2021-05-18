@@ -410,25 +410,24 @@ int virtio_send_data_iov(struct fuse_session *se, struct fuse_chan *ch,
                      __func__, len);
             goto err;
         }
-        fuse_log(FUSE_LOG_DEBUG, "%s: preadv ret=%d len=%zd\n", __func__,
-                 ret, len);
-        if (ret < len && ret) {
-            fuse_log(FUSE_LOG_DEBUG, "%s: ret < len\n", __func__);
-            /* Skip over this much next time around */
-            iov_discard_front(&in_sg_ptr, &in_sg_cpy_count, ret);
-            buf->buf[0].pos += ret;
-            len -= ret;
 
-            /* Lets do another read */
-            continue;
-        }
         if (!ret) {
             /* EOF case? */
             fuse_log(FUSE_LOG_DEBUG, "%s: !ret len remaining=%zd\n", __func__,
                      len);
             break;
         }
+        fuse_log(FUSE_LOG_DEBUG, "%s: preadv ret=%d len=%zd\n", __func__,
+                 ret, len);
+
         len -= ret;
+        /* Short read. Retry reading remaining bytes */
+        if (len) {
+            fuse_log(FUSE_LOG_DEBUG, "%s: ret < len\n", __func__);
+            /* Skip over this much next time around */
+            iov_discard_front(&in_sg_ptr, &in_sg_cpy_count, ret);
+            buf->buf[0].pos += ret;
+        }
     } while (len);
 
     /* Need to fix out->len on EOF */
