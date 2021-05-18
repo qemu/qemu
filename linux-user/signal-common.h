@@ -24,6 +24,7 @@ int on_sig_stack(unsigned long sp);
 int sas_ss_flags(unsigned long sp);
 abi_ulong target_sigsp(abi_ulong sp, struct target_sigaction *ka);
 void target_save_altstack(target_stack_t *uss, CPUArchState *env);
+abi_long target_restore_altstack(target_stack_t *uss, CPUArchState *env);
 
 static inline void target_sigemptyset(target_sigset_t *set)
 {
