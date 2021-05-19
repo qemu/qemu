@@ -17,16 +17,26 @@
 from collections import OrderedDict
 import os
 import re
-from typing import List
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Set,
+    Union,
+)
 
 from .common import must_match
 from .error import QAPISemError, QAPISourceError
 from .source import QAPISourceInfo
 
 
+# Return value alias for get_expr().
+_ExprValue = Union[List[object], Dict[str, object], str, bool]
+
+
 class QAPIParseError(QAPISourceError):
     """Error class for all QAPI schema parsing errors."""
-    def __init__(self, parser, msg):
+    def __init__(self, parser: 'QAPISchemaParser', msg: str):
         col = 1
         for ch in parser.src[parser.line_pos:parser.pos]:
             if ch == '\t':
@@ -38,7 +48,10 @@ class QAPIParseError(QAPISourceError):
 
 class QAPISchemaParser:
 
-    def __init__(self, fname, previously_included=None, incl_info=None):
+    def __init__(self,
+                 fname: str,
+                 previously_included: Optional[Set[str]] = None,
+                 incl_info: Optional[QAPISourceInfo] = None):
         self._fname = fname
         self._included = previously_included or set()
         self._included.add(os.path.abspath(self._fname))
@@ -46,20 +59,20 @@ class QAPISchemaParser:
 
         # Lexer state (see `accept` for details):
         self.info = QAPISourceInfo(self._fname, incl_info)
-        self.tok = None
+        self.tok: Union[None, str] = None
         self.pos = 0
         self.cursor = 0
-        self.val = None
+        self.val: Optional[Union[bool, str]] = None
         self.line_pos = 0
 
         # Parser output:
-        self.exprs = []
-        self.docs = []
+        self.exprs: List[Dict[str, object]] = []
+        self.docs: List[QAPIDoc] = []
 
         # Showtime!
         self._parse()
 
-    def _parse(self):
+    def _parse(self) -> None:
         cur_doc = None
 
         # May raise OSError; allow the caller to handle it.
@@ -125,7 +138,7 @@ class QAPISchemaParser:
         self.reject_expr_doc(cur_doc)
 
     @staticmethod
-    def reject_expr_doc(doc):
+    def reject_expr_doc(doc: Optional['QAPIDoc']) -> None:
         if doc and doc.symbol:
             raise QAPISemError(
                 doc.info,
@@ -133,10 +146,14 @@ class QAPISchemaParser:
                 % doc.symbol)
 
     @staticmethod
-    def _include(include, info, incl_fname, previously_included):
+    def _include(include: str,
+                 info: QAPISourceInfo,
+                 incl_fname: str,
+                 previously_included: Set[str]
+                 ) -> Optional['QAPISchemaParser']:
         incl_abs_fname = os.path.abspath(incl_fname)
         # catch inclusion cycle
-        inf = info
+        inf: Optional[QAPISourceInfo] = info
         while inf:
             if incl_abs_fname == os.path.abspath(inf.fname):
                 raise QAPISemError(info, "inclusion loop for %s" % include)
@@ -155,9 +172,9 @@ class QAPISchemaParser:
             ) from err
 
     @staticmethod
-    def _pragma(name, value, info):
+    def _pragma(name: str, value: object, info: QAPISourceInfo) -> None:
 
-        def check_list_str(name, value) -> List[str]:
+        def check_list_str(name: str, value: object) -> List[str]:
             if (not isinstance(value, list) or
                     any([not isinstance(elt, str) for elt in value])):
                 raise QAPISemError(
@@ -181,7 +198,7 @@ class QAPISchemaParser:
         else:
             raise QAPISemError(info, "unknown pragma '%s'" % name)
 
-    def accept(self, skip_comment=True):
+    def accept(self, skip_comment: bool = True) -> None:
         while True:
             self.tok = self.src[self.cursor]
             self.pos = self.cursor
@@ -245,8 +262,8 @@ class QAPISchemaParser:
                                    self.src[self.cursor-1:])
                 raise QAPIParseError(self, "stray '%s'" % match.group(0))
 
-    def get_members(self):
-        expr = OrderedDict()
+    def get_members(self) -> Dict[str, object]:
+        expr: Dict[str, object] = OrderedDict()
         if self.tok == '}':
             self.accept()
             return expr
@@ -272,8 +289,8 @@ class QAPISchemaParser:
             if self.tok != "'":
                 raise QAPIParseError(self, "expected string")
 
-    def get_values(self):
-        expr = []
+    def get_values(self) -> List[object]:
+        expr: List[object] = []
         if self.tok == ']':
             self.accept()
             return expr
@@ -289,7 +306,8 @@ class QAPISchemaParser:
                 raise QAPIParseError(self, "expected ',' or ']'")
             self.accept()
 
-    def get_expr(self):
+    def get_expr(self) -> _ExprValue:
+        expr: _ExprValue
         if self.tok == '{':
             self.accept()
             expr = self.get_members()
@@ -305,7 +323,7 @@ class QAPISchemaParser:
                 self, "expected '{', '[', string, or boolean")
         return expr
 
-    def get_doc(self, info):
+    def get_doc(self, info: QAPISourceInfo) -> List['QAPIDoc']:
         if self.val != '##':
             raise QAPIParseError(
                 self, "junk after '##' at start of documentation comment")
