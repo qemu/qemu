@@ -1,5 +1,5 @@
 include:
-  - local: '/.gitlab-ci.d/container-template.yml'
+  - local: '/.gitlab-ci.d/container-core.yml'
 
 amd64-alpine-container:
   extends: .container_job_template
@@ -10,16 +10,6 @@ amd64-centos7-container:
   extends: .container_job_template
   variables:
     NAME: centos7
-
-amd64-centos8-container:
-  extends: .container_job_template
-  variables:
-    NAME: centos8
-
-amd64-debian10-container:
-  extends: .container_job_template
-  variables:
-    NAME: debian10
 
 amd64-debian11-container:
   extends: .container_job_template
@@ -210,11 +200,6 @@ cris-fedora-cross-container:
   extends: .container_job_template
   variables:
     NAME: fedora-cris-cross
-
-amd64-fedora-container:
-  extends: .container_job_template
-  variables:
-    NAME: fedora
 
 i386-fedora-cross-container:
   extends: .container_job_template
