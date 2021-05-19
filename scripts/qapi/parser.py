@@ -130,7 +130,8 @@ class QAPISchemaParser:
                 "documentation for '%s' is not followed by the definition"
                 % doc.symbol)
 
-    def _include(self, include, info, incl_fname, previously_included):
+    @staticmethod
+    def _include(include, info, incl_fname, previously_included):
         incl_abs_fname = os.path.abspath(incl_fname)
         # catch inclusion cycle
         inf = info
@@ -151,7 +152,8 @@ class QAPISchemaParser:
                 f"can't read include file '{incl_fname}': {err.strerror}"
             ) from err
 
-    def _check_pragma_list_of_str(self, name, value, info):
+    @staticmethod
+    def _check_pragma_list_of_str(name, value, info):
         if (not isinstance(value, list)
                 or any([not isinstance(elt, str) for elt in value])):
             raise QAPISemError(
