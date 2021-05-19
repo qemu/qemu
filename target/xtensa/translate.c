@@ -1814,7 +1814,7 @@ static void translate_l32ex(DisasContext *dc, const OpcodeArg arg[],
     tcg_gen_mov_i32(addr, arg[1].in);
     gen_load_store_alignment(dc, 2, addr, true);
     gen_check_exclusive(dc, addr, false);
-    tcg_gen_qemu_ld_i32(arg[0].out, addr, dc->ring, MO_TEUL);
+    tcg_gen_qemu_ld_i32(arg[0].out, addr, dc->cring, MO_TEUL);
     tcg_gen_mov_i32(cpu_exclusive_addr, addr);
     tcg_gen_mov_i32(cpu_exclusive_val, arg[0].out);
     tcg_temp_free(addr);
