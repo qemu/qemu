@@ -803,16 +803,6 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
         s->rregs[ESP_RSTAT] |= STAT_TC;
         s->rregs[ESP_RINTR] |= INTR_BS;
         esp_raise_irq(s);
-
-        /*
-         * If data is ready to transfer and the TI command has already
-         * been executed, start DMA immediately. Otherwise DMA will start
-         * when host sends the TI command
-         */
-        if (s->ti_size && (s->rregs[ESP_CMD] == (CMD_TI | CMD_DMA))) {
-            esp_do_dma(s);
-        }
-        return;
     }
 
     if (s->ti_cmd == 0) {
@@ -826,7 +816,7 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
         return;
     }
 
-    if (s->ti_cmd & CMD_DMA) {
+    if (s->ti_cmd == (CMD_TI | CMD_DMA)) {
         if (dmalen) {
             esp_do_dma(s);
         } else if (s->ti_size <= 0) {
@@ -837,7 +827,7 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
             esp_dma_done(s);
             esp_lower_drq(s);
         }
-    } else {
+    } else if (s->ti_cmd == CMD_TI) {
         esp_do_nodma(s);
     }
 }
