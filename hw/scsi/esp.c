@@ -739,20 +739,17 @@ static void esp_do_nodma(ESPState *s)
         s->async_len -= len;
         s->ti_size += len;
     } else {
-        len = MIN(s->ti_size, s->async_len);
-        len = MIN(len, fifo8_num_free(&s->fifo));
-        fifo8_push_all(&s->fifo, s->async_buf, len);
-        s->async_buf += len;
-        s->async_len -= len;
-        s->ti_size -= len;
+        if (fifo8_is_empty(&s->fifo)) {
+            fifo8_push(&s->fifo, s->async_buf[0]);
+            s->async_buf++;
+            s->async_len--;
+            s->ti_size--;
+        }
     }
 
     if (s->async_len == 0) {
         scsi_req_continue(s->current_req);
-
-        if (to_device || s->ti_size == 0) {
-            return;
-        }
+        return;
     }
 
     s->rregs[ESP_RINTR] |= INTR_BS;
@@ -762,20 +759,37 @@ static void esp_do_nodma(ESPState *s)
 void esp_command_complete(SCSIRequest *req, size_t resid)
 {
     ESPState *s = req->hba_private;
+    int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
 
     trace_esp_command_complete();
-    if (s->ti_size != 0) {
-        trace_esp_command_complete_unexpected();
+
+    /*
+     * Non-DMA transfers from the target will leave the last byte in
+     * the FIFO so don't reset ti_size in this case
+     */
+    if (s->dma || to_device) {
+        if (s->ti_size != 0) {
+            trace_esp_command_complete_unexpected();
+        }
+        s->ti_size = 0;
     }
-    s->ti_size = 0;
+
     s->async_len = 0;
     if (req->status) {
         trace_esp_command_complete_fail();
     }
     s->status = req->status;
-    s->rregs[ESP_RSTAT] = STAT_ST;
-    esp_dma_done(s);
-    esp_lower_drq(s);
+
+    /*
+     * If the transfer is finished, switch to status phase. For non-DMA
+     * transfers from the target the last byte is still in the FIFO
+     */
+    if (s->ti_size == 0) {
+        s->rregs[ESP_RSTAT] = STAT_TC | STAT_ST;
+        esp_dma_done(s);
+        esp_lower_drq(s);
+    }
+
     if (s->current_req) {
         scsi_req_unref(s->current_req);
         s->current_req = NULL;
@@ -894,6 +908,17 @@ uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
             qemu_log_mask(LOG_UNIMP, "esp: PIO data read not implemented\n");
             s->rregs[ESP_FIFO] = 0;
         } else {
+            if ((s->rregs[ESP_RSTAT] & 0x7) == STAT_DI) {
+                if (s->ti_size) {
+                    esp_do_nodma(s);
+                } else {
+                    /*
+                     * The last byte of a non-DMA transfer has been read out
+                     * of the FIFO so switch to status phase
+                     */
+                    s->rregs[ESP_RSTAT] = STAT_TC | STAT_ST;
+                }
+            }
             s->rregs[ESP_FIFO] = esp_fifo_pop(&s->fifo);
         }
         val = s->rregs[ESP_FIFO];
@@ -952,14 +977,17 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
     case ESP_FIFO:
         if (s->do_cmd) {
             esp_fifo_push(&s->cmdfifo, val);
+
+            /*
+             * If any unexpected message out/command phase data is
+             * transferred using non-DMA, raise the interrupt
+             */
+            if (s->rregs[ESP_CMD] == CMD_TI) {
+                s->rregs[ESP_RINTR] |= INTR_BS;
+                esp_raise_irq(s);
+            }
         } else {
             esp_fifo_push(&s->fifo, val);
-        }
-
-        /* Non-DMA transfers raise an interrupt after every byte */
-        if (s->rregs[ESP_CMD] == CMD_TI) {
-            s->rregs[ESP_RINTR] |= INTR_FC | INTR_BS;
-            esp_raise_irq(s);
         }
         break;
     case ESP_CMD:
