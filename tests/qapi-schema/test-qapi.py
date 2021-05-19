@@ -128,9 +128,6 @@ def test_and_diff(test_name, dir_name, update):
     try:
         test_frontend(os.path.join(dir_name, test_name + '.json'))
     except QAPIError as err:
-        if err.info.fname is None:
-            print("%s" % err, file=sys.stderr)
-            return 2
         errstr = str(err) + '\n'
         if dir_name:
             errstr = errstr.replace(dir_name + '/', '')

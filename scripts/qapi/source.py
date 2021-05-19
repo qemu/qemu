@@ -10,7 +10,6 @@
 # See the COPYING file in the top-level directory.
 
 import copy
-import sys
 from typing import List, Optional, TypeVar
 
 
@@ -53,8 +52,6 @@ class QAPISourceInfo:
         return info
 
     def loc(self) -> str:
-        if self.fname is None:
-            return sys.argv[0]
         ret = self.fname
         if self.line is not None:
             ret += ':%d' % self.line

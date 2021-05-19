@@ -40,15 +40,9 @@ class QAPISchemaParser:
         previously_included = previously_included or set()
         previously_included.add(os.path.abspath(fname))
 
-        try:
-            fp = open(fname, 'r', encoding='utf-8')
+        # May raise OSError; allow the caller to handle it.
+        with open(fname, 'r', encoding='utf-8') as fp:
             self.src = fp.read()
-        except IOError as e:
-            raise QAPISemError(incl_info or QAPISourceInfo(None, None, None),
-                               "can't read %s file '%s': %s"
-                               % ("include" if incl_info else "schema",
-                                  fname,
-                                  e.strerror))
 
         if self.src == '' or self.src[-1] != '\n':
             self.src += '\n'
@@ -129,7 +123,13 @@ class QAPISchemaParser:
         if incl_abs_fname in previously_included:
             return None
 
-        return QAPISchemaParser(incl_fname, previously_included, info)
+        try:
+            return QAPISchemaParser(incl_fname, previously_included, info)
+        except OSError as err:
+            raise QAPISemError(
+                info,
+                f"can't read include file '{incl_fname}': {err.strerror}"
+            ) from err
 
     def _check_pragma_list_of_str(self, name, value, info):
         if (not isinstance(value, list)
