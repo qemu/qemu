@@ -17,6 +17,7 @@
 from collections import OrderedDict
 import os
 import re
+from typing import List
 
 from .common import must_match
 from .error import QAPISemError, QAPISourceError
@@ -154,28 +155,29 @@ class QAPISchemaParser:
             ) from err
 
     @staticmethod
-    def _check_pragma_list_of_str(name, value, info):
-        if (not isinstance(value, list)
-                or any([not isinstance(elt, str) for elt in value])):
-            raise QAPISemError(
-                info,
-                "pragma %s must be a list of strings" % name)
+    def _pragma(name, value, info):
 
-    def _pragma(self, name, value, info):
+        def check_list_str(name, value) -> List[str]:
+            if (not isinstance(value, list) or
+                    any([not isinstance(elt, str) for elt in value])):
+                raise QAPISemError(
+                    info,
+                    "pragma %s must be a list of strings" % name)
+            return value
+
+        pragma = info.pragma
+
         if name == 'doc-required':
             if not isinstance(value, bool):
                 raise QAPISemError(info,
                                    "pragma 'doc-required' must be boolean")
-            info.pragma.doc_required = value
+            pragma.doc_required = value
         elif name == 'command-name-exceptions':
-            self._check_pragma_list_of_str(name, value, info)
-            info.pragma.command_name_exceptions = value
+            pragma.command_name_exceptions = check_list_str(name, value)
         elif name == 'command-returns-exceptions':
-            self._check_pragma_list_of_str(name, value, info)
-            info.pragma.command_returns_exceptions = value
+            pragma.command_returns_exceptions = check_list_str(name, value)
         elif name == 'member-name-exceptions':
-            self._check_pragma_list_of_str(name, value, info)
-            info.pragma.member_name_exceptions = value
+            pragma.member_name_exceptions = check_list_str(name, value)
         else:
             raise QAPISemError(info, "unknown pragma '%s'" % name)
 
