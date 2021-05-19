@@ -194,6 +194,17 @@ static void do_writebacks(DisasContext *s)
     }
 }
 
+static bool is_singlestepping(DisasContext *s)
+{
+    /*
+     * Return true if we are singlestepping either because of QEMU gdbstub
+     * singlestep. This does not include the command line '-singlestep' mode
+     * which is rather misnamed as it only means "one instruction per TB" and
+     * doesn't affect the code we generate.
+     */
+    return s->base.singlestep_enabled;
+}
+
 /* is_jmp field values */
 #define DISAS_JUMP      DISAS_TARGET_0 /* only pc was modified dynamically */
 #define DISAS_EXIT      DISAS_TARGET_1 /* cpu state was modified dynamically */
@@ -1506,7 +1517,7 @@ static inline bool use_goto_tb(DisasContext *s, uint32_t dest)
 /* Generate a jump to an immediate address.  */
 static void gen_jmp_tb(DisasContext *s, int n, uint32_t dest)
 {
-    if (unlikely(s->base.singlestep_enabled)) {
+    if (unlikely(is_singlestepping(s))) {
         gen_exception(s, dest, EXCP_DEBUG);
     } else if (use_goto_tb(s, dest)) {
         tcg_gen_goto_tb(n);
@@ -6245,7 +6256,7 @@ static void m68k_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         break;
     case DISAS_TOO_MANY:
         update_cc_op(dc);
-        if (dc->base.singlestep_enabled) {
+        if (is_singlestepping(dc)) {
             tcg_gen_movi_i32(QREG_PC, dc->pc);
             gen_raise_exception(EXCP_DEBUG);
         } else {
@@ -6254,7 +6265,7 @@ static void m68k_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         break;
     case DISAS_JUMP:
         /* We updated CC_OP and PC in gen_jmp/gen_jmp_im.  */
-        if (dc->base.singlestep_enabled) {
+        if (is_singlestepping(dc)) {
             gen_raise_exception(EXCP_DEBUG);
         } else {
             tcg_gen_lookup_and_goto_ptr();
@@ -6265,7 +6276,7 @@ static void m68k_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
          * We updated CC_OP and PC in gen_exit_tb, but also modified
          * other state that may require returning to the main loop.
          */
-        if (dc->base.singlestep_enabled) {
+        if (is_singlestepping(dc)) {
             gen_raise_exception(EXCP_DEBUG);
         } else {
             tcg_gen_exit_tb(NULL, 0);
