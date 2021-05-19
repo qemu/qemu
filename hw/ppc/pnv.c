@@ -196,7 +196,7 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
     _FDT((fdt_setprop_string(fdt, offset, "status", "okay")));
     _FDT((fdt_setprop(fdt, offset, "64-bit", NULL, 0)));
 
-    if (env->spr_cb[SPR_PURR].oea_read) {
+    if (ppc_has_spr(cpu, SPR_PURR)) {
         _FDT((fdt_setprop(fdt, offset, "ibm,purr", NULL, 0)));
     }
 

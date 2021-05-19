@@ -29,6 +29,7 @@
 #include "mmu-hash64.h"
 #include "exec/log.h"
 #include "hw/hw.h"
+#include "internal.h"
 #include "mmu-book3s-v3.h"
 #include "helper_regs.h"
 
@@ -876,10 +877,12 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     hwaddr ptex;
     ppc_hash_pte64_t pte;
     int exec_prot, pp_prot, amr_prot, prot;
-    const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
+    MMUAccessType access_type;
+    int need_prot;
     hwaddr raddr;
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
+    access_type = rwx;
 
     /*
      * Note on LPCR usage: 970 uses HID4, but our special variant of
@@ -890,7 +893,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
      */
 
     /* 1. Handle real mode accesses */
-    if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
+    if (access_type == MMU_INST_FETCH ? !msr_ir : !msr_dr) {
         /*
          * Translation is supposedly "off", but in real mode the top 4
          * effective address bits are (mostly) ignored
@@ -923,14 +926,19 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
 
             /* Emulated old-style RMO mode, bounds check against RMLS */
             if (raddr >= limit) {
-                if (rwx == 2) {
+                switch (access_type) {
+                case MMU_INST_FETCH:
                     ppc_hash64_set_isi(cs, SRR1_PROTFAULT);
-                } else {
-                    int dsisr = DSISR_PROTFAULT;
-                    if (rwx == 1) {
-                        dsisr |= DSISR_ISSTORE;
-                    }
-                    ppc_hash64_set_dsi(cs, eaddr, dsisr);
+                    break;
+                case MMU_DATA_LOAD:
+                    ppc_hash64_set_dsi(cs, eaddr, DSISR_PROTFAULT);
+                    break;
+                case MMU_DATA_STORE:
+                    ppc_hash64_set_dsi(cs, eaddr,
+                                       DSISR_PROTFAULT | DSISR_ISSTORE);
+                    break;
+                default:
+                    g_assert_not_reached();
                 }
                 return 1;
             }
@@ -953,13 +961,19 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
             exit(1);
         }
         /* Segment still not found, generate the appropriate interrupt */
-        if (rwx == 2) {
+        switch (access_type) {
+        case MMU_INST_FETCH:
             cs->exception_index = POWERPC_EXCP_ISEG;
             env->error_code = 0;
-        } else {
+            break;
+        case MMU_DATA_LOAD:
+        case MMU_DATA_STORE:
             cs->exception_index = POWERPC_EXCP_DSEG;
             env->error_code = 0;
             env->spr[SPR_DAR] = eaddr;
+            break;
+        default:
+            g_assert_not_reached();
         }
         return 1;
     }
@@ -967,7 +981,7 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
 skip_slb_search:
 
     /* 3. Check for segment level no-execute violation */
-    if ((rwx == 2) && (slb->vsid & SLB_VSID_N)) {
+    if (access_type == MMU_INST_FETCH && (slb->vsid & SLB_VSID_N)) {
         ppc_hash64_set_isi(cs, SRR1_NOEXEC_GUARD);
         return 1;
     }
@@ -975,14 +989,18 @@ skip_slb_search:
     /* 4. Locate the PTE in the hash table */
     ptex = ppc_hash64_htab_lookup(cpu, slb, eaddr, &pte, &apshift);
     if (ptex == -1) {
-        if (rwx == 2) {
+        switch (access_type) {
+        case MMU_INST_FETCH:
             ppc_hash64_set_isi(cs, SRR1_NOPTE);
-        } else {
-            int dsisr = DSISR_NOPTE;
-            if (rwx == 1) {
-                dsisr |= DSISR_ISSTORE;
-            }
-            ppc_hash64_set_dsi(cs, eaddr, dsisr);
+            break;
+        case MMU_DATA_LOAD:
+            ppc_hash64_set_dsi(cs, eaddr, DSISR_NOPTE);
+            break;
+        case MMU_DATA_STORE:
+            ppc_hash64_set_dsi(cs, eaddr, DSISR_NOPTE | DSISR_ISSTORE);
+            break;
+        default:
+            g_assert_not_reached();
         }
         return 1;
     }
@@ -996,10 +1014,11 @@ skip_slb_search:
     amr_prot = ppc_hash64_amr_prot(cpu, pte);
     prot = exec_prot & pp_prot & amr_prot;
 
-    if ((need_prot[rwx] & ~prot) != 0) {
+    need_prot = prot_for_access_type(access_type);
+    if (need_prot & ~prot) {
         /* Access right violation */
         qemu_log_mask(CPU_LOG_MMU, "PTE access rejected\n");
-        if (rwx == 2) {
+        if (access_type == MMU_INST_FETCH) {
             int srr1 = 0;
             if (PAGE_EXEC & ~exec_prot) {
                 srr1 |= SRR1_NOEXEC_GUARD; /* Access violates noexec or guard */
@@ -1012,13 +1031,13 @@ skip_slb_search:
             ppc_hash64_set_isi(cs, srr1);
         } else {
             int dsisr = 0;
-            if (need_prot[rwx] & ~pp_prot) {
+            if (need_prot & ~pp_prot) {
                 dsisr |= DSISR_PROTFAULT;
             }
-            if (rwx == 1) {
+            if (access_type == MMU_DATA_STORE) {
                 dsisr |= DSISR_ISSTORE;
             }
-            if (need_prot[rwx] & ~amr_prot) {
+            if (need_prot & ~amr_prot) {
                 dsisr |= DSISR_AMR;
             }
             ppc_hash64_set_dsi(cs, eaddr, dsisr);
@@ -1034,7 +1053,7 @@ skip_slb_search:
         ppc_hash64_set_r(cpu, ptex, pte.pte1);
     }
     if (!(pte.pte1 & HPTE64_R_C)) {
-        if (rwx == 1) {
+        if (access_type == MMU_DATA_STORE) {
             ppc_hash64_set_c(cpu, ptex, pte.pte1);
         } else {
             /*
@@ -1120,16 +1139,6 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
     cpu->env.tlb_need_flush = TLB_NEED_GLOBAL_FLUSH | TLB_NEED_LOCAL_FLUSH;
 }
 
-void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
-{
-    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    CPUPPCState *env = &cpu->env;
-
-    env->spr[SPR_LPCR] = val & pcc->lpcr_mask;
-    /* The gtse bit affects hflags */
-    hreg_compute_hflags(env);
-}
-
 void helper_store_lpcr(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
@@ -1200,61 +1209,4 @@ const PPCHash64Options ppc_hash64_opts_POWER7 = {
     }
 };
 
-void ppc_hash64_filter_pagesizes(PowerPCCPU *cpu,
-                                 bool (*cb)(void *, uint32_t, uint32_t),
-                                 void *opaque)
-{
-    PPCHash64Options *opts = cpu->hash64_opts;
-    int i;
-    int n = 0;
-    bool ci_largepage = false;
 
-    assert(opts);
-
-    n = 0;
-    for (i = 0; i < ARRAY_SIZE(opts->sps); i++) {
-        PPCHash64SegmentPageSizes *sps = &opts->sps[i];
-        int j;
-        int m = 0;
-
-        assert(n <= i);
-
-        if (!sps->page_shift) {
-            break;
-        }
-
-        for (j = 0; j < ARRAY_SIZE(sps->enc); j++) {
-            PPCHash64PageSize *ps = &sps->enc[j];
-
-            assert(m <= j);
-            if (!ps->page_shift) {
-                break;
-            }
-
-            if (cb(opaque, sps->page_shift, ps->page_shift)) {
-                if (ps->page_shift >= 16) {
-                    ci_largepage = true;
-                }
-                sps->enc[m++] = *ps;
-            }
-        }
-
-        /* Clear rest of the row */
-        for (j = m; j < ARRAY_SIZE(sps->enc); j++) {
-            memset(&sps->enc[j], 0, sizeof(sps->enc[j]));
-        }
-
-        if (m) {
-            n++;
-        }
-    }
-
-    /* Clear the rest of the table */
-    for (i = n; i < ARRAY_SIZE(opts->sps); i++) {
-        memset(&opts->sps[i], 0, sizeof(opts->sps[i]));
-    }
-
-    if (!ci_largepage) {
-        opts->flags &= ~PPC_HASH64_CI_LARGEPAGE;
-    }
-}

@@ -8,7 +8,6 @@
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
 #include "kvm_ppc.h"
-#include "exec/helper-proto.h"
 
 static void post_load_update_msr(CPUPPCState *env)
 {
@@ -107,7 +106,7 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
         ppc_store_sdr1(env, sdr1);
     }
     qemu_get_be32s(f, &vscr);
-    helper_mtvscr(env, vscr);
+    ppc_store_vscr(env, vscr);
     qemu_get_be64s(f, &env->spe_acc);
     qemu_get_be32s(f, &env->spe_fscr);
     qemu_get_betls(f, &env->msr_mask);
@@ -456,7 +455,7 @@ static int get_vscr(QEMUFile *f, void *opaque, size_t size,
                     const VMStateField *field)
 {
     PowerPCCPU *cpu = opaque;
-    helper_mtvscr(&cpu->env, qemu_get_be32(f));
+    ppc_store_vscr(&cpu->env, qemu_get_be32(f));
     return 0;
 }
 
@@ -464,7 +463,7 @@ static int put_vscr(QEMUFile *f, void *opaque, size_t size,
                     const VMStateField *field, JSONWriter *vmdesc)
 {
     PowerPCCPU *cpu = opaque;
-    qemu_put_be32(f, helper_mfvscr(&cpu->env));
+    qemu_put_be32(f, ppc_get_vscr(&cpu->env));
     return 0;
 }
 

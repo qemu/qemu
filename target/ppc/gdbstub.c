@@ -498,7 +498,7 @@ static int gdb_get_avr_reg(CPUPPCState *env, GByteArray *buf, int n)
         return 16;
     }
     if (n == 32) {
-        gdb_get_reg32(buf, helper_mfvscr(env));
+        gdb_get_reg32(buf, ppc_get_vscr(env));
         mem_buf = gdb_get_reg_ptr(buf, 4);
         ppc_maybe_bswap_register(env, mem_buf, 4);
         return 4;
@@ -529,7 +529,7 @@ static int gdb_set_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     }
     if (n == 32) {
         ppc_maybe_bswap_register(env, mem_buf, 4);
-        helper_mtvscr(env, ldl_p(mem_buf));
+        ppc_store_vscr(env, ldl_p(mem_buf));
         return 4;
     }
     if (n == 33) {
