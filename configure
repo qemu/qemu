@@ -6503,10 +6503,14 @@ fi
 
 # Create list of config switches that should be poisoned in common code...
 # but filter out CONFIG_TCG and CONFIG_USER_ONLY which are special.
-sed -n -e '/CONFIG_TCG/d' -e '/CONFIG_USER_ONLY/d' \
-    -e '/^#define / { s///; s/ .*//; s/^/#pragma GCC poison /p; }' \
-    *-config-devices.h *-config-target.h | \
-    sort -u > config-poison.h
+target_configs_h=$(ls *-config-devices.h *-config-target.h 2>/dev/null)
+if test -n "$target_configs_h" ; then
+    sed -n -e '/CONFIG_TCG/d' -e '/CONFIG_USER_ONLY/d' \
+        -e '/^#define / { s///; s/ .*//; s/^/#pragma GCC poison /p; }' \
+        $target_configs_h | sort -u > config-poison.h
+else
+    :> config-poison.h
+fi
 
 # Save the configure command line for later reuse.
 cat <<EOD >config.status
