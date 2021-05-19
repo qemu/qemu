@@ -396,12 +396,14 @@
 # Configuration info for qemu vdagent implementation.
 #
 # @mouse: enable/disable mouse, default is enabled.
+# @clipboard: enable/disable clipboard, default is disabled.
 #
 # Since: 6.1
 #
 ##
 { 'struct': 'ChardevQemuVDAgent',
-  'data': { '*mouse': 'bool' },
+  'data': { '*mouse': 'bool',
+            '*clipboard': 'bool' },
   'base': 'ChardevCommon',
   'if': 'defined(CONFIG_SPICE_PROTOCOL)' }
 

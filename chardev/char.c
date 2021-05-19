@@ -934,6 +934,9 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "mouse",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "clipboard",
+            .type = QEMU_OPT_BOOL,
 #ifdef CONFIG_LINUX
         },{
             .name = "tight",
