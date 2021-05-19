@@ -18,6 +18,7 @@ from collections import OrderedDict
 import os
 import re
 
+from .common import must_match
 from .error import QAPISemError, QAPISourceError
 from .source import QAPISourceInfo
 
@@ -238,8 +239,8 @@ class QAPISchemaParser:
             elif not self.tok.isspace():
                 # Show up to next structural, whitespace or quote
                 # character
-                match = re.match('[^[\\]{}:,\\s\'"]+',
-                                 self.src[self.cursor-1:])
+                match = must_match('[^[\\]{}:,\\s\'"]+',
+                                   self.src[self.cursor-1:])
                 raise QAPIParseError(self, "stray '%s'" % match.group(0))
 
     def get_members(self):
@@ -369,7 +370,7 @@ class QAPIDoc:
             # Strip leading spaces corresponding to the expected indent level
             # Blank lines are always OK.
             if line:
-                indent = re.match(r'\s*', line).end()
+                indent = must_match(r'\s*', line).end()
                 if indent < self._indent:
                     raise QAPIParseError(
                         self._parser,
@@ -505,7 +506,7 @@ class QAPIDoc:
             # from line and replace it with spaces so that 'f' has the
             # same index as it did in the original line and can be
             # handled the same way we will handle following lines.
-            indent = re.match(r'@\S*:\s*', line).end()
+            indent = must_match(r'@\S*:\s*', line).end()
             line = line[indent:]
             if not line:
                 # Line was just the "@arg:" header; following lines
@@ -540,7 +541,7 @@ class QAPIDoc:
             # from line and replace it with spaces so that 'f' has the
             # same index as it did in the original line and can be
             # handled the same way we will handle following lines.
-            indent = re.match(r'@\S*:\s*', line).end()
+            indent = must_match(r'@\S*:\s*', line).end()
             line = line[indent:]
             if not line:
                 # Line was just the "@arg:" header; following lines
@@ -586,7 +587,7 @@ class QAPIDoc:
             # from line and replace it with spaces so that 'f' has the
             # same index as it did in the original line and can be
             # handled the same way we will handle following lines.
-            indent = re.match(r'\S*:\s*', line).end()
+            indent = must_match(r'\S*:\s*', line).end()
             line = line[indent:]
             if not line:
                 # Line was just the "Section:" header; following lines
