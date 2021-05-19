@@ -260,9 +260,6 @@ static uint32_t get_cmd(ESPState *s, uint32_t maxlen)
             return 0;
         }
         n = esp_fifo_pop_buf(&s->fifo, buf, dmalen);
-        if (n >= 3) {
-            buf[0] = buf[2] >> 5;
-        }
         n = MIN(fifo8_num_free(&s->cmdfifo), n);
         fifo8_push_all(&s->cmdfifo, buf, n);
     }
