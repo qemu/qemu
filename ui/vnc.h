@@ -29,6 +29,7 @@
 
 #include "qemu/queue.h"
 #include "qemu/thread.h"
+#include "ui/clipboard.h"
 #include "ui/console.h"
 #include "audio/audio.h"
 #include "qemu/bitmap.h"
@@ -348,6 +349,10 @@ struct VncState
 
     Notifier mouse_mode_notifier;
 
+    QemuClipboardPeer cbpeer;
+    QemuClipboardInfo *cbinfo;
+    uint32_t cbpending;
+
     QTAILQ_ENTRY(VncState) next;
 };
 
@@ -417,6 +422,7 @@ enum {
 #define VNC_ENCODING_XVP                  0XFFFFFECB /* -309 */
 #define VNC_ENCODING_ALPHA_CURSOR         0XFFFFFEC6 /* -314 */
 #define VNC_ENCODING_WMVi                 0x574D5669
+#define VNC_ENCODING_CLIPBOARD_EXT        0xc0a1e5ce
 
 /*****************************************************************************
  *
@@ -458,6 +464,7 @@ enum VncFeatures {
     VNC_FEATURE_ZYWRLE,
     VNC_FEATURE_LED_STATE,
     VNC_FEATURE_XVP,
+    VNC_FEATURE_CLIPBOARD_EXT,
 };
 
 #define VNC_FEATURE_RESIZE_MASK              (1 << VNC_FEATURE_RESIZE)
@@ -474,6 +481,7 @@ enum VncFeatures {
 #define VNC_FEATURE_ZYWRLE_MASK              (1 << VNC_FEATURE_ZYWRLE)
 #define VNC_FEATURE_LED_STATE_MASK           (1 << VNC_FEATURE_LED_STATE)
 #define VNC_FEATURE_XVP_MASK                 (1 << VNC_FEATURE_XVP)
+#define VNC_FEATURE_CLIPBOARD_EXT_MASK       (1 <<  VNC_FEATURE_CLIPBOARD_EXT)
 
 
 /* Client -> Server message IDs */
@@ -535,6 +543,17 @@ enum VncFeatures {
 #define VNC_XVP_ACTION_REBOOT 3
 #define VNC_XVP_ACTION_RESET 4
 
+/* extended clipboard flags  */
+#define VNC_CLIPBOARD_TEXT     (1 << 0)
+#define VNC_CLIPBOARD_RTF      (1 << 1)
+#define VNC_CLIPBOARD_HTML     (1 << 2)
+#define VNC_CLIPBOARD_DIB      (1 << 3)
+#define VNC_CLIPBOARD_FILES    (1 << 4)
+#define VNC_CLIPBOARD_CAPS     (1 << 24)
+#define VNC_CLIPBOARD_REQUEST  (1 << 25)
+#define VNC_CLIPBOARD_PEEK     (1 << 26)
+#define VNC_CLIPBOARD_NOTIFY   (1 << 27)
+#define VNC_CLIPBOARD_PROVIDE  (1 << 28)
 
 /*****************************************************************************
  *
@@ -617,5 +636,10 @@ void vnc_tight_clear(VncState *vs);
 int vnc_zrle_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 int vnc_zywrle_send_framebuffer_update(VncState *vs, int x, int y, int w, int h);
 void vnc_zrle_clear(VncState *vs);
+
+/* vnc-clipboard.c */
+void vnc_server_cut_text_caps(VncState *vs);
+void vnc_client_cut_text(VncState *vs, size_t len, uint8_t *text);
+void vnc_client_cut_text_ext(VncState *vs, int32_t len, uint32_t flags, uint8_t *data);
 
 #endif /* QEMU_VNC_H */
