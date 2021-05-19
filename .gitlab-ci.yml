@@ -1,13 +1,5 @@
-# Currently we have two build stages after our containers are built:
-#  - build (for traditional build and test or first stage build)
-#  - test (for test stages, using build artefacts from a build stage)
-stages:
-  - containers
-  - containers-layer2
-  - build
-  - test
-
 include:
+  - local: '/.gitlab-ci.d/stages.yml'
   - local: '/.gitlab-ci.d/edk2.yml'
   - local: '/.gitlab-ci.d/opensbi.yml'
   - local: '/.gitlab-ci.d/containers.yml'
