@@ -37,23 +37,39 @@ class QAPIParseError(QAPISourceError):
 class QAPISchemaParser:
 
     def __init__(self, fname, previously_included=None, incl_info=None):
-        previously_included = previously_included or set()
-        previously_included.add(os.path.abspath(fname))
+        self._fname = fname
+        self._included = previously_included or set()
+        self._included.add(os.path.abspath(self._fname))
+        self.src = ''
 
-        # May raise OSError; allow the caller to handle it.
-        with open(fname, 'r', encoding='utf-8') as fp:
-            self.src = fp.read()
-
-        if self.src == '' or self.src[-1] != '\n':
-            self.src += '\n'
+        # Lexer state (see `accept` for details):
+        self.info = QAPISourceInfo(self._fname, incl_info)
+        self.tok = None
+        self.pos = 0
         self.cursor = 0
-        self.info = QAPISourceInfo(fname, incl_info)
+        self.val = None
         self.line_pos = 0
+
+        # Parser output:
         self.exprs = []
         self.docs = []
-        self.accept()
+
+        # Showtime!
+        self._parse()
+
+    def _parse(self):
         cur_doc = None
 
+        # May raise OSError; allow the caller to handle it.
+        with open(self._fname, 'r', encoding='utf-8') as fp:
+            self.src = fp.read()
+        if self.src == '' or self.src[-1] != '\n':
+            self.src += '\n'
+
+        # Prime the lexer:
+        self.accept()
+
+        # Parse until done:
         while self.tok is not None:
             info = self.info
             if self.tok == '#':
@@ -71,12 +87,12 @@ class QAPISchemaParser:
                 if not isinstance(include, str):
                     raise QAPISemError(info,
                                        "value of 'include' must be a string")
-                incl_fname = os.path.join(os.path.dirname(fname),
+                incl_fname = os.path.join(os.path.dirname(self._fname),
                                           include)
                 self.exprs.append({'expr': {'include': incl_fname},
                                    'info': info})
                 exprs_include = self._include(include, info, incl_fname,
-                                              previously_included)
+                                              self._included)
                 if exprs_include:
                     self.exprs.extend(exprs_include.exprs)
                     self.docs.extend(exprs_include.docs)
