@@ -275,7 +275,7 @@ class QAPISchemaParser:
         if self.tok == ']':
             self.accept()
             return expr
-        if self.tok not in "{['tf":
+        if self.tok not in tuple("{['tf"):
             raise QAPIParseError(
                 self, "expected '{', '[', ']', string, or boolean")
         while True:
@@ -294,7 +294,8 @@ class QAPISchemaParser:
         elif self.tok == '[':
             self.accept()
             expr = self.get_values()
-        elif self.tok in "'tf":
+        elif self.tok in tuple("'tf"):
+            assert isinstance(self.val, (str, bool))
             expr = self.val
             self.accept()
         else:
