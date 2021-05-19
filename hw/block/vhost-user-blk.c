@@ -47,8 +47,12 @@ static const int user_feature_bits[] = {
     VIRTIO_RING_F_INDIRECT_DESC,
     VIRTIO_RING_F_EVENT_IDX,
     VIRTIO_F_NOTIFY_ON_EMPTY,
+    VIRTIO_F_RING_PACKED,
+    VIRTIO_F_IOMMU_PLATFORM,
     VHOST_INVALID_FEATURE_BIT
 };
+
+static void vhost_user_blk_event(void *opaque, QEMUChrEvent event);
 
 static void vhost_user_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 {
@@ -309,7 +313,7 @@ static void vhost_user_blk_reset(VirtIODevice *vdev)
     vhost_dev_free_inflight(s->inflight);
 }
 
-static int vhost_user_blk_connect(DeviceState *dev)
+static int vhost_user_blk_connect(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
@@ -320,6 +324,7 @@ static int vhost_user_blk_connect(DeviceState *dev)
     }
     s->connected = true;
 
+    s->dev.num_queues = s->num_queues;
     s->dev.nvqs = s->num_queues;
     s->dev.vqs = s->vhost_vqs;
     s->dev.vq_index = 0;
@@ -329,8 +334,7 @@ static int vhost_user_blk_connect(DeviceState *dev)
 
     ret = vhost_dev_init(&s->dev, &s->vhost_user, VHOST_BACKEND_TYPE_USER, 0);
     if (ret < 0) {
-        error_report("vhost-user-blk: vhost initialization failed: %s",
-                     strerror(-ret));
+        error_setg_errno(errp, -ret, "vhost initialization failed");
         return ret;
     }
 
@@ -338,8 +342,7 @@ static int vhost_user_blk_connect(DeviceState *dev)
     if (virtio_device_started(vdev, vdev->status)) {
         ret = vhost_user_blk_start(vdev);
         if (ret < 0) {
-            error_report("vhost-user-blk: vhost start failed: %s",
-                         strerror(-ret));
+            error_setg_errno(errp, -ret, "vhost start failed");
             return ret;
         }
     }
@@ -362,19 +365,6 @@ static void vhost_user_blk_disconnect(DeviceState *dev)
     vhost_dev_cleanup(&s->dev);
 }
 
-static void vhost_user_blk_event(void *opaque, QEMUChrEvent event,
-                                 bool realized);
-
-static void vhost_user_blk_event_realize(void *opaque, QEMUChrEvent event)
-{
-    vhost_user_blk_event(opaque, event, false);
-}
-
-static void vhost_user_blk_event_oper(void *opaque, QEMUChrEvent event)
-{
-    vhost_user_blk_event(opaque, event, true);
-}
-
 static void vhost_user_blk_chr_closed_bh(void *opaque)
 {
     DeviceState *dev = opaque;
@@ -382,36 +372,27 @@ static void vhost_user_blk_chr_closed_bh(void *opaque)
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
 
     vhost_user_blk_disconnect(dev);
-    qemu_chr_fe_set_handlers(&s->chardev, NULL, NULL,
-            vhost_user_blk_event_oper, NULL, opaque, NULL, true);
+    qemu_chr_fe_set_handlers(&s->chardev, NULL, NULL, vhost_user_blk_event,
+                             NULL, opaque, NULL, true);
 }
 
-static void vhost_user_blk_event(void *opaque, QEMUChrEvent event,
-                                 bool realized)
+static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
 {
     DeviceState *dev = opaque;
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
+    Error *local_err = NULL;
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        if (vhost_user_blk_connect(dev) < 0) {
+        if (vhost_user_blk_connect(dev, &local_err) < 0) {
+            error_report_err(local_err);
             qemu_chr_fe_disconnect(&s->chardev);
             return;
         }
         break;
     case CHR_EVENT_CLOSED:
-        /*
-         * Closing the connection should happen differently on device
-         * initialization and operation stages.
-         * On initalization, we want to re-start vhost_dev initialization
-         * from the very beginning right away when the connection is closed,
-         * so we clean up vhost_dev on each connection closing.
-         * On operation, we want to postpone vhost_dev cleanup to let the
-         * other code perform its own cleanup sequence using vhost_dev data
-         * (e.g. vhost_dev_set_log).
-         */
-        if (realized && !runstate_check(RUN_STATE_SHUTDOWN)) {
+        if (!runstate_check(RUN_STATE_SHUTDOWN)) {
             /*
              * A close event may happen during a read/write, but vhost
              * code assumes the vhost_dev remains setup, so delay the
@@ -431,8 +412,6 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event,
              * knowing its type (in this case vhost-user).
              */
             s->dev.started = false;
-        } else {
-            vhost_user_blk_disconnect(dev);
         }
         break;
     case CHR_EVENT_BREAK:
@@ -447,11 +426,10 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
-    Error *err = NULL;
     int i, ret;
 
     if (!s->chardev.chr) {
-        error_setg(errp, "vhost-user-blk: chardev is mandatory");
+        error_setg(errp, "chardev is mandatory");
         return;
     }
 
@@ -459,16 +437,16 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
         s->num_queues = 1;
     }
     if (!s->num_queues || s->num_queues > VIRTIO_QUEUE_MAX) {
-        error_setg(errp, "vhost-user-blk: invalid number of IO queues");
+        error_setg(errp, "invalid number of IO queues");
         return;
     }
 
     if (!s->queue_size) {
-        error_setg(errp, "vhost-user-blk: queue size must be non-zero");
+        error_setg(errp, "queue size must be non-zero");
         return;
     }
     if (s->queue_size > VIRTQUEUE_MAX_SIZE) {
-        error_setg(errp, "vhost-user-blk: queue size must not exceed %d",
+        error_setg(errp, "queue size must not exceed %d",
                    VIRTQUEUE_MAX_SIZE);
         return;
     }
@@ -490,34 +468,31 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     s->vhost_vqs = g_new0(struct vhost_virtqueue, s->num_queues);
     s->connected = false;
 
-    qemu_chr_fe_set_handlers(&s->chardev,  NULL, NULL,
-                             vhost_user_blk_event_realize, NULL, (void *)dev,
-                             NULL, true);
-
-reconnect:
-    if (qemu_chr_fe_wait_connected(&s->chardev, &err) < 0) {
-        error_report_err(err);
+    if (qemu_chr_fe_wait_connected(&s->chardev, errp) < 0) {
         goto virtio_err;
     }
 
-    /* check whether vhost_user_blk_connect() failed or not */
-    if (!s->connected) {
-        goto reconnect;
+    if (vhost_user_blk_connect(dev, errp) < 0) {
+        qemu_chr_fe_disconnect(&s->chardev);
+        goto virtio_err;
     }
+    assert(s->connected);
 
     ret = vhost_dev_get_config(&s->dev, (uint8_t *)&s->blkcfg,
                                sizeof(struct virtio_blk_config));
     if (ret < 0) {
-        error_report("vhost-user-blk: get block config failed");
-        goto reconnect;
+        error_setg(errp, "vhost-user-blk: get block config failed");
+        goto vhost_err;
     }
 
-    /* we're fully initialized, now we can operate, so change the handler */
+    /* we're fully initialized, now we can operate, so add the handler */
     qemu_chr_fe_set_handlers(&s->chardev,  NULL, NULL,
-                             vhost_user_blk_event_oper, NULL, (void *)dev,
+                             vhost_user_blk_event, NULL, (void *)dev,
                              NULL, true);
     return;
 
+vhost_err:
+    vhost_dev_cleanup(&s->dev);
 virtio_err:
     g_free(s->vhost_vqs);
     s->vhost_vqs = NULL;
