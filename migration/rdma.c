@@ -2497,7 +2497,6 @@ static int qemu_rdma_connect(RDMAContext *rdma, Error **errp)
     if (ret) {
         perror("rdma_get_cm_event after rdma_connect");
         ERROR(errp, "connecting to destination!");
-        rdma_ack_cm_event(cm_event);
         goto err_rdma_source_connect;
     }
 
