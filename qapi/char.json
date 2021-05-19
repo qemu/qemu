@@ -395,11 +395,13 @@
 #
 # Configuration info for qemu vdagent implementation.
 #
+# @mouse: enable/disable mouse, default is enabled.
+#
 # Since: 6.1
 #
 ##
 { 'struct': 'ChardevQemuVDAgent',
-  'data': { },
+  'data': { '*mouse': 'bool' },
   'base': 'ChardevCommon',
   'if': 'defined(CONFIG_SPICE_PROTOCOL)' }
 
