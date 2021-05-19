@@ -60,7 +60,6 @@
 #include "chardev/char.h"
 #include "qom/object.h"
 
-#define MAX_VCS 10
 #define VC_WINDOW_X_MIN  320
 #define VC_WINDOW_Y_MIN  240
 #define VC_TERM_X_MIN     80
@@ -118,60 +117,6 @@
 
 static const guint16 *keycode_map;
 static size_t keycode_maplen;
-
-struct GtkDisplayState {
-    GtkWidget *window;
-
-    GtkWidget *menu_bar;
-
-    GtkAccelGroup *accel_group;
-
-    GtkWidget *machine_menu_item;
-    GtkWidget *machine_menu;
-    GtkWidget *pause_item;
-    GtkWidget *reset_item;
-    GtkWidget *powerdown_item;
-    GtkWidget *quit_item;
-
-    GtkWidget *view_menu_item;
-    GtkWidget *view_menu;
-    GtkWidget *full_screen_item;
-    GtkWidget *copy_item;
-    GtkWidget *zoom_in_item;
-    GtkWidget *zoom_out_item;
-    GtkWidget *zoom_fixed_item;
-    GtkWidget *zoom_fit_item;
-    GtkWidget *grab_item;
-    GtkWidget *grab_on_hover_item;
-
-    int nb_vcs;
-    VirtualConsole vc[MAX_VCS];
-
-    GtkWidget *show_tabs_item;
-    GtkWidget *untabify_item;
-    GtkWidget *show_menubar_item;
-
-    GtkWidget *vbox;
-    GtkWidget *notebook;
-    int button_mask;
-    gboolean last_set;
-    int last_x;
-    int last_y;
-    int grab_x_root;
-    int grab_y_root;
-    VirtualConsole *kbd_owner;
-    VirtualConsole *ptr_owner;
-
-    gboolean full_screen;
-
-    GdkCursor *null_cursor;
-    Notifier mouse_mode_notifier;
-    gboolean free_scale;
-
-    bool external_pause_update;
-
-    DisplayOptions *opts;
-};
 
 struct VCChardev {
     Chardev parent;
