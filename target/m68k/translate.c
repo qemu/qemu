@@ -1518,7 +1518,9 @@ static inline bool use_goto_tb(DisasContext *s, uint32_t dest)
 static void gen_jmp_tb(DisasContext *s, int n, uint32_t dest)
 {
     if (unlikely(is_singlestepping(s))) {
-        gen_exception(s, dest, EXCP_DEBUG);
+        update_cc_op(s);
+        tcg_gen_movi_i32(QREG_PC, dest);
+        gen_raise_exception(EXCP_DEBUG);
     } else if (use_goto_tb(s, dest)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(QREG_PC, dest);
