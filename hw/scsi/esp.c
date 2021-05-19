@@ -338,9 +338,9 @@ static void do_cmd(ESPState *s)
 
 static void satn_pdma_cb(ESPState *s)
 {
-    s->do_cmd = 0;
-    if (!fifo8_is_empty(&s->cmdfifo)) {
+    if (!esp_get_tc(s) && !fifo8_is_empty(&s->cmdfifo)) {
         s->cmdfifo_cdb_offset = 1;
+        s->do_cmd = 0;
         do_cmd(s);
     }
 }
@@ -369,12 +369,9 @@ static void handle_satn(ESPState *s)
 
 static void s_without_satn_pdma_cb(ESPState *s)
 {
-    uint32_t len;
-
-    s->do_cmd = 0;
-    len = fifo8_num_used(&s->cmdfifo);
-    if (len) {
+    if (!esp_get_tc(s) && !fifo8_is_empty(&s->cmdfifo)) {
         s->cmdfifo_cdb_offset = 0;
+        s->do_cmd = 0;
         do_busid_cmd(s, 0);
     }
 }
@@ -403,8 +400,7 @@ static void handle_s_without_atn(ESPState *s)
 
 static void satn_stop_pdma_cb(ESPState *s)
 {
-    s->do_cmd = 0;
-    if (!fifo8_is_empty(&s->cmdfifo)) {
+    if (!esp_get_tc(s) && !fifo8_is_empty(&s->cmdfifo)) {
         trace_esp_handle_satn_stop(fifo8_num_used(&s->cmdfifo));
         s->do_cmd = 1;
         s->cmdfifo_cdb_offset = 1;
@@ -493,6 +489,11 @@ static void do_dma_pdma_cb(ESPState *s)
     uint32_t n;
 
     if (s->do_cmd) {
+        /* Ensure we have received complete command after SATN and stop */
+        if (esp_get_tc(s) || fifo8_is_empty(&s->cmdfifo)) {
+            return;
+        }
+
         s->ti_size = 0;
         s->do_cmd = 0;
         do_cmd(s);
@@ -1220,7 +1221,6 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
 {
     SysBusESPState *sysbus = opaque;
     ESPState *s = ESP(&sysbus->esp);
-    uint32_t dmalen;
 
     trace_esp_pdma_write(size);
 
@@ -1233,10 +1233,7 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
         esp_pdma_write(s, val);
         break;
     }
-    dmalen = esp_get_tc(s);
-    if (dmalen == 0 || fifo8_num_free(&s->fifo) < 2) {
-        s->pdma_cb(s);
-    }
+    s->pdma_cb(s);
 }
 
 static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
