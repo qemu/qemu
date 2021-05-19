@@ -47,7 +47,27 @@ class QAPIParseError(QAPISourceError):
 
 
 class QAPISchemaParser:
+    """
+    Parse QAPI schema source.
 
+    Parse a JSON-esque schema file and process directives.  See
+    qapi-code-gen.txt section "Schema Syntax" for the exact syntax.
+    Grammatical validation is handled later by `expr.check_exprs()`.
+
+    :param fname: Source file name.
+    :param previously_included:
+        The absolute names of previously included source files,
+        if being invoked from another parser.
+    :param incl_info:
+       `QAPISourceInfo` belonging to the parent module.
+       ``None`` implies this is the root module.
+
+    :ivar exprs: Resulting parsed expressions.
+    :ivar docs: Resulting parsed documentation blocks.
+
+    :raise OSError: For problems reading the root schema document.
+    :raise QAPIError: For errors in the schema source.
+    """
     def __init__(self,
                  fname: str,
                  previously_included: Optional[Set[str]] = None,
@@ -73,6 +93,11 @@ class QAPISchemaParser:
         self._parse()
 
     def _parse(self) -> None:
+        """
+        Parse the QAPI schema document.
+
+        :return: None.  Results are stored in ``.exprs`` and ``.docs``.
+        """
         cur_doc = None
 
         # May raise OSError; allow the caller to handle it.
@@ -199,6 +224,50 @@ class QAPISchemaParser:
             raise QAPISemError(info, "unknown pragma '%s'" % name)
 
     def accept(self, skip_comment: bool = True) -> None:
+        """
+        Read and store the next token.
+
+        :param skip_comment:
+            When false, return COMMENT tokens ("#").
+            This is used when reading documentation blocks.
+
+        :return:
+            None.  Several instance attributes are updated instead:
+
+            - ``.tok`` represents the token type.  See below for values.
+            - ``.info`` describes the token's source location.
+            - ``.val`` is the token's value, if any.  See below.
+            - ``.pos`` is the buffer index of the first character of
+              the token.
+
+        * Single-character tokens:
+
+            These are "{", "}", ":", ",", "[", and "]".
+            ``.tok`` holds the single character and ``.val`` is None.
+
+        * Multi-character tokens:
+
+          * COMMENT:
+
+            This token is not normally returned by the lexer, but it can
+            be when ``skip_comment`` is False.  ``.tok`` is "#", and
+            ``.val`` is a string including all chars until end-of-line,
+            including the "#" itself.
+
+          * STRING:
+
+            ``.tok`` is "'", the single quote.  ``.val`` contains the
+            string, excluding the surrounding quotes.
+
+          * TRUE and FALSE:
+
+            ``.tok`` is either "t" or "f", ``.val`` will be the
+            corresponding bool value.
+
+          * EOF:
+
+            ``.tok`` and ``.val`` will both be None at EOF.
+        """
         while True:
             self.tok = self.src[self.cursor]
             self.pos = self.cursor
