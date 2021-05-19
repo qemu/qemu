@@ -3060,7 +3060,7 @@ S: Supported
 F: block/vmdk.c
 
 RBD
-M: Jason Dillaman <dillaman@redhat.com>
+M: Ilya Dryomov <idryomov@gmail.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/rbd.c
