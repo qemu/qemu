@@ -78,7 +78,11 @@ class QAPISchemaParser:
                     self.docs.append(cur_doc)
                 continue
 
-            expr = self.get_expr(False)
+            expr = self.get_expr()
+            if not isinstance(expr, dict):
+                raise QAPISemError(
+                    info, "top-level expression must be an object")
+
             if 'include' in expr:
                 self.reject_expr_doc(cur_doc)
                 if len(expr) != 1:
@@ -251,7 +255,7 @@ class QAPISchemaParser:
             self.accept()
             if key in expr:
                 raise QAPIParseError(self, "duplicate key '%s'" % key)
-            expr[key] = self.get_expr(True)
+            expr[key] = self.get_expr()
             if self.tok == '}':
                 self.accept()
                 return expr
@@ -270,7 +274,7 @@ class QAPISchemaParser:
             raise QAPIParseError(
                 self, "expected '{', '[', ']', string, or boolean")
         while True:
-            expr.append(self.get_expr(True))
+            expr.append(self.get_expr())
             if self.tok == ']':
                 self.accept()
                 return expr
@@ -278,9 +282,7 @@ class QAPISchemaParser:
                 raise QAPIParseError(self, "expected ',' or ']'")
             self.accept()
 
-    def get_expr(self, nested):
-        if self.tok != '{' and not nested:
-            raise QAPIParseError(self, "expected '{'")
+    def get_expr(self):
         if self.tok == '{':
             self.accept()
             expr = self.get_members()
