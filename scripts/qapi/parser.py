@@ -176,7 +176,7 @@ class QAPISchemaParser:
 
         def check_list_str(name: str, value: object) -> List[str]:
             if (not isinstance(value, list) or
-                    any([not isinstance(elt, str) for elt in value])):
+                    any(not isinstance(elt, str) for elt in value)):
                 raise QAPISemError(
                     info,
                     "pragma %s must be a list of strings" % name)
