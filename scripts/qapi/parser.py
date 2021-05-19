@@ -47,7 +47,7 @@ class QAPISchemaParser:
         if self.src == '' or self.src[-1] != '\n':
             self.src += '\n'
         self.cursor = 0
-        self.info = QAPISourceInfo(fname, 1, incl_info)
+        self.info = QAPISourceInfo(fname, incl_info)
         self.line_pos = 0
         self.exprs = []
         self.docs = []
