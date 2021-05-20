@@ -128,14 +128,6 @@ static void print_syscall_ret_addr(const struct syscallname *name, abi_long ret)
     }
 }
 
-#if 0 /* currently unused */
-static void
-print_syscall_ret_raw(struct syscallname *name, abi_long ret)
-{
-        gemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
-}
-#endif
-
 /*
  * An array of all of the syscalls we know about
  */

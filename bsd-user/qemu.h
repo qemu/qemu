@@ -27,6 +27,8 @@
 
 #include "exec/user/abitypes.h"
 
+extern char **environ;
+
 enum BSDType {
     target_freebsd,
     target_netbsd,
@@ -36,7 +38,6 @@ extern enum BSDType bsd_type;
 
 #include "syscall_defs.h"
 #include "target_syscall.h"
-#include "target_signal.h"
 #include "exec/gdbstub.h"
 
 #if defined(CONFIG_USE_NPTL)
@@ -45,9 +46,10 @@ extern enum BSDType bsd_type;
 #define THREAD
 #endif
 
-/* This struct is used to hold certain information about the image.
- * Basically, it replicates in user space what would be certain
- * task_struct fields in the kernel
+/*
+ * This struct is used to hold certain information about the image.  Basically,
+ * it replicates in user space what would be certain task_struct fields in the
+ * kernel
  */
 struct image_info {
     abi_ulong load_addr;
@@ -71,18 +73,18 @@ struct image_info {
 
 struct sigqueue {
     struct sigqueue *next;
-    //target_siginfo_t info;
 };
 
 struct emulated_sigtable {
     int pending; /* true if signal is pending */
     struct sigqueue *first;
-    struct sigqueue info; /* in order to always have memory for the
-                             first signal, we put it here */
+    /* in order to always have memory for the first signal, we put it here */
+    struct sigqueue info;
 };
 
-/* NOTE: we force a big alignment so that the stack stored after is
-   aligned too */
+/*
+ * NOTE: we force a big alignment so that the stack stored after is aligned too
+ */
 typedef struct TaskState {
     pid_t ts_tid;     /* tid (or pid) of this task */
 
@@ -102,7 +104,6 @@ void init_task_state(TaskState *ts);
 extern const char *qemu_uname_release;
 extern unsigned long mmap_min_addr;
 
-/* ??? See if we can avoid exposing so much of the loader internals.  */
 /*
  * MAX_ARG_PAGES defines the number of pages allocated for arguments
  * and envelope for the new program. 32 should suffice, this gives
@@ -114,7 +115,7 @@ extern unsigned long mmap_min_addr;
  * This structure is used to hold the arguments that are
  * used when loading binaries.
  */
-struct linux_binprm {
+struct bsd_binprm {
         char buf[128];
         void *page[MAX_ARG_PAGES];
         abi_ulong p;
@@ -123,19 +124,19 @@ struct linux_binprm {
         int argc, envc;
         char **argv;
         char **envp;
-        char * filename;        /* Name of binary */
+        char *filename;         /* Name of binary */
 };
 
 void do_init_thread(struct target_pt_regs *regs, struct image_info *infop);
 abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
                               abi_ulong stringp, int push_ptr);
-int loader_exec(const char * filename, char ** argv, char ** envp,
-             struct target_pt_regs * regs, struct image_info *infop);
+int loader_exec(const char *filename, char **argv, char **envp,
+             struct target_pt_regs *regs, struct image_info *infop);
 
-int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
-                    struct image_info * info);
-int load_flt_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
-                    struct image_info * info);
+int load_elf_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
+                    struct image_info *info);
+int load_flt_binary(struct bsd_binprm *bprm, struct target_pt_regs *regs,
+                    struct image_info *info);
 
 abi_long memcpy_to_target(abi_ulong dest, const void *src,
                           unsigned long len);
@@ -193,9 +194,6 @@ extern int do_strace;
 /* signal.c */
 void process_pending_signals(CPUArchState *cpu_env);
 void signal_init(void);
-//int queue_signal(CPUArchState *env, int sig, target_siginfo_t *info);
-//void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info);
-//void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo);
 long do_sigreturn(CPUArchState *env);
 long do_rt_sigreturn(CPUArchState *env);
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
@@ -226,9 +224,11 @@ static inline bool access_ok(int type, abi_ulong addr, abi_ulong size)
     return page_check_range((target_ulong)addr, size, type) == 0;
 }
 
-/* NOTE __get_user and __put_user use host pointers and don't check access. */
-/* These are usually used to access struct data members once the
- * struct has been locked - usually with lock_user_struct().
+/*
+ * NOTE __get_user and __put_user use host pointers and don't check access.
+ *
+ * These are usually used to access struct data members once the struct has been
+ * locked - usually with lock_user_struct().
  */
 #define __put_user(x, hptr)\
 ({\
@@ -248,7 +248,7 @@ static inline bool access_ok(int type, abi_ulong addr, abi_ulong size)
         break;\
     default:\
         abort();\
-    }\
+    } \
     0;\
 })
 
@@ -269,24 +269,26 @@ static inline bool access_ok(int type, abi_ulong addr, abi_ulong size)
         x = (typeof(*hptr))tswap64(*(uint64_t *)(hptr));\
         break;\
     default:\
-        /* avoid warning */\
         x = 0;\
         abort();\
-    }\
+    } \
     0;\
 })
 
-/* put_user()/get_user() take a guest address and check access */
-/* These are usually used to access an atomic data type, such as an int,
- * that has been passed by address.  These internally perform locking
- * and unlocking on the data type.
+/*
+ * put_user()/get_user() take a guest address and check access
+ *
+ * These are usually used to access an atomic data type, such as an int, that
+ * has been passed by address.  These internally perform locking and unlocking
+ * on the data type.
  */
 #define put_user(x, gaddr, target_type)                                 \
 ({                                                                      \
     abi_ulong __gaddr = (gaddr);                                        \
     target_type *__hptr;                                                \
     abi_long __ret;                                                     \
-    if ((__hptr = lock_user(VERIFY_WRITE, __gaddr, sizeof(target_type), 0))) { \
+    __hptr = lock_user(VERIFY_WRITE, __gaddr, sizeof(target_type), 0);  \
+    if (__hptr) {                                                       \
         __ret = __put_user((x), __hptr);                                \
         unlock_user(__hptr, __gaddr, sizeof(target_type));              \
     } else                                                              \
@@ -299,11 +301,11 @@ static inline bool access_ok(int type, abi_ulong addr, abi_ulong size)
     abi_ulong __gaddr = (gaddr);                                        \
     target_type *__hptr;                                                \
     abi_long __ret;                                                     \
-    if ((__hptr = lock_user(VERIFY_READ, __gaddr, sizeof(target_type), 1))) { \
+    __hptr = lock_user(VERIFY_READ, __gaddr, sizeof(target_type), 1);   \
+    if (__hptr) {                                                       \
         __ret = __get_user((x), __hptr);                                \
         unlock_user(__hptr, __gaddr, 0);                                \
     } else {                                                            \
-        /* avoid warning */                                             \
         (x) = 0;                                                        \
         __ret = -TARGET_EFAULT;                                         \
     }                                                                   \
@@ -332,33 +334,41 @@ static inline bool access_ok(int type, abi_ulong addr, abi_ulong size)
 #define get_user_u8(x, gaddr)  get_user((x), (gaddr), uint8_t)
 #define get_user_s8(x, gaddr)  get_user((x), (gaddr), int8_t)
 
-/* copy_from_user() and copy_to_user() are usually used to copy data
+/*
+ * copy_from_user() and copy_to_user() are usually used to copy data
  * buffers between the target and host.  These internally perform
  * locking/unlocking of the memory.
  */
 abi_long copy_from_user(void *hptr, abi_ulong gaddr, size_t len);
 abi_long copy_to_user(abi_ulong gaddr, void *hptr, size_t len);
 
-/* Functions for accessing guest memory.  The tget and tput functions
-   read/write single values, byteswapping as necessary.  The lock_user function
-   gets a pointer to a contiguous area of guest memory, but does not perform
-   any byteswapping.  lock_user may return either a pointer to the guest
-   memory, or a temporary buffer.  */
+/*
+ * Functions for accessing guest memory.  The tget and tput functions
+ * read/write single values, byteswapping as necessary.  The lock_user function
+ * gets a pointer to a contiguous area of guest memory, but does not perform
+ * any byteswapping.  lock_user may return either a pointer to the guest
+ * memory, or a temporary buffer.
+ */
 
-/* Lock an area of guest memory into the host.  If copy is true then the
-   host area will have the same contents as the guest.  */
-static inline void *lock_user(int type, abi_ulong guest_addr, long len, int copy)
+/*
+ * Lock an area of guest memory into the host.  If copy is true then the
+ * host area will have the same contents as the guest.
+ */
+static inline void *lock_user(int type, abi_ulong guest_addr, long len,
+                              int copy)
 {
-    if (!access_ok(type, guest_addr, len))
+    if (!access_ok(type, guest_addr, len)) {
         return NULL;
+    }
 #ifdef DEBUG_REMAP
     {
         void *addr;
         addr = g_malloc(len);
-        if (copy)
+        if (copy) {
             memcpy(addr, g2h_untagged(guest_addr), len);
-        else
+        } else {
             memset(addr, 0, len);
+        }
         return addr;
     }
 #else
@@ -366,26 +376,32 @@ static inline void *lock_user(int type, abi_ulong guest_addr, long len, int copy
 #endif
 }
 
-/* Unlock an area of guest memory.  The first LEN bytes must be
-   flushed back to guest memory. host_ptr = NULL is explicitly
-   allowed and does nothing. */
+/*
+ * Unlock an area of guest memory.  The first LEN bytes must be flushed back to
+ * guest memory. host_ptr = NULL is explicitly allowed and does nothing.
+ */
 static inline void unlock_user(void *host_ptr, abi_ulong guest_addr,
                                long len)
 {
 
 #ifdef DEBUG_REMAP
-    if (!host_ptr)
+    if (!host_ptr) {
         return;
-    if (host_ptr == g2h_untagged(guest_addr))
+    }
+    if (host_ptr == g2h_untagged(guest_addr)) {
         return;
-    if (len > 0)
+    }
+    if (len > 0) {
         memcpy(g2h_untagged(guest_addr), host_ptr, len);
+    }
     g_free(host_ptr);
 #endif
 }
 
-/* Return the length of a string in target memory or -TARGET_EFAULT if
-   access error. */
+/*
+ * Return the length of a string in target memory or -TARGET_EFAULT if access
+ * error.
+ */
 abi_long target_strlen(abi_ulong gaddr);
 
 /* Like lock_user but for null terminated strings.  */
@@ -393,8 +409,9 @@ static inline void *lock_user_string(abi_ulong guest_addr)
 {
     abi_long len;
     len = target_strlen(guest_addr);
-    if (len < 0)
+    if (len < 0) {
         return NULL;
+    }
     return lock_user(VERIFY_READ, guest_addr, (long)(len + 1), 1);
 }
 

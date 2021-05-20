@@ -32,7 +32,7 @@ static int count(char **vec)
     return i;
 }
 
-static int prepare_binprm(struct linux_binprm *bprm)
+static int prepare_binprm(struct bsd_binprm *bprm)
 {
     struct stat         st;
     int mode;
@@ -127,7 +127,7 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
 int loader_exec(const char *filename, char **argv, char **envp,
              struct target_pt_regs *regs, struct image_info *infop)
 {
-    struct linux_binprm bprm;
+    struct bsd_binprm bprm;
     int retval;
     int i;
 
