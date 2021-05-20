@@ -65,7 +65,6 @@ target_ulong helper_read_crN(CPUX86State *env, int reg)
 {
     target_ulong val;
 
-    cpu_svm_check_intercept_param(env, SVM_EXIT_READ_CR0 + reg, 0, GETPC());
     switch (reg) {
     default:
         val = env->cr[reg];
@@ -83,7 +82,6 @@ target_ulong helper_read_crN(CPUX86State *env, int reg)
 
 void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
 {
-    cpu_svm_check_intercept_param(env, SVM_EXIT_WRITE_CR0 + reg, 0, GETPC());
     switch (reg) {
     case 0:
         cpu_x86_update_cr0(env, t0);
@@ -439,4 +437,54 @@ void helper_rdmsr(CPUX86State *env)
     }
     env->regs[R_EAX] = (uint32_t)(val);
     env->regs[R_EDX] = (uint32_t)(val >> 32);
+}
+
+void helper_flush_page(CPUX86State *env, target_ulong addr)
+{
+    tlb_flush_page(env_cpu(env), addr);
+}
+
+static void QEMU_NORETURN do_hlt(CPUX86State *env)
+{
+    CPUState *cs = env_cpu(env);
+
+    env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
+    cs->halted = 1;
+    cs->exception_index = EXCP_HLT;
+    cpu_loop_exit(cs);
+}
+
+void QEMU_NORETURN helper_hlt(CPUX86State *env, int next_eip_addend)
+{
+    cpu_svm_check_intercept_param(env, SVM_EXIT_HLT, 0, GETPC());
+    env->eip += next_eip_addend;
+
+    do_hlt(env);
+}
+
+void helper_monitor(CPUX86State *env, target_ulong ptr)
+{
+    if ((uint32_t)env->regs[R_ECX] != 0) {
+        raise_exception_ra(env, EXCP0D_GPF, GETPC());
+    }
+    /* XXX: store address? */
+    cpu_svm_check_intercept_param(env, SVM_EXIT_MONITOR, 0, GETPC());
+}
+
+void QEMU_NORETURN helper_mwait(CPUX86State *env, int next_eip_addend)
+{
+    CPUState *cs = env_cpu(env);
+
+    if ((uint32_t)env->regs[R_ECX] != 0) {
+        raise_exception_ra(env, EXCP0D_GPF, GETPC());
+    }
+    cpu_svm_check_intercept_param(env, SVM_EXIT_MWAIT, 0, GETPC());
+    env->eip += next_eip_addend;
+
+    /* XXX: not complete but not completely erroneous */
+    if (cs->cpu_index != 0 || CPU_NEXT(cs) != NULL) {
+        do_pause(env);
+    } else {
+        do_hlt(env);
+    }
 }

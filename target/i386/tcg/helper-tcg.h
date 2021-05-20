@@ -76,11 +76,14 @@ extern const uint8_t parity_table[256];
 
 /* misc_helper.c */
 void cpu_load_eflags(CPUX86State *env, int eflags, int update_mask);
+void do_pause(CPUX86State *env) QEMU_NORETURN;
 
-/* svm_helper.c */
+/* sysemu/svm_helper.c */
+#ifndef CONFIG_USER_ONLY
 void QEMU_NORETURN cpu_vmexit(CPUX86State *nenv, uint32_t exit_code,
                               uint64_t exit_info_1, uintptr_t retaddr);
 void do_vmexit(CPUX86State *env);
+#endif
 
 /* seg_helper.c */
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);

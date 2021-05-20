@@ -60,22 +60,6 @@ void helper_cpuid(CPUX86State *env)
     env->regs[R_EDX] = edx;
 }
 
-void helper_lmsw(CPUX86State *env, target_ulong t0)
-{
-    /* only 4 lower bits of CR0 are modified. PE cannot be set to zero
-       if already set to one. */
-    t0 = (env->cr[0] & ~0xe) | (t0 & 0xf);
-    helper_write_crN(env, 0, t0);
-}
-
-void helper_invlpg(CPUX86State *env, target_ulong addr)
-{
-    X86CPU *cpu = env_archcpu(env);
-
-    cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPG, 0, GETPC());
-    tlb_flush_page(CPU(cpu), addr);
-}
-
 void helper_rdtsc(CPUX86State *env)
 {
     uint64_t val;
@@ -96,7 +80,7 @@ void helper_rdtscp(CPUX86State *env)
     env->regs[R_ECX] = (uint32_t)(env->tsc_aux);
 }
 
-void helper_rdpmc(CPUX86State *env)
+void QEMU_NORETURN helper_rdpmc(CPUX86State *env)
 {
     if (((env->cr[4] & CR4_PCE_MASK) == 0 ) &&
         ((env->hflags & HF_CPL_MASK) != 0)) {
@@ -109,75 +93,24 @@ void helper_rdpmc(CPUX86State *env)
     raise_exception_err(env, EXCP06_ILLOP, 0);
 }
 
-static void do_pause(X86CPU *cpu)
+void QEMU_NORETURN do_pause(CPUX86State *env)
 {
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
 
     /* Just let another CPU run.  */
     cs->exception_index = EXCP_INTERRUPT;
     cpu_loop_exit(cs);
 }
 
-static void do_hlt(X86CPU *cpu)
+void QEMU_NORETURN helper_pause(CPUX86State *env, int next_eip_addend)
 {
-    CPUState *cs = CPU(cpu);
-    CPUX86State *env = &cpu->env;
-
-    env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
-    cs->halted = 1;
-    cs->exception_index = EXCP_HLT;
-    cpu_loop_exit(cs);
-}
-
-void helper_hlt(CPUX86State *env, int next_eip_addend)
-{
-    X86CPU *cpu = env_archcpu(env);
-
-    cpu_svm_check_intercept_param(env, SVM_EXIT_HLT, 0, GETPC());
-    env->eip += next_eip_addend;
-
-    do_hlt(cpu);
-}
-
-void helper_monitor(CPUX86State *env, target_ulong ptr)
-{
-    if ((uint32_t)env->regs[R_ECX] != 0) {
-        raise_exception_ra(env, EXCP0D_GPF, GETPC());
-    }
-    /* XXX: store address? */
-    cpu_svm_check_intercept_param(env, SVM_EXIT_MONITOR, 0, GETPC());
-}
-
-void helper_mwait(CPUX86State *env, int next_eip_addend)
-{
-    CPUState *cs = env_cpu(env);
-    X86CPU *cpu = env_archcpu(env);
-
-    if ((uint32_t)env->regs[R_ECX] != 0) {
-        raise_exception_ra(env, EXCP0D_GPF, GETPC());
-    }
-    cpu_svm_check_intercept_param(env, SVM_EXIT_MWAIT, 0, GETPC());
-    env->eip += next_eip_addend;
-
-    /* XXX: not complete but not completely erroneous */
-    if (cs->cpu_index != 0 || CPU_NEXT(cs) != NULL) {
-        do_pause(cpu);
-    } else {
-        do_hlt(cpu);
-    }
-}
-
-void helper_pause(CPUX86State *env, int next_eip_addend)
-{
-    X86CPU *cpu = env_archcpu(env);
-
     cpu_svm_check_intercept_param(env, SVM_EXIT_PAUSE, 0, GETPC());
     env->eip += next_eip_addend;
 
-    do_pause(cpu);
+    do_pause(env);
 }
 
-void helper_debug(CPUX86State *env)
+void QEMU_NORETURN helper_debug(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
 

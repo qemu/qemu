@@ -2146,8 +2146,16 @@ static inline void cpu_set_fpuc(CPUX86State *env, uint16_t fpuc)
 void helper_lock_init(void);
 
 /* svm_helper.c */
+#ifdef CONFIG_USER_ONLY
+static inline void
+cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
+                              uint64_t param, uintptr_t retaddr)
+{ /* no-op */ }
+#else
 void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
                                    uint64_t param, uintptr_t retaddr);
+#endif
+
 /* apic.c */
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,

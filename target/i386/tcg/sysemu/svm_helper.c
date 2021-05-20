@@ -412,31 +412,6 @@ void helper_clgi(CPUX86State *env)
     env->hflags2 &= ~HF2_GIF_MASK;
 }
 
-void helper_skinit(CPUX86State *env)
-{
-    cpu_svm_check_intercept_param(env, SVM_EXIT_SKINIT, 0, GETPC());
-    /* XXX: not implemented */
-    raise_exception(env, EXCP06_ILLOP);
-}
-
-void helper_invlpga(CPUX86State *env, int aflag)
-{
-    X86CPU *cpu = env_archcpu(env);
-    target_ulong addr;
-
-    cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPGA, 0, GETPC());
-
-    if (aflag == 2) {
-        addr = env->regs[R_EAX];
-    } else {
-        addr = (uint32_t)env->regs[R_EAX];
-    }
-
-    /* XXX: could use the ASID to see if it is needed to do the
-       flush */
-    tlb_flush_page(CPU(cpu), addr);
-}
-
 void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
                                    uint64_t param, uintptr_t retaddr)
 {
@@ -513,10 +488,9 @@ void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
     }
 }
 
-void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
-                                      uint64_t param)
+void helper_svm_check_intercept(CPUX86State *env, uint32_t type)
 {
-    cpu_svm_check_intercept_param(env, type, param, GETPC());
+    cpu_svm_check_intercept_param(env, type, 0, GETPC());
 }
 
 void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
