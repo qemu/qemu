@@ -564,6 +564,7 @@ typedef struct CPUARMState {
         uint32_t cpacr[M_REG_NUM_BANKS];
         uint32_t nsacr;
         int ltpsize;
+        uint32_t vpr;
     } v7m;
 
     /* Information associated with an exception about to be taken:
@@ -1760,6 +1761,11 @@ FIELD(V7M_FPCCR, ASPEN, 31, 1)
      R_V7M_FPCCR_SPLIMVIOL_MASK |               \
      R_V7M_FPCCR_UFRDY_MASK |                   \
      R_V7M_FPCCR_ASPEN_MASK)
+
+/* v7M VPR bits */
+FIELD(V7M_VPR, P0, 0, 16)
+FIELD(V7M_VPR, MASK01, 16, 4)
+FIELD(V7M_VPR, MASK23, 20, 4)
 
 /*
  * System register ID fields.
