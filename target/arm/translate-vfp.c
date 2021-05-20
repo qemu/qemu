@@ -543,11 +543,16 @@ static bool trans_VMOV_to_gp(DisasContext *s, arg_VMOV_to_gp *a)
     /* VMOV scalar to general purpose register */
     TCGv_i32 tmp;
 
-    /* SIZE == MO_32 is a VFP instruction; otherwise NEON.  */
-    if (a->size == MO_32
-        ? !dc_isar_feature(aa32_fpsp_v2, s)
-        : !arm_dc_feature(s, ARM_FEATURE_NEON)) {
-        return false;
+    /*
+     * SIZE == MO_32 is a VFP instruction; otherwise NEON. MVE has
+     * all sizes, whether the CPU has fp or not.
+     */
+    if (!dc_isar_feature(aa32_mve, s)) {
+        if (a->size == MO_32
+            ? !dc_isar_feature(aa32_fpsp_v2, s)
+            : !arm_dc_feature(s, ARM_FEATURE_NEON)) {
+            return false;
+        }
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist */
@@ -571,11 +576,16 @@ static bool trans_VMOV_from_gp(DisasContext *s, arg_VMOV_from_gp *a)
     /* VMOV general purpose register to scalar */
     TCGv_i32 tmp;
 
-    /* SIZE == MO_32 is a VFP instruction; otherwise NEON.  */
-    if (a->size == MO_32
-        ? !dc_isar_feature(aa32_fpsp_v2, s)
-        : !arm_dc_feature(s, ARM_FEATURE_NEON)) {
-        return false;
+    /*
+     * SIZE == MO_32 is a VFP instruction; otherwise NEON. MVE has
+     * all sizes, whether the CPU has fp or not.
+     */
+    if (!dc_isar_feature(aa32_mve, s)) {
+        if (a->size == MO_32
+            ? !dc_isar_feature(aa32_fpsp_v2, s)
+            : !arm_dc_feature(s, ARM_FEATURE_NEON)) {
+            return false;
+        }
     }
 
     /* UNDEF accesses to D16-D31 if they don't exist */
@@ -671,7 +681,7 @@ typedef enum FPSysRegCheckResult {
 
 static FPSysRegCheckResult fp_sysreg_checks(DisasContext *s, int regno)
 {
-    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
+    if (!dc_isar_feature(aa32_fpsp_v2, s) && !dc_isar_feature(aa32_mve, s)) {
         return FPSysRegCheckFailed;
     }
 
@@ -1254,7 +1264,7 @@ static bool trans_VMOV_single(DisasContext *s, arg_VMOV_single *a)
 {
     TCGv_i32 tmp;
 
-    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
+    if (!dc_isar_feature(aa32_fpsp_v2, s) && !dc_isar_feature(aa32_mve, s)) {
         return false;
     }
 
@@ -1287,7 +1297,7 @@ static bool trans_VMOV_64_sp(DisasContext *s, arg_VMOV_64_sp *a)
 {
     TCGv_i32 tmp;
 
-    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
+    if (!dc_isar_feature(aa32_fpsp_v2, s) && !dc_isar_feature(aa32_mve, s)) {
         return false;
     }
 
@@ -1329,7 +1339,7 @@ static bool trans_VMOV_64_dp(DisasContext *s, arg_VMOV_64_dp *a)
      * floating point register.  Note that this does not require support
      * for double precision arithmetic.
      */
-    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
+    if (!dc_isar_feature(aa32_fpsp_v2, s) && !dc_isar_feature(aa32_mve, s)) {
         return false;
     }
 
@@ -1368,7 +1378,7 @@ static bool trans_VLDR_VSTR_hp(DisasContext *s, arg_VLDR_VSTR_sp *a)
     uint32_t offset;
     TCGv_i32 addr, tmp;
 
-    if (!dc_isar_feature(aa32_fp16_arith, s)) {
+    if (!dc_isar_feature(aa32_fpsp_v2, s) && !dc_isar_feature(aa32_mve, s)) {
         return false;
     }
 
@@ -1403,7 +1413,7 @@ static bool trans_VLDR_VSTR_sp(DisasContext *s, arg_VLDR_VSTR_sp *a)
     uint32_t offset;
     TCGv_i32 addr, tmp;
 
-    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
+    if (!dc_isar_feature(aa32_fpsp_v2, s) && !dc_isar_feature(aa32_mve, s)) {
         return false;
     }
 
@@ -1439,7 +1449,7 @@ static bool trans_VLDR_VSTR_dp(DisasContext *s, arg_VLDR_VSTR_dp *a)
     TCGv_i64 tmp;
 
     /* Note that this does not require support for double arithmetic.  */
-    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
+    if (!dc_isar_feature(aa32_fpsp_v2, s) && !dc_isar_feature(aa32_mve, s)) {
         return false;
     }
 
@@ -1479,7 +1489,7 @@ static bool trans_VLDM_VSTM_sp(DisasContext *s, arg_VLDM_VSTM_sp *a)
     TCGv_i32 addr, tmp;
     int i, n;
 
-    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
+    if (!dc_isar_feature(aa32_fpsp_v2, s) && !dc_isar_feature(aa32_mve, s)) {
         return false;
     }
 
@@ -1557,7 +1567,7 @@ static bool trans_VLDM_VSTM_dp(DisasContext *s, arg_VLDM_VSTM_dp *a)
     int i, n;
 
     /* Note that this does not require support for double arithmetic.  */
-    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
+    if (!dc_isar_feature(aa32_fpsp_v2, s) && !dc_isar_feature(aa32_mve, s)) {
         return false;
     }
 
