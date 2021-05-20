@@ -332,6 +332,7 @@ static const VMStateDescription vmstate_m_mve = {
     .needed = mve_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.v7m.vpr, ARMCPU),
+        VMSTATE_UINT32(env.v7m.ltpsize, ARMCPU),
         VMSTATE_END_OF_LIST()
     },
 };
