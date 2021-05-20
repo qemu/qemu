@@ -1925,9 +1925,7 @@ static bool do_vfp_2op_sp(DisasContext *s, VFPGen2OpSPFn *fn, int vd, int vm)
     int veclen = s->vec_len;
     TCGv_i32 f0, fd;
 
-    if (!dc_isar_feature(aa32_fpsp_v2, s)) {
-        return false;
-    }
+    /* Note that the caller must check the aa32_fpsp_v2 feature. */
 
     if (!dc_isar_feature(aa32_fpshvec, s) &&
         (veclen != 0 || s->vec_stride != 0)) {
@@ -2002,6 +2000,8 @@ static bool do_vfp_2op_hp(DisasContext *s, VFPGen2OpSPFn *fn, int vd, int vm)
      */
     TCGv_i32 f0;
 
+    /* Note that the caller must check the aa32_fp16_arith feature */
+
     if (!dc_isar_feature(aa32_fp16_arith, s)) {
         return false;
     }
@@ -2030,9 +2030,7 @@ static bool do_vfp_2op_dp(DisasContext *s, VFPGen2OpDPFn *fn, int vd, int vm)
     int veclen = s->vec_len;
     TCGv_i64 f0, fd;
 
-    if (!dc_isar_feature(aa32_fpdp_v2, s)) {
-        return false;
-    }
+    /* Note that the caller must check the aa32_fpdp_v2 feature. */
 
     /* UNDEF accesses to D16-D31 if they don't exist */
     if (!dc_isar_feature(aa32_simd_r32, s) && ((vd | vm) & 0x10)) {
@@ -2810,23 +2808,26 @@ static bool trans_VMOV_imm_dp(DisasContext *s, arg_VMOV_imm_dp *a)
     return true;
 }
 
-#define DO_VFP_2OP(INSN, PREC, FN)                              \
+#define DO_VFP_2OP(INSN, PREC, FN, CHECK)                       \
     static bool trans_##INSN##_##PREC(DisasContext *s,          \
                                       arg_##INSN##_##PREC *a)   \
     {                                                           \
+        if (!dc_isar_feature(CHECK, s)) {                       \
+            return false;                                       \
+        }                                                       \
         return do_vfp_2op_##PREC(s, FN, a->vd, a->vm);          \
     }
 
-DO_VFP_2OP(VMOV_reg, sp, tcg_gen_mov_i32)
-DO_VFP_2OP(VMOV_reg, dp, tcg_gen_mov_i64)
+DO_VFP_2OP(VMOV_reg, sp, tcg_gen_mov_i32, aa32_fpsp_v2)
+DO_VFP_2OP(VMOV_reg, dp, tcg_gen_mov_i64, aa32_fpdp_v2)
 
-DO_VFP_2OP(VABS, hp, gen_helper_vfp_absh)
-DO_VFP_2OP(VABS, sp, gen_helper_vfp_abss)
-DO_VFP_2OP(VABS, dp, gen_helper_vfp_absd)
+DO_VFP_2OP(VABS, hp, gen_helper_vfp_absh, aa32_fp16_arith)
+DO_VFP_2OP(VABS, sp, gen_helper_vfp_abss, aa32_fpsp_v2)
+DO_VFP_2OP(VABS, dp, gen_helper_vfp_absd, aa32_fpdp_v2)
 
-DO_VFP_2OP(VNEG, hp, gen_helper_vfp_negh)
-DO_VFP_2OP(VNEG, sp, gen_helper_vfp_negs)
-DO_VFP_2OP(VNEG, dp, gen_helper_vfp_negd)
+DO_VFP_2OP(VNEG, hp, gen_helper_vfp_negh, aa32_fp16_arith)
+DO_VFP_2OP(VNEG, sp, gen_helper_vfp_negs, aa32_fpsp_v2)
+DO_VFP_2OP(VNEG, dp, gen_helper_vfp_negd, aa32_fpdp_v2)
 
 static void gen_VSQRT_hp(TCGv_i32 vd, TCGv_i32 vm)
 {
@@ -2843,9 +2844,9 @@ static void gen_VSQRT_dp(TCGv_i64 vd, TCGv_i64 vm)
     gen_helper_vfp_sqrtd(vd, vm, cpu_env);
 }
 
-DO_VFP_2OP(VSQRT, hp, gen_VSQRT_hp)
-DO_VFP_2OP(VSQRT, sp, gen_VSQRT_sp)
-DO_VFP_2OP(VSQRT, dp, gen_VSQRT_dp)
+DO_VFP_2OP(VSQRT, hp, gen_VSQRT_hp, aa32_fp16_arith)
+DO_VFP_2OP(VSQRT, sp, gen_VSQRT_sp, aa32_fpsp_v2)
+DO_VFP_2OP(VSQRT, dp, gen_VSQRT_dp, aa32_fpdp_v2)
 
 static bool trans_VCMP_hp(DisasContext *s, arg_VCMP_sp *a)
 {
