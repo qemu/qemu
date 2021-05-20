@@ -134,9 +134,11 @@ schemas = [
   'indented-expr.json',
   'leading-comma-list.json',
   'leading-comma-object.json',
+  'missing-array-rsqb.json',
   'missing-colon.json',
   'missing-comma-list.json',
   'missing-comma-object.json',
+  'missing-object-member-element.json',
   'missing-type.json',
   'nested-struct-data.json',
   'nested-struct-data-invalid-dict.json',
@@ -199,11 +201,16 @@ schemas = [
   'unknown-escape.json',
   'unknown-expr-key.json',
 ]
+schemas = files(schemas)
+
+# Intentionally missing schema file test -- not passed through files():
+schemas += [meson.current_source_dir() / 'missing-schema.json']
 
 # Because people may want to use test-qapi.py from the command line, we
 # are not using the "#! /usr/bin/env python3" trick here.  See
 # docs/devel/build-system.txt
-test('QAPI schema regression tests', python, args: files('test-qapi.py', schemas),
+test('QAPI schema regression tests', python,
+     args: files('test-qapi.py') + schemas,
      env: test_env, suite: ['qapi-schema', 'qapi-frontend'])
 
 diff = find_program('diff')

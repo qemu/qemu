@@ -12,7 +12,7 @@
 # See the COPYING file in the top-level directory.
 
 import re
-from typing import Optional, Sequence
+from typing import Match, Optional, Sequence
 
 
 #: Magic string that gets removed along with all space to its right.
@@ -210,3 +210,9 @@ def gen_endif(ifcond: Sequence[str]) -> str:
 #endif /* %(cond)s */
 ''', cond=ifc)
     return ret
+
+
+def must_match(pattern: str, string: str) -> Match[str]:
+    match = re.match(pattern, string)
+    assert match is not None
+    return match

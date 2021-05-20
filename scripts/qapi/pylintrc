@@ -43,6 +43,7 @@ good-names=i,
            _,
            fp,  # fp = open(...)
            fd,  # fd = os.open(...)
+           ch,
 
 [VARIABLES]
 
