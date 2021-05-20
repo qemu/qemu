@@ -869,6 +869,8 @@ struct ARMCPU {
 
     /* For v8M, initial value of the Secure VTOR */
     uint32_t init_svtor;
+    /* For v8M, initial value of the Non-secure VTOR */
+    uint32_t init_nsvtor;
 
     /* [QEMU_]KVM_ARM_TARGET_* constant for this CPU, or
      * QEMU_KVM_ARM_TARGET_NONE if the kernel doesn't support this CPU type.
