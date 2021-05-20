@@ -417,10 +417,13 @@ build-user-static:
     MAKE_CHECK_ARGS: check-tcg
 
 # Because the hexagon cross-compiler takes so long to build we don't rely
-# on the CI system to build it and hence this job has no dependency
+# on the CI system to build it and hence this job has an optional dependency
 # declared. The image is manually uploaded.
 build-user-hexagon:
   extends: .native_build_job_template
+  needs:
+    job: hexagon-cross-container
+    optional: true
   variables:
     IMAGE: debian-hexagon-cross
     TARGETS: hexagon-linux-user
