@@ -691,16 +691,16 @@ static FPSysRegCheckResult fp_sysreg_checks(DisasContext *s, int regno)
         break;
     case ARM_VFP_FPSCR_NZCVQC:
         if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
-            return false;
+            return FPSysRegCheckFailed;
         }
         break;
     case ARM_VFP_FPCXT_S:
     case ARM_VFP_FPCXT_NS:
         if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
-            return false;
+            return FPSysRegCheckFailed;
         }
         if (!s->v8m_secure) {
-            return false;
+            return FPSysRegCheckFailed;
         }
         break;
     default:
