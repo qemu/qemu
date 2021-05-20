@@ -14,6 +14,7 @@
 #include "qom/object.h"
 #include "hw/qdev-core.h"
 #include "hw/s390x/css.h"
+#include "hw/s390x/css-bridge.h"
 
 struct CcwDevice {
     DeviceState parent_obj;

@@ -8628,6 +8628,7 @@ static void i386_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
      */
     if ((dc->base.pc_next & TARGET_PAGE_MASK) == TARGET_VSYSCALL_PAGE) {
         gen_exception(dc, EXCP_VSYSCALL, dc->base.pc_next);
+        dc->base.pc_next = dc->pc + 1;
         return;
     }
 #endif

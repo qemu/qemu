@@ -3,14 +3,18 @@
 # x86_64 tests - included from tests/tcg/Makefile.target
 #
 # Currently we only build test-x86_64 and test-i386-ssse3 from
-# $(SRC)/tests/tcg/i386/
+# $(SRC_PATH)/tests/tcg/i386/
 #
 
 include $(SRC_PATH)/tests/tcg/i386/Makefile.target
 
+X86_64_TESTS += vsyscall
 TESTS=$(MULTIARCH_TESTS) $(X86_64_TESTS) test-x86_64
 QEMU_OPTS += -cpu max
 
 test-x86_64: LDFLAGS+=-lm -lc
 test-x86_64: test-i386.c test-i386.h test-i386-shift.h test-i386-muldiv.h
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
+vsyscall: $(SRC_PATH)/tests/tcg/x86_64/vsyscall.c
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
