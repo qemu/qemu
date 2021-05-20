@@ -1,0 +1,26 @@
+TESTS_PATH = $(SRC_PATH)/tests/tcg/tricore
+
+LDFLAGS = -T$(TESTS_PATH)/link.ld
+ASFLAGS =
+
+TESTS += test_abs.tst
+TESTS += test_bmerge.tst
+TESTS += test_clz.tst
+TESTS += test_dvstep.tst
+TESTS += test_fadd.tst
+TESTS += test_fmul.tst
+TESTS += test_ftoi.tst
+TESTS += test_madd.tst
+TESTS += test_msub.tst
+TESTS += test_muls.tst
+
+QEMU_OPTS += -M tricore_testboard -nographic -kernel
+
+%.pS: $(TESTS_PATH)/%.S
+	$(HOST_CC) -E -o $@ $<
+
+%.o: %.pS
+	$(AS) $(ASFLAGS) -o $@ $<
+
+%.tst: %.o
+	$(LD) $(LDFLAGS) $< -o $@
