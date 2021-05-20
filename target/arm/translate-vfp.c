@@ -2818,8 +2818,19 @@ static bool trans_VMOV_imm_dp(DisasContext *s, arg_VMOV_imm_dp *a)
         return do_vfp_2op_##PREC(s, FN, a->vd, a->vm);          \
     }
 
-DO_VFP_2OP(VMOV_reg, sp, tcg_gen_mov_i32, aa32_fpsp_v2)
-DO_VFP_2OP(VMOV_reg, dp, tcg_gen_mov_i64, aa32_fpdp_v2)
+#define DO_VFP_VMOV(INSN, PREC, FN)                             \
+    static bool trans_##INSN##_##PREC(DisasContext *s,          \
+                                      arg_##INSN##_##PREC *a)   \
+    {                                                           \
+        if (!dc_isar_feature(aa32_fp##PREC##_v2, s) &&          \
+            !dc_isar_feature(aa32_mve, s)) {                    \
+            return false;                                       \
+        }                                                       \
+        return do_vfp_2op_##PREC(s, FN, a->vd, a->vm);          \
+    }
+
+DO_VFP_VMOV(VMOV_reg, sp, tcg_gen_mov_i32)
+DO_VFP_VMOV(VMOV_reg, dp, tcg_gen_mov_i64)
 
 DO_VFP_2OP(VABS, hp, gen_helper_vfp_absh, aa32_fp16_arith)
 DO_VFP_2OP(VABS, sp, gen_helper_vfp_abss, aa32_fpsp_v2)
