@@ -19,9 +19,17 @@
 #
 
 import statistics
+import subprocess
+import time
 
 
-def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
+def do_drop_caches():
+    subprocess.run('sync; echo 3 > /proc/sys/vm/drop_caches', shell=True,
+                   check=True)
+
+
+def bench_one(test_func, test_env, test_case, count=5, initial_run=True,
+              slow_limit=100, drop_caches=False):
     """Benchmark one test-case
 
     test_func   -- benchmarking function with prototype
@@ -36,6 +44,9 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
     test_case   -- test case - opaque second argument for test_func
     count       -- how many times to call test_func, to calculate average
     initial_run -- do initial run of test_func, which don't get into result
+    slow_limit  -- stop at slow run (that exceedes the slow_limit by seconds).
+                   (initial run is not measured)
+    drop_caches -- drop caches before each run
 
     Returns dict with the following fields:
         'runs':     list of test_func results
@@ -49,14 +60,24 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
     """
     if initial_run:
         print('  #initial run:')
+        do_drop_caches()
         print('   ', test_func(test_env, test_case))
 
     runs = []
     for i in range(count):
+        t = time.time()
+
         print('  #run {}'.format(i+1))
+        do_drop_caches()
         res = test_func(test_env, test_case)
         print('   ', res)
         runs.append(res)
+
+        if time.time() - t > slow_limit:
+            print('    - run is too slow, stop here')
+            break
+
+    count = len(runs)
 
     result = {'runs': runs}
 
@@ -71,7 +92,10 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
             dim = 'seconds'
         result['dimension'] = dim
         result['average'] = statistics.mean(r[dim] for r in succeeded)
-        result['stdev'] = statistics.stdev(r[dim] for r in succeeded)
+        if len(succeeded) == 1:
+            result['stdev'] = 0
+        else:
+            result['stdev'] = statistics.stdev(r[dim] for r in succeeded)
 
     if len(succeeded) < count:
         result['n-failed'] = count - len(succeeded)

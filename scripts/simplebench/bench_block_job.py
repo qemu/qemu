@@ -21,6 +21,7 @@
 
 import sys
 import os
+import subprocess
 import socket
 import json
 
@@ -69,6 +70,10 @@ def bench_block_job(cmd, cmd_args, qemu_args):
             vm.shutdown()
             return {'error': 'block-job failed: ' + str(e),
                     'vm-log': vm.get_log()}
+        if 'error' in e['data']:
+            vm.shutdown()
+            return {'error': 'block-job failed: ' + e['data']['error'],
+                    'vm-log': vm.get_log()}
         end_ms = e['timestamp']['seconds'] * 1000000 + \
             e['timestamp']['microseconds']
     finally:
@@ -77,10 +82,33 @@ def bench_block_job(cmd, cmd_args, qemu_args):
     return {'seconds': (end_ms - start_ms) / 1000000.0}
 
 
+def get_image_size(path):
+    out = subprocess.run(['qemu-img', 'info', '--out=json', path],
+                         stdout=subprocess.PIPE, check=True).stdout
+    return json.loads(out)['virtual-size']
+
+
+def get_blockdev_size(obj):
+    img = obj['filename'] if 'filename' in obj else obj['file']['filename']
+    return get_image_size(img)
+
+
 # Bench backup or mirror
 def bench_block_copy(qemu_binary, cmd, cmd_options, source, target):
     """Helper to run bench_block_job() for mirror or backup"""
     assert cmd in ('blockdev-backup', 'blockdev-mirror')
+
+    if target['driver'] == 'qcow2':
+        try:
+            os.remove(target['file']['filename'])
+        except OSError:
+            pass
+
+        subprocess.run(['qemu-img', 'create', '-f', 'qcow2',
+                        target['file']['filename'],
+                        str(get_blockdev_size(source))],
+                       stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, check=True)
 
     source['node-name'] = 'source'
     target['node-name'] = 'target'
@@ -96,14 +124,22 @@ def bench_block_copy(qemu_binary, cmd, cmd_options, source, target):
                             '-blockdev', json.dumps(target)])
 
 
-def drv_file(filename):
-    return {'driver': 'file', 'filename': filename,
-            'cache': {'direct': True}, 'aio': 'native'}
+def drv_file(filename, o_direct=True):
+    node = {'driver': 'file', 'filename': filename}
+    if o_direct:
+        node['cache'] = {'direct': True}
+        node['aio'] = 'native'
+
+    return node
 
 
 def drv_nbd(host, port):
     return {'driver': 'nbd',
             'server': {'type': 'inet', 'host': host, 'port': port}}
+
+
+def drv_qcow2(file):
+    return {'driver': 'qcow2', 'file': file}
 
 
 if __name__ == '__main__':
