@@ -1116,14 +1116,10 @@ fail:
     return NULL;
 }
 
-static int socket_get_fd(const char *fdstr, int num, Error **errp)
+static int socket_get_fd(const char *fdstr, Error **errp)
 {
     Monitor *cur_mon = monitor_cur();
     int fd;
-    if (num != 1) {
-        error_setg_errno(errp, EINVAL, "socket_get_fd: too many connections");
-        return -1;
-    }
     if (cur_mon) {
         fd = monitor_get_fd(cur_mon, fdstr, errp);
         if (fd < 0) {
@@ -1159,7 +1155,7 @@ int socket_connect(SocketAddress *addr, Error **errp)
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
-        fd = socket_get_fd(addr->u.fd.str, 1, errp);
+        fd = socket_get_fd(addr->u.fd.str, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
@@ -1187,7 +1183,26 @@ int socket_listen(SocketAddress *addr, int num, Error **errp)
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
-        fd = socket_get_fd(addr->u.fd.str, num, errp);
+        fd = socket_get_fd(addr->u.fd.str, errp);
+        if (fd < 0) {
+            return -1;
+        }
+
+        /*
+         * If the socket is not yet in the listen state, then transition it to
+         * the listen state now.
+         *
+         * If it's already listening then this updates the backlog value as
+         * requested.
+         *
+         * If this socket cannot listen because it's already in another state
+         * (e.g. unbound or connected) then we'll catch the error here.
+         */
+        if (listen(fd, num) != 0) {
+            error_setg_errno(errp, errno, "Failed to listen on fd socket");
+            closesocket(fd);
+            return -1;
+        }
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
