@@ -18,11 +18,15 @@
 #include <gdk/gdkwayland.h>
 #endif
 
+#include "ui/clipboard.h"
+#include "ui/console.h"
 #include "ui/kbd-state.h"
 #if defined(CONFIG_OPENGL)
 #include "ui/egl-helpers.h"
 #include "ui/egl-context.h"
 #endif
+
+#define MAX_VCS 10
 
 typedef struct GtkDisplayState GtkDisplayState;
 
@@ -82,6 +86,66 @@ typedef struct VirtualConsole {
 #endif
     };
 } VirtualConsole;
+
+struct GtkDisplayState {
+    GtkWidget *window;
+
+    GtkWidget *menu_bar;
+
+    GtkAccelGroup *accel_group;
+
+    GtkWidget *machine_menu_item;
+    GtkWidget *machine_menu;
+    GtkWidget *pause_item;
+    GtkWidget *reset_item;
+    GtkWidget *powerdown_item;
+    GtkWidget *quit_item;
+
+    GtkWidget *view_menu_item;
+    GtkWidget *view_menu;
+    GtkWidget *full_screen_item;
+    GtkWidget *copy_item;
+    GtkWidget *zoom_in_item;
+    GtkWidget *zoom_out_item;
+    GtkWidget *zoom_fixed_item;
+    GtkWidget *zoom_fit_item;
+    GtkWidget *grab_item;
+    GtkWidget *grab_on_hover_item;
+
+    int nb_vcs;
+    VirtualConsole vc[MAX_VCS];
+
+    GtkWidget *show_tabs_item;
+    GtkWidget *untabify_item;
+    GtkWidget *show_menubar_item;
+
+    GtkWidget *vbox;
+    GtkWidget *notebook;
+    int button_mask;
+    gboolean last_set;
+    int last_x;
+    int last_y;
+    int grab_x_root;
+    int grab_y_root;
+    VirtualConsole *kbd_owner;
+    VirtualConsole *ptr_owner;
+
+    gboolean full_screen;
+
+    GdkCursor *null_cursor;
+    Notifier mouse_mode_notifier;
+    gboolean free_scale;
+
+    bool external_pause_update;
+
+    QemuClipboardPeer cbpeer;
+    QemuClipboardInfo *cbinfo[QEMU_CLIPBOARD_SELECTION__COUNT];
+    uint32_t cbpending[QEMU_CLIPBOARD_SELECTION__COUNT];
+    GtkClipboard *gtkcb[QEMU_CLIPBOARD_SELECTION__COUNT];
+    bool cbowner[QEMU_CLIPBOARD_SELECTION__COUNT];
+
+    DisplayOptions *opts;
+};
 
 extern bool gtk_use_gl_area;
 
@@ -149,5 +213,8 @@ void gd_gl_area_scanout_flush(DisplayChangeListener *dcl,
 void gtk_gl_area_init(void);
 int gd_gl_area_make_current(DisplayChangeListener *dcl,
                             QEMUGLContext ctx);
+
+/* gtk-clipboard.c */
+void gd_clipboard_init(GtkDisplayState *gd);
 
 #endif /* UI_GTK_H */

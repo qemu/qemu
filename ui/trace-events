@@ -124,3 +124,13 @@ xkeymap_extension(const char *name) "extension '%s'"
 xkeymap_vendor(const char *name) "vendor '%s'"
 xkeymap_keycodes(const char *name) "keycodes '%s'"
 xkeymap_keymap(const char *name) "keymap '%s'"
+
+# vdagent.c
+vdagent_open(void) ""
+vdagent_close(void) ""
+vdagent_send(const char *name) "msg %s"
+vdagent_recv_chunk(uint32_t size) "size %d"
+vdagent_recv_msg(const char *name, uint32_t size) "msg %s, size %d"
+vdagent_peer_cap(const char *name) "cap %s"
+vdagent_cb_grab_selection(const char *name) "selection %s"
+vdagent_cb_grab_type(const char *name) "type %s"

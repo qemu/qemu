@@ -561,6 +561,10 @@ static void interface_release_resource(QXLInstance *sin,
     SimpleSpiceCursor *cursor;
     QXLCommandExt *ext;
 
+    if (!rext.info) {
+        return;
+    }
+
     ext = (void *)(intptr_t)(rext.info->id);
     switch (ext->cmd.type) {
     case QXL_CMD_DRAW:
