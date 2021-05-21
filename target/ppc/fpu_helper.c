@@ -822,6 +822,7 @@ static inline uint64_t do_fri(CPUPPCState *env, uint64_t arg,
                               int rounding_mode)
 {
     CPU_DoubleU farg;
+    FloatRoundMode old_rounding_mode = get_float_rounding_mode(&env->fp_status);
 
     farg.ll = arg;
 
@@ -834,8 +835,7 @@ static inline uint64_t do_fri(CPUPPCState *env, uint64_t arg,
                       float_flag_inexact;
         set_float_rounding_mode(rounding_mode, &env->fp_status);
         farg.ll = float64_round_to_int(farg.d, &env->fp_status);
-        /* Restore rounding mode from FPSCR */
-        fpscr_set_rounding_mode(env);
+        set_float_rounding_mode(old_rounding_mode, &env->fp_status);
 
         /* fri* does not set FPSCR[XX] */
         if (!inexact) {
@@ -3136,8 +3136,10 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)       \
 {                                                                      \
     ppc_vsr_t t = *xt;                                                 \
     int i;                                                             \
+    FloatRoundMode curr_rounding_mode;                                 \
                                                                        \
     if (rmode != FLOAT_ROUND_CURRENT) {                                \
+        curr_rounding_mode = get_float_rounding_mode(&env->fp_status); \
         set_float_rounding_mode(rmode, &env->fp_status);               \
     }                                                                  \
                                                                        \
@@ -3160,7 +3162,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)       \
      * mode from FPSCR                                                 \
      */                                                                \
     if (rmode != FLOAT_ROUND_CURRENT) {                                \
-        fpscr_set_rounding_mode(env);                                  \
+        set_float_rounding_mode(curr_rounding_mode, &env->fp_status);  \
         env->fp_status.float_exception_flags &= ~float_flag_inexact;   \
     }                                                                  \
                                                                        \
