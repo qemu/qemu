@@ -43,7 +43,6 @@
 #include "fpu/softfloat.h"
 #include "qapi/qapi-commands-machine-target.h"
 
-#include "exec/helper-proto.h"
 #include "helper_regs.h"
 #include "internal.h"
 #include "spr_tcg.h"
