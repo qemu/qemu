@@ -24,6 +24,7 @@
 #include "exec/log.h"
 #include "fpu/softfloat-helpers.h"
 #include "mmu-hash64.h"
+#include "helper_regs.h"
 
 target_ulong cpu_read_xer(CPUPPCState *env)
 {
@@ -92,3 +93,19 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
     env->spr[SPR_SDR1] = value;
 }
 #endif /* CONFIG_SOFTMMU */
+
+/* GDBstub can read and write MSR... */
+void ppc_store_msr(CPUPPCState *env, target_ulong value)
+{
+    hreg_store_msr(env, value, 0);
+}
+
+void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUPPCState *env = &cpu->env;
+
+    env->spr[SPR_LPCR] = val & pcc->lpcr_mask;
+    /* The gtse bit affects hflags */
+    hreg_compute_hflags(env);
+}
