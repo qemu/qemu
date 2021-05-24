@@ -79,7 +79,6 @@ static void xtensa_cpu_reset(DeviceState *dev)
 
     xcc->parent_reset(dev);
 
-    env->exception_taken = 0;
     env->pc = env->config->exception_vector[EXC_RESET0 + env->static_vectors];
     env->sregs[LITBASE] &= ~1;
 #ifndef CONFIG_USER_ONLY

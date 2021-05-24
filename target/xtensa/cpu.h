@@ -540,7 +540,6 @@ typedef struct CPUXtensaState {
     uint32_t ccount_base;
 #endif
 
-    int exception_taken;
     int yield_needed;
     unsigned static_vectors;
 
@@ -711,7 +710,6 @@ static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
 #define XTENSA_TBFLAG_ICOUNT 0x20
 #define XTENSA_TBFLAG_CPENABLE_MASK 0x3fc0
 #define XTENSA_TBFLAG_CPENABLE_SHIFT 6
-#define XTENSA_TBFLAG_EXCEPTION 0x4000
 #define XTENSA_TBFLAG_WINDOW_MASK 0x18000
 #define XTENSA_TBFLAG_WINDOW_SHIFT 15
 #define XTENSA_TBFLAG_YIELD 0x20000
@@ -732,8 +730,6 @@ typedef XtensaCPU ArchCPU;
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, uint32_t *flags)
 {
-    CPUState *cs = env_cpu(env);
-
     *pc = env->pc;
     *cs_base = 0;
     *flags = 0;
@@ -781,9 +777,6 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
     }
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_COPROCESSOR)) {
         *flags |= env->sregs[CPENABLE] << XTENSA_TBFLAG_CPENABLE_SHIFT;
-    }
-    if (cs->singlestep_enabled && env->exception_taken) {
-        *flags |= XTENSA_TBFLAG_EXCEPTION;
     }
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_WINDOWED_REGISTER) &&
         (env->sregs[PS] & (PS_WOE | PS_EXCM)) == PS_WOE) {
