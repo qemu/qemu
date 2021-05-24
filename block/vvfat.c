@@ -3130,6 +3130,7 @@ static void vvfat_qcow_options(BdrvChildRole role, bool parent_is_format,
 static const BdrvChildClass child_vvfat_qcow = {
     .parent_is_bds      = true,
     .inherit_options    = vvfat_qcow_options,
+    .get_parent_aio_context = child_of_bds_get_parent_aio_context,
 };
 
 static int enable_write_target(BlockDriverState *bs, Error **errp)
