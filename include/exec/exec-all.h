@@ -21,7 +21,6 @@
 #define EXEC_ALL_H
 
 #include "cpu.h"
-#include "exec/tb-context.h"
 #ifdef CONFIG_TCG
 #include "exec/cpu_ldst.h"
 #endif

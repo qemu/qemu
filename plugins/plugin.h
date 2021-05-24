@@ -13,6 +13,7 @@
 #define _PLUGIN_INTERNAL_H_
 
 #include <gmodule.h>
+#include "qemu/qht.h"
 
 #define QEMU_PLUGIN_MIN_VERSION 0
 
