@@ -47,8 +47,6 @@
 #endif
 
 #include "exec/cputlb.h"
-#include "exec/tb-hash.h"
-#include "exec/tb-context.h"
 #include "exec/translate-all.h"
 #include "qemu/bitmap.h"
 #include "qemu/error-report.h"
@@ -61,6 +59,8 @@
 #include "sysemu/tcg.h"
 #include "qapi/error.h"
 #include "hw/core/tcg-cpu-ops.h"
+#include "tb-hash.h"
+#include "tb-context.h"
 #include "internal.h"
 
 /* #define DEBUG_TB_INVALIDATE */

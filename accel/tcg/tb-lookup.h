@@ -14,7 +14,7 @@
 #endif
 
 #include "exec/exec-all.h"
-#include "exec/tb-hash.h"
+#include "tb-hash.h"
 
 /* Might cause an exception, so have a longjmp destination ready */
 static inline TranslationBlock *tb_lookup(CPUState *cpu, target_ulong pc,
