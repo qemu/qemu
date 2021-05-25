@@ -30,6 +30,7 @@
 #include "hw/input/ps2.h"
 #include "hw/irq.h"
 #include "hw/input/i8042.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 
@@ -137,8 +138,10 @@ typedef struct KBDState {
     uint8_t mode;
     uint8_t outport;
     bool outport_present;
+    bool extended_state;
     /* Bitmask of devices with data available.  */
     uint8_t pending;
+    uint8_t obdata;
     void *kbd;
     void *mouse;
 
@@ -173,6 +176,13 @@ static void kbd_update_irq_lines(KBDState *s)
     qemu_set_irq(s->irq_mouse, irq_mouse_level);
 }
 
+static void kbd_deassert_irq(KBDState *s)
+{
+    s->status &= ~(KBD_STAT_OBF | KBD_STAT_MOUSE_OBF);
+    s->outport &= ~(KBD_OUT_OBF | KBD_OUT_MOUSE_OBF);
+    kbd_update_irq_lines(s);
+}
+
 /* update irq and KBD_STAT_[MOUSE_]OBF */
 static void kbd_update_irq(KBDState *s)
 {
@@ -181,7 +191,6 @@ static void kbd_update_irq(KBDState *s)
     if (s->pending) {
         s->status |= KBD_STAT_OBF;
         s->outport |= KBD_OUT_OBF;
-        /* kbd data takes priority over aux data.  */
         if (s->pending == KBD_PENDING_AUX) {
             s->status |= KBD_STAT_MOUSE_OBF;
             s->outport |= KBD_OUT_MOUSE_OBF;
@@ -190,26 +199,42 @@ static void kbd_update_irq(KBDState *s)
     kbd_update_irq_lines(s);
 }
 
+static void kbd_safe_update_irq(KBDState *s)
+{
+    /*
+     * with KBD_STAT_OBF set, a call to kbd_read_data() will eventually call
+     * kbd_update_irq()
+     */
+    if (s->status & KBD_STAT_OBF) {
+        return;
+    }
+    if (s->pending) {
+        kbd_update_irq(s);
+    }
+}
+
 static void kbd_update_kbd_irq(void *opaque, int level)
 {
-    KBDState *s = (KBDState *)opaque;
+    KBDState *s = opaque;
 
-    if (level)
+    if (level) {
         s->pending |= KBD_PENDING_KBD;
-    else
+    } else {
         s->pending &= ~KBD_PENDING_KBD;
-    kbd_update_irq(s);
+    }
+    kbd_safe_update_irq(s);
 }
 
 static void kbd_update_aux_irq(void *opaque, int level)
 {
-    KBDState *s = (KBDState *)opaque;
+    KBDState *s = opaque;
 
-    if (level)
+    if (level) {
         s->pending |= KBD_PENDING_AUX;
-    else
+    } else {
         s->pending &= ~KBD_PENDING_AUX;
-    kbd_update_irq(s);
+    }
+    kbd_safe_update_irq(s);
 }
 
 static uint64_t kbd_read_status(void *opaque, hwaddr addr,
@@ -290,11 +315,10 @@ static void kbd_write_command(void *opaque, hwaddr addr,
         break;
     case KBD_CCMD_KBD_DISABLE:
         s->mode |= KBD_MODE_DISABLE_KBD;
-        kbd_update_irq(s);
         break;
     case KBD_CCMD_KBD_ENABLE:
         s->mode &= ~KBD_MODE_DISABLE_KBD;
-        kbd_update_irq(s);
+        kbd_safe_update_irq(s);
         break;
     case KBD_CCMD_READ_INPORT:
         kbd_queue(s, 0x80, 0);
@@ -327,15 +351,19 @@ static uint64_t kbd_read_data(void *opaque, hwaddr addr,
                               unsigned size)
 {
     KBDState *s = opaque;
-    uint32_t val;
+    uint8_t status = s->status;
 
-    if (s->pending == KBD_PENDING_AUX)
-        val = ps2_read_data(s->mouse);
-    else
-        val = ps2_read_data(s->kbd);
+    if (status & KBD_STAT_OBF) {
+        kbd_deassert_irq(s);
+        if (status & KBD_STAT_MOUSE_OBF) {
+            s->obdata = ps2_read_data(s->mouse);
+        } else {
+            s->obdata = ps2_read_data(s->kbd);
+        }
+    }
 
-    trace_pckbd_kbd_read_data(val);
-    return val;
+    trace_pckbd_kbd_read_data(s->obdata);
+    return s->obdata;
 }
 
 static void kbd_write_data(void *opaque, hwaddr addr,
@@ -352,8 +380,16 @@ static void kbd_write_data(void *opaque, hwaddr addr,
     case KBD_CCMD_WRITE_MODE:
         s->mode = val;
         ps2_keyboard_set_translation(s->kbd, (s->mode & KBD_MODE_KCC) != 0);
-        /* ??? */
-        kbd_update_irq(s);
+        /*
+         * a write to the mode byte interrupt enable flags directly updates
+         * the irq lines
+         */
+        kbd_update_irq_lines(s);
+        /*
+         * a write to the mode byte disable interface flags may raise
+         * an irq if there is pending data in the PS/2 queues.
+         */
+        kbd_safe_update_irq(s);
         break;
     case KBD_CCMD_WRITE_OBUF:
         kbd_queue(s, val, 0);
@@ -381,6 +417,8 @@ static void kbd_reset(void *opaque)
     s->status = KBD_STAT_CMD | KBD_STAT_UNLOCKED;
     s->outport = KBD_OUT_RESET | KBD_OUT_A20 | KBD_OUT_ONES;
     s->outport_present = false;
+    s->pending = 0;
+    kbd_deassert_irq(s);
 }
 
 static uint8_t kbd_outport_default(KBDState *s)
@@ -415,6 +453,22 @@ static const VMStateDescription vmstate_kbd_outport = {
     }
 };
 
+static bool kbd_extended_state_needed(void *opaque)
+{
+    KBDState *s = opaque;
+
+    return s->extended_state;
+}
+
+static const VMStateDescription vmstate_kbd_extended_state = {
+    .name = "pckbd/extended_state",
+    .needed = kbd_extended_state_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(obdata, KBDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int kbd_post_load(void *opaque, int version_id)
 {
     KBDState *s = opaque;
@@ -439,6 +493,7 @@ static const VMStateDescription vmstate_kbd = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_kbd_outport,
+        &vmstate_kbd_extended_state,
         NULL
     }
 };
@@ -483,6 +538,8 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     s->irq_kbd = kbd_irq;
     s->irq_mouse = mouse_irq;
     s->mask = mask;
+
+    s->extended_state = true;
 
     vmstate_register(NULL, 0, &vmstate_kbd, s);
 
@@ -600,11 +657,17 @@ static void i8042_build_aml(ISADevice *isadev, Aml *scope)
     aml_append(scope, mou);
 }
 
+static Property i8042_properties[] = {
+    DEFINE_PROP_BOOL("extended-state", ISAKBDState, kbd.extended_state, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void i8042_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *isa = ISA_DEVICE_CLASS(klass);
 
+    device_class_set_props(dc, i8042_properties);
     dc->realize = i8042_realizefn;
     dc->vmsd = &vmstate_kbd_isa;
     isa->build_aml = i8042_build_aml;
