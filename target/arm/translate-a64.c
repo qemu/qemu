@@ -13472,18 +13472,27 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                 unallocated_encoding(s);
                 return;
             }
+            size = MO_32;
             break;
         case 1: /* BFDOT */
             if (is_scalar || !dc_isar_feature(aa64_bf16, s)) {
                 unallocated_encoding(s);
                 return;
             }
+            size = MO_32;
+            break;
+        case 3: /* BFMLAL{B,T} */
+            if (is_scalar || !dc_isar_feature(aa64_bf16, s)) {
+                unallocated_encoding(s);
+                return;
+            }
+            /* can't set is_fp without other incorrect size checks */
+            size = MO_16;
             break;
         default:
             unallocated_encoding(s);
             return;
         }
-        size = MO_32;
         break;
     case 0x11: /* FCMLA #0 */
     case 0x13: /* FCMLA #90 */
@@ -13612,6 +13621,10 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         case 2: /* USDOT */
             gen_gvec_op4_ool(s, is_q, rd, rn, rm, rd, index,
                              gen_helper_gvec_usdot_idx_b);
+            return;
+        case 3: /* BFMLAL{B,T} */
+            gen_gvec_op4_fpst(s, 1, rd, rn, rm, rd, 0, (index << 1) | is_q,
+                              gen_helper_gvec_bfmlal_idx);
             return;
         }
         g_assert_not_reached();
