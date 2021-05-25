@@ -1492,8 +1492,36 @@ DO_CMLA_FUNC(sve2_sqrdcmlah_zzzz_h, int16_t, H2, DO_SQRDMLAH_H)
 DO_CMLA_FUNC(sve2_sqrdcmlah_zzzz_s, int32_t, H4, DO_SQRDMLAH_S)
 DO_CMLA_FUNC(sve2_sqrdcmlah_zzzz_d, int64_t,   , DO_SQRDMLAH_D)
 
+#define DO_CMLA_IDX_FUNC(NAME, TYPE, H, OP) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *va, uint32_t desc)    \
+{                                                                           \
+    intptr_t i, j, oprsz = simd_oprsz(desc);                                \
+    int rot = extract32(desc, SIMD_DATA_SHIFT, 2);                          \
+    int idx = extract32(desc, SIMD_DATA_SHIFT + 2, 2) * 2;                  \
+    int sel_a = rot & 1, sel_b = sel_a ^ 1;                                 \
+    bool sub_r = rot == 1 || rot == 2;                                      \
+    bool sub_i = rot >= 2;                                                  \
+    TYPE *d = vd, *n = vn, *m = vm, *a = va;                                \
+    for (i = 0; i < oprsz / sizeof(TYPE); i += 16 / sizeof(TYPE)) {         \
+        TYPE elt2_a = m[H(i + idx + sel_a)];                                \
+        TYPE elt2_b = m[H(i + idx + sel_b)];                                \
+        for (j = 0; j < 16 / sizeof(TYPE); j += 2) {                        \
+            TYPE elt1_a = n[H(i + j + sel_a)];                              \
+            d[H2(i + j)] = OP(elt1_a, elt2_a, a[H(i + j)], sub_r);          \
+            d[H2(i + j + 1)] = OP(elt1_a, elt2_b, a[H(i + j + 1)], sub_i);  \
+        }                                                                   \
+    }                                                                       \
+}
+
+DO_CMLA_IDX_FUNC(sve2_cmla_idx_h, int16_t, H2, DO_CMLA)
+DO_CMLA_IDX_FUNC(sve2_cmla_idx_s, int32_t, H4, DO_CMLA)
+
+DO_CMLA_IDX_FUNC(sve2_sqrdcmlah_idx_h, int16_t, H2, DO_SQRDMLAH_H)
+DO_CMLA_IDX_FUNC(sve2_sqrdcmlah_idx_s, int32_t, H4, DO_SQRDMLAH_S)
+
 #undef DO_CMLA
 #undef DO_CMLA_FUNC
+#undef DO_CMLA_IDX_FUNC
 #undef DO_SQRDMLAH_B
 #undef DO_SQRDMLAH_H
 #undef DO_SQRDMLAH_S
