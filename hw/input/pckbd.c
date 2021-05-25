@@ -131,10 +131,12 @@
 #define MOUSE_STATUS_ENABLED    0x20
 #define MOUSE_STATUS_SCALE21    0x10
 
-#define KBD_PENDING_KBD         1
-#define KBD_PENDING_AUX         2
+#define KBD_PENDING_KBD_COMPAT  0x01
+#define KBD_PENDING_AUX_COMPAT  0x02
 #define KBD_PENDING_CTRL_KBD    0x04
 #define KBD_PENDING_CTRL_AUX    0x08
+#define KBD_PENDING_KBD         KBD_MODE_DISABLE_KBD    /* 0x10 */
+#define KBD_PENDING_AUX         KBD_MODE_DISABLE_MOUSE  /* 0x20 */
 
 #define KBD_MIGR_TIMER_PENDING  0x1
 
@@ -156,6 +158,7 @@ typedef struct KBDState {
     uint8_t pending;
     uint8_t obdata;
     uint8_t cbdata;
+    uint8_t pending_tmp;
     void *kbd;
     void *mouse;
     QEMUTimer *throttle_timer;
@@ -200,7 +203,11 @@ static void kbd_deassert_irq(KBDState *s)
 
 static uint8_t kbd_pending(KBDState *s)
 {
-    return s->pending;
+    if (s->extended_state) {
+        return s->pending & (~s->mode | ~(KBD_PENDING_KBD | KBD_PENDING_AUX));
+    } else {
+        return s->pending;
+    }
 }
 
 /* update irq and KBD_STAT_[MOUSE_]OBF */
@@ -361,6 +368,7 @@ static void kbd_write_command(void *opaque, hwaddr addr,
         break;
     case KBD_CCMD_MOUSE_ENABLE:
         s->mode &= ~KBD_MODE_DISABLE_MOUSE;
+        kbd_safe_update_irq(s);
         break;
     case KBD_CCMD_TEST_MOUSE:
         kbd_queue(s, 0x00, 0);
@@ -440,6 +448,9 @@ static void kbd_write_data(void *opaque, hwaddr addr,
     switch(s->write_cmd) {
     case 0:
         ps2_write_keyboard(s->kbd, val);
+        /* sending data to the keyboard reenables PS/2 communication */
+        s->mode &= ~KBD_MODE_DISABLE_KBD;
+        kbd_safe_update_irq(s);
         break;
     case KBD_CCMD_WRITE_MODE:
         s->mode = val;
@@ -466,6 +477,9 @@ static void kbd_write_data(void *opaque, hwaddr addr,
         break;
     case KBD_CCMD_WRITE_MOUSE:
         ps2_write_mouse(s->mouse, val);
+        /* sending data to the mouse reenables PS/2 communication */
+        s->mode &= ~KBD_MODE_DISABLE_MOUSE;
+        kbd_safe_update_irq(s);
         break;
     default:
         break;
@@ -565,6 +579,24 @@ static const VMStateDescription vmstate_kbd_extended_state = {
     }
 };
 
+static int kbd_pre_save(void *opaque)
+{
+    KBDState *s = opaque;
+
+    if (s->extended_state) {
+        s->pending_tmp = s->pending;
+    } else {
+        s->pending_tmp = 0;
+        if (s->pending & KBD_PENDING_KBD) {
+            s->pending_tmp |= KBD_PENDING_KBD_COMPAT;
+        }
+        if (s->pending & KBD_PENDING_AUX) {
+            s->pending_tmp |= KBD_PENDING_AUX_COMPAT;
+        }
+    }
+    return 0;
+}
+
 static int kbd_pre_load(void *opaque)
 {
     KBDState *s = opaque;
@@ -580,11 +612,21 @@ static int kbd_post_load(void *opaque, int version_id)
         s->outport = kbd_outport_default(s);
     }
     s->outport_present = false;
+    s->pending = s->pending_tmp;
     if (!s->extended_state_loaded) {
         s->obsrc = s->status & KBD_STAT_OBF ?
             (s->status & KBD_STAT_MOUSE_OBF ? KBD_OBSRC_MOUSE : KBD_OBSRC_KBD) :
             0;
+        if (s->pending & KBD_PENDING_KBD_COMPAT) {
+            s->pending |= KBD_PENDING_KBD;
+        }
+        if (s->pending & KBD_PENDING_AUX_COMPAT) {
+            s->pending |= KBD_PENDING_AUX;
+        }
     }
+    /* clear all unused flags */
+    s->pending &= KBD_PENDING_CTRL_KBD | KBD_PENDING_CTRL_AUX |
+                  KBD_PENDING_KBD | KBD_PENDING_AUX;
     return 0;
 }
 
@@ -594,11 +636,12 @@ static const VMStateDescription vmstate_kbd = {
     .minimum_version_id = 3,
     .pre_load = kbd_pre_load,
     .post_load = kbd_post_load,
+    .pre_save = kbd_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(write_cmd, KBDState),
         VMSTATE_UINT8(status, KBDState),
         VMSTATE_UINT8(mode, KBDState),
-        VMSTATE_UINT8(pending, KBDState),
+        VMSTATE_UINT8(pending_tmp, KBDState),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
