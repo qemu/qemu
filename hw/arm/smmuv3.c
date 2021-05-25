@@ -857,43 +857,45 @@ static void smmuv3_inv_notifiers_iova(SMMUState *s, int asid, dma_addr_t iova,
 
 static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
 {
-    uint8_t scale = 0, num = 0, ttl = 0;
-    dma_addr_t addr = CMD_ADDR(cmd);
+    dma_addr_t end, addr = CMD_ADDR(cmd);
     uint8_t type = CMD_TYPE(cmd);
     uint16_t vmid = CMD_VMID(cmd);
+    uint8_t scale = CMD_SCALE(cmd);
+    uint8_t num = CMD_NUM(cmd);
+    uint8_t ttl = CMD_TTL(cmd);
     bool leaf = CMD_LEAF(cmd);
     uint8_t tg = CMD_TG(cmd);
-    uint64_t first_page = 0, last_page;
-    uint64_t num_pages = 1;
+    uint64_t num_pages;
+    uint8_t granule;
     int asid = -1;
-
-    if (tg) {
-        scale = CMD_SCALE(cmd);
-        num = CMD_NUM(cmd);
-        ttl = CMD_TTL(cmd);
-        num_pages = (num + 1) * BIT_ULL(scale);
-    }
 
     if (type == SMMU_CMD_TLBI_NH_VA) {
         asid = CMD_ASID(cmd);
     }
 
+    if (!tg) {
+        trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, 1, ttl, leaf);
+        smmuv3_inv_notifiers_iova(s, asid, addr, tg, 1);
+        smmu_iotlb_inv_iova(s, asid, addr, tg, 1, ttl);
+        return;
+    }
+
+    /* RIL in use */
+
+    num_pages = (num + 1) * BIT_ULL(scale);
+    granule = tg * 2 + 10;
+
     /* Split invalidations into ^2 range invalidations */
-    last_page = num_pages - 1;
-    while (num_pages) {
-        uint8_t granule = tg * 2 + 10;
-        uint64_t mask, count;
+    end = addr + (num_pages << granule) - 1;
 
-        mask = dma_aligned_pow2_mask(first_page, last_page, 64 - granule);
-        count = mask + 1;
+    while (addr != end + 1) {
+        uint64_t mask = dma_aligned_pow2_mask(addr, end, 64);
 
-        trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, count, ttl, leaf);
-        smmuv3_inv_notifiers_iova(s, asid, addr, tg, count);
-        smmu_iotlb_inv_iova(s, asid, addr, tg, count, ttl);
-
-        num_pages -= count;
-        first_page += count;
-        addr += count * BIT_ULL(granule);
+        num_pages = (mask + 1) >> granule;
+        trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, num_pages, ttl, leaf);
+        smmuv3_inv_notifiers_iova(s, asid, addr, tg, num_pages);
+        smmu_iotlb_inv_iova(s, asid, addr, tg, num_pages, ttl);
+        addr += mask + 1;
     }
 }
 

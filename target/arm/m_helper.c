@@ -1597,10 +1597,11 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
          * We use this limited C variable scope so we don't accidentally
          * use 'frame_sp_p' after we do something that makes it invalid.
          */
+        bool spsel = env->v7m.control[return_to_secure] & R_V7M_CONTROL_SPSEL_MASK;
         uint32_t *frame_sp_p = get_v7m_sp_ptr(env,
                                               return_to_secure,
                                               !return_to_handler,
-                                              return_to_sp_process);
+                                              spsel);
         uint32_t frameptr = *frame_sp_p;
         bool pop_ok = true;
         ARMMMUIdx mmu_idx;

@@ -28,7 +28,9 @@
 #define PLATFORM_H
 
 // Define platform specific functionalities.
+extern "C" {
 #include <signal.h>
+}
 
 namespace vixl {
 inline void HostBreakpoint() { raise(SIGINT); }

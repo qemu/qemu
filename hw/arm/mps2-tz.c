@@ -123,8 +123,10 @@ struct MPS2TZMachineClass {
     int numirq; /* Number of external interrupts */
     int uart_overflow_irq; /* number of the combined UART overflow IRQ */
     uint32_t init_svtor; /* init-svtor setting for SSE */
+    uint32_t sram_addr_width; /* SRAM_ADDR_WIDTH setting for SSE */
     const RAMInfo *raminfo;
     const char *armsse_type;
+    uint32_t boot_ram_size; /* size of ram at address 0; 0 == find in raminfo */
 };
 
 struct MPS2TZMachineState {
@@ -244,18 +246,12 @@ static const RAMInfo an524_raminfo[] = { {
         .mpc = 0,
         .mrindex = 0,
     }, {
-        .name = "sram",
-        .base = 0x20000000,
-        .size = 32 * 4 * KiB,
-        .mpc = -1,
-        .mrindex = 1,
-    }, {
         /* We don't model QSPI flash yet; for now expose it as simple ROM */
         .name = "QSPI",
         .base = 0x28000000,
         .size = 8 * MiB,
         .mpc = 1,
-        .mrindex = 2,
+        .mrindex = 1,
         .flags = IS_ROM,
     }, {
         .name = "DDR",
@@ -269,23 +265,11 @@ static const RAMInfo an524_raminfo[] = { {
 };
 
 static const RAMInfo an547_raminfo[] = { {
-        .name = "itcm",
-        .base = 0x00000000,
-        .size = 512 * KiB,
-        .mpc = -1,
-        .mrindex = 0,
-    }, {
         .name = "sram",
         .base = 0x01000000,
         .size = 2 * MiB,
         .mpc = 0,
         .mrindex = 1,
-    }, {
-        .name = "dtcm",
-        .base = 0x20000000,
-        .size = 4 * 128 * KiB,
-        .mpc = -1,
-        .mrindex = 2,
     }, {
         .name = "sram 2",
         .base = 0x21000000,
@@ -766,6 +750,14 @@ static uint32_t boot_ram_size(MPS2TZMachineState *mms)
     const RAMInfo *p;
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
 
+    /*
+     * Use a per-board specification (for when the boot RAM is in
+     * the SSE and so doesn't have a RAMInfo list entry)
+     */
+    if (mmc->boot_ram_size) {
+        return mmc->boot_ram_size;
+    }
+
     for (p = mmc->raminfo; p->name; p++) {
         if (p->base == boot_mem_base(mms)) {
             return p->size;
@@ -812,6 +804,7 @@ static void mps2tz_common_init(MachineState *machine)
                              OBJECT(system_memory), &error_abort);
     qdev_prop_set_uint32(iotkitdev, "EXP_NUMIRQ", mmc->numirq);
     qdev_prop_set_uint32(iotkitdev, "init-svtor", mmc->init_svtor);
+    qdev_prop_set_uint32(iotkitdev, "SRAM_ADDR_WIDTH", mmc->sram_addr_width);
     qdev_connect_clock_in(iotkitdev, "MAINCLK", mms->sysclk);
     qdev_connect_clock_in(iotkitdev, "S32KCLK", mms->s32kclk);
     sysbus_realize(SYS_BUS_DEVICE(&mms->iotkit), &error_fatal);
@@ -1269,8 +1262,10 @@ static void mps2tz_an505_class_init(ObjectClass *oc, void *data)
     mmc->numirq = 92;
     mmc->uart_overflow_irq = 47;
     mmc->init_svtor = 0x10000000;
+    mmc->sram_addr_width = 15;
     mmc->raminfo = an505_raminfo;
     mmc->armsse_type = TYPE_IOTKIT;
+    mmc->boot_ram_size = 0;
     mps2tz_set_default_ram_info(mmc);
 }
 
@@ -1296,8 +1291,10 @@ static void mps2tz_an521_class_init(ObjectClass *oc, void *data)
     mmc->numirq = 92;
     mmc->uart_overflow_irq = 47;
     mmc->init_svtor = 0x10000000;
+    mmc->sram_addr_width = 15;
     mmc->raminfo = an505_raminfo; /* AN521 is the same as AN505 here */
     mmc->armsse_type = TYPE_SSE200;
+    mmc->boot_ram_size = 0;
     mps2tz_set_default_ram_info(mmc);
 }
 
@@ -1323,8 +1320,10 @@ static void mps3tz_an524_class_init(ObjectClass *oc, void *data)
     mmc->numirq = 95;
     mmc->uart_overflow_irq = 47;
     mmc->init_svtor = 0x10000000;
+    mmc->sram_addr_width = 15;
     mmc->raminfo = an524_raminfo;
     mmc->armsse_type = TYPE_SSE200;
+    mmc->boot_ram_size = 0;
     mps2tz_set_default_ram_info(mmc);
 
     object_class_property_add_str(oc, "remap", mps2_get_remap, mps2_set_remap);
@@ -1355,8 +1354,10 @@ static void mps3tz_an547_class_init(ObjectClass *oc, void *data)
     mmc->numirq = 96;
     mmc->uart_overflow_irq = 48;
     mmc->init_svtor = 0x00000000;
+    mmc->sram_addr_width = 21;
     mmc->raminfo = an547_raminfo;
     mmc->armsse_type = TYPE_SSE300;
+    mmc->boot_ram_size = 512 * KiB;
     mps2tz_set_default_ram_info(mmc);
 }
 
