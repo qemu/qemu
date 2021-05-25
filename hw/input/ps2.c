@@ -212,6 +212,10 @@ void ps2_raise_irq(PS2State *s)
 
 void ps2_queue(PS2State *s, int b)
 {
+    if (PS2_QUEUE_SIZE - s->queue.count < 1) {
+        return;
+    }
+
     ps2_queue_noirq(s, b);
     s->update_irq(s->update_arg, 1);
 }
