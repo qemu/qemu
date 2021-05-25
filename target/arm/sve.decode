@@ -823,6 +823,24 @@ SQDMLSLB_zzxw_d 01000100 11 1 ..... 0011.0 ..... .....   @rrxr_2a esz=3
 SQDMLSLT_zzxw_s 01000100 10 1 ..... 0011.1 ..... .....   @rrxr_3a esz=2
 SQDMLSLT_zzxw_d 01000100 11 1 ..... 0011.1 ..... .....   @rrxr_2a esz=3
 
+# SVE2 multiply-add long (indexed)
+SMLALB_zzxw_s   01000100 10 1 ..... 1000.0 ..... .....   @rrxr_3a esz=2
+SMLALB_zzxw_d   01000100 11 1 ..... 1000.0 ..... .....   @rrxr_2a esz=3
+SMLALT_zzxw_s   01000100 10 1 ..... 1000.1 ..... .....   @rrxr_3a esz=2
+SMLALT_zzxw_d   01000100 11 1 ..... 1000.1 ..... .....   @rrxr_2a esz=3
+UMLALB_zzxw_s   01000100 10 1 ..... 1001.0 ..... .....   @rrxr_3a esz=2
+UMLALB_zzxw_d   01000100 11 1 ..... 1001.0 ..... .....   @rrxr_2a esz=3
+UMLALT_zzxw_s   01000100 10 1 ..... 1001.1 ..... .....   @rrxr_3a esz=2
+UMLALT_zzxw_d   01000100 11 1 ..... 1001.1 ..... .....   @rrxr_2a esz=3
+SMLSLB_zzxw_s   01000100 10 1 ..... 1010.0 ..... .....   @rrxr_3a esz=2
+SMLSLB_zzxw_d   01000100 11 1 ..... 1010.0 ..... .....   @rrxr_2a esz=3
+SMLSLT_zzxw_s   01000100 10 1 ..... 1010.1 ..... .....   @rrxr_3a esz=2
+SMLSLT_zzxw_d   01000100 11 1 ..... 1010.1 ..... .....   @rrxr_2a esz=3
+UMLSLB_zzxw_s   01000100 10 1 ..... 1011.0 ..... .....   @rrxr_3a esz=2
+UMLSLB_zzxw_d   01000100 11 1 ..... 1011.0 ..... .....   @rrxr_2a esz=3
+UMLSLT_zzxw_s   01000100 10 1 ..... 1011.1 ..... .....   @rrxr_3a esz=2
+UMLSLT_zzxw_d   01000100 11 1 ..... 1011.1 ..... .....   @rrxr_2a esz=3
+
 # SVE2 saturating multiply (indexed)
 SQDMULLB_zzx_s  01000100 10 1 ..... 1110.0 ..... .....   @rrx_3a esz=2
 SQDMULLB_zzx_d  01000100 11 1 ..... 1110.0 ..... .....   @rrx_2a esz=3
