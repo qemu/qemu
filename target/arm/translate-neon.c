@@ -348,7 +348,7 @@ static bool trans_VDOT_scalar(DisasContext *s, arg_VDOT_scalar *a)
     opr_sz = (1 + a->q) * 8;
     tcg_gen_gvec_4_ool(vfp_reg_offset(1, a->vd),
                        vfp_reg_offset(1, a->vn),
-                       vfp_reg_offset(1, a->rm),
+                       vfp_reg_offset(1, a->vm),
                        vfp_reg_offset(1, a->vd),
                        opr_sz, opr_sz, a->index, fn_gvec);
     return true;
