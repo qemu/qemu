@@ -67,3 +67,15 @@
   after_script:
     - cd build
     - du -chs ${CI_PROJECT_DIR}/avocado-cache
+  rules:
+    # Only run these jobs if running on the mainstream namespace,
+    # or if the user set the QEMU_CI_AVOCADO_TESTING variable (either
+    # in its namespace setting or via git-push option, see documentation
+    # in /.gitlab-ci.yml of this repository).
+    - if: '$CI_PROJECT_NAMESPACE == "qemu-project"'
+      when: always
+    - if: '$QEMU_CI_AVOCADO_TESTING'
+      when: always
+    # Otherwise, set to manual (the jobs are created but not run).
+    - when: manual
+      allow_failure: true
