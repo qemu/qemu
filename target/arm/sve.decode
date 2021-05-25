@@ -829,6 +829,14 @@ SQDMULLB_zzx_d  01000100 11 1 ..... 1110.0 ..... .....   @rrx_2a esz=3
 SQDMULLT_zzx_s  01000100 10 1 ..... 1110.1 ..... .....   @rrx_3a esz=2
 SQDMULLT_zzx_d  01000100 11 1 ..... 1110.1 ..... .....   @rrx_2a esz=3
 
+# SVE2 saturating multiply high (indexed)
+SQDMULH_zzx_h   01000100 0. 1 ..... 111100 ..... .....   @rrx_3 esz=1
+SQDMULH_zzx_s   01000100 10 1 ..... 111100 ..... .....   @rrx_2 esz=2
+SQDMULH_zzx_d   01000100 11 1 ..... 111100 ..... .....   @rrx_1 esz=3
+SQRDMULH_zzx_h  01000100 0. 1 ..... 111101 ..... .....   @rrx_3 esz=1
+SQRDMULH_zzx_s  01000100 10 1 ..... 111101 ..... .....   @rrx_2 esz=2
+SQRDMULH_zzx_d  01000100 11 1 ..... 111101 ..... .....   @rrx_1 esz=3
+
 # SVE2 integer multiply (indexed)
 MUL_zzx_h       01000100 0. 1 ..... 111110 ..... .....   @rrx_3 esz=1
 MUL_zzx_s       01000100 10 1 ..... 111110 ..... .....   @rrx_2 esz=2
