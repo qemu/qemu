@@ -558,16 +558,27 @@ check-deprecated:
   allow_failure: true
 
 # gprof/gcov are GCC features
-gprof-gcov:
+build-gprof-gcov:
   extends: .native_build_job_template
   needs:
     job: amd64-ubuntu2004-container
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-gprof --enable-gcov
-    MAKE_CHECK_ARGS: check
     TARGETS: aarch64-softmmu ppc64-softmmu s390x-softmmu x86_64-softmmu
-  timeout: 70m
+  artifacts:
+    expire_in: 1 days
+    paths:
+      - build
+
+check-gprof-gcov:
+  extends: .native_test_job_template
+  needs:
+    - job: build-gprof-gcov
+      artifacts: true
+  variables:
+    IMAGE: ubuntu2004
+    MAKE_CHECK_ARGS: check
   after_script:
     - ${CI_PROJECT_DIR}/scripts/ci/coverage-summary.sh
 
