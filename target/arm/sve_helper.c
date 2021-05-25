@@ -4729,6 +4729,94 @@ DO_ZPZ_FP(sve_ucvt_dh, uint64_t,     , uint64_to_float16)
 DO_ZPZ_FP(sve_ucvt_ds, uint64_t,     , uint64_to_float32)
 DO_ZPZ_FP(sve_ucvt_dd, uint64_t,     , uint64_to_float64)
 
+static int16_t do_float16_logb_as_int(float16 a, float_status *s)
+{
+    /* Extract frac to the top of the uint32_t. */
+    uint32_t frac = (uint32_t)a << (16 + 6);
+    int16_t exp = extract32(a, 10, 5);
+
+    if (unlikely(exp == 0)) {
+        if (frac != 0) {
+            if (!get_flush_inputs_to_zero(s)) {
+                /* denormal: bias - fractional_zeros */
+                return -15 - clz32(frac);
+            }
+            /* flush to zero */
+            float_raise(float_flag_input_denormal, s);
+        }
+    } else if (unlikely(exp == 0x1f)) {
+        if (frac == 0) {
+            return INT16_MAX; /* infinity */
+        }
+    } else {
+        /* normal: exp - bias */
+        return exp - 15;
+    }
+    /* nan or zero */
+    float_raise(float_flag_invalid, s);
+    return INT16_MIN;
+}
+
+static int32_t do_float32_logb_as_int(float32 a, float_status *s)
+{
+    /* Extract frac to the top of the uint32_t. */
+    uint32_t frac = a << 9;
+    int32_t exp = extract32(a, 23, 8);
+
+    if (unlikely(exp == 0)) {
+        if (frac != 0) {
+            if (!get_flush_inputs_to_zero(s)) {
+                /* denormal: bias - fractional_zeros */
+                return -127 - clz32(frac);
+            }
+            /* flush to zero */
+            float_raise(float_flag_input_denormal, s);
+        }
+    } else if (unlikely(exp == 0xff)) {
+        if (frac == 0) {
+            return INT32_MAX; /* infinity */
+        }
+    } else {
+        /* normal: exp - bias */
+        return exp - 127;
+    }
+    /* nan or zero */
+    float_raise(float_flag_invalid, s);
+    return INT32_MIN;
+}
+
+static int64_t do_float64_logb_as_int(float64 a, float_status *s)
+{
+    /* Extract frac to the top of the uint64_t. */
+    uint64_t frac = a << 12;
+    int64_t exp = extract64(a, 52, 11);
+
+    if (unlikely(exp == 0)) {
+        if (frac != 0) {
+            if (!get_flush_inputs_to_zero(s)) {
+                /* denormal: bias - fractional_zeros */
+                return -1023 - clz64(frac);
+            }
+            /* flush to zero */
+            float_raise(float_flag_input_denormal, s);
+        }
+    } else if (unlikely(exp == 0x7ff)) {
+        if (frac == 0) {
+            return INT64_MAX; /* infinity */
+        }
+    } else {
+        /* normal: exp - bias */
+        return exp - 1023;
+    }
+    /* nan or zero */
+    float_raise(float_flag_invalid, s);
+    return INT64_MIN;
+}
+
+DO_ZPZ_FP(flogb_h, float16, H1_2, do_float16_logb_as_int)
+DO_ZPZ_FP(flogb_s, float32, H1_4, do_float32_logb_as_int)
+DO_ZPZ_FP(flogb_d, float64,     , do_float64_logb_as_int)
+
 #undef DO_ZPZ_FP
 
 static void do_fmla_zpzzz_h(void *vd, void *vn, void *vm, void *va, void *vg,
