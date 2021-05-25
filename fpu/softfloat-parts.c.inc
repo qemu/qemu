@@ -176,13 +176,12 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
         g_assert_not_reached();
     }
 
+    overflow_norm = false;
     switch (s->float_rounding_mode) {
     case float_round_nearest_even:
-        overflow_norm = false;
         inc = ((p->frac_lo & roundeven_mask) != frac_lsbm1 ? frac_lsbm1 : 0);
         break;
     case float_round_ties_away:
-        overflow_norm = false;
         inc = frac_lsbm1;
         break;
     case float_round_to_zero:
@@ -199,6 +198,8 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
         break;
     case float_round_to_odd:
         overflow_norm = true;
+        /* fall through */
+    case float_round_to_odd_inf:
         inc = p->frac_lo & frac_lsb ? 0 : round_mask;
         break;
     default:
@@ -259,6 +260,7 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
                        ? frac_lsbm1 : 0);
                 break;
             case float_round_to_odd:
+            case float_round_to_odd_inf:
                 inc = p->frac_lo & frac_lsb ? 0 : round_mask;
                 break;
             default:
