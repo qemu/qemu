@@ -46,8 +46,8 @@
     policy: pull-push
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
-    when: always
-    expire_in: 2 days
+    when: on_failure
+    expire_in: 7 days
     paths:
       - build/tests/results/latest/results.xml
       - build/tests/results/latest/test-results
