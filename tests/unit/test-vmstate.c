@@ -40,10 +40,12 @@ static int temp_fd;
 /* Duplicate temp_fd and seek to the beginning of the file */
 static QEMUFile *open_test_file(bool write)
 {
-    int fd = dup(temp_fd);
+    int fd;
     QIOChannel *ioc;
     QEMUFile *f;
 
+    fd = dup(temp_fd);
+    g_assert(fd >= 0);
     lseek(fd, 0, SEEK_SET);
     if (write) {
         g_assert_cmpint(ftruncate(fd, 0), ==, 0);
@@ -1486,6 +1488,7 @@ int main(int argc, char **argv)
     g_autofree char *temp_file = g_strdup_printf("%s/vmst.test.XXXXXX",
                                                  g_get_tmp_dir());
     temp_fd = mkstemp(temp_file);
+    g_assert(temp_fd >= 0);
 
     module_call_init(MODULE_INIT_QOM);
 
