@@ -5580,13 +5580,9 @@ static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
 {
     unsigned vsz = vec_full_reg_size(s);
     TCGv_ptr t_pg;
-    TCGv_i32 t_desc;
-    int desc, poff;
+    int poff;
 
     /* Load the first quadword using the normal predicated load helpers.  */
-    desc = simd_desc(16, 16, zt);
-    t_desc = tcg_const_i32(desc);
-
     poff = pred_full_reg_offset(s, pg);
     if (vsz > 16) {
         /*
@@ -5611,15 +5607,14 @@ static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
 
     gen_helper_gvec_mem *fn
         = ldr_fns[s->mte_active[0]][s->be_data == MO_BE][dtype][0];
-    fn(cpu_env, t_pg, addr, t_desc);
+    fn(cpu_env, t_pg, addr, tcg_constant_i32(simd_desc(16, 16, zt)));
 
     tcg_temp_free_ptr(t_pg);
-    tcg_temp_free_i32(t_desc);
 
     /* Replicate that first quadword.  */
     if (vsz > 16) {
-        unsigned dofs = vec_full_reg_offset(s, zt);
-        tcg_gen_gvec_dup_mem(4, dofs + 16, dofs, vsz - 16, vsz - 16);
+        int doff = vec_full_reg_offset(s, zt);
+        tcg_gen_gvec_dup_mem(4, doff + 16, doff, vsz - 16, vsz - 16);
     }
 }
 
