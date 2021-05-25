@@ -457,7 +457,6 @@ static void kbd_reset(void *opaque)
     s->mode = KBD_MODE_KBD_INT | KBD_MODE_MOUSE_INT;
     s->status = KBD_STAT_CMD | KBD_STAT_UNLOCKED;
     s->outport = KBD_OUT_RESET | KBD_OUT_A20 | KBD_OUT_ONES;
-    s->outport_present = false;
     s->pending = 0;
     kbd_deassert_irq(s);
     if (s->throttle_timer) {
@@ -564,6 +563,7 @@ static int kbd_pre_load(void *opaque)
 {
     KBDState *s = opaque;
 
+    s->outport_present = false;
     s->extended_state_loaded = false;
     return 0;
 }
@@ -574,7 +574,6 @@ static int kbd_post_load(void *opaque, int version_id)
     if (!s->outport_present) {
         s->outport = kbd_outport_default(s);
     }
-    s->outport_present = false;
     s->pending = s->pending_tmp;
     if (!s->extended_state_loaded) {
         s->obsrc = s->status & KBD_STAT_OBF ?
