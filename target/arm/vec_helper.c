@@ -543,73 +543,31 @@ void HELPER(sve2_sqrdmulh_idx_d)(void *vd, void *vn, void *vm, uint32_t desc)
 /* Integer 8 and 16-bit dot-product.
  *
  * Note that for the loops herein, host endianness does not matter
- * with respect to the ordering of data within the 64-bit lanes.
+ * with respect to the ordering of data within the quad-width lanes.
  * All elements are treated equally, no matter where they are.
  */
 
-void HELPER(gvec_sdot_b)(void *vd, void *vn, void *vm, void *va, uint32_t desc)
-{
-    intptr_t i, opr_sz = simd_oprsz(desc);
-    int32_t *d = vd, *a = va;
-    int8_t *n = vn, *m = vm;
-
-    for (i = 0; i < opr_sz / 4; ++i) {
-        d[i] = (a[i] +
-                n[i * 4 + 0] * m[i * 4 + 0] +
-                n[i * 4 + 1] * m[i * 4 + 1] +
-                n[i * 4 + 2] * m[i * 4 + 2] +
-                n[i * 4 + 3] * m[i * 4 + 3]);
-    }
-    clear_tail(d, opr_sz, simd_maxsz(desc));
+#define DO_DOT(NAME, TYPED, TYPEN, TYPEM) \
+void HELPER(NAME)(void *vd, void *vn, void *vm, void *va, uint32_t desc)  \
+{                                                                         \
+    intptr_t i, opr_sz = simd_oprsz(desc);                                \
+    TYPED *d = vd, *a = va;                                               \
+    TYPEN *n = vn;                                                        \
+    TYPEM *m = vm;                                                        \
+    for (i = 0; i < opr_sz / sizeof(TYPED); ++i) {                        \
+        d[i] = (a[i] +                                                    \
+                (TYPED)n[i * 4 + 0] * m[i * 4 + 0] +                      \
+                (TYPED)n[i * 4 + 1] * m[i * 4 + 1] +                      \
+                (TYPED)n[i * 4 + 2] * m[i * 4 + 2] +                      \
+                (TYPED)n[i * 4 + 3] * m[i * 4 + 3]);                      \
+    }                                                                     \
+    clear_tail(d, opr_sz, simd_maxsz(desc));                              \
 }
 
-void HELPER(gvec_udot_b)(void *vd, void *vn, void *vm, void *va, uint32_t desc)
-{
-    intptr_t i, opr_sz = simd_oprsz(desc);
-    uint32_t *d = vd, *a = va;
-    uint8_t *n = vn, *m = vm;
-
-    for (i = 0; i < opr_sz / 4; ++i) {
-        d[i] = (a[i] +
-                n[i * 4 + 0] * m[i * 4 + 0] +
-                n[i * 4 + 1] * m[i * 4 + 1] +
-                n[i * 4 + 2] * m[i * 4 + 2] +
-                n[i * 4 + 3] * m[i * 4 + 3]);
-    }
-    clear_tail(d, opr_sz, simd_maxsz(desc));
-}
-
-void HELPER(gvec_sdot_h)(void *vd, void *vn, void *vm, void *va, uint32_t desc)
-{
-    intptr_t i, opr_sz = simd_oprsz(desc);
-    int64_t *d = vd, *a = va;
-    int16_t *n = vn, *m = vm;
-
-    for (i = 0; i < opr_sz / 8; ++i) {
-        d[i] = (a[i] +
-                (int64_t)n[i * 4 + 0] * m[i * 4 + 0] +
-                (int64_t)n[i * 4 + 1] * m[i * 4 + 1] +
-                (int64_t)n[i * 4 + 2] * m[i * 4 + 2] +
-                (int64_t)n[i * 4 + 3] * m[i * 4 + 3]);
-    }
-    clear_tail(d, opr_sz, simd_maxsz(desc));
-}
-
-void HELPER(gvec_udot_h)(void *vd, void *vn, void *vm, void *va, uint32_t desc)
-{
-    intptr_t i, opr_sz = simd_oprsz(desc);
-    uint64_t *d = vd, *a = va;
-    uint16_t *n = vn, *m = vm;
-
-    for (i = 0; i < opr_sz / 8; ++i) {
-        d[i] = (a[i] +
-                (uint64_t)n[i * 4 + 0] * m[i * 4 + 0] +
-                (uint64_t)n[i * 4 + 1] * m[i * 4 + 1] +
-                (uint64_t)n[i * 4 + 2] * m[i * 4 + 2] +
-                (uint64_t)n[i * 4 + 3] * m[i * 4 + 3]);
-    }
-    clear_tail(d, opr_sz, simd_maxsz(desc));
-}
+DO_DOT(gvec_sdot_b, int32_t, int8_t, int8_t)
+DO_DOT(gvec_udot_b, uint32_t, uint8_t, uint8_t)
+DO_DOT(gvec_sdot_h, int64_t, int16_t, int16_t)
+DO_DOT(gvec_udot_h, uint64_t, uint16_t, uint16_t)
 
 void HELPER(gvec_sdot_idx_b)(void *vd, void *vn, void *vm,
                              void *va, uint32_t desc)
