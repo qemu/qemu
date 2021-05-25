@@ -13449,8 +13449,22 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
             return;
         }
         break;
-    case 0x0f: /* SUDOT, USDOT */
-        if (is_scalar || (size & 1) || !dc_isar_feature(aa64_i8mm, s)) {
+    case 0x0f:
+        switch (size) {
+        case 0: /* SUDOT */
+        case 2: /* USDOT */
+            if (is_scalar || !dc_isar_feature(aa64_i8mm, s)) {
+                unallocated_encoding(s);
+                return;
+            }
+            break;
+        case 1: /* BFDOT */
+            if (is_scalar || !dc_isar_feature(aa64_bf16, s)) {
+                unallocated_encoding(s);
+                return;
+            }
+            break;
+        default:
             unallocated_encoding(s);
             return;
         }
@@ -13570,13 +13584,22 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
                          u ? gen_helper_gvec_udot_idx_b
                          : gen_helper_gvec_sdot_idx_b);
         return;
-    case 0x0f: /* SUDOT, USDOT */
-        gen_gvec_op4_ool(s, is_q, rd, rn, rm, rd, index,
-                         extract32(insn, 23, 1)
-                         ? gen_helper_gvec_usdot_idx_b
-                         : gen_helper_gvec_sudot_idx_b);
-        return;
-
+    case 0x0f:
+        switch (extract32(insn, 22, 2)) {
+        case 0: /* SUDOT */
+            gen_gvec_op4_ool(s, is_q, rd, rn, rm, rd, index,
+                             gen_helper_gvec_sudot_idx_b);
+            return;
+        case 1: /* BFDOT */
+            gen_gvec_op4_ool(s, is_q, rd, rn, rm, rd, index,
+                             gen_helper_gvec_bfdot_idx);
+            return;
+        case 2: /* USDOT */
+            gen_gvec_op4_ool(s, is_q, rd, rn, rm, rd, index,
+                             gen_helper_gvec_usdot_idx_b);
+            return;
+        }
+        g_assert_not_reached();
     case 0x11: /* FCMLA #0 */
     case 0x13: /* FCMLA #90 */
     case 0x15: /* FCMLA #180 */
