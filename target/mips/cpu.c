@@ -305,7 +305,7 @@ static void mips_cpu_reset(DeviceState *dev)
 
         for (i = 0; i < 7; i++) {
             env->CP0_WatchLo[i] = 0;
-            env->CP0_WatchHi[i] = 0x80000000;
+            env->CP0_WatchHi[i] = 1 << CP0WH_M;
         }
         env->CP0_WatchLo[7] = 0;
         env->CP0_WatchHi[7] = 0;

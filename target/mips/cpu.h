@@ -1005,6 +1005,7 @@ typedef struct CPUArchState {
  */
     uint64_t CP0_WatchHi[8];
 #define CP0WH_ASID 16
+#define CP0WH_M    31
 /*
  * CP0 Register 20
  */

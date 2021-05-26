@@ -1396,10 +1396,11 @@ void helper_mtc0_watchlo(CPUMIPSState *env, target_ulong arg1, uint32_t sel)
 void helper_mtc0_watchhi(CPUMIPSState *env, target_ulong arg1, uint32_t sel)
 {
     uint64_t mask = 0x40000FF8 | (env->CP0_EntryHi_ASID_mask << CP0WH_ASID);
+    uint64_t m_bit = env->CP0_WatchHi[sel] & (1 << CP0WH_M); /* read-only */
     if ((env->CP0_Config5 >> CP0C5_MI) & 1) {
         mask |= 0xFFFFFFFF00000000ULL; /* MMID */
     }
-    env->CP0_WatchHi[sel] = arg1 & mask;
+    env->CP0_WatchHi[sel] = m_bit | (arg1 & mask);
     env->CP0_WatchHi[sel] &= ~(env->CP0_WatchHi[sel] & arg1 & 0x7);
 }
 
