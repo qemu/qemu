@@ -156,3 +156,68 @@ void virtio_gpu_fini_udmabuf(struct virtio_gpu_simple_resource *res)
         virtio_gpu_destroy_udmabuf(res);
     }
 }
+
+static void virtio_gpu_free_dmabuf(VirtIOGPU *g, VGPUDMABuf *dmabuf)
+{
+    struct virtio_gpu_scanout *scanout;
+
+    scanout = &g->parent_obj.scanout[dmabuf->scanout_id];
+    dpy_gl_release_dmabuf(scanout->con, &dmabuf->buf);
+    QTAILQ_REMOVE(&g->dmabuf.bufs, dmabuf, next);
+    g_free(dmabuf);
+}
+
+static VGPUDMABuf
+*virtio_gpu_create_dmabuf(VirtIOGPU *g,
+                          uint32_t scanout_id,
+                          struct virtio_gpu_simple_resource *res,
+                          struct virtio_gpu_framebuffer *fb)
+{
+    VGPUDMABuf *dmabuf;
+
+    if (res->dmabuf_fd < 0) {
+        return NULL;
+    }
+
+    dmabuf = g_new0(VGPUDMABuf, 1);
+    dmabuf->buf.width = fb->width;
+    dmabuf->buf.height = fb->height;
+    dmabuf->buf.stride = fb->stride;
+    dmabuf->buf.fourcc = qemu_pixman_to_drm_format(fb->format);
+    dmabuf->buf.fd = res->dmabuf_fd;
+
+    dmabuf->scanout_id = scanout_id;
+    QTAILQ_INSERT_HEAD(&g->dmabuf.bufs, dmabuf, next);
+
+    return dmabuf;
+}
+
+int virtio_gpu_update_dmabuf(VirtIOGPU *g,
+                             uint32_t scanout_id,
+                             struct virtio_gpu_simple_resource *res,
+                             struct virtio_gpu_framebuffer *fb)
+{
+    struct virtio_gpu_scanout *scanout = &g->parent_obj.scanout[scanout_id];
+    VGPUDMABuf *new_primary, *old_primary = NULL;
+
+    new_primary = virtio_gpu_create_dmabuf(g, scanout_id, res, fb);
+    if (!new_primary) {
+        return -EINVAL;
+    }
+
+    if (g->dmabuf.primary) {
+        old_primary = g->dmabuf.primary;
+    }
+
+    g->dmabuf.primary = new_primary;
+    qemu_console_resize(scanout->con,
+                        new_primary->buf.width,
+                        new_primary->buf.height);
+    dpy_gl_scanout_dmabuf(scanout->con, &new_primary->buf);
+
+    if (old_primary) {
+        virtio_gpu_free_dmabuf(g, old_primary);
+    }
+
+    return 0;
+}
