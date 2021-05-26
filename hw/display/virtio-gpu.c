@@ -615,7 +615,7 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
 }
 
 int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
-                                  struct virtio_gpu_resource_attach_backing *ab,
+                                  uint32_t nr_entries, uint32_t offset,
                                   struct virtio_gpu_ctrl_command *cmd,
                                   uint64_t **addr, struct iovec **iov,
                                   uint32_t *niov)
@@ -624,17 +624,17 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
     size_t esize, s;
     int e, v;
 
-    if (ab->nr_entries > 16384) {
+    if (nr_entries > 16384) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: nr_entries is too big (%d > 16384)\n",
-                      __func__, ab->nr_entries);
+                      __func__, nr_entries);
         return -1;
     }
 
-    esize = sizeof(*ents) * ab->nr_entries;
+    esize = sizeof(*ents) * nr_entries;
     ents = g_malloc(esize);
     s = iov_to_buf(cmd->elem.out_sg, cmd->elem.out_num,
-                   sizeof(*ab), ents, esize);
+                   offset, ents, esize);
     if (s != esize) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: command data size incorrect %zu vs %zu\n",
@@ -647,7 +647,7 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
     if (addr) {
         *addr = NULL;
     }
-    for (e = 0, v = 0; e < ab->nr_entries; e++) {
+    for (e = 0, v = 0; e < nr_entries; e++) {
         uint64_t a = le64_to_cpu(ents[e].addr);
         uint32_t l = le32_to_cpu(ents[e].length);
         hwaddr len;
@@ -659,8 +659,7 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
                                  a, &len, DMA_DIRECTION_TO_DEVICE);
             if (!map) {
                 qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to map MMIO memory for"
-                              " resource %d element %d\n",
-                              __func__, ab->resource_id, e);
+                              " element %d\n", __func__, e);
                 virtio_gpu_cleanup_mapping_iov(g, *iov, v);
                 g_free(ents);
                 *iov = NULL;
@@ -743,8 +742,8 @@ virtio_gpu_resource_attach_backing(VirtIOGPU *g,
         return;
     }
 
-    ret = virtio_gpu_create_mapping_iov(g, &ab, cmd, &res->addrs,
-                                        &res->iov, &res->iov_cnt);
+    ret = virtio_gpu_create_mapping_iov(g, ab.nr_entries, sizeof(ab), cmd,
+                                        &res->addrs, &res->iov, &res->iov_cnt);
     if (ret != 0) {
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         return;
