@@ -23,13 +23,16 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/log.h"
+#include "qemu/timer.h"
 #include "hw/isa/isa.h"
 #include "migration/vmstate.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/input/ps2.h"
 #include "hw/irq.h"
 #include "hw/input/i8042.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 
@@ -58,21 +61,6 @@
 #define KBD_CCMD_PULSE_BITS_3_0 0xF0    /* Pulse bits 3-0 of the output port P2. */
 #define KBD_CCMD_RESET          0xFE    /* Pulse bit 0 of the output port P2 = CPU reset. */
 #define KBD_CCMD_NO_OP          0xFF    /* Pulse no bits of the output port P2. */
-
-/* Keyboard Commands */
-#define KBD_CMD_SET_LEDS	0xED	/* Set keyboard leds */
-#define KBD_CMD_ECHO     	0xEE
-#define KBD_CMD_GET_ID 	        0xF2	/* get keyboard ID */
-#define KBD_CMD_SET_RATE	0xF3	/* Set typematic rate */
-#define KBD_CMD_ENABLE		0xF4	/* Enable scanning */
-#define KBD_CMD_RESET_DISABLE	0xF5	/* reset and disable scanning */
-#define KBD_CMD_RESET_ENABLE   	0xF6    /* reset and enable scanning */
-#define KBD_CMD_RESET		0xFF	/* Reset */
-
-/* Keyboard Replies */
-#define KBD_REPLY_POR		0xAA	/* Power on reset */
-#define KBD_REPLY_ACK		0xFA	/* Command ACK */
-#define KBD_REPLY_RESEND	0xFE	/* Command NACK, send the cmd again */
 
 /* Status Register Bits */
 #define KBD_STAT_OBF 		0x01	/* Keyboard output buffer full */
@@ -106,41 +94,37 @@
  */
 #define KBD_OUT_ONES            0xcc
 
-/* Mouse Commands */
-#define AUX_SET_SCALE11		0xE6	/* Set 1:1 scaling */
-#define AUX_SET_SCALE21		0xE7	/* Set 2:1 scaling */
-#define AUX_SET_RES		0xE8	/* Set resolution */
-#define AUX_GET_SCALE		0xE9	/* Get scaling factor */
-#define AUX_SET_STREAM		0xEA	/* Set stream mode */
-#define AUX_POLL		0xEB	/* Poll */
-#define AUX_RESET_WRAP		0xEC	/* Reset wrap mode */
-#define AUX_SET_WRAP		0xEE	/* Set wrap mode */
-#define AUX_SET_REMOTE		0xF0	/* Set remote mode */
-#define AUX_GET_TYPE		0xF2	/* Get type */
-#define AUX_SET_SAMPLE		0xF3	/* Set sample rate */
-#define AUX_ENABLE_DEV		0xF4	/* Enable aux device */
-#define AUX_DISABLE_DEV		0xF5	/* Disable aux device */
-#define AUX_SET_DEFAULT		0xF6
-#define AUX_RESET		0xFF	/* Reset aux device */
-#define AUX_ACK			0xFA	/* Command byte ACK. */
+#define KBD_PENDING_KBD_COMPAT  0x01
+#define KBD_PENDING_AUX_COMPAT  0x02
+#define KBD_PENDING_CTRL_KBD    0x04
+#define KBD_PENDING_CTRL_AUX    0x08
+#define KBD_PENDING_KBD         KBD_MODE_DISABLE_KBD    /* 0x10 */
+#define KBD_PENDING_AUX         KBD_MODE_DISABLE_MOUSE  /* 0x20 */
 
-#define MOUSE_STATUS_REMOTE     0x40
-#define MOUSE_STATUS_ENABLED    0x20
-#define MOUSE_STATUS_SCALE21    0x10
+#define KBD_MIGR_TIMER_PENDING  0x1
 
-#define KBD_PENDING_KBD         1
-#define KBD_PENDING_AUX         2
+#define KBD_OBSRC_KBD           0x01
+#define KBD_OBSRC_MOUSE         0x02
+#define KBD_OBSRC_CTRL          0x04
 
 typedef struct KBDState {
     uint8_t write_cmd; /* if non zero, write data to port 60 is expected */
     uint8_t status;
     uint8_t mode;
     uint8_t outport;
+    uint32_t migration_flags;
+    uint32_t obsrc;
     bool outport_present;
+    bool extended_state;
+    bool extended_state_loaded;
     /* Bitmask of devices with data available.  */
     uint8_t pending;
+    uint8_t obdata;
+    uint8_t cbdata;
+    uint8_t pending_tmp;
     void *kbd;
     void *mouse;
+    QEMUTimer *throttle_timer;
 
     qemu_irq irq_kbd;
     qemu_irq irq_mouse;
@@ -148,56 +132,123 @@ typedef struct KBDState {
     hwaddr mask;
 } KBDState;
 
-/* update irq and KBD_STAT_[MOUSE_]OBF */
 /* XXX: not generating the irqs if KBD_MODE_DISABLE_KBD is set may be
    incorrect, but it avoids having to simulate exact delays */
-static void kbd_update_irq(KBDState *s)
+static void kbd_update_irq_lines(KBDState *s)
 {
     int irq_kbd_level, irq_mouse_level;
 
     irq_kbd_level = 0;
     irq_mouse_level = 0;
-    s->status &= ~(KBD_STAT_OBF | KBD_STAT_MOUSE_OBF);
-    s->outport &= ~(KBD_OUT_OBF | KBD_OUT_MOUSE_OBF);
-    if (s->pending) {
-        s->status |= KBD_STAT_OBF;
-        s->outport |= KBD_OUT_OBF;
-        /* kbd data takes priority over aux data.  */
-        if (s->pending == KBD_PENDING_AUX) {
-            s->status |= KBD_STAT_MOUSE_OBF;
-            s->outport |= KBD_OUT_MOUSE_OBF;
-            if (s->mode & KBD_MODE_MOUSE_INT)
+
+    if (s->status & KBD_STAT_OBF) {
+        if (s->status & KBD_STAT_MOUSE_OBF) {
+            if (s->mode & KBD_MODE_MOUSE_INT) {
                 irq_mouse_level = 1;
+            }
         } else {
             if ((s->mode & KBD_MODE_KBD_INT) &&
-                !(s->mode & KBD_MODE_DISABLE_KBD))
+                !(s->mode & KBD_MODE_DISABLE_KBD)) {
                 irq_kbd_level = 1;
+            }
         }
     }
     qemu_set_irq(s->irq_kbd, irq_kbd_level);
     qemu_set_irq(s->irq_mouse, irq_mouse_level);
 }
 
+static void kbd_deassert_irq(KBDState *s)
+{
+    s->status &= ~(KBD_STAT_OBF | KBD_STAT_MOUSE_OBF);
+    s->outport &= ~(KBD_OUT_OBF | KBD_OUT_MOUSE_OBF);
+    kbd_update_irq_lines(s);
+}
+
+static uint8_t kbd_pending(KBDState *s)
+{
+    if (s->extended_state) {
+        return s->pending & (~s->mode | ~(KBD_PENDING_KBD | KBD_PENDING_AUX));
+    } else {
+        return s->pending;
+    }
+}
+
+/* update irq and KBD_STAT_[MOUSE_]OBF */
+static void kbd_update_irq(KBDState *s)
+{
+    uint8_t pending = kbd_pending(s);
+
+    s->status &= ~(KBD_STAT_OBF | KBD_STAT_MOUSE_OBF);
+    s->outport &= ~(KBD_OUT_OBF | KBD_OUT_MOUSE_OBF);
+    if (pending) {
+        s->status |= KBD_STAT_OBF;
+        s->outport |= KBD_OUT_OBF;
+        if (pending & KBD_PENDING_CTRL_KBD) {
+            s->obsrc = KBD_OBSRC_CTRL;
+        } else if (pending & KBD_PENDING_CTRL_AUX) {
+            s->status |= KBD_STAT_MOUSE_OBF;
+            s->outport |= KBD_OUT_MOUSE_OBF;
+            s->obsrc = KBD_OBSRC_CTRL;
+        } else if (pending & KBD_PENDING_KBD) {
+            s->obsrc = KBD_OBSRC_KBD;
+        } else {
+            s->status |= KBD_STAT_MOUSE_OBF;
+            s->outport |= KBD_OUT_MOUSE_OBF;
+            s->obsrc = KBD_OBSRC_MOUSE;
+        }
+    }
+    kbd_update_irq_lines(s);
+}
+
+static void kbd_safe_update_irq(KBDState *s)
+{
+    /*
+     * with KBD_STAT_OBF set, a call to kbd_read_data() will eventually call
+     * kbd_update_irq()
+     */
+    if (s->status & KBD_STAT_OBF) {
+        return;
+    }
+    /* the throttle timer is pending and will call kbd_update_irq() */
+    if (s->throttle_timer && timer_pending(s->throttle_timer)) {
+        return;
+    }
+    if (kbd_pending(s)) {
+        kbd_update_irq(s);
+    }
+}
+
 static void kbd_update_kbd_irq(void *opaque, int level)
 {
-    KBDState *s = (KBDState *)opaque;
+    KBDState *s = opaque;
 
-    if (level)
+    if (level) {
         s->pending |= KBD_PENDING_KBD;
-    else
+    } else {
         s->pending &= ~KBD_PENDING_KBD;
-    kbd_update_irq(s);
+    }
+    kbd_safe_update_irq(s);
 }
 
 static void kbd_update_aux_irq(void *opaque, int level)
 {
-    KBDState *s = (KBDState *)opaque;
+    KBDState *s = opaque;
 
-    if (level)
+    if (level) {
         s->pending |= KBD_PENDING_AUX;
-    else
+    } else {
         s->pending &= ~KBD_PENDING_AUX;
-    kbd_update_irq(s);
+    }
+    kbd_safe_update_irq(s);
+}
+
+static void kbd_throttle_timeout(void *opaque)
+{
+    KBDState *s = opaque;
+
+    if (kbd_pending(s)) {
+        kbd_update_irq(s);
+    }
 }
 
 static uint64_t kbd_read_status(void *opaque, hwaddr addr,
@@ -212,10 +263,25 @@ static uint64_t kbd_read_status(void *opaque, hwaddr addr,
 
 static void kbd_queue(KBDState *s, int b, int aux)
 {
-    if (aux)
-        ps2_queue(s->mouse, b);
-    else
-        ps2_queue(s->kbd, b);
+    if (s->extended_state) {
+        s->cbdata = b;
+        s->pending &= ~KBD_PENDING_CTRL_KBD & ~KBD_PENDING_CTRL_AUX;
+        s->pending |= aux ? KBD_PENDING_CTRL_AUX : KBD_PENDING_CTRL_KBD;
+        kbd_safe_update_irq(s);
+    } else {
+        ps2_queue(aux ? s->mouse : s->kbd, b);
+    }
+}
+
+static uint8_t kbd_dequeue(KBDState *s)
+{
+    uint8_t b = s->cbdata;
+
+    s->pending &= ~KBD_PENDING_CTRL_KBD & ~KBD_PENDING_CTRL_AUX;
+    if (kbd_pending(s)) {
+        kbd_update_irq(s);
+    }
+    return b;
 }
 
 static void outport_write(KBDState *s, uint32_t val)
@@ -265,6 +331,7 @@ static void kbd_write_command(void *opaque, hwaddr addr,
         break;
     case KBD_CCMD_MOUSE_ENABLE:
         s->mode &= ~KBD_MODE_DISABLE_MOUSE;
+        kbd_safe_update_irq(s);
         break;
     case KBD_CCMD_TEST_MOUSE:
         kbd_queue(s, 0x00, 0);
@@ -278,11 +345,10 @@ static void kbd_write_command(void *opaque, hwaddr addr,
         break;
     case KBD_CCMD_KBD_DISABLE:
         s->mode |= KBD_MODE_DISABLE_KBD;
-        kbd_update_irq(s);
         break;
     case KBD_CCMD_KBD_ENABLE:
         s->mode &= ~KBD_MODE_DISABLE_KBD;
-        kbd_update_irq(s);
+        kbd_safe_update_irq(s);
         break;
     case KBD_CCMD_READ_INPORT:
         kbd_queue(s, 0x80, 0);
@@ -315,15 +381,24 @@ static uint64_t kbd_read_data(void *opaque, hwaddr addr,
                               unsigned size)
 {
     KBDState *s = opaque;
-    uint32_t val;
 
-    if (s->pending == KBD_PENDING_AUX)
-        val = ps2_read_data(s->mouse);
-    else
-        val = ps2_read_data(s->kbd);
+    if (s->status & KBD_STAT_OBF) {
+        kbd_deassert_irq(s);
+        if (s->obsrc & KBD_OBSRC_KBD) {
+            if (s->throttle_timer) {
+                timer_mod(s->throttle_timer,
+                          qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) + 1000);
+            }
+            s->obdata = ps2_read_data(s->kbd);
+        } else if (s->obsrc & KBD_OBSRC_MOUSE) {
+            s->obdata = ps2_read_data(s->mouse);
+        } else if (s->obsrc & KBD_OBSRC_CTRL) {
+            s->obdata = kbd_dequeue(s);
+        }
+    }
 
-    trace_pckbd_kbd_read_data(val);
-    return val;
+    trace_pckbd_kbd_read_data(s->obdata);
+    return s->obdata;
 }
 
 static void kbd_write_data(void *opaque, hwaddr addr,
@@ -336,12 +411,23 @@ static void kbd_write_data(void *opaque, hwaddr addr,
     switch(s->write_cmd) {
     case 0:
         ps2_write_keyboard(s->kbd, val);
+        /* sending data to the keyboard reenables PS/2 communication */
+        s->mode &= ~KBD_MODE_DISABLE_KBD;
+        kbd_safe_update_irq(s);
         break;
     case KBD_CCMD_WRITE_MODE:
         s->mode = val;
         ps2_keyboard_set_translation(s->kbd, (s->mode & KBD_MODE_KCC) != 0);
-        /* ??? */
-        kbd_update_irq(s);
+        /*
+         * a write to the mode byte interrupt enable flags directly updates
+         * the irq lines
+         */
+        kbd_update_irq_lines(s);
+        /*
+         * a write to the mode byte disable interface flags may raise
+         * an irq if there is pending data in the PS/2 queues.
+         */
+        kbd_safe_update_irq(s);
         break;
     case KBD_CCMD_WRITE_OBUF:
         kbd_queue(s, val, 0);
@@ -354,6 +440,9 @@ static void kbd_write_data(void *opaque, hwaddr addr,
         break;
     case KBD_CCMD_WRITE_MOUSE:
         ps2_write_mouse(s->mouse, val);
+        /* sending data to the mouse reenables PS/2 communication */
+        s->mode &= ~KBD_MODE_DISABLE_MOUSE;
+        kbd_safe_update_irq(s);
         break;
     default:
         break;
@@ -368,7 +457,11 @@ static void kbd_reset(void *opaque)
     s->mode = KBD_MODE_KBD_INT | KBD_MODE_MOUSE_INT;
     s->status = KBD_STAT_CMD | KBD_STAT_UNLOCKED;
     s->outport = KBD_OUT_RESET | KBD_OUT_A20 | KBD_OUT_ONES;
-    s->outport_present = false;
+    s->pending = 0;
+    kbd_deassert_irq(s);
+    if (s->throttle_timer) {
+        timer_del(s->throttle_timer);
+    }
 }
 
 static uint8_t kbd_outport_default(KBDState *s)
@@ -403,13 +496,99 @@ static const VMStateDescription vmstate_kbd_outport = {
     }
 };
 
+static int kbd_extended_state_pre_save(void *opaque)
+{
+    KBDState *s = opaque;
+
+    s->migration_flags = 0;
+    if (s->throttle_timer && timer_pending(s->throttle_timer)) {
+        s->migration_flags |= KBD_MIGR_TIMER_PENDING;
+    }
+
+    return 0;
+}
+
+static int kbd_extended_state_post_load(void *opaque, int version_id)
+{
+    KBDState *s = opaque;
+
+    if (s->migration_flags & KBD_MIGR_TIMER_PENDING) {
+        kbd_throttle_timeout(s);
+    }
+    s->extended_state_loaded = true;
+
+    return 0;
+}
+
+static bool kbd_extended_state_needed(void *opaque)
+{
+    KBDState *s = opaque;
+
+    return s->extended_state;
+}
+
+static const VMStateDescription vmstate_kbd_extended_state = {
+    .name = "pckbd/extended_state",
+    .post_load = kbd_extended_state_post_load,
+    .pre_save = kbd_extended_state_pre_save,
+    .needed = kbd_extended_state_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(migration_flags, KBDState),
+        VMSTATE_UINT32(obsrc, KBDState),
+        VMSTATE_UINT8(obdata, KBDState),
+        VMSTATE_UINT8(cbdata, KBDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int kbd_pre_save(void *opaque)
+{
+    KBDState *s = opaque;
+
+    if (s->extended_state) {
+        s->pending_tmp = s->pending;
+    } else {
+        s->pending_tmp = 0;
+        if (s->pending & KBD_PENDING_KBD) {
+            s->pending_tmp |= KBD_PENDING_KBD_COMPAT;
+        }
+        if (s->pending & KBD_PENDING_AUX) {
+            s->pending_tmp |= KBD_PENDING_AUX_COMPAT;
+        }
+    }
+    return 0;
+}
+
+static int kbd_pre_load(void *opaque)
+{
+    KBDState *s = opaque;
+
+    s->outport_present = false;
+    s->extended_state_loaded = false;
+    return 0;
+}
+
 static int kbd_post_load(void *opaque, int version_id)
 {
     KBDState *s = opaque;
     if (!s->outport_present) {
         s->outport = kbd_outport_default(s);
     }
-    s->outport_present = false;
+    s->pending = s->pending_tmp;
+    if (!s->extended_state_loaded) {
+        s->obsrc = s->status & KBD_STAT_OBF ?
+            (s->status & KBD_STAT_MOUSE_OBF ? KBD_OBSRC_MOUSE : KBD_OBSRC_KBD) :
+            0;
+        if (s->pending & KBD_PENDING_KBD_COMPAT) {
+            s->pending |= KBD_PENDING_KBD;
+        }
+        if (s->pending & KBD_PENDING_AUX_COMPAT) {
+            s->pending |= KBD_PENDING_AUX;
+        }
+    }
+    /* clear all unused flags */
+    s->pending &= KBD_PENDING_CTRL_KBD | KBD_PENDING_CTRL_AUX |
+                  KBD_PENDING_KBD | KBD_PENDING_AUX;
     return 0;
 }
 
@@ -417,16 +596,19 @@ static const VMStateDescription vmstate_kbd = {
     .name = "pckbd",
     .version_id = 3,
     .minimum_version_id = 3,
+    .pre_load = kbd_pre_load,
     .post_load = kbd_post_load,
+    .pre_save = kbd_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(write_cmd, KBDState),
         VMSTATE_UINT8(status, KBDState),
         VMSTATE_UINT8(mode, KBDState),
-        VMSTATE_UINT8(pending, KBDState),
+        VMSTATE_UINT8(pending_tmp, KBDState),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_kbd_outport,
+        &vmstate_kbd_extended_state,
         NULL
     }
 };
@@ -472,6 +654,8 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     s->irq_mouse = mouse_irq;
     s->mask = mask;
 
+    s->extended_state = true;
+
     vmstate_register(NULL, 0, &vmstate_kbd, s);
 
     memory_region_init_io(region, NULL, &i8042_mmio_ops, s, "i8042", size);
@@ -485,6 +669,7 @@ struct ISAKBDState {
     ISADevice parent_obj;
 
     KBDState kbd;
+    bool kbd_throttle;
     MemoryRegion io[2];
 };
 
@@ -557,6 +742,13 @@ static void i8042_realizefn(DeviceState *dev, Error **errp)
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
+    if (isa_s->kbd_throttle && !isa_s->kbd.extended_state) {
+        warn_report(TYPE_I8042 ": can't enable kbd-throttle without"
+                    " extended-state, disabling kbd-throttle");
+    } else if (isa_s->kbd_throttle) {
+        s->throttle_timer = timer_new_us(QEMU_CLOCK_VIRTUAL,
+                                         kbd_throttle_timeout, s);
+    }
     qemu_register_reset(kbd_reset, s);
 }
 
@@ -588,11 +780,18 @@ static void i8042_build_aml(ISADevice *isadev, Aml *scope)
     aml_append(scope, mou);
 }
 
+static Property i8042_properties[] = {
+    DEFINE_PROP_BOOL("extended-state", ISAKBDState, kbd.extended_state, true),
+    DEFINE_PROP_BOOL("kbd-throttle", ISAKBDState, kbd_throttle, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void i8042_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *isa = ISA_DEVICE_CLASS(klass);
 
+    device_class_set_props(dc, i8042_properties);
     dc->realize = i8042_realizefn;
     dc->vmsd = &vmstate_kbd_isa;
     isa->build_aml = i8042_build_aml;
