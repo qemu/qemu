@@ -42,7 +42,7 @@
 
 bool vnc_sasl_server_init(Error **errp)
 {
-    int saslErr = sasl_server_init(NULL, "qemu");
+    int saslErr = sasl_server_init(NULL, "qemu-kvm");
 
     if (saslErr != SASL_OK) {
         error_setg(errp, "Failed to initialize SASL auth: %s",
