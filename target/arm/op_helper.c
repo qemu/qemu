@@ -63,8 +63,15 @@ void raise_exception(CPUARMState *env, uint32_t excp,
 void raise_exception_ra(CPUARMState *env, uint32_t excp, uint32_t syndrome,
                         uint32_t target_el, uintptr_t ra)
 {
-    CPUState *cs = do_raise_exception(env, excp, syndrome, target_el);
-    cpu_loop_exit_restore(cs, ra);
+    CPUState *cs = env_cpu(env);
+
+    /*
+     * restore_state_to_opc() will set env->exception.syndrome, so
+     * we must restore CPU state here before setting the syndrome
+     * the caller passed us, and cannot use cpu_loop_exit_restore().
+     */
+    cpu_restore_state(cs, ra, true);
+    raise_exception(env, excp, syndrome, target_el);
 }
 
 uint64_t HELPER(neon_tbl)(CPUARMState *env, uint32_t desc,
