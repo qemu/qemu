@@ -4441,6 +4441,19 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# check if we have sigev_notify_thread_id
+
+sigev_notify_thread_id=no
+cat > $TMPC << EOF
+#include <stddef.h>
+#include <signal.h>
+int main(void) { return offsetof(struct sigevent, sigev_notify_thread_id); }
+EOF
+if compile_prog "" "" ; then
+    sigev_notify_thread_id=yes
+fi
+
+##########################################
 # check if trace backend exists
 
 $python "$source_path/scripts/tracetool.py" "--backends=$trace_backends" --check-backends  > /dev/null 2> /dev/null
@@ -5691,6 +5704,9 @@ if test "$strchrnul" = "yes" ; then
 fi
 if test "$st_atim" = "yes" ; then
   echo "HAVE_STRUCT_STAT_ST_ATIM=y" >> $config_host_mak
+fi
+if test "$sigev_notify_thread_id" = "yes" ; then
+  echo "HAVE_SIGEV_NOTIFY_THREAD_ID=y" >> $config_host_mak
 fi
 if test "$byteswap_h" = "yes" ; then
   echo "CONFIG_BYTESWAP_H=y" >> $config_host_mak
