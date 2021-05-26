@@ -256,31 +256,11 @@ gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
 if test -e "$source_path/.git"
 then
     git_submodules_action="update"
-    git_submodules="ui/keycodemapdb"
-    git_submodules="$git_submodules tests/fp/berkeley-testfloat-3"
-    git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
 else
     git_submodules_action="ignore"
-    git_submodules=""
-
-    if ! test -f "$source_path/ui/keycodemapdb/README"
-    then
-        echo
-        echo "ERROR: missing file $source_path/ui/keycodemapdb/README"
-        echo
-        echo "This is not a GIT checkout but module content appears to"
-        echo "be missing. Do not use 'git archive' or GitHub download links"
-        echo "to acquire QEMU source archives. Non-GIT builds are only"
-        echo "supported with source archives linked from:"
-        echo
-        echo "  https://www.qemu.org/download/#source"
-        echo
-        echo "Developers working with GIT can use scripts/archive-source.sh"
-        echo "if they need to create valid source archives."
-        echo
-        exit 1
-    fi
 fi
+
+git_submodules="ui/keycodemapdb"
 git="git"
 
 # Don't accept a target_list environment variable.
@@ -1593,6 +1573,28 @@ case $git_submodules_action in
         fi
     ;;
     ignore)
+        if ! test -f "$source_path/ui/keycodemapdb/README"
+        then
+            echo
+            echo "ERROR: missing GIT submodules"
+            echo
+            if test -e "$source_path/.git"; then
+                echo "--with-git-submodules=ignore specified but submodules were not"
+                echo "checked out.  Please initialize and update submodules."
+            else
+                echo "This is not a GIT checkout but module content appears to"
+                echo "be missing. Do not use 'git archive' or GitHub download links"
+                echo "to acquire QEMU source archives. Non-GIT builds are only"
+                echo "supported with source archives linked from:"
+                echo
+                echo "  https://www.qemu.org/download/#source"
+                echo
+                echo "Developers working with GIT can use scripts/archive-source.sh"
+                echo "if they need to create valid source archives."
+            fi
+            echo
+            exit 1
+        fi
     ;;
     *)
         echo "ERROR: invalid --with-git-submodules= value '$git_submodules_action'"
@@ -2279,6 +2281,11 @@ if test "$solaris" = "yes" ; then
     fi
     error_exit "No path includes ar"
   fi
+fi
+
+if test "$tcg" = "enabled"; then
+    git_submodules="$git_submodules tests/fp/berkeley-testfloat-3"
+    git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
 fi
 
 if test -z "${target_list+xxx}" ; then
@@ -3620,9 +3627,7 @@ fi
 case "$fdt" in
   auto | enabled | internal)
     # Simpler to always update submodule, even if not needed.
-    if test "$git_submodules_action" != "ignore"; then
-      git_submodules="${git_submodules} dtc"
-    fi
+    git_submodules="${git_submodules} dtc"
     ;;
 esac
 
@@ -4344,9 +4349,7 @@ fi
 case "$capstone" in
   auto | enabled | internal)
     # Simpler to always update submodule, even if not needed.
-    if test "$git_submodules_action" != "ignore"; then
-      git_submodules="${git_submodules} capstone"
-    fi
+    git_submodules="${git_submodules} capstone"
     ;;
 esac
 
@@ -5276,9 +5279,7 @@ fi
 case "$slirp" in
   auto | enabled | internal)
     # Simpler to always update submodule, even if not needed.
-    if test "$git_submodules_action" != "ignore"; then
-      git_submodules="${git_submodules} slirp"
-    fi
+    git_submodules="${git_submodules} slirp"
     ;;
 esac
 
@@ -5470,9 +5471,7 @@ if test "$cpu" = "s390x" ; then
     roms="$roms s390-ccw"
     # SLOF is required for building the s390-ccw firmware on s390x,
     # since it is using the libnet code from SLOF for network booting.
-    if test "$git_submodules_action" != "ignore"; then
-      git_submodules="${git_submodules} roms/SLOF"
-    fi
+    git_submodules="${git_submodules} roms/SLOF"
   fi
 fi
 
@@ -6504,10 +6503,14 @@ fi
 
 # Create list of config switches that should be poisoned in common code...
 # but filter out CONFIG_TCG and CONFIG_USER_ONLY which are special.
-sed -n -e '/CONFIG_TCG/d' -e '/CONFIG_USER_ONLY/d' \
-    -e '/^#define / { s///; s/ .*//; s/^/#pragma GCC poison /p; }' \
-    *-config-devices.h *-config-target.h | \
-    sort -u > config-poison.h
+target_configs_h=$(ls *-config-devices.h *-config-target.h 2>/dev/null)
+if test -n "$target_configs_h" ; then
+    sed -n -e '/CONFIG_TCG/d' -e '/CONFIG_USER_ONLY/d' \
+        -e '/^#define / { s///; s/ .*//; s/^/#pragma GCC poison /p; }' \
+        $target_configs_h | sort -u > config-poison.h
+else
+    :> config-poison.h
+fi
 
 # Save the configure command line for later reuse.
 cat <<EOD >config.status

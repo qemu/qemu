@@ -617,6 +617,18 @@ struct MemoryListener {
     void (*log_sync)(MemoryListener *listener, MemoryRegionSection *section);
 
     /**
+     * @log_sync_global:
+     *
+     * This is the global version of @log_sync when the listener does
+     * not have a way to synchronize the log with finer granularity.
+     * When the listener registers with @log_sync_global defined, then
+     * its @log_sync must be NULL.  Vice versa.
+     *
+     * @listener: The #MemoryListener.
+     */
+    void (*log_sync_global)(MemoryListener *listener);
+
+    /**
      * @log_clear:
      *
      * Called before reading the dirty memory bitmap for a

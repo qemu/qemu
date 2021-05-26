@@ -23,7 +23,7 @@ typedef struct ReplicationOps ReplicationOps;
 typedef struct ReplicationState ReplicationState;
 
 /**
- * SECTION:replication.h
+ * SECTION:block/replication.h
  * @title:Base Replication System
  * @short_description: interfaces for handling replication
  *
@@ -32,7 +32,7 @@ typedef struct ReplicationState ReplicationState;
  * <example>
  *   <title>How to use replication interfaces</title>
  *   <programlisting>
- * #include "replication.h"
+ * #include "block/replication.h"
  *
  * typedef struct BDRVReplicationState {
  *     ReplicationState *rs;

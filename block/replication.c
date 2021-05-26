@@ -22,7 +22,7 @@
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
-#include "replication.h"
+#include "block/replication.h"
 
 typedef enum {
     BLOCK_REPLICATION_NONE,             /* block replication is not started */
