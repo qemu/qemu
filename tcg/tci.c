@@ -292,10 +292,9 @@ static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
                             TCGMemOpIdx oi, const void *tb_ptr)
 {
     MemOp mop = get_memop(oi) & (MO_BSWAP | MO_SSIZE);
-
-#ifdef CONFIG_SOFTMMU
     uintptr_t ra = (uintptr_t)tb_ptr;
 
+#ifdef CONFIG_SOFTMMU
     switch (mop) {
     case MO_UB:
         return helper_ret_ldub_mmu(env, taddr, oi, ra);
@@ -328,6 +327,7 @@ static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
     void *haddr = g2h(env_cpu(env), taddr);
     uint64_t ret;
 
+    set_helper_retaddr(ra);
     switch (mop) {
     case MO_UB:
         ret = ldub_p(haddr);
@@ -368,6 +368,7 @@ static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
     default:
         g_assert_not_reached();
     }
+    clear_helper_retaddr();
     return ret;
 #endif
 }
@@ -376,10 +377,9 @@ static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
                         TCGMemOpIdx oi, const void *tb_ptr)
 {
     MemOp mop = get_memop(oi) & (MO_BSWAP | MO_SSIZE);
-
-#ifdef CONFIG_SOFTMMU
     uintptr_t ra = (uintptr_t)tb_ptr;
 
+#ifdef CONFIG_SOFTMMU
     switch (mop) {
     case MO_UB:
         helper_ret_stb_mmu(env, taddr, val, oi, ra);
@@ -408,6 +408,7 @@ static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
 #else
     void *haddr = g2h(env_cpu(env), taddr);
 
+    set_helper_retaddr(ra);
     switch (mop) {
     case MO_UB:
         stb_p(haddr, val);
@@ -433,6 +434,7 @@ static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
     default:
         g_assert_not_reached();
     }
+    clear_helper_retaddr();
 #endif
 }
 
