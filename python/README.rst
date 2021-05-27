@@ -33,6 +33,8 @@ Files in this directory
 -----------------------
 
 - ``qemu/`` Python package source directory.
+- ``MANIFEST.in`` is read by python setuptools, it specifies additional files
+  that should be included by a source distribution.
 - ``PACKAGE.rst`` is used as the README file that is visible on PyPI.org.
 - ``README.rst`` you are here!
 - ``VERSION`` contains the PEP-440 compliant version used to describe
