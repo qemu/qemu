@@ -288,85 +288,88 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
     return result;
 }
 
-#ifdef CONFIG_SOFTMMU
-# define qemu_ld_ub \
-    helper_ret_ldub_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
-# define qemu_ld_leuw \
-    helper_le_lduw_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
-# define qemu_ld_leul \
-    helper_le_ldul_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
-# define qemu_ld_leq \
-    helper_le_ldq_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
-# define qemu_ld_beuw \
-    helper_be_lduw_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
-# define qemu_ld_beul \
-    helper_be_ldul_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
-# define qemu_ld_beq \
-    helper_be_ldq_mmu(env, taddr, oi, (uintptr_t)tb_ptr)
-# define qemu_st_b(X) \
-    helper_ret_stb_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
-# define qemu_st_lew(X) \
-    helper_le_stw_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
-# define qemu_st_lel(X) \
-    helper_le_stl_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
-# define qemu_st_leq(X) \
-    helper_le_stq_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
-# define qemu_st_bew(X) \
-    helper_be_stw_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
-# define qemu_st_bel(X) \
-    helper_be_stl_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
-# define qemu_st_beq(X) \
-    helper_be_stq_mmu(env, taddr, X, oi, (uintptr_t)tb_ptr)
-#else
-# define qemu_ld_ub      ldub_p(g2h(env_cpu(env), taddr))
-# define qemu_ld_leuw    lduw_le_p(g2h(env_cpu(env), taddr))
-# define qemu_ld_leul    (uint32_t)ldl_le_p(g2h(env_cpu(env), taddr))
-# define qemu_ld_leq     ldq_le_p(g2h(env_cpu(env), taddr))
-# define qemu_ld_beuw    lduw_be_p(g2h(env_cpu(env), taddr))
-# define qemu_ld_beul    (uint32_t)ldl_be_p(g2h(env_cpu(env), taddr))
-# define qemu_ld_beq     ldq_be_p(g2h(env_cpu(env), taddr))
-# define qemu_st_b(X)    stb_p(g2h(env_cpu(env), taddr), X)
-# define qemu_st_lew(X)  stw_le_p(g2h(env_cpu(env), taddr), X)
-# define qemu_st_lel(X)  stl_le_p(g2h(env_cpu(env), taddr), X)
-# define qemu_st_leq(X)  stq_le_p(g2h(env_cpu(env), taddr), X)
-# define qemu_st_bew(X)  stw_be_p(g2h(env_cpu(env), taddr), X)
-# define qemu_st_bel(X)  stl_be_p(g2h(env_cpu(env), taddr), X)
-# define qemu_st_beq(X)  stq_be_p(g2h(env_cpu(env), taddr), X)
-#endif
-
 static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
                             TCGMemOpIdx oi, const void *tb_ptr)
 {
     MemOp mop = get_memop(oi) & (MO_BSWAP | MO_SSIZE);
 
+#ifdef CONFIG_SOFTMMU
+    uintptr_t ra = (uintptr_t)tb_ptr;
+
     switch (mop) {
     case MO_UB:
-        return qemu_ld_ub;
+        return helper_ret_ldub_mmu(env, taddr, oi, ra);
     case MO_SB:
-        return (int8_t)qemu_ld_ub;
+        return helper_ret_ldsb_mmu(env, taddr, oi, ra);
     case MO_LEUW:
-        return qemu_ld_leuw;
+        return helper_le_lduw_mmu(env, taddr, oi, ra);
     case MO_LESW:
-        return (int16_t)qemu_ld_leuw;
+        return helper_le_ldsw_mmu(env, taddr, oi, ra);
     case MO_LEUL:
-        return qemu_ld_leul;
+        return helper_le_ldul_mmu(env, taddr, oi, ra);
     case MO_LESL:
-        return (int32_t)qemu_ld_leul;
+        return helper_le_ldsl_mmu(env, taddr, oi, ra);
     case MO_LEQ:
-        return qemu_ld_leq;
+        return helper_le_ldq_mmu(env, taddr, oi, ra);
     case MO_BEUW:
-        return qemu_ld_beuw;
+        return helper_be_lduw_mmu(env, taddr, oi, ra);
     case MO_BESW:
-        return (int16_t)qemu_ld_beuw;
+        return helper_be_ldsw_mmu(env, taddr, oi, ra);
     case MO_BEUL:
-        return qemu_ld_beul;
+        return helper_be_ldul_mmu(env, taddr, oi, ra);
     case MO_BESL:
-        return (int32_t)qemu_ld_beul;
+        return helper_be_ldsl_mmu(env, taddr, oi, ra);
     case MO_BEQ:
-        return qemu_ld_beq;
+        return helper_be_ldq_mmu(env, taddr, oi, ra);
     default:
         g_assert_not_reached();
     }
+#else
+    void *haddr = g2h(env_cpu(env), taddr);
+    uint64_t ret;
+
+    switch (mop) {
+    case MO_UB:
+        ret = ldub_p(haddr);
+        break;
+    case MO_SB:
+        ret = ldsb_p(haddr);
+        break;
+    case MO_LEUW:
+        ret = lduw_le_p(haddr);
+        break;
+    case MO_LESW:
+        ret = ldsw_le_p(haddr);
+        break;
+    case MO_LEUL:
+        ret = (uint32_t)ldl_le_p(haddr);
+        break;
+    case MO_LESL:
+        ret = (int32_t)ldl_le_p(haddr);
+        break;
+    case MO_LEQ:
+        ret = ldq_le_p(haddr);
+        break;
+    case MO_BEUW:
+        ret = lduw_be_p(haddr);
+        break;
+    case MO_BESW:
+        ret = ldsw_be_p(haddr);
+        break;
+    case MO_BEUL:
+        ret = (uint32_t)ldl_be_p(haddr);
+        break;
+    case MO_BESL:
+        ret = (int32_t)ldl_be_p(haddr);
+        break;
+    case MO_BEQ:
+        ret = ldq_be_p(haddr);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return ret;
+#endif
 }
 
 static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
@@ -374,31 +377,63 @@ static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
 {
     MemOp mop = get_memop(oi) & (MO_BSWAP | MO_SSIZE);
 
+#ifdef CONFIG_SOFTMMU
+    uintptr_t ra = (uintptr_t)tb_ptr;
+
     switch (mop) {
     case MO_UB:
-        qemu_st_b(val);
+        helper_ret_stb_mmu(env, taddr, val, oi, ra);
         break;
     case MO_LEUW:
-        qemu_st_lew(val);
+        helper_le_stw_mmu(env, taddr, val, oi, ra);
         break;
     case MO_LEUL:
-        qemu_st_lel(val);
+        helper_le_stl_mmu(env, taddr, val, oi, ra);
         break;
     case MO_LEQ:
-        qemu_st_leq(val);
+        helper_le_stq_mmu(env, taddr, val, oi, ra);
         break;
     case MO_BEUW:
-        qemu_st_bew(val);
+        helper_be_stw_mmu(env, taddr, val, oi, ra);
         break;
     case MO_BEUL:
-        qemu_st_bel(val);
+        helper_be_stl_mmu(env, taddr, val, oi, ra);
         break;
     case MO_BEQ:
-        qemu_st_beq(val);
+        helper_be_stq_mmu(env, taddr, val, oi, ra);
         break;
     default:
         g_assert_not_reached();
     }
+#else
+    void *haddr = g2h(env_cpu(env), taddr);
+
+    switch (mop) {
+    case MO_UB:
+        stb_p(haddr, val);
+        break;
+    case MO_LEUW:
+        stw_le_p(haddr, val);
+        break;
+    case MO_LEUL:
+        stl_le_p(haddr, val);
+        break;
+    case MO_LEQ:
+        stq_le_p(haddr, val);
+        break;
+    case MO_BEUW:
+        stw_be_p(haddr, val);
+        break;
+    case MO_BEUL:
+        stl_be_p(haddr, val);
+        break;
+    case MO_BEQ:
+        stq_be_p(haddr, val);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+#endif
 }
 
 #if TCG_TARGET_REG_BITS == 64
