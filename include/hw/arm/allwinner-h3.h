@@ -18,7 +18,7 @@
  */
 
 /*
- * The Allwinner H3 is a System on Chip containing four ARM Cortex A7
+ * The Allwinner H3 is a System on Chip containing four ARM Cortex-A7
  * processor cores. Features and specifications include DDR2/DDR3 memory,
  * SD/MMC storage cards, 10/100/1000Mbit Ethernet, USB 2.0, HDMI and
  * various I/O modules.
