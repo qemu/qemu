@@ -10,6 +10,7 @@ mypy = ">=0.770"
 pylint = ">=2.8.0"
 
 [packages]
+qemu = {editable = true,path = "."}
 
 [requires]
 python_version = "3.6"
