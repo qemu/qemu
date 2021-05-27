@@ -1852,7 +1852,7 @@ bool blk_supports_write_perm(BlockBackend *blk)
     if (bs) {
         return !bdrv_is_read_only(bs);
     } else {
-        return !blk->root_state.read_only;
+        return blk->root_state.open_flags & BDRV_O_RDWR;
     }
 }
 
@@ -2269,7 +2269,6 @@ void blk_update_root_state(BlockBackend *blk)
     assert(blk->root);
 
     blk->root_state.open_flags    = blk->root->bs->open_flags;
-    blk->root_state.read_only     = bdrv_is_read_only(blk->root->bs);
     blk->root_state.detect_zeroes = blk->root->bs->detect_zeroes;
 }
 
@@ -2288,12 +2287,7 @@ bool blk_get_detect_zeroes_from_root_state(BlockBackend *blk)
  */
 int blk_get_open_flags_from_root_state(BlockBackend *blk)
 {
-    int bs_flags;
-
-    bs_flags = blk->root_state.read_only ? 0 : BDRV_O_RDWR;
-    bs_flags |= blk->root_state.open_flags & ~BDRV_O_RDWR;
-
-    return bs_flags;
+    return blk->root_state.open_flags;
 }
 
 BlockBackendRootState *blk_get_root_state(BlockBackend *blk)
