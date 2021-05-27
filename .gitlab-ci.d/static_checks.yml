@@ -24,3 +24,24 @@ check-dco:
     - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: never
     - when: on_success
+
+check-python-pipenv:
+  stage: test
+  image: $CI_REGISTRY_IMAGE/qemu/python:latest
+  script:
+    - make -C python venv-check
+  variables:
+    GIT_DEPTH: 1
+  needs:
+    job: python-container
+
+check-python-tox:
+  stage: test
+  image: $CI_REGISTRY_IMAGE/qemu/python:latest
+  script:
+    - make -C python check-tox
+  variables:
+    GIT_DEPTH: 1
+  needs:
+    job: python-container
+  allow_failure: true

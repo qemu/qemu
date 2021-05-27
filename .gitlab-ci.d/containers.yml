@@ -43,3 +43,8 @@ amd64-opensuse-leap-container:
   extends: .container_job_template
   variables:
     NAME: opensuse-leap
+
+python-container:
+  extends: .container_job_template
+  variables:
+    NAME: python
