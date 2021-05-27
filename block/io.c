@@ -1973,7 +1973,7 @@ bdrv_co_write_req_prepare(BdrvChild *child, int64_t offset, int64_t bytes,
 
     bdrv_check_request(offset, bytes, &error_abort);
 
-    if (bs->read_only) {
+    if (bdrv_is_read_only(bs)) {
         return -EPERM;
     }
 
@@ -3406,7 +3406,7 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
     if (new_bytes) {
         bdrv_make_request_serialising(&req, 1);
     }
-    if (bs->read_only) {
+    if (bdrv_is_read_only(bs)) {
         error_setg(errp, "Image is read-only");
         ret = -EACCES;
         goto out;

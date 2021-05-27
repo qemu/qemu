@@ -415,7 +415,7 @@ int bdrv_snapshot_load_tmp(BlockDriverState *bs,
         error_setg(errp, "snapshot_id and name are both NULL");
         return -EINVAL;
     }
-    if (!bs->read_only) {
+    if (!bdrv_is_read_only(bs)) {
         error_setg(errp, "Device is not readonly");
         return -EINVAL;
     }
