@@ -194,13 +194,11 @@ static void test_sync_op_truncate(BdrvChild *c)
     g_assert_cmpint(ret, ==, -EINVAL);
 
     /* Error: Read-only image */
-    c->bs->read_only = true;
     c->bs->open_flags &= ~BDRV_O_RDWR;
 
     ret = bdrv_truncate(c, 65536, false, PREALLOC_MODE_OFF, 0, NULL);
     g_assert_cmpint(ret, ==, -EACCES);
 
-    c->bs->read_only = false;
     c->bs->open_flags |= BDRV_O_RDWR;
 }
 
@@ -236,13 +234,11 @@ static void test_sync_op_flush(BdrvChild *c)
     g_assert_cmpint(ret, ==, 0);
 
     /* Early success: Read-only image */
-    c->bs->read_only = true;
     c->bs->open_flags &= ~BDRV_O_RDWR;
 
     ret = bdrv_flush(c->bs);
     g_assert_cmpint(ret, ==, 0);
 
-    c->bs->read_only = false;
     c->bs->open_flags |= BDRV_O_RDWR;
 }
 
@@ -256,13 +252,11 @@ static void test_sync_op_blk_flush(BlockBackend *blk)
     g_assert_cmpint(ret, ==, 0);
 
     /* Early success: Read-only image */
-    bs->read_only = true;
     bs->open_flags &= ~BDRV_O_RDWR;
 
     ret = blk_flush(blk);
     g_assert_cmpint(ret, ==, 0);
 
-    bs->read_only = false;
     bs->open_flags |= BDRV_O_RDWR;
 }
 
