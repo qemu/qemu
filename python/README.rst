@@ -24,6 +24,10 @@ which installs a version of the package that installs a forwarder
 pointing to these files, such that the package always reflects the
 latest version in your git tree.
 
+Installing ".[devel]" instead of "." will additionally pull in required
+packages for testing this package. They are not runtime requirements,
+and are not needed to simply use these libraries.
+
 See `Installing packages using pip and virtual environments
 <https://packaging.python.org/guides/installing-using-pip-and-virtual-environments/>`_
 for more information.

@@ -31,3 +31,7 @@ official `GitLab mirror <https://gitlab.com/qemu-project/qemu>`_.
 Please report bugs on the `QEMU issue tracker
 <https://gitlab.com/qemu-project/qemu/-/issues>`_ and tag ``@jsnow`` in
 the report.
+
+Optional packages necessary for running code quality analysis for this
+package can be installed with the optional dependency group "devel":
+``pip install qemu[devel]``.
