@@ -1,0 +1,17 @@
+include:
+  - local: '/.gitlab-ci.d/container-template.yml'
+
+amd64-centos8-container:
+  extends: .container_job_template
+  variables:
+    NAME: centos8
+
+amd64-fedora-container:
+  extends: .container_job_template
+  variables:
+    NAME: fedora
+
+amd64-debian10-container:
+  extends: .container_job_template
+  variables:
+    NAME: debian10

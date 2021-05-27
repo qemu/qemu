@@ -1,44 +1,5 @@
-.cross_system_build_job:
-  stage: build
-  image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
-  timeout: 80m
-  script:
-    - mkdir build
-    - cd build
-    - PKG_CONFIG_PATH=$PKG_CONFIG_PATH
-      ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
-        --disable-user --target-list-exclude="arm-softmmu cris-softmmu
-          i386-softmmu microblaze-softmmu mips-softmmu mipsel-softmmu
-          mips64-softmmu ppc-softmmu sh4-softmmu xtensa-softmmu"
-    - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
-
-# Job to cross-build specific accelerators.
-#
-# Set the $ACCEL variable to select the specific accelerator (default to
-# KVM), and set extra options (such disabling other accelerators) via the
-# $ACCEL_CONFIGURE_OPTS variable.
-.cross_accel_build_job:
-  stage: build
-  image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
-  timeout: 30m
-  script:
-    - mkdir build
-    - cd build
-    - PKG_CONFIG_PATH=$PKG_CONFIG_PATH
-      ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
-        --disable-tools --enable-${ACCEL:-kvm} $ACCEL_CONFIGURE_OPTS
-    - make -j$(expr $(nproc) + 1) all check-build
-
-.cross_user_build_job:
-  stage: build
-  image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
-  script:
-    - mkdir build
-    - cd build
-    - PKG_CONFIG_PATH=$PKG_CONFIG_PATH
-      ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
-        --disable-system
-    - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
+include:
+  - local: '/.gitlab-ci.d/crossbuild-template.yml'
 
 cross-armel-system:
   extends: .cross_system_build_job
@@ -97,6 +58,15 @@ cross-i386-user:
   variables:
     IMAGE: fedora-i386-cross
     MAKE_CHECK_ARGS: check
+
+cross-i386-tci:
+  extends: .cross_accel_build_job
+  timeout: 60m
+  variables:
+    IMAGE: fedora-i386-cross
+    ACCEL: tcg-interpreter
+    EXTRA_CONFIGURE_OPTS: --target-list=i386-softmmu,i386-linux-user,aarch64-softmmu,aarch64-linux-user,ppc-softmmu,ppc-linux-user
+    MAKE_CHECK_ARGS: check check-tcg
 
 cross-mips-system:
   extends: .cross_system_build_job
@@ -174,7 +144,7 @@ cross-s390x-kvm-only:
     job: s390x-debian-cross-container
   variables:
     IMAGE: debian-s390x-cross
-    ACCEL_CONFIGURE_OPTS: --disable-tcg
+    EXTRA_CONFIGURE_OPTS: --disable-tcg
 
 cross-mips64el-kvm-only:
   extends: .cross_accel_build_job
@@ -182,7 +152,7 @@ cross-mips64el-kvm-only:
     job: mips64el-debian-cross-container
   variables:
     IMAGE: debian-mips64el-cross
-    ACCEL_CONFIGURE_OPTS: --disable-tcg --target-list=mips64el-softmmu
+    EXTRA_CONFIGURE_OPTS: --disable-tcg --target-list=mips64el-softmmu
 
 cross-win32-system:
   extends: .cross_system_build_job
@@ -205,7 +175,7 @@ cross-amd64-xen-only:
   variables:
     IMAGE: debian-amd64-cross
     ACCEL: xen
-    ACCEL_CONFIGURE_OPTS: --disable-tcg --disable-kvm
+    EXTRA_CONFIGURE_OPTS: --disable-tcg --disable-kvm
 
 cross-arm64-xen-only:
   extends: .cross_accel_build_job
@@ -214,4 +184,4 @@ cross-arm64-xen-only:
   variables:
     IMAGE: debian-arm64-cross
     ACCEL: xen
-    ACCEL_CONFIGURE_OPTS: --disable-tcg --disable-kvm
+    EXTRA_CONFIGURE_OPTS: --disable-tcg --disable-kvm
