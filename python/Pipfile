@@ -5,6 +5,7 @@ verify_ssl = true
 
 [dev-packages]
 flake8 = ">=3.6.0"
+isort = ">=5.1.2"
 mypy = ">=0.770"
 pylint = ">=2.8.0"
 
