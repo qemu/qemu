@@ -306,7 +306,6 @@ class QEMUMachine:
 
     def _pre_launch(self) -> None:
         self._qemu_log_path = os.path.join(self.temp_dir, self._name + ".log")
-        self._qemu_log_file = open(self._qemu_log_path, 'wb')
 
         if self._console_set:
             self._remove_files.append(self._console_address)
@@ -320,6 +319,11 @@ class QEMUMachine:
                 server=True,
                 nickname=self._name
             )
+
+        # NOTE: Make sure any opened resources are *definitely* freed in
+        # _post_shutdown()!
+        # pylint: disable=consider-using-with
+        self._qemu_log_file = open(self._qemu_log_path, 'wb')
 
     def _post_launch(self) -> None:
         if self._qmp_connection:
