@@ -230,6 +230,9 @@ typedef enum {
 #define SR_T_SHIFT 14
 #define SR_T  0xc000
 
+#define M68K_SR_TRACE(sr) ((sr & SR_T) >> SR_T_SHIFT)
+#define M68K_SR_TRACE_ANY_INS 0x2
+
 #define M68K_SSP    0
 #define M68K_USP    1
 #define M68K_ISP    2
@@ -590,6 +593,8 @@ typedef M68kCPU ArchCPU;
 #define TB_FLAGS_SFC_S          (1 << TB_FLAGS_SFC_S_BIT)
 #define TB_FLAGS_DFC_S_BIT      15
 #define TB_FLAGS_DFC_S          (1 << TB_FLAGS_DFC_S_BIT)
+#define TB_FLAGS_TRACE          16
+#define TB_FLAGS_TRACE_BIT      (1 << TB_FLAGS_TRACE)
 
 static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
@@ -601,6 +606,9 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
         *flags |= TB_FLAGS_MSR_S;
         *flags |= (env->sfc << (TB_FLAGS_SFC_S_BIT - 2)) & TB_FLAGS_SFC_S;
         *flags |= (env->dfc << (TB_FLAGS_DFC_S_BIT - 2)) & TB_FLAGS_DFC_S;
+    }
+    if (M68K_SR_TRACE(env->sr) == M68K_SR_TRACE_ANY_INS) {
+        *flags |= TB_FLAGS_TRACE;
     }
 }
 
