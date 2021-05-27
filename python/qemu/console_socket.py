@@ -39,6 +39,7 @@ class ConsoleSocket(socket.socket):
         self.connect(address)
         self._logfile = None
         if file:
+            # pylint: disable=consider-using-with
             self._logfile = open(file, "bw")
         self._open = True
         self._drain_thread = None
