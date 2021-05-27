@@ -333,6 +333,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:aarch64
         :avocado: tags=machine:virt
+        :avocado: tags=accel:tcg
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/29/Everything/aarch64/os/images/pxeboot'
@@ -343,7 +344,9 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'console=ttyAMA0')
+        self.require_accelerator("tcg")
         self.vm.add_args('-cpu', 'cortex-a53',
+                         '-accel', 'tcg',
                          '-kernel', kernel_path,
                          '-append', kernel_command_line)
         self.vm.launch()
@@ -356,6 +359,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=machine:xlnx-versal-virt
         :avocado: tags=device:pl011
         :avocado: tags=device:arm_gicv3
+        :avocado: tags=accel:tcg
         """
         images_url = ('http://ports.ubuntu.com/ubuntu-ports/dists/'
                       'bionic-updates/main/installer-arm64/'
@@ -370,6 +374,7 @@ class BootLinuxConsole(LinuxKernelTest):
 
         self.vm.set_console()
         self.vm.add_args('-m', '2G',
+                         '-accel', 'tcg',
                          '-kernel', kernel_path,
                          '-initrd', initrd_path)
         self.vm.launch()
@@ -379,6 +384,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:virt
+        :avocado: tags=accel:tcg
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/29/Everything/armhfp/os/images/pxeboot'
@@ -401,6 +407,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=machine:emcraft-sf2
         :avocado: tags=endian:little
         :avocado: tags=u-boot
+        :avocado: tags=accel:tcg
         """
         uboot_url = ('https://raw.githubusercontent.com/'
                      'Subbaraya-Sundeep/qemu-test-binaries/'
@@ -429,6 +436,8 @@ class BootLinuxConsole(LinuxKernelTest):
 
     def do_test_arm_raspi2(self, uart_id):
         """
+        :avocado: tags=accel:tcg
+
         The kernel can be rebuilt using the kernel source referenced
         and following the instructions on the on:
         https://www.raspberrypi.org/documentation/linux/kernel/building.md
@@ -464,6 +473,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:raspi2
         :avocado: tags=device:pl011
+        :avocado: tags=accel:tcg
         """
         self.do_test_arm_raspi2(0)
 
@@ -471,6 +481,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:smdkc210
+        :avocado: tags=accel:tcg
         """
         deb_url = ('https://snapshot.debian.org/archive/debian/'
                    '20190928T224601Z/pool/main/l/linux/'
@@ -511,6 +522,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:cubieboard
+        :avocado: tags=accel:tcg
         """
         deb_url = ('https://apt.armbian.com/pool/main/l/'
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
@@ -551,6 +563,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:cubieboard
+        :avocado: tags=accel:tcg
         """
         deb_url = ('https://apt.armbian.com/pool/main/l/'
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
@@ -595,6 +608,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:quanta-gsj
+        :avocado: tags=accel:tcg
         """
         # 25 MiB compressed, 32 MiB uncompressed.
         image_url = (
@@ -642,6 +656,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:quanta-gsj
+        :avocado: tags=accel:tcg
         """
         initrd_url = (
                 'https://github.com/hskinnemoen/openbmc/releases/download/'
@@ -678,6 +693,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:orangepi-pc
+        :avocado: tags=accel:tcg
         """
         deb_url = ('https://apt.armbian.com/pool/main/l/'
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
@@ -702,6 +718,7 @@ class BootLinuxConsole(LinuxKernelTest):
     def test_arm_orangepi_initrd(self):
         """
         :avocado: tags=arch:arm
+        :avocado: tags=accel:tcg
         :avocado: tags=machine:orangepi-pc
         """
         deb_url = ('https://apt.armbian.com/pool/main/l/'
@@ -744,6 +761,7 @@ class BootLinuxConsole(LinuxKernelTest):
     def test_arm_orangepi_sd(self):
         """
         :avocado: tags=arch:arm
+        :avocado: tags=accel:tcg
         :avocado: tags=machine:orangepi-pc
         :avocado: tags=device:sd
         """
