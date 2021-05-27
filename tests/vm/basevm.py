@@ -19,9 +19,8 @@ import logging
 import time
 import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-from qemu.accel import kvm_available
 from qemu.machine import QEMUMachine
-from qemu.utils import get_info_usernet_hostfwd_port
+from qemu.utils import get_info_usernet_hostfwd_port, kvm_available
 import subprocess
 import hashlib
 import argparse

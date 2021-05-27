@@ -1,13 +1,14 @@
 """
-QEMU utility library
+QEMU development and testing utilities
 
-This offers miscellaneous utility functions, which may not be easily
-distinguishable or numerous to be in their own module.
+This package provides a small handful of utilities for performing
+various tasks not directly related to the launching of a VM.
 """
 
 # Copyright (C) 2021 Red Hat Inc.
 #
 # Authors:
+#  John Snow <jsnow@redhat.com>
 #  Cleber Rosa <crosa@redhat.com>
 #
 # This work is licensed under the terms of the GNU GPL, version 2.  See
@@ -16,6 +17,17 @@ distinguishable or numerous to be in their own module.
 
 import re
 from typing import Optional
+
+# pylint: disable=import-error
+from .accel import kvm_available, list_accel, tcg_available
+
+
+__all__ = (
+    'get_info_usernet_hostfwd_port',
+    'kvm_available',
+    'list_accel',
+    'tcg_available',
+)
 
 
 def get_info_usernet_hostfwd_port(info_usernet_output: str) -> Optional[int]:

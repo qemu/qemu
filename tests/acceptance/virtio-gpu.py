@@ -10,7 +10,7 @@ from avocado_qemu import wait_for_console_pattern
 from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import is_readable_executable_file
 
-from qemu.accel import kvm_available
+from qemu.utils import kvm_available
 
 import os
 import socket

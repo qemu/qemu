@@ -41,11 +41,12 @@ else:
 
 sys.path.append(os.path.join(SOURCE_DIR, 'python'))
 
-from qemu.accel import kvm_available
-from qemu.accel import tcg_available
 from qemu.machine import QEMUMachine
-from qemu.utils import get_info_usernet_hostfwd_port
-
+from qemu.utils import (
+    get_info_usernet_hostfwd_port,
+    kvm_available,
+    tcg_available,
+)
 
 def is_readable_executable_file(path):
     return os.path.isfile(path) and os.access(path, os.R_OK | os.X_OK)

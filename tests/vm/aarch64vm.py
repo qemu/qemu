@@ -14,7 +14,7 @@ import os
 import sys
 import subprocess
 import basevm
-from qemu.accel import kvm_available
+from qemu.utils import kvm_available
 
 # This is the config needed for current version of QEMU.
 # This works for both kvm and tcg.
