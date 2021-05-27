@@ -30,6 +30,14 @@
             "markers": "python_version ~= '3.6'",
             "version": "==2.5.6"
         },
+        "avocado-framework": {
+            "hashes": [
+                "sha256:42aa7962df98d6b78d4efd9afa2177226dc630f3d83a2a7d5baf7a0a7da7fa1b",
+                "sha256:d96ae343abf890e1ef3b3a6af5ce49e35f6bded0715770c4acb325bca555c515"
+            ],
+            "markers": "python_version >= '3.6'",
+            "version": "==88.1"
+        },
         "flake8": {
             "hashes": [
                 "sha256:07528381786f2a6237b061f6e96610a4167b226cb926e2aa2b6b1d78057c576b",
