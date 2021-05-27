@@ -25,6 +25,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "mmu-hash64.h"
 #include "helper_regs.h"
+#include "sysemu/tcg.h"
 
 target_ulong cpu_read_xer(CPUPPCState *env)
 {
@@ -108,4 +109,46 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
     env->spr[SPR_LPCR] = val & pcc->lpcr_mask;
     /* The gtse bit affects hflags */
     hreg_compute_hflags(env);
+}
+
+static inline void fpscr_set_rounding_mode(CPUPPCState *env)
+{
+    int rnd_type;
+
+    /* Set rounding mode */
+    switch (fpscr_rn) {
+    case 0:
+        /* Best approximation (round to nearest) */
+        rnd_type = float_round_nearest_even;
+        break;
+    case 1:
+        /* Smaller magnitude (round toward zero) */
+        rnd_type = float_round_to_zero;
+        break;
+    case 2:
+        /* Round toward +infinite */
+        rnd_type = float_round_up;
+        break;
+    default:
+    case 3:
+        /* Round toward -infinite */
+        rnd_type = float_round_down;
+        break;
+    }
+    set_float_rounding_mode(rnd_type, &env->fp_status);
+}
+
+void ppc_store_fpscr(CPUPPCState *env, target_ulong val)
+{
+    val &= ~(FP_VX | FP_FEX);
+    if (val & FPSCR_IX) {
+        val |= FP_VX;
+    }
+    if ((val >> FPSCR_XX) & (val >> FPSCR_XE) & 0x1f) {
+        val |= FP_FEX;
+    }
+    env->fpscr = val;
+    if (tcg_enabled()) {
+        fpscr_set_rounding_mode(env);
+    }
 }

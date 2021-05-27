@@ -271,7 +271,7 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             break;
         case 70:
             /* fpscr */
-            store_fpscr(env, ldtul_p(mem_buf), 0xffffffff);
+            ppc_store_fpscr(env, ldtul_p(mem_buf));
             break;
         }
     }
@@ -321,7 +321,7 @@ int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
             break;
         case 70 + 32:
             /* fpscr */
-            store_fpscr(env, ldq_p(mem_buf), 0xffffffff);
+            ppc_store_fpscr(env, ldq_p(mem_buf));
             break;
         }
     }
@@ -474,7 +474,7 @@ static int gdb_set_float_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     }
     if (n == 32) {
         ppc_maybe_bswap_register(env, mem_buf, 4);
-        store_fpscr(env, ldl_p(mem_buf), 0xffffffff);
+        ppc_store_fpscr(env, ldl_p(mem_buf));
         return 4;
     }
     return 0;
