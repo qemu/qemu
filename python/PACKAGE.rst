@@ -35,3 +35,9 @@ the report.
 Optional packages necessary for running code quality analysis for this
 package can be installed with the optional dependency group "devel":
 ``pip install qemu[devel]``.
+
+``make develop`` can be used to install this package in editable mode
+(to the current environment) *and* bring in testing dependencies in one
+command.
+
+``make check`` can be used to run the available tests.

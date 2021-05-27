@@ -28,6 +28,9 @@ Installing ".[devel]" instead of "." will additionally pull in required
 packages for testing this package. They are not runtime requirements,
 and are not needed to simply use these libraries.
 
+Running ``make develop`` will pull in all testing dependencies and
+install QEMU in editable mode to the current environment.
+
 See `Installing packages using pip and virtual environments
 <https://packaging.python.org/guides/installing-using-pip-and-virtual-environments/>`_
 for more information.
@@ -39,6 +42,9 @@ Files in this directory
 - ``qemu/`` Python package source directory.
 - ``tests/`` Python package tests directory.
 - ``avocado.cfg`` Configuration for the Avocado test-runner.
+  Used by ``make check`` et al.
+- ``Makefile`` provides some common testing/installation invocations.
+  Try ``make help`` to see available targets.
 - ``MANIFEST.in`` is read by python setuptools, it specifies additional files
   that should be included by a source distribution.
 - ``PACKAGE.rst`` is used as the README file that is visible on PyPI.org.
