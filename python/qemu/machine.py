@@ -405,6 +405,9 @@ class QEMUMachine:
                   self._args)
         )
         LOG.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
+
+        # Cleaning up of this subprocess is guaranteed by _do_shutdown.
+        # pylint: disable=consider-using-with
         self._popen = subprocess.Popen(self._qemu_full_args,
                                        stdin=subprocess.DEVNULL,
                                        stdout=self._qemu_log_file,
