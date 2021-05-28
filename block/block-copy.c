@@ -439,9 +439,11 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
 
     ret = block_copy_do_copy(t->s, t->offset, t->bytes, t->zeroes,
                              &error_is_read);
-    if (ret < 0 && !t->call_state->ret) {
-        t->call_state->ret = ret;
-        t->call_state->error_is_read = error_is_read;
+    if (ret < 0) {
+        if (!t->call_state->ret) {
+            t->call_state->ret = ret;
+            t->call_state->error_is_read = error_is_read;
+        }
     } else {
         progress_work_done(t->s->progress, t->bytes);
     }
