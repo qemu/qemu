@@ -3373,6 +3373,7 @@ static void virtio_net_device_unrealize(DeviceState *dev)
 
     if (n->failover) {
         device_listener_unregister(&n->primary_listener);
+        remove_migration_state_change_notifier(&n->migration_state);
     }
 
     max_queues = n->multiqueue ? n->max_queues : 1;
