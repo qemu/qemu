@@ -382,6 +382,7 @@ typedef struct NvmeParams {
     uint8_t  vsl;
     bool     use_intel_id;
     uint8_t  zasl;
+    bool     auto_transition_zones;
     bool     legacy_cmb;
 } NvmeParams;
 

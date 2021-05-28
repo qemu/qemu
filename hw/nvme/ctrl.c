@@ -34,6 +34,7 @@
  *              aerl=<N[optional]>,aer_max_queued=<N[optional]>, \
  *              mdts=<N[optional]>,vsl=<N[optional]>, \
  *              zoned.zasl=<N[optional]>, \
+ *              zoned.auto_transition=<on|off[optional]>, \
  *              subsys=<subsys_id>
  *      -device nvme-ns,drive=<drive_id>,bus=<bus_name>,nsid=<nsid>,\
  *              zoned=<true|false[optional]>, \
@@ -99,6 +100,11 @@
  *   `mdts`, the value is specified as a power of two (2^n) and is in units of
  *   the minimum memory page size (CAP.MPSMIN). The default value is 0 (i.e.
  *   defaulting to the value of `mdts`).
+ *
+ * - `zoned.auto_transition`
+ *   Indicates if zones in zone state implicitly opened can be automatically
+ *   transitioned to zone state closed for resource management purposes.
+ *   Defaults to 'on'.
  *
  * nvme namespace device parameters
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1686,8 +1692,8 @@ enum {
     NVME_ZRM_AUTO = 1 << 0,
 };
 
-static uint16_t nvme_zrm_open_flags(NvmeNamespace *ns, NvmeZone *zone,
-                                    int flags)
+static uint16_t nvme_zrm_open_flags(NvmeCtrl *n, NvmeNamespace *ns,
+                                    NvmeZone *zone, int flags)
 {
     int act = 0;
     uint16_t status;
@@ -1699,7 +1705,9 @@ static uint16_t nvme_zrm_open_flags(NvmeNamespace *ns, NvmeZone *zone,
         /* fallthrough */
 
     case NVME_ZONE_STATE_CLOSED:
-        nvme_zrm_auto_transition_zone(ns);
+        if (n->params.auto_transition_zones) {
+            nvme_zrm_auto_transition_zone(ns);
+        }
         status = nvme_aor_check(ns, act, 1);
         if (status) {
             return status;
@@ -1735,14 +1743,16 @@ static uint16_t nvme_zrm_open_flags(NvmeNamespace *ns, NvmeZone *zone,
     }
 }
 
-static inline uint16_t nvme_zrm_auto(NvmeNamespace *ns, NvmeZone *zone)
+static inline uint16_t nvme_zrm_auto(NvmeCtrl *n, NvmeNamespace *ns,
+                                     NvmeZone *zone)
 {
-    return nvme_zrm_open_flags(ns, zone, NVME_ZRM_AUTO);
+    return nvme_zrm_open_flags(n, ns, zone, NVME_ZRM_AUTO);
 }
 
-static inline uint16_t nvme_zrm_open(NvmeNamespace *ns, NvmeZone *zone)
+static inline uint16_t nvme_zrm_open(NvmeCtrl *n, NvmeNamespace *ns,
+                                     NvmeZone *zone)
 {
-    return nvme_zrm_open_flags(ns, zone, 0);
+    return nvme_zrm_open_flags(n, ns, zone, 0);
 }
 
 static void nvme_advance_zone_wp(NvmeNamespace *ns, NvmeZone *zone,
@@ -2283,7 +2293,7 @@ static void nvme_copy_in_complete(NvmeRequest *req)
             goto invalid;
         }
 
-        status = nvme_zrm_auto(ns, zone);
+        status = nvme_zrm_auto(nvme_ctrl(req), ns, zone);
         if (status) {
             goto invalid;
         }
@@ -3080,7 +3090,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
             goto invalid;
         }
 
-        status = nvme_zrm_auto(ns, zone);
+        status = nvme_zrm_auto(n, ns, zone);
         if (status) {
             goto invalid;
         }
@@ -3169,7 +3179,7 @@ enum NvmeZoneProcessingMask {
 static uint16_t nvme_open_zone(NvmeNamespace *ns, NvmeZone *zone,
                                NvmeZoneState state, NvmeRequest *req)
 {
-    return nvme_zrm_open(ns, zone);
+    return nvme_zrm_open(nvme_ctrl(req), ns, zone);
 }
 
 static uint16_t nvme_close_zone(NvmeNamespace *ns, NvmeZone *zone,
@@ -6259,6 +6269,8 @@ static Property nvme_props[] = {
     DEFINE_PROP_BOOL("use-intel-id", NvmeCtrl, params.use_intel_id, false),
     DEFINE_PROP_BOOL("legacy-cmb", NvmeCtrl, params.legacy_cmb, false),
     DEFINE_PROP_UINT8("zoned.zasl", NvmeCtrl, params.zasl, 0),
+    DEFINE_PROP_BOOL("zoned.auto_transition", NvmeCtrl,
+                     params.auto_transition_zones, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
