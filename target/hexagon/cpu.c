@@ -269,7 +269,7 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps hexagon_tcg_ops = {
+static const struct TCGCPUOps hexagon_tcg_ops = {
     .initialize = hexagon_translate_init,
     .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
     .tlb_fill = hexagon_tlb_fill,

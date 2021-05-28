@@ -24,6 +24,18 @@
 #define LD_P(size) \
     glue(glue(ld, size), glue(ENDIANNESS, _p))
 
+static inline uint16_t ADDRESS_SPACE_LD_CACHED(uw)(MemoryRegionCache *cache,
+    hwaddr addr, MemTxAttrs attrs, MemTxResult *result)
+{
+    assert(addr < cache->len && 2 <= cache->len - addr);
+    fuzz_dma_read_cb(cache->xlat + addr, 2, cache->mrs.mr);
+    if (likely(cache->ptr)) {
+        return LD_P(uw)(cache->ptr + addr);
+    } else {
+        return ADDRESS_SPACE_LD_CACHED_SLOW(uw)(cache, addr, attrs, result);
+    }
+}
+
 static inline uint32_t ADDRESS_SPACE_LD_CACHED(l)(MemoryRegionCache *cache,
     hwaddr addr, MemTxAttrs attrs, MemTxResult *result)
 {
@@ -48,18 +60,6 @@ static inline uint64_t ADDRESS_SPACE_LD_CACHED(q)(MemoryRegionCache *cache,
     }
 }
 
-static inline uint32_t ADDRESS_SPACE_LD_CACHED(uw)(MemoryRegionCache *cache,
-    hwaddr addr, MemTxAttrs attrs, MemTxResult *result)
-{
-    assert(addr < cache->len && 2 <= cache->len - addr);
-    fuzz_dma_read_cb(cache->xlat + addr, 2, cache->mrs.mr);
-    if (likely(cache->ptr)) {
-        return LD_P(uw)(cache->ptr + addr);
-    } else {
-        return ADDRESS_SPACE_LD_CACHED_SLOW(uw)(cache, addr, attrs, result);
-    }
-}
-
 #undef ADDRESS_SPACE_LD_CACHED
 #undef ADDRESS_SPACE_LD_CACHED_SLOW
 #undef LD_P
@@ -71,6 +71,17 @@ static inline uint32_t ADDRESS_SPACE_LD_CACHED(uw)(MemoryRegionCache *cache,
 #define ST_P(size) \
     glue(glue(st, size), glue(ENDIANNESS, _p))
 
+static inline void ADDRESS_SPACE_ST_CACHED(w)(MemoryRegionCache *cache,
+    hwaddr addr, uint16_t val, MemTxAttrs attrs, MemTxResult *result)
+{
+    assert(addr < cache->len && 2 <= cache->len - addr);
+    if (likely(cache->ptr)) {
+        ST_P(w)(cache->ptr + addr, val);
+    } else {
+        ADDRESS_SPACE_ST_CACHED_SLOW(w)(cache, addr, val, attrs, result);
+    }
+}
+
 static inline void ADDRESS_SPACE_ST_CACHED(l)(MemoryRegionCache *cache,
     hwaddr addr, uint32_t val, MemTxAttrs attrs, MemTxResult *result)
 {
@@ -79,17 +90,6 @@ static inline void ADDRESS_SPACE_ST_CACHED(l)(MemoryRegionCache *cache,
         ST_P(l)(cache->ptr + addr, val);
     } else {
         ADDRESS_SPACE_ST_CACHED_SLOW(l)(cache, addr, val, attrs, result);
-    }
-}
-
-static inline void ADDRESS_SPACE_ST_CACHED(w)(MemoryRegionCache *cache,
-    hwaddr addr, uint32_t val, MemTxAttrs attrs, MemTxResult *result)
-{
-    assert(addr < cache->len && 2 <= cache->len - addr);
-    if (likely(cache->ptr)) {
-        ST_P(w)(cache->ptr + addr, val);
-    } else {
-        ADDRESS_SPACE_ST_CACHED_SLOW(w)(cache, addr, val, attrs, result);
     }
 }
 

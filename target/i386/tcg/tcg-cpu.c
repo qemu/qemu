@@ -56,7 +56,7 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs,
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps x86_tcg_ops = {
+static const struct TCGCPUOps x86_tcg_ops = {
     .initialize = tcg_x86_init,
     .synchronize_from_tb = x86_cpu_synchronize_from_tb,
     .cpu_exec_enter = x86_cpu_exec_enter,

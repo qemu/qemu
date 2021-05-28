@@ -119,30 +119,6 @@ static const MemoryRegionOps dma_dummy_ops = {
 #define MAGNUM_BIOS_SIZE                                                       \
         (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
 
-#if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
-static void (*real_do_transaction_failed)(CPUState *cpu, hwaddr physaddr,
-                                          vaddr addr, unsigned size,
-                                          MMUAccessType access_type,
-                                          int mmu_idx, MemTxAttrs attrs,
-                                          MemTxResult response,
-                                          uintptr_t retaddr);
-
-static void mips_jazz_do_transaction_failed(CPUState *cs, hwaddr physaddr,
-                                            vaddr addr, unsigned size,
-                                            MMUAccessType access_type,
-                                            int mmu_idx, MemTxAttrs attrs,
-                                            MemTxResult response,
-                                            uintptr_t retaddr)
-{
-    if (access_type != MMU_INST_FETCH) {
-        /* ignore invalid access (ie do not raise exception) */
-        return;
-    }
-    (*real_do_transaction_failed)(cs, physaddr, addr, size, access_type,
-                                  mmu_idx, attrs, response, retaddr);
-}
-#endif /* CONFIG_TCG && !CONFIG_USER_ONLY */
-
 static void mips_jazz_init(MachineState *machine,
                            enum jazz_model_e jazz_model)
 {
@@ -151,7 +127,7 @@ static void mips_jazz_init(MachineState *machine,
     int bios_size, n;
     Clock *cpuclk;
     MIPSCPU *cpu;
-    CPUClass *cc;
+    MIPSCPUClass *mcc;
     CPUMIPSState *env;
     qemu_irq *i8259;
     rc4030_dma *dmas;
@@ -198,8 +174,6 @@ static void mips_jazz_init(MachineState *machine,
      * However, we can't simply add a global memory region to catch
      * everything, as this would make all accesses including instruction
      * accesses be ignored and not raise exceptions.
-     * So instead we hijack the do_transaction_failed method on the CPU, and
-     * do not raise exceptions for data access.
      *
      * NOTE: this behaviour of raising exceptions for bad instruction
      * fetches but not bad data accesses was added in commit 54e755588cf1e9
@@ -209,11 +183,8 @@ static void mips_jazz_init(MachineState *machine,
      * we could replace this hijacking of CPU methods with a simple global
      * memory region that catches all memory accesses, as we do on Malta.
      */
-    cc = CPU_GET_CLASS(cpu);
-#if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
-    real_do_transaction_failed = cc->tcg_ops->do_transaction_failed;
-    cc->tcg_ops->do_transaction_failed = mips_jazz_do_transaction_failed;
-#endif /* CONFIG_TCG && !CONFIG_USER_ONLY */
+    mcc = MIPS_CPU_GET_CLASS(cpu);
+    mcc->no_data_aborts = true;
 
     /* allocate RAM */
     memory_region_add_subregion(address_space, 0, machine->ram);

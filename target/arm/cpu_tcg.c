@@ -898,7 +898,7 @@ static void pxa270c5_initfn(Object *obj)
 }
 
 #ifdef CONFIG_TCG
-static struct TCGCPUOps arm_v7m_tcg_ops = {
+static const struct TCGCPUOps arm_v7m_tcg_ops = {
     .initialize = arm_translate_init,
     .synchronize_from_tb = arm_cpu_synchronize_from_tb,
     .cpu_exec_interrupt = arm_v7m_cpu_exec_interrupt,

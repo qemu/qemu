@@ -1291,9 +1291,8 @@ static inline void tcg_out_rotr(TCGContext *s, TCGType ext,
 static inline void tcg_out_rotl(TCGContext *s, TCGType ext,
                                 TCGReg rd, TCGReg rn, unsigned int m)
 {
-    int bits = ext ? 64 : 32;
-    int max = bits - 1;
-    tcg_out_extr(s, ext, rd, rn, rn, bits - (m & max));
+    int max = ext ? 63 : 31;
+    tcg_out_extr(s, ext, rd, rn, rn, -m & max);
 }
 
 static inline void tcg_out_dep(TCGContext *s, TCGType ext, TCGReg rd,

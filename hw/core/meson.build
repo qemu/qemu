@@ -13,7 +13,7 @@ hwcore_files = files(
   'qdev-clock.c',
 )
 
-common_ss.add(files('cpu.c'))
+common_ss.add(files('cpu-common.c'))
 common_ss.add(when: 'CONFIG_FITLOADER', if_true: files('loader-fit.c'))
 common_ss.add(when: 'CONFIG_GENERIC_LOADER', if_true: files('generic-loader.c'))
 common_ss.add(when: ['CONFIG_GUEST_LOADER', fdt], if_true: files('guest-loader.c'))
@@ -25,6 +25,7 @@ common_ss.add(when: 'CONFIG_SPLIT_IRQ', if_true: files('split-irq.c'))
 common_ss.add(when: 'CONFIG_XILINX_AXI', if_true: files('stream.c'))
 
 softmmu_ss.add(files(
+  'cpu-sysemu.c',
   'fw-path-provider.c',
   'loader.c',
   'machine-hmp-cmds.c',
