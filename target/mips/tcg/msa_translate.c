@@ -2162,7 +2162,7 @@ static void gen_msa_vec(DisasContext *ctx)
     }
 }
 
-static void gen_msa(DisasContext *ctx)
+static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
 {
     uint32_t opcode = ctx->opcode;
 
@@ -2258,11 +2258,6 @@ static void gen_msa(DisasContext *ctx)
         gen_reserved_instruction(ctx);
         break;
     }
-}
-
-static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
-{
-    gen_msa(ctx);
 
     return true;
 }
