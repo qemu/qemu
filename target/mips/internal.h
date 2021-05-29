@@ -74,7 +74,7 @@ struct mips_def_t {
     int32_t SAARP;
 };
 
-extern const char regnames[32][4];
+extern const char regnames[32][3];
 extern const char fregnames[32][4];
 
 extern const struct mips_def_t mips_defs[];

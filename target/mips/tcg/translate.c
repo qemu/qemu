@@ -1280,11 +1280,11 @@ TCGv_i64 fpu_f64[32];
 #define DISAS_STOP       DISAS_TARGET_0
 #define DISAS_EXIT       DISAS_TARGET_1
 
-static const char * const regnames_HI[] = {
+static const char regnames_HI[][4] = {
     "HI0", "HI1", "HI2", "HI3",
 };
 
-static const char * const regnames_LO[] = {
+static const char regnames_LO[][4] = {
     "LO0", "LO1", "LO2", "LO3",
 };
 
