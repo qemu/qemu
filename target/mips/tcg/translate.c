@@ -14076,8 +14076,6 @@ enum {
     BGEZALS = 0x13,
     BC2F = 0x14,
     BC2T = 0x15,
-    BPOSGE64 = 0x1a,
-    BPOSGE32 = 0x1b,
     /* These overlap and are distinguished by bit16 of the instruction */
     BC1F = 0x1c,
     BC1T = 0x1d,
@@ -16121,10 +16119,6 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                 generate_exception_err(ctx, EXCP_CpU, 1);
             }
             break;
-        case BPOSGE64:
-        case BPOSGE32:
-            /* MIPS DSP: not implemented */
-            /* Fall through */
         default:
             MIPS_INVAL("pool32i");
             gen_reserved_instruction(ctx);
