@@ -18,8 +18,7 @@
 #include "internal.h"
 
 /* Include the auto-generated decoder.  */
-#include "decode-msa32.c.inc"
-#include "decode-msa64.c.inc"
+#include "decode-msa.c.inc"
 
 #define OPC_MSA (0x1E << 26)
 
@@ -2269,13 +2268,8 @@ static bool trans_LSA(DisasContext *ctx, arg_rtype *a)
 
 static bool trans_DLSA(DisasContext *ctx, arg_rtype *a)
 {
-    return gen_dlsa(ctx, a->rd, a->rt, a->rs, a->sa);
-}
-
-bool decode_ase_msa(DisasContext *ctx, uint32_t insn)
-{
-    if (TARGET_LONG_BITS == 64 && decode_msa64(ctx, insn)) {
-        return true;
+    if (TARGET_LONG_BITS != 64) {
+        return false;
     }
-    return decode_msa32(ctx, insn);
+    return gen_dlsa(ctx, a->rd, a->rt, a->rs, a->sa);
 }
