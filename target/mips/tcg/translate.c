@@ -24379,10 +24379,11 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
         {
             TCGv t0, t1;
 
+            check_dsp(ctx);
+
             if (rt == 0) {
                 break;
             }
-            check_dsp(ctx);
 
             t0 = tcg_temp_new();
             t1 = tcg_temp_new();
