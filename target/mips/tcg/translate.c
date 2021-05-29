@@ -5629,8 +5629,7 @@ static void gen_align_bits(DisasContext *ctx, int wordsz, int rd, int rs,
     tcg_temp_free(t0);
 }
 
-static void gen_align(DisasContext *ctx, int wordsz, int rd, int rs, int rt,
-                      int bp)
+void gen_align(DisasContext *ctx, int wordsz, int rd, int rs, int rt, int bp)
 {
     gen_align_bits(ctx, wordsz, rd, rs, rt, bp * 8);
 }
@@ -12778,8 +12777,8 @@ static void gen_mips16_restore(DisasContext *ctx,
     tcg_temp_free(t2);
 }
 
-static void gen_addiupc(DisasContext *ctx, int rx, int imm,
-                        int is_64_bit, int extended)
+void gen_addiupc(DisasContext *ctx, int rx, int imm,
+                 int is_64_bit, int extended)
 {
     TCGv t0;
 
@@ -14510,7 +14509,7 @@ static void gen_pool16c_r6_insn(DisasContext *ctx)
     }
 }
 
-static void gen_ldxs(DisasContext *ctx, int base, int index, int rd)
+void gen_ldxs(DisasContext *ctx, int base, int index, int rd)
 {
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
