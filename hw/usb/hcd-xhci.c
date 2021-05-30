@@ -551,7 +551,9 @@ static void xhci_intr_update(XHCIState *xhci, int v)
             level = 1;
         }
         if (xhci->intr_raise) {
-            xhci->intr_raise(xhci, 0, level);
+            if (xhci->intr_raise(xhci, 0, level)) {
+                xhci->intr[0].iman &= ~IMAN_IP;
+            }
         }
     }
     if (xhci->intr_update) {
@@ -579,7 +581,9 @@ static void xhci_intr_raise(XHCIState *xhci, int v)
         return;
     }
     if (xhci->intr_raise) {
-        xhci->intr_raise(xhci, v, true);
+        if (xhci->intr_raise(xhci, v, true)) {
+            xhci->intr[v].iman &= ~IMAN_IP;
+        }
     }
 }
 

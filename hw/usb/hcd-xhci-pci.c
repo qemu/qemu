@@ -57,7 +57,7 @@ static void xhci_pci_intr_update(XHCIState *xhci, int n, bool enable)
     }
 }
 
-static void xhci_pci_intr_raise(XHCIState *xhci, int n, bool level)
+static bool xhci_pci_intr_raise(XHCIState *xhci, int n, bool level)
 {
     XHCIPciState *s = container_of(xhci, XHCIPciState, xhci);
     PCIDevice *pci_dev = PCI_DEVICE(s);
@@ -67,15 +67,18 @@ static void xhci_pci_intr_raise(XHCIState *xhci, int n, bool level)
          msi_enabled(pci_dev))) {
         pci_set_irq(pci_dev, level);
     }
-    if (msix_enabled(pci_dev)) {
+
+    if (msix_enabled(pci_dev) && level) {
         msix_notify(pci_dev, n);
-        return;
+        return true;
     }
 
-    if (msi_enabled(pci_dev)) {
+    if (msi_enabled(pci_dev) && level) {
         msi_notify(pci_dev, n);
-        return;
+        return true;
     }
+
+    return false;
 }
 
 static void xhci_pci_reset(DeviceState *dev)

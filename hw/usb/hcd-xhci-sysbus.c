@@ -16,11 +16,13 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/irq.h"
 
-static void xhci_sysbus_intr_raise(XHCIState *xhci, int n, bool level)
+static bool xhci_sysbus_intr_raise(XHCIState *xhci, int n, bool level)
 {
     XHCISysbusState *s = container_of(xhci, XHCISysbusState, xhci);
 
     qemu_set_irq(s->irq[n], level);
+
+    return false;
 }
 
 void xhci_sysbus_reset(DeviceState *dev)
