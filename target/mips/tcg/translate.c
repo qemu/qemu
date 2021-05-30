@@ -31,7 +31,7 @@
 #include "exec/helper-gen.h"
 #include "semihosting/semihost.h"
 
-#include "target/mips/trace.h"
+#include "trace.h"
 #include "trace-tcg.h"
 #include "exec/translator.h"
 #include "exec/log.h"
