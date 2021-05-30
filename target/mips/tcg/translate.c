@@ -20182,6 +20182,8 @@ static void gen_pool32a5_nanomips_insn(DisasContext *ctx, int opc,
             tcg_gen_movi_tl(tv0, rd >> 3);
             tcg_gen_movi_tl(tv1, imm);
             gen_helper_shilo(tv0, tv1, cpu_env);
+            tcg_temp_free(tv1);
+            tcg_temp_free(tv0);
         }
         break;
     case NM_MULEQ_S_W_PHL:
