@@ -218,8 +218,6 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 
 /* translate.c */
 
-/* #define PPC_DUMP_CPU */
-
 int ppc_fixup_cpu(PowerPCCPU *cpu);
 void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp);
 void destroy_ppc_opcodes(PowerPCCPU *cpu);
