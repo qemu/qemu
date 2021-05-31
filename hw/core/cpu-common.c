@@ -109,15 +109,6 @@ void cpu_dump_state(CPUState *cpu, FILE *f, int flags)
     }
 }
 
-void cpu_dump_statistics(CPUState *cpu, int flags)
-{
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-
-    if (cc->dump_statistics) {
-        cc->dump_statistics(cpu, flags);
-    }
-}
-
 void cpu_reset(CPUState *cpu)
 {
     device_cold_reset(DEVICE(cpu));

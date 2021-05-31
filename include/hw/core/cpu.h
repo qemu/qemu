@@ -92,7 +92,6 @@ struct SysemuCPUOps;
  * @has_work: Callback for checking if there is work to do.
  * @memory_rw_debug: Callback for GDB memory access.
  * @dump_state: Callback for dumping state.
- * @dump_statistics: Callback for dumping statistics.
  * @get_arch_id: Callback for getting architecture-dependent CPU ID.
  * @set_pc: Callback for setting the Program Counter register. This
  *       should have the semantics used by the target architecture when
@@ -134,7 +133,6 @@ struct CPUClass {
     int (*memory_rw_debug)(CPUState *cpu, vaddr addr,
                            uint8_t *buf, int len, bool is_write);
     void (*dump_state)(CPUState *cpu, FILE *, int flags);
-    void (*dump_statistics)(CPUState *cpu, int flags);
     int64_t (*get_arch_id)(CPUState *cpu);
     void (*set_pc)(CPUState *cpu, vaddr value);
     int (*gdb_read_register)(CPUState *cpu, GByteArray *buf, int reg);
@@ -533,16 +531,6 @@ enum CPUDumpFlags {
  * Dumps CPU state.
  */
 void cpu_dump_state(CPUState *cpu, FILE *f, int flags);
-
-/**
- * cpu_dump_statistics:
- * @cpu: The CPU whose state is to be dumped.
- * @flags: Flags what to dump.
- *
- * Dump CPU statistics to the current monitor if we have one, else to
- * stdout.
- */
-void cpu_dump_statistics(CPUState *cpu, int flags);
 
 #ifndef CONFIG_USER_ONLY
 /**
