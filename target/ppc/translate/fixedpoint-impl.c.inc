@@ -60,3 +60,14 @@ static bool trans_ADDIS(DisasContext *ctx, arg_D *a)
     a->si <<= 16;
     return trans_ADDI(ctx, a);
 }
+
+static bool trans_INVALID(DisasContext *ctx, arg_INVALID *a)
+{
+    gen_invalid(ctx);
+    return true;
+}
+
+static bool trans_PNOP(DisasContext *ctx, arg_PNOP *a)
+{
+    return true;
+}
