@@ -23,6 +23,10 @@
 %ds_si          2:s14  !function=times_4
 @DS             ...... rt:5 ra:5 .............. ..      &D si=%ds_si
 
+&DX             rt d
+%dx_d           6:s10 16:5 0:1
+@DX             ...... rt:5  ..... .......... ..... .   &DX d=%dx_d
+
 &VX             vrt vra vrb
 @VX             ...... vrt:5 vra:5 vrb:5 .......... .   &VX
 
@@ -89,6 +93,8 @@ STDUX           011111 ..... ..... ..... 0010110101 -   @X
 
 ADDI            001110 ..... ..... ................     @D
 ADDIS           001111 ..... ..... ................     @D
+
+ADDPCIS         010011 ..... ..... .......... 00010 .   @DX
 
 ## Fixed-Point Logical Instructions
 
