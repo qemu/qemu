@@ -326,6 +326,13 @@ void test_lsbnew(void)
     check(result, 5);
 }
 
+void test_l2fetch(void)
+{
+    /* These don't do anything in qemu, just make sure they don't assert */
+    asm volatile ("l2fetch(r0, r1)\n\t"
+                  "l2fetch(r0, r3:2)\n\t");
+}
+
 int main()
 {
     int res;
@@ -458,6 +465,8 @@ int main()
     check(res, 0);
 
     test_lsbnew();
+
+    test_l2fetch();
 
     puts(err ? "FAIL" : "PASS");
     return err;
