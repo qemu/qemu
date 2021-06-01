@@ -80,6 +80,16 @@ static bool do_ldst_D(DisasContext *ctx, arg_D *a, bool update, bool store,
     return do_ldst(ctx, a->rt, a->ra, tcg_constant_tl(a->si), update, store, mop);
 }
 
+static bool do_ldst_PLS_D(DisasContext *ctx, arg_PLS_D *a, bool update,
+                          bool store, MemOp mop)
+{
+    arg_D d;
+    if (!resolve_PLS_D(ctx, &d, a)) {
+        return true;
+    }
+    return do_ldst_D(ctx, &d, update, store, mop);
+}
+
 static bool do_ldst_X(DisasContext *ctx, arg_X *a, bool update,
                       bool store, MemOp mop)
 {
@@ -91,35 +101,41 @@ TRANS(LBZ, do_ldst_D, false, false, MO_UB)
 TRANS(LBZX, do_ldst_X, false, false, MO_UB)
 TRANS(LBZU, do_ldst_D, true, false, MO_UB)
 TRANS(LBZUX, do_ldst_X, true, false, MO_UB)
+TRANS(PLBZ, do_ldst_PLS_D, false, false, MO_UB)
 
 /* Load Halfword and Zero */
 TRANS(LHZ, do_ldst_D, false, false, MO_UW)
 TRANS(LHZX, do_ldst_X, false, false, MO_UW)
 TRANS(LHZU, do_ldst_D, true, false, MO_UW)
 TRANS(LHZUX, do_ldst_X, true, false, MO_UW)
+TRANS(PLHZ, do_ldst_PLS_D, false, false, MO_UW)
 
 /* Load Halfword Algebraic */
 TRANS(LHA, do_ldst_D, false, false, MO_SW)
 TRANS(LHAX, do_ldst_X, false, false, MO_SW)
 TRANS(LHAU, do_ldst_D, true, false, MO_SW)
 TRANS(LHAXU, do_ldst_X, true, false, MO_SW)
+TRANS(PLHA, do_ldst_PLS_D, false, false, MO_SW)
 
 /* Load Word and Zero */
 TRANS(LWZ, do_ldst_D, false, false, MO_UL)
 TRANS(LWZX, do_ldst_X, false, false, MO_UL)
 TRANS(LWZU, do_ldst_D, true, false, MO_UL)
 TRANS(LWZUX, do_ldst_X, true, false, MO_UL)
+TRANS(PLWZ, do_ldst_PLS_D, false, false, MO_UL)
 
 /* Load Word Algebraic */
 TRANS64(LWA, do_ldst_D, false, false, MO_SL)
 TRANS64(LWAX, do_ldst_X, false, false, MO_SL)
 TRANS64(LWAUX, do_ldst_X, true, false, MO_SL)
+TRANS64(PLWA, do_ldst_PLS_D, false, false, MO_SL)
 
 /* Load Doubleword */
 TRANS64(LD, do_ldst_D, false, false, MO_Q)
 TRANS64(LDX, do_ldst_X, false, false, MO_Q)
 TRANS64(LDU, do_ldst_D, true, false, MO_Q)
 TRANS64(LDUX, do_ldst_X, true, false, MO_Q)
+TRANS64(PLD, do_ldst_PLS_D, false, false, MO_Q)
 
 /*
  * Fixed-Point Arithmetic Instructions
