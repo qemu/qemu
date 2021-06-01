@@ -281,7 +281,7 @@ static void switch_tss_ra(CPUX86State *env, int tss_selector,
                                              retaddr) | 0xffff0000;
         }
         for (i = 0; i < 4; i++) {
-            new_segs[i] = cpu_lduw_kernel_ra(env, tss_base + (0x22 + i * 4),
+            new_segs[i] = cpu_lduw_kernel_ra(env, tss_base + (0x22 + i * 2),
                                              retaddr);
         }
         new_ldt = cpu_lduw_kernel_ra(env, tss_base + 0x2a, retaddr);
@@ -349,7 +349,7 @@ static void switch_tss_ra(CPUX86State *env, int tss_selector,
         cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 6 * 2), env->regs[R_ESI], retaddr);
         cpu_stw_kernel_ra(env, env->tr.base + (0x12 + 7 * 2), env->regs[R_EDI], retaddr);
         for (i = 0; i < 4; i++) {
-            cpu_stw_kernel_ra(env, env->tr.base + (0x22 + i * 4),
+            cpu_stw_kernel_ra(env, env->tr.base + (0x22 + i * 2),
                               env->segs[i].selector, retaddr);
         }
     }
