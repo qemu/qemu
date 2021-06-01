@@ -82,6 +82,10 @@ void trace_event_register_group(TraceEvent **events)
     event_groups = g_renew(TraceEventGroup, event_groups, nevent_groups + 1);
     event_groups[nevent_groups].events = events;
     nevent_groups++;
+
+#ifdef CONFIG_TRACE_SIMPLE
+    st_init_group(nevent_groups - 1);
+#endif
 }
 
 

@@ -422,3 +422,15 @@ bool st_init(void)
     atexit(st_flush_trace_buffer);
     return true;
 }
+
+void st_init_group(size_t group)
+{
+    TraceEventIter iter;
+
+    if (!trace_writeout_enabled) {
+        return;
+    }
+
+    trace_event_iter_init_group(&iter, group);
+    st_write_event_mapping(&iter);
+}
