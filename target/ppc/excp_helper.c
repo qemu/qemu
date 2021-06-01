@@ -333,7 +333,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     CPUPPCState *env = &cpu->env;
     target_ulong msr, new_msr, vector;
     int srr0, srr1, asrr0, asrr1, lev = -1;
-    bool lpes0;
 
     qemu_log_mask(CPU_LOG_INT, "Raise exception at " TARGET_FMT_lx
                   " => %08x (%02x)\n", env->nip, excp, env->error_code);
@@ -363,27 +362,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
      */
     if (env->resume_as_sreset) {
         excp = powerpc_reset_wakeup(cs, env, excp, &msr);
-    }
-
-    /*
-     * Exception targeting modifiers
-     *
-     * LPES0 is supported on POWER7/8/9
-     * LPES1 is not supported (old iSeries mode)
-     *
-     * On anything else, we behave as if LPES0 is 1
-     * (externals don't alter MSR:HV)
-     */
-#if defined(TARGET_PPC64)
-    if (excp_model == POWERPC_EXCP_POWER7 ||
-        excp_model == POWERPC_EXCP_POWER8 ||
-        excp_model == POWERPC_EXCP_POWER9 ||
-        excp_model == POWERPC_EXCP_POWER10) {
-        lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
-    } else
-#endif /* defined(TARGET_PPC64) */
-    {
-        lpes0 = true;
     }
 
     /*
@@ -473,7 +451,31 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         msr |= env->error_code;
         break;
     case POWERPC_EXCP_EXTERNAL:  /* External input                           */
+    {
+        bool lpes0;
+
         cs = CPU(cpu);
+
+        /*
+         * Exception targeting modifiers
+         *
+         * LPES0 is supported on POWER7/8/9
+         * LPES1 is not supported (old iSeries mode)
+         *
+         * On anything else, we behave as if LPES0 is 1
+         * (externals don't alter MSR:HV)
+         */
+#if defined(TARGET_PPC64)
+        if (excp_model == POWERPC_EXCP_POWER7 ||
+            excp_model == POWERPC_EXCP_POWER8 ||
+            excp_model == POWERPC_EXCP_POWER9 ||
+            excp_model == POWERPC_EXCP_POWER10) {
+            lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
+        } else
+#endif /* defined(TARGET_PPC64) */
+        {
+            lpes0 = true;
+        }
 
         if (!lpes0) {
             new_msr |= (target_ulong)MSR_HVB;
@@ -486,6 +488,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             env->spr[SPR_BOOKE_EPR] = ldl_phys(cs->as, env->mpic_iack);
         }
         break;
+    }
     case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
         /* Get rS/rD and rA from faulting opcode */
         /*
