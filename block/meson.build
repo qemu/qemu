@@ -73,7 +73,7 @@ modsrc = []
 foreach m : [
   [curl, 'curl', files('curl.c')],
   [glusterfs, 'gluster', files('gluster.c')],
-  [libiscsi, 'iscsi', files('iscsi.c')],
+  [libiscsi, 'iscsi', [files('iscsi.c'), libm]],
   [libnfs, 'nfs', files('nfs.c')],
   [libssh, 'ssh', files('ssh.c')],
   [rbd, 'rbd', files('rbd.c')],
