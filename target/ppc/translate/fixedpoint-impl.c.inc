@@ -36,6 +36,95 @@ static bool resolve_PLS_D(DisasContext *ctx, arg_D *d, arg_PLS_D *a)
     return true;
 }
 
+/*
+ * Fixed-Point Load/Store Instructions
+ */
+
+static bool do_ldst(DisasContext *ctx, int rt, int ra, TCGv displ, bool update,
+                    bool store, MemOp mop)
+{
+    TCGv ea;
+
+    if (update && (ra == 0 || (!store && ra == rt))) {
+        gen_invalid(ctx);
+        return true;
+    }
+    gen_set_access_type(ctx, ACCESS_INT);
+
+    ea = tcg_temp_new();
+    if (ra) {
+        tcg_gen_add_tl(ea, cpu_gpr[ra], displ);
+    } else {
+        tcg_gen_mov_tl(ea, displ);
+    }
+    if (NARROW_MODE(ctx)) {
+        tcg_gen_ext32u_tl(ea, ea);
+    }
+    mop ^= ctx->default_tcg_memop_mask;
+    if (store) {
+        tcg_gen_qemu_st_tl(cpu_gpr[rt], ea, ctx->mem_idx, mop);
+    } else {
+        tcg_gen_qemu_ld_tl(cpu_gpr[rt], ea, ctx->mem_idx, mop);
+    }
+    if (update) {
+        tcg_gen_mov_tl(cpu_gpr[ra], ea);
+    }
+    tcg_temp_free(ea);
+
+    return true;
+}
+
+static bool do_ldst_D(DisasContext *ctx, arg_D *a, bool update, bool store,
+                      MemOp mop)
+{
+    return do_ldst(ctx, a->rt, a->ra, tcg_constant_tl(a->si), update, store, mop);
+}
+
+static bool do_ldst_X(DisasContext *ctx, arg_X *a, bool update,
+                      bool store, MemOp mop)
+{
+    return do_ldst(ctx, a->rt, a->ra, cpu_gpr[a->rb], update, store, mop);
+}
+
+/* Load Byte and Zero */
+TRANS(LBZ, do_ldst_D, false, false, MO_UB)
+TRANS(LBZX, do_ldst_X, false, false, MO_UB)
+TRANS(LBZU, do_ldst_D, true, false, MO_UB)
+TRANS(LBZUX, do_ldst_X, true, false, MO_UB)
+
+/* Load Halfword and Zero */
+TRANS(LHZ, do_ldst_D, false, false, MO_UW)
+TRANS(LHZX, do_ldst_X, false, false, MO_UW)
+TRANS(LHZU, do_ldst_D, true, false, MO_UW)
+TRANS(LHZUX, do_ldst_X, true, false, MO_UW)
+
+/* Load Halfword Algebraic */
+TRANS(LHA, do_ldst_D, false, false, MO_SW)
+TRANS(LHAX, do_ldst_X, false, false, MO_SW)
+TRANS(LHAU, do_ldst_D, true, false, MO_SW)
+TRANS(LHAXU, do_ldst_X, true, false, MO_SW)
+
+/* Load Word and Zero */
+TRANS(LWZ, do_ldst_D, false, false, MO_UL)
+TRANS(LWZX, do_ldst_X, false, false, MO_UL)
+TRANS(LWZU, do_ldst_D, true, false, MO_UL)
+TRANS(LWZUX, do_ldst_X, true, false, MO_UL)
+
+/* Load Word Algebraic */
+TRANS64(LWA, do_ldst_D, false, false, MO_SL)
+TRANS64(LWAX, do_ldst_X, false, false, MO_SL)
+TRANS64(LWAUX, do_ldst_X, true, false, MO_SL)
+
+/* Load Doubleword */
+TRANS64(LD, do_ldst_D, false, false, MO_Q)
+TRANS64(LDX, do_ldst_X, false, false, MO_Q)
+TRANS64(LDU, do_ldst_D, true, false, MO_Q)
+TRANS64(LDUX, do_ldst_X, true, false, MO_Q)
+
+/*
+ * Fixed-Point Arithmetic Instructions
+ */
+
 static bool trans_ADDI(DisasContext *ctx, arg_D *a)
 {
     if (a->ra) {
