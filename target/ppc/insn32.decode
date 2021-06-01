@@ -23,6 +23,9 @@
 %ds_si          2:s14  !function=times_4
 @DS             ...... rt:5 ra:5 .............. ..      &D si=%ds_si
 
+&VX             vrt vra vrb
+@VX             ...... vrt:5 vra:5 vrb:5 .......... .   &VX
+
 &X              rt ra rb
 @X              ...... rt:5 ra:5 rb:5 .......... .      &X
 
@@ -97,3 +100,7 @@ SETBC           011111 ..... ..... ----- 0110000000 -   @X_bi
 SETBCR          011111 ..... ..... ----- 0110100000 -   @X_bi
 SETNBC          011111 ..... ..... ----- 0111000000 -   @X_bi
 SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
+
+## Vector Bit Manipulation Instruction
+
+VCFUGED         000100 ..... ..... ..... 10101001101    @VX
