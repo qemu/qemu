@@ -496,6 +496,15 @@ static void test_signal(void)
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
     chk_error(sigaction(SIGSEGV, &act, NULL));
+
+    if (sigaction(SIGKILL, &act, NULL) == 0) {
+        error("sigaction(SIGKILL, &act, NULL) must not succeed");
+    }
+    if (sigaction(SIGSTOP, &act, NULL) == 0) {
+        error("sigaction(SIGSTOP, &act, NULL) must not succeed");
+    }
+    chk_error(sigaction(SIGKILL, NULL, &act));
+    chk_error(sigaction(SIGSTOP, NULL, &act));
 }
 
 #define SHM_SIZE 32768
