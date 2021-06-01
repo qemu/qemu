@@ -20,6 +20,10 @@
 &D              rt ra si:int64_t
 @D              ...... rt:5 ra:5 si:s16                 &D
 
+&D_bf           bf l:bool ra imm
+@D_bfs          ...... bf:3 - l:1 ra:5 imm:s16          &D_bf
+@D_bfu          ...... bf:3 - l:1 ra:5 imm:16           &D_bf
+
 %ds_si          2:s14  !function=times_4
 @DS             ...... rt:5 ra:5 .............. ..      &D si=%ds_si
 
@@ -35,6 +39,9 @@
 
 &X_bi           rt bi
 @X_bi           ...... rt:5 bi:5 ----- .......... -     &X_bi
+
+&X_bfl          bf l:bool ra rb
+@X_bfl          ...... bf:3 - l:1 ra:5 rb:5 ..........- &X_bfl
 
 ### Fixed-Point Load Instructions
 
@@ -88,6 +95,13 @@ STD             111110 ..... ..... ..............00     @DS
 STDU            111110 ..... ..... ..............01     @DS
 STDX            011111 ..... ..... ..... 0010010101 -   @X
 STDUX           011111 ..... ..... ..... 0010110101 -   @X
+
+### Fixed-Point Compare Instructions
+
+CMP             011111 ... - . ..... ..... 0000000000 - @X_bfl
+CMPL            011111 ... - . ..... ..... 0000100000 - @X_bfl
+CMPI            001011 ... - . ..... ................   @D_bfs
+CMPLI           001010 ... - . ..... ................   @D_bfu
 
 ### Fixed-Point Arithmetic Instructions
 

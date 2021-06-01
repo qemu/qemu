@@ -166,6 +166,37 @@ TRANS64(STDUX, do_ldst_X, true, true, MO_Q)
 TRANS64(PSTD, do_ldst_PLS_D, false, true, MO_Q)
 
 /*
+ * Fixed-Point Compare Instructions
+ */
+
+static bool do_cmp_X(DisasContext *ctx, arg_X_bfl *a, bool s)
+{
+    if (a->l) {
+        REQUIRE_64BIT(ctx);
+        gen_op_cmp(cpu_gpr[a->ra], cpu_gpr[a->rb], s, a->bf);
+    } else {
+        gen_op_cmp32(cpu_gpr[a->ra], cpu_gpr[a->rb], s, a->bf);
+    }
+    return true;
+}
+
+static bool do_cmp_D(DisasContext *ctx, arg_D_bf *a, bool s)
+{
+    if (a->l) {
+        REQUIRE_64BIT(ctx);
+        gen_op_cmp(cpu_gpr[a->ra], tcg_constant_tl(a->imm), s, a->bf);
+    } else {
+        gen_op_cmp32(cpu_gpr[a->ra], tcg_constant_tl(a->imm), s, a->bf);
+    }
+    return true;
+}
+
+TRANS(CMP, do_cmp_X, true);
+TRANS(CMPL, do_cmp_X, false);
+TRANS(CMPI, do_cmp_D, true);
+TRANS(CMPLI, do_cmp_D, false);
+
+/*
  * Fixed-Point Arithmetic Instructions
  */
 
