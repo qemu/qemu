@@ -141,19 +141,18 @@ static void blk_root_set_aio_ctx(BdrvChild *child, AioContext *ctx,
 static char *blk_root_get_parent_desc(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
-    char *dev_id;
+    g_autofree char *dev_id = NULL;
 
     if (blk->name) {
-        return g_strdup(blk->name);
+        return g_strdup_printf("block device '%s'", blk->name);
     }
 
     dev_id = blk_get_attached_dev_id(blk);
     if (*dev_id) {
-        return dev_id;
+        return g_strdup_printf("block device '%s'", dev_id);
     } else {
         /* TODO Callback into the BB owner for something more detailed */
-        g_free(dev_id);
-        return g_strdup("a block device");
+        return g_strdup("an unnamed block device");
     }
 }
 
