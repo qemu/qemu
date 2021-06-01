@@ -280,14 +280,12 @@ void trace_record_finish(TraceBufferRecord *rec)
     }
 }
 
-static int st_write_event_mapping(void)
+static int st_write_event_mapping(TraceEventIter *iter)
 {
     uint64_t type = TRACE_RECORD_TYPE_MAPPING;
-    TraceEventIter iter;
     TraceEvent *ev;
 
-    trace_event_iter_init_all(&iter);
-    while ((ev = trace_event_iter_next(&iter)) != NULL) {
+    while ((ev = trace_event_iter_next(iter)) != NULL) {
         uint64_t id = trace_event_get_id(ev);
         const char *name = trace_event_get_name(ev);
         uint32_t len = strlen(name);
@@ -309,6 +307,7 @@ static int st_write_event_mapping(void)
  */
 bool st_set_trace_file_enabled(bool enable)
 {
+    TraceEventIter iter;
     bool was_enabled = trace_fp;
 
     if (enable == !!trace_fp) {
@@ -333,8 +332,9 @@ bool st_set_trace_file_enabled(bool enable)
             return was_enabled;
         }
 
+        trace_event_iter_init_all(&iter);
         if (fwrite(&header, sizeof header, 1, trace_fp) != 1 ||
-            st_write_event_mapping() < 0) {
+            st_write_event_mapping(&iter) < 0) {
             fclose(trace_fp);
             trace_fp = NULL;
             return was_enabled;
