@@ -689,52 +689,20 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
                   "is not implemented yet !\n");
         break;
     case POWERPC_EXCP_IFTLB:     /* Instruction fetch TLB error              */
-        switch (excp_model) {
-        case POWERPC_EXCP_602:
-        case POWERPC_EXCP_603:
-        case POWERPC_EXCP_603E:
-        case POWERPC_EXCP_G2:
-            goto tlb_miss_tgpr;
-        case POWERPC_EXCP_7x5:
-            goto tlb_miss;
-        case POWERPC_EXCP_74xx:
-            goto tlb_miss_74xx;
-        default:
-            cpu_abort(cs, "Invalid instruction TLB miss exception\n");
-            break;
-        }
-        break;
     case POWERPC_EXCP_DLTLB:     /* Data load TLB miss                       */
-        switch (excp_model) {
-        case POWERPC_EXCP_602:
-        case POWERPC_EXCP_603:
-        case POWERPC_EXCP_603E:
-        case POWERPC_EXCP_G2:
-            goto tlb_miss_tgpr;
-        case POWERPC_EXCP_7x5:
-            goto tlb_miss;
-        case POWERPC_EXCP_74xx:
-            goto tlb_miss_74xx;
-        default:
-            cpu_abort(cs, "Invalid data load TLB miss exception\n");
-            break;
-        }
-        break;
     case POWERPC_EXCP_DSTLB:     /* Data store TLB miss                      */
         switch (excp_model) {
         case POWERPC_EXCP_602:
         case POWERPC_EXCP_603:
         case POWERPC_EXCP_603E:
         case POWERPC_EXCP_G2:
-        tlb_miss_tgpr:
             /* Swap temporary saved registers with GPRs */
             if (!(new_msr & ((target_ulong)1 << MSR_TGPR))) {
                 new_msr |= (target_ulong)1 << MSR_TGPR;
                 hreg_swap_gpr_tgpr(env);
             }
-            goto tlb_miss;
+            /* fall through */
         case POWERPC_EXCP_7x5:
-        tlb_miss:
 #if defined(DEBUG_SOFTWARE_TLB)
             if (qemu_log_enabled()) {
                 const char *es;
@@ -769,7 +737,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             msr |= ((env->last_way + 1) & (env->nb_ways - 1)) << 17;
             break;
         case POWERPC_EXCP_74xx:
-        tlb_miss_74xx:
 #if defined(DEBUG_SOFTWARE_TLB)
             if (qemu_log_enabled()) {
                 const char *es;
@@ -799,7 +766,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             msr |= env->error_code; /* key bit */
             break;
         default:
-            cpu_abort(cs, "Invalid data store TLB miss exception\n");
+            cpu_abort(cs, "Invalid TLB miss exception\n");
             break;
         }
         break;
