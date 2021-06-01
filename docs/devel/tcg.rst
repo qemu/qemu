@@ -11,13 +11,14 @@ performances.
 QEMU's dynamic translation backend is called TCG, for "Tiny Code
 Generator". For more information, please take a look at ``tcg/README``.
 
-Some notable features of QEMU's dynamic translator are:
+The following sections outline some notable features and implementation
+details of QEMU's dynamic translator.
 
 CPU state optimisations
 -----------------------
 
-The target CPUs have many internal states which change the way it
-evaluates instructions. In order to achieve a good speed, the
+The target CPUs have many internal states which change the way they
+evaluate instructions. In order to achieve a good speed, the
 translation phase considers that some state information of the virtual
 CPU cannot change in it. The state is recorded in the Translation
 Block (TB). If the state changes (e.g. privilege level), a new TB will
@@ -31,17 +32,95 @@ Direct block chaining
 ---------------------
 
 After each translated basic block is executed, QEMU uses the simulated
-Program Counter (PC) and other cpu state information (such as the CS
+Program Counter (PC) and other CPU state information (such as the CS
 segment base value) to find the next basic block.
 
-In order to accelerate the most common cases where the new simulated PC
-is known, QEMU can patch a basic block so that it jumps directly to the
-next one.
+In its simplest, less optimized form, this is done by exiting from the
+current TB, going through the TB epilogue, and then back to the
+main loop. That’s where QEMU looks for the next TB to execute,
+translating it from the guest architecture if it isn’t already available
+in memory. Then QEMU proceeds to execute this next TB, starting at the
+prologue and then moving on to the translated instructions.
 
-The most portable code uses an indirect jump. An indirect jump makes
-it easier to make the jump target modification atomic. On some host
-architectures (such as x86 or PowerPC), the ``JUMP`` opcode is
-directly patched so that the block chaining has no overhead.
+Exiting from the TB this way will cause the ``cpu_exec_interrupt()``
+callback to be re-evaluated before executing additional instructions.
+It is mandatory to exit this way after any CPU state changes that may
+unmask interrupts.
+
+In order to accelerate the cases where the TB for the new
+simulated PC is already available, QEMU has mechanisms that allow
+multiple TBs to be chained directly, without having to go back to the
+main loop as described above. These mechanisms are:
+
+``lookup_and_goto_ptr``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Calling ``tcg_gen_lookup_and_goto_ptr()`` will emit a call to
+``helper_lookup_tb_ptr``. This helper will look for an existing TB that
+matches the current CPU state. If the destination TB is available its
+code address is returned, otherwise the address of the JIT epilogue is
+returned. The call to the helper is always followed by the tcg ``goto_ptr``
+opcode, which branches to the returned address. In this way, we either
+branch to the next TB or return to the main loop.
+
+``goto_tb + exit_tb``
+^^^^^^^^^^^^^^^^^^^^^
+
+The translation code usually implements branching by performing the
+following steps:
+
+1. Call ``tcg_gen_goto_tb()`` passing a jump slot index (either 0 or 1)
+   as a parameter.
+
+2. Emit TCG instructions to update the CPU state with any information
+   that has been assumed constant and is required by the main loop to
+   correctly locate and execute the next TB. For most guests, this is
+   just the PC of the branch destination, but others may store additional
+   data. The information updated in this step must be inferable from both
+   ``cpu_get_tb_cpu_state()`` and ``cpu_restore_state()``.
+
+3. Call ``tcg_gen_exit_tb()`` passing the address of the current TB and
+   the jump slot index again.
+
+Step 1, ``tcg_gen_goto_tb()``, will emit a ``goto_tb`` TCG
+instruction that later on gets translated to a jump to an address
+associated with the specified jump slot. Initially, this is the address
+of step 2's instructions, which update the CPU state information. Step 3,
+``tcg_gen_exit_tb()``, exits from the current TB returning a tagged
+pointer composed of the last executed TB’s address and the jump slot
+index.
+
+The first time this whole sequence is executed, step 1 simply jumps
+to step 2. Then the CPU state information gets updated and we exit from
+the current TB. As a result, the behavior is very similar to the less
+optimized form described earlier in this section.
+
+Next, the main loop looks for the next TB to execute using the
+current CPU state information (creating the TB if it wasn’t already
+available) and, before starting to execute the new TB’s instructions,
+patches the previously executed TB by associating one of its jump
+slots (the one specified in the call to ``tcg_gen_exit_tb()``) with the
+address of the new TB.
+
+The next time this previous TB is executed and we get to that same
+``goto_tb`` step, it will already be patched (assuming the destination TB
+is still in memory) and will jump directly to the first instruction of
+the destination TB, without going back to the main loop.
+
+For the ``goto_tb + exit_tb`` mechanism to be used, the following
+conditions need to be satisfied:
+
+* The change in CPU state must be constant, e.g., a direct branch and
+  not an indirect branch.
+
+* The direct branch cannot cross a page boundary. Memory mappings
+  may change, causing the code at the destination address to change.
+
+Note that, on step 3 (``tcg_gen_exit_tb()``), in addition to the
+jump slot index, the address of the TB just executed is also returned.
+This address corresponds to the TB that will be patched; it may be
+different than the one that was directly executed from the main loop
+if the latter had already been chained to other TBs.
 
 Self-modifying code and translated code invalidation
 ----------------------------------------------------
