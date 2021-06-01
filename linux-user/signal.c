@@ -853,7 +853,11 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 
     trace_signal_do_sigaction_guest(sig, TARGET_NSIG);
 
-    if (sig < 1 || sig > TARGET_NSIG || sig == TARGET_SIGKILL || sig == TARGET_SIGSTOP) {
+    if (sig < 1 || sig > TARGET_NSIG) {
+        return -TARGET_EINVAL;
+    }
+
+    if (act && (sig == TARGET_SIGKILL || sig == TARGET_SIGSTOP)) {
         return -TARGET_EINVAL;
     }
 
