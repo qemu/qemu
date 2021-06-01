@@ -3127,11 +3127,7 @@ static void vvfat_qcow_options(BdrvChildRole role, bool parent_is_format,
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 }
 
-static const BdrvChildClass child_vvfat_qcow = {
-    .parent_is_bds      = true,
-    .inherit_options    = vvfat_qcow_options,
-    .get_parent_aio_context = child_of_bds_get_parent_aio_context,
-};
+static BdrvChildClass child_vvfat_qcow;
 
 static int enable_write_target(BlockDriverState *bs, Error **errp)
 {
@@ -3268,6 +3264,8 @@ static BlockDriver bdrv_vvfat = {
 
 static void bdrv_vvfat_init(void)
 {
+    child_vvfat_qcow = child_of_bds;
+    child_vvfat_qcow.inherit_options = vvfat_qcow_options;
     bdrv_register(&bdrv_vvfat);
 }
 
