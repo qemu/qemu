@@ -319,7 +319,7 @@ static void switch_tss_ra(CPUX86State *env, int tss_selector,
     }
 
     /* save the current state in the old TSS */
-    if (type & 8) {
+    if (old_type & 8) {
         /* 32 bit */
         cpu_stl_kernel_ra(env, env->tr.base + 0x20, next_eip, retaddr);
         cpu_stl_kernel_ra(env, env->tr.base + 0x24, old_eflags, retaddr);
