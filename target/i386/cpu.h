@@ -531,11 +531,6 @@ typedef enum FeatureWord {
     FEAT_C000_0001_EDX, /* CPUID[C000_0001].EDX */
     FEAT_KVM,           /* CPUID[4000_0001].EAX (KVM_CPUID_FEATURES) */
     FEAT_KVM_HINTS,     /* CPUID[4000_0001].EDX */
-    FEAT_HYPERV_EAX,    /* CPUID[4000_0003].EAX */
-    FEAT_HYPERV_EBX,    /* CPUID[4000_0003].EBX */
-    FEAT_HYPERV_EDX,    /* CPUID[4000_0003].EDX */
-    FEAT_HV_RECOMM_EAX, /* CPUID[4000_0004].EAX */
-    FEAT_HV_NESTED_EAX, /* CPUID[4000_000A].EAX */
     FEAT_SVM,           /* CPUID[8000_000A].EDX */
     FEAT_XSAVE,         /* CPUID[EAX=0xd,ECX=1].EAX */
     FEAT_6_EAX,         /* CPUID[6].EAX */
@@ -1699,6 +1694,7 @@ struct X86CPU {
     uint32_t hyperv_interface_id[4];
     uint32_t hyperv_version_id[4];
     uint32_t hyperv_limits[3];
+    uint32_t hyperv_nested[4];
 
     bool check_cpuid;
     bool enforce_cpuid;

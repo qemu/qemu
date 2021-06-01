@@ -87,29 +87,31 @@ static SevGuestState *sev_guest;
 static Error *sev_mig_blocker;
 
 static const char *const sev_fw_errlist[] = {
-    "",
-    "Platform state is invalid",
-    "Guest state is invalid",
-    "Platform configuration is invalid",
-    "Buffer too small",
-    "Platform is already owned",
-    "Certificate is invalid",
-    "Policy is not allowed",
-    "Guest is not active",
-    "Invalid address",
-    "Bad signature",
-    "Bad measurement",
-    "Asid is already owned",
-    "Invalid ASID",
-    "WBINVD is required",
-    "DF_FLUSH is required",
-    "Guest handle is invalid",
-    "Invalid command",
-    "Guest is active",
-    "Hardware error",
-    "Hardware unsafe",
-    "Feature not supported",
-    "Invalid parameter"
+    [SEV_RET_SUCCESS]                = "",
+    [SEV_RET_INVALID_PLATFORM_STATE] = "Platform state is invalid",
+    [SEV_RET_INVALID_GUEST_STATE]    = "Guest state is invalid",
+    [SEV_RET_INAVLID_CONFIG]         = "Platform configuration is invalid",
+    [SEV_RET_INVALID_LEN]            = "Buffer too small",
+    [SEV_RET_ALREADY_OWNED]          = "Platform is already owned",
+    [SEV_RET_INVALID_CERTIFICATE]    = "Certificate is invalid",
+    [SEV_RET_POLICY_FAILURE]         = "Policy is not allowed",
+    [SEV_RET_INACTIVE]               = "Guest is not active",
+    [SEV_RET_INVALID_ADDRESS]        = "Invalid address",
+    [SEV_RET_BAD_SIGNATURE]          = "Bad signature",
+    [SEV_RET_BAD_MEASUREMENT]        = "Bad measurement",
+    [SEV_RET_ASID_OWNED]             = "ASID is already owned",
+    [SEV_RET_INVALID_ASID]           = "Invalid ASID",
+    [SEV_RET_WBINVD_REQUIRED]        = "WBINVD is required",
+    [SEV_RET_DFFLUSH_REQUIRED]       = "DF_FLUSH is required",
+    [SEV_RET_INVALID_GUEST]          = "Guest handle is invalid",
+    [SEV_RET_INVALID_COMMAND]        = "Invalid command",
+    [SEV_RET_ACTIVE]                 = "Guest is active",
+    [SEV_RET_HWSEV_RET_PLATFORM]     = "Hardware error",
+    [SEV_RET_HWSEV_RET_UNSAFE]       = "Hardware unsafe",
+    [SEV_RET_UNSUPPORTED]            = "Feature not supported",
+    [SEV_RET_INVALID_PARAM]          = "Invalid parameter",
+    [SEV_RET_RESOURCE_LIMIT]         = "Required firmware resource depleted",
+    [SEV_RET_SECURE_DATA_INVALID]    = "Part-specific integrity check failure",
 };
 
 #define SEV_FW_MAX_ERROR      ARRAY_SIZE(sev_fw_errlist)
@@ -490,6 +492,73 @@ out:
     g_free(cert_chain_data);
     close(fd);
     return cap;
+}
+
+SevAttestationReport *
+sev_get_attestation_report(const char *mnonce, Error **errp)
+{
+    struct kvm_sev_attestation_report input = {};
+    SevAttestationReport *report = NULL;
+    SevGuestState *sev = sev_guest;
+    guchar *data;
+    guchar *buf;
+    gsize len;
+    int err = 0, ret;
+
+    if (!sev_enabled()) {
+        error_setg(errp, "SEV is not enabled");
+        return NULL;
+    }
+
+    /* lets decode the mnonce string */
+    buf = g_base64_decode(mnonce, &len);
+    if (!buf) {
+        error_setg(errp, "SEV: failed to decode mnonce input");
+        return NULL;
+    }
+
+    /* verify the input mnonce length */
+    if (len != sizeof(input.mnonce)) {
+        error_setg(errp, "SEV: mnonce must be %zu bytes (got %" G_GSIZE_FORMAT ")",
+                sizeof(input.mnonce), len);
+        g_free(buf);
+        return NULL;
+    }
+
+    /* Query the report length */
+    ret = sev_ioctl(sev->sev_fd, KVM_SEV_GET_ATTESTATION_REPORT,
+            &input, &err);
+    if (ret < 0) {
+        if (err != SEV_RET_INVALID_LEN) {
+            error_setg(errp, "failed to query the attestation report length "
+                    "ret=%d fw_err=%d (%s)", ret, err, fw_error_to_str(err));
+            g_free(buf);
+            return NULL;
+        }
+    }
+
+    data = g_malloc(input.len);
+    input.uaddr = (unsigned long)data;
+    memcpy(input.mnonce, buf, sizeof(input.mnonce));
+
+    /* Query the report */
+    ret = sev_ioctl(sev->sev_fd, KVM_SEV_GET_ATTESTATION_REPORT,
+            &input, &err);
+    if (ret) {
+        error_setg_errno(errp, errno, "Failed to get attestation report"
+                " ret=%d fw_err=%d (%s)", ret, err, fw_error_to_str(err));
+        goto e_free_data;
+    }
+
+    report = g_new0(SevAttestationReport, 1);
+    report->data = g_base64_encode(data, input.len);
+
+    trace_kvm_sev_attestation_report(mnonce, report->data);
+
+e_free_data:
+    g_free(data);
+    g_free(buf);
+    return report;
 }
 
 static int
