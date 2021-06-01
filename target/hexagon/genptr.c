@@ -115,10 +115,7 @@ static void gen_log_reg_write_pair(int rnum, TCGv_i64 val)
 
 static inline void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
 {
-    TCGv zero = tcg_const_tl(0);
     TCGv base_val = tcg_temp_new();
-    TCGv and_val = tcg_temp_new();
-    TCGv pred_written = tcg_temp_new();
 
     tcg_gen_andi_tl(base_val, val, 0xff);
 
@@ -137,10 +134,7 @@ static inline void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
     }
     tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pnum);
 
-    tcg_temp_free(zero);
     tcg_temp_free(base_val);
-    tcg_temp_free(and_val);
-    tcg_temp_free(pred_written);
 }
 
 static inline void gen_read_p3_0(TCGv control_reg)
