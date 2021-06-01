@@ -24,7 +24,6 @@
 
 #ifdef QEMU_GENERATE
 #define READ_REG(dest, NUM)              gen_read_reg(dest, NUM)
-#define READ_PREG(dest, NUM)             gen_read_preg(dest, (NUM))
 #else
 #define READ_REG(NUM)                    (env->gpr[(NUM)])
 #define READ_PREG(NUM)                   (env->pred[NUM])
@@ -591,7 +590,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #ifdef QEMU_GENERATE
 #define fSTORE_LOCKED(NUM, SIZE, EA, SRC, PRED) \
-    gen_store_conditional##SIZE(env, ctx, PdN, PRED, EA, SRC);
+    gen_store_conditional##SIZE(ctx, PRED, EA, SRC);
 #endif
 
 #ifdef QEMU_GENERATE

@@ -424,9 +424,9 @@
 #define fGEN_TCG_L4_loadd_locked(SHORTCODE) \
     SHORTCODE
 #define fGEN_TCG_S2_storew_locked(SHORTCODE) \
-    do { SHORTCODE; READ_PREG(PdV, PdN); } while (0)
+    SHORTCODE
 #define fGEN_TCG_S4_stored_locked(SHORTCODE) \
-    do { SHORTCODE; READ_PREG(PdV, PdN); } while (0)
+    SHORTCODE
 
 #define fGEN_TCG_STORE(SHORTCODE) \
     do { \
