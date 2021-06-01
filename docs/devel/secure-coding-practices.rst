@@ -104,3 +104,12 @@ structures and only process the local copy.  This prevents
 time-of-check-to-time-of-use (TOCTOU) race conditions that could cause QEMU to
 crash when a vCPU thread modifies guest RAM while device emulation is
 processing it.
+
+Use of null-co block drivers
+----------------------------
+
+The ``null-co`` block driver is designed for performance: its read accesses are
+not initialized by default. In case this driver has to be used for security
+research, it must be used with the ``read-zeroes=on`` option which fills read
+buffers with zeroes. Security issues reported with the default
+(``read-zeroes=off``) will be discarded.
