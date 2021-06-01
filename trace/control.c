@@ -104,6 +104,7 @@ void trace_event_iter_init_all(TraceEventIter *iter)
 {
     iter->event = 0;
     iter->group = 0;
+    iter->group_id = -1;
     iter->pattern = NULL;
 }
 
@@ -113,20 +114,32 @@ void trace_event_iter_init_pattern(TraceEventIter *iter, const char *pattern)
     iter->pattern = pattern;
 }
 
+void trace_event_iter_init_group(TraceEventIter *iter, size_t group_id)
+{
+    trace_event_iter_init_all(iter);
+    iter->group_id = group_id;
+}
+
 TraceEvent *trace_event_iter_next(TraceEventIter *iter)
 {
     while (iter->group < nevent_groups &&
            event_groups[iter->group].events[iter->event] != NULL) {
         TraceEvent *ev = event_groups[iter->group].events[iter->event];
+        size_t group = iter->group;
         iter->event++;
         if (event_groups[iter->group].events[iter->event] == NULL) {
             iter->event = 0;
             iter->group++;
         }
-        if (!iter->pattern ||
-            g_pattern_match_simple(iter->pattern, trace_event_get_name(ev))) {
-            return ev;
+        if (iter->pattern &&
+            !g_pattern_match_simple(iter->pattern, trace_event_get_name(ev))) {
+            continue;
         }
+        if (iter->group_id != -1 &&
+            iter->group_id != group) {
+            continue;
+        }
+        return ev;
     }
 
     return NULL;
