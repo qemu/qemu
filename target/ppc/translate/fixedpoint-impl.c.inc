@@ -142,24 +142,28 @@ TRANS(STB, do_ldst_D, false, true, MO_UB)
 TRANS(STBX, do_ldst_X, false, true, MO_UB)
 TRANS(STBU, do_ldst_D, true, true, MO_UB)
 TRANS(STBUX, do_ldst_X, true, true, MO_UB)
+TRANS(PSTB, do_ldst_PLS_D, false, true, MO_UB)
 
 /* Store Halfword */
 TRANS(STH, do_ldst_D, false, true, MO_UW)
 TRANS(STHX, do_ldst_X, false, true, MO_UW)
 TRANS(STHU, do_ldst_D, true, true, MO_UW)
 TRANS(STHUX, do_ldst_X, true, true, MO_UW)
+TRANS(PSTH, do_ldst_PLS_D, false, true, MO_UW)
 
 /* Store Word */
 TRANS(STW, do_ldst_D, false, true, MO_UL)
 TRANS(STWX, do_ldst_X, false, true, MO_UL)
 TRANS(STWU, do_ldst_D, true, true, MO_UL)
 TRANS(STWUX, do_ldst_X, true, true, MO_UL)
+TRANS(PSTW, do_ldst_PLS_D, false, true, MO_UL)
 
 /* Store Doubleword */
 TRANS64(STD, do_ldst_D, false, true, MO_Q)
 TRANS64(STDX, do_ldst_X, false, true, MO_Q)
 TRANS64(STDU, do_ldst_D, true, true, MO_Q)
 TRANS64(STDUX, do_ldst_X, true, true, MO_Q)
+TRANS64(PSTD, do_ldst_PLS_D, false, true, MO_Q)
 
 /*
  * Fixed-Point Arithmetic Instructions
