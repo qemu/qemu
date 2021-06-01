@@ -16,3 +16,11 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 #
+
+&D              rt ra si:int64_t
+@D              ...... rt:5 ra:5 si:s16                 &D
+
+### Fixed-Point Arithmetic Instructions
+
+ADDI            001110 ..... ..... ................     @D
+ADDIS           001111 ..... ..... ................     @D
