@@ -204,3 +204,26 @@ static bool trans_PNOP(DisasContext *ctx, arg_PNOP *a)
 {
     return true;
 }
+
+static bool do_set_bool_cond(DisasContext *ctx, arg_X_bi *a, bool neg, bool rev)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    uint32_t mask = 0x08 >> (a->bi & 0x03);
+    TCGCond cond = rev ? TCG_COND_EQ : TCG_COND_NE;
+    TCGv temp = tcg_temp_new();
+
+    tcg_gen_extu_i32_tl(temp, cpu_crf[a->bi >> 2]);
+    tcg_gen_andi_tl(temp, temp, mask);
+    tcg_gen_setcondi_tl(cond, cpu_gpr[a->rt], temp, 0);
+    if (neg) {
+        tcg_gen_neg_tl(cpu_gpr[a->rt], cpu_gpr[a->rt]);
+    }
+    tcg_temp_free(temp);
+
+    return true;
+}
+
+TRANS(SETBC, do_set_bool_cond, false, false)
+TRANS(SETBCR, do_set_bool_cond, false, true)
+TRANS(SETNBC, do_set_bool_cond, true, false)
+TRANS(SETNBCR, do_set_bool_cond, true, true)
