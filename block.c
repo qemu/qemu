@@ -2026,11 +2026,7 @@ bool bdrv_is_writable(BlockDriverState *bs)
 
 static char *bdrv_child_user_desc(BdrvChild *c)
 {
-    if (c->klass->get_parent_desc) {
-        return c->klass->get_parent_desc(c);
-    }
-
-    return g_strdup("another user");
+    return c->klass->get_parent_desc(c);
 }
 
 static bool bdrv_a_allow_b(BdrvChild *a, BdrvChild *b, Error **errp)
@@ -2772,6 +2768,7 @@ static int bdrv_attach_child_common(BlockDriverState *child_bs,
 
     assert(child);
     assert(*child == NULL);
+    assert(child_class->get_parent_desc);
 
     new_child = g_new(BdrvChild, 1);
     *new_child = (BdrvChild) {
