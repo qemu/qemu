@@ -286,7 +286,7 @@ static int st_write_event_mapping(void)
     TraceEventIter iter;
     TraceEvent *ev;
 
-    trace_event_iter_init(&iter, NULL);
+    trace_event_iter_init_all(&iter);
     while ((ev = trace_event_iter_next(&iter)) != NULL) {
         uint64_t id = trace_event_get_id(ev);
         const char *name = trace_event_get_name(ev);

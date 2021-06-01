@@ -20,15 +20,24 @@ typedef struct TraceEventIter {
 
 
 /**
- * trace_event_iter_init:
+ * trace_event_iter_init_all:
  * @iter: the event iterator struct
- * @pattern: optional pattern to filter events on name
  *
  * Initialize the event iterator struct @iter,
- * optionally using @pattern to filter out events
+ * for all events.
+ */
+void trace_event_iter_init_all(TraceEventIter *iter);
+
+/**
+ * trace_event_iter_init_pattern:
+ * @iter: the event iterator struct
+ * @pattern: pattern to filter events on name
+ *
+ * Initialize the event iterator struct @iter,
+ * using @pattern to filter out events
  * with non-matching names.
  */
-void trace_event_iter_init(TraceEventIter *iter, const char *pattern);
+void trace_event_iter_init_pattern(TraceEventIter *iter, const char *pattern);
 
 /**
  * trace_event_iter_next:

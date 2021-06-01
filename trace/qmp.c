@@ -55,7 +55,7 @@ static bool check_events(bool has_vcpu, bool ignore_unavailable, bool is_pattern
         /* error for unavailable events */
         TraceEventIter iter;
         TraceEvent *ev;
-        trace_event_iter_init(&iter, name);
+        trace_event_iter_init_pattern(&iter, name);
         while ((ev = trace_event_iter_next(&iter)) != NULL) {
             if (!ignore_unavailable && !trace_event_get_state_static(ev)) {
                 error_setg(errp, "event \"%s\" is disabled", trace_event_get_name(ev));
@@ -90,7 +90,7 @@ TraceEventInfoList *qmp_trace_event_get_state(const char *name,
     }
 
     /* Get states (all errors checked above) */
-    trace_event_iter_init(&iter, name);
+    trace_event_iter_init_pattern(&iter, name);
     while ((ev = trace_event_iter_next(&iter)) != NULL) {
         TraceEventInfo *value;
         bool is_vcpu = trace_event_is_vcpu(ev);
@@ -153,7 +153,7 @@ void qmp_trace_event_set_state(const char *name, bool enable,
     }
 
     /* Apply changes (all errors checked above) */
-    trace_event_iter_init(&iter, name);
+    trace_event_iter_init_pattern(&iter, name);
     while ((ev = trace_event_iter_next(&iter)) != NULL) {
         if (!trace_event_get_state_static(ev) ||
             (has_vcpu && !trace_event_is_vcpu(ev))) {
