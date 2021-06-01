@@ -20,6 +20,15 @@ ppc_ss.add(when: 'CONFIG_TCG', if_true: files(
 
 ppc_ss.add(libdecnumber)
 
+gen = [
+  decodetree.process('insn32.decode',
+                     extra_args: '--static-decode=decode_insn32'),
+  decodetree.process('insn64.decode',
+                     extra_args: ['--static-decode=decode_insn64',
+                                  '--insnwidth=64']),
+]
+ppc_ss.add(gen)
+
 ppc_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'), if_false: files('kvm-stub.c'))
 ppc_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user_only_helper.c'))
 
