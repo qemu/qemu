@@ -49,11 +49,6 @@ int kvm_s390_get_ri(void)
     return 0;
 }
 
-int kvm_s390_get_gs(void)
-{
-    return 0;
-}
-
 int kvm_s390_get_clock(uint8_t *tod_high, uint64_t *tod_low)
 {
     return -ENOSYS;

@@ -154,7 +154,6 @@ static int cap_async_pf;
 static int cap_mem_op;
 static int cap_s390_irq;
 static int cap_ri;
-static int cap_gs;
 static int cap_hpage_1m;
 static int cap_vcpu_resets;
 static int cap_protected;
@@ -369,9 +368,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         }
     }
     if (cpu_model_allowed()) {
-        if (kvm_vm_enable_cap(s, KVM_CAP_S390_GS, 0) == 0) {
-            cap_gs = 1;
-        }
+        kvm_vm_enable_cap(s, KVM_CAP_S390_GS, 0);
     }
 
     /*
@@ -2037,11 +2034,6 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
 int kvm_s390_get_ri(void)
 {
     return cap_ri;
-}
-
-int kvm_s390_get_gs(void)
-{
-    return cap_gs;
 }
 
 int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
