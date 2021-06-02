@@ -1513,6 +1513,11 @@ static void nbd_request_put(NBDRequestData *req)
     g_free(req);
 
     client->nb_requests--;
+
+    if (client->quiescing && client->nb_requests == 0) {
+        aio_wait_kick();
+    }
+
     nbd_client_receive_next_request(client);
 
     nbd_client_put(client);
@@ -1530,49 +1535,68 @@ static void blk_aio_attached(AioContext *ctx, void *opaque)
     QTAILQ_FOREACH(client, &exp->clients, next) {
         qio_channel_attach_aio_context(client->ioc, ctx);
 
+        assert(client->nb_requests == 0);
         assert(client->recv_coroutine == NULL);
         assert(client->send_coroutine == NULL);
-
-        if (client->quiescing) {
-            client->quiescing = false;
-            nbd_client_receive_next_request(client);
-        }
-    }
-}
-
-static void nbd_aio_detach_bh(void *opaque)
-{
-    NBDExport *exp = opaque;
-    NBDClient *client;
-
-    QTAILQ_FOREACH(client, &exp->clients, next) {
-        qio_channel_detach_aio_context(client->ioc);
-        client->quiescing = true;
-
-        if (client->recv_coroutine) {
-            if (client->read_yielding) {
-                qemu_aio_coroutine_enter(exp->common.ctx,
-                                         client->recv_coroutine);
-            } else {
-                AIO_WAIT_WHILE(exp->common.ctx, client->recv_coroutine != NULL);
-            }
-        }
-
-        if (client->send_coroutine) {
-            AIO_WAIT_WHILE(exp->common.ctx, client->send_coroutine != NULL);
-        }
     }
 }
 
 static void blk_aio_detach(void *opaque)
 {
     NBDExport *exp = opaque;
+    NBDClient *client;
 
     trace_nbd_blk_aio_detach(exp->name, exp->common.ctx);
 
-    aio_wait_bh_oneshot(exp->common.ctx, nbd_aio_detach_bh, exp);
+    QTAILQ_FOREACH(client, &exp->clients, next) {
+        qio_channel_detach_aio_context(client->ioc);
+    }
 
     exp->common.ctx = NULL;
+}
+
+static void nbd_drained_begin(void *opaque)
+{
+    NBDExport *exp = opaque;
+    NBDClient *client;
+
+    QTAILQ_FOREACH(client, &exp->clients, next) {
+        client->quiescing = true;
+    }
+}
+
+static void nbd_drained_end(void *opaque)
+{
+    NBDExport *exp = opaque;
+    NBDClient *client;
+
+    QTAILQ_FOREACH(client, &exp->clients, next) {
+        client->quiescing = false;
+        nbd_client_receive_next_request(client);
+    }
+}
+
+static bool nbd_drained_poll(void *opaque)
+{
+    NBDExport *exp = opaque;
+    NBDClient *client;
+
+    QTAILQ_FOREACH(client, &exp->clients, next) {
+        if (client->nb_requests != 0) {
+            /*
+             * If there's a coroutine waiting for a request on nbd_read_eof()
+             * enter it here so we don't depend on the client to wake it up.
+             */
+            if (client->recv_coroutine != NULL && client->read_yielding) {
+                qemu_aio_coroutine_enter(exp->common.ctx,
+                                         client->recv_coroutine);
+            }
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static void nbd_eject_notifier(Notifier *n, void *data)
@@ -1593,6 +1617,12 @@ void nbd_export_set_on_eject_blk(BlockExport *exp, BlockBackend *blk)
     nbd_exp->eject_notifier.notify = nbd_eject_notifier;
     blk_add_remove_bs_notifier(blk, &nbd_exp->eject_notifier);
 }
+
+static const BlockDevOps nbd_block_ops = {
+    .drained_begin = nbd_drained_begin,
+    .drained_end = nbd_drained_end,
+    .drained_poll = nbd_drained_poll,
+};
 
 static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
                              Error **errp)
@@ -1715,7 +1745,16 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
 
     exp->allocation_depth = arg->allocation_depth;
 
+    /*
+     * We need to inhibit request queuing in the block layer to ensure we can
+     * be properly quiesced when entering a drained section, as our coroutines
+     * servicing pending requests might enter blk_pread().
+     */
+    blk_set_disable_request_queuing(blk, true);
+
     blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
+
+    blk_set_dev_ops(blk, &nbd_block_ops, exp);
 
     QTAILQ_INSERT_TAIL(&exports, exp, next);
 
@@ -1788,6 +1827,7 @@ static void nbd_export_delete(BlockExport *blk_exp)
         }
         blk_remove_aio_context_notifier(exp->common.blk, blk_aio_attached,
                                         blk_aio_detach, exp);
+        blk_set_disable_request_queuing(exp->common.blk, false);
     }
 
     for (i = 0; i < exp->nr_export_bitmaps; i++) {
