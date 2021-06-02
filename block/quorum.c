@@ -1279,7 +1279,7 @@ static BlockDriver bdrv_quorum = {
     .bdrv_dirname                       = quorum_dirname,
     .bdrv_co_block_status               = quorum_co_block_status,
 
-    .bdrv_co_flush_to_disk              = quorum_co_flush,
+    .bdrv_co_flush                      = quorum_co_flush,
 
     .bdrv_getlength                     = quorum_getlength,
 
