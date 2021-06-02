@@ -20,6 +20,7 @@ import avocado
 from avocado.utils import cloudinit
 from avocado.utils import datadrainer
 from avocado.utils import network
+from avocado.utils import ssh
 from avocado.utils import vmimage
 from avocado.utils.path import find_command
 
@@ -40,9 +41,12 @@ else:
 
 sys.path.append(os.path.join(SOURCE_DIR, 'python'))
 
-from qemu.accel import kvm_available
-from qemu.accel import tcg_available
 from qemu.machine import QEMUMachine
+from qemu.utils import (
+    get_info_usernet_hostfwd_port,
+    kvm_available,
+    tcg_available,
+)
 
 def is_readable_executable_file(path):
     return os.path.isfile(path) and os.access(path, os.R_OK | os.X_OK)
@@ -253,7 +257,50 @@ class Test(avocado.Test):
                         cancel_on_missing=cancel_on_missing)
 
 
-class LinuxTest(Test):
+class LinuxSSHMixIn:
+    """Contains utility methods for interacting with a guest via SSH."""
+
+    def ssh_connect(self, username, credential, credential_is_key=True):
+        self.ssh_logger = logging.getLogger('ssh')
+        res = self.vm.command('human-monitor-command',
+                              command_line='info usernet')
+        port = get_info_usernet_hostfwd_port(res)
+        self.assertIsNotNone(port)
+        self.assertGreater(port, 0)
+        self.log.debug('sshd listening on port: %d', port)
+        if credential_is_key:
+            self.ssh_session = ssh.Session('127.0.0.1', port=port,
+                                           user=username, key=credential)
+        else:
+            self.ssh_session = ssh.Session('127.0.0.1', port=port,
+                                           user=username, password=credential)
+        for i in range(10):
+            try:
+                self.ssh_session.connect()
+                return
+            except:
+                time.sleep(4)
+                pass
+        self.fail('ssh connection timeout')
+
+    def ssh_command(self, command):
+        self.ssh_logger.info(command)
+        result = self.ssh_session.cmd(command)
+        stdout_lines = [line.rstrip() for line
+                        in result.stdout_text.splitlines()]
+        for line in stdout_lines:
+            self.ssh_logger.info(line)
+        stderr_lines = [line.rstrip() for line
+                        in result.stderr_text.splitlines()]
+        for line in stderr_lines:
+            self.ssh_logger.warning(line)
+
+        self.assertEqual(result.exit_status, 0,
+                         f'Guest command failed: {command}')
+        return stdout_lines, stderr_lines
+
+
+class LinuxTest(Test, LinuxSSHMixIn):
     """Facilitates having a cloud-image Linux based available.
 
     For tests that indend to interact with guests, this is a better choice
@@ -262,11 +309,16 @@ class LinuxTest(Test):
 
     timeout = 900
     chksum = None
+    username = 'root'
+    password = 'password'
 
-    def setUp(self, ssh_pubkey=None):
+    def setUp(self, ssh_pubkey=None, network_device_type='virtio-net'):
         super(LinuxTest, self).setUp()
         self.vm.add_args('-smp', '2')
         self.vm.add_args('-m', '1024')
+        # The following network device allows for SSH connections
+        self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22',
+                         '-device', '%s,netdev=vnet' % network_device_type)
         self.set_up_boot()
         if ssh_pubkey is None:
             ssh_pubkey, self.ssh_key = self.set_up_existing_ssh_keys()
@@ -322,8 +374,8 @@ class LinuxTest(Test):
                 with open(ssh_pubkey) as pubkey:
                     pubkey_content = pubkey.read()
             cloudinit.iso(cloudinit_iso, self.name,
-                          username='root',
-                          password='password',
+                          username=self.username,
+                          password=self.password,
                           # QEMU's hard coded usermode router address
                           phone_home_host='10.0.2.2',
                           phone_home_port=self.phone_home_port,
@@ -340,7 +392,7 @@ class LinuxTest(Test):
         cloudinit_iso = self.prepare_cloudinit(ssh_pubkey)
         self.vm.add_args('-drive', 'file=%s,format=raw' % cloudinit_iso)
 
-    def launch_and_wait(self):
+    def launch_and_wait(self, set_up_ssh_connection=True):
         self.vm.set_console()
         self.vm.launch()
         console_drainer = datadrainer.LineLogger(self.vm.console_socket.fileno(),
@@ -348,3 +400,6 @@ class LinuxTest(Test):
         console_drainer.start()
         self.log.info('VM launched, waiting for boot confirmation from guest')
         cloudinit.wait_for_phone_home(('0.0.0.0', self.phone_home_port), self.name)
+        if set_up_ssh_connection:
+            self.log.info('Setting up the SSH connection')
+            self.ssh_connect(self.username, self.ssh_key)

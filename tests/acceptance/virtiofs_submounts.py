@@ -70,55 +70,8 @@ def has_cmds(*cmds):
 class VirtiofsSubmountsTest(LinuxTest):
     """
     :avocado: tags=arch:x86_64
+    :avocado: tags=accel:kvm
     """
-
-    def get_portfwd(self):
-        port = None
-
-        res = self.vm.command('human-monitor-command',
-                              command_line='info usernet')
-        for line in res.split('\r\n'):
-            match = \
-                re.search(r'TCP.HOST_FORWARD.*127\.0\.0\.1\s+(\d+)\s+10\.',
-                          line)
-            if match is not None:
-                port = int(match[1])
-                break
-
-        self.assertIsNotNone(port)
-        self.assertGreater(port, 0)
-        self.log.debug('sshd listening on port: %d', port)
-        return port
-
-    def ssh_connect(self, username, keyfile):
-        self.ssh_logger = logging.getLogger('ssh')
-        port = self.get_portfwd()
-        self.ssh_session = ssh.Session('127.0.0.1', port=port,
-                                       user=username, key=keyfile)
-        for i in range(10):
-            try:
-                self.ssh_session.connect()
-                return
-            except:
-                time.sleep(4)
-                pass
-        self.fail('ssh connection timeout')
-
-    def ssh_command(self, command):
-        self.ssh_logger.info(command)
-        result = self.ssh_session.cmd(command)
-        stdout_lines = [line.rstrip() for line
-                        in result.stdout_text.splitlines()]
-        for line in stdout_lines:
-            self.ssh_logger.info(line)
-        stderr_lines = [line.rstrip() for line
-                        in result.stderr_text.splitlines()]
-        for line in stderr_lines:
-            self.ssh_logger.warning(line)
-
-        self.assertEqual(result.exit_status, 0,
-                         f'Guest command failed: {command}')
-        return stdout_lines, stderr_lines
 
     def run(self, args, ignore_error=False):
         stdout, stderr, ret = run_cmd(args)
@@ -181,10 +134,6 @@ class VirtiofsSubmountsTest(LinuxTest):
                          '-numa',
                          'node,memdev=mem')
 
-    def launch_vm(self):
-        self.launch_and_wait()
-        self.ssh_connect('root', self.ssh_key)
-
     def set_up_nested_mounts(self):
         scratch_dir = os.path.join(self.shared_dir, 'scratch')
         try:
@@ -246,17 +195,13 @@ class VirtiofsSubmountsTest(LinuxTest):
 
         self.run(('ssh-keygen', '-N', '', '-t', 'ed25519', '-f', self.ssh_key))
 
-        pubkey = open(self.ssh_key + '.pub').read()
+        pubkey = self.ssh_key + '.pub'
 
         super(VirtiofsSubmountsTest, self).setUp(pubkey)
 
-        if len(vmlinuz) > 0:
+        if vmlinuz:
             self.vm.add_args('-kernel', vmlinuz,
                              '-append', 'console=ttyS0 root=/dev/sda1')
-
-        # Allow us to connect to SSH
-        self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22',
-                         '-device', 'virtio-net,netdev=vnet')
 
         self.require_accelerator("kvm")
         self.vm.add_args('-accel', 'kvm')
@@ -277,7 +222,7 @@ class VirtiofsSubmountsTest(LinuxTest):
         self.set_up_nested_mounts()
 
         self.set_up_virtiofs()
-        self.launch_vm()
+        self.launch_and_wait()
         self.mount_in_guest()
         self.check_in_guest()
 
@@ -287,14 +232,14 @@ class VirtiofsSubmountsTest(LinuxTest):
 
         self.set_up_nested_mounts()
 
-        self.launch_vm()
+        self.launch_and_wait()
         self.mount_in_guest()
         self.check_in_guest()
 
     def test_post_launch_set_up(self):
         self.set_up_shared_dir()
         self.set_up_virtiofs()
-        self.launch_vm()
+        self.launch_and_wait()
 
         self.set_up_nested_mounts()
 
@@ -304,7 +249,7 @@ class VirtiofsSubmountsTest(LinuxTest):
     def test_post_mount_set_up(self):
         self.set_up_shared_dir()
         self.set_up_virtiofs()
-        self.launch_vm()
+        self.launch_and_wait()
         self.mount_in_guest()
 
         self.set_up_nested_mounts()
@@ -317,7 +262,7 @@ class VirtiofsSubmountsTest(LinuxTest):
         self.set_up_nested_mounts()
 
         self.set_up_virtiofs()
-        self.launch_vm()
+        self.launch_and_wait()
         self.mount_in_guest()
         self.check_in_guest()
 

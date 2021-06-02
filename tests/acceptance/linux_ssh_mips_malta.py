@@ -12,14 +12,14 @@ import logging
 import time
 
 from avocado import skipUnless
-from avocado_qemu import Test
+from avocado_qemu import Test, LinuxSSHMixIn
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
 from avocado.utils import ssh
 
 
-class LinuxSSH(Test):
+class LinuxSSH(Test, LinuxSSHMixIn):
 
     timeout = 150 # Not for 'configure --enable-debug --enable-debug-tcg'
 
@@ -70,44 +70,8 @@ class LinuxSSH(Test):
     def setUp(self):
         super(LinuxSSH, self).setUp()
 
-    def get_portfwd(self):
-        res = self.vm.command('human-monitor-command',
-                              command_line='info usernet')
-        line = res.split('\r\n')[2]
-        port = re.split(r'.*TCP.HOST_FORWARD.*127\.0\.0\.1 (\d+)\s+10\..*',
-                        line)[1]
-        self.log.debug("sshd listening on port:" + port)
-        return port
-
-    def ssh_connect(self, username, password):
-        self.ssh_logger = logging.getLogger('ssh')
-        port = self.get_portfwd()
-        self.ssh_session = ssh.Session(self.VM_IP, port=int(port),
-                                       user=username, password=password)
-        for i in range(10):
-            try:
-                self.ssh_session.connect()
-                return
-            except:
-                time.sleep(4)
-                pass
-        self.fail("ssh connection timeout")
-
     def ssh_disconnect_vm(self):
         self.ssh_session.quit()
-
-    def ssh_command(self, command, is_root=True):
-        self.ssh_logger.info(command)
-        result = self.ssh_session.cmd(command)
-        stdout_lines = [line.rstrip() for line
-                        in result.stdout_text.splitlines()]
-        for line in stdout_lines:
-            self.ssh_logger.info(line)
-        stderr_lines = [line.rstrip() for line
-                        in result.stderr_text.splitlines()]
-        for line in stderr_lines:
-            self.ssh_logger.warning(line)
-        return stdout_lines, stderr_lines
 
     def boot_debian_wheezy_image_and_ssh_login(self, endianess, kernel_path):
         image_url, image_hash = self.get_image_info(endianess)
@@ -129,7 +93,7 @@ class LinuxSSH(Test):
         wait_for_console_pattern(self, console_pattern, 'Oops')
         self.log.info('sshd ready')
 
-        self.ssh_connect('root', 'root')
+        self.ssh_connect('root', 'root', False)
 
     def shutdown_via_ssh(self):
         self.ssh_command('poweroff')

@@ -1,0 +1,16 @@
+# linter/tooling cache
+.mypy_cache/
+.cache/
+
+# python packaging
+build/
+dist/
+qemu.egg-info/
+
+# editor config
+.idea/
+.vscode/
+
+# virtual environments (pipenv et al)
+.venv/
+.tox/

@@ -38,8 +38,14 @@ from typing import (
     Type,
 )
 
-from . import console_socket, qmp
-from .qmp import QMPMessage, QMPReturnValue, SocketAddrT
+from qemu.qmp import (  # pylint: disable=import-error
+    QEMUMonitorProtocol,
+    QMPMessage,
+    QMPReturnValue,
+    SocketAddrT,
+)
+
+from . import console_socket
 
 
 LOG = logging.getLogger(__name__)
@@ -84,7 +90,7 @@ class QEMUMachine:
                  args: Sequence[str] = (),
                  wrapper: Sequence[str] = (),
                  name: Optional[str] = None,
-                 test_dir: str = "/var/tmp",
+                 base_temp_dir: str = "/var/tmp",
                  monitor_address: Optional[SocketAddrT] = None,
                  socket_scm_helper: Optional[str] = None,
                  sock_dir: Optional[str] = None,
@@ -97,10 +103,10 @@ class QEMUMachine:
         @param args: list of extra arguments
         @param wrapper: list of arguments used as prefix to qemu binary
         @param name: prefix for socket and log file names (default: qemu-PID)
-        @param test_dir: where to create socket and log file
+        @param base_temp_dir: default location where temp files are created
         @param monitor_address: address for QMP monitor
         @param socket_scm_helper: helper program, required for send_fd_scm()
-        @param sock_dir: where to create socket (overrides test_dir for sock)
+        @param sock_dir: where to create socket (defaults to base_temp_dir)
         @param drain_console: (optional) True to drain console socket to buffer
         @param console_log: (optional) path to console log file
         @note: Qemu process is not started until launch() is used.
@@ -112,8 +118,8 @@ class QEMUMachine:
         self._wrapper = wrapper
 
         self._name = name or "qemu-%d" % os.getpid()
-        self._test_dir = test_dir
-        self._sock_dir = sock_dir or self._test_dir
+        self._base_temp_dir = base_temp_dir
+        self._sock_dir = sock_dir or self._base_temp_dir
         self._socket_scm_helper = socket_scm_helper
 
         if monitor_address is not None:
@@ -139,7 +145,7 @@ class QEMUMachine:
         self._events: List[QMPMessage] = []
         self._iolog: Optional[str] = None
         self._qmp_set = True   # Enable QMP monitor by default.
-        self._qmp_connection: Optional[qmp.QEMUMonitorProtocol] = None
+        self._qmp_connection: Optional[QEMUMonitorProtocol] = None
         self._qemu_full_args: Tuple[str, ...] = ()
         self._temp_dir: Optional[str] = None
         self._launched = False
@@ -223,14 +229,16 @@ class QEMUMachine:
             assert fd is not None
             fd_param.append(str(fd))
 
-        devnull = open(os.path.devnull, 'rb')
-        proc = subprocess.Popen(
-            fd_param, stdin=devnull, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, close_fds=False
+        proc = subprocess.run(
+            fd_param,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+            close_fds=False,
         )
-        output = proc.communicate()[0]
-        if output:
-            LOG.debug(output)
+        if proc.stdout:
+            LOG.debug(proc.stdout)
 
         return proc.returncode
 
@@ -303,10 +311,7 @@ class QEMUMachine:
         return args
 
     def _pre_launch(self) -> None:
-        self._temp_dir = tempfile.mkdtemp(prefix="qemu-machine-",
-                                          dir=self._test_dir)
-        self._qemu_log_path = os.path.join(self._temp_dir, self._name + ".log")
-        self._qemu_log_file = open(self._qemu_log_path, 'wb')
+        self._qemu_log_path = os.path.join(self.temp_dir, self._name + ".log")
 
         if self._console_set:
             self._remove_files.append(self._console_address)
@@ -315,11 +320,16 @@ class QEMUMachine:
             if self._remove_monitor_sockfile:
                 assert isinstance(self._monitor_address, str)
                 self._remove_files.append(self._monitor_address)
-            self._qmp_connection = qmp.QEMUMonitorProtocol(
+            self._qmp_connection = QEMUMonitorProtocol(
                 self._monitor_address,
                 server=True,
                 nickname=self._name
             )
+
+        # NOTE: Make sure any opened resources are *definitely* freed in
+        # _post_shutdown()!
+        # pylint: disable=consider-using-with
+        self._qemu_log_file = open(self._qemu_log_path, 'wb')
 
     def _post_launch(self) -> None:
         if self._qmp_connection:
@@ -393,7 +403,6 @@ class QEMUMachine:
         """
         Launch the VM and establish a QMP connection
         """
-        devnull = open(os.path.devnull, 'rb')
         self._pre_launch()
         self._qemu_full_args = tuple(
             chain(self._wrapper,
@@ -402,8 +411,11 @@ class QEMUMachine:
                   self._args)
         )
         LOG.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
+
+        # Cleaning up of this subprocess is guaranteed by _do_shutdown.
+        # pylint: disable=consider-using-with
         self._popen = subprocess.Popen(self._qemu_full_args,
-                                       stdin=devnull,
+                                       stdin=subprocess.DEVNULL,
                                        stdout=self._qemu_log_file,
                                        stderr=subprocess.STDOUT,
                                        shell=False,
@@ -535,7 +547,7 @@ class QEMUMachine:
         self._qmp_set = enabled
 
     @property
-    def _qmp(self) -> qmp.QEMUMonitorProtocol:
+    def _qmp(self) -> QEMUMonitorProtocol:
         if self._qmp_connection is None:
             raise QEMUMachineError("Attempt to access QMP with no connection")
         return self._qmp_connection
@@ -744,3 +756,13 @@ class QEMUMachine:
                 file=self._console_log_path,
                 drain=self._drain_console)
         return self._console_socket
+
+    @property
+    def temp_dir(self) -> str:
+        """
+        Returns a temporary directory to be used for this machine
+        """
+        if self._temp_dir is None:
+            self._temp_dir = tempfile.mkdtemp(prefix="qemu-machine-",
+                                              dir=self._base_temp_dir)
+        return self._temp_dir

@@ -1,0 +1,18 @@
+# Python library testing environment
+
+FROM fedora:latest
+MAINTAINER John Snow <jsnow@redhat.com>
+
+# Please keep this list sorted alphabetically
+ENV PACKAGES \
+    gcc \
+    make \
+    pipenv \
+    python3 \
+    python3-pip \
+    python3-tox \
+    python3-virtualenv \
+    python3.10
+
+RUN dnf install -y $PACKAGES
+RUN rpm -q $PACKAGES | sort > /packages.txt
