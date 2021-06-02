@@ -2386,8 +2386,13 @@ static void blk_root_drained_begin(BdrvChild *child)
 static bool blk_root_drained_poll(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
+    bool busy = false;
     assert(blk->quiesce_counter);
-    return !!blk->in_flight;
+
+    if (blk->dev_ops && blk->dev_ops->drained_poll) {
+        busy = blk->dev_ops->drained_poll(blk->dev_opaque);
+    }
+    return busy || !!blk->in_flight;
 }
 
 static void blk_root_drained_end(BdrvChild *child, int *drained_end_counter)
